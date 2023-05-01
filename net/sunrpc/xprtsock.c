@@ -52,6 +52,7 @@
 #include <linux/uio.h>
 #include <linux/sched/mm.h>
 
+#include <trace/events/sock.h>
 #include <trace/events/sunrpc.h>
 
 #include "socklib.h"
@@ -1377,6 +1378,8 @@ static void xs_udp_data_receive_workfn(struct work_struct *work)
 static void xs_data_ready(struct sock *sk)
 {
 	struct rpc_xprt *xprt;
+
+	trace_sk_data_ready(sk);
 
 	xprt = xprt_from_sock(sk);
 	if (xprt != NULL) {

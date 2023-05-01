@@ -106,15 +106,22 @@ static int pnp_registered_parport;
 static void frob_econtrol(struct parport *pb, unsigned char m,
 			   unsigned char v)
 {
+	const struct parport_pc_private *priv = pb->physport->private_data;
+	unsigned char ecr_writable = priv->ecr_writable;
 	unsigned char ectr = 0;
+	unsigned char new;
 
 	if (m != 0xff)
 		ectr = inb(ECONTROL(pb));
 
-	pr_debug("frob_econtrol(%02x,%02x): %02x -> %02x\n",
-		 m, v, ectr, (ectr & ~m) ^ v);
+	new = (ectr & ~m) ^ v;
+	if (ecr_writable)
+		/* All known users of the ECR mask require bit 0 to be set. */
+		new = (new & ecr_writable) | 1;
 
-	outb((ectr & ~m) ^ v, ECONTROL(pb));
+	pr_debug("frob_econtrol(%02x,%02x): %02x -> %02x\n", m, v, ectr, new);
+
+	outb(new, ECONTROL(pb));
 }
 
 static inline void frob_set_mode(struct parport *p, int mode)
@@ -1479,21 +1486,24 @@ static int parport_ECR_present(struct parport *pb)
 	struct parport_pc_private *priv = pb->private_data;
 	unsigned char r = 0xc;
 
-	outb(r, CONTROL(pb));
-	if ((inb(ECONTROL(pb)) & 0x3) == (r & 0x3)) {
-		outb(r ^ 0x2, CONTROL(pb)); /* Toggle bit 1 */
+	if (!priv->ecr_writable) {
+		outb(r, CONTROL(pb));
+		if ((inb(ECONTROL(pb)) & 0x3) == (r & 0x3)) {
+			outb(r ^ 0x2, CONTROL(pb)); /* Toggle bit 1 */
 
-		r = inb(CONTROL(pb));
-		if ((inb(ECONTROL(pb)) & 0x2) == (r & 0x2))
-			goto no_reg; /* Sure that no ECR register exists */
+			r = inb(CONTROL(pb));
+			if ((inb(ECONTROL(pb)) & 0x2) == (r & 0x2))
+				/* Sure that no ECR register exists */
+				goto no_reg;
+		}
+
+		if ((inb(ECONTROL(pb)) & 0x3) != 0x1)
+			goto no_reg;
+
+		ECR_WRITE(pb, 0x34);
+		if (inb(ECONTROL(pb)) != 0x35)
+			goto no_reg;
 	}
-
-	if ((inb(ECONTROL(pb)) & 0x3) != 0x1)
-		goto no_reg;
-
-	ECR_WRITE(pb, 0x34);
-	if (inb(ECONTROL(pb)) != 0x35)
-		goto no_reg;
 
 	priv->ecr = 1;
 	outb(0xc, CONTROL(pb));
@@ -2000,11 +2010,13 @@ static int parport_dma_probe(struct parport *p)
 static LIST_HEAD(ports_list);
 static DEFINE_SPINLOCK(ports_lock);
 
-struct parport *parport_pc_probe_port(unsigned long int base,
-				      unsigned long int base_hi,
-				      int irq, int dma,
-				      struct device *dev,
-				      int irqflags)
+static struct parport *__parport_pc_probe_port(unsigned long int base,
+					       unsigned long int base_hi,
+					       int irq, int dma,
+					       struct device *dev,
+					       int irqflags,
+					       unsigned int mode_mask,
+					       unsigned char ecr_writable)
 {
 	struct parport_pc_private *priv;
 	struct parport_operations *ops;
@@ -2053,6 +2065,7 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 	priv->ctr = 0xc;
 	priv->ctr_writable = ~0x10;
 	priv->ecr = 0;
+	priv->ecr_writable = ecr_writable;
 	priv->fifo_depth = 0;
 	priv->dma_buf = NULL;
 	priv->dma_handle = 0;
@@ -2116,20 +2129,28 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 	    p->dma != PARPORT_DMA_NOFIFO &&
 	    priv->fifo_depth > 0 && p->irq != PARPORT_IRQ_NONE) {
 		p->modes |= PARPORT_MODE_ECP | PARPORT_MODE_COMPAT;
-		p->ops->compat_write_data = parport_pc_compat_write_block_pio;
-#ifdef CONFIG_PARPORT_1284
-		p->ops->ecp_write_data = parport_pc_ecp_write_block_pio;
-		/* currently broken, but working on it.. (FB) */
-		/* p->ops->ecp_read_data = parport_pc_ecp_read_block_pio; */
-#endif /* IEEE 1284 support */
-		if (p->dma != PARPORT_DMA_NONE) {
-			pr_cont(", dma %d", p->dma);
+		if (p->dma != PARPORT_DMA_NONE)
 			p->modes |= PARPORT_MODE_DMA;
-		} else
-			pr_cont(", using FIFO");
 	} else
 		/* We can't use the DMA channel after all. */
 		p->dma = PARPORT_DMA_NONE;
+#endif /* Allowed to use FIFO/DMA */
+
+	p->modes &= ~mode_mask;
+
+#ifdef CONFIG_PARPORT_PC_FIFO
+	if ((p->modes & PARPORT_MODE_COMPAT) != 0)
+		p->ops->compat_write_data = parport_pc_compat_write_block_pio;
+#ifdef CONFIG_PARPORT_1284
+	if ((p->modes & PARPORT_MODE_ECP) != 0)
+		p->ops->ecp_write_data = parport_pc_ecp_write_block_pio;
+#endif
+	if ((p->modes & (PARPORT_MODE_ECP | PARPORT_MODE_COMPAT)) != 0) {
+		if ((p->modes & PARPORT_MODE_DMA) != 0)
+			pr_cont(", dma %d", p->dma);
+		else
+			pr_cont(", using FIFO");
+	}
 #endif /* Allowed to use FIFO/DMA */
 
 	pr_cont(" [");
@@ -2238,6 +2259,16 @@ out1:
 	if (pdev)
 		platform_device_unregister(pdev);
 	return NULL;
+}
+
+struct parport *parport_pc_probe_port(unsigned long int base,
+				      unsigned long int base_hi,
+				      int irq, int dma,
+				      struct device *dev,
+				      int irqflags)
+{
+	return __parport_pc_probe_port(base, base_hi, irq, dma,
+				       dev, irqflags, 0, 0);
 }
 EXPORT_SYMBOL(parport_pc_probe_port);
 
@@ -2626,7 +2657,14 @@ static struct parport_pc_pci {
 		int lo;
 		int hi;
 		/* -1 if not there, >6 for offset-method (max BAR is 6) */
-	} addr[4];
+	} addr[2];
+
+	/* Bit field of parport modes to exclude. */
+	unsigned int mode_mask;
+
+	/* If non-zero, sets the bitmask of writable ECR bits.  In that
+	 * case additionally bit 0 will be forcibly set on writes. */
+	unsigned char ecr_writable;
 
 	/* If set, this is called immediately after pci_enable_device.
 	 * If it returns non-zero, no probing will take place and the
@@ -2658,12 +2696,19 @@ static struct parport_pc_pci {
 	/* titan_010l */		{ 1, { { 3, -1 }, } },
 	/* avlab_1p		*/	{ 1, { { 0, 1}, } },
 	/* avlab_2p		*/	{ 2, { { 0, 1}, { 2, 3 },} },
-	/* The Oxford Semi cards are unusual: 954 doesn't support ECP,
-	 * and 840 locks up if you write 1 to bit 2! */
-	/* oxsemi_952 */		{ 1, { { 0, 1 }, } },
-	/* oxsemi_954 */		{ 1, { { 0, -1 }, } },
-	/* oxsemi_840 */		{ 1, { { 0, 1 }, } },
-	/* oxsemi_pcie_pport */		{ 1, { { 0, 1 }, } },
+	/* The Oxford Semi cards are unusual: older variants of 954 don't
+	 * support ECP, and 840 locks up if you write 1 to bit 2!  None
+	 * implement nFault or service interrupts and all require 00001
+	 * bit pattern to be used for bits 4:0 with ECR writes. */
+	/* oxsemi_952 */		{ 1, { { 0, 1 }, },
+					  PARPORT_MODE_COMPAT, ECR_MODE_MASK },
+	/* oxsemi_954 */		{ 1, { { 0, 1 }, },
+					  PARPORT_MODE_ECP |
+					  PARPORT_MODE_COMPAT, ECR_MODE_MASK },
+	/* oxsemi_840 */		{ 1, { { 0, 1 }, },
+					  PARPORT_MODE_COMPAT, ECR_MODE_MASK },
+	/* oxsemi_pcie_pport */		{ 1, { { 0, 1 }, },
+					  PARPORT_MODE_COMPAT, ECR_MODE_MASK },
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
 	/* mobility_pp */		{ 1, { { 0, 1 }, } },
 	/* netmos_9900 */		{ 1, { { 0, -1 }, } },
@@ -2831,9 +2876,11 @@ static int parport_pc_pci_probe(struct pci_dev *dev,
 			       id->vendor, id->device, io_lo, io_hi, irq);
 		}
 		data->ports[count] =
-			parport_pc_probe_port(io_lo, io_hi, irq,
-					       PARPORT_DMA_NONE, &dev->dev,
-					       IRQF_SHARED);
+			__parport_pc_probe_port(io_lo, io_hi, irq,
+						PARPORT_DMA_NONE, &dev->dev,
+						IRQF_SHARED,
+						cards[i].mode_mask,
+						cards[i].ecr_writable);
 		if (data->ports[count])
 			count++;
 	}

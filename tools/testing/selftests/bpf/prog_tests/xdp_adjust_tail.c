@@ -76,10 +76,15 @@ static void test_xdp_adjust_tail_grow2(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.bpf.o";
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */
-	int tailroom = 320; /* SKB_DATA_ALIGN(sizeof(struct skb_shared_info))*/;
 	struct bpf_object *obj;
 	int err, cnt, i;
 	int max_grow, prog_fd;
+	/* SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) */
+#if defined(__s390x__)
+	int tailroom = 512;
+#else
+	int tailroom = 320;
+#endif
 
 	LIBBPF_OPTS(bpf_test_run_opts, tattr,
 		.repeat		= 1,

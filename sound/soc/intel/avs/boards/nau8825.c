@@ -258,14 +258,15 @@ static int avs_card_resume_post(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card, SKL_NUVOTON_CODEC_DAI);
 	struct snd_soc_jack *jack = snd_soc_card_get_drvdata(card);
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
 	if (!codec_dai) {
 		dev_err(card->dev, "Codec dai not found\n");
 		return -EINVAL;
 	}
 
-	if (codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK] &&
-	    codec_dai->playback_widget->active)
+	if (snd_soc_dai_stream_active(codec_dai, stream) &&
+	    snd_soc_dai_get_widget(codec_dai, stream)->active)
 		snd_soc_dai_set_sysclk(codec_dai, NAU8825_CLK_FLL_FS, 0, SND_SOC_CLOCK_IN);
 
 	return snd_soc_component_set_jack(codec_dai->component, jack, NULL);

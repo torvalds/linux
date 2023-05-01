@@ -28,7 +28,6 @@ config DRM_AMD_DC_DCN
 config DRM_AMD_DC_HDCP
 	bool "Enable HDCP support in DC"
 	depends on DRM_AMD_DC
-	select DRM_DISPLAY_HDCP_HELPER
 	help
 	  Choose this option if you want to support HDCP authentication.
 

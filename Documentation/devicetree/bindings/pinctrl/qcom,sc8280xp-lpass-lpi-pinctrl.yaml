@@ -65,7 +65,7 @@ $defs:
           List of gpio pins affected by the properties specified in this
           subnode.
         items:
-          pattern: "^gpio([0-1]|1[0-8])$"
+          pattern: "^gpio([0-9]|1[0-8])$"
 
       function:
         enum: [ swr_tx_clk, swr_tx_data, swr_rx_clk, swr_rx_data,
@@ -94,14 +94,12 @@ $defs:
           2: Lower Slew rate (slower edges)
           3: Reserved (No adjustments)
 
+      bias-bus-hold: true
       bias-pull-down: true
-
       bias-pull-up: true
-
       bias-disable: true
-
+      input-enable: true
       output-high: true
-
       output-low: true
 
     required:
@@ -136,7 +134,7 @@ examples:
         clock-names = "core", "audio";
         gpio-controller;
         #gpio-cells = <2>;
-        gpio-ranges = <&lpi_tlmm 0 0 18>;
+        gpio-ranges = <&lpi_tlmm 0 0 19>;
 
         dmic01-state {
             dmic01-clk-pins {

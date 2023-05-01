@@ -83,7 +83,7 @@ int caam_process_blob(struct caam_blob_priv *priv,
 		output_len = info->input_len - CAAM_BLOB_OVERHEAD;
 	}
 
-	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL | GFP_DMA);
+	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 

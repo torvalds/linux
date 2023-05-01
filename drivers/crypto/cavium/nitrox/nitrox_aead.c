@@ -199,7 +199,7 @@ static void nitrox_aead_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
 }
 
 static inline bool nitrox_aes_gcm_assoclen_supported(unsigned int assoclen)
@@ -434,7 +434,7 @@ static void nitrox_rfc4106_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
 }
 
 static int nitrox_rfc4106_enc(struct aead_request *areq)

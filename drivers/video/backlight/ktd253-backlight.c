@@ -173,12 +173,9 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 	}
 
 	ktd253->gpiod = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(ktd253->gpiod)) {
-		ret = PTR_ERR(ktd253->gpiod);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "gpio line missing or invalid.\n");
-		return ret;
-	}
+	if (IS_ERR(ktd253->gpiod))
+		return dev_err_probe(dev, PTR_ERR(ktd253->gpiod),
+				     "gpio line missing or invalid.\n");
 	gpiod_set_consumer_name(ktd253->gpiod, dev_name(dev));
 	/* Bring backlight to a known off state */
 	msleep(KTD253_T_OFF_MS);

@@ -15,7 +15,7 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
-#include <linux/platform_data/dma-mmp_tdma.h>
+#include <linux/genalloc.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 
@@ -639,7 +639,6 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	enum mmp_tdma_type type;
 	const struct of_device_id *of_id;
 	struct mmp_tdma_device *tdev;
-	struct resource *iores;
 	int i, ret;
 	int irq = 0, irq_num = 0;
 	int chan_num = TDMA_CHANNEL_NUM;
@@ -663,17 +662,13 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 			irq_num++;
 	}
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tdev->base = devm_ioremap_resource(&pdev->dev, iores);
+	tdev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tdev->base))
 		return PTR_ERR(tdev->base);
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 
-	if (pdev->dev.of_node)
-		pool = of_gen_pool_get(pdev->dev.of_node, "asram", 0);
-	else
-		pool = sram_get_gpool("asram");
+	pool = of_gen_pool_get(pdev->dev.of_node, "asram", 0);
 	if (!pool) {
 		dev_err(&pdev->dev, "asram pool not available\n");
 		return -ENOMEM;

@@ -411,6 +411,7 @@ enum dcbnl_attrs {
  * @DCB_ATTR_IEEE_PEER_PFC: peer PFC configuration - get only
  * @DCB_ATTR_IEEE_PEER_APP: peer APP tlv - get only
  * @DCB_ATTR_DCB_APP_TRUST_TABLE: selector trust table
+ * @DCB_ATTR_DCB_REWR_TABLE: rewrite configuration
  */
 enum ieee_attrs {
 	DCB_ATTR_IEEE_UNSPEC,
@@ -425,6 +426,7 @@ enum ieee_attrs {
 	DCB_ATTR_IEEE_QCN_STATS,
 	DCB_ATTR_DCB_BUFFER,
 	DCB_ATTR_DCB_APP_TRUST_TABLE,
+	DCB_ATTR_DCB_REWR_TABLE,
 	__DCB_ATTR_IEEE_MAX
 };
 #define DCB_ATTR_IEEE_MAX (__DCB_ATTR_IEEE_MAX - 1)

@@ -909,7 +909,7 @@ DE hat diverse Treiber fuer diese Modelle (Stand 09/2002):
   - TVPhone98 (Bt878)
   - AVerTV und TVCapture98 w/VCR (Bt 878)
   - AVerTVStudio und TVPhone98 w/VCR (Bt878)
-  - AVerTV GO Serie (Kein SVideo Input)
+  - AVerTV GO Series (Kein SVideo Input)
   - AVerTV98 (BT-878 chip)
   - AVerTV98 mit Fernbedienung (BT-878 chip)
   - AVerTV/FM98 (BT-878 chip)

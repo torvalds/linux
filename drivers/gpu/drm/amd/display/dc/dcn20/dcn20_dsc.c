@@ -28,6 +28,7 @@
 #include "reg_helper.h"
 #include "dcn20_dsc.h"
 #include "dsc/dscc_types.h"
+#include "dsc/rc_calc.h"
 
 static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps);
 static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
@@ -200,7 +201,6 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 	bool is_config_ok;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
-	DC_LOG_DSC(" ");
 	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	dsc_config_log(dsc, dsc_cfg);
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
@@ -345,10 +345,38 @@ static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_co
 	}
 }
 
+static void dsc_override_rc_params(struct rc_params *rc, const struct dc_dsc_rc_params_override *override)
+{
+	uint8_t i;
+
+	rc->rc_model_size = override->rc_model_size;
+	for (i = 0; i < DC_DSC_RC_BUF_THRESH_SIZE; i++)
+		rc->rc_buf_thresh[i] = override->rc_buf_thresh[i];
+	for (i = 0; i < DC_DSC_QP_SET_SIZE; i++) {
+		rc->qp_min[i] = override->rc_minqp[i];
+		rc->qp_max[i] = override->rc_maxqp[i];
+		rc->ofs[i] = override->rc_offset[i];
+	}
+
+	rc->rc_tgt_offset_hi = override->rc_tgt_offset_hi;
+	rc->rc_tgt_offset_lo = override->rc_tgt_offset_lo;
+	rc->rc_edge_factor = override->rc_edge_factor;
+	rc->rc_quant_incr_limit0 = override->rc_quant_incr_limit0;
+	rc->rc_quant_incr_limit1 = override->rc_quant_incr_limit1;
+
+	rc->initial_fullness_offset = override->initial_fullness_offset;
+	rc->initial_xmit_delay = override->initial_delay;
+
+	rc->flatness_min_qp = override->flatness_min_qp;
+	rc->flatness_max_qp = override->flatness_max_qp;
+	rc->flatness_det_thresh = override->flatness_det_thresh;
+}
+
 static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
 			struct dsc_optc_config *dsc_optc_cfg)
 {
 	struct dsc_parameters dsc_params;
+	struct rc_params rc;
 
 	/* Validate input parameters */
 	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_h);
@@ -413,7 +441,12 @@ static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_
 	dsc_reg_vals->pps.native_420 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR420);
 	dsc_reg_vals->pps.simple_422 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422);
 
-	if (dscc_compute_dsc_parameters(&dsc_reg_vals->pps, &dsc_params)) {
+	calc_rc_params(&rc, &dsc_reg_vals->pps);
+
+	if (dsc_cfg->dc_dsc_cfg.rc_params_ovrd)
+		dsc_override_rc_params(&rc, dsc_cfg->dc_dsc_cfg.rc_params_ovrd);
+
+	if (dscc_compute_dsc_parameters(&dsc_reg_vals->pps, &rc, &dsc_params)) {
 		dm_output_to_console("%s: DSC config failed\n", __func__);
 		return false;
 	}

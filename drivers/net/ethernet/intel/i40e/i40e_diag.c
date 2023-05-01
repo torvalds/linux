@@ -10,8 +10,8 @@
  * @reg: reg to be tested
  * @mask: bits to be touched
  **/
-static i40e_status i40e_diag_reg_pattern_test(struct i40e_hw *hw,
-							u32 reg, u32 mask)
+static int i40e_diag_reg_pattern_test(struct i40e_hw *hw,
+				      u32 reg, u32 mask)
 {
 	static const u32 patterns[] = {
 		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF
@@ -74,9 +74,9 @@ struct i40e_diag_reg_test_info i40e_reg_list[] = {
  *
  * Perform registers diagnostic test
  **/
-i40e_status i40e_diag_reg_test(struct i40e_hw *hw)
+int i40e_diag_reg_test(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 	u32 reg, mask;
 	u32 i, j;
 
@@ -114,9 +114,9 @@ i40e_status i40e_diag_reg_test(struct i40e_hw *hw)
  *
  * Perform EEPROM diagnostic test
  **/
-i40e_status i40e_diag_eeprom_test(struct i40e_hw *hw)
+int i40e_diag_eeprom_test(struct i40e_hw *hw)
 {
-	i40e_status ret_code;
+	int ret_code;
 	u16 reg_val;
 
 	/* read NVM control word and if NVM valid, validate EEPROM checksum*/

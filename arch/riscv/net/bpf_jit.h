@@ -573,6 +573,11 @@ static inline u32 rv_fence(u8 pred, u8 succ)
 	return rv_i_insn(imm11_0, 0, 0, 0, 0xf);
 }
 
+static inline u32 rv_nop(void)
+{
+	return rv_i_insn(0, 0, 0, 0, 0x13);
+}
+
 /* RVC instrutions. */
 
 static inline u16 rvc_addi4spn(u8 rd, u32 imm10)

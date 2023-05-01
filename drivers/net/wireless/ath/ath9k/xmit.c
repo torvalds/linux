@@ -1216,7 +1216,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 			txpower -= 2 * power_offset;
 		}
 
-		if (OLC_FOR_AR9280_20_LATER && is_cck)
+		if (OLC_FOR_AR9280_20_LATER(ah) && is_cck)
 			txpower -= 2;
 
 		txpower = max(txpower, 0);

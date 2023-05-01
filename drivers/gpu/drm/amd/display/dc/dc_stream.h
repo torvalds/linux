@@ -190,6 +190,7 @@ struct dc_stream_state {
 	struct dc_info_packet vsp_infopacket;
 	struct dc_info_packet hfvsif_infopacket;
 	struct dc_info_packet vtem_infopacket;
+	struct dc_info_packet adaptive_sync_infopacket;
 	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -313,6 +314,7 @@ struct dc_stream_update {
 	struct dc_info_packet *vsp_infopacket;
 	struct dc_info_packet *hfvsif_infopacket;
 	struct dc_info_packet *vtem_infopacket;
+	struct dc_info_packet *adaptive_sync_infopacket;
 	bool *dpms_off;
 	bool integer_scaling_update;
 	bool *allow_freesync;
@@ -543,9 +545,8 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *nom_v_pos);
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-bool dc_stream_forward_crc_window(struct dc *dc,
+bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
 		struct rect *rect,
-		struct dc_stream_state *stream,
 		bool is_stop);
 #endif
 

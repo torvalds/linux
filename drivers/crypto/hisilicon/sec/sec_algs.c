@@ -504,8 +504,8 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 		     kfifo_avail(&ctx->queue->softqueue) >
 		     backlog_req->num_elements)) {
 			sec_send_request(backlog_req, ctx->queue);
-			backlog_req->req_base->complete(backlog_req->req_base,
-							-EINPROGRESS);
+			crypto_request_complete(backlog_req->req_base,
+						-EINPROGRESS);
 			list_del(&backlog_req->backlog_head);
 		}
 	}
@@ -534,7 +534,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 		if (skreq->src != skreq->dst)
 			dma_unmap_sg(dev, skreq->dst, sec_req->len_out,
 				     DMA_BIDIRECTIONAL);
-		skreq->base.complete(&skreq->base, sec_req->err);
+		skcipher_request_complete(skreq, sec_req->err);
 	}
 }
 

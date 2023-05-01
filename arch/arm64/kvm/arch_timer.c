@@ -428,12 +428,15 @@ static void timer_emulate(struct arch_timer_context *ctx)
 	 * scheduled for the future.  If the timer cannot fire at all,
 	 * then we also don't need a soft timer.
 	 */
-	if (!kvm_timer_irq_can_fire(ctx)) {
-		soft_timer_cancel(&ctx->hrtimer);
+	if (should_fire || !kvm_timer_irq_can_fire(ctx))
 		return;
-	}
 
 	soft_timer_start(&ctx->hrtimer, kvm_timer_compute_delta(ctx));
+}
+
+static void set_cntvoff(u64 cntvoff)
+{
+	kvm_call_hyp(__kvm_timer_set_cntvoff, cntvoff);
 }
 
 static void timer_save_state(struct arch_timer_context *ctx)
@@ -459,6 +462,22 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		write_sysreg_el0(0, SYS_CNTV_CTL);
 		isb();
 
+		/*
+		 * The kernel may decide to run userspace after
+		 * calling vcpu_put, so we reset cntvoff to 0 to
+		 * ensure a consistent read between user accesses to
+		 * the virtual counter and kernel access to the
+		 * physical counter of non-VHE case.
+		 *
+		 * For VHE, the virtual counter uses a fixed virtual
+		 * offset of zero, so no need to zero CNTVOFF_EL2
+		 * register, but this is actually useful when switching
+		 * between EL1/vEL2 with NV.
+		 *
+		 * Do it unconditionally, as this is either unavoidable
+		 * or dirt cheap.
+		 */
+		set_cntvoff(0);
 		break;
 	case TIMER_PTIMER:
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTP_CTL));
@@ -532,6 +551,7 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 
 	switch (index) {
 	case TIMER_VTIMER:
+		set_cntvoff(timer_get_offset(ctx));
 		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTV_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTV_CTL);
@@ -550,11 +570,6 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 	ctx->loaded = true;
 out:
 	local_irq_restore(flags);
-}
-
-static void set_cntvoff(u64 cntvoff)
-{
-	kvm_call_hyp(__kvm_timer_set_cntvoff, cntvoff);
 }
 
 static inline void set_timer_irq_phys_active(struct arch_timer_context *ctx, bool active)
@@ -631,8 +646,6 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 		kvm_timer_vcpu_load_nogic(vcpu);
 	}
 
-	set_cntvoff(timer_get_offset(map.direct_vtimer));
-
 	kvm_timer_unblocking(vcpu);
 
 	timer_restore_state(map.direct_vtimer);
@@ -688,15 +701,6 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 
 	if (kvm_vcpu_is_blocking(vcpu))
 		kvm_timer_blocking(vcpu);
-
-	/*
-	 * The kernel may decide to run userspace after calling vcpu_put, so
-	 * we reset cntvoff to 0 to ensure a consistent read between user
-	 * accesses to the virtual counter and kernel access to the physical
-	 * counter of non-VHE case. For VHE, the virtual counter uses a fixed
-	 * virtual offset of zero, so no need to zero CNTVOFF_EL2 register.
-	 */
-	set_cntvoff(0);
 }
 
 /*
@@ -811,10 +815,18 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	ptimer->host_timer_irq_flags = host_ptimer_irq_flags;
 }
 
-static void kvm_timer_init_interrupt(void *info)
+void kvm_timer_cpu_up(void)
 {
 	enable_percpu_irq(host_vtimer_irq, host_vtimer_irq_flags);
-	enable_percpu_irq(host_ptimer_irq, host_ptimer_irq_flags);
+	if (host_ptimer_irq)
+		enable_percpu_irq(host_ptimer_irq, host_ptimer_irq_flags);
+}
+
+void kvm_timer_cpu_down(void)
+{
+	disable_percpu_irq(host_vtimer_irq);
+	if (host_ptimer_irq)
+		disable_percpu_irq(host_ptimer_irq);
 }
 
 int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
@@ -926,14 +938,22 @@ u64 kvm_arm_timer_read_sysreg(struct kvm_vcpu *vcpu,
 			      enum kvm_arch_timers tmr,
 			      enum kvm_arch_timer_regs treg)
 {
+	struct arch_timer_context *timer;
+	struct timer_map map;
 	u64 val;
 
+	get_timer_map(vcpu, &map);
+	timer = vcpu_get_timer(vcpu, tmr);
+
+	if (timer == map.emul_ptimer)
+		return kvm_arm_timer_read(vcpu, timer, treg);
+
 	preempt_disable();
-	kvm_timer_vcpu_put(vcpu);
+	timer_save_state(timer);
 
-	val = kvm_arm_timer_read(vcpu, vcpu_get_timer(vcpu, tmr), treg);
+	val = kvm_arm_timer_read(vcpu, timer, treg);
 
-	kvm_timer_vcpu_load(vcpu);
+	timer_restore_state(timer);
 	preempt_enable();
 
 	return val;
@@ -967,25 +987,22 @@ void kvm_arm_timer_write_sysreg(struct kvm_vcpu *vcpu,
 				enum kvm_arch_timer_regs treg,
 				u64 val)
 {
-	preempt_disable();
-	kvm_timer_vcpu_put(vcpu);
+	struct arch_timer_context *timer;
+	struct timer_map map;
 
-	kvm_arm_timer_write(vcpu, vcpu_get_timer(vcpu, tmr), treg, val);
-
-	kvm_timer_vcpu_load(vcpu);
-	preempt_enable();
-}
-
-static int kvm_timer_starting_cpu(unsigned int cpu)
-{
-	kvm_timer_init_interrupt(NULL);
-	return 0;
-}
-
-static int kvm_timer_dying_cpu(unsigned int cpu)
-{
-	disable_percpu_irq(host_vtimer_irq);
-	return 0;
+	get_timer_map(vcpu, &map);
+	timer = vcpu_get_timer(vcpu, tmr);
+	if (timer == map.emul_ptimer) {
+		soft_timer_cancel(&timer->hrtimer);
+		kvm_arm_timer_write(vcpu, timer, treg, val);
+		timer_emulate(timer);
+	} else {
+		preempt_disable();
+		timer_save_state(timer);
+		kvm_arm_timer_write(vcpu, timer, treg, val);
+		timer_restore_state(timer);
+		preempt_enable();
+	}
 }
 
 static int timer_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
@@ -1117,7 +1134,7 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 	return 0;
 }
 
-int kvm_timer_hyp_init(bool has_gic)
+int __init kvm_timer_hyp_init(bool has_gic)
 {
 	struct arch_timer_kvm_info *info;
 	int err;
@@ -1185,9 +1202,6 @@ int kvm_timer_hyp_init(bool has_gic)
 		goto out_free_irq;
 	}
 
-	cpuhp_setup_state(CPUHP_AP_KVM_ARM_TIMER_STARTING,
-			  "kvm/arm/timer:starting", kvm_timer_starting_cpu,
-			  kvm_timer_dying_cpu);
 	return 0;
 out_free_irq:
 	free_percpu_irq(host_vtimer_irq, kvm_get_running_vcpus());

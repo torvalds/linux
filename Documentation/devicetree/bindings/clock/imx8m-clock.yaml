@@ -108,7 +108,7 @@ examples:
     };
 
   - |
-    clock-controller@30390000 {
+    clock-controller@30380000 {
         compatible = "fsl,imx8mq-ccm";
         reg = <0x30380000 0x10000>;
         #clock-cells = <1>;

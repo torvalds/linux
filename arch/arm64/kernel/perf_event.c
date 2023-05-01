@@ -1023,12 +1023,6 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	return 0;
 }
 
-static bool armv8pmu_filter(struct pmu *pmu, int cpu)
-{
-	struct arm_pmu *armpmu = to_arm_pmu(pmu);
-	return !cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus);
-}
-
 static void armv8pmu_reset(void *info)
 {
 	struct arm_pmu *cpu_pmu = (struct arm_pmu *)info;
@@ -1068,6 +1062,14 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 	hw_event_id = armpmu_map_event(event, &armv8_pmuv3_perf_map,
 				       &armv8_pmuv3_perf_cache_map,
 				       ARMV8_PMU_EVTYPE_EVENT);
+
+	/*
+	 * CHAIN events only work when paired with an adjacent counter, and it
+	 * never makes sense for a user to open one in isolation, as they'll be
+	 * rotated arbitrarily.
+	 */
+	if (hw_event_id == ARMV8_PMUV3_PERFCTR_CHAIN)
+		return -EINVAL;
 
 	if (armv8pmu_event_is_64bit(event))
 		event->hw.flags |= ARMPMU_EVT_64BIT;
@@ -1258,7 +1260,6 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 	cpu_pmu->stop			= armv8pmu_stop;
 	cpu_pmu->reset			= armv8pmu_reset;
 	cpu_pmu->set_event_filter	= armv8pmu_set_event_filter;
-	cpu_pmu->filter			= armv8pmu_filter;
 
 	cpu_pmu->pmu.event_idx		= armv8pmu_user_event_idx;
 

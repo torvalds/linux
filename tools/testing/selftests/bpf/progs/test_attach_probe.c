@@ -92,18 +92,19 @@ int handle_uretprobe_byname(struct pt_regs *ctx)
 }
 
 SEC("uprobe")
-int handle_uprobe_byname2(struct pt_regs *ctx)
+int BPF_UPROBE(handle_uprobe_byname2, const char *pathname, const char *mode)
 {
-	unsigned int size = PT_REGS_PARM1(ctx);
+	char mode_buf[2] = {};
 
-	/* verify malloc size */
-	if (size == 1)
+	/* verify fopen mode */
+	bpf_probe_read_user(mode_buf, sizeof(mode_buf), mode);
+	if (mode_buf[0] == 'r' && mode_buf[1] == 0)
 		uprobe_byname2_res = 7;
 	return 0;
 }
 
 SEC("uretprobe")
-int handle_uretprobe_byname2(struct pt_regs *ctx)
+int BPF_URETPROBE(handle_uretprobe_byname2, void *ret)
 {
 	uretprobe_byname2_res = 8;
 	return 0;

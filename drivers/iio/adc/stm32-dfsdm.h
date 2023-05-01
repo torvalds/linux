@@ -13,25 +13,29 @@
 
 /*
  * STM32 DFSDM - global register map
- * ________________________________________________________
- * | Offset |                 Registers block             |
- * --------------------------------------------------------
- * | 0x000  |      CHANNEL 0 + COMMON CHANNEL FIELDS      |
- * --------------------------------------------------------
- * | 0x020  |                CHANNEL 1                    |
- * --------------------------------------------------------
- * | ...    |                .....                        |
- * --------------------------------------------------------
- * | 0x0E0  |                CHANNEL 7                    |
- * --------------------------------------------------------
- * | 0x100  |      FILTER  0 + COMMON  FILTER FIELDs      |
- * --------------------------------------------------------
- * | 0x200  |                FILTER  1                    |
- * --------------------------------------------------------
- * | 0x300  |                FILTER  2                    |
- * --------------------------------------------------------
- * | 0x400  |                FILTER  3                    |
- * --------------------------------------------------------
+ * __________________________________________________________
+ * | Offset    |             Registers block                |
+ * ----------------------------------------------------------
+ * | 0x000     |      CHANNEL 0 + COMMON CHANNEL FIELDS     |
+ * ----------------------------------------------------------
+ * | 0x020     |                CHANNEL 1                   |
+ * ----------------------------------------------------------
+ * | ...       |                 .....                      |
+ * ----------------------------------------------------------
+ * | 0x20 x n  |                CHANNEL n                   |
+ * ----------------------------------------------------------
+ * | 0x100     |      FILTER  0 + COMMON FILTER FIELDs      |
+ * ----------------------------------------------------------
+ * | 0x200     |                FILTER  1                   |
+ * ----------------------------------------------------------
+ * |           |                 .....                      |
+ * ----------------------------------------------------------
+ * | 0x100 x m |                FILTER  m                   |
+ * ----------------------------------------------------------
+ * |           |                 .....                      |
+ * ----------------------------------------------------------
+ * | 0x7F0-7FC |         Identification registers           |
+ * ----------------------------------------------------------
  */
 
 /*
@@ -230,6 +234,24 @@
 #define DFSDM_AWCFR_AWLTF(v)	FIELD_PREP(DFSDM_AWCFR_AWLTF_MASK, v)
 #define DFSDM_AWCFR_AWHTF_MASK	GENMASK(15, 8)
 #define DFSDM_AWCFR_AWHTF(v)	FIELD_PREP(DFSDM_AWCFR_AWHTF_MASK, v)
+
+/*
+ * Identification register definitions
+ */
+#define DFSDM_HWCFGR		0x7F0
+#define DFSDM_VERR		0x7F4
+#define DFSDM_IPIDR		0x7F8
+#define DFSDM_SIDR		0x7FC
+
+/* HWCFGR: Hardware configuration register */
+#define DFSDM_HWCFGR_NBT_MASK	GENMASK(7, 0)
+#define DFSDM_HWCFGR_NBF_MASK	GENMASK(15, 8)
+
+/* VERR: Version register */
+#define DFSDM_VERR_MINREV_MASK	GENMASK(3, 0)
+#define DFSDM_VERR_MAJREV_MASK	GENMASK(7, 4)
+
+#define STM32MP15_IPIDR_NUMBER	0x00110031
 
 /* DFSDM filter order  */
 enum stm32_dfsdm_sinc_order {

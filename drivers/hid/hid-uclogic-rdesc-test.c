@@ -197,8 +197,7 @@ static void hid_test_uclogic_template(struct kunit *test)
 					   params->param_list,
 					   params->param_num);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res);
-	KUNIT_EXPECT_EQ(test, 0,
-			memcmp(res, params->expected, params->template_size));
+	KUNIT_EXPECT_MEMEQ(test, res, params->expected, params->template_size);
 	kfree(res);
 }
 

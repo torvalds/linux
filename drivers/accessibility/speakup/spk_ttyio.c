@@ -354,6 +354,9 @@ void spk_ttyio_release(struct spk_synth *in_synth)
 {
 	struct tty_struct *tty = in_synth->dev;
 
+	if (tty == NULL)
+		return;
+
 	tty_lock(tty);
 
 	if (tty->ops->close)

@@ -36,7 +36,7 @@ properties:
     oneOf:
       - items:   #for ADSP based platforms
           - const: mclk
-          - const: core
+          - const: macro
           - const: dcodec
       - items:   #for ADSP bypass based platforms
           - const: mclk
@@ -77,7 +77,7 @@ examples:
       clocks = <&aoncc 0>,
                <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
                <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-      clock-names = "mclk", "core", "dcodec";
+      clock-names = "mclk", "macro", "dcodec";
       clock-output-names = "fsgen";
       qcom,dmic-sample-rate = <600000>;
       vdd-micb-supply = <&vreg_s4a_1p8>;

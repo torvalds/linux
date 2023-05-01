@@ -18,40 +18,38 @@ config CIFS
 	select DNS_RESOLVER
 	select ASN1
 	select OID_REGISTRY
+	select NETFS_SUPPORT
 	help
-	  This is the client VFS module for the SMB3 family of NAS protocols,
-	  (including support for the most recent, most secure dialect SMB3.1.1)
-	  as well as for earlier dialects such as SMB2.1, SMB2 and the older
-	  Common Internet File System (CIFS) protocol.  CIFS was the successor
-	  to the original dialect, the Server Message Block (SMB) protocol, the
-	  native file sharing mechanism for most early PC operating systems.
+	  This is the client VFS module for the SMB3 family of network file
+	  protocols (including the most recent, most secure dialect SMB3.1.1).
+	  This module also includes support for earlier dialects such as
+	  SMB2.1, SMB2 and even the old Common Internet File System (CIFS)
+	  protocol.  CIFS was the successor to the original network filesystem
+	  protocol, Server Message Block (SMB ie SMB1), the native file sharing
+	  mechanism for most early PC operating systems.
 
-	  The SMB3 protocol is supported by most modern operating systems
-	  and NAS appliances (e.g. Samba, Windows 10, Windows Server 2016,
-	  MacOS) and even in the cloud (e.g. Microsoft Azure).
-	  The older CIFS protocol was included in Windows NT4, 2000 and XP (and
-	  later) as well by Samba (which provides excellent CIFS and SMB3
-	  server support for Linux and many other operating systems). Use of
-	  dialects older than SMB2.1 is often discouraged on public networks.
+	  The SMB3.1.1 protocol is supported by most modern operating systems
+	  and NAS appliances (e.g. Samba, Windows 11, Windows Server 2022,
+	  MacOS) and even in the cloud (e.g. Microsoft Azure) and also by the
+	  Linux kernel server, ksmbd.  Support for the older CIFS protocol was
+	  included in Windows NT4, 2000 and XP (and later). Use of dialects
+	  older than SMB2.1 is often discouraged on public networks.
 	  This module also provides limited support for OS/2 and Windows ME
 	  and similar very old servers.
 
-	  This module provides an advanced network file system client
-	  for mounting to SMB3 (and CIFS) compliant servers.  It includes
-	  support for DFS (hierarchical name space), secure per-user
-	  session establishment via Kerberos or NTLM or NTLMv2, RDMA
-	  (smbdirect), advanced security features, per-share encryption,
-	  directory leases, safe distributed caching (oplock), optional packet
-	  signing, Unicode and other internationalization improvements.
+	  This module provides an advanced network file system client for
+	  mounting to SMB3 (and CIFS) compliant servers.  It includes support
+	  for DFS (hierarchical name space), secure per-user session
+	  establishment via Kerberos or NTLMv2, RDMA (smbdirect), advanced
+	  security features, per-share encryption, packet-signing, snapshots,
+	  directory leases, safe distributed caching (leases), multichannel,
+	  Unicode and other internationalization improvements.
 
 	  In general, the default dialects, SMB3 and later, enable better
 	  performance, security and features, than would be possible with CIFS.
-	  Note that when mounting to Samba, due to the CIFS POSIX extensions,
-	  CIFS mounts can provide slightly better POSIX compatibility
-	  than SMB3 mounts. SMB2/SMB3 mount options are also
-	  slightly simpler (compared to CIFS) due to protocol improvements.
 
-	  If you need to mount to Samba, Azure, Macs or Windows from this machine, say Y.
+	  If you need to mount to Samba, Azure, ksmbd, Macs or Windows from this
+	  machine, say Y.
 
 config CIFS_STATS2
 	bool "Extended statistics"
@@ -111,12 +109,12 @@ config CIFS_POSIX
 	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY && CIFS_XATTR
 	help
 	  Enabling this option will cause the cifs client to attempt to
-	  negotiate a newer dialect with servers, such as Samba 3.0.5
-	  or later, that optionally can handle more POSIX like (rather
-	  than Windows like) file behavior.  It also enables
-	  support for POSIX ACLs (getfacl and setfacl) to servers
-	  (such as Samba 3.10 and later) which can negotiate
-	  CIFS POSIX ACL support.  If unsure, say N.
+	  negotiate a feature of the older cifs dialect with servers, such as
+	  Samba 3.0.5 or later, that optionally can handle more POSIX like
+	  (rather than Windows like) file behavior.  It also enables support
+	  for POSIX ACLs (getfacl and setfacl) to servers (such as Samba 3.10
+	  and later) which can negotiate CIFS POSIX ACL support.  This config
+	  option is not needed when mounting with SMB3.1.1. If unsure, say N.
 
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
@@ -178,6 +176,8 @@ config CIFS_NFSD_EXPORT
 	help
 	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
+if CIFS
+
 config CIFS_SMB_DIRECT
 	bool "SMB Direct support"
 	depends on CIFS=m && INFINIBAND && INFINIBAND_ADDR_TRANS || CIFS=y && INFINIBAND=y && INFINIBAND_ADDR_TRANS=y
@@ -201,3 +201,5 @@ config CIFS_ROOT
 	  Enables root file system support over SMB protocol.
 
 	  Most people say N here.
+
+endif

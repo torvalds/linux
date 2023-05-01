@@ -558,30 +558,6 @@ static inline int dio_bio_reap(struct dio *dio, struct dio_submit *sdio)
 	return ret;
 }
 
-/*
- * Create workqueue for deferred direct IO completions. We allocate the
- * workqueue when it's first needed. This avoids creating workqueue for
- * filesystems that don't need it and also allows us to create the workqueue
- * late enough so the we can include s_id in the name of the workqueue.
- */
-int sb_init_dio_done_wq(struct super_block *sb)
-{
-	struct workqueue_struct *old;
-	struct workqueue_struct *wq = alloc_workqueue("dio/%s",
-						      WQ_MEM_RECLAIM, 0,
-						      sb->s_id);
-	if (!wq)
-		return -ENOMEM;
-	/*
-	 * This has to be atomic as more DIOs can race to create the workqueue
-	 */
-	old = cmpxchg(&sb->s_dio_done_wq, NULL, wq);
-	/* Someone created workqueue before us? Free ours... */
-	if (old)
-		destroy_workqueue(wq);
-	return 0;
-}
-
 static int dio_set_defer_completion(struct dio *dio)
 {
 	struct super_block *sb = dio->inode->i_sb;

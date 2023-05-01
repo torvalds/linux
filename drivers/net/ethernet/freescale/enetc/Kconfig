@@ -1,7 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0
+config FSL_ENETC_CORE
+	tristate
+	help
+	  This module supports common functionality between the PF and VF
+	  drivers for the NXP ENETC controller.
+
+	  If compiled as module (M), the module name is fsl-enetc-core.
+
 config FSL_ENETC
 	tristate "ENETC PF driver"
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
+	select FSL_ENETC_CORE
 	select FSL_ENETC_IERB
 	select FSL_ENETC_MDIO
 	select PHYLINK
@@ -16,7 +25,8 @@ config FSL_ENETC
 
 config FSL_ENETC_VF
 	tristate "ENETC VF driver"
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
+	select FSL_ENETC_CORE
 	select FSL_ENETC_MDIO
 	select PHYLINK
 	select DIMLIB

@@ -106,7 +106,7 @@ Proportional weight policy files
           see Documentation/block/bfq-iosched.rst.
 
   blkio.bfq.weight_device
-          Specifes per cgroup per device weights, overriding the default group
+          Specifies per cgroup per device weights, overriding the default group
           weight. For more details, see Documentation/block/bfq-iosched.rst.
 
 	  Following is the format::

@@ -11,7 +11,7 @@
 #include <linux/string.h>
 #include <asm/cacheflush.h>
 #include <asm/gdb_xml.h>
-#include <asm/parse_asm.h>
+#include <asm/insn.h>
 
 enum {
 	NOT_KGDB_BREAK = 0,
@@ -22,27 +22,6 @@ enum {
 
 static unsigned long stepped_address;
 static unsigned int stepped_opcode;
-
-#if __riscv_xlen == 32
-/* C.JAL is an RV32C-only instruction */
-DECLARE_INSN(c_jal, MATCH_C_JAL, MASK_C_JAL)
-#else
-#define is_c_jal_insn(opcode) 0
-#endif
-DECLARE_INSN(jalr, MATCH_JALR, MASK_JALR)
-DECLARE_INSN(jal, MATCH_JAL, MASK_JAL)
-DECLARE_INSN(c_jr, MATCH_C_JR, MASK_C_JR)
-DECLARE_INSN(c_jalr, MATCH_C_JALR, MASK_C_JALR)
-DECLARE_INSN(c_j, MATCH_C_J, MASK_C_J)
-DECLARE_INSN(beq, MATCH_BEQ, MASK_BEQ)
-DECLARE_INSN(bne, MATCH_BNE, MASK_BNE)
-DECLARE_INSN(blt, MATCH_BLT, MASK_BLT)
-DECLARE_INSN(bge, MATCH_BGE, MASK_BGE)
-DECLARE_INSN(bltu, MATCH_BLTU, MASK_BLTU)
-DECLARE_INSN(bgeu, MATCH_BGEU, MASK_BGEU)
-DECLARE_INSN(c_beqz, MATCH_C_BEQZ, MASK_C_BEQZ)
-DECLARE_INSN(c_bnez, MATCH_C_BNEZ, MASK_C_BNEZ)
-DECLARE_INSN(sret, MATCH_SRET, MASK_SRET)
 
 static int decode_register_index(unsigned long opcode, int offset)
 {
@@ -65,23 +44,25 @@ static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	if (get_kernel_nofault(op_code, (void *)pc))
 		return -EINVAL;
 	if ((op_code & __INSN_LENGTH_MASK) != __INSN_LENGTH_GE_32) {
-		if (is_c_jalr_insn(op_code) || is_c_jr_insn(op_code)) {
+		if (riscv_insn_is_c_jalr(op_code) ||
+		    riscv_insn_is_c_jr(op_code)) {
 			rs1_num = decode_register_index(op_code, RVC_C2_RS1_OPOFF);
 			*next_addr = regs_ptr[rs1_num];
-		} else if (is_c_j_insn(op_code) || is_c_jal_insn(op_code)) {
-			*next_addr = EXTRACT_RVC_J_IMM(op_code) + pc;
-		} else if (is_c_beqz_insn(op_code)) {
+		} else if (riscv_insn_is_c_j(op_code) ||
+			   riscv_insn_is_c_jal(op_code)) {
+			*next_addr = RVC_EXTRACT_JTYPE_IMM(op_code) + pc;
+		} else if (riscv_insn_is_c_beqz(op_code)) {
 			rs1_num = decode_register_index_short(op_code,
 							      RVC_C1_RS1_OPOFF);
 			if (!rs1_num || regs_ptr[rs1_num] == 0)
-				*next_addr = EXTRACT_RVC_B_IMM(op_code) + pc;
+				*next_addr = RVC_EXTRACT_BTYPE_IMM(op_code) + pc;
 			else
 				*next_addr = pc + 2;
-		} else if (is_c_bnez_insn(op_code)) {
+		} else if (riscv_insn_is_c_bnez(op_code)) {
 			rs1_num =
 			    decode_register_index_short(op_code, RVC_C1_RS1_OPOFF);
 			if (rs1_num && regs_ptr[rs1_num] != 0)
-				*next_addr = EXTRACT_RVC_B_IMM(op_code) + pc;
+				*next_addr = RVC_EXTRACT_BTYPE_IMM(op_code) + pc;
 			else
 				*next_addr = pc + 2;
 		} else {
@@ -90,7 +71,7 @@ static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	} else {
 		if ((op_code & __INSN_OPCODE_MASK) == __INSN_BRANCH_OPCODE) {
 			bool result = false;
-			long imm = EXTRACT_BTYPE_IMM(op_code);
+			long imm = RV_EXTRACT_BTYPE_IMM(op_code);
 			unsigned long rs1_val = 0, rs2_val = 0;
 
 			rs1_num = decode_register_index(op_code, RVG_RS1_OPOFF);
@@ -100,34 +81,34 @@ static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 			if (rs2_num)
 				rs2_val = regs_ptr[rs2_num];
 
-			if (is_beq_insn(op_code))
+			if (riscv_insn_is_beq(op_code))
 				result = (rs1_val == rs2_val) ? true : false;
-			else if (is_bne_insn(op_code))
+			else if (riscv_insn_is_bne(op_code))
 				result = (rs1_val != rs2_val) ? true : false;
-			else if (is_blt_insn(op_code))
+			else if (riscv_insn_is_blt(op_code))
 				result =
 				    ((long)rs1_val <
 				     (long)rs2_val) ? true : false;
-			else if (is_bge_insn(op_code))
+			else if (riscv_insn_is_bge(op_code))
 				result =
 				    ((long)rs1_val >=
 				     (long)rs2_val) ? true : false;
-			else if (is_bltu_insn(op_code))
+			else if (riscv_insn_is_bltu(op_code))
 				result = (rs1_val < rs2_val) ? true : false;
-			else if (is_bgeu_insn(op_code))
+			else if (riscv_insn_is_bgeu(op_code))
 				result = (rs1_val >= rs2_val) ? true : false;
 			if (result)
 				*next_addr = imm + pc;
 			else
 				*next_addr = pc + 4;
-		} else if (is_jal_insn(op_code)) {
-			*next_addr = EXTRACT_JTYPE_IMM(op_code) + pc;
-		} else if (is_jalr_insn(op_code)) {
+		} else if (riscv_insn_is_jal(op_code)) {
+			*next_addr = RV_EXTRACT_JTYPE_IMM(op_code) + pc;
+		} else if (riscv_insn_is_jalr(op_code)) {
 			rs1_num = decode_register_index(op_code, RVG_RS1_OPOFF);
 			if (rs1_num)
 				*next_addr = ((unsigned long *)regs)[rs1_num];
-			*next_addr += EXTRACT_ITYPE_IMM(op_code);
-		} else if (is_sret_insn(op_code)) {
+			*next_addr += RV_EXTRACT_ITYPE_IMM(op_code);
+		} else if (riscv_insn_is_sret(op_code)) {
 			*next_addr = pc;
 		} else {
 			*next_addr = pc + 4;

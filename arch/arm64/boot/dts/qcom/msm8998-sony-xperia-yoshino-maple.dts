@@ -20,7 +20,7 @@
 		regulator-max-microvolt = <1350000>;
 		startup-delay-us = <0>;
 		enable-active-high;
-		gpio = <&pmi8998_gpio 10 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmi8998_gpios 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&disp_dvdd_en>;
 	};
@@ -37,7 +37,7 @@
 	qcom,soft-start-us = <200>;
 };
 
-&pmi8998_gpio {
+&pmi8998_gpios {
 	disp_dvdd_en: disp-dvdd-en-active-state {
 		pins = "gpio10";
 		function = "normal";

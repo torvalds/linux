@@ -327,7 +327,6 @@ static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 static int gve_alloc_notify_blocks(struct gve_priv *priv)
 {
 	int num_vecs_requested = priv->num_ntfy_blks + 1;
-	char *name = priv->dev->name;
 	unsigned int active_cpus;
 	int vecs_enabled;
 	int i, j;
@@ -371,8 +370,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	active_cpus = min_t(int, priv->num_ntfy_blks / 2, num_online_cpus());
 
 	/* Setup Management Vector  - the last vector */
-	snprintf(priv->mgmt_msix_name, sizeof(priv->mgmt_msix_name), "%s-mgmnt",
-		 name);
+	snprintf(priv->mgmt_msix_name, sizeof(priv->mgmt_msix_name), "gve-mgmnt@pci:%s",
+		 pci_name(priv->pdev));
 	err = request_irq(priv->msix_vectors[priv->mgmt_msix_idx].vector,
 			  gve_mgmnt_intr, 0, priv->mgmt_msix_name, priv);
 	if (err) {
@@ -401,8 +400,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		struct gve_notify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
-		snprintf(block->name, sizeof(block->name), "%s-ntfy-block.%d",
-			 name, i);
+		snprintf(block->name, sizeof(block->name), "gve-ntfy-blk%d@pci:%s",
+			 i, pci_name(priv->pdev));
 		block->priv = priv;
 		err = request_irq(priv->msix_vectors[msix_idx].vector,
 				  gve_is_gqi(priv) ? gve_intr : gve_intr_dqo,

@@ -390,16 +390,6 @@ if CRYPTO_DEV_NX
 	source "drivers/crypto/nx/Kconfig"
 endif
 
-config CRYPTO_DEV_UX500
-	tristate "Driver for ST-Ericsson UX500 crypto hardware acceleration"
-	depends on ARCH_U8500
-	help
-	  Driver for ST-Ericsson UX500 crypto engine.
-
-if CRYPTO_DEV_UX500
-	source "drivers/crypto/ux500/Kconfig"
-endif # if CRYPTO_DEV_UX500
-
 config CRYPTO_DEV_ATMEL_AUTHENC
 	bool "Support for Atmel IPSEC/SSL hw accelerator"
 	depends on ARCH_AT91 || COMPILE_TEST

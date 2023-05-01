@@ -209,7 +209,7 @@ loop:
 		insn[i++] = BPF_MOV64_IMM(BPF_REG_2, 1);
 		insn[i++] = BPF_MOV64_IMM(BPF_REG_3, 2);
 		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
-					 BPF_FUNC_skb_vlan_push),
+					 BPF_FUNC_skb_vlan_push);
 		insn[i] = BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, len - i - 3);
 		i++;
 	}
@@ -220,7 +220,7 @@ loop:
 		i++;
 		insn[i++] = BPF_MOV64_REG(BPF_REG_1, BPF_REG_6);
 		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
-					 BPF_FUNC_skb_vlan_pop),
+					 BPF_FUNC_skb_vlan_pop);
 		insn[i] = BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, len - i - 3);
 		i++;
 	}
@@ -1239,8 +1239,8 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, int *cnt)
 	__u32 xlated_prog_len;
 	__u32 buf_element_size = sizeof(struct bpf_insn);
 
-	if (bpf_obj_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("bpf_obj_get_info_by_fd failed");
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("bpf_prog_get_info_by_fd failed");
 		return -1;
 	}
 
@@ -1261,8 +1261,8 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, int *cnt)
 	bzero(&info, sizeof(info));
 	info.xlated_prog_len = xlated_prog_len;
 	info.xlated_prog_insns = (__u64)(unsigned long)*buf;
-	if (bpf_obj_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("second bpf_obj_get_info_by_fd failed");
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("second bpf_prog_get_info_by_fd failed");
 		goto out_free_buf;
 	}
 

@@ -504,7 +504,7 @@ static void __init n8x0_mmc_init(void)
 }
 #else
 static struct omap_mmc_platform_data mmc1_data;
-void __init n8x0_mmc_init(void)
+static void __init n8x0_mmc_init(void)
 {
 }
 #endif	/* CONFIG_MMC_OMAP */

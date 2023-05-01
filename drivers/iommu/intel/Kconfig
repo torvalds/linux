@@ -96,4 +96,15 @@ config INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
 	  passing intel_iommu=sm_on to the kernel. If not sure, please use
 	  the default value.
 
+config INTEL_IOMMU_PERF_EVENTS
+	def_bool y
+	bool "Intel IOMMU performance events"
+	depends on INTEL_IOMMU && PERF_EVENTS
+	help
+	  Selecting this option will enable the performance monitoring
+	  infrastructure in the Intel IOMMU. It collects information about
+	  key events occurring during operation of the remapping hardware,
+	  to aid performance tuning and debug. These are available on modern
+	  processors which support Intel VT-d 4.0 and later.
+
 endif # INTEL_IOMMU

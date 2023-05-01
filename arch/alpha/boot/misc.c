@@ -89,8 +89,6 @@ static ulg output_ptr;
 static ulg bytes_out;
 
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 extern int end;
 static ulg free_mem_ptr;

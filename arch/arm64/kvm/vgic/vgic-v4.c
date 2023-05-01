@@ -222,6 +222,11 @@ void vgic_v4_get_vlpi_state(struct vgic_irq *irq, bool *val)
 	*val = !!(*ptr & mask);
 }
 
+int vgic_v4_request_vpe_irq(struct kvm_vcpu *vcpu, int irq)
+{
+	return request_irq(irq, vgic_v4_doorbell_handler, 0, "vcpu", vcpu);
+}
+
 /**
  * vgic_v4_init - Initialize the GICv4 data structures
  * @kvm:	Pointer to the VM being initialized
@@ -283,8 +288,7 @@ int vgic_v4_init(struct kvm *kvm)
 			irq_flags &= ~IRQ_NOAUTOEN;
 		irq_set_status_flags(irq, irq_flags);
 
-		ret = request_irq(irq, vgic_v4_doorbell_handler,
-				  0, "vcpu", vcpu);
+		ret = vgic_v4_request_vpe_irq(vcpu, irq);
 		if (ret) {
 			kvm_err("failed to allocate vcpu IRQ%d\n", irq);
 			/*

@@ -123,7 +123,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		led0: user1 {
+		led0: led-user1 {
 			label = "user1";
 			gpios = <&gpio6 14 GPIO_ACTIVE_LOW>; /* MX6_LOCLED# */
 			default-state = "off";

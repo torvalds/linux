@@ -31,9 +31,9 @@
 #define RT3352_GPIO_MODE_LNA		18
 #define RT3352_GPIO_MODE_PA		20
 
-static struct ralink_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
-static struct ralink_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
-static struct ralink_pmx_func uartf_func[] = {
+static struct ralink_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
+static struct ralink_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
+static struct ralink_pmx_func uartf_grp[] = {
 	FUNC("uartf", RT305X_GPIO_MODE_UARTF, 7, 8),
 	FUNC("pcm uartf", RT305X_GPIO_MODE_PCM_UARTF, 7, 8),
 	FUNC("pcm i2s", RT305X_GPIO_MODE_PCM_I2S, 7, 8),
@@ -42,65 +42,65 @@ static struct ralink_pmx_func uartf_func[] = {
 	FUNC("gpio uartf", RT305X_GPIO_MODE_GPIO_UARTF, 7, 4),
 	FUNC("gpio i2s", RT305X_GPIO_MODE_GPIO_I2S, 7, 4),
 };
-static struct ralink_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
-static struct ralink_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
-static struct ralink_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
-static struct ralink_pmx_func rt5350_led_func[] = { FUNC("led", 0, 22, 5) };
-static struct ralink_pmx_func rt5350_cs1_func[] = {
+static struct ralink_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
+static struct ralink_pmx_func jtag_grp[] = { FUNC("jtag", 0, 17, 5) };
+static struct ralink_pmx_func mdio_grp[] = { FUNC("mdio", 0, 22, 2) };
+static struct ralink_pmx_func rt5350_led_grp[] = { FUNC("led", 0, 22, 5) };
+static struct ralink_pmx_func rt5350_cs1_grp[] = {
 	FUNC("spi_cs1", 0, 27, 1),
 	FUNC("wdg_cs1", 1, 27, 1),
 };
-static struct ralink_pmx_func sdram_func[] = { FUNC("sdram", 0, 24, 16) };
-static struct ralink_pmx_func rt3352_rgmii_func[] = {
+static struct ralink_pmx_func sdram_grp[] = { FUNC("sdram", 0, 24, 16) };
+static struct ralink_pmx_func rt3352_rgmii_grp[] = {
 	FUNC("rgmii", 0, 24, 12)
 };
-static struct ralink_pmx_func rgmii_func[] = { FUNC("rgmii", 0, 40, 12) };
-static struct ralink_pmx_func rt3352_lna_func[] = { FUNC("lna", 0, 36, 2) };
-static struct ralink_pmx_func rt3352_pa_func[] = { FUNC("pa", 0, 38, 2) };
-static struct ralink_pmx_func rt3352_led_func[] = { FUNC("led", 0, 40, 5) };
-static struct ralink_pmx_func rt3352_cs1_func[] = {
+static struct ralink_pmx_func rgmii_grp[] = { FUNC("rgmii", 0, 40, 12) };
+static struct ralink_pmx_func rt3352_lna_grp[] = { FUNC("lna", 0, 36, 2) };
+static struct ralink_pmx_func rt3352_pa_grp[] = { FUNC("pa", 0, 38, 2) };
+static struct ralink_pmx_func rt3352_led_grp[] = { FUNC("led", 0, 40, 5) };
+static struct ralink_pmx_func rt3352_cs1_grp[] = {
 	FUNC("spi_cs1", 0, 45, 1),
 	FUNC("wdg_cs1", 1, 45, 1),
 };
 
 static struct ralink_pmx_group rt3050_pinmux_data[] = {
-	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
-	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
-	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
+	GRP("i2c", i2c_grp, 1, RT305X_GPIO_MODE_I2C),
+	GRP("spi", spi_grp, 1, RT305X_GPIO_MODE_SPI),
+	GRP("uartf", uartf_grp, RT305X_GPIO_MODE_UART0_MASK,
 		RT305X_GPIO_MODE_UART0_SHIFT),
-	GRP("uartlite", uartlite_func, 1, RT305X_GPIO_MODE_UART1),
-	GRP("jtag", jtag_func, 1, RT305X_GPIO_MODE_JTAG),
-	GRP("mdio", mdio_func, 1, RT305X_GPIO_MODE_MDIO),
-	GRP("rgmii", rgmii_func, 1, RT305X_GPIO_MODE_RGMII),
-	GRP("sdram", sdram_func, 1, RT305X_GPIO_MODE_SDRAM),
+	GRP("uartlite", uartlite_grp, 1, RT305X_GPIO_MODE_UART1),
+	GRP("jtag", jtag_grp, 1, RT305X_GPIO_MODE_JTAG),
+	GRP("mdio", mdio_grp, 1, RT305X_GPIO_MODE_MDIO),
+	GRP("rgmii", rgmii_grp, 1, RT305X_GPIO_MODE_RGMII),
+	GRP("sdram", sdram_grp, 1, RT305X_GPIO_MODE_SDRAM),
 	{ 0 }
 };
 
 static struct ralink_pmx_group rt3352_pinmux_data[] = {
-	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
-	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
-	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
+	GRP("i2c", i2c_grp, 1, RT305X_GPIO_MODE_I2C),
+	GRP("spi", spi_grp, 1, RT305X_GPIO_MODE_SPI),
+	GRP("uartf", uartf_grp, RT305X_GPIO_MODE_UART0_MASK,
 		RT305X_GPIO_MODE_UART0_SHIFT),
-	GRP("uartlite", uartlite_func, 1, RT305X_GPIO_MODE_UART1),
-	GRP("jtag", jtag_func, 1, RT305X_GPIO_MODE_JTAG),
-	GRP("mdio", mdio_func, 1, RT305X_GPIO_MODE_MDIO),
-	GRP("rgmii", rt3352_rgmii_func, 1, RT305X_GPIO_MODE_RGMII),
-	GRP("lna", rt3352_lna_func, 1, RT3352_GPIO_MODE_LNA),
-	GRP("pa", rt3352_pa_func, 1, RT3352_GPIO_MODE_PA),
-	GRP("led", rt3352_led_func, 1, RT5350_GPIO_MODE_PHY_LED),
-	GRP("spi_cs1", rt3352_cs1_func, 2, RT5350_GPIO_MODE_SPI_CS1),
+	GRP("uartlite", uartlite_grp, 1, RT305X_GPIO_MODE_UART1),
+	GRP("jtag", jtag_grp, 1, RT305X_GPIO_MODE_JTAG),
+	GRP("mdio", mdio_grp, 1, RT305X_GPIO_MODE_MDIO),
+	GRP("rgmii", rt3352_rgmii_grp, 1, RT305X_GPIO_MODE_RGMII),
+	GRP("lna", rt3352_lna_grp, 1, RT3352_GPIO_MODE_LNA),
+	GRP("pa", rt3352_pa_grp, 1, RT3352_GPIO_MODE_PA),
+	GRP("led", rt3352_led_grp, 1, RT5350_GPIO_MODE_PHY_LED),
+	GRP("spi_cs1", rt3352_cs1_grp, 2, RT5350_GPIO_MODE_SPI_CS1),
 	{ 0 }
 };
 
 static struct ralink_pmx_group rt5350_pinmux_data[] = {
-	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
-	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
-	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
+	GRP("i2c", i2c_grp, 1, RT305X_GPIO_MODE_I2C),
+	GRP("spi", spi_grp, 1, RT305X_GPIO_MODE_SPI),
+	GRP("uartf", uartf_grp, RT305X_GPIO_MODE_UART0_MASK,
 		RT305X_GPIO_MODE_UART0_SHIFT),
-	GRP("uartlite", uartlite_func, 1, RT305X_GPIO_MODE_UART1),
-	GRP("jtag", jtag_func, 1, RT305X_GPIO_MODE_JTAG),
-	GRP("led", rt5350_led_func, 1, RT5350_GPIO_MODE_PHY_LED),
-	GRP("spi_cs1", rt5350_cs1_func, 2, RT5350_GPIO_MODE_SPI_CS1),
+	GRP("uartlite", uartlite_grp, 1, RT305X_GPIO_MODE_UART1),
+	GRP("jtag", jtag_grp, 1, RT305X_GPIO_MODE_JTAG),
+	GRP("led", rt5350_led_grp, 1, RT5350_GPIO_MODE_PHY_LED),
+	GRP("spi_cs1", rt5350_cs1_grp, 2, RT5350_GPIO_MODE_SPI_CS1),
 	{ 0 }
 };
 

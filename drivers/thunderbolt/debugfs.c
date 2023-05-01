@@ -1159,7 +1159,10 @@ static void port_cap_show(struct tb_port *port, struct seq_file *s,
 		if (tb_port_is_pcie_down(port) || tb_port_is_pcie_up(port)) {
 			length = PORT_CAP_PCIE_LEN;
 		} else if (tb_port_is_dpin(port) || tb_port_is_dpout(port)) {
-			length = PORT_CAP_DP_LEN;
+			if (usb4_dp_port_bw_mode_supported(port))
+				length = PORT_CAP_DP_LEN + 1;
+			else
+				length = PORT_CAP_DP_LEN;
 		} else if (tb_port_is_usb3_down(port) ||
 			   tb_port_is_usb3_up(port)) {
 			length = PORT_CAP_USB3_LEN;

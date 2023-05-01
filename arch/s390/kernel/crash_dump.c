@@ -110,7 +110,7 @@ void __init save_area_add_vxrs(struct save_area *sa, __vector128 *vxrs)
 
 	/* Copy lower halves of vector registers 0-15 */
 	for (i = 0; i < 16; i++)
-		memcpy(&sa->vxrs_low[i], &vxrs[i].u[2], 8);
+		sa->vxrs_low[i] = vxrs[i].low;
 	/* Copy vector registers 16-31 */
 	memcpy(sa->vxrs_high, vxrs + 16, 16 * sizeof(__vector128));
 }

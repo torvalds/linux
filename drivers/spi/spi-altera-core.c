@@ -24,7 +24,7 @@
 #define ALTERA_SPI_TXDATA	4
 #define ALTERA_SPI_STATUS	8
 #define ALTERA_SPI_CONTROL	12
-#define ALTERA_SPI_SLAVE_SEL	20
+#define ALTERA_SPI_TARGET_SEL	20
 
 #define ALTERA_SPI_STATUS_ROE_MSK	0x8
 #define ALTERA_SPI_STATUS_TOE_MSK	0x10
@@ -67,7 +67,7 @@ static int altr_spi_readl(struct altera_spi *hw, unsigned int reg,
 
 static inline struct altera_spi *altera_spi_to_hw(struct spi_device *sdev)
 {
-	return spi_master_get_devdata(sdev->master);
+	return spi_controller_get_devdata(sdev->controller);
 }
 
 static void altera_spi_set_cs(struct spi_device *spi, bool is_high)
@@ -77,9 +77,9 @@ static void altera_spi_set_cs(struct spi_device *spi, bool is_high)
 	if (is_high) {
 		hw->imr &= ~ALTERA_SPI_CONTROL_SSO_MSK;
 		altr_spi_writel(hw, ALTERA_SPI_CONTROL, hw->imr);
-		altr_spi_writel(hw, ALTERA_SPI_SLAVE_SEL, 0);
+		altr_spi_writel(hw, ALTERA_SPI_TARGET_SEL, 0);
 	} else {
-		altr_spi_writel(hw, ALTERA_SPI_SLAVE_SEL,
+		altr_spi_writel(hw, ALTERA_SPI_TARGET_SEL,
 				BIT(spi->chip_select));
 		hw->imr |= ALTERA_SPI_CONTROL_SSO_MSK;
 		altr_spi_writel(hw, ALTERA_SPI_CONTROL, hw->imr);
@@ -139,10 +139,10 @@ static void altera_spi_rx_word(struct altera_spi *hw)
 	hw->count++;
 }
 
-static int altera_spi_txrx(struct spi_master *master,
+static int altera_spi_txrx(struct spi_controller *host,
 	struct spi_device *spi, struct spi_transfer *t)
 {
-	struct altera_spi *hw = spi_master_get_devdata(master);
+	struct altera_spi *hw = spi_controller_get_devdata(host);
 	u32 val;
 
 	hw->tx = t->tx_buf;
@@ -175,15 +175,15 @@ static int altera_spi_txrx(struct spi_master *master,
 
 		altera_spi_rx_word(hw);
 	}
-	spi_finalize_current_transfer(master);
+	spi_finalize_current_transfer(host);
 
 	return 0;
 }
 
 irqreturn_t altera_spi_irq(int irq, void *dev)
 {
-	struct spi_master *master = dev;
-	struct altera_spi *hw = spi_master_get_devdata(master);
+	struct spi_controller *host = dev;
+	struct altera_spi *hw = spi_controller_get_devdata(host);
 
 	altera_spi_rx_word(hw);
 
@@ -194,20 +194,20 @@ irqreturn_t altera_spi_irq(int irq, void *dev)
 		hw->imr &= ~ALTERA_SPI_CONTROL_IRRDY_MSK;
 		altr_spi_writel(hw, ALTERA_SPI_CONTROL, hw->imr);
 
-		spi_finalize_current_transfer(master);
+		spi_finalize_current_transfer(host);
 	}
 
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(altera_spi_irq);
 
-void altera_spi_init_master(struct spi_master *master)
+void altera_spi_init_host(struct spi_controller *host)
 {
-	struct altera_spi *hw = spi_master_get_devdata(master);
+	struct altera_spi *hw = spi_controller_get_devdata(host);
 	u32 val;
 
-	master->transfer_one = altera_spi_txrx;
-	master->set_cs = altera_spi_set_cs;
+	host->transfer_one = altera_spi_txrx;
+	host->set_cs = altera_spi_set_cs;
 
 	/* program defaults into the registers */
 	hw->imr = 0;		/* disable spi interrupts */
@@ -217,6 +217,6 @@ void altera_spi_init_master(struct spi_master *master)
 	if (val & ALTERA_SPI_STATUS_RRDY_MSK)
 		altr_spi_readl(hw, ALTERA_SPI_RXDATA, &val); /* flush rxdata */
 }
-EXPORT_SYMBOL_GPL(altera_spi_init_master);
+EXPORT_SYMBOL_GPL(altera_spi_init_host);
 
 MODULE_LICENSE("GPL");

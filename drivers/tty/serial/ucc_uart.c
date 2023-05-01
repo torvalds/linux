@@ -1468,6 +1468,8 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 
 	uart_remove_one_port(&ucc_uart_driver, &qe_port->port);
 
+	of_node_put(qe_port->np);
+
 	kfree(qe_port);
 
 	return 0;

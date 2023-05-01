@@ -194,10 +194,8 @@ config PCMCIA_SA1111
 	tristate "SA1111 support"
 	depends on ARM && SA1111 && PCMCIA
 	select PCMCIA_SOC_COMMON
-	select PCMCIA_SA11XX_BASE if ARCH_SA1100
-	select PCMCIA_PXA2XX if ARCH_LUBBOCK && SA1111
+	select PCMCIA_SA11XX_BASE
 	select PCMCIA_MAX1600 if ASSABET_NEPONSET
-	select PCMCIA_MAX1600 if ARCH_LUBBOCK && SA1111
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -207,14 +205,8 @@ config PCMCIA_SA1111
 
 config PCMCIA_PXA2XX
 	tristate "PXA2xx support"
-	depends on ARM && ARCH_PXA && PCMCIA
-	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
-		    || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES \
-		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
-		    || MACH_COLIBRI320 || MACH_H4700)
+	depends on ARM && ARCH_PXA && PCMCIA && PXA_SHARPSL
 	select PCMCIA_SOC_COMMON
-	select PCMCIA_MAX1600 if MACH_MAINSTONE
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 

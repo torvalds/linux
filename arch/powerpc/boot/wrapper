@@ -210,6 +210,10 @@ ld_version()
 	gsub(".*version ", "");
 	gsub("-.*", "");
 	split($1,a, ".");
+	if( length(a[3]) == "8" )
+		# a[3] is probably a date of format yyyymmdd used for release snapshots. We
+		# can assume it to be zero as it does not signify a new version as such.
+		a[3] = 0;
 	print a[1]*100000000 + a[2]*1000000 + a[3]*10000;
 	exit
     }'

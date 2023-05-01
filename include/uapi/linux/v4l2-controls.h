@@ -115,9 +115,13 @@ enum v4l2_colorfx {
 
 /* USER-class private control IDs */
 
-/* The base for the meye driver controls. See linux/meye.h for the list
- * of controls. We reserve 16 controls for this driver. */
+#ifndef __KERNEL__
+/*
+ * The base for the meye driver controls. This driver was removed, but
+ * we keep this define in case any software still uses it.
+ */
 #define V4L2_CID_USER_MEYE_BASE			(V4L2_CID_USER_BASE + 0x1000)
+#endif
 
 /* The base for the bttv driver controls.
  * We reserve 32 controls for this driver. */

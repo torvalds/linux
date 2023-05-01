@@ -217,6 +217,65 @@ static int fec_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
+/* FEC_SET */
+
+const struct nla_policy ethnl_fec_set_policy[ETHTOOL_A_FEC_AUTO + 1] = {
+	[ETHTOOL_A_FEC_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_FEC_MODES]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_FEC_AUTO]	= NLA_POLICY_MAX(NLA_U8, 1),
+};
+
+static int
+ethnl_set_fec_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+
+	return ops->get_fecparam && ops->set_fecparam ? 1 : -EOPNOTSUPP;
+}
+
+static int
+ethnl_set_fec(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(fec_link_modes) = {};
+	struct net_device *dev = req_info->dev;
+	struct nlattr **tb = info->attrs;
+	struct ethtool_fecparam fec = {};
+	bool mod = false;
+	u8 fec_auto;
+	int ret;
+
+	ret = dev->ethtool_ops->get_fecparam(dev, &fec);
+	if (ret < 0)
+		return ret;
+
+	ethtool_fec_to_link_modes(fec.fec, fec_link_modes, &fec_auto);
+
+	ret = ethnl_update_bitset(fec_link_modes,
+				  __ETHTOOL_LINK_MODE_MASK_NBITS,
+				  tb[ETHTOOL_A_FEC_MODES],
+				  link_mode_names, info->extack, &mod);
+	if (ret < 0)
+		return ret;
+	ethnl_update_u8(&fec_auto, tb[ETHTOOL_A_FEC_AUTO], &mod);
+	if (!mod)
+		return 0;
+
+	ret = ethtool_link_modes_to_fecparam(&fec, fec_link_modes, fec_auto);
+	if (ret) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_FEC_MODES],
+				    "invalid FEC modes requested");
+		return ret;
+	}
+	if (!fec.fec) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_FEC_MODES],
+				    "no FEC modes set");
+		return -EINVAL;
+	}
+
+	ret = dev->ethtool_ops->set_fecparam(dev, &fec);
+	return ret < 0 ? ret : 1;
+}
+
 const struct ethnl_request_ops ethnl_fec_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_FEC_GET,
 	.reply_cmd		= ETHTOOL_MSG_FEC_GET_REPLY,
@@ -227,84 +286,8 @@ const struct ethnl_request_ops ethnl_fec_request_ops = {
 	.prepare_data		= fec_prepare_data,
 	.reply_size		= fec_reply_size,
 	.fill_reply		= fec_fill_reply,
+
+	.set_validate		= ethnl_set_fec_validate,
+	.set			= ethnl_set_fec,
+	.set_ntf_cmd		= ETHTOOL_MSG_FEC_NTF,
 };
-
-/* FEC_SET */
-
-const struct nla_policy ethnl_fec_set_policy[ETHTOOL_A_FEC_AUTO + 1] = {
-	[ETHTOOL_A_FEC_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
-	[ETHTOOL_A_FEC_MODES]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEC_AUTO]	= NLA_POLICY_MAX(NLA_U8, 1),
-};
-
-int ethnl_set_fec(struct sk_buff *skb, struct genl_info *info)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(fec_link_modes) = {};
-	struct ethnl_req_info req_info = {};
-	struct nlattr **tb = info->attrs;
-	struct ethtool_fecparam fec = {};
-	const struct ethtool_ops *ops;
-	struct net_device *dev;
-	bool mod = false;
-	u8 fec_auto;
-	int ret;
-
-	ret = ethnl_parse_header_dev_get(&req_info, tb[ETHTOOL_A_FEC_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-	dev = req_info.dev;
-	ops = dev->ethtool_ops;
-	ret = -EOPNOTSUPP;
-	if (!ops->get_fecparam || !ops->set_fecparam)
-		goto out_dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
-	ret = ops->get_fecparam(dev, &fec);
-	if (ret < 0)
-		goto out_ops;
-
-	ethtool_fec_to_link_modes(fec.fec, fec_link_modes, &fec_auto);
-
-	ret = ethnl_update_bitset(fec_link_modes,
-				  __ETHTOOL_LINK_MODE_MASK_NBITS,
-				  tb[ETHTOOL_A_FEC_MODES],
-				  link_mode_names, info->extack, &mod);
-	if (ret < 0)
-		goto out_ops;
-	ethnl_update_u8(&fec_auto, tb[ETHTOOL_A_FEC_AUTO], &mod);
-
-	ret = 0;
-	if (!mod)
-		goto out_ops;
-
-	ret = ethtool_link_modes_to_fecparam(&fec, fec_link_modes, fec_auto);
-	if (ret) {
-		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_FEC_MODES],
-				    "invalid FEC modes requested");
-		goto out_ops;
-	}
-	if (!fec.fec) {
-		ret = -EINVAL;
-		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_FEC_MODES],
-				    "no FEC modes set");
-		goto out_ops;
-	}
-
-	ret = dev->ethtool_ops->set_fecparam(dev, &fec);
-	if (ret < 0)
-		goto out_ops;
-	ethtool_notify(dev, ETHTOOL_MSG_FEC_NTF, NULL);
-
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-out_dev:
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
-}

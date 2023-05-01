@@ -61,40 +61,7 @@ required:
 
 examples:
   - |
-    sysctrl@61840000 {
-        compatible = "socionext,uniphier-sysctrl", "simple-mfd", "syscon";
-        reg = <0x61840000 0x4000>;
-
-        clock {
-            compatible = "socionext,uniphier-ld11-clock";
-            #clock-cells = <1>;
-        };
-
-        // other nodes ...
-    };
-
-  - |
-    mioctrl@59810000 {
-        compatible = "socionext,uniphier-mioctrl", "simple-mfd", "syscon";
-        reg = <0x59810000 0x800>;
-
-        clock {
-            compatible = "socionext,uniphier-ld11-mio-clock";
-            #clock-cells = <1>;
-        };
-
-        // other nodes ...
-    };
-
-  - |
-    perictrl@59820000 {
-        compatible = "socionext,uniphier-perictrl", "simple-mfd", "syscon";
-        reg = <0x59820000 0x200>;
-
-        clock {
-            compatible = "socionext,uniphier-ld11-peri-clock";
-            #clock-cells = <1>;
-        };
-
-        // other nodes ...
+    clock-controller {
+        compatible = "socionext,uniphier-ld11-clock";
+        #clock-cells = <1>;
     };

@@ -152,9 +152,11 @@ __percpu_counter_compare(struct percpu_counter *fbc, s64 rhs, s32 batch)
 static inline void
 percpu_counter_add(struct percpu_counter *fbc, s64 amount)
 {
-	preempt_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 	fbc->count += amount;
-	preempt_enable();
+	local_irq_restore(flags);
 }
 
 /* non-SMP percpu_counter_add_local is the same with percpu_counter_add */

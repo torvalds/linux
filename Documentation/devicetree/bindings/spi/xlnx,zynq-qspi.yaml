@@ -11,7 +11,7 @@ description:
   memory devices.
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 maintainers:
   - Michal Simek <michal.simek@xilinx.com>

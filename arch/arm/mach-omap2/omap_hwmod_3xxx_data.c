@@ -27,7 +27,6 @@
 
 #include "i2c.h"
 #include "wd_timer.h"
-#include "serial.h"
 
 /*
  * OMAP3xxx hardware module integration data

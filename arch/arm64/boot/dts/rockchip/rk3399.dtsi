@@ -589,7 +589,7 @@
 		clocks = <&cru HCLK_M_CRYPTO0>, <&cru HCLK_S_CRYPTO0>, <&cru SCLK_CRYPTO0>;
 		clock-names = "hclk_master", "hclk_slave", "sclk";
 		resets = <&cru SRST_CRYPTO0>, <&cru SRST_CRYPTO0_S>, <&cru SRST_CRYPTO0_M>;
-		reset-names = "master", "lave", "crypto";
+		reset-names = "master", "slave", "crypto-rst";
 	};
 
 	crypto1: crypto@ff8b8000 {
@@ -599,7 +599,7 @@
 		clocks = <&cru HCLK_M_CRYPTO1>, <&cru HCLK_S_CRYPTO1>, <&cru SCLK_CRYPTO1>;
 		clock-names = "hclk_master", "hclk_slave", "sclk";
 		resets = <&cru SRST_CRYPTO1>, <&cru SRST_CRYPTO1_S>, <&cru SRST_CRYPTO1_M>;
-		reset-names = "master", "slave", "crypto";
+		reset-names = "master", "slave", "crypto-rst";
 	};
 
 	i2c1: i2c@ff110000 {
@@ -2241,13 +2241,11 @@
 		pcfg_input_pull_up: pcfg-input-pull-up {
 			input-enable;
 			bias-pull-up;
-			drive-strength = <2>;
 		};
 
 		pcfg_input_pull_down: pcfg-input-pull-down {
 			input-enable;
 			bias-pull-down;
-			drive-strength = <2>;
 		};
 
 		clock {

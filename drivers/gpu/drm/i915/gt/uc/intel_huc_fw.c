@@ -32,7 +32,7 @@ int intel_huc_fw_load_and_auth_via_gsc(struct intel_huc *huc)
 
 	GEM_WARN_ON(intel_uc_fw_is_loaded(&huc->fw));
 
-	ret = intel_pxp_huc_load_and_auth(&huc_to_gt(huc)->pxp);
+	ret = intel_pxp_huc_load_and_auth(huc_to_gt(huc)->i915->pxp);
 	if (ret)
 		return ret;
 

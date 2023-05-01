@@ -31,6 +31,11 @@
 #define RSND_GEN2_SSIU	2
 #define RSND_GEN2_SSI	3
 
+#define RSND_GEN4_ADG	0
+#define RSND_GEN4_SSIU	1
+#define RSND_GEN4_SSI	2
+#define RSND_GEN4_SDMC	3
+
 #define RSND_BASE_MAX	4
 
 /*
@@ -197,6 +202,7 @@ enum rsnd_reg {
 	SSI_SYS_INT_ENABLE5,
 	SSI_SYS_INT_ENABLE6,
 	SSI_SYS_INT_ENABLE7,
+	SSI_BUSIF,
 	HDMI0_SEL,
 	HDMI1_SEL,
 	SSI9_BUSIF0_MODE,
@@ -513,6 +519,7 @@ struct rsnd_dai_stream {
 #define RSND_STREAM_HDMI0	(1 << 0) /* for HDMI0 */
 #define RSND_STREAM_HDMI1	(1 << 1) /* for HDMI1 */
 #define RSND_STREAM_TDM_SPLIT	(1 << 2) /* for TDM split mode */
+#define RSND_HW_RULE_ERR	(1 << 3) /* hw_rule error */
 
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
@@ -628,6 +635,7 @@ struct rsnd_priv {
 #define RSND_GEN1	(1 << 0)
 #define RSND_GEN2	(2 << 0)
 #define RSND_GEN3	(3 << 0)
+#define RSND_GEN4	(4 << 0)
 #define RSND_SOC_MASK	(0xFF << 4)
 #define RSND_SOC_E	(1 << 4) /* E1/E2/E3 */
 
@@ -702,6 +710,7 @@ struct rsnd_priv {
 #define rsnd_is_gen1(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)
 #define rsnd_is_gen3(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN3)
+#define rsnd_is_gen4(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN4)
 #define rsnd_is_e3(priv)	(((priv)->flags & \
 					(RSND_GEN_MASK | RSND_SOC_MASK)) == \
 					(RSND_GEN3 | RSND_SOC_E))
@@ -891,18 +900,6 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 		dev_info(dev, param);			\
 } while (0)
 
-/*
- * If you don't need rsnd_dai_call debug message,
- * define RSND_DEBUG_NO_DAI_CALL as 1 on top of core.c
- *
- * #define RSND_DEBUG_NO_DAI_CALL 1
- */
-#define rsnd_dbg_dai_call(dev, param...)		\
-	if (!IS_BUILTIN(RSND_DEBUG_NO_DAI_CALL))	\
-		dev_dbg(dev, param)
-
-#endif
-
 #ifdef CONFIG_DEBUG_FS
 int rsnd_debugfs_probe(struct snd_soc_component *component);
 void rsnd_debugfs_reg_show(struct seq_file *m, phys_addr_t _addr,
@@ -913,3 +910,5 @@ void rsnd_debugfs_mod_reg_show(struct seq_file *m, struct rsnd_mod *mod,
 #else
 #define rsnd_debugfs_probe  NULL
 #endif
+
+#endif /* RSND_H */

@@ -228,7 +228,7 @@ static struct attribute *xfs_errortag_attrs[] = {
 };
 ATTRIBUTE_GROUPS(xfs_errortag);
 
-static struct kobj_type xfs_errortag_ktype = {
+static const struct kobj_type xfs_errortag_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_errortag_sysfs_ops,
 	.default_groups = xfs_errortag_groups,

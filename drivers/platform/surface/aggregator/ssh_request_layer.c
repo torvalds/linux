@@ -916,6 +916,21 @@ static void ssh_rtl_rx_command(struct ssh_ptl *p, const struct ssam_span *data)
 	if (sshp_parse_command(dev, data, &command, &command_data))
 		return;
 
+	/*
+	 * Check if the message was intended for us. If not, drop it.
+	 *
+	 * Note: We will need to change this to handle debug messages. On newer
+	 * generation devices, these seem to be sent to SSAM_SSH_TID_DEBUG. We
+	 * as host can still receive them as they can be forwarded via an
+	 * override option on SAM, but doing so does not change the target ID
+	 * to SSAM_SSH_TID_HOST.
+	 */
+	if (command->tid != SSAM_SSH_TID_HOST) {
+		rtl_warn(rtl, "rtl: dropping message not intended for us (tid = %#04x)\n",
+			 command->tid);
+		return;
+	}
+
 	if (ssh_rqid_is_event(get_unaligned_le16(&command->rqid)))
 		ssh_rtl_rx_event(rtl, command, &command_data);
 	else

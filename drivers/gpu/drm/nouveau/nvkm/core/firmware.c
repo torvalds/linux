@@ -151,6 +151,9 @@ nvkm_firmware_mem_page(struct nvkm_memory *memory)
 static enum nvkm_memory_target
 nvkm_firmware_mem_target(struct nvkm_memory *memory)
 {
+	if (nvkm_firmware_mem(memory)->device->func->tegra)
+		return NVKM_MEM_TARGET_NCOH;
+
 	return NVKM_MEM_TARGET_HOST;
 }
 

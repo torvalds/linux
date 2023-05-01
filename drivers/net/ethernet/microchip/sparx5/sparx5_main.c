@@ -198,12 +198,15 @@ static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
 	{ TARGET_QSYS,               0x110a0000, 2 }, /* 0x6110a0000 */
 	{ TARGET_QFWD,               0x110b0000, 2 }, /* 0x6110b0000 */
 	{ TARGET_XQS,                0x110c0000, 2 }, /* 0x6110c0000 */
+	{ TARGET_VCAP_ES2,           0x110d0000, 2 }, /* 0x6110d0000 */
+	{ TARGET_VCAP_ES0,           0x110e0000, 2 }, /* 0x6110e0000 */
 	{ TARGET_CLKGEN,             0x11100000, 2 }, /* 0x611100000 */
 	{ TARGET_ANA_AC_POL,         0x11200000, 2 }, /* 0x611200000 */
 	{ TARGET_QRES,               0x11280000, 2 }, /* 0x611280000 */
 	{ TARGET_EACL,               0x112c0000, 2 }, /* 0x6112c0000 */
 	{ TARGET_ANA_CL,             0x11400000, 2 }, /* 0x611400000 */
 	{ TARGET_ANA_L3,             0x11480000, 2 }, /* 0x611480000 */
+	{ TARGET_ANA_AC_SDLB,        0x11500000, 2 }, /* 0x611500000 */
 	{ TARGET_HSCH,               0x11580000, 2 }, /* 0x611580000 */
 	{ TARGET_REW,                0x11600000, 2 }, /* 0x611600000 */
 	{ TARGET_ANA_L2,             0x11800000, 2 }, /* 0x611800000 */
@@ -500,8 +503,8 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 
 	clk_period = sparx5_clk_period(freq);
 
-	spx5_rmw(HSCH_SYS_CLK_PER_SYS_CLK_PER_100PS_SET(clk_period / 100),
-		 HSCH_SYS_CLK_PER_SYS_CLK_PER_100PS,
+	spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
+		 HSCH_SYS_CLK_PER_100PS,
 		 sparx5,
 		 HSCH_SYS_CLK_PER);
 

@@ -104,9 +104,6 @@ int omap2_prm_deassert_hardreset(u8 rst_shift, u8 st_shift, u8 part,
 				 s16 prm_mod, u16 reset_offset,
 				 u16 st_offset);
 
-extern int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst);
-extern int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm);
-extern int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm);
 extern int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
 				    u8 pwrst);
 extern int omap2_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,

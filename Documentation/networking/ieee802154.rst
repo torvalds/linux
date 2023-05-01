@@ -70,7 +70,7 @@ Like with WiFi, there are several types of devices implementing IEEE 802.15.4.
 exports a management (e.g. MLME) and data API.
 2) 'SoftMAC' or just radio. These types of devices are just radio transceivers
 possibly with some kinds of acceleration like automatic CRC computation and
-comparation, automagic ACK handling, address matching, etc.
+comparison, automagic ACK handling, address matching, etc.
 
 Those types of devices require different approach to be hooked into Linux kernel.
 

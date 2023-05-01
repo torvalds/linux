@@ -40,9 +40,10 @@
 
 #include <asm/msr.h>
 
-#include "../thermal_core.h"
 #include "intel_hfi.h"
 #include "thermal_interrupt.h"
+
+#include "../thermal_netlink.h"
 
 /* Hardware Feedback Interface MSR configuration bits */
 #define HW_FEEDBACK_PTR_VALID_BIT		BIT(0)

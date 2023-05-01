@@ -99,8 +99,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 				const char *scale_unit __maybe_unused,
 				bool deprecated, const char *event_type_desc,
 				const char *desc, const char *long_desc,
-				const char *encoding_desc,
-				const char *metric_name, const char *metric_expr)
+				const char *encoding_desc)
 {
 	struct print_state *print_state = ps;
 	int pos;
@@ -159,10 +158,6 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	if (print_state->detailed && encoding_desc) {
 		printf("%*s", 8, "");
 		wordwrap(encoding_desc, 8, pager_get_columns(), 0);
-		if (metric_name)
-			printf(" MetricName: %s", metric_name);
-		if (metric_expr)
-			printf(" MetricExpr: %s", metric_expr);
 		putchar('\n');
 	}
 }
@@ -308,8 +303,7 @@ static void json_print_event(void *ps, const char *pmu_name, const char *topic,
 			     const char *scale_unit,
 			     bool deprecated, const char *event_type_desc,
 			     const char *desc, const char *long_desc,
-			     const char *encoding_desc,
-			     const char *metric_name, const char *metric_expr)
+			     const char *encoding_desc)
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
@@ -364,16 +358,6 @@ static void json_print_event(void *ps, const char *pmu_name, const char *topic,
 	if (encoding_desc) {
 		fix_escape_printf(&buf, "%s\t\"Encoding\": \"%S\"", need_sep ? ",\n" : "",
 				  encoding_desc);
-		need_sep = true;
-	}
-	if (metric_name) {
-		fix_escape_printf(&buf, "%s\t\"MetricName\": \"%S\"", need_sep ? ",\n" : "",
-				  metric_name);
-		need_sep = true;
-	}
-	if (metric_expr) {
-		fix_escape_printf(&buf, "%s\t\"MetricExpr\": \"%S\"", need_sep ? ",\n" : "",
-				  metric_expr);
 		need_sep = true;
 	}
 	printf("%s}", need_sep ? "\n" : "");

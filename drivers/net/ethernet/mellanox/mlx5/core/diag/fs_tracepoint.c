@@ -275,6 +275,10 @@ const char *parse_fs_dst(struct trace_seq *p,
 				 fs_dest_range_field_to_str(dst->range.field),
 				 dst->range.min, dst->range.max);
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE:
+		trace_seq_printf(p, "flow_table_type=%u id:%u\n", dst->ft->type,
+				 dst->ft->id);
+		break;
 	case MLX5_FLOW_DESTINATION_TYPE_NONE:
 		trace_seq_printf(p, "none\n");
 		break;

@@ -544,6 +544,7 @@ enum mt7615_reg_base {
 #define MT_LED_CTRL_POLARITY(_n)	BIT(1 + (8 * (_n)))
 #define MT_LED_CTRL_TX_BLINK_MODE(_n)	BIT(2 + (8 * (_n)))
 #define MT_LED_CTRL_TX_MANUAL_BLINK(_n)	BIT(3 + (8 * (_n)))
+#define MT_LED_CTRL_BAND(_n)		BIT(4 + (8 * (_n)))
 #define MT_LED_CTRL_TX_OVER_BLINK(_n)	BIT(5 + (8 * (_n)))
 #define MT_LED_CTRL_KICK(_n)		BIT(7 + (8 * (_n)))
 

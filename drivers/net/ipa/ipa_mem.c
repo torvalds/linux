@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -75,7 +75,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
 int ipa_mem_setup(struct ipa *ipa)
 {
 	dma_addr_t addr = ipa->zero_addr;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	const struct ipa_mem *mem;
 	struct gsi_trans *trans;
 	u32 offset;
@@ -115,8 +115,8 @@ int ipa_mem_setup(struct ipa *ipa)
 	offset = ipa->mem_offset + mem->offset;
 
 	reg = ipa_reg(ipa, LOCAL_PKT_PROC_CNTXT);
-	val = ipa_reg_encode(reg, IPA_BASE_ADDR, offset);
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	val = reg_encode(reg, IPA_BASE_ADDR, offset);
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	return 0;
 }
@@ -160,6 +160,12 @@ static bool ipa_mem_id_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 	case IPA_MEM_STATS_V4_ROUTE:
 	case IPA_MEM_STATS_V6_ROUTE:
 		if (version < IPA_VERSION_4_0 || version > IPA_VERSION_4_2)
+			return false;
+		break;
+
+	case IPA_MEM_AP_V4_FILTER:
+	case IPA_MEM_AP_V6_FILTER:
+		if (version != IPA_VERSION_5_0)
 			return false;
 		break;
 
@@ -312,8 +318,8 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 int ipa_mem_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	const struct ipa_reg *reg;
 	const struct ipa_mem *mem;
+	const struct reg *reg;
 	dma_addr_t addr;
 	u32 mem_size;
 	void *virt;
@@ -322,13 +328,13 @@ int ipa_mem_config(struct ipa *ipa)
 
 	/* Check the advertised location and size of the shared memory area */
 	reg = ipa_reg(ipa, SHARED_MEM_SIZE);
-	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
+	val = ioread32(ipa->reg_virt + reg_offset(reg));
 
 	/* The fields in the register are in 8 byte units */
-	ipa->mem_offset = 8 * ipa_reg_decode(reg, MEM_BADDR, val);
+	ipa->mem_offset = 8 * reg_decode(reg, MEM_BADDR, val);
 
 	/* Make sure the end is within the region's mapped space */
-	mem_size = 8 * ipa_reg_decode(reg, MEM_SIZE, val);
+	mem_size = 8 * reg_decode(reg, MEM_SIZE, val);
 
 	/* If the sizes don't match, issue a warning */
 	if (ipa->mem_offset + mem_size < ipa->mem_size) {
@@ -466,7 +472,8 @@ static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
 	size = PAGE_ALIGN(size + addr - phys);
 	iova = phys;	/* We just want a direct mapping */
 
-	ret = iommu_map(domain, iova, phys, size, IOMMU_READ | IOMMU_WRITE);
+	ret = iommu_map(domain, iova, phys, size, IOMMU_READ | IOMMU_WRITE,
+			GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -574,7 +581,8 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 	size = PAGE_ALIGN(size + addr - phys);
 	iova = phys;	/* We just want a direct mapping */
 
-	ret = iommu_map(domain, iova, phys, size, IOMMU_READ | IOMMU_WRITE);
+	ret = iommu_map(domain, iova, phys, size, IOMMU_READ | IOMMU_WRITE,
+			GFP_KERNEL);
 	if (ret)
 		return ret;
 

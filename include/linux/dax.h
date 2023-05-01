@@ -262,11 +262,14 @@ static inline bool dax_mapping(struct address_space *mapping)
 }
 
 #ifdef CONFIG_DEV_DAX_HMEM_DEVICES
-void hmem_register_device(int target_nid, struct resource *r);
+void hmem_register_resource(int target_nid, struct resource *r);
 #else
-static inline void hmem_register_device(int target_nid, struct resource *r)
+static inline void hmem_register_resource(int target_nid, struct resource *r)
 {
 }
 #endif
 
+typedef int (*walk_hmem_fn)(struct device *dev, int target_nid,
+			    const struct resource *res);
+int walk_hmem_resources(struct device *dev, walk_hmem_fn fn);
 #endif

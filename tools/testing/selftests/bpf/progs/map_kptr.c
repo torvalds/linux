@@ -62,21 +62,23 @@ extern struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **p, int a, int b) __ksym;
 extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 
+#define WRITE_ONCE(x, val) ((*(volatile typeof(x) *) &(x)) = (val))
+
 static void test_kptr_unref(struct map_value *v)
 {
 	struct prog_test_ref_kfunc *p;
 
 	p = v->unref_ptr;
 	/* store untrusted_ptr_or_null_ */
-	v->unref_ptr = p;
+	WRITE_ONCE(v->unref_ptr, p);
 	if (!p)
 		return;
 	if (p->a + p->b > 100)
 		return;
 	/* store untrusted_ptr_ */
-	v->unref_ptr = p;
+	WRITE_ONCE(v->unref_ptr, p);
 	/* store NULL */
-	v->unref_ptr = NULL;
+	WRITE_ONCE(v->unref_ptr, NULL);
 }
 
 static void test_kptr_ref(struct map_value *v)
@@ -85,7 +87,7 @@ static void test_kptr_ref(struct map_value *v)
 
 	p = v->ref_ptr;
 	/* store ptr_or_null_ */
-	v->unref_ptr = p;
+	WRITE_ONCE(v->unref_ptr, p);
 	if (!p)
 		return;
 	if (p->a + p->b > 100)
@@ -99,7 +101,7 @@ static void test_kptr_ref(struct map_value *v)
 		return;
 	}
 	/* store ptr_ */
-	v->unref_ptr = p;
+	WRITE_ONCE(v->unref_ptr, p);
 	bpf_kfunc_call_test_release(p);
 
 	p = bpf_kfunc_call_test_acquire(&(unsigned long){0});

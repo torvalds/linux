@@ -75,7 +75,7 @@ static void blk_ia_range_sysfs_nop_release(struct kobject *kobj)
 {
 }
 
-static struct kobj_type blk_ia_range_ktype = {
+static const struct kobj_type blk_ia_range_ktype = {
 	.sysfs_ops	= &blk_ia_range_sysfs_ops,
 	.default_groups	= blk_ia_range_groups,
 	.release	= blk_ia_range_sysfs_nop_release,
@@ -94,7 +94,7 @@ static void blk_ia_ranges_sysfs_release(struct kobject *kobj)
 	kfree(iars);
 }
 
-static struct kobj_type blk_ia_ranges_ktype = {
+static const struct kobj_type blk_ia_ranges_ktype = {
 	.release	= blk_ia_ranges_sysfs_release,
 };
 

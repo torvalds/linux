@@ -375,14 +375,13 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer",
-				     "qcom,kpss-wdt-apq8064", "qcom,msm-timer";
+			compatible = "qcom,kpss-wdt-apq8064", "qcom,kpss-timer",
+				     "qcom,msm-timer";
 			interrupts = <1 1 0x301>,
 				     <1 2 0x301>,
 				     <1 3 0x301>;
 			reg = <0x0200a000 0x100>;
-			clock-frequency = <27000000>,
-					  <32768>;
+			clock-frequency = <27000000>;
 			cpu-offset = <0x80000>;
 		};
 
@@ -866,9 +865,9 @@
 				 <&gcc PLL8_VOTE>,
 				 <&dsi0_phy 1>,
 				 <&dsi0_phy 0>,
-				 <0>,
-				 <0>,
-				 <0>;
+				 <&dsi1_phy 1>,
+				 <&dsi1_phy 0>,
+				 <&hdmi_phy>;
 			clock-names = "pxo",
 				      "pll3",
 				      "pll8_vote",
@@ -1102,7 +1101,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		sdcc3bam: dma-controller@12182000{
+		sdcc3bam: dma-controller@12182000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
 			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -1130,7 +1129,7 @@
 			pinctrl-0 = <&sdc4_gpios>;
 		};
 
-		sdcc4bam: dma-controller@121c2000{
+		sdcc4bam: dma-controller@121c2000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x121c2000 0x8000>;
 			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -1159,7 +1158,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		sdcc1bam: dma-controller@12402000{
+		sdcc1bam: dma-controller@12402000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -1277,7 +1276,8 @@
 		};
 
 		dsi0: dsi@4700000 {
-			compatible = "qcom,mdss-dsi-ctrl";
+			compatible = "qcom,apq8064-dsi-ctrl",
+				     "qcom,mdss-dsi-ctrl";
 			label = "MDSS DSI CTRL->0";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1342,6 +1342,80 @@
 			status = "disabled";
 		};
 
+		dsi1: dsi@5800000 {
+			compatible = "qcom,mdss-dsi-ctrl";
+			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x05800000 0x200>;
+			reg-names = "dsi_ctrl";
+
+			clocks = <&mmcc DSI2_M_AHB_CLK>,
+				 <&mmcc DSI2_S_AHB_CLK>,
+				 <&mmcc AMP_AHB_CLK>,
+				 <&mmcc DSI2_CLK>,
+				 <&mmcc DSI2_BYTE_CLK>,
+				 <&mmcc DSI2_PIXEL_CLK>,
+				 <&mmcc DSI2_ESC_CLK>;
+			clock-names = "iface",
+				      "bus",
+				      "core_mmss",
+				      "src",
+				      "byte",
+				      "pixel",
+				      "core";
+
+			assigned-clocks = <&mmcc DSI2_BYTE_SRC>,
+					  <&mmcc DSI2_ESC_SRC>,
+					  <&mmcc DSI2_SRC>,
+					  <&mmcc DSI2_PIXEL_SRC>;
+			assigned-clock-parents = <&dsi1_phy 0>,
+						 <&dsi1_phy 0>,
+						 <&dsi1_phy 1>,
+						 <&dsi1_phy 1>;
+
+			syscon-sfpb = <&mmss_sfpb>;
+			phys = <&dsi1_phy>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi1_in: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi1_out: endpoint {
+					};
+				};
+			};
+		};
+
+
+		dsi1_phy: dsi-phy@5800200 {
+			compatible = "qcom,dsi-phy-28nm-8960";
+			reg = <0x05800200 0x100>,
+			      <0x05800300 0x200>,
+			      <0x05800500 0x5c>;
+			reg-names = "dsi_pll",
+				    "dsi_phy",
+				    "dsi_phy_regulator";
+			clock-names = "iface",
+				      "ref";
+			clocks = <&mmcc DSI2_M_AHB_CLK>,
+				 <&pxo_board>;
+			#clock-cells = <1>;
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
 
 		mdp_port0: iommu@7500000 {
 			compatible = "qcom,apq8064-iommu";
@@ -1489,11 +1563,12 @@
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface";
 			#phy-cells = <0>;
+			#clock-cells = <0>;
 
 			status = "disabled";
 		};
 
-		mdp: mdp@5100000 {
+		mdp: display-controller@5100000 {
 			compatible = "qcom,mdp4";
 			reg = <0x05100000 0xf0000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;

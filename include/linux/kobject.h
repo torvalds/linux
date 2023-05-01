@@ -137,7 +137,7 @@ struct kobj_uevent_env {
 struct kset_uevent_ops {
 	int (* const filter)(const struct kobject *kobj);
 	const char *(* const name)(const struct kobject *kobj);
-	int (* const uevent)(struct kobject *kobj, struct kobj_uevent_env *env);
+	int (* const uevent)(const struct kobject *kobj, struct kobj_uevent_env *env);
 };
 
 struct kobj_attribute {

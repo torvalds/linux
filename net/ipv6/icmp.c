@@ -183,6 +183,7 @@ static bool icmpv6_global_allow(struct net *net, int type)
 	if (icmp_global_allow())
 		return true;
 
+	__ICMP_INC_STATS(net, ICMP_MIB_RATELIMITGLOBAL);
 	return false;
 }
 
@@ -224,6 +225,9 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		if (peer)
 			inet_putpeer(peer);
 	}
+	if (!res)
+		__ICMP6_INC_STATS(net, ip6_dst_idev(dst),
+				  ICMP6_MIB_RATELIMITHOST);
 	dst_release(dst);
 	return res;
 }
@@ -328,7 +332,6 @@ static void mip6_addr_swap(struct sk_buff *skb, const struct inet6_skb_parm *opt
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct ipv6_destopt_hao *hao;
-	struct in6_addr tmp;
 	int off;
 
 	if (opt->dsthao) {
@@ -336,9 +339,7 @@ static void mip6_addr_swap(struct sk_buff *skb, const struct inet6_skb_parm *opt
 		if (likely(off >= 0)) {
 			hao = (struct ipv6_destopt_hao *)
 					(skb_network_header(skb) + off);
-			tmp = iph->saddr;
-			iph->saddr = hao->addr;
-			hao->addr = tmp;
+			swap(iph->saddr, hao->addr);
 		}
 	}
 }
@@ -704,7 +705,7 @@ int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type,
 }
 EXPORT_SYMBOL(ip6_err_gen_icmpv6_unreach);
 
-static void icmpv6_echo_reply(struct sk_buff *skb)
+static enum skb_drop_reason icmpv6_echo_reply(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
@@ -718,18 +719,19 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct ipcm6_cookie ipc6;
 	u32 mark = IP6_REPLY_MARK(net, skb->mark);
+	SKB_DR(reason);
 	bool acast;
 	u8 type;
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
 	    net->ipv6.sysctl.icmpv6_echo_ignore_multicast)
-		return;
+		return reason;
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
 	acast = ipv6_anycast_destination(skb_dst(skb), saddr);
 	if (acast && net->ipv6.sysctl.icmpv6_echo_ignore_anycast)
-		return;
+		return reason;
 
 	if (!ipv6_unicast_destination(skb) &&
 	    !(net->ipv6.sysctl.anycast_src_echo_reply && acast))
@@ -803,6 +805,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	} else {
 		icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr,
 					   skb->len + sizeof(struct icmp6hdr));
+		reason = SKB_CONSUMED;
 	}
 out_dst_release:
 	dst_release(dst);
@@ -810,18 +813,22 @@ out:
 	icmpv6_xmit_unlock(sk);
 out_bh_enable:
 	local_bh_enable();
+	return reason;
 }
 
-void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
+enum skb_drop_reason icmpv6_notify(struct sk_buff *skb, u8 type,
+				   u8 code, __be32 info)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
+	struct net *net = dev_net(skb->dev);
 	const struct inet6_protocol *ipprot;
+	enum skb_drop_reason reason;
 	int inner_offset;
 	__be16 frag_off;
 	u8 nexthdr;
-	struct net *net = dev_net(skb->dev);
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+	reason = pskb_may_pull_reason(skb, sizeof(struct ipv6hdr));
+	if (reason != SKB_NOT_DROPPED_YET)
 		goto out;
 
 	seg6_icmp_srh(skb, opt);
@@ -831,14 +838,17 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 		/* now skip over extension headers */
 		inner_offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
 						&nexthdr, &frag_off);
-		if (inner_offset < 0)
+		if (inner_offset < 0) {
+			SKB_DR_SET(reason, IPV6_BAD_EXTHDR);
 			goto out;
+		}
 	} else {
 		inner_offset = sizeof(struct ipv6hdr);
 	}
 
 	/* Checkin header including 8 bytes of inner protocol header. */
-	if (!pskb_may_pull(skb, inner_offset+8))
+	reason = pskb_may_pull_reason(skb, inner_offset + 8);
+	if (reason != SKB_NOT_DROPPED_YET)
 		goto out;
 
 	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
@@ -853,10 +863,11 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 		ipprot->err_handler(skb, opt, type, code, inner_offset, info);
 
 	raw6_icmp_error(skb, nexthdr, type, code, inner_offset, info);
-	return;
+	return SKB_CONSUMED;
 
 out:
 	__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
+	return reason;
 }
 
 /*
@@ -921,12 +932,12 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	switch (type) {
 	case ICMPV6_ECHO_REQUEST:
 		if (!net->ipv6.sysctl.icmpv6_echo_ignore_all)
-			icmpv6_echo_reply(skb);
+			reason = icmpv6_echo_reply(skb);
 		break;
 	case ICMPV6_EXT_ECHO_REQUEST:
 		if (!net->ipv6.sysctl.icmpv6_echo_ignore_all &&
 		    READ_ONCE(net->ipv4.sysctl_icmp_echo_enable_probe))
-			icmpv6_echo_reply(skb);
+			reason = icmpv6_echo_reply(skb);
 		break;
 
 	case ICMPV6_ECHO_REPLY:
@@ -952,7 +963,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	case ICMPV6_DEST_UNREACH:
 	case ICMPV6_TIME_EXCEED:
 	case ICMPV6_PARAMPROB:
-		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
+		reason = icmpv6_notify(skb, type, hdr->icmp6_code,
+				       hdr->icmp6_mtu);
 		break;
 
 	case NDISC_ROUTER_SOLICITATION:
@@ -960,7 +972,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	case NDISC_NEIGHBOUR_SOLICITATION:
 	case NDISC_NEIGHBOUR_ADVERTISEMENT:
 	case NDISC_REDIRECT:
-		ndisc_rcv(skb);
+		reason = ndisc_rcv(skb);
 		break;
 
 	case ICMPV6_MGM_QUERY:
@@ -994,7 +1006,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		 * must pass to upper level
 		 */
 
-		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
+		reason = icmpv6_notify(skb, type, hdr->icmp6_code,
+				       hdr->icmp6_mtu);
 	}
 
 	/* until the v6 path can be better sorted assume failure and

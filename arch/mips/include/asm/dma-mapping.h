@@ -6,7 +6,7 @@
 
 extern const struct dma_map_ops jazz_dma_ops;
 
-static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
+static inline const struct dma_map_ops *get_arch_dma_ops(void)
 {
 #if defined(CONFIG_MACH_JAZZ)
 	return &jazz_dma_ops;

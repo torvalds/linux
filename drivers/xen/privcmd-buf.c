@@ -156,7 +156,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	vma_priv->file_priv = file_priv;
 	vma_priv->users = 1;
 
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
+	vm_flags_set(vma, VM_IO | VM_DONTEXPAND);
 	vma->vm_ops = &privcmd_buf_vm_ops;
 	vma->vm_private_data = vma_priv;
 

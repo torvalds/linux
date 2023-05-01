@@ -47,6 +47,7 @@
 #include "dcn30/dcn30_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
+#include "link.h"
 
 #include "logger_types.h"
 #undef DC_LOGGER

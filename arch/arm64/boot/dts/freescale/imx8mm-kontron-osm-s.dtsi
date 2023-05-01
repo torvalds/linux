@@ -10,6 +10,11 @@
 	model = "Kontron OSM-S i.MX8MM (N802X SOM)";
 	compatible = "kontron,imx8mm-osm-s", "fsl,imx8mm";
 
+	aliases {
+		rtc0 = &rv3028;
+		rtc1 = &snvs_rtc;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		/*
@@ -200,7 +205,7 @@
 		};
 	};
 
-	rtc@52 {
+	rv3028: rtc@52 {
 		compatible = "microcrystal,rv3028";
 		reg = <0x52>;
 		pinctrl-names = "default";

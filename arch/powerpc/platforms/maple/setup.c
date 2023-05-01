@@ -162,8 +162,8 @@ static struct smp_ops_t maple_smp_ops = {
 
 static void __init maple_use_rtas_reboot_and_halt_if_present(void)
 {
-	if (rtas_service_present("system-reboot") &&
-	    rtas_service_present("power-off")) {
+	if (rtas_function_implemented(RTAS_FN_SYSTEM_REBOOT) &&
+	    rtas_function_implemented(RTAS_FN_POWER_OFF)) {
 		ppc_md.restart = rtas_restart;
 		pm_power_off = rtas_power_off;
 		ppc_md.halt = rtas_halt;

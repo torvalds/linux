@@ -247,7 +247,7 @@ static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw, u32 s
 
 SSAM_DEFINE_SYNC_REQUEST_R(__ssam_kip_get_cover_state, u8, {
 	.target_category = SSAM_SSH_TC_KIP,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x1d,
 	.instance_id     = 0x00,
 });
@@ -371,7 +371,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	int status;
 
 	rqst.target_category = SSAM_SSH_TC_POS;
-	rqst.target_id = 0x01;
+	rqst.target_id = SSAM_SSH_TID_SAM;
 	rqst.command_id = 0x01;
 	rqst.instance_id = 0x00;
 	rqst.flags = SSAM_REQUEST_HAS_RESPONSE;
@@ -382,7 +382,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	rsp.length = 0;
 	rsp.pointer = (u8 *)sources;
 
-	status = ssam_retry(ssam_request_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
+	status = ssam_retry(ssam_request_do_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
 	if (status)
 		return status;
 
@@ -430,7 +430,7 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 
 SSAM_DEFINE_SYNC_REQUEST_WR(__ssam_pos_get_posture_for_source, __le32, __le32, {
 	.target_category = SSAM_SSH_TC_POS,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x02,
 	.instance_id     = 0x00,
 });
@@ -510,8 +510,8 @@ static const struct ssam_tablet_sw_desc ssam_pos_sw_desc = {
 /* -- Driver registration. -------------------------------------------------- */
 
 static const struct ssam_device_id ssam_tablet_sw_match[] = {
-	{ SSAM_SDEV(KIP, 0x01, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
-	{ SSAM_SDEV(POS, 0x01, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
+	{ SSAM_SDEV(KIP, SAM, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
+	{ SSAM_SDEV(POS, SAM, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, ssam_tablet_sw_match);

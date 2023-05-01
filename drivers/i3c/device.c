@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(i3c_device_do_setdasa);
  *
  * Retrieve I3C dev info.
  */
-void i3c_device_get_info(struct i3c_device *dev,
+void i3c_device_get_info(const struct i3c_device *dev,
 			 struct i3c_device_info *info)
 {
 	if (!info)
@@ -207,18 +207,6 @@ struct device *i3cdev_to_dev(struct i3c_device *i3cdev)
 	return &i3cdev->dev;
 }
 EXPORT_SYMBOL_GPL(i3cdev_to_dev);
-
-/**
- * dev_to_i3cdev() - Returns the I3C device containing @dev
- * @dev: device object
- *
- * Return: a pointer to an I3C device object.
- */
-struct i3c_device *dev_to_i3cdev(struct device *dev)
-{
-	return container_of(dev, struct i3c_device, dev);
-}
-EXPORT_SYMBOL_GPL(dev_to_i3cdev);
 
 /**
  * i3c_device_match_id() - Returns the i3c_device_id entry matching @i3cdev

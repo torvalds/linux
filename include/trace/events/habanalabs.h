@@ -87,6 +87,81 @@ DEFINE_EVENT(habanalabs_dma_alloc_template, habanalabs_dma_free,
 	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size, const char *caller),
 	TP_ARGS(dev, cpu_addr, dma_addr, size, caller));
 
+DECLARE_EVENT_CLASS(habanalabs_comms_template,
+	TP_PROTO(struct device *dev, char *op_str),
+
+	TP_ARGS(dev, op_str),
+
+	TP_STRUCT__entry(
+		__string(dname, dev_name(dev))
+		__field(char *, op_str)
+	),
+
+	TP_fast_assign(
+		__assign_str(dname, dev_name(dev));
+		__entry->op_str = op_str;
+	),
+
+	TP_printk("%s: cms: %s",
+		__get_str(dname),
+		__entry->op_str)
+);
+
+DEFINE_EVENT(habanalabs_comms_template, habanalabs_comms_protocol_cmd,
+	TP_PROTO(struct device *dev, char *op_str),
+	TP_ARGS(dev, op_str));
+
+DEFINE_EVENT(habanalabs_comms_template, habanalabs_comms_send_cmd,
+	TP_PROTO(struct device *dev, char *op_str),
+	TP_ARGS(dev, op_str));
+
+DEFINE_EVENT(habanalabs_comms_template, habanalabs_comms_wait_status,
+	TP_PROTO(struct device *dev, char *op_str),
+	TP_ARGS(dev, op_str));
+
+DEFINE_EVENT(habanalabs_comms_template, habanalabs_comms_wait_status_done,
+	TP_PROTO(struct device *dev, char *op_str),
+	TP_ARGS(dev, op_str));
+
+DECLARE_EVENT_CLASS(habanalabs_reg_access_template,
+	TP_PROTO(struct device *dev, u32 addr, u32 val),
+
+	TP_ARGS(dev, addr, val),
+
+	TP_STRUCT__entry(
+		__string(dname, dev_name(dev))
+		__field(u32, addr)
+		__field(u32, val)
+	),
+
+	TP_fast_assign(
+		__assign_str(dname, dev_name(dev));
+		__entry->addr = addr;
+		__entry->val = val;
+	),
+
+	TP_printk("%s: addr: %#x, val: %#x",
+		__get_str(dname),
+		__entry->addr,
+		__entry->val)
+);
+
+DEFINE_EVENT(habanalabs_reg_access_template, habanalabs_rreg32,
+	TP_PROTO(struct device *dev, u32 addr, u32 val),
+	TP_ARGS(dev, addr, val));
+
+DEFINE_EVENT(habanalabs_reg_access_template, habanalabs_wreg32,
+	TP_PROTO(struct device *dev, u32 addr, u32 val),
+	TP_ARGS(dev, addr, val));
+
+DEFINE_EVENT(habanalabs_reg_access_template, habanalabs_elbi_read,
+	TP_PROTO(struct device *dev, u32 addr, u32 val),
+	TP_ARGS(dev, addr, val));
+
+DEFINE_EVENT(habanalabs_reg_access_template, habanalabs_elbi_write,
+	TP_PROTO(struct device *dev, u32 addr, u32 val),
+	TP_ARGS(dev, addr, val));
+
 #endif /* if !defined(_TRACE_HABANALABS_H) || defined(TRACE_HEADER_MULTI_READ) */
 
 /* This part must be outside protection */

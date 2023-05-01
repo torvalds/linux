@@ -255,6 +255,7 @@ static void *producer(void *input)
  */
 const struct bench bench_local_storage_cache_seq_get = {
 	.name = "local-storage-cache-seq-get",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = local_storage_cache_get_setup,
 	.producer_thread = producer,
@@ -266,6 +267,7 @@ const struct bench bench_local_storage_cache_seq_get = {
 
 const struct bench bench_local_storage_cache_interleaved_get = {
 	.name = "local-storage-cache-int-get",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = local_storage_cache_get_interleaved_setup,
 	.producer_thread = producer,
@@ -277,6 +279,7 @@ const struct bench bench_local_storage_cache_interleaved_get = {
 
 const struct bench bench_local_storage_cache_hashmap_control = {
 	.name = "local-storage-cache-hashmap-control",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = hashmap_setup,
 	.producer_thread = producer,

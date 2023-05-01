@@ -55,6 +55,7 @@ ts_i2c: &i2c13 {
 		reset-gpios = <&tlmm 54 GPIO_ACTIVE_LOW>;
 
 		vdd-supply = <&ts_avdd>;
+		mainboard-vddio-supply = <&ts_avccio>;
 	};
 };
 

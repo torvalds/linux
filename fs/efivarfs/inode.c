@@ -70,7 +70,7 @@ bool efivarfs_valid_name(const char *str, int len)
 	return uuid_is_valid(s);
 }
 
-static int efivarfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct inode *inode = NULL;
@@ -163,7 +163,7 @@ efivarfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 static int
-efivarfs_fileattr_set(struct user_namespace *mnt_userns,
+efivarfs_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
 	unsigned int i_flags = 0;

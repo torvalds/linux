@@ -163,7 +163,7 @@ chiave principale attraverso firme certificate. È quindi importante
 comprendere i seguenti punti:
 
 1. Non ci sono differenze tecniche tra la chiave principale e la sottochiave.
-2. In fesa di creazione, assegniamo limitazioni funzionali ad ogni chiave
+2. In fase di creazione, assegniamo limitazioni funzionali ad ogni chiave
    assegnando capacità specifiche.
 3. Una chiave PGP può avere 4 capacità:
 
@@ -286,9 +286,7 @@ magari in una cassetta di sicurezza in banca.
     Probabilmente la vostra stampante non è più quello stupido dispositivo
     connesso alla porta parallela, ma dato che il suo output è comunque
     criptato con la passphrase, eseguire la stampa in un sistema "cloud"
-    moderno dovrebbe essere comunque relativamente sicuro. Un'opzione potrebbe
-    essere quella di cambiare la passphrase della vostra chiave primaria
-    subito dopo aver finito con paperkey.
+    moderno dovrebbe essere comunque relativamente sicuro.
 
 Copia di riserva di tutta la cartella GnuPG
 -------------------------------------------

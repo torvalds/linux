@@ -12,7 +12,7 @@ maintainers:
   - Li-hao Kuo <lhjeff911@gmail.com>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
 
 properties:
   compatible:

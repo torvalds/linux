@@ -14,6 +14,7 @@
 #include <linux/kref.h>
 #include <linux/sched.h>
 
+#include "fence.h"
 #include "intr.h"
 
 struct host1x;
@@ -39,7 +40,7 @@ struct host1x_syncpt {
 	struct host1x_syncpt_base *base;
 
 	/* interrupt data */
-	struct host1x_syncpt_intr intr;
+	struct host1x_fence_list fences;
 
 	/*
 	 * If a submission incrementing this syncpoint fails, lock it so that

@@ -140,5 +140,4 @@ int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 
 void arch_cpu_idle(void)
 {
-       raw_local_irq_enable();
 }

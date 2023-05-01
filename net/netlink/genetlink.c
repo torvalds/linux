@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
-#include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/skbuff.h>
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
@@ -457,7 +457,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 
 		if (WARN_ON(grp->name[0] == '\0'))
 			return -EINVAL;
-		if (WARN_ON(memchr(grp->name, '\0', GENL_NAMSIZ) == NULL))
+		if (WARN_ON(!string_is_terminated(grp->name, GENL_NAMSIZ)))
 			return -EINVAL;
 	}
 

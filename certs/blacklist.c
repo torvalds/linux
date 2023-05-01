@@ -183,16 +183,19 @@ static int mark_raw_hash_blacklisted(const char *hash)
 {
 	key_ref_t key;
 
-	key = key_create_or_update(make_key_ref(blacklist_keyring, true),
-				   "blacklist",
-				   hash,
-				   NULL,
-				   0,
-				   BLACKLIST_KEY_PERM,
-				   KEY_ALLOC_NOT_IN_QUOTA |
-				   KEY_ALLOC_BUILT_IN);
+	key = key_create(make_key_ref(blacklist_keyring, true),
+			 "blacklist",
+			 hash,
+			 NULL,
+			 0,
+			 BLACKLIST_KEY_PERM,
+			 KEY_ALLOC_NOT_IN_QUOTA |
+			 KEY_ALLOC_BUILT_IN);
 	if (IS_ERR(key)) {
-		pr_err("Problem blacklisting hash (%ld)\n", PTR_ERR(key));
+		if (PTR_ERR(key) == -EEXIST)
+			pr_warn("Duplicate blacklisted hash %s\n", hash);
+		else
+			pr_err("Problem blacklisting hash %s: %pe\n", hash, key);
 		return PTR_ERR(key);
 	}
 	return 0;

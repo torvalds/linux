@@ -363,9 +363,6 @@ GPIO 編號是無符號整數;IRQ 編號也是。這些構成了兩個邏輯上�
 	/* 映射 GPIO 編號到 IRQ 編號 */
 	int gpio_to_irq(unsigned gpio);
 
-	/* 映射 IRQ 編號到 GPIO 編號 (儘量避免使用) */
-	int irq_to_gpio(unsigned irq);
-
 它們的返回值爲對應命名空間的相關編號，或是負的錯誤代碼(如果無法映射)。
 (例如,某些 GPIO 無法做爲 IRQ 使用。)以下的編號錯誤是未經檢測的:使用一個
 未通過 gpio_direction_input()配置爲輸入的 GPIO 編號，或者使用一個
@@ -377,10 +374,6 @@ gpio_to_irq()返回的非錯誤值可以傳遞給 request_irq()或者 free_irq()
 它們通常通過板級特定的初始化代碼存放到平台設備的 IRQ 資源中。注意:IRQ
 觸發選項是 IRQ 接口的一部分，如 IRQF_TRIGGER_FALLING，系統喚醒能力
 也是如此。
-
-irq_to_gpio()返回的非錯誤值大多數通常可以被 gpio_get_value()所使用，
-比如在 IRQ 是沿觸發時初始化或更新驅動狀態。注意某些平台不支持反映射,所以
-你應該儘量避免使用它。
 
 
 模擬開漏信號
@@ -634,18 +627,9 @@ GPIO 控制器的路徑類似 /sys/class/gpio/gpiochip42/ (對於從#42 GPIO
 	/* gpio_export()的逆操作 */
 	void gpio_unexport();
 
-	/* 創建一個 sysfs 連接到已導出的 GPIO 節點 */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
 在一個內核驅動申請一個 GPIO 之後，它可以通過 gpio_export()使其在 sysfs
 接口中可見。該驅動可以控制信號方向是否可修改。這有助於防止用戶空間代碼無意間
 破壞重要的系統狀態。
 
 這個明確的導出有助於(通過使某些實驗更容易來)調試，也可以提供一個始終存在的接口，
 與文檔配合作爲板級支持包的一部分。
-
-在 GPIO 被導出之後，gpio_export_link()允許在 sysfs 文件系統的任何地方
-創建一個到這個 GPIO sysfs 節點的符號連結。這樣驅動就可以通過一個描述性的
-名字，在 sysfs 中他們所擁有的設備下提供一個(到這個 GPIO sysfs 節點的)接口。
-

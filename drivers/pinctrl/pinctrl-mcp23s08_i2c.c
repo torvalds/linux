@@ -8,8 +8,9 @@
 
 #include "pinctrl-mcp23s08.h"
 
-static int mcp230xx_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int mcp230xx_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	unsigned int type = id->driver_data;
 	struct mcp23s08 *mcp;
@@ -100,7 +101,7 @@ static struct i2c_driver mcp230xx_driver = {
 		.name	= "mcp230xx",
 		.of_match_table = mcp23s08_i2c_of_match,
 	},
-	.probe		= mcp230xx_probe,
+	.probe_new	= mcp230xx_probe,
 	.id_table	= mcp230xx_id,
 };
 

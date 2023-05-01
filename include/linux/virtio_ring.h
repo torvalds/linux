@@ -77,6 +77,22 @@ struct virtqueue *vring_create_virtqueue(unsigned int index,
 					 const char *name);
 
 /*
+ * Creates a virtqueue and allocates the descriptor ring with per
+ * virtqueue DMA device.
+ */
+struct virtqueue *vring_create_virtqueue_dma(unsigned int index,
+					     unsigned int num,
+					     unsigned int vring_align,
+					     struct virtio_device *vdev,
+					     bool weak_barriers,
+					     bool may_reduce_num,
+					     bool ctx,
+					     bool (*notify)(struct virtqueue *vq),
+					     void (*callback)(struct virtqueue *vq),
+					     const char *name,
+					     struct device *dma_dev);
+
+/*
  * Creates a virtqueue with a standard layout but a caller-allocated
  * ring.
  */

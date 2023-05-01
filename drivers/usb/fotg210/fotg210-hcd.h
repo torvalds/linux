@@ -182,6 +182,7 @@ struct fotg210_hcd {			/* one per controller */
 #	define INCR(x) do {} while (0)
 #endif
 
+	struct fotg210		*fotg;		/* Overarching FOTG210 device */
 	/* silicon clock */
 	struct clk		*pclk;
 };

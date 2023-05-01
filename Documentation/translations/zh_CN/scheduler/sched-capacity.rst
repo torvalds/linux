@@ -233,7 +233,7 @@ CFS调度类基于实体负载跟踪机制（Per-Entity Load Tracking, PELT）�
 
 arm和arm64架构直接把这个信息映射到arch_topology驱动的CPU scaling数据中（译注：参考
 arch_topology.h的percpu变量cpu_scale），它是从capacity-dmips-mhz CPU binding中衍生计算
-出来的。参见Documentation/devicetree/bindings/arm/cpu-capacity.txt。
+出来的。参见Documentation/devicetree/bindings/cpu/cpu-capacity.txt。
 
 3.2 频率不变性
 --------------

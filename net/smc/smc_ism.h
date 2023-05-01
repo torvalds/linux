@@ -42,7 +42,8 @@ int smc_ism_signal_shutdown(struct smc_link_group *lgr);
 void smc_ism_get_system_eid(u8 **eid);
 u16 smc_ism_get_chid(struct smcd_dev *dev);
 bool smc_ism_is_v2_capable(void);
-void smc_ism_init(void);
+int smc_ism_init(void);
+void smc_ism_exit(void);
 int smcd_nl_get_device(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline int smc_ism_write(struct smcd_dev *smcd, u64 dmb_tok,

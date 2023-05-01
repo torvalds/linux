@@ -260,7 +260,7 @@ int test_list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head
 {
 	int ret;
 
-	ret = list_push_pop_multiple(lock ,head, false);
+	ret = list_push_pop_multiple(lock, head, false);
 	if (ret)
 		return ret;
 	return list_push_pop_multiple(lock, head, true);

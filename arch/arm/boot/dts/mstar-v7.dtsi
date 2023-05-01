@@ -174,7 +174,7 @@
 				status = "disabled";
 			};
 
-			pm_uart: uart@221000 {
+			pm_uart: serial@221000 {
 				compatible = "ns16550a";
 				reg = <0x221000 0x100>;
 				reg-shift = <3>;

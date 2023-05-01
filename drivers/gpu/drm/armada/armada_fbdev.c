@@ -129,7 +129,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	priv->fbdev = fbh;
 
-	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, fbh, 32, &armada_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fbh);
 	if (ret) {
@@ -137,7 +137,7 @@ int armada_fbdev_init(struct drm_device *dev)
 		goto err_fb_helper;
 	}
 
-	ret = drm_fb_helper_initial_config(fbh, 32);
+	ret = drm_fb_helper_initial_config(fbh);
 	if (ret) {
 		DRM_ERROR("failed to set initial config\n");
 		goto err_fb_setup;
@@ -147,6 +147,7 @@ int armada_fbdev_init(struct drm_device *dev)
  err_fb_setup:
 	drm_fb_helper_fini(fbh);
  err_fb_helper:
+	drm_fb_helper_unprepare(fbh);
 	priv->fbdev = NULL;
 	return ret;
 }
@@ -163,6 +164,8 @@ void armada_fbdev_fini(struct drm_device *dev)
 
 		if (fbh->fb)
 			fbh->fb->funcs->destroy(fbh->fb);
+
+		drm_fb_helper_unprepare(fbh);
 
 		priv->fbdev = NULL;
 	}

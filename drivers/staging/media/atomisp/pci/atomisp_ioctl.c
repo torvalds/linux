@@ -173,24 +173,6 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 		.default_value = 1,
 	},
 	{
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Horizontal binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Vertical binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
 		.id = V4L2_CID_2A_STATUS,
 		.type = V4L2_CTRL_TYPE_BITMASK,
 		.name = "AE and AWB status",
@@ -636,10 +618,10 @@ static int atomisp_enum_input(struct file *file, void *fh,
 static unsigned int
 atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 {
-	return asd->video_out_preview.vb_queue.start_streaming_called
-	       + asd->video_out_capture.vb_queue.start_streaming_called
-	       + asd->video_out_video_capture.vb_queue.start_streaming_called
-	       + asd->video_out_vf.vb_queue.start_streaming_called;
+	return vb2_start_streaming_called(&asd->video_out_preview.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_video_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_vf.vb_queue);
 }
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
@@ -718,7 +700,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	    asd->input_curr != input) {
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_power, 0);
-		if (ret)
+		if (ret && ret != -ENOIOCTLCMD)
 			dev_warn(isp->dev,
 				 "Failed to power-off sensor\n");
 		/* clear the asd field to show this camera is not used */
@@ -727,7 +709,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 
 	/* powe on the new sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, 1);
-	if (ret) {
+	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
@@ -1067,13 +1049,23 @@ error:
 	return -ENOMEM;
 }
 
+/*
+ * FIXME the abuse of buf->reserved2 in the qbuf and dqbuf wrappers comes from
+ * the original atomisp buffer handling and should be replaced with proper V4L2
+ * per frame parameters use.
+ *
+ * Once this is fixed these wrappers can be removed, replacing them with direct
+ * calls to vb2_ioctl_[d]qbuf().
+ */
 static int atomisp_qbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
-	/* FIXME this abuse of buf->reserved2 comes from the original atomisp buffer handling */
+	if (buf->index >= vdev->queue->num_buffers)
+		return -EINVAL;
+
 	if (!atomisp_is_vf_pipe(pipe) &&
 	    (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING)) {
 		/* this buffer will have a per-frame parameter */
@@ -1106,7 +1098,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	vb = pipe->vb_queue.bufs[buf->index];
 	frame = vb_to_frame(vb);
 
-	/* FIXME this abuse of buf->reserved* comes from the original atomisp buffer handling */
 	buf->reserved = asd->frame_status[buf->index];
 
 	/*
@@ -1354,7 +1345,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = atomisp_css_start(asd, css_pipe_id, false);
 	if (ret) {
-		atomisp_flush_video_pipe(pipe, true);
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
 	}
 
@@ -1530,7 +1521,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 	atomisp_css_stop(asd, css_pipe_id, false);
 
-	atomisp_flush_video_pipe(pipe, true);
+	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
 
 	atomisp_subdev_cleanup_pending_events(asd);
 stopsensor:
@@ -1631,7 +1622,6 @@ static int atomisp_g_ctrl(struct file *file, void *fh,
 	switch (control->id) {
 	case V4L2_CID_IRIS_ABSOLUTE:
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
-	case V4L2_CID_FNUMBER_ABSOLUTE:
 	case V4L2_CID_2A_STATUS:
 	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
 	case V4L2_CID_EXPOSURE:
@@ -1828,9 +1818,6 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_ABSOLUTE:
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
-		case V4L2_CID_BIN_FACTOR_HORZ:
-		case V4L2_CID_BIN_FACTOR_VERT:
 		case V4L2_CID_3A_LOCK:
 		case V4L2_CID_TEST_PATTERN:
 		case V4L2_CID_TEST_PATTERN_COLOR_R:
@@ -1940,7 +1927,6 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_EXPOSURE_METERING:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
 		case V4L2_CID_VCM_TIMING:
 		case V4L2_CID_VCM_SLEW:
 		case V4L2_CID_3A_LOCK:
@@ -2274,14 +2260,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 
 	case ATOMISP_IOC_S_ISP_FPN_TABLE:
 		err = atomisp_fixed_pattern_table(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ISP_MAKERNOTE:
-		err = atomisp_exif_makernote(asd, arg);
-		break;
-
-	case ATOMISP_IOC_G_SENSOR_MODE_DATA:
-		err = atomisp_get_sensor_mode_data(asd, arg);
 		break;
 
 	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:

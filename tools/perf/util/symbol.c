@@ -201,10 +201,14 @@ again:
 			continue;
 
 		if (choose_best_symbol(curr, next) == SYMBOL_A) {
+			if (next->type == STT_GNU_IFUNC)
+				curr->ifunc_alias = true;
 			rb_erase_cached(&next->rb_node, symbols);
 			symbol__delete(next);
 			goto again;
 		} else {
+			if (curr->type == STT_GNU_IFUNC)
+				next->ifunc_alias = true;
 			nd = rb_next(&curr->rb_node);
 			rb_erase_cached(&curr->rb_node, symbols);
 			symbol__delete(curr);
@@ -554,6 +558,11 @@ struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
 	}
 
 	return dso->last_find_result.symbol;
+}
+
+struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr)
+{
+	return symbols__find(&dso->symbols, addr);
 }
 
 struct symbol *dso__first_symbol(struct dso *dso)
@@ -1368,10 +1377,23 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 	/* Find the kernel map using the '_stext' symbol */
 	if (!kallsyms__get_function_start(kallsyms_filename, "_stext", &stext)) {
+		u64 replacement_size = 0;
+
 		list_for_each_entry(new_map, &md.maps, node) {
-			if (stext >= new_map->start && stext < new_map->end) {
+			u64 new_size = new_map->end - new_map->start;
+
+			if (!(stext >= new_map->start && stext < new_map->end))
+				continue;
+
+			/*
+			 * On some architectures, ARM64 for example, the kernel
+			 * text can get allocated inside of the vmalloc segment.
+			 * Select the smallest matching segment, in case stext
+			 * falls within more than one in the list.
+			 */
+			if (!replacement_map || new_size < replacement_size) {
 				replacement_map = new_map;
-				break;
+				replacement_size = new_size;
 			}
 		}
 	}

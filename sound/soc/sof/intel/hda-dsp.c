@@ -364,19 +364,12 @@ static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev)
 
 static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
 {
-	struct sof_ipc_pm_gate pm_gate;
-	struct sof_ipc_reply reply;
+	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
 
-	memset(&pm_gate, 0, sizeof(pm_gate));
+	if (pm_ops && pm_ops->set_pm_gate)
+		return pm_ops->set_pm_gate(sdev, flags);
 
-	/* configure pm_gate ipc message */
-	pm_gate.hdr.size = sizeof(pm_gate);
-	pm_gate.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE;
-	pm_gate.flags = flags;
-
-	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message_no_pm(sdev->ipc, &pm_gate, sizeof(pm_gate),
-					&reply, sizeof(reply));
+	return 0;
 }
 
 static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
@@ -410,6 +403,34 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 	trace_sof_intel_D0I3C_updated(sdev, reg);
 
 	return 0;
+}
+
+/*
+ * d0i3 streaming is enabled if all the active streams can
+ * work in d0i3 state and playback is enabled
+ */
+static bool hda_dsp_d0i3_streaming_applicable(struct snd_sof_dev *sdev)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_sof_pcm *spcm;
+	bool playback_active = false;
+	int dir;
+
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			substream = spcm->stream[dir].substream;
+			if (!substream || !substream->runtime)
+				continue;
+
+			if (!spcm->stream[dir].d0i3_compatible)
+				return false;
+
+			if (dir == SNDRV_PCM_STREAM_PLAYBACK)
+				playback_active = true;
+		}
+	}
+
+	return playback_active;
 }
 
 static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
@@ -453,6 +474,9 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		    !hda_enable_trace_D0I3_S0 ||
 		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
 			flags = HDA_PM_NO_DMA_TRACE;
+
+		if (hda_dsp_d0i3_streaming_applicable(sdev))
+			flags |= HDA_PM_PG_STREAMING;
 	} else {
 		/* prevent power gating in D0I0 */
 		flags = HDA_PM_PPG;

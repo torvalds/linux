@@ -40,12 +40,12 @@ additionalProperties: false
 examples:
   - |
     i2c {
-          #address-cells = <1>;
-          #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          tps23861@30 {
-              compatible = "ti,tps23861";
-              reg = <0x30>;
-              shunt-resistor-micro-ohms = <255000>;
-          };
+        tps23861@30 {
+            compatible = "ti,tps23861";
+            reg = <0x30>;
+            shunt-resistor-micro-ohms = <255000>;
+        };
     };

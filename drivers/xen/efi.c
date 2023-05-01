@@ -26,6 +26,7 @@
 
 #include <xen/interface/xen.h>
 #include <xen/interface/platform.h>
+#include <xen/page.h>
 #include <xen/xen.h>
 #include <xen/xen-ops.h>
 
@@ -291,4 +292,64 @@ void __init xen_efi_runtime_setup(void)
 	efi.query_capsule_caps		= xen_efi_query_capsule_caps;
 	efi.get_next_high_mono_count	= xen_efi_get_next_high_mono_count;
 	efi.reset_system		= xen_efi_reset_system;
+}
+
+int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+{
+	static_assert(XEN_PAGE_SHIFT == EFI_PAGE_SHIFT,
+	              "Mismatch between EFI_PAGE_SHIFT and XEN_PAGE_SHIFT");
+	struct xen_platform_op op;
+	union xenpf_efi_info *info = &op.u.firmware_info.u.efi_info;
+	int rc;
+
+	if (!efi_enabled(EFI_PARAVIRT) || efi_enabled(EFI_MEMMAP))
+		return __efi_mem_desc_lookup(phys_addr, out_md);
+	phys_addr &= ~(u64)(EFI_PAGE_SIZE - 1);
+	op = (struct xen_platform_op) {
+		.cmd = XENPF_firmware_info,
+		.u.firmware_info = {
+			.type = XEN_FW_EFI_INFO,
+			.index = XEN_FW_EFI_MEM_INFO,
+			.u.efi_info.mem.addr = phys_addr,
+			.u.efi_info.mem.size = U64_MAX - phys_addr,
+		},
+	};
+
+	rc = HYPERVISOR_platform_op(&op);
+	if (rc) {
+		pr_warn("Failed to lookup header 0x%llx in Xen memory map: error %d\n",
+		        phys_addr, rc);
+	}
+
+	out_md->phys_addr	= info->mem.addr;
+	out_md->num_pages	= info->mem.size >> EFI_PAGE_SHIFT;
+	out_md->type    	= info->mem.type;
+	out_md->attribute	= info->mem.attr;
+
+	return 0;
+}
+
+bool __init xen_efi_config_table_is_usable(const efi_guid_t *guid,
+                                           unsigned long table)
+{
+	efi_memory_desc_t md;
+	int rc;
+
+	if (!efi_enabled(EFI_PARAVIRT))
+		return true;
+
+	rc = efi_mem_desc_lookup(table, &md);
+	if (rc)
+		return false;
+
+	switch (md.type) {
+	case EFI_RUNTIME_SERVICES_CODE:
+	case EFI_RUNTIME_SERVICES_DATA:
+	case EFI_ACPI_RECLAIM_MEMORY:
+	case EFI_ACPI_MEMORY_NVS:
+	case EFI_RESERVED_TYPE:
+		return true;
+	default:
+		return false;
+	}
 }

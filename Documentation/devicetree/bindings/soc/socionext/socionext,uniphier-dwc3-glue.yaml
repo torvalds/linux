@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/socionext/socionext,uniphier-dwc3-glue.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier SoC DWC3 USB3.0 glue layer
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+description: |+
+  DWC3 USB3.0 glue layer implemented on Socionext UniPhier SoCs is
+  a sideband logic handling signals to DWC3 host controller inside
+  USB3.0 component.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - socionext,uniphier-pro4-dwc3-glue
+          - socionext,uniphier-pro5-dwc3-glue
+          - socionext,uniphier-pxs2-dwc3-glue
+          - socionext,uniphier-ld20-dwc3-glue
+          - socionext,uniphier-pxs3-dwc3-glue
+          - socionext,uniphier-nx1-dwc3-glue
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  "^reset-controller@[0-9a-f]+$":
+    $ref: /schemas/reset/socionext,uniphier-glue-reset.yaml#
+
+  "^regulator@[0-9a-f]+$":
+    $ref: /schemas/regulator/socionext,uniphier-regulator.yaml#
+
+  "^phy@[0-9a-f]+$":
+    oneOf:
+      - $ref: /schemas/phy/socionext,uniphier-usb3hs-phy.yaml#
+      - $ref: /schemas/phy/socionext,uniphier-usb3ss-phy.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    usb@65b00000 {
+        compatible = "socionext,uniphier-ld20-dwc3-glue", "simple-mfd";
+        reg = <0x65b00000 0x400>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x65b00000 0x400>;
+
+        reset-controller@0 {
+            compatible = "socionext,uniphier-ld20-usb3-reset";
+            reg = <0x0 0x4>;
+            #reset-cells = <1>;
+            clock-names = "link";
+            clocks = <&sys_clk 14>;
+            reset-names = "link";
+            resets = <&sys_rst 14>;
+        };
+
+        regulator@100 {
+            compatible = "socionext,uniphier-ld20-usb3-regulator";
+            reg = <0x100 0x10>;
+            clock-names = "link";
+            clocks = <&sys_clk 14>;
+            reset-names = "link";
+            resets = <&sys_rst 14>;
+        };
+
+        phy@200 {
+            compatible = "socionext,uniphier-ld20-usb3-hsphy";
+            reg = <0x200 0x10>;
+            #phy-cells = <0>;
+            clock-names = "link", "phy";
+            clocks = <&sys_clk 14>, <&sys_clk 16>;
+            reset-names = "link", "phy";
+            resets = <&sys_rst 14>, <&sys_rst 16>;
+        };
+
+        phy@300 {
+            compatible = "socionext,uniphier-ld20-usb3-ssphy";
+            reg = <0x300 0x10>;
+            #phy-cells = <0>;
+            clock-names = "link", "phy";
+            clocks = <&sys_clk 14>, <&sys_clk 18>;
+            reset-names = "link", "phy";
+            resets = <&sys_rst 14>, <&sys_rst 18>;
+        };
+    };
+

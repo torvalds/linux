@@ -7,6 +7,7 @@
 set -e
 
 skip_test=0
+csv_sep=@
 
 function commachecker()
 {
@@ -34,7 +35,7 @@ function commachecker()
 		[ "$x" = "Failed" ] && continue
 
 		# Count the number of commas
-		x=$(echo $line | tr -d -c ',')
+		x=$(echo $line | tr -d -c $csv_sep)
 		cnt="${#x}"
 		# echo $line $cnt
 		[[ ! "$cnt" =~ $exp ]] && {
@@ -54,7 +55,7 @@ function ParanoidAndNotRoot()
 check_no_args()
 {
 	echo -n "Checking CSV output: no args "
-	perf stat -x, true 2>&1 | commachecker --no-args
+	perf stat -x$csv_sep true 2>&1 | commachecker --no-args
 	echo "[Success]"
 }
 
@@ -66,7 +67,7 @@ check_system_wide()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, -a true 2>&1 | commachecker --system-wide
+	perf stat -x$csv_sep -a true 2>&1 | commachecker --system-wide
 	echo "[Success]"
 }
 
@@ -79,14 +80,14 @@ check_system_wide_no_aggr()
 		return
 	fi
 	echo -n "Checking CSV output: system wide no aggregation "
-	perf stat -x, -A -a --no-merge true 2>&1 | commachecker --system-wide-no-aggr
+	perf stat -x$csv_sep -A -a --no-merge true 2>&1 | commachecker --system-wide-no-aggr
 	echo "[Success]"
 }
 
 check_interval()
 {
 	echo -n "Checking CSV output: interval "
-	perf stat -x, -I 1000 true 2>&1 | commachecker --interval
+	perf stat -x$csv_sep -I 1000 true 2>&1 | commachecker --interval
 	echo "[Success]"
 }
 
@@ -94,7 +95,7 @@ check_interval()
 check_event()
 {
 	echo -n "Checking CSV output: event "
-	perf stat -x, -e cpu-clock true 2>&1 | commachecker --event
+	perf stat -x$csv_sep -e cpu-clock true 2>&1 | commachecker --event
 	echo "[Success]"
 }
 
@@ -106,7 +107,7 @@ check_per_core()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-core -a true 2>&1 | commachecker --per-core
+	perf stat -x$csv_sep --per-core -a true 2>&1 | commachecker --per-core
 	echo "[Success]"
 }
 
@@ -118,7 +119,7 @@ check_per_thread()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-thread -a true 2>&1 | commachecker --per-thread
+	perf stat -x$csv_sep --per-thread -a true 2>&1 | commachecker --per-thread
 	echo "[Success]"
 }
 
@@ -130,7 +131,7 @@ check_per_die()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-die -a true 2>&1 | commachecker --per-die
+	perf stat -x$csv_sep --per-die -a true 2>&1 | commachecker --per-die
 	echo "[Success]"
 }
 
@@ -142,7 +143,7 @@ check_per_node()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-node -a true 2>&1 | commachecker --per-node
+	perf stat -x$csv_sep --per-node -a true 2>&1 | commachecker --per-node
 	echo "[Success]"
 }
 
@@ -154,7 +155,7 @@ check_per_socket()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat -x, --per-socket -a true 2>&1 | commachecker --per-socket
+	perf stat -x$csv_sep --per-socket -a true 2>&1 | commachecker --per-socket
 	echo "[Success]"
 }
 

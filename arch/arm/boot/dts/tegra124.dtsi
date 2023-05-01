@@ -639,6 +639,16 @@
 		reset-names = "fuse";
 	};
 
+	cec@70015000 {
+		compatible = "nvidia,tegra124-cec";
+		reg = <0x0 0x70015000 0x0 0x00001000>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_CEC>;
+		clock-names = "cec";
+		status = "disabled";
+		hdmi-phandle = <&hdmi>;
+	};
+
 	mc: memory-controller@70019000 {
 		compatible = "nvidia,tegra124-mc";
 		reg = <0x0 0x70019000 0x0 0x1000>;
@@ -904,16 +914,6 @@
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
 		status = "disabled";
-	};
-
-	cec@70015000 {
-		compatible = "nvidia,tegra124-cec";
-		reg = <0x0 0x70015000 0x0 0x00001000>;
-		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&tegra_car TEGRA124_CLK_CEC>;
-		clock-names = "cec";
-		status = "disabled";
-		hdmi-phandle = <&hdmi>;
 	};
 
 	soctherm: thermal-sensor@700e2000 {

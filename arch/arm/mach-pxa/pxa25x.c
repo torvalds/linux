@@ -145,13 +145,6 @@ void __init pxa25x_init_irq(void)
 	pxa_init_irq(32, pxa25x_set_wake);
 }
 
-#ifdef CONFIG_CPU_PXA26x
-void __init pxa26x_init_irq(void)
-{
-	pxa_init_irq(32, pxa25x_set_wake);
-}
-#endif
-
 static int __init __init
 pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)
 {

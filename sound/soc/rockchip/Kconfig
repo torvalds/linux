@@ -13,7 +13,7 @@ config SND_SOC_ROCKCHIP_I2S
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for I2S driver for
-	  Rockchip I2S device. The device supports upto maximum of
+	  Rockchip I2S device. The device supports up to maximum of
 	  8 channels each for play and record.
 
 config SND_SOC_ROCKCHIP_I2S_TDM

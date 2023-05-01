@@ -170,7 +170,7 @@ struct rpi_firmware_clk_rate_request {
 
 #define RPI_FIRMWARE_CLK_RATE_REQUEST(_id)	\
 	{					\
-		.id = _id,			\
+		.id = cpu_to_le32(_id),		\
 	}
 
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)

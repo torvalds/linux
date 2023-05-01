@@ -1651,6 +1651,7 @@ static int sof_ipc3_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata;
+	size_t priv_size_check;
 	int ret;
 
 	if (scontrol->max_size < (sizeof(*cdata) + sizeof(struct sof_abi_hdr))) {
@@ -1694,8 +1695,10 @@ static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_
 			goto err;
 		}
 
-		if (cdata->data->size + sizeof(struct sof_abi_hdr) != scontrol->priv_size) {
-			dev_err(sdev->dev, "Conflict in bytes vs. priv size.\n");
+		priv_size_check = cdata->data->size + sizeof(struct sof_abi_hdr);
+		if (priv_size_check != scontrol->priv_size) {
+			dev_err(sdev->dev, "Conflict in bytes (%zu) vs. priv size (%zu).\n",
+				priv_size_check, scontrol->priv_size);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -2230,9 +2233,9 @@ static int sof_ipc3_set_up_all_pipelines(struct snd_sof_dev *sdev, bool verify)
 					return ret;
 			}
 
-			swidget->complete = sof_ipc3_complete_pipeline(sdev, swidget);
-			if (swidget->complete < 0)
-				return swidget->complete;
+			swidget->spipe->complete = sof_ipc3_complete_pipeline(sdev, swidget);
+			if (swidget->spipe->complete < 0)
+				return swidget->spipe->complete;
 			break;
 		default:
 			break;
@@ -2261,7 +2264,7 @@ static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
 		for_each_pcm_streams(dir) {
 			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
 
-			if (!substream || !substream->runtime)
+			if (!substream || !substream->runtime || spcm->stream[dir].suspend_ignored)
 				continue;
 
 			if (spcm->stream[dir].list) {
@@ -2313,8 +2316,11 @@ static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 		/* Do not free widgets for static pipelines with FW older than SOF2.2 */
 		if (!verify && !swidget->dynamic_pipeline_widget &&
 		    SOF_FW_VER(v->major, v->minor, v->micro) < SOF_FW_VER(2, 2, 0)) {
+			mutex_lock(&swidget->setup_mutex);
 			swidget->use_count = 0;
-			swidget->complete = 0;
+			mutex_unlock(&swidget->setup_mutex);
+			if (swidget->spipe)
+				swidget->spipe->complete = 0;
 			continue;
 		}
 
@@ -2419,6 +2425,24 @@ static int sof_ipc3_parse_manifest(struct snd_soc_component *scomp, int index,
 		dev_err(scomp->dev, "%s: Topology ABI is more recent than kernel\n", __func__);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int sof_ipc3_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link)
+{
+	if (link->no_pcm)
+		return 0;
+
+	/*
+	 * set default trigger order for all links. Exceptions to
+	 * the rule will be handled in sof_pcm_dai_link_fixup()
+	 * For playback, the sequence is the following: start FE,
+	 * start BE, stop BE, stop FE; for Capture the sequence is
+	 * inverted start BE, start FE, stop FE, stop BE
+	 */
+	link->trigger[SNDRV_PCM_STREAM_PLAYBACK] = SND_SOC_DPCM_TRIGGER_PRE;
+	link->trigger[SNDRV_PCM_STREAM_CAPTURE] = SND_SOC_DPCM_TRIGGER_POST;
 
 	return 0;
 }
@@ -2534,4 +2558,5 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
 	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
 	.parse_manifest = sof_ipc3_parse_manifest,
+	.link_setup = sof_ipc3_link_setup,
 };

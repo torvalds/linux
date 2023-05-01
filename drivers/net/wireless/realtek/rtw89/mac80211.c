@@ -135,6 +135,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	rtwvif->hit_rule = 0;
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
+	INIT_LIST_HEAD(&rtwvif->general_pkt_list);
 
 	ret = rtw89_mac_add_vif(rtwdev, rtwvif);
 	if (ret) {

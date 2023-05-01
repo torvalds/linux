@@ -122,6 +122,7 @@ typedef struct {
   uint16_t Vid;  /* min voltage in SVI2 VID */
 } DisplayClockTable_t;
 
+#pragma pack(push, 1)
 typedef struct {
   /* PowerTune */
   uint16_t SocketPowerLimit; /* Watts */
@@ -323,6 +324,7 @@ typedef struct {
   uint32_t     MmHubPadding[3]; /* SMU internal use */
 
 } PPTable_t;
+#pragma pack(pop)
 
 typedef struct {
   uint16_t MinClock; // This is either DCEFCLK or SOCCLK (in MHz)

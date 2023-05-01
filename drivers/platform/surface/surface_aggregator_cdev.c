@@ -302,8 +302,8 @@ static long ssam_cdev_request(struct ssam_cdev_client *client, struct ssam_cdev_
 		 * theoretical maximum (SSH_COMMAND_MAX_PAYLOAD_SIZE) of the
 		 * underlying protocol (note that nothing remotely this size
 		 * should ever be allocated in any normal case). This size is
-		 * validated later in ssam_request_sync(), for allocation the
-		 * bound imposed by u16 should be enough.
+		 * validated later in ssam_request_do_sync(), for allocation
+		 * the bound imposed by u16 should be enough.
 		 */
 		spec.payload = kzalloc(spec.length, GFP_KERNEL);
 		if (!spec.payload) {
@@ -342,7 +342,7 @@ static long ssam_cdev_request(struct ssam_cdev_client *client, struct ssam_cdev_
 	}
 
 	/* Perform request. */
-	status = ssam_request_sync(client->cdev->ctrl, &spec, &rsp);
+	status = ssam_request_do_sync(client->cdev->ctrl, &spec, &rsp);
 	if (status)
 		goto out;
 

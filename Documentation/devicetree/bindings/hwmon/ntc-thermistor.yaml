@@ -131,7 +131,7 @@ additionalProperties: false
 
 examples:
   - |
-    thermistor0 {
+    thermistor {
       compatible = "murata,ncp18wb473";
       io-channels = <&gpadc 0x06>;
       pullup-uv = <1800000>;

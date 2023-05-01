@@ -88,7 +88,7 @@ struct mfd_cell {
 	const char		*of_compatible;
 
 	/*
-	 * Address as defined in Device Tree.  Used to compement 'of_compatible'
+	 * Address as defined in Device Tree.  Used to complement 'of_compatible'
 	 * (above) when matching OF nodes with devices that have identical
 	 * compatible strings
 	 */

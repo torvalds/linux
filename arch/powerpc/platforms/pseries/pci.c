@@ -60,7 +60,7 @@ static int pseries_send_map_pe(struct pci_dev *pdev, u16 num_vfs,
 	struct pci_dn *pdn;
 	int rc;
 	unsigned long buid, addr;
-	int ibm_map_pes = rtas_token("ibm,open-sriov-map-pe-number");
+	int ibm_map_pes = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_MAP_PE_NUMBER);
 
 	if (ibm_map_pes == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;

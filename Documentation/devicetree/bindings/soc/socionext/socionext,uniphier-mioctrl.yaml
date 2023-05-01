@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/socionext/socionext,uniphier-mioctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier media I/O block (MIO) controller
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+description: |+
+  Media I/O block implemented on Socionext UniPhier SoCs is a legacy
+  integrated component of the stream type peripherals including USB2.0,
+  SD/eMMC, and MIO-DMAC.
+  Media I/O block has a common logic to control the component.
+
+  Recent SoCs have SD interface logic specialized only for SD functions
+  as a subset of media I/O block. See socionext,uniphier-sdctrl.yaml.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - socionext,uniphier-ld4-mioctrl
+          - socionext,uniphier-pro4-mioctrl
+          - socionext,uniphier-sld8-mioctrl
+          - socionext,uniphier-ld11-mioctrl
+      - const: simple-mfd
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  clock-controller:
+    $ref: /schemas/clock/socionext,uniphier-clock.yaml#
+
+  reset-controller:
+    $ref: /schemas/reset/socionext,uniphier-reset.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    syscon@5b3e0000 {
+        compatible = "socionext,uniphier-ld11-mioctrl",
+                     "simple-mfd", "syscon";
+        reg = <0x5b3e0000 0x800>;
+
+        clock-controller {
+            compatible = "socionext,uniphier-ld11-mio-clock";
+            #clock-cells = <1>;
+        };
+
+        reset-controller {
+            compatible = "socionext,uniphier-ld11-mio-reset";
+            #reset-cells = <1>;
+            resets = <&sys_rst 7>;
+        };
+    };
+

@@ -44,7 +44,8 @@
 #define __DML_MIN_DCFCLK_FACTOR__   1.15
 
 // Prefetch schedule max vratio
-#define __DML_MAX_VRATIO_PRE__ 4.0
+#define __DML_MAX_VRATIO_PRE__ 7.9
+#define __DML_MAX_BW_RATIO_PRE__ 4.0
 
 #define __DML_VBA_MAX_DST_Y_PRE__    63.75
 

@@ -106,8 +106,7 @@
 			compatible = "mediatek,mt7629-timer",
 				     "mediatek,mt6765-timer";
 			reg = <0x10009000 0x60>;
-			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk20m>;
 			clock-names = "clk20m";
 		};

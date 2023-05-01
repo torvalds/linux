@@ -88,12 +88,56 @@ properties:
         items:
           - enum:
               - armadeus,imx28-apf28      # APF28 SoM
-              - armadeus,imx28-apf28dev   # APF28 SoM on APF28Dev board
+              - bluegiga,apx4devkit       # Bluegiga APx4 SoM on dev board
+              - crystalfontz,cfa10036     # Crystalfontz CFA-10036 SoM
+              - eukrea,mbmx28lc
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
+              - karo,tx28                 # Ka-Ro electronics TX28 module
+              - lwn,imx28-xea
+              - msr,m28cu3                # M28 SoM with custom base board
+              - schulercontrol,imx28-sps1
               - technologic,imx28-ts4600
           - const: fsl,imx28
+
+      - description: i.MX28 Aries M28 SoM Board
+        items:
+          - const: aries,m28
+          - const: denx,m28
+          - const: fsl,imx28
+
+      - description: i.MX28 Aries M28EVK Board
+        items:
+          - const: aries,m28evk
+          - const: denx,m28evk
+          - const: fsl,imx28
+
+      - description: i.MX28 Armadeus Systems APF28Dev Board
+        items:
+          - const: armadeus,imx28-apf28dev
+          - const: armadeus,imx28-apf28
+          - const: fsl,imx28
+
+      - description: i.MX28 Crystalfontz CFA-10036 based Boards
+        items:
+          - enum:
+              - crystalfontz,cfa10037
+              - crystalfontz,cfa10049
+              - crystalfontz,cfa10057
+              - crystalfontz,cfa10058
+          - const: crystalfontz,cfa10036
+          - const: fsl,imx28
+
+      - description: i.MX28 Crystalfontz CFA-10037 based Boards
+        items:
+          - enum:
+              - crystalfontz,cfa10055
+              - crystalfontz,cfa10056
+          - const: crystalfontz,cfa10037
+          - const: crystalfontz,cfa10036
+          - const: fsl,imx28
+
       - description: i.MX28 Duckbill 2 based Boards
         items:
           - enum:
@@ -101,6 +145,19 @@ properties:
               - i2se,duckbill-2-enocean
               - i2se,duckbill-2-spi
           - const: i2se,duckbill-2
+          - const: fsl,imx28
+
+      - description: i.MX28 Eukrea Electromatique MBMX283LC Board
+        items:
+          - const: eukrea,mbmx283lc
+          - const: eukrea,mbmx28lc
+          - const: fsl,imx28
+
+      - description: i.MX28 Eukrea Electromatique MBMX287LC Board
+        items:
+          - const: eukrea,mbmx287lc
+          - const: eukrea,mbmx283lc
+          - const: eukrea,mbmx28lc
           - const: fsl,imx28
 
       - description: i.MX31 based Boards
@@ -173,6 +230,7 @@ properties:
               - kiebackpeter,imx53-ddc        # K+P imx53 DDC
               - kiebackpeter,imx53-hsc        # K+P imx53 HSC
               - menlo,m53menlo                # i.MX53 Menlo board
+              - starterkit,sk-imx53
               - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
           - const: fsl,imx53
 
@@ -644,6 +702,16 @@ properties:
           - const: armadeus,imx6ull-opos6ul     # OPOS6UL (i.MX6ULL) SoM
           - const: fsl,imx6ull
 
+      - description: i.MX6ULL DHCOM SoM based Boards
+        items:
+          - enum:
+              - dh,imx6ull-dhcom-drc02
+              - dh,imx6ull-dhcom-pdk2
+              - dh,imx6ull-dhcom-picoitx
+          - const: dh,imx6ull-dhcom-som # The DHCOR is soldered on the DHCOM
+          - const: dh,imx6ull-dhcor-som
+          - const: fsl,imx6ull
+
       - description: i.MX6ULL PHYTEC phyBOARD-Segin
         items:
           - enum:
@@ -815,7 +883,6 @@ properties:
           - enum:
               - beacon,imx8mm-beacon-kit  # i.MX8MM Beacon Development Kit
               - boundary,imx8mm-nitrogen8mm  # i.MX8MM Nitrogen Board
-              - cloos,imx8mm-phg          # i.MX8MM Cloos PHG Board
               - dmo,imx8mm-data-modul-edm-sbc # i.MX8MM eDM SBC
               - emtrion,emcon-mx8mm-avari # emCON-MX8MM SoM on Avari Base
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
@@ -830,7 +897,6 @@ properties:
               - innocomm,wb15-evk         # i.MX8MM Innocomm EVK board with WB15 SoM
               - kontron,imx8mm-sl         # i.MX8MM Kontron SL (N801X) SOM
               - kontron,imx8mm-osm-s      # i.MX8MM Kontron OSM-S (N802X) SOM
-              - menlo,mx8menlo            # i.MX8MM Menlo board with Verdin SoM
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
               - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
               - toradex,verdin-imx8mm-wifi  # Verdin iMX8M Mini Wi-Fi / BT Modules
@@ -861,8 +927,10 @@ properties:
       - description: Toradex Boards with Verdin iMX8M Mini Modules
         items:
           - enum:
+              - menlo,mx8menlo                       # Verdin iMX8M Mini Module on i.MX8MM Menlo board
               - toradex,verdin-imx8mm-nonwifi-dahlia # Verdin iMX8M Mini Module on Dahlia
               - toradex,verdin-imx8mm-nonwifi-dev    # Verdin iMX8M Mini Module on Verdin Development Board
+              - toradex,verdin-imx8mm-nonwifi-yavia  # Verdin iMX8M Mini Module on Yavia
           - const: toradex,verdin-imx8mm-nonwifi     # Verdin iMX8M Mini Module without Wi-Fi / BT
           - const: toradex,verdin-imx8mm             # Verdin iMX8M Mini Module
           - const: fsl,imx8mm
@@ -872,6 +940,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mm-wifi-dahlia # Verdin iMX8M Mini Wi-Fi / BT Module on Dahlia
               - toradex,verdin-imx8mm-wifi-dev    # Verdin iMX8M Mini Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-imx8mm-wifi-yavia  # Verdin iMX8M Mini Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-imx8mm-wifi     # Verdin iMX8M Mini Wi-Fi / BT Module
           - const: toradex,verdin-imx8mm          # Verdin iMX8M Mini Module
           - const: fsl,imx8mm
@@ -895,6 +964,7 @@ properties:
           one compatible is needed.
         items:
           - enum:
+              - cloos,imx8mm-phg           # i.MX8MM Cloos PHG Board
               - tq,imx8mm-tqma8mqml-mba8mx # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM on MBa8Mx
           - const: tq,imx8mm-tqma8mqml     # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM
           - const: fsl,imx8mm
@@ -931,10 +1001,11 @@ properties:
       - description: i.MX8MP based Boards
         items:
           - enum:
-              - dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
-              - dh,imx8mp-dhcom-pdk2      # i.MX8MP DHCOM SoM on PDK2 board
+              - beacon,imx8mp-beacon-kit  # i.MX8MP Beacon Development Kit
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
+              - polyhex,imx8mp-debix      # Polyhex Debix boards
+              - polyhex,imx8mp-debix-model-a # Polyhex Debix Model A Board
               - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
               - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
               - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
@@ -945,6 +1016,12 @@ properties:
           - const: avnet,sm2s-imx8mp-14N0600E-ep1 # SM2S-IMX8PLUS-14N0600E on SM2-MB-EP1 Carrier Board
           - const: avnet,sm2s-imx8mp-14N0600E     # 14N0600E variant of SM2S-IMX8PLUS SoM
           - const: avnet,sm2s-imx8mp              # SM2S-IMX8PLUS SoM
+          - const: fsl,imx8mp
+
+      - description: i.MX8MP DHCOM based Boards
+        items:
+          - const: dh,imx8mp-dhcom-pdk2      # i.MX8MP DHCOM SoM on PDK2 board
+          - const: dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
           - const: fsl,imx8mp
 
       - description: Engicam i.Core MX8M Plus SoM based boards
@@ -965,6 +1042,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mp-nonwifi-dahlia # Verdin iMX8M Plus Module on Dahlia
               - toradex,verdin-imx8mp-nonwifi-dev    # Verdin iMX8M Plus Module on Verdin Development Board
+              - toradex,verdin-imx8mp-nonwifi-yavia  # Verdin iMX8M Plus Module on Yavia
           - const: toradex,verdin-imx8mp-nonwifi     # Verdin iMX8M Plus Module without Wi-Fi / BT
           - const: toradex,verdin-imx8mp             # Verdin iMX8M Plus Module
           - const: fsl,imx8mp
@@ -974,6 +1052,7 @@ properties:
           - enum:
               - toradex,verdin-imx8mp-wifi-dahlia # Verdin iMX8M Plus Wi-Fi / BT Module on Dahlia
               - toradex,verdin-imx8mp-wifi-dev    # Verdin iMX8M Plus Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-imx8mp-wifi-yavia  # Verdin iMX8M Plus Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-imx8mp-wifi     # Verdin iMX8M Plus Wi-Fi / BT Module
           - const: toradex,verdin-imx8mp          # Verdin iMX8M Plus Module
           - const: fsl,imx8mp
@@ -999,10 +1078,15 @@ properties:
               - fsl,imx8mq-evk            # i.MX8MQ EVK Board
               - google,imx8mq-phanbell    # Google Coral Edge TPU
               - kontron,pitx-imx8m        # Kontron pITX-imx8m Board
-              - mntre,reform2             # MNT Reform2 Laptop
               - purism,librem5-devkit     # Purism Librem5 devkit
               - solidrun,hummingboard-pulse # SolidRun Hummingboard Pulse
               - technexion,pico-pi-imx8m  # TechNexion PICO-PI-8M evk
+          - const: fsl,imx8mq
+
+      - description: i.MX8MQ NITROGEN SoM based Boards
+        items:
+          - const: mntre,reform2                  # MNT Reform2 Laptop
+          - const: boundary,imx8mq-nitrogen8m-som # i.MX8MQ NITROGEN SoM
           - const: fsl,imx8mq
 
       - description: Purism Librem5 phones

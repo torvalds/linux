@@ -51,6 +51,7 @@
 
 /* Colibri USBH */
 &usbotg2 {
+	disable-over-current;
 	dr_mode = "host";
 	vbus-supply = <&reg_usbh_vbus>;
 };

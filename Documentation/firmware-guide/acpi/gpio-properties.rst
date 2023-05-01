@@ -67,17 +67,30 @@ state of the output pin which driver should use during its initialization.
 Linux tries to use common sense here and derives the state from the bias
 and polarity settings. The table below shows the expectations:
 
-=========  =============  ==============
-Pull Bias     Polarity     Requested...
-=========  =============  ==============
-Implicit     x            AS IS (assumed firmware configured for us)
-Explicit     x (no _DSD)  as Pull Bias (Up == High, Down == Low),
-                          assuming non-active (Polarity = !Pull Bias)
-Down         Low          as low, assuming active
-Down         High         as low, assuming non-active
-Up           Low          as high, assuming non-active
-Up           High         as high, assuming active
-=========  =============  ==============
++-------------+-------------+-----------------------------------------------+
+| Pull Bias   | Polarity    | Requested...                                  |
++=============+=============+===============================================+
+| Implicit                                                                  |
++-------------+-------------+-----------------------------------------------+
+| **Default** | x           | AS IS (assumed firmware configured it for us) |
++-------------+-------------+-----------------------------------------------+
+| Explicit                                                                  |
++-------------+-------------+-----------------------------------------------+
+| **None**    | x           | AS IS (assumed firmware configured it for us) |
+|             |             | with no Pull Bias                             |
++-------------+-------------+-----------------------------------------------+
+| **Up**      | x (no _DSD) |                                               |
+|             +-------------+ as high, assuming non-active                  |
+|             | Low         |                                               |
+|             +-------------+-----------------------------------------------+
+|             | High        | as high, assuming active                      |
++-------------+-------------+-----------------------------------------------+
+| **Down**    | x (no _DSD) |                                               |
+|             +-------------+ as low, assuming non-active                   |
+|             | High        |                                               |
+|             +-------------+-----------------------------------------------+
+|             | Low         | as low, assuming active                       |
++-------------+-------------+-----------------------------------------------+
 
 That said, for our above example the both GPIOs, since the bias setting
 is explicit and _DSD is present, will be treated as active with a high

@@ -89,6 +89,7 @@ void arch_perf_parse_sample_weight(struct perf_sample *data,
 	else {
 		data->weight = weight.var1_dw;
 		data->ins_lat = weight.var2_w;
+		data->retire_lat = weight.var3_w;
 	}
 }
 
@@ -100,5 +101,25 @@ void arch_perf_synthesize_sample_weight(const struct perf_sample *data,
 	if (type & PERF_SAMPLE_WEIGHT_STRUCT) {
 		*array &= 0xffffffff;
 		*array |= ((u64)data->ins_lat << 32);
+		*array |= ((u64)data->retire_lat << 48);
 	}
+}
+
+const char *arch_perf_header_entry(const char *se_header)
+{
+	if (!strcmp(se_header, "Local Pipeline Stage Cycle"))
+		return "Local Retire Latency";
+	else if (!strcmp(se_header, "Pipeline Stage Cycle"))
+		return "Retire Latency";
+
+	return se_header;
+}
+
+int arch_support_sort_key(const char *sort_key)
+{
+	if (!strcmp(sort_key, "p_stage_cyc"))
+		return 1;
+	if (!strcmp(sort_key, "local_p_stage_cyc"))
+		return 1;
+	return 0;
 }

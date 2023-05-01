@@ -522,7 +522,6 @@ Description:	These files allow to each of ASICs by writing 1.
 
 		The files are write only.
 
-
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/comm_chnl_ready
 Date:		July 2022
 KernelVersion:	5.20
@@ -540,5 +539,126 @@ Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	The file indicates COME module hardware configuration.
 		The value is pushed by hardware through GPIO pins.
 		The purpose is to expose some minor BOM changes for the same system SKU.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_pwr_converter_fail
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file shows the system reset cause due to power converter
+		devices failure.
+		Value 1 in file means this is reset cause, 0 - otherwise.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot1_ap_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot2_ap_reset
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files aim to monitor the status of the External Root of Trust (EROT)
+		processor's RESET output to the Application Processor (AP).
+		By reading this file, could be determined if the EROT has invalidated or
+		revoked AP Firmware, at which point it will hold the AP in RESET until a
+		valid firmware is loaded. This protects the AP from running an
+		unauthorized firmware. In the normal flow, the AP reset should be released
+		after the EROT validates the integrity of the FW, and it should be done so
+		as quickly as possible so that the AP boots before the CPU starts to
+		communicate to each ASIC.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot1_recovery
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot2_recovery
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot1_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot2_reset
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files aim to perform External Root of Trust (EROT) recovery
+		sequence after EROT device failure.
+		These EROT devices protect ASICs from unauthorized access and in normal
+		flow their reset should be released with system power – earliest power
+		up stage, so that EROTs can begin boot and authentication process before
+		CPU starts to communicate to ASICs.
+		Issuing a reset to the EROT while asserting the recovery signal will cause
+		the EROT Application Processor to enter recovery mode so that the EROT FW
+		can be updated/recovered.
+		For reset/recovery the related file should be toggled by 1/0.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot1_wp
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/erot2_wp
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow access to External Root of Trust (EROT) for reset
+		and recovery sequence after EROT device failure.
+		Default is 0 (programming disabled).
+		If the system is in locked-down mode writing this file will not be allowed.
+
+		The files are read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/spi_chnl_select
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file allows SPI chip selection for External Root of Trust (EROT)
+		device Out-of-Band recovery.
+		File can be written with 0 or with 1. It selects which EROT can be accessed
+		through SPI device.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_pg_fail
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak vadimp@nvidia.com
+Description:	This file shows ASIC Power Good status.
+		Value 1 in file means ASIC Power Good failed, 0 - otherwise.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/clk_brd1_boot_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/clk_brd2_boot_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/clk_brd_fail
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak vadimp@nvidia.com
+Description:	These files are related to clock boards status in system.
+		- clk_brd1_boot_fail: warning about 1-st clock board failed to boot from CI.
+		- clk_brd2_boot_fail: warning about 2-nd clock board failed to boot from CI.
+		- clk_brd_fail: error about common clock board boot failure.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/clk_brd_prog_en
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file enables programming of clock boards.
+		Default is 0 (programming disabled).
+		If the system is in locked-down mode writing this file will not be allowed.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pwr_converter_prog_en
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file enables programming of power converters.
+		Default is 0 (programming disabled).
+		If the system is in locked-down mode writing this file will not be allowed.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_ac_ok_fail
+Date:		February 2023
+KernelVersion:	6.3
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file shows the system reset cause due to AC power failure.
+		Value 1 in file means this is reset cause, 0 - otherwise.
 
 		The file is read only.

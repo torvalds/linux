@@ -39,31 +39,4 @@
 ENTRY(s3c_cpu_resume)
 	msr	cpsr_c, #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 	ldr	r2, =LL_UART		/* for debug */
-
-#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-
-#define S3C64XX_GPNCON			(S3C64XX_GPN_BASE + 0x00)
-#define S3C64XX_GPNDAT			(S3C64XX_GPN_BASE + 0x04)
-
-#define S3C64XX_GPN_CONMASK(__gpio)	(0x3 << ((__gpio) * 2))
-#define S3C64XX_GPN_OUTPUT(__gpio)	(0x1 << ((__gpio) * 2))
-
-	/* Initialise the GPIO state if we are debugging via the SMDK LEDs,
-	 * as the uboot version supplied resets these to inputs during the
-	 * resume checks.
-	*/
-
-	ldr	r3, =S3C64XX_PA_GPIO
-	ldr	r0, [ r3, #S3C64XX_GPNCON ]
-	bic	r0, r0, #(S3C64XX_GPN_CONMASK(12) | S3C64XX_GPN_CONMASK(13) | \
-			  S3C64XX_GPN_CONMASK(14) | S3C64XX_GPN_CONMASK(15))
-	orr	r0, r0, #(S3C64XX_GPN_OUTPUT(12) | S3C64XX_GPN_OUTPUT(13) | \
-			  S3C64XX_GPN_OUTPUT(14) | S3C64XX_GPN_OUTPUT(15))
-	str	r0, [ r3, #S3C64XX_GPNCON ]
-
-	ldr	r0, [ r3, #S3C64XX_GPNDAT ]
-	bic	r0, r0, #0xf << 12			@ GPN12..15
-	orr	r0, r0, #1 << 15			@ GPN15
-	str	r0, [ r3, #S3C64XX_GPNDAT ]
-#endif
 	b	cpu_resume

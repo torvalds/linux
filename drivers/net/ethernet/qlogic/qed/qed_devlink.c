@@ -198,7 +198,6 @@ static const struct devlink_ops qed_dl_ops = {
 
 struct devlink *qed_devlink_register(struct qed_dev *cdev)
 {
-	union devlink_param_value value;
 	struct qed_devlink *qdevlink;
 	struct devlink *dl;
 	int rc;
@@ -215,11 +214,6 @@ struct devlink *qed_devlink_register(struct qed_dev *cdev)
 				     ARRAY_SIZE(qed_devlink_params));
 	if (rc)
 		goto err_unregister;
-
-	value.vbool = false;
-	devlink_param_driverinit_value_set(dl,
-					   QED_DEVLINK_PARAM_ID_IWARP_CMT,
-					   value);
 
 	cdev->iwarp_cmt = false;
 

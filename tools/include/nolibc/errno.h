@@ -9,11 +9,9 @@
 
 #include <asm/errno.h>
 
-/* this way it will be removed if unused */
-static int errno;
-
 #ifndef NOLIBC_IGNORE_ERRNO
 #define SET_ERRNO(v) do { errno = (v); } while (0)
+int errno __attribute__((weak));
 #else
 #define SET_ERRNO(v) do { } while (0)
 #endif
@@ -23,5 +21,8 @@ static int errno;
  * because they all correspond to the highest addressable memory page.
  */
 #define MAX_ERRNO 4095
+
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_ERRNO_H */

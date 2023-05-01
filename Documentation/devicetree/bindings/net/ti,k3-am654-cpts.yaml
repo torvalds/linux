@@ -93,6 +93,14 @@ properties:
     description:
       Number of timestamp Generator function outputs (TS_GENFx)
 
+  ti,pps:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    description: |
+      The pair of HWx_TS_PUSH input and TS_GENFy output indexes used for
+      PPS events generation. Platform/board specific.
+
   refclk-mux:
     type: object
     additionalProperties: false

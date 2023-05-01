@@ -366,7 +366,17 @@ static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 						    dw_chained_msi_isr, pp);
 	}
 
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	/*
+	 * Even though the iMSI-RX Module supports 64-bit addresses some
+	 * peripheral PCIe devices may lack 64-bit message support. In
+	 * order not to miss MSI TLPs from those devices the MSI target
+	 * address has to be within the lowest 4GB.
+	 *
+	 * Note until there is a better alternative found the reservation is
+	 * done by allocating from the artificially limited DMA-coherent
+	 * memory.
+	 */
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
 		dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
 
@@ -467,14 +477,18 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 	dw_pcie_iatu_detect(pci);
 
-	ret = dw_pcie_setup_rc(pp);
+	ret = dw_pcie_edma_detect(pci);
 	if (ret)
 		goto err_free_msi;
+
+	ret = dw_pcie_setup_rc(pp);
+	if (ret)
+		goto err_remove_edma;
 
 	if (!dw_pcie_link_up(pci)) {
 		ret = dw_pcie_start_link(pci);
 		if (ret)
-			goto err_free_msi;
+			goto err_remove_edma;
 	}
 
 	/* Ignore errors, the link may come up later */
@@ -490,6 +504,9 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 err_stop_link:
 	dw_pcie_stop_link(pci);
+
+err_remove_edma:
+	dw_pcie_edma_remove(pci);
 
 err_free_msi:
 	if (pp->has_msi_ctrl)
@@ -511,6 +528,8 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 	pci_remove_root_bus(pp->bridge->bus);
 
 	dw_pcie_stop_link(pci);
+
+	dw_pcie_edma_remove(pci);
 
 	if (pp->has_msi_ctrl)
 		dw_pcie_free_msi(pp);

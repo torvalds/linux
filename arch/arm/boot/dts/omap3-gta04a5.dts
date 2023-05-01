@@ -75,6 +75,11 @@
 		>;
 	};
 
+	bno050_pins: pinmux-bno050-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2136, PIN_INPUT | MUX_MODE4) /* gpin113 */
+		>;
+	};
 };
 
 /*
@@ -115,17 +120,17 @@
 	/delete-node/ itg3200@68;
 	/delete-node/ hmc5843@1e;
 
-	bmg160@69 {
+	gyrometer@69 {
 		compatible = "bosch,bmg160";
 		reg = <0x69>;
 	};
 
-	bmc150@10 {
+	accelerometer@10 {
 		compatible = "bosch,bmc150_accel";
 		reg = <0x10>;
 	};
 
-	bmc150@12 {
+	magnetometer@12 {
 		compatible = "bosch,bmc150_magn";
 		reg = <0x12>;
 	};
@@ -135,5 +140,13 @@
 		reg = <0x76>;
 		vdda-supply = <&vio>;
 		vddd-supply = <&vio>;
+	};
+
+	imu@29 {
+		compatible = "bosch,bno055";
+		reg = <0x29>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bno050_pins>;
+		/* interrupt at &gpio4 17 */
 	};
 };

@@ -1145,17 +1145,12 @@ static int sh_cmt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sh_cmt_remove(struct platform_device *pdev)
-{
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
-}
-
 static struct platform_driver sh_cmt_device_driver = {
 	.probe		= sh_cmt_probe,
-	.remove		= sh_cmt_remove,
 	.driver		= {
 		.name	= "sh_cmt",
 		.of_match_table = of_match_ptr(sh_cmt_of_table),
+		.suppress_bind_attrs = true,
 	},
 	.id_table	= sh_cmt_id_table,
 };

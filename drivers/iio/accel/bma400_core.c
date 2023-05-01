@@ -98,7 +98,6 @@ enum bma400_activity {
 struct bma400_data {
 	struct device *dev;
 	struct regmap *regmap;
-	struct regulator_bulk_data regulators[BMA400_NUM_REGULATORS];
 	struct mutex mutex; /* data register lock */
 	struct iio_mount_matrix orientation;
 	enum bma400_power_mode power_mode;
@@ -832,13 +831,6 @@ static void bma400_init_tables(void)
 	}
 }
 
-static void bma400_regulators_disable(void *data_ptr)
-{
-	struct bma400_data *data = data_ptr;
-
-	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
-}
-
 static void bma400_power_disable(void *data_ptr)
 {
 	struct bma400_data *data = data_ptr;
@@ -868,29 +860,16 @@ static enum iio_modifier bma400_act_to_mod(enum bma400_activity activity)
 
 static int bma400_init(struct bma400_data *data)
 {
+	static const char * const regulator_names[] = { "vdd", "vddio" };
 	unsigned int val;
 	int ret;
 
-	data->regulators[BMA400_VDD_REGULATOR].supply = "vdd";
-	data->regulators[BMA400_VDDIO_REGULATOR].supply = "vddio";
-	ret = devm_regulator_bulk_get(data->dev,
-				      ARRAY_SIZE(data->regulators),
-				      data->regulators);
+	ret = devm_regulator_bulk_get_enable(data->dev,
+					     ARRAY_SIZE(regulator_names),
+					     regulator_names);
 	if (ret)
 		return dev_err_probe(data->dev, ret, "Failed to get regulators: %d\n",
 				     ret);
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
-				    data->regulators);
-	if (ret) {
-		dev_err(data->dev, "Failed to enable regulators: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(data->dev, bma400_regulators_disable, data);
-	if (ret)
-		return ret;
 
 	/* Try to read chip_id register. It must return 0x90. */
 	ret = regmap_read(data->regmap, BMA400_CHIP_ID_REG, &val);

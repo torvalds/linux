@@ -75,7 +75,7 @@ static void dctcp_reset(const struct tcp_sock *tp, struct dctcp *ca)
 	ca->old_delivered_ce = tp->delivered_ce;
 }
 
-static void dctcp_init(struct sock *sk)
+__bpf_kfunc static void dctcp_init(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
@@ -104,7 +104,7 @@ static void dctcp_init(struct sock *sk)
 	INET_ECN_dontxmit(sk);
 }
 
-static u32 dctcp_ssthresh(struct sock *sk)
+__bpf_kfunc static u32 dctcp_ssthresh(struct sock *sk)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -113,7 +113,7 @@ static u32 dctcp_ssthresh(struct sock *sk)
 	return max(tcp_snd_cwnd(tp) - ((tcp_snd_cwnd(tp) * ca->dctcp_alpha) >> 11U), 2U);
 }
 
-static void dctcp_update_alpha(struct sock *sk, u32 flags)
+__bpf_kfunc static void dctcp_update_alpha(struct sock *sk, u32 flags)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
@@ -169,7 +169,7 @@ static void dctcp_react_to_loss(struct sock *sk)
 	tp->snd_ssthresh = max(tcp_snd_cwnd(tp) >> 1U, 2U);
 }
 
-static void dctcp_state(struct sock *sk, u8 new_state)
+__bpf_kfunc static void dctcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Recovery &&
 	    new_state != inet_csk(sk)->icsk_ca_state)
@@ -179,7 +179,7 @@ static void dctcp_state(struct sock *sk, u8 new_state)
 	 */
 }
 
-static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
+__bpf_kfunc static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 
@@ -229,7 +229,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	return 0;
 }
 
-static u32 dctcp_cwnd_undo(struct sock *sk)
+__bpf_kfunc static u32 dctcp_cwnd_undo(struct sock *sk)
 {
 	const struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);

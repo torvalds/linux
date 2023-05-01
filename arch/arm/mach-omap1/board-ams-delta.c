@@ -871,7 +871,7 @@ static void __init ams_delta_init_late(void)
 
 static void __init ams_delta_map_io(void)
 {
-	omap15xx_map_io();
+	omap1_map_io();
 	iotable_init(ams_delta_io_desc, ARRAY_SIZE(ams_delta_io_desc));
 }
 

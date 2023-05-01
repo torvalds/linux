@@ -438,13 +438,6 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static inline char *iwl_dbgfs_is_match(char *name, char *buf)
-{
-	int len = strlen(name);
-
-	return !strncmp(name, buf, len) ? buf + len : NULL;
-}
-
 static ssize_t iwl_dbgfs_os_device_timediff_read(struct file *file,
 						 char __user *user_buf,
 						 size_t count, loff_t *ppos)

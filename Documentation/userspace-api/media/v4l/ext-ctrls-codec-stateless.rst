@@ -1213,7 +1213,7 @@ FWHT Flags
       - Luma AC coefficient table index.
     * - __s8
       - ``y_dc_delta``
-      - Luma DC delta vaue.
+      - Luma DC delta value.
     * - __s8
       - ``y2_dc_delta``
       - Y2 block DC delta value.

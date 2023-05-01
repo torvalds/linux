@@ -840,14 +840,13 @@ int t7xx_dpmaif_napi_rx_poll(struct napi_struct *napi, const int budget)
 
 	if (!rxq->que_started) {
 		atomic_set(&rxq->rx_processing, 0);
+		pm_runtime_put_autosuspend(rxq->dpmaif_ctrl->dev);
 		dev_err(rxq->dpmaif_ctrl->dev, "Work RXQ: %d has not been started\n", rxq->index);
 		return work_done;
 	}
 
-	if (!rxq->sleep_lock_pending) {
-		pm_runtime_get_noresume(rxq->dpmaif_ctrl->dev);
+	if (!rxq->sleep_lock_pending)
 		t7xx_pci_disable_sleep(t7xx_dev);
-	}
 
 	ret = try_wait_for_completion(&t7xx_dev->sleep_lock_acquire);
 	if (!ret) {
@@ -876,14 +875,13 @@ int t7xx_dpmaif_napi_rx_poll(struct napi_struct *napi, const int budget)
 		napi_complete_done(napi, work_done);
 		t7xx_dpmaif_clr_ip_busy_sts(&rxq->dpmaif_ctrl->hw_info);
 		t7xx_dpmaif_dlq_unmask_rx_done(&rxq->dpmaif_ctrl->hw_info, rxq->index);
+		t7xx_pci_enable_sleep(rxq->dpmaif_ctrl->t7xx_dev);
+		pm_runtime_mark_last_busy(rxq->dpmaif_ctrl->dev);
+		pm_runtime_put_autosuspend(rxq->dpmaif_ctrl->dev);
+		atomic_set(&rxq->rx_processing, 0);
 	} else {
 		t7xx_dpmaif_clr_ip_busy_sts(&rxq->dpmaif_ctrl->hw_info);
 	}
-
-	t7xx_pci_enable_sleep(rxq->dpmaif_ctrl->t7xx_dev);
-	pm_runtime_mark_last_busy(rxq->dpmaif_ctrl->dev);
-	pm_runtime_put_noidle(rxq->dpmaif_ctrl->dev);
-	atomic_set(&rxq->rx_processing, 0);
 
 	return work_done;
 }
@@ -891,7 +889,8 @@ int t7xx_dpmaif_napi_rx_poll(struct napi_struct *napi, const int budget)
 void t7xx_dpmaif_irq_rx_done(struct dpmaif_ctrl *dpmaif_ctrl, const unsigned int que_mask)
 {
 	struct dpmaif_rx_queue *rxq;
-	int qno;
+	struct dpmaif_ctrl *ctrl;
+	int qno, ret;
 
 	qno = ffs(que_mask) - 1;
 	if (qno < 0 || qno > DPMAIF_RXQ_NUM - 1) {
@@ -900,6 +899,18 @@ void t7xx_dpmaif_irq_rx_done(struct dpmaif_ctrl *dpmaif_ctrl, const unsigned int
 	}
 
 	rxq = &dpmaif_ctrl->rxq[qno];
+	ctrl = rxq->dpmaif_ctrl;
+	/* We need to make sure that the modem has been resumed before
+	 * calling napi. This can't be done inside the polling function
+	 * as we could be blocked waiting for device to be resumed,
+	 * which can't be done from softirq context the poll function
+	 * is running in.
+	 */
+	ret = pm_runtime_resume_and_get(ctrl->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err(ctrl->dev, "Failed to resume device: %d\n", ret);
+		return;
+	}
 	napi_schedule(&rxq->napi);
 }
 

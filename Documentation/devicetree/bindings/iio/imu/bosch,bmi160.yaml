@@ -64,16 +64,16 @@ examples:
         #size-cells = <0>;
 
         bmi160@68 {
-                compatible = "bosch,bmi160";
-                reg = <0x68>;
-                vdd-supply = <&pm8916_l17>;
-                vddio-supply = <&pm8916_l6>;
-                interrupt-parent = <&gpio4>;
-                interrupts = <12 IRQ_TYPE_EDGE_RISING>;
-                interrupt-names = "INT1";
-                mount-matrix = "0", "1", "0",
-                               "-1", "0", "0",
-                               "0", "0", "1";
+            compatible = "bosch,bmi160";
+            reg = <0x68>;
+            vdd-supply = <&pm8916_l17>;
+            vddio-supply = <&pm8916_l6>;
+            interrupt-parent = <&gpio4>;
+            interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT1";
+            mount-matrix = "0", "1", "0",
+                           "-1", "0", "0",
+                           "0", "0", "1";
         };
     };
   - |
@@ -84,11 +84,11 @@ examples:
         #size-cells = <0>;
 
         bmi160@0 {
-                compatible = "bosch,bmi160";
-                reg = <0>;
-                spi-max-frequency = <10000000>;
-                interrupt-parent = <&gpio2>;
-                interrupts = <12 IRQ_TYPE_EDGE_RISING>;
-                interrupt-names = "INT2";
+            compatible = "bosch,bmi160";
+            reg = <0>;
+            spi-max-frequency = <10000000>;
+            interrupt-parent = <&gpio2>;
+            interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT2";
         };
     };

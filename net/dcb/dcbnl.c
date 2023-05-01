@@ -178,6 +178,7 @@ static const struct nla_policy dcbnl_featcfg_nest[DCB_FEATCFG_ATTR_MAX + 1] = {
 };
 
 static LIST_HEAD(dcb_app_list);
+static LIST_HEAD(dcb_rewr_list);
 static DEFINE_SPINLOCK(dcb_lock);
 
 static enum ieee_attrs_app dcbnl_app_attr_type_get(u8 selector)
@@ -1099,11 +1100,46 @@ out:
 	return err;
 }
 
+/* Set or delete APP table or rewrite table entries. The APP struct is validated
+ * and the appropriate callback function is called.
+ */
+static int dcbnl_app_table_setdel(struct nlattr *attr,
+				  struct net_device *netdev,
+				  int (*setdel)(struct net_device *dev,
+						struct dcb_app *app))
+{
+	struct dcb_app *app_data;
+	enum ieee_attrs_app type;
+	struct nlattr *attr_itr;
+	int rem, err;
+
+	nla_for_each_nested(attr_itr, attr, rem) {
+		type = nla_type(attr_itr);
+
+		if (!dcbnl_app_attr_type_validate(type))
+			continue;
+
+		if (nla_len(attr_itr) < sizeof(struct dcb_app))
+			return -ERANGE;
+
+		app_data = nla_data(attr_itr);
+
+		if (!dcbnl_app_selector_validate(type, app_data->selector))
+			return -EINVAL;
+
+		err = setdel(netdev, app_data);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* Handle IEEE 802.1Qaz/802.1Qau/802.1Qbb GET commands. */
 static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 {
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
-	struct nlattr *ieee, *app;
+	struct nlattr *ieee, *app, *rewr;
 	struct dcb_app_type *itr;
 	int dcbx;
 	int err;
@@ -1205,6 +1241,27 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	spin_unlock_bh(&dcb_lock);
 	nla_nest_end(skb, app);
+
+	rewr = nla_nest_start(skb, DCB_ATTR_DCB_REWR_TABLE);
+	if (!rewr)
+		return -EMSGSIZE;
+
+	spin_lock_bh(&dcb_lock);
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->ifindex == netdev->ifindex) {
+			enum ieee_attrs_app type =
+				dcbnl_app_attr_type_get(itr->app.selector);
+			err = nla_put(skb, type, sizeof(itr->app), &itr->app);
+			if (err) {
+				spin_unlock_bh(&dcb_lock);
+				nla_nest_cancel(skb, rewr);
+				return -EMSGSIZE;
+			}
+		}
+	}
+
+	spin_unlock_bh(&dcb_lock);
+	nla_nest_end(skb, rewr);
 
 	if (ops->dcbnl_getapptrust) {
 		err = dcbnl_getapptrust(netdev, skb);
@@ -1567,37 +1624,20 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 			goto err;
 	}
 
+	if (ieee[DCB_ATTR_DCB_REWR_TABLE]) {
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_DCB_REWR_TABLE],
+					     netdev,
+					     ops->dcbnl_setrewr ?: dcb_setrewr);
+		if (err)
+			goto err;
+	}
+
 	if (ieee[DCB_ATTR_IEEE_APP_TABLE]) {
-		struct nlattr *attr;
-		int rem;
-
-		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
-			enum ieee_attrs_app type = nla_type(attr);
-			struct dcb_app *app_data;
-
-			if (!dcbnl_app_attr_type_validate(type))
-				continue;
-
-			if (nla_len(attr) < sizeof(struct dcb_app)) {
-				err = -ERANGE;
-				goto err;
-			}
-
-			app_data = nla_data(attr);
-
-			if (!dcbnl_app_selector_validate(type,
-							 app_data->selector)) {
-				err = -EINVAL;
-				goto err;
-			}
-
-			if (ops->ieee_setapp)
-				err = ops->ieee_setapp(netdev, app_data);
-			else
-				err = dcb_ieee_setapp(netdev, app_data);
-			if (err)
-				goto err;
-		}
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_IEEE_APP_TABLE],
+					     netdev, ops->ieee_setapp ?:
+					     dcb_ieee_setapp);
+		if (err)
+			goto err;
 	}
 
 	if (ieee[DCB_ATTR_DCB_APP_TRUST_TABLE]) {
@@ -1684,31 +1724,19 @@ static int dcbnl_ieee_del(struct net_device *netdev, struct nlmsghdr *nlh,
 		return err;
 
 	if (ieee[DCB_ATTR_IEEE_APP_TABLE]) {
-		struct nlattr *attr;
-		int rem;
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_IEEE_APP_TABLE],
+					     netdev, ops->ieee_delapp ?:
+					     dcb_ieee_delapp);
+		if (err)
+			goto err;
+	}
 
-		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
-			enum ieee_attrs_app type = nla_type(attr);
-			struct dcb_app *app_data;
-
-			if (!dcbnl_app_attr_type_validate(type))
-				continue;
-
-			app_data = nla_data(attr);
-
-			if (!dcbnl_app_selector_validate(type,
-							 app_data->selector)) {
-				err = -EINVAL;
-				goto err;
-			}
-
-			if (ops->ieee_delapp)
-				err = ops->ieee_delapp(netdev, app_data);
-			else
-				err = dcb_ieee_delapp(netdev, app_data);
-			if (err)
-				goto err;
-		}
+	if (ieee[DCB_ATTR_DCB_REWR_TABLE]) {
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_DCB_REWR_TABLE],
+					     netdev,
+					     ops->dcbnl_delrewr ?: dcb_delrewr);
+		if (err)
+			goto err;
 	}
 
 err:
@@ -1939,6 +1967,22 @@ out:
 	return ret;
 }
 
+static struct dcb_app_type *dcb_rewr_lookup(const struct dcb_app *app,
+					    int ifindex, int proto)
+{
+	struct dcb_app_type *itr;
+
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->app.selector == app->selector &&
+		    itr->app.priority == app->priority &&
+		    itr->ifindex == ifindex &&
+		    ((proto == -1) || itr->app.protocol == proto))
+			return itr;
+	}
+
+	return NULL;
+}
+
 static struct dcb_app_type *dcb_app_lookup(const struct dcb_app *app,
 					   int ifindex, int prio)
 {
@@ -1955,7 +1999,8 @@ static struct dcb_app_type *dcb_app_lookup(const struct dcb_app *app,
 	return NULL;
 }
 
-static int dcb_app_add(const struct dcb_app *app, int ifindex)
+static int dcb_app_add(struct list_head *list, const struct dcb_app *app,
+		       int ifindex)
 {
 	struct dcb_app_type *entry;
 
@@ -1965,7 +2010,7 @@ static int dcb_app_add(const struct dcb_app *app, int ifindex)
 
 	memcpy(&entry->app, app, sizeof(*app));
 	entry->ifindex = ifindex;
-	list_add(&entry->list, &dcb_app_list);
+	list_add(&entry->list, list);
 
 	return 0;
 }
@@ -2028,7 +2073,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 	/* App type does not exist add new application type */
 	if (new->priority)
-		err = dcb_app_add(new, dev->ifindex);
+		err = dcb_app_add(&dcb_app_list, new, dev->ifindex);
 out:
 	spin_unlock_bh(&dcb_lock);
 	if (!err)
@@ -2061,6 +2106,63 @@ u8 dcb_ieee_getapp_mask(struct net_device *dev, struct dcb_app *app)
 }
 EXPORT_SYMBOL(dcb_ieee_getapp_mask);
 
+/* Get protocol value from rewrite entry. */
+u16 dcb_getrewr(struct net_device *dev, struct dcb_app *app)
+{
+	struct dcb_app_type *itr;
+	u16 proto = 0;
+
+	spin_lock_bh(&dcb_lock);
+	itr = dcb_rewr_lookup(app, dev->ifindex, -1);
+	if (itr)
+		proto = itr->app.protocol;
+	spin_unlock_bh(&dcb_lock);
+
+	return proto;
+}
+EXPORT_SYMBOL(dcb_getrewr);
+
+ /* Add rewrite entry to the rewrite list. */
+int dcb_setrewr(struct net_device *dev, struct dcb_app *new)
+{
+	int err;
+
+	spin_lock_bh(&dcb_lock);
+	/* Search for existing match and abort if found. */
+	if (dcb_rewr_lookup(new, dev->ifindex, new->protocol)) {
+		err = -EEXIST;
+		goto out;
+	}
+
+	err = dcb_app_add(&dcb_rewr_list, new, dev->ifindex);
+out:
+	spin_unlock_bh(&dcb_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(dcb_setrewr);
+
+/* Delete rewrite entry from the rewrite list. */
+int dcb_delrewr(struct net_device *dev, struct dcb_app *del)
+{
+	struct dcb_app_type *itr;
+	int err = -ENOENT;
+
+	spin_lock_bh(&dcb_lock);
+	/* Search for existing match and remove it. */
+	itr = dcb_rewr_lookup(del, dev->ifindex, del->protocol);
+	if (itr) {
+		list_del(&itr->list);
+		kfree(itr);
+		err = 0;
+	}
+
+	spin_unlock_bh(&dcb_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(dcb_delrewr);
+
 /**
  * dcb_ieee_setapp - add IEEE dcb application data to app list
  * @dev: network interface
@@ -2088,7 +2190,7 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 		goto out;
 	}
 
-	err = dcb_app_add(new, dev->ifindex);
+	err = dcb_app_add(&dcb_app_list, new, dev->ifindex);
 out:
 	spin_unlock_bh(&dcb_lock);
 	if (!err)
@@ -2129,6 +2231,58 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 	return err;
 }
 EXPORT_SYMBOL(dcb_ieee_delapp);
+
+/* dcb_getrewr_prio_pcp_mask_map - For a given device, find mapping from
+ * priorities to the PCP and DEI values assigned to that priority.
+ */
+void dcb_getrewr_prio_pcp_mask_map(const struct net_device *dev,
+				   struct dcb_rewr_prio_pcp_map *p_map)
+{
+	int ifindex = dev->ifindex;
+	struct dcb_app_type *itr;
+	u8 prio;
+
+	memset(p_map->map, 0, sizeof(p_map->map));
+
+	spin_lock_bh(&dcb_lock);
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->ifindex == ifindex &&
+		    itr->app.selector == DCB_APP_SEL_PCP &&
+		    itr->app.protocol < 16 &&
+		    itr->app.priority < IEEE_8021QAZ_MAX_TCS) {
+			prio = itr->app.priority;
+			p_map->map[prio] |= 1 << itr->app.protocol;
+		}
+	}
+	spin_unlock_bh(&dcb_lock);
+}
+EXPORT_SYMBOL(dcb_getrewr_prio_pcp_mask_map);
+
+/* dcb_getrewr_prio_dscp_mask_map - For a given device, find mapping from
+ * priorities to the DSCP values assigned to that priority.
+ */
+void dcb_getrewr_prio_dscp_mask_map(const struct net_device *dev,
+				    struct dcb_ieee_app_prio_map *p_map)
+{
+	int ifindex = dev->ifindex;
+	struct dcb_app_type *itr;
+	u8 prio;
+
+	memset(p_map->map, 0, sizeof(p_map->map));
+
+	spin_lock_bh(&dcb_lock);
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->ifindex == ifindex &&
+		    itr->app.selector == IEEE_8021QAZ_APP_SEL_DSCP &&
+		    itr->app.protocol < 64 &&
+		    itr->app.priority < IEEE_8021QAZ_MAX_TCS) {
+			prio = itr->app.priority;
+			p_map->map[prio] |= 1ULL << itr->app.protocol;
+		}
+	}
+	spin_unlock_bh(&dcb_lock);
+}
+EXPORT_SYMBOL(dcb_getrewr_prio_dscp_mask_map);
 
 /*
  * dcb_ieee_getapp_prio_dscp_mask_map - For a given device, find mapping from

@@ -244,14 +244,6 @@ config LEDS_MT6323
 	  This option enables support for on-chip LED drivers found on
 	  Mediatek MT6323 PMIC.
 
-config LEDS_S3C24XX
-	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
-	depends on LEDS_CLASS
-	depends on ARCH_S3C24XX || COMPILE_TEST
-	help
-	  This option enables support for LEDs connected to GPIO lines
-	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
-
 config LEDS_NET48XX
 	tristate "LED Support for Soekris net48xx series Error LED"
 	depends on LEDS_CLASS
@@ -630,17 +622,6 @@ config LEDS_NETXBIG
 	  This option enables support for LEDs found on the LaCie 2Big
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
 	  controlled through a GPIO extension bus.
-
-config LEDS_ASIC3
-	bool "LED support for the HTC ASIC3"
-	depends on LEDS_CLASS=y
-	depends on MFD_ASIC3
-	default y
-	help
-	  This option enables support for the LEDs on the HTC ASIC3. The HTC
-	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
-	  cannot be used. This driver supports hardware blinking with an on+off
-	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
 
 config LEDS_TCA6507
 	tristate "LED Support for TCA6507 I2C chip"

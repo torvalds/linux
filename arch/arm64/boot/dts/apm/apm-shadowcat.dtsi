@@ -588,7 +588,6 @@
 		};
 
 		serial0: serial@10600000 {
-			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0 0x10600000 0x0 0x1000>;
 			reg-shift = <2>;

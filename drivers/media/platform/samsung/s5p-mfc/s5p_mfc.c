@@ -1021,8 +1021,8 @@ static __poll_t s5p_mfc_poll(struct file *file,
 	 * means either in driver already or waiting for driver to claim it
 	 * and start processing.
 	 */
-	if ((!src_q->streaming || list_empty(&src_q->queued_list))
-		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
+	if ((!vb2_is_streaming(src_q) || list_empty(&src_q->queued_list)) &&
+	    (!vb2_is_streaming(dst_q) || list_empty(&dst_q->queued_list))) {
 		rc = EPOLLERR;
 		goto end;
 	}

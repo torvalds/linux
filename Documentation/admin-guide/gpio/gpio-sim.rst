@@ -123,7 +123,7 @@ Each simulated GPIO chip creates a separate sysfs group under its device
 directory for each exposed line
 (e.g. ``/sys/devices/platform/gpio-sim.X/gpiochipY/``). The name of each group
 is of the form: ``'sim_gpioX'`` where X is the offset of the line. Inside each
-group there are two attibutes:
+group there are two attributes:
 
     ``pull`` - allows to read and set the current simulated pull setting for
                every line, when writing the value must be one of: ``'pull-up'``,

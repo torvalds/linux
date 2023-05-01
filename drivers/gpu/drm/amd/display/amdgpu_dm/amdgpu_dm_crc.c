@@ -101,35 +101,44 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc)
 
 static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 {
-	struct crc_rd_work *crc_rd_wrk;
-	struct amdgpu_device *adev;
+	struct secure_display_context *secure_display_ctx;
 	struct psp_context *psp;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 	struct drm_crtc *crtc;
-	uint8_t phy_id;
+	struct dc_stream_state *stream;
+	uint8_t phy_inst;
 	int ret;
 
-	crc_rd_wrk = container_of(work, struct crc_rd_work, notify_ta_work);
-	spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-	crtc = crc_rd_wrk->crtc;
+	secure_display_ctx = container_of(work, struct secure_display_context, notify_ta_work);
+	crtc = secure_display_ctx->crtc;
 
 	if (!crtc) {
-		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 		return;
 	}
 
-	adev = drm_to_adev(crtc->dev);
-	psp = &adev->psp;
-	phy_id = crc_rd_wrk->phy_inst;
-	spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+	psp = &drm_to_adev(crtc->dev)->psp;
 
+	if (!psp->securedisplay_context.context.initialized) {
+		DRM_DEBUG_DRIVER("Secure Display fails to notify PSP TA\n");
+		return;
+	}
+
+	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
+	phy_inst = stream->link->link_enc_hw_inst;
+
+	/* need lock for multiple crtcs to use the command buffer */
 	mutex_lock(&psp->securedisplay_context.mutex);
 
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
-	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id =
-						phy_id;
+
+	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id = phy_inst;
+
+	/* PSP TA is expected to finish data transmission over I2C within current frame,
+	 * even there are up to 4 crtcs request to send in this frame.
+	 */
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+
 	if (!ret) {
 		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS) {
 			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
@@ -142,17 +151,23 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 static void
 amdgpu_dm_forward_crc_window(struct work_struct *work)
 {
-	struct crc_fw_work *crc_fw_wrk;
+	struct secure_display_context *secure_display_ctx;
 	struct amdgpu_display_manager *dm;
+	struct drm_crtc *crtc;
+	struct dc_stream_state *stream;
 
-	crc_fw_wrk = container_of(work, struct crc_fw_work, forward_roi_work);
-	dm = crc_fw_wrk->dm;
+	secure_display_ctx = container_of(work, struct secure_display_context, forward_roi_work);
+	crtc = secure_display_ctx->crtc;
+
+	if (!crtc)
+		return;
+
+	dm = &drm_to_adev(crtc->dev)->dm;
+	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
 
 	mutex_lock(&dm->dc_lock);
-	dc_stream_forward_crc_window(dm->dc, &crc_fw_wrk->rect, crc_fw_wrk->stream, crc_fw_wrk->is_stop_cmd);
+	dc_stream_forward_crc_window(stream, &secure_display_ctx->rect, false);
 	mutex_unlock(&dm->dc_lock);
-
-	kfree(crc_fw_wrk);
 }
 
 bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
@@ -189,6 +204,9 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 					struct dm_crtc_state *dm_crtc_state,
 					enum amdgpu_dm_pipe_crc_source source)
 {
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	int i;
+#endif
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dc_stream_state *stream_state = dm_crtc_state->stream;
 	bool enable = amdgpu_dm_is_valid_crc_source(source);
@@ -200,21 +218,18 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	mutex_lock(&adev->dm.dc_lock);
 
-	/* Enable CRTC CRC generation if necessary. */
+	/* Enable or disable CRTC CRC generation */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		/* Disable secure_display if it was enabled */
 		if (!enable) {
-			if (adev->dm.crc_rd_wrk) {
-				flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
-				spin_lock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
-
-				if (adev->dm.crc_rd_wrk->crtc == crtc) {
+			for (i = 0; i < adev->mode_info.num_crtc; i++) {
+				if (adev->dm.secure_display_ctxs[i].crtc == crtc) {
 					/* stop ROI update on this crtc */
-					dc_stream_forward_crc_window(stream_state->ctx->dc,
-							NULL, stream_state, true);
-					adev->dm.crc_rd_wrk->crtc = NULL;
+					flush_work(&adev->dm.secure_display_ctxs[i].notify_ta_work);
+					flush_work(&adev->dm.secure_display_ctxs[i].forward_roi_work);
+					dc_stream_forward_crc_window(stream_state, NULL, true);
 				}
-				spin_unlock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
 			}
 		}
 #endif
@@ -329,7 +344,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			goto cleanup;
 		}
 
-		aux = (aconn->port) ? &aconn->port->aux : &aconn->dm_dp_aux.aux;
+		aux = (aconn->mst_output_port) ? &aconn->mst_output_port->aux : &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
@@ -347,6 +362,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	}
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	/* Reset secure_display when we change crc source from debugfs */
 	amdgpu_dm_set_crc_window_default(crtc);
 #endif
 
@@ -456,14 +472,12 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 {
-	struct dc_stream_state *stream_state;
 	struct drm_device *drm_dev = NULL;
 	enum amdgpu_dm_pipe_crc_source cur_crc_src;
 	struct amdgpu_crtc *acrtc = NULL;
 	struct amdgpu_device *adev = NULL;
-	struct crc_rd_work *crc_rd_wrk;
-	struct crc_fw_work *crc_fw_wrk;
-	unsigned long flags1, flags2;
+	struct secure_display_context *secure_display_ctx = NULL;
+	unsigned long flags1;
 
 	if (crtc == NULL)
 		return;
@@ -473,75 +487,76 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	drm_dev = crtc->dev;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags1);
-	stream_state = acrtc->dm_irq_params.stream;
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
 
 	/* Early return if CRC capture is not enabled. */
-	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
-		goto cleanup;
-
-	if (!dm_is_crc_source_crtc(cur_crc_src))
+	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src) ||
+		!dm_is_crc_source_crtc(cur_crc_src))
 		goto cleanup;
 
 	if (!acrtc->dm_irq_params.window_param.activated)
 		goto cleanup;
 
+	if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
+		acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
+		goto cleanup;
+	}
+
+	secure_display_ctx = &adev->dm.secure_display_ctxs[acrtc->crtc_id];
+	if (WARN_ON(secure_display_ctx->crtc != crtc)) {
+		/* We have set the crtc when creating secure_display_context,
+		 * don't expect it to be changed here.
+		 */
+		secure_display_ctx->crtc = crtc;
+	}
+
 	if (acrtc->dm_irq_params.window_param.update_win) {
-		if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
-			acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
-			goto cleanup;
-		}
-
 		/* prepare work for dmub to update ROI */
-		crc_fw_wrk = kzalloc(sizeof(*crc_fw_wrk), GFP_ATOMIC);
-		if (!crc_fw_wrk)
-			goto cleanup;
-
-		INIT_WORK(&crc_fw_wrk->forward_roi_work, amdgpu_dm_forward_crc_window);
-		crc_fw_wrk->dm = &adev->dm;
-		crc_fw_wrk->stream = stream_state;
-		crc_fw_wrk->rect.x = acrtc->dm_irq_params.window_param.x_start;
-		crc_fw_wrk->rect.y = acrtc->dm_irq_params.window_param.y_start;
-		crc_fw_wrk->rect.width = acrtc->dm_irq_params.window_param.x_end -
+		secure_display_ctx->rect.x = acrtc->dm_irq_params.window_param.x_start;
+		secure_display_ctx->rect.y = acrtc->dm_irq_params.window_param.y_start;
+		secure_display_ctx->rect.width = acrtc->dm_irq_params.window_param.x_end -
 								acrtc->dm_irq_params.window_param.x_start;
-		crc_fw_wrk->rect.height = acrtc->dm_irq_params.window_param.y_end -
+		secure_display_ctx->rect.height = acrtc->dm_irq_params.window_param.y_end -
 								acrtc->dm_irq_params.window_param.y_start;
-		schedule_work(&crc_fw_wrk->forward_roi_work);
+		schedule_work(&secure_display_ctx->forward_roi_work);
 
 		acrtc->dm_irq_params.window_param.update_win = false;
+
+		/* Statically skip 1 frame, because we may need to wait below things
+		 * before sending ROI to dmub:
+		 * 1. We defer the work by using system workqueue.
+		 * 2. We may need to wait for dc_lock before accessing dmub.
+		 */
 		acrtc->dm_irq_params.window_param.skip_frame_cnt = 1;
 
 	} else {
-		if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
-			acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
-			goto cleanup;
-		}
-
-		if (adev->dm.crc_rd_wrk) {
-			crc_rd_wrk = adev->dm.crc_rd_wrk;
-			spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
-			crc_rd_wrk->phy_inst = stream_state->link->link_enc_hw_inst;
-			spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
-			schedule_work(&crc_rd_wrk->notify_ta_work);
-		}
+		/* prepare work for psp to read ROI/CRC and send to I2C */
+		schedule_work(&secure_display_ctx->notify_ta_work);
 	}
 
 cleanup:
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
 }
 
-struct crc_rd_work *amdgpu_dm_crtc_secure_display_create_work(void)
+struct secure_display_context *
+amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 {
-	struct crc_rd_work *crc_rd_wrk = NULL;
+	struct secure_display_context *secure_display_ctxs = NULL;
+	int i;
 
-	crc_rd_wrk = kzalloc(sizeof(*crc_rd_wrk), GFP_KERNEL);
+	secure_display_ctxs = kcalloc(adev->mode_info.num_crtc,
+				      sizeof(struct secure_display_context),
+				      GFP_KERNEL);
 
-	if (!crc_rd_wrk)
+	if (!secure_display_ctxs)
 		return NULL;
 
-	spin_lock_init(&crc_rd_wrk->crc_rd_work_lock);
-	INIT_WORK(&crc_rd_wrk->notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
+		INIT_WORK(&secure_display_ctxs[i].forward_roi_work, amdgpu_dm_forward_crc_window);
+		INIT_WORK(&secure_display_ctxs[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+		secure_display_ctxs[i].crtc = &adev->mode_info.crtcs[i]->base;
+	}
 
-	return crc_rd_wrk;
+	return secure_display_ctxs;
 }
 #endif

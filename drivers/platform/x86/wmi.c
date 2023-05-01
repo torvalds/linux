@@ -693,15 +693,8 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-static struct wmi_block *dev_to_wblock(struct device *dev)
-{
-	return container_of(dev, struct wmi_block, dev.dev);
-}
-
-static struct wmi_device *dev_to_wdev(struct device *dev)
-{
-	return container_of(dev, struct wmi_device, dev);
-}
+#define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
+#define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
 static inline struct wmi_driver *drv_to_wdrv(struct device_driver *drv)
 {
@@ -804,9 +797,9 @@ static struct attribute *wmi_method_attrs[] = {
 };
 ATTRIBUTE_GROUPS(wmi_method);
 
-static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int wmi_dev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct wmi_block *wblock = dev_to_wblock(dev);
+	const struct wmi_block *wblock = dev_to_wblock(dev);
 
 	if (add_uevent_var(env, "MODALIAS=wmi:%pUL", &wblock->gblock.guid))
 		return -ENOMEM;

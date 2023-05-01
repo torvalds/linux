@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/rfkill-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO controlled rfkill switch
+
+maintainers:
+  - Johannes Berg <johannes@sipsolutions.net>
+  - Philipp Zabel <p.zabel@pengutronix.de>
+
+properties:
+  compatible:
+    const: rfkill-gpio
+
+  label:
+    description: rfkill switch name, defaults to node name
+
+  radio-type:
+    description: rfkill radio type
+    enum:
+      - bluetooth
+      - fm
+      - gps
+      - nfc
+      - ultrawideband
+      - wimax
+      - wlan
+      - wwan
+
+  shutdown-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - radio-type
+  - shutdown-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    rfkill {
+        compatible = "rfkill-gpio";
+        label = "rfkill-pcie-wlan";
+        radio-type = "wlan";
+        shutdown-gpios = <&gpio2 25 GPIO_ACTIVE_HIGH>;
+    };

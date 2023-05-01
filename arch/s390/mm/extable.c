@@ -47,13 +47,16 @@ static bool ex_handler_ua_load_mem(const struct exception_table_entry *ex, struc
 	return true;
 }
 
-static bool ex_handler_ua_load_reg(const struct exception_table_entry *ex, struct pt_regs *regs)
+static bool ex_handler_ua_load_reg(const struct exception_table_entry *ex,
+				   bool pair, struct pt_regs *regs)
 {
 	unsigned int reg_zero = FIELD_GET(EX_DATA_REG_ADDR, ex->data);
 	unsigned int reg_err = FIELD_GET(EX_DATA_REG_ERR, ex->data);
 
 	regs->gprs[reg_err] = -EFAULT;
 	regs->gprs[reg_zero] = 0;
+	if (pair)
+		regs->gprs[reg_zero + 1] = 0;
 	regs->psw.addr = extable_fixup(ex);
 	return true;
 }
@@ -75,7 +78,9 @@ bool fixup_exception(struct pt_regs *regs)
 	case EX_TYPE_UA_LOAD_MEM:
 		return ex_handler_ua_load_mem(ex, regs);
 	case EX_TYPE_UA_LOAD_REG:
-		return ex_handler_ua_load_reg(ex, regs);
+		return ex_handler_ua_load_reg(ex, false, regs);
+	case EX_TYPE_UA_LOAD_REGPAIR:
+		return ex_handler_ua_load_reg(ex, true, regs);
 	}
 	panic("invalid exception table entry");
 }

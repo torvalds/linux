@@ -9,6 +9,9 @@
 #include "qcom-msm8226.dtsi"
 #include "qcom-pm8226.dtsi"
 
+/delete-node/ &adsp_region;
+/delete-node/ &smem_region;
+
 / {
 	model = "Samsung Galaxy Tab 4 10.1";
 	compatible = "samsung,matisse-wifi", "qcom,apq8026";
@@ -77,6 +80,55 @@
 		};
 	};
 
+	i2c-backlight {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 20 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 21 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&backlight_i2c_default_state>;
+		pinctrl-names = "default";
+
+		i2c-gpio,delay-us = <4>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		backlight@2c {
+			compatible = "ti,lp8556";
+			reg = <0x2c>;
+
+			dev-ctrl = /bits/ 8 <0x80>;
+			init-brt = /bits/ 8 <0x3f>;
+			pwm-period = <100000>;
+
+			pwms = <&backlight_pwm 0 100000>;
+			pwm-names = "lp8556";
+
+			rom-a0h {
+				rom-addr = /bits/ 8 <0xa0>;
+				rom-val = /bits/ 8 <0x44>;
+			};
+
+			rom-a1h {
+				rom-addr = /bits/ 8 <0xa1>;
+				rom-val = /bits/ 8 <0x6c>;
+			};
+
+			rom-a5h {
+				rom-addr = /bits/ 8 <0xa5>;
+				rom-val = /bits/ 8 <0x24>;
+			};
+		};
+	};
+
+	backlight_pwm: pwm {
+		compatible = "clk-pwm";
+		#pwm-cells = <2>;
+		clocks = <&mmcc CAMSS_GP0_CLK>;
+		pinctrl-0 = <&backlight_pwm_default_state>;
+		pinctrl-names = "default";
+	};
+
 	reg_tsp_1p8v: regulator-tsp-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "tsp_1p8v";
@@ -133,7 +185,7 @@
 			no-map;
 		};
 
-		adsp@d900000 {
+		adsp_region: adsp@d900000 {
 			reg = <0x0d900000 0x1800000>;
 			no-map;
 		};
@@ -143,7 +195,6 @@
 			no-map;
 		};
 
-		/delete-node/ smem@3000000;
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
 			no-map;
@@ -167,6 +218,10 @@
 			qcom,client-id = <1>;
 		};
 	};
+};
+
+&adsp {
+	status = "okay";
 };
 
 &blsp1_i2c2 {
@@ -410,6 +465,18 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
+	};
+
+	backlight_i2c_default_state: backlight-i2c-default-state {
+		pins = "gpio20", "gpio21";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	backlight_pwm_default_state: backlight-pwm-default-state {
+		pins = "gpio33";
+		function = "gp0_clk";
 	};
 
 	muic_int_default_state: muic-int-default-state {

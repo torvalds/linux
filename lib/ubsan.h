@@ -2,6 +2,38 @@
 #ifndef _LIB_UBSAN_H
 #define _LIB_UBSAN_H
 
+/*
+ * ABI defined by Clang's UBSAN enum SanitizerHandler:
+ * https://github.com/llvm/llvm-project/blob/release/16.x/clang/lib/CodeGen/CodeGenFunction.h#L113
+ */
+enum ubsan_checks {
+	ubsan_add_overflow,
+	ubsan_builtin_unreachable,
+	ubsan_cfi_check_fail,
+	ubsan_divrem_overflow,
+	ubsan_dynamic_type_cache_miss,
+	ubsan_float_cast_overflow,
+	ubsan_function_type_mismatch,
+	ubsan_implicit_conversion,
+	ubsan_invalid_builtin,
+	ubsan_invalid_objc_cast,
+	ubsan_load_invalid_value,
+	ubsan_missing_return,
+	ubsan_mul_overflow,
+	ubsan_negate_overflow,
+	ubsan_nullability_arg,
+	ubsan_nullability_return,
+	ubsan_nonnull_arg,
+	ubsan_nonnull_return,
+	ubsan_out_of_bounds,
+	ubsan_pointer_overflow,
+	ubsan_shift_out_of_bounds,
+	ubsan_sub_overflow,
+	ubsan_type_mismatch,
+	ubsan_alignment_assumption,
+	ubsan_vla_bound_not_positive,
+};
+
 enum {
 	type_kind_int = 0,
 	type_kind_float = 1,

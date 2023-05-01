@@ -370,33 +370,33 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		sdctrl@59810000 {
+		sdctrl: syscon@59810000 {
 			compatible = "socionext,uniphier-pxs3-sdctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x400>;
 
-			sd_clk: clock {
+			sd_clk: clock-controller {
 				compatible = "socionext,uniphier-pxs3-sd-clock";
 				#clock-cells = <1>;
 			};
 
-			sd_rst: reset {
+			sd_rst: reset-controller {
 				compatible = "socionext,uniphier-pxs3-sd-reset";
 				#reset-cells = <1>;
 			};
 		};
 
-		perictrl@59820000 {
+		syscon@59820000 {
 			compatible = "socionext,uniphier-pxs3-perictrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59820000 0x200>;
 
-			peri_clk: clock {
+			peri_clk: clock-controller {
 				compatible = "socionext,uniphier-pxs3-peri-clock";
 				#clock-cells = <1>;
 			};
 
-			peri_rst: reset {
+			peri_rst: reset-controller {
 				compatible = "socionext,uniphier-pxs3-peri-reset";
 				#reset-cells = <1>;
 			};
@@ -437,9 +437,10 @@
 			sd-uhs-sdr12;
 			sd-uhs-sdr25;
 			sd-uhs-sdr50;
+			socionext,syscon-uhs-mode = <&sdctrl 0>;
 		};
 
-		soc_glue: soc-glue@5f800000 {
+		soc_glue: syscon@5f800000 {
 			compatible = "socionext,uniphier-pxs3-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
@@ -449,9 +450,10 @@
 			};
 		};
 
-		soc-glue@5f900000 {
+		syscon@5f900000 {
 			compatible = "socionext,uniphier-pxs3-soc-glue-debug",
-				     "simple-mfd";
+				     "simple-mfd", "syscon";
+			reg = <0x5f900000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x5f900000 0x2000>;
@@ -535,17 +537,17 @@
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		sysctrl@61840000 {
+		syscon@61840000 {
 			compatible = "socionext,uniphier-pxs3-sysctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x61840000 0x10000>;
 
-			sys_clk: clock {
+			sys_clk: clock-controller {
 				compatible = "socionext,uniphier-pxs3-clock";
 				#clock-cells = <1>;
 			};
 
-			sys_rst: reset {
+			sys_rst: reset-controller {
 				compatible = "socionext,uniphier-pxs3-reset";
 				#reset-cells = <1>;
 			};
@@ -619,6 +621,7 @@
 		sata-controller@65700000 {
 			compatible = "socionext,uniphier-pxs3-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65700000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65700000 0x100>;
@@ -659,6 +662,7 @@
 		sata-controller@65900000 {
 			compatible = "socionext,uniphier-pxs3-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65900000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65900000 0x100>;
@@ -703,11 +707,12 @@
 		usb-controller@65b00000 {
 			compatible = "socionext,uniphier-pxs3-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65b00000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65b00000 0x400>;
 
-			usb0_rst: reset@0 {
+			usb0_rst: reset-controller@0 {
 				compatible = "socionext,uniphier-pxs3-usb3-reset";
 				reg = <0x0 0x4>;
 				#reset-cells = <1>;
@@ -735,7 +740,7 @@
 				resets = <&sys_rst 12>;
 			};
 
-			usb0_hsphy0: hs-phy@200 {
+			usb0_hsphy0: phy@200 {
 				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
 				reg = <0x200 0x10>;
 				#phy-cells = <0>;
@@ -749,7 +754,7 @@
 					      <&usb_hs_i0>;
 			};
 
-			usb0_hsphy1: hs-phy@210 {
+			usb0_hsphy1: phy@210 {
 				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
 				reg = <0x210 0x10>;
 				#phy-cells = <0>;
@@ -763,7 +768,7 @@
 					      <&usb_hs_i0>;
 			};
 
-			usb0_ssphy0: ss-phy@300 {
+			usb0_ssphy0: phy@300 {
 				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
 				reg = <0x300 0x10>;
 				#phy-cells = <0>;
@@ -774,7 +779,7 @@
 				vbus-supply = <&usb0_vbus0>;
 			};
 
-			usb0_ssphy1: ss-phy@310 {
+			usb0_ssphy1: phy@310 {
 				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
 				reg = <0x310 0x10>;
 				#phy-cells = <0>;
@@ -805,11 +810,12 @@
 		usb-controller@65d00000 {
 			compatible = "socionext,uniphier-pxs3-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65d00000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65d00000 0x400>;
 
-			usb1_rst: reset@0 {
+			usb1_rst: reset-controller@0 {
 				compatible = "socionext,uniphier-pxs3-usb3-reset";
 				reg = <0x0 0x4>;
 				#reset-cells = <1>;
@@ -837,7 +843,7 @@
 				resets = <&sys_rst 13>;
 			};
 
-			usb1_hsphy0: hs-phy@200 {
+			usb1_hsphy0: phy@200 {
 				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
 				reg = <0x200 0x10>;
 				#phy-cells = <0>;
@@ -852,7 +858,7 @@
 					      <&usb_hs_i2>;
 			};
 
-			usb1_hsphy1: hs-phy@210 {
+			usb1_hsphy1: phy@210 {
 				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
 				reg = <0x210 0x10>;
 				#phy-cells = <0>;
@@ -867,7 +873,7 @@
 					      <&usb_hs_i2>;
 			};
 
-			usb1_ssphy0: ss-phy@300 {
+			usb1_ssphy0: phy@300 {
 				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
 				reg = <0x300 0x10>;
 				#phy-cells = <0>;

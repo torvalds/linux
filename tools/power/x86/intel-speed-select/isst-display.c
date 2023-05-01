@@ -423,10 +423,10 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			format_and_print(outf, level + 2, header, value);
 		}
 
-		if (ctdp_level->uncore_p1) {
+		if (ctdp_level->uncore_pm) {
 			snprintf(header, sizeof(header), "uncore-frequency-min(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->uncore_p1 * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->uncore_pm * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, level + 2, header, value);
 		}
 
@@ -434,6 +434,13 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			snprintf(header, sizeof(header), "uncore-frequency-max(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 ctdp_level->uncore_p0 * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, level + 2, header, value);
+		}
+
+		if (ctdp_level->uncore_p1) {
+			snprintf(header, sizeof(header), "uncore-frequency-base(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore_p1 * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, level + 2, header, value);
 		}
 

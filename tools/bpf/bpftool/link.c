@@ -145,7 +145,7 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 		return prog_fd;
 
 	memset(info, 0, sizeof(*info));
-	err = bpf_obj_get_info_by_fd(prog_fd, info, &len);
+	err = bpf_prog_get_info_by_fd(prog_fd, info, &len);
 	if (err)
 		p_err("can't get prog info: %s", strerror(errno));
 	close(prog_fd);
@@ -327,7 +327,7 @@ static int do_show_link(int fd)
 
 	memset(&info, 0, sizeof(info));
 again:
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get link info: %s",
 		      strerror(errno));

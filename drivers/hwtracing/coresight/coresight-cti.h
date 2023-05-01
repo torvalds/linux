@@ -141,7 +141,7 @@ struct cti_config {
 	int nr_trig_max;
 
 	/* cti enable control */
-	atomic_t enable_req_count;
+	int enable_req_count;
 	bool hw_enabled;
 	bool hw_powered;
 

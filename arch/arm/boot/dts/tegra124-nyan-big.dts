@@ -25,17 +25,6 @@
 		};
 	};
 
-	mmc@700b0400 { /* SD Card on this bus */
-		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-	};
-
-	sound {
-		compatible = "nvidia,tegra-audio-max98090-nyan-big",
-			     "nvidia,tegra-audio-max98090-nyan",
-			     "nvidia,tegra-audio-max98090";
-		nvidia,model = "GoogleNyanBig";
-	};
-
 	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
@@ -1344,5 +1333,16 @@
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
 		};
+	};
+
+	mmc@700b0400 { /* SD Card on this bus */
+		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-max98090-nyan-big",
+			     "nvidia,tegra-audio-max98090-nyan",
+			     "nvidia,tegra-audio-max98090";
+		nvidia,model = "GoogleNyanBig";
 	};
 };

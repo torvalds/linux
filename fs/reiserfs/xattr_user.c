@@ -18,7 +18,7 @@ user_get(const struct xattr_handler *handler, struct dentry *unused,
 }
 
 static int
-user_set(const struct xattr_handler *handler, struct user_namespace *mnt_userns,
+user_set(const struct xattr_handler *handler, struct mnt_idmap *idmap,
 	 struct dentry *unused,
 	 struct inode *inode, const char *name, const void *buffer,
 	 size_t size, int flags)

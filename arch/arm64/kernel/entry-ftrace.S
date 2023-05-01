@@ -65,13 +65,35 @@ SYM_CODE_START(ftrace_caller)
 	stp	x29, x30, [sp, #FREGS_SIZE]
 	add	x29, sp, #FREGS_SIZE
 
-	sub	x0, x30, #AARCH64_INSN_SIZE	// ip (callsite's BL insn)
-	mov	x1, x9				// parent_ip (callsite's LR)
-	ldr_l	x2, function_trace_op		// op
-	mov	x3, sp				// regs
+	/* Prepare arguments for the the tracer func */
+	sub	x0, x30, #AARCH64_INSN_SIZE		// ip (callsite's BL insn)
+	mov	x1, x9					// parent_ip (callsite's LR)
+	mov	x3, sp					// regs
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	/*
+	 * The literal pointer to the ops is at an 8-byte aligned boundary
+	 * which is either 12 or 16 bytes before the BL instruction in the call
+	 * site. See ftrace_call_adjust() for details.
+	 *
+	 * Therefore here the LR points at `literal + 16` or `literal + 20`,
+	 * and we can find the address of the literal in either case by
+	 * aligning to an 8-byte boundary and subtracting 16. We do the
+	 * alignment first as this allows us to fold the subtraction into the
+	 * LDR.
+	 */
+	bic	x2, x30, 0x7
+	ldr	x2, [x2, #-16]				// op
+
+	ldr	x4, [x2, #FTRACE_OPS_FUNC]		// op->func
+	blr	x4					// op->func(ip, parent_ip, op, regs)
+
+#else
+	ldr_l   x2, function_trace_op			// op
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	bl	ftrace_stub
+	bl      ftrace_stub				// func(ip, parent_ip, op, regs)
+#endif
 
 /*
  * At the callsite x0-x8 and x19-x30 were live. Any C code will have preserved

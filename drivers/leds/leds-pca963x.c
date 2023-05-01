@@ -389,9 +389,9 @@ static const struct of_device_id of_pca963x_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_pca963x_match);
 
-static int pca963x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pca963x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct pca963x_chipdef *chipdef;
 	struct pca963x *chip;
@@ -431,7 +431,7 @@ static struct i2c_driver pca963x_driver = {
 		.name	= "leds-pca963x",
 		.of_match_table = of_pca963x_match,
 	},
-	.probe	= pca963x_probe,
+	.probe_new = pca963x_probe,
 	.id_table = pca963x_id,
 };
 

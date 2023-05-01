@@ -18,7 +18,7 @@ COMMON OPTIONS
 --------------
 -r::
 --repeat=::
-Specify amount of times to repeat the run (default 10).
+Specify number of times to repeat the run (default 10).
 
 -f::
 --format=::

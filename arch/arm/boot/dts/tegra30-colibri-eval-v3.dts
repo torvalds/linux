@@ -136,7 +136,7 @@
 		pwms = <&pwm 0 5000000>; /* PWM<A> */
 	};
 
-	clk16m: osc3 {
+	clk16m: clock-osc3 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <16000000>;

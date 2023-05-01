@@ -271,7 +271,7 @@ please make a proposal on the linux-media mailing list.
         The implementation is based on AST2600 A3 datasheet, revision 0.9, which
         is not publicly available. Or you can reference Video stream data format
         – ASPEED mode compression of SDK_User_Guide which available on
-        AspeedTech-BMC/openbmc/releases.
+        `github <https://github.com/AspeedTech-BMC/openbmc/releases/>`__.
 
         Decoder's implementation can be found here,
         `aspeed_codec <https://github.com/AspeedTech-BMC/aspeed_codec/>`__

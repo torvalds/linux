@@ -480,6 +480,7 @@
 			reg = <0xc8000000 0x1000>, <0xc0000000 0x4000000>;
 			reg-names = "control", "memory";
 			clocks = <&clk 0>;
+			nuvoton,shm = <&shm>;
 			status = "disabled";
 		};
 

@@ -5,12 +5,13 @@
 config RTL8XXXU
 	tristate "Realtek 802.11n USB wireless chips support"
 	depends on MAC80211 && USB
+	depends on LEDS_CLASS
 	help
 	  This is an alternative driver for various Realtek RTL8XXX
 	  parts written to utilize the Linux mac80211 stack.
 	  The driver is known to work with a number of RTL8723AU,
 	  RL8188CU, RTL8188RU, RTL8191CU, RTL8192CU, RTL8723BU, RTL8192EU,
-	  and RTL8188FU devices.
+	  RTL8188FU, and RTL8188EU devices.
 
 	  This driver is under development and has a limited feature
 	  set. In particular it does not yet support 40MHz channels

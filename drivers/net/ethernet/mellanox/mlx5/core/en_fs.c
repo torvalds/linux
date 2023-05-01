@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -67,6 +68,7 @@ struct mlx5e_flow_steering {
 	struct mlx5e_fs_udp            *udp;
 	struct mlx5e_fs_any            *any;
 	struct mlx5e_ptp_fs            *ptp_fs;
+	struct dentry                  *dfs_root;
 };
 
 static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
@@ -102,6 +104,11 @@ struct mlx5e_l2_hash_node {
 static inline int mlx5e_hash_l2(const u8 *addr)
 {
 	return addr[5];
+}
+
+struct dentry *mlx5e_fs_get_debugfs_root(struct mlx5e_flow_steering *fs)
+{
+	return fs->dfs_root;
 }
 
 static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
@@ -443,7 +450,7 @@ void mlx5e_enable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 
 void mlx5e_disable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 {
-	if (fs->vlan->cvlan_filter_disabled)
+	if (!fs->vlan || fs->vlan->cvlan_filter_disabled)
 		return;
 
 	fs->vlan->cvlan_filter_disabled = true;
@@ -1429,9 +1436,19 @@ static int mlx5e_fs_ethtool_alloc(struct mlx5e_flow_steering *fs)
 static void mlx5e_fs_ethtool_free(struct mlx5e_flow_steering *fs) { }
 #endif
 
+static void mlx5e_fs_debugfs_init(struct mlx5e_flow_steering *fs,
+				  struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	fs->dfs_root = debugfs_create_dir("fs", dfs_root);
+}
+
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
-					  bool state_destroy)
+					  bool state_destroy,
+					  struct dentry *dfs_root)
 {
 	struct mlx5e_flow_steering *fs;
 	int err;
@@ -1458,6 +1475,8 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 	if (err)
 		goto err_free_tc;
 
+	mlx5e_fs_debugfs_init(fs, dfs_root);
+
 	return fs;
 err_free_tc:
 	mlx5e_fs_tc_free(fs);
@@ -1471,6 +1490,7 @@ err:
 
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs)
 {
+	debugfs_remove_recursive(fs->dfs_root);
 	mlx5e_fs_ethtool_free(fs);
 	mlx5e_fs_tc_free(fs);
 	mlx5e_fs_vlan_free(fs);

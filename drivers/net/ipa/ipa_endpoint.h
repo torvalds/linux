@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 #ifndef _IPA_ENDPOINT_H_
 #define _IPA_ENDPOINT_H_
@@ -38,7 +38,7 @@ enum ipa_endpoint_name {
 	IPA_ENDPOINT_COUNT,	/* Number of names (not an index) */
 };
 
-#define IPA_ENDPOINT_MAX		32	/* Max supported by driver */
+#define IPA_ENDPOINT_MAX		36	/* Max supported by driver */
 
 /**
  * struct ipa_endpoint_tx - Endpoint configuration for TX endpoints

@@ -53,6 +53,7 @@ build-file := $(dir)/Build
 
 quiet_cmd_flex  = FLEX    $@
 quiet_cmd_bison = BISON   $@
+quiet_cmd_test  = TEST    $@
 
 # Create directory unless it exists
 quiet_cmd_mkdir = MKDIR   $(dir $@)

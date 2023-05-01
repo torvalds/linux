@@ -196,7 +196,7 @@ static int rk_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
 
-	dai->playback_dma_data = &spdif->playback_dma_data;
+	snd_soc_dai_dma_data_set_playback(dai, &spdif->playback_dma_data);
 
 	return 0;
 }

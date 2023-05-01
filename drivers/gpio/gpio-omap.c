@@ -1020,7 +1020,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc,
 		if (!label)
 			return -ENOMEM;
 		bank->chip.label = label;
-		bank->chip.base = gpio;
+		bank->chip.base = -1;
 	}
 	bank->chip.ngpio = bank->width;
 

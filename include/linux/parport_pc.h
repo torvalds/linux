@@ -26,6 +26,9 @@ struct parport_pc_private {
 	/* Whether or not there's an ECR. */
 	int ecr;
 
+	/* Bitmask of writable ECR bits. */
+	unsigned char ecr_writable;
+
 	/* Number of PWords that FIFO will hold. */
 	int fifo_depth;
 

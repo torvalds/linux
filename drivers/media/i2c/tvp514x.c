@@ -1017,14 +1017,14 @@ done:
 /**
  * tvp514x_probe() - decoder driver i2c probe handler
  * @client: i2c driver client device structure
- * @id: i2c driver id table
  *
  * Register decoder as an i2c client device and V4L2
  * device.
  */
 static int
-tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
+tvp514x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct tvp514x_platform_data *pdata = tvp514x_get_pdata(client);
 	struct tvp514x_decoder *decoder;
 	struct v4l2_subdev *sd;
@@ -1208,7 +1208,7 @@ static struct i2c_driver tvp514x_driver = {
 		.of_match_table = of_match_ptr(tvp514x_of_match),
 		.name = TVP514X_MODULE_NAME,
 	},
-	.probe = tvp514x_probe,
+	.probe_new = tvp514x_probe,
 	.remove = tvp514x_remove,
 	.id_table = tvp514x_id,
 };

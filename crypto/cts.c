@@ -85,9 +85,9 @@ static int crypto_cts_setkey(struct crypto_skcipher *parent, const u8 *key,
 	return crypto_skcipher_setkey(child, key, keylen);
 }
 
-static void cts_cbc_crypt_done(struct crypto_async_request *areq, int err)
+static void cts_cbc_crypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (err == -EINPROGRESS)
 		return;
@@ -125,9 +125,9 @@ static int cts_cbc_encrypt(struct skcipher_request *req)
 	return crypto_skcipher_encrypt(subreq);
 }
 
-static void crypto_cts_encrypt_done(struct crypto_async_request *areq, int err)
+static void crypto_cts_encrypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (err)
 		goto out;
@@ -219,9 +219,9 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 	return crypto_skcipher_decrypt(subreq);
 }
 
-static void crypto_cts_decrypt_done(struct crypto_async_request *areq, int err)
+static void crypto_cts_decrypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (err)
 		goto out;

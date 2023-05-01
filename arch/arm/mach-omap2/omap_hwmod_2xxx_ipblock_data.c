@@ -30,7 +30,7 @@ static struct omap_hwmod_class_sysconfig omap2_dispc_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-struct omap_hwmod_class omap2_dispc_hwmod_class = {
+static struct omap_hwmod_class omap2_dispc_hwmod_class = {
 	.name	= "dispc",
 	.sysc	= &omap2_dispc_sysc,
 };
@@ -47,7 +47,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_timer_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-struct omap_hwmod_class omap2xxx_timer_hwmod_class = {
+static struct omap_hwmod_class omap2xxx_timer_hwmod_class = {
 	.name	= "timer",
 	.sysc	= &omap2xxx_timer_sysc,
 };
@@ -67,7 +67,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_wd_timer_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-struct omap_hwmod_class omap2xxx_wd_timer_hwmod_class = {
+static struct omap_hwmod_class omap2xxx_wd_timer_hwmod_class = {
 	.name		= "wd_timer",
 	.sysc		= &omap2xxx_wd_timer_sysc,
 	.pre_shutdown	= &omap2_wd_timer_disable,
@@ -187,12 +187,6 @@ struct omap_hwmod omap2xxx_mpu_hwmod = {
 	.name		= "mpu",
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
-};
-
-/* IVA2 */
-struct omap_hwmod omap2xxx_iva_hwmod = {
-	.name		= "iva",
-	.class		= &iva_hwmod_class,
 };
 
 /* timer3 */

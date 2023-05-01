@@ -338,7 +338,7 @@ static int host1x_device_match(struct device *dev, struct device_driver *drv)
 	return strcmp(dev_name(dev), drv->name) == 0;
 }
 
-static int host1x_device_uevent(struct device *dev,
+static int host1x_device_uevent(const struct device *dev,
 				struct kobj_uevent_env *env)
 {
 	struct device_node *np = dev->parent->of_node;

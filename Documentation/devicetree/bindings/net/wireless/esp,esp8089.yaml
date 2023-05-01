@@ -29,15 +29,15 @@ additionalProperties: false
 
 examples:
   - |
-      mmc {
-          #address-cells = <1>;
-          #size-cells = <0>;
+    mmc {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          wifi@1 {
-              compatible = "esp,esp8089";
-              reg = <1>;
-              esp,crystal-26M-en = <2>;
-          };
-      };
+        wifi@1 {
+            compatible = "esp,esp8089";
+            reg = <1>;
+            esp,crystal-26M-en = <2>;
+        };
+    };
 
 ...

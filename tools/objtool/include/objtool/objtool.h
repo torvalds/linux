@@ -21,7 +21,6 @@ struct pv_state {
 
 struct objtool_file {
 	struct elf *elf;
-	struct list_head insn_list;
 	DECLARE_HASHTABLE(insn_hash, 20);
 	struct list_head retpoline_call_list;
 	struct list_head return_thunk_list;

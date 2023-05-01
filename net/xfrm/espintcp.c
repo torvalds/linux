@@ -6,6 +6,7 @@
 #include <net/espintcp.h>
 #include <linux/skmsg.h>
 #include <net/inet_common.h>
+#include <trace/events/sock.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6_stubs.h>
 #endif
@@ -396,6 +397,8 @@ static DEFINE_MUTEX(tcpv6_prot_mutex);
 static void espintcp_data_ready(struct sock *sk)
 {
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
+
+	trace_sk_data_ready(sk);
 
 	strp_data_ready(&ctx->strp);
 }

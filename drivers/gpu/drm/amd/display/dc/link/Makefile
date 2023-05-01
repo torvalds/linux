@@ -23,8 +23,41 @@
 # It abstracts the control and status of back end pipe such as DIO, HPO, DPIA,
 # PHY, HPD, DDC and etc).
 
-LINK = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o link_dp_trace.o
+LINK = link_detection.o link_dpms.o link_factory.o link_resource.o \
+link_validation.o
 
-AMD_DAL_LINK = $(addprefix $(AMDDALPATH)/dc/link/,$(LINK))
+AMD_DAL_LINK = $(addprefix $(AMDDALPATH)/dc/link/, \
+$(LINK))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_LINK)
+###############################################################################
+# accessories
+###############################################################################
+LINK_ACCESSORIES = link_dp_trace.o link_dp_cts.o link_fpga.o
+
+AMD_DAL_LINK_ACCESSORIES = $(addprefix $(AMDDALPATH)/dc/link/accessories/, \
+$(LINK_ACCESSORIES))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_LINK_ACCESSORIES)
+###############################################################################
+# hwss
+###############################################################################
+LINK_HWSS = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o
+
+AMD_DAL_LINK_HWSS = $(addprefix $(AMDDALPATH)/dc/link/hwss/, \
+$(LINK_HWSS))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_LINK_HWSS)
+###############################################################################
+# protocols
+###############################################################################
+LINK_PROTOCOLS = link_hpd.o link_ddc.o link_dpcd.o link_dp_dpia.o \
+link_dp_training.o link_dp_training_8b_10b.o link_dp_training_128b_132b.o \
+link_dp_training_dpia.o link_dp_training_auxless.o \
+link_dp_training_fixed_vs_pe_retimer.o link_dp_phy.o link_dp_capability.o \
+link_edp_panel_control.o link_dp_irq_handler.o
+
+AMD_DAL_LINK_PROTOCOLS = $(addprefix $(AMDDALPATH)/dc/link/protocols/, \
+$(LINK_PROTOCOLS))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_LINK_PROTOCOLS)

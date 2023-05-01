@@ -8,7 +8,7 @@ Although RCU is usually used to protect read-mostly data structures,
 it is possible to use RCU to provide dynamic non-maskable interrupt
 handlers, as well as dynamic irq handlers.  This document describes
 how to do this, drawing loosely from Zwane Mwaikambo's NMI-timer
-work in "arch/x86/kernel/traps.c".
+work in an old version of "arch/x86/kernel/traps.c".
 
 The relevant pieces of code are listed below, each followed by a
 brief explanation::
@@ -116,7 +116,7 @@ Answer to Quick Quiz:
 
 	This same sad story can happen on other CPUs when using
 	a compiler with aggressive pointer-value speculation
-	optimizations.
+	optimizations.  (But please don't!)
 
 	More important, the rcu_dereference_sched() makes it
 	clear to someone reading the code that the pointer is

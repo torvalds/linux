@@ -73,18 +73,6 @@ static int linkinfo_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
-const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
-	.request_cmd		= ETHTOOL_MSG_LINKINFO_GET,
-	.reply_cmd		= ETHTOOL_MSG_LINKINFO_GET_REPLY,
-	.hdr_attr		= ETHTOOL_A_LINKINFO_HEADER,
-	.req_info_size		= sizeof(struct linkinfo_req_info),
-	.reply_data_size	= sizeof(struct linkinfo_reply_data),
-
-	.prepare_data		= linkinfo_prepare_data,
-	.reply_size		= linkinfo_reply_size,
-	.fill_reply		= linkinfo_fill_reply,
-};
-
 /* LINKINFO_SET */
 
 const struct nla_policy ethnl_linkinfo_set_policy[] = {
@@ -95,37 +83,31 @@ const struct nla_policy ethnl_linkinfo_set_policy[] = {
 	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_U8 },
 };
 
-int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info)
+static int
+ethnl_set_linkinfo_validate(struct ethnl_req_info *req_info,
+			    struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+
+	if (!ops->get_link_ksettings || !ops->set_link_ksettings)
+		return -EOPNOTSUPP;
+	return 1;
+}
+
+static int
+ethnl_set_linkinfo(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct ethtool_link_ksettings ksettings = {};
 	struct ethtool_link_settings *lsettings;
-	struct ethnl_req_info req_info = {};
+	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
-	struct net_device *dev;
 	bool mod = false;
 	int ret;
-
-	ret = ethnl_parse_header_dev_get(&req_info,
-					 tb[ETHTOOL_A_LINKINFO_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-	dev = req_info.dev;
-	ret = -EOPNOTSUPP;
-	if (!dev->ethtool_ops->get_link_ksettings ||
-	    !dev->ethtool_ops->set_link_ksettings)
-		goto out_dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
 
 	ret = __ethtool_get_link_ksettings(dev, &ksettings);
 	if (ret < 0) {
 		GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
-		goto out_ops;
+		return ret;
 	}
 	lsettings = &ksettings.base;
 
@@ -134,21 +116,30 @@ int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info)
 			&mod);
 	ethnl_update_u8(&lsettings->eth_tp_mdix_ctrl,
 			tb[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL], &mod);
-	ret = 0;
 	if (!mod)
-		goto out_ops;
+		return 0;
 
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &ksettings);
-	if (ret < 0)
+	if (ret < 0) {
 		GENL_SET_ERR_MSG(info, "link settings update failed");
-	else
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+		return ret;
+	}
 
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-out_dev:
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
+	return 1;
 }
+
+const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
+	.request_cmd		= ETHTOOL_MSG_LINKINFO_GET,
+	.reply_cmd		= ETHTOOL_MSG_LINKINFO_GET_REPLY,
+	.hdr_attr		= ETHTOOL_A_LINKINFO_HEADER,
+	.req_info_size		= sizeof(struct linkinfo_req_info),
+	.reply_data_size	= sizeof(struct linkinfo_reply_data),
+
+	.prepare_data		= linkinfo_prepare_data,
+	.reply_size		= linkinfo_reply_size,
+	.fill_reply		= linkinfo_fill_reply,
+
+	.set_validate		= ethnl_set_linkinfo_validate,
+	.set			= ethnl_set_linkinfo,
+	.set_ntf_cmd		= ETHTOOL_MSG_LINKINFO_NTF,
+};

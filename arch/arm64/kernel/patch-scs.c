@@ -130,7 +130,8 @@ struct eh_frame {
 
 static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 					bool fde_has_augmentation_data,
-					int code_alignment_factor)
+					int code_alignment_factor,
+					bool dry_run)
 {
 	int size = frame->size - offsetof(struct eh_frame, opcodes) + 4;
 	u64 loc = (u64)offset_to_ptr(&frame->initial_loc);
@@ -184,7 +185,8 @@ static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 			break;
 
 		case DW_CFA_negate_ra_state:
-			scs_patch_loc(loc - 4);
+			if (!dry_run)
+				scs_patch_loc(loc - 4);
 			break;
 
 		case 0x40 ... 0x7f:
@@ -235,9 +237,12 @@ int noinstr scs_patch(const u8 eh_frame[], int size)
 		} else {
 			ret = scs_handle_fde_frame(frame,
 						   fde_has_augmentation_data,
-						   code_alignment_factor);
+						   code_alignment_factor,
+						   true);
 			if (ret)
 				return ret;
+			scs_handle_fde_frame(frame, fde_has_augmentation_data,
+					     code_alignment_factor, false);
 		}
 
 		p += sizeof(frame->size) + frame->size;

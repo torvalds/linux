@@ -1563,7 +1563,7 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_ichg(bq,
-				bat_info->constant_charge_current_max_ua);
+				bq->chip_info->bq256xx_def_ichg);
 	if (ret)
 		return ret;
 
@@ -1573,7 +1573,7 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_vbatreg(bq,
-				bat_info->constant_charge_voltage_max_uv);
+				bq->chip_info->bq256xx_def_vbatreg);
 	if (ret)
 		return ret;
 

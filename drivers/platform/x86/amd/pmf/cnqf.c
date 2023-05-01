@@ -103,7 +103,7 @@ int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_l
 
 	src = amd_pmf_cnqf_get_power_source(dev);
 
-	if (dev->current_profile == PLATFORM_PROFILE_BALANCED) {
+	if (is_pprof_balanced(dev)) {
 		amd_pmf_set_cnqf(dev, src, config_store.current_mode, NULL);
 	} else {
 		/*
@@ -307,12 +307,8 @@ static ssize_t cnqf_enable_store(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
-	int mode, result, src;
+	int result, src;
 	bool input;
-
-	mode = amd_pmf_get_pprof_modes(pdev);
-	if (mode < 0)
-		return mode;
 
 	result = kstrtobool(buf, &input);
 	if (result)
@@ -321,11 +317,11 @@ static ssize_t cnqf_enable_store(struct device *dev,
 	src = amd_pmf_cnqf_get_power_source(pdev);
 	pdev->cnqf_enabled = input;
 
-	if (pdev->cnqf_enabled && pdev->current_profile == PLATFORM_PROFILE_BALANCED) {
+	if (pdev->cnqf_enabled && is_pprof_balanced(pdev)) {
 		amd_pmf_set_cnqf(pdev, src, config_store.current_mode, NULL);
 	} else {
 		if (is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
-			amd_pmf_update_slider(pdev, SLIDER_OP_SET, mode, NULL);
+			amd_pmf_set_sps_power_limits(pdev);
 	}
 
 	dev_dbg(pdev->dev, "Received CnQF %s\n", input ? "on" : "off");
@@ -386,7 +382,7 @@ int amd_pmf_init_cnqf(struct amd_pmf_dev *dev)
 	dev->cnqf_enabled = amd_pmf_check_flags(dev);
 
 	/* update the thermal for CnQF */
-	if (dev->cnqf_enabled && dev->current_profile == PLATFORM_PROFILE_BALANCED) {
+	if (dev->cnqf_enabled && is_pprof_balanced(dev)) {
 		src = amd_pmf_cnqf_get_power_source(dev);
 		amd_pmf_set_cnqf(dev, src, config_store.current_mode, NULL);
 	}

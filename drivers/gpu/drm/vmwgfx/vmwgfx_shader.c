@@ -807,6 +807,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 				    num_output_sig, tfile, shader_handle);
 out_bad_arg:
 	vmw_bo_unreference(&buffer);
+	drm_gem_object_put(&buffer->base.base);
 	return ret;
 }
 

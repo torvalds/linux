@@ -7,6 +7,9 @@
 #include "otx2_cptlf.h"
 #include "cn10k_cpt.h"
 
+static void cn10k_cpt_send_cmd(union otx2_cpt_inst_s *cptinst, u32 insts_num,
+			       struct otx2_cptlf_info *lf);
+
 static struct cpt_hw_ops otx2_hw_ops = {
 	.send_cmd = otx2_cpt_send_cmd,
 	.cpt_get_compcode = otx2_cpt_get_compcode,
@@ -19,8 +22,8 @@ static struct cpt_hw_ops cn10k_hw_ops = {
 	.cpt_get_uc_compcode = cn10k_cpt_get_uc_compcode,
 };
 
-void cn10k_cpt_send_cmd(union otx2_cpt_inst_s *cptinst, u32 insts_num,
-			struct otx2_cptlf_info *lf)
+static void cn10k_cpt_send_cmd(union otx2_cpt_inst_s *cptinst, u32 insts_num,
+			       struct otx2_cptlf_info *lf)
 {
 	void __iomem *lmtline = lf->lmtline;
 	u64 val = (lf->slot & 0x7FF);
@@ -68,6 +71,7 @@ int cn10k_cptpf_lmtst_init(struct otx2_cptpf_dev *cptpf)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(cn10k_cptpf_lmtst_init, CRYPTO_DEV_OCTEONTX2_CPT);
 
 int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 {
@@ -91,3 +95,4 @@ int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(cn10k_cptvf_lmtst_init, CRYPTO_DEV_OCTEONTX2_CPT);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/msm/qcom,sm6115-dpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Display DPU dt properties for SM6115 target
+title: Qualcomm Display DPU on SM6115
 
 maintainers:
   - Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
@@ -13,8 +13,7 @@ $ref: /schemas/display/msm/dpu-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,sm6115-dpu
+    const: qcom,sm6115-dpu
 
   reg:
     items:

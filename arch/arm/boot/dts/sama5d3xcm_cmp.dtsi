@@ -184,7 +184,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		d2 {
+		led-d2 {
 			label = "d2";
 			gpios = <&pioE 25 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

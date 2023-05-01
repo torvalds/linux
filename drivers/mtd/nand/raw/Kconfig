@@ -79,7 +79,7 @@ config MTD_NAND_NDFC
 
 config MTD_NAND_S3C2410
 	tristate "Samsung S3C NAND controller"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX
+	depends on ARCH_S3C64XX
 	help
 	  This enables the NAND flash controller on the S3C24xx and S3C64xx
 	  SoCs
@@ -192,13 +192,6 @@ config MTD_NAND_PASEMI
 	help
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
-
-config MTD_NAND_TMIO
-	tristate "Toshiba Mobile IO NAND controller"
-	depends on MFD_TMIO
-	help
-	  Support for NAND flash connected to a Toshiba Mobile IO
-	  Controller in some PDAs, including the Sharp SL6000x.
 
 source "drivers/mtd/nand/raw/brcmnand/Kconfig"
 

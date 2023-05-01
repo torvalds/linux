@@ -108,19 +108,19 @@ examples:
     #include <dt-bindings/clock/exynos5420.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    usb {
+    usb@12000000 {
         compatible = "samsung,exynos5250-dwusb3";
         #address-cells = <1>;
         #size-cells = <1>;
-        ranges;
+        ranges = <0x0 0x12000000 0x10000>;
         clocks = <&clock CLK_USBD300>;
         clock-names = "usbdrd30";
         vdd33-supply = <&ldo9_reg>;
         vdd10-supply = <&ldo11_reg>;
 
-        usb@12000000 {
+        usb@0 {
             compatible = "snps,dwc3";
-            reg = <0x12000000 0x10000>;
+            reg = <0x0 0x10000>;
             interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
             phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
             phy-names = "usb2-phy", "usb3-phy";

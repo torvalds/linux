@@ -133,10 +133,7 @@ out_exit:
 }
 
 static const struct drm_simple_display_pipe_funcs st7735r_pipe_funcs = {
-	.mode_valid	= mipi_dbi_pipe_mode_valid,
-	.enable		= st7735r_pipe_enable,
-	.disable	= mipi_dbi_pipe_disable,
-	.update		= mipi_dbi_pipe_update,
+	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(st7735r_pipe_enable),
 };
 
 static const struct st7735r_cfg jd_t18003_t01_cfg = {

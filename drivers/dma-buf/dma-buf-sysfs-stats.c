@@ -112,7 +112,7 @@ static void dma_buf_sysfs_release(struct kobject *kobj)
 	kfree(sysfs_entry);
 }
 
-static struct kobj_type dma_buf_ktype = {
+static const struct kobj_type dma_buf_ktype = {
 	.sysfs_ops = &dma_buf_stats_sysfs_ops,
 	.release = dma_buf_sysfs_release,
 	.default_groups = dma_buf_stats_default_groups,

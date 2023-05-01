@@ -51,7 +51,7 @@ module_param_array(ptr_size, int, NULL, 0444);
 MODULE_PARM_DESC(ptr_size,
 	"Pointing device width, height in pixels (default 800,600)");
 
-static int xenkbd_remove(struct xenbus_device *);
+static void xenkbd_remove(struct xenbus_device *);
 static int xenkbd_connect_backend(struct xenbus_device *, struct xenkbd_info *);
 static void xenkbd_disconnect_backend(struct xenkbd_info *);
 
@@ -404,7 +404,7 @@ static int xenkbd_resume(struct xenbus_device *dev)
 	return xenkbd_connect_backend(dev, info);
 }
 
-static int xenkbd_remove(struct xenbus_device *dev)
+static void xenkbd_remove(struct xenbus_device *dev)
 {
 	struct xenkbd_info *info = dev_get_drvdata(&dev->dev);
 
@@ -417,7 +417,6 @@ static int xenkbd_remove(struct xenbus_device *dev)
 		input_unregister_device(info->mtouch);
 	free_page((unsigned long)info->page);
 	kfree(info);
-	return 0;
 }
 
 static int xenkbd_connect_backend(struct xenbus_device *dev,

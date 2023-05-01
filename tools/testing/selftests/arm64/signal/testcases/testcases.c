@@ -108,6 +108,26 @@ bool validate_za_context(struct za_context *za, char **err)
 	return true;
 }
 
+bool validate_zt_context(struct zt_context *zt, char **err)
+{
+	if (!zt || !err)
+		return false;
+
+	/* If the context is present there should be at least one register */
+	if (zt->nregs == 0) {
+		*err = "no registers";
+		return false;
+	}
+
+	/* Size should agree with the number of registers */
+	if (zt->head.size != ZT_SIG_CONTEXT_SIZE(zt->nregs)) {
+		*err = "register count does not match size";
+		return false;
+	}
+
+	return true;
+}
+
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 {
 	bool terminated = false;
@@ -117,6 +137,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	struct extra_context *extra = NULL;
 	struct sve_context *sve = NULL;
 	struct za_context *za = NULL;
+	struct zt_context *zt = NULL;
 	struct _aarch64_ctx *head =
 		(struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
 	void *extra_data = NULL;
@@ -163,6 +184,10 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			if (head->size != sizeof(struct esr_context))
 				*err = "Bad size for esr_context";
 			break;
+		case TPIDR2_MAGIC:
+			if (head->size != sizeof(struct tpidr2_context))
+				*err = "Bad size for tpidr2_context";
+			break;
 		case SVE_MAGIC:
 			if (flags & SVE_CTX)
 				*err = "Multiple SVE_MAGIC";
@@ -176,6 +201,13 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			/* Size is validated in validate_za_context() */
 			za = (struct za_context *)head;
 			new_flags |= ZA_CTX;
+			break;
+		case ZT_MAGIC:
+			if (flags & ZT_CTX)
+				*err = "Multiple ZT_MAGIC";
+			/* Size is validated in validate_za_context() */
+			zt = (struct zt_context *)head;
+			new_flags |= ZT_CTX;
 			break;
 		case EXTRA_MAGIC:
 			if (flags & EXTRA_CTX)
@@ -234,6 +266,9 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 		if (new_flags & ZA_CTX)
 			if (!validate_za_context(za, err))
 				return false;
+		if (new_flags & ZT_CTX)
+			if (!validate_zt_context(zt, err))
+				return false;
 
 		flags |= new_flags;
 
@@ -242,6 +277,11 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 
 	if (terminated && !(flags & FPSIMD_CTX)) {
 		*err = "Missing FPSIMD";
+		return false;
+	}
+
+	if (terminated && (flags & ZT_CTX) && !(flags & ZA_CTX)) {
+		*err = "ZT context but no ZA context";
 		return false;
 	}
 

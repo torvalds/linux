@@ -260,6 +260,24 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 1,
 		.hsub = 1,
 	}, {
+		.fourcc = DRM_FORMAT_RGBX1010102,
+		.v4l2 = V4L2_PIX_FMT_RGBX1010102,
+		.bpp = 32,
+		.planes = 1,
+		.hsub = 1,
+	}, {
+		.fourcc = DRM_FORMAT_RGBA1010102,
+		.v4l2 = V4L2_PIX_FMT_RGBA1010102,
+		.bpp = 32,
+		.planes = 1,
+		.hsub = 1,
+	}, {
+		.fourcc = DRM_FORMAT_ARGB2101010,
+		.v4l2 = V4L2_PIX_FMT_ARGB2101010,
+		.bpp = 32,
+		.planes = 1,
+		.hsub = 1,
+	}, {
 		.fourcc = DRM_FORMAT_YVYU,
 		.v4l2 = V4L2_PIX_FMT_YVYU,
 		.bpp = 16,
@@ -307,6 +325,18 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.bpp = 24,
 		.planes = 3,
 		.hsub = 1,
+	}, {
+		.fourcc = DRM_FORMAT_Y210,
+		.v4l2 = V4L2_PIX_FMT_Y210,
+		.bpp = 32,
+		.planes = 1,
+		.hsub = 2,
+	}, {
+		.fourcc = DRM_FORMAT_Y212,
+		.v4l2 = V4L2_PIX_FMT_Y212,
+		.bpp = 32,
+		.planes = 1,
+		.hsub = 2,
 	},
 };
 

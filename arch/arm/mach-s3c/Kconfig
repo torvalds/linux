@@ -2,13 +2,10 @@
 #
 # Copyright 2009 Simtec Electronics
 
-source "arch/arm/mach-s3c/Kconfig.s3c24xx"
 source "arch/arm/mach-s3c/Kconfig.s3c64xx"
 
 config PLAT_SAMSUNG
-	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX
-	default y
+	def_bool ARCH_S3C64XX
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT_MAP
 	select SOC_SAMSUNG
@@ -16,9 +13,8 @@ config PLAT_SAMSUNG
 	  Base platform code for all Samsung SoC based systems
 
 config SAMSUNG_PM
-	bool
-	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX)
-	default y
+	def_bool ARCH_S3C64XX
+	depends on PM
 	help
 	  Base platform power management code for samsung code
 
@@ -67,16 +63,6 @@ config S3C_GPIO_TRACK
 	  Internal configuration option to enable the s3c specific gpio
 	  chip tracking if the platform requires it.
 
-# ADC driver
-
-config S3C_ADC
-	bool "ADC common driver support"
-	depends on !ARCH_MULTIPLATFORM
-	help
-	  Core support for the ADC block found in the Samsung SoC systems
-	  for drivers such as the touchscreen and hwmon to use to share
-	  this resource.
-
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
@@ -99,45 +85,10 @@ config S3C_DEV_HSMMC3
 	help
 	  Compile in platform device definitions for HSMMC channel 3
 
-config S3C_DEV_HWMON
-	bool
-	help
-	  Compile in platform device definitions for HWMON
-
 config S3C_DEV_I2C1
 	bool
 	help
 	  Compile in platform device definitions for I2C channel 1
-
-config S3C_DEV_I2C2
-	bool
-	help
-	  Compile in platform device definitions for I2C channel 2
-
-config S3C_DEV_I2C3
-	bool
-	help
-	  Compile in platform device definition for I2C controller 3
-
-config S3C_DEV_I2C4
-	bool
-	help
-	  Compile in platform device definition for I2C controller 4
-
-config S3C_DEV_I2C5
-	bool
-	help
-	  Compile in platform device definition for I2C controller 5
-
-config S3C_DEV_I2C6
-	bool
-	help
-	  Compile in platform device definition for I2C controller 6
-
-config S3C_DEV_I2C7
-	bool
-	help
-	  Compile in platform device definition for I2C controller 7
 
 config S3C_DEV_FB
 	bool
@@ -154,47 +105,11 @@ config S3C_DEV_USB_HSOTG
 	help
 	  Compile in platform device definition for USB high-speed OtG
 
-config S3C_DEV_WDT
-	bool
-	default y if ARCH_S3C24XX
-	help
-	  Compile in platform device definition for Watchdog Timer
-
-config S3C_DEV_NAND
-	bool
-	help
-	  Compile in platform device definition for NAND controller
-
-config S3C_DEV_ONENAND
-	bool
-	help
-	  Compile in platform device definition for OneNAND controller
-
-config S3C_DEV_RTC
-	bool
-	help
-	  Compile in platform device definition for RTC
-
-config SAMSUNG_DEV_ADC
-	bool
-	help
-	  Compile in platform device definition for ADC controller
-
-config SAMSUNG_DEV_IDE
-	bool
-	help
-	  Compile in platform device definitions for IDE
-
 config S3C64XX_DEV_SPI0
 	bool
 	help
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controller 0
-
-config SAMSUNG_DEV_TS
-	bool
-	help
-	  Common in platform device definitions for touchscreen device
 
 config SAMSUNG_DEV_KEYPAD
 	bool
@@ -203,7 +118,6 @@ config SAMSUNG_DEV_KEYPAD
 
 config SAMSUNG_DEV_PWM
 	bool
-	default y if ARCH_S3C24XX
 	help
 	  Compile in platform device definition for PWM Timer
 

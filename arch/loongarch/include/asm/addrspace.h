@@ -125,4 +125,6 @@ extern unsigned long vm_map_base;
 #define ISA_IOSIZE	SZ_16K
 #define IO_SPACE_LIMIT	(PCI_IOSIZE - 1)
 
+#define PHYS_LINK_KADDR	PHYSADDR(VMLINUX_LOAD_ADDRESS)
+
 #endif /* _ASM_ADDRSPACE_H */

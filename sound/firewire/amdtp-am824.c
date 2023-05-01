@@ -36,8 +36,6 @@ struct amdtp_am824 {
 
 	u8 pcm_positions[AM824_MAX_CHANNELS_FOR_PCM];
 	u8 midi_position;
-
-	unsigned int frame_multiplier;
 };
 
 /**
@@ -59,8 +57,8 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int midi_channels;
-	unsigned int i;
-	int err;
+	unsigned int pcm_frame_multiplier;
+	int i, err;
 
 	if (amdtp_stream_running(s))
 		return -EINVAL;
@@ -77,8 +75,18 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	    WARN_ON(midi_channels > AM824_MAX_CHANNELS_FOR_MIDI))
 		return -EINVAL;
 
-	err = amdtp_stream_set_parameters(s, rate,
-					  pcm_channels + midi_channels);
+	/*
+	 * In IEC 61883-6, one data block represents one event. In ALSA, one
+	 * event equals to one PCM frame. But Dice has a quirk at higher
+	 * sampling rate to transfer two PCM frames in one data block.
+	 */
+	if (double_pcm_frames)
+		pcm_frame_multiplier = 2;
+	else
+		pcm_frame_multiplier = 1;
+
+	err = amdtp_stream_set_parameters(s, rate, pcm_channels + midi_channels,
+					  pcm_frame_multiplier);
 	if (err < 0)
 		return err;
 
@@ -87,16 +95,6 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 
 	p->pcm_channels = pcm_channels;
 	p->midi_ports = midi_ports;
-
-	/*
-	 * In IEC 61883-6, one data block represents one event. In ALSA, one
-	 * event equals to one PCM frame. But Dice has a quirk at higher
-	 * sampling rate to transfer two PCM frames in one data block.
-	 */
-	if (double_pcm_frames)
-		p->frame_multiplier = 2;
-	else
-		p->frame_multiplier = 1;
 
 	/* init the position map for PCM and MIDI channels */
 	for (i = 0; i < pcm_channels; i++)
@@ -346,23 +344,20 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 	}
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
 		if (pcm) {
 			write_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
-			pcm_frames += data_blocks * p->frame_multiplier;
+			pcm_frames += data_blocks * s->pcm_frame_multiplier;
 		} else {
 			write_pcm_silence(s, buf, data_blocks);
 		}
@@ -371,37 +366,34 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 			write_midi_messages(s, buf, data_blocks,
 					    desc->data_block_counter);
 		}
-	}
 
-	return pcm_frames;
+		desc = amdtp_stream_next_packet_desc(s, desc);
+	}
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
 		if (pcm) {
 			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
-			pcm_frames += data_blocks * p->frame_multiplier;
+			pcm_frames += data_blocks * s->pcm_frame_multiplier;
 		}
 
 		if (p->midi_ports) {
 			read_midi_messages(s, buf, data_blocks,
 					   desc->data_block_counter);
 		}
-	}
 
-	return pcm_frames;
+		desc = amdtp_stream_next_packet_desc(s, desc);
+	}
 }
 
 /**

@@ -137,6 +137,8 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 
 	efi_cache_sync_image(image_base, alloc_size, code_size);
 
+	efi_remap_image(image_base, alloc_size, code_size);
+
 	status = efi_stub_common(handle, image, image_base, cmdline_ptr);
 
 free_image:

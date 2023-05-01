@@ -240,7 +240,7 @@ static const struct clk_parent_data cpux_parents[] = {
 	{ .hw = &pll_periph0_800M_clk.common.hw },
 };
 static SUNXI_CCU_MUX_DATA(cpux_clk, "cpux", cpux_parents,
-			  0x500, 24, 3, CLK_SET_RATE_PARENT);
+			  0x500, 24, 3, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
 
 static const struct clk_hw *cpux_hws[] = { &cpux_clk.common.hw };
 static SUNXI_CCU_M_HWS(cpux_axi_clk, "cpux-axi",
@@ -468,6 +468,11 @@ static SUNXI_CCU_GATE_HWS(bus_i2c2_clk, "bus-i2c2", apb1_hws,
 			  0x91c, BIT(2), 0);
 static SUNXI_CCU_GATE_HWS(bus_i2c3_clk, "bus-i2c3", apb1_hws,
 			  0x91c, BIT(3), 0);
+
+static SUNXI_CCU_GATE_HWS(bus_can0_clk, "bus-can0", apb1_hws,
+			  0x92c, BIT(0), 0);
+static SUNXI_CCU_GATE_HWS(bus_can1_clk, "bus-can1", apb1_hws,
+			  0x92c, BIT(1), 0);
 
 static const struct clk_parent_data spi_parents[] = {
 	{ .fw_name = "hosc" },
@@ -997,6 +1002,8 @@ static struct ccu_common *sun20i_d1_ccu_clks[] = {
 	&bus_i2c1_clk.common,
 	&bus_i2c2_clk.common,
 	&bus_i2c3_clk.common,
+	&bus_can0_clk.common,
+	&bus_can1_clk.common,
 	&spi0_clk.common,
 	&spi1_clk.common,
 	&bus_spi0_clk.common,
@@ -1147,6 +1154,8 @@ static struct clk_hw_onecell_data sun20i_d1_hw_clks = {
 		[CLK_BUS_I2C1]		= &bus_i2c1_clk.common.hw,
 		[CLK_BUS_I2C2]		= &bus_i2c2_clk.common.hw,
 		[CLK_BUS_I2C3]		= &bus_i2c3_clk.common.hw,
+		[CLK_BUS_CAN0]		= &bus_can0_clk.common.hw,
+		[CLK_BUS_CAN1]		= &bus_can1_clk.common.hw,
 		[CLK_SPI0]		= &spi0_clk.common.hw,
 		[CLK_SPI1]		= &spi1_clk.common.hw,
 		[CLK_BUS_SPI0]		= &bus_spi0_clk.common.hw,
@@ -1252,6 +1261,8 @@ static struct ccu_reset_map sun20i_d1_ccu_resets[] = {
 	[RST_BUS_I2C1]		= { 0x91c, BIT(17) },
 	[RST_BUS_I2C2]		= { 0x91c, BIT(18) },
 	[RST_BUS_I2C3]		= { 0x91c, BIT(19) },
+	[RST_BUS_CAN0]		= { 0x92c, BIT(16) },
+	[RST_BUS_CAN1]		= { 0x92c, BIT(17) },
 	[RST_BUS_SPI0]		= { 0x96c, BIT(16) },
 	[RST_BUS_SPI1]		= { 0x96c, BIT(17) },
 	[RST_BUS_EMAC]		= { 0x97c, BIT(16) },

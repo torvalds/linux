@@ -687,7 +687,7 @@ static void visl_buf_request_complete(struct vb2_buffer *vb)
 	v4l2_ctrl_request_complete(vb->req_obj.req, &ctx->hdl);
 }
 
-const struct vb2_ops visl_qops = {
+static const struct vb2_ops visl_qops = {
 	.queue_setup          = visl_queue_setup,
 	.buf_out_validate     = visl_buf_out_validate,
 	.buf_prepare          = visl_buf_prepare,

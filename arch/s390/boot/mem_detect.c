@@ -16,29 +16,10 @@ struct mem_detect_info __bootdata(mem_detect);
 #define ENTRIES_EXTENDED_MAX						       \
 	(256 * (1020 / 2) * sizeof(struct mem_detect_block))
 
-/*
- * To avoid corrupting old kernel memory during dump, find lowest memory
- * chunk possible either right after the kernel end (decompressed kernel) or
- * after initrd (if it is present and there is no hole between the kernel end
- * and initrd)
- */
-static void *mem_detect_alloc_extended(void)
-{
-	unsigned long offset = ALIGN(mem_safe_offset(), sizeof(u64));
-
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_data.start && initrd_data.size &&
-	    initrd_data.start < offset + ENTRIES_EXTENDED_MAX)
-		offset = ALIGN(initrd_data.start + initrd_data.size, sizeof(u64));
-
-	return (void *)offset;
-}
-
 static struct mem_detect_block *__get_mem_detect_block_ptr(u32 n)
 {
 	if (n < MEM_INLINED_ENTRIES)
 		return &mem_detect.entries[n];
-	if (unlikely(!mem_detect.entries_extended))
-		mem_detect.entries_extended = mem_detect_alloc_extended();
 	return &mem_detect.entries_extended[n - MEM_INLINED_ENTRIES];
 }
 
@@ -147,7 +128,7 @@ static int tprot(unsigned long addr)
 	return rc;
 }
 
-static void search_mem_end(void)
+static unsigned long search_mem_end(void)
 {
 	unsigned long range = 1 << (MAX_PHYSMEM_BITS - 20); /* in 1MB blocks */
 	unsigned long offset = 0;
@@ -159,33 +140,52 @@ static void search_mem_end(void)
 		if (!tprot(pivot << 20))
 			offset = pivot;
 	}
-
-	add_mem_detect_block(0, (offset + 1) << 20);
+	return (offset + 1) << 20;
 }
 
-unsigned long detect_memory(void)
+unsigned long detect_memory(unsigned long *safe_addr)
 {
-	unsigned long max_physmem_end;
+	unsigned long max_physmem_end = 0;
 
 	sclp_early_get_memsize(&max_physmem_end);
+	mem_detect.entries_extended = (struct mem_detect_block *)ALIGN(*safe_addr, sizeof(u64));
 
 	if (!sclp_early_read_storage_info()) {
 		mem_detect.info_source = MEM_DETECT_SCLP_STOR_INFO;
-		return max_physmem_end;
-	}
-
-	if (!diag260()) {
+	} else if (!diag260()) {
 		mem_detect.info_source = MEM_DETECT_DIAG260;
-		return max_physmem_end;
-	}
-
-	if (max_physmem_end) {
+		max_physmem_end = max_physmem_end ?: get_mem_detect_end();
+	} else if (max_physmem_end) {
 		add_mem_detect_block(0, max_physmem_end);
 		mem_detect.info_source = MEM_DETECT_SCLP_READ_INFO;
-		return max_physmem_end;
+	} else {
+		max_physmem_end = search_mem_end();
+		add_mem_detect_block(0, max_physmem_end);
+		mem_detect.info_source = MEM_DETECT_BIN_SEARCH;
 	}
 
-	search_mem_end();
-	mem_detect.info_source = MEM_DETECT_BIN_SEARCH;
-	return get_mem_detect_end();
+	if (mem_detect.count > MEM_INLINED_ENTRIES) {
+		*safe_addr += (mem_detect.count - MEM_INLINED_ENTRIES) *
+			     sizeof(struct mem_detect_block);
+	}
+
+	return max_physmem_end;
+}
+
+void mem_detect_set_usable_limit(unsigned long limit)
+{
+	struct mem_detect_block *block;
+	int i;
+
+	/* make sure mem_detect.usable ends up within online memory block */
+	for (i = 0; i < mem_detect.count; i++) {
+		block = __get_mem_detect_block_ptr(i);
+		if (block->start >= limit)
+			break;
+		if (block->end >= limit) {
+			mem_detect.usable = limit;
+			break;
+		}
+		mem_detect.usable = block->end;
+	}
 }

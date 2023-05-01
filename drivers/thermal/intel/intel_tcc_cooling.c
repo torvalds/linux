@@ -7,12 +7,11 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
+#include <linux/intel_tcc.h>
 #include <linux/module.h>
 #include <linux/thermal.h>
 #include <asm/cpu_device_id.h>
 
-#define TCC_SHIFT 24
-#define TCC_MASK	(0x3fULL<<24)
 #define TCC_PROGRAMMABLE	BIT(30)
 #define TCC_LOCKED		BIT(31)
 
@@ -21,47 +20,26 @@ static struct thermal_cooling_device *tcc_cdev;
 static int tcc_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 			     *state)
 {
-	*state = TCC_MASK >> TCC_SHIFT;
-	return 0;
-}
-
-static int tcc_offset_update(int tcc)
-{
-	u64 val;
-	int err;
-
-	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
-	if (err)
-		return err;
-
-	val &= ~TCC_MASK;
-	val |= tcc << TCC_SHIFT;
-
-	err = wrmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, val);
-	if (err)
-		return err;
-
+	*state = 0x3f;
 	return 0;
 }
 
 static int tcc_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 			     *state)
 {
-	u64 val;
-	int err;
+	int offset = intel_tcc_get_offset(-1);
 
-	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
-	if (err)
-		return err;
+	if (offset < 0)
+		return offset;
 
-	*state = (val & TCC_MASK) >> TCC_SHIFT;
+	*state = offset;
 	return 0;
 }
 
 static int tcc_set_cur_state(struct thermal_cooling_device *cdev, unsigned long
 			     state)
 {
-	return tcc_offset_update(state);
+	return intel_tcc_set_offset(-1, (int)state);
 }
 
 static const struct thermal_cooling_device_ops tcc_cooling_ops = {
@@ -140,6 +118,7 @@ static void __exit tcc_cooling_exit(void)
 
 module_exit(tcc_cooling_exit)
 
+MODULE_IMPORT_NS(INTEL_TCC);
 MODULE_DESCRIPTION("TCC offset cooling device Driver");
 MODULE_AUTHOR("Zhang Rui <rui.zhang@intel.com>");
 MODULE_LICENSE("GPL v2");

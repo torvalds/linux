@@ -37,8 +37,8 @@ struct ipv6_rpl_sr_hdr {
 #endif
 
 	union {
-		struct in6_addr addr[0];
-		__u8 data[0];
+		__DECLARE_FLEX_ARRAY(struct in6_addr, addr);
+		__DECLARE_FLEX_ARRAY(__u8, data);
 	} segments;
 } __attribute__((packed));
 

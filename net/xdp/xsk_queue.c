@@ -6,6 +6,7 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/overflow.h>
+#include <linux/vmalloc.h>
 #include <net/xdp_sock_drv.h>
 
 #include "xsk_queue.h"
@@ -23,7 +24,6 @@ static size_t xskq_get_ring_size(struct xsk_queue *q, bool umem_queue)
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 {
 	struct xsk_queue *q;
-	gfp_t gfp_flags;
 	size_t size;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
@@ -33,17 +33,16 @@ struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 	q->nentries = nentries;
 	q->ring_mask = nentries - 1;
 
-	gfp_flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN |
-		    __GFP_COMP  | __GFP_NORETRY;
 	size = xskq_get_ring_size(q, umem_queue);
+	size = PAGE_ALIGN(size);
 
-	q->ring = (struct xdp_ring *)__get_free_pages(gfp_flags,
-						      get_order(size));
+	q->ring = vmalloc_user(size);
 	if (!q->ring) {
 		kfree(q);
 		return NULL;
 	}
 
+	q->ring_vmalloc_size = size;
 	return q;
 }
 
@@ -52,6 +51,6 @@ void xskq_destroy(struct xsk_queue *q)
 	if (!q)
 		return;
 
-	page_frag_free(q->ring);
+	vfree(q->ring);
 	kfree(q);
 }

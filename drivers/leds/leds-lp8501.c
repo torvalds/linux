@@ -299,9 +299,9 @@ static struct lp55xx_device_config lp8501_cfg = {
 	.run_engine         = lp8501_run_engine,
 };
 
-static int lp8501_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp8501_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
@@ -392,7 +392,7 @@ static struct i2c_driver lp8501_driver = {
 		.name	= "lp8501",
 		.of_match_table = of_match_ptr(of_lp8501_leds_match),
 	},
-	.probe		= lp8501_probe,
+	.probe_new	= lp8501_probe,
 	.remove		= lp8501_remove,
 	.id_table	= lp8501_id,
 };

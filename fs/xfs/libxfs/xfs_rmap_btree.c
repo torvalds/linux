@@ -313,7 +313,7 @@ xfs_rmapbt_verify(
 		return fa;
 
 	level = be16_to_cpu(block->bb_level);
-	if (pag && pag->pagf_init) {
+	if (pag && xfs_perag_initialised_agf(pag)) {
 		if (level >= pag->pagf_levels[XFS_BTNUM_RMAPi])
 			return __this_address;
 	} else if (level >= mp->m_rmap_maxlevels)

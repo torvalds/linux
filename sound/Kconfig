@@ -107,7 +107,6 @@ endif # !UML
 
 endif # SOUND
 
-# AC97_BUS is used from both sound and ucb1400
 config AC97_BUS
 	tristate
 	help

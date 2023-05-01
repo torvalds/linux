@@ -80,6 +80,11 @@
 	};
 };
 
+&pwc {
+	renesas,rzv2m-pwc-power;
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };

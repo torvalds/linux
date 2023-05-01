@@ -45,8 +45,9 @@ void serial_test_tp_attach_query(void)
 		prog_info.xlated_prog_len = 0;
 		prog_info.nr_map_ids = 0;
 		info_len = sizeof(prog_info);
-		err = bpf_obj_get_info_by_fd(prog_fd[i], &prog_info, &info_len);
-		if (CHECK(err, "bpf_obj_get_info_by_fd", "err %d errno %d\n",
+		err = bpf_prog_get_info_by_fd(prog_fd[i], &prog_info,
+					      &info_len);
+		if (CHECK(err, "bpf_prog_get_info_by_fd", "err %d errno %d\n",
 			  err, errno))
 			goto cleanup1;
 		saved_prog_ids[i] = prog_info.id;

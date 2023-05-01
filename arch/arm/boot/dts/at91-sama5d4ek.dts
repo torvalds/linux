@@ -287,18 +287,18 @@
 		compatible = "gpio-leds";
 		status = "okay";
 
-		d8 {
+		led-d8 {
 			label = "d8";
 			/* PE28, conflicts with usart4 rts pin */
 			gpios = <&pioE 28 GPIO_ACTIVE_LOW>;
 		};
 
-		d9 {
+		led-d9 {
 			label = "d9";
 			gpios = <&pioE 9 GPIO_ACTIVE_HIGH>;
 		};
 
-		d10 {
+		led-d10 {
 			label = "d10";
 			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

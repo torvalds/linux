@@ -195,8 +195,8 @@ static void check_bpf_link_info(const struct bpf_program *prog)
 		return;
 
 	info_len = sizeof(info);
-	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
-	ASSERT_OK(err, "bpf_obj_get_info_by_fd");
+	err = bpf_link_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
+	ASSERT_OK(err, "bpf_link_get_info_by_fd");
 	ASSERT_EQ(info.iter.task.tid, getpid(), "check_task_tid");
 
 	bpf_link__destroy(link);
@@ -684,13 +684,13 @@ static void test_overflow(bool test_e2big_overflow, bool ret1)
 
 	/* setup filtering map_id in bpf program */
 	map_info_len = sizeof(map_info);
-	err = bpf_obj_get_info_by_fd(map1_fd, &map_info, &map_info_len);
+	err = bpf_map_get_info_by_fd(map1_fd, &map_info, &map_info_len);
 	if (CHECK(err, "get_map_info", "get map info failed: %s\n",
 		  strerror(errno)))
 		goto free_map2;
 	skel->bss->map1_id = map_info.id;
 
-	err = bpf_obj_get_info_by_fd(map2_fd, &map_info, &map_info_len);
+	err = bpf_map_get_info_by_fd(map2_fd, &map_info, &map_info_len);
 	if (CHECK(err, "get_map_info", "get map info failed: %s\n",
 		  strerror(errno)))
 		goto free_map2;

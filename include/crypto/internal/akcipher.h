@@ -69,7 +69,7 @@ static inline void *akcipher_tfm_ctx_dma(struct crypto_akcipher *tfm)
 static inline void akcipher_request_complete(struct akcipher_request *req,
 					     int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline const char *akcipher_alg_name(struct crypto_akcipher *tfm)

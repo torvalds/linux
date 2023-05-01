@@ -519,7 +519,7 @@ static void ikm_usage_print_reactors(void)
 
 		start = ++end;
 		end = strstr(start, "\n");
-	};
+	}
 
 	fprintf(stderr, "\n");
 }

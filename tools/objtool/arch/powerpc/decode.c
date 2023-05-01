@@ -41,38 +41,36 @@ const char *arch_ret_insn(int len)
 
 int arch_decode_instruction(struct objtool_file *file, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
-			    unsigned int *len, enum insn_type *type,
-			    unsigned long *immediate,
-			    struct list_head *ops_list)
+			    struct instruction *insn)
 {
 	unsigned int opcode;
 	enum insn_type typ;
 	unsigned long imm;
-	u32 insn;
+	u32 ins;
 
-	insn = bswap_if_needed(file->elf, *(u32 *)(sec->data->d_buf + offset));
-	opcode = insn >> 26;
+	ins = bswap_if_needed(file->elf, *(u32 *)(sec->data->d_buf + offset));
+	opcode = ins >> 26;
 	typ = INSN_OTHER;
 	imm = 0;
 
 	switch (opcode) {
 	case 18: /* b[l][a] */
-		if ((insn & 3) == 1) /* bl */
+		if ((ins & 3) == 1) /* bl */
 			typ = INSN_CALL;
 
-		imm = insn & 0x3fffffc;
+		imm = ins & 0x3fffffc;
 		if (imm & 0x2000000)
 			imm -= 0x4000000;
 		break;
 	}
 
 	if (opcode == 1)
-		*len = 8;
+		insn->len = 8;
 	else
-		*len = 4;
+		insn->len = 4;
 
-	*type = typ;
-	*immediate = imm;
+	insn->type = typ;
+	insn->immediate = imm;
 
 	return 0;
 }

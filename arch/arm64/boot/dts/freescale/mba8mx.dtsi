@@ -206,8 +206,8 @@
 		ldoin-supply = <&reg_vcc_3v3>;
 	};
 
-	sensor1: sensor@1f {
-		compatible = "nxp,se97", "jedec,jc-42.4-temp";
+	sensor1: temperator-sensor@1f {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
 		reg = <0x1f>;
 	};
 

@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <asm/asm-extable.h>
+#include <linux/memblock.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/ipl.h>
@@ -34,6 +35,23 @@
 #include "entry.h"
 
 int __bootdata(is_full_image);
+
+#define decompressor_handled_param(param)			\
+static int __init ignore_decompressor_param_##param(char *s)	\
+{								\
+	return 0;						\
+}								\
+early_param(#param, ignore_decompressor_param_##param)
+
+decompressor_handled_param(mem);
+decompressor_handled_param(vmalloc);
+decompressor_handled_param(dfltcc);
+decompressor_handled_param(noexec);
+decompressor_handled_param(facilities);
+decompressor_handled_param(nokaslr);
+#if IS_ENABLED(CONFIG_KVM)
+decompressor_handled_param(prot_virt);
+#endif
 
 static void __init reset_tod_clock(void)
 {
@@ -160,9 +178,7 @@ static noinline __init void setup_lowcore_early(void)
 	psw_t psw;
 
 	psw.addr = (unsigned long)early_pgm_check_handler;
-	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
-	if (IS_ENABLED(CONFIG_KASAN))
-		psw.mask |= PSW_MASK_DAT;
+	psw.mask = PSW_KERNEL_BITS;
 	S390_lowcore.program_new_psw = psw;
 	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;
 }
@@ -227,6 +243,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
 		/* the control bit is set during PCI initialization */
 	}
+	if (test_facility(194))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_RDP;
 }
 
 static inline void save_vector_registers(void)
@@ -288,7 +306,6 @@ static void __init sort_amode31_extable(void)
 
 void __init startup_init(void)
 {
-	sclp_early_adjust_va();
 	reset_tod_clock();
 	check_image_bootable();
 	time_early_init();

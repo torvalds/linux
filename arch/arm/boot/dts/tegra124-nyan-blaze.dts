@@ -27,13 +27,6 @@
 		};
 	};
 
-	sound {
-		compatible = "nvidia,tegra-audio-max98090-nyan-blaze",
-			     "nvidia,tegra-audio-max98090-nyan",
-			     "nvidia,tegra-audio-max98090";
-		nvidia,model = "GoogleNyanBlaze";
-	};
-
 	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
@@ -1342,5 +1335,12 @@
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
 		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-max98090-nyan-blaze",
+			     "nvidia,tegra-audio-max98090-nyan",
+			     "nvidia,tegra-audio-max98090";
+		nvidia,model = "GoogleNyanBlaze";
 	};
 };

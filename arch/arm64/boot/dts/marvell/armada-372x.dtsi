@@ -13,7 +13,7 @@
 
 / {
 	model = "Marvell Armada 3720 SoC";
-	compatible = "marvell,armada3720", "marvell,armada3710";
+	compatible = "marvell,armada3720", "marvell,armada3700";
 
 	cpus {
 		cpu1: cpu@1 {

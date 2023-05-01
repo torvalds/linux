@@ -114,22 +114,6 @@
 #define PCI_DEVICE_ID_AMD_16H_NB_F2	0x1532
 #define PCI_DEVICE_ID_AMD_16H_M30H_NB_F1 0x1581
 #define PCI_DEVICE_ID_AMD_16H_M30H_NB_F2 0x1582
-#define PCI_DEVICE_ID_AMD_17H_DF_F0	0x1460
-#define PCI_DEVICE_ID_AMD_17H_DF_F6	0x1466
-#define PCI_DEVICE_ID_AMD_17H_M10H_DF_F0 0x15e8
-#define PCI_DEVICE_ID_AMD_17H_M10H_DF_F6 0x15ee
-#define PCI_DEVICE_ID_AMD_17H_M30H_DF_F0 0x1490
-#define PCI_DEVICE_ID_AMD_17H_M30H_DF_F6 0x1496
-#define PCI_DEVICE_ID_AMD_17H_M60H_DF_F0 0x1448
-#define PCI_DEVICE_ID_AMD_17H_M60H_DF_F6 0x144e
-#define PCI_DEVICE_ID_AMD_17H_M70H_DF_F0 0x1440
-#define PCI_DEVICE_ID_AMD_17H_M70H_DF_F6 0x1446
-#define PCI_DEVICE_ID_AMD_19H_DF_F0	0x1650
-#define PCI_DEVICE_ID_AMD_19H_DF_F6	0x1656
-#define PCI_DEVICE_ID_AMD_19H_M10H_DF_F0 0x14ad
-#define PCI_DEVICE_ID_AMD_19H_M10H_DF_F6 0x14b3
-#define PCI_DEVICE_ID_AMD_19H_M50H_DF_F0 0x166a
-#define PCI_DEVICE_ID_AMD_19H_M50H_DF_F6 0x1670
 
 /*
  * Function 1 - Address Map
@@ -215,8 +199,6 @@
 #define DCT_SEL_HI			0x114
 
 #define F15H_M60H_SCRCTRL		0x1C8
-#define F17H_SCR_BASE_ADDR		0x48
-#define F17H_SCR_LIMIT_ADDR		0x4C
 
 /*
  * Function 3 - Misc Control
@@ -356,7 +338,7 @@ struct amd64_pvt {
 	struct low_ops *ops;
 
 	/* pci_device handles which we utilize */
-	struct pci_dev *F0, *F1, *F2, *F3, *F6;
+	struct pci_dev *F1, *F2, *F3;
 
 	u16 mc_node_id;		/* MC index of this MC node */
 	u8 fam;			/* CPU family */
@@ -364,7 +346,6 @@ struct amd64_pvt {
 	u8 stepping;		/* ... stepping */
 
 	int ext_model;		/* extended model value of this node */
-	int channel_count;
 
 	/* Raw registers */
 	u32 dclr0;		/* DRAM Configuration Low DCT0 reg */
@@ -484,7 +465,6 @@ struct ecc_settings {
  * functions and per device encoding/decoding logic.
  */
 struct low_ops {
-	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 struct err_info *);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct,
@@ -503,7 +483,7 @@ struct amd64_family_flags {
 
 struct amd64_family_type {
 	const char *ctl_name;
-	u16 f0_id, f1_id, f2_id, f6_id;
+	u16 f1_id, f2_id;
 	/* Maximum number of memory controllers per die/node. */
 	u8 max_mcs;
 	struct amd64_family_flags flags;

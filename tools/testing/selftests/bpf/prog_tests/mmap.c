@@ -64,7 +64,7 @@ void test_mmap(void)
 
 	/* get map's ID */
 	memset(&map_info, 0, map_info_sz);
-	err = bpf_obj_get_info_by_fd(data_map_fd, &map_info, &map_info_sz);
+	err = bpf_map_get_info_by_fd(data_map_fd, &map_info, &map_info_sz);
 	if (CHECK(err, "map_get_info", "failed %d\n", errno))
 		goto cleanup;
 	data_map_id = map_info.id;

@@ -104,7 +104,7 @@ static int rtas_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
         int ret = -1;
 	int rval;
 
-	rval = rtas_call(rtas_token("read-pci-config"), 2, 2, &ret, addr, len);
+	rval = rtas_call(rtas_function_token(RTAS_FN_READ_PCI_CONFIG), 2, 2, &ret, addr, len);
 	*val = ret;
 	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
 }
@@ -118,7 +118,7 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset
 		| (hose->global_number << 24);
 	int rval;
 
-	rval = rtas_call(rtas_token("write-pci-config"), 3, 1, NULL,
+	rval = rtas_call(rtas_function_token(RTAS_FN_WRITE_PCI_CONFIG), 3, 1, NULL,
 			 addr, len, val);
 	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
 }

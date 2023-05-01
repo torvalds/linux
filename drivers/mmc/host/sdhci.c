@@ -4121,9 +4121,6 @@ void __sdhci_read_caps(struct sdhci_host *host, const u16 *ver,
 	v = ver ? *ver : sdhci_readw(host, SDHCI_HOST_VERSION);
 	host->version = (v & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
 
-	if (host->quirks & SDHCI_QUIRK_MISSING_CAPS)
-		return;
-
 	if (caps) {
 		host->caps = *caps;
 	} else {

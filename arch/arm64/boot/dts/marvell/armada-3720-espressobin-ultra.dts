@@ -13,7 +13,7 @@
 / {
 	model = "Globalscale Marvell ESPRESSOBin Ultra Board";
 	compatible = "globalscale,espressobin-ultra", "globalscale,espressobin",
-		     "marvell,armada3720", "marvell,armada3710";
+		     "marvell,armada3720", "marvell,armada3700";
 
 	aliases {
 		/* ethernet1 is WAN port */

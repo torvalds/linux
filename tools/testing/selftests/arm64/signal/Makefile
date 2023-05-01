@@ -22,6 +22,10 @@ $(TEST_GEN_PROGS): $(PROGS)
 
 # Common test-unit targets to build common-layout test-cases executables
 # Needs secondary expansion to properly include the testcase c-file in pre-reqs
+COMMON_SOURCES := test_signals.c test_signals_utils.c testcases/testcases.c \
+	signals.S
+COMMON_HEADERS := test_signals.h test_signals_utils.h testcases/testcases.h
+
 .SECONDEXPANSION:
-$(PROGS): test_signals.c test_signals_utils.c testcases/testcases.c signals.S $$@.c test_signals.h test_signals_utils.h testcases/testcases.h
-	$(CC) $(CFLAGS) $^ -o $@
+$(PROGS): $$@.c ${COMMON_SOURCES} ${COMMON_HEADERS}
+	$(CC) $(CFLAGS) ${@}.c ${COMMON_SOURCES} -o $@

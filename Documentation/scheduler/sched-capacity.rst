@@ -260,7 +260,7 @@ for that purpose.
 
 The arm and arm64 architectures directly map this to the arch_topology driver
 CPU scaling data, which is derived from the capacity-dmips-mhz CPU binding; see
-Documentation/devicetree/bindings/arm/cpu-capacity.txt.
+Documentation/devicetree/bindings/cpu/cpu-capacity.txt.
 
 3.2 Frequency invariance
 ------------------------

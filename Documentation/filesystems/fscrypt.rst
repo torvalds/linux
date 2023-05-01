@@ -1277,8 +1277,8 @@ the file contents themselves, as described below:
 
 For the read path (->read_folio()) of regular files, filesystems can
 read the ciphertext into the page cache and decrypt it in-place.  The
-page lock must be held until decryption has finished, to prevent the
-page from becoming visible to userspace prematurely.
+folio lock must be held until decryption has finished, to prevent the
+folio from becoming visible to userspace prematurely.
 
 For the write path (->writepage()) of regular files, filesystems
 cannot encrypt data in-place in the page cache, since the cached

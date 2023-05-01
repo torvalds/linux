@@ -126,7 +126,7 @@
 
 		rtc@6000 {
 			compatible = "qcom,pm8941-rtc";
-			reg = <0x6000>;
+			reg = <0x6000>, <0x6100>;
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_NONE>;
 		};
@@ -141,11 +141,11 @@
 			#interrupt-cells = <2>;
 		};
 
-		pm8950_gpio: gpio@c000 {
+		pm8950_gpios: gpio@c000 {
 			compatible = "qcom,pm8950-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm8950_gpio 0 0 8>;
+			gpio-ranges = <&pm8950_gpios 0 0 8>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

@@ -21,34 +21,34 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     void *xattr_value,
 					     size_t xattr_value_len,
 					     struct integrity_iint_cache *iint);
-extern int evm_inode_setattr(struct user_namespace *mnt_userns,
+extern int evm_inode_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr);
 extern void evm_inode_post_setattr(struct dentry *dentry, int ia_valid);
-extern int evm_inode_setxattr(struct user_namespace *mnt_userns,
+extern int evm_inode_setxattr(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *name,
 			      const void *value, size_t size);
 extern void evm_inode_post_setxattr(struct dentry *dentry,
 				    const char *xattr_name,
 				    const void *xattr_value,
 				    size_t xattr_value_len);
-extern int evm_inode_removexattr(struct user_namespace *mnt_userns,
+extern int evm_inode_removexattr(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *xattr_name);
 extern void evm_inode_post_removexattr(struct dentry *dentry,
 				       const char *xattr_name);
-static inline void evm_inode_post_remove_acl(struct user_namespace *mnt_userns,
+static inline void evm_inode_post_remove_acl(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *acl_name)
 {
 	evm_inode_post_removexattr(dentry, acl_name);
 }
-extern int evm_inode_set_acl(struct user_namespace *mnt_userns,
+extern int evm_inode_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     struct posix_acl *kacl);
-static inline int evm_inode_remove_acl(struct user_namespace *mnt_userns,
+static inline int evm_inode_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {
-	return evm_inode_set_acl(mnt_userns, dentry, acl_name, NULL);
+	return evm_inode_set_acl(idmap, dentry, acl_name, NULL);
 }
 static inline void evm_inode_post_set_acl(struct dentry *dentry,
 					  const char *acl_name,
@@ -90,7 +90,7 @@ static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 }
 #endif
 
-static inline int evm_inode_setattr(struct user_namespace *mnt_userns,
+static inline int evm_inode_setattr(struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct iattr *attr)
 {
 	return 0;
@@ -101,7 +101,7 @@ static inline void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 	return;
 }
 
-static inline int evm_inode_setxattr(struct user_namespace *mnt_userns,
+static inline int evm_inode_setxattr(struct mnt_idmap *idmap,
 				     struct dentry *dentry, const char *name,
 				     const void *value, size_t size)
 {
@@ -116,7 +116,7 @@ static inline void evm_inode_post_setxattr(struct dentry *dentry,
 	return;
 }
 
-static inline int evm_inode_removexattr(struct user_namespace *mnt_userns,
+static inline int evm_inode_removexattr(struct mnt_idmap *idmap,
 					struct dentry *dentry,
 					const char *xattr_name)
 {
@@ -129,21 +129,21 @@ static inline void evm_inode_post_removexattr(struct dentry *dentry,
 	return;
 }
 
-static inline void evm_inode_post_remove_acl(struct user_namespace *mnt_userns,
+static inline void evm_inode_post_remove_acl(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *acl_name)
 {
 	return;
 }
 
-static inline int evm_inode_set_acl(struct user_namespace *mnt_userns,
+static inline int evm_inode_set_acl(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name,
 				    struct posix_acl *kacl)
 {
 	return 0;
 }
 
-static inline int evm_inode_remove_acl(struct user_namespace *mnt_userns,
+static inline int evm_inode_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {

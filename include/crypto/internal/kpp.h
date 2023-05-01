@@ -85,7 +85,7 @@ static inline void *kpp_tfm_ctx_dma(struct crypto_kpp *tfm)
 
 static inline void kpp_request_complete(struct kpp_request *req, int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline const char *kpp_alg_name(struct crypto_kpp *tfm)

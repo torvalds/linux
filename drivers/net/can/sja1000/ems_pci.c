@@ -3,6 +3,7 @@
  * Copyright (C) 2007 Wolfgang Grandegger <wg@grandegger.com>
  * Copyright (C) 2008 Markus Plessing <plessing@ems-wuensche.com>
  * Copyright (C) 2008 Sebastian Haas <haas@ems-wuensche.com>
+ * Copyright (C) 2023 EMS Dr. Thomas Wuensche
  */
 
 #include <linux/kernel.h>
@@ -19,12 +20,14 @@
 
 #define DRV_NAME  "ems_pci"
 
-MODULE_AUTHOR("Sebastian Haas <haas@ems-wuenche.com>");
+MODULE_AUTHOR("Sebastian Haas <support@ems-wuensche.com>");
+MODULE_AUTHOR("Gerhard Uttenthaler <uttenthaler@ems-wuensche.com>");
 MODULE_DESCRIPTION("Socket-CAN driver for EMS CPC-PCI/PCIe/104P CAN cards");
 MODULE_LICENSE("GPL v2");
 
 #define EMS_PCI_V1_MAX_CHAN 2
 #define EMS_PCI_V2_MAX_CHAN 4
+#define EMS_PCI_V3_MAX_CHAN 4
 #define EMS_PCI_MAX_CHAN    EMS_PCI_V2_MAX_CHAN
 
 struct ems_pci_card {
@@ -40,8 +43,7 @@ struct ems_pci_card {
 
 #define EMS_PCI_CAN_CLOCK (16000000 / 2)
 
-/*
- * Register definitions and descriptions are from LinCAN 0.3.3.
+/* Register definitions and descriptions are from LinCAN 0.3.3.
  *
  * PSB4610 PITA-2 bridge control registers
  */
@@ -52,8 +54,7 @@ struct ems_pci_card {
 #define PITA2_MISC          0x1c	/* Miscellaneous Register */
 #define PITA2_MISC_CONFIG   0x04000000	/* Multiplexed parallel interface */
 
-/*
- * Register definitions for the PLX 9030
+/* Register definitions for the PLX 9030
  */
 #define PLX_ICSR            0x4c   /* Interrupt Control/Status register */
 #define PLX_ICSR_LINTI1_ENA 0x0001 /* LINTi1 Enable */
@@ -62,8 +63,16 @@ struct ems_pci_card {
 #define PLX_ICSR_ENA_CLR    (PLX_ICSR_LINTI1_ENA | PLX_ICSR_PCIINT_ENA | \
 			     PLX_ICSR_LINTI1_CLR)
 
-/*
- * The board configuration is probably following:
+/* Register definitions for the ASIX99100
+ */
+#define ASIX_LINTSR 0x28 /* Interrupt Control/Status register */
+#define ASIX_LINTSR_INT0AC BIT(0) /* Writing 1 enables or clears interrupt */
+
+#define ASIX_LIEMR 0x24 /* Local Interrupt Enable / Miscellaneous Register */
+#define ASIX_LIEMR_L0EINTEN BIT(16) /* Local INT0 input assertion enable */
+#define ASIX_LIEMR_LRST BIT(14) /* Local Reset assert */
+
+/* The board configuration is probably following:
  * RX1 is connected to ground.
  * TX1 is not connected.
  * CLKO is not connected.
@@ -72,22 +81,39 @@ struct ems_pci_card {
  */
 #define EMS_PCI_OCR         (OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
-/*
- * In the CDR register, you should set CBP to 1.
+/* In the CDR register, you should set CBP to 1.
  * You will probably also want to set the clock divider value to 7
  * (meaning direct oscillator output) because the second SJA1000 chip
  * is driven by the first one CLKOUT output.
  */
 #define EMS_PCI_CDR             (CDR_CBP | CDR_CLKOUT_MASK)
 
-#define EMS_PCI_V1_BASE_BAR     1
-#define EMS_PCI_V1_CONF_SIZE    4096 /* size of PITA control area */
-#define EMS_PCI_V2_BASE_BAR     2
-#define EMS_PCI_V2_CONF_SIZE    128 /* size of PLX control area */
-#define EMS_PCI_CAN_BASE_OFFSET 0x400 /* offset where the controllers starts */
-#define EMS_PCI_CAN_CTRL_SIZE   0x200 /* memory size for each controller */
+#define EMS_PCI_V1_BASE_BAR 1
+#define EMS_PCI_V1_CONF_BAR 0
+#define EMS_PCI_V1_CONF_SIZE 4096 /* size of PITA control area */
+#define EMS_PCI_V1_CAN_BASE_OFFSET 0x400 /* offset where the controllers start */
+#define EMS_PCI_V1_CAN_CTRL_SIZE 0x200 /* memory size for each controller */
+
+#define EMS_PCI_V2_BASE_BAR 2
+#define EMS_PCI_V2_CONF_BAR 0
+#define EMS_PCI_V2_CONF_SIZE 128 /* size of PLX control area */
+#define EMS_PCI_V2_CAN_BASE_OFFSET 0x400 /* offset where the controllers start */
+#define EMS_PCI_V2_CAN_CTRL_SIZE 0x200 /* memory size for each controller */
+
+#define EMS_PCI_V3_BASE_BAR 0
+#define EMS_PCI_V3_CONF_BAR 5
+#define EMS_PCI_V3_CONF_SIZE 128 /* size of ASIX control area */
+#define EMS_PCI_V3_CAN_BASE_OFFSET 0x00 /* offset where the controllers starts */
+#define EMS_PCI_V3_CAN_CTRL_SIZE 0x100 /* memory size for each controller */
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
+
+#ifndef PCI_VENDOR_ID_ASIX
+#define PCI_VENDOR_ID_ASIX 0x125b
+#define PCI_DEVICE_ID_ASIX_9110 0x9110
+#define PCI_SUBVENDOR_ID_ASIX 0xa000
+#endif
+#define PCI_SUBDEVICE_ID_EMS 0x4010
 
 static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
@@ -96,12 +122,13 @@ static const struct pci_device_id ems_pci_tbl[] = {
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030, PCI_VENDOR_ID_PLX, 0x4000},
 	/* CPC-104P v2 */
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030, PCI_VENDOR_ID_PLX, 0x4002},
+	/* CPC-PCIe v3 */
+	{PCI_VENDOR_ID_ASIX, PCI_DEVICE_ID_ASIX_9110, PCI_SUBVENDOR_ID_ASIX, PCI_SUBDEVICE_ID_EMS},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, ems_pci_tbl);
 
-/*
- * Helper to read internal registers from card logic (not CAN)
+/* Helper to read internal registers from card logic (not CAN)
  */
 static u8 ems_pci_v1_readb(struct ems_pci_card *card, unsigned int port)
 {
@@ -146,8 +173,25 @@ static void ems_pci_v2_post_irq(const struct sja1000_priv *priv)
 	writel(PLX_ICSR_ENA_CLR, card->conf_addr + PLX_ICSR);
 }
 
-/*
- * Check if a CAN controller is present at the specified location
+static u8 ems_pci_v3_read_reg(const struct sja1000_priv *priv, int port)
+{
+	return readb(priv->reg_base + port);
+}
+
+static void ems_pci_v3_write_reg(const struct sja1000_priv *priv,
+				 int port, u8 val)
+{
+	writeb(val, priv->reg_base + port);
+}
+
+static void ems_pci_v3_post_irq(const struct sja1000_priv *priv)
+{
+	struct ems_pci_card *card = (struct ems_pci_card *)priv->priv;
+
+	writel(ASIX_LINTSR_INT0AC, card->conf_addr + ASIX_LINTSR);
+}
+
+/* Check if a CAN controller is present at the specified location
  * by trying to set 'em into the PeliCAN mode
  */
 static inline int ems_pci_check_chan(const struct sja1000_priv *priv)
@@ -185,10 +229,10 @@ static void ems_pci_del_card(struct pci_dev *pdev)
 		free_sja1000dev(dev);
 	}
 
-	if (card->base_addr != NULL)
+	if (card->base_addr)
 		pci_iounmap(card->pci_dev, card->base_addr);
 
-	if (card->conf_addr != NULL)
+	if (card->conf_addr)
 		pci_iounmap(card->pci_dev, card->conf_addr);
 
 	kfree(card);
@@ -202,8 +246,7 @@ static void ems_pci_card_reset(struct ems_pci_card *card)
 	writeb(0, card->base_addr);
 }
 
-/*
- * Probe PCI device for EMS CAN signature and register each available
+/* Probe PCI device for EMS CAN signature and register each available
  * CAN channel to SJA1000 Socket-CAN subsystem.
  */
 static int ems_pci_add_card(struct pci_dev *pdev,
@@ -212,7 +255,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	struct sja1000_priv *priv;
 	struct net_device *dev;
 	struct ems_pci_card *card;
-	int max_chan, conf_size, base_bar;
+	int max_chan, conf_size, base_bar, conf_bar;
 	int err, i;
 
 	/* Enabling PCI device */
@@ -222,8 +265,8 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	}
 
 	/* Allocating card structures to hold addresses, ... */
-	card = kzalloc(sizeof(struct ems_pci_card), GFP_KERNEL);
-	if (card == NULL) {
+	card = kzalloc(sizeof(*card), GFP_KERNEL);
+	if (!card) {
 		pci_disable_device(pdev);
 		return -ENOMEM;
 	}
@@ -234,27 +277,35 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 
 	card->channels = 0;
 
-	if (pdev->vendor == PCI_VENDOR_ID_PLX) {
+	if (pdev->vendor == PCI_VENDOR_ID_ASIX) {
+		card->version = 3; /* CPC-PCI v3 */
+		max_chan = EMS_PCI_V3_MAX_CHAN;
+		base_bar = EMS_PCI_V3_BASE_BAR;
+		conf_bar = EMS_PCI_V3_CONF_BAR;
+		conf_size = EMS_PCI_V3_CONF_SIZE;
+	} else if (pdev->vendor == PCI_VENDOR_ID_PLX) {
 		card->version = 2; /* CPC-PCI v2 */
 		max_chan = EMS_PCI_V2_MAX_CHAN;
 		base_bar = EMS_PCI_V2_BASE_BAR;
+		conf_bar = EMS_PCI_V2_CONF_BAR;
 		conf_size = EMS_PCI_V2_CONF_SIZE;
 	} else {
 		card->version = 1; /* CPC-PCI v1 */
 		max_chan = EMS_PCI_V1_MAX_CHAN;
 		base_bar = EMS_PCI_V1_BASE_BAR;
+		conf_bar = EMS_PCI_V1_CONF_BAR;
 		conf_size = EMS_PCI_V1_CONF_SIZE;
 	}
 
 	/* Remap configuration space and controller memory area */
-	card->conf_addr = pci_iomap(pdev, 0, conf_size);
-	if (card->conf_addr == NULL) {
+	card->conf_addr = pci_iomap(pdev, conf_bar, conf_size);
+	if (!card->conf_addr) {
 		err = -ENOMEM;
 		goto failure_cleanup;
 	}
 
 	card->base_addr = pci_iomap(pdev, base_bar, EMS_PCI_BASE_SIZE);
-	if (card->base_addr == NULL) {
+	if (!card->base_addr) {
 		err = -ENOMEM;
 		goto failure_cleanup;
 	}
@@ -276,12 +327,20 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 		}
 	}
 
+	if (card->version == 3) {
+		/* ASIX chip asserts local reset to CAN controllers
+		 * after bootup until it is deasserted
+		 */
+		writel(readl(card->conf_addr + ASIX_LIEMR) & ~ASIX_LIEMR_LRST,
+		       card->conf_addr + ASIX_LIEMR);
+	}
+
 	ems_pci_card_reset(card);
 
 	/* Detect available channels */
 	for (i = 0; i < max_chan; i++) {
 		dev = alloc_sja1000dev(0);
-		if (dev == NULL) {
+		if (!dev) {
 			err = -ENOMEM;
 			goto failure_cleanup;
 		}
@@ -292,16 +351,25 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 		priv->irq_flags = IRQF_SHARED;
 
 		dev->irq = pdev->irq;
-		priv->reg_base = card->base_addr + EMS_PCI_CAN_BASE_OFFSET
-					+ (i * EMS_PCI_CAN_CTRL_SIZE);
+
 		if (card->version == 1) {
 			priv->read_reg  = ems_pci_v1_read_reg;
 			priv->write_reg = ems_pci_v1_write_reg;
 			priv->post_irq  = ems_pci_v1_post_irq;
-		} else {
+			priv->reg_base = card->base_addr + EMS_PCI_V1_CAN_BASE_OFFSET
+					+ (i * EMS_PCI_V1_CAN_CTRL_SIZE);
+		} else if (card->version == 2) {
 			priv->read_reg  = ems_pci_v2_read_reg;
 			priv->write_reg = ems_pci_v2_write_reg;
 			priv->post_irq  = ems_pci_v2_post_irq;
+			priv->reg_base = card->base_addr + EMS_PCI_V2_CAN_BASE_OFFSET
+					+ (i * EMS_PCI_V2_CAN_CTRL_SIZE);
+		} else {
+			priv->read_reg  = ems_pci_v3_read_reg;
+			priv->write_reg = ems_pci_v3_write_reg;
+			priv->post_irq  = ems_pci_v3_post_irq;
+			priv->reg_base = card->base_addr + EMS_PCI_V3_CAN_BASE_OFFSET
+					+ (i * EMS_PCI_V3_CAN_CTRL_SIZE);
 		}
 
 		/* Check if channel is present */
@@ -313,20 +381,28 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			SET_NETDEV_DEV(dev, &pdev->dev);
 			dev->dev_id = i;
 
-			if (card->version == 1)
+			if (card->version == 1) {
 				/* reset int flag of pita */
 				writel(PITA2_ICR_INT0_EN | PITA2_ICR_INT0,
 				       card->conf_addr + PITA2_ICR);
-			else
+			} else if (card->version == 2) {
 				/* enable IRQ in PLX 9030 */
 				writel(PLX_ICSR_ENA_CLR,
 				       card->conf_addr + PLX_ICSR);
+			} else {
+				/* Enable IRQ in AX99100 */
+				writel(ASIX_LINTSR_INT0AC, card->conf_addr + ASIX_LINTSR);
+				/* Enable local INT0 input enable */
+				writel(readl(card->conf_addr + ASIX_LIEMR) | ASIX_LIEMR_L0EINTEN,
+				       card->conf_addr + ASIX_LIEMR);
+			}
 
 			/* Register SJA1000 device */
 			err = register_sja1000dev(dev);
 			if (err) {
-				dev_err(&pdev->dev, "Registering device failed "
-							"(err=%d)\n", err);
+				dev_err(&pdev->dev,
+					"Registering device failed: %pe\n",
+					ERR_PTR(err));
 				free_sja1000dev(dev);
 				goto failure_cleanup;
 			}
@@ -334,7 +410,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			card->channels++;
 
 			dev_info(&pdev->dev, "Channel #%d at 0x%p, irq %d\n",
-					i + 1, priv->reg_base, dev->irq);
+				 i + 1, priv->reg_base, dev->irq);
 		} else {
 			free_sja1000dev(dev);
 		}

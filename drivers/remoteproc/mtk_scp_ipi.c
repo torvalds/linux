@@ -6,12 +6,16 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/time64.h>
 #include <linux/remoteproc/mtk_scp.h>
 
 #include "mtk_common.h"
+
+#define SCP_TIMEOUT_US		(2000 * USEC_PER_MSEC)
 
 /**
  * scp_ipi_register() - register an ipi function
@@ -156,7 +160,7 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 		 unsigned int wait)
 {
 	struct mtk_share_obj __iomem *send_obj = scp->send_buf;
-	unsigned long timeout;
+	u32 val;
 	int ret;
 
 	if (WARN_ON(id <= SCP_IPI_INIT) || WARN_ON(id >= SCP_IPI_MAX) ||
@@ -164,23 +168,21 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 	    WARN_ON(len > sizeof(send_obj->share_buf)) || WARN_ON(!buf))
 		return -EINVAL;
 
-	mutex_lock(&scp->send_lock);
-
 	ret = clk_prepare_enable(scp->clk);
 	if (ret) {
 		dev_err(scp->dev, "failed to enable clock\n");
-		goto unlock_mutex;
+		return ret;
 	}
 
+	mutex_lock(&scp->send_lock);
+
 	 /* Wait until SCP receives the last command */
-	timeout = jiffies + msecs_to_jiffies(2000);
-	do {
-		if (time_after(jiffies, timeout)) {
-			dev_err(scp->dev, "%s: IPI timeout!\n", __func__);
-			ret = -ETIMEDOUT;
-			goto clock_disable;
-		}
-	} while (readl(scp->reg_base + scp->data->host_to_scp_reg));
+	ret = readl_poll_timeout_atomic(scp->reg_base + scp->data->host_to_scp_reg,
+					val, !val, 0, SCP_TIMEOUT_US);
+	if (ret) {
+		dev_err(scp->dev, "%s: IPI timeout!\n", __func__);
+		goto unlock_mutex;
+	}
 
 	scp_memcpy_aligned(send_obj->share_buf, buf, len);
 
@@ -194,10 +196,9 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 
 	if (wait) {
 		/* wait for SCP's ACK */
-		timeout = msecs_to_jiffies(wait);
 		ret = wait_event_timeout(scp->ack_wq,
 					 scp->ipi_id_ack[id],
-					 timeout);
+					 msecs_to_jiffies(wait));
 		scp->ipi_id_ack[id] = false;
 		if (WARN(!ret, "scp ipi %d ack time out !", id))
 			ret = -EIO;
@@ -205,10 +206,9 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 			ret = 0;
 	}
 
-clock_disable:
-	clk_disable_unprepare(scp->clk);
 unlock_mutex:
 	mutex_unlock(&scp->send_lock);
+	clk_disable_unprepare(scp->clk);
 
 	return ret;
 }

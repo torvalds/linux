@@ -20,8 +20,8 @@
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
-/* prevent accidental re-addition of reallocarray() */
-#pragma GCC poison reallocarray
+/* prevent accidental re-addition of reallocarray()/strlcpy() */
+#pragma GCC poison reallocarray strlcpy
 
 #include "libbpf.h"
 #include "btf.h"
@@ -543,6 +543,7 @@ static inline int ensure_good_fd(int fd)
 		fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 		saved_errno = errno;
 		close(old_fd);
+		errno = saved_errno;
 		if (fd < 0) {
 			pr_warn("failed to dup FD %d to FD > 2: %d\n", old_fd, -saved_errno);
 			errno = saved_errno;

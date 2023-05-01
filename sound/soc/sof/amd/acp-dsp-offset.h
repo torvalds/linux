@@ -85,4 +85,8 @@
 
 #define ACP_SCRATCH_REG_0			0x10000
 #define ACP6X_DSP_FUSION_RUNSTALL		0x0644
+
+/* Cache window registers */
+#define ACP_DSP0_CACHE_OFFSET0			0x0420
+#define ACP_DSP0_CACHE_SIZE0			0x0424
 #endif

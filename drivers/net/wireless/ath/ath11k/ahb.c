@@ -32,6 +32,9 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 	{ .compatible = "qcom,wcn6750-wifi",
 	  .data = (void *)ATH11K_HW_WCN6750_HW10,
 	},
+	{ .compatible = "qcom,ipq5018-wifi",
+	  .data = (void *)ATH11K_HW_IPQ5018_HW10,
+	},
 	{ }
 };
 
@@ -267,30 +270,42 @@ static void ath11k_ahb_clearbit32(struct ath11k_base *ab, u8 bit, u32 offset)
 static void ath11k_ahb_ce_irq_enable(struct ath11k_base *ab, u16 ce_id)
 {
 	const struct ce_attr *ce_attr;
+	const struct ce_ie_addr *ce_ie_addr = ab->hw_params.ce_ie_addr;
+	u32 ie1_reg_addr, ie2_reg_addr, ie3_reg_addr;
+
+	ie1_reg_addr = ce_ie_addr->ie1_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie2_reg_addr = ce_ie_addr->ie2_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie3_reg_addr = ce_ie_addr->ie3_reg_addr + ATH11K_CE_OFFSET(ab);
 
 	ce_attr = &ab->hw_params.host_ce_config[ce_id];
 	if (ce_attr->src_nentries)
-		ath11k_ahb_setbit32(ab, ce_id, CE_HOST_IE_ADDRESS);
+		ath11k_ahb_setbit32(ab, ce_id, ie1_reg_addr);
 
 	if (ce_attr->dest_nentries) {
-		ath11k_ahb_setbit32(ab, ce_id, CE_HOST_IE_2_ADDRESS);
+		ath11k_ahb_setbit32(ab, ce_id, ie2_reg_addr);
 		ath11k_ahb_setbit32(ab, ce_id + CE_HOST_IE_3_SHIFT,
-				    CE_HOST_IE_3_ADDRESS);
+				    ie3_reg_addr);
 	}
 }
 
 static void ath11k_ahb_ce_irq_disable(struct ath11k_base *ab, u16 ce_id)
 {
 	const struct ce_attr *ce_attr;
+	const struct ce_ie_addr *ce_ie_addr = ab->hw_params.ce_ie_addr;
+	u32 ie1_reg_addr, ie2_reg_addr, ie3_reg_addr;
+
+	ie1_reg_addr = ce_ie_addr->ie1_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie2_reg_addr = ce_ie_addr->ie2_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie3_reg_addr = ce_ie_addr->ie3_reg_addr + ATH11K_CE_OFFSET(ab);
 
 	ce_attr = &ab->hw_params.host_ce_config[ce_id];
 	if (ce_attr->src_nentries)
-		ath11k_ahb_clearbit32(ab, ce_id, CE_HOST_IE_ADDRESS);
+		ath11k_ahb_clearbit32(ab, ce_id, ie1_reg_addr);
 
 	if (ce_attr->dest_nentries) {
-		ath11k_ahb_clearbit32(ab, ce_id, CE_HOST_IE_2_ADDRESS);
+		ath11k_ahb_clearbit32(ab, ce_id, ie2_reg_addr);
 		ath11k_ahb_clearbit32(ab, ce_id + CE_HOST_IE_3_SHIFT,
-				      CE_HOST_IE_3_ADDRESS);
+				      ie3_reg_addr);
 	}
 }
 
@@ -1021,7 +1036,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 
 	ret = iommu_map(iommu_dom, ab_ahb->fw.msa_paddr,
 			ab_ahb->fw.msa_paddr, ab_ahb->fw.msa_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath11k_err(ab, "failed to map firmware region: %d\n", ret);
 		goto err_iommu_detach;
@@ -1029,7 +1044,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 
 	ret = iommu_map(iommu_dom, ab_ahb->fw.ce_paddr,
 			ab_ahb->fw.ce_paddr, ab_ahb->fw.ce_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath11k_err(ab, "failed to map firmware CE region: %d\n", ret);
 		goto err_iommu_unmap;
@@ -1150,6 +1165,22 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_core_free;
 
+	ab->mem_ce = ab->mem;
+
+	if (ab->hw_params.ce_remap) {
+		const struct ce_remap *ce_remap = ab->hw_params.ce_remap;
+		/* ce register space is moved out of wcss unlike ipq8074 or ipq6018
+		 * and the space is not contiguous, hence remapping the CE registers
+		 * to a new space for accessing them.
+		 */
+		ab->mem_ce = ioremap(ce_remap->base, ce_remap->size);
+		if (IS_ERR(ab->mem_ce)) {
+			dev_err(&pdev->dev, "ce ioremap error\n");
+			ret = -ENOMEM;
+			goto err_core_free;
+		}
+	}
+
 	ret = ath11k_ahb_fw_resources_init(ab);
 	if (ret)
 		goto err_core_free;
@@ -1236,6 +1267,10 @@ static void ath11k_ahb_free_resources(struct ath11k_base *ab)
 	ath11k_ahb_release_smp2p_handle(ab);
 	ath11k_ahb_fw_resource_deinit(ab);
 	ath11k_ce_free_pipes(ab);
+
+	if (ab->hw_params.ce_remap)
+		iounmap(ab->mem_ce);
+
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
 }
