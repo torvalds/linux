@@ -1501,21 +1501,31 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 					    unsigned long ip)
 {
 	struct btree_path *btree_path;
+	struct bkey k;
 	int ret;
+
+	btree_path = bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
+				   BTREE_ITER_INTENT, _THIS_IP_);
+	ret = bch2_btree_path_traverse(trans, btree_path, 0);
+	if (ret)
+		goto out;
+
+	/*
+	 * The old key in the insert entry might actually refer to an existing
+	 * key in the btree that has been deleted from cache and not yet
+	 * flushed. Check for this and skip the flush so we don't run triggers
+	 * against a stale key.
+	 */
+	bch2_btree_path_peek_slot_exact(btree_path, &k);
+	if (!bkey_deleted(&k))
+		goto out;
 
 	i->key_cache_already_flushed = true;
 	i->flags |= BTREE_TRIGGER_NORUN;
 
-	btree_path = bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
-				   BTREE_ITER_INTENT, _THIS_IP_);
-
-	ret = bch2_btree_path_traverse(trans, btree_path, 0);
-	if (ret)
-		goto err;
-
 	btree_path_set_should_be_locked(btree_path);
 	ret = bch2_trans_update_by_path_trace(trans, btree_path, i->k, flags, ip);
-err:
+out:
 	bch2_path_put(trans, btree_path, true);
 	return ret;
 }
