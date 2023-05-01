@@ -669,7 +669,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 
 	ret = fwnode_property_read_string(fwnode, "label", &channel_name);
 	if (ret)
-		channel_name = name;
+		channel_name = data->adc_chans[chan].datasheet_name;
 
 	prop->channel_name = channel_name;
 
