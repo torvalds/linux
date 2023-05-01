@@ -322,11 +322,7 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 	 */
 	bio_for_each_segment(bvec, bio, iter) {
 		if (bio_iter_len(bio, iter) > corrupt_bio_byte) {
-			char *segment;
-			struct page *page = bio_iter_page(bio, iter);
-			if (unlikely(page == ZERO_PAGE(0)))
-				break;
-			segment = bvec_kmap_local(&bvec);
+			char *segment = bvec_kmap_local(&bvec);
 			segment[corrupt_bio_byte] = fc->corrupt_bio_value;
 			kunmap_local(segment);
 			DMDEBUG("Corrupting data bio=%p by writing %u to byte %u "
@@ -338,6 +334,92 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 		}
 		corrupt_bio_byte -= bio_iter_len(bio, iter);
 	}
+}
+
+static void clone_free(struct bio *clone)
+{
+	struct folio_iter fi;
+
+	if (clone->bi_vcnt > 0) { /* bio_for_each_folio_all crashes with an empty bio */
+		bio_for_each_folio_all(fi, clone)
+			folio_put(fi.folio);
+	}
+
+	bio_uninit(clone);
+	kfree(clone);
+}
+
+static void clone_endio(struct bio *clone)
+{
+	struct bio *bio = clone->bi_private;
+	bio->bi_status = clone->bi_status;
+	clone_free(clone);
+	bio_endio(bio);
+}
+
+static struct bio *clone_bio(struct dm_target *ti, struct flakey_c *fc, struct bio *bio)
+{
+	struct bio *clone;
+	unsigned size, remaining_size, nr_iovecs, order;
+	struct bvec_iter iter = bio->bi_iter;
+
+	if (unlikely(bio->bi_iter.bi_size > UIO_MAXIOV << PAGE_SHIFT))
+		dm_accept_partial_bio(bio, UIO_MAXIOV << PAGE_SHIFT >> SECTOR_SHIFT);
+
+	size = bio->bi_iter.bi_size;
+	nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	clone = bio_kmalloc(nr_iovecs, GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN);
+	if (!clone)
+		return NULL;
+
+	bio_init(clone, fc->dev->bdev, bio->bi_inline_vecs, nr_iovecs, bio->bi_opf);
+
+	clone->bi_iter.bi_sector = flakey_map_sector(ti, bio->bi_iter.bi_sector);
+	clone->bi_private = bio;
+	clone->bi_end_io = clone_endio;
+
+	remaining_size = size;
+
+	order = MAX_ORDER - 1;
+	while (remaining_size) {
+		struct page *pages;
+		unsigned size_to_add, to_copy;
+		unsigned char *virt;
+		unsigned remaining_order = __fls((remaining_size + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		order = min(order, remaining_order);
+
+retry_alloc_pages:
+		pages = alloc_pages(GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN | __GFP_COMP, order);
+		if (unlikely(!pages)) {
+			if (order) {
+				order--;
+				goto retry_alloc_pages;
+			}
+			clone_free(clone);
+			return NULL;
+		}
+		size_to_add = min((unsigned)PAGE_SIZE << order, remaining_size);
+
+		virt = page_to_virt(pages);
+		to_copy = size_to_add;
+		do {
+			struct bio_vec bvec = bvec_iter_bvec(bio->bi_io_vec, iter);
+			unsigned this_step = min(bvec.bv_len, to_copy);
+			void *map = bvec_kmap_local(&bvec);
+			memcpy(virt, map, this_step);
+			kunmap_local(map);
+
+			bvec_iter_advance(bio->bi_io_vec, &iter, this_step);
+			to_copy -= this_step;
+			virt += this_step;
+		} while (to_copy);
+
+		__bio_add_page(clone, pages, size_to_add, 0);
+		remaining_size -= size_to_add;
+	}
+
+	return clone;
 }
 
 static int flakey_map(struct dm_target *ti, struct bio *bio)
@@ -383,10 +465,14 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		/*
 		 * Corrupt matching writes.
 		 */
-		if (fc->corrupt_bio_byte) {
-			if (fc->corrupt_bio_rw == WRITE) {
-				if (all_corrupt_bio_flags_match(bio, fc))
-					corrupt_bio_data(bio, fc);
+		if (fc->corrupt_bio_byte && fc->corrupt_bio_rw == WRITE) {
+			if (all_corrupt_bio_flags_match(bio, fc)) {
+				struct bio *clone = clone_bio(ti, fc, bio);
+				if (clone) {
+					corrupt_bio_data(clone, fc);
+					submit_bio(clone);
+					return DM_MAPIO_SUBMITTED;
+				}
 			}
 			goto map_bio;
 		}
