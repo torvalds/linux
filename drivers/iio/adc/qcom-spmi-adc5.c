@@ -114,7 +114,7 @@ enum adc5_cal_val {
  *	that is an average of multiple measurements.
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
- * @datasheet_name: Channel name used in device tree.
+ * @channel_name: Channel name used in device tree.
  */
 struct adc5_channel_prop {
 	unsigned int		channel;
@@ -126,7 +126,7 @@ struct adc5_channel_prop {
 	unsigned int		hw_settle_time;
 	unsigned int		avg_samples;
 	enum vadc_scale_fn_type	scale_fn_type;
-	const char		*datasheet_name;
+	const char		*channel_name;
 };
 
 /**
@@ -671,7 +671,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 	if (ret)
 		channel_name = name;
 
-	prop->datasheet_name = channel_name;
+	prop->channel_name = channel_name;
 
 	ret = fwnode_property_read_u32(fwnode, "qcom,decimation", &value);
 	if (!ret) {
@@ -861,8 +861,8 @@ static int adc5_get_fw_data(struct adc5_chip *adc)
 		adc_chan = &adc->data->adc_chans[prop.channel];
 
 		iio_chan->channel = prop.channel;
-		iio_chan->datasheet_name = prop.datasheet_name;
-		iio_chan->extend_name = prop.datasheet_name;
+		iio_chan->datasheet_name = adc_chan->datasheet_name;
+		iio_chan->extend_name = prop.channel_name;
 		iio_chan->info_mask_separate = adc_chan->info_mask;
 		iio_chan->type = adc_chan->type;
 		iio_chan->address = index;
