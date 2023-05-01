@@ -1,5 +1,8 @@
 #!/bin/bash
 
+QEMU_PIDFILE=$(mktemp)
+SAMBA_DIR=$(mktemp -d)
+
 die() { echo "$0: error: $@" >&2; exit 1; }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null && pwd)"
@@ -10,16 +13,24 @@ kernel=${ZIMAGE:-"$(readlink -f "$base_dir/../../arch/$arch/boot/bzImage")"}
 rootfs=${ROOTFS:-"$(readlink -f "$base_dir/rootfs")"}
 skels=${SKELS:-"$(readlink -f "$base_dir/skels")"}
 
+QEMU_BKGRND="-daemonize"
+CHECKER=0
+
 mode="${MODE:-console}"
 case "$mode" in
     console)
-	    qemu_display="-nographic"
-	    linux_console="console=ttyS0"
+	    qemu_display="-display none"
+	    linux_console="console=hvc0"
 	    ;;
     gui)
 	    # QEMU_DISPLAY = sdl, gtk, ...
 	    qemu_display="-display ${QEMU_DISPLAY:-"sdl"}"
 	    linux_console=""
+	    ;;
+    checker)
+	    qemu_display="-display none"
+            QEMU_BKGRND=""
+	    CHECKER=1
 	    ;;
     *) echo "unknown mode '$MODE'" >&2; exit 1 ;;
 esac
@@ -45,24 +56,23 @@ linux_loglevel=${LINUX_LOGLEVEL:-"15"}
 linux_term=${LINUX_TERM:-"TERM=xterm"}
 linux_addcmdline=${LINUX_ADD_CMDLINE:-""}
 
-linux_cmdline=${LINUX_CMDLINE:-"root=/dev/cifs rw ip=dhcp cifsroot=//10.0.2.2/rootfs,port=4450,guest,user=dummy $linux_console loglevel=$linux_loglevel $linux_term $linux_addcmdline"}
+linux_cmdline=${LINUX_CMDLINE:-"root=/dev/cifs rw ip=dhcp cifsroot=//10.0.2.1/rootfs,port=4450,guest,user=dummy $linux_console loglevel=$linux_loglevel pci=noacpi $linux_term $linux_addcmdline"}
 
-tmp_dir=$(mktemp -d)
 user=$(id -un)
 
-cat << EOF > "$tmp_dir/smbd.conf"
+cat << EOF > "$SAMBA_DIR/smbd.conf"
 [global]
-    interfaces = 127.0.0.1
+    interfaces = 10.0.2.1
     smb ports = 4450
-    private dir = $tmp_dir
+    private dir = $SAMBA_DIR
     bind interfaces only = yes
-    pid directory = $tmp_dir
-    lock directory = $tmp_dir
-    state directory = $tmp_dir
-    cache directory = $tmp_dir
-    ncalrpc dir = $tmp_dir/ncalrpc
-    log file = $tmp_dir/log.smbd
-    smb passwd file = $tmp_dir/smbpasswd
+    pid directory = $SAMBA_DIR
+    lock directory = $SAMBA_DIR
+    state directory = $SAMBA_DIR
+    cache directory = $SAMBA_DIR
+    ncalrpc dir = $SAMBA_DIR/ncalrpc
+    log file = $SAMBA_DIR/log.smbd
+    smb passwd file = $SAMBA_DIR/smbpasswd
     security = user
     map to guest = Bad User
     load printers = no
@@ -94,17 +104,33 @@ EOF
 
 mkdir -p "$skels"
 
-"$smbd" --no-process-group -s "$tmp_dir/smbd.conf" -l "$tmp_dir" >/dev/null 2>/dev/null &
+"$smbd" --no-process-group -s "$SAMBA_DIR/smbd.conf" -l "$SAMBA_DIR" >/dev/null 2>/dev/null &
 
 "$qemu" \
     $qemu_kvm \
+    $QEMU_BKGRND \
+    -pidfile $QEMU_PIDFILE \
+    -device virtio-serial -chardev socket,id=virtiocon0,path=serial_console.socket,server,nowait -device virtconsole,chardev=virtiocon0 \
     -smp "$qemu_cpus" -m "$qemu_mem" \
     -no-reboot \
     -kernel "$kernel" \
     -append "$linux_cmdline" \
+    -serial pipe:pipe1 \
+    -serial pipe:pipe2 \
+    -netdev tap,id=lkt-tap-smbd,ifname=lkt-tap-smbd,script=no,downscript=no -net nic,netdev=lkt-tap-smbd,model=virtio \
+    -netdev tap,id=lkt-tap0,ifname=lkt-tap0,script=no,downscript=no -net nic,netdev=lkt-tap0,model=virtio \
+    -netdev tap,id=lkt-tap1,ifname=lkt-tap1,script=no,downscript=no -net nic,netdev=lkt-tap1,model=i82559er \
+    -drive file=disk0.img,if=virtio,format=raw \
+    -drive file=disk1.img,if=virtio,format=raw \
+    -drive file=disk2.img,if=virtio,format=raw \
     -gdb tcp::1234 \
     $qemu_display \
     $qemu_addopts
+
+sleep 2
+if [[ $CHECKER != 1 ]]; then
+	minicom -D unix\#serial_console.socket
+fi
 
 # This seems to reset to the mode the terminal was prior to launching QEMU
 # Inspired by
@@ -112,5 +138,11 @@ mkdir -p "$skels"
 # man 4 console_codes, ESC [ ? 7 h
 printf '\e[?7h'
 
-pkill -F "$tmp_dir/smbd.pid"
-rm -rf "$tmp_dir"
+echo "Cleaning up...Please wait!"
+pkill -F $QEMU_PIDFILE
+$script_dir/cleanup-net.sh
+pkill -F ${SAMBA_DIR}/smbd.pid
+sleep 1
+rm -rf $SAMBA_DIR
+rm -f $QEMU_PIDFILE
+rm -f serial_console.socket
