@@ -605,12 +605,18 @@ static int tpm_get_pcr_allocation(struct tpm_chip *chip)
 }
 
 /*
- * tpm_chip_startup() - performs auto startup and allocates the PCRs
+ * tpm_chip_bootstrap() - Boostrap TPM chip after power on
  * @chip: TPM chip to use.
+ *
+ * Initialize TPM chip after power on. This a one-shot function: subsequent
+ * calls will have no effect.
  */
-int tpm_chip_startup(struct tpm_chip *chip)
+int tpm_chip_bootstrap(struct tpm_chip *chip)
 {
 	int rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_BOOTSTRAPPED)
+		return 0;
 
 	rc = tpm_chip_start(chip);
 	if (rc)
@@ -624,9 +630,15 @@ int tpm_chip_startup(struct tpm_chip *chip)
 stop:
 	tpm_chip_stop(chip);
 
+	/*
+	 * Unconditionally set, as driver initialization should cease, when the
+	 * boostrapping process fails.
+	 */
+	chip->flags |= TPM_CHIP_FLAG_BOOTSTRAPPED;
+
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_chip_startup);
+EXPORT_SYMBOL_GPL(tpm_chip_bootstrap);
 
 /*
  * tpm_chip_register() - create a character device for the TPM chip
@@ -642,6 +654,10 @@ EXPORT_SYMBOL_GPL(tpm_chip_startup);
 int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
+
+	rc = tpm_chip_bootstrap(chip);
+	if (rc)
+		return rc;
 
 	tpm_sysfs_add_device(chip);
 
