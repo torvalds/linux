@@ -6,7 +6,6 @@
 #include <linux/mlx5/qp.h>
 #include <linux/if_vlan.h>
 #include "fs_core.h"
-#include "en/fs.h"
 #include "lib/macsec_fs.h"
 #include "mlx5_core.h"
 
@@ -57,8 +56,14 @@ struct mlx5e_macsec_tx_rule {
 	u32 fs_id;
 };
 
+struct mlx5_macsec_flow_table {
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+};
+
 struct mlx5e_macsec_tables {
-	struct mlx5e_flow_table ft_crypto;
+	struct mlx5_macsec_flow_table ft_crypto;
 	struct mlx5_flow_handle *crypto_miss_rule;
 
 	struct mlx5_flow_table *ft_check;
@@ -103,6 +108,26 @@ struct mlx5e_macsec_fs {
 	struct mlx5e_macsec_rx *rx_fs;
 };
 
+static void macsec_fs_destroy_groups(struct mlx5_macsec_flow_table *ft)
+{
+	int i;
+
+	for (i = ft->num_groups - 1; i >= 0; i--) {
+		if (!IS_ERR_OR_NULL(ft->g[i]))
+			mlx5_destroy_flow_group(ft->g[i]);
+		ft->g[i] = NULL;
+	}
+	ft->num_groups = 0;
+}
+
+static void macsec_fs_destroy_flow_table(struct mlx5_macsec_flow_table *ft)
+{
+	macsec_fs_destroy_groups(ft);
+	kfree(ft->g);
+	mlx5_destroy_flow_table(ft->t);
+	ft->t = NULL;
+}
+
 static void macsec_fs_tx_destroy(struct mlx5e_macsec_fs *macsec_fs)
 {
 	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
@@ -142,10 +167,10 @@ static void macsec_fs_tx_destroy(struct mlx5e_macsec_fs *macsec_fs)
 		tx_tables->crypto_miss_rule = NULL;
 	}
 
-	mlx5e_destroy_flow_table(&tx_tables->ft_crypto);
+	macsec_fs_destroy_flow_table(&tx_tables->ft_crypto);
 }
 
-static int macsec_fs_tx_create_crypto_table_groups(struct mlx5e_flow_table *ft)
+static int macsec_fs_tx_create_crypto_table_groups(struct mlx5_macsec_flow_table *ft)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	int mclen = MLX5_ST_SZ_BYTES(fte_match_param);
@@ -244,7 +269,7 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_macsec_tables *tx_tables;
 	struct mlx5_flow_act flow_act = {};
-	struct mlx5e_flow_table *ft_crypto;
+	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_table *flow_table;
 	struct mlx5_flow_group *flow_group;
 	struct mlx5_flow_namespace *ns;
@@ -733,10 +758,10 @@ static void macsec_fs_rx_destroy(struct mlx5e_macsec_fs *macsec_fs)
 		rx_tables->crypto_miss_rule = NULL;
 	}
 
-	mlx5e_destroy_flow_table(&rx_tables->ft_crypto);
+	macsec_fs_destroy_flow_table(&rx_tables->ft_crypto);
 }
 
-static int macsec_fs_rx_create_crypto_table_groups(struct mlx5e_flow_table *ft)
+static int macsec_fs_rx_create_crypto_table_groups(struct mlx5_macsec_flow_table *ft)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	int mclen = MLX5_ST_SZ_BYTES(fte_match_param);
@@ -894,10 +919,10 @@ static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
+	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_macsec_tables *rx_tables;
-	struct mlx5e_flow_table *ft_crypto;
 	struct mlx5_flow_table *flow_table;
 	struct mlx5_flow_group *flow_group;
 	struct mlx5_flow_act flow_act = {};
@@ -1122,11 +1147,11 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	struct net_device *netdev = macsec_fs->netdev;
 	union mlx5e_macsec_rule *macsec_rule = NULL;
 	struct mlx5_modify_hdr *modify_hdr = NULL;
+	struct mlx5_macsec_flow_table *ft_crypto;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_macsec_tables *rx_tables;
 	struct mlx5e_macsec_rx_rule *rx_rule;
 	struct mlx5_flow_act flow_act = {};
-	struct mlx5e_flow_table *ft_crypto;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	int err = 0;
