@@ -77,6 +77,9 @@ enum {
  *			      with the parsing opts enum.
  * @mask:	Used by the fabrics library to parse through sysfs options
  *		on adding a NVMe controller.
+ * @max_reconnects: maximum number of allowed reconnect attempts before removing
+ *		the controller, (-1) means reconnect forever, zero means remove
+ *		immediately;
  * @transport:	Holds the fabric transport "technology name" (for a lack of
  *		better description) that will be used by an NVMe controller
  *		being added.
@@ -96,9 +99,6 @@ enum {
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
  * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
- * @max_reconnects: maximum number of allowed reconnect attempts before removing
- *              the controller, (-1) means reconnect forever, zero means remove
- *              immediately;
  * @dhchap_secret: DH-HMAC-CHAP secret
  * @dhchap_ctrl_secret: DH-HMAC-CHAP controller secret for bi-directional
  *              authentication
@@ -112,6 +112,7 @@ enum {
  */
 struct nvmf_ctrl_options {
 	unsigned		mask;
+	int			max_reconnects;
 	char			*transport;
 	char			*subsysnqn;
 	char			*traddr;
@@ -125,7 +126,6 @@ struct nvmf_ctrl_options {
 	bool			duplicate_connect;
 	unsigned int		kato;
 	struct nvmf_host	*host;
-	int			max_reconnects;
 	char			*dhchap_secret;
 	char			*dhchap_ctrl_secret;
 	bool			disable_sqflow;
