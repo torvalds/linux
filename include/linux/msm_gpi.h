@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MSM_GPI_H_
@@ -184,6 +185,36 @@ enum msm_gpi_tre_type {
 #define STATIC_GPII_SHFT (0x1)
 #define GPI_EV_PRIORITY_BMSK (0x1)
 
+#define GSI_SE_ERR(log_ctx, print, dev, x...) do { \
+ipc_log_string(log_ctx, x); \
+if (print) { \
+	if (dev) \
+		dev_err((dev), x); \
+	else \
+		pr_err(x); \
+} \
+} while (0)
+
+#define GSI_SE_DBG(log_ctx, print, dev, x...) do { \
+ipc_log_string(log_ctx, x); \
+if (print) { \
+	if (dev) \
+		dev_dbg((dev), x); \
+	else \
+		pr_debug(x); \
+} \
+} while (0)
+
+#define LOCK_TRE_SET		BIT(0)
+#define CONFIG_TRE_SET		BIT(1)
+#define GO_TRE_SET		BIT(2)
+#define DMA_TRE_SET		BIT(3)
+#define UNLOCK_TRE_SET		BIT(4)
+#define GSI_MAX_TRE_TYPES	(5)
+
+#define GSI_MAX_NUM_TRE_MSGS		(448)
+#define GSI_MAX_IMMEDIATE_DMA_LEN	(8)
+
 /* cmds to perform by using dmaengine_slave_config() */
 enum msm_gpi_ctrl_cmd {
 	MSM_GPI_INIT,
@@ -263,9 +294,59 @@ struct msm_gpi_dma_async_tx_cb_param {
 	void *userdata;
 };
 
+struct gsi_tre_info {
+	struct msm_gpi_tre lock_t;
+	struct msm_gpi_tre go_t;
+	struct msm_gpi_tre config_t;
+	struct msm_gpi_tre dma_t;
+	struct msm_gpi_tre unlock_t;
+	u8 flags;
+};
+
+struct gsi_tre_queue {
+	u32 msg_cnt;
+	u32 unmap_msg_cnt;
+	u32 freed_msg_cnt;
+	dma_addr_t dma_buf[GSI_MAX_NUM_TRE_MSGS];
+	void *virt_buf[GSI_MAX_NUM_TRE_MSGS];
+	u32 len[GSI_MAX_NUM_TRE_MSGS];
+	atomic_t irq_cnt;
+};
+
+struct gsi_xfer_param {
+	struct dma_async_tx_descriptor *desc;
+	struct msm_gpi_dma_async_tx_cb_param cb;
+	struct dma_chan *ch;
+	struct scatterlist *sg; /* lock, cfg0, go, TX, unlock */
+	dma_addr_t sg_dma;
+	struct msm_gpi_ctrl ev;
+	struct gsi_tre_info tre;
+	struct gsi_tre_queue tre_queue;
+	spinlock_t multi_tre_lock; /* multi tre spin lock */
+	void (*cb_fun)(void *ptr); /* tx or rx cb */
+};
+
+struct gsi_common {
+	u8 protocol;
+	struct completion *xfer;
+	struct device *dev;
+	void *dev_node;
+	struct gsi_xfer_param tx;
+	struct gsi_xfer_param rx;
+	void *ipc;
+	bool req_chan;
+	bool err; /* For every gsi error performing gsi reset */
+	int *protocol_err; /* protocol specific error*/
+	void (*ev_cb_fun)(struct dma_chan *ch, struct msm_gpi_cb const *cb_str, void *ptr);
+};
+
 /* Client drivers of the GPI can call this function to dump the GPI registers
  * whenever client met some scenario like timeout, error in GPI transfer mode.
  */
 void gpi_dump_for_geni(struct dma_chan *chan);
+int geni_gsi_common_request_channel(struct gsi_common *gsi);
+int gsi_common_prep_desc_and_submit(struct gsi_common *gsi, int segs, bool tx_chan, bool skip_cb);
+int gsi_common_fill_tre_buf(struct gsi_common *gsi, bool tx_chan);
+void gsi_common_clear_tre_indexes(struct gsi_tre_queue *gsi_q);
 #endif
 

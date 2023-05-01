@@ -1091,6 +1091,268 @@ static int gpi_config_interrupts(struct gpii *gpii,
 	return 0;
 }
 
+/**
+ * gsi_common_ev_cb() - gsi common event callback
+ * @ch: Base address of dma channel
+ * @cb_str: Base address of call back string
+ * @ptr: Base address of gsi common structure
+ *
+ * Return: None
+ */
+static void gsi_common_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb_str, void *ptr)
+{
+	struct gsi_common *gsi = ptr;
+
+	if (!gsi) {
+		pr_err("%s: Invalid ev_cb buffer\n", __func__);
+		return;
+	}
+
+	GSI_SE_DBG(gsi->ipc, false, gsi->dev, "%s: protocol:%d\n", __func__, gsi->protocol);
+	gsi->ev_cb_fun(ch, cb_str, ptr);
+}
+
+/**
+ * gsi_common_tx_cb() - gsi common tx callback
+ * @ptr: Base address of gsi common structure
+ *
+ * Return: None
+ */
+static void gsi_common_tx_cb(void *ptr)
+{
+	struct msm_gpi_dma_async_tx_cb_param *tx_cb = ptr;
+	struct gsi_common *gsi;
+
+	if (!(tx_cb && tx_cb->userdata)) {
+		pr_err("%s: Invalid tx_cb buffer\n", __func__);
+		return;
+	}
+
+	gsi = (struct gsi_common *)tx_cb->userdata;
+	GSI_SE_DBG(gsi->ipc, false, gsi->dev, "%s: protocol:%d\n", __func__, gsi->protocol);
+	gsi->tx.cb_fun(tx_cb);
+}
+
+/**
+ * gsi_common_rx_cb() - gsi common rx callback
+ * @ptr: Base address of gsi common structure
+ *
+ * Return: None
+ */
+static void gsi_common_rx_cb(void *ptr)
+{
+	struct msm_gpi_dma_async_tx_cb_param *rx_cb = ptr;
+	struct gsi_common *gsi;
+
+	if (!(rx_cb && rx_cb->userdata)) {
+		pr_err("%s: Invalid rx_cb buffer\n", __func__);
+		return;
+	}
+
+	gsi = (struct gsi_common *)rx_cb->userdata;
+	gsi->rx.cb_fun(rx_cb);
+	GSI_SE_DBG(gsi->ipc, false, gsi->dev, "%s: protocol:%d\n", __func__, gsi->protocol);
+}
+
+/**
+ * gsi_common_clear_tre_indexes() - gsi common queue clear tre indexes
+ * @gsi_q: Base address of gsi common queue
+ *
+ * Return: None
+ */
+void gsi_common_clear_tre_indexes(struct gsi_tre_queue *gsi_q)
+{
+	gsi_q->msg_cnt = 0;
+	gsi_q->unmap_msg_cnt = 0;
+	gsi_q->freed_msg_cnt = 0;
+	atomic_set(&gsi_q->irq_cnt, 0);
+}
+EXPORT_SYMBOL_GPL(gsi_common_clear_tre_indexes);
+
+/**
+ * gsi_common_fill_tre_buf() - gsi common fill tre buffers
+ * @gsi: Base address of gsi common
+ * @tx_chan: dma transfer channel type
+ *
+ * Return: Returns tre count
+ */
+int gsi_common_fill_tre_buf(struct gsi_common *gsi, bool tx_chan)
+{
+	struct gsi_xfer_param *xfer;
+	int  tre_cnt = 0, i;
+	int index = 0;
+
+	if (tx_chan)
+		xfer = &gsi->tx;
+	else
+		xfer = &gsi->rx;
+
+	for (i = 0; i < GSI_MAX_TRE_TYPES; i++) {
+		if (xfer->tre.flags & (1 << i))
+			tre_cnt++;
+	}
+	sg_init_table(xfer->sg, tre_cnt);
+
+	if (xfer->tre.flags & LOCK_TRE_SET)
+		sg_set_buf(&xfer->sg[index++], &xfer->tre.lock_t, sizeof(xfer->tre.lock_t));
+	if (xfer->tre.flags & CONFIG_TRE_SET)
+		sg_set_buf(&xfer->sg[index++], &xfer->tre.config_t, sizeof(xfer->tre.config_t));
+	if (xfer->tre.flags & GO_TRE_SET)
+		sg_set_buf(&xfer->sg[index++], &xfer->tre.go_t, sizeof(xfer->tre.go_t));
+	if (xfer->tre.flags & DMA_TRE_SET)
+		sg_set_buf(&xfer->sg[index++], &xfer->tre.dma_t, sizeof(xfer->tre.dma_t));
+	if (xfer->tre.flags & UNLOCK_TRE_SET)
+		sg_set_buf(&xfer->sg[index++], &xfer->tre.unlock_t, sizeof(xfer->tre.unlock_t));
+	GSI_SE_DBG(gsi->ipc, false, gsi->dev, "%s: tre_cnt:%d chan:%d flags:0x%x\n",
+		   __func__, tre_cnt, tx_chan, xfer->tre.flags);
+	return tre_cnt;
+}
+EXPORT_SYMBOL_GPL(gsi_common_fill_tre_buf);
+
+/**
+ * gsi_common_doorbell_hit() - gsi common doorbell hit
+ * @gsi: Base address of gsi common
+ * @tx_chan: dma transfer channel type
+ *
+ * Return: Returns success or failure
+ */
+static int gsi_common_doorbell_hit(struct gsi_common *gsi, bool tx_chan)
+{
+	dma_cookie_t cookie;
+	struct dma_async_tx_descriptor *dma_desc;
+	struct dma_chan *dma_ch;
+
+	if (tx_chan) {
+		dma_desc = gsi->tx.desc;
+		dma_ch = gsi->tx.ch;
+	} else {
+		dma_desc = gsi->rx.desc;
+		dma_ch = gsi->rx.ch;
+	}
+
+	reinit_completion(gsi->xfer);
+
+	cookie = dmaengine_submit(dma_desc);
+	if (dma_submit_error(cookie)) {
+		GSI_SE_ERR(gsi->ipc, true, gsi->dev,
+			   "%s: dmaengine_submit failed (%d)\n", __func__, cookie);
+		return -EINVAL;
+	}
+	dma_async_issue_pending(dma_ch);
+	return 0;
+}
+
+/**
+ * gsi_common_prep_desc_and_submit() - gsi common prepare descriptor and gsi submit
+ * @gsi: Base address of gsi common
+ * @segs: Num of segments
+ * @tx_chan: dma transfer channel type
+ * @skip_callbacks: flag used to register callbacks
+ *
+ * Return: Returns success or failure
+ */
+int gsi_common_prep_desc_and_submit(struct gsi_common *gsi, int segs, bool tx_chan,
+				    bool skip_callbacks)
+{
+	struct gsi_xfer_param *xfer;
+	struct dma_async_tx_descriptor *geni_desc = NULL;
+
+	/* tx channel process */
+	if (tx_chan) {
+		xfer = &gsi->tx;
+		geni_desc = dmaengine_prep_slave_sg(gsi->tx.ch, gsi->tx.sg, segs, DMA_MEM_TO_DEV,
+						    (DMA_PREP_INTERRUPT | DMA_CTRL_ACK));
+		if (!geni_desc) {
+			GSI_SE_ERR(gsi->ipc, true, gsi->dev, "prep_slave_sg for tx failed\n");
+			return -ENOMEM;
+		}
+
+		if (skip_callbacks) {
+			geni_desc->callback = NULL;
+			geni_desc->callback_param = NULL;
+		} else {
+			geni_desc->callback = gsi_common_tx_cb;
+			geni_desc->callback_param = &gsi->tx.cb;
+		}
+		gsi->tx.desc = geni_desc;
+		return gsi_common_doorbell_hit(gsi, tx_chan);
+	}
+
+	/* Rx channel process */
+	geni_desc = dmaengine_prep_slave_sg(gsi->rx.ch, gsi->rx.sg, segs, DMA_DEV_TO_MEM,
+					    (DMA_PREP_INTERRUPT | DMA_CTRL_ACK));
+	if (!geni_desc) {
+		GSI_SE_ERR(gsi->ipc, true, gsi->dev, "prep_slave_sg for rx failed\n");
+		return -ENOMEM;
+	}
+	geni_desc->callback = gsi_common_rx_cb;
+	geni_desc->callback_param = &gsi->rx.cb;
+	gsi->rx.desc = geni_desc;
+	return gsi_common_doorbell_hit(gsi, tx_chan);
+}
+EXPORT_SYMBOL_GPL(gsi_common_prep_desc_and_submit);
+
+/**
+ * geni_gsi_common_request_channel() - gsi common dma request channel
+ * @gsi: Base address of gsi common
+ *
+ * Return: Returns success or failure
+ */
+int geni_gsi_common_request_channel(struct gsi_common *gsi)
+{
+	int ret = 0;
+
+	if (!gsi->tx.ch) {
+		gsi->tx.ch = dma_request_slave_channel(gsi->dev, "tx");
+		if (!gsi->tx.ch) {
+			GSI_SE_ERR(gsi->ipc, true, gsi->dev, "tx dma req slv chan ret:%d\n", -EIO);
+			return -EIO;
+		}
+	}
+
+	if (!gsi->rx.ch) {
+		gsi->rx.ch = dma_request_slave_channel(gsi->dev, "rx");
+		if (!gsi->rx.ch) {
+			GSI_SE_ERR(gsi->ipc, true, gsi->dev, "rx dma req slv chan ret:%d\n", -EIO);
+			dma_release_channel(gsi->tx.ch);
+			return -EIO;
+		}
+	}
+
+	gsi->tx.ev.init.callback = gsi_common_ev_cb;
+	gsi->tx.ev.init.cb_param = gsi;
+	gsi->tx.ev.cmd = MSM_GPI_INIT;
+	gsi->tx.ch->private = &gsi->tx.ev;
+	ret = dmaengine_slave_config(gsi->tx.ch, NULL);
+	if (ret) {
+		GSI_SE_ERR(gsi->ipc, true, gsi->dev, "tx dma slave config ret:%d\n", ret);
+		goto dmaengine_slave_config_fail;
+	}
+
+	gsi->rx.ev.init.cb_param = gsi;
+	gsi->rx.ev.init.callback = gsi_common_ev_cb;
+	gsi->rx.ev.cmd = MSM_GPI_INIT;
+	gsi->rx.ch->private = &gsi->rx.ev;
+	ret = dmaengine_slave_config(gsi->rx.ch, NULL);
+	if (ret) {
+		GSI_SE_ERR(gsi->ipc, true, gsi->dev, "rx dma slave config ret:%d\n", ret);
+		goto dmaengine_slave_config_fail;
+	}
+
+	gsi->tx.cb.userdata = gsi;
+	gsi->rx.cb.userdata = gsi;
+	gsi->req_chan = true;
+	return ret;
+
+dmaengine_slave_config_fail:
+	dma_release_channel(gsi->tx.ch);
+	dma_release_channel(gsi->rx.ch);
+	gsi->tx.ch = NULL;
+	gsi->rx.ch = NULL;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(geni_gsi_common_request_channel);
+
 /* Sends gpii event or channel command */
 static int gpi_send_cmd(struct gpii *gpii,
 			struct gpii_chan *gpii_chan,
