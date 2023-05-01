@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
@@ -150,6 +151,7 @@ struct at91_devtype_data {
 struct at91_priv {
 	struct can_priv can;		/* must be the first member! */
 	struct napi_struct napi;
+	struct phy *transceiver;
 
 	void __iomem *reg_base;
 
@@ -1118,20 +1120,24 @@ static int at91_open(struct net_device *dev)
 	struct at91_priv *priv = netdev_priv(dev);
 	int err;
 
-	err = clk_prepare_enable(priv->clk);
+	err = phy_power_on(priv->transceiver);
 	if (err)
 		return err;
 
 	/* check or determine and set bittime */
 	err = open_candev(dev);
 	if (err)
-		goto out;
+		goto out_phy_power_off;
+
+	err = clk_prepare_enable(priv->clk);
+	if (err)
+		goto out_close_candev;
 
 	/* register interrupt handler */
 	err = request_irq(dev->irq, at91_irq, IRQF_SHARED,
 			  dev->name, dev);
 	if (err)
-		goto out_close;
+		goto out_clock_disable_unprepare;
 
 	/* start chip and queuing */
 	at91_chip_start(dev);
@@ -1140,10 +1146,12 @@ static int at91_open(struct net_device *dev)
 
 	return 0;
 
- out_close:
-	close_candev(dev);
- out:
+ out_clock_disable_unprepare:
 	clk_disable_unprepare(priv->clk);
+ out_close_candev:
+	close_candev(dev);
+ out_phy_power_off:
+	phy_power_off(priv->transceiver);
 
 	return err;
 }
@@ -1160,6 +1168,7 @@ static int at91_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 	clk_disable_unprepare(priv->clk);
+	phy_power_off(priv->transceiver);
 
 	close_candev(dev);
 
@@ -1284,6 +1293,7 @@ static const struct at91_devtype_data *at91_can_get_driver_data(struct platform_
 static int at91_can_probe(struct platform_device *pdev)
 {
 	const struct at91_devtype_data *devtype_data;
+	struct phy *transceiver;
 	struct net_device *dev;
 	struct at91_priv *priv;
 	struct resource *res;
@@ -1332,6 +1342,13 @@ static int at91_can_probe(struct platform_device *pdev)
 		goto exit_iounmap;
 	}
 
+	transceiver = devm_phy_optional_get(&pdev->dev, NULL);
+	if (IS_ERR(transceiver)) {
+		err = PTR_ERR(transceiver);
+		dev_err_probe(&pdev->dev, err, "failed to get phy\n");
+		goto exit_iounmap;
+	}
+
 	dev->netdev_ops	= &at91_netdev_ops;
 	dev->ethtool_ops = &at91_ethtool_ops;
 	dev->irq = irq;
@@ -1351,6 +1368,9 @@ static int at91_can_probe(struct platform_device *pdev)
 	priv->mb0_id = 0x7ff;
 
 	netif_napi_add_weight(dev, &priv->napi, at91_poll, get_mb_rx_num(priv));
+
+	if (transceiver)
+		priv->can.bitrate_max = transceiver->attrs.max_link_rate;
 
 	if (at91_is_sam9263(priv))
 		dev->sysfs_groups[0] = &at91_sysfs_attr_group;
