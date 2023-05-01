@@ -811,6 +811,17 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
 			break;
+		case WCD_USBSS_CHARGER:
+			/* Disable DN DP Switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x00);
+			/* Select DN2 DP2 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT0, 0x3C, 0x28);
+			/* Enable DN DP Switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
+			break;
 		case WCD_USBSS_DP_AUX_CC1:
 			fallthrough;
 		case WCD_USBSS_DP_AUX_CC2:
@@ -902,6 +913,29 @@ int wcd_usbss_unreg_notifier(struct notifier_block *nb,
 					(&priv->wcd_usbss_notifier, nb);
 }
 EXPORT_SYMBOL(wcd_usbss_unreg_notifier);
+
+
+/*
+ * wcd_usbss_update_default_trim - update default trim for TP < 3
+ *
+ * Returns 0 on pass, or error code
+ */
+int wcd_usbss_update_default_trim(void)
+{
+	if (!wcd_usbss_ctxt_)
+		return -ENODEV;
+
+	if (!wcd_usbss_ctxt_->regmap)
+		return -EINVAL;
+
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_LIN_CTRL_1, 0x01);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_1, 0x00);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_2, 0x00);
+	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_3, 0x00);
+
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_update_default_trim);
 
 static void wcd_usbss_usbc_analog_work_fn(struct work_struct *work)
 {
