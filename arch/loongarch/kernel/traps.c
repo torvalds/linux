@@ -202,6 +202,15 @@ static void print_crmd(unsigned long x)
 	pr_cont(")\n");
 }
 
+static void print_prmd(unsigned long x)
+{
+	printk(" PRMD: %08lx (", x);
+	print_plv_fragment("PPLV", (int) FIELD_GET(CSR_PRMD_PPLV, x));
+	print_bool_fragment("PIE", FIELD_GET(CSR_PRMD_PIE, x), false);
+	print_bool_fragment("PWE", FIELD_GET(CSR_PRMD_PWE, x), false);
+	pr_cont(")\n");
+}
+
 static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
@@ -244,7 +253,7 @@ static void __show_regs(const struct pt_regs *regs)
 
 	/* Print saved important CSRs */
 	print_crmd(regs->csr_crmd);
-	printk(" PRMD: %08lx\n", regs->csr_prmd);
+	print_prmd(regs->csr_prmd);
 	printk(" EUEN: %08lx\n", regs->csr_euen);
 	printk(" ECFG: %08lx\n", regs->csr_ecfg);
 	printk("ESTAT: %08lx\n", regs->csr_estat);
