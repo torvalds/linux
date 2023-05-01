@@ -29,8 +29,8 @@
 	};
 
 	cpus {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		CPU0: cpu@0 {
 			device_type = "cpu";
@@ -106,8 +106,8 @@
 	};
 
 	soc: soc {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
 
@@ -321,9 +321,9 @@
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 70>;
-			#gpio-cells = <0x2>;
+			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x2>;
+			#interrupt-cells = <2>;
 
 			serial_4_pins: serial4-state {
 				pins = "gpio23", "gpio24";
@@ -666,7 +666,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			interrupt-controller;
-			#interrupt-cells = <0x3>;
+			#interrupt-cells = <3>;
 			reg = <0x0b000000 0x1000>, <0x0b002000 0x1000>;
 			ranges = <0 0xb00a000 0xffd>;
 

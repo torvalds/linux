@@ -1505,8 +1505,8 @@
 		timer@b120000 {
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0b120000 0x1000>;
-			#address-cells = <0x01>;
-			#size-cells = <0x01>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ranges;
 
 			frame@b121000 {

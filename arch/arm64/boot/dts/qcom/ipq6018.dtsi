@@ -571,7 +571,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x3>;
+			#interrupt-cells = <3>;
 			reg = <0x0 0x0b000000 0x0 0x1000>,  /*GICD*/
 			      <0x0 0x0b002000 0x0 0x1000>,  /*GICC*/
 			      <0x0 0x0b001000 0x0 0x1000>,  /*GICH*/
