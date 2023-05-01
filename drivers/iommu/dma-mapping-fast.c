@@ -854,6 +854,7 @@ static struct dma_fast_smmu_mapping *__fast_smmu_create_mapping_sized(
 		goto err3;
 
 	spin_lock_init(&fast->lock);
+	mutex_init(&fast->msi_cookie_init_lock);
 
 	fast->iovad = kzalloc(sizeof(*fast->iovad), GFP_KERNEL);
 	if (!fast->iovad)
@@ -925,6 +926,7 @@ static void fast_smmu_reserve_msi_iova(struct device *dev, struct dma_fast_smmu_
 	int ret;
 	unsigned long flags;
 
+	mutex_lock(&fast->msi_cookie_init_lock);
 	spin_lock_irqsave(&fast->lock, flags);
 
 	/* MSI cookie has already been setup. */
@@ -942,8 +944,10 @@ static void fast_smmu_reserve_msi_iova(struct device *dev, struct dma_fast_smmu_
 	}
 	dev_dbg(dev, "iova allocator reserved 0x%lx-0x%lx for MSI\n", msi_iova_base,
 		msi_iova_base + msi_size);
+	spin_unlock_irqrestore(&fast->lock, flags);
 
 	ret = iommu_get_msi_cookie(fast->domain, msi_iova_base);
+	spin_lock_irqsave(&fast->lock, flags);
 	if (ret < 0) {
 		dev_err(dev, "failed to obtain MSI iova cookie rc: %d\n", ret);
 		__fast_smmu_free_iova(fast, msi_iova_base, msi_size);
@@ -951,6 +955,7 @@ static void fast_smmu_reserve_msi_iova(struct device *dev, struct dma_fast_smmu_
 
 out:
 	spin_unlock_irqrestore(&fast->lock, flags);
+	mutex_unlock(&fast->msi_cookie_init_lock);
 }
 
 static void fast_smmu_reserve_iommu_regions(struct device *dev,
