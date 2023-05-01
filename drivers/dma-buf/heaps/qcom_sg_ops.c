@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/of.h>
+#include <linux/dma-map-ops.h>
 #include <linux/qcom_dma_heap.h>
 #include <linux/msm_dma_iommu_mapping.h>
 #include <linux/qti-smmu-proxy-callbacks.h>
@@ -286,6 +287,9 @@ static int sgl_sync_range(struct device *dev, struct scatterlist *sgl,
 			break;
 
 		if (i > 0) {
+			if (!get_dma_ops(dev))
+				return 0;
+
 			pr_warn_ratelimited("Partial cmo only supported with 1 segment\n"
 				"is dma_set_max_seg_size being set on dev:%s\n",
 				dev_name(dev));
