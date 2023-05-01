@@ -1606,9 +1606,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	 * the key cache - but the key has to exist in the btree for that to
 	 * work:
 	 */
-	if (path->cached &&
-	    bkey_deleted(&i->old_k) &&
-	    !(flags & BTREE_UPDATE_NO_KEY_CACHE_COHERENCY))
+	if (path->cached && bkey_deleted(&i->old_k))
 		return flush_new_cached_update(trans, path, i, flags, ip);
 
 	return 0;
