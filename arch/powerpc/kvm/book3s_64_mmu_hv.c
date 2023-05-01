@@ -124,9 +124,9 @@ void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
 		 info->virt, (long)info->order, kvm->arch.lpid);
 }
 
-long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
+int kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 {
-	long err = -EBUSY;
+	int err = -EBUSY;
 	struct kvm_hpt_info info;
 
 	mutex_lock(&kvm->arch.mmu_setup_lock);
@@ -1482,8 +1482,8 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 	mutex_unlock(&kvm->arch.mmu_setup_lock);
 }
 
-long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
-				     struct kvm_ppc_resize_hpt *rhpt)
+int kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
+				    struct kvm_ppc_resize_hpt *rhpt)
 {
 	unsigned long flags = rhpt->flags;
 	unsigned long shift = rhpt->shift;
@@ -1548,13 +1548,13 @@ static void resize_hpt_boot_vcpu(void *opaque)
 	/* Nothing to do, just force a KVM exit */
 }
 
-long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
-				    struct kvm_ppc_resize_hpt *rhpt)
+int kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
+				   struct kvm_ppc_resize_hpt *rhpt)
 {
 	unsigned long flags = rhpt->flags;
 	unsigned long shift = rhpt->shift;
 	struct kvm_resize_hpt *resize;
-	long ret;
+	int ret;
 
 	if (flags != 0 || kvm_is_radix(kvm))
 		return -EINVAL;
