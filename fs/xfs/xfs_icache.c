@@ -1856,6 +1856,8 @@ xfs_inodegc_worker(
 	struct xfs_inode	*ip, *n;
 	unsigned int		nofs_flag;
 
+	ASSERT(gc->cpu == smp_processor_id());
+
 	WRITE_ONCE(gc->items, 0);
 
 	if (!node)
