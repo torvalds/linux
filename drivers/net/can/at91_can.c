@@ -954,7 +954,7 @@ static int at91_get_state_by_bec(const struct net_device *dev,
 	return 0;
 }
 
-static void at91_irq_err(struct net_device *dev)
+static void at91_irq_err_line(struct net_device *dev)
 {
 	struct at91_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
@@ -1091,7 +1091,7 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 	if (reg_sr & get_irq_mb_tx(priv))
 		at91_irq_tx(dev, reg_sr);
 
-	at91_irq_err(dev);
+	at91_irq_err_line(dev);
 
 	/* Frame Error Interrupt */
 	if (reg_sr & AT91_IRQ_ERR_FRAME)
