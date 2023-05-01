@@ -1,8 +1,8 @@
 =====================================
-Assignment 4.b - SO2 Transport Protocol
+Assignment 4 - SO2 Transport Protocol
 =====================================
 
-- Deadline: :command:`Tuesday, 24 May 2022, 23:00`
+- Deadline: :command:`Monday, 29 May 2023, 23:00`
 - This assignment can be made in teams (max 2). Only one of them must submit the assignment, and the names of the student should be listed in a README file.
 
 Implement a simple datagram transport protocol - STP (*SO2 Transport Protocol*).
@@ -45,17 +45,17 @@ Sockets using this protocol will use the ``AF_STP`` family.
 
 The protocol must work directly over Ethernet. The ports used are between ``1`` and ``65535``. Port ``0`` is not used.
 
-The definition of STP-related structures and macros can be found in the `assignment support header <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/4-stp/stp.h>`__.
+The definition of STP-related structures and macros can be found in the `assignment support header <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/src/stp.h>`__.
 
 Implementation Details
 ======================
 
 The kernel module will be named **af_stp.ko**.
 
-You have to define a structure of type `net_proto_family <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/net.h#L200>`__, which provides the operation to create STP sockets.
+You have to define a structure of type `net_proto_family <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/net.h#L211>`__, which provides the operation to create STP sockets.
 Newly created sockets are not associated with any port or interface and cannot receive / send packets.
-You must initialize the `socket ops field <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/net.h#L124>`__ with the list of operations specific to the STP family.
-This field refers to a structure `proto_ops <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/net.h#L136>`__ which must include the following functions:
+You must initialize the `socket ops field <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/net.h#L125>`__ with the list of operations specific to the STP family.
+This field refers to a structure `proto_ops <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/net.h#L139>`__ which must include the following functions:
 
 * ``release``: releases an STP socket
 * ``bind``: associates a socket with a port (possibly also an interface) on which packets will be received / sent:
@@ -77,7 +77,7 @@ This field refers to a structure `proto_ops <http://elixir.free-electrons.com/li
 
 * ``sendmsg``, ``recvmsg``: send or receive a datagram on an STP socket:
 
-  * for the *receive* part, metainformation about the host that sent the packet can be stored in the `cb field in sk_buff <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/skbuff.h#L650>`__
+  * for the *receive* part, metainformation about the host that sent the packet can be stored in the `cb field in sk_buff <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/skbuff.h#L742>`__
 
 * ``poll``: the default function ``datagram_poll`` will have to be used
 * for the rest of the operations the predefined stubs in the kernel will have to be used (``sock_no_*``)
@@ -110,10 +110,10 @@ For the *bind* operation, only the port and the index of the interface on which 
 For the *receive* operation, only the ``addr`` and ``port`` fields in the structure will be filled in with the MAC address of the host that sent the packet and with the port from which it was sent.
 Also, when sending a packet, the destination host will be obtained from the ``addr`` and ``port`` fields of this structure.
 
-You need to register a structure `packet_type <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/netdevice.h#L2222>`__, using the call `dev_add_pack <http://elixir.free-electrons.com/linux/v4.9.11/source/net/core/dev.c#L386>`__ to be able to receive STP packets from the network layer.
+You need to register a structure `packet_type <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/netdevice.h#L2501>`__, using the call `dev_add_pack <http://elixir.free-electrons.com/linux/v5.10/source/net/core/dev.c#L521>`__ to be able to receive STP packets from the network layer.
 
 The protocol will need to provide an interface through the *procfs* file system for statistics on sent / received packets.
-The file must be named ``/proc/net/stp_stats``, specified by the ``STP_PROC_FULL_FILENAME`` macro in `assignment support header <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/4-stp/stp.h>`__.
+The file must be named ``/proc/net/stp_stats``, specified by the ``STP_PROC_FULL_FILENAME`` macro in `assignment support header <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/src/stp.h>`__.
 The format must be of simple table type with ``2`` rows: on the first row the header of the table, and on the second row the statistics corresponding to the columns.
 The columns of the table must be in order:
 
@@ -130,28 +130,20 @@ where:
 * ``NoBuffs`` - the number of received packets that could not be received because the socket queue was full
 * ``TxPkts`` - the number of packets sent
 
-To create or delete the entry specified by ``STP_PROC_FULL_FILENAME`` we recommend using the functions `proc_create <http://elixir.free-electrons.com/linux/v4.9.11/source/include/linux/proc_fs.h#L30>`__ and `proc_remove <http://elixir.free-electrons.com/linux/v4.9.11/source/fs/proc/generic.c#L636>`__.
+To create or delete the entry specified by ``STP_PROC_FULL_FILENAME`` we recommend using the functions `proc_create <http://elixir.free-electrons.com/linux/v5.10/source/include/linux/proc_fs.h#L108>`__ and `proc_remove <http://elixir.free-electrons.com/linux/v5.10/source/fs/proc/generic.c#L772>`__.
 
 Sample Protocol Implementations
 -------------------------------
 
-For examples of protocol implementation, we recommend the implementation of `PF_PACKET <http://elixir.free-electrons.com/linux/v4.9.11/source/net/packet/af_packet.c>`__ sockets and the various functions in `UDP implementation <http: //elixir.free-electrons.com/linux/v4.9.11/source/net/ipv4/udp.c>`__ or `IP implementation <http://elixir.free-electrons.com/linux/v4.9.11/source/net/ipv4/af_inet.c>`__.
+For examples of protocol implementation, we recommend the implementation of `PF_PACKET <http://elixir.free-electrons.com/linux/v5.10/source/net/packet/af_packet.c>`__ sockets and the various functions in `UDP implementation <http://elixir.free-electrons.com/linux/v5.10/source/net/ipv4/udp.c>`__ or `IP implementation <http://elixir.free-electrons.com/linux/v5.10/source/net/ipv4/af_inet.c>`__.
 
 Testing
 =======
 
-In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments, the assignment evaluation will be done automatically with with the help of public tests that are in the new infrastructure.
-For local testing, use the following commands:
-
-.. code-block:: console
-
-   $ git clone https://github.com/linux-kernel-labs/linux.git
-   $ cd linux/tools/labs
-   $ LABS=assignments/4-stp make skels
-   $ #the development of the assignment will be written in the 4-stp directory
-   $ make build
-   $ make copy
-   $ make boot
+In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments,
+the assignment evaluation will be done automatically with the help of a
+`test script <https://gitlab.cs.pub.ro/so2/3-raid/-/blob/master/checker/4-stp-checker/_checker>`__ called `_checker`.
+The test script assumes that the kernel module is called `af_stp.ko`.
 
 tcpdump
 -------
@@ -164,20 +156,31 @@ The tests use the loopback interface; to track sent packets you can use a comman
     tcpdump -i lo -XX
 
 You can use a static version of `tcpdump <http://elf.cs.pub.ro/so2/res/teme/tcpdump>`__.
-To add to the ``PATH`` environment variable in the virtual machine, copy this file to ``qemu-so2/fsimg/bin``.
+To add to the ``PATH`` environment variable in the virtual machine, copy this file to ``/linux/tools/labs/rootfs/bin``.
 Create the directory if it does not exist. Remember to give the ``tcpdump`` file execution permissions:
 
 .. code:: console
 
-    # In the qemu-so2 directory
-    mkdir fsimg / bin
-    wget http://elf.cs.pub.ro/so2/res/teme/tcpdump -O fsimg / bin / tcpdump
-    chmod 755 fsimg / bin / tcpdump
+    # Connect to the docker using ./local.sh docker interactive
+    cd /linux/tools/labs/rootfs/bin
+    wget http://elf.cs.pub.ro/so2/res/teme/tcpdump
+    chmod +x tcpdump
+
+QuickStart
+==========
+
+It is mandatory to start the implementation of the assignment from the code skeleton found in the `src <https://gitlab.cs.pub.ro/so2/4-stp/-/tree/master/src>`__ directory.
+There is only one header in the skeleton called `stp.h <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/src/stp.h>`__.
+You will provide the rest of the implementation. You can add as many `*.c`` sources and additional `*.h`` headers.
+You should also provide a Kbuild file that will compile the kernel module called `af_stp.ko`.
+Follow the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/README.md>`__ of the `assignment's repo <https://gitlab.cs.pub.ro/so2/4-stp>`__.
+
+
 
 Tips
 ----
 
-To increase your chances of getting the highest grade, read and follow the Linux kernel coding style described in the `Coding Style document <https://elixir.bootlin.com/linux/v4.19.19/source/Documentation/process/coding-style.rst>`__.
+To increase your chances of getting the highest grade, read and follow the Linux kernel coding style described in the `Coding Style document <https://elixir.bootlin.com/linux/v5.10/source/Documentation/process/coding-style.rst>`__.
 
 Also, use the following static analysis tools to verify the code:
 
@@ -212,9 +215,10 @@ In exceptional cases (the assigment passes the tests by not complying with the r
 Submitting the assigment
 ------------------------
 
-The assignment archive will be submitted to vmchecker, according to the rules on the `rules page <https://ocw.cs.pub.ro/courses/so2/reguli-notare#reguli_de_trimitere_a_temelor>`__.
+The assignment will be graded automatically using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure.
+The submission will be made on moodle on the `course's page <https://curs.upb.ro/2022/course/view.php?id=5121>`__ to the related assignment.
+You will find the submission details in the `README.md file <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/README.md>`__ of the `repo <https://gitlab.cs.pub.ro/so2/4-stp>`__.
 
-From the vmchecker interface choose the `Transport Protocol` option for this assigment.
 
 Resources
 =========
@@ -223,30 +227,27 @@ Resources
 * `Lab 10 - Networking <https://linux-kernel-labs.github.io/refs/heads/master/so2/lab10-networking.html>`__
 * Linux kernel sources
 
-  * `Implementing PF_PACKET sockets <http://elixir.free-electrons.com/linux/v4.9.11/source/net/packet/af_packet.c>`__
-  * `Implementation of the UDP protocol <http://elixir.free-electrons.com/linux/v4.9.11/source/net/ipv4/udp.c>`__
-  * `Implementation of the IP protocol <http://elixir.free-electrons.com/linux/v4.9.11/source/net/ipv4/af_inet.c>`__
+  * `Implementing PF_PACKET sockets <http://elixir.free-electrons.com/linux/v5.10/source/net/packet/af_packet.c>`__
+  * `Implementation of the UDP protocol <http://elixir.free-electrons.com/linux/v5.10/source/net/ipv4/udp.c>`__
+  * `Implementation of the IP protocol <http://elixir.free-electrons.com/linux/v5.10/source/net/ipv4/af_inet.c>`__
 
 * Understanding Linux Network Internals
 
   * chapters 8-13
 
-* `assignment support header <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/4-stp/stp.h>`__
+* `assignment support header <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/src/stp.h>`__
 
-We recommend that you use GitLab to store your homework. Follow the directions in `README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__ and on the dedicated `git wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
-
-The resources for the assignment can also be found in the `so2-assignments <https://github.com/systems-cs-pub-ro/so2-assignments>`__ repo on GitHub.
-The repo contains a `Bash script <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/so2-create-repo.sh>`__ that helps you create a private repository on the faculty `GitLab <https://gitlab.cs.pub.ro/users/sign_in>`__ instance.
-Follow the tips from the `README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__ and on the dedicated `Wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
+We recommend that you use gitlab to store your homework. Follow the directions in `README <https://gitlab.cs.pub.ro/so2/4-stp/-/blob/master/README.md>`__.
 
 Questions
 =========
 
-For questions about the assigment, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__ or send an e-mail (you must be `registered <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/so2>`__).
-Please follow and follow `the tips for use of the list <https://ocw.cs.pub.ro/courses/so2/resurse/lista-discutii#mailing-list-guidelines>`__.
+For questions about the topic, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+or you can write a question on the dedicated Teams channel.
 
 Before you ask a question, make sure that:
 
-* you have read the statement of the assigment well
-* the question is not already presented on the `FAQ page <https://ocw.cs.pub.ro/courses/so2/teme/tema2/faq>`__
-* the answer cannot be found in the `mailing list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+   - you have read the statement of the assigment well
+   - the question is not already presented on the `FAQ page <https://ocw.cs.pub.ro/courses/so2/teme/tema2/faq>`__
+   - the answer cannot be found in the `mailing list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
+
