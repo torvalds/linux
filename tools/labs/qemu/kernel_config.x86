@@ -98,10 +98,6 @@ CONFIG_LOCKDEP=y
 # kernel lock tracing:
 CONFIG_LOCK_STAT=y
 
-# for qemu serial console ttyS0:
-CONFIG_SERIAL_8250=y
-CONFIG_SERIAL_8250_CONSOLE=y
-
 # for qemu default netdev:
 CONFIG_E1000=y
 
