@@ -17,6 +17,9 @@ case "$device" in
     "lkt-tap1")
         subnet=172.30.0
         ;;
+    "lkt-tap-smbd")
+        subnet=10.0.2
+	    ;;
     *)
         echo "Unknown device" 1>&2
         exit 1
