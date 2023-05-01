@@ -821,7 +821,6 @@ create_posix_buf(umode_t mode)
 static int
 add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_posix_buf(mode);
@@ -830,11 +829,6 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset = cpu_to_le32(
-				sizeof(struct smb2_create_req) +
-				iov[num - 1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_posix));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2069,7 +2063,7 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 static void
 parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
 {
-	struct create_on_disk_id *pdisk_id = (struct create_on_disk_id *)cc;
+	struct create_disk_id_rsp *pdisk_id = (struct create_disk_id_rsp *)cc;
 
 	cifs_dbg(FYI, "parse query id context 0x%llx 0x%llx\n",
 		pdisk_id->DiskFileId, pdisk_id->VolumeId);
@@ -2172,10 +2166,11 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 }
 
 static int
-add_lease_context(struct TCP_Server_Info *server, struct kvec *iov,
+add_lease_context(struct TCP_Server_Info *server,
+		  struct smb2_create_req *req,
+		  struct kvec *iov,
 		  unsigned int *num_iovec, u8 *lease_key, __u8 *oplock)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = server->ops->create_lease_buf(lease_key, *oplock);
@@ -2183,12 +2178,6 @@ add_lease_context(struct TCP_Server_Info *server, struct kvec *iov,
 		return -ENOMEM;
 	iov[num].iov_len = server->vals->create_lease_size;
 	req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_LEASE;
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset = cpu_to_le32(
-				sizeof(struct smb2_create_req) +
-				iov[num - 1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength,
-		     server->vals->create_lease_size);
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2267,18 +2256,12 @@ static int
 add_durable_v2_context(struct kvec *iov, unsigned int *num_iovec,
 		    struct cifs_open_parms *oparms)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_durable_v2_buf(oparms);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_durable_v2);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset =
-			cpu_to_le32(sizeof(struct smb2_create_req) +
-								iov[1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_durable_v2));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2287,7 +2270,6 @@ static int
 add_durable_reconnect_v2_context(struct kvec *iov, unsigned int *num_iovec,
 		    struct cifs_open_parms *oparms)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	/* indicate that we don't need to relock the file */
@@ -2297,12 +2279,6 @@ add_durable_reconnect_v2_context(struct kvec *iov, unsigned int *num_iovec,
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_durable_handle_reconnect_v2);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset =
-			cpu_to_le32(sizeof(struct smb2_create_req) +
-								iov[1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength,
-			sizeof(struct create_durable_handle_reconnect_v2));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2311,7 +2287,6 @@ static int
 add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 		    struct cifs_open_parms *oparms, bool use_persistent)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	if (use_persistent) {
@@ -2331,11 +2306,6 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_durable);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset =
-			cpu_to_le32(sizeof(struct smb2_create_req) +
-								iov[1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_durable));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2369,18 +2339,12 @@ create_twarp_buf(__u64 timewarp)
 static int
 add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_twarp_buf(timewarp);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct crt_twarp_ctxt);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset = cpu_to_le32(
-				sizeof(struct smb2_create_req) +
-				iov[num - 1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, sizeof(struct crt_twarp_ctxt));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2503,7 +2467,6 @@ create_sd_buf(umode_t mode, bool set_owner, unsigned int *len)
 static int
 add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode, bool set_owner)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 	unsigned int len = 0;
 
@@ -2511,11 +2474,6 @@ add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode, bool set
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = len;
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset = cpu_to_le32(
-				sizeof(struct smb2_create_req) +
-				iov[num - 1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, len);
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2546,18 +2504,12 @@ create_query_id_buf(void)
 static int
 add_query_id_context(struct kvec *iov, unsigned int *num_iovec)
 {
-	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
 	iov[num].iov_base = create_query_id_buf();
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct crt_query_id_ctxt);
-	if (!req->CreateContextsOffset)
-		req->CreateContextsOffset = cpu_to_le32(
-				sizeof(struct smb2_create_req) +
-				iov[num - 1].iov_len);
-	le32_add_cpu(&req->CreateContextsLength, sizeof(struct crt_query_id_ctxt));
 	*num_iovec = num + 1;
 	return 0;
 }
@@ -2720,6 +2672,9 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 		rc = add_posix_context(iov, &n_iov, mode);
 		if (rc)
 			goto err_free_req;
+		req->CreateContextsOffset = cpu_to_le32(
+			sizeof(struct smb2_create_req) +
+			iov[1].iov_len);
 		pc_buf = iov[n_iov-1].iov_base;
 	}
 
@@ -2857,21 +2812,13 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		  (oparms->create_options & CREATE_NOT_FILE))
 		req->RequestedOplockLevel = *oplock; /* no srv lease support */
 	else {
-		rc = add_lease_context(server, iov, &n_iov,
+		rc = add_lease_context(server, req, iov, &n_iov,
 				       oparms->fid->lease_key, oplock);
 		if (rc)
 			return rc;
 	}
 
 	if (*oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		/* need to set Next field of lease context if we request it */
-		if (server->capabilities & SMB2_GLOBAL_CAP_LEASING) {
-			struct create_context *ccontext =
-			    (struct create_context *)iov[n_iov-1].iov_base;
-			ccontext->Next =
-				cpu_to_le32(server->vals->create_lease_size);
-		}
-
 		rc = add_durable_context(iov, &n_iov, oparms,
 					tcon->use_persistent);
 		if (rc)
@@ -2879,13 +2826,6 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 	}
 
 	if (tcon->posix_extensions) {
-		if (n_iov > 2) {
-			struct create_context *ccontext =
-			    (struct create_context *)iov[n_iov-1].iov_base;
-			ccontext->Next =
-				cpu_to_le32(iov[n_iov-1].iov_len);
-		}
-
 		rc = add_posix_context(iov, &n_iov, oparms->mode);
 		if (rc)
 			return rc;
@@ -2893,13 +2833,6 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 
 	if (tcon->snapshot_time) {
 		cifs_dbg(FYI, "adding snapshot context\n");
-		if (n_iov > 2) {
-			struct create_context *ccontext =
-			    (struct create_context *)iov[n_iov-1].iov_base;
-			ccontext->Next =
-				cpu_to_le32(iov[n_iov-1].iov_len);
-		}
-
 		rc = add_twarp_context(iov, &n_iov, tcon->snapshot_time);
 		if (rc)
 			return rc;
@@ -2923,12 +2856,6 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 			set_owner = false;
 
 		if (set_owner | set_mode) {
-			if (n_iov > 2) {
-				struct create_context *ccontext =
-				    (struct create_context *)iov[n_iov-1].iov_base;
-				ccontext->Next = cpu_to_le32(iov[n_iov-1].iov_len);
-			}
-
 			cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
 			rc = add_sd_context(iov, &n_iov, oparms->mode, set_owner);
 			if (rc)
@@ -2936,12 +2863,30 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		}
 	}
 
-	if (n_iov > 2) {
-		struct create_context *ccontext =
-			(struct create_context *)iov[n_iov-1].iov_base;
-		ccontext->Next = cpu_to_le32(iov[n_iov-1].iov_len);
-	}
 	add_query_id_context(iov, &n_iov);
+
+	if (n_iov > 2) {
+		/*
+		 * We have create contexts behind iov[1] (the file
+		 * name), point at them from the main create request
+		 */
+		req->CreateContextsOffset = cpu_to_le32(
+			sizeof(struct smb2_create_req) +
+			iov[1].iov_len);
+		req->CreateContextsLength = 0;
+
+		for (unsigned int i = 2; i < (n_iov-1); i++) {
+			struct kvec *v = &iov[i];
+			size_t len = v->iov_len;
+			struct create_context *cctx =
+				(struct create_context *)v->iov_base;
+
+			cctx->Next = cpu_to_le32(len);
+			le32_add_cpu(&req->CreateContextsLength, len);
+		}
+		le32_add_cpu(&req->CreateContextsLength,
+			     iov[n_iov-1].iov_len);
+	}
 
 	rqst->rq_nvec = n_iov;
 	return 0;
