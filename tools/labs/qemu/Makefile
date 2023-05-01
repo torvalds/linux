@@ -69,6 +69,10 @@ lkt-tap0:
 lkt-tap1:
 	qemu/create_net.sh $@
 
+lkt-tap-smbd:
+	qemu/create_net.sh $@
+
+
 nttcp-run: $(NTTCP) lkt-tap1
 	$(NTTCP) -v -i &
 
@@ -83,6 +87,9 @@ pipe2.in: pipe1.out
 
 pipe2.out: pipe1.in
 	ln $< $@
+
+disk0.img:
+	qemu-img create -f raw $@ 100M
 
 disk1.img:
 	qemu-img create -f raw $@ 100M
@@ -112,10 +119,13 @@ clean::
 
 YOCTO_ROOTFS = core-image-minimal-qemu$(ARCH).tar.bz2
 
-console: $(ZIMAGE) rootfs
+console: $(ZIMAGE) rootfs lkt-tap0 lkt-tap1 lkt-tap-smbd disk0.img disk1.img disk2.img pipe1.in pipe1.out pipe2.in pipe2.out
 	MODE=console qemu/run-qemu.sh
 
-gui:
+checker: $(ZIMAGE) rootfs lkt-tap0 lkt-tap1 lkt-tap-smbd disk0.img disk1.img disk2.img pipe1.in pipe1.out pipe2.in pipe2.out
+	MODE=checker qemu/run-qemu.sh
+
+gui: $(ZIMAGE) rootfs lkt-tap0 lkt-tap1 lkt-tap-smbd disk0.img disk1.img disk2.img pipe1.in pipe1.out pipe2.in pipe2.out
 	MODE=gui qemu/run-qemu.sh
 
 rootfs: $(YOCTO_ROOTFS)
@@ -125,11 +135,11 @@ rootfs: $(YOCTO_ROOTFS)
 	printf '%s\n' '#!/bin/sh' '/bin/login -f root' > rootfs/sbin/rootlogin
 	chmod +x rootfs/sbin/rootlogin
 	mkdir -p rootfs/home/root/skels
-	echo "//10.0.2.2/skels /home/root/skels cifs port=4450,guest,user=dummy 0 0" >> rootfs/etc/fstab
+	echo "//10.0.2.1/skels /home/root/skels cifs port=4450,guest,user=dummy 0 0" >> rootfs/etc/fstab
+	echo "hvc0:12345:respawn:/sbin/getty 115200 hvc0" >> rootfs/etc/inittab
 
 $(YOCTO_ROOTFS):
 	wget $(YOCTO_URL)/$(YOCTO_ROOTFS)
 
 
-
-.PHONY: console gui boot gdb clean lkt-tap0 lkt-tap1
+.PHONY: console gui boot gdb clean lkt-tap0 lkt-tap1 lkt-tap-smbd
