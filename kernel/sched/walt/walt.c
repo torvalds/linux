@@ -4827,6 +4827,16 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 	}
 }
 
+static void android_rvh_sched_getaffinity(void *unused, struct task_struct *p,
+					  struct cpumask *in_mask)
+{
+	if (unlikely(walt_disabled))
+		return;
+
+	if (!(p->flags & PF_KTHREAD))
+		cpumask_andnot(in_mask, in_mask, cpu_halt_mask);
+}
+
 static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 {
 	if (unlikely(walt_disabled))
@@ -4968,6 +4978,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);
 	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
+	register_trace_android_rvh_sched_getaffinity(android_rvh_sched_getaffinity, NULL);
 	register_trace_android_rvh_sched_fork_init(android_rvh_sched_fork_init, NULL);
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
