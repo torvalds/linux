@@ -183,16 +183,19 @@ static void __show_regs(const struct pt_regs *regs)
 	/* The slot for $zero is reused as the syscall restart flag */
 	if (regs->regs[0])
 		printk("syscall restart flag: %0*lx\n", GPR_FIELD(0));
+
+	if (user_mode(regs)) {
+		printk("   ra: %0*lx\n", GPR_FIELD(1));
+		printk("  ERA: %0*lx\n", field, regs->csr_era);
+	} else {
+		printk("   ra: %0*lx %pS\n", GPR_FIELD(1), (void *) regs->regs[1]);
+		printk("  ERA: %0*lx %pS\n", field, regs->csr_era, (void *) regs->csr_era);
+	}
 #undef GPR_FIELD
 
 	/*
 	 * Saved csr registers
 	 */
-	printk("era   : %0*lx %pS\n", field, regs->csr_era,
-	       (void *) regs->csr_era);
-	printk("ra    : %0*lx %pS\n", field, regs->regs[1],
-	       (void *) regs->regs[1]);
-
 	printk("CSR crmd: %08lx	", regs->csr_crmd);
 	printk("CSR prmd: %08lx	", regs->csr_prmd);
 	printk("CSR euen: %08lx	", regs->csr_euen);
