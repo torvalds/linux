@@ -30,8 +30,6 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new, bool validate)
 	return 0;
 }
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-
 #ifdef CONFIG_MODULES
 static inline int __get_mod(struct module **mod, unsigned long addr)
 {
@@ -72,6 +70,7 @@ static unsigned long get_plt_addr(struct module *mod, unsigned long addr)
 }
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
 {
 	u32 old, new;
@@ -102,7 +101,6 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned 
 
 	return ftrace_modify_code(pc, old, new, true);
 }
-
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
