@@ -3,6 +3,7 @@
  * Author: Huacai Chen <chenhuacai@loongson.cn>
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
@@ -153,6 +154,54 @@ static void show_code(unsigned int *pc, bool user)
 	pr_cont("\n");
 }
 
+static void print_bool_fragment(const char *key, unsigned long val, bool first)
+{
+	/* e.g. "+PG", "-DA" */
+	pr_cont("%s%c%s", first ? "" : " ", val ? '+' : '-', key);
+}
+
+static void print_plv_fragment(const char *key, int val)
+{
+	/* e.g. "PLV0", "PPLV3" */
+	pr_cont("%s%d", key, val);
+}
+
+static void print_memory_type_fragment(const char *key, unsigned long val)
+{
+	const char *humanized_type;
+
+	switch (val) {
+	case 0:
+		humanized_type = "SUC";
+		break;
+	case 1:
+		humanized_type = "CC";
+		break;
+	case 2:
+		humanized_type = "WUC";
+		break;
+	default:
+		pr_cont(" %s=Reserved(%lu)", key, val);
+		return;
+	}
+
+	/* e.g. " DATM=WUC" */
+	pr_cont(" %s=%s", key, humanized_type);
+}
+
+static void print_crmd(unsigned long x)
+{
+	printk(" CRMD: %08lx (", x);
+	print_plv_fragment("PLV", (int) FIELD_GET(CSR_CRMD_PLV, x));
+	print_bool_fragment("IE", FIELD_GET(CSR_CRMD_IE, x), false);
+	print_bool_fragment("DA", FIELD_GET(CSR_CRMD_DA, x), false);
+	print_bool_fragment("PG", FIELD_GET(CSR_CRMD_PG, x), false);
+	print_memory_type_fragment("DACF", FIELD_GET(CSR_CRMD_DACF, x));
+	print_memory_type_fragment("DACM", FIELD_GET(CSR_CRMD_DACM, x));
+	print_bool_fragment("WE", FIELD_GET(CSR_CRMD_WE, x), false);
+	pr_cont(")\n");
+}
+
 static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
@@ -194,7 +243,7 @@ static void __show_regs(const struct pt_regs *regs)
 #undef GPR_FIELD
 
 	/* Print saved important CSRs */
-	printk(" CRMD: %08lx\n", regs->csr_crmd);
+	print_crmd(regs->csr_crmd);
 	printk(" PRMD: %08lx\n", regs->csr_prmd);
 	printk(" EUEN: %08lx\n", regs->csr_euen);
 	printk(" ECFG: %08lx\n", regs->csr_ecfg);
