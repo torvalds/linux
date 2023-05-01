@@ -155,7 +155,6 @@ struct at91_priv {
 
 	void __iomem *reg_base;
 
-	u32 reg_sr;
 	unsigned int tx_head;
 	unsigned int tx_tail;
 	unsigned int rx_next;
@@ -751,7 +750,7 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 	return received;
 }
 
-static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
+static void at91_irq_err_frame(struct net_device *dev, const u32 reg_sr)
 {
 	struct net_device_stats *stats = &dev->stats;
 	struct at91_priv *priv = netdev_priv(dev);
@@ -760,11 +759,9 @@ static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 
 	priv->can.can_stats.bus_error++;
 
-	if (quota) {
-		skb = alloc_can_err_skb(dev, &cf);
-		if (cf)
-			cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
-	}
+	skb = alloc_can_err_skb(dev, &cf);
+	if (cf)
+		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
 	if (reg_sr & AT91_IRQ_CERR) {
 		netdev_dbg(dev, "CRC error\n");
@@ -809,11 +806,9 @@ static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 	}
 
 	if (!cf)
-		return 0;
+		return;
 
 	netif_receive_skb(skb);
-
-	return 1;
 }
 
 static int at91_poll(struct napi_struct *napi, int quota)
@@ -825,13 +820,6 @@ static int at91_poll(struct napi_struct *napi, int quota)
 
 	if (reg_sr & get_irq_mb_rx(priv))
 		work_done += at91_poll_rx(dev, quota - work_done);
-
-	/* The error bits are clear on read,
-	 * so use saved value from irq handler.
-	 */
-	reg_sr |= priv->reg_sr;
-	if (reg_sr & AT91_IRQ_ERR_FRAME)
-		work_done += at91_poll_err(dev, quota - work_done, reg_sr);
 
 	if (work_done < quota) {
 		/* enable IRQs for frame errors and all mailboxes >= rx_next */
@@ -1092,14 +1080,10 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 
 	handled = IRQ_HANDLED;
 
-	/* Receive or error interrupt? -> napi */
-	if (reg_sr & (get_irq_mb_rx(priv) | AT91_IRQ_ERR_FRAME)) {
-		/* The error bits are clear on read,
-		 * save for later use.
-		 */
-		priv->reg_sr = reg_sr;
+	/* Receive interrupt? -> napi */
+	if (reg_sr & get_irq_mb_rx(priv)) {
 		at91_write(priv, AT91_IDR,
-			   get_irq_mb_rx(priv) | AT91_IRQ_ERR_FRAME);
+			   get_irq_mb_rx(priv));
 		napi_schedule(&priv->napi);
 	}
 
@@ -1108,6 +1092,10 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 		at91_irq_tx(dev, reg_sr);
 
 	at91_irq_err(dev);
+
+	/* Frame Error Interrupt */
+	if (reg_sr & AT91_IRQ_ERR_FRAME)
+		at91_irq_err_frame(dev, reg_sr);
 
  exit:
 	return handled;
