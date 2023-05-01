@@ -438,7 +438,6 @@ static void at91_chip_start(struct net_device *dev)
 
 	/* Enable interrupts */
 	reg_ier = get_irq_mb_rx(priv) | AT91_IRQ_ERRP | AT91_IRQ_ERR_FRAME;
-	at91_write(priv, AT91_IDR, AT91_IRQ_ALL);
 	at91_write(priv, AT91_IER, reg_ier);
 }
 
