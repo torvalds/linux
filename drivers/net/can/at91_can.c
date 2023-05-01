@@ -1128,11 +1128,10 @@ static int at91_open(struct net_device *dev)
 		goto out;
 
 	/* register interrupt handler */
-	if (request_irq(dev->irq, at91_irq, IRQF_SHARED,
-			dev->name, dev)) {
-		err = -EAGAIN;
+	err = request_irq(dev->irq, at91_irq, IRQF_SHARED,
+			  dev->name, dev);
+	if (err)
 		goto out_close;
-	}
 
 	/* start chip and queuing */
 	at91_chip_start(dev);
