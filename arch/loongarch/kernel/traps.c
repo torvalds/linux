@@ -211,6 +211,16 @@ static void print_prmd(unsigned long x)
 	pr_cont(")\n");
 }
 
+static void print_euen(unsigned long x)
+{
+	printk(" EUEN: %08lx (", x);
+	print_bool_fragment("FPE", FIELD_GET(CSR_EUEN_FPEN, x), true);
+	print_bool_fragment("SXE", FIELD_GET(CSR_EUEN_LSXEN, x), false);
+	print_bool_fragment("ASXE", FIELD_GET(CSR_EUEN_LASXEN, x), false);
+	print_bool_fragment("BTE", FIELD_GET(CSR_EUEN_LBTEN, x), false);
+	pr_cont(")\n");
+}
+
 static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
@@ -254,7 +264,7 @@ static void __show_regs(const struct pt_regs *regs)
 	/* Print saved important CSRs */
 	print_crmd(regs->csr_crmd);
 	print_prmd(regs->csr_prmd);
-	printk(" EUEN: %08lx\n", regs->csr_euen);
+	print_euen(regs->csr_euen);
 	printk(" ECFG: %08lx\n", regs->csr_ecfg);
 	printk("ESTAT: %08lx\n", regs->csr_estat);
 
