@@ -45,15 +45,6 @@ centaur_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 	return -ENOSPC;
 }
 
-/*
- * Report boot time MCR setups
- */
-void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
-{
-	centaur_mcr[mcr].low = lo;
-	centaur_mcr[mcr].high = hi;
-}
-
 static void
 centaur_get_mcr(unsigned int reg, unsigned long *base,
 		unsigned long *size, mtrr_type * type)
