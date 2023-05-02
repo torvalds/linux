@@ -122,7 +122,6 @@ struct parse_events_state {
 	struct list_head	  *terms;
 	int			   stoken;
 	struct perf_pmu		  *fake_pmu;
-	char			  *hybrid_pmu_name;
 	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
 	bool			   match_legacy_cache_terms;
 	bool			   wild_card_pmus;
@@ -234,12 +233,5 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 	return false;
 }
 #endif /* HAVE_LIBELF_SUPPORT */
-
-struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
-					     struct perf_event_attr *attr,
-					     const char *name,
-					     const char *metric_id,
-					     struct perf_pmu *pmu,
-					     struct list_head *config_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

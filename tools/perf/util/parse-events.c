@@ -25,7 +25,6 @@
 #include "util/parse-branch-options.h"
 #include "util/evsel_config.h"
 #include "util/event.h"
-#include "util/pmu-hybrid.h"
 #include "util/bpf-filter.h"
 #include "util/util.h"
 #include "tracepoint.h"
@@ -39,9 +38,6 @@ extern int parse_events_debug;
 int parse_events_parse(void *parse_state, void *scanner);
 static int get_config_terms(struct list_head *head_config,
 			    struct list_head *head_terms __maybe_unused);
-static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
-					 const char *str, char *pmu_name,
-					 struct list_head *list);
 
 struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = {
@@ -1526,33 +1522,6 @@ static bool config_term_percore(struct list_head *config_terms)
 	return false;
 }
 
-static int parse_events__inside_hybrid_pmu(struct parse_events_state *parse_state,
-					   struct list_head *list, char *name,
-					   struct list_head *head_config)
-{
-	struct parse_events_term *term;
-	int ret = -1;
-
-	if (parse_state->fake_pmu || !head_config || list_empty(head_config) ||
-	    !perf_pmu__is_hybrid(name)) {
-		return -1;
-	}
-
-	/*
-	 * More than one term in list.
-	 */
-	if (head_config->next && head_config->next->next != head_config)
-		return -1;
-
-	term = list_first_entry(head_config, struct parse_events_term, list);
-	if (term && term->config && strcmp(term->config, "event")) {
-		ret = parse_events__with_hybrid_pmu(parse_state, term->config,
-						    name, list);
-	}
-
-	return ret;
-}
-
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
@@ -1641,11 +1610,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	 */
 	if (pmu->default_config && get_config_chgs(pmu, head_config, &config_terms))
 		return -ENOMEM;
-
-	if (!parse_events__inside_hybrid_pmu(parse_state, list, name,
-					     head_config)) {
-		return 0;
-	}
 
 	if (!parse_state->fake_pmu && perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
 		free_config_terms(&config_terms);
@@ -2020,32 +1984,6 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	}
 
 	parse_events_terms__delete(parse_state.terms);
-	return ret;
-}
-
-static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
-					 const char *str, char *pmu_name,
-					 struct list_head *list)
-{
-	struct parse_events_state ps = {
-		.list            = LIST_HEAD_INIT(ps.list),
-		.stoken          = PE_START_EVENTS,
-		.hybrid_pmu_name = pmu_name,
-		.idx             = parse_state->idx,
-	};
-	int ret;
-
-	ret = parse_events__scanner(str, &ps);
-
-	if (!ret) {
-		if (!list_empty(&ps.list)) {
-			list_splice(&ps.list, list);
-			parse_state->idx = ps.idx;
-			return 0;
-		} else
-			return -1;
-	}
-
 	return ret;
 }
 
@@ -2778,16 +2716,4 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 fail:
 	return NULL;
-}
-
-struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
-					     struct perf_event_attr *attr,
-					     const char *name,
-					     const char *metric_id,
-					     struct perf_pmu *pmu,
-					     struct list_head *config_terms)
-{
-	return __add_event(list, idx, attr, /*init_attr=*/true, name, metric_id,
-			   pmu, config_terms, /*auto_merge_stats=*/false,
-			   /*cpu_list=*/NULL);
 }
