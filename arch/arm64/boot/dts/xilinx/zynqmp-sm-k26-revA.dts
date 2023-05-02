@@ -288,6 +288,101 @@
 			  "", "", "", ""; /* 170 - 173 */
 };
 
+&zynqmp_dpsub {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&lpd_dma_chan1 {
+	status = "okay";
+};
+
+&lpd_dma_chan2 {
+	status = "okay";
+};
+
+&lpd_dma_chan3 {
+	status = "okay";
+};
+
+&lpd_dma_chan4 {
+	status = "okay";
+};
+
+&lpd_dma_chan5 {
+	status = "okay";
+};
+
+&lpd_dma_chan6 {
+	status = "okay";
+};
+
+&lpd_dma_chan7 {
+	status = "okay";
+};
+
+&lpd_dma_chan8 {
+	status = "okay";
+};
+
+&fpd_dma_chan1 {
+	status = "okay";
+};
+
+&fpd_dma_chan2 {
+	status = "okay";
+};
+
+&fpd_dma_chan3 {
+	status = "okay";
+};
+
+&fpd_dma_chan4 {
+	status = "okay";
+};
+
+&fpd_dma_chan5 {
+	status = "okay";
+};
+
+&fpd_dma_chan6 {
+	status = "okay";
+};
+
+&fpd_dma_chan7 {
+	status = "okay";
+};
+
+&fpd_dma_chan8 {
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
+};
+
+&lpd_watchdog {
+	status = "okay";
+};
+
+&watchdog0 {
+	status = "okay";
+};
+
+&cpu_opp_table {
+	opp00 {
+		opp-hz = /bits/ 64 <1333333333>;
+	};
+	opp01 {
+		opp-hz = /bits/ 64 <666666666>;
+	};
+	opp02 {
+		opp-hz = /bits/ 64 <444444444>;
+	};
+	opp03 {
+		opp-hz = /bits/ 64 <333333333>;
+	};
 };
