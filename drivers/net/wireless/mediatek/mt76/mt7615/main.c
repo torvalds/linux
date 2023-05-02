@@ -552,6 +552,32 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 	mt7615_mutex_release(dev);
 }
 
+static void
+mt7615_update_mu_group(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_bss_conf *info)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	u8 i, band = mvif->mt76.band_idx;
+	u32 *mu;
+
+	mu = (u32 *)info->mu_group.membership;
+	for (i = 0; i < WLAN_MEMBERSHIP_LEN / sizeof(*mu); i++) {
+		if (is_mt7663(&dev->mt76))
+			mt76_wr(dev, MT7663_WF_PHY_GID_TAB_VLD(band, i), mu[i]);
+		else
+			mt76_wr(dev, MT_WF_PHY_GID_TAB_VLD(band, i), mu[i]);
+	}
+
+	mu = (u32 *)info->mu_group.position;
+	for (i = 0; i < WLAN_USER_POSITION_LEN / sizeof(*mu); i++) {
+		if (is_mt7663(&dev->mt76))
+			mt76_wr(dev, MT7663_WF_PHY_GID_TAB_POS(band, i), mu[i]);
+		else
+			mt76_wr(dev, MT_WF_PHY_GID_TAB_POS(band, i), mu[i]);
+	}
+}
+
 static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -599,6 +625,9 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC)
 		mt7615_mac_set_beacon_filter(phy, vif, vif->cfg.assoc);
+
+	if (changed & BSS_CHANGED_MU_GROUPS)
+		 mt7615_update_mu_group(hw, vif, info);
 
 	mt7615_mutex_release(dev);
 }
