@@ -191,8 +191,10 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		if (!ret || !success)
 			break;
 
-		guc_dbg(guc, "load still in progress, count = %d, freq = %dMHz\n",
-			count, intel_rps_read_actual_frequency(&uncore->gt->rps));
+		guc_dbg(guc, "load still in progress, count = %d, freq = %dMHz, status = 0x%08X [0x%02X/%02X]\n",
+			count, intel_rps_read_actual_frequency(&uncore->gt->rps), status,
+			REG_FIELD_GET(GS_BOOTROM_MASK, status),
+			REG_FIELD_GET(GS_UKERNEL_MASK, status));
 	}
 	after = ktime_get();
 	delta = ktime_sub(after, before);
