@@ -3211,6 +3211,7 @@
   sock_edemux
   sock_efree
   sockfd_lookup
+  sock_gen_put
   sock_gettstamp
   sock_i_ino
   sock_init_data
