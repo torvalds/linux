@@ -18,8 +18,6 @@ struct parse_events_error;
 struct option;
 struct perf_pmu;
 
-bool is_event_supported(u8 type, u64 config);
-
 const char *event_type(int type);
 
 /* Arguments encoded in opt->value. */
