@@ -51,8 +51,8 @@ _json_event_attributes = [
 
 # Attributes that are in pmu_metric rather than pmu_event.
 _json_metric_attributes = [
-    'metric_name', 'metric_group', 'metric_expr', 'metric_threshold', 'desc',
-    'long_desc', 'unit', 'compat', 'metricgroup_no_group', 'aggr_mode',
+    'pmu', 'metric_name', 'metric_group', 'metric_expr', 'metric_threshold',
+    'desc', 'long_desc', 'unit', 'compat', 'metricgroup_no_group', 'aggr_mode',
     'event_grouping'
 ]
 # Attributes that are bools or enum int values, encoded as '0', '1',...

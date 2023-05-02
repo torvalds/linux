@@ -1794,7 +1794,7 @@ static int add_default_attributes(void)
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
-		if (!metricgroup__has_metric("transaction")) {
+		if (!metricgroup__has_metric("all", "transaction")) {
 			pr_err("Missing transaction metrics");
 			return -1;
 		}
@@ -1823,7 +1823,7 @@ static int add_default_attributes(void)
 			smi_reset = true;
 		}
 
-		if (!metricgroup__has_metric("smi")) {
+		if (!metricgroup__has_metric("all", "smi")) {
 			pr_err("Missing smi metrics");
 			return -1;
 		}
@@ -1903,7 +1903,7 @@ static int add_default_attributes(void)
 		 * caused by exposing latent bugs. This is fixed properly in:
 		 * https://lore.kernel.org/lkml/bff481ba-e60a-763f-0aa0-3ee53302c480@linux.intel.com/
 		 */
-		if (metricgroup__has_metric("TopdownL1") && !perf_pmu__has_hybrid()) {
+		if (metricgroup__has_metric("all", "TopdownL1") && !perf_pmu__has_hybrid()) {
 			struct evlist *metric_evlist = evlist__new();
 			struct evsel *metric_evsel;
 

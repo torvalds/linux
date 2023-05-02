@@ -51,6 +51,7 @@ struct pmu_event {
 };
 
 struct pmu_metric {
+	const char *pmu;
 	const char *metric_name;
 	const char *metric_group;
 	const char *metric_expr;
