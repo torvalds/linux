@@ -16,14 +16,6 @@
 #include <asm/extable.h>
 #include <asm/tlbflush.h>
 
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-static inline bool pagefault_disabled(void);
-# define WARN_ON_IN_IRQ()	\
-	WARN_ON_ONCE(!in_task() && !pagefault_disabled())
-#else
-# define WARN_ON_IN_IRQ()
-#endif
-
 #ifdef CONFIG_ADDRESS_MASKING
 /*
  * Mask out tag bits from the address.
@@ -102,32 +94,6 @@ static inline bool __access_ok(const void __user *ptr, unsigned long size)
 }
 #define __access_ok __access_ok
 #endif
-
-/**
- * access_ok - Checks if a user space pointer is valid
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Note that, depending on architecture, this function probably just
- * checks that the pointer is in the user space range - after calling
- * this function, memory access functions may still return -EFAULT.
- *
- * Return: true (nonzero) if the memory block may be valid, false (zero)
- * if it is definitely invalid.
- *
- * This should not be x86-specific. The only odd things out here is
- * the WARN_ON_IN_IRQ(), which doesn't exist in the generic version.
- */
-#define access_ok(addr, size)			\
-({						\
-	WARN_ON_IN_IRQ();			\
-	likely(__access_ok(addr, size));	\
-})
 
 #include <asm-generic/access_ok.h>
 
