@@ -3,6 +3,7 @@
 #define _LINUX_I8042_H
 
 
+#include <linux/errno.h>
 #include <linux/types.h>
 
 /*
