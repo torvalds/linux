@@ -10,6 +10,7 @@
 
 struct i915_vma;
 struct intel_context;
+struct i915_gsc_proxy_component;
 
 struct intel_gsc_uc {
 	/* Generic uC firmware management */
@@ -19,7 +20,18 @@ struct intel_gsc_uc {
 	struct i915_vma *local; /* private memory for GSC usage */
 	struct intel_context *ce; /* for submission to GSC FW via GSC engine */
 
-	struct work_struct work; /* for delayed load */
+	/* for delayed load and proxy handling */
+	struct workqueue_struct *wq;
+	struct work_struct work;
+
+	struct {
+		struct i915_gsc_proxy_component *component;
+		bool component_added;
+		struct i915_vma *vma;
+		void *to_gsc;
+		void *to_csme;
+		struct mutex mutex; /* protects the tee channel binding */
+	} proxy;
 };
 
 void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc);
