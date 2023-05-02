@@ -471,7 +471,7 @@ static inline void vma_mas_szero(struct ma_state *mas, unsigned long start,
 
 static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	MA_STATE(mas, &mm->mm_mt, vma->vm_start, vma->vm_end - 1);
 	struct address_space *mapping = NULL;
 
 	if (mas_preallocate(&mas, vma, GFP_KERNEL))
@@ -540,6 +540,7 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 	/* Only handles expanding */
 	VM_BUG_ON(vma->vm_start < start || vma->vm_end > end);
 
+	mas_set_range(mas, start, end - 1);
 	if (mas_preallocate(mas, vma, GFP_KERNEL))
 		goto nomem;
 
@@ -629,7 +630,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	bool vma_changed = false;
 	long adjust_next = 0;
 	int remove_next = 0;
-	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	MA_STATE(mas, &mm->mm_mt, start, end - 1);
 	struct vm_area_struct *exporter = NULL, *importer = NULL;
 
 	if (next && !insert) {
@@ -1916,7 +1917,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 	struct vm_area_struct *next;
 	unsigned long gap_addr;
 	int error = 0;
-	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	MA_STATE(mas, &mm->mm_mt, vma->vm_start, address - 1);
 
 	if (!(vma->vm_flags & VM_GROWSUP))
 		return -EFAULT;
@@ -1941,6 +1942,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 		/* Check that both stack segments have the same anon_vma? */
 	}
 
+	mas->last = address - 1;
 	if (mas_preallocate(&mas, vma, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -2022,6 +2024,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 			return -ENOMEM;
 	}
 
+	mas_set_range(&mas, address, vma->vm_end - 1);
 	if (mas_preallocate(&mas, vma, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -2780,7 +2783,7 @@ static int __vm_munmap(unsigned long start, size_t len, bool downgrade)
 	int ret;
 	struct mm_struct *mm = current->mm;
 	LIST_HEAD(uf);
-	MA_STATE(mas, &mm->mm_mt, start, start);
+	MA_STATE(mas, &mm->mm_mt, start, start + len);
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
