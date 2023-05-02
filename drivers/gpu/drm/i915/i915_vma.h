@@ -132,7 +132,7 @@ static inline u64 __i915_vma_size(const struct i915_vma *vma)
 }
 
 /**
- * i915_vma_offset - Obtain the va range size of the vma
+ * i915_vma_size - Obtain the va range size of the vma
  * @vma: The vma
  *
  * GPU virtual address space may be allocated with padding. This
