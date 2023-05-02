@@ -272,8 +272,13 @@ struct dc_bug_wa {
 	bool dedcn20_305_wa;
 	bool skip_clock_update;
 	bool lt_early_cr_pattern;
+	struct {
+		uint8_t uclk : 1;
+		uint8_t fclk : 1;
+		uint8_t dcfclk : 1;
+		uint8_t dcfclk_ds: 1;
+	} clock_update_disable_mask;
 };
-
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
 	enum surface_pixel_format format;

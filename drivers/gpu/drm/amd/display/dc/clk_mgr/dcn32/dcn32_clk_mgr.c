@@ -460,9 +460,6 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool p_state_change_support;
 	bool fclk_p_state_change_support;
 
-	if (dc->work_arounds.skip_clock_update)
-		return;
-
 	if (clk_mgr_base->clks.dispclk_khz == 0 ||
 			(dc->debug.force_clock_mode & 0x1)) {
 		/* This is from resume or boot up, if forced_clock cfg option used,
@@ -489,7 +486,8 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		fclk_p_state_change_support = new_clocks->fclk_p_state_change_support;
 
-		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
+		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support) &&
+				!dc->work_arounds.clock_update_disable_mask.fclk) {
 			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
 
 			/* To enable FCLK P-state switching, send FCLK_PSTATE_SUPPORTED message to PMFW */
@@ -503,12 +501,14 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
 					new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
 
-		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
+		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz) &&
+				!dc->work_arounds.clock_update_disable_mask.dcfclk) {
 			clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
 			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCFCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
 		}
 
-		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
+		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz) &&
+				!dc->work_arounds.clock_update_disable_mask.dcfclk_ds) {
 			clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
 			dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
 		}
@@ -527,7 +527,8 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 
 		p_state_change_support = new_clocks->p_state_change_support;
-		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support) &&
+				!dc->work_arounds.clock_update_disable_mask.uclk) {
 			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
 
 			/* to disable P-State switching, set UCLK min = max */
@@ -541,20 +542,23 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			update_fclk = true;
 		}
 
-		if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && !clk_mgr_base->clks.fclk_p_state_change_support && update_fclk) {
+		if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && !clk_mgr_base->clks.fclk_p_state_change_support && update_fclk &&
+				!dc->work_arounds.clock_update_disable_mask.fclk) {
 			/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
 			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_NOTSUPPORTED);
 		}
 
 		/* Always update saved value, even if new value not set due to P-State switching unsupported */
-		if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
+		if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz) &&
+				!dc->work_arounds.clock_update_disable_mask.uclk) {
 			clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
 			update_uclk = true;
 		}
 
 		/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
 		if (clk_mgr_base->clks.p_state_change_support &&
-				(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support))
+				(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support) &&
+				!dc->work_arounds.clock_update_disable_mask.uclk)
 			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
 
 		if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
