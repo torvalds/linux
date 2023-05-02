@@ -190,6 +190,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 				  unsigned int code, int *pval)
 {
 	struct input_mt *mt = dev->mt;
+	bool is_new_slot = false;
 	bool is_mt_event;
 	int *pold;
 
@@ -210,6 +211,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 		pold = &dev->absinfo[code].value;
 	} else if (mt) {
 		pold = &mt->slots[mt->slot].abs[code - ABS_MT_FIRST];
+		is_new_slot = mt->slot != dev->absinfo[ABS_MT_SLOT].value;
 	} else {
 		/*
 		 * Bypass filtering for multi-touch events when
@@ -228,8 +230,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	/* Flush pending "slot" event */
-	if (is_mt_event && mt && mt->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
-		input_abs_set_val(dev, ABS_MT_SLOT, mt->slot);
+	if (is_new_slot) {
+		dev->absinfo[ABS_MT_SLOT].value = mt->slot;
 		return INPUT_PASS_TO_HANDLERS | INPUT_SLOT;
 	}
 
