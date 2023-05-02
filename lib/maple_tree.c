@@ -4386,6 +4386,11 @@ static void mas_wr_bnode(struct ma_wr_state *wr_mas)
 	mas_commit_b_node(wr_mas, &b_node, wr_mas->node_end);
 }
 
+static inline unsigned char mas_wr_node_size(struct ma_wr_state *wr_mas)
+{
+	return wr_mas->node_end - wr_mas->offset_end + wr_mas->mas->offset + 2;
+}
+
 static inline void mas_wr_modify(struct ma_wr_state *wr_mas)
 {
 	unsigned char node_slots;
@@ -4402,9 +4407,7 @@ static inline void mas_wr_modify(struct ma_wr_state *wr_mas)
 
 	/* Attempt to append */
 	node_slots = mt_slots[wr_mas->type];
-	node_size = wr_mas->node_end - wr_mas->offset_end + mas->offset + 2;
-	if (mas->max == ULONG_MAX)
-		node_size++;
+	node_size = mas_wr_node_size(wr_mas);
 
 	/* slot and node store will not fit, go to the slow path */
 	if (unlikely(node_size >= node_slots))
