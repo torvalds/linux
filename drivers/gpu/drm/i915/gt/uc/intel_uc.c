@@ -432,6 +432,9 @@ static bool uc_is_wopcm_locked(struct intel_uc *uc)
 
 static int __uc_check_hw(struct intel_uc *uc)
 {
+	if (uc->fw_table_invalid)
+		return -EIO;
+
 	if (!intel_uc_supports_guc(uc))
 		return 0;
 

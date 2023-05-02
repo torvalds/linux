@@ -233,20 +233,22 @@ struct fw_blobs_by_type {
 	u32 count;
 };
 
+static const struct uc_fw_platform_requirement blobs_guc[] = {
+	INTEL_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB, GUC_FW_BLOB_MMP)
+};
+
+static const struct uc_fw_platform_requirement blobs_huc[] = {
+	INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_BLOB_MMP, HUC_FW_BLOB_GSC)
+};
+
+static const struct fw_blobs_by_type blobs_all[INTEL_UC_FW_NUM_TYPES] = {
+	[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
+	[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
+};
+
 static void
 __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 {
-	static const struct uc_fw_platform_requirement blobs_guc[] = {
-		INTEL_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB, GUC_FW_BLOB_MMP)
-	};
-	static const struct uc_fw_platform_requirement blobs_huc[] = {
-		INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_BLOB_MMP, HUC_FW_BLOB_GSC)
-	};
-	static const struct fw_blobs_by_type blobs_all[INTEL_UC_FW_NUM_TYPES] = {
-		[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
-		[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
-	};
-	static bool verified[INTEL_UC_FW_NUM_TYPES];
 	const struct uc_fw_platform_requirement *fw_blobs;
 	enum intel_platform p = INTEL_INFO(i915)->platform;
 	u32 fw_count;
@@ -286,6 +288,11 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 			continue;
 
 		if (uc_fw->file_selected.path) {
+			/*
+			 * Continuing an earlier search after a found blob failed to load.
+			 * Once the previously chosen path has been found, clear it out
+			 * and let the search continue from there.
+			 */
 			if (uc_fw->file_selected.path == blob->path)
 				uc_fw->file_selected.path = NULL;
 
@@ -306,76 +313,91 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		/* Failed to find a match for the last attempt?! */
 		uc_fw->file_selected.path = NULL;
 	}
+}
+
+static bool validate_fw_table_type(struct drm_i915_private *i915, enum intel_uc_fw_type type)
+{
+	const struct uc_fw_platform_requirement *fw_blobs;
+	u32 fw_count;
+	int i;
+
+	if (type >= ARRAY_SIZE(blobs_all)) {
+		drm_err(&i915->drm, "No blob array for %s\n", intel_uc_fw_type_repr(type));
+		return false;
+	}
+
+	fw_blobs = blobs_all[type].blobs;
+	fw_count = blobs_all[type].count;
+
+	if (!fw_count)
+		return true;
 
 	/* make sure the list is ordered as expected */
-	if (IS_ENABLED(CONFIG_DRM_I915_SELFTEST) && !verified[uc_fw->type]) {
-		verified[uc_fw->type] = true;
+	for (i = 1; i < fw_count; i++) {
+		/* Next platform is good: */
+		if (fw_blobs[i].p < fw_blobs[i - 1].p)
+			continue;
 
-		for (i = 1; i < fw_count; i++) {
-			/* Next platform is good: */
-			if (fw_blobs[i].p < fw_blobs[i - 1].p)
+		/* Next platform revision is good: */
+		if (fw_blobs[i].p == fw_blobs[i - 1].p &&
+		    fw_blobs[i].rev < fw_blobs[i - 1].rev)
+			continue;
+
+		/* Platform/revision must be in order: */
+		if (fw_blobs[i].p != fw_blobs[i - 1].p ||
+		    fw_blobs[i].rev != fw_blobs[i - 1].rev)
+			goto bad;
+
+		/* Next major version is good: */
+		if (fw_blobs[i].blob.major < fw_blobs[i - 1].blob.major)
+			continue;
+
+		/* New must be before legacy: */
+		if (!fw_blobs[i].blob.legacy && fw_blobs[i - 1].blob.legacy)
+			goto bad;
+
+		/* New to legacy also means 0.0 to X.Y (HuC), or X.0 to X.Y (GuC) */
+		if (fw_blobs[i].blob.legacy && !fw_blobs[i - 1].blob.legacy) {
+			if (!fw_blobs[i - 1].blob.major)
 				continue;
 
-			/* Next platform revision is good: */
-			if (fw_blobs[i].p == fw_blobs[i - 1].p &&
-			    fw_blobs[i].rev < fw_blobs[i - 1].rev)
+			if (fw_blobs[i].blob.major == fw_blobs[i - 1].blob.major)
 				continue;
+		}
 
-			/* Platform/revision must be in order: */
-			if (fw_blobs[i].p != fw_blobs[i - 1].p ||
-			    fw_blobs[i].rev != fw_blobs[i - 1].rev)
-				goto bad;
+		/* Major versions must be in order: */
+		if (fw_blobs[i].blob.major != fw_blobs[i - 1].blob.major)
+			goto bad;
 
-			/* Next major version is good: */
-			if (fw_blobs[i].blob.major < fw_blobs[i - 1].blob.major)
-				continue;
+		/* Next minor version is good: */
+		if (fw_blobs[i].blob.minor < fw_blobs[i - 1].blob.minor)
+			continue;
 
-			/* New must be before legacy: */
-			if (!fw_blobs[i].blob.legacy && fw_blobs[i - 1].blob.legacy)
-				goto bad;
+		/* Minor versions must be in order: */
+		if (fw_blobs[i].blob.minor != fw_blobs[i - 1].blob.minor)
+			goto bad;
 
-			/* New to legacy also means 0.0 to X.Y (HuC), or X.0 to X.Y (GuC) */
-			if (fw_blobs[i].blob.legacy && !fw_blobs[i - 1].blob.legacy) {
-				if (!fw_blobs[i - 1].blob.major)
-					continue;
-
-				if (fw_blobs[i].blob.major == fw_blobs[i - 1].blob.major)
-					continue;
-			}
-
-			/* Major versions must be in order: */
-			if (fw_blobs[i].blob.major != fw_blobs[i - 1].blob.major)
-				goto bad;
-
-			/* Next minor version is good: */
-			if (fw_blobs[i].blob.minor < fw_blobs[i - 1].blob.minor)
-				continue;
-
-			/* Minor versions must be in order: */
-			if (fw_blobs[i].blob.minor != fw_blobs[i - 1].blob.minor)
-				goto bad;
-
-			/* Patch versions must be in order: */
-			if (fw_blobs[i].blob.patch <= fw_blobs[i - 1].blob.patch)
-				continue;
+		/* Patch versions must be in order: */
+		if (fw_blobs[i].blob.patch <= fw_blobs[i - 1].blob.patch)
+			continue;
 
 bad:
-			drm_err(&i915->drm, "Invalid %s blob order: %s r%u %s%d.%d.%d comes before %s r%u %s%d.%d.%d\n",
-				intel_uc_fw_type_repr(uc_fw->type),
-				intel_platform_name(fw_blobs[i - 1].p), fw_blobs[i - 1].rev,
-				fw_blobs[i - 1].blob.legacy ? "L" : "v",
-				fw_blobs[i - 1].blob.major,
-				fw_blobs[i - 1].blob.minor,
-				fw_blobs[i - 1].blob.patch,
-				intel_platform_name(fw_blobs[i].p), fw_blobs[i].rev,
-				fw_blobs[i].blob.legacy ? "L" : "v",
-				fw_blobs[i].blob.major,
-				fw_blobs[i].blob.minor,
-				fw_blobs[i].blob.patch);
-
-			uc_fw->file_selected.path = NULL;
-		}
+		drm_err(&i915->drm, "Invalid %s blob order: %s r%u %s%d.%d.%d comes before %s r%u %s%d.%d.%d\n",
+			intel_uc_fw_type_repr(type),
+			intel_platform_name(fw_blobs[i - 1].p), fw_blobs[i - 1].rev,
+			fw_blobs[i - 1].blob.legacy ? "L" : "v",
+			fw_blobs[i - 1].blob.major,
+			fw_blobs[i - 1].blob.minor,
+			fw_blobs[i - 1].blob.patch,
+			intel_platform_name(fw_blobs[i].p), fw_blobs[i].rev,
+			fw_blobs[i].blob.legacy ? "L" : "v",
+			fw_blobs[i].blob.major,
+			fw_blobs[i].blob.minor,
+			fw_blobs[i].blob.patch);
+		return false;
 	}
+
+	return true;
 }
 
 static const char *__override_guc_firmware_path(struct drm_i915_private *i915)
@@ -430,7 +452,8 @@ static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    enum intel_uc_fw_type type)
 {
-	struct drm_i915_private *i915 = ____uc_fw_to_gt(uc_fw, type)->i915;
+	struct intel_gt *gt = ____uc_fw_to_gt(uc_fw, type);
+	struct drm_i915_private *i915 = gt->i915;
 
 	/*
 	 * we use FIRMWARE_UNINITIALIZED to detect checks against uc_fw->status
@@ -443,6 +466,12 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 	uc_fw->type = type;
 
 	if (HAS_GT_UC(i915)) {
+		if (!validate_fw_table_type(i915, type)) {
+			gt->uc.fw_table_invalid = true;
+			intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
+			return;
+		}
+
 		__uc_fw_auto_select(i915, uc_fw);
 		__uc_fw_user_override(i915, uc_fw);
 	}
