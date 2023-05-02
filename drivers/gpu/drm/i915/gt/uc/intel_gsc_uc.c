@@ -17,28 +17,49 @@ static void gsc_work(struct work_struct *work)
 	struct intel_gsc_uc *gsc = container_of(work, typeof(*gsc), work);
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 	intel_wakeref_t wakeref;
+	u32 actions;
 	int ret;
 
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
-	ret = intel_gsc_uc_fw_upload(gsc);
-	if (ret)
-		goto out_put;
+	spin_lock_irq(gt->irq_lock);
+	actions = gsc->gsc_work_actions;
+	gsc->gsc_work_actions = 0;
+	spin_unlock_irq(gt->irq_lock);
 
-	ret = intel_gsc_proxy_request_handler(gsc);
-	if (ret)
-		goto out_put;
+	if (actions & GSC_ACTION_FW_LOAD) {
+		ret = intel_gsc_uc_fw_upload(gsc);
+		if (ret == -EEXIST) /* skip proxy if not a new load */
+			actions &= ~GSC_ACTION_FW_LOAD;
+		else if (ret)
+			goto out_put;
+	}
 
-	/*
-	 * If there is a proxy establishment error, the GSC might still
-	 * complete the request handling cleanly, so we need to check the
-	 * status register to check if the proxy init was actually successful
-	 */
-	if (intel_gsc_uc_fw_proxy_init_done(gsc)) {
-		drm_dbg(&gt->i915->drm, "GSC Proxy initialized\n");
-		intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
-	} else {
-		drm_err(&gt->i915->drm, "GSC status reports proxy init not complete\n");
+	if (actions & (GSC_ACTION_FW_LOAD | GSC_ACTION_SW_PROXY)) {
+		if (!intel_gsc_uc_fw_init_done(gsc)) {
+			gt_err(gt, "Proxy request received with GSC not loaded!\n");
+			goto out_put;
+		}
+
+		ret = intel_gsc_proxy_request_handler(gsc);
+		if (ret)
+			goto out_put;
+
+		/* mark the GSC FW init as done the first time we run this */
+		if (actions & GSC_ACTION_FW_LOAD) {
+			/*
+			 * If there is a proxy establishment error, the GSC might still
+			 * complete the request handling cleanly, so we need to check the
+			 * status register to check if the proxy init was actually successful
+			 */
+			if (intel_gsc_uc_fw_proxy_init_done(gsc)) {
+				drm_dbg(&gt->i915->drm, "GSC Proxy initialized\n");
+				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
+			} else {
+				drm_err(&gt->i915->drm,
+					"GSC status reports proxy init not complete\n");
+			}
+		}
 	}
 
 out_put:
@@ -186,11 +207,17 @@ void intel_gsc_uc_resume(struct intel_gsc_uc *gsc)
 
 void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)
 {
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+
 	if (!intel_uc_fw_is_loadable(&gsc->fw))
 		return;
 
 	if (intel_gsc_uc_fw_init_done(gsc))
 		return;
+
+	spin_lock_irq(gt->irq_lock);
+	gsc->gsc_work_actions |= GSC_ACTION_FW_LOAD;
+	spin_unlock_irq(gt->irq_lock);
 
 	queue_work(gsc->wq, &gsc->work);
 }

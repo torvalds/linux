@@ -13,5 +13,6 @@ struct intel_gsc_uc;
 int intel_gsc_proxy_init(struct intel_gsc_uc *gsc);
 void intel_gsc_proxy_fini(struct intel_gsc_uc *gsc);
 int intel_gsc_proxy_request_handler(struct intel_gsc_uc *gsc);
+void intel_gsc_proxy_irq_handler(struct intel_gsc_uc *gsc, u32 iir);
 
 #endif
