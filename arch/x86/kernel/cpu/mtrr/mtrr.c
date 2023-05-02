@@ -541,49 +541,6 @@ int arch_phys_wc_index(int handle)
 }
 EXPORT_SYMBOL_GPL(arch_phys_wc_index);
 
-/* The suspend/resume methods are only for CPU without MTRR. CPU using generic
- * MTRR driver doesn't require this
- */
-struct mtrr_value {
-	mtrr_type	ltype;
-	unsigned long	lbase;
-	unsigned long	lsize;
-};
-
-static struct mtrr_value mtrr_value[MTRR_MAX_VAR_RANGES];
-
-static int mtrr_save(void)
-{
-	int i;
-
-	for (i = 0; i < num_var_ranges; i++) {
-		mtrr_if->get(i, &mtrr_value[i].lbase,
-				&mtrr_value[i].lsize,
-				&mtrr_value[i].ltype);
-	}
-	return 0;
-}
-
-static void mtrr_restore(void)
-{
-	int i;
-
-	for (i = 0; i < num_var_ranges; i++) {
-		if (mtrr_value[i].lsize) {
-			mtrr_if->set(i, mtrr_value[i].lbase,
-				     mtrr_value[i].lsize,
-				     mtrr_value[i].ltype);
-		}
-	}
-}
-
-
-
-static struct syscore_ops mtrr_syscore_ops = {
-	.suspend	= mtrr_save,
-	.resume		= mtrr_restore,
-};
-
 int __initdata changed_by_mtrr_cleanup;
 
 /**
@@ -611,27 +568,10 @@ void __init mtrr_bp_init(void)
 		return;
 	}
 
-	if (generic_mtrrs) {
+	if (generic_mtrrs)
 		mtrr_if = &generic_mtrr_ops;
-	} else {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_AMD:
-			/* Pre-Athlon (K6) AMD CPU MTRRs */
-			if (cpu_feature_enabled(X86_FEATURE_K6_MTRR))
-				mtrr_if = &amd_mtrr_ops;
-			break;
-		case X86_VENDOR_CENTAUR:
-			if (cpu_feature_enabled(X86_FEATURE_CENTAUR_MCR))
-				mtrr_if = &centaur_mtrr_ops;
-			break;
-		case X86_VENDOR_CYRIX:
-			if (cpu_feature_enabled(X86_FEATURE_CYRIX_ARR))
-				mtrr_if = &cyrix_mtrr_ops;
-			break;
-		default:
-			break;
-		}
-	}
+	else
+		mtrr_set_if();
 
 	if (mtrr_enabled()) {
 		/* Get the number of variable MTRR ranges. */
@@ -673,7 +613,7 @@ void mtrr_save_state(void)
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
 }
 
-static int __init mtrr_init_finialize(void)
+static int __init mtrr_init_finalize(void)
 {
 	if (!mtrr_enabled())
 		return 0;
@@ -684,16 +624,8 @@ static int __init mtrr_init_finialize(void)
 		return 0;
 	}
 
-	/*
-	 * The CPU has no MTRR and seems to not support SMP. They have
-	 * specific drivers, we use a tricky method to support
-	 * suspend/resume for them.
-	 *
-	 * TBD: is there any system with such CPU which supports
-	 * suspend/resume? If no, we should remove the code.
-	 */
-	register_syscore_ops(&mtrr_syscore_ops);
+	mtrr_register_syscore();
 
 	return 0;
 }
-subsys_initcall(mtrr_init_finialize);
+subsys_initcall(mtrr_init_finalize);
