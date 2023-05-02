@@ -78,8 +78,6 @@ static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 
 		if (sig == e->installed_cpu)
 			return e->equiv_cpu;
-
-		e++;
 	}
 	return 0;
 }
