@@ -236,17 +236,20 @@
 
 &i2c1 {
 	status = "okay";
+	bootph-all;
 	clock-frequency = <400000>;
 	scl-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
 	sda-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
 
 	eeprom: eeprom@50 { /* u46 - also at address 0x58 */
+		bootph-all;
 		compatible = "st,24c64", "atmel,24c64"; /* st m24c64 */
 		reg = <0x50>;
 		/* WP pin EE_WP_EN connected to slg7x644092@68 */
 	};
 
 	eeprom_cc: eeprom@51 { /* required by spec - also at address 0x59 */
+		bootph-all;
 		compatible = "st,24c64", "atmel,24c64"; /* st m24c64 */
 		reg = <0x51>;
 	};
