@@ -404,33 +404,27 @@ static int config_attr(struct perf_event_attr *attr,
 		       struct parse_events_error *err,
 		       config_term_func_t config_term);
 
-int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
-			   struct parse_events_error *err,
-			   struct list_head *head_config,
-			   struct parse_events_state *parse_state)
+/**
+ * parse_events__decode_legacy_cache - Search name for the legacy cache event
+ *                                     name composed of 1, 2 or 3 hyphen
+ *                                     separated sections. The first section is
+ *                                     the cache type while the others are the
+ *                                     optional op and optional result. To make
+ *                                     life hard the names in the table also
+ *                                     contain hyphens and the longest name
+ *                                     should always be selected.
+ */
+static int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config)
 {
-	struct perf_event_attr attr;
-	LIST_HEAD(config_terms);
-	const char *config_name, *metric_id;
-	int cache_type = -1, cache_op = -1, cache_result = -1;
-	int ret, len;
+	int len, cache_type = -1, cache_op = -1, cache_result = -1;
 	const char *name_end = &name[strlen(name) + 1];
-	bool hybrid;
 	const char *str = name;
 
-	/*
-	 * Search str for the legacy cache event name composed of 1, 2 or 3
-	 * hyphen separated sections. The first section is the cache type while
-	 * the others are the optional op and optional result. To make life hard
-	 * the names in the table also contain hyphens and the longest name
-	 * should always be selected.
-	 */
 	cache_type = parse_aliases(str, evsel__hw_cache, PERF_COUNT_HW_CACHE_MAX, &len);
 	if (cache_type == -1)
 		return -EINVAL;
 	str += len + 1;
 
-	config_name = get_config_name(head_config);
 	if (str < name_end) {
 		cache_op = parse_aliases(str, evsel__hw_cache_op,
 					PERF_COUNT_HW_CACHE_OP_MAX, &len);
@@ -471,9 +465,28 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 	if (cache_result == -1)
 		cache_result = PERF_COUNT_HW_CACHE_RESULT_ACCESS;
 
+	*config = ((__u64)pmu_type << PERF_PMU_TYPE_SHIFT) |
+		cache_type | (cache_op << 8) | (cache_result << 16);
+	return 0;
+}
+
+int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
+			   struct parse_events_error *err,
+			   struct list_head *head_config,
+			   struct parse_events_state *parse_state)
+{
+	struct perf_event_attr attr;
+	LIST_HEAD(config_terms);
+	const char *config_name, *metric_id;
+	int ret;
+	bool hybrid;
+
+
 	memset(&attr, 0, sizeof(attr));
-	attr.config = cache_type | (cache_op << 8) | (cache_result << 16);
 	attr.type = PERF_TYPE_HW_CACHE;
+	ret = parse_events__decode_legacy_cache(name, /*pmu_type=*/0, &attr.config);
+	if (ret)
+		return ret;
 
 	if (head_config) {
 		if (config_attr(&attr, head_config, err,
@@ -484,6 +497,7 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			return -ENOMEM;
 	}
 
+	config_name = get_config_name(head_config);
 	metric_id = get_config_metric_id(head_config);
 	ret = parse_events__add_cache_hybrid(list, idx, &attr,
 					     config_name ? : name,
@@ -1022,6 +1036,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE]	= "aux-sample-size",
 	[PARSE_EVENTS__TERM_TYPE_METRIC_ID]		= "metric-id",
 	[PARSE_EVENTS__TERM_TYPE_RAW]                   = "raw",
+	[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
 };
 
 static bool config_term_shrinked;
@@ -1199,15 +1214,25 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_term *term,
 			   struct parse_events_error *err)
 {
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
+		const struct perf_pmu *pmu = perf_pmu__find_by_type(attr->type);
+
+		if (perf_pmu__supports_legacy_cache(pmu)) {
+			attr->type = PERF_TYPE_HW_CACHE;
+			return parse_events__decode_legacy_cache(term->config, pmu->type,
+								 &attr->config);
+		} else
+			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
-	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG)
+	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG) {
 		/*
 		 * Always succeed for sysfs terms, as we dont know
 		 * at this point what type they need to have.
 		 */
 		return 0;
-	else
-		return config_term_common(attr, term, err);
+	}
+	return config_term_common(attr, term, err);
 }
 
 #ifdef HAVE_LIBTRACEEVENT
@@ -2147,6 +2172,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.evlist	  = evlist,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
+		.match_legacy_cache_terms = true,
 	};
 	int ret;
 

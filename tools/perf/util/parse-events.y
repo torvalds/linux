@@ -723,7 +723,7 @@ event_term
 	$$ = head;
 }
 
-name_or_raw: PE_RAW | PE_NAME
+name_or_raw: PE_RAW | PE_NAME | PE_LEGACY_CACHE
 
 event_term:
 PE_RAW
@@ -769,6 +769,18 @@ name_or_raw '=' PE_VALUE_SYM_HW
 	int config = $3 & 255;
 
 	if (parse_events_term__sym_hw(&term, $1, config)) {
+		free($1);
+		YYABORT;
+	}
+	$$ = term;
+}
+|
+PE_LEGACY_CACHE
+{
+	struct parse_events_term *term;
+
+	if (parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
+					$1, 1, true, &@1, NULL)) {
 		free($1);
 		YYABORT;
 	}

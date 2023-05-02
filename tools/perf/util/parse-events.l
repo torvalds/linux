@@ -63,6 +63,11 @@ static int str(yyscan_t scanner, int token)
 	return token;
 }
 
+static int lc_str(yyscan_t scanner, const struct parse_events_state *state)
+{
+	return str(scanner, state->match_legacy_cache_terms ? PE_LEGACY_CACHE : PE_NAME);
+}
+
 static bool isbpf_suffix(char *text)
 {
 	int len = strlen(text);
@@ -185,7 +190,6 @@ lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative
 
 %{
 	struct parse_events_state *_parse_state = parse_events_get_extra(yyscanner);
-
 	{
 		int start_token = _parse_state->stoken;
 
@@ -269,6 +273,9 @@ r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 ,			{ return ','; }
 "/"			{ BEGIN(INITIAL); return '/'; }
+{lc_type}			{ return lc_str(yyscanner, _parse_state); }
+{lc_type}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
+{lc_type}-{lc_op_result}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
 {name_minus}		{ return str(yyscanner, PE_NAME); }
 \[all\]			{ return PE_ARRAY_ALL; }
 "["			{ BEGIN(array); return '['; }

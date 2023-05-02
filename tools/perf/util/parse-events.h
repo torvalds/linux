@@ -71,6 +71,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE,
 	PARSE_EVENTS__TERM_TYPE_METRIC_ID,
 	PARSE_EVENTS__TERM_TYPE_RAW,
+	PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -122,6 +123,8 @@ struct parse_events_state {
 	int			   stoken;
 	struct perf_pmu		  *fake_pmu;
 	char			  *hybrid_pmu_name;
+	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
+	bool			   match_legacy_cache_terms;
 	bool			   wild_card_pmus;
 };
 

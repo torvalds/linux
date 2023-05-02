@@ -1875,6 +1875,24 @@ static const struct evlist_test test__events_pmu[] = {
 		.check = test__checkevent_raw_pmu,
 		/* 5 */
 	},
+	{
+		.name  = "cpu/L1-dcache-load-miss/",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_genhw,
+		/* 6 */
+	},
+	{
+		.name  = "cpu/L1-dcache-load-miss/kp",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_genhw_modifier,
+		/* 7 */
+	},
+	{
+		.name  = "cpu/L1-dcache-misses,name=cachepmu/",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_config_cache,
+		/* 8 */
+	},
 };
 
 struct terms_test {
