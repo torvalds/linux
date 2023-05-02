@@ -186,7 +186,7 @@ struct drv260x_data {
 	struct work_struct work;
 	struct gpio_desc *enable_gpio;
 	struct regulator *regulator;
-	u32 magnitude;
+	u8 magnitude;
 	u32 mode;
 	u32 library;
 	int rated_voltage;
@@ -237,10 +237,11 @@ static int drv260x_haptics_play(struct input_dev *input, void *data,
 
 	haptics->mode = DRV260X_LRA_NO_CAL_MODE;
 
+	/* Scale u16 magnitude into u8 register value */
 	if (effect->u.rumble.strong_magnitude > 0)
-		haptics->magnitude = effect->u.rumble.strong_magnitude;
+		haptics->magnitude = effect->u.rumble.strong_magnitude >> 8;
 	else if (effect->u.rumble.weak_magnitude > 0)
-		haptics->magnitude = effect->u.rumble.weak_magnitude;
+		haptics->magnitude = effect->u.rumble.weak_magnitude >> 8;
 	else
 		haptics->magnitude = 0;
 
@@ -266,7 +267,7 @@ static void drv260x_close(struct input_dev *input)
 
 static const struct reg_sequence drv260x_lra_cal_regs[] = {
 	{ DRV260X_MODE, DRV260X_AUTO_CAL },
-	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 },
+	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 | DRV260X_RTP_UNSIGNED_DATA },
 	{ DRV260X_FEEDBACK_CTRL, DRV260X_FB_REG_LRA_MODE |
 		DRV260X_BRAKE_FACTOR_4X | DRV260X_LOOP_GAIN_HIGH },
 };
@@ -284,7 +285,7 @@ static const struct reg_sequence drv260x_lra_init_regs[] = {
 		DRV260X_BEMF_GAIN_3 },
 	{ DRV260X_CTRL1, DRV260X_STARTUP_BOOST },
 	{ DRV260X_CTRL2, DRV260X_SAMP_TIME_250 },
-	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 | DRV260X_ANALOG_IN },
+	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 | DRV260X_RTP_UNSIGNED_DATA | DRV260X_ANALOG_IN },
 	{ DRV260X_CTRL4, DRV260X_AUTOCAL_TIME_500MS },
 };
 
@@ -299,7 +300,7 @@ static const struct reg_sequence drv260x_erm_cal_regs[] = {
 	{ DRV260X_CTRL1, DRV260X_STARTUP_BOOST },
 	{ DRV260X_CTRL2, DRV260X_SAMP_TIME_250 | DRV260X_BLANK_TIME_75 |
 		DRV260X_IDISS_TIME_75 },
-	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 | DRV260X_ERM_OPEN_LOOP },
+	{ DRV260X_CTRL3, DRV260X_NG_THRESH_2 | DRV260X_RTP_UNSIGNED_DATA },
 	{ DRV260X_CTRL4, DRV260X_AUTOCAL_TIME_500MS },
 };
 
