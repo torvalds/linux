@@ -513,6 +513,18 @@
 	status = "okay";
 };
 
+&xilinx_ams {
+	status = "okay";
+};
+
+&ams_ps {
+	status = "okay";
+};
+
+&ams_pl {
+	status = "okay";
+};
+
 &zynqmp_dpdma {
 	status = "okay";
 };
