@@ -10,6 +10,18 @@ is taken directly from the kernel source, with supplemental material added
 as needed (or at least as we managed to add it — probably *not* all that is
 needed).
 
+Human interfaces
+----------------
+
+.. toctree::
+   :maxdepth: 1
+
+   input/index
+   hid/index
+   sound/index
+   gpu/index
+   fb/index
+
 **Fixme**: much more organizational work is needed here.
 
 .. toctree::
@@ -22,9 +34,7 @@ needed).
    block/index
    cdrom/index
    cpu-freq/index
-   fb/index
    fpga/index
-   hid/index
    i2c/index
    iio/index
    isdn/index
@@ -40,12 +50,9 @@ needed).
    w1/index
    watchdog/index
    virt/index
-   input/index
    hwmon/index
-   gpu/index
    accel/index
    security/index
-   sound/index
    crypto/index
    filesystems/index
    mm/index
