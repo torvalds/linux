@@ -23,7 +23,34 @@
 #ifndef _ASM_X86_MTRR_H
 #define _ASM_X86_MTRR_H
 
+#include <linux/bits.h>
 #include <uapi/asm/mtrr.h>
+
+/* Defines for hardware MTRR registers. */
+#define MTRR_CAP_VCNT		GENMASK(7, 0)
+#define MTRR_CAP_FIX		BIT_MASK(8)
+#define MTRR_CAP_WC		BIT_MASK(10)
+
+#define MTRR_DEF_TYPE_TYPE	GENMASK(7, 0)
+#define MTRR_DEF_TYPE_FE	BIT_MASK(10)
+#define MTRR_DEF_TYPE_E		BIT_MASK(11)
+
+#define MTRR_DEF_TYPE_ENABLE	(MTRR_DEF_TYPE_FE | MTRR_DEF_TYPE_E)
+#define MTRR_DEF_TYPE_DISABLE	~(MTRR_DEF_TYPE_TYPE | MTRR_DEF_TYPE_ENABLE)
+
+#define MTRR_PHYSBASE_TYPE	GENMASK(7, 0)
+#define MTRR_PHYSBASE_RSVD	GENMASK(11, 8)
+
+#define MTRR_PHYSMASK_RSVD	GENMASK(10, 0)
+#define MTRR_PHYSMASK_V		BIT_MASK(11)
+
+struct mtrr_state_type {
+	struct mtrr_var_range var_ranges[MTRR_MAX_VAR_RANGES];
+	mtrr_type fixed_ranges[MTRR_NUM_FIXED_RANGES];
+	unsigned char enabled;
+	bool have_fixed;
+	mtrr_type def_type;
+};
 
 /*
  * The following functions are for use by other drivers that cannot use
@@ -121,7 +148,8 @@ struct mtrr_gentry32 {
 #endif /* CONFIG_COMPAT */
 
 /* Bit fields for enabled in struct mtrr_state_type */
-#define MTRR_STATE_MTRR_FIXED_ENABLED	0x01
-#define MTRR_STATE_MTRR_ENABLED		0x02
+#define MTRR_STATE_SHIFT		10
+#define MTRR_STATE_MTRR_FIXED_ENABLED	(MTRR_DEF_TYPE_FE >> MTRR_STATE_SHIFT)
+#define MTRR_STATE_MTRR_ENABLED		(MTRR_DEF_TYPE_E >> MTRR_STATE_SHIFT)
 
 #endif /* _ASM_X86_MTRR_H */

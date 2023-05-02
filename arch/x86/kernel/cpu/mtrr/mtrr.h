@@ -58,8 +58,8 @@ extern const struct mtrr_ops *mtrr_if;
 extern unsigned int num_var_ranges;
 extern u64 mtrr_tom2;
 extern struct mtrr_state_type mtrr_state;
+extern u32 phys_hi_rsvd;
 
-void mtrr_set_mask(void);
 void mtrr_state_warn(void);
 const char *mtrr_attrib_to_str(int x);
 void mtrr_wrmsr(unsigned, unsigned, unsigned);

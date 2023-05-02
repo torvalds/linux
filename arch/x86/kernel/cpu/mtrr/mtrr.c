@@ -115,7 +115,7 @@ static void __init set_num_var_ranges(bool use_generic)
 	else if (is_cpu(CYRIX) || is_cpu(CENTAUR))
 		config = 8;
 
-	num_var_ranges = config & 0xff;
+	num_var_ranges = config & MTRR_CAP_VCNT;
 }
 
 static void __init init_table(void)
@@ -627,7 +627,7 @@ void __init mtrr_bp_init(void)
 {
 	const char *why = "(not available)";
 
-	mtrr_set_mask();
+	phys_hi_rsvd = GENMASK(31, boot_cpu_data.x86_phys_bits - 32);
 
 	if (cpu_feature_enabled(X86_FEATURE_MTRR)) {
 		mtrr_if = &generic_mtrr_ops;
