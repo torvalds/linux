@@ -14,7 +14,7 @@
 
 struct drm_i915_private;
 
-/**
+/*
  * Non-engine events that we need to track enabled-disabled transition and
  * current state.
  */
@@ -25,7 +25,7 @@ enum i915_pmu_tracked_events {
 	__I915_PMU_TRACKED_EVENT_COUNT, /* count marker */
 };
 
-/**
+/*
  * Slots used from the sampling timer (non-engine events) with some extras for
  * convenience.
  */
@@ -37,7 +37,7 @@ enum {
 	__I915_NUM_PMU_SAMPLERS
 };
 
-/**
+/*
  * How many different events we track in the global PMU mask.
  *
  * It is also used to know to needed number of event reference counters.
