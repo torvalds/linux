@@ -16,83 +16,10 @@
 #include <asm/extable.h>
 #include <asm/tlbflush.h>
 
-#ifdef CONFIG_ADDRESS_MASKING
-/*
- * Mask out tag bits from the address.
- *
- * Magic with the 'sign' allows to untag userspace pointer without any branches
- * while leaving kernel addresses intact.
- */
-static inline unsigned long __untagged_addr(unsigned long addr)
-{
-	long sign;
-
-	/*
-	 * Refer tlbstate_untag_mask directly to avoid RIP-relative relocation
-	 * in alternative instructions. The relocation gets wrong when gets
-	 * copied to the target place.
-	 */
-	asm (ALTERNATIVE("",
-			 "sar $63, %[sign]\n\t" /* user_ptr ? 0 : -1UL */
-			 "or %%gs:tlbstate_untag_mask, %[sign]\n\t"
-			 "and %[sign], %[addr]\n\t", X86_FEATURE_LAM)
-	     : [addr] "+r" (addr), [sign] "=r" (sign)
-	     : "m" (tlbstate_untag_mask), "[sign]" (addr));
-
-	return addr;
-}
-
-#define untagged_addr(addr)	({					\
-	unsigned long __addr = (__force unsigned long)(addr);		\
-	(__force __typeof__(addr))__untagged_addr(__addr);		\
-})
-
-static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
-						   unsigned long addr)
-{
-	long sign = addr >> 63;
-
-	mmap_assert_locked(mm);
-	addr &= (mm)->context.untag_mask | sign;
-
-	return addr;
-}
-
-#define untagged_addr_remote(mm, addr)	({				\
-	unsigned long __addr = (__force unsigned long)(addr);		\
-	(__force __typeof__(addr))__untagged_addr_remote(mm, __addr);	\
-})
-
+#ifdef CONFIG_X86_32
+# include <asm/uaccess_32.h>
 #else
-#define untagged_addr(addr)	(addr)
-#endif
-
-#ifdef CONFIG_X86_64
-/*
- * On x86-64, we may have tag bits in the user pointer. Rather than
- * mask them off, just change the rules for __access_ok().
- *
- * Make the rule be that 'ptr+size' must not overflow, and must not
- * have the high bit set. Compilers generally understand about
- * unsigned overflow and the CF bit and generate reasonable code for
- * this. Although it looks like the combination confuses at least
- * clang (and instead of just doing an "add" followed by a test of
- * SF and CF, you'll see that unnecessary comparison).
- *
- * For the common case of small sizes that can be checked at compile
- * time, don't even bother with the addition, and just check that the
- * base pointer is ok.
- */
-static inline bool __access_ok(const void __user *ptr, unsigned long size)
-{
-	if (__builtin_constant_p(size <= PAGE_SIZE) && size <= PAGE_SIZE) {
-		return (long)ptr >= 0;
-	} else {
-		unsigned long sum = size + (unsigned long)ptr;
-		return (long) sum >= 0 && sum >= (unsigned long)ptr;
-	}
-}
-#define __access_ok __access_ok
+# include <asm/uaccess_64.h>
 #endif
 
 #include <asm-generic/access_ok.h>
@@ -582,14 +509,6 @@ extern struct movsl_mask {
 #endif
 
 #define ARCH_HAS_NOCACHE_UACCESS 1
-
-#ifdef CONFIG_X86_32
-unsigned long __must_check clear_user(void __user *mem, unsigned long len);
-unsigned long __must_check __clear_user(void __user *mem, unsigned long len);
-# include <asm/uaccess_32.h>
-#else
-# include <asm/uaccess_64.h>
-#endif
 
 /*
  * The "unsafe" user accesses aren't really "unsafe", but the naming
