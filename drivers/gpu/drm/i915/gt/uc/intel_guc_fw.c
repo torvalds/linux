@@ -129,6 +129,7 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
 	case INTEL_BOOTROM_STATUS_RC6CTXCONFIG_FAILED:
 	case INTEL_BOOTROM_STATUS_MPUMAP_INCORRECT:
 	case INTEL_BOOTROM_STATUS_EXCEPTION:
+	case INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
 		*success = false;
 		return true;
 	}
@@ -217,6 +218,11 @@ static int guc_wait_ucode(struct intel_guc *guc)
 
 		case INTEL_BOOTROM_STATUS_RSA_FAILED:
 			guc_info(guc, "firmware signature verification failed\n");
+			ret = -ENOEXEC;
+			break;
+
+		case INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
+			guc_info(guc, "firmware production part check failure\n");
 			ret = -ENOEXEC;
 			break;
 		}
