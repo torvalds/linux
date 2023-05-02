@@ -65,6 +65,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 %token PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
 %token PE_ARRAY_ALL PE_ARRAY_RANGE
 %token PE_DRV_CFG_TERM
+%token PE_TERM_HW
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
@@ -112,6 +113,8 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <array> array_term
 %type <array> array_terms
 %destructor { free ($$.ranges); } <array>
+%type <hardware_term> PE_TERM_HW
+%destructor { free ($$.str); } <hardware_term>
 
 %union
 {
@@ -125,6 +128,10 @@ static void free_list_evsel(struct list_head* list_evsel)
 		char *event;
 	} tracepoint_name;
 	struct parse_events_array array;
+	struct hardware_term {
+		char *str;
+		u64 num;
+	} hardware_term;
 }
 %%
 
@@ -770,13 +777,14 @@ name_or_raw '=' PE_VALUE
 	$$ = term;
 }
 |
-name_or_raw '=' PE_VALUE_SYM_HW
+name_or_raw '=' PE_TERM_HW
 {
 	struct parse_events_term *term;
-	int config = $3 & 255;
 
-	if (parse_events_term__sym_hw(&term, $1, config)) {
+	if (parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_USER,
+					$1, $3.str, &@1, &@3)) {
 		free($1);
+		free($3.str);
 		YYABORT;
 	}
 	$$ = term;
@@ -806,12 +814,15 @@ PE_NAME
 	$$ = term;
 }
 |
-PE_VALUE_SYM_HW
+PE_TERM_HW
 {
 	struct parse_events_term *term;
-	int config = $1 & 255;
 
-	ABORT_ON(parse_events_term__sym_hw(&term, NULL, config));
+	if (parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_HARDWARE,
+				   $1.str, $1.num & 255, false, &@1, NULL)) {
+		free($1.str);
+		YYABORT;
+	}
 	$$ = term;
 }
 |
@@ -821,6 +832,17 @@ PE_TERM '=' PE_NAME
 
 	if (parse_events_term__str(&term, (int)$1, NULL, $3, &@1, &@3)) {
 		free($3);
+		YYABORT;
+	}
+	$$ = term;
+}
+|
+PE_TERM '=' PE_TERM_HW
+{
+	struct parse_events_term *term;
+
+	if (parse_events_term__str(&term, (int)$1, NULL, $3.str, &@1, &@3)) {
+		free($3.str);
 		YYABORT;
 	}
 	$$ = term;

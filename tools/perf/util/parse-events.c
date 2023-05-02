@@ -1052,6 +1052,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_METRIC_ID]		= "metric-id",
 	[PARSE_EVENTS__TERM_TYPE_RAW]                   = "raw",
 	[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
+	[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
 };
 
 static bool config_term_shrinked;
@@ -1238,6 +1239,17 @@ static int config_term_pmu(struct perf_event_attr *attr,
 								 &attr->config);
 		} else
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+	}
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_HARDWARE) {
+		const struct perf_pmu *pmu = perf_pmu__find_by_type(attr->type);
+
+		if (!pmu) {
+			pr_debug("Failed to find PMU for type %d", attr->type);
+			return -EINVAL;
+		}
+		attr->type = PERF_TYPE_HARDWARE;
+		attr->config = ((__u64)pmu->type << PERF_PMU_TYPE_SHIFT) | term->val.num;
+		return 0;
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
 	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG) {
@@ -2566,31 +2578,6 @@ int parse_events_term__str(struct parse_events_term **term,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
 	};
 
-	return new_term(term, &temp, str, 0);
-}
-
-int parse_events_term__sym_hw(struct parse_events_term **term,
-			      char *config, unsigned idx)
-{
-	struct event_symbol *sym;
-	char *str;
-	struct parse_events_term temp = {
-		.type_val  = PARSE_EVENTS__TERM_TYPE_STR,
-		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
-		.config    = config,
-	};
-
-	if (!temp.config) {
-		temp.config = strdup("event");
-		if (!temp.config)
-			return -ENOMEM;
-	}
-	BUG_ON(idx >= PERF_COUNT_HW_MAX);
-	sym = &event_symbols_hw[idx];
-
-	str = strdup(sym->symbol);
-	if (!str)
-		return -ENOMEM;
 	return new_term(term, &temp, str, 0);
 }
 

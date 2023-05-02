@@ -1926,6 +1926,132 @@ static const struct evlist_test test__events_pmu[] = {
 		.check = test__checkevent_config_cache,
 		/* 8 */
 	},
+	{
+		.name  = "cpu/instructions/",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_symbolic_name,
+		/* 9 */
+	},
+	{
+		.name  = "cpu/cycles,period=100000,config2/",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_symbolic_name_config,
+		/* 0 */
+	},
+	{
+		.name  = "cpu/instructions/h",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_symbolic_name_modifier,
+		/* 1 */
+	},
+	{
+		.name  = "cpu/instructions/G",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_exclude_host_modifier,
+		/* 2 */
+	},
+	{
+		.name  = "cpu/instructions/H",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_exclude_guest_modifier,
+		/* 3 */
+	},
+	{
+		.name  = "{cpu/instructions/k,cpu/cycles/upp}",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group1,
+		/* 4 */
+	},
+	{
+		.name  = "{cpu/cycles/u,cpu/instructions/kp}:p",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group4,
+		/* 5 */
+	},
+	{
+		.name  = "{cpu/cycles/,cpu/cache-misses/G}:H",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group_gh1,
+		/* 6 */
+	},
+	{
+		.name  = "{cpu/cycles/,cpu/cache-misses/H}:G",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group_gh2,
+		/* 7 */
+	},
+	{
+		.name  = "{cpu/cycles/G,cpu/cache-misses/H}:u",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group_gh3,
+		/* 8 */
+	},
+	{
+		.name  = "{cpu/cycles/G,cpu/cache-misses/H}:uG",
+		.valid = test__pmu_cpu_valid,
+		.check = test__group_gh4,
+		/* 9 */
+	},
+	{
+		.name  = "{cpu/cycles/,cpu/cache-misses/,cpu/branch-misses/}:S",
+		.valid = test__pmu_cpu_valid,
+		.check = test__leader_sample1,
+		/* 0 */
+	},
+	{
+		.name  = "{cpu/instructions/,cpu/branch-misses/}:Su",
+		.valid = test__pmu_cpu_valid,
+		.check = test__leader_sample2,
+		/* 1 */
+	},
+	{
+		.name  = "cpu/instructions/uDp",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_pinned_modifier,
+		/* 2 */
+	},
+	{
+		.name  = "{cpu/cycles/,cpu/cache-misses/,cpu/branch-misses/}:D",
+		.valid = test__pmu_cpu_valid,
+		.check = test__pinned_group,
+		/* 3 */
+	},
+	{
+		.name  = "cpu/instructions/I",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_exclude_idle_modifier,
+		/* 4 */
+	},
+	{
+		.name  = "cpu/instructions/kIG",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_exclude_idle_modifier_1,
+		/* 5 */
+	},
+	{
+		.name  = "cpu/cycles/u",
+		.valid = test__pmu_cpu_valid,
+		.check = test__sym_event_slash,
+		/* 6 */
+	},
+	{
+		.name  = "cpu/cycles/k",
+		.valid = test__pmu_cpu_valid,
+		.check = test__sym_event_dc,
+		/* 7 */
+	},
+	{
+		.name  = "cpu/instructions/uep",
+		.valid = test__pmu_cpu_valid,
+		.check = test__checkevent_exclusive_modifier,
+		/* 8 */
+	},
+	{
+		.name  = "{cpu/cycles/,cpu/cache-misses/,cpu/branch-misses/}:e",
+		.valid = test__pmu_cpu_valid,
+		.check = test__exclusive_group,
+		/* 9 */
+	},
 };
 
 struct terms_test {
