@@ -70,6 +70,7 @@ struct adsp_data {
 	bool dma_phys_below_32b;
 	bool decrypt_shutdown;
 	bool hyp_assign_mem;
+	int num_dsm_partitions;
 
 	char **active_pd_names;
 	char **proxy_pd_names;
@@ -979,7 +980,7 @@ out:
 	return ret;
 }
 
-static int setup_mpss_dsm_mem(struct platform_device *pdev)
+static int setup_mpss_dsm_mem(struct platform_device *pdev, int num_dsm_partitions)
 {
 	struct qcom_scm_vmperm newvm[1];
 	struct device_node *node;
@@ -987,33 +988,39 @@ static int setup_mpss_dsm_mem(struct platform_device *pdev)
 	phys_addr_t mem_phys;
 	u64 curr_perm;
 	u64 mem_size;
-	int ret;
-	newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
-	newvm[0].perm = QCOM_SCM_PERM_RW;
-	curr_perm = BIT(QCOM_SCM_VMID_HLOS);
+	int ret = 0, i;
+	static const char *const dsm_mem_nodes[] = {"mpss_dsm_mem_reg", "mpss_dsm_mem_reg2"};
 
-	node = of_parse_phandle(pdev->dev.of_node, "mpss_dsm_mem_reg", 0);
-	if (!node) {
-		dev_err(&pdev->dev, "mpss dsm mem region is missing\n");
-		return -EINVAL;
-	}
+	for (i = 0; i < num_dsm_partitions; i++) {
+		node = of_parse_phandle(pdev->dev.of_node, dsm_mem_nodes[i], 0);
+		if (!node) {
+			dev_err(&pdev->dev, "%s is missing\n", dsm_mem_nodes[i]);
+			return -EINVAL;
+		}
 
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
-		dev_err(&pdev->dev, "address to resource failed for mpss dsm mem\n");
-		return ret;
-	}
+		ret = of_address_to_resource(node, 0, &res);
+		if (ret) {
+			dev_err(&pdev->dev, "address to resource failed for %s\n",
+								dsm_mem_nodes[i]);
+			goto out;
+		}
 
-	mem_phys = res.start;
-	mem_size = resource_size(&res);
-	ret = qcom_scm_assign_mem(mem_phys, mem_size, &curr_perm, newvm, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "hyp assign for mpss dsm mem failed\n");
-		return ret;
+		newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
+		newvm[0].perm = QCOM_SCM_PERM_RW;
+		curr_perm = BIT(QCOM_SCM_VMID_HLOS);
+		mem_phys = res.start;
+		mem_size = resource_size(&res);
+		ret = qcom_scm_assign_mem(mem_phys, mem_size, &curr_perm, newvm, 1);
+		if (ret) {
+			dev_err(&pdev->dev, "hyp assign for %s failed\n", dsm_mem_nodes[i]);
+			goto out;
+		}
 	}
 
 	mpss_dsm_mem_setup = true;
-	return 0;
+out:
+	of_node_put(node);
+	return ret;
 }
 
 static int setup_global_sync_mem(struct platform_device *pdev)
@@ -1114,7 +1121,7 @@ static int adsp_probe(struct platform_device *pdev)
 
 	if (desc->hyp_assign_mem && !mpss_dsm_mem_setup &&
 			!strcmp(fw_name, "modem.mdt")) {
-		ret = setup_mpss_dsm_mem(pdev);
+		ret = setup_mpss_dsm_mem(pdev, desc->num_dsm_partitions);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to setup mpss dsm mem\n");
 			return -EINVAL;
@@ -1654,6 +1661,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.has_aggre2_clk = false,
 	.auto_boot = false,
 	.hyp_assign_mem = true,
+	.num_dsm_partitions = 2,
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.qmp_name = "modem",
