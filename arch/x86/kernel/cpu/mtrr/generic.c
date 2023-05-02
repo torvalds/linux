@@ -158,154 +158,6 @@ static u8 get_effective_type(u8 type1, u8 type2)
 	return type1;
 }
 
-/*
- * Check and return the effective type for MTRR-MTRR type overlap.
- * Returns true if the effective type is UNCACHEABLE, else returns false
- */
-static bool check_type_overlap(u8 *prev, u8 *curr)
-{
-	*prev = *curr = get_effective_type(*curr, *prev);
-
-	return *prev == MTRR_TYPE_UNCACHABLE;
-}
-
-/**
- * mtrr_type_lookup_fixed - look up memory type in MTRR fixed entries
- *
- * Return the MTRR fixed memory type of 'start'.
- *
- * MTRR fixed entries are divided into the following ways:
- *  0x00000 - 0x7FFFF : This range is divided into eight 64KB sub-ranges
- *  0x80000 - 0xBFFFF : This range is divided into sixteen 16KB sub-ranges
- *  0xC0000 - 0xFFFFF : This range is divided into sixty-four 4KB sub-ranges
- *
- * Return Values:
- * MTRR_TYPE_(type)  - Matched memory type
- * MTRR_TYPE_INVALID - Unmatched
- */
-static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
-{
-	int idx;
-
-	if (start >= 0x100000)
-		return MTRR_TYPE_INVALID;
-
-	/* 0x0 - 0x7FFFF */
-	if (start < 0x80000) {
-		idx = 0;
-		idx += (start >> 16);
-		return mtrr_state.fixed_ranges[idx];
-	/* 0x80000 - 0xBFFFF */
-	} else if (start < 0xC0000) {
-		idx = 1 * 8;
-		idx += ((start - 0x80000) >> 14);
-		return mtrr_state.fixed_ranges[idx];
-	}
-
-	/* 0xC0000 - 0xFFFFF */
-	idx = 3 * 8;
-	idx += ((start - 0xC0000) >> 12);
-	return mtrr_state.fixed_ranges[idx];
-}
-
-/**
- * mtrr_type_lookup_variable - look up memory type in MTRR variable entries
- *
- * Return Value:
- * MTRR_TYPE_(type) - Matched memory type or default memory type (unmatched)
- *
- * Output Arguments:
- * repeat - Set to 1 when [start:end] spanned across MTRR range and type
- *	    returned corresponds only to [start:*partial_end].  Caller has
- *	    to lookup again for [*partial_end:end].
- *
- * uniform - Set to 1 when an MTRR covers the region uniformly, i.e. the
- *	     region is fully covered by a single MTRR entry or the default
- *	     type.
- */
-static u8 mtrr_type_lookup_variable(u64 start, u64 end, u64 *partial_end,
-				    int *repeat, u8 *uniform)
-{
-	int i;
-	u64 base, mask;
-	u8 prev_match, curr_match;
-
-	*repeat = 0;
-	*uniform = 1;
-
-	prev_match = MTRR_TYPE_INVALID;
-	for (i = 0; i < num_var_ranges; ++i) {
-		unsigned short start_state, end_state, inclusive;
-
-		if (!(mtrr_state.var_ranges[i].mask_lo & MTRR_PHYSMASK_V))
-			continue;
-
-		base = (((u64)mtrr_state.var_ranges[i].base_hi) << 32) +
-		       (mtrr_state.var_ranges[i].base_lo & PAGE_MASK);
-		mask = (((u64)mtrr_state.var_ranges[i].mask_hi) << 32) +
-		       (mtrr_state.var_ranges[i].mask_lo & PAGE_MASK);
-
-		start_state = ((start & mask) == (base & mask));
-		end_state = ((end & mask) == (base & mask));
-		inclusive = ((start < base) && (end > base));
-
-		if ((start_state != end_state) || inclusive) {
-			/*
-			 * We have start:end spanning across an MTRR.
-			 * We split the region into either
-			 *
-			 * - start_state:1
-			 * (start:mtrr_end)(mtrr_end:end)
-			 * - end_state:1
-			 * (start:mtrr_start)(mtrr_start:end)
-			 * - inclusive:1
-			 * (start:mtrr_start)(mtrr_start:mtrr_end)(mtrr_end:end)
-			 *
-			 * depending on kind of overlap.
-			 *
-			 * Return the type of the first region and a pointer
-			 * to the start of next region so that caller will be
-			 * advised to lookup again after having adjusted start
-			 * and end.
-			 *
-			 * Note: This way we handle overlaps with multiple
-			 * entries and the default type properly.
-			 */
-			if (start_state)
-				*partial_end = base + get_mtrr_size(mask);
-			else
-				*partial_end = base;
-
-			if (unlikely(*partial_end <= start)) {
-				WARN_ON(1);
-				*partial_end = start + PAGE_SIZE;
-			}
-
-			end = *partial_end - 1; /* end is inclusive */
-			*repeat = 1;
-			*uniform = 0;
-		}
-
-		if ((start & mask) != (base & mask))
-			continue;
-
-		curr_match = mtrr_state.var_ranges[i].base_lo & MTRR_PHYSBASE_TYPE;
-		if (prev_match == MTRR_TYPE_INVALID) {
-			prev_match = curr_match;
-			continue;
-		}
-
-		*uniform = 0;
-		if (check_type_overlap(&prev_match, &curr_match))
-			return curr_match;
-	}
-
-	if (prev_match != MTRR_TYPE_INVALID)
-		return prev_match;
-
-	return mtrr_state.def_type;
-}
-
 static void rm_map_entry_at(int idx)
 {
 	cache_map_n--;
@@ -623,6 +475,20 @@ void mtrr_overwrite_state(struct mtrr_var_range *var, unsigned int num_var,
 	mtrr_state_set = 1;
 }
 
+static u8 type_merge(u8 type, u8 new_type, u8 *uniform)
+{
+	u8 effective_type;
+
+	if (type == MTRR_TYPE_INVALID)
+		return new_type;
+
+	effective_type = get_effective_type(type, new_type);
+	if (type != effective_type)
+		*uniform = 0;
+
+	return effective_type;
+}
+
 /**
  * mtrr_type_lookup - look up memory type in MTRR
  *
@@ -631,66 +497,49 @@ void mtrr_overwrite_state(struct mtrr_var_range *var, unsigned int num_var,
  * MTRR_TYPE_INVALID - MTRR is disabled
  *
  * Output Argument:
- * uniform - Set to 1 when an MTRR covers the region uniformly, i.e. the
- *	     region is fully covered by a single MTRR entry or the default
- *	     type.
+ * uniform - Set to 1 when the returned MTRR type is valid for the whole
+ *	     region, set to 0 else.
  */
 u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
 {
-	u8 type, prev_type, is_uniform = 1, dummy;
-	int repeat;
-	u64 partial_end;
+	u8 type = MTRR_TYPE_INVALID;
+	unsigned int i;
 
-	/* Make end inclusive instead of exclusive */
-	end--;
-
-	if (!mtrr_state_set)
+	if (!mtrr_state_set) {
+		/* Uniformity is unknown. */
+		*uniform = 0;
 		return MTRR_TYPE_INVALID;
+	}
+
+	*uniform = 1;
 
 	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
 		return MTRR_TYPE_INVALID;
 
-	/*
-	 * Look up the fixed ranges first, which take priority over
-	 * the variable ranges.
-	 */
-	if ((start < 0x100000) &&
-	    (mtrr_state.have_fixed) &&
-	    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
-		is_uniform = 0;
-		type = mtrr_type_lookup_fixed(start, end);
-		goto out;
+	for (i = 0; i < cache_map_n && start < end; i++) {
+		/* Region after current map entry? -> continue with next one. */
+		if (start >= cache_map[i].end)
+			continue;
+
+		/* Start of region not covered by current map entry? */
+		if (start < cache_map[i].start) {
+			/* At least some part of region has default type. */
+			type = type_merge(type, mtrr_state.def_type, uniform);
+			/* End of region not covered, too? -> lookup done. */
+			if (end <= cache_map[i].start)
+				return type;
+		}
+
+		/* At least part of region covered by map entry. */
+		type = type_merge(type, cache_map[i].type, uniform);
+
+		start = cache_map[i].end;
 	}
 
-	/*
-	 * Look up the variable ranges.  Look of multiple ranges matching
-	 * this address and pick type as per MTRR precedence.
-	 */
-	type = mtrr_type_lookup_variable(start, end, &partial_end,
-					 &repeat, &is_uniform);
+	/* End of region past last entry in map? -> use default type. */
+	if (start < end)
+		type = type_merge(type, mtrr_state.def_type, uniform);
 
-	/*
-	 * Common path is with repeat = 0.
-	 * However, we can have cases where [start:end] spans across some
-	 * MTRR ranges and/or the default type.  Do repeated lookups for
-	 * that case here.
-	 */
-	while (repeat) {
-		prev_type = type;
-		start = partial_end;
-		is_uniform = 0;
-		type = mtrr_type_lookup_variable(start, end, &partial_end,
-						 &repeat, &dummy);
-
-		if (check_type_overlap(&prev_type, &type))
-			goto out;
-	}
-
-	if (mtrr_tom2 && (start >= (1ULL<<32)) && (end < mtrr_tom2))
-		type = MTRR_TYPE_WRBACK;
-
-out:
-	*uniform = is_uniform;
 	return type;
 }
 
