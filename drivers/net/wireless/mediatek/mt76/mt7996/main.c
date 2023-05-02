@@ -530,6 +530,26 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return mvif->basic_rates_idx;
 }
 
+static void
+mt7996_update_mu_group(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_bss_conf *info)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	u8 band = mvif->mt76.band_idx;
+	u32 *mu;
+
+	mu = (u32 *)info->mu_group.membership;
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_VLD0(band), mu[0]);
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_VLD1(band), mu[1]);
+
+	mu = (u32 *)info->mu_group.position;
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_POS0(band), mu[0]);
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_POS1(band), mu[1]);
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_POS2(band), mu[2]);
+	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_POS3(band), mu[3]);
+}
+
 static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -601,6 +621,9 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP ||
 	    changed & BSS_CHANGED_FILS_DISCOVERY)
 		mt7996_mcu_beacon_inband_discov(dev, vif, changed);
+
+	if (changed & BSS_CHANGED_MU_GROUPS)
+		mt7996_update_mu_group(hw, vif, info);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
