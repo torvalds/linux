@@ -319,7 +319,7 @@ static bool validate_fw_table_type(struct drm_i915_private *i915, enum intel_uc_
 {
 	const struct uc_fw_platform_requirement *fw_blobs;
 	u32 fw_count;
-	int i;
+	int i, j;
 
 	if (type >= ARRAY_SIZE(blobs_all)) {
 		drm_err(&i915->drm, "No blob array for %s\n", intel_uc_fw_type_repr(type));
@@ -334,6 +334,26 @@ static bool validate_fw_table_type(struct drm_i915_private *i915, enum intel_uc_
 
 	/* make sure the list is ordered as expected */
 	for (i = 1; i < fw_count; i++) {
+		/* Versionless file names must be unique per platform: */
+		for (j = i + 1; j < fw_count; j++) {
+			/* Same platform? */
+			if (fw_blobs[i].p != fw_blobs[j].p)
+				continue;
+
+			if (fw_blobs[i].blob.path != fw_blobs[j].blob.path)
+				continue;
+
+			drm_err(&i915->drm, "Duplicate %s blobs: %s r%u %s%d.%d.%d [%s] matches %s%d.%d.%d [%s]\n",
+				intel_uc_fw_type_repr(type),
+				intel_platform_name(fw_blobs[j].p), fw_blobs[j].rev,
+				fw_blobs[j].blob.legacy ? "L" : "v",
+				fw_blobs[j].blob.major, fw_blobs[j].blob.minor,
+				fw_blobs[j].blob.patch, fw_blobs[j].blob.path,
+				fw_blobs[i].blob.legacy ? "L" : "v",
+				fw_blobs[i].blob.major, fw_blobs[i].blob.minor,
+				fw_blobs[i].blob.patch, fw_blobs[i].blob.path);
+		}
+
 		/* Next platform is good: */
 		if (fw_blobs[i].p < fw_blobs[i - 1].p)
 			continue;
@@ -377,8 +397,8 @@ static bool validate_fw_table_type(struct drm_i915_private *i915, enum intel_uc_
 		if (fw_blobs[i].blob.minor != fw_blobs[i - 1].blob.minor)
 			goto bad;
 
-		/* Patch versions must be in order: */
-		if (fw_blobs[i].blob.patch <= fw_blobs[i - 1].blob.patch)
+		/* Patch versions must be in order and unique: */
+		if (fw_blobs[i].blob.patch < fw_blobs[i - 1].blob.patch)
 			continue;
 
 bad:
