@@ -193,44 +193,6 @@ struct drv260x_data {
 	int overdrive_voltage;
 };
 
-static const struct reg_default drv260x_reg_defs[] = {
-	{ DRV260X_STATUS, 0xe0 },
-	{ DRV260X_MODE, 0x40 },
-	{ DRV260X_RT_PB_IN, 0x00 },
-	{ DRV260X_LIB_SEL, 0x00 },
-	{ DRV260X_WV_SEQ_1, 0x01 },
-	{ DRV260X_WV_SEQ_2, 0x00 },
-	{ DRV260X_WV_SEQ_3, 0x00 },
-	{ DRV260X_WV_SEQ_4, 0x00 },
-	{ DRV260X_WV_SEQ_5, 0x00 },
-	{ DRV260X_WV_SEQ_6, 0x00 },
-	{ DRV260X_WV_SEQ_7, 0x00 },
-	{ DRV260X_WV_SEQ_8, 0x00 },
-	{ DRV260X_GO, 0x00 },
-	{ DRV260X_OVERDRIVE_OFF, 0x00 },
-	{ DRV260X_SUSTAIN_P_OFF, 0x00 },
-	{ DRV260X_SUSTAIN_N_OFF, 0x00 },
-	{ DRV260X_BRAKE_OFF, 0x00 },
-	{ DRV260X_A_TO_V_CTRL, 0x05 },
-	{ DRV260X_A_TO_V_MIN_INPUT, 0x19 },
-	{ DRV260X_A_TO_V_MAX_INPUT, 0xff },
-	{ DRV260X_A_TO_V_MIN_OUT, 0x19 },
-	{ DRV260X_A_TO_V_MAX_OUT, 0xff },
-	{ DRV260X_RATED_VOLT, 0x3e },
-	{ DRV260X_OD_CLAMP_VOLT, 0x8c },
-	{ DRV260X_CAL_COMP, 0x0c },
-	{ DRV260X_CAL_BACK_EMF, 0x6c },
-	{ DRV260X_FEEDBACK_CTRL, 0x36 },
-	{ DRV260X_CTRL1, 0x93 },
-	{ DRV260X_CTRL2, 0xfa },
-	{ DRV260X_CTRL3, 0xa0 },
-	{ DRV260X_CTRL4, 0x20 },
-	{ DRV260X_CTRL5, 0x80 },
-	{ DRV260X_LRA_LOOP_PERIOD, 0x33 },
-	{ DRV260X_VBAT_MON, 0x00 },
-	{ DRV260X_LRA_RES_PERIOD, 0x00 },
-};
-
 #define DRV260X_DEF_RATED_VOLT		0x90
 #define DRV260X_DEF_OD_CLAMP_VOLT	0x90
 
@@ -453,8 +415,6 @@ static const struct regmap_config drv260x_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = DRV260X_MAX_REG,
-	.reg_defaults = drv260x_reg_defs,
-	.num_reg_defaults = ARRAY_SIZE(drv260x_reg_defs),
 	.cache_type = REGCACHE_NONE,
 };
 
