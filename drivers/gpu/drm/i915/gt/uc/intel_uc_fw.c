@@ -17,6 +17,12 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#define UNEXPECTED	gt_err
+#else
+#define UNEXPECTED	gt_notice
+#endif
+
 static inline struct intel_gt *
 ____uc_fw_to_gt(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 {
@@ -833,10 +839,10 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (uc_fw->file_wanted.ver.major && uc_fw->file_selected.ver.major) {
 		/* Check the file's major version was as it claimed */
 		if (uc_fw->file_selected.ver.major != uc_fw->file_wanted.ver.major) {
-			gt_notice(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
-				  intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-				  uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
-				  uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
+			UNEXPECTED(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+				   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
+				   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
+				   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
 			if (!intel_uc_fw_is_overridden(uc_fw)) {
 				err = -ENOEXEC;
 				goto fail;
@@ -854,16 +860,16 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 		/* Preserve the version that was really wanted */
 		memcpy(&uc_fw->file_wanted, &file_ideal, sizeof(uc_fw->file_wanted));
 
-		gt_notice(gt, "%s firmware %s (%d.%d.%d) is recommended, but only %s (%d.%d.%d) was found\n",
-			  intel_uc_fw_type_repr(uc_fw->type),
-			  uc_fw->file_wanted.path,
-			  uc_fw->file_wanted.ver.major,
-			  uc_fw->file_wanted.ver.minor,
-			  uc_fw->file_wanted.ver.patch,
-			  uc_fw->file_selected.path,
-			  uc_fw->file_selected.ver.major,
-			  uc_fw->file_selected.ver.minor,
-			  uc_fw->file_selected.ver.patch);
+		UNEXPECTED(gt, "%s firmware %s (%d.%d.%d) is recommended, but only %s (%d.%d.%d) was found\n",
+			   intel_uc_fw_type_repr(uc_fw->type),
+			   uc_fw->file_wanted.path,
+			   uc_fw->file_wanted.ver.major,
+			   uc_fw->file_wanted.ver.minor,
+			   uc_fw->file_wanted.ver.patch,
+			   uc_fw->file_selected.path,
+			   uc_fw->file_selected.ver.major,
+			   uc_fw->file_selected.ver.minor,
+			   uc_fw->file_selected.ver.patch);
 		gt_info(gt, "Consider updating your linux-firmware pkg or downloading from %s\n",
 			INTEL_UC_FIRMWARE_URL);
 	}
