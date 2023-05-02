@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <asm/cpufeature.h>
 #include <asm/mtrr.h>
@@ -38,11 +39,14 @@ struct mtrr_value {
 	unsigned long	lsize;
 };
 
-static struct mtrr_value mtrr_value[MTRR_MAX_VAR_RANGES];
+static struct mtrr_value *mtrr_value;
 
 static int mtrr_save(void)
 {
 	int i;
+
+	if (!mtrr_value)
+		return -ENOMEM;
 
 	for (i = 0; i < num_var_ranges; i++) {
 		mtrr_if->get(i, &mtrr_value[i].lbase,
@@ -72,6 +76,8 @@ static struct syscore_ops mtrr_syscore_ops = {
 
 void mtrr_register_syscore(void)
 {
+	mtrr_value = kcalloc(num_var_ranges, sizeof(*mtrr_value), GFP_KERNEL);
+
 	/*
 	 * The CPU has no MTRR and seems to not support SMP. They have
 	 * specific drivers, we use a tricky method to support
