@@ -248,10 +248,14 @@
 
 &zynqmp_dpdma {
 	clocks = <&zynqmp_clk DPDMA_REF>;
+	assigned-clocks = <&zynqmp_clk DPDMA_REF>; /* apll */
 };
 
 &zynqmp_dpsub {
 	clocks = <&zynqmp_clk TOPSW_LSBUS>,
 		 <&zynqmp_clk DP_AUDIO_REF>,
 		 <&zynqmp_clk DP_VIDEO_REF>;
+	assigned-clocks = <&zynqmp_clk DP_STC_REF>,
+			  <&zynqmp_clk DP_AUDIO_REF>,
+			  <&zynqmp_clk DP_VIDEO_REF>;  /* rpll, rpll, vpll */
 };
