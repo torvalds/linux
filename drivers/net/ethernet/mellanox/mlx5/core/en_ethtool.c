@@ -2061,7 +2061,8 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 	struct mlx5e_params new_params;
 	int err;
 
-	if (!MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn))
+	if (!MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn) ||
+	    !MLX5_CAP_GEN_2(mdev, ts_cqe_metadata_size2wqe_counter))
 		return -EOPNOTSUPP;
 
 	/* Don't allow changing the PTP state if HTB offload is active, because
