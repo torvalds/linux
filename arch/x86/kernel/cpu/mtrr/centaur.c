@@ -112,7 +112,7 @@ centaur_validate_add_page(unsigned long base, unsigned long size, unsigned int t
 }
 
 const struct mtrr_ops centaur_mtrr_ops = {
-	.vendor            = X86_VENDOR_CENTAUR,
+	.var_regs          = 8,
 	.set               = centaur_set_mcr,
 	.get               = centaur_get_mcr,
 	.get_free_region   = centaur_get_free_region,

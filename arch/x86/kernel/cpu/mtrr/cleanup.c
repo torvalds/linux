@@ -689,7 +689,10 @@ int __init mtrr_cleanup(void)
 	int index_good;
 	int i;
 
-	if (!is_cpu(INTEL) || enable_mtrr_cleanup < 1)
+	if (!mtrr_enabled())
+		return 0;
+
+	if (!cpu_feature_enabled(X86_FEATURE_MTRR) || enable_mtrr_cleanup < 1)
 		return 0;
 
 	rdmsr(MSR_MTRRdefType, def, dummy);
@@ -882,11 +885,14 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	/* extra one for all 0 */
 	int num[MTRR_NUM_TYPES + 1];
 
+	if (!mtrr_enabled())
+		return 0;
+
 	/*
 	 * Make sure we only trim uncachable memory on machines that
 	 * support the Intel MTRR architecture:
 	 */
-	if (!is_cpu(INTEL) || disable_mtrr_trim)
+	if (!cpu_feature_enabled(X86_FEATURE_MTRR) || disable_mtrr_trim)
 		return 0;
 
 	rdmsr(MSR_MTRRdefType, def, dummy);

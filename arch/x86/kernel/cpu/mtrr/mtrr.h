@@ -13,7 +13,7 @@
 extern unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 
 struct mtrr_ops {
-	u32	vendor;
+	u32	var_regs;
 	void	(*set)(unsigned int reg, unsigned long base,
 		       unsigned long size, mtrr_type type);
 	void	(*get)(unsigned int reg, unsigned long *base,
@@ -53,8 +53,6 @@ bool get_mtrr_state(void);
 
 extern const struct mtrr_ops *mtrr_if;
 
-#define is_cpu(vnd)	(mtrr_if && mtrr_if->vendor == X86_VENDOR_##vnd)
-
 extern unsigned int num_var_ranges;
 extern u64 mtrr_tom2;
 extern struct mtrr_state_type mtrr_state;
@@ -71,3 +69,13 @@ extern const struct mtrr_ops centaur_mtrr_ops;
 
 extern int changed_by_mtrr_cleanup;
 extern int mtrr_cleanup(void);
+void generic_rebuild_map(void);
+
+/*
+ * Must be used by code which uses mtrr_if to call platform-specific
+ * MTRR manipulation functions.
+ */
+static inline bool mtrr_enabled(void)
+{
+	return !!mtrr_if;
+}

@@ -59,10 +59,6 @@
 #define MTRR_TO_PHYS_WC_OFFSET 1000
 
 u32 num_var_ranges;
-static bool mtrr_enabled(void)
-{
-	return !!mtrr_if;
-}
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
@@ -101,21 +97,6 @@ static int have_wrcomb(void)
 		pci_dev_put(dev);
 	}
 	return mtrr_if->have_wrcomb ? mtrr_if->have_wrcomb() : 0;
-}
-
-/*  This function returns the number of variable MTRRs  */
-static void __init set_num_var_ranges(bool use_generic)
-{
-	unsigned long config = 0, dummy;
-
-	if (use_generic)
-		rdmsr(MSR_MTRRcap, config, dummy);
-	else if (is_cpu(AMD) || is_cpu(HYGON))
-		config = 2;
-	else if (is_cpu(CYRIX) || is_cpu(CENTAUR))
-		config = 8;
-
-	num_var_ranges = config & MTRR_CAP_VCNT;
 }
 
 static void __init init_table(void)
@@ -627,6 +608,7 @@ void __init mtrr_bp_init(void)
 {
 	bool generic_mtrrs = cpu_feature_enabled(X86_FEATURE_MTRR);
 	const char *why = "(not available)";
+	unsigned long config, dummy;
 
 	phys_hi_rsvd = GENMASK(31, boot_cpu_data.x86_phys_bits - 32);
 
@@ -664,7 +646,13 @@ void __init mtrr_bp_init(void)
 	}
 
 	if (mtrr_enabled()) {
-		set_num_var_ranges(mtrr_if == &generic_mtrr_ops);
+		/* Get the number of variable MTRR ranges. */
+		if (mtrr_if == &generic_mtrr_ops)
+			rdmsr(MSR_MTRRcap, config, dummy);
+		else
+			config = mtrr_if->var_regs;
+		num_var_ranges = config & MTRR_CAP_VCNT;
+
 		init_table();
 		if (mtrr_if == &generic_mtrr_ops) {
 			/* BIOS may override */
