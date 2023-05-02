@@ -14877,6 +14877,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wtarreau/nolibc.git
 F:	tools/include/nolibc/
 F:	tools/testing/selftests/nolibc/
 
+NOVATEK NVT-TS I2C TOUCHSCREEN DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/touchscreen/novatek-nvt-ts.c
+
 NSDEPS
 M:	Matthias Maennich <maennich@google.com>
 S:	Maintained
