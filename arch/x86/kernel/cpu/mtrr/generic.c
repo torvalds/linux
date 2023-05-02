@@ -38,6 +38,16 @@ u64 mtrr_tom2;
 struct mtrr_state_type mtrr_state;
 EXPORT_SYMBOL_GPL(mtrr_state);
 
+static u64 size_or_mask, size_and_mask;
+
+void __init mtrr_set_mask(void)
+{
+	unsigned int phys_addr = boot_cpu_data.x86_phys_bits;
+
+	size_or_mask = ~GENMASK_ULL(phys_addr - PAGE_SHIFT - 1, 0);
+	size_and_mask = ~size_or_mask & GENMASK_ULL(39, 20);
+}
+
 /*
  * BIOS is expected to clear MtrrFixDramModEn bit, see for example
  * "BIOS and Kernel Developer's Guide for the AMD Athlon 64 and AMD
@@ -422,7 +432,7 @@ static void __init print_mtrr_state(void)
 	}
 	pr_debug("MTRR variable ranges %sabled:\n",
 		 mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED ? "en" : "dis");
-	high_width = (__ffs64(size_or_mask) - (32 - PAGE_SHIFT) + 3) / 4;
+	high_width = (boot_cpu_data.x86_phys_bits - (32 - PAGE_SHIFT) + 3) / 4;
 
 	for (i = 0; i < num_var_ranges; ++i) {
 		if (mtrr_state.var_ranges[i].mask_lo & (1 << 11))

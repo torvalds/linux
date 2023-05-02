@@ -173,7 +173,7 @@ early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
 
 static void __init
 set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
-	     unsigned char type, unsigned int address_bits)
+	     unsigned char type)
 {
 	u32 base_lo, base_hi, mask_lo, mask_hi;
 	u64 base, mask;
@@ -183,7 +183,7 @@ set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
 		return;
 	}
 
-	mask = (1ULL << address_bits) - 1;
+	mask = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	mask &= ~((((u64)sizek) << 10) - 1);
 
 	base = ((u64)basek) << 10;
@@ -209,7 +209,7 @@ save_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
 	range_state[reg].type = type;
 }
 
-static void __init set_var_mtrr_all(unsigned int address_bits)
+static void __init set_var_mtrr_all(void)
 {
 	unsigned long basek, sizek;
 	unsigned char type;
@@ -220,7 +220,7 @@ static void __init set_var_mtrr_all(unsigned int address_bits)
 		sizek = range_state[reg].size_pfn << (PAGE_SHIFT - 10);
 		type = range_state[reg].type;
 
-		set_var_mtrr(reg, basek, sizek, type, address_bits);
+		set_var_mtrr(reg, basek, sizek, type);
 	}
 }
 
@@ -680,7 +680,7 @@ static int __init mtrr_search_optimal_index(void)
 	return index_good;
 }
 
-int __init mtrr_cleanup(unsigned address_bits)
+int __init mtrr_cleanup(void)
 {
 	unsigned long x_remove_base, x_remove_size;
 	unsigned long base, size, def, dummy;
@@ -742,7 +742,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 		mtrr_print_out_one_result(i);
 
 		if (!result[i].bad) {
-			set_var_mtrr_all(address_bits);
+			set_var_mtrr_all();
 			pr_debug("New variable MTRRs\n");
 			print_out_mtrr_range_state();
 			return 1;
@@ -786,7 +786,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 		gran_size = result[i].gran_sizek;
 		gran_size <<= 10;
 		x86_setup_var_mtrrs(range, nr_range, chunk_size, gran_size);
-		set_var_mtrr_all(address_bits);
+		set_var_mtrr_all();
 		pr_debug("New variable MTRRs\n");
 		print_out_mtrr_range_state();
 		return 1;
@@ -802,7 +802,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 	return 0;
 }
 #else
-int __init mtrr_cleanup(unsigned address_bits)
+int __init mtrr_cleanup(void)
 {
 	return 0;
 }
