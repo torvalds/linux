@@ -8,4 +8,4 @@
 /dts-v1/;
 
 #include "sun8i-h3.dtsi"
-#include <arm/sunxi-h3-h5-emlid-neutis.dtsi>
+#include "sunxi-h3-h5-emlid-neutis.dtsi"
