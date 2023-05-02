@@ -14,6 +14,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/pinctrl/pinctrl-zynqmp.h>
 
 / {
 	model = "ZynqMP SM-K26 Rev1/B/A";
@@ -83,6 +84,23 @@
 
 &uart1 { /* MIO36/MIO37 */
 	status = "okay";
+};
+
+&pinctrl0 {
+	status = "okay";
+	pinctrl_sdhci0_default: sdhci0-default {
+		conf {
+			groups = "sdio0_0_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+			bias-disable;
+		};
+
+		mux {
+			groups = "sdio0_0_grp";
+			function = "sdio0";
+		};
+	};
 };
 
 &qspi { /* MIO 0-5 - U143 */
@@ -182,6 +200,8 @@
 
 &sdhci0 { /* MIO13-23 - 16GB emmc MTFC16GAPALBH-IT - U133A */
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhci0_default>;
 	non-removable;
 	disable-wp;
 	bus-width = <8>;
