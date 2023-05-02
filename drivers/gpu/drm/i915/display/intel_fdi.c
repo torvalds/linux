@@ -766,7 +766,10 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	 * WaFDIAutoLinkSetTimingOverrride:hsw
 	 */
 	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A),
-		       FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2) | FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+		       FDI_RX_PWRDN_LANE1_VAL(2) |
+		       FDI_RX_PWRDN_LANE0_VAL(2) |
+		       FDI_RX_TP1_TO_TP2_48 |
+		       FDI_RX_FDI_DELAY_90);
 
 	/* Enable the PCH Receiver FDI PLL */
 	rx_ctl_val = dev_priv->display.fdi.rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
@@ -799,7 +802,9 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
 		 * port reversal bit */
 		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E),
-			       DDI_BUF_CTL_ENABLE | ((crtc_state->fdi_lanes - 1) << 1) | DDI_BUF_TRANS_SELECT(i / 2));
+			       DDI_BUF_CTL_ENABLE |
+			       ((crtc_state->fdi_lanes - 1) << 1) |
+			       DDI_BUF_TRANS_SELECT(i / 2));
 		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
 
 		udelay(600);
