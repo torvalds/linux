@@ -485,8 +485,6 @@
 &dwc3_1 {
 	status = "okay";
 	dr_mode = "host";
-	snps,usb3_lpm_capable;
-	maximum-speed = "super-speed";
 };
 
 &uart0 {
