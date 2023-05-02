@@ -115,6 +115,7 @@
 	clk-phase-sd-hs = <126>, <60>;
 	clk-phase-uhs-sdr25 = <120>, <60>;
 	clk-phase-uhs-ddr50 = <126>, <48>;
+	assigned-clock-rates = <187498123>;
 };
 
 &gem3 { /* required by spec */
