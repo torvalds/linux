@@ -776,7 +776,8 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
 
-	ret = __parse_events(evlist, dup, error, fake_pmu, /*warn_if_reordered=*/true);
+	ret = __parse_events(evlist, dup, /*pmu_filter=*/NULL, error, fake_pmu,
+			     /*warn_if_reordered=*/true);
 	free(dup);
 
 	evlist__delete(evlist);

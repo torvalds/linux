@@ -3335,6 +3335,14 @@ const char record_callchain_help[] = CALLCHAIN_RECORD_HELP
 
 static bool dry_run;
 
+static struct parse_events_option_args parse_events_option_args = {
+	.evlistp = &record.evlist,
+};
+
+static struct parse_events_option_args switch_output_parse_events_option_args = {
+	.evlistp = &record.sb_evlist,
+};
+
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
  * with it and switch to use the library functions in perf_evlist that came
@@ -3343,7 +3351,7 @@ static bool dry_run;
  * using pipes, etc.
  */
 static struct option __record_options[] = {
-	OPT_CALLBACK('e', "event", &record.evlist, "event",
+	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
@@ -3496,7 +3504,8 @@ static struct option __record_options[] = {
 			  &record.switch_output.set, "signal or size[BKMG] or time[smhd]",
 			  "Switch output when receiving SIGUSR2 (signal) or cross a size or time threshold",
 			  "signal"),
-	OPT_CALLBACK_SET(0, "switch-output-event", &record.sb_evlist, &record.switch_output_event_set, "switch output event",
+	OPT_CALLBACK_SET(0, "switch-output-event", &switch_output_parse_events_option_args,
+			 &record.switch_output_event_set, "switch output event",
 			 "switch output event selector. use 'perf list' to list available events",
 			 parse_events_option_new_evlist),
 	OPT_INTEGER(0, "switch-max-files", &record.switch_output.num_files,

@@ -22,17 +22,24 @@ bool is_event_supported(u8 type, u64 config);
 
 const char *event_type(int type);
 
+/* Arguments encoded in opt->value. */
+struct parse_events_option_args {
+	struct evlist **evlistp;
+	const char *pmu_filter;
+};
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
-__attribute__((nonnull(1, 2, 3)))
-int __parse_events(struct evlist *evlist, const char *str, struct parse_events_error *error,
-		   struct perf_pmu *fake_pmu, bool warn_if_reordered);
+__attribute__((nonnull(1, 2, 4)))
+int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
+		   struct parse_events_error *error, struct perf_pmu *fake_pmu,
+		   bool warn_if_reordered);
 
 __attribute__((nonnull(1, 2, 3)))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
-	return __parse_events(evlist, str, err, /*fake_pmu=*/NULL, /*warn_if_reordered=*/true);
+	return __parse_events(evlist, str, /*pmu_filter=*/NULL, err, /*fake_pmu=*/NULL,
+			      /*warn_if_reordered=*/true);
 }
 
 int parse_event(struct evlist *evlist, const char *str);
@@ -122,11 +129,15 @@ struct parse_events_state {
 	struct list_head	  *terms;
 	int			   stoken;
 	struct perf_pmu		  *fake_pmu;
+	/* If non-null, when wildcard matching only match the given PMU. */
+	const char		  *pmu_filter;
 	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
 	bool			   match_legacy_cache_terms;
 	bool			   wild_card_pmus;
 };
 
+bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
+			      const struct perf_pmu *pmu);
 void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
@@ -171,7 +182,7 @@ int parse_events_add_tool(struct parse_events_state *parse_state,
 			  struct list_head *list,
 			  int tool_event);
 int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
-			   struct parse_events_error *error,
+			   struct parse_events_state *parse_state,
 			   struct list_head *head_config);
 int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,

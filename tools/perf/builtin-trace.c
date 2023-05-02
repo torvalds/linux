@@ -4591,8 +4591,11 @@ do_concat:
 	err = 0;
 
 	if (lists[0]) {
+		struct parse_events_option_args parse_events_option_args = {
+			.evlistp = &trace->evlist,
+		};
 		struct option o = {
-			.value = &trace->evlist,
+			.value = &parse_events_option_args,
 		};
 		err = parse_events_option(&o, lists[0], 0);
 	}

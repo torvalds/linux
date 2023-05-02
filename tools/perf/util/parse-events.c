@@ -465,8 +465,24 @@ int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *con
 	return 0;
 }
 
+/**
+ * parse_events__filter_pmu - returns false if a wildcard PMU should be
+ *                            considered, true if it should be filtered.
+ */
+bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
+			      const struct perf_pmu *pmu)
+{
+	if (parse_state->pmu_filter == NULL)
+		return false;
+
+	if (pmu->name == NULL)
+		return true;
+
+	return strcmp(parse_state->pmu_filter, pmu->name) != 0;
+}
+
 int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
-			   struct parse_events_error *err,
+			   struct parse_events_state *parse_state,
 			   struct list_head *head_config)
 {
 	struct perf_pmu *pmu = NULL;
@@ -483,6 +499,9 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 		if (!perf_pmu__supports_legacy_cache(pmu))
 			continue;
 
+		if (parse_events__filter_pmu(parse_state, pmu))
+			continue;
+
 		memset(&attr, 0, sizeof(attr));
 		attr.type = PERF_TYPE_HW_CACHE;
 
@@ -493,8 +512,7 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 		found_supported = true;
 
 		if (head_config) {
-			if (config_attr(&attr, head_config, err,
-						config_term_common))
+			if (config_attr(&attr, head_config, parse_state->error, config_term_common))
 				return -EINVAL;
 
 			if (get_config_terms(head_config, &config_terms))
@@ -1494,6 +1512,9 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 		if (!perf_pmu__supports_wildcard_numeric(pmu))
 			continue;
 
+		if (parse_events__filter_pmu(parse_state, pmu))
+			continue;
+
 		found_supported = true;
 		ret = __parse_events_add_numeric(parse_state, list, pmu, pmu->type,
 						 config, head_config);
@@ -1681,6 +1702,9 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		struct perf_pmu_alias *alias;
+
+		if (parse_events__filter_pmu(parse_state, pmu))
+			continue;
 
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			if (!strcasecmp(alias->name, str)) {
@@ -2121,7 +2145,7 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 	return idx_changed || num_leaders != orig_num_leaders;
 }
 
-int __parse_events(struct evlist *evlist, const char *str,
+int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
 		   struct parse_events_error *err, struct perf_pmu *fake_pmu,
 		   bool warn_if_reordered)
 {
@@ -2132,6 +2156,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.evlist	  = evlist,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
+		.pmu_filter = pmu_filter,
 		.match_legacy_cache_terms = true,
 	};
 	int ret;
@@ -2313,12 +2338,13 @@ void parse_events_error__print(struct parse_events_error *err,
 int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
-	struct evlist *evlist = *(struct evlist **)opt->value;
+	struct parse_events_option_args *args = opt->value;
 	struct parse_events_error err;
 	int ret;
 
 	parse_events_error__init(&err);
-	ret = parse_events(evlist, str, &err);
+	ret = __parse_events(*args->evlistp, str, args->pmu_filter, &err,
+			     /*fake_pmu=*/NULL, /*warn_if_reordered=*/true);
 
 	if (ret) {
 		parse_events_error__print(&err, str);
@@ -2331,22 +2357,21 @@ int parse_events_option(const struct option *opt, const char *str,
 
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset)
 {
-	struct evlist **evlistp = opt->value;
+	struct parse_events_option_args *args = opt->value;
 	int ret;
 
-	if (*evlistp == NULL) {
-		*evlistp = evlist__new();
+	if (*args->evlistp == NULL) {
+		*args->evlistp = evlist__new();
 
-		if (*evlistp == NULL) {
+		if (*args->evlistp == NULL) {
 			fprintf(stderr, "Not enough memory to create evlist\n");
 			return -1;
 		}
 	}
-
 	ret = parse_events_option(opt, str, unset);
 	if (ret) {
-		evlist__delete(*evlistp);
-		*evlistp = NULL;
+		evlist__delete(*args->evlistp);
+		*args->evlistp = NULL;
 	}
 
 	return ret;

@@ -1440,12 +1440,15 @@ int cmd_top(int argc, const char **argv)
 		.max_stack	     = sysctl__max_stack(),
 		.nr_threads_synthesize = UINT_MAX,
 	};
+	struct parse_events_option_args parse_events_option_args = {
+		.evlistp = &top.evlist,
+	};
 	bool branch_call_mode = false;
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
 	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	const struct option options[] = {
-	OPT_CALLBACK('e', "event", &top.evlist, "event",
+	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
 	OPT_U64('c', "count", &opts->user_interval, "event period to sample"),

@@ -101,6 +101,10 @@
 static void print_counters(struct timespec *ts, int argc, const char **argv);
 
 static struct evlist	*evsel_list;
+static struct parse_events_option_args parse_events_option_args = {
+	.evlistp = &evsel_list,
+};
+
 static bool all_counters_use_bpf = true;
 
 static struct target target = {
@@ -1096,8 +1100,8 @@ static int parse_hybrid_type(const struct option *opt,
 		return -1;
 	}
 
-	evlist->hybrid_pmu_name = perf_pmu__hybrid_type_to_pmu(str);
-	if (!evlist->hybrid_pmu_name) {
+	parse_events_option_args.pmu_filter = perf_pmu__hybrid_type_to_pmu(str);
+	if (!parse_events_option_args.pmu_filter) {
 		fprintf(stderr, "--cputype %s is not supported!\n", str);
 		return -1;
 	}
@@ -1108,7 +1112,7 @@ static int parse_hybrid_type(const struct option *opt,
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
-	OPT_CALLBACK('e', "event", &evsel_list, "event",
+	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
