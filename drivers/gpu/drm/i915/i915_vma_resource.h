@@ -47,6 +47,7 @@ struct i915_page_sizes {
  * @chain: Pointer to struct i915_sw_fence used to await dependencies.
  * @rb: Rb node for the vm's pending unbind interval tree.
  * @__subtree_last: Interval tree private member.
+ * @wakeref: wakeref.
  * @vm: non-refcounted pointer to the vm. This is for internal use only and
  * this member is cleared after vm_resource unbind.
  * @mr: The memory region of the object pointed to by the vma.
