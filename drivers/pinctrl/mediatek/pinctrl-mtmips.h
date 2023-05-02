@@ -3,8 +3,8 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
-#ifndef _PINCTRL_RALINK_H__
-#define _PINCTRL_RALINK_H__
+#ifndef _PINCTRL_MTMIPS_H__
+#define _PINCTRL_MTMIPS_H__
 
 #define FUNC(name, value, pin_first, pin_count) \
 	{ name, value, pin_first, pin_count }
@@ -19,9 +19,9 @@
 	  .func = _func, .gpio = _gpio, \
 	  .func_count = ARRAY_SIZE(_func) }
 
-struct ralink_pmx_group;
+struct mtmips_pmx_group;
 
-struct ralink_pmx_func {
+struct mtmips_pmx_func {
 	const char *name;
 	const char value;
 
@@ -35,7 +35,7 @@ struct ralink_pmx_func {
 	int enabled;
 };
 
-struct ralink_pmx_group {
+struct mtmips_pmx_group {
 	const char *name;
 	int enabled;
 
@@ -43,11 +43,11 @@ struct ralink_pmx_group {
 	const char mask;
 	const char gpio;
 
-	struct ralink_pmx_func *func;
+	struct mtmips_pmx_func *func;
 	int func_count;
 };
 
-int ralink_pinctrl_init(struct platform_device *pdev,
-			struct ralink_pmx_group *data);
+int mtmips_pinctrl_init(struct platform_device *pdev,
+			struct mtmips_pmx_group *data);
 
 #endif
