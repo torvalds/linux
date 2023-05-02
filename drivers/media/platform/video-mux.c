@@ -474,6 +474,7 @@ static int video_mux_probe(struct platform_device *pdev)
 
 	ret = video_mux_async_register(vmux, num_pads - 1);
 	if (ret) {
+		media_entity_cleanup(&vmux->subdev.entity);
 		v4l2_async_nf_unregister(&vmux->notifier);
 		v4l2_async_nf_cleanup(&vmux->notifier);
 	}
