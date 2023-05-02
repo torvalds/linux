@@ -22,6 +22,15 @@ struct test_suite suite__intel_pt = {
 DEFINE_SUITE("x86 bp modify", bp_modify);
 #endif
 DEFINE_SUITE("x86 Sample parsing", x86_sample_parsing);
+static struct test_case hybrid_tests[] = {
+	TEST_CASE_REASON("x86 hybrid event parsing", hybrid, "not hybrid"),
+	{ .name = NULL, }
+};
+
+struct test_suite suite__hybrid = {
+	.desc = "x86 hybrid",
+	.test_cases = hybrid_tests,
+};
 
 struct test_suite *arch_tests[] = {
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
@@ -35,5 +44,6 @@ struct test_suite *arch_tests[] = {
 	&suite__bp_modify,
 #endif
 	&suite__x86_sample_parsing,
+	&suite__hybrid,
 	NULL,
 };
