@@ -30,7 +30,6 @@ load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "la_variants")
 load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
-
 def _define_build_config(
         msm_target,
         target,
@@ -268,7 +267,7 @@ def _define_image_build(
         ],
     )
 
-def _define_kernel_dist(target, msm_target, variant, base_kernel):
+def _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_targets):
     """Creates distribution targets for kernel builds
 
     When Bazel builds everything, the outputs end up buried in `bazel-bin`.
@@ -280,13 +279,18 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel):
       msm_target: name of just the platform target (e.g. `kalama`)
       variant: name of just the variant (e.g. `gki`)
       base_kernel: base kernel to fetch artifacts from (e.g. `//common:kernel_aarch64`)
+      define_abi_targets: boolean determining if ABI targets should be defined
     """
 
     dist_dir = get_out_dir(msm_target, variant) + "/dist"
 
-    msm_dist_targets = [
+    msm_dist_targets = [base_kernel]
+
+    if define_abi_targets:
+        msm_dist_targets.append("{}_gki_artifacts".format(base_kernel))
+
+    msm_dist_targets.extend([
         # do not sort
-        base_kernel,
         "{}_images_system_dlkm_image".format(base_kernel),
         "{}_headers".format(base_kernel),
         ":{}".format(target),
@@ -294,35 +298,48 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel):
         ":{}_super_image".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
-    ]
+    ])
 
-    kernel_abi_dist(
-        name = "{}_abi_dist".format(target),
-        kernel_abi = ":{}_abi".format(target),
-        data = msm_dist_targets,
-        dist_dir = dist_dir,
-        flat = True,
-        log = "info",
-    )
-
-    copy_to_dist_dir(
-        name = "{}_dist".format(target),
-        data = msm_dist_targets,
-        dist_dir = dist_dir,
-        flat = True,
-        wipe_dist_dir = True,
-        allow_duplicate_filenames = True,
-        mode_overrides = {
-            # do not sort
-            "**/*.elf": "755",
-            "**/vmlinux": "755",
-            "**/Image": "755",
-            "**/*.dtb*": "755",
-            "**/LinuxLoader*": "755",
-            "**/*": "644",
-        },
-        log = "info",
-    )
+    if define_abi_targets:
+        kernel_abi_dist(
+            name = "{}_dist".format(target),
+            kernel_abi = ":{}_abi".format(target),
+            kernel_build_add_vmlinux = False,
+            data = msm_dist_targets,
+            dist_dir = dist_dir,
+            flat = True,
+            wipe_dist_dir = True,
+            allow_duplicate_filenames = True,
+            mode_overrides = {
+                # do not sort
+                "**/*.elf": "755",
+                "**/vmlinux": "755",
+                "**/Image": "755",
+                "**/*.dtb*": "755",
+                "**/LinuxLoader*": "755",
+                "**/*": "644",
+            },
+            log = "info",
+        )
+    else:
+        copy_to_dist_dir(
+            name = "{}_dist".format(target),
+            data = msm_dist_targets,
+            dist_dir = dist_dir,
+            flat = True,
+            wipe_dist_dir = True,
+            allow_duplicate_filenames = True,
+            mode_overrides = {
+                # do not sort
+                "**/*.elf": "755",
+                "**/vmlinux": "755",
+                "**/Image": "755",
+                "**/*.dtb*": "755",
+                "**/LinuxLoader*": "755",
+                "**/*": "644",
+            },
+            log = "info",
+        )
 
     native.alias(
         name = "{}_test_mapping".format(target),
@@ -409,7 +426,9 @@ def define_msm_la(
         target,
         msm_target,
         base_kernel,
-        build_boot = True,
+        # When building a GKI target, we take the kernel and boot.img directly from
+        # common, so no need to build here.
+        build_boot = False if define_abi_targets else True,
         build_dtbo = True if dtbo_list else False,
         build_initramfs = True,
         build_vendor_boot = True if dtbo_list else False,
@@ -420,7 +439,7 @@ def define_msm_la(
         in_tree_module_list = in_tree_module_list,
     )
 
-    _define_kernel_dist(target, msm_target, variant, base_kernel)
+    _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_targets)
 
     _define_uapi_library(target)
 
