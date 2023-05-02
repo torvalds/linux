@@ -508,13 +508,13 @@ u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
 	if (!mtrr_state_set) {
 		/* Uniformity is unknown. */
 		*uniform = 0;
-		return MTRR_TYPE_INVALID;
+		return MTRR_TYPE_UNCACHABLE;
 	}
 
 	*uniform = 1;
 
 	if (!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED))
-		return MTRR_TYPE_INVALID;
+		return MTRR_TYPE_UNCACHABLE;
 
 	for (i = 0; i < cache_map_n && start < end; i++) {
 		/* Region after current map entry? -> continue with next one. */
