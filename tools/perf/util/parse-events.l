@@ -63,17 +63,6 @@ static int str(yyscan_t scanner, int token)
 	return token;
 }
 
-static int raw(yyscan_t scanner)
-{
-	YYSTYPE *yylval = parse_events_get_lval(scanner);
-	char *text = parse_events_get_text(scanner);
-
-	if (perf_pmu__parse_check(text) == PMU_EVENT_SYMBOL)
-		return str(scanner, PE_NAME);
-
-	return __value(yylval, text + 1, 16, PE_RAW);
-}
-
 static bool isbpf_suffix(char *text)
 {
 	int len = strlen(text);
@@ -131,35 +120,6 @@ do {								\
 	yyless(0);						\
 } while (0)
 
-static int pmu_str_check(yyscan_t scanner, struct parse_events_state *parse_state)
-{
-	YYSTYPE *yylval = parse_events_get_lval(scanner);
-	char *text = parse_events_get_text(scanner);
-
-	yylval->str = strdup(text);
-
-	/*
-	 * If we're not testing then parse check determines the PMU event type
-	 * which if it isn't a PMU returns PE_NAME. When testing the result of
-	 * parse check can't be trusted so we return PE_PMU_EVENT_FAKE unless
-	 * an '!' is present in which case the text can't be a PMU name.
-	 */
-	switch (perf_pmu__parse_check(text)) {
-		case PMU_EVENT_SYMBOL_PREFIX:
-			return PE_PMU_EVENT_PRE;
-		case PMU_EVENT_SYMBOL_SUFFIX:
-			return PE_PMU_EVENT_SUF;
-		case PMU_EVENT_SYMBOL_SUFFIX2:
-			return PE_PMU_EVENT_SUF2;
-		case PMU_EVENT_SYMBOL:
-			return parse_state->fake_pmu
-				? PE_PMU_EVENT_FAKE : PE_KERNEL_PMU_EVENT;
-		default:
-			return parse_state->fake_pmu && !strchr(text,'!')
-				? PE_PMU_EVENT_FAKE : PE_NAME;
-	}
-}
-
 static int sym(yyscan_t scanner, int type, int config)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
@@ -211,13 +171,15 @@ bpf_source	[^,{}]+\.c[a-zA-Z0-9._]*
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
 num_raw_hex	[a-fA-F0-9]+
-name		[a-zA-Z_*?\[\]][a-zA-Z0-9_*?.\[\]!]*
+name		[a-zA-Z_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
 name_tag	[\'][a-zA-Z_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
 name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /* If you add a modifier you need to update check_modifier() */
 modifier_event	[ukhpPGHSDIWeb]+
 modifier_bp	[rwx]{1,3}
+lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
+lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
 
 %%
 
@@ -303,8 +265,8 @@ percore			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_PERCORE); }
 aux-output		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT); }
 aux-sample-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE); }
 metric-id		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_METRIC_ID); }
-r{num_raw_hex}		{ return raw(yyscanner); }
-r0x{num_raw_hex}	{ return raw(yyscanner); }
+r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
+r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 ,			{ return ','; }
 "/"			{ BEGIN(INITIAL); return '/'; }
 {name_minus}		{ return str(yyscanner, PE_NAME); }
@@ -359,47 +321,20 @@ system_time						{ return tool(yyscanner, PERF_TOOL_SYSTEM_TIME); }
 bpf-output					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_BPF_OUTPUT); }
 cgroup-switches					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CGROUP_SWITCHES); }
 
-	/*
-	 * We have to handle the kernel PMU event cycles-ct/cycles-t/mem-loads/mem-stores separately.
-	 * Because the prefix cycles is mixed up with cpu-cycles.
-	 * loads and stores are mixed up with cache event
-	 */
-cycles-ct				|
-cycles-t				|
-mem-loads				|
-mem-loads-aux				|
-mem-stores				|
-topdown-[a-z-]+				|
-tx-capacity-[a-z-]+			|
-el-capacity-[a-z-]+			{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
-
-L1-dcache|l1-d|l1d|L1-data		|
-L1-icache|l1-i|l1i|L1-instruction	|
-LLC|L2					|
-dTLB|d-tlb|Data-TLB			|
-iTLB|i-tlb|Instruction-TLB		|
-branch|branches|bpu|btb|bpc		|
-node					{ return str(yyscanner, PE_NAME_CACHE_TYPE); }
-
-load|loads|read				|
-store|stores|write			|
-prefetch|prefetches			|
-speculative-read|speculative-load	|
-refs|Reference|ops|access		|
-misses|miss				{ return str(yyscanner, PE_NAME_CACHE_OP_RESULT); }
-
+{lc_type}			{ return str(yyscanner, PE_LEGACY_CACHE); }
+{lc_type}-{lc_op_result}	{ return str(yyscanner, PE_LEGACY_CACHE); }
+{lc_type}-{lc_op_result}-{lc_op_result}	{ return str(yyscanner, PE_LEGACY_CACHE); }
 mem:			{ BEGIN(mem); return PE_PREFIX_MEM; }
-r{num_raw_hex}		{ return raw(yyscanner); }
+r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 {num_dec}		{ return value(yyscanner, 10); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
 {bpf_object}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_OBJECT); }
 {bpf_source}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_SOURCE); }
-{name}			{ return pmu_str_check(yyscanner, _parse_state); }
+{name}			{ return str(yyscanner, PE_NAME); }
 {name_tag}		{ return str(yyscanner, PE_NAME); }
 "/"			{ BEGIN(config); return '/'; }
--			{ return '-'; }
 ,			{ BEGIN(event); return ','; }
 :			{ return ':'; }
 "{"			{ BEGIN(event); return '{'; }

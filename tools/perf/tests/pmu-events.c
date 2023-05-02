@@ -776,15 +776,6 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
 
-	if (fake_pmu) {
-		/*
-		 * Every call to __parse_events will try to initialize the PMU
-		 * state from sysfs and then clean it up at the end. Reset the
-		 * PMU events to the test state so that we don't pick up
-		 * erroneous prefixes and suffixes.
-		 */
-		perf_pmu__test_parse_init();
-	}
 	ret = __parse_events(evlist, dup, error, fake_pmu, /*warn_if_reordered=*/true);
 	free(dup);
 

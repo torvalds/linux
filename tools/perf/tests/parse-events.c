@@ -676,11 +676,11 @@ static int test__checkterms_simple(struct list_head *terms)
 	 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
-			term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
+			term->type_term == PARSE_EVENTS__TERM_TYPE_RAW);
 	TEST_ASSERT_VAL("wrong type val",
-			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
-	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
-	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "read"));
+			term->type_val == PARSE_EVENTS__TERM_TYPE_STR);
+	TEST_ASSERT_VAL("wrong val", !strcmp(term->val.str, "read"));
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "raw"));
 
 	/*
 	 * r0xead
@@ -690,11 +690,11 @@ static int test__checkterms_simple(struct list_head *terms)
 	 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
-			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG);
+			term->type_term == PARSE_EVENTS__TERM_TYPE_RAW);
 	TEST_ASSERT_VAL("wrong type val",
-			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
-	TEST_ASSERT_VAL("wrong val", term->val.num == 0xead);
-	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
+			term->type_val == PARSE_EVENTS__TERM_TYPE_STR);
+	TEST_ASSERT_VAL("wrong val", !strcmp(term->val.str, "r0xead"));
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "raw"));
 	return TEST_OK;
 }
 
@@ -2104,7 +2104,6 @@ static int test_event_fake_pmu(const char *str)
 		return -ENOMEM;
 
 	parse_events_error__init(&err);
-	perf_pmu__test_parse_init();
 	ret = __parse_events(evlist, str, &err, &perf_pmu__fake, /*warn_if_reordered=*/true);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
@@ -2157,13 +2156,6 @@ static int test_term(const struct terms_test *t)
 	int ret;
 
 	INIT_LIST_HEAD(&terms);
-
-	/*
-	 * The perf_pmu__test_parse_init prepares perf_pmu_events_list
-	 * which gets freed in parse_events_terms.
-	 */
-	if (perf_pmu__test_parse_init())
-		return -1;
 
 	ret = parse_events_terms(&terms, t->str);
 	if (ret) {

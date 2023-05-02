@@ -41,14 +41,6 @@ int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
 
-enum perf_pmu_event_symbol_type {
-	PMU_EVENT_SYMBOL_ERR,		/* not a PMU EVENT */
-	PMU_EVENT_SYMBOL,		/* normal style PMU event */
-	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
-	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
-	PMU_EVENT_SYMBOL_SUFFIX2,	/* suffix of pre-suf2 style event */
-};
-
 enum {
 	PARSE_EVENTS__TERM_TYPE_NUM,
 	PARSE_EVENTS__TERM_TYPE_STR,
@@ -78,6 +70,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT,
 	PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE,
 	PARSE_EVENTS__TERM_TYPE_METRIC_ID,
+	PARSE_EVENTS__TERM_TYPE_RAW,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -174,8 +167,7 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 int parse_events_add_tool(struct parse_events_state *parse_state,
 			  struct list_head *list,
 			  int tool_event);
-int parse_events_add_cache(struct list_head *list, int *idx,
-			   char *type, char *op_result1, char *op_result2,
+int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			   struct parse_events_error *error,
 			   struct list_head *head_config,
 			   struct parse_events_state *parse_state);
@@ -198,8 +190,6 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 int parse_events_copy_term_list(struct list_head *old,
 				 struct list_head **new);
 
-enum perf_pmu_event_symbol_type
-perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
@@ -240,8 +230,6 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 	return false;
 }
 #endif /* HAVE_LIBELF_SUPPORT */
-
-int perf_pmu__test_parse_init(void);
 
 struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
 					     struct perf_event_attr *attr,
