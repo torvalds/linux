@@ -550,8 +550,14 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	return 0;
 }
 
-/* New much simpler mechanism for clearing out unneeded replicas entries: */
-
+/*
+ * New much simpler mechanism for clearing out unneeded replicas entries - drop
+ * replicas entries that have 0 sectors used.
+ *
+ * However, we don't track sector counts for journal usage, so this doesn't drop
+ * any BCH_DATA_journal entries; the old bch2_replicas_gc_(start|end) mechanism
+ * is retained for that.
+ */
 int bch2_replicas_gc2(struct bch_fs *c)
 {
 	struct bch_replicas_cpu new = { 0 };
