@@ -750,7 +750,8 @@ static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
 	if (format->which != V4L2_SUBDEV_FORMAT_TRY)
 		return;
 
-	*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = format->format;
+	*v4l2_subdev_get_try_format(sd, sd_state, MIPID02_SOURCE) =
+		format->format;
 }
 
 static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
@@ -768,6 +769,9 @@ static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
 		fmt = &bridge->fmt;
 
 	*fmt = format->format;
+
+	/* Propagate the format change to the source pad */
+	mipid02_set_fmt_source(sd, sd_state, format);
 }
 
 static int mipid02_set_fmt(struct v4l2_subdev *sd,
