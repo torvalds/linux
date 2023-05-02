@@ -187,6 +187,10 @@ struct intel_guc_state_capture {
 	struct __guc_capture_ads_cache ads_cache[GUC_CAPTURE_LIST_INDEX_MAX]
 						[GUC_CAPTURE_LIST_TYPE_MAX]
 						[GUC_MAX_ENGINE_CLASSES];
+
+	/**
+	 * @ads_null_cache: ADS null cache.
+	 */
 	void *ads_null_cache;
 
 	/**
@@ -202,6 +206,10 @@ struct intel_guc_state_capture {
 	struct list_head cachelist;
 #define PREALLOC_NODES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
 #define PREALLOC_NODES_DEFAULT_NUMREGS 64
+
+	/**
+	 * @max_mmio_per_node: Max MMIO per node.
+	 */
 	int max_mmio_per_node;
 
 	/**
