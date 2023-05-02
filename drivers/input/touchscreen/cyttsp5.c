@@ -600,12 +600,7 @@ static int cyttsp5_get_hid_descriptor(struct cyttsp5 *ts,
 				      struct cyttsp5_hid_desc *desc)
 {
 	struct device *dev = ts->dev;
-	__le16 hid_desc_register = cpu_to_le16(HID_DESC_REG);
 	int rc;
-	u8 cmd[2];
-
-	/* Set HID descriptor register */
-	memcpy(cmd, &hid_desc_register, sizeof(hid_desc_register));
 
 	rc = cyttsp5_write(ts, HID_DESC_REG, NULL, 0);
 	if (rc) {
