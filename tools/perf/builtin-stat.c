@@ -44,6 +44,7 @@
 #include "util/cgroup.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/pmus.h"
 #include "util/pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
@@ -69,7 +70,6 @@
 #include "util/pfm.h"
 #include "util/bpf_counter.h"
 #include "util/iostat.h"
-#include "util/pmu-hybrid.h"
 #include "util/util.h"
 #include "asm/bug.h"
 
@@ -1089,10 +1089,11 @@ static int parse_stat_cgroups(const struct option *opt,
 	return parse_cgroups(opt, str, unset);
 }
 
-static int parse_hybrid_type(const struct option *opt,
+static int parse_cputype(const struct option *opt,
 			     const char *str,
 			     int unset __maybe_unused)
 {
+	const struct perf_pmu *pmu;
 	struct evlist *evlist = *(struct evlist **)opt->value;
 
 	if (!list_empty(&evlist->core.entries)) {
@@ -1100,11 +1101,12 @@ static int parse_hybrid_type(const struct option *opt,
 		return -1;
 	}
 
-	parse_events_option_args.pmu_filter = perf_pmu__hybrid_type_to_pmu(str);
-	if (!parse_events_option_args.pmu_filter) {
+	pmu = perf_pmus__pmu_for_pmu_filter(str);
+	if (!pmu) {
 		fprintf(stderr, "--cputype %s is not supported!\n", str);
 		return -1;
 	}
+	parse_events_option_args.pmu_filter = pmu->name;
 
 	return 0;
 }
@@ -1230,7 +1232,7 @@ static struct option stat_options[] = {
 	OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
 		     "Only enable events on applying cpu with this type "
 		     "for hybrid platform (e.g. core or atom)",
-		     parse_hybrid_type),
+		     parse_cputype),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
