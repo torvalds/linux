@@ -9910,6 +9910,7 @@ static struct usb_device_driver rtl8152_cfgselector_driver = {
 	.probe =	rtl8152_cfgselector_probe,
 	.id_table =	rtl8152_table,
 	.generic_subclass = 1,
+	.supports_autosuspend = 1,
 };
 
 static int __init rtl8152_driver_init(void)
