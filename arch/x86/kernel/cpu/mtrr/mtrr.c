@@ -61,7 +61,7 @@
 u32 num_var_ranges;
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
-static DEFINE_MUTEX(mtrr_mutex);
+DEFINE_MUTEX(mtrr_mutex);
 
 const struct mtrr_ops *mtrr_if;
 
@@ -183,6 +183,8 @@ static void set_mtrr(unsigned int reg, unsigned long base, unsigned long size,
 				    };
 
 	stop_machine_cpuslocked(mtrr_rendezvous_handler, &data, cpu_online_mask);
+
+	generic_rebuild_map();
 }
 
 /**
@@ -563,6 +565,7 @@ void __init mtrr_bp_init(void)
 		 * Note that X86_FEATURE_MTRR has been reset in this case.
 		 */
 		init_table();
+		mtrr_build_map();
 		pr_info("MTRRs set to read-only\n");
 
 		return;
@@ -587,6 +590,7 @@ void __init mtrr_bp_init(void)
 			if (get_mtrr_state()) {
 				memory_caching_control |= CACHE_MTRR;
 				changed_by_mtrr_cleanup = mtrr_cleanup();
+				mtrr_build_map();
 			} else {
 				mtrr_if = NULL;
 				why = "by BIOS";
@@ -615,6 +619,12 @@ void mtrr_save_state(void)
 
 static int __init mtrr_init_finalize(void)
 {
+	/*
+	 * Map might exist if mtrr_overwrite_state() has been called or if
+	 * mtrr_enabled() returns true.
+	 */
+	mtrr_copy_map();
+
 	if (!mtrr_enabled())
 		return 0;
 

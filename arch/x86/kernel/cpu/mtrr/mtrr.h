@@ -52,6 +52,7 @@ void fill_mtrr_var_range(unsigned int index,
 bool get_mtrr_state(void);
 
 extern const struct mtrr_ops *mtrr_if;
+extern struct mutex mtrr_mutex;
 
 extern unsigned int num_var_ranges;
 extern u64 mtrr_tom2;
@@ -68,6 +69,8 @@ void mtrr_register_syscore(void);
 static inline void mtrr_set_if(void) { }
 static inline void mtrr_register_syscore(void) { }
 #endif
+void mtrr_build_map(void);
+void mtrr_copy_map(void);
 
 /* CPU specific mtrr_ops vectors. */
 extern const struct mtrr_ops amd_mtrr_ops;
@@ -76,7 +79,6 @@ extern const struct mtrr_ops centaur_mtrr_ops;
 
 extern int changed_by_mtrr_cleanup;
 extern int mtrr_cleanup(void);
-void generic_rebuild_map(void);
 
 /*
  * Must be used by code which uses mtrr_if to call platform-specific
@@ -86,3 +88,4 @@ static inline bool mtrr_enabled(void)
 {
 	return !!mtrr_if;
 }
+void generic_rebuild_map(void);
