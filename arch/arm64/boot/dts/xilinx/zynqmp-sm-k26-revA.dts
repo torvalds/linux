@@ -55,6 +55,9 @@
 		key-fwuen {
 			label = "fwuen";
 			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_MISC>;
+			wakeup-source;
+			autorepeat;
 		};
 	};
 
