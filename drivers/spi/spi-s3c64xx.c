@@ -561,10 +561,17 @@ static int s3c64xx_wait_for_pio(struct s3c64xx_spi_driver_data *sdd,
 	u32 cpy_len;
 	u8 *buf;
 	int ms;
+	unsigned long time_us;
 
-	/* millisecs to xfer 'len' bytes @ 'cur_speed' */
-	ms = xfer->len * 8 * 1000 / sdd->cur_speed;
+	/* microsecs to xfer 'len' bytes @ 'cur_speed' */
+	time_us = (xfer->len * 8 * 1000 * 1000) / sdd->cur_speed;
+	ms = (time_us / 1000);
 	ms += 10; /* some tolerance */
+
+	/* sleep during signal transfer time */
+	status = readl(regs + S3C64XX_SPI_STATUS);
+	if (RX_FIFO_LVL(status, sdd) < xfer->len)
+		usleep_range(time_us / 2, time_us);
 
 	val = msecs_to_loops(ms);
 	do {
