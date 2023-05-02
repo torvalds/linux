@@ -136,6 +136,7 @@ struct fid {
 };
 
 #define EXPORT_FH_CONNECTABLE	0x1 /* Encode file handle with parent */
+#define EXPORT_FH_FID		0x2 /* File handle may be non-decodeable */
 
 /**
  * struct export_operations - for nfsd to communicate with file systems
@@ -227,9 +228,18 @@ struct export_operations {
 };
 
 extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-				    int *max_len, struct inode *parent);
+				    int *max_len, struct inode *parent,
+				    int flags);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 			      int *max_len, int flags);
+
+static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
+				      int *max_len)
+{
+	return exportfs_encode_inode_fh(inode, fid, max_len, NULL,
+					EXPORT_FH_FID);
+}
+
 extern struct dentry *exportfs_decode_fh_raw(struct vfsmount *mnt,
 					     struct fid *fid, int fh_len,
 					     int fileid_type,
