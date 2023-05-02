@@ -35,7 +35,6 @@
 
 #define DC_LOGGER_INIT(logger)
 
-static const unsigned int MAX_FPO_VACTIVE_BLANK_US = 600;
 static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 			.min_refresh = 120,
 			.max_refresh = 165,
@@ -2937,7 +2936,7 @@ bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint
 		blank_us = ((pipe->stream->timing.v_total - pipe->stream->timing.v_addressable) * pipe->stream->timing.h_total /
 				(double)(pipe->stream->timing.pix_clk_100hz * 100)) * 1000000;
 		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] >= vactive_margin_req_us &&
-				!(pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed) && blank_us < MAX_FPO_VACTIVE_BLANK_US) {
+				!(pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed) && blank_us < dc->debug.fpo_vactive_max_blank_us) {
 			vactive_found = true;
 			break;
 		}

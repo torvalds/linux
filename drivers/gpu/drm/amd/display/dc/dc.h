@@ -893,6 +893,8 @@ struct dc_debug_options {
 	bool minimize_dispclk_using_odm;
 	bool disable_subvp_high_refresh;
 	bool disable_dp_plus_plus_wa;
+	uint32_t fpo_vactive_min_active_margin_us;
+	uint32_t fpo_vactive_max_blank_us;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
