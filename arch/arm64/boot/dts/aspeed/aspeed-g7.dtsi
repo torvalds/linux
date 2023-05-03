@@ -28,11 +28,19 @@
 		i2c13 = &i2c13;
 		i2c14 = &i2c14;
 		i2c15 = &i2c15;
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		serial6 = &uart6;
+		serial7 = &uart7;
+		serial8 = &uart8;
+		serial9 = &uart9;
+		serial10 = &uart10;
+		serial11 = &uart11;
+		serial12 = &uart12;
 		mdio0 = &mdio0;
 		mdio1 = &mdio1;
 		mdio2 = &mdio2;
@@ -197,57 +205,157 @@
 				};
 			};
 
-			uart1: serial@14c33000 {
+			uart0: serial@14c33000 {
 				compatible = "ns16550a";
 				reg = <0x0 0x14c33000 0x0 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
-				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 7>;
 				no-loopback-test;
 				pinctrl-names = "default";
 				status = "disabled";
 			};
 
-			uart2: serial@14c33100 {
+			uart1: serial@14c33100 {
 				compatible = "ns16550a";
 				reg = <0x0 0x14c33100 0x0 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
-				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 8>;
 				no-loopback-test;
 				pinctrl-names = "default";
 				status = "disabled";
 			};
 
-			uart3: serial@14c33200 {
+			uart2: serial@14c33200 {
 				compatible = "ns16550a";
 				reg = <0x0 0x14c33200 0x0 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
-				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 9>;
 				no-loopback-test;
 				pinctrl-names = "default";
 				status = "disabled";
 			};
 
-			uart4: serial@14c33300 {
+			uart3: serial@14c33300 {
 				compatible = "ns16550a";
 				reg = <0x0 0x14c33300 0x0 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
-				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 10>;
 				no-loopback-test;
 				pinctrl-names = "default";
 				status = "disabled";
 			};
 
-			uart5: serial@12c1a000 {
+			uart4: serial@12c1a000 {
 				compatible = "ns16550a";
 				reg = <0x0 0x12c1a000 0x0 0x1000>;
 				reg-shift = <2>;
-				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <1846154>;
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart5: serial@14c33400 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33400 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 11>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart6: serial@14c33500 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33500 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 12>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart7: serial@14c33600 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33600 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 13>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart8: serial@14c33700 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33700 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 14>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart9: serial@14c33800 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33800 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 15>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart10: serial@14c33900 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33900 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 16>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart11: serial@14c33a00 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33a00 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 17>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				status = "disabled";
+			};
+
+			uart12: serial@14c33b00 {
+				compatible = "ns16550a";
+				reg = <0x0 0x14c33b00 0x0 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <1846154>;
+				interrupts-extended = <&intc4 18>;
+				no-loopback-test;
+				pinctrl-names = "default";
 				status = "okay";
 			};
 
