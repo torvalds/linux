@@ -29,6 +29,8 @@ enum {
 	/* write IO error */
 	EXTENT_BUFFER_WRITE_ERR,
 	EXTENT_BUFFER_NO_CHECK,
+	/* Indicate that extent buffer pages a being read */
+	EXTENT_BUFFER_READING,
 };
 
 /* these are flags for __process_pages_contig */
