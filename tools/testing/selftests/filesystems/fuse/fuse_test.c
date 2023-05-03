@@ -175,8 +175,8 @@ static int basic_test(const char *mount_dir)
 			.open_flags = open_in->flags,
 		}));
 
-		//TESTFUSEINNULL(FUSE_CANONICAL_PATH);
-		//TESTFUSEOUTREAD("ignored", 7);
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_READ, read_in);
 		TESTFUSEOUTREAD(test_data, strlen(test_data));
@@ -631,8 +631,8 @@ static int bpf_test_creat(const char *mount_dir)
 			.open_flags = create_in->flags,
 			}));
 
-		//TESTFUSEINNULL(FUSE_CANONICAL_PATH);
-		//TESTFUSEOUTREAD("ignored", 7);
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_FLUSH, flush_in);
 		TESTFUSEOUTEMPTY();
