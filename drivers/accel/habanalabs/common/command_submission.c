@@ -804,12 +804,14 @@ out:
 
 static void cs_timedout(struct work_struct *work)
 {
+	struct hl_cs *cs = container_of(work, struct hl_cs, work_tdr.work);
+	bool skip_reset_on_timeout, device_reset = false;
 	struct hl_device *hdev;
 	u64 event_mask = 0x0;
+	uint timeout_sec;
 	int rc;
-	struct hl_cs *cs = container_of(work, struct hl_cs,
-						 work_tdr.work);
-	bool skip_reset_on_timeout = cs->skip_reset_on_timeout, device_reset = false;
+
+	skip_reset_on_timeout = cs->skip_reset_on_timeout;
 
 	rc = cs_get_unless_zero(cs);
 	if (!rc)
@@ -840,29 +842,31 @@ static void cs_timedout(struct work_struct *work)
 		event_mask |= HL_NOTIFIER_EVENT_CS_TIMEOUT;
 	}
 
+	timeout_sec = jiffies_to_msecs(hdev->timeout_jiffies) / 1000;
+
 	switch (cs->type) {
 	case CS_TYPE_SIGNAL:
 		dev_err(hdev->dev,
-			"Signal command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Signal command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	case CS_TYPE_WAIT:
 		dev_err(hdev->dev,
-			"Wait command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Wait command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	case CS_TYPE_COLLECTIVE_WAIT:
 		dev_err(hdev->dev,
-			"Collective Wait command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Collective Wait command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 
 	default:
 		dev_err(hdev->dev,
-			"Command submission %llu has not finished in time!\n",
-			cs->sequence);
+			"Command submission %llu has not finished in %u seconds!\n",
+			cs->sequence, timeout_sec);
 		break;
 	}
 
