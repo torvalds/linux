@@ -12,7 +12,9 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 
 DTS_EXT_DIR=common-modules/virtual-device
 DTC_INCLUDE=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/boot/dts/rockchip
-MAKE_GOALS="${MAKE_GOALS}
+MAKE_GOALS="
+Image
+modules
 rk3399-rock-pi-4b.dtb
 "
 

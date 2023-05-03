@@ -31,6 +31,18 @@
  * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
+/*
+ * Allow caching in a transparent outer level of cache, also known as
+ * the last-level or system cache, with a read/write allocation policy.
+ * Does not depend on IOMMU_CACHE. Incompatible with IOMMU_SYS_CACHE_NWA.
+ */
+#define IOMMU_SYS_CACHE	(1 << 6)
+/*
+ * Allow caching in a transparent outer level of cache, also known as
+ * the last-level or system cache, with a read allocation policy.
+ * Does not depend on IOMMU_CACHE. Incompatible with IOMMU_SYS_CACHE.
+ */
+#define IOMMU_SYS_CACHE_NWA (1 << 7)
 
 struct iommu_ops;
 struct iommu_group;
