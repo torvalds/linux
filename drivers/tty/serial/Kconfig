@@ -450,8 +450,8 @@ config SERIAL_SA1100
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
 	  can enable its onboard serial port by enabling this option.
-	  Please read <file:Documentation/arm/sa1100/serial_uart.rst> for further
-	  info.
+	  Please read <file:Documentation/arch/arm/sa1100/serial_uart.rst> for
+	  further info.
 
 config SERIAL_SA1100_CONSOLE
 	bool "Console on SA1100 serial port"
