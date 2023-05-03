@@ -4523,3 +4523,19 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 		ret = clone_backref_node(trans, rc, root, reloc_root);
 	return ret;
 }
+
+/*
+ * Get the current bytenr for the block group which is being relocated.
+ *
+ * Return U64_MAX if no running relocation.
+ */
+u64 btrfs_get_reloc_bg_bytenr(struct btrfs_fs_info *fs_info)
+{
+	u64 logical = U64_MAX;
+
+	lockdep_assert_held(&fs_info->reloc_mutex);
+
+	if (fs_info->reloc_ctl && fs_info->reloc_ctl->block_group)
+		logical = fs_info->reloc_ctl->block_group->start;
+	return logical;
+}

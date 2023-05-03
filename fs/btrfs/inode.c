@@ -70,6 +70,7 @@
 #include "verity.h"
 #include "super.h"
 #include "orphan.h"
+#include "backref.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -100,6 +101,18 @@ struct btrfs_rename_ctx {
 	u64 index;
 };
 
+/*
+ * Used by data_reloc_print_warning_inode() to pass needed info for filename
+ * resolution and output of error message.
+ */
+struct data_reloc_warn {
+	struct btrfs_path path;
+	struct btrfs_fs_info *fs_info;
+	u64 extent_item_size;
+	u64 logical;
+	int mirror_num;
+};
+
 static const struct inode_operations btrfs_dir_inode_operations;
 static const struct inode_operations btrfs_symlink_inode_operations;
 static const struct inode_operations btrfs_special_inode_operations;
@@ -122,11 +135,189 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 				       u64 ram_bytes, int compress_type,
 				       int type);
 
+static int data_reloc_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
+					  u64 root, void *warn_ctx)
+{
+	struct data_reloc_warn *warn = warn_ctx;
+	struct btrfs_fs_info *fs_info = warn->fs_info;
+	struct extent_buffer *eb;
+	struct btrfs_inode_item *inode_item;
+	struct inode_fs_paths *ipath = NULL;
+	struct btrfs_root *local_root;
+	struct btrfs_key key;
+	unsigned int nofs_flag;
+	u32 nlink;
+	int ret;
+
+	local_root = btrfs_get_fs_root(fs_info, root, true);
+	if (IS_ERR(local_root)) {
+		ret = PTR_ERR(local_root);
+		goto err;
+	}
+
+	/* This makes the path point to (inum INODE_ITEM ioff). */
+	key.objectid = inum;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(NULL, local_root, &key, &warn->path, 0, 0);
+	if (ret) {
+		btrfs_put_root(local_root);
+		btrfs_release_path(&warn->path);
+		goto err;
+	}
+
+	eb = warn->path.nodes[0];
+	inode_item = btrfs_item_ptr(eb, warn->path.slots[0], struct btrfs_inode_item);
+	nlink = btrfs_inode_nlink(eb, inode_item);
+	btrfs_release_path(&warn->path);
+
+	nofs_flag = memalloc_nofs_save();
+	ipath = init_ipath(4096, local_root, &warn->path);
+	memalloc_nofs_restore(nofs_flag);
+	if (IS_ERR(ipath)) {
+		btrfs_put_root(local_root);
+		ret = PTR_ERR(ipath);
+		ipath = NULL;
+		/*
+		 * -ENOMEM, not a critical error, just output an generic error
+		 * without filename.
+		 */
+		btrfs_warn(fs_info,
+"checksum error at logical %llu mirror %u root %llu, inode %llu offset %llu",
+			   warn->logical, warn->mirror_num, root, inum, offset);
+		return ret;
+	}
+	ret = paths_from_inode(inum, ipath);
+	if (ret < 0)
+		goto err;
+
+	/*
+	 * We deliberately ignore the bit ipath might have been too small to
+	 * hold all of the paths here
+	 */
+	for (int i = 0; i < ipath->fspath->elem_cnt; i++) {
+		btrfs_warn(fs_info,
+"checksum error at logical %llu mirror %u root %llu inode %llu offset %llu length %u links %u (path: %s)",
+			   warn->logical, warn->mirror_num, root, inum, offset,
+			   fs_info->sectorsize, nlink,
+			   (char *)(unsigned long)ipath->fspath->val[i]);
+	}
+
+	btrfs_put_root(local_root);
+	free_ipath(ipath);
+	return 0;
+
+err:
+	btrfs_warn(fs_info,
+"checksum error at logical %llu mirror %u root %llu inode %llu offset %llu, path resolving failed with ret=%d",
+		   warn->logical, warn->mirror_num, root, inum, offset, ret);
+
+	free_ipath(ipath);
+	return ret;
+}
+
+/*
+ * Do extra user-friendly error output (e.g. lookup all the affected files).
+ *
+ * Return true if we succeeded doing the backref lookup.
+ * Return false if such lookup failed, and has to fallback to the old error message.
+ */
+static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off,
+				   const u8 *csum, const u8 *csum_expected,
+				   int mirror_num)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_path path = { 0 };
+	struct btrfs_key found_key = { 0 };
+	struct extent_buffer *eb;
+	struct btrfs_extent_item *ei;
+	const u32 csum_size = fs_info->csum_size;
+	u64 logical;
+	u64 flags;
+	u32 item_size;
+	int ret;
+
+	mutex_lock(&fs_info->reloc_mutex);
+	logical = btrfs_get_reloc_bg_bytenr(fs_info);
+	mutex_unlock(&fs_info->reloc_mutex);
+
+	if (logical == U64_MAX) {
+		btrfs_warn_rl(fs_info, "has data reloc tree but no running relocation");
+		btrfs_warn_rl(fs_info,
+"csum failed root %lld ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			inode->root->root_key.objectid, btrfs_ino(inode), file_off,
+			CSUM_FMT_VALUE(csum_size, csum),
+			CSUM_FMT_VALUE(csum_size, csum_expected),
+			mirror_num);
+		return;
+	}
+
+	logical += file_off;
+	btrfs_warn_rl(fs_info,
+"csum failed root %lld ino %llu off %llu logical %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			inode->root->root_key.objectid,
+			btrfs_ino(inode), file_off, logical,
+			CSUM_FMT_VALUE(csum_size, csum),
+			CSUM_FMT_VALUE(csum_size, csum_expected),
+			mirror_num);
+
+	ret = extent_from_logical(fs_info, logical, &path, &found_key, &flags);
+	if (ret < 0) {
+		btrfs_err_rl(fs_info, "failed to lookup extent item for logical %llu: %d",
+			     logical, ret);
+		return;
+	}
+	eb = path.nodes[0];
+	ei = btrfs_item_ptr(eb, path.slots[0], struct btrfs_extent_item);
+	item_size = btrfs_item_size(eb, path.slots[0]);
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+		unsigned long ptr = 0;
+		u64 ref_root;
+		u8 ref_level;
+
+		do {
+			ret = tree_backref_for_extent(&ptr, eb, &found_key, ei,
+						      item_size, &ref_root,
+						      &ref_level);
+			btrfs_warn_rl(fs_info,
+"csum error at logical %llu mirror %u: metadata %s (level %d) in tree %llu",
+				logical, mirror_num,
+				(ref_level ? "node" : "leaf"),
+				(ret < 0 ? -1 : ref_level),
+				(ret < 0 ? -1 : ref_root));
+		} while (ret != 1);
+		btrfs_release_path(&path);
+	} else {
+		struct btrfs_backref_walk_ctx ctx = { 0 };
+		struct data_reloc_warn reloc_warn = { 0 };
+
+		btrfs_release_path(&path);
+
+		ctx.bytenr = found_key.objectid;
+		ctx.extent_item_pos = logical - found_key.objectid;
+		ctx.fs_info = fs_info;
+
+		reloc_warn.logical = logical;
+		reloc_warn.extent_item_size = found_key.offset;
+		reloc_warn.mirror_num = mirror_num;
+		reloc_warn.fs_info = fs_info;
+
+		iterate_extent_inodes(&ctx, true,
+				      data_reloc_print_warning_inode, &reloc_warn);
+	}
+}
+
 static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
 		u64 logical_start, u8 *csum, u8 *csum_expected, int mirror_num)
 {
 	struct btrfs_root *root = inode->root;
 	const u32 csum_size = root->fs_info->csum_size;
+
+	/* For data reloc tree, it's better to do a backref lookup instead. */
+	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
+		return print_data_reloc_error(inode, logical_start, csum,
+					      csum_expected, mirror_num);
 
 	/* Output without objectid, which is more meaningful */
 	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID) {
