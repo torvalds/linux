@@ -658,9 +658,25 @@ static bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 	return false;
 }
 
-/*
- * find the first mount at @dentry on vfsmount @mnt.
- * call under rcu_read_lock()
+/**
+ * __lookup_mnt - find first child mount
+ * @mnt:	parent mount
+ * @dentry:	mountpoint
+ *
+ * If @mnt has a child mount @c mounted @dentry find and return it.
+ *
+ * Note that the child mount @c need not be unique. There are cases
+ * where shadow mounts are created. For example, during mount
+ * propagation when a source mount @mnt whose root got overmounted by a
+ * mount @o after path lookup but before @namespace_sem could be
+ * acquired gets copied and propagated. So @mnt gets copied including
+ * @o. When @mnt is propagated to a destination mount @d that already
+ * has another mount @n mounted at the same mountpoint then the source
+ * mount @mnt will be tucked beneath @n, i.e., @n will be mounted on
+ * @mnt and @mnt mounted on @d. Now both @n and @o are mounted at @mnt
+ * on @dentry.
+ *
+ * Return: The first child of @mnt mounted @dentry or NULL.
  */
 struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 {
