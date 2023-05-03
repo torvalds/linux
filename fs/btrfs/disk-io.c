@@ -427,8 +427,8 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 }
 
 /* Do basic extent buffer checks at read time */
-static int validate_extent_buffer(struct extent_buffer *eb,
-				  struct btrfs_tree_parent_check *check)
+int btrfs_validate_extent_buffer(struct extent_buffer *eb,
+				 struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 found_start;
@@ -538,107 +538,6 @@ static int validate_extent_buffer(struct extent_buffer *eb,
 		"read time tree block corruption detected on logical %llu mirror %u",
 			  eb->start, eb->read_mirror);
 out:
-	return ret;
-}
-
-static int validate_subpage_buffer(struct page *page, u64 start, u64 end,
-				   int mirror, struct btrfs_tree_parent_check *check)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
-	struct extent_buffer *eb;
-	bool reads_done;
-	int ret = 0;
-
-	ASSERT(check);
-
-	/*
-	 * We don't allow bio merge for subpage metadata read, so we should
-	 * only get one eb for each endio hook.
-	 */
-	ASSERT(end == start + fs_info->nodesize - 1);
-	ASSERT(PagePrivate(page));
-
-	eb = find_extent_buffer(fs_info, start);
-	/*
-	 * When we are reading one tree block, eb must have been inserted into
-	 * the radix tree. If not, something is wrong.
-	 */
-	ASSERT(eb);
-
-	reads_done = atomic_dec_and_test(&eb->io_pages);
-	/* Subpage read must finish in page read */
-	ASSERT(reads_done);
-
-	eb->read_mirror = mirror;
-	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
-		ret = -EIO;
-		goto err;
-	}
-	ret = validate_extent_buffer(eb, check);
-	if (ret < 0)
-		goto err;
-
-	set_extent_buffer_uptodate(eb);
-
-	free_extent_buffer(eb);
-	return ret;
-err:
-	/*
-	 * end_bio_extent_readpage decrements io_pages in case of error,
-	 * make sure it has something to decrement.
-	 */
-	atomic_inc(&eb->io_pages);
-	clear_extent_buffer_uptodate(eb);
-	free_extent_buffer(eb);
-	return ret;
-}
-
-int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
-				   struct page *page, u64 start, u64 end,
-				   int mirror)
-{
-	struct extent_buffer *eb;
-	int ret = 0;
-	int reads_done;
-
-	ASSERT(page->private);
-
-	if (btrfs_sb(page->mapping->host->i_sb)->nodesize < PAGE_SIZE)
-		return validate_subpage_buffer(page, start, end, mirror,
-					       &bbio->parent_check);
-
-	eb = (struct extent_buffer *)page->private;
-
-	/*
-	 * The pending IO might have been the only thing that kept this buffer
-	 * in memory.  Make sure we have a ref for all this other checks
-	 */
-	atomic_inc(&eb->refs);
-
-	reads_done = atomic_dec_and_test(&eb->io_pages);
-	if (!reads_done)
-		goto err;
-
-	eb->read_mirror = mirror;
-	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
-		ret = -EIO;
-		goto err;
-	}
-	ret = validate_extent_buffer(eb, &bbio->parent_check);
-	if (!ret)
-		set_extent_buffer_uptodate(eb);
-err:
-	if (ret) {
-		/*
-		 * our io error hook is going to dec the io pages
-		 * again, we have to make sure it has something
-		 * to decrement
-		 */
-		atomic_inc(&eb->io_pages);
-		clear_extent_buffer_uptodate(eb);
-	}
-	free_extent_buffer(eb);
-
 	return ret;
 }
 

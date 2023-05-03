@@ -664,35 +664,6 @@ static void begin_page_read(struct btrfs_fs_info *fs_info, struct page *page)
 }
 
 /*
- * Find extent buffer for a givne bytenr.
- *
- * This is for end_bio_extent_readpage(), thus we can't do any unsafe locking
- * in endio context.
- */
-static struct extent_buffer *find_extent_buffer_readpage(
-		struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
-{
-	struct extent_buffer *eb;
-
-	/*
-	 * For regular sectorsize, we can use page->private to grab extent
-	 * buffer
-	 */
-	if (fs_info->nodesize >= PAGE_SIZE) {
-		ASSERT(PagePrivate(page) && page->private);
-		return (struct extent_buffer *)page->private;
-	}
-
-	/* For subpage case, we need to lookup buffer radix tree */
-	rcu_read_lock();
-	eb = radix_tree_lookup(&fs_info->buffer_radix,
-			       bytenr >> fs_info->sectorsize_bits);
-	rcu_read_unlock();
-	ASSERT(eb);
-	return eb;
-}
-
-/*
  * after a readpage IO is done, we need to:
  * clear the uptodate bits on error
  * set the uptodate bits if things worked
@@ -713,7 +684,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 	 * larger than UINT_MAX, u32 here is enough.
 	 */
 	u32 bio_offset = 0;
-	int mirror;
 	struct bvec_iter_all iter_all;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
@@ -753,11 +723,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 		end = start + bvec->bv_len - 1;
 		len = bvec->bv_len;
 
-		mirror = bbio->mirror_num;
-		if (uptodate && !is_data_inode(inode) &&
-		    btrfs_validate_metadata_buffer(bbio, page, start, end, mirror))
-			uptodate = false;
-
 		if (likely(uptodate)) {
 			loff_t i_size = i_size_read(inode);
 			pgoff_t end_index = i_size >> PAGE_SHIFT;
@@ -778,13 +743,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 				zero_user_segment(page, zero_start,
 						  offset_in_page(end) + 1);
 			}
-		} else if (!is_data_inode(inode)) {
-			struct extent_buffer *eb;
-
-			eb = find_extent_buffer_readpage(fs_info, page, start);
-			set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
-			eb->read_mirror = mirror;
-			atomic_dec(&eb->io_pages);
 		}
 
 		/* Update page status and unlock. */
@@ -4221,6 +4179,42 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 	}
 }
 
+static void extent_buffer_read_end_io(struct btrfs_bio *bbio)
+{
+	struct extent_buffer *eb = bbio->private;
+	bool uptodate = !bbio->bio.bi_status;
+	struct bvec_iter_all iter_all;
+	struct bio_vec *bvec;
+	u32 bio_offset = 0;
+
+	atomic_inc(&eb->refs);
+	eb->read_mirror = bbio->mirror_num;
+
+	if (uptodate &&
+	    btrfs_validate_extent_buffer(eb, &bbio->parent_check) < 0)
+		uptodate = false;
+
+	if (uptodate) {
+		set_extent_buffer_uptodate(eb);
+	} else {
+		clear_extent_buffer_uptodate(eb);
+		set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
+	}
+
+	bio_for_each_segment_all(bvec, &bbio->bio, iter_all) {
+		atomic_dec(&eb->io_pages);
+		end_page_read(bvec->bv_page, uptodate, eb->start + bio_offset,
+			      bvec->bv_len);
+		bio_offset += bvec->bv_len;
+	}
+
+	unlock_extent(&bbio->inode->io_tree, eb->start,
+		      eb->start + bio_offset - 1, NULL);
+	free_extent_buffer(eb);
+
+	bio_put(&bbio->bio);
+}
+
 static void __read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 				       struct btrfs_tree_parent_check *check)
 {
@@ -4234,7 +4228,7 @@ static void __read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 
 	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
 			       REQ_OP_READ | REQ_META, eb->fs_info,
-			       end_bio_extent_readpage, NULL);
+			       extent_buffer_read_end_io, eb);
 	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
