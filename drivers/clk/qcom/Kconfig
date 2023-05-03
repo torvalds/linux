@@ -1013,6 +1013,15 @@ config SM_DISPCC_BLAIR
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_GPUCC_BLAIR
+	tristate "BLAIR Graphics Clock Controller"
+	select SM_GCC_BLAIR
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies,
+	  Inc. BLAIR devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK
