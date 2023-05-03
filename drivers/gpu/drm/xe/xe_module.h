@@ -3,7 +3,7 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <linux/init.h>
+#include <linux/types.h>
 
 /* Module modprobe variables */
 extern bool enable_guc;
