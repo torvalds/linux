@@ -2320,18 +2320,20 @@ static inline int ufshcd_hba_capabilities(struct ufs_hba *hba)
 
 	/* Read crypto capabilities */
 	err = ufshcd_hba_init_crypto_capabilities(hba);
-	if (err)
+	if (err) {
 		dev_err(hba->dev, "crypto setup failed\n");
+		return err;
+	}
 
 	hba->mcq_sup = FIELD_GET(MASK_MCQ_SUPPORT, hba->capabilities);
 	if (!hba->mcq_sup)
-		return err;
+		return 0;
 
 	hba->mcq_capabilities = ufshcd_readl(hba, REG_MCQCAP);
 	hba->ext_iid_sup = FIELD_GET(MASK_EXT_IID_SUPPORT,
 				     hba->mcq_capabilities);
 
-	return err;
+	return 0;
 }
 
 /**
