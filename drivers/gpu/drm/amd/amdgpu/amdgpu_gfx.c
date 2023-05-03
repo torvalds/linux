@@ -605,7 +605,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 						kiq->pmf->set_resources_size);
 		if (r) {
 			DRM_ERROR("Failed to lock KIQ (%d).\n", r);
-			spin_unlock(&adev->gfx.kiq[0].ring_lock);
+			spin_unlock(&kiq->ring_lock);
 			return r;
 		}
 
