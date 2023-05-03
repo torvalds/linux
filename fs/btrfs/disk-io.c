@@ -254,11 +254,33 @@ int btrfs_read_extent_buffer(struct extent_buffer *eb,
 	return ret;
 }
 
-static int csum_one_extent_buffer(struct extent_buffer *eb)
+/*
+ * Checksum a dirty tree block before IO.
+ */
+blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 {
+	struct extent_buffer *eb = bbio->private;
 	struct btrfs_fs_info *fs_info = eb->fs_info;
+	u64 found_start = btrfs_header_bytenr(eb);
 	u8 result[BTRFS_CSUM_SIZE];
 	int ret;
+
+	/* Btree blocks are always contiguous on disk. */
+	if (WARN_ON_ONCE(bbio->file_offset != eb->start))
+		return BLK_STS_IOERR;
+	if (WARN_ON_ONCE(bbio->bio.bi_iter.bi_size != eb->len))
+		return BLK_STS_IOERR;
+
+	if (test_bit(EXTENT_BUFFER_NO_CHECK, &eb->bflags)) {
+		WARN_ON_ONCE(found_start != 0);
+		return BLK_STS_OK;
+	}
+
+	if (WARN_ON_ONCE(found_start != eb->start))
+		return BLK_STS_IOERR;
+	if (WARN_ON(!btrfs_page_test_uptodate(fs_info, eb->pages[0], eb->start,
+					      eb->len)))
+		return BLK_STS_IOERR;
 
 	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
 				    offsetof(struct btrfs_header, fsid),
@@ -286,8 +308,7 @@ static int csum_one_extent_buffer(struct extent_buffer *eb)
 		goto error;
 	}
 	write_extent_buffer(eb, result, 0, fs_info->csum_size);
-
-	return 0;
+	return BLK_STS_OK;
 
 error:
 	btrfs_print_tree(eb, 0);
@@ -301,99 +322,6 @@ error:
 	 */
 	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG) ||
 		btrfs_header_owner(eb) == BTRFS_TREE_LOG_OBJECTID);
-	return ret;
-}
-
-/* Checksum all dirty extent buffers in one bio_vec */
-static int csum_dirty_subpage_buffers(struct btrfs_fs_info *fs_info,
-				      struct bio_vec *bvec)
-{
-	struct page *page = bvec->bv_page;
-	u64 bvec_start = page_offset(page) + bvec->bv_offset;
-	u64 cur;
-	int ret = 0;
-
-	for (cur = bvec_start; cur < bvec_start + bvec->bv_len;
-	     cur += fs_info->nodesize) {
-		struct extent_buffer *eb;
-		bool uptodate;
-
-		eb = find_extent_buffer(fs_info, cur);
-		uptodate = btrfs_subpage_test_uptodate(fs_info, page, cur,
-						       fs_info->nodesize);
-
-		/* A dirty eb shouldn't disappear from buffer_radix */
-		if (WARN_ON(!eb))
-			return -EUCLEAN;
-
-		if (WARN_ON(cur != btrfs_header_bytenr(eb))) {
-			free_extent_buffer(eb);
-			return -EUCLEAN;
-		}
-		if (WARN_ON(!uptodate)) {
-			free_extent_buffer(eb);
-			return -EUCLEAN;
-		}
-
-		ret = csum_one_extent_buffer(eb);
-		free_extent_buffer(eb);
-		if (ret < 0)
-			return ret;
-	}
-	return ret;
-}
-
-/*
- * Checksum a dirty tree block before IO.  This has extra checks to make sure
- * we only fill in the checksum field in the first page of a multi-page block.
- * For subpage extent buffers we need bvec to also read the offset in the page.
- */
-static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec)
-{
-	struct page *page = bvec->bv_page;
-	u64 start = page_offset(page);
-	u64 found_start;
-	struct extent_buffer *eb;
-
-	if (fs_info->nodesize < PAGE_SIZE)
-		return csum_dirty_subpage_buffers(fs_info, bvec);
-
-	eb = (struct extent_buffer *)page->private;
-	if (page != eb->pages[0])
-		return 0;
-
-	found_start = btrfs_header_bytenr(eb);
-
-	if (test_bit(EXTENT_BUFFER_NO_CHECK, &eb->bflags)) {
-		WARN_ON(found_start != 0);
-		return 0;
-	}
-
-	/*
-	 * Please do not consolidate these warnings into a single if.
-	 * It is useful to know what went wrong.
-	 */
-	if (WARN_ON(found_start != start))
-		return -EUCLEAN;
-	if (WARN_ON(!PageUptodate(page)))
-		return -EUCLEAN;
-
-	return csum_one_extent_buffer(eb);
-}
-
-blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
-{
-	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
-	struct bvec_iter iter;
-	struct bio_vec bv;
-	int ret = 0;
-
-	bio_for_each_segment(bv, &bbio->bio, iter) {
-		ret = csum_dirty_buffer(fs_info, &bv);
-		if (ret)
-			break;
-	}
-
 	return errno_to_blk_status(ret);
 }
 
