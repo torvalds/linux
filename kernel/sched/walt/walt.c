@@ -1066,7 +1066,7 @@ static void migrate_busy_time_subtraction(struct task_struct *p, int new_cpu)
 	if (wts->window_start != src_wrq->window_start)
 		WALT_BUG(WALT_BUG_WALT, p,
 				"CPU%d: %s task %s(%d)'s ws=%llu not equal to src_rq %d's ws=%llu",
-				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				raw_smp_processor_id(), __func__, p->comm, p->pid,
 				wts->window_start, src_rq->cpu, src_wrq->window_start);
 
 
@@ -1134,7 +1134,7 @@ static void migrate_busy_time_addition(struct task_struct *p, int new_cpu, u64 w
 	if (wts->window_start != dest_wrq->window_start)
 		WALT_BUG(WALT_BUG_WALT, p,
 				"CPU%d: %s task %s(%d)'s ws=%llu not equal to dest_rq %d's ws=%llu",
-				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				raw_smp_processor_id(), __func__, p->comm, p->pid,
 				wts->window_start, dest_rq->cpu, dest_wrq->window_start);
 
 	new_task = is_new_task(p);
@@ -1734,7 +1734,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 	if (wts->window_start != wrq->window_start)
 		WALT_BUG(WALT_BUG_WALT, p,
 				"CPU%d: %s task %s(%d)'s ws=%llu not equal to rq %d's ws=%llu",
-				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				raw_smp_processor_id(), __func__, p->comm, p->pid,
 				wts->window_start, rq->cpu, wrq->window_start);
 
 	if (!new_window) {
@@ -3389,7 +3389,7 @@ static void transfer_busy_time(struct rq *rq,
 	if (wts->window_start != wrq->window_start)
 		WALT_BUG(WALT_BUG_WALT, p,
 				"CPU%d: %s event=%d task %s(%d)'s ws=%llu not equal to rq %d's ws=%llu",
-				__func__, raw_smp_processor_id(), event, p->comm, p->pid,
+				raw_smp_processor_id(), __func__, event, p->comm, p->pid,
 				wts->window_start, rq->cpu, wrq->window_start);
 
 	new_task = is_new_task(p);
