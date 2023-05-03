@@ -615,10 +615,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 
 	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
 			run_one_async_free);
-	if (op_is_sync(bbio->bio.bi_opf))
-		btrfs_queue_work(fs_info->hipri_workers, &async->work);
-	else
-		btrfs_queue_work(fs_info->workers, &async->work);
+	btrfs_queue_work(fs_info->workers, &async->work);
 	return true;
 }
 

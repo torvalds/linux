@@ -543,7 +543,6 @@ struct btrfs_fs_info {
 	 * A third pool does submit_bio to avoid deadlocking with the other two.
 	 */
 	struct btrfs_workqueue *workers;
-	struct btrfs_workqueue *hipri_workers;
 	struct btrfs_workqueue *delalloc_workers;
 	struct btrfs_workqueue *flush_workers;
 	struct workqueue_struct *endio_workers;
