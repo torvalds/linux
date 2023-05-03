@@ -3712,6 +3712,8 @@
   trace_event_reg
   trace_handle_return
   __traceiter_android_rvh_account_irq
+  __traceiter_android_rvh_arm64_serror_panic
+  __traceiter_android_rvh_bad_mode
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_check_preempt_wakeup
@@ -3721,9 +3723,12 @@
   __traceiter_android_rvh_cpufreq_transition
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_dequeue_task_idle
   __traceiter_android_rvh_die_kernel_fault
   __traceiter_android_rvh_do_mem_abort
+  __traceiter_android_rvh_do_sea
   __traceiter_android_rvh_do_sp_pc_abort
+  __traceiter_android_rvh_do_undefinstr
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_find_busiest_queue
   __traceiter_android_rvh_find_energy_efficient_cpu
@@ -3777,6 +3782,7 @@
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_transaction_init
   __traceiter_android_vh_binder_wakeup_ilocked
+  __traceiter_android_vh_cgroup_attach
   __traceiter_android_vh_cma_alloc_finish
   __traceiter_android_vh_cma_alloc_start
   __traceiter_android_vh_cpu_idle_enter
@@ -3798,10 +3804,19 @@
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_logbuf_pr_cont
   __traceiter_android_vh_meminfo_proc_show
+  __traceiter_android_vh_mutex_wait_finish
+  __traceiter_android_vh_mutex_wait_start
   __traceiter_android_vh_pagecache_get_page
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_ptype_head
   __traceiter_android_vh_rmqueue
+  __traceiter_android_vh_rtmutex_wait_finish
+  __traceiter_android_vh_rtmutex_wait_start
+  __traceiter_android_vh_rwsem_read_wait_finish
+  __traceiter_android_vh_rwsem_read_wait_start
+  __traceiter_android_vh_rwsem_write_wait_finish
+  __traceiter_android_vh_rwsem_write_wait_start
+  __traceiter_android_vh_sched_show_task
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_show_max_freq
   __traceiter_android_vh_show_mem
@@ -3809,6 +3824,8 @@
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_timerfd_create
+  __traceiter_android_vh_try_to_freeze_todo
+  __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_typec_store_partner_src_caps
   __traceiter_android_vh_typec_tcpci_override_toggling
   __traceiter_android_vh_typec_tcpm_adj_current_limit
@@ -3822,14 +3839,44 @@
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_ufs_update_sysfs
+  __traceiter_android_vh_watchdog_timer_softlockup
+  __traceiter_android_vh_wq_lockup_pool
+  __traceiter_binder_transaction_received
   __traceiter_clock_set_rate
   __traceiter_cpu_frequency
+  __traceiter_cpu_frequency_limits
+  __traceiter_cpu_idle
+  __traceiter_device_pm_callback_end
+  __traceiter_device_pm_callback_start
   __traceiter_dma_fence_emit
+  __traceiter_dwc3_ep_queue
   __traceiter_dwc3_readl
   __traceiter_dwc3_writel
   __traceiter_gpu_mem_total
+  __traceiter_hrtimer_expire_entry
+  __traceiter_hrtimer_expire_exit
+  __traceiter_ipi_entry
+  __traceiter_ipi_exit
+  __traceiter_ipi_raise
+  __traceiter_irq_handler_entry
+  __traceiter_irq_handler_exit
   __traceiter_kfree_skb
+  __traceiter_pelt_cfs_tp
+  __traceiter_pelt_dl_tp
+  __traceiter_pelt_irq_tp
+  __traceiter_pelt_rt_tp
+  __traceiter_pelt_se_tp
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
+  __traceiter_sched_cpu_capacity_tp
+  __traceiter_sched_overutilized_tp
+  __traceiter_sched_switch
+  __traceiter_sched_util_est_cfs_tp
   __traceiter_sched_util_est_se_tp
+  __traceiter_suspend_resume
+  __traceiter_workqueue_execute_end
+  __traceiter_workqueue_execute_start
   __traceiter_xdp_exception
   trace_output_call
   __tracepoint_android_rvh_account_irq

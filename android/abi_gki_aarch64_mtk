@@ -3142,6 +3142,7 @@
   __traceiter_android_vh_snd_soc_card_get_comp_chain
   __traceiter_android_vh_sound_usb_support_cpu_suspend
   __traceiter_android_vh_syscall_prctl_finished
+  __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_v4l2subdev_set_fmt
   __traceiter_android_vh_v4l2subdev_set_frame_interval
   __traceiter_android_vh_v4l2subdev_set_selection
