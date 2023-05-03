@@ -866,6 +866,10 @@ static int samsung_dsim_init_link(struct samsung_dsim *dsi)
 	reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
 	reg &= ~DSIM_STOP_STATE_CNT_MASK;
 	reg |= DSIM_STOP_STATE_CNT(driver_data->reg_values[STOP_STATE_CNT]);
+
+	if (!samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type))
+		reg |= DSIM_FORCE_STOP_STATE;
+
 	samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
 
 	reg = DSIM_BTA_TIMEOUT(0xff) | DSIM_LPDR_TIMEOUT(0xffff);
@@ -1347,6 +1351,9 @@ static void samsung_dsim_atomic_pre_enable(struct drm_bridge *bridge,
 		ret = samsung_dsim_init(dsi);
 		if (ret)
 			return;
+
+		samsung_dsim_set_display_mode(dsi);
+		samsung_dsim_set_display_enable(dsi, true);
 	}
 }
 
@@ -1354,9 +1361,16 @@ static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
 				       struct drm_bridge_state *old_bridge_state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
+	u32 reg;
 
-	samsung_dsim_set_display_mode(dsi);
-	samsung_dsim_set_display_enable(dsi, true);
+	if (samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type)) {
+		samsung_dsim_set_display_mode(dsi);
+		samsung_dsim_set_display_enable(dsi, true);
+	} else {
+		reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
+		reg &= ~DSIM_FORCE_STOP_STATE;
+		samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
+	}
 
 	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
 }
@@ -1365,9 +1379,16 @@ static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
 					struct drm_bridge_state *old_bridge_state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
+	u32 reg;
 
 	if (!(dsi->state & DSIM_STATE_ENABLED))
 		return;
+
+	if (!samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type)) {
+		reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
+		reg |= DSIM_FORCE_STOP_STATE;
+		samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
+	}
 
 	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
 }
