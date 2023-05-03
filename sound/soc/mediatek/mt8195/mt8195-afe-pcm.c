@@ -3030,28 +3030,6 @@ static const struct reg_sequence mt8195_cg_patch[] = {
 	{ AUDIO_TOP_CON1, 0xfffffff8 },
 };
 
-static int mt8195_afe_init_registers(struct mtk_base_afe *afe)
-{
-	return regmap_multi_reg_write(afe->regmap,
-			mt8195_afe_reg_defaults,
-			ARRAY_SIZE(mt8195_afe_reg_defaults));
-}
-
-static void mt8195_afe_parse_of(struct mtk_base_afe *afe,
-				struct device_node *np)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_MT6359)
-	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-
-	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(afe->dev->of_node,
-							     "mediatek,topckgen");
-	if (IS_ERR(afe_priv->topckgen)) {
-		dev_info(afe->dev, "%s() Cannot find topckgen controller: %ld\n",
-			 __func__, PTR_ERR(afe_priv->topckgen));
-	}
-#endif
-}
-
 static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
@@ -3177,7 +3155,10 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, afe);
 
-	mt8195_afe_parse_of(afe, pdev->dev.of_node);
+	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(dev->of_node, "mediatek,topckgen");
+	if (IS_ERR(afe_priv->topckgen))
+		dev_dbg(afe->dev, "Cannot find topckgen controller: %ld\n",
+			PTR_ERR(afe_priv->topckgen));
 
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
@@ -3236,7 +3217,10 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 		goto err_pm_put;
 	}
 
-	mt8195_afe_init_registers(afe);
+	ret = regmap_multi_reg_write(afe->regmap, mt8195_afe_reg_defaults,
+				     ARRAY_SIZE(mt8195_afe_reg_defaults));
+	if (ret)
+		goto err_pm_put;
 
 	pm_runtime_put_sync(dev);
 	afe_priv->pm_runtime_bypass_reg_ctl = false;
