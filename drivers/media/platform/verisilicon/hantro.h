@@ -240,6 +240,7 @@ struct hantro_dev {
  * @vp8_dec:		VP8-decoding context.
  * @hevc_dec:		HEVC-decoding context.
  * @vp9_dec:		VP9-decoding context.
+ * @av1_dec:		AV1-decoding context.
  */
 struct hantro_ctx {
 	struct hantro_dev *dev;
@@ -268,6 +269,7 @@ struct hantro_ctx {
 		struct hantro_vp8_dec_hw_ctx vp8_dec;
 		struct hantro_hevc_dec_hw_ctx hevc_dec;
 		struct hantro_vp9_dec_hw_ctx vp9_dec;
+		struct hantro_av1_dec_hw_ctx av1_dec;
 	};
 };
 

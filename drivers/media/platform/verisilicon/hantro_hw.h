@@ -15,6 +15,8 @@
 #include <media/v4l2-vp9.h>
 #include <media/videobuf2-core.h>
 
+#include "rockchip_av1_entropymode.h"
+
 #define DEC_8190_ALIGN_MASK	0x07U
 
 #define MB_DIM			16
@@ -245,6 +247,24 @@ struct hantro_vp9_dec_hw_ctx {
 	unsigned int active_segment;
 	u8 feature_enabled[8];
 	s16 feature_data[8][4];
+};
+
+/**
+ * hantro_av1_dec_hw_ctx
+ * @cdfs:		current probabilities structure
+ * @cdfs_ndvc:		current mv probabilities structure
+ * @default_cdfs:	default probabilities structure
+ * @default_cdfs_ndvc:	default mv probabilties structure
+ * @cdfs_last:		stored probabilities structures
+ * @cdfs_last_ndvc:	stored mv probabilities structures
+ */
+struct hantro_av1_dec_hw_ctx {
+	struct av1cdfs *cdfs;
+	struct mvcdfs  *cdfs_ndvc;
+	struct av1cdfs default_cdfs;
+	struct mvcdfs  default_cdfs_ndvc;
+	struct av1cdfs cdfs_last[NUM_REF_FRAMES];
+	struct mvcdfs  cdfs_last_ndvc[NUM_REF_FRAMES];
 };
 
 /**
