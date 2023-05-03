@@ -1767,10 +1767,8 @@ static void extent_buffer_write_end_io(struct btrfs_bio *bbio)
 		struct page *page = bvec->bv_page;
 		u32 len = bvec->bv_len;
 
-		if (!uptodate) {
+		if (!uptodate)
 			btrfs_page_clear_uptodate(fs_info, page, start, len);
-			btrfs_page_set_error(fs_info, page, start, len);
-		}
 		btrfs_page_clear_writeback(fs_info, page, start, len);
 		bio_offset += len;
 	}
@@ -3948,7 +3946,6 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			continue;
 		lock_page(page);
 		btree_clear_page_dirty(page);
-		ClearPageError(page);
 		unlock_page(page);
 	}
 	WARN_ON(atomic_read(&eb->refs) == 0);
@@ -4107,10 +4104,8 @@ static void __read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 		__bio_add_page(&bbio->bio, eb->pages[0], eb->len,
 			       eb->start - page_offset(eb->pages[0]));
 	} else {
-		for (i = 0; i < num_pages; i++) {
-			ClearPageError(eb->pages[i]);
+		for (i = 0; i < num_pages; i++)
 			__bio_add_page(&bbio->bio, eb->pages[i], PAGE_SIZE, 0);
-		}
 	}
 	btrfs_submit_bio(bbio, mirror_num);
 }
@@ -4150,7 +4145,6 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		return 0;
 	}
 
-	btrfs_subpage_clear_error(fs_info, page, eb->start, eb->len);
 	btrfs_subpage_start_reader(fs_info, page, eb->start, eb->len);
 
 	__read_extent_buffer_pages(eb, mirror_num, check);
@@ -4392,18 +4386,16 @@ static void assert_eb_page_uptodate(const struct extent_buffer *eb,
 	 * looked up.  We don't want to complain in this case, as the page was
 	 * valid before, we just didn't write it out.  Instead we want to catch
 	 * the case where we didn't actually read the block properly, which
-	 * would have !PageUptodate && !PageError, as we clear PageError before
-	 * reading.
+	 * would have !PageUptodate and !EXTENT_BUFFER_WRITE_ERR.
 	 */
-	if (fs_info->nodesize < PAGE_SIZE) {
-		bool uptodate, error;
+	if (test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags))
+		return;
 
-		uptodate = btrfs_subpage_test_uptodate(fs_info, page,
-						       eb->start, eb->len);
-		error = btrfs_subpage_test_error(fs_info, page, eb->start, eb->len);
-		WARN_ON(!uptodate && !error);
+	if (fs_info->nodesize < PAGE_SIZE) {
+		WARN_ON(!btrfs_subpage_test_uptodate(fs_info, page,
+						     eb->start, eb->len));
 	} else {
-		WARN_ON(!PageUptodate(page) && !PageError(page));
+		WARN_ON(!PageUptodate(page));
 	}
 }
 
