@@ -334,6 +334,12 @@ void rockchip_vpu981_av1_dec_exit(struct hantro_ctx *ctx)
 				  av1_dec->tile_info.dma);
 	av1_dec->tile_info.cpu = NULL;
 
+	if (av1_dec->film_grain.cpu)
+		dma_free_coherent(vpu->dev, av1_dec->film_grain.size,
+				  av1_dec->film_grain.cpu,
+				  av1_dec->film_grain.dma);
+	av1_dec->film_grain.cpu = NULL;
+
 	if (av1_dec->prob_tbl.cpu)
 		dma_free_coherent(vpu->dev, av1_dec->prob_tbl.size,
 				  av1_dec->prob_tbl.cpu, av1_dec->prob_tbl.dma);
@@ -373,6 +379,14 @@ int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx)
 	if (!av1_dec->tile_info.cpu)
 		return -ENOMEM;
 	av1_dec->tile_info.size = AV1_MAX_TILES;
+
+	av1_dec->film_grain.cpu = dma_alloc_coherent(vpu->dev,
+						     ALIGN(sizeof(struct rockchip_av1_film_grain), 2048),
+						     &av1_dec->film_grain.dma,
+						     GFP_KERNEL);
+	if (!av1_dec->film_grain.cpu)
+		return -ENOMEM;
+	av1_dec->film_grain.size = ALIGN(sizeof(struct rockchip_av1_film_grain), 2048);
 
 	av1_dec->prob_tbl.cpu = dma_alloc_coherent(vpu->dev,
 						   ALIGN(sizeof(struct av1cdfs), 2048),
@@ -1178,6 +1192,201 @@ static void rockchip_vpu981_av1_dec_set_prob(struct hantro_ctx *ctx)
 	hantro_write_addr(vpu, AV1_PROP_TABLE, av1_dec->prob_tbl.dma);
 }
 
+static void
+rockchip_vpu981_av1_dec_init_scaling_function(const u8 *values, const u8 *scaling,
+					      u8 num_points, u8 *scaling_lut)
+{
+	int i, point;
+
+	if (num_points == 0) {
+		memset(scaling_lut, 0, 256);
+		return;
+	}
+
+	for (point = 0; point < num_points - 1; point++) {
+		int x;
+		s32 delta_y = scaling[point + 1] - scaling[point];
+		s32 delta_x = values[point + 1] - values[point];
+		s64 delta =
+		    delta_x ? delta_y * ((65536 + (delta_x >> 1)) /
+					 delta_x) : 0;
+
+		for (x = 0; x < delta_x; x++) {
+			scaling_lut[values[point] + x] =
+			    scaling[point] +
+			    (s32)((x * delta + 32768) >> 16);
+		}
+	}
+
+	for (i = values[num_points - 1]; i < 256; i++)
+		scaling_lut[i] = scaling[num_points - 1];
+}
+
+static void rockchip_vpu981_av1_dec_set_fgs(struct hantro_ctx *ctx)
+{
+	struct hantro_av1_dec_hw_ctx *av1_dec = &ctx->av1_dec;
+	struct hantro_av1_dec_ctrls *ctrls = &av1_dec->ctrls;
+	const struct v4l2_ctrl_av1_film_grain *film_grain = ctrls->film_grain;
+	struct rockchip_av1_film_grain *fgmem = av1_dec->film_grain.cpu;
+	struct hantro_dev *vpu = ctx->dev;
+	bool scaling_from_luma =
+		!!(film_grain->flags & V4L2_AV1_FILM_GRAIN_FLAG_CHROMA_SCALING_FROM_LUMA);
+	s32 (*ar_coeffs_y)[24];
+	s32 (*ar_coeffs_cb)[25];
+	s32 (*ar_coeffs_cr)[25];
+	s32 (*luma_grain_block)[73][82];
+	s32 (*cb_grain_block)[38][44];
+	s32 (*cr_grain_block)[38][44];
+	s32 ar_coeff_lag, ar_coeff_shift;
+	s32 grain_scale_shift, bitdepth;
+	s32 grain_center, grain_min, grain_max;
+	int i, j;
+
+	hantro_reg_write(vpu, &av1_apply_grain, 0);
+
+	if (!(film_grain->flags & V4L2_AV1_FILM_GRAIN_FLAG_APPLY_GRAIN)) {
+		hantro_reg_write(vpu, &av1_num_y_points_b, 0);
+		hantro_reg_write(vpu, &av1_num_cb_points_b, 0);
+		hantro_reg_write(vpu, &av1_num_cr_points_b, 0);
+		hantro_reg_write(vpu, &av1_scaling_shift, 0);
+		hantro_reg_write(vpu, &av1_cb_mult, 0);
+		hantro_reg_write(vpu, &av1_cb_luma_mult, 0);
+		hantro_reg_write(vpu, &av1_cb_offset, 0);
+		hantro_reg_write(vpu, &av1_cr_mult, 0);
+		hantro_reg_write(vpu, &av1_cr_luma_mult, 0);
+		hantro_reg_write(vpu, &av1_cr_offset, 0);
+		hantro_reg_write(vpu, &av1_overlap_flag, 0);
+		hantro_reg_write(vpu, &av1_clip_to_restricted_range, 0);
+		hantro_reg_write(vpu, &av1_chroma_scaling_from_luma, 0);
+		hantro_reg_write(vpu, &av1_random_seed, 0);
+		hantro_write_addr(vpu, AV1_FILM_GRAIN, 0);
+		return;
+	}
+
+	ar_coeffs_y = kzalloc(sizeof(int32_t) * 24, GFP_KERNEL);
+	ar_coeffs_cb = kzalloc(sizeof(int32_t) * 25, GFP_KERNEL);
+	ar_coeffs_cr = kzalloc(sizeof(int32_t) * 25, GFP_KERNEL);
+	luma_grain_block = kzalloc(sizeof(int32_t) * 73 * 82, GFP_KERNEL);
+	cb_grain_block = kzalloc(sizeof(int32_t) * 38 * 44, GFP_KERNEL);
+	cr_grain_block = kzalloc(sizeof(int32_t) * 38 * 44, GFP_KERNEL);
+
+	if (!ar_coeffs_y || !ar_coeffs_cb || !ar_coeffs_cr ||
+	    !luma_grain_block || !cb_grain_block || !cr_grain_block) {
+		pr_warn("Fail allocating memory for film grain parameters\n");
+		goto alloc_fail;
+	}
+
+	hantro_reg_write(vpu, &av1_apply_grain, 1);
+
+	hantro_reg_write(vpu, &av1_num_y_points_b,
+			 film_grain->num_y_points > 0);
+	hantro_reg_write(vpu, &av1_num_cb_points_b,
+			 film_grain->num_cb_points > 0);
+	hantro_reg_write(vpu, &av1_num_cr_points_b,
+			 film_grain->num_cr_points > 0);
+	hantro_reg_write(vpu, &av1_scaling_shift,
+			 film_grain->grain_scaling_minus_8 + 8);
+
+	if (!scaling_from_luma) {
+		hantro_reg_write(vpu, &av1_cb_mult, film_grain->cb_mult - 128);
+		hantro_reg_write(vpu, &av1_cb_luma_mult, film_grain->cb_luma_mult - 128);
+		hantro_reg_write(vpu, &av1_cb_offset, film_grain->cb_offset - 256);
+		hantro_reg_write(vpu, &av1_cr_mult, film_grain->cr_mult - 128);
+		hantro_reg_write(vpu, &av1_cr_luma_mult, film_grain->cr_luma_mult - 128);
+		hantro_reg_write(vpu, &av1_cr_offset, film_grain->cr_offset - 256);
+	} else {
+		hantro_reg_write(vpu, &av1_cb_mult, 0);
+		hantro_reg_write(vpu, &av1_cb_luma_mult, 0);
+		hantro_reg_write(vpu, &av1_cb_offset, 0);
+		hantro_reg_write(vpu, &av1_cr_mult, 0);
+		hantro_reg_write(vpu, &av1_cr_luma_mult, 0);
+		hantro_reg_write(vpu, &av1_cr_offset, 0);
+	}
+
+	hantro_reg_write(vpu, &av1_overlap_flag,
+			 !!(film_grain->flags & V4L2_AV1_FILM_GRAIN_FLAG_OVERLAP));
+	hantro_reg_write(vpu, &av1_clip_to_restricted_range,
+			 !!(film_grain->flags & V4L2_AV1_FILM_GRAIN_FLAG_CLIP_TO_RESTRICTED_RANGE));
+	hantro_reg_write(vpu, &av1_chroma_scaling_from_luma, scaling_from_luma);
+	hantro_reg_write(vpu, &av1_random_seed, film_grain->grain_seed);
+
+	rockchip_vpu981_av1_dec_init_scaling_function(film_grain->point_y_value,
+						      film_grain->point_y_scaling,
+						      film_grain->num_y_points,
+						      fgmem->scaling_lut_y);
+
+	if (film_grain->flags &
+	    V4L2_AV1_FILM_GRAIN_FLAG_CHROMA_SCALING_FROM_LUMA) {
+		memcpy(fgmem->scaling_lut_cb, fgmem->scaling_lut_y,
+		       sizeof(*fgmem->scaling_lut_y) * 256);
+		memcpy(fgmem->scaling_lut_cr, fgmem->scaling_lut_y,
+		       sizeof(*fgmem->scaling_lut_y) * 256);
+	} else {
+		rockchip_vpu981_av1_dec_init_scaling_function
+		    (film_grain->point_cb_value, film_grain->point_cb_scaling,
+		     film_grain->num_cb_points, fgmem->scaling_lut_cb);
+		rockchip_vpu981_av1_dec_init_scaling_function
+		    (film_grain->point_cr_value, film_grain->point_cr_scaling,
+		     film_grain->num_cr_points, fgmem->scaling_lut_cr);
+	}
+
+	for (i = 0; i < V4L2_AV1_AR_COEFFS_SIZE; i++) {
+		if (i < 24)
+			(*ar_coeffs_y)[i] = film_grain->ar_coeffs_y_plus_128[i] - 128;
+		(*ar_coeffs_cb)[i] = film_grain->ar_coeffs_cb_plus_128[i] - 128;
+		(*ar_coeffs_cr)[i] = film_grain->ar_coeffs_cr_plus_128[i] - 128;
+	}
+
+	ar_coeff_lag = film_grain->ar_coeff_lag;
+	ar_coeff_shift = film_grain->ar_coeff_shift_minus_6 + 6;
+	grain_scale_shift = film_grain->grain_scale_shift;
+	bitdepth = ctx->bit_depth;
+	grain_center = 128 << (bitdepth - 8);
+	grain_min = 0 - grain_center;
+	grain_max = (256 << (bitdepth - 8)) - 1 - grain_center;
+
+	rockchip_av1_generate_luma_grain_block(luma_grain_block, bitdepth,
+					       film_grain->num_y_points, grain_scale_shift,
+					       ar_coeff_lag, ar_coeffs_y, ar_coeff_shift,
+					       grain_min, grain_max, film_grain->grain_seed);
+
+	rockchip_av1_generate_chroma_grain_block(luma_grain_block, cb_grain_block,
+						 cr_grain_block, bitdepth,
+						 film_grain->num_y_points,
+						 film_grain->num_cb_points,
+						 film_grain->num_cr_points,
+						 grain_scale_shift, ar_coeff_lag, ar_coeffs_cb,
+						 ar_coeffs_cr, ar_coeff_shift, grain_min,
+						 grain_max,
+						 scaling_from_luma,
+						 film_grain->grain_seed);
+
+	for (i = 0; i < 64; i++) {
+		for (j = 0; j < 64; j++)
+			fgmem->cropped_luma_grain_block[i * 64 + j] =
+				(*luma_grain_block)[i + 9][j + 9];
+	}
+
+	for (i = 0; i < 32; i++) {
+		for (j = 0; j < 32; j++) {
+			fgmem->cropped_chroma_grain_block[i * 64 + 2 * j] =
+				(*cb_grain_block)[i + 6][j + 6];
+			fgmem->cropped_chroma_grain_block[i * 64 + 2 * j + 1] =
+				(*cr_grain_block)[i + 6][j + 6];
+		}
+	}
+
+	hantro_write_addr(vpu, AV1_FILM_GRAIN, av1_dec->film_grain.dma);
+
+alloc_fail:
+	kfree(ar_coeffs_y);
+	kfree(ar_coeffs_cb);
+	kfree(ar_coeffs_cr);
+	kfree(luma_grain_block);
+	kfree(cb_grain_block);
+	kfree(cr_grain_block);
+}
+
 static void rockchip_vpu981_av1_dec_set_cdef(struct hantro_ctx *ctx)
 {
 	struct hantro_av1_dec_hw_ctx *av1_dec = &ctx->av1_dec;
@@ -1915,6 +2124,7 @@ int rockchip_vpu981_av1_dec_run(struct hantro_ctx *ctx)
 	rockchip_vpu981_av1_dec_set_picture_dimensions(ctx);
 	rockchip_vpu981_av1_dec_set_cdef(ctx);
 	rockchip_vpu981_av1_dec_set_lr(ctx);
+	rockchip_vpu981_av1_dec_set_fgs(ctx);
 	rockchip_vpu981_av1_dec_set_prob(ctx);
 
 	hantro_reg_write(vpu, &av1_dec_mode, AV1_DEC_MODE);

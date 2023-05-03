@@ -16,6 +16,7 @@
 #include <media/videobuf2-core.h>
 
 #include "rockchip_av1_entropymode.h"
+#include "rockchip_av1_filmgrain.h"
 
 #define DEC_8190_ALIGN_MASK	0x07U
 
@@ -288,6 +289,7 @@ struct hantro_av1_frame_ref {
  * @global_model:	global model buffer
  * @tile_info:		tile info buffer
  * @segment:		segmentation info buffer
+ * @film_grain:		film grain buffer
  * @prob_tbl:		probability table
  * @prob_tbl_out:	probability table output
  * @tile_buf:		tile buffer
@@ -312,6 +314,7 @@ struct hantro_av1_dec_hw_ctx {
 	struct hantro_aux_buf global_model;
 	struct hantro_aux_buf tile_info;
 	struct hantro_aux_buf segment;
+	struct hantro_aux_buf film_grain;
 	struct hantro_aux_buf prob_tbl;
 	struct hantro_aux_buf prob_tbl_out;
 	struct hantro_aux_buf tile_buf;
