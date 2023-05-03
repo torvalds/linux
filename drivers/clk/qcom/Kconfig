@@ -1192,6 +1192,15 @@ config SM_DISPCC_6150
 	  Say Y if you want to support display devices and functionality such as
 	  splash pictures.
 
+config SM_GPUCC_6150
+	tristate "SM6150 Graphics Clock Controller"
+	select SM_GCC_6150
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc.
+	  sm6150 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK
