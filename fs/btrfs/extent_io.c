@@ -1808,54 +1808,11 @@ static void prepare_eb_write(struct extent_buffer *eb)
 	}
 }
 
-/*
- * Unlike the work in write_one_eb(), we rely completely on extent locking.
- * Page locking is only utilized at minimum to keep the VMM code happy.
- */
-static void write_one_subpage_eb(struct extent_buffer *eb,
-				 struct writeback_control *wbc)
-{
-	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct page *page = eb->pages[0];
-	bool no_dirty_ebs = false;
-	struct btrfs_bio *bbio;
-
-	prepare_eb_write(eb);
-
-	/* clear_page_dirty_for_io() in subpage helper needs page locked */
-	lock_page(page);
-	btrfs_subpage_set_writeback(fs_info, page, eb->start, eb->len);
-
-	/* Check if this is the last dirty bit to update nr_written */
-	no_dirty_ebs = btrfs_subpage_clear_and_test_dirty(fs_info, page,
-							  eb->start, eb->len);
-	if (no_dirty_ebs)
-		clear_page_dirty_for_io(page);
-
-	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
-			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
-			       eb->fs_info, extent_buffer_write_end_io, eb);
-	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
-	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
-	bbio->file_offset = eb->start;
-	__bio_add_page(&bbio->bio, page, eb->len, eb->start - page_offset(page));
-	wbc_account_cgroup_owner(wbc, page, eb->len);
-	unlock_page(page);
-	btrfs_submit_bio(bbio, 0);
-
-	/*
-	 * Submission finished without problem, if no range of the page is
-	 * dirty anymore, we have submitted a page.  Update nr_written in wbc.
-	 */
-	if (no_dirty_ebs)
-		wbc->nr_to_write--;
-}
-
 static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 					    struct writeback_control *wbc)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
-	int i, num_pages;
 
 	prepare_eb_write(eb);
 
@@ -1863,22 +1820,35 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
 			       eb->fs_info, extent_buffer_write_end_io, eb);
 	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
-	bio_set_dev(&bbio->bio, eb->fs_info->fs_devices->latest_dev->bdev);
+	bio_set_dev(&bbio->bio, fs_info->fs_devices->latest_dev->bdev);
 	wbc_init_bio(wbc, &bbio->bio);
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
-
-	num_pages = num_extent_pages(eb);
-	for (i = 0; i < num_pages; i++) {
-		struct page *p = eb->pages[i];
+	if (fs_info->nodesize < PAGE_SIZE) {
+		struct page *p = eb->pages[0];
 
 		lock_page(p);
-		clear_page_dirty_for_io(p);
-		set_page_writeback(p);
-		__bio_add_page(&bbio->bio, p, PAGE_SIZE, 0);
-		wbc_account_cgroup_owner(wbc, p, PAGE_SIZE);
-		wbc->nr_to_write--;
+		btrfs_subpage_set_writeback(fs_info, p, eb->start, eb->len);
+		if (btrfs_subpage_clear_and_test_dirty(fs_info, p, eb->start,
+						       eb->len)) {
+			clear_page_dirty_for_io(p);
+			wbc->nr_to_write--;
+		}
+		__bio_add_page(&bbio->bio, p, eb->len, eb->start - page_offset(p));
+		wbc_account_cgroup_owner(wbc, p, eb->len);
 		unlock_page(p);
+	} else {
+		for (int i = 0; i < num_extent_pages(eb); i++) {
+			struct page *p = eb->pages[i];
+
+			lock_page(p);
+			clear_page_dirty_for_io(p);
+			set_page_writeback(p);
+			__bio_add_page(&bbio->bio, p, PAGE_SIZE, 0);
+			wbc_account_cgroup_owner(wbc, p, PAGE_SIZE);
+			wbc->nr_to_write--;
+			unlock_page(p);
+		}
 	}
 	btrfs_submit_bio(bbio, 0);
 }
@@ -1950,7 +1920,7 @@ static int submit_eb_subpage(struct page *page, struct writeback_control *wbc)
 			continue;
 
 		if (lock_extent_buffer_for_io(eb, wbc)) {
-			write_one_subpage_eb(eb, wbc);
+			write_one_eb(eb, wbc);
 			submitted++;
 		}
 		free_extent_buffer(eb);
