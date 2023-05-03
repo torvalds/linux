@@ -1210,6 +1210,16 @@ config SM_VIDEOCC_6150
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config SM_SCC_6150
+	tristate "SM6150 Sensor Clock Controller"
+	select SM_GCC_6150
+	help
+	  Support for the sensor clock controller on Qualcomm Technologies, Inc.
+	  SM6150 devices.  The sensor controller contains several QUP clocks
+	  which can be managed using DFS.  This controller is typically owned by
+	  the sensor processor.  However, on some systems it is instead owned
+	  by the application processor.
+
 endif
 
 config VIRTIO_CLK
