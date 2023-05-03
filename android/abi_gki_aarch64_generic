@@ -87,10 +87,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
-  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
+  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -993,8 +993,8 @@
   irq_work_queue
   irq_work_sync
   is_vmalloc_addr
-  jiffies
   jiffies64_to_msecs
+  jiffies
   jiffies_to_msecs
   jiffies_to_usecs
   kasan_flag_enabled
@@ -1123,8 +1123,8 @@
   memmove
   memparse
   memremap
-  memset
   memset64
+  memset
   memstart_addr
   memunmap
   mfd_add_devices
@@ -1198,8 +1198,8 @@
   nla_find
   nla_memcpy
   __nla_parse
-  nla_put
   nla_put_64bit
+  nla_put
   nla_put_nohdr
   nla_reserve
   nla_strlcpy

@@ -199,8 +199,8 @@
   cpufreq_disable_fast_switch
   cpufreq_driver_fast_switch
   cpufreq_driver_resolve_freq
-  cpufreq_driver_target
   __cpufreq_driver_target
+  cpufreq_driver_target
   cpufreq_enable_fast_switch
   cpufreq_frequency_table_get_index
   cpufreq_generic_attr
@@ -374,8 +374,8 @@
   __dev_kfree_skb_any
   __dev_kfree_skb_irq
   devm_add_action
-  __devm_alloc_percpu
   devm_alloc_etherdev_mqs
+  __devm_alloc_percpu
   devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_optional
@@ -3159,10 +3159,10 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_user_nice
+  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_v4l2subdev_set_fmt
   __tracepoint_android_rvh_v4l2subdev_set_frame_interval
   __tracepoint_android_rvh_v4l2subdev_set_selection
-  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale

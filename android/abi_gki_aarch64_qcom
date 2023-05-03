@@ -93,10 +93,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
-  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
+  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -1431,8 +1431,8 @@
   mempool_free
   mempool_free_slab
   memremap
-  memset
   memset64
+  memset
   __memset_io
   memstart_addr
   memunmap
@@ -1453,8 +1453,8 @@
   mmc_regulator_set_ocr
   mmc_regulator_set_vqmmc
   mmc_select_bus_width
-  mmc_select_hs
   mmc_select_hs400
+  mmc_select_hs
   mmc_select_hs_ddr
   mmc_select_timing
   mmc_send_tuning
@@ -1524,10 +1524,10 @@
   nla_find
   nla_memcpy
   __nla_parse
-  nla_put
   nla_put_64bit
-  nla_reserve
+  nla_put
   nla_reserve_64bit
+  nla_reserve
   __nla_validate
   __nlmsg_put
   no_llseek
