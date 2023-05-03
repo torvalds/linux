@@ -190,6 +190,9 @@ static bool handle_hpd_irq_replay_sink(struct dc_link *link)
 	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
 	union psr_error_status replay_error_status;
 
+	if (link->replay_settings.config.force_disable_desync_error_check)
+		return true;
+
 	if (!link->replay_settings.replay_feature_enabled)
 		return false;
 
