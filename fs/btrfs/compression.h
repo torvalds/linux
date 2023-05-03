@@ -93,7 +93,7 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  unsigned int nr_pages,
 				  blk_opf_t write_flags,
 				  bool writeback);
-void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num);
+void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
