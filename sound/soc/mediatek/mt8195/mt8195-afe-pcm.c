@@ -3160,16 +3160,16 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 		dev_dbg(afe->dev, "Cannot find topckgen controller: %ld\n",
 			PTR_ERR(afe_priv->topckgen));
 
-	pm_runtime_enable(dev);
-	if (!pm_runtime_enabled(dev)) {
-		ret = mt8195_afe_runtime_resume(dev);
-		if (ret)
-			return ret;
-	}
-
 	/* enable clock for regcache get default value from hw */
 	afe_priv->pm_runtime_bypass_reg_ctl = true;
-	pm_runtime_get_sync(dev);
+
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to resume device\n");
 
 	afe->regmap = devm_regmap_init_mmio(&pdev->dev, afe->base_addr,
 					    &mt8195_afe_regmap_config);
@@ -3222,7 +3222,10 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_pm_put;
 
-	pm_runtime_put_sync(dev);
+	ret = pm_runtime_put_sync(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to suspend device\n");
+
 	afe_priv->pm_runtime_bypass_reg_ctl = false;
 
 	regcache_cache_only(afe->regmap, true);
@@ -3232,7 +3235,6 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 
 err_pm_put:
 	pm_runtime_put_sync(dev);
-	pm_runtime_disable(dev);
 
 	return ret;
 }
