@@ -121,9 +121,6 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bbio->bio.bi_iter.bi_size);
 
-	if (!is_data_inode(&bbio->inode->vfs_inode))
-		bbio->bio.bi_opf |= REQ_META;
-
 	if (btrfs_op(&bbio->bio) == BTRFS_MAP_READ &&
 	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 		btrfs_submit_compressed_read(bbio);
@@ -1899,11 +1896,7 @@ static void write_one_subpage_eb(struct extent_buffer *eb,
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct page *page = eb->pages[0];
 	bool no_dirty_ebs = false;
-	struct btrfs_bio_ctrl bio_ctrl = {
-		.wbc = wbc,
-		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
-		.end_io_func = end_bio_subpage_eb_writepage,
-	};
+	struct btrfs_bio *bbio;
 
 	prepare_eb_write(eb);
 
@@ -1917,10 +1910,17 @@ static void write_one_subpage_eb(struct extent_buffer *eb,
 	if (no_dirty_ebs)
 		clear_page_dirty_for_io(page);
 
-	submit_extent_page(&bio_ctrl, eb->start, page, eb->len,
-			   eb->start - page_offset(page));
+	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
+			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
+			       eb->fs_info, end_bio_subpage_eb_writepage, NULL);
+	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
+	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
+	bbio->file_offset = eb->start;
+	__bio_add_page(&bbio->bio, page, eb->len, eb->start - page_offset(page));
+	wbc_account_cgroup_owner(wbc, page, eb->len);
 	unlock_page(page);
-	submit_one_bio(&bio_ctrl);
+	btrfs_submit_bio(bbio, 0);
+
 	/*
 	 * Submission finished without problem, if no range of the page is
 	 * dirty anymore, we have submitted a page.  Update nr_written in wbc.
@@ -1932,15 +1932,20 @@ static void write_one_subpage_eb(struct extent_buffer *eb,
 static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 					    struct writeback_control *wbc)
 {
-	u64 disk_bytenr = eb->start;
+	struct btrfs_bio *bbio;
 	int i, num_pages;
-	struct btrfs_bio_ctrl bio_ctrl = {
-		.wbc = wbc,
-		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
-		.end_io_func = end_bio_extent_buffer_writepage,
-	};
 
 	prepare_eb_write(eb);
+
+	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
+			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
+			       eb->fs_info, end_bio_extent_buffer_writepage,
+			       NULL);
+	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
+	bio_set_dev(&bbio->bio, eb->fs_info->fs_devices->latest_dev->bdev);
+	wbc_init_bio(wbc, &bbio->bio);
+	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
+	bbio->file_offset = eb->start;
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++) {
@@ -1949,12 +1954,12 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 		lock_page(p);
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		submit_extent_page(&bio_ctrl, disk_bytenr, p, PAGE_SIZE, 0);
-		disk_bytenr += PAGE_SIZE;
+		__bio_add_page(&bbio->bio, p, PAGE_SIZE, 0);
+		wbc_account_cgroup_owner(wbc, p, PAGE_SIZE);
 		wbc->nr_to_write--;
 		unlock_page(p);
 	}
-	submit_one_bio(&bio_ctrl);
+	btrfs_submit_bio(bbio, 0);
 }
 
 /*
