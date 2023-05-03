@@ -3994,21 +3994,21 @@ Driver with A Single Source File
 
    Suppose you have a file xyz.c. Add the following two lines::
 
-  snd-xyz-objs := xyz.o
-  obj-$(CONFIG_SND_XYZ) += snd-xyz.o
+     snd-xyz-objs := xyz.o
+     obj-$(CONFIG_SND_XYZ) += snd-xyz.o
 
 2. Create the Kconfig entry
 
    Add the new entry of Kconfig for your xyz driver::
 
-  config SND_XYZ
-    tristate "Foobar XYZ"
-    depends on SND
-    select SND_PCM
-    help
-      Say Y here to include support for Foobar XYZ soundcard.
-      To compile this driver as a module, choose M here:
-      the module will be called snd-xyz.
+     config SND_XYZ
+       tristate "Foobar XYZ"
+       depends on SND
+       select SND_PCM
+       help
+         Say Y here to include support for Foobar XYZ soundcard.
+         To compile this driver as a module, choose M here:
+         the module will be called snd-xyz.
 
 The line ``select SND_PCM`` specifies that the driver xyz supports PCM.
 In addition to SND_PCM, the following components are supported for
@@ -4032,7 +4032,7 @@ located in the new subdirectory, sound/pci/xyz.
 1. Add a new directory (``sound/pci/xyz``) in ``sound/pci/Makefile``
    as below::
 
-  obj-$(CONFIG_SND) += sound/pci/xyz/
+     obj-$(CONFIG_SND) += sound/pci/xyz/
 
 
 2. Under the directory ``sound/pci/xyz``, create a Makefile::
