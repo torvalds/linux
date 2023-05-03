@@ -565,15 +565,21 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 			      struct mlx5_irq **irqs, struct cpu_rmap **rmap)
 {
+	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
+	struct mlx5_irq_pool *pool = table->pcif_pool;
 	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
+	int offset = 1;
 	int i;
+
+	if (!pool->xa_num_irqs.max)
+		offset = 0;
 
 	af_desc.is_managed = false;
 	for (i = 0; i < nirqs; i++) {
 		cpumask_clear(&af_desc.mask);
 		cpumask_set_cpu(cpus[i], &af_desc.mask);
-		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
+		irq = mlx5_irq_request(dev, i + offset, &af_desc, rmap);
 		if (IS_ERR(irq))
 			break;
 		irqs[i] = irq;
