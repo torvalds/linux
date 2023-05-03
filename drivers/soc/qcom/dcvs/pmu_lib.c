@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qcom-pmu: " fmt
@@ -921,8 +921,11 @@ int cpucp_pmu_init(struct scmi_device *sdev)
 #else
 	ops = sdev->handle->devm_protocol_get(sdev, SCMI_PMU_PROTOCOL, &ph);
 #endif
-	if (!ops)
-		return -EINVAL;
+	if (IS_ERR(ops)) {
+		ret = PTR_ERR(ops);
+		ops = NULL;
+		return ret;
+	}
 
 	/*
 	 * If communication with cpucp doesn't succeed here the device memory
