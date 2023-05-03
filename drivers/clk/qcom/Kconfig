@@ -1174,6 +1174,15 @@ config SM_GCC_6150
 	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
 	  USB, UFS, SD/eMMC, PCIe, etc.
 
+config SM_CAMCC_6150
+	tristate "SM6150 Camera Clock Controller"
+	select SM_GCC_6150
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SM6150 devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 endif
 
 config VIRTIO_CLK
