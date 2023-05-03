@@ -110,32 +110,32 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
  * detect blocks that either didn't get written at all or got written
  * in the wrong place.
  */
-static int verify_parent_transid(struct extent_io_tree *io_tree,
-				 struct extent_buffer *eb, u64 parent_transid,
-				 int atomic)
+int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, int atomic)
 {
+	struct inode *btree_inode = eb->pages[0]->mapping->host;
+	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	struct extent_state *cached_state = NULL;
-	int ret;
+	int ret = 1;
+
+	if (!extent_buffer_uptodate(eb))
+		return 0;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
-		return 0;
+		return 1;
 
 	if (atomic)
 		return -EAGAIN;
 
 	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, &cached_state);
-	if (extent_buffer_uptodate(eb) &&
-	    btrfs_header_generation(eb) == parent_transid) {
-		ret = 0;
-		goto out;
-	}
-	btrfs_err_rl(eb->fs_info,
+	if (!extent_buffer_uptodate(eb) ||
+	    btrfs_header_generation(eb) != parent_transid) {
+		btrfs_err_rl(eb->fs_info,
 "parent transid verify failed on logical %llu mirror %u wanted %llu found %llu",
 			eb->start, eb->read_mirror,
 			parent_transid, btrfs_header_generation(eb));
-	ret = 1;
-	clear_extent_buffer_uptodate(eb);
-out:
+		clear_extent_buffer_uptodate(eb);
+		ret = 0;
+	}
 	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
 		      &cached_state);
 	return ret;
@@ -4598,23 +4598,6 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 	btrfs_close_devices(fs_info->fs_devices);
-}
-
-int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
-			  int atomic)
-{
-	int ret;
-	struct inode *btree_inode = buf->pages[0]->mapping->host;
-
-	ret = extent_buffer_uptodate(buf);
-	if (!ret)
-		return ret;
-
-	ret = verify_parent_transid(&BTRFS_I(btree_inode)->io_tree, buf,
-				    parent_transid, atomic);
-	if (ret == -EAGAIN)
-		return ret;
-	return !ret;
 }
 
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
