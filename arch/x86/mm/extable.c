@@ -143,12 +143,12 @@ static bool gp_fault_address_ok(unsigned long fault_address)
 {
 #ifdef CONFIG_X86_64
 	/* Is it in the "user space" part of the non-canonical space? */
-	if ((long) fault_address >= 0)
+	if (valid_user_address(fault_address))
 		return true;
 
 	/* .. or just above it? */
 	fault_address -= PAGE_SIZE;
-	if ((long) fault_address >= 0)
+	if (valid_user_address(fault_address))
 		return true;
 #endif
 	return false;

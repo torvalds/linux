@@ -50,27 +50,45 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
 #endif
 
 /*
- * On x86-64, we may have tag bits in the user pointer. Rather than
- * mask them off, just change the rules for __access_ok().
+ * The virtual address space space is logically divided into a kernel
+ * half and a user half.  When cast to a signed type, user pointers
+ * are positive and kernel pointers are negative.
+ */
+#define valid_user_address(x) ((long)(x) >= 0)
+
+/*
+ * User pointers can have tag bits on x86-64.  This scheme tolerates
+ * arbitrary values in those bits rather then masking them off.
  *
- * Make the rule be that 'ptr+size' must not overflow, and must not
- * have the high bit set. Compilers generally understand about
- * unsigned overflow and the CF bit and generate reasonable code for
- * this. Although it looks like the combination confuses at least
- * clang (and instead of just doing an "add" followed by a test of
- * SF and CF, you'll see that unnecessary comparison).
+ * Enforce two rules:
+ * 1. 'ptr' must be in the user half of the address space
+ * 2. 'ptr+size' must not overflow into kernel addresses
  *
- * For the common case of small sizes that can be checked at compile
- * time, don't even bother with the addition, and just check that the
- * base pointer is ok.
+ * Note that addresses around the sign change are not valid addresses,
+ * and will GP-fault even with LAM enabled if the sign bit is set (see
+ * "CR3.LAM_SUP" that can narrow the canonicality check if we ever
+ * enable it, but not remove it entirely).
+ *
+ * So the "overflow into kernel addresses" does not imply some sudden
+ * exact boundary at the sign bit, and we can allow a lot of slop on the
+ * size check.
+ *
+ * In fact, we could probably remove the size check entirely, since
+ * any kernel accesses will be in increasing address order starting
+ * at 'ptr', and even if the end might be in kernel space, we'll
+ * hit the GP faults for non-canonical accesses before we ever get
+ * there.
+ *
+ * That's a separate optimization, for now just handle the small
+ * constant case.
  */
 static inline bool __access_ok(const void __user *ptr, unsigned long size)
 {
 	if (__builtin_constant_p(size <= PAGE_SIZE) && size <= PAGE_SIZE) {
-		return (long)ptr >= 0;
+		return valid_user_address(ptr);
 	} else {
 		unsigned long sum = size + (unsigned long)ptr;
-		return (long) sum >= 0 && sum >= (unsigned long)ptr;
+		return valid_user_address(sum) && sum >= (unsigned long)ptr;
 	}
 }
 #define __access_ok __access_ok
