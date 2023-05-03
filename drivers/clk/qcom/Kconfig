@@ -1201,6 +1201,15 @@ config SM_GPUCC_6150
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_VIDEOCC_6150
+	tristate "SM6150 Video Clock Controller"
+	select SM_GCC_6150
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SM6150 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
+
 endif
 
 config VIRTIO_CLK
