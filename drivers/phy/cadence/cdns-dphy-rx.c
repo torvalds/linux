@@ -11,10 +11,12 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
 #include <linux/platform_device.h>
+#include <linux/sys_soc.h>
 
 #define DPHY_PMA_CMN(reg)		(reg)
 #define DPHY_PCS(reg)			(0xb00 + (reg))
 #define DPHY_ISO(reg)			(0xc00 + (reg))
+#define DPHY_WRAP(reg)			(0x1000 + (reg))
 
 #define DPHY_CMN_SSM			DPHY_PMA_CMN(0x20)
 #define DPHY_CMN_RX_MODE_EN		BIT(10)
@@ -32,6 +34,9 @@
 
 #define DPHY_POWER_ISLAND_EN_CLK	DPHY_PCS(0xc)
 #define DPHY_POWER_ISLAND_EN_CLK_VAL	0xaa
+
+#define DPHY_LANE			DPHY_WRAP(0x0)
+#define DPHY_LANE_RESET_CMN_EN		BIT(23)
 
 #define DPHY_ISO_CL_CTRL_L		DPHY_ISO(0x10)
 #define DPHY_ISO_DL_CTRL_L0		DPHY_ISO(0x14)
@@ -55,6 +60,10 @@ struct cdns_dphy_rx_band {
 	/* Rates are in Mbps. */
 	unsigned int min_rate;
 	unsigned int max_rate;
+};
+
+struct cdns_dphy_soc_data {
+	bool has_hw_cmn_rstb;
 };
 
 /* Order of bands is important since the index is the band number. */
@@ -142,12 +151,35 @@ static int cdns_dphy_rx_wait_lane_ready(struct cdns_dphy_rx *dphy,
 	return 0;
 }
 
+static struct cdns_dphy_soc_data j721e_soc_data = {
+	.has_hw_cmn_rstb = true,
+};
+
+static const struct soc_device_attribute cdns_dphy_socinfo[] = {
+	{
+		.family = "J721E",
+		.revision = "SR1.0",
+		.data = &j721e_soc_data,
+	},
+	{/* sentinel */}
+};
+
 static int cdns_dphy_rx_configure(struct phy *phy,
 				  union phy_configure_opts *opts)
 {
 	struct cdns_dphy_rx *dphy = phy_get_drvdata(phy);
 	unsigned int reg, lanes = opts->mipi_dphy.lanes;
+	const struct cdns_dphy_soc_data *soc_data = NULL;
+	const struct soc_device_attribute *soc;
 	int band_ctrl, ret;
+
+	soc = soc_device_match(cdns_dphy_socinfo);
+	if (soc && soc->data)
+		soc_data = soc->data;
+	if (!soc || (soc_data && !soc_data->has_hw_cmn_rstb)) {
+		reg = DPHY_LANE_RESET_CMN_EN;
+		writel(reg, dphy->regs + DPHY_LANE);
+	}
 
 	/* Data lanes. Minimum one lane is mandatory. */
 	if (lanes < DPHY_LANES_MIN || lanes > DPHY_LANES_MAX)
