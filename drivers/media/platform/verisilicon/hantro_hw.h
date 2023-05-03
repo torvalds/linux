@@ -37,6 +37,8 @@
 
 #define NUM_REF_PICTURES	(V4L2_HEVC_DPB_ENTRIES_NUM_MAX + 1)
 
+#define AV1_MAX_FRAME_BUF_COUNT	(V4L2_AV1_TOTAL_REFS_PER_FRAME + 1)
+
 struct hantro_dev;
 struct hantro_ctx;
 struct hantro_buf;
@@ -250,23 +252,81 @@ struct hantro_vp9_dec_hw_ctx {
 };
 
 /**
- * hantro_av1_dec_hw_ctx
+ * struct hantro_av1_dec_ctrls
+ * @sequence:		AV1 Sequence
+ * @tile_group_entry:	AV1 Tile Group entry
+ * @frame:		AV1 Frame Header OBU
+ * @film_grain:		AV1 Film Grain
+ */
+struct hantro_av1_dec_ctrls {
+	const struct v4l2_ctrl_av1_sequence *sequence;
+	const struct v4l2_ctrl_av1_tile_group_entry *tile_group_entry;
+	const struct v4l2_ctrl_av1_frame *frame;
+	const struct v4l2_ctrl_av1_film_grain *film_grain;
+};
+
+struct hantro_av1_frame_ref {
+	int width;
+	int height;
+	int mi_cols;
+	int mi_rows;
+	u64 timestamp;
+	enum v4l2_av1_frame_type frame_type;
+	bool used;
+	u32 order_hint;
+	u32 order_hints[V4L2_AV1_TOTAL_REFS_PER_FRAME];
+	struct vb2_v4l2_buffer *vb2_ref;
+};
+
+/**
+ * struct hantro_av1_dec_hw_ctx
+ * @db_data_col:	db tile col data buffer
+ * @db_ctrl_col:	db tile col ctrl buffer
+ * @cdef_col:		cdef tile col buffer
+ * @sr_col:		sr tile col buffer
+ * @lr_col:		lr tile col buffer
+ * @global_model:	global model buffer
+ * @tile_info:		tile info buffer
+ * @segment:		segmentation info buffer
+ * @prob_tbl:		probability table
+ * @prob_tbl_out:	probability table output
+ * @tile_buf:		tile buffer
+ * @ctrls:		V4L2 controls attached to a run
+ * @frame_refs:		reference frames info slots
+ * @ref_frame_sign_bias: array of sign bias
+ * @num_tile_cols_allocated: number of allocated tiles
  * @cdfs:		current probabilities structure
  * @cdfs_ndvc:		current mv probabilities structure
  * @default_cdfs:	default probabilities structure
  * @default_cdfs_ndvc:	default mv probabilties structure
  * @cdfs_last:		stored probabilities structures
  * @cdfs_last_ndvc:	stored mv probabilities structures
+ * @current_frame_index: index of the current in frame_refs array
  */
 struct hantro_av1_dec_hw_ctx {
+	struct hantro_aux_buf db_data_col;
+	struct hantro_aux_buf db_ctrl_col;
+	struct hantro_aux_buf cdef_col;
+	struct hantro_aux_buf sr_col;
+	struct hantro_aux_buf lr_col;
+	struct hantro_aux_buf global_model;
+	struct hantro_aux_buf tile_info;
+	struct hantro_aux_buf segment;
+	struct hantro_aux_buf prob_tbl;
+	struct hantro_aux_buf prob_tbl_out;
+	struct hantro_aux_buf tile_buf;
+	struct hantro_av1_dec_ctrls ctrls;
+	struct hantro_av1_frame_ref frame_refs[AV1_MAX_FRAME_BUF_COUNT];
+	u32 ref_frame_sign_bias[V4L2_AV1_TOTAL_REFS_PER_FRAME];
+	unsigned int num_tile_cols_allocated;
 	struct av1cdfs *cdfs;
 	struct mvcdfs  *cdfs_ndvc;
 	struct av1cdfs default_cdfs;
 	struct mvcdfs  default_cdfs_ndvc;
 	struct av1cdfs cdfs_last[NUM_REF_FRAMES];
 	struct mvcdfs  cdfs_last_ndvc[NUM_REF_FRAMES];
+	int current_frame_index;
 };
-
 /**
  * struct hantro_postproc_ctx
  *
@@ -381,6 +441,10 @@ void hantro_hevc_ref_init(struct hantro_ctx *ctx);
 dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, s32 poc);
 int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr);
 
+int rockchip_vpu981_av1_dec_init(struct hantro_ctx *ctx);
+void rockchip_vpu981_av1_dec_exit(struct hantro_ctx *ctx);
+int rockchip_vpu981_av1_dec_run(struct hantro_ctx *ctx);
+void rockchip_vpu981_av1_dec_done(struct hantro_ctx *ctx);
 
 static inline unsigned short hantro_vp9_num_sbs(unsigned short dimension)
 {
