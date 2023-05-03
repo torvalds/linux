@@ -425,7 +425,7 @@ static int st_lsm6dso16is_write_raw_get_fmt(struct iio_dev *indio_dev,
 		case IIO_TEMP:
 			return IIO_VAL_FRACTIONAL;
 		default:
-			return -EINVAL;
+			return IIO_VAL_INT_PLUS_MICRO;
 		}
 	default:
 		return IIO_VAL_INT_PLUS_MICRO;

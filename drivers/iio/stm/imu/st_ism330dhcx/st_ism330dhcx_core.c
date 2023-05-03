@@ -1026,7 +1026,8 @@ static int st_ism330dhcx_write_raw_get_fmt(struct iio_dev *indio_dev,
 					   struct iio_chan_spec const *chan,
 					   long mask)
 {
-	if (mask == IIO_CHAN_INFO_SCALE) {
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 		case IIO_ACCEL:
@@ -1034,8 +1035,10 @@ static int st_ism330dhcx_write_raw_get_fmt(struct iio_dev *indio_dev,
 		case IIO_TEMP:
 			return IIO_VAL_FRACTIONAL;
 		default:
-			return -EINVAL;
+			return IIO_VAL_INT_PLUS_MICRO;
 		}
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 
 	return -EINVAL;
