@@ -533,9 +533,7 @@ static int validate_extent_buffer(struct extent_buffer *eb,
 	if (found_level > 0 && btrfs_check_node(eb))
 		ret = -EIO;
 
-	if (!ret)
-		set_extent_buffer_uptodate(eb);
-	else
+	if (ret)
 		btrfs_err(fs_info,
 		"read time tree block corruption detected on logical %llu mirror %u",
 			  eb->start, eb->read_mirror);
@@ -627,6 +625,8 @@ int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
 		goto err;
 	}
 	ret = validate_extent_buffer(eb, &bbio->parent_check);
+	if (!ret)
+		set_extent_buffer_uptodate(eb);
 err:
 	if (ret) {
 		/*
