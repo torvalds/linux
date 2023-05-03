@@ -1022,6 +1022,15 @@ config SM_GPUCC_BLAIR
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_DEBUGCC_BLAIR
+	tristate "BLAIR Debug Clock Controller"
+	depends on SM_GCC_BLAIR
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc.
+	  BLAIR devices.
+	  Say Y if you want to support the debug clocks such as
+	  clock measurement functionality.
+
 endif
 
 config VIRTIO_CLK
