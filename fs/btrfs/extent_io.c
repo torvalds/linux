@@ -1636,7 +1636,6 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	bool ret = false;
-	int i;
 
 	btrfs_tree_lock(eb);
 	while (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags)) {
@@ -1664,20 +1663,7 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 	} else {
 		spin_unlock(&eb->refs_lock);
 	}
-
 	btrfs_tree_unlock(eb);
-
-	/*
-	 * Either we don't need to submit any tree block, or we're submitting
-	 * subpage eb.
-	 * Subpage metadata doesn't use page locking at all, so we can skip
-	 * the page locking.
-	 */
-	if (!ret || fs_info->nodesize < PAGE_SIZE)
-		return ret;
-
-	for (i = 0; i < num_extent_pages(eb); i++)
-		lock_page(eb->pages[i]);
 	return ret;
 }
 
@@ -1960,6 +1946,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = eb->pages[i];
 
+		lock_page(p);
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
 		submit_extent_page(&bio_ctrl, disk_bytenr, p, PAGE_SIZE, 0);
