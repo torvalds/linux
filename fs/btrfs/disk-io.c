@@ -112,11 +112,6 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
  */
 int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, int atomic)
 {
-	struct inode *btree_inode = eb->pages[0]->mapping->host;
-	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
-	struct extent_state *cached_state = NULL;
-	int ret = 1;
-
 	if (!extent_buffer_uptodate(eb))
 		return 0;
 
@@ -126,7 +121,6 @@ int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, int atom
 	if (atomic)
 		return -EAGAIN;
 
-	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, &cached_state);
 	if (!extent_buffer_uptodate(eb) ||
 	    btrfs_header_generation(eb) != parent_transid) {
 		btrfs_err_rl(eb->fs_info,
@@ -134,11 +128,9 @@ int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, int atom
 			eb->start, eb->read_mirror,
 			parent_transid, btrfs_header_generation(eb));
 		clear_extent_buffer_uptodate(eb);
-		ret = 0;
+		return 0;
 	}
-	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
-		      &cached_state);
-	return ret;
+	return 1;
 }
 
 static bool btrfs_supported_super_csum(u16 csum_type)
