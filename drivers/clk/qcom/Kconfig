@@ -1183,6 +1183,15 @@ config SM_CAMCC_6150
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SM_DISPCC_6150
+	tristate "SM6150 Display Clock Controller"
+	select SM_GCC_6150
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SM6150 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash pictures.
+
 endif
 
 config VIRTIO_CLK
