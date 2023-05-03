@@ -218,29 +218,8 @@
 			<0x00028000 6 &gic GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 			<0x00028000 7 &gic GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 
-		chipcommon@0 {
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-
 		pcie2: pcie@14000 {
 			reg = <0x00014000 0x1000>;
-		};
-
-		gmac0: ethernet@24000 {
-			reg = <0x24000 0x800>;
-		};
-
-		gmac1: ethernet@25000 {
-			reg = <0x25000 0x800>;
-		};
-
-		gmac2: ethernet@26000 {
-			reg = <0x26000 0x800>;
-		};
-
-		gmac3: ethernet@27000 {
-			reg = <0x27000 0x800>;
 		};
 	};
 
@@ -320,24 +299,6 @@
 						     "sata1", "sata2";
 			};
 		};
-	};
-
-	srab: ethernet-switch@18007000 {
-		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
-		reg = <0x18007000 0x1000>;
-
-		status = "disabled";
-
-		/* ports are defined in board DTS */
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-	};
-
-	rng: rng@18004000 {
-		compatible = "brcm,bcm5301x-rng";
-		reg = <0x18004000 0x14>;
 	};
 
 	nand_controller: nand-controller@18028000 {

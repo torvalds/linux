@@ -19,6 +19,8 @@
 
 			gpio-controller;
 			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		pcie0: pcie@12000 {
@@ -109,6 +111,22 @@
 				};
 			};
 		};
+
+		gmac0: ethernet@24000 {
+			reg = <0x24000 0x800>;
+		};
+
+		gmac1: ethernet@25000 {
+			reg = <0x25000 0x800>;
+		};
+
+		gmac2: ethernet@26000 {
+			reg = <0x26000 0x800>;
+		};
+
+		gmac3: ethernet@27000 {
+			reg = <0x27000 0x800>;
+		};
 	};
 
 	mdio: mdio@18003000 {
@@ -116,6 +134,24 @@
 		reg = <0x18003000 0x8>;
 		#size-cells = <0>;
 		#address-cells = <1>;
+	};
+
+	rng: rng@18004000 {
+		compatible = "brcm,bcm5301x-rng";
+		reg = <0x18004000 0x14>;
+	};
+
+	srab: ethernet-switch@18007000 {
+		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
+		reg = <0x18007000 0x1000>;
+
+		status = "disabled";
+
+		/* ports are defined in board DTS */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	dmu-bus@1800c000 {
