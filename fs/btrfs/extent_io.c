@@ -1915,7 +1915,8 @@ static void end_bio_subpage_eb_writepage(struct btrfs_bio *bbio)
 
 			if (bio->bi_status ||
 			    test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
-				ClearPageUptodate(page);
+				btrfs_page_clear_uptodate(fs_info, page,
+							  eb->start, eb->len);
 				set_btree_ioerr(page, eb);
 			}
 
