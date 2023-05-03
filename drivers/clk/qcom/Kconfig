@@ -1004,6 +1004,15 @@ config SM_GCC_BLAIR
 	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
 	  USB, UFS, SD/eMMC etc.
 
+config SM_DISPCC_BLAIR
+	tristate "BLAIR Display Clock Controller"
+	select SM_GCC_BLAIR
+	help
+	  Support for the display clock controller on Qualcomm Technologies,
+	  Inc. BLAIR devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 endif
 
 config VIRTIO_CLK

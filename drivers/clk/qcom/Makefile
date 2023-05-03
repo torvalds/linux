@@ -106,6 +106,7 @@ obj-$(CONFIG_SM_DISPCC_6350) += dispcc-sm6350.o
 obj-$(CONFIG_SM_DEBUGCC_8150) += debugcc-sm8150.o
 obj-$(CONFIG_SM_DISPCC_8250) += dispcc-sm8250.o
 obj-$(CONFIG_SM_DISPCC_8450) += dispcc-sm8450.o
+obj-$(CONFIG_SM_DISPCC_BLAIR) += dispcc-blair.o
 obj-$(CONFIG_SM_DISPCC_PINEAPPLE) += dispcc-pineapple.o
 obj-$(CONFIG_SM_DEBUGCC_PINEAPPLE) += debugcc-pineapple.o
 obj-$(CONFIG_SM_GCC_6115) += gcc-sm6115.o
