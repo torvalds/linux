@@ -1614,13 +1614,6 @@ void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 		       TASK_UNINTERRUPTIBLE);
 }
 
-static void end_extent_buffer_writeback(struct extent_buffer *eb)
-{
-	clear_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
-	smp_mb__after_atomic();
-	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
-}
-
 /*
  * Lock extent buffer status and pages for writeback.
  *
@@ -1664,13 +1657,11 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 	return ret;
 }
 
-static void set_btree_ioerr(struct page *page, struct extent_buffer *eb)
+static void set_btree_ioerr(struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 
-	btrfs_page_set_error(fs_info, page, eb->start, eb->len);
-	if (test_and_set_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags))
-		return;
+	set_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags);
 
 	/*
 	 * A read may stumble upon this buffer later, make sure that it gets an
@@ -1684,7 +1675,7 @@ static void set_btree_ioerr(struct page *page, struct extent_buffer *eb)
 	 * return a 0 because we are readonly if we don't modify the err seq for
 	 * the superblock.
 	 */
-	mapping_set_error(page->mapping, -EIO);
+	mapping_set_error(eb->fs_info->btree_inode->i_mapping, -EIO);
 
 	/*
 	 * If writeback for a btree extent that doesn't belong to a log tree
@@ -1759,102 +1750,38 @@ static struct extent_buffer *find_extent_buffer_nolock(
 	return NULL;
 }
 
-/*
- * The endio function for subpage extent buffer write.
- *
- * Unlike end_bio_extent_buffer_writepage(), we only call end_page_writeback()
- * after all extent buffers in the page has finished their writeback.
- */
-static void end_bio_subpage_eb_writepage(struct btrfs_bio *bbio)
+static void extent_buffer_write_end_io(struct btrfs_bio *bbio)
 {
-	struct bio *bio = &bbio->bio;
-	struct btrfs_fs_info *fs_info;
-	struct bio_vec *bvec;
+	struct extent_buffer *eb = bbio->private;
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+	bool uptodate = !bbio->bio.bi_status;
 	struct bvec_iter_all iter_all;
-
-	fs_info = btrfs_sb(bio_first_page_all(bio)->mapping->host->i_sb);
-	ASSERT(fs_info->nodesize < PAGE_SIZE);
-
-	ASSERT(!bio_flagged(bio, BIO_CLONED));
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *page = bvec->bv_page;
-		u64 bvec_start = page_offset(page) + bvec->bv_offset;
-		u64 bvec_end = bvec_start + bvec->bv_len - 1;
-		u64 cur_bytenr = bvec_start;
-
-		ASSERT(IS_ALIGNED(bvec->bv_len, fs_info->nodesize));
-
-		/* Iterate through all extent buffers in the range */
-		while (cur_bytenr <= bvec_end) {
-			struct extent_buffer *eb;
-			int done;
-
-			/*
-			 * Here we can't use find_extent_buffer(), as it may
-			 * try to lock eb->refs_lock, which is not safe in endio
-			 * context.
-			 */
-			eb = find_extent_buffer_nolock(fs_info, cur_bytenr);
-			ASSERT(eb);
-
-			cur_bytenr = eb->start + eb->len;
-
-			ASSERT(test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags));
-			done = atomic_dec_and_test(&eb->io_pages);
-			ASSERT(done);
-
-			if (bio->bi_status ||
-			    test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
-				btrfs_page_clear_uptodate(fs_info, page,
-							  eb->start, eb->len);
-				set_btree_ioerr(page, eb);
-			}
-
-			btrfs_subpage_clear_writeback(fs_info, page, eb->start,
-						      eb->len);
-			end_extent_buffer_writeback(eb);
-			/*
-			 * free_extent_buffer() will grab spinlock which is not
-			 * safe in endio context. Thus here we manually dec
-			 * the ref.
-			 */
-			atomic_dec(&eb->refs);
-		}
-	}
-	bio_put(bio);
-}
-
-static void end_bio_extent_buffer_writepage(struct btrfs_bio *bbio)
-{
-	struct bio *bio = &bbio->bio;
 	struct bio_vec *bvec;
-	struct extent_buffer *eb;
-	int done;
-	struct bvec_iter_all iter_all;
+	u32 bio_offset = 0;
 
-	ASSERT(!bio_flagged(bio, BIO_CLONED));
-	bio_for_each_segment_all(bvec, bio, iter_all) {
+	if (!uptodate)
+		set_btree_ioerr(eb);
+
+	bio_for_each_segment_all(bvec, &bbio->bio, iter_all) {
+		u64 start = eb->start + bio_offset;
 		struct page *page = bvec->bv_page;
+		u32 len = bvec->bv_len;
 
-		eb = (struct extent_buffer *)page->private;
-		BUG_ON(!eb);
-		done = atomic_dec_and_test(&eb->io_pages);
+		atomic_dec(&eb->io_pages);
 
-		if (bio->bi_status ||
-		    test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
-			ClearPageUptodate(page);
-			set_btree_ioerr(page, eb);
+		if (!uptodate) {
+			btrfs_page_clear_uptodate(fs_info, page, start, len);
+			btrfs_page_set_error(fs_info, page, start, len);
 		}
-
-		end_page_writeback(page);
-
-		if (!done)
-			continue;
-
-		end_extent_buffer_writeback(eb);
+		btrfs_page_clear_writeback(fs_info, page, start, len);
+		bio_offset += len;
 	}
 
-	bio_put(bio);
+	clear_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
+	smp_mb__after_atomic();
+	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
+
+	bio_put(&bbio->bio);
 }
 
 static void prepare_eb_write(struct extent_buffer *eb)
@@ -1912,7 +1839,7 @@ static void write_one_subpage_eb(struct extent_buffer *eb,
 
 	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
 			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
-			       eb->fs_info, end_bio_subpage_eb_writepage, NULL);
+			       eb->fs_info, extent_buffer_write_end_io, eb);
 	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
@@ -1939,8 +1866,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 
 	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
 			       REQ_OP_WRITE | REQ_META | wbc_to_write_flags(wbc),
-			       eb->fs_info, end_bio_extent_buffer_writepage,
-			       NULL);
+			       eb->fs_info, extent_buffer_write_end_io, eb);
 	bbio->bio.bi_iter.bi_sector = eb->start >> SECTOR_SHIFT;
 	bio_set_dev(&bbio->bio, eb->fs_info->fs_devices->latest_dev->bdev);
 	wbc_init_bio(wbc, &bbio->bio);
