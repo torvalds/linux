@@ -4208,8 +4208,10 @@ static void extent_buffer_read_end_io(struct btrfs_bio *bbio)
 		bio_offset += bvec->bv_len;
 	}
 
-	unlock_extent(&bbio->inode->io_tree, eb->start,
-		      eb->start + bio_offset - 1, NULL);
+	if (eb->fs_info->nodesize < PAGE_SIZE) {
+		unlock_extent(&bbio->inode->io_tree, eb->start,
+			      eb->start + bio_offset - 1, NULL);
+	}
 	free_extent_buffer(eb);
 
 	bio_put(&bbio->bio);
