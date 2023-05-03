@@ -1627,41 +1627,24 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
 /*
  * Lock extent buffer status and pages for writeback.
  *
- * May try to flush write bio if we can't get the lock.
- *
  * Return %false if the extent buffer doesn't need to be submitted (e.g. the
  * extent buffer is not dirty)
  * Return %true is the extent buffer is submitted to bio.
  */
 static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *eb,
-			  struct btrfs_bio_ctrl *bio_ctrl)
+			  struct writeback_control *wbc)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int i, num_pages;
-	int flush = 0;
 	bool ret = false;
+	int i;
 
-	if (!btrfs_try_tree_write_lock(eb)) {
-		submit_write_bio(bio_ctrl, 0);
-		flush = 1;
-		btrfs_tree_lock(eb);
-	}
-
-	if (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags)) {
+	btrfs_tree_lock(eb);
+	while (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags)) {
 		btrfs_tree_unlock(eb);
-		if (bio_ctrl->wbc->sync_mode != WB_SYNC_ALL)
+		if (wbc->sync_mode != WB_SYNC_ALL)
 			return false;
-		if (!flush) {
-			submit_write_bio(bio_ctrl, 0);
-			flush = 1;
-		}
-		while (1) {
-			wait_on_extent_buffer_writeback(eb);
-			btrfs_tree_lock(eb);
-			if (!test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags))
-				break;
-			btrfs_tree_unlock(eb);
-		}
+		wait_on_extent_buffer_writeback(eb);
+		btrfs_tree_lock(eb);
 	}
 
 	/*
@@ -1693,19 +1676,8 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 	if (!ret || fs_info->nodesize < PAGE_SIZE)
 		return ret;
 
-	num_pages = num_extent_pages(eb);
-	for (i = 0; i < num_pages; i++) {
-		struct page *p = eb->pages[i];
-
-		if (!trylock_page(p)) {
-			if (!flush) {
-				submit_write_bio(bio_ctrl, 0);
-				flush = 1;
-			}
-			lock_page(p);
-		}
-	}
-
+	for (i = 0; i < num_extent_pages(eb); i++)
+		lock_page(eb->pages[i]);
 	return ret;
 }
 
@@ -1936,11 +1908,16 @@ static void prepare_eb_write(struct extent_buffer *eb)
  * Page locking is only utilized at minimum to keep the VMM code happy.
  */
 static void write_one_subpage_eb(struct extent_buffer *eb,
-				 struct btrfs_bio_ctrl *bio_ctrl)
+				 struct writeback_control *wbc)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct page *page = eb->pages[0];
 	bool no_dirty_ebs = false;
+	struct btrfs_bio_ctrl bio_ctrl = {
+		.wbc = wbc,
+		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
+		.end_io_func = end_bio_subpage_eb_writepage,
+	};
 
 	prepare_eb_write(eb);
 
@@ -1954,28 +1931,30 @@ static void write_one_subpage_eb(struct extent_buffer *eb,
 	if (no_dirty_ebs)
 		clear_page_dirty_for_io(page);
 
-	bio_ctrl->end_io_func = end_bio_subpage_eb_writepage;
-
-	submit_extent_page(bio_ctrl, eb->start, page, eb->len,
+	submit_extent_page(&bio_ctrl, eb->start, page, eb->len,
 			   eb->start - page_offset(page));
 	unlock_page(page);
+	submit_one_bio(&bio_ctrl);
 	/*
 	 * Submission finished without problem, if no range of the page is
 	 * dirty anymore, we have submitted a page.  Update nr_written in wbc.
 	 */
 	if (no_dirty_ebs)
-		bio_ctrl->wbc->nr_to_write--;
+		wbc->nr_to_write--;
 }
 
 static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
-			struct btrfs_bio_ctrl *bio_ctrl)
+					    struct writeback_control *wbc)
 {
 	u64 disk_bytenr = eb->start;
 	int i, num_pages;
+	struct btrfs_bio_ctrl bio_ctrl = {
+		.wbc = wbc,
+		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
+		.end_io_func = end_bio_extent_buffer_writepage,
+	};
 
 	prepare_eb_write(eb);
-
-	bio_ctrl->end_io_func = end_bio_extent_buffer_writepage;
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++) {
@@ -1983,11 +1962,12 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		submit_extent_page(bio_ctrl, disk_bytenr, p, PAGE_SIZE, 0);
+		submit_extent_page(&bio_ctrl, disk_bytenr, p, PAGE_SIZE, 0);
 		disk_bytenr += PAGE_SIZE;
-		bio_ctrl->wbc->nr_to_write--;
+		wbc->nr_to_write--;
 		unlock_page(p);
 	}
+	submit_one_bio(&bio_ctrl);
 }
 
 /*
@@ -2004,7 +1984,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
  * Return >=0 for the number of submitted extent buffers.
  * Return <0 for fatal error.
  */
-static int submit_eb_subpage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl)
+static int submit_eb_subpage(struct page *page, struct writeback_control *wbc)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
 	int submitted = 0;
@@ -2056,8 +2036,8 @@ static int submit_eb_subpage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl)
 		if (!eb)
 			continue;
 
-		if (lock_extent_buffer_for_io(eb, bio_ctrl)) {
-			write_one_subpage_eb(eb, bio_ctrl);
+		if (lock_extent_buffer_for_io(eb, wbc)) {
+			write_one_subpage_eb(eb, wbc);
 			submitted++;
 		}
 		free_extent_buffer(eb);
@@ -2085,7 +2065,7 @@ static int submit_eb_subpage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl)
  * previous call.
  * Return <0 for fatal error.
  */
-static int submit_eb_page(struct page *page, struct btrfs_bio_ctrl *bio_ctrl,
+static int submit_eb_page(struct page *page, struct writeback_control *wbc,
 			  struct extent_buffer **eb_context)
 {
 	struct address_space *mapping = page->mapping;
@@ -2097,7 +2077,7 @@ static int submit_eb_page(struct page *page, struct btrfs_bio_ctrl *bio_ctrl,
 		return 0;
 
 	if (btrfs_sb(page->mapping->host->i_sb)->nodesize < PAGE_SIZE)
-		return submit_eb_subpage(page, bio_ctrl);
+		return submit_eb_subpage(page, wbc);
 
 	spin_lock(&mapping->private_lock);
 	if (!PagePrivate(page)) {
@@ -2130,8 +2110,7 @@ static int submit_eb_page(struct page *page, struct btrfs_bio_ctrl *bio_ctrl,
 		 * If for_sync, this hole will be filled with
 		 * trasnsaction commit.
 		 */
-		if (bio_ctrl->wbc->sync_mode == WB_SYNC_ALL &&
-		    !bio_ctrl->wbc->for_sync)
+		if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
 			ret = -EAGAIN;
 		else
 			ret = 0;
@@ -2141,12 +2120,12 @@ static int submit_eb_page(struct page *page, struct btrfs_bio_ctrl *bio_ctrl,
 
 	*eb_context = eb;
 
-	if (!lock_extent_buffer_for_io(eb, bio_ctrl)) {
+	if (!lock_extent_buffer_for_io(eb, wbc)) {
 		btrfs_revert_meta_write_pointer(cache, eb);
 		if (cache)
 			btrfs_put_block_group(cache);
 		free_extent_buffer(eb);
-		return ret;
+		return 0;
 	}
 	if (cache) {
 		/*
@@ -2155,7 +2134,7 @@ static int submit_eb_page(struct page *page, struct btrfs_bio_ctrl *bio_ctrl,
 		btrfs_schedule_zone_finish_bg(cache, eb);
 		btrfs_put_block_group(cache);
 	}
-	write_one_eb(eb, bio_ctrl);
+	write_one_eb(eb, wbc);
 	free_extent_buffer(eb);
 	return 1;
 }
@@ -2164,11 +2143,6 @@ int btree_write_cache_pages(struct address_space *mapping,
 				   struct writeback_control *wbc)
 {
 	struct extent_buffer *eb_context = NULL;
-	struct btrfs_bio_ctrl bio_ctrl = {
-		.wbc = wbc,
-		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
-		.extent_locked = 0,
-	};
 	struct btrfs_fs_info *fs_info = BTRFS_I(mapping->host)->root->fs_info;
 	int ret = 0;
 	int done = 0;
@@ -2210,7 +2184,7 @@ retry:
 		for (i = 0; i < nr_folios; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			ret = submit_eb_page(&folio->page, &bio_ctrl, &eb_context);
+			ret = submit_eb_page(&folio->page, wbc, &eb_context);
 			if (ret == 0)
 				continue;
 			if (ret < 0) {
@@ -2271,8 +2245,6 @@ retry:
 		ret = 0;
 	if (!ret && BTRFS_FS_ERROR(fs_info))
 		ret = -EROFS;
-	submit_write_bio(&bio_ctrl, ret);
-
 	btrfs_zoned_meta_io_unlock(fs_info);
 	return ret;
 }
