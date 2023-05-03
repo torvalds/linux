@@ -884,6 +884,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0xb5: asus_map_key_clear(KEY_CALC);			break;
 		case 0xc4: asus_map_key_clear(KEY_KBDILLUMUP);		break;
 		case 0xc5: asus_map_key_clear(KEY_KBDILLUMDOWN);		break;
+		case 0xc7: asus_map_key_clear(KEY_KBDILLUMTOGGLE);	break;
 
 		/* ASUS touchpad toggle */
 		case 0x6b: asus_map_key_clear(KEY_F21);			break;
@@ -911,6 +912,12 @@ static int asus_input_mapping(struct hid_device *hdev,
 
 		/* Fn+Right Aura mode next on N-Key keyboard */
 		case 0xb3: asus_map_key_clear(KEY_PROG3);		break;
+
+		/* Screenpad toggle on N-Key keyboard */
+		case 0x6a: asus_map_key_clear(KEY_F13);		break;
+
+		/* Arrows/Page-up/Down toggle on N-Key keyboard */
+		case 0x4b: asus_map_key_clear(KEY_F14);		break;
 
 		default:
 			/* ASUS lazily declares 256 usages, ignore the rest,
