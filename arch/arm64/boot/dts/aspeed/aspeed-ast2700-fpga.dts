@@ -10,8 +10,8 @@
 	compatible = "aspeed,ast2700-fpga", "aspeed,ast2700";
 
 	chosen {
-		bootargs = "console=ttyS4,115200n8";
-		stdout-path = &uart5;
+		bootargs = "console=ttyS12,115200n8";
+		stdout-path = &uart12;
 	};
 
 	memory@400000000 {
