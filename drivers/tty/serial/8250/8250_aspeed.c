@@ -22,16 +22,88 @@
 
 #define DEVICE_NAME "aspeed-uart"
 
+/* offsets for the aspeed virtual uart registers */
+#define VUART_GCRA	0x20
+#define   VUART_GCRA_VUART_EN			BIT(0)
+#define   VUART_GCRA_SIRQ_POLARITY		BIT(1)
+#define   VUART_GCRA_DISABLE_HOST_TX_DISCARD	BIT(5)
+#define VUART_GCRB	0x24
+#define   VUART_GCRB_HOST_SIRQ_MASK		GENMASK(7, 4)
+#define   VUART_GCRB_HOST_SIRQ_SHIFT		4
+#define VUART_ADDRL	0x28
+#define VUART_ADDRH	0x2c
+
+#define DMA_TX_BUFSZ	PAGE_SIZE
+#define DMA_RX_BUFSZ	(64 * 1024)
+
+struct uart_ops ast8250_pops;
+
+struct ast8250_vuart {
+	u32 port;
+	u32 sirq;
+	u32 sirq_pol;
+};
+
 struct ast8250_data {
 	int line;
 	int irq;
 	u8 __iomem *regs;
 	struct reset_control *rst;
 	struct clk *clk;
+	bool is_vuart;
+	struct ast8250_vuart vuart;
 #ifdef CONFIG_SERIAL_8250_DMA
 	struct uart_8250_dma dma;
 #endif
 };
+
+static void ast8250_vuart_init(struct ast8250_data *data)
+{
+	u8 reg;
+	struct ast8250_vuart *vuart = &data->vuart;
+
+	/* IO port address */
+	writeb((u8)(vuart->port >> 0), data->regs + VUART_ADDRL);
+	writeb((u8)(vuart->port >> 8), data->regs + VUART_ADDRH);
+
+	/* SIRQ number */
+	reg = readb(data->regs + VUART_GCRB);
+	reg &= ~VUART_GCRB_HOST_SIRQ_MASK;
+	reg |= ((vuart->sirq << VUART_GCRB_HOST_SIRQ_SHIFT) & VUART_GCRB_HOST_SIRQ_MASK);
+	writeb(reg, data->regs + VUART_GCRB);
+
+	/* SIRQ polarity */
+	reg = readb(data->regs + VUART_GCRA);
+	if (vuart->sirq_pol)
+		reg |= VUART_GCRA_SIRQ_POLARITY;
+	else
+		reg &= ~VUART_GCRA_SIRQ_POLARITY;
+	writeb(reg, data->regs + VUART_GCRA);
+}
+
+static void ast8250_vuart_set_host_tx_discard(struct ast8250_data *data, bool discard)
+{
+	u8 reg;
+
+	reg = readb(data->regs + VUART_GCRA);
+	if (discard)
+		reg &= ~VUART_GCRA_DISABLE_HOST_TX_DISCARD;
+	else
+		reg |= VUART_GCRA_DISABLE_HOST_TX_DISCARD;
+	writeb(reg, data->regs + VUART_GCRA);
+}
+
+static void ast8250_vuart_set_enable(struct ast8250_data *data, bool enable)
+{
+	u8 reg;
+
+	reg = readb(data->regs + VUART_GCRA);
+	if (enable)
+		reg |= VUART_GCRA_VUART_EN;
+	else
+		reg &= ~VUART_GCRA_VUART_EN;
+	writeb(reg, data->regs + VUART_GCRA);
+}
 
 #ifdef CONFIG_SERIAL_8250_DMA
 static int ast8250_rx_dma(struct uart_8250_port *p);
@@ -107,12 +179,22 @@ static int ast8250_startup(struct uart_port *port)
 
 	return 0;
 #else
+	struct ast8250_data *data = port->private_data;
+
+	if (data->is_vuart)
+		ast8250_vuart_set_host_tx_discard(data, false);
+
 	return serial8250_do_startup(port);
 #endif
 }
 
 static void ast8250_shutdown(struct uart_port *port)
 {
+	struct ast8250_data *data = port->private_data;
+
+	if (data->is_vuart)
+		ast8250_vuart_set_host_tx_discard(data, true);
+
 	return serial8250_do_shutdown(port);
 }
 
@@ -161,6 +243,31 @@ static int ast8250_probe(struct platform_device *pdev)
 	if (!IS_ERR(data->rst))
 		reset_control_deassert(data->rst);
 
+	data->is_vuart = of_property_read_bool(dev->of_node, "virtual");
+	if (data->is_vuart) {
+		rc = of_property_read_u32(dev->of_node, "port", &data->vuart.port);
+		if (rc) {
+			dev_err(dev, "failed to get VUART port address\n");
+			return -ENODEV;
+		}
+
+		rc = of_property_read_u32(dev->of_node, "sirq", &data->vuart.sirq);
+		if (rc) {
+			dev_err(dev, "failed to get VUART SIRQ number\n");
+			return -ENODEV;
+		}
+
+		rc = of_property_read_u32(dev->of_node, "sirq-polarity", &data->vuart.sirq_pol);
+		if (rc) {
+			dev_err(dev, "failed to get VUART SIRQ polarity\n");
+			return -ENODEV;
+		}
+
+		ast8250_vuart_init(data);
+		ast8250_vuart_set_host_tx_discard(data, true);
+		ast8250_vuart_set_enable(data, true);
+	}
+
 	spin_lock_init(&port->lock);
 	port->dev = dev;
 	port->type = PORT_16550A;
@@ -198,13 +305,18 @@ static int ast8250_remove(struct platform_device *pdev)
 {
 	struct ast8250_data *data = platform_get_drvdata(pdev);
 
+	if (data->is_vuart)
+		ast8250_vuart_set_enable(data, false);
+
 	serial8250_unregister_port(data->line);
 
 	return 0;
 }
 
 static const struct of_device_id ast8250_of_match[] = {
+	{ .compatible = "aspeed,ast2500-uart" },
 	{ .compatible = "aspeed,ast2600-uart" },
+	{ .compatible = "aspeed,ast2700-uart" },
 	{ },
 };
 
