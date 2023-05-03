@@ -61,10 +61,10 @@ properties:
           - const: xlnx,zynqmp-zc1254
           - const: xlnx,zynqmp
 
-      - description: Xilinx internal board zc1275
+      - description: Xilinx evaluation board zcu1275
         items:
-          - const: xlnx,zynqmp-zc1275-revA
-          - const: xlnx,zynqmp-zc1275
+          - const: xlnx,zynqmp-zcu1275-revA
+          - const: xlnx,zynqmp-zcu1275
           - const: xlnx,zynqmp
 
       - description: Xilinx 96boards compatible board zcu100
