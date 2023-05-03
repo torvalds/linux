@@ -3521,6 +3521,9 @@ struct hl_device {
 	u8				heartbeat;
 };
 
+/* Retrieve PCI device name in case of a PCI device or dev name in simulator */
+#define HL_DEV_NAME(hdev)	\
+		((hdev)->pdev ? dev_name(&(hdev)->pdev->dev) : "NA-DEVICE")
 
 /**
  * struct hl_cs_encaps_sig_handle - encapsulated signals handle structure
