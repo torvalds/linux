@@ -4136,10 +4136,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 			return ret;
 	}
 
-	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags) ||
-	    PageUptodate(page) ||
-	    btrfs_subpage_test_uptodate(fs_info, page, eb->start, eb->len)) {
-		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags)) {
 		unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
 			      &cached_state);
 		return 0;
@@ -4166,7 +4163,6 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 	int i;
 	struct page *page;
 	int locked_pages = 0;
-	int all_uptodate = 1;
 	int num_pages;
 
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
@@ -4200,21 +4196,6 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 			lock_page(page);
 		}
 		locked_pages++;
-	}
-	/*
-	 * We need to firstly lock all pages to make sure that
-	 * the uptodate bit of our pages won't be affected by
-	 * clear_extent_buffer_uptodate().
-	 */
-	for (i = 0; i < num_pages; i++) {
-		page = eb->pages[i];
-		if (!PageUptodate(page))
-			all_uptodate = 0;
-	}
-
-	if (all_uptodate) {
-		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-		goto unlock_exit;
 	}
 
 	__read_extent_buffer_pages(eb, mirror_num, check);
