@@ -116,6 +116,7 @@ obj-$(CONFIG_SM_DISPCC_6115) += dispcc-sm6115.o
 obj-$(CONFIG_SM_DISPCC_6125) += dispcc-sm6125.o
 obj-$(CONFIG_SM_DISPCC_6150) += dispcc-sm6150.o
 obj-$(CONFIG_SM_DISPCC_6350) += dispcc-sm6350.o
+obj-$(CONFIG_SM_DEBUGCC_6150) += debugcc-sm6150.o
 obj-$(CONFIG_SM_DEBUGCC_8150) += debugcc-sm8150.o
 obj-$(CONFIG_SM_DISPCC_8250) += dispcc-sm8250.o
 obj-$(CONFIG_SM_DISPCC_8450) += dispcc-sm8450.o
