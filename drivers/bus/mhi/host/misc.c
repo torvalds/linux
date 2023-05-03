@@ -990,15 +990,16 @@ int mhi_device_get_sync_atomic(struct mhi_device *mhi_dev, int timeout_us,
 {
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
 	struct device *dev = &mhi_dev->dev;
+	unsigned long pm_lock_flags;
 
-	read_lock_bh(&mhi_cntrl->pm_lock);
+	read_lock_irqsave(&mhi_cntrl->pm_lock, pm_lock_flags);
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
-		read_unlock_bh(&mhi_cntrl->pm_lock);
+		read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 		return -EIO;
 	}
 
 	mhi_cntrl->wake_get(mhi_cntrl, true);
-	read_unlock_bh(&mhi_cntrl->pm_lock);
+	read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 
 	mhi_dev->dev_wake++;
 	pm_wakeup_event(&mhi_cntrl->mhi_dev->dev, 0);
@@ -1033,9 +1034,9 @@ int mhi_device_get_sync_atomic(struct mhi_device *mhi_dev, int timeout_us,
 		MHI_ERR(dev, "Did not enter M0, cur_state: %s pm_state: %s\n",
 			mhi_state_str(mhi_cntrl->dev_state),
 			to_mhi_pm_state_str(mhi_cntrl->pm_state));
-		read_lock_bh(&mhi_cntrl->pm_lock);
+		read_lock_irqsave(&mhi_cntrl->pm_lock, pm_lock_flags);
 		mhi_cntrl->wake_put(mhi_cntrl, false);
-		read_unlock_bh(&mhi_cntrl->pm_lock);
+		read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 		mhi_dev->dev_wake--;
 		mhi_cntrl->runtime_put(mhi_cntrl);
 		return -ETIMEDOUT;
@@ -1259,15 +1260,20 @@ int mhi_host_notify_db_disable_trace(struct mhi_controller *mhi_cntrl)
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	enum mhi_state state;
 	enum mhi_ee_type ee;
+	unsigned long pm_lock_flags;
 
 	if (mhi_cntrl->host_notify_db) {
-		if (mhi_cntrl->pm_state == MHI_PM_DISABLE)
+		read_lock_irqsave(&mhi_cntrl->pm_lock, pm_lock_flags);
+		if (mhi_cntrl->pm_state == MHI_PM_DISABLE) {
+			read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 			return -EINVAL;
+		}
 
-		if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
+		if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+			read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 			return -EIO;
+		}
 
-		read_lock_bh(&mhi_cntrl->pm_lock);
 		state = mhi_get_mhi_state(mhi_cntrl);
 		ee = mhi_get_exec_env(mhi_cntrl);
 
@@ -1278,12 +1284,12 @@ int mhi_host_notify_db_disable_trace(struct mhi_controller *mhi_cntrl)
 		/* Make sure that we are indeed in M0 state and not in RDDM as well */
 		if (state == MHI_STATE_M0 && ee == MHI_EE_AMSS) {
 			mhi_write_db(mhi_cntrl, mhi_cntrl->host_notify_db, 1);
-			read_unlock_bh(&mhi_cntrl->pm_lock);
+			read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 			MHI_LOG(dev, "Host notification DB write Success\n");
 			return 0;
 		}
 
-		read_unlock_bh(&mhi_cntrl->pm_lock);
+		read_unlock_irqrestore(&mhi_cntrl->pm_lock, pm_lock_flags);
 		MHI_LOG(dev, "Cannot invoke DB due to invalid M state and/or EE\n");
 		return -EPERM;
 	}
