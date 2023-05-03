@@ -167,6 +167,19 @@ config INTERCONNECT_QCOM_SM6350
 	  This is a driver for the Qualcomm Network-on-Chip on sm6350-based
 	  platforms.
 
+config INTERCONNECT_QCOM_SM6150
+	tristate "SM6150 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_RPMH && QCOM_COMMAND_DB && OF
+	select INTERCONNECT_QCOM_BCM_VOTER
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_QOS
+	help
+	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
+	  on sm6150-based platforms. The interconnect provider collects and
+	  aggreagates the cosumer bandwidth requests to satisfy constraints
+	  placed on Network-on-Chip performance states.
+
 config INTERCONNECT_QCOM_SM8150
 	tristate "SM8150 interconnect driver"
 	depends on INTERCONNECT_QCOM
