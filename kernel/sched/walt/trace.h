@@ -535,8 +535,9 @@ TRACE_EVENT(core_ctl_update_nr_need,
 		 int max_nr, int strict_nrrun, int nr_assist_need, int nr_misfit_assist_need,
 		 int nr_assist, int nr_busy),
 
-	TP_ARGS(cpu, nr_need, nr_misfit_need, nrrun, max_nr, strict_nrrun, nr_assist,
-		nr_assist_need, nr_misfit_assist_need, nr_busy),
+	TP_ARGS(cpu, nr_need, nr_misfit_need, nrrun,
+		max_nr, strict_nrrun, nr_assist_need, nr_misfit_assist_need,
+		nr_assist, nr_busy),
 
 	TP_STRUCT__entry(
 		__field(int, cpu)
@@ -1242,6 +1243,7 @@ TRACE_EVENT(sched_enq_deq_task,
 		__field(unsigned int,	pred_demand_scaled)
 		__field(bool,		compat_thread)
 		__field(bool,		mvp)
+		__field(bool,		misfit)
 	),
 
 	TP_fast_assign(
@@ -1258,9 +1260,11 @@ TRACE_EVENT(sched_enq_deq_task,
 			((struct walt_task_struct *) p->android_vendor_data1)->pred_demand_scaled;
 		__entry->compat_thread	= is_compat_thread(task_thread_info(p));
 		__entry->mvp		= mvp;
+		__entry->misfit		=
+			((struct walt_task_struct *) p->android_vendor_data1)->misfit;
 	),
 
-	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand_scaled=%u is_compat_t=%d mvp=%d",
+	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand_scaled=%u is_compat_t=%d mvp=%d misfit=%d",
 			__entry->cpu,
 			__entry->enqueue ? "enqueue" : "dequeue",
 			__entry->comm, __entry->pid,
@@ -1268,7 +1272,7 @@ TRACE_EVENT(sched_enq_deq_task,
 			__entry->rt_nr_running,
 			__entry->cpus_allowed, __entry->demand,
 			__entry->pred_demand_scaled,
-			__entry->compat_thread, __entry->mvp)
+			__entry->compat_thread, __entry->mvp, __entry->misfit)
 );
 
 TRACE_EVENT(walt_window_rollover,
