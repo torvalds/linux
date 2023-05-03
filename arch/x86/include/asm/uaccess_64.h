@@ -15,25 +15,17 @@
 #ifdef CONFIG_ADDRESS_MASKING
 /*
  * Mask out tag bits from the address.
- *
- * Magic with the 'sign' allows to untag userspace pointer without any branches
- * while leaving kernel addresses intact.
  */
 static inline unsigned long __untagged_addr(unsigned long addr)
 {
-	long sign;
-
 	/*
 	 * Refer tlbstate_untag_mask directly to avoid RIP-relative relocation
 	 * in alternative instructions. The relocation gets wrong when gets
 	 * copied to the target place.
 	 */
 	asm (ALTERNATIVE("",
-			 "sar $63, %[sign]\n\t" /* user_ptr ? 0 : -1UL */
-			 "or %%gs:tlbstate_untag_mask, %[sign]\n\t"
-			 "and %[sign], %[addr]\n\t", X86_FEATURE_LAM)
-	     : [addr] "+r" (addr), [sign] "=r" (sign)
-	     : "m" (tlbstate_untag_mask), "[sign]" (addr));
+			 "and %%gs:tlbstate_untag_mask, %[addr]\n\t", X86_FEATURE_LAM)
+	     : [addr] "+r" (addr) : "m" (tlbstate_untag_mask));
 
 	return addr;
 }
@@ -46,12 +38,8 @@ static inline unsigned long __untagged_addr(unsigned long addr)
 static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
 						   unsigned long addr)
 {
-	long sign = addr >> 63;
-
 	mmap_assert_locked(mm);
-	addr &= (mm)->context.untag_mask | sign;
-
-	return addr;
+	return addr & (mm)->context.untag_mask;
 }
 
 #define untagged_addr_remote(mm, addr)	({				\
