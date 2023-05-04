@@ -18987,6 +18987,7 @@ SFC NETWORK DRIVER
 M:	Edward Cree <ecree.xilinx@gmail.com>
 M:	Martin Habets <habetsm.xilinx@gmail.com>
 L:	netdev@vger.kernel.org
+L:	linux-net-drivers@amd.com
 S:	Supported
 F:	Documentation/networking/devlink/sfc.rst
 F:	drivers/net/ethernet/sfc/
