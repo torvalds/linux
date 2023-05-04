@@ -1201,6 +1201,20 @@ config MFD_RK8XX_I2C
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
 
+config MFD_RK8XX_SPI
+	tristate "Rockchip RK806 Power Management Chip"
+	depends on SPI && OF
+	select MFD_CORE
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	select MFD_RK8XX
+	help
+	  If you say yes here you get support for the RK806 Power Management
+	  chip.
+	  This driver provides common support for accessing the device
+	  through an SPI interface. The device supports multiple sub-devices
+	  including interrupts, LDO & DCDC regulators, and power on-key.
+
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"
 	depends on I2C
