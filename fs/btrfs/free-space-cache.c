@@ -1850,6 +1850,8 @@ static int link_free_space(struct btrfs_free_space_ctl *ctl,
 {
 	int ret = 0;
 
+	lockdep_assert_held(&ctl->tree_lock);
+
 	ASSERT(info->bytes || info->bitmap);
 	ret = tree_insert_offset(ctl, NULL, info);
 	if (ret)
