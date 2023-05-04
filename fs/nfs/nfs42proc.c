@@ -1190,15 +1190,19 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 				const void *buf, size_t buflen, int flags)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
+	__u32 bitmask[NFS_BITMASK_SZ];
 	struct page *pages[NFS4XATTR_MAXPAGES];
 	struct nfs42_setxattrargs arg = {
 		.fh		= NFS_FH(inode),
+		.bitmask	= bitmask,
 		.xattr_pages	= pages,
 		.xattr_len	= buflen,
 		.xattr_name	= name,
 		.xattr_flags	= flags,
 	};
-	struct nfs42_setxattrres res;
+	struct nfs42_setxattrres res = {
+		.server		= server,
+	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_SETXATTR],
 		.rpc_argp	= &arg,
@@ -1210,12 +1214,21 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 	if (buflen > server->sxasize)
 		return -ERANGE;
 
+	res.fattr = nfs_alloc_fattr();
+	if (!res.fattr)
+		return -ENOMEM;
+
 	if (buflen > 0) {
 		np = nfs4_buf_to_pages_noslab(buf, buflen, arg.xattr_pages);
-		if (np < 0)
-			return np;
+		if (np < 0) {
+			ret = np;
+			goto out;
+		}
 	} else
 		np = 0;
+
+	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask,
+			 inode, NFS_INO_INVALID_CHANGE);
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 1);
@@ -1224,9 +1237,13 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 	for (; np > 0; np--)
 		put_page(pages[np - 1]);
 
-	if (!ret)
+	if (!ret) {
 		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
+		ret = nfs_post_op_update_inode(inode, res.fattr);
+	}
 
+out:
+	kfree(res.fattr);
 	return ret;
 }
 

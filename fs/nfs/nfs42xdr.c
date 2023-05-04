@@ -212,11 +212,13 @@
 #define NFS4_enc_setxattr_sz		(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
-					 encode_setxattr_maxsz)
+					 encode_setxattr_maxsz + \
+					 encode_getattr_maxsz)
 #define NFS4_dec_setxattr_sz		(compound_decode_hdr_maxsz + \
 					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
-					 decode_setxattr_maxsz)
+					 decode_setxattr_maxsz + \
+					 decode_getattr_maxsz)
 #define NFS4_enc_listxattrs_sz		(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
@@ -720,6 +722,7 @@ static void nfs4_xdr_enc_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_setxattr(xdr, args, &hdr);
+	encode_getfattr(xdr, args->bitmask, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -1579,8 +1582,10 @@ static int nfs4_xdr_dec_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	status = decode_putfh(xdr);
 	if (status)
 		goto out;
-
 	status = decode_setxattr(xdr, &res->cinfo);
+	if (status)
+		goto out;
+	status = decode_getfattr(xdr, res->fattr, res->server);
 out:
 	return status;
 }
