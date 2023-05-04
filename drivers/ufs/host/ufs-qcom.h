@@ -617,6 +617,7 @@ struct ufs_qcom_host {
 	bool esi_enabled;
 
 	bool bypass_pbl_rst_wa;
+	atomic_t cqhp_update_pending;
 };
 
 static inline u32
