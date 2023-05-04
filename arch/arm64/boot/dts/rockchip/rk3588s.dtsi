@@ -1839,6 +1839,60 @@
 		status = "disabled";
 	};
 
+	otp: efuse@fecc0000 {
+		compatible = "rockchip,rk3588-otp";
+		reg = <0x0 0xfecc0000 0x0 0x400>;
+		clocks = <&cru CLK_OTPC_NS>, <&cru PCLK_OTPC_NS>,
+			 <&cru CLK_OTP_PHY_G>, <&cru CLK_OTPC_ARB>;
+		clock-names = "otp", "apb_pclk", "phy", "arb";
+		resets = <&cru SRST_OTPC_NS>, <&cru SRST_P_OTPC_NS>,
+			 <&cru SRST_OTPC_ARB>;
+		reset-names = "otp", "apb", "arb";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		cpu_code: cpu-code@2 {
+			reg = <0x02 0x2>;
+		};
+
+		otp_id: id@7 {
+			reg = <0x07 0x10>;
+		};
+
+		cpub0_leakage: cpu-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+
+		cpub1_leakage: cpu-leakage@18 {
+			reg = <0x18 0x1>;
+		};
+
+		cpul_leakage: cpu-leakage@19 {
+			reg = <0x19 0x1>;
+		};
+
+		log_leakage: log-leakage@1a {
+			reg = <0x1a 0x1>;
+		};
+
+		gpu_leakage: gpu-leakage@1b {
+			reg = <0x1b 0x1>;
+		};
+
+		otp_cpu_version: cpu-version@1c {
+			reg = <0x1c 0x1>;
+			bits = <3 3>;
+		};
+
+		npu_leakage: npu-leakage@28 {
+			reg = <0x28 0x1>;
+		};
+
+		codec_leakage: codec-leakage@29 {
+			reg = <0x29 0x1>;
+		};
+	};
+
 	dmac2: dma-controller@fed10000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x0 0xfed10000 0x0 0x4000>;
