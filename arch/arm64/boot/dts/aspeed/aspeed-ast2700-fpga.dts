@@ -18,6 +18,20 @@
 		device_type = "memory";
 		reg = <0x4 0x00000000 0x0 0x0c000000>;
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+	};
 };
 
 &mdio0 {
@@ -41,3 +55,26 @@
 &i2c0 {
 	status = "okay";
 };
+
+#if 0
+&bmc_dev0 {
+	status = "okay";
+	memory-region = <&bmc_dev_memory>;
+};
+
+&pcie0_vuart0 {
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie0_vuart1 {
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+#endif
