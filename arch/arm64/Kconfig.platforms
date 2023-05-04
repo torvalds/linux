@@ -260,6 +260,14 @@ config ARCH_PINEAPPLE
 	  chipset. If you do not wish to build a kernel that runs on this
 	  chipset or if you are unsure, say 'N' here.
 
+config ARCH_MONACO_AUTO
+        bool "Enable Support for Qualcomm Technologies, Inc. MONACO_AUTO"
+        depends on ARCH_QCOM
+        help
+          This enables support for the Qualcomm Technologies, Inc.'s
+          MONACO_AUTO chipset. If you do not wish to build a kernel that
+          runs on this chipset or if you are unsure, say 'N' here.
+
 config ARCH_SA8155
         bool "Enable Support for Qualcomm Technologies, Inc. SA8155"
 	depends on ARCH_QCOM
