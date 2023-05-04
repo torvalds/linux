@@ -69,6 +69,14 @@
   tcf_exts_dump_stats
   tcf_exts_validate
   tcf_queue_work
+  __traceiter_android_vh_record_mutex_lock_starttime
+  __traceiter_android_vh_record_pcpu_rwsem_starttime
+  __traceiter_android_vh_record_rtmutex_lock_starttime
+  __traceiter_android_vh_record_rwsem_lock_starttime
+  __tracepoint_android_vh_record_mutex_lock_starttime
+  __tracepoint_android_vh_record_pcpu_rwsem_starttime
+  __tracepoint_android_vh_record_rtmutex_lock_starttime
+  __tracepoint_android_vh_record_rwsem_lock_starttime
   __trace_puts
   typec_mux_get_drvdata
   unregister_memory_notifier
