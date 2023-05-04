@@ -11630,38 +11630,27 @@ static struct pmu *perf_init_event(struct perf_event *event)
 	}
 
 again:
+	ret = -ENOENT;
 	rcu_read_lock();
 	pmu = idr_find(&pmu_idr, type);
 	rcu_read_unlock();
-	if (pmu) {
-		if (event->attr.type != type && type != PERF_TYPE_RAW &&
-		    !(pmu->capabilities & PERF_PMU_CAP_EXTENDED_HW_TYPE))
-			goto fail;
+	if (!pmu)
+		goto fail;
 
-		ret = perf_try_init_event(pmu, event);
-		if (ret == -ENOENT && event->attr.type != type && !extended_type) {
-			type = event->attr.type;
-			goto again;
-		}
+	if (event->attr.type != type && type != PERF_TYPE_RAW &&
+	    !(pmu->capabilities & PERF_PMU_CAP_EXTENDED_HW_TYPE))
+		goto fail;
 
-		if (ret)
-			pmu = ERR_PTR(ret);
-
-		goto unlock;
+	ret = perf_try_init_event(pmu, event);
+	if (ret == -ENOENT && event->attr.type != type && !extended_type) {
+		type = event->attr.type;
+		goto again;
 	}
 
-	list_for_each_entry_rcu(pmu, &pmus, entry, lockdep_is_held(&pmus_srcu)) {
-		ret = perf_try_init_event(pmu, event);
-		if (!ret)
-			goto unlock;
-
-		if (ret != -ENOENT) {
-			pmu = ERR_PTR(ret);
-			goto unlock;
-		}
-	}
 fail:
-	pmu = ERR_PTR(-ENOENT);
+	if (ret)
+		pmu = ERR_PTR(ret);
+
 unlock:
 	srcu_read_unlock(&pmus_srcu, idx);
 
