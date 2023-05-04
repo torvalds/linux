@@ -143,8 +143,7 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 
 	/* Wa_16011759253 */
 	/* Wa_22011383443 */
-	if (IS_SUBPLATFORM_STEP(xe, XE_DG2, XE_SUBPLATFORM_DG2_G10, STEP_A0, STEP_B0) ||
-	    IS_PLATFORM_STEP(xe, XE_PVC, STEP_A0, STEP_B0))
+	if (IS_SUBPLATFORM_STEP(xe, XE_DG2, XE_SUBPLATFORM_DG2_G10, STEP_A0, STEP_B0))
 		flags |= GUC_WA_GAM_CREDITS;
 
 	/* Wa_14014475959 */
@@ -164,11 +163,8 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 
 	/*
 	 * Wa_2201180203
-	 * GUC_WA_PRE_PARSER causes media workload hang for PVC A0 and PCIe
-	 * errors. Disable this for PVC A0 steppings.
 	 */
-	if (GRAPHICS_VER(xe) <= 12 &&
-	    !IS_PLATFORM_STEP(xe, XE_PVC, STEP_A0, STEP_B0))
+	if (GRAPHICS_VER(xe) <= 12)
 		flags |= GUC_WA_PRE_PARSER;
 
 	/* Wa_16011777198 */
@@ -180,9 +176,6 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	/*
 	 * Wa_22012727170
 	 * Wa_22012727685
-	 *
-	 * This WA is applicable to PVC CT A0, but causes media regressions. 
-	 * Drop the WA for PVC.
 	 */
 	if (IS_SUBPLATFORM_STEP(xe, XE_DG2, XE_SUBPLATFORM_DG2_G10, STEP_A0, STEP_C0) ||
 	    IS_SUBPLATFORM_STEP(xe, XE_DG2, XE_SUBPLATFORM_DG2_G11, STEP_A0,
@@ -194,9 +187,8 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
 
 	/* Wa_1509372804 */
-	if (IS_PLATFORM_STEP(xe, XE_PVC, STEP_A0, STEP_C0))
+	if (IS_PLATFORM_STEP(xe, XE_PVC, STEP_B0, STEP_C0))
 		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
-
 
 	return flags;
 }
