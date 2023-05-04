@@ -951,10 +951,10 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 {
 	int err;
 
-	dev->priv.devcom = mlx5_devcom_register_device(dev);
-	if (IS_ERR(dev->priv.devcom))
-		mlx5_core_err(dev, "failed to register with devcom (0x%p)\n",
-			      dev->priv.devcom);
+	dev->priv.devc = mlx5_devcom_register_device(dev);
+	if (IS_ERR(dev->priv.devc))
+		mlx5_core_warn(dev, "failed to register devcom device %ld\n",
+			       PTR_ERR(dev->priv.devc));
 
 	err = mlx5_query_board_id(dev);
 	if (err) {
@@ -1089,7 +1089,7 @@ err_eq_cleanup:
 err_irq_cleanup:
 	mlx5_irq_table_cleanup(dev);
 err_devcom:
-	mlx5_devcom_unregister_device(dev->priv.devcom);
+	mlx5_devcom_unregister_device(dev->priv.devc);
 
 	return err;
 }
@@ -1118,7 +1118,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
 	mlx5_irq_table_cleanup(dev);
-	mlx5_devcom_unregister_device(dev->priv.devcom);
+	mlx5_devcom_unregister_device(dev->priv.devc);
 }
 
 static int mlx5_function_enable(struct mlx5_core_dev *dev, bool boot, u64 timeout)

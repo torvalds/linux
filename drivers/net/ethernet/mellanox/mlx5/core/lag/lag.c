@@ -835,7 +835,7 @@ static bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev)
 	dev = ldev->pf[MLX5_LAG_P1].dev;
 	if (is_mdev_switchdev_mode(dev) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev->priv.eswitch) &&
-	    mlx5_devcom_comp_is_ready(dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS) &&
+	    mlx5_esw_offloads_devcom_is_ready(dev->priv.eswitch) &&
 	    MLX5_CAP_ESW(dev, esw_shared_ingress_acl) &&
 	    mlx5_eswitch_get_npeers(dev->priv.eswitch) == MLX5_CAP_GEN(dev, num_lag_ports) - 1)
 		return true;

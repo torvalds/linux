@@ -354,6 +354,7 @@ struct mlx5_eswitch {
 	}  params;
 	struct blocking_notifier_head n_head;
 	struct xarray paired;
+	struct mlx5_devcom_comp_dev *devcom;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -383,6 +384,7 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw);
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw);
 void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw);
 void mlx5_esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw);
+bool mlx5_esw_offloads_devcom_is_ready(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       u16 vport, const u8 *mac);
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
@@ -818,6 +820,7 @@ static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool cle
 static inline void mlx5_eswitch_disable(struct mlx5_eswitch *esw) {}
 static inline void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw) {}
 static inline void mlx5_esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw) {}
+static inline bool mlx5_esw_offloads_devcom_is_ready(struct mlx5_eswitch *esw) { return false; }
 static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev) { return false; }
 static inline
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw, u16 vport, int link_state) { return 0; }
