@@ -842,9 +842,10 @@ TRACE_EVENT(walt_nohz_balance_kick,
 
 TRACE_EVENT(walt_newidle_balance,
 
-	TP_PROTO(int this_cpu, int busy_cpu, int pulled, bool help_min_cap, bool enough_idle),
+	TP_PROTO(int this_cpu, int busy_cpu, int pulled, bool help_min_cap, bool enough_idle,
+		struct task_struct *p),
 
-	TP_ARGS(this_cpu, busy_cpu, pulled, help_min_cap, enough_idle),
+	TP_ARGS(this_cpu, busy_cpu, pulled, help_min_cap, enough_idle, p),
 
 	TP_STRUCT__entry(
 		__field(int, cpu)
@@ -857,6 +858,7 @@ TRACE_EVENT(walt_newidle_balance,
 		__field(u64, avg_idle)
 		__field(bool, enough_idle)
 		__field(int, overload)
+		__field(int, pid)
 	),
 
 	TP_fast_assign(
@@ -870,14 +872,15 @@ TRACE_EVENT(walt_newidle_balance,
 		__entry->avg_idle	= cpu_rq(this_cpu)->avg_idle;
 		__entry->enough_idle	= enough_idle;
 		__entry->overload	= cpu_rq(this_cpu)->rd->overload;
+		__entry->pid		= p ? p->pid : -1;
 	),
 
-	TP_printk("cpu=%d busy_cpu=%d pulled=%d nr_running=%u rt_nr_running=%u nr_iowait=%d help_min_cap=%d avg_idle=%llu enough_idle=%d overload=%d",
+	TP_printk("cpu=%d busy_cpu=%d pulled=%d nr_running=%u rt_nr_running=%u nr_iowait=%d help_min_cap=%d avg_idle=%llu enough_idle=%d overload=%d pid=%d",
 			__entry->cpu, __entry->busy_cpu, __entry->pulled,
 			__entry->nr_running, __entry->rt_nr_running,
 			__entry->nr_iowait, __entry->help_min_cap,
 			__entry->avg_idle, __entry->enough_idle,
-			__entry->overload)
+			__entry->overload, __entry->pid)
 );
 
 TRACE_EVENT(walt_lb_cpu_util,

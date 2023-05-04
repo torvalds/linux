@@ -293,12 +293,12 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 	return true;
 }
 
-static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
+static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct *pulled_task)
 {
 	struct rq *dst_rq = cpu_rq(dst_cpu);
 	struct rq *src_rq = cpu_rq(src_cpu);
 	unsigned long flags;
-	struct task_struct *pulled_task = NULL, *p;
+	struct task_struct *p;
 	bool active_balance = false, to_lower, to_higher;
 	struct walt_rq *src_wrq = &per_cpu(walt_rq, src_cpu);
 	struct walt_task_struct *wts;
@@ -840,6 +840,7 @@ static void walt_newidle_balance(struct rq *this_rq,
 	int first_idle;
 	int has_misfit = 0;
 	int i;
+	struct task_struct *pulled_task_struct = NULL;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -945,7 +946,7 @@ found_busy_cpu:
 	if (this_rq->nr_running > 0 || (busy_cpu == this_cpu))
 		goto unlock;
 
-	*pulled_task = walt_lb_pull_tasks(this_cpu, busy_cpu);
+	*pulled_task = walt_lb_pull_tasks(this_cpu, busy_cpu, pulled_task_struct);
 
 unlock:
 	raw_spin_lock(&this_rq->__lock);
@@ -965,7 +966,7 @@ repin:
 	rq_repin_lock(this_rq, rf);
 
 	trace_walt_newidle_balance(this_cpu, busy_cpu, *pulled_task,
-				   help_min_cap, enough_idle);
+				   help_min_cap, enough_idle, pulled_task_struct);
 }
 
 /* run newidle balance as a result of an unhalt operation */
