@@ -1173,8 +1173,7 @@ int pci_enable_link_state(struct pci_dev *pdev, int state)
 	if (state & PCIE_LINK_STATE_L0S)
 		link->aspm_default |= ASPM_STATE_L0S;
 	if (state & PCIE_LINK_STATE_L1)
-		/* L1 PM substates require L1 */
-		link->aspm_default |= ASPM_STATE_L1 | ASPM_STATE_L1SS;
+		link->aspm_default |= ASPM_STATE_L1;
 	if (state & PCIE_LINK_STATE_L1_1)
 		link->aspm_default |= ASPM_STATE_L1_1;
 	if (state & PCIE_LINK_STATE_L1_2)
