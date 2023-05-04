@@ -1598,20 +1598,21 @@ static inline u64 offset_to_bitmap(struct btrfs_free_space_ctl *ctl,
 	return bitmap_start;
 }
 
-static int tree_insert_offset(struct rb_root *root, u64 offset,
-			      struct rb_node *node, int bitmap)
+static int tree_insert_offset(struct rb_root *root,
+			      struct btrfs_free_space *new_entry)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
-	struct btrfs_free_space *info;
 
 	while (*p) {
+		struct btrfs_free_space *info;
+
 		parent = *p;
 		info = rb_entry(parent, struct btrfs_free_space, offset_index);
 
-		if (offset < info->offset) {
+		if (new_entry->offset < info->offset) {
 			p = &(*p)->rb_left;
-		} else if (offset > info->offset) {
+		} else if (new_entry->offset > info->offset) {
 			p = &(*p)->rb_right;
 		} else {
 			/*
@@ -1627,7 +1628,7 @@ static int tree_insert_offset(struct rb_root *root, u64 offset,
 			 * found a bitmap, we want to go left, or before
 			 * logically.
 			 */
-			if (bitmap) {
+			if (new_entry->bitmap) {
 				if (info->bitmap) {
 					WARN_ON_ONCE(1);
 					return -EEXIST;
@@ -1643,8 +1644,8 @@ static int tree_insert_offset(struct rb_root *root, u64 offset,
 		}
 	}
 
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, root);
+	rb_link_node(&new_entry->offset_index, parent, p);
+	rb_insert_color(&new_entry->offset_index, root);
 
 	return 0;
 }
@@ -1835,8 +1836,7 @@ static int link_free_space(struct btrfs_free_space_ctl *ctl,
 	int ret = 0;
 
 	ASSERT(info->bytes || info->bitmap);
-	ret = tree_insert_offset(&ctl->free_space_offset, info->offset,
-				 &info->offset_index, (info->bitmap != NULL));
+	ret = tree_insert_offset(&ctl->free_space_offset, info);
 	if (ret)
 		return ret;
 
@@ -2973,8 +2973,6 @@ static void __btrfs_return_cluster_to_free_space(
 			     struct btrfs_block_group *block_group,
 			     struct btrfs_free_cluster *cluster)
 {
-	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	struct btrfs_free_space *entry;
 	struct rb_node *node;
 
 	spin_lock(&cluster->lock);
@@ -2989,15 +2987,15 @@ static void __btrfs_return_cluster_to_free_space(
 
 	node = rb_first(&cluster->root);
 	while (node) {
-		bool bitmap;
+		struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
+		struct btrfs_free_space *entry;
 
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
 		node = rb_next(&entry->offset_index);
 		rb_erase(&entry->offset_index, &cluster->root);
 		RB_CLEAR_NODE(&entry->offset_index);
 
-		bitmap = (entry->bitmap != NULL);
-		if (!bitmap) {
+		if (!entry->bitmap) {
 			/* Merging treats extents as if they were new */
 			if (!btrfs_free_space_trimmed(entry)) {
 				ctl->discardable_extents[BTRFS_STAT_CURR]--;
@@ -3015,8 +3013,7 @@ static void __btrfs_return_cluster_to_free_space(
 					entry->bytes;
 			}
 		}
-		tree_insert_offset(&ctl->free_space_offset,
-				   entry->offset, &entry->offset_index, bitmap);
+		tree_insert_offset(&ctl->free_space_offset, entry);
 		rb_add_cached(&entry->bytes_index, &ctl->free_space_bytes,
 			      entry_less);
 	}
@@ -3390,8 +3387,7 @@ again:
 	 */
 	RB_CLEAR_NODE(&entry->bytes_index);
 
-	ret = tree_insert_offset(&cluster->root, entry->offset,
-				 &entry->offset_index, 1);
+	ret = tree_insert_offset(&cluster->root, entry);
 	ASSERT(!ret); /* -EEXIST; Logic error */
 
 	trace_btrfs_setup_cluster(block_group, cluster,
@@ -3481,8 +3477,7 @@ setup_cluster_no_bitmap(struct btrfs_block_group *block_group,
 
 		rb_erase(&entry->offset_index, &ctl->free_space_offset);
 		rb_erase_cached(&entry->bytes_index, &ctl->free_space_bytes);
-		ret = tree_insert_offset(&cluster->root, entry->offset,
-					 &entry->offset_index, 0);
+		ret = tree_insert_offset(&cluster->root, entry);
 		total_size += entry->bytes;
 		ASSERT(!ret); /* -EEXIST; Logic error */
 	} while (node && entry != last);
