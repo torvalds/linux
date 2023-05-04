@@ -1980,11 +1980,12 @@ static struct iommu_domain *__iommu_domain_alloc(const struct bus_type *bus,
 						 unsigned type)
 {
 	struct iommu_domain *domain;
+	unsigned int alloc_type = type & IOMMU_DOMAIN_ALLOC_FLAGS;
 
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
-	domain = bus->iommu_ops->domain_alloc(type);
+	domain = bus->iommu_ops->domain_alloc(alloc_type);
 	if (!domain)
 		return NULL;
 
