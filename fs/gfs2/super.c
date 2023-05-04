@@ -1131,9 +1131,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	error = gfs2_rindex_update(sdp);
-	if (error)
-		return error;
+	gfs2_rindex_update(sdp);
 
 	error = gfs2_quota_hold(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
 	if (error)
