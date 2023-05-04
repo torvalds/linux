@@ -324,7 +324,6 @@ static const struct dcn10_link_enc_shift le_shift = {
 
 static const struct dcn10_link_enc_mask le_mask = {
 	LINK_ENCODER_MASK_SH_LIST_DCN31(_MASK), \
-
 	//DPCS_DCN31_MASK_SH_LIST(_MASK)
 };
 
@@ -2024,7 +2023,7 @@ int dcn32_populate_dml_pipes_from_context(
 	// In general cases we want to keep the dram clock change requirement
 	// (prefer configs that support MCLK switch). Only override to false
 	// for SubVP
-	if (subvp_in_use)
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || subvp_in_use)
 		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = false;
 	else
 		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
@@ -2093,27 +2092,28 @@ static bool dcn32_resource_construct(
 	uint32_t pipe_fuses = 0;
 	uint32_t num_pipes  = 4;
 
-	#undef REG_STRUCT
-	#define REG_STRUCT bios_regs
-		bios_regs_init();
+#undef REG_STRUCT
+#define REG_STRUCT bios_regs
+	bios_regs_init();
 
-	#undef REG_STRUCT
-	#define REG_STRUCT clk_src_regs
-		clk_src_regs_init(0, A),
-		clk_src_regs_init(1, B),
-		clk_src_regs_init(2, C),
-		clk_src_regs_init(3, D),
-		clk_src_regs_init(4, E);
-	#undef REG_STRUCT
-	#define REG_STRUCT abm_regs
-		abm_regs_init(0),
-		abm_regs_init(1),
-		abm_regs_init(2),
-		abm_regs_init(3);
+#undef REG_STRUCT
+#define REG_STRUCT clk_src_regs
+	clk_src_regs_init(0, A),
+	clk_src_regs_init(1, B),
+	clk_src_regs_init(2, C),
+	clk_src_regs_init(3, D),
+	clk_src_regs_init(4, E);
 
-	#undef REG_STRUCT
-	#define REG_STRUCT dccg_regs
-		dccg_regs_init();
+#undef REG_STRUCT
+#define REG_STRUCT abm_regs
+	abm_regs_init(0),
+	abm_regs_init(1),
+	abm_regs_init(2),
+	abm_regs_init(3);
+
+#undef REG_STRUCT
+#define REG_STRUCT dccg_regs
+	dccg_regs_init();
 
 	DC_FP_START();
 
