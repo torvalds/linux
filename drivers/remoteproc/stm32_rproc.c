@@ -867,7 +867,7 @@ free_rproc:
 	return ret;
 }
 
-static int stm32_rproc_remove(struct platform_device *pdev)
+static void stm32_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct stm32_rproc *ddata = rproc->priv;
@@ -885,8 +885,6 @@ static int stm32_rproc_remove(struct platform_device *pdev)
 		device_init_wakeup(dev, false);
 	}
 	rproc_free(rproc);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_rproc_suspend(struct device *dev)
@@ -916,7 +914,7 @@ static SIMPLE_DEV_PM_OPS(stm32_rproc_pm_ops,
 
 static struct platform_driver stm32_rproc_driver = {
 	.probe = stm32_rproc_probe,
-	.remove = stm32_rproc_remove,
+	.remove_new = stm32_rproc_remove,
 	.driver = {
 		.name = "stm32-rproc",
 		.pm = &stm32_rproc_pm_ops,
