@@ -719,8 +719,13 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 
 		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
-			if (parent->parent)
+
+			if (parent->parent) {
 				parent->parent->child = tmp;
+				if (tmp->flags & SD_SHARE_CPUCAPACITY)
+					parent->parent->groups->flags |= SD_SHARE_CPUCAPACITY;
+			}
+
 			/*
 			 * Transfer SD_PREFER_SIBLING down in case of a
 			 * degenerate parent; the spans match for this
