@@ -894,6 +894,7 @@
   trace_print_array_seq
   trace_raw_output_prep
   __trace_trigger_soft_disabled
+  ttm_bo_mmap_obj
   __udelay
   unpin_user_page
   __unregister_chrdev
@@ -1982,10 +1983,19 @@
   devfreq_update_interval
   devm_devfreq_unregister_notifier
   devm_platform_ioremap_resource_byname
+  dma_buf_dynamic_attach
+  dma_buf_move_notify
+  dma_buf_pin
+  dma_buf_unpin
   dma_fence_array_create
+  dma_fence_chain_ops
+  dma_fence_chain_walk
   dma_fence_get_status
+  dma_fence_get_stub
+  dma_fence_wait_any_timeout
   dma_get_required_mask
   dma_resv_add_fence
+  dma_resv_get_fences
   dma_resv_get_singleton
   dma_resv_iter_first_unlocked
   dma_resv_iter_next_unlocked
@@ -1995,8 +2005,12 @@
   down_read_killable
   down_read_trylock
   drain_workqueue
+  drm_connector_attach_dp_subconnector_property
   drm_connector_init_with_ddc
   drm_crtc_cleanup
+  drm_crtc_helper_set_config
+  drm_crtc_helper_set_mode
+  drm_crtc_init
   drm_crtc_vblank_helper_get_vblank_timestamp
   drm_cvt_mode
   drm_debugfs_create_files
@@ -2004,6 +2018,7 @@
   drm_dev_enter
   drm_dev_exit
   drm_dev_put
+  drm_edid_header_is_valid
   drm_edid_is_valid
   drm_encoder_cleanup
   drm_encoder_init
@@ -2013,10 +2028,15 @@
   drm_gem_dmabuf_release
   drm_gem_dmabuf_vmap
   drm_gem_dmabuf_vunmap
+  drm_gem_prime_export
   drm_gem_prime_mmap
   drm_handle_vblank
+  drm_helper_connector_dpms
+  drm_helper_disable_unused_functions
+  drm_helper_force_disable_all
   drm_helper_hpd_irq_event
   drm_is_current_master
+  drm_kms_helper_is_poll_worker
   drm_kms_helper_poll_disable
   drm_kms_helper_poll_enable
   drm_mm_init
@@ -2025,14 +2045,19 @@
   drm_mm_remove_node
   drm_mm_takedown
   drm_mode_config_cleanup
+  drm_mode_create_scaling_mode_property
   drm_mode_crtc_set_gamma_size
   drm_mode_set_crtcinfo
   drm_mode_set_name
   drm_prime_pages_to_sg
+  drm_prime_sg_to_dma_addr_array
   drm_syncobj_add_point
+  drm_syncobj_create
   drm_syncobj_find
   drm_syncobj_find_fence
   drm_syncobj_free
+  drm_syncobj_get_fd
+  drm_syncobj_get_handle
   drm_syncobj_replace_fence
   __fdget
   _find_first_zero_bit
@@ -2041,6 +2066,7 @@
   get_random_u32
   __get_task_comm
   handle_simple_irq
+  i2c_bit_add_bus
   ida_destroy
   idr_destroy
   idr_find
@@ -2053,11 +2079,26 @@
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
+  mmu_interval_notifier_insert
+  mmu_interval_notifier_remove
+  mmu_interval_read_begin
+  mmu_notifier_synchronize
   mtree_load
+  param_ops_hexint
+  pci_assign_unassigned_bus_resources
+  pci_bus_resource_n
+  pcie_bandwidth_available
+  pcie_get_speed_cap
+  pci_enable_atomic_ops_to_root
   pci_enable_pcie_error_reporting
   pci_get_domain_bus_and_slot
   pci_iomap
   pci_iounmap
+  pci_map_rom
+  pci_msix_vec_count
+  pci_release_resource
+  pci_resize_resource
+  pci_unmap_rom
   pci_write_config_word
   perf_pmu_unregister
   pid_task
@@ -2083,6 +2124,46 @@
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
+  ttm_bo_eviction_valuable
+  ttm_bo_init_reserved
+  ttm_bo_kmap
+  ttm_bo_kunmap
+  ttm_bo_lock_delayed_workqueue
+  ttm_bo_mem_space
+  ttm_bo_move_accel_cleanup
+  ttm_bo_move_memcpy
+  ttm_bo_move_to_lru_tail
+  ttm_bo_pin
+  ttm_bo_put
+  ttm_bo_set_bulk_move
+  ttm_bo_unlock_delayed_workqueue
+  ttm_bo_unpin
+  ttm_bo_validate
+  ttm_bo_vm_access
+  ttm_bo_vm_close
+  ttm_bo_vm_dummy_page
+  ttm_bo_vm_fault_reserved
+  ttm_bo_vm_open
+  ttm_bo_vm_reserve
+  ttm_device_fini
+  ttm_device_init
+  ttm_eu_backoff_reservation
+  ttm_eu_reserve_buffers
+  ttm_glob
+  ttm_lru_bulk_move_tail
+  ttm_pool_alloc
+  ttm_pool_debugfs
+  ttm_pool_free
+  ttm_range_man_fini_nocheck
+  ttm_range_man_init_nocheck
+  ttm_resource_fini
+  ttm_resource_free
+  ttm_resource_init
+  ttm_resource_manager_evict_all
+  ttm_resource_manager_init
+  ttm_resource_manager_usage
+  ttm_sg_tt_init
+  ttm_tt_fini
   __wake_up_locked
   ww_mutex_lock_interruptible
   ww_mutex_trylock
