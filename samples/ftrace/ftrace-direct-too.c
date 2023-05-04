@@ -70,6 +70,33 @@ asm (
 
 #endif /* CONFIG_S390 */
 
+#ifdef CONFIG_LOONGARCH
+
+asm (
+"	.pushsection	.text, \"ax\", @progbits\n"
+"	.type		my_tramp, @function\n"
+"	.globl		my_tramp\n"
+"   my_tramp:\n"
+"	addi.d	$sp, $sp, -48\n"
+"	st.d	$a0, $sp, 0\n"
+"	st.d	$a1, $sp, 8\n"
+"	st.d	$a2, $sp, 16\n"
+"	st.d	$t0, $sp, 24\n"
+"	st.d	$ra, $sp, 32\n"
+"	bl	my_direct_func\n"
+"	ld.d	$a0, $sp, 0\n"
+"	ld.d	$a1, $sp, 8\n"
+"	ld.d	$a2, $sp, 16\n"
+"	ld.d	$t0, $sp, 24\n"
+"	ld.d	$ra, $sp, 32\n"
+"	addi.d	$sp, $sp, 48\n"
+"	jr	$t0\n"
+"	.size		my_tramp, .-my_tramp\n"
+"	.popsection\n"
+);
+
+#endif /* CONFIG_LOONGARCH */
+
 static struct ftrace_ops direct;
 
 static int __init ftrace_direct_init(void)
