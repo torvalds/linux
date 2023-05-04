@@ -1721,6 +1721,8 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 	struct rb_node *n = ctl->free_space_offset.rb_node;
 	struct btrfs_free_space *entry = NULL, *prev = NULL;
 
+	lockdep_assert_held(&ctl->tree_lock);
+
 	/* find entry that is closest to the 'offset' */
 	while (n) {
 		entry = rb_entry(n, struct btrfs_free_space, offset_index);
