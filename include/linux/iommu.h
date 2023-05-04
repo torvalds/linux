@@ -127,6 +127,11 @@ enum iommu_cap {
 	 * this device.
 	 */
 	IOMMU_CAP_ENFORCE_CACHE_COHERENCY,
+	/*
+	 * IOMMU driver does not issue TLB maintenance during .unmap, so can
+	 * usefully support the non-strict DMA flush queue.
+	 */
+	IOMMU_CAP_DEFERRED_FLUSH,
 };
 
 /* These are the possible reserved region types */
