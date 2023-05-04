@@ -120,6 +120,36 @@
 			#size-cells = <2>;
 			ranges;
 
+			e2m_config0: e2m_config@12c21000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c21000 0 0x200>;
+			};
+
+			e2m_config1: e2m_config@12c22000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c22000 0 0x200>;
+			};
+
+			pcie_config0: pcie_config@12c02960 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c02960 0 0x40>;
+			};
+
+			pcie_config1: pcie_config@12c029a0 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c029a0 0 0x40>;
+			};
+
+			pcie_device0: pcie_device@12c02a00 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c02a00 0 0x80>;
+			};
+
+			pcie_device1: pcie_device@12c02a80 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0 0x12c02a80 0 0x80>;
+			};
+
 			cpu_clk: clock-controller@12c02200 {
 				compatible = "aspeed,ast2700_cpu-clk";
 				reg = <0 0x12c02200 0 0x400>;
@@ -440,6 +470,63 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0x0 0x0 0x14c0f000 0x1100>;
+			};
+
+			bmc_dev0: bmc_dev@12110000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x0 0x12110000 0x0 0xb000>;
+				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				aspeed,config = <&pcie_config0>;
+				aspeed,device = <&pcie_device0>;
+				aspeed,e2m = <&e2m_config0>;
+				pcie2lpc;
+				status = "disabled";
+			};
+
+			bmc_dev1: bmc_dev@12120000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x0 0x12120000 0x0 0xb000>;
+				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+				aspeed,config = <&pcie_config1>;
+				aspeed,device = <&pcie_device1>;
+				aspeed,e2m = <&e2m_config1>;
+				pcie2lpc;
+				status = "disabled";
+			};
+
+			pcie0_vuart0: serial@12c18000 {
+				compatible = "aspeed,ast2600-uart";
+				reg = <0x0 0x12c18000 0x0 0x40>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+				virtual;
+				status = "disabled";
+			};
+
+			pcie0_vuart1: serial@12c18100 {
+				compatible = "aspeed,ast2600-uart";
+				reg = <0x0 0x12c18100 0x0 0x40>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+				virtual;
+				status = "disabled";
+			};
+
+			pcie1_vuart0: serial@1a2c18200 {
+				compatible = "aspeed,ast2600-uart";
+				reg = <0x0 0x12c18200 0x0 0x40>;
+				interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+				virtual;
+				status = "disabled";
+			};
+
+			pcie1_vuart1: serial@1a2c18300 {
+				compatible = "aspeed,ast2600-uart";
+				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+				virtual;
+				status = "disabled";
 			};
 
 		};
