@@ -1332,9 +1332,6 @@ static int evict_unlinked_inode(struct inode *inode)
 			goto out;
 	}
 
-	if (ip->i_gl)
-		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
-
 	/*
 	 * As soon as we clear the bitmap for the dinode, gfs2_create_inode()
 	 * can get called to recreate it, or even gfs2_inode_lookup() if the
@@ -1348,6 +1345,9 @@ static int evict_unlinked_inode(struct inode *inode)
 	 */
 
 	ret = gfs2_dinode_dealloc(ip);
+	if (!ret && ip->i_gl)
+		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+
 out:
 	return ret;
 }
