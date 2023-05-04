@@ -1462,7 +1462,6 @@ static void journal_write_done(struct closure *cl)
 	struct journal *j = container_of(cl, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *w = journal_last_unwritten_buf(j);
-	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
 	u64 v, seq;
 	int err = 0;
@@ -1474,13 +1473,7 @@ static void journal_write_done(struct closure *cl)
 	if (!w->devs_written.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
 		err = -EIO;
-	} else {
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
-					 w->devs_written);
-		if (bch2_mark_replicas(c, &replicas.e))
-			err = -EIO;
 	}
-
 	if (err)
 		bch2_fatal_error(c);
 
@@ -1672,6 +1665,7 @@ void bch2_journal_write(struct closure *cl)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_buf *w = journal_last_unwritten_buf(j);
+	struct bch_replicas_padded replicas;
 	struct jset_entry *start, *end;
 	struct jset *jset;
 	struct bio *bio;
@@ -1822,9 +1816,7 @@ retry_alloc:
 		bch_err(c, "Unable to allocate journal write:\n%s",
 			journal_debug_buf.buf);
 		printbuf_exit(&journal_debug_buf);
-		bch2_fatal_error(c);
-		continue_at(cl, journal_write_done, c->io_complete_wq);
-		return;
+		goto err;
 	}
 
 	w->devs_written = bch2_bkey_devs(bkey_i_to_s_c(&w->key));
@@ -1837,6 +1829,16 @@ retry_alloc:
 
 	if (nr_rw_members > 1)
 		w->separate_flush = true;
+
+	/*
+	 * Mark journal replicas before we submit the write to guarantee
+	 * recovery will find the journal entries after a crash.
+	 */
+	bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
+				 w->devs_written);
+	ret = bch2_mark_replicas(c, &replicas.e);
+	if (ret)
+		goto err;
 
 	if (!JSET_NO_FLUSH(jset) && w->separate_flush) {
 		for_each_rw_member(ca, c, i) {
