@@ -28,6 +28,7 @@
 
 #define DEFAULT_FS		48000
 #define TIMEOUT_US		1000
+#define WAIT_TIME_MS_MAX	10000
 #define QUIRK_ALWAYS_ON		BIT(0)
 
 enum fpw_mode {
@@ -46,6 +47,7 @@ struct rk_sai_dev {
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
+	unsigned int wait_time[SNDRV_PCM_STREAM_LAST + 1];
 	unsigned int tx_lanes;
 	unsigned int rx_lanes;
 	unsigned int quirks;
@@ -581,11 +583,15 @@ static int rockchip_sai_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	int stream = substream->stream;
 
-	if (sai->substreams[substream->stream])
+	if (sai->substreams[stream])
 		return -EBUSY;
 
-	sai->substreams[substream->stream] = substream;
+	if (sai->wait_time[stream])
+		substream->wait_time = msecs_to_jiffies(sai->wait_time[stream]);
+
+	sai->substreams[stream] = substream;
 
 	return 0;
 }
@@ -1101,6 +1107,73 @@ static int rockchip_sai_clk_auto_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int rockchip_sai_wait_time_info(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = WAIT_TIME_MS_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int rockchip_sai_rd_wait_time_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = sai->wait_time[SNDRV_PCM_STREAM_CAPTURE];
+
+	return 0;
+}
+
+static int rockchip_sai_rd_wait_time_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	sai->wait_time[SNDRV_PCM_STREAM_CAPTURE] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+static int rockchip_sai_wr_wait_time_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = sai->wait_time[SNDRV_PCM_STREAM_PLAYBACK];
+
+	return 0;
+}
+
+static int rockchip_sai_wr_wait_time_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	sai->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+#define SAI_PCM_WAIT_TIME(xname, xhandler_get, xhandler_put)	\
+{	.iface = SNDRV_CTL_ELEM_IFACE_PCM, .name = xname,	\
+	.info = rockchip_sai_wait_time_info,			\
+	.get = xhandler_get, .put = xhandler_put }
+
 static DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
 
 static const struct snd_kcontrol_new rockchip_sai_controls[] = {
@@ -1164,6 +1237,13 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Clk Auto Switch", 0,
 			    rockchip_sai_clk_auto_get,
 			    rockchip_sai_clk_auto_put),
+
+	SAI_PCM_WAIT_TIME("PCM Read Wait Time MS",
+			  rockchip_sai_rd_wait_time_get,
+			  rockchip_sai_rd_wait_time_put),
+	SAI_PCM_WAIT_TIME("PCM Write Wait Time MS",
+			  rockchip_sai_wr_wait_time_get,
+			  rockchip_sai_wr_wait_time_put),
 };
 
 static const struct snd_soc_component_driver rockchip_sai_component = {
