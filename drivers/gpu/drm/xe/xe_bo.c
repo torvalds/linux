@@ -1545,14 +1545,17 @@ bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo)
 	return false;
 }
 
-dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
+/*
+ * Resolve a BO address. There is no assert to check if the proper lock is held
+ * so it should only be used in cases where it is not fatal to get the wrong
+ * address, such as printing debug information, but not in cases where memory is
+ * written based on this result.
+ */
+dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset,
 		      size_t page_size, bool *is_vram)
 {
 	struct xe_res_cursor cur;
 	u64 page;
-
-	if (!READ_ONCE(bo->ttm.pin_count))
-		xe_bo_assert_held(bo);
 
 	XE_BUG_ON(page_size > PAGE_SIZE);
 	page = offset >> PAGE_SHIFT;
@@ -1573,6 +1576,14 @@ dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
 			     page_size, &cur);
 		return cur.start + offset + vram_region_io_offset(bo->ttm.resource);
 	}
+}
+
+dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
+		      size_t page_size, bool *is_vram)
+{
+	if (!READ_ONCE(bo->ttm.pin_count))
+		xe_bo_assert_held(bo);
+	return __xe_bo_addr(bo, offset, page_size, is_vram);
 }
 
 int xe_bo_vmap(struct xe_bo *bo)

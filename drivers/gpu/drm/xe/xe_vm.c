@@ -3421,7 +3421,7 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 					&cur);
 			addr = xe_res_dma(&cur);
 		} else {
-			addr = xe_bo_addr(vma->bo, 0, XE_PAGE_SIZE, &is_vram);
+			addr = __xe_bo_addr(vma->bo, 0, XE_PAGE_SIZE, &is_vram);
 		}
 		drm_printf(p, " [%016llx-%016llx] S:0x%016llx A:%016llx %s\n",
 			   vma->start, vma->end, vma->end - vma->start + 1ull,
