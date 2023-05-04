@@ -2520,6 +2520,22 @@ static void __ksm_add_vma(struct vm_area_struct *vma)
 		vm_flags_set(vma, VM_MERGEABLE);
 }
 
+static int __ksm_del_vma(struct vm_area_struct *vma)
+{
+	int err;
+
+	if (!(vma->vm_flags & VM_MERGEABLE))
+		return 0;
+
+	if (vma->anon_vma) {
+		err = unmerge_ksm_pages(vma, vma->vm_start, vma->vm_end);
+		if (err)
+			return err;
+	}
+
+	vm_flags_clear(vma, VM_MERGEABLE);
+	return 0;
+}
 /**
  * ksm_add_vma - Mark vma as mergeable if compatible
  *
@@ -2540,6 +2556,20 @@ static void ksm_add_vmas(struct mm_struct *mm)
 	VMA_ITERATOR(vmi, mm, 0);
 	for_each_vma(vmi, vma)
 		__ksm_add_vma(vma);
+}
+
+static int ksm_del_vmas(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+	int err;
+
+	VMA_ITERATOR(vmi, mm, 0);
+	for_each_vma(vmi, vma) {
+		err = __ksm_del_vma(vma);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 /**
@@ -2567,6 +2597,46 @@ int ksm_enable_merge_any(struct mm_struct *mm)
 	ksm_add_vmas(mm);
 
 	return 0;
+}
+
+/**
+ * ksm_disable_merge_any - Disable merging on all compatible VMA's of the mm,
+ *			   previously enabled via ksm_enable_merge_any().
+ *
+ * Disabling merging implies unmerging any merged pages, like setting
+ * MADV_UNMERGEABLE would. If unmerging fails, the whole operation fails and
+ * merging on all compatible VMA's remains enabled.
+ *
+ * @mm: Pointer to mm
+ *
+ * Returns 0 on success, otherwise error code
+ */
+int ksm_disable_merge_any(struct mm_struct *mm)
+{
+	int err;
+
+	if (!test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+		return 0;
+
+	err = ksm_del_vmas(mm);
+	if (err) {
+		ksm_add_vmas(mm);
+		return err;
+	}
+
+	clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	return 0;
+}
+
+int ksm_disable(struct mm_struct *mm)
+{
+	mmap_assert_write_locked(mm);
+
+	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+		return 0;
+	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+		return ksm_disable_merge_any(mm);
+	return ksm_del_vmas(mm);
 }
 
 int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
