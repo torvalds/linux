@@ -707,6 +707,89 @@ static void nfs4_xdr_enc_layouterror(struct rpc_rqst *req,
 	encode_nops(&hdr);
 }
 
+/*
+ * Encode SETXATTR request
+ */
+static void nfs4_xdr_enc_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
+				  const void *data)
+{
+	const struct nfs42_setxattrargs *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->fh, &hdr);
+	encode_setxattr(xdr, args, &hdr);
+	encode_nops(&hdr);
+}
+
+/*
+ * Encode GETXATTR request
+ */
+static void nfs4_xdr_enc_getxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
+				  const void *data)
+{
+	const struct nfs42_getxattrargs *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+	uint32_t replen;
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->fh, &hdr);
+	replen = hdr.replen + op_decode_hdr_maxsz + 1;
+	encode_getxattr(xdr, args->xattr_name, &hdr);
+
+	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->xattr_len,
+				replen);
+
+	encode_nops(&hdr);
+}
+
+/*
+ * Encode LISTXATTR request
+ */
+static void nfs4_xdr_enc_listxattrs(struct rpc_rqst *req,
+				    struct xdr_stream *xdr, const void *data)
+{
+	const struct nfs42_listxattrsargs *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+	uint32_t replen;
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->fh, &hdr);
+	replen = hdr.replen + op_decode_hdr_maxsz + 2 + 1;
+	encode_listxattrs(xdr, args, &hdr);
+
+	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->count, replen);
+
+	encode_nops(&hdr);
+}
+
+/*
+ * Encode REMOVEXATTR request
+ */
+static void nfs4_xdr_enc_removexattr(struct rpc_rqst *req,
+				     struct xdr_stream *xdr, const void *data)
+{
+	const struct nfs42_removexattrargs *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->fh, &hdr);
+	encode_removexattr(xdr, args->xattr_name, &hdr);
+	encode_nops(&hdr);
+}
+
 static int decode_allocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
 {
 	return decode_op_hdr(xdr, OP_ALLOCATE);
@@ -1480,21 +1563,6 @@ out:
 }
 
 #ifdef CONFIG_NFS_V4_2
-static void nfs4_xdr_enc_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  const void *data)
-{
-	const struct nfs42_setxattrargs *args = data;
-	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
-	};
-
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->fh, &hdr);
-	encode_setxattr(xdr, args, &hdr);
-	encode_nops(&hdr);
-}
-
 static int nfs4_xdr_dec_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 void *data)
 {
@@ -1515,27 +1583,6 @@ static int nfs4_xdr_dec_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	status = decode_setxattr(xdr, &res->cinfo);
 out:
 	return status;
-}
-
-static void nfs4_xdr_enc_getxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  const void *data)
-{
-	const struct nfs42_getxattrargs *args = data;
-	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
-	};
-	uint32_t replen;
-
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->fh, &hdr);
-	replen = hdr.replen + op_decode_hdr_maxsz + 1;
-	encode_getxattr(xdr, args->xattr_name, &hdr);
-
-	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->xattr_len,
-				replen);
-
-	encode_nops(&hdr);
 }
 
 static int nfs4_xdr_dec_getxattr(struct rpc_rqst *rqstp,
@@ -1559,26 +1606,6 @@ out:
 	return status;
 }
 
-static void nfs4_xdr_enc_listxattrs(struct rpc_rqst *req,
-				    struct xdr_stream *xdr, const void *data)
-{
-	const struct nfs42_listxattrsargs *args = data;
-	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
-	};
-	uint32_t replen;
-
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->fh, &hdr);
-	replen = hdr.replen + op_decode_hdr_maxsz + 2 + 1;
-	encode_listxattrs(xdr, args, &hdr);
-
-	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->count, replen);
-
-	encode_nops(&hdr);
-}
-
 static int nfs4_xdr_dec_listxattrs(struct rpc_rqst *rqstp,
 				   struct xdr_stream *xdr, void *data)
 {
@@ -1600,21 +1627,6 @@ static int nfs4_xdr_dec_listxattrs(struct rpc_rqst *rqstp,
 	status = decode_listxattrs(xdr, res);
 out:
 	return status;
-}
-
-static void nfs4_xdr_enc_removexattr(struct rpc_rqst *req,
-				     struct xdr_stream *xdr, const void *data)
-{
-	const struct nfs42_removexattrargs *args = data;
-	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
-	};
-
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->fh, &hdr);
-	encode_removexattr(xdr, args->xattr_name, &hdr);
-	encode_nops(&hdr);
 }
 
 static int nfs4_xdr_dec_removexattr(struct rpc_rqst *req,
