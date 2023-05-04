@@ -268,6 +268,7 @@
   drm_crtc_add_crc_entry
   __drm_crtc_commit_free
   drm_crtc_send_vblank_event
+  drm_crtc_vblank_count
   drm_crtc_vblank_off
   drm_crtc_vblank_on
   drm_crtc_vblank_put
@@ -936,6 +937,7 @@
   v4l2_m2m_get_vq
   v4l2_m2m_init
   v4l2_m2m_job_finish
+  v4l2_m2m_mmap
   v4l2_m2m_next_buf
   v4l2_m2m_poll
   v4l2_m2m_qbuf
@@ -1026,6 +1028,11 @@
   hdmi_drm_infoframe_init
   memchr_inv
   __sw_hweight8
+
+# required by drm_ttm_helper.ko
+  drm_print_bits
+  ttm_bo_vmap
+  ttm_bo_vunmap
 
 # required by dss.ko
   copy_from_kernel_nofault
@@ -1223,6 +1230,7 @@
   __tracepoint_ipi_entry
   __tracepoint_ipi_exit
   __tracepoint_ipi_raise
+
 # required by exynos-drm.ko
   class_create_file_ns
   component_add
@@ -1232,14 +1240,22 @@
   component_master_del
   component_match_add_release
   component_unbind_all
+  console_trylock
   console_unlock
   devm_drm_panel_bridge_add_typed
+  __do_once_done
+  __do_once_start
   drm_atomic_add_affected_connectors
   drm_atomic_add_affected_planes
   drm_atomic_bridge_chain_disable
   drm_atomic_bridge_chain_enable
+  drm_atomic_bridge_chain_post_disable
+  drm_atomic_bridge_chain_pre_enable
   drm_atomic_commit
   drm_atomic_get_plane_state
+  __drm_atomic_helper_bridge_duplicate_state
+  __drm_atomic_helper_bridge_reset
+  drm_atomic_helper_calc_timestamping_constants
   drm_atomic_helper_check_modeset
   drm_atomic_helper_check_planes
   drm_atomic_helper_check_plane_state
@@ -1280,15 +1296,20 @@
   drm_crtc_enable_color_mgmt
   drm_crtc_handle_vblank
   drm_crtc_vblank_get
+  drm_dev_has_vblank
   drm_display_mode_to_videomode
   drm_edid_to_sad
   drm_format_info
   drm_gem_create_mmap_offset
+  drm_gem_fb_begin_cpu_access
   drm_gem_prime_import_dev
   drm_gem_vm_close
   drm_gem_vm_open
   drm_get_format_info
+  __drmm_add_action_or_reset
   drm_match_cea_mode
+  __drmm_crtc_alloc_with_planes
+  __drmm_encoder_alloc
   drmm_kmalloc
   drm_mode_config_reset
   drm_mode_copy
@@ -1320,9 +1341,11 @@
   drm_self_refresh_helper_alter_state
   drm_send_event_locked
   drm_wait_one_vblank
+  drm_writeback_cleanup_job
   drm_writeback_connector_init
   drm_writeback_queue_job
   get_options
+  hdmi_drm_infoframe_pack_only
   mipi_dsi_create_packet
   mipi_dsi_dcs_set_column_address
   mipi_dsi_dcs_set_page_address
@@ -1336,6 +1359,7 @@
   platform_find_device_by_driver
   seq_release
   strnchr
+  v4l2_match_dv_timings
 
 # required by exynos-dsufreq.ko
   nsec_to_clock_t
