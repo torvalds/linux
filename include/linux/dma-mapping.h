@@ -62,6 +62,23 @@
 #define DMA_ATTR_PRIVILEGED		(1UL << 9)
 
 /*
+ * DMA_ATTR_SYS_CACHE: used to indicate that the buffer should be mapped with
+ * the correct memory attributes so that it can be cached in the system or last
+ * level cache. This is useful for buffers that are being mapped for devices
+ * that are non-coherent, but can use the system cache.
+ */
+#define DMA_ATTR_SYS_CACHE		(1UL << 10)
+
+/*
+ * DMA_ATTR_SYS_CACHE_NWA: used to indicate that the buffer should be mapped
+ * with the correct memory attributes so that it can be cached in the system or
+ * last level cache, with a no write allocate cache policy. This is useful for
+ * buffers that are being mapped for devices that are non-coherent, but can use
+ * the system cache.
+ */
+#define DMA_ATTR_SYS_CACHE_NWA	(1UL << 11)
+
+/*
  * A dma_addr_t can hold any valid DMA or bus address for the platform.  It can
  * be given to a device to use as a DMA source or target.  It is specific to a
  * given device and there may be a translation between the CPU physical address
