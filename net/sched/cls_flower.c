@@ -2210,10 +2210,10 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		spin_lock(&tp->lock);
 		if (!handle) {
 			handle = 1;
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    INT_MAX, GFP_ATOMIC);
 		} else {
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    handle, GFP_ATOMIC);
 
 			/* Filter with specified handle was concurrently
@@ -2378,7 +2378,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	rcu_read_lock();
 	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
 		/* don't return filters that are being deleted */
-		if (!refcount_inc_not_zero(&f->refcnt))
+		if (!f || !refcount_inc_not_zero(&f->refcnt))
 			continue;
 		rcu_read_unlock();
 
