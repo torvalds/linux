@@ -32,10 +32,20 @@
 #define ARCH_PERFMON_EVENTSEL_INV			(1ULL << 23)
 #define ARCH_PERFMON_EVENTSEL_CMASK			0xFF000000ULL
 
+#define INTEL_FIXED_BITS_MASK				0xFULL
+#define INTEL_FIXED_BITS_STRIDE			4
+#define INTEL_FIXED_0_KERNEL				(1ULL << 0)
+#define INTEL_FIXED_0_USER				(1ULL << 1)
+#define INTEL_FIXED_0_ANYTHREAD			(1ULL << 2)
+#define INTEL_FIXED_0_ENABLE_PMI			(1ULL << 3)
+
 #define HSW_IN_TX					(1ULL << 32)
 #define HSW_IN_TX_CHECKPOINTED				(1ULL << 33)
 #define ICL_EVENTSEL_ADAPTIVE				(1ULL << 34)
 #define ICL_FIXED_0_ADAPTIVE				(1ULL << 32)
+
+#define intel_fixed_bits_by_idx(_idx, _bits)			\
+	((_bits) << ((_idx) * INTEL_FIXED_BITS_STRIDE))
 
 #define AMD64_EVENTSEL_INT_CORE_ENABLE			(1ULL << 36)
 #define AMD64_EVENTSEL_GUESTONLY			(1ULL << 40)
