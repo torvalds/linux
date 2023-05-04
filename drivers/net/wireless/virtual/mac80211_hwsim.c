@@ -1940,7 +1940,14 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 								 hdr, &link_sta);
 		}
 
-		if (WARN_ON(!bss_conf)) {
+		if (unlikely(!bss_conf)) {
+			/* if it's an MLO STA, it might have deactivated all
+			 * links temporarily - but we don't handle real PS in
+			 * this code yet, so just drop the frame in that case
+			 */
+			WARN(link != IEEE80211_LINK_UNSPECIFIED || !sta || !sta->mlo,
+			     "link:%d, sta:%pM, sta->mlo:%d\n",
+			     link, sta ? sta->addr : NULL, sta ? sta->mlo : -1);
 			ieee80211_free_txskb(hw, skb);
 			return;
 		}
