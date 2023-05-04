@@ -199,7 +199,8 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	bool decode = job->engine->class == XE_ENGINE_CLASS_VIDEO_DECODE;
 
 	dw[i++] = preparser_disable(true);
-	/* Wa_1809175790 */
+
+	/* hsdes: 1809175790 */
 	if (!xe->info.has_flat_ccs) {
 		if (decode)
 			i = emit_aux_table_inv(gt, VD0_AUX_INV.reg, dw, i);
@@ -244,9 +245,11 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
 		mask_flags = PIPE_CONTROL_3D_ENGINE_FLAGS;
 	i = emit_pipe_invalidate(mask_flags, dw, i);
-	/* Wa_1809175790 */
+
+	/* hsdes: 1809175790 */
 	if (!xe->info.has_flat_ccs)
 		i = emit_aux_table_inv(gt, CCS_AUX_INV.reg, dw, i);
+
 	dw[i++] = preparser_disable(false);
 
 	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
