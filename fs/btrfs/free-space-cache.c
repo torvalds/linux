@@ -927,25 +927,27 @@ static int copy_free_space_cache(struct btrfs_block_group *block_group,
 			const u64 bytes = info->bytes;
 
 			unlink_free_space(ctl, info, true);
+			spin_unlock(&ctl->tree_lock);
 			kmem_cache_free(btrfs_free_space_cachep, info);
 			ret = btrfs_add_free_space(block_group, offset, bytes);
+			spin_lock(&ctl->tree_lock);
 		} else {
 			u64 offset = info->offset;
 			u64 bytes = ctl->unit;
 
-			while (search_bitmap(ctl, info, &offset, &bytes,
-					     false) == 0) {
+			ret = search_bitmap(ctl, info, &offset, &bytes, false);
+			if (ret == 0) {
+				bitmap_clear_bits(ctl, info, offset, bytes, true);
+				spin_unlock(&ctl->tree_lock);
 				ret = btrfs_add_free_space(block_group, offset,
 							   bytes);
-				if (ret)
-					break;
-				bitmap_clear_bits(ctl, info, offset, bytes, true);
-				offset = info->offset;
-				bytes = ctl->unit;
+				spin_lock(&ctl->tree_lock);
+			} else {
+				free_bitmap(ctl, info);
+				ret = 0;
 			}
-			free_bitmap(ctl, info);
 		}
-		cond_resched();
+		cond_resched_lock(&ctl->tree_lock);
 	}
 	return ret;
 }
@@ -1039,7 +1041,9 @@ int load_free_space_cache(struct btrfs_block_group *block_group)
 					  block_group->bytes_super));
 
 	if (matched) {
+		spin_lock(&tmp_ctl.tree_lock);
 		ret = copy_free_space_cache(block_group, &tmp_ctl);
+		spin_unlock(&tmp_ctl.tree_lock);
 		/*
 		 * ret == 1 means we successfully loaded the free space cache,
 		 * so we need to re-set it here.
@@ -1832,6 +1836,8 @@ static inline void unlink_free_space(struct btrfs_free_space_ctl *ctl,
 				     struct btrfs_free_space *info,
 				     bool update_stat)
 {
+	lockdep_assert_held(&ctl->tree_lock);
+
 	rb_erase(&info->offset_index, &ctl->free_space_offset);
 	rb_erase_cached(&info->bytes_index, &ctl->free_space_bytes);
 	ctl->free_extents--;
@@ -1880,6 +1886,8 @@ static void relink_bitmap_entry(struct btrfs_free_space_ctl *ctl,
 	 */
 	if (RB_EMPTY_NODE(&info->bytes_index))
 		return;
+
+	lockdep_assert_held(&ctl->tree_lock);
 
 	rb_erase_cached(&info->bytes_index, &ctl->free_space_bytes);
 	rb_add_cached(&info->bytes_index, &ctl->free_space_bytes, entry_less);
@@ -2990,7 +2998,10 @@ static void __btrfs_return_cluster_to_free_space(
 			     struct btrfs_block_group *block_group,
 			     struct btrfs_free_cluster *cluster)
 {
+	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct rb_node *node;
+
+	lockdep_assert_held(&ctl->tree_lock);
 
 	spin_lock(&cluster->lock);
 	if (cluster->block_group != block_group) {
@@ -3004,7 +3015,6 @@ static void __btrfs_return_cluster_to_free_space(
 
 	node = rb_first(&cluster->root);
 	while (node) {
-		struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 		struct btrfs_free_space *entry;
 
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
@@ -3343,6 +3353,8 @@ static int btrfs_bitmap_cluster(struct btrfs_block_group *block_group,
 	unsigned long total_found = 0;
 	int ret;
 
+	lockdep_assert_held(&ctl->tree_lock);
+
 	i = offset_to_bit(entry->offset, ctl->unit,
 			  max_t(u64, offset, entry->offset));
 	want_bits = bytes_to_bits(bytes, ctl->unit);
@@ -3431,6 +3443,8 @@ setup_cluster_no_bitmap(struct btrfs_block_group *block_group,
 	u64 window_free;
 	u64 max_extent;
 	u64 total_size = 0;
+
+	lockdep_assert_held(&ctl->tree_lock);
 
 	entry = tree_search_offset(ctl, offset, 0, 1);
 	if (!entry)
