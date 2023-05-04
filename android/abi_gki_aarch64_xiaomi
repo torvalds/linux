@@ -133,3 +133,14 @@
   __tracepoint_android_rvh_after_enqueue_task
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_vh_map_util_freq
+
+#required by ufs-qcom.ko
+  blk_crypto_reprogram_all_keys
+  blk_crypto_register
+  blk_crypto_keyslot_index
+  blk_mq_destroy_queue
+  blk_put_queue
+  blk_pm_runtime_init
+  sbitmap_weight
+  scsi_done
+  scsi_remove_device
