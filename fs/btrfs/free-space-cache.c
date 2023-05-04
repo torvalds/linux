@@ -3676,7 +3676,7 @@ static int do_trimming(struct btrfs_block_group *block_group,
 		__btrfs_add_free_space(block_group, reserved_start,
 				       start - reserved_start,
 				       reserved_trim_state);
-	if (start + bytes < reserved_start + reserved_bytes)
+	if (end < reserved_end)
 		__btrfs_add_free_space(block_group, end, reserved_end - end,
 				       reserved_trim_state);
 	__btrfs_add_free_space(block_group, start, bytes, trim_state);
