@@ -286,7 +286,15 @@ test_tcp_forwarding_ip()
 	ip netns exec $nsa nc -w 4 "$dstip" "$dstport" < "$nsin" > "$ns1out" &
 	cpid=$!
 
-	sleep 3
+	sleep 1
+
+	prev="$(ls -l $ns1out $ns2out)"
+	sleep 1
+
+	while [[ "$prev" != "$(ls -l $ns1out $ns2out)" ]]; do
+		sleep 1;
+		prev="$(ls -l $ns1out $ns2out)"
+	done
 
 	if test -d /proc/"$lpid"/; then
 		kill $lpid
