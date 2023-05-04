@@ -2676,26 +2676,26 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #ifdef CONFIG_ARM64_PTR_AUTH
 static const struct arm64_cpu_capabilities ptr_auth_hwcap_addr_matches[] = {
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, APA, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, APA, PAuth)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, APA3, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR2_EL1, APA3, PAuth)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, API, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, API, PAuth)
 	},
 	{},
 };
 
 static const struct arm64_cpu_capabilities ptr_auth_hwcap_gen_matches[] = {
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPA, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, GPA, IMP)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, GPA3, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR2_EL1, GPA3, IMP)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPI, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, GPI, IMP)
 	},
 	{},
 };
