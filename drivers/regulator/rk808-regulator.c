@@ -1245,20 +1245,19 @@ static const struct regulator_desc rk818_reg[] = {
 };
 
 static int rk808_regulator_dt_parse_pdata(struct device *dev,
-				   struct device *client_dev,
 				   struct regmap *map,
 				   struct rk808_regulator_data *pdata)
 {
 	struct device_node *np;
 	int tmp, ret = 0, i;
 
-	np = of_get_child_by_name(client_dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_node, "regulators");
 	if (!np)
 		return -ENXIO;
 
 	for (i = 0; i < ARRAY_SIZE(pdata->dvs_gpio); i++) {
 		pdata->dvs_gpio[i] =
-			devm_gpiod_get_index_optional(client_dev, "dvs", i,
+			devm_gpiod_get_index_optional(dev, "dvs", i,
 						      GPIOD_OUT_LOW);
 		if (IS_ERR(pdata->dvs_gpio[i])) {
 			ret = PTR_ERR(pdata->dvs_gpio[i]);
@@ -1292,6 +1291,9 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret, i, nregulators;
 
+	pdev->dev.of_node = pdev->dev.parent->of_node;
+	pdev->dev.of_node_reused = true;
+
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
 		return -ENODEV;
@@ -1300,8 +1302,7 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = rk808_regulator_dt_parse_pdata(&pdev->dev, pdev->dev.parent,
-					     regmap, pdata);
+	ret = rk808_regulator_dt_parse_pdata(&pdev->dev, regmap, pdata);
 	if (ret < 0)
 		return ret;
 
@@ -1335,8 +1336,6 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = pdev->dev.parent->of_node;
-	config.dev->of_node_reused = true;
 	config.driver_data = pdata;
 	config.regmap = regmap;
 
