@@ -489,8 +489,8 @@ ip -net $nsr1 addr add 10.0.1.1/24 dev veth0
 ip -net $nsr1 addr add dead:1::1/64 dev veth0
 ip -net $nsr1 link set up dev veth0
 
-KEY_SHA="0x"$(ps -xaf | sha1sum | cut -d " " -f 1)
-KEY_AES="0x"$(ps -xaf | md5sum | cut -d " " -f 1)
+KEY_SHA="0x"$(ps -af | sha1sum | cut -d " " -f 1)
+KEY_AES="0x"$(ps -af | md5sum | cut -d " " -f 1)
 SPI1=$RANDOM
 SPI2=$RANDOM
 
