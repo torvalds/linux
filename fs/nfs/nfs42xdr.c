@@ -464,20 +464,6 @@ static void encode_setxattr(struct xdr_stream *xdr,
 		xdr_write_pages(xdr, arg->xattr_pages, 0, arg->xattr_len);
 }
 
-static int decode_setxattr(struct xdr_stream *xdr,
-			   struct nfs4_change_info *cinfo)
-{
-	int status;
-
-	status = decode_op_hdr(xdr, OP_SETXATTR);
-	if (status)
-		goto out;
-	status = decode_change_info(xdr, cinfo);
-out:
-	return status;
-}
-
-
 static void encode_getxattr(struct xdr_stream *xdr, const char *name,
 			    struct compound_hdr *hdr)
 {
@@ -485,63 +471,11 @@ static void encode_getxattr(struct xdr_stream *xdr, const char *name,
 	encode_string(xdr, strlen(name), name);
 }
 
-static int decode_getxattr(struct xdr_stream *xdr,
-			   struct nfs42_getxattrres *res,
-			   struct rpc_rqst *req)
-{
-	int status;
-	__be32 *p;
-	u32 len, rdlen;
-
-	status = decode_op_hdr(xdr, OP_GETXATTR);
-	if (status)
-		return status;
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		return -EIO;
-
-	len = be32_to_cpup(p);
-
-	/*
-	 * Only check against the page length here. The actual
-	 * requested length may be smaller, but that is only
-	 * checked against after possibly caching a valid reply.
-	 */
-	if (len > req->rq_rcv_buf.page_len)
-		return -ERANGE;
-
-	res->xattr_len = len;
-
-	if (len > 0) {
-		rdlen = xdr_read_pages(xdr, len);
-		if (rdlen < len)
-			return -EIO;
-	}
-
-	return 0;
-}
-
 static void encode_removexattr(struct xdr_stream *xdr, const char *name,
 			       struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_REMOVEXATTR, decode_removexattr_maxsz, hdr);
 	encode_string(xdr, strlen(name), name);
-}
-
-
-static int decode_removexattr(struct xdr_stream *xdr,
-			   struct nfs4_change_info *cinfo)
-{
-	int status;
-
-	status = decode_op_hdr(xdr, OP_REMOVEXATTR);
-	if (status)
-		goto out;
-
-	status = decode_change_info(xdr, cinfo);
-out:
-	return status;
 }
 
 static void encode_listxattrs(struct xdr_stream *xdr,
@@ -563,104 +497,6 @@ static void encode_listxattrs(struct xdr_stream *xdr,
 	 * plus the EOF marker. So, add the cookie and the names count.
 	 */
 	*p = cpu_to_be32(arg->count + 8 + 4);
-}
-
-static int decode_listxattrs(struct xdr_stream *xdr,
-			    struct nfs42_listxattrsres *res)
-{
-	int status;
-	__be32 *p;
-	u32 count, len, ulen;
-	size_t left, copied;
-	char *buf;
-
-	status = decode_op_hdr(xdr, OP_LISTXATTRS);
-	if (status) {
-		/*
-		 * Special case: for LISTXATTRS, NFS4ERR_TOOSMALL
-		 * should be translated to ERANGE.
-		 */
-		if (status == -ETOOSMALL)
-			status = -ERANGE;
-		/*
-		 * Special case: for LISTXATTRS, NFS4ERR_NOXATTR
-		 * should be translated to success with zero-length reply.
-		 */
-		if (status == -ENODATA) {
-			res->eof = true;
-			status = 0;
-		}
-		goto out;
-	}
-
-	p = xdr_inline_decode(xdr, 8);
-	if (unlikely(!p))
-		return -EIO;
-
-	xdr_decode_hyper(p, &res->cookie);
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		return -EIO;
-
-	left = res->xattr_len;
-	buf = res->xattr_buf;
-
-	count = be32_to_cpup(p);
-	copied = 0;
-
-	/*
-	 * We have asked for enough room to encode the maximum number
-	 * of possible attribute names, so everything should fit.
-	 *
-	 * But, don't rely on that assumption. Just decode entries
-	 * until they don't fit anymore, just in case the server did
-	 * something odd.
-	 */
-	while (count--) {
-		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			return -EIO;
-
-		len = be32_to_cpup(p);
-		if (len > (XATTR_NAME_MAX - XATTR_USER_PREFIX_LEN)) {
-			status = -ERANGE;
-			goto out;
-		}
-
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			return -EIO;
-
-		ulen = len + XATTR_USER_PREFIX_LEN + 1;
-		if (buf) {
-			if (ulen > left) {
-				status = -ERANGE;
-				goto out;
-			}
-
-			memcpy(buf, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
-			memcpy(buf + XATTR_USER_PREFIX_LEN, p, len);
-
-			buf[ulen - 1] = 0;
-			buf += ulen;
-			left -= ulen;
-		}
-		copied += ulen;
-	}
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		return -EIO;
-
-	res->eof = be32_to_cpup(p);
-	res->copied = copied;
-
-out:
-	if (status == -ERANGE && res->xattr_len == XATTR_LIST_MAX)
-		status = -E2BIG;
-
-	return status;
 }
 
 /*
@@ -1190,6 +1026,168 @@ static int decode_clone(struct xdr_stream *xdr)
 static int decode_layouterror(struct xdr_stream *xdr)
 {
 	return decode_op_hdr(xdr, OP_LAYOUTERROR);
+}
+
+static int decode_setxattr(struct xdr_stream *xdr,
+			   struct nfs4_change_info *cinfo)
+{
+	int status;
+
+	status = decode_op_hdr(xdr, OP_SETXATTR);
+	if (status)
+		goto out;
+	status = decode_change_info(xdr, cinfo);
+out:
+	return status;
+}
+
+static int decode_getxattr(struct xdr_stream *xdr,
+			   struct nfs42_getxattrres *res,
+			   struct rpc_rqst *req)
+{
+	int status;
+	__be32 *p;
+	u32 len, rdlen;
+
+	status = decode_op_hdr(xdr, OP_GETXATTR);
+	if (status)
+		return status;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		return -EIO;
+
+	len = be32_to_cpup(p);
+
+	/*
+	 * Only check against the page length here. The actual
+	 * requested length may be smaller, but that is only
+	 * checked against after possibly caching a valid reply.
+	 */
+	if (len > req->rq_rcv_buf.page_len)
+		return -ERANGE;
+
+	res->xattr_len = len;
+
+	if (len > 0) {
+		rdlen = xdr_read_pages(xdr, len);
+		if (rdlen < len)
+			return -EIO;
+	}
+
+	return 0;
+}
+
+static int decode_removexattr(struct xdr_stream *xdr,
+			   struct nfs4_change_info *cinfo)
+{
+	int status;
+
+	status = decode_op_hdr(xdr, OP_REMOVEXATTR);
+	if (status)
+		goto out;
+
+	status = decode_change_info(xdr, cinfo);
+out:
+	return status;
+}
+
+static int decode_listxattrs(struct xdr_stream *xdr,
+			    struct nfs42_listxattrsres *res)
+{
+	int status;
+	__be32 *p;
+	u32 count, len, ulen;
+	size_t left, copied;
+	char *buf;
+
+	status = decode_op_hdr(xdr, OP_LISTXATTRS);
+	if (status) {
+		/*
+		 * Special case: for LISTXATTRS, NFS4ERR_TOOSMALL
+		 * should be translated to ERANGE.
+		 */
+		if (status == -ETOOSMALL)
+			status = -ERANGE;
+		/*
+		 * Special case: for LISTXATTRS, NFS4ERR_NOXATTR
+		 * should be translated to success with zero-length reply.
+		 */
+		if (status == -ENODATA) {
+			res->eof = true;
+			status = 0;
+		}
+		goto out;
+	}
+
+	p = xdr_inline_decode(xdr, 8);
+	if (unlikely(!p))
+		return -EIO;
+
+	xdr_decode_hyper(p, &res->cookie);
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		return -EIO;
+
+	left = res->xattr_len;
+	buf = res->xattr_buf;
+
+	count = be32_to_cpup(p);
+	copied = 0;
+
+	/*
+	 * We have asked for enough room to encode the maximum number
+	 * of possible attribute names, so everything should fit.
+	 *
+	 * But, don't rely on that assumption. Just decode entries
+	 * until they don't fit anymore, just in case the server did
+	 * something odd.
+	 */
+	while (count--) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			return -EIO;
+
+		len = be32_to_cpup(p);
+		if (len > (XATTR_NAME_MAX - XATTR_USER_PREFIX_LEN)) {
+			status = -ERANGE;
+			goto out;
+		}
+
+		p = xdr_inline_decode(xdr, len);
+		if (unlikely(!p))
+			return -EIO;
+
+		ulen = len + XATTR_USER_PREFIX_LEN + 1;
+		if (buf) {
+			if (ulen > left) {
+				status = -ERANGE;
+				goto out;
+			}
+
+			memcpy(buf, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
+			memcpy(buf + XATTR_USER_PREFIX_LEN, p, len);
+
+			buf[ulen - 1] = 0;
+			buf += ulen;
+			left -= ulen;
+		}
+		copied += ulen;
+	}
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		return -EIO;
+
+	res->eof = be32_to_cpup(p);
+	res->copied = copied;
+
+out:
+	if (status == -ERANGE && res->xattr_len == XATTR_LIST_MAX)
+		status = -E2BIG;
+
+	return status;
 }
 
 /*
