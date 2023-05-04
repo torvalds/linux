@@ -1731,15 +1731,31 @@ static void samsung_mipi_cphy_power_on(struct samsung_mipi_dcphy *samsung)
 	reset_control_deassert(samsung->m_phy_rst);
 }
 
+static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd);
+
 static int samsung_mipi_dcphy_power_on(struct phy *phy)
 {
 	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
 	enum phy_mode mode = phy_get_mode(phy);
+	int on = 0;
+	struct v4l2_subdev *sensor_sd = NULL;
 
 	pm_runtime_get_sync(samsung->dev);
 	reset_control_assert(samsung->apb_rst);
 	udelay(1);
 	reset_control_deassert(samsung->apb_rst);
+	if (atomic_read(&samsung->stream_cnt)) {
+		sensor_sd = get_remote_sensor(&samsung->dphy_dev[0]->sd);
+		samsung->stream_off(samsung->dphy_dev[0], &samsung->dphy_dev[0]->sd);
+		if (sensor_sd)
+			v4l2_subdev_call(sensor_sd, core, ioctl,
+					 RKMODULE_SET_QUICK_STREAM, &on);
+		samsung->stream_on(samsung->dphy_dev[0], &samsung->dphy_dev[0]->sd);
+		on = 1;
+		if (sensor_sd)
+			v4l2_subdev_call(sensor_sd, core, ioctl,
+					 RKMODULE_SET_QUICK_STREAM, &on);
+	}
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
