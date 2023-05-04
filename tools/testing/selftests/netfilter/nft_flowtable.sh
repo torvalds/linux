@@ -288,11 +288,11 @@ test_tcp_forwarding_ip()
 
 	sleep 3
 
-	if ps -p $lpid > /dev/null;then
+	if test -d /proc/"$lpid"/; then
 		kill $lpid
 	fi
 
-	if ps -p $cpid > /dev/null;then
+	if test -d /proc/"$cpid"/; then
 		kill $cpid
 	fi
 
