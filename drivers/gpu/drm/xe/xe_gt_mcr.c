@@ -461,9 +461,16 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 	}
 
 	/*
-	 * Always leave the hardware in multicast mode when doing reads
-	 * (see comment about Wa_22013088509 below) and only change it
-	 * to unicast mode when doing writes of a specific instance.
+	 * Always leave the hardware in multicast mode when doing reads and only
+	 * change it to unicast mode when doing writes of a specific instance.
+	 *
+	 * The setting of the multicast/unicast bit usually wouldn't matter for
+	 * read operations (which always return the value from a single register
+	 * instance regardless of how that bit is set), but some platforms may
+	 * have workarounds requiring us to remain in multicast mode for reads,
+	 * e.g. Wa_22013088509 on PVC.  There's no real downside to this, so
+	 * we'll just go ahead and do so on all platforms; we'll only clear the
+	 * multicast bit from the mask when explicitly doing a write operation.
 	 *
 	 * No need to save old steering reg value.
 	 */
