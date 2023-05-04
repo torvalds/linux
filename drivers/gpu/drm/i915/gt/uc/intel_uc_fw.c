@@ -79,6 +79,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * security fixes, etc. to be enabled.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_maj, guc_mmp) \
+	fw_def(METEORLAKE,   0, guc_maj(mtl,  70, 6, 6)) \
 	fw_def(DG2,          0, guc_maj(dg2,  70, 5, 1)) \
 	fw_def(ALDERLAKE_P,  0, guc_maj(adlp, 70, 5, 1)) \
 	fw_def(ALDERLAKE_P,  0, guc_mmp(adlp, 70, 1, 1)) \
