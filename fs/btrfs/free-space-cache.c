@@ -923,10 +923,12 @@ static int copy_free_space_cache(struct btrfs_block_group *block_group,
 	while (!ret && (n = rb_first(&ctl->free_space_offset)) != NULL) {
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (!info->bitmap) {
+			const u64 offset = info->offset;
+			const u64 bytes = info->bytes;
+
 			unlink_free_space(ctl, info, true);
-			ret = btrfs_add_free_space(block_group, info->offset,
-						   info->bytes);
 			kmem_cache_free(btrfs_free_space_cachep, info);
+			ret = btrfs_add_free_space(block_group, offset, bytes);
 		} else {
 			u64 offset = info->offset;
 			u64 bytes = ctl->unit;
