@@ -530,6 +530,7 @@
   mutex_lock_interruptible
   mutex_trylock
   mutex_unlock
+  names_cachep
   napi_complete_done
   napi_enable
   napi_gro_receive
@@ -605,6 +606,7 @@
   param_set_ulong
   pci_alloc_irq_vectors_affinity
   pci_clear_master
+  pcie_get_mps
   pci_free_irq_vectors
   pci_irq_vector
   pci_load_saved_state
@@ -1004,6 +1006,7 @@
   dev_get_by_name
   init_net
   __napi_alloc_skb
+  napi_build_skb
   register_netdev
   unregister_netdev
 
@@ -1491,11 +1494,13 @@
 # required by fimc-is.ko
   clk_hw_get_rate
   devm_phy_put
+  __devm_release_region
   down_interruptible
   i3c_device_do_priv_xfers
   kthread_create_worker
   kthread_destroy_worker
   kthread_flush_worker
+  of_alias_get_highest_id
   of_find_node_by_phandle
   param_set_uint
   phy_configure
@@ -1507,6 +1512,7 @@
   regulator_get_voltage
   regulator_set_voltage
   v4l2_device_register_subdev
+  v4l2_device_set_name
   v4l2_device_unregister_subdev
   v4l2_subdev_call_wrappers
   vb2_mmap
@@ -1644,12 +1650,16 @@
   arch_timer_read_counter
   class_find_device
   clocks_calc_mult_shift
+  iio_device_alloc
+  iio_device_free
   __iio_device_register
   iio_device_unregister
   nonseekable_open
+  rtc_set_time
   rtc_tm_to_time64
   sched_setscheduler
   sysfs_remove_link
+  __wake_up_locked_key
   __wake_up_sync
 
 # required by npu.ko
@@ -1709,12 +1719,16 @@
 # required by pcie-exynos-rc-core.ko
   dw_handle_msi_irq
   dw_pcie_host_init
+  dw_pcie_own_conf_map_bus
   dw_pcie_read
   dw_pcie_setup_rc
   dw_pcie_write
   pci_assign_resource
+  pcie_set_mps
   pci_find_bus
   pci_find_ext_capability
+  pci_generic_config_read
+  pci_generic_config_write
   pci_get_device
   pci_rescan_bus
   platform_get_irq_byname_optional
@@ -1852,12 +1866,19 @@
   crc_ccitt
   param_ops_ullong
   skb_split
+  tty_dev_name_to_number
+  tty_kclose
+  tty_kopen_exclusive
+  tty_lock
   tty_mode_ioctl
   tty_register_ldisc
+  tty_set_ldisc
   tty_set_termios
+  tty_unlock
   tty_unregister_ldisc
 
 # required by scsc_logring.ko
+  dev_vprintk_emit
   vprintk_emit
 
 # required by scsc_mx.ko
