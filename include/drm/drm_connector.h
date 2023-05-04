@@ -199,6 +199,11 @@ enum drm_connector_tv_mode {
 	 */
 	DRM_MODE_TV_MODE_SECAM,
 
+	/**
+	 * @DRM_MODE_TV_MODE_MAX: Number of analog TV output modes.
+	 *
+	 * Internal implementation detail; this is not uABI.
+	 */
 	DRM_MODE_TV_MODE_MAX,
 };
 
