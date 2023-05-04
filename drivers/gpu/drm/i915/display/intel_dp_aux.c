@@ -814,3 +814,8 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 
 	return aux_ch;
 }
+
+void intel_dp_aux_irq_handler(struct drm_i915_private *i915)
+{
+	wake_up_all(&i915->display.gmbus.wait_queue);
+}

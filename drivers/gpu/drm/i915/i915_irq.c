@@ -37,8 +37,10 @@
 #include "display/intel_de.h"
 #include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
+#include "display/intel_dp_aux.h"
 #include "display/intel_fdi_regs.h"
 #include "display/intel_fifo_underrun.h"
+#include "display/intel_gmbus.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_lpe_audio.h"
 #include "display/intel_psr.h"
@@ -925,16 +927,6 @@ static u32 intel_hpd_hotplug_enables(struct drm_i915_private *i915,
 	return hotplug;
 }
 
-static void gmbus_irq_handler(struct drm_i915_private *dev_priv)
-{
-	wake_up_all(&dev_priv->display.gmbus.wait_queue);
-}
-
-static void dp_aux_irq_handler(struct drm_i915_private *dev_priv)
-{
-	wake_up_all(&dev_priv->display.gmbus.wait_queue);
-}
-
 #if defined(CONFIG_DEBUG_FS)
 static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe,
@@ -1181,7 +1173,7 @@ static void i965_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 		intel_opregion_asle_intr(dev_priv);
 
 	if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 }
 
 static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
@@ -1204,7 +1196,7 @@ static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 	}
 
 	if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 }
 
 static u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
@@ -1269,7 +1261,7 @@ static void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	if ((IS_G4X(dev_priv) ||
 	     IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(dev_priv);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -1483,10 +1475,10 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pch_iir & SDE_AUX_MASK)
-		dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_GMBUS)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_AUDIO_HDCP_MASK)
 		drm_dbg(&dev_priv->drm, "PCH HDCP audio interrupt\n");
@@ -1571,10 +1563,10 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pch_iir & SDE_AUX_MASK_CPT)
-		dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_GMBUS_CPT)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_AUDIO_CP_REQ_CPT)
 		drm_dbg(&dev_priv->drm, "Audio CP request interrupt\n");
@@ -1624,7 +1616,7 @@ static void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 	}
 
 	if (trigger_aux)
-		dp_aux_irq_handler(i915);
+		intel_dp_aux_irq_handler(i915);
 
 	if (!pin_mask && !trigger_aux)
 		drm_err(&i915->drm,
@@ -1666,7 +1658,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_ICP)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 }
 
 static void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
@@ -1702,7 +1694,7 @@ static void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_CPT)
-		gmbus_irq_handler(dev_priv);
+		intel_gmbus_irq_handler(dev_priv);
 }
 
 static void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv,
@@ -1730,7 +1722,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
 
 	if (de_iir & DE_AUX_CHANNEL_A)
-		dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(dev_priv);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_asle_intr(dev_priv);
@@ -1782,7 +1774,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 		ivb_err_int_handler(dev_priv);
 
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
-		dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(dev_priv);
 
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_asle_intr(dev_priv);
@@ -2174,7 +2166,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			ret = IRQ_HANDLED;
 
 			if (iir & gen8_de_port_aux_mask(dev_priv)) {
-				dp_aux_irq_handler(dev_priv);
+				intel_dp_aux_irq_handler(dev_priv);
 				found = true;
 			}
 
@@ -2196,7 +2188,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 			if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
 			    (iir & BXT_DE_PORT_GMBUS)) {
-				gmbus_irq_handler(dev_priv);
+				intel_gmbus_irq_handler(dev_priv);
 				found = true;
 			}
 
