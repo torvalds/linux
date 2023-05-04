@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * MFD core driver for Rockchip RK808/RK818
+ * MFD core driver for Rockchip RK8XX
  *
  * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (C) 2016 PHYTEC Messtechnik GmbH
  *
  * Author: Chris Zhong <zyw@rock-chips.com>
  * Author: Zhang Qing <zhangqing@rock-chips.com>
- *
- * Copyright (C) 2016 PHYTEC Messtechnik GmbH
- *
  * Author: Wadim Egorov <w.egorov@phytec.de>
  */
 
-#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/rk808.h>
 #include <linux/mfd/core.h>
@@ -25,92 +22,6 @@ struct rk808_reg_data {
 	int addr;
 	int mask;
 	int value;
-};
-
-static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
-{
-	/*
-	 * Notes:
-	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
-	 *   we don't use that feature.  It's better to cache.
-	 * - It's unlikely we care that RK808_DEVCTRL_REG is volatile since
-	 *   bits are cleared in case when we shutoff anyway, but better safe.
-	 */
-
-	switch (reg) {
-	case RK808_SECONDS_REG ... RK808_WEEKS_REG:
-	case RK808_RTC_STATUS_REG:
-	case RK808_VB_MON_REG:
-	case RK808_THERMAL_REG:
-	case RK808_DCDC_UV_STS_REG:
-	case RK808_LDO_UV_STS_REG:
-	case RK808_DCDC_PG_REG:
-	case RK808_LDO_PG_REG:
-	case RK808_DEVCTRL_REG:
-	case RK808_INT_STS_REG1:
-	case RK808_INT_STS_REG2:
-		return true;
-	}
-
-	return false;
-}
-
-static bool rk817_is_volatile_reg(struct device *dev, unsigned int reg)
-{
-	/*
-	 * Notes:
-	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
-	 *   we don't use that feature.  It's better to cache.
-	 */
-
-	switch (reg) {
-	case RK817_SECONDS_REG ... RK817_WEEKS_REG:
-	case RK817_RTC_STATUS_REG:
-	case RK817_CODEC_DTOP_LPT_SRST:
-	case RK817_GAS_GAUGE_ADC_CONFIG0 ... RK817_GAS_GAUGE_CUR_ADC_K0:
-	case RK817_PMIC_CHRG_STS:
-	case RK817_PMIC_CHRG_OUT:
-	case RK817_PMIC_CHRG_IN:
-	case RK817_INT_STS_REG0:
-	case RK817_INT_STS_REG1:
-	case RK817_INT_STS_REG2:
-	case RK817_SYS_STS:
-		return true;
-	}
-
-	return false;
-}
-
-static const struct regmap_config rk818_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = RK818_USB_CTRL_REG,
-	.cache_type = REGCACHE_RBTREE,
-	.volatile_reg = rk808_is_volatile_reg,
-};
-
-static const struct regmap_config rk805_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = RK805_OFF_SOURCE_REG,
-	.cache_type = REGCACHE_RBTREE,
-	.volatile_reg = rk808_is_volatile_reg,
-};
-
-static const struct regmap_config rk808_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = RK808_IO_POL_REG,
-	.cache_type = REGCACHE_RBTREE,
-	.volatile_reg = rk808_is_volatile_reg,
-};
-
-static const struct regmap_config rk817_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = RK817_GPIO_INT_CFG,
-	.cache_type = REGCACHE_NONE,
-	.volatile_reg = rk817_is_volatile_reg,
 };
 
 static const struct resource rtc_resources[] = {
@@ -605,9 +516,9 @@ static int rk808_restart(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
-static void rk8xx_shutdown(struct i2c_client *client)
+void rk8xx_shutdown(struct device *dev)
 {
-	struct rk808 *rk808 = i2c_get_clientdata(client);
+	struct rk808 *rk808 = dev_get_drvdata(dev);
 	int ret;
 
 	switch (rk808->variant) {
@@ -628,61 +539,31 @@ static void rk8xx_shutdown(struct i2c_client *client)
 		return;
 	}
 	if (ret)
-		dev_warn(&client->dev,
+		dev_warn(dev,
 			 "Cannot switch to power down function\n");
 }
+EXPORT_SYMBOL_GPL(rk8xx_shutdown);
 
-static const struct of_device_id rk808_of_match[] = {
-	{ .compatible = "rockchip,rk805" },
-	{ .compatible = "rockchip,rk808" },
-	{ .compatible = "rockchip,rk809" },
-	{ .compatible = "rockchip,rk817" },
-	{ .compatible = "rockchip,rk818" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rk808_of_match);
-
-static int rk808_probe(struct i2c_client *client)
+int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap *regmap)
 {
-	struct device_node *np = client->dev.of_node;
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct mfd_cell *cells;
 	int nr_pre_init_regs;
 	int nr_cells;
-	int msb, lsb;
-	unsigned char pmic_id_msb, pmic_id_lsb;
 	int ret;
 	int i;
 
-	rk808 = devm_kzalloc(&client->dev, sizeof(*rk808), GFP_KERNEL);
+	rk808 = devm_kzalloc(dev, sizeof(*rk808), GFP_KERNEL);
 	if (!rk808)
 		return -ENOMEM;
-
-	if (of_device_is_compatible(np, "rockchip,rk817") ||
-	    of_device_is_compatible(np, "rockchip,rk809")) {
-		pmic_id_msb = RK817_ID_MSB;
-		pmic_id_lsb = RK817_ID_LSB;
-	} else {
-		pmic_id_msb = RK808_ID_MSB;
-		pmic_id_lsb = RK808_ID_LSB;
-	}
-
-	/* Read chip variant */
-	msb = i2c_smbus_read_byte_data(client, pmic_id_msb);
-	if (msb < 0)
-		return dev_err_probe(&client->dev, msb, "failed to read the chip id MSB\n");
-
-	lsb = i2c_smbus_read_byte_data(client, pmic_id_lsb);
-	if (lsb < 0)
-		return dev_err_probe(&client->dev, lsb, "failed to read the chip id LSB\n");
-
-	rk808->variant = ((msb << 8) | lsb) & RK8XX_ID_MSK;
-	dev_info(&client->dev, "chip id: 0x%x\n", (unsigned int)rk808->variant);
+	rk808->dev = dev;
+	rk808->variant = variant;
+	rk808->regmap = regmap;
+	dev_set_drvdata(dev, rk808);
 
 	switch (rk808->variant) {
 	case RK805_ID:
-		rk808->regmap_cfg = &rk805_regmap_config;
 		rk808->regmap_irq_chip = &rk805_irq_chip;
 		pre_init_reg = rk805_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk805_pre_init_reg);
@@ -690,7 +571,6 @@ static int rk808_probe(struct i2c_client *client)
 		nr_cells = ARRAY_SIZE(rk805s);
 		break;
 	case RK808_ID:
-		rk808->regmap_cfg = &rk808_regmap_config;
 		rk808->regmap_irq_chip = &rk808_irq_chip;
 		pre_init_reg = rk808_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk808_pre_init_reg);
@@ -698,7 +578,6 @@ static int rk808_probe(struct i2c_client *client)
 		nr_cells = ARRAY_SIZE(rk808s);
 		break;
 	case RK818_ID:
-		rk808->regmap_cfg = &rk818_regmap_config;
 		rk808->regmap_irq_chip = &rk818_irq_chip;
 		pre_init_reg = rk818_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk818_pre_init_reg);
@@ -707,7 +586,6 @@ static int rk808_probe(struct i2c_client *client)
 		break;
 	case RK809_ID:
 	case RK817_ID:
-		rk808->regmap_cfg = &rk817_regmap_config;
 		rk808->regmap_irq_chip = &rk817_irq_chip;
 		pre_init_reg = rk817_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk817_pre_init_reg);
@@ -715,27 +593,20 @@ static int rk808_probe(struct i2c_client *client)
 		nr_cells = ARRAY_SIZE(rk817s);
 		break;
 	default:
-		dev_err(&client->dev, "Unsupported RK8XX ID %lu\n",
-			rk808->variant);
+		dev_err(dev, "Unsupported RK8XX ID %lu\n", rk808->variant);
 		return -EINVAL;
 	}
 
-	rk808->dev = &client->dev;
-	i2c_set_clientdata(client, rk808);
+	dev_info(dev, "chip id: 0x%x\n", (unsigned int)rk808->variant);
 
-	rk808->regmap = devm_regmap_init_i2c(client, rk808->regmap_cfg);
-	if (IS_ERR(rk808->regmap))
-		return dev_err_probe(&client->dev, PTR_ERR(rk808->regmap),
-				     "regmap initialization failed\n");
+	if (!irq)
+		return dev_err_probe(dev, -EINVAL, "No interrupt support, no core IRQ\n");
 
-	if (!client->irq)
-		return dev_err_probe(&client->dev, -EINVAL, "No interrupt support, no core IRQ\n");
-
-	ret = devm_regmap_add_irq_chip(&client->dev, rk808->regmap, client->irq,
+	ret = devm_regmap_add_irq_chip(dev, rk808->regmap, irq,
 				       IRQF_ONESHOT, -1,
 				       rk808->regmap_irq_chip, &rk808->irq_data);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "Failed to add irq_chip\n");
+		return dev_err_probe(dev, ret, "Failed to add irq_chip\n");
 
 	for (i = 0; i < nr_pre_init_regs; i++) {
 		ret = regmap_update_bits(rk808->regmap,
@@ -743,45 +614,46 @@ static int rk808_probe(struct i2c_client *client)
 					pre_init_reg[i].mask,
 					pre_init_reg[i].value);
 		if (ret)
-			return dev_err_probe(&client->dev, ret, "0x%x write err\n",
+			return dev_err_probe(dev, ret, "0x%x write err\n",
 					     pre_init_reg[i].addr);
 	}
 
-	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
 			      cells, nr_cells, NULL, 0,
 			      regmap_irq_get_domain(rk808->irq_data));
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "failed to add MFD devices\n");
+		return dev_err_probe(dev, ret, "failed to add MFD devices\n");
 
-	if (of_property_read_bool(np, "rockchip,system-power-controller")) {
-		ret = devm_register_sys_off_handler(&client->dev,
+	if (device_property_read_bool(dev, "rockchip,system-power-controller")) {
+		ret = devm_register_sys_off_handler(dev,
 				    SYS_OFF_MODE_POWER_OFF_PREPARE, SYS_OFF_PRIO_HIGH,
 				    &rk808_power_off, rk808);
 		if (ret)
-			return dev_err_probe(&client->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "failed to register poweroff handler\n");
 
 		switch (rk808->variant) {
 		case RK809_ID:
 		case RK817_ID:
-			ret = devm_register_sys_off_handler(&client->dev,
+			ret = devm_register_sys_off_handler(dev,
 							    SYS_OFF_MODE_RESTART, SYS_OFF_PRIO_HIGH,
 							    &rk808_restart, rk808);
 			if (ret)
-				dev_warn(&client->dev, "failed to register rst handler, %d\n", ret);
+				dev_warn(dev, "failed to register rst handler, %d\n", ret);
 			break;
 		default:
-			dev_dbg(&client->dev, "pmic controlled board reset not supported\n");
+			dev_dbg(dev, "pmic controlled board reset not supported\n");
 			break;
 		}
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rk8xx_probe);
 
-static int __maybe_unused rk8xx_suspend(struct device *dev)
+int rk8xx_suspend(struct device *dev)
 {
-	struct rk808 *rk808 = i2c_get_clientdata(to_i2c_client(dev));
+	struct rk808 *rk808 = dev_get_drvdata(dev);
 	int ret = 0;
 
 	switch (rk808->variant) {
@@ -804,10 +676,11 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rk8xx_suspend);
 
-static int __maybe_unused rk8xx_resume(struct device *dev)
+int rk8xx_resume(struct device *dev)
 {
-	struct rk808 *rk808 = i2c_get_clientdata(to_i2c_client(dev));
+	struct rk808 *rk808 = dev_get_drvdata(dev);
 	int ret = 0;
 
 	switch (rk808->variant) {
@@ -824,22 +697,10 @@ static int __maybe_unused rk8xx_resume(struct device *dev)
 
 	return ret;
 }
-static SIMPLE_DEV_PM_OPS(rk8xx_pm_ops, rk8xx_suspend, rk8xx_resume);
-
-static struct i2c_driver rk808_i2c_driver = {
-	.driver = {
-		.name = "rk808",
-		.of_match_table = rk808_of_match,
-		.pm = &rk8xx_pm_ops,
-	},
-	.probe_new = rk808_probe,
-	.shutdown = rk8xx_shutdown,
-};
-
-module_i2c_driver(rk808_i2c_driver);
+EXPORT_SYMBOL_GPL(rk8xx_resume);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
 MODULE_AUTHOR("Zhang Qing <zhangqing@rock-chips.com>");
 MODULE_AUTHOR("Wadim Egorov <w.egorov@phytec.de>");
-MODULE_DESCRIPTION("RK808/RK818 PMIC driver");
+MODULE_DESCRIPTION("RK8xx PMIC core");

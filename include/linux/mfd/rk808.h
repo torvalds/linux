@@ -794,4 +794,10 @@ struct rk808 {
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
 };
+
+void rk8xx_shutdown(struct device *dev);
+int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap *regmap);
+int rk8xx_suspend(struct device *dev);
+int rk8xx_resume(struct device *dev);
+
 #endif /* __LINUX_REGULATOR_RK808_H */
