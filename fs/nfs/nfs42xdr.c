@@ -317,6 +317,18 @@ static void encode_copy(struct xdr_stream *xdr,
 	encode_nl4_server(xdr, args->cp_src);
 }
 
+static void encode_copy_commit(struct xdr_stream *xdr,
+			  const struct nfs42_copy_args *args,
+			  struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	encode_op_hdr(xdr, OP_COMMIT, decode_commit_maxsz, hdr);
+	p = reserve_space(xdr, 12);
+	p = xdr_encode_hyper(p, args->dst_pos);
+	*p = cpu_to_be32(args->count);
+}
+
 static void encode_offload_cancel(struct xdr_stream *xdr,
 				  const struct nfs42_offload_status_args *args,
 				  struct compound_hdr *hdr)
@@ -669,18 +681,6 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 	encode_allocate(xdr, args, &hdr);
 	encode_getfattr(xdr, args->falloc_bitmask, &hdr);
 	encode_nops(&hdr);
-}
-
-static void encode_copy_commit(struct xdr_stream *xdr,
-			  const struct nfs42_copy_args *args,
-			  struct compound_hdr *hdr)
-{
-	__be32 *p;
-
-	encode_op_hdr(xdr, OP_COMMIT, decode_commit_maxsz, hdr);
-	p = reserve_space(xdr, 12);
-	p = xdr_encode_hyper(p, args->dst_pos);
-	*p = cpu_to_be32(args->count);
 }
 
 /*
