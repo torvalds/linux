@@ -12,6 +12,25 @@ package(
     ],
 )
 
+_GKI_AARCH64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_RISCV64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_X86_64_MAKE_GOALS = [
+    "bzImage",
+    "modules",
+]
+
 filegroup(
     name = "aarch64_additional_kmi_symbol_lists",
     srcs = [
@@ -39,10 +58,12 @@ define_common_kernels(target_configs = {
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_aarch64_16k": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_aarch64_debug": {
         "kmi_symbol_list_strict_mode": False,
@@ -51,22 +72,26 @@ define_common_kernels(target_configs = {
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
     },
     "kernel_riscv64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "make_goals": _GKI_RISCV64_MAKE_GOALS,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
         "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
         "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
     },
 })
 
