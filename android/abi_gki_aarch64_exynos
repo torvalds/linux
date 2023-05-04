@@ -1445,14 +1445,32 @@
   hex_dump_to_buffer
 
 # required by exynos_mpam_policy.ko
+  current_time
+  d_add
+  d_alloc_name
+  d_make_root
   dput
   find_task_by_vpid
+  fs_kobj
+  get_next_ino
+  get_tree_single
   init_user_ns
   kernfs_path_from_node
+  kill_litter_super
+  new_inode
+  register_filesystem
+  simple_dir_inode_operations
+  simple_dir_operations
+  simple_statfs
+  sysfs_create_mount_point
+  sysfs_remove_mount_point
   __traceiter_android_rvh_sched_fork
+  __traceiter_android_vh_cgroup_attach
   __traceiter_android_vh_is_fpsimd_save
   __tracepoint_android_rvh_sched_fork
+  __tracepoint_android_vh_cgroup_attach
   __tracepoint_android_vh_is_fpsimd_save
+  unregister_filesystem
 
 # required by exynos_thermal_v2.ko
   dev_pm_opp_find_freq_exact
@@ -1857,6 +1875,7 @@
 
 # required by scaler.ko
   dma_fence_default_wait
+  sg_nents_for_len
   sync_file_get_fence
   v4l2_ctrl_handler_setup
   v4l2_m2m_try_schedule
