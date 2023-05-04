@@ -14,6 +14,7 @@ use core::num::TryFromIntError;
 use core::str::Utf8Error;
 
 /// Contains the C-compatible error codes.
+#[rustfmt::skip]
 pub mod code {
     macro_rules! declare_err {
         ($err:tt $(,)? $($doc:expr),+) => {
@@ -58,6 +59,25 @@ pub mod code {
     declare_err!(EPIPE, "Broken pipe.");
     declare_err!(EDOM, "Math argument out of domain of func.");
     declare_err!(ERANGE, "Math result not representable.");
+    declare_err!(ERESTARTSYS, "Restart the system call.");
+    declare_err!(ERESTARTNOINTR, "System call was interrupted by a signal and will be restarted.");
+    declare_err!(ERESTARTNOHAND, "Restart if no handler.");
+    declare_err!(ENOIOCTLCMD, "No ioctl command.");
+    declare_err!(ERESTART_RESTARTBLOCK, "Restart by calling sys_restart_syscall.");
+    declare_err!(EPROBE_DEFER, "Driver requests probe retry.");
+    declare_err!(EOPENSTALE, "Open found a stale dentry.");
+    declare_err!(ENOPARAM, "Parameter not supported.");
+    declare_err!(EBADHANDLE, "Illegal NFS file handle.");
+    declare_err!(ENOTSYNC, "Update synchronization mismatch.");
+    declare_err!(EBADCOOKIE, "Cookie is stale.");
+    declare_err!(ENOTSUPP, "Operation is not supported.");
+    declare_err!(ETOOSMALL, "Buffer or request is too small.");
+    declare_err!(ESERVERFAULT, "An untranslatable error occurred.");
+    declare_err!(EBADTYPE, "Type not supported by server.");
+    declare_err!(EJUKEBOX, "Request initiated, but will not complete before timeout.");
+    declare_err!(EIOCBQUEUED, "iocb queued, will get completion event.");
+    declare_err!(ERECALLCONFLICT, "Conflict with recalled state.");
+    declare_err!(ENOGRACE, "NFS file lock reclaim refused.");
 }
 
 /// Generic integer kernel error.
