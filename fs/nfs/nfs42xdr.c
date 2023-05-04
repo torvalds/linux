@@ -1562,7 +1562,9 @@ out:
 	return status;
 }
 
-#ifdef CONFIG_NFS_V4_2
+/*
+ * Decode SETXATTR request
+ */
 static int nfs4_xdr_dec_setxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 void *data)
 {
@@ -1585,6 +1587,9 @@ out:
 	return status;
 }
 
+/*
+ * Decode GETXATTR request
+ */
 static int nfs4_xdr_dec_getxattr(struct rpc_rqst *rqstp,
 				 struct xdr_stream *xdr, void *data)
 {
@@ -1606,6 +1611,9 @@ out:
 	return status;
 }
 
+/*
+ * Decode LISTXATTR request
+ */
 static int nfs4_xdr_dec_listxattrs(struct rpc_rqst *rqstp,
 				   struct xdr_stream *xdr, void *data)
 {
@@ -1629,6 +1637,9 @@ out:
 	return status;
 }
 
+/*
+ * Decode REMOVEXATTR request
+ */
 static int nfs4_xdr_dec_removexattr(struct rpc_rqst *req,
 				    struct xdr_stream *xdr, void *data)
 {
@@ -1650,5 +1661,4 @@ static int nfs4_xdr_dec_removexattr(struct rpc_rqst *req,
 out:
 	return status;
 }
-#endif
 #endif /* __LINUX_FS_NFS_NFS4_2XDR_H */
