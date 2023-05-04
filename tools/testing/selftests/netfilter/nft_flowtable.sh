@@ -296,7 +296,8 @@ test_tcp_forwarding_ip()
 		kill $cpid
 	fi
 
-	wait
+	wait $lpid
+	wait $cpid
 
 	if ! check_transfer "$nsin" "$ns2out" "ns1 -> ns2"; then
 		lret=1
