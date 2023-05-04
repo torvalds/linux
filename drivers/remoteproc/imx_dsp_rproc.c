@@ -1161,7 +1161,7 @@ err_put_rproc:
 	return ret;
 }
 
-static int imx_dsp_rproc_remove(struct platform_device *pdev)
+static void imx_dsp_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct imx_dsp_rproc *priv = rproc->priv;
@@ -1170,8 +1170,6 @@ static int imx_dsp_rproc_remove(struct platform_device *pdev)
 	rproc_del(rproc);
 	imx_dsp_detach_pm_domains(priv);
 	rproc_free(rproc);
-
-	return 0;
 }
 
 /* pm runtime functions */
@@ -1328,7 +1326,7 @@ MODULE_DEVICE_TABLE(of, imx_dsp_rproc_of_match);
 
 static struct platform_driver imx_dsp_rproc_driver = {
 	.probe = imx_dsp_rproc_probe,
-	.remove = imx_dsp_rproc_remove,
+	.remove_new = imx_dsp_rproc_remove,
 	.driver = {
 		.name = "imx-dsp-rproc",
 		.of_match_table = imx_dsp_rproc_of_match,
