@@ -10556,12 +10556,6 @@ F:	drivers/hwmon/intel-m10-bmc-hwmon.c
 F:	drivers/mfd/intel-m10-bmc*
 F:	include/linux/mfd/intel-m10-bmc.h
 
-INTEL MENLOW THERMAL DRIVER
-M:	Sujith Thomas <sujith.thomas@intel.com>
-L:	linux-pm@vger.kernel.org
-S:	Supported
-F:	drivers/thermal/intel/intel_menlow.c
-
 INTEL P-Unit IPC DRIVER
 M:	Zha Qipeng <qipeng.zha@intel.com>
 L:	platform-driver-x86@vger.kernel.org
