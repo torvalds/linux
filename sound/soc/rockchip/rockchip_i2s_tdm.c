@@ -71,6 +71,7 @@
 #define CLK_PPM_MIN				(-1000)
 #define CLK_PPM_MAX				(1000)
 #define MAXBURST_PER_FIFO			8
+#define WAIT_TIME_MS_MAX			10000
 
 #define QUIRK_ALWAYS_ON				BIT(0)
 #define QUIRK_HDMI_PATH				BIT(1)
@@ -115,6 +116,7 @@ struct rk_i2s_tdm_dev {
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
+	unsigned int wait_time[SNDRV_PCM_STREAM_LAST + 1];
 	struct reset_control *tx_reset;
 	struct reset_control *rx_reset;
 	struct pinctrl *pinctrl;
@@ -1957,6 +1959,73 @@ static SOC_ENUM_SINGLE_DECL(rpath2_enum, I2S_RXCR, 21, rpaths_text);
 static SOC_ENUM_SINGLE_DECL(rpath1_enum, I2S_RXCR, 19, rpaths_text);
 static SOC_ENUM_SINGLE_DECL(rpath0_enum, I2S_RXCR, 17, rpaths_text);
 
+static int rockchip_i2s_tdm_wait_time_info(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = WAIT_TIME_MS_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_rd_wait_time_get(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = i2s_tdm->wait_time[SNDRV_PCM_STREAM_CAPTURE];
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_rd_wait_time_put(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	i2s_tdm->wait_time[SNDRV_PCM_STREAM_CAPTURE] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+static int rockchip_i2s_tdm_wr_wait_time_get(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = i2s_tdm->wait_time[SNDRV_PCM_STREAM_PLAYBACK];
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_wr_wait_time_put(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	i2s_tdm->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+#define SAI_PCM_WAIT_TIME(xname, xhandler_get, xhandler_put)	\
+{	.iface = SNDRV_CTL_ELEM_IFACE_PCM, .name = xname,	\
+	.info = rockchip_i2s_tdm_wait_time_info,			\
+	.get = xhandler_get, .put = xhandler_put }
+
 static const struct snd_kcontrol_new rockchip_i2s_tdm_snd_controls[] = {
 	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
 	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
@@ -1976,6 +2045,12 @@ static const struct snd_kcontrol_new rockchip_i2s_tdm_snd_controls[] = {
 	SOC_ENUM_EXT("Receive SDIx Select", rx_lanes_enum,
 		     rockchip_i2s_tdm_rx_lanes_get, rockchip_i2s_tdm_rx_lanes_put),
 #endif
+	SAI_PCM_WAIT_TIME("PCM Read Wait Time MS",
+			  rockchip_i2s_tdm_rd_wait_time_get,
+			  rockchip_i2s_tdm_rd_wait_time_put),
+	SAI_PCM_WAIT_TIME("PCM Write Wait Time MS",
+			  rockchip_i2s_tdm_wr_wait_time_get,
+			  rockchip_i2s_tdm_wr_wait_time_put),
 };
 
 static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
@@ -2019,11 +2094,15 @@ static int rockchip_i2s_tdm_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+	int stream = substream->stream;
 
-	if (i2s_tdm->substreams[substream->stream])
+	if (i2s_tdm->substreams[stream])
 		return -EBUSY;
 
-	i2s_tdm->substreams[substream->stream] = substream;
+	if (i2s_tdm->wait_time[stream])
+		substream->wait_time = msecs_to_jiffies(i2s_tdm->wait_time[stream]);
+
+	i2s_tdm->substreams[stream] = substream;
 
 	return 0;
 }
