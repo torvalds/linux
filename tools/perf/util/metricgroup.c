@@ -1730,6 +1730,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				return -ENOMEM;
 
 			new_expr->metric_expr = old_expr->metric_expr;
+			new_expr->metric_threshold = old_expr->metric_threshold;
 			new_expr->metric_name = strdup(old_expr->metric_name);
 			if (!new_expr->metric_name)
 				return -ENOMEM;
