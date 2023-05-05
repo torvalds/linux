@@ -18,8 +18,11 @@
  * that converting umax_value to int cannot overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
-/* size of type_str_buf in bpf_verifier. */
-#define TYPE_STR_BUF_LEN 128
+/* size of tmp_str_buf in bpf_verifier.
+ * we need at least 306 bytes to fit full stack mask representation
+ * (in the "-8,-16,...,-512" form)
+ */
+#define TMP_STR_BUF_LEN 320
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
@@ -620,8 +623,10 @@ struct bpf_verifier_env {
 	/* Same as scratched_regs but for stack slots */
 	u64 scratched_stack_slots;
 	u64 prev_log_pos, prev_insn_print_pos;
-	/* buffer used in reg_type_str() to generate reg_type string */
-	char type_str_buf[TYPE_STR_BUF_LEN];
+	/* buffer used to generate temporary string representations,
+	 * e.g., in reg_type_str() to generate reg_type string
+	 */
+	char tmp_str_buf[TMP_STR_BUF_LEN];
 };
 
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
