@@ -162,15 +162,15 @@ free:
 }
 
 #ifdef CONFIG_HMEM_REPORTING
-#define ACCESS_ATTR(name)						\
-static ssize_t name##_show(struct device *dev,				\
+#define ACCESS_ATTR(property)						\
+static ssize_t property##_show(struct device *dev,			\
 			   struct device_attribute *attr,		\
 			   char *buf)					\
 {									\
 	return sysfs_emit(buf, "%u\n",					\
-			  to_access_nodes(dev)->hmem_attrs.name);	\
+			  to_access_nodes(dev)->hmem_attrs.property);	\
 }									\
-static DEVICE_ATTR_RO(name)
+static DEVICE_ATTR_RO(property)
 
 ACCESS_ATTR(read_bandwidth);
 ACCESS_ATTR(read_latency);
