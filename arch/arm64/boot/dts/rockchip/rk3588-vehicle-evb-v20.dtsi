@@ -61,7 +61,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		post-power-on-delay-ms = <200>;
+		post-power-on-delay-ms = <10>;
 		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
