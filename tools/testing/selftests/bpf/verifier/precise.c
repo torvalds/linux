@@ -44,7 +44,7 @@
 	mark_precise: frame0: regs=r2 stack= before 23\
 	mark_precise: frame0: regs=r2 stack= before 22\
 	mark_precise: frame0: regs=r2 stack= before 20\
-	parent didn't have regs=4 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r2 stack=:\
 	mark_precise: frame0: last_idx 19 first_idx 10\
 	mark_precise: frame0: regs=r2 stack= before 19\
 	mark_precise: frame0: regs=r9 stack= before 18\
@@ -55,7 +55,7 @@
 	mark_precise: frame0: regs=r9 stack= before 12\
 	mark_precise: frame0: regs=r9 stack= before 11\
 	mark_precise: frame0: regs=r9 stack= before 10\
-	parent already had regs=0 stack=0 marks:",
+	mark_precise: frame0: parent state regs= stack=:",
 },
 {
 	"precise: test 2",
@@ -104,15 +104,15 @@
 	mark_precise: frame0: regs=r2 stack= before 24\
 	mark_precise: frame0: regs=r2 stack= before 23\
 	mark_precise: frame0: regs=r2 stack= before 22\
-	parent didn't have regs=4 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r2 stack=:\
 	mark_precise: frame0: last_idx 20 first_idx 20\
 	mark_precise: frame0: regs=r2 stack= before 20\
-	parent didn't have regs=4 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r2 stack=:\
 	mark_precise: frame0: last_idx 19 first_idx 17\
 	mark_precise: frame0: regs=r2 stack= before 19\
 	mark_precise: frame0: regs=r9 stack= before 18\
 	mark_precise: frame0: regs=r8,r9 stack= before 17\
-	parent already had regs=0 stack=0 marks:",
+	mark_precise: frame0: parent state regs= stack=:",
 },
 {
 	"precise: cross frame pruning",
@@ -153,14 +153,14 @@
 	.prog_type = BPF_PROG_TYPE_XDP,
 	.flags = BPF_F_TEST_STATE_FREQ,
 	.errstr = "mark_precise: frame0: last_idx 5 first_idx 5\
-	parent didn't have regs=10 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r4 stack=:\
 	mark_precise: frame0: last_idx 4 first_idx 2\
 	mark_precise: frame0: regs=r4 stack= before 4\
 	mark_precise: frame0: regs=r4 stack= before 3\
 	mark_precise: frame0: regs= stack=-8 before 2\
 	mark_precise: frame0: falling back to forcing all scalars precise\
 	mark_precise: frame0: last_idx 5 first_idx 5\
-	parent didn't have regs=1 stack=0 marks:",
+	mark_precise: frame0: parent state regs=r0 stack=:",
 	.result = VERBOSE_ACCEPT,
 	.retval = -1,
 },
@@ -179,7 +179,7 @@
 	.prog_type = BPF_PROG_TYPE_XDP,
 	.flags = BPF_F_TEST_STATE_FREQ,
 	.errstr = "mark_precise: frame0: last_idx 6 first_idx 6\
-	parent didn't have regs=10 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r4 stack=:\
 	mark_precise: frame0: last_idx 5 first_idx 3\
 	mark_precise: frame0: regs=r4 stack= before 5\
 	mark_precise: frame0: regs=r4 stack= before 4\
@@ -188,7 +188,7 @@
 	force_precise: frame0: forcing r0 to be precise\
 	force_precise: frame0: forcing r0 to be precise\
 	mark_precise: frame0: last_idx 6 first_idx 6\
-	parent didn't have regs=1 stack=0 marks:\
+	mark_precise: frame0: parent state regs=r0 stack=:\
 	mark_precise: frame0: last_idx 5 first_idx 3\
 	mark_precise: frame0: regs=r0 stack= before 5",
 	.result = VERBOSE_ACCEPT,

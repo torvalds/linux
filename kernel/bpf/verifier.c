@@ -3736,7 +3736,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int r
 	struct bpf_func_state *func;
 	struct bpf_reg_state *reg;
 	bool skip_first = true;
-	int i, err;
+	int i, fr, err;
 
 	if (!env->bpf_capable)
 		return 0;
@@ -3845,56 +3845,62 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int r
 		if (!st)
 			break;
 
-		func = st->frame[frame];
-		bitmap_from_u64(mask, bt_reg_mask(bt));
-		for_each_set_bit(i, mask, 32) {
-			reg = &func->regs[i];
-			if (reg->type != SCALAR_VALUE) {
-				bt_clear_reg(bt, i);
-				continue;
-			}
-			if (reg->precise)
-				bt_clear_reg(bt, i);
-			else
-				reg->precise = true;
-		}
-
-		bitmap_from_u64(mask, bt_stack_mask(bt));
-		for_each_set_bit(i, mask, 64) {
-			if (i >= func->allocated_stack / BPF_REG_SIZE) {
-				/* the sequence of instructions:
-				 * 2: (bf) r3 = r10
-				 * 3: (7b) *(u64 *)(r3 -8) = r0
-				 * 4: (79) r4 = *(u64 *)(r10 -8)
-				 * doesn't contain jmps. It's backtracked
-				 * as a single block.
-				 * During backtracking insn 3 is not recognized as
-				 * stack access, so at the end of backtracking
-				 * stack slot fp-8 is still marked in stack_mask.
-				 * However the parent state may not have accessed
-				 * fp-8 and it's "unallocated" stack space.
-				 * In such case fallback to conservative.
-				 */
-				mark_all_scalars_precise(env, st);
-				bt_reset(bt);
-				return 0;
+		for (fr = bt->frame; fr >= 0; fr--) {
+			func = st->frame[fr];
+			bitmap_from_u64(mask, bt_frame_reg_mask(bt, fr));
+			for_each_set_bit(i, mask, 32) {
+				reg = &func->regs[i];
+				if (reg->type != SCALAR_VALUE) {
+					bt_clear_frame_reg(bt, fr, i);
+					continue;
+				}
+				if (reg->precise)
+					bt_clear_frame_reg(bt, fr, i);
+				else
+					reg->precise = true;
 			}
 
-			if (!is_spilled_scalar_reg(&func->stack[i])) {
-				bt_clear_slot(bt, i);
-				continue;
+			bitmap_from_u64(mask, bt_frame_stack_mask(bt, fr));
+			for_each_set_bit(i, mask, 64) {
+				if (i >= func->allocated_stack / BPF_REG_SIZE) {
+					/* the sequence of instructions:
+					 * 2: (bf) r3 = r10
+					 * 3: (7b) *(u64 *)(r3 -8) = r0
+					 * 4: (79) r4 = *(u64 *)(r10 -8)
+					 * doesn't contain jmps. It's backtracked
+					 * as a single block.
+					 * During backtracking insn 3 is not recognized as
+					 * stack access, so at the end of backtracking
+					 * stack slot fp-8 is still marked in stack_mask.
+					 * However the parent state may not have accessed
+					 * fp-8 and it's "unallocated" stack space.
+					 * In such case fallback to conservative.
+					 */
+					mark_all_scalars_precise(env, st);
+					bt_reset(bt);
+					return 0;
+				}
+
+				if (!is_spilled_scalar_reg(&func->stack[i])) {
+					bt_clear_frame_slot(bt, fr, i);
+					continue;
+				}
+				reg = &func->stack[i].spilled_ptr;
+				if (reg->precise)
+					bt_clear_frame_slot(bt, fr, i);
+				else
+					reg->precise = true;
 			}
-			reg = &func->stack[i].spilled_ptr;
-			if (reg->precise)
-				bt_clear_slot(bt, i);
-			else
-				reg->precise = true;
-		}
-		if (env->log.level & BPF_LOG_LEVEL2) {
-			verbose(env, "parent %s regs=%x stack=%llx marks:",
-				!bt_empty(bt) ? "didn't have" : "already had",
-				bt_reg_mask(bt), bt_stack_mask(bt));
-			print_verifier_state(env, func, true);
+			if (env->log.level & BPF_LOG_LEVEL2) {
+				fmt_reg_mask(env->tmp_str_buf, TMP_STR_BUF_LEN,
+					     bt_frame_reg_mask(bt, fr));
+				verbose(env, "mark_precise: frame%d: parent state regs=%s ",
+					fr, env->tmp_str_buf);
+				fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN,
+					       bt_frame_stack_mask(bt, fr));
+				verbose(env, "stack=%s: ", env->tmp_str_buf);
+				print_verifier_state(env, func, true);
+			}
 		}
 
 		if (bt_empty(bt))
