@@ -855,6 +855,12 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
+	/* It is possible to get from SBI more than max number of counters */
+	if (num_counters > RISCV_MAX_COUNTERS) {
+		num_counters = RISCV_MAX_COUNTERS;
+		pr_info("SBI returned more than maximum number of counters. Limiting the number of counters to %d\n", num_counters);
+	}
+
 	/* cache all the information about counters now */
 	if (pmu_sbi_get_ctrinfo(num_counters, &cmask))
 		goto out_free;
