@@ -7837,6 +7837,7 @@ change:
 	if (!(attr->sched_flags & SCHED_FLAG_KEEP_PARAMS)) {
 		__setscheduler_params(p, attr);
 		__setscheduler_prio(p, newprio);
+		trace_android_rvh_setscheduler(p);
 	}
 	__setscheduler_uclamp(p, attr);
 
