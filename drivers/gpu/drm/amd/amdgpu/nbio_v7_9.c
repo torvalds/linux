@@ -143,7 +143,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		break;
 	default:
 		break;
-	};
+	}
 
 	return;
 }
