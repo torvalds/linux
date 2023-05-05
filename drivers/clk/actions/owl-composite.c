@@ -53,13 +53,19 @@ static int owl_comp_is_enabled(struct clk_hw *hw)
 	return owl_gate_clk_is_enabled(common, &comp->gate_hw);
 }
 
-static long owl_comp_div_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *parent_rate)
+static int owl_comp_div_determine_rate(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	struct owl_composite *comp = hw_to_owl_comp(hw);
+	long rate;
 
-	return owl_divider_helper_round_rate(&comp->common, &comp->rate.div_hw,
-					rate, parent_rate);
+	rate = owl_divider_helper_round_rate(&comp->common, &comp->rate.div_hw,
+					     req->rate, &req->best_parent_rate);
+	if (rate < 0)
+		return rate;
+
+	req->rate = rate;
+	return 0;
 }
 
 static unsigned long owl_comp_div_recalc_rate(struct clk_hw *hw,
@@ -152,7 +158,7 @@ const struct clk_ops owl_comp_div_ops = {
 	.is_enabled	= owl_comp_is_enabled,
 
 	/* div_ops */
-	.round_rate	= owl_comp_div_round_rate,
+	.determine_rate	= owl_comp_div_determine_rate,
 	.recalc_rate	= owl_comp_div_recalc_rate,
 	.set_rate	= owl_comp_div_set_rate,
 };
