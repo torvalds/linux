@@ -1452,6 +1452,60 @@ static void ath11k_mac_set_vif_params(struct ath11k_vif *arvif,
 		arvif->wpaie_present = false;
 }
 
+static int ath11k_mac_setup_bcn_tmpl_ema(struct ath11k_vif *arvif)
+{
+	struct ath11k_vif *tx_arvif;
+	struct ieee80211_ema_beacons *beacons;
+	int ret = 0;
+	bool nontx_vif_params_set = false;
+	u32 params = 0;
+	u8 i = 0;
+
+	tx_arvif = (void *)arvif->vif->mbssid_tx_vif->drv_priv;
+
+	beacons = ieee80211_beacon_get_template_ema_list(tx_arvif->ar->hw,
+							 tx_arvif->vif, 0);
+	if (!beacons || !beacons->cnt) {
+		ath11k_warn(arvif->ar->ab,
+			    "failed to get ema beacon templates from mac80211\n");
+		return -EPERM;
+	}
+
+	if (tx_arvif == arvif)
+		ath11k_mac_set_vif_params(tx_arvif, beacons->bcn[0].skb);
+	else
+		arvif->wpaie_present = tx_arvif->wpaie_present;
+
+	for (i = 0; i < beacons->cnt; i++) {
+		if (tx_arvif != arvif && !nontx_vif_params_set)
+			nontx_vif_params_set =
+				ath11k_mac_set_nontx_vif_params(tx_arvif, arvif,
+								beacons->bcn[i].skb);
+
+		params = beacons->cnt;
+		params |= (i << WMI_EMA_TMPL_IDX_SHIFT);
+		params |= ((!i ? 1 : 0) << WMI_EMA_FIRST_TMPL_SHIFT);
+		params |= ((i + 1 == beacons->cnt ? 1 : 0) << WMI_EMA_LAST_TMPL_SHIFT);
+
+		ret = ath11k_wmi_bcn_tmpl(tx_arvif->ar, tx_arvif->vdev_id,
+					  &beacons->bcn[i].offs,
+					  beacons->bcn[i].skb, params);
+		if (ret) {
+			ath11k_warn(tx_arvif->ar->ab,
+				    "failed to set ema beacon template id %i error %d\n",
+				    i, ret);
+			break;
+		}
+	}
+
+	ieee80211_beacon_free_ema_list(beacons);
+
+	if (tx_arvif != arvif && !nontx_vif_params_set)
+		return -EINVAL; /* Profile not found in the beacons */
+
+	return ret;
+}
+
 static int ath11k_mac_setup_bcn_tmpl_mbssid(struct ath11k_vif *arvif)
 {
 	struct ath11k *ar = arvif->ar;
@@ -1484,7 +1538,7 @@ static int ath11k_mac_setup_bcn_tmpl_mbssid(struct ath11k_vif *arvif)
 	else if (!ath11k_mac_set_nontx_vif_params(tx_arvif, arvif, bcn))
 		return -EINVAL;
 
-	ret = ath11k_wmi_bcn_tmpl(ar, arvif->vdev_id, &offs, bcn);
+	ret = ath11k_wmi_bcn_tmpl(ar, arvif->vdev_id, &offs, bcn, 0);
 	kfree_skb(bcn);
 
 	if (ret)
@@ -1507,6 +1561,9 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 	if (vif->mbssid_tx_vif &&
 	    arvif != (void *)vif->mbssid_tx_vif->drv_priv && arvif->is_up)
 		return 0;
+
+	if (vif->bss_conf.ema_ap && vif->mbssid_tx_vif)
+		return ath11k_mac_setup_bcn_tmpl_ema(arvif);
 
 	return ath11k_mac_setup_bcn_tmpl_mbssid(arvif);
 }
