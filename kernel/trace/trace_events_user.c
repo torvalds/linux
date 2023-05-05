@@ -101,7 +101,7 @@ struct user_event_enabler {
 	unsigned long		addr;
 
 	/* Track enable bit, flags, etc. Aligned for bitops. */
-	unsigned int		values;
+	unsigned long		values;
 };
 
 /* Bits 0-5 are for the bit to update upon enable/disable (0-63 allowed) */
@@ -116,7 +116,9 @@ struct user_event_enabler {
 /* Only duplicate the bit value */
 #define ENABLE_VAL_DUP_MASK ENABLE_VAL_BIT_MASK
 
-#define ENABLE_BITOPS(e) ((unsigned long *)&(e)->values)
+#define ENABLE_BITOPS(e) (&(e)->values)
+
+#define ENABLE_BIT(e) ((int)((e)->values & ENABLE_VAL_BIT_MASK))
 
 /* Used for asynchronous faulting in of pages */
 struct user_event_enabler_fault {
@@ -423,9 +425,9 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	/* Update bit atomically, user tracers must be atomic as well */
 	if (enabler->event && enabler->event->status)
-		set_bit(enabler->values & ENABLE_VAL_BIT_MASK, ptr);
+		set_bit(ENABLE_BIT(enabler), ptr);
 	else
-		clear_bit(enabler->values & ENABLE_VAL_BIT_MASK, ptr);
+		clear_bit(ENABLE_BIT(enabler), ptr);
 
 	kunmap_local(kaddr);
 	unpin_user_pages_dirty_lock(&page, 1, true);
@@ -440,8 +442,7 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 	struct user_event_enabler *next;
 
 	list_for_each_entry_safe(enabler, next, &mm->enablers, link) {
-		if (enabler->addr == uaddr &&
-		    (enabler->values & ENABLE_VAL_BIT_MASK) == bit)
+		if (enabler->addr == uaddr && ENABLE_BIT(enabler) == bit)
 			return true;
 	}
 
@@ -2272,7 +2273,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 
 	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
 		if (enabler->addr == reg.disable_addr &&
-		    (enabler->values & ENABLE_VAL_BIT_MASK) == reg.disable_bit) {
+		    ENABLE_BIT(enabler) == reg.disable_bit) {
 			set_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler));
 
 			if (!test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)))
