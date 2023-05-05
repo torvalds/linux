@@ -5,6 +5,14 @@
  */
 
 / {
+	lt7911d {
+		compatible = "lontium,lt7911d-fb-notifier";
+		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>,
+			      <&gpio1 RK_PA2 GPIO_ACTIVE_LOW>,
+			      <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>,
+			      <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
+	};
+
 	dsi2lvds_backlight1: dsi2lvds_backlight1 {
 		compatible = "pwm-backlight";
 		brightness-levels = <
@@ -599,34 +607,6 @@
 	pinctrl-0 = <&bl5_enable_pin>;
 	enable-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-};
-
-&gpio1 {
-	i2c5-serdes-reset {
-		gpio-hog;
-		gpios = <6 GPIO_ACTIVE_HIGH>;
-		output-high;
-	};
-
-	i2c7-serdes-reset {
-		gpio-hog;
-		gpios = <2 GPIO_ACTIVE_HIGH>;
-		output-high;
-	};
-};
-
-&gpio3 {
-	i2c3-serdes-reset {
-		gpio-hog;
-		gpios = <28 GPIO_ACTIVE_HIGH>;
-		output-high;
-	};
-
-	i2c8-serdes-reset {
-		gpio-hog;
-		gpios = <26 GPIO_ACTIVE_HIGH>;
-		output-high;
-	};
 };
 
 &hdmi0 {
