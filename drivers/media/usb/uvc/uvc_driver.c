@@ -370,6 +370,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 	 */
 	while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
 	       buffer[2] == ftype) {
+		unsigned int maxIntervalIndex;
+
 		frame = &format->frames[format->nframes];
 		if (ftype != UVC_VS_FRAME_FRAME_BASED)
 			n = buflen > 25 ? buffer[25] : 0;
@@ -418,7 +420,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		for (i = 0; i < n; ++i) {
 			interval = get_unaligned_le32(&buffer[26+4*i]);
-			*(*intervals)++ = interval ? interval : 1;
+			(*intervals)[i] = interval ? interval : 1;
 		}
 
 		/*
@@ -439,12 +441,17 @@ static int uvc_parse_format(struct uvc_device *dev,
 			frame->dwMaxVideoFrameBufferSize = format->bpp
 				* frame->wWidth * frame->wHeight / 8;
 
-		/* Clamp the default frame interval to the boundaries. */
-		n -= frame->bFrameIntervalType ? 1 : 2;
+		/*
+		 * Clamp the default frame interval to the boundaries. A zero
+		 * bFrameIntervalType value indicates a continuous frame
+		 * interval range, with dwFrameInterval[0] storing the minimum
+		 * value and dwFrameInterval[1] storing the maximum value.
+		 */
+		maxIntervalIndex = frame->bFrameIntervalType ? n - 1 : 1;
 		frame->dwDefaultFrameInterval =
 			clamp(frame->dwDefaultFrameInterval,
 			      frame->dwFrameInterval[0],
-			      frame->dwFrameInterval[n]);
+			      frame->dwFrameInterval[maxIntervalIndex]);
 
 		/*
 		 * Some devices report frame intervals that are not functional.
@@ -463,6 +470,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 			(100000000 / frame->dwDefaultFrameInterval) % 10);
 
 		format->nframes++;
+		*intervals += n;
+
 		buflen -= buffer[0];
 		buffer += buffer[0];
 	}
