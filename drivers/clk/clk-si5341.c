@@ -551,6 +551,7 @@ static int si5341_clk_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops si5341_clk_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.set_parent = si5341_clk_set_parent,
 	.get_parent = si5341_clk_get_parent,
 	.recalc_rate = si5341_clk_recalc_rate,
