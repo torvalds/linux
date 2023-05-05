@@ -20136,6 +20136,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/rng/starfive*
 F:	drivers/char/hw_random/jh7110-trng.c
 
+STARFIVE WATCHDOG DRIVER
+M:	Xingyu Wu <xingyu.wu@starfivetech.com>
+M:	Samin Guo <samin.guo@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/watchdog/starfive*
+F:	drivers/watchdog/starfive-wdt.c
+
 STATIC BRANCH/CALL
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Josh Poimboeuf <jpoimboe@kernel.org>
@@ -22706,9 +22713,8 @@ S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
 
 WINSYSTEMS EBC-C384 WATCHDOG DRIVER
-M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-watchdog@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/watchdog/ebc-c384_wdt.c
 
 WINSYSTEMS WS16C48 GPIO DRIVER
@@ -23168,6 +23174,14 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/xilinx/
 F:	drivers/media/platform/xilinx/
 F:	include/uapi/linux/xilinx-v4l2-controls.h
+
+XILINX WATCHDOG DRIVER
+M:	Srinivas Neeli <srinivas.neeli@amd.com>
+R:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+R:	Michal Simek <michal.simek@amd.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/watchdog/xlnx,xps-timebase-wdt.yaml
+F:	drivers/watchdog/of_xilinx_wdt.c
 
 XILINX XDMA DRIVER
 M:	Lizhi Hou <lizhi.hou@amd.com>

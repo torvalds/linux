@@ -112,12 +112,6 @@ static const struct watchdog_info ixp4xx_wdt_info = {
 	.identity = KBUILD_MODNAME,
 };
 
-/* Devres-handled clock disablement */
-static void ixp4xx_clock_action(void *d)
-{
-	clk_disable_unprepare(d);
-}
-
 static int ixp4xx_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -139,16 +133,10 @@ static int ixp4xx_wdt_probe(struct platform_device *pdev)
 	 * Retrieve rate from a fixed clock from the device tree if
 	 * the parent has that, else use the default clock rate.
 	 */
-	clk = devm_clk_get(dev->parent, NULL);
-	if (!IS_ERR(clk)) {
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			return ret;
-		ret = devm_add_action_or_reset(dev, ixp4xx_clock_action, clk);
-		if (ret)
-			return ret;
+	clk = devm_clk_get_enabled(dev->parent, NULL);
+	if (!IS_ERR(clk))
 		iwdt->rate = clk_get_rate(clk);
-	}
+
 	if (!iwdt->rate)
 		iwdt->rate = IXP4XX_TIMER_FREQ;
 
