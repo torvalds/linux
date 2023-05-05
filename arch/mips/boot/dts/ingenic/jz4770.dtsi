@@ -238,9 +238,8 @@
 
 		#sound-dai-cells = <0>;
 
-		clocks = <&cgu JZ4770_CLK_AIC>, <&cgu JZ4770_CLK_I2S>,
-			 <&cgu JZ4770_CLK_EXT>, <&cgu JZ4770_CLK_PLL0>;
-		clock-names = "aic", "i2s", "ext", "pll half";
+		clocks = <&cgu JZ4770_CLK_AIC>, <&cgu JZ4770_CLK_I2S>;
+		clock-names = "aic", "i2s";
 
 		interrupt-parent = <&intc>;
 		interrupts = <34>;
