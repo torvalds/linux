@@ -104,6 +104,23 @@ static const struct clk_ops clk_dummy_minimize_rate_ops = {
 };
 
 static const struct clk_ops clk_dummy_single_parent_ops = {
+	/*
+	 * FIXME: Even though we should probably be able to use
+	 * __clk_mux_determine_rate() here, if we use it and call
+	 * clk_round_rate() or clk_set_rate() with a rate lower than
+	 * what all the parents can provide, it will return -EINVAL.
+	 *
+	 * This is due to the fact that it has the undocumented
+	 * behaviour to always pick up the closest rate higher than the
+	 * requested rate. If we get something lower, it thus considers
+	 * that it's not acceptable and will return an error.
+	 *
+	 * It's somewhat inconsistent and creates a weird threshold
+	 * between rates above the parent rate which would be rounded to
+	 * what the parent can provide, but rates below will simply
+	 * return an error.
+	 */
+	.determine_rate = __clk_mux_determine_rate_closest,
 	.set_parent = clk_dummy_single_set_parent,
 	.get_parent = clk_dummy_single_get_parent,
 };
