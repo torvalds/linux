@@ -2210,10 +2210,10 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		spin_lock(&tp->lock);
 		if (!handle) {
 			handle = 1;
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    INT_MAX, GFP_ATOMIC);
 		} else {
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    handle, GFP_ATOMIC);
 
 			/* Filter with specified handle was concurrently
@@ -2231,8 +2231,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			kfree(fnew);
 			goto errout_tb;
 		}
-		fnew->handle = handle;
 	}
+	fnew->handle = handle;
 
 	err = tcf_exts_init_ex(&fnew->exts, net, TCA_FLOWER_ACT, 0, tp, handle,
 			       !tc_skip_hw(fnew->flags));
@@ -2339,7 +2339,8 @@ errout_hw:
 errout_mask:
 	fl_mask_put(head, fnew->mask);
 errout_idr:
-	idr_remove(&head->handle_idr, fnew->handle);
+	if (!fold)
+		idr_remove(&head->handle_idr, fnew->handle);
 	__fl_put(fnew);
 errout_tb:
 	kfree(tb);
@@ -2378,7 +2379,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	rcu_read_lock();
 	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
 		/* don't return filters that are being deleted */
-		if (!refcount_inc_not_zero(&f->refcnt))
+		if (!f || !refcount_inc_not_zero(&f->refcnt))
 			continue;
 		rcu_read_unlock();
 
