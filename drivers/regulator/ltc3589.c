@@ -477,7 +477,7 @@ static struct i2c_driver ltc3589_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3589_of_match),
 	},
-	.probe_new = ltc3589_probe,
+	.probe = ltc3589_probe,
 	.id_table = ltc3589_i2c_id,
 };
 module_i2c_driver(ltc3589_driver);

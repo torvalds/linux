@@ -190,7 +190,7 @@ static struct i2c_driver sy8827n_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sy8827n_dt_ids,
 	},
-	.probe_new = sy8827n_i2c_probe,
+	.probe = sy8827n_i2c_probe,
 	.id_table = sy8827n_id,
 };
 module_i2c_driver(sy8827n_regulator_driver);
