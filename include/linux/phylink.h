@@ -93,7 +93,6 @@ static inline bool phylink_autoneg_inband(unsigned int mode)
  *   the medium link mode (@speed and @duplex) and the speed/duplex of the phy
  *   interface mode (@interface) are different.
  * @link: true if the link is up.
- * @an_enabled: true if autonegotiation is enabled/desired.
  * @an_complete: true if autonegotiation has completed.
  */
 struct phylink_link_state {
@@ -105,7 +104,6 @@ struct phylink_link_state {
 	int pause;
 	int rate_matching;
 	unsigned int link:1;
-	unsigned int an_enabled:1;
 	unsigned int an_complete:1;
 };
 

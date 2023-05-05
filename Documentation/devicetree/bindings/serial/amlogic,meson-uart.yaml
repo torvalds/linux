@@ -2,8 +2,8 @@
 # Copyright 2019 BayLibre, SAS
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/serial/amlogic,meson-uart.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/serial/amlogic,meson-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Amlogic Meson SoC UART Serial Interface
 
@@ -34,6 +34,11 @@ properties:
               - amlogic,meson-gx-uart
               - amlogic,meson-s4-uart
           - const: amlogic,meson-ao-uart
+      - description: Always-on power domain UART controller on G12A SoCs
+        items:
+          - const: amlogic,meson-g12a-uart
+          - const: amlogic,meson-gx-uart
+          - const: amlogic,meson-ao-uart
       - description: Everything-Else power domain UART controller
         enum:
           - amlogic,meson6-uart
@@ -41,6 +46,10 @@ properties:
           - amlogic,meson8b-uart
           - amlogic,meson-gx-uart
           - amlogic,meson-s4-uart
+      - description: Everything-Else power domain UART controller on G12A SoCs
+        items:
+          - const: amlogic,meson-g12a-uart
+          - const: amlogic,meson-gx-uart
 
   reg:
     maxItems: 1

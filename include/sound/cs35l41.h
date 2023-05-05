@@ -11,6 +11,7 @@
 #define __CS35L41_H
 
 #include <linux/regmap.h>
+#include <linux/completion.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
 
 #define CS35L41_FIRSTREG		0x00000000
@@ -677,6 +678,7 @@
 
 #define CS35L36_PUP_DONE_IRQ_UNMASK	0x5F
 #define CS35L36_PUP_DONE_IRQ_MASK	0xBF
+#define CS35L41_SYNC_EN_MASK		BIT(8)
 
 #define CS35L41_AMP_SHORT_ERR		0x80000000
 #define CS35L41_BST_SHORT_ERR		0x0100
@@ -686,6 +688,7 @@
 #define CS35L41_BST_DCM_UVP_ERR		0x80
 #define CS35L41_OTP_BOOT_DONE		0x02
 #define CS35L41_PLL_UNLOCK		0x10
+#define CS35L41_PLL_LOCK		BIT(1)
 #define CS35L41_OTP_BOOT_ERR		0x80000000
 
 #define CS35L41_AMP_SHORT_ERR_RLS	0x02
@@ -705,6 +708,8 @@
 #define CS35L41_INT1_MASK_DEFAULT	0x7FFCFE3F
 #define CS35L41_INT1_UNMASK_PUP		0xFEFFFFFF
 #define CS35L41_INT1_UNMASK_PDN		0xFF7FFFFF
+#define CS35L41_INT3_PLL_LOCK_SHIFT	1
+#define CS35L41_INT3_PLL_LOCK_MASK	BIT(CS35L41_INT3_PLL_LOCK_SHIFT)
 
 #define CS35L41_GPIO_DIR_MASK		0x80000000
 #define CS35L41_GPIO_DIR_SHIFT		31
@@ -742,6 +747,11 @@
 enum cs35l41_boost_type {
 	CS35L41_INT_BOOST,
 	CS35L41_EXT_BOOST,
+	CS35L41_SHD_BOOST_ACTV,
+	CS35L41_SHD_BOOST_PASS,
+
+	// Not present in Binding Documentation, so no system should use this value.
+	// This value is only used in CLSA0100 Laptop
 	CS35L41_EXT_BOOST_NO_VSPK_SWITCH,
 };
 
@@ -891,6 +901,7 @@ int cs35l41_exit_hibernate(struct device *dev, struct regmap *regmap);
 int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 		       struct cs35l41_hw_cfg *hw_cfg);
 bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type);
-int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable);
+int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable,
+			  struct completion *pll_lock);
 
 #endif /* __CS35L41_H */

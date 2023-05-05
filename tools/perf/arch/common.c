@@ -51,9 +51,7 @@ const char *const s390_triplets[] = {
 
 const char *const sh_triplets[] = {
 	"sh-unknown-linux-gnu-",
-	"sh64-unknown-linux-gnu-",
 	"sh-linux-gnu-",
-	"sh64-linux-gnu-",
 	NULL
 };
 

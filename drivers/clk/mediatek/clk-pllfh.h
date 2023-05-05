@@ -18,6 +18,7 @@ struct fh_pll_state {
 struct fh_pll_data {
 	int pll_id;
 	int fh_id;
+	int fh_ver;
 	u32 fhx_offset;
 	u32 dds_mask;
 	u32 slope0_value;

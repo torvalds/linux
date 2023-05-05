@@ -90,7 +90,7 @@ SYM_FUNC_START(crc32_pclmul_le_16) /* buffer and buffer size are 16 bytes aligne
 	sub     $0x40, LEN
 	add     $0x40, BUF
 	cmp     $0x40, LEN
-	jb      less_64
+	jb      .Lless_64
 
 #ifdef __x86_64__
 	movdqa .Lconstant_R2R1(%rip), CONSTANT
@@ -98,7 +98,7 @@ SYM_FUNC_START(crc32_pclmul_le_16) /* buffer and buffer size are 16 bytes aligne
 	movdqa .Lconstant_R2R1, CONSTANT
 #endif
 
-loop_64:/*  64 bytes Full cache line folding */
+.Lloop_64:/*  64 bytes Full cache line folding */
 	prefetchnta    0x40(BUF)
 	movdqa  %xmm1, %xmm5
 	movdqa  %xmm2, %xmm6
@@ -139,8 +139,8 @@ loop_64:/*  64 bytes Full cache line folding */
 	sub     $0x40, LEN
 	add     $0x40, BUF
 	cmp     $0x40, LEN
-	jge     loop_64
-less_64:/*  Folding cache line into 128bit */
+	jge     .Lloop_64
+.Lless_64:/*  Folding cache line into 128bit */
 #ifdef __x86_64__
 	movdqa  .Lconstant_R4R3(%rip), CONSTANT
 #else
@@ -167,8 +167,8 @@ less_64:/*  Folding cache line into 128bit */
 	pxor    %xmm4, %xmm1
 
 	cmp     $0x10, LEN
-	jb      fold_64
-loop_16:/* Folding rest buffer into 128bit */
+	jb      .Lfold_64
+.Lloop_16:/* Folding rest buffer into 128bit */
 	movdqa  %xmm1, %xmm5
 	pclmulqdq $0x00, CONSTANT, %xmm1
 	pclmulqdq $0x11, CONSTANT, %xmm5
@@ -177,9 +177,9 @@ loop_16:/* Folding rest buffer into 128bit */
 	sub     $0x10, LEN
 	add     $0x10, BUF
 	cmp     $0x10, LEN
-	jge     loop_16
+	jge     .Lloop_16
 
-fold_64:
+.Lfold_64:
 	/* perform the last 64 bit fold, also adds 32 zeroes
 	 * to the input stream */
 	pclmulqdq $0x01, %xmm1, CONSTANT /* R4 * xmm1.low */

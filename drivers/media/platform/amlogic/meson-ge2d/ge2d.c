@@ -1024,7 +1024,7 @@ disable_clks:
 	return ret;
 }
 
-static int ge2d_remove(struct platform_device *pdev)
+static void ge2d_remove(struct platform_device *pdev)
 {
 	struct meson_ge2d *ge2d = platform_get_drvdata(pdev);
 
@@ -1032,8 +1032,6 @@ static int ge2d_remove(struct platform_device *pdev)
 	v4l2_m2m_release(ge2d->m2m_dev);
 	v4l2_device_unregister(&ge2d->v4l2_dev);
 	clk_disable_unprepare(ge2d->clk);
-
-	return 0;
 }
 
 static const struct of_device_id meson_ge2d_match[] = {
@@ -1047,7 +1045,7 @@ MODULE_DEVICE_TABLE(of, meson_ge2d_match);
 
 static struct platform_driver ge2d_drv = {
 	.probe = ge2d_probe,
-	.remove = ge2d_remove,
+	.remove_new = ge2d_remove,
 	.driver = {
 		.name = "meson-ge2d",
 		.of_match_table = meson_ge2d_match,

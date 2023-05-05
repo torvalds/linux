@@ -230,7 +230,7 @@ static int bnxt_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 						ptp_info);
 	struct bnxt *bp = ptp->bp;
 
-	if (BNXT_PTP_USE_RTC(bp))
+	if (!BNXT_MH(bp))
 		return bnxt_ptp_adjfine_rtc(bp, scaled_ppm);
 
 	spin_lock_bh(&ptp->ptp_lock);
@@ -861,9 +861,15 @@ static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 		memset(&ptp->cc, 0, sizeof(ptp->cc));
 		ptp->cc.read = bnxt_cc_read;
 		ptp->cc.mask = CYCLECOUNTER_MASK(48);
-		ptp->cc.shift = BNXT_CYCLES_SHIFT;
-		ptp->cc.mult = clocksource_khz2mult(BNXT_DEVCLK_FREQ, ptp->cc.shift);
-		ptp->cmult = ptp->cc.mult;
+		if (BNXT_MH(bp)) {
+			/* Use timecounter based non-real time mode */
+			ptp->cc.shift = BNXT_CYCLES_SHIFT;
+			ptp->cc.mult = clocksource_khz2mult(BNXT_DEVCLK_FREQ, ptp->cc.shift);
+			ptp->cmult = ptp->cc.mult;
+		} else {
+			ptp->cc.shift = 0;
+			ptp->cc.mult = 1;
+		}
 		ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	}
 	if (init_tc)

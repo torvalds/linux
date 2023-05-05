@@ -317,7 +317,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	return 0;
 }
 
-static int skl_int3472_discrete_remove(struct platform_device *pdev)
+static void skl_int3472_discrete_remove(struct platform_device *pdev)
 {
 	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
 
@@ -326,8 +326,6 @@ static int skl_int3472_discrete_remove(struct platform_device *pdev)
 	skl_int3472_unregister_clock(int3472);
 	skl_int3472_unregister_pled(int3472);
 	skl_int3472_unregister_regulator(int3472);
-
-	return 0;
 }
 
 static int skl_int3472_discrete_probe(struct platform_device *pdev)
@@ -392,7 +390,7 @@ static struct platform_driver int3472_discrete = {
 		.acpi_match_table = int3472_device_id,
 	},
 	.probe = skl_int3472_discrete_probe,
-	.remove = skl_int3472_discrete_remove,
+	.remove_new = skl_int3472_discrete_remove,
 };
 module_platform_driver(int3472_discrete);
 

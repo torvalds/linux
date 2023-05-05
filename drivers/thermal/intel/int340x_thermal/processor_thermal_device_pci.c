@@ -135,7 +135,7 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct proc_thermal_pci *pci_info = tzd->devdata;
+	struct proc_thermal_pci *pci_info = thermal_zone_device_priv(tzd);
 	u32 _temp;
 
 	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_PKG_TEMP, &_temp);
@@ -146,7 +146,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 
 static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 {
-	struct proc_thermal_pci *pci_info = tzd->devdata;
+	struct proc_thermal_pci *pci_info = thermal_zone_device_priv(tzd);
 	int tjmax, _temp;
 
 	if (temp <= 0) {
@@ -351,7 +351,7 @@ static SIMPLE_DEV_PM_OPS(proc_thermal_pci_pm, proc_thermal_pci_suspend,
 
 static const struct pci_device_id proc_thermal_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
-	{ PCI_DEVICE_DATA(INTEL, MTLP_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
+	{ PCI_DEVICE_DATA(INTEL, MTLP_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX | PROC_THERMAL_FEATURE_DLVR) },
 	{ PCI_DEVICE_DATA(INTEL, RPL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
 	{ },
 };

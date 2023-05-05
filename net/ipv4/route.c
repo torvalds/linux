@@ -408,7 +408,7 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 	struct net_device *dev = dst->dev;
 	struct neighbour *n;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 
 	if (likely(rt->rt_gw_family == AF_INET)) {
 		n = ip_neigh_gw4(dev, rt->rt_gw4);
@@ -424,7 +424,7 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 	if (!IS_ERR(n) && !refcount_inc_not_zero(&n->refcnt))
 		n = NULL;
 
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return n;
 }
@@ -784,7 +784,7 @@ static void __ip_do_redirect(struct rtable *rt, struct sk_buff *skb, struct flow
 	if (!n)
 		n = neigh_create(&arp_tbl, &new_gw, rt->dst.dev);
 	if (!IS_ERR(n)) {
-		if (!(n->nud_state & NUD_VALID)) {
+		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_event_send(n, NULL);
 		} else {
 			if (fib_lookup(net, fl4, &res, 0) == 0) {
@@ -1508,20 +1508,20 @@ void rt_add_uncached_list(struct rtable *rt)
 {
 	struct uncached_list *ul = raw_cpu_ptr(&rt_uncached_list);
 
-	rt->rt_uncached_list = ul;
+	rt->dst.rt_uncached_list = ul;
 
 	spin_lock_bh(&ul->lock);
-	list_add_tail(&rt->rt_uncached, &ul->head);
+	list_add_tail(&rt->dst.rt_uncached, &ul->head);
 	spin_unlock_bh(&ul->lock);
 }
 
 void rt_del_uncached_list(struct rtable *rt)
 {
-	if (!list_empty(&rt->rt_uncached)) {
-		struct uncached_list *ul = rt->rt_uncached_list;
+	if (!list_empty(&rt->dst.rt_uncached)) {
+		struct uncached_list *ul = rt->dst.rt_uncached_list;
 
 		spin_lock_bh(&ul->lock);
-		list_del_init(&rt->rt_uncached);
+		list_del_init(&rt->dst.rt_uncached);
 		spin_unlock_bh(&ul->lock);
 	}
 }
@@ -1546,13 +1546,13 @@ void rt_flush_dev(struct net_device *dev)
 			continue;
 
 		spin_lock_bh(&ul->lock);
-		list_for_each_entry_safe(rt, safe, &ul->head, rt_uncached) {
+		list_for_each_entry_safe(rt, safe, &ul->head, dst.rt_uncached) {
 			if (rt->dst.dev != dev)
 				continue;
 			rt->dst.dev = blackhole_netdev;
 			netdev_ref_replace(dev, blackhole_netdev,
 					   &rt->dst.dev_tracker, GFP_ATOMIC);
-			list_move(&rt->rt_uncached, &ul->quarantine);
+			list_move(&rt->dst.rt_uncached, &ul->quarantine);
 		}
 		spin_unlock_bh(&ul->lock);
 	}
@@ -1644,7 +1644,6 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 		rt->rt_uses_gateway = 0;
 		rt->rt_gw_family = 0;
 		rt->rt_gw4 = 0;
-		INIT_LIST_HEAD(&rt->rt_uncached);
 
 		rt->dst.output = ip_output;
 		if (flags & RTCF_LOCAL)
@@ -1675,7 +1674,6 @@ struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt)
 			new_rt->rt_gw4 = rt->rt_gw4;
 		else if (rt->rt_gw_family == AF_INET6)
 			new_rt->rt_gw6 = rt->rt_gw6;
-		INIT_LIST_HEAD(&new_rt->rt_uncached);
 
 		new_rt->dst.input = rt->dst.input;
 		new_rt->dst.output = rt->dst.output;
@@ -2858,8 +2856,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 			rt->rt_gw4 = ort->rt_gw4;
 		else if (rt->rt_gw_family == AF_INET6)
 			rt->rt_gw6 = ort->rt_gw6;
-
-		INIT_LIST_HEAD(&rt->rt_uncached);
 	}
 
 	dst_release(dst_orig);

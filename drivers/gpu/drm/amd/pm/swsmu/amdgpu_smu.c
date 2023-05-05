@@ -40,6 +40,7 @@
 #include "smu_v13_0_0_ppt.h"
 #include "smu_v13_0_4_ppt.h"
 #include "smu_v13_0_5_ppt.h"
+#include "smu_v13_0_6_ppt.h"
 #include "smu_v13_0_7_ppt.h"
 #include "amd_pcie.h"
 
@@ -161,10 +162,15 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 
 int smu_set_gfx_power_up_by_imu(struct smu_context *smu)
 {
-	if (!smu->ppt_funcs || !smu->ppt_funcs->set_gfx_power_up_by_imu)
-		return -EOPNOTSUPP;
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
 
-	return smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
+	if (smu->ppt_funcs->set_gfx_power_up_by_imu) {
+		ret = smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
+		if (ret)
+			dev_err(adev->dev, "Failed to enable gfx imu!\n");
+	}
+	return ret;
 }
 
 static u32 smu_get_mclk(void *handle, bool low)
@@ -193,6 +199,19 @@ static u32 smu_get_sclk(void *handle, bool low)
 	if (ret)
 		return 0;
 	return clk_freq * 100;
+}
+
+static int smu_set_gfx_imu_enable(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		return 0;
+
+	if (amdgpu_in_reset(smu->adev) || adev->in_s0ix)
+		return 0;
+
+	return smu_set_gfx_power_up_by_imu(smu);
 }
 
 static int smu_dpm_set_vcn_enable(struct smu_context *smu,
@@ -608,6 +627,11 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 10):
 		smu_v13_0_0_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(13, 0, 6):
+		smu_v13_0_6_set_ppt_funcs(smu);
+		/* Enable pp_od_clk_voltage node */
+		smu->od_enabled = true;
 		break;
 	case IP_VERSION(13, 0, 7):
 		smu_v13_0_7_set_ppt_funcs(smu);
@@ -1390,15 +1414,9 @@ static int smu_hw_init(void *handle)
 	}
 
 	if (smu->is_apu) {
-		if ((smu->ppt_funcs->set_gfx_power_up_by_imu) &&
-				likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
-			ret = smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
-			if (ret) {
-				dev_err(adev->dev, "Failed to Enable gfx imu!\n");
-				return ret;
-			}
-		}
-
+		ret = smu_set_gfx_imu_enable(smu);
+		if (ret)
+			return ret;
 		smu_dpm_set_vcn_enable(smu, true);
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(smu, true);
@@ -1675,6 +1693,10 @@ static int smu_resume(void *handle)
 		return ret;
 	}
 
+	ret = smu_set_gfx_imu_enable(smu);
+	if (ret)
+		return ret;
+
 	smu_set_gfx_cgpg(smu, true);
 
 	smu->disable_uclk_switch = 0;
@@ -1690,8 +1712,6 @@ static int smu_display_configuration_change(void *handle,
 					    const struct amd_pp_display_configuration *display_config)
 {
 	struct smu_context *smu = handle;
-	int index = 0;
-	int num_of_active_display = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -1701,11 +1721,6 @@ static int smu_display_configuration_change(void *handle,
 
 	smu_set_min_dcef_deep_sleep(smu,
 				    display_config->min_dcef_deep_sleep_set_clk / 100);
-
-	for (index = 0; index < display_config->num_path_including_non_display; index++) {
-		if (display_config->displays[index].controller_id != 0)
-			num_of_active_display++;
-	}
 
 	return 0;
 }
@@ -2000,8 +2015,12 @@ static int smu_force_ppclk_levels(void *handle,
 		clk_type = SMU_DCEFCLK; break;
 	case PP_VCLK:
 		clk_type = SMU_VCLK; break;
+	case PP_VCLK1:
+		clk_type = SMU_VCLK1; break;
 	case PP_DCLK:
 		clk_type = SMU_DCLK; break;
+	case PP_DCLK1:
+		clk_type = SMU_DCLK1; break;
 	case OD_SCLK:
 		clk_type = SMU_OD_SCLK; break;
 	case OD_MCLK:
@@ -2387,8 +2406,12 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_DCEFCLK; break;
 	case PP_VCLK:
 		clk_type = SMU_VCLK; break;
+	case PP_VCLK1:
+		clk_type = SMU_VCLK1; break;
 	case PP_DCLK:
 		clk_type = SMU_DCLK; break;
+	case PP_DCLK1:
+		clk_type = SMU_DCLK1; break;
 	case OD_SCLK:
 		clk_type = SMU_OD_SCLK; break;
 	case OD_MCLK:
@@ -2528,6 +2551,28 @@ static int smu_read_sensor(void *handle,
 unlock:
 	// assign uint32_t to int
 	*size_arg = size_val;
+
+	return ret;
+}
+
+static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
+{
+	int ret = -EINVAL;
+	struct smu_context *smu = handle;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->get_apu_thermal_limit)
+		ret = smu->ppt_funcs->get_apu_thermal_limit(smu, limit);
+
+	return ret;
+}
+
+static int smu_set_apu_thermal_limit(void *handle, uint32_t limit)
+{
+	int ret = -EINVAL;
+	struct smu_context *smu = handle;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->set_apu_thermal_limit)
+		ret = smu->ppt_funcs->set_apu_thermal_limit(smu, limit);
 
 	return ret;
 }
@@ -3033,6 +3078,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.emit_clock_levels       = smu_emit_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
 	.read_sensor             = smu_read_sensor,
+	.get_apu_thermal_limit       = smu_get_apu_thermal_limit,
+	.set_apu_thermal_limit       = smu_set_apu_thermal_limit,
 	.get_performance_level   = smu_get_performance_level,
 	.get_current_power_state = smu_get_current_power_state,
 	.get_fan_speed_rpm       = smu_get_fan_speed_rpm,

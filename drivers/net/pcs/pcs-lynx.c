@@ -112,11 +112,11 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 	}
 
 	dev_dbg(&lynx->mdio->dev,
-		"mode=%s/%s/%s link=%u an_enabled=%u an_complete=%u\n",
+		"mode=%s/%s/%s link=%u an_complete=%u\n",
 		phy_modes(state->interface),
 		phy_speed_to_str(state->speed),
 		phy_duplex_to_str(state->duplex),
-		state->link, state->an_enabled, state->an_complete);
+		state->link, state->an_complete);
 }
 
 static int lynx_pcs_config_giga(struct mdio_device *pcs, unsigned int mode,

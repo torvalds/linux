@@ -37,10 +37,12 @@
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
+#include "nbio_v7_9.h"
 #include "hdp_v4_0.h"
 #include "vega10_ih.h"
 #include "vega20_ih.h"
 #include "sdma_v4_0.h"
+#include "sdma_v4_4_2.h"
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "vcn_v1_0.h"
@@ -711,7 +713,7 @@ static void ip_hw_instance_release(struct kobject *kobj)
 	kfree(ip_hw_instance);
 }
 
-static struct kobj_type ip_hw_instance_ktype = {
+static const struct kobj_type ip_hw_instance_ktype = {
 	.release = ip_hw_instance_release,
 	.sysfs_ops = &ip_hw_instance_sysfs_ops,
 	.default_groups = ip_hw_instance_groups,
@@ -730,7 +732,7 @@ static void ip_hw_id_release(struct kobject *kobj)
 	kfree(ip_hw_id);
 }
 
-static struct kobj_type ip_hw_id_ktype = {
+static const struct kobj_type ip_hw_id_ktype = {
 	.release = ip_hw_id_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
@@ -793,18 +795,18 @@ static const struct sysfs_ops ip_die_entry_sysfs_ops = {
 	.show = ip_die_entry_attr_show,
 };
 
-static struct kobj_type ip_die_entry_ktype = {
+static const struct kobj_type ip_die_entry_ktype = {
 	.release = ip_die_entry_release,
 	.sysfs_ops = &ip_die_entry_sysfs_ops,
 	.default_groups = ip_die_entry_groups,
 };
 
-static struct kobj_type die_kobj_ktype = {
+static const struct kobj_type die_kobj_ktype = {
 	.release = die_kobj_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static struct kobj_type ip_discovery_ktype = {
+static const struct kobj_type ip_discovery_ktype = {
 	.release = ip_disc_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
@@ -1500,6 +1502,7 @@ static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -1545,6 +1548,7 @@ static int amdgpu_discovery_set_gmc_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -1591,6 +1595,7 @@ static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 1):
 	case IP_VERSION(4, 4, 0):
+	case IP_VERSION(4, 4, 2):
 		amdgpu_device_ip_block_add(adev, &vega20_ih_ip_block);
 		break;
 	case IP_VERSION(5, 0, 0):
@@ -1649,6 +1654,7 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 2):
 	case IP_VERSION(13, 0, 3):
 	case IP_VERSION(13, 0, 5):
+	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 10):
@@ -1842,6 +1848,9 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 4, 0):
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		break;
+	case IP_VERSION(4, 4, 2):
+		amdgpu_device_ip_block_add(adev, &sdma_v4_4_2_ip_block);
+		break;
 	case IP_VERSION(5, 0, 0):
 	case IP_VERSION(5, 0, 1):
 	case IP_VERSION(5, 0, 2):
@@ -1942,9 +1951,8 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 2):
 		case IP_VERSION(4, 0, 4):
 			amdgpu_device_ip_block_add(adev, &vcn_v4_0_ip_block);
-			if (!amdgpu_sriov_vf(adev))
-				amdgpu_device_ip_block_add(adev, &jpeg_v4_0_ip_block);
-			break;
+			amdgpu_device_ip_block_add(adev, &jpeg_v4_0_ip_block);
+			return 0;
 		default:
 			dev_err(adev->dev,
 				"Failed to add vcn/jpeg ip block(UVD_HWIP:0x%x)\n",
@@ -2175,6 +2183,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		adev->family = AMDGPU_FAMILY_AI;
 		break;
 	case IP_VERSION(9, 1, 0):
@@ -2259,6 +2268,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.funcs = &nbio_v7_4_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
 		break;
+	case IP_VERSION(7, 9, 0):
+		adev->nbio.funcs = &nbio_v7_9_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_9_hdp_flush_reg;
+		break;
 	case IP_VERSION(7, 2, 0):
 	case IP_VERSION(7, 2, 1):
 	case IP_VERSION(7, 3, 0):
@@ -2304,6 +2317,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 1):
 	case IP_VERSION(4, 4, 0):
+	case IP_VERSION(4, 4, 2):
 		adev->hdp.funcs = &hdp_v4_0_funcs;
 		break;
 	case IP_VERSION(5, 0, 0):

@@ -82,6 +82,25 @@ static bool kfd_mem_is_attached(struct amdgpu_vm *avm,
 	return false;
 }
 
+/**
+ * reuse_dmamap() - Check whether adev can share the original
+ * userptr BO
+ *
+ * If both adev and bo_adev are in direct mapping or
+ * in the same iommu group, they can share the original BO.
+ *
+ * @adev: Device to which can or cannot share the original BO
+ * @bo_adev: Device to which allocated BO belongs to
+ *
+ * Return: returns true if adev can share original userptr BO,
+ * false otherwise.
+ */
+static bool reuse_dmamap(struct amdgpu_device *adev, struct amdgpu_device *bo_adev)
+{
+	return (adev->ram_is_direct_mapped && bo_adev->ram_is_direct_mapped) ||
+			(adev->dev->iommu_group == bo_adev->dev->iommu_group);
+}
+
 /* Set memory usage limits. Current, limits are
  *  System (TTM + userptr) memory - 15/16th System RAM
  *  TTM memory - 3/8th System RAM
@@ -253,15 +272,19 @@ create_dmamap_sg_bo(struct amdgpu_device *adev,
 		 struct kgd_mem *mem, struct amdgpu_bo **bo_out)
 {
 	struct drm_gem_object *gem_obj;
-	int ret, align;
+	int ret;
+	uint64_t flags = 0;
 
 	ret = amdgpu_bo_reserve(mem->bo, false);
 	if (ret)
 		return ret;
 
-	align = 1;
-	ret = amdgpu_gem_object_create(adev, mem->bo->tbo.base.size, align,
-			AMDGPU_GEM_DOMAIN_CPU, AMDGPU_GEM_CREATE_PREEMPTIBLE,
+	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR)
+		flags |= mem->bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+					AMDGPU_GEM_CREATE_UNCACHED);
+
+	ret = amdgpu_gem_object_create(adev, mem->bo->tbo.base.size, 1,
+			AMDGPU_GEM_DOMAIN_CPU, AMDGPU_GEM_CREATE_PREEMPTIBLE | flags,
 			ttm_bo_type_sg, mem->bo->tbo.base.resv, &gem_obj);
 
 	amdgpu_bo_unreserve(mem->bo);
@@ -480,9 +503,6 @@ kfd_mem_dmamap_userptr(struct kgd_mem *mem,
 	ret = dma_map_sgtable(adev->dev, ttm->sg, direction, 0);
 	if (unlikely(ret))
 		goto release_sg;
-
-	drm_prime_sg_to_dma_addr_array(ttm->sg, ttm->dma_address,
-				       ttm->num_pages);
 
 	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
@@ -711,6 +731,21 @@ kfd_mem_dmaunmap_attachment(struct kgd_mem *mem,
 	}
 }
 
+static int kfd_mem_export_dmabuf(struct kgd_mem *mem)
+{
+	if (!mem->dmabuf) {
+		struct dma_buf *ret = amdgpu_gem_prime_export(
+			&mem->bo->tbo.base,
+			mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ?
+				DRM_RDWR : 0);
+		if (IS_ERR(ret))
+			return PTR_ERR(ret);
+		mem->dmabuf = ret;
+	}
+
+	return 0;
+}
+
 static int
 kfd_mem_attach_dmabuf(struct amdgpu_device *adev, struct kgd_mem *mem,
 		      struct amdgpu_bo **bo)
@@ -718,16 +753,9 @@ kfd_mem_attach_dmabuf(struct amdgpu_device *adev, struct kgd_mem *mem,
 	struct drm_gem_object *gobj;
 	int ret;
 
-	if (!mem->dmabuf) {
-		mem->dmabuf = amdgpu_gem_prime_export(&mem->bo->tbo.base,
-			mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ?
-				DRM_RDWR : 0);
-		if (IS_ERR(mem->dmabuf)) {
-			ret = PTR_ERR(mem->dmabuf);
-			mem->dmabuf = NULL;
-			return ret;
-		}
-	}
+	ret = kfd_mem_export_dmabuf(mem);
+	if (ret)
+		return ret;
 
 	gobj = amdgpu_gem_prime_import(adev_to_drm(adev), mem->dmabuf);
 	if (IS_ERR(gobj))
@@ -797,11 +825,11 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			 va + bo_size, vm);
 
 		if ((adev == bo_adev && !(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) ||
-		    (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) && adev->ram_is_direct_mapped) ||
-		    same_hive) {
+		    (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) && reuse_dmamap(adev, bo_adev)) ||
+			same_hive) {
 			/* Mappings on the local GPU, or VRAM mappings in the
-			 * local hive, or userptr mapping IOMMU direct map mode
-			 * share the original BO
+			 * local hive, or userptr mapping can reuse dma map
+			 * address space share the original BO
 			 */
 			attachment[i]->type = KFD_MEM_ATT_SHARED;
 			bo[i] = mem->bo;
@@ -1575,7 +1603,7 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
-	size_t available;
+	ssize_t available;
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 	available = adev->gmc.real_vram_size
@@ -1583,6 +1611,9 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 		- atomic64_read(&adev->vram_pin_size)
 		- reserved_for_pt;
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
+
+	if (available < 0)
+		available = 0;
 
 	return ALIGN_DOWN(available, VRAM_AVAILABLITY_ALIGN);
 }
@@ -2210,30 +2241,27 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct amdgpu_device *adev,
 	struct amdgpu_bo *bo;
 	int ret;
 
-	if (dma_buf->ops != &amdgpu_dmabuf_ops)
-		/* Can't handle non-graphics buffers */
-		return -EINVAL;
-
-	obj = dma_buf->priv;
-	if (drm_to_adev(obj->dev) != adev)
-		/* Can't handle buffers from other devices */
-		return -EINVAL;
+	obj = amdgpu_gem_prime_import(adev_to_drm(adev), dma_buf);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	bo = gem_to_amdgpu_bo(obj);
 	if (!(bo->preferred_domains & (AMDGPU_GEM_DOMAIN_VRAM |
-				    AMDGPU_GEM_DOMAIN_GTT)))
+				    AMDGPU_GEM_DOMAIN_GTT))) {
 		/* Only VRAM and GTT BOs are supported */
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_obj;
+	}
 
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
-	if (!*mem)
-		return -ENOMEM;
+	if (!*mem) {
+		ret = -ENOMEM;
+		goto err_put_obj;
+	}
 
 	ret = drm_vma_node_allow(&obj->vma_node, drm_priv);
-	if (ret) {
-		kfree(*mem);
-		return ret;
-	}
+	if (ret)
+		goto err_free_mem;
 
 	if (size)
 		*size = amdgpu_bo_size(bo);
@@ -2250,7 +2278,8 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct amdgpu_device *adev,
 		| KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE
 		| KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE;
 
-	drm_gem_object_get(&bo->tbo.base);
+	get_dma_buf(dma_buf);
+	(*mem)->dmabuf = dma_buf;
 	(*mem)->bo = bo;
 	(*mem)->va = va;
 	(*mem)->domain = (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
@@ -2262,6 +2291,29 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct amdgpu_device *adev,
 	(*mem)->is_imported = true;
 
 	return 0;
+
+err_free_mem:
+	kfree(*mem);
+err_put_obj:
+	drm_gem_object_put(obj);
+	return ret;
+}
+
+int amdgpu_amdkfd_gpuvm_export_dmabuf(struct kgd_mem *mem,
+				      struct dma_buf **dma_buf)
+{
+	int ret;
+
+	mutex_lock(&mem->lock);
+	ret = kfd_mem_export_dmabuf(mem);
+	if (ret)
+		goto out;
+
+	get_dma_buf(mem->dmabuf);
+	*dma_buf = mem->dmabuf;
+out:
+	mutex_unlock(&mem->lock);
+	return ret;
 }
 
 /* Evict a userptr BO by stopping the queues if necessary

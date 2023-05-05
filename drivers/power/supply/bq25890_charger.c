@@ -1622,7 +1622,7 @@ static const struct i2c_device_id bq25890_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
 
-static const struct of_device_id bq25890_of_match[] = {
+static const struct of_device_id bq25890_of_match[] __maybe_unused = {
 	{ .compatible = "ti,bq25890", },
 	{ .compatible = "ti,bq25892", },
 	{ .compatible = "ti,bq25895", },

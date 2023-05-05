@@ -321,14 +321,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_get_property(pdev->dev.of_node, "dma-ranges", NULL)) {
-		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
-		if (ret) {
-			mtk_v4l2_err("Failed to set mask");
-			goto err_core_workq;
-		}
-	}
-
 	for (i = 0; i < MTK_VDEC_HW_MAX; i++)
 		mutex_init(&dev->dec_mutex[i]);
 	mutex_init(&dev->dev_mutex);
@@ -451,7 +443,8 @@ err_core_workq:
 	if (IS_VDEC_LAT_ARCH(dev->vdec_pdata->hw_arch))
 		destroy_workqueue(dev->core_workqueue);
 err_res:
-	pm_runtime_disable(dev->pm.dev);
+	if (!dev->vdec_pdata->is_subdev_supported)
+		pm_runtime_disable(dev->pm.dev);
 err_dec_pm:
 	mtk_vcodec_fw_release(dev->fw_handler);
 	return ret;
@@ -487,7 +480,7 @@ static const struct of_device_id mtk_vcodec_match[] = {
 
 MODULE_DEVICE_TABLE(of, mtk_vcodec_match);
 
-static int mtk_vcodec_dec_remove(struct platform_device *pdev)
+static void mtk_vcodec_dec_remove(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
@@ -509,12 +502,11 @@ static int mtk_vcodec_dec_remove(struct platform_device *pdev)
 	if (!dev->vdec_pdata->is_subdev_supported)
 		pm_runtime_disable(dev->pm.dev);
 	mtk_vcodec_fw_release(dev->fw_handler);
-	return 0;
 }
 
 static struct platform_driver mtk_vcodec_dec_driver = {
 	.probe	= mtk_vcodec_probe,
-	.remove	= mtk_vcodec_dec_remove,
+	.remove_new = mtk_vcodec_dec_remove,
 	.driver	= {
 		.name	= MTK_VCODEC_DEC_NAME,
 		.of_match_table = mtk_vcodec_match,

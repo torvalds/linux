@@ -262,7 +262,7 @@ static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(i915) >= 11)
 		return false;
 
-	/* pre-hsw have PIPECONF_COLOR_RANGE_SELECT */
+	/* pre-hsw have TRANSCONF_COLOR_RANGE_SELECT */
 	if (DISPLAY_VER(i915) < 7 || IS_IVYBRIDGE(i915))
 		return false;
 
@@ -653,7 +653,7 @@ static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 
 static void i9xx_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	i9xx_set_pipeconf(crtc_state);
 }
 
@@ -662,7 +662,7 @@ static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	ilk_set_pipeconf(crtc_state);
 
 	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
@@ -1329,8 +1329,11 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		break;
 	}
 
-	if (crtc_state->dsb)
-		intel_dsb_commit(crtc_state->dsb);
+	if (crtc_state->dsb) {
+		intel_dsb_finish(crtc_state->dsb);
+		intel_dsb_commit(crtc_state->dsb, false);
+		intel_dsb_wait(crtc_state->dsb);
+	}
 }
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
@@ -1461,6 +1464,9 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 	/* FIXME DSB has issues loading LUTs, disable it for now */
 	return;
 
+	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
+		return;
+
 	crtc_state->dsb = intel_dsb_prepare(crtc, 1024);
 }
 
@@ -1581,6 +1587,8 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 			return PTR_ERR(plane_state);
 
 		new_crtc_state->update_planes |= BIT(plane->id);
+		new_crtc_state->async_flip_planes = 0;
+		new_crtc_state->do_async_flip = false;
 
 		/* plane control register changes blocked by CxSR */
 		if (HAS_GMCH(i915))

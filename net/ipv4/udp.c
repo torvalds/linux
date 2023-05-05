@@ -578,12 +578,12 @@ struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 EXPORT_SYMBOL_GPL(udp4_lib_lookup);
 #endif
 
-static inline bool __udp_is_mcast_sock(struct net *net, struct sock *sk,
+static inline bool __udp_is_mcast_sock(struct net *net, const struct sock *sk,
 				       __be16 loc_port, __be32 loc_addr,
 				       __be16 rmt_port, __be32 rmt_addr,
 				       int dif, int sdif, unsigned short hnum)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	if (!net_eq(sock_net(sk), net) ||
 	    udp_sk(sk)->udp_port_hash != hnum ||
@@ -1531,10 +1531,21 @@ static void busylock_release(spinlock_t *busy)
 		spin_unlock(busy);
 }
 
+static int udp_rmem_schedule(struct sock *sk, int size)
+{
+	int delta;
+
+	delta = size - sk->sk_forward_alloc;
+	if (delta > 0 && !__sk_mem_schedule(sk, delta, SK_MEM_RECV))
+		return -ENOBUFS;
+
+	return 0;
+}
+
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct sk_buff_head *list = &sk->sk_receive_queue;
-	int rmem, delta, amt, err = -ENOMEM;
+	int rmem, err = -ENOMEM;
 	spinlock_t *busy = NULL;
 	int size;
 
@@ -1567,16 +1578,10 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 		goto uncharge_drop;
 
 	spin_lock(&list->lock);
-	if (size >= sk->sk_forward_alloc) {
-		amt = sk_mem_pages(size);
-		delta = amt << PAGE_SHIFT;
-		if (!__sk_mem_raise_allocated(sk, delta, amt, SK_MEM_RECV)) {
-			err = -ENOBUFS;
-			spin_unlock(&list->lock);
-			goto uncharge_drop;
-		}
-
-		sk->sk_forward_alloc += delta;
+	err = udp_rmem_schedule(sk, size);
+	if (err) {
+		spin_unlock(&list->lock);
+		goto uncharge_drop;
 	}
 
 	sk->sk_forward_alloc -= size;

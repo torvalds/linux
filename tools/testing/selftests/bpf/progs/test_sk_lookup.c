@@ -391,7 +391,6 @@ SEC("sk_lookup")
 int ctx_narrow_access(struct bpf_sk_lookup *ctx)
 {
 	struct bpf_sock *sk;
-	int err, family;
 	__u32 val_u32;
 	bool v4;
 
@@ -645,9 +644,7 @@ static __always_inline int select_server_a(struct bpf_sk_lookup *ctx)
 SEC("sk_lookup")
 int multi_prog_redir1(struct bpf_sk_lookup *ctx)
 {
-	int ret;
-
-	ret = select_server_a(ctx);
+	(void)select_server_a(ctx);
 	bpf_map_update_elem(&run_map, &KEY_PROG1, &PROG_DONE, BPF_ANY);
 	return SK_PASS;
 }
@@ -655,9 +652,7 @@ int multi_prog_redir1(struct bpf_sk_lookup *ctx)
 SEC("sk_lookup")
 int multi_prog_redir2(struct bpf_sk_lookup *ctx)
 {
-	int ret;
-
-	ret = select_server_a(ctx);
+	(void)select_server_a(ctx);
 	bpf_map_update_elem(&run_map, &KEY_PROG2, &PROG_DONE, BPF_ANY);
 	return SK_PASS;
 }

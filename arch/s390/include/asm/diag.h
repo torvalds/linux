@@ -90,7 +90,7 @@ struct diag8c {
 	u8 num_partitions;
 	u16 width;
 	u16 height;
-	u8 data[0];
+	u8 data[];
 } __packed __aligned(4);
 
 extern int diag8c(struct diag8c *out, struct ccw_dev_id *devno);

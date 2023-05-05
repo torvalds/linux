@@ -50,7 +50,6 @@
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
@@ -186,7 +185,6 @@ extern char *amdgpu_disable_cu;
 extern char *amdgpu_virtual_display;
 extern uint amdgpu_pp_feature_mask;
 extern uint amdgpu_force_long_training;
-extern int amdgpu_job_hang_limit;
 extern int amdgpu_lbpw;
 extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
@@ -424,29 +422,11 @@ struct amdgpu_clock {
  * alignment).
  */
 
-#define AMDGPU_SA_NUM_FENCE_LISTS	32
-
 struct amdgpu_sa_manager {
-	wait_queue_head_t	wq;
-	struct amdgpu_bo	*bo;
-	struct list_head	*hole;
-	struct list_head	flist[AMDGPU_SA_NUM_FENCE_LISTS];
-	struct list_head	olist;
-	unsigned		size;
-	uint64_t		gpu_addr;
-	void			*cpu_ptr;
-	uint32_t		domain;
-	uint32_t		align;
-};
-
-/* sub-allocation buffer */
-struct amdgpu_sa_bo {
-	struct list_head		olist;
-	struct list_head		flist;
-	struct amdgpu_sa_manager	*manager;
-	unsigned			soffset;
-	unsigned			eoffset;
-	struct dma_fence	        *fence;
+	struct drm_suballoc_manager	base;
+	struct amdgpu_bo		*bo;
+	uint64_t			gpu_addr;
+	void				*cpu_ptr;
 };
 
 int amdgpu_fence_slab_init(void);
@@ -490,7 +470,7 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
 /*
  * Writeback
  */
-#define AMDGPU_MAX_WB 256	/* Reserve at most 256 WB slots for amdgpu-owned rings. */
+#define AMDGPU_MAX_WB 1024	/* Reserve at most 1024 WB slots for amdgpu-owned rings. */
 
 struct amdgpu_wb {
 	struct amdgpu_bo	*wb_obj;
@@ -1023,7 +1003,6 @@ struct amdgpu_device {
 	bool                            in_runpm;
 	bool                            has_pr3;
 
-	bool                            pm_sysfs_en;
 	bool                            ucode_sysfs_en;
 	bool                            psp_sysfs_en;
 
@@ -1113,18 +1092,14 @@ void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value)
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
 
 u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
-				u32 pcie_index, u32 pcie_data,
 				u32 reg_addr);
 u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
-				  u32 pcie_index, u32 pcie_data,
 				  u32 reg_addr);
 void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
-				 u32 pcie_index, u32 pcie_data,
 				 u32 reg_addr, u32 reg_data);
 void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
-				   u32 pcie_index, u32 pcie_data,
 				   u32 reg_addr, u64 reg_data);
-
+u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev);
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
 
@@ -1246,7 +1221,7 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 	((adev)->asic_funcs->flush_hdp ? (adev)->asic_funcs->flush_hdp((adev), (r)) : (adev)->hdp.funcs->flush_hdp((adev), (r)))
 #define amdgpu_asic_invalidate_hdp(adev, r) \
 	((adev)->asic_funcs->invalidate_hdp ? (adev)->asic_funcs->invalidate_hdp((adev), (r)) : \
-	 ((adev)->hdp.funcs->invalidate_hdp ? (adev)->hdp.funcs->invalidate_hdp((adev), (r)) : 0))
+	 ((adev)->hdp.funcs->invalidate_hdp ? (adev)->hdp.funcs->invalidate_hdp((adev), (r)) : (void)0))
 #define amdgpu_asic_need_full_reset(adev) (adev)->asic_funcs->need_full_reset((adev))
 #define amdgpu_asic_init_doorbell_index(adev) (adev)->asic_funcs->init_doorbell_index((adev))
 #define amdgpu_asic_get_pcie_usage(adev, cnt0, cnt1) ((adev)->asic_funcs->get_pcie_usage((adev), (cnt0), (cnt1)))

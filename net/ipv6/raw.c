@@ -64,7 +64,7 @@
 struct raw_hashinfo raw_v6_hashinfo;
 EXPORT_SYMBOL_GPL(raw_v6_hashinfo);
 
-bool raw_v6_match(struct net *net, struct sock *sk, unsigned short num,
+bool raw_v6_match(struct net *net, const struct sock *sk, unsigned short num,
 		  const struct in6_addr *loc_addr,
 		  const struct in6_addr *rmt_addr, int dif, int sdif)
 {
@@ -193,10 +193,8 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
 			/* Not releasing hash table! */
-			if (clone) {
-				nf_reset_ct(clone);
+			if (clone)
 				rawv6_rcv(sk, clone);
-			}
 		}
 	}
 	rcu_read_unlock();
@@ -389,6 +387,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 		kfree_skb_reason(skb, SKB_DROP_REASON_XFRM_POLICY);
 		return NET_RX_DROP;
 	}
+	nf_reset_ct(skb);
 
 	if (!rp->checksum)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;

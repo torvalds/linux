@@ -267,7 +267,7 @@ static void f_ospi_config_indir_protocol(struct f_ospi *ospi,
 	int unit;
 
 	/* Set one chip select */
-	writel(BIT(spi->chip_select), ospi->base + OSPI_SSEL);
+	writel(BIT(spi_get_chipselect(spi, 0)), ospi->base + OSPI_SSEL);
 
 	mode = f_ospi_get_mode(ospi, op->cmd.buswidth, 1);
 	prot |= FIELD_PREP(OSPI_PROT_MODE_CODE_MASK, mode);
@@ -561,7 +561,7 @@ static bool f_ospi_supports_op(struct spi_mem *mem,
 	if (!f_ospi_supports_op_width(mem, op))
 		return false;
 
-	return true;
+	return spi_mem_default_supports_op(mem, op);
 }
 
 static int f_ospi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -670,15 +670,13 @@ err_put_ctlr:
 	return ret;
 }
 
-static int f_ospi_remove(struct platform_device *pdev)
+static void f_ospi_remove(struct platform_device *pdev)
 {
 	struct f_ospi *ospi = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(ospi->clk);
 
 	mutex_destroy(&ospi->mlock);
-
-	return 0;
 }
 
 static const struct of_device_id f_ospi_dt_ids[] = {
@@ -693,7 +691,7 @@ static struct platform_driver f_ospi_driver = {
 		.of_match_table = f_ospi_dt_ids,
 	},
 	.probe = f_ospi_probe,
-	.remove = f_ospi_remove,
+	.remove_new = f_ospi_remove,
 };
 module_platform_driver(f_ospi_driver);
 

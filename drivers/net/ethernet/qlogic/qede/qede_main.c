@@ -35,7 +35,6 @@
 #include <net/ip6_checksum.h>
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
-#include <linux/aer.h>
 #include "qede.h"
 #include "qede_ptp.h"
 

@@ -894,7 +894,7 @@ error_resource:
 	return ret;
 }
 
-static int xtpg_remove(struct platform_device *pdev)
+static void xtpg_remove(struct platform_device *pdev)
 {
 	struct xtpg_device *xtpg = platform_get_drvdata(pdev);
 	struct v4l2_subdev *subdev = &xtpg->xvip.subdev;
@@ -904,8 +904,6 @@ static int xtpg_remove(struct platform_device *pdev)
 	media_entity_cleanup(&subdev->entity);
 
 	xvip_cleanup_resources(&xtpg->xvip);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(xtpg_pm_ops, xtpg_pm_suspend, xtpg_pm_resume);
@@ -923,7 +921,7 @@ static struct platform_driver xtpg_driver = {
 		.of_match_table	= xtpg_of_id_table,
 	},
 	.probe			= xtpg_probe,
-	.remove			= xtpg_remove,
+	.remove_new		= xtpg_remove,
 };
 
 module_platform_driver(xtpg_driver);

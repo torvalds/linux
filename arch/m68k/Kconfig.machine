@@ -11,7 +11,7 @@ config AMIGA
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
-	  material available in <file:Documentation/m68k>; otherwise say N.
+	  material available in <file:Documentation/arch/m68k>; otherwise say N.
 
 config ATARI
 	bool "Atari support"
@@ -23,7 +23,7 @@ config ATARI
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
 	  this kernel on an Atari, say Y here and browse the material
-	  available in <file:Documentation/m68k>; otherwise say N.
+	  available in <file:Documentation/arch/m68k>; otherwise say N.
 
 config ATARI_KBD_CORE
 	bool
@@ -439,15 +439,6 @@ config ROM
 	  that can be stored in flash, with possibly the text, and data
 	  regions being copied out to RAM at startup.
 
-config ROMBASE
-	hex "Address of the base of ROM device"
-	default "0"
-	depends on ROM
-	help
-	  Define the address that the ROM region starts at. Some platforms
-	  use this to set their chip select region accordingly for the boot
-	  device.
-
 config ROMVEC
 	hex "Address of the base of the ROM vectors"
 	default "0"
@@ -464,14 +455,6 @@ config ROMSTART
 	help
 	  Define the start address of the system image in ROM. Commonly this
 	  is strait after the ROM vectors.
-
-config ROMSIZE
-	hex "Size of the ROM device"
-	default "0x100000"
-	depends on ROM
-	help
-	  Size of the ROM device. On some platforms this is used to setup
-	  the chip select that controls the boot ROM device.
 
 choice
 	prompt "Kernel executes from"

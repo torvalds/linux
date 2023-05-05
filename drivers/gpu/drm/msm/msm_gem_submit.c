@@ -41,8 +41,16 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	if (!submit)
 		return ERR_PTR(-ENOMEM);
 
+	submit->hw_fence = msm_fence_alloc();
+	if (IS_ERR(submit->hw_fence)) {
+		ret = PTR_ERR(submit->hw_fence);
+		kfree(submit);
+		return ERR_PTR(ret);
+	}
+
 	ret = drm_sched_job_init(&submit->base, queue->entity, queue);
 	if (ret) {
+		kfree(submit->hw_fence);
 		kfree(submit);
 		return ERR_PTR(ret);
 	}
@@ -72,9 +80,9 @@ void __msm_gem_submit_destroy(struct kref *kref)
 	unsigned i;
 
 	if (submit->fence_id) {
-		mutex_lock(&submit->queue->idr_lock);
+		spin_lock(&submit->queue->idr_lock);
 		idr_remove(&submit->queue->fence_idr, submit->fence_id);
-		mutex_unlock(&submit->queue->idr_lock);
+		spin_unlock(&submit->queue->idr_lock);
 	}
 
 	dma_fence_put(submit->user_fence);
@@ -242,7 +250,7 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 	submit->bos[i].flags &= ~cleanup_flags;
 
 	if (flags & BO_VMA_PINNED)
-		msm_gem_unpin_vma(submit->bos[i].vma);
+		msm_gem_vma_unpin(submit->bos[i].vma);
 
 	if (flags & BO_OBJ_PINNED)
 		msm_gem_unpin_locked(obj);
@@ -565,7 +573,6 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 
 	for (i = 0; i < nr_in_syncobjs; ++i) {
 		uint64_t address = in_syncobjs_addr + i * syncobj_stride;
-		struct dma_fence *fence;
 
 		if (copy_from_user(&syncobj_desc,
 			           u64_to_user_ptr(address),
@@ -585,12 +592,8 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 			break;
 		}
 
-		ret = drm_syncobj_find_fence(file, syncobj_desc.handle,
-		                             syncobj_desc.point, 0, &fence);
-		if (ret)
-			break;
-
-		ret = drm_sched_job_add_dependency(&submit->base, fence);
+		ret = drm_sched_job_add_syncobj_dependency(&submit->base, file,
+							   syncobj_desc.handle, syncobj_desc.point);
 		if (ret)
 			break;
 
@@ -874,7 +877,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
-	mutex_lock(&queue->idr_lock);
+	idr_preload(GFP_KERNEL);
+
+	spin_lock(&queue->idr_lock);
 
 	/*
 	 * If using userspace provided seqno fence, validate that the id
@@ -884,7 +889,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 */
 	if ((args->flags & MSM_SUBMIT_FENCE_SN_IN) &&
 			idr_find(&queue->fence_idr, args->fence)) {
-		mutex_unlock(&queue->idr_lock);
+		spin_unlock(&queue->idr_lock);
+		idr_preload_end();
 		ret = -EINVAL;
 		goto out;
 	}
@@ -902,7 +908,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		submit->fence_id = args->fence;
 		ret = idr_alloc_u32(&queue->fence_idr, submit->user_fence,
 				    &submit->fence_id, submit->fence_id,
-				    GFP_KERNEL);
+				    GFP_NOWAIT);
 		/*
 		 * We've already validated that the fence_id slot is valid,
 		 * so if idr_alloc_u32 failed, it is a kernel bug
@@ -915,10 +921,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 */
 		submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
 						    submit->user_fence, 1,
-						    INT_MAX, GFP_KERNEL);
+						    INT_MAX, GFP_NOWAIT);
 	}
 
-	mutex_unlock(&queue->idr_lock);
+	spin_unlock(&queue->idr_lock);
+	idr_preload_end();
 
 	if (submit->fence_id < 0) {
 		ret = submit->fence_id;

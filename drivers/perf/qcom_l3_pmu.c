@@ -763,8 +763,7 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
-	memrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	l3pmu->regs = devm_ioremap_resource(&pdev->dev, memrc);
+	l3pmu->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &memrc);
 	if (IS_ERR(l3pmu->regs))
 		return PTR_ERR(l3pmu->regs);
 

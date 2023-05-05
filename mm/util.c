@@ -49,6 +49,7 @@ EXPORT_SYMBOL(kfree_const);
  *
  * Return: newly allocated copy of @s or %NULL in case of error
  */
+noinline
 char *kstrdup(const char *s, gfp_t gfp)
 {
 	size_t len;

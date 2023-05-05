@@ -745,8 +745,7 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
-ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
-			       const char *buf, size_t count)
+ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
 {
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
@@ -808,8 +807,7 @@ out_nodev:
 	return count;
 }
 
-ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
-				const char *buf, size_t count)
+ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;

@@ -19,7 +19,7 @@ properties:
       - mediatek,mt8186-mt6366-rt5682s-max98360-sound
 
   mediatek,platform:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of MT8186 ASoC platform.
 
   dmic-gpios:

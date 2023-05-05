@@ -36,6 +36,7 @@ problems and bugs in particular.
 
    reporting-issues
    reporting-regressions
+   quickly-build-trimmed-linux
    bug-hunting
    bug-bisect
    tainted-kernels

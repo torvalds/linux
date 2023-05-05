@@ -43,7 +43,6 @@ static const void *macvtap_net_namespace(const struct device *d)
 
 static struct class macvtap_class = {
 	.name = "macvtap",
-	.owner = THIS_MODULE,
 	.ns_type = &net_ns_type_operations,
 	.namespace = macvtap_net_namespace,
 };

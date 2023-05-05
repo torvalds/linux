@@ -56,6 +56,28 @@ analogue data is never read from the pixel matrix that are outside the
 configured selection rectangle that designates crop. The difference has an
 effect in device timing and likely also in power consumption.
 
+CCS static data
+---------------
+
+The MIPI CCS driver supports CCS static data for all compliant devices,
+including not just those compliant with CCS 1.1 but also CCS 1.0 and SMIA(++).
+For CCS the file names are formed as
+
+	ccs/ccs-sensor-vvvv-mmmm-rrrr.fw (sensor) and
+	ccs/ccs-module-vvvv-mmmm-rrrr.fw (module).
+
+For SMIA++ compliant devices the corresponding file names are
+
+	ccs/smiapp-sensor-vv-mmmm-rr.fw (sensor) and
+	ccs/smiapp-module-vv-mmmm-rrrr.fw (module).
+
+For SMIA (non-++) compliant devices the static data file name is
+
+	ccs/smia-sensor-vv-mmmm-rr.fw (sensor).
+
+vvvv or vv denotes MIPI and SMIA manufacturer IDs respectively, mmmm model ID
+and rrrr or rr revision number.
+
 Register definition generator
 -----------------------------
 

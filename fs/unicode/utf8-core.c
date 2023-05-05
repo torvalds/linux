@@ -214,4 +214,3 @@ void utf8_unload(struct unicode_map *um)
 }
 EXPORT_SYMBOL(utf8_unload);
 
-MODULE_LICENSE("GPL v2");

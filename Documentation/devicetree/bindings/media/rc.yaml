@@ -18,7 +18,7 @@ properties:
     description:
       Specifies the scancode/key mapping table defined in-kernel for
       the remote controller.
-    $ref: '/schemas/types.yaml#/definitions/string'
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - rc-adstech-dvb-t-pci
       - rc-alink-dtu-m
@@ -39,6 +39,7 @@ properties:
       - rc-avertv-303
       - rc-azurewave-ad-tu700
       - rc-beelink-gs1
+      - rc-beelink-mxiii
       - rc-behold
       - rc-behold-columbus
       - rc-budget-ci-old
@@ -55,6 +56,7 @@ properties:
       - rc-dm1105-nec
       - rc-dntv-live-dvb-t
       - rc-dntv-live-dvbt-pro
+      - rc-dreambox
       - rc-dtt200u
       - rc-dvbsky
       - rc-dvico-mce

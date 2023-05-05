@@ -15,8 +15,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 #include <linux/userfaultfd.h>
 
 #include "../kselftest.h"
@@ -178,7 +180,6 @@ unmap:
 static void test_unmerge_uffd_wp(void)
 {
 	struct uffdio_writeprotect uffd_writeprotect;
-	struct uffdio_register uffdio_register;
 	const unsigned int size = 2 * MiB;
 	struct uffdio_api uffdio_api;
 	char *map;
@@ -210,10 +211,7 @@ static void test_unmerge_uffd_wp(void)
 	}
 
 	/* Register UFFD-WP, no need for an actual handler. */
-	uffdio_register.range.start = (unsigned long) map;
-	uffdio_register.range.len = size;
-	uffdio_register.mode = UFFDIO_REGISTER_MODE_WP;
-	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register) < 0) {
+	if (uffd_register(uffd, map, size, false, true, false)) {
 		ksft_test_result_fail("UFFDIO_REGISTER_MODE_WP failed\n");
 		goto close_uffd;
 	}
@@ -241,9 +239,93 @@ unmap:
 }
 #endif
 
+/* Verify that KSM can be enabled / queried with prctl. */
+static void test_prctl(void)
+{
+	int ret;
+
+	ksft_print_msg("[RUN] %s\n", __func__);
+
+	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
+	if (ret < 0 && errno == EINVAL) {
+		ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+		return;
+	} else if (ret) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
+		return;
+	}
+
+	ret = prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0);
+	if (ret < 0) {
+		ksft_test_result_fail("PR_GET_MEMORY_MERGE failed\n");
+		return;
+	} else if (ret != 1) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 not effective\n");
+		return;
+	}
+
+	ret = prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0);
+	if (ret) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 failed\n");
+		return;
+	}
+
+	ret = prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0);
+	if (ret < 0) {
+		ksft_test_result_fail("PR_GET_MEMORY_MERGE failed\n");
+		return;
+	} else if (ret != 0) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 not effective\n");
+		return;
+	}
+
+	ksft_test_result_pass("Setting/clearing PR_SET_MEMORY_MERGE works\n");
+}
+
+/* Verify that prctl ksm flag is inherited. */
+static void test_prctl_fork(void)
+{
+	int ret, status;
+	pid_t child_pid;
+
+	ksft_print_msg("[RUN] %s\n", __func__);
+
+	ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
+	if (ret < 0 && errno == EINVAL) {
+		ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+		return;
+	} else if (ret) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
+		return;
+	}
+
+	child_pid = fork();
+	if (!child_pid) {
+		exit(prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0));
+	} else if (child_pid < 0) {
+		ksft_test_result_fail("fork() failed\n");
+		return;
+	}
+
+	if (waitpid(child_pid, &status, 0) < 0) {
+		ksft_test_result_fail("waitpid() failed\n");
+		return;
+	} else if (WEXITSTATUS(status) != 1) {
+		ksft_test_result_fail("unexpected PR_GET_MEMORY_MERGE result in child\n");
+		return;
+	}
+
+	if (prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0)) {
+		ksft_test_result_fail("PR_SET_MEMORY_MERGE=0 failed\n");
+		return;
+	}
+
+	ksft_test_result_pass("PR_SET_MEMORY_MERGE value is inherited\n");
+}
+
 int main(int argc, char **argv)
 {
-	unsigned int tests = 2;
+	unsigned int tests = 4;
 	int err;
 
 #ifdef __NR_userfaultfd
@@ -270,6 +352,9 @@ int main(int argc, char **argv)
 #ifdef __NR_userfaultfd
 	test_unmerge_uffd_wp();
 #endif
+
+	test_prctl();
+	test_prctl_fork();
 
 	err = ksft_get_fail_cnt();
 	if (err)

@@ -604,7 +604,7 @@ READ_ONCE() para DEC Alpha, lo que significa que las únicas personas que
 necesitan prestar atención a esta sección son aquellas que trabajan en el
 código específico de la arquitectura DEC Alpha y aquellas que trabajan en
 READ_ONCE() por dentro. Para aquellos que lo necesitan, y para aquellos que
-estén interesados ​​desde un punto de vista histórico, aquí está la historia
+estén interesados desde un punto de vista histórico, aquí está la historia
 de las barreras de dependencia de dirección.
 
 [!] Si bien las dependencias de direcciones se observan tanto en carga a

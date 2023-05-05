@@ -31,7 +31,7 @@ static unsigned int netcell_read_id(struct ata_device *adev,
 	return err_mask;
 }
 
-static struct scsi_host_template netcell_sht = {
+static const struct scsi_host_template netcell_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

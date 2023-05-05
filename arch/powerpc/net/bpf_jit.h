@@ -19,6 +19,8 @@
 #define FUNCTION_DESCR_SIZE	0
 #endif
 
+#define CTX_NIA(ctx) ((unsigned long)ctx->idx * 4)
+
 #define PLANT_INSTR(d, idx, instr)					      \
 	do { if (d) { (d)[idx] = instr; } idx++; } while (0)
 #define EMIT(instr)		PLANT_INSTR(image, ctx->idx, instr)
@@ -26,7 +28,7 @@
 /* Long jump; (unconditional 'branch') */
 #define PPC_JMP(dest)							      \
 	do {								      \
-		long offset = (long)(dest) - (ctx->idx * 4);		      \
+		long offset = (long)(dest) - CTX_NIA(ctx);		      \
 		if ((dest) != 0 && !is_offset_in_branch_range(offset)) {		      \
 			pr_err_ratelimited("Branch offset 0x%lx (@%u) out of range\n", offset, ctx->idx);			\
 			return -ERANGE;					      \
@@ -40,7 +42,7 @@
 /* "cond" here covers BO:BI fields. */
 #define PPC_BCC_SHORT(cond, dest)					      \
 	do {								      \
-		long offset = (long)(dest) - (ctx->idx * 4);		      \
+		long offset = (long)(dest) - CTX_NIA(ctx);		      \
 		if ((dest) != 0 && !is_offset_in_cond_branch_range(offset)) {		      \
 			pr_err_ratelimited("Conditional branch offset 0x%lx (@%u) out of range\n", offset, ctx->idx);		\
 			return -ERANGE;					      \
@@ -92,12 +94,12 @@
  * state.
  */
 #define PPC_BCC(cond, dest)	do {					      \
-		if (is_offset_in_cond_branch_range((long)(dest) - (ctx->idx * 4))) {	\
+		if (is_offset_in_cond_branch_range((long)(dest) - CTX_NIA(ctx))) {	\
 			PPC_BCC_SHORT(cond, dest);			      \
 			EMIT(PPC_RAW_NOP());				      \
 		} else {						      \
 			/* Flip the 'T or F' bit to invert comparison */      \
-			PPC_BCC_SHORT(cond ^ COND_CMP_TRUE, (ctx->idx+2)*4);  \
+			PPC_BCC_SHORT(cond ^ COND_CMP_TRUE, CTX_NIA(ctx) + 2*4);  \
 			PPC_JMP(dest);					      \
 		} } while(0)
 

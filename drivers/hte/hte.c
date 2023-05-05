@@ -518,7 +518,7 @@ static struct hte_device *hte_of_get_dev(struct device *dev,
 
 	np = dev->of_node;
 
-	if (!of_find_property(np, "timestamp-names", NULL)) {
+	if (!of_property_present(np, "timestamp-names")) {
 		/* Let hte core construct it during request time */
 		desc->attr.name = NULL;
 	} else {

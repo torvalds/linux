@@ -951,7 +951,7 @@ static irqreturn_t msa311_irq_thread(int irq, void *p)
 	}
 
 	if (new_data_int_enabled)
-		iio_trigger_poll_chained(msa311->new_data_trig);
+		iio_trigger_poll_nested(msa311->new_data_trig);
 
 	return IRQ_HANDLED;
 }

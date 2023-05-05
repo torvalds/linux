@@ -130,8 +130,6 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const struct v4l2_subdev_ops *ops, u32 function);
 void vsp1_entity_destroy(struct vsp1_entity *entity);
 
-extern const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops;
-
 int vsp1_entity_link_setup(struct media_entity *entity,
 			   const struct media_pad *local,
 			   const struct media_pad *remote, u32 flags);

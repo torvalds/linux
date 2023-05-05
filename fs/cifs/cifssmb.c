@@ -120,7 +120,7 @@ again:
 	spin_lock(&server->srv_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
 		spin_unlock(&server->srv_lock);
-		mutex_lock(&ses->session_mutex);
+		mutex_unlock(&ses->session_mutex);
 
 		if (tcon->retry)
 			goto again;

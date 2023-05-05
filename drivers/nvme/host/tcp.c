@@ -888,6 +888,9 @@ static int nvme_tcp_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 	size_t consumed = len;
 	int result;
 
+	if (unlikely(!queue->rd_enabled))
+		return -EFAULT;
+
 	while (len) {
 		switch (nvme_tcp_recv_state(queue)) {
 		case NVME_TCP_RECV_PDU:

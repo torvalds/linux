@@ -1266,7 +1266,7 @@ again:
 		level = btrfs_header_level(parent);
 		ASSERT(level >= lowest_level);
 
-		ret = btrfs_bin_search(parent, &key, &slot);
+		ret = btrfs_bin_search(parent, 0, &key, &slot);
 		if (ret < 0)
 			break;
 		if (ret && slot > 0)
@@ -2407,7 +2407,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		if (upper->eb && !upper->locked) {
 			if (!lowest) {
-				ret = btrfs_bin_search(upper->eb, key, &slot);
+				ret = btrfs_bin_search(upper->eb, 0, key, &slot);
 				if (ret < 0)
 					goto next;
 				BUG_ON(ret);
@@ -2441,7 +2441,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			slot = path->slots[upper->level];
 			btrfs_release_path(path);
 		} else {
-			ret = btrfs_bin_search(upper->eb, key, &slot);
+			ret = btrfs_bin_search(upper->eb, 0, key, &slot);
 			if (ret < 0)
 				goto next;
 			BUG_ON(ret);

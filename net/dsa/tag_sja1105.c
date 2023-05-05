@@ -256,7 +256,7 @@ static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
 			return NULL;
 	}
 
-	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	hdr = skb_vlan_eth_hdr(skb);
 
 	/* If skb is already VLAN-tagged, leave that VLAN ID in place */
 	if (hdr->h_vlan_proto == xmit_tpid)
@@ -516,7 +516,7 @@ static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
 static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 			     int *switch_id, int *vbid, u16 *vid)
 {
-	struct vlan_ethhdr *hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 	u16 vlan_tci;
 
 	if (skb_vlan_tag_present(skb))

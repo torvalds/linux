@@ -29,14 +29,14 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 
 	/* Skip vmcs.GUEST_DS retrieval for 64-bit mode to avoid VMREADs. */
 	*gva = offset;
-	if (!is_long_mode(vcpu)) {
+	if (!is_64_bit_mode(vcpu)) {
 		vmx_get_segment(vcpu, &s, VCPU_SREG_DS);
 		*gva += s.base;
 	}
 
 	if (!IS_ALIGNED(*gva, alignment)) {
 		fault = true;
-	} else if (likely(is_long_mode(vcpu))) {
+	} else if (likely(is_64_bit_mode(vcpu))) {
 		fault = is_noncanonical_address(*gva, vcpu);
 	} else {
 		*gva &= 0xffffffff;

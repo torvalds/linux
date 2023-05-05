@@ -83,8 +83,10 @@ struct opal_dev {
 	u16 comid;
 	u32 hsn;
 	u32 tsn;
-	u64 align;
+	u64 align; /* alignment granularity */
 	u64 lowest_lba;
+	u32 logical_block_size;
+	u8  align_required; /* ALIGN: 0 or 1 */
 
 	size_t pos;
 	u8 *cmd;
@@ -132,6 +134,8 @@ static const u8 opaluid[][OPAL_UID_LENGTH] = {
 		{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 },
 	[OPAL_LOCKINGRANGE_GLOBAL] =
 		{ 0x00, 0x00, 0x08, 0x02, 0x00, 0x00, 0x00, 0x01 },
+	[OPAL_LOCKINGRANGE_ACE_START_TO_KEY] =
+		{ 0x00, 0x00, 0x00, 0x08, 0x00, 0x03, 0xD0, 0x01 },
 	[OPAL_LOCKINGRANGE_ACE_RDLOCKED] =
 		{ 0x00, 0x00, 0x00, 0x08, 0x00, 0x03, 0xE0, 0x01 },
 	[OPAL_LOCKINGRANGE_ACE_WRLOCKED] =
@@ -407,6 +411,8 @@ static void check_geometry(struct opal_dev *dev, const void *data)
 
 	dev->align = be64_to_cpu(geo->alignment_granularity);
 	dev->lowest_lba = be64_to_cpu(geo->lowest_aligned_lba);
+	dev->logical_block_size = be32_to_cpu(geo->logical_block_size);
+	dev->align_required = geo->reserved01 & 1;
 }
 
 static int execute_step(struct opal_dev *dev,
@@ -1147,12 +1153,8 @@ static int finalize_and_send(struct opal_dev *dev, cont_fn cont)
 	return opal_send_recv(dev, cont);
 }
 
-/*
- * request @column from table @table on device @dev. On success, the column
- * data will be available in dev->resp->tok[4]
- */
-static int generic_get_column(struct opal_dev *dev, const u8 *table,
-			      u64 column)
+static int generic_get_columns(struct opal_dev *dev, const u8 *table,
+			       u64 start_column, u64 end_column)
 {
 	int err;
 
@@ -1162,12 +1164,12 @@ static int generic_get_column(struct opal_dev *dev, const u8 *table,
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
 	add_token_u8(&err, dev, OPAL_STARTCOLUMN);
-	add_token_u64(&err, dev, column);
+	add_token_u64(&err, dev, start_column);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
 	add_token_u8(&err, dev, OPAL_ENDCOLUMN);
-	add_token_u64(&err, dev, column);
+	add_token_u64(&err, dev, end_column);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
 	add_token_u8(&err, dev, OPAL_ENDLIST);
@@ -1176,6 +1178,16 @@ static int generic_get_column(struct opal_dev *dev, const u8 *table,
 		return err;
 
 	return finalize_and_send(dev, parse_and_check_status);
+}
+
+/*
+ * request @column from table @table on device @dev. On success, the column
+ * data will be available in dev->resp->tok[4]
+ */
+static int generic_get_column(struct opal_dev *dev, const u8 *table,
+			      u64 column)
+{
+	return generic_get_columns(dev, table, column, column);
 }
 
 /*
@@ -1435,6 +1447,129 @@ static int setup_locking_range(struct opal_dev *dev, void *data)
 	}
 
 	return finalize_and_send(dev, parse_and_check_status);
+}
+
+static int response_get_column(const struct parsed_resp *resp,
+			       int *iter,
+			       u8 column,
+			       u64 *value)
+{
+	const struct opal_resp_tok *tok;
+	int n = *iter;
+	u64 val;
+
+	tok = response_get_token(resp, n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_STARTNAME)) {
+		pr_debug("Unexpected response token type %d.\n", n);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	if (response_get_u64(resp, n) != column) {
+		pr_debug("Token %d does not match expected column %u.\n",
+			 n, column);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	val = response_get_u64(resp, n);
+	n++;
+
+	tok = response_get_token(resp, n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_ENDNAME)) {
+		pr_debug("Unexpected response token type %d.\n", n);
+		return OPAL_INVAL_PARAM;
+	}
+	n++;
+
+	*value = val;
+	*iter = n;
+
+	return 0;
+}
+
+static int locking_range_status(struct opal_dev *dev, void *data)
+{
+	u8 lr_buffer[OPAL_UID_LENGTH];
+	u64 resp;
+	bool rlocked, wlocked;
+	int err, tok_n = 2;
+	struct opal_lr_status *lrst = data;
+
+	err = build_locking_range(lr_buffer, sizeof(lr_buffer),
+				  lrst->session.opal_key.lr);
+	if (err)
+		return err;
+
+	err = generic_get_columns(dev, lr_buffer, OPAL_RANGESTART,
+				  OPAL_WRITELOCKED);
+	if (err) {
+		pr_debug("Couldn't get lr %u table columns %d to %d.\n",
+			 lrst->session.opal_key.lr, OPAL_RANGESTART,
+			 OPAL_WRITELOCKED);
+		return err;
+	}
+
+	/* range start */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_RANGESTART,
+				  &lrst->range_start);
+	if (err)
+		return err;
+
+	/* range length */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_RANGELENGTH,
+				  &lrst->range_length);
+	if (err)
+		return err;
+
+	/* RLE */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_READLOCKENABLED,
+				  &resp);
+	if (err)
+		return err;
+
+	lrst->RLE = !!resp;
+
+	/* WLE */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_WRITELOCKENABLED,
+				  &resp);
+	if (err)
+		return err;
+
+	lrst->WLE = !!resp;
+
+	/* read locked */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_READLOCKED, &resp);
+	if (err)
+		return err;
+
+	rlocked = !!resp;
+
+	/* write locked */
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_WRITELOCKED, &resp);
+	if (err)
+		return err;
+
+	wlocked = !!resp;
+
+	/* opal_lock_state can not map 'read locked' only state. */
+	lrst->l_state = OPAL_RW;
+	if (rlocked && wlocked)
+		lrst->l_state = OPAL_LK;
+	else if (wlocked)
+		lrst->l_state = OPAL_RO;
+	else if (rlocked) {
+		pr_debug("Can not report read locked only state.\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int start_generic_opal_session(struct opal_dev *dev,
@@ -1759,25 +1894,43 @@ static int set_sid_cpin_pin(struct opal_dev *dev, void *data)
 	return finalize_and_send(dev, parse_and_check_status);
 }
 
-static int add_user_to_lr(struct opal_dev *dev, void *data)
+static void add_authority_object_ref(int *err,
+				     struct opal_dev *dev,
+				     const u8 *uid,
+				     size_t uid_len)
+{
+	add_token_u8(err, dev, OPAL_STARTNAME);
+	add_token_bytestring(err, dev,
+			     opaluid[OPAL_HALF_UID_AUTHORITY_OBJ_REF],
+			     OPAL_UID_LENGTH/2);
+	add_token_bytestring(err, dev, uid, uid_len);
+	add_token_u8(err, dev, OPAL_ENDNAME);
+}
+
+static void add_boolean_object_ref(int *err,
+				   struct opal_dev *dev,
+				   u8 boolean_op)
+{
+	add_token_u8(err, dev, OPAL_STARTNAME);
+	add_token_bytestring(err, dev, opaluid[OPAL_HALF_UID_BOOLEAN_ACE],
+			     OPAL_UID_LENGTH/2);
+	add_token_u8(err, dev, boolean_op);
+	add_token_u8(err, dev, OPAL_ENDNAME);
+}
+
+static int set_lr_boolean_ace(struct opal_dev *dev,
+			      unsigned int opal_uid,
+			      u8 lr,
+			      const u8 *users,
+			      size_t users_len)
 {
 	u8 lr_buffer[OPAL_UID_LENGTH];
 	u8 user_uid[OPAL_UID_LENGTH];
-	struct opal_lock_unlock *lkul = data;
+	u8 u;
 	int err;
 
-	memcpy(lr_buffer, opaluid[OPAL_LOCKINGRANGE_ACE_RDLOCKED],
-	       OPAL_UID_LENGTH);
-
-	if (lkul->l_state == OPAL_RW)
-		memcpy(lr_buffer, opaluid[OPAL_LOCKINGRANGE_ACE_WRLOCKED],
-		       OPAL_UID_LENGTH);
-
-	lr_buffer[7] = lkul->session.opal_key.lr;
-
-	memcpy(user_uid, opaluid[OPAL_USER1_UID], OPAL_UID_LENGTH);
-
-	user_uid[7] = lkul->session.who;
+	memcpy(lr_buffer, opaluid[opal_uid], OPAL_UID_LENGTH);
+	lr_buffer[7] = lr;
 
 	err = cmd_start(dev, lr_buffer, opalmethod[OPAL_SET]);
 
@@ -1790,37 +1943,72 @@ static int add_user_to_lr(struct opal_dev *dev, void *data)
 
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 
+	for (u = 0; u < users_len; u++) {
+		if (users[u] == OPAL_ADMIN1)
+			memcpy(user_uid, opaluid[OPAL_ADMIN1_UID],
+			       OPAL_UID_LENGTH);
+		else {
+			memcpy(user_uid, opaluid[OPAL_USER1_UID],
+			       OPAL_UID_LENGTH);
+			user_uid[7] = users[u];
+		}
 
-	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_bytestring(&err, dev,
-			     opaluid[OPAL_HALF_UID_AUTHORITY_OBJ_REF],
-			     OPAL_UID_LENGTH/2);
-	add_token_bytestring(&err, dev, user_uid, OPAL_UID_LENGTH);
-	add_token_u8(&err, dev, OPAL_ENDNAME);
+		add_authority_object_ref(&err, dev, user_uid, sizeof(user_uid));
 
-
-	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_bytestring(&err, dev,
-			     opaluid[OPAL_HALF_UID_AUTHORITY_OBJ_REF],
-			     OPAL_UID_LENGTH/2);
-	add_token_bytestring(&err, dev, user_uid, OPAL_UID_LENGTH);
-	add_token_u8(&err, dev, OPAL_ENDNAME);
-
-
-	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_bytestring(&err, dev, opaluid[OPAL_HALF_UID_BOOLEAN_ACE],
-			     OPAL_UID_LENGTH/2);
-	add_token_u8(&err, dev, 1);
-	add_token_u8(&err, dev, OPAL_ENDNAME);
-
+		/*
+		 * Add boolean operator in postfix only with
+		 * two or more authorities being added in ACE
+		 * expresion.
+		 * */
+		if (u > 0)
+			add_boolean_object_ref(&err, dev, OPAL_BOOLEAN_OR);
+	}
 
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
+	return err;
+}
+
+static int add_user_to_lr(struct opal_dev *dev, void *data)
+{
+	int err;
+	struct opal_lock_unlock *lkul = data;
+	const u8 users[] = {
+		lkul->session.who
+	};
+
+	err = set_lr_boolean_ace(dev,
+				 lkul->l_state == OPAL_RW ?
+					OPAL_LOCKINGRANGE_ACE_WRLOCKED :
+					OPAL_LOCKINGRANGE_ACE_RDLOCKED,
+				 lkul->session.opal_key.lr, users,
+				 ARRAY_SIZE(users));
 	if (err) {
 		pr_debug("Error building add user to locking range command.\n");
+		return err;
+	}
+
+	return finalize_and_send(dev, parse_and_check_status);
+}
+
+static int add_user_to_lr_ace(struct opal_dev *dev, void *data)
+{
+	int err;
+	struct opal_lock_unlock *lkul = data;
+	const u8 users[] = {
+		OPAL_ADMIN1,
+		lkul->session.who
+	};
+
+	err = set_lr_boolean_ace(dev, OPAL_LOCKINGRANGE_ACE_START_TO_KEY,
+				 lkul->session.opal_key.lr, users,
+				 ARRAY_SIZE(users));
+
+	if (err) {
+		pr_debug("Error building add user to locking ranges ACEs.\n");
 		return err;
 	}
 
@@ -2364,6 +2552,7 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 	const struct opal_step steps[] = {
 		{ start_admin1LSP_opal_session, &lk_unlk->session.opal_key },
 		{ add_user_to_lr, lk_unlk },
+		{ add_user_to_lr_ace, lk_unlk },
 		{ end_opal_session, }
 	};
 	int ret;
@@ -2580,6 +2769,33 @@ static int opal_setup_locking_range(struct opal_dev *dev,
 	return ret;
 }
 
+static int opal_locking_range_status(struct opal_dev *dev,
+			  struct opal_lr_status *opal_lrst,
+			  void __user *data)
+{
+	const struct opal_step lr_steps[] = {
+		{ start_auth_opal_session, &opal_lrst->session },
+		{ locking_range_status, opal_lrst },
+		{ end_opal_session, }
+	};
+	int ret;
+
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, lr_steps, ARRAY_SIZE(lr_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	/* skip session info when copying back to uspace */
+	if (!ret && copy_to_user(data + offsetof(struct opal_lr_status, range_start),
+				(void *)opal_lrst + offsetof(struct opal_lr_status, range_start),
+				sizeof(*opal_lrst) - offsetof(struct opal_lr_status, range_start))) {
+		pr_debug("Error copying status to userspace\n");
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
 static int opal_set_new_pw(struct opal_dev *dev, struct opal_new_pw *opal_pw)
 {
 	const struct opal_step pw_steps[] = {
@@ -2744,6 +2960,26 @@ static int opal_get_status(struct opal_dev *dev, void __user *data)
 	return 0;
 }
 
+static int opal_get_geometry(struct opal_dev *dev, void __user *data)
+{
+	struct opal_geometry geo = {0};
+
+	if (check_opal_support(dev))
+		return -EINVAL;
+
+	geo.align = dev->align_required;
+	geo.logical_block_size = dev->logical_block_size;
+	geo.alignment_granularity =  dev->align;
+	geo.lowest_aligned_lba = dev->lowest_lba;
+
+	if (copy_to_user(data, &geo, sizeof(geo))) {
+		pr_debug("Error copying geometry data to userspace\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 {
 	void *p;
@@ -2813,6 +3049,12 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_GET_STATUS:
 		ret = opal_get_status(dev, arg);
+		break;
+	case IOC_OPAL_GET_LR_STATUS:
+		ret = opal_locking_range_status(dev, p, arg);
+		break;
+	case IOC_OPAL_GET_GEOMETRY:
+		ret = opal_get_geometry(dev, arg);
 		break;
 	default:
 		break;

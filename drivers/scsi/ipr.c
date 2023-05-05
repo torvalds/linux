@@ -6736,7 +6736,7 @@ static const char *ipr_ioa_info(struct Scsi_Host *host)
 	return buffer;
 }
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
 	.name = "IPR",
 	.info = ipr_ioa_info,

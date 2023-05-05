@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include "bpf_misc.h"
 
 /* Sockmap sample program connects a client and a backend together
  * using cgroups.
@@ -111,12 +112,15 @@ int bpf_prog2(struct __sk_buff *skb)
 	int len, *f, ret, zero = 0;
 	__u64 flags = 0;
 
+	__sink(rport);
 	if (lport == 10000)
 		ret = 10;
 	else
 		ret = 1;
 
 	len = (__u32)skb->data_end - (__u32)skb->data;
+	__sink(len);
+
 	f = bpf_map_lookup_elem(&sock_skb_opts, &zero);
 	if (f && *f) {
 		ret = 3;
@@ -180,7 +184,6 @@ int bpf_prog3(struct __sk_buff *skb)
 	if (err)
 		return SK_DROP;
 	bpf_write_pass(skb, 13);
-tls_out:
 	return ret;
 }
 
@@ -188,8 +191,7 @@ SEC("sockops")
 int bpf_sockmap(struct bpf_sock_ops *skops)
 {
 	__u32 lport, rport;
-	int op, err = 0, index, key, ret;
-
+	int op, err, ret;
 
 	op = (int) skops->op;
 
@@ -227,6 +229,8 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 	default:
 		break;
 	}
+
+	__sink(err);
 
 	return 0;
 }
@@ -321,6 +325,10 @@ int bpf_prog8(struct sk_msg_md *msg)
 	} else {
 		return SK_DROP;
 	}
+
+	__sink(data_end);
+	__sink(data);
+
 	return SK_PASS;
 }
 SEC("sk_msg4")

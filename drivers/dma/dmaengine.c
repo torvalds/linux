@@ -1342,7 +1342,7 @@ int dmaenginem_async_device_register(struct dma_device *device)
 	if (ret)
 		return ret;
 
-	return devm_add_action(device->dev, dmaenginem_async_device_unregister, device);
+	return devm_add_action_or_reset(device->dev, dmaenginem_async_device_unregister, device);
 }
 EXPORT_SYMBOL(dmaenginem_async_device_register);
 

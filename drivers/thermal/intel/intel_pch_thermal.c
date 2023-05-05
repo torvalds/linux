@@ -119,7 +119,7 @@ static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 
 static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct pch_thermal_device *ptd = tzd->devdata;
+	struct pch_thermal_device *ptd = thermal_zone_device_priv(tzd);
 
 	*temp = GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 	return 0;

@@ -483,7 +483,7 @@ static int probe_thermostat(struct i2c_client *client)
 	if (vers != 1)
 		return -ENXIO;
 
-	if (of_get_property(np, "hwsensor-location", NULL)) {
+	if (of_property_present(np, "hwsensor-location")) {
 		for (i = 0; i < 3; i++) {
 			sensor_location[i] = of_get_property(np,
 					"hwsensor-location", NULL) + offset;

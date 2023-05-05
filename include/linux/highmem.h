@@ -243,12 +243,10 @@ static inline void clear_highpage(struct page *page)
 
 static inline void clear_highpage_kasan_tagged(struct page *page)
 {
-	u8 tag;
+	void *kaddr = kmap_local_page(page);
 
-	tag = page_kasan_tag(page);
-	page_kasan_tag_reset(page);
-	clear_highpage(page);
-	page_kasan_tag_set(page, tag);
+	clear_page(kasan_reset_tag(kaddr));
+	kunmap_local(kaddr);
 }
 
 #ifndef __HAVE_ARCH_TAG_CLEAR_HIGHPAGE
@@ -317,7 +315,29 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
 
 #endif
 
+#ifndef __HAVE_ARCH_COPY_HIGHPAGE
+
+static inline void copy_highpage(struct page *to, struct page *from)
+{
+	char *vfrom, *vto;
+
+	vfrom = kmap_local_page(from);
+	vto = kmap_local_page(to);
+	copy_page(vto, vfrom);
+	kmsan_copy_page_meta(to, from);
+	kunmap_local(vto);
+	kunmap_local(vfrom);
+}
+
+#endif
+
 #ifdef copy_mc_to_kernel
+/*
+ * If architecture supports machine check exception handling, define the
+ * #MC versions of copy_user_highpage and copy_highpage. They copy a memory
+ * page with #MC in source page (@from) handled, and return the number
+ * of bytes not copied if there was a #MC, otherwise 0 for success.
+ */
 static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 					unsigned long vaddr, struct vm_area_struct *vma)
 {
@@ -334,6 +354,22 @@ static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 
 	return ret;
 }
+
+static inline int copy_mc_highpage(struct page *to, struct page *from)
+{
+	unsigned long ret;
+	char *vfrom, *vto;
+
+	vfrom = kmap_local_page(from);
+	vto = kmap_local_page(to);
+	ret = copy_mc_to_kernel(vto, vfrom, PAGE_SIZE);
+	if (!ret)
+		kmsan_copy_page_meta(to, from);
+	kunmap_local(vto);
+	kunmap_local(vfrom);
+
+	return ret;
+}
 #else
 static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 					unsigned long vaddr, struct vm_area_struct *vma)
@@ -341,22 +377,12 @@ static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 	copy_user_highpage(to, from, vaddr, vma);
 	return 0;
 }
-#endif
 
-#ifndef __HAVE_ARCH_COPY_HIGHPAGE
-
-static inline void copy_highpage(struct page *to, struct page *from)
+static inline int copy_mc_highpage(struct page *to, struct page *from)
 {
-	char *vfrom, *vto;
-
-	vfrom = kmap_local_page(from);
-	vto = kmap_local_page(to);
-	copy_page(vto, vfrom);
-	kmsan_copy_page_meta(to, from);
-	kunmap_local(vto);
-	kunmap_local(vfrom);
+	copy_highpage(to, from);
+	return 0;
 }
-
 #endif
 
 static inline void memcpy_page(struct page *dst_page, size_t dst_off,

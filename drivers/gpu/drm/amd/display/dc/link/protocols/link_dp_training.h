@@ -119,6 +119,9 @@ enum dc_dp_training_pattern decide_cr_training_pattern(
 enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
 		const struct dc_link_settings *link_settings);
 
+enum lttpr_mode dp_decide_lttpr_mode(struct dc_link *link,
+		struct dc_link_settings *link_setting);
+
 void dp_get_lttpr_mode_override(struct dc_link *link,
 		enum lttpr_mode *override);
 

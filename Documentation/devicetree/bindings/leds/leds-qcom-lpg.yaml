@@ -27,6 +27,7 @@ properties:
       - qcom,pmc8180c-lpg
       - qcom,pmi8994-lpg
       - qcom,pmi8998-lpg
+      - qcom,pmk8550-pwm
 
   "#pwm-cells":
     const: 2

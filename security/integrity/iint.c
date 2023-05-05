@@ -98,14 +98,6 @@ struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 	struct rb_node *node, *parent = NULL;
 	struct integrity_iint_cache *iint, *test_iint;
 
-	/*
-	 * The integrity's "iint_cache" is initialized at security_init(),
-	 * unless it is not included in the ordered list of LSMs enabled
-	 * on the boot command line.
-	 */
-	if (!iint_cache)
-		panic("%s: lsm=integrity required.\n", __func__);
-
 	iint = integrity_iint_find(inode);
 	if (iint)
 		return iint;
@@ -182,6 +174,7 @@ static int __init integrity_iintcache_init(void)
 DEFINE_LSM(integrity) = {
 	.name = "integrity",
 	.init = integrity_iintcache_init,
+	.order = LSM_ORDER_LAST,
 };
 
 

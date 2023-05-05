@@ -1005,7 +1005,6 @@ static struct miscdevice watchdog_miscdev = {
 
 static struct class watchdog_class = {
 	.name =		"watchdog",
-	.owner =	THIS_MODULE,
 	.dev_groups =	wdt_groups,
 };
 

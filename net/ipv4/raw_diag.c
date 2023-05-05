@@ -34,7 +34,7 @@ raw_get_hashinfo(const struct inet_diag_req_v2 *r)
  * use helper to figure it out.
  */
 
-static bool raw_lookup(struct net *net, struct sock *sk,
+static bool raw_lookup(struct net *net, const struct sock *sk,
 		       const struct inet_diag_req_v2 *req)
 {
 	struct inet_diag_req_raw *r = (void *)req;

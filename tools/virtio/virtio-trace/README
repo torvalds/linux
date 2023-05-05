@@ -61,7 +61,7 @@ and
       id=channel0,name=agent-ctl-path\
  ##data path##
      -chardev pipe,id=charchannel1,path=/tmp/virtio-trace/trace-path-cpu0\
-     -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel0,\
+     -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel1,\
       id=channel1,name=trace-path-cpu0\
       ...
 

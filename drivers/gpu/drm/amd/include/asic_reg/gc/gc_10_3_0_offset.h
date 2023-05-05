@@ -4531,6 +4531,10 @@
 #define mmCP_GFX_QUEUE_INDEX_BASE_IDX                                                                  0
 #define mmCC_GC_EDC_CONFIG                                                                             0x1e38
 #define mmCC_GC_EDC_CONFIG_BASE_IDX                                                                    0
+#define mmCP_ME1_INT_STAT_DEBUG                                                                        0x1e35
+#define mmCP_ME1_INT_STAT_DEBUG_BASE_IDX                                                               0
+#define mmCP_ME2_INT_STAT_DEBUG                                                                        0x1e36
+#define mmCP_ME2_INT_STAT_DEBUG_BASE_IDX                                                               0
 #define mmCP_ME1_PIPE_PRIORITY_CNTS                                                                    0x1e39
 #define mmCP_ME1_PIPE_PRIORITY_CNTS_BASE_IDX                                                           0
 #define mmCP_ME1_PIPE0_PRIORITY                                                                        0x1e3a

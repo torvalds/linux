@@ -21,7 +21,8 @@ protection_keys
 protection_keys_32
 protection_keys_64
 madv_populate
-userfaultfd
+uffd-stress
+uffd-unit-tests
 mlock-intersect-test
 mlock-random-test
 virtual_address_range
@@ -36,3 +37,5 @@ split_huge_page_test
 ksm_tests
 local_config.h
 local_config.mk
+ksm_functional_tests
+mdwe_test

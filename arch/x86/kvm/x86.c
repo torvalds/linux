@@ -60,7 +60,9 @@
 #include <linux/mem_encrypt.h>
 #include <linux/entry-kvm.h>
 #include <linux/suspend.h>
+#include <linux/smp.h>
 
+#include <trace/events/ipi.h>
 #include <trace/events/kvm.h>
 
 #include <asm/debugreg.h>
@@ -194,7 +196,7 @@ bool __read_mostly eager_page_split = true;
 module_param(eager_page_split, bool, 0644);
 
 /* Enable/disable SMT_RSB bug mitigation */
-bool __read_mostly mitigate_smt_rsb;
+static bool __read_mostly mitigate_smt_rsb;
 module_param(mitigate_smt_rsb, bool, 0444);
 
 /*
@@ -802,8 +804,8 @@ void kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
 	 */
 	if ((fault->error_code & PFERR_PRESENT_MASK) &&
 	    !(fault->error_code & PFERR_RSVD_MASK))
-		kvm_mmu_invalidate_gva(vcpu, fault_mmu, fault->address,
-				       fault_mmu->root.hpa);
+		kvm_mmu_invalidate_addr(vcpu, fault_mmu, fault->address,
+					KVM_MMU_ROOT_CURRENT);
 
 	fault_mmu->inject_page_fault(vcpu, fault);
 }
@@ -841,7 +843,7 @@ bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl)
 
 bool kvm_require_dr(struct kvm_vcpu *vcpu, int dr)
 {
-	if ((dr != 4 && dr != 5) || !kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+	if ((dr != 4 && dr != 5) || !kvm_is_cr4_bit_set(vcpu, X86_CR4_DE))
 		return true;
 
 	kvm_queue_exception(vcpu, UD_VECTOR);
@@ -906,6 +908,24 @@ EXPORT_SYMBOL_GPL(load_pdptrs);
 
 void kvm_post_set_cr0(struct kvm_vcpu *vcpu, unsigned long old_cr0, unsigned long cr0)
 {
+	/*
+	 * CR0.WP is incorporated into the MMU role, but only for non-nested,
+	 * indirect shadow MMUs.  If paging is disabled, no updates are needed
+	 * as there are no permission bits to emulate.  If TDP is enabled, the
+	 * MMU's metadata needs to be updated, e.g. so that emulating guest
+	 * translations does the right thing, but there's no need to unload the
+	 * root as CR0.WP doesn't affect SPTEs.
+	 */
+	if ((cr0 ^ old_cr0) == X86_CR0_WP) {
+		if (!(cr0 & X86_CR0_PG))
+			return;
+
+		if (tdp_enabled) {
+			kvm_init_mmu(vcpu);
+			return;
+		}
+	}
+
 	if ((cr0 ^ old_cr0) & X86_CR0_PG) {
 		kvm_clear_async_pf_completion_queue(vcpu);
 		kvm_async_pf_hash_reset(vcpu);
@@ -965,7 +985,7 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		return 1;
 
 	if (!(cr0 & X86_CR0_PG) &&
-	    (is_64_bit_mode(vcpu) || kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)))
+	    (is_64_bit_mode(vcpu) || kvm_is_cr4_bit_set(vcpu, X86_CR4_PCIDE)))
 		return 1;
 
 	static_call(kvm_x86_set_cr0)(vcpu, cr0);
@@ -987,7 +1007,7 @@ void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.guest_state_protected)
 		return;
 
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
+	if (kvm_is_cr4_bit_set(vcpu, X86_CR4_OSXSAVE)) {
 
 		if (vcpu->arch.xcr0 != host_xcr0)
 			xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
@@ -1001,7 +1021,7 @@ void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu)
 	if (static_cpu_has(X86_FEATURE_PKU) &&
 	    vcpu->arch.pkru != vcpu->arch.host_pkru &&
 	    ((vcpu->arch.xcr0 & XFEATURE_MASK_PKRU) ||
-	     kvm_read_cr4_bits(vcpu, X86_CR4_PKE)))
+	     kvm_is_cr4_bit_set(vcpu, X86_CR4_PKE)))
 		write_pkru(vcpu->arch.pkru);
 #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
 }
@@ -1015,14 +1035,14 @@ void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (static_cpu_has(X86_FEATURE_PKU) &&
 	    ((vcpu->arch.xcr0 & XFEATURE_MASK_PKRU) ||
-	     kvm_read_cr4_bits(vcpu, X86_CR4_PKE))) {
+	     kvm_is_cr4_bit_set(vcpu, X86_CR4_PKE))) {
 		vcpu->arch.pkru = rdpkru();
 		if (vcpu->arch.pkru != vcpu->arch.host_pkru)
 			write_pkru(vcpu->arch.host_pkru);
 	}
 #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
 
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
+	if (kvm_is_cr4_bit_set(vcpu, X86_CR4_OSXSAVE)) {
 
 		if (vcpu->arch.xcr0 != host_xcr0)
 			xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
@@ -1178,9 +1198,6 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		return 1;
 
 	if ((cr4 & X86_CR4_PCIDE) && !(old_cr4 & X86_CR4_PCIDE)) {
-		if (!guest_cpuid_has(vcpu, X86_FEATURE_PCID))
-			return 1;
-
 		/* PCID can not be enabled when cr3[11:0]!=000H or EFER.LMA=0 */
 		if ((kvm_read_cr3(vcpu) & X86_CR3_PCID_MASK) || !is_long_mode(vcpu))
 			return 1;
@@ -1227,7 +1244,7 @@ static void kvm_invalidate_pcid(struct kvm_vcpu *vcpu, unsigned long pcid)
 	 * PCIDs for them are also 0, because MOV to CR3 always flushes the TLB
 	 * with PCIDE=0.
 	 */
-	if (!kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
+	if (!kvm_is_cr4_bit_set(vcpu, X86_CR4_PCIDE))
 		return;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
@@ -1242,9 +1259,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	bool skip_tlb_flush = false;
 	unsigned long pcid = 0;
 #ifdef CONFIG_X86_64
-	bool pcid_enabled = kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE);
-
-	if (pcid_enabled) {
+	if (kvm_is_cr4_bit_set(vcpu, X86_CR4_PCIDE)) {
 		skip_tlb_flush = cr3 & X86_CR3_PCID_NOFLUSH;
 		cr3 &= ~X86_CR3_PCID_NOFLUSH;
 		pcid = cr3 & X86_CR3_PCID_MASK;
@@ -1543,37 +1558,39 @@ static u32 emulated_msrs[ARRAY_SIZE(emulated_msrs_all)];
 static unsigned num_emulated_msrs;
 
 /*
- * List of msr numbers which are used to expose MSR-based features that
- * can be used by a hypervisor to validate requested CPU features.
+ * List of MSRs that control the existence of MSR-based features, i.e. MSRs
+ * that are effectively CPUID leafs.  VMX MSRs are also included in the set of
+ * feature MSRs, but are handled separately to allow expedited lookups.
  */
-static const u32 msr_based_features_all[] = {
-	MSR_IA32_VMX_BASIC,
-	MSR_IA32_VMX_TRUE_PINBASED_CTLS,
-	MSR_IA32_VMX_PINBASED_CTLS,
-	MSR_IA32_VMX_TRUE_PROCBASED_CTLS,
-	MSR_IA32_VMX_PROCBASED_CTLS,
-	MSR_IA32_VMX_TRUE_EXIT_CTLS,
-	MSR_IA32_VMX_EXIT_CTLS,
-	MSR_IA32_VMX_TRUE_ENTRY_CTLS,
-	MSR_IA32_VMX_ENTRY_CTLS,
-	MSR_IA32_VMX_MISC,
-	MSR_IA32_VMX_CR0_FIXED0,
-	MSR_IA32_VMX_CR0_FIXED1,
-	MSR_IA32_VMX_CR4_FIXED0,
-	MSR_IA32_VMX_CR4_FIXED1,
-	MSR_IA32_VMX_VMCS_ENUM,
-	MSR_IA32_VMX_PROCBASED_CTLS2,
-	MSR_IA32_VMX_EPT_VPID_CAP,
-	MSR_IA32_VMX_VMFUNC,
-
+static const u32 msr_based_features_all_except_vmx[] = {
 	MSR_AMD64_DE_CFG,
 	MSR_IA32_UCODE_REV,
 	MSR_IA32_ARCH_CAPABILITIES,
 	MSR_IA32_PERF_CAPABILITIES,
 };
 
-static u32 msr_based_features[ARRAY_SIZE(msr_based_features_all)];
+static u32 msr_based_features[ARRAY_SIZE(msr_based_features_all_except_vmx) +
+			      (KVM_LAST_EMULATED_VMX_MSR - KVM_FIRST_EMULATED_VMX_MSR + 1)];
 static unsigned int num_msr_based_features;
+
+/*
+ * All feature MSRs except uCode revID, which tracks the currently loaded uCode
+ * patch, are immutable once the vCPU model is defined.
+ */
+static bool kvm_is_immutable_feature_msr(u32 msr)
+{
+	int i;
+
+	if (msr >= KVM_FIRST_EMULATED_VMX_MSR && msr <= KVM_LAST_EMULATED_VMX_MSR)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(msr_based_features_all_except_vmx); i++) {
+		if (msr == msr_based_features_all_except_vmx[i])
+			return msr != MSR_IA32_UCODE_REV;
+	}
+
+	return false;
+}
 
 /*
  * Some IA32_ARCH_CAPABILITIES bits have dependencies on MSRs that KVM
@@ -2192,6 +2209,22 @@ static int do_get_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 
 static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
+	u64 val;
+
+	/*
+	 * Disallow writes to immutable feature MSRs after KVM_RUN.  KVM does
+	 * not support modifying the guest vCPU model on the fly, e.g. changing
+	 * the nVMX capabilities while L2 is running is nonsensical.  Ignore
+	 * writes of the same value, e.g. to allow userspace to blindly stuff
+	 * all MSRs when emulating RESET.
+	 */
+	if (kvm_vcpu_has_run(vcpu) && kvm_is_immutable_feature_msr(index)) {
+		if (do_get_msr(vcpu, index, &val) || *data != val)
+			return -EINVAL;
+
+		return 0;
+	}
+
 	return kvm_set_msr_ignored_check(vcpu, index, *data, true);
 }
 
@@ -3614,9 +3647,40 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (data & ~kvm_caps.supported_perf_cap)
 			return 1;
 
+		/*
+		 * Note, this is not just a performance optimization!  KVM
+		 * disallows changing feature MSRs after the vCPU has run; PMU
+		 * refresh will bug the VM if called after the vCPU has run.
+		 */
+		if (vcpu->arch.perf_capabilities == data)
+			break;
+
 		vcpu->arch.perf_capabilities = data;
 		kvm_pmu_refresh(vcpu);
-		return 0;
+		break;
+	case MSR_IA32_PRED_CMD:
+		if (!msr_info->host_initiated && !guest_has_pred_cmd_msr(vcpu))
+			return 1;
+
+		if (!boot_cpu_has(X86_FEATURE_IBPB) || (data & ~PRED_CMD_IBPB))
+			return 1;
+		if (!data)
+			break;
+
+		wrmsrl(MSR_IA32_PRED_CMD, PRED_CMD_IBPB);
+		break;
+	case MSR_IA32_FLUSH_CMD:
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_FLUSH_L1D))
+			return 1;
+
+		if (!boot_cpu_has(X86_FEATURE_FLUSH_L1D) || (data & ~L1D_FLUSH))
+			return 1;
+		if (!data)
+			break;
+
+		wrmsrl(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
+		break;
 	case MSR_EFER:
 		return set_efer(vcpu, msr_info);
 	case MSR_K7_HWCR:
@@ -4532,9 +4596,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 			r = 0;
 		break;
 	case KVM_CAP_XSAVE2: {
-		u64 guest_perm = xstate_get_guest_group_perm();
-
-		r = xstate_required_size(kvm_caps.supported_xcr0 & guest_perm, false);
+		r = xstate_required_size(kvm_get_filtered_xcr0(), false);
 		if (r < sizeof(struct kvm_xsave))
 			r = sizeof(struct kvm_xsave);
 		break;
@@ -5034,7 +5096,7 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 		return 0;
 	if (mce->status & MCI_STATUS_UC) {
 		if ((vcpu->arch.mcg_status & MCG_STATUS_MCIP) ||
-		    !kvm_read_cr4_bits(vcpu, X86_CR4_MCE)) {
+		    !kvm_is_cr4_bit_set(vcpu, X86_CR4_MCE)) {
 			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 			return 0;
 		}
@@ -5126,7 +5188,7 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->interrupt.shadow = static_call(kvm_x86_get_interrupt_shadow)(vcpu);
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
-	events->nmi.pending = vcpu->arch.nmi_pending != 0;
+	events->nmi.pending = kvm_get_nr_pending_nmis(vcpu);
 	events->nmi.masked = static_call(kvm_x86_get_nmi_mask)(vcpu);
 
 	/* events->sipi_vector is never valid when reporting to user space */
@@ -5213,8 +5275,11 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 						events->interrupt.shadow);
 
 	vcpu->arch.nmi_injected = events->nmi.injected;
-	if (events->flags & KVM_VCPUEVENT_VALID_NMI_PENDING)
-		vcpu->arch.nmi_pending = events->nmi.pending;
+	if (events->flags & KVM_VCPUEVENT_VALID_NMI_PENDING) {
+		vcpu->arch.nmi_pending = 0;
+		atomic_set(&vcpu->arch.nmi_queued, events->nmi.pending);
+		kvm_make_request(KVM_REQ_NMI, vcpu);
+	}
 	static_call(kvm_x86_set_nmi_mask)(vcpu, events->nmi.masked);
 
 	if (events->flags & KVM_VCPUEVENT_VALID_SIPI_VECTOR &&
@@ -6022,11 +6087,6 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 	return 0;
 }
 
-static unsigned long kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
-{
-	return kvm->arch.n_max_mmu_pages;
-}
-
 static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 {
 	struct kvm_pic *pic = kvm->arch.vpic;
@@ -6673,8 +6733,7 @@ static int kvm_vm_ioctl_set_clock(struct kvm *kvm, void __user *argp)
 	return 0;
 }
 
-long kvm_arch_vm_ioctl(struct file *filp,
-		       unsigned int ioctl, unsigned long arg)
+int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
@@ -6711,9 +6770,6 @@ set_identity_unlock:
 	}
 	case KVM_SET_NR_MMU_PAGES:
 		r = kvm_vm_ioctl_set_nr_mmu_pages(kvm, arg);
-		break;
-	case KVM_GET_NR_MMU_PAGES:
-		r = kvm_vm_ioctl_get_nr_mmu_pages(kvm);
 		break;
 	case KVM_CREATE_IRQCHIP: {
 		mutex_lock(&kvm->lock);
@@ -7019,6 +7075,18 @@ out:
 	return r;
 }
 
+static void kvm_probe_feature_msr(u32 msr_index)
+{
+	struct kvm_msr_entry msr = {
+		.index = msr_index,
+	};
+
+	if (kvm_get_msr_feature(&msr))
+		return;
+
+	msr_based_features[num_msr_based_features++] = msr_index;
+}
+
 static void kvm_probe_msr_to_save(u32 msr_index)
 {
 	u32 dummy[2];
@@ -7094,7 +7162,7 @@ static void kvm_probe_msr_to_save(u32 msr_index)
 	msrs_to_save[num_msrs_to_save++] = msr_index;
 }
 
-static void kvm_init_msr_list(void)
+static void kvm_init_msr_lists(void)
 {
 	unsigned i;
 
@@ -7120,15 +7188,11 @@ static void kvm_init_msr_list(void)
 		emulated_msrs[num_emulated_msrs++] = emulated_msrs_all[i];
 	}
 
-	for (i = 0; i < ARRAY_SIZE(msr_based_features_all); i++) {
-		struct kvm_msr_entry msr;
+	for (i = KVM_FIRST_EMULATED_VMX_MSR; i <= KVM_LAST_EMULATED_VMX_MSR; i++)
+		kvm_probe_feature_msr(i);
 
-		msr.index = msr_based_features_all[i];
-		if (kvm_get_msr_feature(&msr))
-			continue;
-
-		msr_based_features[num_msr_based_features++] = msr_based_features_all[i];
-	}
+	for (i = 0; i < ARRAY_SIZE(msr_based_features_all_except_vmx); i++)
+		kvm_probe_feature_msr(msr_based_features_all_except_vmx[i]);
 }
 
 static int vcpu_mmio_write(struct kvm_vcpu *vcpu, gpa_t addr, int len,
@@ -8464,7 +8528,6 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu, int emulation_type)
 }
 
 static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-				  bool write_fault_to_shadow_pgtable,
 				  int emulation_type)
 {
 	gpa_t gpa = cr2_or_gpa;
@@ -8535,7 +8598,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	 * be fixed by unprotecting shadow page and it should
 	 * be reported to userspace.
 	 */
-	return !write_fault_to_shadow_pgtable;
+	return !(emulation_type & EMULTYPE_WRITE_PF_TO_SP);
 }
 
 static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
@@ -8783,19 +8846,11 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	int r;
 	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	bool writeback = true;
-	bool write_fault_to_spt;
 
 	if (unlikely(!kvm_can_emulate_insn(vcpu, emulation_type, insn, insn_len)))
 		return 1;
 
 	vcpu->arch.l1tf_flush_l1d = true;
-
-	/*
-	 * Clear write_fault_to_shadow_pgtable here to ensure it is
-	 * never reused.
-	 */
-	write_fault_to_spt = vcpu->arch.write_fault_to_shadow_pgtable;
-	vcpu->arch.write_fault_to_shadow_pgtable = false;
 
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		kvm_clear_exception_queue(vcpu);
@@ -8817,7 +8872,6 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 				return 1;
 			}
 			if (reexecute_instruction(vcpu, cr2_or_gpa,
-						  write_fault_to_spt,
 						  emulation_type))
 				return 1;
 
@@ -8896,8 +8950,7 @@ restart:
 		return 1;
 
 	if (r == EMULATION_FAILED) {
-		if (reexecute_instruction(vcpu, cr2_or_gpa, write_fault_to_spt,
-					emulation_type))
+		if (reexecute_instruction(vcpu, cr2_or_gpa, emulation_type))
 			return 1;
 
 		return handle_emulation_failure(vcpu, emulation_type);
@@ -9475,7 +9528,7 @@ static int __kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 		kvm_caps.max_guest_tsc_khz = max;
 	}
 	kvm_caps.default_tsc_scaling_ratio = 1ULL << kvm_caps.tsc_scaling_ratio_frac_bits;
-	kvm_init_msr_list();
+	kvm_init_msr_lists();
 	return 0;
 
 out_unwind_ops:
@@ -9806,7 +9859,11 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		vcpu->run->hypercall.args[0]  = gpa;
 		vcpu->run->hypercall.args[1]  = npages;
 		vcpu->run->hypercall.args[2]  = attrs;
-		vcpu->run->hypercall.longmode = op_64_bit;
+		vcpu->run->hypercall.flags    = 0;
+		if (op_64_bit)
+			vcpu->run->hypercall.flags |= KVM_EXIT_HYPERCALL_LONG_MODE;
+
+		WARN_ON_ONCE(vcpu->run->hypercall.flags & KVM_EXIT_HYPERCALL_MBZ);
 		vcpu->arch.complete_userspace_io = complete_hypercall_exit;
 		return 0;
 	}
@@ -10168,19 +10225,46 @@ out:
 
 static void process_nmi(struct kvm_vcpu *vcpu)
 {
-	unsigned limit = 2;
+	unsigned int limit;
 
 	/*
-	 * x86 is limited to one NMI running, and one NMI pending after it.
-	 * If an NMI is already in progress, limit further NMIs to just one.
-	 * Otherwise, allow two (and we'll inject the first one immediately).
+	 * x86 is limited to one NMI pending, but because KVM can't react to
+	 * incoming NMIs as quickly as bare metal, e.g. if the vCPU is
+	 * scheduled out, KVM needs to play nice with two queued NMIs showing
+	 * up at the same time.  To handle this scenario, allow two NMIs to be
+	 * (temporarily) pending so long as NMIs are not blocked and KVM is not
+	 * waiting for a previous NMI injection to complete (which effectively
+	 * blocks NMIs).  KVM will immediately inject one of the two NMIs, and
+	 * will request an NMI window to handle the second NMI.
 	 */
 	if (static_call(kvm_x86_get_nmi_mask)(vcpu) || vcpu->arch.nmi_injected)
 		limit = 1;
+	else
+		limit = 2;
+
+	/*
+	 * Adjust the limit to account for pending virtual NMIs, which aren't
+	 * tracked in vcpu->arch.nmi_pending.
+	 */
+	if (static_call(kvm_x86_is_vnmi_pending)(vcpu))
+		limit--;
 
 	vcpu->arch.nmi_pending += atomic_xchg(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = min(vcpu->arch.nmi_pending, limit);
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
+
+	if (vcpu->arch.nmi_pending &&
+	    (static_call(kvm_x86_set_vnmi_pending)(vcpu)))
+		vcpu->arch.nmi_pending--;
+
+	if (vcpu->arch.nmi_pending)
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+}
+
+/* Return total number of NMIs pending injection to the VM */
+int kvm_get_nr_pending_nmis(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.nmi_pending +
+	       static_call(kvm_x86_is_vnmi_pending)(vcpu);
 }
 
 void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,
@@ -13266,7 +13350,7 @@ int kvm_handle_invpcid(struct kvm_vcpu *vcpu, unsigned long type, gva_t gva)
 		return 1;
 	}
 
-	pcid_enabled = kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE);
+	pcid_enabled = kvm_is_cr4_bit_set(vcpu, X86_CR4_PCIDE);
 
 	switch (type) {
 	case INVPCID_TYPE_INDIV_ADDR:

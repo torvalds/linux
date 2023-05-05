@@ -597,10 +597,10 @@ to avoid having to write your own callback::
 If the occasional sleep is permitted, the single-argument form may
 be used, omitting the rcu_head structure from struct foo.
 
-	kfree_rcu(old_fp);
+	kfree_rcu_mightsleep(old_fp);
 
-This variant of kfree_rcu() almost never blocks, but might do so by
-invoking synchronize_rcu() in response to memory-allocation failure.
+This variant almost never blocks, but might do so by invoking
+synchronize_rcu() in response to memory-allocation failure.
 
 Again, see checklist.rst for additional rules governing the use of RCU.
 

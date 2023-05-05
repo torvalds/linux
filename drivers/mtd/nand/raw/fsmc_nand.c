@@ -880,7 +880,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 		}
 	}
 
-	if (of_get_property(np, "nand-skip-bbtscan", NULL))
+	if (of_property_read_bool(np, "nand-skip-bbtscan"))
 		nand->options |= NAND_SKIP_BBTSCAN;
 
 	host->dev_timings = devm_kzalloc(&pdev->dev,
@@ -1165,7 +1165,7 @@ disable_clk:
 /*
  * Clean up routine
  */
-static int fsmc_nand_remove(struct platform_device *pdev)
+static void fsmc_nand_remove(struct platform_device *pdev)
 {
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
@@ -1184,8 +1184,6 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 		}
 		clk_disable_unprepare(host->clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1224,7 +1222,7 @@ static const struct of_device_id fsmc_nand_id_table[] = {
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
 
 static struct platform_driver fsmc_nand_driver = {
-	.remove = fsmc_nand_remove,
+	.remove_new = fsmc_nand_remove,
 	.driver = {
 		.name = "fsmc-nand",
 		.of_match_table = fsmc_nand_id_table,

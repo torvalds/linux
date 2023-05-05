@@ -96,7 +96,7 @@ static int ksz8795_change_mtu(struct ksz_device *dev, int frame_size)
 
 	if (frame_size > KSZ8_LEGAL_PACKET_SIZE)
 		ctrl2 |= SW_LEGAL_PACKET_DISABLE;
-	else if (frame_size > KSZ8863_NORMAL_PACKET_SIZE)
+	if (frame_size > KSZ8863_NORMAL_PACKET_SIZE)
 		ctrl1 |= SW_HUGE_PACKET;
 
 	ret = ksz_rmw8(dev, REG_SW_CTRL_1, SW_HUGE_PACKET, ctrl1);
@@ -336,34 +336,48 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 	}
 }
 
-static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
+static int ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
 	const u16 *regs;
 	u16 ctrl_addr;
+	int ret;
 
 	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
-	ksz_read64(dev, regs[REG_IND_DATA_HI], data);
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	if (ret)
+		goto unlock_alu;
+
+	ret = ksz_read64(dev, regs[REG_IND_DATA_HI], data);
+unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
-static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
+static int ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 {
 	const u16 *regs;
 	u16 ctrl_addr;
+	int ret;
 
 	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write64(dev, regs[REG_IND_DATA_HI], data);
-	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	ret = ksz_write64(dev, regs[REG_IND_DATA_HI], data);
+	if (ret)
+		goto unlock_alu;
+
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
@@ -457,46 +471,54 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	return rc;
 }
 
-int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
-			 struct alu_struct *alu)
+static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
+				struct alu_struct *alu, bool *valid)
 {
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
+	int ret;
 
 	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
-	ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
+	ret = ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
+	if (ret)
+		return ret;
+
 	data_hi = data >> 32;
 	data_lo = (u32)data;
-	if (data_hi & (masks[STATIC_MAC_TABLE_VALID] |
-			masks[STATIC_MAC_TABLE_OVERRIDE])) {
-		alu->mac[5] = (u8)data_lo;
-		alu->mac[4] = (u8)(data_lo >> 8);
-		alu->mac[3] = (u8)(data_lo >> 16);
-		alu->mac[2] = (u8)(data_lo >> 24);
-		alu->mac[1] = (u8)data_hi;
-		alu->mac[0] = (u8)(data_hi >> 8);
-		alu->port_forward =
-			(data_hi & masks[STATIC_MAC_TABLE_FWD_PORTS]) >>
-				shifts[STATIC_MAC_FWD_PORTS];
-		alu->is_override =
-			(data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
-		data_hi >>= 1;
-		alu->is_static = true;
-		alu->is_use_fid =
-			(data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
-		alu->fid = (data_hi & masks[STATIC_MAC_TABLE_FID]) >>
-				shifts[STATIC_MAC_FID];
+
+	if (!(data_hi & (masks[STATIC_MAC_TABLE_VALID] |
+			 masks[STATIC_MAC_TABLE_OVERRIDE]))) {
+		*valid = false;
 		return 0;
 	}
-	return -ENXIO;
+
+	alu->mac[5] = (u8)data_lo;
+	alu->mac[4] = (u8)(data_lo >> 8);
+	alu->mac[3] = (u8)(data_lo >> 16);
+	alu->mac[2] = (u8)(data_lo >> 24);
+	alu->mac[1] = (u8)data_hi;
+	alu->mac[0] = (u8)(data_hi >> 8);
+	alu->port_forward =
+		(data_hi & masks[STATIC_MAC_TABLE_FWD_PORTS]) >>
+			shifts[STATIC_MAC_FWD_PORTS];
+	alu->is_override = (data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
+	data_hi >>= 1;
+	alu->is_static = true;
+	alu->is_use_fid = (data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
+	alu->fid = (data_hi & masks[STATIC_MAC_TABLE_FID]) >>
+		shifts[STATIC_MAC_FID];
+
+	*valid = true;
+
+	return 0;
 }
 
-void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
-			  struct alu_struct *alu)
+static int ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
+				struct alu_struct *alu)
 {
 	u32 data_hi, data_lo;
 	const u8 *shifts;
@@ -524,7 +546,8 @@ void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 		data_hi &= ~masks[STATIC_MAC_TABLE_OVERRIDE];
 
 	data = (u64)data_hi << 32 | data_lo;
-	ksz8_w_table(dev, TABLE_STATIC_MAC, addr, data);
+
+	return ksz8_w_table(dev, TABLE_STATIC_MAC, addr, data);
 }
 
 static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
@@ -977,24 +1000,29 @@ int ksz8_fdb_dump(struct ksz_device *dev, int port,
 	return ret;
 }
 
-int ksz8_mdb_add(struct ksz_device *dev, int port,
-		 const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
+static int ksz8_add_sta_mac(struct ksz_device *dev, int port,
+			    const unsigned char *addr, u16 vid)
 {
 	struct alu_struct alu;
-	int index;
+	int index, ret;
 	int empty = 0;
 
 	alu.port_forward = 0;
 	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
-			/* Found one already in static MAC table. */
-			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
-			    alu.fid == mdb->vid)
-				break;
-		/* Remember the first empty entry. */
-		} else if (!empty) {
-			empty = index + 1;
+		bool valid;
+
+		ret = ksz8_r_sta_mac_table(dev, index, &alu, &valid);
+		if (ret)
+			return ret;
+		if (!valid) {
+			/* Remember the first empty entry. */
+			if (!empty)
+				empty = index + 1;
+			continue;
 		}
+
+		if (!memcmp(alu.mac, addr, ETH_ALEN) && alu.fid == vid)
+			break;
 	}
 
 	/* no available entry */
@@ -1005,48 +1033,73 @@ int ksz8_mdb_add(struct ksz_device *dev, int port,
 	if (index == dev->info->num_statics) {
 		index = empty - 1;
 		memset(&alu, 0, sizeof(alu));
-		memcpy(alu.mac, mdb->addr, ETH_ALEN);
+		memcpy(alu.mac, addr, ETH_ALEN);
 		alu.is_static = true;
 	}
 	alu.port_forward |= BIT(port);
-	if (mdb->vid) {
+	if (vid) {
 		alu.is_use_fid = true;
 
 		/* Need a way to map VID to FID. */
-		alu.fid = mdb->vid;
+		alu.fid = vid;
 	}
-	ksz8_w_sta_mac_table(dev, index, &alu);
 
-	return 0;
+	return ksz8_w_sta_mac_table(dev, index, &alu);
 }
 
-int ksz8_mdb_del(struct ksz_device *dev, int port,
-		 const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
+static int ksz8_del_sta_mac(struct ksz_device *dev, int port,
+			    const unsigned char *addr, u16 vid)
 {
 	struct alu_struct alu;
-	int index;
+	int index, ret;
 
 	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
-			/* Found one already in static MAC table. */
-			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
-			    alu.fid == mdb->vid)
-				break;
-		}
+		bool valid;
+
+		ret = ksz8_r_sta_mac_table(dev, index, &alu, &valid);
+		if (ret)
+			return ret;
+		if (!valid)
+			continue;
+
+		if (!memcmp(alu.mac, addr, ETH_ALEN) && alu.fid == vid)
+			break;
 	}
 
 	/* no available entry */
 	if (index == dev->info->num_statics)
-		goto exit;
+		return 0;
 
 	/* clear port */
 	alu.port_forward &= ~BIT(port);
 	if (!alu.port_forward)
 		alu.is_static = false;
-	ksz8_w_sta_mac_table(dev, index, &alu);
 
-exit:
-	return 0;
+	return ksz8_w_sta_mac_table(dev, index, &alu);
+}
+
+int ksz8_mdb_add(struct ksz_device *dev, int port,
+		 const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
+{
+	return ksz8_add_sta_mac(dev, port, mdb->addr, mdb->vid);
+}
+
+int ksz8_mdb_del(struct ksz_device *dev, int port,
+		 const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
+{
+	return ksz8_del_sta_mac(dev, port, mdb->addr, mdb->vid);
+}
+
+int ksz8_fdb_add(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db)
+{
+	return ksz8_add_sta_mac(dev, port, addr, vid);
+}
+
+int ksz8_fdb_del(struct ksz_device *dev, int port, const unsigned char *addr,
+		 u16 vid, struct dsa_db db)
+{
+	return ksz8_del_sta_mac(dev, port, addr, vid);
 }
 
 int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
@@ -1346,9 +1399,7 @@ int ksz8_enable_stp_addr(struct ksz_device *dev)
 	alu.is_override = true;
 	alu.port_forward = dev->info->cpu_ports;
 
-	ksz8_w_sta_mac_table(dev, 0, &alu);
-
-	return 0;
+	return ksz8_w_sta_mac_table(dev, 0, &alu);
 }
 
 int ksz8_setup(struct dsa_switch *ds)

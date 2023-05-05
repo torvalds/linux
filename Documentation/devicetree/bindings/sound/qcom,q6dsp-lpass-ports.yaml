@@ -26,7 +26,7 @@ properties:
   '#size-cells':
     const: 0
 
-#Digital Audio Interfaces
+# Digital Audio Interfaces
 patternProperties:
   '^dai@[0-9]+$':
     type: object

@@ -4,6 +4,9 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 
+bool early_memtest_done;
+phys_addr_t early_memtest_bad_size;
+
 static u64 patterns[] __initdata = {
 	/* The first entry has to be 0 to leave memtest with zeroed memory */
 	0,
@@ -30,6 +33,7 @@ static void __init reserve_bad_mem(u64 pattern, phys_addr_t start_bad, phys_addr
 	pr_info("  %016llx bad mem addr %pa - %pa reserved\n",
 		cpu_to_be64(pattern), &start_bad, &end_bad);
 	memblock_reserve(start_bad, end_bad - start_bad);
+	early_memtest_bad_size += (end_bad - start_bad);
 }
 
 static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size)
@@ -61,6 +65,8 @@ static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size
 	}
 	if (start_bad)
 		reserve_bad_mem(pattern, start_bad, last_bad + incr);
+
+	early_memtest_done = true;
 }
 
 static void __init do_one_pass(u64 pattern, phys_addr_t start, phys_addr_t end)

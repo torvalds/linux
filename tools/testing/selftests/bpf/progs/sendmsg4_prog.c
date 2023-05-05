@@ -21,8 +21,6 @@
 SEC("cgroup/sendmsg4")
 int sendmsg_v4_prog(struct bpf_sock_addr *ctx)
 {
-	int prio;
-
 	if (ctx->type != SOCK_DGRAM)
 		return 0;
 

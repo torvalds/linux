@@ -80,7 +80,7 @@
 	transpose_4x4(c0, c1, c2, c3, a0, a1);		\
 	transpose_4x4(d0, d1, d2, d3, a0, a1);		\
 							\
-	vbroadcasti64x2 .Lshufb_16x16b, a0;		\
+	vbroadcasti64x2 .Lshufb_16x16b(%rip), a0;	\
 	vmovdqu64 st1, a1;				\
 	vpshufb a0, a2, a2;				\
 	vpshufb a0, a3, a3;				\
@@ -132,7 +132,7 @@
 	transpose_4x4(c0, c1, c2, c3, a0, a1);		\
 	transpose_4x4(d0, d1, d2, d3, a0, a1);		\
 							\
-	vbroadcasti64x2 .Lshufb_16x16b, a0;		\
+	vbroadcasti64x2 .Lshufb_16x16b(%rip), a0;	\
 	vmovdqu64 st1, a1;				\
 	vpshufb a0, a2, a2;				\
 	vpshufb a0, a3, a3;				\
@@ -308,11 +308,11 @@
 			    x4, x5, x6, x7,		\
 			    t0, t1, t2, t3,		\
 			    t4, t5, t6, t7)		\
-	vpbroadcastq .Ltf_s2_bitmatrix, t0;		\
-	vpbroadcastq .Ltf_inv_bitmatrix, t1;		\
-	vpbroadcastq .Ltf_id_bitmatrix, t2;		\
-	vpbroadcastq .Ltf_aff_bitmatrix, t3;		\
-	vpbroadcastq .Ltf_x2_bitmatrix, t4;		\
+	vpbroadcastq .Ltf_s2_bitmatrix(%rip), t0;	\
+	vpbroadcastq .Ltf_inv_bitmatrix(%rip), t1;	\
+	vpbroadcastq .Ltf_id_bitmatrix(%rip), t2;	\
+	vpbroadcastq .Ltf_aff_bitmatrix(%rip), t3;	\
+	vpbroadcastq .Ltf_x2_bitmatrix(%rip), t4;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x1, x1;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x5, x5;	\
 	vgf2p8affineqb $(tf_inv_const), t1, x2, x2;	\
@@ -332,11 +332,11 @@
 			     y4, y5, y6, y7,		\
 			     t0, t1, t2, t3,		\
 			     t4, t5, t6, t7)		\
-	vpbroadcastq .Ltf_s2_bitmatrix, t0;		\
-	vpbroadcastq .Ltf_inv_bitmatrix, t1;		\
-	vpbroadcastq .Ltf_id_bitmatrix, t2;		\
-	vpbroadcastq .Ltf_aff_bitmatrix, t3;		\
-	vpbroadcastq .Ltf_x2_bitmatrix, t4;		\
+	vpbroadcastq .Ltf_s2_bitmatrix(%rip), t0;	\
+	vpbroadcastq .Ltf_inv_bitmatrix(%rip), t1;	\
+	vpbroadcastq .Ltf_id_bitmatrix(%rip), t2;	\
+	vpbroadcastq .Ltf_aff_bitmatrix(%rip), t3;	\
+	vpbroadcastq .Ltf_x2_bitmatrix(%rip), t4;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x1, x1;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x5, x5;	\
 	vgf2p8affineqb $(tf_inv_const), t1, x2, x2;	\

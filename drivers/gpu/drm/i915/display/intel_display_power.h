@@ -137,6 +137,10 @@ struct i915_power_domains {
 	bool display_core_suspended;
 	int power_well_count;
 
+	u32 dc_state;
+	u32 target_dc_state;
+	u32 allowed_dc_mask;
+
 	intel_wakeref_t init_wakeref;
 	intel_wakeref_t disable_wakeref;
 

@@ -70,18 +70,6 @@ struct create_durable_req_v2 {
 	__u8 CreateGuid[16];
 } __packed;
 
-struct create_durable_reconn_req {
-	struct create_context ccontext;
-	__u8   Name[8];
-	union {
-		__u8  Reserved[16];
-		struct {
-			__u64 PersistentFileId;
-			__u64 VolatileFileId;
-		} Fid;
-	} Data;
-} __packed;
-
 struct create_durable_reconn_v2_req {
 	struct create_context ccontext;
 	__u8   Name[8];
@@ -109,12 +97,6 @@ struct create_app_inst_id_vers {
 	__le64 AppInstanceVersionLow;
 } __packed;
 
-struct create_mxac_req {
-	struct create_context ccontext;
-	__u8   Name[8];
-	__le64 Timestamp;
-} __packed;
-
 struct create_alloc_size_req {
 	struct create_context ccontext;
 	__u8   Name[8];
@@ -135,21 +117,6 @@ struct create_durable_v2_rsp {
 	__u8   Name[8];
 	__le32 Timeout;
 	__le32 Flags;
-} __packed;
-
-struct create_mxac_rsp {
-	struct create_context ccontext;
-	__u8   Name[8];
-	__le32 QueryStatus;
-	__le32 MaximalAccess;
-} __packed;
-
-struct create_disk_id_rsp {
-	struct create_context ccontext;
-	__u8   Name[8];
-	__le64 DiskFileId;
-	__le64 VolumeId;
-	__u8  Reserved[16];
 } __packed;
 
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */

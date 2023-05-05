@@ -25,14 +25,14 @@
 #define V11_STRUCTS_H_
 
 struct v11_gfx_mqd {
-	uint32_t reserved_0; // offset: 0  (0x0)
-	uint32_t reserved_1; // offset: 1  (0x1)
-	uint32_t reserved_2; // offset: 2  (0x2)
-	uint32_t reserved_3; // offset: 3  (0x3)
-	uint32_t reserved_4; // offset: 4  (0x4)
-	uint32_t reserved_5; // offset: 5  (0x5)
-	uint32_t reserved_6; // offset: 6  (0x6)
-	uint32_t reserved_7; // offset: 7  (0x7)
+	uint32_t shadow_base_lo; // offset: 0  (0x0)
+	uint32_t shadow_base_hi; // offset: 1  (0x1)
+	uint32_t gds_bkup_base_lo; // offset: 2  (0x2)
+	uint32_t gds_bkup_base_hi; // offset: 3  (0x3)
+	uint32_t fw_work_area_base_lo; // offset: 4  (0x4)
+	uint32_t fw_work_area_base_hi; // offset: 5  (0x5)
+	uint32_t shadow_initialized; // offset: 6  (0x6)
+	uint32_t ib_vmid; // offset: 7  (0x7)
 	uint32_t reserved_8; // offset: 8  (0x8)
 	uint32_t reserved_9; // offset: 9  (0x9)
 	uint32_t reserved_10; // offset: 10  (0xA)

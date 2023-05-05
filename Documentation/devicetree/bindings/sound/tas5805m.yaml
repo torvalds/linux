@@ -39,7 +39,7 @@ properties:
 
 examples:
   - |
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
         tas5805m: tas5805m@2c {

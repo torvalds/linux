@@ -11699,6 +11699,7 @@ static int __init thinkpad_acpi_module_init(void)
 {
 	const struct dmi_system_id *dmi_id;
 	int ret, i;
+	acpi_object_type obj_type;
 
 	tpacpi_lifecycle = TPACPI_LIFE_INIT;
 
@@ -11723,6 +11724,21 @@ static int __init thinkpad_acpi_module_init(void)
 
 	TPACPI_ACPIHANDLE_INIT(ecrd);
 	TPACPI_ACPIHANDLE_INIT(ecwr);
+
+	/*
+	 * Quirk: in some models (e.g. X380 Yoga), an object named ECRD
+	 * exists, but it is a register, not a method.
+	 */
+	if (ecrd_handle) {
+		acpi_get_type(ecrd_handle, &obj_type);
+		if (obj_type != ACPI_TYPE_METHOD)
+			ecrd_handle = NULL;
+	}
+	if (ecwr_handle) {
+		acpi_get_type(ecwr_handle, &obj_type);
+		if (obj_type != ACPI_TYPE_METHOD)
+			ecwr_handle = NULL;
+	}
 
 	tpacpi_wq = create_singlethread_workqueue(TPACPI_WORKQUEUE_NAME);
 	if (!tpacpi_wq) {

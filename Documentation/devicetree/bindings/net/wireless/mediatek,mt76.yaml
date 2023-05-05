@@ -111,6 +111,11 @@ properties:
     $ref: /schemas/leds/common.yaml#
     additionalProperties: false
     properties:
+      led-active-low:
+        description:
+          LED is enabled with ground signal.
+        type: boolean
+
       led-sources:
         maxItems: 1
 

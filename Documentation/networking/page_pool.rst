@@ -165,6 +165,7 @@ Registration
     pp_params.pool_size = DESC_NUM;
     pp_params.nid = NUMA_NO_NODE;
     pp_params.dev = priv->dev;
+    pp_params.napi = napi; /* only if locking is tied to NAPI */
     pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
     page_pool = page_pool_create(&pp_params);
 
