@@ -160,7 +160,7 @@ static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	},
 };
 
-static struct x86_gpio_button lenovo_yb1_x90_lid = {
+static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -232,6 +232,7 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.serdev_info = lenovo_yb1_x90_serdevs,
 	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
 	.gpio_button = &lenovo_yb1_x90_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
 	.init = lenovo_yb1_x90_init,
 };
@@ -268,7 +269,7 @@ static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
 	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
 };
 
-static struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid = {
+static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -394,6 +395,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,

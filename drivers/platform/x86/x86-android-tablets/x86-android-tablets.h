@@ -73,10 +73,11 @@ struct x86_dev_info {
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
-	struct x86_gpio_button *gpio_button;
+	const struct x86_gpio_button *gpio_button;
 	int i2c_client_count;
 	int pdev_count;
 	int serdev_count;
+	int gpio_button_count;
 	int (*init)(void);
 	void (*exit)(void);
 };

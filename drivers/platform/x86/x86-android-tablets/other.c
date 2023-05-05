@@ -94,7 +94,7 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
  * which is not described in the ACPI tables in anyway.
  * Use the x86-android-tablets infra to create a gpio-button device for this.
  */
-static struct x86_gpio_button advantech_mica_071_button = {
+static const struct x86_gpio_button advantech_mica_071_button __initconst = {
 	.button = {
 		.code = KEY_PROG1,
 		.active_low = true,
@@ -109,6 +109,7 @@ static struct x86_gpio_button advantech_mica_071_button = {
 
 const struct x86_dev_info advantech_mica_071_info __initconst = {
 	.gpio_button = &advantech_mica_071_button,
+	.gpio_button_count = 1,
 };
 
 /*
@@ -449,7 +450,7 @@ const struct x86_dev_info nextbook_ares8a_info __initconst = {
  * This button has a WMI interface, but that is broken. Instead of trying to
  * use the broken WMI interface, instantiate a gpio_keys device for this.
  */
-static struct x86_gpio_button peaq_c1010_button = {
+static const struct x86_gpio_button peaq_c1010_button __initconst = {
 	.button = {
 		.code = KEY_SOUND,
 		.active_low = true,
@@ -464,6 +465,7 @@ static struct x86_gpio_button peaq_c1010_button = {
 
 const struct x86_dev_info peaq_c1010_info __initconst = {
 	.gpio_button = &peaq_c1010_button,
+	.gpio_button_count = 1,
 	/*
 	 * Move the ACPI event handler used by the broken WMI interface out of
 	 * the way. This is the only event handler on INT33FC:00.
