@@ -2317,6 +2317,7 @@ struct wmi_init_cmd {
 } __packed;
 
 #define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64 BIT(5)
+#define WMI_RSRC_CFG_FLAG2_CALC_NEXT_DTIM_COUNT_SET BIT(9)
 #define WMI_RSRC_CFG_FLAG1_ACK_RSSI BIT(18)
 
 #define WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT 4
@@ -2389,6 +2390,9 @@ struct wmi_resource_config {
 	u32 msdu_flow_override_config1;
 	u32 flags2;
 	u32 host_service_flags;
+	u32 max_rnr_neighbours;
+	u32 ema_max_vap_cnt;
+	u32 ema_max_profile_period;
 } __packed;
 
 struct wmi_service_ready_event {
@@ -5646,6 +5650,8 @@ struct target_resource_config {
 	u32 twt_ap_pdev_count;
 	u32 twt_ap_sta_count;
 	u8 is_reg_cc_ext_event_supported;
+	u32 ema_max_vap_cnt;
+	u32 ema_max_profile_period;
 };
 
 enum wmi_debug_log_param {

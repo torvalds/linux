@@ -3987,6 +3987,9 @@ ath11k_wmi_copy_resource_config(struct wmi_resource_config *wmi_cfg,
 		~(1 << WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT);
 	wmi_cfg->host_service_flags |= (tg_cfg->is_reg_cc_ext_event_supported <<
 					WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT);
+	wmi_cfg->flags2 = WMI_RSRC_CFG_FLAG2_CALC_NEXT_DTIM_COUNT_SET;
+	wmi_cfg->ema_max_vap_cnt = tg_cfg->ema_max_vap_cnt;
+	wmi_cfg->ema_max_profile_period = tg_cfg->ema_max_profile_period;
 }
 
 static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
