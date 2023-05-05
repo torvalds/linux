@@ -251,14 +251,15 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
 {
-	if (gt->tlb_invalidation.seqno_recv >= seqno)
-		return true;
+	if (seqno - gt->tlb_invalidation.seqno_recv <
+	    -(TLB_INVALIDATION_SEQNO_MAX / 2))
+		return false;
 
 	if (seqno - gt->tlb_invalidation.seqno_recv >
 	    (TLB_INVALIDATION_SEQNO_MAX / 2))
 		return true;
 
-	return false;
+	return gt->tlb_invalidation.seqno_recv >= seqno;
 }
 
 /**
