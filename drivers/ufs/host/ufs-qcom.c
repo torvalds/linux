@@ -4651,6 +4651,7 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *__hba)
 	u32 id = irq - host->esi_base;
 	struct ufs_hw_queue *hwq = &hba->uhq[id];
 
+	ufs_qcom_log_str(host, "!,%d,%u\n", irq, id);
 	ufshcd_mcq_write_cqis(hba, 0x1, id);
 	ufshcd_mcq_poll_cqe_nolock(hba, hwq);
 
