@@ -4137,7 +4137,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	if (rdata->got_bytes) {
 		rqst.rq_iter	  = rdata->iter;
 		rqst.rq_iter_size = iov_iter_count(&rdata->iter);
-	};
+	}
 
 	WARN_ONCE(rdata->server != mid->server,
 		  "rdata server %p != mid server %p",
