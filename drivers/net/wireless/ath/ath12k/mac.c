@@ -381,7 +381,7 @@ u8 ath12k_mac_bitrate_to_idx(const struct ieee80211_supported_band *sband,
 }
 
 static u32
-ath12k_mac_max_ht_nss(const u8 ht_mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
+ath12k_mac_max_ht_nss(const u8 *ht_mcs_mask)
 {
 	int nss;
 
@@ -393,7 +393,7 @@ ath12k_mac_max_ht_nss(const u8 ht_mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
 }
 
 static u32
-ath12k_mac_max_vht_nss(const u16 vht_mcs_mask[NL80211_VHT_NSS_MAX])
+ath12k_mac_max_vht_nss(const u16 *vht_mcs_mask)
 {
 	int nss;
 
@@ -1303,7 +1303,7 @@ static void ath12k_peer_assoc_h_rates(struct ath12k *ar,
 }
 
 static bool
-ath12k_peer_assoc_h_ht_masked(const u8 ht_mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
+ath12k_peer_assoc_h_ht_masked(const u8 *ht_mcs_mask)
 {
 	int nss;
 
@@ -1315,7 +1315,7 @@ ath12k_peer_assoc_h_ht_masked(const u8 ht_mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
 }
 
 static bool
-ath12k_peer_assoc_h_vht_masked(const u16 vht_mcs_mask[NL80211_VHT_NSS_MAX])
+ath12k_peer_assoc_h_vht_masked(const u16 *vht_mcs_mask)
 {
 	int nss;
 
