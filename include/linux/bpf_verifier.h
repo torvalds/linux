@@ -18,8 +18,11 @@
  * that converting umax_value to int cannot overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
-/* size of type_str_buf in bpf_verifier. */
-#define TYPE_STR_BUF_LEN 128
+/* size of tmp_str_buf in bpf_verifier.
+ * we need at least 306 bytes to fit full stack mask representation
+ * (in the "-8,-16,...,-512" form)
+ */
+#define TMP_STR_BUF_LEN 320
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
@@ -237,6 +240,10 @@ enum bpf_stack_slot_type {
 };
 
 #define BPF_REG_SIZE 8	/* size of eBPF register in bytes */
+
+#define BPF_REGMASK_ARGS ((1 << BPF_REG_1) | (1 << BPF_REG_2) | \
+			  (1 << BPF_REG_3) | (1 << BPF_REG_4) | \
+			  (1 << BPF_REG_5))
 
 #define BPF_DYNPTR_SIZE		sizeof(struct bpf_dynptr_kern)
 #define BPF_DYNPTR_NR_SLOTS		(BPF_DYNPTR_SIZE / BPF_REG_SIZE)
@@ -541,6 +548,15 @@ struct bpf_subprog_info {
 	bool is_async_cb;
 };
 
+struct bpf_verifier_env;
+
+struct backtrack_state {
+	struct bpf_verifier_env *env;
+	u32 frame;
+	u32 reg_masks[MAX_CALL_FRAMES];
+	u64 stack_masks[MAX_CALL_FRAMES];
+};
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -578,6 +594,7 @@ struct bpf_verifier_env {
 		int *insn_stack;
 		int cur_stack;
 	} cfg;
+	struct backtrack_state bt;
 	u32 pass_cnt; /* number of times do_check() was called */
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
@@ -606,8 +623,10 @@ struct bpf_verifier_env {
 	/* Same as scratched_regs but for stack slots */
 	u64 scratched_stack_slots;
 	u64 prev_log_pos, prev_insn_print_pos;
-	/* buffer used in reg_type_str() to generate reg_type string */
-	char type_str_buf[TYPE_STR_BUF_LEN];
+	/* buffer used to generate temporary string representations,
+	 * e.g., in reg_type_str() to generate reg_type string
+	 */
+	char tmp_str_buf[TMP_STR_BUF_LEN];
 };
 
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
