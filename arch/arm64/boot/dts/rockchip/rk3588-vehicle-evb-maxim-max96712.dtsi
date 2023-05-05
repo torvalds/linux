@@ -62,6 +62,7 @@
 		rockchip,grf = <&sys_grf>;
 		power-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
 		//reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "max96712";
@@ -143,11 +144,11 @@
 &pinctrl {
 	max96712 {
 		max96712_errb: max96712-errb {
-			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		max96712_int: max96712-int {
-			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
