@@ -266,7 +266,8 @@ static void clk_test_round_set_get_rate(struct kunit *test)
 	struct clk_dummy_context *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
-	unsigned long rounded_rate, set_rate;
+	unsigned long set_rate;
+	long rounded_rate;
 
 	rounded_rate = clk_round_rate(clk, DUMMY_CLOCK_RATE_1);
 	KUNIT_ASSERT_GT(test, rounded_rate, 0);
@@ -851,7 +852,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_round_rate(struct kuni
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	ret = clk_set_rate_range(clk, DUMMY_CLOCK_RATE_1, DUMMY_CLOCK_RATE_2);
@@ -1090,7 +1091,7 @@ clk_test_single_parent_mux_set_range_round_rate_parent_only(struct kunit *test)
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
@@ -1120,7 +1121,7 @@ clk_test_single_parent_mux_set_range_round_rate_child_smaller(struct kunit *test
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
@@ -1158,7 +1159,7 @@ clk_test_single_parent_mux_set_range_round_rate_parent_smaller(struct kunit *tes
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
