@@ -726,7 +726,7 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 	} while ((ret == GH_ERROR_OK || ret == GH_ERROR_RETRY) && vm->is_active);
 
 	if (ret != -ERESTARTSYS)
-		ret = gh_remap_error(ret);
+		ret = gh_error_remap(ret);
 
 	return ret;
 }

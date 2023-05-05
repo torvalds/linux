@@ -148,7 +148,7 @@ static int __gh_msgq_recv(struct gh_msgq_cap_table *cap_table_entry,
 		ret = -EAGAIN;
 		break;
 	default:
-		ret = gh_remap_error(gh_ret);
+		ret = gh_error_remap(gh_ret);
 	}
 
 	spin_unlock_irqrestore(&cap_table_entry->rx_lock, flags);
@@ -284,7 +284,7 @@ static int __gh_msgq_send(struct gh_msgq_cap_table *cap_table_entry,
 		ret = -EAGAIN;
 		break;
 	default:
-		ret = gh_remap_error(gh_ret);
+		ret = gh_error_remap(gh_ret);
 	}
 
 	spin_unlock_irqrestore(&cap_table_entry->tx_lock, flags);
