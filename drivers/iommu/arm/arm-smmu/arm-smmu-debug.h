@@ -80,6 +80,76 @@ extern int tcu_testbus_sel;
 #define INTR_CLR			BIT(0)
 #define RESET_VALID			BIT(7)
 
+#define TTQTB_SET				0x1
+#define TTQTB_RESET_VAL				0x0
+#define TTQTB_LogAsstEn				BIT(8)
+#define TTQTB_LogAll				BIT(7)
+#define TTQTB_GlbEn				BIT(0)
+#define TTQTB_IgnoreCtiTrigIn0			BIT(5)
+#define TransTrackerQTB_MainCtl                 0x8
+#define TransTrackerQTB_AlarmEn                 0x10
+#define TransTrackerQTB_AlarmStatus             0x18
+#define TransTrackerQTB_AlarmClr                0x20
+#define TransTrackerQTB_LogClr			0x30
+#define TransTrackerQTB_LogInVld_Low		0x38
+#define TransTrackerQTB_LogOutVld_Low		0x40
+#define TransTrackerQTB_LogOutErr_Low		0x48
+
+#define TTQTB_Capture_Points			0x8
+#define TTQTB_Regs_Per_Capture_Points		0x4
+
+#define TTQTB_TimeStamp				0xa0
+#define TransTrackerQTB_TimeStamp(i)		(TTQTB_TimeStamp + \
+						(0x8 * (i)))
+
+#define TTQTB_Latency				0x50
+#define TransTrackerQTB_Latency(i)		(TTQTB_Latency + \
+						(0x8 * (i)))
+
+#define TTQTB_LogIn_Low				0x200
+#define TTQTB_LogIn_High			0x204
+#define TransTrackerQTB_LogIn_Low(i, j)  (TTQTB_LogIn_Low + \
+						(0x20 * (i)) + (0x8 * (j)))
+#define TransTrackerQTB_LogIn_High(i, j) (TTQTB_LogIn_High + \
+						(0x20 * (i)) + (0x8 * (j)))
+
+#define TTQTB_LogOut_Low			0x300
+#define TTQTB_LogOut_High			0x304
+#define TransTrackerQTB_LogOut_Low(i, j)  (TTQTB_LogIn_Low + \
+						(0x20 * (i)) + (0x8 * (j)))
+#define TransTrackerQTB_LogOut_High(i, j) (TTQTB_LogIn_High + \
+						(0x20 * (i)) + (0x8 * (j)))
+
+#define TTQTB_Filter_DevNeEn			BIT(0)
+#define TTQTB_Filter_DevEEn			BIT(1)
+#define TTQTB_Filter_NormalEn			BIT(2)
+#define TTQTB_Filter_CachedEn			BIT(3)
+#define TTQTB_Filter_SharedEn			BIT(4)
+#define TTQTB_Filter_PostedEn			BIT(5)
+#define TTQTB_Filter_OpCode_Set_Val		0x1f
+#define TTQTB_Filter_Alloc_Set_Val		0xe3ef
+#define TTQTB_Filter_Length_Set_Val		0x1ff
+#define TransTrackerQTB_Filter_TrType		0x168
+#define TransTrackerQTB_Filter_Addr_Min_Low	0x120
+#define TransTrackerQTB_Filter_Addr_Min_High	0x124
+#define TransTrackerQTB_Filter_Addr_Max_Low	0x128
+#define TransTrackerQTB_Filter_Addr_Max_High	0x12C
+#define TransTrackerQTB_gfx_Filter_Addr_Min	0x120
+#define TransTrackerQTB_gfx_Filter_Addr_Max	0x128
+#define TransTrackerQTB_Filter_OpCode		0x138
+#define TransTrackerQTB_Filter_ReqUser_Base	0x148
+#define TransTrackerQTB_Filter_ReqUser_Mask	0x150
+#define TransTrackerQTB_Filter_LogUser_Base	0x158
+#define TransTrackerQTB_Filter_LogUser_Mask	0x160
+#define TransTrackerQTB_Filter_Alloc		0x170
+#define TransTrackerQTB_Filter_ExtId_Base	0x178
+#define TransTrackerQTB_Filter_ExtId_Mask	0x180
+#define TransTrackerQTB_Filter_Length		0x188
+#define TransTrackerQTB_Filter_Urgency		0x190
+#define TransTrackerQTB_Filter_CacheIndex_Base	0x198
+#define TransTrackerQTB_Filter_CacheIndex_Mask	0x1A0
+
+
 enum tcu_testbus {
 	PTW_AND_CACHE_TESTBUS,
 	CLK_TESTBUS,
@@ -101,6 +171,17 @@ u32 arm_smmu_debug_qtb_debugchain_load(void __iomem *debugchain_base);
 u64 arm_smmu_debug_qtb_debugchain_dump(void __iomem *debugchain_base);
 void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain_base);
 void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base);
+void arm_smmu_debug_qtb_transtracker_set_config(void __iomem *transactiontracker_base, u64 sel);
+u64 arm_smmu_debug_qtb_transtracker_get_config(void __iomem *transactiontracker_base);
+void arm_smmu_debug_qtb_transtracker_setfilter(void __iomem *transactiontracker_base,
+		u64 sel, u64 filter, int qtb_type);
+void arm_smmu_debug_qtb_transtracker_getfilter(void __iomem *transactiontracker_base,
+		u64 filter[3], int qtb_type);
+void arm_smmu_debug_qtb_transtrac_reset(void __iomem *transactiontracker_base);
+void arm_smmu_debug_qtb_transtrac_collect(void __iomem *transactiontracker_base,
+		u64 gfxttlogs[TTQTB_Capture_Points][2*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs[TTQTB_Capture_Points][4*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs_time[2*TTQTB_Capture_Points], int qtb_type);
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
 					bool write, u32 val);
 u32 arm_smmu_debug_tbu_testbus_output(void __iomem *tbu_base);
@@ -134,6 +215,31 @@ void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain
 {
 }
 void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base)
+{
+}
+u64 arm_smmu_debug_transtracker_get_config(void __iomem *transactiontracker_base)
+{
+	return 0;
+}
+void arm_smmu_debug_transtracker_setfilter(void __iomem *transactiontracker_base,
+		u64 sel, u64 filter, int qtb_type)
+{
+}
+void arm_smmu_debug_transtracker_getfilter(void __iomem *transactiontracker_base,
+		u64 filter[3], int qtb_type)
+{
+}
+void arm_smmu_debug_qtb_transtrac_reset(void __iomem *transactiontracker_base)
+{
+}
+void arm_smmu_debug_configure_transtracker_custom(void __iomem *transactiontracker_base,
+		u64 trtype, u64 addrmax)
+{
+}
+void arm_smmu_debug_qtb_transtrac_collect(void __iomem *transactiontracker_base,
+		u64 gfxttlogs[TTQTB_Capture_Points][2*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs[TTQTB_Capture_Points][4*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs_time[2*TTQTB_Capture_Points], int qtb_type)
 {
 }
 static inline u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,

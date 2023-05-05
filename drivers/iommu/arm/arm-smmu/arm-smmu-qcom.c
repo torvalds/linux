@@ -860,6 +860,7 @@ struct qtb500_device {
 	bool no_halt;
 	u32 num_ports;
 	void __iomem			*debugchain_base;
+	void __iomem			*transactiontracker_base;
 };
 
 #define to_qtb500(tbu)		container_of(tbu, struct qtb500_device, tbu)
@@ -1282,11 +1283,12 @@ static const struct qsmmuv500_tbu_impl qtb500_impl = {
 
 static struct qsmmuv500_tbu_device *qtb500_impl_init(struct qsmmuv500_tbu_device *tbu)
 {
+	struct resource *ttres;
 	struct qtb500_device *qtb;
 	struct device *dev = tbu->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 #ifdef CONFIG_ARM_SMMU_TESTBUS
 	struct resource *res;
-	struct platform_device *pdev = to_platform_device(dev);
 #endif
 	int ret;
 
@@ -1327,6 +1329,16 @@ static struct qsmmuv500_tbu_device *qtb500_impl_init(struct qsmmuv500_tbu_device
 
 end:
 #endif
+	ttres = platform_get_resource_byname(pdev, IORESOURCE_MEM, "transactiontracker-base");
+	if (ttres) {
+		qtb->transactiontracker_base = devm_ioremap_resource(dev, ttres);
+		if (IS_ERR(qtb->transactiontracker_base))
+			dev_info(dev, "devm_ioremap failure for transaction tracker\n");
+	} else {
+		qtb->transactiontracker_base = NULL;
+		dev_info(dev, "Unable to get the transactiontracker-base\n");
+	}
+
 	return &qtb->tbu;
 }
 
@@ -1958,11 +1970,17 @@ static ssize_t arm_smmu_debug_capturebus_snapshot_read(struct file *file,
 	struct arm_smmu_device *smmu = tbu->smmu;
 	void __iomem *tbu_base = tbu->base;
 	u64 snapshot[NO_OF_CAPTURE_POINTS][REGS_PER_CAPTURE_POINT];
-	char buf[400];
+	u64 gfxttlogs[TTQTB_Capture_Points][2*TTQTB_Regs_Per_Capture_Points];
+	u64 ttlogs[TTQTB_Capture_Points][4*TTQTB_Regs_Per_Capture_Points];
+	u64 ttlogs_time[2*TTQTB_Capture_Points];
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *transactiontracker_base = qtb->transactiontracker_base;
+	char buf[8192];
 	ssize_t retval;
 	size_t buflen;
 	int buf_len = sizeof(buf);
-	int i, j;
+	int qtb_type;
+	int i, j, x, y;
 
 	if (*offset)
 		return 0;
@@ -1983,30 +2001,98 @@ static ssize_t arm_smmu_debug_capturebus_snapshot_read(struct file *file,
 		return -EBUSY;
 	}
 
-	arm_smmu_debug_get_capture_snapshot(tbu_base, snapshot);
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500")) {
+		if (of_device_is_compatible(smmu->dev->of_node, "qcom,adreno-smmu"))
+			qtb_type = 1;
+		else
+			qtb_type = 2;
 
-	mutex_unlock(&capture_reg_lock);
-	arm_smmu_power_off(tbu->smmu, tbu->pwr);
-	arm_smmu_power_off(smmu, smmu->pwr);
+		arm_smmu_debug_qtb_transtrac_collect(transactiontracker_base, gfxttlogs, ttlogs,
+				ttlogs_time, qtb_type);
 
-	for (i = 0; i < NO_OF_CAPTURE_POINTS ; ++i) {
-		for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j) {
+		arm_smmu_debug_qtb_transtrac_reset(transactiontracker_base);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		for (i = 0, x = 0; i < TTQTB_Capture_Points &&
+				x < 2*TTQTB_Capture_Points; i++, x += 2) {
 			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
-				 "Capture_%d_Snapshot_%d : 0x%0llx\n",
-				  i+1, j+1, snapshot[i][j]);
+				"Latency_%d : 0x%lx\n",
+				i, ttlogs_time[x]);
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+				"Timestamp_%d : 0x%lx\n",
+				i, ttlogs_time[x+1]);
+			if (qtb_type == 1) {
+				for (j = 0, y = 0; j < TTQTB_Regs_Per_Capture_Points &&
+						y < 2*TTQTB_Regs_Per_Capture_Points; j++, y += 2) {
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogIn_%d_%d : 0x%lx\n",
+						i, j, gfxttlogs[i][y]);
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogOut_%d_%d : 0x%lx\n",
+						i, j, gfxttlogs[i][y+1]);
+				}
+			} else if (qtb_type == 2) {
+				for (j = 0, y = 0; j < TTQTB_Regs_Per_Capture_Points &&
+						y < 4*TTQTB_Regs_Per_Capture_Points; j++, y += 4) {
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogIn_%d_%d_Low : 0x%lx\n",
+						i, j, ttlogs[i][y]);
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogIn_%d_%d_High : 0x%lx\n",
+						i, j, ttlogs[i][y+1]);
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogOut_%d_%d_Low : 0x%lx\n",
+						i, j, ttlogs[i][y+2]);
+					scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+						"LogOut_%d_%d_High : 0x%lx\n",
+						i, j, ttlogs[i][y+3]);
+				}
+
+			}
+
 		}
+
+		buflen = min(count, strlen(buf));
+		if (copy_to_user(ubuf, buf, buflen)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+			retval = -EFAULT;
+		} else {
+			*offset = 1;
+			retval = buflen;
+		}
+
+		return retval;
 	}
 
-	buflen = min(count, strlen(buf));
-	if (copy_to_user(ubuf, buf, buflen)) {
-		dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
-		retval = -EFAULT;
-	} else {
-		*offset = 1;
-		retval = buflen;
-	}
+	else {
+		arm_smmu_debug_get_capture_snapshot(tbu_base, snapshot);
 
-	return retval;
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		for (i = 0; i < NO_OF_CAPTURE_POINTS ; ++i) {
+			for (j = 0; j < REGS_PER_CAPTURE_POINT; ++j) {
+				scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+					 "Capture_%d_Snapshot_%d : 0x%0llx\n",
+					  i+1, j+1, snapshot[i][j]);
+			}
+		}
+
+		buflen = min(count, strlen(buf));
+		if (copy_to_user(ubuf, buf, buflen)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+			retval = -EFAULT;
+		} else {
+			*offset = 1;
+			retval = buflen;
+		}
+
+		return retval;
+	}
 }
 
 static const struct file_operations arm_smmu_debug_capturebus_snapshot_fops = {
@@ -2020,13 +2106,270 @@ static ssize_t arm_smmu_debug_capturebus_config_write(struct file *file,
 	struct qsmmuv500_tbu_device *tbu = file->private_data;
 	struct arm_smmu_device *smmu = tbu->smmu;
 	void __iomem *tbu_base = tbu->base;
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *transactiontracker_base = qtb->transactiontracker_base;
 	char *comma1, *comma2;
 	char buf[100];
 	u64 sel, mask, match, val;
 
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500")) {
+
+		if (count >= sizeof(buf)) {
+			dev_err_ratelimited(smmu->dev, "Input too large\n");
+			goto invalid_format;
+		}
+
+		memset(buf, 0, sizeof(buf));
+
+		if (copy_from_user(buf, ubuf, count)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy from user\n");
+			return -EFAULT;
+		}
+
+		if (kstrtou64(buf, 0, &sel))
+			goto invalid_tt_format;
+
+		if (sel == 0 || sel == 1)
+			goto transtracker_configure;
+
+		else
+			goto invalid_tt_format;
+
+transtracker_configure:
+		if (arm_smmu_power_on(smmu->pwr))
+			return -EINVAL;
+
+		if (arm_smmu_power_on(tbu->pwr)) {
+			arm_smmu_power_off(smmu, smmu->pwr);
+			return -EINVAL;
+		}
+
+		if (!mutex_trylock(&capture_reg_lock)) {
+			dev_warn_ratelimited(smmu->dev,
+				"Transaction Tracker regs in use, not configuring it.\n");
+			return -EBUSY;
+		}
+
+		arm_smmu_debug_qtb_transtracker_set_config(transactiontracker_base, sel);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		return count;
+
+invalid_tt_format:
+		dev_err_ratelimited(smmu->dev, "Invalid format\n");
+		dev_err_ratelimited(smmu->dev, "This is QTB equipped device\n");
+		dev_err_ratelimited(smmu->dev,
+				"Expected:<0/1> 0 for Default configuration, 1 for custom configuration\n");
+		return -EINVAL;
+	}
+
+	else {
+
+		if (count >= sizeof(buf)) {
+			dev_err_ratelimited(smmu->dev, "Input too large\n");
+			goto invalid_format;
+		}
+
+		memset(buf, 0, sizeof(buf));
+
+		if (copy_from_user(buf, ubuf, count)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy from user\n");
+			return -EFAULT;
+		}
+
+		comma1 = strnchr(buf, count, ',');
+		if (!comma1)
+			goto invalid_format;
+
+		*comma1  = '\0';
+
+		if (kstrtou64(buf, 0, &sel))
+			goto invalid_format;
+
+		if (sel > 4) {
+			goto invalid_format;
+		} else if (sel == 4) {
+			if (kstrtou64(comma1 + 1, 0, &val))
+				goto invalid_format;
+			goto program_capturebus;
+		}
+
+		comma2 = strnchr(comma1 + 1, count, ',');
+		if (!comma2)
+			goto invalid_format;
+
+		/* split up the words */
+		*comma2 = '\0';
+
+		if (kstrtou64(comma1 + 1, 0, &mask))
+			goto invalid_format;
+
+		if (kstrtou64(comma2 + 1, 0, &match))
+			goto invalid_format;
+
+program_capturebus:
+		if (arm_smmu_power_on(smmu->pwr))
+			return -EINVAL;
+
+		if (arm_smmu_power_on(tbu->pwr)) {
+			arm_smmu_power_off(smmu, smmu->pwr);
+			return -EINVAL;
+		}
+
+		if (!mutex_trylock(&capture_reg_lock)) {
+			dev_warn_ratelimited(smmu->dev,
+				"capture bus regs in use, not configuring it.\n");
+			return -EBUSY;
+		}
+
+		if (sel == 4)
+			arm_smmu_debug_set_tnx_tcr_cntl(tbu_base, val);
+		else
+			arm_smmu_debug_set_mask_and_match(tbu_base, sel, mask, match);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		return count;
+
+invalid_format:
+		dev_err_ratelimited(smmu->dev, "Invalid format\n");
+		dev_err_ratelimited(smmu->dev,
+				    "Expected:<1/2/3,Mask,Match> <4,TNX_TCR_CNTL>\n");
+		return -EINVAL;
+	}
+}
+
+static ssize_t arm_smmu_debug_capturebus_config_read(struct file *file,
+		char __user *ubuf, size_t count, loff_t *offset)
+{
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	void __iomem *tbu_base = tbu->base;
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *transactiontracker_base = qtb->transactiontracker_base;
+	u64 val;
+	u64 config;
+	u64 mask[NO_OF_MASK_AND_MATCH], match[NO_OF_MASK_AND_MATCH];
+	char buf[400];
+	ssize_t retval;
+	size_t buflen;
+	int buf_len = sizeof(buf);
+	int i;
+
+	if (*offset)
+		return 0;
+
+	memset(buf, 0, buf_len);
+
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500")) {
+
+		if (arm_smmu_power_on(smmu->pwr))
+			return -EINVAL;
+
+		if (arm_smmu_power_on(tbu->pwr)) {
+			arm_smmu_power_off(smmu, smmu->pwr);
+			return -EINVAL;
+		}
+
+		if (!mutex_trylock(&capture_reg_lock)) {
+			dev_warn_ratelimited(smmu->dev,
+				"capture bus regs in use, not configuring it.\n");
+			return -EBUSY;
+		}
+
+		config = arm_smmu_debug_qtb_transtracker_get_config(transactiontracker_base);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		if (config == (TTQTB_GlbEn | TTQTB_IgnoreCtiTrigIn0 | TTQTB_LogAsstEn))
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+					"Custom configuration selected, MainCtl filter val: 0x%0lx\n",
+					config);
+
+		else if (config == (TTQTB_GlbEn | TTQTB_IgnoreCtiTrigIn0 | TTQTB_LogAll))
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+					"Default configuration selected, MainCtl filter val : 0x%0lx\n",
+					config);
+
+		buflen = min(count, strlen(buf));
+
+		if (copy_to_user(ubuf, buf, buflen)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+			retval = -EFAULT;
+		} else {
+			*offset = 1;
+			retval = buflen;
+		}
+
+		return retval;
+	}
+
+	else {
+
+		if (arm_smmu_power_on(smmu->pwr))
+			return -EINVAL;
+
+		if (arm_smmu_power_on(tbu->pwr)) {
+			arm_smmu_power_off(smmu, smmu->pwr);
+			return -EINVAL;
+		}
+
+		if (!mutex_trylock(&capture_reg_lock)) {
+			dev_warn_ratelimited(smmu->dev,
+					"capture bus regs in use, not configuring it.\n");
+			return -EBUSY;
+		}
+		arm_smmu_debug_get_mask_and_match(tbu_base,
+						mask, match);
+		val = arm_smmu_debug_get_tnx_tcr_cntl(tbu_base);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		for (i = 0; i < NO_OF_MASK_AND_MATCH; ++i) {
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+					"Mask_%d : 0x%0llx\t", i+1, mask[i]);
+			scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+					"Match_%d : 0x%0llx\n", i+1, match[i]);
+		}
+		scnprintf(buf + strlen(buf), buf_len - strlen(buf), "0x%0lx\n", val);
+
+		buflen = min(count, strlen(buf));
+		if (copy_to_user(ubuf, buf, buflen)) {
+			dev_err_ratelimited(smmu->dev, "Couldn't copy_to_user\n");
+			retval = -EFAULT;
+		} else {
+			*offset = 1;
+			retval = buflen;
+		}
+
+		return retval;
+	}
+}
+
+static ssize_t arm_smmu_debug_capturebus_filter_write(struct file *file,
+		const char __user *ubuf, size_t count, loff_t *offset)
+{
+	struct qsmmuv500_tbu_device *tbu = file->private_data;
+	struct arm_smmu_device *smmu = tbu->smmu;
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *transactiontracker_base = qtb->transactiontracker_base;
+	char *comma1;
+	char buf[200];
+	u64 sel, filter;
+	int qtb_type = 0;
+
 	if (count >= sizeof(buf)) {
 		dev_err_ratelimited(smmu->dev, "Input too large\n");
-		goto invalid_format;
+		goto invalid_filter_format;
 	}
 
 	memset(buf, 0, sizeof(buf));
@@ -2038,80 +2381,73 @@ static ssize_t arm_smmu_debug_capturebus_config_write(struct file *file,
 
 	comma1 = strnchr(buf, count, ',');
 	if (!comma1)
-		goto invalid_format;
+		goto invalid_filter_format;
 
 	*comma1  = '\0';
 
 	if (kstrtou64(buf, 0, &sel))
-		goto invalid_format;
+		goto invalid_filter_format;
 
-	if (sel > 4) {
-		goto invalid_format;
-	} else if (sel == 4) {
-		if (kstrtou64(comma1 + 1, 0, &val))
-			goto invalid_format;
-		goto program_capturebus;
+	if (sel == 1 || sel == 2 || sel == 3) {
+		if (kstrtou64(comma1 + 1, 0, &filter))
+			goto invalid_filter_format;
+		goto set_capturebus_filter;
 	}
 
-	comma2 = strnchr(comma1 + 1, count, ',');
-	if (!comma2)
-		goto invalid_format;
-
-	/* split up the words */
-	*comma2 = '\0';
-
-	if (kstrtou64(comma1 + 1, 0, &mask))
-		goto invalid_format;
-
-	if (kstrtou64(comma2 + 1, 0, &match))
-		goto invalid_format;
-
-program_capturebus:
-	if (arm_smmu_power_on(smmu->pwr))
-		return -EINVAL;
-
-	if (arm_smmu_power_on(tbu->pwr)) {
-		arm_smmu_power_off(smmu, smmu->pwr);
-		return -EINVAL;
-	}
-
-	if (!mutex_trylock(&capture_reg_lock)) {
-		dev_warn_ratelimited(smmu->dev,
-			"capture bus regs in use, not configuring it.\n");
-		return -EBUSY;
-	}
-
-	if (sel == 4)
-		arm_smmu_debug_set_tnx_tcr_cntl(tbu_base, val);
 	else
-		arm_smmu_debug_set_mask_and_match(tbu_base, sel, mask, match);
+		goto invalid_filter_format;
 
-	mutex_unlock(&capture_reg_lock);
-	arm_smmu_power_off(tbu->smmu, tbu->pwr);
-	arm_smmu_power_off(smmu, smmu->pwr);
+set_capturebus_filter:
+		if (arm_smmu_power_on(smmu->pwr))
+			return -EINVAL;
 
-	return count;
+		if (arm_smmu_power_on(tbu->pwr)) {
+			arm_smmu_power_off(smmu, smmu->pwr);
+			return -EINVAL;
+		}
 
-invalid_format:
-	dev_err_ratelimited(smmu->dev, "Invalid format\n");
-	dev_err_ratelimited(smmu->dev,
-			    "Expected:<1/2/3,Mask,Match> <4,TNX_TCR_CNTL>\n");
-	return -EINVAL;
+		if (!mutex_trylock(&capture_reg_lock)) {
+			dev_warn_ratelimited(smmu->dev,
+				"Transaction Tracker regs in use, not configuring it.\n");
+			return -EBUSY;
+		}
+
+		if (of_device_is_compatible(smmu->dev->of_node, "qcom,adreno-smmu"))
+			qtb_type = 1;
+		else
+			qtb_type = 2;
+
+		arm_smmu_debug_qtb_transtracker_setfilter(transactiontracker_base,
+				sel, filter, qtb_type);
+
+		mutex_unlock(&capture_reg_lock);
+		arm_smmu_power_off(tbu->smmu, tbu->pwr);
+		arm_smmu_power_off(smmu, smmu->pwr);
+
+		return count;
+
+invalid_filter_format:
+		dev_err_ratelimited(smmu->dev, "Invalid format\n");
+		dev_err_ratelimited(smmu->dev, "This is QTB equipped device\n");
+		dev_err_ratelimited(smmu->dev,
+				    "Expected:<1/2/3,TrType/AddressMin/AddressMax>\n");
+		return -EINVAL;
+
 }
 
-static ssize_t arm_smmu_debug_capturebus_config_read(struct file *file,
+static ssize_t arm_smmu_debug_capturebus_filter_read(struct file *file,
 		char __user *ubuf, size_t count, loff_t *offset)
 {
 	struct qsmmuv500_tbu_device *tbu = file->private_data;
 	struct arm_smmu_device *smmu = tbu->smmu;
-	void __iomem *tbu_base = tbu->base;
-	u64 val;
-	u64 mask[NO_OF_MASK_AND_MATCH], match[NO_OF_MASK_AND_MATCH];
+	struct qtb500_device *qtb = to_qtb500(tbu);
+	void __iomem *transactiontracker_base = qtb->transactiontracker_base;
+	u64 filter[3];
 	char buf[400];
 	ssize_t retval;
 	size_t buflen;
 	int buf_len = sizeof(buf);
-	int i;
+	int i = 0, qtb_type = 0;
 
 	if (*offset)
 		return 0;
@@ -2128,25 +2464,28 @@ static ssize_t arm_smmu_debug_capturebus_config_read(struct file *file,
 
 	if (!mutex_trylock(&capture_reg_lock)) {
 		dev_warn_ratelimited(smmu->dev,
-			"capture bus regs in use, not configuring it.\n");
+			"Transaction Tracker regs in use, not configuring it.\n");
 		return -EBUSY;
 	}
 
-	arm_smmu_debug_get_mask_and_match(tbu_base,
-					mask, match);
-	val = arm_smmu_debug_get_tnx_tcr_cntl(tbu_base);
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,adreno-smmu"))
+		qtb_type = 1;
+	else
+		qtb_type = 2;
+
+	arm_smmu_debug_qtb_transtracker_getfilter(transactiontracker_base, filter, qtb_type);
 
 	mutex_unlock(&capture_reg_lock);
 	arm_smmu_power_off(tbu->smmu, tbu->pwr);
 	arm_smmu_power_off(smmu, smmu->pwr);
 
-	for (i = 0; i < NO_OF_MASK_AND_MATCH; ++i) {
-		scnprintf(buf + strlen(buf), buf_len - strlen(buf),
-				"Mask_%d : 0x%0llx\t", i+1, mask[i]);
-		scnprintf(buf + strlen(buf), buf_len - strlen(buf),
-				"Match_%d : 0x%0llx\n", i+1, match[i]);
-	}
-	scnprintf(buf + strlen(buf), buf_len - strlen(buf), "0x%0lx\n", val);
+	scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+		"Filter_TrType : 0x%lx\n", filter[i]);
+	scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+		"Filter_AddressMin : 0x%lx\n", filter[i+1]);
+	scnprintf(buf + strlen(buf), buf_len - strlen(buf),
+		"Filter_AddressMax : 0x%lx\n", filter[i+2]);
+
 
 	buflen = min(count, strlen(buf));
 	if (copy_to_user(ubuf, buf, buflen)) {
@@ -2164,6 +2503,12 @@ static const struct file_operations arm_smmu_debug_capturebus_config_fops = {
 	.open	= simple_open,
 	.write	= arm_smmu_debug_capturebus_config_write,
 	.read	= arm_smmu_debug_capturebus_config_read,
+};
+
+static const struct file_operations arm_smmu_debug_capturebus_filter_fops = {
+	.open	= simple_open,
+	.write	= arm_smmu_debug_capturebus_filter_write,
+	.read	= arm_smmu_debug_capturebus_filter_read,
 };
 
 #ifdef CONFIG_ARM_SMMU_CAPTUREBUS_DEBUGFS
@@ -2199,6 +2544,15 @@ static int qsmmuv500_capturebus_init(struct qsmmuv500_tbu_device *tbu)
 		dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus/%s/config debugfs file\n",
 				dev_name(tbu->dev));
 		goto err_rmdir;
+	}
+
+	if (of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500")) {
+		if (IS_ERR(debugfs_create_file("filter", 0400, capturebus_dir, tbu,
+				&arm_smmu_debug_capturebus_filter_fops))) {
+			dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus/%s/filter debugfs file\n",
+					dev_name(tbu->dev));
+			goto err_rmdir;
+		}
 	}
 
 	if (IS_ERR(debugfs_create_file("snapshot", 0400, capturebus_dir, tbu,
@@ -2641,8 +2995,24 @@ static int qsmmuv500_tbu_register(struct device *dev, void *cookie)
 		}
 	}
 
-	qsmmuv500_tbu_testbus_init(tbu);
-	qsmmuv500_capturebus_init(tbu);
+	/*
+	 * Create testbus debugfs only if debugchain base
+	 *  property is set in devicetree in case of qtb500.
+	 */
+
+	if (!of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500") ||
+			to_qtb500(tbu)->debugchain_base)
+		qsmmuv500_tbu_testbus_init(tbu);
+
+	/*
+	 * Create transactiontracker debugfs only if
+	 * transactiontracker base is set in devicetree in case of qtb500.
+	 */
+
+	if (!of_device_is_compatible(tbu->dev->of_node, "qcom,qtb500") ||
+			to_qtb500(tbu)->transactiontracker_base)
+		qsmmuv500_capturebus_init(tbu);
+
 	return 0;
 }
 
