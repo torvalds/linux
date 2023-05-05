@@ -30,6 +30,8 @@
 #define DEFAULT_MCLK_FS		256
 #define DEFAULT_FS		48000
 
+#define WAIT_TIME_MS_MAX	10000
+
 #define QUIRK_ALWAYS_ON		BIT(0)
 
 struct rk_i2s_pins {
@@ -49,6 +51,9 @@ struct rk_i2s_dev {
 
 	struct regmap *regmap;
 	struct regmap *grf;
+
+	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
+	unsigned int wait_time[SNDRV_PCM_STREAM_LAST + 1];
 
 	bool has_capture;
 	bool has_playback;
@@ -612,7 +617,34 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static int rockchip_i2s_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct rk_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
+	int stream = substream->stream;
+
+	if (i2s->substreams[stream])
+		return -EBUSY;
+
+	if (i2s->wait_time[stream])
+		substream->wait_time = msecs_to_jiffies(i2s->wait_time[stream]);
+
+	i2s->substreams[stream] = substream;
+
+	return 0;
+}
+
+static void rockchip_i2s_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct rk_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
+
+	i2s->substreams[substream->stream] = NULL;
+}
+
 static const struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
+	.startup = rockchip_i2s_startup,
+	.shutdown = rockchip_i2s_shutdown,
 	.hw_params = rockchip_i2s_hw_params,
 	.set_bclk_ratio	= rockchip_i2s_set_bclk_ratio,
 	.set_sysclk = rockchip_i2s_set_sysclk,
@@ -625,8 +657,86 @@ static struct snd_soc_dai_driver rockchip_i2s_dai = {
 	.ops = &rockchip_i2s_dai_ops,
 };
 
+static int rockchip_i2s_wait_time_info(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = WAIT_TIME_MS_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int rockchip_i2s_rd_wait_time_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = i2s->wait_time[SNDRV_PCM_STREAM_CAPTURE];
+
+	return 0;
+}
+
+static int rockchip_i2s_rd_wait_time_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	i2s->wait_time[SNDRV_PCM_STREAM_CAPTURE] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+static int rockchip_i2s_wr_wait_time_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = i2s->wait_time[SNDRV_PCM_STREAM_PLAYBACK];
+
+	return 0;
+}
+
+static int rockchip_i2s_wr_wait_time_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
+		return -EINVAL;
+
+	i2s->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
+#define SAI_PCM_WAIT_TIME(xname, xhandler_get, xhandler_put)	\
+{	.iface = SNDRV_CTL_ELEM_IFACE_PCM, .name = xname,	\
+	.info = rockchip_i2s_wait_time_info,			\
+	.get = xhandler_get, .put = xhandler_put }
+
+static const struct snd_kcontrol_new rockchip_i2s_snd_controls[] = {
+	SAI_PCM_WAIT_TIME("PCM Read Wait Time MS",
+			  rockchip_i2s_rd_wait_time_get,
+			  rockchip_i2s_rd_wait_time_put),
+	SAI_PCM_WAIT_TIME("PCM Write Wait Time MS",
+			  rockchip_i2s_wr_wait_time_get,
+			  rockchip_i2s_wr_wait_time_put),
+};
+
 static const struct snd_soc_component_driver rockchip_i2s_component = {
 	.name = DRV_NAME,
+	.controls = rockchip_i2s_snd_controls,
+	.num_controls = ARRAY_SIZE(rockchip_i2s_snd_controls),
 };
 
 static bool rockchip_i2s_wr_reg(struct device *dev, unsigned int reg)
