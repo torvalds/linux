@@ -18,7 +18,7 @@
 
 #include "hack/mpp_rkvdec2_link_hack_rk3568.c"
 
-#define WORK_TIMEOUT_MS		(200)
+#define WORK_TIMEOUT_MS		(500)
 #define WAIT_TIMEOUT_MS		(2000)
 #define RKVDEC2_LINK_HACK_TASK_FLAG	(0xff)
 
@@ -375,7 +375,7 @@ static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
 	wmb();
 
 	mpp_iommu_flush_tlb(link_dec->mpp->iommu_info);
-	mpp_task_run_begin(mpp_task, timing_en, WORK_TIMEOUT_MS);
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
 	link_dec->task_running++;
 	/* configure done */
@@ -837,8 +837,8 @@ static void rkvdec2_link_timeout_proc(struct work_struct *work_s)
 	dec = to_rkvdec2_dev(mpp);
 	atomic_inc(&dec->link_dec->task_timeout);
 
-	dev_err(mpp->dev, "session %d task %d timeout, cnt %d\n",
-		session->index, task->task_index,
+	dev_err(mpp->dev, "session %d task %d state %#lx timeout, cnt %d\n",
+		session->index, task->task_index, task->state,
 		atomic_read(&dec->link_dec->task_timeout));
 
 	rkvdec2_link_trigger_work(mpp);
@@ -1199,7 +1199,7 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 
 		mpp_session_pop_done(session, mpp_task);
 	} else {
-		mpp_err("task %d:%d statue %lx timeout -> abort\n",
+		mpp_err("task %d:%d state %lx timeout -> abort\n",
 			session->index, mpp_task->task_id, mpp_task->state);
 
 		atomic_inc(&mpp_task->abort_request);
