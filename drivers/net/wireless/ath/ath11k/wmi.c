@@ -1001,7 +1001,8 @@ int ath11k_wmi_vdev_start(struct ath11k *ar, struct wmi_vdev_start_req_arg *arg,
 	return ret;
 }
 
-int ath11k_wmi_vdev_up(struct ath11k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
+int ath11k_wmi_vdev_up(struct ath11k *ar, u32 vdev_id, u32 aid, const u8 *bssid,
+		       u8 *tx_bssid, u32 nontx_profile_idx, u32 nontx_profile_cnt)
 {
 	struct ath11k_pdev_wmi *wmi = ar->wmi;
 	struct wmi_vdev_up_cmd *cmd;
@@ -1024,6 +1025,11 @@ int ath11k_wmi_vdev_up(struct ath11k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
 	cmd->vdev_assoc_id = aid;
 
 	ether_addr_copy(cmd->vdev_bssid.addr, bssid);
+
+	cmd->nontx_profile_idx = nontx_profile_idx;
+	cmd->nontx_profile_cnt = nontx_profile_cnt;
+	if (tx_bssid)
+		ether_addr_copy(cmd->tx_vdev_bssid.addr, tx_bssid);
 
 	if (arvif && arvif->vif->type == NL80211_IFTYPE_STATION) {
 		bss_conf = &arvif->vif->bss_conf;

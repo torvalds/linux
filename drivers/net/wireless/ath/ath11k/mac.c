@@ -964,7 +964,7 @@ static int ath11k_mac_monitor_vdev_start(struct ath11k *ar, int vdev_id,
 		return ret;
 	}
 
-	ret = ath11k_wmi_vdev_up(ar, vdev_id, 0, ar->mac_addr);
+	ret = ath11k_wmi_vdev_up(ar, vdev_id, 0, ar->mac_addr, NULL, 0, 0);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to put up monitor vdev %i: %d\n",
 			    vdev_id, ret);
@@ -1423,6 +1423,7 @@ static void ath11k_control_beaconing(struct ath11k_vif *arvif,
 				     struct ieee80211_bss_conf *info)
 {
 	struct ath11k *ar = arvif->ar;
+	struct ath11k_vif *tx_arvif = NULL;
 	int ret = 0;
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
@@ -1451,8 +1452,14 @@ static void ath11k_control_beaconing(struct ath11k_vif *arvif,
 
 	ether_addr_copy(arvif->bssid, info->bssid);
 
+	if (arvif->vif->mbssid_tx_vif)
+		tx_arvif = (struct ath11k_vif *)arvif->vif->mbssid_tx_vif->drv_priv;
+
 	ret = ath11k_wmi_vdev_up(arvif->ar, arvif->vdev_id, arvif->aid,
-				 arvif->bssid);
+				 arvif->bssid,
+				 tx_arvif ? tx_arvif->bssid : NULL,
+				 info->bssid_index,
+				 1 << info->bssid_indicator);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to bring up vdev %d: %i\n",
 			    arvif->vdev_id, ret);
@@ -2879,7 +2886,8 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	arvif->aid = vif->cfg.aid;
 	ether_addr_copy(arvif->bssid, bss_conf->bssid);
 
-	ret = ath11k_wmi_vdev_up(ar, arvif->vdev_id, arvif->aid, arvif->bssid);
+	ret = ath11k_wmi_vdev_up(ar, arvif->vdev_id, arvif->aid, arvif->bssid,
+				 NULL, 0, 0);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to set vdev %d up: %d\n",
 			    arvif->vdev_id, ret);
@@ -7133,7 +7141,8 @@ ath11k_mac_update_vif_chan(struct ath11k *ar,
 			   int n_vifs)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_vif *arvif;
+	struct ath11k_vif *arvif, *tx_arvif = NULL;
+	struct ieee80211_vif *mbssid_tx_vif;
 	int ret;
 	int i;
 	bool monitor_vif = false;
@@ -7187,8 +7196,15 @@ ath11k_mac_update_vif_chan(struct ath11k *ar,
 			ath11k_warn(ab, "failed to update bcn tmpl during csa: %d\n",
 				    ret);
 
+		mbssid_tx_vif = arvif->vif->mbssid_tx_vif;
+		if (mbssid_tx_vif)
+			tx_arvif = (struct ath11k_vif *)mbssid_tx_vif->drv_priv;
+
 		ret = ath11k_wmi_vdev_up(arvif->ar, arvif->vdev_id, arvif->aid,
-					 arvif->bssid);
+					 arvif->bssid,
+					 tx_arvif ? tx_arvif->bssid : NULL,
+					 arvif->vif->bss_conf.bssid_index,
+					 1 << arvif->vif->bss_conf.bssid_indicator);
 		if (ret) {
 			ath11k_warn(ab, "failed to bring vdev up %d: %d\n",
 				    arvif->vdev_id, ret);
@@ -7306,7 +7322,8 @@ static int ath11k_start_vdev_delay(struct ieee80211_hw *hw,
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
-		ret = ath11k_wmi_vdev_up(ar, arvif->vdev_id, 0, ar->mac_addr);
+		ret = ath11k_wmi_vdev_up(ar, arvif->vdev_id, 0, ar->mac_addr,
+					 NULL, 0, 0);
 		if (ret) {
 			ath11k_warn(ab, "failed put monitor up: %d\n", ret);
 			return ret;
