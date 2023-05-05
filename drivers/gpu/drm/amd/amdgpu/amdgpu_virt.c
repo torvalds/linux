@@ -68,6 +68,9 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	/* enable mcbp for sriov */
 	amdgpu_mcbp = 1;
 
+	/* Reduce kcq number to 2 to reduce latency */
+	if (amdgpu_num_kcq == -1)
+		amdgpu_num_kcq = 2;
 }
 
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
