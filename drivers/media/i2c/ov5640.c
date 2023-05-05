@@ -2815,7 +2815,6 @@ static int ov5640_get_fmt(struct v4l2_subdev *sd,
 
 static int ov5640_try_fmt_internal(struct v4l2_subdev *sd,
 				   struct v4l2_mbus_framefmt *fmt,
-				   enum ov5640_frame_rate fr,
 				   const struct ov5640_mode_info **new_mode)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
@@ -2975,8 +2974,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	ret = ov5640_try_fmt_internal(sd, mbus_fmt,
-				      sensor->current_fr, &new_mode);
+	ret = ov5640_try_fmt_internal(sd, mbus_fmt, &new_mode);
 	if (ret)
 		goto out;
 
