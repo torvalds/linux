@@ -4810,40 +4810,49 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 			break;
 	}
 
-	/*
-	 * If last valid block is beyond the write pointer, report the
-	 * inconsistency. This inconsistency does not cause write error
-	 * because the zone will not be selected for write operation until
-	 * it get discarded. Just report it.
-	 */
-	if (last_valid_block >= wp_block) {
-		f2fs_notice(sbi, "Valid block beyond write pointer: "
-			    "valid block[0x%x,0x%x] wp[0x%x,0x%x]",
-			    GET_SEGNO(sbi, last_valid_block),
-			    GET_BLKOFF_FROM_SEG0(sbi, last_valid_block),
-			    wp_segno, wp_blkoff);
+	// The write pointer matches with the valid blocks
+	if (last_valid_block + 1 == wp_block)
 		return 0;
-	}
 
-	/*
-	 * If there is no valid block in the zone and if write pointer is
-	 * not at zone start, reset the write pointer.
-	 */
-	if (last_valid_block + 1 == zone_block && zone->wp != zone->start) {
+	if (last_valid_block + 1 == zone_block) {
+		/*
+		 * If there is no valid block in the zone and if write pointer
+		 * is not at zone start, reset the write pointer.
+		 */
 		f2fs_notice(sbi,
 			    "Zone without valid block has non-zero write "
 			    "pointer. Reset the write pointer: wp[0x%x,0x%x]",
 			    wp_segno, wp_blkoff);
 		ret = __f2fs_issue_discard_zone(sbi, fdev->bdev, zone_block,
 					zone->len >> log_sectors_per_block);
-		if (ret) {
+		if (ret)
 			f2fs_err(sbi, "Discard zone failed: %s (errno=%d)",
 				 fdev->path, ret);
-			return ret;
-		}
+
+		return ret;
 	}
 
-	return 0;
+	/*
+	 * If there are valid blocks and the write pointer doesn't
+	 * match with them, we need to report the inconsistency and
+	 * fill the zone till the end to close the zone. This inconsistency
+	 * does not cause write error because the zone will not be selected
+	 * for write operation until it get discarded.
+	 */
+	f2fs_notice(sbi, "Valid blocks are not aligned with write pointer: "
+		    "valid block[0x%x,0x%x] wp[0x%x,0x%x]",
+		    GET_SEGNO(sbi, last_valid_block),
+		    GET_BLKOFF_FROM_SEG0(sbi, last_valid_block),
+		    wp_segno, wp_blkoff);
+
+	ret = blkdev_issue_zeroout(fdev->bdev, zone->wp,
+				zone->len - (zone->wp - zone->start),
+				GFP_NOFS, 0);
+	if (ret)
+		f2fs_err(sbi, "Fill up zone failed: %s (errno=%d)",
+			 fdev->path, ret);
+
+	return ret;
 }
 
 static struct f2fs_dev_info *get_target_zoned_dev(struct f2fs_sb_info *sbi,
