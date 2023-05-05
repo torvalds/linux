@@ -334,7 +334,7 @@ static struct i2c_driver aht10_driver = {
 	.driver = {
 		.name = "aht10",
 	},
-	.probe_new  = aht10_probe,
+	.probe      = aht10_probe,
 	.id_table   = aht10_id,
 };
 

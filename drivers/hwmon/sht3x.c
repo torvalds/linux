@@ -743,7 +743,7 @@ MODULE_DEVICE_TABLE(i2c, sht3x_ids);
 
 static struct i2c_driver sht3x_i2c_driver = {
 	.driver.name = "sht3x",
-	.probe_new   = sht3x_probe,
+	.probe       = sht3x_probe,
 	.id_table    = sht3x_ids,
 };
 

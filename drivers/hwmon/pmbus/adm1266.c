@@ -502,7 +502,7 @@ static struct i2c_driver adm1266_driver = {
 		   .name = "adm1266",
 		   .of_match_table = adm1266_of_match,
 		  },
-	.probe_new = adm1266_probe,
+	.probe = adm1266_probe,
 	.id_table = adm1266_id,
 };
 

@@ -183,7 +183,7 @@ static struct i2c_driver nct6775_i2c_driver = {
 		.name = "nct6775-i2c",
 		.of_match_table = of_match_ptr(nct6775_i2c_of_match),
 	},
-	.probe_new = nct6775_i2c_probe,
+	.probe = nct6775_i2c_probe,
 	.id_table = nct6775_i2c_id,
 };
 

@@ -301,7 +301,7 @@ static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.of_match_table = of_match_ptr(tmp102_of_match),
 	.driver.pm	= pm_sleep_ptr(&tmp102_dev_pm_ops),
-	.probe_new	= tmp102_probe,
+	.probe		= tmp102_probe,
 	.id_table	= tmp102_id,
 };
 
