@@ -1416,7 +1416,7 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad)
 EXPORT_SYMBOL_GPL(media_pad_remote_pad_unique);
 
 int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
+				const struct fwnode_handle *fwnode,
 				unsigned long direction_flags)
 {
 	struct fwnode_endpoint endpoint;

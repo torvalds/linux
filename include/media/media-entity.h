@@ -1079,7 +1079,7 @@ struct media_pipeline *media_pad_pipeline(struct media_pad *pad);
  * Return: returns the pad number on success or a negative error code.
  */
 int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
+				const struct fwnode_handle *fwnode,
 				unsigned long direction_flags);
 
 /**
