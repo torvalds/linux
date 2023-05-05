@@ -4109,6 +4109,7 @@ static void mark_reg_stack_read(struct bpf_verifier_env *env,
 	for (i = min_off; i < max_off; i++) {
 		slot = -i - 1;
 		spi = slot / BPF_REG_SIZE;
+		mark_stack_slot_scratched(env, spi);
 		stype = ptr_state->stack[spi].slot_type;
 		if (stype[slot % BPF_REG_SIZE] != STACK_ZERO)
 			break;
@@ -4159,6 +4160,8 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 
 	stype = reg_state->stack[spi].slot_type;
 	reg = &reg_state->stack[spi].spilled_ptr;
+
+	mark_stack_slot_scratched(env, spi);
 
 	if (is_spilled_reg(&reg_state->stack[spi])) {
 		u8 spill_size = 1;
