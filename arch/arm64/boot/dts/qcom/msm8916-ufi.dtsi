@@ -109,7 +109,7 @@
 
 &usb {
 	extcon = <&pm8916_usbin>;
-	dr_mode = "peripheral";
+	usb-role-switch;
 
 	status = "okay";
 };
