@@ -1029,10 +1029,10 @@ int ath11k_wmi_vdev_up(struct ath11k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
 		bss_conf = &arvif->vif->bss_conf;
 
 		if (bss_conf->nontransmitted) {
-			ether_addr_copy(cmd->trans_bssid.addr,
+			ether_addr_copy(cmd->tx_vdev_bssid.addr,
 					bss_conf->transmitter_bssid);
-			cmd->profile_idx = bss_conf->bssid_index;
-			cmd->profile_num = bss_conf->bssid_indicator;
+			cmd->nontx_profile_idx = bss_conf->bssid_index;
+			cmd->nontx_profile_cnt = bss_conf->bssid_indicator;
 		}
 	}
 
