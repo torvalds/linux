@@ -94,6 +94,7 @@ extern const struct x86_dev_info advantech_mica_071_info;
 extern const struct x86_dev_info asus_me176c_info;
 extern const struct x86_dev_info asus_tf103c_info;
 extern const struct x86_dev_info chuwi_hi8_info;
+extern const struct x86_dev_info cyberbook_t116_info;
 extern const struct x86_dev_info czc_p10t;
 extern const struct x86_dev_info lenovo_yogabook_x90_info;
 extern const struct x86_dev_info lenovo_yogabook_x91_info;

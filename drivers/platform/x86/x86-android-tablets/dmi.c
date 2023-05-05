@@ -59,6 +59,17 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&chuwi_hi8_info,
 	},
 	{
+		/* Cyberbook T116 Android version */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Default string"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			/* Above strings are much too generic, also match on SKU + BIOS date */
+			DMI_MATCH(DMI_PRODUCT_SKU, "20170531"),
+			DMI_MATCH(DMI_BIOS_DATE, "07/12/2017"),
+		},
+		.driver_data = (void *)&cyberbook_t116_info,
+	},
+	{
 		/* CZC P10T */
 		.ident = "CZC ODEON TPC-10 (\"P10T\")",
 		.matches = {

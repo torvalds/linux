@@ -197,6 +197,45 @@ const struct x86_dev_info chuwi_hi8_info __initconst = {
 	.init = chuwi_hi8_init,
 };
 
+/*
+ * Cyberbook T116 Android version
+ * This comes in both Windows and Android versions and even on Android
+ * the DSDT is mostly sane. This tablet has 2 extra general purpose buttons
+ * in the button row with the power + volume-buttons labeled P and F.
+ * Use the x86-android-tablets infra to create a gpio-button device for these.
+ */
+static const struct x86_gpio_button cyberbook_t116_buttons[] __initconst = {
+	{
+		.button = {
+			.code = KEY_PROG1,
+			.active_low = true,
+			.desc = "prog1_key",
+			.type = EV_KEY,
+			.wakeup = false,
+			.debounce_interval = 50,
+		},
+		.chip = "INT33FF:00",
+		.pin = 30,
+	},
+	{
+		.button = {
+			.code = KEY_PROG2,
+			.active_low = true,
+			.desc = "prog2_key",
+			.type = EV_KEY,
+			.wakeup = false,
+			.debounce_interval = 50,
+		},
+		.chip = "INT33FF:03",
+		.pin = 48,
+	},
+};
+
+const struct x86_dev_info cyberbook_t116_info __initconst = {
+	.gpio_button = cyberbook_t116_buttons,
+	.gpio_button_count = ARRAY_SIZE(cyberbook_t116_buttons),
+};
+
 #define CZC_EC_EXTRA_PORT	0x68
 #define CZC_EC_ANDROID_KEYS	0x63
 
