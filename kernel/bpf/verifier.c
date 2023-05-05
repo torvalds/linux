@@ -3726,8 +3726,7 @@ static void mark_all_scalars_imprecise(struct bpf_verifier_env *env, struct bpf_
  * mark_all_scalars_imprecise() to hopefully get more permissive and generic
  * finalized states which help in short circuiting more future states.
  */
-static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int regno,
-				  int spi)
+static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 {
 	struct backtrack_state *bt = &env->bt;
 	struct bpf_verifier_state *st = env->cur_state;
@@ -3742,13 +3741,13 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int r
 		return 0;
 
 	/* set frame number from which we are starting to backtrack */
-	bt_init(bt, frame);
+	bt_init(bt, env->cur_state->curframe);
 
 	/* Do sanity checks against current state of register and/or stack
 	 * slot, but don't set precise flag in current state, as precision
 	 * tracking in the current state is unnecessary.
 	 */
-	func = st->frame[frame];
+	func = st->frame[bt->frame];
 	if (regno >= 0) {
 		reg = &func->regs[regno];
 		if (reg->type != SCALAR_VALUE) {
@@ -3756,13 +3755,6 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int r
 			return -EFAULT;
 		}
 		bt_set_reg(bt, regno);
-	}
-
-	while (spi >= 0) {
-		if (!is_spilled_scalar_reg(&func->stack[spi]))
-			break;
-		bt_set_slot(bt, spi);
-		break;
 	}
 
 	if (bt_empty(bt))
@@ -3914,17 +3906,15 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int frame, int r
 
 int mark_chain_precision(struct bpf_verifier_env *env, int regno)
 {
-	return __mark_chain_precision(env, env->cur_state->curframe, regno, -1);
+	return __mark_chain_precision(env, regno);
 }
 
-static int mark_chain_precision_frame(struct bpf_verifier_env *env, int frame, int regno)
+/* mark_chain_precision_batch() assumes that env->bt is set in the caller to
+ * desired reg and stack masks across all relevant frames
+ */
+static int mark_chain_precision_batch(struct bpf_verifier_env *env)
 {
-	return __mark_chain_precision(env, frame, regno, -1);
-}
-
-static int mark_chain_precision_stack_frame(struct bpf_verifier_env *env, int frame, int spi)
-{
-	return __mark_chain_precision(env, frame, -1, spi);
+	return __mark_chain_precision(env, -1);
 }
 
 static bool is_spillable_regtype(enum bpf_reg_type type)
@@ -15361,20 +15351,25 @@ static int propagate_precision(struct bpf_verifier_env *env,
 	struct bpf_reg_state *state_reg;
 	struct bpf_func_state *state;
 	int i, err = 0, fr;
+	bool first;
 
 	for (fr = old->curframe; fr >= 0; fr--) {
 		state = old->frame[fr];
 		state_reg = state->regs;
+		first = true;
 		for (i = 0; i < BPF_REG_FP; i++, state_reg++) {
 			if (state_reg->type != SCALAR_VALUE ||
 			    !state_reg->precise ||
 			    !(state_reg->live & REG_LIVE_READ))
 				continue;
-			if (env->log.level & BPF_LOG_LEVEL2)
-				verbose(env, "frame %d: propagating r%d\n", fr, i);
-			err = mark_chain_precision_frame(env, fr, i);
-			if (err < 0)
-				return err;
+			if (env->log.level & BPF_LOG_LEVEL2) {
+				if (first)
+					verbose(env, "frame %d: propagating r%d", fr, i);
+				else
+					verbose(env, ",r%d", i);
+			}
+			bt_set_frame_reg(&env->bt, fr, i);
+			first = false;
 		}
 
 		for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
@@ -15385,14 +15380,24 @@ static int propagate_precision(struct bpf_verifier_env *env,
 			    !state_reg->precise ||
 			    !(state_reg->live & REG_LIVE_READ))
 				continue;
-			if (env->log.level & BPF_LOG_LEVEL2)
-				verbose(env, "frame %d: propagating fp%d\n",
-					fr, (-i - 1) * BPF_REG_SIZE);
-			err = mark_chain_precision_stack_frame(env, fr, i);
-			if (err < 0)
-				return err;
+			if (env->log.level & BPF_LOG_LEVEL2) {
+				if (first)
+					verbose(env, "frame %d: propagating fp%d",
+						fr, (-i - 1) * BPF_REG_SIZE);
+				else
+					verbose(env, ",fp%d", (-i - 1) * BPF_REG_SIZE);
+			}
+			bt_set_frame_slot(&env->bt, fr, i);
+			first = false;
 		}
+		if (!first)
+			verbose(env, "\n");
 	}
+
+	err = mark_chain_precision_batch(env);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
