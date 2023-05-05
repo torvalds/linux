@@ -603,7 +603,7 @@ static struct i2c_driver ds3232_driver = {
 		.of_match_table = of_match_ptr(ds3232_of_match),
 		.pm	= &ds3232_pm_ops,
 	},
-	.probe_new = ds3232_i2c_probe,
+	.probe = ds3232_i2c_probe,
 	.id_table = ds3232_id,
 };
 

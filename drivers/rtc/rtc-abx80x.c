@@ -992,7 +992,7 @@ static struct i2c_driver abx80x_driver = {
 		.name	= "rtc-abx80x",
 		.of_match_table = of_match_ptr(abx80x_of_match),
 	},
-	.probe_new	= abx80x_probe,
+	.probe		= abx80x_probe,
 	.id_table	= abx80x_id,
 };
 

@@ -908,7 +908,7 @@ static struct i2c_driver isl1208_driver = {
 		.name = "rtc-isl1208",
 		.of_match_table = of_match_ptr(isl1208_of_match),
 	},
-	.probe_new = isl1208_probe,
+	.probe = isl1208_probe,
 	.id_table = isl1208_id,
 };
 

@@ -584,7 +584,7 @@ static struct i2c_driver abeoz9_driver = {
 		.name = "rtc-ab-eoz9",
 		.of_match_table = of_match_ptr(abeoz9_dt_match),
 	},
-	.probe_new = abeoz9_probe,
+	.probe = abeoz9_probe,
 	.id_table = abeoz9_id,
 };
 

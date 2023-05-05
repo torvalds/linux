@@ -306,7 +306,7 @@ static struct i2c_driver pcf8583_driver = {
 	.driver = {
 		.name	= "pcf8583",
 	},
-	.probe_new	= pcf8583_probe,
+	.probe		= pcf8583_probe,
 	.id_table	= pcf8583_id,
 };
 

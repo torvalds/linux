@@ -998,7 +998,7 @@ static struct i2c_driver rv3032_driver = {
 		.acpi_match_table = rv3032_i2c_acpi_match,
 		.of_match_table = of_match_ptr(rv3032_of_match),
 	},
-	.probe_new	= rv3032_probe,
+	.probe		= rv3032_probe,
 };
 module_i2c_driver(rv3032_driver);
 

@@ -224,7 +224,7 @@ static struct i2c_driver max6900_driver = {
 	.driver = {
 		   .name = "rtc-max6900",
 		   },
-	.probe_new = max6900_probe,
+	.probe = max6900_probe,
 	.id_table = max6900_id,
 };
 

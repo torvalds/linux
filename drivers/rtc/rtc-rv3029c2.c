@@ -824,7 +824,7 @@ static struct i2c_driver rv3029_driver = {
 		.name = "rv3029",
 		.of_match_table = of_match_ptr(rv3029_of_match),
 	},
-	.probe_new	= rv3029_i2c_probe,
+	.probe		= rv3029_i2c_probe,
 	.id_table	= rv3029_id,
 };
 
