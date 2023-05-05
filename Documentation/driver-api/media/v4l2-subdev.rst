@@ -206,15 +206,11 @@ takes two arguments: a pointer to struct :c:type:`v4l2_device` and a
 pointer to struct :c:type:`v4l2_async_notifier`.
 
 Before registering the notifier, bridge drivers must do two things: first, the
-notifier must be initialized using the :c:func:`v4l2_async_nf_init`.
-Second, bridge drivers can then begin to form a list of subdevice descriptors
-that the bridge device needs for its operation. Several functions are available
-to add subdevice descriptors to a notifier, depending on the type of device and
-the needs of the driver.
-
-:c:func:`v4l2_async_nf_add_fwnode_remote` and
-:c:func:`v4l2_async_nf_add_i2c` are for bridge and ISP drivers for
-registering their async sub-devices with the notifier.
+notifier must be initialized using the :c:func:`v4l2_async_nf_init`.  Second,
+bridge drivers can then begin to form a list of subdevice descriptors that the
+bridge device needs for its operation. :c:func:`v4l2_async_nf_add_fwnode`,
+:c:func:`v4l2_async_nf_add_fwnode_remote` and :c:func:`v4l2_async_nf_add_i2c`
+are available for that purpose.
 
 Asynchronous sub-device registration helper for camera sensor drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
