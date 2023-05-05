@@ -3806,7 +3806,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 				err = backtrack_insn(env, i, bt);
 			}
 			if (err == -ENOTSUPP) {
-				mark_all_scalars_precise(env, st);
+				mark_all_scalars_precise(env, env->cur_state);
 				bt_reset(bt);
 				return 0;
 			} else if (err) {
@@ -3868,7 +3868,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 					 * fp-8 and it's "unallocated" stack space.
 					 * In such case fallback to conservative.
 					 */
-					mark_all_scalars_precise(env, st);
+					mark_all_scalars_precise(env, env->cur_state);
 					bt_reset(bt);
 					return 0;
 				}
@@ -3896,11 +3896,21 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 		}
 
 		if (bt_empty(bt))
-			break;
+			return 0;
 
 		last_idx = st->last_insn_idx;
 		first_idx = st->first_insn_idx;
 	}
+
+	/* if we still have requested precise regs or slots, we missed
+	 * something (e.g., stack access through non-r10 register), so
+	 * fallback to marking all precise
+	 */
+	if (!bt_empty(bt)) {
+		mark_all_scalars_precise(env, env->cur_state);
+		bt_reset(bt);
+	}
+
 	return 0;
 }
 
