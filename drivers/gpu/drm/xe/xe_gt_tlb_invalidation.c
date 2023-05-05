@@ -34,8 +34,8 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 			break;
 
 		trace_xe_gt_tlb_invalidation_fence_timeout(fence);
-		drm_err(&gt_to_xe(gt)->drm, "TLB invalidation fence timeout, seqno=%d",
-			fence->seqno);
+		drm_err(&gt_to_xe(gt)->drm, "gt%d: TLB invalidation fence timeout, seqno=%d",
+			gt->info.id, fence->seqno);
 
 		list_del(&fence->link);
 		fence->base.error = -ETIME;
@@ -285,8 +285,8 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 				 tlb_invalidation_seqno_past(gt, seqno),
 				 TLB_TIMEOUT);
 	if (!ret) {
-		drm_err(&xe->drm, "TLB invalidation time'd out, seqno=%d, recv=%d\n",
-			seqno, gt->tlb_invalidation.seqno_recv);
+		drm_err(&xe->drm, "gt%d: TLB invalidation time'd out, seqno=%d, recv=%d\n",
+			gt->info.id, seqno, gt->tlb_invalidation.seqno_recv);
 		return -ETIME;
 	}
 
