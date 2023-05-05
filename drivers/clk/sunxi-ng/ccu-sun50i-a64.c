@@ -528,11 +528,18 @@ static SUNXI_CCU_M_WITH_MUX_GATE(de_clk, "de", de_parents,
 				 0x104, 0, 4, 24, 3, BIT(31),
 				 CLK_SET_RATE_PARENT);
 
+/*
+ * DSI output seems to work only when PLL_MIPI selected. Set it and prevent
+ * the mux from reparenting.
+ */
+#define SUN50I_A64_TCON0_CLK_REG	0x118
+
 static const char * const tcon0_parents[] = { "pll-mipi", "pll-video0-2x" };
 static const u8 tcon0_table[] = { 0, 2, };
 static SUNXI_CCU_MUX_TABLE_WITH_GATE(tcon0_clk, "tcon0", tcon0_parents,
 				     tcon0_table, 0x118, 24, 3, BIT(31),
-				     CLK_SET_RATE_PARENT);
+				     CLK_SET_RATE_PARENT |
+				     CLK_SET_RATE_NO_REPARENT);
 
 static const char * const tcon1_parents[] = { "pll-video0", "pll-video1" };
 static const u8 tcon1_table[] = { 0, 2, };
@@ -952,6 +959,11 @@ static int sun50i_a64_ccu_probe(struct platform_device *pdev)
 	writel(val | (0 << 16), reg + SUN50I_A64_PLL_AUDIO_REG);
 
 	writel(0x515, reg + SUN50I_A64_PLL_MIPI_REG);
+
+	/* Set PLL MIPI as parent for TCON0 */
+	val = readl(reg + SUN50I_A64_TCON0_CLK_REG);
+	val &= ~GENMASK(26, 24);
+	writel(val | (0 << 24), reg + SUN50I_A64_TCON0_CLK_REG);
 
 	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &sun50i_a64_ccu_desc);
 	if (ret)
