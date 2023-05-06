@@ -258,7 +258,6 @@ static void vf610_gpio_disable_clk(void *data)
 static int vf610_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct vf610_gpio_port *port;
 	struct gpio_chip *gc;
 	struct gpio_irq_chip *girq;
@@ -318,7 +317,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	gc->parent = dev;
 	gc->label = dev_name(dev);
 	gc->ngpio = VF610_GPIO_PER_PORT;
-	gc->base = of_alias_get_id(np, "gpio") * VF610_GPIO_PER_PORT;
+	gc->base = -1;
 
 	gc->request = gpiochip_generic_request;
 	gc->free = gpiochip_generic_free;
