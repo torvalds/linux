@@ -1739,7 +1739,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 	}
 
-	err = mount_bpffs_for_pin(pinfile);
+	err = mount_bpffs_for_pin(pinfile, !first_prog_only);
 	if (err)
 		goto err_close_obj;
 
