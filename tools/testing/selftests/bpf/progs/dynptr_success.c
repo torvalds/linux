@@ -522,3 +522,24 @@ int test_dynptr_skb_no_buff(struct __sk_buff *skb)
 
 	return !!data;
 }
+
+SEC("?cgroup_skb/egress")
+int test_dynptr_skb_strcmp(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	char *data;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
+		err = 1;
+		return 1;
+	}
+
+	/* This may return NULL. SKB may require a buffer */
+	data = bpf_dynptr_slice(&ptr, 0, NULL, 10);
+	if (data) {
+		bpf_strncmp(data, 10, "foo");
+		return 1;
+	}
+
+	return 1;
+}
