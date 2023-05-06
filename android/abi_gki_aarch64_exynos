@@ -1928,37 +1928,6 @@
   _raw_read_unlock_irqrestore
 
 # required by scsc_wlan.ko
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_chandef_create
-  cfg80211_chandef_valid
-  cfg80211_ch_switch_notify
-  cfg80211_connect_done
-  cfg80211_conn_failed
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_find_elem_match
-  cfg80211_find_vendor_elem
-  cfg80211_get_bss
-  cfg80211_inform_bss_frame_data
-  cfg80211_mgmt_tx_status_ext
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_ref_bss
-  cfg80211_register_netdevice
-  cfg80211_remain_on_channel_expired
-  cfg80211_roamed
-  cfg80211_rx_mgmt_ext
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  cfg80211_sched_scan_stopped
-  __cfg80211_send_event_skb
-  cfg80211_unregister_wdev
-  cfg80211_update_owe_info_event
-  cfg80211_vendor_cmd_reply
   consume_skb
   dev_addr_mod
   dev_alloc_name
@@ -1969,9 +1938,6 @@
   ether_setup
   eth_type_trans
   for_each_kernel_tracepoint
-  ieee80211_channel_to_freq_khz
-  ieee80211_freq_khz_to_channel
-  ieee80211_get_channel_khz
   in4_pton
   in6_pton
   ip_send_check
@@ -2000,7 +1966,6 @@
   register_inetaddr_notifier
   register_kretprobe
   register_netdevice
-  regulatory_set_wiphy_regd
   rtnl_is_locked
   rtnl_lock
   rtnl_unlock
@@ -2013,10 +1978,6 @@
   unregister_inetaddr_notifier
   unregister_kretprobe
   unregister_netdevice_queue
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
 
 # required by scsi_srpmb.ko
   pfn_is_map_memory
