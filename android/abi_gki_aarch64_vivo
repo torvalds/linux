@@ -3937,6 +3937,7 @@
   regulator_force_disable
   regulator_get
   regulator_get_current_limit_regmap
+  regulator_get_drvdata
   regulator_get_linear_step
   regulator_get_mode
   regulator_get_optional
@@ -4780,6 +4781,7 @@
   ucsi_destroy
   ucsi_get_drvdata
   ucsi_register
+  ucsi_send_command
   ucsi_set_drvdata
   ucsi_unregister
   udp4_hwcsum
