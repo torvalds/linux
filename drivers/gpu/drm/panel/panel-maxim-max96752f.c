@@ -404,8 +404,56 @@ static const struct panel_desc boe_av156fht_l83 = {
 	.backlight_disable	= boe_av156fht_l83_backlight_disable,
 };
 
+static int hannstar_hsd123jpw3_a15_prepare(struct max96752f *max96752f)
+{
+	maxim_deserializer_write(max96752f, 0x0002, 0x43);
+	maxim_deserializer_write(max96752f, 0x0140, 0x20);
+
+	maxim_deserializer_write(max96752f, 0x01ce, 0x5e);	/* oldi */
+	maxim_deserializer_write(max96752f, 0x0226, 0x40);	/* bl_pwm */
+	maxim_deserializer_write(max96752f, 0x0224, 0x84);
+	maxim_deserializer_write(max96752f, 0x0204, 0xa1);	/* tp_int */
+	maxim_deserializer_write(max96752f, 0x0203, 0x83);
+
+	return 0;
+}
+
+static int hannstar_hsd123jpw3_a15_unprepare(struct max96752f *max96752f)
+{
+	return 0;
+}
+
+static int hannstar_hsd123jpw3_a15_enable(struct max96752f *max96752f)
+{
+	maxim_deserializer_write(max96752f, 0x0221, 0x90);	/* lcd_rst */
+	maxim_deserializer_write(max96752f, 0x0206, 0x90);	/* tp_rst */
+	msleep(20);
+
+	return 0;
+}
+
+static int hannstar_hsd123jpw3_a15_disable(struct max96752f *max96752f)
+{
+	maxim_deserializer_write(max96752f, 0x0206, 0x80);      /* tp_rst */
+	maxim_deserializer_write(max96752f, 0x0227, 0x80);	/* lcd_rst */
+	msleep(20);
+
+	return 0;
+}
+
+static const struct panel_desc hannstar_hsd123jpw3_a15 = {
+	.name			= "hannstar,hsd123jpw3-a15",
+	.width_mm		= 292,
+	.height_mm		= 110,
+	.prepare		= hannstar_hsd123jpw3_a15_prepare,
+	.unprepare		= hannstar_hsd123jpw3_a15_unprepare,
+	.enable			= hannstar_hsd123jpw3_a15_enable,
+	.disable		= hannstar_hsd123jpw3_a15_disable,
+};
+
 static const struct of_device_id max96752f_of_match[] = {
 	{ .compatible = "boe,av156fht-l83", &boe_av156fht_l83 },
+	{ .compatible = "hannstar,hsd123jpw3-a15", &hannstar_hsd123jpw3_a15 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96752f_of_match);
