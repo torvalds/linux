@@ -124,7 +124,7 @@ include ../scripts/utilities.mak
 #
 # Define NO_LIBDEBUGINFOD if you do not want support debuginfod
 #
-# Define NO_BPF_SKEL to disable BPF skeletons
+# Define BUILD_BPF_SKEL to enable BPF skeletons
 #
 # Define BUILD_NONDISTRO to enable building an linking against libbfd and
 # libiberty distribution license incompatible libraries.
@@ -1055,7 +1055,7 @@ SKELETONS += $(SKEL_OUT)/kwork_trace.skel.h $(SKEL_OUT)/sample_filter.skel.h
 $(SKEL_TMP_OUT) $(LIBAPI_OUTPUT) $(LIBBPF_OUTPUT) $(LIBPERF_OUTPUT) $(LIBSUBCMD_OUTPUT) $(LIBSYMBOL_OUTPUT):
 	$(Q)$(MKDIR) -p $@
 
-ifndef NO_BPF_SKEL
+ifdef BUILD_BPF_SKEL
 BPFTOOL := $(SKEL_TMP_OUT)/bootstrap/bpftool
 BPF_INCLUDE := -I$(SKEL_TMP_OUT)/.. -I$(LIBBPF_INCLUDE)
 
@@ -1074,11 +1074,11 @@ bpf-skel: $(SKELETONS)
 
 .PRECIOUS: $(SKEL_TMP_OUT)/%.bpf.o
 
-else # NO_BPF_SKEL
+else # BUILD_BPF_SKEL
 
 bpf-skel:
 
-endif # NO_BPF_SKEL
+endif # BUILD_BPF_SKEL
 
 bpf-skel-clean:
 	$(call QUIET_CLEAN, bpf-skel) $(RM) -r $(SKEL_TMP_OUT) $(SKELETONS)

@@ -3981,7 +3981,7 @@ int cmd_record(int argc, const char **argv)
 
 #ifndef HAVE_BPF_SKEL
 # define set_nobuild(s, l, m, c) set_option_nobuild(record_options, s, l, m, c)
-	set_nobuild('\0', "off-cpu", "NO_BPF_SKEL=1", true);
+	set_nobuild('\0', "off-cpu", "no BUILD_BPF_SKEL=1", true);
 # undef set_nobuild
 #endif
 

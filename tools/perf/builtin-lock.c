@@ -2387,7 +2387,7 @@ int cmd_lock(int argc, const char **argv)
 
 #ifndef HAVE_BPF_SKEL
 		set_option_nobuild(contention_options, 'b', "use-bpf",
-				   "NO_BPF_SKEL=1", false);
+				   "no BUILD_BPF_SKEL=1", false);
 #endif
 		if (argc) {
 			argc = parse_options(argc, argv, contention_options,
