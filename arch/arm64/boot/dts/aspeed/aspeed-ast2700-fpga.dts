@@ -84,4 +84,33 @@
 
 	status = "okay";
 };
+
+&pcie0_kcs0 {
+	aspeed,lpc-io-reg = <0x3a0>;
+
+	status = "okay";
+};
+
+&pcie0_kcs1 {
+	aspeed,lpc-io-reg = <0x3a8>;
+
+	status = "okay";
+};
+
+&pcie0_kcs2 {
+	aspeed,lpc-io-reg = <0x3a2>;
+
+	status = "okay";
+};
+
+&pcie0_kcs3 {
+	aspeed,lpc-io-reg = <0x3a4>;
+
+	status = "okay";
+};
+
+&pcie0_ibt {
+	status = "okay";
+};
+
 #endif
