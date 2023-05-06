@@ -591,9 +591,11 @@ bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 			*fps_cnt = fps_in - dst_fps;
 		*fps_cnt += dst_fps;
 
-		if (*fps_cnt < fps_in)
+		if (*fps_cnt < fps_in) {
 			*is_discard = true;
-		else {
+			if (stream->next_buf || !list_empty(&stream->buf_queue))
+				stream->skip_frame = 1;
+		} else {
 			*fps_cnt -= fps_in;
 			*is_discard = false;
 			++cur_fps[stream->id];

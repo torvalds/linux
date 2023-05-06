@@ -287,6 +287,7 @@ struct rkisp_stream {
 	struct frame_debug_info dbg;
 	int conn_id;
 	u32 memory;
+	u32 skip_frame;
 	union {
 		struct rkisp_stream_sp sp;
 		struct rkisp_stream_mp mp;

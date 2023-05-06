@@ -1399,10 +1399,12 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
 		u64 ns = 0;
 
-		if (dev->skip_frame) {
+		if (dev->skip_frame || stream->skip_frame) {
 			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 			list_add_tail(&buf->queue, &stream->buf_queue);
 			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			if (stream->skip_frame)
+				stream->skip_frame--;
 			goto end;
 		}
 
@@ -1540,6 +1542,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 		stream->ops->enable_mi(stream);
 
 	stream->streaming = true;
+	stream->skip_frame = 0;
 	return 0;
 }
 
