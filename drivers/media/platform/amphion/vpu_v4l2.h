@@ -27,7 +27,7 @@ struct vb2_v4l2_buffer *vpu_find_buf_by_idx(struct vpu_inst *inst, u32 type, u32
 void vpu_v4l2_set_error(struct vpu_inst *inst);
 int vpu_notify_eos(struct vpu_inst *inst);
 int vpu_notify_source_change(struct vpu_inst *inst);
-int vpu_set_last_buffer_dequeued(struct vpu_inst *inst);
+int vpu_set_last_buffer_dequeued(struct vpu_inst *inst, bool eos);
 void vpu_vb2_buffers_return(struct vpu_inst *inst, unsigned int type, enum vb2_buffer_state state);
 int vpu_get_num_buffers(struct vpu_inst *inst, u32 type);
 bool vpu_is_source_empty(struct vpu_inst *inst);
