@@ -108,6 +108,9 @@ static void max96745_power_off(void *data)
 {
 	struct max96745 *max96745 = data;
 
+	if (max96745->pwdnb_gpio)
+		gpiod_direction_output(max96745->pwdnb_gpio, 1);
+
 	if (max96745->enable_gpio)
 		gpiod_direction_output(max96745->enable_gpio, 0);
 }
@@ -122,6 +125,11 @@ static void max96745_power_on(struct max96745 *max96745)
 	if (max96745->enable_gpio) {
 		gpiod_direction_output(max96745->enable_gpio, 1);
 		msleep(200);
+	}
+
+	if (max96745->pwdnb_gpio) {
+		gpiod_direction_output(max96745->pwdnb_gpio, 0);
+		msleep(30);
 	}
 
 	/* Set for I2C Fast-mode speed */
@@ -252,6 +260,12 @@ static int max96745_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(max96745->enable_gpio))
 		return dev_err_probe(dev, PTR_ERR(max96745->enable_gpio),
 				     "failed to get enable GPIO\n");
+
+	max96745->pwdnb_gpio = devm_gpiod_get_optional(dev, "pwdnb",
+						       GPIOD_ASIS);
+	if (IS_ERR(max96745->pwdnb_gpio))
+		return dev_err_probe(dev, PTR_ERR(max96745->pwdnb_gpio),
+				     "failed to get pwdnb GPIO\n");
 
 	max96745->extcon = devm_extcon_dev_allocate(dev, max96745_cable);
 	if (IS_ERR(max96745->extcon))

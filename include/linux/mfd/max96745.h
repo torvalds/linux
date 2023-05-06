@@ -15,6 +15,7 @@ struct max96745 {
 	struct regmap *regmap;
 	struct i2c_mux_core *muxc;
 	struct gpio_desc *enable_gpio;
+	struct gpio_desc *pwdnb_gpio;
 	struct extcon_dev *extcon;
 	bool idle_disc;
 };
