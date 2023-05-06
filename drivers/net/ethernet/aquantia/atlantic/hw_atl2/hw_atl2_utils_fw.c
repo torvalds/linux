@@ -336,7 +336,7 @@ static int aq_a2_fw_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 static void aq_a2_fill_a0_stats(struct aq_hw_s *self,
 				struct statistics_s *stats)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	struct aq_stats_s *cs = &self->curr_stats;
 	struct aq_stats_s curr_stats = *cs;
 	bool corrupted_stats = false;
@@ -378,7 +378,7 @@ do { \
 static void aq_a2_fill_b0_stats(struct aq_hw_s *self,
 				struct statistics_s *stats)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	struct aq_stats_s *cs = &self->curr_stats;
 	struct aq_stats_s curr_stats = *cs;
 	bool corrupted_stats = false;
