@@ -129,6 +129,7 @@ struct ublk_queue {
 	unsigned long io_addr;	/* mapped vm address */
 	unsigned int max_io_sz;
 	bool force_abort;
+	bool timeout;
 	unsigned short nr_io_ready;	/* how many ios setup */
 	struct ublk_device *dev;
 	struct ublk_io ios[];
@@ -898,6 +899,22 @@ static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 	}
 }
 
+static enum blk_eh_timer_return ublk_timeout(struct request *rq)
+{
+	struct ublk_queue *ubq = rq->mq_hctx->driver_data;
+
+	if (ubq->flags & UBLK_F_UNPRIVILEGED_DEV) {
+		if (!ubq->timeout) {
+			send_sig(SIGKILL, ubq->ubq_daemon, 0);
+			ubq->timeout = true;
+		}
+
+		return BLK_EH_DONE;
+	}
+
+	return BLK_EH_RESET_TIMER;
+}
+
 static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -957,6 +974,7 @@ static const struct blk_mq_ops ublk_mq_ops = {
 	.queue_rq       = ublk_queue_rq,
 	.init_hctx	= ublk_init_hctx,
 	.init_request   = ublk_init_rq,
+	.timeout	= ublk_timeout,
 };
 
 static int ublk_ch_open(struct inode *inode, struct file *filp)
@@ -1737,6 +1755,18 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	else if (!(info.flags & UBLK_F_UNPRIVILEGED_DEV))
 		return -EPERM;
 
+	/*
+	 * unprivileged device can't be trusted, but RECOVERY and
+	 * RECOVERY_REISSUE still may hang error handling, so can't
+	 * support recovery features for unprivileged ublk now
+	 *
+	 * TODO: provide forward progress for RECOVERY handler, so that
+	 * unprivileged device can benefit from it
+	 */
+	if (info.flags & UBLK_F_UNPRIVILEGED_DEV)
+		info.flags &= ~(UBLK_F_USER_RECOVERY_REISSUE |
+				UBLK_F_USER_RECOVERY);
+
 	/* the created device is always owned by current user */
 	ublk_store_owner_uid_gid(&info.owner_uid, &info.owner_gid);
 
@@ -2007,6 +2037,7 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 	put_task_struct(ubq->ubq_daemon);
 	/* We have to reset it to NULL, otherwise ub won't accept new FETCH_REQ */
 	ubq->ubq_daemon = NULL;
+	ubq->timeout = false;
 
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
