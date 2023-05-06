@@ -529,6 +529,132 @@
 				status = "disabled";
 			};
 
+			pcie0_lpc: pcie-lpc@12c19000 {
+				compatible = "aspeed,ast2600-lpc-v2", "simple-mfd", "syscon";
+				reg = <0x0 0x12c19000 0x0 0x800>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x12c19000 0x800>;
+
+				pcie0_kcs0: pcie-kcs0@24 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x24 0x1>, <0x30 0x1>, <0x3c 0x1>;
+					interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <6>;
+					status = "disabled";
+				};
+
+				pcie0_kcs1: pcie-kcs1@28 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
+					interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <7>;
+					status = "disabled";
+				};
+
+				pcie0_kcs2: pcie-kcs2@2c {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x2c 0x1>, <0x38 0x1>, <0x44 0x1>;
+					interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <8>;
+					status = "disabled";
+				};
+
+				pcie0_kcs3: pcie-kcs3@114 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x114 0x1>, <0x118 0x1>, <0x11c 0x1>;
+					interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <9>;
+					status = "disabled";
+				};
+
+				pcie0_snoop: pcie-snoop@80 {
+					compatible = "aspeed,ast2600-lpc-snoop";
+					reg = <0x80 0x80>;
+					interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+				pcie0_pcc: pcie-pcc@0 {
+					compatible = "aspeed,ast2600-lpc-pcc";
+					reg = <0x0 0x140>;
+					interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+				pcie0_ibt: pcie_ibt@140 {
+					compatible = "aspeed,ast2600-ibt-bmc";
+					reg = <0x140 0x18>;
+					interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+			};
+
+			pcie1_lpc: pcie-lpc@12c19800 {
+				compatible = "aspeed,ast2600-lpc-v2", "simple-mfd", "syscon";
+				reg = <0x0 0x12c19800 0x0 0x800>;
+
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges = <0x0 0x12c19800 0x0 0x12c19800 0x0 0x800>;
+
+				pcie1_kcs0: pcie-kcs0@0 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x0 0x0 0x0 0x130>;
+					interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <6>;
+					status = "disabled";
+				};
+
+				pcie1_kcs1: pcie-kcs1@0 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x0 0x0 0x0 0x130>;
+					interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <7>;
+					status = "disabled";
+				};
+
+				pcie1_kcs2: pcie-kcs2@0 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x0 0x0 0x0 0x130>;
+					interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <8>;
+					status = "disabled";
+				};
+
+				pcie1_kcs3: pcie-kcs3@0 {
+					compatible = "aspeed,ast2600-kcs-bmc";
+					reg = <0x0 0x0 0x0 0x130>;
+					interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <9>;
+					status = "disabled";
+				};
+
+				pcie1_snoop: pcie-snoop@80 {
+					compatible = "aspeed,ast2600-lpc-snoop";
+					reg = <0x0 0x80 0x0 0x80>;
+					interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+				pcie1_pcc: pcie-pcc@0 {
+					compatible = "aspeed,ast2600-lpc-pcc";
+					reg = <0x0 0x0 0x0 0x140>;
+					interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+				pcie1_ibt: pcie_ibt@140 {
+					compatible = "aspeed,ast2600-ibt-bmc";
+					reg = <0x0 0x140 0x0 0x18>;
+					interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+			};
+
 		};
 	};
 };
