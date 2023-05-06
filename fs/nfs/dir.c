@@ -448,7 +448,7 @@ static struct folio *nfs_readdir_folio_get_next(struct address_space *mapping,
 	folio = __filemap_get_folio(mapping, index,
 			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
 			mapping_gfp_mask(mapping));
-	if (!folio)
+	if (IS_ERR(folio))
 		return NULL;
 	nfs_readdir_folio_init_and_validate(folio, cookie, change_attr);
 	if (nfs_readdir_folio_last_cookie(folio) != cookie)
