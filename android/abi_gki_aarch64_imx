@@ -177,6 +177,14 @@
   component_master_del
   component_match_add_release
   component_unbind_all
+  configfs_register_default_group
+  configfs_register_subsystem
+  configfs_unregister_default_group
+  configfs_unregister_subsystem
+  config_group_init
+  config_group_init_type_name
+  config_item_put
+  config_item_set_name
   console_lock
   console_suspend_enabled
   console_unlock
@@ -334,6 +342,7 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_power_supply_register
   devm_pwmchip_add
   devm_pwm_get
   devm_rc_allocate_device
@@ -422,6 +431,7 @@
   dmabuf_page_pool_create
   dmabuf_page_pool_destroy
   dmabuf_page_pool_free
+  dmabuf_page_pool_get_size
   dma_buf_put
   dma_buf_unmap_attachment
   dma_buf_vmap
@@ -882,6 +892,7 @@
   hdmi_vendor_infoframe_pack
   hex_dump_to_buffer
   hrtimer_cancel
+  hrtimer_forward
   hrtimer_init
   hrtimer_resolution
   hrtimer_start_range_ns
@@ -933,6 +944,7 @@
   iio_buffer_enabled
   iio_buffer_init
   iio_buffer_put
+  iio_bus_type
   iio_dealloc_pollfunc
   iio_device_attach_buffer
   iio_device_claim_direct_mode
@@ -940,14 +952,21 @@
   __iio_device_register
   iio_device_release_direct_mode
   iio_device_unregister
+  iio_format_value
   iio_get_time_ns
   iio_push_event
   iio_push_to_buffers
   iio_read_const_attr
   iio_read_mount_matrix
   iio_show_mount_matrix
+  iio_str_to_fixpoint
+  __iio_trigger_alloc
+  iio_trigger_free
   iio_trigger_notify_done
+  iio_trigger_poll
   iio_trigger_poll_chained
+  iio_trigger_register
+  iio_trigger_unregister
   import_iovec
   in4_pton
   init_dummy_netdev
@@ -1015,6 +1034,8 @@
   __irq_set_handler
   irq_set_irq_wake
   irq_to_desc
+  irq_work_queue
+  irq_work_sync
   ir_raw_event_store_edge
   is_console_locked
   is_vmalloc_addr
@@ -1516,7 +1537,10 @@
   pm_wakeup_dev_event
   pm_wakeup_ws_event
   policy_has_boost_freq
+  power_supply_am_i_supplied
+  power_supply_changed
   power_supply_get_by_phandle
+  power_supply_get_drvdata
   power_supply_get_property
   power_supply_put
   power_supply_register
@@ -1662,6 +1686,7 @@
   rproc_add_carveout
   rproc_alloc
   rproc_coredump_add_segment
+  rproc_da_to_va
   rproc_del
   rproc_elf_find_loaded_rsc_table
   rproc_elf_get_boot_addr
@@ -2266,6 +2291,7 @@
   xdp_do_flush
   xdp_do_redirect
   xdp_master_redirect
+  xdp_return_frame
   xdp_rxq_info_is_reg
   __xdp_rxq_info_reg
   xdp_rxq_info_reg_mem_model
