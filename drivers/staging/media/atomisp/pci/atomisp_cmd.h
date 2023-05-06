@@ -259,8 +259,7 @@ int atomisp_compare_grid(struct atomisp_sub_device *asd,
 			 struct atomisp_grid_info *atomgrid);
 
 /* This function looks up the closest available resolution. */
-int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
-		    bool *res_overflow);
+int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f);
 
 int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f);
 

@@ -896,7 +896,7 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	f->fmt.pix.width += pad_w;
 	f->fmt.pix.height += pad_h;
 
-	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
+	ret = atomisp_try_fmt(vdev, &f->fmt.pix);
 	if (ret)
 		return ret;
 

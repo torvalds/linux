@@ -3881,8 +3881,7 @@ static void __atomisp_init_stream_info(u16 stream_index,
 }
 
 /* This function looks up the closest available resolution. */
-int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
-		    bool *res_overflow)
+int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 {
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
@@ -3940,6 +3939,8 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	}
 
 	f->pixelformat = fmt->pixelformat;
+	f->width = format.format.width;
+	f->height = format.format.height;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -3948,22 +3949,8 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	 * the sensor driver.
 	 */
 	if (f->pixelformat == V4L2_PIX_FMT_JPEG ||
-	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-		f->width = format.format.width;
-		f->height = format.format.height;
+	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW)
 		return 0;
-	}
-
-	if (!res_overflow || (format.format.width < f->width &&
-			      format.format.height < f->height)) {
-		f->width = format.format.width;
-		f->height = format.format.height;
-		/* Set the flag when resolution requested is
-		 * beyond the max value supported by sensor
-		 */
-		if (res_overflow)
-			*res_overflow = true;
-	}
 
 	/* app vs isp */
 	f->width = rounddown(clamp_t(u32, f->width, ATOM_ISP_MIN_WIDTH,
