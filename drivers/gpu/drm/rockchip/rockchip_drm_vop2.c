@@ -3167,7 +3167,7 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	if ((fb->width > cstate->mode.hdisplay) ||
-	    ((fb->height != cstate->mode.vdisplay) &&
+	    ((fb->height < cstate->mode.vdisplay) &&
 	    (fb->height != (cstate->mode.vdisplay >> 1)))) {
 		DRM_DEBUG_KMS("Invalid framebuffer size %ux%u, Only support x scale down and 1/2 y scale down\n",
 				fb->width, fb->height);
