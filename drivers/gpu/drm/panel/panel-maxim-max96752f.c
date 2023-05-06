@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/of.h>
 
 #include <video/videomode.h>
@@ -46,7 +47,7 @@ struct max96752f {
 		struct regmap *serializer;
 		struct regmap *deserializer;
 	} regmap;
-	struct gpio_desc *enable_gpio;
+	struct regulator *supply;
 	struct backlight_device *backlight;
 	struct drm_display_mode mode;
 	const struct panel_desc *desc;
@@ -182,6 +183,26 @@ static const struct regmap_config max96752f_regmap_config = {
 	.rd_table = &max96752f_readable_table,
 };
 
+static void max96752f_power_off(void *data)
+{
+	struct max96752f *max96752f = data;
+
+	if (max96752f->supply)
+		regulator_disable(max96752f->supply);
+}
+
+static void max96752f_power_on(struct max96752f *max96752f)
+{
+	int ret;
+
+	if (max96752f->supply) {
+		ret = regulator_enable(max96752f->supply);
+		if (ret)
+			dev_err(max96752f->dev,
+				"failed to enable power supply: %d\n", ret);
+	}
+}
+
 static int max96752f_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -196,6 +217,27 @@ static int max96752f_probe(struct i2c_client *client)
 	max96752f->dev = dev;
 	max96752f->desc = of_device_get_match_data(dev);
 	i2c_set_clientdata(client, max96752f);
+
+	max96752f->supply = devm_regulator_get_optional(dev, "power");
+	if (IS_ERR(max96752f->supply)) {
+		if (PTR_ERR(max96752f->supply) != -ENODEV)
+			return dev_err_probe(dev, PTR_ERR(max96752f->supply),
+					     "failed to get regulator\n");
+
+		max96752f->supply = NULL;
+	} else {
+		ret = regulator_enable(max96752f->supply);
+		if (ret) {
+			dev_err(dev, "failed to enable power supply: %d\n", ret);
+			return ret;
+		}
+
+		ret = devm_add_action_or_reset(dev, max96752f_power_off, max96752f);
+		if (ret) {
+			regulator_disable(max96752f->supply);
+			return ret;
+		}
+	}
 
 	max96752f->regmap.deserializer =
 			devm_regmap_init_i2c(client, &max96752f_regmap_config);
@@ -237,6 +279,26 @@ static int max96752f_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int __maybe_unused max96752f_suspend(struct device *dev)
+{
+	struct max96752f *max96752f = dev_get_drvdata(dev);
+
+	max96752f_power_off(max96752f);
+
+	return 0;
+}
+
+static int __maybe_unused max96752f_resume(struct device *dev)
+{
+	struct max96752f *max96752f = dev_get_drvdata(dev);
+
+	max96752f_power_on(max96752f);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(max96752f_pm_ops, max96752f_suspend, max96752f_resume);
+
 #define maxim_serializer_write(max96752f, reg, val) do {		\
 		int ret;						\
 		ret = regmap_write(max96752f->regmap.serializer,	\
@@ -269,7 +331,7 @@ static int max96752f_remove(struct i2c_client *client)
 			return ret;                                     \
 	} while (0)
 
-static int boe_av156fht_l83_panel_prepare(struct max96752f *max96752f)
+static int boe_av156fht_l83_prepare(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0002, 0x43);
 	maxim_deserializer_write(max96752f, 0x0140, 0x20);
@@ -286,14 +348,14 @@ static int boe_av156fht_l83_panel_prepare(struct max96752f *max96752f)
 	return 0;
 }
 
-static int boe_av156fht_l83_panel_unprepare(struct max96752f *max96752f)
+static int boe_av156fht_l83_unprepare(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0215, 0x80);	/* lcd_en */
 
 	return 0;
 }
 
-static int boe_av156fht_l83_panel_enable(struct max96752f *max96752f)
+static int boe_av156fht_l83_enable(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0227, 0x90);	/* lcd_rst */
 	msleep(20);
@@ -305,7 +367,7 @@ static int boe_av156fht_l83_panel_enable(struct max96752f *max96752f)
 	return 0;
 }
 
-static int boe_av156fht_l83_panel_disable(struct max96752f *max96752f)
+static int boe_av156fht_l83_disable(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0221, 0x80);	/* lcd_stb */
 	maxim_deserializer_write(max96752f, 0x020f, 0x80);	/* tp_rst */
@@ -314,7 +376,7 @@ static int boe_av156fht_l83_panel_disable(struct max96752f *max96752f)
 	return 0;
 }
 
-static int boe_av156fht_l83_panel_backlight_enable(struct max96752f *max96752f)
+static int boe_av156fht_l83_backlight_enable(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0212, 0x90);	/* bl_current_ctl */
 	maxim_deserializer_write(max96752f, 0x0209, 0x90);	/* bl_en */
@@ -322,7 +384,7 @@ static int boe_av156fht_l83_panel_backlight_enable(struct max96752f *max96752f)
 	return 0;
 }
 
-static int boe_av156fht_l83_panel_backlight_disable(struct max96752f *max96752f)
+static int boe_av156fht_l83_backlight_disable(struct max96752f *max96752f)
 {
 	maxim_deserializer_write(max96752f, 0x0209, 0x80);	/* bl_en */
 	maxim_deserializer_write(max96752f, 0x0212, 0x80);	/* bl_current_ctl */
@@ -334,12 +396,12 @@ static const struct panel_desc boe_av156fht_l83 = {
 	.name			= "boe-av156fht-l83",
 	.width_mm		= 346,
 	.height_mm		= 194,
-	.prepare		= boe_av156fht_l83_panel_prepare,
-	.unprepare		= boe_av156fht_l83_panel_unprepare,
-	.enable			= boe_av156fht_l83_panel_enable,
-	.disable		= boe_av156fht_l83_panel_disable,
-	.backlight_enable	= boe_av156fht_l83_panel_backlight_enable,
-	.backlight_disable	= boe_av156fht_l83_panel_backlight_disable,
+	.prepare		= boe_av156fht_l83_prepare,
+	.unprepare		= boe_av156fht_l83_unprepare,
+	.enable			= boe_av156fht_l83_enable,
+	.disable		= boe_av156fht_l83_disable,
+	.backlight_enable	= boe_av156fht_l83_backlight_enable,
+	.backlight_disable	= boe_av156fht_l83_backlight_disable,
 };
 
 static const struct of_device_id max96752f_of_match[] = {
@@ -352,6 +414,7 @@ static struct i2c_driver max96752f_driver = {
 	.driver = {
 		.name = "panel-maxim-max96752f",
 		.of_match_table = max96752f_of_match,
+		.pm = &max96752f_pm_ops,
 	},
 	.probe_new = max96752f_probe,
 	.remove = max96752f_remove,
