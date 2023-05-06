@@ -1896,9 +1896,9 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	 * mailbox communication, skip
 	 * this step.
 	 */
-	if (DISPLAY_VER(dev_priv) >= 14)
+	if (DISPLAY_VER(dev_priv) >= 14 || IS_DG2(dev_priv))
 		/* NOOP */;
-	else if (DISPLAY_VER(dev_priv) >= 11 && !IS_DG2(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 11)
 		ret = skl_pcode_request(&dev_priv->uncore, SKL_PCODE_CDCLK_CONTROL,
 					SKL_CDCLK_PREPARE_FOR_CHANGE,
 					SKL_CDCLK_READY_FOR_CHANGE,
