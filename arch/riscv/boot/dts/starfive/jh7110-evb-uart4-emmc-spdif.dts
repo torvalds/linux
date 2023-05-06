@@ -33,8 +33,6 @@
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
