@@ -304,5 +304,6 @@
 &usbdrd_dwc3_1 {
 	dr_mode = "host";
 	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
 	status = "okay";
 };
