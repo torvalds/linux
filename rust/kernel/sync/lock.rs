@@ -72,8 +72,8 @@ pub unsafe trait Backend {
 
 /// A mutual exclusion primitive.
 ///
-/// Exposes one of the kernel locking primitives. Which one is exposed depends on the lock backend
-/// specified as the generic parameter `B`.
+/// Exposes one of the kernel locking primitives. Which one is exposed depends on the lock
+/// [`Backend`] specified as the generic parameter `B`.
 #[pin_data]
 pub struct Lock<T: ?Sized, B: Backend> {
     /// The kernel lock object.
@@ -126,7 +126,7 @@ impl<T: ?Sized, B: Backend> Lock<T, B> {
 
 /// A lock guard.
 ///
-/// Allows mutual exclusion primitives that implement the `Backend` trait to automatically unlock
+/// Allows mutual exclusion primitives that implement the [`Backend`] trait to automatically unlock
 /// when a guard goes out of scope. It also provides a safe and convenient way to access the data
 /// protected by the lock.
 #[must_use = "the lock unlocks immediately when the guard is unused"]
