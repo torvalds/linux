@@ -48,6 +48,57 @@
 	};
 };
 
+&dsi0 {
+	vdda-supply = <&pm8941_l2>;
+	vdd-supply = <&pm8941_l22>;
+	vddio-supply = <&pm8941_l12>;
+
+	status = "okay";
+
+	panel: panel@0 {
+		compatible = "sharp,ls043t1le01-qhd";
+		reg = <0>;
+
+		avdd-supply = <&pm8941_l22>;
+		backlight = <&pm8941_wled>;
+		reset-gpios = <&pm8941_gpios 19 GPIO_ACTIVE_HIGH>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+};
+
+&dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&dsi0_phy {
+	status = "okay";
+
+	vddio-supply = <&pm8941_l12>;
+};
+
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&pm8941_wled {
+	qcom,cs-out;
+	qcom,switching-freq = <3200>;
+	qcom,ovp = <32>;
+	qcom,num-strings = <1>;
+
+	status = "okay";
+};
+
 &remoteproc_adsp {
 	cx-supply = <&pm8841_s2>;
 
