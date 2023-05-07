@@ -285,7 +285,7 @@ err_free:
 	return ret;
 }
 
-static int lcdif_remove(struct platform_device *pdev)
+static void lcdif_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
@@ -293,8 +293,6 @@ static int lcdif_remove(struct platform_device *pdev)
 	drm_atomic_helper_shutdown(drm);
 	lcdif_unload(drm);
 	drm_dev_put(drm);
-
-	return 0;
 }
 
 static void lcdif_shutdown(struct platform_device *pdev)
@@ -362,7 +360,7 @@ static const struct dev_pm_ops lcdif_pm_ops = {
 
 static struct platform_driver lcdif_platform_driver = {
 	.probe		= lcdif_probe,
-	.remove		= lcdif_remove,
+	.remove_new	= lcdif_remove,
 	.shutdown	= lcdif_shutdown,
 	.driver	= {
 		.name		= "imx-lcdif",
