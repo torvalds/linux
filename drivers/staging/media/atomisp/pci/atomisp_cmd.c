@@ -640,12 +640,6 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, enum vb2_buffer_s
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 }
 
-/* Returns queued buffers back to video-core */
-void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd)
-{
-	atomisp_flush_video_pipe(&asd->video_out, VB2_BUF_STATE_ERROR, false);
-}
-
 /* clean out the parameters that did not apply */
 void atomisp_flush_params_queue(struct atomisp_video_pipe *pipe)
 {
@@ -1029,7 +1023,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		 * dequeueing buffers is not needed. CSS will recycle
 		 * buffers that it has.
 		 */
-		atomisp_flush_bufs_and_wakeup(&isp->asd);
+		atomisp_flush_video_pipe(&isp->asd.video_out, VB2_BUF_STATE_ERROR, false);
 
 		/* Requeue unprocessed per-frame parameters. */
 		atomisp_recover_params_queue(&isp->asd.video_out);
