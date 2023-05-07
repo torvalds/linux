@@ -919,11 +919,9 @@ static int inno_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &inno_hdmi_ops);
 }
 
-static int inno_hdmi_remove(struct platform_device *pdev)
+static void inno_hdmi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &inno_hdmi_ops);
-
-	return 0;
 }
 
 static const struct of_device_id inno_hdmi_dt_ids[] = {
@@ -935,7 +933,7 @@ MODULE_DEVICE_TABLE(of, inno_hdmi_dt_ids);
 
 struct platform_driver inno_hdmi_driver = {
 	.probe  = inno_hdmi_probe,
-	.remove = inno_hdmi_remove,
+	.remove_new = inno_hdmi_remove,
 	.driver = {
 		.name = "innohdmi-rockchip",
 		.of_match_table = inno_hdmi_dt_ids,

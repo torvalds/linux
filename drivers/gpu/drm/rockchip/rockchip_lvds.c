@@ -739,19 +739,17 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rockchip_lvds_remove(struct platform_device *pdev)
+static void rockchip_lvds_remove(struct platform_device *pdev)
 {
 	struct rockchip_lvds *lvds = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &rockchip_lvds_component_ops);
 	clk_unprepare(lvds->pclk);
-
-	return 0;
 }
 
 struct platform_driver rockchip_lvds_driver = {
 	.probe = rockchip_lvds_probe,
-	.remove = rockchip_lvds_remove,
+	.remove_new = rockchip_lvds_remove,
 	.driver = {
 		   .name = "rockchip-lvds",
 		   .of_match_table = of_match_ptr(rockchip_lvds_dt_ids),
