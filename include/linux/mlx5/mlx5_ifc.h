@@ -435,7 +435,7 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         flow_table_modify[0x1];
 	u8         reformat[0x1];
 	u8         decap[0x1];
-	u8         reserved_at_9[0x1];
+	u8         reset_root_to_default[0x1];
 	u8         pop_vlan[0x1];
 	u8         push_vlan[0x1];
 	u8         reserved_at_c[0x1];
@@ -1801,7 +1801,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         disable_local_lb_uc[0x1];
 	u8         disable_local_lb_mc[0x1];
 	u8         log_min_hairpin_wq_data_sz[0x5];
-	u8         reserved_at_3e8[0x2];
+	u8         reserved_at_3e8[0x1];
+	u8         silent_mode[0x1];
 	u8         vhca_state[0x1];
 	u8         log_max_vlan_list[0x5];
 	u8         reserved_at_3f0[0x3];
@@ -1818,7 +1819,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_460[0x1];
 	u8         ats[0x1];
-	u8         reserved_at_462[0x1];
+	u8         cross_vhca_rqt[0x1];
 	u8         log_max_uctx[0x5];
 	u8         reserved_at_468[0x1];
 	u8         crypto[0x1];
@@ -1943,6 +1944,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 enum {
 	MLX5_CROSS_VHCA_OBJ_TO_OBJ_SUPPORTED_LOCAL_FLOW_TABLE_TO_REMOTE_FLOW_TABLE_MISS  = 0x80000,
+	MLX5_CROSS_VHCA_OBJ_TO_OBJ_SUPPORTED_LOCAL_FLOW_TABLE_ROOT_TO_REMOTE_FLOW_TABLE  = (1ULL << 20),
 };
 
 enum {
@@ -1992,7 +1994,11 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_260[0x120];
 	u8	   reserved_at_380[0x10];
 	u8	   ec_vf_vport_base[0x10];
-	u8	   reserved_at_3a0[0x460];
+
+	u8	   reserved_at_3a0[0x10];
+	u8	   max_rqt_vhca_id[0x10];
+
+	u8	   reserved_at_3c0[0x440];
 };
 
 enum mlx5_ifc_flow_destination_type {
@@ -2149,6 +2155,13 @@ struct mlx5_ifc_wq_bits {
 struct mlx5_ifc_rq_num_bits {
 	u8         reserved_at_0[0x8];
 	u8         rq_num[0x18];
+};
+
+struct mlx5_ifc_rq_vhca_bits {
+	u8         reserved_at_0[0x8];
+	u8         rq_num[0x18];
+	u8         reserved_at_20[0x10];
+	u8         rq_vhca_id[0x10];
 };
 
 struct mlx5_ifc_mac_address_layout_bits {
@@ -3901,7 +3914,10 @@ struct mlx5_ifc_rqtc_bits {
 
 	u8    reserved_at_e0[0x6a0];
 
-	struct mlx5_ifc_rq_num_bits rq_num[];
+	union {
+		DECLARE_FLEX_ARRAY(struct mlx5_ifc_rq_num_bits, rq_num);
+		DECLARE_FLEX_ARRAY(struct mlx5_ifc_rq_vhca_bits, rq_vhca);
+	};
 };
 
 enum {
@@ -4744,7 +4760,10 @@ struct mlx5_ifc_set_l2_table_entry_in_bits {
 
 	u8         reserved_at_c0[0x20];
 
-	u8         reserved_at_e0[0x13];
+	u8         reserved_at_e0[0x10];
+	u8         silent_mode_valid[0x1];
+	u8         silent_mode[0x1];
+	u8         reserved_at_f2[0x1];
 	u8         vlan_valid[0x1];
 	u8         vlan[0xc];
 
