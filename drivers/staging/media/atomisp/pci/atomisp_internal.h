@@ -211,8 +211,6 @@ struct atomisp_device {
 
 	spinlock_t lock; /* Protects asd.streaming */
 
-	bool need_gfx_throttle;
-
 	unsigned int mipi_frame_size;
 	const struct atomisp_dfs_config *dfs;
 	unsigned int hpll_freq;

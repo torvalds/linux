@@ -4693,16 +4693,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	f->fmt.pix = pipe->pix;
 	f->fmt.pix.priv = PAGE_ALIGN(pipe->pix.width *
 				     pipe->pix.height * 2);
-
-	/*
-	 * If in video 480P case, no GFX throttle
-	 */
-	if (asd->run_mode->val == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO &&
-	    f->fmt.pix.width == 720 && f->fmt.pix.height == 480)
-		isp->need_gfx_throttle = false;
-	else
-		isp->need_gfx_throttle = true;
-
 	/* Report the needed sizes */
 	f->fmt.pix.sizeimage = pipe->pix.sizeimage;
 	f->fmt.pix.bytesperline = pipe->pix.bytesperline;

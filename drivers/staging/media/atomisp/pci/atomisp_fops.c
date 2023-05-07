@@ -539,7 +539,6 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 {
 	unsigned int i;
 
-	isp->need_gfx_throttle = true;
 	isp->isp_fatal_error = false;
 	isp->mipi_frame_size = 0;
 
