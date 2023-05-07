@@ -2416,41 +2416,21 @@ get_info_err:
 	return -EINVAL;
 }
 
-static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
-	uint16_t source_pad)
+static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd)
 {
-	struct atomisp_device *isp = asd->isp;
+	if (asd->copy_mode)
+		return IA_CSS_PIPE_ID_COPY;
 
-	switch (source_pad) {
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO:
-		if (asd->copy_mode)
-			return IA_CSS_PIPE_ID_COPY;
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO
-		    || asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER)
-			return IA_CSS_PIPE_ID_VIDEO;
-
+	switch (asd->run_mode->val) {
+	case ATOMISP_RUN_MODE_VIDEO:
+		return IA_CSS_PIPE_ID_VIDEO;
+	case ATOMISP_RUN_MODE_STILL_CAPTURE:
 		return IA_CSS_PIPE_ID_CAPTURE;
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE:
-		if (asd->copy_mode)
-			return IA_CSS_PIPE_ID_COPY;
-
-		return IA_CSS_PIPE_ID_CAPTURE;
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
-		if (!atomisp_is_mbuscode_raw(asd->fmt[asd->capture_pad].fmt.code)) {
-			return IA_CSS_PIPE_ID_CAPTURE;
-		}
-		fallthrough;
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
-		if (asd->copy_mode)
-			return IA_CSS_PIPE_ID_COPY;
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-			return IA_CSS_PIPE_ID_VIDEO;
-
+	case ATOMISP_RUN_MODE_PREVIEW:
 		return IA_CSS_PIPE_ID_PREVIEW;
 	}
-	dev_warn(isp->dev,
-		 "invalid source pad:%d, return default preview pipe index.\n",
-		 source_pad);
+
+	dev_warn(asd->isp->dev, "cannot determine pipe-index return default preview pipe\n");
 	return IA_CSS_PIPE_ID_PREVIEW;
 }
 
@@ -2459,7 +2439,7 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 			       struct ia_css_frame_info *frame_info)
 {
 	struct ia_css_pipe_info info;
-	int pipe_index = atomisp_get_pipe_index(asd, source_pad);
+	int pipe_index = atomisp_get_pipe_index(asd);
 	int stream_index;
 	struct atomisp_device *isp = asd->isp;
 
@@ -2473,34 +2453,8 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 		return -EINVAL;
 	}
 
-	switch (source_pad) {
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE:
-		*frame_info = info.output_info[0];
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO:
-		*frame_info = info.output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
-		if (stream_index == ATOMISP_INPUT_STREAM_POSTVIEW)
-			*frame_info = info.output_info[0];
-		else
-			*frame_info = info.vf_output_info[0];
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-		    (pipe_index == IA_CSS_PIPE_ID_VIDEO ||
-		     pipe_index == IA_CSS_PIPE_ID_YUVPP))
-			*frame_info = info.vf_output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
-		else
-			*frame_info =
-			    info.output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
-
-		break;
-	default:
-		frame_info = NULL;
-		break;
-	}
-	return frame_info ? 0 : -EINVAL;
+	*frame_info = info.output_info[0];
+	return 0;
 }
 
 int atomisp_css_copy_configure_output(struct atomisp_sub_device *asd,

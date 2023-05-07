@@ -393,8 +393,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 	r->width = rounddown(r->width, ATOM_ISP_STEP_WIDTH);
 	r->height = rounddown(r->height, ATOM_ISP_STEP_HEIGHT);
 
-	switch (pad) {
-	case ATOMISP_SUBDEV_PAD_SINK: {
+	if (pad == ATOMISP_SUBDEV_PAD_SINK) {
 		/* Only crop target supported on sink pad. */
 		unsigned int dvs_w, dvs_h;
 
@@ -445,7 +444,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 		}
 
 		if (which == V4L2_SUBDEV_FORMAT_TRY)
-			break;
+			goto get_rect;
 
 		if (isp_sd->params.video_dis_en &&
 		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
@@ -468,12 +467,8 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 							   ATOMISP_INPUT_STREAM_GENERAL,
 							   crop[pad]->width,
 							   crop[pad]->height);
-		break;
-	}
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE:
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO: {
+	} else if (isp_sd->run_mode->val != ATOMISP_RUN_MODE_PREVIEW) {
 		/* Only compose target is supported on source pads. */
-
 		if (isp_sd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
 			/* Scaling is disabled in this mode */
 			r->width = crop[ATOMISP_SUBDEV_PAD_SINK]->width;
@@ -492,7 +487,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 		if (r->width == 0 || r->height == 0 ||
 		    crop[ATOMISP_SUBDEV_PAD_SINK]->width == 0 ||
 		    crop[ATOMISP_SUBDEV_PAD_SINK]->height == 0)
-			break;
+			goto get_rect;
 		/*
 		 * do cropping on sensor input if ratio of required resolution
 		 * is different with sensor output resolution ratio:
@@ -522,18 +517,12 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 				rounddown(crop[ATOMISP_SUBDEV_PAD_SINK]->
 					  width * r->height / r->width,
 					  ATOM_ISP_STEP_WIDTH));
-
-		break;
-	}
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
+	} else {
 		comp[pad]->width = r->width;
 		comp[pad]->height = r->height;
-		break;
-	default:
-		return -EINVAL;
 	}
 
+get_rect:
 	/* Set format dimensions on non-sink pads as well. */
 	if (pad != ATOMISP_SUBDEV_PAD_SINK) {
 		ffmt[pad]->width = comp[pad]->width;
