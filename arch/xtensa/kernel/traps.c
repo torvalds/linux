@@ -175,6 +175,23 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 		die(str, regs, err);
 }
 
+#ifdef CONFIG_PRINT_USER_CODE_ON_UNHANDLED_EXCEPTION
+static inline void dump_user_code(struct pt_regs *regs)
+{
+	char buf[32];
+
+	if (copy_from_user(buf, (void __user *)(regs->pc & -16), sizeof(buf)) == 0) {
+		print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+			       32, 1, buf, sizeof(buf), false);
+
+	}
+}
+#else
+static inline void dump_user_code(struct pt_regs *regs)
+{
+}
+#endif
+
 /*
  * Unhandled Exceptions. Kill user task or panic if in kernel space.
  */
@@ -190,6 +207,7 @@ void do_unhandled(struct pt_regs *regs)
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    regs->exccause);
+	dump_user_code(regs);
 	force_sig(SIGILL);
 }
 
