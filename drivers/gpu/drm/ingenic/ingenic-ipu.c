@@ -922,10 +922,9 @@ static int ingenic_ipu_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &ingenic_ipu_ops);
 }
 
-static int ingenic_ipu_remove(struct platform_device *pdev)
+static void ingenic_ipu_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &ingenic_ipu_ops);
-	return 0;
 }
 
 static const u32 jz4725b_ipu_formats[] = {
@@ -992,7 +991,7 @@ static struct platform_driver ingenic_ipu_driver = {
 		.of_match_table = ingenic_ipu_of_match,
 	},
 	.probe = ingenic_ipu_probe,
-	.remove = ingenic_ipu_remove,
+	.remove_new = ingenic_ipu_remove,
 };
 
 struct platform_driver *ingenic_ipu_driver_ptr = &ingenic_ipu_driver;
