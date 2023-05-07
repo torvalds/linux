@@ -32,15 +32,8 @@
 #define ATOMISP_MAX_EXP_ID     (250)
 
 #define ATOMISP_SUBDEV_PAD_SINK			0
-/* capture output for still frames */
-#define ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE	1
-/* viewfinder output for downscaled capture output */
-#define ATOMISP_SUBDEV_PAD_SOURCE_VF		2
-/* preview output for display */
-#define ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW	3
-/* main output for video pipeline */
-#define ATOMISP_SUBDEV_PAD_SOURCE_VIDEO	4
-#define ATOMISP_SUBDEV_PADS_NUM			5
+#define ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW	1
+#define ATOMISP_SUBDEV_PADS_NUM			2
 
 struct atomisp_in_fmt_conv {
 	u32     code;
@@ -251,11 +244,7 @@ struct atomisp_sub_device {
 	u16 capture_pad; /* main capture pad; defines much of isp config */
 
 	unsigned int output;
-	struct atomisp_video_pipe video_out_capture; /* capture output */
-	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */
 	struct atomisp_video_pipe video_out_preview; /* preview output */
-	/* video pipe main output */
-	struct atomisp_video_pipe video_out_video_capture;
 	/* struct isp_subdev_params params; */
 	struct atomisp_device *isp;
 	struct v4l2_ctrl_handler ctrl_handler;

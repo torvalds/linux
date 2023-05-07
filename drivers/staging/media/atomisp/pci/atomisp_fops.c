@@ -345,89 +345,26 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 /* queue all available buffers to css */
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 {
-	const enum ia_css_buffer_type buf_type = IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-	enum ia_css_pipe_id css_capture_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum ia_css_pipe_id css_preview_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum ia_css_pipe_id css_video_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum atomisp_input_stream_id input_stream_id;
-	struct atomisp_video_pipe *capture_pipe = NULL;
-	struct atomisp_video_pipe *vf_pipe = NULL;
-	struct atomisp_video_pipe *preview_pipe = NULL;
-	struct atomisp_video_pipe *video_pipe = NULL;
-	bool raw_mode = atomisp_is_mbuscode_raw(
-			    asd->fmt[asd->capture_pad].fmt.code);
+	enum ia_css_pipe_id pipe_id;
 
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
-		video_pipe = &asd->video_out_video_capture;
-		css_video_pipe_id = IA_CSS_PIPE_ID_VIDEO;
+	if (asd->copy_mode) {
+		pipe_id = IA_CSS_PIPE_ID_COPY;
+	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
+		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
-		preview_pipe = &asd->video_out_capture;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
+		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		video_pipe = &asd->video_out_video_capture;
-		preview_pipe = &asd->video_out_preview;
-		css_video_pipe_id = IA_CSS_PIPE_ID_VIDEO;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_VIDEO;
+		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
-		preview_pipe = &asd->video_out_preview;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_PREVIEW;
+		pipe_id = IA_CSS_PIPE_ID_PREVIEW;
 	} else {
 		/* ATOMISP_RUN_MODE_STILL_CAPTURE */
-		capture_pipe = &asd->video_out_capture;
-		if (!raw_mode)
-			vf_pipe = &asd->video_out_vf;
-		css_capture_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
+		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	}
 
-	if (IS_ISP2401 && asd->copy_mode) {
-		css_capture_pipe_id = IA_CSS_PIPE_ID_COPY;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_COPY;
-		css_video_pipe_id = IA_CSS_PIPE_ID_COPY;
-	}
-
-	if (capture_pipe) {
-		input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, capture_pipe,
-					       input_stream_id,
-					       buf_type, css_capture_pipe_id);
-	}
-
-	if (vf_pipe) {
-		if (asd->stream_env[ATOMISP_INPUT_STREAM_POSTVIEW].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_POSTVIEW;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, vf_pipe,
-					       input_stream_id,
-					       buf_type, css_capture_pipe_id);
-	}
-
-	if (preview_pipe) {
-		if (css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
-			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
-		else if (asd->stream_env[ATOMISP_INPUT_STREAM_PREVIEW].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_PREVIEW;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, preview_pipe,
-					       input_stream_id,
-					       buf_type, css_preview_pipe_id);
-	}
-
-	if (video_pipe) {
-		if (asd->stream_env[ATOMISP_INPUT_STREAM_VIDEO].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, video_pipe,
-					       input_stream_id,
-					       buf_type, css_video_pipe_id);
-	}
-
+	atomisp_q_video_buffers_to_css(asd, &asd->video_out_preview,
+				       ATOMISP_INPUT_STREAM_GENERAL,
+				       IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, pipe_id);
 	return 0;
 }
 
@@ -558,10 +495,7 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
  */
 static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 {
-	return asd->video_out_preview.users +
-	       asd->video_out_vf.users +
-	       asd->video_out_capture.users +
-	       asd->video_out_video_capture.users;
+	return asd->video_out_preview.users;
 }
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp)
