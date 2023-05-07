@@ -1331,11 +1331,9 @@ static int sun4i_tcon_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun4i_tcon_ops);
 }
 
-static int sun4i_tcon_remove(struct platform_device *pdev)
+static void sun4i_tcon_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun4i_tcon_ops);
-
-	return 0;
 }
 
 /* platform specific TCON muxing callbacks */
@@ -1570,7 +1568,7 @@ EXPORT_SYMBOL(sun4i_tcon_of_table);
 
 static struct platform_driver sun4i_tcon_platform_driver = {
 	.probe		= sun4i_tcon_probe,
-	.remove		= sun4i_tcon_remove,
+	.remove_new	= sun4i_tcon_remove,
 	.driver		= {
 		.name		= "sun4i-tcon",
 		.of_match_table	= sun4i_tcon_of_table,

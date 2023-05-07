@@ -1200,7 +1200,7 @@ err_attach_clk:
 	return ret;
 }
 
-static int sun6i_dsi_remove(struct platform_device *pdev)
+static void sun6i_dsi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sun6i_dsi *dsi = dev_get_drvdata(dev);
@@ -1211,8 +1211,6 @@ static int sun6i_dsi_remove(struct platform_device *pdev)
 		clk_rate_exclusive_put(dsi->mod_clk);
 
 	regmap_mmio_detach_clk(dsi->regs);
-
-	return 0;
 }
 
 static const struct sun6i_dsi_variant sun6i_a31_mipi_dsi_variant = {
@@ -1246,7 +1244,7 @@ MODULE_DEVICE_TABLE(of, sun6i_dsi_of_table);
 
 static struct platform_driver sun6i_dsi_platform_driver = {
 	.probe		= sun6i_dsi_probe,
-	.remove		= sun6i_dsi_remove,
+	.remove_new	= sun6i_dsi_remove,
 	.driver		= {
 		.name		= "sun6i-mipi-dsi",
 		.of_match_table	= sun6i_dsi_of_table,
