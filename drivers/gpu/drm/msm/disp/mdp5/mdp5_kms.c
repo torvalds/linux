@@ -942,11 +942,10 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 	return msm_drv_probe(&pdev->dev, mdp5_kms_init);
 }
 
-static int mdp5_dev_remove(struct platform_device *pdev)
+static void mdp5_dev_remove(struct platform_device *pdev)
 {
 	DBG("");
 	component_master_del(&pdev->dev, &msm_drm_ops);
-	return 0;
 }
 
 static __maybe_unused int mdp5_runtime_suspend(struct device *dev)
@@ -987,7 +986,7 @@ MODULE_DEVICE_TABLE(of, mdp5_dt_match);
 
 static struct platform_driver mdp5_driver = {
 	.probe = mdp5_dev_probe,
-	.remove = mdp5_dev_remove,
+	.remove_new = mdp5_dev_remove,
 	.shutdown = msm_drv_shutdown,
 	.driver = {
 		.name = "msm_mdp",
