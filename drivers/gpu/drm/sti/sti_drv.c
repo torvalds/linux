@@ -246,11 +246,9 @@ static int sti_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &sti_ops, match);
 }
 
-static int sti_platform_remove(struct platform_device *pdev)
+static void sti_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &sti_ops);
-
-	return 0;
 }
 
 static const struct of_device_id sti_dt_ids[] = {
@@ -261,7 +259,7 @@ MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
 static struct platform_driver sti_platform_driver = {
 	.probe = sti_platform_probe,
-	.remove = sti_platform_remove,
+	.remove_new = sti_platform_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sti_dt_ids,
