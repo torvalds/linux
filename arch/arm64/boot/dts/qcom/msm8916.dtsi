@@ -1519,20 +1519,20 @@
 			 * Primary/Secondary MI2S both use the PRI_I2S_CLK.
 			 */
 			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
-				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>;
+				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>;
 
 			clock-names = "ahbix-clk",
-					"pcnoc-mport-clk",
-					"pcnoc-sway-clk",
 					"mi2s-bit-clk0",
 					"mi2s-bit-clk1",
 					"mi2s-bit-clk2",
-					"mi2s-bit-clk3";
+					"mi2s-bit-clk3",
+					"pcnoc-mport-clk",
+					"pcnoc-sway-clk";
 			#sound-dai-cells = <1>;
 
 			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
