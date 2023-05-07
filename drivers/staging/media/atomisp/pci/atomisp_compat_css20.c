@@ -1611,29 +1611,6 @@ int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_css_isys_two_stream_cfg(struct atomisp_sub_device *asd,
-				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_input_format input_format)
-{
-	struct ia_css_stream_config *s_config =
-		    &asd->stream_env[stream_id].stream_config;
-
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].input_res.width =
-	    s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_0].input_res.width;
-
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].input_res.height =
-	    s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_0].input_res.height / 2;
-
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].linked_isys_stream_id
-	    = IA_CSS_STREAM_ISYS_STREAM_0;
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_0].format =
-	    ATOMISP_INPUT_FORMAT_USER_DEF1;
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].format =
-	    ATOMISP_INPUT_FORMAT_USER_DEF2;
-	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].valid = true;
-	return 0;
-}
-
 void atomisp_css_isys_two_stream_cfg_update_stream1(
     struct atomisp_sub_device *asd,
     enum atomisp_input_stream_id stream_id,
@@ -1814,49 +1791,6 @@ void atomisp_css_preview_enable_online(struct atomisp_sub_device *asd,
 
 	if (stream_env->stream_config.online != !!enable) {
 		stream_env->stream_config.online = !!enable;
-		for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
-			stream_env->update_pipe[i] = true;
-	}
-}
-
-void atomisp_css_video_enable_online(struct atomisp_sub_device *asd,
-				     bool enable)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[ATOMISP_INPUT_STREAM_VIDEO];
-	int i;
-
-	if (stream_env->stream_config.online != enable) {
-		stream_env->stream_config.online = enable;
-		for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
-			stream_env->update_pipe[i] = true;
-	}
-}
-
-void atomisp_css_enable_continuous(struct atomisp_sub_device *asd,
-				   bool enable)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL];
-	int i;
-
-	if (stream_env->stream_config.continuous != !!enable) {
-		stream_env->stream_config.continuous = !!enable;
-		stream_env->stream_config.pack_raw_pixels = true;
-		for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
-			stream_env->update_pipe[i] = true;
-	}
-}
-
-void atomisp_css_enable_cvf(struct atomisp_sub_device *asd,
-			    bool enable)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL];
-	int i;
-
-	if (stream_env->stream_config.disable_cont_viewfinder != !enable) {
-		stream_env->stream_config.disable_cont_viewfinder = !enable;
 		for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
 			stream_env->update_pipe[i] = true;
 	}
@@ -2465,39 +2399,6 @@ int atomisp_css_copy_configure_output(struct atomisp_sub_device *asd,
 	__configure_output(asd, stream_index, width, height, padded_width,
 			   format, IA_CSS_PIPE_ID_COPY);
 	return 0;
-}
-
-int atomisp_css_yuvpp_configure_output(struct atomisp_sub_device *asd,
-				       unsigned int stream_index,
-				       unsigned int width, unsigned int height,
-				       unsigned int padded_width,
-				       enum ia_css_frame_format format)
-{
-	asd->stream_env[stream_index].pipe_configs[IA_CSS_PIPE_ID_YUVPP].
-	default_capture_config.mode =
-	    IA_CSS_CAPTURE_MODE_RAW;
-
-	__configure_output(asd, stream_index, width, height, padded_width,
-			   format, IA_CSS_PIPE_ID_YUVPP);
-	return 0;
-}
-
-int atomisp_css_yuvpp_get_output_frame_info(
-    struct atomisp_sub_device *asd,
-    unsigned int stream_index,
-    struct ia_css_frame_info *info)
-{
-	return __get_frame_info(asd, stream_index, info,
-				ATOMISP_CSS_OUTPUT_FRAME, IA_CSS_PIPE_ID_YUVPP);
-}
-
-int atomisp_css_yuvpp_get_viewfinder_frame_info(
-    struct atomisp_sub_device *asd,
-    unsigned int stream_index,
-    struct ia_css_frame_info *info)
-{
-	return __get_frame_info(asd, stream_index, info,
-				ATOMISP_CSS_VF_FRAME, IA_CSS_PIPE_ID_YUVPP);
 }
 
 int atomisp_css_preview_configure_output(struct atomisp_sub_device *asd,
