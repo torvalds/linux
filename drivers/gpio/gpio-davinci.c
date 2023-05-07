@@ -712,7 +712,7 @@ static struct platform_driver davinci_gpio_driver = {
 	},
 };
 
-/**
+/*
  * GPIO driver registration needs to be done before machine_init functions
  * access GPIO. Hence davinci_gpio_drv_reg() is a postcore_initcall.
  */
