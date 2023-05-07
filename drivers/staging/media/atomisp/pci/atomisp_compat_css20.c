@@ -1958,7 +1958,7 @@ void atomisp_css_stop(struct atomisp_sub_device *asd,
 		list_splice_init(&asd->metadata_ready[i], &asd->metadata[i]);
 	}
 
-	atomisp_flush_params_queue(&asd->video_out_preview);
+	atomisp_flush_params_queue(&asd->video_out);
 	atomisp_free_css_parameters(&asd->params.css_param);
 	memset(&asd->params.css_param, 0, sizeof(asd->params.css_param));
 }

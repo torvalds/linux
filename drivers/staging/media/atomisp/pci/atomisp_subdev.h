@@ -32,7 +32,7 @@
 #define ATOMISP_MAX_EXP_ID     (250)
 
 #define ATOMISP_SUBDEV_PAD_SINK			0
-#define ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW	1
+#define ATOMISP_SUBDEV_PAD_SOURCE		1
 #define ATOMISP_SUBDEV_PADS_NUM			2
 
 struct atomisp_in_fmt_conv {
@@ -244,8 +244,7 @@ struct atomisp_sub_device {
 	u16 capture_pad; /* main capture pad; defines much of isp config */
 
 	unsigned int output;
-	struct atomisp_video_pipe video_out_preview; /* preview output */
-	/* struct isp_subdev_params params; */
+	struct atomisp_video_pipe video_out;
 	struct atomisp_device *isp;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *run_mode;

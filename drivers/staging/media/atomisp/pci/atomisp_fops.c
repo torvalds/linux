@@ -362,7 +362,7 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	}
 
-	atomisp_q_video_buffers_to_css(asd, &asd->video_out_preview,
+	atomisp_q_video_buffers_to_css(asd, &asd->video_out,
 				       ATOMISP_INPUT_STREAM_GENERAL,
 				       IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, pipe_id);
 	return 0;
@@ -494,7 +494,7 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
  */
 static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 {
-	return asd->video_out_preview.users;
+	return asd->video_out.users;
 }
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp)
