@@ -528,6 +528,34 @@
 			};
 		};
 
+		tsens: thermal-sensor@fc4a9000 {
+			compatible = "qcom,msm8226-tsens", "qcom,tsens-v0_1";
+			reg = <0xfc4a9000 0x1000>, /* TM */
+			      <0xfc4a8000 0x1000>; /* SROT */
+			nvmem-cells = <&tsens_mode>,
+				      <&tsens_base1>, <&tsens_base2>,
+				      <&tsens_s0_p1>, <&tsens_s0_p2>,
+				      <&tsens_s1_p1>, <&tsens_s1_p2>,
+				      <&tsens_s2_p1>, <&tsens_s2_p2>,
+				      <&tsens_s3_p1>, <&tsens_s3_p2>,
+				      <&tsens_s4_p1>, <&tsens_s4_p2>,
+				      <&tsens_s5_p1>, <&tsens_s5_p2>,
+				      <&tsens_s6_p1>, <&tsens_s6_p2>;
+			nvmem-cell-names = "mode",
+					   "base1", "base2",
+					   "s0_p1", "s0_p2",
+					   "s1_p1", "s1_p2",
+					   "s2_p1", "s2_p2",
+					   "s3_p1", "s3_p2",
+					   "s4_p1", "s4_p2",
+					   "s5_p1", "s5_p2",
+					   "s6_p1", "s6_p2";
+			#qcom,sensors = <6>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "uplow";
+			#thermal-sensor-cells = <1>;
+		};
+
 		restart@fc4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0xfc4ab000 0x4>;
@@ -538,6 +566,91 @@
 			reg = <0xfc4bc000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			tsens_base1: base1@1c1 {
+				reg = <0x1c1 0x2>;
+				bits = <5 8>;
+			};
+
+			tsens_s0_p1: s0-p1@1c2 {
+				reg = <0x1c2 0x2>;
+				bits = <5 6>;
+			};
+
+			tsens_s1_p1: s1-p1@1c4 {
+				reg = <0x1c4 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s2_p1: s2-p1@1c4 {
+				reg = <0x1c4 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s3_p1: s3-p1@1c5 {
+				reg = <0x1c5 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s4_p1: s4-p1@1c6 {
+				reg = <0x1c6 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s5_p1: s5-p1@1c7 {
+				reg = <0x1c7 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s6_p1: s6-p1@1ca {
+				reg = <0x1ca 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_base2: base2@1cc {
+				reg = <0x1cc 0x1>;
+				bits = <0 8>;
+			};
+
+			tsens_s0_p2: s0-p2@1cd {
+				reg = <0x1cd 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s1_p2: s1-p2@1cd {
+				reg = <0x1cd 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s2_p2: s2-p2@1ce {
+				reg = <0x1ce 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s3_p2: s3-p2@1cf {
+				reg = <0x1cf 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s4_p2: s4-p2@446 {
+				reg = <0x446 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s5_p2: s5-p2@447 {
+				reg = <0x447 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s6_p2: s6-p2@44e {
+				reg = <0x44e 0x1>;
+				bits = <1 6>;
+			};
+
+			tsens_mode: mode@44f {
+				reg = <0x44f 0x1>;
+				bits = <5 3>;
+			};
 		};
 
 		spmi_bus: spmi@fc4cf000 {
