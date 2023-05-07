@@ -821,14 +821,12 @@ static int pdev_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pdev_remove(struct platform_device *pdev)
+static void pdev_remove(struct platform_device *pdev)
 {
 	struct omap_drm_private *priv = platform_get_drvdata(pdev);
 
 	omapdrm_cleanup(priv);
 	kfree(priv);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -859,7 +857,7 @@ static struct platform_driver pdev = {
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,
-	.remove = pdev_remove,
+	.remove_new = pdev_remove,
 };
 
 static struct platform_driver * const drivers[] = {
