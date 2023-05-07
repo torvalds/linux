@@ -1034,7 +1034,7 @@ EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_groups);
  * @name:	hwmon name attribute
  * @drvdata:	driver data to attach to created device
  * @chip:	pointer to hwmon chip information
- * @groups:	pointer to list of driver specific attribute groups
+ * @extra_groups: pointer to list of driver specific attribute groups
  *
  * Returns the pointer to the new device. The new device is automatically
  * unregistered with the parent device.
@@ -1043,7 +1043,7 @@ struct device *
 devm_hwmon_device_register_with_info(struct device *dev, const char *name,
 				     void *drvdata,
 				     const struct hwmon_chip_info *chip,
-				     const struct attribute_group **groups)
+				     const struct attribute_group **extra_groups)
 {
 	struct device **ptr, *hwdev;
 
@@ -1055,7 +1055,7 @@ devm_hwmon_device_register_with_info(struct device *dev, const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	hwdev = hwmon_device_register_with_info(dev, name, drvdata, chip,
-						groups);
+						extra_groups);
 	if (IS_ERR(hwdev))
 		goto error;
 
