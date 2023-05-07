@@ -69,6 +69,13 @@
   tcf_exts_dump_stats
   tcf_exts_validate
   tcf_queue_work
+  __traceiter_android_vh_do_futex
+  __traceiter_android_vh_futex_sleep_start
+  __traceiter_android_vh_futex_wait_end
+  __traceiter_android_vh_futex_wait_start
+  __traceiter_android_vh_futex_wake_this
+  __traceiter_android_vh_futex_wake_traverse_plist
+  __traceiter_android_vh_futex_wake_up_q_finish
   __traceiter_android_vh_record_mutex_lock_starttime
   __traceiter_android_vh_record_pcpu_rwsem_starttime
   __traceiter_android_vh_record_rtmutex_lock_starttime
@@ -110,6 +117,13 @@
   __tracepoint_android_vh_binder_select_worklist_ilocked
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
+  __tracepoint_android_vh_do_futex
+  __tracepoint_android_vh_futex_sleep_start
+  __tracepoint_android_vh_futex_wait_end
+  __tracepoint_android_vh_futex_wait_start
+  __tracepoint_android_vh_futex_wake_this
+  __tracepoint_android_vh_futex_wake_traverse_plist
+  __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_mutex_can_spin_on_owner
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
