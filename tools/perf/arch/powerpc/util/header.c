@@ -45,6 +45,6 @@ int arch_get_runtimeparam(const struct pmu_metric *pm)
 	int count;
 	char path[PATH_MAX] = "/devices/hv_24x7/interface/";
 
-	atoi(pm->aggr_mode) == PerChip ? strcat(path, "sockets") : strcat(path, "coresperchip");
+	strcat(path, pm->aggr_mode == PerChip ? "sockets" : "coresperchip");
 	return sysfs__read_int(path, &count) < 0 ? 1 : count;
 }

@@ -11,7 +11,7 @@
         "BriefDescription": "Counts the number of JCC baclears",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.COND",
-        "PublicDescription": "The BACLEARS event counts the number of times the front end is resteered, mainly when the Branch Prediction Unit cannot provide a correct prediction and this is corrected by the Branch Address Calculator at the front end.  The BACLEARS.COND event counts the number of JCC (Jump on Condtional Code) baclears.",
+        "PublicDescription": "The BACLEARS event counts the number of times the front end is resteered, mainly when the Branch Prediction Unit cannot provide a correct prediction and this is corrected by the Branch Address Calculator at the front end.  The BACLEARS.COND event counts the number of JCC (Jump on Conditional Code) baclears.",
         "SampleAfterValue": "200003",
         "UMask": "0x10"
     },
