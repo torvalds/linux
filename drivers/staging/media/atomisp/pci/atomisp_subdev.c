@@ -117,33 +117,17 @@ const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
 	return NULL;
 }
 
-bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
-				      unsigned int source_pad)
+bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd)
 {
 	struct v4l2_mbus_framefmt *sink, *src;
 
 	sink = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-				       V4L2_SUBDEV_FORMAT_ACTIVE,
-				       ATOMISP_SUBDEV_PAD_SINK);
+				       V4L2_SUBDEV_FORMAT_ACTIVE, ATOMISP_SUBDEV_PAD_SINK);
 	src = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-				      V4L2_SUBDEV_FORMAT_ACTIVE, source_pad);
+				      V4L2_SUBDEV_FORMAT_ACTIVE, ATOMISP_SUBDEV_PAD_SOURCE);
 
 	return atomisp_is_mbuscode_raw(sink->code)
 	       && !atomisp_is_mbuscode_raw(src->code);
-}
-
-uint16_t atomisp_subdev_source_pad(struct video_device *vdev)
-{
-	struct media_link *link;
-	u16 ret = 0;
-
-	list_for_each_entry(link, &vdev->entity.links, list) {
-		if (link->source) {
-			ret = link->source->index;
-			break;
-		}
-	}
-	return ret;
 }
 
 /*
@@ -404,8 +388,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 			padding_h = 12;
 		}
 
-		if (atomisp_subdev_format_conversion(isp_sd,
-						     isp_sd->capture_pad)
+		if (atomisp_subdev_format_conversion(isp_sd)
 		    && crop[pad]->width && crop[pad]->height) {
 			crop[pad]->width -= padding_w;
 			crop[pad]->height -= padding_h;

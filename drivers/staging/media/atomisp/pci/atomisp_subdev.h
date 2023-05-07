@@ -241,7 +241,6 @@ struct atomisp_sub_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[ATOMISP_SUBDEV_PADS_NUM];
 	struct atomisp_pad_format fmt[ATOMISP_SUBDEV_PADS_NUM];
-	u16 capture_pad; /* main capture pad; defines much of isp config */
 
 	unsigned int output;
 	struct atomisp_video_pipe video_out;
@@ -340,9 +339,7 @@ const struct atomisp_in_fmt_conv
 	atomisp_in_fmt);
 
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_compressed(u32 code);
-bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
-				      unsigned int source_pad);
-uint16_t atomisp_subdev_source_pad(struct video_device *vdev);
+bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd);
 
 /* Get pointer to appropriate format */
 struct v4l2_mbus_framefmt

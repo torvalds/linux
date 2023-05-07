@@ -1131,7 +1131,7 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 
 	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
 	    (asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE &&
-	     !atomisp_is_mbuscode_raw(asd->fmt[asd->capture_pad].fmt.code)))
+	     !atomisp_is_mbuscode_raw(asd->fmt[ATOMISP_SUBDEV_PAD_SOURCE].fmt.code)))
 		return 2;
 	else
 		return 1;
@@ -1159,7 +1159,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct video_device *vdev = &pipe->vdev;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
@@ -1167,9 +1166,9 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long irqflags;
 	int ret;
 
-	mutex_lock(&isp->mutex);
+	dev_dbg(isp->dev, "Start stream\n");
 
-	dev_dbg(isp->dev, "Start stream on pad %d\n", atomisp_subdev_source_pad(vdev));
+	mutex_lock(&isp->mutex);
 
 	ret = atomisp_pipe_check(pipe, false);
 	if (ret)
@@ -1291,7 +1290,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 {
 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct video_device *vdev = &pipe->vdev;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
@@ -1300,10 +1298,9 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
+	dev_dbg(isp->dev, "Stop stream\n");
+
 	mutex_lock(&isp->mutex);
-
-	dev_dbg(isp->dev, "Stop stream on pad %d\n", atomisp_subdev_source_pad(vdev));
-
 	/*
 	 * There is no guarantee that the buffers queued to / owned by the ISP
 	 * will properly be returned to the queue when stopping. Set a flag to

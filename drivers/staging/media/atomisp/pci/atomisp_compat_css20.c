@@ -1328,8 +1328,7 @@ void atomisp_css_free_stat_buffers(struct atomisp_sub_device *asd)
 }
 
 int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
-			      enum ia_css_pipe_id pipe_id,
-			      int source_pad)
+			      enum ia_css_pipe_id pipe_id)
 {
 	struct ia_css_pipe_info p_info;
 	struct ia_css_grid_info old_info;
@@ -2432,7 +2431,6 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd)
 }
 
 int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
-			       u16 source_pad,
 			       struct ia_css_frame_info *frame_info)
 {
 	struct ia_css_pipe_info info;

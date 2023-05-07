@@ -113,8 +113,7 @@ void atomisp_css_free_metadata_buffer(struct atomisp_metadata_buf
 				      *metadata_buf);
 
 int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
-			      enum ia_css_pipe_id pipe_id,
-			      int source_pad);
+			      enum ia_css_pipe_id pipe_id);
 
 int atomisp_alloc_3a_output_buf(struct atomisp_sub_device *asd);
 
@@ -276,7 +275,6 @@ int atomisp_css_video_configure_output(struct atomisp_sub_device *asd,
 				       enum ia_css_frame_format format);
 
 int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
-			       u16 source_pad,
 			       struct ia_css_frame_info *frame_info);
 
 int atomisp_css_video_configure_viewfinder(struct atomisp_sub_device *asd,

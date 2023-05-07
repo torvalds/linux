@@ -47,7 +47,6 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 			       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct atomisp_video_pipe *pipe = container_of(vq, struct atomisp_video_pipe, vb_queue);
-	u16 source_pad = atomisp_subdev_source_pad(&pipe->vdev);
 	int ret;
 
 	mutex_lock(&pipe->asd->isp->mutex); /* for get_css_frame_info() / set_fmt() */
@@ -56,7 +55,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 	 * When VIDIOC_S_FMT has not been called before VIDIOC_REQBUFS, then
 	 * this will fail. Call atomisp_set_fmt() ourselves and try again.
 	 */
-	ret = atomisp_get_css_frame_info(pipe->asd, source_pad, &pipe->frame_info);
+	ret = atomisp_get_css_frame_info(pipe->asd, &pipe->frame_info);
 	if (ret) {
 		struct v4l2_format f = {
 			.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420,
@@ -68,7 +67,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 		if (ret)
 			goto out;
 
-		ret = atomisp_get_css_frame_info(pipe->asd, source_pad, &pipe->frame_info);
+		ret = atomisp_get_css_frame_info(pipe->asd, &pipe->frame_info);
 		if (ret)
 			goto out;
 	}
@@ -654,7 +653,7 @@ static int atomisp_release(struct file *file)
 done:
 	atomisp_subdev_set_selection(&asd->subdev, fh.state,
 				     V4L2_SUBDEV_FORMAT_ACTIVE,
-				     atomisp_subdev_source_pad(vdev),
+				     ATOMISP_SUBDEV_PAD_SOURCE,
 				     V4L2_SEL_TGT_COMPOSE, 0,
 				     &clear_compose);
 	mutex_unlock(&isp->mutex);
