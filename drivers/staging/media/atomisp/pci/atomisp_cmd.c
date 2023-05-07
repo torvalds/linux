@@ -3216,9 +3216,6 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 
 	lockdep_assert_held(&asd->isp->mutex);
 
-	if (atomisp_is_vf_pipe(pipe))
-		return;
-
 	/*
 	 * CSS/FW requires set parameter and enqueue buffer happen after ISP
 	 * is streamon.
@@ -3294,15 +3291,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 	dev_dbg(asd->isp->dev, "set parameter(per_frame_setting %d) isp_config_id %d of %s\n",
 		arg->per_frame_setting, arg->isp_config_id, vdev->name);
 
-	if (IS_ISP2401) {
-		if (atomisp_is_vf_pipe(pipe) && arg->per_frame_setting) {
-			dev_err(asd->isp->dev, "%s: vf pipe not support per_frame_setting",
-				__func__);
-			return -EINVAL;
-		}
-	}
-
-	if (arg->per_frame_setting && !atomisp_is_vf_pipe(pipe)) {
+	if (arg->per_frame_setting) {
 		/*
 		 * Per-frame setting enabled, we allocate a new parameter
 		 * buffer to cache the parameters and only when frame buffers
@@ -3341,7 +3330,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 	if (ret)
 		goto apply_parameter_failed;
 
-	if (!(arg->per_frame_setting && !atomisp_is_vf_pipe(pipe))) {
+	if (!arg->per_frame_setting) {
 		/* indicate to CSS that we have parameters to be updated */
 		asd->params.css_update_params_needed = true;
 	} else {
@@ -4778,23 +4767,6 @@ int atomisp_flash_enable(struct atomisp_sub_device *asd, int num_frames)
 	asd->params.num_flash_frames = num_frames;
 	asd->params.flash_state = ATOMISP_FLASH_REQUESTED;
 	return 0;
-}
-
-bool atomisp_is_vf_pipe(struct atomisp_video_pipe *pipe)
-{
-	struct atomisp_sub_device *asd = pipe->asd;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return false;
-	}
-
-	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-	    pipe == &asd->video_out_preview)
-		return true;
-
-	return false;
 }
 
 static int __checking_exp_id(struct atomisp_sub_device *asd, int exp_id)

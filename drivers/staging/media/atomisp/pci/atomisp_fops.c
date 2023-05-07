@@ -403,9 +403,8 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	 *     is put to waiting list until previous per-frame parameter buffers
 	 *     get enqueued.
 	 */
-	if (!atomisp_is_vf_pipe(pipe) &&
-	    (pipe->frame_request_config_id[vb->index] ||
-	     !list_empty(&pipe->buffers_waiting_for_param)))
+	if (pipe->frame_request_config_id[vb->index] ||
+	    !list_empty(&pipe->buffers_waiting_for_param))
 		list_add_tail(&frame->queue, &pipe->buffers_waiting_for_param);
 	else
 		list_add_tail(&frame->queue, &pipe->activeq);

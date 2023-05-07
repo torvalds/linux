@@ -1045,8 +1045,7 @@ static int atomisp_qbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer 
 	if (buf->index >= vdev->queue->num_buffers)
 		return -EINVAL;
 
-	if (!atomisp_is_vf_pipe(pipe) &&
-	    (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING)) {
+	if (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING) {
 		/* this buffer will have a per-frame parameter */
 		pipe->frame_request_config_id[buf->index] = buf->reserved2 &
 			~ATOMISP_BUFFER_HAS_PER_FRAME_SETTING;
