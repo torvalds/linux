@@ -131,10 +131,9 @@ static int komeda_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &komeda_master_ops, match);
 }
 
-static int komeda_platform_remove(struct platform_device *pdev)
+static void komeda_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &komeda_master_ops);
-	return 0;
 }
 
 static const struct of_device_id komeda_of_match[] = {
@@ -189,7 +188,7 @@ static const struct dev_pm_ops komeda_pm_ops = {
 
 static struct platform_driver komeda_platform_driver = {
 	.probe	= komeda_platform_probe,
-	.remove	= komeda_platform_remove,
+	.remove_new = komeda_platform_remove,
 	.driver	= {
 		.name = "komeda",
 		.of_match_table	= komeda_of_match,
