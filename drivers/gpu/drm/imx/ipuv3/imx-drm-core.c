@@ -292,10 +292,9 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int imx_drm_platform_remove(struct platform_device *pdev)
+static void imx_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &imx_drm_ops);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -324,7 +323,7 @@ MODULE_DEVICE_TABLE(of, imx_drm_dt_ids);
 
 static struct platform_driver imx_drm_pdrv = {
 	.probe		= imx_drm_platform_probe,
-	.remove		= imx_drm_platform_remove,
+	.remove_new	= imx_drm_platform_remove,
 	.driver		= {
 		.name	= "imx-drm",
 		.pm	= &imx_drm_pm_ops,
