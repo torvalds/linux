@@ -417,6 +417,14 @@ static int qcom_flash_led_brightness_set(struct led_classdev *led_cdev,
 	bool enable = !!brightness;
 	int rc;
 
+	rc = set_flash_strobe(led, SW_STROBE, false);
+	if (rc)
+		return rc;
+
+	rc = set_flash_module_en(led, false);
+	if (rc)
+		return rc;
+
 	rc = set_flash_current(led, current_ma, TORCH_MODE);
 	if (rc)
 		return rc;
