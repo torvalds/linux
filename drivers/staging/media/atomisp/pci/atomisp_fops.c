@@ -342,24 +342,10 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-static int atomisp_get_css_buf_type(struct atomisp_sub_device *asd,
-				    enum ia_css_pipe_id pipe_id,
-				    uint16_t source_pad)
-{
-	if (pipe_id == IA_CSS_PIPE_ID_COPY ||
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE ||
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO ||
-	    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-	     asd->run_mode->val != ATOMISP_RUN_MODE_VIDEO))
-		return IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-	else
-		return IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME;
-}
-
 /* queue all available buffers to css */
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 {
-	enum ia_css_buffer_type buf_type;
+	const enum ia_css_buffer_type buf_type = IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
 	enum ia_css_pipe_id css_capture_pipe_id = IA_CSS_PIPE_ID_NUM;
 	enum ia_css_pipe_id css_preview_pipe_id = IA_CSS_PIPE_ID_NUM;
 	enum ia_css_pipe_id css_video_pipe_id = IA_CSS_PIPE_ID_NUM;
@@ -400,9 +386,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 	}
 
 	if (capture_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_capture_pipe_id,
-			       atomisp_subdev_source_pad(&capture_pipe->vdev));
 		input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
 
 		atomisp_q_video_buffers_to_css(asd, capture_pipe,
@@ -411,9 +394,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 	}
 
 	if (vf_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_capture_pipe_id,
-			       atomisp_subdev_source_pad(&vf_pipe->vdev));
 		if (asd->stream_env[ATOMISP_INPUT_STREAM_POSTVIEW].stream)
 			input_stream_id = ATOMISP_INPUT_STREAM_POSTVIEW;
 		else
@@ -425,10 +405,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 	}
 
 	if (preview_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_preview_pipe_id,
-			       atomisp_subdev_source_pad(&preview_pipe->vdev));
-
 		if (css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
 			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
 		else if (asd->stream_env[ATOMISP_INPUT_STREAM_PREVIEW].stream)
@@ -442,9 +418,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 	}
 
 	if (video_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_video_pipe_id,
-			       atomisp_subdev_source_pad(&video_pipe->vdev));
 		if (asd->stream_env[ATOMISP_INPUT_STREAM_VIDEO].stream)
 			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
 		else
