@@ -650,20 +650,8 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 			return true;
 
 		return false;
-	case ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE:
-		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
-		    pipe_id == IA_CSS_PIPE_ID_PREVIEW)
-			return true;
-
-		return false;
 	case ATOMISP_RUN_MODE_VIDEO:
 		if (pipe_id == IA_CSS_PIPE_ID_VIDEO || pipe_id == IA_CSS_PIPE_ID_YUVPP)
-			return true;
-
-		return false;
-	case ATOMISP_RUN_MODE_SDV:
-		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
-		    pipe_id == IA_CSS_PIPE_ID_VIDEO)
 			return true;
 
 		return false;

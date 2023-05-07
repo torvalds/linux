@@ -124,21 +124,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_457MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -171,21 +157,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_1179[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -251,22 +223,8 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
 		.width = ISP_FREQ_RULE_ANY,
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_200MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -298,21 +256,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_byt[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -344,28 +288,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = 1280,
-		.height = 720,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_356MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -389,21 +312,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht_soc[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_356MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 

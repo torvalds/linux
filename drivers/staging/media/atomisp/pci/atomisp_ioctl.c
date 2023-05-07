@@ -1902,9 +1902,6 @@ static int atomisp_s_parm(struct file *file, void *fh,
 	case CI_MODE_STILL_CAPTURE:
 		mode = ATOMISP_RUN_MODE_STILL_CAPTURE;
 		break;
-	case CI_MODE_CONTINUOUS:
-		mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE;
-		break;
 	case CI_MODE_PREVIEW:
 		mode = ATOMISP_RUN_MODE_PREVIEW;
 		break;
