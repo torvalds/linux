@@ -935,10 +935,9 @@ static int malidp_platform_probe(struct platform_device *pdev)
 					       match);
 }
 
-static int malidp_platform_remove(struct platform_device *pdev)
+static void malidp_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &malidp_master_ops);
-	return 0;
 }
 
 static int __maybe_unused malidp_pm_suspend(struct device *dev)
@@ -981,7 +980,7 @@ static const struct dev_pm_ops malidp_pm_ops = {
 
 static struct platform_driver malidp_platform_driver = {
 	.probe		= malidp_platform_probe,
-	.remove		= malidp_platform_remove,
+	.remove_new	= malidp_platform_remove,
 	.driver	= {
 		.name = "mali-dp",
 		.pm = &malidp_pm_ops,
