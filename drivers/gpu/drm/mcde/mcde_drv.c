@@ -448,7 +448,7 @@ regulator_epod_off:
 
 }
 
-static int mcde_remove(struct platform_device *pdev)
+static void mcde_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct mcde *mcde = to_mcde(drm);
@@ -457,8 +457,6 @@ static int mcde_remove(struct platform_device *pdev)
 	clk_disable_unprepare(mcde->mcde_clk);
 	regulator_disable(mcde->vana);
 	regulator_disable(mcde->epod);
-
-	return 0;
 }
 
 static const struct of_device_id mcde_of_match[] = {
@@ -474,7 +472,7 @@ static struct platform_driver mcde_driver = {
 		.of_match_table = of_match_ptr(mcde_of_match),
 	},
 	.probe = mcde_probe,
-	.remove = mcde_remove,
+	.remove_new = mcde_remove,
 };
 
 static struct platform_driver *const component_drivers[] = {
