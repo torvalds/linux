@@ -533,6 +533,13 @@
 			reg = <0xfc4ab000 0x4>;
 		};
 
+		qfprom: qfprom@fc4bc000 {
+			compatible = "qcom,msm8226-qfprom", "qcom,qfprom";
+			reg = <0xfc4bc000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		spmi_bus: spmi@fc4cf000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg-names = "core", "intr", "cnfg";
