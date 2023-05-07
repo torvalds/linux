@@ -197,7 +197,7 @@ err_runtime_suspend:
 	return ret;
 }
 
-static int tidss_remove(struct platform_device *pdev)
+static void tidss_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tidss_device *tidss = platform_get_drvdata(pdev);
@@ -221,8 +221,6 @@ static int tidss_remove(struct platform_device *pdev)
 	dispc_remove(tidss);
 
 	dev_dbg(dev, "%s done\n", __func__);
-
-	return 0;
 }
 
 static void tidss_shutdown(struct platform_device *pdev)
@@ -241,7 +239,7 @@ MODULE_DEVICE_TABLE(of, tidss_of_table);
 
 static struct platform_driver tidss_platform_driver = {
 	.probe		= tidss_probe,
-	.remove		= tidss_remove,
+	.remove_new	= tidss_remove,
 	.shutdown	= tidss_shutdown,
 	.driver		= {
 		.name	= "tidss",
