@@ -83,22 +83,6 @@ struct create_durable_reconn_v2_req {
 	__le32 Flags;
 } __packed;
 
-struct create_app_inst_id {
-	struct create_context ccontext;
-	__u8 Name[8];
-	__u8 Reserved[8];
-	__u8 AppInstanceId[16];
-} __packed;
-
-struct create_app_inst_id_vers {
-	struct create_context ccontext;
-	__u8 Name[8];
-	__u8 Reserved[2];
-	__u8 Padding[4];
-	__le64 AppInstanceVersionHigh;
-	__le64 AppInstanceVersionLow;
-} __packed;
-
 struct create_alloc_size_req {
 	struct create_context ccontext;
 	__u8   Name[8];
