@@ -1016,7 +1016,9 @@ static int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
 	int err;
 
-	err = atomisp_subdev_register_video_nodes(&isp->asd, &isp->v4l2_dev);
+	isp->asd.video_out.vdev.v4l2_dev = &isp->v4l2_dev;
+	isp->asd.video_out.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	err = video_register_device(&isp->asd.video_out.vdev, VFL_TYPE_VIDEO, -1);
 	if (err)
 		return err;
 

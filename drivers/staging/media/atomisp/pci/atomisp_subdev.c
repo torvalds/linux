@@ -1001,24 +1001,6 @@ int atomisp_subdev_register_subdev(struct atomisp_sub_device *asd,
 	return v4l2_device_register_subdev(vdev, &asd->subdev);
 }
 
-int atomisp_subdev_register_video_nodes(struct atomisp_sub_device *asd,
-					struct v4l2_device *vdev)
-{
-	int ret;
-
-	asd->video_out.vdev.v4l2_dev = vdev;
-	asd->video_out.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	ret = video_register_device(&asd->video_out.vdev, VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	atomisp_subdev_unregister_entities(asd);
-	return ret;
-}
-
 /*
  * atomisp_subdev_init - ISP Subdevice  initialization.
  * @dev: Device pointer specific to the ATOM ISP.
