@@ -242,7 +242,7 @@ static const struct crypto_type crypto_aead_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_aead_show,
 #endif
-#ifdef CONFIG_CRYPTO_USER
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_aead_report,
 #endif
 #ifdef CONFIG_CRYPTO_STATS
