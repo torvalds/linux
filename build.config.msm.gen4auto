@@ -1,0 +1,35 @@
+################################################################################
+## Inheriting configs from ACK
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.aarch64
+
+################################################################################
+## Variant setup
+MSM_ARCH=gen4auto
+VARIANTS=(perf_defconfig debug_defconfig)
+[ -z "${VARIANT}" ] && VARIANT=debug_defconfig
+
+if [ -e "${ROOT_DIR}/msm-kernel" -a "${KERNEL_DIR}" = "common" ]; then
+	KERNEL_DIR="msm-kernel"
+fi
+
+ABL_SRC=bootable/bootloader/edk2
+BOOT_IMAGE_HEADER_VERSION=2
+BASE_ADDRESS=0x80000000
+PAGE_SIZE=4096
+DTB_IMG_CREATE=1
+SKIP_VENDOR_BOOT=1
+PREFERRED_USERSPACE=le
+TRIM_UNUSED_MODULES=1
+TARGET_HAS_SEPARATE_RD=1
+
+[ -z "${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
+
+if [ "${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
+	KERNEL_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0xa8c000 qcom_geni_serial.con_enabled=1 loglevel=8 '
+fi
+
+################################################################################
+## Inheriting MSM configs
+. ${KERNEL_DIR}/build.config.msm.common
+. ${KERNEL_DIR}/build.config.msm.auto

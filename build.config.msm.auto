@@ -1,0 +1,25 @@
+################################################################################
+
+# boot image macros
+BUILD_BOOT_IMG=1
+
+# Common MSM configuration for building non-GKI-based kernels
+DEFCONFIG="generic_auto_defconfig"
+
+function build_defconfig_fragments() {
+        if [[ "${VARIANT}" =~ ^(perf_defconfig|debug_defconfig)$ ]]; then
+                apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}.config vendor/${MSM_ARCH}_defconfig
+
+                if [ "${VARIANT}" = perf_defconfig ]; then
+                        return
+                fi
+
+                apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_debug.config vendor/${MSM_ARCH}-debug_defconfig
+        else
+                echo "Variant '${VARIANT}' unsupported"
+                exit 1
+        fi
+}
+
+build_defconfig_fragments
+
