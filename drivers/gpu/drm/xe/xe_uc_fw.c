@@ -462,33 +462,33 @@ static int uc_fw_xfer(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 
 	/* Set the source address for the uCode */
 	src_offset = uc_fw_ggtt_offset(uc_fw);
-	xe_mmio_write32(gt, DMA_ADDR_0_LOW.reg, lower_32_bits(src_offset));
-	xe_mmio_write32(gt, DMA_ADDR_0_HIGH.reg, upper_32_bits(src_offset));
+	xe_mmio_write32(gt, DMA_ADDR_0_LOW, lower_32_bits(src_offset));
+	xe_mmio_write32(gt, DMA_ADDR_0_HIGH, upper_32_bits(src_offset));
 
 	/* Set the DMA destination */
-	xe_mmio_write32(gt, DMA_ADDR_1_LOW.reg, offset);
-	xe_mmio_write32(gt, DMA_ADDR_1_HIGH.reg, DMA_ADDRESS_SPACE_WOPCM);
+	xe_mmio_write32(gt, DMA_ADDR_1_LOW, offset);
+	xe_mmio_write32(gt, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 
 	/*
 	 * Set the transfer size. The header plus uCode will be copied to WOPCM
 	 * via DMA, excluding any other components
 	 */
-	xe_mmio_write32(gt, DMA_COPY_SIZE.reg,
+	xe_mmio_write32(gt, DMA_COPY_SIZE,
 			sizeof(struct uc_css_header) + uc_fw->ucode_size);
 
 	/* Start the DMA */
-	xe_mmio_write32(gt, DMA_CTRL.reg,
+	xe_mmio_write32(gt, DMA_CTRL,
 			_MASKED_BIT_ENABLE(dma_flags | START_DMA));
 
 	/* Wait for DMA to finish */
-	ret = xe_mmio_wait32(gt, DMA_CTRL.reg, 0, START_DMA, 100000, &dma_ctrl,
+	ret = xe_mmio_wait32(gt, DMA_CTRL, 0, START_DMA, 100000, &dma_ctrl,
 			     false);
 	if (ret)
 		drm_err(&xe->drm, "DMA for %s fw failed, DMA_CTRL=%u\n",
 			xe_uc_fw_type_repr(uc_fw->type), dma_ctrl);
 
 	/* Disable the bits once DMA is over */
-	xe_mmio_write32(gt, DMA_CTRL.reg, _MASKED_BIT_DISABLE(dma_flags));
+	xe_mmio_write32(gt, DMA_CTRL, _MASKED_BIT_DISABLE(dma_flags));
 
 	return ret;
 }

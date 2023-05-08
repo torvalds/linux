@@ -153,13 +153,13 @@ int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *usable_si
 	struct xe_gt *gt = xe_device_get_gt(xe, 0);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	int err;
-	u32 reg;
+	u32 reg_val;
 
 	if (!xe->info.has_flat_ccs)  {
 		*vram_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 		if (usable_size)
 			*usable_size = min(*vram_size,
-					   xe_mmio_read64(gt, GSMBASE.reg));
+					   xe_mmio_read64(gt, GSMBASE));
 		return 0;
 	}
 
@@ -167,11 +167,11 @@ int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *usable_si
 	if (err)
 		return err;
 
-	reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE0_ADDR_RANGE);
-	*vram_size = (u64)REG_FIELD_GET(GENMASK(14, 8), reg) * SZ_1G;
+	reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE0_ADDR_RANGE);
+	*vram_size = (u64)REG_FIELD_GET(GENMASK(14, 8), reg_val) * SZ_1G;
 	if (usable_size) {
-		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
-		*usable_size = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
+		reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
+		*usable_size = (u64)REG_FIELD_GET(GENMASK(31, 8), reg_val) * SZ_64K;
 		drm_info(&xe->drm, "vram_size: 0x%llx usable_size: 0x%llx\n",
 			 *vram_size, *usable_size);
 	}
@@ -298,7 +298,7 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 	if (xe->info.tile_count == 1)
 		return;
 
-	mtcfg = xe_mmio_read64(gt, XEHP_MTCFG_ADDR.reg);
+	mtcfg = xe_mmio_read64(gt, XEHP_MTCFG_ADDR);
 	adj_tile_count = xe->info.tile_count =
 		REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 	if (xe->info.media_verx100 >= 1300)
@@ -374,7 +374,7 @@ int xe_mmio_init(struct xe_device *xe)
 	 * keep the GT powered down; we won't be able to communicate with it
 	 * and we should not continue with driver initialization.
 	 */
-	if (IS_DGFX(xe) && !(xe_mmio_read32(gt, GU_CNTL.reg) & LMEM_INIT)) {
+	if (IS_DGFX(xe) && !(xe_mmio_read32(gt, GU_CNTL) & LMEM_INIT)) {
 		drm_err(&xe->drm, "VRAM not initialized by firmware\n");
 		return -ENODEV;
 	}
@@ -403,6 +403,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	struct xe_device *xe = to_xe_device(dev);
 	struct drm_xe_mmio *args = data;
 	unsigned int bits_flag, bytes;
+	struct xe_reg reg;
 	bool allowed;
 	int ret = 0;
 
@@ -435,6 +436,12 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_ERR(xe, args->addr + bytes > xe->mmio.size))
 		return -EINVAL;
 
+	/*
+	 * TODO: migrate to xe_gt_mcr to lookup the mmio range and handle
+	 * multicast registers. Steering would need uapi extension.
+	 */
+	reg = XE_REG(args->addr);
+
 	xe_force_wake_get(gt_to_fw(&xe->gt[0]), XE_FORCEWAKE_ALL);
 
 	if (args->flags & DRM_XE_MMIO_WRITE) {
@@ -444,10 +451,10 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 				ret = -EINVAL;
 				goto exit;
 			}
-			xe_mmio_write32(to_gt(xe), args->addr, args->value);
+			xe_mmio_write32(to_gt(xe), reg, args->value);
 			break;
 		case DRM_XE_MMIO_64BIT:
-			xe_mmio_write64(to_gt(xe), args->addr, args->value);
+			xe_mmio_write64(to_gt(xe), reg, args->value);
 			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");
@@ -462,10 +469,10 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_MMIO_READ) {
 		switch (bits_flag) {
 		case DRM_XE_MMIO_32BIT:
-			args->value = xe_mmio_read32(to_gt(xe), args->addr);
+			args->value = xe_mmio_read32(to_gt(xe), reg);
 			break;
 		case DRM_XE_MMIO_64BIT:
-			args->value = xe_mmio_read64(to_gt(xe), args->addr);
+			args->value = xe_mmio_read64(to_gt(xe), reg);
 			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");

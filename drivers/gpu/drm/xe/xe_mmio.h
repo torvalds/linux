@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
+#include "regs/xe_reg_defs.h"
 #include "xe_gt_types.h"
 
 struct drm_device;
@@ -17,33 +18,33 @@ struct xe_device;
 
 int xe_mmio_init(struct xe_device *xe);
 
-static inline u8 xe_mmio_read8(struct xe_gt *gt, u32 reg)
+static inline u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg < gt->mmio.adj_limit)
-		reg += gt->mmio.adj_offset;
+	if (reg.reg < gt->mmio.adj_limit)
+		reg.reg += gt->mmio.adj_offset;
 
-	return readb(gt->mmio.regs + reg);
+	return readb(gt->mmio.regs + reg.reg);
 }
 
 static inline void xe_mmio_write32(struct xe_gt *gt,
-				   u32 reg, u32 val)
+				   struct xe_reg reg, u32 val)
 {
-	if (reg < gt->mmio.adj_limit)
-		reg += gt->mmio.adj_offset;
+	if (reg.reg < gt->mmio.adj_limit)
+		reg.reg += gt->mmio.adj_offset;
 
-	writel(val, gt->mmio.regs + reg);
+	writel(val, gt->mmio.regs + reg.reg);
 }
 
-static inline u32 xe_mmio_read32(struct xe_gt *gt, u32 reg)
+static inline u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg < gt->mmio.adj_limit)
-		reg += gt->mmio.adj_offset;
+	if (reg.reg < gt->mmio.adj_limit)
+		reg.reg += gt->mmio.adj_offset;
 
-	return readl(gt->mmio.regs + reg);
+	return readl(gt->mmio.regs + reg.reg);
 }
 
-static inline u32 xe_mmio_rmw32(struct xe_gt *gt, u32 reg, u32 clr,
-				 u32 set)
+static inline u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr,
+				u32 set)
 {
 	u32 old, reg_val;
 
@@ -55,24 +56,24 @@ static inline u32 xe_mmio_rmw32(struct xe_gt *gt, u32 reg, u32 clr,
 }
 
 static inline void xe_mmio_write64(struct xe_gt *gt,
-				   u32 reg, u64 val)
+				   struct xe_reg reg, u64 val)
 {
-	if (reg < gt->mmio.adj_limit)
-		reg += gt->mmio.adj_offset;
+	if (reg.reg < gt->mmio.adj_limit)
+		reg.reg += gt->mmio.adj_offset;
 
-	writeq(val, gt->mmio.regs + reg);
+	writeq(val, gt->mmio.regs + reg.reg);
 }
 
-static inline u64 xe_mmio_read64(struct xe_gt *gt, u32 reg)
+static inline u64 xe_mmio_read64(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg < gt->mmio.adj_limit)
-		reg += gt->mmio.adj_offset;
+	if (reg.reg < gt->mmio.adj_limit)
+		reg.reg += gt->mmio.adj_offset;
 
-	return readq(gt->mmio.regs + reg);
+	return readq(gt->mmio.regs + reg.reg);
 }
 
 static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
-					     u32 reg, u32 val,
+					     struct xe_reg reg, u32 val,
 					     u32 mask, u32 eval)
 {
 	u32 reg_val;
@@ -83,8 +84,9 @@ static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val, u32 mask,
-				 u32 timeout_us, u32 *out_val, bool atomic)
+static inline int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 val,
+				 u32 mask, u32 timeout_us, u32 *out_val,
+				 bool atomic)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_us(cur, timeout_us);
@@ -122,9 +124,10 @@ static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val, u32 mask,
 int xe_mmio_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file);
 
-static inline bool xe_mmio_in_range(const struct xe_mmio_range *range, u32 reg)
+static inline bool xe_mmio_in_range(const struct xe_mmio_range *range,
+				    struct xe_reg reg)
 {
-	return range && reg >= range->start && reg <= range->end;
+	return range && reg.reg >= range->start && reg.reg <= range->end;
 }
 
 int xe_mmio_probe_vram(struct xe_device *xe);

@@ -233,20 +233,25 @@ static void hw_engine_fini(struct drm_device *drm, void *arg)
 	hwe->gt = NULL;
 }
 
-static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, u32 reg, u32 val)
+static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
+				   u32 val)
 {
-	XE_BUG_ON(reg & hwe->mmio_base);
+	XE_BUG_ON(reg.reg & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
-	xe_mmio_write32(hwe->gt, reg + hwe->mmio_base, val);
+	reg.reg += hwe->mmio_base;
+
+	xe_mmio_write32(hwe->gt, reg, val);
 }
 
-static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, u32 reg)
+static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 {
-	XE_BUG_ON(reg & hwe->mmio_base);
+	XE_BUG_ON(reg.reg & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
-	return xe_mmio_read32(hwe->gt, reg + hwe->mmio_base);
+	reg.reg += hwe->mmio_base;
+
+	return xe_mmio_read32(hwe->gt, reg);
 }
 
 void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
@@ -255,17 +260,17 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 		xe_hw_engine_mask_per_class(hwe->gt, XE_ENGINE_CLASS_COMPUTE);
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask)
-		xe_mmio_write32(hwe->gt, RCU_MODE.reg,
+		xe_mmio_write32(hwe->gt, RCU_MODE,
 				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
-	hw_engine_mmio_write32(hwe, RING_HWSTAM(0).reg, ~0x0);
-	hw_engine_mmio_write32(hwe, RING_HWS_PGA(0).reg,
+	hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
+	hw_engine_mmio_write32(hwe, RING_HWS_PGA(0),
 			       xe_bo_ggtt_addr(hwe->hwsp));
-	hw_engine_mmio_write32(hwe, RING_MODE(0).reg,
+	hw_engine_mmio_write32(hwe, RING_MODE(0),
 			       _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
-	hw_engine_mmio_write32(hwe, RING_MI_MODE(0).reg,
+	hw_engine_mmio_write32(hwe, RING_MI_MODE(0),
 			       _MASKED_BIT_DISABLE(STOP_RING));
-	hw_engine_mmio_read32(hwe, RING_MI_MODE(0).reg);
+	hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
 }
 
 void
@@ -443,7 +448,7 @@ static void read_media_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	media_fuse = xe_mmio_read32(gt, GT_VEBOX_VDBOX_DISABLE.reg);
+	media_fuse = xe_mmio_read32(gt, GT_VEBOX_VDBOX_DISABLE);
 
 	/*
 	 * Pre-Xe_HP platforms had register bits representing absent engines,
@@ -485,7 +490,7 @@ static void read_copy_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	bcs_mask = xe_mmio_read32(gt, MIRROR_FUSE3.reg);
+	bcs_mask = xe_mmio_read32(gt, MIRROR_FUSE3);
 	bcs_mask = REG_FIELD_GET(MEML3_EN_MASK, bcs_mask);
 
 	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
@@ -582,63 +587,63 @@ void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p)
 	drm_printf(p, "\tMMIO base: 0x%08x\n", hwe->mmio_base);
 
 	drm_printf(p, "\tHWSTAM: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_HWSTAM(0).reg));
+		hw_engine_mmio_read32(hwe, RING_HWSTAM(0)));
 	drm_printf(p, "\tRING_HWS_PGA: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_HWS_PGA(0).reg));
+		hw_engine_mmio_read32(hwe, RING_HWS_PGA(0)));
 
 	drm_printf(p, "\tRING_EXECLIST_STATUS_LO: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0).reg));
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0)));
 	drm_printf(p, "\tRING_EXECLIST_STATUS_HI: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0).reg));
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0)));
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_LO: 0x%08x\n",
 		hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS_LO(0).reg));
+					 RING_EXECLIST_SQ_CONTENTS_LO(0)));
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_HI: 0x%08x\n",
 		hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS_HI(0).reg));
+					 RING_EXECLIST_SQ_CONTENTS_HI(0)));
 	drm_printf(p, "\tRING_EXECLIST_CONTROL: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0).reg));
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0)));
 
 	drm_printf(p, "\tRING_START: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_START(0).reg));
+		hw_engine_mmio_read32(hwe, RING_START(0)));
 	drm_printf(p, "\tRING_HEAD:  0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_HEAD(0).reg) & HEAD_ADDR);
+		hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR);
 	drm_printf(p, "\tRING_TAIL:  0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_TAIL(0).reg) & TAIL_ADDR);
+		hw_engine_mmio_read32(hwe, RING_TAIL(0)) & TAIL_ADDR);
 	drm_printf(p, "\tRING_CTL: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_CTL(0).reg));
+		hw_engine_mmio_read32(hwe, RING_CTL(0)));
 	drm_printf(p, "\tRING_MODE: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_MI_MODE(0).reg));
+		hw_engine_mmio_read32(hwe, RING_MI_MODE(0)));
 	drm_printf(p, "\tRING_MODE_GEN7: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_MODE(0).reg));
+		hw_engine_mmio_read32(hwe, RING_MODE(0)));
 
 	drm_printf(p, "\tRING_IMR:   0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_IMR(0).reg));
+		hw_engine_mmio_read32(hwe, RING_IMR(0)));
 	drm_printf(p, "\tRING_ESR:   0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_ESR(0).reg));
+		hw_engine_mmio_read32(hwe, RING_ESR(0)));
 	drm_printf(p, "\tRING_EMR:   0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_EMR(0).reg));
+		hw_engine_mmio_read32(hwe, RING_EMR(0)));
 	drm_printf(p, "\tRING_EIR:   0x%08x\n",
-		hw_engine_mmio_read32(hwe, RING_EIR(0).reg));
+		hw_engine_mmio_read32(hwe, RING_EIR(0)));
 
         drm_printf(p, "\tACTHD:  0x%08x_%08x\n",
-		hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0).reg),
-		hw_engine_mmio_read32(hwe, RING_ACTHD(0).reg));
+		hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0)),
+		hw_engine_mmio_read32(hwe, RING_ACTHD(0)));
         drm_printf(p, "\tBBADDR: 0x%08x_%08x\n",
-		hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0).reg),
-		hw_engine_mmio_read32(hwe, RING_BBADDR(0).reg));
+		hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0)),
+		hw_engine_mmio_read32(hwe, RING_BBADDR(0)));
         drm_printf(p, "\tDMA_FADDR: 0x%08x_%08x\n",
-		hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0).reg),
-		hw_engine_mmio_read32(hwe, RING_DMA_FADD(0).reg));
+		hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0)),
+		hw_engine_mmio_read32(hwe, RING_DMA_FADD(0)));
 
 	drm_printf(p, "\tIPEIR: 0x%08x\n",
-		hw_engine_mmio_read32(hwe, IPEIR(0).reg));
+		hw_engine_mmio_read32(hwe, IPEIR(0)));
 	drm_printf(p, "\tIPEHR: 0x%08x\n\n",
-		hw_engine_mmio_read32(hwe, IPEHR(0).reg));
+		hw_engine_mmio_read32(hwe, IPEHR(0)));
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
 		drm_printf(p, "\tRCU_MODE: 0x%08x\n",
-			xe_mmio_read32(hwe->gt, RCU_MODE.reg));
+			xe_mmio_read32(hwe->gt, RCU_MODE));
 
 }
 

@@ -9,6 +9,7 @@
 #include <linux/idr.h>
 #include <linux/xarray.h>
 
+#include "regs/xe_reg_defs.h"
 #include "xe_guc_ads_types.h"
 #include "xe_guc_ct_types.h"
 #include "xe_guc_fwif.h"
@@ -74,7 +75,7 @@ struct xe_guc {
 	/**
 	 * @notify_reg: Register which is written to notify GuC of H2G messages
 	 */
-	u32 notify_reg;
+	struct xe_reg notify_reg;
 	/** @params: Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
 };

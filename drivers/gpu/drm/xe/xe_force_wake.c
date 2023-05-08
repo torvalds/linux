@@ -8,6 +8,7 @@
 #include <drm/drm_util.h>
 
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_reg_defs.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
 
@@ -27,7 +28,7 @@ fw_to_xe(struct xe_force_wake *fw)
 
 static void domain_init(struct xe_force_wake_domain *domain,
 			enum xe_force_wake_domain_id id,
-			u32 reg, u32 ack, u32 val, u32 mask)
+			struct xe_reg reg, struct xe_reg ack, u32 val, u32 mask)
 {
 	domain->id = id;
 	domain->reg_ctl = reg;
@@ -49,14 +50,14 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	if (xe->info.graphics_verx100 >= 1270) {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
-			    FORCEWAKE_GT.reg,
-			    FORCEWAKE_ACK_GT_MTL.reg,
+			    FORCEWAKE_GT,
+			    FORCEWAKE_ACK_GT_MTL,
 			    BIT(0), BIT(16));
 	} else {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
-			    FORCEWAKE_GT.reg,
-			    FORCEWAKE_ACK_GT.reg,
+			    FORCEWAKE_GT,
+			    FORCEWAKE_ACK_GT,
 			    BIT(0), BIT(16));
 	}
 }
@@ -71,8 +72,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 	if (!xe_gt_is_media_type(gt))
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_RENDER],
 			    XE_FW_DOMAIN_ID_RENDER,
-			    FORCEWAKE_RENDER.reg,
-			    FORCEWAKE_ACK_RENDER.reg,
+			    FORCEWAKE_RENDER,
+			    FORCEWAKE_ACK_RENDER,
 			    BIT(0), BIT(16));
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
@@ -81,8 +82,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j,
-			    FORCEWAKE_MEDIA_VDBOX(j).reg,
-			    FORCEWAKE_ACK_MEDIA_VDBOX(j).reg,
+			    FORCEWAKE_MEDIA_VDBOX(j),
+			    FORCEWAKE_ACK_MEDIA_VDBOX(j),
 			    BIT(0), BIT(16));
 	}
 
@@ -92,8 +93,8 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j],
 			    XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j,
-			    FORCEWAKE_MEDIA_VEBOX(j).reg,
-			    FORCEWAKE_ACK_MEDIA_VEBOX(j).reg,
+			    FORCEWAKE_MEDIA_VEBOX(j),
+			    FORCEWAKE_ACK_MEDIA_VEBOX(j),
 			    BIT(0), BIT(16));
 	}
 }
@@ -128,7 +129,7 @@ static int domain_sleep_wait(struct xe_gt *gt,
 	for (tmp__ = (mask__); tmp__; tmp__ &= ~BIT(ffs(tmp__) - 1)) \
 		for_each_if((domain__ = ((fw__)->domains + \
 					 (ffs(tmp__) - 1))) && \
-					 domain__->reg_ctl)
+					 domain__->reg_ctl.reg)
 
 int xe_force_wake_get(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)

@@ -44,10 +44,11 @@ static u32 preparser_disable(bool state)
 	return MI_ARB_CHECK | BIT(8) | state;
 }
 
-static int emit_aux_table_inv(struct xe_gt *gt, u32 addr, u32 *dw, int i)
+static int emit_aux_table_inv(struct xe_gt *gt, struct xe_reg reg,
+			      u32 *dw, int i)
 {
 	dw[i++] = MI_LOAD_REGISTER_IMM(1) | MI_LRI_MMIO_REMAP_EN;
-	dw[i++] = addr + gt->mmio.adj_offset;
+	dw[i++] = reg.reg + gt->mmio.adj_offset;
 	dw[i++] = AUX_INV;
 	dw[i++] = MI_NOOP;
 
@@ -203,9 +204,9 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	/* hsdes: 1809175790 */
 	if (!xe->info.has_flat_ccs) {
 		if (decode)
-			i = emit_aux_table_inv(gt, VD0_AUX_INV.reg, dw, i);
+			i = emit_aux_table_inv(gt, VD0_AUX_INV, dw, i);
 		else
-			i = emit_aux_table_inv(gt, VE0_AUX_INV.reg, dw, i);
+			i = emit_aux_table_inv(gt, VE0_AUX_INV, dw, i);
 	}
 	dw[i++] = preparser_disable(false);
 
@@ -248,7 +249,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	/* hsdes: 1809175790 */
 	if (!xe->info.has_flat_ccs)
-		i = emit_aux_table_inv(gt, CCS_AUX_INV.reg, dw, i);
+		i = emit_aux_table_inv(gt, CCS_AUX_INV, dw, i);
 
 	dw[i++] = preparser_disable(false);
 

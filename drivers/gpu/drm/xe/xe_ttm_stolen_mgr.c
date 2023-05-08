@@ -65,7 +65,7 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 	}
 
 	/* Use DSM base address instead for stolen memory */
-	mgr->stolen_base = xe_mmio_read64(gt, DSMBASE.reg) & BDSM_MASK;
+	mgr->stolen_base = xe_mmio_read64(gt, DSMBASE) & BDSM_MASK;
 	if (drm_WARN_ON(&xe->drm, vram_size < mgr->stolen_base))
 		return 0;
 
@@ -88,7 +88,7 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 	u32 stolen_size;
 	u32 ggc, gms;
 
-	ggc = xe_mmio_read32(to_gt(xe), GGC.reg);
+	ggc = xe_mmio_read32(to_gt(xe), GGC);
 
 	/* check GGMS, should be fixed 0x3 (8MB) */
 	if (drm_WARN_ON(&xe->drm, (ggc & GGMS_MASK) != GGMS_MASK))

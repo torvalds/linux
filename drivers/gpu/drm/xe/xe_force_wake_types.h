@@ -9,6 +9,8 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "regs/xe_reg_defs.h"
+
 enum xe_force_wake_domain_id {
 	XE_FW_DOMAIN_ID_GT = 0,
 	XE_FW_DOMAIN_ID_RENDER,
@@ -56,9 +58,9 @@ struct xe_force_wake_domain {
 	/** @id: domain force wake id */
 	enum xe_force_wake_domain_id id;
 	/** @reg_ctl: domain wake control register address */
-	u32 reg_ctl;
+	struct xe_reg reg_ctl;
 	/** @reg_ack: domain ack register address */
-	u32 reg_ack;
+	struct xe_reg reg_ack;
 	/** @val: domain wake write value */
 	u32 val;
 	/** @mask: domain mask */

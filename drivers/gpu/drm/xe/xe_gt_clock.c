@@ -14,7 +14,7 @@
 
 static u32 read_reference_ts_freq(struct xe_gt *gt)
 {
-	u32 ts_override = xe_mmio_read32(gt, TIMESTAMP_OVERRIDE.reg);
+	u32 ts_override = xe_mmio_read32(gt, TIMESTAMP_OVERRIDE);
 	u32 base_freq, frac_freq;
 
 	base_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK,
@@ -54,7 +54,7 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 
 int xe_gt_clock_init(struct xe_gt *gt)
 {
-	u32 ctc_reg = xe_mmio_read32(gt, CTC_MODE.reg);
+	u32 ctc_reg = xe_mmio_read32(gt, CTC_MODE);
 	u32 freq = 0;
 
 	/* Assuming gen11+ so assert this assumption is correct */
@@ -63,7 +63,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
 		freq = read_reference_ts_freq(gt);
 	} else {
-		u32 c0 = xe_mmio_read32(gt, RPM_CONFIG0.reg);
+		u32 c0 = xe_mmio_read32(gt, RPM_CONFIG0);
 
 		freq = get_crystal_clock_freq(c0);
 

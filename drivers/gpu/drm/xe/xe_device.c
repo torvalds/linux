@@ -345,7 +345,7 @@ void xe_device_wmb(struct xe_device *xe)
 
 	wmb();
 	if (IS_DGFX(xe))
-		xe_mmio_write32(gt, SOFTWARE_FLAGS_SPR33.reg, 0);
+		xe_mmio_write32(gt, SOFTWARE_FLAGS_SPR33, 0);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)

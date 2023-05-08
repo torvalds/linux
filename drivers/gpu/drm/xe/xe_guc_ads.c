@@ -428,7 +428,6 @@ static void guc_mmio_regset_write_one(struct xe_guc_ads *ads,
 	struct guc_mmio_reg entry = {
 		.offset = reg.reg,
 		.flags = reg.masked ? GUC_REGSET_MASKED : 0,
-		/* TODO: steering */
 	};
 
 	xe_map_memcpy_to(ads_to_xe(ads), regset_map, n_entry * sizeof(entry),
@@ -551,7 +550,7 @@ static void guc_doorbell_init(struct xe_guc_ads *ads)
 
 	if (GRAPHICS_VER(xe) >= 12 && !IS_DGFX(xe)) {
 		u32 distdbreg =
-			xe_mmio_read32(gt, DIST_DBS_POPULATED.reg);
+			xe_mmio_read32(gt, DIST_DBS_POPULATED);
 
 		ads_blob_write(ads,
 			       system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI],

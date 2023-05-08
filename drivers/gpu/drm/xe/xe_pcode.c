@@ -43,7 +43,7 @@ static int pcode_mailbox_status(struct xe_gt *gt)
 
 	lockdep_assert_held(&gt->pcode.lock);
 
-	err = xe_mmio_read32(gt, PCODE_MAILBOX.reg) & PCODE_ERROR_MASK;
+	err = xe_mmio_read32(gt, PCODE_MAILBOX) & PCODE_ERROR_MASK;
 	if (err) {
 		drm_err(&gt_to_xe(gt)->drm, "PCODE Mailbox failed: %d %s", err,
 			err_decode[err].str ?: "Unknown");
@@ -60,22 +60,22 @@ static int pcode_mailbox_rw(struct xe_gt *gt, u32 mbox, u32 *data0, u32 *data1,
 	int err;
 	lockdep_assert_held(&gt->pcode.lock);
 
-	if ((xe_mmio_read32(gt, PCODE_MAILBOX.reg) & PCODE_READY) != 0)
+	if ((xe_mmio_read32(gt, PCODE_MAILBOX) & PCODE_READY) != 0)
 		return -EAGAIN;
 
-	xe_mmio_write32(gt, PCODE_DATA0.reg, *data0);
-	xe_mmio_write32(gt, PCODE_DATA1.reg, data1 ? *data1 : 0);
-	xe_mmio_write32(gt, PCODE_MAILBOX.reg, PCODE_READY | mbox);
+	xe_mmio_write32(gt, PCODE_DATA0, *data0);
+	xe_mmio_write32(gt, PCODE_DATA1, data1 ? *data1 : 0);
+	xe_mmio_write32(gt, PCODE_MAILBOX, PCODE_READY | mbox);
 
-	err = xe_mmio_wait32(gt, PCODE_MAILBOX.reg, 0, PCODE_READY,
+	err = xe_mmio_wait32(gt, PCODE_MAILBOX, 0, PCODE_READY,
 			     timeout_ms * 1000, NULL, atomic);
 	if (err)
 		return err;
 
 	if (return_data) {
-		*data0 = xe_mmio_read32(gt, PCODE_DATA0.reg);
+		*data0 = xe_mmio_read32(gt, PCODE_DATA0);
 		if (data1)
-			*data1 = xe_mmio_read32(gt, PCODE_DATA1.reg);
+			*data1 = xe_mmio_read32(gt, PCODE_DATA1);
 	}
 
 	return pcode_mailbox_status(gt);

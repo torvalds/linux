@@ -317,9 +317,9 @@ static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 	u32 reg;
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MPE_FREQUENCY.reg);
+		reg = xe_mmio_read32(gt, MTL_MPE_FREQUENCY);
 	else
-		reg = xe_mmio_read32(gt, MTL_GT_RPE_FREQUENCY.reg);
+		reg = xe_mmio_read32(gt, MTL_GT_RPE_FREQUENCY);
 
 	pc->rpe_freq = REG_FIELD_GET(MTL_RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -336,9 +336,9 @@ static void tgl_update_rpe_value(struct xe_guc_pc *pc)
 	 * PCODE at a different register
 	 */
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP.reg);
+		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, GEN10_FREQ_INFO_REC.reg);
+		reg = xe_mmio_read32(gt, GEN10_FREQ_INFO_REC);
 
 	pc->rpe_freq = REG_FIELD_GET(RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -380,10 +380,10 @@ static ssize_t freq_act_show(struct device *dev,
 		goto out;
 
 	if (xe->info.platform == XE_METEORLAKE) {
-		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1.reg);
+		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
-		freq = xe_mmio_read32(gt, GEN12_RPSTAT1.reg);
+		freq = xe_mmio_read32(gt, GEN12_RPSTAT1);
 		freq = REG_FIELD_GET(GEN12_CAGF_MASK, freq);
 	}
 
@@ -413,7 +413,7 @@ static ssize_t freq_cur_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	freq = xe_mmio_read32(gt, RPNSWREQ.reg);
+	freq = xe_mmio_read32(gt, RPNSWREQ);
 
 	freq = REG_FIELD_GET(REQ_RATIO_MASK, freq);
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
@@ -588,7 +588,7 @@ static ssize_t rc_status_show(struct device *dev,
 	u32 reg;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
-	reg = xe_mmio_read32(gt, GT_CORE_STATUS.reg);
+	reg = xe_mmio_read32(gt, GT_CORE_STATUS);
 	xe_device_mem_access_put(gt_to_xe(gt));
 
 	switch (REG_FIELD_GET(RCN_MASK, reg)) {
@@ -615,7 +615,7 @@ static ssize_t rc6_residency_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	reg = xe_mmio_read32(gt, GT_GFX_RC6.reg);
+	reg = xe_mmio_read32(gt, GT_GFX_RC6);
 	ret = sysfs_emit(buff, "%u\n", reg);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
@@ -646,9 +646,9 @@ static void mtl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MEDIAP_STATE_CAP.reg);
+		reg = xe_mmio_read32(gt, MTL_MEDIAP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, MTL_RP_STATE_CAP.reg);
+		reg = xe_mmio_read32(gt, MTL_RP_STATE_CAP);
 	pc->rp0_freq = REG_FIELD_GET(MTL_RP0_CAP_MASK, reg) *
 		GT_FREQUENCY_MULTIPLIER;
 	pc->rpn_freq = REG_FIELD_GET(MTL_RPN_CAP_MASK, reg) *
@@ -664,9 +664,9 @@ static void tgl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP.reg);
+		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, GEN6_RP_STATE_CAP.reg);
+		reg = xe_mmio_read32(gt, GEN6_RP_STATE_CAP);
 	pc->rp0_freq = REG_FIELD_GET(RP0_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 	pc->rpn_freq = REG_FIELD_GET(RPN_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -745,9 +745,9 @@ static int pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (ret)
 		return ret;
 
-	xe_mmio_write32(gt, PG_ENABLE.reg, 0);
-	xe_mmio_write32(gt, RC_CONTROL.reg, 0);
-	xe_mmio_write32(gt, RC_STATE.reg, 0);
+	xe_mmio_write32(gt, PG_ENABLE, 0);
+	xe_mmio_write32(gt, RC_CONTROL, 0);
+	xe_mmio_write32(gt, RC_STATE, 0);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	return 0;

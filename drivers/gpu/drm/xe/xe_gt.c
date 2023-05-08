@@ -544,8 +544,8 @@ static int do_gt_reset(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
-	xe_mmio_write32(gt, GDRST.reg, GRDOM_FULL);
-	err = xe_mmio_wait32(gt, GDRST.reg, 0, GRDOM_FULL, 5000,
+	xe_mmio_write32(gt, GDRST, GRDOM_FULL);
+	err = xe_mmio_wait32(gt, GDRST, 0, GRDOM_FULL, 5000,
 			     NULL, false);
 	if (err)
 		drm_err(&xe->drm,

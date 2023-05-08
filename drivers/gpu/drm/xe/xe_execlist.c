@@ -60,7 +60,7 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	}
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
-		xe_mmio_write32(hwe->gt, RCU_MODE.reg,
+		xe_mmio_write32(hwe->gt, RCU_MODE,
 				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
@@ -78,17 +78,17 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	 */
 	wmb();
 
-	xe_mmio_write32(gt, RING_HWS_PGA(hwe->mmio_base).reg,
+	xe_mmio_write32(gt, RING_HWS_PGA(hwe->mmio_base),
 			xe_bo_ggtt_addr(hwe->hwsp));
-	xe_mmio_read32(gt, RING_HWS_PGA(hwe->mmio_base).reg);
-	xe_mmio_write32(gt, RING_MODE(hwe->mmio_base).reg,
+	xe_mmio_read32(gt, RING_HWS_PGA(hwe->mmio_base));
+	xe_mmio_write32(gt, RING_MODE(hwe->mmio_base),
 			_MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
 
-	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_LO(hwe->mmio_base).reg,
+	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_LO(hwe->mmio_base),
 			lower_32_bits(lrc_desc));
-	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_HI(hwe->mmio_base).reg,
+	xe_mmio_write32(gt, RING_EXECLIST_SQ_CONTENTS_HI(hwe->mmio_base),
 			upper_32_bits(lrc_desc));
-	xe_mmio_write32(gt, RING_EXECLIST_CONTROL(hwe->mmio_base).reg,
+	xe_mmio_write32(gt, RING_EXECLIST_CONTROL(hwe->mmio_base),
 			EL_CTRL_LOAD);
 }
 
@@ -173,8 +173,8 @@ static u64 read_execlist_status(struct xe_hw_engine *hwe)
 	struct xe_gt *gt = hwe->gt;
 	u32 hi, lo;
 
-	lo = xe_mmio_read32(gt, RING_EXECLIST_STATUS_LO(hwe->mmio_base).reg);
-	hi = xe_mmio_read32(gt, RING_EXECLIST_STATUS_HI(hwe->mmio_base).reg);
+	lo = xe_mmio_read32(gt, RING_EXECLIST_STATUS_LO(hwe->mmio_base));
+	hi = xe_mmio_read32(gt, RING_EXECLIST_STATUS_HI(hwe->mmio_base));
 
 	printk(KERN_INFO "EXECLIST_STATUS %d:%d = 0x%08x %08x\n", hwe->class,
 	       hwe->instance, hi, lo);

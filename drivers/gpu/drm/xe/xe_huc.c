@@ -84,7 +84,7 @@ int xe_huc_auth(struct xe_huc *huc)
 		goto fail;
 	}
 
-	ret = xe_mmio_wait32(gt, HUC_KERNEL_LOAD_INFO.reg,
+	ret = xe_mmio_wait32(gt, HUC_KERNEL_LOAD_INFO,
 			     HUC_LOAD_SUCCESSFUL,
 			     HUC_LOAD_SUCCESSFUL, 100000, NULL, false);
 	if (ret) {
@@ -126,7 +126,7 @@ void xe_huc_print_info(struct xe_huc *huc, struct drm_printer *p)
 		return;
 
 	drm_printf(p, "\nHuC status: 0x%08x\n",
-		   xe_mmio_read32(gt, HUC_KERNEL_LOAD_INFO.reg));
+		   xe_mmio_read32(gt, HUC_KERNEL_LOAD_INFO));
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }

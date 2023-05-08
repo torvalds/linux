@@ -64,14 +64,20 @@ static const u32 mtl_pat_table[] = {
 
 static void program_pat(struct xe_gt *gt, const u32 table[], int n_entries)
 {
-	for (int i = 0; i < n_entries; i++)
-		xe_mmio_write32(gt, _PAT_INDEX(i), table[i]);
+	for (int i = 0; i < n_entries; i++) {
+		struct xe_reg reg = XE_REG(_PAT_INDEX(i));
+
+		xe_mmio_write32(gt, reg, table[i]);
+	}
 }
 
 static void program_pat_mcr(struct xe_gt *gt, const u32 table[], int n_entries)
 {
-	for (int i = 0; i < n_entries; i++)
-		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_INDEX(i)), table[i]);
+	for (int i = 0; i < n_entries; i++) {
+		struct xe_reg_mcr reg_mcr = XE_REG_MCR(_PAT_INDEX(i));
+
+		xe_gt_mcr_multicast_write(gt, reg_mcr, table[i]);
+	}
 }
 
 void xe_pat_init(struct xe_gt *gt)

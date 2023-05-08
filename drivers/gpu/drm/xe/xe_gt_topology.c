@@ -26,7 +26,7 @@ load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs, ...)
 
 	va_start(argp, numregs);
 	for (i = 0; i < numregs; i++)
-		fuse_val[i] = xe_mmio_read32(gt, va_arg(argp, u32));
+		fuse_val[i] = xe_mmio_read32(gt, va_arg(argp, struct xe_reg));
 	va_end(argp);
 
 	bitmap_from_arr32(mask, fuse_val, numregs * 32);
@@ -36,7 +36,7 @@ static void
 load_eu_mask(struct xe_gt *gt, xe_eu_mask_t mask)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 reg = xe_mmio_read32(gt, XELP_EU_ENABLE.reg);
+	u32 reg_val = xe_mmio_read32(gt, XELP_EU_ENABLE);
 	u32 val = 0;
 	int i;
 
@@ -47,15 +47,15 @@ load_eu_mask(struct xe_gt *gt, xe_eu_mask_t mask)
 	 * of enable).
 	 */
 	if (GRAPHICS_VERx100(xe) < 1250)
-		reg = ~reg & XELP_EU_MASK;
+		reg_val = ~reg_val & XELP_EU_MASK;
 
 	/* On PVC, one bit = one EU */
 	if (GRAPHICS_VERx100(xe) == 1260) {
-		val = reg;
+		val = reg_val;
 	} else {
 		/* All other platforms, one bit = 2 EU */
-		for (i = 0; i < fls(reg); i++)
-			if (reg & BIT(i))
+		for (i = 0; i < fls(reg_val); i++)
+			if (reg_val & BIT(i))
 				val |= 0x3 << 2 * i;
 	}
 
@@ -95,10 +95,10 @@ xe_gt_topology_init(struct xe_gt *gt)
 
 	load_dss_mask(gt, gt->fuse_topo.g_dss_mask,
 		      num_geometry_regs,
-		      XELP_GT_GEOMETRY_DSS_ENABLE.reg);
+		      XELP_GT_GEOMETRY_DSS_ENABLE);
 	load_dss_mask(gt, gt->fuse_topo.c_dss_mask, num_compute_regs,
-		      XEHP_GT_COMPUTE_DSS_ENABLE.reg,
-		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT.reg);
+		      XEHP_GT_COMPUTE_DSS_ENABLE,
+		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT);
 	load_eu_mask(gt, gt->fuse_topo.eu_mask_per_dss);
 
 	xe_gt_topology_dump(gt, &p);
