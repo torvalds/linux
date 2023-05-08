@@ -173,7 +173,7 @@ int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 
 	fo = le16_to_cpu(rhdr->fix_off);
 	fn = simple ? ((bytes >> SECTOR_SHIFT) + 1) :
-			    le16_to_cpu(rhdr->fix_num);
+		      le16_to_cpu(rhdr->fix_num);
 
 	/* Check errors. */
 	if ((fo & 1) || fo + fn * sizeof(short) > SECTOR_SIZE || !fn-- ||

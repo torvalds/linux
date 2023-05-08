@@ -116,8 +116,8 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 
 	/* Use static allocated buffer, if possible. */
 	name = atomic_dec_and_test(&s_name_buf_cnt) ?
-			     s_name_buf :
-			     kmalloc(sizeof(s_name_buf), GFP_NOFS);
+		       s_name_buf :
+		       kmalloc(sizeof(s_name_buf), GFP_NOFS);
 
 	if (name) {
 		struct dentry *de = d_find_alias(inode);
@@ -257,6 +257,7 @@ enum Opt {
 	Opt_err,
 };
 
+// clang-format off
 static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_u32("uid",			Opt_uid),
 	fsparam_u32("gid",			Opt_gid),
@@ -277,9 +278,13 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("nocase",		Opt_nocase),
 	{}
 };
+// clang-format on
 
 /*
  * Load nls table or if @nls is utf8 then return NULL.
+ *
+ * It is good idea to use here "const char *nls".
+ * But load_nls accepts "char*".
  */
 static struct nls_table *ntfs_load_nls(char *nls)
 {
@@ -790,7 +795,7 @@ check_boot:
 
 	sbi->record_size = record_size =
 		boot->record_size < 0 ? 1 << (-boot->record_size) :
-					      (u32)boot->record_size << cluster_bits;
+					(u32)boot->record_size << cluster_bits;
 	sbi->record_bits = blksize_bits(record_size);
 	sbi->attr_size_tr = (5 * record_size >> 4); // ~320 bytes
 
@@ -808,8 +813,8 @@ check_boot:
 	}
 
 	sbi->index_size = boot->index_size < 0 ?
-					1u << (-boot->index_size) :
-					(u32)boot->index_size << cluster_bits;
+				  1u << (-boot->index_size) :
+				  (u32)boot->index_size << cluster_bits;
 
 	/* Check index record size. */
 	if (sbi->index_size < SECTOR_SIZE || !is_power_of_2(sbi->index_size)) {
@@ -1537,12 +1542,14 @@ static void ntfs_fs_free(struct fs_context *fc)
 		put_mount_options(opts);
 }
 
+// clang-format off
 static const struct fs_context_operations ntfs_context_ops = {
 	.parse_param	= ntfs_fs_parse_param,
 	.get_tree	= ntfs_fs_get_tree,
 	.reconfigure	= ntfs_fs_reconfigure,
 	.free		= ntfs_fs_free,
 };
+// clang-format on
 
 /*
  * ntfs_init_fs_context - Initialize sbi and opts

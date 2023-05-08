@@ -192,7 +192,7 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 	for (; idx < idx_end; idx += 1, from = 0) {
 		page_off = (loff_t)idx << PAGE_SHIFT;
 		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off) :
-							     PAGE_SIZE;
+						       PAGE_SIZE;
 		iblock = page_off >> inode->i_blkbits;
 
 		page = find_or_create_page(mapping, idx,
@@ -1052,7 +1052,7 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 
 	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from) :
-					__generic_file_write_iter(iocb, from);
+				  __generic_file_write_iter(iocb, from);
 
 out:
 	inode_unlock(inode);

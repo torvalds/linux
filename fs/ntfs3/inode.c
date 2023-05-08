@@ -263,7 +263,7 @@ next_attr:
 			goto next_attr;
 
 		run = ino == MFT_REC_BITMAP ? &sbi->used.bitmap.run :
-						    &ni->file.run;
+					      &ni->file.run;
 		break;
 
 	case ATTR_ROOT:
@@ -291,8 +291,8 @@ next_attr:
 			goto out;
 
 		mode = sb->s_root ?
-				     (S_IFDIR | (0777 & sbi->options->fs_dmask_inv)) :
-				     (S_IFDIR | 0777);
+			       (S_IFDIR | (0777 & sbi->options->fs_dmask_inv)) :
+			       (S_IFDIR | 0777);
 		goto next_attr;
 
 	case ATTR_ALLOC:
@@ -450,7 +450,7 @@ end_enum:
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
-								    &ntfs_aops;
+							      &ntfs_aops;
 		if (ino != MFT_REC_MFT)
 			init_rwsem(&ni->file.run_lock);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode) ||
@@ -787,7 +787,7 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 	ret = blockdev_direct_IO(iocb, inode, iter,
 				 wr ? ntfs_get_block_direct_IO_W :
-					    ntfs_get_block_direct_IO_R);
+				      ntfs_get_block_direct_IO_R);
 
 	if (ret > 0)
 		end = vbo + ret;
@@ -1191,11 +1191,11 @@ out:
  * - ntfs_symlink
  * - ntfs_mkdir
  * - ntfs_atomic_open
- * 
+ *
  * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
-				struct inode *dir, struct dentry *dentry,
+struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+				struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
 				dev_t dev, const char *symname, u32 size,
 				struct ntfs_fnd *fnd)
@@ -1605,7 +1605,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
 		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
-								    &ntfs_aops;
+							      &ntfs_aops;
 		init_rwsem(&ni->file.run_lock);
 	} else {
 		inode->i_op = &ntfs_special_inode_operations;

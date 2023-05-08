@@ -109,8 +109,8 @@ static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode,
-				  0, NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
+				  NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -125,8 +125,8 @@ static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev,
-				  NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
+				  NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -199,8 +199,8 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	u32 size = strlen(symname);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777,
-				  0, symname, size, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
+				  symname, size, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -213,8 +213,8 @@ static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode,
-				  0, NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
+				  NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }

@@ -708,8 +708,8 @@ int ntfs_sync_inode(struct inode *inode);
 int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 		      struct inode *i2);
 int inode_write_data(struct inode *inode, const void *data, size_t bytes);
-struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
-				struct inode *dir, struct dentry *dentry,
+struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+				struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
 				dev_t dev, const char *symname, u32 size,
 				struct ntfs_fnd *fnd);
@@ -858,12 +858,12 @@ unsigned long ntfs_names_hash(const u16 *name, size_t len, const u16 *upcase,
 
 /* globals from xattr.c */
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
-struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap,
-			       struct dentry *dentry, int type);
+struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+			       int type);
 int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
-		 struct inode *dir);
+		  struct inode *dir);
 #else
 #define ntfs_get_acl NULL
 #define ntfs_set_acl NULL

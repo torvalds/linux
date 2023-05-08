@@ -432,8 +432,8 @@ next_run:
 			nbits = 8 * (data_size - vbo);
 
 		ok = nbits > from ?
-				   (*fn)((ulong *)bh->b_data, from, nbits, ret) :
-				   false;
+			     (*fn)((ulong *)bh->b_data, from, nbits, ret) :
+			     false;
 		put_bh(bh);
 
 		if (ok) {
@@ -1682,8 +1682,8 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/* Create alloc and bitmap attributes (if not). */
 	err = run_is_empty(&indx->alloc_run) ?
-			    indx_create_allocate(indx, ni, &new_vbn) :
-			    indx_add_allocate(indx, ni, &new_vbn);
+		      indx_create_allocate(indx, ni, &new_vbn) :
+		      indx_add_allocate(indx, ni, &new_vbn);
 
 	/* Layout of record may be changed, so rescan root. */
 	root = indx_get_root(indx, ni, &attr, &mi);
@@ -1874,8 +1874,8 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 		      (*indx->cmp)(new_de + 1, le16_to_cpu(new_de->key_size),
 				   up_e + 1, le16_to_cpu(up_e->key_size),
 				   ctx) < 0 ?
-				    hdr2 :
-				    hdr1,
+			      hdr2 :
+			      hdr1,
 		      new_de, NULL, ctx);
 
 	indx_mark_used(indx, ni, new_vbn >> indx->idx2vbn_bits);
@@ -2346,7 +2346,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 							      re, ctx,
 							      fnd->level - 1,
 							      fnd) :
-					    indx_insert_into_root(indx, ni, re, e,
+				      indx_insert_into_root(indx, ni, re, e,
 							    ctx, fnd, 0);
 			kfree(re);
 
