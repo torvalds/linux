@@ -56,3 +56,4 @@ obj-$(CONFIG_PINCTRL_SC8280XP_LPASS_LPI) += pinctrl-sc8280xp-lpass-lpi.o
 obj-$(CONFIG_PINCTRL_LPASS_LPI) += pinctrl-lpass-lpi.o
 obj-$(CONFIG_PINCTRL_LEMANS) += pinctrl-lemans.o
 obj-$(CONFIG_PINCTRL_DIREWOLF) += pinctrl-direwolf.o
+obj-$(CONFIG_PINCTRL_MONACO_AUTO) += pinctrl-monaco_auto.o
