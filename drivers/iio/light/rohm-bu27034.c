@@ -231,6 +231,9 @@ struct bu27034_result {
 
 static const struct regmap_range bu27034_volatile_ranges[] = {
 	{
+		.range_min = BU27034_REG_SYSTEM_CONTROL,
+		.range_max = BU27034_REG_SYSTEM_CONTROL,
+	}, {
 		.range_min = BU27034_REG_MODE_CONTROL4,
 		.range_max = BU27034_REG_MODE_CONTROL4,
 	}, {
@@ -1272,12 +1275,19 @@ static int bu27034_chip_init(struct bu27034_data *data)
 	int ret, sel;
 
 	/* Reset */
-	ret = regmap_update_bits(data->regmap, BU27034_REG_SYSTEM_CONTROL,
+	ret = regmap_write_bits(data->regmap, BU27034_REG_SYSTEM_CONTROL,
 			   BU27034_MASK_SW_RESET, BU27034_MASK_SW_RESET);
 	if (ret)
 		return dev_err_probe(data->dev, ret, "Sensor reset failed\n");
 
 	msleep(1);
+
+	ret = regmap_reinit_cache(data->regmap, &bu27034_regmap);
+	if (ret) {
+		dev_err(data->dev, "Failed to reinit reg cache\n");
+		return ret;
+	}
+
 	/*
 	 * Read integration time here to ensure it is in regmap cache. We do
 	 * this to speed-up the int-time acquisition in the start of the buffer
