@@ -813,10 +813,8 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 	 * Looks like one record_size is always enough.
 	 */
 	le = kmalloc(al_aligned(rs), GFP_NOFS);
-	if (!le) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!le)
+		return -ENOMEM;
 
 	mi_get_ref(&ni->mi, &le->ref);
 	ni->attr_list.le = le;
@@ -865,14 +863,14 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 
 		if (to_free > free_b) {
 			err = -EINVAL;
-			goto out1;
+			goto out;
 		}
 	}
 
 	/* Allocate child MFT. */
 	err = ntfs_look_free_mft(sbi, &rno, is_mft, ni, &mi);
 	if (err)
-		goto out1;
+		goto out;
 
 	err = -EINVAL;
 	/* Call mi_remove_attr() in reverse order to keep pointers 'arr_move' valid. */
@@ -884,7 +882,7 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 		attr = mi_insert_attr(mi, b->type, Add2Ptr(b, name_off),
 				      b->name_len, asize, name_off);
 		if (!attr)
-			goto out1;
+			goto out;
 
 		mi_get_ref(mi, &le_b[nb]->ref);
 		le_b[nb]->id = attr->id;
@@ -895,19 +893,19 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 
 		/* Remove from primary record. */
 		if (!mi_remove_attr(NULL, &ni->mi, b))
-			goto out1;
+			goto out;
 
 		if (to_free <= asize)
 			break;
 		to_free -= asize;
 		if (!nb)
-			goto out1;
+			goto out;
 	}
 
 	attr = mi_insert_attr(&ni->mi, ATTR_LIST, NULL, 0,
 			      lsize + SIZEOF_RESIDENT, SIZEOF_RESIDENT);
 	if (!attr)
-		goto out1;
+		goto out;
 
 	attr->non_res = 0;
 	attr->flags = 0;
@@ -921,16 +919,13 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 	ni->attr_list.dirty = false;
 
 	mark_inode_dirty(&ni->vfs_inode);
-	goto out;
+	return 0;
 
-out1:
+out:
 	kfree(ni->attr_list.le);
 	ni->attr_list.le = NULL;
 	ni->attr_list.size = 0;
 	return err;
-
-out:
-	return 0;
 }
 
 /*
