@@ -23,6 +23,14 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_gfp_zone_flags,
 DECLARE_RESTRICTED_HOOK(android_rvh_set_readahead_gfp_mask,
 			TP_PROTO(unsigned int *flags),	/* gfp_t *flags */
 			TP_ARGS(flags), 1);
+DECLARE_HOOK(android_vh_dm_bufio_shrink_scan_bypass,
+	TP_PROTO(unsigned long dm_bufio_current_allocated, bool *bypass),
+	TP_ARGS(dm_bufio_current_allocated, bypass));
+DECLARE_HOOK(android_vh_cleanup_old_buffers_bypass,
+	TP_PROTO(unsigned long dm_bufio_current_allocated,
+		unsigned long *max_age_hz,
+		bool *bypass),
+	TP_ARGS(dm_bufio_current_allocated, max_age_hz, bypass));
 DECLARE_HOOK(android_vh_mmap_region,
 	TP_PROTO(struct vm_area_struct *vma, unsigned long addr),
 	TP_ARGS(vma, addr));
