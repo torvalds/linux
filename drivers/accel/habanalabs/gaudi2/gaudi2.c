@@ -162,6 +162,9 @@
 #define PSOC_RAZWI_ENG_STR_SIZE 128
 #define PSOC_RAZWI_MAX_ENG_PER_RTR 5
 
+/* HW scrambles only bits 0-25 */
+#define HW_UNSCRAMBLED_BITS_MASK GENMASK_ULL(63, 26)
+
 struct gaudi2_razwi_info {
 	u32 axuser_xy;
 	u32 rtr_ctrl;
@@ -8835,11 +8838,16 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 	addr <<= 32;
 	addr |= RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE_VA));
 
-	if (!is_pmmu)
-		addr = gaudi2_mmu_descramble_addr(hdev, addr);
+	if (is_pmmu) {
+		dev_err_ratelimited(hdev->dev, "PMMU page fault on va 0x%llx\n", addr);
+	} else {
 
-	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx\n",
-				is_pmmu ? "PMMU" : "HMMU", addr);
+		addr = gaudi2_mmu_descramble_addr(hdev, addr);
+		addr &= HW_UNSCRAMBLED_BITS_MASK;
+		dev_err_ratelimited(hdev->dev, "HMMU page fault on va range 0x%llx - 0x%llx\n",
+				addr, addr + ~HW_UNSCRAMBLED_BITS_MASK);
+	}
+
 	hl_handle_page_fault(hdev, addr, 0, is_pmmu, event_mask);
 
 	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID), 0);
