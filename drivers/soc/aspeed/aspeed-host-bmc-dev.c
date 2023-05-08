@@ -248,12 +248,20 @@ irqreturn_t aspeed_pci_host_mbox_interrupt(int irq, void *dev_id)
 
 }
 
-#define BMC_MSI_IDX_BASE	4
+enum msi_index {
+	BMC_MSI,
+	MBX_MSI,
+	VUART_MSI,
+};
+
+#define MSI_INDX 3
+
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct uart_8250_port uart[VUART_MAX_PARMS];
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
+	int ast2600_msi_idx[MSI_INDX];
 	void __iomem *pcie_sio_decode_addr;
 	u16 config_cmd_val;
 	int nr_entries;
@@ -278,6 +286,16 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	/* set PCI host mastering  */
 	pci_set_master(pdev);
 
+	if (pdev->revision == 0x27) {
+		ast2600_msi_idx[BMC_MSI] = 0;
+		ast2600_msi_idx[MBX_MSI] = 11;
+		ast2600_msi_idx[VUART_MSI] = 6;
+	} else {
+		ast2600_msi_idx[BMC_MSI] = 4;
+		ast2600_msi_idx[MBX_MSI] = 21;
+		ast2600_msi_idx[VUART_MSI] = 16;
+	}
+
 	nr_entries = pci_alloc_irq_vectors(pdev, 1, BMC_MULTI_MSI,
 				PCI_IRQ_MSIX | PCI_IRQ_MSI);
 	if (nr_entries < 0) {
@@ -291,7 +309,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
 		config_cmd_val |= PCI_COMMAND_INTX_DISABLE;
 		pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
-		pdev->irq = pci_irq_vector(pdev, BMC_MSI_IDX_BASE);
+		pdev->irq = pci_irq_vector(pdev, ast2600_msi_idx[BMC_MSI]);
 	}
 
 	pr_info("ASPEED BMC PCI ID %04x:%04x, IRQ=%u\n", pdev->vendor, pdev->device, pdev->irq);
@@ -409,7 +427,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	if (pci_bmc_dev->legency_irq)
 		pci_bmc_dev->sio_mbox_irq = pdev->irq;
 	else
-		pci_bmc_dev->sio_mbox_irq = pci_irq_vector(pdev, 0x10 + 9 - BMC_MSI_IDX_BASE);
+		pci_bmc_dev->sio_mbox_irq = pci_irq_vector(pdev, ast2600_msi_idx[MBX_MSI]);
 
 	rc = request_irq(pci_bmc_dev->sio_mbox_irq, aspeed_pci_host_mbox_interrupt, IRQF_SHARED, "ASPEED SIO MBOX", pci_bmc_dev);
 	if (rc)
@@ -420,7 +438,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 
 	for (i = 0; i < VUART_MAX_PARMS; i++) {
 		vuart_ioport[i] = 0x3F8 - (i * 0x100);
-		vuart_sirq[i] = 0x10 + 4 - i - BMC_MSI_IDX_BASE;
+		vuart_sirq[i] = ast2600_msi_idx[VUART_MSI] - i;
 		uart[i].port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 		uart[i].port.uartclk = 115200 * 16;
 
