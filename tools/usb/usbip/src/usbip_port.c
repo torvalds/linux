@@ -18,7 +18,7 @@ static int list_imported_devices(void)
 
 	ret = usbip_vhci_driver_open();
 	if (ret < 0) {
-		err("open vhci_driver");
+		err("open vhci_driver (is vhci_hcd loaded?)");
 		goto err_names_free;
 	}
 
