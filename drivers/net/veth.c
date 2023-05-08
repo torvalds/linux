@@ -747,7 +747,7 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 		if (!page)
 			goto drop;
 
-		nskb = build_skb(page_address(page), PAGE_SIZE);
+		nskb = napi_build_skb(page_address(page), PAGE_SIZE);
 		if (!nskb) {
 			page_pool_put_full_page(rq->page_pool, page, true);
 			goto drop;
