@@ -173,6 +173,9 @@ static int ic_proto_have_if __initdata;
 /* MTU for boot device */
 static int ic_dev_mtu __initdata;
 
+/* DHCPACK can overwrite DNS if fallback was set upon first BOOTP reply */
+static int ic_nameservers_fallback __initdata;
+
 #ifdef IPCONFIG_DYNAMIC
 static DEFINE_SPINLOCK(ic_recv_lock);
 static volatile int ic_got_reply __initdata;    /* Proto(s) that replied */
@@ -938,7 +941,8 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		if (servers > CONF_NAMESERVERS_MAX)
 			servers = CONF_NAMESERVERS_MAX;
 		for (i = 0; i < servers; i++) {
-			if (ic_nameservers[i] == NONE)
+			if (ic_nameservers[i] == NONE ||
+			    ic_nameservers_fallback)
 				memcpy(&ic_nameservers[i], ext+1+4*i, 4);
 		}
 		break;
@@ -1158,8 +1162,10 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	ic_addrservaddr = b->iph.saddr;
 	if (ic_gateway == NONE && b->relay_ip)
 		ic_gateway = b->relay_ip;
-	if (ic_nameservers[0] == NONE)
+	if (ic_nameservers[0] == NONE) {
 		ic_nameservers[0] = ic_servaddr;
+		ic_nameservers_fallback = 1;
+	}
 	ic_got_reply = IC_BOOTP;
 
 drop_unlock:
