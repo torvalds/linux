@@ -399,13 +399,10 @@ static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,
 {
 	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned long value;
-	unsigned long flags;
 	int i;
 	snd_iprintf(buffer, "IO Registers:\n\n");
 	for(i = 0; i < 0x40; i+=4) {
-		spin_lock_irqsave(&emu->emu_lock, flags);
 		value = inl(emu->port + i);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);
 		snd_iprintf(buffer, "%02X: %08lX\n", i, value);
 	}
 }
@@ -414,16 +411,13 @@ static void snd_emu_proc_io_reg_write(struct snd_info_entry *entry,
                                       struct snd_info_buffer *buffer)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
-	unsigned long flags;
 	char line[64];
 	u32 reg, val;
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x", &reg, &val) != 2)
 			continue;
 		if (reg < 0x40 && val <= 0xffffffff) {
-			spin_lock_irqsave(&emu->emu_lock, flags);
 			outl(val, emu->port + (reg & 0xfffffffc));
-			spin_unlock_irqrestore(&emu->emu_lock, flags);
 		}
 	}
 }

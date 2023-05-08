@@ -318,16 +318,12 @@ static int snd_emu10k1_gpr_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ct
 
 static int snd_emu10k1_gpr_ctl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_fx8010_ctl *ctl =
 		(struct snd_emu10k1_fx8010_ctl *) kcontrol->private_value;
-	unsigned long flags;
 	unsigned int i;
 	
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (i = 0; i < ctl->vcount; i++)
 		ucontrol->value.integer.value[i] = ctl->value[i];
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
@@ -336,12 +332,10 @@ static int snd_emu10k1_gpr_ctl_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	struct snd_emu10k1_fx8010_ctl *ctl =
 		(struct snd_emu10k1_fx8010_ctl *) kcontrol->private_value;
-	unsigned long flags;
 	unsigned int nval, val;
 	unsigned int i, j;
 	int change = 0;
 	
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (i = 0; i < ctl->vcount; i++) {
 		nval = ucontrol->value.integer.value[i];
 		if (nval < ctl->min)
@@ -380,7 +374,6 @@ static int snd_emu10k1_gpr_ctl_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 		}
 	}
       __error:
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return change;
 }
 

@@ -233,16 +233,13 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	return err;
 }
 
-void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
+static void snd_emu1010_fpga_write_locked(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
-	unsigned long flags;
-
 	if (snd_BUG_ON(reg > 0x3f))
 		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	if (snd_BUG_ON(value > 0x3f)) /* 0 to 0x3f are values */
 		return;
-	spin_lock_irqsave(&emu->emu_lock, flags);
 	outw(reg, emu->port + A_GPIO);
 	udelay(10);
 	outw(reg | 0x80, emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
@@ -250,6 +247,14 @@ void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 	outw(value, emu->port + A_GPIO);
 	udelay(10);
 	outw(value | 0x80 , emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
+}
+
+void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	snd_emu1010_fpga_write_locked(emu, reg, value);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
@@ -276,14 +281,18 @@ void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
  */
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src)
 {
+	unsigned long flags;
+
 	if (snd_BUG_ON(dst & ~0x71f))
 		return;
 	if (snd_BUG_ON(src & ~0x71f))
 		return;
-	snd_emu1010_fpga_write(emu, EMU_HANA_DESTHI, dst >> 8);
-	snd_emu1010_fpga_write(emu, EMU_HANA_DESTLO, dst & 0x1f);
-	snd_emu1010_fpga_write(emu, EMU_HANA_SRCHI, src >> 8);
-	snd_emu1010_fpga_write(emu, EMU_HANA_SRCLO, src & 0x1f);
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTHI, dst >> 8);
+	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTLO, dst & 0x1f);
+	snd_emu1010_fpga_write_locked(emu, EMU_HANA_SRCHI, src >> 8);
+	snd_emu1010_fpga_write_locked(emu, EMU_HANA_SRCLO, src & 0x1f);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)

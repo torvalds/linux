@@ -18,29 +18,23 @@
 static int snd_emu10k1_timer_start(struct snd_timer *timer)
 {
 	struct snd_emu10k1 *emu;
-	unsigned long flags;
 	unsigned int delay;
 
 	emu = snd_timer_chip(timer);
 	delay = timer->sticks - 1;
 	if (delay < 5 ) /* minimum time is 5 ticks */
 		delay = 5;
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	snd_emu10k1_intr_enable(emu, INTE_INTERVALTIMERENB);
 	outw(delay & TIMER_RATE_MASK, emu->port + TIMER);
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 
 static int snd_emu10k1_timer_stop(struct snd_timer *timer)
 {
 	struct snd_emu10k1 *emu;
-	unsigned long flags;
 
 	emu = snd_timer_chip(timer);
-	spin_lock_irqsave(&emu->reg_lock, flags);
 	snd_emu10k1_intr_disable(emu, INTE_INTERVALTIMERENB);
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return 0;
 }
 

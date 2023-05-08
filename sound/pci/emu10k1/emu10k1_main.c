@@ -1310,7 +1310,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Does NOT support sync daughter card (obviously). */
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
-	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]",
+	 .driver = "Audigy2", .name = "E-MU 02 CardBus [MAEM8950]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1323,7 +1323,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * MicroDock[M] to make it an E-MU 1616[m]. */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
-	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM8960]",
+	 .driver = "Audigy2", .name = "E-MU 1010b PCI [MAEM8960]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1337,7 +1337,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * still work. */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
-	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
+	 .driver = "Audigy2", .name = "E-MU 1010 PCIe [MAEM8986]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1349,7 +1349,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * AudioDock[M] to make it an E-MU 1820[m]. */
 	/* Supports sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
-	 .driver = "Audigy2", .name = "E-mu 1010 [MAEM8810]",
+	 .driver = "Audigy2", .name = "E-MU 1010 [MAEM8810]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1359,7 +1359,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Supports sync daughter card. */
 	/* Tested by oswald.buddenhagen@gmx.de Mar 2023. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40021102,
-	 .driver = "Audigy2", .name = "E-mu 0404b PCI [MAEM8852]",
+	 .driver = "Audigy2", .name = "E-MU 0404b PCI [MAEM8852]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1369,7 +1369,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Supports sync daughter card. */
 	/* Tested by James@superbug.co.uk 20-3-2007. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40021102,
-	 .driver = "Audigy2", .name = "E-mu 0404 [MAEM8850]",
+	 .driver = "Audigy2", .name = "E-MU 0404 [MAEM8850]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1378,7 +1378,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* EMU0404 PCIe */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
-	 .driver = "Audigy2", .name = "E-mu 0404 PCIe [MAEM8984]",
+	 .driver = "Audigy2", .name = "E-MU 0404 PCIe [MAEM8984]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1645,7 +1645,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x40011102,
-	 .driver = "EMU10K1", .name = "E-mu APS [PC545]",
+	 .driver = "EMU10K1", .name = "E-MU APS [PC545]",
 	 .id = "APS",
 	 .emu10k1_chip = 1,
 	 .ecard = 1} ,
