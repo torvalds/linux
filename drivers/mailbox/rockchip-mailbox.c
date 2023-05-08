@@ -24,6 +24,8 @@
 #define MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
 #define MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
 
+#define MAILBOX_POLLING_MS		5 /* default polling interval 5ms */
+
 struct rockchip_mbox_data {
 	int num_chans;
 };
@@ -99,10 +101,21 @@ static void rockchip_mbox_shutdown(struct mbox_chan *chan)
 	spin_unlock(&mb->cfg_lock);
 }
 
+static bool rockchip_mbox_last_tx_done(struct mbox_chan *chan)
+{
+	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
+	struct rockchip_mbox_chan *chans = chan->con_priv;
+	u32 status;
+
+	status = readl_relaxed(mb->mbox_base + MAILBOX_A2B_STATUS);
+	return !(status & (1U << chans->idx));
+}
+
 static const struct mbox_chan_ops rockchip_mbox_chan_ops = {
 	.send_data	= rockchip_mbox_send_data,
 	.startup	= rockchip_mbox_startup,
 	.shutdown	= rockchip_mbox_shutdown,
+	.last_tx_done	= rockchip_mbox_last_tx_done,
 };
 
 int rockchip_mbox_read_msg(struct mbox_chan *chan,
@@ -172,6 +185,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
 	int ret, irq, i;
+	u32 txpoll_period;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
@@ -203,8 +217,11 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	mb->mbox.dev = &pdev->dev;
 	mb->mbox.num_chans = drv_data->num_chans;
 	mb->mbox.ops = &rockchip_mbox_chan_ops;
-	mb->mbox.txdone_irq = true;
 	spin_lock_init(&mb->cfg_lock);
+
+	mb->mbox.txdone_poll = true;
+	ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms", &txpoll_period);
+	mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
