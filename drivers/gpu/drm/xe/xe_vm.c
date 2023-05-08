@@ -10,6 +10,7 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_tt.h>
 #include <drm/xe_drm.h>
+#include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
@@ -508,6 +509,8 @@ void xe_vm_unlock_dma_resv(struct xe_vm *vm,
 		kvfree(tv);
 }
 
+#define XE_VM_REBIND_RETRY_TIMEOUT_MS 1000
+
 static void preempt_rebind_work_func(struct work_struct *w)
 {
 	struct xe_vm *vm = container_of(w, struct xe_vm, preempt.rebind_work);
@@ -519,6 +522,7 @@ static void preempt_rebind_work_func(struct work_struct *w)
 	struct dma_fence *rebind_fence;
 	unsigned int fence_count = 0;
 	LIST_HEAD(preempt_fences);
+	ktime_t end = 0;
 	int err;
 	long wait;
 	int __maybe_unused tries = 0;
@@ -636,6 +640,24 @@ out_unlock_outer:
 	if (err == -EAGAIN) {
 		trace_xe_vm_rebind_worker_retry(vm);
 		goto retry;
+	}
+
+	/*
+	 * With multiple active VMs, under memory pressure, it is possible that
+	 * ttm_bo_validate() run into -EDEADLK and in such case returns -ENOMEM.
+	 * Until ttm properly handles locking in such scenarios, best thing the
+	 * driver can do is retry with a timeout. Killing the VM or putting it
+	 * in error state after timeout or other error scenarios is still TBD.
+	 */
+	if (err == -ENOMEM) {
+		ktime_t cur = ktime_get();
+
+		end = end ? : ktime_add_ms(cur, XE_VM_REBIND_RETRY_TIMEOUT_MS);
+		if (ktime_before(cur, end)) {
+			msleep(20);
+			trace_xe_vm_rebind_worker_retry(vm);
+			goto retry;
+		}
 	}
 	up_write(&vm->lock);
 
