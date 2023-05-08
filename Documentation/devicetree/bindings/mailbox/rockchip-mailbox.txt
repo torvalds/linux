@@ -20,6 +20,7 @@ Required properties:
 Optional properties :
 
  - wakeup-source: Mailbox irq can be used as a wakeup source.
+ - rockchip,txpoll-period-ms: TX Done polling interval in milliseconds.
 
 Example:
 --------
