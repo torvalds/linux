@@ -29,6 +29,7 @@ qnoc-pineapple-objs			:= pineapple.o
 qnoc-qos-rpm-obj			:= qnoc-qos-rpm.o
 qnoc-kalama-objs			:= kalama.o
 icc-smd-rpm-objs			:= smd-rpm.o icc-rpm.o
+qnoc-blair-objs				:= blair.o
 qnoc-qos-obj				:= qnoc-qos.o
 
 obj-$(CONFIG_INTERCONNECT_QCOM_BCM_VOTER) += icc-bcm-voter.o
@@ -55,6 +56,7 @@ obj-$(CONFIG_INTERCONNECT_QCOM_SM8350) += qnoc-sm8350.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8450) += qnoc-sm8450.o
 obj-$(CONFIG_INTERCONNECT_QCOM_PINEAPPLE) += qnoc-pineapple.o
 obj-$(CONFIG_INTERCONNECT_QCOM_KALAMA) += qnoc-kalama.o
+obj-$(CONFIG_INTERCONNECT_QCOM_BLAIR) += qnoc-blair.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SMD_RPM) += icc-smd-rpm.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS) += qnoc-qos.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS_RPM) += qnoc-qos-rpm.o
