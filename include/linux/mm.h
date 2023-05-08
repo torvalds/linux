@@ -3586,6 +3586,10 @@ extern void shake_page(struct page *p);
 extern atomic_long_t num_poisoned_pages __read_mostly;
 extern int soft_offline_page(unsigned long pfn, int flags);
 #ifdef CONFIG_MEMORY_FAILURE
+/*
+ * Sysfs entries for memory failure handling statistics.
+ */
+extern const struct attribute_group memory_failure_attr_group;
 extern void memory_failure_queue(unsigned long pfn, int flags);
 extern int __get_huge_page_for_hwpoison(unsigned long pfn, int flags,
 					bool *migratable_cleared);
@@ -3677,11 +3681,6 @@ enum mf_action_page_type {
 	MF_MSG_UNSPLIT_THP,
 	MF_MSG_UNKNOWN,
 };
-
-/*
- * Sysfs entries for memory failure handling statistics.
- */
-extern const struct attribute_group memory_failure_attr_group;
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
 extern void clear_huge_page(struct page *page,
