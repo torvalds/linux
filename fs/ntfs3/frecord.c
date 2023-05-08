@@ -236,6 +236,7 @@ struct ATTRIB *ni_find_attr(struct ntfs_inode *ni, struct ATTRIB *attr,
 	return attr;
 
 out:
+	ntfs_inode_err(&ni->vfs_inode, "failed to parse mft record");
 	ntfs_set_state(ni->mi.sbi, NTFS_DIRTY_ERROR);
 	return NULL;
 }
@@ -1643,14 +1644,13 @@ int ni_delete_all(struct ntfs_inode *ni)
  * Return: File name attribute by its value.
  */
 struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
-				     const struct cpu_str *uni,
+				     const struct le_str *uni,
 				     const struct MFT_REF *home_dir,
 				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **le)
 {
 	struct ATTRIB *attr = NULL;
 	struct ATTR_FILE_NAME *fname;
-	struct le_str *fns;
 
 	if (le)
 		*le = NULL;
@@ -1674,10 +1674,9 @@ next:
 	if (uni->len != fname->name_len)
 		goto next;
 
-	fns = (struct le_str *)&fname->name_len;
-	if (ntfs_cmp_names_cpu(uni, fns, NULL, false))
+	if (ntfs_cmp_names(uni->name, uni->len, fname->name, uni->len, NULL,
+			   false))
 		goto next;
-
 	return fname;
 }
 
@@ -2915,7 +2914,7 @@ int ni_remove_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 	/* Find name in record. */
 	mi_get_ref(&dir_ni->mi, &de_name->home);
 
-	fname = ni_fname_name(ni, (struct cpu_str *)&de_name->name_len,
+	fname = ni_fname_name(ni, (struct le_str *)&de_name->name_len,
 			      &de_name->home, &mi, &le);
 	if (!fname)
 		return -ENOENT;

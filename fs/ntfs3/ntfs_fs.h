@@ -543,7 +543,7 @@ void ni_remove_attr_le(struct ntfs_inode *ni, struct ATTRIB *attr,
 		       struct mft_inode *mi, struct ATTR_LIST_ENTRY *le);
 int ni_delete_all(struct ntfs_inode *ni);
 struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
-				     const struct cpu_str *uni,
+				     const struct le_str *uni,
 				     const struct MFT_REF *home,
 				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **entry);
