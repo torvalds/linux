@@ -11,6 +11,7 @@
  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -23,6 +24,7 @@
 
 struct pwm_vibrator {
 	struct input_dev *input;
+	struct gpio_desc *enable_gpio;
 	struct pwm_device *pwm;
 	struct pwm_device *pwm_dir;
 	struct regulator *vcc;
@@ -47,6 +49,8 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 		}
 		vibrator->vcc_on = true;
 	}
+
+	gpiod_set_value_cansleep(vibrator->enable_gpio, 1);
 
 	pwm_get_state(vibrator->pwm, &state);
 	pwm_set_relative_duty_cycle(&state, vibrator->level, 0xffff);
@@ -79,6 +83,8 @@ static void pwm_vibrator_stop(struct pwm_vibrator *vibrator)
 	if (vibrator->pwm_dir)
 		pwm_disable(vibrator->pwm_dir);
 	pwm_disable(vibrator->pwm);
+
+	gpiod_set_value_cansleep(vibrator->enable_gpio, 0);
 
 	if (vibrator->vcc_on) {
 		regulator_disable(vibrator->vcc);
@@ -138,6 +144,16 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	if (err) {
 		if (err != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "Failed to request regulator: %d\n",
+				err);
+		return err;
+	}
+
+	vibrator->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
+							GPIOD_OUT_LOW);
+	err = PTR_ERR_OR_ZERO(vibrator->enable_gpio);
+	if (err) {
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Failed to request enable gpio: %d\n",
 				err);
 		return err;
 	}
