@@ -8,15 +8,16 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/input.h>
 #include <linux/omapfb.h>
 
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 
@@ -34,6 +35,25 @@
 #include "common.h"
 #include "clock.h"
 #include "mmc.h"
+
+static const struct software_node nokia770_mpuio_gpiochip_node = {
+	.name = "mpuio",
+};
+
+static const struct software_node nokia770_gpiochip1_node = {
+	.name = "gpio-0-15",
+};
+
+static const struct software_node nokia770_gpiochip2_node = {
+	.name = "gpio-16-31",
+};
+
+static const struct software_node *nokia770_gpiochip_nodes[] = {
+	&nokia770_mpuio_gpiochip_node,
+	&nokia770_gpiochip1_node,
+	&nokia770_gpiochip2_node,
+	NULL
+};
 
 #define ADS7846_PENDOWN_GPIO	15
 
@@ -85,40 +105,47 @@ static struct platform_device *nokia770_devices[] __initdata = {
 	&nokia770_kp_device,
 };
 
-static void mipid_shutdown(struct mipid_platform_data *pdata)
-{
-	if (pdata->nreset_gpio != -1) {
-		printk(KERN_INFO "shutdown LCD\n");
-		gpio_set_value(pdata->nreset_gpio, 0);
-		msleep(120);
-	}
-}
-
-static struct mipid_platform_data nokia770_mipid_platform_data = {
-	.shutdown = mipid_shutdown,
-};
+static struct mipid_platform_data nokia770_mipid_platform_data = { };
 
 static const struct omap_lcd_config nokia770_lcd_config __initconst = {
 	.ctrl_name	= "hwa742",
 };
 
+static const struct property_entry nokia770_mipid_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios", &nokia770_gpiochip1_node,
+			    13, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node nokia770_mipid_swnode = {
+	.name = "lcd_mipid",
+	.properties = nokia770_mipid_props,
+};
+
 static void __init mipid_dev_init(void)
 {
-	nokia770_mipid_platform_data.nreset_gpio = 13;
 	nokia770_mipid_platform_data.data_lines = 16;
 
 	omapfb_set_lcd_config(&nokia770_lcd_config);
 }
 
-static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = {
-	.x_max		= 0x0fff,
-	.y_max		= 0x0fff,
-	.x_plate_ohms	= 180,
-	.pressure_max	= 255,
-	.debounce_max	= 10,
-	.debounce_tol	= 3,
-	.debounce_rep	= 1,
-	.gpio_pendown	= ADS7846_PENDOWN_GPIO,
+static const struct property_entry nokia770_ads7846_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "ti,ads7846"),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 4096),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 4096),
+	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 256),
+	PROPERTY_ENTRY_U32("touchscreen-average-samples", 10),
+	PROPERTY_ENTRY_U16("ti,x-plate-ohms", 180),
+	PROPERTY_ENTRY_U16("ti,debounce-tol", 3),
+	PROPERTY_ENTRY_U16("ti,debounce-rep", 1),
+	PROPERTY_ENTRY_GPIO("pendown-gpios", &nokia770_gpiochip1_node,
+			    ADS7846_PENDOWN_GPIO, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node nokia770_ads7846_swnode = {
+	.name = "ads7846",
+	.properties = nokia770_ads7846_props,
 };
 
 static struct spi_board_info nokia770_spi_board_info[] __initdata = {
@@ -128,13 +155,14 @@ static struct spi_board_info nokia770_spi_board_info[] __initdata = {
 		.chip_select    = 3,
 		.max_speed_hz   = 12000000,
 		.platform_data	= &nokia770_mipid_platform_data,
+		.swnode         = &nokia770_mipid_swnode,
 	},
 	[1] = {
 		.modalias       = "ads7846",
 		.bus_num        = 2,
 		.chip_select    = 0,
 		.max_speed_hz   = 2500000,
-		.platform_data	= &nokia770_ads7846_platform_data,
+		.swnode         = &nokia770_ads7846_swnode,
 	},
 };
 
@@ -212,14 +240,16 @@ static inline void nokia770_mmc_init(void)
 #endif
 
 #if IS_ENABLED(CONFIG_I2C_CBUS_GPIO)
-static struct gpiod_lookup_table nokia770_cbus_gpio_table = {
-	.dev_id = "i2c-cbus-gpio.2",
-	.table = {
-		GPIO_LOOKUP_IDX("mpuio", 9, NULL, 0, 0), /* clk */
-		GPIO_LOOKUP_IDX("mpuio", 10, NULL, 1, 0), /* dat */
-		GPIO_LOOKUP_IDX("mpuio", 11, NULL, 2, 0), /* sel */
-		{ },
-	},
+
+static const struct software_node_ref_args nokia770_cbus_gpio_refs[] = {
+	SOFTWARE_NODE_REFERENCE(&nokia770_mpuio_gpiochip_node, 9, 0),
+	SOFTWARE_NODE_REFERENCE(&nokia770_mpuio_gpiochip_node, 10, 0),
+	SOFTWARE_NODE_REFERENCE(&nokia770_mpuio_gpiochip_node, 11, 0),
+};
+
+static const struct property_entry nokia770_cbus_props[] = {
+	PROPERTY_ENTRY_REF_ARRAY("gpios", nokia770_cbus_gpio_refs),
+	{ }
 };
 
 static struct platform_device nokia770_cbus_device = {
@@ -253,7 +283,8 @@ static void __init nokia770_cbus_init(void)
 	nokia770_i2c_board_info_2[1].irq = gpio_to_irq(tahvo_irq_gpio);
 	i2c_register_board_info(2, nokia770_i2c_board_info_2,
 				ARRAY_SIZE(nokia770_i2c_board_info_2));
-	gpiod_add_lookup_table(&nokia770_cbus_gpio_table);
+	device_create_managed_software_node(&nokia770_cbus_device.dev,
+					    nokia770_cbus_props, NULL);
 	platform_device_register(&nokia770_cbus_device);
 }
 #else /* CONFIG_I2C_CBUS_GPIO */
@@ -273,8 +304,8 @@ static void __init omap_nokia770_init(void)
 	/* Unmask SleepX signal */
 	omap_writew((omap_readw(0xfffb5004) & ~2), 0xfffb5004);
 
+	software_node_register_node_group(nokia770_gpiochip_nodes);
 	platform_add_devices(nokia770_devices, ARRAY_SIZE(nokia770_devices));
-	nokia770_spi_board_info[1].irq = gpio_to_irq(15);
 	spi_register_board_info(nokia770_spi_board_info,
 				ARRAY_SIZE(nokia770_spi_board_info));
 	omap_serial_init();
