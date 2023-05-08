@@ -288,6 +288,7 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool regd_allow_unii_4 = chip->support_unii4;
+	struct ieee80211_supported_band *sband;
 	int ret;
 	u8 val;
 
@@ -318,6 +319,15 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 bottom:
 	rtw89_debug(rtwdev, RTW89_DBG_REGD, "regd: allow unii 4: %d\n",
 		    regd_allow_unii_4);
+
+	if (regd_allow_unii_4)
+		return;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	if (!sband)
+		return;
+
+	sband->n_channels -= 3;
 }
 
 int rtw89_regd_setup(struct rtw89_dev *rtwdev)
