@@ -435,7 +435,7 @@ err:
 	return ret;
 }
 
-static int highlander_i2c_remove(struct platform_device *pdev)
+static void highlander_i2c_remove(struct platform_device *pdev)
 {
 	struct highlander_i2c_dev *dev = platform_get_drvdata(pdev);
 
@@ -446,8 +446,6 @@ static int highlander_i2c_remove(struct platform_device *pdev)
 
 	iounmap(dev->base);
 	kfree(dev);
-
-	return 0;
 }
 
 static struct platform_driver highlander_i2c_driver = {
@@ -456,7 +454,7 @@ static struct platform_driver highlander_i2c_driver = {
 	},
 
 	.probe		= highlander_i2c_probe,
-	.remove		= highlander_i2c_remove,
+	.remove_new	= highlander_i2c_remove,
 };
 
 module_platform_driver(highlander_i2c_driver);

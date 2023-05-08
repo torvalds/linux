@@ -98,12 +98,11 @@ out_clk_disable:
 	return error;
 }
 
-static int pasemi_platform_i2c_remove(struct platform_device *pdev)
+static void pasemi_platform_i2c_remove(struct platform_device *pdev)
 {
 	struct pasemi_platform_i2c_data *data = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(data->clk_ref);
-	return 0;
 }
 
 static const struct of_device_id pasemi_platform_i2c_of_match[] = {
@@ -119,7 +118,7 @@ static struct platform_driver pasemi_platform_i2c_driver = {
 		.of_match_table		= pasemi_platform_i2c_of_match,
 	},
 	.probe	= pasemi_platform_i2c_probe,
-	.remove	= pasemi_platform_i2c_remove,
+	.remove_new = pasemi_platform_i2c_remove,
 };
 module_platform_driver(pasemi_platform_i2c_driver);
 

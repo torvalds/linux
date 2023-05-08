@@ -273,7 +273,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int at91_twi_remove(struct platform_device *pdev)
+static void at91_twi_remove(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev = platform_get_drvdata(pdev);
 
@@ -282,8 +282,6 @@ static int at91_twi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev->dev);
 	pm_runtime_set_suspended(dev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused at91_twi_runtime_suspend(struct device *dev)
@@ -342,7 +340,7 @@ static const struct dev_pm_ops __maybe_unused at91_twi_pm = {
 
 static struct platform_driver at91_twi_driver = {
 	.probe		= at91_twi_probe,
-	.remove		= at91_twi_remove,
+	.remove_new	= at91_twi_remove,
 	.id_table	= at91_twi_devtypes,
 	.driver		= {
 		.name	= "at91_i2c",

@@ -313,20 +313,18 @@ err_clk_disable:
 	return ret;
 }
 
-static int p2wi_remove(struct platform_device *dev)
+static void p2wi_remove(struct platform_device *dev)
 {
 	struct p2wi *p2wi = platform_get_drvdata(dev);
 
 	reset_control_assert(p2wi->rstc);
 	clk_disable_unprepare(p2wi->clk);
 	i2c_del_adapter(&p2wi->adapter);
-
-	return 0;
 }
 
 static struct platform_driver p2wi_driver = {
 	.probe	= p2wi_probe,
-	.remove	= p2wi_remove,
+	.remove_new = p2wi_remove,
 	.driver	= {
 		.name = "i2c-sunxi-p2wi",
 		.of_match_table = p2wi_of_match_table,

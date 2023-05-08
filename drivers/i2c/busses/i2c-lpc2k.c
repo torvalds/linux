@@ -435,14 +435,12 @@ fail_clk:
 	return ret;
 }
 
-static int i2c_lpc2k_remove(struct platform_device *dev)
+static void i2c_lpc2k_remove(struct platform_device *dev)
 {
 	struct lpc2k_i2c *i2c = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&i2c->adap);
 	clk_disable_unprepare(i2c->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -483,7 +481,7 @@ MODULE_DEVICE_TABLE(of, lpc2k_i2c_match);
 
 static struct platform_driver i2c_lpc2k_driver = {
 	.probe	= i2c_lpc2k_probe,
-	.remove	= i2c_lpc2k_remove,
+	.remove_new = i2c_lpc2k_remove,
 	.driver	= {
 		.name		= "lpc2k-i2c",
 		.pm		= I2C_LPC2K_DEV_PM_OPS,

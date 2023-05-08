@@ -890,15 +890,13 @@ static int fsl_i2c_probe(struct platform_device *op)
 	return result;
 };
 
-static int fsl_i2c_remove(struct platform_device *op)
+static void fsl_i2c_remove(struct platform_device *op)
 {
 	struct mpc_i2c *i2c = platform_get_drvdata(op);
 
 	i2c_del_adapter(&i2c->adap);
 
 	clk_disable_unprepare(i2c->clk_per);
-
-	return 0;
 };
 
 static int __maybe_unused mpc_i2c_suspend(struct device *dev)
@@ -959,7 +957,7 @@ MODULE_DEVICE_TABLE(of, mpc_i2c_of_match);
 /* Structure for a device driver */
 static struct platform_driver mpc_i2c_driver = {
 	.probe		= fsl_i2c_probe,
-	.remove		= fsl_i2c_remove,
+	.remove_new	= fsl_i2c_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mpc_i2c_of_match,

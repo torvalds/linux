@@ -380,14 +380,12 @@ disable_clk:
 	return ret;
 }
 
-static int uniphier_i2c_remove(struct platform_device *pdev)
+static void uniphier_i2c_remove(struct platform_device *pdev)
 {
 	struct uniphier_i2c_priv *priv = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adap);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused uniphier_i2c_suspend(struct device *dev)
@@ -425,7 +423,7 @@ MODULE_DEVICE_TABLE(of, uniphier_i2c_match);
 
 static struct platform_driver uniphier_i2c_drv = {
 	.probe  = uniphier_i2c_probe,
-	.remove = uniphier_i2c_remove,
+	.remove_new = uniphier_i2c_remove,
 	.driver = {
 		.name  = "uniphier-i2c",
 		.of_match_table = uniphier_i2c_match,

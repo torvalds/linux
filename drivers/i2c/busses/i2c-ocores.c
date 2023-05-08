@@ -743,7 +743,7 @@ err_clk:
 	return ret;
 }
 
-static int ocores_i2c_remove(struct platform_device *pdev)
+static void ocores_i2c_remove(struct platform_device *pdev)
 {
 	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
 	u8 ctrl = oc_getreg(i2c, OCI2C_CONTROL);
@@ -757,8 +757,6 @@ static int ocores_i2c_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(i2c->clk))
 		clk_disable_unprepare(i2c->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -804,7 +802,7 @@ static SIMPLE_DEV_PM_OPS(ocores_i2c_pm, ocores_i2c_suspend, ocores_i2c_resume);
 
 static struct platform_driver ocores_i2c_driver = {
 	.probe   = ocores_i2c_probe,
-	.remove  = ocores_i2c_remove,
+	.remove_new = ocores_i2c_remove,
 	.driver  = {
 		.name = "ocores-i2c",
 		.of_match_table = ocores_i2c_match,

@@ -464,7 +464,7 @@ err_clk:
 	return ret;
 }
 
-static int hix5hd2_i2c_remove(struct platform_device *pdev)
+static void hix5hd2_i2c_remove(struct platform_device *pdev)
 {
 	struct hix5hd2_i2c_priv *priv = platform_get_drvdata(pdev);
 
@@ -472,8 +472,6 @@ static int hix5hd2_i2c_remove(struct platform_device *pdev)
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -511,7 +509,7 @@ MODULE_DEVICE_TABLE(of, hix5hd2_i2c_match);
 
 static struct platform_driver hix5hd2_i2c_driver = {
 	.probe		= hix5hd2_i2c_probe,
-	.remove		= hix5hd2_i2c_remove,
+	.remove_new	= hix5hd2_i2c_remove,
 	.driver		= {
 		.name	= "hix5hd2-i2c",
 		.pm	= &hix5hd2_i2c_pm_ops,

@@ -876,13 +876,11 @@ static int st_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int st_i2c_remove(struct platform_device *pdev)
+static void st_i2c_remove(struct platform_device *pdev)
 {
 	struct st_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c_dev->adap);
-
-	return 0;
 }
 
 static const struct of_device_id st_i2c_match[] = {
@@ -899,7 +897,7 @@ static struct platform_driver st_i2c_driver = {
 		.pm = pm_sleep_ptr(&st_i2c_pm),
 	},
 	.probe = st_i2c_probe,
-	.remove = st_i2c_remove,
+	.remove_new = st_i2c_remove,
 };
 
 module_platform_driver(st_i2c_driver);

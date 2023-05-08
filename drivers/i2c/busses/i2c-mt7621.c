@@ -332,19 +332,17 @@ err_disable_clk:
 	return ret;
 }
 
-static int mtk_i2c_remove(struct platform_device *pdev)
+static void mtk_i2c_remove(struct platform_device *pdev)
 {
 	struct mtk_i2c *i2c = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(i2c->clk);
 	i2c_del_adapter(&i2c->adap);
-
-	return 0;
 }
 
 static struct platform_driver mtk_i2c_driver = {
 	.probe		= mtk_i2c_probe,
-	.remove		= mtk_i2c_remove,
+	.remove_new	= mtk_i2c_remove,
 	.driver		= {
 		.name	= "i2c-mt7621",
 		.of_match_table = i2c_mtk_dt_ids,

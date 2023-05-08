@@ -96,12 +96,11 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int i2c_versatile_remove(struct platform_device *dev)
+static void i2c_versatile_remove(struct platform_device *dev)
 {
 	struct i2c_versatile *i2c = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&i2c->adap);
-	return 0;
 }
 
 static const struct of_device_id i2c_versatile_match[] = {
@@ -112,7 +111,7 @@ MODULE_DEVICE_TABLE(of, i2c_versatile_match);
 
 static struct platform_driver i2c_versatile_driver = {
 	.probe		= i2c_versatile_probe,
-	.remove		= i2c_versatile_remove,
+	.remove_new	= i2c_versatile_remove,
 	.driver		= {
 		.name	= "versatile-i2c",
 		.of_match_table = i2c_versatile_match,

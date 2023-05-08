@@ -253,12 +253,11 @@ out:
 	return result;
 };
 
-static int octeon_i2c_remove(struct platform_device *pdev)
+static void octeon_i2c_remove(struct platform_device *pdev)
 {
 	struct octeon_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-	return 0;
 };
 
 static const struct of_device_id octeon_i2c_match[] = {
@@ -270,7 +269,7 @@ MODULE_DEVICE_TABLE(of, octeon_i2c_match);
 
 static struct platform_driver octeon_i2c_driver = {
 	.probe		= octeon_i2c_probe,
-	.remove		= octeon_i2c_remove,
+	.remove_new	= octeon_i2c_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = octeon_i2c_match,

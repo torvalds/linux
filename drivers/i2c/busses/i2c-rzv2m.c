@@ -460,7 +460,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rzv2m_i2c_remove(struct platform_device *pdev)
+static void rzv2m_i2c_remove(struct platform_device *pdev)
 {
 	struct rzv2m_i2c_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = priv->adap.dev.parent;
@@ -468,8 +468,6 @@ static int rzv2m_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&priv->adap);
 	bit_clrl(priv->base + IICB0CTL0, IICB0IICE);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static int rzv2m_i2c_suspend(struct device *dev)
@@ -523,7 +521,7 @@ static struct platform_driver rzv2m_i2c_driver = {
 		.pm = pm_sleep_ptr(&rzv2m_i2c_pm_ops),
 	},
 	.probe	= rzv2m_i2c_probe,
-	.remove	= rzv2m_i2c_remove,
+	.remove_new = rzv2m_i2c_remove,
 };
 module_platform_driver(rzv2m_i2c_driver);
 

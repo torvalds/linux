@@ -885,7 +885,7 @@ err_pm:
 	return r;
 }
 
-static int davinci_i2c_remove(struct platform_device *pdev)
+static void davinci_i2c_remove(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev = platform_get_drvdata(pdev);
 	int ret;
@@ -894,17 +894,15 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&dev->adapter);
 
-	ret = pm_runtime_resume_and_get(&pdev->dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		return ret;
-
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
+		dev_err(&pdev->dev, "Failed to resume device\n");
+	else
+		davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
 
 	pm_runtime_dont_use_autosuspend(dev->dev);
 	pm_runtime_put_sync(dev->dev);
 	pm_runtime_disable(dev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -945,7 +943,7 @@ MODULE_ALIAS("platform:i2c_davinci");
 
 static struct platform_driver davinci_i2c_driver = {
 	.probe		= davinci_i2c_probe,
-	.remove		= davinci_i2c_remove,
+	.remove_new	= davinci_i2c_remove,
 	.driver		= {
 		.name	= "i2c_davinci",
 		.pm	= davinci_i2c_pm_ops,

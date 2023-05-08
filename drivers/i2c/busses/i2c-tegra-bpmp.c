@@ -316,13 +316,11 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 	return i2c_add_adapter(&i2c->adapter);
 }
 
-static int tegra_bpmp_i2c_remove(struct platform_device *pdev)
+static void tegra_bpmp_i2c_remove(struct platform_device *pdev)
 {
 	struct tegra_bpmp_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_bpmp_i2c_of_match[] = {
@@ -337,7 +335,7 @@ static struct platform_driver tegra_bpmp_i2c_driver = {
 		.of_match_table = tegra_bpmp_i2c_of_match,
 	},
 	.probe = tegra_bpmp_i2c_probe,
-	.remove = tegra_bpmp_i2c_remove,
+	.remove_new = tegra_bpmp_i2c_remove,
 };
 module_platform_driver(tegra_bpmp_i2c_driver);
 
