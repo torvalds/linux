@@ -570,6 +570,9 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
 
+	if (of_property_read_u32(np, "snps,flow-ctrl", &plat->flow_ctrl))
+		plat->flow_ctrl = FLOW_AUTO;
+
 	plat->axi = stmmac_axi_setup(pdev);
 
 	rc = stmmac_mtl_setup(pdev, plat);
