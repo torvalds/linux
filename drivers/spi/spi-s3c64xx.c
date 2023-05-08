@@ -19,7 +19,6 @@
 #include <linux/platform_data/spi-s3c64xx.h>
 
 #define MAX_SPI_PORTS		12
-#define S3C64XX_SPI_QUIRK_POLL		(1 << 0)
 #define S3C64XX_SPI_QUIRK_CS_AUTO	(1 << 1)
 #define AUTOSUSPEND_TIMEOUT	2000
 
@@ -59,6 +58,8 @@
 #define S3C64XX_SPI_MODE_BUS_TSZ_HALFWORD	(1<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_WORD		(2<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_MASK		(3<<17)
+#define S3C64XX_SPI_MODE_RX_RDY_LVL		GENMASK(16, 11)
+#define S3C64XX_SPI_MODE_RX_RDY_LVL_SHIFT	11
 #define S3C64XX_SPI_MODE_SELF_LOOPBACK		(1<<3)
 #define S3C64XX_SPI_MODE_RXDMA_ON		(1<<2)
 #define S3C64XX_SPI_MODE_TXDMA_ON		(1<<1)
@@ -115,8 +116,10 @@
 
 #define S3C64XX_SPI_TRAILCNT		S3C64XX_SPI_MAX_TRAILCNT
 
+#define S3C64XX_SPI_POLLING_SIZE	32
+
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
-#define is_polling(x)	(x->port_conf->quirks & S3C64XX_SPI_QUIRK_POLL)
+#define is_polling(x)	(x->cntrlr_info->polling)
 
 #define RXBUSY    (1<<2)
 #define TXBUSY    (1<<3)
@@ -553,7 +556,7 @@ static int s3c64xx_wait_for_dma(struct s3c64xx_spi_driver_data *sdd,
 }
 
 static int s3c64xx_wait_for_pio(struct s3c64xx_spi_driver_data *sdd,
-				struct spi_transfer *xfer)
+				struct spi_transfer *xfer, bool use_irq)
 {
 	void __iomem *regs = sdd->regs;
 	unsigned long val;
@@ -562,10 +565,23 @@ static int s3c64xx_wait_for_pio(struct s3c64xx_spi_driver_data *sdd,
 	u32 cpy_len;
 	u8 *buf;
 	int ms;
+	unsigned long time_us;
 
-	/* millisecs to xfer 'len' bytes @ 'cur_speed' */
-	ms = xfer->len * 8 * 1000 / sdd->cur_speed;
+	/* microsecs to xfer 'len' bytes @ 'cur_speed' */
+	time_us = (xfer->len * 8 * 1000 * 1000) / sdd->cur_speed;
+	ms = (time_us / 1000);
 	ms += 10; /* some tolerance */
+
+	/* sleep during signal transfer time */
+	status = readl(regs + S3C64XX_SPI_STATUS);
+	if (RX_FIFO_LVL(status, sdd) < xfer->len)
+		usleep_range(time_us / 2, time_us);
+
+	if (use_irq) {
+		val = msecs_to_jiffies(ms);
+		if (!wait_for_completion_timeout(&sdd->xfer_completion, val))
+			return -EIO;
+	}
 
 	val = msecs_to_loops(ms);
 	do {
@@ -729,10 +745,13 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	void *rx_buf = NULL;
 	int target_len = 0, origin_len = 0;
 	int use_dma = 0;
+	bool use_irq = false;
 	int status;
 	u32 speed;
 	u8 bpw;
 	unsigned long flags;
+	u32 rdy_lv;
+	u32 val;
 
 	reinit_completion(&sdd->xfer_completion);
 
@@ -753,17 +772,46 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	    sdd->rx_dma.ch && sdd->tx_dma.ch) {
 		use_dma = 1;
 
-	} else if (xfer->len > fifo_len) {
+	} else if (xfer->len >= fifo_len) {
 		tx_buf = xfer->tx_buf;
 		rx_buf = xfer->rx_buf;
 		origin_len = xfer->len;
-
 		target_len = xfer->len;
-		if (xfer->len > fifo_len)
-			xfer->len = fifo_len;
+		xfer->len = fifo_len - 1;
 	}
 
 	do {
+		/* transfer size is greater than 32, change to IRQ mode */
+		if (xfer->len > S3C64XX_SPI_POLLING_SIZE)
+			use_irq = true;
+
+		if (use_irq) {
+			reinit_completion(&sdd->xfer_completion);
+
+			rdy_lv = xfer->len;
+			/* Setup RDY_FIFO trigger Level
+			 * RDY_LVL =
+			 * fifo_lvl up to 64 byte -> N bytes
+			 *               128 byte -> RDY_LVL * 2 bytes
+			 *               256 byte -> RDY_LVL * 4 bytes
+			 */
+			if (fifo_len == 128)
+				rdy_lv /= 2;
+			else if (fifo_len == 256)
+				rdy_lv /= 4;
+
+			val = readl(sdd->regs + S3C64XX_SPI_MODE_CFG);
+			val &= ~S3C64XX_SPI_MODE_RX_RDY_LVL;
+			val |= (rdy_lv << S3C64XX_SPI_MODE_RX_RDY_LVL_SHIFT);
+			writel(val, sdd->regs + S3C64XX_SPI_MODE_CFG);
+
+			/* Enable FIFO_RDY_EN IRQ */
+			val = readl(sdd->regs + S3C64XX_SPI_INT_EN);
+			writel((val | S3C64XX_SPI_INT_RX_FIFORDY_EN),
+					sdd->regs + S3C64XX_SPI_INT_EN);
+
+		}
+
 		spin_lock_irqsave(&sdd->lock, flags);
 
 		/* Pending only which is to be done */
@@ -785,7 +833,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 		if (use_dma)
 			status = s3c64xx_wait_for_dma(sdd, xfer);
 		else
-			status = s3c64xx_wait_for_pio(sdd, xfer);
+			status = s3c64xx_wait_for_pio(sdd, xfer, use_irq);
 
 		if (status) {
 			dev_err(&spi->dev,
@@ -824,8 +872,8 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 			if (xfer->rx_buf)
 				xfer->rx_buf += xfer->len;
 
-			if (target_len > fifo_len)
-				xfer->len = fifo_len;
+			if (target_len >= fifo_len)
+				xfer->len = fifo_len - 1;
 			else
 				xfer->len = target_len;
 		}
@@ -995,6 +1043,14 @@ static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
 		dev_err(&spi->dev, "TX underrun\n");
 	}
 
+	if (val & S3C64XX_SPI_ST_RX_FIFORDY) {
+		complete(&sdd->xfer_completion);
+		/* No pending clear irq, turn-off INT_EN_RX_FIFO_RDY */
+		val = readl(sdd->regs + S3C64XX_SPI_INT_EN);
+		writel((val & ~S3C64XX_SPI_INT_RX_FIFORDY_EN),
+				sdd->regs + S3C64XX_SPI_INT_EN);
+	}
+
 	/* Clear the pending irq by setting and then clearing it */
 	writel(clr, sdd->regs + S3C64XX_SPI_PENDING_CLR);
 	writel(0, sdd->regs + S3C64XX_SPI_PENDING_CLR);
@@ -1068,6 +1124,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 	}
 
 	sci->no_cs = of_property_read_bool(dev->of_node, "no-cs-readback");
+	sci->polling = !of_property_present(dev->of_node, "dmas");
 
 	return sci;
 }
