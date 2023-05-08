@@ -460,35 +460,10 @@ int bch2_replicas_delta_list_mark(struct bch_fs *c,
 
 int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 {
-	unsigned i;
-
 	lockdep_assert_held(&c->replicas_gc_lock);
 
 	mutex_lock(&c->sb_lock);
 	percpu_down_write(&c->mark_lock);
-
-	/*
-	 * this is kind of crappy; the replicas gc mechanism needs to be ripped
-	 * out
-	 */
-
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
-			cpu_replicas_entry(&c->replicas, i);
-		struct bch_replicas_cpu n;
-
-		if (!__replicas_has_entry(&c->replicas_gc, e) &&
-		    bch2_fs_usage_read_one(c, &c->usage_base->replicas[i])) {
-			n = cpu_replicas_add_entry(&c->replicas_gc, e);
-			if (!n.entries) {
-				ret = -BCH_ERR_ENOMEM_cpu_replicas;
-				goto err;
-			}
-
-			swap(n, c->replicas_gc);
-			kfree(n.entries);
-		}
-	}
 
 	ret = bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc);
 	if (ret)
