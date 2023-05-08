@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Hypervisor graphics system layer configuration
+#
+config QCOM_HGSL
+	tristate "Graphics driver for Hypervisor"
+	depends on QTI_QUIN_GVM
+	depends on MSM_HAB
+	help
+	  This driver could help commands submmitting functions for
+	  hypervisor Linux. With HFI feature provided by A6x, it
+	  could submit commands directly to hardware without passing
+	  them to host system.
+
+config QCOM_HGSL_TCSR_SIGNAL
+	tristate "TCSR signal for Hypervisor GSL"
+	depends on MFD_SYSCON && QCOM_HGSL
+	help
+	  The TCSR compute signal module provides hgsl driver
+	  in hypervisor Linux a way to send/receive signals
+	  to/from A6x GPU hardware directly, without going
+	  through host system.

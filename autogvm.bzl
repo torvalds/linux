@@ -53,6 +53,7 @@ def define_autogvm():
         "drivers/rtc/rtc-pm8xxx.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/hab/msm_hab.ko",
+        "drivers/soc/qcom/hgsl/qcom_hgsl.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_msgq.ko",
