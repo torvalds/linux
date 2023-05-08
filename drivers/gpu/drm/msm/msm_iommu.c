@@ -410,7 +410,7 @@ struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsig
 	struct msm_mmu *mmu;
 
 	mmu = msm_iommu_new(dev, quirks);
-	if (IS_ERR(mmu))
+	if (IS_ERR_OR_NULL(mmu))
 		return mmu;
 
 	iommu = to_msm_iommu(mmu);
