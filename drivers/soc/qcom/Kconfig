@@ -468,6 +468,14 @@ config QCOM_MEM_HOOKS
 	  If unsure, say 'M' here to ensure that the hooks are compiled
 	  in.
 
+config QCOM_BALANCE_ANON_FILE_RECLAIM
+	bool "During reclaim treat anon and file backed pages equally"
+	depends on SWAP
+	help
+	  When performing memory reclaim treat anonymous and file backed pages
+	  equally.
+	  Swapping anonymous pages out to memory can be efficient enough to justify
+	  treating anonymous and file backed pages equally.
 
 config HYP_ASSIGN_DEBUG
 	bool "Enable caller tracking for hyp-assign"
