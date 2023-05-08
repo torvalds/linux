@@ -668,16 +668,15 @@ err_mem:
 static int qcom_ethqos_remove(struct platform_device *pdev)
 {
 	struct qcom_ethqos *ethqos;
-	int ret;
 
 	ethqos = get_stmmac_bsp_priv(&pdev->dev);
 	if (!ethqos)
 		return -ENODEV;
 
-	ret = stmmac_pltfr_remove(pdev);
+	stmmac_pltfr_remove(pdev);
 	ethqos_clks_config(ethqos, false);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id qcom_ethqos_match[] = {

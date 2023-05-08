@@ -265,9 +265,7 @@ static int visconti_eth_dwmac_remove(struct platform_device *pdev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	int err;
 
-	err = stmmac_pltfr_remove(pdev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove platform: %d\n", err);
+	stmmac_pltfr_remove(pdev);
 
 	err = visconti_eth_clock_remove(pdev);
 	if (err < 0)
