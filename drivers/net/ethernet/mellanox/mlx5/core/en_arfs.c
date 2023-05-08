@@ -519,6 +519,8 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 		 ntohs(tuple->etype));
 	arfs_table = arfs_get_table(arfs, tuple->ip_proto, tuple->etype);
 	if (!arfs_table) {
+		WARN_ONCE(1, "arfs table does not exist for etype %u and ip_proto %u\n",
+			  tuple->etype, tuple->ip_proto);
 		err = -EINVAL;
 		goto out;
 	}
