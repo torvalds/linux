@@ -360,7 +360,33 @@ static int mt6359_put_volsw(struct snd_kcontrol *kcontrol,
 			(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = 0;
 	int index = ucontrol->value.integer.value[0];
+	int orig_gain[2], new_gain[2];
 	int ret;
+
+	switch (mc->reg) {
+	case MT6359_ZCD_CON2:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL];
+		orig_gain[1] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR];
+		break;
+	case MT6359_ZCD_CON1:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL];
+		orig_gain[1] = priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR];
+		break;
+	case MT6359_ZCD_CON3:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTL];
+		break;
+	case MT6359_AUDENC_ANA_CON0:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1];
+		break;
+	case MT6359_AUDENC_ANA_CON1:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2];
+		break;
+	case MT6359_AUDENC_ANA_CON2:
+		orig_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP3];
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 	if (ret < 0)
@@ -373,6 +399,8 @@ static int mt6359_put_volsw(struct snd_kcontrol *kcontrol,
 			(reg >> RG_AUDHPLGAIN_SFT) & RG_AUDHPLGAIN_MASK;
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR] =
 			(reg >> RG_AUDHPRGAIN_SFT) & RG_AUDHPRGAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL];
+		new_gain[1] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR];
 		break;
 	case MT6359_ZCD_CON1:
 		regmap_read(priv->regmap, MT6359_ZCD_CON1, &reg);
@@ -380,33 +408,80 @@ static int mt6359_put_volsw(struct snd_kcontrol *kcontrol,
 			(reg >> RG_AUDLOLGAIN_SFT) & RG_AUDLOLGAIN_MASK;
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR] =
 			(reg >> RG_AUDLORGAIN_SFT) & RG_AUDLORGAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL];
+		new_gain[1] = priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR];
 		break;
 	case MT6359_ZCD_CON3:
 		regmap_read(priv->regmap, MT6359_ZCD_CON3, &reg);
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTL] =
 			(reg >> RG_AUDHSGAIN_SFT) & RG_AUDHSGAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTL];
 		break;
 	case MT6359_AUDENC_ANA_CON0:
 		regmap_read(priv->regmap, MT6359_AUDENC_ANA_CON0, &reg);
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1] =
 			(reg >> RG_AUDPREAMPLGAIN_SFT) & RG_AUDPREAMPLGAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1];
 		break;
 	case MT6359_AUDENC_ANA_CON1:
 		regmap_read(priv->regmap, MT6359_AUDENC_ANA_CON1, &reg);
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2] =
 			(reg >> RG_AUDPREAMPRGAIN_SFT) & RG_AUDPREAMPRGAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2];
 		break;
 	case MT6359_AUDENC_ANA_CON2:
 		regmap_read(priv->regmap, MT6359_AUDENC_ANA_CON2, &reg);
 		priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP3] =
 			(reg >> RG_AUDPREAMP3GAIN_SFT) & RG_AUDPREAMP3GAIN_MASK;
+		new_gain[0] = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP3];
 		break;
+	}
+
+	ret = 0;
+	if (orig_gain[0] != new_gain[0]) {
+		ret = 1;
+	} else if (snd_soc_volsw_is_stereo(mc)) {
+		if (orig_gain[1] != new_gain[1])
+			ret = 1;
 	}
 
 	dev_dbg(priv->dev, "%s(), name %s, reg(0x%x) = 0x%x, set index = %x\n",
 		__func__, kcontrol->id.name, mc->reg, reg, index);
 
 	return ret;
+}
+
+static int mt6359_get_playback_volsw(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct mt6359_priv *priv = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mc =
+			(struct soc_mixer_control *)kcontrol->private_value;
+
+	switch (mc->reg) {
+	case MT6359_ZCD_CON2:
+		ucontrol->value.integer.value[0] =
+			priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL];
+		ucontrol->value.integer.value[1] =
+			priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR];
+		break;
+	case MT6359_ZCD_CON1:
+		ucontrol->value.integer.value[0] =
+			priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL];
+		ucontrol->value.integer.value[1] =
+			priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR];
+		break;
+	case MT6359_ZCD_CON3:
+		ucontrol->value.integer.value[0] =
+			priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTL];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* MUX */
@@ -2701,22 +2776,23 @@ static void mt6359_codec_remove(struct snd_soc_component *cmpnt)
 	cmpnt->regmap = NULL;
 }
 
-static const DECLARE_TLV_DB_SCALE(hp_playback_tlv, -2200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(playback_tlv, -1000, 100, 0);
 static const DECLARE_TLV_DB_SCALE(capture_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new mt6359_snd_controls[] = {
 	/* dl pga gain */
 	SOC_DOUBLE_EXT_TLV("Headset Volume",
-			   MT6359_ZCD_CON2, 0, 7, 0x1E, 0,
-			   snd_soc_get_volsw, mt6359_put_volsw,
-			   hp_playback_tlv),
+			   MT6359_ZCD_CON2, 0, 7, 0x12, 0,
+			   mt6359_get_playback_volsw, mt6359_put_volsw,
+			   playback_tlv),
 	SOC_DOUBLE_EXT_TLV("Lineout Volume",
 			   MT6359_ZCD_CON1, 0, 7, 0x12, 0,
-			   snd_soc_get_volsw, mt6359_put_volsw, playback_tlv),
+			   mt6359_get_playback_volsw, mt6359_put_volsw,
+			   playback_tlv),
 	SOC_SINGLE_EXT_TLV("Handset Volume",
 			   MT6359_ZCD_CON3, 0, 0x12, 0,
-			   snd_soc_get_volsw, mt6359_put_volsw, playback_tlv),
+			   mt6359_get_playback_volsw, mt6359_put_volsw,
+			   playback_tlv),
 
 	/* ul pga gain */
 	SOC_SINGLE_EXT_TLV("PGA1 Volume",
