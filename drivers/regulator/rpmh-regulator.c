@@ -6,6 +6,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
+#include <linux/ipc_logging.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -129,6 +130,16 @@ enum rpmh_regulator_reg_index {
 
 /* XOB voting registers are found in the VRM hardware module */
 #define CMD_DB_HW_XOB			CMD_DB_HW_VRM
+
+#define IPC_LOG_PAGES			10
+
+#define rpmh_reg_dbg(fmt, ...) \
+	do { \
+		ipc_log_string(rpmh_reg_ipc_log, fmt, ##__VA_ARGS__); \
+		pr_debug(fmt, ##__VA_ARGS__); \
+	} while (0)
+
+static void *rpmh_reg_ipc_log;
 
 /**
  * struct rpmh_regulator_request - rpmh request data
@@ -596,7 +607,7 @@ static void rpmh_regulator_req(struct rpmh_vreg *vreg,
 		}
 	}
 
-	pr_debug("%s\n", buf);
+	rpmh_reg_dbg("%s\n", buf);
 }
 
 /**
@@ -2093,11 +2104,14 @@ static struct platform_driver rpmh_regulator_driver = {
 
 static int rpmh_regulator_init(void)
 {
+	rpmh_reg_ipc_log = ipc_log_context_create(IPC_LOG_PAGES, "rpmh_regulator", 0);
 	return platform_driver_register(&rpmh_regulator_driver);
 }
 
 static void rpmh_regulator_exit(void)
 {
+	if (rpmh_reg_ipc_log)
+		ipc_log_context_destroy(rpmh_reg_ipc_log);
 	platform_driver_unregister(&rpmh_regulator_driver);
 }
 
