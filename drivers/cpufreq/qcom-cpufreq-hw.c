@@ -54,6 +54,7 @@ struct qcom_cpufreq_soc_data {
 	u32 reg_cycle_cntr;
 	u8 lut_row_size;
 	bool accumulative_counter;
+	bool turbo_ind_support;
 };
 
 struct qcom_cpufreq_data {
@@ -72,6 +73,7 @@ struct qcom_cpufreq_data {
 	bool cancel_throttle;
 	struct delayed_work throttle_work;
 	struct cpufreq_policy *policy;
+	unsigned long last_non_boost_freq;
 
 	bool per_core_dcvs;
 };
@@ -271,7 +273,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 				    struct cpufreq_policy *policy)
 {
 	u32 data, src, lval, i, core_count, prev_freq = 0, freq;
-	u32 volt;
+	u32 volt, max_cc = 0;
 	struct cpufreq_frequency_table	*table;
 	struct dev_pm_opp *opp;
 	unsigned long rate;
@@ -311,6 +313,9 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		lval = FIELD_GET(LUT_L_VAL, data);
 		core_count = FIELD_GET(LUT_CORE_COUNT, data);
 
+		if (i == 0)
+			max_cc = core_count;
+
 		data = readl_relaxed(drv_data->base + soc_data->reg_volt_lut +
 				      i * soc_data->lut_row_size);
 		volt = FIELD_GET(LUT_VOLT, data) * 1000;
@@ -320,18 +325,19 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		else
 			freq = cpu_hw_rate / 1000;
 
-		if (freq != prev_freq && core_count != LUT_TURBO_IND) {
+		if (core_count == LUT_TURBO_IND && soc_data->turbo_ind_support)
+			table[i].frequency = CPUFREQ_ENTRY_INVALID;
+		else if (freq != prev_freq) {
 			if (!qcom_cpufreq_update_opp(cpu_dev, freq, volt)) {
 				table[i].frequency = freq;
+				if (core_count < max_cc)
+					table[i].flags = CPUFREQ_BOOST_FREQ;
 				dev_dbg(cpu_dev, "index=%d freq=%d, core_count %d\n", i,
 				freq, core_count);
 			} else {
 				dev_warn(cpu_dev, "failed to update OPP for freq=%d\n", freq);
 				table[i].frequency = CPUFREQ_ENTRY_INVALID;
 			}
-
-		} else if (core_count == LUT_TURBO_IND) {
-			table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		}
 
 		/*
@@ -363,6 +369,14 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 
 	table[i].frequency = CPUFREQ_TABLE_END;
 	policy->freq_table = table;
+
+	for (i = 0; i < LUT_MAX_ENTRIES && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (table[i].flags == CPUFREQ_BOOST_FREQ)
+			break;
+
+		drv_data->last_non_boost_freq = table[i].frequency;
+	}
+
 	dev_pm_opp_set_sharing_cpus(cpu_dev, policy->cpus);
 
 	return 0;
@@ -418,7 +432,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 		dev_pm_opp_put(opp);
 
 	throttled_freq = freq_hz / HZ_PER_KHZ;
-	trace_dcvsh_freq(cpu, qcom_cpufreq_hw_get(cpu), throttled_freq);
+	trace_dcvsh_freq(cpu, qcom_cpufreq_get_freq(cpu), throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
@@ -438,6 +452,15 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 		enable_irq(data->throttle_irq);
 		trace_dcvsh_throttle(cpu, 0);
 	} else {
+		/*
+		 * If the frequency is at least the highest, non-boost
+		 * frequency, then the delta vs. what's requested is likely due
+		 * to core-count boost limitations and shouldn't be
+		 * communicated as thermal pressure.
+		 */
+		if (throttled_freq >= data->last_non_boost_freq)
+			throttled_freq = policy->cpuinfo.max_freq;
+
 		mod_delayed_work(system_highpri_wq, &data->throttle_work,
 				 msecs_to_jiffies(10));
 	}
@@ -484,6 +507,7 @@ static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_cycle_cntr = 0x9c0,
 	.lut_row_size = 32,
 	.accumulative_counter = false,
+	.turbo_ind_support = true,
 };
 
 static const struct qcom_cpufreq_soc_data epss_soc_data = {
@@ -497,6 +521,7 @@ static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_cycle_cntr = 0x3c4,
 	.lut_row_size = 4,
 	.accumulative_counter = true,
+	.turbo_ind_support = false,
 };
 
 static const struct of_device_id qcom_cpufreq_hw_match[] = {
