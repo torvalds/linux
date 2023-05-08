@@ -20,18 +20,18 @@
 		status = "okay";
 	};
 
-	sdio1: sdio@3f180000 {
+	sdio1: mmc@3f180000 {
 		max-frequency = <48000000>;
 		status = "okay";
 	};
 
-	sdio2: sdio@3f190000 {
+	sdio2: mmc@3f190000 {
 		non-removable;
 		max-frequency = <48000000>;
 		status = "okay";
 	};
 
-	sdio4: sdio@3f1b0000 {
+	sdio4: mmc@3f1b0000 {
 		max-frequency = <48000000>;
 		cd-gpios = <&gpio 91 GPIO_ACTIVE_LOW>;
 		status = "okay";

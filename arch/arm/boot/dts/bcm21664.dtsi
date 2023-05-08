@@ -113,7 +113,7 @@
 		interrupt-controller;
 	};
 
-	sdio1: sdio@3f180000 {
+	sdio1: mmc@3f180000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f180000 0x801c>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -121,7 +121,7 @@
 		status = "disabled";
 	};
 
-	sdio2: sdio@3f190000 {
+	sdio2: mmc@3f190000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f190000 0x801c>;
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
@@ -129,7 +129,7 @@
 		status = "disabled";
 	};
 
-	sdio3: sdio@3f1a0000 {
+	sdio3: mmc@3f1a0000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f1a0000 0x801c>;
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
@@ -137,7 +137,7 @@
 		status = "disabled";
 	};
 
-	sdio4: sdio@3f1b0000 {
+	sdio4: mmc@3f1b0000 {
 		compatible = "brcm,kona-sdhci";
 		reg = <0x3f1b0000 0x801c>;
 		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;

@@ -44,7 +44,7 @@
 		};
 	};
 
-	sdio2: sdio@3f190000 {
+	sdio2: mmc@3f190000 {
 		non-removable;
 		max-frequency = <48000000>;
 		vmmc-supply = <&camldo1_reg>;
@@ -52,7 +52,7 @@
 		status = "okay";
 	};
 
-	sdio4: sdio@3f1b0000 {
+	sdio4: mmc@3f1b0000 {
 		max-frequency = <48000000>;
 		cd-gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
 		vmmc-supply = <&sdldo_reg>;
