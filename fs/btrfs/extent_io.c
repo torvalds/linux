@@ -3557,7 +3557,6 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	init_rwsem(&eb->lock);
 
 	btrfs_leak_debug_add_eb(eb);
-	INIT_LIST_HEAD(&eb->release_list);
 
 	spin_lock_init(&eb->refs_lock);
 	atomic_set(&eb->refs, 1);
