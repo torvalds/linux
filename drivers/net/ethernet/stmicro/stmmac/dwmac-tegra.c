@@ -353,15 +353,13 @@ disable_clks:
 	return err;
 }
 
-static int tegra_mgbe_remove(struct platform_device *pdev)
+static void tegra_mgbe_remove(struct platform_device *pdev)
 {
 	struct tegra_mgbe *mgbe = get_stmmac_bsp_priv(&pdev->dev);
 
 	clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
 
 	stmmac_pltfr_remove(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_mgbe_match[] = {
@@ -374,7 +372,7 @@ static SIMPLE_DEV_PM_OPS(tegra_mgbe_pm_ops, tegra_mgbe_suspend, tegra_mgbe_resum
 
 static struct platform_driver tegra_mgbe_driver = {
 	.probe = tegra_mgbe_probe,
-	.remove = tegra_mgbe_remove,
+	.remove_new = tegra_mgbe_remove,
 	.driver = {
 		.name = "tegra-mgbe",
 		.pm		= &tegra_mgbe_pm_ops,
