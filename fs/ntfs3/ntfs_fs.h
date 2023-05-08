@@ -467,8 +467,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	      struct ATTR_LIST_ENTRY **new_le);
 bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le);
 bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
-		  const __le16 *name, size_t name_len,
-		  const struct MFT_REF *ref);
+		  const __le16 *name, u8 name_len, const struct MFT_REF *ref);
 int al_update(struct ntfs_inode *ni, int sync);
 static inline size_t al_aligned(size_t size)
 {
@@ -527,7 +526,7 @@ struct ATTRIB *ni_load_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 int ni_load_all_mi(struct ntfs_inode *ni);
 bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi);
 int ni_remove_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
-		   const __le16 *name, size_t name_len, bool base_only,
+		   const __le16 *name, u8 name_len, bool base_only,
 		   const __le16 *id);
 int ni_create_attr_list(struct ntfs_inode *ni);
 int ni_expand_list(struct ntfs_inode *ni);
@@ -631,7 +630,7 @@ int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run);
 int ntfs_vbo_to_lbo(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		    u64 vbo, u64 *lbo, u64 *bytes);
 struct ntfs_inode *ntfs_new_inode(struct ntfs_sb_info *sbi, CLST nRec,
-				  bool dir);
+				  enum RECORD_FLAG flag);
 extern const u8 s_default_security[0x50];
 bool is_sd_valid(const struct SECURITY_DESCRIPTOR_RELATIVE *sd, u32 len);
 int ntfs_security_init(struct ntfs_sb_info *sbi);
@@ -649,7 +648,8 @@ int ntfs_insert_reparse(struct ntfs_sb_info *sbi, __le32 rtag,
 int ntfs_remove_reparse(struct ntfs_sb_info *sbi, __le32 rtag,
 			const struct MFT_REF *ref);
 void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim);
-int run_deallocate(struct ntfs_sb_info *sbi, struct runs_tree *run, bool trim);
+int run_deallocate(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+		   bool trim);
 bool valid_windows_name(struct ntfs_sb_info *sbi, const struct le_str *name);
 
 /* Globals from index.c */
@@ -738,7 +738,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr);
 // TODO: id?
 struct ATTRIB *mi_find_attr(struct mft_inode *mi, struct ATTRIB *attr,
 			    enum ATTR_TYPE type, const __le16 *name,
-			    size_t name_len, const __le16 *id);
+			    u8 name_len, const __le16 *id);
 static inline struct ATTRIB *rec_find_attr_le(struct mft_inode *rec,
 					      struct ATTR_LIST_ENTRY *le)
 {

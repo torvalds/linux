@@ -384,7 +384,7 @@ bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi)
  * ni_remove_attr - Remove all attributes for the given type/name/id.
  */
 int ni_remove_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
-		   const __le16 *name, size_t name_len, bool base_only,
+		   const __le16 *name, u8 name_len, bool base_only,
 		   const __le16 *id)
 {
 	int err;

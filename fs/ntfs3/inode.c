@@ -1309,7 +1309,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	if (err)
 		goto out2;
 
-	ni = ntfs_new_inode(sbi, ino, fa & FILE_ATTRIBUTE_DIRECTORY);
+	ni = ntfs_new_inode(sbi, ino, S_ISDIR(mode) ? RECORD_FLAG_DIR : 0);
 	if (IS_ERR(ni)) {
 		err = PTR_ERR(ni);
 		ni = NULL;
@@ -1437,8 +1437,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 
 		root = Add2Ptr(attr, sizeof(I30_NAME) + SIZEOF_RESIDENT);
 		memcpy(root, dir_root, offsetof(struct INDEX_ROOT, ihdr));
-		root->ihdr.de_off =
-			cpu_to_le32(sizeof(struct INDEX_HDR)); // 0x10
+		root->ihdr.de_off = cpu_to_le32(sizeof(struct INDEX_HDR));
 		root->ihdr.used = cpu_to_le32(sizeof(struct INDEX_HDR) +
 					      sizeof(struct NTFS_DE));
 		root->ihdr.total = root->ihdr.used;

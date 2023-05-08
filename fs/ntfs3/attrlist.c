@@ -375,8 +375,7 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
  * al_delete_le - Delete first le from the list which matches its parameters.
  */
 bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
-		  const __le16 *name, size_t name_len,
-		  const struct MFT_REF *ref)
+		  const __le16 *name, u8 name_len, const struct MFT_REF *ref)
 {
 	u16 size;
 	struct ATTR_LIST_ENTRY *le;

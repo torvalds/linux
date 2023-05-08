@@ -95,11 +95,10 @@ enum RECORD_NUM {
 	MFT_REC_BITMAP		= 6,
 	MFT_REC_BOOT		= 7,
 	MFT_REC_BADCLUST	= 8,
-	//MFT_REC_QUOTA		= 9,
-	MFT_REC_SECURE		= 9, // NTFS 3.0
+	MFT_REC_SECURE		= 9,
 	MFT_REC_UPCASE		= 10,
-	MFT_REC_EXTEND		= 11, // NTFS 3.0
-	MFT_REC_RESERVED	= 11,
+	MFT_REC_EXTEND		= 11,
+	MFT_REC_RESERVED	= 12,
 	MFT_REC_FREE		= 16,
 	MFT_REC_USER		= 24,
 };
@@ -109,7 +108,6 @@ enum ATTR_TYPE {
 	ATTR_STD		= cpu_to_le32(0x10),
 	ATTR_LIST		= cpu_to_le32(0x20),
 	ATTR_NAME		= cpu_to_le32(0x30),
-	// ATTR_VOLUME_VERSION on Nt4
 	ATTR_ID			= cpu_to_le32(0x40),
 	ATTR_SECURE		= cpu_to_le32(0x50),
 	ATTR_LABEL		= cpu_to_le32(0x60),
@@ -118,7 +116,6 @@ enum ATTR_TYPE {
 	ATTR_ROOT		= cpu_to_le32(0x90),
 	ATTR_ALLOC		= cpu_to_le32(0xA0),
 	ATTR_BITMAP		= cpu_to_le32(0xB0),
-	// ATTR_SYMLINK on Nt4
 	ATTR_REPARSE		= cpu_to_le32(0xC0),
 	ATTR_EA_INFO		= cpu_to_le32(0xD0),
 	ATTR_EA			= cpu_to_le32(0xE0),
@@ -144,6 +141,7 @@ enum FILE_ATTRIBUTE {
 	FILE_ATTRIBUTE_ENCRYPTED	= cpu_to_le32(0x00004000),
 	FILE_ATTRIBUTE_VALID_FLAGS	= cpu_to_le32(0x00007fb7),
 	FILE_ATTRIBUTE_DIRECTORY	= cpu_to_le32(0x10000000),
+	FILE_ATTRIBUTE_INDEX		= cpu_to_le32(0x20000000)
 };
 
 static_assert(sizeof(enum FILE_ATTRIBUTE) == 4);
@@ -266,7 +264,7 @@ enum RECORD_FLAG {
 	RECORD_FLAG_IN_USE	= cpu_to_le16(0x0001),
 	RECORD_FLAG_DIR		= cpu_to_le16(0x0002),
 	RECORD_FLAG_SYSTEM	= cpu_to_le16(0x0004),
-	RECORD_FLAG_UNKNOWN	= cpu_to_le16(0x0008),
+	RECORD_FLAG_INDEX	= cpu_to_le16(0x0008),
 };
 
 /* MFT Record structure. */
@@ -331,18 +329,18 @@ struct ATTR_NONRESIDENT {
 	__le64 svcn;		// 0x10: Starting VCN of this segment.
 	__le64 evcn;		// 0x18: End VCN of this segment.
 	__le16 run_off;		// 0x20: Offset to packed runs.
-	//  Unit of Compression size for this stream, expressed
-	//  as a log of the cluster size.
+	// Unit of Compression size for this stream, expressed
+	// as a log of the cluster size.
 	//
-	//	0 means file is not compressed
-	//	1, 2, 3, and 4 are potentially legal values if the
-	//	    stream is compressed, however the implementation
-	//	    may only choose to use 4, or possibly 3.  Note
-	//	    that 4 means cluster size time 16.	If convenient
-	//	    the implementation may wish to accept a
-	//	    reasonable range of legal values here (1-5?),
-	//	    even if the implementation only generates
-	//	    a smaller set of values itself.
+	// 0 means file is not compressed
+	// 1, 2, 3, and 4 are potentially legal values if the
+	// stream is compressed, however the implementation
+	// may only choose to use 4, or possibly 3.
+        // Note that 4 means cluster size time 16.
+        // If convenient the implementation may wish to accept a
+	// reasonable range of legal values here (1-5?),
+	// even if the implementation only generates
+	// a smaller set of values itself.
 	u8 c_unit;		// 0x22:
 	u8 res1[5];		// 0x23:
 	__le64 alloc_size;	// 0x28: The allocated size of attribute in bytes.
@@ -836,16 +834,22 @@ static_assert(sizeof(struct ATTR_DEF_ENTRY) == 0xa0);
 /* Object ID (0x40) */
 struct OBJECT_ID {
 	struct GUID ObjId;	// 0x00: Unique Id assigned to file.
-	struct GUID BirthVolumeId; // 0x10: Birth Volume Id is the Object Id of the Volume on.
-				// which the Object Id was allocated. It never changes.
-	struct GUID BirthObjectId; // 0x20: Birth Object Id is the first Object Id that was
-				// ever assigned to this MFT Record. I.e. If the Object Id
-				// is changed for some reason, this field will reflect the
-				// original value of the Object Id.
-	struct GUID DomainId;	// 0x30: Domain Id is currently unused but it is intended to be
-				// used in a network environment where the local machine is
-				// part of a Windows 2000 Domain. This may be used in a Windows
-				// 2000 Advanced Server managed domain.
+
+	// Birth Volume Id is the Object Id of the Volume on.
+	// which the Object Id was allocated. It never changes.
+	struct GUID BirthVolumeId; //0x10:
+	
+	// Birth Object Id is the first Object Id that was
+	// ever assigned to this MFT Record. I.e. If the Object Id
+	// is changed for some reason, this field will reflect the
+	// original value of the Object Id.
+	struct GUID BirthObjectId; // 0x20:
+
+	// Domain Id is currently unused but it is intended to be
+	// used in a network environment where the local machine is
+	// part of a Windows 2000 Domain. This may be used in a Windows
+	// 2000 Advanced Server managed domain.
+	struct GUID DomainId;	// 0x30:
 };
 
 static_assert(sizeof(struct OBJECT_ID) == 0x40);
@@ -855,32 +859,35 @@ struct NTFS_DE_O {
 	struct NTFS_DE de;
 	struct GUID ObjId;	// 0x10: Unique Id assigned to file.
 	struct MFT_REF ref;	// 0x20: MFT record number with this file.
-	struct GUID BirthVolumeId; // 0x28: Birth Volume Id is the Object Id of the Volume on
-				// which the Object Id was allocated. It never changes.
-	struct GUID BirthObjectId; // 0x38: Birth Object Id is the first Object Id that was
-				// ever assigned to this MFT Record. I.e. If the Object Id
-				// is changed for some reason, this field will reflect the
-				// original value of the Object Id.
-				// This field is valid if data_size == 0x48.
-	struct GUID BirthDomainId; // 0x48: Domain Id is currently unused but it is intended
-				// to be used in a network environment where the local
-				// machine is part of a Windows 2000 Domain. This may be
-				// used in a Windows 2000 Advanced Server managed domain.
+
+	// Birth Volume Id is the Object Id of the Volume on
+	// which the Object Id was allocated. It never changes.
+	struct GUID BirthVolumeId; // 0x28:
+
+	// Birth Object Id is the first Object Id that was
+	// ever assigned to this MFT Record. I.e. If the Object Id
+	// is changed for some reason, this field will reflect the
+	// original value of the Object Id.
+	// This field is valid if data_size == 0x48.
+	struct GUID BirthObjectId; // 0x38:
+
+	// Domain Id is currently unused but it is intended
+	// to be used in a network environment where the local
+	// machine is part of a Windows 2000 Domain. This may be
+	// used in a Windows 2000 Advanced Server managed domain.
+	struct GUID BirthDomainId; // 0x48:
 };
 
 static_assert(sizeof(struct NTFS_DE_O) == 0x58);
-
-#define NTFS_OBJECT_ENTRY_DATA_SIZE1					       \
-	0x38 // struct NTFS_DE_O.BirthDomainId is not used
-#define NTFS_OBJECT_ENTRY_DATA_SIZE2					       \
-	0x48 // struct NTFS_DE_O.BirthDomainId is used
 
 /* Q Directory entry structure ( rule = 0x11 ) */
 struct NTFS_DE_Q {
 	struct NTFS_DE de;
 	__le32 owner_id;	// 0x10: Unique Id assigned to file
+
+	/* here is 0x30 bytes of user quota. NOTE: 4 byte aligned! */
 	__le32 Version;		// 0x14: 0x02
-	__le32 flags2;		// 0x18: Quota flags, see above
+	__le32 Flags;		// 0x18: Quota flags, see above
 	__le64 BytesUsed;	// 0x1C:
 	__le64 ChangeTime;	// 0x24:
 	__le64 WarningLimit;	// 0x28:
@@ -888,9 +895,9 @@ struct NTFS_DE_Q {
 	__le64 ExceededTime;	// 0x3C:
 
 	// SID is placed here
-}; // sizeof() = 0x44
+}__packed; // sizeof() = 0x44
 
-#define SIZEOF_NTFS_DE_Q 0x44
+static_assert(sizeof(struct NTFS_DE_Q) == 0x44);
 
 #define SecurityDescriptorsBlockSize 0x40000 // 256K
 #define SecurityDescriptorMaxSize    0x20000 // 128K
@@ -912,7 +919,7 @@ struct SECURITY_HDR {
 	 */
 } __packed;
 
-#define SIZEOF_SECURITY_HDR 0x14
+static_assert(sizeof(struct SECURITY_HDR) == 0x14);
 
 /* SII Directory entry structure */
 struct NTFS_DE_SII {
@@ -921,7 +928,8 @@ struct NTFS_DE_SII {
 	struct SECURITY_HDR sec_hdr;	// 0x14:
 } __packed;
 
-#define SIZEOF_SII_DIRENTRY 0x28
+static_assert(offsetof(struct NTFS_DE_SII, sec_hdr) == 0x14);
+static_assert(sizeof(struct NTFS_DE_SII) == 0x28);
 
 /* SDH Directory entry structure */
 struct NTFS_DE_SDH {
@@ -1155,7 +1163,7 @@ struct REPARSE_DATA_BUFFER {
 
 #define FILE_NEED_EA 0x80 // See ntifs.h
 /*
- *FILE_NEED_EA, indicates that the file to which the EA belongs cannot be
+ * FILE_NEED_EA, indicates that the file to which the EA belongs cannot be
  * interpreted without understanding the associated extended attributes.
  */
 struct EA_INFO {
