@@ -644,6 +644,39 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 	rtw89_info(rtwdev, "<---\n");
 }
 
+static bool rtw89_mac_suppress_log(struct rtw89_dev *rtwdev, u32 err)
+{
+	struct rtw89_ser *ser = &rtwdev->ser;
+	u32 dmac_err, imr, isr;
+	int ret;
+
+	if (rtwdev->chip->chip_id == RTL8852C) {
+		ret = rtw89_mac_check_mac_en(rtwdev, 0, RTW89_DMAC_SEL);
+		if (ret)
+			return true;
+
+		if (err == MAC_AX_ERR_L1_ERR_DMAC) {
+			dmac_err = rtw89_read32(rtwdev, R_AX_DMAC_ERR_ISR);
+			imr = rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_IMR);
+			isr = rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_ISR);
+
+			if ((dmac_err & B_AX_TXPKTCTRL_ERR_FLAG) &&
+			    ((isr & imr) & B_AX_B0_ISR_ERR_CMDPSR_FRZTO)) {
+				set_bit(RTW89_SER_SUPPRESS_LOG, ser->flags);
+				return true;
+			}
+		} else if (err == MAC_AX_ERR_L1_RESET_DISABLE_DMAC_DONE) {
+			if (test_bit(RTW89_SER_SUPPRESS_LOG, ser->flags))
+				return true;
+		} else if (err == MAC_AX_ERR_L1_RESET_RECOVERY_DONE) {
+			if (test_and_clear_bit(RTW89_SER_SUPPRESS_LOG, ser->flags))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 {
 	u32 err, err_scnr;
@@ -666,6 +699,9 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 		err = MAC_AX_ERR_ASSERTION;
 	else if (err_scnr == RTW89_RXI300_ERROR)
 		err = MAC_AX_ERR_RXI300;
+
+	if (rtw89_mac_suppress_log(rtwdev, err))
+		return err;
 
 	rtw89_fw_st_dbg_dump(rtwdev);
 	rtw89_mac_dump_err_status(rtwdev, err);
