@@ -35,7 +35,7 @@ static void assert_iir_is_zero(struct xe_gt *gt, struct xe_reg reg)
 
 	drm_WARN(&gt_to_xe(gt)->drm, 1,
 		 "Interrupt register 0x%x is not zero: 0x%08x\n",
-		 reg.reg, val);
+		 reg.addr, val);
 	xe_mmio_write32(gt, reg, 0xffffffff);
 	xe_mmio_read32(gt, reg);
 	xe_mmio_write32(gt, reg, 0xffffffff);

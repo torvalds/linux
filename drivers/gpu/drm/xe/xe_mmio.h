@@ -20,27 +20,27 @@ int xe_mmio_init(struct xe_device *xe);
 
 static inline u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg.reg < gt->mmio.adj_limit)
-		reg.reg += gt->mmio.adj_offset;
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
 
-	return readb(gt->mmio.regs + reg.reg);
+	return readb(gt->mmio.regs + reg.addr);
 }
 
 static inline void xe_mmio_write32(struct xe_gt *gt,
 				   struct xe_reg reg, u32 val)
 {
-	if (reg.reg < gt->mmio.adj_limit)
-		reg.reg += gt->mmio.adj_offset;
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
 
-	writel(val, gt->mmio.regs + reg.reg);
+	writel(val, gt->mmio.regs + reg.addr);
 }
 
 static inline u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg.reg < gt->mmio.adj_limit)
-		reg.reg += gt->mmio.adj_offset;
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
 
-	return readl(gt->mmio.regs + reg.reg);
+	return readl(gt->mmio.regs + reg.addr);
 }
 
 static inline u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr,
@@ -58,18 +58,18 @@ static inline u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr,
 static inline void xe_mmio_write64(struct xe_gt *gt,
 				   struct xe_reg reg, u64 val)
 {
-	if (reg.reg < gt->mmio.adj_limit)
-		reg.reg += gt->mmio.adj_offset;
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
 
-	writeq(val, gt->mmio.regs + reg.reg);
+	writeq(val, gt->mmio.regs + reg.addr);
 }
 
 static inline u64 xe_mmio_read64(struct xe_gt *gt, struct xe_reg reg)
 {
-	if (reg.reg < gt->mmio.adj_limit)
-		reg.reg += gt->mmio.adj_offset;
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
 
-	return readq(gt->mmio.regs + reg.reg);
+	return readq(gt->mmio.regs + reg.addr);
 }
 
 static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
@@ -127,7 +127,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 static inline bool xe_mmio_in_range(const struct xe_mmio_range *range,
 				    struct xe_reg reg)
 {
-	return range && reg.reg >= range->start && reg.reg <= range->end;
+	return range && reg.addr >= range->start && reg.addr <= range->end;
 }
 
 int xe_mmio_probe_vram(struct xe_device *xe);

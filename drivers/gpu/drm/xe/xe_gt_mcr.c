@@ -398,7 +398,7 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 	 */
 	drm_WARN(&gt_to_xe(gt)->drm, true,
 		 "Did not find MCR register %#x in any MCR steering table\n",
-		 reg.reg);
+		 reg.addr);
 	*group = 0;
 	*instance = 0;
 

@@ -170,10 +170,10 @@ static int __wopcm_init_regs(struct xe_device *xe, struct xe_gt *gt,
 err_out:
 	drm_notice(&xe->drm, "Failed to init uC WOPCM registers!\n");
 	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
-		   DMA_GUC_WOPCM_OFFSET.reg,
+		   DMA_GUC_WOPCM_OFFSET.addr,
 		   xe_mmio_read32(gt, DMA_GUC_WOPCM_OFFSET));
 	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
-		   GUC_WOPCM_SIZE.reg,
+		   GUC_WOPCM_SIZE.addr,
 		   xe_mmio_read32(gt, GUC_WOPCM_SIZE));
 
 	return err;

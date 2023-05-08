@@ -421,7 +421,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 		unsigned int i;
 
 		for (i = 0; i < ARRAY_SIZE(mmio_read_whitelist); i++) {
-			if (mmio_read_whitelist[i].reg == args->addr) {
+			if (mmio_read_whitelist[i].addr == args->addr) {
 				allowed = true;
 				break;
 			}

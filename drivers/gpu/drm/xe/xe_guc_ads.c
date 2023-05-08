@@ -426,7 +426,7 @@ static void guc_mmio_regset_write_one(struct xe_guc_ads *ads,
 				      unsigned int n_entry)
 {
 	struct guc_mmio_reg entry = {
-		.offset = reg.reg,
+		.offset = reg.addr,
 		.flags = reg.masked ? GUC_REGSET_MASKED : 0,
 	};
 

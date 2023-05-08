@@ -436,7 +436,7 @@ static void handle_gmdid(struct xe_device *xe,
 {
 	u32 ver;
 
-	ver = peek_gmdid(xe, GMD_ID.reg);
+	ver = peek_gmdid(xe, GMD_ID.addr);
 	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
 		if (ver == graphics_ip_map[i].ver) {
 			xe->info.graphics_verx100 = ver;
@@ -451,7 +451,7 @@ static void handle_gmdid(struct xe_device *xe,
 			ver / 100, ver % 100);
 	}
 
-	ver = peek_gmdid(xe, GMD_ID.reg + 0x380000);
+	ver = peek_gmdid(xe, GMD_ID.addr + 0x380000);
 	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
 		if (ver == media_ip_map[i].ver) {
 			xe->info.media_verx100 = ver;

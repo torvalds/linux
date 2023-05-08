@@ -91,7 +91,7 @@ static void reg_sr_inc_error(struct xe_reg_sr *sr)
 int xe_reg_sr_add(struct xe_reg_sr *sr,
 		  const struct xe_reg_sr_entry *e)
 {
-	unsigned long idx = e->reg.reg;
+	unsigned long idx = e->reg.addr;
 	struct xe_reg_sr_entry *pentry = xa_load(&sr->xa, idx);
 	int ret;
 
@@ -172,7 +172,7 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 	 */
 	val |= entry->set_bits;
 
-	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg.reg, val);
+	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg.addr, val);
 
 	if (entry->reg.mcr)
 		xe_gt_mcr_multicast_write(gt, reg_mcr, val);
@@ -237,7 +237,7 @@ void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
 
 	/* And clear the rest just in case of garbage */
 	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++) {
-		u32 addr = RING_NOPID(mmio_base).reg;
+		u32 addr = RING_NOPID(mmio_base).addr;
 
 		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
 	}

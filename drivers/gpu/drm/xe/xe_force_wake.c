@@ -129,7 +129,7 @@ static int domain_sleep_wait(struct xe_gt *gt,
 	for (tmp__ = (mask__); tmp__; tmp__ &= ~BIT(ffs(tmp__) - 1)) \
 		for_each_if((domain__ = ((fw__)->domains + \
 					 (ffs(tmp__) - 1))) && \
-					 domain__->reg_ctl.reg)
+					 domain__->reg_ctl.addr)
 
 int xe_force_wake_get(struct xe_force_wake *fw,
 		      enum xe_force_wake_domains domains)

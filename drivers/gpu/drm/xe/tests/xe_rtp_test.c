@@ -244,7 +244,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	xe_rtp_process(param->entries, reg_sr, &xe->gt[0], NULL);
 
 	xa_for_each(&reg_sr->xa, idx, sre) {
-		if (idx == param->expected_reg.reg)
+		if (idx == param->expected_reg.addr)
 			sr_entry = sre;
 
 		count++;

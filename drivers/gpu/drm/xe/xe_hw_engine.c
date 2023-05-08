@@ -236,20 +236,20 @@ static void hw_engine_fini(struct drm_device *drm, void *arg)
 static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 				   u32 val)
 {
-	XE_BUG_ON(reg.reg & hwe->mmio_base);
+	XE_BUG_ON(reg.addr & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
-	reg.reg += hwe->mmio_base;
+	reg.addr += hwe->mmio_base;
 
 	xe_mmio_write32(hwe->gt, reg, val);
 }
 
 static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 {
-	XE_BUG_ON(reg.reg & hwe->mmio_base);
+	XE_BUG_ON(reg.addr & hwe->mmio_base);
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
-	reg.reg += hwe->mmio_base;
+	reg.addr += hwe->mmio_base;
 
 	return xe_mmio_read32(hwe->gt, reg);
 }

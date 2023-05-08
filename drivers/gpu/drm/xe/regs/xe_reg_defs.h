@@ -18,8 +18,8 @@
 struct xe_reg {
 	union {
 		struct {
-			/** @reg: address */
-			u32 reg:22;
+			/** @addr: address */
+			u32 addr:22;
 			/**
 			 * @masked: register is "masked", with upper 16bits used
 			 * to identify the bits that are updated on the lower
@@ -73,7 +73,7 @@ struct xe_reg_mcr {
  * object of the right type. However when initializing static const storage,
  * where a compound statement is not allowed, this can be used instead.
  */
-#define XE_REG_INITIALIZER(r_, ...)    { .reg = r_, __VA_ARGS__ }
+#define XE_REG_INITIALIZER(r_, ...)    { .addr = r_, __VA_ARGS__ }
 
 
 /**

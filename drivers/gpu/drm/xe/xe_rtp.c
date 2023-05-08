@@ -101,7 +101,7 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 		.read_mask = action->read_mask,
 	};
 
-	sr_entry.reg.reg += mmio_base;
+	sr_entry.reg.addr += mmio_base;
 	xe_reg_sr_add(sr, &sr_entry);
 }
 

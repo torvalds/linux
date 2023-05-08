@@ -479,7 +479,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 	     i++) {
 		struct xe_reg reg = XE_REG(addr + i * 4);
 
-		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, reg.reg, mocs);
+		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, reg.addr, mocs);
 		xe_mmio_write32(gt, reg, mocs);
 	}
 }
@@ -514,7 +514,7 @@ static void init_l3cc_table(struct xe_gt *gt,
 	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, LNCFCMOCS(i).reg,
+		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, LNCFCMOCS(i).addr,
 			 l3cc);
 		xe_mmio_write32(gt, LNCFCMOCS(i), l3cc);
 	}
@@ -541,7 +541,7 @@ void xe_mocs_init(struct xe_gt *gt)
 	mocs_dbg(&gt->xe->drm, "flag:0x%x\n", flags);
 
 	if (flags & HAS_GLOBAL_MOCS)
-		__init_mocs_table(gt, &table, GLOBAL_MOCS(0).reg);
+		__init_mocs_table(gt, &table, GLOBAL_MOCS(0).addr);
 
 	/*
 	 * Initialize the L3CC table as part of mocs initalization to make
