@@ -867,7 +867,7 @@ check_boot:
 	}
 
 	sbi->max_bytes_per_attr =
-		record_size - ALIGN(MFTRECORD_FIXUP_OFFSET_1, 8) -
+		record_size - ALIGN(MFTRECORD_FIXUP_OFFSET, 8) -
 		ALIGN(((record_size >> SECTOR_SHIFT) * sizeof(short)), 8) -
 		ALIGN(sizeof(enum ATTR_TYPE), 8);
 
@@ -909,10 +909,10 @@ check_boot:
 
 	sbi->new_rec = rec;
 	rec->rhdr.sign = NTFS_FILE_SIGNATURE;
-	rec->rhdr.fix_off = cpu_to_le16(MFTRECORD_FIXUP_OFFSET_1);
+	rec->rhdr.fix_off = cpu_to_le16(MFTRECORD_FIXUP_OFFSET);
 	fn = (sbi->record_size >> SECTOR_SHIFT) + 1;
 	rec->rhdr.fix_num = cpu_to_le16(fn);
-	ao = ALIGN(MFTRECORD_FIXUP_OFFSET_1 + sizeof(short) * fn, 8);
+	ao = ALIGN(MFTRECORD_FIXUP_OFFSET + sizeof(short) * fn, 8);
 	rec->attr_off = cpu_to_le16(ao);
 	rec->used = cpu_to_le32(ao + ALIGN(sizeof(enum ATTR_TYPE), 8));
 	rec->total = cpu_to_le32(sbi->record_size);

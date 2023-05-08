@@ -288,6 +288,15 @@ struct MFT_REC {
 
 #define MFTRECORD_FIXUP_OFFSET_1 offsetof(struct MFT_REC, res)
 #define MFTRECORD_FIXUP_OFFSET_3 offsetof(struct MFT_REC, fixups)
+/*
+ * define MFTRECORD_FIXUP_OFFSET as MFTRECORD_FIXUP_OFFSET_3 (0x30)
+ * to format new mft records with bigger header (as current ntfs.sys does)
+ *
+ * define MFTRECORD_FIXUP_OFFSET as MFTRECORD_FIXUP_OFFSET_1 (0x2A)
+ * to format new mft records with smaller header (as old ntfs.sys did)
+ * Both variants are valid.
+ */
+#define MFTRECORD_FIXUP_OFFSET  MFTRECORD_FIXUP_OFFSET_1
 
 static_assert(MFTRECORD_FIXUP_OFFSET_1 == 0x2A);
 static_assert(MFTRECORD_FIXUP_OFFSET_3 == 0x30);
