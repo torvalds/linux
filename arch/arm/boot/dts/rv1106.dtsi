@@ -1275,6 +1275,9 @@
 		clock_in_out = "input";
 		phy-handle = <&rmii_phy>;
 
+		/* FLOW_OFF: 0, FLOW_RX: 1, FLOW_TX: 2, FLOW_AUTO: 3 */
+		snps,flow-ctrl = <0>;
+
 		nvmem-cells = <&macphy_bgs>;
 		nvmem-cell-names = "bgs";
 		status = "disabled";
