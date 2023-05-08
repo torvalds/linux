@@ -711,9 +711,16 @@ static u32 true_sectors_per_clst(const struct NTFS_BOOT *boot)
 
 /*
  * ntfs_init_from_boot - Init internal info from on-disk boot sector.
+ *
+ * NTFS mount begins from boot - special formatted 512 bytes.
+ * There are two boots: the first and the last 512 bytes of volume.
+ * The content of boot is not changed during ntfs life.
+ *
+ * NOTE: ntfs.sys checks only first (primary) boot.
+ * chkdsk checks both boots.
  */
 static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
-			       u64 dev_size)
+			       u64 dev_size, struct NTFS_BOOT **boot2)
 {
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	int err;
@@ -937,23 +944,11 @@ check_boot:
 
 	if (bh->b_blocknr && !sb_rdonly(sb)) {
 		/*
-	 	 * Alternative boot is ok but primary is not ok.
-	 	 * Update primary boot.
-		 */
-		struct buffer_head *bh0 = sb_getblk(sb, 0);
-		if (bh0) {
-			if (buffer_locked(bh0))
-				__wait_on_buffer(bh0);
-
-			lock_buffer(bh0);
-			memcpy(bh0->b_data, boot, sizeof(*boot));
-			set_buffer_uptodate(bh0);
-			mark_buffer_dirty(bh0);
-			unlock_buffer(bh0);
-			if (!sync_dirty_buffer(bh0))
-				ntfs_warn(sb, "primary boot is updated");
-			put_bh(bh0);
-		}
+	     * Alternative boot is ok but primary is not ok.
+	     * Do not update primary boot here 'cause it may be faked boot.
+	     * Let ntfs to be mounted and update boot later.
+	     */
+		*boot2 = kmemdup(boot, sizeof(*boot), GFP_NOFS | __GFP_NOWARN);
 	}
 
 out:
@@ -1000,6 +995,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	u16 *shared;
 	struct MFT_REF ref;
 	bool ro = sb_rdonly(sb);
+	struct NTFS_BOOT *boot2 = NULL;
 
 	ref.high = 0;
 
@@ -1030,7 +1026,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Parse boot. */
 	err = ntfs_init_from_boot(sb, bdev_logical_block_size(bdev),
-				  bdev_nr_bytes(bdev));
+				  bdev_nr_bytes(bdev), &boot2);
 	if (err)
 		goto out;
 
@@ -1412,6 +1408,29 @@ load_root:
 		goto put_inode_out;
 	}
 
+	if (boot2) {
+		/*
+	     * Alternative boot is ok but primary is not ok.
+	     * Volume is recognized as NTFS. Update primary boot.
+	     */
+		struct buffer_head *bh0 = sb_getblk(sb, 0);
+		if (bh0) {
+			if (buffer_locked(bh0))
+				__wait_on_buffer(bh0);
+
+			lock_buffer(bh0);
+			memcpy(bh0->b_data, boot2, sizeof(*boot2));
+			set_buffer_uptodate(bh0);
+			mark_buffer_dirty(bh0);
+			unlock_buffer(bh0);
+			if (!sync_dirty_buffer(bh0))
+				ntfs_warn(sb, "primary boot is updated");
+			put_bh(bh0);
+		}
+
+		kfree(boot2);
+	}
+
 	return 0;
 
 put_inode_out:
@@ -1424,6 +1443,7 @@ out:
 	put_mount_options(sbi->options);
 	put_ntfs(sbi);
 	sb->s_fs_info = NULL;
+	kfree(boot2);
 
 	return err;
 }
