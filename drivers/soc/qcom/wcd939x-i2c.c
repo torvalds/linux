@@ -85,6 +85,138 @@ static struct kobj_attribute wcd_usbss_surge_period_attribute =
 static struct kobj_attribute wcd_usbss_standby_enable_attribute =
 	__ATTR(standby_mode, 0220, NULL, wcd_usbss_standby_store);
 
+/**
+ * wcd_usbss_sbu_switch_orientation() - Determine SBU switch orientation based on switch settings.
+ *
+ * This function is used to determine SBU switch orientation of the WCD USBSS. INVALID_ORIENTATION
+ * in enum wcd_usbss_sbu_switch_orientation represents an error state where none of the defined
+ * orientations can be inferred by the switch settings.
+ *
+ * Return: Returns an enum wcd_usbss_sbu_switch_orientation to client. INVALID_ORIENTATION is
+ *	   returned if the driver is not probed or if undefined switch settings are discovered.
+ */
+enum wcd_usbss_sbu_switch_orientation wcd_usbss_get_sbu_switch_orientation(void)
+{
+	unsigned int read_val = 0;
+
+	/* check if driver is probed and private context is init'ed */
+	if (wcd_usbss_ctxt_ == NULL)
+		return INVALID_ORIENTATION;
+
+	if (!wcd_usbss_ctxt_->regmap)
+		return INVALID_ORIENTATION;
+
+	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SELECT0, &read_val);
+	if ((read_val & 0x3) == 0x1)
+		return GND_SBU1_ORIENTATION_B;
+	if ((read_val & 0x3) == 0x2)
+		return GND_SBU2_ORIENTATION_A;
+	return INVALID_ORIENTATION;
+}
+EXPORT_SYMBOL(wcd_usbss_get_sbu_switch_orientation);
+
+/*
+ * wcd_usbss_set_switch_settings_enable() - Configure a specified WCD USBSS switch.
+ * @switch_type: Switch to be enabled/disabled.
+ * @switch_setting: Enable or disable.
+ *
+ * This function will set or reset a specific bit in the WCD_USBSS_SWITCH_SETTINGS_ENABLE register.
+ * There is a check that switch_type represents a bit in this register. Update the definition of
+ * enum wcd_usbss_switch_type switch_type if the bits in WCD_USBSS_SWITCH_SETTINGS_ENABLE change.
+ *
+ * Return : Returns int on whether the switch configuration happened or not. -ENODEV is returned if
+ *	    the driver is not probed.
+ */
+int wcd_usbss_set_switch_settings_enable(enum wcd_usbss_switch_type switch_type,
+					 enum wcd_usbss_switch_state switch_state)
+{
+	/* check if driver is probed and private context is initialized */
+	if (wcd_usbss_ctxt_ == NULL)
+		return -ENODEV;
+
+	if ((!wcd_usbss_ctxt_->regmap) || (switch_type < MIN_SWITCH_TYPE_NUM) ||
+	    (switch_type > MAX_SWITCH_TYPE_NUM) ||
+	    (switch_state != USBSS_SWITCH_DISABLE && switch_state != USBSS_SWITCH_ENABLE))
+		return -EINVAL;
+
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE,
+			   1 << switch_type, switch_state << switch_type);
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_set_switch_settings_enable);
+
+/*
+ * wcd_usbss_linearizer_rdac_cal_code_select() - Configure the linearizer calibration codes source.
+ *
+ * @source: HW (hardware) or SW (software).
+ *
+ * This function configures the linearizer to use SW or HW as the sources for the calibration codes.
+ *
+ * Return: Returns int on whether the switch configuration happened or not. -ENODEV is returned if
+ *	   the driver is not probed.
+ */
+int wcd_usbss_linearizer_rdac_cal_code_select(enum linearizer_rdac_cal_code_select source)
+{
+	/* check if driver is probed and private context is initialized */
+	if (wcd_usbss_ctxt_ == NULL)
+		return -ENODEV;
+
+	if ((!wcd_usbss_ctxt_->regmap) || (source != LINEARIZER_SOURCE_HW &&
+					   source != LINEARIZER_SOURCE_SW))
+		return -EINVAL;
+
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_FUNCTION_ENABLE, 0x4, source << 2);
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_linearizer_rdac_cal_code_select);
+
+/*
+ * wcd_usbss_set_linearizer_sw_tap() - Configure linearizer audio and ground software tap values.
+ *
+ * @aud_tap: 10-bit tap code for the L and R audio software tap registers.
+ * @gnd_tap: 10-bit tap code for the L and R ground software tap registers.
+ *
+ * This function writes tap values to the left and right tap registers for the audio and ground
+ * FETs. Note that the tap values are 10 bits and cannot exceed 0x3FF, but they can be 0.
+ *
+ * Return: Returns int on whether the switch configuration happened or not. -ENODEV is returned if
+ *	   the driver is not probed.
+ */
+int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
+{
+	uint32_t lsb_mask = 0xFF, msb_shift = 8;
+
+	/* check if driver is probed and private context is initialized */
+	if (wcd_usbss_ctxt_ == NULL)
+		return -ENODEV;
+
+	if ((!wcd_usbss_ctxt_->regmap) || aud_tap > 0x3FF || gnd_tap > 0x3FF)
+		return -EINVAL;
+
+	/* Audio left */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_AUD_L_LSB, 0xFF,
+			   aud_tap & lsb_mask);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_AUD_L_MSB, 0x3,
+			   aud_tap >> msb_shift);
+	/* Audio right */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_AUD_R_LSB, 0xFF,
+			   aud_tap & lsb_mask);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_AUD_R_MSB, 0x3,
+			   aud_tap >> msb_shift);
+	/* Ground left */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_GND_L_LSB, 0xFF,
+			   gnd_tap & lsb_mask);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_GND_L_MSB, 0x3,
+			   gnd_tap >> msb_shift);
+	/* Ground right */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_GND_R_LSB, 0xFF,
+			   gnd_tap & lsb_mask);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_GND_R_MSB, 0x3,
+			   gnd_tap >> msb_shift);
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_set_linearizer_sw_tap);
+
 /*
  * wcd_usbss_is_in_reset_state - routine for using captured state to reset WCD USB-SS after surge
  *
