@@ -92,7 +92,7 @@
 
 #define RETURN_READ_PMEVCNTRN(n) \
 	return read_sysreg(PMEVCNTR##n)
-static unsigned long read_pmevcntrn(int n)
+static inline unsigned long read_pmevcntrn(int n)
 {
 	PMEVN_SWITCH(n, RETURN_READ_PMEVCNTRN);
 	return 0;
@@ -100,14 +100,14 @@ static unsigned long read_pmevcntrn(int n)
 
 #define WRITE_PMEVCNTRN(n) \
 	write_sysreg(val, PMEVCNTR##n)
-static void write_pmevcntrn(int n, unsigned long val)
+static inline void write_pmevcntrn(int n, unsigned long val)
 {
 	PMEVN_SWITCH(n, WRITE_PMEVCNTRN);
 }
 
 #define WRITE_PMEVTYPERN(n) \
 	write_sysreg(val, PMEVTYPER##n)
-static void write_pmevtypern(int n, unsigned long val)
+static inline void write_pmevtypern(int n, unsigned long val)
 {
 	PMEVN_SWITCH(n, WRITE_PMEVTYPERN);
 }
