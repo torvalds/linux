@@ -676,6 +676,7 @@ EXPORT_SYMBOL(rtw89_mac_get_err_status);
 
 int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 {
+	struct rtw89_ser *ser = &rtwdev->ser;
 	u32 halt;
 	int ret = 0;
 
@@ -692,6 +693,11 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 	}
 
 	rtw89_write32(rtwdev, R_AX_HALT_H2C, err);
+
+	if (ser->prehandle_l1 &&
+	    (err == MAC_AX_ERR_L1_DISABLE_EN || err == MAC_AX_ERR_L1_RCVY_EN))
+		return 0;
+
 	rtw89_write32(rtwdev, R_AX_HALT_H2C_CTRL, B_AX_HALT_H2C_TRIGGER);
 
 	return 0;

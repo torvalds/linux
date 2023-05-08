@@ -3946,6 +3946,7 @@ enum rtw89_ser_rcvy_step {
 struct rtw89_ser {
 	u8 state;
 	u8 alarm_event;
+	bool prehandle_l1;
 
 	struct work_struct ser_hdl_work;
 	struct delayed_work ser_alarm_work;
