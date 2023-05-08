@@ -679,6 +679,7 @@ static int omap_8250_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = port->private_data;
+	struct uart_8250_dma *dma = &priv->omap8250_dma;
 	int ret;
 
 	if (priv->wakeirq) {
@@ -697,16 +698,16 @@ static int omap_8250_startup(struct uart_port *port)
 	up->msr_saved_flags = 0;
 
 	/* Disable DMA for console UART */
-	if (uart_console(port))
-		up->dma = NULL;
-
-	if (up->dma) {
+	if (dma->fn && !uart_console(port)) {
+		up->dma = &priv->omap8250_dma;
 		ret = serial8250_request_dma(up);
 		if (ret) {
 			dev_warn_ratelimited(port->dev,
 					     "failed to request DMA\n");
 			up->dma = NULL;
 		}
+	} else {
+		up->dma = NULL;
 	}
 
 	up->ier = UART_IER_RLSI | UART_IER_RDI;
@@ -752,8 +753,8 @@ static void omap_8250_shutdown(struct uart_port *port)
 	disable_irq_nosync(up->port.irq);
 	dev_pm_clear_wake_irq(port->dev);
 
-	if (up->dma)
-		serial8250_release_dma(up);
+	serial8250_release_dma(up);
+	up->dma = NULL;
 
 	/*
 	 * Disable break condition and FIFOs
@@ -1499,24 +1500,24 @@ static int omap8250_probe(struct platform_device *pdev)
 	ret = of_property_count_strings(np, "dma-names");
 	if (ret == 2) {
 		struct omap8250_dma_params *dma_params = NULL;
+		struct uart_8250_dma *dma = &priv->omap8250_dma;
 
-		up.dma = &priv->omap8250_dma;
-		up.dma->fn = the_no_dma_filter_fn;
-		up.dma->tx_dma = omap_8250_tx_dma;
-		up.dma->rx_dma = omap_8250_rx_dma;
+		dma->fn = the_no_dma_filter_fn;
+		dma->tx_dma = omap_8250_tx_dma;
+		dma->rx_dma = omap_8250_rx_dma;
 		if (pdata)
 			dma_params = pdata->dma_params;
 
 		if (dma_params) {
-			up.dma->rx_size = dma_params->rx_size;
-			up.dma->rxconf.src_maxburst = dma_params->rx_trigger;
-			up.dma->txconf.dst_maxburst = dma_params->tx_trigger;
+			dma->rx_size = dma_params->rx_size;
+			dma->rxconf.src_maxburst = dma_params->rx_trigger;
+			dma->txconf.dst_maxburst = dma_params->tx_trigger;
 			priv->rx_trigger = dma_params->rx_trigger;
 			priv->tx_trigger = dma_params->tx_trigger;
 		} else {
-			up.dma->rx_size = RX_TRIGGER;
-			up.dma->rxconf.src_maxburst = RX_TRIGGER;
-			up.dma->txconf.dst_maxburst = TX_TRIGGER;
+			dma->rx_size = RX_TRIGGER;
+			dma->rxconf.src_maxburst = RX_TRIGGER;
+			dma->txconf.dst_maxburst = TX_TRIGGER;
 		}
 	}
 #endif
@@ -1550,12 +1551,15 @@ err:
 static int omap8250_remove(struct platform_device *pdev)
 {
 	struct omap8250_priv *priv = platform_get_drvdata(pdev);
+	struct uart_8250_port *up;
 	int err;
 
 	err = pm_runtime_resume_and_get(&pdev->dev);
 	if (err)
 		return err;
 
+	up = serial8250_get_port(priv->line);
+	omap_8250_shutdown(&up->port);
 	serial8250_unregister_port(priv->line);
 	priv->line = -ENODEV;
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
