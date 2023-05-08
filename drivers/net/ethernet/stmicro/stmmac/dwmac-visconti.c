@@ -257,7 +257,7 @@ remove_config:
 	return ret;
 }
 
-static int visconti_eth_dwmac_remove(struct platform_device *pdev)
+static void visconti_eth_dwmac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -267,8 +267,6 @@ static int visconti_eth_dwmac_remove(struct platform_device *pdev)
 	visconti_eth_clock_remove(pdev);
 
 	stmmac_remove_config_dt(pdev, priv->plat);
-
-	return 0;
 }
 
 static const struct of_device_id visconti_eth_dwmac_match[] = {
@@ -279,7 +277,7 @@ MODULE_DEVICE_TABLE(of, visconti_eth_dwmac_match);
 
 static struct platform_driver visconti_eth_dwmac_driver = {
 	.probe  = visconti_eth_dwmac_probe,
-	.remove = visconti_eth_dwmac_remove,
+	.remove_new = visconti_eth_dwmac_remove,
 	.driver = {
 		.name           = "visconti-eth-dwmac",
 		.of_match_table = visconti_eth_dwmac_match,
