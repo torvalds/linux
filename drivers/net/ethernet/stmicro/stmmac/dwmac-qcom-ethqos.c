@@ -667,11 +667,7 @@ err_mem:
 
 static int qcom_ethqos_remove(struct platform_device *pdev)
 {
-	struct qcom_ethqos *ethqos;
-
-	ethqos = get_stmmac_bsp_priv(&pdev->dev);
-	if (!ethqos)
-		return -ENODEV;
+	struct qcom_ethqos *ethqos = get_stmmac_bsp_priv(&pdev->dev);
 
 	stmmac_pltfr_remove(pdev);
 	ethqos_clks_config(ethqos, false);
