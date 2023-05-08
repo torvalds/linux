@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "acpi.h"
 #include "debug.h"
 #include "ps.h"
 
@@ -281,6 +282,56 @@ do { \
 		    __r->txpwr_regd[RTW89_BAND_5G], \
 		    __r->txpwr_regd[RTW89_BAND_6G]); \
 } while (0)
+
+static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
+				   struct wiphy *wiphy)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool regd_allow_unii_4 = chip->support_unii4;
+	int ret;
+	u8 val;
+
+	if (!chip->support_unii4)
+		goto bottom;
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_59G_EN, &val);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval unii 4: %d\n", ret);
+		goto bottom;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD,
+		    "acpi: eval if allow unii 4: %d\n", val);
+
+	switch (val) {
+	case 0:
+		regd_allow_unii_4 = false;
+		break;
+	case 1:
+		regd_allow_unii_4 = true;
+		break;
+	default:
+		break;
+	}
+
+bottom:
+	rtw89_debug(rtwdev, RTW89_DBG_REGD, "regd: allow unii 4: %d\n",
+		    regd_allow_unii_4);
+}
+
+int rtw89_regd_setup(struct rtw89_dev *rtwdev)
+{
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+
+	if (!wiphy)
+		return -EINVAL;
+
+	rtw89_regd_setup_unii4(rtwdev, wiphy);
+
+	wiphy->reg_notifier = rtw89_regd_notifier;
+	return 0;
+}
 
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		    void (*reg_notifier)(struct wiphy *wiphy,

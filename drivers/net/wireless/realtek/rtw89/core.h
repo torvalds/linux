@@ -3179,6 +3179,7 @@ struct rtw89_chip_info {
 	u8 support_chanctx_num;
 	u8 support_bands;
 	bool support_bw160;
+	bool support_unii4;
 	bool support_ul_tb_ctrl;
 	bool hw_sec_hdr;
 	u8 rf_path_num;
@@ -5044,6 +5045,7 @@ int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
 bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate);
+int rtw89_regd_setup(struct rtw89_dev *rtwdev);
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		    void (*reg_notifier)(struct wiphy *wiphy, struct regulatory_request *request));
 void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
