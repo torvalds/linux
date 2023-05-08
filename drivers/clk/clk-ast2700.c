@@ -845,6 +845,11 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 					     CLK_IS_CRITICAL, clk_base + AST2700_CPU_CLK_STOP,
 					     0, 0, &ast2700_clk_lock);
 
+	clks[AST2700_CPU_CLK_GATE_ECLK] =
+		ast2700_clk_hw_register_gate(NULL, "eclk", NULL,
+					     0, clk_base + AST2700_CPU_CLK_STOP,
+					     1, 0, &ast2700_clk_lock);
+
 	clks[AST2700_CPU_CLK_GATE_GCLK] =
 		ast2700_clk_hw_register_gate(NULL, "gclk", NULL,
 					     CLK_IS_CRITICAL, clk_base + AST2700_CPU_CLK_STOP,
