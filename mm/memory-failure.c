@@ -123,7 +123,6 @@ const struct attribute_group memory_failure_attr_group = {
 	.attrs = memory_failure_attr,
 };
 
-#ifdef CONFIG_SYSCTL
 static struct ctl_table memory_failure_table[] = {
 	{
 		.procname	= "memory_failure_early_kill",
@@ -145,14 +144,6 @@ static struct ctl_table memory_failure_table[] = {
 	},
 	{ }
 };
-
-static int __init memory_failure_sysctl_init(void)
-{
-	register_sysctl_init("vm", memory_failure_table);
-	return 0;
-}
-late_initcall(memory_failure_sysctl_init);
-#endif /* CONFIG_SYSCTL */
 
 /*
  * Return values:
@@ -2440,6 +2431,8 @@ static int __init memory_failure_init(void)
 		INIT_KFIFO(mf_cpu->fifo);
 		INIT_WORK(&mf_cpu->work, memory_failure_work_func);
 	}
+
+	register_sysctl_init("vm", memory_failure_table);
 
 	return 0;
 }
