@@ -184,27 +184,23 @@ static struct omap_usb_config nokia770_usb_config __initdata = {
 
 #if IS_ENABLED(CONFIG_MMC_OMAP)
 
-#define NOKIA770_GPIO_MMC_POWER		41
-#define NOKIA770_GPIO_MMC_SWITCH	23
-
-static int nokia770_mmc_set_power(struct device *dev, int slot, int power_on,
-				int vdd)
-{
-	gpio_set_value(NOKIA770_GPIO_MMC_POWER, power_on);
-	return 0;
-}
-
-static int nokia770_mmc_get_cover_state(struct device *dev, int slot)
-{
-	return gpio_get_value(NOKIA770_GPIO_MMC_SWITCH);
-}
+static struct gpiod_lookup_table nokia770_mmc_gpio_table = {
+	.dev_id = "mmci-omap.1",
+	.table = {
+		/* Slot index 0, VSD power, GPIO 41 */
+		GPIO_LOOKUP_IDX("gpio-32-47", 9,
+				"vsd", 0, GPIO_ACTIVE_HIGH),
+		/* Slot index 0, switch, GPIO 23 */
+		GPIO_LOOKUP_IDX("gpio-16-31", 7,
+				"cover", 0, GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
 
 static struct omap_mmc_platform_data nokia770_mmc2_data = {
 	.nr_slots                       = 1,
 	.max_freq                       = 12000000,
 	.slots[0]       = {
-		.set_power		= nokia770_mmc_set_power,
-		.get_cover_state	= nokia770_mmc_get_cover_state,
 		.ocr_mask               = MMC_VDD_32_33|MMC_VDD_33_34,
 		.name                   = "mmcblk",
 	},
@@ -214,20 +210,7 @@ static struct omap_mmc_platform_data *nokia770_mmc_data[OMAP16XX_NR_MMC];
 
 static void __init nokia770_mmc_init(void)
 {
-	int ret;
-
-	ret = gpio_request(NOKIA770_GPIO_MMC_POWER, "MMC power");
-	if (ret < 0)
-		return;
-	gpio_direction_output(NOKIA770_GPIO_MMC_POWER, 0);
-
-	ret = gpio_request(NOKIA770_GPIO_MMC_SWITCH, "MMC cover");
-	if (ret < 0) {
-		gpio_free(NOKIA770_GPIO_MMC_POWER);
-		return;
-	}
-	gpio_direction_input(NOKIA770_GPIO_MMC_SWITCH);
-
+	gpiod_add_lookup_table(&nokia770_mmc_gpio_table);
 	/* Only the second MMC controller is used */
 	nokia770_mmc_data[1] = &nokia770_mmc2_data;
 	omap1_init_mmc(nokia770_mmc_data, OMAP16XX_NR_MMC);
