@@ -111,6 +111,19 @@ static void RGB565_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 	out_pixel->b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_rb_ratio));
 }
 
+/**
+ * vkms_compose_row - compose a single row of a plane
+ * @stage_buffer: output line with the composed pixels
+ * @plane: state of the plane that is being composed
+ * @y: y coordinate of the row
+ *
+ * This function composes a single row of a plane. It gets the source pixels
+ * through the y coordinate (see get_packed_src_addr()) and goes linearly
+ * through the source pixel, reading the pixels and converting it to
+ * ARGB16161616 (see the pixel_read() callback). For rotate-90 and rotate-270,
+ * the source pixels are not traversed linearly. The source pixels are queried
+ * on each iteration in order to traverse the pixels vertically.
+ */
 void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state *plane, int y)
 {
 	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
