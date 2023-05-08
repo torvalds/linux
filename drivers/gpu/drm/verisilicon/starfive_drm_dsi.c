@@ -748,16 +748,23 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 					 bpp, DSI_HFP_FRAME_OVERHEAD);
 	//dpi to dsi transfer can not match , reconfig those parms for waveshare
 	//for taobao old mipi panel .should change here : hsa 36 , hbp 108, hfp 288
-	if (mode->vdisplay == 1280) {
-		dsi_cfg->hsa = 45-DSI_HSA_FRAME_OVERHEAD;
-		dsi_cfg->hbp = 134-DSI_HBP_FRAME_OVERHEAD;
-		dsi_cfg->hfp = 356-DSI_HFP_FRAME_OVERHEAD;
-	}
-	if (mode->vdisplay == 480) {
+	if (output->dev->channel == 0) {//seeed
 		dsi_cfg->hsa = 117-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 115-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 209-DSI_HFP_FRAME_OVERHEAD;
+	} else if (output->dev->channel == 1){//raxda 8 inch config
+		dsi_cfg->hsa = 45-DSI_HSA_FRAME_OVERHEAD;
+		dsi_cfg->hbp = 134-DSI_HBP_FRAME_OVERHEAD;
+		dsi_cfg->hfp = 356-DSI_HFP_FRAME_OVERHEAD;
+
 	}
+	else if (output->dev->channel == 2){//raxda 10 inch config
+		dsi_cfg->hsa = 405-DSI_HSA_FRAME_OVERHEAD;
+		dsi_cfg->hbp = 403-DSI_HBP_FRAME_OVERHEAD;
+		dsi_cfg->hfp = 396-DSI_HFP_FRAME_OVERHEAD;
+
+	}
+
 	return 0;
 }
 
@@ -799,9 +806,6 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	/* data rate in bytes/sec is not an integer, refuse the mode. */
 	dpi_htotal = mode_valid_check ? mode->htotal : mode->crtc_htotal;
 
-	/* data rate was in bytes/sec, convert to bits/sec. */
-	phy_cfg->hs_clk_rate = output->phy_opts.mipi_dphy.hs_clk_rate;
-
 	dsi_hfp_ext = adj_dsi_htotal - dsi_htotal;
 	dsi_cfg->hfp += dsi_hfp_ext;
 
@@ -838,10 +842,14 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 		return ret;
 
 	//phy_cfg->hs_clk_rate = output->phy_opts.mipi_dphy.hs_clk_rate;
-	if (mode->vdisplay == 480)
-		phy_cfg->hs_clk_rate = 750000000;
-	else if (mode->vdisplay == 1280)
-		phy_cfg->hs_clk_rate = 490000000;
+
+	if (output->dev->channel == 0) {
+		phy_cfg->hs_clk_rate = 750000000;//seeed
+	} else if (output->dev->channel == 1){
+		phy_cfg->hs_clk_rate = 490000000;//8 inch
+	} else if (output->dev->channel == 2){
+		phy_cfg->hs_clk_rate = 980000000;//10 inch
+	}
 
 	dsi_cfg->htotal = dsi_cfg->hsa + DSI_HSA_FRAME_OVERHEAD +
 			  			dsi_cfg->hbp + DSI_HBP_FRAME_OVERHEAD +
@@ -872,13 +880,13 @@ static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	struct cdns_dsi_output *output = &dsi->output;
 
-	dev_info(dsi->base.dev, "===>cdns_dsi_bridge_attach begin\n");
+	dev_info(dsi->base.dev, "cdns_dsi_bridge_attach begin\n");
 	if (!drm_core_check_feature(bridge->dev, DRIVER_ATOMIC)) {
 		dev_err(dsi->base.dev,
 			"cdns-dsi driver is only compatible with DRM devices supporting atomic updates");
 		return -EOPNOTSUPP;
 	}
-	dev_info(dsi->base.dev, "===>cdns_dsi_bridge_attach end\n");
+	dev_info(dsi->base.dev, "cdns_dsi_bridge_attach end\n");
 	return drm_bridge_attach(bridge->encoder, output->bridge, bridge,
 				 flags);
 }
@@ -891,8 +899,7 @@ cdns_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	struct cdns_dsi_output *output = &dsi->output;
-	struct cdns_dsi_cfg dsi_cfg;
-	int bpp, ret;
+	int bpp;
 
 	/*
 	 * VFP_DSI should be less than VFP_DPI and VFP_DSI should be at
@@ -909,10 +916,6 @@ cdns_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	bpp = mipi_dsi_pixel_format_to_bpp(output->dev->format);
 	if ((mode->hdisplay * bpp) % 32)
 		return MODE_H_ILLEGAL;
-
-	ret = cdns_dsi_check_conf(dsi, mode, &dsi_cfg, true);
-	//if (ret)
-	//	return MODE_BAD;
 
 	return MODE_OK;
 }
@@ -957,7 +960,6 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	u32 val;
 
-	dsi->link_initialized = false;
 	val = readl(dsi->regs + MCTL_MAIN_DATA_CTL);
 	val &= ~(IF_VID_SELECT_MASK | IF_VID_MODE | VID_EN | HOST_EOT_GEN |
 		 DISP_EOT_GEN);
@@ -966,25 +968,15 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	val = readl(dsi->regs + MCTL_MAIN_EN) & ~IF_EN(input->id);
 	writel(val, dsi->regs + MCTL_MAIN_EN);
 	pm_runtime_put(dsi->base.dev);
-	sys_mipi_dsi_set_ppi_txbyte_hs(0, dsi);
-	phy_power_off(dsi->dphy);
-	phy_exit(dsi->dphy);
-
 }
 
 static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 {
 	struct cdns_dsi_output *output = &dsi->output;
-	//u32 dpi_fifo_int = 0;
 	int ret;
-	/*
-	 * Power all internal DPHY blocks down and maintain their reset line
-	 * asserted before changing the DPHY config.
-	 */
-	//writel(DPHY_CMN_PSO | DPHY_PLL_PSO | DPHY_ALL_D_PDN | DPHY_C_PDN |
-	//       DPHY_CMN_PDN | DPHY_PLL_PDN,
-	//       dsi->regs + MCTL_DPHY_CFG0);
-	// Commented by Tony Ren: this is not appliable for our case as it is intended for its own dphy
+
+	if (dsi->link_initialized)
+		return;
 
 	phy_init(dsi->dphy);
 	phy_set_mode(dsi->dphy, PHY_MODE_MIPI_DPHY);
@@ -992,21 +984,7 @@ static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 	phy_power_on(dsi->dphy);
 
 	ret = sys_mipi_dsi_set_ppi_txbyte_hs(1, dsi);
-#if 0
-	writel(PLL_LOCKED, dsi->regs + MCTL_MAIN_STS_CLR);
-	writel(DPHY_CMN_PSO | DPHY_ALL_D_PDN | DPHY_C_PDN | DPHY_CMN_PDN,
-	       dsi->regs + MCTL_DPHY_CFG0);
-	mdelay(100);
-	/* De-assert data and clock reset lines. */
-	writel(DPHY_CMN_PSO | DPHY_ALL_D_PDN | DPHY_C_PDN | DPHY_CMN_PDN |
-	       DPHY_D_RSTB(output->dev->lanes) | DPHY_C_RSTB,
-	       dsi->regs + MCTL_DPHY_CFG0);
-#endif
-/*
-	dpi_fifo_int = readl(dsi->regs + DPI_IRQ_CLR);
-	if (dpi_fifo_int)
-		writel(1, dsi->regs + DPI_IRQ_CLR);
-*/
+
 }
 
 static void cdns_dsi_init_link(struct cdns_dsi *dsi)
@@ -1018,8 +996,8 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 
 	if (dsi->link_initialized)
 		return;
+	cdns_dsi_hs_init(dsi);
 
-	//val = 0;
 	val = WAIT_BURST_TIME(0xf);
 	for (i = 1; i < output->dev->lanes; i++)
 		val |= DATA_LANE_EN(i);
@@ -1036,7 +1014,11 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 
 	writel(LINK_EN, dsi->regs + MCTL_MAIN_DATA_CTL);
 
-	val = CLK_LANE_EN | CLK_FORCE_STOP ; // | PLL_START; unused bit
+	if (output->dev->mode_flags & MIPI_DSI_MODE_LPM){
+		val = CLK_LANE_EN | CLK_FORCE_STOP;
+	} else{
+		val = CLK_LANE_EN;
+	}
 	for (i = 0; i < output->dev->lanes; i++)
 		val |= DATA_LANE_START(i);
 
@@ -1095,6 +1077,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	int nlanes;
 	int vrefresh;
 	u32 div;
+	//enable_irq(dsi->irq);
 
 	if (WARN_ON(pm_runtime_get_sync(dsi->base.dev) < 0))
 		return;
@@ -1104,7 +1087,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 
 	//WARN_ON_ONCE(cdns_dsi_check_conf(dsi, mode, &dsi_cfg, false));//original //7110 mode illegal,need confirm //cannot disable
 	cdns_dsi_check_conf(dsi, mode, &dsi_cfg, false);
-	cdns_dsi_hs_init(dsi);
+	//cdns_dsi_hs_init(dsi);
 	cdns_dsi_init_link(dsi);
 
 	if (output->panel)
@@ -1225,7 +1208,6 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 
 	tmp = readl(dsi->regs + MCTL_MAIN_EN) | IF_EN(input->id);
 	writel(tmp, dsi->regs + MCTL_MAIN_EN);
-
 }
 
 static const struct drm_bridge_funcs cdns_dsi_bridge_funcs = {
@@ -1251,6 +1233,7 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	 * same host. In order to support that we'd need the DRM bridge
 	 * framework to allow dynamic reconfiguration of the bridge chain.
 	 */
+
 	if (output->dev)
 		return -EBUSY;
 
@@ -1266,7 +1249,6 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	 */
 	np = of_graph_get_remote_node(dsi->base.dev->of_node, DSI_OUTPUT_PORT,
 				      dev->channel);
-
 	if (!np)
 		np = of_node_get(dev->dev.of_node);
 
@@ -1292,12 +1274,15 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	output->dev = dev;
 	output->bridge = bridge;
 	output->panel = panel;
+	output->phy_opts.mipi_dphy.hs_clk_rate = dev->hs_rate;
 
 	/*
 	 * The DSI output has been properly configured, we can now safely
 	 * register the input to the bridge framework so that it can take place
 	 * in a display pipeline.
 	 */
+	 
+	dev_info(host->dev, "hs_rate.%ld, channel = %d\n",dev->hs_rate,dev->channel);
 	drm_bridge_add(&input->bridge);
 	return 0;
 }
@@ -1312,6 +1297,7 @@ static int cdns_dsi_detach(struct mipi_dsi_host *host,
 	drm_bridge_remove(&input->bridge);
 	if (output->panel)
 		drm_panel_bridge_remove(output->bridge);
+	output->dev = NULL;
 
 	return 0;
 }
@@ -1322,6 +1308,9 @@ static irqreturn_t cdns_dsi_interrupt(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	u32 flag, ctl;
 
+    if(dsi->link_initialized == false)
+		ret = IRQ_HANDLED;
+		
 	flag = readl(dsi->regs + DIRECT_CMD_STS_FLAG);
 	if (flag) {
 		ctl = readl(dsi->regs + DIRECT_CMD_STS_CTL);
@@ -1334,8 +1323,6 @@ static irqreturn_t cdns_dsi_interrupt(int irq, void *data)
 	return ret;
 }
 
-
-
 static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 				 const struct mipi_dsi_msg *msg)
 {
@@ -1347,7 +1334,7 @@ static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 	ret = pm_runtime_resume_and_get(host->dev);
 	if (ret < 0)
 		return ret;
-
+	
 	cdns_dsi_init_link(dsi);
 
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -1375,7 +1362,7 @@ static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 		goto out;
 	}
 
-	cmd = CMD_SIZE(tx_len) | CMD_VCHAN_ID(msg->channel) |
+	cmd = CMD_SIZE(tx_len) | CMD_VCHAN_ID(0) |
 		  CMD_DATATYPE(msg->type);
 
 	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
@@ -1482,8 +1469,8 @@ static int cdns_dsi_runtime_resume(struct device *dev)
 		dev_err(dsi->base.dev, "failed to enable clock\n");
 		return ret;
 	}
-	enable_irq(dsi->irq);
 
+	enable_irq(dsi->irq);
 	ret = cdns_dsi_resets_deassert(dsi, dsi->base.dev);
 	if (ret < 0) {
 		dev_err(dsi->base.dev, "failed to deassert reset\n");
@@ -1497,6 +1484,14 @@ static int cdns_dsi_runtime_suspend(struct device *dev)
 {
 	struct cdns_dsi *dsi = dev_get_drvdata(dev);
 	int ret;
+	disable_irq(dsi->irq);
+
+	if(dsi->link_initialized == true)
+	{
+		sys_mipi_dsi_set_ppi_txbyte_hs(0, dsi);
+		phy_power_off(dsi->dphy);
+		phy_exit(dsi->dphy);
+	}
 
 	ret = cdns_dsi_resets_assert(dsi, dsi->base.dev);
 	if (ret < 0)
@@ -1505,7 +1500,7 @@ static int cdns_dsi_runtime_suspend(struct device *dev)
 	cdns_dsi_clock_disable(dsi);
 
 	dsi->link_initialized = false;
-	disable_irq(dsi->irq);
+
 
 	return 0;
 }
