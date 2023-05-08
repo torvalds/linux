@@ -57,6 +57,7 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/nls.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
 
@@ -441,6 +442,103 @@ static int ntfs_fs_reconfigure(struct fs_context *fc)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+static struct proc_dir_entry *proc_info_root;
+
+/*
+ * ntfs3_volinfo:
+ *
+ * The content of /proc/fs/ntfs3/<dev>/volinfo
+ *
+ * ntfs3.1
+ * cluster size
+ * number of clusters
+*/
+static int ntfs3_volinfo(struct seq_file *m, void *o)
+{
+	struct super_block *sb = m->private;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	seq_printf(m, "ntfs%d.%d\n%u\n%zu\n", sbi->volume.major_ver,
+		   sbi->volume.minor_ver, sbi->cluster_size,
+		   sbi->used.bitmap.nbits);
+
+	return 0;
+}
+
+static int ntfs3_volinfo_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ntfs3_volinfo, pde_data(inode));
+}
+
+/* read /proc/fs/ntfs3/<dev>/label */
+static int ntfs3_label_show(struct seq_file *m, void *o)
+{
+	struct super_block *sb = m->private;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	seq_printf(m, "%s\n", sbi->volume.label);
+
+	return 0;
+}
+
+/* write /proc/fs/ntfs3/<dev>/label */
+static ssize_t ntfs3_label_write(struct file *file, const char __user *buffer,
+				 size_t count, loff_t *ppos)
+{
+	int err;
+	struct super_block *sb = pde_data(file_inode(file));
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+	ssize_t ret = count;
+	u8 *label = kmalloc(count, GFP_NOFS);
+
+	if (!label)
+		return -ENOMEM;
+
+	if (copy_from_user(label, buffer, ret)) {
+		ret = -EFAULT;
+		goto out;
+	}
+	while (ret > 0 && label[ret - 1] == '\n')
+		ret -= 1;
+
+	err = ntfs_set_label(sbi, label, ret);
+
+	if (err < 0) {
+		ntfs_err(sb, "failed (%d) to write label", err);
+		ret = err;
+		goto out;
+	}
+
+	*ppos += count;
+	ret = count;
+out:
+	kfree(label);
+	return ret;
+}
+
+static int ntfs3_label_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ntfs3_label_show, pde_data(inode));
+}
+
+static const struct proc_ops ntfs3_volinfo_fops = {
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_open = ntfs3_volinfo_open,
+};
+
+static const struct proc_ops ntfs3_label_fops = {
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_open = ntfs3_label_open,
+	.proc_write = ntfs3_label_write,
+};
+
+#endif
+
 static struct kmem_cache *ntfs_inode_cachep;
 
 static struct inode *ntfs_alloc_inode(struct super_block *sb)
@@ -514,6 +612,16 @@ static noinline void put_ntfs(struct ntfs_sb_info *sbi)
 static void ntfs_put_super(struct super_block *sb)
 {
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+#ifdef CONFIG_PROC_FS
+	// Remove /proc/fs/ntfs3/..
+	if (sbi->procdir) {
+		remove_proc_entry("label", sbi->procdir);
+		remove_proc_entry("volinfo", sbi->procdir);
+		remove_proc_entry(sb->s_id, proc_info_root);
+		sbi->procdir = NULL;
+	}
+#endif
 
 	/* Mark rw ntfs as clear, if possible. */
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
@@ -1436,6 +1544,20 @@ load_root:
 		kfree(boot2);
 	}
 
+#ifdef CONFIG_PROC_FS
+	/* Create /proc/fs/ntfs3/.. */
+	if (proc_info_root) {
+		struct proc_dir_entry *e = proc_mkdir(sb->s_id, proc_info_root);
+		if (e) {
+			proc_create_data("volinfo", S_IFREG | S_IRUGO, e,
+					 &ntfs3_volinfo_fops, sb);
+			proc_create_data("label", S_IFREG | S_IRUGO | S_IWUGO,
+					 e, &ntfs3_label_fops, sb);
+			sbi->procdir = e;
+		}
+	}
+#endif
+
 	return 0;
 
 put_inode_out:
@@ -1630,6 +1752,12 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
+
+#ifdef CONFIG_PROC_FS
+	/* Create "/proc/fs/ntfs3" */
+	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
+#endif
+
 	err = ntfs3_init_bitmap();
 	if (err)
 		return err;
@@ -1661,6 +1789,12 @@ static void __exit exit_ntfs_fs(void)
 	kmem_cache_destroy(ntfs_inode_cachep);
 	unregister_filesystem(&ntfs_fs_type);
 	ntfs3_exit_bitmap();
+
+#ifdef CONFIG_PROC_FS
+	if (proc_info_root)
+		remove_proc_entry("fs/ntfs3", NULL);
+#endif
+
 }
 
 MODULE_LICENSE("GPL");

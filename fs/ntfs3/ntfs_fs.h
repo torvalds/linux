@@ -276,7 +276,7 @@ struct ntfs_sb_info {
 		__le16 flags; // Cached current VOLUME_INFO::flags, VOLUME_FLAG_DIRTY.
 		u8 major_ver;
 		u8 minor_ver;
-		char label[65];
+		char label[256];
 		bool real_dirty; // Real fs state.
 	} volume;
 
@@ -286,7 +286,6 @@ struct ntfs_sb_info {
 		struct ntfs_inode *ni;
 		u32 next_id;
 		u64 next_off;
-
 		__le32 def_security_id;
 	} security;
 
@@ -314,6 +313,7 @@ struct ntfs_sb_info {
 
 	struct ntfs_mount_options *options;
 	struct ratelimit_state msg_ratelimit;
+	struct proc_dir_entry *procdir;
 };
 
 /* One MFT record(usually 1024 bytes), consists of attributes. */
@@ -651,6 +651,7 @@ void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim);
 int run_deallocate(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		   bool trim);
 bool valid_windows_name(struct ntfs_sb_info *sbi, const struct le_str *name);
+int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len);
 
 /* Globals from index.c */
 int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit);

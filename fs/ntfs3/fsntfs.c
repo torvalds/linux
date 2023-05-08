@@ -9,6 +9,7 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -2618,4 +2619,61 @@ bool valid_windows_name(struct ntfs_sb_info *sbi, const struct le_str *fname)
 {
 	return !name_has_forbidden_chars(fname) &&
 	       !is_reserved_name(sbi, fname);
+}
+
+/*
+ * ntfs_set_label - updates current ntfs label.
+ */
+int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
+{
+	int err;
+	struct ATTRIB *attr;
+	struct ntfs_inode *ni = sbi->volume.ni;
+	const u8 max_ulen = 0x80; /* TODO: use attrdef to get maximum length */
+	/* Allocate PATH_MAX bytes. */
+	struct cpu_str *uni = __getname();
+
+	if (!uni)
+		return -ENOMEM;
+
+	err = ntfs_nls_to_utf16(sbi, label, len, uni, (PATH_MAX - 2) / 2,
+				UTF16_LITTLE_ENDIAN);
+	if (err < 0)
+		goto out;
+
+	if (uni->len > max_ulen) {
+		ntfs_warn(sbi->sb, "new label is too long");
+		err = -EFBIG;
+		goto out;
+	}
+
+	ni_lock(ni);
+
+	/* Ignore any errors. */
+	ni_remove_attr(ni, ATTR_LABEL, NULL, 0, false, NULL);
+
+	err = ni_insert_resident(ni, uni->len * sizeof(u16), ATTR_LABEL, NULL,
+				 0, &attr, NULL, NULL);
+	if (err < 0)
+		goto unlock_out;
+
+	/* write new label in on-disk struct. */
+	memcpy(resident_data(attr), uni->name, uni->len * sizeof(u16));
+
+	/* update cached value of current label. */
+	if (len >= ARRAY_SIZE(sbi->volume.label))
+		len = ARRAY_SIZE(sbi->volume.label) - 1;
+	memcpy(sbi->volume.label, label, len);
+	sbi->volume.label[len] = 0;
+	mark_inode_dirty_sync(&ni->vfs_inode);
+
+unlock_out:
+	ni_unlock(ni);
+
+	if (!err)
+		err = _ni_write_inode(&ni->vfs_inode, 0);
+
+out:
+	__putname(uni);
+	return err;
 }
