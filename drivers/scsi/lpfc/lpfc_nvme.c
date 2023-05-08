@@ -1893,13 +1893,30 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 			 pnvme_rport->port_id,
 			 pnvme_fcreq);
 
+	lpfc_nbuf = freqpriv->nvme_buf;
+	if (!lpfc_nbuf) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6140 NVME IO req has no matching lpfc nvme "
+				 "io buffer.  Skipping abort req.\n");
+		return;
+	} else if (!lpfc_nbuf->nvmeCmd) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "6141 lpfc NVME IO req has no nvme_fcreq "
+				 "io buffer.  Skipping abort req.\n");
+		return;
+	}
+
+	/* Guard against IO completion being called at same time */
+	spin_lock_irqsave(&lpfc_nbuf->buf_lock, flags);
+
 	/* If the hba is getting reset, this flag is set.  It is
 	 * cleared when the reset is complete and rings reestablished.
 	 */
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock(&phba->hbalock);
 	/* driver queued commands are in process of being flushed */
 	if (phba->hba_flag & HBA_IOQ_FLUSH) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&lpfc_nbuf->buf_lock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6139 Driver in reset cleanup - flushing "
 				 "NVME Req now.  hba_flag x%x\n",
@@ -1907,24 +1924,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
-	lpfc_nbuf = freqpriv->nvme_buf;
-	if (!lpfc_nbuf) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "6140 NVME IO req has no matching lpfc nvme "
-				 "io buffer.  Skipping abort req.\n");
-		return;
-	} else if (!lpfc_nbuf->nvmeCmd) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "6141 lpfc NVME IO req has no nvme_fcreq "
-				 "io buffer.  Skipping abort req.\n");
-		return;
-	}
 	nvmereq_wqe = &lpfc_nbuf->cur_iocbq;
-
-	/* Guard against IO completion being called at same time */
-	spin_lock(&lpfc_nbuf->buf_lock);
 
 	/*
 	 * The lpfc_nbuf and the mapped nvme_fcreq in the driver's
@@ -1971,8 +1971,8 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	ret_val = lpfc_sli4_issue_abort_iotag(phba, nvmereq_wqe,
 					      lpfc_nvme_abort_fcreq_cmpl);
 
-	spin_unlock(&lpfc_nbuf->buf_lock);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_nbuf->buf_lock, flags);
 
 	/* Make sure HBA is alive */
 	lpfc_issue_hb_tmo(phba);
@@ -1998,8 +1998,8 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	return;
 
 out_unlock:
-	spin_unlock(&lpfc_nbuf->buf_lock);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_nbuf->buf_lock, flags);
 	return;
 }
 
