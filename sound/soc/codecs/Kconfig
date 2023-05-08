@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AW88395
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
+	imply SND_SOC_CHV3_CODEC
 	imply SND_SOC_CQ0093VC
 	imply SND_SOC_CROS_EC_CODEC
 	imply SND_SOC_CS35L32
@@ -643,6 +644,13 @@ config SND_SOC_BD28623
 
 config SND_SOC_BT_SCO
 	tristate "Dummy BT SCO codec driver"
+
+config SND_SOC_CHV3_CODEC
+	tristate "Google Chameleon v3 codec driver"
+	help
+	  Enable support for the Google Chameleon v3 audio codec.
+	  This codec does not have a control interface, it always outputs
+	  8 channel S32_LE audio.
 
 config SND_SOC_CPCAP
 	tristate "Motorola CPCAP codec"
