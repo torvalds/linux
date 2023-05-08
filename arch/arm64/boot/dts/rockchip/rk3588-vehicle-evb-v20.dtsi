@@ -153,6 +153,27 @@
 	status = "okay";
 };
 
+&gmac0 {
+	/* Use rgmii-rxid mode to disable rx delay inside Soc */
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+	snps,reset-gpio = <&gpio2 RK_PC5 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+	pinctrl-names = "phydisb";
+	pinctrl-0 = <&gmac0_miim
+		     &gmac0_tx_bus2
+		     &gmac0_rx_bus2
+		     &gmac0_rgmii_clk
+		     &gmac0_rgmii_bus
+		     &phydisb>;
+	tx_delay = <0x43>;
+	//rx_delay = <0x3f>;
+	phy-handle = <&rgmii_phy>;
+	status = "okay";
+};
+
 &i2c4 {
 	status = "okay";
 	pinctrl-0 = <&i2c4m2_xfer>;
@@ -184,6 +205,13 @@
 		     &i2s0_sdo3>;
 };
 
+&mdio0 {
+	rgmii_phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+};
+
 &pcie2x1l0 {
 	reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
@@ -198,6 +226,11 @@
 };
 
 &pinctrl {
+	gmac0 {
+		phydisb: phydisb {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
 
 	hym8563 {
 		hym8563_int: hym8563-int {
