@@ -27,7 +27,7 @@ properties:
       - items:
           - enum:
               - realtek,rtl8821cs-bt
-          - const: realtek,rtl8822cs-bt
+          - const: realtek,rtl8723bs-bt
 
   device-wake-gpios:
     maxItems: 1
