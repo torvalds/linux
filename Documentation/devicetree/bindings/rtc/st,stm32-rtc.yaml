@@ -32,7 +32,7 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       minItems: 3
       maxItems: 3

@@ -1393,6 +1393,8 @@ static void ice_aq_cancel_waiting_tasks(struct ice_pf *pf)
 	wake_up(&pf->aq_wait_queue);
 }
 
+#define ICE_MBX_OVERFLOW_WATERMARK 64
+
 /**
  * __ice_clean_ctrlq - helper function to clean controlq rings
  * @pf: ptr to struct ice_pf
@@ -1483,6 +1485,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		return 0;
 
 	do {
+		struct ice_mbx_data data = {};
 		u16 opcode;
 		int ret;
 
@@ -1509,8 +1512,12 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 			ice_vf_lan_overflow_event(pf, &event);
 			break;
 		case ice_mbx_opc_send_msg_to_pf:
-			if (!ice_is_malicious_vf(pf, &event, i, pending))
-				ice_vc_process_vf_msg(pf, &event);
+			data.num_msg_proc = i;
+			data.num_pending_arq = pending;
+			data.max_num_msgs_mbx = hw->mailboxq.num_rq_entries;
+			data.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
+
+			ice_vc_process_vf_msg(pf, &event, &data);
 			break;
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
@@ -2316,18 +2323,15 @@ static void ice_service_task(struct work_struct *work)
 		}
 	}
 
-	if (test_bit(ICE_FLAG_PLUG_AUX_DEV, pf->flags)) {
-		/* Plug aux device per request */
-		ice_plug_aux_dev(pf);
+	/* unplug aux dev per request, if an unplug request came in
+	 * while processing a plug request, this will handle it
+	 */
+	if (test_and_clear_bit(ICE_FLAG_UNPLUG_AUX_DEV, pf->flags))
+		ice_unplug_aux_dev(pf);
 
-		/* Mark plugging as done but check whether unplug was
-		 * requested during ice_plug_aux_dev() call
-		 * (e.g. from ice_clear_rdma_cap()) and if so then
-		 * plug aux device.
-		 */
-		if (!test_and_clear_bit(ICE_FLAG_PLUG_AUX_DEV, pf->flags))
-			ice_unplug_aux_dev(pf);
-	}
+	/* Plug aux device per request */
+	if (test_and_clear_bit(ICE_FLAG_PLUG_AUX_DEV, pf->flags))
+		ice_plug_aux_dev(pf);
 
 	if (test_and_clear_bit(ICE_FLAG_MTU_CHANGED, pf->flags)) {
 		struct iidc_event *event;
@@ -3891,6 +3895,7 @@ static int ice_init_pf(struct ice_pf *pf)
 
 	mutex_init(&pf->vfs.table_lock);
 	hash_init(pf->vfs.table);
+	ice_mbx_init_snapshot(&pf->hw);
 
 	return 0;
 }
@@ -4644,6 +4649,12 @@ static int ice_start_eth(struct ice_vsi *vsi)
 	return err;
 }
 
+static void ice_stop_eth(struct ice_vsi *vsi)
+{
+	ice_fltr_remove_all(vsi);
+	ice_vsi_close(vsi);
+}
+
 static int ice_init_eth(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
@@ -5132,7 +5143,7 @@ void ice_unload(struct ice_pf *pf)
 {
 	ice_deinit_features(pf);
 	ice_deinit_rdma(pf);
-	ice_vsi_close(ice_get_main_vsi(pf));
+	ice_stop_eth(ice_get_main_vsi(pf));
 	ice_vsi_decfg(ice_get_main_vsi(pf));
 	ice_deinit_dev(pf);
 }

@@ -741,7 +741,7 @@ csi2dc_probe_cleanup_entity:
 	return ret;
 }
 
-static int csi2dc_remove(struct platform_device *pdev)
+static void csi2dc_remove(struct platform_device *pdev)
 {
 	struct csi2dc_device *csi2dc = platform_get_drvdata(pdev);
 
@@ -751,8 +751,6 @@ static int csi2dc_remove(struct platform_device *pdev)
 	v4l2_async_nf_unregister(&csi2dc->notifier);
 	v4l2_async_nf_cleanup(&csi2dc->notifier);
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);
-
-	return 0;
 }
 
 static int __maybe_unused csi2dc_runtime_suspend(struct device *dev)
@@ -782,7 +780,7 @@ MODULE_DEVICE_TABLE(of, csi2dc_of_match);
 
 static struct platform_driver csi2dc_driver = {
 	.probe	= csi2dc_probe,
-	.remove = csi2dc_remove,
+	.remove_new = csi2dc_remove,
 	.driver = {
 		.name =			"microchip-csi2dc",
 		.pm =			&csi2dc_dev_pm_ops,

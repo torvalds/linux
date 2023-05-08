@@ -397,20 +397,6 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 }
 
 static int
-v3d_job_add_deps(struct drm_file *file_priv, struct v3d_job *job,
-		 u32 in_sync, u32 point)
-{
-	struct dma_fence *in_fence = NULL;
-	int ret;
-
-	ret = drm_syncobj_find_fence(file_priv, in_sync, point, 0, &in_fence);
-	if (ret == -EINVAL)
-		return ret;
-
-	return drm_sched_job_add_dependency(&job->base, in_fence);
-}
-
-static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     void **container, size_t size, void (*free)(struct kref *ref),
 	     u32 in_sync, struct v3d_submit_ext *se, enum v3d_queue queue)
@@ -447,14 +433,18 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 					DRM_DEBUG("Failed to copy wait dep handle.\n");
 					goto fail_deps;
 				}
-				ret = v3d_job_add_deps(file_priv, job, in.handle, 0);
-				if (ret)
+				ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in.handle, 0);
+
+				// TODO: Investigate why this was filtered out for the IOCTL.
+				if (ret && ret != -ENOENT)
 					goto fail_deps;
 			}
 		}
 	} else {
-		ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
-		if (ret)
+		ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in_sync, 0);
+
+		// TODO: Investigate why this was filtered out for the IOCTL.
+		if (ret && ret != -ENOENT)
 			goto fail_deps;
 	}
 

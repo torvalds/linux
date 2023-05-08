@@ -41,6 +41,7 @@ struct intel_huc {
 	} delayed_load;
 };
 
+int intel_huc_sanitize(struct intel_huc *huc);
 void intel_huc_init_early(struct intel_huc *huc);
 int intel_huc_init(struct intel_huc *huc);
 void intel_huc_fini(struct intel_huc *huc);
@@ -51,14 +52,8 @@ int intel_huc_check_status(struct intel_huc *huc);
 void intel_huc_update_auth_status(struct intel_huc *huc);
 bool intel_huc_is_authenticated(struct intel_huc *huc);
 
-void intel_huc_register_gsc_notifier(struct intel_huc *huc, struct bus_type *bus);
-void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, struct bus_type *bus);
-
-static inline int intel_huc_sanitize(struct intel_huc *huc)
-{
-	intel_uc_fw_sanitize(&huc->fw);
-	return 0;
-}
+void intel_huc_register_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus);
+void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus);
 
 static inline bool intel_huc_is_supported(struct intel_huc *huc)
 {

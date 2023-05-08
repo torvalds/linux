@@ -38,6 +38,7 @@ struct intel_bios_encoder_data;
 struct intel_crtc_state;
 struct intel_encoder;
 struct intel_panel;
+enum aux_ch;
 enum port;
 
 enum intel_backlight_type {
@@ -248,21 +249,9 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
-bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
-				     enum port port);
-bool intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
-				  enum port port);
-bool intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
-					enum port port);
-enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
-int intel_bios_max_tmds_clock(struct intel_encoder *encoder);
-int intel_bios_hdmi_level_shift(struct intel_encoder *encoder);
-int intel_bios_dp_max_link_rate(struct intel_encoder *encoder);
-int intel_bios_dp_max_lane_count(struct intel_encoder *encoder);
-int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder);
 bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915, enum port port);
 bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port);
 
@@ -272,9 +261,19 @@ intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port);
 bool intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata);
-int intel_bios_encoder_dp_boost_level(const struct intel_bios_encoder_data *devdata);
-int intel_bios_encoder_hdmi_boost_level(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_hpd_invert(const struct intel_bios_encoder_data *devdata);
+enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_max_lane_count(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_max_link_rate(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_boost_level(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_ddc_pin(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_max_tmds_clock(const struct intel_bios_encoder_data *devdata);
 
 #endif /* _INTEL_BIOS_H_ */

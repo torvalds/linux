@@ -1257,7 +1257,7 @@ static const struct dev_pm_ops bdisp_pm_ops = {
 	.runtime_resume         = bdisp_runtime_resume,
 };
 
-static int bdisp_remove(struct platform_device *pdev)
+static void bdisp_remove(struct platform_device *pdev)
 {
 	struct bdisp_dev *bdisp = platform_get_drvdata(pdev);
 
@@ -1277,8 +1277,6 @@ static int bdisp_remove(struct platform_device *pdev)
 	destroy_workqueue(bdisp->work_queue);
 
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
-
-	return 0;
 }
 
 static int bdisp_probe(struct platform_device *pdev)
@@ -1309,6 +1307,8 @@ static int bdisp_probe(struct platform_device *pdev)
 	init_waitqueue_head(&bdisp->irq_queue);
 	INIT_DELAYED_WORK(&bdisp->timeout_work, bdisp_irq_timeout);
 	bdisp->work_queue = create_workqueue(BDISP_NAME);
+	if (!bdisp->work_queue)
+		return -ENOMEM;
 
 	spin_lock_init(&bdisp->slock);
 	mutex_init(&bdisp->lock);
@@ -1411,7 +1411,7 @@ MODULE_DEVICE_TABLE(of, bdisp_match_types);
 
 static struct platform_driver bdisp_driver = {
 	.probe          = bdisp_probe,
-	.remove         = bdisp_remove,
+	.remove_new     = bdisp_remove,
 	.driver         = {
 		.name           = BDISP_NAME,
 		.of_match_table = bdisp_match_types,

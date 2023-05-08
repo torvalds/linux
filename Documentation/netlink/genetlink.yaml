@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 %YAML 1.2
 ---
 $id: http://kernel.org/schemas/netlink/genetlink-legacy.yaml#
@@ -33,6 +33,9 @@ properties:
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink ]
+  uapi-header:
+    description: Path to the uAPI header, default is linux/${family-name}.h
+    type: string
 
   definitions:
     description: List of type and constant definitions (enums, flags, defines).

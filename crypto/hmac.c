@@ -160,6 +160,20 @@ static int hmac_init_tfm(struct crypto_shash *parent)
 	return 0;
 }
 
+static int hmac_clone_tfm(struct crypto_shash *dst, struct crypto_shash *src)
+{
+	struct hmac_ctx *sctx = hmac_ctx(src);
+	struct hmac_ctx *dctx = hmac_ctx(dst);
+	struct crypto_shash *hash;
+
+	hash = crypto_clone_shash(sctx->hash);
+	if (IS_ERR(hash))
+		return PTR_ERR(hash);
+
+	dctx->hash = hash;
+	return 0;
+}
+
 static void hmac_exit_tfm(struct crypto_shash *parent)
 {
 	struct hmac_ctx *ctx = hmac_ctx(parent);
@@ -227,6 +241,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.import = hmac_import;
 	inst->alg.setkey = hmac_setkey;
 	inst->alg.init_tfm = hmac_init_tfm;
+	inst->alg.clone_tfm = hmac_clone_tfm;
 	inst->alg.exit_tfm = hmac_exit_tfm;
 
 	inst->free = shash_free_singlespawn_instance;

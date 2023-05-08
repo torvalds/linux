@@ -162,7 +162,6 @@ struct kx022a_data {
 	int inc_reg;
 	int ien_reg;
 
-	unsigned int g_range;
 	unsigned int state;
 	unsigned int odr_ns;
 
@@ -864,7 +863,7 @@ static irqreturn_t kx022a_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err_read;
 
-	iio_push_to_buffers_with_timestamp(idev, data->buffer, pf->timestamp);
+	iio_push_to_buffers_with_timestamp(idev, data->buffer, data->timestamp);
 err_read:
 	iio_trigger_notify_done(idev->trig);
 
@@ -900,7 +899,7 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 	mutex_lock(&data->mutex);
 
 	if (data->trigger_enabled) {
-		iio_trigger_poll_chained(data->trig);
+		iio_trigger_poll_nested(data->trig);
 		ret = IRQ_HANDLED;
 	}
 

@@ -234,6 +234,9 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	if (mlx5_lag_mpesw_do_mirred(priv->mdev, out_dev, extack))
 		return -EOPNOTSUPP;
 
+	if (netif_is_macvlan(out_dev))
+		out_dev = macvlan_dev_real_dev(out_dev);
+
 	out_dev = get_fdb_out_dev(uplink_dev, out_dev);
 	if (!out_dev)
 		return -ENODEV;
@@ -249,9 +252,6 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 		if (err)
 			return err;
 	}
-
-	if (netif_is_macvlan(out_dev))
-		out_dev = macvlan_dev_real_dev(out_dev);
 
 	err = verify_uplink_forwarding(priv, attr, out_dev, extack);
 	if (err)

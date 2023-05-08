@@ -46,8 +46,6 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 	struct bpf_sock_ops *reuse = skops;
 	struct tcphdr *thdr;
 	int window_clamp = 9216;
-	int good_call_rv = 0;
-	int bad_call_rv = 0;
 	int save_syn = 1;
 	int rv = -1;
 	int v = 0;

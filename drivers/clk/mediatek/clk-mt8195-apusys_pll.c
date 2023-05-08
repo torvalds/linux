@@ -101,6 +101,7 @@ static const struct of_device_id of_match_clk_mt8195_apusys_pll[] = {
 	{ .compatible = "mediatek,mt8195-apusys_pll", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_apusys_pll);
 
 static struct platform_driver clk_mt8195_apusys_pll_drv = {
 	.probe = clk_mt8195_apusys_pll_probe,
@@ -110,4 +111,5 @@ static struct platform_driver clk_mt8195_apusys_pll_drv = {
 		.of_match_table = of_match_clk_mt8195_apusys_pll,
 	},
 };
-builtin_platform_driver(clk_mt8195_apusys_pll_drv);
+module_platform_driver(clk_mt8195_apusys_pll_drv);
+MODULE_LICENSE("GPL");

@@ -91,7 +91,7 @@ config COMMON_CLK_RK808
 config COMMON_CLK_HI655X
 	tristate "Clock driver for Hi655x" if EXPERT
 	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
-	depends on REGMAP
+	select REGMAP
 	default MFD_HI655X_PMIC
 	help
 	  This driver supports the hi655x PMIC clock. This
@@ -325,6 +325,15 @@ config COMMON_CLK_LOCHNAGAR
 	  This driver supports the clocking features of the Cirrus Logic
 	  Lochnagar audio development board.
 
+config COMMON_CLK_LOONGSON2
+	bool "Clock driver for Loongson-2 SoC"
+	depends on LOONGARCH || COMPILE_TEST
+	help
+          This driver provides support for clock controller on Loongson-2 SoC.
+          The clock controller can generates and supplies clock to various
+          peripherals within the SoC.
+          Say Y here to support Loongson-2 SoC clock driver.
+
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
@@ -366,6 +375,15 @@ config COMMON_CLK_RS9_PCIE
 	help
 	  This driver supports the Renesas 9-series PCIe clock generator
 	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.
+
+config COMMON_CLK_SI521XX
+	tristate "Clock driver for SkyWorks Si521xx PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the SkyWorks Si521xx PCIe clock generator
+	  models Si52144/Si52146/Si52147.
 
 config COMMON_CLK_VC5
 	tristate "Clock driver for IDT VersaClock 5,6 devices"
@@ -435,6 +453,16 @@ config COMMON_CLK_K210
 	default SOC_CANAAN
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
+
+config COMMON_CLK_SP7021
+	tristate "Clock driver for Sunplus SP7021 SoC"
+	depends on SOC_SP7021 || COMPILE_TEST
+	default SOC_SP7021
+	help
+	  This driver supports the Sunplus SP7021 SoC clocks.
+	  It implements SP7021 PLLs/gate.
+	  Not all features of the PLL are currently supported
+	  by the driver.
 
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"

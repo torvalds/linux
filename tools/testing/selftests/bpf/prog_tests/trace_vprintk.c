@@ -5,7 +5,8 @@
 
 #include "trace_vprintk.lskel.h"
 
-#define TRACEBUF	"/sys/kernel/debug/tracing/trace_pipe"
+#define TRACEFS_PIPE	"/sys/kernel/tracing/trace_pipe"
+#define DEBUGFS_PIPE	"/sys/kernel/debug/tracing/trace_pipe"
 #define SEARCHMSG	"1,2,3,4,5,6,7,8,9,10"
 
 void serial_test_trace_vprintk(void)
@@ -27,8 +28,11 @@ void serial_test_trace_vprintk(void)
 	if (!ASSERT_OK(err, "trace_vprintk__attach"))
 		goto cleanup;
 
-	fp = fopen(TRACEBUF, "r");
-	if (!ASSERT_OK_PTR(fp, "fopen(TRACEBUF)"))
+	if (access(TRACEFS_PIPE, F_OK) == 0)
+		fp = fopen(TRACEFS_PIPE, "r");
+	else
+		fp = fopen(DEBUGFS_PIPE, "r");
+	if (!ASSERT_OK_PTR(fp, "fopen(TRACE_PIPE)"))
 		goto cleanup;
 
 	/* We do not want to wait forever if this test fails... */

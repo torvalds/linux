@@ -29,7 +29,6 @@
 #include "link_dp_training_dpia.h"
 #include "dc.h"
 #include "inc/core_status.h"
-#include "dc_link.h"
 #include "dpcd_defs.h"
 
 #include "link_dp_dpia.h"
@@ -402,6 +401,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 
 		/* Check if clock recovery successful. */
 		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			DC_LOG_HW_LINK_TRAINING("%s: Clock recovery OK\n", __func__);
 			result = LINK_TRAINING_SUCCESS;
 			break;
 		}
@@ -509,6 +509,7 @@ static enum link_training_result dpia_training_cr_transparent(
 
 		/* Check if clock recovery successful. */
 		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			DC_LOG_HW_LINK_TRAINING("%s: Clock recovery OK\n", __func__);
 			result = LINK_TRAINING_SUCCESS;
 			break;
 		}
@@ -986,7 +987,7 @@ static void dpia_training_abort(
 	core_link_send_set_config(link, DPIA_SET_CFG_SET_LINK, data);
 }
 
-enum link_training_result dc_link_dpia_perform_link_training(
+enum link_training_result dpia_perform_link_training(
 	struct dc_link *link,
 	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting,
@@ -999,7 +1000,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 
 	struct dc_link_settings link_settings = *link_setting; // non-const copy to pass in
 
-	lt_settings.lttpr_mode = dc_link_decide_lttpr_mode(link, &link_settings);
+	lt_settings.lttpr_mode = dp_decide_lttpr_mode(link, &link_settings);
 
 	/* Configure link as prescribed in link_setting and set LTTPR mode. */
 	result = dpia_configure_link(link, link_res, link_setting, &lt_settings);
@@ -1035,7 +1036,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 	 * falling back to lower bandwidth settings possible.
 	 */
 	if (result == LINK_TRAINING_SUCCESS) {
-		msleep(5);
+		fsleep(5000);
 		if (!link->is_automated)
 			result = dp_check_link_loss_status(link, &lt_settings);
 	} else if (result == LINK_TRAINING_ABORT)

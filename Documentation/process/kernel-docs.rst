@@ -75,13 +75,39 @@ On-line docs
 Published books
 ---------------
 
+    * Title: **Linux Kernel Debugging: Leverage proven tools and advanced techniques to effectively debug Linux kernels and kernel modules**
+
+      :Author: Kaiwan N Billimoria
+      :Publisher: Packt Publishing Ltd
+      :Date: August, 2022
+      :Pages: 638
+      :ISBN: 978-1801075039
+      :Notes: Debugging book
+
     * Title: **Linux Kernel Programming: A Comprehensive Guide to Kernel Internals, Writing Kernel Modules, and Kernel Synchronization**
 
-          :Author: Kaiwan N. Billimoria
-          :Publisher: Packt Publishing Ltd
-          :Date: 2021
-          :Pages: 754
-          :ISBN: 978-1789953435
+      :Author: Kaiwan N Billimoria
+      :Publisher: Packt Publishing Ltd
+      :Date: March, 2021
+      :Pages: 754
+      :ISBN: 978-1789953435
+
+    * Title: **Linux Kernel Programming Part 2 - Char Device Drivers and Kernel Synchronization: Create user-kernel interfaces, work with peripheral I/O, and handle hardware interrupts**
+
+      :Author: Kaiwan N Billimoria
+      :Publisher: Packt Publishing Ltd
+      :Date: March, 2021
+      :Pages: 452
+      :ISBN: 978-1801079518
+
+    * Title: **Linux System Programming: Talking Directly to the Kernel and C Library**
+
+      :Author: Robert Love
+      :Publisher: O'Reilly Media
+      :Date: June, 2013
+      :Pages: 456
+      :ISBN: 978-1449339531
+      :Notes: Foundational book
 
     * Title: **Linux Kernel Development, 3rd Edition**
 

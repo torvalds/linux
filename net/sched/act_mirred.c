@@ -264,7 +264,7 @@ TC_INDIRECT_SCOPE int tcf_mirred_act(struct sk_buff *skb,
 		goto out;
 	}
 
-	if (unlikely(!(dev->flags & IFF_UP))) {
+	if (unlikely(!(dev->flags & IFF_UP)) || !netif_carrier_ok(dev)) {
 		net_notice_ratelimited("tc mirred to Houston: device %s is down\n",
 				       dev->name);
 		goto out;
@@ -295,7 +295,7 @@ TC_INDIRECT_SCOPE int tcf_mirred_act(struct sk_buff *skb,
 	at_nh = skb->data == skb_network_header(skb);
 	if (at_nh != expects_nh) {
 		mac_len = skb_at_tc_ingress(skb) ? skb->mac_len :
-			  skb_network_header(skb) - skb_mac_header(skb);
+			  skb_network_offset(skb);
 		if (expects_nh) {
 			/* target device/action expect data at nh */
 			skb_pull_rcsum(skb2, mac_len);

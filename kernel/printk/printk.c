@@ -71,6 +71,8 @@ EXPORT_SYMBOL_GPL(console_printk);
 atomic_t ignore_console_lock_warning __read_mostly = ATOMIC_INIT(0);
 EXPORT_SYMBOL(ignore_console_lock_warning);
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(console);
+
 /*
  * Low level drivers may need that to know if they can schedule in
  * their unblank() callback or not. So let's export it.
@@ -89,7 +91,7 @@ static DEFINE_MUTEX(console_mutex);
  * console_sem protects updates to console->seq and console_suspended,
  * and also provides serialization for console printing.
  */
-static DEFINE_SEMAPHORE(console_sem);
+static DEFINE_SEMAPHORE(console_sem, 1);
 HLIST_HEAD(console_list);
 EXPORT_SYMBOL_GPL(console_list);
 DEFINE_STATIC_SRCU(console_srcu);
@@ -730,7 +732,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	size_t len = iov_iter_count(from);
 	ssize_t ret = len;
 
-	if (!user || len > PRINTKRB_RECORD_MAX)
+	if (len > PRINTKRB_RECORD_MAX)
 		return -EINVAL;
 
 	/* Ignore when user logging is disabled. */
@@ -791,9 +793,6 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		.pbufs = &user->pbufs,
 	};
 	ssize_t ret;
-
-	if (!user)
-		return -EBADF;
 
 	ret = mutex_lock_interruptible(&user->lock);
 	if (ret)
@@ -859,8 +858,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	struct devkmsg_user *user = file->private_data;
 	loff_t ret = 0;
 
-	if (!user)
-		return -EBADF;
 	if (offset)
 		return -ESPIPE;
 
@@ -892,9 +889,6 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 	struct devkmsg_user *user = file->private_data;
 	struct printk_info info;
 	__poll_t ret = 0;
-
-	if (!user)
-		return EPOLLERR|EPOLLNVAL;
 
 	poll_wait(file, &log_wait, wait);
 
@@ -943,9 +937,6 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 static int devkmsg_release(struct inode *inode, struct file *file)
 {
 	struct devkmsg_user *user = file->private_data;
-
-	if (!user)
-		return 0;
 
 	ratelimit_state_exit(&user->rs);
 

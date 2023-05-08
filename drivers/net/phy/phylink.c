@@ -843,7 +843,6 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 		phylink_set(pl->supported, Autoneg);
 		phylink_set(pl->supported, Asym_Pause);
 		phylink_set(pl->supported, Pause);
-		pl->link_config.an_enabled = true;
 		pl->cfg_link_an_mode = MLO_AN_INBAND;
 
 		switch (pl->link_config.interface) {
@@ -945,9 +944,6 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 				    "failed to validate link configuration for in-band status\n");
 			return -EINVAL;
 		}
-
-		/* Check if MAC/PCS also supports Autoneg. */
-		pl->link_config.an_enabled = phylink_test(pl->supported, Autoneg);
 	}
 
 	return 0;
@@ -957,7 +953,8 @@ static void phylink_apply_manual_flow(struct phylink *pl,
 				      struct phylink_link_state *state)
 {
 	/* If autoneg is disabled, pause AN is also disabled */
-	if (!state->an_enabled)
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			       state->advertising))
 		state->pause &= ~MLO_PAUSE_AN;
 
 	/* Manual configuration of pause modes */
@@ -997,21 +994,22 @@ static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
 	phylink_dbg(pl,
-		    "%s: mode=%s/%s/%s/%s/%s adv=%*pb pause=%02x link=%u an=%u\n",
+		    "%s: mode=%s/%s/%s/%s/%s adv=%*pb pause=%02x link=%u\n",
 		    __func__, phylink_an_mode_str(pl->cur_link_an_mode),
 		    phy_modes(state->interface),
 		    phy_speed_to_str(state->speed),
 		    phy_duplex_to_str(state->duplex),
 		    phy_rate_matching_to_str(state->rate_matching),
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, state->advertising,
-		    state->pause, state->link, state->an_enabled);
+		    state->pause, state->link);
 
 	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, state);
 }
 
 static void phylink_mac_pcs_an_restart(struct phylink *pl)
 {
-	if (pl->link_config.an_enabled &&
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      pl->link_config.advertising) &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
 	    phylink_autoneg_inband(pl->cur_link_an_mode)) {
 		if (pl->pcs)
@@ -1138,9 +1136,9 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	linkmode_copy(state->advertising, pl->link_config.advertising);
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
-	state->an_enabled = pl->link_config.an_enabled;
 	state->rate_matching = pl->link_config.rate_matching;
-	if (state->an_enabled) {
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      state->advertising)) {
 		state->speed = SPEED_UNKNOWN;
 		state->duplex = DUPLEX_UNKNOWN;
 		state->pause = MLO_PAUSE_NONE;
@@ -1531,7 +1529,6 @@ struct phylink *phylink_create(struct phylink_config *config,
 	pl->link_config.pause = MLO_PAUSE_AN;
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
-	pl->link_config.an_enabled = true;
 	pl->mac_ops = mac_ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
@@ -1585,6 +1582,25 @@ void phylink_destroy(struct phylink *pl)
 	kfree(pl);
 }
 EXPORT_SYMBOL_GPL(phylink_destroy);
+
+/**
+ * phylink_expects_phy() - Determine if phylink expects a phy to be attached
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * When using fixed-link mode, or in-band mode with 1000base-X or 2500base-X,
+ * no PHY is needed.
+ *
+ * Returns true if phylink will be expecting a PHY.
+ */
+bool phylink_expects_phy(struct phylink *pl)
+{
+	if (pl->cfg_link_an_mode == MLO_AN_FIXED ||
+	    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
+	     phy_interface_mode_is_8023z(pl->link_config.interface)))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_GPL(phylink_expects_phy);
 
 static void phylink_phy_change(struct phy_device *phydev, bool up)
 {
@@ -2136,8 +2152,9 @@ static void phylink_get_ksettings(const struct phylink_link_state *state,
 		kset->base.speed = state->speed;
 		kset->base.duplex = state->duplex;
 	}
-	kset->base.autoneg = state->an_enabled ? AUTONEG_ENABLE :
-				AUTONEG_DISABLE;
+	kset->base.autoneg = linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					       state->advertising) ?
+				AUTONEG_ENABLE : AUTONEG_DISABLE;
 }
 
 /**
@@ -2284,9 +2301,8 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	/* We have ruled out the case with a PHY attached, and the
 	 * fixed-link cases.  All that is left are in-band links.
 	 */
-	config.an_enabled = kset->base.autoneg == AUTONEG_ENABLE;
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising,
-			 config.an_enabled);
+			 kset->base.autoneg == AUTONEG_ENABLE);
 
 	/* If this link is with an SFP, ensure that changes to advertised modes
 	 * also cause the associated interface to be selected such that the
@@ -2320,13 +2336,14 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	}
 
 	/* If autonegotiation is enabled, we must have an advertisement */
-	if (config.an_enabled && phylink_is_empty_linkmode(config.advertising))
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      config.advertising) &&
+	    phylink_is_empty_linkmode(config.advertising))
 		return -EINVAL;
 
 	mutex_lock(&pl->state_mutex);
 	pl->link_config.speed = config.speed;
 	pl->link_config.duplex = config.duplex;
-	pl->link_config.an_enabled = config.an_enabled;
 
 	if (pl->link_config.interface != config.interface) {
 		/* The interface changed, e.g. 1000base-X <-> 2500base-X */
@@ -2932,7 +2949,6 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
 	config.pause = MLO_PAUSE_AN;
-	config.an_enabled = pl->link_config.an_enabled;
 
 	/* Ignore errors if we're expecting a PHY to attach later */
 	ret = phylink_validate(pl, support, &config);
@@ -3001,7 +3017,6 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
 	config.pause = MLO_PAUSE_AN;
-	config.an_enabled = true;
 
 	/* For all the interfaces that are supported, reduce the sfp_support
 	 * mask to only those link modes that can be supported.
@@ -3300,7 +3315,8 @@ void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 	/* If there is no link or autonegotiation is disabled, the LP advertisement
 	 * data is not meaningful, so don't go any further.
 	 */
-	if (!state->link || !state->an_enabled)
+	if (!state->link || !linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					       state->advertising))
 		return;
 
 	switch (state->interface) {

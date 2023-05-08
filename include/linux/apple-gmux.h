@@ -34,7 +34,19 @@
 #define GMUX_PORT_READ			0xd0
 #define GMUX_PORT_WRITE			0xd4
 
+#define GMUX_MMIO_PORT_SELECT		0x0e
+#define GMUX_MMIO_COMMAND_SEND		0x0f
+
+#define GMUX_MMIO_READ			0x00
+#define GMUX_MMIO_WRITE			0x40
+
 #define GMUX_MIN_IO_LEN			(GMUX_PORT_BRIGHTNESS + 4)
+
+enum apple_gmux_type {
+	APPLE_GMUX_TYPE_PIO,
+	APPLE_GMUX_TYPE_INDEXED,
+	APPLE_GMUX_TYPE_MMIO,
+};
 
 #if IS_ENABLED(CONFIG_APPLE_GMUX)
 static inline bool apple_gmux_is_indexed(unsigned long iostart)
@@ -52,11 +64,29 @@ static inline bool apple_gmux_is_indexed(unsigned long iostart)
 	return false;
 }
 
+static inline bool apple_gmux_is_mmio(unsigned long iostart)
+{
+	u8 __iomem *iomem_base = ioremap(iostart, 16);
+	u8 val;
+
+	if (!iomem_base)
+		return false;
+
+	/*
+	 * If this is 0xff, then gmux must not be present, as the gmux would
+	 * reset it to 0x00, or it would be one of 0x1, 0x4, 0x41, 0x44 if a
+	 * command is currently being processed.
+	 */
+	val = ioread8(iomem_base + GMUX_MMIO_COMMAND_SEND);
+	iounmap(iomem_base);
+	return (val != 0xff);
+}
+
 /**
  * apple_gmux_detect() - detect if gmux is built into the machine
  *
  * @pnp_dev:     Device to probe or NULL to use the first matching device
- * @indexed_ret: Returns (by reference) if the gmux is indexed or not
+ * @type_ret: Returns (by reference) the apple_gmux_type of the device
  *
  * Detect if a supported gmux device is present by actually probing it.
  * This avoids the false positives returned on some models by
@@ -65,13 +95,13 @@ static inline bool apple_gmux_is_indexed(unsigned long iostart)
  * Return: %true if a supported gmux ACPI device is detected and the kernel
  * was configured with CONFIG_APPLE_GMUX, %false otherwise.
  */
-static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, bool *indexed_ret)
+static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, enum apple_gmux_type *type_ret)
 {
 	u8 ver_major, ver_minor, ver_release;
 	struct device *dev = NULL;
 	struct acpi_device *adev;
 	struct resource *res;
-	bool indexed = false;
+	enum apple_gmux_type type = APPLE_GMUX_TYPE_PIO;
 	bool ret = false;
 
 	if (!pnp_dev) {
@@ -88,24 +118,30 @@ static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, bool *indexed_ret)
 	}
 
 	res = pnp_get_resource(pnp_dev, IORESOURCE_IO, 0);
-	if (!res || resource_size(res) < GMUX_MIN_IO_LEN)
-		goto out;
-
-	/*
-	 * Invalid version information may indicate either that the gmux
-	 * device isn't present or that it's a new one that uses indexed io.
-	 */
-	ver_major = inb(res->start + GMUX_PORT_VERSION_MAJOR);
-	ver_minor = inb(res->start + GMUX_PORT_VERSION_MINOR);
-	ver_release = inb(res->start + GMUX_PORT_VERSION_RELEASE);
-	if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
-		indexed = apple_gmux_is_indexed(res->start);
-		if (!indexed)
+	if (res && resource_size(res) >= GMUX_MIN_IO_LEN) {
+		/*
+		 * Invalid version information may indicate either that the gmux
+		 * device isn't present or that it's a new one that uses indexed io.
+		 */
+		ver_major = inb(res->start + GMUX_PORT_VERSION_MAJOR);
+		ver_minor = inb(res->start + GMUX_PORT_VERSION_MINOR);
+		ver_release = inb(res->start + GMUX_PORT_VERSION_RELEASE);
+		if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
+			if (apple_gmux_is_indexed(res->start))
+				type = APPLE_GMUX_TYPE_INDEXED;
+			else
+				goto out;
+		}
+	} else {
+		res = pnp_get_resource(pnp_dev, IORESOURCE_MEM, 0);
+		if (res && apple_gmux_is_mmio(res->start))
+			type = APPLE_GMUX_TYPE_MMIO;
+		else
 			goto out;
 	}
 
-	if (indexed_ret)
-		*indexed_ret = indexed;
+	if (type_ret)
+		*type_ret = type;
 
 	ret = true;
 out:

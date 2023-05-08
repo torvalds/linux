@@ -894,7 +894,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static struct scsi_host_template uas_host_template = {
+static const struct scsi_host_template uas_host_template = {
 	.module = THIS_MODULE,
 	.name = "uas",
 	.queuecommand = uas_queuecommand,

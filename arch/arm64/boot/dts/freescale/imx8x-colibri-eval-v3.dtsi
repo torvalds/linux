@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2019 Toradex
+ */
+
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	aliases {
+		rtc0 = &rtc_i2c;
+		rtc1 = &rtc;
+	};
+
+	/* fixed crystal dedicated to mcp25xx */
+	clk16m: clock-16mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+	};
+};
+
+&colibri_gpio_keys {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc_i2c: rtc@68 {
+		compatible = "st,m41t0";
+		reg = <0x68>;
+	};
+};
+
+/* Colibri SPI */
+&lpspi2 {
+	status = "okay";
+
+	mcp2515: can@0 {
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		interrupt-parent = <&lsio_gpio3>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&pinctrl_can_int>;
+		pinctrl-names = "default";
+		clocks = <&clk16m>;
+		spi-max-frequency = <10000000>;
+	};
+};
+
+/* Colibri UART_B */
+&lpuart0 {
+	status = "okay";
+};
+
+/* Colibri UART_C */
+&lpuart2 {
+	status = "okay";
+};
+
+/* Colibri PWM_B */
+&lsio_pwm0 {
+	status = "okay";
+};
+
+/* Colibri PWM_C */
+&lsio_pwm1 {
+	status = "okay";
+};
+
+/* Colibri PWM_D */
+&lsio_pwm2 {
+	status = "okay";
+};
+
+/* Colibri UART_A */
+&lpuart3 {
+	status = "okay";
+};
+
+/* Colibri FastEthernet */
+&fec1 {
+	status = "okay";
+};
+
+/* Colibri SD/MMC Card */
+&usdhc2 {
+	status = "okay";
+};

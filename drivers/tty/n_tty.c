@@ -28,27 +28,26 @@
  *		EAGAIN
  */
 
-#include <linux/types.h>
-#include <linux/major.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/fcntl.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/tty.h>
-#include <linux/timer.h>
-#include <linux/ctype.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
+#include <linux/bitmap.h>
 #include <linux/bitops.h>
-#include <linux/audit.h>
+#include <linux/ctype.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/fcntl.h>
 #include <linux/file.h>
-#include <linux/uaccess.h>
-#include <linux/module.h>
+#include <linux/jiffies.h>
+#include <linux/math.h>
+#include <linux/poll.h>
 #include <linux/ratelimit.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/tty.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+
 #include "tty.h"
 
 /*
@@ -625,7 +624,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
 			unsigned char op;
-			int no_space_left = 0;
+			bool space_left = true;
 
 			/*
 			 * Since add_echo_byte() is called without holding
@@ -664,7 +663,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				num_bs = 8 - (num_chars & 7);
 
 				if (num_bs > space) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				space -= num_bs;
@@ -690,7 +689,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			case ECHO_OP_START:
 				/* This is an escaped echo op start code */
 				if (!space) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				tty_put_char(tty, ECHO_OP_START);
@@ -710,7 +709,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				 *
 				 */
 				if (space < 2) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				tty_put_char(tty, '^');
@@ -720,7 +719,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				tail += 2;
 			}
 
-			if (no_space_left)
+			if (!space_left)
 				break;
 		} else {
 			if (O_OPOST(tty)) {
@@ -1177,7 +1176,7 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
 
 	ldata->num_overrun++;
 	if (time_after(jiffies, ldata->overrun_time + HZ) ||
-			time_after(ldata->overrun_time, jiffies)) {
+	    time_after(ldata->overrun_time, jiffies)) {
 		tty_warn(tty, "%d input overrun(s)\n", ldata->num_overrun);
 		ldata->overrun_time = jiffies;
 		ldata->num_overrun = 0;
@@ -1691,7 +1690,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 
 		room = N_TTY_BUF_SIZE - (ldata->read_head - tail);
 		if (I_PARMRK(tty))
-			room = (room + 2) / 3;
+			room = DIV_ROUND_UP(room, 3);
 		room--;
 		if (room <= 0) {
 			overflow = ldata->icanon && ldata->canon_head == tail;

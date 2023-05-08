@@ -666,8 +666,8 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	dma->rx_priority = DMA_PRIO_DEFAULT;
 	dma->tx_priority = DMA_PRIO_DEFAULT;
 
-	dma->enable_all	= (of_get_property(node, "ti,enable-all", NULL) != NULL);
-	dma->loopback	= (of_get_property(node, "ti,loop-back",  NULL) != NULL);
+	dma->enable_all	= of_property_read_bool(node, "ti,enable-all");
+	dma->loopback	= of_property_read_bool(node, "ti,loop-back");
 
 	ret = of_property_read_u32(node, "ti,rx-retry-timeout", &timeout);
 	if (ret < 0) {

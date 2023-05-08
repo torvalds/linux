@@ -248,13 +248,6 @@ config SERIAL_SAMSUNG
 
 	  Choose Y/M here only if you build for such SoC.
 
-config SERIAL_SAMSUNG_UARTS_4
-	bool
-	depends on SERIAL_SAMSUNG
-	default y
-	help
-	  Internal node for the common case of 4 Samsung compatible UARTs
-
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on SERIAL_SAMSUNG
@@ -958,7 +951,7 @@ config SERIAL_OMAP_CONSOLE
 config SERIAL_SIFIVE
 	tristate "SiFive UART support"
 	depends on OF
-	default SOC_SIFIVE || SOC_CANAAN
+	default ARCH_SIFIVE || ARCH_CANAAN
 	select SERIAL_CORE
 	help
 	  Select this option if you are building a kernel for a device that
@@ -968,7 +961,7 @@ config SERIAL_SIFIVE
 config SERIAL_SIFIVE_CONSOLE
 	bool "Console on SiFive UART"
 	depends on SERIAL_SIFIVE=y
-	default SOC_SIFIVE || SOC_CANAAN
+	default ARCH_SIFIVE || ARCH_CANAAN
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
@@ -1313,7 +1306,7 @@ config SERIAL_FSL_LPUART
 
 config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
-	depends on SERIAL_FSL_LPUART
+	depends on SERIAL_FSL_LPUART=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help

@@ -19,6 +19,7 @@
 #include "mmap.h"
 #include "stat.h"
 #include "metricgroup.h"
+#include "util/bpf-filter.h"
 #include "util/env.h"
 #include "util/pmu.h"
 #include <internal/lib.h>
@@ -83,7 +84,7 @@ const char *perf_env__arch(struct perf_env *env __maybe_unused)
  * far, for the perf python binding known usecases, revisit if this become
  * necessary.
  */
-struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
+struct perf_pmu *evsel__find_pmu(const struct evsel *evsel __maybe_unused)
 {
 	return NULL;
 }
@@ -91,6 +92,11 @@ struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
 int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...)
 {
 	return EOF;
+}
+
+bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
+{
+	return false;
 }
 
 /*
@@ -129,6 +135,19 @@ int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
+
+// not to drag util/bpf-filter.c
+#ifdef HAVE_BPF_SKEL
+int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+
+int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means

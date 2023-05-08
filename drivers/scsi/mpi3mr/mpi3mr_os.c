@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -652,6 +652,7 @@ static void mpi3mr_tgtdev_add_to_list(struct mpi3mr_ioc *mrioc,
 	mpi3mr_tgtdev_get(tgtdev);
 	INIT_LIST_HEAD(&tgtdev->list);
 	list_add_tail(&tgtdev->list, &mrioc->tgtdev_list);
+	tgtdev->state = MPI3MR_DEV_CREATED;
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 }
 
@@ -659,20 +660,25 @@ static void mpi3mr_tgtdev_add_to_list(struct mpi3mr_ioc *mrioc,
  * mpi3mr_tgtdev_del_from_list -Delete tgtdevice from the list
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device
+ * @must_delete: Must delete the target device from the list irrespective
+ * of the device state.
  *
  * Remove the target device from the target device list
  *
  * Return: Nothing.
  */
 static void mpi3mr_tgtdev_del_from_list(struct mpi3mr_ioc *mrioc,
-	struct mpi3mr_tgt_dev *tgtdev)
+	struct mpi3mr_tgt_dev *tgtdev, bool must_delete)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-	if (!list_empty(&tgtdev->list)) {
-		list_del_init(&tgtdev->list);
-		mpi3mr_tgtdev_put(tgtdev);
+	if ((tgtdev->state == MPI3MR_DEV_REMOVE_HS_STARTED) || (must_delete == true)) {
+		if (!list_empty(&tgtdev->list)) {
+			list_del_init(&tgtdev->list);
+			tgtdev->state = MPI3MR_DEV_DELETED;
+			mpi3mr_tgtdev_put(tgtdev);
+		}
 	}
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 }
@@ -1036,7 +1042,7 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 			    tgtdev->perst_id);
 			if (tgtdev->host_exposed)
 				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, true);
 			mpi3mr_tgtdev_put(tgtdev);
 		}
 	}
@@ -1281,12 +1287,12 @@ static void mpi3mr_devstatuschg_evt_bh(struct mpi3mr_ioc *mrioc,
 		if (!tgtdev->host_exposed)
 			mpi3mr_report_tgtdev_to_host(mrioc, tgtdev->perst_id);
 	}
-	if (tgtdev->starget && tgtdev->starget->hostdata) {
-		if (delete)
-			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-	}
+
+	if (delete)
+		mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+
 	if (cleanup) {
-		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, false);
 		mpi3mr_tgtdev_put(tgtdev);
 	}
 
@@ -1604,7 +1610,7 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 		case MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_NOT_RESPONDING:
 			if (tgtdev->host_exposed)
 				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, false);
 			mpi3mr_tgtdev_put(tgtdev);
 			break;
 		case MPI3_EVENT_SAS_TOPO_PHY_RC_RESPONDING:
@@ -1762,7 +1768,7 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 		case MPI3_EVENT_PCIE_TOPO_PS_NOT_RESPONDING:
 			if (tgtdev->host_exposed)
 				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, false);
 			mpi3mr_tgtdev_put(tgtdev);
 			break;
 		default:
@@ -2016,12 +2022,18 @@ static int mpi3mr_create_tgtdev(struct mpi3mr_ioc *mrioc,
 	int retval = 0;
 	struct mpi3mr_tgt_dev *tgtdev = NULL;
 	u16 perst_id = 0;
+	unsigned long flags;
 
 	perst_id = le16_to_cpu(dev_pg0->persistent_id);
 	if (perst_id == MPI3_DEVICE0_PERSISTENTID_INVALID)
 		return retval;
 
-	tgtdev = mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
+	if (tgtdev)
+		tgtdev->state = MPI3MR_DEV_CREATED;
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
 	if (tgtdev) {
 		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0, true);
 		mpi3mr_tgtdev_put(tgtdev);
@@ -2219,6 +2231,14 @@ static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_ioc *mrioc, u16 handle,
 	u8 retrycount = 5;
 	struct mpi3mr_drv_cmd *drv_cmd = cmdparam;
 	struct delayed_dev_rmhs_node *delayed_dev_rmhs = NULL;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_handle(mrioc, handle);
+	if (tgtdev && (iou_rc == MPI3_CTRL_OP_REMOVE_DEVICE))
+		tgtdev->state = MPI3MR_DEV_REMOVE_HS_STARTED;
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
 	if (drv_cmd)
 		goto issue_cmd;
@@ -3311,19 +3331,19 @@ static int mpi3mr_get_chain_idx(struct mpi3mr_ioc *mrioc)
 {
 	u8 retry_count = 5;
 	int cmd_idx = -1;
+	unsigned long flags;
 
+	spin_lock_irqsave(&mrioc->chain_buf_lock, flags);
 	do {
-		spin_lock(&mrioc->chain_buf_lock);
 		cmd_idx = find_first_zero_bit(mrioc->chain_bitmap,
 		    mrioc->chain_buf_count);
 		if (cmd_idx < mrioc->chain_buf_count) {
 			set_bit(cmd_idx, mrioc->chain_bitmap);
-			spin_unlock(&mrioc->chain_buf_lock);
 			break;
 		}
-		spin_unlock(&mrioc->chain_buf_lock);
 		cmd_idx = -1;
 	} while (retry_count--);
+	spin_unlock_irqrestore(&mrioc->chain_buf_lock, flags);
 	return cmd_idx;
 }
 
@@ -3996,10 +4016,14 @@ static int mpi3mr_eh_target_reset(struct scsi_cmnd *scmd)
 	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 	dev_handle = stgt_priv_data->dev_handle;
 	if (stgt_priv_data->dev_removed) {
+		struct scmd_priv *cmd_priv = scsi_cmd_priv(scmd);
 		sdev_printk(KERN_INFO, scmd->device,
 		    "%s:target(handle = 0x%04x) is removed, target reset is not issued\n",
 		    mrioc->name, dev_handle);
-		retval = FAILED;
+		if (!cmd_priv->in_lld_scope || cmd_priv->host_tag == MPI3MR_HOSTTAG_INVALID)
+			retval = SUCCESS;
+		else
+			retval = FAILED;
 		goto out;
 	}
 	sdev_printk(KERN_INFO, scmd->device,
@@ -4064,10 +4088,14 @@ static int mpi3mr_eh_dev_reset(struct scsi_cmnd *scmd)
 	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 	dev_handle = stgt_priv_data->dev_handle;
 	if (stgt_priv_data->dev_removed) {
+		struct scmd_priv *cmd_priv = scsi_cmd_priv(scmd);
 		sdev_printk(KERN_INFO, scmd->device,
 		    "%s: device(handle = 0x%04x) is removed, device(LUN) reset is not issued\n",
 		    mrioc->name, dev_handle);
-		retval = FAILED;
+		if (!cmd_priv->in_lld_scope || cmd_priv->host_tag == MPI3MR_HOSTTAG_INVALID)
+			retval = SUCCESS;
+		else
+			retval = FAILED;
 		goto out;
 	}
 	sdev_printk(KERN_INFO, scmd->device,
@@ -4625,12 +4653,23 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
+	stgt_priv_data = sdev_priv_data->tgt_priv_data;
+	dev_handle = stgt_priv_data->dev_handle;
+
+	/* Avoid error handling escalation when device is removed or blocked */
+
+	if (scmd->device->host->shost_state == SHOST_RECOVERY &&
+		scmd->cmnd[0] == TEST_UNIT_READY &&
+		(stgt_priv_data->dev_removed || (dev_handle == MPI3MR_INVALID_DEV_HANDLE))) {
+		scsi_build_sense(scmd, 0, UNIT_ATTENTION, 0x29, 0x07);
+		scsi_done(scmd);
+		goto out;
+	}
+
 	if (mrioc->reset_in_progress) {
 		retval = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	}
-
-	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 
 	if (atomic_read(&stgt_priv_data->block_io)) {
 		if (mrioc->stop_drv_processing) {
@@ -4642,7 +4681,6 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
-	dev_handle = stgt_priv_data->dev_handle;
 	if (dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scsi_done(scmd);
@@ -4758,7 +4796,7 @@ out:
 	return retval;
 }
 
-static struct scsi_host_template mpi3mr_driver_template = {
+static const struct scsi_host_template mpi3mr_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= "MPI3 Storage Controller",
 	.proc_name			= MPI3MR_DRIVER_NAME,
@@ -5078,6 +5116,8 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 	struct workqueue_struct	*wq;
 	unsigned long flags;
 	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
+	struct mpi3mr_hba_port *port, *hba_port_next;
+	struct mpi3mr_sas_node *sas_expander, *sas_expander_next;
 
 	if (!shost)
 		return;
@@ -5109,13 +5149,35 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
 		mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
-		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, true);
 		mpi3mr_tgtdev_put(tgtdev);
 	}
 	mpi3mr_stop_watchdog(mrioc);
 	mpi3mr_cleanup_ioc(mrioc);
 	mpi3mr_free_mem(mrioc);
 	mpi3mr_cleanup_resources(mrioc);
+
+	spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	list_for_each_entry_safe_reverse(sas_expander, sas_expander_next,
+	    &mrioc->sas_expander_list, list) {
+		spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+		mpi3mr_expander_node_remove(mrioc, sas_expander);
+		spin_lock_irqsave(&mrioc->sas_node_lock, flags);
+	}
+	list_for_each_entry_safe(port, hba_port_next, &mrioc->hba_port_table_list, list) {
+		ioc_info(mrioc,
+		    "removing hba_port entry: %p port: %d from hba_port list\n",
+		    port, port->port_id);
+		list_del(&port->list);
+		kfree(port);
+	}
+	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
+
+	if (mrioc->sas_hba.num_phys) {
+		kfree(mrioc->sas_hba.phy);
+		mrioc->sas_hba.phy = NULL;
+		mrioc->sas_hba.num_phys = 0;
+	}
 
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);

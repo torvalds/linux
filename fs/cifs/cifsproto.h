@@ -8,6 +8,7 @@
 #ifndef _CIFSPROTO_H
 #define _CIFSPROTO_H
 #include <linux/nls.h>
+#include <linux/ctype.h>
 #include "trace.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
@@ -572,7 +573,7 @@ extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);
 
-extern void cifs_put_smb_ses(struct cifs_ses *ses);
+void __cifs_put_smb_ses(struct cifs_ses *ses);
 
 extern struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx);
@@ -695,5 +696,46 @@ static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
 struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon);
 void cifs_put_tcon_super(struct super_block *sb);
 int cifs_wait_for_server_reconnect(struct TCP_Server_Info *server, bool retry);
+
+/* Put references of @ses and @ses->dfs_root_ses */
+static inline void cifs_put_smb_ses(struct cifs_ses *ses)
+{
+	struct cifs_ses *rses = ses->dfs_root_ses;
+
+	__cifs_put_smb_ses(ses);
+	if (rses)
+		__cifs_put_smb_ses(rses);
+}
+
+/* Get an active reference of @ses and @ses->dfs_root_ses.
+ *
+ * NOTE: make sure to call this function when incrementing reference count of
+ * @ses to ensure that any DFS root session attached to it (@ses->dfs_root_ses)
+ * will also get its reference count incremented.
+ *
+ * cifs_put_smb_ses() will put both references, so call it when you're done.
+ */
+static inline void cifs_smb_ses_inc_refcount(struct cifs_ses *ses)
+{
+	lockdep_assert_held(&cifs_tcp_ses_lock);
+
+	ses->ses_count++;
+	if (ses->dfs_root_ses)
+		ses->dfs_root_ses->ses_count++;
+}
+
+static inline bool dfs_src_pathname_equal(const char *s1, const char *s2)
+{
+	if (strlen(s1) != strlen(s2))
+		return false;
+	for (; *s1; s1++, s2++) {
+		if (*s1 == '/' || *s1 == '\\') {
+			if (*s2 != '/' && *s2 != '\\')
+				return false;
+		} else if (tolower(*s1) != tolower(*s2))
+			return false;
+	}
+	return true;
+}
 
 #endif			/* _CIFSPROTO_H */

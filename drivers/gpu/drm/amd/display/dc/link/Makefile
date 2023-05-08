@@ -55,7 +55,7 @@ LINK_PROTOCOLS = link_hpd.o link_ddc.o link_dpcd.o link_dp_dpia.o \
 link_dp_training.o link_dp_training_8b_10b.o link_dp_training_128b_132b.o \
 link_dp_training_dpia.o link_dp_training_auxless.o \
 link_dp_training_fixed_vs_pe_retimer.o link_dp_phy.o link_dp_capability.o \
-link_edp_panel_control.o link_dp_irq_handler.o
+link_edp_panel_control.o link_dp_irq_handler.o link_dp_dpia_bw.o
 
 AMD_DAL_LINK_PROTOCOLS = $(addprefix $(AMDDALPATH)/dc/link/protocols/, \
 $(LINK_PROTOCOLS))

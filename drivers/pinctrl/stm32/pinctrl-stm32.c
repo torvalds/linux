@@ -1330,7 +1330,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl, struct fwnode
 	if (fwnode_property_read_u32(fwnode, "st,bank-ioport", &bank_ioport_nr))
 		bank_ioport_nr = bank_nr;
 
-	bank->gpio_chip.base = bank_nr * STM32_GPIO_PINS_PER_BANK;
+	bank->gpio_chip.base = -1;
 
 	bank->gpio_chip.ngpio = npins;
 	bank->gpio_chip.fwnode = fwnode;
@@ -1374,7 +1374,7 @@ static struct irq_domain *stm32_pctrl_get_irq_domain(struct platform_device *pde
 	struct device_node *parent;
 	struct irq_domain *domain;
 
-	if (!of_find_property(np, "interrupt-parent", NULL))
+	if (!of_property_present(np, "interrupt-parent"))
 		return NULL;
 
 	parent = of_irq_find_parent(np);

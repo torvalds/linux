@@ -71,7 +71,7 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int cs_high = (spi->mode & SPI_CS_HIGH) ? is_active : !is_active;
-	u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+	u32 cs_bit = AR71XX_SPI_IOC_CS(spi_get_chipselect(spi, 0));
 
 	if (cs_high)
 		sp->ioc_base |= cs_bit;
@@ -140,7 +140,7 @@ static int ath79_exec_mem_op(struct spi_mem *mem,
 	struct ath79_spi *sp = ath79_spidev_to_sp(mem->spi);
 
 	/* Ensures that reading is performed on device connected to hardware cs0 */
-	if (mem->spi->chip_select || mem->spi->cs_gpiod)
+	if (spi_get_chipselect(mem->spi, 0) || spi_get_csgpiod(mem->spi, 0))
 		return -ENOTSUPP;
 
 	/* Only use for fast-read op. */
@@ -237,7 +237,7 @@ err_put_host:
 	return ret;
 }
 
-static int ath79_spi_remove(struct platform_device *pdev)
+static void ath79_spi_remove(struct platform_device *pdev)
 {
 	struct ath79_spi *sp = platform_get_drvdata(pdev);
 
@@ -245,8 +245,6 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	ath79_spi_disable(sp);
 	clk_disable_unprepare(sp->clk);
 	spi_controller_put(sp->bitbang.master);
-
-	return 0;
 }
 
 static void ath79_spi_shutdown(struct platform_device *pdev)
@@ -262,7 +260,7 @@ MODULE_DEVICE_TABLE(of, ath79_spi_of_match);
 
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
-	.remove		= ath79_spi_remove,
+	.remove_new	= ath79_spi_remove,
 	.shutdown	= ath79_spi_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

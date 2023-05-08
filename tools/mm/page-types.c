@@ -85,7 +85,6 @@
  */
 #define KPF_ANON_EXCLUSIVE	47
 #define KPF_READAHEAD		48
-#define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
 #define KPF_SLUB_DEBUG		51
 #define KPF_FILE		61
@@ -141,7 +140,6 @@ static const char * const page_flag_names[] = {
 
 	[KPF_ANON_EXCLUSIVE]	= "d:anon_exclusive",
 	[KPF_READAHEAD]		= "I:readahead",
-	[KPF_SLOB_FREE]		= "P:slob_free",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
 
@@ -478,10 +476,8 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 	if ((flags & BIT(ANON)) && (flags & BIT(MAPPEDTODISK)))
 		flags ^= BIT(MAPPEDTODISK) | BIT(ANON_EXCLUSIVE);
 
-	/* SLOB/SLUB overload several page flags */
+	/* SLUB overloads several page flags */
 	if (flags & BIT(SLAB)) {
-		if (flags & BIT(PRIVATE))
-			flags ^= BIT(PRIVATE) | BIT(SLOB_FREE);
 		if (flags & BIT(ACTIVE))
 			flags ^= BIT(ACTIVE) | BIT(SLUB_FROZEN);
 		if (flags & BIT(ERROR))

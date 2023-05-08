@@ -66,7 +66,7 @@
 	.long	.Lefi_header_end - .L_head		// SizeOfHeaders
 	.long	0					// CheckSum
 	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION		// Subsystem
-	.short	0					// DllCharacteristics
+	.short	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	// DllCharacteristics
 	.quad	0					// SizeOfStackReserve
 	.quad	0					// SizeOfStackCommit
 	.quad	0					// SizeOfHeapReserve
@@ -81,9 +81,47 @@
 	.quad	0					// CertificationTable
 	.quad	0					// BaseRelocationTable
 
-#ifdef CONFIG_DEBUG_EFI
+#if defined(CONFIG_DEBUG_EFI) || defined(CONFIG_ARM64_BTI_KERNEL)
 	.long	.Lefi_debug_table - .L_head		// DebugTable
 	.long	.Lefi_debug_table_size
+
+	/*
+	 * The debug table is referenced via its Relative Virtual Address (RVA),
+	 * which is only defined for those parts of the image that are covered
+	 * by a section declaration. Since this header is not covered by any
+	 * section, the debug table must be emitted elsewhere. So stick it in
+	 * the .init.rodata section instead.
+	 *
+	 * Note that the payloads themselves are permitted to have zero RVAs,
+	 * which means we can simply put those right after the section headers.
+	 */
+	__INITRODATA
+
+	.align	2
+.Lefi_debug_table:
+#ifdef CONFIG_DEBUG_EFI
+	// EFI_IMAGE_DEBUG_DIRECTORY_ENTRY
+	.long	0					// Characteristics
+	.long	0					// TimeDateStamp
+	.short	0					// MajorVersion
+	.short	0					// MinorVersion
+	.long	IMAGE_DEBUG_TYPE_CODEVIEW		// Type
+	.long	.Lefi_debug_entry_size			// SizeOfData
+	.long	0					// RVA
+	.long	.Lefi_debug_entry - .L_head		// FileOffset
+#endif
+#ifdef CONFIG_ARM64_BTI_KERNEL
+	.long	0					// Characteristics
+	.long	0					// TimeDateStamp
+	.short	0					// MajorVersion
+	.short	0					// MinorVersion
+	.long	IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS	// Type
+	.long	4					// SizeOfData
+	.long	0					// RVA
+	.long	.Lefi_dll_characteristics_ex - .L_head	// FileOffset
+#endif
+	.set	.Lefi_debug_table_size, . - .Lefi_debug_table
+	.previous
 #endif
 
 	// Section table
@@ -119,33 +157,6 @@
 	.set	.Lsection_count, (. - .Lsection_table) / 40
 
 #ifdef CONFIG_DEBUG_EFI
-	/*
-	 * The debug table is referenced via its Relative Virtual Address (RVA),
-	 * which is only defined for those parts of the image that are covered
-	 * by a section declaration. Since this header is not covered by any
-	 * section, the debug table must be emitted elsewhere. So stick it in
-	 * the .init.rodata section instead.
-	 *
-	 * Note that the EFI debug entry itself may legally have a zero RVA,
-	 * which means we can simply put it right after the section headers.
-	 */
-	__INITRODATA
-
-	.align	2
-.Lefi_debug_table:
-	// EFI_IMAGE_DEBUG_DIRECTORY_ENTRY
-	.long	0					// Characteristics
-	.long	0					// TimeDateStamp
-	.short	0					// MajorVersion
-	.short	0					// MinorVersion
-	.long	IMAGE_DEBUG_TYPE_CODEVIEW		// Type
-	.long	.Lefi_debug_entry_size			// SizeOfData
-	.long	0					// RVA
-	.long	.Lefi_debug_entry - .L_head		// FileOffset
-
-	.set	.Lefi_debug_table_size, . - .Lefi_debug_table
-	.previous
-
 .Lefi_debug_entry:
 	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
 	.ascii	"NB10"					// Signature
@@ -156,6 +167,10 @@
 	.asciz	VMLINUX_PATH
 
 	.set	.Lefi_debug_entry_size, . - .Lefi_debug_entry
+#endif
+#ifdef CONFIG_ARM64_BTI_KERNEL
+.Lefi_dll_characteristics_ex:
+	.long	IMAGE_DLLCHARACTERISTICS_EX_FORWARD_CFI_COMPAT
 #endif
 
 	.balign	SEGMENT_ALIGN

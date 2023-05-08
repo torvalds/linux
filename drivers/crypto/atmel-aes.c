@@ -493,17 +493,11 @@ static void atmel_aes_set_iv_as_last_ciphertext_block(struct atmel_aes_dev *dd)
 	if (req->cryptlen < ivsize)
 		return;
 
-	if (rctx->mode & AES_FLAGS_ENCRYPT) {
+	if (rctx->mode & AES_FLAGS_ENCRYPT)
 		scatterwalk_map_and_copy(req->iv, req->dst,
 					 req->cryptlen - ivsize, ivsize, 0);
-	} else {
-		if (req->src == req->dst)
-			memcpy(req->iv, rctx->lastc, ivsize);
-		else
-			scatterwalk_map_and_copy(req->iv, req->src,
-						 req->cryptlen - ivsize,
-						 ivsize, 0);
-	}
+	else
+		memcpy(req->iv, rctx->lastc, ivsize);
 }
 
 static inline struct atmel_aes_ctr_ctx *
@@ -1146,7 +1140,7 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	rctx->mode = mode;
 
 	if (opmode != AES_FLAGS_ECB &&
-	    !(mode & AES_FLAGS_ENCRYPT) && req->src == req->dst) {
+	    !(mode & AES_FLAGS_ENCRYPT)) {
 		unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
 
 		if (req->cryptlen >= ivsize)
@@ -1341,7 +1335,7 @@ static struct skcipher_alg aes_algs[] = {
 {
 	.base.cra_name		= "cfb(aes)",
 	.base.cra_driver_name	= "atmel-cfb-aes",
-	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct atmel_aes_ctx),
 
 	.init			= atmel_aes_init_tfm,

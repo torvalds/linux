@@ -186,4 +186,18 @@ config PTP_1588_CLOCK_OCP
 
 	  More information is available at http://www.timingcard.com/
 
+config PTP_DFL_TOD
+	tristate "FPGA DFL ToD Driver"
+	depends on FPGA_DFL
+	depends on PTP_1588_CLOCK
+	help
+	  The DFL (Device Feature List) device driver for the Intel ToD
+	  (Time-of-Day) device in FPGA card. The ToD IP within the FPGA
+	  is exposed as PTP Hardware Clock (PHC) device to the Linux PTP
+	  stack to synchronize the system clock to its ToD information
+	  using phc2sys utility of the Linux PTP stack.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_dfl_tod.
+
 endmenu

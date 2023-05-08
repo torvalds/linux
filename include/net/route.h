@@ -78,9 +78,6 @@ struct rtable {
 	/* Miscellaneous cached information */
 	u32			rt_mtu_locked:1,
 				rt_pmtu:31;
-
-	struct list_head	rt_uncached;
-	struct uncached_list	*rt_uncached_list;
 };
 
 static inline bool rt_is_input_route(const struct rtable *rt)

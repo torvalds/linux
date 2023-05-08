@@ -13,19 +13,6 @@
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
 
-int __weak sched_getcpu(void)
-{
-#ifdef __NR_getcpu
-	unsigned cpu;
-	int err = syscall(__NR_getcpu, &cpu, NULL, NULL);
-	if (!err)
-		return cpu;
-#else
-	errno = ENOSYS;
-#endif
-	return -1;
-}
-
 static int perf_flag_probe(void)
 {
 	/* use 'safest' configuration as used in evsel__fallback() */

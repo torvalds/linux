@@ -61,6 +61,34 @@ config LEDS_MT6360
 	  Independent current sources supply for each flash LED support torch
 	  and strobe mode.
 
+config LEDS_MT6370_FLASH
+	tristate "Flash LED Support for MediaTek MT6370 PMIC"
+	depends on LEDS_CLASS
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on MFD_MT6370
+	help
+	  Support 2 channels and torch/strobe mode.
+	  Say Y here to enable support for
+	  MT6370_FLASH_LED device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "leds-mt6370-flash".
+
+config LEDS_QCOM_FLASH
+	tristate "LED support for flash module inside Qualcomm Technologies, Inc. PMIC"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on LEDS_CLASS && OF
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	select REGMAP
+	help
+	  This option enables support for the flash module found in Qualcomm
+	  Technologies, Inc. PMICs. The flash module can have 3 or 4 flash LED
+	  channels and each channel is programmable to support up to 1.5 A full
+	  scale current. It also supports connecting two channels' output together
+	  to supply one LED component to achieve current up to 2 A. In such case,
+	  the total LED current will be split symmetrically on each channel and
+	  they will be enabled/disabled at the same time.
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF

@@ -196,6 +196,19 @@
 
 &i2c0 {
 	status = "okay";
+
+	wm8978: codec@1a {
+		#sound-dai-cells = <0>;
+		compatible = "wlf,wm8978";
+		reg = <0x1a>;
+	};
+
+	eeprom@50 {
+		compatible = "st,24c01", "atmel,24c01";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
 	touchscreen@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
@@ -204,12 +217,6 @@
 		pinctrl-0 = <&st1232_pins>;
 		pinctrl-names = "default";
 		gpios = <&pfc 166 GPIO_ACTIVE_LOW>;
-	};
-
-	wm8978: codec@1a {
-		#sound-dai-cells = <0>;
-		compatible = "wlf,wm8978";
-		reg = <0x1a>;
 	};
 };
 

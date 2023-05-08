@@ -252,13 +252,11 @@ static int phy_probe(struct platform_device *pdev)
 	return usb_add_phy_dev(phy);
 }
 
-static int phy_remove(struct platform_device *pdev)
+static void phy_remove(struct platform_device *pdev)
 {
 	struct tca_apb *ta = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&ta->phy);
-
-	return 0;
 }
 
 static const struct of_device_id intel_usb_phy_dt_ids[] = {
@@ -273,7 +271,7 @@ static struct platform_driver lgm_phy_driver = {
 		.of_match_table = intel_usb_phy_dt_ids,
 	},
 	.probe = phy_probe,
-	.remove = phy_remove,
+	.remove_new = phy_remove,
 };
 
 module_platform_driver(lgm_phy_driver);

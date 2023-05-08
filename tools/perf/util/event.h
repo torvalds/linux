@@ -89,7 +89,8 @@ enum {
 	 PERF_MEM_S(LVL, NA) |\
 	 PERF_MEM_S(SNOOP, NA) |\
 	 PERF_MEM_S(LOCK, NA) |\
-	 PERF_MEM_S(TLB, NA))
+	 PERF_MEM_S(TLB, NA) |\
+	 PERF_MEM_S(LVLNUM, NA))
 
 /* Attribute type for custom synthesized events */
 #define PERF_TYPE_SYNTH		(INT_MAX + 1U)

@@ -232,7 +232,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 				init_data->num_virtual_links, dc);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		res_pool = dcn10_create_resource_pool(init_data, dc);
@@ -276,7 +276,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_3_21:
 		res_pool = dcn321_create_resource_pool(init_data, dc);
 		break;
-#endif
+#endif /* CONFIG_DRM_AMD_DC_FP */
 	default:
 		break;
 	}
@@ -1707,6 +1707,9 @@ bool dc_remove_plane_from_context(
 	struct dc_stream_status *stream_status = NULL;
 	struct resource_pool *pool = dc->res_pool;
 
+	if (!plane_state)
+		return true;
+
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
 			stream_status = &context->stream_status[i];
@@ -2213,7 +2216,7 @@ enum dc_status dc_remove_stream_from_ctx(
 			del_pipe->stream_res.stream_enc,
 			false);
 
-	if (link_is_dp_128b_132b_signal(del_pipe)) {
+	if (dc->link_srv->dp_is_128b_132b_signal(del_pipe)) {
 		update_hpo_dp_stream_engine_usage(
 			&new_ctx->res_ctx, dc->res_pool,
 			del_pipe->stream_res.hpo_dp_stream_enc,
@@ -2513,9 +2516,10 @@ enum dc_status resource_map_pool_resources(
 	 * and link settings
 	 */
 	if (dc_is_dp_signal(stream->signal)) {
-		if (!link_decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
+		if (!dc->link_srv->dp_decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
 			return DC_FAIL_DP_LINK_BANDWIDTH;
-		if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (dc->link_srv->dp_get_encoding_format(
+				&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(
 							&context->res_ctx, pool, stream);
@@ -3685,7 +3689,7 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	/* TODO: validate audio ASIC caps, encoder */
 
 	if (res == DC_OK)
-		res = link_validate_mode_timing(stream,
+		res = dc->link_srv->validate_mode_timing(stream,
 		      link,
 		      &stream->timing);
 
@@ -3812,7 +3816,7 @@ bool get_temp_dp_link_res(struct dc_link *link,
 
 	memset(link_res, 0, sizeof(*link_res));
 
-	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+	if (dc->link_srv->dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
 		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx,
 				dc->res_pool, link);
 		if (!link_res->hpo_dp_link_enc)
@@ -4027,14 +4031,14 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 		else
 			sec_pipe->stream_res.opp = sec_pipe->top_pipe->stream_res.opp;
 		if (sec_pipe->stream->timing.flags.DSC == 1) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 			dcn20_acquire_dsc(dc, &state->res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
 #endif
 			ASSERT(sec_pipe->stream_res.dsc);
 			if (sec_pipe->stream_res.dsc == NULL)
 				return false;
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 		dcn20_build_mapped_resource(dc, state, sec_pipe->stream);
 #endif
 	}
@@ -4046,7 +4050,7 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx)
 {
-	if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+	if (dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 		if (pipe_ctx->stream_res.hpo_dp_stream_enc == NULL) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(

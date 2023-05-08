@@ -10,23 +10,6 @@ menuconfig PPC_86xx
 
 if PPC_86xx
 
-config MPC8641_HPCN
-	bool "Freescale MPC8641 HPCN"
-	select PPC_I8259
-	select DEFAULT_UIMAGE
-	select FSL_ULI1575 if PCI
-	select HAVE_RAPIDIO
-	select SWIOTLB
-	help
-	  This option enables support for the MPC8641 HPCN board.
-
-config MPC8610_HPCD
-	bool "Freescale MPC8610 HPCD"
-	select DEFAULT_UIMAGE
-	select FSL_ULI1575 if PCI
-	help
-	  This option enables support for the MPC8610 HPCD board.
-
 config GEF_PPC9A
 	bool "GE PPC9A"
 	select DEFAULT_UIMAGE
@@ -68,7 +51,7 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
+	default y if GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
 			|| MVME7100
 
 config MPC8610
@@ -77,4 +60,3 @@ config MPC8610
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8610_HPCD

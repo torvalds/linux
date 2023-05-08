@@ -47,6 +47,11 @@ struct intel_color_funcs {
 	 */
 	void (*color_commit_arm)(const struct intel_crtc_state *crtc_state);
 	/*
+	 * Perform any extra tasks needed after all the
+	 * double buffered registers have been latched.
+	 */
+	void (*color_post_update)(const struct intel_crtc_state *crtc_state);
+	/*
 	 * Load LUTs (and other single buffered color management
 	 * registers). Will (hopefully) be called during the vblank
 	 * following the latching of any double buffered registers
@@ -257,7 +262,7 @@ static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(i915) >= 11)
 		return false;
 
-	/* pre-hsw have PIPECONF_COLOR_RANGE_SELECT */
+	/* pre-hsw have TRANSCONF_COLOR_RANGE_SELECT */
 	if (DISPLAY_VER(i915) < 7 || IS_IVYBRIDGE(i915))
 		return false;
 
@@ -614,7 +619,31 @@ static void ilk_lut_12p4_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 
 static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 {
+	/*
+	 * Despite Wa_1406463849, ICL no longer suffers from the SKL
+	 * DC5/PSR CSC black screen issue (see skl_color_commit_noarm()).
+	 * Possibly due to the extra sticky CSC arming
+	 * (see icl_color_post_update()).
+	 *
+	 * On TGL+ all CSC arming issues have been properly fixed.
+	 */
 	icl_load_csc_matrix(crtc_state);
+}
+
+static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * Possibly related to display WA #1184, SKL CSC loses the latched
+	 * CSC coeff/offset register values if the CSC registers are disarmed
+	 * between DC5 exit and PSR exit. This will cause the plane(s) to
+	 * output all black (until CSC_MODE is rearmed and properly latched).
+	 * Once PSR exit (and proper register latching) has occurred the
+	 * danger is over. Thus when PSR is enabled the CSC coeff/offset
+	 * register programming will be peformed from skl_color_commit_arm()
+	 * which is called after PSR exit.
+	 */
+	if (!crtc_state->has_psr)
+		ilk_load_csc_matrix(crtc_state);
 }
 
 static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
@@ -624,7 +653,7 @@ static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 
 static void i9xx_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	i9xx_set_pipeconf(crtc_state);
 }
 
@@ -633,7 +662,7 @@ static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	ilk_set_pipeconf(crtc_state);
 
 	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
@@ -659,6 +688,9 @@ static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 	u32 val = 0;
 
+	if (crtc_state->has_psr)
+		ilk_load_csc_matrix(crtc_state);
+
 	/*
 	 * We don't (yet) allow userspace to control the pipe background color,
 	 * so force it to black, but apply pipe gamma and CSC appropriately
@@ -675,6 +707,47 @@ static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 
 	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
 			  crtc_state->csc_mode);
+}
+
+static void icl_color_commit_arm(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	/*
+	 * We don't (yet) allow userspace to control the pipe background color,
+	 * so force it to black.
+	 */
+	intel_de_write(i915, SKL_BOTTOM_COLOR(pipe), 0);
+
+	intel_de_write(i915, GAMMA_MODE(crtc->pipe),
+		       crtc_state->gamma_mode);
+
+	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
+}
+
+static void icl_color_post_update(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	/*
+	 * Despite Wa_1406463849, ICL CSC is no longer disarmed by
+	 * coeff/offset register *writes*. Instead, once CSC_MODE
+	 * is armed it stays armed, even after it has been latched.
+	 * Afterwards the coeff/offset registers become effectively
+	 * self-arming. That self-arming must be disabled before the
+	 * next icl_color_commit_noarm() tries to write the next set
+	 * of coeff/offset registers. Fortunately register *reads*
+	 * do still disarm the CSC. Naturally this must not be done
+	 * until the previously written CSC registers have actually
+	 * been latched.
+	 *
+	 * TGL+ no longer need this workaround.
+	 */
+	intel_de_read_fw(i915, PIPE_CSC_PREOFF_HI(crtc->pipe));
 }
 
 static struct drm_property_blob *
@@ -1256,8 +1329,11 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		break;
 	}
 
-	if (crtc_state->dsb)
-		intel_dsb_commit(crtc_state->dsb);
+	if (crtc_state->dsb) {
+		intel_dsb_finish(crtc_state->dsb);
+		intel_dsb_commit(crtc_state->dsb, false);
+		intel_dsb_wait(crtc_state->dsb);
+	}
 }
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
@@ -1373,12 +1449,23 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	i915->display.funcs.color->color_commit_arm(crtc_state);
 }
 
+void intel_color_post_update(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (i915->display.funcs.color->color_post_update)
+		i915->display.funcs.color->color_post_update(crtc_state);
+}
+
 void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	/* FIXME DSB has issues loading LUTs, disable it for now */
 	return;
+
+	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
+		return;
 
 	crtc_state->dsb = intel_dsb_prepare(crtc, 1024);
 }
@@ -1500,6 +1587,8 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 			return PTR_ERR(plane_state);
 
 		new_crtc_state->update_planes |= BIT(plane->id);
+		new_crtc_state->async_flip_planes = 0;
+		new_crtc_state->do_async_flip = false;
 
 		/* plane control register changes blocked by CxSR */
 		if (HAS_GMCH(i915))
@@ -3064,10 +3153,20 @@ static const struct intel_color_funcs i9xx_color_funcs = {
 	.lut_equal = i9xx_lut_equal,
 };
 
+static const struct intel_color_funcs tgl_color_funcs = {
+	.color_check = icl_color_check,
+	.color_commit_noarm = icl_color_commit_noarm,
+	.color_commit_arm = icl_color_commit_arm,
+	.load_luts = icl_load_luts,
+	.read_luts = icl_read_luts,
+	.lut_equal = icl_lut_equal,
+};
+
 static const struct intel_color_funcs icl_color_funcs = {
 	.color_check = icl_color_check,
 	.color_commit_noarm = icl_color_commit_noarm,
-	.color_commit_arm = skl_color_commit_arm,
+	.color_commit_arm = icl_color_commit_arm,
+	.color_post_update = icl_color_post_update,
 	.load_luts = icl_load_luts,
 	.read_luts = icl_read_luts,
 	.lut_equal = icl_lut_equal,
@@ -3075,7 +3174,7 @@ static const struct intel_color_funcs icl_color_funcs = {
 
 static const struct intel_color_funcs glk_color_funcs = {
 	.color_check = glk_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_noarm = skl_color_commit_noarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = glk_load_luts,
 	.read_luts = glk_read_luts,
@@ -3084,7 +3183,7 @@ static const struct intel_color_funcs glk_color_funcs = {
 
 static const struct intel_color_funcs skl_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_noarm = skl_color_commit_noarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = bdw_read_luts,
@@ -3180,7 +3279,9 @@ void intel_color_init_hooks(struct drm_i915_private *i915)
 		else
 			i915->display.funcs.color = &i9xx_color_funcs;
 	} else {
-		if (DISPLAY_VER(i915) >= 11)
+		if (DISPLAY_VER(i915) >= 12)
+			i915->display.funcs.color = &tgl_color_funcs;
+		else if (DISPLAY_VER(i915) == 11)
 			i915->display.funcs.color = &icl_color_funcs;
 		else if (DISPLAY_VER(i915) == 10)
 			i915->display.funcs.color = &glk_color_funcs;

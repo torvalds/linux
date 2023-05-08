@@ -3,6 +3,7 @@
  * Author: Huacai Chen <chenhuacai@loongson.cn>
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
@@ -35,6 +36,7 @@
 #include <asm/break.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
+#include <asm/inst.h>
 #include <asm/loongarch.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -50,6 +52,7 @@
 
 extern asmlinkage void handle_ade(void);
 extern asmlinkage void handle_ale(void);
+extern asmlinkage void handle_bce(void);
 extern asmlinkage void handle_sys(void);
 extern asmlinkage void handle_bp(void);
 extern asmlinkage void handle_ri(void);
@@ -153,53 +156,210 @@ static void show_code(unsigned int *pc, bool user)
 	pr_cont("\n");
 }
 
+static void print_bool_fragment(const char *key, unsigned long val, bool first)
+{
+	/* e.g. "+PG", "-DA" */
+	pr_cont("%s%c%s", first ? "" : " ", val ? '+' : '-', key);
+}
+
+static void print_plv_fragment(const char *key, int val)
+{
+	/* e.g. "PLV0", "PPLV3" */
+	pr_cont("%s%d", key, val);
+}
+
+static void print_memory_type_fragment(const char *key, unsigned long val)
+{
+	const char *humanized_type;
+
+	switch (val) {
+	case 0:
+		humanized_type = "SUC";
+		break;
+	case 1:
+		humanized_type = "CC";
+		break;
+	case 2:
+		humanized_type = "WUC";
+		break;
+	default:
+		pr_cont(" %s=Reserved(%lu)", key, val);
+		return;
+	}
+
+	/* e.g. " DATM=WUC" */
+	pr_cont(" %s=%s", key, humanized_type);
+}
+
+static void print_intr_fragment(const char *key, unsigned long val)
+{
+	/* e.g. "LIE=0-1,3,5-7" */
+	pr_cont("%s=%*pbl", key, EXCCODE_INT_NUM, &val);
+}
+
+static void print_crmd(unsigned long x)
+{
+	printk(" CRMD: %08lx (", x);
+	print_plv_fragment("PLV", (int) FIELD_GET(CSR_CRMD_PLV, x));
+	print_bool_fragment("IE", FIELD_GET(CSR_CRMD_IE, x), false);
+	print_bool_fragment("DA", FIELD_GET(CSR_CRMD_DA, x), false);
+	print_bool_fragment("PG", FIELD_GET(CSR_CRMD_PG, x), false);
+	print_memory_type_fragment("DACF", FIELD_GET(CSR_CRMD_DACF, x));
+	print_memory_type_fragment("DACM", FIELD_GET(CSR_CRMD_DACM, x));
+	print_bool_fragment("WE", FIELD_GET(CSR_CRMD_WE, x), false);
+	pr_cont(")\n");
+}
+
+static void print_prmd(unsigned long x)
+{
+	printk(" PRMD: %08lx (", x);
+	print_plv_fragment("PPLV", (int) FIELD_GET(CSR_PRMD_PPLV, x));
+	print_bool_fragment("PIE", FIELD_GET(CSR_PRMD_PIE, x), false);
+	print_bool_fragment("PWE", FIELD_GET(CSR_PRMD_PWE, x), false);
+	pr_cont(")\n");
+}
+
+static void print_euen(unsigned long x)
+{
+	printk(" EUEN: %08lx (", x);
+	print_bool_fragment("FPE", FIELD_GET(CSR_EUEN_FPEN, x), true);
+	print_bool_fragment("SXE", FIELD_GET(CSR_EUEN_LSXEN, x), false);
+	print_bool_fragment("ASXE", FIELD_GET(CSR_EUEN_LASXEN, x), false);
+	print_bool_fragment("BTE", FIELD_GET(CSR_EUEN_LBTEN, x), false);
+	pr_cont(")\n");
+}
+
+static void print_ecfg(unsigned long x)
+{
+	printk(" ECFG: %08lx (", x);
+	print_intr_fragment("LIE", FIELD_GET(CSR_ECFG_IM, x));
+	pr_cont(" VS=%d)\n", (int) FIELD_GET(CSR_ECFG_VS, x));
+}
+
+static const char *humanize_exc_name(unsigned int ecode, unsigned int esubcode)
+{
+	/*
+	 * LoongArch users and developers are probably more familiar with
+	 * those names found in the ISA manual, so we are going to print out
+	 * the latter. This will require some mapping.
+	 */
+	switch (ecode) {
+	case EXCCODE_RSV: return "INT";
+	case EXCCODE_TLBL: return "PIL";
+	case EXCCODE_TLBS: return "PIS";
+	case EXCCODE_TLBI: return "PIF";
+	case EXCCODE_TLBM: return "PME";
+	case EXCCODE_TLBNR: return "PNR";
+	case EXCCODE_TLBNX: return "PNX";
+	case EXCCODE_TLBPE: return "PPI";
+	case EXCCODE_ADE:
+		switch (esubcode) {
+		case EXSUBCODE_ADEF: return "ADEF";
+		case EXSUBCODE_ADEM: return "ADEM";
+		}
+		break;
+	case EXCCODE_ALE: return "ALE";
+	case EXCCODE_BCE: return "BCE";
+	case EXCCODE_SYS: return "SYS";
+	case EXCCODE_BP: return "BRK";
+	case EXCCODE_INE: return "INE";
+	case EXCCODE_IPE: return "IPE";
+	case EXCCODE_FPDIS: return "FPD";
+	case EXCCODE_LSXDIS: return "SXD";
+	case EXCCODE_LASXDIS: return "ASXD";
+	case EXCCODE_FPE:
+		switch (esubcode) {
+		case EXCSUBCODE_FPE: return "FPE";
+		case EXCSUBCODE_VFPE: return "VFPE";
+		}
+		break;
+	case EXCCODE_WATCH:
+		switch (esubcode) {
+		case EXCSUBCODE_WPEF: return "WPEF";
+		case EXCSUBCODE_WPEM: return "WPEM";
+		}
+		break;
+	case EXCCODE_BTDIS: return "BTD";
+	case EXCCODE_BTE: return "BTE";
+	case EXCCODE_GSPR: return "GSPR";
+	case EXCCODE_HVC: return "HVC";
+	case EXCCODE_GCM:
+		switch (esubcode) {
+		case EXCSUBCODE_GCSC: return "GCSC";
+		case EXCSUBCODE_GCHC: return "GCHC";
+		}
+		break;
+	/*
+	 * The manual did not mention the EXCCODE_SE case, but print out it
+	 * nevertheless.
+	 */
+	case EXCCODE_SE: return "SE";
+	}
+
+	return "???";
+}
+
+static void print_estat(unsigned long x)
+{
+	unsigned int ecode = FIELD_GET(CSR_ESTAT_EXC, x);
+	unsigned int esubcode = FIELD_GET(CSR_ESTAT_ESUBCODE, x);
+
+	printk("ESTAT: %08lx [%s] (", x, humanize_exc_name(ecode, esubcode));
+	print_intr_fragment("IS", FIELD_GET(CSR_ESTAT_IS, x));
+	pr_cont(" ECode=%d EsubCode=%d)\n", (int) ecode, (int) esubcode);
+}
+
 static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
-	unsigned int excsubcode;
-	unsigned int exccode;
-	int i;
+	unsigned int exccode = FIELD_GET(CSR_ESTAT_EXC, regs->csr_estat);
 
 	show_regs_print_info(KERN_DEFAULT);
 
-	/*
-	 * Saved main processor registers
-	 */
-	for (i = 0; i < 32; ) {
-		if ((i % 4) == 0)
-			printk("$%2d   :", i);
-		pr_cont(" %0*lx", field, regs->regs[i]);
+	/* Print saved GPRs except $zero (substituting with PC/ERA) */
+#define GPR_FIELD(x) field, regs->regs[x]
+	printk("pc %0*lx ra %0*lx tp %0*lx sp %0*lx\n",
+	       field, regs->csr_era, GPR_FIELD(1), GPR_FIELD(2), GPR_FIELD(3));
+	printk("a0 %0*lx a1 %0*lx a2 %0*lx a3 %0*lx\n",
+	       GPR_FIELD(4), GPR_FIELD(5), GPR_FIELD(6), GPR_FIELD(7));
+	printk("a4 %0*lx a5 %0*lx a6 %0*lx a7 %0*lx\n",
+	       GPR_FIELD(8), GPR_FIELD(9), GPR_FIELD(10), GPR_FIELD(11));
+	printk("t0 %0*lx t1 %0*lx t2 %0*lx t3 %0*lx\n",
+	       GPR_FIELD(12), GPR_FIELD(13), GPR_FIELD(14), GPR_FIELD(15));
+	printk("t4 %0*lx t5 %0*lx t6 %0*lx t7 %0*lx\n",
+	       GPR_FIELD(16), GPR_FIELD(17), GPR_FIELD(18), GPR_FIELD(19));
+	printk("t8 %0*lx u0 %0*lx s9 %0*lx s0 %0*lx\n",
+	       GPR_FIELD(20), GPR_FIELD(21), GPR_FIELD(22), GPR_FIELD(23));
+	printk("s1 %0*lx s2 %0*lx s3 %0*lx s4 %0*lx\n",
+	       GPR_FIELD(24), GPR_FIELD(25), GPR_FIELD(26), GPR_FIELD(27));
+	printk("s5 %0*lx s6 %0*lx s7 %0*lx s8 %0*lx\n",
+	       GPR_FIELD(28), GPR_FIELD(29), GPR_FIELD(30), GPR_FIELD(31));
 
-		i++;
-		if ((i % 4) == 0)
-			pr_cont("\n");
+	/* The slot for $zero is reused as the syscall restart flag */
+	if (regs->regs[0])
+		printk("syscall restart flag: %0*lx\n", GPR_FIELD(0));
+
+	if (user_mode(regs)) {
+		printk("   ra: %0*lx\n", GPR_FIELD(1));
+		printk("  ERA: %0*lx\n", field, regs->csr_era);
+	} else {
+		printk("   ra: %0*lx %pS\n", GPR_FIELD(1), (void *) regs->regs[1]);
+		printk("  ERA: %0*lx %pS\n", field, regs->csr_era, (void *) regs->csr_era);
 	}
+#undef GPR_FIELD
 
-	/*
-	 * Saved csr registers
-	 */
-	printk("era   : %0*lx %pS\n", field, regs->csr_era,
-	       (void *) regs->csr_era);
-	printk("ra    : %0*lx %pS\n", field, regs->regs[1],
-	       (void *) regs->regs[1]);
-
-	printk("CSR crmd: %08lx	", regs->csr_crmd);
-	printk("CSR prmd: %08lx	", regs->csr_prmd);
-	printk("CSR euen: %08lx	", regs->csr_euen);
-	printk("CSR ecfg: %08lx	", regs->csr_ecfg);
-	printk("CSR estat: %08lx	", regs->csr_estat);
-
-	pr_cont("\n");
-
-	exccode = ((regs->csr_estat) & CSR_ESTAT_EXC) >> CSR_ESTAT_EXC_SHIFT;
-	excsubcode = ((regs->csr_estat) & CSR_ESTAT_ESUBCODE) >> CSR_ESTAT_ESUBCODE_SHIFT;
-	printk("ExcCode : %x (SubCode %x)\n", exccode, excsubcode);
+	/* Print saved important CSRs */
+	print_crmd(regs->csr_crmd);
+	print_prmd(regs->csr_prmd);
+	print_euen(regs->csr_euen);
+	print_ecfg(regs->csr_ecfg);
+	print_estat(regs->csr_estat);
 
 	if (exccode >= EXCCODE_TLBL && exccode <= EXCCODE_ALE)
-		printk("BadVA : %0*lx\n", field, regs->csr_badvaddr);
+		printk(" BADV: %0*lx\n", field, regs->csr_badvaddr);
 
-	printk("PrId  : %08x (%s)\n", read_cpucfg(LOONGARCH_CPUCFG0),
-	       cpu_family_string());
+	printk(" PRID: %08x (%s, %s)\n", read_cpucfg(LOONGARCH_CPUCFG0),
+	       cpu_family_string(), cpu_full_name_string());
 }
 
 void show_regs(struct pt_regs *regs)
@@ -428,6 +588,95 @@ static void bug_handler(struct pt_regs *regs)
 		regs->csr_era += LOONGARCH_INSN_SIZE;
 		break;
 	}
+}
+
+asmlinkage void noinstr do_bce(struct pt_regs *regs)
+{
+	bool user = user_mode(regs);
+	unsigned long era = exception_era(regs);
+	u64 badv = 0, lower = 0, upper = ULONG_MAX;
+	union loongarch_instruction insn;
+	irqentry_state_t state = irqentry_enter(regs);
+
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
+	current->thread.trap_nr = read_csr_excode();
+
+	die_if_kernel("Bounds check error in kernel code", regs);
+
+	/*
+	 * Pull out the address that failed bounds checking, and the lower /
+	 * upper bound, by minimally looking at the faulting instruction word
+	 * and reading from the correct register.
+	 */
+	if (__get_inst(&insn.word, (u32 *)era, user))
+		goto bad_era;
+
+	switch (insn.reg3_format.opcode) {
+	case asrtle_op:
+		if (insn.reg3_format.rd != 0)
+			break;	/* not asrtle */
+		badv = regs->regs[insn.reg3_format.rj];
+		upper = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case asrtgt_op:
+		if (insn.reg3_format.rd != 0)
+			break;	/* not asrtgt */
+		badv = regs->regs[insn.reg3_format.rj];
+		lower = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case ldleb_op:
+	case ldleh_op:
+	case ldlew_op:
+	case ldled_op:
+	case stleb_op:
+	case stleh_op:
+	case stlew_op:
+	case stled_op:
+	case fldles_op:
+	case fldled_op:
+	case fstles_op:
+	case fstled_op:
+		badv = regs->regs[insn.reg3_format.rj];
+		upper = regs->regs[insn.reg3_format.rk];
+		break;
+
+	case ldgtb_op:
+	case ldgth_op:
+	case ldgtw_op:
+	case ldgtd_op:
+	case stgtb_op:
+	case stgth_op:
+	case stgtw_op:
+	case stgtd_op:
+	case fldgts_op:
+	case fldgtd_op:
+	case fstgts_op:
+	case fstgtd_op:
+		badv = regs->regs[insn.reg3_format.rj];
+		lower = regs->regs[insn.reg3_format.rk];
+		break;
+	}
+
+	force_sig_bnderr((void __user *)badv, (void __user *)lower, (void __user *)upper);
+
+out:
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
+
+	irqentry_exit(regs, state);
+	return;
+
+bad_era:
+	/*
+	 * Cannot pull out the instruction word, hence cannot provide more
+	 * info than a regular SIGSEGV in this case.
+	 */
+	force_sig(SIGSEGV);
+	goto out;
 }
 
 asmlinkage void noinstr do_bp(struct pt_regs *regs)
@@ -792,11 +1041,12 @@ void __init trap_init(void)
 	long i;
 
 	/* Set interrupt vector handler */
-	for (i = EXCCODE_INT_START; i < EXCCODE_INT_END; i++)
+	for (i = EXCCODE_INT_START; i <= EXCCODE_INT_END; i++)
 		set_handler(i * VECSIZE, handle_vint, VECSIZE);
 
 	set_handler(EXCCODE_ADE * VECSIZE, handle_ade, VECSIZE);
 	set_handler(EXCCODE_ALE * VECSIZE, handle_ale, VECSIZE);
+	set_handler(EXCCODE_BCE * VECSIZE, handle_bce, VECSIZE);
 	set_handler(EXCCODE_SYS * VECSIZE, handle_sys, VECSIZE);
 	set_handler(EXCCODE_BP * VECSIZE, handle_bp, VECSIZE);
 	set_handler(EXCCODE_INE * VECSIZE, handle_ri, VECSIZE);

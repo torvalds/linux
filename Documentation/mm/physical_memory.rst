@@ -19,7 +19,7 @@ a bank of memory very suitable for DMA near peripheral devices.
 
 Each bank is called a node and the concept is represented under Linux by a
 ``struct pglist_data`` even if the architecture is UMA. This structure is
-always referenced to by it's typedef ``pg_data_t``. ``A pg_data_t`` structure
+always referenced by its typedef ``pg_data_t``. A ``pg_data_t`` structure
 for a particular node can be referenced by ``NODE_DATA(nid)`` macro where
 ``nid`` is the ID of that node.
 
@@ -66,7 +66,7 @@ one of the types described below.
   also populated on boot using one of ``kernelcore``, ``movablecore`` and
   ``movable_node`` kernel command line parameters. See
   Documentation/mm/page_migration.rst and
-  Documentation/admin-guide/mm/memory_hotplug.rst for additional details.
+  Documentation/admin-guide/mm/memory-hotplug.rst for additional details.
 
 * ``ZONE_DEVICE`` represents memory residing on devices such as PMEM and GPU.
   It has different characteristics than RAM zone types and it exists to provide
@@ -113,6 +113,25 @@ RAM equally split between two nodes, there will be ``ZONE_DMA32``,
   +---------+----------+-----------+ +------------+-------------+
   |  DMA32  |  NORMAL  |  MOVABLE  | |   NORMAL   |   MOVABLE   |
   +---------+----------+-----------+ +------------+-------------+
+
+
+Memory banks may belong to interleaving nodes. In the example below an x86
+machine has 16 Gbytes of RAM in 4 memory banks, even banks belong to node 0
+and odd banks belong to node 1::
+
+
+  0              4G              8G             12G            16G
+  +-------------+ +-------------+ +-------------+ +-------------+
+  |    node 0   | |    node 1   | |    node 0   | |    node 1   |
+  +-------------+ +-------------+ +-------------+ +-------------+
+
+  0   16M      4G
+  +-----+-------+ +-------------+ +-------------+ +-------------+
+  | DMA | DMA32 | |    NORMAL   | |    NORMAL   | |    NORMAL   |
+  +-----+-------+ +-------------+ +-------------+ +-------------+
+
+In this case node 0 will span from 0 to 12 Gbytes and node 1 will span from
+4 to 16 Gbytes.
 
 .. _nodes:
 

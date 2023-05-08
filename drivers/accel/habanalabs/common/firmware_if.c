@@ -71,7 +71,7 @@ free_fw_ver:
 	return NULL;
 }
 
-static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
+static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 {
 	char major[8], minor[8], *first_dot, *second_dot;
 	int rc;
@@ -86,7 +86,7 @@ static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
 
 	if (rc) {
 		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
-		goto out;
+		return rc;
 	}
 
 	/* skip the first dot */
@@ -102,9 +102,6 @@ static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
 
 	if (rc)
 		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
-
-out:
-	kfree(preboot_ver);
 	return rc;
 }
 
@@ -1263,7 +1260,7 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 				COMMS_RST_DEV, 0, false,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
+			dev_err(hdev->dev, "Failed sending COMMS_RST_DEV\n");
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_RST_DEV);
 	}
@@ -1281,10 +1278,10 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 	/* Stop device CPU to make sure nothing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, true,
+				COMMS_GOTO_WFE, 0, false,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
@@ -2181,8 +2178,8 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 
 			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
 
-			/* This function takes care of freeing preboot_ver */
-			rc = extract_fw_sub_versions(hdev, preboot_ver);
+			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
+			kfree(preboot_ver);
 			if (rc)
 				return rc;
 		}
@@ -3152,7 +3149,7 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
 						dma_addr_t buff, u32 *size)
 {
-	struct cpucp_packet pkt = {0};
+	struct cpucp_packet pkt = {};
 	u64 result;
 	int rc = 0;
 

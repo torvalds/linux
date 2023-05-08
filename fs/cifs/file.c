@@ -174,13 +174,13 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	struct list_head *tmp1;
 
 	/* only send once per connect */
-	spin_lock(&tcon->ses->ses_lock);
-	if ((tcon->ses->ses_status != SES_GOOD) || (tcon->status != TID_NEED_RECON)) {
-		spin_unlock(&tcon->ses->ses_lock);
+	spin_lock(&tcon->tc_lock);
+	if (tcon->status != TID_NEED_RECON) {
+		spin_unlock(&tcon->tc_lock);
 		return;
 	}
 	tcon->status = TID_IN_FILES_INVALIDATE;
-	spin_unlock(&tcon->ses->ses_lock);
+	spin_unlock(&tcon->tc_lock);
 
 	/* list all files open on tree connection and mark them invalid */
 	spin_lock(&tcon->open_file_lock);
@@ -4010,7 +4010,6 @@ static void
 collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 {
 	struct cifs_readdata *rdata, *tmp;
-	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	int rc;
 
@@ -4075,9 +4074,6 @@ again:
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
-
-	if (!ctx->direct_io)
-		ctx->total_len = ctx->len - iov_iter_count(to);
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
@@ -4886,6 +4882,8 @@ void cifs_oplock_break(struct work_struct *work)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	int rc = 0;
 	bool purge_cache = false;
+	struct cifs_deferred_close *dclose;
+	bool is_deferred = false;
 
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
@@ -4921,6 +4919,20 @@ void cifs_oplock_break(struct work_struct *work)
 		cifs_dbg(VFS, "Push locks rc = %d\n", rc);
 
 oplock_break_ack:
+	/*
+	 * When oplock break is received and there are no active
+	 * file handles but cached, then schedule deferred close immediately.
+	 * So, new open will not use cached handle.
+	 */
+	spin_lock(&CIFS_I(inode)->deferred_lock);
+	is_deferred = cifs_is_deferred_close(cfile, &dclose);
+	spin_unlock(&CIFS_I(inode)->deferred_lock);
+
+	if (!CIFS_CACHE_HANDLE(cinode) && is_deferred &&
+			cfile->deferred_close_scheduled && delayed_work_pending(&cfile->deferred)) {
+		cifs_close_deferred_file(cinode);
+	}
+
 	/*
 	 * releasing stale oplock after recent reconnect of smb session using
 	 * a now incorrect file handle is not a data integrity issue but do

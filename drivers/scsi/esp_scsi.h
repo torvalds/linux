@@ -572,7 +572,7 @@ struct esp {
  * 13) Check scsi_esp_register() return value, release all resources
  *     if an error was returned.
  */
-extern struct scsi_host_template scsi_esp_template;
+extern const struct scsi_host_template scsi_esp_template;
 extern int scsi_esp_register(struct esp *);
 
 extern void scsi_esp_unregister(struct esp *);

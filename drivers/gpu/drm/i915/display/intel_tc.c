@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power_map.h"
@@ -13,6 +14,52 @@
 #include "intel_dp_mst.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_tc.h"
+
+enum tc_port_mode {
+	TC_PORT_DISCONNECTED,
+	TC_PORT_TBT_ALT,
+	TC_PORT_DP_ALT,
+	TC_PORT_LEGACY,
+};
+
+struct intel_tc_port;
+
+struct intel_tc_phy_ops {
+	enum intel_display_power_domain (*cold_off_domain)(struct intel_tc_port *tc);
+	u32 (*hpd_live_status)(struct intel_tc_port *tc);
+	bool (*is_ready)(struct intel_tc_port *tc);
+	bool (*is_owned)(struct intel_tc_port *tc);
+	void (*get_hw_state)(struct intel_tc_port *tc);
+	bool (*connect)(struct intel_tc_port *tc, int required_lanes);
+	void (*disconnect)(struct intel_tc_port *tc);
+	void (*init)(struct intel_tc_port *tc);
+};
+
+struct intel_tc_port {
+	struct intel_digital_port *dig_port;
+
+	const struct intel_tc_phy_ops *phy_ops;
+
+	struct mutex lock;	/* protects the TypeC port mode */
+	intel_wakeref_t lock_wakeref;
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	enum intel_display_power_domain lock_power_domain;
+#endif
+	struct delayed_work disconnect_phy_work;
+	int link_refcount;
+	bool legacy_port:1;
+	char port_name[8];
+	enum tc_port_mode mode;
+	enum tc_port_mode init_mode;
+	enum phy_fia phy_fia;
+	u8 phy_fia_idx;
+};
+
+static enum intel_display_power_domain
+tc_phy_cold_off_domain(struct intel_tc_port *);
+static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc);
+static bool tc_phy_is_ready(struct intel_tc_port *tc);
+static enum tc_port_mode tc_phy_get_current_mode(struct intel_tc_port *tc);
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
@@ -29,13 +76,24 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 	return names[mode];
 }
 
+static struct intel_tc_port *to_tc_port(struct intel_digital_port *dig_port)
+{
+	return dig_port->tc;
+}
+
+static struct drm_i915_private *tc_to_i915(struct intel_tc_port *tc)
+{
+	return to_i915(tc->dig_port->base.base.dev);
+}
+
 static bool intel_tc_port_in_mode(struct intel_digital_port *dig_port,
 				  enum tc_port_mode mode)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 
-	return intel_phy_is_tc(i915, phy) && dig_port->tc_mode == mode;
+	return intel_phy_is_tc(i915, phy) && tc->mode == mode;
 }
 
 bool intel_tc_port_in_tbt_alt_mode(struct intel_digital_port *dig_port)
@@ -53,109 +111,178 @@ bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
 	return intel_tc_port_in_mode(dig_port, TC_PORT_LEGACY);
 }
 
+/*
+ * The display power domains used for TC ports depending on the
+ * platform and TC mode (legacy, DP-alt, TBT):
+ *
+ * POWER_DOMAIN_DISPLAY_CORE:
+ * --------------------------
+ * ADLP/all modes:
+ *   - TCSS/IOM access for PHY ready state.
+ * ADLP+/all modes:
+ *   - DE/north-,south-HPD ISR access for HPD live state.
+ *
+ * POWER_DOMAIN_PORT_DDI_LANES_<port>:
+ * -----------------------------------
+ * ICL+/all modes:
+ *   - DE/DDI_BUF access for port enabled state.
+ * ADLP/all modes:
+ *   - DE/DDI_BUF access for PHY owned state.
+ *
+ * POWER_DOMAIN_AUX_USBC<TC port index>:
+ * -------------------------------------
+ * ICL/legacy mode:
+ *   - TCSS/IOM,FIA access for PHY ready, owned and HPD live state
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ * ADLP/legacy, DP-alt modes:
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ *
+ * POWER_DOMAIN_TC_COLD_OFF:
+ * -------------------------
+ * TGL/legacy, DP-alt modes:
+ *   - TCSS/IOM,FIA access for PHY ready, owned and HPD live state
+ *   - TCSS/PHY: block TC-cold power state for using the PHY AUX and
+ *     main lanes.
+ *
+ * ICL, TGL, ADLP/TBT mode:
+ *   - TCSS/IOM,FIA access for HPD live state
+ *   - TCSS/TBT: block TC-cold power state for using the (TBT DP-IN)
+ *     AUX and main lanes.
+ */
 bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 
-	return (DISPLAY_VER(i915) == 11 && dig_port->tc_legacy_port) ||
-		IS_ALDERLAKE_P(i915);
-}
-
-static enum intel_display_power_domain
-tc_cold_get_power_domain(struct intel_digital_port *dig_port, enum tc_port_mode mode)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
-		return POWER_DOMAIN_TC_COLD_OFF;
-
-	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+	return tc_phy_cold_off_domain(tc) ==
+	       intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
 }
 
 static intel_wakeref_t
-tc_cold_block_in_mode(struct intel_digital_port *dig_port, enum tc_port_mode mode,
-		      enum intel_display_power_domain *domain)
+__tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domain)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 
-	*domain = tc_cold_get_power_domain(dig_port, mode);
+	*domain = tc_phy_cold_off_domain(tc);
 
 	return intel_display_power_get(i915, *domain);
 }
 
 static intel_wakeref_t
-tc_cold_block(struct intel_digital_port *dig_port, enum intel_display_power_domain *domain)
+tc_cold_block(struct intel_tc_port *tc)
 {
-	return tc_cold_block_in_mode(dig_port, dig_port->tc_mode, domain);
+	enum intel_display_power_domain domain;
+	intel_wakeref_t wakeref;
+
+	wakeref = __tc_cold_block(tc, &domain);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	tc->lock_power_domain = domain;
+#endif
+	return wakeref;
 }
 
 static void
-tc_cold_unblock(struct intel_digital_port *dig_port, enum intel_display_power_domain domain,
-		intel_wakeref_t wakeref)
+__tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain,
+		  intel_wakeref_t wakeref)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	/*
-	 * wakeref == -1, means some error happened saving save_depot_stack but
-	 * power should still be put down and 0 is a invalid save_depot_stack
-	 * id so can be used to skip it for non TC legacy ports.
-	 */
-	if (wakeref == 0)
-		return;
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 
 	intel_display_power_put(i915, domain, wakeref);
 }
 
 static void
-assert_tc_cold_blocked(struct intel_digital_port *dig_port)
+tc_cold_unblock(struct intel_tc_port *tc, intel_wakeref_t wakeref)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum intel_display_power_domain domain = tc_phy_cold_off_domain(tc);
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	drm_WARN_ON(&tc_to_i915(tc)->drm, tc->lock_power_domain != domain);
+#endif
+	__tc_cold_unblock(tc, domain, wakeref);
+}
+
+static void
+assert_display_core_power_enabled(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	drm_WARN_ON(&i915->drm,
+		    !intel_display_power_is_enabled(i915, POWER_DOMAIN_DISPLAY_CORE));
+}
+
+static void
+assert_tc_cold_blocked(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 	bool enabled;
 
 	enabled = intel_display_power_is_enabled(i915,
-						 tc_cold_get_power_domain(dig_port,
-									  dig_port->tc_mode));
+						 tc_phy_cold_off_domain(tc));
 	drm_WARN_ON(&i915->drm, !enabled);
+}
+
+static enum intel_display_power_domain
+tc_port_power_domain(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum tc_port tc_port = intel_port_to_tc(i915, tc->dig_port->base.port);
+
+	return POWER_DOMAIN_PORT_DDI_LANES_TC1 + tc_port - TC_PORT_1;
+}
+
+static void
+assert_tc_port_power_enabled(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	drm_WARN_ON(&i915->drm,
+		    !intel_display_power_is_enabled(i915, tc_port_power_domain(tc)));
 }
 
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	u32 lane_mask;
 
-	lane_mask = intel_de_read(i915, PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
+	lane_mask = intel_de_read(i915, PORT_TX_DFLEXDPSP(tc->phy_fia));
 
 	drm_WARN_ON(&i915->drm, lane_mask == 0xffffffff);
-	assert_tc_cold_blocked(dig_port);
+	assert_tc_cold_blocked(tc);
 
-	lane_mask &= DP_LANE_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx);
-	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
+	lane_mask &= DP_LANE_ASSIGNMENT_MASK(tc->phy_fia_idx);
+	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
 }
 
 u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	u32 pin_mask;
 
-	pin_mask = intel_de_read(i915, PORT_TX_DFLEXPA1(dig_port->tc_phy_fia));
+	pin_mask = intel_de_read(i915, PORT_TX_DFLEXPA1(tc->phy_fia));
 
 	drm_WARN_ON(&i915->drm, pin_mask == 0xffffffff);
-	assert_tc_cold_blocked(dig_port);
+	assert_tc_cold_blocked(tc);
 
-	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx)) >>
-	       DP_PIN_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
+	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(tc->phy_fia_idx)) >>
+	       DP_PIN_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
 }
 
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
 	intel_wakeref_t wakeref;
 	u32 lane_mask;
 
-	if (dig_port->tc_mode != TC_PORT_DP_ALT)
+	if (!intel_phy_is_tc(i915, phy) || tc->mode != TC_PORT_DP_ALT)
 		return 4;
 
-	assert_tc_cold_blocked(dig_port);
+	assert_tc_cold_blocked(tc);
 
 	lane_mask = 0;
 	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
@@ -182,45 +309,51 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 				      int required_lanes)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 	u32 val;
 
 	drm_WARN_ON(&i915->drm,
-		    lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
+		    lane_reversal && tc->mode != TC_PORT_LEGACY);
 
-	assert_tc_cold_blocked(dig_port);
+	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia));
-	val &= ~DFLEXDPMLE1_DPMLETC_MASK(dig_port->tc_phy_fia_idx);
+	val = intel_de_read(i915, PORT_TX_DFLEXDPMLE1(tc->phy_fia));
+	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc->phy_fia_idx);
 
 	switch (required_lanes) {
 	case 1:
 		val |= lane_reversal ?
-			DFLEXDPMLE1_DPMLETC_ML3(dig_port->tc_phy_fia_idx) :
-			DFLEXDPMLE1_DPMLETC_ML0(dig_port->tc_phy_fia_idx);
+			DFLEXDPMLE1_DPMLETC_ML3(tc->phy_fia_idx) :
+			DFLEXDPMLE1_DPMLETC_ML0(tc->phy_fia_idx);
 		break;
 	case 2:
 		val |= lane_reversal ?
-			DFLEXDPMLE1_DPMLETC_ML3_2(dig_port->tc_phy_fia_idx) :
-			DFLEXDPMLE1_DPMLETC_ML1_0(dig_port->tc_phy_fia_idx);
+			DFLEXDPMLE1_DPMLETC_ML3_2(tc->phy_fia_idx) :
+			DFLEXDPMLE1_DPMLETC_ML1_0(tc->phy_fia_idx);
 		break;
 	case 4:
-		val |= DFLEXDPMLE1_DPMLETC_ML3_0(dig_port->tc_phy_fia_idx);
+		val |= DFLEXDPMLE1_DPMLETC_ML3_0(tc->phy_fia_idx);
 		break;
 	default:
 		MISSING_CASE(required_lanes);
 	}
 
-	intel_de_write(i915, PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia), val);
+	intel_de_write(i915, PORT_TX_DFLEXDPMLE1(tc->phy_fia), val);
 }
 
-static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
+static void tc_port_fixup_legacy_flag(struct intel_tc_port *tc,
 				      u32 live_status_mask)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 valid_hpd_mask;
 
-	if (dig_port->tc_legacy_port)
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DISCONNECTED);
+
+	if (hweight32(live_status_mask) != 1)
+		return;
+
+	if (tc->legacy_port)
 		valid_hpd_mask = BIT(TC_PORT_LEGACY);
 	else
 		valid_hpd_mask = BIT(TC_PORT_DP_ALT) |
@@ -232,78 +365,77 @@ static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 	/* If live status mismatches the VBT flag, trust the live status. */
 	drm_dbg_kms(&i915->drm,
 		    "Port %s: live status %08x mismatches the legacy port flag %08x, fixing flag\n",
-		    dig_port->tc_port_name, live_status_mask, valid_hpd_mask);
+		    tc->port_name, live_status_mask, valid_hpd_mask);
 
-	dig_port->tc_legacy_port = !dig_port->tc_legacy_port;
+	tc->legacy_port = !tc->legacy_port;
 }
 
-static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
+static void tc_phy_load_fia_params(struct intel_tc_port *tc, bool modular_fia)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum port port = tc->dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(i915, port);
+
+	/*
+	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
+	 * than two TC ports, there are multiple instances of Modular FIA.
+	 */
+	if (modular_fia) {
+		tc->phy_fia = tc_port / 2;
+		tc->phy_fia_idx = tc_port % 2;
+	} else {
+		tc->phy_fia = FIA1;
+		tc->phy_fia_idx = tc_port;
+	}
+}
+
+/*
+ * ICL TC PHY handlers
+ * -------------------
+ */
+static enum intel_display_power_domain
+icl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+
+	if (tc->legacy_port)
+		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+
+	return POWER_DOMAIN_TC_COLD_OFF;
+}
+
+static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
 	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
+	intel_wakeref_t wakeref;
+	u32 fia_isr;
+	u32 pch_isr;
 	u32 mask = 0;
-	u32 val;
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
+	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref) {
+		fia_isr = intel_de_read(i915, PORT_TX_DFLEXDPSP(tc->phy_fia));
+		pch_isr = intel_de_read(i915, SDEISR);
+	}
 
-	if (val == 0xffffffff) {
+	if (fia_isr == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY in TCCOLD, nothing connected\n",
-			    dig_port->tc_port_name);
+			    tc->port_name);
 		return mask;
 	}
 
-	if (val & TC_LIVE_STATE_TBT(dig_port->tc_phy_fia_idx))
+	if (fia_isr & TC_LIVE_STATE_TBT(tc->phy_fia_idx))
 		mask |= BIT(TC_PORT_TBT_ALT);
-	if (val & TC_LIVE_STATE_TC(dig_port->tc_phy_fia_idx))
+	if (fia_isr & TC_LIVE_STATE_TC(tc->phy_fia_idx))
 		mask |= BIT(TC_PORT_DP_ALT);
 
-	if (intel_de_read(i915, SDEISR) & isr_bit)
+	if (pch_isr & isr_bit)
 		mask |= BIT(TC_PORT_LEGACY);
 
-	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(dig_port, mask);
-
 	return mask;
-}
-
-static u32 adl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
-	u32 val, mask = 0;
-
-	/*
-	 * On ADL-P HW/FW will wake from TCCOLD to complete the read access of
-	 * registers in IOM. Note that this doesn't apply to PHY and FIA
-	 * registers.
-	 */
-	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_ALT)
-		mask |= BIT(TC_PORT_DP_ALT);
-	if (val & TCSS_DDI_STATUS_HPD_LIVE_STATUS_TBT)
-		mask |= BIT(TC_PORT_TBT_ALT);
-
-	if (intel_de_read(i915, SDEISR) & isr_bit)
-		mask |= BIT(TC_PORT_LEGACY);
-
-	/* The sink can be connected only in a single mode. */
-	if (!drm_WARN_ON(&i915->drm, hweight32(mask) > 1))
-		tc_port_fixup_legacy_flag(dig_port, mask);
-
-	return mask;
-}
-
-static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_port_live_status_mask(dig_port);
-
-	return icl_tc_port_live_status_mask(dig_port);
 }
 
 /*
@@ -314,136 +446,80 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
  * owned by the TBT subsystem and so switching the ownership to display is not
  * required.
  */
-static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
+static bool icl_tc_phy_is_ready(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPPMS(dig_port->tc_phy_fia));
+	assert_tc_cold_blocked(tc);
+
+	val = intel_de_read(i915, PORT_TX_DFLEXDPPMS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not complete\n",
-			    dig_port->tc_port_name);
+			    "Port %s: PHY in TCCOLD, assuming not ready\n",
+			    tc->port_name);
 		return false;
 	}
 
-	return val & DP_PHY_MODE_STATUS_COMPLETED(dig_port->tc_phy_fia_idx);
+	return val & DP_PHY_MODE_STATUS_COMPLETED(tc->phy_fia_idx);
 }
 
-/*
- * Return the PHY status complete flag indicating that display can acquire the
- * PHY ownership. The IOM firmware sets this flag when it's ready to switch
- * the ownership to display, regardless of what sink is connected (TBT-alt,
- * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
- * subsystem and so switching the ownership to display is not required.
- */
-static bool adl_tc_phy_status_complete(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 val;
-
-	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
-	if (val == 0xffffffff) {
-		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not complete\n",
-			    dig_port->tc_port_name);
-		return false;
-	}
-
-	return val & TCSS_DDI_STATUS_READY;
-}
-
-static bool tc_phy_status_complete(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_status_complete(dig_port);
-
-	return icl_tc_phy_status_complete(dig_port);
-}
-
-static bool icl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
+static bool icl_tc_phy_take_ownership(struct intel_tc_port *tc,
 				      bool take)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
+	assert_tc_cold_blocked(tc);
+
+	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY in TCCOLD, can't %s ownership\n",
-			    dig_port->tc_port_name, take ? "take" : "release");
+			    tc->port_name, take ? "take" : "release");
 
 		return false;
 	}
 
-	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
+	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
 	if (take)
-		val |= DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
+		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
 
-	intel_de_write(i915, PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
-
-	return true;
-}
-
-static bool adl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
-				      bool take)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-
-	intel_de_rmw(i915, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
-		     take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
+	intel_de_write(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia), val);
 
 	return true;
 }
 
-static bool tc_phy_take_ownership(struct intel_digital_port *dig_port, bool take)
+static bool icl_tc_phy_is_owned(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_take_ownership(dig_port, take);
-
-	return icl_tc_phy_take_ownership(dig_port, take);
-}
-
-static bool icl_tc_phy_is_owned(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 	u32 val;
 
-	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
+	assert_tc_cold_blocked(tc);
+
+	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assume safe mode\n",
-			    dig_port->tc_port_name);
-		return true;
+			    "Port %s: PHY in TCCOLD, assume not owned\n",
+			    tc->port_name);
+		return false;
 	}
 
-	return val & DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
+	return val & DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
 }
 
-static bool adl_tc_phy_is_owned(struct intel_digital_port *dig_port)
+static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
-	u32 val;
+	enum intel_display_power_domain domain;
+	intel_wakeref_t tc_cold_wref;
 
-	val = intel_de_read(i915, DDI_BUF_CTL(port));
-	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
-}
+	tc_cold_wref = __tc_cold_block(tc, &domain);
 
-static bool tc_phy_is_owned(struct intel_digital_port *dig_port)
-{
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	tc->mode = tc_phy_get_current_mode(tc);
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		tc->lock_wakeref = tc_cold_block(tc);
 
-	if (IS_ALDERLAKE_P(i915))
-		return adl_tc_phy_is_owned(dig_port);
-
-	return icl_tc_phy_is_owned(dig_port);
+	__tc_cold_unblock(tc, domain, tc_cold_wref);
 }
 
 /*
@@ -457,151 +533,590 @@ static bool tc_phy_is_owned(struct intel_digital_port *dig_port)
  * connect and disconnect to cleanly transfer ownership with the controller and
  * set the type-C power state.
  */
-static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
-			       int required_lanes)
+static bool tc_phy_verify_legacy_or_dp_alt_mode(struct intel_tc_port *tc,
+						int required_lanes)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	u32 live_status_mask;
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
 	int max_lanes;
 
-	if (!tc_phy_status_complete(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
-			    dig_port->tc_port_name);
-		goto out_set_tbt_alt_mode;
-	}
-
-	live_status_mask = tc_port_live_status_mask(dig_port);
-	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY))) &&
-	    !dig_port->tc_legacy_port) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
-			    dig_port->tc_port_name, live_status_mask);
-		goto out_set_tbt_alt_mode;
-	}
-
-	if (!tc_phy_take_ownership(dig_port, true) &&
-	    !drm_WARN_ON(&i915->drm, dig_port->tc_legacy_port))
-		goto out_set_tbt_alt_mode;
-
 	max_lanes = intel_tc_port_fia_max_lane_count(dig_port);
-	if (dig_port->tc_legacy_port) {
+	if (tc->mode == TC_PORT_LEGACY) {
 		drm_WARN_ON(&i915->drm, max_lanes != 4);
-		dig_port->tc_mode = TC_PORT_LEGACY;
-
-		return;
+		return true;
 	}
+
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DP_ALT);
 
 	/*
 	 * Now we have to re-check the live state, in case the port recently
 	 * became disconnected. Not necessary for legacy mode.
 	 */
-	if (!(tc_port_live_status_mask(dig_port) & BIT(TC_PORT_DP_ALT))) {
+	if (!(tc_phy_hpd_live_status(tc) & BIT(TC_PORT_DP_ALT))) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY sudden disconnect\n",
-			    dig_port->tc_port_name);
-		goto out_release_phy;
+			    tc->port_name);
+		return false;
 	}
 
 	if (max_lanes < required_lanes) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY max lanes %d < required lanes %d\n",
-			    dig_port->tc_port_name,
+			    tc->port_name,
 			    max_lanes, required_lanes);
-		goto out_release_phy;
+		return false;
 	}
 
-	dig_port->tc_mode = TC_PORT_DP_ALT;
+	return true;
+}
 
-	return;
+static bool icl_tc_phy_connect(struct intel_tc_port *tc,
+			       int required_lanes)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	tc->lock_wakeref = tc_cold_block(tc);
+
+	if (tc->mode == TC_PORT_TBT_ALT)
+		return true;
+
+	if ((!tc_phy_is_ready(tc) ||
+	     !icl_tc_phy_take_ownership(tc, true)) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership (ready %s)\n",
+			    tc->port_name,
+			    str_yes_no(tc_phy_is_ready(tc)));
+		goto out_unblock_tc_cold;
+	}
+
+
+	if (!tc_phy_verify_legacy_or_dp_alt_mode(tc, required_lanes))
+		goto out_release_phy;
+
+	return true;
 
 out_release_phy:
-	tc_phy_take_ownership(dig_port, false);
-out_set_tbt_alt_mode:
-	dig_port->tc_mode = TC_PORT_TBT_ALT;
+	icl_tc_phy_take_ownership(tc, false);
+out_unblock_tc_cold:
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
+
+	return false;
 }
 
 /*
  * See the comment at the connect function. This implements the Disconnect
  * Flow.
  */
-static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
+static void icl_tc_phy_disconnect(struct intel_tc_port *tc)
 {
-	switch (dig_port->tc_mode) {
+	switch (tc->mode) {
 	case TC_PORT_LEGACY:
 	case TC_PORT_DP_ALT:
-		tc_phy_take_ownership(dig_port, false);
+		icl_tc_phy_take_ownership(tc, false);
 		fallthrough;
 	case TC_PORT_TBT_ALT:
-		dig_port->tc_mode = TC_PORT_DISCONNECTED;
-		fallthrough;
-	case TC_PORT_DISCONNECTED:
+		tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
 		break;
 	default:
-		MISSING_CASE(dig_port->tc_mode);
+		MISSING_CASE(tc->mode);
 	}
 }
 
-static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
+static void icl_tc_phy_init(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	tc_phy_load_fia_params(tc, false);
+}
 
-	if (!tc_phy_status_complete(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY status not complete\n",
-			    dig_port->tc_port_name);
-		return dig_port->tc_mode == TC_PORT_TBT_ALT;
+static const struct intel_tc_phy_ops icl_tc_phy_ops = {
+	.cold_off_domain = icl_tc_phy_cold_off_domain,
+	.hpd_live_status = icl_tc_phy_hpd_live_status,
+	.is_ready = icl_tc_phy_is_ready,
+	.is_owned = icl_tc_phy_is_owned,
+	.get_hw_state = icl_tc_phy_get_hw_state,
+	.connect = icl_tc_phy_connect,
+	.disconnect = icl_tc_phy_disconnect,
+	.init = icl_tc_phy_init,
+};
+
+/*
+ * TGL TC PHY handlers
+ * -------------------
+ */
+static enum intel_display_power_domain
+tgl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
+{
+	return POWER_DOMAIN_TC_COLD_OFF;
+}
+
+static void tgl_tc_phy_init(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	intel_wakeref_t wakeref;
+	u32 val;
+
+	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref)
+		val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
+
+	drm_WARN_ON(&i915->drm, val == 0xffffffff);
+
+	tc_phy_load_fia_params(tc, val & MODULAR_FIA_MASK);
+}
+
+static const struct intel_tc_phy_ops tgl_tc_phy_ops = {
+	.cold_off_domain = tgl_tc_phy_cold_off_domain,
+	.hpd_live_status = icl_tc_phy_hpd_live_status,
+	.is_ready = icl_tc_phy_is_ready,
+	.is_owned = icl_tc_phy_is_owned,
+	.get_hw_state = icl_tc_phy_get_hw_state,
+	.connect = icl_tc_phy_connect,
+	.disconnect = icl_tc_phy_disconnect,
+	.init = tgl_tc_phy_init,
+};
+
+/*
+ * ADLP TC PHY handlers
+ * --------------------
+ */
+static enum intel_display_power_domain
+adlp_tc_phy_cold_off_domain(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+
+	if (tc->mode != TC_PORT_TBT_ALT)
+		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+
+	return POWER_DOMAIN_TC_COLD_OFF;
+}
+
+static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
+	u32 cpu_isr_bits = i915->display.hotplug.hpd[hpd_pin];
+	u32 pch_isr_bit = i915->display.hotplug.pch_hpd[hpd_pin];
+	intel_wakeref_t wakeref;
+	u32 cpu_isr;
+	u32 pch_isr;
+	u32 mask = 0;
+
+	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+		cpu_isr = intel_de_read(i915, GEN11_DE_HPD_ISR);
+		pch_isr = intel_de_read(i915, SDEISR);
 	}
 
-	/* On ADL-P the PHY complete flag is set in TBT mode as well. */
-	if (IS_ALDERLAKE_P(i915) && dig_port->tc_mode == TC_PORT_TBT_ALT)
-		return true;
+	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TC_HOTPLUG_MASK))
+		mask |= BIT(TC_PORT_DP_ALT);
+	if (cpu_isr & (cpu_isr_bits & GEN11_DE_TBT_HOTPLUG_MASK))
+		mask |= BIT(TC_PORT_TBT_ALT);
 
-	if (!tc_phy_is_owned(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY not owned\n",
-			    dig_port->tc_port_name);
+	if (pch_isr & pch_isr_bit)
+		mask |= BIT(TC_PORT_LEGACY);
 
+	return mask;
+}
+
+/*
+ * Return the PHY status complete flag indicating that display can acquire the
+ * PHY ownership. The IOM firmware sets this flag when it's ready to switch
+ * the ownership to display, regardless of what sink is connected (TBT-alt,
+ * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
+ * subsystem and so switching the ownership to display is not required.
+ */
+static bool adlp_tc_phy_is_ready(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum tc_port tc_port = intel_port_to_tc(i915, tc->dig_port->base.port);
+	u32 val;
+
+	assert_display_core_power_enabled(tc);
+
+	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
+	if (val == 0xffffffff) {
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, assuming not ready\n",
+			    tc->port_name);
 		return false;
 	}
 
-	return dig_port->tc_mode == TC_PORT_DP_ALT ||
-	       dig_port->tc_mode == TC_PORT_LEGACY;
+	return val & TCSS_DDI_STATUS_READY;
+}
+
+static bool adlp_tc_phy_take_ownership(struct intel_tc_port *tc,
+				       bool take)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum port port = tc->dig_port->base.port;
+
+	assert_tc_port_power_enabled(tc);
+
+	intel_de_rmw(i915, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
+		     take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
+
+	return true;
+}
+
+static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum port port = tc->dig_port->base.port;
+	u32 val;
+
+	assert_tc_port_power_enabled(tc);
+
+	val = intel_de_read(i915, DDI_BUF_CTL(port));
+	return val & DDI_BUF_CTL_TC_PHY_OWNERSHIP;
+}
+
+static void adlp_tc_phy_get_hw_state(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	tc->mode = tc_phy_get_current_mode(tc);
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		tc->lock_wakeref = tc_cold_block(tc);
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+}
+
+static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	if (tc->mode == TC_PORT_TBT_ALT) {
+		tc->lock_wakeref = tc_cold_block(tc);
+		return true;
+	}
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	if (!adlp_tc_phy_take_ownership(tc, true) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership\n",
+			    tc->port_name);
+		goto out_put_port_power;
+	}
+
+	if (!tc_phy_is_ready(tc) &&
+	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
+		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
+			    tc->port_name);
+		goto out_release_phy;
+	}
+
+	tc->lock_wakeref = tc_cold_block(tc);
+
+	if (!tc_phy_verify_legacy_or_dp_alt_mode(tc, required_lanes))
+		goto out_unblock_tc_cold;
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+
+	return true;
+
+out_unblock_tc_cold:
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
+out_release_phy:
+	adlp_tc_phy_take_ownership(tc, false);
+out_put_port_power:
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+
+	return false;
+}
+
+static void adlp_tc_phy_disconnect(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum intel_display_power_domain port_power_domain =
+		tc_port_power_domain(tc);
+	intel_wakeref_t port_wakeref;
+
+	port_wakeref = intel_display_power_get(i915, port_power_domain);
+
+	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
+
+	switch (tc->mode) {
+	case TC_PORT_LEGACY:
+	case TC_PORT_DP_ALT:
+		adlp_tc_phy_take_ownership(tc, false);
+		fallthrough;
+	case TC_PORT_TBT_ALT:
+		break;
+	default:
+		MISSING_CASE(tc->mode);
+	}
+
+	intel_display_power_put(i915, port_power_domain, port_wakeref);
+}
+
+static void adlp_tc_phy_init(struct intel_tc_port *tc)
+{
+	tc_phy_load_fia_params(tc, true);
+}
+
+static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
+	.cold_off_domain = adlp_tc_phy_cold_off_domain,
+	.hpd_live_status = adlp_tc_phy_hpd_live_status,
+	.is_ready = adlp_tc_phy_is_ready,
+	.is_owned = adlp_tc_phy_is_owned,
+	.get_hw_state = adlp_tc_phy_get_hw_state,
+	.connect = adlp_tc_phy_connect,
+	.disconnect = adlp_tc_phy_disconnect,
+	.init = adlp_tc_phy_init,
+};
+
+/*
+ * Generic TC PHY handlers
+ * -----------------------
+ */
+static enum intel_display_power_domain
+tc_phy_cold_off_domain(struct intel_tc_port *tc)
+{
+	return tc->phy_ops->cold_off_domain(tc);
+}
+
+static u32 tc_phy_hpd_live_status(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	u32 mask;
+
+	mask = tc->phy_ops->hpd_live_status(tc);
+
+	/* The sink can be connected only in a single mode. */
+	drm_WARN_ON_ONCE(&i915->drm, hweight32(mask) > 1);
+
+	return mask;
+}
+
+static bool tc_phy_is_ready(struct intel_tc_port *tc)
+{
+	return tc->phy_ops->is_ready(tc);
+}
+
+static bool tc_phy_is_owned(struct intel_tc_port *tc)
+{
+	return tc->phy_ops->is_owned(tc);
+}
+
+static void tc_phy_get_hw_state(struct intel_tc_port *tc)
+{
+	tc->phy_ops->get_hw_state(tc);
+}
+
+static bool tc_phy_is_ready_and_owned(struct intel_tc_port *tc,
+				      bool phy_is_ready, bool phy_is_owned)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	drm_WARN_ON(&i915->drm, phy_is_owned && !phy_is_ready);
+
+	return phy_is_ready && phy_is_owned;
+}
+
+static bool tc_phy_is_connected(struct intel_tc_port *tc,
+				enum icl_port_dpll_id port_pll_type)
+{
+	struct intel_encoder *encoder = &tc->dig_port->base;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	bool phy_is_ready = tc_phy_is_ready(tc);
+	bool phy_is_owned = tc_phy_is_owned(tc);
+	bool is_connected;
+
+	if (tc_phy_is_ready_and_owned(tc, phy_is_ready, phy_is_owned))
+		is_connected = port_pll_type == ICL_PORT_DPLL_MG_PHY;
+	else
+		is_connected = port_pll_type == ICL_PORT_DPLL_DEFAULT;
+
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: PHY connected: %s (ready: %s, owned: %s, pll_type: %s)\n",
+		    tc->port_name,
+		    str_yes_no(is_connected),
+		    str_yes_no(phy_is_ready),
+		    str_yes_no(phy_is_owned),
+		    port_pll_type == ICL_PORT_DPLL_DEFAULT ? "tbt" : "non-tbt");
+
+	return is_connected;
+}
+
+static void tc_phy_wait_for_ready(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+
+	if (wait_for(tc_phy_is_ready(tc), 100))
+		drm_err(&i915->drm, "Port %s: timeout waiting for PHY ready\n",
+			tc->port_name);
 }
 
 static enum tc_port_mode
-intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
+hpd_mask_to_tc_mode(u32 live_status_mask)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+	if (live_status_mask)
+		return fls(live_status_mask) - 1;
+
+	return TC_PORT_DISCONNECTED;
+}
+
+static enum tc_port_mode
+tc_phy_hpd_live_mode(struct intel_tc_port *tc)
+{
+	u32 live_status_mask = tc_phy_hpd_live_status(tc);
+
+	return hpd_mask_to_tc_mode(live_status_mask);
+}
+
+static enum tc_port_mode
+get_tc_mode_in_phy_owned_state(struct intel_tc_port *tc,
+			       enum tc_port_mode live_mode)
+{
+	switch (live_mode) {
+	case TC_PORT_LEGACY:
+	case TC_PORT_DP_ALT:
+		return live_mode;
+	default:
+		MISSING_CASE(live_mode);
+		fallthrough;
+	case TC_PORT_TBT_ALT:
+	case TC_PORT_DISCONNECTED:
+		if (tc->legacy_port)
+			return TC_PORT_LEGACY;
+		else
+			return TC_PORT_DP_ALT;
+	}
+}
+
+static enum tc_port_mode
+get_tc_mode_in_phy_not_owned_state(struct intel_tc_port *tc,
+				   enum tc_port_mode live_mode)
+{
+	switch (live_mode) {
+	case TC_PORT_LEGACY:
+		return TC_PORT_DISCONNECTED;
+	case TC_PORT_DP_ALT:
+	case TC_PORT_TBT_ALT:
+		return TC_PORT_TBT_ALT;
+	default:
+		MISSING_CASE(live_mode);
+		fallthrough;
+	case TC_PORT_DISCONNECTED:
+		if (tc->legacy_port)
+			return TC_PORT_DISCONNECTED;
+		else
+			return TC_PORT_TBT_ALT;
+	}
+}
+
+static enum tc_port_mode
+tc_phy_get_current_mode(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	enum tc_port_mode live_mode = tc_phy_hpd_live_mode(tc);
+	bool phy_is_ready;
+	bool phy_is_owned;
 	enum tc_port_mode mode;
 
-	if (!tc_phy_is_owned(dig_port) ||
-	    drm_WARN_ON(&i915->drm, !tc_phy_status_complete(dig_port)))
-		return TC_PORT_TBT_ALT;
+	/*
+	 * For legacy ports the IOM firmware initializes the PHY during boot-up
+	 * and system resume whether or not a sink is connected. Wait here for
+	 * the initialization to get ready.
+	 */
+	if (tc->legacy_port)
+		tc_phy_wait_for_ready(tc);
 
-	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
-	if (live_status_mask) {
-		enum tc_port_mode live_mode = fls(live_status_mask) - 1;
+	phy_is_ready = tc_phy_is_ready(tc);
+	phy_is_owned = tc_phy_is_owned(tc);
 
-		if (!drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT))
-			mode = live_mode;
+	if (!tc_phy_is_ready_and_owned(tc, phy_is_ready, phy_is_owned)) {
+		mode = get_tc_mode_in_phy_not_owned_state(tc, live_mode);
+	} else {
+		drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT);
+		mode = get_tc_mode_in_phy_owned_state(tc, live_mode);
 	}
+
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: PHY mode: %s (ready: %s, owned: %s, HPD: %s)\n",
+		    tc->port_name,
+		    tc_port_mode_name(mode),
+		    str_yes_no(phy_is_ready),
+		    str_yes_no(phy_is_owned),
+		    tc_port_mode_name(live_mode));
 
 	return mode;
 }
 
-static enum tc_port_mode
-intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
+static enum tc_port_mode default_tc_mode(struct intel_tc_port *tc)
 {
-	u32 live_status_mask = tc_port_live_status_mask(dig_port);
-
-	if (live_status_mask)
-		return fls(live_status_mask) - 1;
+	if (tc->legacy_port)
+		return TC_PORT_LEGACY;
 
 	return TC_PORT_TBT_ALT;
 }
 
-static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
+static enum tc_port_mode
+hpd_mask_to_target_mode(struct intel_tc_port *tc, u32 live_status_mask)
+{
+	enum tc_port_mode mode = hpd_mask_to_tc_mode(live_status_mask);
+
+	if (mode != TC_PORT_DISCONNECTED)
+		return mode;
+
+	return default_tc_mode(tc);
+}
+
+static enum tc_port_mode
+tc_phy_get_target_mode(struct intel_tc_port *tc)
+{
+	u32 live_status_mask = tc_phy_hpd_live_status(tc);
+
+	return hpd_mask_to_target_mode(tc, live_status_mask);
+}
+
+static void tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	u32 live_status_mask = tc_phy_hpd_live_status(tc);
+	bool connected;
+
+	tc_port_fixup_legacy_flag(tc, live_status_mask);
+
+	tc->mode = hpd_mask_to_target_mode(tc, live_status_mask);
+
+	connected = tc->phy_ops->connect(tc, required_lanes);
+	if (!connected && tc->mode != default_tc_mode(tc)) {
+		tc->mode = default_tc_mode(tc);
+		connected = tc->phy_ops->connect(tc, required_lanes);
+	}
+
+	drm_WARN_ON(&i915->drm, !connected);
+}
+
+static void tc_phy_disconnect(struct intel_tc_port *tc)
+{
+	if (tc->mode != TC_PORT_DISCONNECTED) {
+		tc->phy_ops->disconnect(tc);
+		tc->mode = TC_PORT_DISCONNECTED;
+	}
+}
+
+static void tc_phy_init(struct intel_tc_port *tc)
+{
+	mutex_lock(&tc->lock);
+	tc->phy_ops->init(tc);
+	mutex_unlock(&tc->lock);
+}
+
+static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
 				     int required_lanes, bool force_disconnect)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+	enum tc_port_mode old_tc_mode = tc->mode;
 
 	intel_display_power_flush_work(i915);
 	if (!intel_tc_cold_requires_aux_pw(dig_port)) {
@@ -613,58 +1128,48 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 		drm_WARN_ON(&i915->drm, aux_powered);
 	}
 
-	icl_tc_phy_disconnect(dig_port);
+	tc_phy_disconnect(tc);
 	if (!force_disconnect)
-		icl_tc_phy_connect(dig_port, required_lanes);
+		tc_phy_connect(tc, required_lanes);
 
 	drm_dbg_kms(&i915->drm, "Port %s: TC port mode reset (%s -> %s)\n",
-		    dig_port->tc_port_name,
+		    tc->port_name,
 		    tc_port_mode_name(old_tc_mode),
-		    tc_port_mode_name(dig_port->tc_mode));
+		    tc_port_mode_name(tc->mode));
 }
 
-static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
+static bool intel_tc_port_needs_reset(struct intel_tc_port *tc)
 {
-	return intel_tc_port_get_target_mode(dig_port) != dig_port->tc_mode;
+	return tc_phy_get_target_mode(tc) != tc->mode;
 }
 
-static void intel_tc_port_update_mode(struct intel_digital_port *dig_port,
+static void intel_tc_port_update_mode(struct intel_tc_port *tc,
 				      int required_lanes, bool force_disconnect)
 {
-	enum intel_display_power_domain domain;
-	intel_wakeref_t wref;
-	bool needs_reset = force_disconnect;
-
-	if (!needs_reset) {
-		/* Get power domain required to check the hotplug live status. */
-		wref = tc_cold_block(dig_port, &domain);
-		needs_reset = intel_tc_port_needs_reset(dig_port);
-		tc_cold_unblock(dig_port, domain, wref);
-	}
-
-	if (!needs_reset)
-		return;
-
-	/* Get power domain required for resetting the mode. */
-	wref = tc_cold_block_in_mode(dig_port, TC_PORT_DISCONNECTED, &domain);
-
-	intel_tc_port_reset_mode(dig_port, required_lanes, force_disconnect);
-
-	/* Get power domain matching the new mode after reset. */
-	tc_cold_unblock(dig_port, dig_port->tc_lock_power_domain,
-			fetch_and_zero(&dig_port->tc_lock_wakeref));
-	if (dig_port->tc_mode != TC_PORT_DISCONNECTED)
-		dig_port->tc_lock_wakeref = tc_cold_block(dig_port,
-							  &dig_port->tc_lock_power_domain);
-
-	tc_cold_unblock(dig_port, domain, wref);
+	if (force_disconnect ||
+	    intel_tc_port_needs_reset(tc))
+		intel_tc_port_reset_mode(tc, required_lanes, force_disconnect);
 }
 
-static void
-intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
-				 int refcount)
+static void __intel_tc_port_get_link(struct intel_tc_port *tc)
 {
-	dig_port->tc_link_refcount = refcount;
+	tc->link_refcount++;
+}
+
+static void __intel_tc_port_put_link(struct intel_tc_port *tc)
+{
+	tc->link_refcount--;
+}
+
+static bool tc_port_is_enabled(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+
+	assert_tc_port_power_enabled(tc);
+
+	return intel_de_read(i915, DDI_BUF_CTL(dig_port->base.port)) &
+	       DDI_BUF_CTL_ENABLE;
 }
 
 /**
@@ -677,85 +1182,119 @@ intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
 void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	intel_wakeref_t tc_cold_wref;
-	enum intel_display_power_domain domain;
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+	bool update_mode = false;
 
-	mutex_lock(&dig_port->tc_lock);
+	mutex_lock(&tc->lock);
 
-	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
-	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
-	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount);
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DISCONNECTED);
+	drm_WARN_ON(&i915->drm, tc->lock_wakeref);
+	drm_WARN_ON(&i915->drm, tc->link_refcount);
 
-	tc_cold_wref = tc_cold_block(dig_port, &domain);
+	tc_phy_get_hw_state(tc);
+	/*
+	 * Save the initial mode for the state check in
+	 * intel_tc_port_sanitize_mode().
+	 */
+	tc->init_mode = tc->mode;
 
-	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
-	/* Prevent changing dig_port->tc_mode until intel_tc_port_sanitize_mode() is called. */
-	intel_tc_port_link_init_refcount(dig_port, 1);
-	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
+	/*
+	 * The PHY needs to be connected for AUX to work during HW readout and
+	 * MST topology resume, but the PHY mode can only be changed if the
+	 * port is disabled.
+	 *
+	 * An exception is the case where BIOS leaves the PHY incorrectly
+	 * disconnected on an enabled legacy port. Work around that by
+	 * connecting the PHY even though the port is enabled. This doesn't
+	 * cause a problem as the PHY ownership state is ignored by the
+	 * IOM/TCSS firmware (only display can own the PHY in that case).
+	 */
+	if (!tc_port_is_enabled(tc)) {
+		update_mode = true;
+	} else if (tc->mode == TC_PORT_DISCONNECTED) {
+		drm_WARN_ON(&i915->drm, !tc->legacy_port);
+		drm_err(&i915->drm,
+			"Port %s: PHY disconnected on enabled port, connecting it\n",
+			tc->port_name);
+		update_mode = true;
+	}
 
-	tc_cold_unblock(dig_port, domain, tc_cold_wref);
+	if (update_mode)
+		intel_tc_port_update_mode(tc, 1, false);
 
-	drm_dbg_kms(&i915->drm, "Port %s: init mode (%s)\n",
-		    dig_port->tc_port_name,
-		    tc_port_mode_name(dig_port->tc_mode));
+	/* Prevent changing tc->mode until intel_tc_port_sanitize_mode() is called. */
+	__intel_tc_port_get_link(tc);
 
-	mutex_unlock(&dig_port->tc_lock);
+	mutex_unlock(&tc->lock);
+}
+
+static bool tc_port_has_active_links(struct intel_tc_port *tc,
+				     const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+	enum icl_port_dpll_id pll_type = ICL_PORT_DPLL_DEFAULT;
+	int active_links = 0;
+
+	if (dig_port->dp.is_mst) {
+		/* TODO: get the PLL type for MST, once HW readout is done for it. */
+		active_links = intel_dp_mst_encoder_active_links(dig_port);
+	} else if (crtc_state && crtc_state->hw.active) {
+		pll_type = intel_ddi_port_pll_type(&dig_port->base, crtc_state);
+		active_links = 1;
+	}
+
+	if (active_links && !tc_phy_is_connected(tc, pll_type))
+		drm_err(&i915->drm,
+			"Port %s: PHY disconnected with %d active link(s)\n",
+			tc->port_name, active_links);
+
+	return active_links;
 }
 
 /**
  * intel_tc_port_sanitize_mode: Sanitize the given port's TypeC mode
  * @dig_port: digital port
+ * @crtc_state: atomic state of CRTC connected to @dig_port
  *
  * Sanitize @dig_port's TypeC mode wrt. the encoder's state right after driver
  * loading and system resume:
  * If the encoder is enabled keep the TypeC mode/PHY connected state locked until
  * the encoder is disabled.
  * If the encoder is disabled make sure the PHY is disconnected.
+ * @crtc_state is valid if @dig_port is enabled, NULL otherwise.
  */
-void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
+void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	struct intel_encoder *encoder = &dig_port->base;
-	int active_links = 0;
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 
-	mutex_lock(&dig_port->tc_lock);
+	mutex_lock(&tc->lock);
 
-	if (dig_port->dp.is_mst)
-		active_links = intel_dp_mst_encoder_active_links(dig_port);
-	else if (encoder->base.crtc)
-		active_links = to_intel_crtc(encoder->base.crtc)->active;
-
-	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount != 1);
-	intel_tc_port_link_init_refcount(dig_port, active_links);
-
-	if (active_links) {
-		if (!icl_tc_phy_is_connected(dig_port))
-			drm_dbg_kms(&i915->drm,
-				    "Port %s: PHY disconnected with %d active link(s)\n",
-				    dig_port->tc_port_name, active_links);
-	} else {
+	drm_WARN_ON(&i915->drm, tc->link_refcount != 1);
+	if (!tc_port_has_active_links(tc, crtc_state)) {
 		/*
 		 * TBT-alt is the default mode in any case the PHY ownership is not
 		 * held (regardless of the sink's connected live state), so
 		 * we'll just switch to disconnected mode from it here without
 		 * a note.
 		 */
-		if (dig_port->tc_mode != TC_PORT_TBT_ALT)
+		if (tc->init_mode != TC_PORT_TBT_ALT &&
+		    tc->init_mode != TC_PORT_DISCONNECTED)
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
-				    dig_port->tc_port_name,
-				    tc_port_mode_name(dig_port->tc_mode));
-		icl_tc_phy_disconnect(dig_port);
-
-		tc_cold_unblock(dig_port, dig_port->tc_lock_power_domain,
-				fetch_and_zero(&dig_port->tc_lock_wakeref));
+				    tc->port_name,
+				    tc_port_mode_name(tc->init_mode));
+		tc_phy_disconnect(tc);
+		__intel_tc_port_put_link(tc);
 	}
 
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
-		    dig_port->tc_port_name,
-		    tc_port_mode_name(dig_port->tc_mode));
+		    tc->port_name,
+		    tc_port_mode_name(tc->mode));
 
-	mutex_unlock(&dig_port->tc_lock);
+	mutex_unlock(&tc->lock);
 }
 
 /*
@@ -768,63 +1307,73 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.
  */
+bool intel_tc_port_connected_locked(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+	u32 mask = ~0;
+
+	drm_WARN_ON(&i915->drm, !intel_tc_port_ref_held(dig_port));
+
+	if (tc->mode != TC_PORT_DISCONNECTED)
+		mask = BIT(tc->mode);
+
+	return tc_phy_hpd_live_status(tc) & mask;
+}
+
 bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	bool is_connected;
 
-	intel_tc_port_lock(dig_port);
-
-	is_connected = tc_port_live_status_mask(dig_port) &
-		       BIT(dig_port->tc_mode);
-
-	intel_tc_port_unlock(dig_port);
+	mutex_lock(&tc->lock);
+	is_connected = intel_tc_port_connected_locked(encoder);
+	mutex_unlock(&tc->lock);
 
 	return is_connected;
 }
 
-static void __intel_tc_port_lock(struct intel_digital_port *dig_port,
+static void __intel_tc_port_lock(struct intel_tc_port *tc,
 				 int required_lanes)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
 
-	mutex_lock(&dig_port->tc_lock);
+	mutex_lock(&tc->lock);
 
-	cancel_delayed_work(&dig_port->tc_disconnect_phy_work);
+	cancel_delayed_work(&tc->disconnect_phy_work);
 
-	if (!dig_port->tc_link_refcount)
-		intel_tc_port_update_mode(dig_port, required_lanes,
+	if (!tc->link_refcount)
+		intel_tc_port_update_mode(tc, required_lanes,
 					  false);
 
-	drm_WARN_ON(&i915->drm, dig_port->tc_mode == TC_PORT_DISCONNECTED);
-	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_TBT_ALT &&
-				!tc_phy_is_owned(dig_port));
+	drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_DISCONNECTED);
+	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_TBT_ALT &&
+				!tc_phy_is_owned(tc));
 }
 
 void intel_tc_port_lock(struct intel_digital_port *dig_port)
 {
-	__intel_tc_port_lock(dig_port, 1);
+	__intel_tc_port_lock(to_tc_port(dig_port), 1);
 }
 
-/**
- * intel_tc_port_disconnect_phy_work: disconnect TypeC PHY from display port
- * @dig_port: digital port
- *
+/*
  * Disconnect the given digital port from its TypeC PHY (handing back the
  * control of the PHY to the TypeC subsystem). This will happen in a delayed
  * manner after each aux transactions and modeset disables.
  */
 static void intel_tc_port_disconnect_phy_work(struct work_struct *work)
 {
-	struct intel_digital_port *dig_port =
-		container_of(work, struct intel_digital_port, tc_disconnect_phy_work.work);
+	struct intel_tc_port *tc =
+		container_of(work, struct intel_tc_port, disconnect_phy_work.work);
 
-	mutex_lock(&dig_port->tc_lock);
+	mutex_lock(&tc->lock);
 
-	if (!dig_port->tc_link_refcount)
-		intel_tc_port_update_mode(dig_port, 1, true);
+	if (!tc->link_refcount)
+		intel_tc_port_update_mode(tc, 1, true);
 
-	mutex_unlock(&dig_port->tc_lock);
+	mutex_unlock(&tc->lock);
 }
 
 /**
@@ -835,105 +1384,91 @@ static void intel_tc_port_disconnect_phy_work(struct work_struct *work)
  */
 void intel_tc_port_flush_work(struct intel_digital_port *dig_port)
 {
-	flush_delayed_work(&dig_port->tc_disconnect_phy_work);
+	flush_delayed_work(&to_tc_port(dig_port)->disconnect_phy_work);
 }
 
 void intel_tc_port_unlock(struct intel_digital_port *dig_port)
 {
-	if (!dig_port->tc_link_refcount && dig_port->tc_mode != TC_PORT_DISCONNECTED)
-		queue_delayed_work(system_unbound_wq, &dig_port->tc_disconnect_phy_work,
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	if (!tc->link_refcount && tc->mode != TC_PORT_DISCONNECTED)
+		queue_delayed_work(system_unbound_wq, &tc->disconnect_phy_work,
 				   msecs_to_jiffies(1000));
 
-	mutex_unlock(&dig_port->tc_lock);
+	mutex_unlock(&tc->lock);
 }
 
 bool intel_tc_port_ref_held(struct intel_digital_port *dig_port)
 {
-	return mutex_is_locked(&dig_port->tc_lock) ||
-	       dig_port->tc_link_refcount;
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	return mutex_is_locked(&tc->lock) ||
+	       tc->link_refcount;
 }
 
 void intel_tc_port_get_link(struct intel_digital_port *dig_port,
 			    int required_lanes)
 {
-	__intel_tc_port_lock(dig_port, required_lanes);
-	dig_port->tc_link_refcount++;
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	__intel_tc_port_lock(tc, required_lanes);
+	__intel_tc_port_get_link(tc);
 	intel_tc_port_unlock(dig_port);
 }
 
 void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 {
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
 	intel_tc_port_lock(dig_port);
-	--dig_port->tc_link_refcount;
+	__intel_tc_port_put_link(tc);
 	intel_tc_port_unlock(dig_port);
-
-	/*
-	 * Disconnecting the PHY after the PHY's PLL gets disabled may
-	 * hang the system on ADL-P, so disconnect the PHY here synchronously.
-	 * TODO: remove this once the root cause of the ordering requirement
-	 * is found/fixed.
-	 */
-	intel_tc_port_flush_work(dig_port);
 }
 
-static bool
-tc_has_modular_fia(struct drm_i915_private *i915, struct intel_digital_port *dig_port)
-{
-	enum intel_display_power_domain domain;
-	intel_wakeref_t wakeref;
-	u32 val;
-
-	if (!INTEL_INFO(i915)->display.has_modular_fia)
-		return false;
-
-	mutex_lock(&dig_port->tc_lock);
-	wakeref = tc_cold_block(dig_port, &domain);
-	val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
-	tc_cold_unblock(dig_port, domain, wakeref);
-	mutex_unlock(&dig_port->tc_lock);
-
-	drm_WARN_ON(&i915->drm, val == 0xffffffff);
-
-	return val & MODULAR_FIA_MASK;
-}
-
-static void
-tc_port_load_fia_params(struct drm_i915_private *i915, struct intel_digital_port *dig_port)
-{
-	enum port port = dig_port->base.port;
-	enum tc_port tc_port = intel_port_to_tc(i915, port);
-
-	/*
-	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
-	 * than two TC ports, there are multiple instances of Modular FIA.
-	 */
-	if (tc_has_modular_fia(i915, dig_port)) {
-		dig_port->tc_phy_fia = tc_port / 2;
-		dig_port->tc_phy_fia_idx = tc_port % 2;
-	} else {
-		dig_port->tc_phy_fia = FIA1;
-		dig_port->tc_phy_fia_idx = tc_port;
-	}
-}
-
-void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
+int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_tc_port *tc;
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(i915, port);
 
 	if (drm_WARN_ON(&i915->drm, tc_port == TC_PORT_NONE))
-		return;
+		return -EINVAL;
 
-	snprintf(dig_port->tc_port_name, sizeof(dig_port->tc_port_name),
+	tc = kzalloc(sizeof(*tc), GFP_KERNEL);
+	if (!tc)
+		return -ENOMEM;
+
+	dig_port->tc = tc;
+	tc->dig_port = dig_port;
+
+	if (DISPLAY_VER(i915) >= 13)
+		tc->phy_ops = &adlp_tc_phy_ops;
+	else if (DISPLAY_VER(i915) >= 12)
+		tc->phy_ops = &tgl_tc_phy_ops;
+	else
+		tc->phy_ops = &icl_tc_phy_ops;
+
+	snprintf(tc->port_name, sizeof(tc->port_name),
 		 "%c/TC#%d", port_name(port), tc_port + 1);
 
-	mutex_init(&dig_port->tc_lock);
-	INIT_DELAYED_WORK(&dig_port->tc_disconnect_phy_work, intel_tc_port_disconnect_phy_work);
-	dig_port->tc_legacy_port = is_legacy;
-	dig_port->tc_mode = TC_PORT_DISCONNECTED;
-	dig_port->tc_link_refcount = 0;
-	tc_port_load_fia_params(i915, dig_port);
+	mutex_init(&tc->lock);
+	INIT_DELAYED_WORK(&tc->disconnect_phy_work, intel_tc_port_disconnect_phy_work);
+	tc->legacy_port = is_legacy;
+	tc->mode = TC_PORT_DISCONNECTED;
+	tc->link_refcount = 0;
+
+	tc_phy_init(tc);
 
 	intel_tc_port_init_mode(dig_port);
+
+	return 0;
+}
+
+void intel_tc_port_cleanup(struct intel_digital_port *dig_port)
+{
+	intel_tc_port_flush_work(dig_port);
+
+	kfree(dig_port->tc);
+	dig_port->tc = NULL;
 }

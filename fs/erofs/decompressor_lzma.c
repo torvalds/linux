@@ -166,8 +166,8 @@ int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 	/* 1. get the exact LZMA compressed size */
 	kin = kmap(*rq->in);
 	err = z_erofs_fixup_insize(rq, kin + rq->pageofs_in,
-				   min_t(unsigned int, rq->inputsize,
-					 EROFS_BLKSIZ - rq->pageofs_in));
+			min_t(unsigned int, rq->inputsize,
+			      rq->sb->s_blocksize - rq->pageofs_in));
 	if (err) {
 		kunmap(*rq->in);
 		return err;

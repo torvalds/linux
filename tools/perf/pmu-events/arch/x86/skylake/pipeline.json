@@ -94,6 +94,22 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
+        "PublicDescription": "This event counts both taken and not taken speculative and retired mispredicted branch instructions.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xff"
+    },
+    {
+        "BriefDescription": "Speculative mispredicted indirect branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISP_EXEC.INDIRECT",
+        "PublicDescription": "Counts speculatively miss-predicted indirect branches at execution time. Counts for indirect near CALL or JMP instructions (RET excluded).",
+        "SampleAfterValue": "200003",
+        "UMask": "0xe4"
+    },
+    {
         "BriefDescription": "All mispredicted macro branch instructions retired.",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
@@ -385,6 +401,16 @@
         "Invert": "1",
         "PEBS": "2",
         "PublicDescription": "Number of cycles using an always true condition applied to  PEBS instructions retired event. (inst_ret< 16)",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "AnyThread": "1",
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EventCode": "0x0D",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },

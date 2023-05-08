@@ -321,7 +321,7 @@ out_reset:
 	return err;
 }
 
-static int controller_remove(struct platform_device *pdev)
+static void controller_remove(struct platform_device *pdev)
 {
 	struct controller_priv *cd = platform_get_drvdata(pdev);
 	int id = cd->class_dev->id;
@@ -329,7 +329,6 @@ static int controller_remove(struct platform_device *pdev)
 	device_unregister(cd->class_dev);
 	ida_simple_remove(&controller_index_ida, id);
 	gpiod_set_value_cansleep(cd->reset_gpiod, 1);
-	return 0;
 }
 
 static const struct of_device_id controller_of_match[] = {
@@ -341,7 +340,7 @@ MODULE_DEVICE_TABLE(of, controller_of_match);
 
 static struct platform_driver controller_driver = {
 	.probe = controller_probe,
-	.remove = controller_remove,
+	.remove_new = controller_remove,
 	.driver		= {
 		.name   = "arcx-anybus-controller",
 		.of_match_table	= of_match_ptr(controller_of_match),
@@ -352,7 +351,7 @@ static int __init controller_init(void)
 {
 	int err;
 
-	controller_class = class_create(THIS_MODULE, "arcx_anybus_controller");
+	controller_class = class_create("arcx_anybus_controller");
 	if (IS_ERR(controller_class))
 		return PTR_ERR(controller_class);
 	err = platform_driver_register(&controller_driver);

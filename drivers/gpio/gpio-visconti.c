@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <linux/bitops.h>
 
 /* register offset */
@@ -31,7 +32,7 @@ struct visconti_gpio {
 	void __iomem *base;
 	spinlock_t lock; /* protect gpio register */
 	struct gpio_chip gpio_chip;
-	struct irq_chip irq_chip;
+	struct device *dev;
 };
 
 static int visconti_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -119,11 +120,45 @@ static int visconti_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	return 0;
 }
 
+static void visconti_gpio_mask_irq(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	irq_chip_mask_parent(d);
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
+}
+
+static void visconti_gpio_unmask_irq(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+	irq_chip_unmask_parent(d);
+}
+
+static void visconti_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct visconti_gpio *priv = gpiochip_get_data(gc);
+
+	seq_printf(p, dev_name(priv->dev));
+}
+
+static const struct irq_chip visconti_gpio_irq_chip = {
+	.irq_mask = visconti_gpio_mask_irq,
+	.irq_unmask = visconti_gpio_unmask_irq,
+	.irq_eoi = irq_chip_eoi_parent,
+	.irq_set_type = visconti_gpio_irq_set_type,
+	.irq_print_chip = visconti_gpio_irq_print_chip,
+	.flags = IRQCHIP_SET_TYPE_MASKED | IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int visconti_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct visconti_gpio *priv;
-	struct irq_chip *irq_chip;
 	struct gpio_irq_chip *girq;
 	struct irq_domain *parent;
 	struct device_node *irq_parent;
@@ -134,6 +169,7 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
+	priv->dev = dev;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -164,16 +200,8 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq_chip = &priv->irq_chip;
-	irq_chip->name = dev_name(dev);
-	irq_chip->irq_mask = irq_chip_mask_parent;
-	irq_chip->irq_unmask = irq_chip_unmask_parent;
-	irq_chip->irq_eoi = irq_chip_eoi_parent;
-	irq_chip->irq_set_type = visconti_gpio_irq_set_type;
-	irq_chip->flags = IRQCHIP_SET_TYPE_MASKED | IRQCHIP_MASK_ON_SUSPEND;
-
 	girq = &priv->gpio_chip.irq;
-	girq->chip = irq_chip;
+	gpio_irq_chip_set_chip(girq, &visconti_gpio_irq_chip);
 	girq->fwnode = of_node_to_fwnode(dev->of_node);
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = visconti_gpio_child_to_parent_hwirq;
@@ -194,7 +222,7 @@ static struct platform_driver visconti_gpio_driver = {
 	.probe		= visconti_gpio_probe,
 	.driver		= {
 		.name	= "visconti_gpio",
-		.of_match_table = of_match_ptr(visconti_gpio_of_match),
+		.of_match_table = visconti_gpio_of_match,
 	}
 };
 module_platform_driver(visconti_gpio_driver);

@@ -395,8 +395,21 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
 	while (fault->timestamp >= stamp) {
 		uint64_t tmp;
 
-		if (atomic64_read(&fault->key) == key)
-			return true;
+		if (atomic64_read(&fault->key) == key) {
+			/*
+			 * if we get a fault which is already present in
+			 * the fault_ring and the timestamp of
+			 * the fault is after the expired timestamp,
+			 * then this is a new fault that needs to be added
+			 * into the fault ring.
+			 */
+			if (fault->timestamp_expiry != 0 &&
+			    amdgpu_ih_ts_after(fault->timestamp_expiry,
+					       timestamp))
+				break;
+			else
+				return true;
+		}
 
 		tmp = fault->timestamp;
 		fault = &gmc->fault_ring[fault->next];
@@ -432,28 +445,74 @@ void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 	uint64_t key = amdgpu_gmc_fault_key(addr, pasid);
+	struct amdgpu_ih_ring *ih;
 	struct amdgpu_gmc_fault *fault;
+	uint32_t last_wptr;
+	uint64_t last_ts;
 	uint32_t hash;
 	uint64_t tmp;
+
+	ih = adev->irq.retry_cam_enabled ? &adev->irq.ih_soft : &adev->irq.ih1;
+	/* Get the WPTR of the last entry in IH ring */
+	last_wptr = amdgpu_ih_get_wptr(adev, ih);
+	/* Order wptr with ring data. */
+	rmb();
+	/* Get the timetamp of the last entry in IH ring */
+	last_ts = amdgpu_ih_decode_iv_ts(adev, ih, last_wptr, -1);
 
 	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
 	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
 	do {
-		if (atomic64_cmpxchg(&fault->key, key, 0) == key)
+		if (atomic64_read(&fault->key) == key) {
+			/*
+			 * Update the timestamp when this fault
+			 * expired.
+			 */
+			fault->timestamp_expiry = last_ts;
 			break;
+		}
 
 		tmp = fault->timestamp;
 		fault = &gmc->fault_ring[fault->next];
 	} while (fault->timestamp < tmp);
 }
 
-int amdgpu_gmc_ras_early_init(struct amdgpu_device *adev)
+int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev)
 {
-	if (!adev->gmc.xgmi.connected_to_cpu) {
-		adev->gmc.xgmi.ras = &xgmi_ras;
-		amdgpu_ras_register_ras_block(adev, &adev->gmc.xgmi.ras->ras_block);
-		adev->gmc.xgmi.ras_if = &adev->gmc.xgmi.ras->ras_block.ras_comm;
-	}
+	int r;
+
+	/* umc ras block */
+	r = amdgpu_umc_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	/* mmhub ras block */
+	r = amdgpu_mmhub_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	/* hdp ras block */
+	r = amdgpu_hdp_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	/* mca.x ras block */
+	r = amdgpu_mca_mp0_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_mca_mp1_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_mca_mpio_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	/* xgmi ras block */
+	r = amdgpu_xgmi_ras_sw_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -495,7 +554,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_rings; ++i) {
 		ring = adev->rings[i];
-		vmhub = ring->funcs->vmhub;
+		vmhub = ring->vm_hub;
 
 		if (ring == &adev->mes.ring)
 			continue;
@@ -511,7 +570,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
 
 		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
-			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+			 ring->name, ring->vm_inv_eng, ring->vm_hub);
 	}
 
 	return 0;
@@ -595,6 +654,7 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver == IP_VERSION(9, 4, 0) ||
 				gc_ver == IP_VERSION(9, 4, 1) ||
 				gc_ver == IP_VERSION(9, 4, 2) ||
+				gc_ver == IP_VERSION(9, 4, 3) ||
 				gc_ver >= IP_VERSION(10, 3, 0));
 
 	gmc->noretry = (amdgpu_noretry == -1) ? noretry_default : amdgpu_noretry;

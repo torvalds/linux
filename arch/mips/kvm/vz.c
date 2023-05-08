@@ -3305,7 +3305,7 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 };
 
 /* FIXME: Get rid of the callbacks now that trap-and-emulate is gone. */
-struct kvm_mips_callbacks *kvm_mips_callbacks = &kvm_vz_callbacks;
+const struct kvm_mips_callbacks * const kvm_mips_callbacks = &kvm_vz_callbacks;
 
 int kvm_mips_emulation_init(void)
 {

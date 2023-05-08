@@ -120,7 +120,7 @@ TODOList:
 .. toctree::
    :maxdepth: 2
 
-   arch
+   arch/index
 
 其他文档
 --------

@@ -48,6 +48,7 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 
+#define MXB_STD (V4L2_STD_PAL_BG | V4L2_STD_PAL_I | V4L2_STD_SECAM | V4L2_STD_NTSC)
 #define MXB_INPUTS 4
 enum { TUNER, AUX1, AUX3, AUX3_YC };
 
@@ -55,11 +56,11 @@ static struct v4l2_input mxb_inputs[MXB_INPUTS] = {
 	{ TUNER,   "Tuner",          V4L2_INPUT_TYPE_TUNER,  0x3f, 0,
 		V4L2_STD_PAL_BG | V4L2_STD_PAL_I, 0, V4L2_IN_CAP_STD },
 	{ AUX1,	   "AUX1",           V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
-		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
+		MXB_STD, 0, V4L2_IN_CAP_STD },
 	{ AUX3,	   "AUX3 Composite", V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
-		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
+		MXB_STD, 0, V4L2_IN_CAP_STD },
 	{ AUX3_YC, "AUX3 S-Video",   V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
-		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
+		MXB_STD, 0, V4L2_IN_CAP_STD },
 };
 
 /* this array holds the information, which port of the saa7146 each
@@ -456,7 +457,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 
 static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	*i = mxb->cur_input;
 
@@ -466,7 +467,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	int err = 0;
 	int i = 0;
@@ -512,6 +513,9 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	if (err)
 		return err;
 
+	mxb->video_dev.tvnorms = mxb_inputs[input].std;
+	mxb->vbi_dev.tvnorms = mxb_inputs[input].std;
+
 	/* switch video in saa7111a */
 	if (saa7111a_call(mxb, video, s_routing, i, SAA7111_FMT_CCIR, 0))
 		pr_err("VIDIOC_S_INPUT: could not address saa7111a\n");
@@ -528,7 +532,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (t->index) {
@@ -550,7 +554,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 
 static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (t->index) {
@@ -565,14 +569,14 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 
 static int vidioc_querystd(struct file *file, void *fh, v4l2_std_id *norm)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	return call_all(dev, video, querystd, norm);
 }
 
 static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (f->tuner)
@@ -585,9 +589,8 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 
 static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
-	struct saa7146_vv *vv = dev->vv_data;
 
 	if (f->tuner)
 		return -EINVAL;
@@ -604,15 +607,6 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 	tuner_call(mxb, tuner, g_frequency, &mxb->cur_freq);
 	if (mxb->cur_audinput == 0)
 		mxb_update_audmode(mxb);
-
-	if (mxb->cur_input)
-		return 0;
-
-	/* hack: changing the frequency should invalidate the vbi-counter (=> alevt) */
-	spin_lock(&dev->slock);
-	vv->vbi_fieldcount = 0;
-	spin_unlock(&dev->slock);
-
 	return 0;
 }
 
@@ -626,7 +620,7 @@ static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	DEB_EE("VIDIOC_G_AUDIO\n");
@@ -636,7 +630,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	DEB_D("VIDIOC_S_AUDIO %d\n", a->index);
@@ -656,7 +650,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
 		return -EINVAL;
@@ -667,7 +661,7 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 
 static int vidioc_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
 		return -EINVAL;
@@ -713,6 +707,17 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
 	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif
+	vv_data.vbi_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data.vbi_ops.vidioc_g_input = vidioc_g_input;
+	vv_data.vbi_ops.vidioc_s_input = vidioc_s_input;
+	vv_data.vbi_ops.vidioc_querystd = vidioc_querystd;
+	vv_data.vbi_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data.vbi_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data.vbi_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data.vbi_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data.vbi_ops.vidioc_enumaudio = vidioc_enumaudio;
+	vv_data.vbi_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data.vbi_ops.vidioc_s_audio = vidioc_s_audio;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_VIDEO)) {
 		ERR("cannot register capture v4l2 device. skipping.\n");
 		saa7146_vv_release(dev);

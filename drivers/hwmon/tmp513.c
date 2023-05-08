@@ -491,7 +491,7 @@ static umode_t tmp51x_is_visible(const void *_data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *tmp51x_info[] = {
+static const struct hwmon_channel_info * const tmp51x_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_ALARM |
 			   HWMON_T_CRIT_HYST,
@@ -758,7 +758,7 @@ static int tmp51x_probe(struct i2c_client *client)
 static struct i2c_driver tmp51x_driver = {
 	.driver = {
 		.name	= "tmp51x",
-		.of_match_table = of_match_ptr(tmp51x_of_match),
+		.of_match_table = tmp51x_of_match,
 	},
 	.probe_new	= tmp51x_probe,
 	.id_table	= tmp51x_id,

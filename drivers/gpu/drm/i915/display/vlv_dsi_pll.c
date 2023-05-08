@@ -302,13 +302,10 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
-	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
-	val &= ~BXT_DSI_PLL_DO_ENABLE;
-	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
+	intel_de_rmw(dev_priv, BXT_DSI_PLL_ENABLE, BXT_DSI_PLL_DO_ENABLE, 0);
 
 	/*
 	 * PLL lock should deassert within 200us.
@@ -542,7 +539,6 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
-	u32 val;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
@@ -559,9 +555,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	}
 
 	/* Enable DSI PLL */
-	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
-	val |= BXT_DSI_PLL_DO_ENABLE;
-	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
+	intel_de_rmw(dev_priv, BXT_DSI_PLL_ENABLE, 0, BXT_DSI_PLL_DO_ENABLE);
 
 	/* Timeout and fail if PLL not locked */
 	if (intel_de_wait_for_set(dev_priv, BXT_DSI_PLL_ENABLE,
@@ -589,13 +583,9 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 		intel_de_write(dev_priv, BXT_MIPI_CLOCK_CTL, tmp);
 	} else {
-		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV1);
-		tmp &= ~GLK_TX_ESC_CLK_DIV1_MASK;
-		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1, tmp);
+		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV1, GLK_TX_ESC_CLK_DIV1_MASK, 0);
 
-		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV2);
-		tmp &= ~GLK_TX_ESC_CLK_DIV2_MASK;
-		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV2, tmp);
+		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV2, GLK_TX_ESC_CLK_DIV2_MASK, 0);
 	}
 	intel_de_write(dev_priv, MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }

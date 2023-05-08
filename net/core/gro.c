@@ -633,7 +633,7 @@ static gro_result_t napi_skb_finish(struct napi_struct *napi,
 		else if (skb->fclone != SKB_FCLONE_UNAVAILABLE)
 			__kfree_skb(skb);
 		else
-			__kfree_skb_defer(skb);
+			__napi_kfree_skb(skb, SKB_CONSUMED);
 		break;
 
 	case GRO_HELD:

@@ -530,7 +530,6 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *syscon_np;
-	struct resource *res;
 	struct qcom_rpm *rpm;
 	u32 fw_version[3];
 	int irq_wakeup;
@@ -576,8 +575,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	rpm->data = match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rpm->status_regs = devm_ioremap_resource(&pdev->dev, res);
+	rpm->status_regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(rpm->status_regs))
 		return PTR_ERR(rpm->status_regs);
 	rpm->ctrl_regs = rpm->status_regs + 0x400;

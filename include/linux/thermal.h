@@ -207,41 +207,6 @@ struct thermal_governor {
 	struct list_head	governor_list;
 };
 
-/* Structure that holds binding parameters for a zone */
-struct thermal_bind_params {
-	struct thermal_cooling_device *cdev;
-
-	/*
-	 * This is a measure of 'how effectively these devices can
-	 * cool 'this' thermal zone. It shall be determined by
-	 * platform characterization. This value is relative to the
-	 * rest of the weights so a cooling device whose weight is
-	 * double that of another cooling device is twice as
-	 * effective. See Documentation/driver-api/thermal/sysfs-api.rst for more
-	 * information.
-	 */
-	int weight;
-
-	/*
-	 * This is a bit mask that gives the binding relation between this
-	 * thermal zone and cdev, for a particular trip point.
-	 * See Documentation/driver-api/thermal/sysfs-api.rst for more information.
-	 */
-	int trip_mask;
-
-	/*
-	 * This is an array of cooling state limits. Must have exactly
-	 * 2 * thermal_zone.number_of_trip_points. It is an array consisting
-	 * of tuples <lower-state upper-state> of state limits. Each trip
-	 * will be associated with one state limit tuple when binding.
-	 * A NULL pointer means <THERMAL_NO_LIMITS THERMAL_NO_LIMITS>
-	 * on all trips.
-	 */
-	unsigned long *binding_limits;
-	int (*match) (struct thermal_zone_device *tz,
-			struct thermal_cooling_device *cdev);
-};
-
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
 	char governor_name[THERMAL_NAME_LENGTH];
@@ -252,9 +217,6 @@ struct thermal_zone_params {
 	 * will be created. when no_hwmon == true, nothing will be done
 	 */
 	bool no_hwmon;
-
-	int num_tbps;	/* Number of tbp entries */
-	struct thermal_bind_params *tbp;
 
 	/*
 	 * Sustainable power (heat) that this thermal zone can dissipate in
@@ -297,35 +259,18 @@ struct thermal_zone_params {
 
 /* Function declarations */
 #ifdef CONFIG_THERMAL_OF
-struct thermal_zone_device *thermal_of_zone_register(struct device_node *sensor, int id, void *data,
-						     const struct thermal_zone_device_ops *ops);
-
 struct thermal_zone_device *devm_thermal_of_zone_register(struct device *dev, int id, void *data,
 							  const struct thermal_zone_device_ops *ops);
 
-void thermal_of_zone_unregister(struct thermal_zone_device *tz);
-
 void devm_thermal_of_zone_unregister(struct device *dev, struct thermal_zone_device *tz);
 
-void thermal_of_zone_unregister(struct thermal_zone_device *tz);
-
 #else
-static inline
-struct thermal_zone_device *thermal_of_zone_register(struct device_node *sensor, int id, void *data,
-						     const struct thermal_zone_device_ops *ops)
-{
-	return ERR_PTR(-ENOTSUPP);
-}
 
 static inline
 struct thermal_zone_device *devm_thermal_of_zone_register(struct device *dev, int id, void *data,
 							  const struct thermal_zone_device_ops *ops)
 {
 	return ERR_PTR(-ENOTSUPP);
-}
-
-static inline void thermal_of_zone_unregister(struct thermal_zone_device *tz)
-{
 }
 
 static inline void devm_thermal_of_zone_unregister(struct device *dev,
@@ -365,6 +310,11 @@ thermal_zone_device_register_with_trips(const char *, struct thermal_trip *, int
 					void *, struct thermal_zone_device_ops *,
 					struct thermal_zone_params *, int, int);
 
+void *thermal_zone_device_priv(struct thermal_zone_device *tzd);
+const char *thermal_zone_device_type(struct thermal_zone_device *tzd);
+int thermal_zone_device_id(struct thermal_zone_device *tzd);
+struct device *thermal_zone_device(struct thermal_zone_device *tzd);
+
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
 				     struct thermal_cooling_device *,
 				     unsigned long, unsigned long,
@@ -384,6 +334,7 @@ devm_thermal_of_cooling_device_register(struct device *dev,
 				struct device_node *np,
 				char *type, void *devdata,
 				const struct thermal_cooling_device_ops *ops);
+void thermal_cooling_device_update(struct thermal_cooling_device *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 struct thermal_zone_device *thermal_zone_get_zone_by_name(const char *name);
 int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
@@ -435,6 +386,21 @@ static inline int thermal_zone_get_slope(
 static inline int thermal_zone_get_offset(
 		struct thermal_zone_device *tz)
 { return -ENODEV; }
+
+static inline void *thermal_zone_device_priv(struct thermal_zone_device *tz)
+{
+	return NULL;
+}
+
+static inline const char *thermal_zone_device_type(struct thermal_zone_device *tzd)
+{
+	return NULL;
+}
+
+static inline int thermal_zone_device_id(struct thermal_zone_device *tzd)
+{
+	return -ENODEV;
+}
 
 static inline int thermal_zone_device_enable(struct thermal_zone_device *tz)
 { return -ENODEV; }

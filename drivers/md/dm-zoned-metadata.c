@@ -1701,7 +1701,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 			if (IS_ERR(dmap_mblk))
 				return PTR_ERR(dmap_mblk);
 			zmd->map_mblk[i] = dmap_mblk;
-			dmap = (struct dmz_map *) dmap_mblk->data;
+			dmap = dmap_mblk->data;
 			i++;
 			e = 0;
 		}
@@ -1832,7 +1832,7 @@ static void dmz_set_chunk_mapping(struct dmz_metadata *zmd, unsigned int chunk,
 				  unsigned int dzone_id, unsigned int bzone_id)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
-	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;
+	struct dmz_map *dmap = dmap_mblk->data;
 	int map_idx = chunk & DMZ_MAP_ENTRIES_MASK;
 
 	dmap[map_idx].dzone_id = cpu_to_le32(dzone_id);
@@ -2045,7 +2045,7 @@ struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
 				      unsigned int chunk, enum req_op op)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
-	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;
+	struct dmz_map *dmap = dmap_mblk->data;
 	int dmap_idx = chunk & DMZ_MAP_ENTRIES_MASK;
 	unsigned int dzone_id;
 	struct dm_zone *dzone = NULL;

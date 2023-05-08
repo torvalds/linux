@@ -14,7 +14,7 @@ description:
   for common binding part and usage.
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 properties:
   compatible:

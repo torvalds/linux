@@ -95,7 +95,7 @@ static struct test_item test_items[] = {
 
 static char stub_name[KSYM_NAME_LEN];
 
-static int stat_symbol_len(void *data, const char *name, struct module *mod, unsigned long addr)
+static int stat_symbol_len(void *data, const char *name, unsigned long addr)
 {
 	*(u32 *)data += strlen(name);
 
@@ -154,7 +154,7 @@ static void test_kallsyms_compression_ratio(void)
 	pr_info(" ---------------------------------------------------------\n");
 }
 
-static int lookup_name(void *data, const char *name, struct module *mod, unsigned long addr)
+static int lookup_name(void *data, const char *name, unsigned long addr)
 {
 	u64 t0, t1, t;
 	struct test_stat *stat = (struct test_stat *)data;
@@ -207,7 +207,7 @@ static bool match_cleanup_name(const char *s, const char *name)
 	return !strncmp(s, name, len);
 }
 
-static int find_symbol(void *data, const char *name, struct module *mod, unsigned long addr)
+static int find_symbol(void *data, const char *name, unsigned long addr)
 {
 	struct test_stat *stat = (struct test_stat *)data;
 

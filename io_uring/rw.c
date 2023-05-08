@@ -283,16 +283,16 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 	return res;
 }
 
-static void io_req_rw_complete(struct io_kiocb *req, bool *locked)
+static void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	io_req_io_end(req);
 
 	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
-		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+		unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
 
 		req->cqe.flags |= io_put_kbuf(req, issue_flags);
 	}
-	io_req_task_complete(req, locked);
+	io_req_task_complete(req, ts);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res)
@@ -304,7 +304,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 		return;
 	io_req_set_res(req, io_fixup_rw_res(req, res), 0);
 	req->io_task_work.func = io_req_rw_complete;
-	io_req_task_work_add(req);
+	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
@@ -447,26 +447,25 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 	ppos = io_kiocb_ppos(kiocb);
 
 	while (iov_iter_count(iter)) {
-		struct iovec iovec;
+		void __user *addr;
+		size_t len;
 		ssize_t nr;
 
 		if (iter_is_ubuf(iter)) {
-			iovec.iov_base = iter->ubuf + iter->iov_offset;
-			iovec.iov_len = iov_iter_count(iter);
+			addr = iter->ubuf + iter->iov_offset;
+			len = iov_iter_count(iter);
 		} else if (!iov_iter_is_bvec(iter)) {
-			iovec = iov_iter_iovec(iter);
+			addr = iter_iov_addr(iter);
+			len = iter_iov_len(iter);
 		} else {
-			iovec.iov_base = u64_to_user_ptr(rw->addr);
-			iovec.iov_len = rw->len;
+			addr = u64_to_user_ptr(rw->addr);
+			len = rw->len;
 		}
 
-		if (ddir == READ) {
-			nr = file->f_op->read(file, iovec.iov_base,
-					      iovec.iov_len, ppos);
-		} else {
-			nr = file->f_op->write(file, iovec.iov_base,
-					       iovec.iov_len, ppos);
-		}
+		if (ddir == READ)
+			nr = file->f_op->read(file, addr, len, ppos);
+		else
+			nr = file->f_op->write(file, addr, len, ppos);
 
 		if (nr < 0) {
 			if (!ret)
@@ -482,7 +481,7 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 			if (!rw->len)
 				break;
 		}
-		if (nr != iovec.iov_len)
+		if (nr != len)
 			break;
 	}
 
@@ -503,10 +502,10 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	if (!iovec) {
 		unsigned iov_off = 0;
 
-		io->s.iter.iov = io->s.fast_iov;
-		if (iter->iov != fast_iov) {
-			iov_off = iter->iov - fast_iov;
-			io->s.iter.iov += iov_off;
+		io->s.iter.__iov = io->s.fast_iov;
+		if (iter->__iov != fast_iov) {
+			iov_off = iter_iov(iter) - fast_iov;
+			io->s.iter.__iov += iov_off;
 		}
 		if (io->s.fast_iov != fast_iov)
 			memcpy(io->s.fast_iov + iov_off, fast_iov + iov_off,
@@ -1002,7 +1001,7 @@ void io_rw_fail(struct io_kiocb *req)
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_wq_work_node *pos, *start, *prev;
-	unsigned int poll_flags = BLK_POLL_NOSLEEP;
+	unsigned int poll_flags = 0;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
 

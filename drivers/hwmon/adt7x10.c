@@ -309,7 +309,7 @@ static int adt7x10_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *adt7x10_info[] = {
+static const struct hwmon_channel_info * const adt7x10_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
 			   HWMON_T_CRIT | HWMON_T_MAX_HYST | HWMON_T_MIN_HYST |
 			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |

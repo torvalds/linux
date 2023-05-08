@@ -1065,10 +1065,10 @@ extern void ata_host_get(struct ata_host *host);
 extern void ata_host_put(struct ata_host *host);
 extern int ata_host_start(struct ata_host *host);
 extern int ata_host_register(struct ata_host *host,
-			     struct scsi_host_template *sht);
+			     const struct scsi_host_template *sht);
 extern int ata_host_activate(struct ata_host *host, int irq,
 			     irq_handler_t irq_handler, unsigned long irq_flags,
-			     struct scsi_host_template *sht);
+			     const struct scsi_host_template *sht);
 extern void ata_host_detach(struct ata_host *host);
 extern void ata_host_init(struct ata_host *, struct device *, struct ata_port_operations *);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
@@ -1980,10 +1980,10 @@ extern int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 				    struct ata_host **r_host);
 extern int ata_pci_sff_activate_host(struct ata_host *host,
 				     irq_handler_t irq_handler,
-				     struct scsi_host_template *sht);
+				     const struct scsi_host_template *sht);
 extern int ata_pci_sff_init_one(struct pci_dev *pdev,
 		const struct ata_port_info * const * ppi,
-		struct scsi_host_template *sht, void *host_priv, int hflags);
+		const struct scsi_host_template *sht, void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ATA_BMDMA
@@ -2019,7 +2019,7 @@ extern int ata_pci_bmdma_prepare_host(struct pci_dev *pdev,
 				      struct ata_host **r_host);
 extern int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 				  const struct ata_port_info * const * ppi,
-				  struct scsi_host_template *sht,
+				  const struct scsi_host_template *sht,
 				  void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 #endif /* CONFIG_ATA_BMDMA */

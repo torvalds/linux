@@ -229,8 +229,6 @@ enum radeon_dvo_chip {
 	DVO_SIL1178,
 };
 
-struct radeon_fbdev;
-
 struct radeon_afmt {
 	bool enabled;
 	int offset;
@@ -267,8 +265,6 @@ struct radeon_mode_info {
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;
 
-	/* pointer to fbdev info structure */
-	struct radeon_fbdev *rfbdev;
 	/* firmware flags */
 	u16 firmware_flags;
 	/* pointer to backlight encoder */
@@ -943,16 +939,24 @@ void dce4_program_fmt(struct drm_encoder *encoder);
 void dce8_program_fmt(struct drm_encoder *encoder);
 
 /* fbdev layer */
-int radeon_fbdev_init(struct radeon_device *rdev);
-void radeon_fbdev_fini(struct radeon_device *rdev);
+#if defined(CONFIG_DRM_FBDEV_EMULATION)
+void radeon_fbdev_setup(struct radeon_device *rdev);
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
+#else
+static inline void radeon_fbdev_setup(struct radeon_device *rdev)
+{ }
+static inline void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
+{ }
+static inline bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
+{
+	return false;
+}
+#endif
 
 void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
-
-int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
 
 int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx);
 void radeon_atom_release_dig_encoder(struct radeon_device *rdev, int enc_idx);

@@ -86,6 +86,11 @@ enum ath12k_pci_flags {
 	ATH12K_PCI_ASPM_RESTORE,
 };
 
+struct ath12k_pci_ops {
+	int (*wakeup)(struct ath12k_base *ab);
+	void (*release)(struct ath12k_base *ab);
+};
+
 struct ath12k_pci {
 	struct pci_dev *pdev;
 	struct ath12k_base *ab;
@@ -103,6 +108,7 @@ struct ath12k_pci {
 	/* enum ath12k_pci_flags */
 	unsigned long flags;
 	u16 link_ctl;
+	const struct ath12k_pci_ops *pci_ops;
 };
 
 static inline struct ath12k_pci *ath12k_pci_priv(struct ath12k_base *ab)

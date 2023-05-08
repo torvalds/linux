@@ -74,6 +74,7 @@ static const struct of_device_id of_match_clk_mt8173_infracfg[] = {
 	{ .compatible = "mediatek,mt8173-infracfg" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_infracfg);
 
 static void clk_mt8173_infra_init_early(struct device_node *node)
 {

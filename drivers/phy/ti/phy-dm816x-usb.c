@@ -257,20 +257,18 @@ clk_unprepare:
 	return error;
 }
 
-static int dm816x_usb_phy_remove(struct platform_device *pdev)
+static void dm816x_usb_phy_remove(struct platform_device *pdev)
 {
 	struct dm816x_usb_phy *phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&phy->phy);
 	pm_runtime_disable(phy->dev);
 	clk_unprepare(phy->refclk);
-
-	return 0;
 }
 
 static struct platform_driver dm816x_usb_phy_driver = {
 	.probe		= dm816x_usb_phy_probe,
-	.remove		= dm816x_usb_phy_remove,
+	.remove_new	= dm816x_usb_phy_remove,
 	.driver		= {
 		.name	= "dm816x-usb-phy",
 		.pm	= &dm816x_usb_phy_pm_ops,

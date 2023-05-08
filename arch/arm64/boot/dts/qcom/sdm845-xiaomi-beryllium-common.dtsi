@@ -2,6 +2,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
@@ -232,9 +233,6 @@
 		vddpos-supply = <&lab>;
 		vddneg-supply = <&ibb>;
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		backlight = <&pmi8998_wled>;
 		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
 
@@ -319,6 +317,16 @@
 		input-enable;
 		bias-pull-up;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+	};
+};
+
+&pmi8998_lpg {
+	status = "okay";
+
+	led@5 {
+		reg = <5>;
+		color = <LED_COLOR_ID_WHITE>;
+		function = LED_FUNCTION_STATUS;
 	};
 };
 

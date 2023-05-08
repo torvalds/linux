@@ -1335,8 +1335,7 @@ static struct pcmcia_callback pcmcia_bus_callback = {
 	.resume = pcmcia_bus_resume,
 };
 
-static int pcmcia_bus_add_socket(struct device *dev,
-					   struct class_interface *class_intf)
+static int pcmcia_bus_add_socket(struct device *dev)
 {
 	struct pcmcia_socket *socket = dev_get_drvdata(dev);
 	int ret;
@@ -1369,8 +1368,7 @@ static int pcmcia_bus_add_socket(struct device *dev,
 	return 0;
 }
 
-static void pcmcia_bus_remove_socket(struct device *dev,
-				     struct class_interface *class_intf)
+static void pcmcia_bus_remove_socket(struct device *dev)
 {
 	struct pcmcia_socket *socket = dev_get_drvdata(dev);
 

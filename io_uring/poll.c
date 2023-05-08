@@ -148,7 +148,7 @@ static void io_poll_req_insert_locked(struct io_kiocb *req)
 	hlist_add_head(&req->hash_node, &table->hbs[index].list);
 }
 
-static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
+static void io_poll_tw_hash_eject(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -159,7 +159,7 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
 		 * already grabbed the mutex for us, but there is a chance it
 		 * failed.
 		 */
-		io_tw_lock(ctx, locked);
+		io_tw_lock(ctx, ts);
 		hash_del(&req->hash_node);
 		req->flags &= ~REQ_F_HASH_LOCKED;
 	} else {
@@ -238,7 +238,7 @@ enum {
  * req->cqe.res. IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot
  * poll and that the result is stored in req->cqe.
  */
-static int io_poll_check_events(struct io_kiocb *req, bool *locked)
+static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	int v;
 
@@ -300,13 +300,13 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			__poll_t mask = mangle_poll(req->cqe.res &
 						    req->apoll_events);
 
-			if (!io_aux_cqe(req->ctx, *locked, req->cqe.user_data,
+			if (!io_aux_cqe(req->ctx, ts->locked, req->cqe.user_data,
 					mask, IORING_CQE_F_MORE, false)) {
 				io_req_set_res(req, mask, 0);
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			}
 		} else {
-			int ret = io_poll_issue(req, locked);
+			int ret = io_poll_issue(req, ts);
 			if (ret == IOU_STOP_MULTISHOT)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			if (ret < 0)
@@ -326,15 +326,15 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 	return IOU_POLL_NO_ACTION;
 }
 
-static void io_poll_task_func(struct io_kiocb *req, bool *locked)
+static void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	int ret;
 
-	ret = io_poll_check_events(req, locked);
+	ret = io_poll_check_events(req, ts);
 	if (ret == IOU_POLL_NO_ACTION)
 		return;
 	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, locked);
+	io_poll_tw_hash_eject(req, ts);
 
 	if (req->opcode == IORING_OP_POLL_ADD) {
 		if (ret == IOU_POLL_DONE) {
@@ -343,7 +343,7 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 			poll = io_kiocb_to_cmd(req, struct io_poll);
 			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 		} else if (ret == IOU_POLL_REISSUE) {
-			io_req_task_submit(req, locked);
+			io_req_task_submit(req, ts);
 			return;
 		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 			req->cqe.res = ret;
@@ -351,14 +351,14 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 		}
 
 		io_req_set_res(req, req->cqe.res, 0);
-		io_req_task_complete(req, locked);
+		io_req_task_complete(req, ts);
 	} else {
-		io_tw_lock(req->ctx, locked);
+		io_tw_lock(req->ctx, ts);
 
 		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
-			io_req_task_complete(req, locked);
+			io_req_task_complete(req, ts);
 		else if (ret == IOU_POLL_DONE || ret == IOU_POLL_REISSUE)
-			io_req_task_submit(req, locked);
+			io_req_task_submit(req, ts);
 		else
 			io_req_defer_failed(req, ret);
 	}
@@ -726,6 +726,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	apoll = io_req_alloc_apoll(req, issue_flags);
 	if (!apoll)
 		return IO_APOLL_ABORTED;
+	req->flags &= ~(REQ_F_SINGLE_POLL | REQ_F_DOUBLE_POLL);
 	req->flags |= REQ_F_POLLED;
 	ipt.pt._qproc = io_async_queue_proc;
 
@@ -976,7 +977,7 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_hash_bucket *bucket;
 	struct io_kiocb *preq;
 	int ret2, ret = 0;
-	bool locked;
+	struct io_tw_state ts = {};
 
 	preq = io_poll_find(ctx, true, &cd, &ctx->cancel_table, &bucket);
 	ret2 = io_poll_disarm(preq);
@@ -1026,8 +1027,8 @@ found:
 
 	req_set_fail(preq);
 	io_req_set_res(preq, -ECANCELED, 0);
-	locked = !(issue_flags & IO_URING_F_UNLOCKED);
-	io_req_task_complete(preq, &locked);
+	ts.locked = !(issue_flags & IO_URING_F_UNLOCKED);
+	io_req_task_complete(preq, &ts);
 out:
 	if (ret < 0) {
 		req_set_fail(req);

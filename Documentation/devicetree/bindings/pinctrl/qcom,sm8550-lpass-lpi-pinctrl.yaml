@@ -21,7 +21,7 @@ properties:
   reg:
     items:
       - description: LPASS LPI TLMM Control and Status registers
-      - description: LPASS LPI pins SLEW registers
+      - description: LPASS LPI MCC registers
 
   clocks:
     items:
@@ -96,9 +96,11 @@ $defs:
           2: Lower Slew rate (slower edges)
           3: Reserved (No adjustments)
 
+      bias-bus-hold: true
       bias-pull-down: true
       bias-pull-up: true
       bias-disable: true
+      input-enable: true
       output-high: true
       output-low: true
 

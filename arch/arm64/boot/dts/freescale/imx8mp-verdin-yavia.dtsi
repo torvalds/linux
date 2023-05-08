@@ -87,7 +87,7 @@
 	status = "okay";
 };
 
-/* EEPROM on Verdin yavia board */
+/* EEPROM on Verdin Yavia board */
 &eeprom_carrier_board {
 	status = "okay";
 };
@@ -122,7 +122,7 @@
 	status = "okay";
 };
 
-&pcie_phy{
+&pcie_phy {
 	status = "okay";
 };
 
@@ -183,7 +183,6 @@
 };
 
 &usb_dwc3_1 {
-	disable-over-current;
 	status = "okay";
 };
 

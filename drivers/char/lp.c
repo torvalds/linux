@@ -1049,7 +1049,7 @@ static int __init lp_init(void)
 		return -EIO;
 	}
 
-	lp_class = class_create(THIS_MODULE, "printer");
+	lp_class = class_create("printer");
 	if (IS_ERR(lp_class)) {
 		err = PTR_ERR(lp_class);
 		goto out_reg;

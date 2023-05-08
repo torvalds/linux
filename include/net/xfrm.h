@@ -138,6 +138,10 @@ enum {
 	XFRM_DEV_OFFLOAD_PACKET,
 };
 
+enum {
+	XFRM_DEV_OFFLOAD_FLAG_ACQ = 1,
+};
+
 struct xfrm_dev_offload {
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
@@ -145,6 +149,7 @@ struct xfrm_dev_offload {
 	unsigned long		offload_handle;
 	u8			dir : 2;
 	u8			type : 2;
+	u8			flags : 2;
 };
 
 struct xfrm_mode {

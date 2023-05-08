@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/phy/marvell,armada-3700-utmi-phy.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/phy/marvell,armada-3700-utmi-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Marvell Armada UTMI/UTMI+ PHY
 

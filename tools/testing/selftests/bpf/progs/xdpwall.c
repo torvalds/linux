@@ -321,7 +321,6 @@ int edgewall(struct xdp_md *ctx)
 	void *data = (void *)(long)(ctx->data);
 	struct fw_match_info match_info = {};
 	struct pkt_info info = {};
-	__u8 parse_err = NO_ERR;
 	void *transport_hdr;
 	struct ethhdr *eth;
 	bool filter_res;

@@ -298,6 +298,8 @@ struct i915_address_space {
 				  u64 start, u64 length);
 	void (*clear_range)(struct i915_address_space *vm,
 			    u64 start, u64 length);
+	void (*scratch_range)(struct i915_address_space *vm,
+			      u64 start, u64 length);
 	void (*insert_page)(struct i915_address_space *vm,
 			    dma_addr_t addr,
 			    u64 offset,

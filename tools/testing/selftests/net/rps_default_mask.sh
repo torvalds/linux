@@ -60,6 +60,7 @@ ip link set dev $VETH up
 ip -n $NETNS link set dev $VETH up
 chk_rps "changing rps_default_mask affect newly created devices" "" $VETH 3
 chk_rps "changing rps_default_mask don't affect newly child netns[II]" $NETNS $VETH 0
+ip link del dev $VETH
 ip netns del $NETNS
 
 setup

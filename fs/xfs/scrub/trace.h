@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  *
  * NOTE: none of these tracepoints shall be considered a stable kernel ABI
  * as they can change at any time.  See xfs_trace.h for documentation of
@@ -29,6 +29,9 @@ TRACE_DEFINE_ENUM(XFS_BTNUM_INOi);
 TRACE_DEFINE_ENUM(XFS_BTNUM_FINOi);
 TRACE_DEFINE_ENUM(XFS_BTNUM_RMAPi);
 TRACE_DEFINE_ENUM(XFS_BTNUM_REFCi);
+
+TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
+TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
 
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_PROBE);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_SB);
@@ -93,6 +96,13 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XFS_SCRUB_OFLAG_WARNING,		"warning" }, \
 	{ XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED,	"norepair" }
 
+#define XFS_SCRUB_STATE_STRINGS \
+	{ XCHK_TRY_HARDER,			"try_harder" }, \
+	{ XCHK_REAPING_DISABLED,		"reaping_disabled" }, \
+	{ XCHK_FSGATES_DRAIN,			"fsgates_drain" }, \
+	{ XCHK_NEED_DRAIN,			"need_drain" }, \
+	{ XREP_ALREADY_FIXED,			"already_fixed" }
+
 DECLARE_EVENT_CLASS(xchk_class,
 	TP_PROTO(struct xfs_inode *ip, struct xfs_scrub_metadata *sm,
 		 int error),
@@ -138,6 +148,33 @@ DEFINE_SCRUB_EVENT(xchk_done);
 DEFINE_SCRUB_EVENT(xchk_deadlock_retry);
 DEFINE_SCRUB_EVENT(xrep_attempt);
 DEFINE_SCRUB_EVENT(xrep_done);
+
+DECLARE_EVENT_CLASS(xchk_fsgate_class,
+	TP_PROTO(struct xfs_scrub *sc, unsigned int fsgate_flags),
+	TP_ARGS(sc, fsgate_flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, type)
+		__field(unsigned int, fsgate_flags)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->type = sc->sm->sm_type;
+		__entry->fsgate_flags = fsgate_flags;
+	),
+	TP_printk("dev %d:%d type %s fsgates '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
+		  __print_flags(__entry->fsgate_flags, "|", XFS_SCRUB_STATE_STRINGS))
+)
+
+#define DEFINE_SCRUB_FSHOOK_EVENT(name) \
+DEFINE_EVENT(xchk_fsgate_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, unsigned int fsgates_flags), \
+	TP_ARGS(sc, fsgates_flags))
+
+DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_enable);
+DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_disable);
 
 TRACE_EVENT(xchk_op_error,
 	TP_PROTO(struct xfs_scrub *sc, xfs_agnumber_t agno,
@@ -655,6 +692,38 @@ TRACE_EVENT(xchk_fscounters_within_range,
 		  __entry->expected,
 		  __entry->curr_value,
 		  __entry->old_value)
+)
+
+TRACE_EVENT(xchk_refcount_incorrect,
+	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *irec,
+		 xfs_nlink_t seen),
+	TP_ARGS(pag, irec, seen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(enum xfs_refc_domain, domain)
+		__field(xfs_agblock_t, startblock)
+		__field(xfs_extlen_t, blockcount)
+		__field(xfs_nlink_t, refcount)
+		__field(xfs_nlink_t, seen)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->domain = irec->rc_domain;
+		__entry->startblock = irec->rc_startblock;
+		__entry->blockcount = irec->rc_blockcount;
+		__entry->refcount = irec->rc_refcount;
+		__entry->seen = seen;
+	),
+	TP_printk("dev %d:%d agno 0x%x dom %s agbno 0x%x fsbcount 0x%x refcount %u seen %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __print_symbolic(__entry->domain, XFS_REFC_DOMAIN_STRINGS),
+		  __entry->startblock,
+		  __entry->blockcount,
+		  __entry->refcount,
+		  __entry->seen)
 )
 
 /* repair tracepoints */

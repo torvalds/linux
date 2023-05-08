@@ -109,7 +109,7 @@ properties:
             description: Specify a valid GPIO for platform control of the regulator
 
           dlg,ripple-cancel:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             enum: [ 0, 1, 2, 3 ]
             description: |
               Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h

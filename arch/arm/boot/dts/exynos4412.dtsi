@@ -28,7 +28,6 @@
 		pinctrl3 = &pinctrl_3;
 		fimc-lite0 = &fimc_lite_0;
 		fimc-lite1 = &fimc_lite_1;
-		mshc0 = &mshc_0;
 	};
 
 	bus_acp: bus-acp {
@@ -798,7 +797,7 @@
 };
 
 &pmu_system_controller {
-	compatible = "samsung,exynos4412-pmu", "syscon";
+	compatible = "samsung,exynos4412-pmu", "simple-mfd", "syscon";
 	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
 			"clkout4", "clkout8", "clkout9";
 	clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
