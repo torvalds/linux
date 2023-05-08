@@ -13,7 +13,8 @@ rtw89_core-y += core.o \
 		coex.o \
 		ps.o \
 		chan.o \
-		ser.o
+		ser.o \
+		acpi.o
 
 rtw89_core-$(CONFIG_PM) += wow.o
 
