@@ -42,7 +42,7 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 	if (!vibrator->vcc_on) {
 		err = regulator_enable(vibrator->vcc);
 		if (err) {
-			dev_err(pdev, "failed to enable regulator: %d", err);
+			dev_err(pdev, "failed to enable regulator: %d\n", err);
 			return err;
 		}
 		vibrator->vcc_on = true;
@@ -54,7 +54,7 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 
 	err = pwm_apply_state(vibrator->pwm, &state);
 	if (err) {
-		dev_err(pdev, "failed to apply pwm state: %d", err);
+		dev_err(pdev, "failed to apply pwm state: %d\n", err);
 		return err;
 	}
 
@@ -65,7 +65,7 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 
 		err = pwm_apply_state(vibrator->pwm_dir, &state);
 		if (err) {
-			dev_err(pdev, "failed to apply dir-pwm state: %d", err);
+			dev_err(pdev, "failed to apply dir-pwm state: %d\n", err);
 			pwm_disable(vibrator->pwm);
 			return err;
 		}
@@ -137,7 +137,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	err = PTR_ERR_OR_ZERO(vibrator->vcc);
 	if (err) {
 		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request regulator: %d",
+			dev_err(&pdev->dev, "Failed to request regulator: %d\n",
 				err);
 		return err;
 	}
@@ -146,7 +146,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	err = PTR_ERR_OR_ZERO(vibrator->pwm);
 	if (err) {
 		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request main pwm: %d",
+			dev_err(&pdev->dev, "Failed to request main pwm: %d\n",
 				err);
 		return err;
 	}
@@ -158,7 +158,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	state.enabled = false;
 	err = pwm_apply_state(vibrator->pwm, &state);
 	if (err) {
-		dev_err(&pdev->dev, "failed to apply initial PWM state: %d",
+		dev_err(&pdev->dev, "failed to apply initial PWM state: %d\n",
 			err);
 		return err;
 	}
@@ -172,7 +172,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 		state.enabled = false;
 		err = pwm_apply_state(vibrator->pwm_dir, &state);
 		if (err) {
-			dev_err(&pdev->dev, "failed to apply initial PWM state: %d",
+			dev_err(&pdev->dev, "failed to apply initial PWM state: %d\n",
 				err);
 			return err;
 		}
@@ -189,7 +189,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Failed to request direction pwm: %d", err);
+		dev_err(&pdev->dev, "Failed to request direction pwm: %d\n", err);
 		fallthrough;
 
 	case -EPROBE_DEFER:
@@ -207,13 +207,13 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	err = input_ff_create_memless(vibrator->input, NULL,
 				      pwm_vibrator_play_effect);
 	if (err) {
-		dev_err(&pdev->dev, "Couldn't create FF dev: %d", err);
+		dev_err(&pdev->dev, "Couldn't create FF dev: %d\n", err);
 		return err;
 	}
 
 	err = input_register_device(vibrator->input);
 	if (err) {
-		dev_err(&pdev->dev, "Couldn't register input dev: %d", err);
+		dev_err(&pdev->dev, "Couldn't register input dev: %d\n", err);
 		return err;
 	}
 
