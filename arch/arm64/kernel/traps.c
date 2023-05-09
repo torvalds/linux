@@ -563,6 +563,12 @@ void do_el0_mops(struct pt_regs *regs, unsigned long esr)
 		regs->pc -= 8;
 	else
 		regs->pc -= 4;
+
+	/*
+	 * If single stepping then finish the step before executing the
+	 * prologue instruction.
+	 */
+	user_fastforward_single_step(current);
 }
 
 #define __user_cache_maint(insn, address, res)			\
