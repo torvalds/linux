@@ -499,6 +499,22 @@ static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 	icl_load_csc_matrix(crtc_state);
 }
 
+static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * Possibly related to display WA #1184, SKL CSC loses the latched
+	 * CSC coeff/offset register values if the CSC registers are disarmed
+	 * between DC5 exit and PSR exit. This will cause the plane(s) to
+	 * output all black (until CSC_MODE is rearmed and properly latched).
+	 * Once PSR exit (and proper register latching) has occurred the
+	 * danger is over. Thus when PSR is enabled the CSC coeff/offset
+	 * register programming will be peformed from skl_color_commit_arm()
+	 * which is called after PSR exit.
+	 */
+	if (!crtc_state->has_psr)
+		ilk_load_csc_matrix(crtc_state);
+}
+
 static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 {
 	ilk_load_csc_matrix(crtc_state);
@@ -540,6 +556,9 @@ static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 val = 0;
+
+	if (crtc_state->has_psr)
+		ilk_load_csc_matrix(crtc_state);
 
 	/*
 	 * We don't (yet) allow userspace to control the pipe background color,
@@ -2171,7 +2190,7 @@ static const struct intel_color_funcs icl_color_funcs = {
 
 static const struct intel_color_funcs glk_color_funcs = {
 	.color_check = glk_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_noarm = skl_color_commit_noarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = glk_load_luts,
 	.read_luts = glk_read_luts,
@@ -2179,7 +2198,7 @@ static const struct intel_color_funcs glk_color_funcs = {
 
 static const struct intel_color_funcs skl_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_noarm = skl_color_commit_noarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = NULL,

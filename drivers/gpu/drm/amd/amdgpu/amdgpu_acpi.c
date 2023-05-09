@@ -981,7 +981,12 @@ static bool amdgpu_atcs_pci_probe_handle(struct pci_dev *pdev)
  */
 bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
 {
-	if (adev->flags & AMD_IS_APU)
+	if ((adev->flags & AMD_IS_APU) &&
+	    adev->gfx.imu.funcs) /* Not need to do mode2 reset for IMU enabled APUs */
+		return false;
+
+	if ((adev->flags & AMD_IS_APU) &&
+	    amdgpu_acpi_is_s3_active(adev))
 		return false;
 
 	if (amdgpu_sriov_vf(adev))

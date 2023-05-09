@@ -1845,6 +1845,8 @@
   irq_set_chained_handler_and_data
   irq_set_chip_and_handler_name
   irq_set_chip_data
+  __irq_set_handler
+  irq_set_handler_data
   irq_set_irqchip_state
   irq_set_irq_type
   irq_set_irq_wake
@@ -2107,6 +2109,7 @@
   mempool_free
   mempool_free_slab
   memremap
+  memremap_pages
   memscan
   mem_section
   memset64
@@ -2114,6 +2117,7 @@
   __memset_io
   memstart_addr
   memunmap
+  memunmap_pages
   migrate_pages
   migrate_swap
   __migrate_task
@@ -2338,6 +2342,7 @@
   of_graph_parse_endpoint
   of_hwspin_lock_get_id
   of_icc_get
+  of_icc_get_from_provider
   of_icc_xlate_onecell
   of_iomap
   of_irq_find_parent
@@ -2347,7 +2352,6 @@
   of_machine_is_compatible
   of_match_device
   of_match_node
-  of_mdiobus_register
   of_modalias_node
   of_n_addr_cells
   of_node_name_eq
@@ -3171,6 +3175,8 @@
   smp_call_function
   smp_call_function_single
   smp_call_function_single_async
+  snd_ctl_remove
+  snd_hwdep_new
   snd_info_create_card_entry
   snd_info_create_module_entry
   snd_info_free_entry
@@ -3179,6 +3185,9 @@
   snd_jack_set_key
   snd_pcm_format_width
   _snd_pcm_hw_params_any
+  snd_pcm_set_managed_buffer
+  snd_pcm_std_chmaps
+  snd_pcm_stop
   snd_soc_add_component_controls
   snd_soc_card_get_kcontrol
   snd_soc_card_jack_new
@@ -3243,6 +3252,7 @@
   sock_edemux
   sock_efree
   sockfd_lookup
+  sock_gen_put
   sock_gettstamp
   sock_i_ino
   sock_init_data
@@ -3408,6 +3418,7 @@
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
+  task_rq_lock
   tcp_hashinfo
   thermal_cdev_update
   thermal_cooling_device_register
@@ -3979,6 +3990,7 @@
   v4l2_fh_del
   v4l2_fh_exit
   v4l2_fh_init
+  v4l2_fh_is_singular
   v4l2_fh_open
   v4l2_fh_release
   v4l2_m2m_ctx_init
@@ -4081,9 +4093,11 @@
   vm_insert_page
   vm_iomap_memory
   vm_map_pages
+  vm_map_ram
   vm_mmap
   vm_munmap
   vm_node_stat
+  vm_unmap_ram
   vm_zone_stat
   vprintk
   vring_create_virtqueue

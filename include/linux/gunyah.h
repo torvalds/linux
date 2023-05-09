@@ -157,9 +157,6 @@ enum gh_api_feature {
 
 bool arch_is_gh_guest(void);
 
-u16 gh_api_version(void);
-bool gh_api_has_feature(enum gh_api_feature feature);
-
 #define GH_API_V1			1
 
 #define GH_API_INFO_API_VERSION_MASK	GENMASK_ULL(13, 0)
@@ -171,6 +168,11 @@ struct gh_hypercall_hyp_identify_resp {
 	u64 api_info;
 	u64 flags[3];
 };
+
+static inline u16 gh_api_version(const struct gh_hypercall_hyp_identify_resp *gh_api)
+{
+	return FIELD_GET(GH_API_INFO_API_VERSION_MASK, gh_api->api_info);
+}
 
 void gh_hypercall_hyp_identify(struct gh_hypercall_hyp_identify_resp *hyp_identity);
 

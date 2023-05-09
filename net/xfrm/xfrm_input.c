@@ -131,6 +131,7 @@ struct sec_path *secpath_set(struct sk_buff *skb)
 	memset(sp->ovec, 0, sizeof(sp->ovec));
 	sp->olen = 0;
 	sp->len = 0;
+	sp->verified_cnt = 0;
 
 	return sp;
 }
@@ -583,6 +584,20 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			secpath_reset(skb);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOSTATES);
 			xfrm_audit_state_notfound(skb, family, spi, seq);
+			goto drop;
+		}
+
+		/* If nested tunnel, check outer states before context is lost.
+		 * Only nested tunnels need to be checked, since IP addresses change
+		 * as a result of the tunnel mode decapsulation. Similarly, this check
+		 * is limited to nested tunnels to avoid performing another policy
+		 * check on non-nested tunnels. On success, this check also updates the
+		 * secpath's verified_cnt variable, skipping future verifications of
+		 * previously-verified secpath entries.
+		 */
+		if ((x->outer_mode.flags & XFRM_MODE_FLAG_TUNNEL) &&
+		    sp->verified_cnt < sp->len &&
+		    !xfrm_policy_check(NULL, XFRM_POLICY_IN, skb, family)) {
 			goto drop;
 		}
 
