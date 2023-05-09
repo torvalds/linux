@@ -32,7 +32,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 
 	/* set up BE dai_links */
 	for (i = 0; i < link_num; i++) {
-		dlc = devm_kcalloc(dev, 3, sizeof(*dlc), GFP_KERNEL);
+		dlc = devm_kcalloc(dev, 2, sizeof(*dlc), GFP_KERNEL);
 		if (!dlc)
 			return -ENOMEM;
 
@@ -44,8 +44,8 @@ static int sof_nocodec_bes_setup(struct device *dev,
 		links[i].stream_name = links[i].name;
 
 		links[i].cpus = &dlc[0];
-		links[i].codecs = &dlc[1];
-		links[i].platforms = &dlc[2];
+		links[i].codecs = &asoc_dummy_dlc;
+		links[i].platforms = &dlc[1];
 
 		links[i].num_cpus = 1;
 		links[i].num_codecs = 1;
@@ -55,8 +55,6 @@ static int sof_nocodec_bes_setup(struct device *dev,
 		links[i].no_pcm = 1;
 		links[i].cpus->dai_name = drv[i].name;
 		links[i].platforms->name = dev_name(dev->parent);
-		links[i].codecs->dai_name = "snd-soc-dummy-dai";
-		links[i].codecs->name = "snd-soc-dummy";
 		if (drv[i].playback.channels_min)
 			links[i].dpcm_playback = 1;
 		if (drv[i].capture.channels_min)
