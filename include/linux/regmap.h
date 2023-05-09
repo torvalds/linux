@@ -1606,7 +1606,7 @@ struct regmap_irq_chip_data;
  *		 addresses. The base register will be one of @status_base,
  *		 @mask_base, etc., @main_status, or any of @config_base.
  *		 The index will be in the range [0, num_main_regs[ for the
- *		 main status base, [0, num_type_settings[ for any config
+ *		 main status base, [0, num_config_regs[ for any config
  *		 register base, and [0, num_regs[ for any other base.
  *		 If unspecified then regmap_irq_get_irq_reg_linear() is used.
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
