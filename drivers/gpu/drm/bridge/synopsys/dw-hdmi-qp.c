@@ -2645,6 +2645,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 
 	if (hdmi->phy.ops->disable && !hdmi->frl_switch) {
 		hdmi_writel(hdmi, 0, FLT_CONFIG0);
+		hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 		/* set sink frl mode disable */
 		if (hdmi->curr_conn && dw_hdmi_support_scdc(hdmi, &hdmi->curr_conn->display_info))
 			drm_scdc_writeb(hdmi->ddc, 0x31, 0);
