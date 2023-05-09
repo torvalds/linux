@@ -1471,11 +1471,26 @@ enum lan966x_target {
 /*      REW:PORT:PORT_CFG */
 #define REW_PORT_CFG(g)           __REG(TARGET_REW, 0, 1, 0, g, 10, 128, 8, 0, 1, 4)
 
+#define REW_PORT_CFG_ES0_EN                      BIT(4)
+#define REW_PORT_CFG_ES0_EN_SET(x)\
+	FIELD_PREP(REW_PORT_CFG_ES0_EN, x)
+#define REW_PORT_CFG_ES0_EN_GET(x)\
+	FIELD_GET(REW_PORT_CFG_ES0_EN, x)
+
 #define REW_PORT_CFG_NO_REWRITE                  BIT(0)
 #define REW_PORT_CFG_NO_REWRITE_SET(x)\
 	FIELD_PREP(REW_PORT_CFG_NO_REWRITE, x)
 #define REW_PORT_CFG_NO_REWRITE_GET(x)\
 	FIELD_GET(REW_PORT_CFG_NO_REWRITE, x)
+
+/*      REW:COMMON:STAT_CFG */
+#define REW_STAT_CFG              __REG(TARGET_REW, 0, 1, 3072, 0, 1, 528, 520, 0, 1, 4)
+
+#define REW_STAT_CFG_STAT_MODE                   GENMASK(1, 0)
+#define REW_STAT_CFG_STAT_MODE_SET(x)\
+	FIELD_PREP(REW_STAT_CFG_STAT_MODE, x)
+#define REW_STAT_CFG_STAT_MODE_GET(x)\
+	FIELD_GET(REW_STAT_CFG_STAT_MODE, x)
 
 /*      SYS:SYSTEM:RESET_CFG */
 #define SYS_RESET_CFG             __REG(TARGET_SYS, 0, 1, 4128, 0, 1, 168, 0, 0, 1, 4)
