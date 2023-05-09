@@ -193,7 +193,6 @@ enum ipc_hp_identifier {
  * @pipe_nr:			Pipe identification number
  * @irq:			Interrupt vector
  * @dir:			Direction of data stream in pipe
- * @td_tag:			Unique tag of the buffer queued
  * @buf_size:			Buffer size (in bytes) for preallocated
  *				buffers (for DL pipes)
  * @nr_of_queued_entries:	Aueued number of entries
@@ -213,7 +212,6 @@ struct ipc_pipe {
 	u32 pipe_nr;
 	u32 irq;
 	enum ipc_mem_pipe_dir dir;
-	u32 td_tag;
 	u32 buf_size;
 	u16 nr_of_queued_entries;
 	u8 is_open:1;
