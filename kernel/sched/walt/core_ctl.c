@@ -827,6 +827,11 @@ static int compute_cluster_nr_misfit_assist(int index)
  * capacity cluster. This means that any task running
  * on a non-min-capacity-cluster is considered a big
  * task.
+ *
+ * Do not remove partially halted cpus from this calculation
+ * as that will impact the number of big tasks counted in
+ * the system, and will impact the enablement of big task
+ * rotation.
  */
 static int cluster_real_big_tasks(int index)
 {
@@ -835,17 +840,11 @@ static int cluster_real_big_tasks(int index)
 	struct cluster_data *cluster = &cluster_state[index];
 
 	if (index == 0) {
-		for_each_cpu(cpu, &cluster->cpu_mask) {
-			if (cpu_partial_halted(cpu))
-				continue;
+		for_each_cpu(cpu, &cluster->cpu_mask)
 			nr_big += nr_stats[cpu].nr_misfit;
-		}
 	} else {
-		for_each_cpu(cpu, &cluster->cpu_mask) {
-			if (cpu_partial_halted(cpu))
-				continue;
+		for_each_cpu(cpu, &cluster->cpu_mask)
 			nr_big += nr_stats[cpu].nr;
-		}
 	}
 
 	return nr_big;
