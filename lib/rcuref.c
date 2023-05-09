@@ -248,7 +248,7 @@ bool rcuref_put_slowpath(rcuref_t *ref)
 		 * require a retry. If this fails the caller is not
 		 * allowed to deconstruct the object.
 		 */
-		if (atomic_cmpxchg_release(&ref->refcnt, RCUREF_NOREF, RCUREF_DEAD) != RCUREF_NOREF)
+		if (!atomic_try_cmpxchg_release(&ref->refcnt, &cnt, RCUREF_DEAD))
 			return false;
 
 		/*
