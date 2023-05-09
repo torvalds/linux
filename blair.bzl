@@ -157,7 +157,7 @@ def define_blair():
                 kernel_vendor_cmdline_extras = [
                     # do not sort
                     "console=ttyMSM0,115200n8",
-                    "nosmp qcom_geni_serial.con_enabled=1",
+                    "qcom_geni_serial.con_enabled=1",
                     "bootconfig",
                 ],
             ),
