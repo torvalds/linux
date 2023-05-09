@@ -140,17 +140,6 @@ enum ipc_channel_state {
 	IMEM_CHANNEL_CLOSING,
 };
 
-/* Time Unit */
-enum ipc_time_unit {
-	IPC_SEC = 0,
-	IPC_MILLI_SEC = 1,
-	IPC_MICRO_SEC = 2,
-	IPC_NANO_SEC = 3,
-	IPC_PICO_SEC = 4,
-	IPC_FEMTO_SEC = 5,
-	IPC_ATTO_SEC = 6,
-};
-
 /**
  * enum ipc_ctype - Enum defining supported channel type needed for control
  *		    /IP traffic.
