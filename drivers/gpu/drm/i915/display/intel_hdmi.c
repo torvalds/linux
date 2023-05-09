@@ -2400,7 +2400,7 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
-	enum port port = hdmi_to_dig_port(hdmi)->base.port;
+	struct intel_encoder *encoder = &hdmi_to_dig_port(hdmi)->base;
 	struct i2c_adapter *adapter =
 		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
 	enum drm_dp_dual_mode_type type = drm_dp_dual_mode_detect(&dev_priv->drm, adapter);
@@ -2416,7 +2416,7 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
 	 */
 	if (type == DRM_DP_DUAL_MODE_UNKNOWN) {
 		if (!connector->force &&
-		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
+		    intel_bios_encoder_supports_dp_dual_mode(encoder->devdata)) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Assuming DP dual mode adaptor presence based on VBT\n");
 			type = DRM_DP_DUAL_MODE_TYPE1_DVI;
@@ -2439,7 +2439,7 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
 
 	/* Older VBTs are often buggy and can't be trusted :( Play it safe. */
 	if ((DISPLAY_VER(dev_priv) >= 8 || IS_HASWELL(dev_priv)) &&
-	    !intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
+	    !intel_bios_encoder_supports_dp_dual_mode(encoder->devdata)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Ignoring DP dual mode adaptor max TMDS clock for native HDMI port\n");
 		hdmi->dp_dual_mode.max_tmds_clock = 0;

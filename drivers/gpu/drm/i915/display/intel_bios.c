@@ -2677,8 +2677,9 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata,
 	supports_tbt = intel_bios_encoder_supports_tbt(devdata);
 
 	drm_dbg_kms(&i915->drm,
-		    "Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d DSI:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
+		    "Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d DSI:%d DP++:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
 		    port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp, is_dsi,
+		    intel_bios_encoder_supports_dp_dual_mode(devdata),
 		    intel_bios_encoder_is_lspcon(devdata),
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
@@ -3426,7 +3427,7 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 	return false;
 }
 
-static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata)
+bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata)
 {
 	const struct child_device_config *child = &devdata->child;
 
@@ -3443,15 +3444,6 @@ static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_enc
 		return true;
 
 	return false;
-}
-
-bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
-				     enum port port)
-{
-	const struct intel_bios_encoder_data *devdata =
-		intel_bios_encoder_data_lookup(i915, port);
-
-	return devdata && intel_bios_encoder_supports_dp_dual_mode(devdata);
 }
 
 /**
