@@ -1225,6 +1225,8 @@
   gh_rm_call
   gh_rm_notifier_register
   gh_rm_notifier_unregister
+  gh_rm_register_platform_ops
+  gh_rm_unregister_platform_ops
   gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
