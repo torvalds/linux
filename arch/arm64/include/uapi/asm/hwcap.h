@@ -102,5 +102,6 @@
 #define HWCAP2_SME_BI32I32	(1UL << 40)
 #define HWCAP2_SME_B16B16	(1UL << 41)
 #define HWCAP2_SME_F16F16	(1UL << 42)
+#define HWCAP2_MOPS		(1UL << 43)
 
 #endif /* _UAPI__ASM_HWCAP_H */
