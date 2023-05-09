@@ -376,7 +376,7 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	regmap_update_bits(bmc_device->config, 0x10, pcie_config_ctl, pcie_config_ctl);
 
 	/* update class code to others as it is a MFD device */
-	regmap_write(bmc_device->device, 0x18, 0xff000000);
+	regmap_write(bmc_device->device, 0x18, 0xff000027);
 
 	//MSI
 	regmap_update_bits(bmc_device->device, 0x74, GENMASK(7, 4), BIT(7) | (5 << 4));
