@@ -364,8 +364,6 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 		goto input_register_failed;
 	}
 
-	msleep(1000);
-
 	INIT_WORK(&g_ts_data->ft5406_work, tinker_ft5406_work);
 
 	return 0;
