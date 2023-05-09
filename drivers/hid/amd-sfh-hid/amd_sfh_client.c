@@ -306,10 +306,6 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			}
 		} else {
 			cl_data->sensor_sts[i] = SENSOR_DISABLED;
-			dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
-				cl_data->sensor_idx[i],
-				get_sensor_name(cl_data->sensor_idx[i]),
-				cl_data->sensor_sts[i]);
 		}
 		dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
 			cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
