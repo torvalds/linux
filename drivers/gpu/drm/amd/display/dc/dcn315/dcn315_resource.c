@@ -1666,6 +1666,14 @@ static bool allow_pixel_rate_crb(struct dc *dc, struct dc_state *context)
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
 
+		/*Don't apply if scaling*/
+		if (res_ctx->pipe_ctx[i].stream->src.width != res_ctx->pipe_ctx[i].stream->dst.width ||
+				res_ctx->pipe_ctx[i].stream->src.height != res_ctx->pipe_ctx[i].stream->dst.height ||
+				(res_ctx->pipe_ctx[i].top_pipe->plane_state && (res_ctx->pipe_ctx[i].top_pipe->plane_state->src_rect.width
+														!= res_ctx->pipe_ctx[i].top_pipe->plane_state->dst_rect.width ||
+					res_ctx->pipe_ctx[i].top_pipe->plane_state->src_rect.height
+														!= res_ctx->pipe_ctx[i].top_pipe->plane_state->dst_rect.height)))
+			return false;
 		/*Don't apply if MPO to avoid transition issues*/
 		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state != res_ctx->pipe_ctx[i].plane_state)
 			return false;
@@ -1715,10 +1723,15 @@ static int dcn315_populate_dml_pipes_from_context(
 			/* Ceil to crb segment size */
 			int approx_det_segs_required_for_pstate = dcn_get_approx_det_segs_required_for_pstate(
 					&context->bw_ctx.dml.soc, timing->pix_clk_100hz, bpp, DCN3_15_CRB_SEGMENT_SIZE_KB);
+
 			if (approx_det_segs_required_for_pstate <= 2 * DCN3_15_MAX_DET_SEGS) {
 				bool split_required = approx_det_segs_required_for_pstate > DCN3_15_MAX_DET_SEGS;
 				split_required = split_required || timing->pix_clk_100hz >= dcn_get_max_non_odm_pix_rate_100hz(&dc->dml.soc);
 				split_required = split_required || (pipe->plane_state && pipe->plane_state->src_rect.width > 5120);
+
+				/* Minimum 2 segments to allow mpc/odm combine if its used later */
+				if (approx_det_segs_required_for_pstate < 2)
+					approx_det_segs_required_for_pstate = 2;
 				if (split_required)
 					approx_det_segs_required_for_pstate += approx_det_segs_required_for_pstate % 2;
 				pipes[pipe_cnt].pipe.src.det_size_override = approx_det_segs_required_for_pstate;
