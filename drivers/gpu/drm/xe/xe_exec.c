@@ -8,6 +8,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/xe_drm.h>
+#include <linux/delay.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -91,6 +92,8 @@
  *	Unlock all
  */
 
+#define XE_EXEC_BIND_RETRY_TIMEOUT_MS 1000
+
 static int xe_exec_begin(struct xe_engine *e, struct ww_acquire_ctx *ww,
 			 struct ttm_validate_buffer tv_onstack[],
 			 struct ttm_validate_buffer **tv,
@@ -99,12 +102,14 @@ static int xe_exec_begin(struct xe_engine *e, struct ww_acquire_ctx *ww,
 	struct xe_vm *vm = e->vm;
 	struct xe_vma *vma;
 	LIST_HEAD(dups);
-	int err;
+	ktime_t end = 0;
+	int err = 0;
 
 	*tv = NULL;
 	if (xe_vm_no_dma_fences(e->vm))
 		return 0;
 
+retry:
 	err = xe_vm_lock_dma_resv(vm, ww, tv_onstack, tv, objs, true, 1);
 	if (err)
 		return err;
@@ -122,11 +127,27 @@ static int xe_exec_begin(struct xe_engine *e, struct ww_acquire_ctx *ww,
 		if (err) {
 			xe_vm_unlock_dma_resv(vm, tv_onstack, *tv, ww, objs);
 			*tv = NULL;
-			return err;
+			break;
 		}
 	}
 
-	return 0;
+	/*
+	 * With multiple active VMs, under memory pressure, it is possible that
+	 * ttm_bo_validate() run into -EDEADLK and in such case returns -ENOMEM.
+	 * Until ttm properly handles locking in such scenarios, best thing the
+	 * driver can do is retry with a timeout.
+	 */
+	if (err == -ENOMEM) {
+		ktime_t cur = ktime_get();
+
+		end = end ? : ktime_add_ms(cur, XE_EXEC_BIND_RETRY_TIMEOUT_MS);
+		if (ktime_before(cur, end)) {
+			msleep(20);
+			goto retry;
+		}
+	}
+
+	return err;
 }
 
 static void xe_exec_end(struct xe_engine *e,
