@@ -41,7 +41,7 @@ enum {
 /* HIWORD_MASK FIELD_PREP */
 #define HWM_FIELD_PREP(mask, value)		\
 ({						\
-	u32 _m = mask;				\
+	u64 _m = mask;				\
 	(_m << 16) | FIELD_PREP(_m, value);	\
 })
 

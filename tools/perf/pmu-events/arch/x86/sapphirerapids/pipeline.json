@@ -1,15 +1,17 @@
 [
     {
-        "BriefDescription": "AMX_OPS_RETIRED.BF16",
+        "BriefDescription": "AMX retired arithmetic BF16 operations.",
         "EventCode": "0xce",
         "EventName": "AMX_OPS_RETIRED.BF16",
+        "PublicDescription": "Number of AMX-based retired arithmetic bfloat16 (BF16) floating-point operations. Counts TDPBF16PS FP instructions. SW to use operation multiplier of 4",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "AMX_OPS_RETIRED.INT8",
+        "BriefDescription": "AMX retired arithmetic integer 8-bit operations.",
         "EventCode": "0xce",
         "EventName": "AMX_OPS_RETIRED.INT8",
+        "PublicDescription": "Number of AMX-based retired arithmetic integer operations of 8-bit width source operands. Counts TDPB[SS,UU,US,SU]D instructions. SW should use operation multiplier of 8.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -42,6 +44,7 @@
     },
     {
         "BriefDescription": "This event counts the cycles the integer divider is busy.",
+        "CounterMask": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
@@ -461,11 +464,22 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "INST_RETIRED.REP_ITERATION",
+        "BriefDescription": "Iterations of Repeat string retired instructions.",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EdgeDetect": "1",
+        "EventCode": "0xad",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
+        "SampleAfterValue": "500009",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path.",
@@ -642,9 +656,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "MISC2_RETIRED.LFENCE",
+        "BriefDescription": "LFENCE instructions retired",
         "EventCode": "0xe0",
         "EventName": "MISC2_RETIRED.LFENCE",
+        "PublicDescription": "number of LFENCE retired instructions",
         "SampleAfterValue": "400009",
         "UMask": "0x20"
     },

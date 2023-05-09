@@ -43,8 +43,12 @@ static inline char *dfs_get_automount_devname(struct dentry *dentry, void *page)
 	size_t len;
 	char *s;
 
-	if (unlikely(!server->origin_fullpath))
+	spin_lock(&server->srv_lock);
+	if (unlikely(!server->origin_fullpath)) {
+		spin_unlock(&server->srv_lock);
 		return ERR_PTR(-EREMOTE);
+	}
+	spin_unlock(&server->srv_lock);
 
 	s = dentry_path_raw(dentry, page, PATH_MAX);
 	if (IS_ERR(s))
@@ -53,13 +57,18 @@ static inline char *dfs_get_automount_devname(struct dentry *dentry, void *page)
 	if (!s[1])
 		s++;
 
+	spin_lock(&server->srv_lock);
 	len = strlen(server->origin_fullpath);
-	if (s < (char *)page + len)
+	if (s < (char *)page + len) {
+		spin_unlock(&server->srv_lock);
 		return ERR_PTR(-ENAMETOOLONG);
+	}
 
 	s -= len;
 	memcpy(s, server->origin_fullpath, len);
+	spin_unlock(&server->srv_lock);
 	convert_delimiter(s, '/');
+
 	return s;
 }
 

@@ -12,6 +12,7 @@
 #include "tests.h"
 #include <api/io.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 
@@ -79,7 +80,7 @@ static int setup_test(char path[PATH_MAX], const char *contents,
 
 static void cleanup_test(char path[PATH_MAX], struct io *io)
 {
-	free(io->buf);
+	zfree(&io->buf);
 	close(io->fd);
 	unlink(path);
 }
@@ -289,6 +290,40 @@ static int test_get_dec(void)
 	return ret;
 }
 
+static int test_get_line(void)
+{
+	char path[PATH_MAX];
+	struct io io;
+	char test_string[1024];
+	char *line = NULL;
+	size_t i, line_len = 0;
+	size_t buf_size = 128;
+	int ret = 0;
+
+	for (i = 0; i < 512; i++)
+		test_string[i] = 'a';
+	test_string[512] = '\n';
+	for (i = 513; i < 1023; i++)
+		test_string[i] = 'b';
+	test_string[1023] = '\0';
+
+	if (setup_test(path, test_string, buf_size, &io))
+		return -1;
+
+	EXPECT_EQUAL((int)io__getline(&io, &line, &line_len), 513);
+	EXPECT_EQUAL((int)strlen(line), 513);
+	for (i = 0; i < 512; i++)
+		EXPECT_EQUAL(line[i], 'a');
+	EXPECT_EQUAL(line[512], '\n');
+	EXPECT_EQUAL((int)io__getline(&io, &line, &line_len), 510);
+	for (i = 0; i < 510; i++)
+		EXPECT_EQUAL(line[i], 'b');
+
+	free(line);
+	cleanup_test(path, &io);
+	return ret;
+}
+
 static int test__api_io(struct test_suite *test __maybe_unused,
 			int subtest __maybe_unused)
 {
@@ -299,6 +334,8 @@ static int test__api_io(struct test_suite *test __maybe_unused,
 	if (test_get_hex())
 		ret = TEST_FAIL;
 	if (test_get_dec())
+		ret = TEST_FAIL;
+	if (test_get_line())
 		ret = TEST_FAIL;
 	return ret;
 }

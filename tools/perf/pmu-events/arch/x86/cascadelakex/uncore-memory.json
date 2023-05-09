@@ -192,7 +192,7 @@
         "EventCode": "0x9",
         "EventName": "UNC_M_ECC_CORRECTABLE_ERRORS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of ECC errors detected and corrected by the iMC on this channel.  This counter is only useful with ECC DRAM devices.  This count will increment one time for each correction regardless of the number of bits corrected.  The iMC can correct up to 4 bit errors in independent channel mode and 8 bit erros in lockstep mode.",
+        "PublicDescription": "Counts the number of ECC errors detected and corrected by the iMC on this channel.  This counter is only useful with ECC DRAM devices.  This count will increment one time for each correction regardless of the number of bits corrected.  The iMC can correct up to 4 bit errors in independent channel mode and 8 bit errors in lockstep mode.",
         "Unit": "iMC"
     },
     {
@@ -212,7 +212,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "UNC_M_MAJMODE2.PMM_CYC",
+        "BriefDescription": "Major Mode 2 : Cycles in PMM major mode",
         "EventCode": "0xED",
         "EventName": "UNC_M_MAJMODE2.PMM_CYC",
         "PerPkg": "1",
@@ -220,7 +220,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "UNC_M_MAJMODE2.PMM_ENTER",
+        "BriefDescription": "Major Mode 2 : Entered PMM major mode",
         "EventCode": "0xED",
         "EventName": "UNC_M_MAJMODE2.PMM_ENTER",
         "PerPkg": "1",
@@ -290,7 +290,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "All commands for Intel Optane DC persistent memory",
+        "BriefDescription": "All commands for Intel(R) Optane(TM) DC persistent memory",
         "EventCode": "0xEA",
         "EventName": "UNC_M_PMM_CMD1.ALL",
         "PerPkg": "1",
@@ -314,7 +314,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Regular reads(RPQ) commands for Intel Optane DC persistent memory",
+        "BriefDescription": "Regular reads(RPQ) commands for Intel(R) Optane(TM) DC persistent memory",
         "EventCode": "0xEA",
         "EventName": "UNC_M_PMM_CMD1.RD",
         "PerPkg": "1",
@@ -331,7 +331,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Underfill read commands for Intel Optane DC persistent memory",
+        "BriefDescription": "Underfill read commands for Intel(R) Optane(TM) DC persistent memory",
         "EventCode": "0xEA",
         "EventName": "UNC_M_PMM_CMD1.UFILL_RD",
         "PerPkg": "1",
@@ -348,7 +348,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Write commands for Intel Optane DC persistent memory",
+        "BriefDescription": "Write commands for Intel(R) Optane(TM) DC persistent memory",
         "EventCode": "0xEA",
         "EventName": "UNC_M_PMM_CMD1.WR",
         "PerPkg": "1",
@@ -522,7 +522,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Write Pending Queue Occupancy of all write requests for Intel Optane DC persistent memory",
+        "BriefDescription": "Write Pending Queue Occupancy of all write requests for Intel(R) Optane(TM) DC persistent memory",
         "EventCode": "0xE4",
         "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL",
         "PerPkg": "1",
@@ -2735,7 +2735,7 @@
         "EventCode": "0x81",
         "EventName": "UNC_M_WPQ_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the 'not posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happenning in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts. Is there a filter of sorts???",
+        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the 'not posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts. Is there a filter of sorts?",
         "Unit": "iMC"
     },
     {
