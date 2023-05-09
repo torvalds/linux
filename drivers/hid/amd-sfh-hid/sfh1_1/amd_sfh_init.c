@@ -174,20 +174,8 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 			cl_data->is_any_sensor_enabled = true;
 			cl_data->sensor_sts[i] = SENSOR_ENABLED;
 			rc = amdtp_hid_probe(i, cl_data);
-			if (rc) {
-				mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
-				status = amd_sfh_wait_for_response
-					(privdata, cl_data->sensor_idx[i], DISABLE_SENSOR);
-				if (status == 0)
-					status = SENSOR_DISABLED;
-				if (status != SENSOR_ENABLED)
-					cl_data->sensor_sts[i] = SENSOR_DISABLED;
-				dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
-					cl_data->sensor_idx[i],
-					get_sensor_name(cl_data->sensor_idx[i]),
-					cl_data->sensor_sts[i]);
+			if (rc)
 				goto cleanup;
-			}
 		} else {
 			cl_data->sensor_sts[i] = SENSOR_DISABLED;
 		}
