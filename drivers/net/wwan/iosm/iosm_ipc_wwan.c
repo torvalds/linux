@@ -18,8 +18,6 @@
 #define IOSM_IP_TYPE_IPV4 0x40
 #define IOSM_IP_TYPE_IPV6 0x60
 
-#define IOSM_IF_ID_PAYLOAD 2
-
 /**
  * struct iosm_netdev_priv - netdev WWAN driver specific private data
  * @ipc_wwan:	Pointer to iosm_wwan struct
