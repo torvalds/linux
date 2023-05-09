@@ -133,7 +133,7 @@ static void blend(struct vkms_writeback_job *wb,
 		*crc32 = crc32_le(*crc32, (void *)output_buffer->pixels, row_size);
 
 		if (wb)
-			wb->wb_write(&wb->wb_frame_info, output_buffer, y_pos);
+			vkms_writeback_row(wb, output_buffer, y_pos);
 	}
 }
 
@@ -147,7 +147,7 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 		if (!planes[i]->pixel_read)
 			return -1;
 
-	if (active_wb && !active_wb->wb_write)
+	if (active_wb && !active_wb->pixel_write)
 		return -1;
 
 	return 0;
