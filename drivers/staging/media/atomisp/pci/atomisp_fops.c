@@ -505,8 +505,6 @@ static int atomisp_open(struct file *file)
 
 	mutex_lock(&isp->mutex);
 
-	asd->subdev.devnode = vdev;
-
 	if (!isp->input_cnt) {
 		dev_err(isp->dev, "no camera attached\n");
 		ret = -EINVAL;
@@ -566,8 +564,6 @@ static int atomisp_release(struct file *file)
 	v4l2_fh_init(&fh.vfh, vdev);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
-
-	asd->subdev.devnode = vdev;
 
 	/* Note file must not be used after this! */
 	vb2_fop_release(file);

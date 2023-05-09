@@ -880,6 +880,7 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	sprintf(sd->name, "ATOMISP_SUBDEV");
 	v4l2_set_subdevdata(sd, asd);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->devnode = &asd->video_out.vdev;
 
 	pads[ATOMISP_SUBDEV_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[ATOMISP_SUBDEV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
