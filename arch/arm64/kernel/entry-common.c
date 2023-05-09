@@ -611,6 +611,14 @@ static void noinstr el0_bti(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
+static void noinstr el0_mops(struct pt_regs *regs, unsigned long esr)
+{
+	enter_from_user_mode(regs);
+	local_daif_restore(DAIF_PROCCTX);
+	do_el0_mops(regs, esr);
+	exit_to_user_mode(regs);
+}
+
 static void noinstr el0_inv(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
@@ -687,6 +695,9 @@ asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
 		break;
 	case ESR_ELx_EC_BTI:
 		el0_bti(regs);
+		break;
+	case ESR_ELx_EC_MOPS:
+		el0_mops(regs, esr);
 		break;
 	case ESR_ELx_EC_BREAKPT_LOW:
 	case ESR_ELx_EC_SOFTSTP_LOW:

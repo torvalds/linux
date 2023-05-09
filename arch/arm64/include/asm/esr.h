@@ -47,7 +47,7 @@
 #define ESR_ELx_EC_DABT_LOW	(0x24)
 #define ESR_ELx_EC_DABT_CUR	(0x25)
 #define ESR_ELx_EC_SP_ALIGN	(0x26)
-/* Unallocated EC: 0x27 */
+#define ESR_ELx_EC_MOPS		(0x27)
 #define ESR_ELx_EC_FP_EXC32	(0x28)
 /* Unallocated EC: 0x29 - 0x2B */
 #define ESR_ELx_EC_FP_EXC64	(0x2C)
@@ -355,6 +355,15 @@
 #define ESR_ELx_SME_ISS_SM_DISABLED	2
 #define ESR_ELx_SME_ISS_ZA_DISABLED	3
 #define ESR_ELx_SME_ISS_ZT_DISABLED	4
+
+/* ISS field definitions for MOPS exceptions */
+#define ESR_ELx_MOPS_ISS_MEM_INST	(UL(1) << 24)
+#define ESR_ELx_MOPS_ISS_FROM_EPILOGUE	(UL(1) << 18)
+#define ESR_ELx_MOPS_ISS_WRONG_OPTION	(UL(1) << 17)
+#define ESR_ELx_MOPS_ISS_OPTION_A	(UL(1) << 16)
+#define ESR_ELx_MOPS_ISS_DESTREG(esr)	(((esr) & (UL(0x1f) << 10)) >> 10)
+#define ESR_ELx_MOPS_ISS_SRCREG(esr)	(((esr) & (UL(0x1f) << 5)) >> 5)
+#define ESR_ELx_MOPS_ISS_SIZEREG(esr)	(((esr) & (UL(0x1f) << 0)) >> 0)
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
