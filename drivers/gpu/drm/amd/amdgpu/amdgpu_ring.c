@@ -78,7 +78,7 @@ unsigned int amdgpu_ring_max_ibs(enum amdgpu_ring_type type)
  * Allocate @ndw dwords in the ring buffer (all asics).
  * Returns 0 on success, error on failure.
  */
-int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
+int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
 {
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
@@ -315,9 +315,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     amdgpu_ring_max_ibs(ring->funcs->type) * ring->funcs->emit_ib_size;
 	max_ibs_dw = (max_ibs_dw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
 
-	if (WARN_ON(max_ibs_dw > max_dw)) {
+	if (WARN_ON(max_ibs_dw > max_dw))
 		max_dw = max_ibs_dw;
-	}
 
 	ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
 
@@ -573,13 +572,13 @@ void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	char name[32];
 
 	sprintf(name, "amdgpu_ring_%s", ring->name);
-	debugfs_create_file_size(name, S_IFREG | S_IRUGO, root, ring,
+	debugfs_create_file_size(name, S_IFREG | 0444, root, ring,
 				 &amdgpu_debugfs_ring_fops,
 				 ring->ring_size + 12);
 
 	if (ring->mqd_obj) {
 		sprintf(name, "amdgpu_mqd_%s", ring->name);
-		debugfs_create_file_size(name, S_IFREG | S_IRUGO, root, ring,
+		debugfs_create_file_size(name, S_IFREG | 0444, root, ring,
 					 &amdgpu_debugfs_mqd_fops,
 					 ring->mqd_size);
 	}
