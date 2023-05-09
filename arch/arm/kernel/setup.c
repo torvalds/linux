@@ -1198,10 +1198,6 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_crashkernel();
 
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	handle_arch_irq = mdesc->handle_irq;
-#endif
-
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
 	conswitchp = &vga_con;
