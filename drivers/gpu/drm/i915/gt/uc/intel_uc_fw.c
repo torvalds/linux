@@ -957,9 +957,15 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 		pte_flags |= PTE_LM;
 
 	if (ggtt->vm.raw_insert_entries)
-		ggtt->vm.raw_insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+		ggtt->vm.raw_insert_entries(&ggtt->vm, dummy,
+					    i915_gem_get_pat_index(ggtt->vm.i915,
+								   I915_CACHE_NONE),
+					    pte_flags);
 	else
-		ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+		ggtt->vm.insert_entries(&ggtt->vm, dummy,
+					i915_gem_get_pat_index(ggtt->vm.i915,
+							       I915_CACHE_NONE),
+					pte_flags);
 }
 
 static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)

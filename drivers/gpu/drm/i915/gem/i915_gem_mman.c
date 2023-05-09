@@ -383,7 +383,16 @@ retry:
 	}
 
 	/* Access to snoopable pages through the GTT is incoherent. */
-	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(i915)) {
+	/*
+	 * For objects created by userspace through GEM_CREATE with pat_index
+	 * set by set_pat extension, coherency is managed by userspace, make
+	 * sure we don't fail handling the vm fault by calling
+	 * i915_gem_object_has_cache_level() which always return true for such
+	 * objects. Otherwise this helper function would fall back to checking
+	 * whether the object is un-cached.
+	 */
+	if (!(i915_gem_object_has_cache_level(obj, I915_CACHE_NONE) ||
+	      HAS_LLC(i915))) {
 		ret = -EFAULT;
 		goto err_unpin;
 	}

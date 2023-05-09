@@ -163,8 +163,6 @@ typedef u64 gen8_pte_t;
 #define MTL_3_COH_2W	REG_FIELD_PREP(MTL_PAT_INDEX_COH_MODE_MASK, 3)
 #define MTL_2_COH_1W	REG_FIELD_PREP(MTL_PAT_INDEX_COH_MODE_MASK, 2)
 
-enum i915_cache_level;
-
 struct drm_i915_gem_object;
 struct i915_fence_reg;
 struct i915_vma;
@@ -232,7 +230,7 @@ struct i915_vma_ops {
 	void (*bind_vma)(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash,
 			 struct i915_vma_resource *vma_res,
-			 enum i915_cache_level cache_level,
+			 unsigned int pat_index,
 			 u32 flags);
 	/*
 	 * Unmap an object from an address space. This usually consists of
@@ -304,7 +302,7 @@ struct i915_address_space {
 		(*alloc_scratch_dma)(struct i915_address_space *vm, int sz);
 
 	u64 (*pte_encode)(dma_addr_t addr,
-			  enum i915_cache_level level,
+			  unsigned int pat_index,
 			  u32 flags); /* Create a valid PTE */
 #define PTE_READ_ONLY	BIT(0)
 #define PTE_LM		BIT(1)
@@ -319,20 +317,20 @@ struct i915_address_space {
 	void (*insert_page)(struct i915_address_space *vm,
 			    dma_addr_t addr,
 			    u64 offset,
-			    enum i915_cache_level cache_level,
+			    unsigned int pat_index,
 			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct i915_vma_resource *vma_res,
-			       enum i915_cache_level cache_level,
+			       unsigned int pat_index,
 			       u32 flags);
 	void (*raw_insert_page)(struct i915_address_space *vm,
 				dma_addr_t addr,
 				u64 offset,
-				enum i915_cache_level cache_level,
+				unsigned int pat_index,
 				u32 flags);
 	void (*raw_insert_entries)(struct i915_address_space *vm,
 				   struct i915_vma_resource *vma_res,
-				   enum i915_cache_level cache_level,
+				   unsigned int pat_index,
 				   u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
 
@@ -579,7 +577,7 @@ void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt,
 void intel_ggtt_bind_vma(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash,
 			 struct i915_vma_resource *vma_res,
-			 enum i915_cache_level cache_level,
+			 unsigned int pat_index,
 			 u32 flags);
 void intel_ggtt_unbind_vma(struct i915_address_space *vm,
 			   struct i915_vma_resource *vma_res);
@@ -657,7 +655,7 @@ void gen6_ggtt_invalidate(struct i915_ggtt *ggtt);
 void ppgtt_bind_vma(struct i915_address_space *vm,
 		    struct i915_vm_pt_stash *stash,
 		    struct i915_vma_resource *vma_res,
-		    enum i915_cache_level cache_level,
+		    unsigned int pat_index,
 		    u32 flags);
 void ppgtt_unbind_vma(struct i915_address_space *vm,
 		      struct i915_vma_resource *vma_res);
