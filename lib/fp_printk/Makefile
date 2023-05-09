@@ -3,8 +3,7 @@ CONFIG_MODULE_SIG=n
 FNAME_c := fp_printk
 
 PWD := $(shell pwd)
-obj-m += ${FNAME_c}.o
-obj-$(FP_PRINTK_TEST) += ${FNAME_C}_test.o
+obj-m += ${FNAME_c}.o ${FNAME_c}_test.o
 EXTRA_CFLAGS += -DDEBUG
 KDIR := /lib/modules/$(shell uname -r)/build
 
