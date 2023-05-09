@@ -4480,6 +4480,54 @@ ath11k_mac_set_peer_he_fixed_rate(struct ath11k_vif *arvif,
 	return ret;
 }
 
+static int
+ath11k_mac_set_peer_ht_fixed_rate(struct ath11k_vif *arvif,
+				  struct ieee80211_sta *sta,
+				  const struct cfg80211_bitrate_mask *mask,
+				  enum nl80211_band band)
+{
+	struct ath11k *ar = arvif->ar;
+	u8 ht_rate, nss = 0;
+	u32 rate_code;
+	int ret, i;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++) {
+		if (hweight8(mask->control[band].ht_mcs[i]) == 1) {
+			nss = i + 1;
+			ht_rate = ffs(mask->control[band].ht_mcs[i]) - 1;
+		}
+	}
+
+	if (!nss) {
+		ath11k_warn(ar->ab, "No single HT Fixed rate found to set for %pM",
+			    sta->addr);
+		return -EINVAL;
+	}
+
+	/* Avoid updating invalid nss as fixed rate*/
+	if (nss > sta->deflink.rx_nss)
+		return -EINVAL;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "Setting Fixed HT Rate for peer %pM. Device will not switch to any other selected rates",
+		   sta->addr);
+
+	rate_code = ATH11K_HW_RATE_CODE(ht_rate, nss - 1,
+					WMI_RATE_PREAMBLE_HT);
+	ret = ath11k_wmi_set_peer_param(ar, sta->addr,
+					arvif->vdev_id,
+					WMI_PEER_PARAM_FIXED_RATE,
+					rate_code);
+	if (ret)
+		ath11k_warn(ar->ab,
+			    "failed to update STA %pM HT Fixed Rate %d: %d\n",
+			    sta->addr, rate_code, ret);
+
+	return ret;
+}
+
 static int ath11k_station_assoc(struct ath11k *ar,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
@@ -4491,7 +4539,7 @@ static int ath11k_station_assoc(struct ath11k *ar,
 	struct cfg80211_chan_def def;
 	enum nl80211_band band;
 	struct cfg80211_bitrate_mask *mask;
-	u8 num_vht_rates, num_he_rates;
+	u8 num_ht_rates, num_vht_rates, num_he_rates;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -4519,6 +4567,7 @@ static int ath11k_station_assoc(struct ath11k *ar,
 
 	num_vht_rates = ath11k_mac_bitrate_mask_num_vht_rates(ar, band, mask);
 	num_he_rates = ath11k_mac_bitrate_mask_num_he_rates(ar, band, mask);
+	num_ht_rates = ath11k_mac_bitrate_mask_num_ht_rates(ar, band, mask);
 
 	/* If single VHT/HE rate is configured (by set_bitrate_mask()),
 	 * peer_assoc will disable VHT/HE. This is now enabled by a peer specific
@@ -4532,6 +4581,11 @@ static int ath11k_station_assoc(struct ath11k *ar,
 			return ret;
 	} else if (sta->deflink.he_cap.has_he && num_he_rates == 1) {
 		ret = ath11k_mac_set_peer_he_fixed_rate(arvif, sta, mask,
+							band);
+		if (ret)
+			return ret;
+	} else if (sta->deflink.ht_cap.ht_supported && num_ht_rates == 1) {
+		ret = ath11k_mac_set_peer_ht_fixed_rate(arvif, sta, mask,
 							band);
 		if (ret)
 			return ret;
@@ -4608,7 +4662,7 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 	const u16 *vht_mcs_mask;
 	const u16 *he_mcs_mask;
 	u32 changed, bw, nss, smps, bw_prev;
-	int err, num_vht_rates, num_he_rates;
+	int err, num_ht_rates, num_vht_rates, num_he_rates;
 	const struct cfg80211_bitrate_mask *mask;
 	struct peer_assoc_params peer_arg;
 	enum wmi_phy_mode peer_phymode;
@@ -4724,6 +4778,8 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 
 	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED) {
 		mask = &arvif->bitrate_mask;
+		num_ht_rates = ath11k_mac_bitrate_mask_num_ht_rates(ar, band,
+								    mask);
 		num_vht_rates = ath11k_mac_bitrate_mask_num_vht_rates(ar, band,
 								      mask);
 		num_he_rates = ath11k_mac_bitrate_mask_num_he_rates(ar, band,
@@ -4745,6 +4801,9 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
 							   band);
 		} else if (sta->deflink.he_cap.has_he && num_he_rates == 1) {
 			ath11k_mac_set_peer_he_fixed_rate(arvif, sta, mask,
+							  band);
+		} else if (sta->deflink.ht_cap.ht_supported && num_ht_rates == 1) {
+			ath11k_mac_set_peer_ht_fixed_rate(arvif, sta, mask,
 							  band);
 		} else {
 			/* If the peer is non-VHT/HE or no fixed VHT/HE rate
