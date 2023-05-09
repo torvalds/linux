@@ -78,6 +78,12 @@ static u64 mtl_pte_encode(dma_addr_t addr,
 	case I915_CACHE_WT:
 		pte |= GEN12_PPGTT_PTE_PAT0;
 		break;
+	default:
+		/* This should never happen. Added to deal with the compile
+		 * error due to the addition of I915_MAX_CACHE_LEVEL. Will
+		 * be removed by the pat_index patch.
+		 */
+		break;
 	}
 
 	return pte;

@@ -123,7 +123,9 @@ struct drm_i915_private *mock_gem_device(void)
 	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
 #endif
 	struct drm_i915_private *i915;
+	struct intel_device_info *i915_info;
 	struct pci_dev *pdev;
+	unsigned int i;
 	int ret;
 
 	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
@@ -180,6 +182,13 @@ struct drm_i915_private *mock_gem_device(void)
 		I915_GTT_PAGE_SIZE_2M;
 
 	RUNTIME_INFO(i915)->memory_regions = REGION_SMEM;
+
+	/* simply use legacy cache level for mock device */
+	i915_info = (struct intel_device_info *)INTEL_INFO(i915);
+	i915_info->max_pat_index = 3;
+	for (i = 0; i < I915_MAX_CACHE_LEVEL; i++)
+		i915_info->cachelevel_to_pat[i] = i;
+
 	intel_memory_regions_hw_probe(i915);
 
 	spin_lock_init(&i915->gpu_error.lock);

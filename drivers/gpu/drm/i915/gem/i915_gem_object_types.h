@@ -194,6 +194,13 @@ enum i915_cache_level {
 	 * engine.
 	 */
 	I915_CACHE_WT,
+	/**
+	 * @I915_MAX_CACHE_LEVEL:
+	 *
+	 * Mark the last entry in the enum. Used for defining cachelevel_to_pat
+	 * array for cache_level to pat translation table.
+	 */
+	I915_MAX_CACHE_LEVEL,
 };
 
 enum i915_map_type {
