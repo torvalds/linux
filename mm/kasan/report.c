@@ -211,7 +211,7 @@ static void start_report(unsigned long *flags, bool sync)
 	pr_err("==================================================================\n");
 }
 
-static void end_report(unsigned long *flags, void *addr)
+static void end_report(unsigned long *flags, const void *addr)
 {
 	if (addr)
 		trace_error_report_end(ERROR_DETECTOR_KASAN,
@@ -450,8 +450,8 @@ static void print_memory_metadata(const void *addr)
 
 static void print_report(struct kasan_report_info *info)
 {
-	void *addr = kasan_reset_tag(info->access_addr);
-	u8 tag = get_tag(info->access_addr);
+	void *addr = kasan_reset_tag((void *)info->access_addr);
+	u8 tag = get_tag((void *)info->access_addr);
 
 	print_error_description(info);
 	if (addr_has_metadata(addr))
@@ -468,12 +468,12 @@ static void print_report(struct kasan_report_info *info)
 
 static void complete_report_info(struct kasan_report_info *info)
 {
-	void *addr = kasan_reset_tag(info->access_addr);
+	void *addr = kasan_reset_tag((void *)info->access_addr);
 	struct slab *slab;
 
 	if (info->type == KASAN_REPORT_ACCESS)
 		info->first_bad_addr = kasan_find_first_bad_addr(
-					info->access_addr, info->access_size);
+					(void *)info->access_addr, info->access_size);
 	else
 		info->first_bad_addr = addr;
 
@@ -544,11 +544,10 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_ty
  * user_access_save/restore(): kasan_report_invalid_free() cannot be called
  * from a UACCESS region, and kasan_report_async() is not used on x86.
  */
-bool kasan_report(unsigned long addr, size_t size, bool is_write,
+bool kasan_report(const void *addr, size_t size, bool is_write,
 			unsigned long ip)
 {
 	bool ret = true;
-	void *ptr = (void *)addr;
 	unsigned long ua_flags = user_access_save();
 	unsigned long irq_flags;
 	struct kasan_report_info info;
@@ -562,7 +561,7 @@ bool kasan_report(unsigned long addr, size_t size, bool is_write,
 
 	memset(&info, 0, sizeof(info));
 	info.type = KASAN_REPORT_ACCESS;
-	info.access_addr = ptr;
+	info.access_addr = addr;
 	info.access_size = size;
 	info.is_write = is_write;
 	info.ip = ip;
@@ -571,7 +570,7 @@ bool kasan_report(unsigned long addr, size_t size, bool is_write,
 
 	print_report(&info);
 
-	end_report(&irq_flags, ptr);
+	end_report(&irq_flags, (void *)addr);
 
 out:
 	user_access_restore(ua_flags);
