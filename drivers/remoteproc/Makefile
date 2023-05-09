@@ -24,6 +24,7 @@ obj-$(CONFIG_PRU_REMOTEPROC)		+= pru_rproc.o
 obj-$(CONFIG_QCOM_PIL_INFO)		+= qcom_pil_info.o
 obj-$(CONFIG_QCOM_RPROC_COMMON)		+= rproc_qcom_common.o
 rproc_qcom_common-y			:= qcom_common.o qcom_tracepoints.o
+obj-$(CONFIG_MSM_QUIN_SUBSYSTEM_NOTIF_VIRT) += subsystem_notif_virt.o
 obj-$(CONFIG_QCOM_Q6V5_COMMON)		+= qcom_q6v5.o
 obj-$(CONFIG_QCOM_Q6V5_ADSP)		+= qcom_q6v5_adsp.o
 obj-$(CONFIG_QCOM_Q6V5_MSS)		+= qcom_q6v5_mss.o

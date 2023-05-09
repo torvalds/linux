@@ -406,6 +406,18 @@ config TI_K3_R5_REMOTEPROC
 	  It's safe to say N here if you're not interested in utilizing
 	  a slave processor.
 
+config MSM_QUIN_SUBSYSTEM_NOTIF_VIRT
+	tristate "MSM QUIN Subsystem Notif Virt"
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select QCOM_RPROC_COMMON
+	help
+	  This option enables the virtual MSM subsystem notification
+	  framework for the QUIN platform.
+
+	  The virtual MSM subsystem notif framework provides support for
+	  a subsystem to notify its clients of its state, when the clients
+	  are in a different virtual machine domain than the subsystem.
+
 endif # REMOTEPROC
 
 endmenu

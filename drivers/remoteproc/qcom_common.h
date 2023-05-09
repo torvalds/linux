@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __RPROC_QCOM_COMMON_H__
 #define __RPROC_QCOM_COMMON_H__
@@ -78,6 +79,9 @@ void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
 void qcom_notify_early_ssr_clients(struct rproc_subdev *subdev);
 void qcom_remove_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr);
 void qcom_rproc_update_recovery_status(struct rproc *rproc, bool enable);
+struct qcom_ssr_subsystem *qcom_ssr_get_subsys(const char *name);
+int qcom_notify_ssr_clients(struct qcom_ssr_subsystem *info, int state,
+							struct qcom_ssr_notify_data *data);
 
 #if IS_ENABLED(CONFIG_QCOM_SYSMON)
 struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
