@@ -2236,6 +2236,8 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
+void dc_print_dmub_diagnostic_data(const struct dc *dc);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
 

@@ -4833,6 +4833,18 @@ void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 }
 
 /**
+ * dc_print_dmub_diagnostic_data - Print DMUB diagnostic data for debugging
+ *
+ * @dc: [in] dc structure
+ *
+ *
+ */
+void dc_print_dmub_diagnostic_data(const struct dc *dc)
+{
+	dc_dmub_srv_log_diagnostic_data(dc->ctx->dmub_srv);
+}
+
+/**
  * dc_disable_accelerated_mode - disable accelerated mode
  * @dc: dc structure
  */
