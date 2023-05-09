@@ -2121,6 +2121,69 @@ static const struct vcap_field is2_smac_sip6_keyfield[] = {
 	},
 };
 
+static const struct vcap_field es0_vid_keyfield[] = {
+	[VCAP_KF_IF_EGR_PORT_NO] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 0,
+		.width = 4,
+	},
+	[VCAP_KF_IF_IGR_PORT] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 4,
+		.width = 4,
+	},
+	[VCAP_KF_ISDX_GT0_IS] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 8,
+		.width = 1,
+	},
+	[VCAP_KF_ISDX_CLS] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 9,
+		.width = 8,
+	},
+	[VCAP_KF_L2_MC_IS] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 17,
+		.width = 1,
+	},
+	[VCAP_KF_L2_BC_IS] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 18,
+		.width = 1,
+	},
+	[VCAP_KF_8021Q_VID_CLS] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 19,
+		.width = 12,
+	},
+	[VCAP_KF_8021Q_DEI_CLS] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 31,
+		.width = 1,
+	},
+	[VCAP_KF_8021Q_PCP_CLS] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 32,
+		.width = 3,
+	},
+	[VCAP_KF_L3_DPL_CLS] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 35,
+		.width = 1,
+	},
+	[VCAP_KF_RTP_ID] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 36,
+		.width = 10,
+	},
+	[VCAP_KF_PDU_TYPE] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 46,
+		.width = 4,
+	},
+};
+
 /* keyfield_set */
 static const struct vcap_set is1_keyfield_set[] = {
 	[VCAP_KFS_NORMAL] = {
@@ -2228,6 +2291,14 @@ static const struct vcap_set is2_keyfield_set[] = {
 	},
 };
 
+static const struct vcap_set es0_keyfield_set[] = {
+	[VCAP_KFS_VID] = {
+		.type_id = -1,
+		.sw_per_item = 1,
+		.sw_cnt = 1,
+	},
+};
+
 /* keyfield_set map */
 static const struct vcap_field *is1_keyfield_set_map[] = {
 	[VCAP_KFS_NORMAL] = is1_normal_keyfield,
@@ -2255,6 +2326,10 @@ static const struct vcap_field *is2_keyfield_set_map[] = {
 	[VCAP_KFS_SMAC_SIP6] = is2_smac_sip6_keyfield,
 };
 
+static const struct vcap_field *es0_keyfield_set_map[] = {
+	[VCAP_KFS_VID] = es0_vid_keyfield,
+};
+
 /* keyfield_set map sizes */
 static int is1_keyfield_set_map_size[] = {
 	[VCAP_KFS_NORMAL] = ARRAY_SIZE(is1_normal_keyfield),
@@ -2280,6 +2355,10 @@ static int is2_keyfield_set_map_size[] = {
 	[VCAP_KFS_IP6_OTHER] = ARRAY_SIZE(is2_ip6_other_keyfield),
 	[VCAP_KFS_SMAC_SIP4] = ARRAY_SIZE(is2_smac_sip4_keyfield),
 	[VCAP_KFS_SMAC_SIP6] = ARRAY_SIZE(is2_smac_sip6_keyfield),
+};
+
+static int es0_keyfield_set_map_size[] = {
+	[VCAP_KFS_VID] = ARRAY_SIZE(es0_vid_keyfield),
 };
 
 /* actionfields */
@@ -2522,6 +2601,94 @@ static const struct vcap_field is2_smac_sip_actionfield[] = {
 	},
 };
 
+static const struct vcap_field es0_vid_actionfield[] = {
+	[VCAP_AF_PUSH_OUTER_TAG] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 0,
+		.width = 2,
+	},
+	[VCAP_AF_PUSH_INNER_TAG] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 2,
+		.width = 1,
+	},
+	[VCAP_AF_TAG_A_TPID_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 3,
+		.width = 2,
+	},
+	[VCAP_AF_TAG_A_VID_SEL] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 5,
+		.width = 1,
+	},
+	[VCAP_AF_TAG_A_PCP_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 6,
+		.width = 2,
+	},
+	[VCAP_AF_TAG_A_DEI_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 8,
+		.width = 2,
+	},
+	[VCAP_AF_TAG_B_TPID_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 10,
+		.width = 2,
+	},
+	[VCAP_AF_TAG_B_VID_SEL] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 12,
+		.width = 1,
+	},
+	[VCAP_AF_TAG_B_PCP_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 13,
+		.width = 2,
+	},
+	[VCAP_AF_TAG_B_DEI_SEL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 15,
+		.width = 2,
+	},
+	[VCAP_AF_VID_A_VAL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 17,
+		.width = 12,
+	},
+	[VCAP_AF_PCP_A_VAL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 29,
+		.width = 3,
+	},
+	[VCAP_AF_DEI_A_VAL] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 32,
+		.width = 1,
+	},
+	[VCAP_AF_VID_B_VAL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 33,
+		.width = 12,
+	},
+	[VCAP_AF_PCP_B_VAL] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 45,
+		.width = 3,
+	},
+	[VCAP_AF_DEI_B_VAL] = {
+		.type = VCAP_FIELD_BIT,
+		.offset = 48,
+		.width = 1,
+	},
+	[VCAP_AF_ESDX] = {
+		.type = VCAP_FIELD_U32,
+		.offset = 49,
+		.width = 8,
+	},
+};
+
 /* actionfield_set */
 static const struct vcap_set is1_actionfield_set[] = {
 	[VCAP_AFS_S1] = {
@@ -2544,6 +2711,14 @@ static const struct vcap_set is2_actionfield_set[] = {
 	},
 };
 
+static const struct vcap_set es0_actionfield_set[] = {
+	[VCAP_AFS_VID] = {
+		.type_id = -1,
+		.sw_per_item = 1,
+		.sw_cnt = 1,
+	},
+};
+
 /* actionfield_set map */
 static const struct vcap_field *is1_actionfield_set_map[] = {
 	[VCAP_AFS_S1] = is1_s1_actionfield,
@@ -2554,6 +2729,10 @@ static const struct vcap_field *is2_actionfield_set_map[] = {
 	[VCAP_AFS_SMAC_SIP] = is2_smac_sip_actionfield,
 };
 
+static const struct vcap_field *es0_actionfield_set_map[] = {
+	[VCAP_AFS_VID] = es0_vid_actionfield,
+};
+
 /* actionfield_set map size */
 static int is1_actionfield_set_map_size[] = {
 	[VCAP_AFS_S1] = ARRAY_SIZE(is1_s1_actionfield),
@@ -2562,6 +2741,10 @@ static int is1_actionfield_set_map_size[] = {
 static int is2_actionfield_set_map_size[] = {
 	[VCAP_AFS_BASE_TYPE] = ARRAY_SIZE(is2_base_type_actionfield),
 	[VCAP_AFS_SMAC_SIP] = ARRAY_SIZE(is2_smac_sip_actionfield),
+};
+
+static int es0_actionfield_set_map_size[] = {
+	[VCAP_AFS_VID] = ARRAY_SIZE(es0_vid_actionfield),
 };
 
 /* Type Groups */
@@ -2659,6 +2842,10 @@ static const struct vcap_typegroup is2_x1_keyfield_set_typegroups[] = {
 	{}
 };
 
+static const struct vcap_typegroup es0_x1_keyfield_set_typegroups[] = {
+	{}
+};
+
 static const struct vcap_typegroup *is1_keyfield_set_typegroups[] = {
 	[4] = is1_x4_keyfield_set_typegroups,
 	[2] = is1_x2_keyfield_set_typegroups,
@@ -2671,6 +2858,11 @@ static const struct vcap_typegroup *is2_keyfield_set_typegroups[] = {
 	[2] = is2_x2_keyfield_set_typegroups,
 	[1] = is2_x1_keyfield_set_typegroups,
 	[5] = NULL,
+};
+
+static const struct vcap_typegroup *es0_keyfield_set_typegroups[] = {
+	[1] = es0_x1_keyfield_set_typegroups,
+	[2] = NULL,
 };
 
 static const struct vcap_typegroup is1_x1_actionfield_set_typegroups[] = {
@@ -2700,6 +2892,10 @@ static const struct vcap_typegroup is2_x1_actionfield_set_typegroups[] = {
 	{}
 };
 
+static const struct vcap_typegroup es0_x1_actionfield_set_typegroups[] = {
+	{}
+};
+
 static const struct vcap_typegroup *is1_actionfield_set_typegroups[] = {
 	[1] = is1_x1_actionfield_set_typegroups,
 	[5] = NULL,
@@ -2709,6 +2905,11 @@ static const struct vcap_typegroup *is2_actionfield_set_typegroups[] = {
 	[2] = is2_x2_actionfield_set_typegroups,
 	[1] = is2_x1_actionfield_set_typegroups,
 	[5] = NULL,
+};
+
+static const struct vcap_typegroup *es0_actionfield_set_typegroups[] = {
+	[1] = es0_x1_actionfield_set_typegroups,
+	[2] = NULL,
 };
 
 /* Keyfieldset names */
@@ -2743,6 +2944,7 @@ static const char * const vcap_keyfield_set_names[] = {
 	[VCAP_KFS_RT]                            =  "VCAP_KFS_RT",
 	[VCAP_KFS_SMAC_SIP4]                     =  "VCAP_KFS_SMAC_SIP4",
 	[VCAP_KFS_SMAC_SIP6]                     =  "VCAP_KFS_SMAC_SIP6",
+	[VCAP_KFS_VID]                           =  "VCAP_KFS_VID",
 };
 
 /* Actionfieldset names */
@@ -2751,9 +2953,11 @@ static const char * const vcap_actionfield_set_names[] = {
 	[VCAP_AFS_BASE_TYPE]                     =  "VCAP_AFS_BASE_TYPE",
 	[VCAP_AFS_CLASSIFICATION]                =  "VCAP_AFS_CLASSIFICATION",
 	[VCAP_AFS_CLASS_REDUCED]                 =  "VCAP_AFS_CLASS_REDUCED",
+	[VCAP_AFS_ES0]                           =  "VCAP_AFS_ES0",
 	[VCAP_AFS_FULL]                          =  "VCAP_AFS_FULL",
 	[VCAP_AFS_S1]                            =  "VCAP_AFS_S1",
 	[VCAP_AFS_SMAC_SIP]                      =  "VCAP_AFS_SMAC_SIP",
+	[VCAP_AFS_VID]                           =  "VCAP_AFS_VID",
 };
 
 /* Keyfield names */
@@ -2774,6 +2978,7 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_8021Q_PCP1]                     =  "8021Q_PCP1",
 	[VCAP_KF_8021Q_PCP2]                     =  "8021Q_PCP2",
 	[VCAP_KF_8021Q_PCP_CLS]                  =  "8021Q_PCP_CLS",
+	[VCAP_KF_8021Q_TPID]                     =  "8021Q_TPID",
 	[VCAP_KF_8021Q_TPID0]                    =  "8021Q_TPID0",
 	[VCAP_KF_8021Q_TPID1]                    =  "8021Q_TPID1",
 	[VCAP_KF_8021Q_TPID2]                    =  "8021Q_TPID2",
@@ -2799,6 +3004,7 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_HOST_MATCH]                     =  "HOST_MATCH",
 	[VCAP_KF_IF_EGR_PORT_MASK]               =  "IF_EGR_PORT_MASK",
 	[VCAP_KF_IF_EGR_PORT_MASK_RNG]           =  "IF_EGR_PORT_MASK_RNG",
+	[VCAP_KF_IF_EGR_PORT_NO]                 =  "IF_EGR_PORT_NO",
 	[VCAP_KF_IF_IGR_PORT]                    =  "IF_IGR_PORT",
 	[VCAP_KF_IF_IGR_PORT_MASK]               =  "IF_IGR_PORT_MASK",
 	[VCAP_KF_IF_IGR_PORT_MASK_L3]            =  "IF_IGR_PORT_MASK_L3",
@@ -2873,7 +3079,9 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_OAM_OPCODE]                     =  "OAM_OPCODE",
 	[VCAP_KF_OAM_VER]                        =  "OAM_VER",
 	[VCAP_KF_OAM_Y1731_IS]                   =  "OAM_Y1731_IS",
+	[VCAP_KF_PDU_TYPE]                       =  "PDU_TYPE",
 	[VCAP_KF_PROT_ACTIVE]                    =  "PROT_ACTIVE",
+	[VCAP_KF_RTP_ID]                         =  "RTP_ID",
 	[VCAP_KF_RT_FRMID]                       =  "RT_FRMID",
 	[VCAP_KF_RT_TYPE]                        =  "RT_TYPE",
 	[VCAP_KF_RT_VLAN_IDX]                    =  "RT_VLAN_IDX",
@@ -2891,18 +3099,25 @@ static const char * const vcap_actionfield_names[] = {
 	[VCAP_AF_COPY_PORT_NUM]                  =  "COPY_PORT_NUM",
 	[VCAP_AF_COPY_QUEUE_NUM]                 =  "COPY_QUEUE_NUM",
 	[VCAP_AF_CPU_COPY_ENA]                   =  "CPU_COPY_ENA",
+	[VCAP_AF_CPU_QU]                         =  "CPU_QU",
 	[VCAP_AF_CPU_QUEUE_NUM]                  =  "CPU_QUEUE_NUM",
 	[VCAP_AF_CUSTOM_ACE_TYPE_ENA]            =  "CUSTOM_ACE_TYPE_ENA",
+	[VCAP_AF_DEI_A_VAL]                      =  "DEI_A_VAL",
+	[VCAP_AF_DEI_B_VAL]                      =  "DEI_B_VAL",
+	[VCAP_AF_DEI_C_VAL]                      =  "DEI_C_VAL",
 	[VCAP_AF_DEI_ENA]                        =  "DEI_ENA",
 	[VCAP_AF_DEI_VAL]                        =  "DEI_VAL",
 	[VCAP_AF_DLR_SEL]                        =  "DLR_SEL",
 	[VCAP_AF_DP_ENA]                         =  "DP_ENA",
 	[VCAP_AF_DP_VAL]                         =  "DP_VAL",
 	[VCAP_AF_DSCP_ENA]                       =  "DSCP_ENA",
+	[VCAP_AF_DSCP_SEL]                       =  "DSCP_SEL",
 	[VCAP_AF_DSCP_VAL]                       =  "DSCP_VAL",
 	[VCAP_AF_ES2_REW_CMD]                    =  "ES2_REW_CMD",
+	[VCAP_AF_ESDX]                           =  "ESDX",
 	[VCAP_AF_FWD_KILL_ENA]                   =  "FWD_KILL_ENA",
 	[VCAP_AF_FWD_MODE]                       =  "FWD_MODE",
+	[VCAP_AF_FWD_SEL]                        =  "FWD_SEL",
 	[VCAP_AF_HIT_ME_ONCE]                    =  "HIT_ME_ONCE",
 	[VCAP_AF_HOST_MATCH]                     =  "HOST_MATCH",
 	[VCAP_AF_IGNORE_PIPELINE_CTRL]           =  "IGNORE_PIPELINE_CTRL",
@@ -2912,6 +3127,7 @@ static const char * const vcap_actionfield_names[] = {
 	[VCAP_AF_ISDX_ENA]                       =  "ISDX_ENA",
 	[VCAP_AF_ISDX_REPLACE_ENA]               =  "ISDX_REPLACE_ENA",
 	[VCAP_AF_ISDX_VAL]                       =  "ISDX_VAL",
+	[VCAP_AF_LOOP_ENA]                       =  "LOOP_ENA",
 	[VCAP_AF_LRN_DIS]                        =  "LRN_DIS",
 	[VCAP_AF_MAP_IDX]                        =  "MAP_IDX",
 	[VCAP_AF_MAP_KEY]                        =  "MAP_KEY",
@@ -2928,15 +3144,23 @@ static const char * const vcap_actionfield_names[] = {
 	[VCAP_AF_OAM_SEL]                        =  "OAM_SEL",
 	[VCAP_AF_PAG_OVERRIDE_MASK]              =  "PAG_OVERRIDE_MASK",
 	[VCAP_AF_PAG_VAL]                        =  "PAG_VAL",
+	[VCAP_AF_PCP_A_VAL]                      =  "PCP_A_VAL",
+	[VCAP_AF_PCP_B_VAL]                      =  "PCP_B_VAL",
+	[VCAP_AF_PCP_C_VAL]                      =  "PCP_C_VAL",
 	[VCAP_AF_PCP_ENA]                        =  "PCP_ENA",
 	[VCAP_AF_PCP_VAL]                        =  "PCP_VAL",
+	[VCAP_AF_PIPELINE_ACT]                   =  "PIPELINE_ACT",
 	[VCAP_AF_PIPELINE_FORCE_ENA]             =  "PIPELINE_FORCE_ENA",
 	[VCAP_AF_PIPELINE_PT]                    =  "PIPELINE_PT",
 	[VCAP_AF_POLICE_ENA]                     =  "POLICE_ENA",
 	[VCAP_AF_POLICE_IDX]                     =  "POLICE_IDX",
 	[VCAP_AF_POLICE_REMARK]                  =  "POLICE_REMARK",
 	[VCAP_AF_POLICE_VCAP_ONLY]               =  "POLICE_VCAP_ONLY",
+	[VCAP_AF_POP_VAL]                        =  "POP_VAL",
 	[VCAP_AF_PORT_MASK]                      =  "PORT_MASK",
+	[VCAP_AF_PUSH_CUSTOMER_TAG]              =  "PUSH_CUSTOMER_TAG",
+	[VCAP_AF_PUSH_INNER_TAG]                 =  "PUSH_INNER_TAG",
+	[VCAP_AF_PUSH_OUTER_TAG]                 =  "PUSH_OUTER_TAG",
 	[VCAP_AF_QOS_ENA]                        =  "QOS_ENA",
 	[VCAP_AF_QOS_VAL]                        =  "QOS_VAL",
 	[VCAP_AF_REW_OP]                         =  "REW_OP",
@@ -2945,7 +3169,24 @@ static const char * const vcap_actionfield_names[] = {
 	[VCAP_AF_SFID_VAL]                       =  "SFID_VAL",
 	[VCAP_AF_SGID_ENA]                       =  "SGID_ENA",
 	[VCAP_AF_SGID_VAL]                       =  "SGID_VAL",
+	[VCAP_AF_SWAP_MACS_ENA]                  =  "SWAP_MACS_ENA",
+	[VCAP_AF_TAG_A_DEI_SEL]                  =  "TAG_A_DEI_SEL",
+	[VCAP_AF_TAG_A_PCP_SEL]                  =  "TAG_A_PCP_SEL",
+	[VCAP_AF_TAG_A_TPID_SEL]                 =  "TAG_A_TPID_SEL",
+	[VCAP_AF_TAG_A_VID_SEL]                  =  "TAG_A_VID_SEL",
+	[VCAP_AF_TAG_B_DEI_SEL]                  =  "TAG_B_DEI_SEL",
+	[VCAP_AF_TAG_B_PCP_SEL]                  =  "TAG_B_PCP_SEL",
+	[VCAP_AF_TAG_B_TPID_SEL]                 =  "TAG_B_TPID_SEL",
+	[VCAP_AF_TAG_B_VID_SEL]                  =  "TAG_B_VID_SEL",
+	[VCAP_AF_TAG_C_DEI_SEL]                  =  "TAG_C_DEI_SEL",
+	[VCAP_AF_TAG_C_PCP_SEL]                  =  "TAG_C_PCP_SEL",
+	[VCAP_AF_TAG_C_TPID_SEL]                 =  "TAG_C_TPID_SEL",
+	[VCAP_AF_TAG_C_VID_SEL]                  =  "TAG_C_VID_SEL",
 	[VCAP_AF_TYPE]                           =  "TYPE",
+	[VCAP_AF_UNTAG_VID_ENA]                  =  "UNTAG_VID_ENA",
+	[VCAP_AF_VID_A_VAL]                      =  "VID_A_VAL",
+	[VCAP_AF_VID_B_VAL]                      =  "VID_B_VAL",
+	[VCAP_AF_VID_C_VAL]                      =  "VID_C_VAL",
 	[VCAP_AF_VID_REPLACE_ENA]                =  "VID_REPLACE_ENA",
 	[VCAP_AF_VID_VAL]                        =  "VID_VAL",
 	[VCAP_AF_VLAN_POP_CNT]                   =  "VLAN_POP_CNT",
@@ -2996,11 +3237,32 @@ const struct vcap_info lan966x_vcaps[] = {
 		.keyfield_set_typegroups = is2_keyfield_set_typegroups,
 		.actionfield_set_typegroups = is2_actionfield_set_typegroups,
 	},
+	[VCAP_TYPE_ES0] = {
+		.name = "es0",
+		.rows = 256,
+		.sw_count = 1,
+		.sw_width = 96,
+		.sticky_width = 1,
+		.act_width = 65,
+		.default_cnt = 8,
+		.require_cnt_dis = 0,
+		.version = 1,
+		.keyfield_set = es0_keyfield_set,
+		.keyfield_set_size = ARRAY_SIZE(es0_keyfield_set),
+		.actionfield_set = es0_actionfield_set,
+		.actionfield_set_size = ARRAY_SIZE(es0_actionfield_set),
+		.keyfield_set_map = es0_keyfield_set_map,
+		.keyfield_set_map_size = es0_keyfield_set_map_size,
+		.actionfield_set_map = es0_actionfield_set_map,
+		.actionfield_set_map_size = es0_actionfield_set_map_size,
+		.keyfield_set_typegroups = es0_keyfield_set_typegroups,
+		.actionfield_set_typegroups = es0_actionfield_set_typegroups,
+	},
 };
 
 const struct vcap_statistics lan966x_vcap_stats = {
 	.name = "lan966x",
-	.count = 2,
+	.count = 3,
 	.keyfield_set_names = vcap_keyfield_set_names,
 	.actionfield_set_names = vcap_actionfield_set_names,
 	.keyfield_names = vcap_keyfield_names,
