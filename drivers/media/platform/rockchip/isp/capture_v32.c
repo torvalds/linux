@@ -698,10 +698,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	* NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	* memory plane formats, so calculate the size explicitly.
 	*/
-	if (dev->cap_dev.wrap_line) {
+	if (dev->cap_dev.wrap_line)
 		height = dev->cap_dev.wrap_line;
-		rkisp_clear_bits(dev, 0x1814, BIT(0), false);
-	}
 	val = out_fmt->plane_fmt[0].bytesperline;
 	/* in bytes for isp32 */
 	if (dev->isp_ver == ISP_V32)
