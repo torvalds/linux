@@ -364,6 +364,7 @@ MEM
   devm_kmalloc_array()
   devm_kmemdup()
   devm_krealloc()
+  devm_krealloc_array()
   devm_kstrdup()
   devm_kstrdup_const()
   devm_kvasprintf()
