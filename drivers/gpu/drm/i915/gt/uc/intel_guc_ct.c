@@ -698,7 +698,7 @@ static int ct_send(struct intel_guc_ct *ct,
 
 	GEM_BUG_ON(!ct->enabled);
 	GEM_BUG_ON(!len);
-	GEM_BUG_ON(len & ~GUC_CT_MSG_LEN_MASK);
+	GEM_BUG_ON(len > GUC_CTB_HXG_MSG_MAX_LEN - GUC_CTB_HDR_LEN);
 	GEM_BUG_ON(!response_buf && response_buf_size);
 	might_sleep();
 
