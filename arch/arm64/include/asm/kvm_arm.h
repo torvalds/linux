@@ -94,7 +94,7 @@
 #define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
 
 #define HCRX_GUEST_FLAGS (HCRX_EL2_SMPME)
-#define HCRX_HOST_FLAGS 0
+#define HCRX_HOST_FLAGS (HCRX_EL2_MSCEn)
 
 /* TCR_EL2 Registers bits */
 #define TCR_EL2_RES1		((1U << 31) | (1 << 23))
