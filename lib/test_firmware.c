@@ -894,6 +894,11 @@ static ssize_t trigger_batched_requests_store(struct device *dev,
 
 	mutex_lock(&test_fw_mutex);
 
+	if (test_fw_config->reqs) {
+		rc = -EBUSY;
+		goto out_bail;
+	}
+
 	test_fw_config->reqs =
 		vzalloc(array3_size(sizeof(struct test_batched_req),
 				    test_fw_config->num_requests, 2));
@@ -991,6 +996,11 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 	u8 i;
 
 	mutex_lock(&test_fw_mutex);
+
+	if (test_fw_config->reqs) {
+		rc = -EBUSY;
+		goto out_bail;
+	}
 
 	test_fw_config->reqs =
 		vzalloc(array3_size(sizeof(struct test_batched_req),
