@@ -2141,58 +2141,58 @@ static u8 translate_iboost(u8 val)
 
 static const u8 cnp_ddc_pin_map[] = {
 	[0] = 0, /* N/A */
-	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
-	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
-	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
-	[DDC_BUS_DDI_F] = GMBUS_PIN_3_BXT, /* sic */
+	[GMBUS_PIN_1_BXT] = DDC_BUS_DDI_B,
+	[GMBUS_PIN_2_BXT] = DDC_BUS_DDI_C,
+	[GMBUS_PIN_4_CNP] = DDC_BUS_DDI_D, /* sic */
+	[GMBUS_PIN_3_BXT] = DDC_BUS_DDI_F, /* sic */
 };
 
 static const u8 icp_ddc_pin_map[] = {
-	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
-	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
-	[TGL_DDC_BUS_DDI_C] = GMBUS_PIN_3_BXT,
-	[ICL_DDC_BUS_PORT_1] = GMBUS_PIN_9_TC1_ICP,
-	[ICL_DDC_BUS_PORT_2] = GMBUS_PIN_10_TC2_ICP,
-	[ICL_DDC_BUS_PORT_3] = GMBUS_PIN_11_TC3_ICP,
-	[ICL_DDC_BUS_PORT_4] = GMBUS_PIN_12_TC4_ICP,
-	[TGL_DDC_BUS_PORT_5] = GMBUS_PIN_13_TC5_TGP,
-	[TGL_DDC_BUS_PORT_6] = GMBUS_PIN_14_TC6_TGP,
+	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_3_BXT] = TGL_DDC_BUS_DDI_C,
+	[GMBUS_PIN_9_TC1_ICP] = ICL_DDC_BUS_PORT_1,
+	[GMBUS_PIN_10_TC2_ICP] = ICL_DDC_BUS_PORT_2,
+	[GMBUS_PIN_11_TC3_ICP] = ICL_DDC_BUS_PORT_3,
+	[GMBUS_PIN_12_TC4_ICP] = ICL_DDC_BUS_PORT_4,
+	[GMBUS_PIN_13_TC5_TGP] = TGL_DDC_BUS_PORT_5,
+	[GMBUS_PIN_14_TC6_TGP] = TGL_DDC_BUS_PORT_6,
 };
 
 static const u8 rkl_pch_tgp_ddc_pin_map[] = {
-	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
-	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
-	[RKL_DDC_BUS_DDI_D] = GMBUS_PIN_9_TC1_ICP,
-	[RKL_DDC_BUS_DDI_E] = GMBUS_PIN_10_TC2_ICP,
+	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1_ICP] = RKL_DDC_BUS_DDI_D,
+	[GMBUS_PIN_10_TC2_ICP] = RKL_DDC_BUS_DDI_E,
 };
 
 static const u8 adls_ddc_pin_map[] = {
-	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
-	[ADLS_DDC_BUS_PORT_TC1] = GMBUS_PIN_9_TC1_ICP,
-	[ADLS_DDC_BUS_PORT_TC2] = GMBUS_PIN_10_TC2_ICP,
-	[ADLS_DDC_BUS_PORT_TC3] = GMBUS_PIN_11_TC3_ICP,
-	[ADLS_DDC_BUS_PORT_TC4] = GMBUS_PIN_12_TC4_ICP,
+	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_9_TC1_ICP] = ADLS_DDC_BUS_PORT_TC1,
+	[GMBUS_PIN_10_TC2_ICP] = ADLS_DDC_BUS_PORT_TC2,
+	[GMBUS_PIN_11_TC3_ICP] = ADLS_DDC_BUS_PORT_TC3,
+	[GMBUS_PIN_12_TC4_ICP] = ADLS_DDC_BUS_PORT_TC4,
 };
 
 static const u8 gen9bc_tgp_ddc_pin_map[] = {
-	[DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
-	[DDC_BUS_DDI_C] = GMBUS_PIN_9_TC1_ICP,
-	[DDC_BUS_DDI_D] = GMBUS_PIN_10_TC2_ICP,
+	[GMBUS_PIN_2_BXT] = DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1_ICP] = DDC_BUS_DDI_C,
+	[GMBUS_PIN_10_TC2_ICP] = DDC_BUS_DDI_D,
 };
 
 static const u8 adlp_ddc_pin_map[] = {
-	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
-	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
-	[ADLP_DDC_BUS_PORT_TC1] = GMBUS_PIN_9_TC1_ICP,
-	[ADLP_DDC_BUS_PORT_TC2] = GMBUS_PIN_10_TC2_ICP,
-	[ADLP_DDC_BUS_PORT_TC3] = GMBUS_PIN_11_TC3_ICP,
-	[ADLP_DDC_BUS_PORT_TC4] = GMBUS_PIN_12_TC4_ICP,
+	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1_ICP] = ADLP_DDC_BUS_PORT_TC1,
+	[GMBUS_PIN_10_TC2_ICP] = ADLP_DDC_BUS_PORT_TC2,
+	[GMBUS_PIN_11_TC3_ICP] = ADLP_DDC_BUS_PORT_TC3,
+	[GMBUS_PIN_12_TC4_ICP] = ADLP_DDC_BUS_PORT_TC4,
 };
 
 static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 {
 	const u8 *ddc_pin_map;
-	int n_entries;
+	int i, n_entries;
 
 	if (HAS_PCH_MTP(i915) || IS_ALDERLAKE_P(i915)) {
 		ddc_pin_map = adlp_ddc_pin_map;
@@ -2219,8 +2219,10 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 		return vbt_pin;
 	}
 
-	if (vbt_pin < n_entries && ddc_pin_map[vbt_pin] != 0)
-		return ddc_pin_map[vbt_pin];
+	for (i = 0; i < n_entries; i++) {
+		if (ddc_pin_map[i] == vbt_pin)
+			return i;
+	}
 
 	drm_dbg_kms(&i915->drm,
 		    "Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
