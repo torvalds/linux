@@ -159,6 +159,9 @@ struct dccg_funcs {
 			int otg_inst,
 			int pixclk_khz);
 
+	void (*trigger_dio_fifo_resync)(
+			struct dccg *dccg);
+
 	void (*dpp_root_clock_control)(
 			struct dccg *dccg,
 			unsigned int dpp_inst,

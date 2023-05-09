@@ -152,6 +152,7 @@ static const struct hwseq_private_funcs dcn314_private_funcs = {
 	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
 	.calculate_dccg_k1_k2_values = dcn314_calculate_dccg_k1_k2_values,
 	.set_pixels_per_cycle = dcn314_set_pixels_per_cycle,
+	.resync_fifo_dccg_dio = dcn314_resync_fifo_dccg_dio,
 };
 
 void dcn314_hw_sequencer_construct(struct dc *dc)

@@ -390,6 +390,33 @@ void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 				pix_per_cycle);
 }
 
+void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
+{
+	uint8_t i;
+	struct pipe_ctx *pipe = NULL;
+	bool otg_disabled[MAX_PIPES] = {false};
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->top_pipe || pipe->prev_odm_pipe)
+			continue;
+
+		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))) {
+			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
+			reset_sync_context_for_pipe(dc, context, i);
+			otg_disabled[i] = true;
+		}
+	}
+
+	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (otg_disabled[i])
+			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+	}
+}
+
 void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool clock_on)
 {
 	if (!hws->ctx->dc->debug.root_clock_optimization.bits.dpp)
