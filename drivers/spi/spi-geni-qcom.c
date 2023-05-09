@@ -294,6 +294,8 @@ static void spi_geni_set_cs(struct spi_device *slv, bool set_flag)
 	mas->cs_flag = set_flag;
 	/* set xfer_mode to FIFO to complete cs_done in isr */
 	mas->cur_xfer_mode = GENI_SE_FIFO;
+	geni_se_select_mode(se, mas->cur_xfer_mode);
+
 	reinit_completion(&mas->cs_done);
 	if (set_flag)
 		geni_se_setup_m_cmd(se, SPI_CS_ASSERT, 0);
