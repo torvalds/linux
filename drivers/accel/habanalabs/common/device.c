@@ -1916,7 +1916,16 @@ int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask)
 	}
 
 	ctx = hl_get_compute_ctx(hdev);
-	if (!ctx || !ctx->hpriv->notifier_event.eventfd)
+	if (!ctx)
+		goto device_reset;
+
+	/*
+	 * There is no point in postponing the reset if user is not registered for events.
+	 * However if no eventfd_ctx exists but the device release watchdog is already scheduled, it
+	 * just implies that user has unregistered as part of handling a previous event. In this
+	 * case an immediate reset is not required.
+	 */
+	if (!ctx->hpriv->notifier_event.eventfd && !hdev->reset_info.watchdog_active)
 		goto device_reset;
 
 	/* Schedule the device release watchdog work unless reset is already in progress or if the
