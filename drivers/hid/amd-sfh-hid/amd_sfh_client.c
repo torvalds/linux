@@ -291,18 +291,8 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			cl_data->is_any_sensor_enabled = true;
 			cl_data->sensor_sts[i] = SENSOR_ENABLED;
 			rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
-			if (rc) {
-				mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
-				status = amd_sfh_wait_for_response
-					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
-				if (status != SENSOR_ENABLED)
-					cl_data->sensor_sts[i] = SENSOR_DISABLED;
-				dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
-					cl_data->sensor_idx[i],
-					get_sensor_name(cl_data->sensor_idx[i]),
-					cl_data->sensor_sts[i]);
+			if (rc)
 				goto cleanup;
-			}
 		} else {
 			cl_data->sensor_sts[i] = SENSOR_DISABLED;
 			dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
@@ -316,25 +306,16 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	}
 	if (!cl_data->is_any_sensor_enabled ||
 	   (mp2_ops->discovery_status && mp2_ops->discovery_status(privdata) == 0)) {
-		amd_sfh_hid_client_deinit(privdata);
-		for (i = 0; i < cl_data->num_hid_devices; i++) {
-			devm_kfree(dev, cl_data->feature_report[i]);
-			devm_kfree(dev, in_data->input_report[i]);
-			devm_kfree(dev, cl_data->report_descr[i]);
-		}
 		dev_warn(dev, "Failed to discover, sensors not enabled is %d\n", cl_data->is_any_sensor_enabled);
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto cleanup;
 	}
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 	return 0;
 
 cleanup:
+	amd_sfh_hid_client_deinit(privdata);
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (in_data->sensor_virt_addr[i]) {
-			dma_free_coherent(&privdata->pdev->dev, 8 * sizeof(int),
-					  in_data->sensor_virt_addr[i],
-					  cl_data->sensor_dma_addr[i]);
-		}
 		devm_kfree(dev, cl_data->feature_report[i]);
 		devm_kfree(dev, in_data->input_report[i]);
 		devm_kfree(dev, cl_data->report_descr[i]);
