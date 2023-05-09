@@ -3851,7 +3851,7 @@ static int ov5640_probe(struct i2c_client *client)
 
 	/*
 	 * default init sequence initialize sensor to
-	 * YUV422 UYVY VGA@30fps
+	 * YUV422 UYVY VGA(30FPS in parallel mode, 60 in MIPI CSI-2 mode)
 	 */
 	sensor->frame_interval.numerator = 1;
 	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
