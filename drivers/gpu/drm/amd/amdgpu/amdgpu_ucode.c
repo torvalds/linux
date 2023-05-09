@@ -749,6 +749,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	const struct mes_firmware_header_v1_0 *mes_hdr = NULL;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr = NULL;
 	const struct imu_firmware_header_v1_0 *imu_hdr = NULL;
+	const struct vpe_firmware_header_v1_0 *vpe_hdr = NULL;
 	u8 *ucode_addr;
 
 	if (!ucode->fw)
@@ -768,6 +769,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	mes_hdr = (const struct mes_firmware_header_v1_0 *)ucode->fw->data;
 	sdma_hdr = (const struct sdma_firmware_header_v2_0 *)ucode->fw->data;
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)ucode->fw->data;
+	vpe_hdr = (const struct vpe_firmware_header_v1_0 *)ucode->fw->data;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		switch (ucode->ucode_id) {
@@ -949,6 +951,16 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode->ucode_size = le32_to_cpu(cpv2_hdr->data_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(cpv2_hdr->data_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_VPE_CTX:
+			ucode->ucode_size = le32_to_cpu(vpe_hdr->ctx_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(vpe_hdr->header.ucode_array_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_VPE_CTL:
+			ucode->ucode_size = le32_to_cpu(vpe_hdr->ctl_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(vpe_hdr->ctl_ucode_offset);
 			break;
 		default:
 			ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);

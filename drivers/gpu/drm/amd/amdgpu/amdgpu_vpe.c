@@ -56,6 +56,22 @@ int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe)
 	adev->vpe.fw_version = le32_to_cpu(vpe_hdr->header.ucode_version);
 	adev->vpe.feature_version = le32_to_cpu(vpe_hdr->ucode_feature_version);
 
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		struct amdgpu_firmware_info *info;
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_VPE_CTX];
+		info->ucode_id = AMDGPU_UCODE_ID_VPE_CTX;
+		info->fw = adev->vpe.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(vpe_hdr->ctx_ucode_size_bytes), PAGE_SIZE);
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_VPE_CTL];
+		info->ucode_id = AMDGPU_UCODE_ID_VPE_CTL;
+		info->fw = adev->vpe.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(vpe_hdr->ctl_ucode_size_bytes), PAGE_SIZE);
+	}
+
 	return 0;
 out:
 	dev_err(adev->dev, "fail to initialize vpe microcode\n");
