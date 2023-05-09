@@ -1469,8 +1469,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	}
 
 	/* Allocate internal mapped CB for non patched CBs */
-	cb = hl_cb_kernel_create(hdev, cb_size,
-			hdev->mmu_enable && !patched_cb);
+	cb = hl_cb_kernel_create(hdev, cb_size, !patched_cb);
 	if (!cb) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -3643,9 +3642,6 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hop0_addr;
 	int rc, i;
-
-	if (!hdev->mmu_enable)
-		return 0;
 
 	if (gaudi->hw_cap_initialized & HW_CAP_MMU)
 		return 0;

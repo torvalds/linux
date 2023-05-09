@@ -115,18 +115,6 @@ enum hl_mmu_page_table_location {
 	MMU_NUM_PGT_LOCATIONS	/* num of PGT locations */
 };
 
-/**
- * enum hl_mmu_enablement - what mmu modules to enable
- * @MMU_EN_NONE: mmu disabled.
- * @MMU_EN_ALL: enable all.
- * @MMU_EN_PMMU_ONLY: Enable only the PMMU leaving the DMMU disabled.
- */
-enum hl_mmu_enablement {
-	MMU_EN_NONE = 0,
-	MMU_EN_ALL = 1,
-	MMU_EN_PMMU_ONLY = 3,	/* N/A for Goya/Gaudi */
-};
-
 /*
  * HL_RSVD_SOBS 'sync stream' reserved sync objects per QMAN stream
  * HL_RSVD_MONS 'sync stream' reserved monitors per QMAN stream
@@ -3319,7 +3307,7 @@ struct hl_reset_info {
  * @nic_ports_mask: Controls which NIC ports are enabled. Used only for testing.
  * @fw_components: Controls which f/w components to load to the device. There are multiple f/w
  *                 stages and sometimes we want to stop at a certain stage. Used only for testing.
- * @mmu_enable: Whether to enable or disable the device MMU(s). Used only for testing.
+ * @mmu_disable: Disable the device MMU(s). Used only for testing.
  * @cpu_queues_enable: Whether to enable queues communication vs. the f/w. Used only for testing.
  * @pldm: Whether we are running in Palladium environment. Used only for testing.
  * @hard_reset_on_fw_events: Whether to do device hard-reset when a fatal event is received from
@@ -3482,7 +3470,7 @@ struct hl_device {
 	/* Parameters for bring-up to be upstreamed */
 	u64				nic_ports_mask;
 	u64				fw_components;
-	u8				mmu_enable;
+	u8				mmu_disable;
 	u8				cpu_queues_enable;
 	u8				pldm;
 	u8				hard_reset_on_fw_events;
@@ -3827,8 +3815,6 @@ struct pgt_info *hl_mmu_hr_get_alloc_next_hop(struct hl_ctx *ctx,
 							u64 curr_pte, bool *is_new_hop);
 int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops,
 							struct hl_hr_mmu_funcs *hr_func);
-void hl_mmu_swap_out(struct hl_ctx *ctx);
-void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
 void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 void hl_mmu_v2_hr_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);

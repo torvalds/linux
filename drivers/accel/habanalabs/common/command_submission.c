@@ -280,14 +280,8 @@ bool cs_needs_timeout(struct hl_cs *cs)
 
 static bool is_cb_patched(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	/*
-	 * Patched CB is created for external queues jobs, and for H/W queues
-	 * jobs if the user CB was allocated by driver and MMU is disabled.
-	 */
-	return (job->queue_type == QUEUE_TYPE_EXT ||
-			(job->queue_type == QUEUE_TYPE_HW &&
-					job->is_kernel_allocated_cb &&
-					!hdev->mmu_enable));
+	/* Patched CB is created for external queues jobs */
+	return (job->queue_type == QUEUE_TYPE_EXT);
 }
 
 /*
@@ -363,14 +357,13 @@ static void hl_complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 		}
 	}
 
-	/* For H/W queue jobs, if a user CB was allocated by driver and MMU is
-	 * enabled, the user CB isn't released in cs_parser() and thus should be
+	/* For H/W queue jobs, if a user CB was allocated by driver,
+	 * the user CB isn't released in cs_parser() and thus should be
 	 * released here. This is also true for INT queues jobs which were
 	 * allocated by driver.
 	 */
-	if ((job->is_kernel_allocated_cb &&
-		((job->queue_type == QUEUE_TYPE_HW && hdev->mmu_enable) ||
-				job->queue_type == QUEUE_TYPE_INT))) {
+	if (job->is_kernel_allocated_cb &&
+			(job->queue_type == QUEUE_TYPE_HW || job->queue_type == QUEUE_TYPE_INT)) {
 		atomic_dec(&job->user_cb->cs_cnt);
 		hl_cb_put(job->user_cb);
 	}
@@ -1951,8 +1944,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	else
 		cb_size = hdev->asic_funcs->get_signal_cb_size(hdev);
 
-	cb = hl_cb_kernel_create(hdev, cb_size,
-				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
+	cb = hl_cb_kernel_create(hdev, cb_size, q_type == QUEUE_TYPE_HW);
 	if (!cb) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);

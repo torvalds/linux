@@ -62,7 +62,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.device_id = hdev->asic_funcs->get_pci_id(hdev);
 	hw_ip.sram_base_address = prop->sram_user_base_address;
 	hw_ip.dram_base_address =
-			hdev->mmu_enable && prop->dram_supports_virtual_memory ?
+			prop->dram_supports_virtual_memory ?
 			prop->dmmu.start_addr : prop->dram_user_base_address;
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask & 0xFF;
 	hw_ip.tpc_enabled_mask_ext = prop->tpc_enabled_mask;
@@ -71,11 +71,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	dram_available_size = prop->dram_size - dram_kmd_size;
 
-	if (hdev->mmu_enable == MMU_EN_ALL)
-		hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size,
-				prop->dram_page_size) * prop->dram_page_size;
-	else
-		hw_ip.dram_size = dram_available_size;
+	hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size, prop->dram_page_size) *
+				prop->dram_page_size;
 
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;

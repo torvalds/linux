@@ -307,7 +307,6 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
 	hdev->nic_ports_mask = 0;
 	hdev->fw_components = FW_TYPE_ALL_TYPES;
-	hdev->mmu_enable = MMU_EN_ALL;
 	hdev->cpu_queues_enable = 1;
 	hdev->pldm = 0;
 	hdev->hard_reset_on_fw_events = 1;
@@ -382,7 +381,6 @@ static int fixup_device_params(struct hl_device *hdev)
 	/* If CPU queues not enabled, no way to do heartbeat */
 	if (!hdev->cpu_queues_enable)
 		hdev->heartbeat = 0;
-
 	fixup_device_params_per_asic(hdev, tmp_timeout);
 
 	return 0;
