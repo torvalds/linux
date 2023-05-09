@@ -1,0 +1,7 @@
+config FP_PRINTK 
+        bool "fp_printk"
+
+config FP_PRINTK_TEST
+        tristate "Test for lib fp_printk" if !KUNIT_ALL_TESTS
+        depends on FP_PRINTK && KUNIT=y
+        default KUNIT_ALL_TESTS
