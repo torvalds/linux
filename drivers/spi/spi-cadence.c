@@ -438,14 +438,15 @@ static int cdns_transfer_one(struct spi_controller *ctlr,
 	xspi->tx_bytes = transfer->len;
 	xspi->rx_bytes = transfer->len;
 
-	if (!spi_controller_is_slave(ctlr))
+	if (!spi_controller_is_slave(ctlr)) {
 		cdns_spi_setup_transfer(spi, transfer);
-
-	/* Set TX empty threshold to half of FIFO depth
-	 * only if TX bytes are more than half FIFO depth.
-	 */
-	if (xspi->tx_bytes > xspi->tx_fifo_depth)
-		cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
+	} else {
+		/* Set TX empty threshold to half of FIFO depth
+		 * only if TX bytes are more than half FIFO depth.
+		 */
+		if (xspi->tx_bytes > xspi->tx_fifo_depth)
+			cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
+	}
 
 	cdns_spi_fill_tx_fifo(xspi, xspi->tx_fifo_depth);
 	spi_transfer_delay_exec(transfer);
