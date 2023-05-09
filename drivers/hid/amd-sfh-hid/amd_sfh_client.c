@@ -214,7 +214,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	struct device *dev;
 	u32 feature_report_size;
 	u32 input_report_size;
-	int rc, i, status;
+	int rc, i;
 	u8 cl_idx;
 
 	req_list = &cl_data->req_list;
@@ -285,12 +285,15 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		if (rc)
 			goto cleanup;
 		mp2_ops->start(privdata, info);
-		status = amd_sfh_wait_for_response
-				(privdata, cl_data->sensor_idx[i], SENSOR_ENABLED);
-		if (status == SENSOR_ENABLED) {
+		cl_data->sensor_sts[i] = amd_sfh_wait_for_response
+						(privdata, cl_data->sensor_idx[i], SENSOR_ENABLED);
+	}
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		cl_data->cur_hid_dev = i;
+		if (cl_data->sensor_sts[i] == SENSOR_ENABLED) {
 			cl_data->is_any_sensor_enabled = true;
-			cl_data->sensor_sts[i] = SENSOR_ENABLED;
-			rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
+			rc = amdtp_hid_probe(i, cl_data);
 			if (rc)
 				goto cleanup;
 		} else {
@@ -304,6 +307,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
 			cl_data->sensor_sts[i]);
 	}
+
 	if (!cl_data->is_any_sensor_enabled ||
 	   (mp2_ops->discovery_status && mp2_ops->discovery_status(privdata) == 0)) {
 		dev_warn(dev, "Failed to discover, sensors not enabled is %d\n", cl_data->is_any_sensor_enabled);
