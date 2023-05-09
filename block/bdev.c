@@ -418,14 +418,25 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 	bdev->bd_partno = partno;
 	bdev->bd_inode = inode;
 	bdev->bd_queue = disk->queue;
+	if (partno)
+		bdev->bd_has_submit_bio = disk->part0->bd_has_submit_bio;
+	else
+		bdev->bd_has_submit_bio = false;
 	bdev->bd_stats = alloc_percpu(struct disk_stats);
-	bdev->bd_has_submit_bio = false;
 	if (!bdev->bd_stats) {
 		iput(inode);
 		return NULL;
 	}
 	bdev->bd_disk = disk;
 	return bdev;
+}
+
+void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
+{
+	spin_lock(&bdev->bd_size_lock);
+	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	bdev->bd_nr_sectors = sectors;
+	spin_unlock(&bdev->bd_size_lock);
 }
 
 void bdev_add(struct block_device *bdev, dev_t dev)

@@ -217,7 +217,6 @@ static void compr_exit(struct ubifs_compressor *compr)
 {
 	if (compr->capi_name)
 		crypto_free_comp(compr->cc);
-	return;
 }
 
 /**

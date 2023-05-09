@@ -313,7 +313,7 @@ disable_clk:
 	return ret;
 }
 
-static int pwm_sifive_remove(struct platform_device *dev)
+static void pwm_sifive_remove(struct platform_device *dev)
 {
 	struct pwm_sifive_ddata *ddata = platform_get_drvdata(dev);
 	struct pwm_device *pwm;
@@ -329,8 +329,6 @@ static int pwm_sifive_remove(struct platform_device *dev)
 	}
 
 	clk_unprepare(ddata->clk);
-
-	return 0;
 }
 
 static const struct of_device_id pwm_sifive_of_match[] = {
@@ -341,7 +339,7 @@ MODULE_DEVICE_TABLE(of, pwm_sifive_of_match);
 
 static struct platform_driver pwm_sifive_driver = {
 	.probe = pwm_sifive_probe,
-	.remove = pwm_sifive_remove,
+	.remove_new = pwm_sifive_remove,
 	.driver = {
 		.name = "pwm-sifive",
 		.of_match_table = pwm_sifive_of_match,

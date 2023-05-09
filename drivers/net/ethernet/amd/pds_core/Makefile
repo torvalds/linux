@@ -9,6 +9,5 @@ pds_core-y := main.o \
 	      dev.o \
 	      adminq.o \
 	      core.o \
+	      debugfs.o \
 	      fw.o
-
-pds_core-$(CONFIG_DEBUG_FS) += debugfs.o

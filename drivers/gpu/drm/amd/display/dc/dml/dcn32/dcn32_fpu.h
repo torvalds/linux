@@ -80,4 +80,6 @@ void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *co
 
 bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint32_t vactive_margin_req);
 
+void dcn32_set_clock_limits(const struct _vcs_dpi_soc_bounding_box_st *soc_bb);
+
 #endif

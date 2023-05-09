@@ -1575,25 +1575,18 @@ out:
 }
 
 /**
- * __register_sysctl_paths - register a sysctl table hierarchy
- * @set: Sysctl tree to register on
- * @path: The path to the directory the sysctl table is in.
+ * register_sysctl_table - register a sysctl table hierarchy
  * @table: the top-level table structure
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
  * array. A completely 0 filled entry terminates the table.
  * We are slowly deprecating this call so avoid its use.
- *
- * See __register_sysctl_table for more details.
  */
-struct ctl_table_header *__register_sysctl_paths(
-	struct ctl_table_set *set,
-	const struct ctl_path *path, struct ctl_table *table)
+struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
 {
 	struct ctl_table *ctl_table_arg = table;
 	int nr_subheaders = count_subheaders(table);
 	struct ctl_table_header *header = NULL, **subheaders, **subheader;
-	const struct ctl_path *component;
 	char *new_path, *pos;
 
 	pos = new_path = kmalloc(PATH_MAX, GFP_KERNEL);
@@ -1601,11 +1594,6 @@ struct ctl_table_header *__register_sysctl_paths(
 		return NULL;
 
 	pos[0] = '\0';
-	for (component = path; component->procname; component++) {
-		pos = append_path(new_path, pos, component->procname);
-		if (!pos)
-			goto out;
-	}
 	while (table->procname && table->child && !table[1].procname) {
 		pos = append_path(new_path, pos, table->procname);
 		if (!pos)
@@ -1613,7 +1601,7 @@ struct ctl_table_header *__register_sysctl_paths(
 		table = table->child;
 	}
 	if (nr_subheaders == 1) {
-		header = __register_sysctl_table(set, new_path, table);
+		header = __register_sysctl_table(&sysctl_table_root.default_set, new_path, table);
 		if (header)
 			header->ctl_table_arg = ctl_table_arg;
 	} else {
@@ -1627,7 +1615,7 @@ struct ctl_table_header *__register_sysctl_paths(
 		header->ctl_table_arg = ctl_table_arg;
 
 		if (register_leaf_sysctl_tables(new_path, pos, &subheader,
-						set, table))
+						&sysctl_table_root.default_set, table))
 			goto err_register_leaves;
 	}
 
@@ -1645,41 +1633,6 @@ err_register_leaves:
 	kfree(header);
 	header = NULL;
 	goto out;
-}
-
-/**
- * register_sysctl_paths - register a sysctl table hierarchy
- * @path: The path to the directory the sysctl table is in.
- * @table: the top-level table structure
- *
- * Register a sysctl table hierarchy. @table should be a filled in ctl_table
- * array. A completely 0 filled entry terminates the table.
- * We are slowly deprecating this caller so avoid future uses of it.
- *
- * See __register_sysctl_paths for more details.
- */
-struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
-						struct ctl_table *table)
-{
-	return __register_sysctl_paths(&sysctl_table_root.default_set,
-					path, table);
-}
-EXPORT_SYMBOL(register_sysctl_paths);
-
-/**
- * register_sysctl_table - register a sysctl table hierarchy
- * @table: the top-level table structure
- *
- * Register a sysctl table hierarchy. @table should be a filled in ctl_table
- * array. A completely 0 filled entry terminates the table.
- *
- * See register_sysctl_paths for more details.
- */
-struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
-{
-	static const struct ctl_path null_path[] = { {} };
-
-	return register_sysctl_paths(null_path, table);
 }
 EXPORT_SYMBOL(register_sysctl_table);
 
