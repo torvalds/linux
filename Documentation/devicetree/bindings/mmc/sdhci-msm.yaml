@@ -42,6 +42,7 @@ properties:
               - qcom,qcs404-sdhci
               - qcom,sc7180-sdhci
               - qcom,sc7280-sdhci
+              - qcom,sc8280xp-sdhci
               - qcom,sdm630-sdhci
               - qcom,sdm670-sdhci
               - qcom,sdm845-sdhci
