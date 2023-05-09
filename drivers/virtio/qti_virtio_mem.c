@@ -10,11 +10,16 @@
 #include <linux/kref.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/oom.h>
+#include <linux/mm.h>
+#include <linux/mmzone.h>
+#include <linux/vmstat.h>
 #include <uapi/linux/qti_virtio_mem.h>
 #include "qti_virtio_mem.h"
 
 struct qti_virtio_mem_hint {
 	struct list_head list;
+	struct list_head kernel_plugged_list;
 	struct kref kref;
 	struct file *filp;
 	s64 size;
@@ -30,6 +35,9 @@ static struct cdev qvm_char_dev;
 static DEFINE_MUTEX(qvm_lock);
 static LIST_HEAD(qvm_list);
 
+static LIST_HEAD(qvm_kernel_plugged);
+static DEFINE_MUTEX(qvm_kernel_plugged_lock);
+
 /* Sum of all hints */
 static s64 qvm_hint_total;
 
@@ -38,6 +46,9 @@ void qvm_update_plugged_size(uint64_t size)
 	qvm_hint_total = (s64)size;
 }
 static uint64_t device_block_size, max_plugin_threshold;
+static uint16_t kernel_plugged;
+
+#define QVM_OOM_NOTIFY_PRIORITY	90
 
 static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 					s64 new_size, bool sync)
@@ -243,19 +254,103 @@ static ssize_t device_block_plugged_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", device_block_plugged);
 }
 
+static ssize_t kernel_plugged_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", kernel_plugged);
+}
+
+static ssize_t kernel_unplug_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	int val = 0, ret;
+	uint16_t plugged_out;
+	struct qti_virtio_mem_hint *hint;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&qvm_kernel_plugged_lock);
+	val = min_t(uint16_t, val, kernel_plugged);
+
+	for (plugged_out = 0; plugged_out < val && !list_empty(&qvm_kernel_plugged);
+			plugged_out++) {
+		hint = list_first_entry(&qvm_kernel_plugged, struct qti_virtio_mem_hint,
+				kernel_plugged_list);
+		list_del(&hint->kernel_plugged_list);
+		qti_virtio_mem_hint_release(hint);
+		kernel_plugged--;
+	}
+
+	mutex_unlock(&qvm_kernel_plugged_lock);
+	return size;
+}
+
 static DEVICE_ATTR_RO(device_block_size);
 static DEVICE_ATTR_RO(max_plugin_threshold);
 static DEVICE_ATTR_RO(device_block_plugged);
+static DEVICE_ATTR_RO(kernel_plugged);
+static DEVICE_ATTR_WO(kernel_unplug);
 
 static struct attribute *dev_attrs[] = {
 	&dev_attr_device_block_size.attr,
 	&dev_attr_max_plugin_threshold.attr,
 	&dev_attr_device_block_plugged.attr,
+	&dev_attr_kernel_plugged.attr,
+	&dev_attr_kernel_unplug.attr,
 	NULL,
 };
 
 static struct attribute_group dev_group = {
 	.attrs = dev_attrs,
+};
+
+static unsigned long get_zone_free_pages(enum zone_type zone_class)
+{
+	struct zone *z;
+	unsigned long free_pages;
+
+	z = &NODE_DATA(numa_node_id())->node_zones[zone_class];
+	free_pages = zone_page_state(z, NR_FREE_PAGES);
+	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+
+	return free_pages;
+}
+
+static int qvm_oom_notify(struct notifier_block *self,
+		unsigned long dummy, void *parm)
+{
+	unsigned long *freed = parm;
+	struct qti_virtio_mem_hint *hint;
+
+	if (qvm_hint_total >= max_plugin_threshold)
+		return NOTIFY_OK;
+
+	pr_info("comm: %s totalram_pages: %lu Normal free_pages: %lu Movable free_pages: %lu\n",
+			current->comm, totalram_pages(), get_zone_free_pages(ZONE_NORMAL),
+			get_zone_free_pages(ZONE_MOVABLE));
+
+	hint = qti_virtio_mem_hint_create("qvm_oom_notifier", device_block_size);
+	if (IS_ERR(hint)) {
+		pr_err("failed to add memory\n");
+		return NOTIFY_OK;
+	}
+
+	mutex_lock(&qvm_kernel_plugged_lock);
+	list_add(&hint->kernel_plugged_list, &qvm_kernel_plugged);
+	*freed += device_block_size / PAGE_SIZE;
+	kernel_plugged++;
+	mutex_unlock(&qvm_kernel_plugged_lock);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block qvm_oom_nb = {
+		.notifier_call = qvm_oom_notify,
+		.priority = QVM_OOM_NOTIFY_PRIORITY,
 };
 
 static int __init qti_virtio_mem_init(void)
@@ -298,6 +393,11 @@ static int __init qti_virtio_mem_init(void)
 		goto err_dev_create;
 	}
 
+	ret = register_oom_notifier(&qvm_oom_nb);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register to oom notifier\n");
+		goto err_dev_create;
+	}
 
 	return 0;
 err_dev_create:
@@ -315,6 +415,7 @@ static void __exit qti_virtio_mem_exit(void)
 {
 	WARN(!list_empty(&qvm_list), "Unloading module with nonzero hint objects\n");
 
+	unregister_oom_notifier(&qvm_oom_nb);
 	device_destroy(qvm_class, qvm_dev_no);
 	cdev_del(&qvm_char_dev);
 	class_destroy(qvm_class);
