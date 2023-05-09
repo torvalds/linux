@@ -1123,20 +1123,6 @@ enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 	}
 }
 
-static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
-{
-	if (asd->vfpp->val != ATOMISP_VFPP_ENABLE ||
-	    asd->copy_mode)
-		return 1;
-
-	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
-	    (asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE &&
-	     !atomisp_is_mbuscode_raw(asd->fmt[ATOMISP_SUBDEV_PAD_SOURCE].fmt.code)))
-		return 2;
-	else
-		return 1;
-}
-
 /* Input system HW workaround */
 /* Input system address translation corrupts burst during */
 /* invalidate. SW workaround for this is to set burst length */
@@ -1162,7 +1148,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
-	unsigned int sensor_start_stream;
 	unsigned long irqflags;
 	int ret;
 
@@ -1176,18 +1161,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Input system HW workaround */
 	atomisp_dma_burst_len_cfg(asd);
-
-	/*
-	 * The number of streaming video nodes is based on which
-	 * binary is going to be run.
-	 */
-	sensor_start_stream = atomisp_sensor_start_stream(asd);
-
-	if (atomisp_subdev_streaming_count(asd) > sensor_start_stream) {
-		atomisp_qbuffers_to_css(asd);
-		ret = 0;
-		goto out_unlock;
-	}
 
 	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
 		atomisp_qbuffers_to_css(asd);
@@ -1232,12 +1205,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	atomisp_handle_parameter_and_buffer(pipe);
 
 	atomisp_qbuffers_to_css(asd);
-
-	/* Only start sensor when the last streaming instance started */
-	if (atomisp_subdev_streaming_count(asd) < sensor_start_stream) {
-		ret = 0;
-		goto out_unlock;
-	}
 
 start_sensor:
 	if (isp->flash) {
@@ -1340,9 +1307,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	atomisp_subdev_cleanup_pending_events(asd);
 stopsensor:
-	if (atomisp_subdev_streaming_count(asd) != atomisp_sensor_start_stream(asd))
-		goto out_unlock;
-
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			       video, s_stream, 0);
 
