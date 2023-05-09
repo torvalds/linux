@@ -68,9 +68,9 @@ static void jcore_spi_program(struct jcore_spi *hw)
 static void jcore_spi_chipsel(struct spi_device *spi, bool value)
 {
 	struct jcore_spi *hw = spi_master_get_devdata(spi->master);
-	u32 csbit = 1U << (2 * spi->chip_select);
+	u32 csbit = 1U << (2 * spi_get_chipselect(spi, 0));
 
-	dev_dbg(hw->master->dev.parent, "chipselect %d\n", spi->chip_select);
+	dev_dbg(hw->master->dev.parent, "chipselect %d\n", spi_get_chipselect(spi, 0));
 
 	if (value)
 		hw->cs_reg |= csbit;

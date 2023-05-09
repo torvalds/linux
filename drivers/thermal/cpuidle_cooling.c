@@ -7,12 +7,13 @@
  */
 #define pr_fmt(fmt) "cpuidle cooling: " fmt
 
+#include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
 #include <linux/cpuidle.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/idle_inject.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
@@ -236,9 +237,6 @@ out:
  *
  * This function is in charge of creating a cooling device per cpuidle
  * driver and register it to the thermal framework.
- *
- * Return: zero on success, or negative value corresponding to the
- * error detected in the underlying subsystems.
  */
 void cpuidle_cooling_register(struct cpuidle_driver *drv)
 {

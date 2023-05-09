@@ -528,7 +528,7 @@ err_dvb:
 	return ret;
 }
 
-static int vidtv_bridge_remove(struct platform_device *pdev)
+static void vidtv_bridge_remove(struct platform_device *pdev)
 {
 	struct vidtv_dvb *dvb;
 	u32 i;
@@ -552,8 +552,6 @@ static int vidtv_bridge_remove(struct platform_device *pdev)
 	dvb_dmx_release(&dvb->demux);
 	dvb_unregister_adapter(&dvb->adapter);
 	dev_info(&pdev->dev, "Successfully removed vidtv\n");
-
-	return 0;
 }
 
 static void vidtv_bridge_dev_release(struct device *dev)
@@ -574,7 +572,7 @@ static struct platform_driver vidtv_bridge_driver = {
 		.name = VIDTV_PDEV_NAME,
 	},
 	.probe    = vidtv_bridge_probe,
-	.remove   = vidtv_bridge_remove,
+	.remove_new = vidtv_bridge_remove,
 };
 
 static void __exit vidtv_bridge_exit(void)

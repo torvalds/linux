@@ -654,25 +654,25 @@
 			regulator;
 		};
 
-		acc0: clock-controller@f9088000 {
+		acc0: power-manager@f9088000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf9088000 0x1000>,
 			      <0xf9008000 0x1000>;
 		};
 
-		acc1: clock-controller@f9098000 {
+		acc1: power-manager@f9098000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf9098000 0x1000>,
 			      <0xf9008000 0x1000>;
 		};
 
-		acc2: clock-controller@f90a8000 {
+		acc2: power-manager@f90a8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90a8000 0x1000>,
 			      <0xf9008000 0x1000>;
 		};
 
-		acc3: clock-controller@f90b8000 {
+		acc3: power-manager@f90b8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90b8000 0x1000>,
 			      <0xf9008000 0x1000>;

@@ -63,7 +63,8 @@ void test_perf_event_stackmap(void)
 			PERF_SAMPLE_BRANCH_NO_FLAGS |
 			PERF_SAMPLE_BRANCH_NO_CYCLES |
 			PERF_SAMPLE_BRANCH_CALL_STACK,
-		.sample_period = 5000,
+		.freq = 1,
+		.sample_freq = read_perf_max_sample_freq(),
 		.size = sizeof(struct perf_event_attr),
 	};
 	struct perf_event_stackmap *skel;

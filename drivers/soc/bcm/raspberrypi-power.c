@@ -243,4 +243,3 @@ builtin_platform_driver(rpi_power_driver);
 MODULE_AUTHOR("Alexander Aring <aar@pengutronix.de>");
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("Raspberry Pi power domain driver");
-MODULE_LICENSE("GPL v2");

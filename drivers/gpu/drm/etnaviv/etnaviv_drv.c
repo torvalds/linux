@@ -22,7 +22,6 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
-#include "common.xml.h"
 
 /*
  * DRM operations:
@@ -476,47 +475,7 @@ static const struct drm_ioctl_desc etnaviv_ioctls[] = {
 	ETNA_IOCTL(PM_QUERY_SIG, pm_query_sig, DRM_RENDER_ALLOW),
 };
 
-static void etnaviv_fop_show_fdinfo(struct seq_file *m, struct file *f)
-{
-	struct drm_file *file = f->private_data;
-	struct drm_device *dev = file->minor->dev;
-	struct etnaviv_drm_private *priv = dev->dev_private;
-	struct etnaviv_file_private *ctx = file->driver_priv;
-
-	/*
-	 * For a description of the text output format used here, see
-	 * Documentation/gpu/drm-usage-stats.rst.
-	 */
-	seq_printf(m, "drm-driver:\t%s\n", dev->driver->name);
-	seq_printf(m, "drm-client-id:\t%u\n", ctx->id);
-
-	for (int i = 0; i < ETNA_MAX_PIPES; i++) {
-		struct etnaviv_gpu *gpu = priv->gpu[i];
-		char engine[10] = "UNK";
-		int cur = 0;
-
-		if (!gpu)
-			continue;
-
-		if (gpu->identity.features & chipFeatures_PIPE_2D)
-			cur = snprintf(engine, sizeof(engine), "2D");
-		if (gpu->identity.features & chipFeatures_PIPE_3D)
-			cur = snprintf(engine + cur, sizeof(engine) - cur,
-				       "%s3D", cur ? "/" : "");
-		if (gpu->identity.nn_core_count > 0)
-			cur = snprintf(engine + cur, sizeof(engine) - cur,
-				       "%sNN", cur ? "/" : "");
-
-		seq_printf(m, "drm-engine-%s:\t%llu ns\n", engine,
-			   ctx->sched_entity[i].elapsed_ns);
-	}
-}
-
-static const struct file_operations fops = {
-	.owner = THIS_MODULE,
-	DRM_GEM_FOPS,
-	.show_fdinfo = etnaviv_fop_show_fdinfo,
-};
+DEFINE_DRM_GEM_FOPS(fops);
 
 static const struct drm_driver etnaviv_drm_driver = {
 	.driver_features    = DRIVER_GEM | DRIVER_RENDER,

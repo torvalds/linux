@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) "cpuidle-riscv-sbi: " fmt
 
+#include <linux/cpuhotplug.h>
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_pm.h>
@@ -15,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -497,7 +497,7 @@ static int sbi_genpd_probe(struct device_node *np)
 	 * initialize a genpd/genpd-of-provider pair when it's found.
 	 */
 	for_each_child_of_node(np, node) {
-		if (!of_find_property(node, "#power-domain-cells", NULL))
+		if (!of_property_present(node, "#power-domain-cells"))
 			continue;
 
 		ret = sbi_pd_init(node);
@@ -548,8 +548,8 @@ static int sbi_cpuidle_probe(struct platform_device *pdev)
 	for_each_possible_cpu(cpu) {
 		np = of_cpu_device_node_get(cpu);
 		if (np &&
-		    of_find_property(np, "power-domains", NULL) &&
-		    of_find_property(np, "power-domain-names", NULL)) {
+		    of_property_present(np, "power-domains") &&
+		    of_property_present(np, "power-domain-names")) {
 			continue;
 		} else {
 			sbi_cpuidle_use_osi = false;
@@ -613,7 +613,7 @@ static int __init sbi_cpuidle_init(void)
 	 * 2) SBI HSM extension is available
 	 */
 	if ((sbi_spec_version < sbi_mk_version(0, 3)) ||
-	    sbi_probe_extension(SBI_EXT_HSM) <= 0) {
+	    !sbi_probe_extension(SBI_EXT_HSM)) {
 		pr_info("HSM suspend not available\n");
 		return 0;
 	}

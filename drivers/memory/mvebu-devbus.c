@@ -341,6 +341,5 @@ static int __init mvebu_devbus_init(void)
 }
 module_init(mvebu_devbus_init);
 
-MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ezequiel Garcia <ezequiel.garcia@free-electrons.com>");
 MODULE_DESCRIPTION("Marvell EBU SoC Device Bus controller");

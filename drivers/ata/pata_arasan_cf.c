@@ -218,7 +218,7 @@ struct arasan_cf_dev {
 	struct ata_queued_cmd *qc;
 };
 
-static struct scsi_host_template arasan_cf_sht = {
+static const struct scsi_host_template arasan_cf_sht = {
 	ATA_BASE_SHT(DRIVER_NAME),
 	.dma_boundary = 0xFFFFFFFFUL,
 };

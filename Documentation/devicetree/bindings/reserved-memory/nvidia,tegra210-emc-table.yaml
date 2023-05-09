@@ -14,7 +14,7 @@ description: On Tegra210, firmware passes a binary representation of the
   EMC frequency table via a reserved memory region.
 
 allOf:
-  - $ref: "reserved-memory.yaml"
+  - $ref: reserved-memory.yaml
 
 properties:
   compatible:

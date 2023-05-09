@@ -64,10 +64,10 @@ module_param(dbg_level, int, 0644);
 MODULE_PARM_DESC(dbg_level, "debug message level (default:0)");
 
 /* log function switch */
-int dbg_func = 2;
+int dbg_func = 1;
 module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
-		 "log function switch non/trace_printk/printk (default:printk)");
+		 "log function switch non/printk (default:printk)");
 
 int mipicsi_flag;
 module_param(mipicsi_flag, int, 0644);
@@ -753,8 +753,6 @@ static int atomisp_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
-	/* FIXME: only has one isp_subdev at present */
-	struct atomisp_sub_device *asd = &isp->asd[0];
 	unsigned long flags;
 
 	/*
@@ -765,7 +763,7 @@ static int atomisp_suspend(struct device *dev)
 		return -EBUSY;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
+	if (isp->asd.streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		dev_err(isp->dev, "atomisp cannot suspend at this time.\n");
 		return -EINVAL;
@@ -842,8 +840,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	for (i = 0; i < isp->input_cnt; i++) {
 		struct camera_mipi_info *mipi_info;
 
-		if (isp->inputs[i].type != RAW_CAMERA &&
-		    isp->inputs[i].type != SOC_CAMERA)
+		if (isp->inputs[i].type != RAW_CAMERA)
 			continue;
 
 		mipi_info = atomisp_to_sensor_mipi_info(isp->inputs[i].camera);
@@ -923,8 +920,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		int camera_count = 0;
 
 		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-			if (subdevs->type == RAW_CAMERA ||
-			    subdevs->type == SOC_CAMERA)
+			if (subdevs->type == RAW_CAMERA)
 				camera_count++;
 		}
 		if (camera_count)
@@ -945,9 +941,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		case RAW_CAMERA:
 			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
 			raw_index = isp->input_cnt;
-			fallthrough;
-		case SOC_CAMERA:
-			dev_dbg(isp->dev, "SOC_INDEX: %d\n", isp->input_cnt);
 			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
 				dev_warn(isp->dev,
 					 "too many atomisp inputs, ignored\n");
@@ -974,7 +967,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->motor = subdevs->subdev;
 			break;
 		case LED_FLASH:
-		case XENON_FLASH:
 			if (isp->flash) {
 				dev_warn(isp->dev, "too many atomisp flash devices\n");
 				continue;
@@ -1010,8 +1002,7 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 	unsigned int i;
 	struct v4l2_subdev *sd, *next;
 
-	for (i = 0; i < isp->num_of_streams; i++)
-		atomisp_subdev_unregister_entities(&isp->asd[i]);
+	atomisp_subdev_unregister_entities(&isp->asd);
 	atomisp_tpg_unregister_entities(&isp->tpg);
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
@@ -1070,38 +1061,10 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto tpg_register_failed;
 	}
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		ret = atomisp_subdev_register_subdev(asd, &isp->v4l2_dev);
-		if (ret < 0) {
-			dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
-			for (; i > 0; i--)
-				atomisp_subdev_unregister_entities(
-				    &isp->asd[i - 1]);
-			goto subdev_register_failed;
-		}
-	}
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		init_completion(&asd->init_done);
-
-		asd->delayed_init_workq =
-		    alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
-				    1);
-		if (!asd->delayed_init_workq) {
-			dev_err(isp->dev,
-				"Failed to initialize delayed init workq\n");
-			ret = -ENOMEM;
-
-			for (; i > 0; i--)
-				destroy_workqueue(isp->asd[i - 1].
-						  delayed_init_workq);
-			goto wq_alloc_failed;
-		}
-		INIT_WORK(&asd->delayed_init_work, atomisp_delayed_init_work);
+	ret = atomisp_subdev_register_subdev(&isp->asd, &isp->v4l2_dev);
+	if (ret < 0) {
+		dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
+		goto subdev_register_failed;
 	}
 
 	for (i = 0; i < isp->input_cnt; i++) {
@@ -1126,13 +1089,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	return 0;
 
 link_failed:
-	for (i = 0; i < isp->num_of_streams; i++)
-		destroy_workqueue(isp->asd[i].
-				  delayed_init_workq);
-wq_alloc_failed:
-	for (i = 0; i < isp->num_of_streams; i++)
-		atomisp_subdev_unregister_entities(
-		    &isp->asd[i]);
+	atomisp_subdev_unregister_entities(&isp->asd);
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:
@@ -1148,13 +1105,11 @@ v4l2_device_failed:
 
 static int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
-	int i, err;
+	int err;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		err = atomisp_subdev_register_video_nodes(&isp->asd[i], &isp->v4l2_dev);
-		if (err)
-			return err;
-	}
+	err = atomisp_subdev_register_video_nodes(&isp->asd, &isp->v4l2_dev);
+	if (err)
+		return err;
 
 	err = atomisp_create_pads_links(isp);
 	if (err)

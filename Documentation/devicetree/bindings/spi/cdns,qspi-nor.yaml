@@ -19,6 +19,33 @@ allOf:
     then:
       required:
         - power-domains
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: starfive,jh7110-qspi
+    then:
+      properties:
+        resets:
+          minItems: 2
+          maxItems: 3
+
+        reset-names:
+          minItems: 2
+          maxItems: 3
+          items:
+            enum: [ qspi, qspi-ocp, rstc_ref ]
+
+    else:
+      properties:
+        resets:
+          maxItems: 2
+
+        reset-names:
+          minItems: 1
+          maxItems: 2
+          items:
+            enum: [ qspi, qspi-ocp ]
 
 properties:
   compatible:
@@ -30,6 +57,7 @@ properties:
               - intel,lgm-qspi
               - xlnx,versal-ospi-1.0
               - intel,socfpga-qspi
+              - starfive,jh7110-qspi
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
 
@@ -79,13 +107,14 @@ properties:
     maxItems: 1
 
   resets:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
 
   reset-names:
-    minItems: 1
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
     items:
-      enum: [ qspi, qspi-ocp ]
+      enum: [ qspi, qspi-ocp, rstc_ref ]
 
 required:
   - compatible

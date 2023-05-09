@@ -200,6 +200,7 @@ properties:
 patternProperties:
   "^.*@[0-9a-f],[0-9a-f]$":
     type: object
+    additionalProperties: true
     description:
       Child nodes for a standalone audio codec or speaker amplifier IC.
       It has RX and TX Soundwire secondary devices.

@@ -1593,15 +1593,13 @@ static int stm32mp1_rcc_clocks_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int stm32mp1_rcc_clocks_remove(struct platform_device *pdev)
+static void stm32mp1_rcc_clocks_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev_of_node(dev);
 
 	for_each_available_child_of_node(np, child)
 		of_clk_del_provider(child);
-
-	return 0;
 }
 
 static struct platform_driver stm32mp13_rcc_clocks_driver = {
@@ -1610,7 +1608,7 @@ static struct platform_driver stm32mp13_rcc_clocks_driver = {
 		.of_match_table = stm32mp13_match_data,
 	},
 	.probe = stm32mp1_rcc_clocks_probe,
-	.remove = stm32mp1_rcc_clocks_remove,
+	.remove_new = stm32mp1_rcc_clocks_remove,
 };
 
 static int __init stm32mp13_clocks_init(void)

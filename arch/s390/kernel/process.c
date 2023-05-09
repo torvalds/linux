@@ -136,12 +136,12 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.last_break = 1;
 
 	frame->sf.back_chain = 0;
-	frame->sf.gprs[5] = (unsigned long)frame + sizeof(struct stack_frame);
-	frame->sf.gprs[6] = (unsigned long)p;
+	frame->sf.gprs[11 - 6] = (unsigned long)&frame->childregs;
+	frame->sf.gprs[12 - 6] = (unsigned long)p;
 	/* new return point is ret_from_fork */
-	frame->sf.gprs[8] = (unsigned long)ret_from_fork;
+	frame->sf.gprs[14 - 6] = (unsigned long)ret_from_fork;
 	/* fake return stack for resume(), don't go back to schedule */
-	frame->sf.gprs[9] = (unsigned long)frame;
+	frame->sf.gprs[15 - 6] = (unsigned long)frame;
 
 	/* Store access registers to kernel stack of new process. */
 	if (unlikely(args->fn)) {
@@ -149,8 +149,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO |
 					    PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr =
-				(unsigned long)__ret_from_fork;
 		frame->childregs.gprs[9] = (unsigned long)args->fn;
 		frame->childregs.gprs[10] = (unsigned long)args->fn_arg;
 		frame->childregs.orig_gpr2 = -1;

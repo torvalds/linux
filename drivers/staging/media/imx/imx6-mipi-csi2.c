@@ -765,7 +765,7 @@ rmmutex:
 	return ret;
 }
 
-static int csi2_remove(struct platform_device *pdev)
+static void csi2_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi2_dev *csi2 = sd_to_dev(sd);
@@ -777,8 +777,6 @@ static int csi2_remove(struct platform_device *pdev)
 	clk_disable_unprepare(csi2->pllref_clk);
 	mutex_destroy(&csi2->lock);
 	media_entity_cleanup(&sd->entity);
-
-	return 0;
 }
 
 static const struct of_device_id csi2_dt_ids[] = {
@@ -793,7 +791,7 @@ static struct platform_driver csi2_driver = {
 		.of_match_table = csi2_dt_ids,
 	},
 	.probe = csi2_probe,
-	.remove = csi2_remove,
+	.remove_new = csi2_remove,
 };
 
 module_platform_driver(csi2_driver);

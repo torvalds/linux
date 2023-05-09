@@ -805,15 +805,13 @@ err_unregister_usb_phy:
 	return ret;
 }
 
-static int sunxi_musb_remove(struct platform_device *pdev)
+static void sunxi_musb_remove(struct platform_device *pdev)
 {
 	struct sunxi_glue *glue = platform_get_drvdata(pdev);
 	struct platform_device *usb_phy = glue->usb_phy;
 
 	platform_device_unregister(glue->musb_pdev);
 	usb_phy_generic_unregister(usb_phy);
-
-	return 0;
 }
 
 static const struct sunxi_musb_cfg sun4i_a10_musb_cfg = {
@@ -862,7 +860,7 @@ MODULE_DEVICE_TABLE(of, sunxi_musb_match);
 
 static struct platform_driver sunxi_musb_driver = {
 	.probe = sunxi_musb_probe,
-	.remove = sunxi_musb_remove,
+	.remove_new = sunxi_musb_remove,
 	.driver = {
 		.name = "musb-sunxi",
 		.of_match_table = sunxi_musb_match,

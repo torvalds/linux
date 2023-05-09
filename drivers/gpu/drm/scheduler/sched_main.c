@@ -313,7 +313,8 @@ static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_fault(struct drm_gpu_scheduler *sched)
 {
-	mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
+	if (sched->ready)
+		mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
 }
 EXPORT_SYMBOL(drm_sched_fault);
 
@@ -938,12 +939,6 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	}
 
 	spin_unlock(&sched->job_list_lock);
-
-	if (job) {
-		job->entity->elapsed_ns += ktime_to_ns(
-			ktime_sub(job->s_fence->finished.timestamp,
-				  job->s_fence->scheduled.timestamp));
-	}
 
 	return job;
 }

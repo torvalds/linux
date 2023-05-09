@@ -123,6 +123,7 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
 kvmppc_handler_skip_ins:
 
 	/* Patch the IP to the next instruction */
+	/* Note that prefixed instructions are disabled in PR KVM for now */
 	mfsrr0	r12
 	addi	r12, r12, 4
 	mtsrr0	r12

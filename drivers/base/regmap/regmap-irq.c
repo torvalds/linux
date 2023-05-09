@@ -329,8 +329,8 @@ static int regmap_irq_set_type(struct irq_data *data, unsigned int type)
 	}
 
 	if (d->chip->set_type_config) {
-		ret = d->chip->set_type_config(d->config_buf, type,
-					       irq_data, reg);
+		ret = d->chip->set_type_config(d->config_buf, type, irq_data,
+					       reg, d->chip->irq_drv_data);
 		if (ret)
 			return ret;
 	}
@@ -433,7 +433,10 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * possible in order to reduce the I/O overheads.
 	 */
 
-	if (chip->num_main_regs) {
+	if (chip->no_status) {
+		/* no status register so default to all active */
+		memset32(data->status_buf, GENMASK(31, 0), chip->num_regs);
+	} else if (chip->num_main_regs) {
 		unsigned int max_main_bits;
 		unsigned long size;
 
@@ -651,13 +654,15 @@ EXPORT_SYMBOL_GPL(regmap_irq_get_irq_reg_linear);
  * @type: The requested IRQ type.
  * @irq_data: The IRQ being configured.
  * @idx: Index of the irq's config registers within each array `buf[i]`
+ * @irq_drv_data: Driver specific IRQ data
  *
  * This is a &struct regmap_irq_chip->set_type_config callback suitable for
  * chips with one config register. Register values are updated according to
  * the &struct regmap_irq_type data associated with an IRQ.
  */
 int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
-				      const struct regmap_irq *irq_data, int idx)
+				      const struct regmap_irq *irq_data,
+				      int idx, void *irq_drv_data)
 {
 	const struct regmap_irq_type *t = &irq_data->type;
 
@@ -949,12 +954,17 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			continue;
 
 		/* Ack masked but set interrupts */
-		reg = d->get_irq_reg(d, d->chip->status_base, i);
-		ret = regmap_read(map, reg, &d->status_buf[i]);
-		if (ret != 0) {
-			dev_err(map->dev, "Failed to read IRQ status: %d\n",
-				ret);
-			goto err_alloc;
+		if (d->chip->no_status) {
+			/* no status register so default to all active */
+			d->status_buf[i] = GENMASK(31, 0);
+		} else {
+			reg = d->get_irq_reg(d, d->chip->status_base, i);
+			ret = regmap_read(map, reg, &d->status_buf[i]);
+			if (ret != 0) {
+				dev_err(map->dev, "Failed to read IRQ status: %d\n",
+					ret);
+				goto err_alloc;
+			}
 		}
 
 		if (chip->status_invert)

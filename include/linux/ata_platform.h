@@ -19,7 +19,7 @@ extern int __pata_platform_probe(struct device *dev,
 				 struct resource *irq_res,
 				 unsigned int ioport_shift,
 				 int __pio_mask,
-				 struct scsi_host_template *sht,
+				 const struct scsi_host_template *sht,
 				 bool use16bit);
 
 /*

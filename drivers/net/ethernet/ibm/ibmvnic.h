@@ -75,7 +75,7 @@
  * pool for the 4MB. Thus the 16 Rx and Tx queues require 32 * 5 = 160
  * plus 16 for the TSO pools for a total of 176 LTB mappings per VNIC.
  */
-#define IBMVNIC_ONE_LTB_MAX	((u32)((1 << (MAX_ORDER - 1)) * PAGE_SIZE))
+#define IBMVNIC_ONE_LTB_MAX	((u32)((1 << MAX_ORDER) * PAGE_SIZE))
 #define IBMVNIC_ONE_LTB_SIZE	min((u32)(8 << 20), IBMVNIC_ONE_LTB_MAX)
 #define IBMVNIC_LTB_SET_SIZE	(38 << 20)
 

@@ -9,6 +9,7 @@
 #define LINUX_MOD_DEVICETABLE_H
 
 #ifdef __KERNEL__
+#include <linux/mei.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
 typedef unsigned long kernel_ulong_t;
@@ -909,6 +910,21 @@ struct dfl_device_id {
 struct ishtp_device_id {
 	guid_t guid;
 	kernel_ulong_t driver_data;
+};
+
+/**
+ * struct cdx_device_id - CDX device identifier
+ * @vendor: Vendor ID
+ * @device: Device ID
+ * @override_only: Match only when dev->driver_override is this driver.
+ *
+ * Type of entries in the "device Id" table for CDX devices supported by
+ * a CDX device driver.
+ */
+struct cdx_device_id {
+	__u16 vendor;
+	__u16 device;
+	__u32 override_only;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

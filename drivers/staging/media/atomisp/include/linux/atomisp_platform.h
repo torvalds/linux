@@ -111,12 +111,9 @@ enum atomisp_input_format {
 
 enum intel_v4l2_subdev_type {
 	RAW_CAMERA = 1,
-	SOC_CAMERA = 2,
-	CAMERA_MOTOR = 3,
-	LED_FLASH = 4,
-	XENON_FLASH = 5,
-	FILE_INPUT = 6,
-	TEST_PATTERN = 7,
+	CAMERA_MOTOR = 2,
+	LED_FLASH = 3,
+	TEST_PATTERN = 4,
 };
 
 struct intel_v4l2_subdev_id {
@@ -215,6 +212,8 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_input_format format,
 				    enum atomisp_bayer_order bayer_order);
 void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
+
+int v4l2_get_acpi_sensor_info(struct device *dev, char **module_id_str);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \

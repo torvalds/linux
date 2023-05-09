@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2018-2021 Toradex
+ */
+
+#include "imx8x-colibri-iris.dtsi"
+
+/ {
+	reg_3v3_vmmc: regulator-3v3-vmmc {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_3v3_vmmc>;
+		enable-active-high;
+		gpio = <&lsio_gpio0 31 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3v3_vmmc";
+		startup-delay-us = <100>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lvds_converter &pinctrl_gpio_iris>;
+
+	pinctrl_enable_3v3_vmmc: enable_3v3_vmmc {
+		fsl,pins = <IMX8QXP_SAI1_RXFS_LSIO_GPIO0_IO31	0x20>;	/* SODIMM 100 */
+	};
+
+	pinctrl_lvds_converter: lcd-lvds {
+		fsl,pins = <IMX8QXP_FLEXCAN1_TX_LSIO_GPIO1_IO18		0x20>,	/* SODIMM  55 */
+			   /* 6B/8B mode. Select LOW - 8B mode (24bit) */
+			   <IMX8QXP_FLEXCAN1_RX_LSIO_GPIO1_IO17		0x20>,	/* SODIMM  63 */
+			   <IMX8QXP_QSPI0B_SCLK_LSIO_GPIO3_IO17		0x20>,	/* SODIMM  95 */
+			   <IMX8QXP_QSPI0B_DATA0_LSIO_GPIO3_IO18	0x20>;	/* SODIMM  99 */
+	};
+};
+
+/* Colibri SD/MMC Card */
+&usdhc2 {
+	cap-power-off-card;
+	/delete-property/ no-1-8-v;
+	vmmc-supply = <&reg_3v3_vmmc>;
+	status = "okay";
+};

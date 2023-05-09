@@ -649,7 +649,7 @@ disable_clk:
 	return ret;
 }
 
-static int orion_wdt_remove(struct platform_device *pdev)
+static void orion_wdt_remove(struct platform_device *pdev)
 {
 	struct watchdog_device *wdt_dev = platform_get_drvdata(pdev);
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
@@ -657,7 +657,6 @@ static int orion_wdt_remove(struct platform_device *pdev)
 	watchdog_unregister_device(wdt_dev);
 	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
-	return 0;
 }
 
 static void orion_wdt_shutdown(struct platform_device *pdev)
@@ -668,7 +667,7 @@ static void orion_wdt_shutdown(struct platform_device *pdev)
 
 static struct platform_driver orion_wdt_driver = {
 	.probe		= orion_wdt_probe,
-	.remove		= orion_wdt_remove,
+	.remove_new	= orion_wdt_remove,
 	.shutdown	= orion_wdt_shutdown,
 	.driver		= {
 		.name	= "orion_wdt",

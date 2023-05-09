@@ -29,14 +29,14 @@ properties:
     maxItems: 1
 
   fsl,tmu-range:
-    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       The values to be programmed into TTRnCR, as specified by the SoC
       reference manual. The first cell is TTR0CR, the second is TTR1CR, etc.
     maxItems: 4
 
   fsl,tmu-calibration:
-    $ref: '/schemas/types.yaml#/definitions/uint32-matrix'
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     description: |
       A list of cell pairs containing temperature calibration data, as
       specified by the SoC reference manual. The first cell of each pair

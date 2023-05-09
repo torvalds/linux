@@ -2,6 +2,7 @@
 
 config BTRFS_FS
 	tristate "Btrfs filesystem support"
+	select BLK_CGROUP_PUNT_BIO
 	select CRYPTO
 	select CRYPTO_CRC32C
 	select LIBCRC32C

@@ -64,7 +64,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 		int frag_len;
 
 		prod = NEXT_TX(prod);
-		txr->tx_prod = prod;
+		WRITE_ONCE(txr->tx_prod, prod);
 
 		/* first fill up the first buffer */
 		frag_tx_buf = &txr->tx_buf_ring[prod];
@@ -94,7 +94,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 	/* Sync TX BD */
 	wmb();
 	prod = NEXT_TX(prod);
-	txr->tx_prod = prod;
+	WRITE_ONCE(txr->tx_prod, prod);
 
 	return tx_buf;
 }
@@ -161,7 +161,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
-	txr->tx_cons = tx_cons;
+	WRITE_ONCE(txr->tx_cons, tx_cons);
 	if (rx_doorbell_needed) {
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		bnxt_db_write(bp, &rxr->rx_db, tx_buf->rx_prod);

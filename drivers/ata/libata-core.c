@@ -5775,7 +5775,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
+int ata_host_register(struct ata_host *host, const struct scsi_host_template *sht)
 {
 	int i, rc;
 
@@ -5883,7 +5883,7 @@ EXPORT_SYMBOL_GPL(ata_host_register);
  */
 int ata_host_activate(struct ata_host *host, int irq,
 		      irq_handler_t irq_handler, unsigned long irq_flags,
-		      struct scsi_host_template *sht)
+		      const struct scsi_host_template *sht)
 {
 	int i, rc;
 	char *irq_desc;

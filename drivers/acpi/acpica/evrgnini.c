@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -430,7 +430,7 @@ acpi_ev_data_table_region_setup(acpi_handle handle,
 {
 	union acpi_operand_object *region_desc =
 	    (union acpi_operand_object *)handle;
-	struct acpi_data_table_space_context *local_region_context;
+	struct acpi_data_table_mapping *local_region_context;
 
 	ACPI_FUNCTION_TRACE(ev_data_table_region_setup);
 
@@ -445,7 +445,7 @@ acpi_ev_data_table_region_setup(acpi_handle handle,
 	/* Create a new context */
 
 	local_region_context =
-	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_data_table_space_context));
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_data_table_mapping));
 	if (!(local_region_context)) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

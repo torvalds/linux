@@ -35,6 +35,7 @@
 #include <linux/mlx5/mlx5_ifc_vdpa.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
+#include "devlink.h"
 
 /* intf dev list mutex */
 static DEFINE_MUTEX(mlx5_intf_mutex);
@@ -57,9 +58,6 @@ static bool is_eth_rep_supported(struct mlx5_core_dev *dev)
 bool mlx5_eth_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_CORE_EN))
-		return false;
-
-	if (mlx5_core_is_management_pf(dev))
 		return false;
 
 	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
@@ -107,17 +105,6 @@ bool mlx5_eth_supported(struct mlx5_core_dev *dev)
 		mlx5_core_warn(dev, "CQ moderation is not supported\n");
 
 	return true;
-}
-
-static bool is_eth_enabled(struct mlx5_core_dev *dev)
-{
-	union devlink_param_value val;
-	int err;
-
-	err = devl_param_driverinit_value_get(priv_to_devlink(dev),
-					      DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
-					      &val);
-	return err ? false : val.vbool;
 }
 
 bool mlx5_vnet_supported(struct mlx5_core_dev *dev)
@@ -201,9 +188,6 @@ bool mlx5_rdma_supported(struct mlx5_core_dev *dev)
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return false;
 
-	if (mlx5_core_is_management_pf(dev))
-		return false;
-
 	if (dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV)
 		return false;
 
@@ -251,7 +235,7 @@ static const struct mlx5_adev_device {
 					 .is_enabled = &is_ib_enabled },
 	[MLX5_INTERFACE_PROTOCOL_ETH] = { .suffix = "eth",
 					  .is_supported = &mlx5_eth_supported,
-					  .is_enabled = &is_eth_enabled },
+					  .is_enabled = &mlx5_core_is_eth_enabled },
 	[MLX5_INTERFACE_PROTOCOL_ETH_REP] = { .suffix = "eth-rep",
 					   .is_supported = &is_eth_rep_supported },
 	[MLX5_INTERFACE_PROTOCOL_IB_REP] = { .suffix = "rdma-rep",

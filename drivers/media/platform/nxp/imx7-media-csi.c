@@ -1214,6 +1214,9 @@ static int imx7_csi_video_g_selection(struct file *file, void *fh,
 {
 	struct imx7_csi *csi = video_drvdata(file);
 
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	switch (s->target) {
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
@@ -1610,6 +1613,7 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 	format.code = IMX7_CSI_DEF_MBUS_CODE;
 	format.width = IMX7_CSI_DEF_PIX_WIDTH;
 	format.height = IMX7_CSI_DEF_PIX_HEIGHT;
+	format.field = V4L2_FIELD_NONE;
 
 	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &format, NULL);
 	csi->vdev_compose.width = format.width;
@@ -2107,18 +2111,21 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
-	if (ep) {
-		asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
-						      struct v4l2_async_subdev);
+	if (!ep) {
+		ret = dev_err_probe(csi->dev, -ENOTCONN,
+				    "Failed to get remote endpoint\n");
+		goto error;
+	}
 
-		fwnode_handle_put(ep);
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+					      struct v4l2_async_subdev);
 
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
-			/* OK if asd already exists */
-			if (ret != -EEXIST)
-				goto error;
-		}
+	fwnode_handle_put(ep);
+
+	if (IS_ERR(asd)) {
+		ret = dev_err_probe(csi->dev, PTR_ERR(asd),
+				    "Failed to add remote subdev to notifier\n");
+		goto error;
 	}
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
@@ -2278,7 +2285,7 @@ err_media_cleanup:
 	return ret;
 }
 
-static int imx7_csi_remove(struct platform_device *pdev)
+static void imx7_csi_remove(struct platform_device *pdev)
 {
 	struct imx7_csi *csi = platform_get_drvdata(pdev);
 
@@ -2287,8 +2294,6 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
 	v4l2_async_unregister_subdev(&csi->sd);
-
-	return 0;
 }
 
 static const struct of_device_id imx7_csi_of_match[] = {
@@ -2301,7 +2306,7 @@ MODULE_DEVICE_TABLE(of, imx7_csi_of_match);
 
 static struct platform_driver imx7_csi_driver = {
 	.probe = imx7_csi_probe,
-	.remove = imx7_csi_remove,
+	.remove_new = imx7_csi_remove,
 	.driver = {
 		.of_match_table = imx7_csi_of_match,
 		.name = "imx7-csi",

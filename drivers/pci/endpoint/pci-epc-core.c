@@ -860,7 +860,7 @@ EXPORT_SYMBOL_GPL(__devm_pci_epc_create);
 
 static int __init pci_epc_init(void)
 {
-	pci_epc_class = class_create(THIS_MODULE, "pci_epc");
+	pci_epc_class = class_create("pci_epc");
 	if (IS_ERR(pci_epc_class)) {
 		pr_err("failed to create pci epc class --> %ld\n",
 		       PTR_ERR(pci_epc_class));

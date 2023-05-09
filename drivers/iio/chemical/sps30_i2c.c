@@ -68,10 +68,10 @@ static int sps30_i2c_command(struct sps30_state *state, u16 cmd, void *arg, size
 	/*
 	 * Internally sensor stores measurements in a following manner:
 	 *
-	 * PM1: upper two bytes, crc8, lower two bytes, crc8
+	 * PM1:   upper two bytes, crc8, lower two bytes, crc8
 	 * PM2P5: upper two bytes, crc8, lower two bytes, crc8
-	 * PM4: upper two bytes, crc8, lower two bytes, crc8
-	 * PM10: upper two bytes, crc8, lower two bytes, crc8
+	 * PM4:   upper two bytes, crc8, lower two bytes, crc8
+	 * PM10:  upper two bytes, crc8, lower two bytes, crc8
 	 *
 	 * What follows next are number concentration measurements and
 	 * typical particle size measurement which we omit.

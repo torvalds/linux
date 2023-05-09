@@ -1569,7 +1569,7 @@ static void omap_vout_cleanup_device(struct omap_vout_device *vout)
 	kfree(vout);
 }
 
-static int omap_vout_remove(struct platform_device *pdev)
+static void omap_vout_remove(struct platform_device *pdev)
 {
 	int k;
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
@@ -1587,7 +1587,6 @@ static int omap_vout_remove(struct platform_device *pdev)
 		omap_dss_put_device(vid_dev->displays[k]);
 	}
 	kfree(vid_dev);
-	return 0;
 }
 
 static int __init omap_vout_probe(struct platform_device *pdev)
@@ -1721,7 +1720,7 @@ static struct platform_driver omap_vout_driver = {
 	.driver = {
 		.name = VOUT_NAME,
 	},
-	.remove = omap_vout_remove,
+	.remove_new = omap_vout_remove,
 };
 
 static int __init omap_vout_init(void)

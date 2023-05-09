@@ -3880,7 +3880,7 @@ static int cxlflash_class_init(void)
 
 	cxlflash_major = MAJOR(devno);
 
-	cxlflash_class = class_create(THIS_MODULE, "cxlflash");
+	cxlflash_class = class_create("cxlflash");
 	if (IS_ERR(cxlflash_class)) {
 		rc = PTR_ERR(cxlflash_class);
 		pr_err("%s: class_create failed rc=%d\n", __func__, rc);

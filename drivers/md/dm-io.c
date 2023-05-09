@@ -187,7 +187,7 @@ static void list_get_page(struct dpages *dp,
 		  struct page **p, unsigned long *len, unsigned int *offset)
 {
 	unsigned int o = dp->context_u;
-	struct page_list *pl = (struct page_list *) dp->context_ptr;
+	struct page_list *pl = dp->context_ptr;
 
 	*p = pl->page;
 	*len = PAGE_SIZE - o;
@@ -196,7 +196,7 @@ static void list_get_page(struct dpages *dp,
 
 static void list_next_page(struct dpages *dp)
 {
-	struct page_list *pl = (struct page_list *) dp->context_ptr;
+	struct page_list *pl = dp->context_ptr;
 
 	dp->context_ptr = pl->next;
 	dp->context_u = 0;

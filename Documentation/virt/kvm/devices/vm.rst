@@ -321,3 +321,82 @@ Allows userspace to query the status of migration mode.
 	     if it is enabled
 :Returns:   -EFAULT if the given address is not accessible from kernel space;
 	    0 in case of success.
+
+6. GROUP: KVM_ARM_VM_SMCCC_CTRL
+===============================
+
+:Architectures: arm64
+
+6.1. ATTRIBUTE: KVM_ARM_VM_SMCCC_FILTER (w/o)
+---------------------------------------------
+
+:Parameters: Pointer to a ``struct kvm_smccc_filter``
+
+:Returns:
+
+        ======  ===========================================
+        EEXIST  Range intersects with a previously inserted
+                or reserved range
+        EBUSY   A vCPU in the VM has already run
+        EINVAL  Invalid filter configuration
+        ENOMEM  Failed to allocate memory for the in-kernel
+                representation of the SMCCC filter
+        ======  ===========================================
+
+Requests the installation of an SMCCC call filter described as follows::
+
+    enum kvm_smccc_filter_action {
+            KVM_SMCCC_FILTER_HANDLE = 0,
+            KVM_SMCCC_FILTER_DENY,
+            KVM_SMCCC_FILTER_FWD_TO_USER,
+    };
+
+    struct kvm_smccc_filter {
+            __u32 base;
+            __u32 nr_functions;
+            __u8 action;
+            __u8 pad[15];
+    };
+
+The filter is defined as a set of non-overlapping ranges. Each
+range defines an action to be applied to SMCCC calls within the range.
+Userspace can insert multiple ranges into the filter by using
+successive calls to this attribute.
+
+The default configuration of KVM is such that all implemented SMCCC
+calls are allowed. Thus, the SMCCC filter can be defined sparsely
+by userspace, only describing ranges that modify the default behavior.
+
+The range expressed by ``struct kvm_smccc_filter`` is
+[``base``, ``base + nr_functions``). The range is not allowed to wrap,
+i.e. userspace cannot rely on ``base + nr_functions`` overflowing.
+
+The SMCCC filter applies to both SMC and HVC calls initiated by the
+guest. The SMCCC filter gates the in-kernel emulation of SMCCC calls
+and as such takes effect before other interfaces that interact with
+SMCCC calls (e.g. hypercall bitmap registers).
+
+Actions:
+
+ - ``KVM_SMCCC_FILTER_HANDLE``: Allows the guest SMCCC call to be
+   handled in-kernel. It is strongly recommended that userspace *not*
+   explicitly describe the allowed SMCCC call ranges.
+
+ - ``KVM_SMCCC_FILTER_DENY``: Rejects the guest SMCCC call in-kernel
+   and returns to the guest.
+
+ - ``KVM_SMCCC_FILTER_FWD_TO_USER``: The guest SMCCC call is forwarded
+   to userspace with an exit reason of ``KVM_EXIT_HYPERCALL``.
+
+The ``pad`` field is reserved for future use and must be zero. KVM may
+return ``-EINVAL`` if the field is nonzero.
+
+KVM reserves the 'Arm Architecture Calls' range of function IDs and
+will reject attempts to define a filter for any portion of these ranges:
+
+        =========== ===============
+        Start       End (inclusive)
+        =========== ===============
+        0x8000_0000 0x8000_FFFF
+        0xC000_0000 0xC000_FFFF
+        =========== ===============

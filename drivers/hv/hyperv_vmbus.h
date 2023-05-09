@@ -122,10 +122,6 @@ enum {
 struct hv_per_cpu_context {
 	void *synic_message_page;
 	void *synic_event_page;
-	/*
-	 * buffer to post messages to the host.
-	 */
-	void *post_msg_page;
 
 	/*
 	 * Starting with win8, we can take channel interrupts on any CPU;
@@ -241,8 +237,6 @@ struct vmbus_connection {
 	 * is child->parent notification
 	 */
 	struct hv_monitor_page *monitor_pages[2];
-	void *monitor_pages_original[2];
-	phys_addr_t monitor_pages_pa[2];
 	struct list_head chn_msg_list;
 	spinlock_t channelmsg_lock;
 

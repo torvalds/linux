@@ -346,7 +346,7 @@ static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 	 * as it is handled by a GPIO, but that doesn't matter. What we need
 	 * is to deassert the old chip select and assert some other chip select.
 	 */
-	val |= ORION_SPI_CS(spi->chip_select);
+	val |= ORION_SPI_CS(spi_get_chipselect(spi, 0));
 
 	/*
 	 * Chip select logic is inverted from spi_set_cs(). For lines using a
@@ -470,7 +470,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	unsigned int count;
 	int word_len;
 	struct orion_spi *orion_spi;
-	int cs = spi->chip_select;
+	int cs = spi_get_chipselect(spi, 0);
 	void __iomem *vaddr;
 
 	word_len = spi->bits_per_word;
@@ -728,8 +728,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		master->max_speed_hz = devdata->max_hz;
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spi->base = devm_ioremap_resource(&pdev->dev, r);
+	spi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
 		goto out_rel_axi_clk;
@@ -805,7 +804,7 @@ out:
 }
 
 
-static int orion_spi_remove(struct platform_device *pdev)
+static void orion_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
@@ -816,8 +815,6 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 	spi_unregister_master(master);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -857,7 +854,7 @@ static struct platform_driver orion_spi_driver = {
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.probe		= orion_spi_probe,
-	.remove		= orion_spi_remove,
+	.remove_new	= orion_spi_remove,
 };
 
 module_platform_driver(orion_spi_driver);

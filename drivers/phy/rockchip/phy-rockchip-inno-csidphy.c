@@ -459,13 +459,11 @@ static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_inno_csidphy_remove(struct platform_device *pdev)
+static void rockchip_inno_csidphy_remove(struct platform_device *pdev)
 {
 	struct rockchip_inno_csidphy *priv = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(priv->dev);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_inno_csidphy_driver = {
@@ -474,7 +472,7 @@ static struct platform_driver rockchip_inno_csidphy_driver = {
 		.of_match_table = rockchip_inno_csidphy_match_id,
 	},
 	.probe = rockchip_inno_csidphy_probe,
-	.remove = rockchip_inno_csidphy_remove,
+	.remove_new = rockchip_inno_csidphy_remove,
 };
 
 module_platform_driver(rockchip_inno_csidphy_driver);

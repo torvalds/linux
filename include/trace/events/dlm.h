@@ -47,16 +47,8 @@
 	{ DLM_SBF_ALTMODE,	"ALTMODE" })
 
 #define show_lkb_flags(flags) __print_flags(flags, "|",		\
-	{ DLM_IFL_MSTCPY,	"MSTCPY" },			\
-	{ DLM_IFL_RESEND,	"RESEND" },			\
-	{ DLM_IFL_DEAD,		"DEAD" },			\
-	{ DLM_IFL_OVERLAP_UNLOCK, "OVERLAP_UNLOCK" },		\
-	{ DLM_IFL_OVERLAP_CANCEL, "OVERLAP_CANCEL" },		\
-	{ DLM_IFL_ENDOFLIFE,	"ENDOFLIFE" },			\
-	{ DLM_IFL_DEADLOCK_CANCEL, "DEADLOCK_CANCEL" },		\
-	{ DLM_IFL_STUB_MS,	"STUB_MS" },			\
-	{ DLM_IFL_USER,		"USER" },			\
-	{ DLM_IFL_ORPHAN,	"ORPHAN" })
+	{ BIT(DLM_DFL_USER_BIT), "USER" },			\
+	{ BIT(DLM_DFL_ORPHAN_BIT), "ORPHAN" })
 
 #define show_header_cmd(cmd) __print_symbolic(cmd,		\
 	{ DLM_MSG,		"MSG"},				\

@@ -20,6 +20,12 @@ Arithmetic instructions
 For CPU versions prior to 3, Clang v7.0 and later can enable ``BPF_ALU`` support with
 ``-Xclang -target-feature -Xclang +alu32``.  In CPU version 3, support is automatically included.
 
+Jump instructions
+=================
+
+If ``-O0`` is used, Clang will generate the ``BPF_CALL | BPF_X | BPF_JMP`` (0x8d)
+instruction, which is not supported by the Linux kernel verifier.
+
 Atomic operations
 =================
 

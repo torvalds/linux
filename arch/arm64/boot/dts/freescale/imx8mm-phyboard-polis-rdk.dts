@@ -168,6 +168,12 @@
 		"", "ECSPI1_SS0";
 };
 
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+};
+
 /* PCIe */
 &pcie0 {
 	assigned-clocks = <&clk IMX8MM_CLK_PCIE1_AUX>,
@@ -330,6 +336,13 @@
 	pinctrl_fan: fan0grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8	0x16
+		>;
+	};
+
+	pinctrl_i2c4: i2c4grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_I2C4_SCL_I2C4_SCL		0x400001c2
+			MX8MM_IOMUXC_I2C4_SDA_I2C4_SDA		0x400001c2
 		>;
 	};
 

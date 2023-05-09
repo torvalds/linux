@@ -1,1 +1,1 @@
-intel-speed-select-y +=  isst-config.o isst-core.o isst-display.o isst-daemon.o hfi-events.o
+intel-speed-select-y +=  isst-config.o isst-core.o isst-display.o isst-daemon.o hfi-events.o isst-core-mbox.o isst-core-tpmi.o

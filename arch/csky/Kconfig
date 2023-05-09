@@ -166,11 +166,6 @@ config STACKTRACE_SUPPORT
 config TIME_LOW_RES
 	def_bool y
 
-config CPU_TLB_SIZE
-	int
-	default "128"	if (CPU_CK610 || CPU_CK807 || CPU_CK810)
-	default "1024"	if (CPU_CK860)
-
 config CPU_ASID_BITS
 	int
 	default "8"	if (CPU_CK610 || CPU_CK807 || CPU_CK810)
@@ -331,10 +326,6 @@ config HIGHMEM
 	depends on !CPU_CK610
 	select KMAP_LOCAL
 	default y
-
-config ARCH_FORCE_MAX_ORDER
-	int "Maximum zone order"
-	default "11"
 
 config DRAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"

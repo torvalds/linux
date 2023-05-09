@@ -52,7 +52,7 @@ examples:
   - |
       #include <dt-bindings/gpio/gpio.h>
       #include <dt-bindings/interrupt-controller/irq.h>
-      spi0 {
+      spi {
             #address-cells = <1>;
             #size-cells = <0>;
 

@@ -423,4 +423,3 @@ static struct platform_driver ixp4xx_exp_driver = {
 module_platform_driver(ixp4xx_exp_driver);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Intel IXP4xx external bus driver");
-MODULE_LICENSE("GPL");

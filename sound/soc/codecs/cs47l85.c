@@ -2695,7 +2695,7 @@ error_core:
 	return ret;
 }
 
-static int cs47l85_remove(struct platform_device *pdev)
+static void cs47l85_remove(struct platform_device *pdev)
 {
 	struct cs47l85 *cs47l85 = platform_get_drvdata(pdev);
 	int i;
@@ -2709,8 +2709,6 @@ static int cs47l85_remove(struct platform_device *pdev)
 	madera_free_irq(cs47l85->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l85);
 	madera_free_overheat(&cs47l85->core);
 	madera_core_free(&cs47l85->core);
-
-	return 0;
 }
 
 static struct platform_driver cs47l85_codec_driver = {
@@ -2718,7 +2716,7 @@ static struct platform_driver cs47l85_codec_driver = {
 		.name = "cs47l85-codec",
 	},
 	.probe = &cs47l85_probe,
-	.remove = &cs47l85_remove,
+	.remove_new = cs47l85_remove,
 };
 
 module_platform_driver(cs47l85_codec_driver);

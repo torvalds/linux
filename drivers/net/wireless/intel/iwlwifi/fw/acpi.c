@@ -1006,8 +1006,10 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	union acpi_object *wifi_pkg, *data, *flags;
 	int i, j, ret, tbl_rev, num_sub_bands = 0;
 	int idx = 2;
+	u8 cmd_ver;
 
 	fwrt->ppag_flags = 0;
+	fwrt->ppag_table_valid = false;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
@@ -1054,8 +1056,15 @@ read_table:
 	}
 
 	fwrt->ppag_flags = flags->integer.value & ACPI_PPAG_MASK;
-
-	if (!fwrt->ppag_flags) {
+	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
+					WIDE_ID(PHY_OPS_GROUP,
+						PER_PLATFORM_ANT_GAIN_CMD),
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+	if (!fwrt->ppag_flags && cmd_ver <= 3) {
 		ret = 0;
 		goto out_free;
 	}
@@ -1076,21 +1085,22 @@ read_table:
 			}
 
 			fwrt->ppag_chains[i].subbands[j] = ent->integer.value;
-
+			/* from ver 4 the fw deals with out of range values */
+			if (cmd_ver >= 4)
+				continue;
 			if ((j == 0 &&
 				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_LB ||
 				 fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_LB)) ||
 				(j != 0 &&
 				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_HB ||
 				fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_HB))) {
-					fwrt->ppag_flags = 0;
 					ret = -EINVAL;
 					goto out_free;
 				}
 		}
 	}
 
-
+	fwrt->ppag_table_valid = true;
 	ret = 0;
 
 out_free:
@@ -1115,19 +1125,22 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
                 IWL_DEBUG_RADIO(fwrt,
                                 "PPAG capability not supported by FW, command not sent.\n");
                 return -EINVAL;
-        }
-        if (!fwrt->ppag_flags) {
-                IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
-                return -EINVAL;
-        }
+	}
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
+					WIDE_ID(PHY_OPS_GROUP,
+						PER_PLATFORM_ANT_GAIN_CMD),
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (!fwrt->ppag_table_valid || (cmd_ver <= 3 && !fwrt->ppag_flags)) {
+		IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
+		return -EINVAL;
+	}
 
         /* The 'flags' field is the same in v1 and in v2 so we can just
          * use v1 to access it.
          */
         cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
-        cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
-                                        WIDE_ID(PHY_OPS_GROUP, PER_PLATFORM_ANT_GAIN_CMD),
-                                        IWL_FW_CMD_VER_UNKNOWN);
+
 	if (cmd_ver == 1) {
                 num_sub_bands = IWL_NUM_SUB_BANDS_V1;
                 gain = cmd->v1.gain[0];
@@ -1138,7 +1151,7 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
                                         fwrt->ppag_ver);
                         cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
 		}
-	} else if (cmd_ver == 2 || cmd_ver == 3) {
+	} else if (cmd_ver >= 2 && cmd_ver <= 4) {
                 num_sub_bands = IWL_NUM_SUB_BANDS_V2;
                 gain = cmd->v2.gain[0];
                 *cmd_size = sizeof(cmd->v2);

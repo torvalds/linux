@@ -373,7 +373,7 @@ static struct pci_driver sil24_pci_driver = {
 #endif
 };
 
-static struct scsi_host_template sil24_sht = {
+static const struct scsi_host_template sil24_sht = {
 	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= SIL24_MAX_CMDS,
 	.sg_tablesize		= SIL24_MAX_SGE,

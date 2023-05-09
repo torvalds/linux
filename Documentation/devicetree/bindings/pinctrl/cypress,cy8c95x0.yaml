@@ -109,7 +109,7 @@ required:
 additionalProperties: false
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 examples:
   - |

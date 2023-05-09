@@ -95,7 +95,7 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
-static void check_return_regs_valid(struct pt_regs *regs)
+static notrace void check_return_regs_valid(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	unsigned long trap, srr0, srr1;

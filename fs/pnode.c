@@ -214,7 +214,6 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 
 /* all accesses are serialized by namespace_sem */
 static struct mount *last_dest, *first_source, *last_source, *dest_master;
-static struct mountpoint *mp;
 static struct hlist_head *list;
 
 static inline bool peers(struct mount *m1, struct mount *m2)
@@ -222,7 +221,7 @@ static inline bool peers(struct mount *m1, struct mount *m2)
 	return m1->mnt_group_id == m2->mnt_group_id && m1->mnt_group_id;
 }
 
-static int propagate_one(struct mount *m)
+static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 {
 	struct mount *child;
 	int type;
@@ -230,7 +229,7 @@ static int propagate_one(struct mount *m)
 	if (IS_MNT_NEW(m))
 		return 0;
 	/* skip if mountpoint isn't covered by it */
-	if (!is_subdir(mp->m_dentry, m->mnt.mnt_root))
+	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
 		return 0;
 	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
@@ -262,7 +261,7 @@ static int propagate_one(struct mount *m)
 	if (IS_ERR(child))
 		return PTR_ERR(child);
 	read_seqlock_excl(&mount_lock);
-	mnt_set_mountpoint(m, mp, child);
+	mnt_set_mountpoint(m, dest_mp, child);
 	if (m->mnt_master != dest_master)
 		SET_MNT_MARK(m->mnt_master);
 	read_sequnlock_excl(&mount_lock);
@@ -299,13 +298,12 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	last_dest = dest_mnt;
 	first_source = source_mnt;
 	last_source = source_mnt;
-	mp = dest_mp;
 	list = tree_list;
 	dest_master = dest_mnt->mnt_master;
 
 	/* all peers of dest_mnt, except dest_mnt itself */
 	for (n = next_peer(dest_mnt); n != dest_mnt; n = next_peer(n)) {
-		ret = propagate_one(n);
+		ret = propagate_one(n, dest_mp);
 		if (ret)
 			goto out;
 	}
@@ -316,7 +314,7 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		/* everything in that slave group */
 		n = m;
 		do {
-			ret = propagate_one(n);
+			ret = propagate_one(n, dest_mp);
 			if (ret)
 				goto out;
 			n = next_peer(n);

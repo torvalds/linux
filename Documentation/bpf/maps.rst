@@ -11,9 +11,9 @@ maps are accessed from BPF programs via BPF helpers which are documented in the
 `man-pages`_ for `bpf-helpers(7)`_.
 
 BPF maps are accessed from user space via the ``bpf`` syscall, which provides
-commands to create maps, lookup elements, update elements and delete
-elements. More details of the BPF syscall are available in
-:doc:`/userspace-api/ebpf/syscall` and in the `man-pages`_ for `bpf(2)`_.
+commands to create maps, lookup elements, update elements and delete elements.
+More details of the BPF syscall are available in `ebpf-syscall`_ and in the
+`man-pages`_ for `bpf(2)`_.
 
 Map Types
 =========
@@ -79,3 +79,4 @@ Find and delete element by key in a given map using ``attr->map_fd``,
 .. _man-pages: https://www.kernel.org/doc/man-pages/
 .. _bpf(2): https://man7.org/linux/man-pages/man2/bpf.2.html
 .. _bpf-helpers(7): https://man7.org/linux/man-pages/man7/bpf-helpers.7.html
+.. _ebpf-syscall: https://docs.kernel.org/userspace-api/ebpf/syscall.html

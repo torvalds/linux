@@ -233,6 +233,52 @@ xfs_alloc_update(
 	return xfs_btree_update(cur, &rec);
 }
 
+/* Convert the ondisk btree record to its incore representation. */
+void
+xfs_alloc_btrec_to_irec(
+	const union xfs_btree_rec	*rec,
+	struct xfs_alloc_rec_incore	*irec)
+{
+	irec->ar_startblock = be32_to_cpu(rec->alloc.ar_startblock);
+	irec->ar_blockcount = be32_to_cpu(rec->alloc.ar_blockcount);
+}
+
+/* Simple checks for free space records. */
+xfs_failaddr_t
+xfs_alloc_check_irec(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	struct xfs_perag		*pag = cur->bc_ag.pag;
+
+	if (irec->ar_blockcount == 0)
+		return __this_address;
+
+	/* check for valid extent range, including overflow */
+	if (!xfs_verify_agbext(pag, irec->ar_startblock, irec->ar_blockcount))
+		return __this_address;
+
+	return NULL;
+}
+
+static inline int
+xfs_alloc_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+		"%s Freespace BTree record corruption in AG %d detected at %pS!",
+		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
+		cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+		"start block 0x%x block count 0x%x", irec->ar_startblock,
+		irec->ar_blockcount);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -243,35 +289,23 @@ xfs_alloc_get_rec(
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat)	/* output: success/failure */
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_perag	*pag = cur->bc_ag.pag;
+	struct xfs_alloc_rec_incore irec;
 	union xfs_btree_rec	*rec;
+	xfs_failaddr_t		fa;
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || !(*stat))
 		return error;
 
-	*bno = be32_to_cpu(rec->alloc.ar_startblock);
-	*len = be32_to_cpu(rec->alloc.ar_blockcount);
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	fa = xfs_alloc_check_irec(cur, &irec);
+	if (fa)
+		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 
-	if (*len == 0)
-		goto out_bad_rec;
-
-	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbext(pag, *bno, *len))
-		goto out_bad_rec;
-
+	*bno = irec.ar_startblock;
+	*len = irec.ar_blockcount;
 	return 0;
-
-out_bad_rec:
-	xfs_warn(mp,
-		"%s Freespace BTree record corruption in AG %d detected!",
-		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
-		pag->pag_agno);
-	xfs_warn(mp,
-		"start block 0x%x block count 0x%x", *bno, *len);
-	return -EFSCORRUPTED;
 }
 
 /*
@@ -2405,6 +2439,7 @@ xfs_defer_agfl_block(
 
 	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
 
+	xfs_extent_free_get_group(mp, xefi);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_AGFL_FREE, &xefi->xefi_list);
 }
 
@@ -2421,8 +2456,8 @@ __xfs_free_extent_later(
 	bool				skip_discard)
 {
 	struct xfs_extent_free_item	*xefi;
-#ifdef DEBUG
 	struct xfs_mount		*mp = tp->t_mountp;
+#ifdef DEBUG
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 
@@ -2456,9 +2491,11 @@ __xfs_free_extent_later(
 	} else {
 		xefi->xefi_owner = XFS_RMAP_OWN_NULL;
 	}
-	trace_xfs_bmap_free_defer(tp->t_mountp,
+	trace_xfs_bmap_free_defer(mp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, bno), 0,
 			XFS_FSB_TO_AGBNO(tp->t_mountp, bno), len);
+
+	xfs_extent_free_get_group(mp, xefi);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_FREE, &xefi->xefi_list);
 }
 
@@ -3596,7 +3633,8 @@ xfs_free_extent_fix_freelist(
 int
 __xfs_free_extent(
 	struct xfs_trans		*tp,
-	xfs_fsblock_t			bno,
+	struct xfs_perag		*pag,
+	xfs_agblock_t			agbno,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type		type,
@@ -3604,12 +3642,9 @@ __xfs_free_extent(
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_buf			*agbp;
-	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp, bno);
-	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp, bno);
 	struct xfs_agf			*agf;
 	int				error;
 	unsigned int			busy_flags = 0;
-	struct xfs_perag		*pag;
 
 	ASSERT(len != 0);
 	ASSERT(type != XFS_AG_RESV_AGFL);
@@ -3618,10 +3653,9 @@ __xfs_free_extent(
 			XFS_ERRTAG_FREE_EXTENT))
 		return -EIO;
 
-	pag = xfs_perag_get(mp, agno);
 	error = xfs_free_extent_fix_freelist(tp, pag, &agbp);
 	if (error)
-		goto err;
+		return error;
 	agf = agbp->b_addr;
 
 	if (XFS_IS_CORRUPT(mp, agbno >= mp->m_sb.sb_agblocks)) {
@@ -3635,20 +3669,18 @@ __xfs_free_extent(
 		goto err_release;
 	}
 
-	error = xfs_free_ag_extent(tp, agbp, agno, agbno, len, oinfo, type);
+	error = xfs_free_ag_extent(tp, agbp, pag->pag_agno, agbno, len, oinfo,
+			type);
 	if (error)
 		goto err_release;
 
 	if (skip_discard)
 		busy_flags |= XFS_EXTENT_BUSY_SKIP_DISCARD;
 	xfs_extent_busy_insert(tp, pag, agbno, len, busy_flags);
-	xfs_perag_put(pag);
 	return 0;
 
 err_release:
 	xfs_trans_brelse(tp, agbp);
-err:
-	xfs_perag_put(pag);
 	return error;
 }
 
@@ -3666,9 +3698,13 @@ xfs_alloc_query_range_helper(
 {
 	struct xfs_alloc_query_range_info	*query = priv;
 	struct xfs_alloc_rec_incore		irec;
+	xfs_failaddr_t				fa;
 
-	irec.ar_startblock = be32_to_cpu(rec->alloc.ar_startblock);
-	irec.ar_blockcount = be32_to_cpu(rec->alloc.ar_blockcount);
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	fa = xfs_alloc_check_irec(cur, &irec);
+	if (fa)
+		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
+
 	return query->fn(cur, &irec, query->priv);
 }
 
@@ -3709,13 +3745,16 @@ xfs_alloc_query_all(
 	return xfs_btree_query_all(cur, xfs_alloc_query_range_helper, &query);
 }
 
-/* Is there a record covering a given extent? */
+/*
+ * Scan part of the keyspace of the free space and tell us if the area has no
+ * records, is fully mapped by records, or is partially filled.
+ */
 int
-xfs_alloc_has_record(
+xfs_alloc_has_records(
 	struct xfs_btree_cur	*cur,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
 	union xfs_btree_irec	low;
 	union xfs_btree_irec	high;
@@ -3725,7 +3764,7 @@ xfs_alloc_has_record(
 	memset(&high, 0xFF, sizeof(high));
 	high.a.ar_startblock = bno + len - 1;
 
-	return xfs_btree_has_record(cur, &low, &high, exists);
+	return xfs_btree_has_records(cur, &low, &high, NULL, outcome);
 }
 
 /*
