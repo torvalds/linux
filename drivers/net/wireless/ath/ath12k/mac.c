@@ -771,6 +771,9 @@ static int ath12k_mac_vdev_setup_sync(struct ath12k *ar)
 	if (test_bit(ATH12K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
 		return -ESHUTDOWN;
 
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "vdev setup timeout %d\n",
+		   ATH12K_VDEV_SETUP_TIMEOUT_HZ);
+
 	if (!wait_for_completion_timeout(&ar->vdev_setup_done,
 					 ATH12K_VDEV_SETUP_TIMEOUT_HZ))
 		return -ETIMEDOUT;
