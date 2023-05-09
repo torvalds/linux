@@ -176,16 +176,16 @@ static int __init iommu_subsys_init(void)
 	if (!iommu_default_passthrough() && !iommu_dma_strict)
 		iommu_def_domain_type = IOMMU_DOMAIN_DMA_FQ;
 
-	pr_info("Default domain type: %s %s\n",
+	pr_info("Default domain type: %s%s\n",
 		iommu_domain_type_str(iommu_def_domain_type),
 		(iommu_cmd_line & IOMMU_CMD_LINE_DMA_API) ?
-			"(set via kernel command line)" : "");
+			" (set via kernel command line)" : "");
 
 	if (!iommu_default_passthrough())
-		pr_info("DMA domain TLB invalidation policy: %s mode %s\n",
+		pr_info("DMA domain TLB invalidation policy: %s mode%s\n",
 			iommu_dma_strict ? "strict" : "lazy",
 			(iommu_cmd_line & IOMMU_CMD_LINE_STRICT) ?
-				"(set via kernel command line)" : "");
+				" (set via kernel command line)" : "");
 
 	nb = kcalloc(ARRAY_SIZE(iommu_buses), sizeof(*nb), GFP_KERNEL);
 	if (!nb)
