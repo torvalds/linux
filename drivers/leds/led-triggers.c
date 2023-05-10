@@ -185,6 +185,7 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 		led_cdev->trigger = NULL;
 		led_cdev->trigger_data = NULL;
 		led_cdev->activated = false;
+		led_cdev->flags &= ~LED_INIT_DEFAULT_TRIGGER;
 		led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trig) {
