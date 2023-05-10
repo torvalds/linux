@@ -307,6 +307,7 @@ struct bio {
 
 	struct bio_set		*bi_pool;
 
+	ANDROID_OEM_DATA(1);
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 
