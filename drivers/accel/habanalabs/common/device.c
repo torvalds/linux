@@ -1937,8 +1937,10 @@ int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask)
 		goto device_reset;
 	}
 
-	if (hdev->reset_info.watchdog_active)
+	if (hdev->reset_info.watchdog_active) {
+		hdev->device_release_watchdog_work.flags |= flags;
 		goto out;
+	}
 
 	hdev->device_release_watchdog_work.flags = flags;
 	dev_dbg(hdev->dev, "Device is going to be hard-reset in %u sec unless being released\n",
