@@ -1669,10 +1669,10 @@ static bool allow_pixel_rate_crb(struct dc *dc, struct dc_state *context)
 		/*Don't apply if scaling*/
 		if (res_ctx->pipe_ctx[i].stream->src.width != res_ctx->pipe_ctx[i].stream->dst.width ||
 				res_ctx->pipe_ctx[i].stream->src.height != res_ctx->pipe_ctx[i].stream->dst.height ||
-				(res_ctx->pipe_ctx[i].top_pipe->plane_state && (res_ctx->pipe_ctx[i].top_pipe->plane_state->src_rect.width
-														!= res_ctx->pipe_ctx[i].top_pipe->plane_state->dst_rect.width ||
-					res_ctx->pipe_ctx[i].top_pipe->plane_state->src_rect.height
-														!= res_ctx->pipe_ctx[i].top_pipe->plane_state->dst_rect.height)))
+				(res_ctx->pipe_ctx[i].plane_state && (res_ctx->pipe_ctx[i].plane_state->src_rect.width
+														!= res_ctx->pipe_ctx[i].plane_state->dst_rect.width ||
+					res_ctx->pipe_ctx[i].plane_state->src_rect.height
+														!= res_ctx->pipe_ctx[i].plane_state->dst_rect.height)))
 			return false;
 		/*Don't apply if MPO to avoid transition issues*/
 		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state != res_ctx->pipe_ctx[i].plane_state)
