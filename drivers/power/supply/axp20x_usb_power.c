@@ -41,8 +41,6 @@
 #define AXP20X_ADC_EN1_VBUS_CURR	BIT(2)
 #define AXP20X_ADC_EN1_VBUS_VOLT	BIT(3)
 
-#define AXP20X_VBUS_MON_VBUS_VALID	BIT(3)
-
 #define AXP813_BC_EN		BIT(0)
 
 /*
@@ -58,11 +56,15 @@ struct axp_data {
 	enum axp20x_variants		axp20x_id;
 	const int			*curr_lim_table;
 	struct reg_field		curr_lim_fld;
+	struct reg_field		vbus_valid_bit;
+	struct reg_field		vbus_mon_bit;
 };
 
 struct axp20x_usb_power {
 	struct regmap *regmap;
 	struct regmap_field *curr_lim_fld;
+	struct regmap_field *vbus_valid_bit;
+	struct regmap_field *vbus_mon_bit;
 	struct power_supply *supply;
 	enum axp20x_variants axp20x_id;
 	const struct axp_data *axp_data;
@@ -206,16 +208,15 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 
-		if (power->axp20x_id == AXP202_ID) {
-			ret = regmap_read(power->regmap,
-					  AXP20X_USB_OTG_STATUS, &v);
+		if (power->vbus_valid_bit) {
+			ret = regmap_field_read(power->vbus_valid_bit, &v);
 			if (ret)
 				return ret;
 
-			if (!(v & AXP20X_USB_STATUS_VBUS_VALID))
-				val->intval =
-					POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+			if (v == 0)
+				val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		}
+
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(input & AXP20X_PWR_STATUS_VBUS_PRESENT);
@@ -403,6 +404,8 @@ static const struct axp_data axp202_data = {
 	.axp20x_id	= AXP202_ID,
 	.curr_lim_table = axp20x_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_valid_bit = REG_FIELD(AXP20X_USB_OTG_STATUS, 2, 2),
+	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
 };
 
 static const struct axp_data axp221_data = {
@@ -501,6 +504,26 @@ static int configure_adc_registers(struct axp20x_usb_power *power)
 				  AXP20X_ADC_EN1_VBUS_VOLT);
 }
 
+static int axp20x_regmap_field_alloc_optional(struct device *dev,
+					      struct regmap *regmap,
+					      struct reg_field fdesc,
+					      struct regmap_field **fieldp)
+{
+	struct regmap_field *field;
+
+	if (fdesc.reg == 0) {
+		*fieldp = NULL;
+		return 0;
+	}
+
+	field = devm_regmap_field_alloc(dev, regmap, fdesc);
+	if (IS_ERR(field))
+		return PTR_ERR(field);
+
+	*fieldp = field;
+	return 0;
+}
+
 static int axp20x_usb_power_probe(struct platform_device *pdev)
 {
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
@@ -537,16 +560,26 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	if (IS_ERR(power->curr_lim_fld))
 		return PTR_ERR(power->curr_lim_fld);
 
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_valid_bit,
+						 &power->vbus_valid_bit);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_mon_bit,
+						 &power->vbus_mon_bit);
+	if (ret)
+		return ret;
+
 	ret = devm_delayed_work_autocancel(&pdev->dev, &power->vbus_detect,
 					   axp20x_usb_power_poll_vbus);
 	if (ret)
 		return ret;
 
-	if (power->axp20x_id == AXP202_ID) {
+	if (power->vbus_mon_bit) {
 		/* Enable vbus valid checking */
-		ret = regmap_update_bits(power->regmap, AXP20X_VBUS_MON,
-					 AXP20X_VBUS_MON_VBUS_VALID,
-					 AXP20X_VBUS_MON_VBUS_VALID);
+		ret = regmap_field_write(power->vbus_mon_bit, 1);
 		if (ret)
 			return ret;
 
