@@ -30,23 +30,15 @@
 #include "intel_wm.h"
 #include "skl_watermark.h"
 
-static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
-					struct drm_modeset_acquire_ctx *ctx)
+static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
+					      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct intel_encoder *encoder;
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_bw_state *bw_state =
-		to_intel_bw_state(i915->display.bw.obj.state);
-	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->display.cdclk.obj.state);
-	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *plane;
 	struct drm_atomic_state *state;
 	struct intel_crtc_state *temp_crtc_state;
-	enum pipe pipe = crtc->pipe;
 	int ret;
 
 	if (!crtc_state->hw.active)
@@ -92,6 +84,21 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 		intel_unreference_shared_dpll_crtc(crtc,
 						   crtc_state->shared_dpll,
 						   &crtc_state->shared_dpll->state);
+}
+
+static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
+{
+	struct intel_encoder *encoder;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_bw_state *bw_state =
+		to_intel_bw_state(i915->display.bw.obj.state);
+	struct intel_cdclk_state *cdclk_state =
+		to_intel_cdclk_state(i915->display.cdclk.obj.state);
+	struct intel_dbuf_state *dbuf_state =
+		to_intel_dbuf_state(i915->display.dbuf.obj.state);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	enum pipe pipe = crtc->pipe;
 
 	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 	intel_crtc_free_hw_state(crtc_state);
@@ -113,6 +120,13 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
+}
+
+static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
+					struct drm_modeset_acquire_ctx *ctx)
+{
+	intel_crtc_disable_noatomic_begin(crtc, ctx);
+	intel_crtc_disable_noatomic_complete(crtc);
 }
 
 static void intel_modeset_update_connector_atomic_state(struct drm_i915_private *i915)
