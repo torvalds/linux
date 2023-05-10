@@ -442,7 +442,7 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config X86_FEATURE_NAMES
-	bool "Processor feature human-readable names" if EMBEDDED
+	bool
 	default y
 	help
 	  This option compiles in a table of x86 feature bits and corresponding
