@@ -63,7 +63,6 @@
 #define MLX90614_CONST_OFFSET_REM 500000 /* remainder of offset (273.15*50) */
 #define MLX90614_CONST_SCALE 20 /* Scale in milliKelvin (0.02 * 1000) */
 #define MLX90614_CONST_RAW_EMISSIVITY_MAX 65535 /* max value for emissivity */
-#define MLX90614_CONST_EMISSIVITY_RESOLUTION 15259 /* 1/65535 ~ 0.000015259 */
 #define MLX90614_CONST_FIR 0x7 /* Fixed value for FIR part of low pass filter */
 
 struct mlx90614_data {
@@ -283,7 +282,8 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 			*val2 = 0;
 		} else {
 			*val = 0;
-			*val2 = ret * MLX90614_CONST_EMISSIVITY_RESOLUTION;
+			*val2 = ret * NSEC_PER_SEC /
+				MLX90614_CONST_RAW_EMISSIVITY_MAX;
 		}
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY: /* IIR setting with
@@ -321,7 +321,7 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		if (val < 0 || val2 < 0 || val > 1 || (val == 1 && val2 != 0))
 			return -EINVAL;
 		val = val * MLX90614_CONST_RAW_EMISSIVITY_MAX +
-			val2 / MLX90614_CONST_EMISSIVITY_RESOLUTION;
+		      val2 * MLX90614_CONST_RAW_EMISSIVITY_MAX / NSEC_PER_SEC;
 
 		ret = mlx90614_power_get(data, false);
 		if (ret < 0)
