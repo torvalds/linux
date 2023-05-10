@@ -328,6 +328,23 @@ struct vpe_firmware_header_v1_0 {
 	uint32_t ctl_jt_size; /* control thread size of jt */
 };
 
+/* version_major=1, version_minor=0 */
+struct umsch_mm_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t umsch_mm_ucode_version;
+	uint32_t umsch_mm_ucode_size_bytes;
+	uint32_t umsch_mm_ucode_offset_bytes;
+	uint32_t umsch_mm_ucode_data_version;
+	uint32_t umsch_mm_ucode_data_size_bytes;
+	uint32_t umsch_mm_ucode_data_offset_bytes;
+	uint32_t umsch_mm_irq_start_addr_lo;
+	uint32_t umsch_mm_irq_start_addr_hi;
+	uint32_t umsch_mm_uc_start_addr_lo;
+	uint32_t umsch_mm_uc_start_addr_hi;
+	uint32_t umsch_mm_data_start_addr_lo;
+	uint32_t umsch_mm_data_start_addr_hi;
+};
+
 /* gpu info payload */
 struct gpu_info_firmware_v1_0 {
 	uint32_t gc_num_se;
