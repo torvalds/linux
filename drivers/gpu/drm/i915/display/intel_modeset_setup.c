@@ -701,6 +701,12 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	for_each_intel_encoder(&i915->drm, encoder)
 		intel_sanitize_encoder(encoder);
 
+	/*
+	 * Sanitizing CRTCs needs their connector atomic state to be
+	 * up-to-date, so ensure that already here.
+	 */
+	intel_modeset_update_connector_atomic_state(i915);
+
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
@@ -708,8 +714,6 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 		intel_sanitize_crtc(crtc, ctx);
 		intel_crtc_state_dump(crtc_state, NULL, "setup_hw_state");
 	}
-
-	intel_modeset_update_connector_atomic_state(i915);
 
 	intel_dpll_sanitize_state(i915);
 
