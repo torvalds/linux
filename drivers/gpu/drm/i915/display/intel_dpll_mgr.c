@@ -351,13 +351,35 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 	return NULL;
 }
 
+/**
+ * intel_reference_shared_dpll_crtc - Get a DPLL reference for a CRTC
+ * @crtc: CRTC on which behalf the reference is taken
+ * @pll: DPLL for which the reference is taken
+ * @shared_dpll_state: the DPLL atomic state in which the reference is tracked
+ *
+ * Take a reference for @pll tracking the use of it by @crtc.
+ */
+static void
+intel_reference_shared_dpll_crtc(const struct intel_crtc *crtc,
+				 const struct intel_shared_dpll *pll,
+				 struct intel_shared_dpll_state *shared_dpll_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	drm_WARN_ON(&i915->drm, (shared_dpll_state->pipe_mask & BIT(crtc->pipe)) != 0);
+
+	shared_dpll_state->pipe_mask |= BIT(crtc->pipe);
+
+	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] reserving %s\n",
+		    crtc->base.base.id, crtc->base.name, pll->info->name);
+}
+
 static void
 intel_reference_shared_dpll(struct intel_atomic_state *state,
 			    const struct intel_crtc *crtc,
 			    const struct intel_shared_dpll *pll,
 			    const struct intel_dpll_hw_state *pll_state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll;
 	const enum intel_dpll_id id = pll->info->id;
 
@@ -366,11 +388,29 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
 	if (shared_dpll[id].pipe_mask == 0)
 		shared_dpll[id].hw_state = *pll_state;
 
-	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) != 0);
+	intel_reference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
+}
 
-	shared_dpll[id].pipe_mask |= BIT(crtc->pipe);
+/**
+ * intel_unreference_shared_dpll_crtc - Drop a DPLL reference for a CRTC
+ * @crtc: CRTC on which behalf the reference is dropped
+ * @pll: DPLL for which the reference is dropped
+ * @shared_dpll_state: the DPLL atomic state in which the reference is tracked
+ *
+ * Drop a reference for @pll tracking the end of use of it by @crtc.
+ */
+static void
+intel_unreference_shared_dpll_crtc(const struct intel_crtc *crtc,
+				   const struct intel_shared_dpll *pll,
+				   struct intel_shared_dpll_state *shared_dpll_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] reserving %s\n",
+	drm_WARN_ON(&i915->drm, (shared_dpll_state->pipe_mask & BIT(crtc->pipe)) == 0);
+
+	shared_dpll_state->pipe_mask &= ~BIT(crtc->pipe);
+
+	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] releasing %s\n",
 		    crtc->base.base.id, crtc->base.name, pll->info->name);
 }
 
@@ -378,18 +418,12 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 					  const struct intel_crtc *crtc,
 					  const struct intel_shared_dpll *pll)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll;
 	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) == 0);
-
-	shared_dpll[id].pipe_mask &= ~BIT(crtc->pipe);
-
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] releasing %s\n",
-		    crtc->base.base.id, crtc->base.name, pll->info->name);
+	intel_unreference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
 }
 
 static void intel_put_dpll(struct intel_atomic_state *state,
@@ -4313,7 +4347,7 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 			to_intel_crtc_state(crtc->base.state);
 
 		if (crtc_state->hw.active && crtc_state->shared_dpll == pll)
-			pll->state.pipe_mask |= BIT(crtc->pipe);
+			intel_reference_shared_dpll_crtc(crtc, pll, &pll->state);
 	}
 	pll->active_mask = pll->state.pipe_mask;
 
