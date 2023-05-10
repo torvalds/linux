@@ -689,8 +689,8 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	priv->thermal_meter[1] = ThermalMeterVal;
 
 	if (priv->thermal_meter[0] >= (u8)tmp_reg) {
-		tmp_ofdm_index = tmp_cck_20m_index = 6+(priv->thermal_meter[0] -
-			      (u8)tmp_reg);
+		tmp_ofdm_index = 6 + (priv->thermal_meter[0] - (u8)tmp_reg);
+		tmp_cck_20m_index = tmp_ofdm_index;
 		tmp_cck_40m_index = tmp_cck_20m_index - 6;
 		if (tmp_ofdm_index >= OFDM_TABLE_LEN)
 			tmp_ofdm_index = OFDM_TABLE_LEN - 1;
