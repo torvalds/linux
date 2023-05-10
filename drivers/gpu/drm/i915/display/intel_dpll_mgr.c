@@ -399,7 +399,7 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
  *
  * Drop a reference for @pll tracking the end of use of it by @crtc.
  */
-static void
+void
 intel_unreference_shared_dpll_crtc(const struct intel_crtc *crtc,
 				   const struct intel_shared_dpll *pll,
 				   struct intel_shared_dpll_state *shared_dpll_state)
