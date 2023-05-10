@@ -393,8 +393,8 @@ void led_trigger_event(struct led_trigger *trig,
 EXPORT_SYMBOL_GPL(led_trigger_event);
 
 static void led_trigger_blink_setup(struct led_trigger *trig,
-			     unsigned long *delay_on,
-			     unsigned long *delay_off,
+			     unsigned long delay_on,
+			     unsigned long delay_off,
 			     int oneshot,
 			     int invert)
 {
@@ -406,25 +406,25 @@ static void led_trigger_blink_setup(struct led_trigger *trig,
 	rcu_read_lock();
 	list_for_each_entry_rcu(led_cdev, &trig->led_cdevs, trig_list) {
 		if (oneshot)
-			led_blink_set_oneshot(led_cdev, delay_on, delay_off,
+			led_blink_set_oneshot(led_cdev, &delay_on, &delay_off,
 					      invert);
 		else
-			led_blink_set(led_cdev, delay_on, delay_off);
+			led_blink_set(led_cdev, &delay_on, &delay_off);
 	}
 	rcu_read_unlock();
 }
 
 void led_trigger_blink(struct led_trigger *trig,
-		       unsigned long *delay_on,
-		       unsigned long *delay_off)
+		       unsigned long delay_on,
+		       unsigned long delay_off)
 {
 	led_trigger_blink_setup(trig, delay_on, delay_off, 0, 0);
 }
 EXPORT_SYMBOL_GPL(led_trigger_blink);
 
 void led_trigger_blink_oneshot(struct led_trigger *trig,
-			       unsigned long *delay_on,
-			       unsigned long *delay_off,
+			       unsigned long delay_on,
+			       unsigned long delay_off,
 			       int invert)
 {
 	led_trigger_blink_setup(trig, delay_on, delay_off, 1, invert);
