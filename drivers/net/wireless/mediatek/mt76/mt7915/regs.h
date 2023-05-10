@@ -145,6 +145,9 @@ enum offs_rev {
 #define MT_PLE_BASE			0x820c0000
 #define MT_PLE(ofs)			(MT_PLE_BASE + (ofs))
 
+#define MT_PLE_HOST_RPT0		MT_PLE(0x030)
+#define MT_PLE_HOST_RPT0_TX_LATENCY	BIT(3)
+
 #define MT_FL_Q_EMPTY			MT_PLE(__OFFS(PLE_FL_Q_EMPTY))
 #define MT_FL_Q0_CTRL			MT_PLE(__OFFS(PLE_FL_Q_CTRL))
 #define MT_FL_Q2_CTRL			MT_PLE(__OFFS(PLE_FL_Q_CTRL) + 0x8)
