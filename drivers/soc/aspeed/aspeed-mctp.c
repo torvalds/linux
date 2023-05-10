@@ -2216,8 +2216,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->peci_mctp))
 		dev_err(priv->dev, "Failed to register peci-mctp device\n");
 
-	aspeed_mctp_rx_trigger(&priv->rx);
-
 	return 0;
 
 out_dma:
