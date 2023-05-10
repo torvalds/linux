@@ -31,9 +31,6 @@
 
 #define AXP20X_USB_STATUS_VBUS_VALID	BIT(2)
 
-#define AXP20X_VBUS_PATH_SEL		BIT(7)
-#define AXP20X_VBUS_PATH_SEL_OFFSET	7
-
 #define AXP20X_VBUS_VHOLD_uV(b)		(4000000 + (((b) >> 3) & 7) * 100000)
 #define AXP20X_VBUS_VHOLD_MASK		GENMASK(5, 3)
 #define AXP20X_VBUS_VHOLD_OFFSET	3
@@ -57,6 +54,7 @@ struct axp_data {
 	struct reg_field		vbus_valid_bit;
 	struct reg_field		vbus_mon_bit;
 	struct reg_field		usb_bc_en_bit;
+	struct reg_field		vbus_disable_bit;
 };
 
 struct axp20x_usb_power {
@@ -65,6 +63,7 @@ struct axp20x_usb_power {
 	struct regmap_field *vbus_valid_bit;
 	struct regmap_field *vbus_mon_bit;
 	struct regmap_field *usb_bc_en_bit;
+	struct regmap_field *vbus_disable_bit;
 	struct power_supply *supply;
 	enum axp20x_variants axp20x_id;
 	const struct axp_data *axp_data;
@@ -231,16 +230,6 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static int axp813_usb_power_set_online(struct axp20x_usb_power *power,
-				       int intval)
-{
-	int val = !intval << AXP20X_VBUS_PATH_SEL_OFFSET;
-
-	return regmap_update_bits(power->regmap,
-				  AXP20X_VBUS_IPSOUT_MGMT,
-				  AXP20X_VBUS_PATH_SEL, val);
-}
-
 static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 					    int intval)
 {
@@ -290,9 +279,10 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (power->axp20x_id != AXP813_ID)
+		if (!power->vbus_disable_bit)
 			return -EINVAL;
-		return axp813_usb_power_set_online(power, val->intval);
+
+		return regmap_field_write(power->vbus_disable_bit, !val->intval);
 
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		return axp20x_usb_power_set_voltage_min(power, val->intval);
@@ -320,7 +310,7 @@ static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 	 * the VBUS input offline.
 	 */
 	if (psp == POWER_SUPPLY_PROP_ONLINE)
-		return power->axp20x_id == AXP813_ID;
+		return power->vbus_disable_bit != NULL;
 
 	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
 	       psp == POWER_SUPPLY_PROP_CURRENT_MAX;
@@ -434,6 +424,7 @@ static const struct axp_data axp813_data = {
 	.curr_lim_table = axp813_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.usb_bc_en_bit	= REG_FIELD(AXP288_BC_GLOBAL, 0, 0),
+	.vbus_disable_bit = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 7, 7),
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -576,6 +567,12 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
 						 axp_data->usb_bc_en_bit,
 						 &power->usb_bc_en_bit);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_disable_bit,
+						 &power->vbus_disable_bit);
 	if (ret)
 		return ret;
 
