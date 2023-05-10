@@ -34,6 +34,8 @@ struct pagevec;
 				 SWAP_FLAG_DISCARD_PAGES)
 #define SWAP_BATCH 64
 
+int kswapd (void *p);
+
 static inline int current_is_kswapd(void)
 {
 	return current->flags & PF_KSWAPD;

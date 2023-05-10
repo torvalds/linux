@@ -37,7 +37,7 @@ struct dm_region_hash *dm_region_hash_create(
 						     struct bio_list *bios),
 		void (*wakeup_workers)(void *context),
 		void (*wakeup_all_recovery_waiters)(void *context),
-		sector_t target_begin, unsigned max_recovery,
+		sector_t target_begin, unsigned int max_recovery,
 		struct dm_dirty_log *log, uint32_t region_size,
 		region_t nr_regions);
 void dm_region_hash_destroy(struct dm_region_hash *rh);

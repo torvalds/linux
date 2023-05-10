@@ -7622,7 +7622,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
  * If there are applications that are active memory-allocators
  * (most normal use), this basically shouldn't matter.
  */
-static int kswapd(void *p)
+int kswapd(void *p)
 {
 	unsigned int alloc_order, reclaim_order;
 	unsigned int highest_zoneidx = MAX_NR_ZONES - 1;
@@ -7700,6 +7700,7 @@ kswapd_try_sleep:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(kswapd);
 
 /*
  * A zone is low on free memory or too fragmented for high-order memory.  If
@@ -7798,9 +7799,16 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
 void kswapd_run(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
+	bool skip = false;
 
 	pgdat_kswapd_lock(pgdat);
 	if (!pgdat->kswapd) {
+		trace_android_vh_kswapd_per_node(nid, &skip, true);
+		if (skip) {
+			pgdat_kswapd_unlock(pgdat);
+			return;
+		}
+
 		pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
 		if (IS_ERR(pgdat->kswapd)) {
 			/* failure at boot is fatal */
@@ -7820,9 +7828,16 @@ void kswapd_stop(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
 	struct task_struct *kswapd;
+	bool skip = false;
 
 	pgdat_kswapd_lock(pgdat);
 	kswapd = pgdat->kswapd;
+
+	trace_android_vh_kswapd_per_node(nid, &skip, false);
+	if (skip) {
+		pgdat_kswapd_unlock(pgdat);
+		return;
+	}
 	if (kswapd) {
 		kthread_stop(kswapd);
 		pgdat->kswapd = NULL;

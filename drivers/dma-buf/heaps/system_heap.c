@@ -490,8 +490,20 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	return system_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
 }
 
+static long system_get_pool_size(struct dma_heap *heap)
+{
+	unsigned long num_bytes = 0;
+	struct dmabuf_page_pool **pool = pools;
+
+	for (int i = 0; i < NUM_ORDERS; i++, pool++)
+		num_bytes += dmabuf_page_pool_get_size(*pool);
+
+	return num_bytes;
+}
+
 static const struct dma_heap_ops system_heap_ops = {
 	.allocate = system_heap_allocate,
+	.get_pool_size = system_get_pool_size,
 };
 
 static struct dma_buf *system_uncached_heap_allocate(struct dma_heap *heap,

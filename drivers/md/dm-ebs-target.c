@@ -390,7 +390,7 @@ static int ebs_map(struct dm_target *ti, struct bio *bio)
 }
 
 static void ebs_status(struct dm_target *ti, status_type_t type,
-		       unsigned status_flags, char *result, unsigned maxlen)
+		       unsigned int status_flags, char *result, unsigned int maxlen)
 {
 	struct ebs_c *ec = ti->private;
 

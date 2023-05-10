@@ -26,7 +26,7 @@
 struct path_info {
 	struct list_head list;
 	struct dm_path *path;
-	unsigned repeat_count;
+	unsigned int repeat_count;
 };
 
 static void free_paths(struct list_head *paths)
@@ -62,7 +62,7 @@ static struct selector *alloc_selector(void)
 	return s;
 }
 
-static int rr_create(struct path_selector *ps, unsigned argc, char **argv)
+static int rr_create(struct path_selector *ps, unsigned int argc, char **argv)
 {
 	struct selector *s;
 
@@ -119,7 +119,7 @@ static int rr_add_path(struct path_selector *ps, struct dm_path *path,
 {
 	struct selector *s = ps->context;
 	struct path_info *pi;
-	unsigned repeat_count = RR_MIN_IO;
+	unsigned int repeat_count = RR_MIN_IO;
 	char dummy;
 	unsigned long flags;
 

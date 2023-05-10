@@ -108,7 +108,7 @@ free_pi:
 	return ret;
 }
 
-static int ioa_create(struct path_selector *ps, unsigned argc, char **argv)
+static int ioa_create(struct path_selector *ps, unsigned int argc, char **argv)
 {
 	struct selector *s;
 
@@ -138,7 +138,7 @@ free_selector:
 static void ioa_destroy(struct path_selector *ps)
 {
 	struct selector *s = ps->context;
-	unsigned cpu;
+	unsigned int cpu;
 
 	for_each_cpu(cpu, s->path_mask)
 		ioa_free_path(s, cpu);

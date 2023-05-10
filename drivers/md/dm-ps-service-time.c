@@ -30,8 +30,8 @@ struct selector {
 struct path_info {
 	struct list_head list;
 	struct dm_path *path;
-	unsigned repeat_count;
-	unsigned relative_throughput;
+	unsigned int repeat_count;
+	unsigned int relative_throughput;
 	atomic_t in_flight_size;	/* Total size of in-flight I/Os */
 };
 
@@ -48,7 +48,7 @@ static struct selector *alloc_selector(void)
 	return s;
 }
 
-static int st_create(struct path_selector *ps, unsigned argc, char **argv)
+static int st_create(struct path_selector *ps, unsigned int argc, char **argv)
 {
 	struct selector *s = alloc_selector();
 
@@ -80,9 +80,9 @@ static void st_destroy(struct path_selector *ps)
 }
 
 static int st_status(struct path_selector *ps, struct dm_path *path,
-		     status_type_t type, char *result, unsigned maxlen)
+		     status_type_t type, char *result, unsigned int maxlen)
 {
-	unsigned sz = 0;
+	unsigned int sz = 0;
 	struct path_info *pi;
 
 	if (!path)
@@ -113,8 +113,8 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 {
 	struct selector *s = ps->context;
 	struct path_info *pi;
-	unsigned repeat_count = ST_MIN_IO;
-	unsigned relative_throughput = 1;
+	unsigned int repeat_count = ST_MIN_IO;
+	unsigned int relative_throughput = 1;
 	char dummy;
 	unsigned long flags;
 

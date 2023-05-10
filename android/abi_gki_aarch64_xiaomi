@@ -110,10 +110,6 @@
   __traceiter_android_vh_free_task
   __tracepoint_android_vh_free_task
   jiffies_64
-  __traceiter_android_rvh_after_enqueue_task
-  __traceiter_android_rvh_after_dequeue_task
-  __tracepoint_android_rvh_after_enqueue_task
-  __tracepoint_android_rvh_after_dequeue_task
   __traceiter_android_rvh_check_preempt_tick
   __traceiter_android_rvh_dequeue_entity
   __traceiter_android_rvh_enqueue_entity
@@ -129,3 +125,11 @@
   wakeup_sources_read_unlock
   wakeup_sources_walk_start
   wakeup_sources_walk_next
+
+#required by migt.ko
+  __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_after_dequeue_task
+  __traceiter_android_vh_map_util_freq
+  __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_after_dequeue_task
+  __tracepoint_android_vh_map_util_freq

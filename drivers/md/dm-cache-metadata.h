@@ -60,7 +60,7 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 						 sector_t data_block_size,
 						 bool may_format_device,
 						 size_t policy_hint_size,
-						 unsigned metadata_version);
+						 unsigned int metadata_version);
 
 void dm_cache_metadata_close(struct dm_cache_metadata *cmd);
 
@@ -96,7 +96,7 @@ int dm_cache_load_mappings(struct dm_cache_metadata *cmd,
 			   void *context);
 
 int dm_cache_set_dirty_bits(struct dm_cache_metadata *cmd,
-			    unsigned nr_bits, unsigned long *bits);
+			    unsigned int nr_bits, unsigned long *bits);
 
 struct dm_cache_statistics {
 	uint32_t read_hits;

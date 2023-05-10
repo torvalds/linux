@@ -9,7 +9,11 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 # needed for DT overlay support
 DTC_FLAGS="-@"
 
-MAKE_GOALS="${MAKE_GOALS}
+MAKE_GOALS="
+Image
+modules
+Image.lz4
+Image.gz
 dtbs
 "
 
