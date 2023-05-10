@@ -782,7 +782,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 
 	do {
 		/* transfer size is greater than 32, change to IRQ mode */
-		if (xfer->len > S3C64XX_SPI_POLLING_SIZE)
+		if (!use_dma && xfer->len > S3C64XX_SPI_POLLING_SIZE)
 			use_irq = true;
 
 		if (use_irq) {
