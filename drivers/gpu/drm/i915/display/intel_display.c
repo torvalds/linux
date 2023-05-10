@@ -225,7 +225,7 @@ is_trans_port_sync_slave(const struct intel_crtc_state *crtc_state)
 	return crtc_state->master_transcoder != INVALID_TRANSCODER;
 }
 
-static bool
+bool
 is_trans_port_sync_master(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->sync_mode_slaves_mask != 0;
