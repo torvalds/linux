@@ -63,6 +63,7 @@
 #include "intel_hti.h"
 #include "intel_lspcon.h"
 #include "intel_mg_phy_regs.h"
+#include "intel_modeset_lock.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
@@ -4401,26 +4402,14 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 
 	state = intel_encoder_hotplug(encoder, connector);
 
-	drm_modeset_acquire_init(&ctx, 0);
-
-	for (;;) {
+	intel_modeset_lock_ctx_retry(&ctx, NULL, 0, ret) {
 		if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA)
 			ret = intel_hdmi_reset_link(encoder, &ctx);
 		else
 			ret = intel_dp_retrain_link(encoder, &ctx);
-
-		if (ret == -EDEADLK) {
-			drm_modeset_backoff(&ctx);
-			continue;
-		}
-
-		break;
 	}
 
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-	drm_WARN(encoder->base.dev, ret,
-		 "Acquiring modeset locks failed with %i\n", ret);
+	drm_WARN_ON(encoder->base.dev, ret);
 
 	/*
 	 * Unpowered type-c dongles can take some time to boot and be
