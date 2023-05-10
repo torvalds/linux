@@ -17,6 +17,9 @@ DECLARE_HOOK(android_vh_alter_futex_plist_add,
 		 struct plist_head *head,
 		 bool *already_on_hb),
 	TP_ARGS(node, head, already_on_hb));
+DECLARE_HOOK(android_vh_futex_sleep_start,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
 DECLARE_HOOK(android_vh_do_futex,
 	TP_PROTO(int cmd,
 		 unsigned int *flags,
