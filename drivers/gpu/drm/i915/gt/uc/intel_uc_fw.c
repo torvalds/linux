@@ -18,7 +18,7 @@
 #include "i915_reg.h"
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-#define UNEXPECTED	gt_err
+#define UNEXPECTED	gt_probe_error
 #else
 #define UNEXPECTED	gt_notice
 #endif
