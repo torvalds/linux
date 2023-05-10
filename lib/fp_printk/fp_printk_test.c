@@ -65,11 +65,14 @@ static struct kunit_case fp_printk_test_case[] = {
     KUNIT_CASE(should_return_2_without_errors_and_float_point),
     KUNIT_CASE(should_return_234_without_errors),
     KUNIT_CASE(should_return_2345_without_errors),
-    {}
+    {/* sentinel */}
 };
 
 static struct kunit_suit fp_printk_test_suite = {
-    .name = "fp_print",
+    .name = "fp_printk_test",
     .test_cases = fp_printk_test_case
 };
 kunit_test_suite(fp_printk_test_suite);
+
+MODULE_AUTHOR("Guilherme Giacomo Simoes <trintaeoitogc@gmail.com>");
+MODULE_LICENSE("GPL");
