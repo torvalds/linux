@@ -153,6 +153,24 @@
 				nxp,no-divider;
 			};
 
+			wdog1: watchdog@442d0000 {
+				compatible = "fsl,imx93-wdt";
+				reg = <0x442d0000 0x10000>;
+				interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_WDOG1_GATE>;
+				timeout-sec = <40>;
+				status = "disabled";
+			};
+
+			wdog2: watchdog@442e0000 {
+				compatible = "fsl,imx93-wdt";
+				reg = <0x442e0000 0x10000>;
+				interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_WDOG2_GATE>;
+				timeout-sec = <40>;
+				status = "disabled";
+			};
+
 			tpm1: pwm@44310000 {
 				compatible = "fsl,imx7ulp-pwm";
 				reg = <0x44310000 0x1000>;
@@ -341,6 +359,33 @@
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_MU2_B_GATE>;
 				#mbox-cells = <2>;
+				status = "disabled";
+			};
+
+			wdog3: watchdog@42490000 {
+				compatible = "fsl,imx93-wdt";
+				reg = <0x42490000 0x10000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_WDOG3_GATE>;
+				timeout-sec = <40>;
+				status = "disabled";
+			};
+
+			wdog4: watchdog@424a0000 {
+				compatible = "fsl,imx93-wdt";
+				reg = <0x424a0000 0x10000>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_WDOG4_GATE>;
+				timeout-sec = <40>;
+				status = "disabled";
+			};
+
+			wdog5: watchdog@424b0000 {
+				compatible = "fsl,imx93-wdt";
+				reg = <0x424b0000 0x10000>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_WDOG5_GATE>;
+				timeout-sec = <40>;
 				status = "disabled";
 			};
 
