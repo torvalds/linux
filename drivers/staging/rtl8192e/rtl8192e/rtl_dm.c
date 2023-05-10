@@ -658,7 +658,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 #define ThermalMeterVal	9
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 tmp_reg, tmp_cck;
-	u8 tmp_ofdm_index, tmp_cck_index, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
+	u8 tmp_ofdm_index, tmp_cck_index, tmp_cck_20m_index, tmp_cck_40m_index, tmpval;
 	int i = 0, CCKSwingNeedUpdate = 0;
 
 	if (!priv->tx_pwr_tracking_init) {
@@ -689,33 +689,33 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	priv->thermal_meter[1] = ThermalMeterVal;
 
 	if (priv->thermal_meter[0] >= (u8)tmp_reg) {
-		tmp_ofdm_index = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
+		tmp_ofdm_index = tmp_cck_20m_index = 6+(priv->thermal_meter[0] -
 			      (u8)tmp_reg);
-		tmpCCK40Mindex = tmpCCK20Mindex - 6;
+		tmp_cck_40m_index = tmp_cck_20m_index - 6;
 		if (tmp_ofdm_index >= OFDM_TABLE_LEN)
 			tmp_ofdm_index = OFDM_TABLE_LEN - 1;
-		if (tmpCCK20Mindex >= CCK_TABLE_LEN)
-			tmpCCK20Mindex = CCK_TABLE_LEN - 1;
-		if (tmpCCK40Mindex >= CCK_TABLE_LEN)
-			tmpCCK40Mindex = CCK_TABLE_LEN - 1;
+		if (tmp_cck_20m_index >= CCK_TABLE_LEN)
+			tmp_cck_20m_index = CCK_TABLE_LEN - 1;
+		if (tmp_cck_40m_index >= CCK_TABLE_LEN)
+			tmp_cck_40m_index = CCK_TABLE_LEN - 1;
 	} else {
 		tmpval = (u8)tmp_reg - priv->thermal_meter[0];
 		if (tmpval >= 6) {
 			tmp_ofdm_index = 0;
-			tmpCCK20Mindex = 0;
+			tmp_cck_20m_index = 0;
 		} else {
 			tmp_ofdm_index = 6 - tmpval;
-			tmpCCK20Mindex = 6 - tmpval;
+			tmp_cck_20m_index = 6 - tmpval;
 		}
-		tmpCCK40Mindex = 0;
+		tmp_cck_40m_index = 0;
 	}
 	if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-		tmp_cck_index = tmpCCK40Mindex;
+		tmp_cck_index = tmp_cck_40m_index;
 	else
-		tmp_cck_index = tmpCCK20Mindex;
+		tmp_cck_index = tmp_cck_20m_index;
 
-	priv->rec_cck_20m_idx = tmpCCK20Mindex;
-	priv->rec_cck_40m_idx = tmpCCK40Mindex;
+	priv->rec_cck_20m_idx = tmp_cck_20m_index;
+	priv->rec_cck_40m_idx = tmp_cck_40m_index;
 
 	if (priv->rtllib->current_network.channel == 14 &&
 	    !priv->bcck_in_ch14) {
