@@ -665,19 +665,12 @@ err_mem:
 	return ret;
 }
 
-static int qcom_ethqos_remove(struct platform_device *pdev)
+static void qcom_ethqos_remove(struct platform_device *pdev)
 {
-	struct qcom_ethqos *ethqos;
-	int ret;
+	struct qcom_ethqos *ethqos = get_stmmac_bsp_priv(&pdev->dev);
 
-	ethqos = get_stmmac_bsp_priv(&pdev->dev);
-	if (!ethqos)
-		return -ENODEV;
-
-	ret = stmmac_pltfr_remove(pdev);
+	stmmac_pltfr_remove(pdev);
 	ethqos_clks_config(ethqos, false);
-
-	return ret;
 }
 
 static const struct of_device_id qcom_ethqos_match[] = {
@@ -690,7 +683,7 @@ MODULE_DEVICE_TABLE(of, qcom_ethqos_match);
 
 static struct platform_driver qcom_ethqos_driver = {
 	.probe  = qcom_ethqos_probe,
-	.remove = qcom_ethqos_remove,
+	.remove_new = qcom_ethqos_remove,
 	.driver = {
 		.name           = "qcom-ethqos",
 		.pm		= &stmmac_pltfr_pm_ops,
