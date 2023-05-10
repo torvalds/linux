@@ -86,13 +86,13 @@
 };
 
 &pcie0_kcs0 {
-	aspeed,lpc-io-reg = <0x3a0>;
+	aspeed,lpc-io-reg = <0x3a0>, <0x3a1>;
 
 	status = "okay";
 };
 
 &pcie0_kcs1 {
-	aspeed,lpc-io-reg = <0x3a8>;
+	aspeed,lpc-io-reg = <0x3a8>, <0x3a9>;
 
 	status = "okay";
 };
@@ -104,7 +104,7 @@
 };
 
 &pcie0_kcs3 {
-	aspeed,lpc-io-reg = <0x3a4>;
+	aspeed,lpc-io-reg = <0x3a4>, <0x3a5>;
 
 	status = "okay";
 };
