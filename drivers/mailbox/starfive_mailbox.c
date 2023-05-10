@@ -1,21 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-/*********************************Copyright (c)*********************************************
- **
- **-------------------------------file info-------------------------------------------------
- ** Vrsions:      V1.0
- ** Filename:     starfive_mailbox.c
- ** Creator:      shanlong.li
- ** Date:         2021/06/07
- ** Description:  starfive mailbox for e24
- **
- **-------------------------------history----------------------------------------------
- ** Name:         shanlong.li
- ** Versions:     V1.0
- ** Date:         2021/06/07
- ** Description:
- **
- ** ----------------------------------------------------------------------------------------
- ******************************************************************************************/
+/*
+ * mailbox driver for StarFive JH7110 SoC
+ *
+ * Copyright (c) 2021 StarFive Technology Co., Ltd.
+ * Author: Shanlong Li <shanlong.li@starfivetech.com>
+ */
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -353,6 +342,6 @@ static void __exit starfive_mbox_exit(void)
 }
 module_exit(starfive_mbox_exit);
 
+MODULE_DESCRIPTION("StarFive Mailbox Controller driver");
+MODULE_AUTHOR("Shanlong Li <shanlong.li@starfivetech.com>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("StarFive Mailbox Controller");
-MODULE_AUTHOR("StarFive Technology Co. Ltd.");

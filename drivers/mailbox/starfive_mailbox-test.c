@@ -307,7 +307,6 @@ mbox_test_request_channel(struct platform_device *pdev, const char *name)
 	client->dev        = &pdev->dev;
 	client->rx_callback    = mbox_test_receive_message;
 	client->tx_prepare    = mbox_test_prepare_message;
-	client->tx_done        = mbox_test_message_sent;
 	client->tx_block    = false;
 	client->knows_txdone    = false;
 	client->tx_tout        = 500;
@@ -414,6 +413,6 @@ static struct platform_driver mbox_test_driver = {
 };
 module_platform_driver(mbox_test_driver);
 
-MODULE_DESCRIPTION("mailbox test driver");
-MODULE_AUTHOR("StarFive Technology Co. Ltd.");
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Generic Mailbox Testing Facility");
+MODULE_AUTHOR("Lee Jones <lee.jones@linaro.org");
+MODULE_LICENSE("GPL v2");
