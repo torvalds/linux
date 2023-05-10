@@ -41,8 +41,6 @@
 #define AXP20X_ADC_EN1_VBUS_CURR	BIT(2)
 #define AXP20X_ADC_EN1_VBUS_VOLT	BIT(3)
 
-#define AXP813_BC_EN		BIT(0)
-
 /*
  * Note do not raise the debounce time, we must report Vusb high within
  * 100ms otherwise we get Vbus errors in musb.
@@ -58,6 +56,7 @@ struct axp_data {
 	struct reg_field		curr_lim_fld;
 	struct reg_field		vbus_valid_bit;
 	struct reg_field		vbus_mon_bit;
+	struct reg_field		usb_bc_en_bit;
 };
 
 struct axp20x_usb_power {
@@ -65,6 +64,7 @@ struct axp20x_usb_power {
 	struct regmap_field *curr_lim_fld;
 	struct regmap_field *vbus_valid_bit;
 	struct regmap_field *vbus_mon_bit;
+	struct regmap_field *usb_bc_en_bit;
 	struct power_supply *supply;
 	enum axp20x_variants axp20x_id;
 	const struct axp_data *axp_data;
@@ -433,6 +433,7 @@ static const struct axp_data axp813_data = {
 	.axp20x_id	= AXP813_ID,
 	.curr_lim_table = axp813_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.usb_bc_en_bit	= REG_FIELD(AXP288_BC_GLOBAL, 0, 0),
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -572,6 +573,12 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->usb_bc_en_bit,
+						 &power->usb_bc_en_bit);
+	if (ret)
+		return ret;
+
 	ret = devm_delayed_work_autocancel(&pdev->dev, &power->vbus_detect,
 					   axp20x_usb_power_poll_vbus);
 	if (ret)
@@ -592,10 +599,9 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (power->axp20x_id == AXP813_ID) {
+	if (power->usb_bc_en_bit) {
 		/* Enable USB Battery Charging specification detection */
-		ret = regmap_update_bits(axp20x->regmap, AXP288_BC_GLOBAL,
-				   AXP813_BC_EN, AXP813_BC_EN);
+		ret = regmap_field_write(power->usb_bc_en_bit, 1);
 		if (ret)
 			return ret;
 	}
