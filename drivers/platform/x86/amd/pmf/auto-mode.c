@@ -179,10 +179,33 @@ void amd_pmf_trans_automode(struct amd_pmf_dev *dev, int socket_power, ktime_t t
 			config_store.transition[i].applied = false;
 			update = true;
 		}
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+		dev_dbg(dev->dev, "[AUTO MODE] average_power : %d mW mode: %s\n", avg_power,
+			state_as_str(config_store.current_mode));
+
+		dev_dbg(dev->dev, "[AUTO MODE] time: %lld ms timer: %u ms tc: %u ms\n",
+			time_elapsed_ms, config_store.transition[i].timer,
+			config_store.transition[i].time_constant);
+
+		dev_dbg(dev->dev, "[AUTO MODE] shiftup: %u pt: %u mW pf: %u mW pd: %u mW\n",
+			config_store.transition[i].shifting_up,
+			config_store.transition[i].power_threshold,
+			config_store.mode_set[i].power_floor,
+			config_store.transition[i].power_delta);
+#endif
 	}
 
 	dev_dbg(dev->dev, "[AUTO_MODE] avg power: %u mW mode: %s\n", avg_power,
 		state_as_str(config_store.current_mode));
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+	dev_dbg(dev->dev, "[AUTO MODE] priority1: %u priority2: %u priority3: %u priority4: %u\n",
+		config_store.transition[0].applied,
+		config_store.transition[1].applied,
+		config_store.transition[2].applied,
+		config_store.transition[3].applied);
+#endif
 
 	if (update) {
 		for (j = 0; j < AUTO_TRANSITION_MAX; j++) {
