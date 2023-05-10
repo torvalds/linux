@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * cs35l45.h - CS35L45 ALSA SoC audio driver
  *
