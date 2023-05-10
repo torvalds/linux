@@ -1324,11 +1324,9 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		/* EMU1010 DSP 0 and DSP 1 Capture */
 		// The 24 MSB hold the actual value. We implicitly discard the 16 LSB.
 		if (emu->card_capabilities->ca0108_chip) {
-			/* Note:JCD:No longer bit shift lower 16bits to upper 16bits of 32bit value. */
-			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x0), A_C_00000001);
-			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_GPR(tmp));
-			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x1), A_C_00000001);
-			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr), A_GPR(tmp));
+			// For unclear reasons, the EMU32IN cannot be the Y operand!
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A3_EMU32IN(0x0), A_GPR(gpr));
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A3_EMU32IN(0x1), A_GPR(gpr+1));
 		} else {
 			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_P16VIN(0x0));
 			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_P16VIN(0x1));
