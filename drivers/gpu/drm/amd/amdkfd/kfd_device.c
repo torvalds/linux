@@ -176,6 +176,11 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(11, 5, 1):
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		/* GFX12_TODO: Change to v12 version. */
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
+		break;
 	default:
 		dev_warn(kfd_device, "v9 event interrupt handler is set due to "
 			"mismatch of gc ip block(GC_HWIP:0x%x).\n", gc_version);
@@ -437,6 +442,14 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			gfx_target_version = 110501;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
+		case IP_VERSION(12, 0, 0):
+			gfx_target_version = 120000;
+			f2g = &gfx_v11_kfd2kgd; /* GFX12_TODO: Change to v12 when available. */
+			break;
+		case IP_VERSION(12, 0, 1):
+			gfx_target_version = 120001;
+			f2g = &gfx_v11_kfd2kgd; /* GFX12_TODO: Change to v12 when available. */
+			break;
 		default:
 			break;
 		}
@@ -511,9 +524,14 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
-		} else {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(12, 0, 0)) {
 			/* The gfx11 cwsr trap handler must fit inside a single
 			   page. */
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
+		} else {
+			/* GFX12_TODO: Change to gfx12 struct when available. */
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
