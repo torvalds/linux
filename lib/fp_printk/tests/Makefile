@@ -1,0 +1,1 @@
+obj-$(CONFIG_INPUT_KUNIT_TEST) += fp_printk_test.o
