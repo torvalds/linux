@@ -115,15 +115,16 @@ static enum ib_wc_opcode wr_to_wc_opcode(enum ib_wr_opcode opcode)
 void retransmit_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
+	unsigned long flags;
 
 	rxe_dbg_qp(qp, "retransmit timer fired\n");
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp->valid) {
 		qp->comp.timeout = 1;
 		rxe_sched_task(&qp->comp.task);
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
@@ -481,11 +482,13 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 static void comp_check_sq_drain_done(struct rxe_qp *qp)
 {
-	spin_lock_bh(&qp->state_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (unlikely(qp_state(qp) == IB_QPS_SQD)) {
 		if (qp->attr.sq_draining && qp->comp.psn == qp->req.psn) {
 			qp->attr.sq_draining = 0;
-			spin_unlock_bh(&qp->state_lock);
+			spin_unlock_irqrestore(&qp->state_lock, flags);
 
 			if (qp->ibqp.event_handler) {
 				struct ib_event ev;
@@ -499,7 +502,7 @@ static void comp_check_sq_drain_done(struct rxe_qp *qp)
 			return;
 		}
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
 
 static inline enum comp_state complete_ack(struct rxe_qp *qp,
@@ -625,13 +628,15 @@ static void free_pkt(struct rxe_pkt_info *pkt)
  */
 static void reset_retry_timer(struct rxe_qp *qp)
 {
+	unsigned long flags;
+
 	if (qp_type(qp) == IB_QPT_RC && qp->qp_timeout_jiffies) {
-		spin_lock_bh(&qp->state_lock);
+		spin_lock_irqsave(&qp->state_lock, flags);
 		if (qp_state(qp) >= IB_QPS_RTS &&
 		    psn_compare(qp->req.psn, qp->comp.psn) > 0)
 			mod_timer(&qp->retrans_timer,
 				  jiffies + qp->qp_timeout_jiffies);
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 	}
 }
 
@@ -643,18 +648,19 @@ int rxe_completer(struct rxe_qp *qp)
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;
 	int ret;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
 		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_resp_pkts(qp);
 		flush_send_queue(qp, notify);
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	if (qp->comp.timeout) {
 		qp->comp.timeout_retry = 1;
