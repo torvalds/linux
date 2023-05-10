@@ -600,15 +600,12 @@ int gh_poll_vcpu_run(gh_vmid_t vmid)
 			trace_gh_hcall_vcpu_run(ret, vcpu->vm->id, vcpu_id, yield_ts,
 						resp.vcpu_state, resp.vcpu_suspend_state);
 			if (ret == GH_ERROR_OK) {
-				if (resp.vcpu_state == GH_VCPU_STATE_EXPECTS_WAKEUP ||
-					resp.vcpu_state == GH_VCPU_STATE_POWERED_OFF)
-					break;
-
 				if (resp.vcpu_state > GH_VCPU_STATE_BLOCKED)
 					printk_deferred("Unknown VCPU STATE: state=%d VCPU=%u of VM=%d\n",
 							resp.vcpu_state, vcpu_id, vmid);
+				break;
 			}
-		} while (ret == GH_ERROR_OK || ret == GH_ERROR_RETRY);
+		} while (ret == GH_ERROR_RETRY);
 	}
 
 	return ret;
