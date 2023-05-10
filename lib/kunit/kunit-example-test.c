@@ -42,6 +42,16 @@ static int example_test_init(struct kunit *test)
 }
 
 /*
+ * This is run once after each test case, see the comment on
+ * example_test_suite for more information.
+ */
+static void example_test_exit(struct kunit *test)
+{
+	kunit_info(test, "cleaning up\n");
+}
+
+
+/*
  * This is run once before all test cases in the suite.
  * See the comment on example_test_suite for more information.
  */
@@ -51,6 +61,16 @@ static int example_test_init_suite(struct kunit_suite *suite)
 
 	return 0;
 }
+
+/*
+ * This is run once after all test cases in the suite.
+ * See the comment on example_test_suite for more information.
+ */
+static void example_test_exit_suite(struct kunit_suite *suite)
+{
+	kunit_info(suite, "exiting suite\n");
+}
+
 
 /*
  * This test should always be skipped.
@@ -211,7 +231,9 @@ static struct kunit_case example_test_cases[] = {
 static struct kunit_suite example_test_suite = {
 	.name = "example",
 	.init = example_test_init,
+	.exit = example_test_exit,
 	.suite_init = example_test_init_suite,
+	.suite_exit = example_test_exit_suite,
 	.test_cases = example_test_cases,
 };
 
