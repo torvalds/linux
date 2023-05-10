@@ -6856,6 +6856,14 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 2;
 
+	/*
+	 * For RK3528, the path of CVBS output is like:
+	 * VOP BT656 ENCODER -> CVBS BT656 DECODER -> CVBS ENCODER -> CVBS VDAC
+	 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
+	 */
+	if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
+		adj_mode->crtc_clock *= 4;
+
 	if (vp->mcu_timing.mcu_pix_total)
 		adj_mode->crtc_clock *= rockchip_drm_get_cycles_per_pixel(vcstate->bus_format) *
 					(vp->mcu_timing.mcu_pix_total + 1);
@@ -8111,17 +8119,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
 			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
 	} else {
-		/*
-		 * For RK3528, the path of CVBS output is like:
-		 * VOP BT656 ENCODER -> CVBS BT656 DECODER -> CVBS ENCODER -> CVBS VDAC
-		 * The vop2 dclk should be four times crtc_clock for CVBS sampling clock needs.
-		 */
-		if (vop2->version == VOP_VERSION_RK3528 && vcstate->output_if & VOP_OUTPUT_IF_BT656)
-			rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
-						   4 * adjusted_mode->crtc_clock * 1000);
-		else
-			rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
-						   adjusted_mode->crtc_clock * 1000);
+		rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
+					   adjusted_mode->crtc_clock * 1000);
 	}
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
