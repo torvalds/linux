@@ -2055,7 +2055,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		mix->attn[0] = 0xffff;
 	}
 	
-	if (! emu->card_capabilities->ecard) { /* FIXME: APS has these controls? */
+	if (!emu->card_capabilities->ecard && !emu->card_capabilities->emu_model) {
 		/* sb live! and audigy */
 		kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu);
 		if (!kctl)
