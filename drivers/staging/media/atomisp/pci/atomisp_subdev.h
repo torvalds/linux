@@ -304,8 +304,6 @@ struct atomisp_sub_device {
 
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
-	unsigned int mipi_frame_size;
-
 	bool copy_mode; /* CSI2+ use copy mode */
 
 	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 +

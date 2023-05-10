@@ -448,7 +448,6 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 	unsigned int i;
 
 	isp->isp_fatal_error = false;
-	isp->mipi_frame_size = 0;
 
 	for (i = 0; i < isp->input_cnt; i++)
 		isp->inputs[i].asd = NULL;
@@ -478,7 +477,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	/* Add for channel */
 	asd->input_curr = 0;
 
-	asd->mipi_frame_size = 0;
 	asd->copy_mode = false;
 
 	asd->stream_prepared = false;

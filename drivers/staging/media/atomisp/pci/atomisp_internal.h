@@ -211,7 +211,6 @@ struct atomisp_device {
 
 	spinlock_t lock; /* Protects asd.streaming */
 
-	unsigned int mipi_frame_size;
 	const struct atomisp_dfs_config *dfs;
 	unsigned int hpll_freq;
 	unsigned int running_freq;
