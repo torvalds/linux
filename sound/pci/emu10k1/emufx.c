@@ -1184,20 +1184,22 @@ snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl
  * to 2 x 16-bit registers in Audigy - their values are read via DMA.
  * Conversion is performed by Audigy DSP instructions of FX8010.
  */
-static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
+static void snd_emu10k1_audigy_dsp_convert_32_to_2x16(
 				struct snd_emu10k1_fx8010_code *icode,
 				u32 *ptr, int tmp, int bit_shifter16,
 				int reg_in, int reg_out)
 {
-	A_OP(icode, ptr, iACC3, A_GPR(tmp + 1), reg_in, A_C_00000000, A_C_00000000);
-	A_OP(icode, ptr, iANDXOR, A_GPR(tmp), A_GPR(tmp + 1), A_GPR(bit_shifter16 - 1), A_C_00000000);
-	A_OP(icode, ptr, iTSTNEG, A_GPR(tmp + 2), A_GPR(tmp), A_C_80000000, A_GPR(bit_shifter16 - 2));
-	A_OP(icode, ptr, iANDXOR, A_GPR(tmp + 2), A_GPR(tmp + 2), A_C_80000000, A_C_00000000);
-	A_OP(icode, ptr, iANDXOR, A_GPR(tmp), A_GPR(tmp), A_GPR(bit_shifter16 - 3), A_C_00000000);
-	A_OP(icode, ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A_GPR(tmp), A_C_00010000);
-	A_OP(icode, ptr, iANDXOR, reg_out, A_GPR(tmp), A_C_ffffffff, A_GPR(tmp + 2));
-	A_OP(icode, ptr, iACC3, reg_out + 1, A_GPR(tmp + 1), A_C_00000000, A_C_00000000);
-	return 1;
+	// This leaves the low word in place, which is fine,
+	// as the low bits are completely ignored subsequently.
+	// reg_out[1] = reg_in
+	A_OP(icode, ptr, iACC3, reg_out + 1, reg_in, A_C_00000000, A_C_00000000);
+	// It is fine to read reg_in multiple times.
+	// tmp = reg_in << 15
+	A_OP(icode, ptr, iMACINT1, A_GPR(tmp), A_C_00000000, reg_in, A_GPR(bit_shifter16));
+	// Left-shift once more. This is a separate step, as the
+	// signed multiplication would clobber the MSB.
+	// reg_out[0] = tmp + ((tmp << 31) >> 31)
+	A_OP(icode, ptr, iMAC3, reg_out, A_GPR(tmp), A_GPR(tmp), A_C_80000000);
 }
 
 /*
@@ -1247,10 +1249,8 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	ptr = 0;
 	nctl = 0;
 	gpr = stereo_mix + 10;
-	gpr_map[gpr++] = 0x00007fff;
-	gpr_map[gpr++] = 0x00008000;
-	gpr_map[gpr++] = 0x0000ffff;
 	bit_shifter16 = gpr;
+	gpr_map[gpr++] = 0x00008000;
 
 #if 1
 	/* PCM front Playback Volume (independent from stereo mix)
