@@ -15,9 +15,8 @@ This is a 2.5 only driver. For a 2.4 driver please see the original
 driver (which this driver started from) at
 http://www.garloff.de/kurt/linux/dc395/
 
-Problems, questions and patches should be submitted to the mailing
-list. Details on the list, including archives, are available at
-http://lists.twibble.org/mailman/listinfo/dc395x/
+Problems, questions and patches should be submitted to the `Linux SCSI
+mailing list <linux-scsi@vger.kernel.org>`_.
 
 Parameters
 ----------
