@@ -2659,19 +2659,24 @@ err_drop_frame:
 	return rx_done;
 }
 
-static inline void
-mvneta_tso_put_hdr(struct sk_buff *skb, struct mvneta_tx_queue *txq)
+static void mvneta_tso_put_hdr(struct sk_buff *skb, struct mvneta_tx_queue *txq,
+			       struct tso_t *tso, int size, bool is_last)
 {
 	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
-	int hdr_len = skb_tcp_all_headers(skb);
+	int tso_offset, hdr_len = skb_tcp_all_headers(skb);
 	struct mvneta_tx_desc *tx_desc;
+	char *hdr;
+
+	tso_offset = txq->txq_put_index * TSO_HEADER_SIZE;
+
+	hdr = txq->tso_hdrs + tso_offset;
+	tso_build_hdr(skb, hdr, tso, size, is_last);
 
 	tx_desc = mvneta_txq_next_desc_get(txq);
 	tx_desc->data_size = hdr_len;
 	tx_desc->command = mvneta_skb_tx_csum(skb);
 	tx_desc->command |= MVNETA_TXD_F_DESC;
-	tx_desc->buf_phys_addr = txq->tso_hdrs_phys +
-				 txq->txq_put_index * TSO_HEADER_SIZE;
+	tx_desc->buf_phys_addr = txq->tso_hdrs_phys + tso_offset;
 	buf->type = MVNETA_TYPE_TSO;
 	buf->skb = NULL;
 
@@ -2764,17 +2769,12 @@ static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
-		char *hdr;
-
 		data_left = min_t(int, skb_shinfo(skb)->gso_size, total_len);
 		total_len -= data_left;
 		desc_count++;
 
 		/* prepare packet headers: MAC + IP + TCP */
-		hdr = txq->tso_hdrs + txq->txq_put_index * TSO_HEADER_SIZE;
-		tso_build_hdr(skb, hdr, &tso, data_left, total_len == 0);
-
-		mvneta_tso_put_hdr(skb, txq);
+		mvneta_tso_put_hdr(skb, txq, &tso, data_left, total_len == 0);
 
 		while (data_left > 0) {
 			int size;
