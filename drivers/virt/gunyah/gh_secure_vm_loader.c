@@ -307,7 +307,7 @@ long gh_vm_ioctl_set_fw_name(struct gh_vm *vm, unsigned long arg)
 
 	scnprintf(vm->fw_name, ARRAY_SIZE(vm->fw_name),
 						"%s", vm_fw_name.name);
-
+	gh_uevent_notify_change(GH_EVENT_CREATE_VM, vm);
 	mutex_unlock(&vm->vm_lock);
 	return ret;
 
