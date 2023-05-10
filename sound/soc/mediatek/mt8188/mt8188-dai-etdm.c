@@ -22,6 +22,7 @@
 #define ENUM_TO_STR(x)	#x
 
 enum {
+	SUPPLY_SEQ_APLL,
 	SUPPLY_SEQ_ETDM_MCLK,
 	SUPPLY_SEQ_ETDM_CG,
 	SUPPLY_SEQ_DPTX_EN,
@@ -95,6 +96,7 @@ struct mtk_dai_etdm_priv {
 	bool slave_mode;
 	bool lrck_inv;
 	bool bck_inv;
+	unsigned int rate;
 	unsigned int format;
 	unsigned int slots;
 	unsigned int lrck_width;
@@ -360,6 +362,10 @@ static int get_etdm_id_by_name(struct mtk_base_afe *afe,
 		return MT8188_AFE_IO_ETDM1_OUT;
 	else if (!strncmp(name, "ETDM2_OUT", strlen("ETDM2_OUT")))
 		return MT8188_AFE_IO_ETDM2_OUT;
+	else if (!strncmp(name, "ETDM3_OUT", strlen("ETDM3_OUT")))
+		return MT8188_AFE_IO_ETDM3_OUT;
+	else if (!strncmp(name, "DPTX", strlen("DPTX")))
+		return MT8188_AFE_IO_ETDM3_OUT;
 	else
 		return -EINVAL;
 }
@@ -445,6 +451,44 @@ static int mtk_dai_etdm_disable_mclk(struct mtk_base_afe *afe, int dai_id)
 	return 0;
 }
 
+static int mtk_afe_etdm_apll_connect(struct snd_soc_dapm_widget *source,
+				     struct snd_soc_dapm_widget *sink)
+{
+	struct snd_soc_dapm_widget *w = sink;
+	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
+	struct mtk_dai_etdm_priv *etdm_priv;
+	int cur_apll;
+	int need_apll;
+
+	etdm_priv = get_etdm_priv_by_name(afe, w->name);
+	if (!etdm_priv) {
+		dev_dbg(afe->dev, "etdm_priv == NULL\n");
+		return 0;
+	}
+
+	cur_apll = mt8188_get_apll_by_name(afe, source->name);
+	need_apll = mt8188_get_apll_by_rate(afe, etdm_priv->rate);
+
+	return (need_apll == cur_apll) ? 1 : 0;
+}
+
+static int mtk_afe_mclk_apll_connect(struct snd_soc_dapm_widget *source,
+				     struct snd_soc_dapm_widget *sink)
+{
+	struct snd_soc_dapm_widget *w = sink;
+	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
+	struct mtk_dai_etdm_priv *etdm_priv;
+	int cur_apll;
+
+	etdm_priv = get_etdm_priv_by_name(afe, w->name);
+
+	cur_apll = mt8188_get_apll_by_name(afe, source->name);
+
+	return (etdm_priv->mclk_apll == cur_apll) ? 1 : 0;
+}
+
 static int mtk_etdm_mclk_connect(struct snd_soc_dapm_widget *source,
 				 struct snd_soc_dapm_widget *sink)
 {
@@ -515,6 +559,36 @@ static int mtk_etdm_cowork_connect(struct snd_soc_dapm_widget *source,
 			if (etdm_priv->cowork_slv_id[i] == source_id)
 				return 1;
 		}
+	}
+
+	return 0;
+}
+
+static int mtk_apll_event(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol,
+			  int event)
+{
+	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
+
+	dev_dbg(cmpnt->dev, "%s(), name %s, event 0x%x\n",
+		__func__, w->name, event);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (strcmp(w->name, APLL1_W_NAME) == 0)
+			mt8188_apll1_enable(afe);
+		else
+			mt8188_apll2_enable(afe);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (strcmp(w->name, APLL1_W_NAME) == 0)
+			mt8188_apll1_disable(afe);
+		else
+			mt8188_apll2_disable(afe);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1231,6 +1305,16 @@ static const struct snd_soc_dapm_widget mtk_dai_etdm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("DPTX_EN", SUPPLY_SEQ_DPTX_EN,
 			      AFE_DPTX_CON, AFE_DPTX_CON_ON_SHIFT, 0, NULL, 0),
 
+	/* apll */
+	SND_SOC_DAPM_SUPPLY_S(APLL1_W_NAME, SUPPLY_SEQ_APLL,
+			      SND_SOC_NOPM, 0, 0,
+			      mtk_apll_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S(APLL2_W_NAME, SUPPLY_SEQ_APLL,
+			      SND_SOC_NOPM, 0, 0,
+			      mtk_apll_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
 	SND_SOC_DAPM_INPUT("ETDM_INPUT"),
 	SND_SOC_DAPM_OUTPUT("ETDM_OUTPUT"),
 };
@@ -1258,6 +1342,21 @@ static const struct snd_soc_dapm_route mtk_dai_etdm_routes[] = {
 	{"ETDM2_OUT", NULL, "ETDM2_OUT_MCLK", mtk_etdm_mclk_connect},
 
 	{"DPTX", NULL, "DPTX_MCLK"},
+
+	{"ETDM1_IN_MCLK", NULL, APLL1_W_NAME, mtk_afe_mclk_apll_connect},
+	{"ETDM1_IN_MCLK", NULL, APLL2_W_NAME, mtk_afe_mclk_apll_connect},
+
+	{"ETDM2_IN_MCLK", NULL, APLL1_W_NAME, mtk_afe_mclk_apll_connect},
+	{"ETDM2_IN_MCLK", NULL, APLL2_W_NAME, mtk_afe_mclk_apll_connect},
+
+	{"ETDM1_OUT_MCLK", NULL, APLL1_W_NAME, mtk_afe_mclk_apll_connect},
+	{"ETDM1_OUT_MCLK", NULL, APLL2_W_NAME, mtk_afe_mclk_apll_connect},
+
+	{"ETDM2_OUT_MCLK", NULL, APLL1_W_NAME, mtk_afe_mclk_apll_connect},
+	{"ETDM2_OUT_MCLK", NULL, APLL2_W_NAME, mtk_afe_mclk_apll_connect},
+
+	{"DPTX_MCLK", NULL, APLL1_W_NAME, mtk_afe_mclk_apll_connect},
+	{"DPTX_MCLK", NULL, APLL2_W_NAME, mtk_afe_mclk_apll_connect},
 
 	/* cg */
 	{"ETDM1_IN", NULL, "ETDM1_IN_CG"},
@@ -1307,6 +1406,21 @@ static const struct snd_soc_dapm_route mtk_dai_etdm_routes[] = {
 	{"ETDM3_OUT", NULL, "ETDM3_OUT_EN"},
 	{"DPTX", NULL, "ETDM3_OUT_EN"},
 	{"DPTX", NULL, "DPTX_EN"},
+
+	{"ETDM1_IN_EN", NULL, APLL1_W_NAME, mtk_afe_etdm_apll_connect},
+	{"ETDM1_IN_EN", NULL, APLL2_W_NAME, mtk_afe_etdm_apll_connect},
+
+	{"ETDM2_IN_EN", NULL, APLL1_W_NAME, mtk_afe_etdm_apll_connect},
+	{"ETDM2_IN_EN", NULL, APLL2_W_NAME, mtk_afe_etdm_apll_connect},
+
+	{"ETDM1_OUT_EN", NULL, APLL1_W_NAME, mtk_afe_etdm_apll_connect},
+	{"ETDM1_OUT_EN", NULL, APLL2_W_NAME, mtk_afe_etdm_apll_connect},
+
+	{"ETDM2_OUT_EN", NULL, APLL1_W_NAME, mtk_afe_etdm_apll_connect},
+	{"ETDM2_OUT_EN", NULL, APLL2_W_NAME, mtk_afe_etdm_apll_connect},
+
+	{"ETDM3_OUT_EN", NULL, APLL1_W_NAME, mtk_afe_etdm_apll_connect},
+	{"ETDM3_OUT_EN", NULL, APLL2_W_NAME, mtk_afe_etdm_apll_connect},
 
 	{"I012", NULL, "ETDM2_IN"},
 	{"I013", NULL, "ETDM2_IN"},
@@ -2004,6 +2118,7 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 		return -EINVAL;
 	etdm_data = afe_priv->dai_priv[dai_id];
 	slave_mode = etdm_data->slave_mode;
+	etdm_data->rate = rate;
 
 	ret = get_etdm_reg(dai_id, &etdm_reg);
 	if (ret < 0)
