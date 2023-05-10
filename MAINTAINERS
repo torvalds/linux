@@ -18842,12 +18842,11 @@ F:	drivers/target/
 F:	include/target/
 
 SCTP PROTOCOL
-M:	Neil Horman <nhorman@tuxdriver.com>
 M:	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
 M:	Xin Long <lucien.xin@gmail.com>
 L:	linux-sctp@vger.kernel.org
 S:	Maintained
-W:	http://lksctp.sourceforge.net
+W:	https://github.com/sctp/lksctp-tools/wiki
 F:	Documentation/networking/sctp.rst
 F:	include/linux/sctp.h
 F:	include/net/sctp/
