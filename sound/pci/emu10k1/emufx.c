@@ -1543,13 +1543,13 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 #undef TREBLE_GPR
 
 	for (z = 0; z < 8; z++) {
-		A_SWITCH(icode, &ptr, tmp + 0, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, gpr + 0);
-		A_SWITCH_NEG(icode, &ptr, tmp + 1, gpr + 0);
+		A_SWITCH(icode, &ptr, tmp + 0, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, gpr);
+		A_SWITCH_NEG(icode, &ptr, tmp + 1, gpr);
 		A_SWITCH(icode, &ptr, tmp + 1, playback + z, tmp + 1);
 		A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_GPR(tmp + 0), A_GPR(tmp + 1), A_C_00000000);
 	}
-	snd_emu10k1_init_stereo_onoff_control(controls + nctl++, "Tone Control - Switch", gpr, 0);
-	gpr += 2;
+	snd_emu10k1_init_mono_onoff_control(controls + nctl++, "Tone Control - Switch", gpr, 0);
+	gpr++;
 
 	/* Master volume (will be renamed later) */
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+0+SND_EMU10K1_PLAYBACK_CHANNELS), A_C_00000000, A_GPR(gpr), A_GPR(playback+0+SND_EMU10K1_PLAYBACK_CHANNELS));
@@ -2263,13 +2263,13 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 #undef TREBLE_GPR
 
 	for (z = 0; z < 6; z++) {
-		SWITCH(icode, &ptr, tmp + 0, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, gpr + 0);
-		SWITCH_NEG(icode, &ptr, tmp + 1, gpr + 0);
+		SWITCH(icode, &ptr, tmp + 0, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, gpr);
+		SWITCH_NEG(icode, &ptr, tmp + 1, gpr);
 		SWITCH(icode, &ptr, tmp + 1, playback + z, tmp + 1);
 		OP(icode, &ptr, iACC3, GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), GPR(tmp + 0), GPR(tmp + 1), C_00000000);
 	}
-	snd_emu10k1_init_stereo_onoff_control(controls + i++, "Tone Control - Switch", gpr, 0);
-	gpr += 2;
+	snd_emu10k1_init_mono_onoff_control(controls + i++, "Tone Control - Switch", gpr, 0);
+	gpr++;
 
 	/*
 	 *  Process outputs
