@@ -26,6 +26,8 @@
 
 #define DRVNAME "axp20x-usb-power-supply"
 
+#define AXP192_USB_OTG_STATUS		0x04
+
 #define AXP20X_PWR_STATUS_VBUS_PRESENT	BIT(5)
 #define AXP20X_PWR_STATUS_VBUS_USED	BIT(4)
 
@@ -365,6 +367,13 @@ static const char * const axp22x_irq_names[] = {
 	"VBUS_REMOVAL",
 };
 
+static int axp192_usb_curr_lim_table[] = {
+	-1,
+	-1,
+	500000,
+	100000,
+};
+
 static int axp20x_usb_curr_lim_table[] = {
 	900000,
 	500000,
@@ -384,6 +393,16 @@ static int axp813_usb_curr_lim_table[] = {
 	1500000,
 	2000000,
 	2500000,
+};
+
+static const struct axp_data axp192_data = {
+	.power_desc	= &axp20x_usb_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.curr_lim_table = axp192_usb_curr_lim_table,
+	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_valid_bit = REG_FIELD(AXP192_USB_OTG_STATUS, 2, 2),
+	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
 };
 
 static const struct axp_data axp202_data = {
@@ -634,6 +653,9 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 static const struct of_device_id axp20x_usb_power_match[] = {
 	{
+		.compatible = "x-powers,axp192-usb-power-supply",
+		.data = &axp192_data,
+	}, {
 		.compatible = "x-powers,axp202-usb-power-supply",
 		.data = &axp202_data,
 	}, {
