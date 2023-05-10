@@ -25,14 +25,18 @@ static const char *aud_clks[MT8188_CLK_NUM] = {
 
 	/* divider */
 	[MT8188_CLK_TOP_APLL1_D4] = "apll1_d4",
+	[MT8188_CLK_TOP_APLL2_D4] = "apll2_d4",
 	[MT8188_CLK_TOP_APLL12_DIV0] = "apll12_div0",
 	[MT8188_CLK_TOP_APLL12_DIV1] = "apll12_div1",
 	[MT8188_CLK_TOP_APLL12_DIV2] = "apll12_div2",
 	[MT8188_CLK_TOP_APLL12_DIV3] = "apll12_div3",
+	[MT8188_CLK_TOP_APLL12_DIV4] = "apll12_div4",
 	[MT8188_CLK_TOP_APLL12_DIV9] = "apll12_div9",
 
 	/* mux */
 	[MT8188_CLK_TOP_A1SYS_HP_SEL] = "top_a1sys_hp",
+	[MT8188_CLK_TOP_A2SYS_SEL] = "top_a2sys",
+	[MT8188_CLK_TOP_AUD_IEC_SEL] = "top_aud_iec",
 	[MT8188_CLK_TOP_AUD_INTBUS_SEL] = "top_aud_intbus",
 	[MT8188_CLK_TOP_AUDIO_H_SEL] = "top_audio_h",
 	[MT8188_CLK_TOP_AUDIO_LOCAL_BUS_SEL] = "top_audio_local_bus",
