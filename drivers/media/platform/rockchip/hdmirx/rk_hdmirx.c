@@ -904,8 +904,10 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		usleep_range(10*1000, 10*1100);
 	}
 
-	if (try_cnt > 8 && cnt < 8)
+	if (try_cnt > 8 && cnt < 8) {
 		v4l2_dbg(1, debug, v4l2_dev, "%s: res not stable!\n", __func__);
+		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -4174,6 +4176,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 			__func__, cpu_aff,
 			hdmirx_dev->bound_cpu,
 			hdmirx_dev->wdt_cfg_bound_cpu);
+	if (hdmirx_dev->bound_cpu != 4)
+		dev_err(dev, "%s: Bound_cpu:%d, expect bound cpu 4!\n",
+			__func__, hdmirx_dev->bound_cpu);
 	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
