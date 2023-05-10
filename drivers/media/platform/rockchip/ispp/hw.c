@@ -145,14 +145,18 @@ static void disable_sys_clk(struct rkispp_hw_dev *dev)
 static int enable_sys_clk(struct rkispp_hw_dev *dev)
 {
 	struct rkispp_device *ispp = dev->ispp[dev->cur_dev_id];
-	u32 w = dev->max_in.w ? dev->max_in.w : ispp->ispp_sdev.in_fmt.width;
-	int i, ret = -EINVAL;
+	int w, i, ret = -EINVAL;
 
 	for (i = 0; i < dev->clks_num; i++) {
 		ret = clk_prepare_enable(dev->clks[i]);
 		if (ret < 0)
 			goto err;
 	}
+
+	if (!ispp)
+		return ret;
+
+	w = dev->max_in.w ? dev->max_in.w : ispp->ispp_sdev.in_fmt.width;
 
 	for (i = 0; i < dev->clk_rate_tbl_num; i++)
 		if (w <= dev->clk_rate_tbl[i].refer_data)
