@@ -86,6 +86,24 @@ static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
 						   &crtc_state->shared_dpll->state);
 }
 
+static void set_encoder_for_connector(struct intel_connector *connector,
+				      struct intel_encoder *encoder)
+{
+	struct drm_connector_state *conn_state = connector->base.state;
+
+	if (conn_state->crtc)
+		drm_connector_put(&connector->base);
+
+	if (encoder) {
+		conn_state->best_encoder = &encoder->base;
+		conn_state->crtc = encoder->base.crtc;
+		drm_connector_get(&connector->base);
+	} else {
+		conn_state->best_encoder = NULL;
+		conn_state->crtc = NULL;
+	}
+}
+
 static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 {
 	struct intel_encoder *encoder;
@@ -140,8 +158,7 @@ static void intel_modeset_update_connector_atomic_state(struct drm_i915_private 
 		struct intel_encoder *encoder =
 			to_intel_encoder(connector->base.encoder);
 
-		if (conn_state->crtc)
-			drm_connector_put(&connector->base);
+		set_encoder_for_connector(connector, encoder);
 
 		if (encoder) {
 			struct intel_crtc *crtc =
@@ -149,14 +166,7 @@ static void intel_modeset_update_connector_atomic_state(struct drm_i915_private 
 			const struct intel_crtc_state *crtc_state =
 				to_intel_crtc_state(crtc->base.state);
 
-			conn_state->best_encoder = &encoder->base;
-			conn_state->crtc = &crtc->base;
 			conn_state->max_bpc = (crtc_state->pipe_bpp ?: 24) / 3;
-
-			drm_connector_get(&connector->base);
-		} else {
-			conn_state->best_encoder = NULL;
-			conn_state->crtc = NULL;
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
