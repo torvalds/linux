@@ -48,13 +48,13 @@ struct axp_data {
 	const struct power_supply_desc	*power_desc;
 	const char * const		*irq_names;
 	unsigned int			num_irq_names;
-	enum axp20x_variants		axp20x_id;
 	const int			*curr_lim_table;
 	struct reg_field		curr_lim_fld;
 	struct reg_field		vbus_valid_bit;
 	struct reg_field		vbus_mon_bit;
 	struct reg_field		usb_bc_en_bit;
 	struct reg_field		vbus_disable_bit;
+	bool				vbus_needs_polling: 1;
 };
 
 struct axp20x_usb_power {
@@ -65,7 +65,6 @@ struct axp20x_usb_power {
 	struct regmap_field *usb_bc_en_bit;
 	struct regmap_field *vbus_disable_bit;
 	struct power_supply *supply;
-	enum axp20x_variants axp20x_id;
 	const struct axp_data *axp_data;
 	struct iio_channel *vbus_v;
 	struct iio_channel *vbus_i;
@@ -83,7 +82,7 @@ static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)
 	 * present->absent transition implies an online->offline transition
 	 * and will trigger the VBUS_REMOVAL IRQ.
 	 */
-	if (power->axp20x_id >= AXP221_ID && !power->online)
+	if (power->axp_data->vbus_needs_polling && !power->online)
 		return true;
 
 	return false;
@@ -391,7 +390,6 @@ static const struct axp_data axp202_data = {
 	.power_desc	= &axp20x_usb_power_desc,
 	.irq_names	= axp20x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
-	.axp20x_id	= AXP202_ID,
 	.curr_lim_table = axp20x_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.vbus_valid_bit = REG_FIELD(AXP20X_USB_OTG_STATUS, 2, 2),
@@ -402,29 +400,29 @@ static const struct axp_data axp221_data = {
 	.power_desc	= &axp22x_usb_power_desc,
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
-	.axp20x_id	= AXP221_ID,
 	.curr_lim_table = axp221_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_needs_polling = true,
 };
 
 static const struct axp_data axp223_data = {
 	.power_desc	= &axp22x_usb_power_desc,
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
-	.axp20x_id	= AXP223_ID,
 	.curr_lim_table = axp20x_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_needs_polling = true,
 };
 
 static const struct axp_data axp813_data = {
 	.power_desc	= &axp22x_usb_power_desc,
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
-	.axp20x_id	= AXP813_ID,
 	.curr_lim_table = axp813_usb_curr_lim_table,
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.usb_bc_en_bit	= REG_FIELD(AXP288_BC_GLOBAL, 0, 0),
 	.vbus_disable_bit = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 7, 7),
+	.vbus_needs_polling = true,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -542,7 +540,6 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, power);
 
-	power->axp20x_id = axp_data->axp20x_id;
 	power->axp_data = axp_data;
 	power->regmap = axp20x->regmap;
 	power->num_irqs = axp_data->num_irq_names;
