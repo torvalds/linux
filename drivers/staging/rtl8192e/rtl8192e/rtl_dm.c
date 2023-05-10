@@ -658,7 +658,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 #define ThermalMeterVal	9
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 tmp_reg, tmp_cck;
-	u8 tmpOFDMindex, tmpCCKindex, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
+	u8 tmp_ofdm_index, tmp_cck_index, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
 	int i = 0, CCKSwingNeedUpdate = 0;
 
 	if (!priv->tx_pwr_tracking_init) {
@@ -689,11 +689,11 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	priv->thermal_meter[1] = ThermalMeterVal;
 
 	if (priv->thermal_meter[0] >= (u8)tmp_reg) {
-		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
+		tmp_ofdm_index = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
 			      (u8)tmp_reg);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
-		if (tmpOFDMindex >= OFDM_TABLE_LEN)
-			tmpOFDMindex = OFDM_TABLE_LEN - 1;
+		if (tmp_ofdm_index >= OFDM_TABLE_LEN)
+			tmp_ofdm_index = OFDM_TABLE_LEN - 1;
 		if (tmpCCK20Mindex >= CCK_TABLE_LEN)
 			tmpCCK20Mindex = CCK_TABLE_LEN - 1;
 		if (tmpCCK40Mindex >= CCK_TABLE_LEN)
@@ -701,18 +701,18 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	} else {
 		tmpval = (u8)tmp_reg - priv->thermal_meter[0];
 		if (tmpval >= 6) {
-			tmpOFDMindex = 0;
+			tmp_ofdm_index = 0;
 			tmpCCK20Mindex = 0;
 		} else {
-			tmpOFDMindex = 6 - tmpval;
+			tmp_ofdm_index = 6 - tmpval;
 			tmpCCK20Mindex = 6 - tmpval;
 		}
 		tmpCCK40Mindex = 0;
 	}
 	if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-		tmpCCKindex = tmpCCK40Mindex;
+		tmp_cck_index = tmpCCK40Mindex;
 	else
-		tmpCCKindex = tmpCCK20Mindex;
+		tmp_cck_index = tmpCCK20Mindex;
 
 	priv->rec_cck_20m_idx = tmpCCK20Mindex;
 	priv->rec_cck_40m_idx = tmpCCK40Mindex;
@@ -727,15 +727,15 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		CCKSwingNeedUpdate = 1;
 	}
 
-	if (priv->cck_index != tmpCCKindex) {
-		priv->cck_index = tmpCCKindex;
+	if (priv->cck_index != tmp_cck_index) {
+		priv->cck_index = tmp_cck_index;
 		CCKSwingNeedUpdate = 1;
 	}
 
 	if (CCKSwingNeedUpdate)
 		rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-	if (priv->ofdm_index[0] != tmpOFDMindex) {
-		priv->ofdm_index[0] = tmpOFDMindex;
+	if (priv->ofdm_index[0] != tmp_ofdm_index) {
+		priv->ofdm_index[0] = tmp_ofdm_index;
 		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance, bMaskDWord,
 				  OFDMSwingTable[priv->ofdm_index[0]]);
 	}
