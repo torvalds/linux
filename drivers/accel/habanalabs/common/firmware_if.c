@@ -2486,16 +2486,6 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 	if (rc)
 		goto release_fw;
 
-	/* update state according to boot stage */
-	if (cur_fwc == FW_COMP_BOOT_FIT) {
-		struct cpu_dyn_regs *dyn_regs;
-
-		dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
-		hl_fw_boot_fit_update_state(hdev,
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
-	}
-
 	/* copy boot fit to space allocated by FW */
 	rc = hl_fw_dynamic_copy_image(hdev, fw, fw_loader);
 	if (rc)
@@ -2798,6 +2788,14 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 		goto protocol_err;
 	}
 
+	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
+	if (rc)
+		goto protocol_err;
+
+	hl_fw_boot_fit_update_state(hdev,
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
 	/*
 	 * when testing FW load (without Linux) on PLDM we don't want to
 	 * wait until boot fit is active as it may take several hours.
@@ -2806,10 +2804,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 */
 	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
 		return 0;
-
-	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
-	if (rc)
-		goto protocol_err;
 
 	/* Enable DRAM scrambling before Linux boot and after successful
 	 *  UBoot
@@ -2844,7 +2838,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+	hl_fw_linux_update_state(hdev,
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 
 	hl_fw_dynamic_update_linux_interrupt_if(hdev);
