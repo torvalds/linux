@@ -409,7 +409,7 @@ static void led_trigger_blink_setup(struct led_trigger *trig,
 			led_blink_set_oneshot(led_cdev, &delay_on, &delay_off,
 					      invert);
 		else
-			led_blink_set(led_cdev, &delay_on, &delay_off);
+			led_blink_set_nosleep(led_cdev, delay_on, delay_off);
 	}
 	rcu_read_unlock();
 }

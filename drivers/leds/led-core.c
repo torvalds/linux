@@ -152,6 +152,13 @@ static void set_brightness_delayed(struct work_struct *ws)
 
 	if (test_and_clear_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags))
 		set_brightness_delayed_set_brightness(led_cdev, led_cdev->delayed_set_value);
+
+	if (test_and_clear_bit(LED_SET_BLINK, &led_cdev->work_flags)) {
+		unsigned long delay_on = led_cdev->delayed_delay_on;
+		unsigned long delay_off = led_cdev->delayed_delay_off;
+
+		led_blink_set(led_cdev, &delay_on, &delay_off);
+	}
 }
 
 static void led_set_software_blink(struct led_classdev *led_cdev,
@@ -246,6 +253,22 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL_GPL(led_blink_set_oneshot);
 
+void led_blink_set_nosleep(struct led_classdev *led_cdev, unsigned long delay_on,
+			   unsigned long delay_off)
+{
+	/* If necessary delegate to a work queue task. */
+	if (led_cdev->blink_set && led_cdev->brightness_set_blocking) {
+		led_cdev->delayed_delay_on = delay_on;
+		led_cdev->delayed_delay_off = delay_off;
+		set_bit(LED_SET_BLINK, &led_cdev->work_flags);
+		schedule_work(&led_cdev->set_brightness_work);
+		return;
+	}
+
+	led_blink_set(led_cdev, &delay_on, &delay_off);
+}
+EXPORT_SYMBOL_GPL(led_blink_set_nosleep);
+
 void led_stop_software_blink(struct led_classdev *led_cdev)
 {
 	del_timer_sync(&led_cdev->blink_timer);
@@ -301,6 +324,7 @@ void led_set_brightness_nopm(struct led_classdev *led_cdev, unsigned int value)
 		set_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags);
 	} else {
 		clear_bit(LED_SET_BRIGHTNESS, &led_cdev->work_flags);
+		clear_bit(LED_SET_BLINK, &led_cdev->work_flags);
 		set_bit(LED_SET_BRIGHTNESS_OFF, &led_cdev->work_flags);
 	}
 
