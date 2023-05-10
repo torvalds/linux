@@ -253,7 +253,12 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 	switch (sap->sa_family) {
 	case AF_LOCAL:
 		sun = xs_addr_un(xprt);
-		strscpy(buf, sun->sun_path, sizeof(buf));
+		if (sun->sun_path[0]) {
+			strscpy(buf, sun->sun_path, sizeof(buf));
+		} else {
+			buf[0] = '@';
+			strscpy(buf+1, sun->sun_path+1, sizeof(buf)-1);
+		}
 		xprt->address_strings[RPC_DISPLAY_ADDR] =
 						kstrdup(buf, GFP_KERNEL);
 		break;
@@ -2858,7 +2863,7 @@ static struct rpc_xprt *xs_setup_local(struct xprt_create *args)
 
 	switch (sun->sun_family) {
 	case AF_LOCAL:
-		if (sun->sun_path[0] != '/') {
+		if (sun->sun_path[0] != '/' && sun->sun_path[0] != '\0') {
 			dprintk("RPC:       bad AF_LOCAL address: %s\n",
 					sun->sun_path);
 			ret = ERR_PTR(-EINVAL);
