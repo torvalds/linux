@@ -657,21 +657,21 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 {
 #define ThermalMeterVal	9
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u32 tmpRegA, TempCCk;
+	u32 tmp_reg, tmp_cck;
 	u8 tmpOFDMindex, tmpCCKindex, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
 	int i = 0, CCKSwingNeedUpdate = 0;
 
 	if (!priv->tx_pwr_tracking_init) {
-		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
+		tmp_reg = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					    bMaskDWord);
 		for (i = 0; i < OFDM_TABLE_LEN; i++) {
-			if (tmpRegA == OFDMSwingTable[i])
+			if (tmp_reg == OFDMSwingTable[i])
 				priv->ofdm_index[0] = i;
 		}
 
-		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
+		tmp_cck = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
 		for (i = 0; i < CCK_TABLE_LEN; i++) {
-			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
+			if (tmp_cck == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
 				priv->cck_index = i;
 				break;
 			}
@@ -680,17 +680,17 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		return;
 	}
 
-	tmpRegA = rtl92e_get_rf_reg(dev, RF90_PATH_A, 0x12, 0x078);
-	if (tmpRegA < 3 || tmpRegA > 13)
+	tmp_reg = rtl92e_get_rf_reg(dev, RF90_PATH_A, 0x12, 0x078);
+	if (tmp_reg < 3 || tmp_reg > 13)
 		return;
-	if (tmpRegA >= 12)
-		tmpRegA = 12;
+	if (tmp_reg >= 12)
+		tmp_reg = 12;
 	priv->thermal_meter[0] = ThermalMeterVal;
 	priv->thermal_meter[1] = ThermalMeterVal;
 
-	if (priv->thermal_meter[0] >= (u8)tmpRegA) {
+	if (priv->thermal_meter[0] >= (u8)tmp_reg) {
 		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
-			      (u8)tmpRegA);
+			      (u8)tmp_reg);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
 		if (tmpOFDMindex >= OFDM_TABLE_LEN)
 			tmpOFDMindex = OFDM_TABLE_LEN - 1;
@@ -699,7 +699,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		if (tmpCCK40Mindex >= CCK_TABLE_LEN)
 			tmpCCK40Mindex = CCK_TABLE_LEN - 1;
 	} else {
-		tmpval = (u8)tmpRegA - priv->thermal_meter[0];
+		tmpval = (u8)tmp_reg - priv->thermal_meter[0];
 		if (tmpval >= 6) {
 			tmpOFDMindex = 0;
 			tmpCCK20Mindex = 0;
