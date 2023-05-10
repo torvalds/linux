@@ -38,10 +38,14 @@
 		    LT_MSG_PREFIX _format, \
 		    LT_MSG_ARGS(_intel_dp, _dp_phy), ## __VA_ARGS__)
 
-#define lt_err(_intel_dp, _dp_phy, _format, ...) \
-	drm_err(&dp_to_i915(_intel_dp)->drm, \
-		LT_MSG_PREFIX _format, \
-		LT_MSG_ARGS(_intel_dp, _dp_phy), ## __VA_ARGS__)
+#define lt_err(_intel_dp, _dp_phy, _format, ...) do { \
+	if (intel_digital_port_connected(&dp_to_dig_port(_intel_dp)->base)) \
+		drm_err(&dp_to_i915(_intel_dp)->drm, \
+			LT_MSG_PREFIX _format, \
+			LT_MSG_ARGS(_intel_dp, _dp_phy), ## __VA_ARGS__); \
+	else \
+		lt_dbg(_intel_dp, _dp_phy, "Sink disconnected: " _format, ## __VA_ARGS__); \
+} while (0)
 
 static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
 {
