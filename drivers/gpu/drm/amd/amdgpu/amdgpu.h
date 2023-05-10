@@ -80,6 +80,7 @@
 #include "amdgpu_vcn.h"
 #include "amdgpu_jpeg.h"
 #include "amdgpu_vpe.h"
+#include "amdgpu_umsch_mm.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_sdma.h"
@@ -950,6 +951,10 @@ struct amdgpu_device {
 
 	/* vpe */
 	struct amdgpu_vpe		vpe;
+
+	/* umsch */
+	struct amdgpu_umsch_mm		umsch_mm;
+	bool				enable_umsch_mm;
 
 	/* firmwares */
 	struct amdgpu_firmware		firmware;

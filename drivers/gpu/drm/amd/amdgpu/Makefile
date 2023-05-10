@@ -221,6 +221,11 @@ amdgpu-y += \
 	amdgpu_vpe.o \
 	vpe_v6_1.o
 
+# add UMSCH block
+amdgpu-y += \
+	amdgpu_umsch_mm.o \
+	umsch_mm_v4_0.o
+
 #
 # add ATHUB block
 amdgpu-y += \
