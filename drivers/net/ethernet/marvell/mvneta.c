@@ -638,6 +638,7 @@ struct mvneta_rx_desc {
 #endif
 
 enum mvneta_tx_buf_type {
+	MVNETA_TYPE_TSO,
 	MVNETA_TYPE_SKB,
 	MVNETA_TYPE_XDP_TX,
 	MVNETA_TYPE_XDP_NDO,
@@ -1883,7 +1884,8 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 			dma_unmap_single(pp->dev->dev.parent,
 					 tx_desc->buf_phys_addr,
 					 tx_desc->data_size, DMA_TO_DEVICE);
-		if (buf->type == MVNETA_TYPE_SKB && buf->skb) {
+		if ((buf->type == MVNETA_TYPE_TSO ||
+		     buf->type == MVNETA_TYPE_SKB) && buf->skb) {
 			bytes_compl += buf->skb->len;
 			pkts_compl++;
 			dev_kfree_skb_any(buf->skb);
@@ -2674,7 +2676,7 @@ mvneta_tso_put_hdr(struct sk_buff *skb, struct mvneta_tx_queue *txq)
 	tx_desc->command |= MVNETA_TXD_F_DESC;
 	tx_desc->buf_phys_addr = txq->tso_hdrs_phys +
 				 txq->txq_put_index * TSO_HEADER_SIZE;
-	buf->type = MVNETA_TYPE_SKB;
+	buf->type = MVNETA_TYPE_TSO;
 	buf->skb = NULL;
 
 	mvneta_txq_inc_put(txq);
