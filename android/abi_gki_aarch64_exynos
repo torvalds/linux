@@ -1211,6 +1211,10 @@
 # required by exynos-coresight.ko
   cpu_pm_register_notifier
 
+# required by exynos-cpu-profiler.ko
+  __traceiter_android_rvh_cpufreq_transition
+  __tracepoint_android_rvh_cpufreq_transition
+
 # required by exynos-cpufreq.ko
   cpufreq_freq_transition_begin
   cpufreq_freq_transition_end
