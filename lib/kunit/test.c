@@ -419,15 +419,54 @@ static void kunit_try_run_case(void *data)
 	 * thread will resume control and handle any necessary clean up.
 	 */
 	kunit_run_case_internal(test, suite, test_case);
-	/* This line may never be reached. */
+}
+
+static void kunit_try_run_case_cleanup(void *data)
+{
+	struct kunit_try_catch_context *ctx = data;
+	struct kunit *test = ctx->test;
+	struct kunit_suite *suite = ctx->suite;
+
+	current->kunit_test = test;
+
 	kunit_run_case_cleanup(test, suite);
 }
+
+static void kunit_catch_run_case_cleanup(void *data)
+{
+	struct kunit_try_catch_context *ctx = data;
+	struct kunit *test = ctx->test;
+	int try_exit_code = kunit_try_catch_get_result(&test->try_catch);
+
+	/* It is always a failure if cleanup aborts. */
+	kunit_set_failure(test);
+
+	if (try_exit_code) {
+		/*
+		 * Test case could not finish, we have no idea what state it is
+		 * in, so don't do clean up.
+		 */
+		if (try_exit_code == -ETIMEDOUT) {
+			kunit_err(test, "test case cleanup timed out\n");
+		/*
+		 * Unknown internal error occurred preventing test case from
+		 * running, so there is nothing to clean up.
+		 */
+		} else {
+			kunit_err(test, "internal error occurred during test case cleanup: %d\n",
+				  try_exit_code);
+		}
+		return;
+	}
+
+	kunit_err(test, "test aborted during cleanup. continuing without cleaning up\n");
+}
+
 
 static void kunit_catch_run_case(void *data)
 {
 	struct kunit_try_catch_context *ctx = data;
 	struct kunit *test = ctx->test;
-	struct kunit_suite *suite = ctx->suite;
 	int try_exit_code = kunit_try_catch_get_result(&test->try_catch);
 
 	if (try_exit_code) {
@@ -448,12 +487,6 @@ static void kunit_catch_run_case(void *data)
 		}
 		return;
 	}
-
-	/*
-	 * Test case was run, but aborted. It is the test case's business as to
-	 * whether it failed or not, we just need to clean up.
-	 */
-	kunit_run_case_cleanup(test, suite);
 }
 
 /*
@@ -476,6 +509,13 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	context.test = test;
 	context.suite = suite;
 	context.test_case = test_case;
+	kunit_try_catch_run(try_catch, &context);
+
+	/* Now run the cleanup */
+	kunit_try_catch_init(try_catch,
+			     test,
+			     kunit_try_run_case_cleanup,
+			     kunit_catch_run_case_cleanup);
 	kunit_try_catch_run(try_catch, &context);
 
 	/* Propagate the parameter result to the test case. */
