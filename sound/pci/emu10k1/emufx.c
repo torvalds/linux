@@ -1326,13 +1326,20 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		if (emu->card_capabilities->ca0108_chip) {
 			// For unclear reasons, the EMU32IN cannot be the Y operand!
 			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A3_EMU32IN(0x0), A_GPR(gpr));
-			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A3_EMU32IN(0x1), A_GPR(gpr+1));
+			// A3_EMU32IN(0) is delayed by one sample, so all other A3_EMU32IN channels
+			// need to be delayed as well; we use an auxiliary register for that.
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+2), A_GPR(gpr+1));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr+2), A3_EMU32IN(0x1), A_C_00000000, A_C_00000000);
 		} else {
 			A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_P16VIN(0x0));
-			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_P16VIN(0x1));
+			// A_P16VIN(0) is delayed by one sample, so all other A_P16VIN channels
+			// need to be delayed as well; we use an auxiliary register for that.
+			A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_GPR(gpr+2));
+			A_OP(icode, &ptr, iACC3, A_GPR(gpr+2), A_P16VIN(0x1), A_C_00000000, A_C_00000000);
 		}
 		snd_emu10k1_init_stereo_control(&controls[nctl++], "EMU Capture Volume", gpr, 0);
-		gpr += 2;
+		gpr_map[gpr + 2] = 0x00000000;
+		gpr += 3;
 	}
 	/* AC'97 Playback Volume - used only for mic (renamed later) */
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_AC97_L);
@@ -1624,11 +1631,17 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 			dev_info(emu->card->dev, "EMU2 inputs on\n");
 			/* Note that the Tina[2] DSPs have 16 more EMU32 inputs which we don't use. */
 
-			for (z = 0; z < 0x10; z++) {
+			snd_emu10k1_audigy_dsp_convert_32_to_2x16(
+				icode, &ptr, tmp, bit_shifter16, A3_EMU32IN(0), A_FXBUS2(0));
+			// A3_EMU32IN(0) is delayed by one sample, so all other A3_EMU32IN channels
+			// need to be delayed as well; we use an auxiliary register for that.
+			for (z = 1; z < 0x10; z++) {
 				snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, 
 									bit_shifter16,
-									A3_EMU32IN(z),
+									A_GPR(gpr),
 									A_FXBUS2(z*2) );
+				A_OP(icode, &ptr, iACC3, A_GPR(gpr), A3_EMU32IN(z), A_C_00000000, A_C_00000000);
+				gpr_map[gpr++] = 0x00000000;
 			}
 		} else {
 			dev_info(emu->card->dev, "EMU inputs on\n");
