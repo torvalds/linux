@@ -805,6 +805,13 @@
 			gpio-ranges = <&iomuxc 0 92 16>;
 		};
 
+		ocotp: efuse@47510000 {
+			compatible = "fsl,imx93-ocotp", "syscon";
+			reg = <0x47510000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		s4muap: mailbox@47520000 {
 			compatible = "fsl,imx93-mu-s4";
 			reg = <0x47520000 0x10000>;
