@@ -7744,137 +7744,28 @@ static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 	return !!ecc_data->is_critical;
 }
 
-/*
- * gaudi2_queue_idx_dec - decrement queue index (pi/ci) and handle wrap
- *
- * @idx: the current pi/ci value
- * @q_len: the queue length (power of 2)
- *
- * @return the cyclically decremented index
- */
-static inline u32 gaudi2_queue_idx_dec(u32 idx, u32 q_len)
+static void print_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base)
 {
-	u32 mask = q_len - 1;
+	u32 lo, hi, cq_ptr_size, arc_cq_ptr_size;
+	u64 cq_ptr, arc_cq_ptr, cp_current_inst;
 
-	/*
-	 * modular decrement is equivalent to adding (queue_size -1)
-	 * later we take LSBs to make sure the value is in the
-	 * range [0, queue_len - 1]
-	 */
-	return (idx + q_len - 1) & mask;
-}
+	lo = RREG32(qman_base + QM_CQ_PTR_LO_4_OFFSET);
+	hi = RREG32(qman_base + QM_CQ_PTR_HI_4_OFFSET);
+	cq_ptr = ((u64) hi) << 32 | lo;
+	cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_4_OFFSET);
 
-/**
- * gaudi2_print_sw_config_stream_data - print SW config stream data
- *
- * @hdev: pointer to the habanalabs device structure
- * @stream: the QMAN's stream
- * @qman_base: base address of QMAN registers block
- */
-static void gaudi2_print_sw_config_stream_data(struct hl_device *hdev,
-						u32 stream, u64 qman_base)
-{
-	u64 cq_ptr_lo, cq_ptr_hi, cq_tsize, cq_ptr;
-	u32 cq_ptr_lo_off, size;
+	lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_OFFSET);
+	hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_OFFSET);
+	arc_cq_ptr = ((u64) hi) << 32 | lo;
+	arc_cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_OFFSET);
 
-	cq_ptr_lo_off = mmDCORE0_TPC0_QM_CQ_PTR_LO_1 - mmDCORE0_TPC0_QM_CQ_PTR_LO_0;
+	lo = RREG32(qman_base + QM_CP_CURRENT_INST_LO_4_OFFSET);
+	hi = RREG32(qman_base + QM_CP_CURRENT_INST_HI_4_OFFSET);
+	cp_current_inst = ((u64) hi) << 32 | lo;
 
-	cq_ptr_lo = qman_base + (mmDCORE0_TPC0_QM_CQ_PTR_LO_0 - mmDCORE0_TPC0_QM_BASE) +
-									stream * cq_ptr_lo_off;
-
-	cq_ptr_hi = cq_ptr_lo + (mmDCORE0_TPC0_QM_CQ_PTR_HI_0 - mmDCORE0_TPC0_QM_CQ_PTR_LO_0);
-
-	cq_tsize = cq_ptr_lo + (mmDCORE0_TPC0_QM_CQ_TSIZE_0 - mmDCORE0_TPC0_QM_CQ_PTR_LO_0);
-
-	cq_ptr = (((u64) RREG32(cq_ptr_hi)) << 32) | RREG32(cq_ptr_lo);
-	size = RREG32(cq_tsize);
-	dev_info(hdev->dev, "stop on err: stream: %u, addr: %#llx, size: %x\n",
-		stream, cq_ptr, size);
-}
-
-/**
- * gaudi2_print_last_pqes_on_err - print last PQEs on error
- *
- * @hdev: pointer to the habanalabs device structure
- * @qid_base: first QID of the QMAN (out of 4 streams)
- * @stream: the QMAN's stream
- * @qman_base: base address of QMAN registers block
- * @pr_sw_conf: if true print the SW config stream data (CQ PTR and SIZE)
- */
-static void gaudi2_print_last_pqes_on_err(struct hl_device *hdev, u32 qid_base, u32 stream,
-						u64 qman_base, bool pr_sw_conf)
-{
-	u32 ci, qm_ci_stream_off;
-	struct hl_hw_queue *q;
-	u64 pq_ci;
-	int i;
-
-	q = &hdev->kernel_queues[qid_base + stream];
-
-	qm_ci_stream_off = mmDCORE0_TPC0_QM_PQ_CI_1 - mmDCORE0_TPC0_QM_PQ_CI_0;
-	pq_ci = qman_base + (mmDCORE0_TPC0_QM_PQ_CI_0 - mmDCORE0_TPC0_QM_BASE) +
-						stream * qm_ci_stream_off;
-
-	hdev->asic_funcs->hw_queues_lock(hdev);
-
-	if (pr_sw_conf)
-		gaudi2_print_sw_config_stream_data(hdev, stream, qman_base);
-
-	ci = RREG32(pq_ci);
-
-	/* we should start printing form ci -1 */
-	ci = gaudi2_queue_idx_dec(ci, HL_QUEUE_LENGTH);
-
-	for (i = 0; i < PQ_FETCHER_CACHE_SIZE; i++) {
-		struct hl_bd *bd;
-		u64 addr;
-		u32 len;
-
-		bd = q->kernel_address;
-		bd += ci;
-
-		len = le32_to_cpu(bd->len);
-		/* len 0 means uninitialized entry- break */
-		if (!len)
-			break;
-
-		addr = le64_to_cpu(bd->ptr);
-
-		dev_info(hdev->dev, "stop on err PQE(stream %u): ci: %u, addr: %#llx, size: %x\n",
-			stream, ci, addr, len);
-
-		/* get previous ci, wrap if needed */
-		ci = gaudi2_queue_idx_dec(ci, HL_QUEUE_LENGTH);
-	}
-
-	hdev->asic_funcs->hw_queues_unlock(hdev);
-}
-
-/**
- * print_qman_data_on_err - extract QMAN data on error
- *
- * @hdev: pointer to the habanalabs device structure
- * @qid_base: first QID of the QMAN (out of 4 streams)
- * @stream: the QMAN's stream
- * @qman_base: base address of QMAN registers block
- *
- * This function attempt to extract as much data as possible on QMAN error.
- * On upper CP print the SW config stream data and last 8 PQEs.
- * On lower CP print SW config data and last PQEs of ALL 4 upper CPs
- */
-static void print_qman_data_on_err(struct hl_device *hdev, u32 qid_base, u32 stream, u64 qman_base)
-{
-	u32 i;
-
-	if (stream != QMAN_STREAMS) {
-		gaudi2_print_last_pqes_on_err(hdev, qid_base, stream, qman_base, true);
-		return;
-	}
-
-	gaudi2_print_sw_config_stream_data(hdev, stream, qman_base);
-
-	for (i = 0 ; i < QMAN_STREAMS ; i++)
-		gaudi2_print_last_pqes_on_err(hdev, qid_base, i, qman_base, false);
+	dev_info(hdev->dev,
+		"LowerQM. CQ: {ptr %#llx, size %u}, ARC_CQ: {ptr %#llx, size %u}, CP: {instruction %#llx}\n",
+		cq_ptr, cq_ptr_size, arc_cq_ptr, arc_cq_ptr_size, cp_current_inst);
 }
 
 static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type,
@@ -7912,7 +7803,8 @@ static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type
 				error_count++;
 			}
 
-		print_qman_data_on_err(hdev, qid_base, i, qman_base);
+		if (i == QMAN_STREAMS)
+			print_lower_qman_data_on_err(hdev, qman_base);
 	}
 
 	arb_err_val = RREG32(arb_err_addr);
