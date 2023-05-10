@@ -57,7 +57,7 @@
 
 #define GAUDI2_NA_EVENT_CAUSE			0xFF
 #define GAUDI2_NUM_OF_QM_ERR_CAUSE		18
-#define GAUDI2_NUM_OF_QM_LCP_ERR_CAUSE		25
+#define GAUDI2_NUM_OF_LOWER_QM_ERR_CAUSE	25
 #define GAUDI2_NUM_OF_QM_ARB_ERR_CAUSE		3
 #define GAUDI2_NUM_OF_ARC_SEI_ERR_CAUSE		14
 #define GAUDI2_NUM_OF_CPU_SEI_ERR_CAUSE		3
@@ -801,7 +801,7 @@ static const char * const gaudi2_qman_error_cause[GAUDI2_NUM_OF_QM_ERR_CAUSE] = 
 	"PQC L2H error"
 };
 
-static const char * const gaudi2_qman_lower_cp_error_cause[GAUDI2_NUM_OF_QM_LCP_ERR_CAUSE] = {
+static const char * const gaudi2_lower_qman_error_cause[GAUDI2_NUM_OF_LOWER_QM_ERR_CAUSE] = {
 	"RSVD0",
 	"CQ AXI HBW error",
 	"CP AXI HBW error",
@@ -7895,8 +7895,8 @@ static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type
 			continue;
 
 		if (i == QMAN_STREAMS) {
-			snprintf(reg_desc, ARRAY_SIZE(reg_desc), "LowerCP");
-			num_error_causes = GAUDI2_NUM_OF_QM_LCP_ERR_CAUSE;
+			snprintf(reg_desc, ARRAY_SIZE(reg_desc), "LowerQM");
+			num_error_causes = GAUDI2_NUM_OF_LOWER_QM_ERR_CAUSE;
 		} else {
 			snprintf(reg_desc, ARRAY_SIZE(reg_desc), "stream%u", i);
 			num_error_causes = GAUDI2_NUM_OF_QM_ERR_CAUSE;
@@ -7907,7 +7907,7 @@ static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type
 				gaudi2_print_event(hdev, event_type, true,
 					"%s. err cause: %s", reg_desc,
 					i == QMAN_STREAMS ?
-					gaudi2_qman_lower_cp_error_cause[j] :
+					gaudi2_lower_qman_error_cause[j] :
 					gaudi2_qman_error_cause[j]);
 				error_count++;
 			}
