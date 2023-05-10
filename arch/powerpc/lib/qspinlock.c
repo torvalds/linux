@@ -435,7 +435,7 @@ yield_prev:
 
 	smp_rmb(); /* See __yield_to_locked_owner comment */
 
-	if (!node->locked) {
+	if (!READ_ONCE(node->locked)) {
 		yield_to_preempted(prev_cpu, yield_count);
 		spin_begin();
 		return preempted;
@@ -584,7 +584,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 		/* Wait for mcs node lock to be released */
 		spin_begin();
-		while (!node->locked) {
+		while (!READ_ONCE(node->locked)) {
 			spec_barrier();
 
 			if (yield_to_prev(lock, node, old, paravirt))
