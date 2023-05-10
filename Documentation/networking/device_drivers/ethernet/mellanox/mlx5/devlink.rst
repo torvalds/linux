@@ -265,22 +265,26 @@ It is responsible for querying the vnic diagnostic counters from fw and displayi
 them in realtime.
 
 Description of the vnic counters:
-total_q_under_processor_handle: number of queues in an error state due to
-an async error or errored command.
-send_queue_priority_update_flow: number of QP/SQ priority/SL update
-events.
-cq_overrun: number of times CQ entered an error state due to an
-overflow.
-async_eq_overrun: number of times an EQ mapped to async events was
-overrun.
-comp_eq_overrun: number of times an EQ mapped to completion events was
-overrun.
-quota_exceeded_command: number of commands issued and failed due to quota
-exceeded.
-invalid_command: number of commands issued and failed dues to any reason
-other than quota exceeded.
-nic_receive_steering_discard: number of packets that completed RX flow
-steering but were discarded due to a mismatch in flow table.
+
+- total_q_under_processor_handle
+        number of queues in an error state due to
+        an async error or errored command.
+- send_queue_priority_update_flow
+        number of QP/SQ priority/SL update events.
+- cq_overrun
+        number of times CQ entered an error state due to an overflow.
+- async_eq_overrun
+        number of times an EQ mapped to async events was overrun.
+        comp_eq_overrun number of times an EQ mapped to completion events was
+        overrun.
+- quota_exceeded_command
+        number of commands issued and failed due to quota exceeded.
+- invalid_command
+        number of commands issued and failed dues to any reason other than quota
+        exceeded.
+- nic_receive_steering_discard
+        number of packets that completed RX flow
+        steering but were discarded due to a mismatch in flow table.
 
 User commands examples:
 
