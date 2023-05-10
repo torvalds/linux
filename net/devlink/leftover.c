@@ -7073,10 +7073,9 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 	struct devlink_port *devlink_port = netdev->devlink_port;
 	struct devlink *devlink;
 
-	devlink = container_of(nb, struct devlink, netdevice_nb);
-
-	if (!devlink_port || devlink_port->devlink != devlink)
+	if (!devlink_port)
 		return NOTIFY_OK;
+	devlink = devlink_port->devlink;
 
 	switch (event) {
 	case NETDEV_POST_INIT:
