@@ -577,6 +577,7 @@ enum {
 #define HCI_LE_CIS_CENTRAL		0x10
 #define HCI_LE_CIS_PERIPHERAL		0x20
 #define HCI_LE_ISO_BROADCASTER		0x40
+#define HCI_LE_ISO_SYNC_RECEIVER	0x80
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
