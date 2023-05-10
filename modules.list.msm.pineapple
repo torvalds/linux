@@ -48,6 +48,7 @@ stub-regulator.ko
 gdsc-regulator.ko
 gh_virt_wdt.ko
 gh_arm_drv.ko
+gh_cpusys_vm_mem_access.ko
 gh_dbl.ko
 gh_msgq.ko
 gh_rm_drv.ko
