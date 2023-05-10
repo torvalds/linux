@@ -42,6 +42,7 @@
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
 #include "gfxhub_v3_0_3.h"
+#include "gfxhub_v11_5_0.h"
 #include "mmhub_v3_0.h"
 #include "mmhub_v3_0_1.h"
 #include "mmhub_v3_0_2.h"
@@ -632,6 +633,9 @@ static void gmc_v11_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 3):
 		adev->gfxhub.funcs = &gfxhub_v3_0_3_funcs;
+		break;
+	case IP_VERSION(11, 5, 0):
+		adev->gfxhub.funcs = &gfxhub_v11_5_0_funcs;
 		break;
 	default:
 		adev->gfxhub.funcs = &gfxhub_v3_0_funcs;
