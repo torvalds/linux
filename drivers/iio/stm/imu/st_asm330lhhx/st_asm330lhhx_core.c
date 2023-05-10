@@ -1488,9 +1488,20 @@ static ssize_t st_asm330lhhx_sysfs_scale_avail(struct device *dev,
 	enum st_asm330lhhx_sensor_id id = sensor->id;
 	int i, len = 0;
 
-	for (i = 0; i < st_asm330lhhx_fs_table[id].size; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
-				 st_asm330lhhx_fs_table[id].fs_avl[i].gain);
+	for (i = 0; i < st_asm330lhhx_fs_table[id].size; i++) {
+		if (sensor->id != ST_ASM330LHHX_ID_TEMP) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
+						     st_asm330lhhx_fs_table[id].fs_avl[i].gain);
+		} else {
+			int hi, low;
+
+			hi = (int)(st_asm330lhhx_fs_table[id].fs_avl[i].gain / 1000);
+			low = (int)(st_asm330lhhx_fs_table[id].fs_avl[i].gain % 1000);
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%d.%d ",
+						     hi, low);
+		}
+	}
+
 	buf[len - 1] = '\n';
 
 	return len;
