@@ -1536,7 +1536,7 @@ static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *info[] = {
+static const struct hwmon_channel_info * const info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT),
 	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_ENABLE),
 	NULL
