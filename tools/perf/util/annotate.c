@@ -558,6 +558,19 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 		return -1;
 
 	*s = '\0';
+
+	/*
+	 * x86 SIB addressing has something like 0x8(%rax, %rcx, 1)
+	 * then it needs to have the closing parenthesis.
+	 */
+	if (strchr(ops->raw, '(')) {
+		*s = ',';
+		s = strchr(ops->raw, ')');
+		if (s == NULL || s[1] != ',')
+			return -1;
+		*++s = '\0';
+	}
+
 	ops->source.raw = strdup(ops->raw);
 	*s = ',';
 
