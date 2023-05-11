@@ -151,12 +151,6 @@ void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 }
 EXPORT_SYMBOL(sha256_update);
 
-void sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
-{
-	sha256_update(sctx, data, len);
-}
-EXPORT_SYMBOL(sha224_update);
-
 static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
 {
 	__be32 *dst = (__be32 *)out;
