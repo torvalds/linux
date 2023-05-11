@@ -2096,6 +2096,21 @@ struct drm_i915_gem_context_param {
  *
  * -ENODEV: feature not available
  * -EPERM: trying to mark a recoverable or not bannable context as protected
+ * -ENXIO: A dependency such as a component driver or firmware is not yet
+ *         loaded so user space may need to attempt again. Depending on the
+ *         device, this error may be reported if protected context creation is
+ *         attempted very early after kernel start because the internal timeout
+ *         waiting for such dependencies is not guaranteed to be larger than
+ *         required (numbers differ depending on system and kernel config):
+ *            - ADL/RPL: dependencies may take up to 3 seconds from kernel start
+ *                       while context creation internal timeout is 250 milisecs
+ *            - MTL: dependencies may take up to 8 seconds from kernel start
+ *                   while context creation internal timeout is 250 milisecs
+ *         NOTE: such dependencies happen once, so a subsequent call to create a
+ *         protected context after a prior successful call will not experience
+ *         such timeouts and will not return -ENXIO (unless the driver is reloaded,
+ *         or, depending on the device, resumes from a suspended state).
+ * -EIO: The firmware did not succeed in creating the protected context.
  */
 #define I915_CONTEXT_PARAM_PROTECTED_CONTENT    0xd
 /* Must be kept compact -- no holes and well documented */

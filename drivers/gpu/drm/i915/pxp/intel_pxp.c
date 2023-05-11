@@ -291,6 +291,8 @@ static bool pxp_component_bound(struct intel_pxp *pxp)
 
 static int __pxp_global_teardown_final(struct intel_pxp *pxp)
 {
+	int timeout;
+
 	if (!pxp->arb_is_valid)
 		return 0;
 	/*
@@ -300,7 +302,12 @@ static int __pxp_global_teardown_final(struct intel_pxp *pxp)
 	intel_pxp_mark_termination_in_progress(pxp);
 	intel_pxp_terminate(pxp, false);
 
-	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(250)))
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		timeout = GSCFW_MAX_ROUND_TRIP_LATENCY_MS;
+	else
+		timeout = 250;
+
+	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout)))
 		return -ETIMEDOUT;
 
 	return 0;
@@ -308,6 +315,8 @@ static int __pxp_global_teardown_final(struct intel_pxp *pxp)
 
 static int __pxp_global_teardown_restart(struct intel_pxp *pxp)
 {
+	int timeout;
+
 	if (pxp->arb_is_valid)
 		return 0;
 	/*
@@ -316,7 +325,12 @@ static int __pxp_global_teardown_restart(struct intel_pxp *pxp)
 	 */
 	pxp_queue_termination(pxp);
 
-	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(250)))
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		timeout = GSCFW_MAX_ROUND_TRIP_LATENCY_MS;
+	else
+		timeout = 250;
+
+	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout)))
 		return -ETIMEDOUT;
 
 	return 0;
@@ -354,8 +368,13 @@ int intel_pxp_start(struct intel_pxp *pxp)
 	if (!intel_pxp_is_enabled(pxp))
 		return -ENODEV;
 
-	if (wait_for(pxp_component_bound(pxp), 250))
-		return -ENXIO;
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
+		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
+			return -ENXIO;
+	} else {
+		if (wait_for(pxp_component_bound(pxp), 250))
+			return -ENXIO;
+	}
 
 	mutex_lock(&pxp->arb_mutex);
 
