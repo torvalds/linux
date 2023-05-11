@@ -35,12 +35,16 @@ struct init_funcs {
 	int (*init)(void);
 	void (*exit)(void);
 };
-#define MAKE_INIT_EXIT_FUNCS(name)		\
-	{ .init = xe_##name##_module_init,	\
-	  .exit = xe_##name##_module_exit, }
+
 static const struct init_funcs init_funcs[] = {
-	MAKE_INIT_EXIT_FUNCS(hw_fence),
-	MAKE_INIT_EXIT_FUNCS(sched_job),
+	{
+		.init = xe_hw_fence_module_init,
+		.exit = xe_hw_fence_module_exit,
+	},
+	{
+		.init = xe_sched_job_module_init,
+		.exit = xe_sched_job_module_exit,
+	},
 };
 
 static int __init xe_init(void)
