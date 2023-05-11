@@ -30,9 +30,6 @@ struct regmap_irq_chip_data {
 	int irq;
 	int wake_count;
 
-	unsigned int mask_base;
-	unsigned int unmask_base;
-
 	void *status_reg_buf;
 	unsigned int *main_status_buf;
 	unsigned int *status_buf;
@@ -118,8 +115,8 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 						  d->mask_buf[i],
 						  d->chip->irq_drv_data);
 
-		if (d->mask_base && !d->chip->handle_mask_sync) {
-			reg = d->get_irq_reg(d, d->mask_base, i);
+		if (d->chip->mask_base && !d->chip->handle_mask_sync) {
+			reg = d->get_irq_reg(d, d->chip->mask_base, i);
 			ret = regmap_update_bits(d->map, reg,
 						 d->mask_buf_def[i],
 						 d->mask_buf[i]);
@@ -127,8 +124,8 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 				dev_err(d->map->dev, "Failed to sync masks in %x\n", reg);
 		}
 
-		if (d->unmask_base && !d->chip->handle_mask_sync) {
-			reg = d->get_irq_reg(d, d->unmask_base, i);
+		if (d->chip->unmask_base && !d->chip->handle_mask_sync) {
+			reg = d->get_irq_reg(d, d->chip->unmask_base, i);
 			ret = regmap_update_bits(d->map, reg,
 					d->mask_buf_def[i], ~d->mask_buf[i]);
 			if (ret)
@@ -645,6 +642,9 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	if (chip->clear_on_unmask && (chip->ack_base || chip->use_ack))
 		return -EINVAL;
 
+	if (chip->mask_base && chip->unmask_base && !chip->mask_unmask_non_inverted)
+		return -EINVAL;
+
 	for (i = 0; i < chip->num_irqs; i++) {
 		if (chip->irqs[i].reg_offset % map->reg_stride)
 			return -EINVAL;
@@ -733,28 +733,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	d->chip = chip;
 	d->irq_base = irq_base;
 
-	if (chip->mask_base && chip->unmask_base &&
-	    !chip->mask_unmask_non_inverted) {
-		/*
-		 * Chips that specify both mask_base and unmask_base used to
-		 * get inverted mask behavior by default, with no way to ask
-		 * for the normal, non-inverted behavior. This "inverted by
-		 * default" behavior is deprecated, but we have to support it
-		 * until existing drivers have been fixed.
-		 *
-		 * Existing drivers should be updated by swapping mask_base
-		 * and unmask_base and setting mask_unmask_non_inverted=true.
-		 * New drivers should always set the flag.
-		 */
-		dev_warn(map->dev, "mask_base and unmask_base are inverted, please fix it");
-
-		d->mask_base = chip->unmask_base;
-		d->unmask_base = chip->mask_base;
-	} else {
-		d->mask_base = chip->mask_base;
-		d->unmask_base = chip->unmask_base;
-	}
-
 	if (chip->irq_reg_stride)
 		d->irq_reg_stride = chip->irq_reg_stride;
 	else
@@ -791,8 +769,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 				goto err_alloc;
 		}
 
-		if (d->mask_base && !chip->handle_mask_sync) {
-			reg = d->get_irq_reg(d, d->mask_base, i);
+		if (chip->mask_base && !chip->handle_mask_sync) {
+			reg = d->get_irq_reg(d, chip->mask_base, i);
 			ret = regmap_update_bits(d->map, reg,
 						 d->mask_buf_def[i],
 						 d->mask_buf[i]);
@@ -803,8 +781,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			}
 		}
 
-		if (d->unmask_base && !chip->handle_mask_sync) {
-			reg = d->get_irq_reg(d, d->unmask_base, i);
+		if (chip->unmask_base && !chip->handle_mask_sync) {
+			reg = d->get_irq_reg(d, chip->unmask_base, i);
 			ret = regmap_update_bits(d->map, reg,
 					d->mask_buf_def[i], ~d->mask_buf[i]);
 			if (ret) {
