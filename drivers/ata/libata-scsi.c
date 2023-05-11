@@ -209,9 +209,6 @@ void ata_scsi_set_sense(struct ata_device *dev, struct scsi_cmnd *cmd,
 {
 	bool d_sense = (dev->flags & ATA_DFLAG_D_SENSE);
 
-	if (!cmd)
-		return;
-
 	scsi_build_sense(cmd, d_sense, sk, asc, ascq);
 }
 
@@ -220,9 +217,6 @@ void ata_scsi_set_sense_information(struct ata_device *dev,
 				    const struct ata_taskfile *tf)
 {
 	u64 information;
-
-	if (!cmd)
-		return;
 
 	information = ata_tf_read_block(tf, dev);
 	if (information == U64_MAX)
