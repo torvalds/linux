@@ -381,27 +381,55 @@ static int vfio_msi_enable(struct vfio_pci_core_device *vdev, int nvec, bool msi
 	return 0;
 }
 
+/*
+ * vfio_msi_alloc_irq() returns the Linux IRQ number of an MSI or MSI-X device
+ * interrupt vector. If a Linux IRQ number is not available then a new
+ * interrupt is allocated if dynamic MSI-X is supported.
+ *
+ * Where is vfio_msi_free_irq()? Allocated interrupts are maintained,
+ * essentially forming a cache that subsequent allocations can draw from.
+ * Interrupts are freed using pci_free_irq_vectors() when MSI/MSI-X is
+ * disabled.
+ */
+static int vfio_msi_alloc_irq(struct vfio_pci_core_device *vdev,
+			      unsigned int vector, bool msix)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	struct msi_map map;
+	int irq;
+	u16 cmd;
+
+	irq = pci_irq_vector(pdev, vector);
+	if (WARN_ON_ONCE(irq == 0))
+		return -EINVAL;
+	if (irq > 0 || !msix || !vdev->has_dyn_msix)
+		return irq;
+
+	cmd = vfio_pci_memory_lock_and_enable(vdev);
+	map = pci_msix_alloc_irq_at(pdev, vector, NULL);
+	vfio_pci_memory_unlock_and_restore(vdev, cmd);
+
+	return map.index < 0 ? map.index : map.virq;
+}
+
 static int vfio_msi_set_vector_signal(struct vfio_pci_core_device *vdev,
 				      unsigned int vector, int fd, bool msix)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	struct vfio_pci_irq_ctx *ctx;
 	struct eventfd_ctx *trigger;
-	int irq, ret;
+	int irq = -EINVAL, ret;
 	u16 cmd;
-
-	irq = pci_irq_vector(pdev, vector);
-	if (irq < 0)
-		return -EINVAL;
 
 	ctx = vfio_irq_ctx_get(vdev, vector);
 
 	if (ctx) {
 		irq_bypass_unregister_producer(&ctx->producer);
-
+		irq = pci_irq_vector(pdev, vector);
 		cmd = vfio_pci_memory_lock_and_enable(vdev);
 		free_irq(irq, ctx->trigger);
 		vfio_pci_memory_unlock_and_restore(vdev, cmd);
+		/* Interrupt stays allocated, will be freed at MSI-X disable. */
 		kfree(ctx->name);
 		eventfd_ctx_put(ctx->trigger);
 		vfio_irq_ctx_free(vdev, ctx, vector);
@@ -409,6 +437,13 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_core_device *vdev,
 
 	if (fd < 0)
 		return 0;
+
+	if (irq == -EINVAL) {
+		/* Interrupt stays allocated, will be freed at MSI-X disable. */
+		irq = vfio_msi_alloc_irq(vdev, vector, msix);
+		if (irq < 0)
+			return irq;
+	}
 
 	ctx = vfio_irq_ctx_alloc(vdev, vector);
 	if (!ctx)
