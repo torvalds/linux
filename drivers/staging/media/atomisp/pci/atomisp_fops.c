@@ -532,11 +532,6 @@ static int atomisp_open(struct file *file)
 		return -EBUSY;
 	}
 
-	if (atomisp_dev_users(isp)) {
-		dev_dbg(isp->dev, "skip init isp in open\n");
-		goto init_subdev;
-	}
-
 	/* runtime power management, turn on ISP */
 	ret = pm_runtime_resume_and_get(vdev->v4l2_dev->dev);
 	if (ret < 0) {
@@ -552,19 +547,12 @@ static int atomisp_open(struct file *file)
 		goto css_error;
 	}
 
-init_subdev:
-	if (atomisp_subdev_users(asd))
-		goto done;
-
 	atomisp_subdev_init_struct(asd);
 	/* Ensure that a mode is set */
 	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
 
-done:
 	pipe->users++;
 	mutex_unlock(&isp->mutex);
-
-
 	return 0;
 
 css_error:
@@ -583,7 +571,6 @@ static int atomisp_release(struct file *file)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev_fh fh;
 	struct v4l2_rect clear_compose = {0};
-	unsigned long flags;
 	int ret;
 
 	v4l2_fh_init(&fh.vfh, vdev);
@@ -598,8 +585,6 @@ static int atomisp_release(struct file *file)
 	mutex_lock(&isp->mutex);
 
 	pipe->users--;
-	if (pipe->users)
-		goto done;
 
 	/*
 	 * A little trick here:
@@ -616,9 +601,6 @@ static int atomisp_release(struct file *file)
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
 	}
 
-	if (atomisp_subdev_users(asd))
-		goto done;
-
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
 
@@ -632,13 +614,6 @@ static int atomisp_release(struct file *file)
 		isp->inputs[asd->input_curr].asd = NULL;
 	}
 
-	spin_lock_irqsave(&isp->lock, flags);
-	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
-	spin_unlock_irqrestore(&isp->lock, flags);
-
-	if (atomisp_dev_users(isp))
-		goto done;
-
 	atomisp_destroy_pipes_stream_force(asd);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
@@ -648,7 +623,6 @@ static int atomisp_release(struct file *file)
 	if (pm_runtime_put_sync(vdev->v4l2_dev->dev) < 0)
 		dev_err(isp->dev, "Failed to power off device\n");
 
-done:
 	atomisp_subdev_set_selection(&asd->subdev, fh.state,
 				     V4L2_SUBDEV_FORMAT_ACTIVE,
 				     ATOMISP_SUBDEV_PAD_SOURCE,
