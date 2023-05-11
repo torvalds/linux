@@ -644,12 +644,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * If the VMID range changes for GFX9.4.3, then this code MUST be
 	 * revisited.
 	 */
-	partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr, AMDGPU_XCP_FL_LOCKED);
-	if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
-	    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
-	    kfd->num_nodes != 1) {
-		vmid_num_kfd /= 2;
-		first_vmid_kfd = last_vmid_kfd + 1 - vmid_num_kfd*2;
+	if (kfd->adev->xcp_mgr) {
+		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
+								 AMDGPU_XCP_FL_LOCKED);
+		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		    kfd->num_nodes != 1) {
+			vmid_num_kfd /= 2;
+			first_vmid_kfd = last_vmid_kfd + 1 - vmid_num_kfd*2;
+		}
 	}
 
 	/* Verify module parameters regarding mapped process number*/
