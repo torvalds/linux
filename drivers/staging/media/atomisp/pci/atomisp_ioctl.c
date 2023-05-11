@@ -615,12 +615,6 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	return 0;
 }
 
-static unsigned int
-atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
-{
-	return vb2_start_streaming_called(&asd->video_out.vb_queue);
-}
-
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 {
 	return isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED;
@@ -1162,11 +1156,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Input system HW workaround */
 	atomisp_dma_burst_len_cfg(asd);
 
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
-		atomisp_qbuffers_to_css(asd);
-		goto start_sensor;
-	}
-
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 
 	/* Invalidate caches. FIXME: should flush only necessary buffers */
@@ -1206,7 +1195,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	atomisp_qbuffers_to_css(asd);
 
-start_sensor:
 	if (isp->flash) {
 		asd->params.num_flash_frames = 0;
 		asd->params.flash_state = ATOMISP_FLASH_IDLE;
@@ -1216,19 +1204,9 @@ start_sensor:
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
 			       atomisp_css_valid_sof(isp));
 	atomisp_csi2_configure(asd);
-	/*
-	 * set freq to max when streaming count > 1 which indicate
-	 * dual camera would run
-	 */
-	if (atomisp_streaming_count(isp) > 1) {
-		if (atomisp_freq_scaling(isp,
-					 ATOMISP_DFS_MODE_MAX, false) < 0)
-			dev_dbg(isp->dev, "DFS max mode failed!\n");
-	} else {
-		if (atomisp_freq_scaling(isp,
-					 ATOMISP_DFS_MODE_AUTO, false) < 0)
-			dev_dbg(isp->dev, "DFS auto mode failed!\n");
-	}
+
+	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, false) < 0)
+		dev_dbg(isp->dev, "DFS auto mode failed!\n");
 
 	/* Enable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
@@ -1241,6 +1219,7 @@ start_sensor:
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			       video, s_stream, 1);
 	if (ret) {
+		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
 		spin_lock_irqsave(&isp->lock, irqflags);
 		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 		spin_unlock_irqrestore(&isp->lock, irqflags);
@@ -1260,8 +1239,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
-	bool recreate_stream = false;
-	bool first_streamoff = false;
 	unsigned long flags;
 	int ret;
 
@@ -1284,18 +1261,9 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	if (ret == 0)
 		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
 
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
-		first_streamoff = true;
-
 	spin_lock_irqsave(&isp->lock, flags);
-	if (atomisp_subdev_streaming_count(asd) == 1)
-		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
-	else
-		asd->streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
+	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 	spin_unlock_irqrestore(&isp->lock, flags);
-
-	if (!first_streamoff)
-		goto stopsensor;
 
 	atomisp_clear_css_buffer_counters(asd);
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
@@ -1306,19 +1274,15 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
 
 	atomisp_subdev_cleanup_pending_events(asd);
-stopsensor:
+
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			       video, s_stream, 0);
+	if (ret)
+		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
 
 	if (isp->flash) {
 		asd->params.num_flash_frames = 0;
 		asd->params.flash_state = ATOMISP_FLASH_IDLE;
-	}
-
-	/* if other streams are running, isp should not be powered off */
-	if (atomisp_streaming_count(isp)) {
-		atomisp_css_flush(isp);
-		goto out_unlock;
 	}
 
 	/* Disable the CSI interface on ANN B0/K0 */
@@ -1330,40 +1294,21 @@ stopsensor:
 
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
 		dev_warn(isp->dev, "DFS failed.\n");
-	/*
-	 * ISP work around, need to reset isp
-	 * Is it correct time to reset ISP when first node does streamoff?
-	 *
-	 * It is possible that the other asd stream is in the stage
-	 * that v4l2_setfmt is just get called on it, which will
-	 * create css stream on that stream. But at this point, there
-	 * is no way to destroy the css stream created on that stream.
-	 *
-	 * So force stream destroy here.
-	 */
-	if (isp->asd.stream_prepared) {
-		atomisp_destroy_pipes_stream_force(&isp->asd);
-		recreate_stream = true;
-	}
 
-	/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
+	/*
+	 * ISP work around, need to reset ISP to allow next stream on to work.
+	 * Streams have already been destroyed by atomisp_css_stop().
+	 * Disable PUNIT/ISP acknowlede/handshake - SRSE=3 and then reset.
+	 */
 	pci_write_config_dword(pdev, PCI_I_CONTROL,
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
-	dev_err(isp->dev, "atomisp_reset");
 	atomisp_reset(isp);
 
-	if (recreate_stream) {
-		int ret2;
+	/* Streams were destroyed by atomisp_css_stop(), recreate them. */
+	ret = atomisp_create_pipes_stream(&isp->asd);
+	if (ret)
+		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
 
-		ret2 = atomisp_create_pipes_stream(&isp->asd);
-		if (ret2) {
-			dev_err(isp->dev, "%s error re-creating streams: %d\n", __func__, ret2);
-			if (!ret)
-				ret = ret2;
-		}
-	}
-
-out_unlock:
 	mutex_unlock(&isp->mutex);
 }
 
