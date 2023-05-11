@@ -27,6 +27,12 @@ struct intel_pxp {
 	struct intel_gt *ctrl_gt;
 
 	/**
+	 * @kcr_base: base mmio offset for the KCR engine which is different on legacy platforms
+	 * vs newer platforms where the KCR is inside the media-tile.
+	 */
+	u32 kcr_base;
+
+	/**
 	 * @gsccs_res: resources for request submission for platforms that have a GSC engine.
 	 */
 	struct gsccs_session_resources {
