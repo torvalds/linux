@@ -35,6 +35,12 @@
 #define REG_GEN3_PTAT2		0x60
 #define REG_GEN3_PTAT3		0x64
 #define REG_GEN3_THSCP		0x68
+#define REG_GEN4_THSFMON00	0x180
+#define REG_GEN4_THSFMON01	0x184
+#define REG_GEN4_THSFMON02	0x188
+#define REG_GEN4_THSFMON15	0x1BC
+#define REG_GEN4_THSFMON16	0x1C0
+#define REG_GEN4_THSFMON17	0x1C4
 
 /* IRQ{STR,MSK,EN} bits */
 #define IRQ_TEMP1		BIT(0)
@@ -55,6 +61,7 @@
 
 #define MCELSIUS(temp)	((temp) * 1000)
 #define GEN3_FUSE_MASK	0xFFF
+#define GEN4_FUSE_MASK	0xFFF
 
 #define TSC_MAX_NUM	5
 
@@ -272,6 +279,34 @@ static void rcar_gen3_thermal_read_fuses_gen3(struct rcar_gen3_thermal_priv *pri
 	}
 }
 
+static void rcar_gen3_thermal_read_fuses_gen4(struct rcar_gen3_thermal_priv *priv)
+{
+	unsigned int i;
+
+	/*
+	 * Set the pseudo calibration points with fused values.
+	 * PTAT is shared between all TSCs but only fused for the first
+	 * TSC while THCODEs are fused for each TSC.
+	 */
+	priv->ptat[0] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON16) &
+		GEN4_FUSE_MASK;
+	priv->ptat[1] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON17) &
+		GEN4_FUSE_MASK;
+	priv->ptat[2] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON15) &
+		GEN4_FUSE_MASK;
+
+	for (i = 0; i < priv->num_tscs; i++) {
+		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
+
+		tsc->thcode[0] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON01) &
+			GEN4_FUSE_MASK;
+		tsc->thcode[1] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON02) &
+			GEN4_FUSE_MASK;
+		tsc->thcode[2] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON00) &
+			GEN4_FUSE_MASK;
+	}
+}
+
 static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 {
 	unsigned int i;
@@ -343,6 +378,11 @@ static const struct rcar_thermal_info rcar_gen3_thermal_info = {
 	.read_fuses = rcar_gen3_thermal_read_fuses_gen3,
 };
 
+static const struct rcar_thermal_info rcar_gen4_thermal_info = {
+	.ths_tj_1 = 126,
+	.read_fuses = rcar_gen3_thermal_read_fuses_gen4,
+};
+
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 	{
 		.compatible = "renesas,r8a774a1-thermal",
@@ -382,11 +422,11 @@ static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 	},
 	{
 		.compatible = "renesas,r8a779f0-thermal",
-		.data = &rcar_gen3_thermal_info,
+		.data = &rcar_gen4_thermal_info,
 	},
 	{
 		.compatible = "renesas,r8a779g0-thermal",
-		.data = &rcar_gen3_thermal_info,
+		.data = &rcar_gen4_thermal_info,
 	},
 	{},
 };
