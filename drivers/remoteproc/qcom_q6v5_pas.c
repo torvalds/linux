@@ -1010,9 +1010,8 @@ static int setup_mpss_dsm_mem(struct platform_device *pdev)
 		}
 	}
 
-	if (!ret)
-		mpss_dsm_mem_setup = true;
-	return ret;
+	mpss_dsm_mem_setup = true;
+	return 0;
 }
 
 static int setup_global_sync_mem(struct platform_device *pdev)
