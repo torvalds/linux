@@ -81,3 +81,9 @@
 &usbdrd_dwc3 {
 	dr_mode = "host";
 };
+
+&vdd_arm {
+	regulator-min-microvolt = <800000>;
+	regulator-max-microvolt = <1000000>;
+	regulator-init-microvolt = <900000>;
+};
