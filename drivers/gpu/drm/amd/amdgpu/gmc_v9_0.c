@@ -56,6 +56,7 @@
 #include "umc_v6_1.h"
 #include "umc_v6_0.h"
 #include "umc_v6_7.h"
+#include "umc_v12_0.h"
 #include "hdp_v4_0.h"
 #include "mca_v3_0.h"
 
@@ -735,7 +736,8 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 
 	if (!amdgpu_sriov_vf(adev) &&
-	    !adev->gmc.xgmi.connected_to_cpu) {
+	    !adev->gmc.xgmi.connected_to_cpu &&
+	    !adev->gmc.is_app_apu) {
 		adev->gmc.ecc_irq.num_types = 1;
 		adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
 	}
@@ -1490,6 +1492,16 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		else
 			adev->umc.channel_idx_tbl = &umc_v6_7_channel_idx_tbl_second[0][0];
 		break;
+	case IP_VERSION(12, 0, 0):
+		adev->umc.max_ras_err_cnt_per_query = UMC_V12_0_TOTAL_CHANNEL_NUM(adev);
+		adev->umc.channel_inst_num = UMC_V12_0_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V12_0_UMC_INSTANCE_NUM;
+		adev->umc.node_inst_num /= UMC_V12_0_UMC_INSTANCE_NUM;
+		adev->umc.channel_offs = UMC_V12_0_PER_CHANNEL_OFFSET;
+		adev->umc.active_mask = adev->aid_mask;
+		if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu)
+			adev->umc.ras = &umc_v12_0_ras;
+		break;
 	default:
 		break;
 	}
@@ -2141,7 +2153,8 @@ static int gmc_v9_0_sw_init(void *handle)
 		return r;
 
 	if (!amdgpu_sriov_vf(adev) &&
-	    !adev->gmc.xgmi.connected_to_cpu) {
+	    !adev->gmc.xgmi.connected_to_cpu &&
+	    !adev->gmc.is_app_apu) {
 		/* interrupt sent to DF. */
 		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
 				      &adev->gmc.ecc_irq);
