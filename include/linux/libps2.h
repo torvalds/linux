@@ -28,7 +28,6 @@
 #define PS2_FLAG_CMD1		BIT(2)	/* Waiting for the first byte of command response */
 #define PS2_FLAG_WAITID		BIT(3)	/* Command executing is GET ID */
 #define PS2_FLAG_NAK		BIT(4)	/* Last transmission was NAKed */
-#define PS2_FLAG_ACK_CMD	BIT(5)	/* Waiting to ACK the command (first) byte */
 
 struct ps2dev {
 	struct serio *serio;

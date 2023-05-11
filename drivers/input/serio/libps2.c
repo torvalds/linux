@@ -253,9 +253,6 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 		for (i = 0; i < receive; i++)
 			ps2dev->cmdbuf[(receive - 1) - i] = param[i];
 
-	/* Signal that we are sending the command byte */
-	ps2dev->flags |= PS2_FLAG_ACK_CMD;
-
 	/*
 	 * Some devices (Synaptics) peform the reset before
 	 * ACKing the reset command, and so it can take a long
@@ -267,9 +264,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 	if (rc)
 		goto out_reset_flags;
 
-	/* Now we are sending command parameters, if any */
-	ps2dev->flags &= ~PS2_FLAG_ACK_CMD;
-
+	/* Send command parameters, if any. */
 	for (i = 0; i < send; i++) {
 		rc = ps2_do_sendbyte(ps2dev, param[i], 200, 2);
 		if (rc)
@@ -436,7 +431,7 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		 */
 		dev_dbg(&ps2dev->serio->dev, "unexpected %#02x\n", data);
 		ps2dev->flags &= ~PS2_FLAG_WAITID;
-		return ps2dev->flags & PS2_FLAG_ACK_CMD;
+		return true;
 	}
 
 	if (!ps2dev->nak) {
