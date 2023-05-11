@@ -1102,10 +1102,7 @@ static u32 __bnxt_rx_agg_pages(struct bnxt *bp,
 			xdp_buff_set_frag_pfmemalloc(xdp);
 
 		if (bnxt_alloc_rx_page(bp, rxr, prod, GFP_ATOMIC) != 0) {
-			unsigned int nr_frags;
-
-			nr_frags = --shinfo->nr_frags;
-			__skb_frag_set_page(&shinfo->frags[nr_frags], NULL);
+			--shinfo->nr_frags;
 			cons_rx_buf->page = page;
 
 			/* Update prod since possibly some pages have been
