@@ -19,10 +19,6 @@
 #include "ctl.h"
 #include "dma_port.h"
 
-#define NVM_MIN_SIZE		SZ_32K
-#define NVM_MAX_SIZE		SZ_512K
-#define NVM_DATA_DWORDS		16
-
 /* Keep link controller awake during update */
 #define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)
 /* Disable CLx if not supported */

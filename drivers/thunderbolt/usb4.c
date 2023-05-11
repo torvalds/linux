@@ -15,6 +15,7 @@
 #include "tb.h"
 
 #define USB4_DATA_RETRIES		3
+#define USB4_DATA_DWORDS		16
 
 enum usb4_sb_target {
 	USB4_SB_TARGET_ROUTER,
@@ -112,7 +113,7 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 {
 	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
 
-	if (tx_dwords > NVM_DATA_DWORDS || rx_dwords > NVM_DATA_DWORDS)
+	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	/*
@@ -702,7 +703,7 @@ int usb4_switch_credits_init(struct tb_switch *sw)
 	int max_usb3, min_dp_aux, min_dp_main, max_pcie, max_dma;
 	int ret, length, i, nports;
 	const struct tb_port *port;
-	u32 data[NVM_DATA_DWORDS];
+	u32 data[USB4_DATA_DWORDS];
 	u32 metadata = 0;
 	u8 status = 0;
 
@@ -1198,7 +1199,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 
 static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_read(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1208,7 +1209,7 @@ static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 static int usb4_port_write_data(struct tb_port *port, const void *data,
 				size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_write(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1844,7 +1845,7 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	int ret;
 
 	metadata = dwaddress << USB4_NVM_READ_OFFSET_SHIFT;
-	if (dwords < NVM_DATA_DWORDS)
+	if (dwords < USB4_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
 	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
