@@ -3816,6 +3816,14 @@ static int per_family_init(struct amd64_pvt *pvt)
 		case 0x50 ... 0x5f:
 			pvt->ctl_name			= "F19h_M50h";
 			break;
+		case 0x60 ... 0x6f:
+			pvt->ctl_name			= "F19h_M60h";
+			pvt->flags.zn_regs_v2		= 1;
+			break;
+		case 0x70 ... 0x7f:
+			pvt->ctl_name			= "F19h_M70h";
+			pvt->flags.zn_regs_v2		= 1;
+			break;
 		case 0xa0 ... 0xaf:
 			pvt->ctl_name			= "F19h_MA0h";
 			pvt->max_mcs			= 12;
