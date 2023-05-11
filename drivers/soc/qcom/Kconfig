@@ -1021,6 +1021,14 @@ config MSM_SYSTEM_HEALTH_MONITOR
 source "drivers/soc/qcom/mem_buf/Kconfig"
 source "drivers/soc/qcom/tmecom/Kconfig"
 
+config QCOM_AOP_SET_DDR
+	tristate "Sysfs to communicate with AOP using QMP protocol"
+	help
+	  This options enables a driver which allows clients to send messages
+	  to Alway On processor using QMP transport. Users can echo a frequency
+	  into an exposed sysfs node to send to AOP. The driver expects the Cap
+	  frequency of DDR based on SKU.
+
 config MSM_PERFORMANCE
         tristate "msm performance driver to support userspace fmin/fmax request"
         help
