@@ -157,8 +157,8 @@ out_status:
 int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
+	struct handshake_req *req = NULL;
 	struct socket *sock = NULL;
-	struct handshake_req *req;
 	int fd, status, err;
 
 	if (GENL_REQ_ATTR_CHECK(info, HANDSHAKE_A_DONE_SOCKFD))
