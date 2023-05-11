@@ -5,11 +5,11 @@
 
 #include <drm/i915_hdcp_interface.h>
 
-#include "display/intel_hdcp_gsc.h"
 #include "gem/i915_gem_region.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 #include "i915_drv.h"
 #include "i915_utils.h"
+#include "intel_hdcp_gsc.h"
 
 bool intel_hdcp_gsc_cs_required(struct drm_i915_private *i915)
 {
