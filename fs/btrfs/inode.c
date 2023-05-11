@@ -276,17 +276,25 @@ static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off
 		u64 ref_root;
 		u8 ref_level;
 
-		do {
+		while (true) {
 			ret = tree_backref_for_extent(&ptr, eb, &found_key, ei,
 						      item_size, &ref_root,
 						      &ref_level);
+			if (ret < 0) {
+				btrfs_warn_rl(fs_info,
+				"failed to resolve tree backref for logical %llu: %d",
+					      logical, ret);
+				break;
+			}
+			if (ret > 0)
+				break;
+
 			btrfs_warn_rl(fs_info,
 "csum error at logical %llu mirror %u: metadata %s (level %d) in tree %llu",
 				logical, mirror_num,
 				(ref_level ? "node" : "leaf"),
-				(ret < 0 ? -1 : ref_level),
-				(ret < 0 ? -1 : ref_root));
-		} while (ret != 1);
+				ref_level, ref_root);
+		}
 		btrfs_release_path(&path);
 	} else {
 		struct btrfs_backref_walk_ctx ctx = { 0 };
