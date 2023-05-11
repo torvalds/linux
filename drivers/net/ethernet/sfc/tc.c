@@ -410,12 +410,9 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		return -EOPNOTSUPP;
 	}
 
-	rc = efx_mae_check_encap_match_caps(efx, ipv6, extack);
-	if (rc) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "MAE hw reports no support for IPv%d encap matches",
-				       ipv6 ? 6 : 4);
-		return -EOPNOTSUPP;
-	}
+	rc = efx_mae_check_encap_match_caps(efx, ipv6, match->mask.enc_ip_tos, extack);
+	if (rc)
+		return rc;
 
 	encap = kzalloc(sizeof(*encap), GFP_USER);
 	if (!encap)
