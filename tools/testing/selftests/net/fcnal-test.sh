@@ -1641,6 +1641,23 @@ ipv4_udp_novrf()
 	log_start
 	run_cmd nettest -D -d ${NSA_DEV} -r ${a}
 	log_test_addr ${a} $? 2 "No server, device client, local conn"
+
+	#
+	# Link local connection tests (SO_DONTROUTE).
+	# Connections should succeed only when the remote IP address is
+	# on link (doesn't need to be routed through a gateway).
+	#
+
+	a=${NSB_IP}
+	log_start
+	do_run_cmd nettest -B -D -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 0 "SO_DONTROUTE client"
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Should fail 'Network is unreachable' since server is not on link"
+	do_run_cmd nettest -B -D -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 1 "SO_DONTROUTE client"
 }
 
 ipv4_udp_vrf()
