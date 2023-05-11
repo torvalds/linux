@@ -7,6 +7,7 @@
 #ifndef _LINUX_SERIAL_8250_H
 #define _LINUX_SERIAL_8250_H
 
+#include <linux/errno.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/platform_device.h>
@@ -211,8 +212,11 @@ void serial8250_set_isa_configurator(void (*v)(int port, struct uart_port *up,
 					       u32 *capabilities));
 
 #ifdef CONFIG_SERIAL_8250_RT288X
-unsigned int au_serial_in(struct uart_port *p, int offset);
-void au_serial_out(struct uart_port *p, int offset, int value);
+int rt288x_setup(struct uart_port *p);
+int au_platform_setup(struct plat_serial8250_port *p);
+#else
+static inline int rt288x_setup(struct uart_port *p) { return -ENODEV; }
+static inline int au_platform_setup(struct plat_serial8250_port *p) { return -ENODEV; }
 #endif
 
 #endif

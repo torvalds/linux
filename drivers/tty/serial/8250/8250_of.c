@@ -171,7 +171,9 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	switch (type) {
 	case PORT_RT2880:
-		port->iotype = UPIO_AU;
+		ret = rt288x_setup(port);
+		if (ret)
+			goto err_unprepare;
 		break;
 	}
 

@@ -341,66 +341,6 @@ static void default_serial_dl_write(struct uart_8250_port *up, u32 value)
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
 }
 
-#ifdef CONFIG_SERIAL_8250_RT288X
-
-#define UART_REG_UNMAPPED	-1
-
-/* Au1x00/RT288x UART hardware has a weird register layout */
-static const s8 au_io_in_map[8] = {
-	[UART_RX]	= 0,
-	[UART_IER]	= 2,
-	[UART_IIR]	= 3,
-	[UART_LCR]	= 5,
-	[UART_MCR]	= 6,
-	[UART_LSR]	= 7,
-	[UART_MSR]	= 8,
-	[UART_SCR]	= UART_REG_UNMAPPED,
-};
-
-static const s8 au_io_out_map[8] = {
-	[UART_TX]	= 1,
-	[UART_IER]	= 2,
-	[UART_FCR]	= 4,
-	[UART_LCR]	= 5,
-	[UART_MCR]	= 6,
-	[UART_LSR]	= UART_REG_UNMAPPED,
-	[UART_MSR]	= UART_REG_UNMAPPED,
-	[UART_SCR]	= UART_REG_UNMAPPED,
-};
-
-unsigned int au_serial_in(struct uart_port *p, int offset)
-{
-	if (offset >= ARRAY_SIZE(au_io_in_map))
-		return UINT_MAX;
-	offset = au_io_in_map[offset];
-	if (offset == UART_REG_UNMAPPED)
-		return UINT_MAX;
-	return __raw_readl(p->membase + (offset << p->regshift));
-}
-
-void au_serial_out(struct uart_port *p, int offset, int value)
-{
-	if (offset >= ARRAY_SIZE(au_io_out_map))
-		return;
-	offset = au_io_out_map[offset];
-	if (offset == UART_REG_UNMAPPED)
-		return;
-	__raw_writel(value, p->membase + (offset << p->regshift));
-}
-
-/* Au1x00 haven't got a standard divisor latch */
-static u32 au_serial_dl_read(struct uart_8250_port *up)
-{
-	return __raw_readl(up->port.membase + 0x28);
-}
-
-static void au_serial_dl_write(struct uart_8250_port *up, u32 value)
-{
-	__raw_writel(value, up->port.membase + 0x28);
-}
-
-#endif
-
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
 {
 	offset = offset << p->regshift;
@@ -509,15 +449,6 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_in = mem32be_serial_in;
 		p->serial_out = mem32be_serial_out;
 		break;
-
-#ifdef CONFIG_SERIAL_8250_RT288X
-	case UPIO_AU:
-		p->serial_in = au_serial_in;
-		p->serial_out = au_serial_out;
-		up->dl_read = au_serial_dl_read;
-		up->dl_write = au_serial_dl_write;
-		break;
-#endif
 
 	default:
 		p->serial_in = io_serial_in;
@@ -2968,11 +2899,6 @@ static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
 	if (pt->port.mapsize)
 		return pt->port.mapsize;
-	if (pt->port.iotype == UPIO_AU) {
-		if (pt->port.type == PORT_RT2880)
-			return 0x100;
-		return 0x1000;
-	}
 	if (is_omap1_8250(pt))
 		return 0x16 << pt->port.regshift;
 
@@ -3221,10 +3147,6 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 
 	if (flags & UART_CONFIG_TYPE)
 		autoconfig(up);
-
-	/* if access method is AU, it is a 16550 with a quirk */
-	if (port->type == PORT_16550A && port->iotype == UPIO_AU)
-		up->bugs |= UART_BUG_NOMSR;
 
 	/* HW bugs may trigger IRQ while IIR == NO_INT */
 	if (port->type == PORT_TEGRA)
