@@ -68,6 +68,7 @@ struct vfio_pci_core_device {
 	u16			msix_size;
 	u32			msix_offset;
 	u32			rbar[7];
+	bool			has_dyn_msix:1;
 	bool			pci_2_3:1;
 	bool			virq_disabled:1;
 	bool			reset_works:1;
