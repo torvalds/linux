@@ -274,7 +274,7 @@ static const struct hwmon_channel_info amg88xx_temp = {
 	.config = amg88xx_temp_config,
 };
 
-static const struct hwmon_channel_info *amg88xx_info[] = {
+static const struct hwmon_channel_info * const amg88xx_info[] = {
 	&amg88xx_temp,
 	NULL
 };
