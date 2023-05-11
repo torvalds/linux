@@ -1659,6 +1659,12 @@ config SND_SOC_SSM2602_I2C
 	select SND_SOC_SSM2602
 	select REGMAP_I2C
 
+config SND_SOC_SSM3515
+	tristate "Analog Devices SSM3515 amplifier driver"
+	select REGMAP_I2C
+	depends on I2C
+	depends on OF
+
 config SND_SOC_SSM4567
 	tristate "Analog Devices ssm4567 amplifier driver support"
 	depends on I2C
