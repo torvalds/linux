@@ -21,7 +21,10 @@
 
 #define PS2_CMD_SETSCALE11	0x00e6
 #define PS2_CMD_SETRES		0x10e8
+#define PS2_CMD_EX_SETLEDS	0x20eb
+#define PS2_CMD_SETLEDS		0x10ed
 #define PS2_CMD_GETID		0x02f2
+#define PS2_CMD_SETREP		0x10f3 /* Set repeat rate/set report rate */
 #define PS2_CMD_RESET_BAT	0x02ff
 
 #define PS2_RET_BAT		0xaa
@@ -35,6 +38,7 @@
 #define PS2_FLAG_CMD1		BIT(2)	/* Waiting for the first byte of command response */
 #define PS2_FLAG_WAITID		BIT(3)	/* Command executing is GET ID */
 #define PS2_FLAG_NAK		BIT(4)	/* Last transmission was NAKed */
+#define PS2_FLAG_PASS_NOACK	BIT(5)	/* Pass non-ACK byte to receive handler */
 
 static int ps2_do_sendbyte(struct ps2dev *ps2dev, u8 byte,
 			   unsigned int timeout, unsigned int max_attempts)
@@ -281,9 +285,28 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 
 	serio_pause_rx(ps2dev->serio);
 
-	/* Some mice do not ACK the "get ID" command, prepare to handle this. */
-	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
 	ps2dev->cmdcnt = receive;
+
+	switch (command) {
+	case PS2_CMD_GETID:
+		/*
+		 * Some mice do not ACK the "get ID" command, prepare to
+		 * handle this.
+		 */
+		ps2dev->flags = PS2_FLAG_WAITID;
+		break;
+
+	case PS2_CMD_SETLEDS:
+	case PS2_CMD_EX_SETLEDS:
+	case PS2_CMD_SETREP:
+		ps2dev->flags = PS2_FLAG_PASS_NOACK;
+		break;
+
+	default:
+		ps2dev->flags = 0;
+		break;
+	}
+
 	if (receive) {
 		/* Indicate that we expect response to the command. */
 		ps2dev->flags |= PS2_FLAG_CMD | PS2_FLAG_CMD1;
@@ -512,14 +535,19 @@ static void ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		 * Do not signal errors if we get unexpected reply while
 		 * waiting for an ACK to the initial (first) command byte:
 		 * the device might not be quiesced yet and continue
-		 * delivering data.
+		 * delivering data. For certain commands (such as set leds and
+		 * set repeat rate) that can be used during normal device
+		 * operation, we even pass this data byte to the normal receive
+		 * handler.
 		 * Note that we reset PS2_FLAG_WAITID flag, so the workaround
 		 * for mice not acknowledging the Get ID command only triggers
 		 * on the 1st byte; if device spews data we really want to see
 		 * a real ACK from it.
 		 */
 		dev_dbg(&ps2dev->serio->dev, "unexpected %#02x\n", data);
-		ps2dev->flags &= ~PS2_FLAG_WAITID;
+		if (ps2dev->flags & PS2_FLAG_PASS_NOACK)
+			ps2dev->receive_handler(ps2dev, data);
+		ps2dev->flags &= ~(PS2_FLAG_WAITID | PS2_FLAG_PASS_NOACK);
 		return;
 	}
 
