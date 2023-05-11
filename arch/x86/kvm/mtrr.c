@@ -31,6 +31,14 @@ static bool is_mtrr_base_msr(unsigned int msr)
 	return !(msr & 0x1);
 }
 
+static struct kvm_mtrr_range *var_mtrr_msr_to_range(struct kvm_vcpu *vcpu,
+						    unsigned int msr)
+{
+	int index = (msr - 0x200) / 2;
+
+	return &vcpu->arch.mtrr_state.var_ranges[index];
+}
+
 static bool msr_mtrr_valid(unsigned msr)
 {
 	switch (msr) {
@@ -314,7 +322,6 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	gfn_t start, end;
-	int index;
 
 	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
 	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
@@ -332,8 +339,7 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 		end = ~0ULL;
 	} else {
 		/* variable range MTRRs. */
-		index = (msr - 0x200) / 2;
-		var_mtrr_range(&mtrr_state->var_ranges[index], &start, &end);
+		var_mtrr_range(var_mtrr_msr_to_range(vcpu, msr), &start, &end);
 	}
 
 	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
@@ -348,14 +354,12 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	struct kvm_mtrr_range *tmp, *cur;
-	int index;
 
-	index = (msr - 0x200) / 2;
-	cur = &mtrr_state->var_ranges[index];
+	cur = var_mtrr_msr_to_range(vcpu, msr);
 
 	/* remove the entry if it's in the list. */
 	if (var_mtrr_range_is_valid(cur))
-		list_del(&mtrr_state->var_ranges[index].node);
+		list_del(&cur->node);
 
 	/*
 	 * Set all illegal GPA bits in the mask, since those bits must
@@ -423,11 +427,10 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	else if (msr == MSR_IA32_CR_PAT)
 		*pdata = vcpu->arch.pat;
 	else {	/* Variable MTRRs */
-		index = (msr - 0x200) / 2;
 		if (is_mtrr_base_msr(msr))
-			*pdata = vcpu->arch.mtrr_state.var_ranges[index].base;
+			*pdata = var_mtrr_msr_to_range(vcpu, msr)->base;
 		else
-			*pdata = vcpu->arch.mtrr_state.var_ranges[index].mask;
+			*pdata = var_mtrr_msr_to_range(vcpu, msr)->mask;
 
 		*pdata &= ~kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 	}
