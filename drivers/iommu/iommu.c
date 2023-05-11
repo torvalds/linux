@@ -2842,6 +2842,7 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 	struct iommu_domain *old_dom = group->default_domain;
 	struct group_device *gdev;
 	struct iommu_domain *dom;
+	bool direct_failed;
 	int req_type;
 	int ret;
 
@@ -2875,8 +2876,15 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 	 * mapped before their device is attached, in order to guarantee
 	 * continuity with any FW activity
 	 */
-	for_each_group_device(group, gdev)
-		iommu_create_device_direct_mappings(dom, gdev->dev);
+	direct_failed = false;
+	for_each_group_device(group, gdev) {
+		if (iommu_create_device_direct_mappings(dom, gdev->dev)) {
+			direct_failed = true;
+			dev_warn_once(
+				gdev->dev->iommu->iommu_dev->dev,
+				"IOMMU driver was not able to establish FW requested direct mapping.");
+		}
+	}
 
 	/* We must set default_domain early for __iommu_device_set_domain */
 	group->default_domain = dom;
@@ -2900,6 +2908,27 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 		}
 	}
 
+	/*
+	 * Drivers are supposed to allow mappings to be installed in a domain
+	 * before device attachment, but some don't. Hack around this defect by
+	 * trying again after attaching. If this happens it means the device
+	 * will not continuously have the IOMMU_RESV_DIRECT map.
+	 */
+	if (direct_failed) {
+		for_each_group_device(group, gdev) {
+			ret = iommu_create_device_direct_mappings(dom, gdev->dev);
+			if (ret)
+				goto err_restore;
+		}
+	}
+
+err_restore:
+	if (old_dom) {
+		__iommu_group_set_domain_internal(
+			group, old_dom, IOMMU_SET_DOMAIN_MUST_SUCCEED);
+		iommu_domain_free(dom);
+		old_dom = NULL;
+	}
 out_free:
 	if (old_dom)
 		iommu_domain_free(old_dom);
