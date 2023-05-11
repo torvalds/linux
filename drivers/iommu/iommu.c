@@ -423,6 +423,8 @@ int iommu_probe_device(struct device *dev)
 
 	mutex_lock(&group->mutex);
 
+	iommu_create_device_direct_mappings(group, dev);
+
 	if (group->domain) {
 		ret = __iommu_device_set_domain(group, dev, group->domain, 0);
 	} else if (!group->default_domain) {
@@ -434,9 +436,11 @@ int iommu_probe_device(struct device *dev)
 		 */
 		iommu_alloc_default_domain(group, dev);
 		group->domain = NULL;
-		if (group->default_domain)
+		if (group->default_domain) {
+			iommu_create_device_direct_mappings(group, dev);
 			ret = __iommu_group_set_domain(group,
 						       group->default_domain);
+		}
 
 		/*
 		 * We assume that the iommu driver starts up the device in
@@ -446,8 +450,6 @@ int iommu_probe_device(struct device *dev)
 	}
 	if (ret)
 		goto err_unlock;
-
-	iommu_create_device_direct_mappings(group, dev);
 
 	mutex_unlock(&group->mutex);
 	iommu_group_put(group);
