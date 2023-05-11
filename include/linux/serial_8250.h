@@ -129,8 +129,8 @@ struct uart_8250_port {
 	const struct uart_8250_ops *ops;
 
 	/* 8250 specific callbacks */
-	int			(*dl_read)(struct uart_8250_port *);
-	void			(*dl_write)(struct uart_8250_port *, int);
+	u32			(*dl_read)(struct uart_8250_port *up);
+	void			(*dl_write)(struct uart_8250_port *up, u32 value);
 
 	struct uart_8250_em485 *em485;
 	void			(*rs485_start_tx)(struct uart_8250_port *);

@@ -325,7 +325,7 @@ static const struct serial8250_config uart_config[] = {
 };
 
 /* Uart divisor latch read */
-static int default_serial_dl_read(struct uart_8250_port *up)
+static u32 default_serial_dl_read(struct uart_8250_port *up)
 {
 	/* Assign these in pieces to truncate any bits above 7.  */
 	unsigned char dll = serial_in(up, UART_DLL);
@@ -335,7 +335,7 @@ static int default_serial_dl_read(struct uart_8250_port *up)
 }
 
 /* Uart divisor latch write */
-static void default_serial_dl_write(struct uart_8250_port *up, int value)
+static void default_serial_dl_write(struct uart_8250_port *up, u32 value)
 {
 	serial_out(up, UART_DLL, value & 0xff);
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
@@ -389,12 +389,12 @@ void au_serial_out(struct uart_port *p, int offset, int value)
 }
 
 /* Au1x00 haven't got a standard divisor latch */
-static int au_serial_dl_read(struct uart_8250_port *up)
+static u32 au_serial_dl_read(struct uart_8250_port *up)
 {
 	return __raw_readl(up->port.membase + 0x28);
 }
 
-static void au_serial_dl_write(struct uart_8250_port *up, int value)
+static void au_serial_dl_write(struct uart_8250_port *up, u32 value)
 {
 	__raw_writel(value, up->port.membase + 0x28);
 }
@@ -847,7 +847,7 @@ static void disable_rsa(struct uart_8250_port *up)
 static int size_fifo(struct uart_8250_port *up)
 {
 	unsigned char old_fcr, old_mcr, old_lcr;
-	unsigned short old_dl;
+	u32 old_dl;
 	int count;
 
 	old_lcr = serial_in(up, UART_LCR);
