@@ -25,6 +25,12 @@
 #define IA32_MTRR_DEF_TYPE_FE		(1ULL << 10)
 #define IA32_MTRR_DEF_TYPE_TYPE_MASK	(0xff)
 
+static bool is_mtrr_base_msr(unsigned int msr)
+{
+	/* MTRR base MSRs use even numbers, masks use odd numbers. */
+	return !(msr & 0x1);
+}
+
 static bool msr_mtrr_valid(unsigned msr)
 {
 	switch (msr) {
@@ -342,10 +348,9 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	struct kvm_mtrr_range *tmp, *cur;
-	int index, is_mtrr_mask;
+	int index;
 
 	index = (msr - 0x200) / 2;
-	is_mtrr_mask = msr - 0x200 - 2 * index;
 	cur = &mtrr_state->var_ranges[index];
 
 	/* remove the entry if it's in the list. */
@@ -356,7 +361,7 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	 * Set all illegal GPA bits in the mask, since those bits must
 	 * implicitly be 0.  The bits are then cleared when reading them.
 	 */
-	if (!is_mtrr_mask)
+	if (is_mtrr_base_msr(msr))
 		cur->base = data;
 	else
 		cur->mask = data | kvm_vcpu_reserved_gpa_bits_raw(vcpu);
@@ -418,11 +423,8 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	else if (msr == MSR_IA32_CR_PAT)
 		*pdata = vcpu->arch.pat;
 	else {	/* Variable MTRRs */
-		int is_mtrr_mask;
-
 		index = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * index;
-		if (!is_mtrr_mask)
+		if (is_mtrr_base_msr(msr))
 			*pdata = vcpu->arch.mtrr_state.var_ranges[index].base;
 		else
 			*pdata = vcpu->arch.mtrr_state.var_ranges[index].mask;
