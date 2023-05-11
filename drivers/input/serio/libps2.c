@@ -478,15 +478,22 @@ bool ps2_handle_response(struct ps2dev *ps2dev, u8 data)
 }
 EXPORT_SYMBOL(ps2_handle_response);
 
+/*
+ * Clears state of PS/2 device after communication error by resetting majority
+ * of flags and waking up waiters, if any.
+ */
 void ps2_cmd_aborted(struct ps2dev *ps2dev)
 {
-	if (ps2dev->flags & PS2_FLAG_ACK)
+	unsigned long old_flags = ps2dev->flags;
+
+	/* reset all flags except last nak */
+	ps2dev->flags &= PS2_FLAG_NAK;
+
+	if (old_flags & PS2_FLAG_ACK)
 		ps2dev->nak = 1;
 
-	if (ps2dev->flags & (PS2_FLAG_ACK | PS2_FLAG_CMD))
+	if (old_flags & (PS2_FLAG_ACK | PS2_FLAG_CMD))
 		wake_up(&ps2dev->wait);
 
-	/* reset all flags except last nack */
-	ps2dev->flags &= PS2_FLAG_NAK;
 }
 EXPORT_SYMBOL(ps2_cmd_aborted);
