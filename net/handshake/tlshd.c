@@ -31,6 +31,7 @@ struct tls_handshake_req {
 	int			th_type;
 	unsigned int		th_timeout_ms;
 	int			th_auth_mode;
+	const char		*th_peername;
 	key_serial_t		th_keyring;
 	key_serial_t		th_certificate;
 	key_serial_t		th_privkey;
@@ -48,6 +49,7 @@ tls_handshake_req_init(struct handshake_req *req,
 	treq->th_timeout_ms = args->ta_timeout_ms;
 	treq->th_consumer_done = args->ta_done;
 	treq->th_consumer_data = args->ta_data;
+	treq->th_peername = args->ta_peername;
 	treq->th_keyring = args->ta_keyring;
 	treq->th_num_peerids = 0;
 	treq->th_certificate = TLS_NO_CERT;
@@ -214,6 +216,12 @@ static int tls_handshake_accept(struct handshake_req *req,
 	ret = nla_put_u32(msg, HANDSHAKE_A_ACCEPT_MESSAGE_TYPE, treq->th_type);
 	if (ret < 0)
 		goto out_cancel;
+	if (treq->th_peername) {
+		ret = nla_put_string(msg, HANDSHAKE_A_ACCEPT_PEERNAME,
+				     treq->th_peername);
+		if (ret < 0)
+			goto out_cancel;
+	}
 	if (treq->th_timeout_ms) {
 		ret = nla_put_u32(msg, HANDSHAKE_A_ACCEPT_TIMEOUT, treq->th_timeout_ms);
 		if (ret < 0)
