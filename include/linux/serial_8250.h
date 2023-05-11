@@ -11,13 +11,29 @@
 #include <linux/serial_reg.h>
 #include <linux/platform_device.h>
 
+struct uart_8250_port;
+
 /*
  * This is the platform device platform_data structure
+ *
+ * @mapsize:	Port size for ioremap()
+ * @bugs:	Port bugs
+ *
+ * @dl_read: ``u32 ()(struct uart_8250_port *up)``
+ *
+ *	UART divisor latch read.
+ *
+ * @dl_write: ``void ()(struct uart_8250_port *up, u32 value)``
+ *
+ *	Write @value into UART divisor latch.
+ *
+ *	Locking: Caller holds port's lock.
  */
 struct plat_serial8250_port {
 	unsigned long	iobase;		/* io base address */
 	void __iomem	*membase;	/* ioremap cookie or NULL */
 	resource_size_t	mapbase;	/* resource base */
+	resource_size_t	mapsize;
 	unsigned int	uartclk;	/* UART clock rate */
 	unsigned int	irq;		/* interrupt number */
 	unsigned long	irqflags;	/* request_irq flags */
@@ -28,8 +44,11 @@ struct plat_serial8250_port {
 	unsigned char	has_sysrq;	/* supports magic SysRq */
 	unsigned int	type;		/* If UPF_FIXED_TYPE */
 	upf_t		flags;		/* UPF_* flags */
+	u16		bugs;		/* port bugs */
 	unsigned int	(*serial_in)(struct uart_port *, int);
 	void		(*serial_out)(struct uart_port *, int, int);
+	u32		(*dl_read)(struct uart_8250_port *up);
+	void		(*dl_write)(struct uart_8250_port *up, u32 value);
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
 			               const struct ktermios *old);
@@ -106,7 +125,7 @@ struct uart_8250_port {
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
 	u32			capabilities;	/* port capabilities */
-	unsigned short		bugs;		/* port bugs */
+	u16			bugs;		/* port bugs */
 	bool			fifo_bug;	/* min RX trigger if enabled */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
 	unsigned char		acr;
