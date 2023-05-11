@@ -8,7 +8,7 @@
 
 #ifdef CONFIG_DCB
 /* DCB feature definitions */
-#define NFP_NET_MAX_DSCP	4
+#define NFP_NET_MAX_DSCP	64
 #define NFP_NET_MAX_TC		IEEE_8021QAZ_MAX_TCS
 #define NFP_NET_MAX_PRIO	8
 #define NFP_DCB_CFG_STRIDE	256
