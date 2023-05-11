@@ -9,6 +9,8 @@
 #include <linux/brcmphy.h>
 #include <linux/phy.h>
 
+struct ethtool_wolinfo;
+
 /* 28nm only register definitions */
 #define MISC_ADDR(base, channel)	base, channel
 
@@ -110,5 +112,8 @@ static inline void bcm_ptp_stop(struct bcm_ptp_private *priv)
 {
 }
 #endif
+
+int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+void bcm_phy_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 
 #endif /* _LINUX_BCM_PHY_LIB_H */
