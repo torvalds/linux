@@ -4425,17 +4425,6 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		return;
 	}
 
-	if (dwc3_msm_get_max_speed(mdwc) >= USB_SPEED_SUPER) {
-		if (mdwc->vbus_active || mdwc->id_state == DWC3_ID_GROUND) {
-			dwc3_set_ssphy_orientation_flag(mdwc);
-			usb_redriver_notify_connect(mdwc->redriver,
-				mdwc->ss_phy->flags & PHY_LANE_A ?
-					ORIENTATION_CC1 : ORIENTATION_CC2);
-		} else {
-			usb_redriver_notify_disconnect(mdwc->redriver);
-		}
-	}
-
 	dbg_log_string("exit: mdwc->inputs:%lx\n", mdwc->inputs);
 	queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
 }
