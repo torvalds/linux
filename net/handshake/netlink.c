@@ -99,9 +99,6 @@ static int handshake_dup(struct socket *sock)
 	struct file *file;
 	int newfd;
 
-	if (!sock->file)
-		return -EBADF;
-
 	file = get_file(sock->file);
 	newfd = get_unused_fd_flags(O_CLOEXEC);
 	if (newfd < 0) {
