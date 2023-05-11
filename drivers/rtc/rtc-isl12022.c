@@ -89,7 +89,7 @@ static int isl12022_hwmon_read(struct device *dev,
 	return -EOPNOTSUPP;
 }
 
-static const struct hwmon_channel_info *isl12022_hwmon_info[] = {
+static const struct hwmon_channel_info * const isl12022_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
