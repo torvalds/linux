@@ -358,6 +358,26 @@ void intel_pxp_end(struct intel_pxp *pxp)
 }
 
 /*
+ * this helper is used by both intel_pxp_start and by
+ * the GET_PARAM IOCTL that user space calls. Thus, the
+ * return values here should match the UAPI spec.
+ */
+int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
+{
+	if (!intel_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
+		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
+			return 2;
+	} else {
+		if (wait_for(pxp_component_bound(pxp), 250))
+			return 2;
+	}
+	return 1;
+}
+
+/*
  * the arb session is restarted from the irq work when we receive the
  * termination completion interrupt
  */
@@ -365,16 +385,11 @@ int intel_pxp_start(struct intel_pxp *pxp)
 {
 	int ret = 0;
 
-	if (!intel_pxp_is_enabled(pxp))
-		return -ENODEV;
-
-	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
-		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
-			return -ENXIO;
-	} else {
-		if (wait_for(pxp_component_bound(pxp), 250))
-			return -ENXIO;
-	}
+	ret = intel_pxp_get_readiness_status(pxp);
+	if (ret < 0)
+		return ret;
+	else if (ret > 1)
+		return -EIO; /* per UAPI spec, user may retry later */
 
 	mutex_lock(&pxp->arb_mutex);
 
