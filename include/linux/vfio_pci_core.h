@@ -59,7 +59,7 @@ struct vfio_pci_core_device {
 	struct perm_bits	*msi_perm;
 	spinlock_t		irqlock;
 	struct mutex		igate;
-	struct vfio_pci_irq_ctx	*ctx;
+	struct xarray		ctx;
 	int			num_ctx;
 	int			irq_type;
 	int			num_regions;
