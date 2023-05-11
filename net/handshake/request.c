@@ -239,6 +239,7 @@ int handshake_req_submit(struct socket *sock, struct handshake_req *req,
 	}
 	req->hr_odestruct = req->hr_sk->sk_destruct;
 	req->hr_sk->sk_destruct = handshake_sk_destruct;
+	req->hr_file = sock->file;
 
 	ret = -EOPNOTSUPP;
 	net = sock_net(req->hr_sk);
@@ -333,6 +334,9 @@ bool handshake_req_cancel(struct sock *sk)
 		trace_handshake_cancel_busy(net, req, sk);
 		return false;
 	}
+
+	/* Request accepted and waiting for DONE */
+	fput(req->hr_file);
 
 out_true:
 	trace_handshake_cancel(net, req, sk);
