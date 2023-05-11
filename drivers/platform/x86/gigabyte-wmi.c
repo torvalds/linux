@@ -94,7 +94,7 @@ static umode_t gigabyte_wmi_hwmon_is_visible(const void *data, enum hwmon_sensor
 	return usable_sensors_mask & BIT(channel) ? 0444  : 0;
 }
 
-static const struct hwmon_channel_info *gigabyte_wmi_hwmon_info[] = {
+static const struct hwmon_channel_info * const gigabyte_wmi_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT,
 			   HWMON_T_INPUT,
