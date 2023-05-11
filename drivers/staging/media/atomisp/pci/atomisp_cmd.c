@@ -935,7 +935,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		atomisp_qbuffers_to_css(asd);
 }
 
-static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
+static void __atomisp_css_recover(struct atomisp_device *isp)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
@@ -992,9 +992,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 
 	/* reset ISP and restore its state */
-	isp->isp_timeout = true;
 	atomisp_reset(isp);
-	isp->isp_timeout = false;
 
 	if (stream_restart) {
 		atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
@@ -1043,14 +1041,14 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 						  assert_recovery_work);
 
 	mutex_lock(&isp->mutex);
-	__atomisp_css_recover(isp, true);
+	__atomisp_css_recover(isp);
 	mutex_unlock(&isp->mutex);
 }
 
 void atomisp_css_flush(struct atomisp_device *isp)
 {
 	/* Start recover */
-	__atomisp_css_recover(isp, false);
+	__atomisp_css_recover(isp);
 
 	dev_dbg(isp->dev, "atomisp css flush done\n");
 }

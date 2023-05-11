@@ -1369,11 +1369,7 @@ stopsensor:
 	/*
 	 * ISP work around, need to reset isp
 	 * Is it correct time to reset ISP when first node does streamoff?
-	 */
-	if (isp->isp_timeout)
-		dev_err(isp->dev, "%s: Resetting with WA activated",
-			__func__);
-	/*
+	 *
 	 * It is possible that the other asd stream is in the stage
 	 * that v4l2_setfmt is just get called on it, which will
 	 * create css stream on that stream. But at this point, there
@@ -1403,7 +1399,6 @@ stopsensor:
 		}
 	}
 
-	isp->isp_timeout = false;
 out_unlock:
 	mutex_unlock(&isp->mutex);
 }

@@ -204,8 +204,6 @@ struct atomisp_device {
 	struct atomisp_regs saved_regs;
 	struct atomisp_css_env css_env;
 
-	/* isp timeout status flag */
-	bool isp_timeout;
 	bool isp_fatal_error;
 	struct work_struct assert_recovery_work;
 
