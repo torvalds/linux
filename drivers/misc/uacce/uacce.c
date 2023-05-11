@@ -200,12 +200,15 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 static void uacce_vma_close(struct vm_area_struct *vma)
 {
 	struct uacce_queue *q = vma->vm_private_data;
-	struct uacce_qfile_region *qfr = NULL;
 
-	if (vma->vm_pgoff < UACCE_MAX_REGION)
-		qfr = q->qfrs[vma->vm_pgoff];
+	if (vma->vm_pgoff < UACCE_MAX_REGION) {
+		struct uacce_qfile_region *qfr = q->qfrs[vma->vm_pgoff];
 
-	kfree(qfr);
+		mutex_lock(&q->mutex);
+		q->qfrs[vma->vm_pgoff] = NULL;
+		mutex_unlock(&q->mutex);
+		kfree(qfr);
+	}
 }
 
 static const struct vm_operations_struct uacce_vm_ops = {
