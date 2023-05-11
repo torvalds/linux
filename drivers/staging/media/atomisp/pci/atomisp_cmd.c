@@ -472,7 +472,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	clear_irq_reg(isp);
 
-	if (!atomisp_streaming_count(isp))
+	if (!isp->asd.streaming)
 		goto out_nowake;
 
 	if (isp->asd.streaming) {
@@ -947,7 +947,7 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	mutex_lock(&isp->mutex);
 
-	if (!atomisp_streaming_count(isp))
+	if (!isp->asd.streaming)
 		goto out_unlock;
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
@@ -1074,7 +1074,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 
 	spin_lock_irqsave(&isp->lock, flags);
 
-	if (!atomisp_streaming_count(isp)) {
+	if (!isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}

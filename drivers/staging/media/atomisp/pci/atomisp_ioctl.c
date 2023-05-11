@@ -599,11 +599,6 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	return 0;
 }
 
-unsigned int atomisp_streaming_count(struct atomisp_device *isp)
-{
-	return isp->asd.streaming;
-}
-
 /*
  * get input are used to get current primary/secondary camera
  */
