@@ -168,6 +168,7 @@ static inline int context_cpy(struct context *dst, const struct context *src)
 	if (rc) {
 		kfree(dst->str);
 		dst->str = NULL;
+		dst->len = 0;
 		return rc;
 	}
 	return 0;
