@@ -527,6 +527,7 @@
   dev_get_flags
   dev_get_regmap
   dev_get_stats
+  dev_get_tstats64
   device_add
   device_add_disk
   device_add_groups
@@ -1058,6 +1059,7 @@
   eth_mac_addr
   ethnl_cable_test_fault_length
   ethnl_cable_test_result
+  eth_platform_get_mac_address
   eth_prepare_mac_addr_change
   ethtool_convert_legacy_u32_to_link_mode
   ethtool_convert_link_mode_to_legacy_u32
@@ -1399,6 +1401,9 @@
   icc_nodes_remove
   icc_provider_add
   icc_provider_del
+  icc_provider_deregister
+  icc_provider_init
+  icc_provider_register
   icc_put
   icc_set_bw
   icc_set_tag
@@ -1662,6 +1667,7 @@
   __kmalloc
   kmalloc_caches
   kmalloc_large
+  kmalloc_large_node
   kmalloc_node_trace
   __kmalloc_node_track_caller
   kmalloc_trace
@@ -1829,6 +1835,7 @@
   mdiobus_modify_changed
   __mdiobus_read
   mdiobus_read
+  __mdiobus_register
   mdiobus_unregister
   __mdiobus_write
   mdiobus_write
@@ -1960,6 +1967,7 @@
   netif_schedule_queue
   netif_set_real_num_rx_queues
   netif_set_real_num_tx_queues
+  netif_set_tso_max_size
   __netif_set_xps_queue
   netif_stacked_transfer_operstate
   netif_tx_lock
@@ -2104,6 +2112,7 @@
   of_machine_is_compatible
   of_match_device
   of_match_node
+  __of_mdiobus_register
   of_modalias_node
   of_n_addr_cells
   of_node_name_eq
@@ -2240,6 +2249,7 @@
   perf_trace_run_bpf_submit
   phy_attached_info
   phy_calibrate
+  phy_do_ioctl_running
   phy_drivers_register
   phy_drivers_unregister
   phy_error
@@ -2284,6 +2294,7 @@
   phy_power_on
   phy_read_mmd
   phy_set_mode_ext
+  phy_suspend
   phy_trigger_machine
   phy_write_mmd
   pick_highest_pushable_task
@@ -3623,6 +3634,7 @@
   usb_add_phy_dev
   usb_alloc_coherent
   usb_alloc_urb
+  usb_altnum_to_altsetting
   usb_anchor_urb
   usb_assign_descriptors
   usb_autopm_get_interface
@@ -3644,6 +3656,8 @@
   usb_disabled
   usb_driver_claim_interface
   usb_driver_release_interface
+  usb_driver_set_configuration
+  usb_enable_lpm
   usb_ep_alloc_request
   usb_ep_autoconfig
   usb_ep_dequeue
@@ -3662,6 +3676,7 @@
   usb_get_dev
   usb_get_from_anchor
   usb_get_intf
+  usb_get_urb
   usb_ifnum_to_if
   usb_interface_id
   usb_kill_urb
@@ -3675,6 +3690,7 @@
   usb_register_driver
   usb_register_notify
   usb_remove_phy
+  usb_reset_configuration
   usb_role_switch_find_by_fwnode
   usb_role_switch_get_drvdata
   usb_role_switch_register
@@ -3705,8 +3721,10 @@
   usb_show_dynids
   usb_speed_string
   usb_store_new_id
+  usb_string
   usb_string_id
   usb_submit_urb
+  usb_unlink_urb
   usb_unpoison_urb
   usb_unregister_notify
   __usecs_to_jiffies
