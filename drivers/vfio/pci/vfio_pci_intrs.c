@@ -428,11 +428,9 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_core_device *vdev,
 	}
 
 	/*
-	 * The MSIx vector table resides in device memory which may be cleared
-	 * via backdoor resets. We don't allow direct access to the vector
-	 * table so even if a userspace driver attempts to save/restore around
-	 * such a reset it would be unsuccessful. To avoid this, restore the
-	 * cached value of the message prior to enabling.
+	 * If the vector was previously allocated, refresh the on-device
+	 * message data before enabling in case it had been cleared or
+	 * corrupted (e.g. due to backdoor resets) since writing.
 	 */
 	cmd = vfio_pci_memory_lock_and_enable(vdev);
 	if (msix) {
