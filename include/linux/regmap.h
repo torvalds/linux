@@ -1542,8 +1542,6 @@ struct regmap_irq_chip_data;
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
- * @type_base:   Base address for irq type.  If zero unsupported.  Deprecated,
- *		 use @config_base instead.
  * @config_base: Base address for IRQ type config regs. If null unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
@@ -1581,9 +1579,6 @@ struct regmap_irq_chip_data;
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
- *
- * @num_type_reg:    Number of type registers. Deprecated, use config registers
- *		     instead.
  * @num_config_bases:	Number of config base registers.
  * @num_config_regs:	Number of config registers for each config base register.
  *
@@ -1621,7 +1616,6 @@ struct regmap_irq_chip {
 	unsigned int unmask_base;
 	unsigned int ack_base;
 	unsigned int wake_base;
-	unsigned int type_base;
 	const unsigned int *config_base;
 	unsigned int irq_reg_stride;
 	unsigned int init_ack_masked:1;
@@ -1642,7 +1636,6 @@ struct regmap_irq_chip {
 	const struct regmap_irq *irqs;
 	int num_irqs;
 
-	int num_type_reg;
 	int num_config_bases;
 	int num_config_regs;
 

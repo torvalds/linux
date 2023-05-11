@@ -181,20 +181,6 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		}
 	}
 
-	/* Don't update the type bits if we're using mask bits for irq type. */
-	if (!d->chip->type_in_mask) {
-		for (i = 0; i < d->chip->num_type_reg; i++) {
-			if (!d->type_buf_def[i])
-				continue;
-			reg = d->get_irq_reg(d, d->chip->type_base, i);
-			ret = regmap_update_bits(d->map, reg,
-						 d->type_buf_def[i], d->type_buf[i]);
-			if (ret != 0)
-				dev_err(d->map->dev, "Failed to sync type in %x\n",
-					reg);
-		}
-	}
-
 	for (i = 0; i < d->chip->num_config_bases; i++) {
 		for (j = 0; j < d->chip->num_config_regs; j++) {
 			reg = d->get_irq_reg(d, d->chip->config_base[i], j);
@@ -273,36 +259,11 @@ static int regmap_irq_set_type(struct irq_data *data, unsigned int type)
 
 	reg = t->type_reg_offset / map->reg_stride;
 
-	if (t->type_reg_mask)
-		d->type_buf[reg] &= ~t->type_reg_mask;
-	else
-		d->type_buf[reg] &= ~(t->type_falling_val |
-				      t->type_rising_val |
-				      t->type_level_low_val |
-				      t->type_level_high_val);
-	switch (type) {
-	case IRQ_TYPE_EDGE_FALLING:
-		d->type_buf[reg] |= t->type_falling_val;
-		break;
-
-	case IRQ_TYPE_EDGE_RISING:
-		d->type_buf[reg] |= t->type_rising_val;
-		break;
-
-	case IRQ_TYPE_EDGE_BOTH:
-		d->type_buf[reg] |= (t->type_falling_val |
-					t->type_rising_val);
-		break;
-
-	case IRQ_TYPE_LEVEL_HIGH:
-		d->type_buf[reg] |= t->type_level_high_val;
-		break;
-
-	case IRQ_TYPE_LEVEL_LOW:
-		d->type_buf[reg] |= t->type_level_low_val;
-		break;
-	default:
-		return -EINVAL;
+	if (d->chip->type_in_mask) {
+		ret = regmap_irq_set_type_config_simple(&d->type_buf, type,
+							irq_data, reg, d->chip->irq_drv_data);
+		if (ret)
+			return ret;
 	}
 
 	if (d->chip->set_type_config) {
@@ -707,8 +668,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	struct regmap_irq_chip_data *d;
 	int i;
 	int ret = -ENOMEM;
-	int num_type_reg;
-	int num_regs;
 	u32 reg;
 
 	if (chip->num_regs <= 0)
@@ -732,9 +691,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (chip->sub_reg_offsets[i].num_regs != 1)
 				return -EINVAL;
 	}
-
-	if (chip->num_type_reg)
-		dev_warn(map->dev, "type registers are deprecated; use config registers instead");
 
 	if (irq_base) {
 		irq_base = irq_alloc_descs(irq_base, 0, chip->num_irqs, 0);
@@ -780,21 +736,13 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			goto err_alloc;
 	}
 
-	/*
-	 * Use num_config_regs if defined, otherwise fall back to num_type_reg
-	 * to maintain backward compatibility.
-	 */
-	num_type_reg = chip->num_config_regs ? chip->num_config_regs
-			: chip->num_type_reg;
-	num_regs = chip->type_in_mask ? chip->num_regs : num_type_reg;
-	if (num_regs) {
-		d->type_buf_def = kcalloc(num_regs,
+	if (chip->type_in_mask) {
+		d->type_buf_def = kcalloc(chip->num_regs,
 					  sizeof(*d->type_buf_def), GFP_KERNEL);
 		if (!d->type_buf_def)
 			goto err_alloc;
 
-		d->type_buf = kcalloc(num_regs, sizeof(*d->type_buf),
-				      GFP_KERNEL);
+		d->type_buf = kcalloc(chip->num_regs, sizeof(*d->type_buf), GFP_KERNEL);
 		if (!d->type_buf)
 			goto err_alloc;
 	}
@@ -964,20 +912,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 							 d->wake_buf[i]);
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
-					reg, ret);
-				goto err_alloc;
-			}
-		}
-	}
-
-	if (chip->num_type_reg && !chip->type_in_mask) {
-		for (i = 0; i < chip->num_type_reg; ++i) {
-			reg = d->get_irq_reg(d, d->chip->type_base, i);
-
-			ret = regmap_read(map, reg, &d->type_buf_def[i]);
-
-			if (ret) {
-				dev_err(map->dev, "Failed to get type defaults at 0x%x: %d\n",
 					reg, ret);
 				goto err_alloc;
 			}
