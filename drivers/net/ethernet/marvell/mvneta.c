@@ -2376,9 +2376,8 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 	if (data_len > 0 && sinfo->nr_frags < MAX_SKB_FRAGS) {
 		skb_frag_t *frag = &sinfo->frags[sinfo->nr_frags++];
 
-		skb_frag_off_set(frag, pp->rx_offset_correction);
-		skb_frag_size_set(frag, data_len);
-		__skb_frag_set_page(frag, page);
+		skb_frag_fill_page_desc(frag, page,
+					pp->rx_offset_correction, data_len);
 
 		if (!xdp_buff_has_frags(xdp)) {
 			sinfo->xdp_frags_size = *size;

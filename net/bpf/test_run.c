@@ -1415,11 +1415,10 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			}
 
 			frag = &sinfo->frags[sinfo->nr_frags++];
-			__skb_frag_set_page(frag, page);
 
 			data_len = min_t(u32, kattr->test.data_size_in - size,
 					 PAGE_SIZE);
-			skb_frag_size_set(frag, data_len);
+			skb_frag_fill_page_desc(frag, page, 0, data_len);
 
 			if (copy_from_user(page_address(page), data_in + size,
 					   data_len)) {

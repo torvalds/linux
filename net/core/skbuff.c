@@ -4234,10 +4234,9 @@ static inline skb_frag_t skb_head_frag_to_page_desc(struct sk_buff *frag_skb)
 	struct page *page;
 
 	page = virt_to_head_page(frag_skb->head);
-	__skb_frag_set_page(&head_frag, page);
-	skb_frag_off_set(&head_frag, frag_skb->data -
-			 (unsigned char *)page_address(page));
-	skb_frag_size_set(&head_frag, skb_headlen(frag_skb));
+	skb_frag_fill_page_desc(&head_frag, page, frag_skb->data -
+				(unsigned char *)page_address(page),
+				skb_headlen(frag_skb));
 	return head_frag;
 }
 

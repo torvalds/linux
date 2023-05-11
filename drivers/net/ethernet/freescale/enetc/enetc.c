@@ -1445,9 +1445,8 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 		xdp_buff_set_frag_pfmemalloc(xdp_buff);
 
 	frag = &shinfo->frags[shinfo->nr_frags];
-	skb_frag_off_set(frag, rx_swbd->page_offset);
-	skb_frag_size_set(frag, size);
-	__skb_frag_set_page(frag, rx_swbd->page);
+	skb_frag_fill_page_desc(frag, rx_swbd->page, rx_swbd->page_offset,
+				size);
 
 	shinfo->nr_frags++;
 }
