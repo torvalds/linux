@@ -382,6 +382,7 @@ void ps2_init(struct ps2dev *ps2dev, struct serio *serio)
 	lockdep_set_subclass(&ps2dev->cmd_mutex, serio->depth);
 	init_waitqueue_head(&ps2dev->wait);
 	ps2dev->serio = serio;
+	serio_set_drvdata(serio, ps2dev);
 }
 EXPORT_SYMBOL(ps2_init);
 
