@@ -3703,12 +3703,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_IA32_CR_PAT:
-		/*
-		 * Writes to PAT should be handled by vendor code as both SVM
-		 * and VMX track the guest's PAT in the VMCB/VMCS.
-		 */
-		WARN_ON_ONCE(1);
-
 		if (!kvm_pat_valid(data))
 			return 1;
 
