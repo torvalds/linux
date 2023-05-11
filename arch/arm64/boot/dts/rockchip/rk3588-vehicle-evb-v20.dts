@@ -16,6 +16,27 @@
 	model = "Rockchip RK3588 VEHICLE EVB V20 Board";
 	compatible = "rockchip,rk3588-vehicle-evb-v20", "rockchip,rk3588";
 
+	bt-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2_2ch>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco>;
+		};
+	};
+
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
 	nvp6188_osc: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <1>;
@@ -55,4 +76,12 @@
 			};
 		};
 	};
+};
+
+&i2s2_2ch{
+	pinctrl-0 = <&i2s2m1_lrck
+		     &i2s2m1_sclk
+		     &i2s2m1_sdi
+		     &i2s2m1_sdo>;
+	status = "okay";
 };
