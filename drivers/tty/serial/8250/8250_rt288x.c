@@ -12,6 +12,8 @@
 
 #include "8250.h"
 
+#define RT288X_DL	0x28
+
 #define UART_REG_UNMAPPED	-1
 
 /* Au1x00/RT288x UART hardware has a weird register layout */
@@ -60,12 +62,12 @@ static void au_serial_out(struct uart_port *p, int offset, int value)
 /* Au1x00 haven't got a standard divisor latch */
 static u32 au_serial_dl_read(struct uart_8250_port *up)
 {
-	return __raw_readl(up->port.membase + 0x28);
+	return __raw_readl(up->port.membase + RT288X_DL);
 }
 
 static void au_serial_dl_write(struct uart_8250_port *up, u32 value)
 {
-	__raw_writel(value, up->port.membase + 0x28);
+	__raw_writel(value, up->port.membase + RT288X_DL);
 }
 
 int au_platform_setup(struct plat_serial8250_port *p)
