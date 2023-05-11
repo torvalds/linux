@@ -1462,6 +1462,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2600-usbadp.dtb \
 	aspeed-ast2600-ncsi.dtb \
 	aspeed-ast2600-dcscm.dtb \
+	aspeed-ast2600-dcscm-amd.dtb \
 	aspeed-bmc-amd-ethanolx.dtb \
 	aspeed-bmc-ampere-mtjade.dtb \
 	aspeed-bmc-arm-centriq2400-rep.dtb \
