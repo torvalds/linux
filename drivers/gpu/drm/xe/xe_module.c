@@ -45,6 +45,10 @@ static const struct init_funcs init_funcs[] = {
 		.init = xe_sched_job_module_init,
 		.exit = xe_sched_job_module_exit,
 	},
+	{
+		.init = xe_register_pci_driver,
+		.exit = xe_unregister_pci_driver,
+	},
 };
 
 static int __init xe_init(void)
@@ -60,14 +64,12 @@ static int __init xe_init(void)
 		}
 	}
 
-	return xe_register_pci_driver();
+	return 0;
 }
 
 static void __exit xe_exit(void)
 {
 	int i;
-
-	xe_unregister_pci_driver();
 
 	for (i = ARRAY_SIZE(init_funcs) - 1; i >= 0; i--)
 		init_funcs[i].exit();
