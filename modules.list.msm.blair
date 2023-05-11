@@ -55,3 +55,5 @@ mem_buf_dev.ko
 mem_buf_msgq.ko
 mem_buf.ko
 socinfo.ko
+qcom_wdt_core.ko
+qcom_soc_wdt.ko
