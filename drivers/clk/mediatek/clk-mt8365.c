@@ -592,15 +592,15 @@ static const struct mtk_gate_regs top2_cg_regs = {
 
 #define GATE_TOP0(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top0_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
+		 _shift, &mtk_clk_gate_ops_no_setclr)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top1_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr)
+		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 #define GATE_TOP2(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top2_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr)
+		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate top_clk_gates[] = {
 	GATE_TOP0(CLK_TOP_CONN_32K, "conn_32k", "clk32k", 10),
