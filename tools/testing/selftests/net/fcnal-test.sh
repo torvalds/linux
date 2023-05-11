@@ -585,6 +585,20 @@ ipv4_ping_novrf()
 	done
 
 	#
+	# out, but don't use gateway if peer is not on link
+	#
+	a=${NSB_IP}
+	log_start
+	run_cmd ping -c 1 -w 1 -r ${a}
+	log_test_addr ${a} $? 0 "ping out (don't route), peer on link"
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Fails since peer is not on link"
+	run_cmd ping -c 1 -w 1 -r ${a}
+	log_test_addr ${a} $? 1 "ping out (don't route), peer not on link"
+
+	#
 	# in
 	#
 	for a in ${NSA_IP} ${NSA_LO_IP}
