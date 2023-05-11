@@ -51,7 +51,8 @@ struct intel_gsc_mtl_header {
 	 * we distinguish the flags using OUTFLAG or INFLAG
 	 */
 	u32 flags;
-#define GSC_OUTFLAG_MSG_PENDING	1
+#define GSC_OUTFLAG_MSG_PENDING	BIT(0)
+#define GSC_INFLAG_MSG_CLEANUP	BIT(1)
 
 	u32 status;
 } __packed;
