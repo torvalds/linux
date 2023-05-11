@@ -245,8 +245,6 @@ static int vfio_intx_enable(struct vfio_pci_core_device *vdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	vdev->num_ctx = 1;
-
 	/*
 	 * If the virtual interrupt is masked, restore it.  Devices
 	 * supporting DisINTx can be masked at the hardware level
@@ -334,7 +332,6 @@ static void vfio_intx_disable(struct vfio_pci_core_device *vdev)
 	}
 	vfio_intx_set_signal(vdev, -1);
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
-	vdev->num_ctx = 0;
 	vfio_irq_ctx_free(vdev, ctx, 0);
 }
 
@@ -370,7 +367,6 @@ static int vfio_msi_enable(struct vfio_pci_core_device *vdev, int nvec, bool msi
 	}
 	vfio_pci_memory_unlock_and_restore(vdev, cmd);
 
-	vdev->num_ctx = nvec;
 	vdev->irq_type = msix ? VFIO_PCI_MSIX_IRQ_INDEX :
 				VFIO_PCI_MSI_IRQ_INDEX;
 
@@ -393,9 +389,6 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_core_device *vdev,
 	struct eventfd_ctx *trigger;
 	int irq, ret;
 	u16 cmd;
-
-	if (vector >= vdev->num_ctx)
-		return -EINVAL;
 
 	irq = pci_irq_vector(pdev, vector);
 	if (irq < 0)
@@ -483,9 +476,6 @@ static int vfio_msi_set_block(struct vfio_pci_core_device *vdev, unsigned start,
 	unsigned int i, j;
 	int ret = 0;
 
-	if (start >= vdev->num_ctx || start + count > vdev->num_ctx)
-		return -EINVAL;
-
 	for (i = 0, j = start; i < count && !ret; i++, j++) {
 		int fd = fds ? fds[i] : -1;
 		ret = vfio_msi_set_vector_signal(vdev, j, fd, msix);
@@ -524,7 +514,6 @@ static void vfio_msi_disable(struct vfio_pci_core_device *vdev, bool msix)
 		pci_intx(pdev, 0);
 
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
-	vdev->num_ctx = 0;
 }
 
 /*
@@ -659,7 +648,7 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_core_device *vdev,
 		return ret;
 	}
 
-	if (!irq_is(vdev, index) || start + count > vdev->num_ctx)
+	if (!irq_is(vdev, index))
 		return -EINVAL;
 
 	for (i = start; i < start + count; i++) {
