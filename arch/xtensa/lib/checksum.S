@@ -169,6 +169,7 @@ ENTRY(csum_partial)
 	j	5b		/* branch to handle the remaining byte */
 
 ENDPROC(csum_partial)
+EXPORT_SYMBOL(csum_partial)
 
 /*
  * Copy from ds while checksumming, otherwise like csum_partial
@@ -346,6 +347,7 @@ EX(10f)	s8i	a8, a3, 1
 	j	4b		/* process the possible trailing odd byte */
 
 ENDPROC(csum_partial_copy_generic)
+EXPORT_SYMBOL(csum_partial_copy_generic)
 
 
 # Exception handler:

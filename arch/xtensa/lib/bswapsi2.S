@@ -14,3 +14,4 @@ ENTRY(__bswapsi2)
 	abi_ret_default
 
 ENDPROC(__bswapsi2)
+EXPORT_SYMBOL(__bswapsi2)

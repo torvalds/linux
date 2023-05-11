@@ -273,6 +273,8 @@ WEAK(memcpy)
 	abi_ret_default
 
 ENDPROC(__memcpy)
+EXPORT_SYMBOL(__memcpy)
+EXPORT_SYMBOL(memcpy)
 
 /*
  * void *memmove(void *dst, const void *src, size_t len);
@@ -536,3 +538,5 @@ WEAK(memmove)
 	abi_ret_default
 
 ENDPROC(__memmove)
+EXPORT_SYMBOL(__memmove)
+EXPORT_SYMBOL(memmove)

@@ -131,3 +131,4 @@ ENTRY(__mulsi3)
 	abi_ret_default
 
 ENDPROC(__mulsi3)
+EXPORT_SYMBOL(__mulsi3)
