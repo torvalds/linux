@@ -84,11 +84,11 @@ static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
  * @EFX_TC_EM_DIRECT: real HW entry in Outer Rule table; not a pseudo.
  *	Hardware index in &struct efx_tc_encap_match.fw_id is valid.
  * @EFX_TC_EM_PSEUDO_MASK: registered by an encap match which includes a
- *	match on an optional field (currently only ip_tos), to prevent an
- *	overlapping encap match _without_ optional fields.
+ *	match on an optional field (currently ip_tos and/or udp_sport),
+ *	to prevent an overlapping encap match _without_ optional fields.
  *	The pseudo encap match may be referenced again by an encap match
- *	with a different ip_tos value, but all ip_tos_mask must match the
- *	first (stored in our child_ip_tos_mask).
+ *	with different values for these fields, but all masks must match the
+ *	first (stored in our child_* fields).
  */
 enum efx_tc_em_pseudo_type {
 	EFX_TC_EM_DIRECT,
@@ -99,10 +99,12 @@ struct efx_tc_encap_match {
 	__be32 src_ip, dst_ip;
 	struct in6_addr src_ip6, dst_ip6;
 	__be16 udp_dport;
+	__be16 udp_sport, udp_sport_mask;
 	u8 ip_tos, ip_tos_mask;
 	struct rhash_head linkage;
 	enum efx_encap_type tun_type;
 	u8 child_ip_tos_mask;
+	__be16 child_udp_sport_mask;
 	refcount_t ref;
 	enum efx_tc_em_pseudo_type type;
 	u32 fw_id; /* index of this entry in firmware encap match table */
