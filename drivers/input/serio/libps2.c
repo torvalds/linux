@@ -247,14 +247,19 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 
 	serio_pause_rx(ps2dev->serio);
 
+	/* Some mice do not ACK the "get ID" command, prepare to handle this. */
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
 	ps2dev->cmdcnt = receive;
-	if (receive && param)
-		for (i = 0; i < receive; i++)
-			ps2dev->cmdbuf[(receive - 1) - i] = param[i];
+	if (receive) {
+		/* Indicate that we expect response to the command. */
+		ps2dev->flags |= PS2_FLAG_CMD | PS2_FLAG_CMD1;
+		if (param)
+			for (i = 0; i < receive; i++)
+				ps2dev->cmdbuf[(receive - 1) - i] = param[i];
+	}
 
 	/*
-	 * Some devices (Synaptics) peform the reset before
+	 * Some devices (Synaptics) perform the reset before
 	 * ACKing the reset command, and so it can take a long
 	 * time before the ACK arrives.
 	 */
@@ -434,11 +439,8 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		return true;
 	}
 
-	if (!ps2dev->nak) {
+	if (!ps2dev->nak)
 		ps2dev->flags &= ~PS2_FLAG_NAK;
-		if (ps2dev->cmdcnt)
-			ps2dev->flags |= PS2_FLAG_CMD | PS2_FLAG_CMD1;
-	}
 
 	ps2dev->flags &= ~PS2_FLAG_ACK;
 	wake_up(&ps2dev->wait);
