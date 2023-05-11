@@ -445,7 +445,7 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 	ps2dev->flags &= ~PS2_FLAG_ACK;
 	wake_up(&ps2dev->wait);
 
-	if (data != PS2_RET_ACK)
+	if (!ps2dev->nak && data != PS2_RET_ACK)
 		ps2_handle_response(ps2dev, data);
 
 	return true;
