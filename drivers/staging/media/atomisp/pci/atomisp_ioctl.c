@@ -528,22 +528,6 @@ int atomisp_pipe_check(struct atomisp_video_pipe *pipe, bool settings_change)
 		return -EBUSY;
 	}
 
-	switch (pipe->asd->streaming) {
-	case ATOMISP_DEVICE_STREAMING_DISABLED:
-		break;
-	case ATOMISP_DEVICE_STREAMING_ENABLED:
-		if (settings_change) {
-			dev_err(pipe->isp->dev, "Set fmt/input IOCTL while streaming\n");
-			return -EBUSY;
-		}
-		break;
-	case ATOMISP_DEVICE_STREAMING_STOPPING:
-		dev_err(pipe->isp->dev, "IOCTL issued while stopping\n");
-		return -EBUSY;
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
