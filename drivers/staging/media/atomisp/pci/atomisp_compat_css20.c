@@ -1001,41 +1001,16 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 		wbinvd();
 	}
 
-	/*
-	 * For dual steam case, it is possible that:
-	 * 1: for this stream, it is at the stage that:
-	 * - after set_fmt is called
-	 * - before stream on is called
-	 * 2: for the other stream, the stream off is called which css reset
-	 * has been done.
-	 *
-	 * Thus the stream created in set_fmt get destroyed and need to be
-	 * recreated in the next stream on.
-	 */
-	if (!asd->stream_prepared) {
-		ret = atomisp_create_pipes_stream(asd);
-		if (ret)
-			return ret;
+	if (!sh_css_hrt_system_is_idle())
+		dev_err(isp->dev, "CSS HW not idle before starting SP\n");
+
+	if (ia_css_start_sp()) {
+		dev_err(isp->dev, "start sp error.\n");
+		ret = -EINVAL;
+		goto start_err;
 	}
-	/*
-	 * SP can only be started one time
-	 * if atomisp_subdev_streaming_count() tell there already has some
-	 * subdev at streamming, then SP should already be started previously,
-	 * so need to skip start sp procedure
-	 */
-	if (atomisp_streaming_count(isp)) {
-		dev_dbg(isp->dev, "skip start sp\n");
-	} else {
-		if (!sh_css_hrt_system_is_idle())
-			dev_err(isp->dev, "CSS HW not idle before starting SP\n");
-		if (ia_css_start_sp()) {
-			dev_err(isp->dev, "start sp error.\n");
-			ret = -EINVAL;
-			goto start_err;
-		} else {
-			sp_is_started = true;
-		}
-	}
+
+	sp_is_started = true;
 
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
 		if (asd->stream_env[i].stream) {
@@ -1054,16 +1029,15 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 	return 0;
 
 start_err:
-	atomisp_destroy_pipes_stream_force(asd);
-
-	/* css 2.0 API limitation: ia_css_stop_sp() could be only called after
-	 * destroy all pipes
-	 */
 	/*
-	 * SP can not be stop if other streams are in use
+	 * CSS 2.0 API limitation: ia_css_stop_sp() can only be called after
+	 * destroying all pipes.
 	 */
-	if ((atomisp_streaming_count(isp) == 0) && sp_is_started)
+	if (sp_is_started) {
+		atomisp_destroy_pipes_stream_force(asd);
 		ia_css_stop_sp();
+		atomisp_create_pipes_stream(asd);
+	}
 
 	return ret;
 }
@@ -1843,20 +1817,18 @@ int atomisp_css_input_configure_port(
 void atomisp_css_stop(struct atomisp_sub_device *asd,
 		      enum ia_css_pipe_id pipe_id, bool in_reset)
 {
-	struct atomisp_device *isp = asd->isp;
 	unsigned long irqflags;
 	unsigned int i;
 
-	/* if is called in atomisp_reset(), force destroy streams and pipes */
+	/*
+	 * CSS 2.0 API limitation: ia_css_stop_sp() can only be called after
+	 * destroying all pipes.
+	 */
 	atomisp_destroy_pipes_stream_force(asd);
 
 	atomisp_init_raw_buffer_bitmap(asd);
 
-	/*
-	 * SP can not be stop if other streams are in use
-	 */
-	if (atomisp_streaming_count(isp) == 0)
-		ia_css_stop_sp();
+	ia_css_stop_sp();
 
 	if (!in_reset) {
 		struct atomisp_stream_env *stream_env;
