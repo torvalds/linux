@@ -3112,6 +3112,13 @@ static noinline long btrfs_ioctl_start_sync(struct btrfs_root *root,
 	struct btrfs_trans_handle *trans;
 	u64 transid;
 
+	/*
+	 * Start orphan cleanup here for the given root in case it hasn't been
+	 * started already by other means. Errors are handled in the other
+	 * functions during transaction commit.
+	 */
+	btrfs_orphan_cleanup(root);
+
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
 		if (PTR_ERR(trans) != -ENOENT)
