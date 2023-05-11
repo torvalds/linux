@@ -447,14 +447,14 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
+int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	u16 old_active;
 	int ret;
 
-	sdata_lock(sdata);
+	sdata_assert_lock(sdata);
 	mutex_lock(&local->sta_mtx);
 	mutex_lock(&local->mtx);
 	mutex_lock(&local->key_mtx);
@@ -476,6 +476,17 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	mutex_unlock(&local->key_mtx);
 	mutex_unlock(&local->mtx);
 	mutex_unlock(&local->sta_mtx);
+
+	return ret;
+}
+
+int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	int ret;
+
+	sdata_lock(sdata);
+	ret = __ieee80211_set_active_links(vif, active_links);
 	sdata_unlock(sdata);
 
 	return ret;

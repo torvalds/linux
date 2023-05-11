@@ -2034,6 +2034,7 @@ void ieee80211_link_stop(struct ieee80211_link_data *link);
 int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 			    u16 new_links, u16 dormant_links);
 void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata);
+int __ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
