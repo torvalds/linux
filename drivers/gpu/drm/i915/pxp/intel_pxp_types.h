@@ -27,6 +27,14 @@ struct intel_pxp {
 	struct intel_gt *ctrl_gt;
 
 	/**
+	 * @gsccs_res: resources for request submission for platforms that have a GSC engine.
+	 */
+	struct gsccs_session_resources {
+		u64 host_session_handle; /* used by firmware to link commands to sessions */
+		struct intel_context *ce; /* context for gsc command submission */
+	} gsccs_res;
+
+	/**
 	 * @pxp_component: i915_pxp_component struct of the bound mei_pxp
 	 * module. Only set and cleared inside component bind/unbind functions,
 	 * which are protected by &tee_mutex.
