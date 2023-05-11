@@ -1209,6 +1209,7 @@ static const struct intel_device_info mtl_info = {
 	.has_mslice_steering = 0,
 	.has_snoop = 1,
 	.max_pat_index = 4,
+	.has_pxp = 1,
 	.__runtime.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
 	.require_force_probe = 1,
