@@ -34,7 +34,7 @@ static bool is_mtrr_base_msr(unsigned int msr)
 static struct kvm_mtrr_range *var_mtrr_msr_to_range(struct kvm_vcpu *vcpu,
 						    unsigned int msr)
 {
-	int index = (msr - 0x200) / 2;
+	int index = (msr - MTRRphysBase_MSR(0)) / 2;
 
 	return &vcpu->arch.mtrr_state.var_ranges[index];
 }
@@ -42,7 +42,7 @@ static struct kvm_mtrr_range *var_mtrr_msr_to_range(struct kvm_vcpu *vcpu,
 static bool msr_mtrr_valid(unsigned msr)
 {
 	switch (msr) {
-	case 0x200 ... 0x200 + 2 * KVM_NR_VAR_MTRR - 1:
+	case MTRRphysBase_MSR(0) ... MTRRphysMask_MSR(KVM_NR_VAR_MTRR - 1):
 	case MSR_MTRRfix64K_00000:
 	case MSR_MTRRfix16K_80000:
 	case MSR_MTRRfix16K_A0000:
@@ -88,7 +88,8 @@ bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	}
 
 	/* variable MTRRs */
-	WARN_ON(!(msr >= 0x200 && msr < 0x200 + 2 * KVM_NR_VAR_MTRR));
+	WARN_ON(!(msr >= MTRRphysBase_MSR(0) &&
+		  msr <= MTRRphysMask_MSR(KVM_NR_VAR_MTRR - 1)));
 
 	mask = kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 	if ((msr & 1) == 0) {

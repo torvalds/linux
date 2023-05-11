@@ -3702,8 +3702,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		}
 		break;
-	case 0x200 ... MSR_IA32_MC0_CTL2 - 1:
-	case MSR_IA32_MCx_CTL2(KVM_MAX_MCE_BANKS) ... 0x2ff:
+	case MSR_IA32_CR_PAT:
+	case MTRRphysBase_MSR(0) ... MSR_MTRRfix4K_F8000:
+	case MSR_MTRRdefType:
 		return kvm_mtrr_set_msr(vcpu, msr, data);
 	case MSR_IA32_APICBASE:
 		return kvm_set_apic_base(vcpu, msr_info);
@@ -4110,9 +4111,10 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = kvm_scale_tsc(rdtsc(), ratio) + offset;
 		break;
 	}
+	case MSR_IA32_CR_PAT:
 	case MSR_MTRRcap:
-	case 0x200 ... MSR_IA32_MC0_CTL2 - 1:
-	case MSR_IA32_MCx_CTL2(KVM_MAX_MCE_BANKS) ... 0x2ff:
+	case MTRRphysBase_MSR(0) ... MSR_MTRRfix4K_F8000:
+	case MSR_MTRRdefType:
 		return kvm_mtrr_get_msr(vcpu, msr_info->index, &msr_info->data);
 	case 0xcd: /* fsb frequency */
 		msr_info->data = 3;
