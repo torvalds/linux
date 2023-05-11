@@ -1381,6 +1381,18 @@ static inline void scsi_16_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
 }
 
 /**
+ *	scsi_dld - Get duration limit descriptor index
+ *	@cdb: SCSI command to translate
+ *
+ *	Returns the dld bits indicating the index of a command duration limit
+ *	descriptor.
+ */
+static inline int scsi_dld(const u8 *cdb)
+{
+	return ((cdb[1] & 0x01) << 2) | ((cdb[14] >> 6) & 0x03);
+}
+
+/**
  *	ata_scsi_verify_xlat - Translate SCSI VERIFY command into an ATA one
  *	@qc: Storage for translated ATA taskfile
  *
@@ -1548,6 +1560,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	int class = IOPRIO_PRIO_CLASS(req_get_ioprio(rq));
 	unsigned int tf_flags = 0;
+	int dld = 0;
 	u64 block;
 	u32 n_block;
 	int rc;
@@ -1598,6 +1611,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 			goto invalid_fld;
 		}
 		scsi_16_lba_len(cdb, &block, &n_block);
+		dld = scsi_dld(cdb);
 		if (cdb[1] & (1 << 3))
 			tf_flags |= ATA_TFLAG_FUA;
 		if (!ata_check_nblocks(scmd, n_block))
@@ -1622,7 +1636,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	qc->flags |= ATA_QCFLAG_IO;
 	qc->nbytes = n_block * scmd->device->sector_size;
 
-	rc = ata_build_rw_tf(qc, block, n_block, tf_flags, class);
+	rc = ata_build_rw_tf(qc, block, n_block, tf_flags, dld, class);
 	if (likely(rc == 0))
 		return 0;
 
