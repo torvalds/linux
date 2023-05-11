@@ -22,8 +22,6 @@
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
-#define MEDIA_GUC_HOST_INTERRUPT        XE_REG(0x190304)
-
 static struct xe_gt *
 guc_to_gt(struct xe_guc *guc)
 {
@@ -268,7 +266,7 @@ int xe_guc_init(struct xe_guc *guc)
 	guc_init_params(guc);
 
 	if (xe_gt_is_media_type(gt))
-		guc->notify_reg = MEDIA_GUC_HOST_INTERRUPT;
+		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
 	else
 		guc->notify_reg = GUC_HOST_INTERRUPT;
 

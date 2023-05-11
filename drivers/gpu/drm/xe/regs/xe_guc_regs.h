@@ -119,6 +119,8 @@ struct guc_doorbell_info {
 #define VF_SW_FLAG(n)				XE_REG(0x190240 + (n) * 4)
 #define VF_SW_FLAG_COUNT			4
 
+#define MED_GUC_HOST_INTERRUPT			XE_REG(0x190304)
+
 #define MED_VF_SW_FLAG(n)			XE_REG(0x190310 + (n) * 4)
 #define MED_VF_SW_FLAG_COUNT			4
 
