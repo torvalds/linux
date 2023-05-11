@@ -455,7 +455,7 @@ static const struct hwmon_channel_info abeoz9_temp = {
 	.config = abeoz9_temp_config,
 };
 
-static const struct hwmon_channel_info *abeoz9_info[] = {
+static const struct hwmon_channel_info * const abeoz9_info[] = {
 	&abeoz9_chip,
 	&abeoz9_temp,
 	NULL
