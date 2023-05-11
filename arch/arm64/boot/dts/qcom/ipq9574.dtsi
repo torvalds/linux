@@ -75,6 +75,13 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq9574", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x6100>;
+		};
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
@@ -140,6 +147,11 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-ipq9574", "syscon";
+			reg = <0x01937000 0x21000>;
 		};
 
 		sdhc_1: mmc@7804000 {
