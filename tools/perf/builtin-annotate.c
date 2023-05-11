@@ -342,7 +342,7 @@ static void hists__find_annotations(struct hists *hists,
 		notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL) {
 find_next:
-			if (key == K_LEFT)
+			if (key == K_LEFT || key == '<')
 				nd = rb_prev(nd);
 			else
 				nd = rb_next(nd);
@@ -378,9 +378,11 @@ find_next:
 					return;
 				/* fall through */
 			case K_RIGHT:
+			case '>':
 				next = rb_next(nd);
 				break;
 			case K_LEFT:
+			case '<':
 				next = rb_prev(nd);
 				break;
 			default:
