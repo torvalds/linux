@@ -54,7 +54,7 @@ enum task_event {
 };
 
 enum qos_clients {
-	STUB_CLIENT,
+	QOS_PARTIAL_HALT,
 };
 
 /* Note: this need to be in sync with migrate_type_names array */
@@ -257,6 +257,7 @@ extern __read_mostly unsigned int sysctl_sched_force_lb_enable;
 extern const int sched_user_hint_max;
 extern unsigned int sysctl_sched_dynamic_tp_enable;
 extern unsigned int sysctl_panic_on_walt_bug;
+extern unsigned int sysctl_max_freq_partial_halt;
 extern int sched_dynamic_tp_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 

@@ -51,6 +51,7 @@ DEFINE_SPINLOCK(cpus_taken_lock);
 DEFINE_PER_CPU(int, cpus_taken_refcount);
 
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
+DEFINE_PER_CPU(struct freq_qos_request, qos_req_max);
 
 unsigned int sysctl_sched_user_hint;
 static u64 sched_clock_last;
@@ -4957,6 +4958,9 @@ struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 	struct freq_qos_request *req = NULL;
 
 	switch (client) {
+	case QOS_PARTIAL_HALT:
+		req = &per_cpu(qos_req_max, cpu);
+		break;
 	default:
 		pr_debug("unsupported qos client=%d\n", client);
 		break;
@@ -5137,6 +5141,7 @@ static void walt_init(struct work_struct *work)
 	walt_rt_init();
 	walt_cfs_init();
 	walt_halt_init();
+	init_max_freq_qos_request(QOS_PARTIAL_HALT);
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
 
 	if (!rcu_dereference(rd->pd)) {

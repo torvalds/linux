@@ -82,6 +82,7 @@ unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
 unsigned int sysctl_sched_heavy_nr;
+unsigned int sysctl_max_freq_partial_halt = FREQ_QOS_MAX_DEFAULT_VALUE;
 unsigned int sysctl_sched_sbt_pause_cpus;
 unsigned int sysctl_sched_sbt_delay_windows;
 
@@ -1169,6 +1170,15 @@ struct ctl_table walt_table[] = {
 	{
 		.procname	= "sched_sbt_delay_windows",
 		.data		= &sysctl_sched_sbt_delay_windows,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_max_freq_partial_halt",
+		.data		= &sysctl_max_freq_partial_halt,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec_minmax,
