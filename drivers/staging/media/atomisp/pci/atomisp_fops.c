@@ -411,7 +411,7 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 
 	/* TODO: do this better, not best way to queue to css */
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
+	if (asd->streaming) {
 		if (!list_empty(&pipe->buffers_waiting_for_param))
 			atomisp_handle_parameter_and_buffer(pipe);
 		else

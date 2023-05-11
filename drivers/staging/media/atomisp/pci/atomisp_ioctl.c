@@ -601,7 +601,7 @@ static int atomisp_enum_input(struct file *file, void *fh,
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 {
-	return isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED;
+	return isp->asd.streaming;
 }
 
 /*
@@ -1163,7 +1163,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	spin_lock_irqsave(&isp->lock, irqflags);
-	asd->streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
+	asd->streaming = true;
 	spin_unlock_irqrestore(&isp->lock, irqflags);
 	atomic_set(&asd->sof_count, -1);
 	atomic_set(&asd->sequence, -1);
@@ -1205,7 +1205,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret) {
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
 		spin_lock_irqsave(&isp->lock, irqflags);
-		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
+		asd->streaming = false;
 		spin_unlock_irqrestore(&isp->lock, irqflags);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1246,7 +1246,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
 
 	spin_lock_irqsave(&isp->lock, flags);
-	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
+	asd->streaming = false;
 	spin_unlock_irqrestore(&isp->lock, flags);
 
 	atomisp_clear_css_buffer_counters(asd);

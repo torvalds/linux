@@ -475,7 +475,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	if (!atomisp_streaming_count(isp))
 		goto out_nowake;
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
+	if (isp->asd.streaming) {
 		if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
 			atomic_inc(&isp->asd.sof_count);
 			atomisp_sof_event(&isp->asd);
@@ -950,12 +950,11 @@ static void __atomisp_css_recover(struct atomisp_device *isp)
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED ||
-	    isp->asd.stream_prepared) {
+	if (isp->asd.streaming || isp->asd.stream_prepared) {
 		stream_restart = true;
 
 		spin_lock_irqsave(&isp->lock, flags);
-		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
+		isp->asd.streaming = false;
 		spin_unlock_irqrestore(&isp->lock, flags);
 
 		/* stream off sensor */
@@ -970,10 +969,6 @@ static void __atomisp_css_recover(struct atomisp_device *isp)
 
 		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
 		atomisp_css_stop(&isp->asd, css_pipe_id, true);
-
-		spin_lock_irqsave(&isp->lock, flags);
-		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
-		spin_unlock_irqrestore(&isp->lock, flags);
 
 		isp->asd.preview_exp_id = 1;
 		isp->asd.postview_exp_id = 1;
@@ -1003,7 +998,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp)
 				 "start SP failed, so do not set streaming to be enable!\n");
 		} else {
 			spin_lock_irqsave(&isp->lock, flags);
-			isp->asd.streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
+			isp->asd.streaming = true;
 			spin_unlock_irqrestore(&isp->lock, flags);
 		}
 
@@ -1128,7 +1123,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	if (atomisp_css_isr_thread(isp))
 		goto out;
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (isp->asd.streaming)
 		atomisp_setup_flash(&isp->asd);
 out:
 	mutex_unlock(&isp->mutex);
@@ -3211,7 +3206,7 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	 * CSS/FW requires set parameter and enqueue buffer happen after ISP
 	 * is streamon.
 	 */
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (!asd->streaming)
 		return;
 
 	if (list_empty(&pipe->per_frame_params) ||
@@ -4761,7 +4756,7 @@ static int __checking_exp_id(struct atomisp_sub_device *asd, int exp_id)
 		dev_warn(isp->dev, "%s Raw Buffer Lock is disable.\n", __func__);
 		return -EINVAL;
 	}
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED) {
+	if (!asd->streaming) {
 		dev_err(isp->dev, "%s streaming %d invalid exp_id %d.\n",
 			__func__, exp_id, asd->streaming);
 		return -EINVAL;
@@ -4883,7 +4878,7 @@ int atomisp_enable_dz_capt_pipe(struct atomisp_sub_device *asd,
 
 int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event)
 {
-	if (!event || asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (!event || !asd->streaming)
 		return -EINVAL;
 
 	lockdep_assert_held(&asd->isp->mutex);

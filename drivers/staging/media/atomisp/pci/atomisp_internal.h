@@ -168,10 +168,6 @@ struct atomisp_regs {
 	u32 csi_access_viol;
 };
 
-#define ATOMISP_DEVICE_STREAMING_DISABLED	0
-#define ATOMISP_DEVICE_STREAMING_ENABLED	1
-#define ATOMISP_DEVICE_STREAMING_STOPPING	2
-
 /*
  * ci device struct
  */

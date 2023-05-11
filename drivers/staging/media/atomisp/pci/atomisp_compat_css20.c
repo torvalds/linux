@@ -3081,7 +3081,7 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 		return -EINVAL;
 
 	/* isp needs to be streaming to get DIS statistics */
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (!asd->streaming)
 		return -EINVAL;
 
 	if (atomisp_compare_dvs_grid(asd, &stats->dvs2_stat.grid_info) != 0)
@@ -3210,7 +3210,7 @@ static bool atomisp_css_isr_get_stream_id(struct ia_css_pipe *css_pipe,
 	struct atomisp_stream_env *stream_env;
 	int i, j;
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_DISABLED)
+	if (!isp->asd.streaming)
 		return false;
 
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {

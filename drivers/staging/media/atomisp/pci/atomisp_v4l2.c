@@ -672,7 +672,7 @@ static int atomisp_suspend(struct device *dev)
 		return -EBUSY;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (isp->asd.streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
+	if (isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		dev_err(isp->dev, "atomisp cannot suspend at this time.\n");
 		return -EINVAL;

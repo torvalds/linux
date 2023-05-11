@@ -299,7 +299,7 @@ struct atomisp_sub_device {
 	 * Writers of streaming must hold both isp->mutex and isp->lock.
 	 * Readers of streaming need to hold only one of the two locks.
 	 */
-	unsigned int streaming;
+	bool streaming;
 	bool stream_prepared; /* whether css stream is created */
 
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
