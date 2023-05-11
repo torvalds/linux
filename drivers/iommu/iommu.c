@@ -106,6 +106,10 @@ enum {
 	IOMMU_SET_DOMAIN_MUST_SUCCEED = 1 << 0,
 };
 
+static int __iommu_device_set_domain(struct iommu_group *group,
+				     struct device *dev,
+				     struct iommu_domain *new_domain,
+				     unsigned int flags);
 static int __iommu_group_set_domain_internal(struct iommu_group *group,
 					     struct iommu_domain *new_domain,
 					     unsigned int flags);
@@ -401,17 +405,6 @@ err_unlock:
 	return ret;
 }
 
-static int iommu_group_do_dma_first_attach(struct device *dev, void *data)
-{
-	struct iommu_domain *domain = data;
-
-	lockdep_assert_held(&dev->iommu_group->mutex);
-
-	if (dev->iommu->attach_deferred)
-		return 0;
-	return __iommu_attach_device(domain, dev);
-}
-
 int iommu_probe_device(struct device *dev)
 {
 	const struct iommu_ops *ops;
@@ -442,7 +435,7 @@ int iommu_probe_device(struct device *dev)
 	 * attach the default domain.
 	 */
 	if (group->default_domain && !group->owner) {
-		ret = iommu_group_do_dma_first_attach(dev, group->default_domain);
+		ret = __iommu_device_set_domain(group, dev, group->domain, 0);
 		if (ret) {
 			mutex_unlock(&group->mutex);
 			iommu_group_put(group);
