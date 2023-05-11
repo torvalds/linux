@@ -935,18 +935,20 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		atomisp_qbuffers_to_css(asd);
 }
 
-static void __atomisp_css_recover(struct atomisp_device *isp)
+void atomisp_assert_recovery_work(struct work_struct *work)
 {
+	struct atomisp_device *isp = container_of(work, struct atomisp_device,
+						  assert_recovery_work);
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	bool stream_restart = false;
 	unsigned long flags;
 	int ret;
 
-	lockdep_assert_held(&isp->mutex);
+	mutex_lock(&isp->mutex);
 
 	if (!atomisp_streaming_count(isp))
-		return;
+		goto out_unlock;
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
@@ -1028,24 +1030,9 @@ static void __atomisp_css_recover(struct atomisp_device *isp)
 			dev_warn(isp->dev,
 				 "can't start streaming on sensor!\n");
 	}
-}
 
-void atomisp_assert_recovery_work(struct work_struct *work)
-{
-	struct atomisp_device *isp = container_of(work, struct atomisp_device,
-						  assert_recovery_work);
-
-	mutex_lock(&isp->mutex);
-	__atomisp_css_recover(isp);
+out_unlock:
 	mutex_unlock(&isp->mutex);
-}
-
-void atomisp_css_flush(struct atomisp_device *isp)
-{
-	/* Start recover */
-	__atomisp_css_recover(isp);
-
-	dev_dbg(isp->dev, "atomisp css flush done\n");
 }
 
 void atomisp_setup_flash(struct atomisp_sub_device *asd)
