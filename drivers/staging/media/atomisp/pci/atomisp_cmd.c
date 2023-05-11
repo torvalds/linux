@@ -475,35 +475,27 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	if (!isp->asd.streaming)
 		goto out_nowake;
 
-	if (isp->asd.streaming) {
-		if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
-			atomic_inc(&isp->asd.sof_count);
-			atomisp_sof_event(&isp->asd);
-
-			/* If sequence_temp and sequence are the same
-			 * there where no frames lost so we can increase
-			 * sequence_temp.
-			 * If not then processing of frame is still in progress
-			 * and driver needs to keep old sequence_temp value.
-			 * NOTE: There is assumption here that ISP will not
-			 * start processing next frame from sensor before old
-			 * one is completely done. */
-			if (atomic_read(&isp->asd.sequence) ==
-			    atomic_read(&isp->asd.sequence_temp))
-				atomic_set(&isp->asd.sequence_temp,
-					   atomic_read(&isp->asd.sof_count));
-		}
-		if (irq_infos & IA_CSS_IRQ_INFO_EVENTS_READY)
-			atomic_set(&isp->asd.sequence,
-				   atomic_read(&isp->asd.sequence_temp));
-	}
-
 	if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
-		dev_dbg_ratelimited(isp->dev,
-				    "irq:0x%x (SOF)\n",
-				    irq_infos);
+		atomic_inc(&isp->asd.sof_count);
+		atomisp_sof_event(&isp->asd);
+
+		/*
+		 * If sequence_temp and sequence are the same there where no frames
+		 * lost so we can increase sequence_temp.
+		 * If not then processing of frame is still in progress and driver
+		 * needs to keep old sequence_temp value.
+		 * NOTE: There is assumption here that ISP will not start processing
+		 * next frame from sensor before old one is completely done.
+		 */
+		if (atomic_read(&isp->asd.sequence) == atomic_read(&isp->asd.sequence_temp))
+			atomic_set(&isp->asd.sequence_temp, atomic_read(&isp->asd.sof_count));
+
+		dev_dbg_ratelimited(isp->dev, "irq:0x%x (SOF)\n", irq_infos);
 		irq_infos &= ~IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF;
 	}
+
+	if (irq_infos & IA_CSS_IRQ_INFO_EVENTS_READY)
+		atomic_set(&isp->asd.sequence, atomic_read(&isp->asd.sequence_temp));
 
 	if ((irq_infos & IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR) ||
 	    (irq_infos & IA_CSS_IRQ_INFO_IF_ERROR)) {
@@ -941,7 +933,6 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 						  assert_recovery_work);
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
-	bool stream_restart = false;
 	unsigned long flags;
 	int ret;
 
@@ -952,33 +943,25 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	if (isp->asd.streaming || isp->asd.stream_prepared) {
-		stream_restart = true;
+	spin_lock_irqsave(&isp->lock, flags);
+	isp->asd.streaming = false;
+	spin_unlock_irqrestore(&isp->lock, flags);
 
-		spin_lock_irqsave(&isp->lock, flags);
-		isp->asd.streaming = false;
-		spin_unlock_irqrestore(&isp->lock, flags);
+	/* stream off sensor */
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 0);
+	if (ret)
+		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
 
-		/* stream off sensor */
-		ret = v4l2_subdev_call(
-			  isp->inputs[isp->asd.input_curr].
-			  camera, video, s_stream, 0);
-		if (ret)
-			dev_warn(isp->dev,
-				 "can't stop streaming on sensor!\n");
+	atomisp_clear_css_buffer_counters(&isp->asd);
 
-		atomisp_clear_css_buffer_counters(&isp->asd);
+	css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
+	atomisp_css_stop(&isp->asd, css_pipe_id, true);
 
-		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-		atomisp_css_stop(&isp->asd, css_pipe_id, true);
-
-		isp->asd.preview_exp_id = 1;
-		isp->asd.postview_exp_id = 1;
-		/* notify HAL the CSS reset */
-		dev_dbg(isp->dev,
-			"send reset event to %s\n", isp->asd.subdev.devnode->name);
-		atomisp_reset_event(&isp->asd);
-	}
+	isp->asd.preview_exp_id = 1;
+	isp->asd.postview_exp_id = 1;
+	/* notify HAL the CSS reset */
+	dev_dbg(isp->dev, "send reset event to %s\n", isp->asd.subdev.devnode->name);
+	atomisp_reset_event(&isp->asd);
 
 	/* clear irq */
 	disable_isp_irq(hrt_isp_css_irq_sp);
@@ -991,21 +974,18 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	/* reset ISP and restore its state */
 	atomisp_reset(isp);
 
-	if (stream_restart) {
-		atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
+	atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
-		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-		if (atomisp_css_start(&isp->asd, css_pipe_id, true)) {
-			dev_warn(isp->dev,
-				 "start SP failed, so do not set streaming to be enable!\n");
-		} else {
-			spin_lock_irqsave(&isp->lock, flags);
-			isp->asd.streaming = true;
-			spin_unlock_irqrestore(&isp->lock, flags);
-		}
-
-		atomisp_csi2_configure(&isp->asd);
+	css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
+	if (atomisp_css_start(&isp->asd, css_pipe_id, true)) {
+		dev_warn(isp->dev, "start SP failed, so do not set streaming to be enable!\n");
+	} else {
+		spin_lock_irqsave(&isp->lock, flags);
+		isp->asd.streaming = true;
+		spin_unlock_irqrestore(&isp->lock, flags);
 	}
+
+	atomisp_csi2_configure(&isp->asd);
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
 			       atomisp_css_valid_sof(isp));
@@ -1013,23 +993,15 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
 		dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 
-	if (stream_restart) {
-		/*
-		 * dequeueing buffers is not needed. CSS will recycle
-		 * buffers that it has.
-		 */
-		atomisp_flush_video_pipe(&isp->asd.video_out, VB2_BUF_STATE_ERROR, false);
+	/* Dequeueing buffers is not needed, CSS will recycle buffers that it has */
+	atomisp_flush_video_pipe(&isp->asd.video_out, VB2_BUF_STATE_ERROR, false);
 
-		/* Requeue unprocessed per-frame parameters. */
-		atomisp_recover_params_queue(&isp->asd.video_out);
+	/* Requeue unprocessed per-frame parameters. */
+	atomisp_recover_params_queue(&isp->asd.video_out);
 
-		ret = v4l2_subdev_call(
-			  isp->inputs[isp->asd.input_curr].camera, video,
-			  s_stream, 1);
-		if (ret)
-			dev_warn(isp->dev,
-				 "can't start streaming on sensor!\n");
-	}
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 1);
+	if (ret)
+		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
 
 out_unlock:
 	mutex_unlock(&isp->mutex);
