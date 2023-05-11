@@ -1758,50 +1758,43 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-struct __group_domain_type {
-	struct device *dev;
-	unsigned int type;
-};
-
-static int probe_get_default_domain_type(struct device *dev, void *data)
+/* A target_type of 0 will select the best domain type and cannot fail */
+static int iommu_get_default_domain_type(struct iommu_group *group,
+					 int target_type)
 {
-	struct __group_domain_type *gtype = data;
-	unsigned int type = iommu_get_def_domain_type(dev);
+	int best_type = target_type;
+	struct group_device *gdev;
+	struct device *last_dev;
 
-	if (type) {
-		if (gtype->type && gtype->type != type) {
-			dev_warn(dev, "Device needs domain type %s, but device %s in the same iommu group requires type %s - using default\n",
-				 iommu_domain_type_str(type),
-				 dev_name(gtype->dev),
-				 iommu_domain_type_str(gtype->type));
-			gtype->type = 0;
-		}
+	lockdep_assert_held(&group->mutex);
 
-		if (!gtype->dev) {
-			gtype->dev  = dev;
-			gtype->type = type;
+	for_each_group_device(group, gdev) {
+		unsigned int type = iommu_get_def_domain_type(gdev->dev);
+
+		if (best_type && type && best_type != type) {
+			if (target_type) {
+				dev_err_ratelimited(
+					gdev->dev,
+					"Device cannot be in %s domain\n",
+					iommu_domain_type_str(target_type));
+				return -1;
+			}
+
+			dev_warn(
+				gdev->dev,
+				"Device needs domain type %s, but device %s in the same iommu group requires type %s - using default\n",
+				iommu_domain_type_str(type), dev_name(last_dev),
+				iommu_domain_type_str(best_type));
+			return iommu_def_domain_type;
 		}
+		if (!best_type)
+			best_type = type;
+		last_dev = gdev->dev;
 	}
 
-	return 0;
-}
-
-static void probe_alloc_default_domain(const struct bus_type *bus,
-				       struct iommu_group *group)
-{
-	struct __group_domain_type gtype;
-
-	memset(&gtype, 0, sizeof(gtype));
-
-	/* Ask for default domain requirements of all devices in the group */
-	__iommu_group_for_each_dev(group, &gtype,
-				   probe_get_default_domain_type);
-
-	if (!gtype.type)
-		gtype.type = iommu_def_domain_type;
-
-	iommu_group_alloc_default_domain(bus, group, gtype.type);
-
+	if (!best_type)
+		return iommu_def_domain_type;
+	return best_type;
 }
 
 static int iommu_group_do_probe_finalize(struct device *dev, void *data)
@@ -1857,7 +1850,8 @@ int bus_iommu_probe(const struct bus_type *bus)
 		list_del_init(&group->entry);
 
 		/* Try to allocate default domain */
-		probe_alloc_default_domain(bus, group);
+		iommu_group_alloc_default_domain(
+			bus, group, iommu_get_default_domain_type(group, 0));
 
 		if (!group->default_domain) {
 			mutex_unlock(&group->mutex);
@@ -2882,27 +2876,15 @@ EXPORT_SYMBOL_GPL(iommu_dev_disable_feature);
 static int iommu_change_dev_def_domain(struct iommu_group *group,
 				       struct device *dev, int type)
 {
-	struct __group_domain_type gtype = {NULL, 0};
 	struct iommu_domain *prev_dom;
 	int ret;
 
 	lockdep_assert_held(&group->mutex);
 
 	prev_dom = group->default_domain;
-	__iommu_group_for_each_dev(group, &gtype,
-				   probe_get_default_domain_type);
-	if (!type) {
-		/*
-		 * If the user hasn't requested any specific type of domain and
-		 * if the device supports both the domains, then default to the
-		 * domain the device was booted with
-		 */
-		type = gtype.type ? : iommu_def_domain_type;
-	} else if (gtype.type && type != gtype.type) {
-		dev_err_ratelimited(dev, "Device cannot be in %s domain\n",
-				    iommu_domain_type_str(type));
+	type = iommu_get_default_domain_type(group, type);
+	if (type < 0)
 		return -EINVAL;
-	}
 
 	/*
 	 * Switch to a new domain only if the requested domain type is different
