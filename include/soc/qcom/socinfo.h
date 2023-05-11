@@ -71,6 +71,8 @@ enum socinfo_parttype {
 	SOCINFO_PART_NAV,
 	SOCINFO_PART_COMPUTE_1,
 	SOCINFO_PART_DISPLAY_1,
+	SOCINFO_PART_NSP,
+	SOCINFO_PART_EVA,
 	SOCINFO_PART_MAX_PARTTYPE
 };
 
@@ -90,6 +92,8 @@ enum subset_part_type {
 	PART_NAV,
 	PART_COMP1,
 	PART_DISPLAY1,
+	PART_NSP,
+	PART_EVA,
 	NUM_PARTS_MAX,
 };
 
@@ -110,6 +114,10 @@ uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id);
 int socinfo_get_oem_variant_id(void);
 uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster);
 bool socinfo_get_part_info(enum subset_part_type part);
+int socinfo_get_part_count(enum subset_part_type part);
+int socinfo_get_subpart_info(enum subset_part_type part,
+		u32 *part_info,
+		u32 num_parts);
 #else
 static inline uint32_t socinfo_get_id(void)
 {
@@ -156,6 +164,16 @@ uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster)
 bool socinfo_get_part_info(enum subset_part_type part)
 {
 	return false;
+}
+int socinfo_get_part_count(enum subset_part_type part)
+{
+	return -EINVAL;
+}
+int socinfo_get_subpart_info(enum subset_part_type part,
+		u32 *part_info,
+		u32 num_parts)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_QCOM_SOCINFO */
 
