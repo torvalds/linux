@@ -13,7 +13,7 @@
 #include "tb.h"
 
 #define NVM_MIN_SIZE		SZ_32K
-#define NVM_MAX_SIZE		SZ_512K
+#define NVM_MAX_SIZE		SZ_1M
 #define NVM_DATA_DWORDS		16
 
 /* Intel specific NVM offsets */
