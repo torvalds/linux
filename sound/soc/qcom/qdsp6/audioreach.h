@@ -22,6 +22,7 @@ struct q6apm_graph;
 #define MODULE_ID_I2S_SINK		0x0700100A
 #define MODULE_ID_I2S_SOURCE		0x0700100B
 #define MODULE_ID_DATA_LOGGING		0x0700101A
+#define MODULE_ID_DISPLAY_PORT_SINK	0x07001069
 
 #define APM_CMD_GET_SPF_STATE		0x01001021
 #define APM_CMD_RSP_GET_SPF_STATE	0x02001007
@@ -444,6 +445,15 @@ struct param_id_i2s_intf_cfg {
 #define PORT_ID_I2S_OUPUT		1
 #define I2S_STACK_SIZE			2048
 
+#define PARAM_ID_DISPLAY_PORT_INTF_CFG		0x08001154
+
+struct param_id_display_port_intf_cfg {
+	uint32_t channel_allocation;
+	/* Multi-Steam Transport index */
+	uint32_t mst_idx;
+	uint32_t dptx_idx;
+} __packed;
+
 #define PARAM_ID_HW_EP_MF_CFG			0x08001017
 struct param_id_hw_ep_mf {
 	uint32_t sample_rate;
@@ -702,6 +712,8 @@ struct audioreach_module_config {
 	u16	data_format;
 	u16	num_channels;
 	u16	active_channels_mask;
+	u16	dp_idx;
+	u32	channel_allocation;
 	u32	sd_line_mask;
 	int	fmt;
 	u8 channel_map[AR_PCM_MAX_NUM_CHANNEL];
