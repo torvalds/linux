@@ -9,5 +9,5 @@ per-file abi_gki_aarch64_goldfish = rkir@google.com
 
 # per-file for review purposes
 per-file gki_system_dlkm_modules = ramjiyani@google.com
-per-file abi_gki_protected_exports = ramjiyani@google.com
-per-file gki_protected_modules = ramjiyani@google.com
+per-file abi_gki_protected_exports_* = ramjiyani@google.com
+per-file gki_aarch64_protected_modules,gki_x86_64_protected_modules = ramjiyani@google.com
