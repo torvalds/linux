@@ -432,6 +432,7 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity)
 {
 	int r;
+	struct drm_sched_entity *ctx_entity;
 
 	if (hw_ip >= AMDGPU_HW_IP_NUM) {
 		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
@@ -455,7 +456,14 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			return r;
 	}
 
-	*entity = &ctx->entities[hw_ip][ring]->entity;
+	ctx_entity = &ctx->entities[hw_ip][ring]->entity;
+	r = drm_sched_entity_error(ctx_entity);
+	if (r) {
+		DRM_DEBUG("error entity %p\n", ctx_entity);
+		return r;
+	}
+
+	*entity = ctx_entity;
 	return 0;
 }
 
