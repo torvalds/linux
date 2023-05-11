@@ -375,6 +375,16 @@
         "UMask": "0x3"
     },
     {
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EdgeDetect": "1",
+        "EventCode": "0x0D",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
+        "SampleAfterValue": "500009",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path.",
         "EventCode": "0x0d",
         "EventName": "INT_MISC.CLEAR_RESTEER_CYCLES",

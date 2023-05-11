@@ -59,8 +59,8 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 {
 	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
 	snd_emu10k1_ptr_write(emu, IP, ch, 0);
-	snd_emu10k1_ptr_write(emu, VTFT, ch, 0xffff);
-	snd_emu10k1_ptr_write(emu, CVCF, ch, 0xffff);
+	snd_emu10k1_ptr_write(emu, VTFT, ch, VTFT_FILTERTARGET_MASK);
+	snd_emu10k1_ptr_write(emu, CVCF, ch, CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
 	snd_emu10k1_ptr_write(emu, CPF, ch, 0);
 	snd_emu10k1_ptr_write(emu, CCR, ch, 0);
@@ -74,7 +74,7 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 
 	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
 	snd_emu10k1_ptr_write(emu, DCYSUSM, ch, 0);
-	snd_emu10k1_ptr_write(emu, IFATN, ch, 0xffff);
+	snd_emu10k1_ptr_write(emu, IFATN, ch, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK);
 	snd_emu10k1_ptr_write(emu, PEFE, ch, 0);
 	snd_emu10k1_ptr_write(emu, FMMOD, ch, 0);
 	snd_emu10k1_ptr_write(emu, TREMFRQ, ch, 24);	/* 1 Hz */
@@ -90,10 +90,10 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 
 	/* Audigy extra stuffs */
 	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, 0x4c, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4d, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4e, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4f, ch, 0); /* ?? */
+		snd_emu10k1_ptr_write(emu, A_CSBA, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSDC, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSFE, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSHG, ch, 0);
 		snd_emu10k1_ptr_write(emu, A_FXRT1, ch, 0x03020100);
 		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x3f3f3f3f);
 		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, ch, 0);
@@ -259,7 +259,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 
 	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
-	snd_emu10k1_ptr_write(emu, TCBS, 0, 4);	/* taken from original driver */
+	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_256K);	/* taken from original driver */
 
 	silent_page = (emu->silent_page.addr << emu->address_mode) | (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 	for (ch = 0; ch < NUM_G; ch++) {
@@ -818,7 +818,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		/* FPGA netlist already present so clear it */
 		/* Return to programming mode */
 
-		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0x02);
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_HANA);
 	}
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
 	dev_dbg(emu->card->dev, "reg2 = 0x%x\n", reg);
@@ -858,36 +858,36 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* Optical -> ADAT I/O  */
 	emu->emu1010.optical_in = 1; /* IN_ADAT */
 	emu->emu1010.optical_out = 1; /* OUT_ADAT */
-	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	/* Set no attenuation on Audio Dock pads. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, 0x00);
 	emu->emu1010.adc_pads = 0x00;
+	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, emu->emu1010.adc_pads);
 	/* Unmute Audio dock DACs, Headphone source DAC-4. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, 0x30);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, EMU_HANA_DOCK_PHONES_192_DAC4);
 	/* DAC PADs. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, 0x0f);
-	emu->emu1010.dac_pads = 0x0f;
+	emu->emu1010.dac_pads = EMU_HANA_DOCK_DAC_PAD1 | EMU_HANA_DOCK_DAC_PAD2 |
+				EMU_HANA_DOCK_DAC_PAD3 | EMU_HANA_DOCK_DAC_PAD4;
+	snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, emu->emu1010.dac_pads);
 	/* SPDIF Format. Set Consumer mode, 24bit, copy enable */
-	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, EMU_HANA_SPDIF_MODE_RX_INVALID);
 	/* MIDI routing */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19);
-	/* Unknown. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c);
+	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, EMU_HANA_MIDI_INA_FROM_HAMOA | EMU_HANA_MIDI_INB_FROM_DOCK2);
+	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, EMU_HANA_MIDI_OUT_DOCK2 | EMU_HANA_MIDI_OUT_SYNC2);
 	/* IRQ Enable: All on */
-	/* snd_emu1010_fpga_write(emu, 0x09, 0x0f ); */
+	/* snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x0f); */
 	/* IRQ Enable: All off */
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
 	emu->emu1010.internal_clock = 1; /* 48000 */
 	/* Default WCLK set to 48kHz. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x00);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K);
 	/* Word Clock source, Internal 48kHz x1 */
 	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K);
 	/* snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X); */
 	/* Audio Dock LEDs. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_LOCK | EMU_HANA_DOCK_LEDS_2_48K);
 
 #if 0
 	/* For 96kHz */
@@ -1014,7 +1014,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		EMU_DST_ALICE_I2S2_LEFT, EMU_SRC_DOCK_ADC3_LEFT1);
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_ALICE_I2S2_RIGHT, EMU_SRC_DOCK_ADC3_RIGHT1);
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x01); /* Unmute all */
+	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,

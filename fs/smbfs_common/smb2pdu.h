@@ -1250,6 +1250,26 @@ struct create_disk_id_rsp {
 	__u8  Reserved[16];
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.13 */
+struct create_app_inst_id {
+	struct create_context ccontext;
+	__u8 Name[16];
+	__le32 StructureSize; /* Must be 20 */
+	__u16 Reserved;
+	__u8 AppInstanceId[16];
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.15 */
+struct create_app_inst_id_vers {
+	struct create_context ccontext;
+	__u8 Name[16];
+	__le32 StructureSize; /* Must be 24 */
+	__u16 Reserved;
+	__u32 Padding;
+	__le64 AppInstanceVersionHigh;
+	__le64 AppInstanceVersionLow;
+} __packed;
+
 /* See MS-SMB2 2.2.31 and 2.2.32 */
 struct smb2_ioctl_req {
 	struct smb2_hdr hdr;

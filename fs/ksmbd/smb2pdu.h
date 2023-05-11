@@ -61,6 +61,8 @@ struct preauth_integrity_info {
 #define SMB2_SESSION_IN_PROGRESS	BIT(0)
 #define SMB2_SESSION_VALID		BIT(1)
 
+#define SMB2_SESSION_TIMEOUT		(10 * HZ)
+
 struct create_durable_req_v2 {
 	struct create_context ccontext;
 	__u8   Name[8];
@@ -79,22 +81,6 @@ struct create_durable_reconn_v2_req {
 	} Fid;
 	__u8 CreateGuid[16];
 	__le32 Flags;
-} __packed;
-
-struct create_app_inst_id {
-	struct create_context ccontext;
-	__u8 Name[8];
-	__u8 Reserved[8];
-	__u8 AppInstanceId[16];
-} __packed;
-
-struct create_app_inst_id_vers {
-	struct create_context ccontext;
-	__u8 Name[8];
-	__u8 Reserved[2];
-	__u8 Padding[4];
-	__le64 AppInstanceVersionHigh;
-	__le64 AppInstanceVersionLow;
 } __packed;
 
 struct create_alloc_size_req {

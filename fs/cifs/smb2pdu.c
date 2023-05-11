@@ -175,8 +175,17 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		}
 	}
 	spin_unlock(&tcon->tc_lock);
-	if ((!tcon->ses) || (tcon->ses->ses_status == SES_EXITING) ||
-	    (!tcon->ses->server) || !server)
+
+	ses = tcon->ses;
+	if (!ses)
+		return -EIO;
+	spin_lock(&ses->ses_lock);
+	if (ses->ses_status == SES_EXITING) {
+		spin_unlock(&ses->ses_lock);
+		return -EIO;
+	}
+	spin_unlock(&ses->ses_lock);
+	if (!ses->server || !server)
 		return -EIO;
 
 	spin_lock(&server->srv_lock);
@@ -203,8 +212,6 @@ again:
 	rc = cifs_wait_for_server_reconnect(server, tcon->retry);
 	if (rc)
 		return rc;
-
-	ses = tcon->ses;
 
 	spin_lock(&ses->chan_lock);
 	if (!cifs_chan_needs_reconnect(ses, server) && !tcon->need_reconnect) {
@@ -3794,7 +3801,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		if (ses->tcon_ipc && ses->tcon_ipc->need_reconnect) {
 			list_add_tail(&ses->tcon_ipc->rlist, &tmp_list);
 			tcon_selected = tcon_exist = true;
-			ses->ses_count++;
+			cifs_smb_ses_inc_refcount(ses);
 		}
 		/*
 		 * handle the case where channel needs to reconnect
@@ -3805,7 +3812,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		if (!tcon_selected && cifs_chan_needs_reconnect(ses, server)) {
 			list_add_tail(&ses->rlist, &tmp_ses_list);
 			ses_exist = true;
-			ses->ses_count++;
+			cifs_smb_ses_inc_refcount(ses);
 		}
 		spin_unlock(&ses->chan_lock);
 	}
@@ -4130,7 +4137,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	if (rdata->got_bytes) {
 		rqst.rq_iter	  = rdata->iter;
 		rqst.rq_iter_size = iov_iter_count(&rdata->iter);
-	};
+	}
 
 	WARN_ONCE(rdata->server != mid->server,
 		  "rdata server %p != mid server %p",

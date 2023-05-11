@@ -29,6 +29,8 @@ struct test_data test_data_64[] = {
 #include "insn-x86-dat-64.c"
 	{{0x0f, 0x01, 0xee}, 3, 0, NULL, NULL, "0f 01 ee             \trdpkru"},
 	{{0x0f, 0x01, 0xef}, 3, 0, NULL, NULL, "0f 01 ef             \twrpkru"},
+	{{0xf2, 0x0f, 0x01, 0xca}, 4, 0, "erets", "indirect", "f2 0f 01 ca  \terets"},
+	{{0xf3, 0x0f, 0x01, 0xca}, 4, 0, "eretu", "indirect", "f3 0f 01 ca  \teretu"},
 	{{0}, 0, 0, NULL, NULL, NULL},
 };
 
@@ -49,6 +51,8 @@ static int get_op(const char *op_str)
 		{"syscall", INTEL_PT_OP_SYSCALL},
 		{"sysret",  INTEL_PT_OP_SYSRET},
 		{"vmentry",  INTEL_PT_OP_VMENTRY},
+		{"erets",   INTEL_PT_OP_ERETS},
+		{"eretu",   INTEL_PT_OP_ERETU},
 		{NULL, 0},
 	};
 	struct val_data *val;
