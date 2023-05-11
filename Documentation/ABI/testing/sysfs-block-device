@@ -95,3 +95,12 @@ Description:
 		This file does not exist if the HBA driver does not implement
 		support for the SATA NCQ priority feature, regardless of the
 		device support for this feature.
+
+
+What:		/sys/block/*/device/cdl_supported
+Date:		May, 2023
+KernelVersion:	v6.5
+Contact:	linux-scsi@vger.kernel.org
+Description:
+		(RO) Indicates if the device supports the command duration
+		limits feature found in some ATA and SCSI devices.

@@ -570,6 +570,87 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 }
 EXPORT_SYMBOL(scsi_report_opcode);
 
+#define SCSI_CDL_CHECK_BUF_LEN	64
+
+static bool scsi_cdl_check_cmd(struct scsi_device *sdev, u8 opcode, u16 sa,
+			       unsigned char *buf)
+{
+	int ret;
+	u8 cdlp;
+
+	/* Check operation code */
+	ret = scsi_report_opcode(sdev, buf, SCSI_CDL_CHECK_BUF_LEN, opcode, sa);
+	if (ret <= 0)
+		return false;
+
+	if ((buf[1] & 0x03) != 0x03)
+		return false;
+
+	/* See SPC-6, one command format of REPORT SUPPORTED OPERATION CODES */
+	cdlp = (buf[1] & 0x18) >> 3;
+	if (buf[0] & 0x01) {
+		/* rwcdlp == 1 */
+		switch (cdlp) {
+		case 0x01:
+			/* T2A page */
+			return true;
+		case 0x02:
+			/* T2B page */
+			return true;
+		}
+	} else {
+		/* rwcdlp == 0 */
+		switch (cdlp) {
+		case 0x01:
+			/* A page */
+			return true;
+		case 0x02:
+			/* B page */
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * scsi_cdl_check - Check if a SCSI device supports Command Duration Limits
+ * @sdev: The device to check
+ */
+void scsi_cdl_check(struct scsi_device *sdev)
+{
+	bool cdl_supported;
+	unsigned char *buf;
+
+	buf = kmalloc(SCSI_CDL_CHECK_BUF_LEN, GFP_KERNEL);
+	if (!buf) {
+		sdev->cdl_supported = 0;
+		return;
+	}
+
+	/* Check support for READ_16, WRITE_16, READ_32 and WRITE_32 commands */
+	cdl_supported =
+		scsi_cdl_check_cmd(sdev, READ_16, 0, buf) ||
+		scsi_cdl_check_cmd(sdev, WRITE_16, 0, buf) ||
+		scsi_cdl_check_cmd(sdev, VARIABLE_LENGTH_CMD, READ_32, buf) ||
+		scsi_cdl_check_cmd(sdev, VARIABLE_LENGTH_CMD, WRITE_32, buf);
+	if (cdl_supported) {
+		/*
+		 * We have CDL support: force the use of READ16/WRITE16.
+		 * READ32 and WRITE32 will be used for devices that support
+		 * the T10_PI_TYPE2_PROTECTION protection type.
+		 */
+		sdev->use_16_for_rw = 1;
+		sdev->use_10_for_rw = 0;
+
+		sdev->cdl_supported = 1;
+	} else {
+		sdev->cdl_supported = 0;
+	}
+
+	kfree(buf);
+}
+
 /**
  * scsi_device_get  -  get an additional reference to a scsi_device
  * @sdev:	device to get a reference to
