@@ -328,15 +328,8 @@ static inline int read_sub_irq_data(struct regmap_irq_chip_data *data,
 			unsigned int offset = subreg->offset[i];
 			unsigned int index = offset / map->reg_stride;
 
-			if (chip->not_fixed_stride)
-				ret = regmap_read(map,
-						chip->status_base + offset,
-						&data->status_buf[b]);
-			else
-				ret = regmap_read(map,
-						chip->status_base + offset,
-						&data->status_buf[index]);
-
+			ret = regmap_read(map, chip->status_base + offset,
+					  &data->status_buf[index]);
 			if (ret)
 				break;
 		}
@@ -391,17 +384,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		 * sake of simplicity. and add bulk reads only if needed
 		 */
 		for (i = 0; i < chip->num_main_regs; i++) {
-			/*
-			 * For not_fixed_stride, don't use ->get_irq_reg().
-			 * It would produce an incorrect result.
-			 */
-			if (data->chip->not_fixed_stride)
-				reg = chip->main_status +
-					i * map->reg_stride * data->irq_reg_stride;
-			else
-				reg = data->get_irq_reg(data,
-							chip->main_status, i);
-
+			reg = data->get_irq_reg(data, chip->main_status, i);
 			ret = regmap_read(map, reg, &data->main_status_buf[i]);
 			if (ret) {
 				dev_err(map->dev,
@@ -567,19 +550,7 @@ static const struct irq_domain_ops regmap_domain_ops = {
 unsigned int regmap_irq_get_irq_reg_linear(struct regmap_irq_chip_data *data,
 					   unsigned int base, int index)
 {
-	const struct regmap_irq_chip *chip = data->chip;
 	struct regmap *map = data->map;
-
-	/*
-	 * FIXME: This is for backward compatibility and should be removed
-	 * when not_fixed_stride is dropped (it's only used by qcom-pm8008).
-	 */
-	if (chip->not_fixed_stride && chip->sub_reg_offsets) {
-		struct regmap_irq_sub_irq_map *subreg;
-
-		subreg = &chip->sub_reg_offsets[0];
-		return base + subreg->offset[0];
-	}
 
 	return base + index * map->reg_stride * data->irq_reg_stride;
 }
@@ -682,14 +653,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		if (chip->irqs[i].reg_offset / map->reg_stride >=
 		    chip->num_regs)
 			return -EINVAL;
-	}
-
-	if (chip->not_fixed_stride) {
-		dev_warn(map->dev, "not_fixed_stride is deprecated; use ->get_irq_reg() instead");
-
-		for (i = 0; i < chip->num_regs; i++)
-			if (chip->sub_reg_offsets[i].num_regs != 1)
-				return -EINVAL;
 	}
 
 	if (irq_base) {
