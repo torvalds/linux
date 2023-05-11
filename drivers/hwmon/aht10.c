@@ -80,7 +80,7 @@ struct aht10_data {
 /**
  * aht10_init() - Initialize an AHT10 chip
  * @data: the data associated with this AHT10 chip
- * Return: 0 if succesfull, 1 if not
+ * Return: 0 if successful, 1 if not
  */
 static int aht10_init(struct aht10_data *data)
 {
@@ -124,7 +124,7 @@ static int aht10_polltime_expired(struct aht10_data *data)
 /**
  * aht10_read_values() - read and parse the raw data from the AHT10
  * @data: the struct aht10_data to use for the lock
- * Return: 0 if succesfull, 1 if not
+ * Return: 0 if successful, 1 if not
  */
 static int aht10_read_values(struct aht10_data *data)
 {
