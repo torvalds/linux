@@ -139,15 +139,16 @@ int handshake_nl_accept_doit(struct sk_buff *skb, struct genl_info *info)
 		goto out_complete;
 	}
 	err = req->hr_proto->hp_accept(req, info, fd);
-	if (err)
+	if (err) {
+		fput(sock->file);
 		goto out_complete;
+	}
 
 	trace_handshake_cmd_accept(net, req, req->hr_sk, fd);
 	return 0;
 
 out_complete:
 	handshake_complete(req, -EIO, NULL);
-	fput(sock->file);
 out_status:
 	trace_handshake_cmd_accept_err(net, req, NULL, err);
 	return err;
