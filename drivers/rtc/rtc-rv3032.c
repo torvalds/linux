@@ -842,7 +842,7 @@ static int rv3032_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	return err;
 }
 
-static const struct hwmon_channel_info *rv3032_hwmon_info[] = {
+static const struct hwmon_channel_info * const rv3032_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
 	NULL
