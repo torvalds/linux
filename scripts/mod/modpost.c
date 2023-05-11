@@ -1628,6 +1628,8 @@ static void section_rel(const char *modname, struct elf_info *elf,
 			if (addend_mips_rel(elf, sechdr, &r))
 				continue;
 			break;
+		default:
+			fatal("Please add code to calculate addend for this architecture\n");
 		}
 		sym = elf->symtab_start + r_sym;
 		/* Skip special sections */
