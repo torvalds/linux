@@ -54,3 +54,4 @@ msm_dma_iommu_mapping.ko
 mem_buf_dev.ko
 mem_buf_msgq.ko
 mem_buf.ko
+socinfo.ko
