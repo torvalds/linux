@@ -555,8 +555,7 @@ static void ipvlan_multicast_enqueue(struct ipvl_port *port,
 
 	spin_lock(&port->backlog.lock);
 	if (skb_queue_len(&port->backlog) < IPVLAN_QBACKLOG_LIMIT) {
-		if (skb->dev)
-			dev_hold(skb->dev);
+		dev_hold(skb->dev);
 		__skb_queue_tail(&port->backlog, skb);
 		spin_unlock(&port->backlog.lock);
 		schedule_work(&port->wq);
