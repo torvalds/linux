@@ -412,6 +412,8 @@ void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc
 	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
 		if (otg_disabled[i])
 			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
 	}

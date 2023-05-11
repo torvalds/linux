@@ -75,6 +75,8 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 
 void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx);
 
+void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context);
+
 void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct dc_state *context,
 		bool lock,
