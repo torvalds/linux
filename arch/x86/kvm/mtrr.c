@@ -65,7 +65,7 @@ static bool valid_mtrr_type(unsigned t)
 	return t < 8 && (1 << t) & 0x73; /* 0, 1, 4, 5, 6 */
 }
 
-bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+static bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	int i;
 	u64 mask;
@@ -100,7 +100,6 @@ bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 	return (data & mask) == 0;
 }
-EXPORT_SYMBOL_GPL(kvm_mtrr_valid);
 
 static bool mtrr_is_enabled(struct kvm_mtrr *mtrr_state)
 {
