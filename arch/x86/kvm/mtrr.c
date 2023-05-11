@@ -55,7 +55,6 @@ static bool msr_mtrr_valid(unsigned msr)
 	case MSR_MTRRfix4K_F0000:
 	case MSR_MTRRfix4K_F8000:
 	case MSR_MTRRdefType:
-	case MSR_IA32_CR_PAT:
 		return true;
 	}
 	return false;
@@ -74,9 +73,7 @@ bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	if (!msr_mtrr_valid(msr))
 		return false;
 
-	if (msr == MSR_IA32_CR_PAT) {
-		return kvm_pat_valid(data);
-	} else if (msr == MSR_MTRRdefType) {
+	if (msr == MSR_MTRRdefType) {
 		if (data & ~0xcff)
 			return false;
 		return valid_mtrr_type(data & 0xff);
@@ -324,8 +321,7 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	gfn_t start, end;
 
-	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
-	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
+	if (!tdp_enabled || !kvm_arch_has_noncoherent_dma(vcpu->kvm))
 		return;
 
 	if (!mtrr_is_enabled(mtrr_state) && msr != MSR_MTRRdefType)
@@ -392,8 +388,6 @@ int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		*(u64 *)&vcpu->arch.mtrr_state.fixed_ranges[index] = data;
 	else if (msr == MSR_MTRRdefType)
 		vcpu->arch.mtrr_state.deftype = data;
-	else if (msr == MSR_IA32_CR_PAT)
-		vcpu->arch.pat = data;
 	else
 		set_var_mtrr_msr(vcpu, msr, data);
 
@@ -421,13 +415,12 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		return 1;
 
 	index = fixed_msr_to_range_index(msr);
-	if (index >= 0)
+	if (index >= 0) {
 		*pdata = *(u64 *)&vcpu->arch.mtrr_state.fixed_ranges[index];
-	else if (msr == MSR_MTRRdefType)
+	} else if (msr == MSR_MTRRdefType) {
 		*pdata = vcpu->arch.mtrr_state.deftype;
-	else if (msr == MSR_IA32_CR_PAT)
-		*pdata = vcpu->arch.pat;
-	else {	/* Variable MTRRs */
+	} else {
+		/* Variable MTRRs */
 		if (is_mtrr_base_msr(msr))
 			*pdata = var_mtrr_msr_to_range(vcpu, msr)->base;
 		else
