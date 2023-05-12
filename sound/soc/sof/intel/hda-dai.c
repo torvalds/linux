@@ -188,14 +188,6 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int hda_link_dma_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
-{
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	int stream = substream->stream;
-
-	return hda_link_dma_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
-}
-
 static int hda_dai_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(cpu_dai->component);
@@ -251,30 +243,10 @@ static int hda_dai_hw_params(struct snd_pcm_substream *substream,
 
 static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
-	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
-	struct hdac_ext_stream *hext_stream;
-	struct snd_sof_dai_config_data data = { 0 };
-	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
-	int ret;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	int stream = substream->stream;
 
-	hext_stream = ops->get_hext_stream(sdev, dai, substream);
-	if (hext_stream && hext_stream->link_prepared)
-		return 0;
-
-	dev_dbg(sdev->dev, "prepare stream dir %d\n", substream->stream);
-
-	ret = hda_link_dma_prepare(substream, dai);
-	if (ret < 0)
-		return ret;
-
-	hext_stream = ops->get_hext_stream(sdev, dai, substream);
-
-	flags |= SOF_DAI_CONFIG_FLAGS_2_STEP_STOP << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
-	data.dai_data = hdac_stream(hext_stream)->stream_tag - 1;
-
-	return hda_dai_config(w, flags, &data);
+	return hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, dai);
 }
 
 /*
