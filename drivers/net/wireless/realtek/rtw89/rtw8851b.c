@@ -72,8 +72,72 @@ static const struct rtw89_xtal_info rtw8851b_xtal_info = {
 	.sc_xi_mask		= B_AX_XTAL_SC_XI_A_BLOCK_MASK,
 };
 
+static void rtw8851b_set_bb_gpio(struct rtw89_dev *rtwdev, u8 gpio_idx, bool inv,
+				 u8 src_sel)
+{
+	u32 addr, mask;
+
+	if (gpio_idx >= 32)
+		return;
+
+	/* 2 continual 32-bit registers for 32 GPIOs, and each GPIO occupies 2 bits */
+	addr = R_RFE_SEL0_A2 + (gpio_idx / 16) * sizeof(u32);
+	mask = B_RFE_SEL0_MASK << (gpio_idx % 16) * 2;
+
+	rtw89_phy_write32_mask(rtwdev, addr, mask, RF_PATH_A);
+	rtw89_phy_write32_mask(rtwdev, R_RFE_INV0, BIT(gpio_idx), inv);
+
+	/* 4 continual 32-bit registers for 32 GPIOs, and each GPIO occupies 4 bits */
+	addr = R_RFE_SEL0_BASE + (gpio_idx / 8) * sizeof(u32);
+	mask = B_RFE_SEL0_SRC_MASK << (gpio_idx % 8) * 4;
+
+	rtw89_phy_write32_mask(rtwdev, addr, mask, src_sel);
+}
+
+static void rtw8851b_set_mac_gpio(struct rtw89_dev *rtwdev, u8 func)
+{
+	static const struct rtw89_reg3_def func16 = {
+		R_AX_GPIO16_23_FUNC_SEL, B_AX_PINMUX_GPIO16_FUNC_SEL_MASK, BIT(3)
+	};
+	static const struct rtw89_reg3_def func17 = {
+		R_AX_GPIO16_23_FUNC_SEL, B_AX_PINMUX_GPIO17_FUNC_SEL_MASK, BIT(7) >> 4,
+	};
+	const struct rtw89_reg3_def *def;
+
+	switch (func) {
+	case 16:
+		def = &func16;
+		break;
+	case 17:
+		def = &func17;
+		break;
+	default:
+		rtw89_warn(rtwdev, "undefined gpio func %d\n", func);
+		return;
+	}
+
+	rtw89_write8_mask(rtwdev, def->addr, def->mask, def->data);
+}
+
+static void rtw8851b_rfe_gpio(struct rtw89_dev *rtwdev)
+{
+	u8 rfe_type = rtwdev->efuse.rfe_type;
+
+	if (rfe_type > 50)
+		return;
+
+	if (rfe_type % 3 == 2) {
+		rtw8851b_set_bb_gpio(rtwdev, 16, true, RFE_SEL0_SRC_ANTSEL_0);
+		rtw8851b_set_bb_gpio(rtwdev, 17, false, RFE_SEL0_SRC_ANTSEL_0);
+
+		rtw8851b_set_mac_gpio(rtwdev, 16);
+		rtw8851b_set_mac_gpio(rtwdev, 17);
+	}
+}
+
 static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.fem_setup		= NULL,
+	.rfe_gpio		= rtw8851b_rfe_gpio,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc,
 	.h2c_dctl_sec_cam	= NULL,
