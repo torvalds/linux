@@ -284,7 +284,6 @@ if SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK
 	bool "SOF support for HDA Links(HDA/HDMI)"
-	depends on SND_SOC_SOF_NOCODEC_SUPPORT=n
 	help
 	  This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
 	  for Intel(R) platforms.
