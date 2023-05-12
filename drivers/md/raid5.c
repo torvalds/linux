@@ -2433,7 +2433,7 @@ static int grow_stripes(struct r5conf *conf, int num)
 
 	conf->active_name = 0;
 	sc = kmem_cache_create(conf->cache_name[conf->active_name],
-			       sizeof(struct stripe_head)+(devs-1)*sizeof(struct r5dev),
+			       struct_size_t(struct stripe_head, dev, devs),
 			       0, 0, NULL);
 	if (!sc)
 		return 1;
@@ -2559,7 +2559,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 
 	/* Step 1 */
 	sc = kmem_cache_create(conf->cache_name[1-conf->active_name],
-			       sizeof(struct stripe_head)+(newsize-1)*sizeof(struct r5dev),
+			       struct_size_t(struct stripe_head, dev, newsize),
 			       0, 0, NULL);
 	if (!sc)
 		return -ENOMEM;

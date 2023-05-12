@@ -268,7 +268,7 @@ struct stripe_head {
 		unsigned long	flags;
 		u32		log_checksum;
 		unsigned short	write_hint;
-	} dev[1]; /* allocated with extra space depending of RAID geometry */
+	} dev[]; /* allocated depending of RAID geometry ("disks" member) */
 };
 
 /* stripe_head_state - collects and tracks the dynamic state of a stripe_head
