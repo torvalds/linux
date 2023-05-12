@@ -38,7 +38,7 @@ AMDGPUDM += dc_fpu.o
 endif
 
 ifneq ($(CONFIG_DRM_AMD_DC),)
-AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o amdgpu_dm_pp_smu.o amdgpu_dm_psr.o
+AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o amdgpu_dm_pp_smu.o amdgpu_dm_psr.o amdgpu_dm_replay.o
 endif
 
 AMDGPUDM += amdgpu_dm_hdcp.o
