@@ -828,8 +828,7 @@ out:
 		ret = -EINVAL;
 	}
 	if (btrfs_fs_compat_ro(info, BLOCK_GROUP_TREE) &&
-	    (btrfs_test_opt(info, CLEAR_CACHE) ||
-	     !btrfs_test_opt(info, FREE_SPACE_TREE))) {
+	     !btrfs_test_opt(info, FREE_SPACE_TREE)) {
 		btrfs_err(info, "cannot disable free space tree with block-group-tree feature");
 		ret = -EINVAL;
 	}
