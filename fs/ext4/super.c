@@ -5684,8 +5684,9 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 		descr = "out journal";
 
 	if (___ratelimit(&ext4_mount_msg_ratelimit, "EXT4-fs mount"))
-		ext4_msg(sb, KERN_INFO, "mounted filesystem %pU with%s. "
-			 "Quota mode: %s.", &sb->s_uuid, descr,
+		ext4_msg(sb, KERN_INFO, "mounted filesystem %pU %s with%s. "
+			 "Quota mode: %s.", &sb->s_uuid,
+			 sb_rdonly(sb) ? "ro" : "r/w", descr,
 			 ext4_quota_mode(sb));
 
 	/* Update the s_overhead_clusters if necessary */
@@ -6689,8 +6690,9 @@ static int ext4_reconfigure(struct fs_context *fc)
 	if (ret < 0)
 		return ret;
 
-	ext4_msg(sb, KERN_INFO, "re-mounted %pU. Quota mode: %s.",
-		 &sb->s_uuid, ext4_quota_mode(sb));
+	ext4_msg(sb, KERN_INFO, "re-mounted %pU %s. Quota mode: %s.",
+		 &sb->s_uuid, sb_rdonly(sb) ? "ro" : "r/w",
+		 ext4_quota_mode(sb));
 
 	return 0;
 }
