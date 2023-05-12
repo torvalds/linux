@@ -209,7 +209,7 @@ install_libc_headers () {
 
 	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
 	# used by Debian-based distros (to support multi-arch)
-	host_arch=$(dpkg-architecture -a$(cat debian/arch) -qDEB_HOST_MULTIARCH)
+	host_arch=$(dpkg-architecture -a$DEB_HOST_ARCH -qDEB_HOST_MULTIARCH)
 	mkdir $pdir/usr/include/$host_arch
 	mv $pdir/usr/include/asm $pdir/usr/include/$host_arch/
 }

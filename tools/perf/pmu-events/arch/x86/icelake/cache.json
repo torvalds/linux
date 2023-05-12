@@ -155,6 +155,22 @@
         "UMask": "0x21"
     },
     {
+        "BriefDescription": "All requests that miss L2 cache. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.MISS",
+        "PublicDescription": "Counts all requests that miss L2 cache. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x3f"
+    },
+    {
+        "BriefDescription": "All L2 requests. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.REFERENCES",
+        "PublicDescription": "Counts all L2 requests. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xff"
+    },
+    {
         "BriefDescription": "RFO requests that hit L2 cache",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_HIT",

@@ -1034,7 +1034,7 @@ static int ipv6_add_addr_hash(struct net_device *dev, struct inet6_ifaddr *ifa)
 	unsigned int hash = inet6_addr_hash(net, &ifa->addr);
 	int err = 0;
 
-	spin_lock(&net->ipv6.addrconf_hash_lock);
+	spin_lock_bh(&net->ipv6.addrconf_hash_lock);
 
 	/* Ignore adding duplicate addresses on an interface */
 	if (ipv6_chk_same_addr(net, &ifa->addr, dev, hash)) {
@@ -1044,7 +1044,7 @@ static int ipv6_add_addr_hash(struct net_device *dev, struct inet6_ifaddr *ifa)
 		hlist_add_head_rcu(&ifa->addr_lst, &net->ipv6.inet6_addr_lst[hash]);
 	}
 
-	spin_unlock(&net->ipv6.addrconf_hash_lock);
+	spin_unlock_bh(&net->ipv6.addrconf_hash_lock);
 
 	return err;
 }
@@ -1139,15 +1139,15 @@ ipv6_add_addr(struct inet6_dev *idev, struct ifa6_config *cfg,
 	/* For caller */
 	refcount_set(&ifa->refcnt, 1);
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 
 	err = ipv6_add_addr_hash(idev->dev, ifa);
 	if (err < 0) {
-		rcu_read_unlock_bh();
+		rcu_read_unlock();
 		goto out;
 	}
 
-	write_lock(&idev->lock);
+	write_lock_bh(&idev->lock);
 
 	/* Add to inet6_dev unicast addr list. */
 	ipv6_link_dev_addr(idev, ifa);
@@ -1158,9 +1158,9 @@ ipv6_add_addr(struct inet6_dev *idev, struct ifa6_config *cfg,
 	}
 
 	in6_ifa_hold(ifa);
-	write_unlock(&idev->lock);
+	write_unlock_bh(&idev->lock);
 
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	inet6addr_notifier_call_chain(NETDEV_UP, ifa);
 out:
@@ -4223,7 +4223,8 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp, bool bump_id,
 		  ipv6_accept_ra(ifp->idev) &&
 		  ifp->idev->cnf.rtr_solicits != 0 &&
 		  (dev->flags & IFF_LOOPBACK) == 0 &&
-		  (dev->type != ARPHRD_TUNNEL);
+		  (dev->type != ARPHRD_TUNNEL) &&
+		  !netif_is_team_port(dev);
 	read_unlock_bh(&ifp->idev->lock);
 
 	/* While dad is in progress mld report's source address is in6_addrany.

@@ -1130,8 +1130,8 @@
 		usbotg_hs: usb-otg@49000000 {
 			compatible = "st,stm32mp15-hsotg", "snps,dwc2";
 			reg = <0x49000000 0x10000>;
-			clocks = <&rcc USBO_K>;
-			clock-names = "otg";
+			clocks = <&rcc USBO_K>, <&usbphyc>;
+			clock-names = "otg", "utmi";
 			resets = <&rcc USBO_R>;
 			reset-names = "dwc2";
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;

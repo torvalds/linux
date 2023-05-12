@@ -154,18 +154,35 @@ of the GPIOs that can't be used.
 
 Optionally, a GPIO controller may have a "gpio-line-names" property. This is
 an array of strings defining the names of the GPIO lines going out of the
-GPIO controller. This name should be the most meaningful producer name
-for the system, such as a rail name indicating the usage. Package names
-such as pin name are discouraged: such lines have opaque names (since they
-are by definition generic purpose) and such names are usually not very
-helpful. For example "MMC-CD", "Red LED Vdd" and "ethernet reset" are
-reasonable line names as they describe what the line is used for. "GPIO0"
-is not a good name to give to a GPIO line. Placeholders are discouraged:
-rather use the "" (blank string) if the use of the GPIO line is undefined
-in your design. The names are assigned starting from line offset 0 from
-left to right from the passed array. An incomplete array (where the number
-of passed named are less than ngpios) will still be used up until the last
-provided valid line index.
+GPIO controller.
+
+For lines which are routed to on-board devices, this name should be
+the most meaningful producer name for the system, such as a rail name
+indicating the usage. Package names, such as a pin name, are discouraged:
+such lines have opaque names (since they are by definition general-purpose)
+and such names are usually not very helpful. For example "MMC-CD", "Red LED
+Vdd" and "ethernet reset" are reasonable line names as they describe what
+the line is used for. "GPIO0" is not a good name to give to a GPIO line
+that is hard-wired to a specific device.
+
+However, in the case of lines that are routed to a general purpose header
+(e.g. the Raspberry Pi 40-pin header), and therefore are not hard-wired to
+specific devices, using a pin number or the names on the header is fine
+provided these are real (preferably unique) names. Using an SoC's pad name
+or package name, or names made up from kernel-internal software constructs,
+are strongly discouraged. For example "pin8 [gpio14/uart0_txd]" is fine
+if the board's documentation labels pin 8 as such. However "PortB_24" (an
+example of a name from an SoC's reference manual) would not be desirable.
+
+In either case placeholders are discouraged: rather use the "" (blank
+string) if the use of the GPIO line is undefined in your design. Ideally,
+try to add comments to the dts file describing the naming the convention
+you have chosen, and specifying from where the names are derived.
+
+The names are assigned starting from line offset 0, from left to right,
+from the passed array. An incomplete array (where the number of passed
+names is less than ngpios) will be used up until the last provided valid
+line index.
 
 Example:
 

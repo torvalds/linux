@@ -1344,7 +1344,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		port = nfp_port_from_netdev(netdev);
 
 	if (is_pre_ct_flow(flow))
-		return nfp_fl_ct_handle_pre_ct(priv, netdev, flow, extack);
+		return nfp_fl_ct_handle_pre_ct(priv, netdev, flow, extack, NULL);
 
 	if (is_post_ct_flow(flow))
 		return nfp_fl_ct_handle_post_ct(priv, netdev, flow, extack);

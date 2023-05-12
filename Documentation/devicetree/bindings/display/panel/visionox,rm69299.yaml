@@ -19,6 +19,8 @@ properties:
   compatible:
     const: visionox,rm69299-1080p-display
 
+  reg: true
+
   vdda-supply:
     description: |
       Phandle of the regulator that provides the vdda supply voltage.
@@ -34,6 +36,7 @@ additionalProperties: false
 
 required:
   - compatible
+  - reg
   - vdda-supply
   - vdd3p3-supply
   - reset-gpios
@@ -41,16 +44,22 @@ required:
 
 examples:
   - |
-    panel {
-        compatible = "visionox,rm69299-1080p-display";
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-        vdda-supply = <&src_pp1800_l8c>;
-        vdd3p3-supply = <&src_pp2800_l18a>;
+        panel@0 {
+            compatible = "visionox,rm69299-1080p-display";
+            reg = <0>;
 
-        reset-gpios = <&pm6150l_gpio 3 0>;
-        port {
-            panel0_in: endpoint {
-                remote-endpoint = <&dsi0_out>;
+            vdda-supply = <&src_pp1800_l8c>;
+            vdd3p3-supply = <&src_pp2800_l18a>;
+
+            reset-gpios = <&pm6150l_gpio 3 0>;
+            port {
+                panel0_in: endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
             };
         };
     };

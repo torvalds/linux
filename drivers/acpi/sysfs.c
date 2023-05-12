@@ -458,11 +458,28 @@ static int acpi_bert_data_init(void *th, struct acpi_data_attr *data_attr)
 	return sysfs_create_bin_file(tables_data_kobj, &data_attr->attr);
 }
 
+static int acpi_ccel_data_init(void *th, struct acpi_data_attr *data_attr)
+{
+	struct acpi_table_ccel *ccel = th;
+
+	if (ccel->header.length < sizeof(struct acpi_table_ccel) ||
+	    !ccel->log_area_start_address || !ccel->log_area_minimum_length) {
+		kfree(data_attr);
+		return -EINVAL;
+	}
+	data_attr->addr = ccel->log_area_start_address;
+	data_attr->attr.size = ccel->log_area_minimum_length;
+	data_attr->attr.attr.name = "CCEL";
+
+	return sysfs_create_bin_file(tables_data_kobj, &data_attr->attr);
+}
+
 static struct acpi_data_obj {
 	char *name;
 	int (*fn)(void *, struct acpi_data_attr *);
 } acpi_data_objs[] = {
 	{ ACPI_SIG_BERT, acpi_bert_data_init },
+	{ ACPI_SIG_CCEL, acpi_ccel_data_init },
 };
 
 #define NUM_ACPI_DATA_OBJS ARRAY_SIZE(acpi_data_objs)

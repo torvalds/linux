@@ -1677,7 +1677,6 @@ static void vlv_init_gpll_ref_freq(struct intel_rps *rps)
 static void vlv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	u32 val;
 
 	vlv_iosf_sb_get(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1685,21 +1684,6 @@ static void vlv_rps_init(struct intel_rps *rps)
 			BIT(VLV_IOSF_SB_CCK));
 
 	vlv_init_gpll_ref_freq(rps);
-
-	val = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
-	switch ((val >> 6) & 3) {
-	case 0:
-	case 1:
-		i915->mem_freq = 800;
-		break;
-	case 2:
-		i915->mem_freq = 1066;
-		break;
-	case 3:
-		i915->mem_freq = 1333;
-		break;
-	}
-	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = vlv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -1727,7 +1711,6 @@ static void vlv_rps_init(struct intel_rps *rps)
 static void chv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	u32 val;
 
 	vlv_iosf_sb_get(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1735,18 +1718,6 @@ static void chv_rps_init(struct intel_rps *rps)
 			BIT(VLV_IOSF_SB_CCK));
 
 	vlv_init_gpll_ref_freq(rps);
-
-	val = vlv_cck_read(i915, CCK_FUSE_REG);
-
-	switch ((val >> 2) & 0x7) {
-	case 3:
-		i915->mem_freq = 2000;
-		break;
-	default:
-		i915->mem_freq = 1600;
-		break;
-	}
-	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = chv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -2675,7 +2646,7 @@ bool rps_read_mask_mmio(struct intel_rps *rps,
 
 static struct drm_i915_private __rcu *ips_mchdev;
 
-/**
+/*
  * Tells the intel_ips driver that the i915 driver is now loaded, if
  * IPS got loaded first.
  *

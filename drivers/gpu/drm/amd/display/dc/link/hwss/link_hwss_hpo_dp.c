@@ -68,7 +68,8 @@ static void set_hpo_dp_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct fixed31_32 h_blank_in_ms, time_slot_in_ms, mtp_cnt_per_h_blank;
 	uint32_t link_bw_in_kbps =
-			dc_link_bandwidth_kbps(pipe_ctx->stream->link, link_settings);
+			hpo_dp_stream_encoder->ctx->dc->link_srv->dp_link_bandwidth_kbps(
+					pipe_ctx->stream->link, link_settings);
 	uint16_t hblank_min_symbol_width = 0;
 
 	if (link_bw_in_kbps > 0) {
@@ -115,7 +116,8 @@ static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
 			stream->use_vsc_sdp_for_colorimetry,
 			stream->timing.flags.DSC,
 			false);
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
+	link->dc->link_srv->dp_trace_source_sequence(link,
+			DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
 }
 
 static void enable_hpo_dp_fpga_link_output(struct dc_link *link,
@@ -201,7 +203,7 @@ static void set_hpo_dp_link_test_pattern(struct dc_link *link,
 {
 	link_res->hpo_dp_link_enc->funcs->set_link_test_pattern(
 			link_res->hpo_dp_link_enc, tp_params);
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
 
 static void set_hpo_dp_lane_settings(struct dc_link *link,

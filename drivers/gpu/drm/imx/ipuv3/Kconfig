@@ -4,7 +4,7 @@ config DRM_IMX
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	select DRM_GEM_DMA_HELPER
-	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM || COMPILE_TEST)
+	depends on DRM && (ARCH_MXC || COMPILE_TEST)
 	depends on IMX_IPUV3_CORE
 	help
 	  enable i.MX graphics support

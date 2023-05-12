@@ -7,7 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <asm/mach-ar7/ar7.h>
 

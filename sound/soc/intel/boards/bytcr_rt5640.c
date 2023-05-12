@@ -1856,7 +1856,7 @@ err_device:
 	return ret_val;
 }
 
-static int snd_byt_rt5640_mc_remove(struct platform_device *pdev)
+static void snd_byt_rt5640_mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
@@ -1866,7 +1866,6 @@ static int snd_byt_rt5640_mc_remove(struct platform_device *pdev)
 
 	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
-	return 0;
 }
 
 static struct platform_driver snd_byt_rt5640_mc_driver = {
@@ -1874,7 +1873,7 @@ static struct platform_driver snd_byt_rt5640_mc_driver = {
 		.name = "bytcr_rt5640",
 	},
 	.probe = snd_byt_rt5640_mc_probe,
-	.remove = snd_byt_rt5640_mc_remove,
+	.remove_new = snd_byt_rt5640_mc_remove,
 };
 
 module_platform_driver(snd_byt_rt5640_mc_driver);

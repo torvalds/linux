@@ -397,10 +397,8 @@ int fcoe_transport_attach(struct fcoe_transport *ft);
 int fcoe_transport_detach(struct fcoe_transport *ft);
 
 /* sysfs store handler for ctrl_control interface */
-ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
-			       const char *buf, size_t count);
-ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
-				const char *buf, size_t count);
+ssize_t fcoe_ctlr_create_store(const char *buf, size_t count);
+ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count);
 
 #endif /* _LIBFCOE_H */
 

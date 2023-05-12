@@ -8,7 +8,7 @@
 
 / {
 	model = "INCOstartec LILLY-DBB056 (DM3730)";
-	compatible = "incostartec,omap3-lilly-dbb056", "incostartec,omap3-lilly-a83x", "ti,omap3630", "ti,omap36xx", "ti,omap3";
+	compatible = "incostartec,omap3-lilly-dbb056", "incostartec,omap3-lilly-a83x", "ti,omap3630", "ti,omap3";
 };
 
 &twl {

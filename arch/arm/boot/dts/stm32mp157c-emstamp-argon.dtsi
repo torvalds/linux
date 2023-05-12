@@ -68,11 +68,6 @@
 			reg = <0x38000000 0x10000>;
 			no-map;
 		};
-
-		gpu_reserved: gpu@dc000000 {
-			reg = <0xdc000000 0x4000000>;
-			no-map;
-		};
 	};
 
 	led: gpio_leds {
@@ -181,10 +176,6 @@
 			reg = <0>;
 		};
 	};
-};
-
-&gpu {
-	contiguous-area = <&gpu_reserved>;
 };
 
 &hash1 {

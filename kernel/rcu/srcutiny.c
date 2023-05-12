@@ -197,6 +197,8 @@ void synchronize_srcu(struct srcu_struct *ssp)
 {
 	struct rcu_synchronize rs;
 
+	srcu_lock_sync(&ssp->dep_map);
+
 	RCU_LOCKDEP_WARN(lockdep_is_held(ssp) ||
 			lock_is_held(&rcu_bh_lock_map) ||
 			lock_is_held(&rcu_lock_map) ||

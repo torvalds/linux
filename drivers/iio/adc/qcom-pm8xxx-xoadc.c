@@ -758,7 +758,7 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 	/* Find the right channel setting */
 	chid = 0;
 	hwchan = &hw_channels[0];
-	while (hwchan && hwchan->datasheet_name) {
+	while (hwchan->datasheet_name) {
 		if (hwchan->pre_scale_mux == pre_scale_mux &&
 		    hwchan->amux_channel == amux_channel)
 			break;

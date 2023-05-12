@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/interrupt-controller/loongson,pch-msi.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/interrupt-controller/loongson,pch-msi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Loongson PCH MSI Controller
 
@@ -25,7 +25,7 @@ properties:
     description:
       u32 value of the base of parent HyperTransport vector allocated
       to PCH MSI.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 255
 
@@ -33,7 +33,7 @@ properties:
     description:
       u32 value of the number of parent HyperTransport vectors allocated
       to PCH MSI.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 256
 
@@ -46,7 +46,7 @@ required:
   - loongson,msi-base-vec
   - loongson,msi-num-vecs
 
-additionalProperties: true #fixme
+additionalProperties: true # fixme
 
 examples:
   - |

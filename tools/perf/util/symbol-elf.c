@@ -12,6 +12,7 @@
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
+#include "demangle-cxx.h"
 #include "demangle-ocaml.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"
@@ -24,6 +25,11 @@
 #include <linux/zalloc.h>
 #include <symbol/kallsyms.h>
 #include <internal/lib.h>
+
+#ifdef HAVE_LIBBFD_SUPPORT
+#define PACKAGE 'perf'
+#include <bfd.h>
+#endif
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */
@@ -45,34 +51,6 @@
 
 typedef Elf64_Nhdr GElf_Nhdr;
 
-#ifndef DMGL_PARAMS
-#define DMGL_NO_OPTS     0              /* For readability... */
-#define DMGL_PARAMS      (1 << 0)       /* Include function args */
-#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
-#endif
-
-#ifdef HAVE_LIBBFD_SUPPORT
-#define PACKAGE 'perf'
-#include <bfd.h>
-#else
-#ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
-extern char *cplus_demangle(const char *, int);
-
-static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
-{
-	return cplus_demangle(c, i);
-}
-#else
-#ifdef NO_DEMANGLE
-static inline char *bfd_demangle(void __maybe_unused *v,
-				 const char __maybe_unused *c,
-				 int __maybe_unused i)
-{
-	return NULL;
-}
-#endif
-#endif
-#endif
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
 static int elf_getphdrnum(Elf *elf, size_t *dst)
@@ -213,7 +191,7 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	Elf_Scn *sec = NULL;
 	size_t cnt = 1;
 
-	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
+	/* ELF is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL))
 		return NULL;
 
@@ -295,7 +273,6 @@ static bool want_demangle(bool is_kernel_sym)
 
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
-	int demangle_flags = verbose > 0 ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
 	char *demangled = NULL;
 
 	/*
@@ -306,7 +283,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	if (!want_demangle(dso->kernel || kmodule))
 	    return demangled;
 
-	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+	demangled = cxx_demangle_sym(elf_name, verbose > 0, verbose > 0);
 	if (demangled == NULL) {
 		demangled = ocaml_demangle_sym(elf_name);
 		if (demangled == NULL) {
@@ -419,7 +396,7 @@ static bool get_ifunc_name(Elf *elf, struct dso *dso, GElf_Ehdr *ehdr,
 
 static void exit_rel(struct rel_info *ri)
 {
-	free(ri->sorted);
+	zfree(&ri->sorted);
 }
 
 static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
@@ -483,7 +460,7 @@ struct rela_dyn_info {
 
 static void exit_rela_dyn(struct rela_dyn_info *di)
 {
-	free(di->sorted);
+	zfree(&di->sorted);
 }
 
 static int cmp_offset(const void *a, const void *b)
@@ -565,9 +542,12 @@ static u32 get_x86_64_plt_disp(const u8 *p)
 		n += 1;
 	/* jmp with 4-byte displacement */
 	if (p[n] == 0xff && p[n + 1] == 0x25) {
+		u32 disp;
+
 		n += 2;
 		/* Also add offset from start of entry to end of instruction */
-		return n + 4 + le32toh(*(const u32 *)(p + n));
+		memcpy(&disp, p + n, sizeof(disp));
+		return n + 4 + le32toh(disp);
 	}
 	return 0;
 }
@@ -580,6 +560,7 @@ static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
 	const char *sym_name;
 	char *demangled;
 	GElf_Sym sym;
+	bool result;
 	u32 disp;
 
 	if (!di->sorted)
@@ -606,9 +587,11 @@ static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
 
 	snprintf(buf, buf_sz, "%s@plt", sym_name);
 
+	result = *sym_name;
+
 	free(demangled);
 
-	return *sym_name;
+	return result;
 }
 
 static int dso__synthesize_plt_got_symbols(struct dso *dso, Elf *elf,
@@ -903,7 +886,7 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 				size_t sz = min(size, descsz);
 				memcpy(bf, ptr, sz);
 				memset(bf + sz, 0, size - sz);
-				err = descsz;
+				err = sz;
 				break;
 			}
 		}
@@ -1371,17 +1354,21 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		 */
 		if (*remap_kernel && dso->kernel && !kmodule) {
 			*remap_kernel = false;
-			map->start = shdr->sh_addr + ref_reloc(kmap);
-			map->end = map->start + shdr->sh_size;
-			map->pgoff = shdr->sh_offset;
-			map->map_ip = map__map_ip;
-			map->unmap_ip = map__unmap_ip;
+			map__set_start(map, shdr->sh_addr + ref_reloc(kmap));
+			map__set_end(map, map__start(map) + shdr->sh_size);
+			map__set_pgoff(map, shdr->sh_offset);
+			map__set_map_ip(map, map__dso_map_ip);
+			map__set_unmap_ip(map, map__dso_unmap_ip);
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
+				int err;
+
 				map__get(map);
 				maps__remove(kmaps, map);
-				maps__insert(kmaps, map);
+				err = maps__insert(kmaps, map);
 				map__put(map);
+				if (err)
+					return err;
 			}
 		}
 
@@ -1392,7 +1379,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		 */
 		if (*remap_kernel && kmodule) {
 			*remap_kernel = false;
-			map->pgoff = shdr->sh_offset;
+			map__set_pgoff(map, shdr->sh_offset);
 		}
 
 		*curr_mapp = map;
@@ -1410,7 +1397,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		u64 start = sym->st_value;
 
 		if (kmodule)
-			start += map->start + shdr->sh_offset;
+			start += map__start(map) + shdr->sh_offset;
 
 		curr_dso = dso__new(dso_name);
 		if (curr_dso == NULL)
@@ -1427,27 +1414,29 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__kmap(curr_map)->kmaps = kmaps;
 
 		if (adjust_kernel_syms) {
-			curr_map->start  = shdr->sh_addr + ref_reloc(kmap);
-			curr_map->end	 = curr_map->start + shdr->sh_size;
-			curr_map->pgoff	 = shdr->sh_offset;
+			map__set_start(curr_map, shdr->sh_addr + ref_reloc(kmap));
+			map__set_end(curr_map, map__start(curr_map) + shdr->sh_size);
+			map__set_pgoff(curr_map, shdr->sh_offset);
 		} else {
-			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
+			map__set_map_ip(curr_map, identity__map_ip);
+			map__set_unmap_ip(curr_map, identity__map_ip);
 		}
 		curr_dso->symtab_type = dso->symtab_type;
-		maps__insert(kmaps, curr_map);
+		if (maps__insert(kmaps, curr_map))
+			return -1;
 		/*
 		 * Add it before we drop the reference to curr_map, i.e. while
 		 * we still are sure to have a reference to this DSO via
 		 * *curr_map->dso.
 		 */
-		dsos__add(&kmaps->machine->dsos, curr_dso);
+		dsos__add(&maps__machine(kmaps)->dsos, curr_dso);
 		/* kmaps already got it */
 		map__put(curr_map);
 		dso__set_loaded(curr_dso);
 		*curr_mapp = curr_map;
 		*curr_dsop = curr_dso;
 	} else
-		*curr_dsop = curr_map->dso;
+		*curr_dsop = map__dso(curr_map);
 
 	return 0;
 }
@@ -1537,8 +1526,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			if (strcmp(elf_name, kmap->ref_reloc_sym->name))
 				continue;
 			kmap->ref_reloc_sym->unrelocated_addr = sym.st_value;
-			map->reloc = kmap->ref_reloc_sym->addr -
-				     kmap->ref_reloc_sym->unrelocated_addr;
+			map__set_reloc(map, kmap->ref_reloc_sym->addr - kmap->ref_reloc_sym->unrelocated_addr);
 			break;
 		}
 	}
@@ -1548,7 +1536,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * attempted to prelink vdso to its virtual address.
 	 */
 	if (dso__is_vdso(dso))
-		map->reloc = map->start - dso->text_offset;
+		map__set_reloc(map, map__start(map) - dso->text_offset);
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*

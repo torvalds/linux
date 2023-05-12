@@ -312,8 +312,8 @@
 };
 
 &gpio_intc {
-	compatible = "amlogic,meson-gpio-intc",
-		     "amlogic,meson-gxl-gpio-intc";
+	compatible = "amlogic,meson-gxl-gpio-intc",
+		     "amlogic,meson-gpio-intc";
 	status = "okay";
 };
 
@@ -773,16 +773,23 @@
 		};
 	};
 
-	eth-phy-mux@55c {
-		compatible = "mdio-mux-mmioreg", "mdio-mux";
+	eth_phy_mux: mdio@558 {
+		reg = <0x0 0x558 0x0 0xc>;
+		compatible = "amlogic,gxl-mdio-mux";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x0 0x55c 0x0 0x4>;
-		mux-mask = <0xffffffff>;
+		clocks = <&clkc CLKID_FCLK_DIV4>;
+		clock-names = "ref";
 		mdio-parent-bus = <&mdio0>;
 
-		internal_mdio: mdio@e40908ff {
-			reg = <0xe40908ff>;
+		external_mdio: mdio@0 {
+			reg = <0x0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		internal_mdio: mdio@1 {
+			reg = <0x1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -792,12 +799,6 @@
 				reg = <8>;
 				max-speed = <100>;
 			};
-		};
-
-		external_mdio: mdio@2009087f {
-			reg = <0x2009087f>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 		};
 	};
 };

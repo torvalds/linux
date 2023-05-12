@@ -239,8 +239,6 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ivpu_dbg(vdev, RPM, "rpm_get count %d\n", atomic_read(&vdev->drm.dev->power.usage_count));
-
 	ret = pm_runtime_resume_and_get(vdev->drm.dev);
 	if (!drm_WARN_ON(&vdev->drm, ret < 0))
 		vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
@@ -250,8 +248,6 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 
 void ivpu_rpm_put(struct ivpu_device *vdev)
 {
-	ivpu_dbg(vdev, RPM, "rpm_put count %d\n", atomic_read(&vdev->drm.dev->power.usage_count));
-
 	pm_runtime_mark_last_busy(vdev->drm.dev);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
@@ -321,16 +317,10 @@ void ivpu_pm_enable(struct ivpu_device *vdev)
 	pm_runtime_allow(dev);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
-
-	ivpu_dbg(vdev, RPM, "Enable RPM count %d\n", atomic_read(&dev->power.usage_count));
 }
 
 void ivpu_pm_disable(struct ivpu_device *vdev)
 {
-	struct device *dev = vdev->drm.dev;
-
-	ivpu_dbg(vdev, RPM, "Disable RPM count %d\n", atomic_read(&dev->power.usage_count));
-
 	pm_runtime_get_noresume(vdev->drm.dev);
 	pm_runtime_forbid(vdev->drm.dev);
 }

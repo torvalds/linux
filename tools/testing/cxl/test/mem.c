@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/sizes.h>
 #include <linux/bits.h>
+#include <asm/unaligned.h>
 #include <cxlmem.h>
 
 #include "trace.h"
@@ -14,6 +15,11 @@
 #define LSA_SIZE SZ_128K
 #define DEV_SIZE SZ_2G
 #define EFFECT(x) (1U << x)
+
+#define MOCK_INJECT_DEV_MAX 8
+#define MOCK_INJECT_TEST_MAX 128
+
+static unsigned int poison_inject_dev_max = MOCK_INJECT_DEV_MAX;
 
 static struct cxl_cel_entry mock_cel[] = {
 	{
@@ -38,6 +44,18 @@ static struct cxl_cel_entry mock_cel[] = {
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
+		.effect = cpu_to_le16(0),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_POISON),
+		.effect = cpu_to_le16(0),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_INJECT_POISON),
+		.effect = cpu_to_le16(0),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_CLEAR_POISON),
 		.effect = cpu_to_le16(0),
 	},
 };
@@ -98,6 +116,7 @@ struct cxl_mockmem_data {
 	int master_limit;
 	struct mock_event_store mes;
 	u8 event_buf[SZ_4K];
+	u64 timestamp;
 };
 
 static struct mock_event_log *event_find_log(struct device *dev, int log_type)
@@ -361,6 +380,22 @@ struct cxl_event_mem_module mem_module = {
 	}
 };
 
+static int mock_set_timestamp(struct cxl_dev_state *cxlds,
+			      struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
+	struct cxl_mbox_set_timestamp_in *ts = cmd->payload_in;
+
+	if (cmd->size_in != sizeof(*ts))
+		return -EINVAL;
+
+	if (cmd->size_out != 0)
+		return -EINVAL;
+
+	mdata->timestamp = le64_to_cpu(ts->timestamp);
+	return 0;
+}
+
 static void cxl_mock_add_event_logs(struct mock_event_store *mes)
 {
 	put_unaligned_le16(CXL_GMER_VALID_CHANNEL | CXL_GMER_VALID_RANK,
@@ -469,7 +504,10 @@ static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 			cpu_to_le64(SZ_256M / CXL_CAPACITY_MULTIPLIER),
 		.total_capacity =
 			cpu_to_le64(DEV_SIZE / CXL_CAPACITY_MULTIPLIER),
+		.inject_poison_limit = cpu_to_le16(MOCK_INJECT_TEST_MAX),
 	};
+
+	put_unaligned_le24(CXL_POISON_LIST_MAX, id.poison_list_max_mer);
 
 	if (cmd->size_out < sizeof(id))
 		return -EINVAL;
@@ -888,12 +926,203 @@ static int mock_health_info(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
+static struct mock_poison {
+	struct cxl_dev_state *cxlds;
+	u64 dpa;
+} mock_poison_list[MOCK_INJECT_TEST_MAX];
+
+static struct cxl_mbox_poison_out *
+cxl_get_injected_po(struct cxl_dev_state *cxlds, u64 offset, u64 length)
+{
+	struct cxl_mbox_poison_out *po;
+	int nr_records = 0;
+	u64 dpa;
+
+	po = kzalloc(struct_size(po, record, poison_inject_dev_max), GFP_KERNEL);
+	if (!po)
+		return NULL;
+
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (mock_poison_list[i].cxlds != cxlds)
+			continue;
+		if (mock_poison_list[i].dpa < offset ||
+		    mock_poison_list[i].dpa > offset + length - 1)
+			continue;
+
+		dpa = mock_poison_list[i].dpa + CXL_POISON_SOURCE_INJECTED;
+		po->record[nr_records].address = cpu_to_le64(dpa);
+		po->record[nr_records].length = cpu_to_le32(1);
+		nr_records++;
+		if (nr_records == poison_inject_dev_max)
+			break;
+	}
+
+	/* Always return count, even when zero */
+	po->count = cpu_to_le16(nr_records);
+
+	return po;
+}
+
+static int mock_get_poison(struct cxl_dev_state *cxlds,
+			   struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_poison_in *pi = cmd->payload_in;
+	struct cxl_mbox_poison_out *po;
+	u64 offset = le64_to_cpu(pi->offset);
+	u64 length = le64_to_cpu(pi->length);
+	int nr_records;
+
+	po = cxl_get_injected_po(cxlds, offset, length);
+	if (!po)
+		return -ENOMEM;
+	nr_records = le16_to_cpu(po->count);
+	memcpy(cmd->payload_out, po, struct_size(po, record, nr_records));
+	cmd->size_out = struct_size(po, record, nr_records);
+	kfree(po);
+
+	return 0;
+}
+
+static bool mock_poison_dev_max_injected(struct cxl_dev_state *cxlds)
+{
+	int count = 0;
+
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (mock_poison_list[i].cxlds == cxlds)
+			count++;
+	}
+	return (count >= poison_inject_dev_max);
+}
+
+static bool mock_poison_add(struct cxl_dev_state *cxlds, u64 dpa)
+{
+	if (mock_poison_dev_max_injected(cxlds)) {
+		dev_dbg(cxlds->dev,
+			"Device poison injection limit has been reached: %d\n",
+			MOCK_INJECT_DEV_MAX);
+		return false;
+	}
+
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (!mock_poison_list[i].cxlds) {
+			mock_poison_list[i].cxlds = cxlds;
+			mock_poison_list[i].dpa = dpa;
+			return true;
+		}
+	}
+	dev_dbg(cxlds->dev,
+		"Mock test poison injection limit has been reached: %d\n",
+		MOCK_INJECT_TEST_MAX);
+
+	return false;
+}
+
+static bool mock_poison_found(struct cxl_dev_state *cxlds, u64 dpa)
+{
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (mock_poison_list[i].cxlds == cxlds &&
+		    mock_poison_list[i].dpa == dpa)
+			return true;
+	}
+	return false;
+}
+
+static int mock_inject_poison(struct cxl_dev_state *cxlds,
+			      struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_inject_poison *pi = cmd->payload_in;
+	u64 dpa = le64_to_cpu(pi->address);
+
+	if (mock_poison_found(cxlds, dpa)) {
+		/* Not an error to inject poison if already poisoned */
+		dev_dbg(cxlds->dev, "DPA: 0x%llx already poisoned\n", dpa);
+		return 0;
+	}
+	if (!mock_poison_add(cxlds, dpa))
+		return -ENXIO;
+
+	return 0;
+}
+
+static bool mock_poison_del(struct cxl_dev_state *cxlds, u64 dpa)
+{
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (mock_poison_list[i].cxlds == cxlds &&
+		    mock_poison_list[i].dpa == dpa) {
+			mock_poison_list[i].cxlds = NULL;
+			return true;
+		}
+	}
+	return false;
+}
+
+static int mock_clear_poison(struct cxl_dev_state *cxlds,
+			     struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_clear_poison *pi = cmd->payload_in;
+	u64 dpa = le64_to_cpu(pi->address);
+
+	/*
+	 * A real CXL device will write pi->write_data to the address
+	 * being cleared. In this mock, just delete this address from
+	 * the mock poison list.
+	 */
+	if (!mock_poison_del(cxlds, dpa))
+		dev_dbg(cxlds->dev, "DPA: 0x%llx not in poison list\n", dpa);
+
+	return 0;
+}
+
+static bool mock_poison_list_empty(void)
+{
+	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
+		if (mock_poison_list[i].cxlds)
+			return false;
+	}
+	return true;
+}
+
+static ssize_t poison_inject_max_show(struct device_driver *drv, char *buf)
+{
+	return sysfs_emit(buf, "%u\n", poison_inject_dev_max);
+}
+
+static ssize_t poison_inject_max_store(struct device_driver *drv,
+				       const char *buf, size_t len)
+{
+	int val;
+
+	if (kstrtoint(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (!mock_poison_list_empty())
+		return -EBUSY;
+
+	if (val <= MOCK_INJECT_TEST_MAX)
+		poison_inject_dev_max = val;
+	else
+		return -EINVAL;
+
+	return len;
+}
+
+static DRIVER_ATTR_RW(poison_inject_max);
+
+static struct attribute *cxl_mock_mem_core_attrs[] = {
+	&driver_attr_poison_inject_max.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(cxl_mock_mem_core);
+
 static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct device *dev = cxlds->dev;
 	int rc = -EIO;
 
 	switch (cmd->opcode) {
+	case CXL_MBOX_OP_SET_TIMESTAMP:
+		rc = mock_set_timestamp(cxlds, cmd);
+		break;
 	case CXL_MBOX_OP_GET_SUPPORTED_LOGS:
 		rc = mock_gsl(cmd);
 		break;
@@ -941,6 +1170,15 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 		break;
 	case CXL_MBOX_OP_PASSPHRASE_SECURE_ERASE:
 		rc = mock_passphrase_secure_erase(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_GET_POISON:
+		rc = mock_get_poison(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_INJECT_POISON:
+		rc = mock_inject_poison(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_CLEAR_POISON:
+		rc = mock_clear_poison(cxlds, cmd);
 		break;
 	default:
 		break;
@@ -1007,6 +1245,14 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	}
 
 	rc = cxl_enumerate_cmds(cxlds);
+	if (rc)
+		return rc;
+
+	rc = cxl_poison_state_init(cxlds);
+	if (rc)
+		return rc;
+
+	rc = cxl_set_timestamp(cxlds);
 	if (rc)
 		return rc;
 
@@ -1083,6 +1329,7 @@ static struct platform_driver cxl_mock_mem_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.dev_groups = cxl_mock_mem_groups,
+		.groups = cxl_mock_mem_core_groups,
 	},
 };
 

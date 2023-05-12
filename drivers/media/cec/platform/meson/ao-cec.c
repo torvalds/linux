@@ -696,7 +696,7 @@ out_probe_adapter:
 	return ret;
 }
 
-static int meson_ao_cec_remove(struct platform_device *pdev)
+static void meson_ao_cec_remove(struct platform_device *pdev)
 {
 	struct meson_ao_cec_device *ao_cec = platform_get_drvdata(pdev);
 
@@ -704,8 +704,6 @@ static int meson_ao_cec_remove(struct platform_device *pdev)
 
 	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
 	cec_unregister_adapter(ao_cec->adap);
-
-	return 0;
 }
 
 static const struct of_device_id meson_ao_cec_of_match[] = {
@@ -716,7 +714,7 @@ MODULE_DEVICE_TABLE(of, meson_ao_cec_of_match);
 
 static struct platform_driver meson_ao_cec_driver = {
 	.probe   = meson_ao_cec_probe,
-	.remove  = meson_ao_cec_remove,
+	.remove_new = meson_ao_cec_remove,
 	.driver  = {
 		.name = "meson-ao-cec",
 		.of_match_table = of_match_ptr(meson_ao_cec_of_match),

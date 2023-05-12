@@ -32,7 +32,7 @@
  * DPIA equivalent of dc_link_dp_perfrorm_link_training.
  * Aborts link training upon detection of sink unplug.
  */
-enum link_training_result dc_link_dpia_perform_link_training(
+enum link_training_result dpia_perform_link_training(
 	struct dc_link *link,
 	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting,

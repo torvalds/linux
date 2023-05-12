@@ -280,7 +280,6 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 	struct list_head *ts_reg_free_list_head = NULL;
 	struct timestamp_reg_work_obj *job;
 	bool reg_node_handle_fail = false;
-	ktime_t now = ktime_get();
 	int rc;
 
 	/* For registration nodes:
@@ -303,13 +302,13 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
-								&ts_reg_free_list_head, now);
+							&ts_reg_free_list_head, intr->timestamp);
 					if (rc)
 						reg_node_handle_fail = true;
 				}
 			} else {
 				/* Handle wait target value node */
-				pend->fence.timestamp = now;
+				pend->fence.timestamp = intr->timestamp;
 				complete_all(&pend->fence.completion);
 			}
 		}
@@ -326,6 +325,26 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 	}
 }
 
+static void handle_tpc_interrupt(struct hl_device *hdev)
+{
+	u64 event_mask;
+	u32 flags;
+
+	event_mask = HL_NOTIFIER_EVENT_TPC_ASSERT |
+		HL_NOTIFIER_EVENT_USER_ENGINE_ERR |
+		HL_NOTIFIER_EVENT_DEVICE_RESET;
+
+	flags = HL_DRV_RESET_DELAY;
+
+	dev_err_ratelimited(hdev->dev, "Received TPC assert\n");
+	hl_device_cond_reset(hdev, flags, event_mask);
+}
+
+static void handle_unexpected_user_interrupt(struct hl_device *hdev)
+{
+	dev_err_ratelimited(hdev->dev, "Received unexpected user error interrupt\n");
+}
+
 /**
  * hl_irq_handler_user_interrupt - irq handler for user interrupts
  *
@@ -334,6 +353,23 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
  *
  */
 irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
+{
+	struct hl_user_interrupt *user_int = arg;
+
+	user_int->timestamp = ktime_get();
+
+	return IRQ_WAKE_THREAD;
+}
+
+/**
+ * hl_irq_user_interrupt_thread_handler - irq thread handler for user interrupts.
+ * This function is invoked by threaded irq mechanism
+ *
+ * @irq: irq number
+ * @arg: pointer to user interrupt structure
+ *
+ */
+irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 {
 	struct hl_user_interrupt *user_int = arg;
 	struct hl_device *hdev = user_int->hdev;
@@ -351,27 +387,15 @@ irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 		/* Handle decoder interrupt registered on this specific irq */
 		handle_user_interrupt(hdev, user_int);
 		break;
+	case HL_USR_INTERRUPT_TPC:
+		handle_tpc_interrupt(hdev);
+		break;
+	case HL_USR_INTERRUPT_UNEXPECTED:
+		handle_unexpected_user_interrupt(hdev);
+		break;
 	default:
 		break;
 	}
-
-	return IRQ_HANDLED;
-}
-
-/**
- * hl_irq_handler_default - default irq handler
- *
- * @irq: irq number
- * @arg: pointer to user interrupt structure
- *
- */
-irqreturn_t hl_irq_handler_default(int irq, void *arg)
-{
-	struct hl_user_interrupt *user_interrupt = arg;
-	struct hl_device *hdev = user_interrupt->hdev;
-	u32 interrupt_id = user_interrupt->interrupt_id;
-
-	dev_err(hdev->dev, "got invalid user interrupt %u", interrupt_id);
 
 	return IRQ_HANDLED;
 }
@@ -391,8 +415,8 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 	struct hl_eq_entry *eq_base;
 	struct hl_eqe_work *handle_eqe_work;
 	bool entry_ready;
-	u32 cur_eqe;
-	u16 cur_eqe_index;
+	u32 cur_eqe, ctl;
+	u16 cur_eqe_index, event_type;
 
 	eq_base = eq->kernel_address;
 
@@ -405,11 +429,10 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 
 		cur_eqe_index = FIELD_GET(EQ_CTL_INDEX_MASK, cur_eqe);
 		if ((hdev->event_queue.check_eqe_index) &&
-				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK)
-							!= cur_eqe_index)) {
+				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK) != cur_eqe_index)) {
 			dev_dbg(hdev->dev,
-				"EQE 0x%x in queue is ready but index does not match %d!=%d",
-				eq_base[eq->ci].hdr.ctl,
+				"EQE %#x in queue is ready but index does not match %d!=%d",
+				cur_eqe,
 				((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK),
 				cur_eqe_index);
 			break;
@@ -426,7 +449,10 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		dma_rmb();
 
 		if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
-			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
+			ctl = le32_to_cpu(eq_entry->hdr.ctl);
+			event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK) >> EQ_CTL_EVENT_TYPE_SHIFT);
+			dev_warn(hdev->dev,
+				"Device disabled but received an EQ event (%u)\n", event_type);
 			goto skip_irq;
 		}
 
@@ -463,7 +489,7 @@ irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
 {
 	struct hl_dec *dec = arg;
 
-	schedule_work(&dec->completion_abnrm_work);
+	schedule_work(&dec->abnrm_intr_work);
 
 	return IRQ_HANDLED;
 }

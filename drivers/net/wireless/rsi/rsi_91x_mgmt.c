@@ -1127,6 +1127,9 @@ int rsi_set_channel(struct rsi_common *common,
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
 
+	if (!channel)
+		return 0;
+
 	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
@@ -1134,10 +1137,6 @@ int rsi_set_channel(struct rsi_common *common,
 		return -ENOMEM;
 	}
 
-	if (!channel) {
-		dev_kfree_skb(skb);
-		return 0;
-	}
 	memset(skb->data, 0, frame_len);
 	chan_cfg = (struct rsi_chan_config *)skb->data;
 

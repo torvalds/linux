@@ -288,33 +288,6 @@
 	.result = REJECT,
 	.errstr = "off=0 kptr isn't referenced kptr",
 },
-{
-	"map_kptr: unref: bpf_kfunc_call_test_kptr_get rejected",
-	.insns = {
-	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
-	BPF_LD_MAP_FD(BPF_REG_6, 0),
-	BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
-	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
-	BPF_MOV64_IMM(BPF_REG_0, 0),
-	BPF_ST_MEM(BPF_W, BPF_REG_2, 0, 0),
-	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
-	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
-	BPF_EXIT_INSN(),
-	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
-	BPF_MOV64_IMM(BPF_REG_2, 0),
-	BPF_MOV64_IMM(BPF_REG_3, 0),
-	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_KFUNC_CALL, 0, 0),
-	BPF_MOV64_IMM(BPF_REG_0, 0),
-	BPF_EXIT_INSN(),
-	},
-	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.fixup_map_kptr = { 1 },
-	.result = REJECT,
-	.errstr = "arg#0 no referenced kptr at map value offset=0",
-	.fixup_kfunc_btf_id = {
-		{ "bpf_kfunc_call_test_kptr_get", 13 },
-	}
-},
 /* Tests for referenced PTR_TO_BTF_ID */
 {
 	"map_kptr: ref: loaded pointer marked as untrusted",
@@ -336,7 +309,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "R1 type=untrusted_ptr_or_null_ expected=percpu_ptr_",
+	.errstr = "R1 type=rcu_ptr_or_null_ expected=percpu_ptr_",
 },
 {
 	"map_kptr: ref: reject off != 0",

@@ -30,7 +30,6 @@ struct selinux_policy {
 } __randomize_layout;
 
 struct convert_context_args {
-	struct selinux_state *state;
 	struct policydb *oldp;
 	struct policydb *newp;
 };

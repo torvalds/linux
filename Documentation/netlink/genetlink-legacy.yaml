@@ -33,10 +33,10 @@ properties:
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink, genetlink-c, genetlink-legacy ] # Trim
-  # Start genetlink-c
   uapi-header:
     description: Path to the uAPI header, default is linux/${family-name}.h
     type: string
+  # Start genetlink-c
   c-family-name:
     description: Name of the define for the family name.
     type: string
@@ -218,6 +218,11 @@ properties:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
+              # Start genetlink-legacy
+              struct:
+                description: Name of the struct type used for the attribute.
+                type: string
+              # End genetlink-legacy
 
       # Make sure name-prefix does not appear in subsets (subsets inherit naming)
       dependencies:
@@ -256,6 +261,14 @@ properties:
       async-enum:
         description: Name for the enum type with notifications/events.
         type: string
+      # Start genetlink-legacy
+      fixed-header: &fixed-header
+        description: |
+          Name of the structure defining the optional fixed-length protocol
+          header. This header is placed in a message after the netlink and
+          genetlink headers and before any attributes.
+        type: string
+      # End genetlink-legacy
       list:
         description: List of commands
         type: array
@@ -288,6 +301,9 @@ properties:
               type: array
               items:
                 enum: [ strict, dump ]
+            # Start genetlink-legacy
+            fixed-header: *fixed-header
+            # End genetlink-legacy
             do: &subop-type
               description: Main command handler.
               type: object

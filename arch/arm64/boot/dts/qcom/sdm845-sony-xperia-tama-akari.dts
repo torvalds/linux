@@ -11,3 +11,7 @@
 	model = "Sony Xperia XZ2";
 	compatible = "sony,akari-row", "qcom,sdm845";
 };
+
+&panel {
+	compatible = "sony,td4353-jdi-tama";
+};

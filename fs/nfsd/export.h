@@ -77,6 +77,7 @@ struct svc_export {
 	struct cache_detail	*cd;
 	struct rcu_head		ex_rcu;
 	struct export_stats	ex_stats;
+	unsigned long		ex_xprtsec_modes;
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an

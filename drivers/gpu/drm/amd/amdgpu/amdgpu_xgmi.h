@@ -73,5 +73,6 @@ static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		adev->gmc.xgmi.hive_id &&
 		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
 }
+int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev);
 
 #endif

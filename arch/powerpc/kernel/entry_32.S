@@ -183,12 +183,11 @@ syscall_exit_finish:
 ret_from_fork:
 	REST_NVGPRS(r1)
 	bl	schedule_tail
-	li	r3,0
+	li	r3,0	/* fork() return value */
 	b	ret_from_syscall
 
-	.globl	ret_from_kernel_thread
-ret_from_kernel_thread:
-	REST_NVGPRS(r1)
+	.globl	ret_from_kernel_user_thread
+ret_from_kernel_user_thread:
 	bl	schedule_tail
 	mtctr	r14
 	mr	r3,r15
@@ -196,6 +195,22 @@ ret_from_kernel_thread:
 	bctrl
 	li	r3,0
 	b	ret_from_syscall
+
+	.globl	start_kernel_thread
+start_kernel_thread:
+	bl	schedule_tail
+	mtctr	r14
+	mr	r3,r15
+	PPC440EP_ERR42
+	bctrl
+	/*
+	 * This must not return. We actually want to BUG here, not WARN,
+	 * because BUG will exit the process which is what the kernel thread
+	 * should have done, which may give some hope of continuing.
+	 */
+100:	trap
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,0
+
 
 /*
  * This routine switches between two different tasks.  The process

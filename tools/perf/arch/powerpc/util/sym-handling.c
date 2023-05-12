@@ -104,7 +104,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 
 	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
 
-	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
+	if (map__dso(map)->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
 		tev->point.offset += PPC64LE_LEP_OFFSET;
 	else if (lep_offset) {
 		if (pev->uprobes)
@@ -131,7 +131,7 @@ void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
 	for (i = 0; i < ntevs; i++) {
 		tev = &pev->tevs[i];
 		map__for_each_symbol(map, sym, tmp) {
-			if (map->unmap_ip(map, sym->start) == tev->point.address) {
+			if (map__unmap_ip(map, sym->start) == tev->point.address) {
 				arch__fix_tev_from_maps(pev, tev, map, sym);
 				break;
 			}

@@ -2617,15 +2617,12 @@ static void mnt_warn_timestamp_expiry(struct path *mountpoint, struct vfsmount *
 	   (ktime_get_real_seconds() + TIME_UPTIME_SEC_MAX > sb->s_time_max)) {
 		char *buf = (char *)__get_free_page(GFP_KERNEL);
 		char *mntpath = buf ? d_path(mountpoint, buf, PAGE_SIZE) : ERR_PTR(-ENOMEM);
-		struct tm tm;
 
-		time64_to_tm(sb->s_time_max, 0, &tm);
-
-		pr_warn("%s filesystem being %s at %s supports timestamps until %04ld (0x%llx)\n",
+		pr_warn("%s filesystem being %s at %s supports timestamps until %ptTd (0x%llx)\n",
 			sb->s_type->name,
 			is_mounted(mnt) ? "remounted" : "mounted",
-			mntpath,
-			tm.tm_year+1900, (unsigned long long)sb->s_time_max);
+			mntpath, &sb->s_time_max,
+			(unsigned long long)sb->s_time_max);
 
 		free_page((unsigned long)buf);
 		sb->s_iflags |= SB_I_TS_EXPIRY_WARNED;
@@ -4197,7 +4194,7 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	int err = 0;
 	struct ns_common *ns;
 	struct user_namespace *mnt_userns;
-	struct file *file;
+	struct fd f;
 
 	if (!((attr->attr_set | attr->attr_clr) & MOUNT_ATTR_IDMAP))
 		return 0;
@@ -4213,16 +4210,16 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	if (attr->userns_fd > INT_MAX)
 		return -EINVAL;
 
-	file = fget(attr->userns_fd);
-	if (!file)
+	f = fdget(attr->userns_fd);
+	if (!f.file)
 		return -EBADF;
 
-	if (!proc_ns_file(file)) {
+	if (!proc_ns_file(f.file)) {
 		err = -EINVAL;
 		goto out_fput;
 	}
 
-	ns = get_proc_ns(file_inode(file));
+	ns = get_proc_ns(file_inode(f.file));
 	if (ns->ops->type != CLONE_NEWUSER) {
 		err = -EINVAL;
 		goto out_fput;
@@ -4251,7 +4248,7 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	kattr->mnt_userns = get_user_ns(mnt_userns);
 
 out_fput:
-	fput(file);
+	fdput(f);
 	return err;
 }
 

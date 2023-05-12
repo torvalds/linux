@@ -20,3 +20,5 @@ struct test_filter_set;
 int parse_test_list(const char *s,
 		    struct test_filter_set *test_set,
 		    bool is_glob_pattern);
+
+__u64 read_perf_max_sample_freq(void);

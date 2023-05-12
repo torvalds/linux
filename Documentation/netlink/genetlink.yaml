@@ -33,6 +33,9 @@ properties:
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink ]
+  uapi-header:
+    description: Path to the uAPI header, default is linux/${family-name}.h
+    type: string
 
   definitions:
     description: List of type and constant definitions (enums, flags, defines).

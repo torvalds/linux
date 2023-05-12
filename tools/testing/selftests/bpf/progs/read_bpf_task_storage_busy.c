@@ -23,7 +23,6 @@ SEC("raw_tp/sys_enter")
 int BPF_PROG(read_bpf_task_storage_busy)
 {
 	int *value;
-	int key;
 
 	if (!CONFIG_PREEMPT)
 		return 0;

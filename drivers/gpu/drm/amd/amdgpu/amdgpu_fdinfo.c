@@ -60,12 +60,13 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	struct amdgpu_fpriv *fpriv = file->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
-	uint64_t vram_mem = 0, gtt_mem = 0, cpu_mem = 0;
+	struct amdgpu_mem_stats stats;
 	ktime_t usage[AMDGPU_HW_IP_NUM];
 	uint32_t bus, dev, fn, domain;
 	unsigned int hw_ip;
 	int ret;
 
+	memset(&stats, 0, sizeof(stats));
 	bus = adev->pdev->bus->number;
 	domain = pci_domain_nr(adev->pdev->bus);
 	dev = PCI_SLOT(adev->pdev->devfn);
@@ -75,7 +76,7 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	if (ret)
 		return;
 
-	amdgpu_vm_get_memory(vm, &vram_mem, &gtt_mem, &cpu_mem);
+	amdgpu_vm_get_memory(vm, &stats);
 	amdgpu_bo_unreserve(vm->root.bo);
 
 	amdgpu_ctx_mgr_usage(&fpriv->ctx_mgr, usage);
@@ -90,9 +91,22 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	seq_printf(m, "drm-driver:\t%s\n", file->minor->dev->driver->name);
 	seq_printf(m, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
 	seq_printf(m, "drm-client-id:\t%Lu\n", vm->immediate.fence_context);
-	seq_printf(m, "drm-memory-vram:\t%llu KiB\n", vram_mem/1024UL);
-	seq_printf(m, "drm-memory-gtt: \t%llu KiB\n", gtt_mem/1024UL);
-	seq_printf(m, "drm-memory-cpu: \t%llu KiB\n", cpu_mem/1024UL);
+	seq_printf(m, "drm-memory-vram:\t%llu KiB\n", stats.vram/1024UL);
+	seq_printf(m, "drm-memory-gtt: \t%llu KiB\n", stats.gtt/1024UL);
+	seq_printf(m, "drm-memory-cpu: \t%llu KiB\n", stats.cpu/1024UL);
+	seq_printf(m, "amd-memory-visible-vram:\t%llu KiB\n",
+		   stats.visible_vram/1024UL);
+	seq_printf(m, "amd-evicted-vram:\t%llu KiB\n",
+		   stats.evicted_vram/1024UL);
+	seq_printf(m, "amd-evicted-visible-vram:\t%llu KiB\n",
+		   stats.evicted_visible_vram/1024UL);
+	seq_printf(m, "amd-requested-vram:\t%llu KiB\n",
+		   stats.requested_vram/1024UL);
+	seq_printf(m, "amd-requested-visible-vram:\t%llu KiB\n",
+		   stats.requested_visible_vram/1024UL);
+	seq_printf(m, "amd-requested-gtt:\t%llu KiB\n",
+		   stats.requested_gtt/1024UL);
+
 	for (hw_ip = 0; hw_ip < AMDGPU_HW_IP_NUM; ++hw_ip) {
 		if (!usage[hw_ip])
 			continue;

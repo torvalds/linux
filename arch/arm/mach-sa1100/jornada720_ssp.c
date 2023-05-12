@@ -175,18 +175,17 @@ static int jornada_ssp_probe(struct platform_device *dev)
 	return 0;
 };
 
-static int jornada_ssp_remove(struct platform_device *dev)
+static void jornada_ssp_remove(struct platform_device *dev)
 {
 	/* Note that this doesn't actually remove the driver, since theres nothing to remove
 	 * It just makes sure everything is turned off */
 	GPSR = GPIO_GPIO25;
 	ssp_exit();
-	return 0;
 };
 
 struct platform_driver jornadassp_driver = {
 	.probe	= jornada_ssp_probe,
-	.remove	= jornada_ssp_remove,
+	.remove_new = jornada_ssp_remove,
 	.driver	= {
 		.name	= "jornada_ssp",
 	},

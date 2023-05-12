@@ -1,0 +1,41 @@
+C RM-broken
+
+(*
+ * Result: DEADLOCK
+ *
+ * This litmus test demonstrates that the old "roach motel" approach
+ * to locking, where code can be freely moved into critical sections,
+ * cannot be used in the Linux kernel.
+ *)
+
+{
+	int x;
+	atomic_t y;
+}
+
+P0(int *x, atomic_t *y, spinlock_t *lck)
+{
+	int r2;
+
+	spin_lock(lck);
+	r2 = atomic_inc_return(y);
+	WRITE_ONCE(*x, 1);
+	spin_unlock(lck);
+}
+
+P1(int *x, atomic_t *y, spinlock_t *lck)
+{
+	int r0;
+	int r1;
+	int r2;
+
+	spin_lock(lck);
+	r0 = READ_ONCE(*x);
+	r1 = READ_ONCE(*x);
+	r2 = atomic_inc_return(y);
+	spin_unlock(lck);
+}
+
+locations [x;0:r2;1:r0;1:r1;1:r2]
+filter (1:r0=0 /\ 1:r1=1)
+exists (1:r2=1)

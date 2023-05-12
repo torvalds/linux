@@ -247,7 +247,7 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int spear_pwm_remove(struct platform_device *pdev)
+static void spear_pwm_remove(struct platform_device *pdev)
 {
 	struct spear_pwm_chip *pc = platform_get_drvdata(pdev);
 
@@ -255,8 +255,6 @@ static int spear_pwm_remove(struct platform_device *pdev)
 
 	/* clk was prepared in probe, hence unprepare it here */
 	clk_unprepare(pc->clk);
-
-	return 0;
 }
 
 static const struct of_device_id spear_pwm_of_match[] = {
@@ -273,7 +271,7 @@ static struct platform_driver spear_pwm_driver = {
 		.of_match_table = spear_pwm_of_match,
 	},
 	.probe = spear_pwm_probe,
-	.remove = spear_pwm_remove,
+	.remove_new = spear_pwm_remove,
 };
 
 module_platform_driver(spear_pwm_driver);

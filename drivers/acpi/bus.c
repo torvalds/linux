@@ -589,6 +589,7 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device,
 		acpi_remove_notify_handler(device->handle, type,
 					   acpi_notify_device);
 	}
+	acpi_os_wait_events_complete();
 }
 
 /* Handle events targeting \_SB device (at present only graceful shutdown) */
@@ -623,8 +624,9 @@ static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
 	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
 		if (!work_busy(&acpi_sb_work))
 			schedule_work(&acpi_sb_work);
-	} else
+	} else {
 		pr_warn("event %x is not supported by \\_SB device\n", event);
+	}
 }
 
 static int __init acpi_setup_sb_notify_handler(void)
@@ -808,9 +810,10 @@ static bool acpi_of_modalias(struct acpi_device *adev,
  * @modalias:   Pointer to buffer that modalias value will be copied into
  * @len:	Length of modalias buffer
  *
- * This is a counterpart of of_modalias_node() for struct acpi_device objects.
- * If there is a compatible string for @adev, it will be copied to @modalias
- * with the vendor prefix stripped; otherwise, @default_id will be used.
+ * This is a counterpart of of_alias_from_compatible() for struct acpi_device
+ * objects. If there is a compatible string for @adev, it will be copied to
+ * @modalias with the vendor prefix stripped; otherwise, @default_id will be
+ * used.
  */
 void acpi_set_modalias(struct acpi_device *adev, const char *default_id,
 		       char *modalias, size_t len)

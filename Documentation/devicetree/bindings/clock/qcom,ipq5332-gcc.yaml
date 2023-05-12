@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,ipq5332-gcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Global Clock & Reset Controller on IPQ5332
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+
+description: |
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on IPQ5332.
+
+  See also:: include/dt-bindings/clock/qcom,gcc-ipq5332.h
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+properties:
+  compatible:
+    const: qcom,ipq5332-gcc
+
+  clocks:
+    items:
+      - description: Board XO clock source
+      - description: Sleep clock source
+      - description: PCIE 2lane PHY pipe clock source
+      - description: PCIE 2lane x1 PHY pipe clock source (For second lane)
+      - description: USB PCIE wrapper pipe clock source
+
+required:
+  - compatible
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    clock-controller@1800000 {
+      compatible = "qcom,ipq5332-gcc";
+      reg = <0x01800000 0x80000>;
+      clocks = <&xo_board>,
+               <&sleep_clk>,
+               <&pcie_2lane_phy_pipe_clk>,
+               <&pcie_2lane_phy_pipe_clk_x1>,
+               <&usb_pcie_wrapper_pipe_clk>;
+      #clock-cells = <1>;
+      #power-domain-cells = <1>;
+      #reset-cells = <1>;
+    };
+...

@@ -130,10 +130,36 @@ static bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 	return true;
 }
 
-static bool ex_handler_uaccess(const struct exception_table_entry *fixup,
-			       struct pt_regs *regs, int trapnr)
+/*
+ * On x86-64, we end up being imprecise with 'access_ok()', and allow
+ * non-canonical user addresses to make the range comparisons simpler,
+ * and to not have to worry about LAM being enabled.
+ *
+ * In fact, we allow up to one page of "slop" at the sign boundary,
+ * which means that we can do access_ok() by just checking the sign
+ * of the pointer for the common case of having a small access size.
+ */
+static bool gp_fault_address_ok(unsigned long fault_address)
 {
-	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
+#ifdef CONFIG_X86_64
+	/* Is it in the "user space" part of the non-canonical space? */
+	if (valid_user_address(fault_address))
+		return true;
+
+	/* .. or just above it? */
+	fault_address -= PAGE_SIZE;
+	if (valid_user_address(fault_address))
+		return true;
+#endif
+	return false;
+}
+
+static bool ex_handler_uaccess(const struct exception_table_entry *fixup,
+			       struct pt_regs *regs, int trapnr,
+			       unsigned long fault_address)
+{
+	WARN_ONCE(trapnr == X86_TRAP_GP && !gp_fault_address_ok(fault_address),
+		"General protection fault in user access. Non-canonical address?");
 	return ex_handler_default(fixup, regs);
 }
 
@@ -189,10 +215,12 @@ static bool ex_handler_imm_reg(const struct exception_table_entry *fixup,
 }
 
 static bool ex_handler_ucopy_len(const struct exception_table_entry *fixup,
-				  struct pt_regs *regs, int trapnr, int reg, int imm)
+				  struct pt_regs *regs, int trapnr,
+				  unsigned long fault_address,
+				  int reg, int imm)
 {
 	regs->cx = imm * regs->cx + *pt_regs_nr(regs, reg);
-	return ex_handler_uaccess(fixup, regs, trapnr);
+	return ex_handler_uaccess(fixup, regs, trapnr, fault_address);
 }
 
 int ex_get_fixup_type(unsigned long ip)
@@ -238,7 +266,7 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 	case EX_TYPE_FAULT_MCE_SAFE:
 		return ex_handler_fault(e, regs, trapnr);
 	case EX_TYPE_UACCESS:
-		return ex_handler_uaccess(e, regs, trapnr);
+		return ex_handler_uaccess(e, regs, trapnr, fault_addr);
 	case EX_TYPE_COPY:
 		return ex_handler_copy(e, regs, trapnr);
 	case EX_TYPE_CLEAR_FS:
@@ -269,7 +297,7 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 	case EX_TYPE_FAULT_SGX:
 		return ex_handler_sgx(e, regs, trapnr);
 	case EX_TYPE_UCOPY_LEN:
-		return ex_handler_ucopy_len(e, regs, trapnr, reg, imm);
+		return ex_handler_ucopy_len(e, regs, trapnr, fault_addr, reg, imm);
 	case EX_TYPE_ZEROPAD:
 		return ex_handler_zeropad(e, regs, fault_addr);
 	}

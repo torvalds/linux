@@ -942,7 +942,7 @@
 		status = "disabled";
 	};
 
-	spdif: sound@ff88b0000 {
+	spdif: sound@ff8b0000 {
 		compatible = "rockchip,rk3288-spdif", "rockchip,rk3066-spdif";
 		reg = <0x0 0xff8b0000 0x0 0x10000>;
 		#sound-dai-cells = <0>;
@@ -1114,7 +1114,7 @@
 		status = "disabled";
 	};
 
-	mipi_dsi: mipi@ff960000 {
+	mipi_dsi: dsi@ff960000 {
 		compatible = "rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -1125,17 +1125,27 @@
 		status = "disabled";
 
 		ports {
-			mipi_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in: port@0 {
+				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				mipi_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_mipi>;
 				};
+
 				mipi_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_mipi>;
 				};
+			};
+
+			mipi_out: port@1 {
+				reg = <1>;
 			};
 		};
 	};
@@ -1157,7 +1167,6 @@
 
 			lvds_in: port@0 {
 				reg = <0>;
-
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -1165,10 +1174,15 @@
 					reg = <0>;
 					remote-endpoint = <&vopb_out_lvds>;
 				};
+
 				lvds_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_lvds>;
 				};
+			};
+
+			lvds_out: port@1 {
+				reg = <1>;
 			};
 		};
 	};
@@ -1190,18 +1204,25 @@
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
 			edp_in: port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				edp_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_edp>;
 				};
+
 				edp_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_edp>;
 				};
+			};
+
+			edp_out: port@1 {
+				reg = <1>;
 			};
 		};
 	};

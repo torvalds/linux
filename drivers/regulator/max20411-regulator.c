@@ -153,6 +153,7 @@ MODULE_DEVICE_TABLE(i2c, max20411_id);
 static struct i2c_driver max20411_i2c_driver = {
 	.driver	= {
 		.name = "max20411",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= of_max20411_match_tbl,
 	},
 	.probe_new = max20411_probe,

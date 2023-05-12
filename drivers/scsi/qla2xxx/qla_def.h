@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
-#include <linux/aer.h>
 #include <linux/mutex.h>
 #include <linux/btree.h>
 

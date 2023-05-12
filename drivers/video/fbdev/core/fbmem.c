@@ -1751,7 +1751,7 @@ fbmem_init(void)
 		goto err_chrdev;
 	}
 
-	fb_class = class_create(THIS_MODULE, "graphics");
+	fb_class = class_create("graphics");
 	if (IS_ERR(fb_class)) {
 		ret = PTR_ERR(fb_class);
 		pr_warn("Unable to create fb class; errno = %d\n", ret);

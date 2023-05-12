@@ -242,7 +242,7 @@ EXPORT_SYMBOL(xillybus_find_inode);
 
 static int __init xillybus_class_init(void)
 {
-	xillybus_class = class_create(THIS_MODULE, "xillybus");
+	xillybus_class = class_create("xillybus");
 
 	if (IS_ERR(xillybus_class)) {
 		pr_warn("Failed to register xillybus class\n");

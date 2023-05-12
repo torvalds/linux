@@ -6,10 +6,10 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
-#include <linux/aer.h>
 #include <linux/etherdevice.h>
 #include <net/ip.h>
 #include <linux/phy.h>
+#include <linux/if_vlan.h>
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
@@ -470,6 +470,7 @@ static void ngbe_shutdown(struct pci_dev *pdev)
 static const struct net_device_ops ngbe_netdev_ops = {
 	.ndo_open               = ngbe_open,
 	.ndo_stop               = ngbe_close,
+	.ndo_change_mtu         = wx_change_mtu,
 	.ndo_start_xmit         = wx_xmit_frame,
 	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
@@ -520,7 +521,6 @@ static int ngbe_probe(struct pci_dev *pdev,
 		goto err_pci_disable_dev;
 	}
 
-	pci_enable_pcie_error_reporting(pdev);
 	pci_set_master(pdev);
 
 	netdev = devm_alloc_etherdev_mqs(&pdev->dev,
@@ -562,7 +562,8 @@ static int ngbe_probe(struct pci_dev *pdev,
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	netdev->min_mtu = ETH_MIN_MTU;
-	netdev->max_mtu = NGBE_MAX_JUMBO_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN);
+	netdev->max_mtu = WX_MAX_JUMBO_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	wx->bd_number = func_nums;
 	/* setup the private structure */
@@ -669,7 +670,6 @@ err_clear_interrupt_scheme:
 err_free_mac_table:
 	kfree(wx->mac_table);
 err_pci_release_regions:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_disable_dev:
@@ -698,7 +698,6 @@ static void ngbe_remove(struct pci_dev *pdev)
 
 	kfree(wx->mac_table);
 	wx_clear_interrupt_scheme(wx);
-	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);
 }

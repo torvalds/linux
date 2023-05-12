@@ -2,28 +2,35 @@
 #ifndef __LINUX_GPIO_DRIVER_H
 #define __LINUX_GPIO_DRIVER_H
 
-#include <linux/device.h>
-#include <linux/irq.h>
+#include <linux/bits.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqhandler.h>
 #include <linux/lockdep.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/property.h>
+#include <linux/spinlock_types.h>
 #include <linux/types.h>
 
+#ifdef CONFIG_GENERIC_MSI_IRQ
 #include <asm/msi.h>
+#endif
 
-struct gpio_desc;
-struct of_phandle_args;
-struct device_node;
-struct seq_file;
-struct gpio_device;
+struct device;
+struct irq_chip;
+struct irq_data;
 struct module;
-enum gpiod_flags;
-enum gpio_lookup_flags;
+struct of_phandle_args;
+struct pinctrl_dev;
+struct seq_file;
 
 struct gpio_chip;
+struct gpio_desc;
+struct gpio_device;
+
+enum gpio_lookup_flags;
+enum gpiod_flags;
 
 union gpio_irq_fwspec {
 	struct irq_fwspec	fwspec;
@@ -680,6 +687,10 @@ bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain);
 #else
+
+#include <asm/bug.h>
+#include <asm/errno.h>
+
 static inline int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 					      struct irq_domain *domain)
 {
@@ -756,6 +767,10 @@ void gpiochip_unlock_as_irq(struct gpio_chip *gc, unsigned int offset);
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */
+
+#include <linux/err.h>
+
+#include <asm/bug.h>
 
 static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 {

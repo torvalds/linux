@@ -563,7 +563,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			link_data->cpu_sysclk_id = FSL_SAI_CLK_MAST1;
 
 			/* sai may support mclk/bclk = 1 */
-			if (of_find_property(np, "fsl,mclk-equal-bclk", NULL)) {
+			if (of_property_read_bool(np, "fsl,mclk-equal-bclk")) {
 				link_data->one2one_ratio = true;
 			} else {
 				int i;

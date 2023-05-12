@@ -999,19 +999,17 @@ __err:
 	return err;
 }
 
-static int snd_mts64_remove(struct platform_device *pdev)
+static void snd_mts64_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
 	if (card)
 		snd_card_free(card);
-
-	return 0;
 }
 
 static struct platform_driver snd_mts64_driver = {
 	.probe  = snd_mts64_probe,
-	.remove = snd_mts64_remove,
+	.remove_new = snd_mts64_remove,
 	.driver = {
 		.name = PLATFORM_DRIVER,
 	}

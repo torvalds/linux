@@ -372,45 +372,6 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 }
 
 static __attribute__ ((noinline))
-bool decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4)
-{
-	struct eth_hdr *new_eth;
-	struct eth_hdr *old_eth;
-
-	old_eth = *data;
-	new_eth = *data + sizeof(struct ipv6hdr);
-	memcpy(new_eth->eth_source, old_eth->eth_source, 6);
-	memcpy(new_eth->eth_dest, old_eth->eth_dest, 6);
-	if (inner_v4)
-		new_eth->eth_proto = 8;
-	else
-		new_eth->eth_proto = 56710;
-	if (bpf_xdp_adjust_head(xdp, (int)sizeof(struct ipv6hdr)))
-		return false;
-	*data = (void *)(long)xdp->data;
-	*data_end = (void *)(long)xdp->data_end;
-	return true;
-}
-
-static __attribute__ ((noinline))
-bool decap_v4(struct xdp_md *xdp, void **data, void **data_end)
-{
-	struct eth_hdr *new_eth;
-	struct eth_hdr *old_eth;
-
-	old_eth = *data;
-	new_eth = *data + sizeof(struct iphdr);
-	memcpy(new_eth->eth_source, old_eth->eth_source, 6);
-	memcpy(new_eth->eth_dest, old_eth->eth_dest, 6);
-	new_eth->eth_proto = 8;
-	if (bpf_xdp_adjust_head(xdp, (int)sizeof(struct iphdr)))
-		return false;
-	*data = (void *)(long)xdp->data;
-	*data_end = (void *)(long)xdp->data_end;
-	return true;
-}
-
-static __attribute__ ((noinline))
 int swap_mac_and_send(void *data, void *data_end)
 {
 	unsigned char tmp_mac[6];
@@ -430,7 +391,6 @@ int send_icmp_reply(void *data, void *data_end)
 	__u16 *next_iph_u16;
 	__u32 tmp_addr = 0;
 	struct iphdr *iph;
-	__u32 csum1 = 0;
 	__u32 csum = 0;
 	__u64 off = 0;
 
@@ -662,7 +622,6 @@ static int process_l3_headers_v4(struct packet_description *pckt,
 				 void *data_end)
 {
 	struct iphdr *iph;
-	__u64 iph_len;
 	int action;
 
 	iph = data + off;
@@ -696,7 +655,6 @@ static int process_packet(void *data, __u64 off, void *data_end,
 	struct packet_description pckt = { };
 	struct vip_definition vip = { };
 	struct lb_stats *data_stats;
-	struct eth_hdr *eth = data;
 	void *lru_map = &lru_cache;
 	struct vip_meta *vip_info;
 	__u32 lru_stats_key = 513;
@@ -704,7 +662,6 @@ static int process_packet(void *data, __u64 off, void *data_end,
 	__u32 stats_key = 512;
 	struct ctl_value *cval;
 	__u16 pkt_bytes;
-	__u64 iph_len;
 	__u8 protocol;
 	__u32 vip_num;
 	int action;

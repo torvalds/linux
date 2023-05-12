@@ -15,7 +15,7 @@
 
 #define EREMOVE_ERROR_MESSAGE \
 	"EREMOVE returned %d (0x%x) and an EPC page was leaked. SGX may become unusable. " \
-	"Refer to Documentation/x86/sgx.rst for more information."
+	"Refer to Documentation/arch/x86/sgx.rst for more information."
 
 #define SGX_MAX_EPC_SECTIONS		8
 #define SGX_EEXTEND_BLOCK_SIZE		256

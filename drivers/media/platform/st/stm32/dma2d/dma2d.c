@@ -603,7 +603,6 @@ static int dma2d_probe(struct platform_device *pdev)
 {
 	struct dma2d_dev *dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret = 0;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -614,9 +613,7 @@ static int dma2d_probe(struct platform_device *pdev)
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	dev->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(dev->regs))
 		return PTR_ERR(dev->regs);
 
@@ -696,7 +693,7 @@ put_clk_gate:
 	return ret;
 }
 
-static int dma2d_remove(struct platform_device *pdev)
+static void dma2d_remove(struct platform_device *pdev)
 {
 	struct dma2d_dev *dev = platform_get_drvdata(pdev);
 
@@ -707,8 +704,6 @@ static int dma2d_remove(struct platform_device *pdev)
 	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
-
-	return 0;
 }
 
 static const struct of_device_id stm32_dma2d_match[] = {
@@ -722,7 +717,7 @@ MODULE_DEVICE_TABLE(of, stm32_dma2d_match);
 
 static struct platform_driver dma2d_pdrv = {
 	.probe		= dma2d_probe,
-	.remove		= dma2d_remove,
+	.remove_new	= dma2d_remove,
 	.driver		= {
 		.name = DMA2D_NAME,
 		.of_match_table = stm32_dma2d_match,

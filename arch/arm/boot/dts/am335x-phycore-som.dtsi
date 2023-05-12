@@ -14,6 +14,7 @@
 	aliases {
 		rtc0 = &i2c_rtc;
 		rtc1 = &rtc;
+		rtc2 = &tps;
 	};
 
 	cpus {
@@ -48,7 +49,7 @@
 
 /* EMMC */
 &am33xx_pinmux {
-	emmc_pins: pinmux_emmc_pins {
+	emmc_pins: pinmux-emmc-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN1, PIN_INPUT_PULLUP, MUX_MODE2)	/* gpmc_csn1.mmc1_clk */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN2, PIN_INPUT_PULLUP, MUX_MODE2)	/* gpmc_csn2.mmc1_cmd */
@@ -124,7 +125,7 @@
 
 /* I2C Busses */
 &am33xx_pinmux {
-	i2c0_pins: pinmux_i2c0 {
+	i2c0_pins: pinmux-i2c0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT, MUX_MODE0)
@@ -164,7 +165,7 @@
 
 /* NAND memory */
 &am33xx_pinmux {
-		nandflash_pins: pinmux_nandflash {
+		nandflash_pins: pinmux-nandflash {
 			pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -202,7 +203,6 @@
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
-		gpmc,device-nand = "true";
 		gpmc,device-width = <1>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
@@ -316,7 +316,7 @@
 
 /* SPI Busses */
 &am33xx_pinmux {
-	spi0_pins: pinmux_spi0 {
+	spi0_pins: pinmux-spi0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT_PULLDOWN, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_INPUT_PULLDOWN, MUX_MODE0)

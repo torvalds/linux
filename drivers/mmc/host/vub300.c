@@ -1341,8 +1341,6 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 		return;
 	}
 
-	return;
-
 copy_error_message:
 	strncpy(vub300->vub_name, "SDIO pseudocode download failed",
 		sizeof(vub300->vub_name));

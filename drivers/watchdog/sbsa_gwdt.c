@@ -361,7 +361,7 @@ static int __maybe_unused sbsa_gwdt_suspend(struct device *dev)
 {
 	struct sbsa_gwdt *gwdt = dev_get_drvdata(dev);
 
-	if (watchdog_active(&gwdt->wdd))
+	if (watchdog_hw_running(&gwdt->wdd))
 		sbsa_gwdt_stop(&gwdt->wdd);
 
 	return 0;
@@ -372,7 +372,7 @@ static int __maybe_unused sbsa_gwdt_resume(struct device *dev)
 {
 	struct sbsa_gwdt *gwdt = dev_get_drvdata(dev);
 
-	if (watchdog_active(&gwdt->wdd))
+	if (watchdog_hw_running(&gwdt->wdd))
 		sbsa_gwdt_start(&gwdt->wdd);
 
 	return 0;

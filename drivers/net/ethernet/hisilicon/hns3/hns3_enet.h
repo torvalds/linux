@@ -695,6 +695,12 @@ static inline unsigned int hns3_page_order(struct hns3_enet_ring *ring)
 #define hns3_get_handle(ndev) \
 	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
 
+#define hns3_get_ae_dev(handle) \
+	(pci_get_drvdata((handle)->pdev))
+
+#define hns3_get_ops(handle) \
+	((handle)->ae_algo->ops)
+
 #define hns3_gl_usec_to_reg(int_gl) ((int_gl) >> 1)
 #define hns3_gl_round_down(int_gl) round_down(int_gl, 2)
 

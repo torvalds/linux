@@ -1858,13 +1858,18 @@ early_param("acpi_sci", setup_acpi_sci);
 
 int __acpi_acquire_global_lock(unsigned int *lock)
 {
-	unsigned int old, new;
+	unsigned int old, new, val;
 
 	old = READ_ONCE(*lock);
 	do {
-		new = (((old & ~0x3) + 2) + ((old >> 1) & 0x1));
+		val = (old >> 1) & 0x1;
+		new = (old & ~0x3) + 2 + val;
 	} while (!try_cmpxchg(lock, &old, new));
-	return ((new & 0x3) < 3) ? -1 : 0;
+
+	if (val)
+		return 0;
+
+	return -1;
 }
 
 int __acpi_release_global_lock(unsigned int *lock)

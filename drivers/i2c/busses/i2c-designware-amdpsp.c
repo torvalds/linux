@@ -1,40 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/bitfield.h>
-#include <linux/bits.h>
 #include <linux/i2c.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
-#include <linux/psp-sev.h>
-#include <linux/types.h>
+#include <linux/pci.h>
+#include <linux/psp-platform-access.h>
+#include <linux/psp.h>
 #include <linux/workqueue.h>
-
-#include <asm/msr.h>
 
 #include "i2c-designware-core.h"
 
-#define MSR_AMD_PSP_ADDR	0xc00110a2
-#define PSP_MBOX_OFFSET		0x10570
-#define PSP_CMD_TIMEOUT_US	(500 * USEC_PER_MSEC)
-
 #define PSP_I2C_RESERVATION_TIME_MS 100
 
-#define PSP_I2C_REQ_BUS_CMD		0x64
 #define PSP_I2C_REQ_RETRY_CNT		400
 #define PSP_I2C_REQ_RETRY_DELAY_US	(25 * USEC_PER_MSEC)
 #define PSP_I2C_REQ_STS_OK		0x0
 #define PSP_I2C_REQ_STS_BUS_BUSY	0x1
 #define PSP_I2C_REQ_STS_INV_PARAM	0x3
-
-#define PSP_MBOX_FIELDS_STS		GENMASK(15, 0)
-#define PSP_MBOX_FIELDS_CMD		GENMASK(23, 16)
-#define PSP_MBOX_FIELDS_RESERVED	GENMASK(29, 24)
-#define PSP_MBOX_FIELDS_RECOVERY	BIT(30)
-#define PSP_MBOX_FIELDS_READY		BIT(31)
-
-struct psp_req_buffer_hdr {
-	u32 total_size;
-	u32 status;
-};
 
 enum psp_i2c_req_type {
 	PSP_I2C_REQ_ACQUIRE,
@@ -47,118 +27,13 @@ struct psp_i2c_req {
 	enum psp_i2c_req_type type;
 };
 
-struct psp_mbox {
-	u32 cmd_fields;
-	u64 i2c_req_addr;
-} __packed;
-
 static DEFINE_MUTEX(psp_i2c_access_mutex);
 static unsigned long psp_i2c_sem_acquired;
-static void __iomem *mbox_iomem;
 static u32 psp_i2c_access_count;
 static bool psp_i2c_mbox_fail;
 static struct device *psp_i2c_dev;
 
-/*
- * Implementation of PSP-x86 i2c-arbitration mailbox introduced for AMD Cezanne
- * family of SoCs.
- */
-
-static int psp_get_mbox_addr(unsigned long *mbox_addr)
-{
-	unsigned long long psp_mmio;
-
-	if (rdmsrl_safe(MSR_AMD_PSP_ADDR, &psp_mmio))
-		return -EIO;
-
-	*mbox_addr = (unsigned long)(psp_mmio + PSP_MBOX_OFFSET);
-
-	return 0;
-}
-
-static int psp_mbox_probe(void)
-{
-	unsigned long mbox_addr;
-	int ret;
-
-	ret = psp_get_mbox_addr(&mbox_addr);
-	if (ret)
-		return ret;
-
-	mbox_iomem = ioremap(mbox_addr, sizeof(struct psp_mbox));
-	if (!mbox_iomem)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/* Recovery field should be equal 0 to start sending commands */
-static int psp_check_mbox_recovery(struct psp_mbox __iomem *mbox)
-{
-	u32 tmp;
-
-	tmp = readl(&mbox->cmd_fields);
-
-	return FIELD_GET(PSP_MBOX_FIELDS_RECOVERY, tmp);
-}
-
-static int psp_wait_cmd(struct psp_mbox __iomem *mbox)
-{
-	u32 tmp, expected;
-
-	/* Expect mbox_cmd to be cleared and ready bit to be set by PSP */
-	expected = FIELD_PREP(PSP_MBOX_FIELDS_READY, 1);
-
-	/*
-	 * Check for readiness of PSP mailbox in a tight loop in order to
-	 * process further as soon as command was consumed.
-	 */
-	return readl_poll_timeout(&mbox->cmd_fields, tmp, (tmp == expected),
-				  0, PSP_CMD_TIMEOUT_US);
-}
-
-/* Status equal to 0 means that PSP succeed processing command */
-static u32 psp_check_mbox_sts(struct psp_mbox __iomem *mbox)
-{
-	u32 cmd_reg;
-
-	cmd_reg = readl(&mbox->cmd_fields);
-
-	return FIELD_GET(PSP_MBOX_FIELDS_STS, cmd_reg);
-}
-
-static int psp_send_cmd(struct psp_i2c_req *req)
-{
-	struct psp_mbox __iomem *mbox = mbox_iomem;
-	phys_addr_t req_addr;
-	u32 cmd_reg;
-
-	if (psp_check_mbox_recovery(mbox))
-		return -EIO;
-
-	if (psp_wait_cmd(mbox))
-		return -EBUSY;
-
-	/*
-	 * Fill mailbox with address of command-response buffer, which will be
-	 * used for sending i2c requests as well as reading status returned by
-	 * PSP. Use physical address of buffer, since PSP will map this region.
-	 */
-	req_addr = __psp_pa((void *)req);
-	writeq(req_addr, &mbox->i2c_req_addr);
-
-	/* Write command register to trigger processing */
-	cmd_reg = FIELD_PREP(PSP_MBOX_FIELDS_CMD, PSP_I2C_REQ_BUS_CMD);
-	writel(cmd_reg, &mbox->cmd_fields);
-
-	if (psp_wait_cmd(mbox))
-		return -ETIMEDOUT;
-
-	if (psp_check_mbox_sts(mbox))
-		return -EIO;
-
-	return 0;
-}
+static int (*_psp_send_i2c_req)(struct psp_i2c_req *req);
 
 /* Helper to verify status returned by PSP */
 static int check_i2c_req_sts(struct psp_i2c_req *req)
@@ -179,22 +54,36 @@ static int check_i2c_req_sts(struct psp_i2c_req *req)
 	}
 }
 
-static int psp_send_check_i2c_req(struct psp_i2c_req *req)
+/*
+ * Errors in x86-PSP i2c-arbitration protocol may occur at two levels:
+ * 1. mailbox communication - PSP is not operational or some IO errors with
+ *    basic communication had happened.
+ * 2. i2c-requests - PSP refuses to grant i2c arbitration to x86 for too long.
+ *
+ * In order to distinguish between these in error handling code all mailbox
+ * communication errors on the first level (from CCP symbols) will be passed
+ * up and if -EIO is returned the second level will be checked.
+ */
+static int psp_send_i2c_req_cezanne(struct psp_i2c_req *req)
 {
-	/*
-	 * Errors in x86-PSP i2c-arbitration protocol may occur at two levels:
-	 * 1. mailbox communication - PSP is not operational or some IO errors
-	 * with basic communication had happened;
-	 * 2. i2c-requests - PSP refuses to grant i2c arbitration to x86 for too
-	 * long.
-	 * In order to distinguish between these two in error handling code, all
-	 * errors on the first level (returned by psp_send_cmd) are shadowed by
-	 * -EIO.
-	 */
-	if (psp_send_cmd(req))
-		return -EIO;
+	int ret;
 
-	return check_i2c_req_sts(req);
+	ret = psp_send_platform_access_msg(PSP_I2C_REQ_BUS_CMD, (struct psp_request *)req);
+	if (ret == -EIO)
+		return check_i2c_req_sts(req);
+
+	return ret;
+}
+
+static int psp_send_i2c_req_doorbell(struct psp_i2c_req *req)
+{
+	int ret;
+
+	ret = psp_ring_platform_doorbell(req->type, &req->hdr.status);
+	if (ret == -EIO)
+		return check_i2c_req_sts(req);
+
+	return ret;
 }
 
 static int psp_send_i2c_req(enum psp_i2c_req_type i2c_req_type)
@@ -208,11 +97,11 @@ static int psp_send_i2c_req(enum psp_i2c_req_type i2c_req_type)
 	if (!req)
 		return -ENOMEM;
 
-	req->hdr.total_size = sizeof(*req);
+	req->hdr.payload_size = sizeof(*req);
 	req->type = i2c_req_type;
 
 	start = jiffies;
-	ret = read_poll_timeout(psp_send_check_i2c_req, status,
+	ret = read_poll_timeout(_psp_send_i2c_req, status,
 				(status != -EBUSY),
 				PSP_I2C_REQ_RETRY_DELAY_US,
 				PSP_I2C_REQ_RETRY_CNT * PSP_I2C_REQ_RETRY_DELAY_US,
@@ -387,7 +276,10 @@ static const struct i2c_lock_operations i2c_dw_psp_lock_ops = {
 
 int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev)
 {
-	int ret;
+	struct pci_dev *rdev;
+
+	if (!IS_REACHABLE(CONFIG_CRYPTO_DEV_CCP_DD))
+		return -ENODEV;
 
 	if (!dev)
 		return -ENODEV;
@@ -399,11 +291,18 @@ int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev)
 	if (psp_i2c_dev)
 		return -EEXIST;
 
-	psp_i2c_dev = dev->dev;
+	/* Cezanne uses platform mailbox, Mendocino and later use doorbell */
+	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
+	if (rdev->device == 0x1630)
+		_psp_send_i2c_req = psp_send_i2c_req_cezanne;
+	else
+		_psp_send_i2c_req = psp_send_i2c_req_doorbell;
+	pci_dev_put(rdev);
 
-	ret = psp_mbox_probe();
-	if (ret)
-		return ret;
+	if (psp_check_platform_access_status())
+		return -EPROBE_DEFER;
+
+	psp_i2c_dev = dev->dev;
 
 	dev_info(psp_i2c_dev, "I2C bus managed by AMD PSP\n");
 
@@ -416,10 +315,4 @@ int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev)
 	dev->release_lock = psp_release_i2c_bus;
 
 	return 0;
-}
-
-/* Unmap area used as a mailbox with PSP */
-void i2c_dw_amdpsp_remove_lock_support(struct dw_i2c_dev *dev)
-{
-	iounmap(mbox_iomem);
 }

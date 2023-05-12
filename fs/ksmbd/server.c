@@ -93,7 +93,8 @@ static inline int check_conn_state(struct ksmbd_work *work)
 {
 	struct smb_hdr *rsp_hdr;
 
-	if (ksmbd_conn_exiting(work) || ksmbd_conn_need_reconnect(work)) {
+	if (ksmbd_conn_exiting(work->conn) ||
+	    ksmbd_conn_need_reconnect(work->conn)) {
 		rsp_hdr = work->response_buf;
 		rsp_hdr->Status.CifsError = STATUS_CONNECTION_DISCONNECTED;
 		return 1;
@@ -415,7 +416,7 @@ int server_queue_ctrl_reset_work(void)
 	return __queue_ctrl_work(SERVER_CTRL_TYPE_RESET);
 }
 
-static ssize_t stats_show(struct class *class, struct class_attribute *attr,
+static ssize_t stats_show(const struct class *class, const struct class_attribute *attr,
 			  char *buf)
 {
 	/*
@@ -434,8 +435,8 @@ static ssize_t stats_show(struct class *class, struct class_attribute *attr,
 			  server_conf.ipc_last_active / HZ);
 }
 
-static ssize_t kill_server_store(struct class *class,
-				 struct class_attribute *attr, const char *buf,
+static ssize_t kill_server_store(const struct class *class,
+				 const struct class_attribute *attr, const char *buf,
 				 size_t len)
 {
 	if (!sysfs_streq(buf, "hard"))
@@ -455,7 +456,7 @@ static const char * const debug_type_strings[] = {"smb", "auth", "vfs",
 						  "oplock", "ipc", "conn",
 						  "rdma"};
 
-static ssize_t debug_show(struct class *class, struct class_attribute *attr,
+static ssize_t debug_show(const struct class *class, const struct class_attribute *attr,
 			  char *buf)
 {
 	ssize_t sz = 0;
@@ -473,7 +474,7 @@ static ssize_t debug_show(struct class *class, struct class_attribute *attr,
 	return sz;
 }
 
-static ssize_t debug_store(struct class *class, struct class_attribute *attr,
+static ssize_t debug_store(const struct class *class, const struct class_attribute *attr,
 			   const char *buf, size_t len)
 {
 	int i;
@@ -513,7 +514,6 @@ ATTRIBUTE_GROUPS(ksmbd_control_class);
 
 static struct class ksmbd_control_class = {
 	.name		= "ksmbd-control",
-	.owner		= THIS_MODULE,
 	.class_groups	= ksmbd_control_class_groups,
 };
 
@@ -606,6 +606,7 @@ err_unregister:
 static void __exit ksmbd_server_exit(void)
 {
 	ksmbd_server_shutdown();
+	rcu_barrier();
 	ksmbd_release_inode_hash();
 }
 

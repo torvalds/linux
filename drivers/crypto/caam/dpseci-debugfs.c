@@ -8,7 +8,7 @@
 
 static int dpseci_dbg_fqs_show(struct seq_file *file, void *offset)
 {
-	struct dpaa2_caam_priv *priv = (struct dpaa2_caam_priv *)file->private;
+	struct dpaa2_caam_priv *priv = file->private;
 	u32 fqid, fcnt, bcnt;
 	int i, err;
 

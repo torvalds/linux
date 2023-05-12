@@ -1486,7 +1486,8 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 	skb->truesize += skb->data_len;
 
 	for (i = 1; i < it->nr_segs; i++) {
-		size_t fragsz = it->iov[i].iov_len;
+		const struct iovec *iov = iter_iov(it);
+		size_t fragsz = iov->iov_len;
 		struct page *page;
 		void *frag;
 
@@ -3463,6 +3464,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
 
+	/* tun groks IOCB_NOWAIT just fine, mark it as such */
+	file->f_mode |= FMODE_NOWAIT;
 	return 0;
 }
 

@@ -2449,11 +2449,6 @@ static int eb_submit(struct i915_execbuffer *eb)
 	return err;
 }
 
-static int num_vcs_engines(struct drm_i915_private *i915)
-{
-	return hweight_long(VDBOX_MASK(to_gt(i915)));
-}
-
 /*
  * Find one BSD ring to dispatch the corresponding BSD command.
  * The engine index is returned.
@@ -2467,7 +2462,7 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 	/* Check whether the file_priv has already selected one ring. */
 	if ((int)file_priv->bsd_engine < 0)
 		file_priv->bsd_engine =
-			get_random_u32_below(num_vcs_engines(dev_priv));
+			get_random_u32_below(dev_priv->engine_uabi_class_count[I915_ENGINE_CLASS_VIDEO]);
 
 	return file_priv->bsd_engine;
 }
@@ -2655,7 +2650,8 @@ eb_select_legacy_ring(struct i915_execbuffer *eb)
 		return -1;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && num_vcs_engines(i915) > 1) {
+	if (user_ring_id == I915_EXEC_BSD &&
+	    i915->engine_uabi_class_count[I915_ENGINE_CLASS_VIDEO] > 1) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {

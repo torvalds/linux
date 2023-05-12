@@ -19,6 +19,7 @@ properties:
       - const: brcm,bcm53115
       - const: brcm,bcm53125
       - const: brcm,bcm53128
+      - const: brcm,bcm53134
       - const: brcm,bcm5365
       - const: brcm,bcm5395
       - const: brcm,bcm5389
@@ -57,8 +58,11 @@ properties:
       - items:
           - enum:
               - brcm,bcm3384-switch
+              - brcm,bcm6318-switch
               - brcm,bcm6328-switch
+              - brcm,bcm6362-switch
               - brcm,bcm6368-switch
+              - brcm,bcm63268-switch
           - const: brcm,bcm63xx-switch
 
 required:

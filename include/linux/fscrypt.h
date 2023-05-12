@@ -273,6 +273,16 @@ static inline struct page *fscrypt_pagecache_page(struct page *bounce_page)
 	return (struct page *)page_private(bounce_page);
 }
 
+static inline bool fscrypt_is_bounce_folio(struct folio *folio)
+{
+	return folio->mapping == NULL;
+}
+
+static inline struct folio *fscrypt_pagecache_folio(struct folio *bounce_folio)
+{
+	return bounce_folio->private;
+}
+
 void fscrypt_free_bounce_page(struct page *bounce_page);
 
 /* policy.c */
@@ -359,6 +369,7 @@ int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     unsigned int flags);
 int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry,
 			     struct fscrypt_name *fname);
+int fscrypt_prepare_lookup_partial(struct inode *dir, struct dentry *dentry);
 int __fscrypt_prepare_readdir(struct inode *dir);
 int __fscrypt_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 int fscrypt_prepare_setflags(struct inode *inode,
@@ -440,6 +451,17 @@ static inline bool fscrypt_is_bounce_page(struct page *page)
 }
 
 static inline struct page *fscrypt_pagecache_page(struct page *bounce_page)
+{
+	WARN_ON_ONCE(1);
+	return ERR_PTR(-EINVAL);
+}
+
+static inline bool fscrypt_is_bounce_folio(struct folio *folio)
+{
+	return false;
+}
+
+static inline struct folio *fscrypt_pagecache_folio(struct folio *bounce_folio)
 {
 	WARN_ON_ONCE(1);
 	return ERR_PTR(-EINVAL);
@@ -669,6 +691,12 @@ static inline int __fscrypt_prepare_rename(struct inode *old_dir,
 static inline int __fscrypt_prepare_lookup(struct inode *dir,
 					   struct dentry *dentry,
 					   struct fscrypt_name *fname)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int fscrypt_prepare_lookup_partial(struct inode *dir,
+						 struct dentry *dentry)
 {
 	return -EOPNOTSUPP;
 }

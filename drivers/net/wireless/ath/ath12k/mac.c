@@ -3220,10 +3220,11 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 	enum nl80211_band band;
 	const u8 *ht_mcs_mask;
 	const u16 *vht_mcs_mask;
-	u32 changed, bw, nss, smps;
+	u32 changed, bw, nss, smps, bw_prev;
 	int err, num_vht_rates;
 	const struct cfg80211_bitrate_mask *mask;
 	struct ath12k_wmi_peer_assoc_arg peer_arg;
+	enum wmi_phy_mode peer_phymode;
 
 	arsta = container_of(wk, struct ath12k_sta, update_wk);
 	sta = container_of((void *)arsta, struct ieee80211_sta, drv_priv);
@@ -3243,6 +3244,7 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 	arsta->changed = 0;
 
 	bw = arsta->bw;
+	bw_prev = arsta->bw_prev;
 	nss = arsta->nss;
 	smps = arsta->smps;
 
@@ -3255,11 +3257,53 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 			   ath12k_mac_max_vht_nss(vht_mcs_mask)));
 
 	if (changed & IEEE80211_RC_BW_CHANGED) {
-		err = ath12k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
-						WMI_PEER_CHWIDTH, bw);
-		if (err)
-			ath12k_warn(ar->ab, "failed to update STA %pM peer bw %d: %d\n",
-				    sta->addr, bw, err);
+		ath12k_peer_assoc_h_phymode(ar, arvif->vif, sta, &peer_arg);
+		peer_phymode = peer_arg.peer_phymode;
+
+		if (bw > bw_prev) {
+			/* Phymode shows maximum supported channel width, if we
+			 * upgrade bandwidth then due to sanity check of firmware,
+			 * we have to send WMI_PEER_PHYMODE followed by
+			 * WMI_PEER_CHWIDTH
+			 */
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac bandwidth upgrade for sta %pM new %d old %d\n",
+				   sta->addr, bw, bw_prev);
+			err = ath12k_wmi_set_peer_param(ar, sta->addr,
+							arvif->vdev_id, WMI_PEER_PHYMODE,
+							peer_phymode);
+			if (err) {
+				ath12k_warn(ar->ab, "failed to update STA %pM to peer phymode %d: %d\n",
+					    sta->addr, peer_phymode, err);
+				goto err_rc_bw_changed;
+			}
+			err = ath12k_wmi_set_peer_param(ar, sta->addr,
+							arvif->vdev_id, WMI_PEER_CHWIDTH,
+							bw);
+			if (err)
+				ath12k_warn(ar->ab, "failed to update STA %pM to peer bandwidth %d: %d\n",
+					    sta->addr, bw, err);
+		} else {
+			/* When we downgrade bandwidth this will conflict with phymode
+			 * and cause to trigger firmware crash. In this case we send
+			 * WMI_PEER_CHWIDTH followed by WMI_PEER_PHYMODE
+			 */
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac bandwidth downgrade for sta %pM new %d old %d\n",
+				   sta->addr, bw, bw_prev);
+			err = ath12k_wmi_set_peer_param(ar, sta->addr,
+							arvif->vdev_id, WMI_PEER_CHWIDTH,
+							bw);
+			if (err) {
+				ath12k_warn(ar->ab, "failed to update STA %pM peer to bandwidth %d: %d\n",
+					    sta->addr, bw, err);
+				goto err_rc_bw_changed;
+			}
+			err = ath12k_wmi_set_peer_param(ar, sta->addr,
+							arvif->vdev_id, WMI_PEER_PHYMODE,
+							peer_phymode);
+			if (err)
+				ath12k_warn(ar->ab, "failed to update STA %pM to peer phymode %d: %d\n",
+					    sta->addr, peer_phymode, err);
+		}
 	}
 
 	if (changed & IEEE80211_RC_NSS_CHANGED) {
@@ -3321,7 +3365,7 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 					    sta->addr, arvif->vdev_id);
 		}
 	}
-
+err_rc_bw_changed:
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -3433,6 +3477,34 @@ exit:
 	return ret;
 }
 
+static u32 ath12k_mac_ieee80211_sta_bw_to_wmi(struct ath12k *ar,
+					      struct ieee80211_sta *sta)
+{
+	u32 bw = WMI_PEER_CHWIDTH_20MHZ;
+
+	switch (sta->deflink.bandwidth) {
+	case IEEE80211_STA_RX_BW_20:
+		bw = WMI_PEER_CHWIDTH_20MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_40:
+		bw = WMI_PEER_CHWIDTH_40MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_80:
+		bw = WMI_PEER_CHWIDTH_80MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_160:
+		bw = WMI_PEER_CHWIDTH_160MHZ;
+		break;
+	default:
+		ath12k_warn(ar->ab, "Invalid bandwidth %d in rc update for %pM\n",
+			    sta->deflink.bandwidth, sta->addr);
+		bw = WMI_PEER_CHWIDTH_20MHZ;
+		break;
+	}
+
+	return bw;
+}
+
 static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
@@ -3498,6 +3570,13 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret)
 			ath12k_warn(ar->ab, "Failed to associate station: %pM\n",
 				    sta->addr);
+
+		spin_lock_bh(&ar->data_lock);
+
+		arsta->bw = ath12k_mac_ieee80211_sta_bw_to_wmi(ar, sta);
+		arsta->bw_prev = sta->deflink.bandwidth;
+
+		spin_unlock_bh(&ar->data_lock);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		spin_lock_bh(&ar->ab->base_lock);
@@ -3607,28 +3686,8 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	spin_lock_bh(&ar->data_lock);
 
 	if (changed & IEEE80211_RC_BW_CHANGED) {
-		bw = WMI_PEER_CHWIDTH_20MHZ;
-
-		switch (sta->deflink.bandwidth) {
-		case IEEE80211_STA_RX_BW_20:
-			bw = WMI_PEER_CHWIDTH_20MHZ;
-			break;
-		case IEEE80211_STA_RX_BW_40:
-			bw = WMI_PEER_CHWIDTH_40MHZ;
-			break;
-		case IEEE80211_STA_RX_BW_80:
-			bw = WMI_PEER_CHWIDTH_80MHZ;
-			break;
-		case IEEE80211_STA_RX_BW_160:
-			bw = WMI_PEER_CHWIDTH_160MHZ;
-			break;
-		default:
-			ath12k_warn(ar->ab, "Invalid bandwidth %d in rc update for %pM\n",
-				    sta->deflink.bandwidth, sta->addr);
-			bw = WMI_PEER_CHWIDTH_20MHZ;
-			break;
-		}
-
+		bw = ath12k_mac_ieee80211_sta_bw_to_wmi(ar, sta);
+		arsta->bw_prev = arsta->bw;
 		arsta->bw = bw;
 	}
 

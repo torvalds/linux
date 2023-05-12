@@ -7,11 +7,6 @@
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
 
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN                   0x8088
-#endif
-
 #define WX_NCSI_SUP                             0x8000
 #define WX_NCSI_MASK                            0x8000
 #define WX_WOL_SUP                              0x4000
@@ -299,6 +294,8 @@
 
 #define WX_MAX_RXD                   8192
 #define WX_MAX_TXD                   8192
+
+#define WX_MAX_JUMBO_FRAME_SIZE      9432 /* max payload 9414 */
 
 /* Supported Rx Buffer Sizes */
 #define WX_RXBUFFER_256      256    /* Used for skb receive header */

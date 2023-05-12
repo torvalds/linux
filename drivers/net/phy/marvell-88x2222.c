@@ -487,7 +487,7 @@ static int mv2222_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_supported) = { 0, };
 
-	priv = (struct mv2222_data *)phydev->priv;
+	priv = phydev->priv;
 	dev = &phydev->mdio.dev;
 
 	sfp_parse_support(phydev->sfp_bus, id, sfp_supported, interfaces);
@@ -524,7 +524,7 @@ static void mv2222_sfp_remove(void *upstream)
 	struct phy_device *phydev = upstream;
 	struct mv2222_data *priv;
 
-	priv = (struct mv2222_data *)phydev->priv;
+	priv = phydev->priv;
 
 	priv->line_interface = PHY_INTERFACE_MODE_NA;
 	linkmode_zero(priv->supported);

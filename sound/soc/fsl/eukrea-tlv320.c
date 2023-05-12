@@ -205,11 +205,9 @@ err:
 	return ret;
 }
 
-static int eukrea_tlv320_remove(struct platform_device *pdev)
+static void eukrea_tlv320_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&eukrea_tlv320);
-
-	return 0;
 }
 
 static const struct of_device_id imx_tlv320_dt_ids[] = {
@@ -224,7 +222,7 @@ static struct platform_driver eukrea_tlv320_driver = {
 		.of_match_table = imx_tlv320_dt_ids,
 	},
 	.probe = eukrea_tlv320_probe,
-	.remove = eukrea_tlv320_remove,
+	.remove_new = eukrea_tlv320_remove,
 };
 
 module_platform_driver(eukrea_tlv320_driver);

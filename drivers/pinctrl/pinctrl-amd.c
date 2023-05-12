@@ -206,15 +206,14 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 
 	char *level_trig;
 	char *active_level;
-	char *interrupt_enable;
 	char *interrupt_mask;
 	char *wake_cntrl0;
 	char *wake_cntrl1;
 	char *wake_cntrl2;
 	char *pin_sts;
+	char *interrupt_sts;
+	char *wake_sts;
 	char *pull_up_sel;
-	char *pull_up_enable;
-	char *pull_down_enable;
 	char *orientation;
 	char debounce_value[40];
 	char *debounce_enable;
@@ -246,6 +245,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			continue;
 		}
 		seq_printf(s, "GPIO bank%d\n", bank);
+		seq_puts(s, "gpio\t  int|active|trigger|S0i3| S3|S4/S5| Z|wake|pull|  orient|       debounce|reg\n");
 		for (; i < pin_num; i++) {
 			seq_printf(s, "#%d\t", i);
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
@@ -255,7 +255,6 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
 				u8 level = (pin_reg >> ACTIVE_LEVEL_OFF) &
 						ACTIVE_LEVEL_MASK;
-				interrupt_enable = "+";
 
 				if (level == ACTIVE_LEVEL_HIGH)
 					active_level = "↑";
@@ -272,65 +271,66 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 				else
 					level_trig = " edge";
 
-			} else {
-				interrupt_enable = "∅";
-				active_level = "∅";
-				level_trig = "    ∅";
-			}
+				if (pin_reg & BIT(INTERRUPT_MASK_OFF))
+					interrupt_mask = "😛";
+				else
+					interrupt_mask = "😷";
 
-			if (pin_reg & BIT(INTERRUPT_MASK_OFF))
-				interrupt_mask = "😛";
-			else
-				interrupt_mask = "😷";
-			seq_printf(s, "int %s (%s)| active-%s| %s-⚡| ",
-				   interrupt_enable,
+				if (pin_reg & BIT(INTERRUPT_STS_OFF))
+					interrupt_sts = "🔥";
+				else
+					interrupt_sts = "  ";
+
+				seq_printf(s, "%s %s|     %s|  %s|",
+				   interrupt_sts,
 				   interrupt_mask,
 				   active_level,
 				   level_trig);
+			} else
+				seq_puts(s, "    ∅|      |       |");
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S0I3))
 				wake_cntrl0 = "⏰";
 			else
-				wake_cntrl0 = " ∅";
-			seq_printf(s, "S0i3 %s| ", wake_cntrl0);
+				wake_cntrl0 = "  ";
+			seq_printf(s, "  %s| ", wake_cntrl0);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S3))
 				wake_cntrl1 = "⏰";
 			else
-				wake_cntrl1 = " ∅";
-			seq_printf(s, "S3 %s| ", wake_cntrl1);
+				wake_cntrl1 = "  ";
+			seq_printf(s, "%s|", wake_cntrl1);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S4))
 				wake_cntrl2 = "⏰";
 			else
-				wake_cntrl2 = " ∅";
-			seq_printf(s, "S4/S5 %s| ", wake_cntrl2);
+				wake_cntrl2 = "  ";
+			seq_printf(s, "   %s|", wake_cntrl2);
 
 			if (pin_reg & BIT(WAKECNTRL_Z_OFF))
 				wake_cntrlz = "⏰";
 			else
-				wake_cntrlz = " ∅";
-			seq_printf(s, "Z %s| ", wake_cntrlz);
+				wake_cntrlz = "  ";
+			seq_printf(s, "%s|", wake_cntrlz);
+
+			if (pin_reg & BIT(WAKE_STS_OFF))
+				wake_sts = "🔥";
+			else
+				wake_sts = " ";
+			seq_printf(s, "   %s|", wake_sts);
 
 			if (pin_reg & BIT(PULL_UP_ENABLE_OFF)) {
-				pull_up_enable = "+";
 				if (pin_reg & BIT(PULL_UP_SEL_OFF))
 					pull_up_sel = "8k";
 				else
 					pull_up_sel = "4k";
-			} else {
-				pull_up_enable = "∅";
-				pull_up_sel = "  ";
+				seq_printf(s, "%s ↑|",
+					   pull_up_sel);
+			} else if (pin_reg & BIT(PULL_DOWN_ENABLE_OFF)) {
+				seq_puts(s, "   ↓|");
+			} else  {
+				seq_puts(s, "    |");
 			}
-			seq_printf(s, "pull-↑ %s (%s)| ",
-				   pull_up_enable,
-				   pull_up_sel);
-
-			if (pin_reg & BIT(PULL_DOWN_ENABLE_OFF))
-				pull_down_enable = "+";
-			else
-				pull_down_enable = "∅";
-			seq_printf(s, "pull-↓ %s| ", pull_down_enable);
 
 			if (pin_reg & BIT(OUTPUT_ENABLE_OFF)) {
 				pin_sts = "output";
@@ -345,7 +345,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 				else
 					orientation = "↓";
 			}
-			seq_printf(s, "%s %s| ", pin_sts, orientation);
+			seq_printf(s, "%s %s|", pin_sts, orientation);
 
 			db_cntrl = (DB_CNTRl_MASK << DB_CNTRL_OFF) & pin_reg;
 			if (db_cntrl) {
@@ -364,19 +364,17 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 						unit = 61;
 				}
 				if ((DB_TYPE_REMOVE_GLITCH << DB_CNTRL_OFF) == db_cntrl)
-					debounce_enable = "b +";
+					debounce_enable = "b";
 				else if ((DB_TYPE_PRESERVE_LOW_GLITCH << DB_CNTRL_OFF) == db_cntrl)
-					debounce_enable = "↓ +";
+					debounce_enable = "↓";
 				else
-					debounce_enable = "↑ +";
-
+					debounce_enable = "↑";
+				snprintf(debounce_value, sizeof(debounce_value), "%06u", time * unit);
+				seq_printf(s, "%s (🕑 %sus)|", debounce_enable, debounce_value);
 			} else {
-				debounce_enable = "  ∅";
-				time = 0;
+				seq_puts(s, "               |");
 			}
-			snprintf(debounce_value, sizeof(debounce_value), "%u", time * unit);
-			seq_printf(s, "debounce %s (🕑 %sus)| ", debounce_enable, debounce_value);
-			seq_printf(s, " 0x%x\n", pin_reg);
+			seq_printf(s, "0x%x\n", pin_reg);
 		}
 	}
 }
@@ -872,34 +870,32 @@ static const struct pinconf_ops amd_pinconf_ops = {
 	.pin_config_group_set = amd_pinconf_group_set,
 };
 
-static void amd_gpio_irq_init_pin(struct amd_gpio *gpio_dev, int pin)
+static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
 {
-	const struct pin_desc *pd;
+	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
 	unsigned long flags;
 	u32 pin_reg, mask;
+	int i;
 
 	mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3) |
 		BIT(INTERRUPT_MASK_OFF) | BIT(INTERRUPT_ENABLE_OFF) |
 		BIT(WAKE_CNTRL_OFF_S4);
 
-	pd = pin_desc_get(gpio_dev->pctrl, pin);
-	if (!pd)
-		return;
+	for (i = 0; i < desc->npins; i++) {
+		int pin = desc->pins[i].number;
+		const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
 
-	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + pin * 4);
-	pin_reg &= ~mask;
-	writel(pin_reg, gpio_dev->base + pin * 4);
-	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
-}
+		if (!pd)
+			continue;
 
-static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
-{
-	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
-	int i;
+		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 
-	for (i = 0; i < desc->npins; i++)
-		amd_gpio_irq_init_pin(gpio_dev, i);
+		pin_reg = readl(gpio_dev->base + i * 4);
+		pin_reg &= ~mask;
+		writel(pin_reg, gpio_dev->base + i * 4);
+
+		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+	}
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -952,10 +948,8 @@ static int amd_gpio_resume(struct device *dev)
 	for (i = 0; i < desc->npins; i++) {
 		int pin = desc->pins[i].number;
 
-		if (!amd_gpio_should_save(gpio_dev, pin)) {
-			amd_gpio_irq_init_pin(gpio_dev, pin);
+		if (!amd_gpio_should_save(gpio_dev, pin))
 			continue;
-		}
 
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 		gpio_dev->saved_regs[i] |= readl(gpio_dev->base + pin * 4) & PIN_IRQ_PENDING;
@@ -1217,6 +1211,5 @@ static struct platform_driver amd_gpio_driver = {
 
 module_platform_driver(amd_gpio_driver);
 
-MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ken Xue <Ken.Xue@amd.com>, Jeff Wu <Jeff.Wu@amd.com>");
 MODULE_DESCRIPTION("AMD GPIO pinctrl driver");
