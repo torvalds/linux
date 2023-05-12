@@ -326,6 +326,7 @@ void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread)
 }
 EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
 
+#ifndef CONFIG_HOTPLUG_CORE_SYNC
 static DEFINE_PER_CPU(atomic_t, cpu_hotplug_state) = ATOMIC_INIT(CPU_POST_DEAD);
 
 /*
@@ -488,3 +489,4 @@ bool cpu_report_death(void)
 }
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
+#endif /* !CONFIG_HOTPLUG_CORE_SYNC */
