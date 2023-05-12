@@ -18,12 +18,10 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
-#define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
-					I2C_FUNC_SMBUS_BYTE |		\
-					I2C_FUNC_SMBUS_BYTE_DATA |	\
-					I2C_FUNC_SMBUS_WORD_DATA |	\
-					I2C_FUNC_SMBUS_BLOCK_DATA |	\
-					I2C_FUNC_SMBUS_I2C_BLOCK)
+#define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL \
+				     & ~I2C_FUNC_SMBUS_QUICK		 \
+				     & ~I2C_FUNC_SMBUS_PROC_CALL	 \
+				     & ~I2C_FUNC_SMBUS_PEC))
 
 #define DW_IC_CON_MASTER			BIT(0)
 #define DW_IC_CON_SPEED_STD			(1 << 1)
