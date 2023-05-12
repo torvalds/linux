@@ -489,16 +489,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 /*
  * file operation functions
  */
-static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
-{
-	return asd->video_out.users;
-}
-
-unsigned int atomisp_dev_users(struct atomisp_device *isp)
-{
-	return atomisp_subdev_users(&isp->asd);
-}
-
 static int atomisp_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
