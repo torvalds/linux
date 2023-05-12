@@ -2271,11 +2271,11 @@ static int sof_ipc4_set_copier_sink_format(struct snd_sof_dev *sdev,
 					   int sink_id)
 {
 	struct sof_ipc4_copier_config_set_sink_format format;
+	const struct sof_ipc_ops *iops = sdev->ipc->ops;
 	struct sof_ipc4_base_module_cfg *src_config;
 	const struct sof_ipc4_audio_format *pin_fmt;
 	struct sof_ipc4_fw_module *fw_module;
 	struct sof_ipc4_msg msg = {{ 0 }};
-	u32 header, extension;
 
 	dev_dbg(sdev->dev, "%s set copier sink %d format\n",
 		src_widget->widget->name, sink_id);
@@ -2305,22 +2305,15 @@ static int sof_ipc4_set_copier_sink_format(struct snd_sof_dev *sdev,
 	msg.data_size = sizeof(format);
 	msg.data_ptr = &format;
 
-	header = fw_module->man4_module_entry.id;
-	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
-	header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_LARGE_CONFIG_SET);
-	header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
-	header |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.primary = fw_module->man4_module_entry.id;
+	msg.primary |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
 
-	extension = SOF_IPC4_MOD_EXT_MSG_SIZE(msg.data_size);
-	extension |=
+	msg.extension =
 		SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_COPIER_MODULE_CFG_PARAM_SET_SINK_FORMAT);
-	extension |= SOF_IPC4_MOD_EXT_MSG_LAST_BLOCK(1);
-	extension |= SOF_IPC4_MOD_EXT_MSG_FIRST_BLOCK(1);
 
-	msg.primary = header;
-	msg.extension = extension;
-
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, msg.data_size);
+	return iops->set_get_data(sdev, &msg, msg.data_size, true);
 }
 
 static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
