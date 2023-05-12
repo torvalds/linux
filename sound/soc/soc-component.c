@@ -236,6 +236,28 @@ int snd_soc_component_force_enable_pin_unlocked(
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
 
+int snd_soc_component_notify_control(struct snd_soc_component *component,
+				     const char * const ctl)
+{
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	struct snd_kcontrol *kctl;
+
+	if (component->name_prefix)
+		snprintf(name, ARRAY_SIZE(name), "%s %s", component->name_prefix, ctl);
+	else
+		snprintf(name, ARRAY_SIZE(name), "%s", ctl);
+
+	kctl = snd_soc_card_get_kcontrol(component->card, name);
+	if (!kctl)
+		return soc_component_ret(component, -EINVAL);
+
+	snd_ctl_notify(component->card->snd_card,
+		       SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_notify_control);
+
 /**
  * snd_soc_component_set_jack - configure component jack.
  * @component: COMPONENTs
