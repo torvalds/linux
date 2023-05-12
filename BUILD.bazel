@@ -104,6 +104,12 @@ define_db845c(
     ],
     define_abi_targets = True,
     kmi_symbol_list = "//common:android/abi_gki_aarch64_db845c",
+    make_goals = [
+        "modules",
+        "qcom/sdm845-db845c.dtb",
+        "qcom/qrb5165-rb5.dtb",
+        "qcom/sm8450-qrd.dtb",
+    ],
     module_outs = [
         # keep sorted
         "crypto/michael_mic.ko",
@@ -307,6 +313,11 @@ kernel_build(
     ],
     build_config = "build.config.rockpi4",
     dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    make_goals = [
+        "Image",
+        "modules",
+        "rk3399-rock-pi-4b.dtb",
+    ],
     module_outs = COMMON_GKI_MODULES_LIST + [
         # keep sorted
         "drivers/block/virtio_blk.ko",
