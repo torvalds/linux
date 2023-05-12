@@ -2867,7 +2867,6 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp_hw_dev *hw_dev = isp_dev->hw_dev;
 
 	if (!on) {
-		rkisp_stop_3a_run(isp_dev);
 		if (IS_HDR_RDBK(isp_dev->rd_mode)) {
 			struct rkisp_stream *s;
 			int i;
@@ -2886,6 +2885,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
+		rkisp_stop_3a_run(isp_dev);
 		return 0;
 	}
 
