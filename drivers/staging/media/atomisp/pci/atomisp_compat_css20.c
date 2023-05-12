@@ -985,20 +985,11 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_css_start(struct atomisp_sub_device *asd, bool in_reset)
+int atomisp_css_start(struct atomisp_sub_device *asd)
 {
 	struct atomisp_device *isp = asd->isp;
 	bool sp_is_started = false;
 	int ret = 0, i = 0;
-
-	if (in_reset) {
-		ret = atomisp_css_update_stream(asd);
-		if (ret)
-			return ret;
-
-		/* Invalidate caches. FIXME: should flush only necessary buffers */
-		wbinvd();
-	}
 
 	if (!sh_css_hrt_system_is_idle())
 		dev_err(isp->dev, "CSS HW not idle before starting SP\n");

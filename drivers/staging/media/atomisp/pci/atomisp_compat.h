@@ -78,7 +78,7 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 
 void ia_css_mmu_invalidate_cache(void);
 
-int atomisp_css_start(struct atomisp_sub_device *asd, bool in_reset);
+int atomisp_css_start(struct atomisp_sub_device *asd);
 
 void atomisp_css_update_isp_params(struct atomisp_sub_device *asd);
 void atomisp_css_update_isp_params_on_pipe(struct atomisp_sub_device *asd,

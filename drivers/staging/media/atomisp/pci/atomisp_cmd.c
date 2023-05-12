@@ -974,7 +974,13 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
-	if (atomisp_css_start(&isp->asd, true)) {
+	/* Recreate streams destroyed by atomisp_css_stop() */
+	atomisp_create_pipes_stream(&isp->asd);
+
+	/* Invalidate caches. FIXME: should flush only necessary buffers */
+	wbinvd();
+
+	if (atomisp_css_start(&isp->asd)) {
 		dev_warn(isp->dev, "start SP failed, so do not set streaming to be enable!\n");
 	} else {
 		spin_lock_irqsave(&isp->lock, flags);
