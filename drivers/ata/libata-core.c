@@ -6141,13 +6141,11 @@ EXPORT_SYMBOL_GPL(ata_pci_device_resume);
  *	LOCKING:
  *	Inherited from platform layer (may sleep).
  */
-int ata_platform_remove_one(struct platform_device *pdev)
+void ata_platform_remove_one(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 
 	ata_host_detach(host);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_platform_remove_one);
 
