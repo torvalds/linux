@@ -686,8 +686,6 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 {
 	struct cs_dsp_coeff_ctl *cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	struct wm_coeff_ctl *ctl;
-	struct snd_kcontrol *kcontrol;
-	char ctl_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int ret;
 
 	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
@@ -699,23 +697,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 
 	ctl = cs_ctl->priv;
 
-	if (dsp->component->name_prefix)
-		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
-			 dsp->component->name_prefix, ctl->name);
-	else
-		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s",
-			 ctl->name);
-
-	kcontrol = snd_soc_card_get_kcontrol(dsp->component->card, ctl_name);
-	if (!kcontrol) {
-		adsp_err(dsp, "Can't find kcontrol %s\n", ctl_name);
-		return -EINVAL;
-	}
-
-	snd_ctl_notify(dsp->component->card->snd_card,
-		       SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
-
-	return 0;
+	return snd_soc_component_notify_control(dsp->component, ctl->name);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 
