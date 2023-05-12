@@ -2861,9 +2861,7 @@ static void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 
 	/* 3. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "0". */
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
-					 XELPDP_TBT_CLOCK_ACK,
-					 ~XELPDP_TBT_CLOCK_ACK,
-					 10, 0, NULL))
+					 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
 		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL not unlocked after 10us.\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
