@@ -3144,7 +3144,6 @@ static int gfx_v9_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 	/* start the ring */
 	gfx_v9_0_cp_gfx_start(adev);
-	ring->sched.ready = true;
 
 	return 0;
 }
@@ -3623,7 +3622,6 @@ static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
 	amdgpu_bo_kunmap(ring->mqd_obj);
 	ring->mqd_ptr = NULL;
 	amdgpu_bo_unreserve(ring->mqd_obj);
-	ring->sched.ready = true;
 	return 0;
 }
 

@@ -3228,7 +3228,6 @@ static int gfx_v11_0_cp_gfx_resume(struct amdgpu_device *adev)
 	u32 tmp;
 	u32 rb_bufsz;
 	u64 rb_addr, rptr_addr, wptr_gpu_addr;
-	u32 i;
 
 	/* Set the write pointer delay */
 	WREG32_SOC15(GC, 0, regCP_RB_WPTR_DELAY, 0);
@@ -3320,11 +3319,6 @@ static int gfx_v11_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* start the ring */
 	gfx_v11_0_cp_gfx_start(adev);
 
-	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
-		ring = &adev->gfx.gfx_ring[i];
-		ring->sched.ready = true;
-	}
-
 	return 0;
 }
 
@@ -3369,8 +3363,6 @@ static void gfx_v11_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 		}
 		WREG32_SOC15(GC, 0, regCP_MEC_CNTL, data);
 	}
-
-	adev->gfx.kiq[0].ring.sched.ready = enable;
 
 	udelay(50);
 }
@@ -3711,7 +3703,7 @@ static int gfx_v11_0_cp_async_gfx_ring_resume(struct amdgpu_device *adev)
 
 		r = amdgpu_bo_reserve(ring->mqd_obj, false);
 		if (unlikely(r != 0))
-			goto done;
+			return r;
 
 		r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr);
 		if (!r) {
@@ -3721,23 +3713,14 @@ static int gfx_v11_0_cp_async_gfx_ring_resume(struct amdgpu_device *adev)
 		}
 		amdgpu_bo_unreserve(ring->mqd_obj);
 		if (r)
-			goto done;
+			return r;
 	}
 
 	r = amdgpu_gfx_enable_kgq(adev, 0);
 	if (r)
-		goto done;
+		return r;
 
-	r = gfx_v11_0_cp_gfx_start(adev);
-	if (r)
-		goto done;
-
-	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
-		ring = &adev->gfx.gfx_ring[i];
-		ring->sched.ready = true;
-	}
-done:
-	return r;
+	return gfx_v11_0_cp_gfx_start(adev);
 }
 
 static int gfx_v11_0_compute_mqd_init(struct amdgpu_device *adev, void *m,
