@@ -140,6 +140,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 
 	switch (h2link->elid) {
 	case AZX_REG_ML_LEPTR_ID_SDW:
+		h2link->instance_offset = AZX_REG_SDW_INSTANCE_OFFSET;
 		h2link->shim_offset = AZX_REG_SDW_SHIM_OFFSET;
 		h2link->ip_offset = AZX_REG_SDW_IP_OFFSET;
 		h2link->shim_vs_offset = AZX_REG_SDW_VS_SHIM_OFFSET;
@@ -154,6 +155,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 			link_idx, base_offset);
 		break;
 	case AZX_REG_ML_LEPTR_ID_INTEL_SSP:
+		h2link->instance_offset = AZX_REG_INTEL_SSP_INSTANCE_OFFSET;
 		h2link->shim_offset = AZX_REG_INTEL_SSP_SHIM_OFFSET;
 		h2link->ip_offset = AZX_REG_INTEL_SSP_IP_OFFSET;
 		h2link->shim_vs_offset = AZX_REG_INTEL_SSP_VS_SHIM_OFFSET;
