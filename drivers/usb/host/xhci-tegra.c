@@ -1828,6 +1828,9 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto remove_usb2;
 	}
 
+	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+		xhci->shared_hcd->can_do_streams = 1;
+
 	err = usb_add_hcd(xhci->shared_hcd, tegra->xhci_irq, IRQF_SHARED);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to add shared HCD: %d\n", err);
