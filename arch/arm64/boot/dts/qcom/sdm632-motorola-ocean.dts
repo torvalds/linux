@@ -21,6 +21,7 @@
 
 	backlight: backlight {
 		compatible = "led-backlight";
+		default-brightness-level = <150>;
 		leds = <&led>;
 	};
 
