@@ -3033,6 +3033,13 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 	return vbt;
 }
 
+static u32 intel_spi_read(struct intel_uncore *uncore, u32 offset)
+{
+	intel_uncore_write(uncore, PRIMARY_SPI_ADDRESS, offset);
+
+	return intel_uncore_read(uncore, PRIMARY_SPI_TRIGGER);
+}
+
 static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
 {
 	u32 count, data, found, store = 0;
@@ -3049,9 +3056,7 @@ static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
 	oprom_offset &= OROM_OFFSET_MASK;
 
 	for (count = 0; count < oprom_size; count += 4) {
-		intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, oprom_offset + count);
-		data = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
-
+		data = intel_spi_read(&i915->uncore, oprom_offset + count);
 		if (data == *((const u32 *)"$VBT")) {
 			found = oprom_offset + count;
 			break;
@@ -3062,20 +3067,16 @@ static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
 		goto err_not_found;
 
 	/* Get VBT size and allocate space for the VBT */
-	intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, found +
-		   offsetof(struct vbt_header, vbt_size));
-	vbt_size = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
+	vbt_size = intel_spi_read(&i915->uncore,
+				  found + offsetof(struct vbt_header, vbt_size));
 	vbt_size &= 0xffff;
 
 	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
 	if (!vbt)
 		goto err_not_found;
 
-	for (count = 0; count < vbt_size; count += 4) {
-		intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, found + count);
-		data = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
-		*(vbt + store++) = data;
-	}
+	for (count = 0; count < vbt_size; count += 4)
+		*(vbt + store++) = intel_spi_read(&i915->uncore, found + count);
 
 	if (!intel_bios_is_valid_vbt(vbt, vbt_size))
 		goto err_free_vbt;
