@@ -420,6 +420,20 @@
 		irq-gpios = <&gpio 30 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>;
 	};
+
+
+	panel_10inch@20 {
+		compatible ="panel_10inch";
+		reg = <0x20>;
+		reset-gpio = <&gpio 23 0>;
+		enable-gpio = <&gpio 22 0>;
+
+		port {
+			panel_out2: endpoint {
+				remote-endpoint = <&dsi2_output>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -821,6 +835,10 @@
 			dsi1_output: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&panel_out1>;
+			};
+			dsi2_output: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&panel_out2>;
 			};
 		};
 
