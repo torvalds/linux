@@ -583,8 +583,8 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (!pipe->stream || (pipe->stream && !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
-						pipe->stream->fpo_in_use))) {
+		if (!pipe->stream || !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+		    pipe->stream->fpo_in_use)) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
 		}
@@ -592,7 +592,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		/* Today only FPO uses cursor P-State force. Only clear cursor P-State force
 		 * if it's not FPO.
 		 */
-		if (!pipe->stream || (pipe->stream && !pipe->stream->fpo_in_use)) {
+		if (!pipe->stream || !pipe->stream->fpo_in_use) {
 			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
 				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, false);
 		}
