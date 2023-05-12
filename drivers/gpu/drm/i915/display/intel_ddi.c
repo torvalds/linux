@@ -4615,31 +4615,27 @@ static bool intel_ddi_is_tc(struct drm_i915_private *i915, enum port port)
 
 static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
 	intel_dp_encoder_suspend(encoder);
+}
 
-	if (!intel_phy_is_tc(i915, phy))
-		return;
+static void intel_ddi_tc_encoder_suspend_complete(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
 	intel_tc_port_flush_work(dig_port);
 }
 
 static void intel_ddi_encoder_shutdown(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
 	intel_dp_encoder_shutdown(encoder);
 	intel_hdmi_encoder_shutdown(encoder);
+}
 
-	if (!intel_phy_is_tc(i915, phy))
-		return;
+static void intel_ddi_tc_encoder_shutdown_complete(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
 	intel_tc_port_cleanup(dig_port);
 }
@@ -4905,6 +4901,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				    str_yes_no(init_dp),
 				    is_legacy ? "legacy" : "non-legacy");
 		}
+
+		encoder->suspend_complete = intel_ddi_tc_encoder_suspend_complete;
+		encoder->shutdown_complete = intel_ddi_tc_encoder_shutdown_complete;
 
 		if (intel_tc_port_init(dig_port, is_legacy) < 0)
 			goto err;

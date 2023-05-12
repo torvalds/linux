@@ -957,11 +957,19 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
+	/*
+	 * TODO: check and remove holding the modeset locks if none of
+	 * the encoders depends on this.
+	 */
 	drm_modeset_lock_all(&dev_priv->drm);
 	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->suspend)
 			encoder->suspend(encoder);
 	drm_modeset_unlock_all(&dev_priv->drm);
+
+	for_each_intel_encoder(&dev_priv->drm, encoder)
+		if (encoder->suspend_complete)
+			encoder->suspend_complete(encoder);
 }
 
 static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
@@ -971,11 +979,19 @@ static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
+	/*
+	 * TODO: check and remove holding the modeset locks if none of
+	 * the encoders depends on this.
+	 */
 	drm_modeset_lock_all(&dev_priv->drm);
 	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->shutdown)
 			encoder->shutdown(encoder);
 	drm_modeset_unlock_all(&dev_priv->drm);
+
+	for_each_intel_encoder(&dev_priv->drm, encoder)
+		if (encoder->shutdown_complete)
+			encoder->shutdown_complete(encoder);
 }
 
 void i915_driver_shutdown(struct drm_i915_private *i915)
