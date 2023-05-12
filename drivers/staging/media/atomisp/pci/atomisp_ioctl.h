@@ -42,9 +42,6 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count);
 void atomisp_stop_streaming(struct vb2_queue *vq);
 
-enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device
-	*asd);
-
 extern const struct v4l2_ioctl_ops atomisp_ioctl_ops;
 
 /* compat_ioctl for 32bit userland app and 64bit kernel */

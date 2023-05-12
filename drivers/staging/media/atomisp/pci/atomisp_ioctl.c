@@ -1068,34 +1068,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	return 0;
 }
 
-enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
-{
-	/*
-	 * Disable vf_pp and run CSS in video mode. This allows using ISP
-	 * scaling but it has one frame delay due to CSS internal buffering.
-	 */
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER)
-		return IA_CSS_PIPE_ID_VIDEO;
-
-	/*
-	 * Disable vf_pp and run CSS in still capture mode. In this mode
-	 * CSS does not cause extra latency with buffering, but scaling
-	 * is not available.
-	 */
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT)
-		return IA_CSS_PIPE_ID_CAPTURE;
-
-	switch (asd->run_mode->val) {
-	case ATOMISP_RUN_MODE_PREVIEW:
-		return IA_CSS_PIPE_ID_PREVIEW;
-	case ATOMISP_RUN_MODE_VIDEO:
-		return IA_CSS_PIPE_ID_VIDEO;
-	case ATOMISP_RUN_MODE_STILL_CAPTURE:
-	default:
-		return IA_CSS_PIPE_ID_CAPTURE;
-	}
-}
-
 /* Input system HW workaround */
 /* Input system address translation corrupts burst during */
 /* invalidate. SW workaround for this is to set burst length */
