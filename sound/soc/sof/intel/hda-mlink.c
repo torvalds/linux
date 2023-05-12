@@ -96,7 +96,7 @@ struct hdac_ext2_link {
  */
 
 static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
-			  void __iomem *ml_addr, int link_idx)
+			  void __iomem *remap_addr, void __iomem *ml_addr, int link_idx)
 {
 	struct hdac_ext_link *hlink = &h2link->hext_link;
 	u32 base_offset;
@@ -136,7 +136,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 	h2link->elid = FIELD_GET(AZX_REG_ML_LEPTR_ID, h2link->leptr);
 
 	base_offset = FIELD_GET(AZX_REG_ML_LEPTR_PTR, h2link->leptr);
-	h2link->base_ptr = hlink->ml_addr + base_offset;
+	h2link->base_ptr = remap_addr + base_offset;
 
 	switch (h2link->elid) {
 	case AZX_REG_ML_LEPTR_ID_SDW:
@@ -369,7 +369,7 @@ static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
 	hlink->bus = bus;
 	hlink->ml_addr = bus->mlcap + AZX_ML_BASE + (AZX_ML_INTERVAL * index);
 
-	ret = hdaml_lnk_enum(bus->dev, h2link, hlink->ml_addr, index);
+	ret = hdaml_lnk_enum(bus->dev, h2link, bus->remap_addr, hlink->ml_addr, index);
 	if (ret < 0) {
 		kfree(h2link);
 		return ret;
