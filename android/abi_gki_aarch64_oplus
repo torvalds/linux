@@ -70,6 +70,7 @@
   tcf_exts_dump_stats
   tcf_exts_validate
   tcf_queue_work
+  __traceiter_android_vh_account_process_tick_gran
   __traceiter_android_vh_do_futex
   __traceiter_android_vh_futex_sleep_start
   __traceiter_android_vh_futex_wait_end
@@ -111,6 +112,7 @@
   __traceiter_sched_stat_sleep
   __traceiter_sched_stat_wait
   __traceiter_sched_waking
+  __tracepoint_android_vh_account_process_tick_gran
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_binder_free_proc
   __tracepoint_android_vh_binder_has_work_ilocked
