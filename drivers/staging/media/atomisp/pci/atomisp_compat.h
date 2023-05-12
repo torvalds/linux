@@ -215,7 +215,7 @@ int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 				     unsigned int metadata_height);
 
 int atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
-void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd);
+void atomisp_destroy_pipes_stream(struct atomisp_sub_device *asd);
 
 void atomisp_css_stop(struct atomisp_sub_device *asd,
 		      enum ia_css_pipe_id pipe_id, bool in_reset);

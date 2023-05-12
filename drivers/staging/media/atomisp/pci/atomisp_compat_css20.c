@@ -548,7 +548,7 @@ static int __destroy_pipes(struct atomisp_sub_device *asd)
 	return 0;
 }
 
-void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd)
+void atomisp_destroy_pipes_stream(struct atomisp_sub_device *asd)
 {
 	if (__destroy_streams(asd))
 		dev_warn(asd->isp->dev, "destroy stream failed.\n");
@@ -746,7 +746,7 @@ int atomisp_create_pipes_stream(struct atomisp_sub_device *asd)
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd)
 {
-	atomisp_destroy_pipes_stream_force(asd);
+	atomisp_destroy_pipes_stream(asd);
 	return atomisp_create_pipes_stream(asd);
 }
 
@@ -1034,7 +1034,7 @@ start_err:
 	 * destroying all pipes.
 	 */
 	if (sp_is_started) {
-		atomisp_destroy_pipes_stream_force(asd);
+		atomisp_destroy_pipes_stream(asd);
 		ia_css_stop_sp();
 		atomisp_create_pipes_stream(asd);
 	}
@@ -1824,7 +1824,7 @@ void atomisp_css_stop(struct atomisp_sub_device *asd,
 	 * CSS 2.0 API limitation: ia_css_stop_sp() can only be called after
 	 * destroying all pipes.
 	 */
-	atomisp_destroy_pipes_stream_force(asd);
+	atomisp_destroy_pipes_stream(asd);
 
 	atomisp_init_raw_buffer_bitmap(asd);
 
@@ -2314,7 +2314,7 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 	return 0;
 
 get_info_err:
-	atomisp_destroy_pipes_stream_force(asd);
+	atomisp_destroy_pipes_stream(asd);
 	return -EINVAL;
 }
 
