@@ -108,28 +108,28 @@ static inline void fb_writeq(u64 b, volatile void __iomem *addr)
 #endif
 #endif
 
-#ifndef fb_memcpy_fromfb
-static inline void fb_memcpy_fromfb(void *to, const volatile void __iomem *from, size_t n)
+#ifndef fb_memcpy_fromio
+static inline void fb_memcpy_fromio(void *to, const volatile void __iomem *from, size_t n)
 {
 	memcpy_fromio(to, from, n);
 }
-#define fb_memcpy_fromfb fb_memcpy_fromfb
+#define fb_memcpy_fromio fb_memcpy_fromio
 #endif
 
-#ifndef fb_memcpy_tofb
-static inline void fb_memcpy_tofb(volatile void __iomem *to, const void *from, size_t n)
+#ifndef fb_memcpy_toio
+static inline void fb_memcpy_toio(volatile void __iomem *to, const void *from, size_t n)
 {
 	memcpy_toio(to, from, n);
 }
-#define fb_memcpy_tofb fb_memcpy_tofb
+#define fb_memcpy_toio fb_memcpy_toio
 #endif
 
 #ifndef fb_memset
-static inline void fb_memset(volatile void __iomem *addr, int c, size_t n)
+static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
 {
 	memset_io(addr, c, n);
 }
-#define fb_memset fb_memset
+#define fb_memset fb_memset_io
 #endif
 
 #endif /* __ASM_GENERIC_FB_H_ */

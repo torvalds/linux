@@ -8,23 +8,23 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 
-static inline void fb_memcpy_fromfb(void *to, const volatile void __iomem *from, size_t n)
+static inline void fb_memcpy_fromio(void *to, const volatile void __iomem *from, size_t n)
 {
 	memcpy(to, (void __force *)from, n);
 }
-#define fb_memcpy_fromfb fb_memcpy_fromfb
+#define fb_memcpy_fromio fb_memcpy_fromio
 
-static inline void fb_memcpy_tofb(volatile void __iomem *to, const void *from, size_t n)
+static inline void fb_memcpy_toio(volatile void __iomem *to, const void *from, size_t n)
 {
 	memcpy((void __force *)to, from, n);
 }
-#define fb_memcpy_tofb fb_memcpy_tofb
+#define fb_memcpy_toio fb_memcpy_toio
 
-static inline void fb_memset(volatile void __iomem *addr, int c, size_t n)
+static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
 {
 	memset((void __force *)addr, c, n);
 }
-#define fb_memset fb_memset
+#define fb_memset fb_memset_io
 
 #include <asm-generic/fb.h>
 
