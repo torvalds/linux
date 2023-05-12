@@ -545,11 +545,12 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
  * verbose_state_checks module param, to enable distros and users to tailor
  * their preferred amount of i915 abrt spam.
  */
-#define I915_STATE_WARN(condition, format...) ({			\
+#define I915_STATE_WARN(__i915, condition, format...) ({		\
+	struct drm_device *drm = &(__i915)->drm;			\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
-		if (!WARN(i915_modparams.verbose_state_checks, format))	\
-			DRM_ERROR(format);				\
+		if (!drm_WARN(drm, i915_modparams.verbose_state_checks, format)) \
+			drm_err(drm, format);				\
 	unlikely(__ret_warn_on);					\
 })
 

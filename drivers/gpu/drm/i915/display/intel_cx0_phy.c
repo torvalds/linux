@@ -2945,18 +2945,18 @@ void intel_c10pll_state_verify(struct intel_atomic_state *state,
 	for (i = 0; i < ARRAY_SIZE(mpllb_sw_state->pll); i++) {
 		u8 expected = mpllb_sw_state->pll[i];
 
-		I915_STATE_WARN(mpllb_hw_state.pll[i] != expected,
+		I915_STATE_WARN(i915, mpllb_hw_state.pll[i] != expected,
 				"[CRTC:%d:%s] mismatch in C10MPLLB: Register[%d] (expected 0x%02x, found 0x%02x)",
-				crtc->base.base.id, crtc->base.name,
-				i, expected, mpllb_hw_state.pll[i]);
+				crtc->base.base.id, crtc->base.name, i,
+				expected, mpllb_hw_state.pll[i]);
 	}
 
-	I915_STATE_WARN(mpllb_hw_state.tx != mpllb_sw_state->tx,
+	I915_STATE_WARN(i915, mpllb_hw_state.tx != mpllb_sw_state->tx,
 			"[CRTC:%d:%s] mismatch in C10MPLLB: Register TX0 (expected 0x%02x, found 0x%02x)",
 			crtc->base.base.id, crtc->base.name,
 			mpllb_sw_state->tx, mpllb_hw_state.tx);
 
-	I915_STATE_WARN(mpllb_hw_state.cmn != mpllb_sw_state->cmn,
+	I915_STATE_WARN(i915, mpllb_hw_state.cmn != mpllb_sw_state->cmn,
 			"[CRTC:%d:%s] mismatch in C10MPLLB: Register CMN0 (expected 0x%02x, found 0x%02x)",
 			crtc->base.base.id, crtc->base.name,
 			mpllb_sw_state->cmn, mpllb_hw_state.cmn);

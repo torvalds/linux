@@ -2016,7 +2016,7 @@ void intel_mpllb_state_verify(struct intel_atomic_state *state,
 	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
 
 #define MPLLB_CHECK(__name)						\
-	I915_STATE_WARN(mpllb_sw_state->__name != mpllb_hw_state.__name,	\
+	I915_STATE_WARN(i915, mpllb_sw_state->__name != mpllb_hw_state.__name, \
 			"[CRTC:%d:%s] mismatch in MPLLB: %s (expected 0x%08x, found 0x%08x)", \
 			crtc->base.base.id, crtc->base.name,		\
 			__stringify(__name),				\

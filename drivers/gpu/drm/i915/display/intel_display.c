@@ -322,20 +322,21 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 		cur_state = false;
 	}
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(dev_priv, cur_state != state,
 			"transcoder %s assertion failure (expected %s, current %s)\n",
-			transcoder_name(cpu_transcoder),
-			str_on_off(state), str_on_off(cur_state));
+			transcoder_name(cpu_transcoder), str_on_off(state),
+			str_on_off(cur_state));
 }
 
 static void assert_plane(struct intel_plane *plane, bool state)
 {
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe;
 	bool cur_state;
 
 	cur_state = plane->get_hw_state(plane, &pipe);
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(i915, cur_state != state,
 			"%s assertion failure (expected %s, current %s)\n",
 			plane->base.name, str_on_off(state),
 			str_on_off(cur_state));
