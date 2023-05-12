@@ -61,7 +61,7 @@ int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 
 static struct snd_sof_dev *dai_to_sdev(struct snd_pcm_substream *substream,
 				       struct snd_soc_dai *cpu_dai)
@@ -319,6 +319,8 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+
 static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
@@ -333,6 +335,8 @@ static const struct snd_soc_dai_ops hda_dai_ops = {
 	.trigger = hda_dai_trigger,
 	.prepare = hda_dai_prepare,
 };
+
+#endif
 
 static int hda_dai_suspend(struct hdac_bus *bus)
 {
@@ -582,7 +586,7 @@ int hda_dsp_dais_suspend(struct snd_sof_dev *sdev)
 	 * Since the component suspend is called last, we can trap this corner case
 	 * and force the DAIs to release their resources.
 	 */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 	int ret;
 
 	ret = hda_dai_suspend(sof_to_bus(sdev));

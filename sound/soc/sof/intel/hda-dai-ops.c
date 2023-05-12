@@ -16,7 +16,7 @@
 #include "hda.h"
 
 /* These ops are only applicable for the HDA DAI's in their current form */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 /*
  * This function checks if the host dma channel corresponding
  * to the link DMA stream_tag argument is assigned to one
@@ -350,7 +350,7 @@ static const struct hda_dai_widget_dma_ops hda_dspless_dma_ops = {
 const struct hda_dai_widget_dma_ops *
 hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 	struct snd_sof_dai *sdai;
 
 	if (sdev->dspless_mode_selected)
