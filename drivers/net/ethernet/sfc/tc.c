@@ -132,23 +132,6 @@ static void efx_tc_free_action_set_list(struct efx_nic *efx,
 	/* Don't kfree, as acts is embedded inside a struct efx_tc_flow_rule */
 }
 
-static void efx_tc_flow_free(void *ptr, void *arg)
-{
-	struct efx_tc_flow_rule *rule = ptr;
-	struct efx_nic *efx = arg;
-
-	netif_err(efx, drv, efx->net_dev,
-		  "tc rule %lx still present at teardown, removing\n",
-		  rule->cookie);
-
-	efx_mae_delete_rule(efx, rule->fw_id);
-
-	/* Release entries in subsidiary tables */
-	efx_tc_free_action_set_list(efx, &rule->acts, true);
-
-	kfree(rule);
-}
-
 /* Boilerplate for the simple 'copy a field' cases */
 #define _MAP_KEY_AND_MASK(_name, _type, _tcget, _tcfield, _field)	\
 if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_##_name)) {		\
@@ -219,6 +202,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_TCP) |
@@ -363,20 +347,48 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	return 0;
 }
 
+static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
+					      struct efx_tc_encap_match *encap)
+{
+	int rc;
+
+	if (!refcount_dec_and_test(&encap->ref))
+		return; /* still in use */
+
+	if (encap->type == EFX_TC_EM_DIRECT) {
+		rc = efx_mae_unregister_encap_match(efx, encap);
+		if (rc)
+			/* Display message but carry on and remove entry from our
+			 * SW tables, because there's not much we can do about it.
+			 */
+			netif_err(efx, drv, efx->net_dev,
+				  "Failed to release encap match %#x, rc %d\n",
+				  encap->fw_id, rc);
+	}
+	rhashtable_remove_fast(&efx->tc->encap_match_ht, &encap->linkage,
+			       efx_tc_encap_match_ht_params);
+	if (encap->pseudo)
+		efx_tc_flower_release_encap_match(efx, encap->pseudo);
+	kfree(encap);
+}
+
 static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 					    struct efx_tc_match *match,
 					    enum efx_encap_type type,
+					    enum efx_tc_em_pseudo_type em_type,
+					    u8 child_ip_tos_mask,
+					    __be16 child_udp_sport_mask,
 					    struct netlink_ext_ack *extack)
 {
-	struct efx_tc_encap_match *encap, *old;
+	struct efx_tc_encap_match *encap, *old, *pseudo = NULL;
 	bool ipv6 = false;
 	int rc;
 
 	/* We require that the socket-defining fields (IP addrs and UDP dest
-	 * port) are present and exact-match.  Other fields are currently not
-	 * allowed.  This meets what OVS will ask for, and means that we don't
-	 * need to handle difficult checks for overlapping matches as could
-	 * come up if we allowed masks or varying sets of match fields.
+	 * port) are present and exact-match.  Other fields may only be used
+	 * if the field-set (and any masks) are the same for all encap
+	 * matches on the same <sip,dip,dport> tuple; this is enforced by
+	 * pseudo encap matches.
 	 */
 	if (match->mask.enc_dst_ip | match->mask.enc_src_ip) {
 		if (!IS_ALL_ONES(match->mask.enc_dst_ip)) {
@@ -414,29 +426,42 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		NL_SET_ERR_MSG_MOD(extack, "Egress encap match is not exact on dst UDP port");
 		return -EOPNOTSUPP;
 	}
-	if (match->mask.enc_sport) {
-		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on src UDP port not supported");
-		return -EOPNOTSUPP;
-	}
-	if (match->mask.enc_ip_tos) {
-		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP ToS not supported");
-		return -EOPNOTSUPP;
+	if (match->mask.enc_sport || match->mask.enc_ip_tos) {
+		struct efx_tc_match pmatch = *match;
+
+		if (em_type == EFX_TC_EM_PSEUDO_MASK) { /* can't happen */
+			NL_SET_ERR_MSG_MOD(extack, "Bad recursion in egress encap match handler");
+			return -EOPNOTSUPP;
+		}
+		pmatch.value.enc_ip_tos = 0;
+		pmatch.mask.enc_ip_tos = 0;
+		pmatch.value.enc_sport = 0;
+		pmatch.mask.enc_sport = 0;
+		rc = efx_tc_flower_record_encap_match(efx, &pmatch, type,
+						      EFX_TC_EM_PSEUDO_MASK,
+						      match->mask.enc_ip_tos,
+						      match->mask.enc_sport,
+						      extack);
+		if (rc)
+			return rc;
+		pseudo = pmatch.encap;
 	}
 	if (match->mask.enc_ip_ttl) {
 		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP TTL not supported");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto fail_pseudo;
 	}
 
-	rc = efx_mae_check_encap_match_caps(efx, ipv6, extack);
-	if (rc) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "MAE hw reports no support for IPv%d encap matches",
-				       ipv6 ? 6 : 4);
-		return -EOPNOTSUPP;
-	}
+	rc = efx_mae_check_encap_match_caps(efx, ipv6, match->mask.enc_ip_tos,
+					    match->mask.enc_sport, extack);
+	if (rc)
+		goto fail_pseudo;
 
 	encap = kzalloc(sizeof(*encap), GFP_USER);
-	if (!encap)
-		return -ENOMEM;
+	if (!encap) {
+		rc = -ENOMEM;
+		goto fail_pseudo;
+	}
 	encap->src_ip = match->value.enc_src_ip;
 	encap->dst_ip = match->value.enc_dst_ip;
 #ifdef CONFIG_IPV6
@@ -445,12 +470,66 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 #endif
 	encap->udp_dport = match->value.enc_dport;
 	encap->tun_type = type;
+	encap->ip_tos = match->value.enc_ip_tos;
+	encap->ip_tos_mask = match->mask.enc_ip_tos;
+	encap->child_ip_tos_mask = child_ip_tos_mask;
+	encap->udp_sport = match->value.enc_sport;
+	encap->udp_sport_mask = match->mask.enc_sport;
+	encap->child_udp_sport_mask = child_udp_sport_mask;
+	encap->type = em_type;
+	encap->pseudo = pseudo;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->encap_match_ht,
 						&encap->linkage,
 						efx_tc_encap_match_ht_params);
 	if (old) {
 		/* don't need our new entry */
 		kfree(encap);
+		if (pseudo) /* don't need our new pseudo either */
+			efx_tc_flower_release_encap_match(efx, pseudo);
+		/* check old and new em_types are compatible */
+		switch (old->type) {
+		case EFX_TC_EM_DIRECT:
+			/* old EM is in hardware, so mustn't overlap with a
+			 * pseudo, but may be shared with another direct EM
+			 */
+			if (em_type == EFX_TC_EM_DIRECT)
+				break;
+			NL_SET_ERR_MSG_MOD(extack, "Pseudo encap match conflicts with existing direct entry");
+			return -EEXIST;
+		case EFX_TC_EM_PSEUDO_MASK:
+			/* old EM is protecting a ToS- or src port-qualified
+			 * filter, so may only be shared with another pseudo
+			 * for the same ToS and src port masks.
+			 */
+			if (em_type != EFX_TC_EM_PSEUDO_MASK) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "%s encap match conflicts with existing pseudo(MASK) entry",
+						       encap->type ? "Pseudo" : "Direct");
+				return -EEXIST;
+			}
+			if (child_ip_tos_mask != old->child_ip_tos_mask) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Pseudo encap match for TOS mask %#04x conflicts with existing pseudo(MASK) entry for TOS mask %#04x",
+						       child_ip_tos_mask,
+						       old->child_ip_tos_mask);
+				return -EEXIST;
+			}
+			if (child_udp_sport_mask != old->child_udp_sport_mask) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "Pseudo encap match for UDP src port mask %#x conflicts with existing pseudo(MASK) entry for mask %#x",
+						       child_udp_sport_mask,
+						       old->child_udp_sport_mask);
+				return -EEXIST;
+			}
+			break;
+		default: /* Unrecognised pseudo-type.  Just say no */
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "%s encap match conflicts with existing pseudo(%d) entry",
+					       encap->type ? "Pseudo" : "Direct",
+					       old->type);
+			return -EEXIST;
+		}
+		/* check old and new tun_types are compatible */
 		if (old->tun_type != type) {
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "Egress encap match with conflicting tun_type %u != %u",
@@ -462,10 +541,12 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		/* existing entry found */
 		encap = old;
 	} else {
-		rc = efx_mae_register_encap_match(efx, encap);
-		if (rc) {
-			NL_SET_ERR_MSG_MOD(extack, "Failed to record egress encap match in HW");
-			goto fail;
+		if (em_type == EFX_TC_EM_DIRECT) {
+			rc = efx_mae_register_encap_match(efx, encap);
+			if (rc) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to record egress encap match in HW");
+				goto fail;
+			}
 		}
 		refcount_set(&encap->ref, 1);
 	}
@@ -475,28 +556,10 @@ fail:
 	rhashtable_remove_fast(&efx->tc->encap_match_ht, &encap->linkage,
 			       efx_tc_encap_match_ht_params);
 	kfree(encap);
+fail_pseudo:
+	if (pseudo)
+		efx_tc_flower_release_encap_match(efx, pseudo);
 	return rc;
-}
-
-static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
-					      struct efx_tc_encap_match *encap)
-{
-	int rc;
-
-	if (!refcount_dec_and_test(&encap->ref))
-		return; /* still in use */
-
-	rc = efx_mae_unregister_encap_match(efx, encap);
-	if (rc)
-		/* Display message but carry on and remove entry from our
-		 * SW tables, because there's not much we can do about it.
-		 */
-		netif_err(efx, drv, efx->net_dev,
-			  "Failed to release encap match %#x, rc %d\n",
-			  encap->fw_id, rc);
-	rhashtable_remove_fast(&efx->tc->encap_match_ht, &encap->linkage,
-			       efx_tc_encap_match_ht_params);
-	kfree(encap);
 }
 
 static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rule)
@@ -652,6 +715,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		}
 
 		rc = efx_tc_flower_record_encap_match(efx, &match, type,
+						      EFX_TC_EM_DIRECT, 0, 0,
 						      extack);
 		if (rc)
 			goto release;
@@ -1452,6 +1516,21 @@ static void efx_tc_encap_match_free(void *ptr, void *__unused)
 
 	WARN_ON(refcount_read(&encap->ref));
 	kfree(encap);
+}
+
+static void efx_tc_flow_free(void *ptr, void *arg)
+{
+	struct efx_tc_flow_rule *rule = ptr;
+	struct efx_nic *efx = arg;
+
+	netif_err(efx, drv, efx->net_dev,
+		  "tc rule %lx still present at teardown, removing\n",
+		  rule->cookie);
+
+	/* Also releases entries in subsidiary tables */
+	efx_tc_delete_rule(efx, rule);
+
+	kfree(rule);
 }
 
 int efx_init_struct_tc(struct efx_nic *efx)
