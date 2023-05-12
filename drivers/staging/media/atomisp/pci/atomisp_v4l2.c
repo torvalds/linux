@@ -664,13 +664,7 @@ static int atomisp_suspend(struct device *dev)
 				     dev_get_drvdata(dev);
 	unsigned long flags;
 
-	/*
-	 * FIXME: Suspend is not supported by sensors. Abort if any video
-	 * node was opened.
-	 */
-	if (atomisp_dev_users(isp))
-		return -EBUSY;
-
+	/* FIXME: Suspend is not supported by sensors. Abort if streaming. */
 	spin_lock_irqsave(&isp->lock, flags);
 	if (isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
@@ -681,12 +675,25 @@ static int atomisp_suspend(struct device *dev)
 
 	pm_runtime_resume(dev);
 
+	isp->asd.recreate_streams_on_resume = isp->asd.stream_prepared;
+	atomisp_destroy_pipes_stream(&isp->asd);
+
 	return atomisp_power_off(dev);
 }
 
 static int atomisp_resume(struct device *dev)
 {
-	return atomisp_power_on(dev);
+	struct atomisp_device *isp = dev_get_drvdata(dev);
+	int ret;
+
+	ret = atomisp_power_on(dev);
+	if (ret)
+		return ret;
+
+	if (isp->asd.recreate_streams_on_resume)
+		ret = atomisp_create_pipes_stream(&isp->asd);
+
+	return ret;
 }
 
 int atomisp_csi_lane_config(struct atomisp_device *isp)

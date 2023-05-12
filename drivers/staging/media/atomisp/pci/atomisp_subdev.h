@@ -301,6 +301,7 @@ struct atomisp_sub_device {
 	 */
 	bool streaming;
 	bool stream_prepared; /* whether css stream is created */
+	bool recreate_streams_on_resume;
 
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
