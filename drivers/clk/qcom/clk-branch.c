@@ -43,6 +43,7 @@ static bool clk_branch2_check_halt(const struct clk_branch *br, bool enabling)
 {
 	u32 val;
 	u32 mask;
+	bool invert = (br->halt_check == BRANCH_HALT_ENABLE);
 
 	mask = CBCR_NOC_FSM_STATUS;
 	mask |= CBCR_CLK_OFF;
@@ -51,11 +52,10 @@ static bool clk_branch2_check_halt(const struct clk_branch *br, bool enabling)
 
 	if (enabling) {
 		val &= mask;
-		return (val & CBCR_CLK_OFF) == 0 ||
+		return (val & CBCR_CLK_OFF) == (invert ? CBCR_CLK_OFF : 0) ||
 			FIELD_GET(CBCR_NOC_FSM_STATUS, val) == FSM_STATUS_ON;
-	} else {
-		return val & CBCR_CLK_OFF;
 	}
+	return (val & CBCR_CLK_OFF) == (invert ? 0 : CBCR_CLK_OFF);
 }
 
 static int clk_branch_wait(const struct clk_branch *br, bool enabling,
