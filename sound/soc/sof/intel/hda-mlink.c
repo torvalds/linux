@@ -19,6 +19,9 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_MLINK)
 
+/* worst-case number of sublinks is used for sublink refcount array allocation only */
+#define HDAML_MAX_SUBLINKS (AZX_ML_LCTL_CPA_SHIFT - AZX_ML_LCTL_SPA_SHIFT)
+
 /**
  * struct hdac_ext2_link - HDAudio extended+alternate link
  *
@@ -33,6 +36,7 @@
  * @leptr:		extended link pointer
  * @eml_lock:		mutual exclusion to access shared registers e.g. CPA/SPA bits
  * in LCTL register
+ * @sublink_ref_count:	array of refcounts, required to power-manage sublinks independently
  * @base_ptr:		pointer to shim/ip/shim_vs space
  * @instance_offset:	offset between each of @slcount instances managed by link
  * @shim_offset:	offset to SHIM register base
@@ -53,6 +57,7 @@ struct hdac_ext2_link {
 	u32 leptr;
 
 	struct mutex eml_lock; /* prevent concurrent access to e.g. CPA/SPA */
+	int sublink_ref_count[HDAML_MAX_SUBLINKS];
 
 	/* internal values computed from LCAP contents */
 	void __iomem *base_ptr;
@@ -641,8 +646,13 @@ static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, 
 	if (eml_lock)
 		mutex_lock(&h2link->eml_lock);
 
-	if (++hlink->ref_count > 1)
-		goto skip_init;
+	if (!alt) {
+		if (++hlink->ref_count > 1)
+			goto skip_init;
+	} else {
+		if (++h2link->sublink_ref_count[sublink] > 1)
+			goto skip_init;
+	}
 
 	ret = hdaml_link_init(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
 
@@ -684,9 +694,13 @@ static int hdac_bus_eml_power_down_base(struct hdac_bus *bus, bool alt, int elid
 	if (eml_lock)
 		mutex_lock(&h2link->eml_lock);
 
-	if (--hlink->ref_count > 0)
-		goto skip_shutdown;
-
+	if (!alt) {
+		if (--hlink->ref_count > 0)
+			goto skip_shutdown;
+	} else {
+		if (--h2link->sublink_ref_count[sublink] > 0)
+			goto skip_shutdown;
+	}
 	ret = hdaml_link_shutdown(hlink->ml_addr + AZX_REG_ML_LCTL, sublink);
 
 skip_shutdown:
