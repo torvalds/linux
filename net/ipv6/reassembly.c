@@ -416,7 +416,7 @@ static const struct inet6_protocol frag_protocol = {
 };
 
 #ifdef CONFIG_SYSCTL
-
+static unsigned long ip6_frags_low_thresh_unused = IPV6_FRAG_LOW_THRESH;
 static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ip6frag_high_thresh",
@@ -465,9 +465,9 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 
 	}
 	table[0].data	= &net->ipv6.fqdir->high_thresh;
-	table[0].extra1	= &net->ipv6.fqdir->low_thresh;
-	table[1].data	= &net->ipv6.fqdir->low_thresh;
-	table[1].extra2	= &net->ipv6.fqdir->high_thresh;
+	table[0].extra1 = &ip6_frags_low_thresh_unused;
+	table[1].data   = &ip6_frags_low_thresh_unused;
+	table[1].extra2 = &net->ipv6.fqdir->high_thresh;
 	table[2].data	= &net->ipv6.fqdir->timeout;
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
@@ -536,7 +536,6 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 		return res;
 
 	net->ipv6.fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
-	net->ipv6.fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.fqdir->timeout = IPV6_FRAG_TIMEOUT;
 
 	res = ip6_frags_ns_sysctl_register(net);

@@ -55,6 +55,7 @@ nf_conntrack_frag6_high_thresh - INTEGER
 	nf_conntrack_frag6_low_thresh is reached.
 
 nf_conntrack_frag6_low_thresh - INTEGER
+	(Obsolete since linux-4.17)
 	default 196608
 
 	See nf_conntrack_frag6_low_thresh

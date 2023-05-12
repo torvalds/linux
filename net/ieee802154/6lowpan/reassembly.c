@@ -318,7 +318,7 @@ err:
 }
 
 #ifdef CONFIG_SYSCTL
-
+static unsigned long lowpanfrag_low_thresh_unuesd = IPV6_FRAG_LOW_THRESH;
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
@@ -374,9 +374,9 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 	}
 
 	table[0].data	= &ieee802154_lowpan->fqdir->high_thresh;
-	table[0].extra1	= &ieee802154_lowpan->fqdir->low_thresh;
-	table[1].data	= &ieee802154_lowpan->fqdir->low_thresh;
-	table[1].extra2	= &ieee802154_lowpan->fqdir->high_thresh;
+	table[0].extra1 = &lowpanfrag_low_thresh_unuesd;
+	table[1].data   = &lowpanfrag_low_thresh_unuesd;
+	table[1].extra2 = &ieee802154_lowpan->fqdir->high_thresh;
 	table[2].data	= &ieee802154_lowpan->fqdir->timeout;
 
 	hdr = register_net_sysctl(net, "net/ieee802154/6lowpan", table);
@@ -451,7 +451,6 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 		return res;
 
 	ieee802154_lowpan->fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
-	ieee802154_lowpan->fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
 	ieee802154_lowpan->fqdir->timeout = IPV6_FRAG_TIMEOUT;
 
 	res = lowpan_frags_ns_sysctl_register(net);

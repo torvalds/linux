@@ -42,7 +42,7 @@ static struct nft_ct_frag6_pernet *nf_frag_pernet(struct net *net)
 }
 
 #ifdef CONFIG_SYSCTL
-
+static unsigned long nf_conntrack_frag6_low_thresh_unused = IPV6_FRAG_LOW_THRESH;
 static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
@@ -82,10 +82,10 @@ static int nf_ct_frag6_sysctl_register(struct net *net)
 	nf_frag = nf_frag_pernet(net);
 
 	table[0].data	= &nf_frag->fqdir->timeout;
-	table[1].data	= &nf_frag->fqdir->low_thresh;
-	table[1].extra2	= &nf_frag->fqdir->high_thresh;
+	table[1].data	= &nf_conntrack_frag6_low_thresh_unused;
+	table[1].extra2 = &nf_frag->fqdir->high_thresh;
 	table[2].data	= &nf_frag->fqdir->high_thresh;
-	table[2].extra1	= &nf_frag->fqdir->low_thresh;
+	table[2].extra1 = &nf_conntrack_frag6_low_thresh_unused;
 
 	hdr = register_net_sysctl(net, "net/netfilter", table);
 	if (hdr == NULL)
@@ -500,7 +500,6 @@ static int nf_ct_net_init(struct net *net)
 		return res;
 
 	nf_frag->fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
-	nf_frag->fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
 	nf_frag->fqdir->timeout = IPV6_FRAG_TIMEOUT;
 
 	res = nf_ct_frag6_sysctl_register(net);
