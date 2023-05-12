@@ -679,6 +679,14 @@ config SDX_GCC_65
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SDX_GCC_75
+	tristate "SDX75 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SDX75 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/eMMC, PCIe etc.
+
 config SM_CAMCC_6350
 	tristate "SM6350 Camera Clock Controller"
 	select SM_GCC_6350
