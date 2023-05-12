@@ -93,6 +93,7 @@
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dmub_psr.h"
+#include "dce/dmub_replay.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "dml/dcn314/display_mode_vba_314.h"
@@ -1530,6 +1531,9 @@ static void dcn314_resource_destruct(struct dcn314_resource_pool *pool)
 	if (pool->base.psr != NULL)
 		dmub_psr_destroy(&pool->base.psr);
 
+	if (pool->base.replay != NULL)
+		dmub_replay_destroy(&pool->base.replay);
+
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 }
@@ -2023,6 +2027,14 @@ static bool dcn314_resource_construct(
 	pool->base.psr = dmub_psr_create(ctx);
 	if (pool->base.psr == NULL) {
 		dm_error("DC: failed to create psr obj!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
+
+	/* Replay */
+	pool->base.replay = dmub_replay_create(ctx);
+	if (pool->base.replay == NULL) {
+		dm_error("DC: failed to create replay obj!\n");
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}
