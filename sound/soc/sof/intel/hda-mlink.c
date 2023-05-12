@@ -131,7 +131,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 		link_idx, h2link->slcount);
 
 	/* find IP ID and offsets */
-	h2link->leptr = readl(hlink->ml_addr + AZX_REG_ML_LEPTR);
+	h2link->leptr = readl(ml_addr + AZX_REG_ML_LEPTR);
 
 	h2link->elid = FIELD_GET(AZX_REG_ML_LEPTR_ID, h2link->leptr);
 
