@@ -5,15 +5,19 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_atomic.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display.h"
+#include "intel_display_driver.h"
 #include "intel_display_power_map.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy_regs.h"
+#include "intel_dp.h"
 #include "intel_dp_mst.h"
 #include "intel_mg_phy_regs.h"
+#include "intel_modeset_lock.h"
 #include "intel_tc.h"
 
 #define DP_PIN_ASSIGNMENT_C	0x3
@@ -51,6 +55,7 @@ struct intel_tc_port {
 	enum intel_display_power_domain lock_power_domain;
 #endif
 	struct delayed_work disconnect_phy_work;
+	struct delayed_work link_reset_work;
 	int link_refcount;
 	bool legacy_port:1;
 	char port_name[8];
@@ -1572,6 +1577,138 @@ bool intel_tc_port_connected(struct intel_encoder *encoder)
 	return is_connected;
 }
 
+static bool __intel_tc_port_link_needs_reset(struct intel_tc_port *tc)
+{
+	bool ret;
+
+	mutex_lock(&tc->lock);
+
+	ret = tc->link_refcount &&
+	      tc->mode == TC_PORT_DP_ALT &&
+	      intel_tc_port_needs_reset(tc);
+
+	mutex_unlock(&tc->lock);
+
+	return ret;
+}
+
+bool intel_tc_port_link_needs_reset(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+
+	if (!intel_phy_is_tc(i915, phy))
+		return false;
+
+	return __intel_tc_port_link_needs_reset(to_tc_port(dig_port));
+}
+
+static int reset_link_commit(struct intel_tc_port *tc,
+			     struct intel_atomic_state *state,
+			     struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_digital_port *dig_port = tc->dig_port;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&dig_port->base);
+	struct intel_crtc *crtc;
+	u8 pipe_mask;
+	int ret;
+
+	ret = drm_modeset_lock(&i915->drm.mode_config.connection_mutex, ctx);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_get_active_pipes(intel_dp, ctx, &pipe_mask);
+	if (ret)
+		return ret;
+
+	if (!pipe_mask)
+		return 0;
+
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, pipe_mask) {
+		struct intel_crtc_state *crtc_state;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		crtc_state->uapi.connectors_changed = true;
+	}
+
+	if (!__intel_tc_port_link_needs_reset(tc))
+		return 0;
+
+	return drm_atomic_commit(&state->base);
+}
+
+static int reset_link(struct intel_tc_port *tc)
+{
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *_state;
+	struct intel_atomic_state *state;
+	int ret;
+
+	_state = drm_atomic_state_alloc(&i915->drm);
+	if (!_state)
+		return -ENOMEM;
+
+	state = to_intel_atomic_state(_state);
+	state->internal = true;
+
+	intel_modeset_lock_ctx_retry(&ctx, state, 0, ret)
+		ret = reset_link_commit(tc, state, &ctx);
+
+	drm_atomic_state_put(&state->base);
+
+	return ret;
+}
+
+static void intel_tc_port_link_reset_work(struct work_struct *work)
+{
+	struct intel_tc_port *tc =
+		container_of(work, struct intel_tc_port, link_reset_work.work);
+	struct drm_i915_private *i915 = tc_to_i915(tc);
+	int ret;
+
+	if (!__intel_tc_port_link_needs_reset(tc))
+		return;
+
+	mutex_lock(&i915->drm.mode_config.mutex);
+
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: TypeC DP-alt sink disconnected, resetting link\n",
+		    tc->port_name);
+	ret = reset_link(tc);
+	drm_WARN_ON(&i915->drm, ret);
+
+	mutex_unlock(&i915->drm.mode_config.mutex);
+}
+
+bool intel_tc_port_link_reset(struct intel_digital_port *dig_port)
+{
+	if (!intel_tc_port_link_needs_reset(dig_port))
+		return false;
+
+	queue_delayed_work(system_unbound_wq,
+			   &to_tc_port(dig_port)->link_reset_work,
+			   msecs_to_jiffies(2000));
+
+	return true;
+}
+
+void intel_tc_port_link_cancel_reset_work(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	if (!intel_phy_is_tc(i915, phy))
+		return;
+
+	cancel_delayed_work(&tc->link_reset_work);
+}
+
 static void __intel_tc_port_lock(struct intel_tc_port *tc,
 				 int required_lanes)
 {
@@ -1619,9 +1756,17 @@ static void intel_tc_port_disconnect_phy_work(struct work_struct *work)
  *
  * Flush the delayed work disconnecting an idle PHY.
  */
-void intel_tc_port_flush_work(struct intel_digital_port *dig_port)
+static void intel_tc_port_flush_work(struct intel_digital_port *dig_port)
 {
 	flush_delayed_work(&to_tc_port(dig_port)->disconnect_phy_work);
+}
+
+void intel_tc_port_suspend(struct intel_digital_port *dig_port)
+{
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	cancel_delayed_work_sync(&tc->link_reset_work);
+	intel_tc_port_flush_work(dig_port);
 }
 
 void intel_tc_port_unlock(struct intel_digital_port *dig_port)
@@ -1660,6 +1805,14 @@ void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 	intel_tc_port_lock(dig_port);
 	__intel_tc_port_put_link(tc);
 	intel_tc_port_unlock(dig_port);
+
+	/*
+	 * The firmware will not update the HPD status of other TypeC ports
+	 * that are active in DP-alt mode with their sink disconnected, until
+	 * this port is disabled and its PHY gets disconnected. Make sure this
+	 * happens in a timely manner by disconnecting the PHY synchronously.
+	 */
+	intel_tc_port_flush_work(dig_port);
 }
 
 int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
@@ -1692,7 +1845,9 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 		 "%c/TC#%d", port_name(port), tc_port + 1);
 
 	mutex_init(&tc->lock);
+	/* TODO: Combine the two works */
 	INIT_DELAYED_WORK(&tc->disconnect_phy_work, intel_tc_port_disconnect_phy_work);
+	INIT_DELAYED_WORK(&tc->link_reset_work, intel_tc_port_link_reset_work);
 	tc->legacy_port = is_legacy;
 	tc->mode = TC_PORT_DISCONNECTED;
 	tc->link_refcount = 0;
@@ -1706,7 +1861,7 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 
 void intel_tc_port_cleanup(struct intel_digital_port *dig_port)
 {
-	intel_tc_port_flush_work(dig_port);
+	intel_tc_port_suspend(dig_port);
 
 	kfree(dig_port->tc);
 	dig_port->tc = NULL;

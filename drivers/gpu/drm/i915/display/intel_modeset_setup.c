@@ -26,6 +26,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
+#include "intel_tc.h"
 #include "intel_vblank.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
@@ -379,6 +380,21 @@ static bool intel_crtc_has_encoders(struct intel_crtc *crtc)
 	return false;
 }
 
+static bool intel_crtc_needs_link_reset(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *encoder;
+
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+		if (dig_port && intel_tc_port_link_needs_reset(dig_port))
+			return true;
+	}
+
+	return false;
+}
+
 static struct intel_connector *intel_encoder_find_connector(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
@@ -421,11 +437,12 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 					   !HAS_GMCH(i915));
 }
 
-static void intel_sanitize_crtc(struct intel_crtc *crtc,
+static bool intel_sanitize_crtc(struct intel_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
+	bool needs_link_reset;
 
 	if (crtc_state->hw.active) {
 		struct intel_plane *plane;
@@ -445,13 +462,67 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		intel_color_commit_arm(crtc_state);
 	}
 
+	if (!crtc_state->hw.active ||
+	    intel_crtc_is_bigjoiner_slave(crtc_state))
+		return false;
+
+	needs_link_reset = intel_crtc_needs_link_reset(crtc);
+
 	/*
 	 * Adjust the state of the output pipe according to whether we have
 	 * active connectors/encoders.
 	 */
-	if (crtc_state->hw.active && !intel_crtc_has_encoders(crtc) &&
-	    !intel_crtc_is_bigjoiner_slave(crtc_state))
-		intel_crtc_disable_noatomic(crtc, ctx);
+	if (!needs_link_reset && intel_crtc_has_encoders(crtc))
+		return false;
+
+	intel_crtc_disable_noatomic(crtc, ctx);
+
+	/*
+	 * The HPD state on other active/disconnected TC ports may be stuck in
+	 * the connected state until this port is disabled and a ~10ms delay has
+	 * passed, wait here for that so that sanitizing other CRTCs will see the
+	 * up-to-date HPD state.
+	 */
+	if (needs_link_reset)
+		msleep(20);
+
+	return true;
+}
+
+static void intel_sanitize_all_crtcs(struct drm_i915_private *i915,
+				     struct drm_modeset_acquire_ctx *ctx)
+{
+	struct intel_crtc *crtc;
+	u32 crtcs_forced_off = 0;
+
+	/*
+	 * An active and disconnected TypeC port prevents the HPD live state
+	 * to get updated on other active/disconnected TypeC ports, so after
+	 * a port gets disabled the CRTCs using other TypeC ports must be
+	 * rechecked wrt. their link status.
+	 */
+	for (;;) {
+		u32 old_mask = crtcs_forced_off;
+
+		for_each_intel_crtc(&i915->drm, crtc) {
+			u32 crtc_mask = drm_crtc_mask(&crtc->base);
+
+			if (crtcs_forced_off & crtc_mask)
+				continue;
+
+			if (intel_sanitize_crtc(crtc, ctx))
+				crtcs_forced_off |= crtc_mask;
+		}
+		if (crtcs_forced_off == old_mask)
+			break;
+	}
+
+	for_each_intel_crtc(&i915->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		intel_crtc_state_dump(crtc_state, NULL, "setup_hw_state");
+	}
 }
 
 static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
@@ -871,13 +942,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	 */
 	intel_modeset_update_connector_atomic_state(i915);
 
-	for_each_intel_crtc(&i915->drm, crtc) {
-		struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-
-		intel_sanitize_crtc(crtc, ctx);
-		intel_crtc_state_dump(crtc_state, NULL, "setup_hw_state");
-	}
+	intel_sanitize_all_crtcs(i915, ctx);
 
 	intel_dpll_sanitize_state(i915);
 
