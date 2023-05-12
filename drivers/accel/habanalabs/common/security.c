@@ -495,8 +495,8 @@ free_glbl_sec:
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_range_array: register range array
- * @regs_range_array_size: register range array size
+ * @user_regs_range_array: register range array
+ * @user_regs_range_array_size: register range array size
  *
  */
 int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
