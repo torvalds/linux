@@ -128,7 +128,7 @@ static inline __maybe_unused phys_addr_t cma_early_percent_memory(void)
 #endif
 
 #ifdef CONFIG_DMA_PERNUMA_CMA
-void __init dma_pernuma_cma_reserve(void)
+static void __init dma_pernuma_cma_reserve(void)
 {
 	int nid;
 
@@ -153,6 +153,10 @@ void __init dma_pernuma_cma_reserve(void)
 			(unsigned long long)pernuma_size_bytes / SZ_1M, nid);
 	}
 }
+#else
+static inline void __init dma_pernuma_cma_reserve(void)
+{
+}
 #endif
 
 /**
@@ -170,6 +174,8 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	phys_addr_t selected_base = 0;
 	phys_addr_t selected_limit = limit;
 	bool fixed = false;
+
+	dma_pernuma_cma_reserve();
 
 	pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
 
