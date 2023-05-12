@@ -73,6 +73,7 @@ struct hdac_ext2_link {
 #define AZX_REG_SDW_SHIM_OFFSET				0x0
 #define AZX_REG_SDW_IP_OFFSET				0x100
 #define AZX_REG_SDW_VS_SHIM_OFFSET			0x6000
+#define AZX_REG_SDW_SHIM_PCMSyCM(y)			(0x16 + 0x4 * (y))
 
 /* only one instance supported */
 #define AZX_REG_INTEL_DMIC_SHIM_OFFSET			0x0
@@ -338,6 +339,21 @@ static void hdaml_link_set_lsdiid(u32 __iomem *lsdiid, int dev_num)
 	val |= BIT(dev_num);
 
 	writel(val, lsdiid);
+}
+
+static void hdaml_shim_map_stream_ch(u16 __iomem *pcmsycm, int lchan, int hchan,
+				     int stream_id, int dir)
+{
+	u16 val;
+
+	val = readw(pcmsycm);
+
+	u16p_replace_bits(&val, lchan, GENMASK(3, 0));
+	u16p_replace_bits(&val, hchan, GENMASK(7, 4));
+	u16p_replace_bits(&val, stream_id, GENMASK(13, 8));
+	u16p_replace_bits(&val, dir, BIT(15));
+
+	writew(val, pcmsycm);
 }
 
 static void hdaml_lctl_offload_enable(u32 __iomem *lctl, bool enable)
@@ -755,6 +771,40 @@ int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
 
 	return 0;
 } EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_set_lsdiid, SND_SOC_SOF_HDA_MLINK);
+
+/*
+ * the 'y' parameter comes from the PCMSyCM hardware register naming. 'y' refers to the
+ * PDI index, i.e. the FIFO used for RX or TX
+ */
+int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
+				   int channel_mask, int stream_id, int dir)
+{
+	struct hdac_ext2_link *h2link;
+	u16 __iomem *pcmsycm;
+	u16 val;
+
+	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!h2link)
+		return -ENODEV;
+
+	pcmsycm = h2link->base_ptr + h2link->shim_offset +
+		h2link->instance_offset * sublink +
+		AZX_REG_SDW_SHIM_PCMSyCM(y);
+
+	mutex_lock(&h2link->eml_lock);
+
+	hdaml_shim_map_stream_ch(pcmsycm, 0, hweight32(channel_mask),
+				 stream_id, dir);
+
+	mutex_unlock(&h2link->eml_lock);
+
+	val = readw(pcmsycm);
+
+	dev_dbg(bus->dev, "channel_mask %#x stream_id %d dir %d pcmscm %#x\n",
+		channel_mask, stream_id, dir, val);
+
+	return 0;
+} EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, SND_SOC_SOF_HDA_MLINK);
 
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
