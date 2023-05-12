@@ -430,6 +430,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 };
@@ -905,6 +906,7 @@ struct dc_debug_options {
 	uint32_t fpo_vactive_max_blank_us;
 	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
+	bool replay_skip_crtc_disabled;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1523,6 +1525,8 @@ struct dc_link {
 
 	struct backlight_settings backlight_settings;
 	struct psr_settings psr_settings;
+
+	struct replay_settings replay_settings;
 
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;

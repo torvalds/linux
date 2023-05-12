@@ -304,6 +304,8 @@ struct resource_pool {
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 
+	struct dmub_replay *replay;
+
 	struct abm *multiple_abms[MAX_PIPES];
 
 	const struct resource_funcs *funcs;
@@ -570,6 +572,23 @@ struct dc_state {
 	struct {
 		unsigned int stutter_period_us;
 	} perf_params;
+};
+
+struct replay_context {
+	/* ddc line */
+	enum channel_id aux_inst;
+	/* Transmitter id */
+	enum transmitter digbe_inst;
+	/* Engine Id is used for Dig Be source select */
+	enum engine_id digfe_inst;
+	/* Controller Id used for Dig Fe source select */
+	enum controller_id controllerId;
+	unsigned int line_time_in_ns;
+};
+
+enum dc_replay_enable {
+	DC_REPLAY_DISABLE			= 0,
+	DC_REPLAY_ENABLE			= 1,
 };
 
 struct dc_bounding_box_max_clk {
