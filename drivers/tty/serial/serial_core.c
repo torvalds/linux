@@ -3154,13 +3154,12 @@ EXPORT_SYMBOL(uart_add_one_port);
  * This unhooks (and hangs up) the specified port structure from the core
  * driver. No further calls will be made to the low-level code for this port.
  */
-int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
+void uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
 	struct uart_state *state = drv->state + uport->line;
 	struct tty_port *port = &state->port;
 	struct uart_port *uart_port;
 	struct tty_struct *tty;
-	int ret = 0;
 
 	mutex_lock(&port_mutex);
 
@@ -3176,7 +3175,6 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 
 	if (!uart_port) {
 		mutex_unlock(&port->mutex);
-		ret = -EINVAL;
 		goto out;
 	}
 	uport->flags |= UPF_DEAD;
@@ -3219,8 +3217,6 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	mutex_unlock(&port->mutex);
 out:
 	mutex_unlock(&port_mutex);
-
-	return ret;
 }
 EXPORT_SYMBOL(uart_remove_one_port);
 
