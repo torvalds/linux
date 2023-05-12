@@ -504,7 +504,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 			if (em_type != EFX_TC_EM_PSEUDO_MASK) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
 						       "%s encap match conflicts with existing pseudo(MASK) entry",
-						       encap->type ? "Pseudo" : "Direct");
+						       em_type ? "Pseudo" : "Direct");
 				return -EEXIST;
 			}
 			if (child_ip_tos_mask != old->child_ip_tos_mask) {
@@ -525,7 +525,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		default: /* Unrecognised pseudo-type.  Just say no */
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "%s encap match conflicts with existing pseudo(%d) entry",
-					       encap->type ? "Pseudo" : "Direct",
+					       em_type ? "Pseudo" : "Direct",
 					       old->type);
 			return -EEXIST;
 		}
