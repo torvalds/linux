@@ -474,10 +474,10 @@ mt7996_ampdu_stat_read_phy(struct mt7996_phy *phy, struct seq_file *file)
 static void
 mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	static const char * const bw[] = {
 		"BW20", "BW40", "BW80", "BW160"
 	};
-	struct mib_stats *mib = &phy->mib;
 
 	/* Tx Beamformer monitor */
 	seq_puts(s, "\nTx Beamformer applied PPDU counts: ");
@@ -523,7 +523,7 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7996_phy *phy = file->private;
 	struct mt7996_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
+	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
 	u32 attempts, success, per;
 

@@ -130,60 +130,6 @@ struct mt7996_vif {
 	u8 beacon_rates_idx;
 };
 
-/* per-phy stats.  */
-struct mib_stats {
-	u32 ack_fail_cnt;
-	u32 fcs_err_cnt;
-	u32 rts_cnt;
-	u32 rts_retries_cnt;
-	u32 ba_miss_cnt;
-	u32 tx_mu_bf_cnt;
-	u32 tx_mu_mpdu_cnt;
-	u32 tx_mu_acked_mpdu_cnt;
-	u32 tx_su_acked_mpdu_cnt;
-	u32 tx_bf_ibf_ppdu_cnt;
-	u32 tx_bf_ebf_ppdu_cnt;
-
-	u32 tx_bf_rx_fb_all_cnt;
-	u32 tx_bf_rx_fb_eht_cnt;
-	u32 tx_bf_rx_fb_he_cnt;
-	u32 tx_bf_rx_fb_vht_cnt;
-	u32 tx_bf_rx_fb_ht_cnt;
-
-	u32 tx_bf_rx_fb_bw; /* value of last sample, not cumulative */
-	u32 tx_bf_rx_fb_nc_cnt;
-	u32 tx_bf_rx_fb_nr_cnt;
-	u32 tx_bf_fb_cpl_cnt;
-	u32 tx_bf_fb_trig_cnt;
-
-	u32 tx_ampdu_cnt;
-	u32 tx_stop_q_empty_cnt;
-	u32 tx_mpdu_attempts_cnt;
-	u32 tx_mpdu_success_cnt;
-	/* BF counter is PPDU-based, so remove MPDU-based BF counter */
-
-	u32 tx_rwp_fail_cnt;
-	u32 tx_rwp_need_cnt;
-
-	/* rx stats */
-	u32 rx_fifo_full_cnt;
-	u32 channel_idle_cnt;
-	u32 rx_vector_mismatch_cnt;
-	u32 rx_delimiter_fail_cnt;
-	u32 rx_len_mismatch_cnt;
-	u32 rx_mpdu_cnt;
-	u32 rx_ampdu_cnt;
-	u32 rx_ampdu_bytes_cnt;
-	u32 rx_ampdu_valid_subframe_cnt;
-	u32 rx_ampdu_valid_subframe_bytes_cnt;
-	u32 rx_pfdrop_cnt;
-	u32 rx_vec_queue_overflow_drop_cnt;
-	u32 rx_ba_cnt;
-
-	u32 tx_amsdu[8];
-	u32 tx_amsdu_cnt;
-};
-
 /* crash-dump */
 struct mt7996_crash_data {
 	guid_t guid;
@@ -222,7 +168,7 @@ struct mt7996_phy {
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
 
-	struct mib_stats mib;
+	struct mt76_mib_stats mib;
 	struct mt76_channel_state state_ts;
 };
 

@@ -2196,8 +2196,8 @@ void mt7996_reset(struct mt7996_dev *dev)
 
 void mt7996_mac_update_stats(struct mt7996_phy *phy)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt7996_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
 	u8 band_idx = phy->mt76->band_idx;
 	u32 cnt;
 	int i;
