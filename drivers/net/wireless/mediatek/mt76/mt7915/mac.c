@@ -1765,8 +1765,8 @@ void mt7915_reset(struct mt7915_dev *dev)
 
 void mt7915_mac_update_stats(struct mt7915_phy *phy)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt7915_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
 	int i, aggr0 = 0, aggr1, cnt;
 	u8 band = phy->mt76->band_idx;
 	u32 val;
