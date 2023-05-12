@@ -296,6 +296,212 @@ static int rtw8851b_pwr_off_func(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw8851b_efuse_parsing(struct rtw89_efuse *efuse,
+				   struct rtw8851b_efuse *map)
+{
+	ether_addr_copy(efuse->addr, map->e.mac_addr);
+	efuse->rfe_type = map->rfe_type;
+	efuse->xtal_cap = map->xtal_k;
+}
+
+static void rtw8851b_efuse_parsing_tssi(struct rtw89_dev *rtwdev,
+					struct rtw8851b_efuse *map)
+{
+	struct rtw89_tssi_info *tssi = &rtwdev->tssi;
+	struct rtw8851b_tssi_offset *ofst[] = {&map->path_a_tssi};
+	u8 i, j;
+
+	tssi->thermal[RF_PATH_A] = map->path_a_therm;
+
+	for (i = 0; i < RF_PATH_NUM_8851B; i++) {
+		memcpy(tssi->tssi_cck[i], ofst[i]->cck_tssi,
+		       sizeof(ofst[i]->cck_tssi));
+
+		for (j = 0; j < TSSI_CCK_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d cck[%d]=0x%x\n",
+				    i, j, tssi->tssi_cck[i][j]);
+
+		memcpy(tssi->tssi_mcs[i], ofst[i]->bw40_tssi,
+		       sizeof(ofst[i]->bw40_tssi));
+		memcpy(tssi->tssi_mcs[i] + TSSI_MCS_2G_CH_GROUP_NUM,
+		       ofst[i]->bw40_1s_tssi_5g, sizeof(ofst[i]->bw40_1s_tssi_5g));
+
+		for (j = 0; j < TSSI_MCS_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d mcs[%d]=0x%x\n",
+				    i, j, tssi->tssi_mcs[i][j]);
+	}
+}
+
+static bool _decode_efuse_gain(u8 data, s8 *high, s8 *low)
+{
+	if (high)
+		*high = sign_extend32(u8_get_bits(data, GENMASK(7,  4)), 3);
+	if (low)
+		*low = sign_extend32(u8_get_bits(data, GENMASK(3,  0)), 3);
+
+	return data != 0xff;
+}
+
+static void rtw8851b_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
+					       struct rtw8851b_efuse *map)
+{
+	struct rtw89_phy_efuse_gain *gain = &rtwdev->efuse_gain;
+	bool valid = false;
+
+	valid |= _decode_efuse_gain(map->rx_gain_2g_cck,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_2G_CCK],
+				    NULL);
+	valid |= _decode_efuse_gain(map->rx_gain_2g_ofdm,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_2G_OFDM],
+				    NULL);
+	valid |= _decode_efuse_gain(map->rx_gain_5g_low,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_LOW],
+				    NULL);
+	valid |= _decode_efuse_gain(map->rx_gain_5g_mid,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_MID],
+				   NULL);
+	valid |= _decode_efuse_gain(map->rx_gain_5g_high,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_HIGH],
+				    NULL);
+
+	gain->offset_valid = valid;
+}
+
+static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	struct rtw8851b_efuse *map;
+
+	map = (struct rtw8851b_efuse *)log_map;
+
+	efuse->country_code[0] = map->country_code[0];
+	efuse->country_code[1] = map->country_code[1];
+	rtw8851b_efuse_parsing_tssi(rtwdev, map);
+	rtw8851b_efuse_parsing_gain_offset(rtwdev, map);
+
+	switch (rtwdev->hci.type) {
+	case RTW89_HCI_TYPE_PCIE:
+		rtw8851b_efuse_parsing(efuse, map);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
+
+	return 0;
+}
+
+static void rtw8851b_phycap_parsing_tssi(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	struct rtw89_tssi_info *tssi = &rtwdev->tssi;
+	static const u32 tssi_trim_addr[RF_PATH_NUM_8851B] = {0x5D6};
+	u32 addr = rtwdev->chip->phycap_addr;
+	bool pg = false;
+	u32 ofst;
+	u8 i, j;
+
+	for (i = 0; i < RF_PATH_NUM_8851B; i++) {
+		for (j = 0; j < TSSI_TRIM_CH_GROUP_NUM; j++) {
+			/* addrs are in decreasing order */
+			ofst = tssi_trim_addr[i] - addr - j;
+			tssi->tssi_trim[i][j] = phycap_map[ofst];
+
+			if (phycap_map[ofst] != 0xff)
+				pg = true;
+		}
+	}
+
+	if (!pg) {
+		memset(tssi->tssi_trim, 0, sizeof(tssi->tssi_trim));
+		rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+			    "[TSSI][TRIM] no PG, set all trim info to 0\n");
+	}
+
+	for (i = 0; i < RF_PATH_NUM_8851B; i++)
+		for (j = 0; j < TSSI_TRIM_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI] path=%d idx=%d trim=0x%x addr=0x%x\n",
+				    i, j, tssi->tssi_trim[i][j],
+				    tssi_trim_addr[i] - j);
+}
+
+static void rtw8851b_phycap_parsing_thermal_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	static const u32 thm_trim_addr[RF_PATH_NUM_8851B] = {0x5DF};
+	u32 addr = rtwdev->chip->phycap_addr;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8851B; i++) {
+		info->thermal_trim[i] = phycap_map[thm_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[THERMAL][TRIM] path=%d thermal_trim=0x%x\n",
+			    i, info->thermal_trim[i]);
+
+		if (info->thermal_trim[i] != 0xff)
+			info->pg_thermal_trim = true;
+	}
+}
+
+static void rtw8851b_phycap_parsing_pa_bias_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	static const u32 pabias_trim_addr[] = {0x5DE};
+	u32 addr = rtwdev->chip->phycap_addr;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8851B; i++) {
+		info->pa_bias_trim[i] = phycap_map[pabias_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PA_BIAS][TRIM] path=%d pa_bias_trim=0x%x\n",
+			    i, info->pa_bias_trim[i]);
+
+		if (info->pa_bias_trim[i] != 0xff)
+			info->pg_pa_bias_trim = true;
+	}
+}
+
+static void rtw8851b_phycap_parsing_gain_comp(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	static const u32 comp_addrs[][RTW89_SUBBAND_2GHZ_5GHZ_NR] = {
+		{0x5BB, 0x5BA, 0, 0x5B9, 0x5B8},
+	};
+	struct rtw89_phy_efuse_gain *gain = &rtwdev->efuse_gain;
+	u32 phycap_addr = rtwdev->chip->phycap_addr;
+	bool valid = false;
+	int path, i;
+	u8 data;
+
+	for (path = 0; path < BB_PATH_NUM_8851B; path++)
+		for (i = 0; i < RTW89_SUBBAND_2GHZ_5GHZ_NR; i++) {
+			if (comp_addrs[path][i] == 0)
+				continue;
+
+			data = phycap_map[comp_addrs[path][i] - phycap_addr];
+			valid |= _decode_efuse_gain(data, NULL,
+						    &gain->comp[path][i]);
+		}
+
+	gain->comp_valid = valid;
+}
+
+static int rtw8851b_read_phycap(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	rtw8851b_phycap_parsing_tssi(rtwdev, phycap_map);
+	rtw8851b_phycap_parsing_thermal_trim(rtwdev, phycap_map);
+	rtw8851b_phycap_parsing_pa_bias_trim(rtwdev, phycap_map);
+	rtw8851b_phycap_parsing_gain_comp(rtwdev, phycap_map);
+
+	return 0;
+}
+
 static void rtw8851b_set_bb_gpio(struct rtw89_dev *rtwdev, u8 gpio_idx, bool inv,
 				 u8 src_sel)
 {
@@ -1501,6 +1707,8 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.write_rf		= rtw89_phy_write_rf_v1,
 	.set_channel		= rtw8851b_set_channel,
 	.set_channel_help	= rtw8851b_set_channel_help,
+	.read_efuse		= rtw8851b_read_efuse,
+	.read_phycap		= rtw8851b_read_phycap,
 	.fem_setup		= NULL,
 	.rfe_gpio		= rtw8851b_rfe_gpio,
 	.pwr_on_func		= rtw8851b_pwr_on_func,
