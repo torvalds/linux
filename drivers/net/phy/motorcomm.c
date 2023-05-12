@@ -145,6 +145,7 @@
 #define YTPHY_EXTREG_RGMII_CONFIG1	0xa003
 #define YTPHY_PAD_DRIVES_STRENGTH_CFG	0xa010
 #define YTPHY_RGMII_SW_DR_MASK		GENMASK(5, 4)
+#define YTPHY_RGMII_RXC_DR_MASK		GENMASK(15, 13)
 
 enum ytphy_wol_feature_trigger_type_e {
 	YTPHY_WOL_FEATURE_PULSE_TRIGGER,
@@ -210,6 +211,12 @@ struct ytphy_priv_t {
 	u32 tx_inverted_1000;
 	u32 tx_inverted_100;
 	u32 tx_inverted_10;
+};
+
+static const struct ytphy_reg_field ytphy_dr_grp[] = {
+       { "rgmii_sw_dr", 2, 4, 0x3},
+       { "rgmii_sw_dr_2", 1, 12, 0x0},
+       { "rgmii_sw_dr_rxc", 3, 13, 0x3}
 };
 
 static const struct ytphy_reg_field ytphy_rxtxd_grp[] = {
@@ -873,7 +880,19 @@ static int ytphy_of_config(struct phy_device *phydev)
 		}
 
 		val = ytphy_read_ext(phydev, YTPHY_PAD_DRIVES_STRENGTH_CFG);
-		val |= YTPHY_RGMII_SW_DR_MASK;
+		for (i = 0; i < ARRAY_SIZE(ytphy_dr_grp); i++) {
+			ret = of_property_read_u32(of_node, ytphy_dr_grp[i].name, &cfg);
+			if (!ret) {
+				cfg = (cfg != -1) ? cfg : ytphy_dr_grp[i].dflt;
+
+				/*check the cfg overflow or not*/
+				cfg = (cfg > ((1 << ytphy_dr_grp[i].size) - 1)) ?
+					((1 << ytphy_dr_grp[i].size) - 1) : cfg;
+
+				val = bitfield_replace(val, ytphy_dr_grp[i].off,
+						ytphy_dr_grp[i].size, cfg);
+			}
+		}
 		ytphy_write_ext(phydev, YTPHY_PAD_DRIVES_STRENGTH_CFG, val);
 
 		val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);

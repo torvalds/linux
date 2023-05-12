@@ -1456,7 +1456,9 @@ static int imx219_probe(struct i2c_client *client)
 	}
 
 	/* Request optional enable pin */
-	imx219->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	imx219->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+			IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
 
 	/*
 	 * The sensor must be powered for imx219_identify_module()
