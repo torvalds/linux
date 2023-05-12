@@ -850,6 +850,18 @@ struct hdac_ext_link *hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_dmic_get_hlink, SND_SOC_SOF_HDA_MLINK);
 
+struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus)
+{
+	struct hdac_ext2_link *h2link;
+
+	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!h2link)
+		return NULL;
+
+	return &h2link->hext_link;
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_get_hlink, SND_SOC_SOF_HDA_MLINK);
+
 int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
 	struct hdac_ext2_link *h2link;
