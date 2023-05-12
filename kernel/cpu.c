@@ -1502,7 +1502,7 @@ int bringup_hibernate_cpu(unsigned int sleep_cpu)
 	return 0;
 }
 
-void bringup_nonboot_cpus(unsigned int setup_max_cpus)
+void __init bringup_nonboot_cpus(unsigned int setup_max_cpus)
 {
 	unsigned int cpu;
 
