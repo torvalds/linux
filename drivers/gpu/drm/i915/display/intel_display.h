@@ -538,12 +538,12 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 #define assert_transcoder_enabled(d, t) assert_transcoder(d, t, true)
 #define assert_transcoder_disabled(d, t) assert_transcoder(d, t, false)
 
-/* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
- * WARN_ON()) for hw state sanity checks to check for unexpected conditions
- * which may not necessarily be a user visible problem.  This will either
- * WARN() or DRM_ERROR() depending on the verbose_checks moduleparam, to
- * enable distros and users to tailor their preferred amount of i915 abrt
- * spam.
+/*
+ * Use I915_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw state sanity
+ * checks to check for unexpected conditions which may not necessarily be a user
+ * visible problem. This will either WARN() or DRM_ERROR() depending on the
+ * verbose_state_checks module param, to enable distros and users to tailor
+ * their preferred amount of i915 abrt spam.
  */
 #define I915_STATE_WARN(condition, format...) ({			\
 	int __ret_warn_on = !!(condition);				\
@@ -552,9 +552,6 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 			DRM_ERROR(format);				\
 	unlikely(__ret_warn_on);					\
 })
-
-#define I915_STATE_WARN_ON(x)						\
-	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
 bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915);
 
