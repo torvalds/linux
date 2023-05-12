@@ -427,6 +427,8 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 			dmub->fw_version = fw_info->fw_version;
 	}
 
+	dmub->trace_buffer_size = trace_buffer_size;
+
 	trace_buff->base = dmub_align(mail->top, 256);
 	trace_buff->top = trace_buff->base + dmub_align(trace_buffer_size, 64);
 

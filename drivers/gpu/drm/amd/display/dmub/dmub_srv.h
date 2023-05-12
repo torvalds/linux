@@ -428,6 +428,7 @@ struct dmub_srv {
 	enum dmub_asic asic;
 	void *user_ctx;
 	uint32_t fw_version;
+	uint32_t trace_buffer_size;
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
 	volatile const struct dmub_fw_state *fw_state;
