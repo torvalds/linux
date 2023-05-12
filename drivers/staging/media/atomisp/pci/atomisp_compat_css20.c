@@ -985,8 +985,7 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_css_start(struct atomisp_sub_device *asd,
-		      enum ia_css_pipe_id pipe_id, bool in_reset)
+int atomisp_css_start(struct atomisp_sub_device *asd, bool in_reset)
 {
 	struct atomisp_device *isp = asd->isp;
 	bool sp_is_started = false;
@@ -1814,8 +1813,7 @@ int atomisp_css_input_configure_port(
 	return 0;
 }
 
-void atomisp_css_stop(struct atomisp_sub_device *asd,
-		      enum ia_css_pipe_id pipe_id, bool in_reset)
+void atomisp_css_stop(struct atomisp_sub_device *asd, bool in_reset)
 {
 	unsigned long irqflags;
 	unsigned int i;

@@ -1120,7 +1120,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	enum ia_css_pipe_id css_pipe_id;
 	unsigned long irqflags;
 	int ret;
 
@@ -1134,8 +1133,6 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Input system HW workaround */
 	atomisp_dma_burst_len_cfg(asd);
-
-	css_pipe_id = atomisp_get_css_pipe_id(asd);
 
 	/* Invalidate caches. FIXME: should flush only necessary buffers */
 	wbinvd();
@@ -1151,7 +1148,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 	asd->params.dvs_6axis = NULL;
 
-	ret = atomisp_css_start(asd, css_pipe_id, false);
+	ret = atomisp_css_start(asd, false);
 	if (ret) {
 		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
@@ -1217,7 +1214,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	enum ia_css_pipe_id css_pipe_id;
 	unsigned long flags;
 	int ret;
 
@@ -1247,8 +1243,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	atomisp_clear_css_buffer_counters(asd);
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	css_pipe_id = atomisp_get_css_pipe_id(asd);
-	atomisp_css_stop(asd, css_pipe_id, false);
+	atomisp_css_stop(asd, false);
 
 	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
 

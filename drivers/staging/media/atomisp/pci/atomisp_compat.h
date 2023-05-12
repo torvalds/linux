@@ -78,8 +78,7 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 
 void ia_css_mmu_invalidate_cache(void);
 
-int atomisp_css_start(struct atomisp_sub_device *asd,
-		      enum ia_css_pipe_id pipe_id, bool in_reset);
+int atomisp_css_start(struct atomisp_sub_device *asd, bool in_reset);
 
 void atomisp_css_update_isp_params(struct atomisp_sub_device *asd);
 void atomisp_css_update_isp_params_on_pipe(struct atomisp_sub_device *asd,
@@ -217,8 +216,7 @@ int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 int atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
 void atomisp_destroy_pipes_stream(struct atomisp_sub_device *asd);
 
-void atomisp_css_stop(struct atomisp_sub_device *asd,
-		      enum ia_css_pipe_id pipe_id, bool in_reset);
+void atomisp_css_stop(struct atomisp_sub_device *asd, bool in_reset);
 
 void atomisp_css_continuous_set_num_raw_frames(
      struct atomisp_sub_device *asd,

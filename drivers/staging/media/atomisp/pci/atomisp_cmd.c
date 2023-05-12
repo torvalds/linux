@@ -932,7 +932,6 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	struct atomisp_device *isp = container_of(work, struct atomisp_device,
 						  assert_recovery_work);
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	enum ia_css_pipe_id css_pipe_id;
 	unsigned long flags;
 	int ret;
 
@@ -954,8 +953,7 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	atomisp_clear_css_buffer_counters(&isp->asd);
 
-	css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-	atomisp_css_stop(&isp->asd, css_pipe_id, true);
+	atomisp_css_stop(&isp->asd, true);
 
 	isp->asd.preview_exp_id = 1;
 	isp->asd.postview_exp_id = 1;
@@ -976,8 +974,7 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
-	css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-	if (atomisp_css_start(&isp->asd, css_pipe_id, true)) {
+	if (atomisp_css_start(&isp->asd, true)) {
 		dev_warn(isp->dev, "start SP failed, so do not set streaming to be enable!\n");
 	} else {
 		spin_lock_irqsave(&isp->lock, flags);
