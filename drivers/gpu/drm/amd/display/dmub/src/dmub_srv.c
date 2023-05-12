@@ -32,6 +32,7 @@
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
 #include "dmub_dcn31.h"
+#include "dmub_dcn314.h"
 #include "dmub_dcn315.h"
 #include "dmub_dcn316.h"
 #include "dmub_dcn32.h"
@@ -226,7 +227,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 	case DMUB_ASIC_DCN314:
 	case DMUB_ASIC_DCN315:
 	case DMUB_ASIC_DCN316:
-		if (asic == DMUB_ASIC_DCN315)
+		if (asic == DMUB_ASIC_DCN314)
+			dmub->regs_dcn31 = &dmub_srv_dcn314_regs;
+		else if (asic == DMUB_ASIC_DCN315)
 			dmub->regs_dcn31 = &dmub_srv_dcn315_regs;
 		else if (asic == DMUB_ASIC_DCN316)
 			dmub->regs_dcn31 = &dmub_srv_dcn316_regs;
