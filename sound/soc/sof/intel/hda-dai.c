@@ -259,14 +259,6 @@ static int hda_dai_hw_params(struct snd_pcm_substream *substream,
 	return hda_dai_config(w, flags, &data);
 }
 
-static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	int stream = substream->stream;
-
-	return hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, dai);
-}
-
 /*
  * In contrast to IPC3, the dai trigger in IPC4 mixes pipeline state changes
  * (over IPC channel) and DMA state change (direct host register changes).
@@ -323,6 +315,14 @@ static int hda_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 	}
 
 	return 0;
+}
+
+static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	int stream = substream->stream;
+
+	return hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, dai);
 }
 
 static const struct snd_soc_dai_ops hda_dai_ops = {
