@@ -1305,14 +1305,9 @@ static int amdgpu_mes_test_queues(struct amdgpu_ring **added_rings)
 		if (!ring)
 			continue;
 
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			DRM_DEV_ERROR(ring->adev->dev,
-				      "ring %s test failed (%d)\n",
-				      ring->name, r);
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		} else
-			DRM_INFO("ring %s test pass\n", ring->name);
 
 		r = amdgpu_ring_test_ib(ring, 1000 * 10);
 		if (r) {

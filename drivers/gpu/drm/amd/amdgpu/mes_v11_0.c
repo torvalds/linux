@@ -882,12 +882,7 @@ static int mes_v11_0_kiq_enable_queue(struct amdgpu_device *adev)
 
 	kiq->pmf->kiq_map_queues(kiq_ring, &adev->mes.ring);
 
-	r = amdgpu_ring_test_ring(kiq_ring);
-	if (r) {
-		DRM_ERROR("kfq enable failed\n");
-		kiq_ring->sched.ready = false;
-	}
-	return r;
+	return amdgpu_ring_test_helper(kiq_ring);
 }
 
 static int mes_v11_0_queue_init(struct amdgpu_device *adev,
