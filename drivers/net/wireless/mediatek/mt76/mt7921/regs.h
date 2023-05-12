@@ -158,7 +158,6 @@
 
 #define MT_MIB_MB_SDR0(_band, n)	MT_WF_MIB(_band, 0x100 + ((n) << 4))
 #define MT_MIB_RTS_RETRIES_COUNT_MASK	GENMASK(31, 16)
-#define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
 #define MT_MIB_MB_BSDR0(_band)		MT_WF_MIB(_band, 0x688)
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
