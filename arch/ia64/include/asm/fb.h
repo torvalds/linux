@@ -2,7 +2,9 @@
 #ifndef _ASM_FB_H_
 #define _ASM_FB_H_
 
+#include <linux/compiler.h>
 #include <linux/efi.h>
+#include <linux/string.h>
 
 #include <asm/page.h>
 
@@ -17,6 +19,24 @@ static inline void fb_pgprotect(struct file *file, struct vm_area_struct *vma,
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 }
 #define fb_pgprotect fb_pgprotect
+
+static inline void fb_memcpy_fromfb(void *to, const volatile void __iomem *from, size_t n)
+{
+	memcpy(to, (void __force *)from, n);
+}
+#define fb_memcpy_fromfb fb_memcpy_fromfb
+
+static inline void fb_memcpy_tofb(volatile void __iomem *to, const void *from, size_t n)
+{
+	memcpy((void __force *)to, from, n);
+}
+#define fb_memcpy_tofb fb_memcpy_tofb
+
+static inline void fb_memset(volatile void __iomem *addr, int c, size_t n)
+{
+	memset((void __force *)addr, c, n);
+}
+#define fb_memset fb_memset
 
 #include <asm-generic/fb.h>
 
