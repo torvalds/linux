@@ -952,8 +952,8 @@ EXPORT_SYMBOL_GPL(mt7921_reset);
 
 void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt7921_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
 	int i, aggr0 = 0, aggr1;
 	u32 val;
 
