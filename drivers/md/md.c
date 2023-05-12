@@ -9100,6 +9100,7 @@ void md_do_sync(struct md_thread *thread)
 	spin_unlock(&mddev->lock);
 
 	wake_up(&resync_wait);
+	wake_up(&mddev->sb_wait);
 	md_wakeup_thread(mddev->thread);
 	return;
 }
