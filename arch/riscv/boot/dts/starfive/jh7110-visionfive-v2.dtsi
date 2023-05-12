@@ -628,7 +628,11 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	phy0: ethernet-phy@0 {
-		rxc_dly_en = <1>;
+		rgmii_sw_dr_2 = <0x0>;
+		rgmii_sw_dr = <0x3>;
+		rgmii_sw_dr_rxc = <0x6>;
+		rxc_dly_en = <0>;
+		rx_delay_sel = <0xa>;
 		tx_delay_sel_fe = <5>;
 		tx_delay_sel = <0xa>;
 		tx_inverted_10 = <0x1>;
@@ -642,9 +646,13 @@
 	#size-cells = <0>;
 	status = "okay";
 	phy1: ethernet-phy@1 {
+		rgmii_sw_dr_2 = <0x0>;
+		rgmii_sw_dr = <0x3>;
+		rgmii_sw_dr_rxc = <0x6>;
 		tx_delay_sel_fe = <5>;
 		tx_delay_sel = <0>;
 		rxc_dly_en = <0>;
+		rx_delay_sel = <0x2>;
 		tx_inverted_10 = <0x1>;
 		tx_inverted_100 = <0x1>;
 		tx_inverted_1000 = <0x0>;
