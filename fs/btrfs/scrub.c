@@ -552,48 +552,6 @@ out:
 	btrfs_free_path(path);
 }
 
-static inline int scrub_nr_raid_mirrors(struct btrfs_io_context *bioc)
-{
-	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID5)
-		return 2;
-	else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID6)
-		return 3;
-	else
-		return (int)bioc->num_stripes;
-}
-
-static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
-						 u64 full_stripe_logical,
-						 int nstripes, int mirror,
-						 int *stripe_index,
-						 u64 *stripe_offset)
-{
-	int i;
-
-	if (map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		const int nr_data_stripes = (map_type & BTRFS_BLOCK_GROUP_RAID5) ?
-					    nstripes - 1 : nstripes - 2;
-
-		/* RAID5/6 */
-		for (i = 0; i < nr_data_stripes; i++) {
-			const u64 data_stripe_start = full_stripe_logical +
-						(i * BTRFS_STRIPE_LEN);
-
-			if (logical >= data_stripe_start &&
-			    logical < data_stripe_start + BTRFS_STRIPE_LEN)
-				break;
-		}
-
-		*stripe_index = i;
-		*stripe_offset = (logical - full_stripe_logical) &
-				 BTRFS_STRIPE_LEN_MASK;
-	} else {
-		/* The other RAID type */
-		*stripe_index = mirror;
-		*stripe_offset = 0;
-	}
-}
-
 static int fill_writer_pointer_gap(struct scrub_ctx *sctx, u64 physical)
 {
 	int ret = 0;
