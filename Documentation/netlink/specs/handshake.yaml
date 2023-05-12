@@ -68,6 +68,9 @@ attribute-sets:
         type: nest
         nested-attributes: x509
         multi-attr: true
+      -
+        name: peername
+        type: string
   -
     name: done
     attributes:
@@ -105,6 +108,7 @@ operations:
             - auth-mode
             - peer-identity
             - certificate
+            - peername
     -
       name: done
       doc: Handler reports handshake completion
