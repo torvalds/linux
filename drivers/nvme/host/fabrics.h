@@ -181,7 +181,7 @@ nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 	    ctrl->state == NVME_CTRL_DEAD ||
 	    strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
 	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
-	    memcmp(&opts->host->id, &ctrl->opts->host->id, sizeof(uuid_t)))
+	    !uuid_equal(&opts->host->id, &ctrl->opts->host->id))
 		return false;
 
 	return true;
