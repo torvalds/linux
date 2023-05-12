@@ -429,17 +429,17 @@ uint32_t amdgpu_amdkfd_get_fw_version(struct amdgpu_device *adev,
 
 void amdgpu_amdkfd_get_local_mem_info(struct amdgpu_device *adev,
 				      struct kfd_local_mem_info *mem_info,
-				      uint8_t xcp_id)
+				      struct amdgpu_xcp *xcp)
 {
 	memset(mem_info, 0, sizeof(*mem_info));
 
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+	if (xcp) {
 		if (adev->gmc.real_vram_size == adev->gmc.visible_vram_size)
 			mem_info->local_mem_size_public =
-					KFD_XCP_MEMORY_SIZE(adev, xcp_id);
+					KFD_XCP_MEMORY_SIZE(adev, xcp->id);
 		else
 			mem_info->local_mem_size_private =
-					KFD_XCP_MEMORY_SIZE(adev, xcp_id);
+					KFD_XCP_MEMORY_SIZE(adev, xcp->id);
 	} else {
 		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
 		mem_info->local_mem_size_private = adev->gmc.real_vram_size -

@@ -784,7 +784,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		atomic_set(&node->sram_ecc_flag, 0);
 
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
-					&node->local_mem_info, node->xcp->id);
+					&node->local_mem_info, node->xcp);
 
 		/* Initialize the KFD node */
 		if (kfd_init_node(node)) {

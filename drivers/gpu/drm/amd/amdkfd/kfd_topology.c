@@ -1235,7 +1235,7 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 	 *	all the banks will report the same mem_clk_max information
 	 */
 	amdgpu_amdkfd_get_local_mem_info(dev->gpu->adev, &local_mem_info,
-					 dev->gpu->xcp->id);
+					 dev->gpu->xcp);
 
 	list_for_each_entry(mem, &dev->mem_props, list)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
