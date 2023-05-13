@@ -250,11 +250,16 @@ $(MAN_HTML): $(OUTPUT)%.html : %.txt
 		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) -o $@+ $< && \
 	mv $@+ $@
 
+# Generate date from git log of the doc input file
+PERF_DATE = $(shell git log -1 --pretty="format:%cd" \
+                --date=short --no-show-signature $<)
+
 ifdef USE_ASCIIDOCTOR
 $(OUTPUT)%.1 $(OUTPUT)%.5 $(OUTPUT)%.7 : %.txt
 	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
 	$(ASCIIDOC) -b manpage -d manpage \
-		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) -o $@+ $< && \
+		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) \
+		-adocdate=$(PERF_DATE) -o $@+ $< && \
 	mv $@+ $@
 endif
 
@@ -266,9 +271,7 @@ $(OUTPUT)%.xml : %.txt
 	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
 	$(ASCIIDOC) -b docbook -d manpage \
 		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) \
-		-aperf_date=$(shell git log -1 --pretty="format:%cd" \
-				--date=short --no-show-signature $<) \
-		-o $@+ $< && \
+		-aperf_date=$(PERF_DATE) -o $@+ $< && \
 	mv $@+ $@
 
 XSLT = docbook.xsl
