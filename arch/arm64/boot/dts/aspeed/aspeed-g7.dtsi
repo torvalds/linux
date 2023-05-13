@@ -415,6 +415,7 @@
 			compatible = "ns16550a";
 			reg = <0x0 0x12c1a000 0x0 0x1000>;
 			reg-shift = <2>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_UART4CLK>;
 			clock-frequency = <1846154>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
@@ -562,7 +563,7 @@
 			reg = <0x0 0x14c33000 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART0CLK>;
 			interrupts-extended = <&intc4 7>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -574,7 +575,7 @@
 			reg = <0x0 0x14c33100 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART1CLK>;
 			interrupts-extended = <&intc4 8>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -586,7 +587,7 @@
 			reg = <0x0 0x14c33200 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART2CLK>;
 			interrupts-extended = <&intc4 9>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -598,7 +599,7 @@
 			reg = <0x0 0x14c33300 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART3CLK>;
 			interrupts-extended = <&intc4 10>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -610,7 +611,7 @@
 			reg = <0x0 0x14c33400 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART5CLK>;
 			interrupts-extended = <&intc4 11>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -622,7 +623,7 @@
 			reg = <0x0 0x14c33500 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART6CLK>;
 			interrupts-extended = <&intc4 12>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -634,7 +635,7 @@
 			reg = <0x0 0x14c33600 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART7CLK>;
 			interrupts-extended = <&intc4 13>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -646,7 +647,7 @@
 			reg = <0x0 0x14c33700 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART8CLK>;
 			interrupts-extended = <&intc4 14>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -658,7 +659,7 @@
 			reg = <0x0 0x14c33800 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART9CLK>;
 			interrupts-extended = <&intc4 15>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -670,7 +671,7 @@
 			reg = <0x0 0x14c33900 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART10CLK>;
 			interrupts-extended = <&intc4 16>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -682,7 +683,7 @@
 			reg = <0x0 0x14c33a00 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART11CLK>;
 			interrupts-extended = <&intc4 17>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -694,7 +695,7 @@
 			reg = <0x0 0x14c33b00 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clock-frequency = <1846154>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_UART12CLK>;
 			interrupts-extended = <&intc4 18>;
 			no-loopback-test;
 			pinctrl-names = "default";

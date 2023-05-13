@@ -41,6 +41,14 @@
 	};
 };
 
+&uart4 {
+	clock-frequency = <1846154>;
+};
+
+&uart12 {
+	clock-frequency = <1846154>;
+};
+
 &mdio0 {
 	status = "okay";
 	#address-cells = <1>;
