@@ -13,7 +13,7 @@
 #define QCOM_SCM_RM_MANAGED_VMID	0x3A
 #define QCOM_SCM_MAX_MANAGED_VMID	0x3F
 
-static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel)
+static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_parcel)
 {
 	struct qcom_scm_vmperm *new_perms;
 	u64 src, src_cpy;
@@ -72,7 +72,7 @@ static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parce
 	return ret;
 }
 
-static int qcom_scm_gh_rm_post_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel)
+static int qcom_scm_gh_rm_post_mem_reclaim(void *rm, struct gh_rm_mem_parcel *mem_parcel)
 {
 	struct qcom_scm_vmperm new_perms;
 	u64 src = 0, src_cpy;

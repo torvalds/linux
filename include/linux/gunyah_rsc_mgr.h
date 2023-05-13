@@ -14,10 +14,10 @@
 #define GH_MEM_HANDLE_INVAL	U32_MAX
 
 struct gh_rm;
-int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buf, size_t req_buf_size,
+int gh_rm_call(void *rm, u32 message_id, void *req_buf, size_t req_buf_size,
 		void **resp_buf, size_t *resp_buf_size);
-int gh_rm_notifier_register(struct gh_rm *rm, struct notifier_block *nb);
-int gh_rm_notifier_unregister(struct gh_rm *rm, struct notifier_block *nb);
+int gh_rm_notifier_register(void *rm, struct notifier_block *nb);
+int gh_rm_notifier_unregister(void *rm, struct notifier_block *nb);
 struct device *gh_rm_get(struct gh_rm *rm);
 void gh_rm_put(struct gh_rm *rm);
 
@@ -147,8 +147,8 @@ struct gh_resource *gh_rm_alloc_resource(struct gh_rm *rm, struct gh_rm_hyp_reso
 void gh_rm_free_resource(struct gh_resource *ghrsc);
 
 struct gh_rm_platform_ops {
-	int (*pre_mem_share)(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel);
-	int (*post_mem_reclaim)(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel);
+	int (*pre_mem_share)(void *rm, struct gh_rm_mem_parcel *mem_parcel);
+	int (*post_mem_reclaim)(void *rm, struct gh_rm_mem_parcel *mem_parcel);
 };
 
 #if IS_ENABLED(CONFIG_GUNYAH_PLATFORM_HOOKS)

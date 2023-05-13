@@ -631,9 +631,10 @@ out:
  * Context: Process context. Will sleep waiting for reply.
  * Return: 0 on success. <0 if error.
  */
-int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buf, size_t req_buf_size,
+int gh_rm_call(void *_rm, u32 message_id, void *req_buf, size_t req_buf_size,
 		void **resp_buf, size_t *resp_buf_size)
 {
+	struct gh_rm *rm = _rm;
 	struct gh_rm_connection *connection;
 	u32 seq_id;
 	int ret;
@@ -708,14 +709,18 @@ free:
 EXPORT_SYMBOL_GPL(gh_rm_call);
 
 
-int gh_rm_notifier_register(struct gh_rm *rm, struct notifier_block *nb)
+int gh_rm_notifier_register(void *_rm, struct notifier_block *nb)
 {
+	struct gh_rm *rm = _rm;
+
 	return blocking_notifier_chain_register(&rm->nh, nb);
 }
 EXPORT_SYMBOL_GPL(gh_rm_notifier_register);
 
-int gh_rm_notifier_unregister(struct gh_rm *rm, struct notifier_block *nb)
+int gh_rm_notifier_unregister(void *_rm, struct notifier_block *nb)
 {
+	struct gh_rm *rm = _rm;
+
 	return blocking_notifier_chain_unregister(&rm->nh, nb);
 }
 EXPORT_SYMBOL_GPL(gh_rm_notifier_unregister);
