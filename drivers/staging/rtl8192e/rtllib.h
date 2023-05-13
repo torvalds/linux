@@ -1651,8 +1651,6 @@ struct rtllib_device {
 	};
 
 	/* Callback functions */
-	void (*set_security)(struct net_device *dev,
-			     struct rtllib_security *sec);
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is

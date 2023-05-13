@@ -416,10 +416,6 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	 */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
-
-	if (ieee->set_security)
-		ieee->set_security(dev, &sec);
-
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_set_encode);
@@ -611,8 +607,6 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			sec.flags &= ~SEC_LEVEL;
 	}
 done:
-	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_encode_ext);
