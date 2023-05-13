@@ -884,6 +884,11 @@ properties:
 
       - items:
           - enum:
+              - fxtec,pro1x
+          - const: qcom,sm6115
+
+      - items:
+          - enum:
               - lenovo,j606f
           - const: qcom,sm6115p
           - const: qcom,sm6115
