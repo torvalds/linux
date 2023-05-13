@@ -362,6 +362,12 @@
 			J721E_WKUP_IOPAD(0xb8, PIN_INPUT, 7) /* (F28) WKUP_GPIO0_2 */
 		>;
 	};
+
+	wkup_gpio_pins_default: wkup-gpio-pins-default {
+		pinctrl-single,pins = <
+			J721E_WKUP_IOPAD(0xd0, PIN_INPUT, 7) /* (C14) WKUP_GPIO0_8 */
+		>;
+	};
 };
 
 &wkup_uart0 {
@@ -417,6 +423,11 @@
 
 &main_gpio7 {
 	status = "disabled";
+};
+
+&wkup_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_gpio_pins_default>;
 };
 
 &wkup_gpio1 {
