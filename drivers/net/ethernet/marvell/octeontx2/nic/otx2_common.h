@@ -186,7 +186,7 @@ struct otx2_hw {
 	u16                     rx_queues;
 	u16                     tx_queues;
 	u16                     xdp_queues;
-	u16                     tot_tx_queues;
+	u16                     non_qos_queues; /* tx queues plus xdp queues */
 	u16			max_queues;
 	u16			pool_cnt;
 	u16			rqpool_cnt;
