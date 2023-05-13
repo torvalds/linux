@@ -572,8 +572,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	/* If there is no driver handler to take the TXB, don't bother
 	 * creating it...
 	 */
-	if ((!ieee->hard_start_xmit && !(ieee->softmac_features &
-	   IEEE_SOFTMAC_TX_QUEUE)) ||
+	if (!(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) ||
 	   ((!ieee->softmac_data_hard_start_xmit &&
 	   (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		netdev_warn(ieee->dev, "No xmit handler.\n");
@@ -938,11 +937,6 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_bytes += le16_to_cpu(txb->payload_size);
 			rtllib_softmac_xmit(txb, ieee);
 		} else {
-			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
-				stats->tx_packets++;
-				stats->tx_bytes += le16_to_cpu(txb->payload_size);
-				return 0;
-			}
 			rtllib_txb_free(txb);
 		}
 	}

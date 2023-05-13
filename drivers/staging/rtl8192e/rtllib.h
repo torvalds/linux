@@ -1654,13 +1654,6 @@ struct rtllib_device {
 	void (*set_security)(struct net_device *dev,
 			     struct rtllib_security *sec);
 
-	/* Used to TX data frame by using txb structs.
-	 * this is not used if in the softmac_features
-	 * is set the flag IEEE_SOFTMAC_TX_QUEUE
-	 */
-	int (*hard_start_xmit)(struct rtllib_txb *txb,
-			       struct net_device *dev);
-
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
 	 * not set. As some cards may have different HW queues that
