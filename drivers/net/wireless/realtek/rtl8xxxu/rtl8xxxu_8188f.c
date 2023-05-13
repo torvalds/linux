@@ -654,7 +654,7 @@ static void rtl8188fu_config_channel(struct ieee80211_hw *hw)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_RX_BB2, val32);
 
 	/* RC Corner */
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x00140);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x00140);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_RX_G2, 0x01c6c);
 }
 
@@ -854,8 +854,8 @@ static int rtl8188fu_iqk_path_a(struct rtl8xxxu_priv *priv, u32 *lok_result)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0x07ff7);
 
 	/* PA,PAD gain adjust */
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x980);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x5102a);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x980);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, 0x5102a);
 
 	/* enter IQK mode */
 	val32 = rtl8xxxu_read32(priv, REG_FPGA0_IQK);
@@ -886,7 +886,7 @@ static int rtl8188fu_iqk_path_a(struct rtl8xxxu_priv *priv, u32 *lok_result)
 	val32 &= 0x000000ff;
 	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x180);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x180);
 
 	/* save LOK result */
 	*lok_result = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_TXM_IDAC);
@@ -927,8 +927,8 @@ static int rtl8188fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0xf1173);
 
 	/* PA,PAD gain adjust */
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x980);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x5102a);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x980);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, 0x5102a);
 
 	/*
 	 * Enter IQK mode
@@ -967,7 +967,7 @@ static int rtl8188fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	val32 &= 0x000000ff;
 	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x180);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x180);
 
 	/* Check failed */
 	reg_eac = rtl8xxxu_read32(priv, REG_RX_POWER_AFTER_IQK_A_2);
@@ -1002,8 +1002,8 @@ static int rtl8188fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	/*
 	 * PA, PAD setting
 	 */
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x980);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x51000);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x980);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_PAD_TXG, 0x51000);
 
 	/*
 	 * Enter IQK mode
@@ -1041,7 +1041,7 @@ static int rtl8188fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	val32 &= 0x000000ff;
 	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
 
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x180);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0x180);
 
 	/* reload LOK value */
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXM_IDAC, lok_result);

@@ -569,7 +569,7 @@ static void rtl8192fu_config_kfree(struct rtl8xxxu_priv *priv, u8 channel)
 					  BIT(18), 1);
 
 		/* enter power_trim debug mode */
-		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_UNKNOWN_DF,
+		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_GAIN_CCA,
 					  BIT(7), 1);
 
 		/* write enable */
@@ -589,7 +589,7 @@ static void rtl8192fu_config_kfree(struct rtl8xxxu_priv *priv, u8 channel)
 					  0x3f, bb_gain_for_path);
 
 		/* leave power_trim debug mode */
-		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_UNKNOWN_DF,
+		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_GAIN_CCA,
 					  BIT(7), 0);
 
 		/* write disable */
@@ -831,13 +831,13 @@ static int rtl8192fu_iqk_path_a(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_SW_CTRL, 0x04203400);
 	rtl8xxxu_write32(priv, REG_FPGA0_XA_HSSI_PARM1, 0x01000100);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(4), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(4), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(11), 1);
 	if (rfe == 7 || rfe == 8 || rfe == 9 || rfe == 12)
 		val32 = 0x30;
 	else
 		val32 = 0xe9;
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x003ff, val32);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_PAD_TXG, 0x003ff, val32);
 
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0x808000);
 
@@ -893,7 +893,7 @@ static int rtl8192fu_iqk_path_a(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_AC, BIT(14), 0);
 	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_WE_LUT, BIT(4), 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, 0x00810, 0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, 0x00810, 0);
 
 	if (!(reg_eac & BIT(28)) &&
 	    ((reg_e94 & 0x03ff0000) != 0x01420000) &&
@@ -913,10 +913,10 @@ static int rtl8192fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
 	/* PA/PAD control by 0x56, and set = 0x0 */
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(1), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(1), 1);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_P1, 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x003ff, 0x27);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_PAD_TXG, 0x003ff, 0x27);
 
 	/* Enter IQK mode */
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0x808000);
@@ -962,7 +962,7 @@ static int rtl8192fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 		/* PA/PAD controlled by 0x0 */
 		rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
-		rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF,
+		rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA,
 					  BIT(11), 0);
 
 		return result;
@@ -975,10 +975,10 @@ static int rtl8192fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
 	/* PA/PAD control by 0x56, and set = 0x0 */
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(1), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(1), 1);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_P1, 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_56, 0x003ff, 0x1e0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_PAD_TXG, 0x003ff, 0x1e0);
 
 	rtl8xxxu_write32(priv, REG_FPGA0_ANALOG4, 0xccf000c0);
 	rtl8xxxu_write32(priv, REG_ANAPWR1, 0x44ffbb44);
@@ -1025,7 +1025,7 @@ static int rtl8192fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	/* Leave IQK mode */
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_UNKNOWN_DF, BIT(11), 0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_A, RF6052_REG_GAIN_CCA, BIT(11), 0);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_P1, 0x02000);
 
 	if (!(reg_eac & BIT(27)) &&
@@ -1055,13 +1055,13 @@ static int rtl8192fu_iqk_path_b(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_SW_CTRL, 0x04203400);
 	rtl8xxxu_write32(priv, REG_FPGA0_XA_HSSI_PARM1, 0x01000000);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(4), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(4), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(11), 1);
 	if (rfe == 7 || rfe == 8 || rfe == 9 || rfe == 12)
-		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_56,
+		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_PAD_TXG,
 					  0x003ff, 0x30);
 	else
-		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_56,
+		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_PAD_TXG,
 					  0x00fff, 0xe9);
 
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0x808000);
@@ -1118,7 +1118,7 @@ static int rtl8192fu_iqk_path_b(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_AC, BIT(14), 0);
 	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_WE_LUT, BIT(4), 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, 0x00810, 0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, 0x00810, 0);
 
 	if (!(reg_eac & BIT(31)) &&
 	    ((reg_eb4 & 0x03ff0000) != 0x01420000) &&
@@ -1140,10 +1140,10 @@ static int rtl8192fu_rx_iqk_path_b(struct rtl8xxxu_priv *priv)
 	/* Leave IQK mode */
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(1), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(1), 1);
 	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_GAIN_P1, 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_56, 0x003ff, 0x67);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_PAD_TXG, 0x003ff, 0x67);
 
 	rtl8xxxu_write32(priv, REG_FPGA0_ANALOG4, 0xccf000c0);
 	rtl8xxxu_write32(priv, REG_ANAPWR1, 0x44ffbb44);
@@ -1192,7 +1192,7 @@ static int rtl8192fu_rx_iqk_path_b(struct rtl8xxxu_priv *priv)
 		/* PA/PAD controlled by 0x0 */
 		rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
-		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF,
+		rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA,
 					  BIT(11), 0);
 
 		return result;
@@ -1204,10 +1204,10 @@ static int rtl8192fu_rx_iqk_path_b(struct rtl8xxxu_priv *priv)
 	/* Modify RX IQK mode table */
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(1), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(1), 1);
 	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_GAIN_P1, 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(11), 1);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_56, 0x003ff, 0x1e0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(11), 1);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_PAD_TXG, 0x003ff, 0x1e0);
 
 	rtl8xxxu_write32(priv, REG_FPGA0_ANALOG4, 0xccf000c0);
 	rtl8xxxu_write32(priv, REG_ANAPWR1, 0x44ffbb44);
@@ -1253,8 +1253,8 @@ static int rtl8192fu_rx_iqk_path_b(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 	rtl8xxxu_write32(priv, REG_FPGA0_XA_HSSI_PARM1, 0x01000100);
 
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(11), 0);
-	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_UNKNOWN_DF, BIT(1), 0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(11), 0);
+	rtl8xxxu_write_rfreg_mask(priv, RF_B, RF6052_REG_GAIN_CCA, BIT(1), 0);
 	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_GAIN_P1, 0x02000);
 
 	if (!(reg_eac & BIT(30)) &&
@@ -1472,9 +1472,9 @@ static void rtl8192fu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 
 	rfe_path_select = rtl8xxxu_read32(priv, REG_RFE_PATH_SELECT);
 
-	path_a_0xdf = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF);
+	path_a_0xdf = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA);
 	path_a_0x35 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_GAIN_P1);
-	path_b_0xdf = rtl8xxxu_read_rfreg(priv, RF_B, RF6052_REG_UNKNOWN_DF);
+	path_b_0xdf = rtl8xxxu_read_rfreg(priv, RF_B, RF6052_REG_GAIN_CCA);
 	path_b_0x35 = rtl8xxxu_read_rfreg(priv, RF_B, RF6052_REG_GAIN_P1);
 
 	memset(result, 0, sizeof(result));
@@ -1550,9 +1550,9 @@ static void rtl8192fu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 						   candidate, (reg_ec4 == 0));
 	}
 
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_DF, path_a_0xdf);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, path_a_0xdf);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_P1, path_a_0x35);
-	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_UNKNOWN_DF, path_b_0xdf);
+	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_GAIN_CCA, path_b_0xdf);
 	rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_GAIN_P1, path_b_0x35);
 
 	if (rfe == 7 || rfe == 8 || rfe == 9 || rfe == 12) {

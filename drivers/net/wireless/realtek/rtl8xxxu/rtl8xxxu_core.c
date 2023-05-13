@@ -643,7 +643,7 @@ const u32 rtl8xxxu_iqk_phy_iq_bb_reg[RTL8XXXU_BB_REGS] = {
 	REG_OFDM0_XA_RX_IQ_IMBALANCE,
 	REG_OFDM0_XB_RX_IQ_IMBALANCE,
 	REG_OFDM0_ENERGY_CCA_THRES,
-	REG_OFDM0_AGCR_SSI_TABLE,
+	REG_OFDM0_AGC_RSSI_TABLE,
 	REG_OFDM0_XA_TX_IQ_IMBALANCE,
 	REG_OFDM0_XB_TX_IQ_IMBALANCE,
 	REG_OFDM0_XC_TX_AFE,
@@ -2881,10 +2881,10 @@ void rtl8xxxu_fill_iqk_matrix_b(struct rtl8xxxu_priv *priv, bool iqk_ok,
 	if (priv->rtl_chip == RTL8192F) {
 		rtl8xxxu_write32_mask(priv, REG_RXIQB_EXT, 0x000000f0, reg);
 	} else {
-		val32 = rtl8xxxu_read32(priv, REG_OFDM0_AGCR_SSI_TABLE);
+		val32 = rtl8xxxu_read32(priv, REG_OFDM0_AGC_RSSI_TABLE);
 		val32 &= ~0x0000f000;
 		val32 |= (reg << 12);
-		rtl8xxxu_write32(priv, REG_OFDM0_AGCR_SSI_TABLE, val32);
+		rtl8xxxu_write32(priv, REG_OFDM0_AGC_RSSI_TABLE, val32);
 	}
 }
 
