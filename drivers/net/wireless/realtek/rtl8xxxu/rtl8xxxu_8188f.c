@@ -351,7 +351,7 @@ out:
 	return ret;
 }
 
-static void rtl8188f_channel_to_group(int channel, int *group, int *cck_group)
+void rtl8188f_channel_to_group(int channel, int *group, int *cck_group)
 {
 	if (channel < 3)
 		*group = 0;
@@ -1748,6 +1748,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.init_reg_hmtfr = 1,
 	.ampdu_max_time = 0x70,
 	.ustime_tsf_edca = 0x28,
+	.max_aggr_num = 0x0c14,
 	.supports_ap = 1,
 	.max_macid_num = 16,
 	.adda_1t_init = 0x03c00014,

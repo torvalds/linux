@@ -1741,6 +1741,7 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_reg_hmtfr = 1,
 	.ampdu_max_time = 0x5e,
 	.ustime_tsf_edca = 0x50,
+	.max_aggr_num = 0x0c14,
 	.adda_1t_init = 0x01c00014,
 	.adda_1t_path_on = 0x01c00014,
 	.adda_2t_path_on_a = 0x01c00014,
