@@ -1099,8 +1099,18 @@ static inline void otx2_qos_init(struct otx2_nic *pfvf, int qos_txqs)
 	struct otx2_hw *hw = &pfvf->hw;
 
 	hw->tc_tx_queues = qos_txqs;
+	INIT_LIST_HEAD(&pfvf->qos.qos_tree);
+	mutex_init(&pfvf->qos.qos_lock);
+}
+
+static inline void otx2_shutdown_qos(struct otx2_nic *pfvf)
+{
+	mutex_destroy(&pfvf->qos.qos_lock);
 }
 
 u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 		      struct net_device *sb_dev);
+int otx2_get_txq_by_classid(struct otx2_nic *pfvf, u16 classid);
+void otx2_qos_config_txschq(struct otx2_nic *pfvf);
+void otx2_clean_qos_queues(struct otx2_nic *pfvf);
 #endif /* OTX2_COMMON_H */

@@ -19,6 +19,7 @@
 
 #include "cn10k.h"
 #include "otx2_common.h"
+#include "qos.h"
 
 #define CN10K_MAX_BURST_MANTISSA	0x7FFFULL
 #define CN10K_MAX_BURST_SIZE		8453888ULL
@@ -132,8 +133,8 @@ static void otx2_get_egress_rate_cfg(u64 maxrate, u32 *exp,
 	}
 }
 
-static u64 otx2_get_txschq_rate_regval(struct otx2_nic *nic,
-				       u64 maxrate, u32 burst)
+u64 otx2_get_txschq_rate_regval(struct otx2_nic *nic,
+				u64 maxrate, u32 burst)
 {
 	u32 burst_exp, burst_mantissa;
 	u32 exp, mantissa, div_exp;
@@ -1109,6 +1110,8 @@ int otx2_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return otx2_setup_tc_block(netdev, type_data);
+	case TC_SETUP_QDISC_HTB:
+		return otx2_setup_tc_htb(netdev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
