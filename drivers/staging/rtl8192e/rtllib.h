@@ -1714,8 +1714,6 @@ struct rtllib_device {
 	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device *dev);
 	u8   (*rtllib_ap_sec_type)(struct rtllib_device *ieee);
 	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
-	bool (*SetFwCmdHandler)(struct net_device *dev,
-				enum fw_cmd_io_type FwCmdIO);
 	void (*UpdateBeaconInterruptHandler)(struct net_device *dev,
 					     bool start);
 	void (*ScanOperationBackupHandler)(struct net_device *dev,

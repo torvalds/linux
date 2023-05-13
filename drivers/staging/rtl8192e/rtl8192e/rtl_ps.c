@@ -217,12 +217,8 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 	if (psc->bLeisurePs) {
 		if (psc->LpsIdleCount >= RT_CHECK_FOR_HANG_PERIOD) {
 
-			if (priv->rtllib->ps == RTLLIB_PS_DISABLED) {
-				if (priv->rtllib->SetFwCmdHandler)
-					priv->rtllib->SetFwCmdHandler(dev, FW_CMD_LPS_ENTER);
-				_rtl92e_ps_set_mode(dev, RTLLIB_PS_MBCAST |
-							 RTLLIB_PS_UNICAST);
-			}
+			if (priv->rtllib->ps == RTLLIB_PS_DISABLED)
+				_rtl92e_ps_set_mode(dev, RTLLIB_PS_MBCAST | RTLLIB_PS_UNICAST);
 		} else
 			psc->LpsIdleCount++;
 	}
@@ -235,10 +231,7 @@ void rtl92e_leisure_ps_leave(struct net_device *dev)
 					&priv->rtllib->pwr_save_ctrl;
 
 	if (psc->bLeisurePs) {
-		if (priv->rtllib->ps != RTLLIB_PS_DISABLED) {
+		if (priv->rtllib->ps != RTLLIB_PS_DISABLED)
 			_rtl92e_ps_set_mode(dev, RTLLIB_PS_DISABLED);
-			if (priv->rtllib->SetFwCmdHandler)
-				priv->rtllib->SetFwCmdHandler(dev, FW_CMD_LPS_LEAVE);
-		}
 	}
 }
