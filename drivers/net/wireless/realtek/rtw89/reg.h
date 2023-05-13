@@ -3841,6 +3841,7 @@
 #define RR_CAL_RW BIT(19)
 #define RR_LUTWE2 0xee
 #define RR_LUTWE2_RTXBW BIT(2)
+#define RR_LUTWE2_DIS BIT(6)
 #define RR_LUTWE 0xef
 #define RR_LUTWE_LOK BIT(2)
 #define RR_RFC 0xf0

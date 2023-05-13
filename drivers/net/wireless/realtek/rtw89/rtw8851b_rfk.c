@@ -35,6 +35,17 @@ enum rtw8851b_iqk_type {
 	ID_IQK_RESTORE = 0x10,
 };
 
+enum rf_mode {
+	RF_SHUT_DOWN = 0x0,
+	RF_STANDBY = 0x1,
+	RF_TX = 0x2,
+	RF_RX = 0x3,
+	RF_TXIQK = 0x4,
+	RF_DPK = 0x5,
+	RF_RXK1 = 0x6,
+	RF_RXK2 = 0x7,
+};
+
 static const u32 g_idxrxgain[RTW8851B_RXK_GROUP_NR] = {0x10e, 0x116, 0x28e, 0x296};
 static const u32 g_idxattc2[RTW8851B_RXK_GROUP_NR] = {0x0, 0xf, 0x0, 0xf};
 static const u32 g_idxrxagc[RTW8851B_RXK_GROUP_NR] = {0x0, 0x1, 0x2, 0x3};
@@ -425,6 +436,91 @@ static void _dac_cal(struct rtw89_dev *rtwdev, bool force)
 	dack->dack_done = true;
 	dack->dack_cnt++;
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]DACK finish!!!\n");
+}
+
+static void _rx_dck_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
+			 enum rtw89_rf_path path, bool is_afe)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RX_DCK] ==== S%d RX DCK (%s / CH%d / %s / by %s)====\n", path,
+		    chan->band_type == RTW89_BAND_2G ? "2G" :
+		    chan->band_type == RTW89_BAND_5G ? "5G" : "6G",
+		    chan->channel,
+		    chan->band_width == RTW89_CHANNEL_WIDTH_20 ? "20M" :
+		    chan->band_width == RTW89_CHANNEL_WIDTH_40 ? "40M" : "80M",
+		    is_afe ? "AFE" : "RFC");
+}
+
+static void _rxbb_ofst_swap(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, u8 rf_mode)
+{
+	u32 val, val_i, val_q;
+
+	val_i = rtw89_read_rf(rtwdev, path, RR_DCK, RR_DCK_S1);
+	val_q = rtw89_read_rf(rtwdev, path, RR_DCK1, RR_DCK1_S1);
+
+	val = val_q << 4 | val_i;
+
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_DIS, 0x1);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, rf_mode);
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RFREG_MASK, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_DIS, 0x0);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RX_DCK] val_i = 0x%x, val_q = 0x%x, 0x3F = 0x%x\n",
+		    val_i, val_q, val);
+}
+
+static void _set_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, u8 rf_mode)
+{
+	u32 val;
+	int ret;
+
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x0);
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x1);
+
+	ret = read_poll_timeout_atomic(rtw89_read_rf, val, val,
+				       2, 2000, false,
+				       rtwdev, path, RR_DCK, BIT(8));
+
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x0);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RX_DCK] S%d RXDCK finish (ret = %d)\n",
+		    path, ret);
+
+	_rxbb_ofst_swap(rtwdev, path, rf_mode);
+}
+
+static void _rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, bool is_afe)
+{
+	u32 rf_reg5;
+	u8 path;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RX_DCK] ****** RXDCK Start (Ver: 0x%x, Cv: %d) ******\n",
+		    0x2, rtwdev->hal.cv);
+
+	for (path = 0; path < RF_PATH_NUM_8851B; path++) {
+		_rx_dck_info(rtwdev, phy, path, is_afe);
+
+		rf_reg5 = rtw89_read_rf(rtwdev, path, RR_RSV1, RFREG_MASK);
+
+		if (rtwdev->is_tssi_mode[path])
+			rtw89_phy_write32_mask(rtwdev,
+					       R_P0_TSSI_TRK + (path << 13),
+					       B_P0_TSSI_TRK_EN, 0x1);
+
+		rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
+		rtw89_write_rf(rtwdev, path, RR_MOD, RR_MOD_MASK, RF_RX);
+		_set_rx_dck(rtwdev, path, RF_RX);
+		rtw89_write_rf(rtwdev, path, RR_RSV1, RFREG_MASK, rf_reg5);
+
+		if (rtwdev->is_tssi_mode[path])
+			rtw89_phy_write32_mask(rtwdev,
+					       R_P0_TSSI_TRK + (path << 13),
+					       B_P0_TSSI_TRK_EN, 0x0);
+	}
 }
 
 static void _iqk_sram(struct rtw89_dev *rtwdev, u8 path)
@@ -1551,6 +1647,21 @@ void rtw8851b_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 
 	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_IQK, BTC_WRFK_STOP);
+}
+
+void rtw8851b_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, 0);
+	u32 tx_en;
+
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_RXDCK, BTC_WRFK_START);
+	rtw89_chip_stop_sch_tx(rtwdev, phy_idx, &tx_en, RTW89_SCH_TX_SEL_ALL);
+	_wait_rx_mode(rtwdev, _kpath(rtwdev, phy_idx));
+
+	_rx_dck(rtwdev, phy_idx, false);
+
+	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_RXDCK, BTC_WRFK_STOP);
 }
 
 static void _bw_setting(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
