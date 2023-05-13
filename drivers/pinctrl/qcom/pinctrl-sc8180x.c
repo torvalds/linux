@@ -1622,7 +1622,8 @@ static const struct msm_pinctrl_soc_data sc8180x_acpi_pinctrl = {
 static int sc8180x_pinctrl_add_tile_resources(struct platform_device *pdev)
 {
 	int nres_num = pdev->num_resources + ARRAY_SIZE(sc8180x_tiles) - 1;
-	struct resource *mres, *nres, *res;
+	struct resource *mres = NULL;
+	struct resource *nres, *res;
 	int i, ret;
 
 	/*
@@ -1648,6 +1649,9 @@ static int sc8180x_pinctrl_add_tile_resources(struct platform_device *pdev)
 		else
 			*res++ = *r;
 	}
+
+	if (!mres)
+		return -EINVAL;
 
 	/* Append tile memory resources */
 	for (i = 0; i < ARRAY_SIZE(sc8180x_tiles); i++, res++) {
