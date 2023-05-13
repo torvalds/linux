@@ -389,10 +389,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
 		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
-
-	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
-
 	if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		rtllib_start_send_beacons(ieee);
 
@@ -505,12 +501,8 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 		    ieee->raw_tx ? "enabled" : "disabled");
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		if (prev == 0 && ieee->raw_tx) {
-			if (ieee->data_hard_resume)
-				ieee->data_hard_resume(ieee->dev);
-
+		if (prev == 0 && ieee->raw_tx)
 			netif_carrier_on(ieee->dev);
-		}
 
 		if (prev && ieee->raw_tx == 1)
 			netif_carrier_off(ieee->dev);
