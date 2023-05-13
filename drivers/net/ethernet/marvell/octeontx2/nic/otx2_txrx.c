@@ -468,12 +468,13 @@ process_cqe:
 			break;
 		}
 
-		if (cq->cq_type == CQ_XDP) {
+		qidx = cq->cq_idx - pfvf->hw.rx_queues;
+
+		if (cq->cq_type == CQ_XDP)
 			otx2_xdp_snd_pkt_handler(pfvf, sq, cqe);
-		} else {
-			otx2_snd_pkt_handler(pfvf, cq, sq, cqe, budget,
-					     &tx_pkts, &tx_bytes);
-		}
+		else
+			otx2_snd_pkt_handler(pfvf, cq, &pfvf->qset.sq[qidx],
+					     cqe, budget, &tx_pkts, &tx_bytes);
 
 		cqe->hdr.cqe_type = NIX_XQE_TYPE_INVALID;
 		processed_cqe++;
@@ -490,7 +491,11 @@ process_cqe:
 	if (likely(tx_pkts)) {
 		struct netdev_queue *txq;
 
-		txq = netdev_get_tx_queue(pfvf->netdev, cq->cint_idx);
+		qidx = cq->cq_idx - pfvf->hw.rx_queues;
+
+		if (qidx >= pfvf->hw.tx_queues)
+			qidx -= pfvf->hw.xdp_queues;
+		txq = netdev_get_tx_queue(pfvf->netdev, qidx);
 		netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 		/* Check if queue was stopped earlier due to ring full */
 		smp_mb();
@@ -738,7 +743,8 @@ static void otx2_sqe_add_hdr(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 		sqe_hdr->aura = sq->aura_id;
 		/* Post a CQE Tx after pkt transmission */
 		sqe_hdr->pnc = 1;
-		sqe_hdr->sq = qidx;
+		sqe_hdr->sq = (qidx >=  pfvf->hw.tx_queues) ?
+			       qidx + pfvf->hw.xdp_queues : qidx;
 	}
 	sqe_hdr->total = skb->len;
 	/* Set SQE identifier which will be used later for freeing SKB */
@@ -1223,8 +1229,10 @@ void otx2_cleanup_tx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq)
 	struct nix_cqe_tx_s *cqe;
 	int processed_cqe = 0;
 	struct sg_list *sg;
+	int qidx;
 
-	sq = &pfvf->qset.sq[cq->cint_idx];
+	qidx = cq->cq_idx - pfvf->hw.rx_queues;
+	sq = &pfvf->qset.sq[qidx];
 
 	if (otx2_nix_cq_op_status(pfvf, cq) || !cq->pend_cqe)
 		return;
