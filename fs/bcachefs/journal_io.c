@@ -1743,7 +1743,16 @@ void bch2_journal_write(struct closure *cl)
 	BUG_ON(u64s > j->entry_u64s_reserved);
 
 	le32_add_cpu(&jset->u64s, u64s);
-	BUG_ON(vstruct_sectors(jset, c->block_bits) > w->sectors);
+
+	sectors = vstruct_sectors(jset, c->block_bits);
+	bytes	= vstruct_bytes(jset);
+
+	if (sectors > w->sectors) {
+		bch2_fs_fatal_error(c, "aieeee! journal write overran available space, %zu > %u (extra %u reserved %u/%u)",
+				    vstruct_bytes(jset), w->sectors << 9,
+				    u64s, w->u64s_reserved, j->entry_u64s_reserved);
+		goto err;
+	}
 
 	jset->magic		= cpu_to_le64(jset_magic(c));
 	jset->version		= c->sb.version < bcachefs_metadata_version_bkey_renumber
@@ -1780,10 +1789,6 @@ void bch2_journal_write(struct closure *cl)
 	    jset_validate(c, NULL, jset, 0, WRITE))
 		goto err;
 
-	sectors = vstruct_sectors(jset, c->block_bits);
-	BUG_ON(sectors > w->sectors);
-
-	bytes = vstruct_bytes(jset);
 	memset((void *) jset + bytes, 0, (sectors << 9) - bytes);
 
 retry_alloc:
