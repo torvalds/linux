@@ -360,7 +360,7 @@ bool bch2_bkey_pack(struct bkey_packed *out, const struct bkey_i *in,
 	memmove_u64s((u64 *) out + format->key_u64s,
 		     &in->v,
 		     bkey_val_u64s(&in->k));
-	memcpy_u64s(out, &tmp, format->key_u64s);
+	memcpy_u64s_small(out, &tmp, format->key_u64s);
 
 	return true;
 }

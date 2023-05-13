@@ -188,7 +188,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 		}
 
 		if (bkey_deleted(in)) {
-			memcpy_u64s(out, in, bkeyp_key_u64s(f, in));
+			memcpy_u64s_small(out, in, bkeyp_key_u64s(f, in));
 			set_bkeyp_val_u64s(f, out, 0);
 		} else {
 			bkey_copy(out, in);

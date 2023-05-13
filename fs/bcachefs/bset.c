@@ -1022,7 +1022,7 @@ void bch2_bset_insert(struct btree *b,
 		set_btree_bset_end(b, t);
 	}
 
-	memcpy_u64s(where, src,
+	memcpy_u64s_small(where, src,
 		    bkeyp_key_u64s(f, src));
 	memcpy_u64s(bkeyp_val(f, where), &insert->v,
 		    bkeyp_val_u64s(f, src));
