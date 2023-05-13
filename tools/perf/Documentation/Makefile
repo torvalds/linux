@@ -250,9 +250,13 @@ $(MAN_HTML): $(OUTPUT)%.html : %.txt
 		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) -o $@+ $< && \
 	mv $@+ $@
 
-# Generate date from git log of the doc input file
-PERF_DATE = $(shell git log -1 --pretty="format:%cd" \
-                --date=short --no-show-signature $<)
+# Generate date from either KBUILD_BUILD_TIMESTAMP or git log of
+# the doc input file
+PERF_DATE = $(strip \
+              $(if $(KBUILD_BUILD_TIMESTAMP), \
+                $(shell date -u -d '$(KBUILD_BUILD_TIMESTAMP)' +%Y-%m-%d), \
+                $(shell git log -1 --pretty="format:%cd" \
+                    --date=short --no-show-signature $<)))
 
 ifdef USE_ASCIIDOCTOR
 $(OUTPUT)%.1 $(OUTPUT)%.5 $(OUTPUT)%.7 : %.txt
