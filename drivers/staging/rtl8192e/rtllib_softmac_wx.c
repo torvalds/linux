@@ -345,9 +345,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 
 	rtllib_stop_all_queues(ieee);
-
-	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
 	rtllib_stop_send_beacons(ieee);
 	ieee->state = RTLLIB_LINKED_SCANNING;
 	ieee->link_change(ieee->dev);

@@ -1575,9 +1575,6 @@ static void rtllib_associate_procedure_wq(void *data)
 	ieee->rtllib_ips_leave(ieee->dev);
 	mutex_lock(&ieee->wx_mutex);
 
-	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
-
 	rtllib_stop_scan(ieee);
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	if (ieee->rf_power_state == rf_off) {
@@ -2734,8 +2731,6 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)
 		rtllib_reset_queue(ieee);
 
-	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
 		dot11d_reset(ieee);
 	ieee->state = RTLLIB_NOLINK;

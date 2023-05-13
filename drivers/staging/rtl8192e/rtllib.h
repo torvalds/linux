@@ -1682,12 +1682,6 @@ struct rtllib_device {
 	void (*softmac_data_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev, int rate);
 
-	/* stops the HW queue for DATA frames. Useful to avoid
-	 * waste time to TX data frame when we are reassociating
-	 * This function can sleep.
-	 */
-	void (*data_hard_stop)(struct net_device *dev);
-
 	/* OK this is complementing to data_poll_hard_stop */
 	void (*data_hard_resume)(struct net_device *dev);
 
