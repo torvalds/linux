@@ -631,7 +631,7 @@ out:
  * Context: Process context. Will sleep waiting for reply.
  * Return: 0 on success. <0 if error.
  */
-int gh_rm_call(void *_rm, u32 message_id, void *req_buf, size_t req_buf_size,
+int gh_rm_call(void *_rm, u32 message_id, const void *req_buf, size_t req_buf_size,
 		void **resp_buf, size_t *resp_buf_size)
 {
 	struct gh_rm *rm = _rm;

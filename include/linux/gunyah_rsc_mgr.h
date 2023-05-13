@@ -14,7 +14,7 @@
 #define GH_MEM_HANDLE_INVAL	U32_MAX
 
 struct gh_rm;
-int gh_rm_call(void *rm, u32 message_id, void *req_buf, size_t req_buf_size,
+int gh_rm_call(void *rm, u32 message_id, const void *req_buf, size_t req_buf_size,
 		void **resp_buf, size_t *resp_buf_size);
 int gh_rm_notifier_register(void *rm, struct notifier_block *nb);
 int gh_rm_notifier_unregister(void *rm, struct notifier_block *nb);
@@ -65,7 +65,7 @@ struct gh_rm_mem_acl_entry {
 } __packed;
 
 struct gh_rm_mem_entry {
-	__le64 ipa_base;
+	__le64 phys_addr;
 	__le64 size;
 } __packed;
 
