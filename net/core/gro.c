@@ -239,9 +239,7 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 
 		pinfo->nr_frags = nr_frags + 1 + skbinfo->nr_frags;
 
-		__skb_frag_set_page(frag, page);
-		skb_frag_off_set(frag, first_offset);
-		skb_frag_size_set(frag, first_size);
+		skb_frag_fill_page_desc(frag, page, first_offset, first_size);
 
 		memcpy(frag + 1, skbinfo->frags, sizeof(*frag) * skbinfo->nr_frags);
 		/* We dont need to clear skbinfo->nr_frags here */

@@ -491,9 +491,7 @@ mlx5e_add_skb_shared_info_frag(struct mlx5e_rq *rq, struct skb_shared_info *sinf
 	}
 
 	frag = &sinfo->frags[sinfo->nr_frags++];
-	__skb_frag_set_page(frag, frag_page->page);
-	skb_frag_off_set(frag, frag_offset);
-	skb_frag_size_set(frag, len);
+	skb_frag_fill_page_desc(frag, frag_page->page, frag_offset, len);
 
 	if (page_is_pfmemalloc(frag_page->page))
 		xdp_buff_set_frag_pfmemalloc(xdp);
