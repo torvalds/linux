@@ -1661,8 +1661,6 @@ struct rtllib_device {
 	int (*hard_start_xmit)(struct rtllib_txb *txb,
 			       struct net_device *dev);
 
-	int (*reset_port)(struct net_device *dev);
-
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
 	 * not set. As some cards may have different HW queues that
