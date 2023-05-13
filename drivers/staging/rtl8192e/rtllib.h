@@ -1688,9 +1688,6 @@ struct rtllib_device {
 	 */
 	void (*set_chan)(struct net_device *dev, short ch);
 
-	void (*rtllib_start_hw_scan)(struct net_device *dev);
-	void (*rtllib_stop_hw_scan)(struct net_device *dev);
-
 	/* indicate the driver that the link state is changed
 	 * for example it may indicate the card is associated now.
 	 * Driver might be interested in this to apply RX filter

@@ -691,23 +691,15 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 
 void rtllib_stop_scan(struct rtllib_device *ieee)
 {
-	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
+	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		rtllib_softmac_stop_scan(ieee);
-	} else {
-		if (ieee->rtllib_stop_hw_scan)
-			ieee->rtllib_stop_hw_scan(ieee->dev);
-	}
 }
 EXPORT_SYMBOL(rtllib_stop_scan);
 
 void rtllib_stop_scan_syncro(struct rtllib_device *ieee)
 {
-	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
+	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		ieee->sync_scan_hurryup = 1;
-	} else {
-		if (ieee->rtllib_stop_hw_scan)
-			ieee->rtllib_stop_hw_scan(ieee->dev);
-	}
 }
 EXPORT_SYMBOL(rtllib_stop_scan_syncro);
 
@@ -739,9 +731,6 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 			ieee->scanning_continue = 1;
 			schedule_delayed_work(&ieee->softmac_scan_wq, 0);
 		}
-	} else {
-		if (ieee->rtllib_start_hw_scan)
-			ieee->rtllib_start_hw_scan(ieee->dev);
 	}
 }
 
@@ -753,12 +742,8 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 			RESET_CIE_WATCHDOG(ieee);
 	}
 	ieee->sync_scan_hurryup = 0;
-	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
+	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		rtllib_softmac_scan_syncro(ieee, is_mesh);
-	} else {
-		if (ieee->rtllib_start_hw_scan)
-			ieee->rtllib_start_hw_scan(ieee->dev);
-	}
 }
 EXPORT_SYMBOL(rtllib_start_scan_syncro);
 
