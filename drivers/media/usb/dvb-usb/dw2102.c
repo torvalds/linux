@@ -830,7 +830,7 @@ static int dw210x_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	for (i = 0; i < 256; i++) {
 		if (dw210x_op_rw(d->udev, 0xb6, 0xa0 , i, ibuf, 2, DW210X_READ_MSG) < 0) {
 			err("read eeprom failed.");
-			return -1;
+			return -EIO;
 		} else {
 			eepromline[i%16] = ibuf[0];
 			eeprom[i] = ibuf[0];
@@ -869,7 +869,7 @@ static int s6x0_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		ret = s6x0_i2c_transfer(&d->i2c_adap, msg, 2);
 		if (ret != 2) {
 			err("read eeprom failed.");
-			return -1;
+			return -EIO;
 		} else {
 			eepromline[i % 16] = ibuf[0];
 			eeprom[i] = ibuf[0];
@@ -946,7 +946,7 @@ static int su3000_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	for (i = 0; i < 6; i++) {
 		obuf[1] = 0xf0 + i;
 		if (i2c_transfer(&d->i2c_adap, msg, 2) != 2)
-			return -1;
+			return -EIO;
 		else
 			mac[i] = ibuf[0];
 	}
