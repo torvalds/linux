@@ -2882,9 +2882,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 		ieee->last_packet_time[i] = 0;
 	}
 
-	if (ieee->UpdateBeaconInterruptHandler)
-		ieee->UpdateBeaconInterruptHandler(ieee->dev, false);
-
 	ieee->wmm_acm = 0;
 	/* if the user set the MAC of the ad-hoc cell and then
 	 * switch to managed mode, shall we  make sure that association
@@ -2894,9 +2891,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	if (ieee->iw_mode == IW_MODE_INFRA) {
 		rtllib_start_bss(ieee);
 	} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-		if (ieee->UpdateBeaconInterruptHandler)
-			ieee->UpdateBeaconInterruptHandler(ieee->dev, true);
-
 		rtllib_start_ibss(ieee);
 
 	} else if (ieee->iw_mode == IW_MODE_MASTER) {

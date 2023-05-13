@@ -739,8 +739,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->rtllib_ips_leave = rtl92e_rtllib_ips_leave;
 
 	priv->rtllib->LedControlHandler = NULL;
-	priv->rtllib->UpdateBeaconInterruptHandler = NULL;
-
 	priv->rtllib->ScanOperationBackupHandler = rtl92e_scan_op_backup;
 }
 
