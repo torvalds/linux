@@ -299,8 +299,8 @@ extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
  * @q: Where to copy the string from
  * @size: Size of destination buffer
  *
- * Copy the source string @p, or as much of it as fits, into the destination
- * @q buffer. The behavior is undefined if the string buffers overlap. The
+ * Copy the source string @q, or as much of it as fits, into the destination
+ * @p buffer. The behavior is undefined if the string buffers overlap. The
  * destination @p buffer is always NUL terminated, unless it's zero-sized.
  *
  * Preferred to strlcpy() since the API doesn't require reading memory
