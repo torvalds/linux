@@ -46,7 +46,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 msr;
-	enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 
 	msr  = rtl92e_readb(dev, MSR);
 	msr &= ~MSR_LINK_MASK;
@@ -55,7 +54,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 	case IW_MODE_INFRA:
 		if (priv->rtllib->state == RTLLIB_LINKED)
 			msr |= MSR_LINK_MANAGED;
-		LedAction = LED_CTL_LINK;
 		break;
 	case IW_MODE_ADHOC:
 		if (priv->rtllib->state == RTLLIB_LINKED)
@@ -70,8 +68,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 	}
 
 	rtl92e_writeb(dev, MSR, msr);
-	if (priv->rtllib->LedControlHandler)
-		priv->rtllib->LedControlHandler(dev, LedAction);
 }
 
 void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)

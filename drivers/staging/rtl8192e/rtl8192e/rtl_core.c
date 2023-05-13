@@ -737,8 +737,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->InitialGainHandler = rtl92e_init_gain;
 	priv->rtllib->rtllib_ips_leave_wq = rtl92e_rtllib_ips_leave_wq;
 	priv->rtllib->rtllib_ips_leave = rtl92e_rtllib_ips_leave;
-
-	priv->rtllib->LedControlHandler = NULL;
 	priv->rtllib->ScanOperationBackupHandler = rtl92e_scan_op_backup;
 }
 
@@ -1272,10 +1270,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 			ieee->is_roaming = true;
 			ieee->is_set_key = false;
 			ieee->link_change(dev);
-			if (ieee->LedControlHandler)
-				ieee->LedControlHandler(ieee->dev,
-							LED_CTL_START_TO_LINK);
-
 			notify_wx_assoc_event(ieee);
 
 			if (!(ieee->rtllib_ap_sec_type(ieee) &
@@ -1506,7 +1500,6 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 				    MAX_DEV_ADDR_SIZE);
 	struct tx_desc *pdesc = NULL;
 	struct rtllib_hdr_1addr *header = NULL;
-	u16 fc = 0, type = 0;
 	u8 *pda_addr = NULL;
 	int   idx;
 	u32 fwinfo_size = 0;
@@ -1522,8 +1515,6 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
 	header = (struct rtllib_hdr_1addr *)(((u8 *)skb->data) + fwinfo_size);
-	fc = le16_to_cpu(header->frame_ctl);
-	type = WLAN_FC_GET_TYPE(fc);
 	pda_addr = header->addr1;
 
 	if (!is_broadcast_ether_addr(pda_addr) && !is_multicast_ether_addr(pda_addr))
@@ -1544,11 +1535,6 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 			    skb_queue_len(&ring->queue));
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 		return skb->len;
-	}
-
-	if (type == RTLLIB_FTYPE_DATA) {
-		if (priv->rtllib->LedControlHandler)
-			priv->rtllib->LedControlHandler(dev, LED_CTL_TX);
 	}
 	rtl92e_fill_tx_desc(dev, pdesc, tcb_desc, skb);
 	__skb_queue_tail(&ring->queue, skb);
@@ -1776,8 +1762,6 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
-	bool bLedBlinking = true;
-	u16 fc = 0, type = 0;
 	u32 skb_len = 0;
 	int rx_queue_idx = RX_MPDU_QUEUE;
 
@@ -1821,16 +1805,6 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 			/* unicast packet */
 			unicast_packet = true;
 		}
-		fc = le16_to_cpu(rtllib_hdr->frame_ctl);
-		type = WLAN_FC_GET_TYPE(fc);
-		if (type == RTLLIB_FTYPE_MGMT)
-			bLedBlinking = false;
-
-		if (bLedBlinking)
-			if (priv->rtllib->LedControlHandler)
-				priv->rtllib->LedControlHandler(dev,
-							LED_CTL_RX);
-
 		skb_len = skb->len;
 
 		if (!rtllib_rx(priv->rtllib, skb, &stats)) {
