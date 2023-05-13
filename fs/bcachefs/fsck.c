@@ -1176,7 +1176,7 @@ static int check_overlapping_extents(struct btree_trans *trans,
 				goto err;
 			bkey_reassemble(update, k);
 			ret = bch2_trans_update_extent(trans, iter, update, 0);
-			if (!ret)
+			if (ret)
 				goto err;
 		}
 	}
