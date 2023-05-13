@@ -20,23 +20,8 @@
 #include "cn10k.h"
 #include "otx2_common.h"
 
-/* Egress rate limiting definitions */
-#define MAX_BURST_EXPONENT		0x0FULL
-#define MAX_BURST_MANTISSA		0xFFULL
-#define MAX_BURST_SIZE			130816ULL
-#define MAX_RATE_DIVIDER_EXPONENT	12ULL
-#define MAX_RATE_EXPONENT		0x0FULL
-#define MAX_RATE_MANTISSA		0xFFULL
-
 #define CN10K_MAX_BURST_MANTISSA	0x7FFFULL
 #define CN10K_MAX_BURST_SIZE		8453888ULL
-
-/* Bitfields in NIX_TLX_PIR register */
-#define TLX_RATE_MANTISSA		GENMASK_ULL(8, 1)
-#define TLX_RATE_EXPONENT		GENMASK_ULL(12, 9)
-#define TLX_RATE_DIVIDER_EXPONENT	GENMASK_ULL(16, 13)
-#define TLX_BURST_MANTISSA		GENMASK_ULL(36, 29)
-#define TLX_BURST_EXPONENT		GENMASK_ULL(40, 37)
 
 #define CN10K_TLX_BURST_MANTISSA	GENMASK_ULL(43, 29)
 #define CN10K_TLX_BURST_EXPONENT	GENMASK_ULL(47, 44)
@@ -264,7 +249,6 @@ static int otx2_tc_egress_matchall_install(struct otx2_nic *nic,
 	struct netlink_ext_ack *extack = cls->common.extack;
 	struct flow_action *actions = &cls->rule->action;
 	struct flow_action_entry *entry;
-	u64 rate;
 	int err;
 
 	err = otx2_tc_validate_flow(nic, actions, extack);
@@ -288,10 +272,8 @@ static int otx2_tc_egress_matchall_install(struct otx2_nic *nic,
 			NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
 			return -EOPNOTSUPP;
 		}
-		/* Convert bytes per second to Mbps */
-		rate = entry->police.rate_bytes_ps * 8;
-		rate = max_t(u64, rate / 1000000, 1);
-		err = otx2_set_matchall_egress_rate(nic, entry->police.burst, rate);
+		err = otx2_set_matchall_egress_rate(nic, entry->police.burst,
+						    otx2_convert_rate(entry->police.rate_bytes_ps));
 		if (err)
 			return err;
 		nic->flags |= OTX2_FLAG_TC_MATCHALL_EGRESS_ENABLED;

@@ -185,6 +185,21 @@ struct mbox {
 	int			up_num_msgs; /* mbox_up number of messages */
 };
 
+/* Egress rate limiting definitions */
+#define MAX_BURST_EXPONENT		0x0FULL
+#define MAX_BURST_MANTISSA		0xFFULL
+#define MAX_BURST_SIZE			130816ULL
+#define MAX_RATE_DIVIDER_EXPONENT	12ULL
+#define MAX_RATE_EXPONENT		0x0FULL
+#define MAX_RATE_MANTISSA		0xFFULL
+
+/* Bitfields in NIX_TLX_PIR register */
+#define TLX_RATE_MANTISSA		GENMASK_ULL(8, 1)
+#define TLX_RATE_EXPONENT		GENMASK_ULL(12, 9)
+#define TLX_RATE_DIVIDER_EXPONENT	GENMASK_ULL(16, 13)
+#define TLX_BURST_MANTISSA		GENMASK_ULL(36, 29)
+#define TLX_BURST_EXPONENT		GENMASK_ULL(40, 37)
+
 struct otx2_hw {
 	struct pci_dev		*pdev;
 	struct otx2_rss_info	rss_info;
@@ -253,6 +268,7 @@ struct otx2_hw {
 #define CN10K_RPM		3
 #define CN10K_PTP_ONESTEP	4
 #define CN10K_HW_MACSEC		5
+#define QOS_CIR_PIR_SUPPORT	6
 	unsigned long		cap_flag;
 
 #define LMT_LINE_SIZE		128
@@ -591,6 +607,7 @@ static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
 		__set_bit(CN10K_LMTST, &hw->cap_flag);
 		__set_bit(CN10K_RPM, &hw->cap_flag);
 		__set_bit(CN10K_PTP_ONESTEP, &hw->cap_flag);
+		__set_bit(QOS_CIR_PIR_SUPPORT, &hw->cap_flag);
 	}
 
 	if (is_dev_cn10kb(pfvf->pdev))
@@ -913,6 +930,17 @@ static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
 static inline u16 otx2_get_total_tx_queues(struct otx2_nic *pfvf)
 {
 	return pfvf->hw.non_qos_queues + pfvf->hw.tc_tx_queues;
+}
+
+static inline u64 otx2_convert_rate(u64 rate)
+{
+	u64 converted_rate;
+
+	/* Convert bytes per second to Mbps */
+	converted_rate = rate * 8;
+	converted_rate = max_t(u64, converted_rate / 1000000, 1);
+
+	return converted_rate;
 }
 
 /* MSI-X APIs */
