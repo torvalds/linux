@@ -1202,18 +1202,31 @@ static void snd_emu10k1_audigy_dsp_convert_32_to_2x16(
 	A_OP(icode, ptr, iMAC3, reg_out, A_GPR(tmp), A_GPR(tmp), A_C_80000000);
 }
 
+#define ENUM_GPR(name, size) name, name ## _dummy = name + (size) - 1
+
 /*
  * initial DSP configuration for Audigy
  */
 
 static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 {
-	int err, z, gpr, nctl;
-	int bit_shifter16;
-	const int playback = 10;
-	const int capture = playback + SND_EMU10K1_PLAYBACK_CHANNELS; /* we reserve 10 voices */
-	const int stereo_mix = capture + 2;
-	const int tmp = 0x88;
+	int err, z, nctl;
+	enum {
+		ENUM_GPR(playback, SND_EMU10K1_PLAYBACK_CHANNELS),
+		ENUM_GPR(stereo_mix, 2),
+		ENUM_GPR(capture, 2),
+		ENUM_GPR(bit_shifter16, 1),
+		// The fixed allocation of these breaks the pattern, but why not.
+		// Splitting these into left/right is questionable, as it will break
+		// down for center/lfe. But it works for stereo/quadro, so whatever.
+		ENUM_GPR(bass_gpr, 2 * 5),  // two sides, five coefficients
+		ENUM_GPR(treble_gpr, 2 * 5),
+		ENUM_GPR(bass_tmp, SND_EMU10K1_PLAYBACK_CHANNELS * 4),  // four delay stages
+		ENUM_GPR(treble_tmp, SND_EMU10K1_PLAYBACK_CHANNELS * 4),
+		ENUM_GPR(tmp, 3),
+		num_static_gprs
+	};
+	int gpr = num_static_gprs;
 	u32 ptr, ptr_skip;
 	struct snd_emu10k1_fx8010_code *icode = NULL;
 	struct snd_emu10k1_fx8010_control_gpr *controls = NULL, *ctl;
@@ -1248,9 +1261,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	strcpy(icode->name, "Audigy DSP code for ALSA");
 	ptr = 0;
 	nctl = 0;
-	gpr = stereo_mix + 10;
-	bit_shifter16 = gpr;
-	gpr_map[gpr++] = 0x00008000;
+	gpr_map[bit_shifter16] = 0x00008000;
 
 #if 1
 	/* PCM front Playback Volume (independent from stereo mix)
@@ -1492,15 +1503,11 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	ctl->max = 40;
 	ctl->value[0] = ctl->value[1] = 20;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TREBLE;
-
-#define BASS_GPR	0x8c
-#define TREBLE_GPR	0x96
-
 	for (z = 0; z < 5; z++) {
 		int j;
 		for (j = 0; j < 2; j++) {
-			controls[nctl + 0].gpr[z * 2 + j] = BASS_GPR + z * 2 + j;
-			controls[nctl + 1].gpr[z * 2 + j] = TREBLE_GPR + z * 2 + j;
+			controls[nctl + 0].gpr[z * 2 + j] = bass_gpr + z * 2 + j;
+			controls[nctl + 1].gpr[z * 2 + j] = treble_gpr + z * 2 + j;
 		}
 	}
 	nctl += 2;
@@ -1513,22 +1520,22 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	for (z = 0; z < 4; z++) {		/* front/rear/center-lfe/side */
 		int j, k, l, d;
 		for (j = 0; j < 2; j++) {	/* left/right */
-			k = 0xb0 + (z * 8) + (j * 4);
-			l = 0xe0 + (z * 8) + (j * 4);
+			k = bass_tmp + (z * 8) + (j * 4);
+			l = treble_tmp + (z * 8) + (j * 4);
 			d = playback + z * 2 + j;
 
-			A_OP(icode, &ptr, iMAC0, A_C_00000000, A_C_00000000, A_GPR(d), A_GPR(BASS_GPR + 0 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(k+1), A_GPR(k), A_GPR(k+1), A_GPR(BASS_GPR + 4 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(k), A_GPR(d), A_GPR(k), A_GPR(BASS_GPR + 2 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(k+3), A_GPR(k+2), A_GPR(k+3), A_GPR(BASS_GPR + 8 + j));
-			A_OP(icode, &ptr, iMAC0, A_GPR(k+2), A_GPR_ACCU, A_GPR(k+2), A_GPR(BASS_GPR + 6 + j));
+			A_OP(icode, &ptr, iMAC0, A_C_00000000, A_C_00000000, A_GPR(d), A_GPR(bass_gpr + 0 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(k+1), A_GPR(k), A_GPR(k+1), A_GPR(bass_gpr + 4 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(k), A_GPR(d), A_GPR(k), A_GPR(bass_gpr + 2 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(k+3), A_GPR(k+2), A_GPR(k+3), A_GPR(bass_gpr + 8 + j));
+			A_OP(icode, &ptr, iMAC0, A_GPR(k+2), A_GPR_ACCU, A_GPR(k+2), A_GPR(bass_gpr + 6 + j));
 			A_OP(icode, &ptr, iACC3, A_GPR(k+2), A_GPR(k+2), A_GPR(k+2), A_C_00000000);
 
-			A_OP(icode, &ptr, iMAC0, A_C_00000000, A_C_00000000, A_GPR(k+2), A_GPR(TREBLE_GPR + 0 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(l+1), A_GPR(l), A_GPR(l+1), A_GPR(TREBLE_GPR + 4 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(l), A_GPR(k+2), A_GPR(l), A_GPR(TREBLE_GPR + 2 + j));
-			A_OP(icode, &ptr, iMACMV, A_GPR(l+3), A_GPR(l+2), A_GPR(l+3), A_GPR(TREBLE_GPR + 8 + j));
-			A_OP(icode, &ptr, iMAC0, A_GPR(l+2), A_GPR_ACCU, A_GPR(l+2), A_GPR(TREBLE_GPR + 6 + j));
+			A_OP(icode, &ptr, iMAC0, A_C_00000000, A_C_00000000, A_GPR(k+2), A_GPR(treble_gpr + 0 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(l+1), A_GPR(l), A_GPR(l+1), A_GPR(treble_gpr + 4 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(l), A_GPR(k+2), A_GPR(l), A_GPR(treble_gpr + 2 + j));
+			A_OP(icode, &ptr, iMACMV, A_GPR(l+3), A_GPR(l+2), A_GPR(l+3), A_GPR(treble_gpr + 8 + j));
+			A_OP(icode, &ptr, iMAC0, A_GPR(l+2), A_GPR_ACCU, A_GPR(l+2), A_GPR(treble_gpr + 6 + j));
 			A_OP(icode, &ptr, iMACINT0, A_GPR(l+2), A_C_00000000, A_GPR(l+2), A_C_00000010);
 
 			A_OP(icode, &ptr, iACC3, A_GPR(d), A_GPR(l+2), A_C_00000000, A_C_00000000);
@@ -1539,14 +1546,11 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	}
 	gpr_map[gpr++] = ptr - ptr_skip;
 
-#undef BASS_GPR
-#undef TREBLE_GPR
-
 	/* Master volume (will be renamed later) */
 	for (z = 0; z < 8; z++)
 		A_OP(icode, &ptr, iMAC0, A_GPR(playback+z), A_C_00000000, A_GPR(gpr), A_GPR(playback+z));
 	snd_emu10k1_init_mono_control(&controls[nctl++], "Wave Master Playback Volume", gpr, 0);
-	gpr += 2;
+	gpr++;
 
 	/* analog speakers */
 	A_PUT_STEREO_OUTPUT(A_EXTOUT_AFRONT_L, A_EXTOUT_AFRONT_R, playback);
@@ -1668,11 +1672,12 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	 * ok, set up done..
 	 */
 
-	if (gpr > tmp) {
+	if (gpr > 512) {
 		snd_BUG();
 		err = -EIO;
 		goto __err;
 	}
+
 	/* clear remaining instruction memory */
 	while (ptr < 0x400)
 		A_OP(icode, &ptr, 0x0f, 0xc0, 0xc0, 0xcf, 0xc0);
