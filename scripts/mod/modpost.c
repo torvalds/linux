@@ -881,26 +881,13 @@ enum mismatch {
  * targeting sections in this array (white-list).  Can be empty.
  *
  * @mismatch: Type of mismatch.
- *
- * @handler: Specific handler to call when a match is found.  If NULL,
- * default_mismatch_handler() will be called.
- *
  */
 struct sectioncheck {
 	const char *fromsec[20];
 	const char *bad_tosec[20];
 	const char *good_tosec[20];
 	enum mismatch mismatch;
-	void (*handler)(const char *modname, struct elf_info *elf,
-			const struct sectioncheck* const mismatch,
-			Elf_Rela *r, Elf_Sym *sym, const char *fromsec);
-
 };
-
-static void extable_mismatch_handler(const char *modname, struct elf_info *elf,
-				     const struct sectioncheck* const mismatch,
-				     Elf_Rela *r, Elf_Sym *sym,
-				     const char *fromsec);
 
 static const struct sectioncheck sectioncheck[] = {
 /* Do not reference init/exit code/data from
@@ -974,7 +961,6 @@ static const struct sectioncheck sectioncheck[] = {
 	.bad_tosec = { ".altinstr_replacement", NULL },
 	.good_tosec = {ALL_TEXT_SECTIONS , NULL},
 	.mismatch = EXTABLE_TO_NON_TEXT,
-	.handler = extable_mismatch_handler,
 }
 };
 
@@ -1255,44 +1241,30 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 		     modname, tosym, tosec);
 		break;
 	case EXTABLE_TO_NON_TEXT:
-		fatal("There's a special handler for this mismatch type, we should never get here.\n");
+		warn("%s(%s+0x%lx): Section mismatch in reference to the %s:%s\n",
+		     modname, fromsec, (long)r->r_offset, tosec, tosym);
+
+		if (match(tosec, mismatch->bad_tosec))
+			fatal("The relocation at %s+0x%lx references\n"
+			      "section \"%s\" which is black-listed.\n"
+			      "Something is seriously wrong and should be fixed.\n"
+			      "You might get more information about where this is\n"
+			      "coming from by using scripts/check_extable.sh %s\n",
+			      fromsec, (long)r->r_offset, tosec, modname);
+		else if (is_executable_section(elf, get_secindex(elf, sym)))
+			warn("The relocation at %s+0x%lx references\n"
+			     "section \"%s\" which is not in the list of\n"
+			     "authorized sections.  If you're adding a new section\n"
+			     "and/or if this reference is valid, add \"%s\" to the\n"
+			     "list of authorized sections to jump to on fault.\n"
+			     "This can be achieved by adding \"%s\" to\n"
+			     "OTHER_TEXT_SECTIONS in scripts/mod/modpost.c.\n",
+			     fromsec, (long)r->r_offset, tosec, tosec, tosec);
+		else
+			error("%s+0x%lx references non-executable section '%s'\n",
+			      fromsec, (long)r->r_offset, tosec);
 		break;
 	}
-}
-
-static void extable_mismatch_handler(const char* modname, struct elf_info *elf,
-				     const struct sectioncheck* const mismatch,
-				     Elf_Rela* r, Elf_Sym* sym,
-				     const char *fromsec)
-{
-	const char* tosec = sec_name(elf, get_secindex(elf, sym));
-	Elf_Sym *tosym = find_elf_symbol(elf, r->r_addend, sym);
-	const char *tosym_name = sym_name(elf, tosym);
-
-	sec_mismatch_count++;
-
-	warn("%s(%s+0x%lx): Section mismatch in reference to the %s:%s\n",
-	     modname, fromsec, (long)r->r_offset, tosec, tosym_name);
-
-	if (match(tosec, mismatch->bad_tosec))
-		fatal("The relocation at %s+0x%lx references\n"
-		      "section \"%s\" which is black-listed.\n"
-		      "Something is seriously wrong and should be fixed.\n"
-		      "You might get more information about where this is\n"
-		      "coming from by using scripts/check_extable.sh %s\n",
-		      fromsec, (long)r->r_offset, tosec, modname);
-	else if (is_executable_section(elf, get_secindex(elf, sym)))
-		warn("The relocation at %s+0x%lx references\n"
-		     "section \"%s\" which is not in the list of\n"
-		     "authorized sections.  If you're adding a new section\n"
-		     "and/or if this reference is valid, add \"%s\" to the\n"
-		     "list of authorized sections to jump to on fault.\n"
-		     "This can be achieved by adding \"%s\" to\n"
-		     "OTHER_TEXT_SECTIONS in scripts/mod/modpost.c.\n",
-		     fromsec, (long)r->r_offset, tosec, tosec, tosec);
-	else
-		error("%s+0x%lx references non-executable section '%s'\n",
-		      fromsec, (long)r->r_offset, tosec);
 }
 
 static void check_section_mismatch(const char *modname, struct elf_info *elf,
@@ -1301,14 +1273,10 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
 	const char *tosec = sec_name(elf, get_secindex(elf, sym));
 	const struct sectioncheck *mismatch = section_mismatch(fromsec, tosec);
 
-	if (mismatch) {
-		if (mismatch->handler)
-			mismatch->handler(modname, elf,  mismatch,
-					  r, sym, fromsec);
-		else
-			default_mismatch_handler(modname, elf, mismatch,
-						 r, sym, fromsec);
-	}
+	if (!mismatch)
+		return;
+
+	default_mismatch_handler(modname, elf, mismatch, r, sym, fromsec);
 }
 
 static unsigned int *reloc_location(struct elf_info *elf,
