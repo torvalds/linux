@@ -415,6 +415,7 @@ SUB_REG(PTRX, PITCHTARGET,	0xffff0000)	/* Pitch target of specified channel			*/
 SUB_REG(PTRX, FXSENDAMOUNT_A,	0x0000ff00)	/* Linear level of channel output sent to FX send bus A	*/
 SUB_REG(PTRX, FXSENDAMOUNT_B,	0x000000ff)	/* Linear level of channel output sent to FX send bus B	*/
 
+// Note: the volumes are raw multpliers, so real 100% is impossible.
 #define CVCF			0x02		/* Current volume and filter cutoff register		*/
 SUB_REG(CVCF, CURRENTVOL,	0xffff0000)	/* Current linear volume of specified channel		*/
 SUB_REG(CVCF, CURRENTFILTER,	0x0000ffff)	/* Current filter cutoff frequency of specified channel	*/
@@ -1477,6 +1478,8 @@ struct snd_emu10k1_pcm_mixer {
 	/* mono, left, right x 8 sends (4 on emu10k1) */
 	unsigned char send_routing[3][8];
 	unsigned char send_volume[3][8];
+	// 0x8000 is neutral. The mixer code rescales it to 0xffff to maintain
+	// backwards compatibility with user space.
 	unsigned short attn[3];
 	struct snd_emu10k1_pcm *epcm;
 };

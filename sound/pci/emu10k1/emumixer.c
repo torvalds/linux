@@ -1352,7 +1352,7 @@ static int snd_emu10k1_attn_info(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 3;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 0xffff;
+	uinfo->value.integer.max = 0x1fffd;
 	return 0;
 }
 
@@ -1365,7 +1365,7 @@ static int snd_emu10k1_attn_get(struct snd_kcontrol *kcontrol,
 	int idx;
 
 	for (idx = 0; idx < 3; idx++)
-		ucontrol->value.integer.value[idx] = mix->attn[idx];
+		ucontrol->value.integer.value[idx] = mix->attn[idx] * 0xffffU / 0x8000U;
 	return 0;
 }
 
@@ -1380,7 +1380,8 @@ static int snd_emu10k1_attn_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	for (idx = 0; idx < 3; idx++) {
-		val = ucontrol->value.integer.value[idx] & 0xffff;
+		unsigned uval = ucontrol->value.integer.value[idx] & 0x1ffff;
+		val = uval * 0x8000U / 0xffffU;
 		if (mix->attn[idx] != val) {
 			mix->attn[idx] = val;
 			change = 1;
@@ -1547,7 +1548,7 @@ static int snd_emu10k1_efx_attn_info(struct snd_kcontrol *kcontrol, struct snd_c
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 0xffff;
+	uinfo->value.integer.max = 0x1fffd;
 	return 0;
 }
 
@@ -1558,7 +1559,7 @@ static int snd_emu10k1_efx_attn_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 
-	ucontrol->value.integer.value[0] = mix->attn[0];
+	ucontrol->value.integer.value[0] = mix->attn[0] * 0xffffU / 0x8000U;
 	return 0;
 }
 
@@ -1570,9 +1571,11 @@ static int snd_emu10k1_efx_attn_put(struct snd_kcontrol *kcontrol,
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, val;
+	unsigned uval;
 
 	spin_lock_irqsave(&emu->reg_lock, flags);
-	val = ucontrol->value.integer.value[0] & 0xffff;
+	uval = ucontrol->value.integer.value[0] & 0x1ffff;
+	val = uval * 0x8000U / 0xffffU;
 	if (mix->attn[0] != val) {
 		mix->attn[0] = val;
 		change = 1;
