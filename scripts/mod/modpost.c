@@ -1207,23 +1207,6 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
 	return near;
 }
 
-static int is_function(Elf_Sym *sym)
-{
-	if (sym)
-		return ELF_ST_TYPE(sym->st_info) == STT_FUNC;
-	else
-		return -1;
-}
-
-static inline void get_pretty_name(int is_func, const char** name, const char** name_p)
-{
-	switch (is_func) {
-	case 0:	*name = "variable"; *name_p = ""; break;
-	case 1:	*name = "function"; *name_p = "()"; break;
-	default: *name = "(unknown reference)"; *name_p = ""; break;
-	}
-}
-
 /*
  * Print a warning about a section mismatch.
  * Try to find symbols near it so user can find it.
@@ -1299,15 +1282,9 @@ static void report_extable_warnings(const char* modname, struct elf_info* elf,
 {
 	Elf_Sym* tosym = find_elf_symbol(elf, r->r_addend, sym);
 	const char* tosym_name = sym_name(elf, tosym);
-	const char* to_pretty_name;
-	const char* to_pretty_name_p;
 
-	get_pretty_name(is_function(tosym),
-			&to_pretty_name, &to_pretty_name_p);
-
-	warn("%s(%s+0x%lx): Section mismatch in reference to the %s %s:%s%s\n",
-	     modname, fromsec, (long)r->r_offset,
-	     to_pretty_name, tosec, tosym_name, to_pretty_name_p);
+	warn("%s(%s+0x%lx): Section mismatch in reference to the %s:%s\n",
+	     modname, fromsec, (long)r->r_offset, tosec, tosym_name);
 
 	if (!match(tosec, mismatch->bad_tosec) &&
 	    is_executable_section(elf, get_secindex(elf, sym)))
