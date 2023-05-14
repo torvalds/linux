@@ -1380,19 +1380,21 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		gpr_map[gpr + 2] = 0x00000000;
 		gpr += 3;
 	} else {
-		/* AC'97 Playback Volume - used only for mic (renamed later) */
-		A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_AC97_L);
-		A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_AC97_R);
-		snd_emu10k1_init_stereo_control(&controls[nctl++], "AMic Playback Volume", gpr, 0);
-		gpr += 2;
-		/* AC'97 Capture Volume - used only for mic */
-		A_ADD_VOLUME_IN(capture, gpr, A_EXTIN_AC97_L);
-		A_ADD_VOLUME_IN(capture+1, gpr+1, A_EXTIN_AC97_R);
-		snd_emu10k1_init_stereo_control(&controls[nctl++], "Mic Capture Volume", gpr, 0);
-		gpr += 2;
+		if (emu->card_capabilities->ac97_chip) {
+			/* AC'97 Playback Volume - used only for mic (renamed later) */
+			A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_AC97_L);
+			A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_AC97_R);
+			snd_emu10k1_init_stereo_control(&controls[nctl++], "AMic Playback Volume", gpr, 0);
+			gpr += 2;
+			/* AC'97 Capture Volume - used only for mic */
+			A_ADD_VOLUME_IN(capture, gpr, A_EXTIN_AC97_L);
+			A_ADD_VOLUME_IN(capture+1, gpr+1, A_EXTIN_AC97_R);
+			snd_emu10k1_init_stereo_control(&controls[nctl++], "Mic Capture Volume", gpr, 0);
+			gpr += 2;
 
-		/* mic capture buffer */
-		A_OP(icode, &ptr, iINTERP, A_EXTOUT(A_EXTOUT_MIC_CAP), A_EXTIN(A_EXTIN_AC97_L), A_C_40000000, A_EXTIN(A_EXTIN_AC97_R));
+			/* mic capture buffer */
+			A_OP(icode, &ptr, iINTERP, A_EXTOUT(A_EXTOUT_MIC_CAP), A_EXTIN(A_EXTIN_AC97_L), A_C_40000000, A_EXTIN(A_EXTIN_AC97_R));
+		}
 
 		/* Audigy CD Playback Volume */
 		A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_SPDIF_CD_L);

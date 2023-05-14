@@ -107,9 +107,11 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	err = snd_emu10k1_pcm(emu, 0);
 	if (err < 0)
 		return err;
-	err = snd_emu10k1_pcm_mic(emu, 1);
-	if (err < 0)
-		return err;
+	if (emu->card_capabilities->ac97_chip) {
+		err = snd_emu10k1_pcm_mic(emu, 1);
+		if (err < 0)
+			return err;
+	}
 	err = snd_emu10k1_pcm_efx(emu, 2);
 	if (err < 0)
 		return err;
