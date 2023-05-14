@@ -88,8 +88,8 @@ int pdc_iodc_print(const unsigned char *str, unsigned count);
 
 void pdc_emergency_unlock(void);
 int pdc_sti_call(unsigned long func, unsigned long flags,
-                 unsigned long inptr, unsigned long outputr,
-                 unsigned long glob_cfg);
+		unsigned long inptr, unsigned long outputr,
+		unsigned long glob_cfg, int do_call64);
 
 int __pdc_cpu_rendezvous(void);
 void pdc_cpu_rendezvous_lock(void);
