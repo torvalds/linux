@@ -1,0 +1,236 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, Barnabas Czeman
+ */
+/dts-v1/;
+
+#include "msm8953-xiaomi-common.dtsi"
+
+/delete-node/ &adsp_fw_mem;
+/delete-node/ &cont_splash_mem;
+/delete-node/ &qseecom_mem;
+/delete-node/ &wcnss_fw_mem;
+
+/ {
+	model = "Xiaomi Redmi S2/Y2";
+	compatible = "xiaomi,ysl", "qcom,msm8953";
+	qcom,board-id = <8 0>;
+
+	aliases {
+		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
+	};
+
+	speaker_amp: audio-amplifier {
+		compatible = "awinic,aw87318", "awinic,aw8738";
+		mode-gpios = <&tlmm 139 GPIO_ACTIVE_HIGH>;
+		awinic,mode = <2>;
+		sound-name-prefix = "Speaker Amp";
+	};
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer@90001000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x90001000 0 (1440 * 720 * 3)>;
+
+			width = <720>;
+			height = <1440>;
+			stride = <(720 * 3)>;
+			format = "r8g8b8";
+
+			power-domains = <&gcc MDSS_GDSC>;
+
+			clocks = <&gcc GCC_MDSS_AHB_CLK>,
+				 <&gcc GCC_MDSS_AXI_CLK>,
+				 <&gcc GCC_MDSS_VSYNC_CLK>,
+				 <&gcc GCC_MDSS_MDP_CLK>,
+				 <&gcc GCC_MDSS_BYTE0_CLK>,
+				 <&gcc GCC_MDSS_PCLK0_CLK>,
+				 <&gcc GCC_MDSS_ESC0_CLK>;
+		};
+	};
+
+	reserved-memory {
+		qseecom_mem: qseecom@84a00000 {
+			reg = <0x0 0x84a00000 0x0 0x1900000>;
+			no-map;
+		};
+
+		adsp_fw_mem: adsp@8d600000 {
+			reg = <0x0 0x8d600000 0x0 0x1200000>;
+			no-map;
+		};
+
+		wcnss_fw_mem: wcnss@8e800000 {
+			reg = <0x0 0x8e800000 0x0 0x700000>;
+			no-map;
+		};
+
+		cont_splash_mem: cont-splash@90001000 {
+			reg = <0x0 0x90001000 0x0 (720 * 1440 * 3)>;
+			no-map;
+		};
+	};
+
+	i2c-gpio {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>; /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imu@68 {
+			compatible = "bosch,bmi120";
+			reg = <0x68>;
+
+			vdd-supply = <&pm8953_l10>;
+			vddio-supply = <&pm8953_l6>;
+
+			mount-matrix = "0", "-1", "0",
+					"1", "0", "0",
+					"0", "0", "-1";
+		};
+
+		light@48 {
+			compatible = "sensortek,stk3310";
+			reg = <0x48>;
+		};
+	};
+
+	vreg_cam_front_vana: vreg-cam-front-vana {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_cam_front_vana";
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		enable-active-high;
+		vin-supply = <&pm8953_l22>;
+		gpio = <&tlmm 22 GPIO_ACTIVE_HIGH>;
+	};
+
+	vreg_cam_front_vdig: vreg-cam-front-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_cam_front_vdig";
+		regulator-max-microvolt = <1050000>;
+		regulator-min-microvolt = <1050000>;
+		enable-active-high;
+		gpio = <&tlmm 39 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&aw2013_led {
+	status = "okay";
+};
+
+&battery {
+	charge-full-design-microamp-hours = <3080000>;
+	constant-charge-current-max-microamp = <1000000>;
+	voltage-min-design-microvolt = <3400000>;
+	voltage-max-design-microvolt = <4400000>;
+};
+
+&camss {
+	status = "okay";
+	vdda-supply = <&pm8953_s3>;
+
+	ports {
+		port@2 {
+			reg = <2>;
+			csiphy2_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&front_cam_ep>;
+			};
+		};
+	};
+};
+
+&cci {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cci0_default>,
+		    <&cci1_default>,
+		    <&camss_mclk0_default>,
+		    <&camss_mclk1_default>;
+
+	status = "okay";
+};
+
+&cci_i2c0 {
+	camera-sensor@2d { // Front camera
+		compatible = "samsung,s5k3p8sp";
+		reg = <0x2d>;
+		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
+		clock-frequency = <24000000>;
+		reset-gpios = <&tlmm 129 GPIO_ACTIVE_LOW>;
+		dvdd-supply = <&vreg_cam_front_vdig>;
+		avdd-supply = <&vreg_cam_front_vana>;
+		vio-supply = <&pm8953_l6>;
+		rotation = <90>;
+		orientation = <1>;
+
+		port {
+			front_cam_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
+};
+
+&ft5406_ts {
+	touchscreen-size-x = <720>;
+	touchscreen-size-y = <1440>;
+
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wnc3615", "qcom,wcn3620";
+};
+
+&panel {
+	compatible = "xiaomi,ysl-panel";
+};
+
+&pm8953_l10 {
+	regulator-min-microvolt = <2800000>;
+};
+
+&pmi8950_haptics {
+	qcom,actuator-type = <HAP_TYPE_ERM>;
+	qcom,brake-pattern = <0x3 0x3 0x0 0x0>;
+	qcom,wave-play-rate-us = <4165>;
+	qcom,wave-shape = <HAP_WAVE_SQUARE>;
+
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
+};
+
+&sound_card {
+	model = "xiaomi-ysl";
+
+	aux-devs = <&speaker_amp>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus>;
+
+	status = "okay";
+};
+
+&wcd_codec {
+	qcom,micbias2-ext-cap;
+	qcom,mbhc-vthreshold-high = <100 200 450 500 500>;
+	qcom,mbhc-vthreshold-low = <100 200 450 500 500>;
+};
+
+&tlmm {
+	gpio-reserved-ranges = <0 4>, <96 4>;
+};
