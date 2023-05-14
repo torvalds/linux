@@ -1508,9 +1508,9 @@ struct snd_emu10k1_fx8010_ctl {
 	unsigned int vcount;
 	unsigned int count;		/* count of GPR (1..16) */
 	unsigned short gpr[32];		/* GPR number(s) */
-	unsigned int value[32];
-	unsigned int min;		/* minimum range */
-	unsigned int max;		/* maximum range */
+	int value[32];
+	int min;			/* minimum range */
+	int max;			/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 	struct snd_kcontrol *kcontrol;
 };
