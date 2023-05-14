@@ -1203,9 +1203,9 @@ static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
 
 static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 				     const struct sectioncheck* const mismatch,
-				     Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
+				     Elf_Rela *r, Elf_Sym *sym, const char *fromsec,
+				     const char *tosec)
 {
-	const char *tosec;
 	Elf_Sym *to;
 	Elf_Sym *from;
 	const char *tosym;
@@ -1214,7 +1214,6 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	from = find_elf_symbol2(elf, r->r_offset, fromsec);
 	fromsym = sym_name(elf, from);
 
-	tosec = sec_name(elf, get_secindex(elf, sym));
 	to = find_elf_symbol(elf, r->r_addend, sym);
 	tosym = sym_name(elf, to);
 
@@ -1276,7 +1275,7 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
 	if (!mismatch)
 		return;
 
-	default_mismatch_handler(modname, elf, mismatch, r, sym, fromsec);
+	default_mismatch_handler(modname, elf, mismatch, r, sym, fromsec, tosec);
 }
 
 static unsigned int *reloc_location(struct elf_info *elf,
