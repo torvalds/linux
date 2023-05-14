@@ -769,3 +769,10 @@
 		fsl,pins = <IMX8QXP_SCU_BOOT_MODE3_SCU_DSC_RTC_CLOCK_OUTPUT_32K	0x20>;
 	};
 };
+
+/* Delete peripherals which are not present on SOC, but are defined in imx8-ss-*.dtsi */
+
+/delete-node/ &adc1;
+/delete-node/ &adc1_lpcg;
+/delete-node/ &dsp;
+/delete-node/ &dsp_lpcg;
