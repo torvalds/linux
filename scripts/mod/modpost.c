@@ -1297,23 +1297,16 @@ static void report_extable_warnings(const char* modname, struct elf_info* elf,
 				    Elf_Rela* r, Elf_Sym* sym,
 				    const char* fromsec, const char* tosec)
 {
-	Elf_Sym* fromsym = find_elf_symbol2(elf, r->r_offset, fromsec);
-	const char* fromsym_name = sym_name(elf, fromsym);
 	Elf_Sym* tosym = find_elf_symbol(elf, r->r_addend, sym);
 	const char* tosym_name = sym_name(elf, tosym);
-	const char* from_pretty_name;
-	const char* from_pretty_name_p;
 	const char* to_pretty_name;
 	const char* to_pretty_name_p;
 
-	get_pretty_name(is_function(fromsym),
-			&from_pretty_name, &from_pretty_name_p);
 	get_pretty_name(is_function(tosym),
 			&to_pretty_name, &to_pretty_name_p);
 
-	warn("%s(%s+0x%lx): Section mismatch in reference from the %s %s%s to the %s %s:%s%s\n",
-	     modname, fromsec, (long)r->r_offset, from_pretty_name,
-	     fromsym_name, from_pretty_name_p,
+	warn("%s(%s+0x%lx): Section mismatch in reference to the %s %s:%s%s\n",
+	     modname, fromsec, (long)r->r_offset,
 	     to_pretty_name, tosec, tosym_name, to_pretty_name_p);
 
 	if (!match(tosec, mismatch->bad_tosec) &&
