@@ -1124,8 +1124,8 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
  * In other cases the symbol needs to be looked up in the symbol table
  * based on section and address.
  *  **/
-static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf64_Sword addr,
-				Elf_Sym *relsym)
+static Elf_Sym *find_tosym(struct elf_info *elf, Elf64_Sword addr,
+			   Elf_Sym *relsym)
 {
 	Elf_Sym *sym;
 	Elf_Sym *near = NULL;
@@ -1168,8 +1168,8 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf64_Sword addr,
  * The ELF format may have a better way to detect what type of symbol
  * it is, but this works for now.
  **/
-static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
-				 unsigned int secndx)
+static Elf_Sym *find_fromsym(struct elf_info *elf, Elf_Addr addr,
+			     unsigned int secndx)
 {
 	Elf_Sym *sym;
 	Elf_Sym *near = NULL;
@@ -1207,10 +1207,10 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	const char *tosym;
 	const char *fromsym;
 
-	from = find_elf_symbol2(elf, r->r_offset, fsecndx);
+	from = find_fromsym(elf, r->r_offset, fsecndx);
 	fromsym = sym_name(elf, from);
 
-	to = find_elf_symbol(elf, r->r_addend, sym);
+	to = find_tosym(elf, r->r_addend, sym);
 	tosym = sym_name(elf, to);
 
 	/* check whitelist - we may ignore it */
