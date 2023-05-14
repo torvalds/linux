@@ -682,11 +682,11 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 	if (ieee->scanning_continue == 1) {
 		ieee->scanning_continue = 0;
 		ieee->actscanning = false;
-
+		mutex_unlock(&ieee->scan_mutex);
 		cancel_delayed_work_sync(&ieee->softmac_scan_wq);
+	} else {
+		mutex_unlock(&ieee->scan_mutex);
 	}
-
-	mutex_unlock(&ieee->scan_mutex);
 }
 
 void rtllib_stop_scan(struct rtllib_device *ieee)
