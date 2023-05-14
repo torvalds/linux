@@ -713,7 +713,6 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	};
 
 	unsigned int i, j;
-	u8 sensor_lanes[N_MIPI_PORT_ID] = { };
 	u32 csi_control;
 	int nportconfigs;
 	u32 port_config_mask;
@@ -741,38 +740,10 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 		nportconfigs = ARRAY_SIZE(portconfigs);
 	}
 
-	for (i = 0; i < isp->input_cnt; i++) {
-		struct camera_mipi_info *mipi_info;
-
-		if (isp->inputs[i].type != RAW_CAMERA)
-			continue;
-
-		mipi_info = atomisp_to_sensor_mipi_info(isp->inputs[i].camera);
-		if (!mipi_info)
-			continue;
-
-		switch (mipi_info->port) {
-		case ATOMISP_CAMERA_PORT_PRIMARY:
-			sensor_lanes[0] = mipi_info->num_lanes;
-			break;
-		case ATOMISP_CAMERA_PORT_SECONDARY:
-			sensor_lanes[1] = mipi_info->num_lanes;
-			break;
-		case ATOMISP_CAMERA_PORT_TERTIARY:
-			sensor_lanes[2] = mipi_info->num_lanes;
-			break;
-		default:
-			dev_err(isp->dev,
-				"%s: invalid port: %d for the %dth sensor\n",
-				__func__, mipi_info->port, i);
-			return -EINVAL;
-		}
-	}
-
 	for (i = 0; i < nportconfigs; i++) {
 		for (j = 0; j < N_MIPI_PORT_ID; j++)
-			if (sensor_lanes[j] &&
-			    sensor_lanes[j] != portconfigs[i].lanes[j])
+			if (isp->sensor_lanes[j] &&
+			    isp->sensor_lanes[j] != portconfigs[i].lanes[j])
 				break;
 
 		if (j == N_MIPI_PORT_ID)
@@ -783,7 +754,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 		dev_err(isp->dev,
 			"%s: could not find the CSI port setting for %d-%d-%d\n",
 			__func__,
-			sensor_lanes[0], sensor_lanes[1], sensor_lanes[2]);
+			isp->sensor_lanes[0], isp->sensor_lanes[1], isp->sensor_lanes[2]);
 		return -EINVAL;
 	}
 
@@ -811,7 +782,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 {
 	const struct atomisp_platform_data *pdata;
 	struct intel_v4l2_subdev_table *subdevs;
-	int ret, raw_index = -1, count;
+	int ret, mipi_port, raw_index = -1, count;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata) {
@@ -851,10 +822,18 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 				break;
 			}
 
+			if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
+				dev_err(isp->dev, "port %d not supported\n", subdevs->port);
+				break;
+			}
+
 			isp->inputs[isp->input_cnt].type = subdevs->type;
 			isp->inputs[isp->input_cnt].port = subdevs->port;
 			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
 			isp->input_cnt++;
+
+			mipi_port = atomisp_port_to_mipi_port(isp, subdevs->port);
+			isp->sensor_lanes[mipi_port] = subdevs->lanes;
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
@@ -964,15 +943,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto subdev_register_failed;
 	}
 
-	for (i = 0; i < isp->input_cnt; i++) {
-		if (isp->inputs[i].port >= ATOMISP_CAMERA_NR_PORTS) {
-			dev_err(isp->dev, "isp->inputs port %d not supported\n",
-				isp->inputs[i].port);
-			ret = -EINVAL;
-			goto link_failed;
-		}
-	}
-
 	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
 		dev_dbg(isp->dev,
 			"TPG detected, camera_cnt: %d\n", isp->input_cnt);
@@ -985,8 +955,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 
 	return 0;
 
-link_failed:
-	atomisp_subdev_unregister_entities(&isp->asd);
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:

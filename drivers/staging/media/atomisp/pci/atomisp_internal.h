@@ -189,6 +189,11 @@ struct atomisp_device {
 	 * structures and css API calls. */
 	struct mutex mutex;
 
+	/*
+	 * Number of lanes used by each sensor per port.
+	 * Note this is indexed by mipi_port_id not atomisp_camera_port.
+	 */
+	int sensor_lanes[N_MIPI_PORT_ID];
 	unsigned int input_cnt;
 	struct atomisp_input_subdev inputs[ATOM_ISP_MAX_INPUTS];
 	struct v4l2_subdev *flash;
