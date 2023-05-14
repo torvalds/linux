@@ -1207,6 +1207,14 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
 	return near;
 }
 
+static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
+{
+	if (secndx > elf->num_sections)
+		return false;
+
+	return (elf->sechdrs[secndx].sh_flags & SHF_EXECINSTR) != 0;
+}
+
 static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 				     const struct sectioncheck* const mismatch,
 				     Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
@@ -1250,14 +1258,6 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 		fatal("There's a special handler for this mismatch type, we should never get here.\n");
 		break;
 	}
-}
-
-static int is_executable_section(struct elf_info* elf, unsigned int section_index)
-{
-	if (section_index > elf->num_sections)
-		fatal("section_index is outside elf->num_sections!\n");
-
-	return ((elf->sechdrs[section_index].sh_flags & SHF_EXECINSTR) == SHF_EXECINSTR);
 }
 
 static void extable_mismatch_handler(const char* modname, struct elf_info *elf,
