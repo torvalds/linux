@@ -1169,19 +1169,14 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf64_Sword addr,
  * it is, but this works for now.
  **/
 static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
-				 const char *sec)
+				 unsigned int secndx)
 {
 	Elf_Sym *sym;
 	Elf_Sym *near = NULL;
 	Elf_Addr distance = ~0;
 
 	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
-		const char *symsec;
-
-		if (is_shndx_special(sym->st_shndx))
-			continue;
-		symsec = sec_name(elf, get_secindex(elf, sym));
-		if (strcmp(symsec, sec) != 0)
+		if (get_secindex(elf, sym) != secndx)
 			continue;
 		if (!is_valid_name(elf, sym))
 			continue;
@@ -1203,7 +1198,8 @@ static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
 
 static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 				     const struct sectioncheck* const mismatch,
-				     Elf_Rela *r, Elf_Sym *sym, const char *fromsec,
+				     Elf_Rela *r, Elf_Sym *sym,
+				     unsigned int fsecndx, const char *fromsec,
 				     const char *tosec)
 {
 	Elf_Sym *to;
@@ -1211,7 +1207,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	const char *tosym;
 	const char *fromsym;
 
-	from = find_elf_symbol2(elf, r->r_offset, fromsec);
+	from = find_elf_symbol2(elf, r->r_offset, fsecndx);
 	fromsym = sym_name(elf, from);
 
 	to = find_elf_symbol(elf, r->r_addend, sym);
@@ -1267,7 +1263,8 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 }
 
 static void check_section_mismatch(const char *modname, struct elf_info *elf,
-				   Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
+				   Elf_Rela *r, Elf_Sym *sym,
+				   unsigned int fsecndx, const char *fromsec)
 {
 	const char *tosec = sec_name(elf, get_secindex(elf, sym));
 	const struct sectioncheck *mismatch = section_mismatch(fromsec, tosec);
@@ -1275,7 +1272,8 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
 	if (!mismatch)
 		return;
 
-	default_mismatch_handler(modname, elf, mismatch, r, sym, fromsec, tosec);
+	default_mismatch_handler(modname, elf, mismatch, r, sym, fsecndx, fromsec,
+				 tosec);
 }
 
 static unsigned int *reloc_location(struct elf_info *elf,
@@ -1390,12 +1388,11 @@ static void section_rela(const char *modname, struct elf_info *elf,
 	Elf_Rela *rela;
 	Elf_Rela r;
 	unsigned int r_sym;
-	const char *fromsec;
-
+	unsigned int fsecndx = sechdr->sh_info;
+	const char *fromsec = sec_name(elf, fsecndx);
 	Elf_Rela *start = (void *)elf->hdr + sechdr->sh_offset;
 	Elf_Rela *stop  = (void *)start + sechdr->sh_size;
 
-	fromsec = sec_name(elf, sechdr->sh_info);
 	/* if from section (name) is know good then skip it */
 	if (match(fromsec, section_white_list))
 		return;
@@ -1434,7 +1431,7 @@ static void section_rela(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
-		check_section_mismatch(modname, elf, &r, sym, fromsec);
+		check_section_mismatch(modname, elf, &r, sym, fsecndx, fromsec);
 	}
 }
 
@@ -1445,12 +1442,11 @@ static void section_rel(const char *modname, struct elf_info *elf,
 	Elf_Rel *rel;
 	Elf_Rela r;
 	unsigned int r_sym;
-	const char *fromsec;
-
+	unsigned int fsecndx = sechdr->sh_info;
+	const char *fromsec = sec_name(elf, fsecndx);
 	Elf_Rel *start = (void *)elf->hdr + sechdr->sh_offset;
 	Elf_Rel *stop  = (void *)start + sechdr->sh_size;
 
-	fromsec = sec_name(elf, sechdr->sh_info);
 	/* if from section (name) is know good then skip it */
 	if (match(fromsec, section_white_list))
 		return;
@@ -1493,7 +1489,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
-		check_section_mismatch(modname, elf, &r, sym, fromsec);
+		check_section_mismatch(modname, elf, &r, sym, fsecndx, fromsec);
 	}
 }
 
