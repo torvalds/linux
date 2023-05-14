@@ -782,7 +782,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 {
 	const struct atomisp_platform_data *pdata;
 	struct intel_v4l2_subdev_table *subdevs;
-	int ret, mipi_port, raw_index = -1, count;
+	int ret, mipi_port, count;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata) {
@@ -814,26 +814,20 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 
 		switch (subdevs->type) {
 		case RAW_CAMERA:
-			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
-			raw_index = isp->input_cnt;
-			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
-				dev_warn(isp->dev,
-					 "too many atomisp inputs, ignored\n");
-				break;
-			}
-
 			if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
 				dev_err(isp->dev, "port %d not supported\n", subdevs->port);
 				break;
 			}
 
-			isp->inputs[isp->input_cnt].type = subdevs->type;
-			isp->inputs[isp->input_cnt].port = subdevs->port;
-			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
-			isp->input_cnt++;
+			if (isp->sensor_subdevs[subdevs->port]) {
+				dev_err(isp->dev, "port %d already has a sensor attached\n",
+					subdevs->port);
+				break;
+			}
 
 			mipi_port = atomisp_port_to_mipi_port(isp, subdevs->port);
 			isp->sensor_lanes[mipi_port] = subdevs->lanes;
+			isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
@@ -854,21 +848,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			break;
 		}
 	}
-
-	/*
-	 * HACK: Currently VCM belongs to primary sensor only, but correct
-	 * approach must be to acquire from platform code which sensor
-	 * owns it.
-	 */
-	if (isp->motor && raw_index >= 0)
-		isp->inputs[raw_index].motor = isp->motor;
-
-	/* Proceed even if no modules detected. For COS mode and no modules. */
-	if (!isp->input_cnt)
-		dev_warn(isp->dev, "no camera attached or fail to detect\n");
-	else
-		dev_info(isp->dev, "detected %d camera sensors\n",
-			 isp->input_cnt);
 
 	return atomisp_csi_lane_config(isp);
 }
@@ -943,16 +922,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto subdev_register_failed;
 	}
 
-	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
-		dev_dbg(isp->dev,
-			"TPG detected, camera_cnt: %d\n", isp->input_cnt);
-		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
-		isp->inputs[isp->input_cnt].port = -1;
-		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
-	} else {
-		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
-	}
-
 	return 0;
 
 subdev_register_failed:
@@ -970,7 +939,43 @@ v4l2_device_failed:
 
 static int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
-	int err;
+	struct atomisp_input_subdev *input;
+	int i, err;
+
+	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
+		if (!isp->sensor_subdevs[i])
+			continue;
+
+		input = &isp->inputs[isp->input_cnt];
+
+		input->type = RAW_CAMERA;
+		input->port = i;
+		input->camera = isp->sensor_subdevs[i];
+
+		/*
+		 * HACK: Currently VCM belongs to primary sensor only, but correct
+		 * approach must be to acquire from platform code which sensor
+		 * owns it.
+		 */
+		if (i == ATOMISP_CAMERA_PORT_PRIMARY)
+			input->motor = isp->motor;
+
+		isp->input_cnt++;
+	}
+
+	if (!isp->input_cnt)
+		dev_warn(isp->dev, "no camera attached or fail to detect\n");
+	else
+		dev_info(isp->dev, "detected %d camera sensors\n", isp->input_cnt);
+
+	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
+		dev_dbg(isp->dev, "TPG detected, camera_cnt: %d\n", isp->input_cnt);
+		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
+		isp->inputs[isp->input_cnt].port = -1;
+		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
+	} else {
+		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
+	}
 
 	isp->asd.video_out.vdev.v4l2_dev = &isp->v4l2_dev;
 	isp->asd.video_out.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
