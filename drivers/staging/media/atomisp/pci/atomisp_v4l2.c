@@ -701,7 +701,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	static const struct {
 		u8 code;
-		u8 lanes[MRFLD_PORT_NUM];
+		u8 lanes[N_MIPI_PORT_ID];
 	} portconfigs[] = {
 		/* Tangier/Merrifield available lane configurations */
 		{ 0x00, { 4, 1, 0 } },		/* 00000 */
@@ -725,7 +725,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	};
 
 	unsigned int i, j;
-	u8 sensor_lanes[MRFLD_PORT_NUM] = { 0 };
+	u8 sensor_lanes[N_MIPI_PORT_ID] = { };
 	u32 csi_control;
 	int nportconfigs;
 	u32 port_config_mask;
@@ -782,12 +782,12 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	}
 
 	for (i = 0; i < nportconfigs; i++) {
-		for (j = 0; j < MRFLD_PORT_NUM; j++)
+		for (j = 0; j < N_MIPI_PORT_ID; j++)
 			if (sensor_lanes[j] &&
 			    sensor_lanes[j] != portconfigs[i].lanes[j])
 				break;
 
-		if (j == MRFLD_PORT_NUM)
+		if (j == N_MIPI_PORT_ID)
 			break;			/* Found matching setting */
 	}
 
