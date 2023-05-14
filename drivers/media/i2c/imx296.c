@@ -1152,7 +1152,7 @@ static struct i2c_driver imx296_i2c_driver = {
 		.name = "imx296",
 		.pm = &imx296_pm_ops
 	},
-	.probe_new = imx296_probe,
+	.probe = imx296_probe,
 	.remove = imx296_remove,
 };
 

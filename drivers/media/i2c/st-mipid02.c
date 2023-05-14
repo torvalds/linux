@@ -1091,7 +1091,7 @@ static struct i2c_driver mipid02_i2c_driver = {
 		.name  = "st-mipid02",
 		.of_match_table = mipid02_dt_ids,
 	},
-	.probe_new = mipid02_probe,
+	.probe = mipid02_probe,
 	.remove = mipid02_remove,
 };
 

@@ -591,7 +591,7 @@ static struct i2c_driver ch7322_i2c_driver = {
 		.name = "ch7322",
 		.of_match_table = of_match_ptr(ch7322_of_match),
 	},
-	.probe_new	= ch7322_probe,
+	.probe		= ch7322_probe,
 	.remove		= ch7322_remove,
 };
 

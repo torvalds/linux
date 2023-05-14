@@ -1610,7 +1610,7 @@ static struct i2c_driver adv7180_driver = {
 		   .pm = ADV7180_PM_OPS,
 		   .of_match_table = of_match_ptr(adv7180_of_id),
 		   },
-	.probe_new = adv7180_probe,
+	.probe = adv7180_probe,
 	.remove = adv7180_remove,
 	.id_table = adv7180_id,
 };

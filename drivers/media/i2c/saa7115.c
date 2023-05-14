@@ -1951,7 +1951,7 @@ static struct i2c_driver saa711x_driver = {
 	.driver = {
 		.name	= "saa7115",
 	},
-	.probe_new	= saa711x_probe,
+	.probe		= saa711x_probe,
 	.remove		= saa711x_remove,
 	.id_table	= saa711x_id,
 };

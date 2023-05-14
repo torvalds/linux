@@ -762,7 +762,7 @@ static struct i2c_driver ov9640_i2c_driver = {
 	.driver = {
 		.name = "ov9640",
 	},
-	.probe_new = ov9640_probe,
+	.probe    = ov9640_probe,
 	.remove   = ov9640_remove,
 	.id_table = ov9640_id,
 };

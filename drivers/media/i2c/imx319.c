@@ -2558,7 +2558,7 @@ static struct i2c_driver imx319_i2c_driver = {
 		.pm = &imx319_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx319_acpi_ids),
 	},
-	.probe_new = imx319_probe,
+	.probe = imx319_probe,
 	.remove = imx319_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };

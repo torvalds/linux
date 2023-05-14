@@ -326,7 +326,7 @@ static struct i2c_driver mxl301rf_driver = {
 	.driver = {
 		.name	= "mxl301rf",
 	},
-	.probe_new	= mxl301rf_probe,
+	.probe		= mxl301rf_probe,
 	.remove		= mxl301rf_remove,
 	.id_table	= mxl301rf_id,
 };

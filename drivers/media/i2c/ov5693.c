@@ -1554,7 +1554,7 @@ static struct i2c_driver ov5693_driver = {
 		.of_match_table = ov5693_of_match,
 		.pm = &ov5693_pm_ops,
 	},
-	.probe_new = ov5693_probe,
+	.probe = ov5693_probe,
 	.remove = ov5693_remove,
 };
 module_i2c_driver(ov5693_driver);

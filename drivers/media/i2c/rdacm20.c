@@ -676,7 +676,7 @@ static struct i2c_driver rdacm20_i2c_driver = {
 		.name	= "rdacm20",
 		.of_match_table = rdacm20_of_ids,
 	},
-	.probe_new	= rdacm20_probe,
+	.probe		= rdacm20_probe,
 	.remove		= rdacm20_remove,
 	.shutdown	= rdacm20_shutdown,
 };

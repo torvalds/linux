@@ -959,7 +959,7 @@ static struct i2c_driver video_i2c_driver = {
 		.of_match_table = video_i2c_of_match,
 		.pm	= &video_i2c_pm_ops,
 	},
-	.probe_new	= video_i2c_probe,
+	.probe		= video_i2c_probe,
 	.remove		= video_i2c_remove,
 	.id_table	= video_i2c_id_table,
 };

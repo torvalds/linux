@@ -1158,7 +1158,7 @@ static struct i2c_driver ov2680_i2c_driver = {
 		.pm = &ov2680_pm_ops,
 		.of_match_table	= of_match_ptr(ov2680_dt_ids),
 	},
-	.probe_new	= ov2680_probe,
+	.probe		= ov2680_probe,
 	.remove		= ov2680_remove,
 };
 module_i2c_driver(ov2680_i2c_driver);
