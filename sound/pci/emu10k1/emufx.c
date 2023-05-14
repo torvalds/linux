@@ -769,6 +769,32 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 			err = -EINVAL;
 			goto __error;
 		}
+		switch (gctl->translation) {
+		case EMU10K1_GPR_TRANSLATION_NONE:
+			break;
+		case EMU10K1_GPR_TRANSLATION_TABLE100:
+			if (gctl->min != 0 || gctl->max != 100) {
+				err = -EINVAL;
+				goto __error;
+			}
+			break;
+		case EMU10K1_GPR_TRANSLATION_BASS:
+		case EMU10K1_GPR_TRANSLATION_TREBLE:
+			if (gctl->min != 0 || gctl->max != 40) {
+				err = -EINVAL;
+				goto __error;
+			}
+			break;
+		case EMU10K1_GPR_TRANSLATION_ONOFF:
+			if (gctl->min != 0 || gctl->max != 1) {
+				err = -EINVAL;
+				goto __error;
+			}
+			break;
+		default:
+			err = -EINVAL;
+			goto __error;
+		}
 	}
 	for (i = 0; i < icode->gpr_list_control_count; i++) {
 	     	/* FIXME: we need to check the WRITE access */
