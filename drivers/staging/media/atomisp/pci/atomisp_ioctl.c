@@ -673,7 +673,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 
 	/* select operating sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, video, s_routing,
-			       0, isp->inputs[input].sensor_index, 0);
+			       0, 0, 0);
 	if (ret && (ret != -ENOIOCTLCMD)) {
 		dev_err(isp->dev, "Failed to select sensor\n");
 		return ret;

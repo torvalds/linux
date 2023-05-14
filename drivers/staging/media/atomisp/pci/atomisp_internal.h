@@ -126,15 +126,12 @@ struct atomisp_input_subdev {
 	enum atomisp_camera_port port;
 	struct v4l2_subdev *camera;
 	struct v4l2_subdev *motor;
-	struct v4l2_frmsizeenum frame_size;
 
 	/*
 	 * To show this resource is used by
 	 * which stream, in ISP multiple stream mode
 	 */
 	struct atomisp_sub_device *asd;
-
-	int sensor_index;
 };
 
 enum atomisp_dfs_mode {

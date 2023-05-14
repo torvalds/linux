@@ -866,13 +866,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->inputs[isp->input_cnt].type = subdevs->type;
 			isp->inputs[isp->input_cnt].port = subdevs->port;
 			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
-			isp->inputs[isp->input_cnt].sensor_index = 0;
-			/*
-			 * initialize the subdev frame size, then next we can
-			 * judge whether frame_size store effective value via
-			 * pixel_format.
-			 */
-			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
 			isp->input_cnt++;
 			break;
 		case CAMERA_MOTOR:
