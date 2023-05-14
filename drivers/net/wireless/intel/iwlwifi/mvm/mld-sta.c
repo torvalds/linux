@@ -728,7 +728,7 @@ int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	lockdep_assert_held(&mvm->mutex);
 
