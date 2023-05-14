@@ -18,14 +18,27 @@
 #include <linux/export.h>
 #include "p17v.h"
 
+static inline bool check_ptr_reg(struct snd_emu10k1 *emu, unsigned int reg)
+{
+	if (snd_BUG_ON(!emu))
+		return false;
+	if (snd_BUG_ON(reg & (emu->audigy ? (0xffff0000 & ~A_PTR_ADDRESS_MASK)
+					  : (0xffff0000 & ~PTR_ADDRESS_MASK))))
+		return false;
+	if (snd_BUG_ON(reg & 0x0000ffff & ~PTR_CHANNELNUM_MASK))
+		return false;
+	return true;
+}
+
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn)
 {
 	unsigned long flags;
 	unsigned int regptr, val;
 	unsigned int mask;
 
-	mask = emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK;
-	regptr = ((reg << 16) & mask) | (chn & PTR_CHANNELNUM_MASK);
+	regptr = (reg << 16) | chn;
+	if (!check_ptr_reg(emu, regptr))
+		return 0;
 
 	if (reg & 0xff000000) {
 		unsigned char size, offset;
@@ -57,18 +70,20 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 	unsigned long flags;
 	unsigned int mask;
 
-	if (snd_BUG_ON(!emu))
+	regptr = (reg << 16) | chn;
+	if (!check_ptr_reg(emu, regptr))
 		return;
-	mask = emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK;
-	regptr = ((reg << 16) & mask) | (chn & PTR_CHANNELNUM_MASK);
 
 	if (reg & 0xff000000) {
 		unsigned char size, offset;
 
 		size = (reg >> 24) & 0x3f;
 		offset = (reg >> 16) & 0x1f;
-		mask = ((1 << size) - 1) << offset;
-		data = (data << offset) & mask;
+		mask = (1 << size) - 1;
+		if (snd_BUG_ON(data & ~mask))
+			return;
+		mask <<= offset;
+		data <<= offset;
 
 		spin_lock_irqsave(&emu->emu_lock, flags);
 		outl(regptr, emu->port + PTR);
