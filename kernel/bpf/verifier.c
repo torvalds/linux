@@ -3864,10 +3864,11 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 	struct bpf_verifier_state *st = env->cur_state;
 	int first_idx = st->first_insn_idx;
 	int last_idx = env->insn_idx;
+	int subseq_idx = -1;
 	struct bpf_func_state *func;
 	struct bpf_reg_state *reg;
 	bool skip_first = true;
-	int i, prev_i, fr, err;
+	int i, fr, err;
 
 	if (!env->bpf_capable)
 		return 0;
@@ -3897,8 +3898,8 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 		u32 history = st->jmp_history_cnt;
 
 		if (env->log.level & BPF_LOG_LEVEL2) {
-			verbose(env, "mark_precise: frame%d: last_idx %d first_idx %d\n",
-				bt->frame, last_idx, first_idx);
+			verbose(env, "mark_precise: frame%d: last_idx %d first_idx %d subseq_idx %d \n",
+				bt->frame, last_idx, first_idx, subseq_idx);
 		}
 
 		if (last_idx < 0) {
@@ -3930,12 +3931,12 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 			return -EFAULT;
 		}
 
-		for (i = last_idx, prev_i = -1;;) {
+		for (i = last_idx;;) {
 			if (skip_first) {
 				err = 0;
 				skip_first = false;
 			} else {
-				err = backtrack_insn(env, i, prev_i, bt);
+				err = backtrack_insn(env, i, subseq_idx, bt);
 			}
 			if (err == -ENOTSUPP) {
 				mark_all_scalars_precise(env, env->cur_state);
@@ -3952,7 +3953,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 				return 0;
 			if (i == first_idx)
 				break;
-			prev_i = i;
+			subseq_idx = i;
 			i = get_prev_insn_idx(st, i, &history);
 			if (i >= env->prog->len) {
 				/* This can happen if backtracking reached insn 0
@@ -4031,6 +4032,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 		if (bt_empty(bt))
 			return 0;
 
+		subseq_idx = first_idx;
 		last_idx = st->last_insn_idx;
 		first_idx = st->first_insn_idx;
 	}
