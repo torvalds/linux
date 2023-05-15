@@ -1039,7 +1039,7 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 	u32 channels;
 	u32 rate;
 	int sample_valid_bits;
-	int i;
+	int i = 0;
 
 	if (!pin_fmts) {
 		dev_err(sdev->dev, "no reference formats for %s\n", swidget->widget->name);
@@ -1065,6 +1065,10 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 		dev_err(sdev->dev, "no formats available for %s\n", swidget->widget->name);
 		return -EINVAL;
 	}
+
+	/* pick the only available input format */
+	if (available_fmt->num_input_formats == 1)
+		goto in_fmt;
 
 	/*
 	 * Search supported audio formats with pin index 0 to match rate, channels ,and
@@ -1093,6 +1097,7 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 		return -EINVAL;
 	}
 
+in_fmt:
 	/* copy input format */
 	if (available_fmt->num_input_formats && i < available_fmt->num_input_formats) {
 		memcpy(&base_config->audio_fmt, &available_fmt->input_pin_fmts[i].audio_fmt,
@@ -1104,6 +1109,10 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 		dev_dbg(sdev->dev, "Init input audio formats for %s\n", swidget->widget->name);
 		sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->input_pin_fmts[i], 1);
 	}
+
+	/* pick the only available output format */
+	if (available_fmt->num_output_formats == 1)
+		i = 0;
 
 	if (available_fmt->num_output_formats && i < available_fmt->num_output_formats)
 		base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
