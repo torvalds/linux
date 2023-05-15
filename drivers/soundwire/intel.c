@@ -643,7 +643,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 }
 
 static int intel_params_stream(struct sdw_intel *sdw,
-			       int stream,
+			       struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai,
 			       struct snd_pcm_hw_params *hw_params,
 			       int link_id, int alh_stream_id)
@@ -651,7 +651,7 @@ static int intel_params_stream(struct sdw_intel *sdw,
 	struct sdw_intel_link_res *res = sdw->link_res;
 	struct sdw_intel_stream_params_data params_data;
 
-	params_data.stream = stream; /* direction */
+	params_data.substream = substream;
 	params_data.dai = dai;
 	params_data.hw_params = hw_params;
 	params_data.link_id = link_id;
@@ -727,7 +727,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	dai_runtime->pdi = pdi;
 
 	/* Inform DSP about PDI stream number */
-	ret = intel_params_stream(sdw, substream->stream, dai, params,
+	ret = intel_params_stream(sdw, substream, dai, params,
 				  sdw->instance,
 				  pdi->intel_alh_id);
 	if (ret)
@@ -804,7 +804,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		sdw_cdns_config_stream(cdns, ch, dir, dai_runtime->pdi);
 
 		/* Inform DSP about PDI stream number */
-		ret = intel_params_stream(sdw, substream->stream, dai,
+		ret = intel_params_stream(sdw, substream, dai,
 					  hw_params,
 					  sdw->instance,
 					  dai_runtime->pdi->intel_alh_id);
