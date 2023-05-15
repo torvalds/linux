@@ -39,6 +39,27 @@
 		};
 	};
 
+	bt_sco: bt-sco {
+		status = "disabled";
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <0>;
+	};
+
+	bt_sound: bt-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion = <0>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&sai0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco>;
+		};
+	};
+
 	dc_12v: dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
@@ -528,6 +549,11 @@
 		| RKPM_PWM1_M0_REGULATOR_EN
 		)
 	>;
+};
+
+&sai0 {
+	pinctrl-0 = <&i2s0m1_lrck &i2s0m1_sclk &i2s0m1_sdi &i2s0m1_sdo>;
+	status = "disabled";
 };
 
 &sai2 {

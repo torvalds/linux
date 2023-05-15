@@ -85,6 +85,11 @@
 	status = "okay";
 };
 
+&sai0 {
+	pinctrl-0 = <&i2s0m0_lrck &i2s0m0_sclk &i2s0m0_sdi &i2s0m0_sdo>;
+	status = "disabled";
+};
+
 &uart2 {
 	status = "okay";
 	pinctrl-names = "default";
