@@ -532,7 +532,7 @@ static struct config_group *pci_epf_type_add_cfs(struct pci_epf *epf,
 
 	if (!epf->driver) {
 		dev_err(&epf->dev, "epf device not bound to driver\n");
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	if (!epf->driver->ops->add_cfs)
