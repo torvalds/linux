@@ -294,7 +294,7 @@ static struct pernet_operations devlink_pernet_ops __net_initdata = {
 	.pre_exit = devlink_pernet_pre_exit,
 };
 
-static struct notifier_block devlink_port_netdevice_nb __net_initdata = {
+static struct notifier_block devlink_port_netdevice_nb = {
 	.notifier_call = devlink_port_netdevice_event,
 };
 
