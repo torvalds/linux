@@ -12,7 +12,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
-#include <linux/power_supply.h>
 
 /* RT5033 regulator IDs */
 enum rt5033_regulators {
@@ -30,13 +29,6 @@ struct rt5033_dev {
 	struct regmap_irq_chip_data *irq_data;
 	int irq;
 	bool wakeup;
-};
-
-struct rt5033_battery {
-	struct i2c_client	*client;
-	struct rt5033_dev	*rt5033;
-	struct regmap		*regmap;
-	struct power_supply	*psy;
 };
 
 #endif /* __RT5033_H__ */
