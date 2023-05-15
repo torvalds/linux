@@ -378,6 +378,9 @@ const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.shim_check_wake = intel_shim_check_wake,
 	.shim_wake = intel_shim_wake,
 
+	.pre_bank_switch = intel_pre_bank_switch,
+	.post_bank_switch = intel_post_bank_switch,
+
 	.sync_arm = intel_sync_arm,
 	.sync_go_unlocked = intel_sync_go_unlocked,
 	.sync_go = intel_sync_go,
