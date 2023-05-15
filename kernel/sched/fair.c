@@ -7202,11 +7202,41 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	return target;
 }
 
-/*
- * Predicts what cpu_util(@cpu) would return if @p was removed from @cpu
- * (@dst_cpu = -1) or migrated to @dst_cpu.
+/**
+ * cpu_util() - Estimates the amount of CPU capacity used by CFS tasks.
+ * @cpu: the CPU to get the utilization for
+ * @p: task for which the CPU utilization should be predicted or NULL
+ * @dst_cpu: CPU @p migrates to, -1 if @p moves from @cpu or @p == NULL
+ *
+ * The unit of the return value must be the same as the one of CPU capacity
+ * so that CPU utilization can be compared with CPU capacity.
+ *
+ * CPU utilization is the sum of running time of runnable tasks plus the
+ * recent utilization of currently non-runnable tasks on that CPU.
+ * It represents the amount of CPU capacity currently used by CFS tasks in
+ * the range [0..max CPU capacity] with max CPU capacity being the CPU
+ * capacity at f_max.
+ *
+ * The estimated CPU utilization is defined as the maximum between CPU
+ * utilization and sum of the estimated utilization of the currently
+ * runnable tasks on that CPU. It preserves a utilization "snapshot" of
+ * previously-executed tasks, which helps better deduce how busy a CPU will
+ * be when a long-sleeping task wakes up. The contribution to CPU utilization
+ * of such a task would be significantly decayed at this point of time.
+ *
+ * CPU utilization can be higher than the current CPU capacity
+ * (f_curr/f_max * max CPU capacity) or even the max CPU capacity because
+ * of rounding errors as well as task migrations or wakeups of new tasks.
+ * CPU utilization has to be capped to fit into the [0..max CPU capacity]
+ * range. Otherwise a group of CPUs (CPU0 util = 121% + CPU1 util = 80%)
+ * could be seen as over-utilized even though CPU1 has 20% of spare CPU
+ * capacity. CPU utilization is allowed to overshoot current CPU capacity
+ * though since this is useful for predicting the CPU capacity required
+ * after task migrations (scheduler-driven DVFS).
+ *
+ * Return: (Estimated) utilization for the specified CPU.
  */
-static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
+static unsigned long cpu_util(int cpu, struct task_struct *p, int dst_cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
 	unsigned long util = READ_ONCE(cfs_rq->avg.util_avg);
@@ -7217,9 +7247,9 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	 * contribution. In all the other cases @cpu is not impacted by the
 	 * migration so its util_avg is already correct.
 	 */
-	if (task_cpu(p) == cpu && dst_cpu != cpu)
+	if (p && task_cpu(p) == cpu && dst_cpu != cpu)
 		lsub_positive(&util, task_util(p));
-	else if (task_cpu(p) != cpu && dst_cpu == cpu)
+	else if (p && task_cpu(p) != cpu && dst_cpu == cpu)
 		util += task_util(p);
 
 	if (sched_feat(UTIL_EST)) {
@@ -7255,13 +7285,18 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 		 */
 		if (dst_cpu == cpu)
 			util_est += _task_util_est(p);
-		else if (unlikely(task_on_rq_queued(p) || current == p))
+		else if (p && unlikely(task_on_rq_queued(p) || current == p))
 			lsub_positive(&util_est, _task_util_est(p));
 
 		util = max(util, util_est);
 	}
 
 	return min(util, capacity_orig_of(cpu));
+}
+
+unsigned long cpu_util_cfs(int cpu)
+{
+	return cpu_util(cpu, NULL, -1);
 }
 
 /*
@@ -7281,9 +7316,9 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 {
 	/* Task has no contribution or is new */
 	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
-		return cpu_util_cfs(cpu);
+		p = NULL;
 
-	return cpu_util_next(cpu, p, -1);
+	return cpu_util(cpu, p, -1);
 }
 
 /*
@@ -7330,7 +7365,7 @@ static inline void eenv_task_busy_time(struct energy_env *eenv,
  * cpu_capacity.
  *
  * The contribution of the task @p for which we want to estimate the
- * energy cost is removed (by cpu_util_next()) and must be calculated
+ * energy cost is removed (by cpu_util()) and must be calculated
  * separately (see eenv_task_busy_time). This ensures:
  *
  *   - A stable PD utilization, no matter which CPU of that PD we want to place
@@ -7351,7 +7386,7 @@ static inline void eenv_pd_busy_time(struct energy_env *eenv,
 	int cpu;
 
 	for_each_cpu(cpu, pd_cpus) {
-		unsigned long util = cpu_util_next(cpu, p, -1);
+		unsigned long util = cpu_util(cpu, p, -1);
 
 		busy_time += effective_cpu_util(cpu, util, ENERGY_UTIL, NULL);
 	}
@@ -7375,7 +7410,7 @@ eenv_pd_max_util(struct energy_env *eenv, struct cpumask *pd_cpus,
 
 	for_each_cpu(cpu, pd_cpus) {
 		struct task_struct *tsk = (cpu == dst_cpu) ? p : NULL;
-		unsigned long util = cpu_util_next(cpu, p, dst_cpu);
+		unsigned long util = cpu_util(cpu, p, dst_cpu);
 		unsigned long cpu_util;
 
 		/*
@@ -7521,7 +7556,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 			if (!cpumask_test_cpu(cpu, p->cpus_ptr))
 				continue;
 
-			util = cpu_util_next(cpu, p, cpu);
+			util = cpu_util(cpu, p, cpu);
 			cpu_cap = capacity_of(cpu);
 
 			/*
