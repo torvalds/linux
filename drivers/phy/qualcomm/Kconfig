@@ -59,6 +59,7 @@ if PHY_QCOM_QMP
 config PHY_QCOM_QMP_COMBO
 	tristate "Qualcomm QMP Combo PHY Driver"
 	default PHY_QCOM_QMP
+	depends on TYPEC || TYPEC=n
 	select GENERIC_PHY
 	select MFD_SYSCON
 	help
