@@ -84,6 +84,9 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 	if (dig_port->hdcp_auth_status)
 		return 0;
 
+	if (!dig_port->hdcp_mst_type1_capable)
+		enforce_type0 = true;
+
 	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->base.status == connector_status_disconnected)
@@ -95,9 +98,6 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 		conn_dig_port = intel_attached_dig_port(connector);
 		if (conn_dig_port != dig_port)
 			continue;
-
-		if (!enforce_type0 && !dig_port->hdcp_mst_type1_capable)
-			enforce_type0 = true;
 
 		data->streams[data->k].stream_id = intel_conn_to_vcpi(connector);
 		data->k++;
