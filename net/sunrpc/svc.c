@@ -597,34 +597,25 @@ svc_destroy(struct kref *ref)
 }
 EXPORT_SYMBOL_GPL(svc_destroy);
 
-/*
- * Allocate an RPC server's buffer space.
- * We allocate pages and place them in rq_pages.
- */
-static int
+static bool
 svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 {
-	unsigned int pages, arghi;
+	unsigned long pages, ret;
 
 	/* bc_xprt uses fore channel allocated buffers */
 	if (svc_is_backchannel(rqstp))
-		return 1;
+		return true;
 
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page
 				       */
-	arghi = 0;
 	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
 	if (pages > RPCSVC_MAXPAGES)
 		pages = RPCSVC_MAXPAGES;
-	while (pages) {
-		struct page *p = alloc_pages_node(node, GFP_KERNEL, 0);
-		if (!p)
-			break;
-		rqstp->rq_pages[arghi++] = p;
-		pages--;
-	}
-	return pages == 0;
+
+	ret = alloc_pages_bulk_array_node(GFP_KERNEL, node, pages,
+					  rqstp->rq_pages);
+	return ret == pages;
 }
 
 /*
