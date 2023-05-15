@@ -261,7 +261,7 @@ static struct i2c_driver al3320a_driver = {
 		.pm = pm_sleep_ptr(&al3320a_pm_ops),
 		.acpi_match_table = al3320a_acpi_match,
 	},
-	.probe_new	= al3320a_probe,
+	.probe		= al3320a_probe,
 	.id_table	= al3320a_id,
 };
 

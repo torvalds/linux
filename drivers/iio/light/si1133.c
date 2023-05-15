@@ -1064,7 +1064,7 @@ static struct i2c_driver si1133_driver = {
 	.driver = {
 	    .name   = "si1133",
 	},
-	.probe_new = si1133_probe,
+	.probe = si1133_probe,
 	.id_table = si1133_ids,
 };
 

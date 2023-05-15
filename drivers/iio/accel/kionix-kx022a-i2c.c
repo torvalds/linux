@@ -42,7 +42,7 @@ static struct i2c_driver kx022a_i2c_driver = {
 		.of_match_table = kx022a_of_match,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	  },
-	.probe_new    = kx022a_i2c_probe,
+	.probe        = kx022a_i2c_probe,
 };
 module_i2c_driver(kx022a_i2c_driver);
 

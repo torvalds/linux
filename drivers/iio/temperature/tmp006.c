@@ -283,7 +283,7 @@ static struct i2c_driver tmp006_driver = {
 		.name	= "tmp006",
 		.pm	= pm_sleep_ptr(&tmp006_pm_ops),
 	},
-	.probe_new = tmp006_probe,
+	.probe = tmp006_probe,
 	.id_table = tmp006_id,
 };
 module_i2c_driver(tmp006_driver);

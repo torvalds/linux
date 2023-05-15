@@ -609,7 +609,7 @@ static struct i2c_driver afe4404_i2c_driver = {
 		.of_match_table = afe4404_of_match,
 		.pm = pm_sleep_ptr(&afe4404_pm_ops),
 	},
-	.probe_new = afe4404_probe,
+	.probe = afe4404_probe,
 	.remove = afe4404_remove,
 	.id_table = afe4404_ids,
 };

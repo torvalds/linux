@@ -675,7 +675,7 @@ static struct i2c_driver mlx90614_driver = {
 		.of_match_table = mlx90614_of_match,
 		.pm	= pm_ptr(&mlx90614_pm_ops),
 	},
-	.probe_new = mlx90614_probe,
+	.probe = mlx90614_probe,
 	.remove = mlx90614_remove,
 	.id_table = mlx90614_id,
 };

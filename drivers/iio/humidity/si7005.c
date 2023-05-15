@@ -173,7 +173,7 @@ static struct i2c_driver si7005_driver = {
 	.driver = {
 		.name	= "si7005",
 	},
-	.probe_new = si7005_probe,
+	.probe = si7005_probe,
 	.id_table = si7005_id,
 };
 module_i2c_driver(si7005_driver);

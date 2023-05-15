@@ -265,7 +265,7 @@ static const struct acpi_device_id inv_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 
 static struct i2c_driver inv_mpu_driver = {
-	.probe_new	=	inv_mpu_probe,
+	.probe		=	inv_mpu_probe,
 	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {

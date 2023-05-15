@@ -1121,7 +1121,7 @@ static struct i2c_driver rpr0521_driver = {
 		.pm	= pm_ptr(&rpr0521_pm_ops),
 		.acpi_match_table = ACPI_PTR(rpr0521_acpi_match),
 	},
-	.probe_new	= rpr0521_probe,
+	.probe		= rpr0521_probe,
 	.remove		= rpr0521_remove,
 	.id_table	= rpr0521_id,
 };

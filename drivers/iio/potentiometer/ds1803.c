@@ -252,7 +252,7 @@ static struct i2c_driver ds1803_driver = {
 		.name	= "ds1803",
 		.of_match_table = ds1803_dt_ids,
 	},
-	.probe_new	= ds1803_probe,
+	.probe		= ds1803_probe,
 	.id_table	= ds1803_id,
 };
 

@@ -278,7 +278,7 @@ static struct i2c_driver noa1305_driver = {
 		.name		= NOA1305_DRIVER_NAME,
 		.of_match_table	= noa1305_of_match,
 	},
-	.probe_new	= noa1305_probe,
+	.probe		= noa1305_probe,
 	.id_table	= noa1305_ids,
 };
 

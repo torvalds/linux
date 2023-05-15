@@ -1055,7 +1055,7 @@ static struct i2c_driver sx9500_driver = {
 		.of_match_table = sx9500_of_match,
 		.pm = pm_sleep_ptr(&sx9500_pm_ops),
 	},
-	.probe_new	= sx9500_probe,
+	.probe		= sx9500_probe,
 	.remove		= sx9500_remove,
 	.id_table	= sx9500_id,
 };

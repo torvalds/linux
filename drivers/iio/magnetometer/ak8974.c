@@ -1046,7 +1046,7 @@ static struct i2c_driver ak8974_driver = {
 		.pm = pm_ptr(&ak8974_dev_pm_ops),
 		.of_match_table = ak8974_of_match,
 	},
-	.probe_new = ak8974_probe,
+	.probe = ak8974_probe,
 	.remove	  = ak8974_remove,
 	.id_table = ak8974_id,
 };

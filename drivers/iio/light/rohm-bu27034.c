@@ -1488,7 +1488,7 @@ static struct i2c_driver bu27034_i2c_driver = {
 		.of_match_table = bu27034_of_match,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = bu27034_probe,
+	.probe = bu27034_probe,
 };
 module_i2c_driver(bu27034_i2c_driver);
 

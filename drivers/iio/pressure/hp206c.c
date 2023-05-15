@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(acpi, hp206c_acpi_match);
 #endif
 
 static struct i2c_driver hp206c_driver = {
-	.probe_new = hp206c_probe,
+	.probe = hp206c_probe,
 	.id_table = hp206c_id,
 	.driver = {
 		.name = "hp206c",

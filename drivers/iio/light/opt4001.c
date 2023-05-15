@@ -457,7 +457,7 @@ static struct i2c_driver opt4001_driver = {
 		.name = "opt4001",
 		.of_match_table = opt4001_of_match,
 	},
-	.probe_new = opt4001_probe,
+	.probe = opt4001_probe,
 	.id_table = opt4001_id,
 };
 module_i2c_driver(opt4001_driver);

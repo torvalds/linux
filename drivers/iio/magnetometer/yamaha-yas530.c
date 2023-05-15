@@ -1605,7 +1605,7 @@ static struct i2c_driver yas5xx_driver = {
 		.of_match_table = yas5xx_of_match,
 		.pm = pm_ptr(&yas5xx_dev_pm_ops),
 	},
-	.probe_new = yas5xx_probe,
+	.probe = yas5xx_probe,
 	.remove	  = yas5xx_remove,
 	.id_table = yas5xx_id,
 };
