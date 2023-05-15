@@ -4450,8 +4450,16 @@ static const struct ib_device_ops irdma_roce_dev_ops = {
 };
 
 static const struct ib_device_ops irdma_iw_dev_ops = {
-	.modify_qp = irdma_modify_qp,
 	.get_port_immutable = irdma_iw_port_immutable,
+	.iw_accept = irdma_accept,
+	.iw_add_ref = irdma_qp_add_ref,
+	.iw_connect = irdma_connect,
+	.iw_create_listen = irdma_create_listen,
+	.iw_destroy_listen = irdma_destroy_listen,
+	.iw_get_qp = irdma_get_qp,
+	.iw_reject = irdma_reject,
+	.iw_rem_ref = irdma_qp_rem_ref,
+	.modify_qp = irdma_modify_qp,
 	.query_gid = irdma_query_gid,
 };
 
@@ -4522,14 +4530,6 @@ static void irdma_init_iw_device(struct irdma_device *iwdev)
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
 	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
 			    netdev->dev_addr);
-	iwdev->ibdev.ops.iw_add_ref = irdma_qp_add_ref;
-	iwdev->ibdev.ops.iw_rem_ref = irdma_qp_rem_ref;
-	iwdev->ibdev.ops.iw_get_qp = irdma_get_qp;
-	iwdev->ibdev.ops.iw_connect = irdma_connect;
-	iwdev->ibdev.ops.iw_accept = irdma_accept;
-	iwdev->ibdev.ops.iw_reject = irdma_reject;
-	iwdev->ibdev.ops.iw_create_listen = irdma_create_listen;
-	iwdev->ibdev.ops.iw_destroy_listen = irdma_destroy_listen;
 	memcpy(iwdev->ibdev.iw_ifname, netdev->name,
 	       sizeof(iwdev->ibdev.iw_ifname));
 	ib_set_device_ops(&iwdev->ibdev, &irdma_iw_dev_ops);
