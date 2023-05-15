@@ -454,6 +454,10 @@ int snd_soc_component_force_enable_pin_unlocked(
 	struct snd_soc_component *component,
 	const char *pin);
 
+/* component controls */
+int snd_soc_component_notify_control(struct snd_soc_component *component,
+				     const char * const ctl);
+
 /* component driver ops */
 int snd_soc_component_open(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream);
