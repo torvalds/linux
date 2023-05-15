@@ -975,6 +975,74 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 	return csrow;
 }
 
+/*
+ * See AMD PPR DF::LclNodeTypeMap
+ *
+ * This register gives information for nodes of the same type within a system.
+ *
+ * Reading this register from a GPU node will tell how many GPU nodes are in the
+ * system and what the lowest AMD Node ID value is for the GPU nodes. Use this
+ * info to fixup the Linux logical "Node ID" value set in the AMD NB code and EDAC.
+ */
+static struct local_node_map {
+	u16 node_count;
+	u16 base_node_id;
+} gpu_node_map;
+
+#define PCI_DEVICE_ID_AMD_MI200_DF_F1		0x14d1
+#define REG_LOCAL_NODE_TYPE_MAP			0x144
+
+/* Local Node Type Map (LNTM) fields */
+#define LNTM_NODE_COUNT				GENMASK(27, 16)
+#define LNTM_BASE_NODE_ID			GENMASK(11, 0)
+
+static int gpu_get_node_map(void)
+{
+	struct pci_dev *pdev;
+	int ret;
+	u32 tmp;
+
+	/*
+	 * Node ID 0 is reserved for CPUs.
+	 * Therefore, a non-zero Node ID means we've already cached the values.
+	 */
+	if (gpu_node_map.base_node_id)
+		return 0;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_MI200_DF_F1, NULL);
+	if (!pdev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	ret = pci_read_config_dword(pdev, REG_LOCAL_NODE_TYPE_MAP, &tmp);
+	if (ret)
+		goto out;
+
+	gpu_node_map.node_count = FIELD_GET(LNTM_NODE_COUNT, tmp);
+	gpu_node_map.base_node_id = FIELD_GET(LNTM_BASE_NODE_ID, tmp);
+
+out:
+	pci_dev_put(pdev);
+	return ret;
+}
+
+static int fixup_node_id(int node_id, struct mce *m)
+{
+	/* MCA_IPID[InstanceIdHi] give the AMD Node ID for the bank. */
+	u8 nid = (m->ipid >> 44) & 0xF;
+
+	if (smca_get_bank_type(m->extcpu, m->bank) != SMCA_UMC_V2)
+		return node_id;
+
+	/* Nodes below the GPU base node are CPU nodes and don't need a fixup. */
+	if (nid < gpu_node_map.base_node_id)
+		return node_id;
+
+	/* Convert the hardware-provided AMD Node ID to a Linux logical one. */
+	return nid - gpu_node_map.base_node_id + 1;
+}
+
 /* Protect the PCI config register pairs used for DF indirect access. */
 static DEFINE_MUTEX(df_indirect_mutex);
 
@@ -3001,6 +3069,8 @@ static void decode_umc_error(int node_id, struct mce *m)
 	struct err_info err;
 	u64 sys_addr;
 
+	node_id = fixup_node_id(node_id, m);
+
 	mci = edac_mc_find(node_id);
 	if (!mci)
 		return;
@@ -3888,6 +3958,12 @@ static void gpu_prep_chip_selects(struct amd64_pvt *pvt)
 
 static int gpu_hw_info_get(struct amd64_pvt *pvt)
 {
+	int ret;
+
+	ret = gpu_get_node_map();
+	if (ret)
+		return ret;
+
 	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
 	if (!pvt->umc)
 		return -ENOMEM;
