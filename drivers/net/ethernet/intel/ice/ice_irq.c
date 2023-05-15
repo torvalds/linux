@@ -194,9 +194,53 @@ int ice_init_interrupt_scheme(struct ice_pf *pf)
 	}
 
 	/* populate SW interrupts pool with number of OS granted IRQs. */
-	pf->num_avail_sw_msix = (u16)vectors;
 	pf->irq_tracker->num_entries = (u16)vectors;
 	pf->irq_tracker->end = pf->irq_tracker->num_entries;
 
 	return 0;
+}
+
+/**
+ * ice_alloc_irq - Allocate new interrupt vector
+ * @pf: board private structure
+ *
+ * Allocate new interrupt vector for a given owner id.
+ * return struct msi_map with interrupt details and track
+ * allocated interrupt appropriately.
+ *
+ * This function mimics individual interrupt allocation,
+ * even interrupts are actually already allocated with
+ * pci_alloc_irq_vectors. Individual allocation helps
+ * to track interrupts and simplifies interrupt related
+ * handling.
+ *
+ * On failure, return map with negative .index. The caller
+ * is expected to check returned map index.
+ *
+ */
+struct msi_map ice_alloc_irq(struct ice_pf *pf)
+{
+	struct msi_map map = { .index = -ENOENT };
+	int entry;
+
+	entry = ice_get_res(pf, pf->irq_tracker);
+	if (entry < 0)
+		return map;
+
+	map.index = entry;
+	map.virq = pci_irq_vector(pf->pdev, map.index);
+
+	return map;
+}
+
+/**
+ * ice_free_irq - Free interrupt vector
+ * @pf: board private structure
+ * @map: map with interrupt details
+ *
+ * Remove allocated interrupt from the interrupt tracker
+ */
+void ice_free_irq(struct ice_pf *pf, struct msi_map map)
+{
+	ice_free_res(pf->irq_tracker, map.index);
 }

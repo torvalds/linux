@@ -7,4 +7,7 @@
 int ice_init_interrupt_scheme(struct ice_pf *pf);
 void ice_clear_interrupt_scheme(struct ice_pf *pf);
 
+struct msi_map ice_alloc_irq(struct ice_pf *pf);
+void ice_free_irq(struct ice_pf *pf, struct msi_map map);
+
 #endif
