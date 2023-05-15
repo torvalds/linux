@@ -192,6 +192,20 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 					RT711_JD1),
 	},
 	{
+		/*
+		 * this entry covers HP Spectre x360 where the DMI information
+		 * changed somehow
+		 */
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8709"),
+		},
+		.driver_data = (void *)(SOF_SDW_TGL_HDMI |
+					SOF_SDW_PCH_DMIC |
+					RT711_JD1),
+	},
+	{
 		/* NUC15 'Bishop County' LAPBC510 and LAPBC710 skews */
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
@@ -413,7 +427,24 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_mtlrvp"),
 		},
-		.driver_data = (void *)(RT711_JD1 | SOF_SDW_TGL_HDMI),
+		.driver_data = (void *)(RT711_JD1),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Meteor Lake Client Platform"),
+		},
+		.driver_data = (void *)(RT711_JD2_100K),
+	},
+	/* LunarLake devices */
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lunar Lake Client Platform"),
+		},
+		.driver_data = (void *)(RT711_JD2_100K),
 	},
 	{}
 };
@@ -902,17 +933,20 @@ static int create_codec_dai_name(struct device *dev,
 static int set_codec_init_func(struct snd_soc_card *card,
 			       const struct snd_soc_acpi_link_adr *link,
 			       struct snd_soc_dai_link *dai_links,
-			       bool playback, int group_id)
+			       bool playback, int group_id, int adr_index)
 {
-	int i;
+	int i = adr_index;
 
 	do {
 		/*
 		 * Initialize the codec. If codec is part of an aggregated
 		 * group (group_id>0), initialize all codecs belonging to
 		 * same group.
+		 * The first link should start with link->adr_d[adr_index]
+		 * because that is the device that we want to initialize and
+		 * we should end immediately if it is not aggregated (group_id=0)
 		 */
-		for (i = 0; i < link->num_adr; i++) {
+		for ( ; i < link->num_adr; i++) {
 			int codec_index;
 
 			codec_index = find_codec_info_part(link->adr_d[i].adr);
@@ -928,9 +962,12 @@ static int set_codec_init_func(struct snd_soc_card *card,
 						dai_links,
 						&codec_info_list[codec_index],
 						playback);
+			if (!group_id)
+				return 0;
 		}
+		i = 0;
 		link++;
-	} while (link->mask && group_id);
+	} while (link->mask);
 
 	return 0;
 }
@@ -1180,7 +1217,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		dai_links[*link_index].nonatomic = true;
 
 		ret = set_codec_init_func(card, link, dai_links + (*link_index)++,
-					  playback, group_id);
+					  playback, group_id, adr_index);
 		if (ret < 0) {
 			dev_err(dev, "failed to init codec %d", codec_index);
 			return ret;
