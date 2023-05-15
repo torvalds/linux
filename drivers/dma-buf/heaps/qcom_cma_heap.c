@@ -23,6 +23,7 @@
 #include <linux/scatterlist.h>
 #include <linux/sched/signal.h>
 #include <linux/list.h>
+#include <linux/of.h>
 
 #include "qcom_cma_heap.h"
 #include "qcom_sg_ops.h"
@@ -32,21 +33,52 @@ struct cma_heap {
 	/* max_align is in units of page_order, similar to CONFIG_CMA_ALIGNMENT */
 	u32 max_align;
 	bool uncached;
+	bool is_nomap;
+};
+
+struct dmabuf_cma_info {
+	void *cpu_addr;
+	dma_addr_t handle;
+	struct qcom_sg_buffer buf;
 };
 
 static void cma_heap_free(struct qcom_sg_buffer *buffer)
 {
 	struct cma_heap *cma_heap;
-	unsigned long nr_pages = buffer->len >> PAGE_SHIFT;
-	struct page *cma_pages = sg_page(buffer->sg_table.sgl);
+	struct dmabuf_cma_info *info;
 
+	info = container_of(buffer, struct dmabuf_cma_info, buf);
 	cma_heap = dma_heap_get_drvdata(buffer->heap);
+	if (info->cpu_addr) {
+		struct device *dev = dma_heap_get_dev(buffer->heap);
+
+		dma_free_attrs(dev, PAGE_ALIGN(buffer->len), info->cpu_addr,
+				info->handle, 0);
+	} else {
+		struct page *cma_pages = sg_page(buffer->sg_table.sgl);
+		unsigned long nr_pages = buffer->len >> PAGE_SHIFT;
+		/* release memory */
+		cma_release(cma_heap->cma, cma_pages, nr_pages);
+	}
 
 	/* free page list */
 	sg_free_table(&buffer->sg_table);
-	/* release memory */
-	cma_release(cma_heap->cma, cma_pages, nr_pages);
-	kfree(buffer);
+	kfree(info);
+}
+
+static bool dmabuf_cma_is_nomap(struct device *dev)
+{
+	struct device_node *mem_region;
+	bool val = false;
+
+	mem_region = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!mem_region)
+		goto err;
+
+	val = of_property_read_bool(mem_region, "no-map");
+err:
+	of_node_put(mem_region);
+	return val;
 }
 
 /* dmabuf heap CMA operations functions */
@@ -63,17 +95,19 @@ struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	unsigned long align = get_order(size);
 	struct dma_buf *dmabuf;
+	struct dmabuf_cma_info *info;
 	int ret = -ENOMEM;
 
 	cma_heap = dma_heap_get_drvdata(heap);
 
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
+
 	if (align > cma_heap->max_align)
 		align = cma_heap->max_align;
 
-	helper_buffer = kzalloc(sizeof(*helper_buffer), GFP_KERNEL);
-	if (!helper_buffer)
-		return ERR_PTR(-ENOMEM);
-
+	helper_buffer = &info->buf;
 	helper_buffer->heap = heap;
 	INIT_LIST_HEAD(&helper_buffer->attachments);
 	mutex_init(&helper_buffer->lock);
@@ -81,31 +115,45 @@ struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	helper_buffer->uncached = cma_heap->uncached;
 	helper_buffer->free = cma_heap_free;
 
-	cma_pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
-	if (!cma_pages)
-		goto free_buf;
+	if (cma_heap->is_nomap) {
+		struct device *dev = dma_heap_get_dev(heap);
 
-	if (PageHighMem(cma_pages)) {
-		unsigned long nr_clear_pages = nr_pages;
-		struct page *page = cma_pages;
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+		info->cpu_addr = dma_alloc_wc(dev, size, &info->handle,
+					GFP_KERNEL);
 
-		while (nr_clear_pages > 0) {
-			void *vaddr = kmap_atomic(page);
-
-			memset(vaddr, 0, PAGE_SIZE);
-			kunmap_atomic(vaddr);
-			/*
-			 * Avoid wasting time zeroing memory if the process
-			 * has been killed by SIGKILL
-			 */
-			if (fatal_signal_pending(current))
-				goto free_cma;
-
-			page++;
-			nr_clear_pages--;
+		if (!info->cpu_addr) {
+			dev_err(dev, "failed to allocate buffer\n");
+			goto free_info;
 		}
+		cma_pages = pfn_to_page(PFN_DOWN(info->handle));
 	} else {
-		memset(page_address(cma_pages), 0, size);
+		cma_pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
+		if (!cma_pages)
+			goto free_info;
+
+		if (PageHighMem(cma_pages)) {
+			unsigned long nr_clear_pages = nr_pages;
+			struct page *page = cma_pages;
+
+			while (nr_clear_pages > 0) {
+				void *vaddr = kmap_local_page(page);
+
+				memset(vaddr, 0, PAGE_SIZE);
+				kunmap_local(vaddr);
+				/*
+				 * Avoid wasting time zeroing memory if the process
+				 * has been killed by SIGKILL
+				 */
+				if (fatal_signal_pending(current))
+					goto free_cma;
+
+				page++;
+				nr_clear_pages--;
+			}
+		} else {
+			memset(page_address(cma_pages), 0, size);
+		}
 	}
 
 	ret = sg_alloc_table(&helper_buffer->sg_table, 1, GFP_KERNEL);
@@ -143,9 +191,13 @@ vmperm_release:
 free_sgtable:
 	sg_free_table(&helper_buffer->sg_table);
 free_cma:
-	cma_release(cma_heap->cma, cma_pages, nr_pages);
-free_buf:
-	kfree(helper_buffer);
+	if (info->cpu_addr)
+		dma_free_attrs(dma_heap_get_dev(heap), size, info->cpu_addr,
+			info->handle, 0);
+	else
+		cma_release(cma_heap->cma, cma_pages, nr_pages);
+free_info:
+	kfree(info);
 	return ERR_PTR(ret);
 }
 
@@ -158,11 +210,6 @@ static int __add_cma_heap(struct platform_heap *heap_data, void *data)
 	struct cma_heap *cma_heap;
 	struct dma_heap_export_info exp_info;
 	struct dma_heap *heap;
-
-	if (!heap_data->dev->cma_area) {
-		pr_err("%s: CMA area for device uninitialized!\n", __func__);
-		return -EINVAL;
-	}
 
 	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
 	if (!cma_heap)
@@ -189,6 +236,8 @@ static int __add_cma_heap(struct platform_heap *heap_data, void *data)
 	if (cma_heap->uncached)
 		dma_coerce_mask_and_coherent(dma_heap_get_dev(heap),
 					     DMA_BIT_MASK(64));
+
+	cma_heap->is_nomap = dmabuf_cma_is_nomap(heap_data->dev);
 
 	return 0;
 }
