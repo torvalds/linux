@@ -116,9 +116,170 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 	return ret;
 }
 
+/*
+ * DAI operations
+ */
+static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
+};
+
+static const struct snd_soc_component_driver dai_component = {
+	.name			= "soundwire",
+};
+
+/*
+ * PDI routines
+ */
+static void intel_pdi_init(struct sdw_intel *sdw,
+			   struct sdw_cdns_stream_config *config)
+{
+	void __iomem *shim = sdw->link_res->shim;
+	int pcm_cap;
+
+	/* PCM Stream Capability */
+	pcm_cap = intel_readw(shim, SDW_SHIM2_PCMSCAP);
+
+	config->pcm_bd = FIELD_GET(SDW_SHIM2_PCMSCAP_BSS, pcm_cap);
+	config->pcm_in = FIELD_GET(SDW_SHIM2_PCMSCAP_ISS, pcm_cap);
+	config->pcm_out = FIELD_GET(SDW_SHIM2_PCMSCAP_ISS, pcm_cap);
+
+	dev_dbg(sdw->cdns.dev, "PCM cap bd:%d in:%d out:%d\n",
+		config->pcm_bd, config->pcm_in, config->pcm_out);
+}
+
+static int
+intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num)
+{
+	void __iomem *shim = sdw->link_res->shim;
+
+	/* zero based values for channel count in register */
+	return intel_readw(shim, SDW_SHIM2_PCMSYCHC(pdi_num)) + 1;
+}
+
+static void intel_pdi_get_ch_update(struct sdw_intel *sdw,
+				    struct sdw_cdns_pdi *pdi,
+				    unsigned int num_pdi,
+				    unsigned int *num_ch)
+{
+	int ch_count = 0;
+	int i;
+
+	for (i = 0; i < num_pdi; i++) {
+		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num);
+		ch_count += pdi->ch_count;
+		pdi++;
+	}
+
+	*num_ch = ch_count;
+}
+
+static void intel_pdi_stream_ch_update(struct sdw_intel *sdw,
+				       struct sdw_cdns_streams *stream)
+{
+	intel_pdi_get_ch_update(sdw, stream->bd, stream->num_bd,
+				&stream->num_ch_bd);
+
+	intel_pdi_get_ch_update(sdw, stream->in, stream->num_in,
+				&stream->num_ch_in);
+
+	intel_pdi_get_ch_update(sdw, stream->out, stream->num_out,
+				&stream->num_ch_out);
+}
+
+static int intel_create_dai(struct sdw_cdns *cdns,
+			    struct snd_soc_dai_driver *dais,
+			    enum intel_pdi_type type,
+			    u32 num, u32 off, u32 max_ch)
+{
+	int i;
+
+	if (!num)
+		return 0;
+
+	for (i = off; i < (off + num); i++) {
+		dais[i].name = devm_kasprintf(cdns->dev, GFP_KERNEL,
+					      "SDW%d Pin%d",
+					      cdns->instance, i);
+		if (!dais[i].name)
+			return -ENOMEM;
+
+		if (type == INTEL_PDI_BD || type == INTEL_PDI_OUT) {
+			dais[i].playback.channels_min = 1;
+			dais[i].playback.channels_max = max_ch;
+		}
+
+		if (type == INTEL_PDI_BD || type == INTEL_PDI_IN) {
+			dais[i].capture.channels_min = 1;
+			dais[i].capture.channels_max = max_ch;
+		}
+
+		dais[i].ops = &intel_pcm_dai_ops;
+	}
+
+	return 0;
+}
+
+static int intel_register_dai(struct sdw_intel *sdw)
+{
+	struct sdw_cdns_dai_runtime **dai_runtime_array;
+	struct sdw_cdns_stream_config config;
+	struct sdw_cdns *cdns = &sdw->cdns;
+	struct sdw_cdns_streams *stream;
+	struct snd_soc_dai_driver *dais;
+	int num_dai;
+	int ret;
+	int off = 0;
+
+	/* Read the PDI config and initialize cadence PDI */
+	intel_pdi_init(sdw, &config);
+	ret = sdw_cdns_pdi_init(cdns, config);
+	if (ret)
+		return ret;
+
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm);
+
+	/* DAIs are created based on total number of PDIs supported */
+	num_dai = cdns->pcm.num_pdi;
+
+	dai_runtime_array = devm_kcalloc(cdns->dev, num_dai,
+					 sizeof(struct sdw_cdns_dai_runtime *),
+					 GFP_KERNEL);
+	if (!dai_runtime_array)
+		return -ENOMEM;
+	cdns->dai_runtime_array = dai_runtime_array;
+
+	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
+	if (!dais)
+		return -ENOMEM;
+
+	/* Create PCM DAIs */
+	stream = &cdns->pcm;
+
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pcm.num_in,
+			       off, stream->num_ch_in);
+	if (ret)
+		return ret;
+
+	off += cdns->pcm.num_in;
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pcm.num_out,
+			       off, stream->num_ch_out);
+	if (ret)
+		return ret;
+
+	off += cdns->pcm.num_out;
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pcm.num_bd,
+			       off, stream->num_ch_bd);
+	if (ret)
+		return ret;
+
+	return devm_snd_soc_register_component(cdns->dev, &dai_component,
+					       dais, num_dai);
+}
+
 const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.debugfs_init = intel_ace2x_debugfs_init,
 	.debugfs_exit = intel_ace2x_debugfs_exit,
+
+	.register_dai = intel_register_dai,
 
 	.link_power_up = intel_link_power_up,
 	.link_power_down = intel_link_power_down,
