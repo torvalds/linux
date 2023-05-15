@@ -25,6 +25,7 @@
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio/consumer.h>
 
 #include "vs_drv.h"
 
@@ -42,56 +43,90 @@ struct inno_hdmi_i2c {
 	struct completion cmp;
 };
 
-enum {
-	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,
-	CSC_ITU601_0_255_TO_RGB_0_255_8BIT,
-	CSC_ITU709_16_235_TO_RGB_0_255_8BIT,
-	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,
-	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,
-	CSC_RGB_0_255_TO_RGB_16_235_8BIT,
-};
-
 static const struct pre_pll_config pre_pll_cfg_table[] = {
 	{ 25175000,  25175000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0xF55555},
 	{ 25200000,  25200000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0},
 	{ 27000000,  27000000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0},
 	{ 27027000,  27027000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0x170A3D},
-	{ 27000000,  33750000, 1,  90, 1, 3, 3, 10, 3, 3, 4, 0, 0},
+	{ 28320000,  28320000, 1,  28, 2, 1, 1,  3, 0, 3, 4, 0, 0x51EB85},
+	{ 30240000,  30240000, 1,  30, 2, 1, 1,  3, 0, 3, 4, 0, 0x3D70A3},
+	{ 31500000,  31500000, 1,  31, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{ 33750000,  33750000, 1,  33, 2, 1, 1,  3, 0, 3, 4, 0, 0xCFFFFF},
+	{ 36000000,  36000000, 1,  36, 2, 1, 1,  3, 0, 3, 4, 0, 0},
 	{ 40000000,  40000000, 1,  80, 2, 2, 2, 12, 2, 2, 2, 0, 0},
-	{ 59341000,  59341000, 1,  98, 3, 1, 2,  1, 3, 3, 4, 0, 0xE6AE6B},
+	{ 46970000,  46970000, 1,  46, 2, 1, 1,  3, 0, 3, 4, 0, 0xF851EB},
+	{ 49500000,  49500000, 1,  49, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{ 49000000,  49000000, 1,  49, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{ 50000000,  50000000, 1,  50, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{ 54000000,  54000000, 1,  54, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{ 54054000,  54054000, 1,  54, 2, 1, 1,  3, 0, 3, 4, 0, 0x0DD2F1},
+	{ 57284000,  57284000, 1,  57, 2, 1, 1,  3, 0, 3, 4, 0, 0x48B439},
+	{ 58230000,  58230000, 1,  58, 2, 1, 1,  3, 0, 3, 4, 0, 0x3AE147},
+	{ 59341000,  59341000, 1,  59, 2, 1, 1,  3, 0, 3, 4, 0, 0x574BC6},
 	{ 59400000,  59400000, 1,  99, 3, 1, 1,  1, 3, 3, 4, 0, 0},
-	{ 59341000,  74176250, 1,  98, 0, 3, 3,  1, 3, 3, 4, 0, 0xE6AE6B},
-	{ 59400000,  74250000, 1,  99, 1, 2, 2,  1, 3, 3, 4, 0, 0},
+	{ 65000000,  65000000, 1, 130, 2, 2, 2,  12, 0, 2, 2, 0, 0},
+	{ 68250000,  68250000, 1, 68,  2, 1, 1,  3,  0, 3, 4, 0, 0x3FFFFF},
+	{ 71000000,  71000000, 1,  71, 2, 1, 1,  3, 0, 3,  4, 0, 0},
 	{ 74176000,  74176000, 1,  98, 1, 2, 2,  1, 2, 3, 4, 0, 0xE6AE6B},
 	{ 74250000,  74250000, 1,  99, 1, 2, 2,  1, 2, 3, 4, 0, 0},
-	{ 74176000,  92720000, 4, 494, 1, 2, 2,  1, 3, 3, 4, 0, 0x816817},
-	{ 74250000,  92812500, 4, 495, 1, 2, 2,  1, 3, 3, 4, 0, 0},
+	{ 75000000,  75000000, 1,  75, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{ 78750000,  78750000, 1,  78, 2, 1, 1,  3, 0, 3, 4, 0, 0xCFFFFF},
+	{ 79500000,  79500000, 1,  79, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{ 83500000,  83500000, 2, 167, 2, 1, 1,  1, 0, 0,  6, 0, 0},
+	{ 83500000, 104375000, 1, 104, 2, 1, 1,  1, 1, 0,  5, 0, 0x600000},
+	{ 85500000,  85500000, 1,  85, 2, 1, 1,  3, 0, 3,  4, 0, 0x7FFFFF},
+	{ 85750000,  85750000, 1,  85, 2, 1, 1,  3, 0, 3,  4, 0, 0xCFFFFF},
+	{ 85800000,  85800000, 1,  85, 2, 1, 1,  3, 0, 3,  4, 0, 0xCCCCCC},
+	{ 88750000,  88750000, 1,  88, 2, 1, 1,  3, 0, 3,  4, 0, 0xCFFFFF},
+	{ 89910000,  89910000, 1,  89, 2, 1, 1,  3, 0, 3, 4, 0, 0xE8F5C1},
+	{ 90000000,  90000000, 1,  90, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{101000000, 101000000, 1, 101, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{102250000, 102250000, 1, 102, 2, 1, 1,  3, 0, 3, 4, 0, 0x3FFFFF},
+	{106500000, 106500000, 1, 106, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{108000000, 108000000, 1,  90, 3, 0, 0,  5, 0, 2,  2, 0, 0},
+	{119000000, 119000000, 1, 119, 2, 1, 1,  3, 0, 3,  4, 0, 0},
+	{131481000, 131481000, 1,  131, 2, 1, 1,  3, 0, 3,  4, 0, 0x7B22D1},
+	{135000000, 135000000, 1,  135, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{136750000, 136750000, 1,  136, 2, 1, 1,  3, 0, 3, 4, 0, 0xCFFFFF},
+	{147180000, 147180000, 1,  147, 2, 1, 1,  3, 0, 3, 4, 0, 0x2E147A},
 	{148352000, 148352000, 1,  98, 1, 1, 1,  1, 2, 2, 2, 0, 0xE6AE6B},
 	{148500000, 148500000, 1,  99, 1, 1, 1,  1, 2, 2, 2, 0, 0},
-	{148352000, 185440000, 4, 494, 0, 2, 2,  1, 3, 2, 2, 0, 0x816817},
-	{148500000, 185625000, 4, 495, 0, 2, 2,  1, 3, 2, 2, 0, 0},
-	{296703000, 296703000, 1,  98, 0, 1, 1,  1, 0, 2, 2, 0, 0xE6AE6B},
-	{297000000, 297000000, 1,  99, 1, 0, 0,  1, 2, 1, 1, 0, 0},
-	{296703000, 370878750, 4, 494, 1, 2, 0,  1, 3, 1, 1, 0, 0x816817},
-	{297000000, 371250000, 4, 495, 1, 2, 0,  1, 3, 1, 1, 0, 0},
-	{593407000, 296703500, 1,  98, 0, 1, 1,  1, 0, 2, 1, 0, 0xE6AE6B},
-	{594000000, 297000000, 1,  99, 0, 1, 1,  1, 0, 2, 1, 0, 0},
-	{593407000, 370879375, 4, 494, 1, 2, 0,  1, 3, 1, 1, 1, 0x816817},
-	{594000000, 371250000, 4, 495, 1, 2, 0,  1, 3, 1, 1, 1, 0},
-	{593407000, 593407000, 1,  98, 0, 2, 0,  1, 0, 1, 1, 0, 0xE6AE6B},
-	{594000000, 594000000, 1,  99, 0, 2, 0,  1, 0, 1, 1, 0, 0},
-	{ /* sentinel */ }
+	{154000000, 154000000, 1, 154, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{156000000, 156000000, 1, 156, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{157000000, 157000000, 1, 157, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{162000000, 162000000, 1, 162, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{174250000, 174250000, 1, 145, 3, 0, 0,  5, 0, 2, 2, 0, 0x355555},
+	{174500000, 174500000, 1, 174, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{174570000, 174570000, 1, 174, 2, 1, 1,  3, 0, 3, 4, 0, 0x91EB84},
+	{175500000, 175500000, 1, 175, 2, 1, 1,  3, 0, 3, 4, 0, 0x7FFFFF},
+	{185590000, 185590000, 1, 185, 2, 1, 1,  3, 0, 3, 4, 0, 0x970A3C},
+	{187000000, 187000000, 1, 187, 2, 1, 1,  3, 0, 3, 4, 0, 0},
+	{241500000, 241500000, 1, 161, 1, 1, 1,  4, 0, 2,  2, 0, 0},
+	{241700000, 241700000, 1, 241, 2, 1, 1,  3, 0, 3,  4, 0, 0xB33332},
+	{262750000, 262750000, 1, 262, 2, 1, 1,  3, 0, 3,  4, 0, 0xCFFFFF},
+	{296500000, 296500000, 1, 296, 2, 1, 1,  3, 0, 3,  4, 0, 0x7FFFFF},
+	{296703000, 296703000, 1,  98, 0, 1, 1,  1, 0, 2,  2, 0, 0xE6AE6B},
+	{297000000, 297000000, 1,  99, 0, 1, 1,  1, 0, 2,  2, 0, 0},
+	{594000000, 594000000, 1,  99, 0, 2, 0,  1, 0, 1,  1, 0, 0},
+	{0, 0, 0,  0, 0, 0, 0,  0, 0, 0,  0, 0, 0},
 };
 
 static const struct post_pll_config post_pll_cfg_table[] = {
 	{25200000,	1, 80, 13, 3, 1},
 	{27000000,	1, 40, 11, 3, 1},
 	{27027000,	1, 40, 11, 3, 1},
-	{33750000,	1, 40, 8, 3, 1},
+	{33750000,	1, 40, 11, 3, 1},
 	//{33750000,	1, 80, 8, 2},
-	{74250000,	1, 20, 1, 3, 1},
-	//{74250000, 18, 80, 8, 2},
+	{49000000,	1, 20, 1, 3, 3},
+	{65000000,	1, 20, 1, 3, 3},
+	{74250000,	1, 20, 1, 3, 3},
+	{88750000,  1, 20, 1, 3, 3},
+	{108000000,  1, 20, 1, 3, 3},
 	{148500000, 1, 20, 1, 3, 3},
+	{162000000, 1, 20, 1, 3, 3},
+	{174250000, 1, 20, 1, 3, 3},
+	{187000000, 1, 20, 1, 3, 3},
+	{241700000, 1, 20, 1, 3, 3},
 	{297000000, 4, 20, 0, 0, 3},
 	{594000000, 4, 20, 0, 0, 0},//postpll_postdiv_en = 0
 	{ /* sentinel */ }
@@ -230,35 +265,31 @@ static void inno_hdmi_config_pll(struct inno_hdmi *hdmi)
 		{0x1aa, 0x0f},
 		{0x1a1, hdmi->pre_cfg->prediv},
 		{0x1a2, 0xf0 | hdmi->pre_cfg->fbdiv>>8},
-		{0x1a3, hdmi->pre_cfg->fbdiv},
+		{0x1a3, hdmi->pre_cfg->fbdiv & 0xff},
 		{0x1a4, ((hdmi->pre_cfg->tmds_div_a << 4) | (hdmi->pre_cfg->tmds_div_b << 2) | (hdmi->pre_cfg->tmds_div_c))},
 		{0x1a5, (hdmi->pre_cfg->pclk_div_b << 5) | hdmi->pre_cfg->pclk_div_a},
 		{0x1a6, (hdmi->pre_cfg->pclk_div_c << 5) | hdmi->pre_cfg->pclk_div_d},
 		{0x1ab, hdmi->post_cfg->prediv},
 		{0x1ac, hdmi->post_cfg->fbdiv & 0xff},
 		{0x1ad, reg_1ad_value},
-		{0x1aa, reg_1aa_value},
-		{0x1a0, 0x00},
+		{0x1aa, reg_1aa_value},//(9'h1aa,{4'b0000, 2'b11, 2'b10});
+		//{0x1a0, 0x00},
 	};
 
 	int i;
 	for (i = 0; i < sizeof(cfg_pll_data) / sizeof(reg_value_t); i++)
 	{
-		//dev_info(hdmi->dev, "%s %d reg[%02x],val[%02x]\n",__func__, __LINE__,cfg_pll_data[i].reg,cfg_pll_data[i].value);
-		//writel_relaxed(cfg_pll_data[i].value, hdmi->regs + (cfg_pll_data[i].reg) * 0x04);
 		hdmi_writeb(hdmi, cfg_pll_data[i].reg, cfg_pll_data[i].value);
 	}
-	return;
-}
 
-static void inno_hdmi_tx_ctrl(struct inno_hdmi *hdmi)
-{
-	if(hdmi->hdmi_data.vic == 18)
-		hdmi->hdmi_data.vic--;
-	if(hdmi->hdmi_data.vic == 3)
-		hdmi->hdmi_data.vic--;
-	hdmi_writeb(hdmi, 0x9f, 0x06);
-	hdmi_writeb(hdmi, 0xa7, hdmi->hdmi_data.vic);
+	if (hdmi->pre_cfg->fracdiv){
+		hdmi_writeb(hdmi, 0x1a2, 0xc0 | hdmi->pre_cfg->fbdiv>>8);
+		hdmi_writeb(hdmi, 0x1d3, INNO_PRE_PLL_FRAC_DIV_7_0(hdmi->pre_cfg->fracdiv));
+		hdmi_writeb(hdmi, 0x1d2, INNO_PRE_PLL_FRAC_DIV_15_8(hdmi->pre_cfg->fracdiv));
+		hdmi_writeb(hdmi, 0x1d1, INNO_PRE_PLL_FRAC_DIV_23_16(hdmi->pre_cfg->fracdiv));
+	}
+	hdmi_writeb(hdmi, 0x1a0, 0);
+	return;
 }
 
 static void inno_hdmi_tx_phy_power_on(struct inno_hdmi *hdmi)
@@ -317,8 +348,8 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 	}
 }
 
- static const
- struct pre_pll_config *inno_hdmi_phy_get_pre_pll_cfg(struct inno_hdmi *hdmi,
+static const
+struct pre_pll_config *inno_hdmi_phy_get_pre_pll_cfg(struct inno_hdmi *hdmi,
 							  unsigned long rate)
 {
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
@@ -334,30 +365,9 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 	return cfg;
 }
 
-#define PRE_PLL_POWER_DOWN			BIT(0)
-
- /* phy tuning values for an undocumented set of registers */
- static const struct phy_config inno_phy_cfg[] = {
-	 {	 165000000, {
-			 0x07, 0x0a, 0x0a, 0x0a, 0x00, 0x00, 0x08, 0x08, 0x08,
-			 0x00, 0xac, 0xcc, 0xcc, 0xcc,
-		 },
-	 }, {
-		 340000000, {
-			 0x0b, 0x0d, 0x0d, 0x0d, 0x07, 0x15, 0x08, 0x08, 0x08,
-			 0x3f, 0xac, 0xcc, 0xcd, 0xdd,
-		 },
-	 }, {
-		 594000000, {
-			 0x10, 0x1a, 0x1a, 0x1a, 0x07, 0x15, 0x08, 0x08, 0x08,
-			 0x00, 0xac, 0xcc, 0xcc, 0xcc,
-		 },
-	 }, { /* sentinel */ },
- };
-
- static int inno_hdmi_phy_clk_set_rate(struct inno_hdmi *hdmi,unsigned long rate)
- {
- 	unsigned long tmdsclock;
+static int inno_hdmi_phy_clk_set_rate(struct inno_hdmi *hdmi,unsigned long rate)
+{
+	unsigned long tmdsclock;
 	hdmi->post_cfg = post_pll_cfg_table;
 
 	tmdsclock = hdmi->tmds_rate;
@@ -373,31 +383,8 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 	mdelay(100);
 
 	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pixclock = %lu\n",__func__, hdmi->pre_cfg->pixclock);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->tmdsclock = %lu\n",__func__, hdmi->pre_cfg->tmdsclock);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->prediv = %d\n",__func__, hdmi->pre_cfg->prediv);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->fbdiv = %d\n",__func__, hdmi->pre_cfg->fbdiv);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->tmds_div_a = %d\n",__func__, hdmi->pre_cfg->tmds_div_a);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->tmds_div_b = %d\n",__func__, hdmi->pre_cfg->tmds_div_b);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->tmds_div_c = %d\n",__func__, hdmi->pre_cfg->tmds_div_c);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pclk_div_a = %d\n",__func__, hdmi->pre_cfg->pclk_div_a);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pclk_div_b = %d\n",__func__, hdmi->pre_cfg->pclk_div_b);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pclk_div_c = %d\n",__func__, hdmi->pre_cfg->pclk_div_c);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pclk_div_d = %d\n",__func__, hdmi->pre_cfg->pclk_div_d);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->vco_div_5_en = %d\n",__func__, hdmi->pre_cfg->vco_div_5_en);
-	dev_info(hdmi->dev, "%s hdmi->pre_cfg->fracdiv = %d\n",__func__, hdmi->pre_cfg->fracdiv);
-
-
-	dev_info(hdmi->dev, "*******************************************************\n");
-
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->tmdsclock = %lu\n",__func__, hdmi->post_cfg->tmdsclock);
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->prediv = %d\n",__func__, hdmi->post_cfg->prediv);
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->fbdiv = %d\n",__func__, hdmi->post_cfg->fbdiv);
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->postdiv = %d\n",__func__, hdmi->post_cfg->postdiv);
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->post_div_en = %d\n",__func__, hdmi->post_cfg->post_div_en);
-	dev_info(hdmi->dev, "%s hdmi->post_cfg->version = %d\n",__func__, hdmi->post_cfg->version);
 
 	inno_hdmi_config_pll(hdmi);
-	//inno_hdmi_tx_ctrl(hdmi);
 
 #if 0 //pre pll + post pll configire
 
@@ -492,11 +479,11 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 
 
 #endif
-	 return 0;
- }
+	return 0;
+}
 
- static void inno_hdmi_improve_eye_diagram(struct inno_hdmi *hdmi)
- {
+static void inno_hdmi_improve_eye_diagram(struct inno_hdmi *hdmi)
+{
 	 switch (hdmi->hdmi_data.vic) {
 	 case 95:
 	 case 94:
@@ -521,14 +508,62 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 		 break;
 
 	 }
- }
+}
+
+static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
+				  struct drm_display_mode *mode)
+{
+	 int value;
+	 /* Set detail external video timing */
+	 value = mode->htotal;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HTOTAL_L, value & 0xFF);
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HTOTAL_H, (value >> 8) & 0xFF);
+
+	 value = mode->htotal - mode->hdisplay;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HBLANK_L, value & 0xFF);
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HBLANK_H, (value >> 8) & 0xFF);
+
+	 value = mode->htotal - mode->hsync_start;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDELAY_L, value & 0xFF);
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDELAY_H, (value >> 8) & 0xFF);
+
+	 value = mode->hsync_end - mode->hsync_start;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDURATION_L, value & 0xFF);
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDURATION_H, (value >> 8) & 0xFF);
+
+	 value = mode->vtotal;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VTOTAL_L, value & 0xFF);
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VTOTAL_H, (value >> 8) & 0xFF);
+
+	 value = mode->vtotal - mode->vdisplay;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VBLANK, value & 0xFF);
+
+	 value = mode->vtotal - mode->vsync_start;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VDELAY, value & 0xFF);
+
+	 value = mode->vsync_end - mode->vsync_start;
+	 hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VDURATION, value & 0xFF);
+
+
+	 /* Set detail external video timing polarity and interlace mode */
+	 value = v_EXTERANL_VIDEO(1);
+	 value |= mode->flags & DRM_MODE_FLAG_PHSYNC ?
+		  v_HSYNC_POLARITY(1) : v_HSYNC_POLARITY(0);
+	 value |= mode->flags & DRM_MODE_FLAG_PVSYNC ?
+		  v_VSYNC_POLARITY(1) : v_VSYNC_POLARITY(0);
+	 value |= mode->flags & DRM_MODE_FLAG_INTERLACE ?
+		  v_INETLACE(1) : v_INETLACE(0);
+
+	 hdmi_writeb(hdmi, HDMI_VIDEO_TIMING_CTL, value);
+	 return 0;
+}
 
 static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 			   struct drm_display_mode *mode)
 {
 	u8 val;
 
-	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
+	val = hdmi_readb(hdmi,0x1b0);
 	val |= 0x4;
 	hdmi_writeb(hdmi, 0x1b0, val);
 	hdmi_writeb(hdmi, 0x1cc, 0xf);
@@ -547,10 +582,9 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	/*turn on serializer*/
 	hdmi_writeb(hdmi, 0x1be, 0x71);
 	inno_hdmi_improve_eye_diagram(hdmi);
-
 	inno_hdmi_tx_phy_power_down(hdmi);
 
-	inno_hdmi_tx_ctrl(hdmi);
+	inno_hdmi_config_video_timing(hdmi, mode);
 
 	inno_hdmi_tx_phy_power_on(hdmi);
 	inno_hdmi_tmds_driver_on(hdmi);
@@ -582,8 +616,6 @@ static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 	mdelay(10);
 	inno_hdmi_setup(hdmi, &hdmi->previous_mode);
 
-	/* for powerdown the innohdmi, syspm can use*/
-	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
 static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
@@ -591,13 +623,9 @@ static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
 	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
 
 	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
-
 	pm_runtime_put(hdmi->dev);
 
 	return;
-	/*mention: if enable, sys pm test will be crashed*/
-	//struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
-	//
 }
 
 static bool inno_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -665,32 +693,27 @@ static enum drm_mode_status
 inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
-	u32 vic = drm_match_cea_mode(mode);
+	const struct pre_pll_config *cfg = pre_pll_cfg_table;
+	int pclk = mode->clock * 1000;
+	bool valid = false;
+	int i;
 
-	if (mode->clock > 297000)
-		return MODE_BAD;
-	if (vic >= 1)
-		return MODE_OK;
-	else
-		return MODE_BAD;
+	for (i = 0; cfg[i].pixclock != (~0UL); i++) {
+		if (pclk == cfg[i].pixclock) {
+			valid = true;
+			break;
+		}
+	}
 
+	return (valid) ? MODE_OK : MODE_BAD;
 }
+
 
 static int
 inno_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 				       uint32_t maxX, uint32_t maxY)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
-	int ret;
-
-	ret = pm_runtime_get_sync(hdmi->dev);
-	if (ret < 0)
-		return ret;
-	ret = drm_helper_probe_single_connector_modes(connector, 3840, 2160);
-
-	pm_runtime_put(hdmi->dev);
-
-	return ret;
+	return drm_helper_probe_single_connector_modes(connector, 3840, 2160);
 }
 
 static void inno_hdmi_connector_destroy(struct drm_connector *connector)
@@ -769,19 +792,22 @@ static irqreturn_t inno_hdmi_hardirq(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 	u8 interrupt;
 
-	if (hdmi->i2c)
-		ret = inno_hdmi_i2c_irq(hdmi);
+	ret = inno_hdmi_i2c_irq(hdmi);
 
 	interrupt = hdmi_readb(hdmi, HDMI_STATUS);
 	if (interrupt & m_INT_HOTPLUG) {
 		hdmi_modb(hdmi, HDMI_STATUS, m_INT_HOTPLUG, m_INT_HOTPLUG);
-		ret = IRQ_WAKE_THREAD;
 	}
 
 	return ret;
 }
 
-static irqreturn_t inno_hdmi_irq(int irq, void *dev_id)
+static irqreturn_t inno_hdmi_gpio_hardirq(int irq, void *dev_id)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t inno_hdmi_gpio_irq(int irq, void *dev_id)
 {
 	struct inno_hdmi *hdmi = dev_id;
 
@@ -1000,6 +1026,18 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		goto err_disable_clk;
 	}
 
+	hdmi->hpd_gpio = devm_gpiod_get(dev, "hpd", GPIOD_IN);
+	if (IS_ERR(hdmi->hpd_gpio)) {
+		DRM_DEV_ERROR(dev, "cannot get hpd gpio property\n");
+		return PTR_ERR(hdmi->hpd_gpio);
+	}
+
+	hdmi->irq = gpiod_to_irq(hdmi->hpd_gpio);
+	if (hdmi->irq < 0) {
+		DRM_DEV_ERROR(dev, "failed to get GPIO irq\n");
+		return	hdmi->irq;
+	}
+
 	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
 	if (IS_ERR(hdmi->ddc)) {
 		ret = PTR_ERR(hdmi->ddc);
@@ -1021,8 +1059,15 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	hdmi_modb(hdmi, HDMI_STATUS, m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(1));
 
 	ret = devm_request_threaded_irq(dev, irq, inno_hdmi_hardirq,
-					inno_hdmi_irq, IRQF_SHARED,
+					NULL, IRQF_SHARED,
 					dev_name(dev), hdmi);
+	if (ret < 0)
+		goto err_cleanup_hdmi;
+
+	ret = devm_request_threaded_irq(dev, hdmi->irq, inno_hdmi_gpio_hardirq,
+		inno_hdmi_gpio_irq, IRQF_TRIGGER_RISING |
+		IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		"hdmi", hdmi);
 	if (ret < 0)
 		goto err_cleanup_hdmi;
 
