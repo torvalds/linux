@@ -19,6 +19,21 @@ struct rt5033_battery {
 	struct power_supply	*psy;
 };
 
+static int rt5033_battery_get_status(struct i2c_client *client)
+{
+	struct rt5033_battery *battery = i2c_get_clientdata(client);
+	union power_supply_propval val;
+	int ret;
+
+	ret = power_supply_get_property_from_supplier(battery->psy,
+						POWER_SUPPLY_PROP_STATUS,
+						&val);
+	if (ret)
+		val.intval = POWER_SUPPLY_STATUS_UNKNOWN;
+
+	return val.intval;
+}
+
 static int rt5033_battery_get_capacity(struct i2c_client *client)
 {
 	struct rt5033_battery *battery = i2c_get_clientdata(client);
@@ -91,6 +106,9 @@ static int rt5033_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = rt5033_battery_get_capacity(battery->client);
 		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = rt5033_battery_get_status(battery->client);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -103,6 +121,7 @@ static enum power_supply_property rt5033_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_STATUS,
 };
 
 static const struct regmap_config rt5033_battery_regmap_config = {
@@ -124,7 +143,6 @@ static int rt5033_battery_probe(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	struct power_supply_config psy_cfg = {};
 	struct rt5033_battery *battery;
-	u32 ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
@@ -142,15 +160,14 @@ static int rt5033_battery_probe(struct i2c_client *client)
 	}
 
 	i2c_set_clientdata(client, battery);
+	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = battery;
 
 	battery->psy = power_supply_register(&client->dev,
 					     &rt5033_battery_desc, &psy_cfg);
-	if (IS_ERR(battery->psy)) {
-		dev_err(&client->dev, "Failed to register power supply\n");
-		ret = PTR_ERR(battery->psy);
-		return ret;
-	}
+	if (IS_ERR(battery->psy))
+		return dev_err_probe(&client->dev, PTR_ERR(battery->psy),
+				     "Failed to register power supply\n");
 
 	return 0;
 }
