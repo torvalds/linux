@@ -327,6 +327,8 @@ struct sdw_intel_ctx {
  * @alh_base: sdw alh base.
  * @ext: extended HDaudio link support
  * @hbus: hdac_bus pointer, needed for power management
+ * @eml_lock: mutex protecting shared registers in the HDaudio multi-link
+ * space
  */
 struct sdw_intel_res {
 	const struct sdw_intel_hw_ops *hw_ops;
@@ -343,6 +345,7 @@ struct sdw_intel_res {
 	u32 alh_base;
 	bool ext;
 	struct hdac_bus *hbus;
+	struct mutex *eml_lock;
 };
 
 /*
