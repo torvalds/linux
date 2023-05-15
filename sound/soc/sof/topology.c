@@ -1265,7 +1265,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 		if (num_sets > 1) {
 			struct snd_sof_tuple *new_tuples;
 
-			num_tuples += token_list[object_token_list[i]].count * num_sets;
+			num_tuples += token_list[object_token_list[i]].count * (num_sets - 1);
 			new_tuples = krealloc(swidget->tuples,
 					      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
 			if (!new_tuples) {
