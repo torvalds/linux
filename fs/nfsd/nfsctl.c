@@ -25,6 +25,7 @@
 #include "netns.h"
 #include "pnfs.h"
 #include "filecache.h"
+#include "trace.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -230,6 +231,7 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	if (rpc_pton(net, fo_path, size, sap, salen) == 0)
 		return -EINVAL;
 
+	trace_nfsd_ctl_unlock_ip(net, buf);
 	return nlmsvc_unlock_all_by_ip(sap);
 }
 
@@ -263,7 +265,7 @@ static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size)
 	fo_path = buf;
 	if (qword_get(&buf, fo_path, size) < 0)
 		return -EINVAL;
-
+	trace_nfsd_ctl_unlock_fs(netns(file), fo_path);
 	error = kern_path(fo_path, 0, &path);
 	if (error)
 		return error;
@@ -341,6 +343,8 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (qword_get(&mesg, mesg, size) > 0)
 		return -EINVAL;
 
+	trace_nfsd_ctl_filehandle(netns(file), dname, path, maxsize);
+
 	/* we have all the words, they are in buf.. */
 	dom = unix_domain_find(dname);
 	if (!dom)
@@ -399,6 +403,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 			return rv;
 		if (newthreads < 0)
 			return -EINVAL;
+		trace_nfsd_ctl_threads(net, newthreads);
 		rv = nfsd_svc(newthreads, net, file->f_cred);
 		if (rv < 0)
 			return rv;
@@ -471,6 +476,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 			rv = -EINVAL;
 			if (nthreads[i] < 0)
 				goto out_free;
+			trace_nfsd_ctl_pool_threads(net, i, nthreads[i]);
 		}
 		rv = nfsd_set_nrthreads(i, nthreads, net);
 		if (rv)
@@ -536,6 +542,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		if (buf[size-1] != '\n')
 			return -EINVAL;
 		buf[size-1] = 0;
+		trace_nfsd_ctl_version(netns(file), buf);
 
 		vers = mesg;
 		len = qword_get(&mesg, vers, size);
@@ -689,6 +696,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 	err = get_int(&mesg, &fd);
 	if (err != 0 || fd < 0)
 		return -EINVAL;
+	trace_nfsd_ctl_ports_addfd(net, fd);
 
 	err = nfsd_create_serv(net);
 	if (err != 0)
@@ -720,6 +728,7 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cr
 
 	if (port < 1 || port > USHRT_MAX)
 		return -EINVAL;
+	trace_nfsd_ctl_ports_addxprt(net, transport, port);
 
 	err = nfsd_create_serv(net);
 	if (err != 0)
@@ -853,6 +862,8 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		int rv = get_int(&mesg, &bsize);
 		if (rv)
 			return rv;
+		trace_nfsd_ctl_maxblksize(netns(file), bsize);
+
 		/* force bsize into allowed range and
 		 * required alignment.
 		 */
@@ -903,6 +914,7 @@ static ssize_t write_maxconn(struct file *file, char *buf, size_t size)
 
 		if (rv)
 			return rv;
+		trace_nfsd_ctl_maxconn(netns(file), maxconn);
 		nn->max_connections = maxconn;
 	}
 
@@ -913,6 +925,7 @@ static ssize_t write_maxconn(struct file *file, char *buf, size_t size)
 static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size,
 				  time64_t *time, struct nfsd_net *nn)
 {
+	struct dentry *dentry = file_dentry(file);
 	char *mesg = buf;
 	int rv, i;
 
@@ -922,6 +935,9 @@ static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size,
 		rv = get_int(&mesg, &i);
 		if (rv)
 			return rv;
+		trace_nfsd_ctl_time(netns(file), dentry->d_name.name,
+				    dentry->d_name.len, i);
+
 		/*
 		 * Some sanity checking.  We don't have a reason for
 		 * these particular numbers, but problems with the
@@ -1014,6 +1030,7 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size,
 		len = qword_get(&mesg, recdir, size);
 		if (len <= 0)
 			return -EINVAL;
+		trace_nfsd_ctl_recoverydir(netns(file), recdir);
 
 		status = nfs4_reset_recoverydir(recdir);
 		if (status)
@@ -1087,7 +1104,7 @@ static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size)
 		case '1':
 			if (!nn->nfsd_serv)
 				return -EBUSY;
-			nfsd4_end_grace(nn);
+			trace_nfsd_end_grace(netns(file));
 			break;
 		default:
 			return -EINVAL;
@@ -1192,8 +1209,8 @@ static int __nfsd_symlink(struct inode *dir, struct dentry *dentry,
  * @content is assumed to be a NUL-terminated string that lives
  * longer than the symlink itself.
  */
-static void nfsd_symlink(struct dentry *parent, const char *name,
-			 const char *content)
+static void _nfsd_symlink(struct dentry *parent, const char *name,
+			  const char *content)
 {
 	struct inode *dir = parent->d_inode;
 	struct dentry *dentry;
@@ -1210,8 +1227,8 @@ out:
 	inode_unlock(dir);
 }
 #else
-static inline void nfsd_symlink(struct dentry *parent, const char *name,
-				const char *content)
+static inline void _nfsd_symlink(struct dentry *parent, const char *name,
+				 const char *content)
 {
 }
 
@@ -1389,8 +1406,8 @@ static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
 	if (ret)
 		return ret;
-	nfsd_symlink(sb->s_root, "supported_krb5_enctypes",
-		     "/proc/net/rpc/gss_krb5_enctypes");
+	_nfsd_symlink(sb->s_root, "supported_krb5_enctypes",
+		      "/proc/net/rpc/gss_krb5_enctypes");
 	dentry = nfsd_mkdir(sb->s_root, NULL, "clients");
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
