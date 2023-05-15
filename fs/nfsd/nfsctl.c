@@ -109,12 +109,12 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	rv =  write_op[ino](file, data, size);
-	if (rv >= 0) {
-		simple_transaction_set(file, rv);
-		rv = size;
-	}
-	return rv;
+	rv = write_op[ino](file, data, size);
+	if (rv < 0)
+		return rv;
+
+	simple_transaction_set(file, rv);
+	return size;
 }
 
 static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
