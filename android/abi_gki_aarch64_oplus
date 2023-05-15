@@ -15,6 +15,7 @@
   for_each_kernel_tracepoint
   freq_qos_add_notifier
   freq_qos_remove_notifier
+  get_wchan
   gov_attr_set_get
   gpiod_to_chip
   have_governor_per_policy
@@ -105,6 +106,11 @@
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
   __traceiter_android_vh_rwsem_wake_finish
+  __traceiter_sched_stat_blocked
+  __traceiter_sched_stat_iowait
+  __traceiter_sched_stat_sleep
+  __traceiter_sched_stat_wait
+  __traceiter_sched_waking
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_binder_free_proc
   __tracepoint_android_vh_binder_has_work_ilocked
@@ -132,6 +138,11 @@
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
   __tracepoint_android_vh_rwsem_wake_finish
+  __tracepoint_sched_stat_blocked
+  __tracepoint_sched_stat_iowait
+  __tracepoint_sched_stat_sleep
+  __tracepoint_sched_stat_wait
+  __tracepoint_sched_waking
   typec_mux_get_drvdata
   unregister_memory_notifier
   unregister_tcf_proto_ops
@@ -139,3 +150,4 @@
   wait_for_completion_io_timeout
   wait_for_completion_killable_timeout
   wakeup_source_remove
+  wq_worker_comm
