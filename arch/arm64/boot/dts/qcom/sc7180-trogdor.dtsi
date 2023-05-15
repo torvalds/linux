@@ -788,6 +788,10 @@ hp_i2c: &i2c9 {
 	};
 };
 
+&lpasscc {
+	status = "okay";
+};
+
 &lpass_cpu {
 	status = "okay";
 
@@ -811,6 +815,10 @@ hp_i2c: &i2c9 {
 	dai-link@5 {
 		reg = <LPASS_DP_RX>;
 	};
+};
+
+&lpass_hm {
+	status = "okay";
 };
 
 &mdp {
