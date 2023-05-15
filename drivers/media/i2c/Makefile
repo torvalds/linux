@@ -213,6 +213,7 @@ obj-$(CONFIG_VIDEO_IMX347)	+= imx347.o
 obj-$(CONFIG_VIDEO_IMX378)	+= imx378.o
 obj-$(CONFIG_VIDEO_IMX415)	+= imx415.o
 obj-$(CONFIG_VIDEO_IMX464)	+= imx464.o
+obj-$(CONFIG_VIDEO_IMX492)	+= imx492.o
 obj-$(CONFIG_VIDEO_IMX355)	+= imx355.o
 obj-$(CONFIG_VIDEO_IMX577)	+= imx577.o
 obj-$(CONFIG_VIDEO_IMX586)	+= imx586.o
