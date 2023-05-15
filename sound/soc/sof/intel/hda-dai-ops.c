@@ -120,6 +120,26 @@ static struct hdac_ext_stream *hda_get_hext_stream(struct snd_sof_dev *sdev,
 	return snd_soc_dai_get_dma_data(cpu_dai, substream);
 }
 
+static struct hdac_ext_stream *hda_ipc4_get_hext_stream(struct snd_sof_dev *sdev,
+							struct snd_soc_dai *cpu_dai,
+							struct snd_pcm_substream *substream)
+{
+	struct snd_sof_widget *pipe_widget;
+	struct sof_ipc4_pipeline *pipeline;
+	struct snd_sof_widget *swidget;
+	struct snd_soc_dapm_widget *w;
+
+	w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	swidget = w->dobj.private;
+	pipe_widget = swidget->spipe->pipe_widget;
+	pipeline = pipe_widget->private;
+
+	/* mark pipeline so that it can be skipped during FE trigger */
+	pipeline->skip_during_fe_trigger = true;
+
+	return snd_soc_dai_get_dma_data(cpu_dai, substream);
+}
+
 static struct hdac_ext_stream *hda_assign_hext_stream(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
 						      struct snd_pcm_substream *substream)
@@ -158,6 +178,7 @@ static void hda_reset_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stre
 static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				struct snd_pcm_substream *substream, int cmd)
 {
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_widget *swidget;
@@ -169,6 +190,8 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 
+	mutex_lock(&ipc4_data->pipeline_state_mutex);
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -179,7 +202,7 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 						  SOF_IPC4_PIPE_PAUSED);
 		if (ret < 0)
-			return ret;
+			goto out;
 
 		pipeline->state = SOF_IPC4_PIPE_PAUSED;
 		break;
@@ -187,7 +210,8 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
 		return -EINVAL;
 	}
-
+out:
+	mutex_unlock(&ipc4_data->pipeline_state_mutex);
 	return 0;
 }
 
@@ -217,57 +241,66 @@ static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				 struct snd_pcm_substream *substream, int cmd)
 {
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_widget *swidget;
 	struct snd_soc_dapm_widget *w;
-	int ret;
+	int ret = 0;
 
 	w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	swidget = w->dobj.private;
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 
+	mutex_lock(&ipc4_data->pipeline_state_mutex);
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (pipeline->state != SOF_IPC4_PIPE_PAUSED) {
 			ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 							  SOF_IPC4_PIPE_PAUSED);
 			if (ret < 0)
-				return ret;
+				goto out;
 			pipeline->state = SOF_IPC4_PIPE_PAUSED;
 		}
 
 		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 						  SOF_IPC4_PIPE_RUNNING);
 		if (ret < 0)
-			return ret;
+			goto out;
+		pipeline->state = SOF_IPC4_PIPE_RUNNING;
+		swidget->spipe->started_count++;
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
+						  SOF_IPC4_PIPE_RUNNING);
+		if (ret < 0)
+			goto out;
 		pipeline->state = SOF_IPC4_PIPE_RUNNING;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-	{
-		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-						  SOF_IPC4_PIPE_RESET);
-		if (ret < 0)
-			return ret;
-
-		pipeline->state = SOF_IPC4_PIPE_RESET;
+		/*
+		 * STOP/SUSPEND trigger is invoked only once when all users of this pipeline have
+		 * been stopped. So, clear the started_count so that the pipeline can be reset
+		 */
+		swidget->spipe->started_count = 0;
 		break;
-	}
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		break;
 	default:
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
-
-	return 0;
+out:
+	mutex_unlock(&ipc4_data->pipeline_state_mutex);
+	return ret;
 }
 
 static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
-	.get_hext_stream = hda_get_hext_stream,
+	.get_hext_stream = hda_ipc4_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
 	.release_hext_stream = hda_release_hext_stream,
 	.setup_hext_stream = hda_setup_hext_stream,
