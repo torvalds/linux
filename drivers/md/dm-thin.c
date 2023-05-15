@@ -3447,7 +3447,6 @@ out_unlock:
 
 static int pool_map(struct dm_target *ti, struct bio *bio)
 {
-	int r;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
@@ -3456,10 +3455,9 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 	 */
 	spin_lock_irq(&pool->lock);
 	bio_set_dev(bio, pt->data_dev->bdev);
-	r = DM_MAPIO_REMAPPED;
 	spin_unlock_irq(&pool->lock);
 
-	return r;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
