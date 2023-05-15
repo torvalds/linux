@@ -395,8 +395,8 @@ multi-instance state the following function is available:
 * cpuhp_setup_state_multi(state, name, startup, teardown)
 
 The @state argument is either a statically allocated state or one of the
-constants for dynamically allocated states - CPUHP_PREPARE_DYN,
-CPUHP_ONLINE_DYN - depending on the state section (PREPARE, ONLINE) for
+constants for dynamically allocated states - CPUHP_BP_PREPARE_DYN,
+CPUHP_AP_ONLINE_DYN - depending on the state section (PREPARE, ONLINE) for
 which a dynamic state should be allocated.
 
 The @name argument is used for sysfs output and for instrumentation. The
@@ -588,7 +588,7 @@ notifications on online and offline operations::
 Setup and teardown a dynamically allocated state in the ONLINE section
 for notifications on offline operations::
 
-   state = cpuhp_setup_state(CPUHP_ONLINE_DYN, "subsys:offline", NULL, subsys_cpu_offline);
+   state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "subsys:offline", NULL, subsys_cpu_offline);
    if (state < 0)
        return state;
    ....
@@ -597,7 +597,7 @@ for notifications on offline operations::
 Setup and teardown a dynamically allocated state in the ONLINE section
 for notifications on online operations without invoking the callbacks::
 
-   state = cpuhp_setup_state_nocalls(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
+   state = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
    if (state < 0)
        return state;
    ....
@@ -606,7 +606,7 @@ for notifications on online operations without invoking the callbacks::
 Setup, use and teardown a dynamically allocated multi-instance state in the
 ONLINE section for notifications on online and offline operation::
 
-   state = cpuhp_setup_state_multi(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, subsys_cpu_offline);
+   state = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, subsys_cpu_offline);
    if (state < 0)
        return state;
    ....
