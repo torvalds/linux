@@ -31,6 +31,41 @@ static void intel_shim_vs_init(struct sdw_intel *sdw)
 	usleep_range(10, 15);
 }
 
+static int intel_shim_check_wake(struct sdw_intel *sdw)
+{
+	void __iomem *shim_vs;
+	u16 wake_sts;
+
+	shim_vs = sdw->link_res->shim_vs;
+	wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
+
+	return wake_sts & SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
+}
+
+static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
+{
+	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 wake_en;
+	u16 wake_sts;
+
+	wake_en = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN);
+
+	if (wake_enable) {
+		/* Enable the wakeup */
+		wake_en |= SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
+		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+	} else {
+		/* Disable the wake up interrupt */
+		wake_en &= ~SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
+		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+
+		/* Clear wake status (W1C) */
+		wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
+		wake_sts |= SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
+		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS, wake_sts);
+	}
+}
+
 static int intel_link_power_up(struct sdw_intel *sdw)
 {
 	struct sdw_bus *bus = &sdw->cdns.bus;
@@ -324,6 +359,9 @@ const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 
 	.link_power_up = intel_link_power_up,
 	.link_power_down = intel_link_power_down,
+
+	.shim_check_wake = intel_shim_check_wake,
+	.shim_wake = intel_shim_wake,
 
 	.sync_arm = intel_sync_arm,
 	.sync_go_unlocked = intel_sync_go_unlocked,
