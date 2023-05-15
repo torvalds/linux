@@ -4515,7 +4515,7 @@ static void irdma_init_roce_device(struct irdma_device *iwdev)
  * irdma_init_iw_device - initialization of iwarp rdma device
  * @iwdev: irdma device
  */
-static int irdma_init_iw_device(struct irdma_device *iwdev)
+static void irdma_init_iw_device(struct irdma_device *iwdev)
 {
 	struct net_device *netdev = iwdev->netdev;
 
@@ -4533,8 +4533,6 @@ static int irdma_init_iw_device(struct irdma_device *iwdev)
 	memcpy(iwdev->ibdev.iw_ifname, netdev->name,
 	       sizeof(iwdev->ibdev.iw_ifname));
 	ib_set_device_ops(&iwdev->ibdev, &irdma_iw_dev_ops);
-
-	return 0;
 }
 
 /**
@@ -4544,15 +4542,12 @@ static int irdma_init_iw_device(struct irdma_device *iwdev)
 static int irdma_init_rdma_device(struct irdma_device *iwdev)
 {
 	struct pci_dev *pcidev = iwdev->rf->pcidev;
-	int ret;
 
-	if (iwdev->roce_mode) {
+	if (iwdev->roce_mode)
 		irdma_init_roce_device(iwdev);
-	} else {
-		ret = irdma_init_iw_device(iwdev);
-		if (ret)
-			return ret;
-	}
+	else
+		irdma_init_iw_device(iwdev);
+
 	iwdev->ibdev.phys_port_cnt = 1;
 	iwdev->ibdev.num_comp_vectors = iwdev->rf->ceqs_count;
 	iwdev->ibdev.dev.parent = &pcidev->dev;
