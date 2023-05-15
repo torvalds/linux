@@ -883,16 +883,6 @@
 	reset-gpios = <&main_gpio0 22 GPIO_ACTIVE_HIGH>;
 };
 
-&icssg0_mdio {
-	/* Unused */
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	/* Unused */
-	status = "disabled";
-};
-
 &ufs_wrapper {
 	status = "disabled";
 };

@@ -842,14 +842,6 @@
 	num-lanes = <2>;
 };
 
-&icssg0_mdio {
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	status = "disabled";
-};
-
 &mcu_mcan0 {
 	status = "okay";
 	pinctrl-names = "default";
