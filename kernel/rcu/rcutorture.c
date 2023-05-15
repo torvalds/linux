@@ -1581,6 +1581,7 @@ rcu_torture_writer(void *arg)
 				    rcu_access_pointer(rcu_torture_current) !=
 				    &rcu_tortures[i]) {
 					tracing_off();
+					show_rcu_gp_kthreads();
 					WARN(1, "%s: rtort_pipe_count: %d\n", __func__, rcu_tortures[i].rtort_pipe_count);
 					rcu_ftrace_dump(DUMP_ALL);
 				}
