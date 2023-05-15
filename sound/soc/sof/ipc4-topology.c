@@ -1028,6 +1028,34 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 	return 0;
 }
 
+static bool sof_ipc4_is_single_format(struct snd_sof_dev *sdev,
+				      struct sof_ipc4_pin_format *pin_fmts, u32 pin_fmts_size)
+{
+	struct sof_ipc4_audio_format *fmt;
+	u32 rate, channels, valid_bits;
+	int i;
+
+	fmt = &pin_fmts[0].audio_fmt;
+	rate = fmt->sampling_frequency;
+	channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+	valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+	/* check if all output formats in topology are the same */
+	for (i = 1; i < pin_fmts_size; i++) {
+		u32 _rate, _channels, _valid_bits;
+
+		fmt = &pin_fmts[i].audio_fmt;
+		_rate = fmt->sampling_frequency;
+		_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+		_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+		if (_rate != rate || _channels != channels || _valid_bits != valid_bits)
+			return false;
+	}
+
+	return true;
+}
+
 static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 					  struct sof_ipc4_base_module_cfg *base_config,
 					  struct sof_ipc4_available_audio_format *available_fmt,
@@ -1035,33 +1063,14 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 					  u32 out_ref_valid_bits)
 {
 	struct sof_ipc4_audio_format *out_fmt;
-	u32 out_rate, out_channels, out_valid_bits;
-	bool single_format = true;
+	bool single_format;
 	int i;
 
 	if (!available_fmt->num_output_formats)
 		return -EINVAL;
 
-	out_fmt = &available_fmt->output_pin_fmts[0].audio_fmt;
-	out_rate = out_fmt->sampling_frequency;
-	out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(out_fmt->fmt_cfg);
-	out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
-
-	/* check if all output formats in topology are the same */
-	for (i = 1; i < available_fmt->num_output_formats; i++) {
-		u32 _out_rate, _out_channels, _out_valid_bits;
-
-		out_fmt = &available_fmt->output_pin_fmts[i].audio_fmt;
-		_out_rate = out_fmt->sampling_frequency;
-		_out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(out_fmt->fmt_cfg);
-		_out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
-
-		if (_out_rate != out_rate || _out_channels != out_channels ||
-		    _out_valid_bits != out_valid_bits) {
-			single_format = false;
-			break;
-		}
-	}
+	single_format = sof_ipc4_is_single_format(sdev, available_fmt->output_pin_fmts,
+						  available_fmt->num_output_formats);
 
 	/* pick the first format if there's only one available or if all formats are the same */
 	if (single_format) {
