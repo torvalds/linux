@@ -993,6 +993,111 @@ gaudi2_pcie_addr_dec_error_cause[GAUDI2_NUM_OF_PCIE_ADDR_DEC_ERR_CAUSE] = {
 	"TLP is blocked by RR"
 };
 
+static const int gaudi2_queue_id_to_engine_id[] = {
+	[GAUDI2_QUEUE_ID_PDMA_0_0...GAUDI2_QUEUE_ID_PDMA_0_3] = GAUDI2_ENGINE_ID_PDMA_0,
+	[GAUDI2_QUEUE_ID_PDMA_1_0...GAUDI2_QUEUE_ID_PDMA_1_3] = GAUDI2_ENGINE_ID_PDMA_1,
+	[GAUDI2_QUEUE_ID_DCORE0_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE0_EDMA_0_3] =
+							GAUDI2_DCORE0_ENGINE_ID_EDMA_0,
+	[GAUDI2_QUEUE_ID_DCORE0_EDMA_1_0...GAUDI2_QUEUE_ID_DCORE0_EDMA_1_3] =
+							GAUDI2_DCORE0_ENGINE_ID_EDMA_1,
+	[GAUDI2_QUEUE_ID_DCORE1_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE1_EDMA_0_3] =
+							GAUDI2_DCORE1_ENGINE_ID_EDMA_0,
+	[GAUDI2_QUEUE_ID_DCORE1_EDMA_1_0...GAUDI2_QUEUE_ID_DCORE1_EDMA_1_3] =
+							GAUDI2_DCORE1_ENGINE_ID_EDMA_1,
+	[GAUDI2_QUEUE_ID_DCORE2_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE2_EDMA_0_3] =
+							GAUDI2_DCORE2_ENGINE_ID_EDMA_0,
+	[GAUDI2_QUEUE_ID_DCORE2_EDMA_1_0...GAUDI2_QUEUE_ID_DCORE2_EDMA_1_3] =
+							GAUDI2_DCORE2_ENGINE_ID_EDMA_1,
+	[GAUDI2_QUEUE_ID_DCORE3_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE3_EDMA_0_3] =
+							GAUDI2_DCORE3_ENGINE_ID_EDMA_0,
+	[GAUDI2_QUEUE_ID_DCORE3_EDMA_1_0...GAUDI2_QUEUE_ID_DCORE3_EDMA_1_3] =
+							GAUDI2_DCORE3_ENGINE_ID_EDMA_1,
+	[GAUDI2_QUEUE_ID_DCORE0_MME_0_0...GAUDI2_QUEUE_ID_DCORE0_MME_0_3] =
+							GAUDI2_DCORE0_ENGINE_ID_MME,
+	[GAUDI2_QUEUE_ID_DCORE1_MME_0_0...GAUDI2_QUEUE_ID_DCORE1_MME_0_3] =
+							GAUDI2_DCORE1_ENGINE_ID_MME,
+	[GAUDI2_QUEUE_ID_DCORE2_MME_0_0...GAUDI2_QUEUE_ID_DCORE2_MME_0_3] =
+							GAUDI2_DCORE2_ENGINE_ID_MME,
+	[GAUDI2_QUEUE_ID_DCORE3_MME_0_0...GAUDI2_QUEUE_ID_DCORE3_MME_0_3] =
+							GAUDI2_DCORE3_ENGINE_ID_MME,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_0_0...GAUDI2_QUEUE_ID_DCORE0_TPC_0_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_0,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_1_0...GAUDI2_QUEUE_ID_DCORE0_TPC_1_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_1,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_2_0...GAUDI2_QUEUE_ID_DCORE0_TPC_2_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_2,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_3_0...GAUDI2_QUEUE_ID_DCORE0_TPC_3_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_3,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_4_0...GAUDI2_QUEUE_ID_DCORE0_TPC_4_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_4,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_5_0...GAUDI2_QUEUE_ID_DCORE0_TPC_5_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_5,
+	[GAUDI2_QUEUE_ID_DCORE0_TPC_6_0...GAUDI2_QUEUE_ID_DCORE0_TPC_6_3] =
+							GAUDI2_DCORE0_ENGINE_ID_TPC_6,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_0_0...GAUDI2_QUEUE_ID_DCORE1_TPC_0_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_0,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_1_0...GAUDI2_QUEUE_ID_DCORE1_TPC_1_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_1,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_2_0...GAUDI2_QUEUE_ID_DCORE1_TPC_2_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_2,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_3_0...GAUDI2_QUEUE_ID_DCORE1_TPC_3_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_3,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_4_0...GAUDI2_QUEUE_ID_DCORE1_TPC_4_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_4,
+	[GAUDI2_QUEUE_ID_DCORE1_TPC_5_0...GAUDI2_QUEUE_ID_DCORE1_TPC_5_3] =
+							GAUDI2_DCORE1_ENGINE_ID_TPC_5,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_0_0...GAUDI2_QUEUE_ID_DCORE2_TPC_0_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_0,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_1_0...GAUDI2_QUEUE_ID_DCORE2_TPC_1_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_1,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_2_0...GAUDI2_QUEUE_ID_DCORE2_TPC_2_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_2,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_3_0...GAUDI2_QUEUE_ID_DCORE2_TPC_3_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_3,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_4_0...GAUDI2_QUEUE_ID_DCORE2_TPC_4_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_4,
+	[GAUDI2_QUEUE_ID_DCORE2_TPC_5_0...GAUDI2_QUEUE_ID_DCORE2_TPC_5_3] =
+							GAUDI2_DCORE2_ENGINE_ID_TPC_5,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_0_0...GAUDI2_QUEUE_ID_DCORE3_TPC_0_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_0,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_1_0...GAUDI2_QUEUE_ID_DCORE3_TPC_1_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_1,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_2_0...GAUDI2_QUEUE_ID_DCORE3_TPC_2_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_2,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_3_0...GAUDI2_QUEUE_ID_DCORE3_TPC_3_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_3,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_4_0...GAUDI2_QUEUE_ID_DCORE3_TPC_4_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_4,
+	[GAUDI2_QUEUE_ID_DCORE3_TPC_5_0...GAUDI2_QUEUE_ID_DCORE3_TPC_5_3] =
+							GAUDI2_DCORE3_ENGINE_ID_TPC_5,
+	[GAUDI2_QUEUE_ID_NIC_0_0...GAUDI2_QUEUE_ID_NIC_0_3] = GAUDI2_ENGINE_ID_NIC0_0,
+	[GAUDI2_QUEUE_ID_NIC_1_0...GAUDI2_QUEUE_ID_NIC_1_3] = GAUDI2_ENGINE_ID_NIC0_1,
+	[GAUDI2_QUEUE_ID_NIC_2_0...GAUDI2_QUEUE_ID_NIC_2_3] = GAUDI2_ENGINE_ID_NIC1_0,
+	[GAUDI2_QUEUE_ID_NIC_3_0...GAUDI2_QUEUE_ID_NIC_3_3] = GAUDI2_ENGINE_ID_NIC1_1,
+	[GAUDI2_QUEUE_ID_NIC_4_0...GAUDI2_QUEUE_ID_NIC_4_3] = GAUDI2_ENGINE_ID_NIC2_0,
+	[GAUDI2_QUEUE_ID_NIC_5_0...GAUDI2_QUEUE_ID_NIC_5_3] = GAUDI2_ENGINE_ID_NIC2_1,
+	[GAUDI2_QUEUE_ID_NIC_6_0...GAUDI2_QUEUE_ID_NIC_6_3] = GAUDI2_ENGINE_ID_NIC3_0,
+	[GAUDI2_QUEUE_ID_NIC_7_0...GAUDI2_QUEUE_ID_NIC_7_3] = GAUDI2_ENGINE_ID_NIC3_1,
+	[GAUDI2_QUEUE_ID_NIC_8_0...GAUDI2_QUEUE_ID_NIC_8_3] = GAUDI2_ENGINE_ID_NIC4_0,
+	[GAUDI2_QUEUE_ID_NIC_9_0...GAUDI2_QUEUE_ID_NIC_9_3] = GAUDI2_ENGINE_ID_NIC4_1,
+	[GAUDI2_QUEUE_ID_NIC_10_0...GAUDI2_QUEUE_ID_NIC_10_3] = GAUDI2_ENGINE_ID_NIC5_0,
+	[GAUDI2_QUEUE_ID_NIC_11_0...GAUDI2_QUEUE_ID_NIC_11_3] = GAUDI2_ENGINE_ID_NIC5_1,
+	[GAUDI2_QUEUE_ID_NIC_12_0...GAUDI2_QUEUE_ID_NIC_12_3] = GAUDI2_ENGINE_ID_NIC6_0,
+	[GAUDI2_QUEUE_ID_NIC_13_0...GAUDI2_QUEUE_ID_NIC_13_3] = GAUDI2_ENGINE_ID_NIC6_1,
+	[GAUDI2_QUEUE_ID_NIC_14_0...GAUDI2_QUEUE_ID_NIC_14_3] = GAUDI2_ENGINE_ID_NIC7_0,
+	[GAUDI2_QUEUE_ID_NIC_15_0...GAUDI2_QUEUE_ID_NIC_15_3] = GAUDI2_ENGINE_ID_NIC7_1,
+	[GAUDI2_QUEUE_ID_NIC_16_0...GAUDI2_QUEUE_ID_NIC_16_3] = GAUDI2_ENGINE_ID_NIC8_0,
+	[GAUDI2_QUEUE_ID_NIC_17_0...GAUDI2_QUEUE_ID_NIC_17_3] = GAUDI2_ENGINE_ID_NIC8_1,
+	[GAUDI2_QUEUE_ID_NIC_18_0...GAUDI2_QUEUE_ID_NIC_18_3] = GAUDI2_ENGINE_ID_NIC9_0,
+	[GAUDI2_QUEUE_ID_NIC_19_0...GAUDI2_QUEUE_ID_NIC_19_3] = GAUDI2_ENGINE_ID_NIC9_1,
+	[GAUDI2_QUEUE_ID_NIC_20_0...GAUDI2_QUEUE_ID_NIC_20_3] = GAUDI2_ENGINE_ID_NIC10_0,
+	[GAUDI2_QUEUE_ID_NIC_21_0...GAUDI2_QUEUE_ID_NIC_21_3] = GAUDI2_ENGINE_ID_NIC10_1,
+	[GAUDI2_QUEUE_ID_NIC_22_0...GAUDI2_QUEUE_ID_NIC_22_3] = GAUDI2_ENGINE_ID_NIC11_0,
+	[GAUDI2_QUEUE_ID_NIC_23_0...GAUDI2_QUEUE_ID_NIC_23_3] = GAUDI2_ENGINE_ID_NIC11_1,
+	[GAUDI2_QUEUE_ID_ROT_0_0...GAUDI2_QUEUE_ID_ROT_0_3] = GAUDI2_ENGINE_ID_ROT_0,
+	[GAUDI2_QUEUE_ID_ROT_1_0...GAUDI2_QUEUE_ID_ROT_1_3] = GAUDI2_ENGINE_ID_ROT_1,
+};
+
 const u32 gaudi2_qm_blocks_bases[GAUDI2_QUEUE_ID_SIZE] = {
 	[GAUDI2_QUEUE_ID_PDMA_0_0] = mmPDMA0_QM_BASE,
 	[GAUDI2_QUEUE_ID_PDMA_0_1] = mmPDMA0_QM_BASE,
@@ -7753,7 +7858,7 @@ static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 	return !!ecc_data->is_critical;
 }
 
-static void print_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base)
+static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base, u64 event_mask)
 {
 	u32 lo, hi, cq_ptr_size, arc_cq_ptr_size;
 	u64 cq_ptr, arc_cq_ptr, cp_current_inst;
@@ -7775,10 +7880,22 @@ static void print_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base)
 	dev_info(hdev->dev,
 		"LowerQM. CQ: {ptr %#llx, size %u}, ARC_CQ: {ptr %#llx, size %u}, CP: {instruction %#llx}\n",
 		cq_ptr, cq_ptr_size, arc_cq_ptr, arc_cq_ptr_size, cp_current_inst);
+
+	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
+		if (arc_cq_ptr) {
+			hdev->captured_err_info.undef_opcode.cq_addr = arc_cq_ptr;
+			hdev->captured_err_info.undef_opcode.cq_size = arc_cq_ptr_size;
+		} else {
+			hdev->captured_err_info.undef_opcode.cq_addr = cq_ptr;
+			hdev->captured_err_info.undef_opcode.cq_size = cq_ptr_size;
+		}
+
+		hdev->captured_err_info.undef_opcode.stream_id = QMAN_STREAMS;
+	}
 }
 
 static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type,
-							u64 qman_base, u32 qid_base)
+						u64 qman_base, u32 qid_base, u64 *event_mask)
 {
 	u32 i, j, glbl_sts_val, arb_err_val, num_error_causes, error_count = 0;
 	u64 glbl_sts_addr, arb_err_addr;
@@ -7812,8 +7929,22 @@ static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type
 				error_count++;
 			}
 
-		if (i == QMAN_STREAMS)
-			print_lower_qman_data_on_err(hdev, qman_base);
+		if (i == QMAN_STREAMS && error_count) {
+			/* check for undefined opcode */
+			if (glbl_sts_val & PDMA0_QM_GLBL_ERR_STS_CP_UNDEF_CMD_ERR_MASK &&
+					hdev->captured_err_info.undef_opcode.write_enable) {
+				memset(&hdev->captured_err_info.undef_opcode, 0,
+						sizeof(hdev->captured_err_info.undef_opcode));
+
+				hdev->captured_err_info.undef_opcode.write_enable = false;
+				hdev->captured_err_info.undef_opcode.timestamp = ktime_get();
+				hdev->captured_err_info.undef_opcode.engine_id =
+							gaudi2_queue_id_to_engine_id[qid_base];
+				*event_mask |= HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
+			}
+
+			handle_lower_qman_data_on_err(hdev, qman_base, *event_mask);
+		}
 	}
 
 	arb_err_val = RREG32(arb_err_addr);
@@ -8475,7 +8606,8 @@ static int gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 		return 0;
 	}
 
-	error_count = gaudi2_handle_qman_err_generic(hdev, event_type, qman_base, qid_base);
+	error_count = gaudi2_handle_qman_err_generic(hdev, event_type, qman_base,
+								qid_base, event_mask);
 
 	/* Handle EDMA QM SEI here because there is no AXI error response event for EDMA */
 	if (event_type >= GAUDI2_EVENT_HDMA2_QM && event_type <= GAUDI2_EVENT_HDMA5_QM) {
