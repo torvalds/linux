@@ -1130,7 +1130,7 @@ in_fmt:
 		sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->input_pin_fmts[i], 1);
 	}
 
-	return sof_ipc4_init_output_audio_fmt(sdev, base_config, available_fmt, i);
+	return i;
 }
 
 static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
@@ -1375,6 +1375,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	int ipc_size, ret;
 	u32 deep_buffer_dma_ms = 0;
 	u32 format_list_count;
+	int output_fmt_index;
 
 	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
 
@@ -1518,6 +1519,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
+	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, &copier_data->base_config,
+							  available_fmt, ret);
+
 	/*
 	 * Set the output format. Current topology defines pin 0 input and output formats in pairs.
 	 * This assumes that the pin 0 formats are defined before all other pins.
@@ -1525,10 +1529,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	 * input format. This logic will need to be updated when the format definitions
 	 * in topology change.
 	 */
-	memcpy(&copier_data->out_format, &available_fmt->output_pin_fmts[ret].audio_fmt,
+	memcpy(&copier_data->out_format,
+	       &available_fmt->output_pin_fmts[output_fmt_index].audio_fmt,
 	       sizeof(struct sof_ipc4_audio_format));
 	dev_dbg(sdev->dev, "Output audio format for %s\n", swidget->widget->name);
-	sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->output_pin_fmts[ret], 1);
+	sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->output_pin_fmts[output_fmt_index], 1);
 
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
@@ -1694,6 +1699,8 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
+	sof_ipc4_init_output_audio_fmt(sdev, &gain->base_config, available_fmt, ret);
+
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &gain->base_config);
 
@@ -1717,6 +1724,8 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 				      available_fmt->num_input_formats);
 	if (ret < 0)
 		return ret;
+
+	sof_ipc4_init_output_audio_fmt(sdev, &mixer->base_config, available_fmt, ret);
 
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &mixer->base_config);
@@ -1742,6 +1751,8 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 				      available_fmt->num_input_formats);
 	if (ret < 0)
 		return ret;
+
+	sof_ipc4_init_output_audio_fmt(sdev, &src->base_config, available_fmt, ret);
 
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &src->base_config);
@@ -1842,6 +1853,7 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	struct sof_ipc4_process *process = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &process->available_fmt;
 	void *cfg = process->ipc_config_data;
+	int output_fmt_index;
 	int ret;
 
 	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &process->base_config,
@@ -1851,10 +1863,15 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
+	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, &process->base_config,
+							  available_fmt, ret);
+
 	/* copy Pin 0 output format */
-	if (available_fmt->num_output_formats && ret < available_fmt->num_output_formats &&
-	    !available_fmt->output_pin_fmts[ret].pin_index) {
-		memcpy(&process->output_format, &available_fmt->output_pin_fmts[ret].audio_fmt,
+	if (available_fmt->num_output_formats &&
+	    output_fmt_index < available_fmt->num_output_formats &&
+	    !available_fmt->output_pin_fmts[output_fmt_index].pin_index) {
+		memcpy(&process->output_format,
+		       &available_fmt->output_pin_fmts[output_fmt_index].audio_fmt,
 		       sizeof(struct sof_ipc4_audio_format));
 
 		/* modify the pipeline params with the pin 0 output format */
