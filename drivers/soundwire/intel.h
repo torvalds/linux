@@ -11,6 +11,7 @@
  * @mmio_base: mmio base of SoundWire registers
  * @registers: Link IO registers base
  * @shim: Audio shim pointer
+ * @shim_vs: Audio vendor-specific shim pointer
  * @alh: ALH (Audio Link Hub) pointer
  * @irq: Interrupt line
  * @ops: Shim callback ops
@@ -28,6 +29,7 @@ struct sdw_intel_link_res {
 	void __iomem *mmio_base; /* not strictly needed, useful for debug */
 	void __iomem *registers;
 	void __iomem *shim;
+	void __iomem *shim_vs;
 	void __iomem *alh;
 	int irq;
 	const struct sdw_intel_ops *ops;

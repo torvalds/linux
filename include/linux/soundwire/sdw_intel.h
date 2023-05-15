@@ -323,6 +323,7 @@ struct sdw_intel_ctx {
  * DSP driver. The quirks are common for all links for now.
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
+ * @ext: extended HDaudio link support
  */
 struct sdw_intel_res {
 	const struct sdw_intel_hw_ops *hw_ops;
@@ -337,6 +338,7 @@ struct sdw_intel_res {
 	u32 clock_stop_quirks;
 	u32 shim_base;
 	u32 alh_base;
+	bool ext;
 };
 
 /*
