@@ -320,7 +320,7 @@ static struct pmic_typec_port_resources pm8150b_port_res = {
 	.nr_irqs = 7,
 };
 
-struct pmic_typec_resources pm8150b_typec_res = {
+static struct pmic_typec_resources pm8150b_typec_res = {
 	.pdphy_res = &pm8150b_pdphy_res,
 	.port_res = &pm8150b_port_res,
 };
