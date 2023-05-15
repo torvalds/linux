@@ -67,8 +67,6 @@ struct atomisp_video_pipe {
 	/* Filled through atomisp_get_css_frame_info() on queue setup */
 	struct ia_css_frame_info frame_info;
 
-	/* Store here the initial run mode */
-	unsigned int default_run_mode;
 	/* Set from streamoff to disallow queuing further buffers in CSS */
 	bool stopping;
 

@@ -333,34 +333,22 @@ const struct atomisp_dfs_config dfs_config_cht_soc = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_cht_soc),
 };
 
-int atomisp_video_init(struct atomisp_video_pipe *video, const char *name,
-		       unsigned int run_mode)
+int atomisp_video_init(struct atomisp_video_pipe *video)
 {
 	int ret;
-	const char *direction;
 
-	switch (video->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		direction = "output";
-		video->pad.flags = MEDIA_PAD_FL_SINK;
-		video->vdev.fops = &atomisp_fops;
-		video->vdev.ioctl_ops = &atomisp_ioctl_ops;
-		video->vdev.lock = &video->isp->mutex;
-		break;
-	default:
-		return -EINVAL;
-	}
-
+	video->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&video->vdev.entity, 1, &video->pad);
 	if (ret < 0)
 		return ret;
 
 	/* Initialize the video device. */
-	snprintf(video->vdev.name, sizeof(video->vdev.name),
-		 "ATOMISP ISP %s %s", name, direction);
+	strscpy(video->vdev.name, "ATOMISP video output", sizeof(video->vdev.name));
+	video->vdev.fops = &atomisp_fops;
+	video->vdev.ioctl_ops = &atomisp_ioctl_ops;
+	video->vdev.lock = &video->isp->mutex;
 	video->vdev.release = video_device_release_empty;
 	video_set_drvdata(&video->vdev, video->isp);
-	video->default_run_mode = run_mode;
 
 	return 0;
 }

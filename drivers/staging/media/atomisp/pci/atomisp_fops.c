@@ -537,7 +537,7 @@ static int atomisp_open(struct file *file)
 
 	atomisp_subdev_init_struct(asd);
 	/* Ensure that a mode is set */
-	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
+	v4l2_ctrl_s_ctrl(asd->run_mode, ATOMISP_RUN_MODE_PREVIEW);
 
 	pipe->users++;
 	mutex_unlock(&isp->mutex);

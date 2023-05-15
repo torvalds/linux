@@ -898,7 +898,7 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	if (ret)
 		return ret;
 
-	ret = atomisp_video_init(&asd->video_out, "PREVIEW", ATOMISP_RUN_MODE_PREVIEW);
+	ret = atomisp_video_init(&asd->video_out);
 	if (ret < 0)
 		return ret;
 
