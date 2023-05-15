@@ -1028,6 +1028,26 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 	return 0;
 }
 
+static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
+					  struct sof_ipc4_base_module_cfg *base_config,
+					  struct sof_ipc4_available_audio_format *available_fmt,
+					  int input_audio_format_index)
+{
+	int i;
+
+	/* pick the only available output format */
+	if (available_fmt->num_output_formats == 1)
+		i = 0;
+	else
+		i = input_audio_format_index;
+
+	if (available_fmt->num_output_formats && i < available_fmt->num_output_formats)
+		base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
+
+	/* Return the index of the chosen output format */
+	return i;
+}
+
 static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 				   struct snd_sof_widget *swidget,
 				   struct sof_ipc4_base_module_cfg *base_config,
@@ -1110,15 +1130,7 @@ in_fmt:
 		sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->input_pin_fmts[i], 1);
 	}
 
-	/* pick the only available output format */
-	if (available_fmt->num_output_formats == 1)
-		i = 0;
-
-	if (available_fmt->num_output_formats && i < available_fmt->num_output_formats)
-		base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
-
-	/* Return the index of the matched format */
-	return i;
+	return sof_ipc4_init_output_audio_fmt(sdev, base_config, available_fmt, i);
 }
 
 static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
