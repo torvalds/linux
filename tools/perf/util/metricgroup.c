@@ -1672,7 +1672,7 @@ static int metricgroup__topdown_max_level_callback(const struct pmu_metric *pm,
 {
 	unsigned int *max_level = data;
 	unsigned int level;
-	const char *p = strstr(pm->metric_group, "TopdownL");
+	const char *p = strstr(pm->metric_group ?: "", "TopdownL");
 
 	if (!p || p[8] == '\0')
 		return 0;
