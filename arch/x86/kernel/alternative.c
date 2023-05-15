@@ -98,6 +98,11 @@ static const unsigned char x86nops[] =
 	BYTES_NOP6,
 	BYTES_NOP7,
 	BYTES_NOP8,
+#ifdef CONFIG_64BIT
+	BYTES_NOP9,
+	BYTES_NOP10,
+	BYTES_NOP11,
+#endif
 };
 
 const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
@@ -111,6 +116,11 @@ const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
 	x86nops + 1 + 2 + 3 + 4 + 5,
 	x86nops + 1 + 2 + 3 + 4 + 5 + 6,
 	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+#ifdef CONFIG_64BIT
+	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9,
+	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10,
+#endif
 };
 
 /*
