@@ -28,6 +28,7 @@ properties:
       - mediatek,mt76
       - mediatek,mt7628-wmac
       - mediatek,mt7622-wmac
+      - mediatek,mt7981-wmac
       - mediatek,mt7986-wmac
 
   reg:
