@@ -15,6 +15,22 @@
 #include "bus.h"
 #include "intel.h"
 
+/*
+ * shim vendor-specific (vs) ops
+ */
+
+static void intel_shim_vs_init(struct sdw_intel *sdw)
+{
+	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 act = 0;
+
+	u16p_replace_bits(&act, 0x1, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	act |= SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE;
+	act |=  SDW_SHIM2_INTEL_VS_ACTMCTL_DODS;
+	intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL, act);
+	usleep_range(10, 15);
+}
+
 static int intel_link_power_up(struct sdw_intel *sdw)
 {
 	struct sdw_bus *bus = &sdw->cdns.bus;
@@ -63,6 +79,9 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	*shim_mask |= BIT(link_id);
 
 	sdw->cdns.link_up = true;
+
+	intel_shim_vs_init(sdw);
+
 out:
 	mutex_unlock(sdw->link_res->shim_lock);
 
