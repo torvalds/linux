@@ -12,6 +12,8 @@ config 32BIT
 
 config RISCV
 	def_bool y
+	select ACPI_GENERIC_GSI if ACPI
+	select ACPI_REDUCED_HARDWARE_ONLY if ACPI
 	select ARCH_DMA_DEFAULT_COHERENT
 	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
@@ -707,6 +709,7 @@ config EFI
 	depends on OF && !XIP_KERNEL
 	depends on MMU
 	default y
+	select ARCH_SUPPORTS_ACPI if 64BIT
 	select EFI_GENERIC_STUB
 	select EFI_PARAMS_FROM_FDT
 	select EFI_RUNTIME_WRAPPERS
@@ -816,3 +819,5 @@ source "drivers/cpufreq/Kconfig"
 endmenu # "CPU Power Management"
 
 source "arch/riscv/kvm/Kconfig"
+
+source "drivers/acpi/Kconfig"
