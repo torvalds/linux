@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/log2.h>
+#include <linux/math64.h>
 #include "i915_reg.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
@@ -1901,6 +1903,75 @@ void intel_c10pll_dump_hw_state(struct drm_i915_private *i915,
 			    i + 2, hw_state->pll[i + 2], i + 3, hw_state->pll[i + 3]);
 }
 
+static int intel_c20_compute_hdmi_tmds_pll(u64 pixel_clock, struct intel_c20pll_state *pll_state)
+{
+	u64 datarate;
+	u64 mpll_tx_clk_div;
+	u64 vco_freq_shift;
+	u64 vco_freq;
+	u64 multiplier;
+	u64 mpll_multiplier;
+	u64 mpll_fracn_quot;
+	u64 mpll_fracn_rem;
+	u8  mpllb_ana_freq_vco;
+	u8  mpll_div_multiplier;
+
+	if (pixel_clock < 25175 || pixel_clock > 600000)
+		return -EINVAL;
+
+	datarate = ((u64)pixel_clock * 1000) * 10;
+	mpll_tx_clk_div = ilog2(div64_u64((u64)CLOCK_9999MHZ, (u64)datarate));
+	vco_freq_shift = ilog2(div64_u64((u64)CLOCK_4999MHZ * (u64)256, (u64)datarate));
+	vco_freq = (datarate << vco_freq_shift) >> 8;
+	multiplier = div64_u64((vco_freq << 28), (REFCLK_38_4_MHZ >> 4));
+	mpll_multiplier = 2 * (multiplier >> 32);
+
+	mpll_fracn_quot = (multiplier >> 16) & 0xFFFF;
+	mpll_fracn_rem  = multiplier & 0xFFFF;
+
+	mpll_div_multiplier = min_t(u8, div64_u64((vco_freq * 16 + (datarate >> 1)),
+						  datarate), 255);
+
+	if (vco_freq <= DATARATE_3000000000)
+		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_3;
+	else if (vco_freq <= DATARATE_3500000000)
+		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_2;
+	else if (vco_freq <= DATARATE_4000000000)
+		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_1;
+	else
+		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_0;
+
+	pll_state->link_bit_rate	= pixel_clock;
+	pll_state->clock	= pixel_clock;
+	pll_state->tx[0]	= 0xbe88;
+	pll_state->tx[1]	= 0x9800;
+	pll_state->tx[2]	= 0x0000;
+	pll_state->cmn[0]	= 0x0500;
+	pll_state->cmn[1]	= 0x0005;
+	pll_state->cmn[2]	= 0x0000;
+	pll_state->cmn[3]	= 0x0000;
+	pll_state->mpllb[0]	= (MPLL_TX_CLK_DIV(mpll_tx_clk_div) |
+				   MPLL_MULTIPLIER(mpll_multiplier));
+	pll_state->mpllb[1]	= (CAL_DAC_CODE(CAL_DAC_CODE_31) |
+				   WORD_CLK_DIV |
+				   MPLL_DIV_MULTIPLIER(mpll_div_multiplier));
+	pll_state->mpllb[2]	= (MPLLB_ANA_FREQ_VCO(mpllb_ana_freq_vco) |
+				   CP_PROP(CP_PROP_20) |
+				   CP_INT(CP_INT_6));
+	pll_state->mpllb[3]	= (V2I(V2I_2) |
+				   CP_PROP_GS(CP_PROP_GS_30) |
+				   CP_INT_GS(CP_INT_GS_28));
+	pll_state->mpllb[4]	= 0x0000;
+	pll_state->mpllb[5]	= 0x0000;
+	pll_state->mpllb[6]	= (C20_MPLLB_FRACEN | SSC_UP_SPREAD);
+	pll_state->mpllb[7]	= MPLL_FRACN_DEN;
+	pll_state->mpllb[8]	= mpll_fracn_quot;
+	pll_state->mpllb[9]	= mpll_fracn_rem;
+	pll_state->mpllb[10]	= HDMI_DIV(HDMI_DIV_1);
+
+	return 0;
+}
+
 static int intel_c20_phy_check_hdmi_link_rate(int clock)
 {
 	const struct intel_c20pll_state * const *tables = mtl_c20_hdmi_tables;
@@ -1910,6 +1981,9 @@ static int intel_c20_phy_check_hdmi_link_rate(int clock)
 		if (clock == tables[i]->link_bit_rate)
 			return MODE_OK;
 	}
+
+	if (clock >= 25175 && clock <= 594000)
+		return MODE_OK;
 
 	return MODE_CLOCK_RANGE;
 }
@@ -1943,6 +2017,13 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 {
 	const struct intel_c20pll_state * const *tables;
 	int i;
+
+	/* try computed C20 HDMI tables before using consolidated tables */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		if (intel_c20_compute_hdmi_tmds_pll(crtc_state->port_clock,
+						    &crtc_state->cx0pll_state.c20) == 0)
+			return 0;
+	}
 
 	tables = intel_c20_pll_tables_get(crtc_state, encoder);
 	if (!tables)
@@ -2093,13 +2174,10 @@ static u8 intel_c20_get_dp_rate(u32 clock)
 
 static u8 intel_c20_get_hdmi_rate(u32 clock)
 {
-	switch (clock) {
-	case 25175:
-	case 27000:
-	case 74250:
-	case 148500:
-	case 594000:
+	if (clock >= 25175 && clock <= 600000)
 		return 0;
+
+	switch (clock) {
 	case 166670: /* 3 Gbps */
 	case 333330: /* 6 Gbps */
 	case 666670: /* 12 Gbps */
