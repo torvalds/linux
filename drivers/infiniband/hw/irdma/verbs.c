@@ -4539,7 +4539,7 @@ static void irdma_init_iw_device(struct irdma_device *iwdev)
  * irdma_init_rdma_device - initialization of rdma device
  * @iwdev: irdma device
  */
-static int irdma_init_rdma_device(struct irdma_device *iwdev)
+static void irdma_init_rdma_device(struct irdma_device *iwdev)
 {
 	struct pci_dev *pcidev = iwdev->rf->pcidev;
 
@@ -4552,8 +4552,6 @@ static int irdma_init_rdma_device(struct irdma_device *iwdev)
 	iwdev->ibdev.num_comp_vectors = iwdev->rf->ceqs_count;
 	iwdev->ibdev.dev.parent = &pcidev->dev;
 	ib_set_device_ops(&iwdev->ibdev, &irdma_dev_ops);
-
-	return 0;
 }
 
 /**
@@ -4591,9 +4589,7 @@ int irdma_ib_register_device(struct irdma_device *iwdev)
 {
 	int ret;
 
-	ret = irdma_init_rdma_device(iwdev);
-	if (ret)
-		return ret;
+	irdma_init_rdma_device(iwdev);
 
 	ret = ib_device_set_netdev(&iwdev->ibdev, iwdev->netdev, 1);
 	if (ret)
