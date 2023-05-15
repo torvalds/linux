@@ -70,7 +70,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-void __init setup_smp(void)
+static void __init of_parse_and_init_cpus(void)
 {
 	struct device_node *dn;
 	unsigned long hart;
@@ -114,6 +114,11 @@ void __init setup_smp(void)
 			set_cpu_possible(cpuid, true);
 		}
 	}
+}
+
+void __init setup_smp(void)
+{
+	of_parse_and_init_cpus();
 }
 
 static int start_secondary_cpu(int cpu, struct task_struct *tidle)
