@@ -839,32 +839,7 @@
 	num-lanes = <2>;
 };
 
-&pcie0_ep {
-	phys = <&serdes0_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <1>;
-	status = "disabled";
-};
-
-&pcie1_ep {
-	phys = <&serdes1_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <2>;
-	status = "disabled";
-};
-
-&pcie2_ep {
-	phys = <&serdes2_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <2>;
-	status = "disabled";
-};
-
 &pcie3_rc {
-	status = "disabled";
-};
-
-&pcie3_ep {
 	status = "disabled";
 };
 

@@ -892,31 +892,7 @@
 	status = "disabled";
 };
 
-&pcie0_ep {
-	status = "disabled";
-	phys = <&serdes0_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <1>;
-};
-
-&pcie1_ep {
-	status = "disabled";
-	phys = <&serdes1_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <2>;
-};
-
-&pcie2_ep {
-	/* Unused */
-	status = "disabled";
-};
-
 &pcie3_rc {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie3_ep {
 	/* Unused */
 	status = "disabled";
 };
