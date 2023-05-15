@@ -741,9 +741,8 @@ convert:
 }
 
 int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
-			       unsigned copied, struct page *page)
+			       unsigned copied, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	handle_t *handle = ext4_journal_current_handle();
 	int no_expand;
 	void *kaddr;

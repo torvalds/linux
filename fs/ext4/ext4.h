@@ -3480,10 +3480,8 @@ extern int ext4_try_to_write_inline_data(struct address_space *mapping,
 					 struct inode *inode,
 					 loff_t pos, unsigned len,
 					 struct page **pagep);
-extern int ext4_write_inline_data_end(struct inode *inode,
-				      loff_t pos, unsigned len,
-				      unsigned copied,
-				      struct page *page);
+int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
+			       unsigned copied, struct folio *folio);
 extern int ext4_da_write_inline_data_begin(struct address_space *mapping,
 					   struct inode *inode,
 					   loff_t pos, unsigned len,

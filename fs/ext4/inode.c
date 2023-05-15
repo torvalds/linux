@@ -1287,7 +1287,8 @@ static int ext4_write_end(struct file *file,
 
 	if (ext4_has_inline_data(inode) &&
 	    ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA))
-		return ext4_write_inline_data_end(inode, pos, len, copied, page);
+		return ext4_write_inline_data_end(inode, pos, len, copied,
+						  folio);
 
 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
 	/*
@@ -1395,7 +1396,8 @@ static int ext4_journalled_write_end(struct file *file,
 	BUG_ON(!ext4_handle_valid(handle));
 
 	if (ext4_has_inline_data(inode))
-		return ext4_write_inline_data_end(inode, pos, len, copied, page);
+		return ext4_write_inline_data_end(inode, pos, len, copied,
+						  folio);
 
 	if (unlikely(copied < len) && !folio_test_uptodate(folio)) {
 		copied = 0;
@@ -2942,15 +2944,15 @@ retry:
  * Check if we should update i_disksize
  * when write to the end of file but not require block allocation
  */
-static int ext4_da_should_update_i_disksize(struct page *page,
+static int ext4_da_should_update_i_disksize(struct folio *folio,
 					    unsigned long offset)
 {
 	struct buffer_head *bh;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	unsigned int idx;
 	int i;
 
-	bh = page_buffers(page);
+	bh = folio_buffers(folio);
 	idx = offset >> inode->i_blkbits;
 
 	for (i = 0; i < idx; i++)
@@ -2970,17 +2972,19 @@ static int ext4_da_write_end(struct file *file,
 	loff_t new_i_size;
 	unsigned long start, end;
 	int write_mode = (int)(unsigned long)fsdata;
+	struct folio *folio = page_folio(page);
 
 	if (write_mode == FALL_BACK_TO_NONDELALLOC)
 		return ext4_write_end(file, mapping, pos,
-				      len, copied, page, fsdata);
+				      len, copied, &folio->page, fsdata);
 
 	trace_ext4_da_write_end(inode, pos, len, copied);
 
 	if (write_mode != CONVERT_INLINE_DATA &&
 	    ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA) &&
 	    ext4_has_inline_data(inode))
-		return ext4_write_inline_data_end(inode, pos, len, copied, page);
+		return ext4_write_inline_data_end(inode, pos, len, copied,
+						  folio);
 
 	if (unlikely(copied < len) && !PageUptodate(page))
 		copied = 0;
@@ -3004,10 +3008,11 @@ static int ext4_da_write_end(struct file *file,
 	 */
 	new_i_size = pos + copied;
 	if (copied && new_i_size > inode->i_size &&
-	    ext4_da_should_update_i_disksize(page, end))
+	    ext4_da_should_update_i_disksize(folio, end))
 		ext4_update_i_disksize(inode, new_i_size);
 
-	return generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	return generic_write_end(file, mapping, pos, len, copied, &folio->page,
+				 fsdata);
 }
 
 /*
