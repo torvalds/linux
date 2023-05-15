@@ -260,7 +260,7 @@ static void intel_shim_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	u16 ioctl = 0, act = 0;
+	u16 ioctl = 0, act;
 
 	/* Initialize Shim */
 	ioctl |= SDW_SHIM_IOCTL_BKE;
@@ -281,6 +281,7 @@ static void intel_shim_init(struct sdw_intel *sdw)
 
 	intel_shim_glue_to_master_ip(sdw);
 
+	act = intel_readw(shim, SDW_SHIM_CTMCTL(link_id));
 	u16p_replace_bits(&act, 0x1, SDW_SHIM_CTMCTL_DOAIS);
 	act |= SDW_SHIM_CTMCTL_DACTQE;
 	act |= SDW_SHIM_CTMCTL_DODS;
