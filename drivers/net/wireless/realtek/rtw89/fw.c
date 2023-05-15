@@ -14,6 +14,8 @@
 
 static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
 				    struct sk_buff *skb);
+static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
+				 struct rtw89_wait_info *wait, unsigned int cond);
 
 static struct sk_buff *rtw89_fw_h2c_alloc_skb(struct rtw89_dev *rtwdev, u32 len,
 					      bool header)
@@ -807,7 +809,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	}
 	skb_put(skb, H2C_BA_CAM_LEN);
 	SET_BA_CAM_MACID(skb->data, macid);
-	if (chip->bacam_v1)
+	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
 		SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
 	else
 		SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
@@ -823,7 +825,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	SET_BA_CAM_INIT_REQ(skb->data, 1);
 	SET_BA_CAM_SSN(skb->data, params->ssn);
 
-	if (chip->bacam_v1) {
+	if (chip->bacam_ver == RTW89_BACAM_V0_EXT) {
 		SET_BA_CAM_STD_EN(skb->data, 1);
 		SET_BA_CAM_BAND(skb->data, rtwvif->mac_idx);
 	}
@@ -848,8 +850,8 @@ fail:
 	return ret;
 }
 
-static int rtw89_fw_h2c_init_dynamic_ba_cam_v1(struct rtw89_dev *rtwdev,
-					       u8 entry_idx, u8 uid)
+static int rtw89_fw_h2c_init_ba_cam_v0_ext(struct rtw89_dev *rtwdev,
+					   u8 entry_idx, u8 uid)
 {
 	struct sk_buff *skb;
 	int ret;
@@ -886,7 +888,7 @@ fail:
 	return ret;
 }
 
-void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev)
+void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 entry_idx = chip->bacam_num;
@@ -894,7 +896,7 @@ void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev)
 	int i;
 
 	for (i = 0; i < chip->bacam_dynamic_num; i++) {
-		rtw89_fw_h2c_init_dynamic_ba_cam_v1(rtwdev, entry_idx, uid);
+		rtw89_fw_h2c_init_ba_cam_v0_ext(rtwdev, entry_idx, uid);
 		entry_idx++;
 		uid++;
 	}
@@ -997,8 +999,8 @@ void rtw89_fw_release_general_pkt_list_vif(struct rtw89_dev *rtwdev,
 	list_for_each_entry_safe(info, tmp, pkt_list, list) {
 		if (notify_fw)
 			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
-		rtw89_core_release_bit_map(rtwdev->pkt_offload,
-					   info->id);
+		else
+			rtw89_core_release_bit_map(rtwdev->pkt_offload, info->id);
 		list_del(&info->list);
 		kfree(info);
 	}
@@ -2440,7 +2442,9 @@ fail:
 #define H2C_LEN_PKT_OFLD 4
 int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct sk_buff *skb;
+	unsigned int cond;
 	u8 *cmd;
 	int ret;
 
@@ -2460,23 +2464,26 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 			      H2C_FUNC_PACKET_OFLD, 1, 1,
 			      H2C_LEN_PKT_OFLD);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(id, RTW89_PKT_OFLD_OP_DEL);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "failed to del pkt ofld: id %d, ret %d\n",
+			    id, ret);
+		return ret;
 	}
 
+	rtw89_core_release_bit_map(rtwdev->pkt_offload, id);
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 				 struct sk_buff *skb_ofld)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct sk_buff *skb;
+	unsigned int cond;
 	u8 *cmd;
 	u8 alloc_id;
 	int ret;
@@ -2507,27 +2514,29 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 			      H2C_FUNC_PACKET_OFLD, 1, 1,
 			      H2C_LEN_PKT_OFLD + skb_ofld->len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(alloc_id, RTW89_PKT_OFLD_OP_ADD);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "failed to add pkt ofld: id %d, ret %d\n",
+			    alloc_id, ret);
 		rtw89_core_release_bit_map(rtwdev->pkt_offload, alloc_id);
-		goto fail;
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 #define H2C_LEN_SCAN_LIST_OFFLOAD 4
 int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
 				   struct list_head *chan_list)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_mac_chinfo *ch_info;
 	struct sk_buff *skb;
 	int skb_len = H2C_LEN_SCAN_LIST_OFFLOAD + len * RTW89_MAC_CHINFO_SIZE;
+	unsigned int cond;
 	u8 *cmd;
 	int ret;
 
@@ -2574,27 +2583,27 @@ int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_ADD_SCANOFLD_CH, 1, 1, skb_len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_ADD_SCANOFLD_CH);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW, "failed to add scan ofld ch\n");
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_scan_option *option,
 			      struct rtw89_vif *rtwvif)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_chan *op = &rtwdev->scan_info.op_chan;
 	struct rtw89_h2c_scanofld *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	unsigned int cond;
 	int ret;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
@@ -2633,17 +2642,15 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      H2C_FUNC_SCANOFLD, 1, 1,
 			      len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_SCANOFLD);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		rtw89_debug(rtwdev, RTW89_DBG_FW, "failed to scan ofld\n");
+		return ret;
 	}
 
 	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
 }
 
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
@@ -3019,9 +3026,8 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 			continue;
 
 		list_for_each_entry_safe(info, tmp, &pkt_list[idx], list) {
-			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
-			rtw89_core_release_bit_map(rtwdev->pkt_offload,
-						   info->id);
+			if (test_bit(info->id, rtwdev->pkt_offload))
+				rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
 			list_del(&info->list);
 			kfree(info);
 		}

@@ -456,6 +456,7 @@
 
 #define REG_FIFOPAGE			0x0204
 #define REG_TDECTRL			0x0208
+#define  BIT_BCN_VALID			BIT(16)
 
 #define REG_DWBCN0_CTRL_8188F		REG_TDECTRL
 
@@ -470,6 +471,7 @@
 #define  AUTO_LLT_INIT_LLT		BIT(16)
 
 #define REG_DWBCN1_CTRL_8723B		0x0228
+#define  BIT_SW_BCN_SEL			BIT(20)
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280	/* 0-7 : USB DMA size bits
@@ -516,6 +518,7 @@
 #define REG_FWHW_TXQ_CTRL		0x0420
 #define  FWHW_TXQ_CTRL_AMPDU_RETRY	BIT(7)
 #define  FWHW_TXQ_CTRL_XMIT_MGMT_ACK	BIT(12)
+#define  EN_BCNQ_DL			BIT(22)
 
 #define REG_HWSEQ_CTRL			0x0423
 #define REG_TXPKTBUF_BCNQ_BDNY		0x0424
@@ -572,6 +575,8 @@
 #define REG_ARFR1			0x0448
 #define REG_ARFR2			0x044c
 #define REG_ARFR3			0x0450
+#define REG_CCK_CHECK			0x0454
+#define BIT_BCN_PORT_SEL		BIT(5)
 #define REG_AMPDU_MAX_TIME_8723B	0x0456
 #define REG_AGGLEN_LMT			0x0458
 #define REG_AMPDU_MIN_SPACE		0x045c

@@ -762,13 +762,18 @@ int rtw89_ops_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	if (rx_ant != hw->wiphy->available_antennas_rx && rx_ant != hal->antenna_rx)
+	if (hal->ant_diversity) {
+		if (tx_ant != rx_ant || hweight32(tx_ant) != 1)
+			return -EINVAL;
+	} else if (rx_ant != hw->wiphy->available_antennas_rx && rx_ant != hal->antenna_rx) {
 		return -EINVAL;
+	}
 
 	mutex_lock(&rtwdev->mutex);
 	hal->antenna_tx = tx_ant;
 	hal->antenna_rx = rx_ant;
 	hal->tx_path_diversity = false;
+	hal->ant_diversity_fixed = true;
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;

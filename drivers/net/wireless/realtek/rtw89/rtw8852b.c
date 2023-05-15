@@ -2506,6 +2506,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.fw_format_max		= RTW8852B_FW_FORMAT_MAX,
 	.try_ce_fw		= true,
 	.fifo_size		= 196608,
+	.small_fifo_size	= true,
 	.dle_scc_rsvd_size	= 98304,
 	.max_amsdu_limit	= 3500,
 	.dis_2g_40m_ul_ofdma	= true,
@@ -2522,6 +2523,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.rf_table		= {&rtw89_8852b_phy_radioa_table,
 				   &rtw89_8852b_phy_radiob_table,},
 	.nctl_table		= &rtw89_8852b_phy_nctl_table,
+	.nctl_post_table	= NULL,
 	.byr_table		= &rtw89_8852b_byr_table,
 	.dflt_parms		= &rtw89_8852b_dflt_parms,
 	.rfe_parms_conf		= NULL,
@@ -2534,6 +2536,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
+	.support_unii4		= true,
 	.support_ul_tb_ctrl	= true,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
@@ -2544,7 +2547,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.scam_num		= 128,
 	.bacam_num		= 2,
 	.bacam_dynamic_num	= 4,
-	.bacam_v1		= false,
+	.bacam_ver		= RTW89_BACAM_V0,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
@@ -2598,6 +2601,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852b,
 #endif
+	.xtal_info		= NULL,
 };
 EXPORT_SYMBOL(rtw8852b_chip_info);
 

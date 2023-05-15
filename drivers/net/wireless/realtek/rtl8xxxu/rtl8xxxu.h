@@ -1280,6 +1280,9 @@ struct rtl8xxxu_rfregs {
 #define  H2C_JOIN_BSS_DISCONNECT	0
 #define  H2C_JOIN_BSS_CONNECT		1
 
+#define H2C_MACID_ROLE_STA		1
+#define H2C_MACID_ROLE_AP		2
+
 /*
  * H2C (firmware) commands differ between the older generation chips
  * 8188[cr]u, 819[12]cu, and 8723au, and the more recent chips 8723bu,
@@ -1727,6 +1730,8 @@ struct rtl8xxxu_cfo_tracking {
 };
 
 #define RTL8XXXU_HW_LED_CONTROL	2
+#define RTL8XXXU_MAX_MAC_ID_NUM	128
+#define RTL8XXXU_BC_MC_MACID	0
 
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
@@ -1850,6 +1855,7 @@ struct rtl8xxxu_priv {
 	struct delayed_work ra_watchdog;
 	struct work_struct c2hcmd_work;
 	struct sk_buff_head c2hcmd_queue;
+	struct work_struct update_beacon_work;
 	struct rtl8xxxu_btcoex bt_coex;
 	struct rtl8xxxu_ra_report ra_report;
 	struct rtl8xxxu_cfo_tracking cfo_tracking;
@@ -1858,6 +1864,14 @@ struct rtl8xxxu_priv {
 	bool led_registered;
 	char led_name[32];
 	struct led_classdev led_cdev;
+	DECLARE_BITMAP(mac_id_map, RTL8XXXU_MAX_MAC_ID_NUM);
+};
+
+struct rtl8xxxu_sta_info {
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
+
+	u8 macid;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1902,15 +1916,16 @@ struct rtl8xxxu_fileops {
 	void (*set_tx_power) (struct rtl8xxxu_priv *priv, int channel,
 			      bool ht40);
 	void (*update_rate_mask) (struct rtl8xxxu_priv *priv,
-				  u32 ramask, u8 rateid, int sgi, int txbw_40mhz);
+				  u32 ramask, u8 rateid, int sgi, int txbw_40mhz,
+				  u8 macid);
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
-				u8 macid, bool connect);
+				u8 macid, u8 role, bool connect);
 	void (*report_rssi) (struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
 	void (*fill_txdesc) (struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct ieee80211_tx_info *tx_info,
 			     struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
-			     u32 rts_rate);
+			     u32 rts_rate, u8 macid);
 	void (*set_crystal_cap) (struct rtl8xxxu_priv *priv, u8 crystal_cap);
 	s8 (*cck_rssi) (struct rtl8xxxu_priv *priv, struct rtl8723au_phy_stats *phy_stats);
 	int (*led_classdev_brightness_set) (struct led_classdev *led_cdev,
@@ -1928,6 +1943,8 @@ struct rtl8xxxu_fileops {
 	u8 init_reg_hmtfr:1;
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
+	u8 supports_ap:1;
+	u16 max_macid_num;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
@@ -2021,13 +2038,13 @@ void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw);
 void rtl8xxxu_gen1_usb_quirks(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_usb_quirks(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
-			       u32 ramask, u8 rateid, int sgi, int txbw_40mhz);
+			       u32 ramask, u8 rateid, int sgi, int txbw_40mhz, u8 macid);
 void rtl8xxxu_gen2_update_rate_mask(struct rtl8xxxu_priv *priv,
-				    u32 ramask, u8 rateid, int sgi, int txbw_40mhz);
+				    u32 ramask, u8 rateid, int sgi, int txbw_40mhz, u8 macid);
 void rtl8xxxu_gen1_report_connect(struct rtl8xxxu_priv *priv,
-				  u8 macid, bool connect);
+				  u8 macid, u8 role, bool connect);
 void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
-				  u8 macid, bool connect);
+				  u8 macid, u8 role, bool connect);
 void rtl8xxxu_gen1_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
 void rtl8xxxu_gen2_report_rssi(struct rtl8xxxu_priv *priv, u8 macid, u8 rssi);
 void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv);
@@ -2056,17 +2073,17 @@ void rtl8xxxu_fill_txdesc_v1(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct ieee80211_tx_info *tx_info,
 			     struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
-			     u32 rts_rate);
+			     u32 rts_rate, u8 macid);
 void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct ieee80211_tx_info *tx_info,
 			     struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
-			     u32 rts_rate);
+			     u32 rts_rate, u8 macid);
 void rtl8xxxu_fill_txdesc_v3(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     struct ieee80211_tx_info *tx_info,
 			     struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
-			     u32 rts_rate);
+			     u32 rts_rate, u8 macid);
 void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 			   u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5);
 void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv);

@@ -1003,10 +1003,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	min_cnt = min(bd_cnt, wd_cnt);
 	if (min_cnt == 0) {
 		/* This message can be frequently shown in low power mode or
-		 * high traffic with 8852B, and we have recognized it as normal
+		 * high traffic with small FIFO chips, and we have recognized it as normal
 		 * behavior, so print with mask RTW89_DBG_TXRX in these situations.
 		 */
-		if (rtwpci->low_power || chip->chip_id == RTL8852B)
+		if (rtwpci->low_power || chip->small_fifo_size)
 			debug_mask = RTW89_DBG_TXRX;
 		else
 			debug_mask = RTW89_DBG_UNEXP;
@@ -3216,11 +3216,16 @@ static void rtw89_pci_clear_resource(struct rtw89_dev *rtwdev,
 void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 hs0isr_ind_int_en = B_AX_HS0ISR_IND_INT_EN;
+
+	if (chip->chip_id == RTL8851B)
+		hs0isr_ind_int_en = B_AX_HS0ISR_IND_INT_EN_WKARND;
 
 	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN | 0;
 
 	if (rtwpci->under_recovery) {
-		rtwpci->intrs[0] = B_AX_HS0ISR_IND_INT_EN;
+		rtwpci->intrs[0] = hs0isr_ind_int_en;
 		rtwpci->intrs[1] = 0;
 	} else {
 		rtwpci->intrs[0] = B_AX_TXDMA_STUCK_INT_EN |
@@ -3230,7 +3235,7 @@ void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev)
 				   B_AX_RXDMA_STUCK_INT_EN |
 				   B_AX_RDU_INT_EN |
 				   B_AX_RPQBD_FULL_INT_EN |
-				   B_AX_HS0ISR_IND_INT_EN;
+				   hs0isr_ind_int_en;
 
 		rtwpci->intrs[1] = B_AX_HC10ISR_IND_INT_EN;
 	}

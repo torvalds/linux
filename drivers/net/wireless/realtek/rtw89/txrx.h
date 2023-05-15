@@ -298,12 +298,19 @@
 	le32_get_bits(*((const __le32 *)ie), GENMASK(4, 0))
 #define RTW89_GET_PHY_STS_IE_LEN(ie) \
 	le32_get_bits(*((const __le32 *)ie), GENMASK(11, 5))
-#define RTW89_GET_PHY_STS_IE01_CH_IDX(ie) \
-	le32_get_bits(*((const __le32 *)ie), GENMASK(23, 16))
-#define RTW89_GET_PHY_STS_IE01_FD_CFO(ie) \
-	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(19, 8))
-#define RTW89_GET_PHY_STS_IE01_PREMB_CFO(ie) \
-	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(31, 20))
+
+struct rtw89_phy_sts_ie0 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
+
+#define RTW89_PHY_STS_IE01_W0_CH_IDX GENMASK(23, 16)
+#define RTW89_PHY_STS_IE01_W1_FD_CFO GENMASK(19, 8)
+#define RTW89_PHY_STS_IE01_W1_PREMB_CFO GENMASK(31, 20)
+#define RTW89_PHY_STS_IE01_W2_AVG_SNR GENMASK(5, 0)
+#define RTW89_PHY_STS_IE01_W2_EVM_MAX GENMASK(15, 8)
+#define RTW89_PHY_STS_IE01_W2_EVM_MIN GENMASK(23, 16)
 
 enum rtw89_tx_channel {
 	RTW89_TXCH_ACH0	= 0,
