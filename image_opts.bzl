@@ -6,7 +6,8 @@ def boot_image_opts(
         boot_partition_size = 0x6000000,
         lz4_ramdisk = True,
         earlycon_addr = "0x00a9C000",
-        kernel_vendor_cmdline_extras = ["bootconfig"]):
+        kernel_vendor_cmdline_extras = ["bootconfig"],
+        board_kernel_cmdline_extras = []):
     return struct(
         boot_image_header_version = boot_image_header_version,
         base_address = base_address,
@@ -16,6 +17,7 @@ def boot_image_opts(
         lz4_ramdisk = lz4_ramdisk,
         earlycon_addr = earlycon_addr,
         kernel_vendor_cmdline_extras = kernel_vendor_cmdline_extras,
+        board_kernel_cmdline_extras = board_kernel_cmdline_extras,
     )
 
 def vm_image_opts(

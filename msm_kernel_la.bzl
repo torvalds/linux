@@ -111,6 +111,14 @@ EOF
         ],
     )
 
+    native.genrule(
+        name = "{}_extra_cmdline".format(target),
+        outs = ["board_extra_cmdline_{}".format(target)],
+        cmd_bash = """
+            echo {} > "$@"
+        """.format(" ".join(boot_image_opts.board_kernel_cmdline_extras)),
+    )
+
 def _define_kernel_build(
         target,
         base_kernel,
@@ -320,6 +328,8 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel, define_abi_tar
     ])
 
     msm_dist_targets.append("{}_avb_sign_boot_image".format(target))
+
+    msm_dist_targets.append("{}_extra_cmdline".format(target))
 
     if define_abi_targets:
         kernel_abi_dist(
