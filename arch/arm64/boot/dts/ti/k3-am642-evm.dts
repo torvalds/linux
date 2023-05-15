@@ -537,6 +537,8 @@
 };
 
 &mailbox0_cluster2 {
+	status = "okay";
+
 	mbox_main_r5fss0_core0: mbox-main-r5fss0-core0 {
 		ti,mbox-rx = <0 0 2>;
 		ti,mbox-tx = <1 0 2>;
@@ -548,11 +550,9 @@
 	};
 };
 
-&mailbox0_cluster3 {
-	status = "disabled";
-};
-
 &mailbox0_cluster4 {
+	status = "okay";
+
 	mbox_main_r5fss1_core0: mbox-main-r5fss1-core0 {
 		ti,mbox-rx = <0 0 2>;
 		ti,mbox-tx = <1 0 2>;
@@ -564,19 +564,13 @@
 	};
 };
 
-&mailbox0_cluster5 {
-	status = "disabled";
-};
-
 &mailbox0_cluster6 {
+	status = "okay";
+
 	mbox_m4_0: mbox-m4-0 {
 		ti,mbox-rx = <0 0 2>;
 		ti,mbox-tx = <1 0 2>;
 	};
-};
-
-&mailbox0_cluster7 {
-	status = "disabled";
 };
 
 &main_r5fss0_core0 {
