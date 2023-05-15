@@ -8,7 +8,61 @@
 #include <bpf/bpf_helpers.h>
 #else
 #define __ksym
+struct prog_test_member1 {
+	int a;
+};
+
+struct prog_test_member {
+	struct prog_test_member1 m;
+	int c;
+};
+
+struct prog_test_ref_kfunc {
+	int a;
+	int b;
+	struct prog_test_member memb;
+	struct prog_test_ref_kfunc *next;
+	refcount_t cnt;
+};
 #endif
+
+struct prog_test_pass1 {
+	int x0;
+	struct {
+		int x1;
+		struct {
+			int x2;
+			struct {
+				int x3;
+			};
+		};
+	};
+};
+
+struct prog_test_pass2 {
+	int len;
+	short arr1[4];
+	struct {
+		char arr2[4];
+		unsigned long arr3[8];
+	} x;
+};
+
+struct prog_test_fail1 {
+	void *p;
+	int x;
+};
+
+struct prog_test_fail2 {
+	int x8;
+	struct prog_test_pass1 x;
+};
+
+struct prog_test_fail3 {
+	int len;
+	char arr1[2];
+	char arr2[];
+};
 
 struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr) __ksym;
@@ -20,7 +74,13 @@ int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p, const int r
 int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size) __ksym;
 int *bpf_kfunc_call_test_acq_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size) __ksym;
 void bpf_kfunc_call_int_mem_release(int *p) __ksym;
+
+/* The bpf_kfunc_call_test_static_unused_arg is defined as static,
+ * but bpf program compilation needs to see it as global symbol.
+ */
+#ifndef __KERNEL__
 u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused) __ksym;
+#endif
 
 void bpf_testmod_test_mod_kfunc(int i) __ksym;
 
