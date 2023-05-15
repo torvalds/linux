@@ -458,8 +458,6 @@ looped_back:
 
 	ipv6_hdr(skb)->daddr = *addr;
 
-	skb_dst_drop(skb);
-
 	ip6_route_input(skb);
 
 	if (skb_dst(skb)->error) {
@@ -834,7 +832,6 @@ looped_back:
 	*addr = ipv6_hdr(skb)->daddr;
 	ipv6_hdr(skb)->daddr = daddr;
 
-	skb_dst_drop(skb);
 	ip6_route_input(skb);
 	if (skb_dst(skb)->error) {
 		skb_push(skb, skb->data - skb_network_header(skb));
