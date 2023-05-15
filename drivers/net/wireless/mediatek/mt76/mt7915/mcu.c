@@ -13,6 +13,9 @@
 	case 0x7915:						\
 		_fw = MT7915_##name;				\
 		break;						\
+	case 0x7981:						\
+		_fw = MT7981_##name;				\
+		break;						\
 	case 0x7986:						\
 		_fw = MT7986_##name##__VA_ARGS__;		\
 		break;						\

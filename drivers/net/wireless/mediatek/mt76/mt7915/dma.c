@@ -11,7 +11,7 @@ mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base
 	struct mt7915_dev *dev = phy->dev;
 
 	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
-		if (is_mt7986(&dev->mt76))
+		if (is_mt798x(&dev->mt76))
 			ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
 		else
 			ring_base = MT_WED_TX_RING_BASE;
@@ -370,7 +370,7 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 		int ret;
 
 		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
-		if (!is_mt7986(&dev->mt76))
+		if (!is_mt798x(&dev->mt76))
 			mt76_wr(dev, MT_INT_WED_MASK_CSR, wed_irq_mask);
 		else
 			mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
@@ -404,7 +404,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	mt7915_dma_disable(dev, true);
 
 	if (mtk_wed_device_active(&mdev->mmio.wed)) {
-		if (!is_mt7986(mdev)) {
+		if (!is_mt798x(mdev)) {
 			u8 wed_control_rx1 = is_mt7915(mdev) ? 1 : 2;
 
 			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
