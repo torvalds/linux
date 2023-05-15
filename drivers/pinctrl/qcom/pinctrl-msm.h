@@ -8,21 +8,31 @@
 #include <linux/pm.h>
 #include <linux/types.h>
 
+#include <linux/pinctrl/pinctrl.h>
+
 struct platform_device;
 
 struct pinctrl_pin_desc;
 
-/**
- * struct msm_function - a pinmux function
- * @name:    Name of the pinmux function.
- * @groups:  List of pingroups for this function.
- * @ngroups: Number of entries in @groups.
- */
-struct msm_function {
-	const char *name;
-	const char * const *groups;
-	unsigned ngroups;
-};
+#define APQ_PIN_FUNCTION(fname)					\
+	[APQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define IPQ_PIN_FUNCTION(fname)					\
+	[IPQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define MSM_PIN_FUNCTION(fname) 				\
+	[msm_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define QCA_PIN_FUNCTION(fname)					\
+	[qca_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
 
 /**
  * struct msm_pingroup - Qualcomm pingroup definition
@@ -138,7 +148,7 @@ struct msm_gpio_wakeirq_map {
 struct msm_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
-	const struct msm_function *functions;
+	const struct pinfunction *functions;
 	unsigned nfunctions;
 	const struct msm_pingroup *groups;
 	unsigned ngroups;
