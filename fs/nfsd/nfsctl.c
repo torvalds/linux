@@ -324,7 +324,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	len = qword_get(&mesg, dname, size);
 	if (len <= 0)
 		return -EINVAL;
-	
+
 	path = dname+len+1;
 	len = qword_get(&mesg, path, size);
 	if (len <= 0)
@@ -338,7 +338,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 		return -EINVAL;
 	maxsize = min(maxsize, NFS3_FHSIZE);
 
-	if (qword_get(&mesg, mesg, size)>0)
+	if (qword_get(&mesg, mesg, size) > 0)
 		return -EINVAL;
 
 	/* we have all the words, they are in buf.. */
@@ -346,7 +346,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (!dom)
 		return -ENOMEM;
 
-	len = exp_rootfh(netns(file), dom, path, &fh,  maxsize);
+	len = exp_rootfh(netns(file), dom, path, &fh, maxsize);
 	auth_domain_put(dom);
 	if (len)
 		return len;
@@ -418,8 +418,8 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
  * OR
  *
  * Input:
- * 			buf:		C string containing whitespace-
- * 					separated unsigned integer values
+ *			buf:		C string containing whitespace-
+ *					separated unsigned integer values
  *					representing the number of NFSD
  *					threads to start in each pool
  *			size:		non-zero length of C string in @buf
@@ -526,7 +526,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	char *sep;
 	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 
-	if (size>0) {
+	if (size > 0) {
 		if (nn->nfsd_serv)
 			/* Cannot change versions without updating
 			 * nn->nfsd_serv->sv_xdrsize, and reallocing
@@ -637,11 +637,11 @@ out:
  * OR
  *
  * Input:
- * 			buf:		C string containing whitespace-
- * 					separated positive or negative
- * 					integer values representing NFS
- * 					protocol versions to enable ("+n")
- * 					or disable ("-n")
+ *			buf:		C string containing whitespace-
+ *					separated positive or negative
+ *					integer values representing NFS
+ *					protocol versions to enable ("+n")
+ *					or disable ("-n")
  *			size:		non-zero length of C string in @buf
  * Output:
  *	On success:	status of zero or more protocol versions has
@@ -705,7 +705,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 }
 
 /*
- * A transport listener is added by writing it's transport name and
+ * A transport listener is added by writing its transport name and
  * a port number.
  */
 static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cred *cred)
@@ -832,9 +832,9 @@ int nfsd_max_blksize;
  * OR
  *
  * Input:
- * 			buf:		C string containing an unsigned
- * 					integer value representing the new
- * 					NFS blksize
+ *			buf:		C string containing an unsigned
+ *					integer value representing the new
+ *					NFS blksize
  *			size:		non-zero length of C string in @buf
  * Output:
  *	On success:	passed-in buffer filled with '\n'-terminated C string
@@ -881,9 +881,9 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
  * OR
  *
  * Input:
- * 			buf:		C string containing an unsigned
- * 					integer value representing the new
- * 					number of max connections
+ *			buf:		C string containing an unsigned
+ *					integer value representing the new
+ *					number of max connections
  *			size:		non-zero length of C string in @buf
  * Output:
  *	On success:	passed-in buffer filled with '\n'-terminated C string
@@ -1065,7 +1065,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
  * OR
  *
  * Input:
- * 			buf:		any value
+ *			buf:		any value
  *			size:		non-zero length of C string in @buf
  * Output:
  *			passed-in buffer filled with "Y" or "N" with a newline
