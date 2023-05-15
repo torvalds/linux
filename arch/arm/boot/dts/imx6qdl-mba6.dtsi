@@ -271,6 +271,22 @@
 &usbh1 {
 	disable-over-current;
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@1 {
+		compatible = "usb424,2517";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet@1 {
+			compatible = "usb424,9e00";
+			reg = <1>;
+			nvmem-cells = <&mba_mac_address>;
+			nvmem-cell-names = "mac-address";
+		};
+	};
 };
 
 &usbotg {
