@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board + DSI DSC PANEL MV2100UZ1 DISPLAY Ext Board";
+	compatible = "rockchip,rk3588-evb1-lp4-v10-dsi-dsc-MV2100UZ1", "rockchip,rk3588";
+};
+
+&backlight {
+	status = "okay";
+	default-brightness-level = <20>;
+};
+
+&dsi0 {
+	status = "okay";
+	rockchip,lane-rate = <1200000>;
+
+	dsi0_panel: panel@0 {
+		status = "okay";
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		reset-delay-ms = <50>;
+		enable-delay-ms = <50>;
+		init-delay-ms = <20>;
+		prepare-delay-ms = <50>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
+
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes  = <4>;
+
+		compressed-data;
+		slice-width = <1140>;
+		slice-height = <2280>;
+		version-major = <1>;
+		version-minor = <1>;
+
+		panel-init-sequence = [
+			/* PPS Setting */
+			0A 00 58 11 00 00 89 30 80 08 E8 08 E8 08 E8 04 74 04 74 02 00 03 C9 00 20 F7 C5 00 0F 00 0F 00 0E 00 06 18 00 10 F0 03 0C 20 00 06 0B 0B 33 0E 1C 2A 38 46 54 62 69 70 77 79 7B 7D 7E 01 02 01 00 09 40 09 BE 19 FC 19 FA 19 F8 1A 38 1A 78 1A B6 2A F6 2B 34 2B 74 3B 74 6B F4
+			39 00 02 FF 20
+			39 00 02 E0 10
+			39 00 02 7A 07
+			39 00 02 7D 0C
+			39 00 02 7E 0C
+			39 00 02 FB 01
+
+			39 00 02 FF E0
+			39 00 02 66 00
+			39 00 02 23 07
+			39 00 02 FB 01
+
+			/* CMD2 page 5 */
+			39 00 02 FF 25
+
+			/* OSC TRACE for MIPI H 4.748us */
+			39 00 02 2F 20
+			39 00 02 0D 07
+			39 00 02 0E 6B
+			39 00 02 11 11
+			39 00 02 13 00
+			39 00 02 14 01
+			39 00 02 25 20
+			39 00 02 0F 09
+			39 00 02 10 A5
+			39 00 02 12 17
+			39 00 02 15 01
+			39 00 02 0C 01
+			39 00 02 09 10
+			39 00 02 38 03
+			39 00 02 0A 00
+			39 00 02 07 02
+
+			/* MIPI VFP */
+			39 00 02 BC FF
+			39 00 02 BD FF
+			39 00 02 BE FF
+			39 00 02 BF FF
+			39 00 02 C0 FF
+			39 00 02 C1 FF
+			39 00 02 C2 FF
+			39 00 02 C3 FF
+
+			39 00 02 FB 01
+
+			39 00 02 FF 10
+			39 00 05 2A 00 00 08 E7
+			39 00 05 2B 00 00 08 E7
+			39 00 02 03 01
+			39 00 02 BB 13
+			39 00 02 C0 03
+			39 00 11 C1 89 28 08 E8 F2 00 03 C9 F7 C5 00 0F 00 0E 00 06
+			39 00 03 C2 10 F0
+			39 00 02 35 00
+			39 00 03 44 00 00
+			39 00 02 51 FF
+			39 00 02 53 24
+			39 00 02 FB 01
+
+			15 64 01 11
+			15 14 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		disp_timings0: display-timings {
+			native-mode = <&dsi0_timing0>;
+			dsi0_timing0: timing0 {
+				clock-frequency = <506000000>;
+				hactive = <2280>;
+				vactive = <2280>;
+				hfront-porch = <52>;
+				hsync-len = <20>;
+				hback-porch = <52>;
+				vfront-porch = <44>;
+				vsync-len = <2>;
+				vback-porch = <14>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
+	};
+};
+
+&dp0 {
+	status = "disabled";
+};
+
+&dp1 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0_in_vp2 {
+	status = "okay";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp2_out_dsi0>;
+};
