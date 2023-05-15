@@ -69,9 +69,9 @@
 	};
 
 	soc0: soc@0 {
+		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "ti,keystone","simple-bus";
 		interrupt-parent = <&gic>;
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
