@@ -211,6 +211,19 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_dcgsw(struct kvm_vcpu *vcpu,
+			 struct sys_reg_params *p,
+			 const struct sys_reg_desc *r)
+{
+	if (!kvm_has_mte(vcpu->kvm)) {
+		kvm_inject_undefined(vcpu);
+		return false;
+	}
+
+	/* Treat MTE S/W ops as we treat the classic ones: with contempt */
+	return access_dcsw(vcpu, p, r);
+}
+
 static void get_access_mask(const struct sys_reg_desc *r, u64 *mask, u64 *shift)
 {
 	switch (r->aarch32_map) {
@@ -1756,8 +1769,14 @@ static bool access_spsr(struct kvm_vcpu *vcpu,
  */
 static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_DC_ISW), access_dcsw },
+	{ SYS_DESC(SYS_DC_IGSW), access_dcgsw },
+	{ SYS_DESC(SYS_DC_IGDSW), access_dcgsw },
 	{ SYS_DESC(SYS_DC_CSW), access_dcsw },
+	{ SYS_DESC(SYS_DC_CGSW), access_dcgsw },
+	{ SYS_DESC(SYS_DC_CGDSW), access_dcgsw },
 	{ SYS_DESC(SYS_DC_CISW), access_dcsw },
+	{ SYS_DESC(SYS_DC_CIGSW), access_dcgsw },
+	{ SYS_DESC(SYS_DC_CIGDSW), access_dcgsw },
 
 	DBG_BCR_BVR_WCR_WVR_EL1(0),
 	DBG_BCR_BVR_WCR_WVR_EL1(1),
