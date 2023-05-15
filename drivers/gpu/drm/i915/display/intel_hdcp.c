@@ -97,7 +97,6 @@ static void intel_hdcp_prepare_streams(struct intel_connector *connector)
 	struct intel_hdcp *hdcp = &connector->hdcp;
 
 	if (!intel_encoder_is_mst(intel_attached_encoder(connector))) {
-		data->k = 1;
 		data->streams[0].stream_type = hdcp->content_type;
 	} else {
 		intel_hdcp_required_content_stream(dig_port);
@@ -2161,7 +2160,6 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
-	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = dig_port->base.port;
 
 	if (DISPLAY_VER(dev_priv) < 12)
@@ -2191,9 +2189,6 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 		drm_err(&dev_priv->drm, "Out of Memory\n");
 		return -ENOMEM;
 	}
-	/* For SST */
-	data->streams[0].stream_id = 0;
-	data->streams[0].stream_type = hdcp->content_type;
 
 	return 0;
 }
@@ -2299,8 +2294,11 @@ intel_hdcp_set_streams(struct intel_digital_port *dig_port,
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
 
-	if (!intel_encoder_is_mst(&dig_port->base))
+	if (!intel_encoder_is_mst(&dig_port->base)) {
+		data->k = 1;
+		data->streams[0].stream_id = 0;
 		return 0;
+	}
 
 	data->k = 0;
 
