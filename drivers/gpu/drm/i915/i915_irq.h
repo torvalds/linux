@@ -38,18 +38,18 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 
-void intel_hpd_enable_detection(struct intel_encoder *encoder);
-void intel_hpd_irq_setup(struct drm_i915_private *i915);
-void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
-				   u32 mask,
-				   u32 bits);
-
+void ilk_update_display_irq(struct drm_i915_private *i915,
+			    u32 interrupt_mask, u32 enabled_irq_mask);
 void ilk_enable_display_irq(struct drm_i915_private *i915, u32 bits);
 void ilk_disable_display_irq(struct drm_i915_private *i915, u32 bits);
 
+void bdw_update_port_irq(struct drm_i915_private *i915,
+			 u32 interrupt_mask, u32 enabled_irq_mask);
 void bdw_enable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
 void bdw_disable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
 
+void ibx_display_interrupt_update(struct drm_i915_private *i915,
+				  u32 interrupt_mask, u32 enabled_irq_mask);
 void ibx_enable_display_interrupt(struct drm_i915_private *i915, u32 bits);
 void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits);
 
