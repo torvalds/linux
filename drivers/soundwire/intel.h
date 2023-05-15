@@ -95,6 +95,14 @@ static inline void intel_writew(void __iomem *base, int offset, u16 value)
 					 (sdw)->link_res->hw_ops->cb)
 #define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
 
+#ifdef CONFIG_DEBUG_FS
+void intel_ace2x_debugfs_init(struct sdw_intel *sdw);
+void intel_ace2x_debugfs_exit(struct sdw_intel *sdw);
+#else
+static inline void intel_ace2x_debugfs_init(struct sdw_intel *sdw) {}
+static inline void intel_ace2x_debugfs_exit(struct sdw_intel *sdw) {}
+#endif
+
 static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_init))

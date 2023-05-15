@@ -15,5 +15,7 @@
 #include "intel.h"
 
 const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
+	.debugfs_init = intel_ace2x_debugfs_init,
+	.debugfs_exit = intel_ace2x_debugfs_exit,
 };
 EXPORT_SYMBOL_NS(sdw_intel_lnl_hw_ops, SOUNDWIRE_INTEL);
