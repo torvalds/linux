@@ -6327,6 +6327,8 @@ static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	struct igc_adapter *adapter = netdev_priv(dev);
 
+	adapter->tc_setup_type = type;
+
 	switch (type) {
 	case TC_QUERY_CAPS:
 		return igc_tc_query_caps(adapter, type_data);
