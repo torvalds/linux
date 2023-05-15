@@ -240,9 +240,10 @@
 };
 
 &hdmi {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&inno_hdmi_pins>;
+	hpd-gpio = <&gpio 15 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &i2stx_4ch0 {
