@@ -14,6 +14,8 @@
  */
 #define CDNS_MCP_IP_MAX_CMD_LEN		32
 
+#define SDW_CADENCE_MCP_IP_OFFSET	0x4000
+
 /**
  * struct sdw_cdns_pdi: PDI (Physical Data Interface) instance
  *

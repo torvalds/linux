@@ -144,6 +144,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	sdw->link_res = &ldev->link_res;
 	cdns->dev = dev;
 	cdns->registers = sdw->link_res->registers;
+	cdns->ip_offset = sdw->link_res->ip_offset;
 	cdns->instance = sdw->instance;
 	cdns->msg_count = 0;
 

@@ -10,6 +10,7 @@
  * @hw_ops: platform-specific ops
  * @mmio_base: mmio base of SoundWire registers
  * @registers: Link IO registers base
+ * @ip_offset: offset for MCP_IP registers
  * @shim: Audio shim pointer
  * @shim_vs: Audio vendor-specific shim pointer
  * @alh: ALH (Audio Link Hub) pointer
@@ -28,6 +29,7 @@ struct sdw_intel_link_res {
 
 	void __iomem *mmio_base; /* not strictly needed, useful for debug */
 	void __iomem *registers;
+	u32 ip_offset;
 	void __iomem *shim;
 	void __iomem *shim_vs;
 	void __iomem *alh;
