@@ -833,7 +833,7 @@ static const struct dma_fence_ops amdgpu_job_fence_ops = {
 #if defined(CONFIG_DEBUG_FS)
 static int amdgpu_debugfs_fence_info_show(struct seq_file *m, void *unused)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct amdgpu_device *adev = m->private;
 	int i;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {

@@ -1638,7 +1638,7 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 
 static int amdgpu_debugfs_test_ib_show(struct seq_file *m, void *unused)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct amdgpu_device *adev = m->private;
 	struct drm_device *dev = adev_to_drm(adev);
 	int r = 0, i;
 
@@ -1749,7 +1749,7 @@ static int amdgpu_debugfs_benchmark(void *data, u64 val)
 
 static int amdgpu_debugfs_vm_info_show(struct seq_file *m, void *unused)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct amdgpu_device *adev = m->private;
 	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_file *file;
 	int r;

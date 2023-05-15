@@ -1468,7 +1468,7 @@ void amdgpu_disable_vblank_kms(struct drm_crtc *crtc)
 
 static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct amdgpu_device *adev = m->private;
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
 	struct atom_context *ctx = adev->mode_info.atom_context;
