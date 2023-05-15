@@ -399,46 +399,60 @@ static unsigned int atkbd_compat_scancode(struct atkbd *atkbd, unsigned int code
 }
 
 /*
- * atkbd_interrupt(). Here takes place processing of data received from
- * the keyboard into events.
+ * Tries to handle frame or parity error by requesting the keyboard controller
+ * to resend the last byte. This historically not done on x86 as controllers
+ * there typically do not implement this command.
  */
-
-static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
-				   unsigned int flags)
+static bool __maybe_unused atkbd_handle_frame_error(struct ps2dev *ps2dev,
+						    u8 data, unsigned int flags)
 {
-	struct atkbd *atkbd = atkbd_from_serio(serio);
+	struct atkbd *atkbd = container_of(ps2dev, struct atkbd, ps2dev);
+	struct serio *serio = ps2dev->serio;
+
+	if ((flags & (SERIO_FRAME | SERIO_PARITY)) &&
+	    (~flags & SERIO_TIMEOUT) &&
+	    !atkbd->resend && atkbd->write) {
+		dev_warn(&serio->dev, "Frame/parity error: %02x\n", flags);
+		serio_write(serio, ATKBD_CMD_RESEND);
+		atkbd->resend = true;
+		return true;
+	}
+
+	if (!flags && data == ATKBD_RET_ACK)
+		atkbd->resend = false;
+
+	return false;
+}
+
+static enum ps2_disposition atkbd_pre_receive_byte(struct ps2dev *ps2dev,
+						   u8 data, unsigned int flags)
+{
+	struct serio *serio = ps2dev->serio;
+
+	dev_dbg(&serio->dev, "Received %02x flags %02x\n", data, flags);
+
+#if !defined(__i386__) && !defined (__x86_64__)
+	if (atkbd_handle_frame_error(ps2dev, data, flags))
+		return PS2_IGNORE;
+#endif
+
+	return PS2_PROCESS;
+}
+
+static void atkbd_receive_byte(struct ps2dev *ps2dev, u8 data)
+{
+	struct serio *serio = ps2dev->serio;
+	struct atkbd *atkbd = container_of(ps2dev, struct atkbd, ps2dev);
 	struct input_dev *dev = atkbd->dev;
 	unsigned int code = data;
 	int scroll = 0, hscroll = 0, click = -1;
 	int value;
 	unsigned short keycode;
 
-	dev_dbg(&serio->dev, "Received %02x flags %02x\n", data, flags);
-
-#if !defined(__i386__) && !defined (__x86_64__)
-	if ((flags & (SERIO_FRAME | SERIO_PARITY)) && (~flags & SERIO_TIMEOUT) && !atkbd->resend && atkbd->write) {
-		dev_warn(&serio->dev, "Frame/parity error: %02x\n", flags);
-		serio_write(serio, ATKBD_CMD_RESEND);
-		atkbd->resend = true;
-		goto out;
-	}
-
-	if (!flags && data == ATKBD_RET_ACK)
-		atkbd->resend = false;
-#endif
-
-	if (unlikely(atkbd->ps2dev.flags & PS2_FLAG_ACK))
-		if  (ps2_handle_ack(&atkbd->ps2dev, data))
-			goto out;
-
-	if (unlikely(atkbd->ps2dev.flags & PS2_FLAG_CMD))
-		if  (ps2_handle_response(&atkbd->ps2dev, data))
-			goto out;
-
 	pm_wakeup_event(&serio->dev, 0);
 
 	if (!atkbd->enabled)
-		goto out;
+		return;
 
 	input_event(dev, EV_MSC, MSC_RAW, code);
 
@@ -460,16 +474,16 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	case ATKBD_RET_BAT:
 		atkbd->enabled = false;
 		serio_reconnect(atkbd->ps2dev.serio);
-		goto out;
+		return;
 	case ATKBD_RET_EMUL0:
 		atkbd->emul = 1;
-		goto out;
+		return;
 	case ATKBD_RET_EMUL1:
 		atkbd->emul = 2;
-		goto out;
+		return;
 	case ATKBD_RET_RELEASE:
 		atkbd->release = true;
-		goto out;
+		return;
 	case ATKBD_RET_ACK:
 	case ATKBD_RET_NAK:
 		if (printk_ratelimit())
@@ -477,18 +491,18 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 				 "Spurious %s on %s. "
 				 "Some program might be trying to access hardware directly.\n",
 				 data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
-		goto out;
+		return;
 	case ATKBD_RET_ERR:
 		atkbd->err_count++;
 		dev_dbg(&serio->dev, "Keyboard on %s reports too many keys pressed.\n",
 			serio->phys);
-		goto out;
+		return;
 	}
 
 	code = atkbd_compat_scancode(atkbd, code);
 
 	if (atkbd->emul && --atkbd->emul)
-		goto out;
+		return;
 
 	keycode = atkbd->keycode[code];
 
@@ -564,8 +578,6 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	}
 
 	atkbd->release = false;
-out:
-	return IRQ_HANDLED;
 }
 
 static int atkbd_set_repeat_rate(struct atkbd *atkbd)
@@ -1229,7 +1241,8 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail1;
 
 	atkbd->dev = dev;
-	ps2_init(&atkbd->ps2dev, serio);
+	ps2_init(&atkbd->ps2dev, serio,
+		 atkbd_pre_receive_byte, atkbd_receive_byte);
 	INIT_DELAYED_WORK(&atkbd->event_work, atkbd_event_work);
 	mutex_init(&atkbd->mutex);
 
@@ -1385,7 +1398,7 @@ static struct serio_driver atkbd_drv = {
 	},
 	.description	= DRIVER_DESC,
 	.id_table	= atkbd_serio_ids,
-	.interrupt	= atkbd_interrupt,
+	.interrupt	= ps2_interrupt,
 	.connect	= atkbd_connect,
 	.reconnect	= atkbd_reconnect,
 	.disconnect	= atkbd_disconnect,
