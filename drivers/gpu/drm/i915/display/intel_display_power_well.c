@@ -11,6 +11,7 @@
 #include "intel_combo_phy_regs.h"
 #include "intel_crt.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
 #include "intel_display_power_well.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
