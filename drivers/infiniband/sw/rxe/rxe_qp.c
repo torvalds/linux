@@ -712,8 +712,9 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	if (qp->attr.sq_draining) {
 		spin_unlock_bh(&qp->state_lock);
 		cond_resched();
+	} else {
+		spin_unlock_bh(&qp->state_lock);
 	}
-	spin_unlock_bh(&qp->state_lock);
 
 	return 0;
 }
