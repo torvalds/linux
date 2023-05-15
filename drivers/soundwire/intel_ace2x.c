@@ -17,16 +17,50 @@
 
 static int intel_link_power_up(struct sdw_intel *sdw)
 {
+	struct sdw_bus *bus = &sdw->cdns.bus;
+	struct sdw_master_prop *prop = &bus->prop;
+	u32 *shim_mask = sdw->link_res->shim_mask;
+	unsigned int link_id = sdw->instance;
+	u32 syncprd;
 	int ret;
 
 	mutex_lock(sdw->link_res->shim_lock);
 
-	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, sdw->instance);
+	if (!*shim_mask) {
+		/* we first need to program the SyncPRD/CPU registers */
+		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
+
+		if (prop->mclk_freq % 6000000)
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
+		else
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
+
+		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
+		if (ret < 0) {
+			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_set_syncprd failed: %d\n",
+				__func__, ret);
+			goto out;
+		}
+	}
+
+	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {
 		dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_power_up failed: %d\n",
 			__func__, ret);
 		goto out;
 	}
+
+	if (!*shim_mask) {
+		/* SYNCPU will change once link is active */
+		ret =  hdac_bus_eml_sdw_wait_syncpu_unlocked(sdw->link_res->hbus);
+		if (ret < 0) {
+			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_wait_syncpu failed: %d\n",
+				__func__, ret);
+			goto out;
+		}
+	}
+
+	*shim_mask |= BIT(link_id);
 
 	sdw->cdns.link_up = true;
 out:
@@ -37,13 +71,17 @@ out:
 
 static int intel_link_power_down(struct sdw_intel *sdw)
 {
+	u32 *shim_mask = sdw->link_res->shim_mask;
+	unsigned int link_id = sdw->instance;
 	int ret;
 
 	mutex_lock(sdw->link_res->shim_lock);
 
 	sdw->cdns.link_up = false;
 
-	ret = hdac_bus_eml_sdw_power_down_unlocked(sdw->link_res->hbus, sdw->instance);
+	*shim_mask &= ~BIT(link_id);
+
+	ret = hdac_bus_eml_sdw_power_down_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {
 		dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_power_down failed: %d\n",
 			__func__, ret);
