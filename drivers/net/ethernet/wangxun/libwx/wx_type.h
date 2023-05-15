@@ -598,7 +598,7 @@ struct wx_q_vector {
 	char name[IFNAMSIZ + 17];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct wx_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct wx_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 enum wx_isb_idx {
