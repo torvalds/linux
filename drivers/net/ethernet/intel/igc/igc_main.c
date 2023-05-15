@@ -6288,6 +6288,8 @@ static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	struct igc_adapter *adapter = netdev_priv(dev);
 
+	adapter->tc_setup_type = type;
+
 	switch (type) {
 	case TC_SETUP_QDISC_TAPRIO:
 		return igc_tsn_enable_qbv_scheduling(adapter, type_data);
