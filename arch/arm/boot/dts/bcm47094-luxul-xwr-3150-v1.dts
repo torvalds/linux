@@ -27,6 +27,7 @@
 		reg = <0x1eff0000 0x10000>;
 
 		et0macaddr: et0macaddr {
+			#nvmem-cell-cells = <1>;
 		};
 	};
 
@@ -76,7 +77,7 @@
 };
 
 &gmac0 {
-	nvmem-cells = <&et0macaddr>;
+	nvmem-cells = <&et0macaddr 0>;
 	nvmem-cell-names = "mac-address";
 };
 
@@ -119,6 +120,8 @@
 		port@4 {
 			reg = <4>;
 			label = "wan";
+			nvmem-cells = <&et0macaddr 5>;
+			nvmem-cell-names = "mac-address";
 		};
 
 		port@5 {

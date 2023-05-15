@@ -24,6 +24,14 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
+	};
+
 	nand_controller: nand-controller@18028000 {
 		nand@0 {
 			partitions {
@@ -58,6 +66,11 @@
 			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
 };
 
 &spi_nor {
