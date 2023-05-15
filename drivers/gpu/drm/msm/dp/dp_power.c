@@ -14,7 +14,6 @@
 
 struct dp_power_private {
 	struct dp_parser *parser;
-	struct platform_device *pdev;
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct clk *link_clk_src;
@@ -28,7 +27,7 @@ static int dp_power_clk_init(struct dp_power_private *power)
 {
 	int rc = 0;
 	struct dss_module_power *core, *ctrl, *stream;
-	struct device *dev = &power->pdev->dev;
+	struct device *dev = power->dev;
 
 	core = &power->parser->mp[DP_CORE_PM];
 	ctrl = &power->parser->mp[DP_CTRL_PM];
@@ -153,7 +152,7 @@ int dp_power_client_init(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	pm_runtime_enable(&power->pdev->dev);
+	pm_runtime_enable(power->dev);
 
 	return dp_power_clk_init(power);
 }
@@ -164,7 +163,7 @@ void dp_power_client_deinit(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	pm_runtime_disable(&power->pdev->dev);
+	pm_runtime_disable(power->dev);
 }
 
 int dp_power_init(struct dp_power *dp_power)
@@ -174,11 +173,11 @@ int dp_power_init(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	pm_runtime_get_sync(&power->pdev->dev);
+	pm_runtime_get_sync(power->dev);
 
 	rc = dp_power_clk_enable(dp_power, DP_CORE_PM, true);
 	if (rc)
-		pm_runtime_put_sync(&power->pdev->dev);
+		pm_runtime_put_sync(power->dev);
 
 	return rc;
 }
@@ -190,7 +189,7 @@ int dp_power_deinit(struct dp_power *dp_power)
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
 	dp_power_clk_enable(dp_power, DP_CORE_PM, false);
-	pm_runtime_put_sync(&power->pdev->dev);
+	pm_runtime_put_sync(power->dev);
 	return 0;
 }
 
@@ -199,12 +198,11 @@ struct dp_power *dp_power_get(struct device *dev, struct dp_parser *parser)
 	struct dp_power_private *power;
 	struct dp_power *dp_power;
 
-	power = devm_kzalloc(&parser->pdev->dev, sizeof(*power), GFP_KERNEL);
+	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
 	if (!power)
 		return ERR_PTR(-ENOMEM);
 
 	power->parser = parser;
-	power->pdev = parser->pdev;
 	power->dev = dev;
 
 	dp_power = &power->dp_power;
