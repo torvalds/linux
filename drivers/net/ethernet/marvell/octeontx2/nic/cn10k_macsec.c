@@ -239,7 +239,7 @@ static int cn10k_mcs_write_rx_secy(struct otx2_nic *pfvf,
 		cipher = MCS_GCM_AES_128;
 		dev_warn(pfvf->dev, "Unsupported key length\n");
 		break;
-	};
+	}
 
 	policy |= FIELD_PREP(MCS_RX_SECY_PLCY_CIP, cipher);
 	policy |= FIELD_PREP(MCS_RX_SECY_PLCY_VAL, secy->validate_frames);
@@ -473,7 +473,7 @@ static int cn10k_mcs_write_tx_secy(struct otx2_nic *pfvf,
 		cipher = MCS_GCM_AES_128;
 		dev_warn(pfvf->dev, "Unsupported key length\n");
 		break;
-	};
+	}
 
 	policy |= FIELD_PREP(MCS_TX_SECY_PLCY_CIP, cipher);
 
