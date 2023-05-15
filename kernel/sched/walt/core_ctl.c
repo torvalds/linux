@@ -690,11 +690,8 @@ static int compute_cluster_nr_misfit(int index)
 
 	cluster = &cluster_state[index];
 
-	for_each_cpu(cpu, &cluster->nrrun_cpu_misfit_mask) {
-		if (cpu_partial_halted(cpu))
-			continue;
+	for_each_cpu(cpu, &cluster->nrrun_cpu_misfit_mask)
 		prev_misfit_need += nr_stats[cpu].nr_misfit;
-	}
 
 	return prev_misfit_need;
 }
