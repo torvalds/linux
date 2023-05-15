@@ -7238,7 +7238,7 @@ static bool gaudi2_get_tpc_idle_status(struct hl_device *hdev, u64 *mask_arr, u8
 
 	gaudi2_iterate_tpcs(hdev, &tpc_iter);
 
-	return tpc_idle_data.is_idle;
+	return *tpc_idle_data.is_idle;
 }
 
 static bool gaudi2_get_decoder_idle_status(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
