@@ -120,7 +120,7 @@ static const char *msm_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	return pctrl->soc->groups[group].name;
+	return pctrl->soc->groups[group].grp.name;
 }
 
 static int msm_get_group_pins(struct pinctrl_dev *pctldev,
@@ -130,8 +130,8 @@ static int msm_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = pctrl->soc->groups[group].pins;
-	*num_pins = pctrl->soc->groups[group].npins;
+	*pins = pctrl->soc->groups[group].grp.pins;
+	*num_pins = pctrl->soc->groups[group].grp.npins;
 	return 0;
 }
 
@@ -705,11 +705,11 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 		val = !!(io_reg & BIT(g->in_bit));
 
 	if (egpio_enable) {
-		seq_printf(s, " %-8s: egpio\n", g->name);
+		seq_printf(s, " %-8s: egpio\n", g->grp.name);
 		return;
 	}
 
-	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
+	seq_printf(s, " %-8s: %-3s", g->grp.name, is_out ? "out" : "in");
 	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
 	if (pctrl->soc->pull_no_keeper)

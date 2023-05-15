@@ -36,9 +36,7 @@ struct pinctrl_pin_desc;
 
 /**
  * struct msm_pingroup - Qualcomm pingroup definition
- * @name:                 Name of the pingroup.
- * @pins:	          A list of pins assigned to this pingroup.
- * @npins:	          Number of entries in @pins.
+ * @grp:                  Generic data of the pin group (name and pins)
  * @funcs:                A list of pinmux functions that can be selected for
  *                        this group. The index of the selected function is used
  *                        for programming the function selector.
@@ -71,9 +69,7 @@ struct pinctrl_pin_desc;
  *                        otherwise 1.
  */
 struct msm_pingroup {
-	const char *name;
-	const unsigned *pins;
-	unsigned npins;
+	struct pingroup grp;
 
 	unsigned *funcs;
 	unsigned nfuncs;
