@@ -767,12 +767,9 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return dev_err_probe(&pdev->dev, irq, "can't get irq resource\n");
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_i2c_dev),
-			GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "Memory allocation failed\n");
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	init_completion(&dev->cmd_complete);
 
