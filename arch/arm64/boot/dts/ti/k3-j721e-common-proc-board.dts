@@ -819,6 +819,7 @@
 };
 
 &pcie0_rc {
+	status = "okay";
 	reset-gpios = <&exp1 6 GPIO_ACTIVE_HIGH>;
 	phys = <&serdes0_pcie_link>;
 	phy-names = "pcie-phy";
@@ -826,6 +827,7 @@
 };
 
 &pcie1_rc {
+	status = "okay";
 	reset-gpios = <&exp1 2 GPIO_ACTIVE_HIGH>;
 	phys = <&serdes1_pcie_link>;
 	phy-names = "pcie-phy";
@@ -833,14 +835,11 @@
 };
 
 &pcie2_rc {
+	status = "okay";
 	reset-gpios = <&exp2 20 GPIO_ACTIVE_HIGH>;
 	phys = <&serdes2_pcie_link>;
 	phy-names = "pcie-phy";
 	num-lanes = <2>;
-};
-
-&pcie3_rc {
-	status = "disabled";
 };
 
 &icssg0_mdio {

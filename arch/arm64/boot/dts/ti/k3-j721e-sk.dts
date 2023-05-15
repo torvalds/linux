@@ -871,6 +871,7 @@
 };
 
 &pcie0_rc {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ekey_reset_pins_default>;
 	reset-gpios = <&main_gpio0 72 GPIO_ACTIVE_HIGH>;
@@ -881,6 +882,7 @@
 };
 
 &pcie1_rc {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mkey_reset_pins_default>;
 	reset-gpios = <&wkup_gpio0 11 GPIO_ACTIVE_HIGH>;
@@ -888,16 +890,6 @@
 	phys = <&serdes1_pcie_link>;
 	phy-names = "pcie-phy";
 	num-lanes = <2>;
-};
-
-&pcie2_rc {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie3_rc {
-	/* Unused */
-	status = "disabled";
 };
 
 &icssg0_mdio {

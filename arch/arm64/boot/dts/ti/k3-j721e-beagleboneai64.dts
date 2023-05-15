@@ -872,12 +872,8 @@
 	};
 };
 
-&pcie0_rc {
-	/* Unused */
-	status = "disabled";
-};
-
 &pcie1_rc {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie1_rst_pins_default>;
 	phys = <&serdes1_pcie_link>;
@@ -885,16 +881,6 @@
 	num-lanes = <2>;
 	max-link-speed = <3>;
 	reset-gpios = <&main_gpio0 22 GPIO_ACTIVE_HIGH>;
-};
-
-&pcie2_rc {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie3_rc {
-	/* Unused */
-	status = "disabled";
 };
 
 &icssg0_mdio {
