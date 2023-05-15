@@ -170,7 +170,7 @@
 				 * GPIO_EMU_SEL[18]: 0-GPIO18, 1-EMU20
 				 * GPIO_EMU_SEL[17]: 0-GPIO17, 1-EMU19
 				 */
-					0x4 0x0000 0xFFFE0000
+					0x4 0x0000 0xfffe0000
 				>;
 			};
 
@@ -190,7 +190,7 @@
 				 * GPIO_TIMIO_SEL[5]: 0-GPIO5, 1-TIMI3
 				 * GPIO_TIMIO_SEL[4]: 0-GPIO4, 1-TIMI2
 				 */
-					0x4 0x0 0xFFF0
+					0x4 0x0 0xfff0
 				>;
 			};
 
@@ -202,7 +202,7 @@
 				 * GPIO_SPI2CS_SEL[1]: 0-GPIO1, 1-SPI2CS2
 				 * GPIO_SPI2CS_SEL[0]: 0-GPIO0, 1-SPI2CS1
 				 */
-					0x4 0x0 0xF
+					0x4 0x0 0xf
 				>;
 			};
 
@@ -226,7 +226,7 @@
 				 * GPIO_DFEIO_SEL[17]: 0-DFEIO3, 1-GPIO49
 				 * GPIO_DFEIO_SEL[16]: 0-DFEIO2, 1-GPIO48
 				 */
-					0x8 0x0 0xFFFF0000
+					0x8 0x0 0xffff0000
 				>;
 			};
 
@@ -250,7 +250,7 @@
 				 * GPIO_EMIFA_SEL[1]: 0-EMIFA1, 1-GPIO33
 				 * GPIO_EMIFA_SEL[0]: 0-EMIFA0, 1-GPIO32
 				 */
-					0x8 0x0 0xFFFF
+					0x8 0x0 0xffff
 				>;
 			};
 		};

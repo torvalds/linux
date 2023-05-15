@@ -167,7 +167,7 @@ netcp: netcp@24000000 {
 						 <&tsipclka>, <&tsrefclk>,
 						 <&tsipclkb>;
 					ti,mux-tbl = <0x0>, <0x1>, <0x2>,
-						<0x3>, <0x4>, <0x8>, <0xC>;
+						<0x3>, <0x4>, <0x8>, <0xc>;
 					assigned-clocks = <&cpts_refclk_mux>;
 					assigned-clock-parents = <&chipclk12>;
 				};

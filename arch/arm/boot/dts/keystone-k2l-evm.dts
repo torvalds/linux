@@ -103,7 +103,7 @@
 
 			partition@180000 {
 				label = "ubifs";
-				reg = <0x180000 0x7FE80000>;
+				reg = <0x180000 0x7fe80000>;
 			};
 		};
 	};
