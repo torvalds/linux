@@ -1075,6 +1075,21 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 	return i;
 }
 
+static int sof_ipc4_get_valid_bits(struct snd_sof_dev *sdev, struct snd_pcm_hw_params *params)
+{
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		return 16;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		return 24;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		return 32;
+	default:
+		dev_err(sdev->dev, "invalid pcm frame format %d\n", params_format(params));
+		return -EINVAL;
+	}
+}
+
 static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 					 struct snd_sof_widget *swidget,
 					 struct sof_ipc4_base_module_cfg *base_config,
@@ -1093,20 +1108,9 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 		return -EINVAL;
 	}
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		sample_valid_bits = 16;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		sample_valid_bits = 24;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		sample_valid_bits = 32;
-		break;
-	default:
-		dev_err(sdev->dev, "invalid pcm frame format %d\n", params_format(params));
-		return -EINVAL;
-	}
+	sample_valid_bits = sof_ipc4_get_valid_bits(sdev, params);
+	if (sample_valid_bits < 0)
+		return sample_valid_bits;
 
 	if (!pin_fmts_size) {
 		dev_err(sdev->dev, "no formats available for %s\n", swidget->widget->name);
