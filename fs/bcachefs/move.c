@@ -583,7 +583,6 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		 */
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
-		bch2_trans_unlock(&trans);
 
 		ret2 = bch2_move_extent(&trans, &iter, ctxt, NULL,
 					io_opts, btree_id, k, data_opts);
