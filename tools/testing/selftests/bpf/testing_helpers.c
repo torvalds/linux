@@ -341,14 +341,14 @@ static int delete_module(const char *name, int flags)
 void unload_bpf_testmod(bool verbose)
 {
 	if (kern_sync_rcu())
-		fprintf(stderr, "Failed to trigger kernel-side RCU sync!\n");
+		fprintf(stdout, "Failed to trigger kernel-side RCU sync!\n");
 	if (delete_module("bpf_testmod", 0)) {
 		if (errno == ENOENT) {
 			if (verbose)
 				fprintf(stdout, "bpf_testmod.ko is already unloaded.\n");
 			return;
 		}
-		fprintf(stderr, "Failed to unload bpf_testmod.ko from kernel: %d\n", -errno);
+		fprintf(stdout, "Failed to unload bpf_testmod.ko from kernel: %d\n", -errno);
 		return;
 	}
 	if (verbose)
@@ -367,11 +367,11 @@ int load_bpf_testmod(bool verbose)
 
 	fd = open("bpf_testmod.ko", O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "Can't find bpf_testmod.ko kernel module: %d\n", -errno);
+		fprintf(stdout, "Can't find bpf_testmod.ko kernel module: %d\n", -errno);
 		return -ENOENT;
 	}
 	if (finit_module(fd, "", 0)) {
-		fprintf(stderr, "Failed to load bpf_testmod.ko into the kernel: %d\n", -errno);
+		fprintf(stdout, "Failed to load bpf_testmod.ko into the kernel: %d\n", -errno);
 		close(fd);
 		return -EINVAL;
 	}
