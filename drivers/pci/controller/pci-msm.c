@@ -6537,6 +6537,17 @@ static irqreturn_t handle_global_irq(int irq, void *data)
 		goto done;
 	}
 
+	/* Not handling the interrupts when we are in drv suspend */
+	spin_lock_irqsave(&dev->cfg_lock, dev->irqsave_flags);
+	if (!dev->cfg_access) {
+		PCIE_DBG2(dev,
+			"PCIe: RC%d is currently in drv suspend.\n",
+			dev->rc_idx);
+		spin_unlock_irqrestore(&dev->cfg_lock, dev->irqsave_flags);
+		goto done;
+	}
+	spin_unlock_irqrestore(&dev->cfg_lock, dev->irqsave_flags);
+
 	status = readl_relaxed(dev->parf + PCIE20_PARF_INT_ALL_STATUS) &
 			readl_relaxed(dev->parf + PCIE20_PARF_INT_ALL_MASK);
 
