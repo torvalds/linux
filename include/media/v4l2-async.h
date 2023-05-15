@@ -211,6 +211,17 @@ __v4l2_async_nf_add_i2c(struct v4l2_async_notifier *notifier,
 					 sizeof(type)))
 
 /**
+ * v4l2_async_connection_unique - return a unique &struct v4l2_async_connection
+ *				  for a sub-device
+ * @sd: the sub-device
+ *
+ * Return an async connection for a sub-device, when there is a single
+ * one only.
+ */
+struct v4l2_async_connection *
+v4l2_async_connection_unique(struct v4l2_subdev *sd);
+
+/**
  * v4l2_async_nf_register - registers a subdevice asynchronous notifier
  *
  * @v4l2_dev: pointer to &struct v4l2_device
