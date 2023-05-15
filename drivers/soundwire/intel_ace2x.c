@@ -350,6 +350,16 @@ static int intel_register_dai(struct sdw_intel *sdw)
 					       dais, num_dai);
 }
 
+static void intel_program_sdi(struct sdw_intel *sdw, int dev_num)
+{
+	int ret;
+
+	ret = hdac_bus_eml_sdw_set_lsdiid(sdw->link_res->hbus, sdw->instance, dev_num);
+	if (ret < 0)
+		dev_err(sdw->cdns.dev, "%s: could not set lsdiid for link %d %d\n",
+			__func__, sdw->instance, dev_num);
+}
+
 const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.debugfs_init = intel_ace2x_debugfs_init,
 	.debugfs_exit = intel_ace2x_debugfs_exit,
@@ -372,6 +382,8 @@ const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.sync_go_unlocked = intel_sync_go_unlocked,
 	.sync_go = intel_sync_go,
 	.sync_check_cmdsync_unlocked = intel_check_cmdsync_unlocked,
+
+	.program_sdi = intel_program_sdi,
 };
 EXPORT_SYMBOL_NS(sdw_intel_lnl_hw_ops, SOUNDWIRE_INTEL);
 
