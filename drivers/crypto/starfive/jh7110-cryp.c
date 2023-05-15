@@ -79,10 +79,25 @@ static void starfive_dma_cleanup(struct starfive_cryp_dev *cryp)
 	dma_release_channel(cryp->rx);
 }
 
+static irqreturn_t starfive_cryp_irq(int irq, void *priv)
+{
+	u32 status;
+	struct starfive_cryp_dev *cryp = (struct starfive_cryp_dev *)priv;
+
+	status = readl(cryp->base + STARFIVE_IE_FLAG_OFFSET);
+	if (status & STARFIVE_IE_FLAG_HASH_DONE) {
+		writel(STARFIVE_IE_MASK_HASH_DONE, cryp->base + STARFIVE_IE_MASK_OFFSET);
+		tasklet_schedule(&cryp->hash_done);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int starfive_cryp_probe(struct platform_device *pdev)
 {
 	struct starfive_cryp_dev *cryp;
 	struct resource *res;
+	int irq;
 	int ret;
 
 	cryp = devm_kzalloc(&pdev->dev, sizeof(*cryp), GFP_KERNEL);
@@ -96,6 +111,8 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	if (IS_ERR(cryp->base))
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->base),
 				     "Error remapping memory for platform device\n");
+
+	tasklet_init(&cryp->hash_done, starfive_hash_done_task, (unsigned long)cryp);
 
 	cryp->phys_base = res->start;
 	cryp->dma_maxburst = 32;
@@ -114,6 +131,16 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	if (IS_ERR(cryp->rst))
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->rst),
 				     "Error getting hardware reset line\n");
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, starfive_cryp_irq, 0, pdev->name,
+			       (void *)cryp);
+	if (ret)
+		return dev_err_probe(&pdev->dev, irq,
+				     "Failed to register interrupt handler\n");
 
 	clk_prepare_enable(cryp->hclk);
 	clk_prepare_enable(cryp->ahb);
@@ -142,8 +169,14 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_engine_start;
 
+	ret = starfive_hash_register_algs();
+	if (ret)
+		goto err_algs_hash;
+
 	return 0;
 
+err_algs_hash:
+	crypto_engine_stop(cryp->engine);
 err_engine_start:
 	crypto_engine_exit(cryp->engine);
 err_engine:
@@ -156,6 +189,8 @@ err_dma_init:
 	clk_disable_unprepare(cryp->hclk);
 	clk_disable_unprepare(cryp->ahb);
 	reset_control_assert(cryp->rst);
+
+	tasklet_kill(&cryp->hash_done);
 err_probe_defer:
 	return ret;
 }
@@ -163,6 +198,10 @@ err_probe_defer:
 static int starfive_cryp_remove(struct platform_device *pdev)
 {
 	struct starfive_cryp_dev *cryp = platform_get_drvdata(pdev);
+
+	starfive_hash_unregister_algs();
+
+	tasklet_kill(&cryp->hash_done);
 
 	crypto_engine_stop(cryp->engine);
 	crypto_engine_exit(cryp->engine);
