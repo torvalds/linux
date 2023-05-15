@@ -1031,7 +1031,8 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 					  struct sof_ipc4_base_module_cfg *base_config,
 					  struct sof_ipc4_available_audio_format *available_fmt,
-					  int input_audio_format_index)
+					  u32 out_ref_rate, u32 out_ref_channels,
+					  u32 out_ref_valid_bits)
 {
 	struct sof_ipc4_audio_format *out_fmt;
 	u32 out_rate, out_channels, out_valid_bits;
@@ -1063,16 +1064,31 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 	}
 
 	/* pick the first format if there's only one available or if all formats are the same */
-	if (single_format)
-		i = 0;
-	else
-		i = input_audio_format_index;
+	if (single_format) {
+		base_config->obs = available_fmt->output_pin_fmts[0].buffer_size;
+		return 0;
+	}
 
-	if (available_fmt->num_output_formats && i < available_fmt->num_output_formats)
-		base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
+	/*
+	 * if there are multiple output formats, then choose the output format that matches
+	 * the reference params
+	 */
+	for (i = 0; i < available_fmt->num_output_formats; i++) {
+		u32 _out_rate, _out_channels, _out_valid_bits;
 
-	/* Return the index of the chosen output format */
-	return i;
+		out_fmt = &available_fmt->output_pin_fmts[i].audio_fmt;
+		_out_rate = out_fmt->sampling_frequency;
+		_out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(out_fmt->fmt_cfg);
+		_out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
+
+		if (_out_rate == out_ref_rate && _out_channels == out_ref_channels &&
+		    _out_valid_bits == out_ref_valid_bits) {
+			base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
+			return i;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static int sof_ipc4_get_valid_bits(struct snd_sof_dev *sdev, struct snd_pcm_hw_params *params)
@@ -1404,6 +1420,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	int *ipc_config_size;
 	u32 **data;
 	int ipc_size, ret;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
 	u32 deep_buffer_dma_ms = 0;
 	u32 format_list_count;
 	int output_fmt_index;
@@ -1551,10 +1568,42 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
+	/* set the reference params for output format selection */
+	switch (swidget->id) {
+	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_dai_out:
+	case snd_soc_dapm_buffer:
+	{
+		struct sof_ipc4_audio_format *in_fmt;
+
+		in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
+		out_ref_rate = in_fmt->sampling_frequency;
+		out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+		out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+		break;
+	}
+	case snd_soc_dapm_aif_out:
+	case snd_soc_dapm_dai_in:
+		out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
+		if (out_ref_valid_bits < 0)
+			return out_ref_valid_bits;
+
+		out_ref_rate = params_rate(fe_params);
+		out_ref_channels = params_channels(fe_params);
+		break;
+	default:
+		/*
+		 * Unsupported type should be caught by the former switch default
+		 * case, this should never happen in reality.
+		 */
+		return -EINVAL;
+	}
+
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, &copier_data->base_config,
-							  available_fmt, ret);
+							  available_fmt, out_ref_rate,
+							  out_ref_channels, out_ref_valid_bits);
 	if (output_fmt_index < 0) {
-		dev_err(sdev->dev, "No output formats in topology for copier %s",
+		dev_err(sdev->dev, "Failed to initialize output format for %s",
 			swidget->widget->name);
 		return output_fmt_index;
 	}
@@ -1727,6 +1776,8 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_gain *gain = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &gain->available_fmt;
+	struct sof_ipc4_audio_format *in_fmt;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
 	int ret;
 
 	ret = sof_ipc4_init_input_audio_fmt(sdev, swidget, &gain->base_config,
@@ -1736,9 +1787,16 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
-	ret = sof_ipc4_init_output_audio_fmt(sdev, &gain->base_config, available_fmt, ret);
+	in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
+	out_ref_rate = in_fmt->sampling_frequency;
+	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+
+	ret = sof_ipc4_init_output_audio_fmt(sdev, &gain->base_config, available_fmt,
+					     out_ref_rate, out_ref_channels, out_ref_valid_bits);
 	if (ret < 0) {
-		dev_err(sdev->dev, "No output formats for %s", swidget->widget->name);
+		dev_err(sdev->dev, "Failed to initialize output format for %s",
+			swidget->widget->name);
 		return ret;
 	}
 
@@ -1757,6 +1815,8 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_mixer *mixer = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &mixer->available_fmt;
+	struct sof_ipc4_audio_format *in_fmt;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
 	int ret;
 
 	ret = sof_ipc4_init_input_audio_fmt(sdev, swidget, &mixer->base_config,
@@ -1766,9 +1826,16 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
-	ret = sof_ipc4_init_output_audio_fmt(sdev, &mixer->base_config, available_fmt, ret);
+	in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
+	out_ref_rate = in_fmt->sampling_frequency;
+	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+
+	ret = sof_ipc4_init_output_audio_fmt(sdev, &mixer->base_config, available_fmt,
+					     out_ref_rate, out_ref_channels, out_ref_valid_bits);
 	if (ret < 0) {
-		dev_err(sdev->dev, "No output formats for %s", swidget->widget->name);
+		dev_err(sdev->dev, "Failed to initialize output format for %s",
+			swidget->widget->name);
 		return ret;
 	}
 
@@ -1787,6 +1854,8 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_src *src = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &src->available_fmt;
+	struct sof_ipc4_audio_format *in_fmt;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
 	struct snd_interval *rate;
 	int ret;
 
@@ -1797,10 +1866,16 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
-	ret = sof_ipc4_init_output_audio_fmt(sdev, &src->base_config, available_fmt, ret);
+	in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
+	out_ref_rate = in_fmt->sampling_frequency;
+	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+
+	ret = sof_ipc4_init_output_audio_fmt(sdev, &src->base_config, available_fmt,
+					     out_ref_rate, out_ref_channels, out_ref_valid_bits);
 	if (ret < 0) {
-		dev_err(sdev->dev, "No output formats for %s", swidget->widget->name);
-		return ret;
+		dev_err(sdev->dev, "Failed to initialize output format for %s",
+			swidget->widget->name);
 	}
 
 	/* update pipeline memory usage */
@@ -1901,6 +1976,8 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_process *process = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &process->available_fmt;
+	struct sof_ipc4_audio_format *in_fmt;
+	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
 	void *cfg = process->ipc_config_data;
 	int output_fmt_index;
 	int ret;
@@ -1912,9 +1989,19 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	if (ret < 0)
 		return ret;
 
-	/* No need to check the return value. Some processing modules do not have output pins */
+	in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
+	out_ref_rate = in_fmt->sampling_frequency;
+	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
+	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, &process->base_config,
-							  available_fmt, ret);
+							  available_fmt, out_ref_rate,
+							  out_ref_channels, out_ref_valid_bits);
+	if (output_fmt_index < 0 && available_fmt->num_output_formats) {
+		dev_err(sdev->dev, "Failed to initialize output format for %s",
+			swidget->widget->name);
+		return output_fmt_index;
+	}
 
 	/* copy Pin 0 output format */
 	if (available_fmt->num_output_formats &&
