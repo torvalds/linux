@@ -7,6 +7,10 @@
 #include <linux/irqreturn.h>
 #include <linux/soundwire/sdw.h>
 
+/*********************************************************************
+ * cAVS and ACE1.x definitions
+ *********************************************************************/
+
 #define SDW_SHIM_BASE			0x2C000
 #define SDW_ALH_BASE			0x2C800
 #define SDW_SHIM_BASE_ACE		0x38000
@@ -100,6 +104,77 @@
 #define SDW_ALH_STRMZCFG_DMAT_VAL	0x3
 #define SDW_ALH_STRMZCFG_DMAT		GENMASK(7, 0)
 #define SDW_ALH_STRMZCFG_CHN		GENMASK(19, 16)
+
+/*********************************************************************
+ * ACE2.x definitions for SHIM registers - only accessible when the
+ * HDAudio extended link LCTL.SPA/CPA = 1.
+ *********************************************************************/
+/* x variable is link index */
+#define SDW_SHIM2_GENERIC_BASE(x)	(0x00030000 + 0x8000 * (x))
+#define SDW_IP_BASE(x)			(0x00030100 + 0x8000 * (x))
+#define SDW_SHIM2_VS_BASE(x)		(0x00036000 + 0x8000 * (x))
+
+/* SHIM2 Generic Registers */
+/* Read-only capabilities */
+#define SDW_SHIM2_LECAP			0x00
+#define SDW_SHIM2_LECAP_HDS		BIT(0)		/* unset -> Host mode */
+#define SDW_SHIM2_LECAP_MLC		GENMASK(3, 1)	/* Number of Lanes */
+
+/* PCM Stream capabilities */
+#define SDW_SHIM2_PCMSCAP		0x10
+#define SDW_SHIM2_PCMSCAP_ISS		GENMASK(3, 0)	/* Input-only streams */
+#define SDW_SHIM2_PCMSCAP_OSS		GENMASK(7, 4)	/* Output-only streams */
+#define SDW_SHIM2_PCMSCAP_BSS		GENMASK(12, 8)	/* Bidirectional streams */
+
+/* Read-only PCM Stream Channel Count, y variable is stream */
+#define SDW_SHIM2_PCMSYCHC(y)		(0x14 + (0x4 * (y)))
+#define SDW_SHIM2_PCMSYCHC_CS		GENMASK(3, 0)	/* Channels Supported */
+
+/* PCM Stream Channel Map */
+#define SDW_SHIM2_PCMSYCHM(y)		(0x16 + (0x4 * (y)))
+#define SDW_SHIM2_PCMSYCHM_LCHAN	GENMASK(3, 0)	/* Lowest channel used by the FIFO port */
+#define SDW_SHIM2_PCMSYCHM_HCHAN	GENMASK(7, 4)	/* Lowest channel used by the FIFO port */
+#define SDW_SHIM2_PCMSYCHM_STRM		GENMASK(13, 8)	/* HDaudio stream tag */
+#define SDW_SHIM2_PCMSYCHM_DIR		BIT(15)		/* HDaudio stream direction */
+
+/* SHIM2 vendor-specific registers */
+#define SDW_SHIM2_INTEL_VS_LVSCTL	0x04
+#define SDW_SHIM2_INTEL_VS_LVSCTL_FCG	BIT(26)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_MLCS	GENMASK(29, 27)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_DCGD	BIT(30)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_ICGD	BIT(31)
+
+#define SDW_SHIM2_MLCS_XTAL_CLK		0x0
+#define SDW_SHIM2_MLCS_CARDINAL_CLK	0x1
+#define SDW_SHIM2_MLCS_AUDIO_PLL_CLK	0x2
+#define SDW_SHIM2_MLCS_MCLK_INPUT_CLK	0x3
+#define SDW_SHIM2_MLCS_WOV_RING_OSC_CLK 0x4
+
+#define SDW_SHIM2_INTEL_VS_WAKEEN	0x08
+#define SDW_SHIM2_INTEL_VS_WAKEEN_PWE	BIT(0)
+
+#define SDW_SHIM2_INTEL_VS_WAKESTS	0x0A
+#define SDW_SHIM2_INTEL_VS_WAKEEN_PWS	BIT(0)
+
+#define SDW_SHIM2_INTEL_VS_IOCTL	0x0C
+#define SDW_SHIM2_INTEL_VS_IOCTL_MIF	BIT(0)
+#define SDW_SHIM2_INTEL_VS_IOCTL_CO	BIT(1)
+#define SDW_SHIM2_INTEL_VS_IOCTL_COE	BIT(2)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DO	BIT(3)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DOE	BIT(4)
+#define SDW_SHIM2_INTEL_VS_IOCTL_BKE	BIT(5)
+#define SDW_SHIM2_INTEL_VS_IOCTL_WPDD	BIT(6)
+#define SDW_SHIM2_INTEL_VS_IOCTL_ODC	BIT(7)
+#define SDW_SHIM2_INTEL_VS_IOCTL_CIBD	BIT(8)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DIBD	BIT(9)
+#define SDW_SHIM2_INTEL_VS_IOCTL_HAMIFD	BIT(10)
+
+#define SDW_SHIM2_INTEL_VS_ACTMCTL	0x0E
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE	BIT(0)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DODS		BIT(1)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE	BIT(2)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS	GENMASK(4, 3)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE	BIT(5)
 
 /**
  * struct sdw_intel_stream_params_data: configuration passed during
