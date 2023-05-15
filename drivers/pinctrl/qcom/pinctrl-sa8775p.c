@@ -1483,6 +1483,23 @@ static const struct msm_pingroup sa8775p_groups[] = {
 	[153] = SDC_QDSD_PINGROUP(sdc1_data, 0x199000, 9, 0),
 };
 
+static const struct msm_gpio_wakeirq_map sa8775p_pdc_map[] = {
+	{ 0, 169 }, { 1, 174 }, { 2, 170 }, { 3, 175 }, { 4, 171 }, { 5, 173 },
+	{ 6, 172 }, { 7, 182 }, { 10, 220 }, { 11, 213 }, { 12, 221 },
+	{ 16, 230 }, { 19, 231 }, { 20, 232 }, { 23, 233 }, { 24, 234 },
+	{ 26, 223 }, { 27, 235 }, { 28, 209 }, { 29, 176 }, { 30, 200 },
+	{ 31, 201 }, { 32, 212 }, { 35, 177 }, { 36, 178 }, { 39, 184 },
+	{ 40, 185 }, { 41, 227 }, { 42, 186 }, { 43, 228 }, { 45, 187 },
+	{ 47, 188 }, { 48, 194 }, { 51, 195 }, { 52, 196 }, { 55, 197 },
+	{ 56, 198 }, { 57, 236 }, { 58, 192 }, { 59, 193 }, { 72, 179 },
+	{ 73, 180 }, { 74, 181 }, { 75, 202 }, { 76, 183 }, { 77, 189 },
+	{ 78, 190 }, { 79, 191 }, { 80, 199 }, { 83, 204 }, { 84, 205 },
+	{ 85, 229 }, { 86, 206 }, { 89, 207 }, { 91, 208 }, { 94, 214 },
+	{ 95, 215 }, { 96, 237 }, { 97, 216 }, { 98, 238 }, { 99, 217 },
+	{ 100, 239 }, { 105, 219 }, { 106, 210 }, { 107, 211 }, { 108, 222 },
+	{ 109, 203 }, { 145, 225 }, { 146, 226 },
+};
+
 static const struct msm_pinctrl_soc_data sa8775p_pinctrl = {
 	.pins = sa8775p_pins,
 	.npins = ARRAY_SIZE(sa8775p_pins),
@@ -1491,6 +1508,8 @@ static const struct msm_pinctrl_soc_data sa8775p_pinctrl = {
 	.groups = sa8775p_groups,
 	.ngroups = ARRAY_SIZE(sa8775p_groups),
 	.ngpios = 150,
+	.wakeirq_map = sa8775p_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(sa8775p_pdc_map),
 };
 
 static int sa8775p_pinctrl_probe(struct platform_device *pdev)
