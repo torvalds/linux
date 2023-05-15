@@ -93,7 +93,7 @@ static const struct of_device_id simple_mfd_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, simple_mfd_i2c_of_match);
 
 static struct i2c_driver simple_mfd_i2c_driver = {
-	.probe_new = simple_mfd_i2c_probe,
+	.probe = simple_mfd_i2c_probe,
 	.driver = {
 		.name = "simple-mfd-i2c",
 		.of_match_table = simple_mfd_i2c_of_match,

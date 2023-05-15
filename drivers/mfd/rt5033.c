@@ -120,7 +120,7 @@ static struct i2c_driver rt5033_driver = {
 		.name = "rt5033",
 		.of_match_table = rt5033_dt_match,
 	},
-	.probe_new = rt5033_i2c_probe,
+	.probe = rt5033_i2c_probe,
 	.id_table = rt5033_i2c_id,
 };
 module_i2c_driver(rt5033_driver);

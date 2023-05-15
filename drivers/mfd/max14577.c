@@ -518,7 +518,7 @@ static struct i2c_driver max14577_i2c_driver = {
 		.pm = pm_sleep_ptr(&max14577_pm),
 		.of_match_table = max14577_dt_match,
 	},
-	.probe_new = max14577_i2c_probe,
+	.probe = max14577_i2c_probe,
 	.remove = max14577_i2c_remove,
 	.id_table = max14577_i2c_id,
 };

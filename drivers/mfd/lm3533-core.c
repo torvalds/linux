@@ -624,7 +624,7 @@ static struct i2c_driver lm3533_i2c_driver = {
 		   .name = "lm3533",
 	},
 	.id_table	= lm3533_i2c_ids,
-	.probe_new	= lm3533_i2c_probe,
+	.probe		= lm3533_i2c_probe,
 	.remove		= lm3533_i2c_remove,
 };
 

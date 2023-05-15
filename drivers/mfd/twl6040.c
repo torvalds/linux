@@ -829,7 +829,7 @@ static struct i2c_driver twl6040_driver = {
 	.driver = {
 		.name = "twl6040",
 	},
-	.probe_new	= twl6040_probe,
+	.probe		= twl6040_probe,
 	.remove		= twl6040_remove,
 	.id_table	= twl6040_i2c_id,
 };

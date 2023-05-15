@@ -139,7 +139,7 @@ static struct i2c_driver madera_i2c_driver = {
 		.pm	= &madera_pm_ops,
 		.of_match_table	= of_match_ptr(madera_of_match),
 	},
-	.probe_new	= madera_i2c_probe,
+	.probe		= madera_i2c_probe,
 	.remove		= madera_i2c_remove,
 	.id_table	= madera_i2c_id,
 };

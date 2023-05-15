@@ -201,7 +201,7 @@ static struct i2c_driver stpmic1_driver = {
 		.of_match_table = of_match_ptr(stpmic1_of_match),
 		.pm = pm_sleep_ptr(&stpmic1_pm),
 	},
-	.probe_new = stpmic1_probe,
+	.probe = stpmic1_probe,
 };
 
 module_i2c_driver(stpmic1_driver);

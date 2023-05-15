@@ -239,7 +239,7 @@ static struct i2c_driver max8925_driver = {
 		.pm     = pm_sleep_ptr(&max8925_pm_ops),
 		.of_match_table = max8925_dt_ids,
 	},
-	.probe_new	= max8925_probe,
+	.probe		= max8925_probe,
 	.remove		= max8925_remove,
 	.id_table	= max8925_id_table,
 };

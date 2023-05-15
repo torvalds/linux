@@ -140,7 +140,7 @@ MODULE_DEVICE_TABLE(of, lp3943_of_match);
 #endif
 
 static struct i2c_driver lp3943_driver = {
-	.probe_new = lp3943_probe,
+	.probe = lp3943_probe,
 	.driver = {
 		.name = "lp3943",
 		.of_match_table = of_match_ptr(lp3943_of_match),

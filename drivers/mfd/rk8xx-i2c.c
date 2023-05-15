@@ -173,7 +173,7 @@ static struct i2c_driver rk8xx_i2c_driver = {
 		.of_match_table = rk8xx_i2c_of_match,
 		.pm = &rk8xx_i2c_pm_ops,
 	},
-	.probe_new = rk8xx_i2c_probe,
+	.probe = rk8xx_i2c_probe,
 	.shutdown  = rk8xx_i2c_shutdown,
 };
 module_i2c_driver(rk8xx_i2c_driver);

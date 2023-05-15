@@ -449,7 +449,7 @@ static struct i2c_driver aat2870_i2c_driver = {
 		.pm			= pm_sleep_ptr(&aat2870_pm_ops),
 		.suppress_bind_attrs	= true,
 	},
-	.probe_new	= aat2870_i2c_probe,
+	.probe		= aat2870_i2c_probe,
 	.id_table	= aat2870_i2c_id_table,
 };
 

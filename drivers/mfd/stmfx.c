@@ -553,7 +553,7 @@ static struct i2c_driver stmfx_driver = {
 		.of_match_table = stmfx_of_match,
 		.pm = pm_sleep_ptr(&stmfx_dev_pm_ops),
 	},
-	.probe_new = stmfx_probe,
+	.probe = stmfx_probe,
 	.remove = stmfx_remove,
 };
 module_i2c_driver(stmfx_driver);
