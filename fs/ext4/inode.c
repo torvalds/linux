@@ -2321,11 +2321,11 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 				MAX_WRITEPAGES_EXTENT_LEN + bpp - 1, bpp);
 }
 
-static int ext4_journal_page_buffers(handle_t *handle, struct page *page,
-				     int len)
+static int ext4_journal_folio_buffers(handle_t *handle, struct folio *folio,
+				     size_t len)
 {
-	struct buffer_head *page_bufs = page_buffers(page);
-	struct inode *inode = page->mapping->host;
+	struct buffer_head *page_bufs = folio_buffers(folio);
+	struct inode *inode = folio->mapping->host;
 	int ret, err;
 
 	ret = ext4_walk_page_buffers(handle, inode, page_bufs, 0, len,
@@ -2334,7 +2334,7 @@ static int ext4_journal_page_buffers(handle_t *handle, struct page *page,
 				     NULL, write_end_fn);
 	if (ret == 0)
 		ret = err;
-	err = ext4_jbd2_inode_add_write(handle, inode, page_offset(page), len);
+	err = ext4_jbd2_inode_add_write(handle, inode, folio_pos(folio), len);
 	if (ret == 0)
 		ret = err;
 	EXT4_I(inode)->i_datasync_tid = handle->h_transaction->t_tid;
@@ -2344,22 +2344,20 @@ static int ext4_journal_page_buffers(handle_t *handle, struct page *page,
 
 static int mpage_journal_page_buffers(handle_t *handle,
 				      struct mpage_da_data *mpd,
-				      struct page *page)
+				      struct folio *folio)
 {
 	struct inode *inode = mpd->inode;
 	loff_t size = i_size_read(inode);
-	int len;
+	size_t len = folio_size(folio);
 
-	ClearPageChecked(page);
+	folio_clear_checked(folio);
 	mpd->wbc->nr_to_write--;
 
-	if (page->index == size >> PAGE_SHIFT &&
+	if (folio_pos(folio) + len > size &&
 	    !ext4_verity_in_progress(inode))
-		len = size & ~PAGE_MASK;
-	else
-		len = PAGE_SIZE;
+		len = size - folio_pos(folio);
 
-	return ext4_journal_page_buffers(handle, page, len);
+	return ext4_journal_folio_buffers(handle, folio, len);
 }
 
 /*
@@ -2499,7 +2497,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 				/* Pending dirtying of journalled data? */
 				if (folio_test_checked(folio)) {
 					err = mpage_journal_page_buffers(handle,
-						mpd, &folio->page);
+						mpd, folio);
 					if (err < 0)
 						goto out;
 					mpd->journalled_more_data = 1;
@@ -6157,7 +6155,7 @@ retry_alloc:
 		err = __block_write_begin(&folio->page, 0, len, ext4_get_block);
 		if (!err) {
 			ret = VM_FAULT_SIGBUS;
-			if (ext4_journal_page_buffers(handle, &folio->page, len))
+			if (ext4_journal_folio_buffers(handle, folio, len))
 				goto out_error;
 		} else {
 			folio_unlock(folio);
