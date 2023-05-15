@@ -78,7 +78,7 @@
 };
 
 &i2c0 {
-	dtt@50 {
+	eeprom@50 {
 		compatible = "atmel,24c1024";
 		reg = <0x50>;
 	};
