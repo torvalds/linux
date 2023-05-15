@@ -1470,7 +1470,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	else
 		svc_tcp_init(svsk, serv);
 
-	trace_svcsock_new_socket(sock);
+	trace_svcsock_new(svsk, sock);
 	return svsk;
 }
 
@@ -1650,6 +1650,8 @@ static void svc_sock_free(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 	struct socket *sock = svsk->sk_sock;
+
+	trace_svcsock_free(svsk, sock);
 
 	tls_handshake_cancel(sock->sk);
 	if (sock->file)

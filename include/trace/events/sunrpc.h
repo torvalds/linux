@@ -2104,31 +2104,46 @@ DEFINE_SVC_DEFERRED_EVENT(drop);
 DEFINE_SVC_DEFERRED_EVENT(queue);
 DEFINE_SVC_DEFERRED_EVENT(recv);
 
-TRACE_EVENT(svcsock_new_socket,
+DECLARE_EVENT_CLASS(svcsock_lifetime_class,
 	TP_PROTO(
+		const void *svsk,
 		const struct socket *socket
 	),
-
-	TP_ARGS(socket),
-
+	TP_ARGS(svsk, socket),
 	TP_STRUCT__entry(
+		__field(unsigned int, netns_ino)
+		__field(const void *, svsk)
+		__field(const void *, sk)
 		__field(unsigned long, type)
 		__field(unsigned long, family)
-		__field(bool, listener)
+		__field(unsigned long, state)
 	),
-
 	TP_fast_assign(
-		__entry->type = socket->type;
-		__entry->family = socket->sk->sk_family;
-		__entry->listener = (socket->sk->sk_state == TCP_LISTEN);
-	),
+		struct sock *sk = socket->sk;
 
-	TP_printk("type=%s family=%s%s",
-		show_socket_type(__entry->type),
+		__entry->netns_ino = sock_net(sk)->ns.inum;
+		__entry->svsk = svsk;
+		__entry->sk = sk;
+		__entry->type = socket->type;
+		__entry->family = sk->sk_family;
+		__entry->state = sk->sk_state;
+	),
+	TP_printk("svsk=%p type=%s family=%s%s",
+		__entry->svsk, show_socket_type(__entry->type),
 		rpc_show_address_family(__entry->family),
-		__entry->listener ? " (listener)" : ""
+		__entry->state == TCP_LISTEN ? " (listener)" : ""
 	)
 );
+#define DEFINE_SVCSOCK_LIFETIME_EVENT(name) \
+	DEFINE_EVENT(svcsock_lifetime_class, name, \
+		TP_PROTO( \
+			const void *svsk, \
+			const struct socket *socket \
+		), \
+		TP_ARGS(svsk, socket))
+
+DEFINE_SVCSOCK_LIFETIME_EVENT(svcsock_new);
+DEFINE_SVCSOCK_LIFETIME_EVENT(svcsock_free);
 
 TRACE_EVENT(svcsock_marker,
 	TP_PROTO(
