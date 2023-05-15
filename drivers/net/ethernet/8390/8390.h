@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-1.0+ */
+
 /* Generic NS8390 register definitions. */
 
 /* This file is part of Donald Becker's 8390 drivers, and is distributed

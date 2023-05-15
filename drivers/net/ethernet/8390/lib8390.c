@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-1.0+
+
 /* 8390.c: A general NS8390 ethernet driver core for linux. */
 /*
 	Written 1992-94 by Donald Becker.
 
 	Copyright 1993 United States Government as represented by the
 	Director, National Security Agency.
-
-	This software may be used and distributed according to the terms
-	of the GNU General Public License, incorporated herein by reference.
 
 	The author may be reached as becker@scyld.com, or C/O
 	Scyld Computing Corporation
