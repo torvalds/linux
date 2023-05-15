@@ -39,20 +39,4 @@ struct rt5033_battery {
 	struct power_supply	*psy;
 };
 
-/* RT5033 charger platform data */
-struct rt5033_charger_data {
-	unsigned int pre_uamp;
-	unsigned int pre_uvolt;
-	unsigned int const_uvolt;
-	unsigned int eoc_uamp;
-	unsigned int fast_uamp;
-};
-
-struct rt5033_charger {
-	struct device			*dev;
-	struct rt5033_dev		*rt5033;
-	struct power_supply		*psy;
-	struct rt5033_charger_data	*chg;
-};
-
 #endif /* __RT5033_H__ */
