@@ -2124,10 +2124,8 @@ static void gen8_read_and_ack_pch_irqs(struct drm_i915_private *i915, u32 *pch_i
 		intel_de_write(i915, PICAINTERRUPT_IER, pica_ier);
 }
 
-static irqreturn_t
-gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
+static void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
-	irqreturn_t ret = IRQ_NONE;
 	u32 iir;
 	enum pipe pipe;
 
@@ -2137,7 +2135,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		iir = intel_uncore_read(&dev_priv->uncore, GEN8_DE_MISC_IIR);
 		if (iir) {
 			intel_uncore_write(&dev_priv->uncore, GEN8_DE_MISC_IIR, iir);
-			ret = IRQ_HANDLED;
 			gen8_de_misc_irq_handler(dev_priv, iir);
 		} else {
 			drm_err_ratelimited(&dev_priv->drm,
@@ -2149,7 +2146,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		iir = intel_uncore_read(&dev_priv->uncore, GEN11_DE_HPD_IIR);
 		if (iir) {
 			intel_uncore_write(&dev_priv->uncore, GEN11_DE_HPD_IIR, iir);
-			ret = IRQ_HANDLED;
 			gen11_hpd_irq_handler(dev_priv, iir);
 		} else {
 			drm_err_ratelimited(&dev_priv->drm,
@@ -2163,7 +2159,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			bool found = false;
 
 			intel_uncore_write(&dev_priv->uncore, GEN8_DE_PORT_IIR, iir);
-			ret = IRQ_HANDLED;
 
 			if (iir & gen8_de_port_aux_mask(dev_priv)) {
 				intel_dp_aux_irq_handler(dev_priv);
@@ -2223,7 +2218,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			continue;
 		}
 
-		ret = IRQ_HANDLED;
 		intel_uncore_write(&dev_priv->uncore, GEN8_DE_PIPE_IIR(pipe), iir);
 
 		if (iir & GEN8_PIPE_VBLANK)
@@ -2257,8 +2251,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		 */
 		gen8_read_and_ack_pch_irqs(dev_priv, &iir, &pica_iir);
 		if (iir) {
-			ret = IRQ_HANDLED;
-
 			if (pica_iir)
 				xelpdp_pica_irq_handler(dev_priv, pica_iir);
 
@@ -2277,8 +2269,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 				"The master control interrupt lied (SDE)!\n");
 		}
 	}
-
-	return ret;
 }
 
 static inline u32 gen8_master_intr_disable(void __iomem * const regs)
