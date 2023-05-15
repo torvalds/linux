@@ -614,6 +614,7 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
 	struct ieee80211_sta *sta = NULL;
+	struct mt76_wcid *wcid = NULL;
 	struct sk_buff *skb, *tmp;
 	void *end = data + len;
 	LIST_HEAD(free_list);
@@ -637,7 +638,6 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 		 */
 		if (info & MT_TX_FREE_PAIR) {
 			struct mt7921_sta *msta;
-			struct mt76_wcid *wcid;
 			u16 idx;
 
 			count++;
@@ -657,6 +657,12 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
 		stat = FIELD_GET(MT_TX_FREE_STATUS, info);
+
+		if (wcid) {
+			wcid->stats.tx_retries +=
+				FIELD_GET(MT_TX_FREE_COUNT, info) - 1;
+			wcid->stats.tx_failed += !!stat;
+		}
 
 		txwi = mt76_token_release(mdev, msdu, &wake);
 		if (!txwi)
