@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2013-2014 Hauke Mehrtens <hauke@hauke-m.de>
+ */
 
 #include <dt-bindings/clock/bcm-nsp.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -7,6 +10,81 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chipcommon-a-bus@18000000 {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0x18000000 0x00001000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		uart0: serial@300 {
+			compatible = "ns16550";
+			reg = <0x0300 0x100>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			status = "disabled";
+		};
+
+		uart1: serial@400 {
+			compatible = "ns16550";
+			reg = <0x0400 0x100>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1>;
+			status = "disabled";
+		};
+	};
+
+	mpcore-bus@19000000 {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0x19000000 0x00023000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		scu@20000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0x20000 0x100>;
+		};
+
+		timer@20200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x20200 0x100>;
+			interrupts = <GIC_PPI 11 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&periph_clk>;
+		};
+
+		timer@20600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x20600 0x20>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&periph_clk>;
+		};
+
+		gic: interrupt-controller@21000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x21000 0x1000>,
+			      <0x20100 0x100>;
+		};
+
+		L2: cache-controller@22000 {
+			compatible = "arm,pl310-cache";
+			reg = <0x22000 0x1000>;
+			cache-unified;
+			arm,shared-override;
+			prefetch-data = <1>;
+			prefetch-instr = <1>;
+			cache-level = <2>;
+		};
+	};
+
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
@@ -214,6 +292,18 @@
 				#thermal-sensor-cells = <0>;
 			};
 		};
+	};
+
+	nand_controller: nand-controller@18028000 {
+		compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1", "brcm,brcmnand";
+		reg = <0x18028000 0x600>, <0x1811a408 0x600>, <0x18028f00 0x20>;
+		reg-names = "nand", "iproc-idm", "iproc-ext";
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		brcm,nand-has-wp;
 	};
 
 	thermal-zones {
