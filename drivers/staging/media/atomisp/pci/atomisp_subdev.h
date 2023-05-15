@@ -366,6 +366,5 @@ int atomisp_subdev_register_subdev(struct atomisp_sub_device *asd,
 				   struct v4l2_device *vdev);
 int atomisp_subdev_init(struct atomisp_device *isp);
 void atomisp_subdev_cleanup(struct atomisp_device *isp);
-int atomisp_create_pads_links(struct atomisp_device *isp);
 
 #endif /* __ATOMISP_SUBDEV_H__ */

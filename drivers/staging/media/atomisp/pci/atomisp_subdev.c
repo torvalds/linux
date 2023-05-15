@@ -933,41 +933,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	return asd->ctrl_handler.error;
 }
 
-int atomisp_create_pads_links(struct atomisp_device *isp)
-{
-	int i, ret;
-
-	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
-		ret = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
-					    CSI2_PAD_SOURCE, &isp->asd.subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SINK, 0);
-		if (ret < 0)
-			return ret;
-	}
-
-	for (i = 0; i < isp->input_cnt; i++) {
-		/* Don't create links for the test-pattern-generator */
-		if (isp->inputs[i].type == TEST_PATTERN)
-			continue;
-
-		ret = media_create_pad_link(&isp->inputs[i].camera->entity, 0,
-					    &isp->csi2_port[isp->inputs[i].
-						    port].subdev.entity,
-					    CSI2_PAD_SINK,
-					    MEDIA_LNK_FL_ENABLED |
-					    MEDIA_LNK_FL_IMMUTABLE);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = media_create_pad_link(&isp->asd.subdev.entity, ATOMISP_SUBDEV_PAD_SOURCE,
-				    &isp->asd.video_out.vdev.entity, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static void atomisp_subdev_cleanup_entities(struct atomisp_sub_device *asd)
 {
 	v4l2_ctrl_handler_free(&asd->ctrl_handler);

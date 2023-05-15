@@ -943,6 +943,12 @@ static int atomisp_register_device_nodes(struct atomisp_device *isp)
 	int i, err;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
+		err = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
+					    CSI2_PAD_SOURCE, &isp->asd.subdev.entity,
+					    ATOMISP_SUBDEV_PAD_SINK, 0);
+		if (err)
+			return err;
+
 		if (!isp->sensor_subdevs[i])
 			continue;
 
@@ -959,6 +965,13 @@ static int atomisp_register_device_nodes(struct atomisp_device *isp)
 		 */
 		if (i == ATOMISP_CAMERA_PORT_PRIMARY)
 			input->motor = isp->motor;
+
+		err = media_create_pad_link(&input->camera->entity, 0,
+					    &isp->csi2_port[i].subdev.entity,
+					    CSI2_PAD_SINK,
+					    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+		if (err)
+			return err;
 
 		isp->input_cnt++;
 	}
@@ -983,7 +996,8 @@ static int atomisp_register_device_nodes(struct atomisp_device *isp)
 	if (err)
 		return err;
 
-	err = atomisp_create_pads_links(isp);
+	err = media_create_pad_link(&isp->asd.subdev.entity, ATOMISP_SUBDEV_PAD_SOURCE,
+				    &isp->asd.video_out.vdev.entity, 0, 0);
 	if (err)
 		return err;
 
