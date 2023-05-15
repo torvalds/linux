@@ -2957,6 +2957,7 @@ static inline unsigned long cpu_util_dl(struct rq *rq)
 
 
 extern unsigned long cpu_util_cfs(int cpu);
+extern unsigned long cpu_util_cfs_boost(int cpu);
 
 static inline unsigned long cpu_util_rt(struct rq *rq)
 {
