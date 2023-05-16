@@ -1413,6 +1413,12 @@ static int testapp_validate_traffic(struct test_spec *test)
 	struct ifobject *ifobj_rx = test->ifobj_rx;
 	struct ifobject *ifobj_tx = test->ifobj_tx;
 
+	if ((ifobj_rx->umem->unaligned_mode && !ifobj_rx->unaligned_supp) ||
+	    (ifobj_tx->umem->unaligned_mode && !ifobj_tx->unaligned_supp)) {
+		ksft_test_result_skip("No huge pages present.\n");
+		return TEST_SKIP;
+	}
+
 	xsk_attach_xdp_progs(test, ifobj_rx, ifobj_tx);
 	return __testapp_validate_traffic(test, ifobj_rx, ifobj_tx);
 }
@@ -1422,16 +1428,18 @@ static int testapp_validate_traffic_single_thread(struct test_spec *test, struct
 	return __testapp_validate_traffic(test, ifobj, NULL);
 }
 
-static void testapp_teardown(struct test_spec *test)
+static int testapp_teardown(struct test_spec *test)
 {
 	int i;
 
 	test_spec_set_name(test, "TEARDOWN");
 	for (i = 0; i < MAX_TEARDOWN_ITER; i++) {
 		if (testapp_validate_traffic(test))
-			return;
+			return TEST_FAILURE;
 		test_spec_reset(test);
 	}
+
+	return TEST_PASS;
 }
 
 static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
@@ -1446,20 +1454,23 @@ static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
 	*ifobj2 = tmp_ifobj;
 }
 
-static void testapp_bidi(struct test_spec *test)
+static int testapp_bidi(struct test_spec *test)
 {
+	int res;
+
 	test_spec_set_name(test, "BIDIRECTIONAL");
 	test->ifobj_tx->rx_on = true;
 	test->ifobj_rx->tx_on = true;
 	test->total_steps = 2;
 	if (testapp_validate_traffic(test))
-		return;
+		return TEST_FAILURE;
 
 	print_verbose("Switching Tx/Rx vectors\n");
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
-	__testapp_validate_traffic(test, test->ifobj_rx, test->ifobj_tx);
+	res = __testapp_validate_traffic(test, test->ifobj_rx, test->ifobj_tx);
 
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
+	return res;
 }
 
 static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
@@ -1476,115 +1487,94 @@ static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj
 		exit_with_error(errno);
 }
 
-static void testapp_bpf_res(struct test_spec *test)
+static int testapp_bpf_res(struct test_spec *test)
 {
 	test_spec_set_name(test, "BPF_RES");
 	test->total_steps = 2;
 	test->nb_sockets = 2;
 	if (testapp_validate_traffic(test))
-		return;
+		return TEST_FAILURE;
 
 	swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_headroom(struct test_spec *test)
+static int testapp_headroom(struct test_spec *test)
 {
 	test_spec_set_name(test, "UMEM_HEADROOM");
 	test->ifobj_rx->umem->frame_headroom = UMEM_HEADROOM_TEST_SIZE;
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_stats_rx_dropped(struct test_spec *test)
+static int testapp_stats_rx_dropped(struct test_spec *test)
 {
 	test_spec_set_name(test, "STAT_RX_DROPPED");
+	if (test->mode == TEST_MODE_ZC) {
+		ksft_test_result_skip("Can not run RX_DROPPED test for ZC mode\n");
+		return TEST_SKIP;
+	}
+
 	pkt_stream_replace_half(test, MIN_PKT_SIZE * 4, 0);
 	test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
 		XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 3;
 	pkt_stream_receive_half(test);
 	test->ifobj_rx->validation_func = validate_rx_dropped;
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_stats_tx_invalid_descs(struct test_spec *test)
+static int testapp_stats_tx_invalid_descs(struct test_spec *test)
 {
 	test_spec_set_name(test, "STAT_TX_INVALID");
 	pkt_stream_replace_half(test, XSK_UMEM__INVALID_FRAME_SIZE, 0);
 	test->ifobj_tx->validation_func = validate_tx_invalid_descs;
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_stats_rx_full(struct test_spec *test)
+static int testapp_stats_rx_full(struct test_spec *test)
 {
 	test_spec_set_name(test, "STAT_RX_FULL");
 	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
 	test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem,
 							 DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
-	if (!test->ifobj_rx->pkt_stream)
-		exit_with_error(ENOMEM);
 
 	test->ifobj_rx->xsk->rxqsize = DEFAULT_UMEM_BUFFERS;
 	test->ifobj_rx->release_rx = false;
 	test->ifobj_rx->validation_func = validate_rx_full;
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_stats_fill_empty(struct test_spec *test)
+static int testapp_stats_fill_empty(struct test_spec *test)
 {
 	test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
 	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
 	test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem,
 							 DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
-	if (!test->ifobj_rx->pkt_stream)
-		exit_with_error(ENOMEM);
 
 	test->ifobj_rx->use_fill_ring = false;
 	test->ifobj_rx->validation_func = validate_fill_empty;
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-/* Simple test */
-static bool hugepages_present(struct ifobject *ifobject)
+static int testapp_unaligned(struct test_spec *test)
 {
-	size_t mmap_sz = 2 * ifobject->umem->num_frames * ifobject->umem->frame_size;
-	void *bufs;
-
-	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
-		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB, -1, 0);
-	if (bufs == MAP_FAILED)
-		return false;
-
-	mmap_sz = ceil_u64(mmap_sz, HUGEPAGE_SIZE) * HUGEPAGE_SIZE;
-	munmap(bufs, mmap_sz);
-	return true;
-}
-
-static bool testapp_unaligned(struct test_spec *test)
-{
-	if (!hugepages_present(test->ifobj_tx)) {
-		ksft_test_result_skip("No 2M huge pages present.\n");
-		return false;
-	}
-
 	test_spec_set_name(test, "UNALIGNED_MODE");
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
 	/* Let half of the packets straddle a 4K buffer boundary */
 	pkt_stream_replace_half(test, MIN_PKT_SIZE, -MIN_PKT_SIZE / 2);
-	testapp_validate_traffic(test);
 
-	return true;
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_single_pkt(struct test_spec *test)
+static int testapp_single_pkt(struct test_spec *test)
 {
 	struct pkt pkts[] = {{0, MIN_PKT_SIZE, 0, true}};
 
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_invalid_desc(struct test_spec *test)
+static int testapp_invalid_desc(struct test_spec *test)
 {
 	struct xsk_umem_info *umem = test->ifobj_tx->umem;
 	u64 umem_size = umem->num_frames * umem->frame_size;
@@ -1626,10 +1616,10 @@ static void testapp_invalid_desc(struct test_spec *test)
 	}
 
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_xdp_drop(struct test_spec *test)
+static int testapp_xdp_drop(struct test_spec *test)
 {
 	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
 	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
@@ -1639,10 +1629,10 @@ static void testapp_xdp_drop(struct test_spec *test)
 			       skel_rx->maps.xsk, skel_tx->maps.xsk);
 
 	pkt_stream_receive_half(test);
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_xdp_metadata_count(struct test_spec *test)
+static int testapp_xdp_metadata_count(struct test_spec *test)
 {
 	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
 	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
@@ -1663,10 +1653,10 @@ static void testapp_xdp_metadata_count(struct test_spec *test)
 	if (bpf_map_update_elem(bpf_map__fd(data_map), &key, &count, BPF_ANY))
 		exit_with_error(errno);
 
-	testapp_validate_traffic(test);
+	return testapp_validate_traffic(test);
 }
 
-static void testapp_poll_txq_tmout(struct test_spec *test)
+static int testapp_poll_txq_tmout(struct test_spec *test)
 {
 	test_spec_set_name(test, "POLL_TXQ_FULL");
 
@@ -1674,14 +1664,14 @@ static void testapp_poll_txq_tmout(struct test_spec *test)
 	/* create invalid frame by set umem frame_size and pkt length equal to 2048 */
 	test->ifobj_tx->umem->frame_size = 2048;
 	pkt_stream_replace(test, 2 * DEFAULT_PKT_CNT, 2048);
-	testapp_validate_traffic_single_thread(test, test->ifobj_tx);
+	return testapp_validate_traffic_single_thread(test, test->ifobj_tx);
 }
 
-static void testapp_poll_rxq_tmout(struct test_spec *test)
+static int testapp_poll_rxq_tmout(struct test_spec *test)
 {
 	test_spec_set_name(test, "POLL_RXQ_EMPTY");
 	test->ifobj_rx->use_poll = true;
-	testapp_validate_traffic_single_thread(test, test->ifobj_rx);
+	return testapp_validate_traffic_single_thread(test, test->ifobj_rx);
 }
 
 static int xsk_load_xdp_programs(struct ifobject *ifobj)
@@ -1696,6 +1686,22 @@ static int xsk_load_xdp_programs(struct ifobject *ifobj)
 static void xsk_unload_xdp_programs(struct ifobject *ifobj)
 {
 	xsk_xdp_progs__destroy(ifobj->xdp_progs);
+}
+
+/* Simple test */
+static bool hugepages_present(void)
+{
+	size_t mmap_sz = 2 * DEFAULT_UMEM_BUFFERS * XSK_UMEM__DEFAULT_FRAME_SIZE;
+	void *bufs;
+
+	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, MAP_HUGE_2MB);
+	if (bufs == MAP_FAILED)
+		return false;
+
+	mmap_sz = ceil_u64(mmap_sz, HUGEPAGE_SIZE) * HUGEPAGE_SIZE;
+	munmap(bufs, mmap_sz);
+	return true;
 }
 
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
@@ -1713,94 +1719,87 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 		printf("Error loading XDP program\n");
 		exit_with_error(err);
 	}
+
+	if (hugepages_present())
+		ifobj->unaligned_supp = true;
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
 {
+	int ret = TEST_SKIP;
+
 	switch (type) {
 	case TEST_TYPE_STATS_RX_DROPPED:
-		if (mode == TEST_MODE_ZC) {
-			ksft_test_result_skip("Can not run RX_DROPPED test for ZC mode\n");
-			return;
-		}
-		testapp_stats_rx_dropped(test);
+		ret = testapp_stats_rx_dropped(test);
 		break;
 	case TEST_TYPE_STATS_TX_INVALID_DESCS:
-		testapp_stats_tx_invalid_descs(test);
+		ret = testapp_stats_tx_invalid_descs(test);
 		break;
 	case TEST_TYPE_STATS_RX_FULL:
-		testapp_stats_rx_full(test);
+		ret = testapp_stats_rx_full(test);
 		break;
 	case TEST_TYPE_STATS_FILL_EMPTY:
-		testapp_stats_fill_empty(test);
+		ret = testapp_stats_fill_empty(test);
 		break;
 	case TEST_TYPE_TEARDOWN:
-		testapp_teardown(test);
+		ret = testapp_teardown(test);
 		break;
 	case TEST_TYPE_BIDI:
-		testapp_bidi(test);
+		ret = testapp_bidi(test);
 		break;
 	case TEST_TYPE_BPF_RES:
-		testapp_bpf_res(test);
+		ret = testapp_bpf_res(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION:
 		test_spec_set_name(test, "RUN_TO_COMPLETION");
-		testapp_validate_traffic(test);
+		ret = testapp_validate_traffic(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT:
 		test_spec_set_name(test, "RUN_TO_COMPLETION_SINGLE_PKT");
-		testapp_single_pkt(test);
+		ret = testapp_single_pkt(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_2K_FRAME:
 		test_spec_set_name(test, "RUN_TO_COMPLETION_2K_FRAME_SIZE");
 		test->ifobj_tx->umem->frame_size = 2048;
 		test->ifobj_rx->umem->frame_size = 2048;
 		pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE);
-		testapp_validate_traffic(test);
+		ret = testapp_validate_traffic(test);
 		break;
 	case TEST_TYPE_RX_POLL:
 		test->ifobj_rx->use_poll = true;
 		test_spec_set_name(test, "POLL_RX");
-		testapp_validate_traffic(test);
+		ret = testapp_validate_traffic(test);
 		break;
 	case TEST_TYPE_TX_POLL:
 		test->ifobj_tx->use_poll = true;
 		test_spec_set_name(test, "POLL_TX");
-		testapp_validate_traffic(test);
+		ret = testapp_validate_traffic(test);
 		break;
 	case TEST_TYPE_POLL_TXQ_TMOUT:
-		testapp_poll_txq_tmout(test);
+		ret = testapp_poll_txq_tmout(test);
 		break;
 	case TEST_TYPE_POLL_RXQ_TMOUT:
-		testapp_poll_rxq_tmout(test);
+		ret = testapp_poll_rxq_tmout(test);
 		break;
 	case TEST_TYPE_ALIGNED_INV_DESC:
 		test_spec_set_name(test, "ALIGNED_INV_DESC");
-		testapp_invalid_desc(test);
+		ret = testapp_invalid_desc(test);
 		break;
 	case TEST_TYPE_ALIGNED_INV_DESC_2K_FRAME:
 		test_spec_set_name(test, "ALIGNED_INV_DESC_2K_FRAME_SIZE");
 		test->ifobj_tx->umem->frame_size = 2048;
 		test->ifobj_rx->umem->frame_size = 2048;
-		testapp_invalid_desc(test);
+		ret = testapp_invalid_desc(test);
 		break;
 	case TEST_TYPE_UNALIGNED_INV_DESC:
-		if (!hugepages_present(test->ifobj_tx)) {
-			ksft_test_result_skip("No 2M huge pages present.\n");
-			return;
-		}
 		test_spec_set_name(test, "UNALIGNED_INV_DESC");
 		test->ifobj_tx->umem->unaligned_mode = true;
 		test->ifobj_rx->umem->unaligned_mode = true;
-		testapp_invalid_desc(test);
+		ret = testapp_invalid_desc(test);
 		break;
 	case TEST_TYPE_UNALIGNED_INV_DESC_4K1_FRAME: {
 		u64 page_size, umem_size;
 
-		if (!hugepages_present(test->ifobj_tx)) {
-			ksft_test_result_skip("No 2M huge pages present.\n");
-			return;
-		}
 		test_spec_set_name(test, "UNALIGNED_INV_DESC_4K1_FRAME_SIZE");
 		/* Odd frame size so the UMEM doesn't end near a page boundary. */
 		test->ifobj_tx->umem->frame_size = 4001;
@@ -1814,27 +1813,26 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		umem_size = test->ifobj_tx->umem->num_frames * test->ifobj_tx->umem->frame_size;
 		assert(umem_size % page_size > MIN_PKT_SIZE);
 		assert(umem_size % page_size < page_size - MIN_PKT_SIZE);
-		testapp_invalid_desc(test);
+		ret = testapp_invalid_desc(test);
 		break;
 	}
 	case TEST_TYPE_UNALIGNED:
-		if (!testapp_unaligned(test))
-			return;
+		ret = testapp_unaligned(test);
 		break;
 	case TEST_TYPE_HEADROOM:
-		testapp_headroom(test);
+		ret = testapp_headroom(test);
 		break;
 	case TEST_TYPE_XDP_DROP_HALF:
-		testapp_xdp_drop(test);
+		ret = testapp_xdp_drop(test);
 		break;
 	case TEST_TYPE_XDP_METADATA_COUNT:
-		testapp_xdp_metadata_count(test);
+		ret = testapp_xdp_metadata_count(test);
 		break;
 	default:
 		break;
 	}
 
-	if (!test->fail)
+	if (ret == TEST_PASS)
 		ksft_test_result_pass("PASS: %s %s%s\n", mode_string(test), busy_poll_string(test),
 				      test->name);
 	pkt_stream_restore_default(test);

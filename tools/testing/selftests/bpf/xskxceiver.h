@@ -30,6 +30,7 @@
 #define TEST_PASS 0
 #define TEST_FAILURE -1
 #define TEST_CONTINUE 1
+#define TEST_SKIP 2
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 16
 #define MAX_SOCKETS 2
@@ -148,6 +149,7 @@ struct ifobject {
 	bool release_rx;
 	bool shared_umem;
 	bool use_metadata;
+	bool unaligned_supp;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
