@@ -117,9 +117,11 @@ mm_closed:
 	if (ret)
 		goto out;
 
-	ret = sg_alloc_table_from_pages(&vma->userptr.sgt, pages, pinned,
-					0, (u64)pinned << PAGE_SHIFT,
-					GFP_KERNEL);
+	ret = sg_alloc_table_from_pages_segment(&vma->userptr.sgt, pages,
+						pinned, 0,
+						(u64)pinned << PAGE_SHIFT,
+						xe_sg_segment_size(xe->drm.dev),
+						GFP_KERNEL);
 	if (ret) {
 		vma->userptr.sg = NULL;
 		goto out;

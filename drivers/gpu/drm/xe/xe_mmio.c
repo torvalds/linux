@@ -11,6 +11,7 @@
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
+#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
@@ -26,11 +27,7 @@ static int xe_set_dma_info(struct xe_device *xe)
 	unsigned int mask_size = xe->info.dma_mask_size;
 	int err;
 
-	/*
-	 * We don't have a max segment size, so set it to the max so sg's
-	 * debugging layer doesn't complain
-	 */
-	dma_set_max_seg_size(xe->drm.dev, UINT_MAX);
+	dma_set_max_seg_size(xe->drm.dev, xe_sg_segment_size(xe->drm.dev));
 
 	err = dma_set_mask(xe->drm.dev, DMA_BIT_MASK(mask_size));
 	if (err)

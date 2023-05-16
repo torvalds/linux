@@ -296,6 +296,30 @@ void xe_bo_put_commit(struct llist_head *deferred);
 
 struct sg_table *xe_bo_get_sg(struct xe_bo *bo);
 
+/*
+ * xe_sg_segment_size() - Provides upper limit for sg segment size.
+ * @dev: device pointer
+ *
+ * Returns the maximum segment size for the 'struct scatterlist'
+ * elements.
+ */
+static inline unsigned int xe_sg_segment_size(struct device *dev)
+{
+	struct scatterlist __maybe_unused sg;
+	size_t max = BIT_ULL(sizeof(sg.length) * 8) - 1;
+
+	max = min_t(size_t, max, dma_max_mapping_size(dev));
+
+	/*
+	 * The iommu_dma_map_sg() function ensures iova allocation doesn't
+	 * cross dma segment boundary. It does so by padding some sg elements.
+	 * This can cause overflow, ending up with sg->length being set to 0.
+	 * Avoid this by ensuring maximum segment size is half of 'max'
+	 * rounded down to PAGE_SIZE.
+	 */
+	return round_down(max / 2, PAGE_SIZE);
+}
+
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
 /**
  * xe_bo_is_mem_type - Whether the bo currently resides in the given

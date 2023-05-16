@@ -251,9 +251,11 @@ static int xe_tt_map_sg(struct ttm_tt *tt)
 	if (xe_tt->sg)
 		return 0;
 
-	ret = sg_alloc_table_from_pages(&xe_tt->sgt, tt->pages, num_pages,
-					0, (u64)num_pages << PAGE_SHIFT,
-					GFP_KERNEL);
+	ret = sg_alloc_table_from_pages_segment(&xe_tt->sgt, tt->pages,
+						num_pages, 0,
+						(u64)num_pages << PAGE_SHIFT,
+						xe_sg_segment_size(xe_tt->dev),
+						GFP_KERNEL);
 	if (ret)
 		return ret;
 
