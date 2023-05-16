@@ -16,6 +16,7 @@
 #define AEGIS_BLOCK_SIZE	16
 
 #include <stddef.h>
+#include "aegis-neon.h"
 
 extern int aegis128_have_aes_insn;
 
