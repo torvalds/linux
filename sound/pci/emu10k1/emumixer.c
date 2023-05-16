@@ -311,28 +311,89 @@ static const unsigned short emu1010_input_dst[] = {
 };
 static_assert(ARRAY_SIZE(emu1010_input_dst) == ARRAY_SIZE(emu1010_input_texts));
 
+struct snd_emu1010_routing_info {
+	const char * const *src_texts;
+	const unsigned short *src_regs;
+	const unsigned short *out_regs;
+	const unsigned short *in_regs;
+	unsigned n_srcs;
+	unsigned n_outs;
+	unsigned n_ins;
+};
+
+const struct snd_emu1010_routing_info emu1010_routing_info[] = {
+	{
+		.src_regs = emu1010_src_regs,
+		.src_texts = emu1010_src_texts,
+		.n_srcs = ARRAY_SIZE(emu1010_src_texts),
+
+		.out_regs = emu1010_output_dst,
+		.n_outs = ARRAY_SIZE(emu1010_output_dst),
+
+		.in_regs = emu1010_input_dst,
+		.n_ins = ARRAY_SIZE(emu1010_input_dst),
+	},
+	{
+		/* 1616(m) cardbus */
+		.src_regs = emu1616_src_regs,
+		.src_texts = emu1616_src_texts,
+		.n_srcs = ARRAY_SIZE(emu1616_src_texts),
+
+		.out_regs = emu1616_output_dst,
+		.n_outs = ARRAY_SIZE(emu1616_output_dst),
+
+		.in_regs = emu1010_input_dst,
+		.n_ins = ARRAY_SIZE(emu1010_input_dst) - 6,
+	},
+};
+
+static unsigned emu1010_idx(struct snd_emu10k1 *emu)
+{
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
+		return 1;
+	else
+		return 0;
+}
+
+static void snd_emu1010_output_source_apply(struct snd_emu10k1 *emu,
+					    int channel, int src)
+{
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		emu_ri->out_regs[channel], emu_ri->src_regs[src]);
+}
+
+static void snd_emu1010_input_source_apply(struct snd_emu10k1 *emu,
+					   int channel, int src)
+{
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		emu_ri->in_regs[channel], emu_ri->src_regs[src]);
+}
+
 static int snd_emu1010_input_output_source_info(struct snd_kcontrol *kcontrol,
 						struct snd_ctl_elem_info *uinfo)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
 
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
-		return snd_ctl_enum_info(uinfo, 1, 49, emu1616_src_texts);
-	else
-		return snd_ctl_enum_info(uinfo, 1, 53, emu1010_src_texts);
+	return snd_ctl_enum_info(uinfo, 1, emu_ri->n_srcs, emu_ri->src_texts);
 }
 
 static int snd_emu1010_output_source_get(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned int channel;
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+	unsigned channel = kcontrol->private_value;
 
-	channel = (kcontrol->private_value) & 0xff;
-	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
-	if (channel >= 24 ||
-	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
-	     channel >= 18))
+	if (channel >= emu_ri->n_outs)
 		return -EINVAL;
 	ucontrol->value.enumerated.item[0] = emu->emu1010.output_source[channel];
 	return 0;
@@ -342,30 +403,22 @@ static int snd_emu1010_output_source_put(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned int val;
-	unsigned int channel;
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+	unsigned val = ucontrol->value.enumerated.item[0];
+	unsigned channel = kcontrol->private_value;
+	int change;
 
-	val = ucontrol->value.enumerated.item[0];
-	if (val >= 53 ||
-	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
-	     val >= 49))
+	if (val >= emu_ri->n_srcs)
 		return -EINVAL;
-	channel = (kcontrol->private_value) & 0xff;
-	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
-	if (channel >= 24 ||
-	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
-	     channel >= 18))
+	if (channel >= emu_ri->n_outs)
 		return -EINVAL;
-	if (emu->emu1010.output_source[channel] == val)
-		return 0;
-	emu->emu1010.output_source[channel] = val;
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			emu1616_output_dst[channel], emu1616_src_regs[val]);
-	else
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			emu1010_output_dst[channel], emu1010_src_regs[val]);
-	return 1;
+	change = (emu->emu1010.output_source[channel] != val);
+	if (change) {
+		emu->emu1010.output_source[channel] = val;
+		snd_emu1010_output_source_apply(emu, channel, val);
+	}
+	return change;
 }
 
 static const struct snd_kcontrol_new emu1010_output_source_ctl = {
@@ -380,11 +433,11 @@ static int snd_emu1010_input_source_get(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned int channel;
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+	unsigned channel = kcontrol->private_value;
 
-	channel = (kcontrol->private_value) & 0xff;
-	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
-	if (channel >= 22)
+	if (channel >= emu_ri->n_ins)
 		return -EINVAL;
 	ucontrol->value.enumerated.item[0] = emu->emu1010.input_source[channel];
 	return 0;
@@ -394,28 +447,22 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned int val;
-	unsigned int channel;
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+	unsigned val = ucontrol->value.enumerated.item[0];
+	unsigned channel = kcontrol->private_value;
+	int change;
 
-	val = ucontrol->value.enumerated.item[0];
-	if (val >= 53 ||
-	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
-	     val >= 49))
+	if (val >= emu_ri->n_srcs)
 		return -EINVAL;
-	channel = (kcontrol->private_value) & 0xff;
-	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
-	if (channel >= 22)
+	if (channel >= emu_ri->n_ins)
 		return -EINVAL;
-	if (emu->emu1010.input_source[channel] == val)
-		return 0;
-	emu->emu1010.input_source[channel] = val;
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			emu1010_input_dst[channel], emu1616_src_regs[val]);
-	else
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			emu1010_input_dst[channel], emu1010_src_regs[val]);
-	return 1;
+	change = (emu->emu1010.input_source[channel] != val);
+	if (change) {
+		emu->emu1010.input_source[channel] = val;
+		snd_emu1010_input_source_apply(emu, channel, val);
+	}
+	return change;
 }
 
 static const struct snd_kcontrol_new emu1010_input_source_ctl = {
