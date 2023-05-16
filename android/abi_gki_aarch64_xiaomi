@@ -204,3 +204,9 @@
   __tracepoint_android_vh_binder_trans
   __tracepoint_android_vh_binder_reply
   __tracepoint_android_vh_binder_alloc_new_buf_locked
+
+#required by io_limit.ko
+  __traceiter_android_vh_psi_event
+  __traceiter_android_vh_psi_group
+  __tracepoint_android_vh_psi_event
+  __tracepoint_android_vh_psi_group
