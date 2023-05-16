@@ -404,6 +404,14 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 //   distortion), the modulation engine sets the target registers, towards
 //   which the current registers "swerve" gradually.
 
+// For the odd channel in a stereo pair, these registers are meaningless:
+//   CPF_STEREO, CPF_CURRENTPITCH, PTRX_PITCHTARGET, CCR_CACHEINVALIDSIZE,
+//   PSST_LOOPSTARTADDR, DSL_LOOPENDADDR, CCCA_CURRADDR
+// The somewhat non-obviously still meaningful ones are:
+//   CPF_STOP, CPF_FRACADDRESS, CCR_READADDRESS (!),
+//   CCCA_INTERPROM, CCCA_8BITSELECT (!)
+// (The envelope engine is ignored here, as stereo matters only for verbatim playback.)
+
 #define CPF			0x00		/* Current pitch and fraction register			*/
 SUB_REG(CPF, CURRENTPITCH,	0xffff0000)	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
 #define CPF_STEREO_MASK		0x00008000	/* 1 = Even channel interleave, odd channel locked	*/
