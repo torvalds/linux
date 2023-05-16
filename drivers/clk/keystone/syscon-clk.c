@@ -101,10 +101,10 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	regmap = syscon_node_to_regmap(dev->of_node);
+	regmap = device_node_to_regmap(dev->of_node);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap),
-				     "failed to find parent regmap\n");
+				     "failed to get regmap\n");
 
 	num_clks = 0;
 	for (p = data; p->name; p++)
