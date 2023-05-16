@@ -424,6 +424,22 @@ nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev, u32 *supp_modes)
 	return ffs(tmp);
 }
 
+static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
+{
+	u32 inst_mask;
+	int i;
+
+	WREG32_SOC15(NBIO, 0, regXCC_DOORBELL_FENCE,
+		0xff & ~(adev->gfx.xcc_mask));
+
+	inst_mask = adev->aid_mask & ~1U;
+	for_each_inst(i, inst_mask) {
+		WREG32_SOC15_EXT(NBIO, i, regXCC_DOORBELL_FENCE, i,
+			XCC_DOORBELL_FENCE__SHUB_SLV_MODE_MASK);
+
+	}
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_9_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_9_get_hdp_flush_done_offset,
@@ -447,4 +463,5 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_compute_partition_mode = nbio_v7_9_get_compute_partition_mode,
 	.set_compute_partition_mode = nbio_v7_9_set_compute_partition_mode,
 	.get_memory_partition_mode = nbio_v7_9_get_memory_partition_mode,
+	.init_registers = nbio_v7_9_init_registers,
 };
