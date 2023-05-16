@@ -204,6 +204,8 @@
 		status = "okay";
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk3308_reset>;
 	};
 
 	car_rk3308_sound: car-rk3308-sound {
@@ -544,6 +546,12 @@
 	wireless-wlan {
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	rk3308 {
+		rk3308_reset: rk3308-reset {
+			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
