@@ -23,11 +23,13 @@ properties:
   clocks:
     items:
       - description: Board XO source
+      - description: Board active XO source
       - description: Sleep clock source
 
   clock-names:
     items:
       - const: bi_tcxo
+      - const: bi_tcxo_ao
       - const: sleep_clk
 
 required:
@@ -47,8 +49,9 @@ examples:
       compatible = "qcom,gcc-sm8250";
       reg = <0x00100000 0x1f0000>;
       clocks = <&rpmhcc RPMH_CXO_CLK>,
+               <&rpmhcc RPMH_CXO_CLK_A>,
                <&sleep_clk>;
-      clock-names = "bi_tcxo", "sleep_clk";
+      clock-names = "bi_tcxo", "bi_tcxo_ao", "sleep_clk";
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;
