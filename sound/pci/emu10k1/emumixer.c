@@ -1196,11 +1196,8 @@ static void update_emu10k1_send_volume(struct snd_emu10k1 *emu, int voice, unsig
 	snd_emu10k1_ptr_write(emu, PSST_FXSENDAMOUNT_C, voice, volume[2]);
 	snd_emu10k1_ptr_write(emu, DSL_FXSENDAMOUNT_D, voice, volume[3]);
 	if (emu->audigy) {
-		unsigned int val = ((unsigned int)volume[4] << 24) |
-			((unsigned int)volume[5] << 16) |
-			((unsigned int)volume[6] << 8) |
-			(unsigned int)volume[7];
-		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, voice, val);
+		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, voice,
+				      snd_emu10k1_compose_audigy_sendamounts(volume));
 	}
 }
 

@@ -316,10 +316,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		snd_emu10k1_ptr_write(emu, A_FXRT2, voice,
 				      snd_emu10k1_compose_audigy_fxrt2(send_routing));
 		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, voice,
-				      ((unsigned int)send_amount[4] << 24) |
-				      ((unsigned int)send_amount[5] << 16) |
-				      ((unsigned int)send_amount[6] << 8) |
-				      (unsigned int)send_amount[7]);
+				      snd_emu10k1_compose_audigy_sendamounts(send_amount));
 	} else
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));

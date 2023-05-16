@@ -1501,6 +1501,9 @@ struct snd_emu10k1_pcm_mixer {
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
 ((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
 
+#define snd_emu10k1_compose_audigy_sendamounts(vol) \
+(((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
+
 struct snd_emu10k1_memblk {
 	struct snd_util_memblk mem;
 	/* private part */
