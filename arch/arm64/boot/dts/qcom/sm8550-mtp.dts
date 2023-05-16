@@ -419,10 +419,6 @@
 	};
 };
 
-&dispcc {
-	status = "okay";
-};
-
 &mdss {
 	status = "okay";
 };
