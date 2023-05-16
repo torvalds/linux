@@ -233,7 +233,7 @@ static void hfi_sys_init_done(struct venus_core *core, struct venus_inst *inst,
 		goto done;
 	}
 
-	rem_bytes = pkt->hdr.size - sizeof(*pkt) + sizeof(u32);
+	rem_bytes = pkt->hdr.size - sizeof(*pkt);
 	if (rem_bytes <= 0) {
 		/* missing property data */
 		error = HFI_ERR_SYS_INSUFFICIENT_RESOURCES;
@@ -434,7 +434,7 @@ static void hfi_session_init_done(struct venus_core *core,
 	if (!IS_V1(core))
 		goto done;
 
-	rem_bytes = pkt->shdr.hdr.size - sizeof(*pkt) + sizeof(u32);
+	rem_bytes = pkt->shdr.hdr.size - sizeof(*pkt);
 	if (rem_bytes <= 0) {
 		error = HFI_ERR_SESSION_INSUFFICIENT_RESOURCES;
 		goto done;
