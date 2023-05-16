@@ -45,6 +45,8 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
 
+#define GOLDEN_GB_ADDR_CONFIG 0x2a114042
+
 struct amdgpu_gfx_ras gfx_v9_4_3_ras;
 
 static void gfx_v9_4_3_set_ring_funcs(struct amdgpu_device *adev);
@@ -195,6 +197,15 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 		dev_inst = GET_INST(GC, i);
 		if (dev_inst >= 2)
 			WREG32_SOC15(GC, dev_inst, regGRBM_MCM_ADDR, 0x4);
+
+		/* Golden settings applied by driver for ASIC with rev_id 0 */
+		if (adev->rev_id == 0) {
+			WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
+				     GOLDEN_GB_ADDR_CONFIG);
+
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
+					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		}
 	}
 }
 
