@@ -22,6 +22,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/i2c-smbus.h>
 
+#define FPGA
+
 /*
  * APB clk : 100Mhz
  * div	: scl		: baseclk [APB/((div/2) + 1)] : tBuf [1/bclk * 16]
@@ -51,7 +53,11 @@
 #define AST2600_GLOBAL_INIT				\
 			(AST2600_I2CG_CTRL_NEW_REG |	\
 			AST2600_I2CG_CTRL_NEW_CLK_DIV)
+#ifndef FPGA
 #define I2CCG_DIV_CTRL 0xC6411208
+#else
+#define I2CCG_DIV_CTRL 0x16060100
+#endif
 
 /* 0x00 : I2CC Master/Slave Function Control Register  */
 #define AST2600_I2CC_FUN_CTRL		0x00
@@ -487,7 +493,6 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 		/* it should be repeat start read */
 		if (sts & AST2600_I2CS_SLAVE_MATCH)
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
-
 		slave_rx_len = AST2600_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
 						      AST2600_I2CS_DMA_LEN_STS));
 		for (i = 0; i < slave_rx_len; i++) {
@@ -545,6 +550,7 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 		writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
 	writel(AST2600_I2CS_PKT_DONE, i2c_bus->reg_base + AST2600_I2CS_ISR);
 	readl(i2c_bus->reg_base + AST2600_I2CS_ISR);
+
 }
 
 static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u32 sts)
@@ -1526,6 +1532,7 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 
 	if (i2c_bus->mode == BUFF_MODE) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+
 		if (res && resource_size(res) >= 2) {
 			i2c_bus->buf_base = devm_ioremap_resource(dev, res);
 
@@ -1558,7 +1565,11 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_bus->clk))
 		return dev_err_probe(i2c_bus->dev, PTR_ERR(i2c_bus->clk), "Can't get clock\n");
 
+#ifndef FPGA
 	i2c_bus->apb_clk = clk_get_rate(i2c_bus->clk);
+#else
+	i2c_bus->apb_clk = 12000000;
+#endif
 
 	ret = of_property_read_u32(dev->of_node, "clock-frequency", &i2c_bus->bus_frequency);
 	if (ret < 0) {
