@@ -1386,8 +1386,8 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	void **ipc_config_data;
 	int *ipc_config_size;
 	u32 **data;
-	int ipc_size, ret;
-	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
+	int ipc_size, ret, out_ref_valid_bits;
+	u32 out_ref_rate, out_ref_channels;
 	u32 deep_buffer_dma_ms = 0;
 	int output_fmt_index;
 
