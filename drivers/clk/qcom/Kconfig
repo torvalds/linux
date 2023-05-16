@@ -1066,6 +1066,15 @@ config SM_GPUCC_HOLI
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_DISPCC_HOLI
+	tristate "HOLI Display Clock Controller"
+	select SM_GCC_HOLI
+	help
+	  Support for the display clock controller on Qualcomm Technologies,
+	  Inc. HOLI devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 endif
 
 config VIRTIO_CLK
