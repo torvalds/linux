@@ -1233,9 +1233,17 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
 
+/*
+ * Whether or not this filesystem is using simple quotas.  Not exactly the
+ * incompat bit, because we support using simple quotas, disabling it, then
+ * going back to full qgroup quotas.
+ */
+#define BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE	(1ULL << 3)
+
 #define BTRFS_QGROUP_STATUS_FLAGS_MASK	(BTRFS_QGROUP_STATUS_FLAG_ON |		\
 					 BTRFS_QGROUP_STATUS_FLAG_RESCAN |	\
-					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT)
+					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT | \
+					 BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE)
 
 #define BTRFS_QGROUP_STATUS_VERSION        1
 

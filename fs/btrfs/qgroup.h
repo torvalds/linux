@@ -101,8 +101,15 @@
  *     subtree rescan for them.
  */
 
-#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1UL << 3)
-#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1UL << 4)
+/*
+ * These flags share the flags field of the btrfs_qgroup_status_item with the
+ * persisted flags defined in btrfs_tree.h.
+ *
+ * To minimize the chance of collision with new persisted status flags, these
+ * count backwards from the MSB.
+ */
+#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1ULL << 63)
+#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1ULL << 62)
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
@@ -276,13 +283,17 @@ enum {
 	ENUM_BIT(QGROUP_FREE),
 };
 
-int btrfs_quota_enable(struct btrfs_fs_info *fs_info);
 enum btrfs_qgroup_mode {
 	BTRFS_QGROUP_MODE_DISABLED,
 	BTRFS_QGROUP_MODE_FULL,
+	BTRFS_QGROUP_MODE_SIMPLE
 };
 
 enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_enabled(struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_full_accounting(struct btrfs_fs_info *fs_info);
+int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
+		       struct btrfs_ioctl_quota_ctl_args *quota_ctl_args);
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);

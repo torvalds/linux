@@ -1620,11 +1620,10 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	int ret;
 
 	/*
-	 * Save some performance in the case that qgroups are not
-	 * enabled. If this check races with the ioctl, rescan will
-	 * kick in anyway.
+	 * Save some performance in the case that full qgroups are not enabled.
+	 * If this check races with the ioctl, rescan will kick in anyway.
 	 */
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 0;
 
 	/*
