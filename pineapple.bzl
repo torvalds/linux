@@ -237,6 +237,7 @@ def define_pineapple():
         "drivers/usb/repeater/repeater.ko",
         "drivers/usb/repeater/repeater-qti-pmic-eusb2.ko",
         "drivers/usb/typec/ucsi/ucsi_glink.ko",
+        "drivers/virt/gunyah/gh_ctrl.ko",
         "drivers/virt/gunyah/gh_dbl.ko",
         "drivers/virt/gunyah/gh_irq_lend.ko",
         "drivers/virt/gunyah/gh_mem_notifier.ko",
