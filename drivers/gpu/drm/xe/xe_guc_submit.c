@@ -1594,75 +1594,234 @@ int xe_guc_engine_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	return 0;
 }
 
-static void guc_engine_wq_print(struct xe_engine *e, struct drm_printer *p)
+static void
+guc_engine_wq_snapshot_capture(struct xe_engine *e,
+			       struct xe_guc_submit_engine_snapshot *snapshot)
 {
 	struct xe_guc *guc = engine_to_guc(e);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct iosys_map map = xe_lrc_parallel_map(e->lrc);
 	int i;
 
+	snapshot->guc.wqi_head = e->guc->wqi_head;
+	snapshot->guc.wqi_tail = e->guc->wqi_tail;
+	snapshot->parallel.wq_desc.head = parallel_read(xe, map, wq_desc.head);
+	snapshot->parallel.wq_desc.tail = parallel_read(xe, map, wq_desc.tail);
+	snapshot->parallel.wq_desc.status = parallel_read(xe, map,
+							  wq_desc.wq_status);
+
+	if (snapshot->parallel.wq_desc.head !=
+	    snapshot->parallel.wq_desc.tail) {
+		for (i = snapshot->parallel.wq_desc.head;
+		     i != snapshot->parallel.wq_desc.tail;
+		     i = (i + sizeof(u32)) % WQ_SIZE)
+			snapshot->parallel.wq[i / sizeof(u32)] =
+				parallel_read(xe, map, wq[i / sizeof(u32)]);
+	}
+}
+
+static void
+guc_engine_wq_snapshot_print(struct xe_guc_submit_engine_snapshot *snapshot,
+			     struct drm_printer *p)
+{
+	int i;
+
 	drm_printf(p, "\tWQ head: %u (internal), %d (memory)\n",
-		   e->guc->wqi_head, parallel_read(xe, map, wq_desc.head));
+		   snapshot->guc.wqi_head, snapshot->parallel.wq_desc.head);
 	drm_printf(p, "\tWQ tail: %u (internal), %d (memory)\n",
-		   e->guc->wqi_tail, parallel_read(xe, map, wq_desc.tail));
-	drm_printf(p, "\tWQ status: %u\n",
-		   parallel_read(xe, map, wq_desc.wq_status));
-	if (parallel_read(xe, map, wq_desc.head) !=
-	    parallel_read(xe, map, wq_desc.tail)) {
-		for (i = parallel_read(xe, map, wq_desc.head);
-		     i != parallel_read(xe, map, wq_desc.tail);
+		   snapshot->guc.wqi_tail, snapshot->parallel.wq_desc.tail);
+	drm_printf(p, "\tWQ status: %u\n", snapshot->parallel.wq_desc.status);
+
+	if (snapshot->parallel.wq_desc.head !=
+	    snapshot->parallel.wq_desc.tail) {
+		for (i = snapshot->parallel.wq_desc.head;
+		     i != snapshot->parallel.wq_desc.tail;
 		     i = (i + sizeof(u32)) % WQ_SIZE)
 			drm_printf(p, "\tWQ[%zu]: 0x%08x\n", i / sizeof(u32),
-				   parallel_read(xe, map, wq[i / sizeof(u32)]));
+				   snapshot->parallel.wq[i / sizeof(u32)]);
 	}
+}
+
+/**
+ * xe_guc_engine_snapshot_capture - Take a quick snapshot of the GuC Engine.
+ * @e: Xe Engine.
+ *
+ * This can be printed out in a later stage like during dev_coredump
+ * analysis.
+ *
+ * Returns: a GuC Submit Engine snapshot object that must be freed by the
+ * caller, using `xe_guc_engine_snapshot_free`.
+ */
+struct xe_guc_submit_engine_snapshot *
+xe_guc_engine_snapshot_capture(struct xe_engine *e)
+{
+	struct xe_guc *guc = engine_to_guc(e);
+	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gpu_scheduler *sched = &e->guc->sched;
+	struct xe_sched_job *job;
+	struct xe_guc_submit_engine_snapshot *snapshot;
+	int i;
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+
+	if (!snapshot) {
+		drm_err(&xe->drm, "Skipping GuC Engine snapshot entirely.\n");
+		return NULL;
+	}
+
+	snapshot->guc.id = e->guc->id;
+	memcpy(&snapshot->name, &e->name, sizeof(snapshot->name));
+	snapshot->class = e->class;
+	snapshot->logical_mask = e->logical_mask;
+	snapshot->width = e->width;
+	snapshot->refcount = kref_read(&e->refcount);
+	snapshot->sched_timeout = sched->base.timeout;
+	snapshot->sched_props.timeslice_us = e->sched_props.timeslice_us;
+	snapshot->sched_props.preempt_timeout_us =
+		e->sched_props.preempt_timeout_us;
+
+	snapshot->lrc = kmalloc_array(e->width, sizeof(struct lrc_snapshot),
+				      GFP_ATOMIC);
+
+	if (!snapshot->lrc) {
+		drm_err(&xe->drm, "Skipping GuC Engine LRC snapshot.\n");
+	} else {
+		for (i = 0; i < e->width; ++i) {
+			struct xe_lrc *lrc = e->lrc + i;
+
+			snapshot->lrc[i].context_desc =
+				lower_32_bits(xe_lrc_ggtt_addr(lrc));
+			snapshot->lrc[i].head = xe_lrc_ring_head(lrc);
+			snapshot->lrc[i].tail.internal = lrc->ring.tail;
+			snapshot->lrc[i].tail.memory =
+				xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL);
+			snapshot->lrc[i].start_seqno = xe_lrc_start_seqno(lrc);
+			snapshot->lrc[i].seqno = xe_lrc_seqno(lrc);
+		}
+	}
+
+	snapshot->schedule_state = atomic_read(&e->guc->state);
+	snapshot->engine_flags = e->flags;
+
+	snapshot->parallel_execution = xe_engine_is_parallel(e);
+	if (snapshot->parallel_execution)
+		guc_engine_wq_snapshot_capture(e, snapshot);
+
+	spin_lock(&sched->base.job_list_lock);
+	snapshot->pending_list_size = list_count_nodes(&sched->base.pending_list);
+	snapshot->pending_list = kmalloc_array(snapshot->pending_list_size,
+					       sizeof(struct pending_list_snapshot),
+					       GFP_ATOMIC);
+
+	if (!snapshot->pending_list) {
+		drm_err(&xe->drm, "Skipping GuC Engine pending_list snapshot.\n");
+	} else {
+		i = 0;
+		list_for_each_entry(job, &sched->base.pending_list, drm.list) {
+			snapshot->pending_list[i].seqno =
+				xe_sched_job_seqno(job);
+			snapshot->pending_list[i].fence =
+				dma_fence_is_signaled(job->fence) ? 1 : 0;
+			snapshot->pending_list[i].finished =
+				dma_fence_is_signaled(&job->drm.s_fence->finished)
+				? 1 : 0;
+			i++;
+		}
+	}
+
+	spin_unlock(&sched->base.job_list_lock);
+
+	return snapshot;
+}
+
+/**
+ * xe_guc_engine_snapshot_print - Print out a given GuC Engine snapshot.
+ * @snapshot: GuC Submit Engine snapshot object.
+ * @p: drm_printer where it will be printed out.
+ *
+ * This function prints out a given GuC Submit Engine snapshot object.
+ */
+void
+xe_guc_engine_snapshot_print(struct xe_guc_submit_engine_snapshot *snapshot,
+			     struct drm_printer *p)
+{
+	int i;
+
+	if (!snapshot)
+		return;
+
+	drm_printf(p, "\nGuC ID: %d\n", snapshot->guc.id);
+	drm_printf(p, "\tName: %s\n", snapshot->name);
+	drm_printf(p, "\tClass: %d\n", snapshot->class);
+	drm_printf(p, "\tLogical mask: 0x%x\n", snapshot->logical_mask);
+	drm_printf(p, "\tWidth: %d\n", snapshot->width);
+	drm_printf(p, "\tRef: %d\n", snapshot->refcount);
+	drm_printf(p, "\tTimeout: %ld (ms)\n", snapshot->sched_timeout);
+	drm_printf(p, "\tTimeslice: %u (us)\n",
+		   snapshot->sched_props.timeslice_us);
+	drm_printf(p, "\tPreempt timeout: %u (us)\n",
+		   snapshot->sched_props.preempt_timeout_us);
+
+	for (i = 0; snapshot->lrc && i < snapshot->width; ++i) {
+		drm_printf(p, "\tHW Context Desc: 0x%08x\n",
+			   snapshot->lrc[i].context_desc);
+		drm_printf(p, "\tLRC Head: (memory) %u\n",
+			   snapshot->lrc[i].head);
+		drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
+			   snapshot->lrc[i].tail.internal,
+			   snapshot->lrc[i].tail.memory);
+		drm_printf(p, "\tStart seqno: (memory) %d\n",
+			   snapshot->lrc[i].start_seqno);
+		drm_printf(p, "\tSeqno: (memory) %d\n", snapshot->lrc[i].seqno);
+	}
+	drm_printf(p, "\tSchedule State: 0x%x\n", snapshot->schedule_state);
+	drm_printf(p, "\tFlags: 0x%lx\n", snapshot->engine_flags);
+
+	if (snapshot->parallel_execution)
+		guc_engine_wq_snapshot_print(snapshot, p);
+
+	for (i = 0; snapshot->pending_list && i < snapshot->pending_list_size;
+	     i++)
+		drm_printf(p, "\tJob: seqno=%d, fence=%d, finished=%d\n",
+			   snapshot->pending_list[i].seqno,
+			   snapshot->pending_list[i].fence,
+			   snapshot->pending_list[i].finished);
+}
+
+/**
+ * xe_guc_engine_snapshot_free - Free all allocated objects for a given
+ * snapshot.
+ * @snapshot: GuC Submit Engine snapshot object.
+ *
+ * This function free all the memory that needed to be allocated at capture
+ * time.
+ */
+void xe_guc_engine_snapshot_free(struct xe_guc_submit_engine_snapshot *snapshot)
+{
+	if (!snapshot)
+		return;
+
+	kfree(snapshot->lrc);
+	kfree(snapshot->pending_list);
+	kfree(snapshot);
 }
 
 static void guc_engine_print(struct xe_engine *e, struct drm_printer *p)
 {
-	struct xe_gpu_scheduler *sched = &e->guc->sched;
-	struct xe_sched_job *job;
-	int i;
+	struct xe_guc_submit_engine_snapshot *snapshot;
 
-	drm_printf(p, "\nGuC ID: %d\n", e->guc->id);
-	drm_printf(p, "\tName: %s\n", e->name);
-	drm_printf(p, "\tClass: %d\n", e->class);
-	drm_printf(p, "\tLogical mask: 0x%x\n", e->logical_mask);
-	drm_printf(p, "\tWidth: %d\n", e->width);
-	drm_printf(p, "\tRef: %d\n", kref_read(&e->refcount));
-	drm_printf(p, "\tTimeout: %ld (ms)\n", sched->base.timeout);
-	drm_printf(p, "\tTimeslice: %u (us)\n", e->sched_props.timeslice_us);
-	drm_printf(p, "\tPreempt timeout: %u (us)\n",
-		   e->sched_props.preempt_timeout_us);
-	for (i = 0; i < e->width; ++i ) {
-		struct xe_lrc *lrc = e->lrc + i;
-
-		drm_printf(p, "\tHW Context Desc: 0x%08x\n",
-			   lower_32_bits(xe_lrc_ggtt_addr(lrc)));
-		drm_printf(p, "\tLRC Head: (memory) %u\n",
-			   xe_lrc_ring_head(lrc));
-		drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
-			   lrc->ring.tail,
-			   xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL));
-		drm_printf(p, "\tStart seqno: (memory) %d\n",
-			   xe_lrc_start_seqno(lrc));
-		drm_printf(p, "\tSeqno: (memory) %d\n", xe_lrc_seqno(lrc));
-	}
-	drm_printf(p, "\tSchedule State: 0x%x\n", atomic_read(&e->guc->state));
-	drm_printf(p, "\tFlags: 0x%lx\n", e->flags);
-	if (xe_engine_is_parallel(e))
-		guc_engine_wq_print(e, p);
-
-	spin_lock(&sched->base.job_list_lock);
-
-	list_for_each_entry(job, &sched->base.pending_list, drm.list)
-		drm_printf(p, "\tJob: seqno=%d, fence=%d, finished=%d\n",
-			   xe_sched_job_seqno(job),
-			   dma_fence_is_signaled(job->fence) ? 1 : 0,
-			   dma_fence_is_signaled(&job->drm.s_fence->finished) ?
-			   1 : 0);
-	spin_unlock(&sched->base.job_list_lock);
+	snapshot = xe_guc_engine_snapshot_capture(e);
+	xe_guc_engine_snapshot_print(snapshot, p);
+	xe_guc_engine_snapshot_free(snapshot);
 }
 
+/**
+ * xe_guc_submit_print - GuC Submit Print.
+ * @guc: GuC.
+ * @p: drm_printer where it will be printed out.
+ *
+ * This function capture and prints snapshots of **all** GuC Engines.
+ */
 void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
 {
 	struct xe_engine *e;
