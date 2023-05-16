@@ -1637,9 +1637,12 @@ struct snd_emu_chip_details {
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
 };
 
+#define NUM_OUTPUT_DESTS 28
+#define NUM_INPUT_DESTS 22
+
 struct snd_emu1010 {
-	unsigned int output_source[64];
-	unsigned int input_source[64];
+	unsigned char output_source[NUM_OUTPUT_DESTS];
+	unsigned char input_source[NUM_INPUT_DESTS];
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
 	unsigned int internal_clock; /* 44100 or 48000 */

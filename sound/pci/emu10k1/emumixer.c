@@ -273,6 +273,7 @@ static const char * const emu1010_output_texts[] = {
 	LR_CTLS("1010 SPDIF"),
 	ADAT_CTLS("1010 "),
 };
+static_assert(ARRAY_SIZE(emu1010_output_texts) <= NUM_OUTPUT_DESTS);
 
 static const unsigned short emu1010_output_dst[] = {
 	LR_REGS(EMU_DST_DOCK_DAC1),
@@ -313,6 +314,7 @@ static const char * const snd_emu1010b_output_texts[] = {
 	LR_CTLS("1010 SPDIF"),
 	ADAT_CTLS("1010 "),
 };
+static_assert(ARRAY_SIZE(snd_emu1010b_output_texts) <= NUM_OUTPUT_DESTS);
 
 static const unsigned short emu1010b_output_dst[] = {
 	LR_REGS(EMU_DST_DOCK_DAC1),
@@ -349,6 +351,7 @@ static const char * const snd_emu1616_output_texts[] = {
 	ADAT_CTLS("Dock "),
 	LR_CTLS("Mana DAC"),
 };
+static_assert(ARRAY_SIZE(snd_emu1616_output_texts) <= NUM_OUTPUT_DESTS);
 
 static const unsigned short emu1616_output_dst[] = {
 	LR_REGS(EMU_DST_DOCK_DAC1),
@@ -377,6 +380,7 @@ static const char * const snd_emu0404_output_texts[] = {
 	LR_CTLS("DAC"),
 	LR_CTLS("SPDIF"),
 };
+static_assert(ARRAY_SIZE(snd_emu0404_output_texts) <= NUM_OUTPUT_DESTS);
 
 static const unsigned short emu0404_output_dst[] = {
 	LR_REGS(EMU_DST_HAMOA_DAC),
@@ -421,6 +425,7 @@ static const char * const emu1010_input_texts[] = {
 	"DSP 14 Capture Enum",
 	"DSP 15 Capture Enum",
 };
+static_assert(ARRAY_SIZE(emu1010_input_texts) <= NUM_INPUT_DESTS);
 
 static const unsigned short emu1010_input_dst[] = {
 	EMU_DST_ALICE2_EMU32_0,
