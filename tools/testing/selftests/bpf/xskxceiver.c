@@ -444,24 +444,24 @@ static void test_spec_set_xdp_prog(struct test_spec *test, struct bpf_program *x
 static void pkt_stream_reset(struct pkt_stream *pkt_stream)
 {
 	if (pkt_stream)
-		pkt_stream->rx_pkt_nb = 0;
+		pkt_stream->current_pkt_nb = 0;
 }
 
-static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
+static struct pkt *pkt_stream_get_next_tx_pkt(struct pkt_stream *pkt_stream)
 {
-	if (pkt_nb >= pkt_stream->nb_pkts)
+	if (pkt_stream->current_pkt_nb >= pkt_stream->nb_pkts)
 		return NULL;
 
-	return &pkt_stream->pkts[pkt_nb];
+	return &pkt_stream->pkts[pkt_stream->current_pkt_nb++];
 }
 
 static struct pkt *pkt_stream_get_next_rx_pkt(struct pkt_stream *pkt_stream, u32 *pkts_sent)
 {
-	while (pkt_stream->rx_pkt_nb < pkt_stream->nb_pkts) {
+	while (pkt_stream->current_pkt_nb < pkt_stream->nb_pkts) {
 		(*pkts_sent)++;
-		if (pkt_stream->pkts[pkt_stream->rx_pkt_nb].valid)
-			return &pkt_stream->pkts[pkt_stream->rx_pkt_nb++];
-		pkt_stream->rx_pkt_nb++;
+		if (pkt_stream->pkts[pkt_stream->current_pkt_nb].valid)
+			return &pkt_stream->pkts[pkt_stream->current_pkt_nb++];
+		pkt_stream->current_pkt_nb++;
 	}
 	return NULL;
 }
@@ -584,9 +584,9 @@ static void pkt_stream_receive_half(struct test_spec *test)
 		pkt_stream->pkts[i].valid = false;
 }
 
-static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
+static struct pkt *pkt_generate(struct ifobject *ifobject)
 {
-	struct pkt *pkt = pkt_stream_get_pkt(ifobject->pkt_stream, pkt_nb);
+	struct pkt *pkt = pkt_stream_get_next_tx_pkt(ifobject->pkt_stream);
 	struct ethhdr *eth_hdr;
 	void *data;
 
@@ -599,7 +599,7 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 	eth_hdr = data;
 
 	gen_eth_hdr(ifobject, eth_hdr);
-	write_payload(data + PKT_HDR_SIZE, pkt_nb, pkt->len - PKT_HDR_SIZE);
+	write_payload(data + PKT_HDR_SIZE, pkt->pkt_nb, pkt->len - PKT_HDR_SIZE);
 
 	return pkt;
 }
@@ -883,8 +883,7 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 	return TEST_PASS;
 }
 
-static int __send_pkts(struct ifobject *ifobject, u32 *pkt_nb, struct pollfd *fds,
-		       bool timeout)
+static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeout)
 {
 	struct xsk_socket_info *xsk = ifobject->xsk;
 	bool use_poll = ifobject->use_poll;
@@ -916,14 +915,13 @@ static int __send_pkts(struct ifobject *ifobject, u32 *pkt_nb, struct pollfd *fd
 
 	for (i = 0; i < BATCH_SIZE; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
-		struct pkt *pkt = pkt_generate(ifobject, *pkt_nb);
+		struct pkt *pkt = pkt_generate(ifobject);
 
 		if (!pkt)
 			break;
 
 		tx_desc->addr = pkt->addr;
 		tx_desc->len = pkt->len;
-		(*pkt_nb)++;
 		if (pkt->valid)
 			valid_pkts++;
 	}
@@ -970,15 +968,16 @@ static void wait_for_tx_completion(struct xsk_socket_info *xsk)
 
 static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 {
+	struct pkt_stream *pkt_stream = ifobject->pkt_stream;
 	bool timeout = !is_umem_valid(test->ifobj_rx);
 	struct pollfd fds = { };
-	u32 pkt_cnt = 0, ret;
+	u32 ret;
 
 	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds.events = POLLOUT;
 
-	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
-		ret = __send_pkts(ifobject, &pkt_cnt, &fds, timeout);
+	while (pkt_stream->current_pkt_nb < pkt_stream->nb_pkts) {
+		ret = __send_pkts(ifobject, &fds, timeout);
 		if ((ret || test->fail) && !timeout)
 			return TEST_FAILURE;
 		else if (ret == TEST_PASS && timeout)
@@ -1150,7 +1149,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 		u64 addr;
 
 		if (pkt_stream->use_addr_for_fill) {
-			struct pkt *pkt = pkt_stream_get_pkt(pkt_stream, i);
+			struct pkt *pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
 
 			if (!pkt)
 				break;
@@ -1162,6 +1161,8 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
 	}
 	xsk_ring_prod__submit(&umem->fq, i);
+
+	pkt_stream_reset(pkt_stream);
 }
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
@@ -1339,9 +1340,11 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 {
 	pthread_t t0, t1;
 
-	if (ifobj2)
+	if (ifobj2) {
 		if (pthread_barrier_init(&barr, NULL, 2))
 			exit_with_error(errno);
+		pkt_stream_reset(ifobj2->pkt_stream);
+	}
 
 	test->current_step++;
 	pkt_stream_reset(ifobj1->pkt_stream);

@@ -117,7 +117,7 @@ struct pkt {
 
 struct pkt_stream {
 	u32 nb_pkts;
-	u32 rx_pkt_nb;
+	u32 current_pkt_nb;
 	struct pkt *pkts;
 	bool use_addr_for_fill;
 };
