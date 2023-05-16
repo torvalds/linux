@@ -24,6 +24,7 @@ int ssip_slave_stop_tx(struct hsi_client *master);
 void ssip_reset_event(struct hsi_client *master);
 
 int ssip_slave_running(struct hsi_client *master);
+void ssi_waketest(struct hsi_client *cl, unsigned int enable);
 
 #endif /* __LINUX_SSIP_SLAVE_H__ */
 
