@@ -574,77 +574,174 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
 		xe_hw_fence_irq_run(hwe->fence_irq);
 }
 
-void xe_hw_engine_print_state(struct xe_hw_engine *hwe, struct drm_printer *p)
+/**
+ * xe_hw_engine_snapshot_capture - Take a quick snapshot of the HW Engine.
+ * @hwe: Xe HW Engine.
+ *
+ * This can be printed out in a later stage like during dev_coredump
+ * analysis.
+ *
+ * Returns: a Xe HW Engine snapshot object that must be freed by the
+ * caller, using `xe_hw_engine_snapshot_free`.
+ */
+struct xe_hw_engine_snapshot *
+xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 {
+	struct xe_hw_engine_snapshot *snapshot;
+	int len;
+
 	if (!xe_hw_engine_is_valid(hwe))
+		return NULL;
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+
+	if (!snapshot)
+		return NULL;
+
+	len = strlen(hwe->name) + 1;
+	snapshot->name = kzalloc(len, GFP_ATOMIC);
+	if (snapshot->name)
+		strscpy(snapshot->name, hwe->name, len);
+
+	snapshot->class = hwe->class;
+	snapshot->logical_instance = hwe->logical_instance;
+	snapshot->forcewake.domain = hwe->domain;
+	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
+						    hwe->domain);
+	snapshot->mmio_base = hwe->mmio_base;
+
+	snapshot->reg.ring_hwstam = hw_engine_mmio_read32(hwe, RING_HWSTAM(0));
+	snapshot->reg.ring_hws_pga = hw_engine_mmio_read32(hwe,
+							   RING_HWS_PGA(0));
+	snapshot->reg.ring_execlist_status_lo =
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0));
+	snapshot->reg.ring_execlist_status_hi =
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0));
+	snapshot->reg.ring_execlist_sq_contents_lo =
+		hw_engine_mmio_read32(hwe,
+				      RING_EXECLIST_SQ_CONTENTS_LO(0));
+	snapshot->reg.ring_execlist_sq_contents_hi =
+		hw_engine_mmio_read32(hwe,
+				      RING_EXECLIST_SQ_CONTENTS_HI(0));
+	snapshot->reg.ring_execlist_control =
+		hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0));
+	snapshot->reg.ring_start = hw_engine_mmio_read32(hwe, RING_START(0));
+	snapshot->reg.ring_head =
+		hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR;
+	snapshot->reg.ring_tail =
+		hw_engine_mmio_read32(hwe, RING_TAIL(0)) & TAIL_ADDR;
+	snapshot->reg.ring_ctl = hw_engine_mmio_read32(hwe, RING_CTL(0));
+	snapshot->reg.ring_mi_mode =
+		hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
+	snapshot->reg.ring_mode = hw_engine_mmio_read32(hwe, RING_MODE(0));
+	snapshot->reg.ring_imr = hw_engine_mmio_read32(hwe, RING_IMR(0));
+	snapshot->reg.ring_esr = hw_engine_mmio_read32(hwe, RING_ESR(0));
+	snapshot->reg.ring_emr = hw_engine_mmio_read32(hwe, RING_EMR(0));
+	snapshot->reg.ring_eir = hw_engine_mmio_read32(hwe, RING_EIR(0));
+	snapshot->reg.ring_acthd_udw =
+		hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0));
+	snapshot->reg.ring_acthd = hw_engine_mmio_read32(hwe, RING_ACTHD(0));
+	snapshot->reg.ring_bbaddr_udw =
+		hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0));
+	snapshot->reg.ring_bbaddr = hw_engine_mmio_read32(hwe, RING_BBADDR(0));
+	snapshot->reg.ring_dma_fadd_udw =
+		hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0));
+	snapshot->reg.ring_dma_fadd =
+		hw_engine_mmio_read32(hwe, RING_DMA_FADD(0));
+	snapshot->reg.ipeir = hw_engine_mmio_read32(hwe, IPEIR(0));
+	snapshot->reg.ipehr = hw_engine_mmio_read32(hwe, IPEHR(0));
+
+	if (snapshot->class == XE_ENGINE_CLASS_COMPUTE)
+		snapshot->reg.rcu_mode = xe_mmio_read32(hwe->gt, RCU_MODE);
+
+	return snapshot;
+}
+
+/**
+ * xe_hw_engine_snapshot_print - Print out a given Xe HW Engine snapshot.
+ * @snapshot: Xe HW Engine snapshot object.
+ * @p: drm_printer where it will be printed out.
+ *
+ * This function prints out a given Xe HW Engine snapshot object.
+ */
+void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
+				 struct drm_printer *p)
+{
+	if (!snapshot)
 		return;
 
-	drm_printf(p, "%s (physical), logical instance=%d\n", hwe->name,
-		   hwe->logical_instance);
+	drm_printf(p, "%s (physical), logical instance=%d\n",
+		   snapshot->name ? snapshot->name : "",
+		   snapshot->logical_instance);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
-		   hwe->domain,
-		   xe_force_wake_ref(gt_to_fw(hwe->gt), hwe->domain));
-	drm_printf(p, "\tMMIO base: 0x%08x\n", hwe->mmio_base);
-
-	drm_printf(p, "\tHWSTAM: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_HWSTAM(0)));
-	drm_printf(p, "\tRING_HWS_PGA: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_HWS_PGA(0)));
-
+		   snapshot->forcewake.domain, snapshot->forcewake.ref);
+	drm_printf(p, "\tHWSTAM: 0x%08x\n", snapshot->reg.ring_hwstam);
+	drm_printf(p, "\tRING_HWS_PGA: 0x%08x\n", snapshot->reg.ring_hws_pga);
 	drm_printf(p, "\tRING_EXECLIST_STATUS_LO: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0)));
+		   snapshot->reg.ring_execlist_status_lo);
 	drm_printf(p, "\tRING_EXECLIST_STATUS_HI: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0)));
+		   snapshot->reg.ring_execlist_status_hi);
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_LO: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS_LO(0)));
+		   snapshot->reg.ring_execlist_sq_contents_lo);
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_HI: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe,
-					 RING_EXECLIST_SQ_CONTENTS_HI(0)));
+		   snapshot->reg.ring_execlist_sq_contents_hi);
 	drm_printf(p, "\tRING_EXECLIST_CONTROL: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0)));
-
-	drm_printf(p, "\tRING_START: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_START(0)));
-	drm_printf(p, "\tRING_HEAD:  0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR);
-	drm_printf(p, "\tRING_TAIL:  0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_TAIL(0)) & TAIL_ADDR);
-	drm_printf(p, "\tRING_CTL: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_CTL(0)));
+		   snapshot->reg.ring_execlist_control);
+	drm_printf(p, "\tRING_START: 0x%08x\n", snapshot->reg.ring_start);
+	drm_printf(p, "\tRING_HEAD:  0x%08x\n", snapshot->reg.ring_head);
+	drm_printf(p, "\tRING_TAIL:  0x%08x\n", snapshot->reg.ring_tail);
+	drm_printf(p, "\tRING_CTL: 0x%08x\n", snapshot->reg.ring_ctl);
+	drm_printf(p, "\tRING_MODE: 0x%08x\n", snapshot->reg.ring_mi_mode);
 	drm_printf(p, "\tRING_MODE: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_MI_MODE(0)));
-	drm_printf(p, "\tRING_MODE_GEN7: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_MODE(0)));
-
-	drm_printf(p, "\tRING_IMR:   0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_IMR(0)));
-	drm_printf(p, "\tRING_ESR:   0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_ESR(0)));
-	drm_printf(p, "\tRING_EMR:   0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_EMR(0)));
-	drm_printf(p, "\tRING_EIR:   0x%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_EIR(0)));
-
-	drm_printf(p, "\tACTHD:  0x%08x_%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0)),
-		   hw_engine_mmio_read32(hwe, RING_ACTHD(0)));
-	drm_printf(p, "\tBBADDR: 0x%08x_%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0)),
-		   hw_engine_mmio_read32(hwe, RING_BBADDR(0)));
+		   snapshot->reg.ring_mode);
+	drm_printf(p, "\tRING_IMR:   0x%08x\n", snapshot->reg.ring_imr);
+	drm_printf(p, "\tRING_ESR:   0x%08x\n", snapshot->reg.ring_esr);
+	drm_printf(p, "\tRING_EMR:   0x%08x\n", snapshot->reg.ring_emr);
+	drm_printf(p, "\tRING_EIR:   0x%08x\n", snapshot->reg.ring_eir);
+	drm_printf(p, "\tACTHD:  0x%08x_%08x\n", snapshot->reg.ring_acthd_udw,
+		   snapshot->reg.ring_acthd);
+	drm_printf(p, "\tBBADDR: 0x%08x_%08x\n", snapshot->reg.ring_bbaddr_udw,
+		   snapshot->reg.ring_bbaddr);
 	drm_printf(p, "\tDMA_FADDR: 0x%08x_%08x\n",
-		   hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0)),
-		   hw_engine_mmio_read32(hwe, RING_DMA_FADD(0)));
-
-	drm_printf(p, "\tIPEIR: 0x%08x\n",
-		   hw_engine_mmio_read32(hwe, IPEIR(0)));
-	drm_printf(p, "\tIPEHR: 0x%08x\n\n",
-		   hw_engine_mmio_read32(hwe, IPEHR(0)));
-
-	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
+		   snapshot->reg.ring_dma_fadd_udw,
+		   snapshot->reg.ring_dma_fadd);
+	drm_printf(p, "\tIPEIR: 0x%08x\n", snapshot->reg.ipeir);
+	drm_printf(p, "\tIPEHR: 0x%08x\n\n", snapshot->reg.ipehr);
+	if (snapshot->class == XE_ENGINE_CLASS_COMPUTE)
 		drm_printf(p, "\tRCU_MODE: 0x%08x\n",
-			   xe_mmio_read32(hwe->gt, RCU_MODE));
+			   snapshot->reg.rcu_mode);
+}
 
+/**
+ * xe_hw_engine_snapshot_free - Free all allocated objects for a given snapshot.
+ * @snapshot: Xe HW Engine snapshot object.
+ *
+ * This function free all the memory that needed to be allocated at capture
+ * time.
+ */
+void xe_hw_engine_snapshot_free(struct xe_hw_engine_snapshot *snapshot)
+{
+	if (!snapshot)
+		return;
+
+	kfree(snapshot->name);
+	kfree(snapshot);
+}
+
+/**
+ * xe_hw_engine_print - Xe HW Engine Print.
+ * @hwe: Hardware Engine.
+ * @p: drm_printer.
+ *
+ * This function quickly capture a snapshot and immediately print it out.
+ */
+void xe_hw_engine_print(struct xe_hw_engine *hwe, struct drm_printer *p)
+{
+	struct xe_hw_engine_snapshot *snapshot;
+
+	snapshot = xe_hw_engine_snapshot_capture(hwe);
+	xe_hw_engine_snapshot_print(snapshot, p);
+	xe_hw_engine_snapshot_free(snapshot);
 }
 
 u32 xe_hw_engine_mask_per_class(struct xe_gt *gt,
