@@ -559,18 +559,21 @@ static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int mask = snd_emu1010_dac_regs[kcontrol->private_value];
 	unsigned int val, cache;
+	int change;
+
 	val = ucontrol->value.integer.value[0];
 	cache = emu->emu1010.dac_pads;
 	if (val == 1) 
 		cache = cache | mask;
 	else
 		cache = cache & ~mask;
-	if (cache != emu->emu1010.dac_pads) {
+	change = (cache != emu->emu1010.dac_pads);
+	if (change) {
 		snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, cache );
 	        emu->emu1010.dac_pads = cache;
 	}
 
-	return 0;
+	return change;
 }
 
 static const struct snd_kcontrol_new emu1010_dac_pads_ctl = {
