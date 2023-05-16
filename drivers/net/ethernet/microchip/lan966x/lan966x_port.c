@@ -394,6 +394,36 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	return 0;
 }
 
+static void lan966x_port_qos_pcp_set(struct lan966x_port *port,
+				     struct lan966x_port_qos_pcp *qos)
+{
+	u8 *pcp_itr = qos->map;
+	u8 pcp, dp;
+
+	lan_rmw(ANA_QOS_CFG_QOS_PCP_ENA_SET(qos->enable),
+		ANA_QOS_CFG_QOS_PCP_ENA,
+		port->lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Map PCP and DEI to priority */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++) {
+		pcp = *(pcp_itr + i);
+		dp = (i < LAN966X_PORT_QOS_PCP_COUNT) ? 0 : 1;
+
+		lan_rmw(ANA_PCP_DEI_CFG_QOS_PCP_DEI_VAL_SET(pcp) |
+			ANA_PCP_DEI_CFG_DP_PCP_DEI_VAL_SET(dp),
+			ANA_PCP_DEI_CFG_QOS_PCP_DEI_VAL |
+			ANA_PCP_DEI_CFG_DP_PCP_DEI_VAL,
+			port->lan966x,
+			ANA_PCP_DEI_CFG(port->chip_port, i));
+	}
+}
+
+void lan966x_port_qos_set(struct lan966x_port *port,
+			  struct lan966x_port_qos *qos)
+{
+	lan966x_port_qos_pcp_set(port, &qos->pcp);
+}
+
 void lan966x_port_init(struct lan966x_port *port)
 {
 	struct lan966x_port_config *config = &port->config;

@@ -1213,6 +1213,8 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_fdma;
 
+	lan966x_dcb_init(lan966x);
+
 	return 0;
 
 cleanup_fdma:
