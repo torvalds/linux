@@ -927,8 +927,8 @@ properties:
 
       - description: Emtop i.MX8MM based Boards
         items:
-          - const: ees,imx8mm-emtop-baseboard			# i.MX8MM Emtop SoM on i.MX8M Mini Baseboard V1
-          - const: ees,imx8mm-emtop-som			# i.MX8MM Emtop SOM-IMX8MMLPD4 module
+          - const: ees,imx8mm-emtop-baseboard      # i.MX8MM Emtop SoM on i.MX8M Mini Baseboard V1
+          - const: ees,imx8mm-emtop-som            # i.MX8MM Emtop SOM-IMX8MMLPD4 module
           - const: fsl,imx8mm
 
       - description: Engicam i.Core MX8M Mini SoM based boards
