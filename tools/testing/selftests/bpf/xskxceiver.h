@@ -48,6 +48,7 @@
 #define UMEM_HEADROOM_TEST_SIZE 128
 #define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
 #define HUGEPAGE_SIZE (2 * 1024 * 1024)
+#define PKT_DUMP_NB_TO_PRINT 16
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
@@ -111,7 +112,7 @@ struct xsk_socket_info {
 struct pkt {
 	u64 addr;
 	u32 len;
-	u32 payload;
+	u32 pkt_nb;
 	bool valid;
 };
 

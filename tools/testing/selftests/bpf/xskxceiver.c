@@ -138,15 +138,16 @@ static void report_failure(struct test_spec *test)
 	test->fail = true;
 }
 
-static void memset32_htonl(void *dest, u32 val, u32 size)
+/* The payload is a word consisting of a packet sequence number in the upper
+ * 16-bits and a intra packet data sequence number in the lower 16 bits. So the 3rd packet's
+ * 5th word of data will contain the number (2<<16) | 4 as they are numbered from 0.
+ */
+static void write_payload(void *dest, u32 val, u32 size)
 {
-	u32 *ptr = (u32 *)dest;
-	int i;
+	u32 *ptr = (u32 *)dest, i;
 
-	val = htonl(val);
-
-	for (i = 0; i < (size & (~0x3)); i += 4)
-		ptr[i >> 2] = val;
+	for (i = 0; i < size / sizeof(*ptr); i++)
+		ptr[i] = htonl(val << 16 | i);
 }
 
 static void gen_eth_hdr(struct ifobject *ifobject, struct ethhdr *eth_hdr)
@@ -532,7 +533,7 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 	for (i = 0; i < nb_pkts; i++) {
 		pkt_set(umem, &pkt_stream->pkts[i], (i % umem->num_frames) * umem->frame_size,
 			pkt_len);
-		pkt_stream->pkts[i].payload = i;
+		pkt_stream->pkts[i].pkt_nb = i;
 	}
 
 	return pkt_stream;
@@ -603,7 +604,7 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 	eth_hdr = data;
 
 	gen_eth_hdr(ifobject, eth_hdr);
-	memset32_htonl(data + PKT_HDR_SIZE, pkt_nb, pkt->len - PKT_HDR_SIZE);
+	write_payload(data + PKT_HDR_SIZE, pkt_nb, pkt->len - PKT_HDR_SIZE);
 
 	return pkt;
 }
@@ -621,7 +622,7 @@ static void __pkt_stream_generate_custom(struct ifobject *ifobj,
 	for (i = 0; i < nb_pkts; i++) {
 		pkt_stream->pkts[i].addr = pkts[i].addr + ifobj->umem->base_addr;
 		pkt_stream->pkts[i].len = pkts[i].len;
-		pkt_stream->pkts[i].payload = i;
+		pkt_stream->pkts[i].pkt_nb = i;
 		pkt_stream->pkts[i].valid = pkts[i].valid;
 	}
 
@@ -634,10 +635,24 @@ static void pkt_stream_generate_custom(struct test_spec *test, struct pkt *pkts,
 	__pkt_stream_generate_custom(test->ifobj_rx, pkts, nb_pkts);
 }
 
-static void pkt_dump(void *pkt)
+static void pkt_print_data(u32 *data, u32 cnt)
+{
+	u32 i;
+
+	for (i = 0; i < cnt; i++) {
+		u32 seqnum, pkt_nb;
+
+		seqnum = ntohl(*data) & 0xffff;
+		pkt_nb = ntohl(*data) >> 16;
+		fprintf(stdout, "%u:%u ", pkt_nb, seqnum);
+		data++;
+	}
+}
+
+static void pkt_dump(void *pkt, u32 len)
 {
 	struct ethhdr *ethhdr = pkt;
-	u32 payload, i;
+	u32 i;
 
 	/*extract L2 frame */
 	fprintf(stdout, "DEBUG>> L2: dst mac: ");
@@ -649,10 +664,15 @@ static void pkt_dump(void *pkt)
 		fprintf(stdout, "%02X", ethhdr->h_source[i]);
 
 	/*extract L5 frame */
-	payload = ntohl(*((u32 *)(pkt + PKT_HDR_SIZE)));
-
-	fprintf(stdout, "\nDEBUG>> L5: payload: %d\n", payload);
-	fprintf(stdout, "---------------------------------------\n");
+	fprintf(stdout, "\nDEBUG>> L5: seqnum: ");
+	pkt_print_data(pkt + PKT_HDR_SIZE, PKT_DUMP_NB_TO_PRINT);
+	fprintf(stdout, "....");
+	if (len > PKT_DUMP_NB_TO_PRINT * sizeof(u32)) {
+		fprintf(stdout, "\n.... ");
+		pkt_print_data(pkt + PKT_HDR_SIZE + len - PKT_DUMP_NB_TO_PRINT * sizeof(u32),
+			       PKT_DUMP_NB_TO_PRINT);
+	}
+	fprintf(stdout, "\n---------------------------------------\n");
 }
 
 static bool is_offset_correct(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream, u64 addr,
@@ -678,9 +698,9 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
 	void *data = xsk_umem__get_data(buffer, addr);
 	struct xdp_info *meta = data - sizeof(struct xdp_info);
 
-	if (meta->count != pkt->payload) {
+	if (meta->count != pkt->pkt_nb) {
 		ksft_print_msg("[%s] expected meta_count [%d], got meta_count [%d]\n",
-			       __func__, pkt->payload, meta->count);
+			       __func__, pkt->pkt_nb, meta->count);
 		return false;
 	}
 
@@ -690,7 +710,7 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
 static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 {
 	void *data = xsk_umem__get_data(buffer, addr);
-	u32 seqnum;
+	u32 seqnum, pkt_data;
 
 	if (!pkt) {
 		ksft_print_msg("[%s] too many packets received\n", __func__);
@@ -708,13 +728,15 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 		return false;
 	}
 
-	seqnum = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
-	if (opt_pkt_dump)
-		pkt_dump(data);
+	pkt_data = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
+	seqnum = pkt_data >> 16;
 
-	if (pkt->payload != seqnum) {
+	if (opt_pkt_dump)
+		pkt_dump(data, len);
+
+	if (pkt->pkt_nb != seqnum) {
 		ksft_print_msg("[%s] expected seqnum [%d], got seqnum [%d]\n",
-			       __func__, pkt->payload, seqnum);
+			       __func__, pkt->pkt_nb, seqnum);
 		return false;
 	}
 
