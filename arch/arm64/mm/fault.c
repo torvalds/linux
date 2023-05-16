@@ -886,9 +886,6 @@ void do_sp_pc_abort(unsigned long addr, unsigned long esr, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(do_sp_pc_abort);
 
-int __init early_brk64(unsigned long addr, unsigned long esr,
-		       struct pt_regs *regs);
-
 /*
  * __refdata because early_brk64 is __init, but the reference to it is
  * clobbered at arch_initcall time.
