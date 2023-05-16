@@ -409,6 +409,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		rtw89_hci_recovery_complete(rtwdev);
+		clear_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
 		break;
 	case SER_EV_L1_RESET_PREPARE:
@@ -421,6 +422,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 		ser_state_goto(ser, SER_L2_RESET_ST);
 		break;
 	case SER_EV_STATE_OUT:
+		set_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		rtw89_hci_recovery_start(rtwdev);
 		break;
 	default:
