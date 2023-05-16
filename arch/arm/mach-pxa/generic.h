@@ -27,7 +27,6 @@ extern void __init pxa25x_map_io(void);
 extern void __init pxa26x_init_irq(void);
 
 #define pxa27x_handle_irq ichp_handle_irq
-extern unsigned	pxa27x_get_clk_frequency_khz(int);
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa27x_map_io(void);
 
@@ -52,18 +51,4 @@ extern void pxa2xx_clear_reset_status(unsigned int);
 static inline void pxa2xx_clear_reset_status(unsigned int mask) {}
 #endif
 
-/*
- * Once fully converted to the clock framework, all these functions should be
- * removed, and replaced with a clk_get(NULL, "core").
- */
-#ifdef CONFIG_PXA25x
-extern unsigned pxa25x_get_clk_frequency_khz(int);
-#else
-#define pxa25x_get_clk_frequency_khz(x)		(0)
-#endif
-
-#ifdef CONFIG_PXA27x
-#else
-#define pxa27x_get_clk_frequency_khz(x)		(0)
-#endif
 
