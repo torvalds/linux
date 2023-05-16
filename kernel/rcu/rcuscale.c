@@ -93,6 +93,7 @@ torture_param(bool, shutdown, RCUSCALE_SHUTDOWN,
 	      "Shutdown at end of scalability tests.");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
+torture_param(int, writer_holdoff_jiffies, 0, "Holdoff (jiffies) between GPs, zero to disable");
 torture_param(int, kfree_rcu_test, 0, "Do we run a kfree_rcu() scale test?");
 torture_param(int, kfree_mult, 1, "Multiple of kfree_obj size to allocate.");
 torture_param(int, kfree_by_call_rcu, 0, "Use call_rcu() to emulate kfree_rcu()?");
@@ -414,6 +415,7 @@ rcu_scale_writer(void *arg)
 	struct rcu_head *rhp = NULL;
 	bool started = false, done = false, alldone = false;
 	u64 t;
+	DEFINE_TORTURE_RANDOM(tr);
 	u64 *wdp;
 	u64 *wdpp = writer_durations[me];
 
@@ -448,6 +450,8 @@ rcu_scale_writer(void *arg)
 	do {
 		if (writer_holdoff)
 			udelay(writer_holdoff);
+		if (writer_holdoff_jiffies)
+			schedule_timeout_idle(torture_random(&tr) % writer_holdoff_jiffies + 1);
 		wdp = &wdpp[i];
 		*wdp = ktime_get_mono_fast_ns();
 		if (gp_async) {

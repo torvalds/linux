@@ -4983,6 +4983,11 @@
 			in microseconds.  The default of zero says
 			no holdoff.
 
+	rcuscale.writer_holdoff_jiffies= [KNL]
+			Additional write-side holdoff between grace
+			periods, but in jiffies.  The default of zero
+			says no holdoff.
+
 	rcutorture.fqs_duration= [KNL]
 			Set duration of force_quiescent_state bursts
 			in microseconds.
