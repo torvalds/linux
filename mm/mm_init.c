@@ -2392,6 +2392,8 @@ void __init page_alloc_init_late(void)
 	/* Initialize page ext after all struct pages are initialized. */
 	if (deferred_struct_pages)
 		page_ext_init();
+
+	page_alloc_sysctl_init();
 }
 
 #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
