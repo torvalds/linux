@@ -3,23 +3,23 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include "gt/intel_rps.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "icl_dsi_regs.h"
-#include "intel_display_irq.h"
-#include "intel_display_types.h"
-#include "intel_hotplug_irq.h"
-#include "intel_psr_regs.h"
 #include "intel_crtc.h"
-#include "intel_display_trace.h"
-#include "intel_dp_aux.h"
-#include "intel_gmbus.h"
-#include "intel_fifo_underrun.h"
-#include "intel_psr.h"
-#include "intel_fdi_regs.h"
-#include "gt/intel_rps.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
+#include "intel_display_trace.h"
+#include "intel_display_types.h"
+#include "intel_dp_aux.h"
+#include "intel_fdi_regs.h"
+#include "intel_fifo_underrun.h"
+#include "intel_gmbus.h"
+#include "intel_hotplug_irq.h"
+#include "intel_psr.h"
+#include "intel_psr_regs.h"
 
 static void
 intel_handle_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
