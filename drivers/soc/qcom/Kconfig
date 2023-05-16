@@ -545,6 +545,14 @@ config QCOM_STATS
 	  various SoC level low power modes statistics and export to debugfs
 	  interface.
 
+config QTI_RPM_STATS_LOG
+	tristate "Qualcomm Technologies, Inc. (QTI) RPM Stats Driver"
+	help
+	  This option enables a driver which reads RPM messages from a shared
+	  memory location. These messages provide statistical information about
+	  the low power modes that subsystem enters. The drivers outputs the
+	  message via a debugfs node.
+
 config MINIDUMP_ALL_TASK_INFO
 	bool "Minidump All task info"
 	depends on QCOM_MINIDUMP
