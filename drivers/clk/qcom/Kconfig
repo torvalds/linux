@@ -1057,6 +1057,15 @@ config SM_GCC_HOLI
 	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
 	  USB, UFS, SD/eMMC etc.
 
+config SM_GPUCC_HOLI
+	tristate "HOLI Graphics Clock Controller"
+	select SM_GCC_HOLI
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies,
+	  Inc. HOLI devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK
