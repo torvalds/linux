@@ -2566,12 +2566,16 @@ static __be32 *encode_time_delta(__be32 *p, struct inode *inode)
 	return p;
 }
 
-static __be32 *encode_cinfo(__be32 *p, struct nfsd4_change_info *c)
+static __be32
+nfsd4_encode_change_info4(struct xdr_stream *xdr, struct nfsd4_change_info *c)
 {
-	*p++ = cpu_to_be32(c->atomic);
-	p = xdr_encode_hyper(p, c->before_change);
-	p = xdr_encode_hyper(p, c->after_change);
-	return p;
+	if (xdr_stream_encode_bool(xdr, c->atomic) < 0)
+		return nfserr_resource;
+	if (xdr_stream_encode_u64(xdr, c->before_change) < 0)
+		return nfserr_resource;
+	if (xdr_stream_encode_u64(xdr, c->after_change) < 0)
+		return nfserr_resource;
+	return nfs_ok;
 }
 
 /* Encode as an array of strings the string given with components
@@ -3786,12 +3790,10 @@ nfsd4_encode_create(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_create *create = &u->create;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return nfserr_resource;
-	encode_cinfo(p, &create->cr_cinfo);
+	nfserr = nfsd4_encode_change_info4(xdr, &create->cr_cinfo);
+	if (nfserr)
+		return nfserr;
 	return nfsd4_encode_bitmap(xdr, create->cr_bmval[0],
 			create->cr_bmval[1], create->cr_bmval[2]);
 }
@@ -3909,13 +3911,8 @@ nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_link *link = &u->link;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return nfserr_resource;
-	p = encode_cinfo(p, &link->li_cinfo);
-	return 0;
+	return nfsd4_encode_change_info4(xdr, &link->li_cinfo);
 }
 
 
@@ -3930,11 +3927,11 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	nfserr = nfsd4_encode_stateid(xdr, &open->op_stateid);
 	if (nfserr)
 		return nfserr;
-	p = xdr_reserve_space(xdr, 24);
-	if (!p)
+	nfserr = nfsd4_encode_change_info4(xdr, &open->op_cinfo);
+	if (nfserr)
+		return nfserr;
+	if (xdr_stream_encode_u32(xdr, open->op_rflags) < 0)
 		return nfserr_resource;
-	p = encode_cinfo(p, &open->op_cinfo);
-	*p++ = cpu_to_be32(open->op_rflags);
 
 	nfserr = nfsd4_encode_bitmap(xdr, open->op_bmval[0], open->op_bmval[1],
 					open->op_bmval[2]);
@@ -4310,13 +4307,8 @@ nfsd4_encode_remove(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_remove *remove = &u->remove;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return nfserr_resource;
-	p = encode_cinfo(p, &remove->rm_cinfo);
-	return 0;
+	return nfsd4_encode_change_info4(xdr, &remove->rm_cinfo);
 }
 
 static __be32
@@ -4325,14 +4317,11 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_rename *rename = &u->rename;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 40);
-	if (!p)
-		return nfserr_resource;
-	p = encode_cinfo(p, &rename->rn_sinfo);
-	p = encode_cinfo(p, &rename->rn_tinfo);
-	return 0;
+	nfserr = nfsd4_encode_change_info4(xdr, &rename->rn_sinfo);
+	if (nfserr)
+		return nfserr;
+	return nfsd4_encode_change_info4(xdr, &rename->rn_tinfo);
 }
 
 static __be32
@@ -5102,15 +5091,8 @@ nfsd4_encode_setxattr(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_setxattr *setxattr = &u->setxattr;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return nfserr_resource;
-
-	encode_cinfo(p, &setxattr->setxa_cinfo);
-
-	return 0;
+	return nfsd4_encode_change_info4(xdr, &setxattr->setxa_cinfo);
 }
 
 /*
@@ -5256,14 +5238,8 @@ nfsd4_encode_removexattr(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_removexattr *removexattr = &u->removexattr;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return nfserr_resource;
-
-	p = encode_cinfo(p, &removexattr->rmxa_cinfo);
-	return 0;
+	return nfsd4_encode_change_info4(xdr, &removexattr->rmxa_cinfo);
 }
 
 typedef __be32(*nfsd4_enc)(struct nfsd4_compoundres *, __be32, union nfsd4_op_u *u);
