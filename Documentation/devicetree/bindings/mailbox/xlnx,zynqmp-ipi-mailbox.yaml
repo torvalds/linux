@@ -33,7 +33,7 @@ description: |
               +------------------------------------------+
 
 maintainers:
-  - Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
+  - Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
 
 properties:
   compatible:
