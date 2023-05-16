@@ -418,10 +418,36 @@ static void lan966x_port_qos_pcp_set(struct lan966x_port *port,
 	}
 }
 
+static void lan966x_port_qos_dscp_set(struct lan966x_port *port,
+				      struct lan966x_port_qos_dscp *qos)
+{
+	struct lan966x *lan966x = port->lan966x;
+
+	/* Enable/disable dscp for qos classification. */
+	lan_rmw(ANA_QOS_CFG_QOS_DSCP_ENA_SET(qos->enable),
+		ANA_QOS_CFG_QOS_DSCP_ENA,
+		lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Map each dscp value to priority and dp */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++)
+		lan_rmw(ANA_DSCP_CFG_DP_DSCP_VAL_SET(0) |
+			ANA_DSCP_CFG_QOS_DSCP_VAL_SET(*(qos->map + i)),
+			ANA_DSCP_CFG_DP_DSCP_VAL |
+			ANA_DSCP_CFG_QOS_DSCP_VAL,
+			lan966x, ANA_DSCP_CFG(i));
+
+	/* Set per-dscp trust */
+	for (int i = 0; i <  ARRAY_SIZE(qos->map); i++)
+		lan_rmw(ANA_DSCP_CFG_DSCP_TRUST_ENA_SET(qos->enable),
+			ANA_DSCP_CFG_DSCP_TRUST_ENA,
+			lan966x, ANA_DSCP_CFG(i));
+}
+
 void lan966x_port_qos_set(struct lan966x_port *port,
 			  struct lan966x_port_qos *qos)
 {
 	lan966x_port_qos_pcp_set(port, &qos->pcp);
+	lan966x_port_qos_dscp_set(port, &qos->dscp);
 }
 
 void lan966x_port_init(struct lan966x_port *port)

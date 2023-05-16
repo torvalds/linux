@@ -109,6 +109,8 @@
 #define LAN966X_PORT_QOS_PCP_DEI_COUNT \
 	(LAN966X_PORT_QOS_PCP_COUNT + LAN966X_PORT_QOS_DEI_COUNT)
 
+#define LAN966X_PORT_QOS_DSCP_COUNT	64
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -402,8 +404,14 @@ struct lan966x_port_qos_pcp {
 	bool enable;
 };
 
+struct lan966x_port_qos_dscp {
+	u8 map[LAN966X_PORT_QOS_DSCP_COUNT];
+	bool enable;
+};
+
 struct lan966x_port_qos {
 	struct lan966x_port_qos_pcp pcp;
+	struct lan966x_port_qos_dscp dscp;
 };
 
 struct lan966x_port {

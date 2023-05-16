@@ -57,11 +57,47 @@ static void lan966x_dcb_app_update(struct net_device *dev)
 		qos.pcp.map[i] = dcb_getapp(dev, &app_itr);
 	}
 
+	/* Get dscp ingress mapping */
+	for (int i = 0; i < ARRAY_SIZE(qos.dscp.map); i++) {
+		app_itr.selector = IEEE_8021QAZ_APP_SEL_DSCP;
+		app_itr.protocol = i;
+		qos.dscp.map[i] = dcb_getapp(dev, &app_itr);
+	}
+
 	/* Enable use of pcp for queue classification */
 	if (lan966x_dcb_apptrust_contains(port->chip_port, DCB_APP_SEL_PCP))
 		qos.pcp.enable = true;
 
+	/* Enable use of dscp for queue classification */
+	if (lan966x_dcb_apptrust_contains(port->chip_port, IEEE_8021QAZ_APP_SEL_DSCP))
+		qos.dscp.enable = true;
+
 	lan966x_port_qos_set(port, &qos);
+}
+
+/* DSCP mapping is global for all ports, so set and delete app entries are
+ * replicated for each port.
+ */
+static int lan966x_dcb_ieee_dscp_setdel(struct net_device *dev,
+					struct dcb_app *app,
+					int (*setdel)(struct net_device *,
+						      struct dcb_app *))
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	struct lan966x *lan966x = port->lan966x;
+	int err;
+
+	for (int i = 0; i < NUM_PHYS_PORTS; i++) {
+		port = lan966x->ports[i];
+		if (!port)
+			continue;
+
+		err = setdel(port->dev, app);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int lan966x_dcb_app_validate(struct net_device *dev,
@@ -70,6 +106,13 @@ static int lan966x_dcb_app_validate(struct net_device *dev,
 	int err = 0;
 
 	switch (app->selector) {
+	/* Dscp checks */
+	case IEEE_8021QAZ_APP_SEL_DSCP:
+		if (app->protocol >= LAN966X_PORT_QOS_DSCP_COUNT)
+			err = -EINVAL;
+		else if (app->priority >= NUM_PRIO_QUEUES)
+			err = -ERANGE;
+		break;
 	/* Pcp checks */
 	case DCB_APP_SEL_PCP:
 		if (app->protocol >= LAN966X_PORT_QOS_PCP_DEI_COUNT)
@@ -93,8 +136,12 @@ static int lan966x_dcb_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 {
 	int err;
 
-	err = dcb_ieee_delapp(dev, app);
-	if (err < 0)
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = lan966x_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_delapp);
+	else
+		err = dcb_ieee_delapp(dev, app);
+
+	if (err)
 		return err;
 
 	lan966x_dcb_app_update(dev);
@@ -117,10 +164,14 @@ static int lan966x_dcb_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 	if (prio) {
 		app_itr = *app;
 		app_itr.priority = prio;
-		dcb_ieee_delapp(dev, &app_itr);
+		lan966x_dcb_ieee_delapp(dev, &app_itr);
 	}
 
-	err = dcb_ieee_setapp(dev, app);
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = lan966x_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_setapp);
+	else
+		err = dcb_ieee_setapp(dev, app);
+
 	if (err)
 		return err;
 
