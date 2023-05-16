@@ -46,9 +46,11 @@ static bool lan966x_dcb_apptrust_contains(int portno, u8 selector)
 
 static void lan966x_dcb_app_update(struct net_device *dev)
 {
+	struct dcb_rewr_prio_pcp_map pcp_rewr_map = {0};
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x_port_qos qos = {0};
 	struct dcb_app app_itr;
+	bool pcp_rewr = false;
 
 	/* Get pcp ingress mapping */
 	for (int i = 0; i < ARRAY_SIZE(qos.pcp.map); i++) {
@@ -69,9 +71,23 @@ static void lan966x_dcb_app_update(struct net_device *dev)
 	if (qos.default_prio)
 		qos.default_prio = fls(qos.default_prio) - 1;
 
+	/* Get pcp rewrite mapping */
+	dcb_getrewr_prio_pcp_mask_map(dev, &pcp_rewr_map);
+	for (int i = 0; i < ARRAY_SIZE(pcp_rewr_map.map); i++) {
+		if (!pcp_rewr_map.map[i])
+			continue;
+
+		pcp_rewr = true;
+		qos.pcp_rewr.map[i] = fls(pcp_rewr_map.map[i]) - 1;
+	}
+
 	/* Enable use of pcp for queue classification */
-	if (lan966x_dcb_apptrust_contains(port->chip_port, DCB_APP_SEL_PCP))
+	if (lan966x_dcb_apptrust_contains(port->chip_port, DCB_APP_SEL_PCP)) {
 		qos.pcp.enable = true;
+
+		if (pcp_rewr)
+			qos.pcp_rewr.enable = true;
+	}
 
 	/* Enable use of dscp for queue classification */
 	if (lan966x_dcb_apptrust_contains(port->chip_port, IEEE_8021QAZ_APP_SEL_DSCP))
@@ -252,11 +268,54 @@ static int lan966x_dcb_getapptrust(struct net_device *dev, u8 *selectors,
 	return 0;
 }
 
+static int lan966x_dcb_delrewr(struct net_device *dev, struct dcb_app *app)
+{
+	int err;
+
+	err = dcb_delrewr(dev, app);
+	if (err < 0)
+		return err;
+
+	lan966x_dcb_app_update(dev);
+
+	return 0;
+}
+
+static int lan966x_dcb_setrewr(struct net_device *dev, struct dcb_app *app)
+{
+	struct dcb_app app_itr;
+	u16 proto;
+	int err;
+
+	err = lan966x_dcb_app_validate(dev, app);
+	if (err)
+		goto out;
+
+	/* Delete current mapping, if it exists. */
+	proto = dcb_getrewr(dev, app);
+	if (proto) {
+		app_itr = *app;
+		app_itr.protocol = proto;
+		lan966x_dcb_delrewr(dev, &app_itr);
+	}
+
+	err = dcb_setrewr(dev, app);
+	if (err)
+		goto out;
+
+	lan966x_dcb_app_update(dev);
+
+out:
+	return err;
+}
+
 static const struct dcbnl_rtnl_ops lan966x_dcbnl_ops = {
 	.ieee_setapp = lan966x_dcb_ieee_setapp,
 	.ieee_delapp = lan966x_dcb_ieee_delapp,
 	.dcbnl_setapptrust = lan966x_dcb_setapptrust,
 	.dcbnl_getapptrust = lan966x_dcb_getapptrust,
+	.dcbnl_setrewr = lan966x_dcb_setrewr,
+	.dcbnl_delrewr = lan966x_dcb_delrewr,
 };
 
 void lan966x_dcb_init(struct lan966x *lan966x)

@@ -463,12 +463,49 @@ static int lan966x_port_qos_default_set(struct lan966x_port *port,
 	return 0;
 }
 
+static void lan966x_port_qos_pcp_rewr_set(struct lan966x_port *port,
+					  struct lan966x_port_qos_pcp_rewr *qos)
+{
+	u8 mode = LAN966X_PORT_REW_TAG_CTRL_CLASSIFIED;
+	u8 pcp, dei;
+
+	if (qos->enable)
+		mode = LAN966X_PORT_REW_TAG_CTRL_MAPPED;
+
+	/* Map the values only if it is enabled otherwise will be the classified
+	 * value
+	 */
+	lan_rmw(REW_TAG_CFG_TAG_PCP_CFG_SET(mode) |
+		REW_TAG_CFG_TAG_DEI_CFG_SET(mode),
+		REW_TAG_CFG_TAG_PCP_CFG |
+		REW_TAG_CFG_TAG_DEI_CFG,
+		port->lan966x, REW_TAG_CFG(port->chip_port));
+
+	/* Map each value to pcp and dei */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++) {
+		pcp = qos->map[i];
+		if (pcp > LAN966X_PORT_QOS_PCP_COUNT)
+			dei = 1;
+		else
+			dei = 0;
+
+		lan_rmw(REW_PCP_DEI_CFG_DEI_QOS_VAL_SET(dei) |
+			REW_PCP_DEI_CFG_PCP_QOS_VAL_SET(pcp),
+			REW_PCP_DEI_CFG_DEI_QOS_VAL |
+			REW_PCP_DEI_CFG_PCP_QOS_VAL,
+			port->lan966x,
+			REW_PCP_DEI_CFG(port->chip_port,
+					i + dei * LAN966X_PORT_QOS_PCP_COUNT));
+	}
+}
+
 void lan966x_port_qos_set(struct lan966x_port *port,
 			  struct lan966x_port_qos *qos)
 {
 	lan966x_port_qos_pcp_set(port, &qos->pcp);
 	lan966x_port_qos_dscp_set(port, &qos->dscp);
 	lan966x_port_qos_default_set(port, qos);
+	lan966x_port_qos_pcp_rewr_set(port, &qos->pcp_rewr);
 }
 
 void lan966x_port_init(struct lan966x_port *port)

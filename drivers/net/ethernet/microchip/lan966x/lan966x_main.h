@@ -111,6 +111,10 @@
 
 #define LAN966X_PORT_QOS_DSCP_COUNT	64
 
+/* Port PCP rewrite mode */
+#define LAN966X_PORT_REW_TAG_CTRL_CLASSIFIED	0
+#define LAN966X_PORT_REW_TAG_CTRL_MAPPED	2
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -409,9 +413,15 @@ struct lan966x_port_qos_dscp {
 	bool enable;
 };
 
+struct lan966x_port_qos_pcp_rewr {
+	u16 map[NUM_PRIO_QUEUES];
+	bool enable;
+};
+
 struct lan966x_port_qos {
 	struct lan966x_port_qos_pcp pcp;
 	struct lan966x_port_qos_dscp dscp;
+	struct lan966x_port_qos_pcp_rewr pcp_rewr;
 	u8 default_prio;
 };
 
