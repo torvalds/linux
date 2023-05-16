@@ -3814,8 +3814,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	amdgpu_device_get_pcie_info(adev);
-
 	if (amdgpu_mcbp)
 		DRM_INFO("MCBP is enabled\n");
 
@@ -3830,6 +3828,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	/* detect hw virtualization here */
 	amdgpu_detect_virtualization(adev);
+
+	amdgpu_device_get_pcie_info(adev);
 
 	r = amdgpu_device_get_job_timeout_settings(adev);
 	if (r) {
@@ -5588,7 +5588,7 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 		adev->pm.pcie_mlw_mask = amdgpu_pcie_lane_cap;
 
 	/* covers APUs as well */
-	if (pci_is_root_bus(adev->pdev->bus)) {
+	if (pci_is_root_bus(adev->pdev->bus) && !amdgpu_passthrough(adev)) {
 		if (adev->pm.pcie_gen_mask == 0)
 			adev->pm.pcie_gen_mask = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		if (adev->pm.pcie_mlw_mask == 0)
