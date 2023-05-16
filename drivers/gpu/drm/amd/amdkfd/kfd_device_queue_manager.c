@@ -2597,7 +2597,9 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 		break;
 
 	default:
-		if (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0))
+		if (KFD_GC_VERSION(dev) >= IP_VERSION(12, 0, 0))
+			device_queue_manager_init_v12(&dqm->asic_ops);
+		else if (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0))
 			device_queue_manager_init_v11(&dqm->asic_ops);
 		else if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
 			device_queue_manager_init_v10(&dqm->asic_ops);

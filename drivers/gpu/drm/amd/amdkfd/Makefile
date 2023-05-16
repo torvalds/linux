@@ -50,6 +50,7 @@ AMDKFD_FILES	:= $(AMDKFD_PATH)/kfd_module.o \
 		$(AMDKFD_PATH)/kfd_device_queue_manager_v9.o \
 		$(AMDKFD_PATH)/kfd_device_queue_manager_v10.o \
 		$(AMDKFD_PATH)/kfd_device_queue_manager_v11.o \
+		$(AMDKFD_PATH)/kfd_device_queue_manager_v12.o \
 		$(AMDKFD_PATH)/kfd_interrupt.o \
 		$(AMDKFD_PATH)/kfd_events.o \
 		$(AMDKFD_PATH)/cik_event_interrupt.o \
