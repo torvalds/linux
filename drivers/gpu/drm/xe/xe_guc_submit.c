@@ -764,7 +764,7 @@ static void simple_error_capture(struct xe_engine *e)
 		}
 
 		xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
-		xe_guc_ct_print(&guc->ct, &p);
+		xe_guc_ct_print(&guc->ct, &p, true);
 		guc_engine_print(e, &p);
 		for_each_hw_engine(hwe, guc_to_gt(guc), id) {
 			if (hwe->class != e->hwe->class ||
