@@ -443,11 +443,32 @@ static void lan966x_port_qos_dscp_set(struct lan966x_port *port,
 			lan966x, ANA_DSCP_CFG(i));
 }
 
+static int lan966x_port_qos_default_set(struct lan966x_port *port,
+					struct lan966x_port_qos *qos)
+{
+	/* Set default prio and dp level */
+	lan_rmw(ANA_QOS_CFG_DP_DEFAULT_VAL_SET(0) |
+		ANA_QOS_CFG_QOS_DEFAULT_VAL_SET(qos->default_prio),
+		ANA_QOS_CFG_DP_DEFAULT_VAL |
+		ANA_QOS_CFG_QOS_DEFAULT_VAL,
+		port->lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Set default pcp and dei for untagged frames */
+	lan_rmw(ANA_VLAN_CFG_VLAN_DEI_SET(0) |
+		ANA_VLAN_CFG_VLAN_PCP_SET(0),
+		ANA_VLAN_CFG_VLAN_DEI |
+		ANA_VLAN_CFG_VLAN_PCP,
+		port->lan966x, ANA_VLAN_CFG(port->chip_port));
+
+	return 0;
+}
+
 void lan966x_port_qos_set(struct lan966x_port *port,
 			  struct lan966x_port_qos *qos)
 {
 	lan966x_port_qos_pcp_set(port, &qos->pcp);
 	lan966x_port_qos_dscp_set(port, &qos->dscp);
+	lan966x_port_qos_default_set(port, qos);
 }
 
 void lan966x_port_init(struct lan966x_port *port)

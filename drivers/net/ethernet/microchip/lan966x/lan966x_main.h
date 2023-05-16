@@ -412,6 +412,7 @@ struct lan966x_port_qos_dscp {
 struct lan966x_port_qos {
 	struct lan966x_port_qos_pcp pcp;
 	struct lan966x_port_qos_dscp dscp;
+	u8 default_prio;
 };
 
 struct lan966x_port {
