@@ -58,7 +58,6 @@ MODULE_FIRMWARE(EMU1010_NOTEBOOK_FILENAME);
 void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 {
 	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
-	snd_emu10k1_ptr_write(emu, IP, ch, 0);
 	snd_emu10k1_ptr_write(emu, VTFT, ch, VTFT_FILTERTARGET_MASK);
 	snd_emu10k1_ptr_write(emu, CVCF, ch, CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
@@ -72,19 +71,18 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 	snd_emu10k1_ptr_write(emu, Z2, ch, 0);
 	snd_emu10k1_ptr_write(emu, FXRT, ch, 0x32100000);
 
-	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
+	// The rest is meaningless as long as DCYSUSV_CHANNELENABLE_MASK is zero
 	snd_emu10k1_ptr_write(emu, DCYSUSM, ch, 0);
+	snd_emu10k1_ptr_write(emu, ATKHLDV, ch, 0);
+	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
+	snd_emu10k1_ptr_write(emu, IP, ch, 0);
 	snd_emu10k1_ptr_write(emu, IFATN, ch, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK);
 	snd_emu10k1_ptr_write(emu, PEFE, ch, 0);
 	snd_emu10k1_ptr_write(emu, FMMOD, ch, 0);
 	snd_emu10k1_ptr_write(emu, TREMFRQ, ch, 24);	/* 1 Hz */
 	snd_emu10k1_ptr_write(emu, FM2FRQ2, ch, 24);	/* 1 Hz */
-	snd_emu10k1_ptr_write(emu, TEMPENV, ch, 0);
-
-	/*** these are last so OFF prevents writing ***/
 	snd_emu10k1_ptr_write(emu, LFOVAL2, ch, 0);
 	snd_emu10k1_ptr_write(emu, LFOVAL1, ch, 0);
-	snd_emu10k1_ptr_write(emu, ATKHLDV, ch, 0);
 	snd_emu10k1_ptr_write(emu, ENVVOL, ch, 0);
 	snd_emu10k1_ptr_write(emu, ENVVAL, ch, 0);
 

@@ -348,24 +348,9 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	silent_page = ((unsigned int)emu->silent_page.addr << emu->address_mode) | (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 	snd_emu10k1_ptr_write(emu, MAPA, voice, silent_page);
 	snd_emu10k1_ptr_write(emu, MAPB, voice, silent_page);
-	/* modulation envelope */
+	// Disable filter (in conjunction with CCCA_RESONANCE == 0)
 	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
 	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(emu, ATKHLDM, voice, 0);
-	snd_emu10k1_ptr_write(emu, DCYSUSM, voice, 0x007f);
-	snd_emu10k1_ptr_write(emu, LFOVAL1, voice, 0x8000);
-	snd_emu10k1_ptr_write(emu, LFOVAL2, voice, 0x8000);
-	snd_emu10k1_ptr_write(emu, FMMOD, voice, 0);
-	snd_emu10k1_ptr_write(emu, TREMFRQ, voice, 0);
-	snd_emu10k1_ptr_write(emu, FM2FRQ2, voice, 0);
-	snd_emu10k1_ptr_write(emu, ENVVAL, voice, 0x8000);
-	/* volume envelope */
-	snd_emu10k1_ptr_write(emu, ATKHLDV, voice, 0x7f7f);
-	snd_emu10k1_ptr_write(emu, ENVVOL, voice, 0x0000);
-	/* filter envelope */
-	snd_emu10k1_ptr_write(emu, PEFE_FILTERAMOUNT, voice, 0x7f);
-	/* pitch envelope */
-	snd_emu10k1_ptr_write(emu, PEFE_PITCHAMOUNT, voice, 0);
 
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
@@ -600,12 +585,12 @@ static void snd_emu10k1_playback_invalidate_cache(struct snd_emu10k1 *emu, int e
 }
 
 static void snd_emu10k1_playback_prepare_voice(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *evoice,
-					       int master, int extra,
+					       int master,
 					       struct snd_emu10k1_pcm_mixer *mix)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	unsigned int attn, vattn;
+	unsigned int vattn;
 	unsigned int voice, tmp;
 
 	if (evoice == NULL)	/* skip second voice for mono */
@@ -614,13 +599,10 @@ static void snd_emu10k1_playback_prepare_voice(struct snd_emu10k1 *emu, struct s
 	runtime = substream->runtime;
 	voice = evoice->number;
 
-	attn = extra ? 0 : 0x00ff;
 	tmp = runtime->channels == 2 ? (master ? 1 : 2) : 0;
 	vattn = mix != NULL ? (mix->attn[tmp] << 16) : 0;
-	snd_emu10k1_ptr_write(emu, IFATN, voice, attn);
 	snd_emu10k1_ptr_write(emu, VTFT, voice, vattn | VTFT_FILTERTARGET_MASK);
 	snd_emu10k1_ptr_write(emu, CVCF, voice, vattn | CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(emu, DCYSUSV, voice, 0x7f7f);
 	snd_emu10k1_voice_clear_loop_stop(emu, voice);
 }	
 
@@ -628,7 +610,7 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	unsigned int voice, pitch, pitch_target;
+	unsigned int voice, pitch_target;
 
 	if (evoice == NULL)	/* skip second voice for mono */
 		return;
@@ -636,7 +618,6 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 	runtime = substream->runtime;
 	voice = evoice->number;
 
-	pitch = snd_emu10k1_rate_to_pitch(runtime->rate) >> 8;
 	if (emu->card_capabilities->emu_model)
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else 
@@ -644,7 +625,6 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, pitch_target);
 	if (master || evoice->epcm->type == PLAYBACK_EFX)
 		snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, pitch_target);
-	snd_emu10k1_ptr_write(emu, IP, voice, pitch);
 	if (extra)
 		snd_emu10k1_voice_intr_enable(emu, voice);
 }
@@ -659,10 +639,8 @@ static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu, struct snd_
 	snd_emu10k1_voice_intr_disable(emu, voice);
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, 0);
 	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, 0);
-	snd_emu10k1_ptr_write(emu, IFATN, voice, 0xffff);
 	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
 	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(emu, IP, voice, 0);
 }
 
 static inline void snd_emu10k1_playback_mangle_extra(struct snd_emu10k1 *emu,
@@ -707,9 +685,9 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		if (cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
 			snd_emu10k1_playback_mangle_extra(emu, epcm, substream, runtime);
 		mix = &emu->pcm_mixer[substream->number];
-		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 1, 0, mix);
-		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[1], 0, 0, mix);
-		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, 1, NULL);
+		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 1, mix);
+		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[1], 0, mix);
+		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, NULL);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0], 1, 0);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[1], 0, 0);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1, 1);
@@ -853,11 +831,11 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, 1, NULL);
-		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 0, 0,
+		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, NULL);
+		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 0,
 						   &emu->efx_pcm_mixer[0]);
 		for (i = 1; i < NUM_EFX_PLAYBACK; i++)
-			snd_emu10k1_playback_prepare_voice(emu, epcm->voices[i], 0, 0,
+			snd_emu10k1_playback_prepare_voice(emu, epcm->voices[i], 0,
 							   &emu->efx_pcm_mixer[i]);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0], 0, 0);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1, 1);

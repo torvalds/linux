@@ -1798,7 +1798,6 @@ void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait);
 static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
-unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
 
 #ifdef CONFIG_PM_SLEEP
 void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
