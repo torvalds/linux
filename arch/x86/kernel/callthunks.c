@@ -293,7 +293,7 @@ void *callthunks_translate_call_dest(void *dest)
 	return target ? : dest;
 }
 
-bool is_callthunk(void *addr)
+static bool is_callthunk(void *addr)
 {
 	unsigned int tmpl_size = SKL_TMPL_SIZE;
 	void *tmpl = skl_call_thunk_template;
