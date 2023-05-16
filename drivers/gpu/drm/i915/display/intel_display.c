@@ -4865,7 +4865,7 @@ pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
 			return;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset mismatch in %s infoframe\n", name);
+			    "fastset requirement not met in %s infoframe\n", name);
 		drm_dbg_kms(&dev_priv->drm, "expected:\n");
 		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, a);
 		drm_dbg_kms(&dev_priv->drm, "found:\n");
@@ -4890,7 +4890,7 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *dev_priv,
 			return;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset mismatch in %s dp sdp\n", name);
+			    "fastset requirement not met in %s dp sdp\n", name);
 		drm_dbg_kms(&dev_priv->drm, "expected:\n");
 		drm_dp_vsc_sdp_log(KERN_DEBUG, dev_priv->drm.dev, a);
 		drm_dbg_kms(&dev_priv->drm, "found:\n");
@@ -4931,7 +4931,7 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		len = memcmp_diff_len(a, b, len);
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset mismatch in %s buffer\n", name);
+			    "fastset requirement not met in %s buffer\n", name);
 		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
 			       16, 0, a, len, false);
 		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
@@ -4962,7 +4962,7 @@ pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
 
 	if (fastset)
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] fastset mismatch in %s %pV\n",
+			    "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
 			    crtc->base.base.id, crtc->base.name, name, &vaf);
 	else
 		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s %pV\n",
@@ -5550,8 +5550,13 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_state,
 				     struct intel_crtc_state *new_crtc_state)
 {
-	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true))
+	struct drm_i915_private *i915 = to_i915(old_crtc_state->uapi.crtc->dev);
+
+	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true)) {
+		drm_dbg_kms(&i915->drm, "fastset requirement not met, forcing full modeset\n");
+
 		return;
+	}
 
 	new_crtc_state->uapi.mode_changed = false;
 	if (!intel_crtc_needs_modeset(new_crtc_state))
