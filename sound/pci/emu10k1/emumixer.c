@@ -180,7 +180,7 @@ static const char * const emu1616_src_texts[] = {
 /*
  * List of data sources available for each destination
  */
-static const unsigned int emu1010_src_regs[] = {
+static const unsigned short emu1010_src_regs[] = {
 	EMU_SRC_SILENCE,/* 0 */
 	EMU_SRC_DOCK_MIC_A1, /* 1 */
 	EMU_SRC_DOCK_MIC_B1, /* 2 */
@@ -237,7 +237,7 @@ static const unsigned int emu1010_src_regs[] = {
 };
 
 /* 1616(m) cardbus */
-static const unsigned int emu1616_src_regs[] = {
+static const unsigned short emu1616_src_regs[] = {
 	EMU_SRC_SILENCE,
 	EMU_SRC_DOCK_MIC_A1,
 	EMU_SRC_DOCK_MIC_B1,
@@ -293,7 +293,7 @@ static const unsigned int emu1616_src_regs[] = {
  * Data destinations - physical EMU outputs.
  * Each destination has an enum mixer control to choose a data source
  */
-static const unsigned int emu1010_output_dst[] = {
+static const unsigned short emu1010_output_dst[] = {
 	EMU_DST_DOCK_DAC1_LEFT1, /* 0 */
 	EMU_DST_DOCK_DAC1_RIGHT1, /* 1 */
 	EMU_DST_DOCK_DAC2_LEFT1, /* 2 */
@@ -321,7 +321,7 @@ static const unsigned int emu1010_output_dst[] = {
 };
 
 /* 1616(m) cardbus */
-static const unsigned int emu1616_output_dst[] = {
+static const unsigned short emu1616_output_dst[] = {
 	EMU_DST_DOCK_DAC1_LEFT1,
 	EMU_DST_DOCK_DAC1_RIGHT1,
 	EMU_DST_DOCK_DAC2_LEFT1,
@@ -347,7 +347,7 @@ static const unsigned int emu1616_output_dst[] = {
  *   capture (EMU32 + I2S links)
  * Each destination has an enum mixer control to choose a data source
  */
-static const unsigned int emu1010_input_dst[] = {
+static const unsigned short emu1010_input_dst[] = {
 	EMU_DST_ALICE2_EMU32_0,
 	EMU_DST_ALICE2_EMU32_1,
 	EMU_DST_ALICE2_EMU32_2,

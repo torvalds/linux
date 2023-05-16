@@ -1612,24 +1612,24 @@ struct snd_emu_chip_details {
 	u32 device;
 	u32 subsystem;
 	unsigned char revision;
-	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
-				    /* Redundant with emu10k2_chip being unset. */
-	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
-	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
-				    /* Redundant with ca0108_chip being unset. */
-	unsigned char ca0108_chip;  /* Audigy 2 Value */
-	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
-	unsigned char ca0151_chip;  /* P16V */
-	unsigned char spk71;        /* Has 7.1 speakers */
-	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
-	unsigned char spdif_bug;    /* Has Spdif phasing bug */
-	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
-	unsigned char ecard;        /* APS EEPROM */
-	unsigned char emu_model;     /* EMU model type */
-	unsigned char spi_dac;      /* SPI interface for DAC; requires ca0108_chip */
-	unsigned char i2c_adc;      /* I2C interface for ADC; requires ca0108_chip */
-	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
-	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
+	unsigned char emu_model;	/* EMU model type */
+	unsigned int emu10k1_chip:1;	/* Original SB Live. Not SB Live 24bit. */
+					/* Redundant with emu10k2_chip being unset. */
+	unsigned int emu10k2_chip:1;	/* Audigy 1 or Audigy 2. */
+	unsigned int ca0102_chip:1;	/* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+					/* Redundant with ca0108_chip being unset. */
+	unsigned int ca0108_chip:1;	/* Audigy 2 Value */
+	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Notebook */
+	unsigned int ca0151_chip:1;	/* P16V */
+	unsigned int spk71:1;		/* Has 7.1 speakers */
+	unsigned int sblive51:1;	/* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
+	unsigned int spdif_bug:1;	/* Has Spdif phasing bug */
+	unsigned int ac97_chip:2;	/* Has an AC97 chip: 1 = mandatory, 2 = optional */
+	unsigned int ecard:1;		/* APS EEPROM */
+	unsigned int spi_dac:1;		/* SPI interface for DAC; requires ca0108_chip */
+	unsigned int i2c_adc:1;		/* I2C interface for ADC; requires ca0108_chip */
+	unsigned int adc_1361t:1;	/* Use Philips 1361T ADC */
+	unsigned int invert_shared_spdif:1;  /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
