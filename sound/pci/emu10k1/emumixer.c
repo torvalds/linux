@@ -231,6 +231,20 @@ static const unsigned short emu1010_output_dst[] = {
 };
 static_assert(ARRAY_SIZE(emu1010_output_dst) == ARRAY_SIZE(emu1010_output_texts));
 
+static const unsigned short emu1010_output_dflt[] = {
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5,
+	EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1, EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5, EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
+};
+static_assert(ARRAY_SIZE(emu1010_output_dflt) == ARRAY_SIZE(emu1010_output_dst));
+
 /* 1616(m) cardbus */
 
 static const char * const snd_emu1616_output_texts[] = {
@@ -251,6 +265,17 @@ static const unsigned short emu1616_output_dst[] = {
 	EMU_DST_MANA_DAC_LEFT, EMU_DST_MANA_DAC_RIGHT,
 };
 static_assert(ARRAY_SIZE(emu1616_output_dst) == ARRAY_SIZE(snd_emu1616_output_texts));
+
+static const unsigned short emu1616_output_dflt[] = {
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1, EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5, EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+};
+static_assert(ARRAY_SIZE(emu1616_output_dflt) == ARRAY_SIZE(emu1616_output_dst));
 
 /*
  * Data destinations - FPGA outputs going to Alice2 (Audigy) for
@@ -311,11 +336,43 @@ static const unsigned short emu1010_input_dst[] = {
 };
 static_assert(ARRAY_SIZE(emu1010_input_dst) == ARRAY_SIZE(emu1010_input_texts));
 
+static const unsigned short emu1010_input_dflt[] = {
+	EMU_SRC_DOCK_MIC_A1,
+	EMU_SRC_DOCK_MIC_B1,
+	EMU_SRC_HAMOA_ADC_LEFT1,
+	EMU_SRC_HAMOA_ADC_RIGHT1,
+	EMU_SRC_DOCK_ADC1_LEFT1,
+	EMU_SRC_DOCK_ADC1_RIGHT1,
+	EMU_SRC_DOCK_ADC2_LEFT1,
+	EMU_SRC_DOCK_ADC2_RIGHT1,
+	/* Pavel Hofman - setting defaults for all capture channels.
+	 * Defaults only, users will set their own values anyways, let's
+	 * just copy/paste. */
+	EMU_SRC_DOCK_MIC_A1,
+	EMU_SRC_DOCK_MIC_B1,
+	EMU_SRC_HAMOA_ADC_LEFT1,
+	EMU_SRC_HAMOA_ADC_RIGHT1,
+	EMU_SRC_DOCK_ADC1_LEFT1,
+	EMU_SRC_DOCK_ADC1_RIGHT1,
+	EMU_SRC_DOCK_ADC2_LEFT1,
+	EMU_SRC_DOCK_ADC2_RIGHT1,
+
+	EMU_SRC_DOCK_ADC1_LEFT1,
+	EMU_SRC_DOCK_ADC1_RIGHT1,
+	EMU_SRC_DOCK_ADC2_LEFT1,
+	EMU_SRC_DOCK_ADC2_RIGHT1,
+	EMU_SRC_DOCK_ADC3_LEFT1,
+	EMU_SRC_DOCK_ADC3_RIGHT1,
+};
+static_assert(ARRAY_SIZE(emu1010_input_dflt) == ARRAY_SIZE(emu1010_input_dst));
+
 struct snd_emu1010_routing_info {
 	const char * const *src_texts;
 	const unsigned short *src_regs;
 	const unsigned short *out_regs;
 	const unsigned short *in_regs;
+	const unsigned short *out_dflts;
+	const unsigned short *in_dflts;
 	unsigned n_srcs;
 	unsigned n_outs;
 	unsigned n_ins;
@@ -327,9 +384,11 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 		.src_texts = emu1010_src_texts,
 		.n_srcs = ARRAY_SIZE(emu1010_src_texts),
 
+		.out_dflts = emu1010_output_dflt,
 		.out_regs = emu1010_output_dst,
 		.n_outs = ARRAY_SIZE(emu1010_output_dst),
 
+		.in_dflts = emu1010_input_dflt,
 		.in_regs = emu1010_input_dst,
 		.n_ins = ARRAY_SIZE(emu1010_input_dst),
 	},
@@ -339,9 +398,11 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 		.src_texts = emu1616_src_texts,
 		.n_srcs = ARRAY_SIZE(emu1616_src_texts),
 
+		.out_dflts = emu1616_output_dflt,
 		.out_regs = emu1616_output_dst,
 		.n_outs = ARRAY_SIZE(emu1616_output_dst),
 
+		.in_dflts = emu1010_input_dflt,
 		.in_regs = emu1010_input_dst,
 		.n_ins = ARRAY_SIZE(emu1010_input_dst) - 6,
 	},
@@ -373,6 +434,28 @@ static void snd_emu1010_input_source_apply(struct snd_emu10k1 *emu,
 
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		emu_ri->in_regs[channel], emu_ri->src_regs[src]);
+}
+
+static void snd_emu1010_apply_sources(struct snd_emu10k1 *emu)
+{
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+
+	for (unsigned i = 0; i < emu_ri->n_outs; i++)
+		snd_emu1010_output_source_apply(
+			emu, i, emu->emu1010.output_source[i]);
+	for (unsigned i = 0; i < emu_ri->n_ins; i++)
+		snd_emu1010_input_source_apply(
+			emu, i, emu->emu1010.input_source[i]);
+}
+
+static u8 emu1010_map_source(const struct snd_emu1010_routing_info *emu_ri,
+			     unsigned val)
+{
+	for (unsigned i = 0; i < emu_ri->n_srcs; i++)
+		if (val == emu_ri->src_regs[i])
+			return i;
+	return 0;
 }
 
 static int snd_emu1010_input_output_source_info(struct snd_kcontrol *kcontrol,
@@ -1977,6 +2060,20 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		err = snd_p16v_mixer(emu);
 		if (err)
 			return err;
+	}
+
+	if (emu->card_capabilities->emu_model) {
+		unsigned i, emu_idx = emu1010_idx(emu);
+		const struct snd_emu1010_routing_info *emu_ri =
+			&emu1010_routing_info[emu_idx];
+
+		for (i = 0; i < emu_ri->n_ins; i++)
+			emu->emu1010.input_source[i] =
+				emu1010_map_source(emu_ri, emu_ri->in_dflts[i]);
+		for (i = 0; i < emu_ri->n_outs; i++)
+			emu->emu1010.output_source[i] =
+				emu1010_map_source(emu_ri, emu_ri->out_dflts[i]);
+		snd_emu1010_apply_sources(emu);
 	}
 
 	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
