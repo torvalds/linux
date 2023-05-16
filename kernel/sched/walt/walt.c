@@ -52,6 +52,7 @@ DEFINE_PER_CPU(int, cpus_taken_refcount);
 
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
 DEFINE_PER_CPU(struct freq_qos_request, qos_req_max);
+DEFINE_PER_CPU(struct freq_qos_request, qos_req_fmax_cap);
 
 unsigned int sysctl_sched_user_hint;
 static u64 sched_clock_last;
@@ -4293,6 +4294,23 @@ void walt_rotation_checkpoint(int nr_big)
 	}
 
 	walt_rotation_enabled = nr_big >= num_possible_cpus();
+
+}
+
+void fmax_uncap_checkpoint(int nr_big)
+{
+	bool fmax_uncap_load_detected = nr_big >= 7 || is_full_throttle_boost();
+	int i;
+
+	if (fmax_uncap_load_detected) {
+		for (i = 0; i < num_sched_clusters; i++)
+			add_max_freq_qos_request(sched_cluster[i]->cpus, FREQ_QOS_MAX_DEFAULT_VALUE,
+					QOS_FMAX_CAP);
+	} else {
+		for (int i = 0; i < num_sched_clusters; i++)
+			add_max_freq_qos_request(sched_cluster[i]->cpus, (s32) sysctl_fmax_cap[i],
+					QOS_FMAX_CAP);
+	}
 }
 
 void walt_fill_ta_data(struct core_ctl_notif_data *data)
@@ -4961,6 +4979,9 @@ struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 	case QOS_PARTIAL_HALT:
 		req = &per_cpu(qos_req_max, cpu);
 		break;
+	case QOS_FMAX_CAP:
+		req = &per_cpu(qos_req_fmax_cap, cpu);
+		break;
 	default:
 		pr_debug("unsupported qos client=%d\n", client);
 		break;
@@ -5142,6 +5163,7 @@ static void walt_init(struct work_struct *work)
 	walt_cfs_init();
 	walt_halt_init();
 	init_max_freq_qos_request(QOS_PARTIAL_HALT);
+	init_max_freq_qos_request(QOS_FMAX_CAP);
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
 
 	if (!rcu_dereference(rd->pd)) {

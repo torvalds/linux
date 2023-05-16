@@ -989,6 +989,7 @@ static void update_running_avg(void)
 
 	last_nr_big = big_avg;
 	walt_rotation_checkpoint(big_avg);
+	fmax_uncap_checkpoint(big_avg);
 }
 
 #define MAX_NR_THRESHOLD	4
