@@ -1915,6 +1915,76 @@ int drm_add_override_edid_modes(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_add_override_edid_modes);
 
+#ifdef CONFIG_NO_GKI
+/*
+ * References:
+ * - CTA-861-H section 7.3.3 CTA Extension Version 3
+ */
+static int cea_db_collection_size(const u8 *cta)
+{
+	u8 d = cta[2];
+
+	if (d < 4 || d > 127)
+		return 0;
+
+	return d - 4;
+}
+
+#define CTA_EXT_DB_HF_EEODB		0x78
+#define CTA_DB_EXTENDED_TAG		7
+
+static int cea_db_tag(const u8 *db);
+static int cea_db_payload_len(const u8 *db);
+static int cea_db_extended_tag(const u8 *db);
+
+static bool cea_db_is_extended_tag(const void *db, int tag)
+{
+	return cea_db_tag(db) == CTA_DB_EXTENDED_TAG &&
+		cea_db_payload_len(db) >= 1 &&
+		cea_db_extended_tag(db) == tag;
+}
+
+static bool cea_db_is_hdmi_forum_eeodb(const void *db)
+{
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_HF_EEODB) &&
+		cea_db_payload_len(db) >= 2;
+}
+
+static int edid_hfeeodb_extension_block_count(const struct edid *edid)
+{
+	const u8 *cta;
+
+	/* No extensions according to base block, no HF-EEODB. */
+	if (!edid->extensions)
+		return 0;
+
+	/* HF-EEODB is always in the first EDID extension block only */
+	cta = (u8 *)edid + EDID_LENGTH * 1;
+	if (cta[0] != CEA_EXT || cta[1] < 3)
+		return 0;
+
+	/* Need to have the data block collection, and at least 3 bytes. */
+	if (cea_db_collection_size(cta) < 3)
+		return 0;
+
+	/*
+	 * Sinks that include the HF-EEODB in their E-EDID shall include one and
+	 * only one instance of the HF-EEODB in the E-EDID, occupying bytes 4
+	 * through 6 of Block 1 of the E-EDID.
+	 */
+	if (!cea_db_is_hdmi_forum_eeodb(&cta[4]))
+		return 0;
+
+	return cta[4 + 2];
+}
+
+static int edid_hfeeodb_block_count(const struct edid *edid)
+{
+	int eeodb = edid_hfeeodb_extension_block_count(edid);
+
+	return eeodb ? eeodb + 1 : 0;
+}
+
 /**
  * drm_do_get_edid - get EDID data using a custom EDID block read function
  * @connector: connector we're probing
@@ -1935,6 +2005,120 @@ EXPORT_SYMBOL(drm_add_override_edid_modes);
  *
  * Return: Pointer to valid EDID or NULL if we couldn't find any.
  */
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
+			      size_t len),
+	void *data)
+{
+	int i, j = 0, valid_extensions = 0, num_blocks, invalid_blocks = 0;
+	u8 *edid, *new;
+	struct edid *override;
+
+	override = drm_get_override_edid(connector);
+	if (override)
+		return override;
+
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	if (!edid)
+		return NULL;
+
+	/* base block fetch */
+	for (i = 0; i < 4; i++) {
+		if (get_edid_block(data, edid, 0, EDID_LENGTH))
+			goto out;
+		if (drm_edid_block_valid(edid, 0, false,
+					 &connector->edid_corrupt))
+			break;
+		if (i == 0 && drm_edid_is_zero(edid, EDID_LENGTH)) {
+			connector->null_edid_counter++;
+			goto out;
+		}
+	}
+	if (i == 4)
+		goto out;
+
+	/* if there's no extensions, we're done */
+	valid_extensions = edid[0x7e];
+	if (valid_extensions == 0)
+		return (struct edid *)edid;
+
+	new = krealloc(edid, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	if (!new)
+		goto out;
+	edid = new;
+
+	num_blocks = edid[0x7e] + 1;
+
+	for (j = 1; j < num_blocks; j++) {
+		u8 *block = edid + j * EDID_LENGTH;
+
+		for (i = 0; i < 4; i++) {
+			if (get_edid_block(data, block, j, EDID_LENGTH))
+				goto out;
+			if (drm_edid_block_valid(block, j, false, NULL))
+				break;
+		}
+
+		if (i == 4)
+			invalid_blocks++;
+
+		if (j == 1) {
+			/*
+			 * If the first EDID extension is a CTA extension, and
+			 * the first Data Block is HF-EEODB, override the
+			 * extension block count.
+			 *
+			 * Note: HF-EEODB could specify a smaller extension
+			 * count too, but we can't risk allocating a smaller
+			 * amount.
+			 */
+			int eeodb = edid_hfeeodb_block_count((const struct edid *)edid);
+
+			if (eeodb > num_blocks) {
+				num_blocks = eeodb;
+				new = krealloc(edid, num_blocks * EDID_LENGTH, GFP_KERNEL);
+				if (!new)
+					goto out;
+				edid = new;
+			}
+		}
+	}
+
+	if (invalid_blocks) {
+		u8 *base;
+
+		connector_bad_edid(connector, edid, edid[0x7e] + 1);
+
+		new = kmalloc_array(valid_extensions + 1, EDID_LENGTH,
+				    GFP_KERNEL);
+		if (!new)
+			goto out;
+
+		base = new;
+		for (i = 0; i <= edid[0x7e]; i++) {
+			u8 *block = edid + i * EDID_LENGTH;
+
+			if (!drm_edid_block_valid(block, i, false, NULL))
+				continue;
+
+			memcpy(base, block, EDID_LENGTH);
+			base += EDID_LENGTH;
+		}
+
+		new[EDID_LENGTH - 1] += new[0x7e] - valid_extensions;
+		new[0x7e] = valid_extensions;
+
+		kfree(edid);
+		edid = new;
+	}
+
+	return (struct edid *)edid;
+
+out:
+	kfree(edid);
+	return NULL;
+}
+#else
 struct edid *drm_do_get_edid(struct drm_connector *connector,
 	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
 			      size_t len),
@@ -2026,6 +2210,7 @@ out:
 	kfree(edid);
 	return NULL;
 }
+#endif
 EXPORT_SYMBOL_GPL(drm_do_get_edid);
 
 /**
@@ -3245,6 +3430,39 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
+#ifdef CONFIG_NO_GKI
+static u8 *drm_find_edid_extension(const struct edid *edid,
+				   int ext_id, int *ext_index)
+{
+	u8 *edid_ext = NULL;
+	int i;
+	int len;
+
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		return NULL;
+
+	if (edid_hfeeodb_extension_block_count(edid))
+		len = edid_hfeeodb_extension_block_count(edid);
+	else
+		len = edid->extensions;
+
+	/* Find CEA extension */
+	for (i = *ext_index; i < len; i++) {
+		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
+
+		if (edid_ext[0] == ext_id)
+			break;
+	}
+
+	if (i >= len)
+		return NULL;
+
+	*ext_index = i + 1;
+
+	return edid_ext;
+}
+#else
 static u8 *drm_find_edid_extension(const struct edid *edid,
 				   int ext_id, int *ext_index)
 {
@@ -3269,7 +3487,7 @@ static u8 *drm_find_edid_extension(const struct edid *edid,
 
 	return edid_ext;
 }
-
+#endif
 
 static u8 *drm_find_displayid_extension(const struct edid *edid,
 					int *length, int *idx,
@@ -4266,32 +4484,6 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 }
 
 #ifdef CONFIG_NO_GKI
-static int drm_find_all_edid_extension(const struct edid *edid,
-				       int ext_id, int *ext_list)
-{
-	u8 *edid_ext = NULL;
-	int i, count = 0;
-
-	/* No EDID or EDID extensions */
-	if (edid == NULL || edid->extensions == 0)
-		return -EINVAL;
-
-	/* too many EDID extensions */
-	if (edid->extensions > 32)
-		return -EINVAL;
-
-	/* Find CEA extension */
-	for (i = 0; i < edid->extensions; i++) {
-		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
-		if (edid_ext[0] == ext_id) {
-			*ext_list = i;
-			ext_list++;
-			count++;
-		}
-	}
-
-	return count;
-}
 
 static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
@@ -4301,11 +4493,15 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 	u8 dbl, hdmi_len, video_len = 0;
 	int i, count = 0, modes = 0;
 	int ext_index = 0;
-	int ext_list[32];
 
-	count = drm_find_all_edid_extension(edid, CEA_EXT, ext_list);
+	if (edid_hfeeodb_extension_block_count(edid))
+		count = edid_hfeeodb_extension_block_count(edid);
+	else
+		count = edid->extensions;
+
 	for (i = 0; i < count; i++) {
-		ext_index = ext_list[i];
+		ext_index = i;
+
 		cea = drm_find_edid_extension(edid, CEA_EXT, &ext_index);
 		if (cea && cea_revision(cea) >= 3) {
 			int i, start, end;
