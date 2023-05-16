@@ -2467,7 +2467,7 @@ int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id)
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(id, RTW89_PKT_OFLD_OP_DEL);
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
-	if (ret) {
+	if (ret < 0) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "failed to del pkt ofld: id %d, ret %d\n",
 			    id, ret);
@@ -2517,7 +2517,7 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(alloc_id, RTW89_PKT_OFLD_OP_ADD);
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
-	if (ret) {
+	if (ret < 0) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "failed to add pkt ofld: id %d, ret %d\n",
 			    alloc_id, ret);

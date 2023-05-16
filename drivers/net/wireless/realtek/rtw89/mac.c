@@ -4456,6 +4456,9 @@ rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h,
 	struct rtw89_completion_data data = {};
 	unsigned int cond;
 
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "pkt ofld rsp: id %d op %d len %d\n",
+		    pkt_id, pkt_op, pkt_len);
+
 	data.err = !pkt_len;
 	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op);
 
