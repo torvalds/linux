@@ -605,7 +605,9 @@ static void snd_emu10k1_playback_prepare_voice(struct snd_emu10k1 *emu, struct s
 	snd_emu10k1_ptr_write(emu, CVCF, voice, vattn | CVCF_CURRENTFILTER_MASK);
 }	
 
-static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *evoice, int master, int extra)
+static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
+					       struct snd_emu10k1_voice *evoice,
+					       int master)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
@@ -624,22 +626,34 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, pitch_target);
 	if (master || evoice->epcm->type == PLAYBACK_EFX)
 		snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, pitch_target);
-	if (extra)
-		snd_emu10k1_voice_intr_enable(emu, voice);
 }
 
-static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *evoice)
+static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
+					    struct snd_emu10k1_voice *evoice)
 {
 	unsigned int voice;
 
 	if (evoice == NULL)
 		return;
 	voice = evoice->number;
-	snd_emu10k1_voice_intr_disable(emu, voice);
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, 0);
 	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, 0);
 	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
 	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
+}
+
+static void snd_emu10k1_playback_set_running(struct snd_emu10k1 *emu,
+					     struct snd_emu10k1_pcm *epcm)
+{
+	epcm->running = 1;
+	snd_emu10k1_voice_intr_enable(emu, epcm->extra->number);
+}
+
+static void snd_emu10k1_playback_set_stopped(struct snd_emu10k1 *emu,
+					      struct snd_emu10k1_pcm *epcm)
+{
+	snd_emu10k1_voice_intr_disable(emu, epcm->extra->number);
+	epcm->running = 0;
 }
 
 static inline void snd_emu10k1_playback_mangle_extra(struct snd_emu10k1 *emu,
@@ -687,18 +701,18 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 1, mix);
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[1], 0, mix);
 		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, NULL);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0], 1, 0);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[1], 0, 0);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1, 1);
-		epcm->running = 1;
+		snd_emu10k1_playback_set_running(emu, epcm);
+		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0], 1);
+		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[1], 0);
+		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		epcm->running = 0;
 		snd_emu10k1_playback_stop_voice(emu, epcm->voices[0]);
 		snd_emu10k1_playback_stop_voice(emu, epcm->voices[1]);
 		snd_emu10k1_playback_stop_voice(emu, epcm->extra);
+		snd_emu10k1_playback_set_stopped(emu, epcm);
 		break;
 	default:
 		result = -EINVAL;
@@ -836,20 +850,19 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 		for (i = 1; i < NUM_EFX_PLAYBACK; i++)
 			snd_emu10k1_playback_prepare_voice(emu, epcm->voices[i], 0,
 							   &emu->efx_pcm_mixer[i]);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0], 0, 0);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1, 1);
-		for (i = 1; i < NUM_EFX_PLAYBACK; i++)
-			snd_emu10k1_playback_trigger_voice(emu, epcm->voices[i], 0, 0);
-		epcm->running = 1;
+		snd_emu10k1_playback_set_running(emu, epcm);
+		for (i = 0; i < NUM_EFX_PLAYBACK; i++)
+			snd_emu10k1_playback_trigger_voice(emu, epcm->voices[i], 0);
+		snd_emu10k1_playback_trigger_voice(emu, epcm->extra, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		epcm->running = 0;
 		for (i = 0; i < NUM_EFX_PLAYBACK; i++) {	
 			snd_emu10k1_playback_stop_voice(emu, epcm->voices[i]);
 		}
 		snd_emu10k1_playback_stop_voice(emu, epcm->extra);
+		snd_emu10k1_playback_set_stopped(emu, epcm);
 		break;
 	default:
 		result = -EINVAL;
