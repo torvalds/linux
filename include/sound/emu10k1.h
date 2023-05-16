@@ -1195,7 +1195,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * physical outputs of Hana, or outputs going to Alice2/Tina for capture -
  * 16 x EMU_DST_ALICE2_EMU32_X (2x on rev2 boards). Which data is fed into
  * a channel depends on the mixer control setting for each destination - see
- * emumixer.c - snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
+ * the register arrays in emumixer.c.
  */
 #define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 					/* This channel is delayed by one sample. */
