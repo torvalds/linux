@@ -983,6 +983,11 @@ static inline bool free_page_is_bad(struct page *page)
 	return true;
 }
 
+static inline bool is_check_pages_enabled(void)
+{
+	return static_branch_unlikely(&check_pages_enabled);
+}
+
 static int free_tail_page_prepare(struct page *head_page, struct page *page)
 {
 	struct folio *folio = (struct folio *)head_page;
@@ -994,7 +999,7 @@ static int free_tail_page_prepare(struct page *head_page, struct page *page)
 	 */
 	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
 
-	if (!static_branch_unlikely(&check_pages_enabled)) {
+	if (!is_check_pages_enabled()) {
 		ret = 0;
 		goto out;
 	}
