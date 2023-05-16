@@ -434,6 +434,7 @@ void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int 
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
+#if 0
 void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
@@ -471,6 +472,7 @@ void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voi
 	outl(sol, emu->port + DATA);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
+#endif
 
 void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait)
 {
