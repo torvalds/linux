@@ -313,6 +313,7 @@ static void scf_handler_1(void *scfc_in)
 // Randomly do an smp_call_function*() invocation.
 static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_random_state *trsp)
 {
+	bool allocfail = false;
 	uintptr_t cpu;
 	int ret = 0;
 	struct scf_check *scfcp = NULL;
@@ -327,6 +328,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		if (!scfcp) {
 			WARN_ON_ONCE(!IS_ENABLED(CONFIG_KASAN));
 			atomic_inc(&n_alloc_errs);
+			allocfail = true;
 		} else {
 			scfcp->scfc_cpu = -1;
 			scfcp->scfc_wait = scfsp->scfs_wait;
@@ -433,7 +435,9 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		cpus_read_unlock();
 	else
 		preempt_enable();
-	if (!(torture_random(trsp) & 0xfff))
+	if (allocfail)
+		schedule_timeout_idle((1 + longwait) * HZ);  // Let no-wait handlers complete.
+	else if (!(torture_random(trsp) & 0xfff))
 		schedule_timeout_uninterruptible(1);
 }
 
