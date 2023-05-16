@@ -115,6 +115,11 @@
 #define LAN966X_PORT_REW_TAG_CTRL_CLASSIFIED	0
 #define LAN966X_PORT_REW_TAG_CTRL_MAPPED	2
 
+/* Port DSCP rewrite mode */
+#define LAN966X_PORT_REW_DSCP_FRAME		0
+#define LAN966X_PORT_REW_DSCP_ANALIZER		1
+#define LAN966X_PORT_QOS_REWR_DSCP_ALL		3
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -418,10 +423,16 @@ struct lan966x_port_qos_pcp_rewr {
 	bool enable;
 };
 
+struct lan966x_port_qos_dscp_rewr {
+	u16 map[LAN966X_PORT_QOS_DSCP_COUNT];
+	bool enable;
+};
+
 struct lan966x_port_qos {
 	struct lan966x_port_qos_pcp pcp;
 	struct lan966x_port_qos_dscp dscp;
 	struct lan966x_port_qos_pcp_rewr pcp_rewr;
+	struct lan966x_port_qos_dscp_rewr dscp_rewr;
 	u8 default_prio;
 };
 
@@ -491,6 +502,8 @@ void lan966x_port_init(struct lan966x_port *port);
 
 void lan966x_port_qos_set(struct lan966x_port *port,
 			  struct lan966x_port_qos *qos);
+void lan966x_port_qos_dscp_rewr_mode_set(struct lan966x_port *port,
+					 int mode);
 
 int lan966x_mac_ip_learn(struct lan966x *lan966x,
 			 bool cpu_copy,

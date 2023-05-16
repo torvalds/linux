@@ -46,10 +46,12 @@ static bool lan966x_dcb_apptrust_contains(int portno, u8 selector)
 
 static void lan966x_dcb_app_update(struct net_device *dev)
 {
+	struct dcb_ieee_app_prio_map dscp_rewr_map = {0};
 	struct dcb_rewr_prio_pcp_map pcp_rewr_map = {0};
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x_port_qos qos = {0};
 	struct dcb_app app_itr;
+	bool dscp_rewr = false;
 	bool pcp_rewr = false;
 
 	/* Get pcp ingress mapping */
@@ -81,6 +83,16 @@ static void lan966x_dcb_app_update(struct net_device *dev)
 		qos.pcp_rewr.map[i] = fls(pcp_rewr_map.map[i]) - 1;
 	}
 
+	/* Get dscp rewrite mapping */
+	dcb_getrewr_prio_dscp_mask_map(dev, &dscp_rewr_map);
+	for (int i = 0; i < ARRAY_SIZE(dscp_rewr_map.map); i++) {
+		if (!dscp_rewr_map.map[i])
+			continue;
+
+		dscp_rewr = true;
+		qos.dscp_rewr.map[i] = fls64(dscp_rewr_map.map[i]) - 1;
+	}
+
 	/* Enable use of pcp for queue classification */
 	if (lan966x_dcb_apptrust_contains(port->chip_port, DCB_APP_SEL_PCP)) {
 		qos.pcp.enable = true;
@@ -90,8 +102,12 @@ static void lan966x_dcb_app_update(struct net_device *dev)
 	}
 
 	/* Enable use of dscp for queue classification */
-	if (lan966x_dcb_apptrust_contains(port->chip_port, IEEE_8021QAZ_APP_SEL_DSCP))
+	if (lan966x_dcb_apptrust_contains(port->chip_port, IEEE_8021QAZ_APP_SEL_DSCP)) {
 		qos.dscp.enable = true;
+
+		if (dscp_rewr)
+			qos.dscp_rewr.enable = true;
+	}
 
 	lan966x_port_qos_set(port, &qos);
 }
@@ -272,7 +288,11 @@ static int lan966x_dcb_delrewr(struct net_device *dev, struct dcb_app *app)
 {
 	int err;
 
-	err = dcb_delrewr(dev, app);
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = lan966x_dcb_ieee_dscp_setdel(dev, app, dcb_delrewr);
+	else
+		err = dcb_delrewr(dev, app);
+
 	if (err < 0)
 		return err;
 
@@ -299,7 +319,11 @@ static int lan966x_dcb_setrewr(struct net_device *dev, struct dcb_app *app)
 		lan966x_dcb_delrewr(dev, &app_itr);
 	}
 
-	err = dcb_setrewr(dev, app);
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = lan966x_dcb_ieee_dscp_setdel(dev, app, dcb_setrewr);
+	else
+		err = dcb_setrewr(dev, app);
+
 	if (err)
 		goto out;
 
@@ -331,5 +355,11 @@ void lan966x_dcb_init(struct lan966x *lan966x)
 
 		lan966x_port_apptrust[port->chip_port] =
 			&lan966x_dcb_apptrust_policies[LAN966X_DCB_APPTRUST_DSCP_PCP];
+
+		/* Enable DSCP classification based on classified QoS class and
+		 * DP, for all DSCP values, for all ports.
+		 */
+		lan966x_port_qos_dscp_rewr_mode_set(port,
+						    LAN966X_PORT_QOS_REWR_DSCP_ALL);
 	}
 }
