@@ -166,4 +166,6 @@ static inline void efi_capsule_flush_cache_range(void *addr, int size)
 	dcache_clean_inval_poc((unsigned long)addr, (unsigned long)addr + size);
 }
 
+efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f);
+
 #endif /* _ASM_EFI_H */
