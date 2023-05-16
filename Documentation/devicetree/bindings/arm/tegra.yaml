@@ -185,5 +185,10 @@ properties:
         items:
           - const: nvidia,p3767-0005
           - const: nvidia,tegra234
+      - description: Jetson Orin Nano Developer Kit
+        items:
+          - const: nvidia,p3768-0000+p3767-0005
+          - const: nvidia,p3767-0005
+          - const: nvidia,tegra234
 
 additionalProperties: true
