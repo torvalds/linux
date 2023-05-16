@@ -1265,7 +1265,7 @@
 		snps,tso;
 
 		tx-dma-size = <256>;
-		rx-dma-size = <16>;
+		rx-dma-size = <128>;
 
 		snps,axi-config = <&stmmac_axi_setup>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
