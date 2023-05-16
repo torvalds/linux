@@ -555,6 +555,11 @@ static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, int offset, u32
 		pkt->valid = true;
 }
 
+static u32 pkt_get_buffer_len(struct xsk_umem_info *umem, u32 len)
+{
+	return ceil_u32(len, umem->frame_size) * umem->frame_size;
+}
+
 static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb_pkts, u32 pkt_len)
 {
 	struct pkt_stream *pkt_stream;
@@ -564,6 +569,8 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 	if (!pkt_stream)
 		exit_with_error(ENOMEM);
 
+	pkt_stream->nb_pkts = nb_pkts;
+	pkt_stream->max_pkt_len = pkt_len;
 	for (i = 0; i < nb_pkts; i++) {
 		struct pkt *pkt = &pkt_stream->pkts[i];
 
@@ -661,10 +668,14 @@ static void __pkt_stream_generate_custom(struct ifobject *ifobj,
 		exit_with_error(ENOMEM);
 
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_stream->pkts[i].offset = pkts[i].offset;
-		pkt_stream->pkts[i].len = pkts[i].len;
-		pkt_stream->pkts[i].pkt_nb = i;
-		pkt_stream->pkts[i].valid = pkts[i].valid;
+		struct pkt *pkt = &pkt_stream->pkts[i];
+
+		pkt->offset = pkts[i].offset;
+		pkt->len = pkts[i].len;
+		pkt->pkt_nb = i;
+		pkt->valid = pkts[i].valid;
+		if (pkt->len > pkt_stream->max_pkt_len)
+			pkt_stream->max_pkt_len = pkt->len;
 	}
 
 	ifobj->pkt_stream = pkt_stream;
@@ -926,8 +937,6 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 		pthread_mutex_lock(&pacing_mutex);
 		pkts_in_flight -= pkts_sent;
-		if (pkts_in_flight < umem->num_frames)
-			pthread_cond_signal(&pacing_cond);
 		pthread_mutex_unlock(&pacing_mutex);
 		pkts_sent = 0;
 	}
@@ -938,9 +947,17 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeout)
 {
 	struct xsk_socket_info *xsk = ifobject->xsk;
+	struct xsk_umem_info *umem = ifobject->umem;
+	u32 i, idx = 0, valid_pkts = 0, buffer_len;
 	bool use_poll = ifobject->use_poll;
-	u32 i, idx = 0, valid_pkts = 0;
 	int ret;
+
+	buffer_len = pkt_get_buffer_len(umem, ifobject->pkt_stream->max_pkt_len);
+	/* pkts_in_flight might be negative if many invalid packets are sent */
+	if (pkts_in_flight >= (int)((umem_size(umem) - BATCH_SIZE * buffer_len) / buffer_len)) {
+		kick_tx(xsk);
+		return TEST_CONTINUE;
+	}
 
 	while (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) < BATCH_SIZE) {
 		if (use_poll) {
@@ -972,7 +989,7 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 		if (!pkt)
 			break;
 
-		tx_desc->addr = pkt_get_addr(pkt, ifobject->umem);
+		tx_desc->addr = pkt_get_addr(pkt, umem);
 		tx_desc->len = pkt->len;
 		if (pkt->valid) {
 			valid_pkts++;
@@ -982,11 +999,6 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 
 	pthread_mutex_lock(&pacing_mutex);
 	pkts_in_flight += valid_pkts;
-	/* pkts_in_flight might be negative if many invalid packets are sent */
-	if (pkts_in_flight >= (int)(ifobject->umem->num_frames - BATCH_SIZE)) {
-		kick_tx(xsk);
-		pthread_cond_wait(&pacing_cond, &pacing_mutex);
-	}
 	pthread_mutex_unlock(&pacing_mutex);
 
 	xsk_ring_prod__submit(&xsk->tx, i);
@@ -1032,9 +1044,11 @@ static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 
 	while (pkt_stream->current_pkt_nb < pkt_stream->nb_pkts) {
 		ret = __send_pkts(ifobject, &fds, timeout);
+		if (ret == TEST_CONTINUE && !test->fail)
+			continue;
 		if ((ret || test->fail) && !timeout)
 			return TEST_FAILURE;
-		else if (ret == TEST_PASS && timeout)
+		if (ret == TEST_PASS && timeout)
 			return ret;
 	}
 
@@ -1319,12 +1333,8 @@ static void *worker_testapp_validate_rx(void *arg)
 
 	if (!err && ifobject->validation_func)
 		err = ifobject->validation_func(ifobject);
-	if (err) {
+	if (err)
 		report_failure(test);
-		pthread_mutex_lock(&pacing_mutex);
-		pthread_cond_signal(&pacing_cond);
-		pthread_mutex_unlock(&pacing_mutex);
-	}
 
 	pthread_exit(NULL);
 }
