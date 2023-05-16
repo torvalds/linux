@@ -107,6 +107,12 @@ properties:
           - const: edgeble,neural-compute-module-6a     # Edgeble Neural Compute Module 6A SoM
           - const: rockchip,rk3588
 
+      - description: Edgeble Neural Compute Module 6(Neu6) Model B SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-6b-io  # Edgeble Neural Compute Module 6B IO Board
+          - const: edgeble,neural-compute-module-6b     # Edgeble Neural Compute Module 6B SoM
+          - const: rockchip,rk3588
+
       - description: Elgin RV1108 R1
         items:
           - const: elgin,rv1108-r1
