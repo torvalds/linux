@@ -172,6 +172,38 @@ static const unsigned short emu1010_src_regs[] = {
 };
 static_assert(ARRAY_SIZE(emu1010_src_regs) == ARRAY_SIZE(emu1010_src_texts));
 
+/* 1010 rev2 */
+
+#define EMU1010b_COMMON_TEXTS \
+	"Silence", \
+	PAIR_TEXTS("Dock Mic", "A", "B"), \
+	LR_TEXTS("Dock ADC1"), \
+	LR_TEXTS("Dock ADC2"), \
+	LR_TEXTS("0202 ADC"), \
+	LR_TEXTS("Dock SPDIF"), \
+	LR_TEXTS("1010 SPDIF"), \
+	ADAT_TEXTS("Dock "), \
+	ADAT_TEXTS("1010 ")
+
+static const char * const emu1010b_src_texts[] = {
+	EMU1010b_COMMON_TEXTS,
+	DSP_TEXTS,
+};
+
+static const unsigned short emu1010b_src_regs[] = {
+	EMU_SRC_SILENCE,
+	PAIR_REGS(EMU_SRC_DOCK_MIC, _A, _B),
+	LR_REGS(EMU_SRC_DOCK_ADC1),
+	LR_REGS(EMU_SRC_DOCK_ADC2),
+	LR_REGS(EMU_SRC_HAMOA_ADC),
+	LR_REGS(EMU_SRC_MDOCK_SPDIF),
+	LR_REGS(EMU_SRC_HANA_SPDIF),
+	ADAT_REGS(EMU_SRC_MDOCK_ADAT),
+	ADAT_REGS(EMU_SRC_HANA_ADAT),
+	EMU32_SRC_REGS,
+};
+static_assert(ARRAY_SIZE(emu1010b_src_regs) == ARRAY_SIZE(emu1010b_src_texts));
+
 /* 1616(m) cardbus */
 
 #define EMU1616_COMMON_TEXTS \
@@ -244,6 +276,44 @@ static const unsigned short emu1010_output_dflt[] = {
 	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5, EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
 };
 static_assert(ARRAY_SIZE(emu1010_output_dflt) == ARRAY_SIZE(emu1010_output_dst));
+
+/* 1010 rev2 */
+
+static const char * const snd_emu1010b_output_texts[] = {
+	LR_CTLS("Dock DAC1"),
+	LR_CTLS("Dock DAC2"),
+	LR_CTLS("Dock DAC3"),
+	LR_CTLS("Dock SPDIF"),
+	ADAT_CTLS("Dock "),
+	LR_CTLS("0202 DAC"),
+	LR_CTLS("1010 SPDIF"),
+	ADAT_CTLS("1010 "),
+};
+
+static const unsigned short emu1010b_output_dst[] = {
+	LR_REGS(EMU_DST_DOCK_DAC1),
+	LR_REGS(EMU_DST_DOCK_DAC2),
+	LR_REGS(EMU_DST_DOCK_DAC3),
+	LR_REGS(EMU_DST_MDOCK_SPDIF),
+	ADAT_REGS(EMU_DST_MDOCK_ADAT),
+	LR_REGS(EMU_DST_HAMOA_DAC),
+	LR_REGS(EMU_DST_HANA_SPDIF),
+	ADAT_REGS(EMU_DST_HANA_ADAT),
+};
+static_assert(ARRAY_SIZE(emu1010b_output_dst) == ARRAY_SIZE(snd_emu1010b_output_texts));
+
+static const unsigned short emu1010b_output_dflt[] = {
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1, EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5, EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1, EMU_SRC_ALICE_EMU32A+2, EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4, EMU_SRC_ALICE_EMU32A+5, EMU_SRC_ALICE_EMU32A+6, EMU_SRC_ALICE_EMU32A+7,
+};
 
 /* 1616(m) cardbus */
 
@@ -395,6 +465,21 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 		.n_ins = ARRAY_SIZE(emu1010_input_dst),
 	},
 	{
+		/* rev2 1010 */
+		.src_regs = emu1010b_src_regs,
+		.src_texts = emu1010b_src_texts,
+		.n_srcs = ARRAY_SIZE(emu1010b_src_texts),
+
+		.out_dflts = emu1010b_output_dflt,
+		.out_regs = emu1010b_output_dst,
+		.out_texts = snd_emu1010b_output_texts,
+		.n_outs = ARRAY_SIZE(emu1010b_output_dst),
+
+		.in_dflts = emu1010_input_dflt,
+		.in_regs = emu1010_input_dst,
+		.n_ins = ARRAY_SIZE(emu1010_input_dst) - 6,
+	},
+	{
 		/* 1616(m) cardbus */
 		.src_regs = emu1616_src_regs,
 		.src_texts = emu1616_src_texts,
@@ -414,6 +499,8 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 static unsigned emu1010_idx(struct snd_emu10k1 *emu)
 {
 	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
+		return 2;
+	else if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010B)
 		return 1;
 	else
 		return 0;
@@ -576,17 +663,17 @@ static int add_emu1010_source_mixers(struct snd_emu10k1 *emu)
 
 
 static const char * const snd_emu1010_adc_pads[] = {
+	"ADC1 14dB PAD 0202 Capture Switch",
 	"ADC1 14dB PAD Audio Dock Capture Switch",
 	"ADC2 14dB PAD Audio Dock Capture Switch",
 	"ADC3 14dB PAD Audio Dock Capture Switch",
-	"ADC1 14dB PAD 0202 Capture Switch",
 };
 
 static const unsigned short snd_emu1010_adc_pad_regs[] = {
+	EMU_HANA_0202_ADC_PAD1,
 	EMU_HANA_DOCK_ADC_PAD1,
 	EMU_HANA_DOCK_ADC_PAD2,
 	EMU_HANA_DOCK_ADC_PAD3,
-	EMU_HANA_0202_ADC_PAD1,
 };
 
 #define snd_emu1010_adc_pads_info	snd_ctl_boolean_mono_info
@@ -629,19 +716,19 @@ static const struct snd_kcontrol_new emu1010_adc_pads_ctl = {
 
 
 static const char * const snd_emu1010_dac_pads[] = {
+	"DAC1 0202 14dB PAD Playback Switch",
 	"DAC1 Audio Dock 14dB PAD Playback Switch",
 	"DAC2 Audio Dock 14dB PAD Playback Switch",
 	"DAC3 Audio Dock 14dB PAD Playback Switch",
 	"DAC4 Audio Dock 14dB PAD Playback Switch",
-	"DAC1 0202 14dB PAD Playback Switch",
 };
 
 static const unsigned short snd_emu1010_dac_regs[] = {
+	EMU_HANA_0202_DAC_PAD1,
 	EMU_HANA_DOCK_DAC_PAD1,
 	EMU_HANA_DOCK_DAC_PAD2,
 	EMU_HANA_DOCK_DAC_PAD3,
 	EMU_HANA_DOCK_DAC_PAD4,
-	EMU_HANA_0202_DAC_PAD1,
 };
 
 #define snd_emu1010_dac_pads_info	snd_ctl_boolean_mono_info
@@ -700,10 +787,17 @@ const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads),
 	},
 	{
-		/* 1616(m) cardbus */
+		/* rev2 1010 */
 		.adc_ctls = snd_emu1010_adc_pads,
-		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads) - 2,
+		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads) - 1,
 		.dac_ctls = snd_emu1010_dac_pads,
+		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads) - 1,
+	},
+	{
+		/* 1616(m) cardbus */
+		.adc_ctls = snd_emu1010_adc_pads + 1,
+		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads) - 2,
+		.dac_ctls = snd_emu1010_dac_pads + 1,
 		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads) - 2,
 	},
 };
