@@ -41,6 +41,7 @@
 #include <linux/swap_slots.h>
 #include <linux/sort.h>
 #include <linux/completion.h>
+#include <linux/suspend.h>
 
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
