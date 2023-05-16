@@ -95,7 +95,7 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 		snd_emu10k1_ptr_write(emu, A_CSFE, ch, 0);
 		snd_emu10k1_ptr_write(emu, A_CSHG, ch, 0);
 		snd_emu10k1_ptr_write(emu, A_FXRT1, ch, 0x03020100);
-		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x3f3f3f3f);
+		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x07060504);
 		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, ch, 0);
 	}
 }

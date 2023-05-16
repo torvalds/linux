@@ -283,11 +283,8 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 
 	/* volume parameters */
 	if (extra) {
-		memset(send_routing, 0, sizeof(send_routing));
-		send_routing[0] = 0;
-		send_routing[1] = 1;
-		send_routing[2] = 2;
-		send_routing[3] = 3;
+		for (int i = 0; i < 8; i++)
+			send_routing[i] = i;
 		memset(send_amount, 0, sizeof(send_amount));
 	} else {
 		/* mono, left, right (master voice = left) */
@@ -1031,7 +1028,7 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 	struct snd_emu10k1_pcm *epcm;
 	struct snd_emu10k1_pcm_mixer *mix;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int i;
+	int i, j;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
@@ -1046,7 +1043,8 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 	
 	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
 		mix = &emu->efx_pcm_mixer[i];
-		mix->send_routing[0][0] = i;
+		for (j = 0; j < 8; j++)
+			mix->send_routing[0][j] = i + j;
 		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 		mix->send_volume[0][0] = 255;
 		mix->attn[0] = 0x8000;
@@ -1093,7 +1091,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 		return err;
 	}
 	mix = &emu->pcm_mixer[substream->number];
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 8; i++)
 		mix->send_routing[0][i] = mix->send_routing[1][i] = mix->send_routing[2][i] = i;
 	memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 	mix->send_volume[0][0] = mix->send_volume[0][1] =

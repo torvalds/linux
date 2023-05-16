@@ -1752,7 +1752,7 @@ static int rename_ctl(struct snd_card *card, const char *src, const char *dst)
 int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		      int pcm_device, int multi_device)
 {
-	int err, pcm;
+	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = emu->card;
 	const char * const *c;
@@ -2016,48 +2016,6 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	if (err)
 		return err;
 
-	/* initialize the routing and volume table for each pcm playback stream */
-	for (pcm = 0; pcm < 32; pcm++) {
-		struct snd_emu10k1_pcm_mixer *mix;
-		int v;
-		
-		mix = &emu->pcm_mixer[pcm];
-		mix->epcm = NULL;
-
-		for (v = 0; v < 4; v++)
-			mix->send_routing[0][v] = 
-				mix->send_routing[1][v] = 
-				mix->send_routing[2][v] = v;
-		
-		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
-		mix->send_volume[0][0] = mix->send_volume[0][1] =
-		mix->send_volume[1][0] = mix->send_volume[2][1] = 255;
-		
-		mix->attn[0] = mix->attn[1] = mix->attn[2] = 0xffff;
-	}
-	
-	/* initialize the routing and volume table for the multichannel playback stream */
-	for (pcm = 0; pcm < NUM_EFX_PLAYBACK; pcm++) {
-		struct snd_emu10k1_pcm_mixer *mix;
-		int v;
-		
-		mix = &emu->efx_pcm_mixer[pcm];
-		mix->epcm = NULL;
-
-		mix->send_routing[0][0] = pcm;
-		mix->send_routing[0][1] = (pcm == 0) ? 1 : 0;
-		for (v = 0; v < 2; v++)
-			mix->send_routing[0][2+v] = 13+v;
-		if (emu->audigy)
-			for (v = 0; v < 4; v++)
-				mix->send_routing[0][4+v] = 60+v;
-		
-		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
-		mix->send_volume[0][0]  = 255;
-		
-		mix->attn[0] = 0xffff;
-	}
-	
 	if (!emu->card_capabilities->ecard && !emu->card_capabilities->emu_model) {
 		/* sb live! and audigy */
 		kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu);
