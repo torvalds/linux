@@ -368,6 +368,7 @@ static_assert(ARRAY_SIZE(emu1010_input_dflt) == ARRAY_SIZE(emu1010_input_dst));
 
 struct snd_emu1010_routing_info {
 	const char * const *src_texts;
+	const char * const *out_texts;
 	const unsigned short *src_regs;
 	const unsigned short *out_regs;
 	const unsigned short *in_regs;
@@ -386,6 +387,7 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 
 		.out_dflts = emu1010_output_dflt,
 		.out_regs = emu1010_output_dst,
+		.out_texts = emu1010_output_texts,
 		.n_outs = ARRAY_SIZE(emu1010_output_dst),
 
 		.in_dflts = emu1010_input_dflt,
@@ -400,6 +402,7 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 
 		.out_dflts = emu1616_output_dflt,
 		.out_regs = emu1616_output_dst,
+		.out_texts = snd_emu1616_output_texts,
 		.n_outs = ARRAY_SIZE(emu1616_output_dst),
 
 		.in_dflts = emu1010_input_dflt,
@@ -556,6 +559,21 @@ static const struct snd_kcontrol_new emu1010_input_source_ctl = {
 	.put = snd_emu1010_input_source_put
 };
 
+static int add_emu1010_source_mixers(struct snd_emu10k1 *emu)
+{
+	const struct snd_emu1010_routing_info *emu_ri =
+		&emu1010_routing_info[emu1010_idx(emu)];
+	int err;
+
+	err = add_ctls(emu, &emu1010_output_source_ctl,
+		       emu_ri->out_texts, emu_ri->n_outs);
+	if (err < 0)
+		return err;
+	err = add_ctls(emu, &emu1010_input_source_ctl,
+		       emu1010_input_texts, emu_ri->n_ins);
+	return err;
+}
+
 
 static const char * const snd_emu1010_adc_pads[] = {
 	"ADC1 14dB PAD Audio Dock Capture Switch",
@@ -665,6 +683,29 @@ static const struct snd_kcontrol_new emu1010_dac_pads_ctl = {
 	.info = snd_emu1010_dac_pads_info,
 	.get = snd_emu1010_dac_pads_get,
 	.put = snd_emu1010_dac_pads_put
+};
+
+
+struct snd_emu1010_pads_info {
+	const char * const *adc_ctls, * const *dac_ctls;
+	unsigned n_adc_ctls, n_dac_ctls;
+};
+
+const struct snd_emu1010_pads_info emu1010_pads_info[] = {
+	{
+		/* all other e-mu cards for now */
+		.adc_ctls = snd_emu1010_adc_pads,
+		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads),
+		.dac_ctls = snd_emu1010_dac_pads,
+		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads),
+	},
+	{
+		/* 1616(m) cardbus */
+		.adc_ctls = snd_emu1010_adc_pads,
+		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads) - 2,
+		.dac_ctls = snd_emu1010_dac_pads,
+		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads) - 2,
+	},
 };
 
 
@@ -2066,6 +2107,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		unsigned i, emu_idx = emu1010_idx(emu);
 		const struct snd_emu1010_routing_info *emu_ri =
 			&emu1010_routing_info[emu_idx];
+		const struct snd_emu1010_pads_info *emu_pi = &emu1010_pads_info[emu_idx];
 
 		for (i = 0; i < emu_ri->n_ins; i++)
 			emu->emu1010.input_source[i] =
@@ -2074,34 +2116,21 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			emu->emu1010.output_source[i] =
 				emu1010_map_source(emu_ri, emu_ri->out_dflts[i]);
 		snd_emu1010_apply_sources(emu);
-	}
 
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
-		/* 1616(m) cardbus */
-		err = add_ctls(emu, &emu1010_output_source_ctl,
-			       snd_emu1616_output_texts,
-			       ARRAY_SIZE(snd_emu1616_output_texts));
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_input_source_ctl,
-			       emu1010_input_texts,
-			       ARRAY_SIZE(emu1010_input_texts));
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_adc_pads_ctl,
-			       snd_emu1010_adc_pads,
-			       ARRAY_SIZE(snd_emu1010_adc_pads) - 2);
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_dac_pads_ctl,
-			       snd_emu1010_dac_pads,
-			       ARRAY_SIZE(snd_emu1010_dac_pads) - 2);
-		if (err < 0)
-			return err;
 		err = snd_ctl_add(card,
 			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
 		if (err < 0)
 			return err;
+
+		err = add_ctls(emu, &emu1010_adc_pads_ctl,
+			       emu_pi->adc_ctls, emu_pi->n_adc_ctls);
+		if (err < 0)
+			return err;
+		err = add_ctls(emu, &emu1010_dac_pads_ctl,
+			       emu_pi->dac_ctls, emu_pi->n_dac_ctls);
+		if (err < 0)
+			return err;
+
 		err = snd_ctl_add(card,
 			snd_ctl_new1(&snd_emu1010_optical_out, emu));
 		if (err < 0)
@@ -2111,38 +2140,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if (err < 0)
 			return err;
 
-	} else if (emu->card_capabilities->emu_model) {
-		/* all other e-mu cards for now */
-		err = add_ctls(emu, &emu1010_output_source_ctl,
-			       emu1010_output_texts,
-			       ARRAY_SIZE(emu1010_output_texts));
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_input_source_ctl,
-			       emu1010_input_texts,
-			       ARRAY_SIZE(emu1010_input_texts));
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_adc_pads_ctl,
-			       snd_emu1010_adc_pads,
-			       ARRAY_SIZE(snd_emu1010_adc_pads));
-		if (err < 0)
-			return err;
-		err = add_ctls(emu, &emu1010_dac_pads_ctl,
-			       snd_emu1010_dac_pads,
-			       ARRAY_SIZE(snd_emu1010_dac_pads));
-		if (err < 0)
-			return err;
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
-		if (err < 0)
-			return err;
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_optical_out, emu));
-		if (err < 0)
-			return err;
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_optical_in, emu));
+		err = add_emu1010_source_mixers(emu);
 		if (err < 0)
 			return err;
 	}
