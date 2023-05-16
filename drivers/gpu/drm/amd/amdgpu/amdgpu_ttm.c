@@ -814,10 +814,13 @@ static void amdgpu_ttm_gart_bind_gfx9_mqd(struct amdgpu_device *adev,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	uint64_t total_pages = ttm->num_pages;
 	int num_xcc = max(1U, adev->gfx.num_xcc_per_xcp);
-	uint64_t page_idx, pages_per_xcc = total_pages / num_xcc;
+	uint64_t page_idx, pages_per_xcc;
 	int i;
 	uint64_t ctrl_flags = (flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
 			AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
+
+	pages_per_xcc = total_pages;
+	do_div(pages_per_xcc, num_xcc);
 
 	for (i = 0, page_idx = 0; i < num_xcc; i++, page_idx += pages_per_xcc) {
 		/* MQD page: use default flags */

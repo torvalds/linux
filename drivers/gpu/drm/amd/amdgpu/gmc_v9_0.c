@@ -1914,9 +1914,10 @@ gmc_v9_0_init_acpi_mem_ranges(struct amdgpu_device *adev,
 	adev->gmc.num_mem_partitions = num_ranges;
 
 	/* If there is only partition, don't use entire size */
-	if (adev->gmc.num_mem_partitions == 1)
-		mem_ranges[0].size =
-			(mem_ranges[0].size * (mem_groups - 1) / mem_groups);
+	if (adev->gmc.num_mem_partitions == 1) {
+		mem_ranges[0].size = mem_ranges[0].size * (mem_groups - 1);
+		do_div(mem_ranges[0].size, mem_groups);
+	}
 }
 
 static void
@@ -1948,8 +1949,8 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 		break;
 	}
 
-	size = (adev->gmc.real_vram_size >> AMDGPU_GPU_PAGE_SHIFT) /
-	       adev->gmc.num_mem_partitions;
+	size = adev->gmc.real_vram_size >> AMDGPU_GPU_PAGE_SHIFT;
+	size /= adev->gmc.num_mem_partitions;
 
 	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
 		mem_ranges[i].range.fpfn = start_addr;
