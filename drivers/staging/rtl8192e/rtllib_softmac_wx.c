@@ -332,6 +332,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
 
+	mutex_lock(&ieee->wx_mutex);
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
 		rtllib_start_scan_syncro(ieee, 0);
 		goto out;
@@ -404,8 +405,6 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 {
 	int ret = 0;
 
-	mutex_lock(&ieee->wx_mutex);
-
 	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)) {
 		ret = -1;
 		goto out;
@@ -418,7 +417,6 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 out:
-	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_scan);
