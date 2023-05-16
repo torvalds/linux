@@ -5261,12 +5261,16 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_timestamp_init(priv);
 
+	priv->dfs_root = debugfs_create_dir("nic",
+					    mlx5_debugfs_get_dev_root(mdev));
+
 	fs = mlx5e_fs_init(priv->profile, mdev,
 			   !test_bit(MLX5E_STATE_DESTROYING, &priv->state),
 			   priv->dfs_root);
 	if (!fs) {
 		err = -ENOMEM;
 		mlx5_core_err(mdev, "FS initialization failed, %d\n", err);
+		debugfs_remove_recursive(priv->dfs_root);
 		return err;
 	}
 	priv->fs = fs;
@@ -5287,6 +5291,7 @@ static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 	mlx5e_health_destroy_reporters(priv);
 	mlx5e_ktls_cleanup(priv);
 	mlx5e_fs_cleanup(priv->fs);
+	debugfs_remove_recursive(priv->dfs_root);
 	priv->fs = NULL;
 }
 
@@ -6011,9 +6016,6 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	priv->profile = profile;
 	priv->ppriv = NULL;
 
-	priv->dfs_root = debugfs_create_dir("nic",
-					    mlx5_debugfs_get_dev_root(priv->mdev));
-
 	err = profile->init(mdev, netdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_nic_profile init failed, %d\n", err);
@@ -6042,7 +6044,6 @@ err_resume:
 err_profile_cleanup:
 	profile->cleanup(priv);
 err_destroy_netdev:
-	debugfs_remove_recursive(priv->dfs_root);
 	mlx5e_destroy_netdev(priv);
 err_devlink_port_unregister:
 	mlx5e_devlink_port_unregister(mlx5e_dev);
@@ -6062,7 +6063,6 @@ static void mlx5e_remove(struct auxiliary_device *adev)
 	unregister_netdev(priv->netdev);
 	mlx5e_suspend(adev, state);
 	priv->profile->cleanup(priv);
-	debugfs_remove_recursive(priv->dfs_root);
 	mlx5e_destroy_netdev(priv);
 	mlx5e_devlink_port_unregister(mlx5e_dev);
 	mlx5e_destroy_devlink(mlx5e_dev);
