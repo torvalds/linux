@@ -84,8 +84,20 @@ static int gfx_v11_0_3_poison_consumption_handler(struct amdgpu_device *adev,
 	/* Workaround: when vmid and pasid are both zero, trigger gpu reset in KGD. */
 	if (entry && (entry->client_id == SOC21_IH_CLIENTID_GFX) &&
 	    (entry->src_id == GFX_11_0_0__SRCID__RLC_GC_FED_INTERRUPT) &&
-	     !entry->vmid && !entry->pasid)
+	     !entry->vmid && !entry->pasid) {
+		uint32_t rlc_status0 = 0;
+
+		rlc_status0 = RREG32_SOC15(GC, 0, regRLC_RLCS_FED_STATUS_0);
+
+		if (REG_GET_FIELD(rlc_status0, RLC_RLCS_FED_STATUS_0, SDMA0_FED_ERR) ||
+		    REG_GET_FIELD(rlc_status0, RLC_RLCS_FED_STATUS_0, SDMA1_FED_ERR)) {
+			struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+			ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		}
+
 		amdgpu_ras_reset_gpu(adev);
+	}
 
 	return 0;
 }

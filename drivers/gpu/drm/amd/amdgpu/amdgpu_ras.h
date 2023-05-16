@@ -339,6 +339,8 @@ enum amdgpu_ras_ret {
 #define AMDGPU_RAS_ERR_STATUS_VALID	(1 << 1)
 #define AMDGPU_RAS_ERR_ADDRESS_VALID	(1 << 2)
 
+#define AMDGPU_RAS_GPU_RESET_MODE2_RESET  (0x1 << 0)
+
 struct amdgpu_ras_err_status_reg_entry {
 	uint32_t hwip;
 	uint32_t ip_inst;
@@ -427,6 +429,9 @@ struct amdgpu_ras {
 
 	/* Indicates smu whether need update bad channel info */
 	bool update_channel_flag;
+
+	/* Record special requirements of gpu reset caller */
+	uint32_t  gpu_reset_flags;
 };
 
 struct ras_fs_data {
