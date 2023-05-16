@@ -91,6 +91,7 @@ struct xsk_umem_info {
 	struct xsk_ring_prod fq;
 	struct xsk_ring_cons cq;
 	struct xsk_umem *umem;
+	u64 next_buffer;
 	u32 num_frames;
 	u32 frame_headroom;
 	void *buffer;
@@ -109,7 +110,7 @@ struct xsk_socket_info {
 };
 
 struct pkt {
-	u64 addr;
+	int offset;
 	u32 len;
 	u32 pkt_nb;
 	bool valid;
@@ -119,7 +120,6 @@ struct pkt_stream {
 	u32 nb_pkts;
 	u32 current_pkt_nb;
 	struct pkt *pkts;
-	bool use_addr_for_fill;
 };
 
 struct ifobject;

@@ -167,7 +167,13 @@ static u32 mode_to_xdp_flags(enum test_mode mode)
 	return (mode == TEST_MODE_SKB) ? XDP_FLAGS_SKB_MODE : XDP_FLAGS_DRV_MODE;
 }
 
-static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size)
+static u64 umem_size(struct xsk_umem_info *umem)
+{
+	return umem->num_frames * umem->frame_size;
+}
+
+static int xsk_configure_umem(struct ifobject *ifobj, struct xsk_umem_info *umem, void *buffer,
+			      u64 size)
 {
 	struct xsk_umem_config cfg = {
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -187,7 +193,29 @@ static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size
 		return ret;
 
 	umem->buffer = buffer;
+	if (ifobj->shared_umem && ifobj->rx_on) {
+		umem->base_addr = umem_size(umem);
+		umem->next_buffer = umem_size(umem);
+	}
+
 	return 0;
+}
+
+static u64 umem_alloc_buffer(struct xsk_umem_info *umem)
+{
+	u64 addr;
+
+	addr = umem->next_buffer;
+	umem->next_buffer += umem->frame_size;
+	if (umem->next_buffer >= umem->base_addr + umem_size(umem))
+		umem->next_buffer = umem->base_addr;
+
+	return addr;
+}
+
+static void umem_reset_alloc(struct xsk_umem_info *umem)
+{
+	umem->next_buffer = 0;
 }
 
 static void enable_busy_poll(struct xsk_socket_info *xsk)
@@ -249,7 +277,7 @@ static bool ifobj_zc_avail(struct ifobject *ifobject)
 		exit_with_error(ENOMEM);
 	}
 	umem->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
-	ret = xsk_configure_umem(umem, bufs, umem_sz);
+	ret = xsk_configure_umem(ifobject, umem, bufs, umem_sz);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -372,9 +400,6 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		memset(ifobj->umem, 0, sizeof(*ifobj->umem));
 		ifobj->umem->num_frames = DEFAULT_UMEM_BUFFERS;
 		ifobj->umem->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
-		if (ifobj->shared_umem && ifobj->rx_on)
-			ifobj->umem->base_addr = DEFAULT_UMEM_BUFFERS *
-				XSK_UMEM__DEFAULT_FRAME_SIZE;
 
 		for (j = 0; j < MAX_SOCKETS; j++) {
 			memset(&ifobj->xsk_arr[j], 0, sizeof(ifobj->xsk_arr[j]));
@@ -506,9 +531,9 @@ static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
 	return pkt_stream;
 }
 
-static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, u64 addr, u32 len)
+static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, int offset, u32 len)
 {
-	pkt->addr = addr + umem->base_addr;
+	pkt->offset = offset;
 	pkt->len = len;
 	if (len > umem->frame_size - XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 2 - umem->frame_headroom)
 		pkt->valid = false;
@@ -526,8 +551,7 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 		exit_with_error(ENOMEM);
 
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_set(umem, &pkt_stream->pkts[i], (i % umem->num_frames) * umem->frame_size,
-			pkt_len);
+		pkt_set(umem, &pkt_stream->pkts[i], 0, pkt_len);
 		pkt_stream->pkts[i].pkt_nb = i;
 	}
 
@@ -559,8 +583,7 @@ static void __pkt_stream_replace_half(struct ifobject *ifobj, u32 pkt_len,
 
 	pkt_stream = pkt_stream_clone(umem, ifobj->pkt_stream);
 	for (i = 1; i < ifobj->pkt_stream->nb_pkts; i += 2)
-		pkt_set(umem, &pkt_stream->pkts[i],
-			(i % umem->num_frames) * umem->frame_size + offset, pkt_len);
+		pkt_set(umem, &pkt_stream->pkts[i], offset, pkt_len);
 
 	ifobj->pkt_stream = pkt_stream;
 }
@@ -584,24 +607,26 @@ static void pkt_stream_receive_half(struct test_spec *test)
 		pkt_stream->pkts[i].valid = false;
 }
 
-static struct pkt *pkt_generate(struct ifobject *ifobject)
+static u64 pkt_get_addr(struct pkt *pkt, struct xsk_umem_info *umem)
 {
-	struct pkt *pkt = pkt_stream_get_next_tx_pkt(ifobject->pkt_stream);
+	if (!pkt->valid)
+		return pkt->offset;
+	return pkt->offset + umem_alloc_buffer(umem);
+}
+
+static void pkt_generate(struct ifobject *ifobject, struct pkt *pkt, u64 addr)
+{
 	struct ethhdr *eth_hdr;
 	void *data;
 
-	if (!pkt)
-		return NULL;
 	if (!pkt->valid || pkt->len < MIN_PKT_SIZE)
-		return pkt;
+		return;
 
-	data = xsk_umem__get_data(ifobject->umem->buffer, pkt->addr);
+	data = xsk_umem__get_data(ifobject->umem->buffer, addr);
 	eth_hdr = data;
 
 	gen_eth_hdr(ifobject, eth_hdr);
 	write_payload(data + PKT_HDR_SIZE, pkt->pkt_nb, pkt->len - PKT_HDR_SIZE);
-
-	return pkt;
 }
 
 static void __pkt_stream_generate_custom(struct ifobject *ifobj,
@@ -615,7 +640,7 @@ static void __pkt_stream_generate_custom(struct ifobject *ifobj,
 		exit_with_error(ENOMEM);
 
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_stream->pkts[i].addr = pkts[i].addr + ifobj->umem->base_addr;
+		pkt_stream->pkts[i].offset = pkts[i].offset;
 		pkt_stream->pkts[i].len = pkts[i].len;
 		pkt_stream->pkts[i].pkt_nb = i;
 		pkt_stream->pkts[i].valid = pkts[i].valid;
@@ -670,16 +695,16 @@ static void pkt_dump(void *pkt, u32 len)
 	fprintf(stdout, "\n---------------------------------------\n");
 }
 
-static bool is_offset_correct(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream, u64 addr,
-			      u64 pkt_stream_addr)
+static bool is_offset_correct(struct xsk_umem_info *umem, struct pkt *pkt, u64 addr)
 {
 	u32 headroom = umem->unaligned_mode ? 0 : umem->frame_headroom;
-	u32 offset = addr % umem->frame_size, expected_offset = 0;
+	u32 offset = addr % umem->frame_size, expected_offset;
+	int pkt_offset = pkt->valid ? pkt->offset : 0;
 
-	if (!pkt_stream->use_addr_for_fill)
-		pkt_stream_addr = 0;
+	if (!umem->unaligned_mode)
+		pkt_offset = 0;
 
-	expected_offset += (pkt_stream_addr + headroom + XDP_PACKET_HEADROOM) % umem->frame_size;
+	expected_offset = (pkt_offset + headroom + XDP_PACKET_HEADROOM) % umem->frame_size;
 
 	if (offset == expected_offset)
 		return true;
@@ -858,7 +883,7 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 			addr = xsk_umem__add_offset_to_addr(addr);
 
 			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len) ||
-			    !is_offset_correct(umem, pkt_stream, addr, pkt->addr) ||
+			    !is_offset_correct(umem, pkt, addr) ||
 			    (ifobj->use_metadata && !is_metadata_correct(pkt, umem->buffer, addr)))
 				return TEST_FAILURE;
 
@@ -915,15 +940,16 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 
 	for (i = 0; i < BATCH_SIZE; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
-		struct pkt *pkt = pkt_generate(ifobject);
+		struct pkt *pkt = pkt_stream_get_next_tx_pkt(ifobject->pkt_stream);
 
 		if (!pkt)
 			break;
 
-		tx_desc->addr = pkt->addr;
+		tx_desc->addr = pkt_get_addr(pkt, ifobject->umem);
 		tx_desc->len = pkt->len;
 		if (pkt->valid)
 			valid_pkts++;
+		pkt_generate(ifobject, pkt, tx_desc->addr);
 	}
 
 	pthread_mutex_lock(&pacing_mutex);
@@ -1130,11 +1156,12 @@ static void thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobje
 	ifobject->xsk = &ifobject->xsk_arr[0];
 	ifobject->xskmap = test->ifobj_rx->xskmap;
 	memcpy(ifobject->umem, test->ifobj_rx->umem, sizeof(struct xsk_umem_info));
+	ifobject->umem->base_addr = 0;
 }
 
 static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream)
 {
-	u32 idx = 0, i, buffers_to_fill;
+	u32 idx = 0, i, buffers_to_fill, nb_pkts;
 	int ret;
 
 	if (umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
@@ -1145,24 +1172,23 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
 	if (ret != buffers_to_fill)
 		exit_with_error(ENOSPC);
+
 	for (i = 0; i < buffers_to_fill; i++) {
+		struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &nb_pkts);
 		u64 addr;
 
-		if (pkt_stream->use_addr_for_fill) {
-			struct pkt *pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
-
-			if (!pkt)
-				break;
-			addr = pkt->addr;
-		} else {
-			addr = i * umem->frame_size;
-		}
-
+		if (!pkt)
+			addr = i * umem->frame_size + umem->base_addr;
+		else if (pkt->offset >= 0)
+			addr = pkt->offset % umem->frame_size + umem_alloc_buffer(umem);
+		else
+			addr = pkt->offset + umem_alloc_buffer(umem);
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
 	}
 	xsk_ring_prod__submit(&umem->fq, i);
 
 	pkt_stream_reset(pkt_stream);
+	umem_reset_alloc(umem);
 }
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
@@ -1183,11 +1209,9 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (bufs == MAP_FAILED)
 		exit_with_error(errno);
 
-	ret = xsk_configure_umem(ifobject->umem, bufs, umem_sz);
+	ret = xsk_configure_umem(ifobject, ifobject->umem, bufs, umem_sz);
 	if (ret)
 		exit_with_error(-ret);
-
-	xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
 
 	xsk_configure_socket(test, ifobject, ifobject->umem, false);
 
@@ -1195,6 +1219,8 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 
 	if (!ifobject->rx_on)
 		return;
+
+	xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
 
 	ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk);
 	if (ret)
@@ -1543,9 +1569,8 @@ static bool testapp_unaligned(struct test_spec *test)
 	test_spec_set_name(test, "UNALIGNED_MODE");
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
-	/* Let half of the packets straddle a buffer boundrary */
+	/* Let half of the packets straddle a 4K buffer boundary */
 	pkt_stream_replace_half(test, MIN_PKT_SIZE, -MIN_PKT_SIZE / 2);
-	test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
 	testapp_validate_traffic(test);
 
 	return true;
@@ -1553,7 +1578,7 @@ static bool testapp_unaligned(struct test_spec *test)
 
 static void testapp_single_pkt(struct test_spec *test)
 {
-	struct pkt pkts[] = {{0x1000, MIN_PKT_SIZE, 0, true}};
+	struct pkt pkts[] = {{0, MIN_PKT_SIZE, 0, true}};
 
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
 	testapp_validate_traffic(test);
@@ -1561,42 +1586,43 @@ static void testapp_single_pkt(struct test_spec *test)
 
 static void testapp_invalid_desc(struct test_spec *test)
 {
-	u64 umem_size = test->ifobj_tx->umem->num_frames * test->ifobj_tx->umem->frame_size;
+	struct xsk_umem_info *umem = test->ifobj_tx->umem;
+	u64 umem_size = umem->num_frames * umem->frame_size;
 	struct pkt pkts[] = {
 		/* Zero packet address allowed */
 		{0, MIN_PKT_SIZE, 0, true},
 		/* Allowed packet */
-		{0x1000, MIN_PKT_SIZE, 0, true},
+		{0, MIN_PKT_SIZE, 0, true},
 		/* Straddling the start of umem */
 		{-2, MIN_PKT_SIZE, 0, false},
 		/* Packet too large */
-		{0x2000, XSK_UMEM__INVALID_FRAME_SIZE, 0, false},
+		{0, XSK_UMEM__INVALID_FRAME_SIZE, 0, false},
 		/* Up to end of umem allowed */
-		{umem_size - MIN_PKT_SIZE, MIN_PKT_SIZE, 0, true},
+		{umem_size - MIN_PKT_SIZE - 2 * umem->frame_size, MIN_PKT_SIZE, 0, true},
 		/* After umem ends */
 		{umem_size, MIN_PKT_SIZE, 0, false},
 		/* Straddle the end of umem */
 		{umem_size - MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, false},
-		/* Straddle a page boundrary */
-		{0x3000 - MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, false},
-		/* Straddle a 2K boundrary */
-		{0x3800 - MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, true},
+		/* Straddle a 4K boundary */
+		{0x1000 - MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, false},
+		/* Straddle a 2K boundary */
+		{0x800 - MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, true},
 		/* Valid packet for synch so that something is received */
-		{0x4000, MIN_PKT_SIZE, 0, true}};
+		{0, MIN_PKT_SIZE, 0, true}};
 
-	if (test->ifobj_tx->umem->unaligned_mode) {
-		/* Crossing a page boundrary allowed */
+	if (umem->unaligned_mode) {
+		/* Crossing a page boundary allowed */
 		pkts[7].valid = true;
 	}
-	if (test->ifobj_tx->umem->frame_size == XSK_UMEM__DEFAULT_FRAME_SIZE / 2) {
-		/* Crossing a 2K frame size boundrary not allowed */
+	if (umem->frame_size == XSK_UMEM__DEFAULT_FRAME_SIZE / 2) {
+		/* Crossing a 2K frame size boundary not allowed */
 		pkts[8].valid = false;
 	}
 
 	if (test->ifobj_tx->shared_umem) {
-		pkts[4].addr += umem_size;
-		pkts[5].addr += umem_size;
-		pkts[6].addr += umem_size;
+		pkts[4].offset += umem_size;
+		pkts[5].offset += umem_size;
+		pkts[6].offset += umem_size;
 	}
 
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
