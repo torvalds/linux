@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/davinci_emac.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/davinci-cpufreq.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
