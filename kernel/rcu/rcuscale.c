@@ -87,6 +87,7 @@ torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
 torture_param(int, gp_async_max, 1000, "Max # outstanding waits per writer");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
+torture_param(int, minruntime, 0, "Minimum run time (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, RCUSCALE_SHUTDOWN,
@@ -411,6 +412,7 @@ rcu_scale_writer(void *arg)
 {
 	int i = 0;
 	int i_max;
+	unsigned long jdone;
 	long me = (long)arg;
 	struct rcu_head *rhp = NULL;
 	bool started = false, done = false, alldone = false;
@@ -447,6 +449,7 @@ rcu_scale_writer(void *arg)
 		}
 	}
 
+	jdone = jiffies + minruntime * HZ;
 	do {
 		if (writer_holdoff)
 			udelay(writer_holdoff);
@@ -479,7 +482,7 @@ retry:
 		if (!started &&
 		    atomic_read(&n_rcu_scale_writer_started) >= nrealwriters)
 			started = true;
-		if (!done && i >= MIN_MEAS) {
+		if (!done && i >= MIN_MEAS && time_after(jiffies, jdone)) {
 			done = true;
 			sched_set_normal(current, 0);
 			pr_alert("%s%s rcu_scale_writer %ld has %d measurements\n",

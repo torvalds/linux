@@ -4953,6 +4953,12 @@
 			Number of loops doing rcuscale.kfree_alloc_num number
 			of allocations and frees.
 
+	rcuscale.minruntime= [KNL]
+			Set the minimum test run time in seconds.  This
+			does not affect the data-collection interval,
+			but instead allows better measurement of things
+			like CPU consumption.
+
 	rcuscale.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
