@@ -708,6 +708,10 @@ kfree_scale_init(void)
 	unsigned long jif_start;
 	unsigned long orig_jif;
 
+	pr_alert("%s" SCALE_FLAG
+		 "--- kfree_rcu_test: kfree_mult=%d kfree_by_call_rcu=%d kfree_nthreads=%d kfree_alloc_num=%d kfree_loops=%d kfree_rcu_test_double=%d kfree_rcu_test_single=%d\n",
+		 scale_type, kfree_mult, kfree_by_call_rcu, kfree_nthreads, kfree_alloc_num, kfree_loops, kfree_rcu_test_double, kfree_rcu_test_single);
+
 	// Also, do a quick self-test to ensure laziness is as much as
 	// expected.
 	if (kfree_by_call_rcu && !IS_ENABLED(CONFIG_RCU_LAZY)) {
