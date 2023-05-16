@@ -96,6 +96,7 @@ struct jaguar1_framesize {
 	u16 height;
 	struct v4l2_fract max_fps;
 	enum NC_VIVO_CH_FORMATDEF fmt_idx;
+	__u32 field;
 };
 
 struct jaguar1_default_rect {
@@ -150,6 +151,26 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 	}
 #else
 	{
+		.width		= 960,
+		.height		= 480,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.fmt_idx	= AHD20_SD_H960_2EX_Btype_NT,
+		.field = V4L2_FIELD_INTERLACED,
+	},
+	{
+		.width		= 960,
+		.height		= 576,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.fmt_idx	= AHD20_SD_H960_2EX_Btype_PAL,
+		.field = V4L2_FIELD_INTERLACED,
+	},
+	{
 		.width		= 1280,
 		.height		= 720,
 		.max_fps = {
@@ -157,6 +178,7 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 			.denominator = 250000,
 		},
 		.fmt_idx	= AHD20_720P_25P_EX_Btype,
+		.field = V4L2_FIELD_NONE
 	},
 	{
 		.width		= 1920,
@@ -166,6 +188,7 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 			.denominator = 250000,
 		},
 		.fmt_idx	= AHD20_1080P_25P,
+		.field = V4L2_FIELD_NONE
 	},
 	{
 		.width		= 2560,
@@ -175,6 +198,7 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 			.denominator = 250000,
 		},
 		.fmt_idx	= AHD20_720P_25P,
+		.field = V4L2_FIELD_NONE
 	}
 #endif
 };
@@ -403,7 +427,7 @@ static void jaguar1_get_default_format(struct jaguar1 *jaguar1)
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 	format->code = jaguar1_formats[0].code;
 	jaguar1->frame_size = match;
-	format->field = V4L2_FIELD_NONE;
+	format->field = match->field;
 }
 
 static int jaguar1_stream(struct v4l2_subdev *sd, int on)
