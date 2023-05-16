@@ -259,6 +259,8 @@ static int __init cmdline_parse_core(char *p, unsigned long *core,
 	return 0;
 }
 
+bool mirrored_kernelcore __initdata_memblock;
+
 /*
  * kernelcore=size sets the amount of memory for use for allocations that
  * cannot be reclaimed or migrated.
