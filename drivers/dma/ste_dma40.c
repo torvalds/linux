@@ -3132,7 +3132,8 @@ static void d40_drop_kmem_cache_action(void *d)
 	kmem_cache_destroy(desc_slab);
 }
 
-static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
+static int __init d40_hw_detect_init(struct platform_device *pdev,
+				     struct d40_base **retbase)
 {
 	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
@@ -3150,14 +3151,12 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 
 	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk))
-		return NULL;
+		return PTR_ERR(clk);
 
 	/* Get IO for DMAC base address */
 	virtbase = devm_platform_ioremap_resource_byname(pdev, "base");
-	if (IS_ERR(virtbase)) {
-		dev_err(dev, "No IO base defined\n");
-		return NULL;
-	}
+	if (IS_ERR(virtbase))
+		return PTR_ERR(virtbase);
 
 	/* This is just a regular AMBA PrimeCell ID actually */
 	for (pid = 0, i = 0; i < 4; i++)
@@ -3169,13 +3168,13 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 
 	if (cid != AMBA_CID) {
 		d40_err(dev, "Unknown hardware! No PrimeCell ID\n");
-		return NULL;
+		return -EINVAL;
 	}
 	if (AMBA_MANF_BITS(pid) != AMBA_VENDOR_ST) {
 		d40_err(dev, "Unknown designer! Got %x wanted %x\n",
 			AMBA_MANF_BITS(pid),
 			AMBA_VENDOR_ST);
-		return NULL;
+		return -EINVAL;
 	}
 	/*
 	 * HW revision:
@@ -3189,7 +3188,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	rev = AMBA_REV_BITS(pid);
 	if (rev < 2) {
 		d40_err(dev, "hardware revision: %d is not supported", rev);
-		return NULL;
+		return -EINVAL;
 	}
 
 	/* The number of physical channels on this HW */
@@ -3216,7 +3215,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		sizeof(struct d40_chan), GFP_KERNEL);
 
 	if (!base)
-		return NULL;
+		return -ENOMEM;
 
 	base->rev = rev;
 	base->clk = clk;
@@ -3263,51 +3262,53 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 				     sizeof(*base->phy_res),
 				     GFP_KERNEL);
 	if (!base->phy_res)
-		return NULL;
+		return -ENOMEM;
 
 	base->lookup_phy_chans = devm_kcalloc(dev, num_phy_chans,
 					      sizeof(*base->lookup_phy_chans),
 					      GFP_KERNEL);
 	if (!base->lookup_phy_chans)
-		return NULL;
+		return -ENOMEM;
 
 	base->lookup_log_chans = devm_kcalloc(dev, num_log_chans,
 					      sizeof(*base->lookup_log_chans),
 					      GFP_KERNEL);
 	if (!base->lookup_log_chans)
-		return NULL;
+		return -ENOMEM;
 
 	base->reg_val_backup_chan = devm_kmalloc_array(dev, base->num_phy_chans,
 						  sizeof(d40_backup_regs_chan),
 						  GFP_KERNEL);
 	if (!base->reg_val_backup_chan)
-		return NULL;
+		return -ENOMEM;
 
 	base->lcla_pool.alloc_map = devm_kcalloc(dev, num_phy_chans
 					    * D40_LCLA_LINK_PER_EVENT_GRP,
 					    sizeof(*base->lcla_pool.alloc_map),
 					    GFP_KERNEL);
 	if (!base->lcla_pool.alloc_map)
-		return NULL;
+		return -ENOMEM;
 
 	base->regs_interrupt = devm_kmalloc_array(dev, base->gen_dmac.il_size,
 					     sizeof(*base->regs_interrupt),
 					     GFP_KERNEL);
 	if (!base->regs_interrupt)
-		return NULL;
+		return -ENOMEM;
 
 	base->desc_slab = kmem_cache_create(D40_NAME, sizeof(struct d40_desc),
 					    0, SLAB_HWCACHE_ALIGN,
 					    NULL);
 	if (!base->desc_slab)
-		return NULL;
+		return -ENOMEM;
 
 	ret = devm_add_action_or_reset(dev, d40_drop_kmem_cache_action,
 				       base->desc_slab);
 	if (ret)
-		return NULL;
+		return ret;
 
-	return base;
+	*retbase = base;
+
+	return 0;
 }
 
 static void __init d40_hw_init(struct d40_base *base)
@@ -3503,20 +3504,20 @@ static int __init d40_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *np_lcpa;
-	int ret = -ENOENT;
 	struct d40_base *base;
 	struct resource *res;
 	struct resource res_lcpa;
 	int num_reserved_chans;
 	u32 val;
+	int ret;
 
 	if (d40_of_probe(dev, np)) {
 		ret = -ENOMEM;
 		goto report_failure;
 	}
 
-	base = d40_hw_detect_init(pdev);
-	if (!base)
+	ret = d40_hw_detect_init(pdev, &base);
+	if (ret)
 		goto report_failure;
 
 	num_reserved_chans = d40_phy_res_init(base);
@@ -3530,6 +3531,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	np_lcpa = of_parse_phandle(np, "sram", 0);
 	if (!np_lcpa) {
 		dev_err(dev, "no LCPA SRAM node\n");
+		ret = -EINVAL;
 		goto report_failure;
 	}
 	/* This is no device so read the address directly from the node */
