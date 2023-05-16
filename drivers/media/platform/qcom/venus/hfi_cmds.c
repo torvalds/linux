@@ -200,8 +200,8 @@ int pkt_session_set_buffers(struct hfi_session_set_buffers_pkt *pkt,
 		struct hfi_buffer_info *bi;
 
 		pkt->extradata_size = bd->extradata_size;
-		pkt->shdr.hdr.size = sizeof(*pkt) - sizeof(u32) +
-			(bd->num_buffers * sizeof(*bi));
+		pkt->shdr.hdr.size = sizeof(*pkt) +
+			bd->num_buffers * sizeof(*bi);
 		bi = (struct hfi_buffer_info *)pkt->buffer_info;
 		for (i = 0; i < pkt->num_buffers; i++) {
 			bi->buffer_addr = bd->device_addr;
@@ -210,7 +210,7 @@ int pkt_session_set_buffers(struct hfi_session_set_buffers_pkt *pkt,
 	} else {
 		pkt->extradata_size = 0;
 		pkt->shdr.hdr.size = sizeof(*pkt) +
-			((bd->num_buffers - 1) * sizeof(u32));
+			bd->num_buffers * sizeof(u32);
 		for (i = 0; i < pkt->num_buffers; i++)
 			pkt->buffer_info[i] = bd->device_addr;
 	}
@@ -243,8 +243,8 @@ int pkt_session_unset_buffers(struct hfi_session_release_buffer_pkt *pkt,
 			bi->extradata_addr = bd->extradata_addr;
 		}
 		pkt->shdr.hdr.size =
-				sizeof(struct hfi_session_set_buffers_pkt) -
-				sizeof(u32) + (bd->num_buffers * sizeof(*bi));
+				sizeof(struct hfi_session_set_buffers_pkt) +
+				bd->num_buffers * sizeof(*bi);
 	} else {
 		for (i = 0; i < pkt->num_buffers; i++)
 			pkt->buffer_info[i] = bd->device_addr;
@@ -252,7 +252,7 @@ int pkt_session_unset_buffers(struct hfi_session_release_buffer_pkt *pkt,
 		pkt->extradata_size = 0;
 		pkt->shdr.hdr.size =
 				sizeof(struct hfi_session_set_buffers_pkt) +
-				((bd->num_buffers - 1) * sizeof(u32));
+				bd->num_buffers * sizeof(u32);
 	}
 
 	pkt->response_req = bd->response_required;
