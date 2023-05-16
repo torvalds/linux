@@ -167,8 +167,8 @@
 	spi-3 {
 		compatible = "spi-gpio";
 		status = "okay";
-		gpio-sck = <&gpio0 25 GPIO_ACTIVE_LOW>;
-		gpio-mosi = <&gpio1 15 GPIO_ACTIVE_LOW>; /*gpio 47*/
+		sck-gpios  = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		mosi-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>; /*gpio 47*/
 		cs-gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
