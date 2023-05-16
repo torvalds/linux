@@ -233,11 +233,6 @@ unsigned long totalcma_pages __read_mostly;
 
 int percpu_pagelist_high_fraction;
 gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
-DEFINE_STATIC_KEY_MAYBE(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, init_on_alloc);
-EXPORT_SYMBOL(init_on_alloc);
-
-DEFINE_STATIC_KEY_MAYBE(CONFIG_INIT_ON_FREE_DEFAULT_ON, init_on_free);
-EXPORT_SYMBOL(init_on_free);
 
 /*
  * A cached value of the page's pageblock's migratetype, used when the page is
