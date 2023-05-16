@@ -3893,8 +3893,8 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 	return 0;
 }
 
-enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
-				  enum atomisp_camera_port port)
+enum mipi_port_id atomisp_port_to_mipi_port(struct atomisp_device *isp,
+					    enum atomisp_camera_port port)
 {
 	switch (port) {
 	case ATOMISP_CAMERA_PORT_PRIMARY:
@@ -3902,9 +3902,7 @@ enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
 	case ATOMISP_CAMERA_PORT_SECONDARY:
 		return MIPI_PORT1_ID;
 	case ATOMISP_CAMERA_PORT_TERTIARY:
-		if (MIPI_PORT1_ID + 1 != N_MIPI_PORT_ID)
-			return MIPI_PORT1_ID + 1;
-		fallthrough;
+		return MIPI_PORT2_ID;
 	default:
 		dev_err(isp->dev, "unsupported port: %d\n", port);
 		return MIPI_PORT0_ID;
@@ -3980,7 +3978,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		return -EINVAL;
 	input_format = fc->atomisp_in_fmt;
 	atomisp_css_input_configure_port(asd,
-					 __get_mipi_port(asd->isp, mipi_info->port),
+					 atomisp_port_to_mipi_port(asd->isp, mipi_info->port),
 					 mipi_info->num_lanes,
 					 0xffff4, mipi_freq,
 					 input_format,

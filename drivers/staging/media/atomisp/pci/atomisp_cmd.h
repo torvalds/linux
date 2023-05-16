@@ -285,8 +285,8 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 /* Events. Only one event has to be exported for now. */
 void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id);
 
-enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
-				  enum atomisp_camera_port port);
+enum mipi_port_id atomisp_port_to_mipi_port(struct atomisp_device *isp,
+					    enum atomisp_camera_port port);
 
 void atomisp_apply_css_parameters(
     struct atomisp_sub_device *asd,
