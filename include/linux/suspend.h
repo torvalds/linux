@@ -364,9 +364,6 @@ struct pbe {
 	struct pbe *next;
 };
 
-/* mm/page_alloc.c */
-extern void mark_free_pages(struct zone *zone);
-
 /**
  * struct platform_hibernation_ops - hibernation platform support
  *
