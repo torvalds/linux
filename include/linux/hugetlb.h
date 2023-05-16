@@ -757,14 +757,6 @@ static inline struct hugepage_subpool *hugetlb_folio_subpool(struct folio *folio
 	return folio->_hugetlb_subpool;
 }
 
-/*
- * hugetlb page subpool pointer located in hpage[2].hugetlb_subpool
- */
-static inline struct hugepage_subpool *hugetlb_page_subpool(struct page *hpage)
-{
-	return hugetlb_folio_subpool(page_folio(hpage));
-}
-
 static inline void hugetlb_set_folio_subpool(struct folio *folio,
 					struct hugepage_subpool *subpool)
 {
@@ -1027,11 +1019,6 @@ void hugetlb_unregister_node(struct node *node);
 struct hstate {};
 
 static inline struct hugepage_subpool *hugetlb_folio_subpool(struct folio *folio)
-{
-	return NULL;
-}
-
-static inline struct hugepage_subpool *hugetlb_page_subpool(struct page *hpage)
 {
 	return NULL;
 }
