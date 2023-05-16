@@ -5,9 +5,9 @@
  * (C) Copyright 2020 - 2021, Xilinx, Inc.
  *
  * SD level shifter:
- * "A" – A01 board un-modified (NXP)
- * "Y" – A01 board modified with legacy interposer (Nexperia)
- * "Z" – A01 board modified with Diode interposer
+ * "A" - A01 board un-modified (NXP)
+ * "Y" - A01 board modified with legacy interposer (Nexperia)
+ * "Z" - A01 board modified with Diode interposer
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
