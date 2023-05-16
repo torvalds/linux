@@ -50,6 +50,7 @@
 					    * Site Register
 					    */
 #define TRITSR_V	BIT(31)
+#define TRITSR_TP5	BIT(9)
 #define REGS_V2_TMSAR(n)	(0x304 + 16 * (n))	/* TMU monitoring
 						* site adjustment register
 						*/
@@ -117,10 +118,15 @@ static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 				     10 * USEC_PER_MSEC))
 		return -ENODATA;
 
-	if (qdata->ver == TMU_VER1)
+	if (qdata->ver == TMU_VER1) {
 		*temp = (val & GENMASK(7, 0)) * MILLIDEGREE_PER_DEGREE;
-	else
-		*temp = kelvin_to_millicelsius(val & GENMASK(8, 0));
+	} else {
+		if (val & TRITSR_TP5)
+			*temp = milli_kelvin_to_millicelsius((val & GENMASK(8, 0)) *
+							     MILLIDEGREE_PER_DEGREE + 500);
+		else
+			*temp = kelvin_to_millicelsius(val & GENMASK(8, 0));
+	}
 
 	return 0;
 }
@@ -234,7 +240,7 @@ static void qoriq_tmu_init_device(struct qoriq_tmu_data *data)
 
 static const struct regmap_range qoriq_yes_ranges[] = {
 	regmap_reg_range(REGS_TMR, REGS_TSCFGR),
-	regmap_reg_range(REGS_TTRnCR(0), REGS_TTRnCR(3)),
+	regmap_reg_range(REGS_TTRnCR(0), REGS_TTRnCR(15)),
 	regmap_reg_range(REGS_V2_TEUMR(0), REGS_V2_TEUMR(2)),
 	regmap_reg_range(REGS_V2_TMSAR(0), REGS_V2_TMSAR(15)),
 	regmap_reg_range(REGS_IPBRR(0), REGS_IPBRR(1)),
