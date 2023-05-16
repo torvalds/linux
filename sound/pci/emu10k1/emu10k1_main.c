@@ -852,9 +852,14 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
-	/* Optical -> ADAT I/O  */
-	emu->emu1010.optical_in = 1; /* IN_ADAT */
-	emu->emu1010.optical_out = 1; /* OUT_ADAT */
+	if (emu->card_capabilities->no_adat) {
+		emu->emu1010.optical_in = 0; /* IN_SPDIF */
+		emu->emu1010.optical_out = 0; /* OUT_SPDIF */
+	} else {
+		/* Optical -> ADAT I/O  */
+		emu->emu1010.optical_in = 1; /* IN_ADAT */
+		emu->emu1010.optical_out = 1; /* OUT_ADAT */
+	}
 	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
 		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
@@ -1117,7 +1122,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
 	/* This is MAEM8850 "HanaLite" */
 	/* Supports sync daughter card. */
@@ -1127,7 +1133,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
 	/* EMU0404 PCIe */
 	/* Does NOT support sync daughter card. */
@@ -1136,7 +1143,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",

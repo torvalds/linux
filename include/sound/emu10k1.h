@@ -1621,7 +1621,9 @@ struct snd_emu_chip_details {
 	unsigned int ca0108_chip:1;	/* Audigy 2 Value */
 	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Notebook */
 	unsigned int ca0151_chip:1;	/* P16V */
+	unsigned int spk20:1;		/* Stereo only */
 	unsigned int spk71:1;		/* Has 7.1 speakers */
+	unsigned int no_adat:1;		/* Has no ADAT, only SPDIF */
 	unsigned int sblive51:1;	/* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned int spdif_bug:1;	/* Has Spdif phasing bug */
 	unsigned int ac97_chip:2;	/* Has an AC97 chip: 1 = mandatory, 2 = optional */

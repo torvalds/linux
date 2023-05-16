@@ -144,6 +144,8 @@ static int snd_emu10k1_spdif_get_mask(struct snd_kcontrol *kcontrol,
 	EMU_SRC_ALICE_EMU32B+0xe, \
 	EMU_SRC_ALICE_EMU32B+0xf
 
+/* 1010 rev1 */
+
 #define EMU1010_COMMON_TEXTS \
 	"Silence", \
 	PAIR_TEXTS("Dock Mic", "A", "B"), \
@@ -230,6 +232,26 @@ static const unsigned short emu1616_src_regs[] = {
 };
 static_assert(ARRAY_SIZE(emu1616_src_regs) == ARRAY_SIZE(emu1616_src_texts));
 
+/* 0404 rev1 & rev2 */
+
+#define EMU0404_COMMON_TEXTS \
+	"Silence", \
+	LR_TEXTS("ADC"), \
+	LR_TEXTS("SPDIF")
+
+static const char * const emu0404_src_texts[] = {
+	EMU0404_COMMON_TEXTS,
+	DSP_TEXTS,
+};
+
+static const unsigned short emu0404_src_regs[] = {
+	EMU_SRC_SILENCE,
+	LR_REGS(EMU_SRC_HAMOA_ADC),
+	LR_REGS(EMU_SRC_HANA_SPDIF),
+	EMU32_SRC_REGS,
+};
+static_assert(ARRAY_SIZE(emu0404_src_regs) == ARRAY_SIZE(emu0404_src_texts));
+
 /*
  * Data destinations - physical EMU outputs.
  * Each destination has an enum mixer control to choose a data source
@@ -237,6 +259,8 @@ static_assert(ARRAY_SIZE(emu1616_src_regs) == ARRAY_SIZE(emu1616_src_texts));
 
 #define LR_CTLS(base) LR_PS(base, " Playback Enum")
 #define ADAT_CTLS(pfx) ADAT_PS(pfx, " Playback Enum")
+
+/* 1010 rev1 */
 
 static const char * const emu1010_output_texts[] = {
 	LR_CTLS("Dock DAC1"),
@@ -347,6 +371,25 @@ static const unsigned short emu1616_output_dflt[] = {
 };
 static_assert(ARRAY_SIZE(emu1616_output_dflt) == ARRAY_SIZE(emu1616_output_dst));
 
+/* 0404 rev1 & rev2 */
+
+static const char * const snd_emu0404_output_texts[] = {
+	LR_CTLS("DAC"),
+	LR_CTLS("SPDIF"),
+};
+
+static const unsigned short emu0404_output_dst[] = {
+	LR_REGS(EMU_DST_HAMOA_DAC),
+	LR_REGS(EMU_DST_HANA_SPDIF),
+};
+static_assert(ARRAY_SIZE(emu0404_output_dst) == ARRAY_SIZE(snd_emu0404_output_texts));
+
+static const unsigned short emu0404_output_dflt[] = {
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+0, EMU_SRC_ALICE_EMU32A+1,
+};
+static_assert(ARRAY_SIZE(emu0404_output_dflt) == ARRAY_SIZE(emu0404_output_dst));
+
 /*
  * Data destinations - FPGA outputs going to Alice2 (Audigy) for
  *   capture (EMU32 + I2S links)
@@ -436,6 +479,25 @@ static const unsigned short emu1010_input_dflt[] = {
 };
 static_assert(ARRAY_SIZE(emu1010_input_dflt) == ARRAY_SIZE(emu1010_input_dst));
 
+static const unsigned short emu0404_input_dflt[] = {
+	EMU_SRC_HAMOA_ADC_LEFT1,
+	EMU_SRC_HAMOA_ADC_RIGHT1,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_HANA_SPDIF_LEFT1,
+	EMU_SRC_HANA_SPDIF_RIGHT1,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+	EMU_SRC_SILENCE,
+};
+
 struct snd_emu1010_routing_info {
 	const char * const *src_texts;
 	const char * const *out_texts;
@@ -451,6 +513,7 @@ struct snd_emu1010_routing_info {
 
 const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 	{
+		/* rev1 1010 */
 		.src_regs = emu1010_src_regs,
 		.src_texts = emu1010_src_texts,
 		.n_srcs = ARRAY_SIZE(emu1010_src_texts),
@@ -494,16 +557,26 @@ const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 		.in_regs = emu1010_input_dst,
 		.n_ins = ARRAY_SIZE(emu1010_input_dst) - 6,
 	},
+	{
+		/* 0404 */
+		.src_regs = emu0404_src_regs,
+		.src_texts = emu0404_src_texts,
+		.n_srcs = ARRAY_SIZE(emu0404_src_texts),
+
+		.out_dflts = emu0404_output_dflt,
+		.out_regs = emu0404_output_dst,
+		.out_texts = snd_emu0404_output_texts,
+		.n_outs = ARRAY_SIZE(emu0404_output_dflt),
+
+		.in_dflts = emu0404_input_dflt,
+		.in_regs = emu1010_input_dst,
+		.n_ins = ARRAY_SIZE(emu1010_input_dst) - 6,
+	},
 };
 
 static unsigned emu1010_idx(struct snd_emu10k1 *emu)
 {
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
-		return 2;
-	else if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010B)
-		return 1;
-	else
-		return 0;
+	return emu->card_capabilities->emu_model - 1;
 }
 
 static void snd_emu1010_output_source_apply(struct snd_emu10k1 *emu,
@@ -780,7 +853,7 @@ struct snd_emu1010_pads_info {
 
 const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 	{
-		/* all other e-mu cards for now */
+		/* rev1 1010 */
 		.adc_ctls = snd_emu1010_adc_pads,
 		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads),
 		.dac_ctls = snd_emu1010_dac_pads,
@@ -799,6 +872,13 @@ const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 		.n_adc_ctls = ARRAY_SIZE(snd_emu1010_adc_pads) - 2,
 		.dac_ctls = snd_emu1010_dac_pads + 1,
 		.n_dac_ctls = ARRAY_SIZE(snd_emu1010_dac_pads) - 2,
+	},
+	{
+		/* 0404 */
+		.adc_ctls = NULL,
+		.n_adc_ctls = 0,
+		.dac_ctls = NULL,
+		.n_dac_ctls = 0,
 	},
 };
 
@@ -2225,14 +2305,16 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if (err < 0)
 			return err;
 
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_optical_out, emu));
-		if (err < 0)
-			return err;
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_optical_in, emu));
-		if (err < 0)
-			return err;
+		if (!emu->card_capabilities->no_adat) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_optical_out, emu));
+			if (err < 0)
+				return err;
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_optical_in, emu));
+			if (err < 0)
+				return err;
+		}
 
 		err = add_emu1010_source_mixers(emu);
 		if (err < 0)

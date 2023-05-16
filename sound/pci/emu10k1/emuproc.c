@@ -229,14 +229,16 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	u32 rate;
 
 	if (emu->card_capabilities->emu_model) {
-		snd_emu1010_fpga_read(emu, 0x38, &value);
-		if ((value & 0x1) == 0) {
-			snd_emu1010_fpga_read(emu, 0x2a, &value);
-			snd_emu1010_fpga_read(emu, 0x2b, &value2);
-			rate = 0x1770000 / (((value << 5) | value2)+1);	
-			snd_iprintf(buffer, "ADAT Locked : %u\n", rate);
-		} else {
-			snd_iprintf(buffer, "ADAT Unlocked\n");
+		if (!emu->card_capabilities->no_adat) {
+			snd_emu1010_fpga_read(emu, 0x38, &value);
+			if ((value & 0x1) == 0) {
+				snd_emu1010_fpga_read(emu, 0x2a, &value);
+				snd_emu1010_fpga_read(emu, 0x2b, &value2);
+				rate = 0x1770000 / (((value << 5) | value2)+1);
+				snd_iprintf(buffer, "ADAT Locked : %u\n", rate);
+			} else {
+				snd_iprintf(buffer, "ADAT Unlocked\n");
+			}
 		}
 		snd_emu1010_fpga_read(emu, 0x20, &value);
 		if ((value & 0x4) == 0) {
