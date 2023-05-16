@@ -1049,7 +1049,7 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 		mix->send_routing[0][0] = i;
 		memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 		mix->send_volume[0][0] = 255;
-		mix->attn[0] = 0xffff;
+		mix->attn[0] = 0x8000;
 		mix->epcm = epcm;
 		snd_emu10k1_pcm_efx_mixer_notify(emu, i, 1);
 	}
@@ -1098,7 +1098,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 	memset(&mix->send_volume, 0, sizeof(mix->send_volume));
 	mix->send_volume[0][0] = mix->send_volume[0][1] =
 	mix->send_volume[1][0] = mix->send_volume[2][1] = 255;
-	mix->attn[0] = mix->attn[1] = mix->attn[2] = 0xffff;
+	mix->attn[0] = mix->attn[1] = mix->attn[2] = 0x8000;
 	mix->epcm = epcm;
 	snd_emu10k1_pcm_mixer_notify(emu, substream->number, 1);
 	return 0;
