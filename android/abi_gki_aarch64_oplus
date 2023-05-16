@@ -15,6 +15,7 @@
   for_each_kernel_tracepoint
   freq_qos_add_notifier
   freq_qos_remove_notifier
+  get_wchan
   gov_attr_set_get
   gpiod_to_chip
   have_governor_per_policy
@@ -69,6 +70,13 @@
   tcf_exts_dump_stats
   tcf_exts_validate
   tcf_queue_work
+  __traceiter_android_vh_do_futex
+  __traceiter_android_vh_futex_sleep_start
+  __traceiter_android_vh_futex_wait_end
+  __traceiter_android_vh_futex_wait_start
+  __traceiter_android_vh_futex_wake_this
+  __traceiter_android_vh_futex_wake_traverse_plist
+  __traceiter_android_vh_futex_wake_up_q_finish
   __traceiter_android_vh_record_mutex_lock_starttime
   __traceiter_android_vh_record_pcpu_rwsem_starttime
   __traceiter_android_vh_record_rtmutex_lock_starttime
@@ -98,6 +106,11 @@
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
   __traceiter_android_vh_rwsem_wake_finish
+  __traceiter_sched_stat_blocked
+  __traceiter_sched_stat_iowait
+  __traceiter_sched_stat_sleep
+  __traceiter_sched_stat_wait
+  __traceiter_sched_waking
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_binder_free_proc
   __tracepoint_android_vh_binder_has_work_ilocked
@@ -110,6 +123,13 @@
   __tracepoint_android_vh_binder_select_worklist_ilocked
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
+  __tracepoint_android_vh_do_futex
+  __tracepoint_android_vh_futex_sleep_start
+  __tracepoint_android_vh_futex_wait_end
+  __tracepoint_android_vh_futex_wait_start
+  __tracepoint_android_vh_futex_wake_this
+  __tracepoint_android_vh_futex_wake_traverse_plist
+  __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_mutex_can_spin_on_owner
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
@@ -118,6 +138,11 @@
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
   __tracepoint_android_vh_rwsem_wake_finish
+  __tracepoint_sched_stat_blocked
+  __tracepoint_sched_stat_iowait
+  __tracepoint_sched_stat_sleep
+  __tracepoint_sched_stat_wait
+  __tracepoint_sched_waking
   typec_mux_get_drvdata
   unregister_memory_notifier
   unregister_tcf_proto_ops
@@ -125,3 +150,4 @@
   wait_for_completion_io_timeout
   wait_for_completion_killable_timeout
   wakeup_source_remove
+  wq_worker_comm

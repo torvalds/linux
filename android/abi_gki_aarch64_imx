@@ -108,42 +108,6 @@
   cec_transmit_attempt_done_ts
   cec_transmit_done_ts
   cec_unregister_adapter
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_auth_timeout
-  cfg80211_cac_event
-  cfg80211_ch_switch_notify
-  cfg80211_classify8021d
-  cfg80211_connect_done
-  cfg80211_cqm_rssi_notify
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_find_elem_match
-  cfg80211_ft_event
-  cfg80211_get_bss
-  cfg80211_inform_bss_data
-  cfg80211_mgmt_tx_status_ext
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_pmksa_candidate_notify
-  cfg80211_put_bss
-  __cfg80211_radar_event
-  cfg80211_ready_on_channel
-  cfg80211_register_netdevice
-  cfg80211_remain_on_channel_expired
-  cfg80211_report_wowlan_wakeup
-  cfg80211_roamed
-  cfg80211_rx_assoc_resp
-  cfg80211_rx_mgmt_ext
-  cfg80211_rx_mlme_mgmt
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  cfg80211_sched_scan_stopped
-  __cfg80211_send_event_skb
-  cfg80211_tdls_oper_request
-  cfg80211_unlink_bss
-  cfg80211_unregister_wdev
-  cfg80211_vendor_cmd_reply
   __check_object_size
   __class_create
   class_destroy
@@ -213,6 +177,14 @@
   component_master_del
   component_match_add_release
   component_unbind_all
+  configfs_register_default_group
+  configfs_register_subsystem
+  configfs_unregister_default_group
+  configfs_unregister_subsystem
+  config_group_init
+  config_group_init_type_name
+  config_item_put
+  config_item_set_name
   console_lock
   console_suspend_enabled
   console_unlock
@@ -370,6 +342,7 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_power_supply_register
   devm_pwmchip_add
   devm_pwm_get
   devm_rc_allocate_device
@@ -458,6 +431,7 @@
   dmabuf_page_pool_create
   dmabuf_page_pool_destroy
   dmabuf_page_pool_free
+  dmabuf_page_pool_get_size
   dma_buf_put
   dma_buf_unmap_attachment
   dma_buf_vmap
@@ -918,6 +892,7 @@
   hdmi_vendor_infoframe_pack
   hex_dump_to_buffer
   hrtimer_cancel
+  hrtimer_forward
   hrtimer_init
   hrtimer_resolution
   hrtimer_start_range_ns
@@ -964,16 +939,12 @@
   idr_get_next
   idr_preload
   idr_remove
-  ieee80211_bss_get_elem
-  ieee80211_channel_to_freq_khz
-  ieee80211_freq_khz_to_channel
-  ieee80211_get_channel_khz
-  ieee80211_hdrlen
   ignore_console_lock_warning
   iio_alloc_pollfunc
   iio_buffer_enabled
   iio_buffer_init
   iio_buffer_put
+  iio_bus_type
   iio_dealloc_pollfunc
   iio_device_attach_buffer
   iio_device_claim_direct_mode
@@ -981,14 +952,21 @@
   __iio_device_register
   iio_device_release_direct_mode
   iio_device_unregister
+  iio_format_value
   iio_get_time_ns
   iio_push_event
   iio_push_to_buffers
   iio_read_const_attr
   iio_read_mount_matrix
   iio_show_mount_matrix
+  iio_str_to_fixpoint
+  __iio_trigger_alloc
+  iio_trigger_free
   iio_trigger_notify_done
+  iio_trigger_poll
   iio_trigger_poll_chained
+  iio_trigger_register
+  iio_trigger_unregister
   import_iovec
   in4_pton
   init_dummy_netdev
@@ -1056,6 +1034,8 @@
   __irq_set_handler
   irq_set_irq_wake
   irq_to_desc
+  irq_work_queue
+  irq_work_sync
   ir_raw_event_store_edge
   is_console_locked
   is_vmalloc_addr
@@ -1557,7 +1537,10 @@
   pm_wakeup_dev_event
   pm_wakeup_ws_event
   policy_has_boost_freq
+  power_supply_am_i_supplied
+  power_supply_changed
   power_supply_get_by_phandle
+  power_supply_get_drvdata
   power_supply_get_property
   power_supply_put
   power_supply_register
@@ -1669,8 +1652,6 @@
   regulator_set_voltage
   regulator_set_voltage_sel_regmap
   regulator_set_voltage_time_sel
-  regulatory_hint
-  regulatory_set_wiphy_regd_sync
   release_firmware
   __release_region
   remap_pfn_range
@@ -1705,6 +1686,7 @@
   rproc_add_carveout
   rproc_alloc
   rproc_coredump_add_segment
+  rproc_da_to_va
   rproc_del
   rproc_elf_find_loaded_rsc_table
   rproc_elf_get_boot_addr
@@ -2294,11 +2276,6 @@
   __warn_printk
   watchdog_init_timeout
   watchdog_set_restart_priority
-  wiphy_apply_custom_regulatory
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
   wireless_send_event
   woken_wake_function
   ww_mutex_lock
@@ -2314,6 +2291,7 @@
   xdp_do_flush
   xdp_do_redirect
   xdp_master_redirect
+  xdp_return_frame
   xdp_rxq_info_is_reg
   __xdp_rxq_info_reg
   xdp_rxq_info_reg_mem_model

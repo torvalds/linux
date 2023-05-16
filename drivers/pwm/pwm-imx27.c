@@ -118,8 +118,8 @@ static void pwm_imx27_clk_disable_unprepare(struct pwm_imx27_chip *imx)
 	clk_disable_unprepare(imx->clk_ipg);
 }
 
-static void pwm_imx27_get_state(struct pwm_chip *chip,
-				struct pwm_device *pwm, struct pwm_state *state)
+static int pwm_imx27_get_state(struct pwm_chip *chip,
+			       struct pwm_device *pwm, struct pwm_state *state)
 {
 	struct pwm_imx27_chip *imx = to_pwm_imx27_chip(chip);
 	u32 period, prescaler, pwm_clk, val;
@@ -128,7 +128,7 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 
 	ret = pwm_imx27_clk_prepare_enable(imx);
 	if (ret < 0)
-		return;
+		return 0;
 
 	val = readl(imx->mmio_base + MX3_PWMCR);
 
@@ -170,6 +170,8 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 	state->duty_cycle = DIV_ROUND_UP_ULL(tmp, pwm_clk);
 
 	pwm_imx27_clk_disable_unprepare(imx);
+
+	return 0;
 }
 
 static void pwm_imx27_sw_reset(struct pwm_chip *chip)

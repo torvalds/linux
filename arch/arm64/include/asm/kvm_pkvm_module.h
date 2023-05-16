@@ -30,6 +30,8 @@ struct pkvm_module_ops {
 	void *(*linear_map_early)(phys_addr_t phys, size_t size, enum kvm_pgtable_prot prot);
 	void (*linear_unmap_early)(void *addr, size_t size);
 	void (*flush_dcache_to_poc)(void *addr, size_t size);
+	void (*update_hcr_el2)(unsigned long set_mask, unsigned long clear_mask);
+	void (*update_hfgwtr_el2)(unsigned long set_mask, unsigned long clear_mask);
 	int (*register_host_perm_fault_handler)(int (*cb)(struct kvm_cpu_context *ctxt, u64 esr, u64 addr));
 	int (*host_stage2_mod_prot)(u64 pfn, enum kvm_pgtable_prot prot);
 	int (*host_stage2_get_leaf)(phys_addr_t phys, kvm_pte_t *ptep, u32 *level);
