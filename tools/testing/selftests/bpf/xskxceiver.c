@@ -142,12 +142,14 @@ static void report_failure(struct test_spec *test)
  * 16-bits and a intra packet data sequence number in the lower 16 bits. So the 3rd packet's
  * 5th word of data will contain the number (2<<16) | 4 as they are numbered from 0.
  */
-static void write_payload(void *dest, u32 val, u32 size)
+static void write_payload(void *dest, u32 pkt_nb, u32 start, u32 size)
 {
 	u32 *ptr = (u32 *)dest, i;
 
-	for (i = 0; i < size / sizeof(*ptr); i++)
-		ptr[i] = htonl(val << 16 | i);
+	start /= sizeof(*ptr);
+	size /= sizeof(*ptr);
+	for (i = 0; i < size; i++)
+		ptr[i] = htonl(pkt_nb << 16 | (i + start));
 }
 
 static void gen_eth_hdr(struct ifobject *ifobject, struct ethhdr *eth_hdr)
@@ -563,8 +565,10 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 		exit_with_error(ENOMEM);
 
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_set(umem, &pkt_stream->pkts[i], 0, pkt_len);
-		pkt_stream->pkts[i].pkt_nb = i;
+		struct pkt *pkt = &pkt_stream->pkts[i];
+
+		pkt_set(umem, pkt, 0, pkt_len);
+		pkt->pkt_nb = i;
 	}
 
 	return pkt_stream;
@@ -626,19 +630,24 @@ static u64 pkt_get_addr(struct pkt *pkt, struct xsk_umem_info *umem)
 	return pkt->offset + umem_alloc_buffer(umem);
 }
 
-static void pkt_generate(struct ifobject *ifobject, struct pkt *pkt, u64 addr)
+static void pkt_generate(struct ifobject *ifobject, u64 addr, u32 len, u32 pkt_nb,
+			 u32 bytes_written)
 {
-	struct ethhdr *eth_hdr;
-	void *data;
+	void *data = xsk_umem__get_data(ifobject->umem->buffer, addr);
 
-	if (!pkt->valid || pkt->len < MIN_PKT_SIZE)
+	if (len < MIN_PKT_SIZE)
 		return;
 
-	data = xsk_umem__get_data(ifobject->umem->buffer, addr);
-	eth_hdr = data;
+	if (!bytes_written) {
+		gen_eth_hdr(ifobject, data);
 
-	gen_eth_hdr(ifobject, eth_hdr);
-	write_payload(data + PKT_HDR_SIZE, pkt->pkt_nb, pkt->len - PKT_HDR_SIZE);
+		len -= PKT_HDR_SIZE;
+		data += PKT_HDR_SIZE;
+	} else {
+		bytes_written -= PKT_HDR_SIZE;
+	}
+
+	write_payload(data, pkt_nb, bytes_written, len);
 }
 
 static void __pkt_stream_generate_custom(struct ifobject *ifobj,
@@ -681,27 +690,33 @@ static void pkt_print_data(u32 *data, u32 cnt)
 	}
 }
 
-static void pkt_dump(void *pkt, u32 len)
+static void pkt_dump(void *pkt, u32 len, bool eth_header)
 {
 	struct ethhdr *ethhdr = pkt;
-	u32 i;
+	u32 i, *data;
 
-	/*extract L2 frame */
-	fprintf(stdout, "DEBUG>> L2: dst mac: ");
-	for (i = 0; i < ETH_ALEN; i++)
-		fprintf(stdout, "%02X", ethhdr->h_dest[i]);
+	if (eth_header) {
+		/*extract L2 frame */
+		fprintf(stdout, "DEBUG>> L2: dst mac: ");
+		for (i = 0; i < ETH_ALEN; i++)
+			fprintf(stdout, "%02X", ethhdr->h_dest[i]);
 
-	fprintf(stdout, "\nDEBUG>> L2: src mac: ");
-	for (i = 0; i < ETH_ALEN; i++)
-		fprintf(stdout, "%02X", ethhdr->h_source[i]);
+		fprintf(stdout, "\nDEBUG>> L2: src mac: ");
+		for (i = 0; i < ETH_ALEN; i++)
+			fprintf(stdout, "%02X", ethhdr->h_source[i]);
+
+		data = pkt + PKT_HDR_SIZE;
+	} else {
+		data = pkt;
+	}
 
 	/*extract L5 frame */
 	fprintf(stdout, "\nDEBUG>> L5: seqnum: ");
-	pkt_print_data(pkt + PKT_HDR_SIZE, PKT_DUMP_NB_TO_PRINT);
+	pkt_print_data(data, PKT_DUMP_NB_TO_PRINT);
 	fprintf(stdout, "....");
 	if (len > PKT_DUMP_NB_TO_PRINT * sizeof(u32)) {
 		fprintf(stdout, "\n.... ");
-		pkt_print_data(pkt + PKT_HDR_SIZE + len - PKT_DUMP_NB_TO_PRINT * sizeof(u32),
+		pkt_print_data(data + len / sizeof(u32) - PKT_DUMP_NB_TO_PRINT,
 			       PKT_DUMP_NB_TO_PRINT);
 	}
 	fprintf(stdout, "\n---------------------------------------\n");
@@ -772,7 +787,7 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 	return true;
 
 error:
-	pkt_dump(data, len);
+	pkt_dump(data, len, true);
 	return false;
 }
 
@@ -959,9 +974,10 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 
 		tx_desc->addr = pkt_get_addr(pkt, ifobject->umem);
 		tx_desc->len = pkt->len;
-		if (pkt->valid)
+		if (pkt->valid) {
 			valid_pkts++;
-		pkt_generate(ifobject, pkt, tx_desc->addr);
+			pkt_generate(ifobject, tx_desc->addr, tx_desc->len, pkt->pkt_nb, 0);
+		}
 	}
 
 	pthread_mutex_lock(&pacing_mutex);
