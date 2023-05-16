@@ -23115,7 +23115,7 @@ F:	Documentation/devicetree/bindings/iio/adc/xlnx,zynqmp-ams.yaml
 F:	drivers/iio/adc/xilinx-ams.c
 
 XILINX AXI ETHERNET DRIVER
-M:	Radhey Shyam Pandey <radhey.shyam.pandey@xilinx.com>
+M:	Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
@@ -23128,8 +23128,8 @@ F:	Documentation/devicetree/bindings/net/can/xilinx,can.yaml
 F:	drivers/net/can/xilinx_can.c
 
 XILINX GPIO DRIVER
-M:	Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
-R:	Srinivas Neeli <srinivas.neeli@xilinx.com>
+M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+R:	Srinivas Neeli <srinivas.neeli@amd.com>
 R:	Michal Simek <michal.simek@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/gpio/xlnx,gpio-xilinx.yaml
@@ -23138,8 +23138,8 @@ F:	drivers/gpio/gpio-xilinx.c
 F:	drivers/gpio/gpio-zynq.c
 
 XILINX SD-FEC IP CORES
-M:	Derek Kiernan <derek.kiernan@xilinx.com>
-M:	Dragan Cvetic <dragan.cvetic@xilinx.com>
+M:	Derek Kiernan <derek.kiernan@amd.com>
+M:	Dragan Cvetic <dragan.cvetic@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/misc/xlnx,sd-fec.txt
 F:	Documentation/misc-devices/xilinx_sdfec.rst
@@ -23212,7 +23212,7 @@ F:	Documentation/devicetree/bindings/phy/xlnx,zynqmp-psgtr.yaml
 F:	drivers/phy/xilinx/phy-zynqmp.c
 
 XILINX ZYNQMP SHA3 DRIVER
-M:	Harsha <harsha.harsha@xilinx.com>
+M:	Harsha <harsha.harsha@amd.com>
 S:	Maintained
 F:	drivers/crypto/xilinx/zynqmp-sha.c
 
