@@ -3919,6 +3919,8 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	const struct atomisp_in_fmt_conv *fc;
 	int mipi_freq = 0;
 	unsigned int input_format, bayer_order;
+	enum atomisp_input_format metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
+	u32 mipi_port, metadata_width = 0, metadata_height = 0;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
 	if (v4l2_g_ctrl
@@ -3946,7 +3948,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 
 	/* Compatibility for sensors which provide no media bus code
 	 * in s_mbus_framefmt() nor support pad formats. */
-	if (mipi_info->input_format != -1) {
+	if (mipi_info && mipi_info->input_format != -1) {
 		bayer_order = mipi_info->raw_bayer_order;
 
 		/* Input stream config is still needs configured */
@@ -3956,6 +3958,9 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		if (!fc)
 			return -EINVAL;
 		input_format = fc->atomisp_in_fmt;
+		metadata_format = mipi_info->metadata_format;
+		metadata_width = mipi_info->metadata_width;
+		metadata_height = mipi_info->metadata_height;
 	} else {
 		struct v4l2_mbus_framefmt *sink;
 
@@ -3972,18 +3977,17 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	atomisp_css_input_set_format(asd, stream_id, input_format);
 	atomisp_css_input_set_bayer_order(asd, stream_id, bayer_order);
 
-	fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-		 mipi_info->metadata_format);
+	fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(metadata_format);
 	if (!fc)
 		return -EINVAL;
+
 	input_format = fc->atomisp_in_fmt;
-	atomisp_css_input_configure_port(asd,
-					 atomisp_port_to_mipi_port(asd->isp, mipi_info->port),
-					 mipi_info->num_lanes,
+	mipi_port = atomisp_port_to_mipi_port(isp, isp->inputs[asd->input_curr].port);
+	atomisp_css_input_configure_port(asd, mipi_port,
+					 isp->sensor_lanes[mipi_port],
 					 0xffff4, mipi_freq,
 					 input_format,
-					 mipi_info->metadata_width,
-					 mipi_info->metadata_height);
+					 metadata_width, metadata_height);
 	return 0;
 }
 
@@ -4071,7 +4075,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	int (*configure_pp_input)(struct atomisp_sub_device *asd,
 				  unsigned int width, unsigned int height) =
 				      configure_pp_input_nop;
-	const struct atomisp_in_fmt_conv *fc;
+	const struct atomisp_in_fmt_conv *fc = NULL;
 	int ret, i;
 
 	if (!asd) {
@@ -4093,15 +4097,14 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (isp->inputs[asd->input_curr].type != TEST_PATTERN) {
 		mipi_info = atomisp_to_sensor_mipi_info(
 				isp->inputs[asd->input_curr].camera);
-		if (!mipi_info) {
-			dev_err(isp->dev, "mipi_info is NULL\n");
-			return -EINVAL;
-		}
+
 		if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
 						   mipi_info))
 			return -EINVAL;
-		fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-			 mipi_info->input_format);
+
+		if (mipi_info)
+			fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(mipi_info->input_format);
+
 		if (!fc)
 			fc = atomisp_find_in_fmt_conv(
 				 atomisp_subdev_get_ffmt(&asd->subdev,
