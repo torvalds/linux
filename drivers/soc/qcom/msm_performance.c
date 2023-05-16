@@ -267,11 +267,10 @@ cleanup:
 static ssize_t set_cpu_min_freq(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	int i, j, ntokens = 0;
+	int i, ntokens = 0;
 	unsigned int val, cpu;
 	const char *cp = buf;
 	struct cpu_status *i_cpu_stats;
-	struct cpufreq_policy policy;
 	struct freq_qos_request *req;
 	int ret = 0;
 
@@ -322,17 +321,10 @@ static ssize_t set_cpu_min_freq(struct kobject *kobj,
 	for_each_cpu(i, limit_mask_min) {
 		i_cpu_stats = &per_cpu(msm_perf_cpu_stats, i);
 
-		if (cpufreq_get_policy(&policy, i))
+		req = &per_cpu(qos_req_min, i);
+		if (freq_qos_update_request(req, i_cpu_stats->min) < 0)
 			continue;
 
-		if (cpu_online(i)) {
-			req = &per_cpu(qos_req_min, i);
-			if (freq_qos_update_request(req, i_cpu_stats->min) < 0)
-				break;
-		}
-
-		for_each_cpu(j, policy.related_cpus)
-			cpumask_clear_cpu(j, limit_mask_min);
 	}
 	cpus_read_unlock();
 
@@ -356,11 +348,10 @@ static ssize_t get_cpu_min_freq(struct kobject *kobj,
 static ssize_t set_cpu_max_freq(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	int i, j, ntokens = 0;
+	int i, ntokens = 0;
 	unsigned int val, cpu;
 	const char *cp = buf;
 	struct cpu_status *i_cpu_stats;
-	struct cpufreq_policy policy;
 	struct freq_qos_request *req;
 	int ret = 0;
 
@@ -404,17 +395,11 @@ static ssize_t set_cpu_max_freq(struct kobject *kobj,
 	cpus_read_lock();
 	for_each_cpu(i, limit_mask_max) {
 		i_cpu_stats = &per_cpu(msm_perf_cpu_stats, i);
-		if (cpufreq_get_policy(&policy, i))
+
+		req = &per_cpu(qos_req_max, i);
+		if (freq_qos_update_request(req, i_cpu_stats->max) < 0)
 			continue;
 
-		if (cpu_online(i)) {
-			req = &per_cpu(qos_req_max, i);
-			if (freq_qos_update_request(req, i_cpu_stats->max) < 0)
-				break;
-		}
-
-		for_each_cpu(j, policy.related_cpus)
-			cpumask_clear_cpu(j, limit_mask_max);
 	}
 	cpus_read_unlock();
 
