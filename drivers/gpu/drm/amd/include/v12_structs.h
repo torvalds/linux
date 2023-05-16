@@ -666,8 +666,9 @@ struct v12_sdma_mqd {
     uint32_t reserved_123; // offset: 123  (0x7B)
     uint32_t reserved_124; // offset: 124  (0x7C)
     uint32_t reserved_125; // offset: 125  (0x7D)
-    uint32_t reserved_126; // offset: 126  (0x7E)
-    uint32_t reserved_127; // offset: 127  (0x7F)
+	/* reserved_126,127: repurposed for driver-internal use */
+	uint32_t sdma_engine_id;
+	uint32_t sdma_queue_id;
 };
 
 struct v12_compute_mqd {

@@ -38,6 +38,7 @@ AMDKFD_FILES	:= $(AMDKFD_PATH)/kfd_module.o \
 		$(AMDKFD_PATH)/kfd_mqd_manager_v9.o \
 		$(AMDKFD_PATH)/kfd_mqd_manager_v10.o \
 		$(AMDKFD_PATH)/kfd_mqd_manager_v11.o \
+		$(AMDKFD_PATH)/kfd_mqd_manager_v12.o \
 		$(AMDKFD_PATH)/kfd_kernel_queue.o \
 		$(AMDKFD_PATH)/kfd_packet_manager.o \
 		$(AMDKFD_PATH)/kfd_packet_manager_vi.o \

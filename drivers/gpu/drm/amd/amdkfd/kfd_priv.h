@@ -1295,6 +1295,8 @@ struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
+struct mqd_manager *mqd_manager_init_v12(enum KFD_MQD_TYPE type,
+		struct kfd_node *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
