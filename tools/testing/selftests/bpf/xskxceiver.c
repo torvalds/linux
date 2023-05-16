@@ -1402,9 +1402,18 @@ static void handler(int signum)
 	pthread_exit(NULL);
 }
 
-static bool xdp_prog_changed(struct test_spec *test, struct ifobject *ifobj)
+static bool xdp_prog_changed_rx(struct test_spec *test)
 {
+	struct ifobject *ifobj = test->ifobj_rx;
+
 	return ifobj->xdp_prog != test->xdp_prog_rx || ifobj->mode != test->mode;
+}
+
+static bool xdp_prog_changed_tx(struct test_spec *test)
+{
+	struct ifobject *ifobj = test->ifobj_tx;
+
+	return ifobj->xdp_prog != test->xdp_prog_tx || ifobj->mode != test->mode;
 }
 
 static void xsk_reattach_xdp(struct ifobject *ifobj, struct bpf_program *xdp_prog,
@@ -1433,13 +1442,13 @@ static void xsk_reattach_xdp(struct ifobject *ifobj, struct bpf_program *xdp_pro
 static void xsk_attach_xdp_progs(struct test_spec *test, struct ifobject *ifobj_rx,
 				 struct ifobject *ifobj_tx)
 {
-	if (xdp_prog_changed(test, ifobj_rx))
+	if (xdp_prog_changed_rx(test))
 		xsk_reattach_xdp(ifobj_rx, test->xdp_prog_rx, test->xskmap_rx, test->mode);
 
 	if (!ifobj_tx || ifobj_tx->shared_umem)
 		return;
 
-	if (xdp_prog_changed(test, ifobj_tx))
+	if (xdp_prog_changed_tx(test))
 		xsk_reattach_xdp(ifobj_tx, test->xdp_prog_tx, test->xskmap_tx, test->mode);
 }
 
