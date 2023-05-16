@@ -531,6 +531,18 @@ static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
 	return pkt_stream;
 }
 
+static u32 ceil_u32(u32 a, u32 b)
+{
+	return (a + b - 1) / b;
+}
+
+static u32 pkt_nb_frags(u32 frame_size, struct pkt *pkt)
+{
+	if (!pkt || !pkt->valid)
+		return 1;
+	return ceil_u32(pkt->len, frame_size);
+}
+
 static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, int offset, u32 len)
 {
 	pkt->offset = offset;
@@ -1159,9 +1171,11 @@ static void thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobje
 	ifobject->umem->base_addr = 0;
 }
 
-static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream)
+static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream,
+				   bool fill_up)
 {
-	u32 idx = 0, i, buffers_to_fill, nb_pkts;
+	u32 rx_frame_size = umem->frame_size - XDP_PACKET_HEADROOM;
+	u32 idx = 0, filled = 0, buffers_to_fill, nb_pkts;
 	int ret;
 
 	if (umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
@@ -1173,19 +1187,29 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 	if (ret != buffers_to_fill)
 		exit_with_error(ENOSPC);
 
-	for (i = 0; i < buffers_to_fill; i++) {
+	while (filled < buffers_to_fill) {
 		struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &nb_pkts);
 		u64 addr;
+		u32 i;
 
-		if (!pkt)
-			addr = i * umem->frame_size + umem->base_addr;
-		else if (pkt->offset >= 0)
-			addr = pkt->offset % umem->frame_size + umem_alloc_buffer(umem);
-		else
-			addr = pkt->offset + umem_alloc_buffer(umem);
-		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
+		for (i = 0; i < pkt_nb_frags(rx_frame_size, pkt); i++) {
+			if (!pkt) {
+				if (!fill_up)
+					break;
+				addr = filled * umem->frame_size + umem->base_addr;
+			} else if (pkt->offset >= 0) {
+				addr = pkt->offset % umem->frame_size + umem_alloc_buffer(umem);
+			} else {
+				addr = pkt->offset + umem_alloc_buffer(umem);
+			}
+
+			*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
+			if (++filled >= buffers_to_fill)
+				break;
+		}
 	}
-	xsk_ring_prod__submit(&umem->fq, i);
+	xsk_ring_prod__submit(&umem->fq, filled);
+	xsk_ring_prod__cancel(&umem->fq, buffers_to_fill - filled);
 
 	pkt_stream_reset(pkt_stream);
 	umem_reset_alloc(umem);
@@ -1220,7 +1244,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (!ifobject->rx_on)
 		return;
 
-	xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
+	xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream, ifobject->use_fill_ring);
 
 	ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk);
 	if (ret)
