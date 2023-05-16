@@ -531,12 +531,12 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPI, "top_spi",
 		spi_parents, 0x0060, 0x0064, 0x0068, 24, 3, 31, 0x0004, 11),
 	/* CLK_CFG_3 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_HCLK, "top_msdc5hclk",
-		msdc5hclk_parents, 0x0070, 0x0074, 0x0078, 0, 2, 7, 0x0004, 12),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0, "top_msdc50_0",
-		msdc50_0_parents, 0x0070, 0x0074, 0x0078, 8, 3, 15, 0x0004, 13),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1, "top_msdc30_1",
-		msdc30_1_parents, 0x0070, 0x0074, 0x0078, 16, 3, 23, 0x0004, 14),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_HCLK, "top_msdc5hclk",
+		msdc5hclk_parents, 0x0070, 0x0074, 0x0078, 0, 2, 7, 0x0004, 12, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0, "top_msdc50_0",
+		msdc50_0_parents, 0x0070, 0x0074, 0x0078, 8, 3, 15, 0x0004, 13, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1, "top_msdc30_1",
+		msdc30_1_parents, 0x0070, 0x0074, 0x0078, 16, 3, 23, 0x0004, 14, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO, "top_audio",
 		audio_parents, 0x0070, 0x0074, 0x0078, 24, 2, 31, 0x0004, 15),
 	/* CLK_CFG_4 */
