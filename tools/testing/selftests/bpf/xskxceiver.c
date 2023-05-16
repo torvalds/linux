@@ -275,7 +275,6 @@ out:
 static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
 	{"busy-poll", no_argument, 0, 'b'},
-	{"dump-pkts", no_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
 	{0, 0, 0, 0}
 };
@@ -286,7 +285,6 @@ static void usage(const char *prog)
 		"  Usage: %s [OPTIONS]\n"
 		"  Options:\n"
 		"  -i, --interface      Use interface\n"
-		"  -D, --dump-pkts      Dump packets L2 - L5\n"
 		"  -v, --verbose        Verbose output\n"
 		"  -b, --busy-poll      Enable busy poll\n";
 
@@ -310,7 +308,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:Dvb", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:vb", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -331,9 +329,6 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 				exit_with_error(errno);
 
 			interface_nb++;
-			break;
-		case 'D':
-			opt_pkt_dump = true;
 			break;
 		case 'v':
 			opt_verbose = true;
@@ -714,7 +709,7 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 
 	if (!pkt) {
 		ksft_print_msg("[%s] too many packets received\n", __func__);
-		return false;
+		goto error;
 	}
 
 	if (len < MIN_PKT_SIZE || pkt->len < MIN_PKT_SIZE) {
@@ -725,22 +720,23 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 	if (pkt->len != len) {
 		ksft_print_msg("[%s] expected length [%d], got length [%d]\n",
 			       __func__, pkt->len, len);
-		return false;
+		goto error;
 	}
 
 	pkt_data = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
 	seqnum = pkt_data >> 16;
 
-	if (opt_pkt_dump)
-		pkt_dump(data, len);
-
 	if (pkt->pkt_nb != seqnum) {
 		ksft_print_msg("[%s] expected seqnum [%d], got seqnum [%d]\n",
 			       __func__, pkt->pkt_nb, seqnum);
-		return false;
+		goto error;
 	}
 
 	return true;
+
+error:
+	pkt_dump(data, len);
+	return false;
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)

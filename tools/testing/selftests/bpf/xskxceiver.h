@@ -85,7 +85,6 @@ enum test_type {
 	TEST_TYPE_MAX
 };
 
-static bool opt_pkt_dump;
 static bool opt_verbose;
 
 struct xsk_umem_info {
