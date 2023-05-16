@@ -35,17 +35,8 @@
 #define MAX_SOCKETS 2
 #define MAX_TEST_NAME_SIZE 32
 #define MAX_TEARDOWN_ITER 10
-#define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
-			sizeof(struct udphdr))
-#define MIN_ETH_PKT_SIZE 64
-#define ETH_FCS_SIZE 4
-#define MIN_PKT_SIZE (MIN_ETH_PKT_SIZE - ETH_FCS_SIZE)
-#define PKT_SIZE (MIN_PKT_SIZE)
-#define IP_PKT_SIZE (PKT_SIZE - sizeof(struct ethhdr))
-#define IP_PKT_VER 0x4
-#define IP_PKT_TOS 0x9
-#define UDP_PKT_SIZE (IP_PKT_SIZE - sizeof(struct iphdr))
-#define UDP_PKT_DATA_SIZE (UDP_PKT_SIZE - sizeof(struct udphdr))
+#define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */
+#define MIN_PKT_SIZE 64
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
@@ -148,11 +139,7 @@ struct ifobject {
 	struct bpf_program *xdp_prog;
 	enum test_mode mode;
 	int ifindex;
-	u32 dst_ip;
-	u32 src_ip;
 	u32 bind_flags;
-	u16 src_port;
-	u16 dst_port;
 	bool tx_on;
 	bool rx_on;
 	bool use_poll;
