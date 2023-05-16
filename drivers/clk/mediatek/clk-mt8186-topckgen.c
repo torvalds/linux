@@ -504,10 +504,10 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
 				   0x0040, 0x0044, 0x0048, 0, 2, 7, 0x0004, 0,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SCP, "top_scp", scp_parents,
 				   0x0040, 0x0044, 0x0048, 8, 3, 15, 0x0004, 1,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MFG, "top_mfg",
 		mfg_parents, 0x0040, 0x0044, 0x0048, 16, 2, 23, 0x0004, 2),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG, "top_camtg",
@@ -559,7 +559,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		disp_pwm_parents, 0x0090, 0x0094, 0x0098, 8, 3, 15, 0x0004, 21),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SSPM, "top_sspm", sspm_parents,
 				   0x0090, 0x0094, 0x0098, 16, 3, 23, 0x0004, 22,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DXCC, "top_dxcc",
 		dxcc_parents, 0x0090, 0x0094, 0x0098, 24, 2, 31, 0x0004, 23),
 	/*
@@ -570,10 +570,10 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		usb_parents, 0x00a0, 0x00a4, 0x00a8, 0, 2, 7, 0x0004, 24),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SRCK, "top_srck", srck_parents,
 				   0x00a0, 0x00a4, 0x00a8, 8, 2, 15, 0x0004, 25,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM, "top_spm", spm_parents,
 				   0x00a0, 0x00a4, 0x00a8, 16, 2, 23, 0x0004, 26,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2C, "top_i2c",
 		i2c_parents, 0x00a0, 0x00a4, 0x00a8, 24, 2, 31, 0x0004, 27),
 	/* CLK_CFG_7 */
@@ -627,7 +627,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DVFSRC, "top_dvfsrc", dvfsrc_parents,
 				   0x0100, 0x0104, 0x0108, 0, 1, 7, 0x0008, 17,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DSI_OCC, "top_dsi_occ",
 		dsi_occ_parents, 0x0100, 0x0104, 0x0108, 8, 2, 15, 0x0008, 18),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_MST, "top_spmi_mst",

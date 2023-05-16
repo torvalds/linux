@@ -549,15 +549,15 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel",
 				   axi_parents, 0x010, 0x014, 0x018, 0, 3, 7, 0x004, 0,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM_SEL, "spm_sel",
 				   spm_parents, 0x010, 0x014, 0x018, 8, 2, 15, 0x004, 1,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SCP_SEL, "scp_sel",
 			     scp_parents, 0x010, 0x014, 0x018, 16, 3, 23, 0x004, 2),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_BUS_AXIMEM_SEL, "bus_aximem_sel",
 				   bus_aximem_parents, 0x010, 0x014, 0x018, 24, 3, 31, 0x004, 3,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_1 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DISP_SEL, "disp_sel",
 			     disp_parents, 0x020, 0x024, 0x028, 0, 4, 7, 0x004, 4),

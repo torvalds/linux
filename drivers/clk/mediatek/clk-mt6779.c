@@ -640,7 +640,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "axi_sel", axi_parents,
 				   0x20, 0x24, 0x28, 0, 2, 7,
-				   0x004, 0, CLK_IS_CRITICAL),
+				   0x004, 0, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MM, "mm_sel", mm_parents,
 			     0x20, 0x24, 0x28, 8, 3, 15, 0x004, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SCP, "scp_sel", scp_parents,
@@ -710,7 +710,7 @@ static const struct mtk_mux top_muxes[] = {
 			     0x90, 0x94, 0x98, 0, 2, 7, 0x004, 28),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SSPM, "sspm_sel", sspm_parents,
 				   0x90, 0x94, 0x98, 8, 3, 15,
-				   0x004, 29, CLK_IS_CRITICAL),
+				   0x004, 29, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DPI0, "dpi0_sel", dpi0_parents,
 			     0x90, 0x94, 0x98, 16, 3, 23, 0x004, 30),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SCAM, "scam_sel", scam_parents,
@@ -727,7 +727,7 @@ static const struct mtk_mux top_muxes[] = {
 			     16, 2, 23, 0x008, 3),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM, "spm_sel", spm_parents,
 				   0xa0, 0xa4, 0xa8, 24, 2, 31,
-				   0x008, 4, CLK_IS_CRITICAL),
+				   0x008, 4, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_9 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2C, "i2c_sel", i2c_parents,
 			     0xb0, 0xb4, 0xb8, 0, 2, 7, 0x008, 5),

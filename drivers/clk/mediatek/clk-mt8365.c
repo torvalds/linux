@@ -410,7 +410,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
 				   0x040, 0x044, 0x048, 0, 2, 7, CLK_CFG_UPDATE,
-				   0, CLK_IS_CRITICAL),
+				   0, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MEM_SEL, "mem_sel", mem_parents, 0x040,
 			     0x044, 0x048, 8, 2, 15, CLK_CFG_UPDATE, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MM_SEL, "mm_sel", mm_parents, 0x040, 0x044,
@@ -475,7 +475,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_6 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DXCC_SEL, "dxcc_sel", dxcc_parents,
 				   0x0a0, 0x0a4, 0x0a8, 0, 2, 7, CLK_CFG_UPDATE,
-				   24, CLK_IS_CRITICAL),
+				   24, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SSUSB_SYS_SEL, "ssusb_sys_sel",
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 8, 2, 15,
 			     CLK_CFG_UPDATE, 25),
@@ -483,8 +483,8 @@ static const struct mtk_mux top_muxes[] = {
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 16, 2, 23,
 			     CLK_CFG_UPDATE, 26),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM_SEL, "spm_sel", spm_parents,
-				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31,
-				   CLK_CFG_UPDATE, 27, CLK_IS_CRITICAL),
+				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31, CLK_CFG_UPDATE,
+				   27, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_7 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2C_SEL, "i2c_sel", i2c_parents, 0x0b0,
 			     0x0b4, 0x0b8, 0, 3, 7, CLK_CFG_UPDATE, 28),
