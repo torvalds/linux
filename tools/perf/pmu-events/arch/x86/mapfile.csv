@@ -2,9 +2,9 @@ Family-model,Version,Filename,EventType
 GenuineIntel-6-(97|9A|B7|BA|BF),v1.21,alderlake,core
 GenuineIntel-6-BE,v1.21,alderlaken,core
 GenuineIntel-6-(1C|26|27|35|36),v4,bonnell,core
-GenuineIntel-6-(3D|47),v27,broadwell,core
-GenuineIntel-6-56,v9,broadwellde,core
-GenuineIntel-6-4F,v20,broadwellx,core
+GenuineIntel-6-(3D|47),v28,broadwell,core
+GenuineIntel-6-56,v10,broadwellde,core
+GenuineIntel-6-4F,v21,broadwellx,core
 GenuineIntel-6-55-[56789ABCDEF],v1.17,cascadelakex,core
 GenuineIntel-6-9[6C],v1.03,elkhartlake,core
 GenuineIntel-6-5[CF],v13,goldmont,core
