@@ -1001,6 +1001,11 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	bo = to_qaic_bo(obj);
 
+	if (bo->sliced) {
+		ret = -EINVAL;
+		goto put_bo;
+	}
+
 	ret = qaic_prepare_bo(qdev, bo, &args->hdr);
 	if (ret)
 		goto put_bo;
