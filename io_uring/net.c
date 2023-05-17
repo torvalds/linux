@@ -635,7 +635,15 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		if (io_aux_cqe(req->ctx, issue_flags & IO_URING_F_COMPLETE_DEFER,
 			       req->cqe.user_data, *ret, cflags | IORING_CQE_F_MORE, true)) {
 			io_recv_prep_retry(req);
-			return false;
+			/* Known not-empty or unknown state, retry */
+			if (cflags & IORING_CQE_F_SOCK_NONEMPTY ||
+			    msg->msg_inq == -1U)
+				return false;
+			if (issue_flags & IO_URING_F_MULTISHOT)
+				*ret = IOU_ISSUE_SKIP_COMPLETE;
+			else
+				*ret = -EAGAIN;
+			return true;
 		}
 		/* Otherwise stop multishot but use the current result. */
 	}
