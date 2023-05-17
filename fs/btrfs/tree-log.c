@@ -7329,14 +7329,14 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * if this directory was already logged any new
 	 * names for this file/dir will get recorded
 	 */
-	if (dir->logged_trans == trans->transid)
+	if (inode_logged(trans, dir, NULL) == 1)
 		return;
 
 	/*
 	 * if the inode we're about to unlink was logged,
 	 * the log will be properly updated for any new names
 	 */
-	if (inode->logged_trans == trans->transid)
+	if (inode_logged(trans, inode, NULL) == 1)
 		return;
 
 	/*
