@@ -210,19 +210,28 @@ static int tls_strp_copyin(read_descriptor_t *desc, struct sk_buff *in_skb,
 					   skb_frag_size(frag),
 					   chunk));
 
-		sz = tls_rx_msg_size(strp, strp->anchor);
+		skb->len += chunk;
+		skb->data_len += chunk;
+		skb_frag_size_add(frag, chunk);
+
+		sz = tls_rx_msg_size(strp, skb);
 		if (sz < 0) {
 			desc->error = sz;
 			return 0;
 		}
 
 		/* We may have over-read, sz == 0 is guaranteed under-read */
-		if (sz > 0)
-			chunk =	min_t(size_t, chunk, sz - skb->len);
+		if (unlikely(sz && sz < skb->len)) {
+			int over = skb->len - sz;
 
-		skb->len += chunk;
-		skb->data_len += chunk;
-		skb_frag_size_add(frag, chunk);
+			WARN_ON_ONCE(over > chunk);
+			skb->len -= over;
+			skb->data_len -= over;
+			skb_frag_size_add(frag, -over);
+
+			chunk -= over;
+		}
+
 		frag++;
 		len -= chunk;
 		offset += chunk;
