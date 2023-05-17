@@ -43,7 +43,7 @@
 
 &omap3_pmx_wkup {
 
-	wl12xx_wkup_pins: pinmux_wl12xx_wkup_pins {
+	wl12xx_wkup_pins: wl12xx-wkup-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0e, PIN_OUTPUT | MUX_MODE4)	/* sys_boot2.gpio_4 */
 			OMAP3_WKUP_IOPAD(0x2a12, PIN_OUTPUT | MUX_MODE4)	/* sys_boot4.gpio_6 */
@@ -53,25 +53,25 @@
 
 &omap3_pmx_core {
 
-	phy1_reset_pins: pinmux_hsusb1_phy_reset_pins {
+	phy1_reset_pins: hsusb1-phy-reset-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2178, PIN_OUTPUT | MUX_MODE4)	/* uart2_tx.gpio_146 */
 		>;
 	};
 
-	phy2_reset_pins: pinmux_hsusb2_phy_reset_pins {
+	phy2_reset_pins: hsusb2-phy-reset-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x217a, PIN_OUTPUT | MUX_MODE4)	/* uart2_rx.gpio_147 */
 		>;
 	};
 
-	otg_drv_vbus: pinmux_otg_drv_vbus {
+	otg_drv_vbus: otg-drv-vbus-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50MHz_clk.usb0_drvvbus */
 		>;
 	};
 
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_cmd.sdmmc2_cmd */
@@ -82,14 +82,14 @@
 		>;
 	};
 
-	wl12xx_core_pins: pinmux_wl12xx_core_pins {
+	wl12xx_core_pins: wl12xx-core-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20b8, PIN_OUTPUT | MUX_MODE4)	/* gpmc_ncs5.gpio_56 */
 			OMAP3_CORE1_IOPAD(0x2176, PIN_INPUT_PULLUP | MUX_MODE4)	/* uart2_rts.gpio_145 */
 		>;
 	};
 
-	usb_hub_pins: pinmux_usb_hub_pins {
+	usb_hub_pins: usb-hub-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2184, PIN_OUTPUT | MUX_MODE4)	/* mcbsp4_clkx.gpio_152 - USB HUB RST */
 		>;

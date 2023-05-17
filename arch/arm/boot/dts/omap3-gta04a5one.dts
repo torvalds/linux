@@ -10,7 +10,7 @@
 };
 
 &omap3_pmx_core {
-	gpmc_pins: pinmux_gpmc_pins {
+	gpmc_pins: gpmc-pins {
 		pinctrl-single,pins = <
 
 			/* address lines */

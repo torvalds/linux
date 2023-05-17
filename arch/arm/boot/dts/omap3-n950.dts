@@ -30,7 +30,7 @@
 };
 
 &omap3_pmx_core {
-	keypad_slide_pins: pinmux_debug_led_pins {
+	keypad_slide_pins: debug-led-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x212a, PIN_INPUT | MUX_MODE4)       /* cam_d10.gpio_109 */
 		>;
@@ -38,7 +38,7 @@
 };
 
 &omap3_pmx_core {
-	spi4_pins: pinmux_spi4_pins {
+	spi4_pins: spi4-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x218c, PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_clk */
 			OMAP3_CORE1_IOPAD(0x2190, PIN_OUTPUT | MUX_MODE1) /* mcspi4_simo */
@@ -49,7 +49,7 @@
 };
 
 &omap3_pmx_core {
-	dsi_pins: pinmux_dsi_pins {
+	dsi_pins: dsi-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE1) /* dsi_dx0 - data0+ */
 			OMAP3_CORE1_IOPAD(0x20de, PIN_OUTPUT | MUX_MODE1) /* dsi_dy0 - data0- */
@@ -60,7 +60,7 @@
 		>;
 	};
 
-	display_pins: pinmux_display_pins {
+	display_pins: display-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20ca, PIN_INPUT | MUX_MODE4) /* gpio 62 - display te */
 			OMAP3_CORE1_IOPAD(0x20fe, PIN_OUTPUT | MUX_MODE4) /* gpio 87 - display reset */

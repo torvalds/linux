@@ -51,7 +51,7 @@
 };
 
 &omap3_pmx_core {
-	led_pins: pinmux_led_pins {
+	led_pins: led-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE4)	/* uart1_tx.gpio_148 */
 			OMAP3_CORE1_IOPAD(0x2180, PIN_OUTPUT | MUX_MODE4)	/* uart1_cts.gpio_150 */
@@ -62,7 +62,7 @@
 };
 
 &omap3_pmx_wkup {
-	button_pins: pinmux_button_pins {
+	button_pins: button-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a18, PIN_INPUT | MUX_MODE4)		/* sys_clkout1.gpio_10 */
 		>;

@@ -65,7 +65,7 @@
 };
 
 &omap3_pmx_core {
-	mmc3_pins: pinmux_mm3_pins {
+	mmc3_pins: mm3-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2164, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat4.sdmmc3_dat0 */
 			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat5.sdmmc3_dat1 */
@@ -78,7 +78,7 @@
 };
 
 &omap3_pmx_core2 {
-	mmc3_core2_pins: pinmux_mmc3_core2_pins {
+	mmc3_core2_pins: mmc3-core2-pins {
 		pinctrl-single,pins = <
 			OMAP3630_CORE2_IOPAD(0x25d8, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_clk.sdmmc3_clk */
 			OMAP3630_CORE2_IOPAD(0x25da, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_ctl.sdmmc3_cmd */
@@ -88,7 +88,7 @@
 
 /* The gpio muxing between omap3530 and dm3730 is different for GPIO_128 */
 &omap3_pmx_wkup {
-	isp1763_pins: pinmux_isp1763_pins {
+	isp1763_pins: isp1763-pins {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a58, PIN_INPUT_PULLUP | MUX_MODE4)	/* reserved.gpio_128 */
 		>;

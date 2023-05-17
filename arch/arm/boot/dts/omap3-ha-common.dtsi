@@ -17,43 +17,43 @@
 };
 
 &omap3_pmx_core {
-	sound2_pins: pinmux_sound2_pins {
+	sound2_pins: sound2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x209e, PIN_OUTPUT | MUX_MODE4)	/* gpmc_d8 gpio_44 */
 		>;
 	};
 
-	led_blue_pins: pinmux_led_blue_pins {
+	led_blue_pins: led-blue-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2110, PIN_OUTPUT | MUX_MODE4)	/* cam_xclka gpio_96, LED blue */
 		>;
 	};
 
-	led_green_pins: pinmux_led_green_pins {
+	led_green_pins: led-green-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2126, PIN_OUTPUT | MUX_MODE4)	/* cam_d8 gpio_107, LED green */
 		>;
 	};
 
-	led_red_pins: pinmux_led_red_pins {
+	led_red_pins: led-red-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x212e, PIN_OUTPUT_PULLUP | MUX_MODE4)	/* cam_xclkb gpio_111, LED red */
 		>;
 	};
 
-	poweroff_pins: pinmux_poweroff_pins {
+	poweroff_pins: poweroff-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21be, PIN_OUTPUT_PULLUP | MUX_MODE4)	/* i2c2_scl gpio_168 */
 		>;
 	};
 
-	powerdown_input_pins: pinmux_powerdown_input_pins {
+	powerdown_input_pins: powerdown-input-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c0, PIN_INPUT_PULLUP | MUX_MODE4)	/* i2c2_sda gpio_183 */
 		>;
 	};
 
-	fpga_boot0_pins: fpga_boot0_pins {
+	fpga_boot0_pins: fpga-boot0-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x211a, PIN_INPUT | MUX_MODE4)	/* cam_d2 gpio_101 */
 			OMAP3_CORE1_IOPAD(0x211c, PIN_OUTPUT | MUX_MODE4)	/* cam_d3 gpio_102 */
@@ -62,7 +62,7 @@
 		>;
 	};
 
-	fpga_boot1_pins: fpga_boot1_pins {
+	fpga_boot1_pins: fpga-boot1-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20a2, PIN_INPUT | MUX_MODE4)	/* gpmc_d10 gpio_46 */
 			OMAP3_CORE1_IOPAD(0x20a4, PIN_OUTPUT | MUX_MODE4)	/* gpmc_d11 gpio_47 */
