@@ -383,7 +383,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	    (abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE)) {
 		struct dma_fence *wipe_fence = NULL;
 
-		r = amdgpu_fill_buffer(abo, AMDGPU_POISON, NULL, &wipe_fence);
+		r = amdgpu_fill_buffer(abo, AMDGPU_POISON, NULL, &wipe_fence,
+					false);
 		if (r) {
 			goto error;
 		} else if (wipe_fence) {
@@ -2036,8 +2037,18 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 				  r);
 			return;
 		}
+
+		r = drm_sched_entity_init(&adev->mman.delayed,
+					  DRM_SCHED_PRIORITY_NORMAL, &sched,
+					  1, NULL);
+		if (r) {
+			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
+				  r);
+			goto error_free_entity;
+		}
 	} else {
 		drm_sched_entity_destroy(&adev->mman.entity);
+		drm_sched_entity_destroy(&adev->mman.delayed);
 		dma_fence_put(man->move);
 		man->move = NULL;
 	}
@@ -2049,6 +2060,11 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		size = adev->gmc.visible_vram_size;
 	man->size = size;
 	adev->mman.buffer_funcs_enabled = enable;
+
+	return;
+
+error_free_entity:
+	drm_sched_entity_destroy(&adev->mman.entity);
 }
 
 static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
@@ -2056,14 +2072,16 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 				  unsigned int num_dw,
 				  struct dma_resv *resv,
 				  bool vm_needs_flush,
-				  struct amdgpu_job **job)
+				  struct amdgpu_job **job,
+				  bool delayed)
 {
 	enum amdgpu_ib_pool_type pool = direct_submit ?
 		AMDGPU_IB_POOL_DIRECT :
 		AMDGPU_IB_POOL_DELAYED;
 	int r;
-
-	r = amdgpu_job_alloc_with_ib(adev, &adev->mman.entity,
+	struct drm_sched_entity *entity = delayed ? &adev->mman.delayed :
+						    &adev->mman.entity;
+	r = amdgpu_job_alloc_with_ib(adev, entity,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     num_dw * 4, pool, job);
 	if (r)
@@ -2104,7 +2122,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->copy_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, direct_submit, num_dw,
-				   resv, vm_needs_flush, &job);
+				   resv, vm_needs_flush, &job, false);
 	if (r)
 		return r;
 
@@ -2140,7 +2158,7 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_ring *ring, uint32_t src_data,
 			       uint64_t dst_addr, uint32_t byte_count,
 			       struct dma_resv *resv,
 			       struct dma_fence **fence,
-			       bool vm_needs_flush)
+			       bool vm_needs_flush, bool delayed)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned int num_loops, num_dw;
@@ -2153,7 +2171,7 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_ring *ring, uint32_t src_data,
 	num_loops = DIV_ROUND_UP_ULL(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->fill_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, false, num_dw, resv, vm_needs_flush,
-				   &job);
+				   &job, delayed);
 	if (r)
 		return r;
 
@@ -2176,7 +2194,8 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_ring *ring, uint32_t src_data,
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			uint32_t src_data,
 			struct dma_resv *resv,
-			struct dma_fence **f)
+			struct dma_fence **f,
+			bool delayed)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
@@ -2205,7 +2224,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			goto error;
 
 		r = amdgpu_ttm_fill_mem(ring, src_data, to, cur_size, resv,
-					&next, true);
+					&next, true, delayed);
 		if (r)
 			goto error;
 

@@ -61,6 +61,8 @@ struct amdgpu_mman {
 	struct mutex				gtt_window_lock;
 	/* Scheduler entity for buffer moves */
 	struct drm_sched_entity			entity;
+	/* Scheduler entity for VRAM clearing */
+	struct drm_sched_entity			delayed;
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
@@ -152,7 +154,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			uint32_t src_data,
 			struct dma_resv *resv,
-			struct dma_fence **fence);
+			struct dma_fence **fence,
+			bool delayed);
 
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 void amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
