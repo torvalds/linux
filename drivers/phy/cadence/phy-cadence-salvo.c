@@ -89,8 +89,20 @@
 #define TB_ADDR_XCVR_DIAG_LANE_FCM_EN_MGN_TMR	0x40f2
 #define TB_ADDR_TX_RCVDETSC_CTRL	        0x4124
 
+/* USB2 PHY register definition */
+#define UTMI_REG15				0xaf
+
 /* TB_ADDR_TX_RCVDETSC_CTRL */
 #define RXDET_IN_P3_32KHZ			BIT(0)
+/*
+ * UTMI_REG15
+ *
+ * Gate how many us for the txvalid signal until analog
+ * HS/FS transmitters have powered up
+ */
+#define TXVALID_GATE_THRESHOLD_HS_MASK		(BIT(4) | BIT(5))
+/* 0us, txvalid is ready just after HS/FS transmitters have powered up */
+#define TXVALID_GATE_THRESHOLD_HS_0US		(BIT(4) | BIT(5))
 
 struct cdns_reg_pairs {
 	u16 val;
@@ -229,6 +241,11 @@ static int cdns_salvo_phy_init(struct phy *phy)
 	value |= RXDET_IN_P3_32KHZ;
 	cdns_salvo_write(salvo_phy, USB3_PHY_OFFSET, TB_ADDR_TX_RCVDETSC_CTRL,
 			 RXDET_IN_P3_32KHZ);
+
+	value = cdns_salvo_read(salvo_phy, USB2_PHY_OFFSET, UTMI_REG15);
+	value &= ~TXVALID_GATE_THRESHOLD_HS_MASK;
+	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_REG15,
+			 value | TXVALID_GATE_THRESHOLD_HS_0US);
 
 	udelay(10);
 
