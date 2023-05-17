@@ -75,6 +75,7 @@ def define_blair():
         "drivers/soc/qcom/dcc_v2.ko",
         "drivers/soc/qcom/eud.ko",
         "drivers/soc/qcom/mdt_loader.ko",
+        "drivers/soc/qcom/glink_probe.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem-offline.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
