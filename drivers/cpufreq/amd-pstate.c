@@ -1102,7 +1102,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
 	if (boot_cpu_has(X86_FEATURE_CPPC)) {
-		policy->fast_switch_possible = true;
 		ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &value);
 		if (ret)
 			return ret;
@@ -1125,7 +1124,6 @@ free_cpudata1:
 static int amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 {
 	pr_debug("CPU %d exiting\n", policy->cpu);
-	policy->fast_switch_possible = false;
 	return 0;
 }
 
