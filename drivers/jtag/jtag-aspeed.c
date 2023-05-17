@@ -123,8 +123,8 @@
 #define ASPEED_JTAG_SHCTRL_FRUN_TCK_EN	BIT(31)
 #define ASPEED_JTAG_SHCTRL_STSHIFT_EN	BIT(30)
 #define ASPEED_JTAG_SHCTRL_TMS(x)	(((x) & GENMASK(13, 0)) << 16)
-#define ASPEED_JTAG_SHCTRL_POST_TMS(x)	(((x) & GENMASK(3, 0)) << 13)
-#define ASPEED_JTAG_SHCTRL_PRE_TMS(x)	(((x) & GENMASK(3, 0)) << 10)
+#define ASPEED_JTAG_SHCTRL_POST_TMS(x)	(((x) & GENMASK(2, 0)) << 13)
+#define ASPEED_JTAG_SHCTRL_PRE_TMS(x)	(((x) & GENMASK(2, 0)) << 10)
 #define ASPEED_JTAG_SHCTRL_PAD_SEL0	(0)
 #define ASPEED_JTAG_SHCTRL_PAD_SEL1	BIT(9)
 #define ASPEED_JTAG_SHCTRL_END_SHIFT	BIT(8)
@@ -625,12 +625,12 @@ static int aspeed_jtag_status_set(struct jtag *jtag,
 	return 0;
 }
 
-static void aspeed_jtag_shctrl_tms_mask(enum jtag_tapstate from,
-					enum jtag_tapstate to,
-					enum jtag_tapstate there,
-					enum jtag_tapstate endstate,
-					u32 start_shift, u32 end_shift,
-					u32 *tms_mask)
+static int aspeed_jtag_shctrl_tms_mask(enum jtag_tapstate from,
+				       enum jtag_tapstate to,
+				       enum jtag_tapstate there,
+				       enum jtag_tapstate endstate,
+				       u32 start_shift, u32 end_shift,
+				       u32 *tms_mask)
 {
 	u32 pre_tms = start_shift ? _tms_cycle_lookup[from][to].count : 0;
 	u32 post_tms = end_shift ? _tms_cycle_lookup[there][endstate].count : 0;
@@ -639,9 +639,14 @@ static void aspeed_jtag_shctrl_tms_mask(enum jtag_tapstate from,
 	tms_value |= end_shift ? _tms_cycle_lookup[there][endstate].tmsbits
 					 << pre_tms :
 				 0;
+	if (pre_tms > GENMASK(2, 0) || post_tms > GENMASK(2, 0)) {
+		pr_err("pre/port tms count is greater than hw limit");
+		return -EINVAL;
+	}
 	*tms_mask = start_shift | ASPEED_JTAG_SHCTRL_PRE_TMS(pre_tms) |
 		    end_shift | ASPEED_JTAG_SHCTRL_POST_TMS(post_tms) |
 		    ASPEED_JTAG_SHCTRL_TMS(tms_value);
+	return 0;
 }
 
 static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
@@ -1078,6 +1083,7 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 	u32 start_shift;
 	u32 end_shift;
 	u32 tms_mask;
+	int ret;
 
 	if (xfer->type == JTAG_SIR_XFER) {
 		data_reg = ASPEED_JTAG_SHDATA;
@@ -1104,14 +1110,8 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 
 	if (aspeed_jtag->current_state == shift) {
 		start_shift = 0;
-	} else if (aspeed_jtag->current_state == JTAG_STATE_IDLE ||
-		   aspeed_jtag->current_state == JTAG_STATE_TLRESET ||
-		   aspeed_jtag->current_state == pause ||
-		   aspeed_jtag->current_state == exit ||
-		   aspeed_jtag->current_state == exitx) {
-		start_shift = ASPEED_JTAG_SHCTRL_START_SHIFT;
 	} else {
-		return -EINVAL;
+		start_shift = ASPEED_JTAG_SHCTRL_START_SHIFT;
 	}
 
 	if (xfer->endstate == shift) {
@@ -1139,17 +1139,9 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 			end_shift = 0;
 			endstate = shift;
 		}
-	} else if (xfer->endstate == exit) {
-		endstate = exit;
-		end_shift = ASPEED_JTAG_SHCTRL_END_SHIFT;
-	} else if (xfer->endstate == JTAG_STATE_IDLE) {
-		endstate = JTAG_STATE_IDLE;
-		end_shift = ASPEED_JTAG_SHCTRL_END_SHIFT;
-	} else if (xfer->endstate == pause) {
-		endstate = pause;
-		end_shift = ASPEED_JTAG_SHCTRL_END_SHIFT;
 	} else {
-		return -EINVAL;
+		endstate = xfer->endstate;
+		end_shift = ASPEED_JTAG_SHCTRL_END_SHIFT;
 	}
 
 	aspeed_jtag_write(aspeed_jtag, xfer->padding, ASPEED_JTAG_PADCTRL0);
@@ -1200,9 +1192,10 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 			 * and after the transfer go to Pause IR/DR.
 			 */
 
-			aspeed_jtag_shctrl_tms_mask(aspeed_jtag->current_state,
-						    shift, exit, endstate,
-						    start_shift, 0, &tms_mask);
+			ret = aspeed_jtag_shctrl_tms_mask(aspeed_jtag->current_state, shift, exit,
+							  endstate, start_shift, 0, &tms_mask);
+			if (ret)
+				return ret;
 
 			reg_val = aspeed_jtag_read(aspeed_jtag,
 						   ASPEED_JTAG_GBLCTRL);
@@ -1222,10 +1215,11 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 			 * Read bytes equals to column length
 			 */
 			shift_bits = remain_xfer;
-			aspeed_jtag_shctrl_tms_mask(aspeed_jtag->current_state,
-						    shift, exit, endstate,
-						    start_shift, end_shift,
-						    &tms_mask);
+			ret = aspeed_jtag_shctrl_tms_mask(aspeed_jtag->current_state, shift, exit,
+							  endstate, start_shift, end_shift,
+							  &tms_mask);
+			if (ret)
+				return ret;
 
 			reg_val = aspeed_jtag_read(aspeed_jtag,
 						   ASPEED_JTAG_GBLCTRL);
