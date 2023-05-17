@@ -1113,6 +1113,55 @@ static int parse_cputype(const struct option *opt,
 	return 0;
 }
 
+static int parse_cache_level(const struct option *opt,
+			     const char *str,
+			     int unset __maybe_unused)
+{
+	int level;
+	u32 *aggr_mode = (u32 *)opt->value;
+	u32 *aggr_level = (u32 *)opt->data;
+
+	/*
+	 * If no string is specified, aggregate based on the topology of
+	 * Last Level Cache (LLC). Since the LLC level can change from
+	 * architecture to architecture, set level greater than
+	 * MAX_CACHE_LVL which will be interpreted as LLC.
+	 */
+	if (str == NULL) {
+		level = MAX_CACHE_LVL + 1;
+		goto out;
+	}
+
+	/*
+	 * The format to specify cache level is LX or lX where X is the
+	 * cache level.
+	 */
+	if (strlen(str) != 2 || (str[0] != 'l' && str[0] != 'L')) {
+		pr_err("Cache level must be of form L[1-%d], or l[1-%d]\n",
+		       MAX_CACHE_LVL,
+		       MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+
+	level = atoi(&str[1]);
+	if (level < 1) {
+		pr_err("Cache level must be of form L[1-%d], or l[1-%d]\n",
+		       MAX_CACHE_LVL,
+		       MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+
+	if (level > MAX_CACHE_LVL) {
+		pr_err("perf only supports max cache level of %d.\n"
+		       "Consider increasing MAX_CACHE_LVL\n", MAX_CACHE_LVL);
+		return -EINVAL;
+	}
+out:
+	*aggr_mode = AGGR_CACHE;
+	*aggr_level = level;
+	return 0;
+}
+
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1190,6 +1239,9 @@ static struct option stat_options[] = {
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &stat_config.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_CALLBACK_OPTARG(0, "per-cache", &stat_config.aggr_mode, &stat_config.aggr_level,
+			    "cache level", "aggregate count at this cache level (Default: LLC)",
+			    parse_cache_level),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
@@ -2346,6 +2398,10 @@ static int __cmd_report(int argc, const char **argv)
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &perf_stat.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_CALLBACK_OPTARG(0, "per-cache", &perf_stat.aggr_mode, &perf_stat.aggr_level,
+			    "cache level",
+			    "aggregate count at this cache level (Default: LLC)",
+			    parse_cache_level),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-node", &perf_stat.aggr_mode,
