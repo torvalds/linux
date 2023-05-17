@@ -178,6 +178,7 @@
 			vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
 			vdd-micbias-supply = <&pm8916_l13>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 	};
 };

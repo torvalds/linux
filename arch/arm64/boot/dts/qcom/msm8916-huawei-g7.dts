@@ -218,6 +218,10 @@
 	status = "okay";
 };
 
+&lpass_codec {
+	status = "okay";
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
@@ -302,6 +306,7 @@
 };
 
 &wcd_codec {
+	status = "okay";
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
