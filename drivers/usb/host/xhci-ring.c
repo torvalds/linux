@@ -1007,11 +1007,13 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 						 td->urb->stream_id, td->urb,
 						 cached_td->urb->stream_id, cached_td->urb);
 				cached_td = td;
+				ring->num_trbs_free += td->num_trbs;
 				break;
 			}
 		} else {
 			td_to_noop(xhci, ring, td, false);
 			td->cancel_status = TD_CLEARED;
+			ring->num_trbs_free += td->num_trbs;
 		}
 	}
 
@@ -1311,10 +1313,7 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 		unsigned int ep_index)
 {
 	union xhci_trb *dequeue_temp;
-	int num_trbs_free_temp;
-	bool revert = false;
 
-	num_trbs_free_temp = ep_ring->num_trbs_free;
 	dequeue_temp = ep_ring->dequeue;
 
 	/* If we get two back-to-back stalls, and the first stalled transfer
@@ -1329,8 +1328,6 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 	}
 
 	while (ep_ring->dequeue != dev->eps[ep_index].queued_deq_ptr) {
-		/* We have more usable TRBs */
-		ep_ring->num_trbs_free++;
 		ep_ring->dequeue++;
 		if (trb_is_link(ep_ring->dequeue)) {
 			if (ep_ring->dequeue ==
@@ -1340,14 +1337,9 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 			ep_ring->dequeue = ep_ring->deq_seg->trbs;
 		}
 		if (ep_ring->dequeue == dequeue_temp) {
-			revert = true;
+			xhci_dbg(xhci, "Unable to find new dequeue pointer\n");
 			break;
 		}
-	}
-
-	if (revert) {
-		xhci_dbg(xhci, "Unable to find new dequeue pointer\n");
-		ep_ring->num_trbs_free = num_trbs_free_temp;
 	}
 }
 
