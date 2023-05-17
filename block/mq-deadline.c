@@ -272,21 +272,15 @@ static u32 dd_queued(struct deadline_data *dd, enum dd_prio prio)
 }
 
 /*
- * deadline_check_fifo returns 0 if there are no expired requests on the fifo,
- * 1 otherwise. Requires !list_empty(&dd->fifo_list[data_dir])
+ * deadline_check_fifo returns true if and only if there are expired requests
+ * in the FIFO list. Requires !list_empty(&dd->fifo_list[data_dir]).
  */
-static inline int deadline_check_fifo(struct dd_per_prio *per_prio,
-				      enum dd_data_dir data_dir)
+static inline bool deadline_check_fifo(struct dd_per_prio *per_prio,
+				       enum dd_data_dir data_dir)
 {
 	struct request *rq = rq_entry_fifo(per_prio->fifo_list[data_dir].next);
 
-	/*
-	 * rq is expired!
-	 */
-	if (time_after_eq(jiffies, (unsigned long)rq->fifo_time))
-		return 1;
-
-	return 0;
+	return time_is_before_eq_jiffies((unsigned long)rq->fifo_time);
 }
 
 /*
