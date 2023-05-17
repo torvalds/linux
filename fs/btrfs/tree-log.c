@@ -7325,6 +7325,9 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	inode->last_unlink_trans = trans->transid;
 	mutex_unlock(&inode->log_mutex);
 
+	if (!for_rename)
+		return;
+
 	/*
 	 * If this directory was already logged, any new names will be logged
 	 * with btrfs_log_new_name() and old names will be deleted from the log
@@ -7350,13 +7353,6 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * properly.  So, we have to be conservative and force commits
 	 * so the new name gets discovered.
 	 */
-	if (for_rename)
-		goto record;
-
-	/* we can safely do the unlink without any special recording */
-	return;
-
-record:
 	mutex_lock(&dir->log_mutex);
 	dir->last_unlink_trans = trans->transid;
 	mutex_unlock(&dir->log_mutex);
