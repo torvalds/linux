@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -171,6 +171,54 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 	return -ETIMEDOUT;
 }
 
+static int check_gdsc_status(struct gdsc *sc, struct device *pdev,
+			     enum gdscr_status state)
+{
+	u32 regval, hw_ctrl_regval;
+	int ret;
+	static const char * const gdsc_states[] = {
+			"disable",
+			"enable",
+	};
+
+	if (!sc || !sc->regmap || !pdev)
+		return -EINVAL;
+
+	ret = poll_gdsc_status(sc, state);
+	if (ret) {
+		regmap_read(sc->regmap, REG_OFFSET, &regval);
+		if (sc->hw_ctrl) {
+			regmap_read(sc->hw_ctrl, REG_OFFSET,
+				    &hw_ctrl_regval);
+			dev_warn(pdev, "%s %s state (after %d us timeout): 0x%x, GDS_HW_CTRL: 0x%x. Re-polling.\n",
+				 sc->rdesc.name, gdsc_states[state], sc->gds_timeout,
+				 regval, hw_ctrl_regval);
+
+			ret = poll_gdsc_status(sc, state);
+			if (ret) {
+				regmap_read(sc->regmap, REG_OFFSET,
+					    &regval);
+				regmap_read(sc->hw_ctrl, REG_OFFSET,
+					    &hw_ctrl_regval);
+				dev_err(pdev, "%s %s final state (after additional %d us timeout): 0x%x, GDS_HW_CTRL: 0x%x\n",
+					sc->rdesc.name, gdsc_states[state], sc->gds_timeout,
+					regval, hw_ctrl_regval);
+				return ret;
+			}
+		} else {
+			dev_err(pdev, "%s %s timed out: 0x%x\n",
+				sc->rdesc.name, gdsc_states[state], regval);
+
+			udelay(sc->gds_timeout);
+			regmap_read(sc->regmap, REG_OFFSET, &regval);
+			dev_err(pdev, "%s %s final state: 0x%x (%d us timeout)\n",
+				sc->rdesc.name, gdsc_states[state], regval, sc->gds_timeout);
+			return ret;
+		}
+	}
+	return ret;
+}
+
 static int gdsc_init_is_enabled(struct gdsc *sc)
 {
 	struct regmap *regmap;
@@ -251,7 +299,7 @@ static int gdsc_qmp_enable(struct gdsc *sc)
 static int gdsc_enable(struct regulator_dev *rdev)
 {
 	struct gdsc *sc = rdev_get_drvdata(rdev);
-	uint32_t regval, hw_ctrl_regval = 0x0;
+	u32 regval;
 	int i, ret = 0;
 
 	if (sc->skip_disable_before_enable)
@@ -351,41 +399,9 @@ static int gdsc_enable(struct regulator_dev *rdev)
 		gdsc_mb(sc);
 		udelay(1);
 
-		ret = poll_gdsc_status(sc, ENABLED);
-		if (ret) {
-			regmap_read(sc->regmap, REG_OFFSET, &regval);
-
-			if (sc->hw_ctrl) {
-				regmap_read(sc->hw_ctrl, REG_OFFSET,
-						&hw_ctrl_regval);
-				dev_warn(&rdev->dev, "%s state (after %d us timeout): 0x%x, GDS_HW_CTRL: 0x%x. Re-polling.\n",
-					sc->rdesc.name, sc->gds_timeout,
-					regval, hw_ctrl_regval);
-
-				ret = poll_gdsc_status(sc, ENABLED);
-				if (ret) {
-					regmap_read(sc->regmap, REG_OFFSET,
-								&regval);
-					regmap_read(sc->hw_ctrl, REG_OFFSET,
-							&hw_ctrl_regval);
-					dev_err(&rdev->dev, "%s final state (after additional %d us timeout): 0x%x, GDS_HW_CTRL: 0x%x\n",
-						sc->rdesc.name, sc->gds_timeout,
-						regval, hw_ctrl_regval);
-					return ret;
-				}
-			} else {
-				dev_err(&rdev->dev, "%s enable timed out: 0x%x\n",
-					sc->rdesc.name,
-					regval);
-				udelay(sc->gds_timeout);
-
-				regmap_read(sc->regmap, REG_OFFSET, &regval);
-				dev_err(&rdev->dev, "%s final state: 0x%x (%d us after timeout)\n",
-					sc->rdesc.name, regval,
-					sc->gds_timeout);
-				return ret;
-			}
-		}
+		ret = check_gdsc_status(sc, &rdev->dev, ENABLED);
+		if (ret)
+			return ret;
 
 		if (sc->retain_ff_enable && !(regval & RETAIN_FF_ENABLE_MASK)) {
 			regval |= RETAIN_FF_ENABLE_MASK;
@@ -477,12 +493,9 @@ static int gdsc_disable(struct regulator_dev *rdev)
 			 */
 			udelay(100);
 		} else {
-			ret = poll_gdsc_status(sc, DISABLED);
-			if (ret) {
-				regmap_read(sc->regmap, REG_OFFSET, &regval);
-				dev_err(&rdev->dev, "%s disable timed out: 0x%x\n",
-					sc->rdesc.name, regval);
-			}
+			ret = check_gdsc_status(sc, &rdev->dev, DISABLED);
+			if (ret)
+				return ret;
 		}
 
 		if (sc->domain_addr) {
@@ -632,12 +645,9 @@ static int gdsc_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		 * starts to use SW mode.
 		 */
 		if (sc->is_gdsc_enabled) {
-			ret = poll_gdsc_status(sc, ENABLED);
-			if (ret) {
-				dev_err(&rdev->dev, "%s enable timed out\n",
-					sc->rdesc.name);
+			ret = check_gdsc_status(sc, &rdev->dev, ENABLED);
+			if (ret)
 				return ret;
-			}
 		}
 		sc->is_gdsc_hw_ctrl_mode = false;
 		break;
@@ -1023,12 +1033,9 @@ static int gdsc_probe(struct platform_device *pdev)
 		regval &= ~SW_COLLAPSE_MASK;
 		regmap_write(sc->regmap, REG_OFFSET, regval);
 
-		ret = poll_gdsc_status(sc, ENABLED);
-		if (ret) {
-			dev_err(dev, "%s enable timed out: 0x%x\n",
-				sc->rdesc.name, regval);
+		ret = check_gdsc_status(sc, dev, ENABLED);
+		if (ret)
 			goto err;
-		}
 	}
 
 	ret = gdsc_init_is_enabled(sc);
