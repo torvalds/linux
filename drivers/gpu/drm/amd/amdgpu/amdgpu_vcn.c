@@ -169,7 +169,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
-	if (adev->ip_versions[UVD_HWIP][0] >= IP_VERSION(4, 0, 0)){
+	if (adev->ip_versions[UVD_HWIP][0] >= IP_VERSION(4, 0, 0)) {
 		fw_shared_size = AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared));
 		log_offset = offsetof(struct amdgpu_vcn4_fw_shared, fw_log);
 	} else {
@@ -276,20 +276,19 @@ bool amdgpu_vcn_is_disabled_vcn(struct amdgpu_device *adev, enum vcn_ring_type t
 	bool ret = false;
 	int vcn_config = adev->vcn.vcn_config[vcn_instance];
 
-	if ((type == VCN_ENCODE_RING) && (vcn_config & VCN_BLOCK_ENCODE_DISABLE_MASK)) {
+	if ((type == VCN_ENCODE_RING) && (vcn_config & VCN_BLOCK_ENCODE_DISABLE_MASK))
 		ret = true;
-	} else if ((type == VCN_DECODE_RING) && (vcn_config & VCN_BLOCK_DECODE_DISABLE_MASK)) {
+	else if ((type == VCN_DECODE_RING) && (vcn_config & VCN_BLOCK_DECODE_DISABLE_MASK))
 		ret = true;
-	} else if ((type == VCN_UNIFIED_RING) && (vcn_config & VCN_BLOCK_QUEUE_DISABLE_MASK)) {
+	else if ((type == VCN_UNIFIED_RING) && (vcn_config & VCN_BLOCK_QUEUE_DISABLE_MASK))
 		ret = true;
-	}
 
 	return ret;
 }
 
 int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 {
-	unsigned size;
+	unsigned int size;
 	void *ptr;
 	int i, idx;
 
@@ -318,7 +317,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 
 int amdgpu_vcn_resume(struct amdgpu_device *adev)
 {
-	unsigned size;
+	unsigned int size;
 	void *ptr;
 	int i, idx;
 
@@ -340,7 +339,7 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 			adev->vcn.inst[i].saved_bo = NULL;
 		} else {
 			const struct common_firmware_header *hdr;
-			unsigned offset;
+			unsigned int offset;
 
 			hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
@@ -371,9 +370,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
 
-		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 			fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_enc[i]);
-		}
 
 		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
 			struct dpg_pause_state new_state;
@@ -460,7 +458,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t tmp = 0;
-	unsigned i;
+	unsigned int i;
 	int r;
 
 	/* VCN in SRIOV does not support direct register read/write */
@@ -797,7 +795,7 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t rptr;
-	unsigned i;
+	unsigned int i;
 	int r;
 
 	if (amdgpu_sriov_vf(adev))
@@ -1012,7 +1010,7 @@ error:
 
 enum amdgpu_ring_priority_level amdgpu_vcn_get_enc_ring_prio(int ring)
 {
-	switch(ring) {
+	switch (ring) {
 	case 0:
 		return AMDGPU_RING_PRIO_0;
 	case 1:
@@ -1031,6 +1029,7 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		const struct common_firmware_header *hdr;
+
 		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
@@ -1059,7 +1058,7 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
  */
 #if defined(CONFIG_DEBUG_FS)
 static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
-                                             size_t size, loff_t *pos)
+					     size_t size, loff_t *pos)
 {
 	struct amdgpu_vcn_inst *vcn;
 	void *log_buf;
@@ -1105,7 +1104,7 @@ static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
 			if (read_pos == AMDGPU_VCNFW_LOG_SIZE)
 				read_pos = plog->header_size;
 			if (read_num[i] == copy_to_user((buf + read_bytes),
-			                                (log_buf + read_pos), read_num[i]))
+							(log_buf + read_pos), read_num[i]))
 				return -EFAULT;
 
 			read_bytes += read_num[i];
@@ -1126,7 +1125,7 @@ static const struct file_operations amdgpu_debugfs_vcnfwlog_fops = {
 #endif
 
 void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev, uint8_t i,
-                                   struct amdgpu_vcn_inst *vcn)
+				   struct amdgpu_vcn_inst *vcn)
 {
 #if defined(CONFIG_DEBUG_FS)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
@@ -1134,7 +1133,7 @@ void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev, uint8_t i,
 	char name[32];
 
 	sprintf(name, "amdgpu_vcn_%d_fwlog", i);
-	debugfs_create_file_size(name, S_IFREG | S_IRUGO, root, vcn,
+	debugfs_create_file_size(name, S_IFREG | 0444, root, vcn,
 				 &amdgpu_debugfs_vcnfwlog_fops,
 				 AMDGPU_VCNFW_LOG_SIZE);
 #endif
@@ -1148,7 +1147,7 @@ void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn)
 	uint64_t fw_log_gpu_addr = vcn->fw_shared.gpu_addr + vcn->fw_shared.mem_size;
 	volatile struct amdgpu_vcn_fwlog *log_buf = fw_log_cpu_addr;
 	volatile struct amdgpu_fw_shared_fw_logging *fw_log = vcn->fw_shared.cpu_addr
-                                                         + vcn->fw_shared.log_offset;
+							 + vcn->fw_shared.log_offset;
 	*flag |= cpu_to_le32(AMDGPU_VCN_FW_LOGGING_FLAG);
 	fw_log->is_enabled = 1;
 	fw_log->addr_lo = cpu_to_le32(fw_log_gpu_addr & 0xFFFFFFFF);
