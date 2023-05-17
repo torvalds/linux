@@ -924,8 +924,8 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 {
 	struct qaic_attach_slice_entry *slice_ent;
 	struct qaic_attach_slice *args = data;
+	int rcu_id, usr_rcu_id, qdev_rcu_id;
 	struct dma_bridge_chan	*dbc;
-	int usr_rcu_id, qdev_rcu_id;
 	struct drm_gem_object *obj;
 	struct qaic_device *qdev;
 	unsigned long arg_size;
@@ -969,12 +969,6 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto unlock_dev_srcu;
 	}
 
-	dbc = &qdev->dbc[args->hdr.dbc_id];
-	if (dbc->usr != usr) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
 	user_data = u64_to_user_ptr(args->data);
 
 	slice_ent = kzalloc(arg_size, GFP_KERNEL);
@@ -1006,9 +1000,16 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto put_bo;
 	}
 
+	dbc = &qdev->dbc[args->hdr.dbc_id];
+	rcu_id = srcu_read_lock(&dbc->ch_lock);
+	if (dbc->usr != usr) {
+		ret = -EINVAL;
+		goto unlock_ch_srcu;
+	}
+
 	ret = qaic_prepare_bo(qdev, bo, &args->hdr);
 	if (ret)
-		goto put_bo;
+		goto unlock_ch_srcu;
 
 	ret = qaic_attach_slicing_bo(qdev, bo, &args->hdr, slice_ent);
 	if (ret)
@@ -1018,6 +1019,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, args->hdr.dir);
 
 	bo->dbc = dbc;
+	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	drm_gem_object_put(obj);
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 	srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
@@ -1026,6 +1028,8 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 unprepare_bo:
 	qaic_unprepare_bo(qdev, bo);
+unlock_ch_srcu:
+	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 put_bo:
 	drm_gem_object_put(obj);
 free_slice_ent:
