@@ -92,6 +92,7 @@
 /* USB2 PHY register definition */
 #define UTMI_REG15				0xaf
 #define UTMI_AFE_RX_REG5			0x12
+#define UTMI_AFE_BC_REG4			0x29
 
 /* TB_ADDR_TX_RCVDETSC_CTRL */
 #define RXDET_IN_P3_32KHZ			BIT(0)
@@ -104,6 +105,9 @@
 #define TXVALID_GATE_THRESHOLD_HS_MASK		(BIT(4) | BIT(5))
 /* 0us, txvalid is ready just after HS/FS transmitters have powered up */
 #define TXVALID_GATE_THRESHOLD_HS_0US		(BIT(4) | BIT(5))
+
+#define SET_B_SESSION_VALID			(BIT(6) | BIT(5))
+#define CLR_B_SESSION_VALID			(BIT(6))
 
 struct cdns_reg_pairs {
 	u16 val;
@@ -124,6 +128,13 @@ struct cdns_salvo_phy {
 };
 
 static const struct of_device_id cdns_salvo_phy_of_match[];
+static const struct cdns_salvo_data cdns_nxp_salvo_data;
+
+static bool cdns_is_nxp_phy(struct cdns_salvo_phy *salvo_phy)
+{
+	return salvo_phy->data == &cdns_nxp_salvo_data;
+}
+
 static u16 cdns_salvo_read(struct cdns_salvo_phy *salvo_phy, u32 offset, u32 reg)
 {
 	return (u16)readl(salvo_phy->base + offset +
@@ -272,11 +283,29 @@ static int cdns_salvo_phy_power_off(struct phy *phy)
 	return 0;
 }
 
+static int cdns_salvo_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+{
+	struct cdns_salvo_phy *salvo_phy = phy_get_drvdata(phy);
+
+	if (!cdns_is_nxp_phy(salvo_phy))
+		return 0;
+
+	if (mode == PHY_MODE_USB_DEVICE)
+		cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_BC_REG4,
+			 SET_B_SESSION_VALID);
+	else
+		cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_BC_REG4,
+			 CLR_B_SESSION_VALID);
+
+	return 0;
+}
+
 static const struct phy_ops cdns_salvo_phy_ops = {
 	.init		= cdns_salvo_phy_init,
 	.power_on	= cdns_salvo_phy_power_on,
 	.power_off	= cdns_salvo_phy_power_off,
 	.owner		= THIS_MODULE,
+	.set_mode	= cdns_salvo_set_mode,
 };
 
 static int cdns_salvo_phy_probe(struct platform_device *pdev)
