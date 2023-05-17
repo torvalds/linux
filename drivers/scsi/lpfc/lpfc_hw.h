@@ -1415,12 +1415,12 @@ struct app_id_object {
 
 struct lpfc_vmid_rapp_ident_list {
 	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	struct entity_id_object obj[];
 };
 
 struct lpfc_vmid_dapp_ident_list {
 	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	struct entity_id_object obj[];
 };
 
 #define GALLAPPIA_ID_LAST  0x80
