@@ -848,13 +848,12 @@ void drm_sched_job_cleanup(struct drm_sched_job *job)
 EXPORT_SYMBOL(drm_sched_job_cleanup);
 
 /**
- * drm_sched_ready - is the scheduler ready
- *
+ * drm_sched_can_queue -- Can we queue more to the hardware?
  * @sched: scheduler instance
  *
  * Return true if we can push more jobs to the hw, otherwise false.
  */
-static bool drm_sched_ready(struct drm_gpu_scheduler *sched)
+static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched)
 {
 	return atomic_read(&sched->hw_rq_count) <
 		sched->hw_submission_limit;
@@ -868,7 +867,7 @@ static bool drm_sched_ready(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched)
 {
-	if (drm_sched_ready(sched))
+	if (drm_sched_can_queue(sched))
 		wake_up_interruptible(&sched->wake_up_worker);
 }
 
@@ -885,7 +884,7 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 	struct drm_sched_entity *entity;
 	int i;
 
-	if (!drm_sched_ready(sched))
+	if (!drm_sched_can_queue(sched))
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
