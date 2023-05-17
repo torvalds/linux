@@ -715,10 +715,6 @@ mpp_reset_control_get(struct mpp_dev *mpp, enum MPP_RESET_TYPE type, const char 
 		group->resets[type] = rst;
 		group->queue = mpp->queue;
 	}
-	/* if reset not in the same queue, it means different device
-	 * may reset in the same time, then rw_sem_on should set true.
-	 */
-	group->rw_sem_on |= (group->queue != mpp->queue) ? true : false;
 	dev_info(mpp->dev, "reset_group->rw_sem_on=%d\n", group->rw_sem_on);
 	up_write(&group->rw_sem);
 
@@ -1005,6 +1001,10 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 			return -ENODEV;
 		} else {
 			mpp->reset_group = mpp->srv->reset_groups[reset_group_node];
+			if (!mpp->reset_group->queue)
+				mpp->reset_group->queue = queue;
+			if (mpp->reset_group->queue != mpp->queue)
+				mpp->reset_group->rw_sem_on = true;
 		}
 	}
 
