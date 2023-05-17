@@ -10,16 +10,11 @@
 #define __OMAPDRM_FBDEV_H__
 
 struct drm_device;
-struct drm_fb_helper;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-void omap_fbdev_init(struct drm_device *dev);
-void omap_fbdev_fini(struct drm_device *dev);
+void omap_fbdev_setup(struct drm_device *dev);
 #else
-static inline void omap_fbdev_init(struct drm_device *dev)
-{
-}
-static inline void omap_fbdev_fini(struct drm_device *dev)
+static inline void omap_fbdev_setup(struct drm_device *dev)
 {
 }
 #endif

@@ -71,7 +71,7 @@ static int lockdown_is_locked_down(enum lockdown_reason what)
 	return 0;
 }
 
-static struct security_hook_list lockdown_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list lockdown_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(locked_down, lockdown_is_locked_down),
 };
 

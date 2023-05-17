@@ -25,7 +25,7 @@ void __fw_load_abort(struct fw_priv *fw_priv)
 }
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
-static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
+static ssize_t timeout_show(const struct class *class, const struct class_attribute *attr,
 			    char *buf)
 {
 	return sysfs_emit(buf, "%d\n", __firmware_loading_timeout());
@@ -44,7 +44,7 @@ static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
  *
  *	Note: zero means 'wait forever'.
  **/
-static ssize_t timeout_store(struct class *class, struct class_attribute *attr,
+static ssize_t timeout_store(const struct class *class, const struct class_attribute *attr,
 			     const char *buf, size_t count)
 {
 	int tmp_loading_timeout = simple_strtol(buf, NULL, 10);

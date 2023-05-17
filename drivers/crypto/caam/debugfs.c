@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
-/* Copyright 2019 NXP */
+/* Copyright 2019, 2023 NXP */
 
 #include <linux/debugfs.h>
 #include "compat.h"
@@ -42,16 +42,15 @@ void caam_debugfs_qi_init(struct caam_drv_private *ctrlpriv)
 }
 #endif
 
-void caam_debugfs_init(struct caam_drv_private *ctrlpriv, struct dentry *root)
+void caam_debugfs_init(struct caam_drv_private *ctrlpriv,
+		       struct caam_perfmon __force *perfmon,
+		       struct dentry *root)
 {
-	struct caam_perfmon *perfmon;
-
 	/*
 	 * FIXME: needs better naming distinction, as some amalgamation of
 	 * "caam" and nprop->full_name. The OF name isn't distinctive,
 	 * but does separate instances
 	 */
-	perfmon = (struct caam_perfmon __force *)&ctrlpriv->ctrl->perfmon;
 
 	ctrlpriv->ctl = debugfs_create_dir("ctl", root);
 
@@ -77,6 +76,9 @@ void caam_debugfs_init(struct caam_drv_private *ctrlpriv, struct dentry *root)
 			    &perfmon->faultdetail, &caam_fops_u32_ro);
 	debugfs_create_file("fault_status", 0444, ctrlpriv->ctl,
 			    &perfmon->status, &caam_fops_u32_ro);
+
+	if (ctrlpriv->optee_en)
+		return;
 
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];

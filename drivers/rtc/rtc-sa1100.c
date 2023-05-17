@@ -297,7 +297,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	return sa1100_rtc_init(pdev, info);
 }
 
-static int sa1100_rtc_remove(struct platform_device *pdev)
+static void sa1100_rtc_remove(struct platform_device *pdev)
 {
 	struct sa1100_rtc *info = platform_get_drvdata(pdev);
 
@@ -307,8 +307,6 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 		spin_unlock_irq(&info->lock);
 		clk_disable_unprepare(info->clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -343,7 +341,7 @@ MODULE_DEVICE_TABLE(of, sa1100_rtc_dt_ids);
 
 static struct platform_driver sa1100_rtc_driver = {
 	.probe		= sa1100_rtc_probe,
-	.remove		= sa1100_rtc_remove,
+	.remove_new	= sa1100_rtc_remove,
 	.driver		= {
 		.name	= "sa1100-rtc",
 		.pm	= &sa1100_rtc_pm_ops,

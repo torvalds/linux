@@ -587,6 +587,13 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 	while (ctrl_chl_idx < IPC_MEM_MAX_CHANNELS) {
 		if (!ipc_chnl_cfg_get(&chnl_cfg_port, ctrl_chl_idx)) {
 			ipc_imem->ipc_port[ctrl_chl_idx] = NULL;
+
+			if (ipc_imem->pcie->pci->device == INTEL_CP_DEVICE_7560_ID &&
+			    chnl_cfg_port.wwan_port_type == WWAN_PORT_XMMRPC) {
+				ctrl_chl_idx++;
+				continue;
+			}
+
 			if (ipc_imem->pcie->pci->device == INTEL_CP_DEVICE_7360_ID &&
 			    chnl_cfg_port.wwan_port_type == WWAN_PORT_MBIM) {
 				ctrl_chl_idx++;

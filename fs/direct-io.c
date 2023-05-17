@@ -86,7 +86,6 @@ struct dio_submit {
 	sector_t final_block_in_request;/* doesn't change */
 	int boundary;			/* prev block is at a boundary */
 	get_block_t *get_block;		/* block mapping function */
-	dio_submit_t *submit_io;	/* IO submition function */
 
 	loff_t logical_offset_in_bio;	/* current first logical block in bio */
 	sector_t final_block_in_bio;	/* current final block in bio + 1 */
@@ -431,10 +430,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 
 	dio->bio_disk = bio->bi_bdev->bd_disk;
 
-	if (sdio->submit_io)
-		sdio->submit_io(bio, dio->inode, sdio->logical_offset_in_bio);
-	else
-		submit_bio(bio);
+	submit_bio(bio);
 
 	sdio->bio = NULL;
 	sdio->boundary = 0;
@@ -1098,7 +1094,7 @@ static inline int drop_refcount(struct dio *dio)
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		struct block_device *bdev, struct iov_iter *iter,
 		get_block_t get_block, dio_iodone_t end_io,
-		dio_submit_t submit_io, int flags)
+		int flags)
 {
 	unsigned i_blkbits = READ_ONCE(inode->i_blkbits);
 	unsigned blkbits = i_blkbits;
@@ -1215,7 +1211,6 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 
 	sdio.get_block = get_block;
 	dio->end_io = end_io;
-	sdio.submit_io = submit_io;
 	sdio.final_block_in_bio = -1;
 	sdio.next_block_for_io = -1;
 

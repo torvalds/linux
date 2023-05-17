@@ -409,8 +409,8 @@ static int cdns_xspi_mem_op(struct cdns_xspi_dev *cdns_xspi,
 {
 	enum spi_mem_data_dir dir = op->data.dir;
 
-	if (cdns_xspi->cur_cs != mem->spi->chip_select)
-		cdns_xspi->cur_cs = mem->spi->chip_select;
+	if (cdns_xspi->cur_cs != spi_get_chipselect(mem->spi, 0))
+		cdns_xspi->cur_cs = spi_get_chipselect(mem->spi, 0);
 
 	return cdns_xspi_send_stig_command(cdns_xspi, op,
 					   (dir != SPI_MEM_NO_DATA));

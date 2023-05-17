@@ -94,6 +94,26 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 	return 0;
 }
 
+static int cxl_debugfs_poison_inject(void *data, u64 dpa)
+{
+	struct cxl_memdev *cxlmd = data;
+
+	return cxl_inject_poison(cxlmd, dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_inject_fops, NULL,
+			 cxl_debugfs_poison_inject, "%llx\n");
+
+static int cxl_debugfs_poison_clear(void *data, u64 dpa)
+{
+	struct cxl_memdev *cxlmd = data;
+
+	return cxl_clear_poison(cxlmd, dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
+			 cxl_debugfs_poison_clear, "%llx\n");
+
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
@@ -117,6 +137,14 @@ static int cxl_mem_probe(struct device *dev)
 
 	dentry = cxl_debugfs_create_dir(dev_name(dev));
 	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
+
+	if (test_bit(CXL_POISON_ENABLED_INJECT, cxlds->poison.enabled_cmds))
+		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_inject_fops);
+	if (test_bit(CXL_POISON_ENABLED_CLEAR, cxlds->poison.enabled_cmds))
+		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_clear_fops);
+
 	rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
 	if (rc)
 		return rc;
@@ -176,10 +204,53 @@ unlock:
 	return devm_add_action_or_reset(dev, enable_suspend, NULL);
 }
 
+static ssize_t trigger_poison_list_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	bool trigger;
+	int rc;
+
+	if (kstrtobool(buf, &trigger) || !trigger)
+		return -EINVAL;
+
+	rc = cxl_trigger_poison_list(to_cxl_memdev(dev));
+
+	return rc ? rc : len;
+}
+static DEVICE_ATTR_WO(trigger_poison_list);
+
+static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	if (a == &dev_attr_trigger_poison_list.attr) {
+		struct device *dev = kobj_to_dev(kobj);
+
+		if (!test_bit(CXL_POISON_ENABLED_LIST,
+			      to_cxl_memdev(dev)->cxlds->poison.enabled_cmds))
+			return 0;
+	}
+	return a->mode;
+}
+
+static struct attribute *cxl_mem_attrs[] = {
+	&dev_attr_trigger_poison_list.attr,
+	NULL
+};
+
+static struct attribute_group cxl_mem_group = {
+	.attrs = cxl_mem_attrs,
+	.is_visible = cxl_mem_visible,
+};
+
+__ATTRIBUTE_GROUPS(cxl_mem);
+
 static struct cxl_driver cxl_mem_driver = {
 	.name = "cxl_mem",
 	.probe = cxl_mem_probe,
 	.id = CXL_DEVICE_MEMORY_EXPANDER,
+	.drv = {
+		.dev_groups = cxl_mem_groups,
+	},
 };
 
 module_cxl_driver(cxl_mem_driver);

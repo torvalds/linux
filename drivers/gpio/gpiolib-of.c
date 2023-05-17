@@ -10,14 +10,16 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/io.h>
-#include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 
 #include "gpiolib.h"
@@ -892,6 +894,8 @@ static int of_gpio_simple_xlate(struct gpio_chip *gc,
 	return gpiospec->args[0];
 }
 
+#if IS_ENABLED(CONFIG_OF_GPIO_MM_GPIOCHIP)
+#include <linux/gpio/legacy-of-mm-gpiochip.h>
 /**
  * of_mm_gpiochip_add_data - Add memory mapped GPIO chip (bank)
  * @np:		device node of the GPIO chip
@@ -964,6 +968,7 @@ void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
 	kfree(gc->label);
 }
 EXPORT_SYMBOL_GPL(of_mm_gpiochip_remove);
+#endif
 
 #ifdef CONFIG_PINCTRL
 static int of_gpiochip_add_pin_range(struct gpio_chip *chip)

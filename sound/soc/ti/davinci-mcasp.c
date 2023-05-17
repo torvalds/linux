@@ -2461,11 +2461,9 @@ err:
 	return ret;
 }
 
-static int davinci_mcasp_remove(struct platform_device *pdev)
+static void davinci_mcasp_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -2531,7 +2529,7 @@ static const struct dev_pm_ops davinci_mcasp_pm_ops = {
 
 static struct platform_driver davinci_mcasp_driver = {
 	.probe		= davinci_mcasp_probe,
-	.remove		= davinci_mcasp_remove,
+	.remove_new	= davinci_mcasp_remove,
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.pm     = &davinci_mcasp_pm_ops,

@@ -108,7 +108,6 @@ define_machine(mvme7100) {
 	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,
 	.time_init		= mpc86xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,

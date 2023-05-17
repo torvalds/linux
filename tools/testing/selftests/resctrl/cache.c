@@ -48,7 +48,7 @@ static int perf_event_open_llc_miss(pid_t pid, int cpu_no)
 	return 0;
 }
 
-static int initialize_llc_perf(void)
+static void initialize_llc_perf(void)
 {
 	memset(&pea_llc_miss, 0, sizeof(struct perf_event_attr));
 	memset(&rf_cqm, 0, sizeof(struct read_format));
@@ -59,8 +59,6 @@ static int initialize_llc_perf(void)
 	pea_llc_miss.config = PERF_COUNT_HW_CACHE_MISSES;
 
 	rf_cqm.nr = 1;
-
-	return 0;
 }
 
 static int reset_enable_llc_perf(pid_t pid, int cpu_no)
@@ -79,7 +77,7 @@ static int reset_enable_llc_perf(pid_t pid, int cpu_no)
 
 /*
  * get_llc_perf:	llc cache miss through perf events
- * @cpu_no:		CPU number that the benchmark PID is binded to
+ * @llc_perf_miss:	LLC miss counter that is filled on success
  *
  * Perf events like HW_CACHE_MISSES could be used to validate number of
  * cache lines allocated.
@@ -234,20 +232,19 @@ int cat_val(struct resctrl_val_param *param)
 	if (ret)
 		return ret;
 
-	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {
-		ret = initialize_llc_perf();
-		if (ret)
-			return ret;
-	}
+	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)))
+		initialize_llc_perf();
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
 		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {
 			ret = param->setup(1, param);
-			if (ret) {
+			if (ret == END_OF_TESTS) {
 				ret = 0;
 				break;
 			}
+			if (ret < 0)
+				break;
 			ret = reset_enable_llc_perf(bm_pid, param->cpu_no);
 			if (ret)
 				break;

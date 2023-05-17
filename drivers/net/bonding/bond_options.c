@@ -877,6 +877,8 @@ static int bond_option_mode_set(struct bonding *bond,
 			netdev_update_features(bond->dev);
 	}
 
+	bond_xdp_set_features(bond->dev);
+
 	return 0;
 }
 

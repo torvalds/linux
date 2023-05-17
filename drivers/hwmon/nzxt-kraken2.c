@@ -86,7 +86,7 @@ static const struct hwmon_ops kraken2_hwmon_ops = {
 	.read_string = kraken2_read_string,
 };
 
-static const struct hwmon_channel_info *kraken2_info[] = {
+static const struct hwmon_channel_info * const kraken2_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(fan,

@@ -962,6 +962,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 					 extack);
 	} else {
 		u32 new_metric = ifa->ifa_rt_priority;
+		u8 new_proto = ifa->ifa_proto;
 
 		inet_free_ifa(ifa);
 
@@ -974,6 +975,8 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			fib_modify_prefix_metric(ifa, new_metric);
 			ifa->ifa_rt_priority = new_metric;
 		}
+
+		ifa->ifa_proto = new_proto;
 
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
 		cancel_delayed_work(&check_lifetime_work);

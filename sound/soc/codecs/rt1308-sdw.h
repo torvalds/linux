@@ -170,8 +170,4 @@ struct rt1308_sdw_priv {
 	unsigned int bq_params_cnt;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 #endif /* __RT1308_SDW_H__ */

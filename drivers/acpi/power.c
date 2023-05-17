@@ -23,6 +23,7 @@
 
 #define pr_fmt(fmt) "ACPI: PM: " fmt
 
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1022,12 +1023,30 @@ void acpi_resume_power_resources(void)
 }
 #endif
 
+static const struct dmi_system_id dmi_leave_unused_power_resources_on[] = {
+	{
+		/*
+		 * The Toshiba Click Mini has a CPR3 power-resource which must
+		 * be on for the touchscreen to work, but which is not in any
+		 * _PR? lists. The other 2 affected power-resources are no-ops.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SATELLITE Click Mini L9W-B"),
+		},
+	},
+	{}
+};
+
 /**
  * acpi_turn_off_unused_power_resources - Turn off power resources not in use.
  */
 void acpi_turn_off_unused_power_resources(void)
 {
 	struct acpi_power_resource *resource;
+
+	if (dmi_check_system(dmi_leave_unused_power_resources_on))
+		return;
 
 	mutex_lock(&power_resource_list_lock);
 

@@ -131,25 +131,25 @@ do {									\
 	case 1:								\
 		asm volatile ("stlrb %w1, %0"				\
 				: "=Q" (*__p)				\
-				: "r" (*(__u8 *)__u.__c)		\
+				: "rZ" (*(__u8 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 2:								\
 		asm volatile ("stlrh %w1, %0"				\
 				: "=Q" (*__p)				\
-				: "r" (*(__u16 *)__u.__c)		\
+				: "rZ" (*(__u16 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 4:								\
 		asm volatile ("stlr %w1, %0"				\
 				: "=Q" (*__p)				\
-				: "r" (*(__u32 *)__u.__c)		\
+				: "rZ" (*(__u32 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	case 8:								\
-		asm volatile ("stlr %1, %0"				\
+		asm volatile ("stlr %x1, %0"				\
 				: "=Q" (*__p)				\
-				: "r" (*(__u64 *)__u.__c)		\
+				: "rZ" (*(__u64 *)__u.__c)		\
 				: "memory");				\
 		break;							\
 	}								\

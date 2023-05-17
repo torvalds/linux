@@ -121,15 +121,8 @@ static struct llist_node notrace *__llist_del_first(struct llist_head *head)
 	return entry;
 }
 
-static void *__alloc(struct bpf_mem_cache *c, int node)
+static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
 {
-	/* Allocate, but don't deplete atomic reserves that typical
-	 * GFP_ATOMIC would do. irq_work runs on this cpu and kmalloc
-	 * will allocate from the current numa node which is what we
-	 * want here.
-	 */
-	gfp_t flags = GFP_NOWAIT | __GFP_NOWARN | __GFP_ACCOUNT;
-
 	if (c->percpu_size) {
 		void **obj = kmalloc_node(c->percpu_size, flags, node);
 		void *pptr = __alloc_percpu_gfp(c->unit_size, 8, flags);
@@ -185,7 +178,12 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
 		 */
 		obj = __llist_del_first(&c->free_by_rcu);
 		if (!obj) {
-			obj = __alloc(c, node);
+			/* Allocate, but don't deplete atomic reserves that typical
+			 * GFP_ATOMIC would do. irq_work runs on this cpu and kmalloc
+			 * will allocate from the current numa node which is what we
+			 * want here.
+			 */
+			obj = __alloc(c, node, GFP_NOWAIT | __GFP_NOWARN | __GFP_ACCOUNT);
 			if (!obj)
 				break;
 		}
@@ -675,4 +673,47 @@ void notrace bpf_mem_cache_free(struct bpf_mem_alloc *ma, void *ptr)
 		return;
 
 	unit_free(this_cpu_ptr(ma->cache), ptr);
+}
+
+/* Directly does a kfree() without putting 'ptr' back to the free_llist
+ * for reuse and without waiting for a rcu_tasks_trace gp.
+ * The caller must first go through the rcu_tasks_trace gp for 'ptr'
+ * before calling bpf_mem_cache_raw_free().
+ * It could be used when the rcu_tasks_trace callback does not have
+ * a hold on the original bpf_mem_alloc object that allocated the
+ * 'ptr'. This should only be used in the uncommon code path.
+ * Otherwise, the bpf_mem_alloc's free_llist cannot be refilled
+ * and may affect performance.
+ */
+void bpf_mem_cache_raw_free(void *ptr)
+{
+	if (!ptr)
+		return;
+
+	kfree(ptr - LLIST_NODE_SZ);
+}
+
+/* When flags == GFP_KERNEL, it signals that the caller will not cause
+ * deadlock when using kmalloc. bpf_mem_cache_alloc_flags() will use
+ * kmalloc if the free_llist is empty.
+ */
+void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
+{
+	struct bpf_mem_cache *c;
+	void *ret;
+
+	c = this_cpu_ptr(ma->cache);
+
+	ret = unit_alloc(c);
+	if (!ret && flags == GFP_KERNEL) {
+		struct mem_cgroup *memcg, *old_memcg;
+
+		memcg = get_memcg(c);
+		old_memcg = set_active_memcg(memcg);
+		ret = __alloc(c, NUMA_NO_NODE, GFP_KERNEL | __GFP_NOWARN | __GFP_ACCOUNT);
+		set_active_memcg(old_memcg);
+		mem_cgroup_put(memcg);
+	}
+
+	return !ret ? NULL : ret + LLIST_NODE_SZ;
 }

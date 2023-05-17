@@ -57,8 +57,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
 /* The per-zone write lock is held for this request */
 #define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
-/* already slept for hybrid poll */
-#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 20))
 /* ->timeout has been called, don't expire again */
 #define RQF_TIMED_OUT		((__force req_flags_t)(1 << 21))
 /* queue has elevator attached */
@@ -226,6 +224,12 @@ static inline unsigned short req_get_ioprio(struct request *req)
 #define rq_list_add(listptr, rq)	do {		\
 	(rq)->rq_next = *(listptr);			\
 	*(listptr) = rq;				\
+} while (0)
+
+#define rq_list_add_tail(lastpptr, rq)	do {		\
+	(rq)->rq_next = NULL;				\
+	**(lastpptr) = rq;				\
+	*(lastpptr) = &rq->rq_next;			\
 } while (0)
 
 #define rq_list_pop(listptr)				\

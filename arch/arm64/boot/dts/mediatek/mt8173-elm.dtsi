@@ -58,7 +58,7 @@
 			gpios = <&pio 69 GPIO_ACTIVE_LOW>;
 			linux,code = <SW_LID>;
 			linux,input-type = <EV_SW>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		switch-power {
@@ -66,7 +66,7 @@
 			gpios = <&pio 14 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <30>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		switch-tablet-mode {
@@ -74,7 +74,7 @@
 			gpios = <&pio 121 GPIO_ACTIVE_HIGH>;
 			linux,code = <SW_TABLET_MODE>;
 			linux,input-type = <EV_SW>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		switch-volume-down {

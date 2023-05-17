@@ -233,7 +233,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 			   __entry->pasid = vm->pasid;
 			   __assign_str(ring, ring->name);
 			   __entry->vmid = job->vmid;
-			   __entry->vm_hub = ring->funcs->vmhub,
+			   __entry->vm_hub = ring->vm_hub,
 			   __entry->pd_addr = job->vm_pd_addr;
 			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
@@ -427,7 +427,7 @@ TRACE_EVENT(amdgpu_vm_flush,
 	    TP_fast_assign(
 			   __assign_str(ring, ring->name);
 			   __entry->vmid = vmid;
-			   __entry->vm_hub = ring->funcs->vmhub;
+			   __entry->vm_hub = ring->vm_hub;
 			   __entry->pd_addr = pd_addr;
 			   ),
 	    TP_printk("ring=%s, id=%u, hub=%u, pd_addr=%010Lx",

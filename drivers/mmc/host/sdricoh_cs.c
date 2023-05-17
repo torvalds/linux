@@ -101,14 +101,6 @@ static inline void sdricoh_writel(struct sdricoh_host *host, unsigned int reg,
 
 }
 
-static inline unsigned int sdricoh_readw(struct sdricoh_host *host,
-					 unsigned int reg)
-{
-	unsigned int value = readw(host->iobase + reg);
-	dev_vdbg(host->dev, "rb %x 0x%x\n", reg, value);
-	return value;
-}
-
 static inline void sdricoh_writew(struct sdricoh_host *host, unsigned int reg,
 					 unsigned short value)
 {

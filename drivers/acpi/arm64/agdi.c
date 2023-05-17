@@ -64,8 +64,11 @@ static int agdi_remove(struct platform_device *pdev)
 	int err, i;
 
 	err = sdei_event_disable(adata->sdei_event);
-	if (err)
-		return err;
+	if (err) {
+		dev_err(&pdev->dev, "Failed to disable sdei-event #%d (%pe)\n",
+			adata->sdei_event, ERR_PTR(err));
+		return 0;
+	}
 
 	for (i = 0; i < 3; i++) {
 		err = sdei_event_unregister(adata->sdei_event);
@@ -75,7 +78,11 @@ static int agdi_remove(struct platform_device *pdev)
 		schedule();
 	}
 
-	return err;
+	if (err)
+		dev_err(&pdev->dev, "Failed to unregister sdei-event #%d (%pe)\n",
+			adata->sdei_event, ERR_PTR(err));
+
+	return 0;
 }
 
 static struct platform_driver agdi_driver = {

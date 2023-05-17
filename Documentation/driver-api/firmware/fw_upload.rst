@@ -57,7 +57,8 @@ function calls firmware_upload_unregister() such as::
 		len = (truncate) ? truncate - fw_name : strlen(fw_name);
 		sec->fw_name = kmemdup_nul(fw_name, len, GFP_KERNEL);
 
-		fwl = firmware_upload_register(sec->dev, sec->fw_name, &m10bmc_ops, sec);
+		fwl = firmware_upload_register(THIS_MODULE, sec->dev, sec->fw_name,
+					       &m10bmc_ops, sec);
 		if (IS_ERR(fwl)) {
 			dev_err(sec->dev, "Firmware Upload driver failed to start\n");
 			kfree(sec->fw_name);

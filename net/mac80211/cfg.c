@@ -1084,6 +1084,23 @@ ieee80211_copy_mbssid_beacon(u8 *pos, struct cfg80211_mbssid_elems *dst,
 	return offset;
 }
 
+static int
+ieee80211_copy_rnr_beacon(u8 *pos, struct cfg80211_rnr_elems *dst,
+			  struct cfg80211_rnr_elems *src)
+{
+	int i, offset = 0;
+
+	for (i = 0; i < src->cnt; i++) {
+		memcpy(pos + offset, src->elem[i].data, src->elem[i].len);
+		dst->elem[i].len = src->elem[i].len;
+		dst->elem[i].data = pos + offset;
+		offset += dst->elem[i].len;
+	}
+	dst->cnt = src->cnt;
+
+	return offset;
+}
+
 static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_link_data *link,
 				   struct cfg80211_beacon_data *params,
@@ -1091,6 +1108,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 				   const struct ieee80211_color_change_settings *cca)
 {
 	struct cfg80211_mbssid_elems *mbssid = NULL;
+	struct cfg80211_rnr_elems *rnr = NULL;
 	struct beacon_data *new, *old;
 	int new_head_len, new_tail_len;
 	int size, err;
@@ -1122,11 +1140,21 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	if (params->mbssid_ies) {
 		mbssid = params->mbssid_ies;
 		size += struct_size(new->mbssid_ies, elem, mbssid->cnt);
-		size += ieee80211_get_mbssid_beacon_len(mbssid);
+		if (params->rnr_ies) {
+			rnr = params->rnr_ies;
+			size += struct_size(new->rnr_ies, elem, rnr->cnt);
+		}
+		size += ieee80211_get_mbssid_beacon_len(mbssid, rnr,
+							mbssid->cnt);
 	} else if (old && old->mbssid_ies) {
 		mbssid = old->mbssid_ies;
 		size += struct_size(new->mbssid_ies, elem, mbssid->cnt);
-		size += ieee80211_get_mbssid_beacon_len(mbssid);
+		if (old && old->rnr_ies) {
+			rnr = old->rnr_ies;
+			size += struct_size(new->rnr_ies, elem, rnr->cnt);
+		}
+		size += ieee80211_get_mbssid_beacon_len(mbssid, rnr,
+							mbssid->cnt);
 	}
 
 	new = kzalloc(size, GFP_KERNEL);
@@ -1137,7 +1165,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * pointers go into the block we allocated,
-	 * memory is | beacon_data | head | tail | mbssid_ies
+	 * memory is | beacon_data | head | tail | mbssid_ies | rnr_ies
 	 */
 	new->head = ((u8 *) new) + sizeof(*new);
 	new->tail = new->head + new_head_len;
@@ -1149,7 +1177,13 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 
 		new->mbssid_ies = (void *)pos;
 		pos += struct_size(new->mbssid_ies, elem, mbssid->cnt);
-		ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies, mbssid);
+		pos += ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies,
+						    mbssid);
+		if (rnr) {
+			new->rnr_ies = (void *)pos;
+			pos += struct_size(new->rnr_ies, elem, rnr->cnt);
+			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
+		}
 		/* update bssid_indicator */
 		link_conf->bssid_indicator =
 			ilog2(__roundup_pow_of_two(mbssid->cnt + 1));
@@ -1252,7 +1286,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	prev_beacon_int = link_conf->beacon_int;
 	link_conf->beacon_int = params->beacon_interval;
 
+	if (params->ht_cap)
+		link_conf->ht_ldpc =
+			params->ht_cap->cap_info &
+				cpu_to_le16(IEEE80211_HT_CAP_LDPC_CODING);
+
 	if (params->vht_cap) {
+		link_conf->vht_ldpc =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_RXLDPC);
 		link_conf->vht_su_beamformer =
 			params->vht_cap->vht_cap_info &
 				cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
@@ -1282,6 +1324,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (params->he_cap) {
+		link_conf->he_ldpc =
+			params->he_cap->phy_cap_info[1] &
+				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD;
 		link_conf->he_su_beamformer =
 			params->he_cap->phy_cap_info[3] &
 				IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER;
@@ -1297,8 +1342,28 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (params->eht_cap) {
+		if (!link_conf->he_support)
+			return -EOPNOTSUPP;
+
+		link_conf->eht_support = true;
 		link_conf->eht_puncturing = params->punct_bitmap;
 		changed |= BSS_CHANGED_EHT_PUNCTURING;
+
+		link_conf->eht_su_beamformer =
+			params->eht_cap->fixed.phy_cap_info[0] &
+				IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER;
+		link_conf->eht_su_beamformee =
+			params->eht_cap->fixed.phy_cap_info[0] &
+				IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE;
+		link_conf->eht_mu_beamformer =
+			params->eht_cap->fixed.phy_cap_info[7] &
+				(IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
+				 IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
+				 IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ);
+	} else {
+		link_conf->eht_su_beamformer = false;
+		link_conf->eht_su_beamformee = false;
+		link_conf->eht_mu_beamformer = false;
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
@@ -1480,6 +1545,7 @@ static void ieee80211_free_next_beacon(struct ieee80211_link_data *link)
 		return;
 
 	kfree(link->u.ap.next_beacon->mbssid_ies);
+	kfree(link->u.ap.next_beacon->rnr_ies);
 	kfree(link->u.ap.next_beacon);
 	link->u.ap.next_beacon = NULL;
 }
@@ -1788,7 +1854,7 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 						  (void *)params->he_6ghz_capa,
 						  link_sta);
 
-	if (params->eht_capa)
+	if (params->he_capa && params->eht_capa)
 		ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband,
 						    (u8 *)params->he_capa,
 						    params->he_capa_len,
@@ -2611,6 +2677,17 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	if (!sband)
 		return -EINVAL;
 
+	if (params->basic_rates) {
+		if (!ieee80211_parse_bitrates(link->conf->chandef.width,
+					      wiphy->bands[sband->band],
+					      params->basic_rates,
+					      params->basic_rates_len,
+					      &link->conf->basic_rates))
+			return -EINVAL;
+		changed |= BSS_CHANGED_BASIC_RATES;
+		ieee80211_check_rate_mask(link);
+	}
+
 	if (params->use_cts_prot >= 0) {
 		link->conf->use_cts_prot = params->use_cts_prot;
 		changed |= BSS_CHANGED_ERP_CTS_PROT;
@@ -2630,16 +2707,6 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	if (params->use_short_slot_time >= 0) {
 		link->conf->use_short_slot = params->use_short_slot_time;
 		changed |= BSS_CHANGED_ERP_SLOT;
-	}
-
-	if (params->basic_rates) {
-		ieee80211_parse_bitrates(link->conf->chandef.width,
-					 wiphy->bands[sband->band],
-					 params->basic_rates,
-					 params->basic_rates_len,
-					 &link->conf->basic_rates);
-		changed |= BSS_CHANGED_BASIC_RATES;
-		ieee80211_check_rate_mask(link);
 	}
 
 	if (params->ap_isolate >= 0) {
@@ -3379,8 +3446,12 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 
 	len = beacon->head_len + beacon->tail_len + beacon->beacon_ies_len +
 	      beacon->proberesp_ies_len + beacon->assocresp_ies_len +
-	      beacon->probe_resp_len + beacon->lci_len + beacon->civicloc_len +
-	      ieee80211_get_mbssid_beacon_len(beacon->mbssid_ies);
+	      beacon->probe_resp_len + beacon->lci_len + beacon->civicloc_len;
+
+	if (beacon->mbssid_ies)
+		len += ieee80211_get_mbssid_beacon_len(beacon->mbssid_ies,
+						       beacon->rnr_ies,
+						       beacon->mbssid_ies->cnt);
 
 	new_beacon = kzalloc(sizeof(*new_beacon) + len, GFP_KERNEL);
 	if (!new_beacon)
@@ -3394,6 +3465,18 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 		if (!new_beacon->mbssid_ies) {
 			kfree(new_beacon);
 			return NULL;
+		}
+
+		if (beacon->rnr_ies && beacon->rnr_ies->cnt) {
+			new_beacon->rnr_ies =
+				kzalloc(struct_size(new_beacon->rnr_ies,
+						    elem, beacon->rnr_ies->cnt),
+					GFP_KERNEL);
+			if (!new_beacon->rnr_ies) {
+				kfree(new_beacon->mbssid_ies);
+				kfree(new_beacon);
+				return NULL;
+			}
 		}
 	}
 
@@ -3434,10 +3517,15 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 		memcpy(pos, beacon->probe_resp, beacon->probe_resp_len);
 		pos += beacon->probe_resp_len;
 	}
-	if (beacon->mbssid_ies && beacon->mbssid_ies->cnt)
+	if (beacon->mbssid_ies && beacon->mbssid_ies->cnt) {
 		pos += ieee80211_copy_mbssid_beacon(pos,
 						    new_beacon->mbssid_ies,
 						    beacon->mbssid_ies);
+		if (beacon->rnr_ies && beacon->rnr_ies->cnt)
+			pos += ieee80211_copy_rnr_beacon(pos,
+							 new_beacon->rnr_ies,
+							 beacon->rnr_ies);
+	}
 
 	/* might copy -1, meaning no changes requested */
 	new_beacon->ftm_responder = beacon->ftm_responder;
@@ -4904,6 +4992,22 @@ ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
+				      struct net_device *dev,
+				      struct cfg80211_set_hw_timestamp *hwts)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+
+	if (!local->ops->set_hw_timestamp)
+		return -EOPNOTSUPP;
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	return local->ops->set_hw_timestamp(&local->hw, &sdata->vif, hwts);
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -5014,4 +5118,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.add_link_station = ieee80211_add_link_station,
 	.mod_link_station = ieee80211_mod_link_station,
 	.del_link_station = ieee80211_del_link_station,
+	.set_hw_timestamp = ieee80211_set_hw_timestamp,
 };

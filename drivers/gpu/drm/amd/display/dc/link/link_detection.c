@@ -60,6 +60,10 @@
  */
 #define LINK_TRAINING_MAX_VERIFY_RETRY 2
 
+static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
+
+static const uint8_t dp_hdmi_dongle_signature_str[] = "DP-HDMI ADAPTOR";
+
 static enum ddc_transaction_type get_ddc_transaction_type(enum signal_type sink_signal)
 {
 	enum ddc_transaction_type transaction_type = DDC_TRANSACTION_TYPE_NONE;
@@ -494,8 +498,6 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 	dc_process_hdcp_msg(signal, link, &msg22);
 
 	if (signal == SIGNAL_TYPE_DISPLAY_PORT || signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		enum hdcp_message_status status = HDCP_MESSAGE_UNSUPPORTED;
-
 		msg14.data = &link->hdcp_caps.bcaps.raw;
 		msg14.length = sizeof(link->hdcp_caps.bcaps.raw);
 		msg14.msg_id = HDCP_MESSAGE_ID_READ_BCAPS;
@@ -503,7 +505,7 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 		msg14.link = HDCP_LINK_PRIMARY;
 		msg14.max_retries = 5;
 
-		status = dc_process_hdcp_msg(signal, link, &msg14);
+		dc_process_hdcp_msg(signal, link, &msg14);
 	}
 
 }
@@ -830,7 +832,7 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 		verify_link_capability_non_destructive(link);
 }
 
-/**
+/*
  * detect_link_and_local_sink() - Detect if a sink is attached to a given link
  *
  * link->local_sink is created or destroyed as needed.
@@ -1183,7 +1185,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	return true;
 }
 
-/**
+/*
  * link_detect_connection_type() - Determine if there is a sink connected
  *
  * @type: Returned connection type
@@ -1225,6 +1227,11 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 		/* TODO: need to do the actual detection */
 	} else {
 		*type = dc_connection_none;
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			/* eDP is not connected, power down it */
+			if (!link->dc->config.edp_no_power_sequencing)
+				link->dc->hwss.edp_power_control(link, false);
+		}
 	}
 
 	return true;

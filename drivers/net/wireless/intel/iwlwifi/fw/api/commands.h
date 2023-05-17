@@ -266,6 +266,24 @@ enum iwl_legacy_cmds {
 	HOT_SPOT_CMD = 0x53,
 
 	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION: Time Sync
+	 *	measurement notification for TM/FTM. Sent on receipt of
+	 *	respective WNM action frame for TM protocol or public action
+	 *	frame for FTM protocol from peer device along with additional
+	 *	meta data specified in &struct iwl_time_msmt_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION = 0x67,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION: Time Sync
+	 *	measurement confirmation notification for TM/FTM. Sent on
+	 *	receipt of Ack from peer for previously Tx'ed TM/FTM
+	 *	action frame along with additional meta data specified in
+	 *	&struct iwl_time_msmt_cfm_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION = 0x68,
+
+	/**
 	 * @SCAN_OFFLOAD_COMPLETE:
 	 * notification, &struct iwl_periodic_scan_complete
 	 */

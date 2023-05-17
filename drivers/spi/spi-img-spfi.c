@@ -413,15 +413,15 @@ static int img_spfi_prepare(struct spi_master *master, struct spi_message *msg)
 	val = spfi_readl(spfi, SPFI_PORT_STATE);
 	val &= ~(SPFI_PORT_STATE_DEV_SEL_MASK <<
 		 SPFI_PORT_STATE_DEV_SEL_SHIFT);
-	val |= msg->spi->chip_select << SPFI_PORT_STATE_DEV_SEL_SHIFT;
+	val |= spi_get_chipselect(msg->spi, 0) << SPFI_PORT_STATE_DEV_SEL_SHIFT;
 	if (msg->spi->mode & SPI_CPHA)
-		val |= SPFI_PORT_STATE_CK_PHASE(msg->spi->chip_select);
+		val |= SPFI_PORT_STATE_CK_PHASE(spi_get_chipselect(msg->spi, 0));
 	else
-		val &= ~SPFI_PORT_STATE_CK_PHASE(msg->spi->chip_select);
+		val &= ~SPFI_PORT_STATE_CK_PHASE(spi_get_chipselect(msg->spi, 0));
 	if (msg->spi->mode & SPI_CPOL)
-		val |= SPFI_PORT_STATE_CK_POL(msg->spi->chip_select);
+		val |= SPFI_PORT_STATE_CK_POL(spi_get_chipselect(msg->spi, 0));
 	else
-		val &= ~SPFI_PORT_STATE_CK_POL(msg->spi->chip_select);
+		val &= ~SPFI_PORT_STATE_CK_POL(spi_get_chipselect(msg->spi, 0));
 	spfi_writel(spfi, val, SPFI_PORT_STATE);
 
 	return 0;
@@ -450,11 +450,11 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 	div = DIV_ROUND_UP(clk_get_rate(spfi->spfi_clk), xfer->speed_hz);
 	div = clamp(512 / (1 << get_count_order(div)), 1, 128);
 
-	val = spfi_readl(spfi, SPFI_DEVICE_PARAMETER(spi->chip_select));
+	val = spfi_readl(spfi, SPFI_DEVICE_PARAMETER(spi_get_chipselect(spi, 0)));
 	val &= ~(SPFI_DEVICE_PARAMETER_BITCLK_MASK <<
 		 SPFI_DEVICE_PARAMETER_BITCLK_SHIFT);
 	val |= div << SPFI_DEVICE_PARAMETER_BITCLK_SHIFT;
-	spfi_writel(spfi, val, SPFI_DEVICE_PARAMETER(spi->chip_select));
+	spfi_writel(spfi, val, SPFI_DEVICE_PARAMETER(spi_get_chipselect(spi, 0)));
 
 	spfi_writel(spfi, xfer->len << SPFI_TRANSACTION_TSIZE_SHIFT,
 		    SPFI_TRANSACTION);
@@ -665,7 +665,7 @@ put_spi:
 	return ret;
 }
 
-static int img_spfi_remove(struct platform_device *pdev)
+static void img_spfi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct img_spfi *spfi = spi_master_get_devdata(master);
@@ -680,8 +680,6 @@ static int img_spfi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(spfi->spfi_clk);
 		clk_disable_unprepare(spfi->sys_clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -758,7 +756,7 @@ static struct platform_driver img_spfi_driver = {
 		.of_match_table = of_match_ptr(img_spfi_of_match),
 	},
 	.probe = img_spfi_probe,
-	.remove = img_spfi_remove,
+	.remove_new = img_spfi_remove,
 };
 module_platform_driver(img_spfi_driver);
 

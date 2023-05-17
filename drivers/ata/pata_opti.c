@@ -148,7 +148,7 @@ static void opti_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	opti_write_reg(ap, 0x85, CNTRL_REG);
 }
 
-static struct scsi_host_template opti_sht = {
+static const struct scsi_host_template opti_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

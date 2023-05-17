@@ -76,7 +76,8 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
 	if (napi_complete(napi))
-		mt7615_irq_enable(dev, mt7615_tx_mcu_int_mask(dev));
+		mt76_connac_irq_enable(&dev->mt76,
+				       mt7615_tx_mcu_int_mask(dev));
 
 	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
@@ -297,7 +298,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	else
 	    mask |= MT_INT_MCU_CMD;
 
-	mt7615_irq_enable(dev, mask);
+	mt76_connac_irq_enable(&dev->mt76, mask);
 
 	mt7615_dma_start(dev);
 

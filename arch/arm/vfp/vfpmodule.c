@@ -32,10 +32,9 @@
 /*
  * Our undef handlers (in entry.S)
  */
-asmlinkage void vfp_support_entry(void);
-asmlinkage void vfp_null_entry(void);
+asmlinkage void vfp_support_entry(u32, void *, u32, u32);
 
-asmlinkage void (*vfp_vector)(void) = vfp_null_entry;
+static bool have_vfp __ro_after_init;
 
 /*
  * Dual-use variable.
@@ -645,6 +644,25 @@ static int vfp_starting_cpu(unsigned int unused)
 	return 0;
 }
 
+/*
+ * Entered with:
+ *
+ *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
+ *  r1  = thread_info pointer
+ *  r2  = PC value to resume execution after successful emulation
+ *  r3  = normal "successful" return address
+ *  lr  = unrecognised instruction return address
+ */
+asmlinkage void vfp_entry(u32 trigger, struct thread_info *ti, u32 resume_pc,
+			  u32 resume_return_address)
+{
+	if (unlikely(!have_vfp))
+		return;
+
+	local_bh_disable();
+	vfp_support_entry(trigger, ti, resume_pc, resume_return_address);
+}
+
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
@@ -798,7 +816,6 @@ static int __init vfp_init(void)
 	vfpsid = fmrx(FPSID);
 	barrier();
 	unregister_undef_hook(&vfp_detect_hook);
-	vfp_vector = vfp_null_entry;
 
 	pr_info("VFP support v0.3: ");
 	if (VFP_arch) {
@@ -883,7 +900,7 @@ static int __init vfp_init(void)
 				  "arm/vfp:starting", vfp_starting_cpu,
 				  vfp_dying_cpu);
 
-	vfp_vector = vfp_support_entry;
+	have_vfp = true;
 
 	thread_register_notifier(&vfp_notifier_block);
 	vfp_pm_init();

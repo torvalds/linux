@@ -192,6 +192,12 @@ static void iio_trigger_notify_done_atomic(struct iio_trigger *trig)
 		schedule_work(&trig->reenable_work);
 }
 
+/**
+ * iio_trigger_poll() - Call the IRQ trigger handler of the consumers
+ * @trig: trigger which occurred
+ *
+ * This function should only be called from a hard IRQ context.
+ */
 void iio_trigger_poll(struct iio_trigger *trig)
 {
 	int i;
@@ -216,7 +222,14 @@ irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private)
 }
 EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
 
-void iio_trigger_poll_chained(struct iio_trigger *trig)
+/**
+ * iio_trigger_poll_nested() - Call the threaded trigger handler of the
+ * consumers
+ * @trig: trigger which occurred
+ *
+ * This function should only be called from a kernel thread context.
+ */
+void iio_trigger_poll_nested(struct iio_trigger *trig)
 {
 	int i;
 
@@ -231,7 +244,7 @@ void iio_trigger_poll_chained(struct iio_trigger *trig)
 		}
 	}
 }
-EXPORT_SYMBOL(iio_trigger_poll_chained);
+EXPORT_SYMBOL(iio_trigger_poll_nested);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {

@@ -2229,7 +2229,7 @@ static int tw_slave_configure(struct scsi_device *sdev)
 	return 0;
 } /* End tw_slave_configure() */
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "3ware Storage Controller",
 	.queuecommand		= tw_scsi_queue,

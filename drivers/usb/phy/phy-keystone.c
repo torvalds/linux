@@ -88,13 +88,11 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 	return usb_add_phy_dev(&k_phy->usb_phy_gen.phy);
 }
 
-static int keystone_usbphy_remove(struct platform_device *pdev)
+static void keystone_usbphy_remove(struct platform_device *pdev)
 {
 	struct keystone_usbphy *k_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&k_phy->usb_phy_gen.phy);
-
-	return 0;
 }
 
 static const struct of_device_id keystone_usbphy_ids[] = {
@@ -105,7 +103,7 @@ MODULE_DEVICE_TABLE(of, keystone_usbphy_ids);
 
 static struct platform_driver keystone_usbphy_driver = {
 	.probe          = keystone_usbphy_probe,
-	.remove         = keystone_usbphy_remove,
+	.remove_new     = keystone_usbphy_remove,
 	.driver         = {
 		.name   = "keystone-usbphy",
 		.of_match_table = keystone_usbphy_ids,

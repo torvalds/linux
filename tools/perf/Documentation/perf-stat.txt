@@ -394,10 +394,10 @@ See perf list output for the possible metrics and metricgroups.
 Do not aggregate counts across all monitored CPUs.
 
 --topdown::
-Print complete top-down metrics supported by the CPU. This allows to
-determine bottle necks in the CPU pipeline for CPU bound workloads,
-by breaking the cycles consumed down into frontend bound, backend bound,
-bad speculation and retiring.
+Print top-down metrics supported by the CPU. This allows to determine
+bottle necks in the CPU pipeline for CPU bound workloads, by breaking
+the cycles consumed down into frontend bound, backend bound, bad
+speculation and retiring.
 
 Frontend bound means that the CPU cannot fetch and decode instructions fast
 enough. Backend bound means that computation or memory access is the bottle
@@ -430,15 +430,18 @@ CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
 
 --td-level::
-Print the top-down statistics that equal to or lower than the input level.
-It allows users to print the interested top-down metrics level instead of
-the complete top-down metrics.
+Print the top-down statistics that equal the input level. It allows
+users to print the interested top-down metrics level instead of the
+level 1 top-down metrics.
 
-The availability of the top-down metrics level depends on the hardware. For
-example, Ice Lake only supports L1 top-down metrics. The Sapphire Rapids
-supports both L1 and L2 top-down metrics.
+As the higher levels gather more metrics and use more counters they
+will be less accurate. By convention a metric can be examined by
+appending '_group' to it and this will increase accuracy compared to
+gathering all metrics for a level. For example, level 1 analysis may
+highlight 'tma_frontend_bound'. This metric may be drilled into with
+'tma_frontend_bound_group' with
+'perf stat -M tma_frontend_bound_group...'.
 
-Default: 0 means the max level that the current hardware support.
 Error out if the input is higher than the supported max level.
 
 --no-merge::

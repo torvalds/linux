@@ -105,7 +105,7 @@ long rbtree_api_remove_unadded_node(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("Unreleased reference id=2 alloc_insn=11")
+__failure __msg("Unreleased reference id=3 alloc_insn=10")
 long rbtree_api_remove_no_drop(void *ctx)
 {
 	struct bpf_rb_node *res;
@@ -118,10 +118,13 @@ long rbtree_api_remove_no_drop(void *ctx)
 
 	res = bpf_rbtree_remove(&groot, res);
 
-	n = container_of(res, struct node_data, node);
+	if (res) {
+		n = container_of(res, struct node_data, node);
+		__sink(n);
+	}
 	bpf_spin_unlock(&glock);
 
-	/* bpf_obj_drop(n) is missing here */
+	/* if (res) { bpf_obj_drop(n); } is missing here */
 	return 0;
 
 unlock_err:
@@ -146,6 +149,32 @@ long rbtree_api_add_to_multiple_trees(void *ctx)
 	bpf_rbtree_add(&groot2, &n->node, less);
 	bpf_spin_unlock(&glock);
 	return 0;
+}
+
+SEC("?tc")
+__failure __msg("dereference of modified ptr_or_null_ ptr R2 off=16 disallowed")
+long rbtree_api_use_unchecked_remove_retval(void *ctx)
+{
+	struct bpf_rb_node *res;
+
+	bpf_spin_lock(&glock);
+
+	res = bpf_rbtree_first(&groot);
+	if (!res)
+		goto err_out;
+	res = bpf_rbtree_remove(&groot, res);
+
+	bpf_spin_unlock(&glock);
+
+	bpf_spin_lock(&glock);
+	/* Must check res for NULL before using in rbtree_add below */
+	bpf_rbtree_add(&groot, res, less);
+	bpf_spin_unlock(&glock);
+	return 0;
+
+err_out:
+	bpf_spin_unlock(&glock);
+	return 1;
 }
 
 SEC("?tc")
@@ -174,57 +203,6 @@ long rbtree_api_add_release_unlock_escape(void *ctx)
 
 SEC("?tc")
 __failure __msg("rbtree_remove node input must be non-owning ref")
-long rbtree_api_release_aliasing(void *ctx)
-{
-	struct node_data *n, *m, *o;
-	struct bpf_rb_node *res;
-
-	n = bpf_obj_new(typeof(*n));
-	if (!n)
-		return 1;
-
-	bpf_spin_lock(&glock);
-	bpf_rbtree_add(&groot, &n->node, less);
-	bpf_spin_unlock(&glock);
-
-	bpf_spin_lock(&glock);
-
-	/* m and o point to the same node,
-	 * but verifier doesn't know this
-	 */
-	res = bpf_rbtree_first(&groot);
-	if (!res)
-		return 1;
-	o = container_of(res, struct node_data, node);
-
-	res = bpf_rbtree_first(&groot);
-	if (!res)
-		return 1;
-	m = container_of(res, struct node_data, node);
-
-	bpf_rbtree_remove(&groot, &m->node);
-	/* This second remove shouldn't be possible. Retval of previous
-	 * remove returns owning reference to m, which is the same
-	 * node o's non-owning ref is pointing at
-	 *
-	 * In order to preserve property
-	 *   * owning ref must not be in rbtree
-	 *   * non-owning ref must be in rbtree
-	 *
-	 * o's ref must be invalidated after previous remove. Otherwise
-	 * we'd have non-owning ref to node that isn't in rbtree, and
-	 * verifier wouldn't be able to use type system to prevent remove
-	 * of ref that already isn't in any tree. Would have to do runtime
-	 * checks in that case.
-	 */
-	bpf_rbtree_remove(&groot, &o->node);
-
-	bpf_spin_unlock(&glock);
-	return 0;
-}
-
-SEC("?tc")
-__failure __msg("rbtree_remove node input must be non-owning ref")
 long rbtree_api_first_release_unlock_escape(void *ctx)
 {
 	struct bpf_rb_node *res;
@@ -232,8 +210,11 @@ long rbtree_api_first_release_unlock_escape(void *ctx)
 
 	bpf_spin_lock(&glock);
 	res = bpf_rbtree_first(&groot);
-	if (res)
-		n = container_of(res, struct node_data, node);
+	if (!res) {
+		bpf_spin_unlock(&glock);
+		return 1;
+	}
+	n = container_of(res, struct node_data, node);
 	bpf_spin_unlock(&glock);
 
 	bpf_spin_lock(&glock);

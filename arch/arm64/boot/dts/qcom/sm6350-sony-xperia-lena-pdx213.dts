@@ -233,7 +233,6 @@
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
 						   RPMH_REGULATOR_MODE_HPM>;
-
 		};
 
 		pm6150l_l7: ldo7 {
@@ -255,7 +254,6 @@
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
 						   RPMH_REGULATOR_MODE_HPM>;
-
 		};
 
 		pm6150l_l10: ldo10 {
@@ -369,7 +367,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 };
 

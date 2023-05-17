@@ -444,7 +444,7 @@ out_rpm:
 }
 
 /**
- * Reads data from the object referenced by handle.
+ * i915_gem_pread_ioctl - Reads data from the object referenced by handle.
  * @dev: drm device pointer
  * @data: ioctl data blob
  * @file: drm file pointer
@@ -533,7 +533,7 @@ ggtt_write(struct io_mapping *mapping,
 }
 
 /**
- * This is the fast pwrite path, where we copy the data directly from the
+ * i915_gem_gtt_pwrite_fast - This is the fast pwrite path, where we copy the data directly from the
  * user into the GTT, uncached.
  * @obj: i915 GEM object
  * @args: pwrite arguments structure
@@ -723,7 +723,7 @@ err_unlock:
 }
 
 /**
- * Writes data to the object referenced by handle.
+ * i915_gem_pwrite_ioctl - Writes data to the object referenced by handle.
  * @dev: drm device
  * @data: ioctl data blob
  * @file: drm file
@@ -808,7 +808,7 @@ err:
 }
 
 /**
- * Called when user space has done writes to this buffer
+ * i915_gem_sw_finish_ioctl - Called when user space has done writes to this buffer
  * @dev: drm device
  * @data: ioctl data blob
  * @file: drm file
@@ -1313,7 +1313,7 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	}
 
 	file->driver_priv = file_priv;
-	file_priv->dev_priv = i915;
+	file_priv->i915 = i915;
 	file_priv->file = file;
 	file_priv->client = client;
 

@@ -503,7 +503,7 @@ static int __init phantom_init(void)
 	int retval;
 	dev_t dev;
 
-	phantom_class = class_create(THIS_MODULE, "phantom");
+	phantom_class = class_create("phantom");
 	if (IS_ERR(phantom_class)) {
 		retval = PTR_ERR(phantom_class);
 		printk(KERN_ERR "phantom: can't register phantom class\n");

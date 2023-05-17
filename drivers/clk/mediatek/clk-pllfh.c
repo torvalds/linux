@@ -75,13 +75,13 @@ void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
 	base = of_iomap(node, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
-		return;
+		goto out_node_put;
 	}
 
 	num_clocks = of_clk_get_parent_count(node);
 	if (!num_clocks) {
 		pr_err("%s(): failed to get clocks property\n", __func__);
-		return;
+		goto err;
 	}
 
 	for (i = 0; i < num_clocks; i++) {
@@ -102,16 +102,26 @@ void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
 		pllfh->state.ssc_rate = ssc_rate;
 		pllfh->state.base = base;
 	}
-}
 
-static void pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
+out_node_put:
+	of_node_put(node);
+	return;
+err:
+	iounmap(base);
+	goto out_node_put;
+}
+EXPORT_SYMBOL_GPL(fhctl_parse_dt);
+
+static int pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
 {
 	struct fh_pll_regs *regs = &fh->regs;
 	const struct fhctl_offset *offset;
 	void __iomem *base = pllfh_data->state.base;
 	void __iomem *fhx_base = base + pllfh_data->data.fhx_offset;
 
-	offset = fhctl_get_offset_table();
+	offset = fhctl_get_offset_table(pllfh_data->data.fh_ver);
+	if (IS_ERR(offset))
+		return PTR_ERR(offset);
 
 	regs->reg_hp_en = base + offset->offset_hp_en;
 	regs->reg_clk_con = base + offset->offset_clk_con;
@@ -129,6 +139,8 @@ static void pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
 	fh->lock = &pllfh_lock;
 
 	fh->ops = fhctl_get_ops();
+
+	return 0;
 }
 
 static bool fhctl_is_supported_and_enabled(const struct mtk_pllfh_data *pllfh)
@@ -142,20 +154,29 @@ mtk_clk_register_pllfh(const struct mtk_pll_data *pll_data,
 {
 	struct clk_hw *hw;
 	struct mtk_fh *fh;
+	int ret;
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	pllfh_init(fh, pllfh_data);
+	ret = pllfh_init(fh, pllfh_data);
+	if (ret) {
+		hw = ERR_PTR(ret);
+		goto out;
+	}
 
 	hw = mtk_clk_register_pll_ops(&fh->clk_pll, pll_data, base,
 				      &mtk_pllfh_ops);
 
 	if (IS_ERR(hw))
+		goto out;
+
+	fhctl_hw_init(fh);
+
+out:
+	if (IS_ERR(hw))
 		kfree(fh);
-	else
-		fhctl_hw_init(fh);
 
 	return hw;
 }
@@ -234,6 +255,7 @@ err:
 
 	return PTR_ERR(hw);
 }
+EXPORT_SYMBOL_GPL(mtk_clk_register_pllfhs);
 
 void mtk_clk_unregister_pllfhs(const struct mtk_pll_data *plls, int num_plls,
 			       struct mtk_pllfh_data *pllfhs, int num_fhs,
@@ -273,3 +295,4 @@ void mtk_clk_unregister_pllfhs(const struct mtk_pll_data *plls, int num_plls,
 
 	iounmap(base);
 }
+EXPORT_SYMBOL_GPL(mtk_clk_unregister_pllfhs);

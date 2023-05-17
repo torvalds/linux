@@ -278,7 +278,7 @@ int rpaphp_check_drc_props(struct device_node *dn, char *drc_name,
 		return -EINVAL;
 	}
 
-	if (of_find_property(dn->parent, "ibm,drc-info", NULL))
+	if (of_property_present(dn->parent, "ibm,drc-info"))
 		return rpaphp_check_drc_props_v2(dn, drc_name, drc_type,
 						be32_to_cpu(*my_index));
 	else
@@ -440,7 +440,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	if (!of_node_name_eq(dn, "pci"))
 		return 0;
 
-	if (of_find_property(dn, "ibm,drc-info", NULL))
+	if (of_property_present(dn, "ibm,drc-info"))
 		return rpaphp_drc_info_add_slot(dn);
 	else
 		return rpaphp_drc_add_slot(dn);

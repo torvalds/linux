@@ -521,7 +521,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 
 	info->pdsp = pdsp;
 	channels = range->num_queues;
-	if (of_get_property(node, "multi-queue", NULL)) {
+	if (of_property_read_bool(node, "multi-queue")) {
 		range->flags |= RANGE_MULTI_QUEUE;
 		channels = 1;
 		if (range->queue_base & (32 - 1)) {

@@ -655,8 +655,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 		.attr_groups	= dmc620_pmu_attr_groups,
 	};
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmc620_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	dmc620_pmu->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dmc620_pmu->base))
 		return PTR_ERR(dmc620_pmu->base);
 

@@ -271,14 +271,12 @@ out:
 	return ret;
 }
 
-static int acq_remove(struct platform_device *dev)
+static void acq_remove(struct platform_device *dev)
 {
 	misc_deregister(&acq_miscdev);
 	release_region(wdt_start, 1);
 	if (wdt_stop != wdt_start)
 		release_region(wdt_stop, 1);
-
-	return 0;
 }
 
 static void acq_shutdown(struct platform_device *dev)
@@ -288,7 +286,7 @@ static void acq_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver acquirewdt_driver = {
-	.remove		= acq_remove,
+	.remove_new	= acq_remove,
 	.shutdown	= acq_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

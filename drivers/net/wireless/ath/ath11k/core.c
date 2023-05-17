@@ -116,7 +116,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
-		.ftm_responder = true,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -199,7 +198,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
-		.ftm_responder = true,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -284,7 +282,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
-		.ftm_responder = false,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -366,7 +363,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
-		.ftm_responder = true,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -451,7 +447,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
-		.ftm_responder = false,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -534,7 +529,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
-		.ftm_responder = false,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -599,7 +593,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.current_cc_support = true,
 		.dbr_debug_support = false,
 		.global_reset = false,
-		.bios_sar_capa = NULL,
+		.bios_sar_capa = &ath11k_hw_sar_capa_wcn6855,
 		.m3_fw_support = false,
 		.fixed_bdf_addr = false,
 		.fixed_mem_region = false,
@@ -615,7 +609,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE_WCN6750,
 		.smp2p_wow_exit = true,
 		.support_fw_mac_sequence = true,
-		.ftm_responder = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ5018_HW10,
@@ -695,7 +688,6 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
-		.ftm_responder = true,
 	},
 };
 

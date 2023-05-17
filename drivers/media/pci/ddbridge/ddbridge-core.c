@@ -3117,7 +3117,6 @@ static struct device_attribute ddb_attrs_fanspeed[] = {
 
 static struct class ddb_class = {
 	.name		= "ddbridge",
-	.owner          = THIS_MODULE,
 	.devnode        = ddb_devnode,
 };
 

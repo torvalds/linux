@@ -26,8 +26,8 @@ properties:
   dmas:
     items:
       - description: TX DMA Channel
-      - description: RX DMA Channel #1
-      - description: RX DMA Channel #2
+      - description: 'RX DMA Channel #1'
+      - description: 'RX DMA Channel #2'
 
   dma-names:
     items:

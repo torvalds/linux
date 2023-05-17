@@ -26,6 +26,12 @@
 		reg = <0x40000000 0x80000000>;
 	};
 
+	aliases {
+		mmc0 = &mshc_0;
+		mmc2 = &sdhci_2;
+		mmc3 = &sdhci_3;
+	};
+
 	chosen {
 		stdout-path = &serial_2;
 	};
@@ -188,14 +194,12 @@
 			pinctrl-names = "default";
 			interrupt-parent = <&gpx0>;
 			interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
-			interrupt-controller;
-			irq-trigger = <0x1>;
 			st,adc-freq = <3>;
 			st,mod-12b = <1>;
 			st,ref-sel = <0>;
 			st,sample-time = <3>;
 
-			stmpe_adc {
+			adc {
 				compatible = "st,stmpe-adc";
 				#io-channel-cells = <1>;
 				st,norequest-mask = <0x2f>;
@@ -695,6 +699,7 @@
 	samsung,dw-mshc-ciu-div = <0>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
+	mmc-ddr-1_8v;
 	pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 	pinctrl-names = "default";
 	bus-width = <4>;

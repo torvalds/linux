@@ -68,7 +68,6 @@
 struct dpu_kms {
 	struct msm_kms base;
 	struct drm_device *dev;
-	int core_rev;
 	const struct dpu_mdss_cfg *catalog;
 
 	/* io/register spaces: */

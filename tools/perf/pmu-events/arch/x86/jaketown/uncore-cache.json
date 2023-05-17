@@ -3,7 +3,7 @@
         "BriefDescription": "Uncore Clocks",
         "EventName": "UNC_C_CLOCKTICKS",
         "PerPkg": "1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Counter 0 Occupancy",
@@ -11,13 +11,13 @@
         "EventName": "UNC_C_COUNTER0_OCCUPANCY",
         "PerPkg": "1",
         "PublicDescription": "Since occupancy counts can only be captured in the Cbo's 0 counter, this event allows a user to capture occupancy related information by filtering the Cb0 occupancy count captured in Counter 0.   The filtering available is found in the control register - threshold, invert and edge detect.   E.g. setting threshold to 1 can effectively monitor how many cycles the monitored queue has an entry.",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x21",
         "EventName": "UNC_C_ISMQ_DRD_MISS_OCC",
         "PerPkg": "1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cache Lookups; Data Read Request",
@@ -26,7 +26,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x3",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cache Lookups; RTID",
@@ -35,7 +35,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x41",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cache Lookups; External Snoop Request",
@@ -44,7 +44,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x9",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cache Lookups; Write Requests",
@@ -53,7 +53,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x5",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Lines Victimized; Lines in E state",
@@ -62,7 +62,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Lines Victimized",
@@ -71,7 +71,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Lines Victimized; Lines in M state",
@@ -80,7 +80,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Lines Victimized; Victimized Lines that Match NID",
@@ -89,7 +89,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
         "UMask": "0x40",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Lines Victimized; Lines in S State",
@@ -98,7 +98,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cbo Misc; RFO HitS",
@@ -107,7 +107,7 @@
         "PerPkg": "1",
         "PublicDescription": "Miscellaneous events in the Cbo.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cbo Misc; Silent Snoop Eviction",
@@ -116,7 +116,7 @@
         "PerPkg": "1",
         "PublicDescription": "Miscellaneous events in the Cbo.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cbo Misc",
@@ -125,7 +125,7 @@
         "PerPkg": "1",
         "PublicDescription": "Miscellaneous events in the Cbo.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Cbo Misc; Write Combining Aliasing",
@@ -134,7 +134,7 @@
         "PerPkg": "1",
         "PublicDescription": "Miscellaneous events in the Cbo.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AD Ring In Use; Down and Even",
@@ -143,7 +143,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AD Ring In Use; Down and Odd",
@@ -152,7 +152,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AD Ring In Use; Up and Even",
@@ -161,7 +161,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AD Ring In Use; Up and Odd",
@@ -170,7 +170,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AK Ring In Use; Down and Even",
@@ -179,7 +179,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AK Ring In Use; Down and Odd",
@@ -188,7 +188,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AK Ring In Use; Up and Even",
@@ -197,7 +197,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "AK Ring In Use; Up and Odd",
@@ -206,7 +206,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "BL Ring in Use; Down and Even",
@@ -215,7 +215,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "BL Ring in Use; Down and Odd",
@@ -224,7 +224,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "BL Ring in Use; Up and Even",
@@ -233,7 +233,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "BL Ring in Use; Up and Odd",
@@ -242,7 +242,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Number of LLC responses that bounced on the Ring.; Acknowledgements to core",
@@ -250,7 +250,7 @@
         "EventName": "UNC_C_RING_BOUNCES.AK_CORE",
         "PerPkg": "1",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Number of LLC responses that bounced on the Ring.; Data Responses to core",
@@ -258,7 +258,7 @@
         "EventName": "UNC_C_RING_BOUNCES.BL_CORE",
         "PerPkg": "1",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Number of LLC responses that bounced on the Ring.; Snoops of processor's cache.",
@@ -266,7 +266,7 @@
         "EventName": "UNC_C_RING_BOUNCES.IV_CORE",
         "PerPkg": "1",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "BL Ring in Use; Any",
@@ -275,41 +275,41 @@
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  There is only 1 IV ring in JKT.  Therefore, if one wants to monitor the 'Even' ring, they should select both UP_EVEN and DN_EVEN.  To monitor the 'Odd' ring, they should select both UP_ODD and DN_ODD.",
         "UMask": "0xf",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.AD_CACHE",
         "PerPkg": "1",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.AK_CORE",
         "PerPkg": "1",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.BL_CORE",
         "PerPkg": "1",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.IV_CORE",
         "PerPkg": "1",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x7",
         "EventName": "UNC_C_RING_SRC_THRTL",
         "PerPkg": "1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Arbiter Blocking Cycles; IRQ",
@@ -318,7 +318,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Arbiter Blocking Cycles; IPQ",
@@ -327,7 +327,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Arbiter Blocking Cycles; ISMQ",
@@ -336,7 +336,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Arbiter Blocking Cycles; ISMQ_BID",
@@ -345,7 +345,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Allocations; IPQ",
@@ -354,7 +354,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of allocations per cycle into the specified Ingress queue.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Allocations; IRQ",
@@ -363,7 +363,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of allocations per cycle into the specified Ingress queue.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Allocations; IRQ Rejected",
@@ -372,7 +372,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of allocations per cycle into the specified Ingress queue.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Allocations; VFIFO",
@@ -381,7 +381,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of allocations per cycle into the specified Ingress queue.",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Internal Starvation Cycles; IPQ",
@@ -390,7 +390,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in internal starvation.  This occurs when one (or more) of the entries in the ingress queue are being starved out by other entries in that queue.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Internal Starvation Cycles; IRQ",
@@ -399,7 +399,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in internal starvation.  This occurs when one (or more) of the entries in the ingress queue are being starved out by other entries in that queue.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Internal Starvation Cycles; ISMQ",
@@ -408,7 +408,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts cycles in internal starvation.  This occurs when one (or more) of the entries in the ingress queue are being starved out by other entries in that queue.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Probe Queue Retries; Address Conflict",
@@ -417,7 +417,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Probe Queue Retries; Any Reject",
@@ -426,7 +426,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Probe Queue Retries; No Egress Credits",
@@ -435,7 +435,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Probe Queue Retries; No QPI Credits",
@@ -444,7 +444,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects; Address Conflict",
@@ -452,7 +452,7 @@
         "EventName": "UNC_C_RxR_IRQ_RETRY.ADDR_CONFLICT",
         "PerPkg": "1",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects; Any Reject",
@@ -460,7 +460,7 @@
         "EventName": "UNC_C_RxR_IRQ_RETRY.ANY",
         "PerPkg": "1",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects; No Egress Credits",
@@ -468,7 +468,7 @@
         "EventName": "UNC_C_RxR_IRQ_RETRY.FULL",
         "PerPkg": "1",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects; No QPI Credits",
@@ -476,7 +476,7 @@
         "EventName": "UNC_C_RxR_IRQ_RETRY.QPI_CREDITS",
         "PerPkg": "1",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects; No RTIDs",
@@ -484,7 +484,7 @@
         "EventName": "UNC_C_RxR_IRQ_RETRY.RTID",
         "PerPkg": "1",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "ISMQ Retries; Any Reject",
@@ -493,7 +493,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "ISMQ Retries; No Egress Credits",
@@ -502,7 +502,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "ISMQ Retries; No IIO Credits",
@@ -511,7 +511,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
         "UMask": "0x20",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "ISMQ Retries; No QPI Credits",
@@ -520,7 +520,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "ISMQ Retries; No RTIDs",
@@ -529,7 +529,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Occupancy; IPQ",
@@ -538,7 +538,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of entries in the specified Ingress queue in each cycle.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Occupancy; IRQ",
@@ -547,7 +547,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of entries in the specified Ingress queue in each cycle.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Occupancy; IRQ Rejected",
@@ -556,7 +556,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of entries in the specified Ingress queue in each cycle.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Ingress Occupancy; VFIFO",
@@ -565,106 +565,106 @@
         "PerPkg": "1",
         "PublicDescription": "Counts number of entries in the specified Ingress queue in each cycle.",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; Evictions",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.EVICTION",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; Miss All",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.MISS_ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0xa",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; Miss Opcode Match",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x3",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID Matched",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x48",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID Matched Evictions",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_EVICTION",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x44",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID Matched Miss All",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_MISS_ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x4a",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID and Opcode Matched Miss",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_MISS_OPCODE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x43",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID and Opcode Matched",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_OPCODE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x41",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; NID Matched Writebacks",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.NID_WB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x50",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; Opcode Match",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.OPCODE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Inserts; Writebacks",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.WB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries successfuly inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
+        "PublicDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent.  There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc  to DRD (0x182).",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; Any",
@@ -673,7 +673,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; Evictions",
@@ -682,7 +682,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; Miss All",
@@ -691,7 +691,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0xa",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; Miss Opcode Match",
@@ -700,7 +700,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x3",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; NID Matched",
@@ -709,7 +709,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x48",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; NID Matched Evictions",
@@ -718,7 +718,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x44",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; NID Matched",
@@ -727,7 +727,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x4a",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; NID and Opcode Matched Miss",
@@ -736,7 +736,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x43",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; NID and Opcode Matched",
@@ -745,7 +745,7 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x41",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "TOR Occupancy; Opcode Match",
@@ -754,13 +754,13 @@
         "PerPkg": "1",
         "PublicDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   There are a number of subevent 'filters' but only a subset of the subevent combinations are valid.  Subevents that require an opcode or NID match require the Cn_MSR_PMON_BOX_FILTER.{opc, nid} field to be set.  If, for example, one wanted to count DRD Local Misses, one should select 'MISS_OPC_MATCH' and set Cn_MSR_PMON_BOX_FILTER.opc to DRD (0x182)",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "EventCode": "0x4",
         "EventName": "UNC_C_TxR_ADS_USED",
         "PerPkg": "1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; AD - Cachebo",
@@ -769,7 +769,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x1",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; AD - Corebo",
@@ -778,7 +778,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x10",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; AK - Cachebo",
@@ -787,7 +787,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; AK - Corebo",
@@ -796,7 +796,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x20",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; BL - Cacheno",
@@ -805,7 +805,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; BL - Corebo",
@@ -814,7 +814,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x40",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Egress Allocations; IV - Cachebo",
@@ -823,7 +823,7 @@
         "PerPkg": "1",
         "PublicDescription": "Number of allocations into the Cbo Egress.  The Egress is used to queue up requests destined for the ring.",
         "UMask": "0x8",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Injection Starvation; Onto AK Ring",
@@ -832,7 +832,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cannot send a transaction onto the ring for a long period of time.",
         "UMask": "0x2",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "Injection Starvation; Onto BL Ring",
@@ -841,7 +841,7 @@
         "PerPkg": "1",
         "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cannot send a transaction onto the ring for a long period of time.",
         "UMask": "0x4",
-        "Unit": "CBO"
+        "Unit": "CBOX"
     },
     {
         "BriefDescription": "HA to iMC Bypass; Not Taken",

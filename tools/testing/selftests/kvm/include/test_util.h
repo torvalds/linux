@@ -63,6 +63,15 @@ void test_assert(bool exp, const char *exp_str,
 		    #a, #b, #a, (unsigned long) __a, #b, (unsigned long) __b); \
 } while (0)
 
+#define TEST_ASSERT_KVM_EXIT_REASON(vcpu, expected) do {		\
+	__u32 exit_reason = (vcpu)->run->exit_reason;			\
+									\
+	TEST_ASSERT(exit_reason == (expected),				\
+		    "Wanted KVM exit reason: %u (%s), got: %u (%s)",    \
+		    (expected), exit_reason_str((expected)),		\
+		    exit_reason, exit_reason_str(exit_reason));		\
+} while (0)
+
 #define TEST_FAIL(fmt, ...) do { \
 	TEST_ASSERT(false, fmt, ##__VA_ARGS__); \
 	__builtin_unreachable(); \

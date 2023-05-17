@@ -480,7 +480,7 @@ error_visl_dev:
 	return ret;
 }
 
-static int visl_remove(struct platform_device *pdev)
+static void visl_remove(struct platform_device *pdev)
 {
 	struct visl_dev *dev = platform_get_drvdata(pdev);
 
@@ -493,13 +493,11 @@ static int visl_remove(struct platform_device *pdev)
 	}
 #endif
 	video_unregister_device(&dev->vfd);
-
-	return 0;
 }
 
 static struct platform_driver visl_pdrv = {
 	.probe		= visl_probe,
-	.remove		= visl_remove,
+	.remove_new	= visl_remove,
 	.driver		= {
 		.name	= VISL_NAME,
 	},

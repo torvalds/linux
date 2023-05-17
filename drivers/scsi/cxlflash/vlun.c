@@ -448,7 +448,7 @@ static int write_same16(struct scsi_device *sdev,
 		put_unaligned_be32(ws_limit < left ? ws_limit : left,
 				   &scsi_cmd[10]);
 
-		/* Drop the ioctl read semahpore across lengthy call */
+		/* Drop the ioctl read semaphore across lengthy call */
 		up_read(&cfg->ioctl_rwsem);
 		result = scsi_execute_cmd(sdev, scsi_cmd, REQ_OP_DRV_OUT,
 					  cmd_buf, CMD_BUFSIZE, to,

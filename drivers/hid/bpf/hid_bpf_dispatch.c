@@ -342,9 +342,6 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
 
-	if (!ctx)
-		return;
-
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
 
 	kfree(ctx_kern);

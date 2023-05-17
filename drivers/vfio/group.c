@@ -878,7 +878,7 @@ int __init vfio_group_init(void)
 		return ret;
 
 	/* /dev/vfio/$GROUP */
-	vfio.class = class_create(THIS_MODULE, "vfio");
+	vfio.class = class_create("vfio");
 	if (IS_ERR(vfio.class)) {
 		ret = PTR_ERR(vfio.class);
 		goto err_group_class;

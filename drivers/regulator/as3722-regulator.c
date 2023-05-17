@@ -831,6 +831,7 @@ MODULE_DEVICE_TABLE(of, of_as3722_regulator_match);
 static struct platform_driver as3722_regulator_driver = {
 	.driver = {
 		.name = "as3722-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_as3722_regulator_match,
 	},
 	.probe = as3722_regulator_probe,

@@ -151,7 +151,7 @@ out:
 
 int main(int argc, char *argv[])
 {
-	siginfo_t siginfo[SIGNR];
+	siginfo_t siginfo;
 	int i, exit_code = 1;
 	sigset_t blockmask;
 	pid_t child;
@@ -176,13 +176,13 @@ int main(int argc, char *argv[])
 
 	/* Send signals in process-wide and per-thread queues */
 	for (i = 0; i < SIGNR; i++) {
-		siginfo->si_code = TEST_SICODE_SHARE;
-		siginfo->si_int = i;
-		sys_rt_sigqueueinfo(child, SIGRTMIN, siginfo);
+		siginfo.si_code = TEST_SICODE_SHARE;
+		siginfo.si_int = i;
+		sys_rt_sigqueueinfo(child, SIGRTMIN, &siginfo);
 
-		siginfo->si_code = TEST_SICODE_PRIV;
-		siginfo->si_int = i;
-		sys_rt_tgsigqueueinfo(child, child, SIGRTMIN, siginfo);
+		siginfo.si_code = TEST_SICODE_PRIV;
+		siginfo.si_int = i;
+		sys_rt_tgsigqueueinfo(child, child, SIGRTMIN, &siginfo);
 	}
 
 	if (sys_ptrace(PTRACE_ATTACH, child, NULL, NULL) == -1)

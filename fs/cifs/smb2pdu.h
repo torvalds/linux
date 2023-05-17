@@ -132,17 +132,6 @@ struct share_redirect_error_context_rsp {
 #define SMB2_LEASE_HANDLE_CACHING_HE	0x02
 #define SMB2_LEASE_WRITE_CACHING_HE	0x04
 
-struct create_durable {
-	struct create_context ccontext;
-	__u8   Name[8];
-	union {
-		__u8  Reserved[16];
-		struct {
-			__u64 PersistentFileId;
-			__u64 VolatileFileId;
-		} Fid;
-	} Data;
-} __packed;
 
 /* See MS-SMB2 2.2.13.2.11 */
 /* Flags */
@@ -168,15 +157,6 @@ struct durable_reconnect_context_v2 {
 	} Fid;
 	__u8 CreateGuid[16];
 	__le32 Flags; /* see above DHANDLE_FLAG_PERSISTENT */
-} __packed;
-
-/* See MS-SMB2 2.2.14.2.9 */
-struct create_on_disk_id {
-	struct create_context ccontext;
-	__u8   Name[8];
-	__le64 DiskFileId;
-	__le64 VolumeId;
-	__u32  Reserved[4];
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.12 */

@@ -3,6 +3,7 @@
 
 #include <net/fib_notifier.h>
 #include <net/nexthop.h>
+#include <net/ip_tunnels.h>
 #include "tc_tun_encap.h"
 #include "en_tc.h"
 #include "tc_tun.h"
@@ -97,7 +98,6 @@ int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	else if (ip_version == 6) {
 		int ipv6_size = MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6);
-		struct in6_addr zerov6 = {};
 
 		daddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				     outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6);
@@ -105,8 +105,8 @@ int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 				     outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6);
 		memcpy(&tun_attr->dst_ip.v6, daddr, ipv6_size);
 		memcpy(&tun_attr->src_ip.v6, saddr, ipv6_size);
-		if (!memcmp(&tun_attr->dst_ip.v6, &zerov6, sizeof(zerov6)) ||
-		    !memcmp(&tun_attr->src_ip.v6, &zerov6, sizeof(zerov6)))
+		if (ipv6_addr_any(&tun_attr->dst_ip.v6) ||
+		    ipv6_addr_any(&tun_attr->src_ip.v6))
 			return 0;
 	}
 #endif
@@ -569,6 +569,37 @@ bool mlx5e_tc_tun_encap_info_equal_generic(struct mlx5e_encap_key *a,
 {
 	return memcmp(a->ip_tun_key, b->ip_tun_key, sizeof(*a->ip_tun_key)) == 0 &&
 		a->tc_tunnel->tunnel_type == b->tc_tunnel->tunnel_type;
+}
+
+bool mlx5e_tc_tun_encap_info_equal_options(struct mlx5e_encap_key *a,
+					   struct mlx5e_encap_key *b,
+					   __be16 tun_flags)
+{
+	struct ip_tunnel_info *a_info;
+	struct ip_tunnel_info *b_info;
+	bool a_has_opts, b_has_opts;
+
+	if (!mlx5e_tc_tun_encap_info_equal_generic(a, b))
+		return false;
+
+	a_has_opts = !!(a->ip_tun_key->tun_flags & tun_flags);
+	b_has_opts = !!(b->ip_tun_key->tun_flags & tun_flags);
+
+	/* keys are equal when both don't have any options attached */
+	if (!a_has_opts && !b_has_opts)
+		return true;
+
+	if (a_has_opts != b_has_opts)
+		return false;
+
+	/* options stored in memory next to ip_tunnel_info struct */
+	a_info = container_of(a->ip_tun_key, struct ip_tunnel_info, key);
+	b_info = container_of(b->ip_tun_key, struct ip_tunnel_info, key);
+
+	return a_info->options_len == b_info->options_len &&
+	       !memcmp(ip_tunnel_info_opts(a_info),
+		       ip_tunnel_info_opts(b_info),
+		       a_info->options_len);
 }
 
 static int cmp_decap_info(struct mlx5e_decap_key *a,

@@ -149,6 +149,16 @@ MODULE_FIRMWARE("amdgpu/aldebaran_sjt_mec2.bin");
 #define mmGOLDEN_TSC_COUNT_LOWER_Renoir                0x0026
 #define mmGOLDEN_TSC_COUNT_LOWER_Renoir_BASE_IDX       1
 
+#define mmGOLDEN_TSC_COUNT_UPPER_Raven   0x007a
+#define mmGOLDEN_TSC_COUNT_UPPER_Raven_BASE_IDX 0
+#define mmGOLDEN_TSC_COUNT_LOWER_Raven   0x007b
+#define mmGOLDEN_TSC_COUNT_LOWER_Raven_BASE_IDX 0
+
+#define mmGOLDEN_TSC_COUNT_UPPER_Raven2   0x0068
+#define mmGOLDEN_TSC_COUNT_UPPER_Raven2_BASE_IDX 0
+#define mmGOLDEN_TSC_COUNT_LOWER_Raven2   0x0069
+#define mmGOLDEN_TSC_COUNT_LOWER_Raven2_BASE_IDX 0
+
 enum ta_ras_gfx_subblock {
 	/*CPC*/
 	TA_RAS_BLOCK__GFX_CPC_INDEX_START = 0,
@@ -1995,6 +2005,7 @@ static int gfx_v9_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	ring->doorbell_index = (adev->doorbell_index.mec_ring0 + ring_id) << 1;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX9_MEC_HPD_SIZE);
+	ring->vm_hub = AMDGPU_GFXHUB_0;
 	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
@@ -2094,6 +2105,7 @@ static int gfx_v9_0_sw_init(void *handle)
 
 		/* disable scheduler on the real ring */
 		ring->no_scheduler = true;
+		ring->vm_hub = AMDGPU_GFXHUB_0;
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP,
 				     AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -2111,6 +2123,7 @@ static int gfx_v9_0_sw_init(void *handle)
 			ring->doorbell_index = adev->doorbell_index.gfx_ring0 << 1;
 			ring->is_sw_ring = true;
 			hw_prio = amdgpu_sw_ring_priority(i);
+			ring->vm_hub = AMDGPU_GFXHUB_0;
 			r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 					     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP, hw_prio,
 					     NULL);
@@ -3983,6 +3996,36 @@ static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 		 */
 		if (hi_check != clock_hi) {
 			clock_lo = RREG32_SOC15_NO_KIQ(SMUIO, 0, mmGOLDEN_TSC_COUNT_LOWER_Renoir);
+			clock_hi = hi_check;
+		}
+		preempt_enable();
+		clock = clock_lo | (clock_hi << 32ULL);
+		break;
+	case IP_VERSION(9, 1, 0):
+		preempt_disable();
+		clock_hi = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven);
+		clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven);
+		hi_check = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven);
+		/* The PWR TSC clock frequency is 100MHz, which sets 32-bit carry over
+		 * roughly every 42 seconds.
+		 */
+		if (hi_check != clock_hi) {
+			clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven);
+			clock_hi = hi_check;
+		}
+		preempt_enable();
+		clock = clock_lo | (clock_hi << 32ULL);
+		break;
+	case IP_VERSION(9, 2, 2):
+		preempt_disable();
+		clock_hi = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven2);
+		clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven2);
+		hi_check = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_UPPER_Raven2);
+		/* The PWR TSC clock frequency is 100MHz, which sets 32-bit carry over
+		 * roughly every 42 seconds.
+		 */
+		if (hi_check != clock_hi) {
+			clock_lo = RREG32_SOC15_NO_KIQ(PWR, 0, mmGOLDEN_TSC_COUNT_LOWER_Raven2);
 			clock_hi = hi_check;
 		}
 		preempt_enable();
@@ -6750,7 +6793,6 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_gfx = {
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = gfx_v9_0_ring_get_rptr_gfx,
 	.get_wptr = gfx_v9_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v9_0_ring_set_wptr_gfx,
@@ -6804,7 +6846,6 @@ static const struct amdgpu_ring_funcs gfx_v9_0_sw_ring_funcs_gfx = {
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
-	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = amdgpu_sw_ring_get_rptr_gfx,
 	.get_wptr = amdgpu_sw_ring_get_wptr_gfx,
 	.set_wptr = amdgpu_sw_ring_set_wptr_gfx,
@@ -6858,7 +6899,6 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_compute = {
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
-	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = gfx_v9_0_ring_get_rptr_compute,
 	.get_wptr = gfx_v9_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v9_0_ring_set_wptr_compute,
@@ -6897,7 +6937,6 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_kiq = {
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
-	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = gfx_v9_0_ring_get_rptr_compute,
 	.get_wptr = gfx_v9_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v9_0_ring_set_wptr_compute,

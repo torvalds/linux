@@ -662,7 +662,7 @@ struct hl_hints_range {
  * @user_interrupt_count: number of user interrupts.
  * @user_dec_intr_count: number of decoder interrupts exposed to user.
  * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
- * @unexpected_user_error_interrupt_id: interrupt id used to indicate an unexpected user error.
+ * @eq_interrupt_id: interrupt id for EQ, uses to synchronize EQ interrupts in hard-reset.
  * @cache_line_size: device cache line size.
  * @server_type: Server type that the ASIC is currently installed in.
  *               The value is according to enum hl_server_type in uapi file.
@@ -793,7 +793,7 @@ struct asic_fixed_properties {
 	u16				user_interrupt_count;
 	u16				user_dec_intr_count;
 	u16				tpc_interrupt_id;
-	u16				unexpected_user_error_interrupt_id;
+	u16				eq_interrupt_id;
 	u16				cache_line_size;
 	u16				server_type;
 	u8				completion_queues_count;
@@ -1211,15 +1211,15 @@ struct hl_eq {
 /**
  * struct hl_dec - describes a decoder sw instance.
  * @hdev: pointer to the device structure.
- * @completion_abnrm_work: workqueue object to run when decoder generates an error interrupt
+ * @abnrm_intr_work: workqueue work item to run when decoder generates an error interrupt.
  * @core_id: ID of the decoder.
  * @base_addr: base address of the decoder.
  */
 struct hl_dec {
-	struct hl_device		*hdev;
-	struct work_struct		completion_abnrm_work;
-	u32				core_id;
-	u32				base_addr;
+	struct hl_device	*hdev;
+	struct work_struct	abnrm_intr_work;
+	u32			core_id;
+	u32			base_addr;
 };
 
 /**

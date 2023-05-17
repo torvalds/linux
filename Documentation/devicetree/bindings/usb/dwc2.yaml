@@ -75,11 +75,14 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   clock-names:
     items:
       - const: otg
+      - const: utmi
+    minItems: 1
 
   disable-over-current:
     type: boolean

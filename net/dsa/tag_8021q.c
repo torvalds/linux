@@ -461,8 +461,8 @@ EXPORT_SYMBOL_GPL(dsa_tag_8021q_unregister);
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci)
 {
-	/* skb->data points at skb_mac_header, which
-	 * is fine for vlan_insert_tag.
+	/* skb->data points at the MAC header, which is fine
+	 * for vlan_insert_tag().
 	 */
 	return vlan_insert_tag(skb, htons(tpid), tci);
 }

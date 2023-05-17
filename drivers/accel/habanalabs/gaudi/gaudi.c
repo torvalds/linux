@@ -682,6 +682,9 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->first_available_user_interrupt = USHRT_MAX;
 	prop->tpc_interrupt_id = USHRT_MAX;
 
+	/* single msi */
+	prop->eq_interrupt_id = 0;
+
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;
 
@@ -2017,38 +2020,6 @@ static int gaudi_enable_msi_single(struct hl_device *hdev)
 	return rc;
 }
 
-static int gaudi_enable_msi_multi(struct hl_device *hdev)
-{
-	int cq_cnt = hdev->asic_prop.completion_queues_count;
-	int rc, i, irq_cnt_init, irq;
-
-	for (i = 0, irq_cnt_init = 0 ; i < cq_cnt ; i++, irq_cnt_init++) {
-		irq = gaudi_pci_irq_vector(hdev, i, false);
-		rc = request_irq(irq, hl_irq_handler_cq, 0, gaudi_irq_name[i],
-				&hdev->completion_queue[i]);
-		if (rc) {
-			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
-			goto free_irqs;
-		}
-	}
-
-	irq = gaudi_pci_irq_vector(hdev, GAUDI_EVENT_QUEUE_MSI_IDX, true);
-	rc = request_irq(irq, hl_irq_handler_eq, 0, gaudi_irq_name[cq_cnt],
-				&hdev->event_queue);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
-		goto free_irqs;
-	}
-
-	return 0;
-
-free_irqs:
-	for (i = 0 ; i < irq_cnt_init ; i++)
-		free_irq(gaudi_pci_irq_vector(hdev, i, false),
-				&hdev->completion_queue[i]);
-	return rc;
-}
-
 static int gaudi_enable_msi(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -2063,14 +2034,7 @@ static int gaudi_enable_msi(struct hl_device *hdev)
 		return rc;
 	}
 
-	if (rc < NUMBER_OF_INTERRUPTS) {
-		gaudi->multi_msi_mode = false;
-		rc = gaudi_enable_msi_single(hdev);
-	} else {
-		gaudi->multi_msi_mode = true;
-		rc = gaudi_enable_msi_multi(hdev);
-	}
-
+	rc = gaudi_enable_msi_single(hdev);
 	if (rc)
 		goto free_pci_irq_vectors;
 
@@ -2086,47 +2050,23 @@ free_pci_irq_vectors:
 static void gaudi_sync_irqs(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int i, cq_cnt = hdev->asic_prop.completion_queues_count;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MSI))
 		return;
 
 	/* Wait for all pending IRQs to be finished */
-	if (gaudi->multi_msi_mode) {
-		for (i = 0 ; i < cq_cnt ; i++)
-			synchronize_irq(gaudi_pci_irq_vector(hdev, i, false));
-
-		synchronize_irq(gaudi_pci_irq_vector(hdev,
-						GAUDI_EVENT_QUEUE_MSI_IDX,
-						true));
-	} else {
-		synchronize_irq(gaudi_pci_irq_vector(hdev, 0, false));
-	}
+	synchronize_irq(gaudi_pci_irq_vector(hdev, 0, false));
 }
 
 static void gaudi_disable_msi(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int i, irq, cq_cnt = hdev->asic_prop.completion_queues_count;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MSI))
 		return;
 
 	gaudi_sync_irqs(hdev);
-
-	if (gaudi->multi_msi_mode) {
-		irq = gaudi_pci_irq_vector(hdev, GAUDI_EVENT_QUEUE_MSI_IDX,
-						true);
-		free_irq(irq, &hdev->event_queue);
-
-		for (i = 0 ; i < cq_cnt ; i++) {
-			irq = gaudi_pci_irq_vector(hdev, i, false);
-			free_irq(irq, &hdev->completion_queue[i]);
-		}
-	} else {
-		free_irq(gaudi_pci_irq_vector(hdev, 0, false), hdev);
-	}
-
+	free_irq(gaudi_pci_irq_vector(hdev, 0, false), hdev);
 	pci_free_irq_vectors(hdev->pdev);
 
 	gaudi->hw_cap_initialized &= ~HW_CAP_MSI;
@@ -3921,11 +3861,7 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 
 	WREG32(mmCPU_IF_PF_PQ_PI, 0);
 
-	if (gaudi->multi_msi_mode)
-		WREG32(mmCPU_IF_QUEUE_INIT, PQ_INIT_STATUS_READY_FOR_CP);
-	else
-		WREG32(mmCPU_IF_QUEUE_INIT,
-			PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI);
+	WREG32(mmCPU_IF_QUEUE_INIT, PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI);
 
 	irq_handler_offset = prop->gic_interrupts_enable ?
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
@@ -5602,7 +5538,6 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_add
 				u32 len, u32 original_len, u64 cq_addr, u32 cq_val,
 				u32 msi_vec, bool eb)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct packet_msg_prot *cq_pkt;
 	struct packet_nop *cq_padding;
 	u64 msi_addr;
@@ -5632,12 +5567,7 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_add
 	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
 	cq_pkt->ctl = cpu_to_le32(tmp);
 	cq_pkt->value = cpu_to_le32(1);
-
-	if (gaudi->multi_msi_mode)
-		msi_addr = mmPCIE_MSI_INTR_0 + msi_vec * 4;
-	else
-		msi_addr = mmPCIE_CORE_MSI_REQ;
-
+	msi_addr = hdev->pdev ? mmPCIE_CORE_MSI_REQ : mmPCIE_MSI_INTR_0 + msi_vec * 4;
 	cq_pkt->addr = cpu_to_le64(CFG_BASE + msi_addr);
 }
 

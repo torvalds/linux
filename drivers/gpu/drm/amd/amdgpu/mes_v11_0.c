@@ -33,14 +33,19 @@
 #include "mes_v11_api_def.h"
 
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_mes.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_0_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_1_mes.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_1_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_1_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_mes.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_2_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_mes.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes1.bin");
 
 static int mes_v11_0_hw_fini(void *handle);
@@ -1089,13 +1094,14 @@ static int mes_v11_0_sw_fini(void *handle)
 	return 0;
 }
 
-static void mes_v11_0_kiq_dequeue_sched(struct amdgpu_device *adev)
+static void mes_v11_0_kiq_dequeue(struct amdgpu_ring *ring)
 {
 	uint32_t data;
 	int i;
+	struct amdgpu_device *adev = ring->adev;
 
 	mutex_lock(&adev->srbm_mutex);
-	soc21_grbm_select(adev, 3, AMDGPU_MES_SCHED_PIPE, 0, 0);
+	soc21_grbm_select(adev, 3, ring->pipe, 0, 0);
 
 	/* disable the queue if it's active */
 	if (RREG32_SOC15(GC, 0, regCP_HQD_ACTIVE) & 1) {
@@ -1121,8 +1127,6 @@ static void mes_v11_0_kiq_dequeue_sched(struct amdgpu_device *adev)
 
 	soc21_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
-
-	adev->mes.ring.sched.ready = false;
 }
 
 static void mes_v11_0_kiq_setting(struct amdgpu_ring *ring)
@@ -1136,6 +1140,16 @@ static void mes_v11_0_kiq_setting(struct amdgpu_ring *ring)
 	tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
 	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
 	tmp |= 0x80;
+	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
+}
+
+static void mes_v11_0_kiq_clear(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* tell RLC which is KIQ dequeue */
+	tmp = RREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS);
+	tmp &= ~RLC_CP_SCHEDULERS__scheduler0_MASK;
 	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
 }
 
@@ -1176,11 +1190,17 @@ failure:
 
 static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev)
 {
-	if (adev->mes.ring.sched.ready)
-		mes_v11_0_kiq_dequeue_sched(adev);
+	if (adev->mes.ring.sched.ready) {
+		mes_v11_0_kiq_dequeue(&adev->mes.ring);
+		adev->mes.ring.sched.ready = false;
+	}
 
-	if (!amdgpu_sriov_vf(adev))
-		mes_v11_0_enable(adev, false);
+	if (amdgpu_sriov_vf(adev)) {
+		mes_v11_0_kiq_dequeue(&adev->gfx.kiq.ring);
+		mes_v11_0_kiq_clear(adev);
+	}
+
+	mes_v11_0_enable(adev, false);
 
 	return 0;
 }

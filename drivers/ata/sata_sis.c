@@ -72,7 +72,7 @@ static struct pci_driver sis_pci_driver = {
 #endif
 };
 
-static struct scsi_host_template sis_sht = {
+static const struct scsi_host_template sis_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

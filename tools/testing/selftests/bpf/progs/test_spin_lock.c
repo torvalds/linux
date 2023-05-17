@@ -3,6 +3,7 @@
 #include <linux/bpf.h>
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 struct hmap_elem {
 	volatile int cnt;
@@ -88,6 +89,8 @@ int bpf_spin_lock_test(struct __sk_buff *skb)
 	q->credit -= pkt_len;
 	credit = q->credit;
 	bpf_spin_unlock(&q->lock);
+
+	__sink(credit);
 
 	/* spin_lock in cgroup local storage */
 	cls = bpf_get_local_storage(&cls_map, 0);

@@ -115,7 +115,7 @@ static const struct hwmon_channel_info nfp_power = {
 	.config = nfp_power_config,
 };
 
-static const struct hwmon_channel_info *nfp_hwmon_info[] = {
+static const struct hwmon_channel_info * const nfp_hwmon_info[] = {
 	&nfp_chip,
 	&nfp_temp,
 	&nfp_power,

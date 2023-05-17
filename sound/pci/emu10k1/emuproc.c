@@ -477,10 +477,7 @@ static void snd_emu_proc_ptr_reg_read(struct snd_info_entry *entry,
 	for(i = offset; i < offset+length; i++) {
 		snd_iprintf(buffer, "%02X: ",i);
 		for (j = 0; j < voices; j++) {
-			if(iobase == 0)
-                		value = snd_ptr_read(emu, 0, i, j);
-			else
-                		value = snd_ptr_read(emu, 0x20, i, j);
+			value = snd_ptr_read(emu, iobase, i, j);
 			snd_iprintf(buffer, "%08lX ", value);
 		}
 		snd_iprintf(buffer, "\n");

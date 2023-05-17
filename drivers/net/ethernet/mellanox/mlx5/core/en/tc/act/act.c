@@ -82,26 +82,6 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 	parse_state->flow_action = flow_action;
 }
 
-void
-mlx5e_tc_act_reorder_flow_actions(struct flow_action *flow_action,
-				  struct mlx5e_tc_flow_action *flow_action_reorder)
-{
-	struct flow_action_entry *act;
-	int i, j = 0;
-
-	flow_action_for_each(i, act, flow_action) {
-		/* Add CT action to be first. */
-		if (act->id == FLOW_ACTION_CT)
-			flow_action_reorder->entries[j++] = act;
-	}
-
-	flow_action_for_each(i, act, flow_action) {
-		if (act->id == FLOW_ACTION_CT)
-			continue;
-		flow_action_reorder->entries[j++] = act;
-	}
-}
-
 int
 mlx5e_tc_act_post_parse(struct mlx5e_tc_act_parse_state *parse_state,
 			struct flow_action *flow_action,

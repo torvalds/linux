@@ -299,7 +299,8 @@ static int dpaa_stop(struct net_device *net_dev)
 {
 	struct mac_device *mac_dev;
 	struct dpaa_priv *priv;
-	int i, err, error;
+	int i, error;
+	int err = 0;
 
 	priv = netdev_priv(net_dev);
 	mac_dev = priv->mac_dev;
@@ -1482,13 +1483,8 @@ static int dpaa_enable_tx_csum(struct dpaa_priv *priv,
 	parse_result = (struct fman_prs_result *)parse_results;
 
 	/* If we're dealing with VLAN, get the real Ethernet type */
-	if (ethertype == ETH_P_8021Q) {
-		/* We can't always assume the MAC header is set correctly
-		 * by the stack, so reset to beginning of skb->data
-		 */
-		skb_reset_mac_header(skb);
-		ethertype = ntohs(vlan_eth_hdr(skb)->h_vlan_encapsulated_proto);
-	}
+	if (ethertype == ETH_P_8021Q)
+		ethertype = ntohs(skb_vlan_eth_hdr(skb)->h_vlan_encapsulated_proto);
 
 	/* Fill in the relevant L3 parse result fields
 	 * and read the L4 protocol type

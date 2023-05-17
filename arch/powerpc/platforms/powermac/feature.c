@@ -2506,7 +2506,7 @@ found:
 			int cpu_count = 1;
 
 			/* Nap mode not supported on SMP */
-			if (of_get_property(np, "flush-on-lock", NULL) ||
+			if (of_property_read_bool(np, "flush-on-lock") ||
 			    (cpu_count > 1)) {
 				powersave_nap = 0;
 				of_node_put(np);
@@ -2545,8 +2545,7 @@ done:
  */
 static void __init probe_uninorth(void)
 {
-	const u32 *addrp;
-	phys_addr_t address;
+	struct resource res;
 	unsigned long actrl;
 
 	/* Locate core99 Uni-N */
@@ -2568,18 +2567,15 @@ static void __init probe_uninorth(void)
 		return;
 	}
 
-	addrp = of_get_property(uninorth_node, "reg", NULL);
-	if (addrp == NULL)
+	if (of_address_to_resource(uninorth_node, 0, &res))
 		return;
-	address = of_translate_address(uninorth_node, addrp);
-	if (address == 0)
-		return;
-	uninorth_base = ioremap(address, 0x40000);
+
+	uninorth_base = ioremap(res.start, 0x40000);
 	if (uninorth_base == NULL)
 		return;
 	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
 	if (uninorth_maj == 3 || uninorth_maj == 4) {
-		u3_ht_base = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+		u3_ht_base = ioremap(res.start + U3_HT_CONFIG_BASE, 0x1000);
 		if (u3_ht_base == NULL) {
 			iounmap(uninorth_base);
 			return;
@@ -2589,7 +2585,7 @@ static void __init probe_uninorth(void)
 	printk(KERN_INFO "Found %s memory controller & host bridge"
 	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :
 	       uninorth_maj == 4 ? "U4" : "UniNorth",
-	       (unsigned int)address, uninorth_rev);
+	       (unsigned int)res.start, uninorth_rev);
 	printk(KERN_INFO "Mapped at 0x%08lx\n", (unsigned long)uninorth_base);
 
 	/* Set the arbitrer QAck delay according to what Apple does

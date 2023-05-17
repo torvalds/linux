@@ -123,8 +123,8 @@ rkisp1_rsz_get_pad_fmt(struct rkisp1_resizer *rsz,
 		       unsigned int pad, u32 which)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&rsz->sd, sd_state, pad);
 	else
@@ -137,8 +137,8 @@ rkisp1_rsz_get_pad_crop(struct rkisp1_resizer *rsz,
 			unsigned int pad, u32 which)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_crop(&rsz->sd, sd_state, pad);
 	else
@@ -366,7 +366,7 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config dummy_cfg;
 	struct v4l2_subdev_state pad_state = {
 		.pads = &dummy_cfg
-		};
+	};
 	u32 pad = code->pad;
 	int ret;
 
@@ -733,8 +733,8 @@ static void rkisp1_rsz_unregister(struct rkisp1_resizer *rsz)
 static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	static const char * const dev_names[] = {
 		RKISP1_RSZ_MP_DEV_NAME,
 		RKISP1_RSZ_SP_DEV_NAME

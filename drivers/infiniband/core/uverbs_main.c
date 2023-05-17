@@ -1264,7 +1264,7 @@ static int __init ib_uverbs_init(void)
 		goto out_alloc;
 	}
 
-	uverbs_class = class_create(THIS_MODULE, "infiniband_verbs");
+	uverbs_class = class_create("infiniband_verbs");
 	if (IS_ERR(uverbs_class)) {
 		ret = PTR_ERR(uverbs_class);
 		pr_err("user_verbs: couldn't create class infiniband_verbs\n");

@@ -3549,6 +3549,8 @@ static void mvneta_txq_sw_deinit(struct mvneta_port *pp,
 
 	netdev_tx_reset_queue(nq);
 
+	txq->buf               = NULL;
+	txq->tso_hdrs          = NULL;
 	txq->descs             = NULL;
 	txq->last_desc         = 0;
 	txq->next_desc_to_proc = 0;

@@ -2209,7 +2209,6 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 {
 	int role;
-	unsigned int d;
 	struct mddev *mddev = &rs->md;
 	uint64_t events_sb;
 	uint64_t failed_devices[DISKS_ARRAY_ELEMS];
@@ -2324,7 +2323,6 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 	 *    to provide capacity for redundancy or during reshape
 	 *    to add capacity to grow the raid set.
 	 */
-	d = 0;
 	rdev_for_each(r, mddev) {
 		if (test_bit(Journal, &rdev->flags))
 			continue;
@@ -2340,8 +2338,6 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			if (test_bit(FirstUse, &r->flags))
 				rebuild_and_new++;
 		}
-
-		d++;
 	}
 
 	if (new_devs == rs->raid_disks || !rebuilds) {
@@ -4081,23 +4077,7 @@ static struct target_type raid_target = {
 	.preresume = raid_preresume,
 	.resume = raid_resume,
 };
-
-static int __init dm_raid_init(void)
-{
-	DMINFO("Loading target version %u.%u.%u",
-	       raid_target.version[0],
-	       raid_target.version[1],
-	       raid_target.version[2]);
-	return dm_register_target(&raid_target);
-}
-
-static void __exit dm_raid_exit(void)
-{
-	dm_unregister_target(&raid_target);
-}
-
-module_init(dm_raid_init);
-module_exit(dm_raid_exit);
+module_dm(raid);
 
 module_param(devices_handle_discard_safely, bool, 0644);
 MODULE_PARM_DESC(devices_handle_discard_safely,

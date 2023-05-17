@@ -1203,7 +1203,7 @@ err_chip:
 	return ret;
 }
 
-static int flctl_remove(struct platform_device *pdev)
+static void flctl_remove(struct platform_device *pdev)
 {
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &flctl->chip;
@@ -1214,12 +1214,10 @@ static int flctl_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 	nand_cleanup(chip);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver flctl_driver = {
-	.remove		= flctl_remove,
+	.remove_new	= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
 		.of_match_table = of_flctl_match,

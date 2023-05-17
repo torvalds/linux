@@ -114,7 +114,7 @@ def _parse_args():
         "--ns", action="store_true", help="show timestamps in nanoseconds"
     )
     parser.add_argument(
-        "--ms", action="store_true", help="show timestamps in miliseconds"
+        "--ms", action="store_true", help="show timestamps in milliseconds"
     )
     parser.add_argument(
         "--extended-times",

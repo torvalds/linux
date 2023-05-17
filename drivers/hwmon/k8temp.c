@@ -118,7 +118,7 @@ static const struct hwmon_ops k8temp_ops = {
 	.read = k8temp_read,
 };
 
-static const struct hwmon_channel_info *k8temp_info[] = {
+static const struct hwmon_channel_info * const k8temp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 		HWMON_T_INPUT, HWMON_T_INPUT, HWMON_T_INPUT, HWMON_T_INPUT),
 	NULL

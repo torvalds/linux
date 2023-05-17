@@ -622,12 +622,12 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 	frag = skb_shinfo(skb)->nr_frags;
 
 	while (length && iov_iter_count(from)) {
+		struct page *head, *last_head = NULL;
 		struct page *pages[MAX_SKB_FRAGS];
-		struct page *last_head = NULL;
+		int refs, order, n = 0;
 		size_t start;
 		ssize_t copied;
 		unsigned long truesize;
-		int refs, n = 0;
 
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
@@ -650,9 +650,17 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 		} else {
 			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
 		}
+
+		head = compound_head(pages[n]);
+		order = compound_order(head);
+
 		for (refs = 0; copied != 0; start = 0) {
 			int size = min_t(int, copied, PAGE_SIZE - start);
-			struct page *head = compound_head(pages[n]);
+
+			if (pages[n] - head > (1UL << order) - 1) {
+				head = compound_head(pages[n]);
+				order = compound_order(head);
+			}
 
 			start += (pages[n] - head) << PAGE_SHIFT;
 			copied -= size;

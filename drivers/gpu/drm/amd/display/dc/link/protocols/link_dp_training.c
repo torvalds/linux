@@ -86,6 +86,9 @@ void dp_log_training_result(
 	case LINK_RATE_HIGH2:
 		link_rate = "HBR2";
 		break;
+	case LINK_RATE_RATE_8:
+		link_rate = "R8";
+		break;
 	case LINK_RATE_HIGH3:
 		link_rate = "HBR3";
 		break;
@@ -209,27 +212,36 @@ enum dpcd_training_patterns
 
 	switch (pattern) {
 	case DP_TRAINING_PATTERN_SEQUENCE_1:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS1\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_1;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_2:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS2\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_2;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_3:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS3\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_3;
 		break;
 	case DP_TRAINING_PATTERN_SEQUENCE_4:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern TPS4\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_4;
 		break;
 	case DP_128b_132b_TPS1:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS1\n", __func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS1;
 		break;
 	case DP_128b_132b_TPS2:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS2\n", __func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS2;
 		break;
 	case DP_128b_132b_TPS2_CDS:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP 128b/132b training pattern TPS2 CDS\n",
+					__func__);
 		dpcd_tr_pattern = DPCD_128b_132b_TPS2_CDS;
 		break;
 	case DP_TRAINING_PATTERN_VIDEOIDLE:
+		DC_LOG_HW_LINK_TRAINING("%s: Using DP training pattern videoidle\n", __func__);
 		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_VIDEOIDLE;
 		break;
 	default:
@@ -1493,7 +1505,10 @@ enum link_training_result dp_perform_link_training(
 	 * Non-LT AUX transactions inside training mode.
 	 */
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) && encoding == DP_8b_10b_ENCODING)
-		status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
+		if (link->dc->config.use_old_fixed_vs_sequence)
+			status = dp_perform_fixed_vs_pe_training_sequence_legacy(link, link_res, &lt_settings);
+		else
+			status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
 	else if (encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_8b_10b_link_training(link, link_res, &lt_settings);
 	else if (encoding == DP_128b_132b_ENCODING)
@@ -1554,9 +1569,10 @@ bool perform_link_training_with_retries(
 	j = 0;
 	while (j < attempts && fail_count < (attempts * 10)) {
 
-		DC_LOG_HW_LINK_TRAINING("%s: Beginning link(%d) training attempt %u of %d @ rate(%d) x lane(%d)\n",
-			__func__, link->link_index, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
-			cur_link_settings.lane_count);
+		DC_LOG_HW_LINK_TRAINING("%s: Beginning link(%d) training attempt %u of %d @ rate(%d) x lane(%d) @ spread = %x\n",
+					__func__, link->link_index, (unsigned int)j + 1, attempts,
+				       cur_link_settings.link_rate, cur_link_settings.lane_count,
+				       cur_link_settings.link_spread);
 
 		dp_enable_link_phy(
 			link,
@@ -1582,6 +1598,8 @@ bool perform_link_training_with_retries(
 				 */
 				bool result;
 				result = cp_psp->funcs.enable_assr(cp_psp->handle, link);
+				if (!result && link->panel_mode != DP_PANEL_MODE_EDP)
+					panel_mode = DP_PANEL_MODE_DEFAULT;
 			}
 		}
 
@@ -1635,9 +1653,10 @@ bool perform_link_training_with_retries(
 				break;
 		}
 
-		DC_LOG_WARNING("%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) : fail reason:(%d)\n",
-			__func__, link->link_index, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
-			cur_link_settings.lane_count, status);
+		DC_LOG_WARNING("%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
+			       __func__, link->link_index, (unsigned int)j + 1, attempts,
+			      cur_link_settings.link_rate, cur_link_settings.lane_count,
+			      cur_link_settings.link_spread, status);
 
 		dp_disable_link_phy(link, &pipe_ctx->link_res, signal);
 

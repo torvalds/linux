@@ -195,37 +195,30 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	}
 }
 
-static int dsa_master_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+/* Deny PTP operations on master if there is at least one switch in the tree
+ * that is PTP capable.
+ */
+int __dsa_master_hwtstamp_validate(struct net_device *dev,
+				   const struct kernel_hwtstamp_config *config,
+				   struct netlink_ext_ack *extack)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct dsa_switch_tree *dst;
-	int err = -EOPNOTSUPP;
 	struct dsa_port *dp;
 
 	dst = ds->dst;
 
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-	case SIOCSHWTSTAMP:
-		/* Deny PTP operations on master if there is at least one
-		 * switch in the tree that is PTP capable.
-		 */
-		list_for_each_entry(dp, &dst->ports, list)
-			if (dsa_port_supports_hwtstamp(dp, ifr))
-				return -EBUSY;
-		break;
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dsa_port_supports_hwtstamp(dp)) {
+			NL_SET_ERR_MSG(extack,
+				       "HW timestamping not allowed on DSA master when switch supports the operation");
+			return -EBUSY;
+		}
 	}
 
-	if (dev->netdev_ops->ndo_eth_ioctl)
-		err = dev->netdev_ops->ndo_eth_ioctl(dev, ifr, cmd);
-
-	return err;
+	return 0;
 }
-
-static const struct dsa_netdevice_ops dsa_netdev_ops = {
-	.ndo_eth_ioctl = dsa_master_ioctl,
-};
 
 static int dsa_master_ethtool_setup(struct net_device *dev)
 {
@@ -265,15 +258,6 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 
 	dev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 	cpu_dp->orig_ethtool_ops = NULL;
-}
-
-static void dsa_netdev_ops_set(struct net_device *dev,
-			       const struct dsa_netdevice_ops *ops)
-{
-	if (netif_is_lag_master(dev))
-		return;
-
-	dev->dsa_ptr->netdev_ops = ops;
 }
 
 /* Keep the master always promiscuous if the tagging protocol requires that
@@ -414,16 +398,13 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	if (ret)
 		goto out_err_reset_promisc;
 
-	dsa_netdev_ops_set(dev, &dsa_netdev_ops);
-
 	ret = sysfs_create_group(&dev->dev.kobj, &dsa_group);
 	if (ret)
-		goto out_err_ndo_teardown;
+		goto out_err_ethtool_teardown;
 
 	return ret;
 
-out_err_ndo_teardown:
-	dsa_netdev_ops_set(dev, NULL);
+out_err_ethtool_teardown:
 	dsa_master_ethtool_teardown(dev);
 out_err_reset_promisc:
 	dsa_master_set_promiscuity(dev, -1);
@@ -433,7 +414,6 @@ out_err_reset_promisc:
 void dsa_master_teardown(struct net_device *dev)
 {
 	sysfs_remove_group(&dev->dev.kobj, &dsa_group);
-	dsa_netdev_ops_set(dev, NULL);
 	dsa_master_ethtool_teardown(dev);
 	dsa_master_reset_mtu(dev);
 	dsa_master_set_promiscuity(dev, -1);

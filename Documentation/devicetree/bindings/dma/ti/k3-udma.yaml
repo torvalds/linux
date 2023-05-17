@@ -43,7 +43,7 @@ description: |
   configuration of the legacy peripheral.
 
 allOf:
-  - $ref: "../dma-controller.yaml#"
+  - $ref: ../dma-controller.yaml#
   - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
 properties:

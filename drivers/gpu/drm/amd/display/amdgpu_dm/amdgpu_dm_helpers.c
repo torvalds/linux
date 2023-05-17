@@ -44,6 +44,9 @@
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
 
+/* MST Dock */
+static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
+
 /* dm_helpers_parse_edid_caps
  *
  * Parse edid caps
@@ -684,7 +687,6 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 		return;
 
 	data[0] |= (1 << 1); // set bit 1 to 1
-		return;
 
 	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x221198, data))
 		return;

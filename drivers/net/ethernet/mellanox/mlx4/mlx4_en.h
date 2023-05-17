@@ -323,7 +323,7 @@ struct mlx4_en_tx_ring {
 
 struct mlx4_en_rx_desc {
 	/* actual number of entries depends on rx ring stride */
-	struct mlx4_wqe_data_seg data[0];
+	DECLARE_FLEX_ARRAY(struct mlx4_wqe_data_seg, data);
 };
 
 struct mlx4_en_rx_ring {
@@ -798,7 +798,8 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 
 struct xdp_md;
 int mlx4_en_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp);
-int mlx4_en_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash);
+int mlx4_en_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
+			enum xdp_rss_hash_type *rss_type);
 
 /*
  * Functions for time stamping

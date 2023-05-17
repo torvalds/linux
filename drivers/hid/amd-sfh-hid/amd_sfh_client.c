@@ -147,6 +147,7 @@ static const char *get_sensor_name(int idx)
 	case mag_idx:
 		return "magnetometer";
 	case als_idx:
+	case ACS_IDX: /* ambient color sensor */
 		return "ALS";
 	case HPD_IDX:
 		return "HPD";

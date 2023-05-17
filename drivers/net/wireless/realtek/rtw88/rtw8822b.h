@@ -65,6 +65,11 @@ struct rtw8822be_efuse {
 	u8 res7;
 };
 
+struct rtw8822bs_efuse {
+	u8 res4[0x4a];			/* 0xd0 */
+	u8 mac_addr[ETH_ALEN];		/* 0x11a */
+} __packed;
+
 struct rtw8822b_efuse {
 	__le16 rtl_id;
 	u8 res0[0x0e];
@@ -92,8 +97,9 @@ struct rtw8822b_efuse {
 	u8 country_code[2];
 	u8 res[3];
 	union {
-		struct rtw8822bu_efuse u;
 		struct rtw8822be_efuse e;
+		struct rtw8822bu_efuse u;
+		struct rtw8822bs_efuse s;
 	};
 };
 

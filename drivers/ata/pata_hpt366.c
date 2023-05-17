@@ -312,7 +312,7 @@ static int hpt366_prereset(struct ata_link *link, unsigned long deadline)
 	return ata_sff_prereset(link, deadline);
 }
 
-static struct scsi_host_template hpt36x_sht = {
+static const struct scsi_host_template hpt36x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

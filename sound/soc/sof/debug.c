@@ -370,6 +370,7 @@ static const struct soc_fw_state_info {
 	const char *name;
 } fw_state_dbg[] = {
 	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
+	{SOF_DSPLESS_MODE, "SOF_DSPLESS_MODE"},
 	{SOF_FW_BOOT_PREPARE, "SOF_FW_BOOT_PREPARE"},
 	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
 	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},

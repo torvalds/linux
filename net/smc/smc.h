@@ -283,10 +283,7 @@ struct smc_sock {				/* smc sock container */
 						 * */
 };
 
-static inline struct smc_sock *smc_sk(const struct sock *sk)
-{
-	return (struct smc_sock *)sk;
-}
+#define smc_sk(ptr) container_of_const(ptr, struct smc_sock, sk)
 
 static inline void smc_init_saved_callbacks(struct smc_sock *smc)
 {

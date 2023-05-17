@@ -120,8 +120,6 @@ int new_get_skb_ifindex(int val, struct __sk_buff *skb, int var)
 	void *data = (void *)(long)skb->data;
 	struct ipv6hdr ip6, *ip6p;
 	int ifindex = skb->ifindex;
-	__u32 eth_proto;
-	__u32 nh_off;
 
 	/* check that BPF extension can read packet via direct packet access */
 	if (data + 14 + sizeof(ip6) > data_end)

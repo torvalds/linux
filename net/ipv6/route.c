@@ -139,20 +139,20 @@ void rt6_uncached_list_add(struct rt6_info *rt)
 {
 	struct uncached_list *ul = raw_cpu_ptr(&rt6_uncached_list);
 
-	rt->rt6i_uncached_list = ul;
+	rt->dst.rt_uncached_list = ul;
 
 	spin_lock_bh(&ul->lock);
-	list_add_tail(&rt->rt6i_uncached, &ul->head);
+	list_add_tail(&rt->dst.rt_uncached, &ul->head);
 	spin_unlock_bh(&ul->lock);
 }
 
 void rt6_uncached_list_del(struct rt6_info *rt)
 {
-	if (!list_empty(&rt->rt6i_uncached)) {
-		struct uncached_list *ul = rt->rt6i_uncached_list;
+	if (!list_empty(&rt->dst.rt_uncached)) {
+		struct uncached_list *ul = rt->dst.rt_uncached_list;
 
 		spin_lock_bh(&ul->lock);
-		list_del_init(&rt->rt6i_uncached);
+		list_del_init(&rt->dst.rt_uncached);
 		spin_unlock_bh(&ul->lock);
 	}
 }
@@ -169,7 +169,7 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 			continue;
 
 		spin_lock_bh(&ul->lock);
-		list_for_each_entry_safe(rt, safe, &ul->head, rt6i_uncached) {
+		list_for_each_entry_safe(rt, safe, &ul->head, dst.rt_uncached) {
 			struct inet6_dev *rt_idev = rt->rt6i_idev;
 			struct net_device *rt_dev = rt->dst.dev;
 			bool handled = false;
@@ -188,7 +188,7 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 				handled = true;
 			}
 			if (handled)
-				list_move(&rt->rt6i_uncached,
+				list_move(&rt->dst.rt_uncached,
 					  &ul->quarantine);
 		}
 		spin_unlock_bh(&ul->lock);
@@ -293,7 +293,7 @@ static const struct fib6_info fib6_null_entry_template = {
 
 static const struct rt6_info ip6_null_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -ENETUNREACH,
@@ -307,7 +307,7 @@ static const struct rt6_info ip6_null_entry_template = {
 
 static const struct rt6_info ip6_prohibit_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EACCES,
@@ -319,7 +319,7 @@ static const struct rt6_info ip6_prohibit_entry_template = {
 
 static const struct rt6_info ip6_blk_hole_entry_template = {
 	.dst = {
-		.__refcnt	= ATOMIC_INIT(1),
+		.__rcuref	= RCUREF_INIT(1),
 		.__use		= 1,
 		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EINVAL,
@@ -334,7 +334,6 @@ static const struct rt6_info ip6_blk_hole_entry_template = {
 static void rt6_info_init(struct rt6_info *rt)
 {
 	memset_after(rt, 0, dst);
-	INIT_LIST_HEAD(&rt->rt6i_uncached);
 }
 
 /* allocate dst with ip6_dst_ops */
@@ -633,15 +632,15 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 
 	nh_gw = &fib6_nh->fib_nh_gw6;
 	dev = fib6_nh->fib_nh_dev;
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	last_probe = READ_ONCE(fib6_nh->last_probe);
 	idev = __in6_dev_get(dev);
 	neigh = __ipv6_neigh_lookup_noref(dev, nh_gw);
 	if (neigh) {
-		if (neigh->nud_state & NUD_VALID)
+		if (READ_ONCE(neigh->nud_state) & NUD_VALID)
 			goto out;
 
-		write_lock(&neigh->lock);
+		write_lock_bh(&neigh->lock);
 		if (!(neigh->nud_state & NUD_VALID) &&
 		    time_after(jiffies,
 			       neigh->updated + idev->cnf.rtr_probe_interval)) {
@@ -649,7 +648,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 			if (work)
 				__neigh_set_probe_once(neigh);
 		}
-		write_unlock(&neigh->lock);
+		write_unlock_bh(&neigh->lock);
 	} else if (time_after(jiffies, last_probe +
 				       idev->cnf.rtr_probe_interval)) {
 		work = kmalloc(sizeof(*work), GFP_ATOMIC);
@@ -667,7 +666,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 	}
 
 out:
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 }
 #else
 static inline void rt6_probe(struct fib6_nh *fib6_nh)
@@ -683,25 +682,25 @@ static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 	enum rt6_nud_state ret = RT6_NUD_FAIL_HARD;
 	struct neighbour *neigh;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	neigh = __ipv6_neigh_lookup_noref(fib6_nh->fib_nh_dev,
 					  &fib6_nh->fib_nh_gw6);
 	if (neigh) {
-		read_lock(&neigh->lock);
-		if (neigh->nud_state & NUD_VALID)
+		u8 nud_state = READ_ONCE(neigh->nud_state);
+
+		if (nud_state & NUD_VALID)
 			ret = RT6_NUD_SUCCEED;
 #ifdef CONFIG_IPV6_ROUTER_PREF
-		else if (!(neigh->nud_state & NUD_FAILED))
+		else if (!(nud_state & NUD_FAILED))
 			ret = RT6_NUD_SUCCEED;
 		else
 			ret = RT6_NUD_FAIL_PROBE;
 #endif
-		read_unlock(&neigh->lock);
 	} else {
 		ret = IS_ENABLED(CONFIG_IPV6_ROUTER_PREF) ?
 		      RT6_NUD_SUCCEED : RT6_NUD_FAIL_DO_RR;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -2638,7 +2637,7 @@ struct dst_entry *ip6_route_output_flags(struct net *net,
 	dst = ip6_route_output_flags_noref(net, sk, fl6, flags);
 	rt6 = (struct rt6_info *)dst;
 	/* For dst cached in uncached_list, refcnt is already taken. */
-	if (list_empty(&rt6->rt6i_uncached) && !dst_hold_safe(dst)) {
+	if (list_empty(&rt6->dst.rt_uncached) && !dst_hold_safe(dst)) {
 		dst = &net->ipv6.ip6_null_entry->dst;
 		dst_hold(dst);
 	}
@@ -2748,7 +2747,7 @@ INDIRECT_CALLABLE_SCOPE struct dst_entry *ip6_dst_check(struct dst_entry *dst,
 	from = rcu_dereference(rt->from);
 
 	if (from && (rt->rt6i_flags & RTF_PCPU ||
-	    unlikely(!list_empty(&rt->rt6i_uncached))))
+	    unlikely(!list_empty(&rt->dst.rt_uncached))))
 		dst_ret = rt6_dst_from_check(rt, from, cookie);
 	else
 		dst_ret = rt6_check(rt, from, cookie);
@@ -6477,7 +6476,7 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_null_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_null_entry->dst,
 			 ip6_template_metrics, true);
-	INIT_LIST_HEAD(&net->ipv6.ip6_null_entry->rt6i_uncached);
+	INIT_LIST_HEAD(&net->ipv6.ip6_null_entry->dst.rt_uncached);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	net->ipv6.fib6_has_custom_rules = false;
@@ -6489,7 +6488,7 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_prohibit_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_prohibit_entry->dst,
 			 ip6_template_metrics, true);
-	INIT_LIST_HEAD(&net->ipv6.ip6_prohibit_entry->rt6i_uncached);
+	INIT_LIST_HEAD(&net->ipv6.ip6_prohibit_entry->dst.rt_uncached);
 
 	net->ipv6.ip6_blk_hole_entry = kmemdup(&ip6_blk_hole_entry_template,
 					       sizeof(*net->ipv6.ip6_blk_hole_entry),
@@ -6499,7 +6498,7 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_blk_hole_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_blk_hole_entry->dst,
 			 ip6_template_metrics, true);
-	INIT_LIST_HEAD(&net->ipv6.ip6_blk_hole_entry->rt6i_uncached);
+	INIT_LIST_HEAD(&net->ipv6.ip6_blk_hole_entry->dst.rt_uncached);
 #ifdef CONFIG_IPV6_SUBTREES
 	net->ipv6.fib6_routes_require_src = 0;
 #endif

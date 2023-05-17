@@ -860,22 +860,24 @@ Request contents:
 
 Kernel response contents:
 
-  ====================================  ======  ===========================
-  ``ETHTOOL_A_RINGS_HEADER``            nested  reply header
-  ``ETHTOOL_A_RINGS_RX_MAX``            u32     max size of RX ring
-  ``ETHTOOL_A_RINGS_RX_MINI_MAX``       u32     max size of RX mini ring
-  ``ETHTOOL_A_RINGS_RX_JUMBO_MAX``      u32     max size of RX jumbo ring
-  ``ETHTOOL_A_RINGS_TX_MAX``            u32     max size of TX ring
-  ``ETHTOOL_A_RINGS_RX``                u32     size of RX ring
-  ``ETHTOOL_A_RINGS_RX_MINI``           u32     size of RX mini ring
-  ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
-  ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
-  ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
-  ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT``    u8      TCP header / data split
-  ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
-  ``ETHTOOL_A_RINGS_TX_PUSH``           u8      flag of TX Push mode
-  ``ETHTOOL_A_RINGS_RX_PUSH``           u8      flag of RX Push mode
-  ====================================  ======  ===========================
+  =======================================   ======  ===========================
+  ``ETHTOOL_A_RINGS_HEADER``                nested  reply header
+  ``ETHTOOL_A_RINGS_RX_MAX``                u32     max size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI_MAX``           u32     max size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO_MAX``          u32     max size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX_MAX``                u32     max size of TX ring
+  ``ETHTOOL_A_RINGS_RX``                    u32     size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI``               u32     size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO``              u32     size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX``                    u32     size of TX ring
+  ``ETHTOOL_A_RINGS_RX_BUF_LEN``            u32     size of buffers on the ring
+  ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT``        u8      TCP header / data split
+  ``ETHTOOL_A_RINGS_CQE_SIZE``              u32     Size of TX/RX CQE
+  ``ETHTOOL_A_RINGS_TX_PUSH``               u8      flag of TX Push mode
+  ``ETHTOOL_A_RINGS_RX_PUSH``               u8      flag of RX Push mode
+  ``ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN``       u32     size of TX push buffer
+  ``ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN_MAX``   u32     max size of TX push buffer
+  =======================================   ======  ===========================
 
 ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT`` indicates whether the device is usable with
 page-flipping TCP zero-copy receive (``getsockopt(TCP_ZEROCOPY_RECEIVE)``).
@@ -890,6 +892,18 @@ notifies NIC hardware. In fast path, driver pushes descriptors to the device
 through MMIO writes, thus reducing the latency. However, enabling this feature
 may increase the CPU cost. Drivers may enforce additional per-packet
 eligibility checks (e.g. on packet size).
+
+``ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN`` specifies the maximum number of bytes of a
+transmitted packet a driver can push directly to the underlying device
+('push' mode). Pushing some of the payload bytes to the device has the
+advantages of reducing latency for small packets by avoiding DMA mapping (same
+as ``ETHTOOL_A_RINGS_TX_PUSH`` parameter) as well as allowing the underlying
+device to process packet headers ahead of fetching its payload.
+This can help the device to make fast actions based on the packet's headers.
+This is similar to the "tx-copybreak" parameter, which copies the packet to a
+preallocated DMA memory area instead of mapping new memory. However,
+tx-push-buff parameter copies the packet directly to the device to allow the
+device to take faster actions on the packet.
 
 RINGS_SET
 =========
@@ -908,6 +922,7 @@ Request contents:
   ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
   ``ETHTOOL_A_RINGS_TX_PUSH``           u8      flag of TX Push mode
   ``ETHTOOL_A_RINGS_RX_PUSH``           u8      flag of RX Push mode
+  ``ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN``   u32     size of TX push buffer
   ====================================  ======  ===========================
 
 Kernel checks that requested ring sizes do not exceed limits reported by
@@ -1083,6 +1098,10 @@ Request is rejected if it attributes declared as unsupported by driver (i.e.
 such that the corresponding bit in ``ethtool_ops::supported_coalesce_params``
 is not set), regardless of their values. Driver may impose additional
 constraints on coalescing parameters and their values.
+
+Compared to requests issued via the ``ioctl()`` netlink version of this request
+will try harder to make sure that values specified by the user have been applied
+and may call the driver twice.
 
 
 PAUSE_GET

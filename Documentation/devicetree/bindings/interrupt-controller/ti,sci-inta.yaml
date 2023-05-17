@@ -85,6 +85,9 @@ properties:
     description:
       Array of phandles to DMA controllers where the unmapped events originate.
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

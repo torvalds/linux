@@ -6,25 +6,35 @@
  * Authors: Weigang Li <weigang.li@intel.com>
  *          Giovanni Cabiddu <giovanni.cabiddu@intel.com>
  */
+
+#include <crypto/internal/acompress.h>
+#include <linux/cryptouser.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/crypto.h>
-#include <crypto/algapi.h>
-#include <linux/cryptouser.h>
-#include <linux/compiler.h>
 #include <net/netlink.h>
-#include <crypto/internal/acompress.h>
-#include <crypto/internal/scompress.h>
-#include "internal.h"
+
+#include "compress.h"
+
+struct crypto_scomp;
 
 static const struct crypto_type crypto_acomp_type;
 
-#ifdef CONFIG_NET
-static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
+static inline struct acomp_alg *__crypto_acomp_alg(struct crypto_alg *alg)
+{
+	return container_of(alg, struct acomp_alg, calg.base);
+}
+
+static inline struct acomp_alg *crypto_acomp_alg(struct crypto_acomp *tfm)
+{
+	return __crypto_acomp_alg(crypto_acomp_tfm(tfm)->__crt_alg);
+}
+
+static int __maybe_unused crypto_acomp_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_acomp racomp;
 
@@ -34,12 +44,6 @@ static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_ACOMP, sizeof(racomp), &racomp);
 }
-#else
-static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -89,13 +93,44 @@ static unsigned int crypto_acomp_extsize(struct crypto_alg *alg)
 	return extsize;
 }
 
+static inline int __crypto_acomp_report_stat(struct sk_buff *skb,
+					     struct crypto_alg *alg)
+{
+	struct comp_alg_common *calg = __crypto_comp_alg_common(alg);
+	struct crypto_istat_compress *istat = comp_get_stat(calg);
+	struct crypto_stat_compress racomp;
+
+	memset(&racomp, 0, sizeof(racomp));
+
+	strscpy(racomp.type, "acomp", sizeof(racomp.type));
+	racomp.stat_compress_cnt = atomic64_read(&istat->compress_cnt);
+	racomp.stat_compress_tlen = atomic64_read(&istat->compress_tlen);
+	racomp.stat_decompress_cnt =  atomic64_read(&istat->decompress_cnt);
+	racomp.stat_decompress_tlen = atomic64_read(&istat->decompress_tlen);
+	racomp.stat_err_cnt = atomic64_read(&istat->err_cnt);
+
+	return nla_put(skb, CRYPTOCFGA_STAT_ACOMP, sizeof(racomp), &racomp);
+}
+
+#ifdef CONFIG_CRYPTO_STATS
+int crypto_acomp_report_stat(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return __crypto_acomp_report_stat(skb, alg);
+}
+#endif
+
 static const struct crypto_type crypto_acomp_type = {
 	.extsize = crypto_acomp_extsize,
 	.init_tfm = crypto_acomp_init_tfm,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_acomp_show,
 #endif
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_acomp_report,
+#endif
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_acomp_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_ACOMPRESS_MASK,
 	.type = CRYPTO_ALG_TYPE_ACOMPRESS,
@@ -147,12 +182,24 @@ void acomp_request_free(struct acomp_req *req)
 }
 EXPORT_SYMBOL_GPL(acomp_request_free);
 
-int crypto_register_acomp(struct acomp_alg *alg)
+void comp_prepare_alg(struct comp_alg_common *alg)
 {
+	struct crypto_istat_compress *istat = comp_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
-	base->cra_type = &crypto_acomp_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		memset(istat, 0, sizeof(*istat));
+}
+
+int crypto_register_acomp(struct acomp_alg *alg)
+{
+	struct crypto_alg *base = &alg->calg.base;
+
+	comp_prepare_alg(&alg->calg);
+
+	base->cra_type = &crypto_acomp_type;
 	base->cra_flags |= CRYPTO_ALG_TYPE_ACOMPRESS;
 
 	return crypto_register_alg(base);

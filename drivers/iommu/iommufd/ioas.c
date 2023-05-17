@@ -71,7 +71,7 @@ int iommufd_ioas_iova_ranges(struct iommufd_ucmd *ucmd)
 	if (cmd->__reserved)
 		return -EOPNOTSUPP;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->ioas_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 
@@ -151,7 +151,7 @@ int iommufd_ioas_allow_iovas(struct iommufd_ucmd *ucmd)
 	if (cmd->__reserved)
 		return -EOPNOTSUPP;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->ioas_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 	iopt = &ioas->iopt;
@@ -213,7 +213,7 @@ int iommufd_ioas_map(struct iommufd_ucmd *ucmd)
 	if (cmd->iova >= ULONG_MAX || cmd->length >= ULONG_MAX)
 		return -EOVERFLOW;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->ioas_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 
@@ -253,7 +253,7 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	    cmd->dst_iova >= ULONG_MAX)
 		return -EOVERFLOW;
 
-	src_ioas = iommufd_get_ioas(ucmd, cmd->src_ioas_id);
+	src_ioas = iommufd_get_ioas(ucmd->ictx, cmd->src_ioas_id);
 	if (IS_ERR(src_ioas))
 		return PTR_ERR(src_ioas);
 	rc = iopt_get_pages(&src_ioas->iopt, cmd->src_iova, cmd->length,
@@ -262,7 +262,7 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	if (rc)
 		return rc;
 
-	dst_ioas = iommufd_get_ioas(ucmd, cmd->dst_ioas_id);
+	dst_ioas = iommufd_get_ioas(ucmd->ictx, cmd->dst_ioas_id);
 	if (IS_ERR(dst_ioas)) {
 		rc = PTR_ERR(dst_ioas);
 		goto out_pages;
@@ -292,7 +292,7 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 	unsigned long unmapped = 0;
 	int rc;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->ioas_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 
@@ -381,7 +381,7 @@ int iommufd_ioas_option(struct iommufd_ucmd *ucmd)
 	if (cmd->__reserved)
 		return -EOPNOTSUPP;
 
-	ioas = iommufd_get_ioas(ucmd, cmd->object_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->object_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 

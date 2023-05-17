@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (c) 2023, Linaro Ltd
+ */
+
+/dts-v1/;
+
+#include "qcm2290.dtsi"
+#include "pm2250.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. Robotics RB1";
+	compatible = "qcom,qrb2210-rb1", "qcom,qrb2210", "qcom,qcm2290";
+
+	aliases {
+		serial0 = &uart0;
+		sdhc1 = &sdhc_1;
+		sdhc2 = &sdhc_2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		pinctrl-0 = <&key_volp_n>;
+		pinctrl-names = "default";
+
+		key-volume-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&tlmm 96 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
+		};
+	};
+};
+
+&pm2250_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&sdhc_1 {
+	pinctrl-0 = <&sdc1_state_on>;
+	pinctrl-1 = <&sdc1_state_off>;
+	pinctrl-names = "default", "sleep";
+	non-removable;
+	supports-cqe;
+	no-sdio;
+	no-sd;
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 88 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&sdc2_state_on &sd_det_in_on>;
+	pinctrl-1 = <&sdc2_state_off &sd_det_in_off>;
+	pinctrl-names = "default", "sleep";
+	no-sdio;
+	no-mmc;
+	status = "okay";
+};
+
+&tlmm {
+	sd_det_in_on: sd-det-in-on-state {
+		pins = "gpio88";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	sd_det_in_off: sd-det-in-off-state {
+		pins = "gpio88";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	key_volp_n: key-volp-n-state {
+		pins = "gpio96";
+		function = "gpio";
+		bias-pull-up;
+		output-disable;
+	};
+};
+
+/* UART connected to the Micro-USB port via a FTDI chip */
+&uart0 {
+	compatible = "qcom,geni-debug-uart";
+	status = "okay";
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb_hsphy {
+	status = "okay";
+};
+
+&xo_board {
+	clock-frequency = <38400000>;
+};

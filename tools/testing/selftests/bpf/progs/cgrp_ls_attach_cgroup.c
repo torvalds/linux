@@ -84,7 +84,6 @@ int BPF_PROG(update_cookie_tracing, struct socket *sock,
 	     struct sockaddr *uaddr, int addr_len, int flags)
 {
 	struct socket_cookie *p;
-	struct tcp_sock *tcp_sk;
 
 	if (uaddr->sa_family != AF_INET6)
 		return 0;

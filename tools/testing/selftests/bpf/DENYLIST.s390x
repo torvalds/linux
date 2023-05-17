@@ -4,10 +4,14 @@ bloom_filter_map                         # failed to find kernel BTF type ID of 
 bpf_cookie                               # failed to open_and_load program: -524 (trampoline)
 bpf_loop                                 # attaches to __x64_sys_nanosleep
 cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
+dynptr/test_dynptr_skb_data
+dynptr/test_skb_readonly
 fexit_sleep                              # fexit_skel_load fexit skeleton failed                                       (trampoline)
 get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
+iters/testmod_seq*                       # s390x doesn't support kfuncs in modules yet
 kprobe_multi_bench_attach                # bpf_program__attach_kprobe_multi_opts unexpected error: -95
 kprobe_multi_test                        # relies on fentry
+ksyms_btf/weak_ksyms*                    # test_ksyms_weak__open_and_load unexpected error: -22                        (kfunc)
 ksyms_module                             # test_ksyms_module__open_and_load unexpected error: -9                       (?)
 ksyms_module_libbpf                      # JIT does not support calling kernel function                                (kfunc)
 ksyms_module_lskel                       # test_ksyms_module_lskel__open_and_load unexpected error: -9                 (?)

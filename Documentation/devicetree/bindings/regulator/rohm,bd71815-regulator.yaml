@@ -56,7 +56,7 @@ patternProperties:
           PMIC "RUN" state voltage in uV when PMIC HW states are used. See
           comments below for bucks/LDOs which support this. 0 means
           regulator should be disabled at RUN state.
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 
@@ -67,7 +67,7 @@ patternProperties:
           keeps regulator enabled. BD71815 does not change voltage level
           when PMIC transitions to SNVS.SNVS voltage depends on the previous
           state (from which the PMIC transitioned to SNVS).
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 
@@ -76,7 +76,7 @@ patternProperties:
           PMIC "SUSPEND" state voltage in uV when PMIC HW states are used. See
           comments below for bucks/LDOs which support this. 0 means
           regulator should be disabled at SUSPEND state.
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 
@@ -85,7 +85,7 @@ patternProperties:
           PMIC "LPSR" state voltage in uV when PMIC HW states are used. See
           comments below for bucks/LDOs which support this. 0 means
           regulator should be disabled at LPSR state.
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3300000
 

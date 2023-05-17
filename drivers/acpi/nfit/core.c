@@ -894,7 +894,7 @@ static size_t sizeof_flush(struct acpi_nfit_flush_address *flush)
 {
 	if (flush->header.length < sizeof(*flush))
 		return 0;
-	return sizeof(*flush) + sizeof(u64) * (flush->hint_count - 1);
+	return struct_size(flush, hint_address, flush->hint_count);
 }
 
 static bool add_flush(struct acpi_nfit_desc *acpi_desc,
@@ -3476,8 +3476,8 @@ static __init int nfit_init(void)
 	BUILD_BUG_ON(sizeof(struct acpi_table_nfit) != 40);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 64);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_memory_map) != 48);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_interleave) != 20);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 9);
+	BUILD_BUG_ON(sizeof(struct acpi_nfit_interleave) != 16);
+	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 8);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_control_region) != 80);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_data_region) != 40);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_capabilities) != 16);

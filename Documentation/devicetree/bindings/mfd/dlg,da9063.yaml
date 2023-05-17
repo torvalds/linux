@@ -12,6 +12,11 @@ maintainers:
 description: |
   For device-tree bindings of other sub-modules refer to the binding documents
   under the respective sub-system directories.
+  Using regulator-{uv,ov}-{warn,error,protection}-microvolt requires special
+  handling: First, when GP_FB2 is used, it must be ensured that there is no
+  moment where all voltage monitors are disabled. Next, as da9063 only supports
+  UV *and* OV monitoring, both must be set to the same severity and value
+  (0: disable, 1: enable).
 
 properties:
   compatible:
@@ -121,11 +126,19 @@ examples:
             regulator-max-microamp = <2000000>;
             regulator-boot-on;
           };
+          ldo6 {
+            /* UNUSED */
+            regulator-name = "LDO_6";
+            regulator-uv-protection-microvolt = <0>;
+            regulator-ov-protection-microvolt = <0>;
+          };
           ldo11 {
             regulator-name = "LDO_11";
             regulator-min-microvolt = <900000>;
-            regulator-max-microvolt = <3600000>;
-            regulator-boot-on;
+            regulator-max-microvolt = <900000>;
+            regulator-uv-protection-microvolt = <1>;
+            regulator-ov-protection-microvolt = <1>;
+            regulator-always-on;
           };
         };
       };

@@ -9,7 +9,6 @@
 #endif
 
 #include "../../util/debug.h"
-#include "../../perf.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"

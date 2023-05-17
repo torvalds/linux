@@ -241,12 +241,12 @@ static int vimc_get_pix_format(struct media_pad *pad,
 	if (is_media_entity_v4l2_subdev(pad->entity)) {
 		struct v4l2_subdev *sd =
 			media_entity_to_v4l2_subdev(pad->entity);
-		struct v4l2_subdev_format sd_fmt;
+		struct v4l2_subdev_format sd_fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+			.pad = pad->index,
+		};
 		const struct vimc_pix_map *pix_map;
 		int ret;
-
-		sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		sd_fmt.pad = pad->index;
 
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sd_fmt);
 		if (ret)

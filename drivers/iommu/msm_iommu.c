@@ -811,13 +811,12 @@ static const struct of_device_id msm_iommu_dt_match[] = {
 	{}
 };
 
-static int msm_iommu_remove(struct platform_device *pdev)
+static void msm_iommu_remove(struct platform_device *pdev)
 {
 	struct msm_iommu_dev *iommu = platform_get_drvdata(pdev);
 
 	clk_unprepare(iommu->clk);
 	clk_unprepare(iommu->pclk);
-	return 0;
 }
 
 static struct platform_driver msm_iommu_driver = {
@@ -826,6 +825,6 @@ static struct platform_driver msm_iommu_driver = {
 		.of_match_table = msm_iommu_dt_match,
 	},
 	.probe		= msm_iommu_probe,
-	.remove		= msm_iommu_remove,
+	.remove_new	= msm_iommu_remove,
 };
 builtin_platform_driver(msm_iommu_driver);

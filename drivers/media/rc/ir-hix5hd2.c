@@ -340,13 +340,12 @@ err:
 	return ret;
 }
 
-static int hix5hd2_ir_remove(struct platform_device *pdev)
+static void hix5hd2_ir_remove(struct platform_device *pdev)
 {
 	struct hix5hd2_ir_priv *priv = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(priv->clock);
 	rc_unregister_device(priv->rdev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -395,7 +394,7 @@ static struct platform_driver hix5hd2_ir_driver = {
 		.pm     = &hix5hd2_ir_pm_ops,
 	},
 	.probe = hix5hd2_ir_probe,
-	.remove = hix5hd2_ir_remove,
+	.remove_new = hix5hd2_ir_remove,
 };
 
 module_platform_driver(hix5hd2_ir_driver);

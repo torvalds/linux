@@ -34,6 +34,7 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
+#include "nbio_v4_3.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
 
@@ -2428,6 +2429,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 			else
 				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
 							1 << AMDGPU_RAS_BLOCK__JPEG);
+
+			/*
+			 * XGMI RAS is not supported if xgmi num physical nodes
+			 * is zero
+			 */
+			if (!adev->gmc.xgmi.num_physical_nodes)
+				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__XGMI_WAFL);
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
@@ -2560,6 +2568,16 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	case IP_VERSION(7, 4, 4):
 		if (!adev->gmc.xgmi.connected_to_cpu)
 			adev->nbio.ras = &nbio_v7_4_ras;
+		break;
+	case IP_VERSION(4, 3, 0):
+		if (adev->ras_hw_enabled & (1 << AMDGPU_RAS_BLOCK__DF))
+			/* unlike other generation of nbio ras,
+			 * nbio v4_3 only support fatal error interrupt
+			 * to inform software that DF is freezed due to
+			 * system fatal error event. driver should not
+			 * enable nbio ras in such case. Instead,
+			 * check DF RAS */
+			adev->nbio.ras = &nbio_v4_3_ras;
 		break;
 	default:
 		/* nbio ras is not available */

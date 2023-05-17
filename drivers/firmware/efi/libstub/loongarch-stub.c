@@ -21,26 +21,16 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 efi_loaded_image_t *image,
 				 efi_handle_t image_handle)
 {
-	int nr_pages = round_up(kernel_asize, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-	efi_physical_addr_t kernel_addr = EFI_KIMG_PREFERRED_ADDRESS;
 	efi_status_t status;
+	unsigned long kernel_addr = 0;
 
-	/*
-	 * Allocate space for the kernel image at the preferred offset. This is
-	 * the only location in memory from where we can execute the image, so
-	 * no point in falling back to another allocation.
-	 */
-	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-			     EFI_LOADER_DATA, nr_pages, &kernel_addr);
-	if (status != EFI_SUCCESS)
-		return status;
+	kernel_addr = (unsigned long)&kernel_offset - kernel_offset;
 
-	*image_addr = EFI_KIMG_PREFERRED_ADDRESS;
+	status = efi_relocate_kernel(&kernel_addr, kernel_fsize, kernel_asize,
+		     EFI_KIMG_PREFERRED_ADDRESS, efi_get_kimg_min_align(), 0x0);
+
+	*image_addr = kernel_addr;
 	*image_size = kernel_asize;
-
-	memcpy((void *)EFI_KIMG_PREFERRED_ADDRESS,
-	       (void *)&kernel_offset - kernel_offset,
-	       kernel_fsize);
 
 	return status;
 }

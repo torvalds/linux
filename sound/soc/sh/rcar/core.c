@@ -1987,7 +1987,7 @@ exit_snd_probe:
 	return ret;
 }
 
-static int rsnd_remove(struct platform_device *pdev)
+static void rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct rsnd_dai *rdai;
@@ -2019,8 +2019,6 @@ static int rsnd_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
 		remove_func[i](priv);
-
-	return 0;
 }
 
 static int __maybe_unused rsnd_suspend(struct device *dev)
@@ -2052,7 +2050,7 @@ static struct platform_driver rsnd_driver = {
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,
-	.remove		= rsnd_remove,
+	.remove_new	= rsnd_remove,
 };
 module_platform_driver(rsnd_driver);
 

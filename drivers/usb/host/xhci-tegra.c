@@ -1360,6 +1360,9 @@ static void tegra_xhci_id_work(struct work_struct *work)
 
 	mutex_unlock(&tegra->lock);
 
+	tegra->otg_usb3_port = tegra_xusb_padctl_get_usb3_companion(tegra->padctl,
+								    tegra->otg_usb2_port);
+
 	if (tegra->host_mode) {
 		/* switch to host mode */
 		if (tegra->otg_usb3_port >= 0) {
@@ -1474,9 +1477,6 @@ static int tegra_xhci_id_notify(struct notifier_block *nb,
 	}
 
 	tegra->otg_usb2_port = tegra_xusb_get_usb2_port(tegra, usbphy);
-	tegra->otg_usb3_port = tegra_xusb_padctl_get_usb3_companion(
-							tegra->padctl,
-							tegra->otg_usb2_port);
 
 	tegra->host_mode = (usbphy->last_event == USB_EVENT_ID) ? true : false;
 
@@ -1535,7 +1535,6 @@ static void tegra_xusb_deinit_usb_phy(struct tegra_xusb *tegra)
 
 static int tegra_xusb_probe(struct platform_device *pdev)
 {
-	struct of_phandle_args args;
 	struct tegra_xusb *tegra;
 	struct device_node *np;
 	struct resource *regs;
@@ -1594,15 +1593,13 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_padctl;
 	}
 
-	/* Older device-trees don't have padctrl interrupt */
-	err = of_irq_parse_one(np, 0, &args);
-	if (!err) {
-		tegra->padctl_irq = of_irq_get(np, 0);
-		if (tegra->padctl_irq <= 0) {
-			err = (tegra->padctl_irq == 0) ? -ENODEV : tegra->padctl_irq;
-			goto put_padctl;
-		}
-	} else {
+	tegra->padctl_irq = of_irq_get(np, 0);
+	if (tegra->padctl_irq == -EPROBE_DEFER) {
+		err = tegra->padctl_irq;
+		goto put_padctl;
+	} else if (tegra->padctl_irq <= 0) {
+		/* Older device-trees don't have padctrl interrupt */
+		tegra->padctl_irq = 0;
 		dev_dbg(&pdev->dev,
 			"%pOF is missing an interrupt, disabling PM support\n", np);
 	}

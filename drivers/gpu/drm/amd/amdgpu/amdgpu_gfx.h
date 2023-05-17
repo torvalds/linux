@@ -42,6 +42,8 @@
 #define AMDGPU_GFX_CG_DISABLED_MODE		0x00000004L
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
+#define AMDGPU_MAX_GC_INSTANCES		8
+
 #define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
 
@@ -52,6 +54,15 @@ enum amdgpu_gfx_pipe_priority {
 
 #define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
 #define AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM  15
+
+enum amdgpu_gfx_partition {
+	AMDGPU_SPX_PARTITION_MODE = 0,
+	AMDGPU_DPX_PARTITION_MODE = 1,
+	AMDGPU_TPX_PARTITION_MODE = 2,
+	AMDGPU_QPX_PARTITION_MODE = 3,
+	AMDGPU_CPX_PARTITION_MODE = 4,
+	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE,
+};
 
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
@@ -323,7 +334,7 @@ struct amdgpu_gfx {
 	bool				cp_fw_write_wait;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
 	unsigned			num_gfx_rings;
-	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS];
+	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES];
 	unsigned			num_compute_rings;
 	struct amdgpu_irq_src		eop_irq;
 	struct amdgpu_irq_src		priv_reg_irq;
@@ -364,6 +375,10 @@ struct amdgpu_gfx {
 
 	struct amdgpu_ring		sw_gfx_ring[AMDGPU_MAX_SW_GFX_RINGS];
 	struct amdgpu_ring_mux          muxer;
+
+	enum amdgpu_gfx_partition	partition_mode;
+	uint32_t			num_xcd;
+	uint32_t			num_xcc_per_xcp;
 };
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))

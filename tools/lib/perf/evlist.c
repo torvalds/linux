@@ -687,15 +687,14 @@ perf_evlist__next_mmap(struct perf_evlist *evlist, struct perf_mmap *map,
 
 void __perf_evlist__set_leader(struct list_head *list, struct perf_evsel *leader)
 {
-	struct perf_evsel *first, *last, *evsel;
+	struct perf_evsel *evsel;
+	int n = 0;
 
-	first = list_first_entry(list, struct perf_evsel, node);
-	last = list_last_entry(list, struct perf_evsel, node);
-
-	leader->nr_members = last->idx - first->idx + 1;
-
-	__perf_evlist__for_each_entry(list, evsel)
+	__perf_evlist__for_each_entry(list, evsel) {
 		evsel->leader = leader;
+		n++;
+	}
+	leader->nr_members = n;
 }
 
 void perf_evlist__set_leader(struct perf_evlist *evlist)
@@ -704,7 +703,23 @@ void perf_evlist__set_leader(struct perf_evlist *evlist)
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						struct perf_evsel, node);
 
-		evlist->nr_groups = evlist->nr_entries > 1 ? 1 : 0;
 		__perf_evlist__set_leader(&evlist->entries, first);
 	}
+}
+
+int perf_evlist__nr_groups(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	int nr_groups = 0;
+
+	perf_evlist__for_each_evsel(evlist, evsel) {
+		/*
+		 * evsels by default have a nr_members of 1, and they are their
+		 * own leader. If the nr_members is >1 then this is an
+		 * indication of a group.
+		 */
+		if (evsel->leader == evsel && evsel->nr_members > 1)
+			nr_groups++;
+	}
+	return nr_groups;
 }

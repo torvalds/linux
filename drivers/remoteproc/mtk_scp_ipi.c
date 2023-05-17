@@ -125,7 +125,7 @@ void scp_ipi_lock(struct mtk_scp *scp, u32 id)
 EXPORT_SYMBOL_GPL(scp_ipi_lock);
 
 /**
- * scp_ipi_lock() - Unlock after operations of an IPI ID
+ * scp_ipi_unlock() - Unlock after operations of an IPI ID
  *
  * @scp:	mtk_scp structure
  * @id:		IPI ID

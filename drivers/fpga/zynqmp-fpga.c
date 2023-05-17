@@ -77,6 +77,26 @@ static enum fpga_mgr_states zynqmp_fpga_ops_state(struct fpga_manager *mgr)
 	return FPGA_MGR_STATE_UNKNOWN;
 }
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	u32 status;
+	int ret;
+
+	ret = zynqmp_pm_fpga_get_config_status(&status);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "0x%x\n", status);
+}
+static DEVICE_ATTR_RO(status);
+
+static struct attribute *zynqmp_fpga_attrs[] = {
+	&dev_attr_status.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(zynqmp_fpga);
+
 static const struct fpga_manager_ops zynqmp_fpga_ops = {
 	.state = zynqmp_fpga_ops_state,
 	.write_init = zynqmp_fpga_ops_write_init,
@@ -113,6 +133,7 @@ static struct platform_driver zynqmp_fpga_driver = {
 	.driver = {
 		.name = "zynqmp_fpga_manager",
 		.of_match_table = of_match_ptr(zynqmp_fpga_of_match),
+		.dev_groups = zynqmp_fpga_groups,
 	},
 };
 

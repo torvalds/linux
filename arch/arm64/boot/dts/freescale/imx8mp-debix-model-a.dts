@@ -43,6 +43,17 @@
 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	reg_usb_hub: regulator-usb-hub {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usb_hub>;
+		regulator-name = "USB_HUB";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &A53_0 {
@@ -254,6 +265,41 @@
 	status = "okay";
 };
 
+&usb3_phy1 {
+	status = "okay";
+};
+
+&usb3_1 {
+	status = "okay";
+};
+
+&usb_dwc3_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb1>;
+	dr_mode = "host";
+	status = "okay";
+
+	/* 2.x hub on port 1 */
+	usb_hub_2_x: hub@1 {
+		compatible = "usbbda,5411";
+		reg = <1>;
+		reset-gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&reg_usb_hub>;
+		peer-hub = <&usb_hub_3_x>;
+	};
+
+	/* 3.x hub on port 2 */
+	usb_hub_3_x: hub@2 {
+		compatible = "usbbda,411";
+		reg = <2>;
+		reset-gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&reg_usb_hub>;
+		peer-hub = <&usb_hub_2_x>;
+	};
+};
+
 /* SD Card */
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
@@ -384,6 +430,12 @@
 		>;
 	};
 
+	pinctrl_reg_usb_hub: regusbhubgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_TXD0__GPIO4_IO26				0x19
+		>;
+	};
+
 	pinctrl_rtc_int: rtcintgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD1_STROBE__GPIO2_IO11				0x140
@@ -408,6 +460,13 @@
 		fsl,pins = <
 			MX8MP_IOMUXC_UART4_RXD__UART4_DCE_RX				0x49
 			MX8MP_IOMUXC_UART4_TXD__UART4_DCE_TX				0x49
+		>;
+	};
+
+	pinctrl_usb1: usb1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO14__USB2_OTG_PWR				0x10
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25				0x19
 		>;
 	};
 

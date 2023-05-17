@@ -26,6 +26,7 @@ properties:
       - enum:
           - apple,t6000-admac
           - apple,t8103-admac
+          - apple,t8112-admac
       - const: apple,admac
 
   reg:

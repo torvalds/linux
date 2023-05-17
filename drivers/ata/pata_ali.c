@@ -355,7 +355,7 @@ static void ali_c2_c3_postreset(struct ata_link *link, unsigned int *classes)
 	ata_sff_postreset(link, classes);
 }
 
-static struct scsi_host_template ali_sht = {
+static const struct scsi_host_template ali_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

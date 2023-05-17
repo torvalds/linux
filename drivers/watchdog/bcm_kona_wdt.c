@@ -310,12 +310,10 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm_kona_wdt_remove(struct platform_device *pdev)
+static void bcm_kona_wdt_remove(struct platform_device *pdev)
 {
 	bcm_kona_wdt_debug_exit(pdev);
 	dev_dbg(&pdev->dev, "Watchdog driver disabled");
-
-	return 0;
 }
 
 static const struct of_device_id bcm_kona_wdt_of_match[] = {
@@ -330,7 +328,7 @@ static struct platform_driver bcm_kona_wdt_driver = {
 			.of_match_table = bcm_kona_wdt_of_match,
 		  },
 	.probe = bcm_kona_wdt_probe,
-	.remove = bcm_kona_wdt_remove,
+	.remove_new = bcm_kona_wdt_remove,
 };
 
 module_platform_driver(bcm_kona_wdt_driver);

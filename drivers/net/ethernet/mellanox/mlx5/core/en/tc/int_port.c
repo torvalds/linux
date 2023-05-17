@@ -242,7 +242,7 @@ mlx5e_int_port_remove(struct mlx5e_tc_int_port_priv *priv,
 		mlx5_del_flow_rules(int_port->rx_rule);
 	mapping_remove(ctx, int_port->mapping);
 	mlx5e_int_port_metadata_free(priv, int_port->match_metadata);
-	kfree_rcu(int_port);
+	kfree_rcu_mightsleep(int_port);
 	priv->num_ports--;
 }
 

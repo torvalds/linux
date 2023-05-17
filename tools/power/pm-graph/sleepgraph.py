@@ -86,7 +86,7 @@ def ascii(text):
 #	 store system values and test parameters
 class SystemValues:
 	title = 'SleepGraph'
-	version = '5.10'
+	version = '5.11'
 	ansi = False
 	rs = 0
 	display = ''
@@ -300,6 +300,7 @@ class SystemValues:
 		[0, 'acpidevices', 'sh', '-c', 'ls -l /sys/bus/acpi/devices/*/physical_node'],
 		[0, 's0ix_require', 'cat', '/sys/kernel/debug/pmc_core/substate_requirements'],
 		[0, 's0ix_debug', 'cat', '/sys/kernel/debug/pmc_core/slp_s0_debug_status'],
+		[0, 'ethtool', 'ethtool', '{ethdev}'],
 		[1, 's0ix_residency', 'cat', '/sys/kernel/debug/pmc_core/slp_s0_residency_usec'],
 		[1, 'interrupts', 'cat', '/proc/interrupts'],
 		[1, 'wakeups', 'cat', '/sys/kernel/debug/wakeup_sources'],
@@ -1078,18 +1079,35 @@ class SystemValues:
 				else:
 					out[data[0].strip()] = data[1]
 		return out
+	def cmdinfovar(self, arg):
+		if arg == 'ethdev':
+			try:
+				cmd = [self.getExec('ip'), '-4', '-o', '-br', 'addr']
+				fp = Popen(cmd, stdout=PIPE, stderr=PIPE).stdout
+				info = ascii(fp.read()).strip()
+				fp.close()
+			except:
+				return 'iptoolcrash'
+			for line in info.split('\n'):
+				if line[0] == 'e' and 'UP' in line:
+					return line.split()[0]
+			return 'nodevicefound'
+		return 'unknown'
 	def cmdinfo(self, begin, debug=False):
 		out = []
 		if begin:
 			self.cmd1 = dict()
 		for cargs in self.infocmds:
-			delta, name = cargs[0], cargs[1]
-			cmdline, cmdpath = ' '.join(cargs[2:]), self.getExec(cargs[2])
+			delta, name, args = cargs[0], cargs[1], cargs[2:]
+			for i in range(len(args)):
+				if args[i][0] == '{' and args[i][-1] == '}':
+					args[i] = self.cmdinfovar(args[i][1:-1])
+			cmdline, cmdpath = ' '.join(args[0:]), self.getExec(args[0])
 			if not cmdpath or (begin and not delta):
 				continue
 			self.dlog('[%s]' % cmdline)
 			try:
-				fp = Popen([cmdpath]+cargs[3:], stdout=PIPE, stderr=PIPE).stdout
+				fp = Popen([cmdpath]+args[1:], stdout=PIPE, stderr=PIPE).stdout
 				info = ascii(fp.read()).strip()
 				fp.close()
 			except:
@@ -1452,6 +1470,7 @@ class Data:
 	errlist = {
 		'HWERROR' : r'.*\[ *Hardware Error *\].*',
 		'FWBUG'   : r'.*\[ *Firmware Bug *\].*',
+		'TASKFAIL': r'.*Freezing .*after *.*',
 		'BUG'     : r'(?i).*\bBUG\b.*',
 		'ERROR'   : r'(?i).*\bERROR\b.*',
 		'WARNING' : r'(?i).*\bWARNING\b.*',
@@ -1462,7 +1481,6 @@ class Data:
 		'TIMEOUT' : r'(?i).*\bTIMEOUT\b.*',
 		'ABORT'   : r'(?i).*\bABORT\b.*',
 		'IRQ'     : r'.*\bgenirq: .*',
-		'TASKFAIL': r'.*Freezing .*after *.*',
 		'ACPI'    : r'.*\bACPI *(?P<b>[A-Za-z]*) *Error[: ].*',
 		'DISKFULL': r'.*\bNo space left on device.*',
 		'USBERR'  : r'.*usb .*device .*, error [0-9-]*',
@@ -1602,7 +1620,7 @@ class Data:
 			pend = self.dmesg[phase]['end']
 			if start <= pend:
 				return phase
-		return 'resume_complete'
+		return 'resume_complete' if 'resume_complete' in self.dmesg else ''
 	def sourceDevice(self, phaselist, start, end, pid, type):
 		tgtdev = ''
 		for phase in phaselist:
@@ -1645,6 +1663,8 @@ class Data:
 			else:
 				threadname = '%s-%d' % (proc, pid)
 			tgtphase = self.sourcePhase(start)
+			if not tgtphase:
+				return False
 			self.newAction(tgtphase, threadname, pid, '', start, end, '', ' kth', '')
 			return self.addDeviceFunctionCall(displayname, kprobename, proc, pid, start, end, cdata, rdata)
 		# this should not happen
@@ -1835,9 +1855,9 @@ class Data:
 		hwr = self.hwend - timedelta(microseconds=rtime)
 		self.tLow.append('%.0f'%((hwr - hws).total_seconds() * 1000))
 	def getTimeValues(self):
-		sktime = (self.tSuspended - self.tKernSus) * 1000
-		rktime = (self.tKernRes - self.tResumed) * 1000
-		return (sktime, rktime)
+		s = (self.tSuspended - self.tKernSus) * 1000
+		r = (self.tKernRes - self.tResumed) * 1000
+		return (max(s, 0), max(r, 0))
 	def setPhase(self, phase, ktime, isbegin, order=-1):
 		if(isbegin):
 			# phase start over current phase
@@ -3961,7 +3981,7 @@ def parseKernelLog(data):
 		'suspend_machine': ['PM: suspend-to-idle',
 							'PM: noirq suspend of devices complete after.*',
 							'PM: noirq freeze of devices complete after.*'],
-		 'resume_machine': ['PM: Timekeeping suspended for.*',
+		 'resume_machine': ['[PM: ]*Timekeeping suspended for.*',
 							'ACPI: Low-level resume complete.*',
 							'ACPI: resume from mwait',
 							'Suspended for [0-9\.]* seconds'],
@@ -3979,14 +3999,14 @@ def parseKernelLog(data):
 	# action table (expected events that occur and show up in dmesg)
 	at = {
 		'sync_filesystems': {
-			'smsg': 'PM: Syncing filesystems.*',
-			'emsg': 'PM: Preparing system for mem sleep.*' },
+			'smsg': '.*[Ff]+ilesystems.*',
+			'emsg': 'PM: Preparing system for[a-z]* sleep.*' },
 		'freeze_user_processes': {
-			'smsg': 'Freezing user space processes .*',
+			'smsg': 'Freezing user space processes.*',
 			'emsg': 'Freezing remaining freezable tasks.*' },
 		'freeze_tasks': {
 			'smsg': 'Freezing remaining freezable tasks.*',
-			'emsg': 'PM: Entering (?P<mode>[a-z,A-Z]*) sleep.*' },
+			'emsg': 'PM: Suspending system.*' },
 		'ACPI prepare': {
 			'smsg': 'ACPI: Preparing to enter system sleep state.*',
 			'emsg': 'PM: Saving platform NVS memory.*' },
@@ -4120,10 +4140,9 @@ def parseKernelLog(data):
 			for a in sorted(at):
 				if(re.match(at[a]['smsg'], msg)):
 					if(a not in actions):
-						actions[a] = []
-					actions[a].append({'begin': ktime, 'end': ktime})
+						actions[a] = [{'begin': ktime, 'end': ktime}]
 				if(re.match(at[a]['emsg'], msg)):
-					if(a in actions):
+					if(a in actions and actions[a][-1]['begin'] == actions[a][-1]['end']):
 						actions[a][-1]['end'] = ktime
 			# now look for CPU on/off events
 			if(re.match('Disabling non-boot CPUs .*', msg)):
@@ -4132,9 +4151,12 @@ def parseKernelLog(data):
 			elif(re.match('Enabling non-boot CPUs .*', msg)):
 				# start of first cpu resume
 				cpu_start = ktime
-			elif(re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)):
+			elif(re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)) \
+				or re.match('psci: CPU(?P<cpu>[0-9]*) killed.*', msg)):
 				# end of a cpu suspend, start of the next
 				m = re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)
+				if(not m):
+					m = re.match('psci: CPU(?P<cpu>[0-9]*) killed.*', msg)
 				cpu = 'CPU'+m.group('cpu')
 				if(cpu not in actions):
 					actions[cpu] = []
@@ -5556,9 +5578,8 @@ def executeSuspend(quiet=False):
 		if not quiet:
 			pprint('CAPTURING TRACE')
 		op = sv.writeDatafileHeader(sv.ftracefile, testdata)
-		fp = open(tp+'trace', 'r')
-		for line in fp:
-			op.write(line)
+		fp = open(tp+'trace', 'rb')
+		op.write(ascii(fp.read()))
 		op.close()
 		sv.fsetVal('', 'trace')
 		sv.platforminfo(cmdafter)

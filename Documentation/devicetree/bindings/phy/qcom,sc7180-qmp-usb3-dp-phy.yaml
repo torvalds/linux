@@ -83,7 +83,7 @@ properties:
     description:
       Phandle to a regulator supply to any specific refclk pll block.
 
-#Required nodes:
+# Required nodes:
 patternProperties:
   "^usb3-phy@[0-9a-f]+$":
     type: object

@@ -156,9 +156,12 @@ __xfs_inobt_free_block(
 	struct xfs_buf		*bp,
 	enum xfs_ag_resv_type	resv)
 {
+	xfs_fsblock_t		fsbno;
+
 	xfs_inobt_mod_blockcount(cur, -1);
-	return xfs_free_extent(cur->bc_tp,
-			XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp)), 1,
+	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+	return xfs_free_extent(cur->bc_tp, cur->bc_ag.pag,
+			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1,
 			&XFS_RMAP_OINFO_INOBT, resv);
 }
 
@@ -266,10 +269,13 @@ STATIC int64_t
 xfs_inobt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->inobt.ir_startino);
+
 	return (int64_t)be32_to_cpu(k1->inobt.ir_startino) -
-			  be32_to_cpu(k2->inobt.ir_startino);
+			be32_to_cpu(k2->inobt.ir_startino);
 }
 
 static xfs_failaddr_t
@@ -380,6 +386,19 @@ xfs_inobt_recs_inorder(
 		be32_to_cpu(r2->inobt.ir_startino);
 }
 
+STATIC enum xbtree_key_contig
+xfs_inobt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->inobt.ir_startino);
+
+	return xbtree_key_contig(be32_to_cpu(key1->inobt.ir_startino),
+				 be32_to_cpu(key2->inobt.ir_startino));
+}
+
 static const struct xfs_btree_ops xfs_inobt_ops = {
 	.rec_len		= sizeof(xfs_inobt_rec_t),
 	.key_len		= sizeof(xfs_inobt_key_t),
@@ -399,6 +418,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.diff_two_keys		= xfs_inobt_diff_two_keys,
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
+	.keys_contiguous	= xfs_inobt_keys_contiguous,
 };
 
 static const struct xfs_btree_ops xfs_finobt_ops = {
@@ -420,6 +440,7 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
 	.diff_two_keys		= xfs_inobt_diff_two_keys,
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
+	.keys_contiguous	= xfs_inobt_keys_contiguous,
 };
 
 /*
@@ -447,9 +468,7 @@ xfs_inobt_init_common(
 	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	/* take a reference for the cursor */
-	atomic_inc(&pag->pag_ref);
-	cur->bc_ag.pag = pag;
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 	return cur;
 }
 
@@ -607,7 +626,7 @@ xfs_iallocbt_maxlevels_ondisk(void)
  */
 uint64_t
 xfs_inobt_irec_to_allocmask(
-	struct xfs_inobt_rec_incore	*rec)
+	const struct xfs_inobt_rec_incore	*rec)
 {
 	uint64_t			bitmap = 0;
 	uint64_t			inodespbit;

@@ -1752,3 +1752,8 @@ void bpf_jit_build_epilogue(struct rv_jit_context *ctx)
 {
 	__build_epilogue(false, ctx);
 }
+
+bool bpf_jit_supports_kfunc_call(void)
+{
+	return true;
+}

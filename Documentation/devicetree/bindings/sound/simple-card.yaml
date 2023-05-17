@@ -78,7 +78,7 @@ definitions:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   prefix:
-    description: "device name prefix"
+    description: device name prefix
     $ref: /schemas/types.yaml#/definitions/string
 
   label:
@@ -262,9 +262,9 @@ required:
 additionalProperties: false
 
 examples:
-#--------------------
+# --------------------
 # single DAI link
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -291,9 +291,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Multi DAI links
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -334,10 +334,10 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # route audio from IMX6 SSI2 through TLV320DAC3100 codec
 # through TPA6130A2 amplifier to headphones:
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -359,9 +359,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Sampling Rate Conversion
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -387,9 +387,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # 2 CPU 1 Codec (Mixing)
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -424,7 +424,7 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Multi DAI links with DPCM:
 #
 # CPU0 ------ ak4613
@@ -433,7 +433,7 @@ examples:
 # CPU3 --/                /* DPCM 5ch/6ch */
 # CPU4 --/                /* DPCM 7ch/8ch */
 # CPU5 ------ PCM3168A-c
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";

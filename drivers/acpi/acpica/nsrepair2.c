@@ -4,7 +4,7 @@
  * Module Name: nsrepair2 - Repair for objects returned by specific
  *                          predefined methods
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -499,7 +499,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	char *source;
 	char *dest;
 
-	ACPI_FUNCTION_NAME(ns_repair_HID);
+	ACPI_FUNCTION_TRACE(ns_repair_HID);
 
 	/* We only care about string _HID objects (not integers) */
 

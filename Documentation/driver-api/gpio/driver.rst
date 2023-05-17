@@ -218,10 +218,10 @@ not support open drain/open source in hardware, the GPIO library will instead
 use a trick: when a line is set as output, if the line is flagged as open
 drain, and the IN output value is low, it will be driven low as usual. But
 if the IN output value is set to high, it will instead *NOT* be driven high,
-instead it will be switched to input, as input mode is high impedance, thus
-achieving an "open drain emulation" of sorts: electrically the behaviour will
-be identical, with the exception of possible hardware glitches when switching
-the mode of the line.
+instead it will be switched to input, as input mode is an equivalent to
+high impedance, thus achieving an "open drain emulation" of sorts: electrically
+the behaviour will be identical, with the exception of possible hardware glitches
+when switching the mode of the line.
 
 For open source configuration the same principle is used, just that instead
 of actively driving the line low, it is set to input.

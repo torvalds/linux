@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/page-flags.h>
+#include <linux/reboot.h>
 #include <linux/set_memory.h>
 #include <linux/smp.h>
 
@@ -102,7 +103,7 @@ static void kexec_segment_flush(const struct kimage *kimage)
 /* Allocates pages for kexec page table */
 static void *kexec_page_alloc(void *arg)
 {
-	struct kimage *kimage = (struct kimage *)arg;
+	struct kimage *kimage = arg;
 	struct page *page = kimage_alloc_control_pages(kimage, 0);
 	void *vaddr = NULL;
 
@@ -266,26 +267,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	machine_kexec_mask_interrupts();
 
 	pr_info("Starting crashdump kernel...\n");
-}
-
-void arch_kexec_protect_crashkres(void)
-{
-	int i;
-
-	for (i = 0; i < kexec_crash_image->nr_segments; i++)
-		set_memory_valid(
-			__phys_to_virt(kexec_crash_image->segment[i].mem),
-			kexec_crash_image->segment[i].memsz >> PAGE_SHIFT, 0);
-}
-
-void arch_kexec_unprotect_crashkres(void)
-{
-	int i;
-
-	for (i = 0; i < kexec_crash_image->nr_segments; i++)
-		set_memory_valid(
-			__phys_to_virt(kexec_crash_image->segment[i].mem),
-			kexec_crash_image->segment[i].memsz >> PAGE_SHIFT, 1);
 }
 
 #ifdef CONFIG_HIBERNATION

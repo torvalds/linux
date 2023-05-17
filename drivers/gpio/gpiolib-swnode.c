@@ -6,12 +6,13 @@
  */
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/property.h>
 #include <linux/string.h>
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 
 #include "gpiolib.h"
 #include "gpiolib-swnode.h"

@@ -865,6 +865,7 @@ static struct platform_driver ti_abb_driver = {
 	.probe = ti_abb_probe,
 	.driver = {
 		   .name = "ti_abb",
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   .of_match_table = of_match_ptr(ti_abb_of_match),
 		   },
 };

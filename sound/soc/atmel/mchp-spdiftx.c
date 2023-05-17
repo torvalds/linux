@@ -72,11 +72,9 @@
 
 /* Valid Bits per Sample */
 #define SPDIFTX_MR_VBPS_MASK		GENMASK(13, 8)
-#define SPDIFTX_MR_VBPS(bps)		FIELD_PREP(SPDIFTX_MR_VBPS_MASK, bps)
 
 /* Chunk Size */
 #define SPDIFTX_MR_CHUNK_MASK		GENMASK(19, 16)
-#define SPDIFTX_MR_CHUNK(size)		FIELD_PREP(SPDIFTX_MR_CHUNK_MASK, size)
 
 /* Validity Bits for Channels 1 and 2 */
 #define SPDIFTX_MR_VALID1			BIT(24)
@@ -89,7 +87,6 @@
 
 /* Bytes per Sample */
 #define SPDIFTX_MR_BPS_MASK		GENMASK(29, 28)
-#define SPDIFTX_MR_BPS(bytes)		FIELD_PREP(SPDIFTX_MR_BPS_MASK, (bytes - 1))
 
 /*
  * ---- Interrupt Enable/Disable/Mask/Status Register (Write/Read-only) ----
@@ -309,15 +306,10 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
-	u32 mr;
-	int running;
 	int ret;
 
 	/* do not start/stop while channel status or user data is updated */
 	spin_lock(&ctrl->lock);
-	regmap_read(dev->regmap, SPDIFTX_MR, &mr);
-	running = !!(mr & SPDIFTX_MR_TXEN_ENABLE);
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
@@ -326,10 +318,8 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 		dev->suspend_irq = 0;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_ENABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_ENABLE);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		regmap_read(dev->regmap, SPDIFTX_IMR, &dev->suspend_irq);
@@ -339,20 +329,15 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_DISABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_DISABLE);
 		break;
 	default:
-		spin_unlock(&ctrl->lock);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	ret = regmap_write(dev->regmap, SPDIFTX_MR, mr);
 	spin_unlock(&ctrl->lock);
 	if (ret)
-		dev_err(dev->dev, "unable to disable TX: %d\n", ret);
+		dev_err(dev->dev, "unable to start/stop TX: %d\n", ret);
 
 	return ret;
 }
@@ -402,47 +387,47 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 			params_channels(params));
 		return -EINVAL;
 	}
-	mr |= SPDIFTX_MR_CHUNK(dev->playback.maxburst);
+	mr |= FIELD_PREP(SPDIFTX_MR_CHUNK_MASK, dev->playback.maxburst);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
-		mr |= SPDIFTX_MR_VBPS(8);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 8);
 		break;
 	case SNDRV_PCM_FORMAT_S16_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S16_LE:
-		mr |= SPDIFTX_MR_VBPS(16);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 16);
 		break;
 	case SNDRV_PCM_FORMAT_S18_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S18_3LE:
-		mr |= SPDIFTX_MR_VBPS(18);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 18);
 		break;
 	case SNDRV_PCM_FORMAT_S20_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		mr |= SPDIFTX_MR_VBPS(20);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 20);
 		break;
 	case SNDRV_PCM_FORMAT_S24_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S24_3LE:
-		mr |= SPDIFTX_MR_VBPS(24);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 24);
 		break;
 	case SNDRV_PCM_FORMAT_S24_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		mr |= SPDIFTX_MR_VBPS(24);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 24);
 		break;
 	case SNDRV_PCM_FORMAT_S32_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		mr |= SPDIFTX_MR_VBPS(32);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 32);
 		break;
 	default:
 		dev_err(dev->dev, "unsupported PCM format: %d\n",
@@ -450,7 +435,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	mr |= SPDIFTX_MR_BPS(bps);
+	mr |= FIELD_PREP(SPDIFTX_MR_BPS_MASK, bps - 1);
 
 	switch (params_rate(params)) {
 	case 22050:
@@ -891,7 +876,7 @@ pm_runtime_suspend:
 	return err;
 }
 
-static int mchp_spdiftx_remove(struct platform_device *pdev)
+static void mchp_spdiftx_remove(struct platform_device *pdev)
 {
 	struct mchp_spdiftx_dev *dev = platform_get_drvdata(pdev);
 
@@ -899,13 +884,11 @@ static int mchp_spdiftx_remove(struct platform_device *pdev)
 		mchp_spdiftx_runtime_suspend(dev->dev);
 
 	pm_runtime_disable(dev->dev);
-
-	return 0;
 }
 
 static struct platform_driver mchp_spdiftx_driver = {
 	.probe	= mchp_spdiftx_probe,
-	.remove = mchp_spdiftx_remove,
+	.remove_new = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
 		.of_match_table = of_match_ptr(mchp_spdiftx_dt_ids),

@@ -17,8 +17,9 @@
 #include <net/ipv6.h>
 #include <linux/kernel.h>
 #include <linux/user_namespace.h>
-#define RPCDBG_FACILITY	RPCDBG_AUTH
+#include <trace/events/sunrpc.h>
 
+#define RPCDBG_FACILITY	RPCDBG_AUTH
 
 #include "netns.h"
 
@@ -225,9 +226,9 @@ static int ip_map_parse(struct cache_detail *cd,
 		return -EINVAL;
 	}
 
-	expiry = get_expiry(&mesg);
-	if (expiry ==0)
-		return -EINVAL;
+	err = get_expiry(&mesg, &expiry);
+	if (err)
+		return err;
 
 	/* domainname, or empty for NEGATIVE */
 	len = qword_get(&mesg, buf, mlen);
@@ -416,14 +417,23 @@ static int unix_gid_hash(kuid_t uid)
 	return hash_long(from_kuid(&init_user_ns, uid), GID_HASHBITS);
 }
 
+static void unix_gid_free(struct rcu_head *rcu)
+{
+	struct unix_gid *ug = container_of(rcu, struct unix_gid, rcu);
+	struct cache_head *item = &ug->h;
+
+	if (test_bit(CACHE_VALID, &item->flags) &&
+	    !test_bit(CACHE_NEGATIVE, &item->flags))
+		put_group_info(ug->gi);
+	kfree(ug);
+}
+
 static void unix_gid_put(struct kref *kref)
 {
 	struct cache_head *item = container_of(kref, struct cache_head, ref);
 	struct unix_gid *ug = container_of(item, struct unix_gid, h);
-	if (test_bit(CACHE_VALID, &item->flags) &&
-	    !test_bit(CACHE_NEGATIVE, &item->flags))
-		put_group_info(ug->gi);
-	kfree_rcu(ug, rcu);
+
+	call_rcu(&ug->rcu, unix_gid_free);
 }
 
 static int unix_gid_match(struct cache_head *corig, struct cache_head *cnew)
@@ -497,9 +507,9 @@ static int unix_gid_parse(struct cache_detail *cd,
 	uid = make_kuid(current_user_ns(), id);
 	ug.uid = uid;
 
-	expiry = get_expiry(&mesg);
-	if (expiry == 0)
-		return -EINVAL;
+	err = get_expiry(&mesg, &expiry);
+	if (err)
+		return err;
 
 	rv = get_int(&mesg, &gids);
 	if (rv || gids < 0 || gids > 8192)
@@ -823,6 +833,7 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct svc_cred	*cred = &rqstp->rq_cred;
+	struct svc_xprt *xprt = rqstp->rq_xprt;
 	u32 flavor, len;
 	void *body;
 	__be32 *p;
@@ -856,14 +867,19 @@ svcauth_tls_accept(struct svc_rqst *rqstp)
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
 
-	if (rqstp->rq_xprt->xpt_ops->xpo_start_tls) {
+	if (xprt->xpt_ops->xpo_handshake) {
 		p = xdr_reserve_space(&rqstp->rq_res_stream, XDR_UNIT * 2 + 8);
 		if (!p)
 			return SVC_CLOSE;
+		trace_svc_tls_start(xprt);
 		*p++ = rpc_auth_null;
 		*p++ = cpu_to_be32(8);
 		memcpy(p, "STARTTLS", 8);
+
+		set_bit(XPT_HANDSHAKE, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
 	} else {
+		trace_svc_tls_unavailable(xprt);
 		if (xdr_stream_encode_opaque_auth(&rqstp->rq_res_stream,
 						  RPC_AUTH_NULL, NULL, 0) < 0)
 			return SVC_CLOSE;

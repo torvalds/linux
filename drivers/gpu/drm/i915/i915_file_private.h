@@ -15,7 +15,7 @@ struct drm_file;
 struct i915_drm_client;
 
 struct drm_i915_file_private {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *i915;
 
 	union {
 		struct drm_file *file;

@@ -25,7 +25,7 @@ config PATA_PARPORT_BPCK
 
 config PATA_PARPORT_BPCK6
 	tristate "MicroSolutions backpack (Series 6) protocol"
-	depends on (PATA_PARPORT) && !64BIT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 6 IDE protocol.  (Most BACKPACK drives made

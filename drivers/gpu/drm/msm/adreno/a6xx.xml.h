@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
-- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2023-03-10 18:32:52)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2022-07-23 20:21:46)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a2xx.xml                (  91929 bytes, from 2023-02-28 23:52:27)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  15434 bytes, from 2023-03-10 18:32:53)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  74995 bytes, from 2023-03-20 18:06:23)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113474 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149590 bytes, from 2023-02-14 19:37:12)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 198949 bytes, from 2023-03-20 18:06:23)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11404 bytes, from 2023-03-10 18:32:53)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   9055 bytes, from 2023-03-10 18:32:52)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2976 bytes, from 2023-03-10 18:32:52)
 
-Copyright (C) 2013-2022 by the following authors:
+Copyright (C) 2013-2023 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -911,6 +911,7 @@ enum a6xx_ztest_mode {
 	A6XX_EARLY_Z = 0,
 	A6XX_LATE_Z = 1,
 	A6XX_EARLY_LRZ_LATE_Z = 2,
+	A6XX_INVALID_ZTEST = 3,
 };
 
 enum a6xx_sequenced_thread_dist {
@@ -946,6 +947,12 @@ enum a6xx_buffers_location {
 	BUFFERS_IN_SYSMEM = 3,
 };
 
+enum a6xx_lrz_dir_status {
+	LRZ_DIR_LE = 1,
+	LRZ_DIR_GE = 2,
+	LRZ_DIR_INVALID = 3,
+};
+
 enum a6xx_fragcoord_sample_mode {
 	FRAGCOORD_CENTER = 0,
 	FRAGCOORD_SAMPLE = 3,
@@ -976,6 +983,11 @@ enum a6xx_tess_output {
 enum a6xx_threadsize {
 	THREAD64 = 0,
 	THREAD128 = 1,
+};
+
+enum a6xx_bindless_descriptor_size {
+	BINDLESS_DESCRIPTOR_16B = 1,
+	BINDLESS_DESCRIPTOR_64B = 3,
 };
 
 enum a6xx_isam_mode {
@@ -1030,6 +1042,8 @@ enum a6xx_tex_type {
 
 #define A6XX_RBBM_INT_0_MASK_RBBM_GPU_IDLE			0x00000001
 #define A6XX_RBBM_INT_0_MASK_CP_AHB_ERROR			0x00000002
+#define A6XX_RBBM_INT_0_MASK_CP_IPC_INTR_0			0x00000010
+#define A6XX_RBBM_INT_0_MASK_CP_IPC_INTR_1			0x00000020
 #define A6XX_RBBM_INT_0_MASK_RBBM_ATB_ASYNCFIFO_OVERFLOW	0x00000040
 #define A6XX_RBBM_INT_0_MASK_RBBM_GPC_ERROR			0x00000080
 #define A6XX_RBBM_INT_0_MASK_CP_SW				0x00000100
@@ -1040,15 +1054,19 @@ enum a6xx_tex_type {
 #define A6XX_RBBM_INT_0_MASK_CP_IB2				0x00002000
 #define A6XX_RBBM_INT_0_MASK_CP_IB1				0x00004000
 #define A6XX_RBBM_INT_0_MASK_CP_RB				0x00008000
+#define A6XX_RBBM_INT_0_MASK_PM4CPINTERRUPT			0x00008000
+#define A6XX_RBBM_INT_0_MASK_PM4CPINTERRUPTLPAC			0x00010000
 #define A6XX_RBBM_INT_0_MASK_CP_RB_DONE_TS			0x00020000
 #define A6XX_RBBM_INT_0_MASK_CP_WT_DONE_TS			0x00040000
 #define A6XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS			0x00100000
+#define A6XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS_LPAC		0x00200000
 #define A6XX_RBBM_INT_0_MASK_RBBM_ATB_BUS_OVERFLOW		0x00400000
 #define A6XX_RBBM_INT_0_MASK_RBBM_HANG_DETECT			0x00800000
 #define A6XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS			0x01000000
 #define A6XX_RBBM_INT_0_MASK_UCHE_TRAP_INTR			0x02000000
 #define A6XX_RBBM_INT_0_MASK_DEBBUS_INTR_0			0x04000000
 #define A6XX_RBBM_INT_0_MASK_DEBBUS_INTR_1			0x08000000
+#define A6XX_RBBM_INT_0_MASK_TSBWRITEERROR			0x10000000
 #define A6XX_RBBM_INT_0_MASK_ISDB_CPU_IRQ			0x40000000
 #define A6XX_RBBM_INT_0_MASK_ISDB_UNDER_DEBUG			0x80000000
 #define A6XX_CP_INT_CP_OPCODE_ERROR				0x00000001
@@ -1058,15 +1076,21 @@ enum a6xx_tex_type {
 #define A6XX_CP_INT_CP_AHB_ERROR				0x00000020
 #define A6XX_CP_INT_CP_VSD_PARITY_ERROR				0x00000040
 #define A6XX_CP_INT_CP_ILLEGAL_INSTR_ERROR			0x00000080
+#define A6XX_CP_INT_CP_OPCODE_ERROR_LPAC			0x00000100
+#define A6XX_CP_INT_CP_UCODE_ERROR_LPAC				0x00000200
+#define A6XX_CP_INT_CP_HW_FAULT_ERROR_LPAC			0x00000400
+#define A6XX_CP_INT_CP_REGISTER_PROTECTION_ERROR_LPAC		0x00000800
+#define A6XX_CP_INT_CP_ILLEGAL_INSTR_ERROR_LPAC			0x00001000
+#define A6XX_CP_INT_CP_OPCODE_ERROR_BV				0x00002000
+#define A6XX_CP_INT_CP_UCODE_ERROR_BV				0x00004000
+#define A6XX_CP_INT_CP_HW_FAULT_ERROR_BV			0x00008000
+#define A6XX_CP_INT_CP_REGISTER_PROTECTION_ERROR_BV		0x00010000
+#define A6XX_CP_INT_CP_ILLEGAL_INSTR_ERROR_BV			0x00020000
 #define REG_A6XX_CP_RB_BASE					0x00000800
-
-#define REG_A6XX_CP_RB_BASE_HI					0x00000801
 
 #define REG_A6XX_CP_RB_CNTL					0x00000802
 
-#define REG_A6XX_CP_RB_RPTR_ADDR_LO				0x00000804
-
-#define REG_A6XX_CP_RB_RPTR_ADDR_HI				0x00000805
+#define REG_A6XX_CP_RB_RPTR_ADDR				0x00000804
 
 #define REG_A6XX_CP_RB_RPTR					0x00000806
 
@@ -1083,26 +1107,28 @@ enum a6xx_tex_type {
 
 #define REG_A6XX_CP_PROTECT_STATUS				0x00000824
 
+#define REG_A6XX_CP_STATUS_1					0x00000825
+
 #define REG_A6XX_CP_SQE_INSTR_BASE				0x00000830
 
 #define REG_A6XX_CP_MISC_CNTL					0x00000840
 
-#define REG_A6XX_CP_CHICKEN_DBG					0x00000841
-
 #define REG_A6XX_CP_APRIV_CNTL					0x00000844
 
+#define REG_A6XX_CP_PREEMPT_THRESHOLD				0x000008c0
+
 #define REG_A6XX_CP_ROQ_THRESHOLDS_1				0x000008c1
-#define A6XX_CP_ROQ_THRESHOLDS_1_RB_LO__MASK			0x000000ff
-#define A6XX_CP_ROQ_THRESHOLDS_1_RB_LO__SHIFT			0
-static inline uint32_t A6XX_CP_ROQ_THRESHOLDS_1_RB_LO(uint32_t val)
+#define A6XX_CP_ROQ_THRESHOLDS_1_MRB_START__MASK		0x000000ff
+#define A6XX_CP_ROQ_THRESHOLDS_1_MRB_START__SHIFT		0
+static inline uint32_t A6XX_CP_ROQ_THRESHOLDS_1_MRB_START(uint32_t val)
 {
-	return ((val >> 2) << A6XX_CP_ROQ_THRESHOLDS_1_RB_LO__SHIFT) & A6XX_CP_ROQ_THRESHOLDS_1_RB_LO__MASK;
+	return ((val >> 2) << A6XX_CP_ROQ_THRESHOLDS_1_MRB_START__SHIFT) & A6XX_CP_ROQ_THRESHOLDS_1_MRB_START__MASK;
 }
-#define A6XX_CP_ROQ_THRESHOLDS_1_RB_HI__MASK			0x0000ff00
-#define A6XX_CP_ROQ_THRESHOLDS_1_RB_HI__SHIFT			8
-static inline uint32_t A6XX_CP_ROQ_THRESHOLDS_1_RB_HI(uint32_t val)
+#define A6XX_CP_ROQ_THRESHOLDS_1_VSD_START__MASK		0x0000ff00
+#define A6XX_CP_ROQ_THRESHOLDS_1_VSD_START__SHIFT		8
+static inline uint32_t A6XX_CP_ROQ_THRESHOLDS_1_VSD_START(uint32_t val)
 {
-	return ((val >> 2) << A6XX_CP_ROQ_THRESHOLDS_1_RB_HI__SHIFT) & A6XX_CP_ROQ_THRESHOLDS_1_RB_HI__MASK;
+	return ((val >> 2) << A6XX_CP_ROQ_THRESHOLDS_1_VSD_START__SHIFT) & A6XX_CP_ROQ_THRESHOLDS_1_VSD_START__MASK;
 }
 #define A6XX_CP_ROQ_THRESHOLDS_1_IB1_START__MASK		0x00ff0000
 #define A6XX_CP_ROQ_THRESHOLDS_1_IB1_START__SHIFT		16
@@ -1164,27 +1190,21 @@ static inline uint32_t A6XX_CP_PROTECT_REG_MASK_LEN(uint32_t val)
 
 #define REG_A6XX_CP_CONTEXT_SWITCH_CNTL				0x000008a0
 
-#define REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO_LO			0x000008a1
+#define REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO			0x000008a1
 
-#define REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO_HI			0x000008a2
+#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR	0x000008a3
 
-#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR_LO	0x000008a3
+#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_SECURE_RESTORE_ADDR	0x000008a5
 
-#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR_HI	0x000008a4
+#define REG_A6XX_CP_CONTEXT_SWITCH_NON_PRIV_RESTORE_ADDR	0x000008a7
 
-#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_SECURE_RESTORE_ADDR_LO	0x000008a5
-
-#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_SECURE_RESTORE_ADDR_HI	0x000008a6
-
-#define REG_A6XX_CP_CONTEXT_SWITCH_NON_PRIV_RESTORE_ADDR_LO	0x000008a7
-
-#define REG_A6XX_CP_CONTEXT_SWITCH_NON_PRIV_RESTORE_ADDR_HI	0x000008a8
+#define REG_A7XX_CP_CONTEXT_SWITCH_LEVEL_STATUS			0x000008ab
 
 static inline uint32_t REG_A6XX_CP_PERFCTR_CP_SEL(uint32_t i0) { return 0x000008d0 + 0x1*i0; }
 
-#define REG_A6XX_CP_CRASH_SCRIPT_BASE_LO			0x00000900
+static inline uint32_t REG_A7XX_CP_BV_PERFCTR_CP_SEL(uint32_t i0) { return 0x000008e0 + 0x1*i0; }
 
-#define REG_A6XX_CP_CRASH_SCRIPT_BASE_HI			0x00000901
+#define REG_A6XX_CP_CRASH_SCRIPT_BASE				0x00000900
 
 #define REG_A6XX_CP_CRASH_DUMP_CNTL				0x00000902
 
@@ -1212,63 +1232,165 @@ static inline uint32_t REG_A6XX_CP_PERFCTR_CP_SEL(uint32_t i0) { return 0x000008
 
 #define REG_A6XX_CP_IB1_BASE					0x00000928
 
-#define REG_A6XX_CP_IB1_BASE_HI					0x00000929
-
 #define REG_A6XX_CP_IB1_REM_SIZE				0x0000092a
 
 #define REG_A6XX_CP_IB2_BASE					0x0000092b
-
-#define REG_A6XX_CP_IB2_BASE_HI					0x0000092c
 
 #define REG_A6XX_CP_IB2_REM_SIZE				0x0000092d
 
 #define REG_A6XX_CP_SDS_BASE					0x0000092e
 
-#define REG_A6XX_CP_SDS_BASE_HI					0x0000092f
-
 #define REG_A6XX_CP_SDS_REM_SIZE				0x00000930
 
 #define REG_A6XX_CP_MRB_BASE					0x00000931
-
-#define REG_A6XX_CP_MRB_BASE_HI					0x00000932
 
 #define REG_A6XX_CP_MRB_REM_SIZE				0x00000933
 
 #define REG_A6XX_CP_VSD_BASE					0x00000934
 
-#define REG_A6XX_CP_VSD_BASE_HI					0x00000935
+#define REG_A6XX_CP_ROQ_RB_STAT					0x00000939
+#define A6XX_CP_ROQ_RB_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_RB_STAT_RPTR__SHIFT				0
+static inline uint32_t A6XX_CP_ROQ_RB_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_RB_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_RB_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_RB_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_RB_STAT_WPTR__SHIFT				16
+static inline uint32_t A6XX_CP_ROQ_RB_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_RB_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_RB_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_IB1_STAT				0x0000093a
+#define A6XX_CP_ROQ_IB1_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_IB1_STAT_RPTR__SHIFT			0
+static inline uint32_t A6XX_CP_ROQ_IB1_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_IB1_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_IB1_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_IB1_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_IB1_STAT_WPTR__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_IB1_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_IB1_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_IB1_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_IB2_STAT				0x0000093b
+#define A6XX_CP_ROQ_IB2_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_IB2_STAT_RPTR__SHIFT			0
+static inline uint32_t A6XX_CP_ROQ_IB2_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_IB2_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_IB2_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_IB2_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_IB2_STAT_WPTR__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_IB2_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_IB2_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_IB2_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_SDS_STAT				0x0000093c
+#define A6XX_CP_ROQ_SDS_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_SDS_STAT_RPTR__SHIFT			0
+static inline uint32_t A6XX_CP_ROQ_SDS_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_SDS_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_SDS_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_SDS_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_SDS_STAT_WPTR__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_SDS_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_SDS_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_SDS_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_MRB_STAT				0x0000093d
+#define A6XX_CP_ROQ_MRB_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_MRB_STAT_RPTR__SHIFT			0
+static inline uint32_t A6XX_CP_ROQ_MRB_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_MRB_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_MRB_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_MRB_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_MRB_STAT_WPTR__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_MRB_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_MRB_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_MRB_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_VSD_STAT				0x0000093e
+#define A6XX_CP_ROQ_VSD_STAT_RPTR__MASK				0x000003ff
+#define A6XX_CP_ROQ_VSD_STAT_RPTR__SHIFT			0
+static inline uint32_t A6XX_CP_ROQ_VSD_STAT_RPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_VSD_STAT_RPTR__SHIFT) & A6XX_CP_ROQ_VSD_STAT_RPTR__MASK;
+}
+#define A6XX_CP_ROQ_VSD_STAT_WPTR__MASK				0x03ff0000
+#define A6XX_CP_ROQ_VSD_STAT_WPTR__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_VSD_STAT_WPTR(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_VSD_STAT_WPTR__SHIFT) & A6XX_CP_ROQ_VSD_STAT_WPTR__MASK;
+}
+
+#define REG_A6XX_CP_IB1_DWORDS					0x00000943
+
+#define REG_A6XX_CP_IB2_DWORDS					0x00000944
+
+#define REG_A6XX_CP_SDS_DWORDS					0x00000945
 
 #define REG_A6XX_CP_MRB_DWORDS					0x00000946
 
 #define REG_A6XX_CP_VSD_DWORDS					0x00000947
 
-#define REG_A6XX_CP_CSQ_IB1_STAT				0x00000949
-#define A6XX_CP_CSQ_IB1_STAT_REM__MASK				0xffff0000
-#define A6XX_CP_CSQ_IB1_STAT_REM__SHIFT				16
-static inline uint32_t A6XX_CP_CSQ_IB1_STAT_REM(uint32_t val)
+#define REG_A6XX_CP_ROQ_AVAIL_RB				0x00000948
+#define A6XX_CP_ROQ_AVAIL_RB_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_RB_REM__SHIFT				16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_RB_REM(uint32_t val)
 {
-	return ((val) << A6XX_CP_CSQ_IB1_STAT_REM__SHIFT) & A6XX_CP_CSQ_IB1_STAT_REM__MASK;
+	return ((val) << A6XX_CP_ROQ_AVAIL_RB_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_RB_REM__MASK;
 }
 
-#define REG_A6XX_CP_CSQ_IB2_STAT				0x0000094a
-#define A6XX_CP_CSQ_IB2_STAT_REM__MASK				0xffff0000
-#define A6XX_CP_CSQ_IB2_STAT_REM__SHIFT				16
-static inline uint32_t A6XX_CP_CSQ_IB2_STAT_REM(uint32_t val)
+#define REG_A6XX_CP_ROQ_AVAIL_IB1				0x00000949
+#define A6XX_CP_ROQ_AVAIL_IB1_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_IB1_REM__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_IB1_REM(uint32_t val)
 {
-	return ((val) << A6XX_CP_CSQ_IB2_STAT_REM__SHIFT) & A6XX_CP_CSQ_IB2_STAT_REM__MASK;
+	return ((val) << A6XX_CP_ROQ_AVAIL_IB1_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_IB1_REM__MASK;
 }
 
-#define REG_A6XX_CP_MRQ_MRB_STAT				0x0000094c
-#define A6XX_CP_MRQ_MRB_STAT_REM__MASK				0xffff0000
-#define A6XX_CP_MRQ_MRB_STAT_REM__SHIFT				16
-static inline uint32_t A6XX_CP_MRQ_MRB_STAT_REM(uint32_t val)
+#define REG_A6XX_CP_ROQ_AVAIL_IB2				0x0000094a
+#define A6XX_CP_ROQ_AVAIL_IB2_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_IB2_REM__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_IB2_REM(uint32_t val)
 {
-	return ((val) << A6XX_CP_MRQ_MRB_STAT_REM__SHIFT) & A6XX_CP_MRQ_MRB_STAT_REM__MASK;
+	return ((val) << A6XX_CP_ROQ_AVAIL_IB2_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_IB2_REM__MASK;
 }
 
-#define REG_A6XX_CP_ALWAYS_ON_COUNTER_LO			0x00000980
+#define REG_A6XX_CP_ROQ_AVAIL_SDS				0x0000094b
+#define A6XX_CP_ROQ_AVAIL_SDS_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_SDS_REM__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_SDS_REM(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_AVAIL_SDS_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_SDS_REM__MASK;
+}
 
-#define REG_A6XX_CP_ALWAYS_ON_COUNTER_HI			0x00000981
+#define REG_A6XX_CP_ROQ_AVAIL_MRB				0x0000094c
+#define A6XX_CP_ROQ_AVAIL_MRB_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_MRB_REM__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_MRB_REM(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_AVAIL_MRB_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_MRB_REM__MASK;
+}
+
+#define REG_A6XX_CP_ROQ_AVAIL_VSD				0x0000094d
+#define A6XX_CP_ROQ_AVAIL_VSD_REM__MASK				0xffff0000
+#define A6XX_CP_ROQ_AVAIL_VSD_REM__SHIFT			16
+static inline uint32_t A6XX_CP_ROQ_AVAIL_VSD_REM(uint32_t val)
+{
+	return ((val) << A6XX_CP_ROQ_AVAIL_VSD_REM__SHIFT) & A6XX_CP_ROQ_AVAIL_VSD_REM__MASK;
+}
+
+#define REG_A6XX_CP_ALWAYS_ON_COUNTER				0x00000980
 
 #define REG_A6XX_CP_AHB_CNTL					0x0000098d
 
@@ -1276,11 +1398,69 @@ static inline uint32_t A6XX_CP_MRQ_MRB_STAT_REM(uint32_t val)
 
 #define REG_A6XX_CP_APERTURE_CNTL_CD				0x00000a03
 
+#define REG_A7XX_CP_BV_PROTECT_STATUS				0x00000a61
+
+#define REG_A7XX_CP_BV_HW_FAULT					0x00000a64
+
+#define REG_A7XX_CP_BV_DRAW_STATE_ADDR				0x00000a81
+
+#define REG_A7XX_CP_BV_DRAW_STATE_DATA				0x00000a82
+
+#define REG_A7XX_CP_BV_ROQ_DBG_ADDR				0x00000a83
+
+#define REG_A7XX_CP_BV_ROQ_DBG_DATA				0x00000a84
+
+#define REG_A7XX_CP_BV_SQE_UCODE_DBG_ADDR			0x00000a85
+
+#define REG_A7XX_CP_BV_SQE_UCODE_DBG_DATA			0x00000a86
+
+#define REG_A7XX_CP_BV_SQE_STAT_ADDR				0x00000a87
+
+#define REG_A7XX_CP_BV_SQE_STAT_DATA				0x00000a88
+
+#define REG_A7XX_CP_BV_MEM_POOL_DBG_ADDR			0x00000a96
+
+#define REG_A7XX_CP_BV_MEM_POOL_DBG_DATA			0x00000a97
+
+#define REG_A7XX_CP_BV_RB_RPTR_ADDR				0x00000a98
+
+#define REG_A7XX_CP_RESOURCE_TBL_DBG_ADDR			0x00000a9a
+
+#define REG_A7XX_CP_RESOURCE_TBL_DBG_DATA			0x00000a9b
+
+#define REG_A7XX_CP_BV_APRIV_CNTL				0x00000ad0
+
+#define REG_A7XX_CP_BV_CHICKEN_DBG				0x00000ada
+
+#define REG_A7XX_CP_LPAC_DRAW_STATE_ADDR			0x00000b0a
+
+#define REG_A7XX_CP_LPAC_DRAW_STATE_DATA			0x00000b0b
+
+#define REG_A7XX_CP_LPAC_ROQ_DBG_ADDR				0x00000b0c
+
+#define REG_A7XX_CP_SQE_AC_UCODE_DBG_ADDR			0x00000b27
+
+#define REG_A7XX_CP_SQE_AC_UCODE_DBG_DATA			0x00000b28
+
+#define REG_A7XX_CP_SQE_AC_STAT_ADDR				0x00000b29
+
+#define REG_A7XX_CP_SQE_AC_STAT_DATA				0x00000b2a
+
+#define REG_A7XX_CP_LPAC_APRIV_CNTL				0x00000b31
+
 #define REG_A6XX_CP_LPAC_PROG_FIFO_SIZE				0x00000b34
+
+#define REG_A7XX_CP_LPAC_ROQ_DBG_DATA				0x00000b35
+
+#define REG_A7XX_CP_LPAC_FIFO_DBG_DATA				0x00000b36
+
+#define REG_A7XX_CP_LPAC_FIFO_DBG_ADDR				0x00000b40
 
 #define REG_A6XX_CP_LPAC_SQE_INSTR_BASE				0x00000b82
 
 #define REG_A6XX_VSC_ADDR_MODE_CNTL				0x00000c01
+
+#define REG_A6XX_RBBM_GPR0_CNTL					0x00000018
 
 #define REG_A6XX_RBBM_INT_0_STATUS				0x00000201
 
@@ -1310,10 +1490,26 @@ static inline uint32_t A6XX_CP_MRQ_MRB_STAT_REM(uint32_t val)
 #define A6XX_RBBM_STATUS_CP_AHB_BUSY_CP_MASTER			0x00000002
 #define A6XX_RBBM_STATUS_CP_AHB_BUSY_CX_MASTER			0x00000001
 
+#define REG_A6XX_RBBM_STATUS1					0x00000211
+
+#define REG_A6XX_RBBM_STATUS2					0x00000212
+
 #define REG_A6XX_RBBM_STATUS3					0x00000213
 #define A6XX_RBBM_STATUS3_SMMU_STALLED_ON_FAULT			0x01000000
 
 #define REG_A6XX_RBBM_VBIF_GX_RESET_STATUS			0x00000215
+
+#define REG_A7XX_RBBM_CLOCK_MODE_CP				0x00000260
+
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_LRZ				0x00000284
+
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_GRAS			0x00000285
+
+#define REG_A7XX_RBBM_CLOCK_MODE2_GRAS				0x00000286
+
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_VFD				0x00000287
+
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_GPC				0x00000288
 
 static inline uint32_t REG_A6XX_RBBM_PERFCTR_CP(uint32_t i0) { return 0x00000400 + 0x2*i0; }
 
@@ -1347,6 +1543,62 @@ static inline uint32_t REG_A6XX_RBBM_PERFCTR_LRZ(uint32_t i0) { return 0x000004e
 
 static inline uint32_t REG_A6XX_RBBM_PERFCTR_CMP(uint32_t i0) { return 0x000004f2 + 0x2*i0; }
 
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_CP(uint32_t i0) { return 0x00000300 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_RBBM(uint32_t i0) { return 0x0000031c + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_PC(uint32_t i0) { return 0x00000324 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_VFD(uint32_t i0) { return 0x00000334 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_HLSQ(uint32_t i0) { return 0x00000344 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_VPC(uint32_t i0) { return 0x00000350 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_CCU(uint32_t i0) { return 0x0000035c + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_TSE(uint32_t i0) { return 0x00000366 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_RAS(uint32_t i0) { return 0x0000036e + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_UCHE(uint32_t i0) { return 0x00000376 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_TP(uint32_t i0) { return 0x0000038e + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_SP(uint32_t i0) { return 0x000003a6 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_RB(uint32_t i0) { return 0x000003d6 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_VSC(uint32_t i0) { return 0x000003e6 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_LRZ(uint32_t i0) { return 0x000003ea + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_CMP(uint32_t i0) { return 0x000003f2 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_UFC(uint32_t i0) { return 0x000003fa + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR2_HLSQ(uint32_t i0) { return 0x00000410 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR2_CP(uint32_t i0) { return 0x0000041c + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR2_SP(uint32_t i0) { return 0x0000042a + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR2_TP(uint32_t i0) { return 0x00000442 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR2_UFC(uint32_t i0) { return 0x0000044e + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_PC(uint32_t i0) { return 0x00000460 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_VFD(uint32_t i0) { return 0x00000470 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_VPC(uint32_t i0) { return 0x00000480 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_TSE(uint32_t i0) { return 0x0000048c + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_RAS(uint32_t i0) { return 0x00000494 + 0x2*i0; }
+
+static inline uint32_t REG_A7XX_RBBM_PERFCTR_BV_LRZ(uint32_t i0) { return 0x0000049c + 0x2*i0; }
+
 #define REG_A6XX_RBBM_PERFCTR_CNTL				0x00000500
 
 #define REG_A6XX_RBBM_PERFCTR_LOAD_CMD0				0x00000501
@@ -1370,6 +1622,10 @@ static inline uint32_t REG_A6XX_RBBM_PERFCTR_RBBM_SEL(uint32_t i0) { return 0x00
 #define REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS			0x0000050f
 
 #define REG_A6XX_RBBM_ISDB_CNT					0x00000533
+
+#define REG_A7XX_RBBM_NC_MODE_CNTL				0x00000534
+
+#define REG_A7XX_RBBM_SNAPSHOT_STATUS				0x00000535
 
 #define REG_A6XX_RBBM_PRIMCTR_0_LO				0x00000540
 
@@ -1417,15 +1673,15 @@ static inline uint32_t REG_A6XX_RBBM_PERFCTR_RBBM_SEL(uint32_t i0) { return 0x00
 
 #define REG_A6XX_RBBM_SECVID_TRUST_CNTL				0x0000f400
 
-#define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_BASE_LO		0x0000f800
-
-#define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI		0x0000f801
+#define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_BASE			0x0000f800
 
 #define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_SIZE			0x0000f802
 
 #define REG_A6XX_RBBM_SECVID_TSB_CNTL				0x0000f803
 
 #define REG_A6XX_RBBM_SECVID_TSB_ADDR_MODE_CNTL			0x0000f810
+
+#define REG_A7XX_RBBM_SECVID_TSB_STATUS				0x0000fc00
 
 #define REG_A6XX_RBBM_VBIF_CLIENT_QOS_CNTL			0x00000010
 
@@ -1438,11 +1694,17 @@ static inline uint32_t REG_A6XX_RBBM_PERFCTR_RBBM_SEL(uint32_t i0) { return 0x00
 #define REG_A6XX_RBBM_WAIT_FOR_GPU_IDLE_CMD			0x0000001c
 #define A6XX_RBBM_WAIT_FOR_GPU_IDLE_CMD_WAIT_GPU_IDLE		0x00000001
 
+#define REG_A7XX_RBBM_GBIF_HALT					0x00000016
+
+#define REG_A7XX_RBBM_GBIF_HALT_ACK				0x00000017
+
 #define REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL			0x0000001f
 
 #define REG_A6XX_RBBM_INT_CLEAR_CMD				0x00000037
 
 #define REG_A6XX_RBBM_INT_0_MASK				0x00000038
+
+#define REG_A7XX_RBBM_INT_2_MASK				0x0000003a
 
 #define REG_A6XX_RBBM_SP_HYST_CNT				0x00000042
 
@@ -1674,6 +1936,8 @@ static inline uint32_t REG_A6XX_RBBM_PERFCTR_RBBM_SEL(uint32_t i0) { return 0x00
 
 #define REG_A6XX_RBBM_CLOCK_HYST_TEX_FCHE			0x00000122
 
+#define REG_A6XX_RBBM_LPAC_GBIF_CLIENT_QOS_CNTL			0x000005ff
+
 #define REG_A6XX_DBGC_CFG_DBGBUS_SEL_A				0x00000600
 
 #define REG_A6XX_DBGC_CFG_DBGBUS_SEL_B				0x00000601
@@ -1852,25 +2116,15 @@ static inline uint32_t REG_A6XX_VSC_PERFCTR_VSC_SEL(uint32_t i0) { return 0x0000
 
 #define REG_A6XX_UCHE_MODE_CNTL					0x00000e01
 
-#define REG_A6XX_UCHE_WRITE_RANGE_MAX_LO			0x00000e05
+#define REG_A6XX_UCHE_WRITE_RANGE_MAX				0x00000e05
 
-#define REG_A6XX_UCHE_WRITE_RANGE_MAX_HI			0x00000e06
+#define REG_A6XX_UCHE_WRITE_THRU_BASE				0x00000e07
 
-#define REG_A6XX_UCHE_WRITE_THRU_BASE_LO			0x00000e07
+#define REG_A6XX_UCHE_TRAP_BASE					0x00000e09
 
-#define REG_A6XX_UCHE_WRITE_THRU_BASE_HI			0x00000e08
+#define REG_A6XX_UCHE_GMEM_RANGE_MIN				0x00000e0b
 
-#define REG_A6XX_UCHE_TRAP_BASE_LO				0x00000e09
-
-#define REG_A6XX_UCHE_TRAP_BASE_HI				0x00000e0a
-
-#define REG_A6XX_UCHE_GMEM_RANGE_MIN_LO				0x00000e0b
-
-#define REG_A6XX_UCHE_GMEM_RANGE_MIN_HI				0x00000e0c
-
-#define REG_A6XX_UCHE_GMEM_RANGE_MAX_LO				0x00000e0d
-
-#define REG_A6XX_UCHE_GMEM_RANGE_MAX_HI				0x00000e0e
+#define REG_A6XX_UCHE_GMEM_RANGE_MAX				0x00000e0d
 
 #define REG_A6XX_UCHE_CACHE_WAYS				0x00000e17
 
@@ -1885,6 +2139,8 @@ static inline uint32_t A6XX_UCHE_CLIENT_PF_PERFSEL(uint32_t val)
 }
 
 static inline uint32_t REG_A6XX_UCHE_PERFCTR_UCHE_SEL(uint32_t i0) { return 0x00000e1c + 0x1*i0; }
+
+#define REG_A6XX_UCHE_GBIF_GX_CONFIG				0x00000e3a
 
 #define REG_A6XX_UCHE_CMDQ_CONFIG				0x00000e3c
 
@@ -1982,6 +2238,8 @@ static inline uint32_t A6XX_VBIF_TEST_BUS2_CTRL1_DATA_SEL(uint32_t val)
 #define REG_A6XX_GBIF_HALT_ACK					0x00003c46
 
 #define REG_A6XX_GBIF_PERF_PWR_CNT_EN				0x00003cc0
+
+#define REG_A6XX_GBIF_PERF_PWR_CNT_CLR				0x00003cc1
 
 #define REG_A6XX_GBIF_PERF_CNT_SEL				0x00003cc2
 
@@ -2105,7 +2363,7 @@ static inline uint32_t REG_A6XX_VSC_DRAW_STRM_SIZE_REG(uint32_t i0) { return 0x0
 #define A6XX_GRAS_CL_CNTL_CLIP_DISABLE				0x00000001
 #define A6XX_GRAS_CL_CNTL_ZNEAR_CLIP_DISABLE			0x00000002
 #define A6XX_GRAS_CL_CNTL_ZFAR_CLIP_DISABLE			0x00000004
-#define A6XX_GRAS_CL_CNTL_UNK5					0x00000020
+#define A6XX_GRAS_CL_CNTL_Z_CLAMP_ENABLE			0x00000020
 #define A6XX_GRAS_CL_CNTL_ZERO_GB_SCALE_Z			0x00000040
 #define A6XX_GRAS_CL_CNTL_VP_CLIP_CODE_IGNORE			0x00000080
 #define A6XX_GRAS_CL_CNTL_VP_XFORM_DISABLE			0x00000100
@@ -2420,11 +2678,12 @@ static inline uint32_t A6XX_GRAS_SC_CNTL_SEQUENCED_THREAD_DISTRIBUTION(enum a6xx
 {
 	return ((val) << A6XX_GRAS_SC_CNTL_SEQUENCED_THREAD_DISTRIBUTION__SHIFT) & A6XX_GRAS_SC_CNTL_SEQUENCED_THREAD_DISTRIBUTION__MASK;
 }
-#define A6XX_GRAS_SC_CNTL_UNK9__MASK				0x00000e00
-#define A6XX_GRAS_SC_CNTL_UNK9__SHIFT				9
-static inline uint32_t A6XX_GRAS_SC_CNTL_UNK9(uint32_t val)
+#define A6XX_GRAS_SC_CNTL_UNK9					0x00000200
+#define A6XX_GRAS_SC_CNTL_ROTATION__MASK			0x00000c00
+#define A6XX_GRAS_SC_CNTL_ROTATION__SHIFT			10
+static inline uint32_t A6XX_GRAS_SC_CNTL_ROTATION(uint32_t val)
 {
-	return ((val) << A6XX_GRAS_SC_CNTL_UNK9__SHIFT) & A6XX_GRAS_SC_CNTL_UNK9__MASK;
+	return ((val) << A6XX_GRAS_SC_CNTL_ROTATION__SHIFT) & A6XX_GRAS_SC_CNTL_ROTATION__MASK;
 }
 #define A6XX_GRAS_SC_CNTL_EARLYVIZOUTEN				0x00001000
 
@@ -2697,12 +2956,14 @@ static inline uint32_t A6XX_GRAS_SC_WINDOW_SCISSOR_BR_Y(uint32_t val)
 #define A6XX_GRAS_LRZ_CNTL_FC_ENABLE				0x00000008
 #define A6XX_GRAS_LRZ_CNTL_Z_TEST_ENABLE			0x00000010
 #define A6XX_GRAS_LRZ_CNTL_Z_BOUNDS_ENABLE			0x00000020
-#define A6XX_GRAS_LRZ_CNTL_UNK6__MASK				0x000003c0
-#define A6XX_GRAS_LRZ_CNTL_UNK6__SHIFT				6
-static inline uint32_t A6XX_GRAS_LRZ_CNTL_UNK6(uint32_t val)
+#define A6XX_GRAS_LRZ_CNTL_DIR__MASK				0x000000c0
+#define A6XX_GRAS_LRZ_CNTL_DIR__SHIFT				6
+static inline uint32_t A6XX_GRAS_LRZ_CNTL_DIR(enum a6xx_lrz_dir_status val)
 {
-	return ((val) << A6XX_GRAS_LRZ_CNTL_UNK6__SHIFT) & A6XX_GRAS_LRZ_CNTL_UNK6__MASK;
+	return ((val) << A6XX_GRAS_LRZ_CNTL_DIR__SHIFT) & A6XX_GRAS_LRZ_CNTL_DIR__MASK;
 }
+#define A6XX_GRAS_LRZ_CNTL_DIR_WRITE				0x00000100
+#define A6XX_GRAS_LRZ_CNTL_DISABLE_ON_WRONG_DIR			0x00000200
 
 #define REG_A6XX_GRAS_LRZ_PS_INPUT_CNTL				0x00008101
 #define A6XX_GRAS_LRZ_PS_INPUT_CNTL_SAMPLEID			0x00000001
@@ -2754,24 +3015,24 @@ static inline uint32_t A6XX_GRAS_LRZ_FAST_CLEAR_BUFFER_BASE(uint32_t val)
 #define REG_A6XX_GRAS_SAMPLE_CNTL				0x00008109
 #define A6XX_GRAS_SAMPLE_CNTL_PER_SAMP_MODE			0x00000001
 
-#define REG_A6XX_GRAS_UNKNOWN_810A				0x0000810a
-#define A6XX_GRAS_UNKNOWN_810A_UNK0__MASK			0x000007ff
-#define A6XX_GRAS_UNKNOWN_810A_UNK0__SHIFT			0
-static inline uint32_t A6XX_GRAS_UNKNOWN_810A_UNK0(uint32_t val)
+#define REG_A6XX_GRAS_LRZ_DEPTH_VIEW				0x0000810a
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_LAYER__MASK		0x000007ff
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_LAYER__SHIFT		0
+static inline uint32_t A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_LAYER(uint32_t val)
 {
-	return ((val) << A6XX_GRAS_UNKNOWN_810A_UNK0__SHIFT) & A6XX_GRAS_UNKNOWN_810A_UNK0__MASK;
+	return ((val) << A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_LAYER__SHIFT) & A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_LAYER__MASK;
 }
-#define A6XX_GRAS_UNKNOWN_810A_UNK16__MASK			0x07ff0000
-#define A6XX_GRAS_UNKNOWN_810A_UNK16__SHIFT			16
-static inline uint32_t A6XX_GRAS_UNKNOWN_810A_UNK16(uint32_t val)
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_LAYER_COUNT__MASK		0x07ff0000
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_LAYER_COUNT__SHIFT		16
+static inline uint32_t A6XX_GRAS_LRZ_DEPTH_VIEW_LAYER_COUNT(uint32_t val)
 {
-	return ((val) << A6XX_GRAS_UNKNOWN_810A_UNK16__SHIFT) & A6XX_GRAS_UNKNOWN_810A_UNK16__MASK;
+	return ((val) << A6XX_GRAS_LRZ_DEPTH_VIEW_LAYER_COUNT__SHIFT) & A6XX_GRAS_LRZ_DEPTH_VIEW_LAYER_COUNT__MASK;
 }
-#define A6XX_GRAS_UNKNOWN_810A_UNK28__MASK			0xf0000000
-#define A6XX_GRAS_UNKNOWN_810A_UNK28__SHIFT			28
-static inline uint32_t A6XX_GRAS_UNKNOWN_810A_UNK28(uint32_t val)
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_MIP_LEVEL__MASK		0xf0000000
+#define A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_MIP_LEVEL__SHIFT		28
+static inline uint32_t A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_MIP_LEVEL(uint32_t val)
 {
-	return ((val) << A6XX_GRAS_UNKNOWN_810A_UNK28__SHIFT) & A6XX_GRAS_UNKNOWN_810A_UNK28__MASK;
+	return ((val) << A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_MIP_LEVEL__SHIFT) & A6XX_GRAS_LRZ_DEPTH_VIEW_BASE_MIP_LEVEL__MASK;
 }
 
 #define REG_A6XX_GRAS_UNKNOWN_8110				0x00008110
@@ -2899,6 +3160,8 @@ static inline uint32_t A6XX_GRAS_2D_RESOLVE_CNTL_2_Y(uint32_t val)
 #define A6XX_GRAS_DBG_ECO_CNTL_LRZCACHELOCKDIS			0x00000800
 
 #define REG_A6XX_GRAS_ADDR_MODE_CNTL				0x00008601
+
+#define REG_A7XX_GRAS_NC_MODE_CNTL				0x00008602
 
 static inline uint32_t REG_A6XX_GRAS_PERFCTR_TSE_SEL(uint32_t i0) { return 0x00008610 + 0x1*i0; }
 
@@ -3126,7 +3389,7 @@ static inline uint32_t A6XX_RB_RENDER_CONTROL0_COORD_MASK(uint32_t val)
 
 #define REG_A6XX_RB_RENDER_CONTROL1				0x0000880a
 #define A6XX_RB_RENDER_CONTROL1_SAMPLEMASK			0x00000001
-#define A6XX_RB_RENDER_CONTROL1_UNK1				0x00000002
+#define A6XX_RB_RENDER_CONTROL1_POSTDEPTHCOVERAGE		0x00000002
 #define A6XX_RB_RENDER_CONTROL1_FACENESS			0x00000004
 #define A6XX_RB_RENDER_CONTROL1_SAMPLEID			0x00000008
 #define A6XX_RB_RENDER_CONTROL1_FRAGCOORDSAMPLEMODE__MASK	0x00000030
@@ -3135,7 +3398,7 @@ static inline uint32_t A6XX_RB_RENDER_CONTROL1_FRAGCOORDSAMPLEMODE(enum a6xx_fra
 {
 	return ((val) << A6XX_RB_RENDER_CONTROL1_FRAGCOORDSAMPLEMODE__SHIFT) & A6XX_RB_RENDER_CONTROL1_FRAGCOORDSAMPLEMODE__MASK;
 }
-#define A6XX_RB_RENDER_CONTROL1_SIZE				0x00000040
+#define A6XX_RB_RENDER_CONTROL1_CENTERRHW			0x00000040
 #define A6XX_RB_RENDER_CONTROL1_LINELENGTHEN			0x00000080
 #define A6XX_RB_RENDER_CONTROL1_FOVEATION			0x00000100
 
@@ -3691,7 +3954,7 @@ static inline uint32_t A6XX_RB_WINDOW_OFFSET_Y(uint32_t val)
 }
 
 #define REG_A6XX_RB_SAMPLE_COUNT_CONTROL			0x00008891
-#define A6XX_RB_SAMPLE_COUNT_CONTROL_UNK0			0x00000001
+#define A6XX_RB_SAMPLE_COUNT_CONTROL_DISABLE			0x00000001
 #define A6XX_RB_SAMPLE_COUNT_CONTROL_COPY			0x00000002
 
 #define REG_A6XX_RB_LRZ_CNTL					0x00008898
@@ -3783,12 +4046,12 @@ static inline uint32_t A6XX_RB_WINDOW_OFFSET2_Y(uint32_t val)
 	return ((val) << A6XX_RB_WINDOW_OFFSET2_Y__SHIFT) & A6XX_RB_WINDOW_OFFSET2_Y__MASK;
 }
 
-#define REG_A6XX_RB_MSAA_CNTL					0x000088d5
-#define A6XX_RB_MSAA_CNTL_SAMPLES__MASK				0x00000018
-#define A6XX_RB_MSAA_CNTL_SAMPLES__SHIFT			3
-static inline uint32_t A6XX_RB_MSAA_CNTL_SAMPLES(enum a3xx_msaa_samples val)
+#define REG_A6XX_RB_BLIT_GMEM_MSAA_CNTL				0x000088d5
+#define A6XX_RB_BLIT_GMEM_MSAA_CNTL_SAMPLES__MASK		0x00000018
+#define A6XX_RB_BLIT_GMEM_MSAA_CNTL_SAMPLES__SHIFT		3
+static inline uint32_t A6XX_RB_BLIT_GMEM_MSAA_CNTL_SAMPLES(enum a3xx_msaa_samples val)
 {
-	return ((val) << A6XX_RB_MSAA_CNTL_SAMPLES__SHIFT) & A6XX_RB_MSAA_CNTL_SAMPLES__MASK;
+	return ((val) << A6XX_RB_BLIT_GMEM_MSAA_CNTL_SAMPLES__SHIFT) & A6XX_RB_BLIT_GMEM_MSAA_CNTL_SAMPLES__MASK;
 }
 
 #define REG_A6XX_RB_BLIT_BASE_GMEM				0x000088d6
@@ -3892,17 +4155,17 @@ static inline uint32_t A6XX_RB_BLIT_INFO_CLEAR_MASK(uint32_t val)
 {
 	return ((val) << A6XX_RB_BLIT_INFO_CLEAR_MASK__SHIFT) & A6XX_RB_BLIT_INFO_CLEAR_MASK__MASK;
 }
-#define A6XX_RB_BLIT_INFO_UNK8__MASK				0x00000300
-#define A6XX_RB_BLIT_INFO_UNK8__SHIFT				8
-static inline uint32_t A6XX_RB_BLIT_INFO_UNK8(uint32_t val)
+#define A6XX_RB_BLIT_INFO_LAST__MASK				0x00000300
+#define A6XX_RB_BLIT_INFO_LAST__SHIFT				8
+static inline uint32_t A6XX_RB_BLIT_INFO_LAST(uint32_t val)
 {
-	return ((val) << A6XX_RB_BLIT_INFO_UNK8__SHIFT) & A6XX_RB_BLIT_INFO_UNK8__MASK;
+	return ((val) << A6XX_RB_BLIT_INFO_LAST__SHIFT) & A6XX_RB_BLIT_INFO_LAST__MASK;
 }
-#define A6XX_RB_BLIT_INFO_UNK12__MASK				0x0000f000
-#define A6XX_RB_BLIT_INFO_UNK12__SHIFT				12
-static inline uint32_t A6XX_RB_BLIT_INFO_UNK12(uint32_t val)
+#define A6XX_RB_BLIT_INFO_BUFFER_ID__MASK			0x0000f000
+#define A6XX_RB_BLIT_INFO_BUFFER_ID__SHIFT			12
+static inline uint32_t A6XX_RB_BLIT_INFO_BUFFER_ID(uint32_t val)
 {
-	return ((val) << A6XX_RB_BLIT_INFO_UNK12__SHIFT) & A6XX_RB_BLIT_INFO_UNK12__MASK;
+	return ((val) << A6XX_RB_BLIT_INFO_BUFFER_ID__SHIFT) & A6XX_RB_BLIT_INFO_BUFFER_ID__MASK;
 }
 
 #define REG_A6XX_RB_UNKNOWN_88F0				0x000088f0
@@ -4173,16 +4436,23 @@ static inline uint32_t A6XX_RB_2D_DST_FLAGS_PLANE_PITCH(uint32_t val)
 
 #define REG_A6XX_RB_UNKNOWN_8E01				0x00008e01
 
-#define REG_A6XX_RB_UNKNOWN_8E04				0x00008e04
+#define REG_A6XX_RB_DBG_ECO_CNTL				0x00008e04
 
 #define REG_A6XX_RB_ADDR_MODE_CNTL				0x00008e05
 
 #define REG_A6XX_RB_CCU_CNTL					0x00008e07
-#define A6XX_RB_CCU_CNTL_COLOR_OFFSET__MASK			0xff800000
-#define A6XX_RB_CCU_CNTL_COLOR_OFFSET__SHIFT			23
-static inline uint32_t A6XX_RB_CCU_CNTL_COLOR_OFFSET(uint32_t val)
+#define A6XX_RB_CCU_CNTL_CONCURRENT_RESOLVE			0x00000004
+#define A6XX_RB_CCU_CNTL_DEPTH_OFFSET_HI__MASK			0x00000080
+#define A6XX_RB_CCU_CNTL_DEPTH_OFFSET_HI__SHIFT			7
+static inline uint32_t A6XX_RB_CCU_CNTL_DEPTH_OFFSET_HI(uint32_t val)
 {
-	return ((val >> 12) << A6XX_RB_CCU_CNTL_COLOR_OFFSET__SHIFT) & A6XX_RB_CCU_CNTL_COLOR_OFFSET__MASK;
+	return ((val) << A6XX_RB_CCU_CNTL_DEPTH_OFFSET_HI__SHIFT) & A6XX_RB_CCU_CNTL_DEPTH_OFFSET_HI__MASK;
+}
+#define A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__MASK			0x00000200
+#define A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__SHIFT			9
+static inline uint32_t A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI(uint32_t val)
+{
+	return ((val) << A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__SHIFT) & A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__MASK;
 }
 #define A6XX_RB_CCU_CNTL_DEPTH_OFFSET__MASK			0x001ff000
 #define A6XX_RB_CCU_CNTL_DEPTH_OFFSET__SHIFT			12
@@ -4191,7 +4461,12 @@ static inline uint32_t A6XX_RB_CCU_CNTL_DEPTH_OFFSET(uint32_t val)
 	return ((val >> 12) << A6XX_RB_CCU_CNTL_DEPTH_OFFSET__SHIFT) & A6XX_RB_CCU_CNTL_DEPTH_OFFSET__MASK;
 }
 #define A6XX_RB_CCU_CNTL_GMEM					0x00400000
-#define A6XX_RB_CCU_CNTL_UNK2					0x00000004
+#define A6XX_RB_CCU_CNTL_COLOR_OFFSET__MASK			0xff800000
+#define A6XX_RB_CCU_CNTL_COLOR_OFFSET__SHIFT			23
+static inline uint32_t A6XX_RB_CCU_CNTL_COLOR_OFFSET(uint32_t val)
+{
+	return ((val >> 12) << A6XX_RB_CCU_CNTL_COLOR_OFFSET__SHIFT) & A6XX_RB_CCU_CNTL_COLOR_OFFSET__MASK;
+}
 
 #define REG_A6XX_RB_NC_MODE_CNTL				0x00008e08
 #define A6XX_RB_NC_MODE_CNTL_MODE				0x00000001
@@ -4224,6 +4499,8 @@ static inline uint32_t REG_A6XX_RB_PERFCTR_CCU_SEL(uint32_t i0) { return 0x00008
 #define REG_A6XX_RB_UNKNOWN_8E28				0x00008e28
 
 static inline uint32_t REG_A6XX_RB_PERFCTR_CMP_SEL(uint32_t i0) { return 0x00008e2c + 0x1*i0; }
+
+static inline uint32_t REG_A7XX_RB_PERFCTR_UFC_SEL(uint32_t i0) { return 0x00008e30 + 0x1*i0; }
 
 #define REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_HOST			0x00008e3b
 
@@ -4440,7 +4717,13 @@ static inline uint32_t A6XX_VPC_SO_BUFFER_SIZE(uint32_t val)
 	return ((val >> 2) << A6XX_VPC_SO_BUFFER_SIZE__SHIFT) & A6XX_VPC_SO_BUFFER_SIZE__MASK;
 }
 
-static inline uint32_t REG_A6XX_VPC_SO_NCOMP(uint32_t i0) { return 0x0000921d + 0x7*i0; }
+static inline uint32_t REG_A6XX_VPC_SO_BUFFER_STRIDE(uint32_t i0) { return 0x0000921d + 0x7*i0; }
+#define A6XX_VPC_SO_BUFFER_STRIDE__MASK				0x000003ff
+#define A6XX_VPC_SO_BUFFER_STRIDE__SHIFT			0
+static inline uint32_t A6XX_VPC_SO_BUFFER_STRIDE(uint32_t val)
+{
+	return ((val >> 2) << A6XX_VPC_SO_BUFFER_STRIDE__SHIFT) & A6XX_VPC_SO_BUFFER_STRIDE__MASK;
+}
 
 static inline uint32_t REG_A6XX_VPC_SO_BUFFER_OFFSET(uint32_t i0) { return 0x0000921e + 0x7*i0; }
 #define A6XX_VPC_SO_BUFFER_OFFSET__MASK				0xfffffffc
@@ -4597,7 +4880,7 @@ static inline uint32_t A6XX_VPC_SO_STREAM_CNTL_STREAM_ENABLE(uint32_t val)
 #define REG_A6XX_VPC_SO_DISABLE					0x00009306
 #define A6XX_VPC_SO_DISABLE_DISABLE				0x00000001
 
-#define REG_A6XX_VPC_UNKNOWN_9600				0x00009600
+#define REG_A6XX_VPC_DBG_ECO_CNTL				0x00009600
 
 #define REG_A6XX_VPC_ADDR_MODE_CNTL				0x00009601
 
@@ -4606,6 +4889,8 @@ static inline uint32_t A6XX_VPC_SO_STREAM_CNTL_STREAM_ENABLE(uint32_t val)
 #define REG_A6XX_VPC_UNKNOWN_9603				0x00009603
 
 static inline uint32_t REG_A6XX_VPC_PERFCTR_VPC_SEL(uint32_t i0) { return 0x00009604 + 0x1*i0; }
+
+static inline uint32_t REG_A7XX_VPC_PERFCTR_VPC_SEL(uint32_t i0) { return 0x0000960b + 0x1*i0; }
 
 #define REG_A6XX_PC_TESS_NUM_VERTEX				0x00009800
 
@@ -4646,7 +4931,12 @@ static inline uint32_t A6XX_PC_TESS_CNTL_OUTPUT(enum a6xx_tess_output val)
 #define REG_A6XX_PC_PRIMID_PASSTHRU				0x00009806
 
 #define REG_A6XX_PC_SO_STREAM_CNTL				0x00009808
-#define A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE			0x00008000
+#define A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE__MASK		0x00078000
+#define A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE__SHIFT		15
+static inline uint32_t A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE(uint32_t val)
+{
+	return ((val) << A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE__SHIFT) & A6XX_PC_SO_STREAM_CNTL_STREAM_ENABLE__MASK;
+}
 
 #define REG_A6XX_PC_DGEN_SU_CONSERVATIVE_RAS_CNTL		0x0000980a
 #define A6XX_PC_DGEN_SU_CONSERVATIVE_RAS_CNTL_CONSERVATIVERASEN	0x00000001
@@ -4936,6 +5226,8 @@ static inline uint32_t A6XX_PC_BIN_DRAW_STRM(uint32_t val)
 
 static inline uint32_t REG_A6XX_PC_PERFCTR_PC_SEL(uint32_t i0) { return 0x00009e34 + 0x1*i0; }
 
+static inline uint32_t REG_A7XX_PC_PERFCTR_PC_SEL(uint32_t i0) { return 0x00009e42 + 0x1*i0; }
+
 #define REG_A6XX_PC_UNKNOWN_9E72				0x00009e72
 
 #define REG_A6XX_VFD_CONTROL_0					0x0000a000
@@ -5138,9 +5430,11 @@ static inline uint32_t A6XX_VFD_DEST_CNTL_INSTR_REGID(uint32_t val)
 
 static inline uint32_t REG_A6XX_VFD_PERFCTR_VFD_SEL(uint32_t i0) { return 0x0000a610 + 0x1*i0; }
 
+static inline uint32_t REG_A7XX_VFD_PERFCTR_VFD_SEL(uint32_t i0) { return 0x0000a610 + 0x1*i0; }
+
 #define REG_A6XX_SP_VS_CTRL_REG0				0x0000a800
 #define A6XX_SP_VS_CTRL_REG0_MERGEDREGS				0x00100000
-#define A6XX_SP_VS_CTRL_REG0_UNK21				0x00200000
+#define A6XX_SP_VS_CTRL_REG0_EARLYPREAMBLE			0x00200000
 #define A6XX_SP_VS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_VS_CTRL_REG0_THREADMODE__SHIFT			0
 static inline uint32_t A6XX_SP_VS_CTRL_REG0_THREADMODE(enum a3xx_threadmode val)
@@ -5318,7 +5612,7 @@ static inline uint32_t A6XX_SP_VS_PVT_MEM_HW_STACK_OFFSET_OFFSET(uint32_t val)
 }
 
 #define REG_A6XX_SP_HS_CTRL_REG0				0x0000a830
-#define A6XX_SP_HS_CTRL_REG0_UNK20				0x00100000
+#define A6XX_SP_HS_CTRL_REG0_EARLYPREAMBLE			0x00100000
 #define A6XX_SP_HS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_HS_CTRL_REG0_THREADMODE__SHIFT			0
 static inline uint32_t A6XX_SP_HS_CTRL_REG0_THREADMODE(enum a3xx_threadmode val)
@@ -5428,7 +5722,7 @@ static inline uint32_t A6XX_SP_HS_PVT_MEM_HW_STACK_OFFSET_OFFSET(uint32_t val)
 }
 
 #define REG_A6XX_SP_DS_CTRL_REG0				0x0000a840
-#define A6XX_SP_DS_CTRL_REG0_MERGEDREGS				0x00100000
+#define A6XX_SP_DS_CTRL_REG0_EARLYPREAMBLE			0x00100000
 #define A6XX_SP_DS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_DS_CTRL_REG0_THREADMODE__SHIFT			0
 static inline uint32_t A6XX_SP_DS_CTRL_REG0_THREADMODE(enum a3xx_threadmode val)
@@ -5606,7 +5900,7 @@ static inline uint32_t A6XX_SP_DS_PVT_MEM_HW_STACK_OFFSET_OFFSET(uint32_t val)
 }
 
 #define REG_A6XX_SP_GS_CTRL_REG0				0x0000a870
-#define A6XX_SP_GS_CTRL_REG0_UNK20				0x00100000
+#define A6XX_SP_GS_CTRL_REG0_EARLYPREAMBLE			0x00100000
 #define A6XX_SP_GS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_GS_CTRL_REG0_THREADMODE__SHIFT			0
 static inline uint32_t A6XX_SP_GS_CTRL_REG0_THREADMODE(enum a3xx_threadmode val)
@@ -5862,12 +6156,8 @@ static inline uint32_t A6XX_SP_FS_CTRL_REG0_THREADSIZE(enum a6xx_threadsize val)
 #define A6XX_SP_FS_CTRL_REG0_UNK24				0x01000000
 #define A6XX_SP_FS_CTRL_REG0_UNK25				0x02000000
 #define A6XX_SP_FS_CTRL_REG0_PIXLODENABLE			0x04000000
-#define A6XX_SP_FS_CTRL_REG0_UNK27__MASK			0x18000000
-#define A6XX_SP_FS_CTRL_REG0_UNK27__SHIFT			27
-static inline uint32_t A6XX_SP_FS_CTRL_REG0_UNK27(uint32_t val)
-{
-	return ((val) << A6XX_SP_FS_CTRL_REG0_UNK27__SHIFT) & A6XX_SP_FS_CTRL_REG0_UNK27__MASK;
-}
+#define A6XX_SP_FS_CTRL_REG0_UNK27				0x08000000
+#define A6XX_SP_FS_CTRL_REG0_EARLYPREAMBLE			0x10000000
 #define A6XX_SP_FS_CTRL_REG0_MERGEDREGS				0x80000000
 #define A6XX_SP_FS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_FS_CTRL_REG0_THREADMODE__SHIFT			0
@@ -6069,18 +6359,14 @@ static inline uint32_t A6XX_SP_FS_PREFETCH_CNTL_COUNT(uint32_t val)
 {
 	return ((val) << A6XX_SP_FS_PREFETCH_CNTL_COUNT__SHIFT) & A6XX_SP_FS_PREFETCH_CNTL_COUNT__MASK;
 }
-#define A6XX_SP_FS_PREFETCH_CNTL_UNK3				0x00000008
-#define A6XX_SP_FS_PREFETCH_CNTL_UNK4__MASK			0x00000ff0
-#define A6XX_SP_FS_PREFETCH_CNTL_UNK4__SHIFT			4
-static inline uint32_t A6XX_SP_FS_PREFETCH_CNTL_UNK4(uint32_t val)
+#define A6XX_SP_FS_PREFETCH_CNTL_IJ_WRITE_DISABLE		0x00000008
+#define A6XX_SP_FS_PREFETCH_CNTL_UNK4				0x00000010
+#define A6XX_SP_FS_PREFETCH_CNTL_WRITE_COLOR_TO_OUTPUT		0x00000020
+#define A6XX_SP_FS_PREFETCH_CNTL_UNK6__MASK			0x00007fc0
+#define A6XX_SP_FS_PREFETCH_CNTL_UNK6__SHIFT			6
+static inline uint32_t A6XX_SP_FS_PREFETCH_CNTL_UNK6(uint32_t val)
 {
-	return ((val) << A6XX_SP_FS_PREFETCH_CNTL_UNK4__SHIFT) & A6XX_SP_FS_PREFETCH_CNTL_UNK4__MASK;
-}
-#define A6XX_SP_FS_PREFETCH_CNTL_UNK12__MASK			0x00007000
-#define A6XX_SP_FS_PREFETCH_CNTL_UNK12__SHIFT			12
-static inline uint32_t A6XX_SP_FS_PREFETCH_CNTL_UNK12(uint32_t val)
-{
-	return ((val) << A6XX_SP_FS_PREFETCH_CNTL_UNK12__SHIFT) & A6XX_SP_FS_PREFETCH_CNTL_UNK12__MASK;
+	return ((val) << A6XX_SP_FS_PREFETCH_CNTL_UNK6__SHIFT) & A6XX_SP_FS_PREFETCH_CNTL_UNK6__MASK;
 }
 
 static inline uint32_t REG_A6XX_SP_FS_PREFETCH(uint32_t i0) { return 0x0000a99f + 0x1*i0; }
@@ -6117,9 +6403,11 @@ static inline uint32_t A6XX_SP_FS_PREFETCH_CMD_WRMASK(uint32_t val)
 	return ((val) << A6XX_SP_FS_PREFETCH_CMD_WRMASK__SHIFT) & A6XX_SP_FS_PREFETCH_CMD_WRMASK__MASK;
 }
 #define A6XX_SP_FS_PREFETCH_CMD_HALF				0x04000000
-#define A6XX_SP_FS_PREFETCH_CMD_CMD__MASK			0xf8000000
-#define A6XX_SP_FS_PREFETCH_CMD_CMD__SHIFT			27
-static inline uint32_t A6XX_SP_FS_PREFETCH_CMD_CMD(uint32_t val)
+#define A6XX_SP_FS_PREFETCH_CMD_UNK27				0x08000000
+#define A6XX_SP_FS_PREFETCH_CMD_BINDLESS			0x10000000
+#define A6XX_SP_FS_PREFETCH_CMD_CMD__MASK			0xe0000000
+#define A6XX_SP_FS_PREFETCH_CMD_CMD__SHIFT			29
+static inline uint32_t A6XX_SP_FS_PREFETCH_CMD_CMD(enum a6xx_tex_prefetch_cmd val)
 {
 	return ((val) << A6XX_SP_FS_PREFETCH_CMD_CMD__SHIFT) & A6XX_SP_FS_PREFETCH_CMD_CMD__MASK;
 }
@@ -6161,7 +6449,7 @@ static inline uint32_t A6XX_SP_CS_CTRL_REG0_THREADSIZE(enum a6xx_threadsize val)
 }
 #define A6XX_SP_CS_CTRL_REG0_UNK21				0x00200000
 #define A6XX_SP_CS_CTRL_REG0_UNK22				0x00400000
-#define A6XX_SP_CS_CTRL_REG0_SEPARATEPROLOG			0x00800000
+#define A6XX_SP_CS_CTRL_REG0_EARLYPREAMBLE			0x00800000
 #define A6XX_SP_CS_CTRL_REG0_MERGEDREGS				0x80000000
 #define A6XX_SP_CS_CTRL_REG0_THREADMODE__MASK			0x00000001
 #define A6XX_SP_CS_CTRL_REG0_THREADMODE__SHIFT			0
@@ -6355,7 +6643,19 @@ static inline uint32_t A6XX_SP_CS_TEX_CONST(uint32_t val)
 
 static inline uint32_t REG_A6XX_SP_CS_BINDLESS_BASE(uint32_t i0) { return 0x0000a9e8 + 0x2*i0; }
 
-static inline uint32_t REG_A6XX_SP_CS_BINDLESS_BASE_ADDR(uint32_t i0) { return 0x0000a9e8 + 0x2*i0; }
+static inline uint32_t REG_A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR(uint32_t i0) { return 0x0000a9e8 + 0x2*i0; }
+#define A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK	0x00000003
+#define A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT	0
+static inline uint32_t A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE(enum a6xx_bindless_descriptor_size val)
+{
+	return ((val) << A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT) & A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK;
+}
+#define A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK		0xfffffffc
+#define A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT		2
+static inline uint32_t A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_ADDR(uint32_t val)
+{
+	return ((val >> 2) << A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT) & A6XX_SP_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK;
+}
 
 #define REG_A6XX_SP_CS_IBO					0x0000a9f2
 #define A6XX_SP_CS_IBO__MASK					0xffffffff
@@ -6406,7 +6706,19 @@ static inline uint32_t A6XX_SP_FS_CONFIG_NIBO(uint32_t val)
 
 static inline uint32_t REG_A6XX_SP_BINDLESS_BASE(uint32_t i0) { return 0x0000ab10 + 0x2*i0; }
 
-static inline uint32_t REG_A6XX_SP_BINDLESS_BASE_ADDR(uint32_t i0) { return 0x0000ab10 + 0x2*i0; }
+static inline uint32_t REG_A6XX_SP_BINDLESS_BASE_DESCRIPTOR(uint32_t i0) { return 0x0000ab10 + 0x2*i0; }
+#define A6XX_SP_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK	0x00000003
+#define A6XX_SP_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT	0
+static inline uint32_t A6XX_SP_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE(enum a6xx_bindless_descriptor_size val)
+{
+	return ((val) << A6XX_SP_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT) & A6XX_SP_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK;
+}
+#define A6XX_SP_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK		0xfffffffc
+#define A6XX_SP_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT		2
+static inline uint32_t A6XX_SP_BINDLESS_BASE_DESCRIPTOR_ADDR(uint32_t val)
+{
+	return ((val >> 2) << A6XX_SP_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT) & A6XX_SP_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK;
+}
 
 #define REG_A6XX_SP_IBO						0x0000ab1a
 #define A6XX_SP_IBO__MASK					0xffffffff
@@ -6436,7 +6748,7 @@ static inline uint32_t A6XX_SP_2D_DST_FORMAT_MASK(uint32_t val)
 	return ((val) << A6XX_SP_2D_DST_FORMAT_MASK__SHIFT) & A6XX_SP_2D_DST_FORMAT_MASK__MASK;
 }
 
-#define REG_A6XX_SP_UNKNOWN_AE00				0x0000ae00
+#define REG_A6XX_SP_DBG_ECO_CNTL				0x0000ae00
 
 #define REG_A6XX_SP_ADDR_MODE_CNTL				0x0000ae01
 
@@ -6456,6 +6768,12 @@ static inline uint32_t A6XX_SP_2D_DST_FORMAT_MASK(uint32_t val)
 #define A6XX_SP_PERFCTR_ENABLE_CS				0x00000020
 
 static inline uint32_t REG_A6XX_SP_PERFCTR_SP_SEL(uint32_t i0) { return 0x0000ae10 + 0x1*i0; }
+
+static inline uint32_t REG_A7XX_SP_PERFCTR_HLSQ_SEL(uint32_t i0) { return 0x0000ae60 + 0x1*i0; }
+
+#define REG_A7XX_SP_READ_SEL					0x0000ae6d
+
+static inline uint32_t REG_A7XX_SP_PERFCTR_SP_SEL(uint32_t i0) { return 0x0000ae80 + 0x1*i0; }
 
 #define REG_A6XX_SP_CONTEXT_SWITCH_GFX_PREEMPTION_SAFE_MODE	0x0000be22
 
@@ -6887,6 +7205,8 @@ static inline uint32_t A6XX_HLSQ_FS_CNTL_0_UNK2(uint32_t val)
 
 #define REG_A6XX_HLSQ_CONTROL_1_REG				0x0000b982
 
+#define REG_A7XX_HLSQ_CONTROL_1_REG				0x0000a9c7
+
 #define REG_A6XX_HLSQ_CONTROL_2_REG				0x0000b983
 #define A6XX_HLSQ_CONTROL_2_REG_FACEREGID__MASK			0x000000ff
 #define A6XX_HLSQ_CONTROL_2_REG_FACEREGID__SHIFT		0
@@ -6906,11 +7226,37 @@ static inline uint32_t A6XX_HLSQ_CONTROL_2_REG_SAMPLEMASK(uint32_t val)
 {
 	return ((val) << A6XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__SHIFT) & A6XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__MASK;
 }
-#define A6XX_HLSQ_CONTROL_2_REG_SIZE__MASK			0xff000000
-#define A6XX_HLSQ_CONTROL_2_REG_SIZE__SHIFT			24
-static inline uint32_t A6XX_HLSQ_CONTROL_2_REG_SIZE(uint32_t val)
+#define A6XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK			0xff000000
+#define A6XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT		24
+static inline uint32_t A6XX_HLSQ_CONTROL_2_REG_CENTERRHW(uint32_t val)
 {
-	return ((val) << A6XX_HLSQ_CONTROL_2_REG_SIZE__SHIFT) & A6XX_HLSQ_CONTROL_2_REG_SIZE__MASK;
+	return ((val) << A6XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT) & A6XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK;
+}
+
+#define REG_A7XX_HLSQ_CONTROL_2_REG				0x0000a9c8
+#define A7XX_HLSQ_CONTROL_2_REG_FACEREGID__MASK			0x000000ff
+#define A7XX_HLSQ_CONTROL_2_REG_FACEREGID__SHIFT		0
+static inline uint32_t A7XX_HLSQ_CONTROL_2_REG_FACEREGID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_2_REG_FACEREGID__SHIFT) & A7XX_HLSQ_CONTROL_2_REG_FACEREGID__MASK;
+}
+#define A7XX_HLSQ_CONTROL_2_REG_SAMPLEID__MASK			0x0000ff00
+#define A7XX_HLSQ_CONTROL_2_REG_SAMPLEID__SHIFT			8
+static inline uint32_t A7XX_HLSQ_CONTROL_2_REG_SAMPLEID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_2_REG_SAMPLEID__SHIFT) & A7XX_HLSQ_CONTROL_2_REG_SAMPLEID__MASK;
+}
+#define A7XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__MASK		0x00ff0000
+#define A7XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__SHIFT		16
+static inline uint32_t A7XX_HLSQ_CONTROL_2_REG_SAMPLEMASK(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__SHIFT) & A7XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__MASK;
+}
+#define A7XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK			0xff000000
+#define A7XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT		24
+static inline uint32_t A7XX_HLSQ_CONTROL_2_REG_CENTERRHW(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT) & A7XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK;
 }
 
 #define REG_A6XX_HLSQ_CONTROL_3_REG				0x0000b984
@@ -6939,6 +7285,32 @@ static inline uint32_t A6XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID(uint32_t val)
 	return ((val) << A6XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__SHIFT) & A6XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__MASK;
 }
 
+#define REG_A7XX_HLSQ_CONTROL_3_REG				0x0000a9c9
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__MASK		0x000000ff
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__SHIFT		0
+static inline uint32_t A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__SHIFT) & A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__MASK;
+}
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__MASK		0x0000ff00
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__SHIFT		8
+static inline uint32_t A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__SHIFT) & A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__MASK;
+}
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__MASK		0x00ff0000
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__SHIFT	16
+static inline uint32_t A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__SHIFT) & A7XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__MASK;
+}
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__MASK	0xff000000
+#define A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__SHIFT	24
+static inline uint32_t A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__SHIFT) & A7XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__MASK;
+}
+
 #define REG_A6XX_HLSQ_CONTROL_4_REG				0x0000b985
 #define A6XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__MASK		0x000000ff
 #define A6XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__SHIFT		0
@@ -6965,6 +7337,32 @@ static inline uint32_t A6XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID(uint32_t val)
 	return ((val) << A6XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__SHIFT) & A6XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__MASK;
 }
 
+#define REG_A7XX_HLSQ_CONTROL_4_REG				0x0000a9ca
+#define A7XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__MASK		0x000000ff
+#define A7XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__SHIFT		0
+static inline uint32_t A7XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__SHIFT) & A7XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__MASK;
+}
+#define A7XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__MASK		0x0000ff00
+#define A7XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__SHIFT		8
+static inline uint32_t A7XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__SHIFT) & A7XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__MASK;
+}
+#define A7XX_HLSQ_CONTROL_4_REG_XYCOORDREGID__MASK		0x00ff0000
+#define A7XX_HLSQ_CONTROL_4_REG_XYCOORDREGID__SHIFT		16
+static inline uint32_t A7XX_HLSQ_CONTROL_4_REG_XYCOORDREGID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_4_REG_XYCOORDREGID__SHIFT) & A7XX_HLSQ_CONTROL_4_REG_XYCOORDREGID__MASK;
+}
+#define A7XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__MASK		0xff000000
+#define A7XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__SHIFT		24
+static inline uint32_t A7XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__SHIFT) & A7XX_HLSQ_CONTROL_4_REG_ZWCOORDREGID__MASK;
+}
+
 #define REG_A6XX_HLSQ_CONTROL_5_REG				0x0000b986
 #define A6XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__MASK		0x000000ff
 #define A6XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__SHIFT		0
@@ -6977,6 +7375,20 @@ static inline uint32_t A6XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID(uint32_t val)
 static inline uint32_t A6XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID(uint32_t val)
 {
 	return ((val) << A6XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__SHIFT) & A6XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__MASK;
+}
+
+#define REG_A7XX_HLSQ_CONTROL_5_REG				0x0000a9cb
+#define A7XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__MASK		0x000000ff
+#define A7XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__SHIFT		0
+static inline uint32_t A7XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__SHIFT) & A7XX_HLSQ_CONTROL_5_REG_LINELENGTHREGID__MASK;
+}
+#define A7XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__MASK	0x0000ff00
+#define A7XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__SHIFT	8
+static inline uint32_t A7XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID(uint32_t val)
+{
+	return ((val) << A7XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__SHIFT) & A7XX_HLSQ_CONTROL_5_REG_FOVEATIONQUALITYREGID__MASK;
 }
 
 #define REG_A6XX_HLSQ_CS_CNTL					0x0000b987
@@ -7124,7 +7536,19 @@ static inline uint32_t A6XX_HLSQ_LOAD_STATE_FRAG_EXT_SRC_ADDR(uint32_t val)
 
 static inline uint32_t REG_A6XX_HLSQ_CS_BINDLESS_BASE(uint32_t i0) { return 0x0000b9c0 + 0x2*i0; }
 
-static inline uint32_t REG_A6XX_HLSQ_CS_BINDLESS_BASE_ADDR(uint32_t i0) { return 0x0000b9c0 + 0x2*i0; }
+static inline uint32_t REG_A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR(uint32_t i0) { return 0x0000b9c0 + 0x2*i0; }
+#define A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK	0x00000003
+#define A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT	0
+static inline uint32_t A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE(enum a6xx_bindless_descriptor_size val)
+{
+	return ((val) << A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT) & A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK;
+}
+#define A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK	0xfffffffc
+#define A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT	2
+static inline uint32_t A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_ADDR(uint32_t val)
+{
+	return ((val >> 2) << A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT) & A6XX_HLSQ_CS_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK;
+}
 
 #define REG_A6XX_HLSQ_CS_UNKNOWN_B9D0				0x0000b9d0
 #define A6XX_HLSQ_CS_UNKNOWN_B9D0_SHARED_SIZE__MASK		0x0000001f
@@ -7204,7 +7628,19 @@ static inline uint32_t A6XX_HLSQ_FS_CNTL_CONSTLEN(uint32_t val)
 
 static inline uint32_t REG_A6XX_HLSQ_BINDLESS_BASE(uint32_t i0) { return 0x0000bb20 + 0x2*i0; }
 
-static inline uint32_t REG_A6XX_HLSQ_BINDLESS_BASE_ADDR(uint32_t i0) { return 0x0000bb20 + 0x2*i0; }
+static inline uint32_t REG_A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR(uint32_t i0) { return 0x0000bb20 + 0x2*i0; }
+#define A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK	0x00000003
+#define A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT	0
+static inline uint32_t A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE(enum a6xx_bindless_descriptor_size val)
+{
+	return ((val) << A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__SHIFT) & A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_DESC_SIZE__MASK;
+}
+#define A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK		0xfffffffc
+#define A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT		2
+static inline uint32_t A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_ADDR(uint32_t val)
+{
+	return ((val >> 2) << A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_ADDR__SHIFT) & A6XX_HLSQ_BINDLESS_BASE_DESCRIPTOR_ADDR__MASK;
+}
 
 #define REG_A6XX_HLSQ_2D_EVENT_CMD				0x0000bd80
 #define A6XX_HLSQ_2D_EVENT_CMD_STATE_ID__MASK			0x0000ff00
@@ -7224,7 +7660,7 @@ static inline uint32_t A6XX_HLSQ_2D_EVENT_CMD_EVENT(enum vgt_event_type val)
 
 #define REG_A6XX_HLSQ_UNKNOWN_BE01				0x0000be01
 
-#define REG_A6XX_HLSQ_UNKNOWN_BE04				0x0000be04
+#define REG_A6XX_HLSQ_DBG_ECO_CNTL				0x0000be04
 
 #define REG_A6XX_HLSQ_ADDR_MODE_CNTL				0x0000be05
 
@@ -7233,6 +7669,8 @@ static inline uint32_t A6XX_HLSQ_2D_EVENT_CMD_EVENT(enum vgt_event_type val)
 static inline uint32_t REG_A6XX_HLSQ_PERFCTR_HLSQ_SEL(uint32_t i0) { return 0x0000be10 + 0x1*i0; }
 
 #define REG_A6XX_HLSQ_CONTEXT_SWITCH_GFX_PREEMPTION_SAFE_MODE	0x0000be22
+
+#define REG_A7XX_SP_AHB_READ_APERTURE				0x0000c000
 
 #define REG_A6XX_CP_EVENT_START					0x0000d600
 #define A6XX_CP_EVENT_START_STATE_ID__MASK			0x000000ff
@@ -7426,7 +7864,18 @@ static inline uint32_t A6XX_TEX_CONST_1_HEIGHT(uint32_t val)
 }
 
 #define REG_A6XX_TEX_CONST_2					0x00000002
-#define A6XX_TEX_CONST_2_BUFFER					0x00000010
+#define A6XX_TEX_CONST_2_STRUCTSIZETEXELS__MASK			0x0000fff0
+#define A6XX_TEX_CONST_2_STRUCTSIZETEXELS__SHIFT		4
+static inline uint32_t A6XX_TEX_CONST_2_STRUCTSIZETEXELS(uint32_t val)
+{
+	return ((val) << A6XX_TEX_CONST_2_STRUCTSIZETEXELS__SHIFT) & A6XX_TEX_CONST_2_STRUCTSIZETEXELS__MASK;
+}
+#define A6XX_TEX_CONST_2_STARTOFFSETTEXELS__MASK		0x003f0000
+#define A6XX_TEX_CONST_2_STARTOFFSETTEXELS__SHIFT		16
+static inline uint32_t A6XX_TEX_CONST_2_STARTOFFSETTEXELS(uint32_t val)
+{
+	return ((val) << A6XX_TEX_CONST_2_STARTOFFSETTEXELS__SHIFT) & A6XX_TEX_CONST_2_STARTOFFSETTEXELS__MASK;
+}
 #define A6XX_TEX_CONST_2_PITCHALIGN__MASK			0x0000000f
 #define A6XX_TEX_CONST_2_PITCHALIGN__SHIFT			0
 static inline uint32_t A6XX_TEX_CONST_2_PITCHALIGN(uint32_t val)
@@ -7485,6 +7934,12 @@ static inline uint32_t A6XX_TEX_CONST_5_DEPTH(uint32_t val)
 }
 
 #define REG_A6XX_TEX_CONST_6					0x00000006
+#define A6XX_TEX_CONST_6_MIN_LOD_CLAMP__MASK			0x00000fff
+#define A6XX_TEX_CONST_6_MIN_LOD_CLAMP__SHIFT			0
+static inline uint32_t A6XX_TEX_CONST_6_MIN_LOD_CLAMP(float val)
+{
+	return ((((uint32_t)(val * 256.0))) << A6XX_TEX_CONST_6_MIN_LOD_CLAMP__SHIFT) & A6XX_TEX_CONST_6_MIN_LOD_CLAMP__MASK;
+}
 #define A6XX_TEX_CONST_6_PLANE_PITCH__MASK			0xffffff00
 #define A6XX_TEX_CONST_6_PLANE_PITCH__SHIFT			8
 static inline uint32_t A6XX_TEX_CONST_6_PLANE_PITCH(uint32_t val)

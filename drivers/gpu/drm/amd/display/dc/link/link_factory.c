@@ -99,6 +99,7 @@ static void construct_link_service_validation(struct link_service *link_srv)
 {
 	link_srv->validate_mode_timing = link_validate_mode_timing;
 	link_srv->dp_link_bandwidth_kbps = dp_link_bandwidth_kbps;
+	link_srv->validate_dpia_bandwidth = link_validate_dpia_bandwidth;
 }
 
 /* link dpms owns the programming sequence of stream's dpms state associated

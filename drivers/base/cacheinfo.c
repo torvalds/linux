@@ -14,7 +14,7 @@
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -28,6 +28,9 @@ static DEFINE_PER_CPU(struct cpu_cacheinfo, ci_cpu_cacheinfo);
 #define per_cpu_cacheinfo_idx(cpu, idx)		\
 				(per_cpu_cacheinfo(cpu) + (idx))
 
+/* Set if no cache information is found in DT/ACPI. */
+static bool use_arch_info;
+
 struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu)
 {
 	return ci_cacheinfo(cpu);
@@ -38,11 +41,11 @@ static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 {
 	/*
 	 * For non DT/ACPI systems, assume unique level 1 caches,
-	 * system-wide shared caches for all other levels. This will be used
-	 * only if arch specific code has not populated shared_cpu_map
+	 * system-wide shared caches for all other levels.
 	 */
-	if (!(IS_ENABLED(CONFIG_OF) || IS_ENABLED(CONFIG_ACPI)))
-		return !(this_leaf->level == 1);
+	if (!(IS_ENABLED(CONFIG_OF) || IS_ENABLED(CONFIG_ACPI)) ||
+	    use_arch_info)
+		return (this_leaf->level != 1) && (sib_leaf->level != 1);
 
 	if ((sib_leaf->attributes & CACHE_ID) &&
 	    (this_leaf->attributes & CACHE_ID))
@@ -79,6 +82,9 @@ bool last_level_cache_is_shared(unsigned int cpu_x, unsigned int cpu_y)
 }
 
 #ifdef CONFIG_OF
+
+static bool of_check_cache_nodes(struct device_node *np);
+
 /* OF properties to query for a given cache type */
 struct cache_type_info {
 	const char *size_prop;
@@ -206,6 +212,11 @@ static int cache_setup_of_node(unsigned int cpu)
 		return -ENOENT;
 	}
 
+	if (!of_check_cache_nodes(np)) {
+		of_node_put(np);
+		return -ENOENT;
+	}
+
 	prev = np;
 
 	while (index < cache_leaves(cpu)) {
@@ -228,6 +239,25 @@ static int cache_setup_of_node(unsigned int cpu)
 		return -ENOENT;
 
 	return 0;
+}
+
+static bool of_check_cache_nodes(struct device_node *np)
+{
+	struct device_node *next;
+
+	if (of_property_present(np, "cache-size")   ||
+	    of_property_present(np, "i-cache-size") ||
+	    of_property_present(np, "d-cache-size") ||
+	    of_property_present(np, "cache-unified"))
+		return true;
+
+	next = of_find_next_cache_node(np);
+	if (next) {
+		of_node_put(next);
+		return true;
+	}
+
+	return false;
 }
 
 static int of_count_cache_leaves(struct device_node *np)
@@ -260,6 +290,11 @@ int init_of_cache_level(unsigned int cpu)
 	struct device_node *np = of_cpu_device_node_get(cpu);
 	struct device_node *prev = NULL;
 	unsigned int levels = 0, leaves, level;
+
+	if (!of_check_cache_nodes(np)) {
+		of_node_put(np);
+		return -ENOENT;
+	}
 
 	leaves = of_count_cache_leaves(np);
 	if (leaves > 0)
@@ -312,6 +347,10 @@ static int cache_setup_properties(unsigned int cpu)
 	else if (!acpi_disabled)
 		ret = cache_setup_acpi(cpu);
 
+	// Assume there is no cache information available in DT/ACPI from now.
+	if (ret && use_arch_cache_info())
+		use_arch_info = true;
+
 	return ret;
 }
 
@@ -330,7 +369,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 	 * to update the shared cpu_map if the cache attributes were
 	 * populated early before all the cpus are brought online
 	 */
-	if (!last_level_cache_is_valid(cpu)) {
+	if (!last_level_cache_is_valid(cpu) && !use_arch_info) {
 		ret = cache_setup_properties(cpu);
 		if (ret)
 			return ret;
@@ -398,6 +437,11 @@ static void free_cache_attributes(unsigned int cpu)
 	cache_shared_cpu_map_remove(cpu);
 }
 
+int __weak early_cache_level(unsigned int cpu)
+{
+	return -ENOENT;
+}
+
 int __weak init_cache_level(unsigned int cpu)
 {
 	return -ENOENT;
@@ -423,32 +467,71 @@ int allocate_cache_info(int cpu)
 
 int fetch_cache_info(unsigned int cpu)
 {
-	struct cpu_cacheinfo *this_cpu_ci;
+	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	unsigned int levels = 0, split_levels = 0;
 	int ret;
 
 	if (acpi_disabled) {
 		ret = init_of_cache_level(cpu);
-		if (ret < 0)
-			return ret;
 	} else {
 		ret = acpi_get_cache_info(cpu, &levels, &split_levels);
-		if (ret < 0)
+		if (!ret) {
+			this_cpu_ci->num_levels = levels;
+			/*
+			 * This assumes that:
+			 * - there cannot be any split caches (data/instruction)
+			 *   above a unified cache
+			 * - data/instruction caches come by pair
+			 */
+			this_cpu_ci->num_leaves = levels + split_levels;
+		}
+	}
+
+	if (ret || !cache_leaves(cpu)) {
+		ret = early_cache_level(cpu);
+		if (ret)
 			return ret;
 
-		this_cpu_ci = get_cpu_cacheinfo(cpu);
-		this_cpu_ci->num_levels = levels;
-		/*
-		 * This assumes that:
-		 * - there cannot be any split caches (data/instruction)
-		 *   above a unified cache
-		 * - data/instruction caches come by pair
-		 */
-		this_cpu_ci->num_leaves = levels + split_levels;
+		if (!cache_leaves(cpu))
+			return -ENOENT;
+
+		this_cpu_ci->early_ci_levels = true;
 	}
-	if (!cache_leaves(cpu))
+
+	return allocate_cache_info(cpu);
+}
+
+static inline int init_level_allocate_ci(unsigned int cpu)
+{
+	unsigned int early_leaves = cache_leaves(cpu);
+
+	/* Since early initialization/allocation of the cacheinfo is allowed
+	 * via fetch_cache_info() and this also gets called as CPU hotplug
+	 * callbacks via cacheinfo_cpu_online, the init/alloc can be skipped
+	 * as it will happen only once (the cacheinfo memory is never freed).
+	 * Just populate the cacheinfo. However, if the cacheinfo has been
+	 * allocated early through the arch-specific early_cache_level() call,
+	 * there is a chance the info is wrong (this can happen on arm64). In
+	 * that case, call init_cache_level() anyway to give the arch-specific
+	 * code a chance to make things right.
+	 */
+	if (per_cpu_cacheinfo(cpu) && !ci_cacheinfo(cpu)->early_ci_levels)
+		return 0;
+
+	if (init_cache_level(cpu) || !cache_leaves(cpu))
 		return -ENOENT;
 
+	/*
+	 * Now that we have properly initialized the cache level info, make
+	 * sure we don't try to do that again the next time we are called
+	 * (e.g. as CPU hotplug callbacks).
+	 */
+	ci_cacheinfo(cpu)->early_ci_levels = false;
+
+	if (cache_leaves(cpu) <= early_leaves)
+		return 0;
+
+	kfree(per_cpu_cacheinfo(cpu));
 	return allocate_cache_info(cpu);
 }
 
@@ -456,30 +539,23 @@ int detect_cache_attributes(unsigned int cpu)
 {
 	int ret;
 
-	/* Since early initialization/allocation of the cacheinfo is allowed
-	 * via fetch_cache_info() and this also gets called as CPU hotplug
-	 * callbacks via cacheinfo_cpu_online, the init/alloc can be skipped
-	 * as it will happen only once (the cacheinfo memory is never freed).
-	 * Just populate the cacheinfo.
-	 */
-	if (per_cpu_cacheinfo(cpu))
-		goto populate_leaves;
-
-	if (init_cache_level(cpu) || !cache_leaves(cpu))
-		return -ENOENT;
-
-	ret = allocate_cache_info(cpu);
+	ret = init_level_allocate_ci(cpu);
 	if (ret)
 		return ret;
 
-populate_leaves:
 	/*
-	 * populate_cache_leaves() may completely setup the cache leaves and
-	 * shared_cpu_map or it may leave it partially setup.
+	 * If LLC is valid the cache leaves were already populated so just go to
+	 * update the cpu map.
 	 */
-	ret = populate_cache_leaves(cpu);
-	if (ret)
-		goto free_ci;
+	if (!last_level_cache_is_valid(cpu)) {
+		/*
+		 * populate_cache_leaves() may completely setup the cache leaves and
+		 * shared_cpu_map or it may leave it partially setup.
+		 */
+		ret = populate_cache_leaves(cpu);
+		if (ret)
+			goto free_ci;
+	}
 
 	/*
 	 * For systems using DT for cache hierarchy, fw_token

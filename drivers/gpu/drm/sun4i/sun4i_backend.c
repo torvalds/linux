@@ -792,7 +792,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, backend);
 	spin_lock_init(&backend->frontend_lock);
 
-	if (of_find_property(dev->of_node, "interconnects", NULL)) {
+	if (of_property_present(dev->of_node, "interconnects")) {
 		/*
 		 * This assume we have the same DMA constraints for all our the
 		 * devices in our pipeline (all the backends, but also the

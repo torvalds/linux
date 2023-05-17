@@ -205,7 +205,7 @@ properties:
               duplex is assumed.
 
           pause:
-            $ref: /schemas/types.yaml#definitions/flag
+            $ref: /schemas/types.yaml#/definitions/flag
             description:
               Indicates that pause should be enabled.
 
@@ -221,6 +221,41 @@ properties:
 
         required:
           - speed
+
+  leds:
+    description:
+      Describes the LEDs associated by Ethernet Controller.
+      These LEDs are not integrated in the PHY and PHY doesn't have any
+      control on them. Ethernet Controller regs are used to control
+      these defined LEDs.
+
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      '^led@[a-f0-9]+$':
+        $ref: /schemas/leds/common.yaml#
+
+        properties:
+          reg:
+            maxItems: 1
+            description:
+              This define the LED index in the PHY or the MAC. It's really
+              driver dependent and required for ports that define multiple
+              LED for the same port.
+
+        required:
+          - reg
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
 
 dependencies:
   pcs-handle-names: [pcs-handle]

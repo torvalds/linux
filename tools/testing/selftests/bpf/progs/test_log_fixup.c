@@ -61,4 +61,14 @@ int use_missing_map(const void *ctx)
 	return value != NULL;
 }
 
+extern int bpf_nonexistent_kfunc(void) __ksym __weak;
+
+SEC("?raw_tp/sys_enter")
+int use_missing_kfunc(const void *ctx)
+{
+	bpf_nonexistent_kfunc();
+
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

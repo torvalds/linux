@@ -291,7 +291,7 @@ static void optc3_set_timing_double_buffer(struct timing_generator *optc, bool e
 		   OTG_DRR_TIMING_DBUF_UPDATE_MODE, mode);
 }
 
-void optc3_wait_drr_doublebuffer_pending_clear(struct timing_generator *optc)
+static void optc3_wait_drr_doublebuffer_pending_clear(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 

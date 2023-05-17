@@ -42,6 +42,20 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+/* This function is a workaround for writing to OTG_PIXEL_RATE_DIV
+ * without the probability of causing a DIG FIFO error.
+ */
+static void dccg32_wait_for_dentist_change_done(
+	struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	uint32_t dentist_dispclk_value = REG_READ(DENTIST_DISPCLK_CNTL);
+
+	REG_WRITE(DENTIST_DISPCLK_CNTL, dentist_dispclk_value);
+	REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 50, 2000);
+}
+
 static void dccg32_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
@@ -110,21 +124,29 @@ static void dccg32_set_pixel_rate_div(
 		REG_UPDATE_2(OTG_PIXEL_RATE_DIV,
 				OTG0_PIXEL_RATE_DIVK1, k1,
 				OTG0_PIXEL_RATE_DIVK2, k2);
+
+		dccg32_wait_for_dentist_change_done(dccg);
 		break;
 	case 1:
 		REG_UPDATE_2(OTG_PIXEL_RATE_DIV,
 				OTG1_PIXEL_RATE_DIVK1, k1,
 				OTG1_PIXEL_RATE_DIVK2, k2);
+
+		dccg32_wait_for_dentist_change_done(dccg);
 		break;
 	case 2:
 		REG_UPDATE_2(OTG_PIXEL_RATE_DIV,
 				OTG2_PIXEL_RATE_DIVK1, k1,
 				OTG2_PIXEL_RATE_DIVK2, k2);
+
+		dccg32_wait_for_dentist_change_done(dccg);
 		break;
 	case 3:
 		REG_UPDATE_2(OTG_PIXEL_RATE_DIV,
 				OTG3_PIXEL_RATE_DIVK1, k1,
 				OTG3_PIXEL_RATE_DIVK2, k2);
+
+		dccg32_wait_for_dentist_change_done(dccg);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -271,8 +293,7 @@ static void dccg32_set_dpstreamclk(
 	dccg32_set_dtbclk_p_src(dccg, src, otg_inst);
 
 	/* enabled to select one of the DTBCLKs for pipe */
-	switch (otg_inst)
-	{
+	switch (dp_hpo_inst) {
 	case 0:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 			     DPSTREAMCLK0_EN,

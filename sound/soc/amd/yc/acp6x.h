@@ -105,3 +105,6 @@ static inline void acp6x_writel(u32 val, void __iomem *base_addr)
 {
 	writel(val, base_addr - ACP6x_PHY_BASE_ADDRESS);
 }
+
+int snd_amd_acp_find_config(struct pci_dev *pci);
+

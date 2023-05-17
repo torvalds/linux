@@ -429,7 +429,6 @@ struct saa7134_board {
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
 
-#define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
 #define RESOURCE_EMPRESS       8
@@ -589,17 +588,6 @@ struct saa7134_dev {
 	unsigned char              eedata[256];
 	int			   has_rds;
 
-	/* video overlay */
-	struct v4l2_framebuffer    ovbuf;
-	struct saa7134_format      *ovfmt;
-	unsigned int               ovenable;
-	enum v4l2_field            ovfield;
-	struct v4l2_window         win;
-	struct v4l2_clip           clips[8];
-	unsigned int               nclips;
-	struct v4l2_fh		   *overlay_owner;
-
-
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
 	struct vb2_queue           video_vbq;
@@ -745,7 +733,6 @@ static inline bool is_empress(struct file *file)
 
 extern struct list_head  saa7134_devlist;
 extern struct mutex saa7134_devlist_lock;
-extern int saa7134_no_overlay;
 extern bool saa7134_userptr;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg);

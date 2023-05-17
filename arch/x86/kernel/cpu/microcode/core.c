@@ -632,6 +632,7 @@ static const struct attribute_group cpu_root_microcode_group = {
 
 static int __init microcode_init(void)
 {
+	struct device *dev_root;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;
 
@@ -652,10 +653,14 @@ static int __init microcode_init(void)
 	if (IS_ERR(microcode_pdev))
 		return PTR_ERR(microcode_pdev);
 
-	error = sysfs_create_group(&cpu_subsys.dev_root->kobj, &cpu_root_microcode_group);
-	if (error) {
-		pr_err("Error creating microcode group!\n");
-		goto out_pdev;
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		error = sysfs_create_group(&dev_root->kobj, &cpu_root_microcode_group);
+		put_device(dev_root);
+		if (error) {
+			pr_err("Error creating microcode group!\n");
+			goto out_pdev;
+		}
 	}
 
 	/* Do per-CPU setup */

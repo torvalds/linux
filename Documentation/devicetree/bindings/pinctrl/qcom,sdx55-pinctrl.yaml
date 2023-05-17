@@ -48,6 +48,7 @@ $defs:
       Pinctrl node's client devices use subnodes for desired pin configuration.
       Client device subnodes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
 
     properties:
       pins:
@@ -91,17 +92,8 @@ $defs:
                 uim1_present, uim1_reset, uim2_clk, uim2_data, uim2_present,
                 uim2_reset, usb2phy_ac, vsense_trigger ]
 
-      bias-pull-down: true
-      bias-pull-up: true
-      bias-disable: true
-      drive-strength: true
-      output-high: true
-      output-low: true
-
     required:
       - pins
-
-    additionalProperties: false
 
 allOf:
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#

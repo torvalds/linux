@@ -61,7 +61,7 @@ struct instruction {
 	    restore		: 1,
 	    retpoline_safe	: 1,
 	    noendbr		: 1,
-	    entry		: 1,
+	    unret		: 1,
 	    visited		: 4,
 	    no_reloc		: 1;
 		/* 10 bit hole */
@@ -92,7 +92,7 @@ static inline struct symbol *insn_func(struct instruction *insn)
 #define VISITED_BRANCH		0x01
 #define VISITED_BRANCH_UACCESS	0x02
 #define VISITED_BRANCH_MASK	0x03
-#define VISITED_ENTRY		0x04
+#define VISITED_UNRET		0x04
 
 static inline bool is_static_jump(struct instruction *insn)
 {

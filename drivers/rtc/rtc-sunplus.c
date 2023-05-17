@@ -235,8 +235,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	if (!sp_rtc)
 		return -ENOMEM;
 
-	sp_rtc->res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, RTC_REG_NAME);
-	sp_rtc->reg_base = devm_ioremap_resource(&plat_dev->dev, sp_rtc->res);
+	sp_rtc->reg_base = devm_platform_ioremap_resource_byname(plat_dev, RTC_REG_NAME);
 	if (IS_ERR(sp_rtc->reg_base))
 		return dev_err_probe(&plat_dev->dev, PTR_ERR(sp_rtc->reg_base),
 					    "%s devm_ioremap_resource fail\n", RTC_REG_NAME);
@@ -304,15 +303,13 @@ free_clk:
 	return ret;
 }
 
-static int sp_rtc_remove(struct platform_device *plat_dev)
+static void sp_rtc_remove(struct platform_device *plat_dev)
 {
 	struct sunplus_rtc *sp_rtc = dev_get_drvdata(&plat_dev->dev);
 
 	device_init_wakeup(&plat_dev->dev, 0);
 	reset_control_assert(sp_rtc->rstc);
 	clk_disable_unprepare(sp_rtc->rtcclk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -347,7 +344,7 @@ static SIMPLE_DEV_PM_OPS(sp_rtc_pm_ops, sp_rtc_suspend, sp_rtc_resume);
 
 static struct platform_driver sp_rtc_driver = {
 	.probe   = sp_rtc_probe,
-	.remove  = sp_rtc_remove,
+	.remove_new = sp_rtc_remove,
 	.driver  = {
 		.name	= "sp7021-rtc",
 		.of_match_table = sp_rtc_of_match,

@@ -153,7 +153,6 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	}
 
 	evlist__splice_list_tail(evlist, &parse_state.list);
-	evlist->core.nr_groups = parse_state.nr_groups;
 
 	evlist__config(evlist, &opts, NULL);
 

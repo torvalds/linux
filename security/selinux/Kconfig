@@ -23,30 +23,6 @@ config SECURITY_SELINUX_BOOTPARAM
 
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_SELINUX_DISABLE
-	bool "NSA SELinux runtime disable"
-	depends on SECURITY_SELINUX
-	select SECURITY_WRITABLE_HOOKS
-	default n
-	help
-	  This option enables writing to a selinuxfs node 'disable', which
-	  allows SELinux to be disabled at runtime prior to the policy load.
-	  SELinux will then remain disabled until the next boot.
-	  This option is similar to the selinux=0 boot parameter, but is to
-	  support runtime disabling of SELinux, e.g. from /sbin/init, for
-	  portability across platforms where boot parameters are difficult
-	  to employ.
-
-	  NOTE: selecting this option will disable the '__ro_after_init'
-	  kernel hardening feature for security hooks.   Please consider
-	  using the selinux=0 boot parameter instead of enabling this
-	  option.
-
-	  WARNING: this option is deprecated and will be removed in a future
-	  kernel release.
-
-	  If you are unsure how to answer this question, answer N.
-
 config SECURITY_SELINUX_DEVELOP
 	bool "NSA SELinux Development Support"
 	depends on SECURITY_SELINUX
@@ -69,29 +45,6 @@ config SECURITY_SELINUX_AVC_STATS
 	  This option collects access vector cache statistics to
 	  /sys/fs/selinux/avc/cache_stats, which may be monitored via
 	  tools such as avcstat.
-
-config SECURITY_SELINUX_CHECKREQPROT_VALUE
-	int "NSA SELinux checkreqprot default value"
-	depends on SECURITY_SELINUX
-	range 0 1
-	default 0
-	help
-	  This option sets the default value for the 'checkreqprot' flag
-	  that determines whether SELinux checks the protection requested
-	  by the application or the protection that will be applied by the
-	  kernel (including any implied execute for read-implies-exec) for
-	  mmap and mprotect calls.  If this option is set to 0 (zero),
-	  SELinux will default to checking the protection that will be applied
-	  by the kernel.  If this option is set to 1 (one), SELinux will
-	  default to checking the protection requested by the application.
-	  The checkreqprot flag may be changed from the default via the
-	  'checkreqprot=' boot parameter.  It may also be changed at runtime
-	  via /sys/fs/selinux/checkreqprot if authorized by policy.
-
-	  WARNING: this option is deprecated and will be removed in a future
-	  kernel release.
-
-	  If you are unsure how to answer this question, answer 0.
 
 config SECURITY_SELINUX_SIDTAB_HASH_BITS
 	int "NSA SELinux sidtab hashtable size"

@@ -2172,7 +2172,15 @@ restart:
 		pr_debug("drain retry fault gpu %d svms %p\n", i, svms);
 
 		amdgpu_ih_wait_on_checkpoint_process_ts(pdd->dev->adev,
-						     &pdd->dev->adev->irq.ih1);
+				pdd->dev->adev->irq.retry_cam_enabled ?
+				&pdd->dev->adev->irq.ih :
+				&pdd->dev->adev->irq.ih1);
+
+		if (pdd->dev->adev->irq.retry_cam_enabled)
+			amdgpu_ih_wait_on_checkpoint_process_ts(pdd->dev->adev,
+				&pdd->dev->adev->irq.ih_soft);
+
+
 		pr_debug("drain retry fault gpu %d svms 0x%p done\n", i, svms);
 	}
 	if (atomic_cmpxchg(&svms->drain_pagefaults, drain, 0) != drain)

@@ -8,14 +8,6 @@
 	use this adapter.
 */
 
-/* Changes:
-
-	1.01	GRG 1998.05.05  init_proto, release_proto
-
-*/
-
-#define COMM_VERSION      "1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -23,8 +15,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 /* mode codes:  0  nybble reads, 8-bit writes
                 1  8-bit reads and writes
@@ -42,7 +33,7 @@
 
 static int  cont_map[2] = { 0x08, 0x10 };
 
-static int comm_read_regr( PIA *pi, int cont, int regr )
+static int comm_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     l, h, r;
 
@@ -68,7 +59,7 @@ static int comm_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void comm_write_regr( PIA *pi, int cont, int regr, int val )
+static void comm_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -87,7 +78,7 @@ static void comm_write_regr( PIA *pi, int cont, int regr, int val )
         }
 }
 
-static void comm_connect ( PIA *pi  )
+static void comm_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -98,14 +89,14 @@ static void comm_connect ( PIA *pi  )
         w2(4); w0(0xe0); w2(0xc); w2(0xc); w2(4);
 }
 
-static void comm_disconnect ( PIA *pi )
+static void comm_disconnect(struct pi_adapter *pi)
 
 {       w2(0); w2(0); w2(0); w2(4); 
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void comm_read_block( PIA *pi, char * buf, int count )
+static void comm_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     i, l, h;
 
@@ -146,7 +137,7 @@ static void comm_read_block( PIA *pi, char * buf, int count )
 
 /* NB: Watch out for the byte swapped writes ! */
 
-static void comm_write_block( PIA *pi, char * buf, int count )
+static void comm_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int	k;
 
@@ -165,26 +156,26 @@ static void comm_write_block( PIA *pi, char * buf, int count )
                 break;
 
         case 3: w3(0x48); (void)r1();
-                for (k=0;k<count/2;k++) w4w(pi_swab16(buf,k));
+		for (k = 0; k < count / 2; k++)
+			w4w(swab16(((u16 *)buf)[k]));
                 break;
 
         case 4: w3(0x48); (void)r1();
-                for (k=0;k<count/4;k++) w4l(pi_swab32(buf,k));
+		for (k = 0; k < count / 4; k++)
+			w4l(swab16(((u16 *)buf)[2 * k]) |
+			    swab16(((u16 *)buf)[2 * k + 1]) << 16);
                 break;
 
 
         }
 }
 
-static void comm_log_adapter( PIA *pi, char * scratch, int verbose )
+static void comm_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-        printk("%s: comm %s, DataStor Commuter at 0x%x, ",
-                pi->device,COMM_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "DataStor Commuter at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol comm = {
@@ -203,16 +194,5 @@ static struct pi_protocol comm = {
 	.log_adapter	= comm_log_adapter,
 };
 
-static int __init comm_init(void)
-{
-	return paride_register(&comm);
-}
-
-static void __exit comm_exit(void)
-{
-	paride_unregister(&comm);
-}
-
 MODULE_LICENSE("GPL");
-module_init(comm_init)
-module_exit(comm_exit)
+module_pata_parport_driver(comm);

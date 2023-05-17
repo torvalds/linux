@@ -291,4 +291,3 @@ module_exit(clk_ccc_exit);
 
 MODULE_DESCRIPTION("Microchip PolarFire SoC Clock Conditioning Circuitry Driver");
 MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
-MODULE_LICENSE("GPL");

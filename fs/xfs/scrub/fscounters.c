@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2019 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2019-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -129,6 +129,13 @@ xchk_setup_fscounters(
 {
 	struct xchk_fscounters	*fsc;
 	int			error;
+
+	/*
+	 * If the AGF doesn't track btreeblks, we have to lock the AGF to count
+	 * btree block usage by walking the actual btrees.
+	 */
+	if (!xfs_has_lazysbcount(sc->mp))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
 	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
 	if (!sc->buf)

@@ -4,8 +4,8 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <drm/drm_aperture.h>
-#include <drm/drm_crtc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -15,18 +15,40 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static bool fbdev = true;
+MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
+module_param(fbdev, bool, 0600);
 
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
 
-#define to_msm_fbdev(x) container_of(x, struct msm_fbdev, base)
+static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
+	struct drm_gem_object *bo = msm_framebuffer_bo(helper->fb, 0);
 
-struct msm_fbdev {
-	struct drm_fb_helper base;
-	struct drm_framebuffer *fb;
-};
+	return drm_gem_prime_mmap(bo, vma);
+}
+
+static void msm_fbdev_fb_destroy(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
+	struct drm_framebuffer *fb = helper->fb;
+	struct drm_gem_object *bo = msm_framebuffer_bo(fb, 0);
+
+	DBG();
+
+	drm_fb_helper_fini(helper);
+
+	/* this will free the backing object */
+	msm_gem_put_vaddr(bo);
+	drm_framebuffer_remove(fb);
+
+	drm_client_release(&helper->client);
+	drm_fb_helper_unprepare(helper);
+	kfree(helper);
+}
 
 static const struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
@@ -41,21 +63,12 @@ static const struct fb_ops msm_fb_ops = {
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
 	.fb_mmap = msm_fbdev_mmap,
+	.fb_destroy = msm_fbdev_fb_destroy,
 };
-
-static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
-{
-	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
-	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
-	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
-
-	return drm_gem_prime_mmap(bo, vma);
-}
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,
 		struct drm_fb_helper_surface_size *sizes)
 {
-	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_device *dev = helper->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
@@ -102,7 +115,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
 
-	fbdev->fb = fb;
 	helper->fb = fb;
 
 	fbi->fbops = &msm_fb_ops;
@@ -119,7 +131,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->fix.smem_len = bo->size;
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
-	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
+	DBG("allocated %dx%d fb", fb->width, fb->height);
 
 	return 0;
 
@@ -132,73 +144,98 @@ static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 	.fb_probe = msm_fbdev_create,
 };
 
-/* initialize fbdev helper */
-struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
+/*
+ * struct drm_client
+ */
+
+static void msm_fbdev_client_unregister(struct drm_client_dev *client)
 {
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_fbdev *fbdev;
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	if (fb_helper->info) {
+		drm_fb_helper_unregister_info(fb_helper);
+	} else {
+		drm_client_release(&fb_helper->client);
+		drm_fb_helper_unprepare(fb_helper);
+		kfree(fb_helper);
+	}
+}
+
+static int msm_fbdev_client_restore(struct drm_client_dev *client)
+{
+	drm_fb_helper_lastclose(client->dev);
+
+	return 0;
+}
+
+static int msm_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+	struct drm_device *dev = client->dev;
+	int ret;
+
+	if (dev->fb_helper)
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
+
+	ret = drm_fb_helper_init(dev, fb_helper);
+	if (ret)
+		goto err_drm_err;
+
+	if (!drm_drv_uses_atomic_modeset(dev))
+		drm_helper_disable_unused_functions(dev);
+
+	ret = drm_fb_helper_initial_config(fb_helper);
+	if (ret)
+		goto err_drm_fb_helper_fini;
+
+	return 0;
+
+err_drm_fb_helper_fini:
+	drm_fb_helper_fini(fb_helper);
+err_drm_err:
+	drm_err(dev, "Failed to setup fbdev emulation (ret=%d)\n", ret);
+	return ret;
+}
+
+static const struct drm_client_funcs msm_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= msm_fbdev_client_unregister,
+	.restore	= msm_fbdev_client_restore,
+	.hotplug	= msm_fbdev_client_hotplug,
+};
+
+/* initialize fbdev helper */
+void msm_fbdev_setup(struct drm_device *dev)
+{
 	struct drm_fb_helper *helper;
 	int ret;
 
-	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		return NULL;
+		return;
 
-	helper = &fbdev->base;
+	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
+	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
+	if (!helper)
+		return;
 	drm_fb_helper_prepare(dev, helper, 32, &msm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper);
+	ret = drm_client_init(dev, &helper->client, "fbdev", &msm_fbdev_client_funcs);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
-		goto fail;
+		drm_err(dev, "Failed to register client: %d\n", ret);
+		goto err_drm_fb_helper_unprepare;
 	}
 
-	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(false, dev->driver);
+	ret = msm_fbdev_client_hotplug(&helper->client);
 	if (ret)
-		goto fini;
+		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
-	ret = drm_fb_helper_initial_config(helper);
-	if (ret)
-		goto fini;
+	drm_client_register(&helper->client);
 
-	priv->fbdev = helper;
+	return;
 
-	return helper;
-
-fini:
-	drm_fb_helper_fini(helper);
-fail:
+err_drm_fb_helper_unprepare:
 	drm_fb_helper_unprepare(helper);
-	kfree(fbdev);
-	return NULL;
-}
-
-void msm_fbdev_free(struct drm_device *dev)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_fb_helper *helper = priv->fbdev;
-	struct msm_fbdev *fbdev;
-
-	DBG();
-
-	drm_fb_helper_unregister_info(helper);
-
-	drm_fb_helper_fini(helper);
-
-	fbdev = to_msm_fbdev(priv->fbdev);
-
-	/* this will free the backing object */
-	if (fbdev->fb) {
-		struct drm_gem_object *bo =
-			msm_framebuffer_bo(fbdev->fb, 0);
-		msm_gem_put_vaddr(bo);
-		drm_framebuffer_remove(fbdev->fb);
-	}
-
-	drm_fb_helper_unprepare(helper);
-	kfree(fbdev);
-
-	priv->fbdev = NULL;
+	kfree(helper);
 }

@@ -986,7 +986,7 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 		if (has_bspi(qspi))
 			mspi_cdram &= ~1;
 		else
-			mspi_cdram |= (~(1 << spi->chip_select) &
+			mspi_cdram |= (~(1 << spi_get_chipselect(spi, 0)) &
 				       MSPI_CDRAM_PCS);
 
 		write_cdram_slot(qspi, slot, mspi_cdram);
@@ -1046,8 +1046,8 @@ static int bcm_qspi_bspi_exec_mem_op(struct spi_device *spi,
 			return -EIO;
 
 	from = op->addr.val;
-	if (!spi->cs_gpiod)
-		bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi_get_csgpiod(spi, 0))
+		bcm_qspi_chip_select(qspi, spi_get_chipselect(spi, 0));
 	bcm_qspi_write(qspi, MSPI, MSPI_WRITE_LOCK, 0);
 
 	/*
@@ -1126,8 +1126,8 @@ static int bcm_qspi_transfer_one(struct spi_master *master,
 	int slots;
 	unsigned long timeo = msecs_to_jiffies(100);
 
-	if (!spi->cs_gpiod)
-		bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi_get_csgpiod(spi, 0))
+		bcm_qspi_chip_select(qspi, spi_get_chipselect(spi, 0));
 	qspi->trans_pos.trans = trans;
 	qspi->trans_pos.byte = 0;
 
@@ -1457,7 +1457,7 @@ static const struct bcm_qspi_data bcm_qspi_spcr3_data = {
 	.has_spcr3_sysclk = true,
 };
 
-static const struct of_device_id bcm_qspi_of_match[] = {
+static const struct of_device_id bcm_qspi_of_match[] __maybe_unused = {
 	{
 		.compatible = "brcm,spi-bcm7445-qspi",
 		.data = &bcm_qspi_rev_data,

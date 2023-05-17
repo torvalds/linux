@@ -749,7 +749,7 @@ static const struct regulator_desc pms405_pldo600 = {
 	.ops = &rpm_smps_ldo_ops,
 };
 
-static const struct regulator_desc mp5496_smpa2 = {
+static const struct regulator_desc mp5496_smps = {
 	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(600000, 0, 127, 12500),
 	},
@@ -794,7 +794,8 @@ struct rpm_regulator_data {
 };
 
 static const struct rpm_regulator_data rpm_mp5496_regulators[] = {
-	{ "s2", QCOM_SMD_RPM_SMPA, 2, &mp5496_smpa2, "s2" },
+	{ "s1", QCOM_SMD_RPM_SMPA, 1, &mp5496_smps, "s1" },
+	{ "s2", QCOM_SMD_RPM_SMPA, 2, &mp5496_smps, "s2" },
 	{ "l2", QCOM_SMD_RPM_LDOA, 2, &mp5496_ldoa2, "l2" },
 	{}
 };
@@ -1440,6 +1441,7 @@ static struct platform_driver rpm_reg_driver = {
 	.probe = rpm_reg_probe,
 	.driver = {
 		.name  = "qcom_rpm_smd_regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rpm_of_match,
 	},
 };

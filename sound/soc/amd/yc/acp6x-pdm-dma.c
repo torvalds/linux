@@ -388,10 +388,9 @@ static int acp6x_pdm_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int acp6x_pdm_audio_remove(struct platform_device *pdev)
+static void acp6x_pdm_audio_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused acp6x_pdm_resume(struct device *dev)
@@ -440,7 +439,7 @@ static const struct dev_pm_ops acp6x_pdm_pm_ops = {
 
 static struct platform_driver acp6x_pdm_dma_driver = {
 	.probe = acp6x_pdm_audio_probe,
-	.remove = acp6x_pdm_audio_remove,
+	.remove_new = acp6x_pdm_audio_remove,
 	.driver = {
 		.name = "acp_yc_pdm_dma",
 		.pm = &acp6x_pdm_pm_ops,

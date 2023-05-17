@@ -1439,7 +1439,6 @@ free_gc:
 release_region:
 	pci_release_regions(pdev);
 disable_dev:
-	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 	dev_err(&pdev->dev, "gdma probe failed: err = %d\n", err);
 	return err;
@@ -1458,7 +1457,6 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	vfree(gc);
 
 	pci_release_regions(pdev);
-	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 }
 

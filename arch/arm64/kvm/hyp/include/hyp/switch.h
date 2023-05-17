@@ -26,6 +26,7 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_nested.h>
 #include <asm/fpsimd.h>
 #include <asm/debug-monitors.h>
 #include <asm/processor.h>
@@ -326,6 +327,55 @@ static bool kvm_hyp_handle_ptrauth(struct kvm_vcpu *vcpu, u64 *exit_code)
 	return true;
 }
 
+static bool kvm_hyp_handle_cntpct(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *ctxt;
+	u32 sysreg;
+	u64 val;
+
+	/*
+	 * We only get here for 64bit guests, 32bit guests will hit
+	 * the long and winding road all the way to the standard
+	 * handling. Yes, it sucks to be irrelevant.
+	 */
+	sysreg = esr_sys64_to_sysreg(kvm_vcpu_get_esr(vcpu));
+
+	switch (sysreg) {
+	case SYS_CNTPCT_EL0:
+	case SYS_CNTPCTSS_EL0:
+		if (vcpu_has_nv(vcpu)) {
+			if (is_hyp_ctxt(vcpu)) {
+				ctxt = vcpu_hptimer(vcpu);
+				break;
+			}
+
+			/* Check for guest hypervisor trapping */
+			val = __vcpu_sys_reg(vcpu, CNTHCTL_EL2);
+			if (!vcpu_el2_e2h_is_set(vcpu))
+				val = (val & CNTHCTL_EL1PCTEN) << 10;
+
+			if (!(val & (CNTHCTL_EL1PCTEN << 10)))
+				return false;
+		}
+
+		ctxt = vcpu_ptimer(vcpu);
+		break;
+	default:
+		return false;
+	}
+
+	val = arch_timer_read_cntpct_el0();
+
+	if (ctxt->offset.vm_offset)
+		val -= *kern_hyp_va(ctxt->offset.vm_offset);
+	if (ctxt->offset.vcpu_offset)
+		val -= *kern_hyp_va(ctxt->offset.vcpu_offset);
+
+	vcpu_set_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu), val);
+	__kvm_skip_instr(vcpu);
+	return true;
+}
+
 static bool kvm_hyp_handle_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_TX2_219_TVM) &&
@@ -338,6 +388,9 @@ static bool kvm_hyp_handle_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	if (esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
 		return kvm_hyp_handle_ptrauth(vcpu, exit_code);
+
+	if (kvm_hyp_handle_cntpct(vcpu))
+		return true;
 
 	return false;
 }

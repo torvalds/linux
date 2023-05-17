@@ -74,8 +74,6 @@ void rtl8192_SetBWMode(struct net_device *dev,
 		       enum ht_extension_chan_offset offset);
 void rtl8192_SwChnl_WorkItem(struct net_device *dev);
 void rtl8192_SetBWModeWorkItem(struct net_device *dev);
-bool rtl8192_SetRFPowerState(struct net_device *dev,
-			     RT_RF_POWER_STATE eRFPowerState);
 void InitialGain819xUsb(struct net_device *dev, u8 Operation);
 
 void InitialGainOperateWorkItemCallBack(struct work_struct *work);

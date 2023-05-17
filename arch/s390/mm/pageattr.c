@@ -4,6 +4,7 @@
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/hugetlb.h>
+#include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
@@ -41,7 +42,7 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 }
 
 #ifdef CONFIG_PROC_FS
-atomic_long_t direct_pages_count[PG_DIRECT_MAP_MAX];
+atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
 
 void arch_report_meminfo(struct seq_file *m)
 {
@@ -101,6 +102,14 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 			new = set_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		else if (flags & SET_MEMORY_X)
 			new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
+		if (flags & SET_MEMORY_INV) {
+			new = set_pte_bit(new, __pgprot(_PAGE_INVALID));
+		} else if (flags & SET_MEMORY_DEF) {
+			new = __pte(pte_val(new) & PAGE_MASK);
+			new = set_pte_bit(new, PAGE_KERNEL);
+			if (!MACHINE_HAS_NX)
+				new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
+		}
 		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
 		ptep++;
 		addr += PAGE_SIZE;
@@ -151,6 +160,14 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
 		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+	if (flags & SET_MEMORY_INV) {
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
+	} else if (flags & SET_MEMORY_DEF) {
+		new = __pmd(pmd_val(new) & PMD_MASK);
+		new = set_pmd_bit(new, SEGMENT_KERNEL);
+		if (!MACHINE_HAS_NX)
+			new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+	}
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 }
 
@@ -232,6 +249,14 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
 		new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
+	if (flags & SET_MEMORY_INV) {
+		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_INVALID));
+	} else if (flags & SET_MEMORY_DEF) {
+		new = __pud(pud_val(new) & PUD_MASK);
+		new = set_pud_bit(new, REGION3_KERNEL);
+		if (!MACHINE_HAS_NX)
+			new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
+	}
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
 
@@ -298,11 +323,6 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 	int rc = -EINVAL;
 	pgd_t *pgdp;
 
-	if (addr == end)
-		return 0;
-	if (end >= MODULES_END)
-		return -EINVAL;
-	mutex_lock(&cpa_mutex);
 	pgdp = pgd_offset_k(addr);
 	do {
 		if (pgd_none(*pgdp))
@@ -313,18 +333,76 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 			break;
 		cond_resched();
 	} while (pgdp++, addr = next, addr < end && !rc);
-	mutex_unlock(&cpa_mutex);
+	return rc;
+}
+
+static int change_page_attr_alias(unsigned long addr, unsigned long end,
+				  unsigned long flags)
+{
+	unsigned long alias, offset, va_start, va_end;
+	struct vm_struct *area;
+	int rc = 0;
+
+	/*
+	 * Changes to read-only permissions on kernel VA mappings are also
+	 * applied to the kernel direct mapping. Execute permissions are
+	 * intentionally not transferred to keep all allocated pages within
+	 * the direct mapping non-executable.
+	 */
+	flags &= SET_MEMORY_RO | SET_MEMORY_RW;
+	if (!flags)
+		return 0;
+	area = NULL;
+	while (addr < end) {
+		if (!area)
+			area = find_vm_area((void *)addr);
+		if (!area || !(area->flags & VM_ALLOC))
+			return 0;
+		va_start = (unsigned long)area->addr;
+		va_end = va_start + area->nr_pages * PAGE_SIZE;
+		offset = (addr - va_start) >> PAGE_SHIFT;
+		alias = (unsigned long)page_address(area->pages[offset]);
+		rc = change_page_attr(alias, alias + PAGE_SIZE, flags);
+		if (rc)
+			break;
+		addr += PAGE_SIZE;
+		if (addr >= va_end)
+			area = NULL;
+	}
 	return rc;
 }
 
 int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 {
+	unsigned long end;
+	int rc;
+
 	if (!MACHINE_HAS_NX)
 		flags &= ~(SET_MEMORY_NX | SET_MEMORY_X);
 	if (!flags)
 		return 0;
+	if (!numpages)
+		return 0;
 	addr &= PAGE_MASK;
-	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
+	end = addr + numpages * PAGE_SIZE;
+	mutex_lock(&cpa_mutex);
+	rc = change_page_attr(addr, end, flags);
+	if (rc)
+		goto out;
+	rc = change_page_attr_alias(addr, end, flags);
+out:
+	mutex_unlock(&cpa_mutex);
+	return rc;
+}
+
+int set_direct_map_invalid_noflush(struct page *page)
+{
+	return __set_memory((unsigned long)page_to_virt(page), 1, SET_MEMORY_INV);
+}
+
+int set_direct_map_default_noflush(struct page *page)
+{
+	return __set_memory((unsigned long)page_to_virt(page), 1, SET_MEMORY_DEF);
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)

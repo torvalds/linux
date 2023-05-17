@@ -181,11 +181,16 @@ static DEFINE_PER_CPU_ALIGNED(unsigned long, cm_core_lock_flags);
 
 phys_addr_t __mips_cm_phys_base(void)
 {
-	u32 config3 = read_c0_config3();
 	unsigned long cmgcr;
 
 	/* Check the CMGCRBase register is implemented */
-	if (!(config3 & MIPS_CONF3_CMGCR))
+	if (!(read_c0_config() & MIPS_CONF_M))
+		return 0;
+
+	if (!(read_c0_config2() & MIPS_CONF_M))
+		return 0;
+
+	if (!(read_c0_config3() & MIPS_CONF3_CMGCR))
 		return 0;
 
 	/* Read the address from CMGCRBase */

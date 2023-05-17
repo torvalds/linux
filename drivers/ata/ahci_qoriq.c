@@ -159,7 +159,7 @@ static const struct ata_port_info ahci_qoriq_port_info = {
 	.port_ops	= &ahci_qoriq_ops,
 };
 
-static struct scsi_host_template ahci_qoriq_sht = {
+static const struct scsi_host_template ahci_qoriq_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 

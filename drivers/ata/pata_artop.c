@@ -292,7 +292,7 @@ static int artop6210_qc_defer(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-static struct scsi_host_template artop_sht = {
+static const struct scsi_host_template artop_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

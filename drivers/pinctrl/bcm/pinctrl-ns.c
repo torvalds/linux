@@ -299,5 +299,4 @@ static struct platform_driver ns_pinctrl_driver = {
 module_platform_driver(ns_pinctrl_driver);
 
 MODULE_AUTHOR("Rafał Miłecki");
-MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, ns_pinctrl_of_match_table);

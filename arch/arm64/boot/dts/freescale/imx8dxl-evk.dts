@@ -121,8 +121,6 @@
 	phy-handle = <&ethphy0>;
 	nvmem-cells = <&fec_mac1>;
 	nvmem-cell-names = "mac-address";
-	snps,reset-gpios = <&pca6416_1 2 GPIO_ACTIVE_LOW>;
-	snps,reset-delays-us = <10 20 200000>;
 	status = "okay";
 
 	mdio {
@@ -136,6 +134,9 @@
 			eee-broken-1000t;
 			qca,disable-smarteee;
 			qca,disable-hibernation-mode;
+			reset-gpios = <&pca6416_1 2 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <20>;
+			reset-deassert-us = <200000>;
 			vddio-supply = <&vddio0>;
 
 			vddio0: vddio-regulator {
@@ -276,7 +277,7 @@
 };
 
 &thermal_zones {
-	pmic-thermal0 {
+	pmic-thermal {
 		polling-delay-passive = <250>;
 		polling-delay = <2000>;
 		thermal-sensors = <&tsens IMX_SC_R_PMIC_0>;

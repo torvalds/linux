@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_IO_H_
@@ -23,6 +23,8 @@ enum efa_io_send_op_type {
 	EFA_IO_SEND                                 = 0,
 	/* RDMA read */
 	EFA_IO_RDMA_READ                            = 1,
+	/* RDMA write */
+	EFA_IO_RDMA_WRITE                           = 2,
 };
 
 enum efa_io_comp_status {
@@ -62,8 +64,7 @@ struct efa_io_tx_meta_desc {
 
 	/*
 	 * control flags
-	 * 3:0 : op_type - operation type: send/rdma/fast mem
-	 *    ops/etc
+	 * 3:0 : op_type - enum efa_io_send_op_type
 	 * 4 : has_imm - immediate_data field carries valid
 	 *    data.
 	 * 5 : inline_msg - inline mode - inline message data
@@ -219,27 +220,31 @@ struct efa_io_cdesc_common {
 	 * 2:1 : q_type - enum efa_io_queue_type: send/recv
 	 * 3 : has_imm - indicates that immediate data is
 	 *    present - for RX completions only
-	 * 7:4 : reserved28 - MBZ
+	 * 6:4 : op_type - enum efa_io_send_op_type
+	 * 7 : reserved31 - MBZ
 	 */
 	u8 flags;
 
 	/* local QP number */
 	u16 qp_num;
-
-	/* Transferred length */
-	u16 length;
 };
 
 /* Tx completion descriptor */
 struct efa_io_tx_cdesc {
 	/* Common completion info */
 	struct efa_io_cdesc_common common;
+
+	/* MBZ */
+	u16 reserved16;
 };
 
 /* Rx Completion Descriptor */
 struct efa_io_rx_cdesc {
 	/* Common completion info */
 	struct efa_io_cdesc_common common;
+
+	/* Transferred length bits[15:0] */
+	u16 length;
 
 	/* Remote Address Handle FW index, 0xFFFF indicates invalid ah */
 	u16 ah;
@@ -250,16 +255,26 @@ struct efa_io_rx_cdesc {
 	u32 imm;
 };
 
+/* Rx Completion Descriptor RDMA write info */
+struct efa_io_rx_cdesc_rdma_write {
+	/* Transferred length bits[31:16] */
+	u16 length_hi;
+};
+
 /* Extended Rx Completion Descriptor */
 struct efa_io_rx_cdesc_ex {
 	/* Base RX completion info */
-	struct efa_io_rx_cdesc rx_cdesc_base;
+	struct efa_io_rx_cdesc base;
 
-	/*
-	 * Valid only in case of unknown AH (0xFFFF) and CQ set_src_addr is
-	 * enabled.
-	 */
-	u8 src_addr[16];
+	union {
+		struct efa_io_rx_cdesc_rdma_write rdma_write;
+
+		/*
+		 * Valid only in case of unknown AH (0xFFFF) and CQ
+		 * set_src_addr is enabled.
+		 */
+		u8 src_addr[16];
+	} u;
 };
 
 /* tx_meta_desc */
@@ -285,5 +300,6 @@ struct efa_io_rx_cdesc_ex {
 #define EFA_IO_CDESC_COMMON_PHASE_MASK                      BIT(0)
 #define EFA_IO_CDESC_COMMON_Q_TYPE_MASK                     GENMASK(2, 1)
 #define EFA_IO_CDESC_COMMON_HAS_IMM_MASK                    BIT(3)
+#define EFA_IO_CDESC_COMMON_OP_TYPE_MASK                    GENMASK(6, 4)
 
 #endif /* _EFA_IO_H_ */

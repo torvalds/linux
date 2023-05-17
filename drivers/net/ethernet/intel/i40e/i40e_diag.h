@@ -20,7 +20,7 @@ struct i40e_diag_reg_test_info {
 	u32 stride;	/* bytes between each element */
 };
 
-extern struct i40e_diag_reg_test_info i40e_reg_list[];
+extern const struct i40e_diag_reg_test_info i40e_reg_list[];
 
 int i40e_diag_reg_test(struct i40e_hw *hw);
 int i40e_diag_eeprom_test(struct i40e_hw *hw);

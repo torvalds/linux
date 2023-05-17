@@ -90,7 +90,7 @@ properties:
 
         properties:
           endpoint:
-            $ref: /schemas/graph.yaml#/$defs/endpoint-base
+            $ref: /schemas/media/video-interfaces.yaml#
             unevaluatedProperties: false
 
             properties:
@@ -106,7 +106,6 @@ properties:
                     description:
                       If you have 1 logical lane the bridge supports routing
                       to either port 0 or port 1.  Port 0 is suggested.
-                      See ../../media/video-interface.txt for details.
 
                   - minItems: 2
                     maxItems: 2
@@ -118,7 +117,6 @@ properties:
                     description:
                       If you have 2 logical lanes the bridge supports
                       reordering but only on physical ports 0 and 1.
-                      See ../../media/video-interface.txt for details.
 
                   - minItems: 4
                     maxItems: 4
@@ -132,7 +130,6 @@ properties:
                     description:
                       If you have 4 logical lanes the bridge supports
                       reordering in any way.
-                      See ../../media/video-interface.txt for details.
 
               lane-polarities:
                 minItems: 1
@@ -141,7 +138,6 @@ properties:
                   enum:
                     - 0
                     - 1
-                description: See ../../media/video-interface.txt
 
             dependencies:
               lane-polarities: [data-lanes]

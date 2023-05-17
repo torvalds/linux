@@ -58,7 +58,6 @@
 #define DRV_NAME		EVENT_DEV_NAME
 #define EVENT_DEV_NAME_FMT	(EVENT_DEV_NAME "%d")
 static struct class event_class = {
-	.owner	= THIS_MODULE,
 	.name	= EVENT_CLASS_NAME,
 };
 

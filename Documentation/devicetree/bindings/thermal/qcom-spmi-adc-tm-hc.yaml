@@ -124,8 +124,8 @@ examples:
             #size-cells = <0>;
             #io-channel-cells = <1>;
 
-            /* Other propreties are omitted */
-            adc-chan@4c {
+            /* Other properties are omitted */
+            channel@4c {
                 reg = <ADC5_XO_THERM_100K_PU>;
             };
         };

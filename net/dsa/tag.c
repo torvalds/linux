@@ -114,7 +114,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 		skb = nskb;
 	}
 
-	dev_sw_netstats_rx_add(skb->dev, skb->len);
+	dev_sw_netstats_rx_add(skb->dev, skb->len + ETH_HLEN);
 
 	if (dsa_skb_defer_rx_timestamp(p, skb))
 		return 0;

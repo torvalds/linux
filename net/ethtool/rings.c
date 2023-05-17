@@ -11,6 +11,7 @@ struct rings_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_ringparam	ringparam;
 	struct kernel_ethtool_ringparam	kernel_ringparam;
+	u32				supported_ring_params;
 };
 
 #define RINGS_REPDATA(__reply_base) \
@@ -32,6 +33,8 @@ static int rings_prepare_data(const struct ethnl_req_info *req_base,
 
 	if (!dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
+
+	data->supported_ring_params = dev->ethtool_ops->supported_ring_params;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
@@ -57,7 +60,9 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u8))  +	/* _RINGS_TCP_DATA_SPLIT */
 	       nla_total_size(sizeof(u32)  +	/* _RINGS_CQE_SIZE */
 	       nla_total_size(sizeof(u8))  +	/* _RINGS_TX_PUSH */
-	       nla_total_size(sizeof(u8)));	/* _RINGS_RX_PUSH */
+	       nla_total_size(sizeof(u8))) +	/* _RINGS_RX_PUSH */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX_PUSH_BUF_LEN */
+	       nla_total_size(sizeof(u32));	/* _RINGS_TX_PUSH_BUF_LEN_MAX */
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -67,6 +72,7 @@ static int rings_fill_reply(struct sk_buff *skb,
 	const struct rings_reply_data *data = RINGS_REPDATA(reply_base);
 	const struct kernel_ethtool_ringparam *kr = &data->kernel_ringparam;
 	const struct ethtool_ringparam *ringparam = &data->ringparam;
+	u32 supported_ring_params = data->supported_ring_params;
 
 	WARN_ON(kr->tcp_data_split > ETHTOOL_TCP_DATA_SPLIT_ENABLED);
 
@@ -98,7 +104,12 @@ static int rings_fill_reply(struct sk_buff *skb,
 	    (kr->cqe_size &&
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_CQE_SIZE, kr->cqe_size))) ||
 	    nla_put_u8(skb, ETHTOOL_A_RINGS_TX_PUSH, !!kr->tx_push) ||
-	    nla_put_u8(skb, ETHTOOL_A_RINGS_RX_PUSH, !!kr->rx_push))
+	    nla_put_u8(skb, ETHTOOL_A_RINGS_RX_PUSH, !!kr->rx_push) ||
+	    ((supported_ring_params & ETHTOOL_RING_USE_TX_PUSH_BUF_LEN) &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN_MAX,
+			  kr->tx_push_buf_max_len) ||
+	      nla_put_u32(skb, ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN,
+			  kr->tx_push_buf_len))))
 		return -EMSGSIZE;
 
 	return 0;
@@ -117,6 +128,7 @@ const struct nla_policy ethnl_rings_set_policy[] = {
 	[ETHTOOL_A_RINGS_CQE_SIZE]		= NLA_POLICY_MIN(NLA_U32, 1),
 	[ETHTOOL_A_RINGS_TX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
 	[ETHTOOL_A_RINGS_RX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
+	[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN]	= { .type = NLA_U32 },
 };
 
 static int
@@ -158,6 +170,14 @@ ethnl_set_rings_validate(struct ethnl_req_info *req_info,
 		return -EOPNOTSUPP;
 	}
 
+	if (tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN] &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_TX_PUSH_BUF_LEN)) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN],
+				    "setting tx push buf len is not supported");
+		return -EOPNOTSUPP;
+	}
+
 	return ops->get_ringparam && ops->set_ringparam ? 1 : -EOPNOTSUPP;
 }
 
@@ -189,6 +209,8 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 			tb[ETHTOOL_A_RINGS_TX_PUSH], &mod);
 	ethnl_update_u8(&kernel_ringparam.rx_push,
 			tb[ETHTOOL_A_RINGS_RX_PUSH], &mod);
+	ethnl_update_u32(&kernel_ringparam.tx_push_buf_len,
+			 tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN], &mod);
 	if (!mod)
 		return 0;
 
@@ -206,6 +228,14 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (err_attr) {
 		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
 				    "requested ring size exceeds maximum");
+		return -EINVAL;
+	}
+
+	if (kernel_ringparam.tx_push_buf_len > kernel_ringparam.tx_push_buf_max_len) {
+		NL_SET_ERR_MSG_ATTR_FMT(info->extack, tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN],
+					"Requested TX push buffer exceeds the maximum of %u",
+					kernel_ringparam.tx_push_buf_max_len);
+
 		return -EINVAL;
 	}
 

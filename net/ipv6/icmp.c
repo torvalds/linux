@@ -362,9 +362,10 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 
 	/*
 	 * We won't send icmp if the destination is known
-	 * anycast.
+	 * anycast unless we need to treat anycast as unicast.
 	 */
-	if (ipv6_anycast_destination(dst, &fl6->daddr)) {
+	if (!READ_ONCE(net->ipv6.sysctl.icmpv6_error_anycast_as_unicast) &&
+	    ipv6_anycast_destination(dst, &fl6->daddr)) {
 		net_dbg_ratelimited("icmp6_send: acast source\n");
 		dst_release(dst);
 		return ERR_PTR(-EINVAL);
@@ -1195,6 +1196,15 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 		.mode		= 0644,
 		.proc_handler = proc_do_large_bitmap,
 	},
+	{
+		.procname	= "error_anycast_as_unicast",
+		.data		= &init_net.ipv6.sysctl.icmpv6_error_anycast_as_unicast,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
 	{ },
 };
 
@@ -1212,6 +1222,7 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 		table[2].data = &net->ipv6.sysctl.icmpv6_echo_ignore_multicast;
 		table[3].data = &net->ipv6.sysctl.icmpv6_echo_ignore_anycast;
 		table[4].data = &net->ipv6.sysctl.icmpv6_ratemask_ptr;
+		table[5].data = &net->ipv6.sysctl.icmpv6_error_anycast_as_unicast;
 	}
 	return table;
 }

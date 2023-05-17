@@ -12,14 +12,6 @@
 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-
-*/
-
-#define KBIC_VERSION      "1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -27,8 +19,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define r12w()			(delay_p,inw(pi->port+1)&0xffff) 
 
@@ -42,7 +33,7 @@
 
 static int  cont_map[2] = { 0x80, 0x40 };
 
-static int kbic_read_regr( PIA *pi, int cont, int regr )
+static int kbic_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     a, b, s;
 
@@ -72,7 +63,7 @@ static int kbic_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }       
 
-static void  kbic_write_regr( PIA *pi, int cont, int regr, int val)
+static void kbic_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  s;
 
@@ -96,14 +87,14 @@ static void  kbic_write_regr( PIA *pi, int cont, int regr, int val)
 	}
 }
 
-static void k951_connect ( PIA *pi  )
+static void k951_connect(struct pi_adapter *pi)
 
 { 	pi->saved_r0 = r0();
         pi->saved_r2 = r2();
         w2(4); 
 }
 
-static void k951_disconnect ( PIA *pi )
+static void k951_disconnect(struct pi_adapter *pi)
 
 {      	w0(pi->saved_r0);
         w2(pi->saved_r2);
@@ -112,7 +103,7 @@ static void k951_disconnect ( PIA *pi )
 #define	CCP(x)	w2(0xc4);w0(0xaa);w0(0x55);w0(0);w0(0xff);w0(0x87);\
 		w0(0x78);w0(x);w2(0xc5);w2(0xc4);w0(0xff);
 
-static void k971_connect ( PIA *pi  )
+static void k971_connect(struct pi_adapter *pi)
 
 { 	pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -120,7 +111,7 @@ static void k971_connect ( PIA *pi  )
         w2(4); 
 }
 
-static void k971_disconnect ( PIA *pi )
+static void k971_disconnect(struct pi_adapter *pi)
 
 {       CCP(0x30);
 	w0(pi->saved_r0);
@@ -131,7 +122,7 @@ static void k971_disconnect ( PIA *pi )
    have this property.
 */
 
-static void kbic_read_block( PIA *pi, char * buf, int count )
+static void kbic_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k, a, b;
 
@@ -189,7 +180,7 @@ static void kbic_read_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void kbic_write_block( PIA *pi, char * buf, int count )
+static void kbic_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k;
 
@@ -213,12 +204,15 @@ static void kbic_write_block( PIA *pi, char * buf, int count )
 		break;
 
 	case 4: w0(0xa0); w2(4); w2(6); w2(4); w3(0);
-                for(k=0;k<count/2;k++) w4w(pi_swab16(buf,k));
+		for (k = 0; k < count / 2; k++)
+			w4w(swab16(((u16 *)buf)[k]));
                 w2(4); w2(0); w2(4);
                 break;
 
         case 5: w0(0xa0); w2(4); w2(6); w2(4); w3(0);
-                for(k=0;k<count/4;k++) w4l(pi_swab32(buf,k));
+		for (k = 0; k < count / 4; k++)
+			w4l(swab16(((u16 *)buf)[2 * k]) |
+			    swab16(((u16 *)buf)[2 * k + 1]) << 16);
                 w2(4); w2(0); w2(4);
                 break;
 
@@ -226,27 +220,23 @@ static void kbic_write_block( PIA *pi, char * buf, int count )
 
 }
 
-static void kbic_log_adapter( PIA *pi, char * scratch, 
-			      int verbose, char * chip )
+static void kbic_log_adapter(struct pi_adapter *pi, char *chip)
 
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP_16","EPP-32"};
 
-        printk("%s: kbic %s, KingByte %s at 0x%x, ",
-                pi->device,KBIC_VERSION,chip,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "KingByte %s at 0x%x, mode %d (%s), delay %d\n",
+		 chip, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
-static void k951_log_adapter( PIA *pi, char * scratch, int verbose )
-
-{	kbic_log_adapter(pi,scratch,verbose,"KBIC-951A");
+static void k951_log_adapter(struct pi_adapter *pi)
+{
+	kbic_log_adapter(pi, "KBIC-951A");
 }
 
-static void k971_log_adapter( PIA *pi, char * scratch, int verbose )
-
-{       kbic_log_adapter(pi,scratch,verbose,"KBIC-971A");
+static void k971_log_adapter(struct pi_adapter *pi)
+{
+	kbic_log_adapter(pi, "KBIC-971A");
 }
 
 static struct pi_protocol k951 = {
@@ -285,19 +275,19 @@ static int __init kbic_init(void)
 {
 	int rv;
 
-	rv = paride_register(&k951);
+	rv = pata_parport_register_driver(&k951);
 	if (rv < 0)
 		return rv;
-	rv = paride_register(&k971);
+	rv = pata_parport_register_driver(&k971);
 	if (rv < 0)
-		paride_unregister(&k951);
+		pata_parport_unregister_driver(&k951);
 	return rv;
 }
 
 static void __exit kbic_exit(void)
 {
-	paride_unregister(&k951);
-	paride_unregister(&k971);
+	pata_parport_unregister_driver(&k951);
+	pata_parport_unregister_driver(&k971);
 }
 
 MODULE_LICENSE("GPL");

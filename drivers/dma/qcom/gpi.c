@@ -1966,7 +1966,6 @@ error_alloc_ev_ring:
 error_config_int:
 	gpi_free_ring(&gpii->ev_ring, gpii);
 exit_gpi_init:
-	mutex_unlock(&gpii->ctrl_lock);
 	return ret;
 }
 

@@ -701,7 +701,9 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = 167,
 			.nv12 = 167,
 			.fp16 = 167
-	}
+	},
+	16,
+	16
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
@@ -2015,6 +2017,8 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 
 	if (context->streams[0]->vrr_active_variable)
 		return false;
+
+	context->streams[0]->fpo_in_use = true;
 
 	return true;
 }

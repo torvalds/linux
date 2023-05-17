@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/hw_breakpoint.h>
 #include <linux/err.h>
+#include <linux/list_sort.h>
 #include <linux/zalloc.h>
 #include <dirent.h>
 #include <errno.h>
@@ -24,9 +25,10 @@
 #include "util/parse-branch-options.h"
 #include "util/evsel_config.h"
 #include "util/event.h"
-#include "perf.h"
 #include "util/parse-events-hybrid.h"
 #include "util/pmu-hybrid.h"
+#include "util/bpf-filter.h"
+#include "util/util.h"
 #include "tracepoint.h"
 #include "thread_map.h"
 
@@ -947,6 +949,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG3]		= "config3",
 	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
@@ -986,6 +989,7 @@ config_term_avail(int term_type, struct parse_events_error *err)
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
 	case PARSE_EVENTS__TERM_TYPE_NAME:
 	case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
@@ -1030,6 +1034,10 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
 		CHECK_TYPE_VAL(NUM);
 		attr->config2 = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+		CHECK_TYPE_VAL(NUM);
+		attr->config3 = term->val.num;
 		break;
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);
@@ -1444,15 +1452,13 @@ static int parse_events__inside_hybrid_pmu(struct parse_events_state *parse_stat
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
-			 bool auto_merge_stats,
-			 bool use_alias)
+			 bool auto_merge_stats)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct evsel *evsel;
 	struct parse_events_error *err = parse_state->error;
-	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
 	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
@@ -1487,8 +1493,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		memset(&attr, 0, sizeof(attr));
 	}
 
-	use_uncore_alias = (pmu->is_uncore && use_alias);
-
 	if (!head_config) {
 		attr.type = pmu->type;
 		evsel = __add_event(list, &parse_state->idx, &attr,
@@ -1498,7 +1502,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 				    /*cpu_list=*/NULL);
 		if (evsel) {
 			evsel->pmu_name = name ? strdup(name) : NULL;
-			evsel->use_uncore_alias = use_uncore_alias;
 			return 0;
 		} else {
 			return -ENOMEM;
@@ -1559,7 +1562,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		evsel->use_config_name = true;
 
 	evsel->pmu_name = name ? strdup(name) : NULL;
-	evsel->use_uncore_alias = use_uncore_alias;
 	evsel->percore = config_term_percore(&evsel->config_terms);
 
 	if (parse_state->fake_pmu)
@@ -1599,7 +1601,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   config, 1, false, &config,
+				   config, 1, false, NULL,
 					NULL) < 0) {
 		free(config);
 		goto out_err;
@@ -1621,7 +1623,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				parse_events_copy_term_list(head, &orig_head);
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, orig_head,
-							  true, true)) {
+							  /*auto_merge_stats=*/true)) {
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
@@ -1633,7 +1635,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_state->fake_pmu) {
 		if (!parse_events_add_pmu(parse_state, list, str, head,
-					  true, true)) {
+					  /*auto_merge_stats=*/true)) {
 			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", str);
 			ok++;
 		}
@@ -1655,124 +1657,7 @@ int parse_events__modifier_group(struct list_head *list,
 	return parse_events__modifier_event(list, event_mod, true);
 }
 
-/*
- * Check if the two uncore PMUs are from the same uncore block
- * The format of the uncore PMU name is uncore_#blockname_#pmuidx
- */
-static bool is_same_uncore_block(const char *pmu_name_a, const char *pmu_name_b)
-{
-	char *end_a, *end_b;
-
-	end_a = strrchr(pmu_name_a, '_');
-	end_b = strrchr(pmu_name_b, '_');
-
-	if (!end_a || !end_b)
-		return false;
-
-	if ((end_a - pmu_name_a) != (end_b - pmu_name_b))
-		return false;
-
-	return (strncmp(pmu_name_a, pmu_name_b, end_a - pmu_name_a) == 0);
-}
-
-static int
-parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
-					   struct parse_events_state *parse_state)
-{
-	struct evsel *evsel, *leader;
-	uintptr_t *leaders;
-	bool is_leader = true;
-	int i, nr_pmu = 0, total_members, ret = 0;
-
-	leader = list_first_entry(list, struct evsel, core.node);
-	evsel = list_last_entry(list, struct evsel, core.node);
-	total_members = evsel->core.idx - leader->core.idx + 1;
-
-	leaders = calloc(total_members, sizeof(uintptr_t));
-	if (WARN_ON(!leaders))
-		return 0;
-
-	/*
-	 * Going through the whole group and doing sanity check.
-	 * All members must use alias, and be from the same uncore block.
-	 * Also, storing the leader events in an array.
-	 */
-	__evlist__for_each_entry(list, evsel) {
-
-		/* Only split the uncore group which members use alias */
-		if (!evsel->use_uncore_alias)
-			goto out;
-
-		/* The events must be from the same uncore block */
-		if (!is_same_uncore_block(leader->pmu_name, evsel->pmu_name))
-			goto out;
-
-		if (!is_leader)
-			continue;
-		/*
-		 * If the event's PMU name starts to repeat, it must be a new
-		 * event. That can be used to distinguish the leader from
-		 * other members, even they have the same event name.
-		 */
-		if ((leader != evsel) &&
-		    !strcmp(leader->pmu_name, evsel->pmu_name)) {
-			is_leader = false;
-			continue;
-		}
-
-		/* Store the leader event for each PMU */
-		leaders[nr_pmu++] = (uintptr_t) evsel;
-	}
-
-	/* only one event alias */
-	if (nr_pmu == total_members) {
-		parse_state->nr_groups--;
-		goto handled;
-	}
-
-	/*
-	 * An uncore event alias is a joint name which means the same event
-	 * runs on all PMUs of a block.
-	 * Perf doesn't support mixed events from different PMUs in the same
-	 * group. The big group has to be split into multiple small groups
-	 * which only include the events from the same PMU.
-	 *
-	 * Here the uncore event aliases must be from the same uncore block.
-	 * The number of PMUs must be same for each alias. The number of new
-	 * small groups equals to the number of PMUs.
-	 * Setting the leader event for corresponding members in each group.
-	 */
-	i = 0;
-	__evlist__for_each_entry(list, evsel) {
-		if (i >= nr_pmu)
-			i = 0;
-		evsel__set_leader(evsel, (struct evsel *) leaders[i++]);
-	}
-
-	/* The number of members and group name are same for each group */
-	for (i = 0; i < nr_pmu; i++) {
-		evsel = (struct evsel *) leaders[i];
-		evsel->core.nr_members = total_members / nr_pmu;
-		evsel->group_name = name ? strdup(name) : NULL;
-	}
-
-	/* Take the new small groups into account */
-	parse_state->nr_groups += nr_pmu - 1;
-
-handled:
-	ret = 1;
-out:
-	free(leaders);
-	return ret;
-}
-
-__weak struct evsel *arch_evlist__leader(struct list_head *list)
-{
-	return list_first_entry(list, struct evsel, core.node);
-}
-
-void parse_events__set_leader(char *name, struct list_head *list,
-			      struct parse_events_state *parse_state)
+void parse_events__set_leader(char *name, struct list_head *list)
 {
 	struct evsel *leader;
 
@@ -1781,13 +1666,9 @@ void parse_events__set_leader(char *name, struct list_head *list,
 		return;
 	}
 
-	if (parse_events__set_leader_for_uncore_aliase(name, list, parse_state))
-		return;
-
-	leader = arch_evlist__leader(list);
+	leader = list_first_entry(list, struct evsel, core.node);
 	__perf_evlist__set_leader(list, &leader->core);
-	leader->group_name = name ? strdup(name) : NULL;
-	list_move(&leader->core.node, list);
+	leader->group_name = name;
 }
 
 /* list_event is assumed to point to malloc'ed memory */
@@ -2139,7 +2020,7 @@ int perf_pmu__test_parse_init(void)
 
 err_free:
 	for (j = 0, tmp = list; j < i; j++, tmp++)
-		free(tmp->symbol);
+		zfree(&tmp->symbol);
 	free(list);
 	return -ENOMEM;
 }
@@ -2244,8 +2125,136 @@ static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
 	return ret;
 }
 
+__weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
+{
+	/* Order by insertion index. */
+	return lhs->core.idx - rhs->core.idx;
+}
+
+static int evlist__cmp(void *state, const struct list_head *l, const struct list_head *r)
+{
+	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, node);
+	const struct evsel *lhs = container_of(lhs_core, struct evsel, core);
+	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, node);
+	const struct evsel *rhs = container_of(rhs_core, struct evsel, core);
+	int *leader_idx = state;
+	int lhs_leader_idx = *leader_idx, rhs_leader_idx = *leader_idx, ret;
+	const char *lhs_pmu_name, *rhs_pmu_name;
+
+	/*
+	 * First sort by grouping/leader. Read the leader idx only if the evsel
+	 * is part of a group, as -1 indicates no group.
+	 */
+	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1)
+		lhs_leader_idx = lhs_core->leader->idx;
+	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1)
+		rhs_leader_idx = rhs_core->leader->idx;
+
+	if (lhs_leader_idx != rhs_leader_idx)
+		return lhs_leader_idx - rhs_leader_idx;
+
+	/* Group by PMU. Groups can't span PMUs. */
+	lhs_pmu_name = evsel__group_pmu_name(lhs);
+	rhs_pmu_name = evsel__group_pmu_name(rhs);
+	ret = strcmp(lhs_pmu_name, rhs_pmu_name);
+	if (ret)
+		return ret;
+
+	/* Architecture specific sorting. */
+	return arch_evlist__cmp(lhs, rhs);
+}
+
+static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
+{
+	int idx = 0, unsorted_idx = -1;
+	struct evsel *pos, *cur_leader = NULL;
+	struct perf_evsel *cur_leaders_grp = NULL;
+	bool idx_changed = false;
+	int orig_num_leaders = 0, num_leaders = 0;
+
+	/*
+	 * Compute index to insert ungrouped events at. Place them where the
+	 * first ungrouped event appears.
+	 */
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+
+		if (pos == pos_leader)
+			orig_num_leaders++;
+
+		/*
+		 * Ensure indexes are sequential, in particular for multiple
+		 * event lists being merged. The indexes are used to detect when
+		 * the user order is modified.
+		 */
+		pos->core.idx = idx++;
+
+		if (unsorted_idx == -1 && pos == pos_leader && pos->core.nr_members < 2)
+			unsorted_idx = pos->core.idx;
+	}
+
+	/* Sort events. */
+	list_sort(&unsorted_idx, list, evlist__cmp);
+
+	/*
+	 * Recompute groups, splitting for PMUs and adding groups for events
+	 * that require them.
+	 */
+	idx = 0;
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+		const char *pos_pmu_name = evsel__group_pmu_name(pos);
+		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
+		bool force_grouped = arch_evsel__must_be_in_group(pos);
+
+		/* Reset index and nr_members. */
+		if (pos->core.idx != idx)
+			idx_changed = true;
+		pos->core.idx = idx++;
+		pos->core.nr_members = 0;
+
+		/*
+		 * Set the group leader respecting the given groupings and that
+		 * groups can't span PMUs.
+		 */
+		if (!cur_leader)
+			cur_leader = pos;
+
+		cur_leader_pmu_name = evsel__group_pmu_name(cur_leader);
+		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
+		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
+			/* Event is for a different group/PMU than last. */
+			cur_leader = pos;
+			/*
+			 * Remember the leader's group before it is overwritten,
+			 * so that later events match as being in the same
+			 * group.
+			 */
+			cur_leaders_grp = pos->core.leader;
+		}
+		pos_leader_pmu_name = evsel__group_pmu_name(pos_leader);
+		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
+			/*
+			 * Event's PMU differs from its leader's. Groups can't
+			 * span PMUs, so update leader from the group/PMU
+			 * tracker.
+			 */
+			evsel__set_leader(pos, cur_leader);
+		}
+	}
+	list_for_each_entry(pos, list, core.node) {
+		struct evsel *pos_leader = evsel__leader(pos);
+
+		if (pos == pos_leader)
+			num_leaders++;
+		pos_leader->core.nr_members++;
+	}
+	return idx_changed || num_leaders != orig_num_leaders;
+}
+
 int __parse_events(struct evlist *evlist, const char *str,
-		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
+		   struct parse_events_error *err, struct perf_pmu *fake_pmu,
+		   bool warn_if_reordered)
 {
 	struct parse_events_state parse_state = {
 		.list	  = LIST_HEAD_INIT(parse_state.list),
@@ -2265,6 +2274,10 @@ int __parse_events(struct evlist *evlist, const char *str,
 		return -1;
 	}
 
+	if (parse_events__sort_events_and_fix_groups(&parse_state.list) &&
+	    warn_if_reordered && !parse_state.wild_card_pmus)
+		pr_warning("WARNING: events were regrouped to match PMUs\n");
+
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.
 	 */
@@ -2273,7 +2286,6 @@ int __parse_events(struct evlist *evlist, const char *str,
 	if (!ret) {
 		struct evsel *last;
 
-		evlist->core.nr_groups += parse_state.nr_groups;
 		last = evlist__last(evlist);
 		last->cmdline_group_boundary = true;
 
@@ -2537,11 +2549,8 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		perf_pmu__scan_file(pmu, "nr_addr_filters",
 				    "%d", &nr_addr_filters);
 
-	if (!nr_addr_filters) {
-		fprintf(stderr,
-			"This CPU does not support address filtering\n");
-		return -1;
-	}
+	if (!nr_addr_filters)
+		return perf_bpf_filter__parse(&evsel->bpf_filters, str);
 
 	if (evsel__append_addr_filter(evsel, str) < 0) {
 		fprintf(stderr,

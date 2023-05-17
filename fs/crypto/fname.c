@@ -110,7 +110,7 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	 * Copy the filename to the output buffer for encrypting in-place and
 	 * pad it with the needed number of NUL bytes.
 	 */
-	if (WARN_ON(olen < iname->len))
+	if (WARN_ON_ONCE(olen < iname->len))
 		return -ENOBUFS;
 	memcpy(out, iname->name, iname->len);
 	memset(out + iname->len, 0, olen - iname->len);
@@ -570,7 +570,7 @@ u64 fscrypt_fname_siphash(const struct inode *dir, const struct qstr *name)
 {
 	const struct fscrypt_info *ci = dir->i_crypt_info;
 
-	WARN_ON(!ci->ci_dirhash_key_initialized);
+	WARN_ON_ONCE(!ci->ci_dirhash_key_initialized);
 
 	return siphash(name->name, name->len, &ci->ci_dirhash_key);
 }

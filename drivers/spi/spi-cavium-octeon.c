@@ -69,15 +69,13 @@ fail:
 	return err;
 }
 
-static int octeon_spi_remove(struct platform_device *pdev)
+static void octeon_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct octeon_spi *p = spi_master_get_devdata(master);
 
 	/* Clear the CSENA* and put everything in a known state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
-
-	return 0;
 }
 
 static const struct of_device_id octeon_spi_match[] = {
@@ -92,7 +90,7 @@ static struct platform_driver octeon_spi_driver = {
 		.of_match_table = octeon_spi_match,
 	},
 	.probe		= octeon_spi_probe,
-	.remove		= octeon_spi_remove,
+	.remove_new	= octeon_spi_remove,
 };
 
 module_platform_driver(octeon_spi_driver);

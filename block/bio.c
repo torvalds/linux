@@ -1159,6 +1159,7 @@ bool bio_add_folio(struct bio *bio, struct folio *folio, size_t len,
 		return false;
 	return bio_add_page(bio, &folio->page, len, off) > 0;
 }
+EXPORT_SYMBOL(bio_add_folio);
 
 void __bio_release_pages(struct bio *bio, bool mark_dirty)
 {

@@ -32,8 +32,6 @@
 #  define ffs_dump_mem(prefix, ptr, len) do { } while (0)
 #endif /* VERBOSE_DEBUG */
 
-#define ENTER()    pr_vdebug("%s()\n", __func__)
-
 struct f_fs_opts;
 
 struct ffs_dev {

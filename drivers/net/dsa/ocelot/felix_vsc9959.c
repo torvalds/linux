@@ -1424,6 +1424,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	mutex_lock(&ocelot->tas_lock);
 
 	if (!taprio->enable) {
+		ocelot_port_mqprio(ocelot, port, &taprio->mqprio);
 		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG, port);
 
@@ -1436,15 +1437,19 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		return 0;
 	}
 
+	ret = ocelot_port_mqprio(ocelot, port, &taprio->mqprio);
+	if (ret)
+		goto err_unlock;
+
 	if (taprio->cycle_time > NSEC_PER_SEC ||
 	    taprio->cycle_time_extension >= NSEC_PER_SEC) {
 		ret = -EINVAL;
-		goto err;
+		goto err_reset_tc;
 	}
 
 	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX) {
 		ret = -ERANGE;
-		goto err;
+		goto err_reset_tc;
 	}
 
 	/* Enable guard band. The switch will schedule frames without taking
@@ -1468,7 +1473,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
 	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING) {
 		ret = -EBUSY;
-		goto err;
+		goto err_reset_tc;
 	}
 
 	ocelot_rmw_rix(ocelot,
@@ -1503,12 +1508,19 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 				 !(val & QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE),
 				 10, 100000);
 	if (ret)
-		goto err;
+		goto err_reset_tc;
 
 	ocelot_port->taprio = taprio_offload_get(taprio);
 	vsc9959_tas_guard_bands_update(ocelot, port);
 
-err:
+	mutex_unlock(&ocelot->tas_lock);
+
+	return 0;
+
+err_reset_tc:
+	taprio->mqprio.qopt.num_tc = 0;
+	ocelot_port_mqprio(ocelot, port, &taprio->mqprio);
+err_unlock:
 	mutex_unlock(&ocelot->tas_lock);
 
 	return ret;
@@ -1612,6 +1624,13 @@ static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
 static int vsc9959_qos_query_caps(struct tc_query_caps_base *base)
 {
 	switch (base->type) {
+	case TC_SETUP_QDISC_MQPRIO: {
+		struct tc_mqprio_caps *caps = base->caps;
+
+		caps->validate_queue_counts = true;
+
+		return 0;
+	}
 	case TC_SETUP_QDISC_TAPRIO: {
 		struct tc_taprio_caps *caps = base->caps;
 
@@ -1635,6 +1654,8 @@ static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 		return vsc9959_qos_query_caps(type_data);
 	case TC_SETUP_QDISC_TAPRIO:
 		return vsc9959_qos_port_tas_set(ocelot, port, type_data);
+	case TC_SETUP_QDISC_MQPRIO:
+		return ocelot_port_mqprio(ocelot, port, type_data);
 	case TC_SETUP_QDISC_CBS:
 		return vsc9959_qos_port_cbs_set(ds, port, type_data);
 	default:
@@ -2498,6 +2519,7 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		struct ocelot_port *ocelot_port = ocelot->ports[port];
+		struct ocelot_mm_state *mm = &ocelot->mm[port];
 		int min_speed = ocelot_port->speed;
 		unsigned long mask = 0;
 		u32 tmp, val = 0;
@@ -2538,10 +2560,12 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 
 		/* Enable cut-through forwarding for all traffic classes that
 		 * don't have oversized dropping enabled, since this check is
-		 * bypassed in cut-through mode.
+		 * bypassed in cut-through mode. Also exclude preemptible
+		 * traffic classes, since these would hang the port for some
+		 * reason, if sent as cut-through.
 		 */
 		if (ocelot_port->speed == min_speed) {
-			val = GENMASK(7, 0);
+			val = GENMASK(7, 0) & ~mm->active_preemptible_tcs;
 
 			for (tc = 0; tc < OCELOT_NUM_TC; tc++)
 				if (vsc9959_port_qmaxsdu_get(ocelot, port, tc))
@@ -2610,12 +2634,9 @@ static const struct felix_info felix_info_vsc9959 = {
 static irqreturn_t felix_irq_handler(int irq, void *data)
 {
 	struct ocelot *ocelot = (struct ocelot *)data;
-	int port;
 
 	ocelot_get_txtstamp(ocelot);
-
-	for (port = 0; port < ocelot->num_phys_ports; port++)
-		ocelot_port_mm_irq(ocelot, port);
+	ocelot_mm_irq(ocelot);
 
 	return IRQ_HANDLED;
 }

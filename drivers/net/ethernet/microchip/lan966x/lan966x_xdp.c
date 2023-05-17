@@ -62,7 +62,7 @@ int lan966x_xdp_xmit(struct net_device *dev,
 		struct xdp_frame *xdpf = frames[i];
 		int err;
 
-		err = lan966x_fdma_xmit_xdpf(port, xdpf, NULL, true);
+		err = lan966x_fdma_xmit_xdpf(port, xdpf, 0);
 		if (err)
 			break;
 
@@ -76,7 +76,6 @@ int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 {
 	struct bpf_prog *xdp_prog = port->xdp_prog;
 	struct lan966x *lan966x = port->lan966x;
-	struct xdp_frame *xdpf;
 	struct xdp_buff xdp;
 	u32 act;
 
@@ -90,11 +89,8 @@ int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 	case XDP_PASS:
 		return FDMA_PASS;
 	case XDP_TX:
-		xdpf = xdp_convert_buff_to_frame(&xdp);
-		if (!xdpf)
-			return FDMA_DROP;
-
-		return lan966x_fdma_xmit_xdpf(port, xdpf, page, false) ?
+		return lan966x_fdma_xmit_xdpf(port, page,
+					      data_len - IFH_LEN_BYTES) ?
 		       FDMA_DROP : FDMA_TX;
 	case XDP_REDIRECT:
 		if (xdp_do_redirect(port->dev, &xdp, xdp_prog))

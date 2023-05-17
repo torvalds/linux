@@ -2173,7 +2173,7 @@ out_ahb_clk_unprepare:
 	return ret;
 }
 
-static int sunxi_nfc_remove(struct platform_device *pdev)
+static void sunxi_nfc_remove(struct platform_device *pdev)
 {
 	struct sunxi_nfc *nfc = platform_get_drvdata(pdev);
 
@@ -2185,8 +2185,6 @@ static int sunxi_nfc_remove(struct platform_device *pdev)
 		dma_release_channel(nfc->dmac);
 	clk_disable_unprepare(nfc->mod_clk);
 	clk_disable_unprepare(nfc->ahb_clk);
-
-	return 0;
 }
 
 static const struct sunxi_nfc_caps sunxi_nfc_a10_caps = {
@@ -2219,7 +2217,7 @@ static struct platform_driver sunxi_nfc_driver = {
 		.of_match_table = sunxi_nfc_ids,
 	},
 	.probe = sunxi_nfc_probe,
-	.remove = sunxi_nfc_remove,
+	.remove_new = sunxi_nfc_remove,
 };
 module_platform_driver(sunxi_nfc_driver);
 

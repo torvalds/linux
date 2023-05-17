@@ -123,7 +123,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		its: gic-its@6020000 {
+		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0x6020000 0 0x20000>;

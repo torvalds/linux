@@ -96,7 +96,7 @@ void __init kmsan_init_shadow(void)
 struct metadata_page_pair {
 	struct page *shadow, *origin;
 };
-static struct metadata_page_pair held_back[MAX_ORDER] __initdata;
+static struct metadata_page_pair held_back[MAX_ORDER + 1] __initdata;
 
 /*
  * Eager metadata allocation. When the memblock allocator is freeing pages to
@@ -211,8 +211,8 @@ static void kmsan_memblock_discard(void)
 	 *    order=N-1,
 	 *  - repeat.
 	 */
-	collect.order = MAX_ORDER - 1;
-	for (int i = MAX_ORDER - 1; i >= 0; i--) {
+	collect.order = MAX_ORDER;
+	for (int i = MAX_ORDER; i >= 0; i--) {
 		if (held_back[i].shadow)
 			smallstack_push(&collect, held_back[i].shadow);
 		if (held_back[i].origin)

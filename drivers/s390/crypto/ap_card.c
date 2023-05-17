@@ -24,7 +24,7 @@ static ssize_t hwtype_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->ap_dev.device_type);
+	return sysfs_emit(buf, "%d\n", ac->ap_dev.device_type);
 }
 
 static DEVICE_ATTR_RO(hwtype);
@@ -34,7 +34,7 @@ static ssize_t raw_hwtype_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->raw_hwtype);
+	return sysfs_emit(buf, "%d\n", ac->raw_hwtype);
 }
 
 static DEVICE_ATTR_RO(raw_hwtype);
@@ -44,7 +44,7 @@ static ssize_t depth_show(struct device *dev, struct device_attribute *attr,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->queue_depth);
+	return sysfs_emit(buf, "%d\n", ac->queue_depth);
 }
 
 static DEVICE_ATTR_RO(depth);
@@ -54,7 +54,7 @@ static ssize_t ap_functions_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%08X\n", ac->functions);
+	return sysfs_emit(buf, "0x%08X\n", ac->functions);
 }
 
 static DEVICE_ATTR_RO(ap_functions);
@@ -70,7 +70,7 @@ static ssize_t request_count_show(struct device *dev,
 	spin_lock_bh(&ap_queues_lock);
 	req_cnt = atomic64_read(&ac->total_request_count);
 	spin_unlock_bh(&ap_queues_lock);
-	return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
+	return sysfs_emit(buf, "%llu\n", req_cnt);
 }
 
 static ssize_t request_count_store(struct device *dev,
@@ -107,7 +107,7 @@ static ssize_t requestq_count_show(struct device *dev,
 		if (ac == aq->card)
 			reqq_cnt += aq->requestq_count;
 	spin_unlock_bh(&ap_queues_lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
+	return sysfs_emit(buf, "%d\n", reqq_cnt);
 }
 
 static DEVICE_ATTR_RO(requestq_count);
@@ -126,7 +126,7 @@ static ssize_t pendingq_count_show(struct device *dev,
 		if (ac == aq->card)
 			penq_cnt += aq->pendingq_count;
 	spin_unlock_bh(&ap_queues_lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
+	return sysfs_emit(buf, "%d\n", penq_cnt);
 }
 
 static DEVICE_ATTR_RO(pendingq_count);
@@ -134,8 +134,7 @@ static DEVICE_ATTR_RO(pendingq_count);
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "ap:t%02X\n",
-			 to_ap_dev(dev)->device_type);
+	return sysfs_emit(buf, "ap:t%02X\n", to_ap_dev(dev)->device_type);
 }
 
 static DEVICE_ATTR_RO(modalias);
@@ -145,7 +144,7 @@ static ssize_t config_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->config ? 1 : 0);
+	return sysfs_emit(buf, "%d\n", ac->config ? 1 : 0);
 }
 
 static ssize_t config_store(struct device *dev,
@@ -179,7 +178,7 @@ static ssize_t chkstop_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", ac->chkstop ? 1 : 0);
+	return sysfs_emit(buf, "%d\n", ac->chkstop ? 1 : 0);
 }
 
 static DEVICE_ATTR_RO(chkstop);
@@ -189,7 +188,7 @@ static ssize_t max_msg_size_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", ac->maxmsgsize);
+	return sysfs_emit(buf, "%u\n", ac->maxmsgsize);
 }
 
 static DEVICE_ATTR_RO(max_msg_size);

@@ -155,25 +155,30 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	enum rtw_net_type net_type;
 	u32 config = 0;
-	u8 port = 0;
+	u8 port;
 	u8 bcn_ctrl = 0;
 
 	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
-	rtwvif->port = port;
 	rtwvif->stats.tx_unicast = 0;
 	rtwvif->stats.rx_unicast = 0;
 	rtwvif->stats.tx_cnt = 0;
 	rtwvif->stats.rx_cnt = 0;
 	rtwvif->scan_req = NULL;
 	memset(&rtwvif->bfee, 0, sizeof(struct rtw_bfee));
-	rtwvif->conf = &rtw_vif_port[port];
 	rtw_txq_init(rtwdev, vif->txq);
 	INIT_LIST_HEAD(&rtwvif->rsvd_page_list);
 
 	mutex_lock(&rtwdev->mutex);
 
+	port = find_first_zero_bit(rtwdev->hw_port, RTW_PORT_NUM);
+	if (port >= RTW_PORT_NUM)
+		return -EINVAL;
+	set_bit(port, rtwdev->hw_port);
+
+	rtwvif->port = port;
+	rtwvif->conf = &rtw_vif_port[port];
 	rtw_leave_lps_deep(rtwdev);
 
 	switch (vif->type) {
@@ -195,6 +200,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 		break;
 	default:
 		WARN_ON(1);
+		clear_bit(rtwvif->port, rtwdev->hw_port);
 		mutex_unlock(&rtwdev->mutex);
 		return -EINVAL;
 	}
@@ -206,6 +212,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->bcn_ctrl = bcn_ctrl;
 	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
+	rtw_core_port_switch(rtwdev, vif);
 
 	mutex_unlock(&rtwdev->mutex);
 
@@ -236,6 +243,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	rtwvif->bcn_ctrl = 0;
 	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
+	clear_bit(rtwvif->port, rtwdev->hw_port);
 
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -385,7 +393,8 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			 * when disconnected by peer
 			 */
 			if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
-				rtw_hw_scan_abort(rtwdev, vif);
+				rtw_hw_scan_abort(rtwdev);
+
 		}
 
 		config |= PORT_SET_NET_TYPE;
@@ -395,7 +404,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		config |= PORT_SET_BSSID;
-		if (is_zero_ether_addr(rtwvif->bssid))
+		if (!rtw_core_check_sta_active(rtwdev))
 			rtw_clear_op_chan(rtwdev);
 		else
 			rtw_store_op_chan(rtwdev, true);
@@ -409,6 +418,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BEACON) {
 		rtw_set_dtim_period(rtwdev, conf->dtim_period);
 		rtw_fw_download_rsvd_page(rtwdev);
+		rtw_send_rsvd_page_h2c(rtwdev);
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
@@ -441,10 +451,25 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw,
 	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	mutex_lock(&rtwdev->mutex);
+	rtwdev->ap_active = true;
+	rtw_store_op_chan(rtwdev, true);
 	chip->ops->phy_calibration(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
+}
+
+static void rtw_ops_stop_ap(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtwdev->ap_active = false;
+	if (!rtw_core_check_sta_active(rtwdev))
+		rtw_clear_op_chan(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static int rtw_ops_conf_tx(struct ieee80211_hw *hw,
@@ -849,7 +874,7 @@ static int rtw_ops_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	rtw_hw_scan_start(rtwdev, vif, req);
 	ret = rtw_hw_scan_offload(rtwdev, vif, true);
 	if (ret) {
-		rtw_hw_scan_abort(rtwdev, vif);
+		rtw_hw_scan_abort(rtwdev);
 		rtw_err(rtwdev, "HW scan failed with status: %d\n", ret);
 	}
 	mutex_unlock(&rtwdev->mutex);
@@ -869,7 +894,7 @@ static void rtw_ops_cancel_hw_scan(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw_hw_scan_abort(rtwdev, vif);
+	rtw_hw_scan_abort(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -908,6 +933,7 @@ const struct ieee80211_ops rtw_ops = {
 	.configure_filter	= rtw_ops_configure_filter,
 	.bss_info_changed	= rtw_ops_bss_info_changed,
 	.start_ap		= rtw_ops_start_ap,
+	.stop_ap		= rtw_ops_stop_ap,
 	.conf_tx		= rtw_ops_conf_tx,
 	.sta_add		= rtw_ops_sta_add,
 	.sta_remove		= rtw_ops_sta_remove,

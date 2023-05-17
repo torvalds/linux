@@ -1049,8 +1049,8 @@
 				clocks = <&clks IMX6QDL_CLK_ENET>,
 					 <&clks IMX6QDL_CLK_ENET>,
 					 <&clks IMX6QDL_CLK_ENET_REF>,
-					 <&clks IMX6QDL_CLK_ENET_REF>;
-				clock-names = "ipg", "ahb", "ptp", "enet_out";
+					 <&clks IMX6QDL_CLK_ENET_REF_SEL>;
+				clock-names = "ipg", "ahb", "ptp", "enet_clk_ref";
 				fsl,stop-mode = <&gpr 0x34 27>;
 				nvmem-cells = <&fec_mac_addr>;
 				nvmem-cell-names = "mac-address";

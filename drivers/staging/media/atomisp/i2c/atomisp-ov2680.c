@@ -3,6 +3,7 @@
  * Support for OmniVision OV2680 1080p HD camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -418,7 +419,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(sensor->sd.dev);
 		if (ret < 0)
-			goto error_unlock;
+			goto error_power_down;
 
 		ret = ov2680_set_mode(sensor);
 		if (ret)
@@ -446,6 +447,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 
 error_power_down:
 	pm_runtime_put(sensor->sd.dev);
+	sensor->is_streaming = false;
 error_unlock:
 	mutex_unlock(&sensor->input_lock);
 	return ret;
@@ -614,21 +616,6 @@ static void ov2680_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 }
 
-/*
- * Unlike other sensors which have both a rest and powerdown input pins,
- * the OV2680 only has a powerdown input. But some ACPI tables still list
- * 2 GPIOs for the OV2680 and it is unclear which to use. So try to get
- * up to 2 GPIOs (1 mandatory, 1 optional) and control them in sync.
- */
-static const struct acpi_gpio_params ov2680_first_gpio = { 0, 0, true };
-static const struct acpi_gpio_params ov2680_second_gpio = { 1, 0, true };
-
-static const struct acpi_gpio_mapping ov2680_gpio_mapping[] = {
-	{ "powerdown-gpios", &ov2680_first_gpio, 1 },
-	{ "powerdown-alt-gpios", &ov2680_second_gpio, 1 },
-	{ },
-};
-
 static int ov2680_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -644,17 +631,13 @@ static int ov2680_probe(struct i2c_client *client)
 	sensor->client = client;
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
 
-	ret = devm_acpi_dev_add_driver_gpios(&client->dev, ov2680_gpio_mapping);
+	ret = v4l2_get_acpi_sensor_info(dev, NULL);
 	if (ret)
 		return ret;
 
-	sensor->powerdown = devm_gpiod_get(dev, "powerdown", GPIOD_OUT_HIGH);
+	sensor->powerdown = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->powerdown))
 		return dev_err_probe(dev, PTR_ERR(sensor->powerdown), "getting powerdown GPIO\n");
-
-	sensor->powerdown_alt = devm_gpiod_get_optional(dev, "powerdown-alt", GPIOD_OUT_HIGH);
-	if (IS_ERR(sensor->powerdown_alt))
-		return dev_err_probe(dev, PTR_ERR(sensor->powerdown_alt), "getting powerdown-alt GPIO\n");
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
@@ -662,8 +645,10 @@ static int ov2680_probe(struct i2c_client *client)
 	pm_runtime_use_autosuspend(dev);
 
 	ret = ov2680_s_config(&sensor->sd);
-	if (ret)
+	if (ret) {
+		ov2680_remove(client);
 		return ret;
+	}
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -699,7 +684,6 @@ static int ov2680_suspend(struct device *dev)
 	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 
 	gpiod_set_value_cansleep(sensor->powerdown, 1);
-	gpiod_set_value_cansleep(sensor->powerdown_alt, 1);
 	return 0;
 }
 
@@ -712,7 +696,6 @@ static int ov2680_resume(struct device *dev)
 	usleep_range(5000, 6000);
 
 	gpiod_set_value_cansleep(sensor->powerdown, 0);
-	gpiod_set_value_cansleep(sensor->powerdown_alt, 0);
 
 	/* according to DS, 20ms is needed between PWDN and i2c access */
 	msleep(20);

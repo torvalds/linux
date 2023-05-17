@@ -290,7 +290,7 @@ aoechr_init(void)
 	}
 	init_completion(&emsgs_comp);
 	spin_lock_init(&emsgs_lock);
-	aoe_class = class_create(THIS_MODULE, "aoe");
+	aoe_class = class_create("aoe");
 	if (IS_ERR(aoe_class)) {
 		unregister_chrdev(AOE_MAJOR, "aoechr");
 		return PTR_ERR(aoe_class);

@@ -23,6 +23,8 @@
 
 	aliases {
 		i2c7 = &i2c_max77836;
+		mmc0 = &mshc_0;
+		mmc1 = &mshc_1;
 	};
 
 	chosen {
@@ -624,6 +626,7 @@
 	vmmc-supply = <&ldo12_reg>;
 	clock-frequency = <100000000>;
 	max-frequency = <100000000>;
+	mmc-ddr-1_8v;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
 	samsung,dw-mshc-ddr-timing = <1 2>;

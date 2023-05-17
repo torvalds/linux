@@ -76,15 +76,8 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 		return ret;
 	}
 
-	if (of_find_property(matched_node, "flow-control", NULL))
-		pdata->flow_control = 1;
-	else
-		pdata->flow_control = 0;
-
-	if (of_find_property(matched_node, "break-control", NULL))
-		pdata->break_control = 1;
-	else
-		pdata->break_control = 0;
+	pdata->flow_control = of_property_read_bool(matched_node, "flow-control");
+	pdata->break_control = of_property_read_bool(matched_node, "break-control");
 
 	of_node_put(matched_node);
 

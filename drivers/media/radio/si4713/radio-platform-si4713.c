@@ -190,7 +190,7 @@ exit:
 }
 
 /* radio_si4713_pdriver_remove - remove the device */
-static int radio_si4713_pdriver_remove(struct platform_device *pdev)
+static void radio_si4713_pdriver_remove(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
 	struct radio_si4713_device *rsdev;
@@ -198,8 +198,6 @@ static int radio_si4713_pdriver_remove(struct platform_device *pdev)
 	rsdev = container_of(v4l2_dev, struct radio_si4713_device, v4l2_dev);
 	video_unregister_device(&rsdev->radio_dev);
 	v4l2_device_unregister(&rsdev->v4l2_dev);
-
-	return 0;
 }
 
 static struct platform_driver radio_si4713_pdriver = {
@@ -207,7 +205,7 @@ static struct platform_driver radio_si4713_pdriver = {
 		.name	= "radio-si4713",
 	},
 	.probe		= radio_si4713_pdriver_probe,
-	.remove         = radio_si4713_pdriver_remove,
+	.remove_new     = radio_si4713_pdriver_remove,
 };
 
 module_platform_driver(radio_si4713_pdriver);

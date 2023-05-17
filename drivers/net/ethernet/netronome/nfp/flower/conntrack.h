@@ -86,6 +86,9 @@ enum ct_entry_type {
 	_CT_TYPE_MAX,
 };
 
+#define NFP_MAX_RECIRC_CT_ZONES 4
+#define NFP_MAX_ENTRY_RULES  (NFP_MAX_RECIRC_CT_ZONES * 2 + 1)
+
 enum nfp_nfp_layer_name {
 	FLOW_PAY_META_TCI =    0,
 	FLOW_PAY_INPORT,
@@ -112,27 +115,33 @@ enum nfp_nfp_layer_name {
  * @cookie:	Flow cookie, same as original TC flow, used as key
  * @list_node:	Used by the list
  * @chain_index:	Chain index of the original flow
+ * @goto_chain_index:	goto chain index of the flow
  * @netdev:	netdev structure.
- * @type:	Type of pre-entry from enum ct_entry_type
  * @zt:		Reference to the zone table this belongs to
  * @children:	List of tc_merge flows this flow forms part of
  * @rule:	Reference to the original TC flow rule
  * @stats:	Used to cache stats for updating
+ * @prev_m_entries:	Array of all previous nft_tc_merge entries
+ * @num_prev_m_entries:	The number of all previous nft_tc_merge entries
  * @tun_offset: Used to indicate tunnel action offset in action list
  * @flags:	Used to indicate flow flag like NAT which used by merge.
+ * @type:	Type of ct-entry from enum ct_entry_type
  */
 struct nfp_fl_ct_flow_entry {
 	unsigned long cookie;
 	struct list_head list_node;
 	u32 chain_index;
-	enum ct_entry_type type;
+	u32 goto_chain_index;
 	struct net_device *netdev;
 	struct nfp_fl_ct_zone_entry *zt;
 	struct list_head children;
 	struct flow_rule *rule;
 	struct flow_stats stats;
+	struct nfp_fl_nft_tc_merge *prev_m_entries[NFP_MAX_RECIRC_CT_ZONES - 1];
+	u8 num_prev_m_entries;
 	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
 	u8 flags;
+	u8 type;
 };
 
 /**
@@ -169,6 +178,7 @@ struct nfp_fl_ct_tc_merge {
  * @nft_parent:	The nft_entry parent
  * @tc_flower_cookie:	The cookie of the flow offloaded to the nfp
  * @flow_pay:	Reference to the offloaded flow struct
+ * @next_pre_ct_entry:	Reference to the next ct zone pre ct entry
  */
 struct nfp_fl_nft_tc_merge {
 	struct net_device *netdev;
@@ -181,6 +191,7 @@ struct nfp_fl_nft_tc_merge {
 	struct nfp_fl_ct_flow_entry *nft_parent;
 	unsigned long tc_flower_cookie;
 	struct nfp_fl_payload *flow_pay;
+	struct nfp_fl_ct_flow_entry *next_pre_ct_entry;
 };
 
 /**
@@ -204,6 +215,7 @@ bool is_post_ct_flow(struct flow_cls_offload *flow);
  * @netdev:	netdev structure.
  * @flow:	TC flower classifier offload structure.
  * @extack:	Extack pointer for errors
+ * @m_entry:previous nfp_fl_nft_tc_merge entry
  *
  * Adds a new entry to the relevant zone table and tries to
  * merge with other +trk+est entries and offload if possible.
@@ -213,7 +225,8 @@ bool is_post_ct_flow(struct flow_cls_offload *flow);
 int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 			    struct net_device *netdev,
 			    struct flow_cls_offload *flow,
-			    struct netlink_ext_ack *extack);
+			    struct netlink_ext_ack *extack,
+			    struct nfp_fl_nft_tc_merge *m_entry);
 /**
  * nfp_fl_ct_handle_post_ct() - Handles +trk+est conntrack rules
  * @priv:	Pointer to app priv
@@ -230,6 +243,19 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 			     struct net_device *netdev,
 			     struct flow_cls_offload *flow,
 			     struct netlink_ext_ack *extack);
+
+/**
+ * nfp_fl_create_new_pre_ct() - create next ct_zone -trk conntrack rules
+ * @m_entry:previous nfp_fl_nft_tc_merge entry
+ *
+ * Create a new pre_ct entry from previous nfp_fl_nft_tc_merge entry
+ * to the next relevant zone table. Try to merge with other +trk+est
+ * entries and offload if possible. The created new pre_ct entry is
+ * linked to the previous nfp_fl_nft_tc_merge entry.
+ *
+ * Return: negative value on error, 0 if configured successfully.
+ */
+int nfp_fl_create_new_pre_ct(struct nfp_fl_nft_tc_merge *m_entry);
 
 /**
  * nfp_fl_ct_clean_flow_entry() - Free a nfp_fl_ct_flow_entry

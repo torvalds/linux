@@ -192,6 +192,9 @@ obj-$(CONFIG_MEN_A21_WDT) += mena21_wdt.o
 obj-$(CONFIG_PSERIES_WDT) += pseries-wdt.o
 obj-$(CONFIG_WATCHDOG_RTAS) += wdrtas.o
 
+# RISC-V Architecture
+obj-$(CONFIG_STARFIVE_WATCHDOG) += starfive-wdt.o
+
 # S390 Architecture
 obj-$(CONFIG_DIAG288_WATCHDOG) += diag288_wdt.o
 

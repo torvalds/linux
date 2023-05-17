@@ -28,7 +28,7 @@ static int has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
 	if (irq == 0xffffffff)
 		return 0;
-	if (!of_find_property(dp, "button", NULL))
+	if (!of_property_read_bool(dp, "button"))
 		return 0;
 
 	return 1;

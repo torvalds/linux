@@ -235,10 +235,8 @@
 	internal_display: panel@0 {
 		reg = <0>;
 		backlight = <&backlight>;
-		iovcc-supply = <&vcc_lcd>;
 		reset-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
 		rotation = <270>;
-		vdd-supply = <&vcc_lcd>;
 
 		port {
 			mipi_in_panel: endpoint {

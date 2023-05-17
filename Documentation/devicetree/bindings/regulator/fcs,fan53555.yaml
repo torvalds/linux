@@ -14,12 +14,21 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fcs,fan53555
-      - fcs,fan53526
-      - silergy,syr827
-      - silergy,syr828
-      - tcs,tcs4525
+    oneOf:
+      - enum:
+          - fcs,fan53555
+          - fcs,fan53526
+          - rockchip,rk8600
+          - rockchip,rk8602
+          - silergy,syr827
+          - silergy,syr828
+          - tcs,tcs4525
+      - items:
+          - const: rockchip,rk8601
+          - const: rockchip,rk8600
+      - items:
+          - const: rockchip,rk8603
+          - const: rockchip,rk8602
 
   reg:
     maxItems: 1

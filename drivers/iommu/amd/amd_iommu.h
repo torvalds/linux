@@ -34,6 +34,7 @@ extern int amd_iommu_reenable(int);
 extern int amd_iommu_enable_faulting(void);
 extern int amd_iommu_guest_ir;
 extern enum io_pgtable_fmt amd_iommu_pgtable;
+extern int amd_iommu_gpt_level;
 
 /* IOMMUv2 specific functions */
 struct iommu_domain;
@@ -120,6 +121,14 @@ static inline int get_pci_sbdf_id(struct pci_dev *pdev)
 	u16 devid = pci_dev_id(pdev);
 
 	return PCI_SEG_DEVID_TO_SBDF(seg, devid);
+}
+
+static inline void *alloc_pgtable_page(int nid, gfp_t gfp)
+{
+	struct page *page;
+
+	page = alloc_pages_node(nid, gfp | __GFP_ZERO, 0);
+	return page ? page_address(page) : NULL;
 }
 
 extern bool translation_pre_enabled(struct amd_iommu *iommu);

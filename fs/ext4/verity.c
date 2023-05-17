@@ -42,18 +42,16 @@ static int pagecache_read(struct inode *inode, void *buf, size_t count,
 			  loff_t pos)
 {
 	while (count) {
-		size_t n = min_t(size_t, count,
-				 PAGE_SIZE - offset_in_page(pos));
-		struct page *page;
+		struct folio *folio;
+		size_t n;
 
-		page = read_mapping_page(inode->i_mapping, pos >> PAGE_SHIFT,
+		folio = read_mapping_folio(inode->i_mapping, pos >> PAGE_SHIFT,
 					 NULL);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
-		memcpy_from_page(buf, page, offset_in_page(pos), n);
-
-		put_page(page);
+		n = memcpy_from_file_folio(buf, folio, pos, count);
+		folio_put(folio);
 
 		buf += n;
 		pos += n;
@@ -363,21 +361,23 @@ static struct page *ext4_read_merkle_tree_page(struct inode *inode,
 					       pgoff_t index,
 					       unsigned long num_ra_pages)
 {
-	struct page *page;
+	struct folio *folio;
 
 	index += ext4_verity_metadata_pos(inode) >> PAGE_SHIFT;
 
-	page = find_get_page_flags(inode->i_mapping, index, FGP_ACCESSED);
-	if (!page || !PageUptodate(page)) {
+	folio = __filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
+	if (IS_ERR(folio) || !folio_test_uptodate(folio)) {
 		DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 
-		if (page)
-			put_page(page);
+		if (!IS_ERR(folio))
+			folio_put(folio);
 		else if (num_ra_pages > 1)
 			page_cache_ra_unbounded(&ractl, num_ra_pages, 0);
-		page = read_mapping_page(inode->i_mapping, index, NULL);
+		folio = read_mapping_folio(inode->i_mapping, index, NULL);
+		if (IS_ERR(folio))
+			return ERR_CAST(folio);
 	}
-	return page;
+	return folio_file_page(folio, index);
 }
 
 static int ext4_write_merkle_tree_block(struct inode *inode, const void *buf,

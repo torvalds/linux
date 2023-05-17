@@ -159,6 +159,7 @@ cifs_chan_is_iface_active(struct cifs_ses *ses,
 /* returns number of channels added */
 int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
+	struct TCP_Server_Info *server = ses->server;
 	int old_chan_count, new_chan_count;
 	int left;
 	int rc = 0;
@@ -178,16 +179,16 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 		return 0;
 	}
 
-	if (ses->server->dialect < SMB30_PROT_ID) {
+	if (server->dialect < SMB30_PROT_ID) {
 		spin_unlock(&ses->chan_lock);
 		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
 
-	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
 		ses->chan_max = 1;
 		spin_unlock(&ses->chan_lock);
-		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
+		cifs_server_dbg(VFS, "no multichannel support\n");
 		return 0;
 	}
 	spin_unlock(&ses->chan_lock);

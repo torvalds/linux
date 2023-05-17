@@ -59,6 +59,7 @@ struct msm_fence_context;
 
 struct msm_gem_vma {
 	struct drm_mm_node node;
+	spinlock_t lock;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
 	struct list_head list;    /* node in msm_gem_object::vmas */
@@ -69,19 +70,15 @@ struct msm_gem_vma {
 	struct msm_fence_context *fctx[MSM_GPU_MAX_RINGS];
 };
 
-int msm_gem_init_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma, int size,
+struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace);
+int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		u64 range_start, u64 range_end);
 bool msm_gem_vma_inuse(struct msm_gem_vma *vma);
-void msm_gem_purge_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma);
-void msm_gem_unpin_vma(struct msm_gem_vma *vma);
-void msm_gem_unpin_vma_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx);
-int msm_gem_map_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma, int prot,
-		struct sg_table *sgt, int size);
-void msm_gem_close_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma);
+void msm_gem_vma_purge(struct msm_gem_vma *vma);
+void msm_gem_vma_unpin(struct msm_gem_vma *vma);
+void msm_gem_vma_unpin_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx);
+int msm_gem_vma_map(struct msm_gem_vma *vma, int prot, struct sg_table *sgt, int size);
+void msm_gem_vma_close(struct msm_gem_vma *vma);
 
 struct msm_gem_object {
 	struct drm_gem_object base;
@@ -89,7 +86,9 @@ struct msm_gem_object {
 	uint32_t flags;
 
 	/**
-	 * Advice: are the backing pages purgeable?
+	 * madv: are the backing pages purgeable?
+	 *
+	 * Protected by obj lock and LRU lock
 	 */
 	uint8_t madv;
 
@@ -117,6 +116,11 @@ struct msm_gem_object {
 
 	char name[32]; /* Identifier to print for the debugfs files */
 
+	/**
+	 * pin_count: Number of times the pages are pinned
+	 *
+	 * Protected by LRU lock.
+	 */
 	int pin_count;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
@@ -124,6 +128,7 @@ struct msm_gem_object {
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
 int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma);
 void msm_gem_unpin_locked(struct drm_gem_object *obj);
+void msm_gem_unpin_active(struct drm_gem_object *obj);
 struct msm_gem_vma *msm_gem_get_vma_locked(struct drm_gem_object *obj,
 					   struct msm_gem_address_space *aspace);
 int msm_gem_get_iova(struct drm_gem_object *obj,

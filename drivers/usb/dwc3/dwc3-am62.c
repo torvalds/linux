@@ -11,11 +11,13 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/pinctrl/consumer.h>
+
+#include "core.h"
 
 /* USB WRAPPER register offsets */
 #define USBSS_PID			0x0
@@ -45,6 +47,10 @@
 #define USBSS_PHY_VBUS_SEL_SHIFT	1
 #define USBSS_PHY_LANE_REVERSE		BIT(0)
 
+/* CORE STAT register bits */
+#define USBSS_CORE_OPERATIONAL_MODE_MASK	GENMASK(13, 12)
+#define USBSS_CORE_OPERATIONAL_MODE_SHIFT	12
+
 /* MODE CONTROL register bits */
 #define USBSS_MODE_VALID	BIT(0)
 
@@ -53,6 +59,13 @@
 #define USBSS_WAKEUP_CFG_LINESTATE_EN	BIT(2)
 #define USBSS_WAKEUP_CFG_SESSVALID_EN	BIT(1)
 #define USBSS_WAKEUP_CFG_VBUSVALID_EN	BIT(0)
+
+#define USBSS_WAKEUP_CFG_ALL	(USBSS_WAKEUP_CFG_VBUSVALID_EN | \
+				 USBSS_WAKEUP_CFG_SESSVALID_EN | \
+				 USBSS_WAKEUP_CFG_LINESTATE_EN | \
+				 USBSS_WAKEUP_CFG_OVERCURRENT_EN)
+
+#define USBSS_WAKEUP_CFG_NONE	0
 
 /* WAKEUP STAT register bits */
 #define USBSS_WAKEUP_STAT_OVERCURRENT	BIT(4)
@@ -97,6 +110,7 @@ struct dwc3_data {
 	struct regmap *syscon;
 	unsigned int offset;
 	unsigned int vbus_divider;
+	u32 wakeup_stat;
 };
 
 static const int dwc3_ti_rate_table[] = {	/* in KHZ */
@@ -233,6 +247,12 @@ static int dwc3_ti_probe(struct platform_device *pdev)
 	reg |= USBSS_MODE_VALID;
 	dwc3_ti_writel(data, USBSS_MODE_CONTROL, reg);
 
+	/* Device has capability to wakeup system from sleep */
+	device_set_wakeup_capable(dev, true);
+	ret = device_wakeup_enable(dev);
+	if (ret)
+		dev_err(dev, "couldn't enable device as a wakeup source: %d\n", ret);
+
 	/* Setting up autosuspend */
 	pm_runtime_set_autosuspend_delay(dev, DWC3_AM62_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
@@ -281,6 +301,27 @@ static int dwc3_ti_remove(struct platform_device *pdev)
 static int dwc3_ti_suspend_common(struct device *dev)
 {
 	struct dwc3_data *data = dev_get_drvdata(dev);
+	u32 reg, current_prtcap_dir;
+
+	if (device_may_wakeup(dev)) {
+		reg = dwc3_ti_readl(data, USBSS_CORE_STAT);
+		current_prtcap_dir = (reg & USBSS_CORE_OPERATIONAL_MODE_MASK)
+				     >> USBSS_CORE_OPERATIONAL_MODE_SHIFT;
+		/* Set wakeup config enable bits */
+		reg = dwc3_ti_readl(data, USBSS_WAKEUP_CONFIG);
+		if (current_prtcap_dir == DWC3_GCTL_PRTCAP_HOST) {
+			reg = USBSS_WAKEUP_CFG_LINESTATE_EN | USBSS_WAKEUP_CFG_OVERCURRENT_EN;
+		} else {
+			reg = USBSS_WAKEUP_CFG_VBUSVALID_EN | USBSS_WAKEUP_CFG_SESSVALID_EN;
+			/*
+			 * Enable LINESTATE wake up only if connected to bus
+			 * and in U2/L3 state else it causes spurious wake-up.
+			 */
+		}
+		dwc3_ti_writel(data, USBSS_WAKEUP_CONFIG, reg);
+		/* clear wakeup status so we know what caused the wake up */
+		dwc3_ti_writel(data, USBSS_WAKEUP_STAT, USBSS_WAKEUP_STAT_CLR);
+	}
 
 	clk_disable_unprepare(data->usb2_refclk);
 
@@ -290,8 +331,17 @@ static int dwc3_ti_suspend_common(struct device *dev)
 static int dwc3_ti_resume_common(struct device *dev)
 {
 	struct dwc3_data *data = dev_get_drvdata(dev);
+	u32 reg;
 
 	clk_prepare_enable(data->usb2_refclk);
+
+	if (device_may_wakeup(dev)) {
+		/* Clear wakeup config enable bits */
+		dwc3_ti_writel(data, USBSS_WAKEUP_CONFIG, USBSS_WAKEUP_CFG_NONE);
+	}
+
+	reg = dwc3_ti_readl(data, USBSS_WAKEUP_STAT);
+	data->wakeup_stat = reg;
 
 	return 0;
 }

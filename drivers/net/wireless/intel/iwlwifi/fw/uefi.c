@@ -222,7 +222,7 @@ void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 		return ERR_PTR(-ENOMEM);
 
 	status = efi.get_variable(IWL_UEFI_REDUCED_POWER_NAME, &IWL_EFI_VAR_GUID,
-				  NULL, &package_size, data);
+				  NULL, &package_size, package);
 	if (status != EFI_SUCCESS) {
 		IWL_DEBUG_FW(trans,
 			     "Reduced Power UEFI variable not found 0x%lx (len %lu)\n",

@@ -22,6 +22,8 @@
 #include <linux/efi.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/psp-sev.h>
+#include <uapi/linux/sev-guest.h>
 
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
@@ -2175,7 +2177,7 @@ static int __init init_sev_config(char *str)
 }
 __setup("sev=", init_sev_config);
 
-int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, unsigned long *fw_err)
+int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, struct snp_guest_request_ioctl *rio)
 {
 	struct ghcb_state state;
 	struct es_em_ctxt ctxt;
@@ -2183,11 +2185,7 @@ int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, unsigned 
 	struct ghcb *ghcb;
 	int ret;
 
-	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
-		return -ENODEV;
-
-	if (!fw_err)
-		return -EINVAL;
+	rio->exitinfo2 = SEV_RET_NO_FW_CALL;
 
 	/*
 	 * __sev_get_ghcb() needs to run with IRQs disabled because it is using
@@ -2212,15 +2210,26 @@ int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, unsigned 
 	if (ret)
 		goto e_put;
 
-	if (ghcb->save.sw_exit_info_2) {
+	rio->exitinfo2 = ghcb->save.sw_exit_info_2;
+	switch (rio->exitinfo2) {
+	case 0:
+		break;
+
+	case SNP_GUEST_VMM_ERR(SNP_GUEST_VMM_ERR_BUSY):
+		ret = -EAGAIN;
+		break;
+
+	case SNP_GUEST_VMM_ERR(SNP_GUEST_VMM_ERR_INVALID_LEN):
 		/* Number of expected pages are returned in RBX */
-		if (exit_code == SVM_VMGEXIT_EXT_GUEST_REQUEST &&
-		    ghcb->save.sw_exit_info_2 == SNP_GUEST_REQ_INVALID_LEN)
+		if (exit_code == SVM_VMGEXIT_EXT_GUEST_REQUEST) {
 			input->data_npages = ghcb_get_rbx(ghcb);
-
-		*fw_err = ghcb->save.sw_exit_info_2;
-
+			ret = -ENOSPC;
+			break;
+		}
+		fallthrough;
+	default:
 		ret = -EIO;
+		break;
 	}
 
 e_put:

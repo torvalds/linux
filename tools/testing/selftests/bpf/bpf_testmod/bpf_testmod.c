@@ -28,6 +28,15 @@ struct bpf_testmod_struct_arg_2 {
 	long b;
 };
 
+struct bpf_testmod_struct_arg_3 {
+	int a;
+	int b[];
+};
+
+__diag_push();
+__diag_ignore_all("-Wmissing-prototypes",
+		  "Global functions as their definitions will be in bpf_testmod.ko BTF");
+
 noinline int
 bpf_testmod_test_struct_arg_1(struct bpf_testmod_struct_arg_2 a, int b, int c) {
 	bpf_testmod_test_struct_arg_result = a.a + a.b  + b + c;
@@ -59,10 +68,44 @@ bpf_testmod_test_struct_arg_5(void) {
 	return bpf_testmod_test_struct_arg_result;
 }
 
+noinline int
+bpf_testmod_test_struct_arg_6(struct bpf_testmod_struct_arg_3 *a) {
+	bpf_testmod_test_struct_arg_result = a->b[0];
+	return bpf_testmod_test_struct_arg_result;
+}
+
 __bpf_kfunc void
 bpf_testmod_test_mod_kfunc(int i)
 {
 	*(int *)this_cpu_ptr(&bpf_testmod_ksym_percpu) = i;
+}
+
+__bpf_kfunc int bpf_iter_testmod_seq_new(struct bpf_iter_testmod_seq *it, s64 value, int cnt)
+{
+	if (cnt < 0) {
+		it->cnt = 0;
+		return -EINVAL;
+	}
+
+	it->value = value;
+	it->cnt = cnt;
+
+	return 0;
+}
+
+__bpf_kfunc s64 *bpf_iter_testmod_seq_next(struct bpf_iter_testmod_seq* it)
+{
+	if (it->cnt <= 0)
+		return NULL;
+
+	it->cnt--;
+
+	return &it->value;
+}
+
+__bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
+{
+	it->cnt = 0;
 }
 
 struct bpf_testmod_btf_type_tag_1 {
@@ -102,7 +145,11 @@ bpf_testmod_test_btf_type_tag_percpu_2(struct bpf_testmod_btf_type_tag_3 *arg) {
 
 noinline int bpf_testmod_loop_test(int n)
 {
-	int i, sum = 0;
+	/* Make sum volatile, so smart compilers, such as clang, will not
+	 * optimize the code by removing the loop.
+	 */
+	volatile int sum = 0;
+	int i;
 
 	/* the primary goal of this test is to test LBR. Create a lot of
 	 * branches in the function, so we can catch it easily.
@@ -143,6 +190,8 @@ noinline int bpf_testmod_fentry_test3(char a, int b, u64 c)
 	return a + b + c;
 }
 
+__diag_pop();
+
 int bpf_testmod_fentry_ok;
 
 noinline ssize_t
@@ -157,6 +206,7 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	};
 	struct bpf_testmod_struct_arg_1 struct_arg1 = {10};
 	struct bpf_testmod_struct_arg_2 struct_arg2 = {2, 3};
+	struct bpf_testmod_struct_arg_3 *struct_arg3;
 	int i = 1;
 
 	while (bpf_testmod_return_ptr(i))
@@ -167,6 +217,14 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	(void)bpf_testmod_test_struct_arg_3(1, 4, struct_arg2);
 	(void)bpf_testmod_test_struct_arg_4(struct_arg1, 1, 2, 3, struct_arg2);
 	(void)bpf_testmod_test_struct_arg_5();
+
+	struct_arg3 = kmalloc((sizeof(struct bpf_testmod_struct_arg_3) +
+				sizeof(int)), GFP_KERNEL);
+	if (struct_arg3 != NULL) {
+		struct_arg3->b[0] = 1;
+		(void)bpf_testmod_test_struct_arg_6(struct_arg3);
+		kfree(struct_arg3);
+	}
 
 	/* This is always true. Use the check to make sure the compiler
 	 * doesn't remove bpf_testmod_loop_test.
@@ -220,6 +278,17 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.write = bpf_testmod_test_write,
 };
 
+BTF_SET8_START(bpf_testmod_common_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
+BTF_SET8_END(bpf_testmod_common_kfunc_ids)
+
+static const struct btf_kfunc_id_set bpf_testmod_common_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &bpf_testmod_common_kfunc_ids,
+};
+
 BTF_SET8_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_SET8_END(bpf_testmod_check_kfunc_ids)
@@ -229,13 +298,20 @@ static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
 	.set   = &bpf_testmod_check_kfunc_ids,
 };
 
+noinline int bpf_fentry_shadow_test(int a)
+{
+	return a + 2;
+}
+EXPORT_SYMBOL_GPL(bpf_fentry_shadow_test);
+
 extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
 {
 	int ret;
 
-	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &bpf_testmod_common_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
 	if (ret < 0)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)

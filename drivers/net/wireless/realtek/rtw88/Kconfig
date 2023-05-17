@@ -16,6 +16,9 @@ config RTW88_CORE
 config RTW88_PCI
 	tristate
 
+config RTW88_SDIO
+	tristate
+
 config RTW88_USB
 	tristate
 
@@ -42,6 +45,17 @@ config RTW88_8822BE
 
 	  802.11ac PCIe wireless network adapter
 
+config RTW88_8822BS
+	tristate "Realtek 8822BS SDIO wireless network adapter"
+	depends on MMC
+	select RTW88_CORE
+	select RTW88_SDIO
+	select RTW88_8822B
+	help
+	  Select this option will enable support for 8822BS chipset
+
+	  802.11ac SDIO wireless network adapter
+
 config RTW88_8822BU
 	tristate "Realtek 8822BU USB wireless network adapter"
 	depends on USB
@@ -63,6 +77,17 @@ config RTW88_8822CE
 	  Select this option will enable support for 8822CE chipset
 
 	  802.11ac PCIe wireless network adapter
+
+config RTW88_8822CS
+	tristate "Realtek 8822CS SDIO wireless network adapter"
+	depends on MMC
+	select RTW88_CORE
+	select RTW88_SDIO
+	select RTW88_8822C
+	help
+	  Select this option will enable support for 8822CS chipset
+
+	  802.11ac SDIO wireless network adapter
 
 config RTW88_8822CU
 	tristate "Realtek 8822CU USB wireless network adapter"
@@ -107,6 +132,17 @@ config RTW88_8821CE
 	  Select this option will enable support for 8821CE chipset
 
 	  802.11ac PCIe wireless network adapter
+
+config RTW88_8821CS
+	tristate "Realtek 8821CS SDIO wireless network adapter"
+	depends on MMC
+	select RTW88_CORE
+	select RTW88_SDIO
+	select RTW88_8821C
+	help
+	  Select this option will enable support for 8821CS chipset
+
+	  802.11ac SDIO wireless network adapter
 
 config RTW88_8821CU
 	tristate "Realtek 8821CU USB wireless network adapter"

@@ -91,6 +91,7 @@
 #include <linux/user_namespace.h>
 #include <linux/fs_struct.h>
 #include <linux/kthread.h>
+#include <linux/mmu_context.h>
 
 #include <asm/processor.h>
 #include "internal.h"
@@ -219,6 +220,8 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 		seq_put_decimal_ull(m, "\t", task_session_nr_ns(p, pid->numbers[g].ns));
 #endif
 	seq_putc(m, '\n');
+
+	seq_printf(m, "Kthread:\t%c\n", p->flags & PF_KTHREAD ? '1' : '0');
 }
 
 void render_sigset_t(struct seq_file *m, const char *header,
@@ -423,6 +426,11 @@ static inline void task_thp_status(struct seq_file *m, struct mm_struct *mm)
 	seq_printf(m, "THP_enabled:\t%d\n", thp_enabled);
 }
 
+static inline void task_untag_mask(struct seq_file *m, struct mm_struct *mm)
+{
+	seq_printf(m, "untag_mask:\t%#lx\n", mm_untag_mask(mm));
+}
+
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
 {
@@ -438,6 +446,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 		task_mem(m, mm);
 		task_core_dumping(m, task);
 		task_thp_status(m, mm);
+		task_untag_mask(m, mm);
 		mmput(mm);
 	}
 	task_sig(m, task);

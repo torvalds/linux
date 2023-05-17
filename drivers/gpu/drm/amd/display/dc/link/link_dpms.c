@@ -1927,6 +1927,11 @@ static void disable_link_dp(struct dc_link *link,
 
 	dp_disable_link_phy(link, link_res, signal);
 
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, false);
+	}
+
 	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		/* set the sink to SST mode after disabling the link */
 		enable_mst_on_sink(link, false);
@@ -2035,6 +2040,12 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	uint32_t post_oui_delay = 30; // 30ms
 	/* Reduce link bandwidth between failed link training attempts. */
 	bool do_fallback = false;
+	int lt_attempts = LINK_TRAINING_ATTEMPTS;
+
+	// Increase retry count if attempting DP1.x on FIXED_VS link
+	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		lt_attempts = 10;
 
 	// check for seamless boot
 	for (i = 0; i < state->stream_count; i++) {
@@ -2099,7 +2110,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 
 	if (perform_link_training_with_retries(link_settings,
 					       skip_video_pattern,
-					       LINK_TRAINING_ATTEMPTS,
+					       lt_attempts,
 					       pipe_ctx,
 					       pipe_ctx->stream->signal,
 					       do_fallback)) {
@@ -2160,6 +2171,7 @@ static enum dc_status enable_link_dp_mst(
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_link *link = pipe_ctx->stream->link;
+	unsigned char mstm_cntl;
 
 	/* sink signal type after MST branch is MST. Multiple MST sinks
 	 * share one link. Link DP PHY is enable or training only once.
@@ -2168,7 +2180,9 @@ static enum dc_status enable_link_dp_mst(
 		return DC_OK;
 
 	/* clear payload table */
-	dm_helpers_dp_mst_clear_payload_allocation_table(link->ctx, link);
+	core_link_read_dpcd(link, DP_MSTM_CTRL, &mstm_cntl, 1);
+	if (mstm_cntl & DP_MST_EN)
+		dm_helpers_dp_mst_clear_payload_allocation_table(link->ctx, link);
 
 	/* to make sure the pending down rep can be processed
 	 * before enabling the link
@@ -2477,11 +2491,12 @@ void link_set_dpms_on(
 		 * from transmitter control.
 		 */
 		if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
-				dp_is_128b_132b_signal(pipe_ctx)))
-			if (link_enc)
-				link_enc->funcs->setup(
-					link_enc,
-					pipe_ctx->stream->signal);
+				dp_is_128b_132b_signal(pipe_ctx))) {
+				if (link_enc)
+					link_enc->funcs->setup(
+						link_enc,
+						pipe_ctx->stream->signal);
+			}
 
 		dc->hwss.enable_stream(pipe_ctx);
 

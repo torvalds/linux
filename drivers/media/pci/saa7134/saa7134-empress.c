@@ -139,8 +139,8 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};

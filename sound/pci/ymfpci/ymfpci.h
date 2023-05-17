@@ -268,6 +268,49 @@ struct snd_ymfpci_pcm {
 	u32 shift;
 };
 
+static const int saved_regs_index[] = {
+	/* spdif */
+	YDSXGR_SPDIFOUTCTRL,
+	YDSXGR_SPDIFOUTSTATUS,
+	YDSXGR_SPDIFINCTRL,
+	/* volumes */
+	YDSXGR_PRIADCLOOPVOL,
+	YDSXGR_NATIVEDACINVOL,
+	YDSXGR_NATIVEDACOUTVOL,
+	YDSXGR_BUF441OUTVOL,
+	YDSXGR_NATIVEADCINVOL,
+	YDSXGR_SPDIFLOOPVOL,
+	YDSXGR_SPDIFOUTVOL,
+	YDSXGR_ZVOUTVOL,
+	YDSXGR_LEGACYOUTVOL,
+	/* address bases */
+	YDSXGR_PLAYCTRLBASE,
+	YDSXGR_RECCTRLBASE,
+	YDSXGR_EFFCTRLBASE,
+	YDSXGR_WORKBASE,
+	/* capture set up */
+	YDSXGR_MAPOFREC,
+	YDSXGR_RECFORMAT,
+	YDSXGR_RECSLOTSR,
+	YDSXGR_ADCFORMAT,
+	YDSXGR_ADCSLOTSR,
+};
+#define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
+
+static const int pci_saved_regs_index[] = {
+	/* All Chips */
+	PCIR_DSXG_LEGACY,
+	PCIR_DSXG_ELEGACY,
+	/* YMF 744/754 */
+	PCIR_DSXG_FMBASE,
+	PCIR_DSXG_SBBASE,
+	PCIR_DSXG_MPU401BASE,
+	PCIR_DSXG_JOYBASE,
+};
+#define DSXG_PCI_NUM_SAVED_REGS	ARRAY_SIZE(pci_saved_regs_index)
+#define DSXG_PCI_NUM_SAVED_LEGACY_REGS	2
+static_assert(DSXG_PCI_NUM_SAVED_LEGACY_REGS <= DSXG_PCI_NUM_SAVED_REGS);
+
 struct snd_ymfpci {
 	int irq;
 
@@ -276,7 +319,7 @@ struct snd_ymfpci {
 	unsigned long reg_area_phys;
 	void __iomem *reg_area_virt;
 
-	unsigned short old_legacy_ctrl;
+	u16 old_legacy_ctrl;
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
@@ -345,17 +388,14 @@ struct snd_ymfpci {
 	const struct firmware *dsp_microcode;
 	const struct firmware *controller_microcode;
 
-#ifdef CONFIG_PM_SLEEP
-	u32 *saved_regs;
+	u32 saved_regs[YDSXGR_NUM_SAVED_REGS];
 	u32 saved_ydsxgr_mode;
-	u16 saved_dsxg_legacy;
-	u16 saved_dsxg_elegacy;
-#endif
+	u16 saved_dsxg_pci_regs[DSXG_PCI_NUM_SAVED_REGS];
 };
 
 int snd_ymfpci_create(struct snd_card *card,
 		      struct pci_dev *pci,
-		      unsigned short old_legacy_ctrl);
+		      u16 old_legacy_ctrl);
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip);
 
 extern const struct dev_pm_ops snd_ymfpci_pm;

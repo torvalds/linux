@@ -3834,14 +3834,57 @@ void ice_virtchnl_set_repr_ops(struct ice_vf *vf)
 }
 
 /**
+ * ice_is_malicious_vf - check if this vf might be overflowing mailbox
+ * @vf: the VF to check
+ * @mbxdata: data about the state of the mailbox
+ *
+ * Detect if a given VF might be malicious and attempting to overflow the PF
+ * mailbox. If so, log a warning message and ignore this event.
+ */
+static bool
+ice_is_malicious_vf(struct ice_vf *vf, struct ice_mbx_data *mbxdata)
+{
+	bool report_malvf = false;
+	struct device *dev;
+	struct ice_pf *pf;
+	int status;
+
+	pf = vf->pf;
+	dev = ice_pf_to_dev(pf);
+
+	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states))
+		return vf->mbx_info.malicious;
+
+	/* check to see if we have a newly malicious VF */
+	status = ice_mbx_vf_state_handler(&pf->hw, mbxdata, &vf->mbx_info,
+					  &report_malvf);
+	if (status)
+		dev_warn_ratelimited(dev, "Unable to check status of mailbox overflow for VF %u MAC %pM, status %d\n",
+				     vf->vf_id, vf->dev_lan_addr, status);
+
+	if (report_malvf) {
+		struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+		u8 zero_addr[ETH_ALEN] = {};
+
+		dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
+			 vf->dev_lan_addr,
+			 pf_vsi ? pf_vsi->netdev->dev_addr : zero_addr);
+	}
+
+	return vf->mbx_info.malicious;
+}
+
+/**
  * ice_vc_process_vf_msg - Process request from VF
  * @pf: pointer to the PF structure
  * @event: pointer to the AQ event
+ * @mbxdata: information used to detect VF attempting mailbox overflow
  *
  * called from the common asq/arq handler to
  * process request from VF
  */
-void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
+void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event,
+			   struct ice_mbx_data *mbxdata)
 {
 	u32 v_opcode = le32_to_cpu(event->desc.cookie_high);
 	s16 vf_id = le16_to_cpu(event->desc.retval);
@@ -3862,6 +3905,10 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 	}
 
 	mutex_lock(&vf->cfg_lock);
+
+	/* Check if the VF is trying to overflow the mailbox */
+	if (ice_is_malicious_vf(vf, mbxdata))
+		goto finish;
 
 	/* Check if VF is disabled. */
 	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states)) {

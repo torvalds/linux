@@ -158,8 +158,8 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 	ret = led_pwm_mc_set(cdev, cdev->brightness);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
-				     "failed to set led PWM value for %s: %d",
-				     cdev->name, ret);
+				     "failed to set led PWM value for %s\n",
+				     cdev->name);
 
 	platform_set_drvdata(pdev, priv);
 	return 0;

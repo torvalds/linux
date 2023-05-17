@@ -29,16 +29,13 @@ enum {
 #define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
 #define SH_PFC_PIN_CFG_PULL_UP_DOWN	(SH_PFC_PIN_CFG_PULL_UP | \
 					 SH_PFC_PIN_CFG_PULL_DOWN)
-#define SH_PFC_PIN_CFG_IO_VOLTAGE	(1 << 4)
-#define SH_PFC_PIN_CFG_DRIVE_STRENGTH	(1 << 5)
 
-#define SH_PFC_PIN_VOLTAGE_18_33	(0 << 6)
-#define SH_PFC_PIN_VOLTAGE_25_33	(1 << 6)
+#define SH_PFC_PIN_CFG_IO_VOLTAGE_MASK	GENMASK(5, 4)
+#define SH_PFC_PIN_CFG_IO_VOLTAGE_18_25	(1 << 4)
+#define SH_PFC_PIN_CFG_IO_VOLTAGE_18_33	(2 << 4)
+#define SH_PFC_PIN_CFG_IO_VOLTAGE_25_33	(3 << 4)
 
-#define SH_PFC_PIN_CFG_IO_VOLTAGE_18_33	(SH_PFC_PIN_CFG_IO_VOLTAGE | \
-					 SH_PFC_PIN_VOLTAGE_18_33)
-#define SH_PFC_PIN_CFG_IO_VOLTAGE_25_33	(SH_PFC_PIN_CFG_IO_VOLTAGE | \
-					 SH_PFC_PIN_VOLTAGE_25_33)
+#define SH_PFC_PIN_CFG_DRIVE_STRENGTH	(1 << 6)
 
 #define SH_PFC_PIN_CFG_NO_GPIO		(1 << 31)
 
@@ -314,7 +311,6 @@ extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7792_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
-extern const struct sh_pfc_soc_info r8a77950_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77951_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77960_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77961_pinmux_info;

@@ -47,11 +47,12 @@ struct user_fp_state {
 };
 
 struct user_watch_state {
-	uint16_t dbg_info;
+	uint64_t dbg_info;
 	struct {
 		uint64_t    addr;
 		uint64_t    mask;
 		uint32_t    ctrl;
+		uint32_t    pad;
 	} dbg_regs[8];
 };
 

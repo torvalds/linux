@@ -101,7 +101,7 @@ static int ahci_pci_device_resume(struct device *dev);
 #endif
 #endif /* CONFIG_PM */
 
-static struct scsi_host_template ahci_sht = {
+static const struct scsi_host_template ahci_sht = {
 	AHCI_SHT("ahci"),
 };
 

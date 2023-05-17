@@ -736,7 +736,7 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
+static void kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
 
@@ -744,8 +744,6 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 	if (!IS_ERR(priv->extclk))
 		clk_disable_unprepare(priv->extclk);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -761,7 +759,7 @@ MODULE_DEVICE_TABLE(of, mvebu_audio_of_match);
 
 static struct platform_driver kirkwood_i2s_driver = {
 	.probe  = kirkwood_i2s_dev_probe,
-	.remove = kirkwood_i2s_dev_remove,
+	.remove_new = kirkwood_i2s_dev_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(mvebu_audio_of_match),

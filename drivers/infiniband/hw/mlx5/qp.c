@@ -60,6 +60,10 @@ enum raw_qp_set_mask_map {
 	MLX5_RAW_QP_RATE_LIMIT			= 1UL << 1,
 };
 
+enum {
+	MLX5_QP_RM_GO_BACK_N			= 0x1,
+};
+
 struct mlx5_modify_raw_qp_param {
 	u16 operation;
 
@@ -2519,6 +2523,10 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (qp->flags & IB_QP_CREATE_IPOIB_UD_LSO)
 		MLX5_SET(qpc, qpc, ulp_stateless_offload_mode, 1);
 
+	if (qp->flags & IB_QP_CREATE_INTEGRITY_EN &&
+	    MLX5_CAP_GEN(mdev, go_back_n))
+		MLX5_SET(qpc, qpc, retry_mode, MLX5_QP_RM_GO_BACK_N);
+
 	err = mlx5_qpc_create_qp(dev, &base->mqp, in, inlen, out);
 	kvfree(in);
 	if (err)
@@ -2846,9 +2854,9 @@ static void process_vendor_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 	case MLX5_QP_FLAG_SCATTER_CQE:
 	case MLX5_QP_FLAG_ALLOW_SCATTER_CQE:
 		/*
-			 * We don't return error if these flags were provided,
-			 * and mlx5 doesn't have right capability.
-			 */
+		 * We don't return error if these flags were provided,
+		 * and mlx5 doesn't have right capability.
+		 */
 		*flags &= ~(MLX5_QP_FLAG_SCATTER_CQE |
 			    MLX5_QP_FLAG_ALLOW_SCATTER_CQE);
 		return;
@@ -4485,7 +4493,7 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			return -EINVAL;
 
 		if (attr->port_num == 0 ||
-		    attr->port_num > MLX5_CAP_GEN(dev->mdev, num_ports)) {
+		    attr->port_num > dev->num_ports) {
 			mlx5_ib_dbg(dev, "invalid port number %d. number of ports is %d\n",
 				    attr->port_num, dev->num_ports);
 			return -EINVAL;
@@ -5592,8 +5600,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		if (wq_attr->flags_mask & IB_WQ_FLAGS_CVLAN_STRIPPING) {
 			if (!(MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
 			      MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
-				mlx5_ib_dbg(dev, "VLAN offloads are not "
-					    "supported\n");
+				mlx5_ib_dbg(dev, "VLAN offloads are not supported\n");
 				err = -EOPNOTSUPP;
 				goto out;
 			}

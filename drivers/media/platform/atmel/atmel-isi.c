@@ -587,8 +587,8 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1317,7 +1317,7 @@ err_vdev_alloc:
 	return ret;
 }
 
-static int atmel_isi_remove(struct platform_device *pdev)
+static void atmel_isi_remove(struct platform_device *pdev)
 {
 	struct atmel_isi *isi = platform_get_drvdata(pdev);
 
@@ -1329,8 +1329,6 @@ static int atmel_isi_remove(struct platform_device *pdev)
 	v4l2_async_nf_unregister(&isi->notifier);
 	v4l2_async_nf_cleanup(&isi->notifier);
 	v4l2_device_unregister(&isi->v4l2_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1368,7 +1366,7 @@ static struct platform_driver atmel_isi_driver = {
 		.pm	= &atmel_isi_dev_pm_ops,
 	},
 	.probe		= atmel_isi_probe,
-	.remove		= atmel_isi_remove,
+	.remove_new	= atmel_isi_remove,
 };
 
 module_platform_driver(atmel_isi_driver);

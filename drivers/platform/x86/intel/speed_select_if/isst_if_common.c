@@ -19,9 +19,13 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/isst_if.h>
 
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
+
 #include "isst_if_common.h"
 
 #define MSR_THREAD_ID_INFO	0x53
+#define MSR_PM_LOGICAL_ID	0x54
 #define MSR_CPU_BUS_NUMBER	0x128
 
 static struct isst_if_cmd_cb punit_callbacks[ISST_IF_DEV_MAX];
@@ -31,6 +35,7 @@ static int punit_msr_white_list[] = {
 	MSR_CONFIG_TDP_CONTROL,
 	MSR_TURBO_RATIO_LIMIT1,
 	MSR_TURBO_RATIO_LIMIT2,
+	MSR_PM_LOGICAL_ID,
 };
 
 struct isst_valid_cmd_ranges {
@@ -72,6 +77,8 @@ struct isst_cmd {
 	int mbox_cmd_type;
 	u32 param;
 };
+
+static bool isst_hpm_support;
 
 static DECLARE_HASHTABLE(isst_hash, 8);
 static DEFINE_MUTEX(isst_hash_lock);
@@ -262,11 +269,13 @@ bool isst_if_mbox_cmd_set_req(struct isst_if_mbox_cmd *cmd)
 }
 EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_set_req);
 
+static int isst_if_api_version;
+
 static int isst_if_get_platform_info(void __user *argp)
 {
 	struct isst_if_platform_info info;
 
-	info.api_version = ISST_IF_API_VERSION;
+	info.api_version = isst_if_api_version;
 	info.driver_version = ISST_IF_DRIVER_VERSION;
 	info.max_cmds_per_ioctl = ISST_IF_CMD_LIMIT;
 	info.mbox_supported = punit_callbacks[ISST_IF_DEV_MBOX].registered;
@@ -409,11 +418,20 @@ static int isst_if_cpu_online(unsigned int cpu)
 		isst_cpu_info[cpu].pci_dev[1] = _isst_if_get_pci_dev(cpu, 1, 30, 1);
 	}
 
+	if (isst_hpm_support) {
+
+		ret = rdmsrl_safe(MSR_PM_LOGICAL_ID, &data);
+		if (!ret)
+			goto set_punit_id;
+	}
+
 	ret = rdmsrl_safe(MSR_THREAD_ID_INFO, &data);
 	if (ret) {
 		isst_cpu_info[cpu].punit_cpu_id = -1;
 		return ret;
 	}
+
+set_punit_id:
 	isst_cpu_info[cpu].punit_cpu_id = data;
 
 	isst_restore_msr_local(cpu);
@@ -588,6 +606,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 	struct isst_if_cmd_cb cmd_cb;
 	struct isst_if_cmd_cb *cb;
 	long ret = -ENOTTY;
+	int i;
 
 	switch (cmd) {
 	case ISST_IF_GET_PLATFORM_INFO:
@@ -616,6 +635,16 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		ret = isst_if_exec_multi_cmd(argp, &cmd_cb);
 		break;
 	default:
+		for (i = 0; i < ISST_IF_DEV_MAX; ++i) {
+			struct isst_if_cmd_cb *cb = &punit_callbacks[i];
+			int ret;
+
+			if (cb->def_ioctl) {
+				ret = cb->def_ioctl(file, cmd, arg);
+				if (!ret)
+					return ret;
+			}
+		}
 		break;
 	}
 
@@ -691,6 +720,12 @@ static struct miscdevice isst_if_char_driver = {
 	.fops		= &isst_if_char_driver_ops,
 };
 
+static const struct x86_cpu_id hpm_cpu_ids[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_X,	NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(SIERRAFOREST_X,	NULL),
+	{}
+};
+
 static int isst_misc_reg(void)
 {
 	mutex_lock(&punit_misc_dev_reg_lock);
@@ -698,6 +733,12 @@ static int isst_misc_reg(void)
 		goto unlock_exit;
 
 	if (!misc_usage_count) {
+		const struct x86_cpu_id *id;
+
+		id = x86_match_cpu(hpm_cpu_ids);
+		if (id)
+			isst_hpm_support = true;
+
 		misc_device_ret = isst_if_cpu_info_init();
 		if (misc_device_ret)
 			goto unlock_exit;
@@ -756,6 +797,10 @@ int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 		mutex_unlock(&punit_misc_dev_open_lock);
 		return -EAGAIN;
 	}
+	if (!cb->api_version)
+		cb->api_version = ISST_IF_API_VERSION;
+	if (cb->api_version > isst_if_api_version)
+		isst_if_api_version = cb->api_version;
 	memcpy(&punit_callbacks[device_type], cb, sizeof(*cb));
 	punit_callbacks[device_type].registered = 1;
 	mutex_unlock(&punit_misc_dev_open_lock);

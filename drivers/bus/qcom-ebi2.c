@@ -403,4 +403,3 @@ static struct platform_driver qcom_ebi2_driver = {
 module_platform_driver(qcom_ebi2_driver);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Qualcomm EBI2 driver");
-MODULE_LICENSE("GPL");

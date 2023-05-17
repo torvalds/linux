@@ -316,7 +316,6 @@ static void vpe_device_release(struct device *cd)
 
 static struct class vpe_class = {
 	.name = "vpe",
-	.owner = THIS_MODULE,
 	.dev_release = vpe_device_release,
 	.dev_groups = vpe_groups,
 };

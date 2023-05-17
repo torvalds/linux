@@ -623,7 +623,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 
 #ifdef CONFIG_KVM_BOOKE_HV
 int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
-		enum instruction_fetch_type type, u32 *instr)
+		enum instruction_fetch_type type, unsigned long *instr)
 {
 	gva_t geaddr;
 	hpa_t addr;
@@ -713,7 +713,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
 }
 #else
 int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
-		enum instruction_fetch_type type, u32 *instr)
+		enum instruction_fetch_type type, unsigned long *instr)
 {
 	return EMULATE_AGAIN;
 }

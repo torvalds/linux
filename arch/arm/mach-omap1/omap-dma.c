@@ -833,7 +833,7 @@ exit_dma_irq_fail:
 	return ret;
 }
 
-static int omap_system_dma_remove(struct platform_device *pdev)
+static void omap_system_dma_remove(struct platform_device *pdev)
 {
 	int dma_irq, irq_rel = 0;
 
@@ -841,13 +841,11 @@ static int omap_system_dma_remove(struct platform_device *pdev)
 		dma_irq = platform_get_irq(pdev, irq_rel);
 		free_irq(dma_irq, (void *)(irq_rel + 1));
 	}
-
-	return 0;
 }
 
 static struct platform_driver omap_system_dma_driver = {
 	.probe		= omap_system_dma_probe,
-	.remove		= omap_system_dma_remove,
+	.remove_new	= omap_system_dma_remove,
 	.driver		= {
 		.name	= "omap_dma_system"
 	},

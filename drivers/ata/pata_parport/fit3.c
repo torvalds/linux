@@ -17,8 +17,6 @@
 
 */
 
-#define FIT3_VERSION      "1.0"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -26,8 +24,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define j44(a,b)                (((a>>3)&0x0f)|((b<<1)&0xf0))
 
@@ -39,7 +36,7 @@
 
 */
 
-static void  fit3_write_regr( PIA *pi, int cont, int regr, int val)
+static void fit3_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	if (cont == 1) return;
 
@@ -59,7 +56,7 @@ static void  fit3_write_regr( PIA *pi, int cont, int regr, int val)
 	}
 }
 
-static int fit3_read_regr( PIA *pi, int cont, int regr )
+static int fit3_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b;
 
@@ -92,7 +89,7 @@ static int fit3_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void fit3_read_block( PIA *pi, char * buf, int count )
+static void fit3_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b, c, d;
 
@@ -131,7 +128,7 @@ static void fit3_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void fit3_write_block( PIA *pi, char * buf, int count )
+static void fit3_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -152,7 +149,7 @@ static void fit3_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void fit3_connect ( PIA *pi  )
+static void fit3_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -162,22 +159,19 @@ static void fit3_connect ( PIA *pi  )
 		}
 }
 
-static void fit3_disconnect ( PIA *pi )
+static void fit3_disconnect(struct pi_adapter *pi)
 
 {       w2(0xc); w0(0xa); w2(0x8); w2(0xc);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void fit3_log_adapter( PIA *pi, char * scratch, int verbose )
+static void fit3_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[3] = {"4-bit","8-bit","EPP"};
 
-	printk("%s: fit3 %s, FIT 3000 adapter at 0x%x, "
-	       "mode %d (%s), delay %d\n",
-                pi->device,FIT3_VERSION,pi->port,
-		pi->mode,mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "FIT 3000 adapter at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol fit3 = {
@@ -196,16 +190,5 @@ static struct pi_protocol fit3 = {
 	.log_adapter	= fit3_log_adapter,
 };
 
-static int __init fit3_init(void)
-{
-	return paride_register(&fit3);
-}
-
-static void __exit fit3_exit(void)
-{
-	paride_unregister(&fit3);
-}
-
 MODULE_LICENSE("GPL");
-module_init(fit3_init)
-module_exit(fit3_exit)
+module_pata_parport_driver(fit3);

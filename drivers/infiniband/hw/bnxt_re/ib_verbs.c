@@ -2912,6 +2912,106 @@ fail:
 	return rc;
 }
 
+static void bnxt_re_resize_cq_complete(struct bnxt_re_cq *cq)
+{
+	struct bnxt_re_dev *rdev = cq->rdev;
+
+	bnxt_qplib_resize_cq_complete(&rdev->qplib_res, &cq->qplib_cq);
+
+	cq->qplib_cq.max_wqe = cq->resize_cqe;
+	if (cq->resize_umem) {
+		ib_umem_release(cq->umem);
+		cq->umem = cq->resize_umem;
+		cq->resize_umem = NULL;
+		cq->resize_cqe = 0;
+	}
+}
+
+int bnxt_re_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
+{
+	struct bnxt_qplib_sg_info sg_info = {};
+	struct bnxt_qplib_dpi *orig_dpi = NULL;
+	struct bnxt_qplib_dev_attr *dev_attr;
+	struct bnxt_re_ucontext *uctx = NULL;
+	struct bnxt_re_resize_cq_req req;
+	struct bnxt_re_dev *rdev;
+	struct bnxt_re_cq *cq;
+	int rc, entries;
+
+	cq =  container_of(ibcq, struct bnxt_re_cq, ib_cq);
+	rdev = cq->rdev;
+	dev_attr = &rdev->dev_attr;
+	if (!ibcq->uobject) {
+		ibdev_err(&rdev->ibdev, "Kernel CQ Resize not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (cq->resize_umem) {
+		ibdev_err(&rdev->ibdev, "Resize CQ %#x failed - Busy",
+			  cq->qplib_cq.id);
+		return -EBUSY;
+	}
+
+	/* Check the requested cq depth out of supported depth */
+	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
+		ibdev_err(&rdev->ibdev, "Resize CQ %#x failed - out of range cqe %d",
+			  cq->qplib_cq.id, cqe);
+		return -EINVAL;
+	}
+
+	entries = roundup_pow_of_two(cqe + 1);
+	if (entries > dev_attr->max_cq_wqes + 1)
+		entries = dev_attr->max_cq_wqes + 1;
+
+	uctx = rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext,
+					 ib_uctx);
+	/* uverbs consumer */
+	if (ib_copy_from_udata(&req, udata, sizeof(req))) {
+		rc = -EFAULT;
+		goto fail;
+	}
+
+	cq->resize_umem = ib_umem_get(&rdev->ibdev, req.cq_va,
+				      entries * sizeof(struct cq_base),
+				      IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(cq->resize_umem)) {
+		rc = PTR_ERR(cq->resize_umem);
+		cq->resize_umem = NULL;
+		ibdev_err(&rdev->ibdev, "%s: ib_umem_get failed! rc = %d\n",
+			  __func__, rc);
+		goto fail;
+	}
+	cq->resize_cqe = entries;
+	memcpy(&sg_info, &cq->qplib_cq.sg_info, sizeof(sg_info));
+	orig_dpi = cq->qplib_cq.dpi;
+
+	cq->qplib_cq.sg_info.umem = cq->resize_umem;
+	cq->qplib_cq.sg_info.pgsize = PAGE_SIZE;
+	cq->qplib_cq.sg_info.pgshft = PAGE_SHIFT;
+	cq->qplib_cq.dpi = &uctx->dpi;
+
+	rc = bnxt_qplib_resize_cq(&rdev->qplib_res, &cq->qplib_cq, entries);
+	if (rc) {
+		ibdev_err(&rdev->ibdev, "Resize HW CQ %#x failed!",
+			  cq->qplib_cq.id);
+		goto fail;
+	}
+
+	cq->ib_cq.cqe = cq->resize_cqe;
+
+	return 0;
+
+fail:
+	if (cq->resize_umem) {
+		ib_umem_release(cq->resize_umem);
+		cq->resize_umem = NULL;
+		cq->resize_cqe = 0;
+		memcpy(&cq->qplib_cq.sg_info, &sg_info, sizeof(sg_info));
+		cq->qplib_cq.dpi = orig_dpi;
+	}
+	return rc;
+}
+
 static u8 __req_to_ib_wc_status(u8 qstatus)
 {
 	switch (qstatus) {
@@ -3424,6 +3524,15 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 	u32 tbl_idx;
 	struct bnxt_re_sqp_entries *sqp_entry = NULL;
 	unsigned long flags;
+
+	/* User CQ; the only processing we do is to
+	 * complete any pending CQ resize operation.
+	 */
+	if (cq->umem) {
+		if (cq->resize_umem)
+			bnxt_re_resize_cq_complete(cq);
+		return 0;
+	}
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	budget = min_t(u32, num_entries, cq->max_cql);

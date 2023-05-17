@@ -820,15 +820,14 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 					DRM_ERROR("Failed to allocate dmub_hpd_wrk");
 					return;
 				}
-				dmub_hpd_wrk->dmub_notify = kzalloc(sizeof(struct dmub_notification), GFP_ATOMIC);
+				dmub_hpd_wrk->dmub_notify = kmemdup(&notify, sizeof(struct dmub_notification),
+								    GFP_ATOMIC);
 				if (!dmub_hpd_wrk->dmub_notify) {
 					kfree(dmub_hpd_wrk);
 					DRM_ERROR("Failed to allocate dmub_hpd_wrk->dmub_notify");
 					return;
 				}
 				INIT_WORK(&dmub_hpd_wrk->handle_hpd_work, dm_handle_hpd_work);
-				if (dmub_hpd_wrk->dmub_notify)
-					memcpy(dmub_hpd_wrk->dmub_notify, &notify, sizeof(struct dmub_notification));
 				dmub_hpd_wrk->adev = adev;
 				if (notify.type == DMUB_NOTIFICATION_HPD) {
 					plink = adev->dm.dc->links[notify.link_index];
@@ -1891,7 +1890,8 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	if (adev->dm.dc)
 		dc_deinit_callbacks(adev->dm.dc);
 
-	dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
+	if (adev->dm.dc)
+		dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
 
 	if (dc_enable_dmub_notifications(adev->dm.dc)) {
 		kfree(adev->dm.dmub_notify);
@@ -2300,9 +2300,9 @@ static int dm_late_init(void *handle)
 	 */
 	params.min_abm_backlight = 0x28F;
 	/* In the case where abm is implemented on dmcub,
-	* dmcu object will be null.
-	* ABM 2.4 and up are implemented on dmcub.
-	*/
+	 * dmcu object will be null.
+	 * ABM 2.4 and up are implemented on dmcub.
+	 */
 	if (dmcu) {
 		if (!dmcu_load_iram(dmcu, params))
 			return -EINVAL;
@@ -2976,30 +2976,18 @@ static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
 static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 {
 	struct amdgpu_dm_backlight_caps *caps;
-	struct amdgpu_display_manager *dm;
 	struct drm_connector *conn_base;
 	struct amdgpu_device *adev;
-	struct dc_link *link = NULL;
 	struct drm_luminance_range_info *luminance_range;
-	int i;
 
-	if (!aconnector || !aconnector->dc_link)
-		return;
-
-	link = aconnector->dc_link;
-	if (link->connector_signal != SIGNAL_TYPE_EDP)
+	if (aconnector->bl_idx == -1 ||
+	    aconnector->dc_link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
 
 	conn_base = &aconnector->base;
 	adev = drm_to_adev(conn_base->dev);
-	dm = &adev->dm;
-	for (i = 0; i < dm->num_of_edps; i++) {
-		if (link == dm->backlight_link[i])
-			break;
-	}
-	if (i >= dm->num_of_edps)
-		return;
-	caps = &dm->backlight_caps[i];
+
+	caps = &adev->dm.backlight_caps[aconnector->bl_idx];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
 	caps->aux_support = false;
 
@@ -3140,9 +3128,12 @@ void amdgpu_dm_update_connector_after_detect(
 						    aconnector->edid);
 		}
 
-		aconnector->timing_requested = kzalloc(sizeof(struct dc_crtc_timing), GFP_KERNEL);
-		if (!aconnector->timing_requested)
-			dm_error("%s: failed to create aconnector->requested_timing\n", __func__);
+		if (!aconnector->timing_requested) {
+			aconnector->timing_requested =
+				kzalloc(sizeof(struct dc_crtc_timing), GFP_KERNEL);
+			if (!aconnector->timing_requested)
+				dm_error("failed to create aconnector->requested_timing\n");
+		}
 
 		drm_connector_update_edid_property(connector, aconnector->edid);
 		amdgpu_dm_update_freesync_caps(connector, aconnector->edid);
@@ -4190,16 +4181,18 @@ static const struct backlight_ops amdgpu_dm_backlight_ops = {
 };
 
 static void
-amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
+amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 {
-	char bl_name[16];
+	struct drm_device *drm = aconnector->base.dev;
+	struct amdgpu_display_manager *dm = &drm_to_adev(drm)->dm;
 	struct backlight_properties props = { 0 };
+	char bl_name[16];
 
-	amdgpu_dm_update_backlight_caps(dm, dm->num_of_edps);
-	dm->brightness[dm->num_of_edps] = AMDGPU_MAX_BL_LEVEL;
+	if (aconnector->bl_idx == -1)
+		return;
 
 	if (!acpi_video_backlight_use_native()) {
-		drm_info(adev_to_drm(dm->adev), "Skipping amdgpu DM backlight registration\n");
+		drm_info(drm, "Skipping amdgpu DM backlight registration\n");
 		/* Try registering an ACPI video backlight device instead. */
 		acpi_video_register_backlight();
 		return;
@@ -4210,17 +4203,16 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 	props.type = BACKLIGHT_RAW;
 
 	snprintf(bl_name, sizeof(bl_name), "amdgpu_bl%d",
-		 adev_to_drm(dm->adev)->primary->index + dm->num_of_edps);
+		 drm->primary->index + aconnector->bl_idx);
 
-	dm->backlight_dev[dm->num_of_edps] = backlight_device_register(bl_name,
-								       adev_to_drm(dm->adev)->dev,
-								       dm,
-								       &amdgpu_dm_backlight_ops,
-								       &props);
+	dm->backlight_dev[aconnector->bl_idx] =
+		backlight_device_register(bl_name, aconnector->base.kdev, dm,
+					  &amdgpu_dm_backlight_ops, &props);
 
-	if (IS_ERR(dm->backlight_dev[dm->num_of_edps]))
+	if (IS_ERR(dm->backlight_dev[aconnector->bl_idx])) {
 		DRM_ERROR("DM: Backlight registration failed!\n");
-	else
+		dm->backlight_dev[aconnector->bl_idx] = NULL;
+	} else
 		DRM_DEBUG_DRIVER("DM: Registered Backlight device: %s\n", bl_name);
 }
 
@@ -4265,24 +4257,29 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 }
 
 
-static void register_backlight_device(struct amdgpu_display_manager *dm,
-				      struct dc_link *link)
+static void setup_backlight_device(struct amdgpu_display_manager *dm,
+				   struct amdgpu_dm_connector *aconnector)
 {
-	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
-	    link->type != dc_connection_none) {
-		/*
-		 * Event if registration failed, we should continue with
-		 * DM initialization because not having a backlight control
-		 * is better then a black screen.
-		 */
-		if (!dm->backlight_dev[dm->num_of_edps])
-			amdgpu_dm_register_backlight_device(dm);
+	struct dc_link *link = aconnector->dc_link;
+	int bl_idx = dm->num_of_edps;
 
-		if (dm->backlight_dev[dm->num_of_edps]) {
-			dm->backlight_link[dm->num_of_edps] = link;
-			dm->num_of_edps++;
-		}
+	if (!(link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) ||
+	    link->type == dc_connection_none)
+		return;
+
+	if (dm->num_of_edps >= AMDGPU_DM_MAX_NUM_EDP) {
+		drm_warn(adev_to_drm(dm->adev), "Too much eDP connections, skipping backlight setup for additional eDPs\n");
+		return;
 	}
+
+	aconnector->bl_idx = bl_idx;
+
+	amdgpu_dm_update_backlight_caps(dm, bl_idx);
+	dm->brightness[bl_idx] = AMDGPU_MAX_BL_LEVEL;
+	dm->backlight_link[bl_idx] = link;
+	dm->num_of_edps++;
+
+	update_connector_ext_caps(aconnector);
 }
 
 static void amdgpu_set_panel_orientation(struct drm_connector *connector);
@@ -4462,10 +4459,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 			if (ret) {
 				amdgpu_dm_update_connector_after_detect(aconnector);
-				register_backlight_device(dm, link);
-
-				if (dm->num_of_edps)
-					update_connector_ext_caps(aconnector);
+				setup_backlight_device(dm, aconnector);
 
 				if (psr_feature_enabled)
 					amdgpu_dm_set_psr_caps(link);
@@ -4479,10 +4473,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		}
 		amdgpu_set_panel_orientation(&aconnector->base);
 	}
-
-	/* If we didn't find a panel, notify the acpi video detection */
-	if (dm->adev->flags & AMD_IS_APU && dm->num_of_edps == 0)
-		acpi_video_report_nolcd();
 
 	/* Software is initialized. Now we can register interrupt handlers. */
 	switch (adev->asic_type) {
@@ -6241,10 +6231,8 @@ static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	const struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_display_manager *dm = &adev->dm;
-	int i;
 
 	/*
 	 * Call only if mst_mgr was initialized before since it's not done
@@ -6253,11 +6241,9 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	if (aconnector->mst_mgr.dev)
 		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
 
-	for (i = 0; i < dm->num_of_edps; i++) {
-		if ((link == dm->backlight_link[i]) && dm->backlight_dev[i]) {
-			backlight_device_unregister(dm->backlight_dev[i]);
-			dm->backlight_dev[i] = NULL;
-		}
+	if (aconnector->bl_idx != -1) {
+		backlight_device_unregister(dm->backlight_dev[aconnector->bl_idx]);
+		dm->backlight_dev[aconnector->bl_idx] = NULL;
 	}
 
 	if (aconnector->dc_em_sink)
@@ -6338,6 +6324,8 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
 	int r;
+
+	amdgpu_dm_register_backlight_device(amdgpu_dm_connector);
 
 	if ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
@@ -7103,13 +7091,13 @@ static uint add_fs_modes(struct amdgpu_dm_connector *aconnector)
 	/* Standard FPS values
 	 *
 	 * 23.976       - TV/NTSC
-	 * 24 	        - Cinema
-	 * 25 	        - TV/PAL
+	 * 24           - Cinema
+	 * 25           - TV/PAL
 	 * 29.97        - TV/NTSC
-	 * 30 	        - TV/NTSC
-	 * 48 	        - Cinema HFR
-	 * 50 	        - TV/PAL
-	 * 60 	        - Commonly used
+	 * 30           - TV/NTSC
+	 * 48           - Cinema HFR
+	 * 50           - TV/PAL
+	 * 60           - Commonly used
 	 * 48,72,96,120 - Multiples of 24
 	 */
 	static const u32 common_rates[] = {
@@ -7227,6 +7215,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 		aconnector->base.funcs->reset(&aconnector->base);
 
 	aconnector->connector_id = link_index;
+	aconnector->bl_idx = -1;
 	aconnector->dc_link = link;
 	aconnector->base.interlace_allowed = false;
 	aconnector->base.doublescan_allowed = false;
@@ -7281,7 +7270,6 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	if (!aconnector->mst_root)
 		drm_connector_attach_max_bpc_property(&aconnector->base, 8, 16);
 
-	/* This defaults to the max in the range, but we want 8bpc for non-edp. */
 	aconnector->base.state->max_bpc = 16;
 	aconnector->base.state->max_requested_bpc = aconnector->base.state->max_bpc;
 
@@ -7738,7 +7726,7 @@ static void update_freesync_state_on_stream(
 		return;
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
-        vrr_params = acrtc->dm_irq_params.vrr_params;
+	vrr_params = acrtc->dm_irq_params.vrr_params;
 
 	if (surface) {
 		mod_freesync_handle_preflip(
@@ -7909,6 +7897,13 @@ static void amdgpu_dm_commit_cursors(struct drm_atomic_state *state)
 			amdgpu_dm_plane_handle_cursor_update(plane, old_plane_state);
 }
 
+static inline uint32_t get_mem_type(struct drm_framebuffer *fb)
+{
+	struct amdgpu_bo *abo = gem_to_amdgpu_bo(fb->obj[0]);
+
+	return abo->tbo.resource ? abo->tbo.resource->mem_type : 0;
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct dc_state *dc_state,
 				    struct drm_device *dev,
@@ -7983,6 +7978,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			continue;
 
 		dc_plane = dm_new_plane_state->dc_state;
+		if (!dc_plane)
+			continue;
 
 		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed) {
@@ -8049,11 +8046,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		/*
 		 * Only allow immediate flips for fast updates that don't
-		 * change FB pitch, DCC state, rotation or mirroing.
+		 * change memory domain, FB pitch, DCC state, rotation or
+		 * mirroring.
 		 */
 		bundle->flip_addrs[planes_count].flip_immediate =
 			crtc->state->async_flip &&
-			acrtc_state->update_type == UPDATE_TYPE_FAST;
+			acrtc_state->update_type == UPDATE_TYPE_FAST &&
+			get_mem_type(old_plane_state->fb) == get_mem_type(fb);
 
 		timestamp_ns = ktime_get_ns();
 		bundle->flip_addrs[planes_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
@@ -8319,7 +8318,7 @@ static void amdgpu_dm_commit_audio(struct drm_device *dev,
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-	notify:
+notify:
 		aconnector = to_amdgpu_dm_connector(connector);
 
 		mutex_lock(&adev->dm.audio_lock);
@@ -8565,6 +8564,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
 		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
+		if (!adev->dm.hdcp_workqueue)
+			continue;
+
 		pr_debug("[HDCP_DM] -------------- i : %x ----------\n", i);
 
 		if (!connector)
@@ -8612,6 +8614,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
 		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+
+		if (!adev->dm.hdcp_workqueue)
+			continue;
 
 		new_crtc_state = NULL;
 		old_crtc_state = NULL;
@@ -9335,7 +9340,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 skip_modeset:
 	/* Release extra reference */
 	if (new_stream)
-		 dc_stream_release(new_stream);
+		dc_stream_release(new_stream);
 
 	/*
 	 * We want to do dc stream updates that do not require a
@@ -9631,8 +9636,9 @@ static int dm_update_plane_state(struct dc *dc,
 			return -EINVAL;
 		}
 
+		if (dm_old_plane_state->dc_state)
+			dc_plane_state_release(dm_old_plane_state->dc_state);
 
-		dc_plane_state_release(dm_old_plane_state->dc_state);
 		dm_new_plane_state->dc_state = NULL;
 
 		*lock_and_validation_needed = true;
@@ -10169,6 +10175,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = compute_mst_dsc_configs_for_state(state, dm_state->context, vars);
 		if (ret) {
 			DRM_DEBUG_DRIVER("compute_mst_dsc_configs_for_state() failed\n");
+			ret = -EINVAL;
 			goto fail;
 		}
 
@@ -10669,7 +10676,7 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(
 	if (!dc_process_dmub_aux_transfer_async(ctx->dc, link_index, payload)) {
 		*operation_result = AUX_RET_ERROR_ENGINE_ACQUIRE;
 		goto out;
- 	}
+	}
 
 	if (!wait_for_completion_timeout(&adev->dm.dmub_aux_transfer_done, 10 * HZ)) {
 		DRM_ERROR("wait_for_completion_timeout timeout!");

@@ -104,6 +104,7 @@
 #include "string.h"
 #include "time.h"
 #include "unistd.h"
+#include "stackprotector.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC

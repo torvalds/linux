@@ -46,12 +46,6 @@ static inline bool bcma_core_mips_bcm5357b0_quirk(struct bcma_device *dev)
 	       dev->id.id == BCMA_CORE_USB20_HOST;
 }
 
-static inline u32 mips_read32(struct bcma_drv_mips *mcore,
-			      u16 offset)
-{
-	return bcma_read32(mcore->core, offset);
-}
-
 static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
 {
 	u32 flag;

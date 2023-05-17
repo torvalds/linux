@@ -2709,8 +2709,7 @@ static int velocity_get_platform_info(struct velocity_info *vptr)
 	struct resource res;
 	int ret;
 
-	if (of_get_property(vptr->dev->of_node, "no-eeprom", NULL))
-		vptr->no_eeprom = 1;
+	vptr->no_eeprom = of_property_read_bool(vptr->dev->of_node, "no-eeprom");
 
 	ret = of_address_to_resource(vptr->dev->of_node, 0, &res);
 	if (ret) {

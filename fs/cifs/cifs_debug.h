@@ -81,19 +81,19 @@ do {									\
 
 #define cifs_server_dbg_func(ratefunc, type, fmt, ...)			\
 do {									\
-	const char *sn = "";						\
-	if (server && server->hostname)					\
-		sn = server->hostname;					\
+	spin_lock(&server->srv_lock);					\
 	if ((type) & FYI && cifsFYI & CIFS_INFO) {			\
 		pr_debug_ ## ratefunc("%s: \\\\%s " fmt,		\
-				      __FILE__, sn, ##__VA_ARGS__);	\
+				      __FILE__, server->hostname,	\
+				      ##__VA_ARGS__);			\
 	} else if ((type) & VFS) {					\
 		pr_err_ ## ratefunc("VFS: \\\\%s " fmt,			\
-				    sn, ##__VA_ARGS__);			\
+				    server->hostname, ##__VA_ARGS__);	\
 	} else if ((type) & NOISY && (NOISY != 0)) {			\
 		pr_debug_ ## ratefunc("\\\\%s " fmt,			\
-				      sn, ##__VA_ARGS__);		\
+				      server->hostname, ##__VA_ARGS__);	\
 	}								\
+	spin_unlock(&server->srv_lock);					\
 } while (0)
 
 #define cifs_server_dbg(type, fmt, ...)					\

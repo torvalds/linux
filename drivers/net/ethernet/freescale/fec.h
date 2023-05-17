@@ -507,6 +507,11 @@ struct bufdesc_ex {
 /* i.MX6Q adds pm_qos support */
 #define FEC_QUIRK_HAS_PMQOS			BIT(23)
 
+/* Not all FEC hardware block MDIOs support accesses in C45 mode.
+ * Older blocks in the ColdFire parts do not support it.
+ */
+#define FEC_QUIRK_HAS_MDIO_C45		BIT(24)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */

@@ -1431,4 +1431,3 @@ subsys_initcall(ep93xx_dma_module_init);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");
 MODULE_DESCRIPTION("EP93xx DMA driver");
-MODULE_LICENSE("GPL");

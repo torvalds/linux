@@ -28,4 +28,14 @@
 #define MII_LAN83C185_MODE_POWERDOWN 0xC0 /* Power Down mode */
 #define MII_LAN83C185_MODE_ALL       0xE0 /* All capable mode */
 
+int smsc_phy_config_intr(struct phy_device *phydev);
+irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev);
+int smsc_phy_config_init(struct phy_device *phydev);
+int lan87xx_read_status(struct phy_device *phydev);
+int smsc_phy_get_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, void *data);
+int smsc_phy_set_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, const void *data);
+int smsc_phy_probe(struct phy_device *phydev);
+
 #endif /* __LINUX_SMSCPHY_H__ */

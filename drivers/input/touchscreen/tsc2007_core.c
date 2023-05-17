@@ -172,19 +172,6 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t tsc2007_hard_irq(int irq, void *handle)
-{
-	struct tsc2007 *ts = handle;
-
-	if (tsc2007_is_pen_down(ts))
-		return IRQ_WAKE_THREAD;
-
-	if (ts->clear_penirq)
-		ts->clear_penirq();
-
-	return IRQ_HANDLED;
-}
-
 static void tsc2007_stop(struct tsc2007 *ts)
 {
 	ts->stopped = true;
@@ -226,7 +213,7 @@ static int tsc2007_get_pendown_state_gpio(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct tsc2007 *ts = i2c_get_clientdata(client);
 
-	return gpiod_get_value(ts->gpiod);
+	return gpiod_get_value_cansleep(ts->gpiod);
 }
 
 static int tsc2007_probe_properties(struct device *dev, struct tsc2007 *ts)
@@ -376,7 +363,7 @@ static int tsc2007_probe(struct i2c_client *client)
 	}
 
 	err = devm_request_threaded_irq(&client->dev, ts->irq,
-					tsc2007_hard_irq, tsc2007_soft_irq,
+					NULL, tsc2007_soft_irq,
 					IRQF_ONESHOT,
 					client->dev.driver->name, ts);
 	if (err) {

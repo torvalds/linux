@@ -770,7 +770,7 @@ static void scsifront_sdev_destroy(struct scsi_device *sdev)
 	}
 }
 
-static struct scsi_host_template scsifront_sht = {
+static const struct scsi_host_template scsifront_sht = {
 	.module			= THIS_MODULE,
 	.name			= "Xen SCSI frontend driver",
 	.queuecommand		= scsifront_queuecommand,

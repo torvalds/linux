@@ -38,7 +38,7 @@ config SAMPLE_FTRACE_DIRECT
 	  that hooks to wake_up_process and prints the parameters.
 
 config SAMPLE_FTRACE_DIRECT_MULTI
-	tristate "Build register_ftrace_direct_multi() example"
+	tristate "Build register_ftrace_direct() on multiple ips example"
 	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
 	depends on HAVE_SAMPLE_FTRACE_DIRECT_MULTI
 	help
@@ -272,6 +272,13 @@ config SAMPLE_CORESIGHT_SYSCFG
 	  and configuration using the CoreSight system configuration API.
 	  This demonstrates how a user may create their own CoreSight
 	  configurations and easily load them into the system at runtime.
+
+config SAMPLE_KMEMLEAK
+        tristate "Simple test for the kernel memory leak detector"
+        depends on DEBUG_KMEMLEAK && m
+        help
+          Build a sample program which have explicitly leaks memory to test
+          kmemleak
 
 source "samples/rust/Kconfig"
 

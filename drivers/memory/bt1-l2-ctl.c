@@ -321,4 +321,3 @@ module_platform_driver(l2_ctl_driver);
 
 MODULE_AUTHOR("Serge Semin <Sergey.Semin@baikalelectronics.ru>");
 MODULE_DESCRIPTION("Baikal-T1 L2-cache driver");
-MODULE_LICENSE("GPL v2");

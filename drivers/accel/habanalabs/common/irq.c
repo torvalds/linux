@@ -415,8 +415,8 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 	struct hl_eq_entry *eq_base;
 	struct hl_eqe_work *handle_eqe_work;
 	bool entry_ready;
-	u32 cur_eqe;
-	u16 cur_eqe_index;
+	u32 cur_eqe, ctl;
+	u16 cur_eqe_index, event_type;
 
 	eq_base = eq->kernel_address;
 
@@ -449,7 +449,10 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		dma_rmb();
 
 		if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
-			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
+			ctl = le32_to_cpu(eq_entry->hdr.ctl);
+			event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK) >> EQ_CTL_EVENT_TYPE_SHIFT);
+			dev_warn(hdev->dev,
+				"Device disabled but received an EQ event (%u)\n", event_type);
 			goto skip_irq;
 		}
 
@@ -486,7 +489,7 @@ irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
 {
 	struct hl_dec *dec = arg;
 
-	schedule_work(&dec->completion_abnrm_work);
+	schedule_work(&dec->abnrm_intr_work);
 
 	return IRQ_HANDLED;
 }

@@ -319,6 +319,19 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-tests_run
+used=$(ip -j stats show dev $rp1.200 group offload subgroup hw_stats_info |
+	   jq '.[].info.l3_stats.used')
+kind=$(ip -j -d link show dev $rp1 |
+	   jq -r '.[].linkinfo.info_kind')
+if [[ $used != true ]]; then
+	if [[ $kind == veth ]]; then
+		log_test_skip "l3_stats not offloaded on veth interface"
+		EXIT_STATUS=$ksft_skip
+	else
+		RET=1 log_test "l3_stats not offloaded"
+	fi
+else
+	tests_run
+fi
 
 exit $EXIT_STATUS

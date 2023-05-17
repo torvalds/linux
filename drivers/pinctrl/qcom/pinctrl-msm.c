@@ -323,6 +323,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		break;
 	case PIN_CONFIG_OUTPUT:
 	case PIN_CONFIG_INPUT_ENABLE:
+	case PIN_CONFIG_OUTPUT_ENABLE:
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
@@ -414,11 +415,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		val = msm_readl_io(pctrl, g);
 		arg = !!(val & BIT(g->in_bit));
 		break;
-	case PIN_CONFIG_INPUT_ENABLE:
-		/* Pin is output */
-		if (arg)
+	case PIN_CONFIG_OUTPUT_ENABLE:
+		if (!arg)
 			return -EINVAL;
-		arg = 1;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -502,8 +501,35 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			arg = 1;
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
-			/* disable output */
+			/*
+			 * According to pinctrl documentation this should
+			 * actually be a no-op.
+			 *
+			 * The docs are explicit that "this does not affect
+			 * the pin's ability to drive output" but what we do
+			 * here is to modify the output enable bit. Thus, to
+			 * follow the docs we should remove that.
+			 *
+			 * The docs say that we should enable any relevant
+			 * input buffer, but TLMM there is no input buffer that
+			 * can be enabled/disabled. It's always on.
+			 *
+			 * The points above, explain why this _should_ be a
+			 * no-op. However, for historical reasons and to
+			 * support old device trees, we'll violate the docs
+			 * and still affect the output.
+			 *
+			 * It should further be noted that this old historical
+			 * behavior actually overrides arg to 0. That means
+			 * that "input-enable" and "input-disable" in a device
+			 * tree would _both_ disable the output. We'll
+			 * continue to preserve this behavior as well since
+			 * we have no other use for this attribute.
+			 */
 			arg = 0;
+			break;
+		case PIN_CONFIG_OUTPUT_ENABLE:
+			arg = !!arg;
 			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
@@ -1480,8 +1506,7 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 				return PTR_ERR(pctrl->regs[i]);
 		}
 	} else {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		pctrl->regs[0] = devm_ioremap_resource(&pdev->dev, res);
+		pctrl->regs[0] = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 		if (IS_ERR(pctrl->regs[0]))
 			return PTR_ERR(pctrl->regs[0]);
 

@@ -1325,9 +1325,10 @@ static int qtnf_cmd_band_fill_iftype(const u8 *data,
 	struct ieee80211_sband_iftype_data *iftype_data;
 	const struct qlink_tlv_iftype_data *tlv =
 		(const struct qlink_tlv_iftype_data *)data;
-	size_t payload_len = tlv->n_iftype_data * sizeof(*tlv->iftype_data) +
-		sizeof(*tlv) -
-		sizeof(struct qlink_tlv_hdr);
+	size_t payload_len;
+
+	payload_len = struct_size(tlv, iftype_data, tlv->n_iftype_data);
+	payload_len = size_sub(payload_len, sizeof(struct qlink_tlv_hdr));
 
 	if (tlv->hdr.len != cpu_to_le16(payload_len)) {
 		pr_err("bad IFTYPE_DATA TLV len %u\n", tlv->hdr.len);

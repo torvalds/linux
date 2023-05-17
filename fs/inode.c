@@ -864,8 +864,7 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 				__count_vm_events(KSWAPD_INODESTEAL, reap);
 			else
 				__count_vm_events(PGINODESTEAL, reap);
-			if (current->reclaim_state)
-				current->reclaim_state->reclaimed_slab += reap;
+			mm_account_reclaimed_pages(reap);
 		}
 		iput(inode);
 		spin_lock(lru_lock);
@@ -1804,8 +1803,8 @@ EXPORT_SYMBOL(bmap);
 
 /*
  * With relative atime, only update atime if the previous atime is
- * earlier than either the ctime or mtime or if at least a day has
- * passed since the last atime update.
+ * earlier than or equal to either the ctime or mtime,
+ * or if at least a day has passed since the last atime update.
  */
 static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 			     struct timespec64 now)
@@ -1814,12 +1813,12 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 	if (!(mnt->mnt_flags & MNT_RELATIME))
 		return 1;
 	/*
-	 * Is mtime younger than atime? If yes, update atime:
+	 * Is mtime younger than or equal to atime? If yes, update atime:
 	 */
 	if (timespec64_compare(&inode->i_mtime, &inode->i_atime) >= 0)
 		return 1;
 	/*
-	 * Is ctime younger than atime? If yes, update atime:
+	 * Is ctime younger than or equal to atime? If yes, update atime:
 	 */
 	if (timespec64_compare(&inode->i_ctime, &inode->i_atime) >= 0)
 		return 1;

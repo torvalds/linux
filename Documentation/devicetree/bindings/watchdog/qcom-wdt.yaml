@@ -18,7 +18,10 @@ properties:
       - items:
           - enum:
               - qcom,kpss-wdt-ipq4019
+              - qcom,apss-wdt-ipq5332
+              - qcom,apss-wdt-ipq9574
               - qcom,apss-wdt-msm8994
+              - qcom,apss-wdt-qcm2290
               - qcom,apss-wdt-qcs404
               - qcom,apss-wdt-sa8775p
               - qcom,apss-wdt-sc7180
@@ -28,6 +31,7 @@ properties:
               - qcom,apss-wdt-sdm845
               - qcom,apss-wdt-sdx55
               - qcom,apss-wdt-sdx65
+              - qcom,apss-wdt-sm6115
               - qcom,apss-wdt-sm6350
               - qcom,apss-wdt-sm8150
               - qcom,apss-wdt-sm8250
@@ -113,26 +117,26 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     watchdog@17c10000 {
-      compatible = "qcom,apss-wdt-sm8150", "qcom,kpss-wdt";
-      reg = <0x17c10000 0x1000>;
-      clocks = <&sleep_clk>;
-      interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
-      timeout-sec = <10>;
+        compatible = "qcom,apss-wdt-sm8150", "qcom,kpss-wdt";
+        reg = <0x17c10000 0x1000>;
+        clocks = <&sleep_clk>;
+        interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+        timeout-sec = <10>;
     };
 
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     watchdog@200a000 {
-      compatible = "qcom,kpss-wdt-ipq8064", "qcom,kpss-timer", "qcom,msm-timer";
-      interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
-                   <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
-                   <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
-                   <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
-                   <GIC_PPI 5 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
-      reg = <0x0200a000 0x100>;
-      clock-frequency = <25000000>;
-      clocks = <&sleep_clk>;
-      clock-names = "sleep";
-      cpu-offset = <0x80000>;
+        compatible = "qcom,kpss-wdt-ipq8064", "qcom,kpss-timer", "qcom,msm-timer";
+        interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                     <GIC_PPI 5 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
+        reg = <0x0200a000 0x100>;
+        clock-frequency = <25000000>;
+        clocks = <&sleep_clk>;
+        clock-names = "sleep";
+        cpu-offset = <0x80000>;
     };

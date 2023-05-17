@@ -76,8 +76,6 @@ MODULE_ALIAS("mmc:block");
 #define MMC_EXTRACT_INDEX_FROM_ARG(x) ((x & 0x00FF0000) >> 16)
 #define MMC_EXTRACT_VALUE_FROM_ARG(x) ((x & 0x0000FF00) >> 8)
 
-#define mmc_req_rel_wr(req)	((req->cmd_flags & REQ_FUA) && \
-				  (rq_data_dir(req) == WRITE))
 static DEFINE_MUTEX(block_mutex);
 
 /*

@@ -196,7 +196,8 @@ static void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_base *ab,
 static bool ath12k_dp_rx_h_is_mcbc(struct ath12k_base *ab,
 				   struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_is_mcbc(desc);
+	return (ath12k_dp_rx_h_first_msdu(ab, desc) &&
+		ab->hw_params->hal_ops->rx_desc_is_mcbc(desc));
 }
 
 static bool ath12k_dp_rxdesc_mac_addr2_valid(struct ath12k_base *ab,
@@ -2443,7 +2444,7 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 
 	/* PN for multicast packets are not validate in HW,
 	 * so skip 802.3 rx path
-	 * Also, fast_rx expectes the STA to be authorized, hence
+	 * Also, fast_rx expects the STA to be authorized, hence
 	 * eapol packets are sent in slow path.
 	 */
 	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol &&
@@ -2611,7 +2612,7 @@ try_again:
 		if (!desc_info) {
 			desc_info = ath12k_dp_get_rx_desc(ab, cookie);
 			if (!desc_info) {
-				ath12k_warn(ab, "Invalid cookie in manual desc retrival");
+				ath12k_warn(ab, "Invalid cookie in manual desc retrieval");
 				continue;
 			}
 		}
@@ -3047,10 +3048,14 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 	reo_ent_ring->rx_mpdu_info.peer_meta_data =
 		reo_dest_ring->rx_mpdu_info.peer_meta_data;
 
-	reo_ent_ring->queue_addr_lo = cpu_to_le32(lower_32_bits(rx_tid->paddr));
-	reo_ent_ring->info0 = le32_encode_bits(upper_32_bits(rx_tid->paddr),
-					       HAL_REO_ENTR_RING_INFO0_QUEUE_ADDR_HI) |
-		le32_encode_bits(dst_ind, HAL_REO_ENTR_RING_INFO0_DEST_IND);
+	/* Firmware expects physical address to be filled in queue_addr_lo in
+	 * the MLO scenario and in case of non MLO peer meta data needs to be
+	 * filled.
+	 * TODO: Need to handle for MLO scenario.
+	 */
+	reo_ent_ring->queue_addr_lo = reo_dest_ring->rx_mpdu_info.peer_meta_data;
+	reo_ent_ring->info0 = le32_encode_bits(dst_ind,
+					       HAL_REO_ENTR_RING_INFO0_DEST_IND);
 
 	reo_ent_ring->info1 = le32_encode_bits(rx_tid->cur_sn,
 					       HAL_REO_ENTR_RING_INFO1_MPDU_SEQ_NUM);
@@ -3297,7 +3302,7 @@ ath12k_dp_process_rx_err_buf(struct ath12k *ar, struct hal_reo_dest_ring *desc,
 	if (!desc_info) {
 		desc_info = ath12k_dp_get_rx_desc(ab, cookie);
 		if (!desc_info) {
-			ath12k_warn(ab, "Invalid cookie in manual desc retrival");
+			ath12k_warn(ab, "Invalid cookie in manual desc retrieval");
 			return -EINVAL;
 		}
 	}
@@ -3494,11 +3499,14 @@ static int ath12k_dp_rx_h_null_q_desc(struct ath12k *ar, struct sk_buff *msdu,
 	msdu_len = ath12k_dp_rx_h_msdu_len(ab, desc);
 	peer_id = ath12k_dp_rx_h_peer_id(ab, desc);
 
+	spin_lock(&ab->base_lock);
 	if (!ath12k_peer_find_by_id(ab, peer_id)) {
+		spin_unlock(&ab->base_lock);
 		ath12k_dbg(ab, ATH12K_DBG_DATA, "invalid peer id received in wbm err pkt%d\n",
 			   peer_id);
 		return -EINVAL;
 	}
+	spin_unlock(&ab->base_lock);
 
 	if (!rxcb->is_frag && ((msdu_len + hal_rx_desc_sz) > DP_RX_BUFFER_SIZE)) {
 		/* First buffer will be freed by the caller, so deduct it's length */
@@ -3718,7 +3726,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		if (!desc_info) {
 			desc_info = ath12k_dp_get_rx_desc(ab, err_info.cookie);
 			if (!desc_info) {
-				ath12k_warn(ab, "Invalid cookie in manual desc retrival");
+				ath12k_warn(ab, "Invalid cookie in manual desc retrieval");
 				continue;
 			}
 		}

@@ -81,7 +81,7 @@ examples:
     #include <dt-bindings/clock/sun8i-v3s-ccu.h>
     #include <dt-bindings/gpio/gpio.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 

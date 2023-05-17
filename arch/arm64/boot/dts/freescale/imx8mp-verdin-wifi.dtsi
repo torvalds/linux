@@ -65,6 +65,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_bt_uart>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "mrvl,88w8997";
+		max-speed = <921600>;
+	};
 };
 
 /* On-module Wi-Fi */

@@ -1078,7 +1078,7 @@ static void dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	earliest_frame = dwc2_frame_num_inc(frame_number, 1);
 	next_active_frame = earliest_frame;
 
-	/* Get the "no microframe schduler" out of the way... */
+	/* Get the "no microframe scheduler" out of the way... */
 	if (!hsotg->params.uframe_sched) {
 		if (qh->do_split)
 			/* Splits are active at microframe 0 minus 1 */

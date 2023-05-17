@@ -362,6 +362,7 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(regulator_virtual_consumer_of_match),
 	},
 };

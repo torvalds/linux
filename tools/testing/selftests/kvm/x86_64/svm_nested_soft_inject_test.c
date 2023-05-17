@@ -176,16 +176,12 @@ static void run_test(bool is_nmi)
 	memset(&debug, 0, sizeof(debug));
 	vcpu_guest_debug_set(vcpu, &debug);
 
-	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
 	alarm(2);
 	vcpu_run(vcpu);
 	alarm(0);
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-		    run->exit_reason,
-		    exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:

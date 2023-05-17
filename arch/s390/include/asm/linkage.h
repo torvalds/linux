@@ -4,7 +4,7 @@
 
 #include <linux/stringify.h>
 
-#define __ALIGN .align 16, 0x07
+#define __ALIGN .balign CONFIG_FUNCTION_ALIGNMENT, 0x07
 #define __ALIGN_STR __stringify(__ALIGN)
 
 #endif

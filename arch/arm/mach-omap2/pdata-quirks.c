@@ -6,6 +6,7 @@
  */
 #include <linux/clk.h>
 #include <linux/davinci_emac.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -108,7 +109,7 @@ static int omap3_sbc_t3730_twl_callback(struct device *dev,
 	if (res)
 		return res;
 
-	gpio_export(gpio, 0);
+	gpiod_export(gpio_to_desc(gpio), 0);
 
 	return 0;
 }
@@ -123,7 +124,7 @@ static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
 		return;
 	}
 
-	gpio_export(gpio, 0);
+	gpiod_export(gpio_to_desc(gpio), 0);
 
 	udelay(10);
 	gpio_set_value(gpio, 1);
@@ -200,8 +201,8 @@ static void __init omap3_sbc_t3517_wifi_init(void)
 		return;
 	}
 
-	gpio_export(cm_t3517_wlan_gpios[0].gpio, 0);
-	gpio_export(cm_t3517_wlan_gpios[1].gpio, 0);
+	gpiod_export(gpio_to_desc(cm_t3517_wlan_gpios[0].gpio), 0);
+	gpiod_export(gpio_to_desc(cm_t3517_wlan_gpios[1].gpio), 0);
 
 	msleep(100);
 	gpio_set_value(cm_t3517_wlan_gpios[1].gpio, 0);

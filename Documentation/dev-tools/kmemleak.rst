@@ -227,7 +227,7 @@ Testing with kmemleak-test
 --------------------------
 
 To check if you have all set up to use kmemleak, you can use the kmemleak-test
-module, a module that deliberately leaks memory. Set CONFIG_DEBUG_KMEMLEAK_TEST
+module, a module that deliberately leaks memory. Set CONFIG_SAMPLE_KMEMLEAK
 as module (it can't be used as built-in) and boot the kernel with kmemleak
 enabled. Load the module and perform a scan with::
 

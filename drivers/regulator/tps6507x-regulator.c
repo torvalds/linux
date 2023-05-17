@@ -438,6 +438,7 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 static struct platform_driver tps6507x_pmic_driver = {
 	.driver = {
 		.name = "tps6507x-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps6507x_pmic_probe,
 };

@@ -495,6 +495,5 @@ static int __init mtk_pinctrl_init(void)
 }
 arch_initcall(mtk_pinctrl_init);
 
-MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MediaTek MT8365 Pinctrl Driver");
 MODULE_AUTHOR("Zhiyong Tao <zhiyong.tao@mediatek.com>");

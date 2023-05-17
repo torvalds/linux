@@ -96,9 +96,6 @@ static inline struct thread_info *current_thread_info(void)
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		0x0000FFFE
 
-/* work to do on any return to u-space */
-# define _TIF_ALLWORK_MASK	0x0000FFFF
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_NIOS2_THREAD_INFO_H */

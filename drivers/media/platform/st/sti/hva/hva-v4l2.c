@@ -1422,7 +1422,7 @@ err:
 	return ret;
 }
 
-static int hva_remove(struct platform_device *pdev)
+static void hva_remove(struct platform_device *pdev)
 {
 	struct hva_dev *hva = platform_get_drvdata(pdev);
 	struct device *dev = hva_to_dev(hva);
@@ -1440,8 +1440,6 @@ static int hva_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&hva->v4l2_dev);
 
 	dev_info(dev, "%s %s removed\n", HVA_PREFIX, pdev->name);
-
-	return 0;
 }
 
 /* PM ops */
@@ -1461,7 +1459,7 @@ MODULE_DEVICE_TABLE(of, hva_match_types);
 
 static struct platform_driver hva_driver = {
 	.probe  = hva_probe,
-	.remove = hva_remove,
+	.remove_new = hva_remove,
 	.driver = {
 		.name		= HVA_NAME,
 		.of_match_table	= hva_match_types,

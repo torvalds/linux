@@ -1343,7 +1343,7 @@ ei2cgadap:
 	return ret;
 }
 
-static int sh_vou_remove(struct platform_device *pdev)
+static void sh_vou_remove(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
 	struct sh_vou_device *vou_dev = container_of(v4l2_dev,
@@ -1356,11 +1356,10 @@ static int sh_vou_remove(struct platform_device *pdev)
 	video_unregister_device(&vou_dev->vdev);
 	i2c_put_adapter(client->adapter);
 	v4l2_device_unregister(&vou_dev->v4l2_dev);
-	return 0;
 }
 
 static struct platform_driver sh_vou = {
-	.remove  = sh_vou_remove,
+	.remove_new = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
 	},

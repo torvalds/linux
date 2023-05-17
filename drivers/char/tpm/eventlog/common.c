@@ -36,7 +36,7 @@ static int tpm_bios_measurements_open(struct inode *inode,
 		inode_unlock(inode);
 		return -ENODEV;
 	}
-	chip_seqops = (struct tpm_chip_seqops *)inode->i_private;
+	chip_seqops = inode->i_private;
 	seqops = chip_seqops->seqops;
 	chip = chip_seqops->chip;
 	get_device(&chip->dev);
@@ -55,8 +55,8 @@ static int tpm_bios_measurements_open(struct inode *inode,
 static int tpm_bios_measurements_release(struct inode *inode,
 					 struct file *file)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
-	struct tpm_chip *chip = (struct tpm_chip *)seq->private;
+	struct seq_file *seq = file->private_data;
+	struct tpm_chip *chip = seq->private;
 
 	put_device(&chip->dev);
 

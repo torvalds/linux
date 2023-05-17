@@ -12,15 +12,26 @@ maintainers:
 
 description: |-
   The Sony IMX290 is a 1/2.8-Inch CMOS Solid-state image sensor with Square
-  Pixel for Color Cameras. It is programmable through I2C and 4-wire
-  interfaces. The sensor output is available via CMOS logic parallel SDR
-  output, Low voltage LVDS DDR output and CSI-2 serial data output. The CSI-2
-  bus is the default. No bindings have been defined for the other busses.
+  Pixel, available in either mono or colour variants. It is programmable
+  through I2C and 4-wire interfaces.
+
+  The sensor output is available via CMOS logic parallel SDR output, Low voltage
+  LVDS DDR output and CSI-2 serial data output. The CSI-2 bus is the default.
+  No bindings have been defined for the other busses.
+
+  imx290lqr is the full model identifier for the colour variant. "sony,imx290"
+  is treated the same as this as it was the original compatible string.
+  imx290llr is the mono version of the sensor.
 
 properties:
   compatible:
-    enum:
-      - sony,imx290
+    oneOf:
+      - enum:
+          - sony,imx290lqr # Colour
+          - sony,imx290llr # Monochrome
+          - sony,imx327lqr # Colour
+      - const: sony,imx290
+        deprecated: true
 
   reg:
     maxItems: 1
@@ -101,7 +112,7 @@ examples:
         #size-cells = <0>;
 
         imx290: camera-sensor@1a {
-            compatible = "sony,imx290";
+            compatible = "sony,imx290lqr";
             reg = <0x1a>;
 
             pinctrl-names = "default";

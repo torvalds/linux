@@ -301,22 +301,13 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(ep8248e, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init ep8248e_probe(void)
-{
-	return of_machine_is_compatible("fsl,ep8248e");
-}
-
 define_machine(ep8248e)
 {
 	.name = "Embedded Planet EP8248E",
-	.probe = ep8248e_probe,
+	.compatible = "fsl,ep8248e",
 	.setup_arch = ep8248e_setup_arch,
 	.init_IRQ = ep8248e_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

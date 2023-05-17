@@ -95,6 +95,56 @@ xfs_inobt_btrec_to_irec(
 	irec->ir_free = be64_to_cpu(rec->inobt.ir_free);
 }
 
+/* Simple checks for inode records. */
+xfs_failaddr_t
+xfs_inobt_check_irec(
+	struct xfs_btree_cur			*cur,
+	const struct xfs_inobt_rec_incore	*irec)
+{
+	uint64_t			realfree;
+
+	/* Record has to be properly aligned within the AG. */
+	if (!xfs_verify_agino(cur->bc_ag.pag, irec->ir_startino))
+		return __this_address;
+	if (!xfs_verify_agino(cur->bc_ag.pag,
+				irec->ir_startino + XFS_INODES_PER_CHUNK - 1))
+		return __this_address;
+	if (irec->ir_count < XFS_INODES_PER_HOLEMASK_BIT ||
+	    irec->ir_count > XFS_INODES_PER_CHUNK)
+		return __this_address;
+	if (irec->ir_freecount > XFS_INODES_PER_CHUNK)
+		return __this_address;
+
+	/* if there are no holes, return the first available offset */
+	if (!xfs_inobt_issparse(irec->ir_holemask))
+		realfree = irec->ir_free;
+	else
+		realfree = irec->ir_free & xfs_inobt_irec_to_allocmask(irec);
+	if (hweight64(realfree) != irec->ir_freecount)
+		return __this_address;
+
+	return NULL;
+}
+
+static inline int
+xfs_inobt_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_inobt_rec_incore *irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+		"%s Inode BTree record corruption in AG %d detected at %pS!",
+		cur->bc_btnum == XFS_BTNUM_INO ? "Used" : "Free",
+		cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+"start inode 0x%x, count 0x%x, free 0x%x freemask 0x%llx, holemask 0x%x",
+		irec->ir_startino, irec->ir_count, irec->ir_freecount,
+		irec->ir_free, irec->ir_holemask);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -106,43 +156,19 @@ xfs_inobt_get_rec(
 {
 	struct xfs_mount		*mp = cur->bc_mp;
 	union xfs_btree_rec		*rec;
+	xfs_failaddr_t			fa;
 	int				error;
-	uint64_t			realfree;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || *stat == 0)
 		return error;
 
 	xfs_inobt_btrec_to_irec(mp, rec, irec);
-
-	if (!xfs_verify_agino(cur->bc_ag.pag, irec->ir_startino))
-		goto out_bad_rec;
-	if (irec->ir_count < XFS_INODES_PER_HOLEMASK_BIT ||
-	    irec->ir_count > XFS_INODES_PER_CHUNK)
-		goto out_bad_rec;
-	if (irec->ir_freecount > XFS_INODES_PER_CHUNK)
-		goto out_bad_rec;
-
-	/* if there are no holes, return the first available offset */
-	if (!xfs_inobt_issparse(irec->ir_holemask))
-		realfree = irec->ir_free;
-	else
-		realfree = irec->ir_free & xfs_inobt_irec_to_allocmask(irec);
-	if (hweight64(realfree) != irec->ir_freecount)
-		goto out_bad_rec;
+	fa = xfs_inobt_check_irec(cur, irec);
+	if (fa)
+		return xfs_inobt_complain_bad_rec(cur, fa, irec);
 
 	return 0;
-
-out_bad_rec:
-	xfs_warn(mp,
-		"%s Inode BTree record corruption in AG %d detected!",
-		cur->bc_btnum == XFS_BTNUM_INO ? "Used" : "Free",
-		cur->bc_ag.pag->pag_agno);
-	xfs_warn(mp,
-"start inode 0x%x, count 0x%x, free 0x%x freemask 0x%llx, holemask 0x%x",
-		irec->ir_startino, irec->ir_count, irec->ir_freecount,
-		irec->ir_free, irec->ir_holemask);
-	return -EFSCORRUPTED;
 }
 
 /*
@@ -1952,8 +1978,6 @@ xfs_difree_inobt(
 	 */
 	if (!xfs_has_ikeep(mp) && rec.ir_free == XFS_INOBT_ALL_FREE &&
 	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK) {
-		struct xfs_perag	*pag = agbp->b_pag;
-
 		xic->deleted = true;
 		xic->first_ino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
 				rec.ir_startino);
@@ -2617,44 +2641,50 @@ xfs_ialloc_read_agi(
 	return 0;
 }
 
-/* Is there an inode record covering a given range of inode numbers? */
-int
-xfs_ialloc_has_inode_record(
-	struct xfs_btree_cur	*cur,
-	xfs_agino_t		low,
-	xfs_agino_t		high,
-	bool			*exists)
+/* How many inodes are backed by inode clusters ondisk? */
+STATIC int
+xfs_ialloc_count_ondisk(
+	struct xfs_btree_cur		*cur,
+	xfs_agino_t			low,
+	xfs_agino_t			high,
+	unsigned int			*allocated)
 {
 	struct xfs_inobt_rec_incore	irec;
-	xfs_agino_t		agino;
-	uint16_t		holemask;
-	int			has_record;
-	int			i;
-	int			error;
+	unsigned int			ret = 0;
+	int				has_record;
+	int				error;
 
-	*exists = false;
 	error = xfs_inobt_lookup(cur, low, XFS_LOOKUP_LE, &has_record);
-	while (error == 0 && has_record) {
+	if (error)
+		return error;
+
+	while (has_record) {
+		unsigned int		i, hole_idx;
+
 		error = xfs_inobt_get_rec(cur, &irec, &has_record);
-		if (error || irec.ir_startino > high)
+		if (error)
+			return error;
+		if (irec.ir_startino > high)
 			break;
 
-		agino = irec.ir_startino;
-		holemask = irec.ir_holemask;
-		for (i = 0; i < XFS_INOBT_HOLEMASK_BITS; holemask >>= 1,
-				i++, agino += XFS_INODES_PER_HOLEMASK_BIT) {
-			if (holemask & 1)
+		for (i = 0; i < XFS_INODES_PER_CHUNK; i++) {
+			if (irec.ir_startino + i < low)
 				continue;
-			if (agino + XFS_INODES_PER_HOLEMASK_BIT > low &&
-					agino <= high) {
-				*exists = true;
-				return 0;
-			}
+			if (irec.ir_startino + i > high)
+				break;
+
+			hole_idx = i / XFS_INODES_PER_HOLEMASK_BIT;
+			if (!(irec.ir_holemask & (1U << hole_idx)))
+				ret++;
 		}
 
 		error = xfs_btree_increment(cur, 0, &has_record);
+		if (error)
+			return error;
 	}
-	return error;
+
+	*allocated = ret;
+	return 0;
 }
 
 /* Is there an inode record covering a given extent? */
@@ -2663,15 +2693,27 @@ xfs_ialloc_has_inodes_at_extent(
 	struct xfs_btree_cur	*cur,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
-	xfs_agino_t		low;
-	xfs_agino_t		high;
+	xfs_agino_t		agino;
+	xfs_agino_t		last_agino;
+	unsigned int		allocated;
+	int			error;
 
-	low = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
-	high = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
+	agino = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
+	last_agino = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
 
-	return xfs_ialloc_has_inode_record(cur, low, high, exists);
+	error = xfs_ialloc_count_ondisk(cur, agino, last_agino, &allocated);
+	if (error)
+		return error;
+
+	if (allocated == 0)
+		*outcome = XBTREE_RECPACKING_EMPTY;
+	else if (allocated == last_agino - agino + 1)
+		*outcome = XBTREE_RECPACKING_FULL;
+	else
+		*outcome = XBTREE_RECPACKING_SPARSE;
+	return 0;
 }
 
 struct xfs_ialloc_count_inodes {
@@ -2688,8 +2730,13 @@ xfs_ialloc_count_inodes_rec(
 {
 	struct xfs_inobt_rec_incore	irec;
 	struct xfs_ialloc_count_inodes	*ci = priv;
+	xfs_failaddr_t			fa;
 
 	xfs_inobt_btrec_to_irec(cur->bc_mp, rec, &irec);
+	fa = xfs_inobt_check_irec(cur, &irec);
+	if (fa)
+		return xfs_inobt_complain_bad_rec(cur, fa, &irec);
+
 	ci->count += irec.ir_count;
 	ci->freecount += irec.ir_freecount;
 

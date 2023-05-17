@@ -204,6 +204,7 @@ struct pt_regs___s390 {
 #define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
 #define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
 #define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#define __PT_PARM5_SYSCALL_REG uregs[4]
 #define __PT_PARM6_SYSCALL_REG uregs[5]
 #define __PT_PARM7_SYSCALL_REG uregs[6]
 
@@ -415,6 +416,8 @@ struct pt_regs___arm64 {
  * https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
  */
 
+/* loongarch provides struct user_pt_regs instead of struct pt_regs to userspace */
+#define __PT_REGS_CAST(x) ((const struct user_pt_regs *)(x))
 #define __PT_PARM1_REG regs[4]
 #define __PT_PARM2_REG regs[5]
 #define __PT_PARM3_REG regs[6]

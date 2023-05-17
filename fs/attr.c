@@ -47,6 +47,7 @@ int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 		return ATTR_KILL_SGID;
 	return 0;
 }
+EXPORT_SYMBOL(setattr_should_drop_sgid);
 
 /**
  * setattr_should_drop_suidgid - determine whether the set{g,u}id bit needs to

@@ -10,7 +10,7 @@ maintainers:
   - PrasannaKumar Muralidharan <prasannatsmkumar@gmail.com>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

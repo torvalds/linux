@@ -740,7 +740,7 @@ put_clk:
 	return ret;
 }
 
-static int g2d_remove(struct platform_device *pdev)
+static void g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_dev *dev = platform_get_drvdata(pdev);
 
@@ -753,7 +753,6 @@ static int g2d_remove(struct platform_device *pdev)
 	clk_put(dev->gate);
 	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
-	return 0;
 }
 
 static struct g2d_variant g2d_drvdata_v3x = {
@@ -778,7 +777,7 @@ MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
-	.remove		= g2d_remove,
+	.remove_new	= g2d_remove,
 	.driver		= {
 		.name = G2D_NAME,
 		.of_match_table = exynos_g2d_match,

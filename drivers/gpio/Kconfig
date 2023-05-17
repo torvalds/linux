@@ -3,14 +3,6 @@
 # GPIO infrastructure and drivers
 #
 
-config ARCH_HAVE_CUSTOM_GPIO_H
-	bool
-	help
-	  Selecting this config option from the architecture Kconfig allows
-	  the architecture to provide a custom asm/gpio.h implementation
-	  overriding the default implementations.  New uses of this are
-	  strongly discouraged.
-
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	help
@@ -46,6 +38,14 @@ config GPIO_ACPI
 config GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	bool
+
+config OF_GPIO_MM_GPIOCHIP
+	bool
+	help
+	  This adds support for the legacy 'struct of_mm_gpio_chip' interface
+	  from PowerPC. Existing drivers using this interface need to select
+	  this symbol, but new drivers should use the generic gpio-regmap
+	  infrastructure instead.
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
@@ -100,7 +100,7 @@ config GPIO_GENERIC
 	tristate
 
 config GPIO_REGMAP
-	depends on REGMAP
+	select REGMAP
 	tristate
 
 # put drivers in the right section, in alphabetical order
@@ -139,6 +139,7 @@ config GPIO_ALTERA
 	tristate "Altera GPIO"
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
 
@@ -380,6 +381,18 @@ config GPIO_LOONGSON
 	help
 	  Driver for GPIO functionality on Loongson-2F/3A/3B processors.
 
+config GPIO_LOONGSON_64BIT
+	tristate "Loongson 64 bit GPIO support"
+	depends on LOONGARCH || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	help
+	  Say yes here to support the GPIO functionality of a number of
+	  Loongson series of chips. The Loongson GPIO controller supports
+	  up to 60 GPIOS in total, 4 of which are dedicated GPIO pins, and
+	  the remaining 56 are reused with other functions, with edge or
+	  level triggered interrupts.
+
 config GPIO_LPC18XX
 	tristate "NXP LPC18XX/43XX GPIO support"
 	default y if ARCH_LPC18XX
@@ -411,6 +424,7 @@ config GPIO_MENZ127
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
 	depends on LANTIQ && SOC_XWAY
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  This enables support for memory mapped GPIOs on the External Bus Unit
 	  (EBU) found on Lantiq SoCs. The GPIOs are output only as they are
@@ -419,6 +433,7 @@ config GPIO_MM_LANTIQ
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
+	select OF_GPIO_MM_GPIOCHIP
 
 config GPIO_MPC8XXX
 	bool "MPC512x/MPC8xxx/QorIQ GPIO support"
@@ -484,14 +499,6 @@ config GPIO_PL061
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device.
-
-config GPIO_PMIC_EIC_SPRD
-	tristate "Spreadtrum PMIC EIC support"
-	depends on MFD_SC27XX_PMIC || COMPILE_TEST
-	depends on OF_GPIO
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support Spreadtrum PMIC EIC device.
 
 config GPIO_PXA
 	bool "PXA GPIO support"
@@ -615,6 +622,17 @@ config GPIO_SYSCON
 	depends on MFD_SYSCON && OF
 	help
 	  Say yes here to support GPIO functionality though SYSCON driver.
+
+config GPIO_TANGIER
+	tristate
+	select GPIOLIB_IRQCHIP
+	help
+	  GPIO support for Intel Tangier and compatible platforms.
+	  Currently supported:
+	   - Elkhart Lake
+	   - Merrifield
+
+	  If built as a module its name will be gpio-tangier.
 
 config GPIO_TB10X
 	bool
@@ -1000,6 +1018,16 @@ config GPIO_ADNP
 	  enough to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).
 
+config GPIO_FXL6408
+	tristate "FXL6408 I2C GPIO expander"
+	select GPIO_REGMAP
+	select REGMAP_I2C
+	help
+	  GPIO driver for Fairchild Semiconductor FXL6408 GPIO expander.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-fxl6408.
+
 config GPIO_GW_PLD
 	tristate "Gateworks PLD GPIO Expander"
 	depends on OF_GPIO
@@ -1235,6 +1263,17 @@ config HTC_EGPIO
 	  several HTC phones.  It provides basic support for input
 	  pins, output pins, and IRQs.
 
+config GPIO_ELKHARTLAKE
+	tristate "Intel Elkhart Lake PSE GPIO support"
+	depends on X86 || COMPILE_TEST
+	select GPIO_TANGIER
+	help
+	  Select this option to enable GPIO support for Intel Elkhart Lake
+	  PSE GPIO IP.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-elkhartlake.
+
 config GPIO_JANZ_TTL
 	tristate "Janz VMOD-TTL Digital IO Module"
 	depends on MFD_JANZ_CMODIO
@@ -1252,6 +1291,18 @@ config GPIO_KEMPLD
 
 	  This driver can also be built as a module. If so, the module will be
 	  called gpio-kempld.
+
+config GPIO_LJCA
+	tristate "INTEL La Jolla Cove Adapter GPIO support"
+	depends on MFD_LJCA
+	select GPIOLIB_IRQCHIP
+	default MFD_LJCA
+	help
+	  Select this option to enable GPIO driver for the INTEL
+	  La Jolla Cove Adapter (LJCA) board.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-ljca.
 
 config GPIO_LP3943
 	tristate "TI/National Semiconductor LP3943 GPIO expander"
@@ -1310,6 +1361,14 @@ config GPIO_PALMAS
 	help
 	  Select this option to enable GPIO driver for the TI PALMAS
 	  series chip family.
+
+config GPIO_PMIC_EIC_SPRD
+	tristate "Spreadtrum PMIC EIC support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Spreadtrum PMIC EIC device.
 
 config GPIO_RC5T583
 	bool "RICOH RC5T583 GPIO"
@@ -1505,7 +1564,7 @@ config GPIO_BT8XX
 config GPIO_MERRIFIELD
 	tristate "Intel Merrifield GPIO support"
 	depends on X86_INTEL_MID
-	select GPIOLIB_IRQCHIP
+	select GPIO_TANGIER
 	help
 	  Say Y here to support Intel Merrifield GPIO.
 

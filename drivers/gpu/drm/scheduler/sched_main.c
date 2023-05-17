@@ -309,7 +309,8 @@ static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_fault(struct drm_gpu_scheduler *sched)
 {
-	mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
+	if (sched->ready)
+		mod_delayed_work(sched->timeout_wq, &sched->work_tdr, 0);
 }
 EXPORT_SYMBOL(drm_sched_fault);
 
@@ -722,7 +723,7 @@ EXPORT_SYMBOL(drm_sched_job_add_dependency);
 /**
  * drm_sched_job_add_syncobj_dependency - adds a syncobj's fence as a job dependency
  * @job: scheduler job to add the dependencies to
- * @file_private: drm file private pointer
+ * @file: drm file private pointer
  * @handle: syncobj handle to lookup
  * @point: timeline point
  *
@@ -935,12 +936,6 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 
 	spin_unlock(&sched->job_list_lock);
 
-	if (job) {
-		job->entity->elapsed_ns += ktime_to_ns(
-			ktime_sub(job->s_fence->finished.timestamp,
-				  job->s_fence->scheduled.timestamp));
-	}
-
 	return job;
 }
 
@@ -1048,7 +1043,7 @@ static int drm_sched_main(void *param)
 		drm_sched_fence_scheduled(s_fence);
 
 		if (!IS_ERR_OR_NULL(fence)) {
-			s_fence->parent = dma_fence_get(fence);
+			drm_sched_fence_set_parent(s_fence, fence);
 			/* Drop for original kref_init of the fence */
 			dma_fence_put(fence);
 

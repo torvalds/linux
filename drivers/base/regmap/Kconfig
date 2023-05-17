@@ -9,10 +9,12 @@ config REGMAP
 	select MDIO_BUS if REGMAP_MDIO
 	bool
 
-config REGCACHE_COMPRESSED
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
-	bool
+config REGMAP_KUNIT
+	tristate "KUnit tests for regmap"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select REGMAP
+	select REGMAP_RAM
 
 config REGMAP_AC97
 	tristate
@@ -45,6 +47,9 @@ config REGMAP_MMIO
 
 config REGMAP_IRQ
 	bool
+
+config REGMAP_RAM
+	tristate
 
 config REGMAP_SOUNDWIRE
 	tristate

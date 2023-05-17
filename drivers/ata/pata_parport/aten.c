@@ -9,14 +9,6 @@
 
 */
 
-/* Changes:
-
-	1.01	GRG 1998.05.05	init_proto, release_proto
-
-*/
-
-#define ATEN_VERSION      "1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -24,8 +16,7 @@
 #include <linux/wait.h>
 #include <linux/types.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define j44(a,b)                ((((a>>4)&0x0f)|(b&0xf0))^0x88)
 
@@ -35,7 +26,7 @@
 
 static int  cont_map[2] = { 0x08, 0x20 };
 
-static void  aten_write_regr( PIA *pi, int cont, int regr, int val)
+static void aten_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -44,7 +35,7 @@ static void  aten_write_regr( PIA *pi, int cont, int regr, int val)
 	w0(r); w2(0xe); w2(6); w0(val); w2(7); w2(6); w2(0xc);
 }
 
-static int aten_read_regr( PIA *pi, int cont, int regr )
+static int aten_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b, r;
 
@@ -67,7 +58,7 @@ static int aten_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }
 
-static void aten_read_block( PIA *pi, char * buf, int count )
+static void aten_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b, c, d;
 
@@ -95,7 +86,7 @@ static void aten_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void aten_write_block( PIA *pi, char * buf, int count )
+static void aten_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -107,28 +98,25 @@ static void aten_write_block( PIA *pi, char * buf, int count )
 	w2(0xc);
 }
 
-static void aten_connect ( PIA *pi  )
+static void aten_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(0xc);	
 }
 
-static void aten_disconnect ( PIA *pi )
+static void aten_disconnect(struct pi_adapter *pi)
 
 {       w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void aten_log_adapter( PIA *pi, char * scratch, int verbose )
+static void aten_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 
-        printk("%s: aten %s, ATEN EH-100 at 0x%x, ",
-                pi->device,ATEN_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "ATEN EH-100 at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol aten = {
@@ -147,16 +135,5 @@ static struct pi_protocol aten = {
 	.log_adapter	= aten_log_adapter,
 };
 
-static int __init aten_init(void)
-{
-	return paride_register(&aten);
-}
-
-static void __exit aten_exit(void)
-{
-	paride_unregister( &aten );
-}
-
 MODULE_LICENSE("GPL");
-module_init(aten_init)
-module_exit(aten_exit)
+module_pata_parport_driver(aten);

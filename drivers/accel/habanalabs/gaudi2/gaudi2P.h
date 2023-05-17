@@ -240,6 +240,8 @@
 #define GAUDI2_SOB_INCREMENT_BY_ONE	(FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_VAL_MASK, 1) | \
 					FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_INC_MASK, 1))
 
+#define GAUDI2_NUM_TESTED_QS (GAUDI2_QUEUE_ID_CPU_PQ - GAUDI2_QUEUE_ID_PDMA_0_0)
+
 #define GAUDI2_NUM_OF_GLBL_ERR_CAUSE		8
 
 enum gaudi2_reserved_sob_id {
@@ -453,6 +455,17 @@ struct dup_block_ctx {
 };
 
 /**
+ * struct gaudi2_queues_test_info - Holds the address of a the messages used for testing the
+ *                                  device queues.
+ * @dma_addr: the address used by the HW for accessing the message.
+ * @kern_addr: The address used by the driver for accessing the message.
+ */
+struct gaudi2_queues_test_info {
+	dma_addr_t dma_addr;
+	void *kern_addr;
+};
+
+/**
  * struct gaudi2_device - ASIC specific manage structure.
  * @cpucp_info_get: get information on device from CPU-CP
  * @mapped_blocks: array that holds the base address and size of all blocks
@@ -510,6 +523,7 @@ struct dup_block_ctx {
  * @flush_db_fifo: flag to force flush DB FIFO after a write.
  * @hbm_cfg: HBM subsystem settings
  * @hw_queues_lock_mutex: used by simulator instead of hw_queues_lock.
+ * @queues_test_info: information used by the driver when testing the HW queues.
  */
 struct gaudi2_device {
 	int (*cpucp_info_get)(struct hl_device *hdev);
@@ -537,6 +551,9 @@ struct gaudi2_device {
 	u32				events_stat[GAUDI2_EVENT_SIZE];
 	u32				events_stat_aggregate[GAUDI2_EVENT_SIZE];
 	u32				num_of_valid_hw_events;
+
+	/* Queue testing */
+	struct gaudi2_queues_test_info	queues_test_info[GAUDI2_NUM_TESTED_QS];
 };
 
 /*

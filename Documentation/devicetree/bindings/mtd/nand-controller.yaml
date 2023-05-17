@@ -51,7 +51,7 @@ properties:
 
 patternProperties:
   "^nand@[a-f0-9]$":
-    $ref: "nand-chip.yaml#"
+    $ref: nand-chip.yaml#
 
     properties:
       reg:

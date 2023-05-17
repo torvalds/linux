@@ -971,7 +971,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	}
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, d->disk->queue);
 
 	blk_queue_write_cache(q, true, true);
 

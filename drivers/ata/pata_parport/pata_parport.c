@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/parport.h>
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define DRV_NAME "pata_parport"
 
@@ -276,7 +276,7 @@ static void pi_release(struct pi_adapter *pi)
 	module_put(pi->proto->owner);
 }
 
-static int default_test_proto(struct pi_adapter *pi, char *scratch)
+static int default_test_proto(struct pi_adapter *pi)
 {
 	int j, k;
 	int e[2] = { 0, 0 };
@@ -300,21 +300,21 @@ static int default_test_proto(struct pi_adapter *pi, char *scratch)
 	return e[0] && e[1];	/* not here if both > 0 */
 }
 
-static int pi_test_proto(struct pi_adapter *pi, char *scratch)
+static int pi_test_proto(struct pi_adapter *pi)
 {
 	int res;
 
 	parport_claim_or_block(pi->pardev);
 	if (pi->proto->test_proto)
-		res = pi->proto->test_proto(pi, scratch, 1);
+		res = pi->proto->test_proto(pi);
 	else
-		res = default_test_proto(pi, scratch);
+		res = default_test_proto(pi);
 	parport_release(pi->pardev);
 
 	return res;
 }
 
-static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
+static bool pi_probe_mode(struct pi_adapter *pi, int max)
 {
 	int best, range;
 
@@ -326,7 +326,7 @@ static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
 			range = 8;
 		if (range == 8 && pi->port % 8)
 			return false;
-		return !pi_test_proto(pi, scratch);
+		return !pi_test_proto(pi);
 	}
 	best = -1;
 	for (pi->mode = 0; pi->mode < max; pi->mode++) {
@@ -335,14 +335,14 @@ static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
 			range = 8;
 		if (range == 8 && pi->port % 8)
 			break;
-		if (!pi_test_proto(pi, scratch))
+		if (!pi_test_proto(pi))
 			best = pi->mode;
 	}
 	pi->mode = best;
 	return best > -1;
 }
 
-static bool pi_probe_unit(struct pi_adapter *pi, int unit, char *scratch)
+static bool pi_probe_unit(struct pi_adapter *pi, int unit)
 {
 	int max, s, e;
 
@@ -367,20 +367,21 @@ static bool pi_probe_unit(struct pi_adapter *pi, int unit, char *scratch)
 		for (pi->unit = s; pi->unit < e; pi->unit++) {
 			if (pi->proto->probe_unit(pi)) {
 				parport_release(pi->pardev);
-				return pi_probe_mode(pi, max, scratch);
+				return pi_probe_mode(pi, max);
 			}
 		}
 		parport_release(pi->pardev);
 		return false;
 	}
 
-	return pi_probe_mode(pi, max, scratch);
+	return pi_probe_mode(pi, max);
 }
 
 static void pata_parport_dev_release(struct device *dev)
 {
 	struct pi_adapter *pi = container_of(dev, struct pi_adapter, dev);
 
+	ida_free(&pata_parport_bus_dev_ids, dev->id);
 	kfree(pi);
 }
 
@@ -398,7 +399,7 @@ static struct device pata_parport_bus = {
 	.release = pata_parport_bus_release,
 };
 
-static struct scsi_host_template pata_parport_sht = {
+static const struct scsi_host_template pata_parport_sht = {
 	PATA_PARPORT_SHT("pata_parport")
 };
 
@@ -419,7 +420,6 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 			struct pi_protocol *pr, int mode, int unit, int delay)
 {
 	struct pardev_cb par_cb = { };
-	char scratch[512];
 	const struct ata_port_info *ppi[] = { &pata_parport_port_info };
 	struct ata_host *host;
 	struct pi_adapter *pi;
@@ -433,23 +433,27 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	if (bus_for_each_dev(&pata_parport_bus_type, NULL, &match, pi_find_dev))
 		return NULL;
 
-	pi = kzalloc(sizeof(struct pi_adapter), GFP_KERNEL);
-	if (!pi)
+	id = ida_alloc(&pata_parport_bus_dev_ids, GFP_KERNEL);
+	if (id < 0)
 		return NULL;
+
+	pi = kzalloc(sizeof(struct pi_adapter), GFP_KERNEL);
+	if (!pi) {
+		ida_free(&pata_parport_bus_dev_ids, id);
+		return NULL;
+	}
 
 	/* set up pi->dev before pi_probe_unit() so it can use dev_printk() */
 	pi->dev.parent = &pata_parport_bus;
 	pi->dev.bus = &pata_parport_bus_type;
 	pi->dev.driver = &pr->driver;
 	pi->dev.release = pata_parport_dev_release;
-	id = ida_alloc(&pata_parport_bus_dev_ids, GFP_KERNEL);
-	if (id < 0)
-		return NULL; /* pata_parport_dev_release will do kfree(pi) */
 	pi->dev.id = id;
 	dev_set_name(&pi->dev, "pata_parport.%u", pi->dev.id);
 	if (device_register(&pi->dev)) {
 		put_device(&pi->dev);
-		goto out_ida_free;
+		/* pata_parport_dev_release will do ida_free(dev->id) and kfree(pi) */
+		return NULL;
 	}
 
 	pi->proto = pr;
@@ -464,17 +468,16 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	pi->port = parport->base;
 
 	par_cb.private = pi;
-	pi->pardev = parport_register_dev_model(parport, DRV_NAME, &par_cb,
-						pi->dev.id);
+	pi->pardev = parport_register_dev_model(parport, DRV_NAME, &par_cb, id);
 	if (!pi->pardev)
 		goto out_module_put;
 
-	if (!pi_probe_unit(pi, unit, scratch)) {
+	if (!pi_probe_unit(pi, unit)) {
 		dev_info(&pi->dev, "Adapter not found\n");
 		goto out_unreg_parport;
 	}
 
-	pi->proto->log_adapter(pi, scratch, 1);
+	pi->proto->log_adapter(pi);
 
 	host = ata_host_alloc_pinfo(&pi->pardev->dev, ppi, 1);
 	if (!host)
@@ -487,12 +490,13 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 
 	pi_connect(pi);
 	if (ata_host_activate(host, 0, NULL, 0, &pata_parport_sht))
-		goto out_unreg_parport;
+		goto out_disconnect;
 
 	return pi;
 
-out_unreg_parport:
+out_disconnect:
 	pi_disconnect(pi);
+out_unreg_parport:
 	parport_unregister_device(pi->pardev);
 	if (pi->proto->release_proto)
 		pi->proto->release_proto(pi);
@@ -500,8 +504,7 @@ out_module_put:
 	module_put(pi->proto->owner);
 out_unreg_dev:
 	device_unregister(&pi->dev);
-out_ida_free:
-	ida_free(&pata_parport_bus_dev_ids, pi->dev.id);
+	/* pata_parport_dev_release will do ida_free(dev->id) and kfree(pi) */
 	return NULL;
 }
 
@@ -530,7 +533,7 @@ int pata_parport_register_driver(struct pi_protocol *pr)
 	if (probe) {
 		/* probe all parports using this protocol */
 		idr_for_each_entry(&parport_list, parport, port_num)
-			pi_init_one(parport, pr, -1, 0, -1);
+			pi_init_one(parport, pr, -1, -1, -1);
 	}
 	mutex_unlock(&pi_mutex);
 
@@ -554,8 +557,7 @@ void pata_parport_unregister_driver(struct pi_protocol *pr)
 }
 EXPORT_SYMBOL_GPL(pata_parport_unregister_driver);
 
-static ssize_t new_device_store(struct bus_type *bus, const char *buf,
-				size_t count)
+static ssize_t new_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	char port[12] = "auto";
 	char protocol[8] = "auto";
@@ -626,12 +628,10 @@ static void pi_remove_one(struct device *dev)
 	pi_disconnect(pi);
 	pi_release(pi);
 	device_unregister(dev);
-	ida_free(&pata_parport_bus_dev_ids, dev->id);
-	/* pata_parport_dev_release will do kfree(pi) */
+	/* pata_parport_dev_release will do ida_free(dev->id) and kfree(pi) */
 }
 
-static ssize_t delete_device_store(struct bus_type *bus, const char *buf,
-				   size_t count)
+static ssize_t delete_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	struct device *dev;
 
@@ -643,6 +643,7 @@ static ssize_t delete_device_store(struct bus_type *bus, const char *buf,
 	}
 
 	pi_remove_one(dev);
+	put_device(dev);
 	mutex_unlock(&pi_mutex);
 
 	return count;
@@ -665,7 +666,7 @@ static void pata_parport_attach(struct parport *port)
 	if (probe) {
 		/* probe this port using all protocols */
 		idr_for_each_entry(&protocols, pr, pr_num)
-			pi_init_one(port, pr, -1, 0, -1);
+			pi_init_one(port, pr, -1, -1, -1);
 	}
 	mutex_unlock(&pi_mutex);
 }

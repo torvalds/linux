@@ -22,7 +22,7 @@
 
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges = <0x0 0x0 0x0 0x0 0x0 0x40000000>;
+		ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
 
 		apbmisc: misc@100000 {
 			compatible = "nvidia,tegra194-misc";
@@ -745,9 +745,7 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTA>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTA>;
-			reset-names = "serial";
 			status = "disabled";
 		};
 
@@ -757,9 +755,7 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTB>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTB>;
-			reset-names = "serial";
 			status = "disabled";
 		};
 

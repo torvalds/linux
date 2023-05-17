@@ -77,15 +77,6 @@ static struct ctl_table itmt_kern_table[] = {
 	{}
 };
 
-static struct ctl_table itmt_root_table[] = {
-	{
-		.procname	= "kernel",
-		.mode		= 0555,
-		.child		= itmt_kern_table,
-	},
-	{}
-};
-
 static struct ctl_table_header *itmt_sysctl_header;
 
 /**
@@ -114,7 +105,7 @@ int sched_set_itmt_support(void)
 		return 0;
 	}
 
-	itmt_sysctl_header = register_sysctl_table(itmt_root_table);
+	itmt_sysctl_header = register_sysctl("kernel", itmt_kern_table);
 	if (!itmt_sysctl_header) {
 		mutex_unlock(&itmt_update_mutex);
 		return -ENOMEM;

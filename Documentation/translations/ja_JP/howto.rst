@@ -167,7 +167,7 @@ linux-api@vger.kernel.org に送ることを勧めます。
     このドキュメントは Linux 開発の思想を理解するのに非常に重要です。
     そして、他のOSでの開発者が Linux に移る時にとても重要です。
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/process/security-bugs.rst <securitybugs>`
     もし Linux カーネルでセキュリティ問題を発見したように思ったら、こ
     のドキュメントのステップに従ってカーネル開発者に連絡し、問題解決を
     支援してください。

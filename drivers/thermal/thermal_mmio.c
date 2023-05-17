@@ -23,7 +23,7 @@ static u32 thermal_mmio_readb(void __iomem *mmio_base)
 static int thermal_mmio_get_temperature(struct thermal_zone_device *tz, int *temp)
 {
 	int t;
-	struct thermal_mmio *sensor = tz->devdata;
+	struct thermal_mmio *sensor = thermal_zone_device_priv(tz);
 
 	t = sensor->read_mmio(sensor->mmio_base) & sensor->mask;
 	t *= sensor->factor;

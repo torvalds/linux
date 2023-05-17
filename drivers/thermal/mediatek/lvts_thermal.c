@@ -66,7 +66,7 @@
 #define LVTS_MONINT_CONF			0x9FBF7BDE
 
 #define LVTS_INT_SENSOR0			0x0009001F
-#define LVTS_INT_SENSOR1			0X000881F0
+#define LVTS_INT_SENSOR1			0x001203E0
 #define LVTS_INT_SENSOR2			0x00247C00
 #define LVTS_INT_SENSOR3			0x1FC00000
 
@@ -252,7 +252,7 @@ static u32 lvts_temp_to_raw(int temperature)
 
 static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct lvts_sensor *lvts_sensor = tz->devdata;
+	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
 	void __iomem *msr = lvts_sensor->msr;
 	u32 value;
 
@@ -290,7 +290,7 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 
 static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct lvts_sensor *lvts_sensor = tz->devdata;
+	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
 	void __iomem *base = lvts_sensor->base;
 	u32 raw_low = lvts_temp_to_raw(low);
 	u32 raw_high = lvts_temp_to_raw(high);
@@ -305,7 +305,8 @@ static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 	 * 14-0 : Raw temperature for threshold
 	 */
 	if (low != -INT_MAX) {
-		dev_dbg(&tz->device, "Setting low limit temperature interrupt: %d\n", low);
+		pr_debug("%s: Setting low limit temperature interrupt: %d\n",
+			 thermal_zone_device_type(tz), low);
 		writel(raw_low, LVTS_H2NTHRE(base));
 	}
 
@@ -318,7 +319,8 @@ static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 	 *
 	 * 14-0 : Raw temperature for threshold
 	 */
-	dev_dbg(&tz->device, "Setting high limit temperature interrupt: %d\n", high);
+	pr_debug("%s: Setting high limit temperature interrupt: %d\n",
+		 thermal_zone_device_type(tz), high);
 	writel(raw_high, LVTS_HTHRE(base));
 
 	return 0;
@@ -393,8 +395,8 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 	 *                  => 0x1FC00000
 	 * sensor 2 interrupt: 0000 0000 0010 0100 0111 1100 0000 0000
 	 *                  => 0x00247C00
-	 * sensor 1 interrupt: 0000 0000 0001 0001 0000 0011 1110 0000
-	 *                  => 0X000881F0
+	 * sensor 1 interrupt: 0000 0000 0001 0010 0000 0011 1110 0000
+	 *                  => 0X001203E0
 	 * sensor 0 interrupt: 0000 0000 0000 1001 0000 0000 0001 1111
 	 *                  => 0x0009001F
 	 */
@@ -528,29 +530,33 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
  * The efuse blob values follows the sensor enumeration per thermal
  * controller. The decoding of the stream is as follow:
  *
- *                        <--?-> <----big0 ???---> <-sensor0-> <-0->
- *                        ------------------------------------------
- * index in the stream: : | 0x0 | 0x1 | 0x2 | 0x3 | 0x4 | 0x5 | 0x6 |
- *                        ------------------------------------------
+ * stream index map for MCU Domain :
  *
- *                        <--sensor1--><-0-> <----big1 ???---> <-sen
- *                        ------------------------------------------
- *                        | 0x7 | 0x8 | 0x9 | 0xA | 0xB | OxC | OxD |
- *                        ------------------------------------------
+ * <-----mcu-tc#0-----> <-----sensor#0-----> <-----sensor#1----->
+ *  0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x07 | 0x08 | 0x09
  *
- *                        sor0-> <-0-> <-sensor1-> <-0-> ..........
- *                        ------------------------------------------
- *                        | 0x7 | 0x8 | 0x9 | 0xA | 0xB | OxC | OxD |
- *                        ------------------------------------------
+ * <-----mcu-tc#1-----> <-----sensor#2-----> <-----sensor#3----->
+ *  0x0A | 0x0B | 0x0C | 0x0D | 0x0E | 0x0F | 0x10 | 0x11 | 0x12
  *
- * And so on ...
+ * <-----mcu-tc#2-----> <-----sensor#4-----> <-----sensor#5-----> <-----sensor#6-----> <-----sensor#7----->
+ *  0x13 | 0x14 | 0x15 | 0x16 | 0x17 | 0x18 | 0x19 | 0x1A | 0x1B | 0x1C | 0x1D | 0x1E | 0x1F | 0x20 | 0x21
+ *
+ * stream index map for AP Domain :
+ *
+ * <-----ap--tc#0-----> <-----sensor#0-----> <-----sensor#1----->
+ *  0x22 | 0x23 | 0x24 | 0x25 | 0x26 | 0x27 | 0x28 | 0x29 | 0x2A
+ *
+ * <-----ap--tc#1-----> <-----sensor#2-----> <-----sensor#3----->
+ *  0x2B | 0x2C | 0x2D | 0x2E | 0x2F | 0x30 | 0x31 | 0x32 | 0x33
+ *
+ * <-----ap--tc#2-----> <-----sensor#4-----> <-----sensor#5-----> <-----sensor#6----->
+ *  0x34 | 0x35 | 0x36 | 0x37 | 0x38 | 0x39 | 0x3A | 0x3B | 0x3C | 0x3D | 0x3E | 0x3F
+ *
+ * <-----ap--tc#3-----> <-----sensor#7-----> <-----sensor#8----->
+ *  0x40 | 0x41 | 0x42 | 0x43 | 0x44 | 0x45 | 0x46 | 0x47 | 0x48
  *
  * The data description gives the offset of the calibration data in
  * this bytes stream for each sensor.
- *
- * Each thermal controller can handle up to 4 sensors max, we don't
- * care if there are less as the array of calibration is sized to 4
- * anyway. The unused sensor slot will be zeroed.
  */
 static int lvts_calibration_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 					const struct lvts_ctrl_data *lvts_ctrl_data,
@@ -1163,7 +1169,7 @@ static int lvts_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct lvts_ctrl_data mt8195_lvts_data_ctrl[] = {
+static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 	{
 		.cal_offset = { 0x04, 0x07 },
 		.lvts_sensor = {
@@ -1198,13 +1204,63 @@ static const struct lvts_ctrl_data mt8195_lvts_data_ctrl[] = {
 	}
 };
 
+static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
+		{
+		.cal_offset = { 0x25, 0x28 },
+		.lvts_sensor = {
+			{ .dt_id = MT8195_AP_VPU0 },
+			{ .dt_id = MT8195_AP_VPU1 }
+		},
+		.num_lvts_sensor = 2,
+		.offset = 0x0,
+		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
+	},
+	{
+		.cal_offset = { 0x2e, 0x31 },
+		.lvts_sensor = {
+			{ .dt_id = MT8195_AP_GPU0 },
+			{ .dt_id = MT8195_AP_GPU1 }
+		},
+		.num_lvts_sensor = 2,
+		.offset = 0x100,
+		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
+	},
+	{
+		.cal_offset = { 0x37, 0x3a, 0x3d },
+		.lvts_sensor = {
+			{ .dt_id = MT8195_AP_VDEC },
+			{ .dt_id = MT8195_AP_IMG },
+			{ .dt_id = MT8195_AP_INFRA },
+		},
+		.num_lvts_sensor = 3,
+		.offset = 0x200,
+		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
+	},
+	{
+		.cal_offset = { 0x43, 0x46 },
+		.lvts_sensor = {
+			{ .dt_id = MT8195_AP_CAM0 },
+			{ .dt_id = MT8195_AP_CAM1 }
+		},
+		.num_lvts_sensor = 2,
+		.offset = 0x300,
+		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
+	}
+};
+
 static const struct lvts_data mt8195_lvts_mcu_data = {
-	.lvts_ctrl	= mt8195_lvts_data_ctrl,
-	.num_lvts_ctrl	= ARRAY_SIZE(mt8195_lvts_data_ctrl),
+	.lvts_ctrl	= mt8195_lvts_mcu_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt8195_lvts_mcu_data_ctrl),
+};
+
+static const struct lvts_data mt8195_lvts_ap_data = {
+	.lvts_ctrl	= mt8195_lvts_ap_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt8195_lvts_ap_data_ctrl),
 };
 
 static const struct of_device_id lvts_of_match[] = {
 	{ .compatible = "mediatek,mt8195-lvts-mcu", .data = &mt8195_lvts_mcu_data },
+	{ .compatible = "mediatek,mt8195-lvts-ap", .data = &mt8195_lvts_ap_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, lvts_of_match);

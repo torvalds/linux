@@ -27,6 +27,7 @@
 #include "dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dml/dcn32/display_mode_vba_util_32.h"
+#include "dml/dcn32/dcn32_fpu.h"
 
 static bool is_dual_plane(enum surface_pixel_format format)
 {
@@ -499,4 +500,159 @@ void dcn32_restore_mall_state(struct dc *dc,
 		if (pipe->plane_state)
 			pipe->plane_state->is_phantom = temp_config->is_phantom_plane[i];
 	}
+}
+
+#define MAX_STRETCHED_V_BLANK 1000 // in micro-seconds (must ensure to match value in FW)
+/*
+ * Scaling factor for v_blank stretch calculations considering timing in
+ * micro-seconds and pixel clock in 100hz.
+ * Note: the parenthesis are necessary to ensure the correct order of
+ * operation where V_SCALE is used.
+ */
+#define V_SCALE (10000 / MAX_STRETCHED_V_BLANK)
+
+static int get_frame_rate_at_max_stretch_100hz(
+		struct dc_stream_state *fpo_candidate_stream,
+		uint32_t fpo_vactive_margin_us)
+{
+	struct dc_crtc_timing *timing = NULL;
+	uint32_t sec_per_100_lines;
+	uint32_t max_v_blank;
+	uint32_t curr_v_blank;
+	uint32_t v_stretch_max;
+	uint32_t stretched_frame_pix_cnt;
+	uint32_t scaled_stretched_frame_pix_cnt;
+	uint32_t scaled_refresh_rate;
+	uint32_t v_scale;
+
+	if (fpo_candidate_stream == NULL)
+		return 0;
+
+	/* check if refresh rate at least 120hz */
+	timing = &fpo_candidate_stream->timing;
+	if (timing == NULL)
+		return 0;
+
+	v_scale = 10000 / (MAX_STRETCHED_V_BLANK + fpo_vactive_margin_us);
+
+	sec_per_100_lines = timing->pix_clk_100hz / timing->h_total + 1;
+	max_v_blank = sec_per_100_lines / v_scale + 1;
+	curr_v_blank = timing->v_total - timing->v_addressable;
+	v_stretch_max = (max_v_blank > curr_v_blank) ? (max_v_blank - curr_v_blank) : (0);
+	stretched_frame_pix_cnt = (v_stretch_max + timing->v_total) * timing->h_total;
+	scaled_stretched_frame_pix_cnt = stretched_frame_pix_cnt / 10000;
+	scaled_refresh_rate = (timing->pix_clk_100hz) / scaled_stretched_frame_pix_cnt + 1;
+
+	return scaled_refresh_rate;
+
+}
+
+static bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(
+		struct dc_stream_state *fpo_candidate_stream, uint32_t fpo_vactive_margin_us)
+{
+	int refresh_rate_max_stretch_100hz;
+	int min_refresh_100hz;
+
+	if (fpo_candidate_stream == NULL)
+		return false;
+
+	refresh_rate_max_stretch_100hz = get_frame_rate_at_max_stretch_100hz(fpo_candidate_stream, fpo_vactive_margin_us);
+	min_refresh_100hz = fpo_candidate_stream->timing.min_refresh_in_uhz / 10000;
+
+	if (refresh_rate_max_stretch_100hz < min_refresh_100hz)
+		return false;
+
+	return true;
+}
+
+static int get_refresh_rate(struct dc_stream_state *fpo_candidate_stream)
+{
+	int refresh_rate = 0;
+	int h_v_total = 0;
+	struct dc_crtc_timing *timing = NULL;
+
+	if (fpo_candidate_stream == NULL)
+		return 0;
+
+	/* check if refresh rate at least 120hz */
+	timing = &fpo_candidate_stream->timing;
+	if (timing == NULL)
+		return 0;
+
+	h_v_total = timing->h_total * timing->v_total;
+	if (h_v_total == 0)
+		return 0;
+
+	refresh_rate = ((timing->pix_clk_100hz * 100) / (h_v_total)) + 1;
+	return refresh_rate;
+}
+
+/**
+ * dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch - Determines if config can support FPO
+ *
+ * @param [in]: dc - current dc state
+ * @param [in]: context - new dc state
+ *
+ * Return: Pointer to FPO stream candidate if config can support FPO, otherwise NULL
+ */
+struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, const struct dc_state *context)
+{
+	int refresh_rate = 0;
+	const int minimum_refreshrate_supported = 120;
+	struct dc_stream_state *fpo_candidate_stream = NULL;
+	bool is_fpo_vactive = false;
+	uint32_t fpo_vactive_margin_us = 0;
+
+	if (context == NULL)
+		return NULL;
+
+	if (dc->debug.disable_fams)
+		return NULL;
+
+	if (!dc->caps.dmub_caps.mclk_sw)
+		return NULL;
+
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching_shut_down)
+		return NULL;
+
+	/* For FPO we can support up to 2 display configs if:
+	 * - first display uses FPO
+	 * - Second display switches in VACTIVE */
+	if (context->stream_count > 2)
+		return NULL;
+	else if (context->stream_count == 2) {
+		DC_FP_START();
+		dcn32_assign_fpo_vactive_candidate(dc, context, &fpo_candidate_stream);
+		DC_FP_END();
+
+		DC_FP_START();
+		is_fpo_vactive = dcn32_find_vactive_pipe(dc, context, DCN3_2_MIN_ACTIVE_SWITCH_MARGIN_FPO_US);
+		DC_FP_END();
+		if (!is_fpo_vactive || dc->debug.disable_fpo_vactive)
+			return NULL;
+	} else
+		fpo_candidate_stream = context->streams[0];
+
+	if (!fpo_candidate_stream)
+		return NULL;
+
+	if (fpo_candidate_stream->sink->edid_caps.panel_patch.disable_fams)
+		return NULL;
+
+	refresh_rate = get_refresh_rate(fpo_candidate_stream);
+	if (refresh_rate < minimum_refreshrate_supported)
+		return NULL;
+
+	fpo_vactive_margin_us = is_fpo_vactive ? dc->debug.fpo_vactive_margin_us : 0; // For now hardcode the FPO + Vactive stretch margin to be 2000us
+	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us))
+		return NULL;
+
+	// check if freesync enabled
+	if (!fpo_candidate_stream->allow_freesync)
+		return NULL;
+
+	if (fpo_candidate_stream->vrr_active_variable)
+		return NULL;
+
+	return fpo_candidate_stream;
 }

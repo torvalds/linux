@@ -6,7 +6,6 @@
  */
 
 #include "builtin.h"
-#include "perf.h"
 
 #include "util/data.h"
 #include "util/evlist.h"
@@ -20,6 +19,7 @@
 #include "util/string2.h"
 #include "util/callchain.h"
 #include "util/evsel_fprintf.h"
+#include "util/util.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>

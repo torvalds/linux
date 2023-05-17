@@ -80,22 +80,6 @@ static inline int register_up_smp_ops(void)
 #endif
 }
 
-static inline int register_cmp_smp_ops(void)
-{
-#ifdef CONFIG_MIPS_CMP
-	extern const struct plat_smp_ops cmp_smp_ops;
-
-	if (!mips_cm_present())
-		return -ENODEV;
-
-	register_smp_ops(&cmp_smp_ops);
-
-	return 0;
-#else
-	return -ENODEV;
-#endif
-}
-
 static inline int register_vsmp_smp_ops(void)
 {
 #ifdef CONFIG_MIPS_MT_SMP

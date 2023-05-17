@@ -160,7 +160,7 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	int ret;
 	u32 reg;
 
-	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
+	if (of_alias_from_compatible(node, info.type, sizeof(info.type)) < 0) {
 		drm_err(host, "modalias failure on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
@@ -329,7 +329,7 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 
 	for_each_available_child_of_node(host->dev->of_node, node) {
 		/* skip nodes without reg property */
-		if (!of_find_property(node, "reg", NULL))
+		if (!of_property_present(node, "reg"))
 			continue;
 		of_mipi_dsi_device_add(host, node);
 	}

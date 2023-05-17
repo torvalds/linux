@@ -20,7 +20,7 @@
 #define DRV_NAME "pata_isapnp"
 #define DRV_VERSION "0.2.5"
 
-static struct scsi_host_template isapnp_sht = {
+static const struct scsi_host_template isapnp_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

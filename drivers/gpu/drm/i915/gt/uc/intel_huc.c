@@ -190,7 +190,7 @@ static int gsc_notifier(struct notifier_block *nb, unsigned long action, void *d
 	return 0;
 }
 
-void intel_huc_register_gsc_notifier(struct intel_huc *huc, struct bus_type *bus)
+void intel_huc_register_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
 {
 	int ret;
 
@@ -206,7 +206,7 @@ void intel_huc_register_gsc_notifier(struct intel_huc *huc, struct bus_type *bus
 	}
 }
 
-void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, struct bus_type *bus)
+void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
 {
 	if (!huc->delayed_load.nb.notifier_call)
 		return;
@@ -239,6 +239,13 @@ static void delayed_huc_load_fini(struct intel_huc *huc)
 	 */
 	delayed_huc_load_complete(huc);
 	i915_sw_fence_fini(&huc->delayed_load.fence);
+}
+
+int intel_huc_sanitize(struct intel_huc *huc)
+{
+	delayed_huc_load_complete(huc);
+	intel_uc_fw_sanitize(&huc->fw);
+	return 0;
 }
 
 static bool vcs_supported(struct intel_gt *gt)

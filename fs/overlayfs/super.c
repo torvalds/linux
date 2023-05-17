@@ -1055,20 +1055,12 @@ static const struct xattr_handler ovl_other_xattr_handler = {
 };
 
 static const struct xattr_handler *ovl_trusted_xattr_handlers[] = {
-#ifdef CONFIG_FS_POSIX_ACL
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-#endif
 	&ovl_own_trusted_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL
 };
 
 static const struct xattr_handler *ovl_user_xattr_handlers[] = {
-#ifdef CONFIG_FS_POSIX_ACL
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-#endif
 	&ovl_own_user_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL

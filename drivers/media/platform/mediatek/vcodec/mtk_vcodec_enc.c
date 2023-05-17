@@ -943,7 +943,7 @@ err_start_stream:
 		 * FIXME: This check is not needed as only active buffers
 		 * can be marked as done.
 		 */
-		if (buf->state == VB2_BUF_STATE_ACTIVE) {
+		if (buf && buf->state == VB2_BUF_STATE_ACTIVE) {
 			mtk_v4l2_debug(0, "[%d] id=%d, type=%d, %d -> VB2_BUF_STATE_QUEUED",
 					ctx->id, i, q->type,
 					(int)buf->state);

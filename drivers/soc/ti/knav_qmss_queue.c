@@ -1264,10 +1264,10 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	if (range->num_irqs)
 		range->flags |= RANGE_HAS_IRQ;
 
-	if (of_get_property(node, "qalloc-by-id", NULL))
+	if (of_property_read_bool(node, "qalloc-by-id"))
 		range->flags |= RANGE_RESERVED;
 
-	if (of_get_property(node, "accumulator", NULL)) {
+	if (of_property_present(node, "accumulator")) {
 		ret = knav_init_acc_range(kdev, node, range);
 		if (ret < 0) {
 			devm_kfree(dev, range);

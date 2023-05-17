@@ -488,12 +488,25 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 	}
 }
 
-static int check_gsc_manifest(const struct firmware *fw,
+static int check_gsc_manifest(struct intel_gt *gt,
+			      const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
 	u32 *dw = (u32 *)fw->data;
-	u32 version_hi = dw[HUC_GSC_VERSION_HI_DW];
-	u32 version_lo = dw[HUC_GSC_VERSION_LO_DW];
+	u32 version_hi, version_lo;
+	size_t min_size;
+
+	/* Check the size of the blob before examining buffer contents */
+	min_size = sizeof(u32) * (HUC_GSC_VERSION_LO_DW + 1);
+	if (unlikely(fw->size < min_size)) {
+		gt_warn(gt, "%s firmware %s: invalid size: %zu < %zu\n",
+			intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
+			fw->size, min_size);
+		return -ENODATA;
+	}
+
+	version_hi = dw[HUC_GSC_VERSION_HI_DW];
+	version_lo = dw[HUC_GSC_VERSION_LO_DW];
 
 	uc_fw->file_selected.ver.major = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
 	uc_fw->file_selected.ver.minor = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
@@ -622,9 +635,10 @@ static bool is_ver_8bit(struct intel_uc_fw_ver *ver)
 	return ver->major < 0xFF && ver->minor < 0xFF && ver->patch < 0xFF;
 }
 
-static bool guc_check_version_range(struct intel_uc_fw *uc_fw)
+static int guc_check_version_range(struct intel_uc_fw *uc_fw)
 {
 	struct intel_guc *guc = container_of(uc_fw, struct intel_guc, fw);
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
 
 	/*
 	 * GuC version number components are defined as being 8-bits.
@@ -633,24 +647,24 @@ static bool guc_check_version_range(struct intel_uc_fw *uc_fw)
 	 */
 
 	if (!is_ver_8bit(&uc_fw->file_selected.ver)) {
-		gt_warn(__uc_fw_to_gt(uc_fw), "%s firmware: invalid file version: 0x%02X:%02X:%02X\n",
+		gt_warn(gt, "%s firmware: invalid file version: 0x%02X:%02X:%02X\n",
 			intel_uc_fw_type_repr(uc_fw->type),
 			uc_fw->file_selected.ver.major,
 			uc_fw->file_selected.ver.minor,
 			uc_fw->file_selected.ver.patch);
-		return false;
+		return -EINVAL;
 	}
 
 	if (!is_ver_8bit(&guc->submission_version)) {
-		gt_warn(__uc_fw_to_gt(uc_fw), "%s firmware: invalid submit version: 0x%02X:%02X:%02X\n",
+		gt_warn(gt, "%s firmware: invalid submit version: 0x%02X:%02X:%02X\n",
 			intel_uc_fw_type_repr(uc_fw->type),
 			guc->submission_version.major,
 			guc->submission_version.minor,
 			guc->submission_version.patch);
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return i915_inject_probe_error(gt->i915, -EINVAL);
 }
 
 static int check_fw_header(struct intel_gt *gt,
@@ -664,7 +678,7 @@ static int check_fw_header(struct intel_gt *gt,
 		return 0;
 
 	if (uc_fw->loaded_via_gsc)
-		err = check_gsc_manifest(fw, uc_fw);
+		err = check_gsc_manifest(gt, fw, uc_fw);
 	else
 		err = check_ccs_header(gt, fw, uc_fw);
 	if (err)
@@ -759,8 +773,11 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (err)
 		goto fail;
 
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC && !guc_check_version_range(uc_fw))
-		goto fail;
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC) {
+		err = guc_check_version_range(uc_fw);
+		if (err)
+			goto fail;
+	}
 
 	if (uc_fw->file_wanted.ver.major && uc_fw->file_selected.ver.major) {
 		/* Check the file's major version was as it claimed */

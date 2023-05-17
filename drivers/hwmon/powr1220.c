@@ -248,7 +248,7 @@ powr1220_read(struct device *dev, enum hwmon_sensor_types type, u32
 	return 0;
 }
 
-static const struct hwmon_channel_info *powr1220_info[] = {
+static const struct hwmon_channel_info * const powr1220_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
 			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,

@@ -88,5 +88,4 @@ module_platform_driver(fsl_sai_clk_driver);
 
 MODULE_DESCRIPTION("Freescale SAI bitclock-as-a-clock driver");
 MODULE_AUTHOR("Michael Walle <michael@walle.cc>");
-MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:fsl-sai-clk");

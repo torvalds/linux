@@ -710,7 +710,7 @@ static int xgene_ahci_mux_select(struct xgene_ahci_context *ctx)
 	return val & CFG_SATA_ENET_SELECT_MASK ? -1 : 0;
 }
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 

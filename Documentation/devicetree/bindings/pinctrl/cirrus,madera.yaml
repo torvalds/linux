@@ -40,8 +40,8 @@ properties:
       '-pins$':
         type: object
         allOf:
-          - $ref: "pincfg-node.yaml#"
-          - $ref: "pinmux-node.yaml#"
+          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-node.yaml#
         properties:
           groups:
             description:

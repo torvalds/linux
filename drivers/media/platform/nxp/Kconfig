@@ -28,6 +28,8 @@ config VIDEO_IMX_MIPI_CSIS
 	  Video4Linux2 sub-device driver for the MIPI CSI-2 CSIS receiver
 	  v3.3/v3.6.3 found on some i.MX7 and i.MX8 SoCs.
 
+source "drivers/media/platform/nxp/imx8-isi/Kconfig"
+
 # mem2mem drivers
 
 config VIDEO_IMX_PXP

@@ -557,6 +557,12 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	/* The current status of the pte should be "cleared" before calling */
 	WARN_ON_ONCE(!pte_none(*pte));
 
+	/*
+	 * NOTE: userfaultfd_wp_unpopulated() doesn't need this whole
+	 * thing, because when zapping either it means it's dropping the
+	 * page, or in TTU where the present pte will be quickly replaced
+	 * with a swap pte.  There's no way of leaking the bit.
+	 */
 	if (vma_is_anonymous(vma) || !userfaultfd_wp(vma))
 		return;
 

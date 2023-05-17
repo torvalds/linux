@@ -30,11 +30,11 @@ select:
           - marvell,armada-3700-ahci
           - marvell,armada-8k-ahci
           - marvell,berlin2q-ahci
+          - socionext,uniphier-pro4-ahci
+          - socionext,uniphier-pxs2-ahci
+          - socionext,uniphier-pxs3-ahci
   required:
     - compatible
-
-allOf:
-  - $ref: "ahci-common.yaml#"
 
 properties:
   compatible:
@@ -45,6 +45,9 @@ properties:
               - marvell,armada-8k-ahci
               - marvell,berlin2-ahci
               - marvell,berlin2q-ahci
+              - socionext,uniphier-pro4-ahci
+              - socionext,uniphier-pxs2-ahci
+              - socionext,uniphier-pxs3-ahci
           - const: generic-ahci
       - enum:
           - cavium,octeon-7130-ahci
@@ -74,7 +77,8 @@ properties:
     maxItems: 1
 
   resets:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
 patternProperties:
   "^sata-port@[0-9a-f]+$":
@@ -90,6 +94,43 @@ required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - $ref: ahci-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro4-ahci
+    then:
+      properties:
+        resets:
+          items:
+            - description: reset line for the parent
+            - description: reset line for the glue logic
+            - description: reset line for the controller
+      required:
+        - resets
+    else:
+      if:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - socionext,uniphier-pxs2-ahci
+                - socionext,uniphier-pxs3-ahci
+      then:
+        properties:
+          resets:
+            items:
+              - description: reset for the glue logic
+              - description: reset for the controller
+        required:
+          - resets
+      else:
+        properties:
+          resets:
+            maxItems: 1
 
 unevaluatedProperties: false
 

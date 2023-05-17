@@ -76,5 +76,4 @@ define_machine(mpc5200_simple_platform) {
 	.init_IRQ	= mpc52xx_init_irq,
 	.get_irq	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

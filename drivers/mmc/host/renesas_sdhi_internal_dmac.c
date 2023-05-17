@@ -72,11 +72,10 @@ enum renesas_sdhi_dma_cookie {
 
 static unsigned long global_flags;
 /*
- * Workaround for avoiding to use RX DMAC by multiple channels.
- * On R-Car H3 ES1.* and M3-W ES1.0, when multiple SDHI channels use
- * RX DMAC simultaneously, sometimes hundreds of bytes data are not
- * stored into the system memory even if the DMAC interrupt happened.
- * So, this driver then uses one RX DMAC channel only.
+ * Workaround for avoiding to use RX DMAC by multiple channels. On R-Car M3-W
+ * ES1.0, when multiple SDHI channels use RX DMAC simultaneously, sometimes
+ * hundreds of data bytes are not stored into the system memory even if the
+ * DMAC interrupt happened. So, this driver then uses one RX DMAC channel only.
  */
 #define SDHI_INTERNAL_DMAC_RX_IN_USE	0
 
@@ -222,7 +221,6 @@ static const struct renesas_sdhi_quirks sdhi_quirks_r9a09g011 = {
  */
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400_one_rx },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
 	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap_nohs400_one_rx },
 	{ .soc_id = "r8a7796", .revision = "ES1.[12]", .data = &sdhi_quirks_4tap_nohs400 },

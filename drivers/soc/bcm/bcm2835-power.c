@@ -711,4 +711,3 @@ module_platform_driver(bcm2835_power_driver);
 
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("Driver for Broadcom BCM2835 PM power domains and reset");
-MODULE_LICENSE("GPL");

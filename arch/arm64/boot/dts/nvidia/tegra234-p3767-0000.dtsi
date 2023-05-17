@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "tegra234-p3767.dtsi"
+
+/ {
+	compatible = "nvidia,p3767-0000", "nvidia,tegra234";
+	model = "NVIDIA Jetson Orin NX";
+
+	bus@0 {
+		hda@3510000 {
+			nvidia,model = "NVIDIA Jetson Orin NX HDA";
+		};
+	};
+};

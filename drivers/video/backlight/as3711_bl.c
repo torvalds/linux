@@ -286,23 +286,23 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		if (ret < 0)
 			goto err_put_bl;
 
-		if (of_find_property(bl, "su2-feedback-voltage", NULL)) {
+		if (of_property_read_bool(bl, "su2-feedback-voltage")) {
 			pdata->su2_feedback = AS3711_SU2_VOLTAGE;
 			count++;
 		}
-		if (of_find_property(bl, "su2-feedback-curr1", NULL)) {
+		if (of_property_read_bool(bl, "su2-feedback-curr1")) {
 			pdata->su2_feedback = AS3711_SU2_CURR1;
 			count++;
 		}
-		if (of_find_property(bl, "su2-feedback-curr2", NULL)) {
+		if (of_property_read_bool(bl, "su2-feedback-curr2")) {
 			pdata->su2_feedback = AS3711_SU2_CURR2;
 			count++;
 		}
-		if (of_find_property(bl, "su2-feedback-curr3", NULL)) {
+		if (of_property_read_bool(bl, "su2-feedback-curr3")) {
 			pdata->su2_feedback = AS3711_SU2_CURR3;
 			count++;
 		}
-		if (of_find_property(bl, "su2-feedback-curr-auto", NULL)) {
+		if (of_property_read_bool(bl, "su2-feedback-curr-auto")) {
 			pdata->su2_feedback = AS3711_SU2_CURR_AUTO;
 			count++;
 		}
@@ -312,19 +312,19 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		}
 
 		count = 0;
-		if (of_find_property(bl, "su2-fbprot-lx-sd4", NULL)) {
+		if (of_property_read_bool(bl, "su2-fbprot-lx-sd4")) {
 			pdata->su2_fbprot = AS3711_SU2_LX_SD4;
 			count++;
 		}
-		if (of_find_property(bl, "su2-fbprot-gpio2", NULL)) {
+		if (of_property_read_bool(bl, "su2-fbprot-gpio2")) {
 			pdata->su2_fbprot = AS3711_SU2_GPIO2;
 			count++;
 		}
-		if (of_find_property(bl, "su2-fbprot-gpio3", NULL)) {
+		if (of_property_read_bool(bl, "su2-fbprot-gpio3")) {
 			pdata->su2_fbprot = AS3711_SU2_GPIO3;
 			count++;
 		}
-		if (of_find_property(bl, "su2-fbprot-gpio4", NULL)) {
+		if (of_property_read_bool(bl, "su2-fbprot-gpio4")) {
 			pdata->su2_fbprot = AS3711_SU2_GPIO4;
 			count++;
 		}
@@ -334,15 +334,15 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		}
 
 		count = 0;
-		if (of_find_property(bl, "su2-auto-curr1", NULL)) {
+		if (of_property_read_bool(bl, "su2-auto-curr1")) {
 			pdata->su2_auto_curr1 = true;
 			count++;
 		}
-		if (of_find_property(bl, "su2-auto-curr2", NULL)) {
+		if (of_property_read_bool(bl, "su2-auto-curr2")) {
 			pdata->su2_auto_curr2 = true;
 			count++;
 		}
-		if (of_find_property(bl, "su2-auto-curr3", NULL)) {
+		if (of_property_read_bool(bl, "su2-auto-curr3")) {
 			pdata->su2_auto_curr3 = true;
 			count++;
 		}

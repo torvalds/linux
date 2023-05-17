@@ -93,14 +93,12 @@ static int edb93xx_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int edb93xx_remove(struct platform_device *pdev)
+static void edb93xx_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	snd_soc_unregister_card(card);
 	ep93xx_i2s_release();
-
-	return 0;
 }
 
 static struct platform_driver edb93xx_driver = {
@@ -108,7 +106,7 @@ static struct platform_driver edb93xx_driver = {
 		.name	= "edb93xx-audio",
 	},
 	.probe		= edb93xx_probe,
-	.remove		= edb93xx_remove,
+	.remove_new	= edb93xx_remove,
 };
 
 module_platform_driver(edb93xx_driver);

@@ -157,5 +157,4 @@ EXPORT_SYMBOL_GPL(typec_retimer_get_drvdata);
 
 struct class retimer_class = {
 	.name = "retimer",
-	.owner = THIS_MODULE,
 };

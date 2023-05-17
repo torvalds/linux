@@ -7,7 +7,6 @@
 #include <linux/ip.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
-#include <linux/packing.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
 #include <net/addrconf.h>
@@ -305,46 +304,57 @@ err:
 	return NETDEV_TX_BUSY;
 }
 
+static void lan966x_ifh_set(u8 *ifh, size_t val, size_t pos, size_t length)
+{
+	int i = 0;
+
+	do {
+		u8 p = IFH_LEN_BYTES - (pos + i) / 8 - 1;
+		u8 v = val >> i & 0xff;
+
+		/* There is no need to check for limits of the array, as these
+		 * will never be written
+		 */
+		ifh[p] |= v << ((pos + i) % 8);
+		ifh[p - 1] |= v >> (8 - (pos + i) % 8);
+
+		i += 8;
+	} while (i < length);
+}
+
 void lan966x_ifh_set_bypass(void *ifh, u64 bypass)
 {
-	packing(ifh, &bypass, IFH_POS_BYPASS + IFH_WID_BYPASS - 1,
-		IFH_POS_BYPASS, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, bypass, IFH_POS_BYPASS, IFH_WID_BYPASS);
 }
 
-void lan966x_ifh_set_port(void *ifh, u64 bypass)
+void lan966x_ifh_set_port(void *ifh, u64 port)
 {
-	packing(ifh, &bypass, IFH_POS_DSTS + IFH_WID_DSTS - 1,
-		IFH_POS_DSTS, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, port, IFH_POS_DSTS, IFH_WID_DSTS);
 }
 
-static void lan966x_ifh_set_qos_class(void *ifh, u64 bypass)
+static void lan966x_ifh_set_qos_class(void *ifh, u64 qos)
 {
-	packing(ifh, &bypass, IFH_POS_QOS_CLASS + IFH_WID_QOS_CLASS - 1,
-		IFH_POS_QOS_CLASS, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, qos, IFH_POS_QOS_CLASS, IFH_WID_QOS_CLASS);
 }
 
-static void lan966x_ifh_set_ipv(void *ifh, u64 bypass)
+static void lan966x_ifh_set_ipv(void *ifh, u64 ipv)
 {
-	packing(ifh, &bypass, IFH_POS_IPV + IFH_WID_IPV - 1,
-		IFH_POS_IPV, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, ipv, IFH_POS_IPV, IFH_WID_IPV);
 }
 
 static void lan966x_ifh_set_vid(void *ifh, u64 vid)
 {
-	packing(ifh, &vid, IFH_POS_TCI + IFH_WID_TCI - 1,
-		IFH_POS_TCI, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, vid, IFH_POS_TCI, IFH_WID_TCI);
 }
 
 static void lan966x_ifh_set_rew_op(void *ifh, u64 rew_op)
 {
-	packing(ifh, &rew_op, IFH_POS_REW_CMD + IFH_WID_REW_CMD - 1,
-		IFH_POS_REW_CMD, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, rew_op, IFH_POS_REW_CMD, IFH_WID_REW_CMD);
 }
 
 static void lan966x_ifh_set_timestamp(void *ifh, u64 timestamp)
 {
-	packing(ifh, &timestamp, IFH_POS_TIMESTAMP + IFH_WID_TIMESTAMP - 1,
-		IFH_POS_TIMESTAMP, IFH_LEN * 4, PACK, 0);
+	lan966x_ifh_set(ifh, timestamp, IFH_POS_TIMESTAMP, IFH_WID_TIMESTAMP);
 }
 
 static netdev_tx_t lan966x_port_xmit(struct sk_buff *skb,
@@ -582,22 +592,38 @@ static int lan966x_rx_frame_word(struct lan966x *lan966x, u8 grp, u32 *rval)
 	}
 }
 
+static u64 lan966x_ifh_get(u8 *ifh, size_t pos, size_t length)
+{
+	u64 val = 0;
+	u8 v;
+
+	for (int i = 0; i < length ; i++) {
+		int j = pos + i;
+		int k = j % 8;
+
+		if (i == 0 || k == 0)
+			v = ifh[IFH_LEN_BYTES - (j / 8) - 1];
+
+		if (v & (1 << k))
+			val |= (1ULL << i);
+	}
+
+	return val;
+}
+
 void lan966x_ifh_get_src_port(void *ifh, u64 *src_port)
 {
-	packing(ifh, src_port, IFH_POS_SRCPORT + IFH_WID_SRCPORT - 1,
-		IFH_POS_SRCPORT, IFH_LEN * 4, UNPACK, 0);
+	*src_port = lan966x_ifh_get(ifh, IFH_POS_SRCPORT, IFH_WID_SRCPORT);
 }
 
 static void lan966x_ifh_get_len(void *ifh, u64 *len)
 {
-	packing(ifh, len, IFH_POS_LEN + IFH_WID_LEN - 1,
-		IFH_POS_LEN, IFH_LEN * 4, UNPACK, 0);
+	*len = lan966x_ifh_get(ifh, IFH_POS_LEN, IFH_WID_LEN);
 }
 
 void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp)
 {
-	packing(ifh, timestamp, IFH_POS_TIMESTAMP + IFH_WID_TIMESTAMP - 1,
-		IFH_POS_TIMESTAMP, IFH_LEN * 4, UNPACK, 0);
+	*timestamp = lan966x_ifh_get(ifh, IFH_POS_TIMESTAMP, IFH_WID_TIMESTAMP);
 }
 
 static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
@@ -668,7 +694,7 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 			*buf = val;
 		}
 
-		lan966x_ptp_rxtstamp(lan966x, skb, timestamp);
+		lan966x_ptp_rxtstamp(lan966x, skb, src_port, timestamp);
 		skb->protocol = eth_type_trans(skb, dev);
 
 		if (lan966x->bridge_mask & BIT(src_port)) {

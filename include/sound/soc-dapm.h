@@ -527,11 +527,6 @@ enum snd_soc_dapm_type {
 	SND_SOC_DAPM_TYPE_COUNT
 };
 
-enum snd_soc_dapm_subclass {
-	SND_SOC_DAPM_CLASS_INIT		= 0,
-	SND_SOC_DAPM_CLASS_RUNTIME	= 1,
-};
-
 /*
  * DAPM audio route definition.
  *

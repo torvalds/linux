@@ -111,7 +111,7 @@ properties:
       - description: RZ/G1C (R8A77470)
         items:
           - enum:
-              - iwave,g23s #iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
+              - iwave,g23s # iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
           - const: renesas,r8a77470
 
       - description: RZ/G2M (R8A774A1)
@@ -212,12 +212,12 @@ properties:
               - renesas,silk # SILK (RTP0RC7794LCB00011S)
           - const: renesas,r8a7794
 
-      - description: R-Car H3 (R8A77950)
+      # Note: R-Car H3 ES1.* (R8A77950) is not supported upstream anymore!
+
+      - description: R-Car H3 ES2.0 and later (R8A77951)
         items:
           - enum:
-                # H3ULCB (R-Car Starter Kit Premier, RTP0RC7795SKBX0010SA00 (H3 ES1.1))
-                # H3ULCB (R-Car Starter Kit Premier, RTP0RC77951SKBX010SA00 (H3 ES2.0))
-              - renesas,h3ulcb
+              - renesas,h3ulcb # H3ULCB (R-Car Starter Kit Premier, RTP0RC77951SKBX010SA00 (H3 ES2.0))
               - renesas,salvator-x # Salvator-X (RTP0RC7795SIPB0010S)
               - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7795SIPB0012S)
           - const: renesas,r8a7795
@@ -429,6 +429,13 @@ properties:
         items:
           - enum:
               - renesas,rzn1d400-db # RZN1D-DB (RZ/N1D Demo Board for the RZ/N1D 400 pins package)
+          - const: renesas,r9a06g032
+
+      - description: RZ/N1{D,S} EB
+        items:
+          - enum:
+              - renesas,rzn1d400-eb # RZN1D-EB (Expansion Board when using a RZN1D-DB)
+          - const: renesas,rzn1d400-db
           - const: renesas,r9a06g032
 
       - description: RZ/Five and RZ/G2UL (R9A07G043)

@@ -773,6 +773,7 @@ static inline u32 vmw_max_num_uavs(struct vmw_private *dev_priv)
 
 extern void vmw_svga_enable(struct vmw_private *dev_priv);
 extern void vmw_svga_disable(struct vmw_private *dev_priv);
+bool vmwgfx_supported(struct vmw_private *vmw);
 
 
 /**
@@ -1358,6 +1359,7 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 		    struct vmw_diff_cpy *diff);
 
 /* Host messaging -vmwgfx_msg.c: */
+void vmw_disable_backdoor(void);
 int vmw_host_get_guestinfo(const char *guest_info_param,
 			   char *buffer, size_t *length);
 __printf(1, 2) int vmw_host_printf(const char *fmt, ...);

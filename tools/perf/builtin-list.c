@@ -127,7 +127,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	if (strcmp(print_state->last_topic, topic ?: "")) {
 		if (topic)
 			printf("\n%s:\n", topic);
-		free(print_state->last_topic);
+		zfree(&print_state->last_topic);
 		print_state->last_topic = strdup(topic ?: "");
 	}
 
@@ -168,6 +168,7 @@ static void default_print_metric(void *ps,
 				const char *desc,
 				const char *long_desc,
 				const char *expr,
+				const char *threshold,
 				const char *unit __maybe_unused)
 {
 	struct print_state *print_state = ps;
@@ -196,7 +197,7 @@ static void default_print_metric(void *ps,
 			else
 				printf("%s\n", group);
 		}
-		free(print_state->last_metricgroups);
+		zfree(&print_state->last_metricgroups);
 		print_state->last_metricgroups = strdup(group ?: "");
 	}
 	if (!print_state->metrics)
@@ -225,6 +226,11 @@ static void default_print_metric(void *ps,
 	if (expr && print_state->detailed) {
 		printf("%*s", 8, "[");
 		wordwrap(expr, 8, pager_get_columns(), 0);
+		printf("]\n");
+	}
+	if (threshold && print_state->detailed) {
+		printf("%*s", 8, "[");
+		wordwrap(threshold, 8, pager_get_columns(), 0);
 		printf("]\n");
 	}
 }
@@ -272,10 +278,10 @@ static void fix_escape_printf(struct strbuf *buf, const char *fmt, ...)
 						strbuf_addstr(buf, "\\n");
 						break;
 					case '\\':
-						__fallthrough;
+						fallthrough;
 					case '\"':
 						strbuf_addch(buf, '\\');
-						__fallthrough;
+						fallthrough;
 					default:
 						strbuf_addch(buf, s[s_pos]);
 						break;
@@ -367,7 +373,7 @@ static void json_print_event(void *ps, const char *pmu_name, const char *topic,
 static void json_print_metric(void *ps __maybe_unused, const char *group,
 			      const char *name, const char *desc,
 			      const char *long_desc, const char *expr,
-			      const char *unit)
+			      const char *threshold, const char *unit)
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
@@ -386,6 +392,11 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 	}
 	if (expr) {
 		fix_escape_printf(&buf, "%s\t\"MetricExpr\": \"%S\"", need_sep ? ",\n" : "", expr);
+		need_sep = true;
+	}
+	if (threshold) {
+		fix_escape_printf(&buf, "%s\t\"MetricThreshold\": \"%S\"", need_sep ? ",\n" : "",
+				  threshold);
 		need_sep = true;
 	}
 	if (unit) {

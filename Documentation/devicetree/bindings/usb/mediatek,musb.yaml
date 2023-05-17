@@ -68,8 +68,8 @@ properties:
     type: object
 
 dependencies:
-  usb-role-switch: [ 'connector' ]
-  connector: [ 'usb-role-switch' ]
+  usb-role-switch: [ connector ]
+  connector: [ usb-role-switch ]
 
 required:
   - compatible

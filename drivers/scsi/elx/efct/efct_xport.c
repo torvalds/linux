@@ -10,7 +10,7 @@
 static struct dentry *efct_debugfs_root;
 static atomic_t efct_debugfs_count;
 
-static struct scsi_host_template efct_template = {
+static const struct scsi_host_template efct_template = {
 	.module			= THIS_MODULE,
 	.name			= EFCT_DRIVER_NAME,
 	.supported_mode		= MODE_TARGET,

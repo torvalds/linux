@@ -16,7 +16,6 @@
 #include <linux/types.h>
 
 struct device;
-struct net_device;
 
 enum dev_prop_type {
 	DEV_PROP_U8,
@@ -40,20 +39,20 @@ struct fwnode_handle *__dev_fwnode(struct device *dev);
 		 const struct device *: __dev_fwnode_const,	\
 		 struct device *: __dev_fwnode)(dev)
 
-bool device_property_present(struct device *dev, const char *propname);
-int device_property_read_u8_array(struct device *dev, const char *propname,
+bool device_property_present(const struct device *dev, const char *propname);
+int device_property_read_u8_array(const struct device *dev, const char *propname,
 				  u8 *val, size_t nval);
-int device_property_read_u16_array(struct device *dev, const char *propname,
+int device_property_read_u16_array(const struct device *dev, const char *propname,
 				   u16 *val, size_t nval);
-int device_property_read_u32_array(struct device *dev, const char *propname,
+int device_property_read_u32_array(const struct device *dev, const char *propname,
 				   u32 *val, size_t nval);
-int device_property_read_u64_array(struct device *dev, const char *propname,
+int device_property_read_u64_array(const struct device *dev, const char *propname,
 				   u64 *val, size_t nval);
-int device_property_read_string_array(struct device *dev, const char *propname,
+int device_property_read_string_array(const struct device *dev, const char *propname,
 				      const char **val, size_t nval);
-int device_property_read_string(struct device *dev, const char *propname,
+int device_property_read_string(const struct device *dev, const char *propname,
 				const char **val);
-int device_property_match_string(struct device *dev,
+int device_property_match_string(const struct device *dev,
 				 const char *propname, const char *string);
 
 bool fwnode_property_present(const struct fwnode_handle *fwnode,
@@ -105,11 +104,11 @@ struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
 	for (parent = fwnode_get_parent(fwnode); parent;	\
 	     parent = fwnode_get_next_parent(parent))
 
-struct device *fwnode_get_next_parent_dev(struct fwnode_handle *fwnode);
+struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode);
 unsigned int fwnode_count_parents(const struct fwnode_handle *fwn);
 struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwn,
 					    unsigned int depth);
-bool fwnode_is_ancestor_of(struct fwnode_handle *ancestor, struct fwnode_handle *child);
+bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fwnode_handle *child);
 struct fwnode_handle *fwnode_get_next_child_node(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 struct fwnode_handle *fwnode_get_next_available_child_node(
@@ -143,57 +142,57 @@ int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name);
 
 unsigned int device_get_child_node_count(const struct device *dev);
 
-static inline bool device_property_read_bool(struct device *dev,
+static inline bool device_property_read_bool(const struct device *dev,
 					     const char *propname)
 {
 	return device_property_present(dev, propname);
 }
 
-static inline int device_property_read_u8(struct device *dev,
+static inline int device_property_read_u8(const struct device *dev,
 					  const char *propname, u8 *val)
 {
 	return device_property_read_u8_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u16(struct device *dev,
+static inline int device_property_read_u16(const struct device *dev,
 					   const char *propname, u16 *val)
 {
 	return device_property_read_u16_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u32(struct device *dev,
+static inline int device_property_read_u32(const struct device *dev,
 					   const char *propname, u32 *val)
 {
 	return device_property_read_u32_array(dev, propname, val, 1);
 }
 
-static inline int device_property_read_u64(struct device *dev,
+static inline int device_property_read_u64(const struct device *dev,
 					   const char *propname, u64 *val)
 {
 	return device_property_read_u64_array(dev, propname, val, 1);
 }
 
-static inline int device_property_count_u8(struct device *dev, const char *propname)
+static inline int device_property_count_u8(const struct device *dev, const char *propname)
 {
 	return device_property_read_u8_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u16(struct device *dev, const char *propname)
+static inline int device_property_count_u16(const struct device *dev, const char *propname)
 {
 	return device_property_read_u16_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u32(struct device *dev, const char *propname)
+static inline int device_property_count_u32(const struct device *dev, const char *propname)
 {
 	return device_property_read_u32_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_count_u64(struct device *dev, const char *propname)
+static inline int device_property_count_u64(const struct device *dev, const char *propname)
 {
 	return device_property_read_u64_array(dev, propname, NULL, 0);
 }
 
-static inline int device_property_string_array_count(struct device *dev,
+static inline int device_property_string_array_count(const struct device *dev,
 						     const char *propname)
 {
 	return device_property_read_string_array(dev, propname, NULL, 0);
@@ -396,7 +395,7 @@ enum dev_dma_attr device_get_dma_attr(const struct device *dev);
 const void *device_get_match_data(const struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
-int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
+int fwnode_get_phy_mode(const struct fwnode_handle *fwnode);
 
 void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index);
 
@@ -433,7 +432,7 @@ static inline bool fwnode_graph_is_endpoint(const struct fwnode_handle *fwnode)
 struct fwnode_handle *
 fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 				u32 port, u32 endpoint, unsigned long flags);
-unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
+unsigned int fwnode_graph_get_endpoint_count(const struct fwnode_handle *fwnode,
 					     unsigned long flags);
 
 #define fwnode_graph_for_each_endpoint(fwnode, child)				\

@@ -45,6 +45,9 @@
 /* minimal number of 2GHz and 5GHz channels in the regular scan request */
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_MIN_CHANS 4
 
+/* Number of iterations on the channel for mei filtered scan */
+#define IWL_MEI_SCAN_NUM_ITER	5U
+
 struct iwl_mvm_scan_timing_params {
 	u32 suspend_time;
 	u32 max_out_time;
@@ -98,6 +101,7 @@ struct iwl_mvm_scan_params {
 	bool scan_6ghz;
 	bool enable_6ghz_passive;
 	bool respect_p2p_go, respect_p2p_go_hb;
+	u8 bssid[ETH_ALEN] __aligned(2);
 };
 
 static inline void *iwl_mvm_get_scan_req_umac_data(struct iwl_mvm *mvm)
@@ -193,8 +197,9 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_scan_iter_data *data = _data;
 	struct iwl_mvm_vif *curr_mvmvif;
 
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+	    mvmvif->deflink.phy_ctxt &&
+	    mvmvif->deflink.phy_ctxt->id < NUM_PHY_CTX)
 		data->global_cnt += 1;
 
 	if (!data->current_vif || vif == data->current_vif)
@@ -203,8 +208,8 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 	curr_mvmvif = iwl_mvm_vif_from_mac80211(data->current_vif);
 
 	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    mvmvif->phy_ctxt && curr_mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id != curr_mvmvif->phy_ctxt->id)
+	    mvmvif->deflink.phy_ctxt && curr_mvmvif->deflink.phy_ctxt &&
+	    mvmvif->deflink.phy_ctxt->id != curr_mvmvif->deflink.phy_ctxt->id)
 		data->is_dcm_with_p2p_go = true;
 }
 
@@ -239,8 +244,9 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 		 * set all scan requests as fast-balance scan
 		 */
 		if (vif && vif->type == NL80211_IFTYPE_STATION &&
-		    vif->bss_conf.dtim_period < 220 &&
-		    data.is_dcm_with_p2p_go)
+		    data.is_dcm_with_p2p_go &&
+		    ((vif->bss_conf.beacon_int *
+		      vif->bss_conf.dtim_period) < 220))
 			return IWL_SCAN_TYPE_FAST_BALANCE;
 	}
 
@@ -758,7 +764,7 @@ iwl_mvm_build_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
 	eth_broadcast_addr(frame->da);
-	eth_broadcast_addr(frame->bssid);
+	ether_addr_copy(frame->bssid, params->bssid);
 	frame->seq_ctrl = 0;
 
 	pos = frame->u.probe_req.variable;
@@ -2080,6 +2086,11 @@ static u8 iwl_mvm_scan_umac_flags2(struct iwl_mvm *mvm,
 				IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_HB;
 	}
 
+	if (params->scan_6ghz &&
+	    fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SCAN_DONT_TOGGLE_ANT))
+		flags |= IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_DONT_TOGGLE_ANT;
+
 	return flags;
 }
 
@@ -2291,7 +2302,7 @@ iwl_mvm_scan_umac_fill_general_p_v11(struct iwl_mvm *mvm,
 
 	iwl_mvm_scan_umac_dwell_v11(mvm, gp, params);
 
-	IWL_DEBUG_SCAN(mvm, "Gerenal: flags=0x%x, flags2=0x%x\n",
+	IWL_DEBUG_SCAN(mvm, "General: flags=0x%x, flags2=0x%x\n",
 		       gen_flags, gen_flags2);
 
 	gp->flags = cpu_to_le16(gen_flags);
@@ -2616,6 +2627,89 @@ static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
 	IWL_SCAN_UMAC_HANDLER(12),
 };
 
+static void iwl_mvm_mei_scan_work(struct work_struct *wk)
+{
+	struct iwl_mei_scan_filter *scan_filter =
+		container_of(wk, struct iwl_mei_scan_filter, scan_work);
+	struct iwl_mvm *mvm =
+		container_of(scan_filter, struct iwl_mvm, mei_scan_filter);
+	struct iwl_mvm_csme_conn_info *info;
+	struct sk_buff *skb;
+	u8 bssid[ETH_ALEN];
+
+	mutex_lock(&mvm->mutex);
+	info = iwl_mvm_get_csme_conn_info(mvm);
+	memcpy(bssid, info->conn_info.bssid, ETH_ALEN);
+	mutex_unlock(&mvm->mutex);
+
+	while ((skb = skb_dequeue(&scan_filter->scan_res))) {
+		struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+		if (!memcmp(mgmt->bssid, bssid, ETH_ALEN))
+			ieee80211_rx_irqsafe(mvm->hw, skb);
+		else
+			kfree_skb(skb);
+	}
+}
+
+void iwl_mvm_mei_scan_filter_init(struct iwl_mei_scan_filter *mei_scan_filter)
+{
+	skb_queue_head_init(&mei_scan_filter->scan_res);
+	INIT_WORK(&mei_scan_filter->scan_work, iwl_mvm_mei_scan_work);
+}
+
+/* In case CSME is connected and has link protection set, this function will
+ * override the scan request to scan only the associated channel and only for
+ * the associated SSID.
+ */
+static void iwl_mvm_mei_limited_scan(struct iwl_mvm *mvm,
+				     struct iwl_mvm_scan_params *params)
+{
+	struct iwl_mvm_csme_conn_info *info = iwl_mvm_get_csme_conn_info(mvm);
+	struct iwl_mei_conn_info *conn_info;
+	struct ieee80211_channel *chan;
+	int scan_iters, i;
+
+	if (!info) {
+		IWL_DEBUG_SCAN(mvm, "mei_limited_scan: no connection info\n");
+		return;
+	}
+
+	conn_info = &info->conn_info;
+	if (!info->conn_info.lp_state || !info->conn_info.ssid_len)
+		return;
+
+	if (!params->n_channels || !params->n_ssids)
+		return;
+
+	mvm->mei_scan_filter.is_mei_limited_scan = true;
+
+	chan = ieee80211_get_channel(mvm->hw->wiphy,
+				     ieee80211_channel_to_frequency(conn_info->channel,
+								    conn_info->band));
+	if (!chan) {
+		IWL_DEBUG_SCAN(mvm,
+			       "Failed to get CSME channel (chan=%u band=%u)\n",
+			       conn_info->channel, conn_info->band);
+		return;
+	}
+
+	/* The mei filtered scan must find the AP, otherwise CSME will
+	 * take the NIC ownership. Add several iterations on the channel to
+	 * make the scan more robust.
+	 */
+	scan_iters = min(IWL_MEI_SCAN_NUM_ITER, params->n_channels);
+	params->n_channels = scan_iters;
+	for (i = 0; i < scan_iters; i++)
+		params->channels[i] = chan;
+
+	IWL_DEBUG_SCAN(mvm, "Mei scan: num iterations=%u\n", scan_iters);
+
+	params->n_ssids = 1;
+	params->ssids[0].ssid_len = conn_info->ssid_len;
+	memcpy(params->ssids[0].ssid, conn_info->ssid, conn_info->ssid_len);
+}
+
 static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif,
 				  struct iwl_host_cmd *hcmd,
@@ -2627,6 +2721,8 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 	memset(mvm->scan_cmd, 0, mvm->scan_cmd_size);
+
+	iwl_mvm_mei_limited_scan(mvm, params);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		hcmd->id = SCAN_OFFLOAD_REQUEST_CMD;
@@ -2676,11 +2772,23 @@ static void iwl_mvm_scan_respect_p2p_go_iter(void *_data, u8 *mac,
 	if (vif == data->current_vif)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    mvmvif->phy_ctxt->id < NUM_PHY_CTX &&
-	    (data->band == NUM_NL80211_BANDS ||
-	     mvmvif->phy_ctxt->channel->band == data->band))
-		data->p2p_go = true;
+	if (vif->type == NL80211_IFTYPE_AP && vif->p2p) {
+		u32 link_id;
+
+		for (link_id = 0;
+		     link_id < ARRAY_SIZE(mvmvif->link);
+		     link_id++) {
+			struct iwl_mvm_vif_link_info *link =
+				mvmvif->link[link_id];
+
+			if (link && link->phy_ctxt->id < NUM_PHY_CTX &&
+			    (data->band == NUM_NL80211_BANDS ||
+			     link->phy_ctxt->channel->band == data->band)) {
+				data->p2p_go = true;
+				break;
+			}
+		}
+	}
 }
 
 static bool _iwl_mvm_get_respect_p2p_go(struct iwl_mvm *mvm,
@@ -2782,6 +2890,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.pass_all = true;
 	params.n_match_sets = 0;
 	params.match_sets = NULL;
+	ether_addr_copy(params.bssid, req->bssid);
 
 	params.scan_plans = &scan_plan;
 	params.n_scan_plans = 1;
@@ -2875,6 +2984,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.pass_all =  iwl_mvm_scan_pass_all(mvm, req);
 	params.n_match_sets = req->n_match_sets;
 	params.match_sets = req->match_sets;
+	eth_broadcast_addr(params.bssid);
 	if (!req->n_scan_plans)
 		return -EINVAL;
 
@@ -2970,6 +3080,8 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	u32 uid = __le32_to_cpu(notif->uid);
 	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
+	mvm->mei_scan_filter.is_mei_limited_scan = false;
+
 	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
 		return;
 
@@ -2980,7 +3092,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 			.scan_start_tsf = mvm->scan_start,
 		};
 
-		memcpy(info.tsf_bssid, mvm->scan_vif->bssid, ETH_ALEN);
+		memcpy(info.tsf_bssid, mvm->scan_vif->deflink.bssid, ETH_ALEN);
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
 		cancel_delayed_work(&mvm->scan_timeout_dwork);

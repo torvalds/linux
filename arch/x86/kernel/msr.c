@@ -263,7 +263,7 @@ static int __init msr_init(void)
 		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		return -EBUSY;
 	}
-	msr_class = class_create(THIS_MODULE, "msr");
+	msr_class = class_create("msr");
 	if (IS_ERR(msr_class)) {
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;

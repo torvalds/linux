@@ -152,3 +152,9 @@ void unix_destruct_scm(struct sk_buff *skb)
 	sock_wfree(skb);
 }
 EXPORT_SYMBOL(unix_destruct_scm);
+
+void io_uring_destruct_scm(struct sk_buff *skb)
+{
+	unix_destruct_scm(skb);
+}
+EXPORT_SYMBOL(io_uring_destruct_scm);

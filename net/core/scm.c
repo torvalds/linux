@@ -250,7 +250,10 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 	}
 
 	cmlen = min(CMSG_SPACE(len), msg->msg_controllen);
-	msg->msg_control += cmlen;
+	if (msg->msg_control_is_user)
+		msg->msg_control_user += cmlen;
+	else
+		msg->msg_control += cmlen;
 	msg->msg_controllen -= cmlen;
 	return 0;
 
@@ -299,7 +302,7 @@ static int scm_max_fds(struct msghdr *msg)
 void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 {
 	struct cmsghdr __user *cm =
-		(__force struct cmsghdr __user *)msg->msg_control;
+		(__force struct cmsghdr __user *)msg->msg_control_user;
 	unsigned int o_flags = (msg->msg_flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
 	int fdmax = min_t(int, scm_max_fds(msg), scm->fp->count);
 	int __user *cmsg_data = CMSG_USER_DATA(cm);
@@ -332,7 +335,7 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 			cmlen = CMSG_SPACE(i * sizeof(int));
 			if (msg->msg_controllen < cmlen)
 				cmlen = msg->msg_controllen;
-			msg->msg_control += cmlen;
+			msg->msg_control_user += cmlen;
 			msg->msg_controllen -= cmlen;
 		}
 	}

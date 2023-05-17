@@ -83,11 +83,6 @@ static void __init adder875_setup(void)
 	init_ioports();
 }
 
-static int __init adder875_probe(void)
-{
-	return of_machine_is_compatible("analogue-and-micro,adder875");
-}
-
 static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{},
@@ -102,11 +97,10 @@ machine_device_initcall(adder875, declare_of_platform_devices);
 
 define_machine(adder875) {
 	.name = "Adder MPC875",
-	.probe = adder875_probe,
+	.compatible = "analogue-and-micro,adder875",
 	.setup_arch = adder875_setup,
 	.init_IRQ = mpc8xx_pic_init,
 	.get_irq = mpc8xx_get_irq,
 	.restart = mpc8xx_restart,
-	.calibrate_decr = generic_calibrate_decr,
 	.progress = udbg_progress,
 };

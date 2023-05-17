@@ -42,7 +42,7 @@ properties:
   reset-names: true
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
   - if:
       properties:
         compatible:

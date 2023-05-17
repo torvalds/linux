@@ -13,6 +13,9 @@
 #include <linux/uuid.h>
 #include "cifsglob.h"
 
+extern struct workqueue_struct *dfscache_wq;
+extern atomic_t dfs_cache_ttl;
+
 #define DFS_CACHE_TGT_LIST_INIT(var) { .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
 
 struct dfs_cache_tgt_list {
@@ -40,10 +43,9 @@ int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iter
 			       struct dfs_info3_param *ref);
 int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
 			    char **prefix);
-void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id);
-void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses);
 char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
 int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb);
+void dfs_cache_refresh(struct work_struct *work);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,
@@ -89,6 +91,11 @@ static inline int
 dfs_cache_get_nr_tgts(const struct dfs_cache_tgt_list *tl)
 {
 	return tl ? tl->tl_numtgts : 0;
+}
+
+static inline int dfs_cache_get_ttl(void)
+{
+	return atomic_read(&dfs_cache_ttl);
 }
 
 #endif /* _CIFS_DFS_CACHE_H */

@@ -305,7 +305,11 @@ struct sdio_data intf_data;
 };
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
-#define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
+
+static inline struct dvobj_priv *pwrctl_to_dvobj(struct pwrctrl_priv *pwrctl_priv)
+{
+	return container_of(pwrctl_priv, struct dvobj_priv, pwrctl_priv);
+}
 
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {

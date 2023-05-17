@@ -105,7 +105,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 
-		enable-gpio = <&gpio_ao GPIOE_2 GPIO_OPEN_DRAIN>;
+		enable-gpios = <&gpio_ao GPIOE_2 GPIO_OPEN_DRAIN>;
 		enable-active-high;
 		regulator-always-on;
 
@@ -316,7 +316,7 @@
 	 * be handled by a USB specific power sequence to reset the Hub
 	 * when the USB bus is powered down.
 	 */
-	usb-hub {
+	usb-hub-hog {
 		gpio-hog;
 		gpios = <GPIOH_4 GPIO_ACTIVE_HIGH>;
 		output-high;

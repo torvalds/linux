@@ -227,7 +227,6 @@ out_iounmap:
 	pci_iounmap(pdev, addr);
 out_release_regions:
 	pci_disable_msi(pdev);
-	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 out_disable_device:
 	pci_disable_device(pdev);
@@ -247,7 +246,6 @@ static void c_can_pci_remove(struct pci_dev *pdev)
 
 	pci_iounmap(pdev, addr);
 	pci_disable_msi(pdev);
-	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }

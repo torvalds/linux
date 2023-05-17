@@ -2131,7 +2131,7 @@ sk_dst_get(struct sock *sk)
 
 	rcu_read_lock();
 	dst = rcu_dereference(sk->sk_dst_cache);
-	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
+	if (dst && !rcuref_get(&dst->__rcuref))
 		dst = NULL;
 	rcu_read_unlock();
 	return dst;
@@ -2697,7 +2697,7 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 	else
 		sock_write_timestamp(sk, kt);
 
-	if (sock_flag(sk, SOCK_WIFI_STATUS) && skb->wifi_acked_valid)
+	if (sock_flag(sk, SOCK_WIFI_STATUS) && skb_wifi_acked_valid(skb))
 		__sock_recv_wifi_status(msg, sk, skb);
 }
 

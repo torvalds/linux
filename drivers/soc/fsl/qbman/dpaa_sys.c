@@ -39,8 +39,7 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 {
 	struct device_node *mem_node;
 	struct reserved_mem *rmem;
-	struct property *prop;
-	int len, err;
+	int err;
 	__be32 *res_array;
 
 	mem_node = of_parse_phandle(dev->of_node, "memory-region", idx);
@@ -63,8 +62,9 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 	 * This is needed because QBMan HW does not allow the base address/
 	 * size to be modified once set.
 	 */
-	prop = of_find_property(mem_node, "reg", &len);
-	if (!prop) {
+	if (!of_property_present(mem_node, "reg")) {
+		struct property *prop;
+
 		prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
 		if (!prop)
 			return -ENOMEM;

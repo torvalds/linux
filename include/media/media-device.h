@@ -364,7 +364,7 @@ void media_device_unregister_entity(struct media_entity *entity);
  *    media_entity_notify callbacks are invoked.
  */
 
-int __must_check media_device_register_entity_notify(struct media_device *mdev,
+void media_device_register_entity_notify(struct media_device *mdev,
 					struct media_entity_notify *nptr);
 
 /**
@@ -444,11 +444,10 @@ static inline int media_device_register_entity(struct media_device *mdev,
 static inline void media_device_unregister_entity(struct media_entity *entity)
 {
 }
-static inline int media_device_register_entity_notify(
+static inline void media_device_register_entity_notify(
 					struct media_device *mdev,
 					struct media_entity_notify *nptr)
 {
-	return 0;
 }
 static inline void media_device_unregister_entity_notify(
 					struct media_device *mdev,

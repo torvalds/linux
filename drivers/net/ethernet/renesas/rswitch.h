@@ -998,6 +998,7 @@ struct rswitch_private {
 	struct rcar_gen4_ptp_private *ptp_priv;
 
 	struct rswitch_device *rdev[RSWITCH_NUM_PORTS];
+	DECLARE_BITMAP(opened_ports, RSWITCH_NUM_PORTS);
 
 	struct rswitch_gwca gwca;
 	struct rswitch_etha etha[RSWITCH_NUM_PORTS];

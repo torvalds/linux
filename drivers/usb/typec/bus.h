@@ -28,7 +28,7 @@ struct altmode {
 
 #define to_altmode(d) container_of(d, struct altmode, adev)
 
-extern struct bus_type typec_bus;
+extern const struct bus_type typec_bus;
 extern const struct device_type typec_altmode_dev_type;
 
 #define is_typec_altmode(_dev_) (_dev_->type == &typec_altmode_dev_type)

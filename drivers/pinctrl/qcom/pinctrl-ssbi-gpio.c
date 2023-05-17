@@ -652,12 +652,30 @@ static int pm8xxx_pin_populate(struct pm8xxx_gpio *pctrl,
 	return 0;
 }
 
-static struct irq_chip pm8xxx_irq_chip = {
+static void pm8xxx_irq_disable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
+}
+
+static void pm8xxx_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+}
+
+static const struct irq_chip pm8xxx_irq_chip = {
 	.name = "ssbi-gpio",
 	.irq_mask_ack = irq_chip_mask_ack_parent,
 	.irq_unmask = irq_chip_unmask_parent,
+	.irq_disable = pm8xxx_irq_disable,
+	.irq_enable = pm8xxx_irq_enable,
 	.irq_set_type = irq_chip_set_type_parent,
-	.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
+	.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE |
+		IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int pm8xxx_domain_translate(struct irq_domain *domain,
@@ -788,7 +806,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	girq = &pctrl->chip.irq;
-	girq->chip = &pm8xxx_irq_chip;
+	gpio_irq_chip_set_chip(girq, &pm8xxx_irq_chip);
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
 	girq->fwnode = dev_fwnode(pctrl->dev);

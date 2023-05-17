@@ -3163,7 +3163,7 @@ static int __init rtrs_client_init(void)
 {
 	rtrs_rdma_dev_pd_init(0, &dev_pd);
 
-	rtrs_clt_dev_class = class_create(THIS_MODULE, "rtrs-client");
+	rtrs_clt_dev_class = class_create("rtrs-client");
 	if (IS_ERR(rtrs_clt_dev_class)) {
 		pr_err("Failed to create rtrs-client dev class\n");
 		return PTR_ERR(rtrs_clt_dev_class);

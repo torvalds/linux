@@ -842,11 +842,9 @@ static int tegra_admaif_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_admaif_remove(struct platform_device *pdev)
+static void tegra_admaif_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra_admaif_pm_ops = {
@@ -858,7 +856,7 @@ static const struct dev_pm_ops tegra_admaif_pm_ops = {
 
 static struct platform_driver tegra_admaif_driver = {
 	.probe = tegra_admaif_probe,
-	.remove = tegra_admaif_remove,
+	.remove_new = tegra_admaif_remove,
 	.driver = {
 		.name = "tegra210-admaif",
 		.of_match_table = tegra_admaif_of_match,

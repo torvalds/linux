@@ -74,7 +74,7 @@ static void rv_list(int argc, char **argv)
 static void rv_mon(int argc, char **argv)
 {
 	char *monitor_name;
-	int i, run;
+	int i, run = 0;
 
 	static const char *const usage[] = {
 		"",

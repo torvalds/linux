@@ -27,6 +27,7 @@ enum btrfs_reserve_flush_enum {
 	 * - Running delayed refs
 	 * - Running delalloc and waiting for ordered extents
 	 * - Allocating a new chunk
+	 * - Committing transaction
 	 */
 	BTRFS_RESERVE_FLUSH_EVICT,
 
@@ -96,8 +97,6 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
-	/* Total bytes in the space, but only accounts active block groups. */
-	u64 active_total_bytes;
 	u64 bytes_zone_unusable;	/* total bytes that are unusable until
 					   resetting the device zone */
 

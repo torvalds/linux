@@ -1059,7 +1059,7 @@
 			compatible = "renesas,ipmmu-r8a779f0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
 			reg = <0 0xee480000 0 0x20000>;
-			renesas,ipmmu-main = <&ipmmu_mm 10>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
 			power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
 		};
@@ -1068,7 +1068,7 @@
 			compatible = "renesas,ipmmu-r8a779f0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
 			reg = <0 0xee4c0000 0 0x20000>;
-			renesas,ipmmu-main = <&ipmmu_mm 19>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
 			power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
 		};
@@ -1077,7 +1077,7 @@
 			compatible = "renesas,ipmmu-r8a779f0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
 			reg = <0 0xeed00000 0 0x20000>;
-			renesas,ipmmu-main = <&ipmmu_mm 0>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
 			power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
 		};
@@ -1086,7 +1086,7 @@
 			compatible = "renesas,ipmmu-r8a779f0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
 			reg = <0 0xeed40000 0 0x20000>;
-			renesas,ipmmu-main = <&ipmmu_mm 2>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
 			power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
 		};
@@ -1108,8 +1108,7 @@
 			interrupt-controller;
 			reg = <0x0 0xf1000000 0 0x20000>,
 			      <0x0 0xf1060000 0 0x110000>;
-			interrupts = <GIC_PPI 9
-				      (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		prr: chipid@fff00044 {
@@ -1119,7 +1118,7 @@
 	};
 
 	thermal-zones {
-		sensor_thermal1: sensor1-thermal {
+		sensor_thermal_rtcore: sensor1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 			thermal-sensors = <&tsc 0>;
@@ -1133,7 +1132,7 @@
 			};
 		};
 
-		sensor_thermal2: sensor2-thermal {
+		sensor_thermal_apcore0: sensor2-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 			thermal-sensors = <&tsc 1>;
@@ -1147,7 +1146,7 @@
 			};
 		};
 
-		sensor_thermal3: sensor3-thermal {
+		sensor_thermal_apcore4: sensor3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 			thermal-sensors = <&tsc 2>;
@@ -1164,10 +1163,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts-extended = <&gic GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupts-extended = <&gic GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+				      <&gic GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+				      <&gic GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+				      <&gic GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	ufs30_clk: ufs30-clk {

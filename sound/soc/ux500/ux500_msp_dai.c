@@ -791,7 +791,7 @@ err_reg_plat:
 	return ret;
 }
 
-static int ux500_msp_drv_remove(struct platform_device *pdev)
+static void ux500_msp_drv_remove(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
@@ -802,8 +802,6 @@ static int ux500_msp_drv_remove(struct platform_device *pdev)
 	prcmu_qos_remove_requirement(PRCMU_QOS_APE_OPP, "ux500_msp_i2s");
 
 	ux500_msp_i2s_cleanup_msp(pdev, drvdata->msp);
-
-	return 0;
 }
 
 static const struct of_device_id ux500_msp_i2s_match[] = {
@@ -818,7 +816,7 @@ static struct platform_driver msp_i2s_driver = {
 		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,
-	.remove = ux500_msp_drv_remove,
+	.remove_new = ux500_msp_drv_remove,
 };
 module_platform_driver(msp_i2s_driver);
 

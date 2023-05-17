@@ -11,6 +11,7 @@ struct ksym_relo_desc {
 	int insn_idx;
 	bool is_weak;
 	bool is_typeless;
+	bool is_ld64;
 };
 
 struct ksym_desc {
@@ -24,6 +25,7 @@ struct ksym_desc {
 		bool typeless;
 	};
 	int insn;
+	bool is_ld64;
 };
 
 struct bpf_gen {
@@ -65,7 +67,7 @@ void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *value, __u
 void bpf_gen__map_freeze(struct bpf_gen *gen, int map_idx);
 void bpf_gen__record_attach_target(struct bpf_gen *gen, const char *name, enum bpf_attach_type type);
 void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
-			    bool is_typeless, int kind, int insn_idx);
+			    bool is_typeless, bool is_ld64, int kind, int insn_idx);
 void bpf_gen__record_relo_core(struct bpf_gen *gen, const struct bpf_core_relo *core_relo);
 void bpf_gen__populate_outer_map(struct bpf_gen *gen, int outer_map_idx, int key, int inner_map_idx);
 

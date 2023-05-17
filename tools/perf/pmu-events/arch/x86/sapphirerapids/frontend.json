@@ -1,5 +1,13 @@
 [
     {
+        "BriefDescription": "Clears due to Unknown Branches.",
+        "EventCode": "0x60",
+        "EventName": "BACLEARS.ANY",
+        "PublicDescription": "Number of times the front-end is resteered when it finds a branch instruction in a fetch line. This is called Unknown Branch which occurs for the first time a branch instruction is fetched or when the branch is not tracked by the BPU (Branch Prediction Unit) anymore.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Stalls caused by changing prefix length of the instruction.",
         "EventCode": "0x87",
         "EventName": "DECODE.LCP",

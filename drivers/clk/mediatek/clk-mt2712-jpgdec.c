@@ -18,14 +18,8 @@ static const struct mtk_gate_regs jpgdec_cg_regs = {
 	.sta_ofs = 0x0,
 };
 
-#define GATE_JPGDEC(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &jpgdec_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr_inv,	\
-	}
+#define GATE_JPGDEC(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &jpgdec_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 static const struct mtk_gate jpgdec_clks[] = {
 	GATE_JPGDEC(CLK_JPGDEC_JPGDEC1, "jpgdec_jpgdec1", "jpgdec_sel", 0),
@@ -45,6 +39,7 @@ static const struct of_device_id of_match_clk_mt2712_jpgdec[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2712_jpgdec);
 
 static struct platform_driver clk_mt2712_jpgdec_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -54,5 +49,5 @@ static struct platform_driver clk_mt2712_jpgdec_drv = {
 		.of_match_table = of_match_clk_mt2712_jpgdec,
 	},
 };
-
-builtin_platform_driver(clk_mt2712_jpgdec_drv);
+module_platform_driver(clk_mt2712_jpgdec_drv);
+MODULE_LICENSE("GPL");

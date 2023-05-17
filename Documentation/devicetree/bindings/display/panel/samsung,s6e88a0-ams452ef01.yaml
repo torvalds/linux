@@ -16,6 +16,7 @@ properties:
   compatible:
     const: samsung,s6e88a0-ams452ef01
   reg: true
+  port: true
   reset-gpios: true
   vdd3-supply:
     description: core voltage supply
@@ -25,6 +26,7 @@ properties:
 required:
   - compatible
   - reg
+  - port
   - vdd3-supply
   - vci-supply
   - reset-gpios
@@ -46,5 +48,11 @@ examples:
                     vdd3-supply = <&pm8916_l17>;
                     vci-supply = <&reg_vlcd_vci>;
                     reset-gpios = <&msmgpio 25 GPIO_ACTIVE_HIGH>;
+
+                    port {
+                            panel_in: endpoint {
+                                    remote-endpoint = <&dsi0_out>;
+                            };
+                    };
             };
     };

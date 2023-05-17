@@ -175,6 +175,12 @@ typedef struct {
 } atomic64_t;
 #endif
 
+typedef struct {
+	atomic_t refcnt;
+} rcuref_t;
+
+#define RCUREF_INIT(i)	{ .refcnt = ATOMIC_INIT(i - 1) }
+
 struct list_head {
 	struct list_head *next, *prev;
 };

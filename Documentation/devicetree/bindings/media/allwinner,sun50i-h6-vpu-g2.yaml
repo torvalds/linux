@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/allwinner,sun50i-h6-vpu-g2.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/allwinner,sun50i-h6-vpu-g2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Hantro G2 VPU codec implemented on Allwinner H6 SoC
 

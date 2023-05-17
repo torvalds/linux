@@ -79,7 +79,7 @@
 
 		/* LAN port */
 		ethernet@c8009000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 3>;
 			queue-txready = <&qmgr 20>;
 			phy-mode = "rgmii";

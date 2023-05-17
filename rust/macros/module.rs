@@ -1,8 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use crate::helpers::*;
-use proc_macro::{token_stream, Literal, TokenStream, TokenTree};
+use proc_macro::{token_stream, Delimiter, Literal, TokenStream, TokenTree};
 use std::fmt::Write;
+
+fn expect_string_array(it: &mut token_stream::IntoIter) -> Vec<String> {
+    let group = expect_group(it);
+    assert_eq!(group.delimiter(), Delimiter::Bracket);
+    let mut values = Vec::new();
+    let mut it = group.stream().into_iter();
+
+    while let Some(val) = try_string(&mut it) {
+        assert!(val.is_ascii(), "Expected ASCII string");
+        values.push(val);
+        match it.next() {
+            Some(TokenTree::Punct(punct)) => assert_eq!(punct.as_char(), ','),
+            None => break,
+            _ => panic!("Expected ',' or end of array"),
+        }
+    }
+    values
+}
 
 struct ModInfoBuilder<'a> {
     module: &'a str,
@@ -78,7 +96,7 @@ struct ModuleInfo {
     name: String,
     author: Option<String>,
     description: Option<String>,
-    alias: Option<String>,
+    alias: Option<Vec<String>>,
 }
 
 impl ModuleInfo {
@@ -112,7 +130,7 @@ impl ModuleInfo {
                 "author" => info.author = Some(expect_string(it)),
                 "description" => info.description = Some(expect_string(it)),
                 "license" => info.license = expect_string_ascii(it),
-                "alias" => info.alias = Some(expect_string_ascii(it)),
+                "alias" => info.alias = Some(expect_string_array(it)),
                 _ => panic!(
                     "Unknown key \"{}\". Valid keys are: {:?}.",
                     key, EXPECTED_KEYS
@@ -163,8 +181,10 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
         modinfo.emit("description", &description);
     }
     modinfo.emit("license", &info.license);
-    if let Some(alias) = info.alias {
-        modinfo.emit("alias", &alias);
+    if let Some(aliases) = info.alias {
+        for alias in aliases {
+            modinfo.emit("alias", &alias);
+        }
     }
 
     // Built-in modules also export the `file` modinfo string.
@@ -258,7 +278,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                         return 0;
                     }}
                     Err(e) => {{
-                        return e.to_kernel_errno();
+                        return e.to_errno();
                     }}
                 }}
             }}

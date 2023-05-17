@@ -32,7 +32,6 @@
 #include <linux/uaccess.h>
 #include <linux/vga_switcheroo.h>
 
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/radeon_drm.h>
@@ -620,23 +619,6 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return -EFAULT;
 	}
 	return 0;
-}
-
-
-/*
- * Outdated mess for old drm with Xorg being in charge (void function now).
- */
-/**
- * radeon_driver_lastclose_kms - drm callback for last close
- *
- * @dev: drm dev pointer
- *
- * Switch vga_switcheroo state after last close (all asics).
- */
-void radeon_driver_lastclose_kms(struct drm_device *dev)
-{
-	drm_fb_helper_lastclose(dev);
-	vga_switcheroo_process_delayed_switch();
 }
 
 /**

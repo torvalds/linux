@@ -1702,7 +1702,7 @@ device_register_rollback:
 	return ret;
 }
 
-static int jpu_remove(struct platform_device *pdev)
+static void jpu_remove(struct platform_device *pdev)
 {
 	struct jpu *jpu = platform_get_drvdata(pdev);
 
@@ -1710,8 +1710,6 @@ static int jpu_remove(struct platform_device *pdev)
 	video_unregister_device(&jpu->vfd_encoder);
 	v4l2_m2m_release(jpu->m2m_dev);
 	v4l2_device_unregister(&jpu->v4l2_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1746,7 +1744,7 @@ static const struct dev_pm_ops jpu_pm_ops = {
 
 static struct platform_driver jpu_driver = {
 	.probe = jpu_probe,
-	.remove = jpu_remove,
+	.remove_new = jpu_remove,
 	.driver = {
 		.of_match_table = jpu_dt_ids,
 		.name = DRV_NAME,

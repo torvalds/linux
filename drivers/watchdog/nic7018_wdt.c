@@ -218,7 +218,7 @@ static int nic7018_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nic7018_remove(struct platform_device *pdev)
+static void nic7018_remove(struct platform_device *pdev)
 {
 	struct nic7018_wdt *wdt = platform_get_drvdata(pdev);
 
@@ -226,8 +226,6 @@ static int nic7018_remove(struct platform_device *pdev)
 
 	/* Lock WDT register */
 	outb(LOCK, wdt->io_base + WDT_REG_LOCK);
-
-	return 0;
 }
 
 static const struct acpi_device_id nic7018_device_ids[] = {
@@ -238,7 +236,7 @@ MODULE_DEVICE_TABLE(acpi, nic7018_device_ids);
 
 static struct platform_driver watchdog_driver = {
 	.probe = nic7018_probe,
-	.remove = nic7018_remove,
+	.remove_new = nic7018_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.acpi_match_table = ACPI_PTR(nic7018_device_ids),

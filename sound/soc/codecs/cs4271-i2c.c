@@ -17,7 +17,6 @@ static int cs4271_i2c_probe(struct i2c_client *client)
 
 	config = cs4271_regmap_config;
 	config.reg_bits = 8;
-	config.val_bits = 8;
 
 	return cs4271_probe(&client->dev,
 			    devm_regmap_init_i2c(client, &config));

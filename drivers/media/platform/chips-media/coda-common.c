@@ -3300,7 +3300,7 @@ err_v4l2_register:
 	return ret;
 }
 
-static int coda_remove(struct platform_device *pdev)
+static void coda_remove(struct platform_device *pdev)
 {
 	struct coda_dev *dev = platform_get_drvdata(pdev);
 	int i;
@@ -3322,7 +3322,6 @@ static int coda_remove(struct platform_device *pdev)
 	coda_free_aux_buf(dev, &dev->workbuf);
 	debugfs_remove_recursive(dev->debugfs_root);
 	ida_destroy(&dev->ida);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -3347,7 +3346,7 @@ static const struct dev_pm_ops coda_pm_ops = {
 
 static struct platform_driver coda_driver = {
 	.probe	= coda_probe,
-	.remove	= coda_remove,
+	.remove_new = coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
 		.of_match_table = coda_dt_ids,

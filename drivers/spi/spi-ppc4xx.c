@@ -464,7 +464,7 @@ free_master:
 	return ret;
 }
 
-static int spi_ppc4xx_of_remove(struct platform_device *op)
+static void spi_ppc4xx_of_remove(struct platform_device *op)
 {
 	struct spi_master *master = platform_get_drvdata(op);
 	struct ppc4xx_spi *hw = spi_master_get_devdata(master);
@@ -474,7 +474,6 @@ static int spi_ppc4xx_of_remove(struct platform_device *op)
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);
 	spi_master_put(master);
-	return 0;
 }
 
 static const struct of_device_id spi_ppc4xx_of_match[] = {
@@ -486,7 +485,7 @@ MODULE_DEVICE_TABLE(of, spi_ppc4xx_of_match);
 
 static struct platform_driver spi_ppc4xx_of_driver = {
 	.probe = spi_ppc4xx_of_probe,
-	.remove = spi_ppc4xx_of_remove,
+	.remove_new = spi_ppc4xx_of_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = spi_ppc4xx_of_match,

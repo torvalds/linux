@@ -38,6 +38,7 @@ properties:
 patternProperties:
   "^.*@[0-3],[a-f0-9]+$":
     type: object
+    additionalProperties: true
     description:
       The actual device nodes should be added as subnodes to the SROMc node.
       These subnodes, in addition to regular device specification, should

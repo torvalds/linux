@@ -189,9 +189,12 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 {
 	struct irqaction *action;
 
-	for_each_action_of_desc(desc, action)
+	for_each_action_of_desc(desc, action) {
 		if (action->thread)
 			set_bit(IRQTF_AFFINITY, &action->thread_flags);
+		if (action->secondary && action->secondary->thread)
+			set_bit(IRQTF_AFFINITY, &action->secondary->thread_flags);
+	}
 }
 
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK

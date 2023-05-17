@@ -138,6 +138,12 @@ static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
 	    alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1)
 		goto err;
 
+	if (buf_location == IWL_FW_INI_LOCATION_DRAM_PATH &&
+	    alloc->req_size == 0) {
+		IWL_ERR(trans, "WRT: Invalid DRAM buffer allocation requested size (0)\n");
+		return -EINVAL;
+	}
+
 	trans->dbg.fw_mon_cfg[alloc_id] = *alloc;
 
 	return 0;
@@ -350,9 +356,9 @@ void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 
 	ret = dbg_tlv_alloc[tlv_idx](trans, tlv);
 	if (ret) {
-		IWL_ERR(trans,
-			"WRT: Failed to allocate TLV 0x%x, ret %d, (ext=%d)\n",
-			type, ret, ext);
+		IWL_WARN(trans,
+			 "WRT: Failed to allocate TLV 0x%x, ret %d, (ext=%d)\n",
+			 type, ret, ext);
 		goto out_err;
 	}
 
@@ -797,7 +803,7 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 		if (!ret)
 			dram_alloc = true;
 		else
-			IWL_WARN(fwrt,
+			IWL_INFO(fwrt,
 				 "WRT: Failed to set DRAM buffer for alloc id %d, ret=%d\n",
 				 i, ret);
 	}
@@ -1218,11 +1224,12 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 		}
 
 		fwrt->trans->dbg.restart_required = FALSE;
-		IWL_DEBUG_INFO(fwrt, "WRT: tp %d, reset_fw %d\n",
-			       tp, dump_data.trig->reset_fw);
-		IWL_DEBUG_INFO(fwrt, "WRT: restart_required %d, last_tp_resetfw %d\n",
-			       fwrt->trans->dbg.restart_required,
-			       fwrt->trans->dbg.last_tp_resetfw);
+		IWL_DEBUG_FW(fwrt, "WRT: tp %d, reset_fw %d\n",
+			     tp, dump_data.trig->reset_fw);
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: restart_required %d, last_tp_resetfw %d\n",
+			     fwrt->trans->dbg.restart_required,
+			     fwrt->trans->dbg.last_tp_resetfw);
 
 		if (fwrt->trans->trans_cfg->device_family ==
 		    IWL_DEVICE_FAMILY_9000) {
@@ -1235,18 +1242,19 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 			IWL_DEBUG_FW(fwrt, "WRT: FW_ASSERT due to reset_fw_mode-no restart\n");
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
 			   IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW) {
-			IWL_DEBUG_INFO(fwrt, "WRT: stop and reload firmware\n");
+			IWL_DEBUG_FW(fwrt, "WRT: stop and reload firmware\n");
 			fwrt->trans->dbg.restart_required = TRUE;
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
 			   IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY) {
-			IWL_DEBUG_INFO(fwrt, "WRT: stop only and no reload firmware\n");
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: stop only and no reload firmware\n");
 			fwrt->trans->dbg.restart_required = FALSE;
 			fwrt->trans->dbg.last_tp_resetfw =
 				le32_to_cpu(dump_data.trig->reset_fw);
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
 			   IWL_FW_INI_RESET_FW_MODE_NOTHING) {
-			IWL_DEBUG_INFO(fwrt,
-				       "WRT: nothing need to be done after debug collection\n");
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: nothing need to be done after debug collection\n");
 		} else {
 			IWL_ERR(fwrt, "WRT: wrong resetfw %d\n",
 				le32_to_cpu(dump_data.trig->reset_fw));

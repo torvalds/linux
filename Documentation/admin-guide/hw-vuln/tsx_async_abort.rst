@@ -63,7 +63,7 @@ attacker needs to begin a TSX transaction and raise an asynchronous abort
 which in turn potentially leaks data stored in the buffers.
 
 More detailed technical information is available in the TAA specific x86
-architecture section: :ref:`Documentation/x86/tsx_async_abort.rst <tsx_async_abort>`.
+architecture section: :ref:`Documentation/arch/x86/tsx_async_abort.rst <tsx_async_abort>`.
 
 
 Attack scenarios

@@ -171,6 +171,10 @@ Getting Help
 Getting LLVM
 -------------
 
+We provide prebuilt stable versions of LLVM on `kernel.org <https://kernel.org/pub/tools/llvm/>`_.
+Below are links that may be useful for building LLVM from source or procuring
+it through a distribution's package manager.
+
 - https://releases.llvm.org/download.html
 - https://github.com/llvm/llvm-project
 - https://llvm.org/docs/GettingStarted.html

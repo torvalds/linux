@@ -422,6 +422,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		}
 
 		of_node_put(codec);
+		of_node_put(plat);
 		node = of_get_next_child(top, node);
 	} while (!is_top && node);
 
@@ -509,9 +510,24 @@ static int simple_count_noml(struct asoc_simple_priv *priv,
 		return -EINVAL;
 	}
 
+	/*
+	 * DON'T REMOVE platforms
+	 *
+	 * Some CPU might be using soc-generic-dmaengine-pcm. This means CPU and Platform
+	 * are different Component, but are sharing same component->dev.
+	 * Simple Card had been supported it without special Platform selection.
+	 * We need platforms here.
+	 *
+	 * In case of no Platform, it will be Platform == CPU, but Platform will be
+	 * ignored by snd_soc_rtd_add_component().
+	 *
+	 * see
+	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
+	 */
 	li->num[li->link].cpus		= 1;
-	li->num[li->link].codecs	= 1;
 	li->num[li->link].platforms	= 1;
+
+	li->num[li->link].codecs	= 1;
 
 	li->link += 1;
 
@@ -531,6 +547,11 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 	}
 
 	if (li->cpu) {
+		/*
+		 * DON'T REMOVE platforms
+		 * see
+		 *	simple_count_noml()
+		 */
 		li->num[li->link].cpus		= 1;
 		li->num[li->link].platforms	= 1;
 

@@ -264,35 +264,21 @@ static void lz4_destroy_compress_ctx(struct compress_ctx *cc)
 	cc->private = NULL;
 }
 
-#ifdef CONFIG_F2FS_FS_LZ4HC
-static int lz4hc_compress_pages(struct compress_ctx *cc)
-{
-	unsigned char level = F2FS_I(cc->inode)->i_compress_level;
-	int len;
-
-	if (level)
-		len = LZ4_compress_HC(cc->rbuf, cc->cbuf->cdata, cc->rlen,
-					cc->clen, level, cc->private);
-	else
-		len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
-						cc->clen, cc->private);
-	if (!len)
-		return -EAGAIN;
-
-	cc->clen = len;
-	return 0;
-}
-#endif
-
 static int lz4_compress_pages(struct compress_ctx *cc)
 {
-	int len;
+	int len = -EINVAL;
+	unsigned char level = F2FS_I(cc->inode)->i_compress_level;
 
-#ifdef CONFIG_F2FS_FS_LZ4HC
-	return lz4hc_compress_pages(cc);
-#endif
-	len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
+	if (!level)
+		len = LZ4_compress_default(cc->rbuf, cc->cbuf->cdata, cc->rlen,
 						cc->clen, cc->private);
+#ifdef CONFIG_F2FS_FS_LZ4HC
+	else
+		len = LZ4_compress_HC(cc->rbuf, cc->cbuf->cdata, cc->rlen,
+					cc->clen, level, cc->private);
+#endif
+	if (len < 0)
+		return len;
 	if (!len)
 		return -EAGAIN;
 
@@ -670,7 +656,7 @@ static int f2fs_compress_pages(struct compress_ctx *cc)
 
 	cc->cbuf->clen = cpu_to_le32(cc->clen);
 
-	if (fi->i_compress_flag & 1 << COMPRESS_CHKSUM)
+	if (fi->i_compress_flag & BIT(COMPRESS_CHKSUM))
 		chksum = f2fs_crc32(F2FS_I_SB(cc->inode),
 					cc->cbuf->cdata, cc->clen);
 	cc->cbuf->chksum = cpu_to_le32(chksum);
@@ -755,13 +741,18 @@ void f2fs_decompress_cluster(struct decompress_io_ctx *dic, bool in_task)
 
 	if (dic->clen > PAGE_SIZE * dic->nr_cpages - COMPRESS_HEADER_SIZE) {
 		ret = -EFSCORRUPTED;
-		f2fs_handle_error(sbi, ERROR_FAIL_DECOMPRESSION);
+
+		/* Avoid f2fs_commit_super in irq context */
+		if (in_task)
+			f2fs_save_errors(sbi, ERROR_FAIL_DECOMPRESSION);
+		else
+			f2fs_handle_error(sbi, ERROR_FAIL_DECOMPRESSION);
 		goto out_release;
 	}
 
 	ret = cops->decompress_pages(dic);
 
-	if (!ret && (fi->i_compress_flag & 1 << COMPRESS_CHKSUM)) {
+	if (!ret && (fi->i_compress_flag & BIT(COMPRESS_CHKSUM))) {
 		u32 provided = le32_to_cpu(dic->cbuf->chksum);
 		u32 calculated = f2fs_crc32(sbi, dic->cbuf->cdata, dic->clen);
 
@@ -1455,6 +1446,12 @@ continue_unlock:
 
 		if (!PageDirty(cc->rpages[i]))
 			goto continue_unlock;
+
+		if (PageWriteback(cc->rpages[i])) {
+			if (wbc->sync_mode == WB_SYNC_NONE)
+				goto continue_unlock;
+			f2fs_wait_on_page_writeback(cc->rpages[i], DATA, true, true);
+		}
 
 		if (!clear_page_dirty_for_io(cc->rpages[i]))
 			goto continue_unlock;

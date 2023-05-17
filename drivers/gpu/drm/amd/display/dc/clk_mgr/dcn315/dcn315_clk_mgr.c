@@ -522,6 +522,11 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[0];
 		bw_params->clk_table.entries[i].wck_ratio = 1;
 		i++;
+	} else if (clock_table->NumDcfClkLevelsEnabled != clock_table->NumSocClkLevelsEnabled) {
+		bw_params->clk_table.entries[i-1].voltage = clock_table->SocVoltage[clock_table->NumSocClkLevelsEnabled - 1];
+		bw_params->clk_table.entries[i-1].socclk_mhz = clock_table->SocClocks[clock_table->NumSocClkLevelsEnabled - 1];
+		bw_params->clk_table.entries[i-1].dispclk_mhz = clock_table->DispClocks[clock_table->NumDispClkLevelsEnabled - 1];
+		bw_params->clk_table.entries[i-1].dppclk_mhz = clock_table->DppClocks[clock_table->NumDispClkLevelsEnabled - 1];
 	}
 	bw_params->clk_table.num_entries = i;
 

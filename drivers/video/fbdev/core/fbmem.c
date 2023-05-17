@@ -1116,6 +1116,8 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case FBIOPUT_VSCREENINFO:
 		if (copy_from_user(&var, argp, sizeof(var)))
 			return -EFAULT;
+		/* only for kernel-internal use */
+		var.activate &= ~FB_ACTIVATE_KD_TEXT;
 		console_lock();
 		lock_fb_info(info);
 		ret = fbcon_modechange_possible(info, &var);
@@ -1749,7 +1751,7 @@ fbmem_init(void)
 		goto err_chrdev;
 	}
 
-	fb_class = class_create(THIS_MODULE, "graphics");
+	fb_class = class_create("graphics");
 	if (IS_ERR(fb_class)) {
 		ret = PTR_ERR(fb_class);
 		pr_warn("Unable to create fb class; errno = %d\n", ret);

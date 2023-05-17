@@ -659,8 +659,7 @@ static void rtllib_beacons_stop(struct rtllib_device *ieee)
 
 void rtllib_stop_send_beacons(struct rtllib_device *ieee)
 {
-	if (ieee->stop_send_beacons)
-		ieee->stop_send_beacons(ieee->dev);
+	ieee->stop_send_beacons(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		rtllib_beacons_stop(ieee);
 }
@@ -669,8 +668,7 @@ EXPORT_SYMBOL(rtllib_stop_send_beacons);
 
 void rtllib_start_send_beacons(struct rtllib_device *ieee)
 {
-	if (ieee->start_send_beacons)
-		ieee->start_send_beacons(ieee->dev);
+	ieee->start_send_beacons(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		rtllib_beacons_start(ieee);
 }
@@ -729,8 +727,7 @@ EXPORT_SYMBOL(rtllib_act_scanning);
 /* called with ieee->lock held */
 static void rtllib_start_scan(struct rtllib_device *ieee)
 {
-	if (ieee->rtllib_ips_leave_wq != NULL)
-		ieee->rtllib_ips_leave_wq(ieee->dev);
+	ieee->rtllib_ips_leave_wq(ieee->dev);
 
 	if (IS_DOT11D_ENABLE(ieee)) {
 		if (IS_COUNTRY_IE_VALID(ieee))
@@ -1501,7 +1498,7 @@ static void rtllib_associate_step2(struct rtllib_device *ieee)
 static void rtllib_associate_complete_wq(void *data)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
-				     container_of_work_rsl(data,
+				     container_of(data,
 				     struct rtllib_device,
 				     associate_complete_wq);
 	struct rt_pwr_save_ctrl *psc = &ieee->pwr_save_ctrl;
@@ -1575,8 +1572,7 @@ static void rtllib_associate_procedure_wq(void *data)
 				     struct rtllib_device,
 				     associate_procedure_wq);
 	rtllib_stop_scan_syncro(ieee);
-	if (ieee->rtllib_ips_leave != NULL)
-		ieee->rtllib_ips_leave(ieee->dev);
+	ieee->rtllib_ips_leave(ieee->dev);
 	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->data_hard_stop)
@@ -1585,8 +1581,7 @@ static void rtllib_associate_procedure_wq(void *data)
 	rtllib_stop_scan(ieee);
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	if (ieee->rf_power_state == rf_off) {
-		if (ieee->rtllib_ips_leave_wq != NULL)
-			ieee->rtllib_ips_leave_wq(ieee->dev);
+		ieee->rtllib_ips_leave_wq(ieee->dev);
 		mutex_unlock(&ieee->wx_mutex);
 		return;
 	}
@@ -2241,10 +2236,8 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 				memcpy(ieee->ht_info->PeerHTInfoBuf,
 				       network->bssht.bd_ht_info_buf,
 				       network->bssht.bd_ht_info_len);
-				if (ieee->handle_assoc_response != NULL)
-					ieee->handle_assoc_response(ieee->dev,
-						 (struct rtllib_assoc_response_frame *)header,
-						 network);
+				ieee->handle_assoc_response(ieee->dev,
+					(struct rtllib_assoc_response_frame *)header, network);
 			}
 			kfree(network);
 
@@ -2856,8 +2849,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	if (shutdown) {
 		ieee->proto_started = 0;
 		ieee->proto_stoppping = 1;
-		if (ieee->rtllib_ips_leave != NULL)
-			ieee->rtllib_ips_leave(ieee->dev);
+		ieee->rtllib_ips_leave(ieee->dev);
 	}
 
 	rtllib_stop_send_beacons(ieee);
@@ -3004,20 +2996,13 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 
 	timer_setup(&ieee->beacon_timer, rtllib_send_beacon_cb, 0);
 
-	INIT_DELAYED_WORK_RSL(&ieee->link_change_wq,
-			      (void *)rtllib_link_change_wq, ieee);
-	INIT_DELAYED_WORK_RSL(&ieee->start_ibss_wq,
-			      (void *)rtllib_start_ibss_wq, ieee);
-	INIT_WORK_RSL(&ieee->associate_complete_wq,
-		      (void *)rtllib_associate_complete_wq, ieee);
-	INIT_DELAYED_WORK_RSL(&ieee->associate_procedure_wq,
-			      (void *)rtllib_associate_procedure_wq, ieee);
-	INIT_DELAYED_WORK_RSL(&ieee->softmac_scan_wq,
-			      (void *)rtllib_softmac_scan_wq, ieee);
-	INIT_DELAYED_WORK_RSL(&ieee->associate_retry_wq,
-			      (void *)rtllib_associate_retry_wq, ieee);
-	INIT_WORK_RSL(&ieee->wx_sync_scan_wq, (void *)rtllib_wx_sync_scan_wq,
-		      ieee);
+	INIT_DELAYED_WORK(&ieee->link_change_wq, (void *)rtllib_link_change_wq);
+	INIT_DELAYED_WORK(&ieee->start_ibss_wq, (void *)rtllib_start_ibss_wq);
+	INIT_WORK(&ieee->associate_complete_wq, (void *)rtllib_associate_complete_wq);
+	INIT_DELAYED_WORK(&ieee->associate_procedure_wq, (void *)rtllib_associate_procedure_wq);
+	INIT_DELAYED_WORK(&ieee->softmac_scan_wq, (void *)rtllib_softmac_scan_wq);
+	INIT_DELAYED_WORK(&ieee->associate_retry_wq, (void *)rtllib_associate_retry_wq);
+	INIT_WORK(&ieee->wx_sync_scan_wq, (void *)rtllib_wx_sync_scan_wq);
 
 	mutex_init(&ieee->wx_mutex);
 	mutex_init(&ieee->scan_mutex);

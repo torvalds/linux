@@ -25,16 +25,16 @@ properties:
               - qcom,sc7280-dsi-ctrl
               - qcom,sdm660-dsi-ctrl
               - qcom,sdm845-dsi-ctrl
+              - qcom,sm6115-dsi-ctrl
               - qcom,sm8150-dsi-ctrl
               - qcom,sm8250-dsi-ctrl
               - qcom,sm8350-dsi-ctrl
               - qcom,sm8450-dsi-ctrl
               - qcom,sm8550-dsi-ctrl
           - const: qcom,mdss-dsi-ctrl
-      - items:
-          - enum:
-              - dsi-ctrl-6g-qcm2290
-          - const: qcom,mdss-dsi-ctrl
+      - enum:
+          - qcom,dsi-ctrl-6g-qcm2290
+          - qcom,mdss-dsi-ctrl # This should always come with an SoC-specific compatible
         deprecated: true
 
   reg:
@@ -74,7 +74,7 @@ properties:
 
   syscon-sfpb:
     description: A phandle to mmss_sfpb syscon node (only for DSIv2).
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   qcom,dual-dsi-mode:
     type: boolean
@@ -105,14 +105,14 @@ properties:
     type: object
 
   ports:
-    $ref: "/schemas/graph.yaml#/properties/ports"
+    $ref: /schemas/graph.yaml#/properties/ports
     description: |
       Contains DSI controller input and output ports as children, each
       containing one endpoint subnode.
 
     properties:
       port@0:
-        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description: |
           Input endpoints of the controller.
@@ -128,7 +128,7 @@ properties:
                   enum: [ 0, 1, 2, 3 ]
 
       port@1:
-        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description: |
           Output endpoints of the controller.
@@ -351,6 +351,7 @@ allOf:
           contains:
             enum:
               - qcom,sdm845-dsi-ctrl
+              - qcom,sm6115-dsi-ctrl
     then:
       properties:
         clocks:

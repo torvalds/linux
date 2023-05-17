@@ -64,6 +64,7 @@ FEATURE_TESTS_BASIC :=                  \
         lzma                            \
         get_cpuid                       \
         bpf                             \
+        scandirat			\
         sched_getcpu			\
         sdt				\
         setns				\
@@ -80,6 +81,7 @@ FEATURE_TESTS_EXTRA :=                  \
          compile-32                     \
          compile-x32                    \
          cplus-demangle                 \
+         cxa-demangle                   \
          gtk2                           \
          gtk2-infobar                   \
          hello                          \

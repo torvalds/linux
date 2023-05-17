@@ -73,8 +73,6 @@ allOf:
 unevaluatedProperties: false
 
 examples:
-  #include <dt-bindings/interrupt-controller/arm-gic.h>
-
   - |
     ethernet@f0b60000 {
         phy-mode = "internal";

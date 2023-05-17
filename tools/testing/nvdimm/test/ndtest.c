@@ -921,7 +921,7 @@ static __init int ndtest_init(void)
 
 	nfit_test_setup(ndtest_resource_lookup, NULL);
 
-	ndtest_dimm_class = class_create(THIS_MODULE, "nfit_test_dimm");
+	ndtest_dimm_class = class_create("nfit_test_dimm");
 	if (IS_ERR(ndtest_dimm_class)) {
 		rc = PTR_ERR(ndtest_dimm_class);
 		goto err_register;

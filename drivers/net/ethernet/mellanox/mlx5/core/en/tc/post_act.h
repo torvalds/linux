@@ -19,7 +19,7 @@ void
 mlx5e_tc_post_act_destroy(struct mlx5e_post_act *post_act);
 
 struct mlx5e_post_act_handle *
-mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *attr);
+mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *post_attr);
 
 void
 mlx5e_tc_post_act_del(struct mlx5e_post_act *post_act, struct mlx5e_post_act_handle *handle);

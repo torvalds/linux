@@ -44,6 +44,9 @@ class Expression:
   def __and__(self, other: Union[int, float, 'Expression']) -> 'Operator':
     return Operator('&', self, other)
 
+  def __rand__(self, other: Union[int, float, 'Expression']) -> 'Operator':
+    return Operator('&', other, self)
+
   def __lt__(self, other: Union[int, float, 'Expression']) -> 'Operator':
     return Operator('<', self, other)
 
@@ -88,7 +91,10 @@ def _Constify(val: Union[bool, int, float, Expression]) -> Expression:
 
 
 # Simple lookup for operator precedence, used to avoid unnecessary
-# brackets. Precedence matches that of python and the simple expression parser.
+# brackets. Precedence matches that of the simple expression parser
+# but differs from python where comparisons are lower precedence than
+# the bitwise &, ^, | but not the logical versions that the expression
+# parser doesn't have.
 _PRECEDENCE = {
     '|': 0,
     '^': 1,

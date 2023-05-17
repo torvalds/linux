@@ -198,15 +198,18 @@ static void dwmac4_prog_mtl_tx_algorithms(struct mac_device_info *hw,
 	writel(value, ioaddr + MTL_OPERATION_MODE);
 }
 
-static void dwmac4_set_mtl_tx_queue_weight(struct mac_device_info *hw,
+static void dwmac4_set_mtl_tx_queue_weight(struct stmmac_priv *priv,
+					   struct mac_device_info *hw,
 					   u32 weight, u32 queue)
 {
+	const struct dwmac4_addrs *dwmac4_addrs = priv->plat->dwmac4_addrs;
 	void __iomem *ioaddr = hw->pcsr;
-	u32 value = readl(ioaddr + MTL_TXQX_WEIGHT_BASE_ADDR(queue));
+	u32 value = readl(ioaddr + mtl_txqx_weight_base_addr(dwmac4_addrs,
+							     queue));
 
 	value &= ~MTL_TXQ_WEIGHT_ISCQW_MASK;
 	value |= weight & MTL_TXQ_WEIGHT_ISCQW_MASK;
-	writel(value, ioaddr + MTL_TXQX_WEIGHT_BASE_ADDR(queue));
+	writel(value, ioaddr + mtl_txqx_weight_base_addr(dwmac4_addrs, queue));
 }
 
 static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
@@ -227,10 +230,12 @@ static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
 	}
 }
 
-static void dwmac4_config_cbs(struct mac_device_info *hw,
+static void dwmac4_config_cbs(struct stmmac_priv *priv,
+			      struct mac_device_info *hw,
 			      u32 send_slope, u32 idle_slope,
 			      u32 high_credit, u32 low_credit, u32 queue)
 {
+	const struct dwmac4_addrs *dwmac4_addrs = priv->plat->dwmac4_addrs;
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
@@ -241,31 +246,33 @@ static void dwmac4_config_cbs(struct mac_device_info *hw,
 	pr_debug("\tlow_credit: 0x%08x\n", low_credit);
 
 	/* enable AV algorithm */
-	value = readl(ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+	value = readl(ioaddr + mtl_etsx_ctrl_base_addr(dwmac4_addrs, queue));
 	value |= MTL_ETS_CTRL_AVALG;
 	value |= MTL_ETS_CTRL_CC;
-	writel(value, ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+	writel(value, ioaddr + mtl_etsx_ctrl_base_addr(dwmac4_addrs, queue));
 
 	/* configure send slope */
-	value = readl(ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+	value = readl(ioaddr + mtl_send_slp_credx_base_addr(dwmac4_addrs,
+							    queue));
 	value &= ~MTL_SEND_SLP_CRED_SSC_MASK;
 	value |= send_slope & MTL_SEND_SLP_CRED_SSC_MASK;
-	writel(value, ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+	writel(value, ioaddr + mtl_send_slp_credx_base_addr(dwmac4_addrs,
+							    queue));
 
 	/* configure idle slope (same register as tx weight) */
-	dwmac4_set_mtl_tx_queue_weight(hw, idle_slope, queue);
+	dwmac4_set_mtl_tx_queue_weight(priv, hw, idle_slope, queue);
 
 	/* configure high credit */
-	value = readl(ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+	value = readl(ioaddr + mtl_high_credx_base_addr(dwmac4_addrs, queue));
 	value &= ~MTL_HIGH_CRED_HC_MASK;
 	value |= high_credit & MTL_HIGH_CRED_HC_MASK;
-	writel(value, ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+	writel(value, ioaddr + mtl_high_credx_base_addr(dwmac4_addrs, queue));
 
 	/* configure high credit */
-	value = readl(ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
+	value = readl(ioaddr + mtl_low_credx_base_addr(dwmac4_addrs, queue));
 	value &= ~MTL_HIGH_CRED_LC_MASK;
 	value |= low_credit & MTL_HIGH_CRED_LC_MASK;
-	writel(value, ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
+	writel(value, ioaddr + mtl_low_credx_base_addr(dwmac4_addrs, queue));
 }
 
 static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
@@ -472,12 +479,6 @@ static int dwmac4_add_hw_vlan_rx_fltr(struct net_device *dev,
 	if (vid > 4095)
 		return -EINVAL;
 
-	if (hw->promisc) {
-		netdev_err(dev,
-			   "Adding VLAN in promisc mode not supported\n");
-		return -EPERM;
-	}
-
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
 		/* For single VLAN filter, VID 0 means VLAN promiscuous */
@@ -527,12 +528,6 @@ static int dwmac4_del_hw_vlan_rx_fltr(struct net_device *dev,
 {
 	int i, ret = 0;
 
-	if (hw->promisc) {
-		netdev_err(dev,
-			   "Deleting VLAN in promisc mode not supported\n");
-		return -EPERM;
-	}
-
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
 		if ((hw->vlan_filter[0] & GMAC_VLAN_TAG_VID) == vid) {
@@ -555,39 +550,6 @@ static int dwmac4_del_hw_vlan_rx_fltr(struct net_device *dev,
 	}
 
 	return ret;
-}
-
-static void dwmac4_vlan_promisc_enable(struct net_device *dev,
-				       struct mac_device_info *hw)
-{
-	void __iomem *ioaddr = hw->pcsr;
-	u32 value;
-	u32 hash;
-	u32 val;
-	int i;
-
-	/* Single Rx VLAN Filter */
-	if (hw->num_vlan == 1) {
-		dwmac4_write_single_vlan(dev, 0);
-		return;
-	}
-
-	/* Extended Rx VLAN Filter Enable */
-	for (i = 0; i < hw->num_vlan; i++) {
-		if (hw->vlan_filter[i] & GMAC_VLAN_TAG_DATA_VEN) {
-			val = hw->vlan_filter[i] & ~GMAC_VLAN_TAG_DATA_VEN;
-			dwmac4_write_vlan_filter(dev, hw, i, val);
-		}
-	}
-
-	hash = readl(ioaddr + GMAC_VLAN_HASH_TABLE);
-	if (hash & GMAC_VLAN_VLHT) {
-		value = readl(ioaddr + GMAC_VLAN_TAG);
-		if (value & GMAC_VLAN_VTHM) {
-			value &= ~GMAC_VLAN_VTHM;
-			writel(value, ioaddr + GMAC_VLAN_TAG);
-		}
-	}
 }
 
 static void dwmac4_restore_hw_vlan_rx_fltr(struct net_device *dev,
@@ -709,22 +671,12 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 	}
 
 	/* VLAN filtering */
-	if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+	if (dev->flags & IFF_PROMISC && !hw->vlan_fail_q_en)
+		value &= ~GMAC_PACKET_FILTER_VTFE;
+	else if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		value |= GMAC_PACKET_FILTER_VTFE;
 
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
-
-	if (dev->flags & IFF_PROMISC && !hw->vlan_fail_q_en) {
-		if (!hw->promisc) {
-			hw->promisc = 1;
-			dwmac4_vlan_promisc_enable(dev, hw);
-		}
-	} else {
-		if (hw->promisc) {
-			hw->promisc = 0;
-			dwmac4_restore_hw_vlan_rx_fltr(dev, hw);
-		}
-	}
 }
 
 static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
@@ -814,8 +766,10 @@ static void dwmac4_phystatus(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 	}
 }
 
-static int dwmac4_irq_mtl_status(struct mac_device_info *hw, u32 chan)
+static int dwmac4_irq_mtl_status(struct stmmac_priv *priv,
+				 struct mac_device_info *hw, u32 chan)
 {
+	const struct dwmac4_addrs *dwmac4_addrs = priv->plat->dwmac4_addrs;
 	void __iomem *ioaddr = hw->pcsr;
 	u32 mtl_int_qx_status;
 	int ret = 0;
@@ -825,12 +779,13 @@ static int dwmac4_irq_mtl_status(struct mac_device_info *hw, u32 chan)
 	/* Check MTL Interrupt */
 	if (mtl_int_qx_status & MTL_INT_QX(chan)) {
 		/* read Queue x Interrupt status */
-		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(chan));
+		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(dwmac4_addrs,
+							      chan));
 
 		if (status & MTL_RX_OVERFLOW_INT) {
 			/*  clear Interrupt */
 			writel(status | MTL_RX_OVERFLOW_INT,
-			       ioaddr + MTL_CHAN_INT_CTRL(chan));
+			       ioaddr + MTL_CHAN_INT_CTRL(dwmac4_addrs, chan));
 			ret = CORE_IRQ_MTL_RX_OVERFLOW;
 		}
 	}
@@ -888,14 +843,16 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	return ret;
 }
 
-static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
+			 struct stmmac_extra_stats *x,
 			 u32 rx_queues, u32 tx_queues)
 {
+	const struct dwmac4_addrs *dwmac4_addrs = priv->plat->dwmac4_addrs;
 	u32 value;
 	u32 queue;
 
 	for (queue = 0; queue < tx_queues; queue++) {
-		value = readl(ioaddr + MTL_CHAN_TX_DEBUG(queue));
+		value = readl(ioaddr + MTL_CHAN_TX_DEBUG(dwmac4_addrs, queue));
 
 		if (value & MTL_DEBUG_TXSTSFSTS)
 			x->mtl_tx_status_fifo_full++;
@@ -920,7 +877,7 @@ static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 	}
 
 	for (queue = 0; queue < rx_queues; queue++) {
-		value = readl(ioaddr + MTL_CHAN_RX_DEBUG(queue));
+		value = readl(ioaddr + MTL_CHAN_RX_DEBUG(dwmac4_addrs, queue));
 
 		if (value & MTL_DEBUG_RXFSTS_MASK) {
 			u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)

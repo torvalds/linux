@@ -70,10 +70,19 @@ struct ftrace_ops;
 
 #define arch_ftrace_get_regs(regs) NULL
 
+/*
+ * Note: sizeof(struct ftrace_regs) must be a multiple of 16 to ensure correct
+ * stack alignment
+ */
 struct ftrace_regs {
 	/* x0 - x8 */
 	unsigned long regs[9];
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	unsigned long direct_tramp;
+#else
 	unsigned long __unused;
+#endif
 
 	unsigned long fp;
 	unsigned long lr;
@@ -136,6 +145,19 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs);
 #define ftrace_graph_func ftrace_graph_func
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs,
+						 unsigned long addr)
+{
+	/*
+	 * The ftrace trampoline will return to this address instead of the
+	 * instrumented function.
+	 */
+	fregs->direct_tramp = addr;
+}
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+
 #endif
 
 #define ftrace_return_address(n) return_address(n)

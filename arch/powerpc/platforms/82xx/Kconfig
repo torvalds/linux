@@ -5,27 +5,6 @@ menuconfig PPC_82xx
 
 if PPC_82xx
 
-config MPC8272_ADS
-	bool "Freescale MPC8272 ADS"
-	select DEFAULT_UIMAGE
-	select PQ2ADS
-	select 8272
-	select 8260
-	select FSL_SOC
-	select PQ2_ADS_PCI_PIC if PCI
-	help
-	  This option enables support for the MPC8272 ADS board
-
-config PQ2FADS
-	bool "Freescale PQ2FADS"
-	select DEFAULT_UIMAGE
-	select PQ2ADS
-	select 8260
-	select FSL_SOC
-	select PQ2_ADS_PCI_PIC if PCI
-	help
-	  This option enables support for the PQ2FADS board
-
 config EP8248E
 	bool "Embedded Planet EP8248E (a.k.a. CWH-PPC-8248N-VE)"
 	select 8272
@@ -49,9 +28,6 @@ config MGCOGE
 
 endif
 
-config PQ2ADS
-	bool
-
 config 8260
 	bool
 	depends on PPC_BOOK3S_32
@@ -67,6 +43,3 @@ config 8272
 	help
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
-
-config PQ2_ADS_PCI_PIC
-	bool

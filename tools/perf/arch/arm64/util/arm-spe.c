@@ -36,29 +36,6 @@ struct arm_spe_recording {
 	bool			*wrapped;
 };
 
-static void arm_spe_set_timestamp(struct auxtrace_record *itr,
-				  struct evsel *evsel)
-{
-	struct arm_spe_recording *ptr;
-	struct perf_pmu *arm_spe_pmu;
-	struct evsel_config_term *term = evsel__get_config_term(evsel, CFG_CHG);
-	u64 user_bits = 0, bit;
-
-	ptr = container_of(itr, struct arm_spe_recording, itr);
-	arm_spe_pmu = ptr->arm_spe_pmu;
-
-	if (term)
-		user_bits = term->val.cfg_chg;
-
-	bit = perf_pmu__format_bits(&arm_spe_pmu->format, "ts_enable");
-
-	/* Skip if user has set it */
-	if (bit & user_bits)
-		return;
-
-	evsel->core.attr.config |= bit;
-}
-
 static size_t
 arm_spe_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		       struct evlist *evlist __maybe_unused)
@@ -238,7 +215,8 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	 */
 	if (!perf_cpu_map__empty(cpus)) {
 		evsel__set_sample_bit(arm_spe_evsel, CPU);
-		arm_spe_set_timestamp(itr, arm_spe_evsel);
+		evsel__set_config_if_unset(arm_spe_pmu, arm_spe_evsel,
+					   "ts_enable", 1);
 	}
 
 	/*
@@ -479,7 +457,7 @@ static void arm_spe_recording_free(struct auxtrace_record *itr)
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
 
-	free(sper->wrapped);
+	zfree(&sper->wrapped);
 	free(sper);
 }
 

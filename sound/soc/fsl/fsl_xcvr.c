@@ -1339,10 +1339,9 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int fsl_xcvr_remove(struct platform_device *pdev)
+static void fsl_xcvr_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static __maybe_unused int fsl_xcvr_runtime_suspend(struct device *dev)
@@ -1478,7 +1477,7 @@ static struct platform_driver fsl_xcvr_driver = {
 		.pm = &fsl_xcvr_pm_ops,
 		.of_match_table = fsl_xcvr_dt_ids,
 	},
-	.remove = fsl_xcvr_remove,
+	.remove_new = fsl_xcvr_remove,
 };
 module_platform_driver(fsl_xcvr_driver);
 

@@ -118,7 +118,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 
 	/* and enable the clocks */
 	clk_enable(clk_pci);
-	if (of_find_property(node, "lantiq,external-clock", NULL))
+	if (of_property_read_bool(node, "lantiq,external-clock"))
 		clk_enable(clk_external);
 	else
 		clk_disable(clk_external);

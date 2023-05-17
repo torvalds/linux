@@ -2634,7 +2634,9 @@ static void dump_one_paca(int cpu)
 
 	DUMP(p, lock_token, "%#-*x");
 	DUMP(p, paca_index, "%#-*x");
+#ifndef CONFIG_PPC_KERNEL_PCREL
 	DUMP(p, kernel_toc, "%#-*llx");
+#endif
 	DUMP(p, kernelbase, "%#-*llx");
 	DUMP(p, kernel_msr, "%#-*llx");
 	DUMP(p, emergency_sp, "%-*px");

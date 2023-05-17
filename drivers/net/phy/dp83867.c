@@ -26,6 +26,8 @@
 #define MII_DP83867_MICR	0x12
 #define MII_DP83867_ISR		0x13
 #define DP83867_CFG2		0x14
+#define DP83867_LEDCR1		0x18
+#define DP83867_LEDCR2		0x19
 #define DP83867_CFG3		0x1e
 #define DP83867_CTRL		0x1f
 
@@ -149,6 +151,12 @@
 
 /* FLD_THR_CFG */
 #define DP83867_FLD_THR_CFG_ENERGY_LOST_THR_MASK	0x7
+
+#define DP83867_LED_COUNT	4
+
+/* LED_DRV bits */
+#define DP83867_LED_DRV_EN(x)	BIT((x) * 4)
+#define DP83867_LED_DRV_VAL(x)	BIT((x) * 4 + 1)
 
 enum {
 	DP83867_PORT_MIRROING_KEEP,
@@ -468,8 +476,7 @@ static int dp83867_set_tunable(struct phy_device *phydev,
 
 static int dp83867_config_port_mirroring(struct phy_device *phydev)
 {
-	struct dp83867_private *dp83867 =
-		(struct dp83867_private *)phydev->priv;
+	struct dp83867_private *dp83867 = phydev->priv;
 
 	if (dp83867->port_mirroring == DP83867_PORT_MIRROING_EN)
 		phy_set_bits_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4,
@@ -692,6 +699,30 @@ static int dp83867_of_init(struct phy_device *phydev)
 	return 0;
 }
 #endif /* CONFIG_OF_MDIO */
+
+static int dp83867_suspend(struct phy_device *phydev)
+{
+	/* Disable PHY Interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_DISABLED;
+		dp83867_config_intr(phydev);
+	}
+
+	return genphy_suspend(phydev);
+}
+
+static int dp83867_resume(struct phy_device *phydev)
+{
+	/* Enable PHY Interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_ENABLED;
+		dp83867_config_intr(phydev);
+	}
+
+	genphy_resume(phydev);
+
+	return 0;
+}
 
 static int dp83867_probe(struct phy_device *phydev)
 {
@@ -946,6 +977,27 @@ static int dp83867_loopback(struct phy_device *phydev, bool enable)
 			  enable ? BMCR_LOOPBACK : 0);
 }
 
+static int
+dp83867_led_brightness_set(struct phy_device *phydev,
+			   u8 index, enum led_brightness brightness)
+{
+	u32 val;
+
+	if (index >= DP83867_LED_COUNT)
+		return -EINVAL;
+
+	/* DRV_EN==1: output is DRV_VAL */
+	val = DP83867_LED_DRV_EN(index);
+
+	if (brightness)
+		val |= DP83867_LED_DRV_VAL(index);
+
+	return phy_modify(phydev, DP83867_LEDCR2,
+			  DP83867_LED_DRV_VAL(index) |
+			  DP83867_LED_DRV_EN(index),
+			  val);
+}
+
 static struct phy_driver dp83867_driver[] = {
 	{
 		.phy_id		= DP83867_PHY_ID,
@@ -968,11 +1020,13 @@ static struct phy_driver dp83867_driver[] = {
 		.config_intr	= dp83867_config_intr,
 		.handle_interrupt = dp83867_handle_interrupt,
 
-		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.suspend	= dp83867_suspend,
+		.resume		= dp83867_resume,
 
 		.link_change_notify = dp83867_link_change_notify,
 		.set_loopback	= dp83867_loopback,
+
+		.led_brightness_set = dp83867_led_brightness_set,
 	},
 };
 module_phy_driver(dp83867_driver);

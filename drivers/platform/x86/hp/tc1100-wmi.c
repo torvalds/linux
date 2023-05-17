@@ -170,11 +170,9 @@ static int __init tc1100_probe(struct platform_device *device)
 }
 
 
-static int tc1100_remove(struct platform_device *device)
+static void tc1100_remove(struct platform_device *device)
 {
 	sysfs_remove_group(&device->dev.kobj, &tc1100_attribute_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -223,7 +221,7 @@ static struct platform_driver tc1100_driver = {
 		.pm = &tc1100_pm_ops,
 #endif
 	},
-	.remove = tc1100_remove,
+	.remove_new = tc1100_remove,
 };
 
 static int __init tc1100_init(void)

@@ -11,7 +11,7 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 import io
 import os
@@ -340,7 +340,6 @@ def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 	print(start_str, src_str)
 
 def do_process_event(param_dict):
-	event_attr = param_dict["attr"]
 	sample	   = param_dict["sample"]
 	raw_buf	   = param_dict["raw_buf"]
 	comm	   = param_dict["comm"]
@@ -349,6 +348,7 @@ def do_process_event(param_dict):
 	# callchain  = param_dict["callchain"]
 	# brstack    = param_dict["brstack"]
 	# brstacksym = param_dict["brstacksym"]
+	# event_attr = param_dict["attr"]
 
 	# Symbol and dso info are not always resolved
 	dso    = get_optional(param_dict, "dso")
@@ -359,13 +359,13 @@ def do_process_event(param_dict):
 		print(glb_switch_str[cpu])
 		del glb_switch_str[cpu]
 
-	if name[0:12] == "instructions":
+	if name.startswith("instructions"):
 		if glb_src:
 			print_srccode(comm, param_dict, sample, symbol, dso, True)
 		else:
 			print_instructions_start(comm, sample)
 			print_common_ip(param_dict, sample, symbol, dso)
-	elif name[0:8] == "branches":
+	elif name.startswith("branches"):
 		if glb_src:
 			print_srccode(comm, param_dict, sample, symbol, dso, False)
 		else:

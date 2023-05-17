@@ -464,7 +464,7 @@ ap_i2c_tpm: &i2c14 {
 
 &mdss_dp_out {
 	data-lanes = <0 1>;
-	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
 &mdss_mdp {
@@ -692,18 +692,22 @@ ap_ec_spi: &spi10 {
 };
 
 &qspi_cs0 {
-	bias-disable;
+	bias-disable;		/* External pullup */
 	drive-strength = <8>;
 };
 
 &qspi_clk {
-	bias-disable;
+	bias-pull-down;		/* No external pulls */
 	drive-strength = <8>;
 };
 
-&qspi_data01 {
-	/* High-Z when no transfers; nice to park the lines */
-	bias-pull-up;
+&qspi_data0 {
+	bias-pull-down;		/* No external pulls */
+	drive-strength = <8>;
+};
+
+&qspi_data1 {
+	bias-disable;		/* External pulldown */
 	drive-strength = <8>;
 };
 

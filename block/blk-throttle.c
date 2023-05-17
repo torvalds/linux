@@ -1368,9 +1368,11 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	int ret;
 	u64 v;
 
-	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
+	blkg_conf_init(&ctx, buf);
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, &ctx);
 	if (ret)
-		return ret;
+		goto out_finish;
 
 	ret = -EINVAL;
 	if (sscanf(ctx.body, "%llu", &v) != 1)
@@ -1389,7 +1391,7 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	tg_conf_updated(tg, false);
 	ret = 0;
 out_finish:
-	blkg_conf_finish(&ctx);
+	blkg_conf_exit(&ctx);
 	return ret ?: nbytes;
 }
 
@@ -1561,9 +1563,11 @@ static ssize_t tg_set_limit(struct kernfs_open_file *of,
 	int ret;
 	int index = of_cft(of)->private;
 
-	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
+	blkg_conf_init(&ctx, buf);
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, &ctx);
 	if (ret)
-		return ret;
+		goto out_finish;
 
 	tg = blkg_to_tg(ctx.blkg);
 	tg_update_carryover(tg);
@@ -1662,7 +1666,7 @@ static ssize_t tg_set_limit(struct kernfs_open_file *of,
 		tg->td->limit_valid[LIMIT_LOW]);
 	ret = 0;
 out_finish:
-	blkg_conf_finish(&ctx);
+	blkg_conf_exit(&ctx);
 	return ret ?: nbytes;
 }
 
@@ -2439,11 +2443,12 @@ void blk_throtl_register(struct gendisk *disk)
 #ifndef CONFIG_BLK_DEV_THROTTLING_LOW
 	/* if no low limit, use previous default */
 	td->throtl_slice = DFL_THROTL_SLICE_HD;
-#endif
 
+#else
 	td->track_bio_latency = !queue_is_mq(q);
 	if (!td->track_bio_latency)
 		blk_stat_enable_accounting(q);
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW

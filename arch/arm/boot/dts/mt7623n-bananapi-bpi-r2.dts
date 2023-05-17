@@ -322,6 +322,12 @@
 	vqmmc-supply = <&reg_3p3v>;
 };
 
+&mt6323keys {
+	home {
+		status = "disabled";
+	};
+};
+
 &mt6323_leds {
 	status = "okay";
 

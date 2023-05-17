@@ -176,9 +176,8 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
-	__set_memory((unsigned long)_sinittext,
-		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
-		     SET_MEMORY_RW | SET_MEMORY_NX);
+	set_memory_rwnx((unsigned long)_sinittext,
+			(unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 

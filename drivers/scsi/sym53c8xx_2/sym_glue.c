@@ -1224,7 +1224,7 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev,
  *  If all is OK, install interrupt handling and
  *  start the timer daemon.
  */
-static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
+static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int unit,
 				    struct sym_device *dev)
 {
 	struct sym_data *sym_data;
@@ -1625,7 +1625,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 /*
  * Driver host template.
  */
-static struct scsi_host_template sym2_template = {
+static const struct scsi_host_template sym2_template = {
 	.module			= THIS_MODULE,
 	.name			= "sym53c8xx",
 	.info			= sym53c8xx_info, 

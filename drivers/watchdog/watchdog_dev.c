@@ -192,7 +192,7 @@ static int watchdog_ping(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
 
-	if (!watchdog_active(wdd) && !watchdog_hw_running(wdd))
+	if (!watchdog_hw_running(wdd))
 		return 0;
 
 	set_bit(_WDOG_KEEPALIVE, &wd_data->status);
@@ -268,6 +268,7 @@ static int watchdog_start(struct watchdog_device *wdd)
 		trace_watchdog_start(wdd, err);
 		if (err == 0) {
 			set_bit(WDOG_ACTIVE, &wdd->status);
+			set_bit(WDOG_HW_RUNNING, &wdd->status);
 			wd_data->last_keepalive = started_at;
 			wd_data->last_hw_keepalive = started_at;
 			watchdog_update_worker(wdd);
@@ -1005,7 +1006,6 @@ static struct miscdevice watchdog_miscdev = {
 
 static struct class watchdog_class = {
 	.name =		"watchdog",
-	.owner =	THIS_MODULE,
 	.dev_groups =	wdt_groups,
 };
 

@@ -1428,8 +1428,8 @@ create_kernel_context(struct intel_engine_cs *engine)
 						  &kernel, "kernel_context");
 }
 
-/**
- * intel_engines_init_common - initialize cengine state which might require hw access
+/*
+ * engine_init_common - initialize engine state which might require hw access
  * @engine: Engine to initialize.
  *
  * Initializes @engine@ structure members shared between legacy and execlists

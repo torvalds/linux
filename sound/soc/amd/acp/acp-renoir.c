@@ -313,7 +313,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int renoir_audio_remove(struct platform_device *pdev)
+static void renoir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
@@ -329,12 +329,11 @@ static int renoir_audio_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ACP de-init Failed (%pe)\n", ERR_PTR(ret));
 
 	acp_platform_unregister(dev);
-	return 0;
 }
 
 static struct platform_driver renoir_driver = {
 	.probe = renoir_audio_probe,
-	.remove = renoir_audio_remove,
+	.remove_new = renoir_audio_remove,
 	.driver = {
 		.name = "acp_asoc_renoir",
 	},

@@ -20,13 +20,6 @@
 
 */
 
-/* Changes:
-
-	1.01	GRG 1998.12.20	 Added support for soft power switch
-*/
-
-#define	FRIQ_VERSION	"1.01" 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -34,8 +27,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define CMD(x)		w2(4);w0(0xff);w0(0xff);w0(0x73);w0(0x73);\
 			w0(0xc9);w0(0xc9);w0(0x26);w0(0x26);w0(x);w0(x);
@@ -48,7 +40,7 @@
 
 static int  cont_map[2] = { 0x08, 0x10 };
 
-static int friq_read_regr( PIA *pi, int cont, int regr )
+static int friq_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int	h,l,r;
 
@@ -63,7 +55,7 @@ static int friq_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void friq_write_regr( PIA *pi, int cont, int regr, int val)
+static void friq_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -74,7 +66,7 @@ static void friq_write_regr( PIA *pi, int cont, int regr, int val)
 	w2(5);w2(7);w2(5);w2(4);
 }
 
-static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
+static void friq_read_block_int(struct pi_adapter *pi, char *buf, int count, int regr)
 
 {       int     h, l, k, ph;
 
@@ -129,12 +121,12 @@ static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
         }
 }
 
-static void friq_read_block( PIA *pi, char * buf, int count)
+static void friq_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	friq_read_block_int(pi,buf,count,0x08);
 }
 
-static void friq_write_block( PIA *pi, char * buf, int count )
+static void friq_write_block(struct pi_adapter *pi, char *buf, int count)
  
 {	int	k;
 
@@ -166,24 +158,25 @@ static void friq_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void friq_connect ( PIA *pi  )
+static void friq_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(4);
 }
 
-static void friq_disconnect ( PIA *pi )
+static void friq_disconnect(struct pi_adapter *pi)
 
 {       CMD(0x20);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static int friq_test_proto( PIA *pi, char * scratch, int verbose )
+static int friq_test_proto(struct pi_adapter *pi)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
+	char scratch[512];
 
 	pi->saved_r0 = r0();	
 	w0(0xff); udelay(20); CMD(0x3d); /* turn the power on */
@@ -207,24 +200,20 @@ static int friq_test_proto( PIA *pi, char * scratch, int verbose )
         for (k=0;k<128;k++) if (scratch[k] != k) r++;
 	friq_disconnect(pi);
 
-        if (verbose)  {
-            printk("%s: friq: port 0x%x, mode %d, test=(%d,%d,%d)\n",
-                   pi->device,pi->port,pi->mode,e[0],e[1],r);
-        }
+	dev_dbg(&pi->dev, "friq: port 0x%x, mode %d, test=(%d,%d,%d)\n",
+	       pi->port, pi->mode, e[0], e[1], r);
 
         return (r || (e[0] && e[1]));
 }
 
 
-static void friq_log_adapter( PIA *pi, char * scratch, int verbose )
+static void friq_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[6] = {"4-bit","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
 
-        printk("%s: friq %s, Freecom IQ ASIC-2 adapter at 0x%x, ", pi->device,
-		FRIQ_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
+	dev_info(&pi->dev, "Freecom IQ ASIC-2 adapter at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 
 	pi->private = 1;
 	friq_connect(pi);
@@ -233,7 +222,7 @@ static void friq_log_adapter( PIA *pi, char * scratch, int verbose )
 
 }
 
-static void friq_release_proto( PIA *pi)
+static void friq_release_proto(struct pi_adapter *pi)
 {
 	if (pi->private) {		/* turn off the power */
 		friq_connect(pi);
@@ -261,16 +250,5 @@ static struct pi_protocol friq = {
 	.release_proto	= friq_release_proto,
 };
 
-static int __init friq_init(void)
-{
-	return paride_register(&friq);
-}
-
-static void __exit friq_exit(void)
-{
-	paride_unregister(&friq);
-}
-
 MODULE_LICENSE("GPL");
-module_init(friq_init)
-module_exit(friq_exit)
+module_pata_parport_driver(friq);

@@ -199,18 +199,17 @@ static void layout_sections(struct module *mod, const Elf_Ehdr *hdr,
 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
 		for (i = 0; i < hdr->e_shnum; ++i) {
 			Elf_Shdr *s = &sechdrs[i];
+			struct module_memory *mod_mem;
+
+			mod_mem = &mod->mem[MOD_TEXT];
 
 			if ((s->sh_flags & masks[m][0]) != masks[m][0]
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL)
 				continue;
 			s->sh_entsize =
-				get_offset((unsigned long *)&mod->core_layout.size, s);
+				get_offset((unsigned long *)&mod_mem->size, s);
 		}
-
-		if (m == 0)
-			mod->core_layout.text_size = mod->core_layout.size;
-
 	}
 }
 
@@ -641,7 +640,7 @@ static int vpe_elfload(struct vpe *v)
 		layout_sections(&mod, hdr, sechdrs, secstrings);
 	}
 
-	v->load_addr = alloc_progmem(mod.core_layout.size);
+	v->load_addr = alloc_progmem(mod.mem[MOD_TEXT].size);
 	if (!v->load_addr)
 		return -ENOMEM;
 
@@ -795,7 +794,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 static int vpe_release(struct inode *inode, struct file *filp)
 {
-#if defined(CONFIG_MIPS_VPE_LOADER_MT) || defined(CONFIG_MIPS_VPE_LOADER_CMP)
+#ifdef CONFIG_MIPS_VPE_LOADER_MT
 	struct vpe *v;
 	Elf_Ehdr *hdr;
 	int ret = 0;

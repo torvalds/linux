@@ -7,8 +7,7 @@ and what is needed on STi platforms to program the stmmac glue logic.
 The device node has following properties.
 
 Required properties:
- - compatible	: Can be "st,stih415-dwmac", "st,stih416-dwmac",
-   "st,stih407-dwmac", "st,stid127-dwmac".
+ - compatible	: "st,stih407-dwmac"
  - st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
    encompases the glue register, and the offset of the control register.
  - st,gmac_en: this is to enable the gmac into a dedicated sysctl control

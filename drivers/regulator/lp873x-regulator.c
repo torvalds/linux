@@ -187,6 +187,7 @@ MODULE_DEVICE_TABLE(platform, lp873x_regulator_id_table);
 static struct platform_driver lp873x_regulator_driver = {
 	.driver = {
 		.name = "lp873x-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = lp873x_regulator_probe,
 	.id_table = lp873x_regulator_id_table,

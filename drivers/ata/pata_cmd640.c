@@ -172,7 +172,7 @@ static bool cmd640_sff_irq_check(struct ata_port *ap)
 	return irq_stat & irq_mask;
 }
 
-static struct scsi_host_template cmd640_sht = {
+static const struct scsi_host_template cmd640_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
