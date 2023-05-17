@@ -112,8 +112,8 @@ enum {
 #define v_VIDEO_MUTE(n)			(n << 0)
 
 #define HDMI_VIDEO_TIMING_CTL		0x08
-#define v_HSYNC_POLARITY(n)		(n << 3)
-#define v_VSYNC_POLARITY(n)		(n << 2)
+#define v_VSYNC_POLARITY(n)		(n << 3)
+#define v_HSYNC_POLARITY(n)		(n << 2)
 #define v_INETLACE(n)			(n << 1)
 #define v_EXTERANL_VIDEO(n)		(n << 0)
 
@@ -580,6 +580,7 @@ struct inno_hdmi {
 	struct i2c_adapter *ddc;
 
 	unsigned long tmds_rate;
+	struct gpio_desc		*hpd_gpio;
 
 	struct hdmi_data_info	hdmi_data;
 	struct drm_display_mode previous_mode;

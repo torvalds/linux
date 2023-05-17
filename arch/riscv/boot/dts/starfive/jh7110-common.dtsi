@@ -631,6 +631,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&inno_hdmi_pins>;
+	hpd-gpio = <&gpio 15 GPIO_ACTIVE_HIGH>;
 
 	hdmi_in: port {
 		#address-cells = <1>;
