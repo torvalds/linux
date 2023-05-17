@@ -165,6 +165,7 @@
     },
     {
         "BriefDescription": "This event is deprecated.",
+        "Deprecated": "1",
         "EventCode": "0xcd",
         "EventName": "CYCLES_DIV_BUSY.ANY",
         "SampleAfterValue": "2000003"
@@ -283,6 +284,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event TOPDOWN_BAD_SPECULATION.FASTNUKE",
+        "Deprecated": "1",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MONUKE",
         "SampleAfterValue": "1000003",
@@ -338,6 +340,7 @@
     },
     {
         "BriefDescription": "This event is deprecated.",
+        "Deprecated": "1",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.STORE_BUFFER",
         "SampleAfterValue": "1000003",
