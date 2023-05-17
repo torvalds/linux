@@ -178,7 +178,7 @@ static struct i2c_driver pi3usb30532_driver = {
 	.driver = {
 		.name = "pi3usb30532",
 	},
-	.probe_new	= pi3usb30532_probe,
+	.probe		= pi3usb30532_probe,
 	.remove		= pi3usb30532_remove,
 	.id_table	= pi3usb30532_table,
 };

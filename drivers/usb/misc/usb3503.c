@@ -411,7 +411,7 @@ static struct i2c_driver usb3503_i2c_driver = {
 		.pm = pm_ptr(&usb3503_i2c_pm_ops),
 		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
-	.probe_new	= usb3503_i2c_probe,
+	.probe		= usb3503_i2c_probe,
 	.remove		= usb3503_i2c_remove,
 	.id_table	= usb3503_id,
 };

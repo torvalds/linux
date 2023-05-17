@@ -746,7 +746,7 @@ static struct i2c_driver usb251xb_i2c_driver = {
 		.of_match_table = usb251xb_of_match,
 		.pm = &usb251xb_pm_ops,
 	},
-	.probe_new = usb251xb_i2c_probe,
+	.probe = usb251xb_i2c_probe,
 	.id_table = usb251xb_id,
 };
 

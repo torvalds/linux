@@ -206,7 +206,7 @@ static struct i2c_driver fsa4480_driver = {
 		.name = "fsa4480",
 		.of_match_table = fsa4480_of_table,
 	},
-	.probe_new	= fsa4480_probe,
+	.probe		= fsa4480_probe,
 	.remove		= fsa4480_remove,
 	.id_table	= fsa4480_table,
 };
