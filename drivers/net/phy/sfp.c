@@ -2600,8 +2600,8 @@ static void sfp_check_state(struct sfp *sfp)
 {
 	unsigned int state, i, changed;
 
-	mutex_lock(&sfp->st_mutex);
 	rtnl_lock();
+	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
 	if (sfp->tx_fault_ignore)
@@ -2628,8 +2628,8 @@ static void sfp_check_state(struct sfp *sfp)
 	if (changed & SFP_F_LOS)
 		sfp_sm_event(sfp, state & SFP_F_LOS ?
 				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
-	rtnl_unlock();
 	mutex_unlock(&sfp->st_mutex);
+	rtnl_unlock();
 }
 
 static irqreturn_t sfp_irq(int irq, void *data)
