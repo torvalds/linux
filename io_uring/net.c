@@ -616,9 +616,15 @@ static inline void io_recv_prep_retry(struct io_kiocb *req)
  * again (for multishot).
  */
 static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
-				  unsigned int cflags, bool mshot_finished,
+				  struct msghdr *msg, bool mshot_finished,
 				  unsigned issue_flags)
 {
+	unsigned int cflags;
+
+	cflags = io_put_kbuf(req, issue_flags);
+	if (msg->msg_inq && msg->msg_inq != -1U)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
 		io_req_set_res(req, *ret, cflags);
 		*ret = IOU_OK;
@@ -732,7 +738,6 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
-	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -821,11 +826,7 @@ retry_multishot:
 	else
 		io_kbuf_recycle(req, issue_flags);
 
-	cflags = io_put_kbuf(req, issue_flags);
-	if (kmsg->msg.msg_inq && kmsg->msg.msg_inq != -1U)
-		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-
-	if (!io_recv_finish(req, &ret, cflags, mshot_finished, issue_flags))
+	if (!io_recv_finish(req, &ret, &kmsg->msg, mshot_finished, issue_flags))
 		goto retry_multishot;
 
 	if (mshot_finished) {
@@ -844,7 +845,6 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
 	struct socket *sock;
-	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -924,11 +924,7 @@ out_free:
 	else
 		io_kbuf_recycle(req, issue_flags);
 
-	cflags = io_put_kbuf(req, issue_flags);
-	if (msg.msg_inq && msg.msg_inq != -1U)
-		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-
-	if (!io_recv_finish(req, &ret, cflags, ret <= 0, issue_flags))
+	if (!io_recv_finish(req, &ret, &msg, ret <= 0, issue_flags))
 		goto retry_multishot;
 
 	return ret;
