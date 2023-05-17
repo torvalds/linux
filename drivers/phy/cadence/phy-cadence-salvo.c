@@ -91,6 +91,7 @@
 
 /* USB2 PHY register definition */
 #define UTMI_REG15				0xaf
+#define UTMI_AFE_RX_REG5			0x12
 
 /* TB_ADDR_TX_RCVDETSC_CTRL */
 #define RXDET_IN_P3_32KHZ			BIT(0)
@@ -247,6 +248,7 @@ static int cdns_salvo_phy_init(struct phy *phy)
 	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_REG15,
 			 value | TXVALID_GATE_THRESHOLD_HS_0US);
 
+	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_RX_REG5, 0x5);
 	udelay(10);
 
 	clk_disable_unprepare(salvo_phy->clk);
