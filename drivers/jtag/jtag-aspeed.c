@@ -195,6 +195,7 @@ struct aspeed_jtag {
 	wait_queue_head_t		jtag_wq;
 	u32				mode;
 	enum jtag_tapstate		current_state;
+	u32				tck_period;
 	const struct jtag_low_level_functions *llops;
 	u32 pad_data_one[ASPEED_JTAG_MAX_PAD_SIZE / 32];
 	u32 pad_data_zero[ASPEED_JTAG_MAX_PAD_SIZE / 32];
@@ -271,6 +272,8 @@ static int aspeed_jtag_freq_set(struct jtag *jtag, u32 freq)
 	aspeed_jtag_write(aspeed_jtag,
 			  (tck_val & ~ASPEED_JTAG_TCK_DIVISOR_MASK) | div,
 			  ASPEED_JTAG_TCK);
+	aspeed_jtag->tck_period =
+		DIV_ROUND_UP_ULL((u64)NSEC_PER_SEC * (div + 1), apb_frq);
 	return 0;
 }
 
@@ -578,10 +581,10 @@ static void aspeed_jtag_set_tap_state(struct aspeed_jtag *aspeed_jtag,
 static void aspeed_jtag_set_tap_state_sw(struct aspeed_jtag *aspeed_jtag,
 					 struct jtag_tap_state *tapstate)
 {
+	int i;
+
 	/* SW mode from curent tap state -> to end_state */
 	if (tapstate->reset) {
-		int i = 0;
-
 		for (i = 0; i < ASPEED_JTAG_RESET_CNTR; i++)
 			aspeed_jtag_tck_cycle(aspeed_jtag, 1, 0);
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
@@ -589,12 +592,19 @@ static void aspeed_jtag_set_tap_state_sw(struct aspeed_jtag *aspeed_jtag,
 
 	aspeed_jtag_set_tap_state(aspeed_jtag, tapstate->from,
 				  tapstate->endstate);
+	if (tapstate->endstate == JTAG_STATE_TLRESET ||
+	    tapstate->endstate == JTAG_STATE_IDLE ||
+	    tapstate->endstate == JTAG_STATE_PAUSEDR ||
+	    tapstate->endstate == JTAG_STATE_PAUSEIR)
+		for (i = 0; i < tapstate->tck; i++)
+			aspeed_jtag_tck_cycle(aspeed_jtag, 0, 0);
 }
 
 static int aspeed_jtag_status_set(struct jtag *jtag,
 				  struct jtag_tap_state *tapstate)
 {
 	struct aspeed_jtag *aspeed_jtag = jtag_priv(jtag);
+	int i;
 
 #ifdef DEBUG_JTAG
 	dev_dbg(aspeed_jtag->dev, "Set TAP state: %s\n",
@@ -621,6 +631,8 @@ static int aspeed_jtag_status_set(struct jtag *jtag,
 				  ASPEED_JTAG_SW);
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
 	}
+	for (i = 0; i < tapstate->tck; i++)
+		ndelay(aspeed_jtag->tck_period);
 
 	return 0;
 }
@@ -655,7 +667,7 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 	u32 reg_val;
 
 	/* x TMS high + 1 TMS low */
-	if (tapstate->reset) {
+	if (tapstate->reset || tapstate->endstate == JTAG_STATE_TLRESET) {
 		/* Disable sw mode */
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
 		udelay(AST26XX_JTAG_CTRL_UDELAY);
@@ -667,6 +679,8 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 					  ASPEED_JTAG_GBLCTRL_FORCE_TMS,
 				  ASPEED_JTAG_GBLCTRL);
 		udelay(AST26XX_JTAG_CTRL_UDELAY);
+		while (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL) & ASPEED_JTAG_GBLCTRL_FORCE_TMS)
+			;
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
 	} else if (tapstate->endstate == JTAG_STATE_IDLE &&
 		   aspeed_jtag->current_state != JTAG_STATE_IDLE) {
@@ -675,6 +689,25 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 					  aspeed_jtag->current_state,
 					  JTAG_STATE_IDLE);
 		aspeed_jtag->current_state = JTAG_STATE_IDLE;
+	}
+	/* Run TCK */
+	if (tapstate->tck) {
+		/* Disable sw mode */
+		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
+		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_PADCTRL0);
+		reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL);
+		reg_val = reg_val & ~(GENMASK(22, 20));
+		aspeed_jtag_write(aspeed_jtag,
+				  reg_val | ASPEED_JTAG_GBLCTRL_FIFO_CTRL_MODE |
+					  ASPEED_JTAG_GBLCTRL_STSHIFT(0) |
+					  ASPEED_JTAG_GBLCTRL_UPDT_SHIFT(tapstate->tck),
+				  ASPEED_JTAG_GBLCTRL);
+
+		aspeed_jtag_write(aspeed_jtag,
+				  ASPEED_JTAG_SHCTRL_STSHIFT_EN |
+					  ASPEED_JTAG_SHCTRL_LWRDT_SHIFT(tapstate->tck),
+				  ASPEED_JTAG_SHCTRL);
+		aspeed_jtag_wait_shift_complete(aspeed_jtag);
 	}
 }
 
