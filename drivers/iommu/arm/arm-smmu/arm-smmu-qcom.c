@@ -23,6 +23,289 @@
 
 #define QCOM_DUMMY_VAL	-1
 
+#define IMPL_DEF4_MICRO_MMU_CTRL	0
+#define IMPL_DEF4_CLK_ON_STATUS		0x50
+#define IMPL_DEF4_CLK_ON_CLIENT_STATUS	0x54
+#define MICRO_MMU_CTRL_LOCAL_HALT_REQ	BIT(2)
+#define MICRO_MMU_CTRL_IDLE		BIT(3)
+
+/* Definitions for implementation-defined registers */
+#define ACTLR_QCOM_OSH			BIT(28)
+#define ACTLR_QCOM_ISH			BIT(29)
+#define ACTLR_QCOM_NSH			BIT(30)
+
+struct arm_smmu_impl_def_reg {
+	u32 offset;
+	u32 value;
+};
+
+struct qsmmuv2_archdata {
+	spinlock_t			atos_lock;
+	struct arm_smmu_impl_def_reg	*impl_def_attach_registers;
+	unsigned int			num_impl_def_attach_registers;
+	struct arm_smmu_device		smmu;
+};
+
+#define to_qsmmuv2_archdata(smmu)				\
+	container_of(smmu, struct qsmmuv2_archdata, smmu)
+
+static int qsmmuv2_wait_for_halt(struct arm_smmu_device *smmu)
+{
+	void __iomem *reg = arm_smmu_page(smmu, ARM_SMMU_IMPL_DEF4);
+	struct device *dev = smmu->dev;
+	u32 tmp;
+
+	if (readl_poll_timeout_atomic(reg + IMPL_DEF4_MICRO_MMU_CTRL, tmp,
+				(tmp & MICRO_MMU_CTRL_IDLE), 0, 30000)) {
+		dev_err(dev, "Couldn't halt SMMU!\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int __qsmmuv2_halt(struct arm_smmu_device *smmu, bool wait)
+{
+	u32 val;
+
+	val = arm_smmu_readl(smmu, ARM_SMMU_IMPL_DEF4,
+				     IMPL_DEF4_MICRO_MMU_CTRL);
+	val |= MICRO_MMU_CTRL_LOCAL_HALT_REQ;
+
+	arm_smmu_writel(smmu, ARM_SMMU_IMPL_DEF4, IMPL_DEF4_MICRO_MMU_CTRL,
+				val);
+
+	return wait ? qsmmuv2_wait_for_halt(smmu) : 0;
+}
+
+static int qsmmuv2_halt(struct arm_smmu_device *smmu)
+{
+	return __qsmmuv2_halt(smmu, true);
+}
+
+static int qsmmuv2_halt_nowait(struct arm_smmu_device *smmu)
+{
+	return __qsmmuv2_halt(smmu, false);
+}
+
+static void qsmmuv2_resume(struct arm_smmu_device *smmu)
+{
+	u32 val;
+
+	val = arm_smmu_readl(smmu, ARM_SMMU_IMPL_DEF4,
+			     IMPL_DEF4_MICRO_MMU_CTRL);
+	val &= ~MICRO_MMU_CTRL_LOCAL_HALT_REQ;
+
+	arm_smmu_writel(smmu, ARM_SMMU_IMPL_DEF4, IMPL_DEF4_MICRO_MMU_CTRL,
+				val);
+}
+
+
+static phys_addr_t __qsmmuv2_iova_to_phys_hard(
+					struct arm_smmu_domain *smmu_domain,
+					dma_addr_t iova)
+{
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
+	struct device *dev = smmu->dev;
+	int idx = cfg->cbndx;
+	void __iomem *reg;
+	u32 tmp;
+	u64 phys;
+	unsigned long va;
+
+	/* ATS1 registers can only be written atomically */
+	va = iova & ~0xfffUL;
+	if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
+		arm_smmu_cb_writeq(smmu, idx, ARM_SMMU_CB_ATS1PR, va);
+	else
+		arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_ATS1PR, va);
+
+	reg = arm_smmu_page(smmu, ARM_SMMU_CB(smmu, idx));
+	if (readl_poll_timeout_atomic(reg + ARM_SMMU_CB_ATSR, tmp,
+				      !(tmp & ARM_SMMU_ATSR_ACTIVE), 5, 50)) {
+		dev_err(dev, "iova to phys timed out on %pad.\n", &iova);
+		phys = 0;
+		return phys;
+	}
+
+	phys = arm_smmu_cb_readq(smmu, idx, ARM_SMMU_CB_PAR);
+	if (phys & ARM_SMMU_CB_PAR_F) {
+		dev_err(dev, "translation fault!\n");
+		dev_err(dev, "PAR = 0x%llx\n", phys);
+		phys = 0;
+	} else {
+		phys = (phys & (PHYS_MASK & ~0xfffULL)) | (iova & 0xfff);
+	}
+
+	return phys;
+}
+
+static phys_addr_t qsmmuv2_iova_to_phys_hard(
+					struct arm_smmu_domain *smmu_domain,
+					struct qcom_iommu_atos_txn *txn)
+{
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct qsmmuv2_archdata *data = to_qsmmuv2_archdata(smmu);
+	int idx = smmu_domain->cfg.cbndx;
+	dma_addr_t iova = txn->addr;
+	phys_addr_t phys = 0;
+	unsigned long flags;
+	u32 sctlr, sctlr_orig, fsr;
+
+	spin_lock_irqsave(&data->atos_lock, flags);
+
+	qsmmuv2_halt_nowait(smmu);
+
+	/* disable stall mode momentarily */
+	sctlr_orig = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_SCTLR);
+	sctlr = sctlr_orig & ~(ARM_SMMU_SCTLR_CFCFG);
+	arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_SCTLR, sctlr);
+
+	/* clear FSR to allow ATOS to log any faults */
+	fsr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSR);
+	if (fsr & ARM_SMMU_FSR_FAULT) {
+		/* Clear pending interrupts */
+		arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_FSR, fsr);
+		/*
+		 * Barrier required to ensure that the FSR is cleared
+		 * before resuming SMMU operation
+		 */
+		wmb();
+
+		/*
+		 *  TBU halt takes care of resuming any stalled transcation.
+		 *  Kept it here for completeness sake.
+		 */
+		if (fsr & ARM_SMMU_FSR_SS)
+			arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_RESUME,
+				ARM_SMMU_RESUME_TERMINATE);
+	}
+
+	qsmmuv2_wait_for_halt(smmu);
+
+	phys = __qsmmuv2_iova_to_phys_hard(smmu_domain, iova);
+
+	/* restore SCTLR */
+	arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_SCTLR, sctlr_orig);
+
+	qsmmuv2_resume(smmu);
+	spin_unlock_irqrestore(&data->atos_lock, flags);
+
+	return phys;
+}
+
+static void qsmmuv2_tlb_sync_timeout(struct arm_smmu_device *smmu)
+{
+	u32 clk_on, clk_on_client;
+
+	dev_err_ratelimited(smmu->dev,
+			"TLB sync timed out -- SMMU may be deadlocked\n");
+
+	clk_on = arm_smmu_readl(smmu, ARM_SMMU_IMPL_DEF4,
+				IMPL_DEF4_CLK_ON_STATUS);
+	clk_on_client = arm_smmu_readl(smmu, ARM_SMMU_IMPL_DEF4,
+				IMPL_DEF4_CLK_ON_CLIENT_STATUS);
+	dev_err_ratelimited(smmu->dev,
+				    "clk on 0x%x, clk on client 0x%x status\n",
+						    clk_on, clk_on_client);
+
+	BUG_ON(IS_ENABLED(CONFIG_IOMMU_TLBSYNC_DEBUG));
+}
+
+static int qsmmuv2_device_reset(struct arm_smmu_device *smmu)
+{
+	struct qsmmuv2_archdata *data = to_qsmmuv2_archdata(smmu);
+	struct arm_smmu_impl_def_reg *regs = data->impl_def_attach_registers;
+	u32 i;
+
+	/* Program implementation defined registers */
+	qsmmuv2_halt(smmu);
+	for (i = 0; i < data->num_impl_def_attach_registers; ++i)
+		arm_smmu_gr0_write(smmu, regs[i].offset, regs[i].value);
+	qsmmuv2_resume(smmu);
+
+	return 0;
+}
+
+static void qsmmuv2_init_cb(struct arm_smmu_domain *smmu_domain,
+					struct device *dev)
+{
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	int idx = smmu_domain->cfg.cbndx;
+	const struct iommu_flush_ops *tlb;
+	u32 val;
+
+	tlb = smmu_domain->flush_ops;
+
+	val = ACTLR_QCOM_ISH | ACTLR_QCOM_OSH | ACTLR_QCOM_NSH;
+
+	arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_ACTLR, val);
+
+	/*
+	 * Flush the context bank after modifying ACTLR to ensure there
+	 * are no cache entries with stale state
+	 */
+	tlb->tlb_flush_all(smmu_domain);
+}
+
+static int arm_smmu_parse_impl_def_registers(struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+	struct qsmmuv2_archdata *data = to_qsmmuv2_archdata(smmu);
+	int i, ntuples, ret;
+	u32 *tuples;
+	struct arm_smmu_impl_def_reg *regs, *regit;
+
+	if (!of_find_property(dev->of_node, "attach-impl-defs", &ntuples))
+		return 0;
+
+	ntuples /= sizeof(u32);
+	if (ntuples % 2) {
+		dev_err(dev,
+			"Invalid number of attach-impl-defs registers: %d\n",
+			ntuples);
+		return -EINVAL;
+	}
+
+	regs = devm_kzalloc(dev, sizeof(*data->impl_def_attach_registers) *
+		ntuples, GFP_KERNEL);
+
+	if (!regs)
+		return -ENOMEM;
+
+	tuples = kzalloc(sizeof(u32) * ntuples * 2, GFP_KERNEL);
+	if (!tuples)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(dev->of_node, "attach-impl-defs",
+					tuples, ntuples);
+	if (ret) {
+		kfree(tuples);
+		return ret;
+	}
+
+	for (i = 0, regit = regs; i < ntuples; i += 2, ++regit) {
+		regit->offset = tuples[i];
+		regit->value = tuples[i + 1];
+	}
+
+	kfree(tuples);
+
+	data->impl_def_attach_registers = regs;
+	data->num_impl_def_attach_registers = ntuples / 2;
+
+	return 0;
+}
+
+static const struct arm_smmu_impl qsmmuv2_impl = {
+	.init_context_bank = qsmmuv2_init_cb,
+	.iova_to_phys_hard = qsmmuv2_iova_to_phys_hard,
+	.tlb_sync_timeout = qsmmuv2_tlb_sync_timeout,
+	.reset = qsmmuv2_device_reset,
+};
+
+
 static struct qcom_smmu *to_qcom_smmu(struct arm_smmu_device *smmu)
 {
 	return container_of(smmu, struct qcom_smmu, smmu);
@@ -1848,4 +2131,28 @@ struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 		return qcom_smmu_create(smmu, &qcom_smmu_impl);
 
 	return smmu;
+}
+
+struct arm_smmu_device *qsmmuv2_impl_init(struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+	struct qsmmuv2_archdata *data;
+	struct platform_device *pdev;
+	int ret;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	pdev = to_platform_device(dev);
+
+	spin_lock_init(&data->atos_lock);
+	data->smmu = *smmu;
+	data->smmu.impl = &qsmmuv2_impl;
+
+	ret = arm_smmu_parse_impl_def_registers(&data->smmu);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return &data->smmu;
 }
