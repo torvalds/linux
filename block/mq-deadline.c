@@ -443,7 +443,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 	 */
 	rq = deadline_next_request(dd, per_prio, dd->last_dir);
 	if (rq && dd->batching < dd->fifo_batch)
-		/* we have a next request are still entitled to batch */
+		/* we have a next request and are still entitled to batch */
 		goto dispatch_request;
 
 	/*
