@@ -6,7 +6,7 @@
  */
 
 &dra7_pmx_core {
-	mmc1_pins_default_no_clk_pu: mmc1_pins_default_no_clk_pu {
+	mmc1_pins_default_no_clk_pu: mmc1-default-no-clk-pu-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3754, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mmc1_clk.clk */
 			DRA7XX_CORE_IOPAD(0x3758, PIN_INPUT_PULLUP | MUX_MODE0) /* mmc1_cmd.cmd */

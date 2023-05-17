@@ -158,14 +158,14 @@
 };
 
 &dra7_pmx_core {
-	dcan1_pins_default: dcan1_pins_default {
+	dcan1_pins_default: dcan1-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x37d0, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* dcan1_tx */
 			DRA7XX_CORE_IOPAD(0x37d4, PIN_INPUT_PULLUP | MUX_MODE0)		/* dcan1_rx */
 		>;
 	};
 
-	dcan1_pins_sleep: dcan1_pins_sleep {
+	dcan1_pins_sleep: dcan1-sleep-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x37d0, MUX_MODE15 | PULL_UP)	/* dcan1_tx.off */
 			DRA7XX_CORE_IOPAD(0x37d4, MUX_MODE15 | PULL_UP)	/* dcan1_rx.off */

@@ -77,40 +77,40 @@
 };
 
 &dra7_pmx_core {
-	leds_pins_default: leds_pins_default {
+	leds_pins_default: leds-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x347c, PIN_OUTPUT | MUX_MODE14)	/* gpmc_a15.gpio2_5 */
 		>;
 	};
 
-	i2c1_pins_default: i2c1_pins_default {
+	i2c1_pins_default: i2c1-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3800, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda.sda */
 			DRA7XX_CORE_IOPAD(0x3804, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl.scl */
 		>;
 	};
 
-	i2c3_pins_default: i2c3_pins_default {
+	i2c3_pins_default: i2c3-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x36a4, PIN_INPUT| MUX_MODE10)	/* mcasp1_aclkx.i2c3_sda */
 			DRA7XX_CORE_IOPAD(0x36a8, PIN_INPUT| MUX_MODE10)	/* mcasp1_fsx.i2c3_scl */
 		>;
 	};
 
-	i2c4_pins_default: i2c4_pins_default {
+	i2c4_pins_default: i2c4-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x36ac, PIN_INPUT| MUX_MODE10)	/* mcasp1_acl.i2c4_sda */
 			DRA7XX_CORE_IOPAD(0x36b0, PIN_INPUT| MUX_MODE10)	/* mcasp1_fsr.i2c4_scl */
 		>;
 	};
 
-	tps659038_pins_default: tps659038_pins_default {
+	tps659038_pins_default: tps659038-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3818, PIN_INPUT_PULLUP | MUX_MODE14) /* wakeup0.gpio1_0 */
 		>;
 	};
 
-	mmc2_pins_default: mmc2_pins_default {
+	mmc2_pins_default: mmc2-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x349c, PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_a23.mmc2_clk */
 			DRA7XX_CORE_IOPAD(0x34b0, PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_cs1.mmc2_cmd */
@@ -125,7 +125,7 @@
 		>;
 	};
 
-	qspi1_pins: pinmux_qspi1_pins {
+	qspi1_pins: qspi1-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3474, PIN_INPUT | MUX_MODE1)	/* gpmc_a13.qspi1_rtclk */
 			DRA7XX_CORE_IOPAD(0x3480, PIN_INPUT | MUX_MODE1)	/* gpmc_a16.qspi1_d0 */
@@ -136,7 +136,7 @@
 		>;
 	};
 
-	cpsw_pins_default: cpsw_pins_default {
+	cpsw_pins_default: cpsw-default-pins {
 		pinctrl-single,pins = <
 			/* Slave at addr 0x0 */
 			DRA7XX_CORE_IOPAD(0x3650, PIN_OUTPUT | MUX_MODE0)	/* rgmii0_tclk */
@@ -168,7 +168,7 @@
 		>;
 	};
 
-	cpsw_pins_sleep: cpsw_pins_sleep {
+	cpsw_pins_sleep: cpsw-sleep-pins {
 		pinctrl-single,pins = <
 			/* Slave 1 */
 			DRA7XX_CORE_IOPAD(0x3650, PIN_INPUT | MUX_MODE15)
@@ -200,7 +200,7 @@
 		>;
 	};
 
-	davinci_mdio_pins_default: davinci_mdio_pins_default {
+	davinci_mdio_pins_default: davinci-mdio-default-pins {
 		pinctrl-single,pins = <
 			/* MDIO */
 			DRA7XX_CORE_IOPAD(0x3590, PIN_OUTPUT_PULLUP | MUX_MODE3)/* vin2a_d10.mdio_mclk */
@@ -208,20 +208,20 @@
 		>;
 	};
 
-	davinci_mdio_pins_sleep: davinci_mdio_pins_sleep {
+	davinci_mdio_pins_sleep: davinci-mdio-sleep-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3590, PIN_INPUT | MUX_MODE15)
 			DRA7XX_CORE_IOPAD(0x3594, PIN_INPUT | MUX_MODE15)
 		>;
 	};
 
-	ads7846_pins: pinmux_ads7846_pins {
+	ads7846_pins: ads7846-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3464, PIN_INPUT_PULLDOWN | MUX_MODE14) /* gpmc_a9.gpio1_31 */
 		>;
 	};
 
-	mcasp3_pins_default: mcasp3_pins_default {
+	mcasp3_pins_default: mcasp3-default-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3724, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mcasp3_aclkx.mcasp3_aclkx */
 			DRA7XX_CORE_IOPAD(0x3728, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mcasp3_fsx.mcasp3_fsx */
@@ -230,7 +230,7 @@
 		>;
 	};
 
-	mcasp3_pins_sleep: mcasp3_pins_sleep {
+	mcasp3_pins_sleep: mcasp3-sleep-pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3724, PIN_INPUT | MUX_MODE15)
 			DRA7XX_CORE_IOPAD(0x3728, PIN_INPUT | MUX_MODE15)
