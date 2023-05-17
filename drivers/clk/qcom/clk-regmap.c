@@ -338,6 +338,9 @@ void clk_restore_critical_clocks(struct device *dev)
 	struct critical_clk_offset *cclks = desc->critical_clk_en;
 	int i;
 
+	if (!regmap)
+		return;
+
 	for (i = 0; i < desc->num_critical_clk; i++)
 		regmap_update_bits(regmap, cclks[i].offset, cclks[i].mask,
 					 cclks[i].mask);
