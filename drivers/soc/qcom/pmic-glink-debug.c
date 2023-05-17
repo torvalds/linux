@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -315,7 +315,7 @@ static int spmi_glink_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 static int i2c_glink_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct i2c_glink_ctrl *i2c_gctrl = i2c_get_adapdata(adap);
-	struct pmic_glink_debug_dev *gd = i2c_gctrl->gd;
+	struct pmic_glink_debug_dev *gd;
 	u8 sid, *buf;
 	u16 reg;
 	u32 bus_id;
@@ -326,6 +326,7 @@ static int i2c_glink_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int n
 	if (!i2c_gctrl)
 		return -ENODEV;
 
+	gd = i2c_gctrl->gd;
 	bus_id = i2c_gctrl->bus_id;
 	sid = (u8) msgs[0].addr;
 	/*
