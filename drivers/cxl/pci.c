@@ -85,6 +85,10 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 			    status & CXLMDEV_DEV_FATAL ? " fatal" : "",        \
 			    status & CXLMDEV_FW_HALT ? " firmware-halt" : "")
 
+/*
+ * Threaded irq dev_id's must be globally unique.  cxl_dev_id provides a unique
+ * wrapper object for each irq within the same cxlds.
+ */
 struct cxl_dev_id {
 	struct cxl_dev_state *cxlds;
 };
@@ -95,7 +99,6 @@ static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
 	struct device *dev = cxlds->dev;
 	struct cxl_dev_id *dev_id;
 
-	/* dev_id must be globally unique and must contain the cxlds */
 	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
 	if (!dev_id)
 		return -ENOMEM;
