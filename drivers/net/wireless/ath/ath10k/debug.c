@@ -293,8 +293,8 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 		goto free;
 	}
 
-	num_peers = ath10k_wmi_fw_stats_num_peers(&ar->debug.fw_stats.peers);
-	num_vdevs = ath10k_wmi_fw_stats_num_vdevs(&ar->debug.fw_stats.vdevs);
+	num_peers = list_count_nodes(&ar->debug.fw_stats.peers);
+	num_vdevs = list_count_nodes(&ar->debug.fw_stats.vdevs);
 	is_start = (list_empty(&ar->debug.fw_stats.pdevs) &&
 		    !list_empty(&stats.pdevs));
 	is_end = (!list_empty(&ar->debug.fw_stats.pdevs) &&

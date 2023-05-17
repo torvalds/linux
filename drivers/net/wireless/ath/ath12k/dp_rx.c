@@ -978,7 +978,19 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 			return ret;
 		}
 
-		return ret;
+		if (!ab->hw_params->reoq_lut_support) {
+			ret = ath12k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id,
+								     peer_mac,
+								     paddr, tid, 1,
+								     ba_win_sz);
+			if (ret) {
+				ath12k_warn(ab, "failed to setup peer rx reorder queuefor tid %d: %d\n",
+					    tid, ret);
+				return ret;
+			}
+		}
+
+		return 0;
 	}
 
 	rx_tid->tid = tid;
@@ -1361,11 +1373,6 @@ ath12k_update_per_peer_tx_stats(struct ath12k *ar,
 	 * cases, the broadcast/management frames are sent in different rates.
 	 * Firmware rate's control to be skipped for this?
 	 */
-
-	if (flags == WMI_RATE_PREAMBLE_HE && mcs > 11) {
-		ath12k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);
-		return;
-	}
 
 	if (flags == WMI_RATE_PREAMBLE_HE && mcs > ATH12K_HE_MCS_MAX) {
 		ath12k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);

@@ -189,6 +189,7 @@ struct wlfw_host_mlo_chip_info_s_v01 {
 enum ath12k_qmi_cnss_feature {
 	CNSS_FEATURE_MIN_ENUM_VAL_V01 = INT_MIN,
 	CNSS_QDSS_CFG_MISS_V01 = 3,
+	CNSS_PCIE_PERST_NO_PULL_V01 = 4,
 	CNSS_MAX_FEATURE_V01 = 64,
 	CNSS_FEATURE_MAX_ENUM_VAL_V01 = INT_MAX,
 };
