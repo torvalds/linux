@@ -480,7 +480,7 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Enable adaptive CTLE for USB3.0 Rx */
 		val = readl(priv->mmio + 0x200);
 		val &= ~GENMASK(17, 17);
-		val |= 0x01;
+		val |= 0x01 << 17;
 		writel(val, priv->mmio + 0x200);
 
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
