@@ -5293,6 +5293,29 @@
 			A change in value does not take effect until
 			the beginning of the next grace period.
 
+	rcupdate.rcu_tasks_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks asynchronous
+			callback batching for call_rcu_tasks().
+			A negative value will take the default.  A value
+			of zero will disable batching.	Batching is
+			always disabled for synchronize_rcu_tasks().
+
+	rcupdate.rcu_tasks_rude_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks
+			Rude asynchronous callback batching for
+			call_rcu_tasks_rude().	A negative value
+			will take the default.	A value of zero will
+			disable batching.  Batching is always disabled
+			for synchronize_rcu_tasks_rude().
+
+	rcupdate.rcu_tasks_trace_lazy_ms= [KNL]
+			Set timeout in milliseconds RCU Tasks
+			Trace asynchronous callback batching for
+			call_rcu_tasks_trace().  A negative value
+			will take the default.	A value of zero will
+			disable batching.  Batching is always disabled
+			for synchronize_rcu_tasks_trace().
+
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests
 

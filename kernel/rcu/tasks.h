@@ -1083,11 +1083,16 @@ void rcu_barrier_tasks(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
+int rcu_tasks_lazy_ms = -1;
+module_param(rcu_tasks_lazy_ms, int, 0444);
+
 static int __init rcu_spawn_tasks_kthread(void)
 {
 	cblist_init_generic(&rcu_tasks);
 	rcu_tasks.gp_sleep = HZ / 10;
 	rcu_tasks.init_fract = HZ / 10;
+	if (rcu_tasks_lazy_ms >= 0)
+		rcu_tasks.lazy_jiffies = msecs_to_jiffies(rcu_tasks_lazy_ms);
 	rcu_tasks.pregp_func = rcu_tasks_pregp_step;
 	rcu_tasks.pertask_func = rcu_tasks_pertask;
 	rcu_tasks.postscan_func = rcu_tasks_postscan;
@@ -1236,10 +1241,15 @@ void rcu_barrier_tasks_rude(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
 
+int rcu_tasks_rude_lazy_ms = -1;
+module_param(rcu_tasks_rude_lazy_ms, int, 0444);
+
 static int __init rcu_spawn_tasks_rude_kthread(void)
 {
 	cblist_init_generic(&rcu_tasks_rude);
 	rcu_tasks_rude.gp_sleep = HZ / 10;
+	if (rcu_tasks_rude_lazy_ms >= 0)
+		rcu_tasks_rude.lazy_jiffies = msecs_to_jiffies(rcu_tasks_rude_lazy_ms);
 	rcu_spawn_tasks_kthread_generic(&rcu_tasks_rude);
 	return 0;
 }
@@ -1856,6 +1866,9 @@ void rcu_barrier_tasks_trace(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks_trace);
 
+int rcu_tasks_trace_lazy_ms = -1;
+module_param(rcu_tasks_trace_lazy_ms, int, 0444);
+
 static int __init rcu_spawn_tasks_trace_kthread(void)
 {
 	cblist_init_generic(&rcu_tasks_trace);
@@ -1870,6 +1883,8 @@ static int __init rcu_spawn_tasks_trace_kthread(void)
 		if (rcu_tasks_trace.init_fract <= 0)
 			rcu_tasks_trace.init_fract = 1;
 	}
+	if (rcu_tasks_trace_lazy_ms >= 0)
+		rcu_tasks_trace.lazy_jiffies = msecs_to_jiffies(rcu_tasks_trace_lazy_ms);
 	rcu_tasks_trace.pregp_func = rcu_tasks_trace_pregp_step;
 	rcu_tasks_trace.postscan_func = rcu_tasks_trace_postscan;
 	rcu_tasks_trace.holdouts_func = check_all_holdout_tasks_trace;
