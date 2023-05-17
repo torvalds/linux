@@ -242,10 +242,17 @@ struct sfp {
 
 	bool need_poll;
 
+	/* Access rules:
+	 * state_hw_drive: st_mutex held
+	 * state_hw_mask: st_mutex held
+	 * state_soft_mask: st_mutex held
+	 * state: st_mutex held unless reading input bits
+	 */
 	struct mutex st_mutex;			/* Protects state */
 	unsigned int state_hw_mask;
 	unsigned int state_soft_mask;
 	unsigned int state;
+
 	struct delayed_work poll;
 	struct delayed_work timeout;
 	struct mutex sm_mutex;			/* Protects state machine */
@@ -692,7 +699,6 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 	const struct sfp_eeprom_id *id = &sfp->id;
 	unsigned int mask = 0;
 
-	sfp->state_soft_mask = 0;
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE)
 		mask |= SFP_F_TX_DISABLE;
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT)
@@ -700,19 +706,26 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS)
 		mask |= SFP_F_LOS;
 
+	mutex_lock(&sfp->st_mutex);
 	// Poll the soft state for hardware pins we want to ignore
 	sfp->state_soft_mask = ~sfp->state_hw_mask & mask;
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static void sfp_soft_stop_poll(struct sfp *sfp)
 {
+	mutex_lock(&sfp->st_mutex);
 	sfp->state_soft_mask = 0;
+	mutex_unlock(&sfp->st_mutex);
 }
 
+/* sfp_get_state() - must be called with st_mutex held, or in the
+ * initialisation path.
+ */
 static unsigned int sfp_get_state(struct sfp *sfp)
 {
 	unsigned int soft = sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT);
@@ -725,6 +738,9 @@ static unsigned int sfp_get_state(struct sfp *sfp)
 	return state;
 }
 
+/* sfp_set_state() - must be called with st_mutex held, or in the
+ * initialisation path.
+ */
 static void sfp_set_state(struct sfp *sfp, unsigned int state)
 {
 	sfp->set_state(sfp, state);
@@ -736,8 +752,10 @@ static void sfp_set_state(struct sfp *sfp, unsigned int state)
 
 static void sfp_mod_state(struct sfp *sfp, unsigned int mask, unsigned int set)
 {
+	mutex_lock(&sfp->st_mutex);
 	sfp->state = (sfp->state & ~mask) | set;
 	sfp_set_state(sfp, sfp->state);
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static unsigned int sfp_check(void *buf, size_t len)
@@ -1603,16 +1621,18 @@ static void sfp_debugfs_exit(struct sfp *sfp)
 
 static void sfp_module_tx_fault_reset(struct sfp *sfp)
 {
-	unsigned int state = sfp->state;
+	unsigned int state;
 
-	if (state & SFP_F_TX_DISABLE)
-		return;
+	mutex_lock(&sfp->st_mutex);
+	state = sfp->state;
+	if (!(state & SFP_F_TX_DISABLE)) {
+		sfp_set_state(sfp, state | SFP_F_TX_DISABLE);
 
-	sfp_set_state(sfp, state | SFP_F_TX_DISABLE);
+		udelay(T_RESET_US);
 
-	udelay(T_RESET_US);
-
-	sfp_set_state(sfp, state);
+		sfp_set_state(sfp, state);
+	}
+	mutex_unlock(&sfp->st_mutex);
 }
 
 /* SFP state machine */
@@ -1957,6 +1977,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
 	bool cotsworks_sfbg;
+	unsigned int mask;
 	bool cotsworks;
 	u8 check;
 	int ret;
@@ -2096,14 +2117,13 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret < 0)
 		return ret;
 
-	/* Initialise state bits to use from hardware */
-	sfp->state_hw_mask = SFP_F_PRESENT;
+	mask = SFP_F_PRESENT;
 	if (sfp->gpio[GPIO_TX_DISABLE])
-		sfp->state_hw_mask |= SFP_F_TX_DISABLE;
+		mask |= SFP_F_TX_DISABLE;
 	if (sfp->gpio[GPIO_TX_FAULT])
-		sfp->state_hw_mask |= SFP_F_TX_FAULT;
+		mask |= SFP_F_TX_FAULT;
 	if (sfp->gpio[GPIO_LOS])
-		sfp->state_hw_mask |= SFP_F_LOS;
+		mask |= SFP_F_LOS;
 
 	sfp->module_t_start_up = T_START_UP;
 	sfp->module_t_wait = T_WAIT;
@@ -2121,8 +2141,14 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		sfp->mdio_protocol = MDIO_I2C_NONE;
 
 	sfp->quirk = sfp_lookup_quirk(&id);
+
+	mutex_lock(&sfp->st_mutex);
+	/* Initialise state bits to use from hardware */
+	sfp->state_hw_mask = mask;
+
 	if (sfp->quirk && sfp->quirk->fixup)
 		sfp->quirk->fixup(sfp);
+	mutex_unlock(&sfp->st_mutex);
 
 	return 0;
 }
@@ -2619,6 +2645,7 @@ static void sfp_check_state(struct sfp *sfp)
 
 	state |= sfp->state & (SFP_F_TX_DISABLE | SFP_F_RATE_SELECT);
 	sfp->state = state;
+	mutex_unlock(&sfp->st_mutex);
 
 	mutex_lock(&sfp->sm_mutex);
 	if (changed & SFP_F_PRESENT)
@@ -2633,7 +2660,6 @@ static void sfp_check_state(struct sfp *sfp)
 		__sfp_sm_event(sfp, state & SFP_F_LOS ?
 				    SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
 	mutex_unlock(&sfp->sm_mutex);
-	mutex_unlock(&sfp->st_mutex);
 	rtnl_unlock();
 }
 
@@ -2652,6 +2678,8 @@ static void sfp_poll(struct work_struct *work)
 
 	sfp_check_state(sfp);
 
+	// st_mutex doesn't need to be held here for state_soft_mask,
+	// it's unimportant if we race while reading this.
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
 	    sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
