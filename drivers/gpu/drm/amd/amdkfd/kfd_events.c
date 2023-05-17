@@ -431,6 +431,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 	if (!ret) {
 		*event_id = ev->event_id;
 		*event_trigger_data = ev->event_id;
+		ev->event_age = 1;
 	} else {
 		kfree(ev);
 	}
@@ -629,6 +630,11 @@ static void set_event(struct kfd_event *ev)
 	 * updating the wait queues in kfd_wait_on_events.
 	 */
 	ev->signaled = !ev->auto_reset || !waitqueue_active(&ev->wq);
+	if (!(++ev->event_age)) {
+		/* Never wrap back to reserved/default event age 0/1 */
+		ev->event_age = 2;
+		WARN_ONCE(1, "event_age wrap back!");
+	}
 
 	list_for_each_entry(waiter, &ev->wq.head, wait.entry)
 		WRITE_ONCE(waiter->activated, true);
