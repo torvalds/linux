@@ -264,6 +264,12 @@ impl<T: ?Sized> Deref for Arc<T> {
     }
 }
 
+impl<T: ?Sized> AsRef<T> for Arc<T> {
+    fn as_ref(&self) -> &T {
+        self.deref()
+    }
+}
+
 impl<T: ?Sized> Clone for Arc<T> {
     fn clone(&self) -> Self {
         // INVARIANT: C `refcount_inc` saturates the refcount, so it cannot overflow to zero.
