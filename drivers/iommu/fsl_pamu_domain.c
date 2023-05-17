@@ -437,7 +437,7 @@ static struct iommu_group *fsl_pamu_device_group(struct device *dev)
 	if (dev_is_pci(dev))
 		group = get_pci_device_group(to_pci_dev(dev));
 	else if (of_get_property(dev->of_node, "fsl,liodn", &len))
-		group = get_device_iommu_group(dev);
+		return generic_device_group(dev);
 
 	return group;
 }
