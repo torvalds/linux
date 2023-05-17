@@ -6,6 +6,9 @@
 #ifndef _CAN_LENGTH_H
 #define _CAN_LENGTH_H
 
+#include <linux/can.h>
+#include <linux/can/netlink.h>
+
 /*
  * Size of a Classical CAN Standard Frame
  *

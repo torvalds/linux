@@ -1898,20 +1898,18 @@ err:
  * This function frees all the resources allocated to the device.
  * Return: 0 always
  */
-static int xcan_remove(struct platform_device *pdev)
+static void xcan_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	unregister_candev(ndev);
 	pm_runtime_disable(&pdev->dev);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver xcan_driver = {
 	.probe = xcan_probe,
-	.remove	= xcan_remove,
+	.remove_new = xcan_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 		.pm = &xcan_dev_pm_ops,
