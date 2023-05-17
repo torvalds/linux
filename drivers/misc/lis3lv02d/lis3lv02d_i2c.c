@@ -262,7 +262,7 @@ static struct i2c_driver lis3lv02d_i2c_driver = {
 		.pm     = &lis3_pm_ops,
 		.of_match_table = of_match_ptr(lis3lv02d_i2c_dt_ids),
 	},
-	.probe_new = lis3lv02d_i2c_probe,
+	.probe = lis3lv02d_i2c_probe,
 	.remove	= lis3lv02d_i2c_remove,
 	.id_table = lis3lv02d_id,
 };

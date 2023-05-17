@@ -105,7 +105,7 @@ static struct i2c_driver ics932s401_driver = {
 	.driver = {
 		.name	= "ics932s401",
 	},
-	.probe_new	= ics932s401_probe,
+	.probe		= ics932s401_probe,
 	.remove		= ics932s401_remove,
 	.id_table	= ics932s401_id,
 	.detect		= ics932s401_detect,
