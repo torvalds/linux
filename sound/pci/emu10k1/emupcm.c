@@ -270,15 +270,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	stereo = runtime->channels == 2;
 	w_16 = snd_pcm_format_width(runtime->format) == 16;
 
-	if (!extra && stereo) {
-		start_addr >>= 1;
-		end_addr >>= 1;
-	}
-	if (w_16) {
-		start_addr >>= 1;
-		end_addr >>= 1;
-	}
-
 	spin_lock_irqsave(&emu->reg_lock, flags);
 
 	/* volume parameters */
@@ -424,19 +415,16 @@ static int snd_emu10k1_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
+	bool w_16 = snd_pcm_format_width(runtime->format) == 16;
+	bool stereo = runtime->channels == 2;
 	unsigned int start_addr, end_addr;
 
-	start_addr = epcm->start_addr;
-	end_addr = snd_pcm_lib_period_bytes(substream);
-	if (runtime->channels == 2) {
-		start_addr >>= 1;
-		end_addr >>= 1;
-	}
-	end_addr += start_addr;
+	start_addr = epcm->start_addr >> w_16;
+	end_addr = start_addr + runtime->period_size;
 	snd_emu10k1_pcm_init_voice(emu, 1, 1, epcm->extra,
 				   start_addr, end_addr, NULL);
-	start_addr = epcm->start_addr;
-	end_addr = epcm->start_addr + snd_pcm_lib_buffer_bytes(substream);
+	start_addr >>= stereo;
+	end_addr = start_addr + runtime->buffer_size;
 	snd_emu10k1_pcm_init_voice(emu, 1, 0, epcm->voices[0],
 				   start_addr, end_addr,
 				   &emu->pcm_mixer[substream->number]);
@@ -452,14 +440,13 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
-	unsigned int start_addr, end_addr;
+	unsigned int start_addr;
 	unsigned int channel_size;
 	int i;
 
-	start_addr = epcm->start_addr;
-	end_addr = epcm->start_addr + snd_pcm_lib_buffer_bytes(substream);
+	start_addr = epcm->start_addr >> 1;  // 16-bit voices
 
-	channel_size = ( end_addr - start_addr ) / NUM_EFX_PLAYBACK;
+	channel_size = runtime->buffer_size;
 
 	snd_emu10k1_pcm_init_voice(emu, 1, 1, epcm->extra,
 				   start_addr, start_addr + (channel_size / 2), NULL);
