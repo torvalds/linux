@@ -320,12 +320,20 @@ struct kfd_hsa_hw_exception_data {
 	__u32 gpu_id;
 };
 
+/* hsa signal event data */
+struct kfd_hsa_signal_event_data {
+	__u64 last_event_age;	/* to and from KFD */
+};
+
 /* Event data */
 struct kfd_event_data {
 	union {
+		/* From KFD */
 		struct kfd_hsa_memory_exception_data memory_exception_data;
 		struct kfd_hsa_hw_exception_data hw_exception_data;
-	};				/* From KFD */
+		/* To and From KFD */
+		struct kfd_hsa_signal_event_data signal_event_data;
+	};
 	__u64 kfd_event_data_ext;	/* pointer to an extension structure
 					   for future exception types */
 	__u32 event_id;		/* to KFD */
