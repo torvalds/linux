@@ -24,6 +24,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cgroup_force_kthread_migration,
 struct cgroup_taskset;
 struct cgroup_subsys;
 
+DECLARE_RESTRICTED_HOOK(android_rvh_cpuset_fork,
+	TP_PROTO(struct task_struct *p, bool *inherit_cpus),
+	TP_ARGS(p, inherit_cpus), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_attach,
 	TP_PROTO(struct cgroup_taskset *tset),
 	TP_ARGS(tset), 1);
