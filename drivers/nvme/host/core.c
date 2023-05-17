@@ -3563,7 +3563,7 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 			goto out_put_ns_head;
 		}
 
-		if (!multipath && !list_empty(&head->list)) {
+		if (!multipath) {
 			dev_warn(ctrl->device,
 				"Found shared namespace %d, but multipathing not supported.\n",
 				info->nsid);
