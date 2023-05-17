@@ -105,11 +105,11 @@ static inline void cdns_imx_writel(struct cdns_imx *data, u32 offset, u32 value)
 }
 
 static const struct clk_bulk_data imx_cdns3_core_clks[] = {
-	{ .id = "usb3_lpm_clk" },
-	{ .id = "usb3_bus_clk" },
-	{ .id = "usb3_aclk" },
-	{ .id = "usb3_ipg_clk" },
-	{ .id = "usb3_core_pclk" },
+	{ .id = "lpm" },
+	{ .id = "bus" },
+	{ .id = "aclk" },
+	{ .id = "ipg" },
+	{ .id = "core" },
 };
 
 static int cdns_imx_noncore_init(struct cdns_imx *data)
