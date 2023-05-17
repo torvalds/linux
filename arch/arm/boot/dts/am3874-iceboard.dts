@@ -285,7 +285,7 @@
 };
 
 &pincntl {
-	mmc2_pins: pinmux_mmc2_pins {
+	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0800, PIN_INPUT | 0x1)	/* SD1_CLK */
 			DM814X_IOPAD(0x0804, PIN_INPUT_PULLUP | 0x1)	/* SD1_CMD */
@@ -299,19 +299,19 @@
 			>;
 	};
 
-	usb0_pins: pinmux_usb0_pins {
+	usb0_pins: usb0-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0c34, PIN_OUTPUT | 0x1)	/* USB0_DRVVBUS */
 			>;
 	};
 
-	usb1_pins: pinmux_usb1_pins {
+	usb1_pins: usb1-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0834, PIN_OUTPUT | 0x80)	/* USB1_DRVVBUS */
 			>;
 	};
 
-	gpio1_pins: pinmux_gpio1_pins {
+	gpio1_pins: gpio1-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x081c, PIN_OUTPUT | 0x80)	/* PROGRAM_B */
 			DM814X_IOPAD(0x0820, PIN_INPUT | 0x80)	/* INIT_B */
@@ -336,7 +336,7 @@
 			>;
 	};
 
-	gpio2_pins: pinmux_gpio2_pins {
+	gpio2_pins: gpio2-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x090c, PIN_INPUT_PULLUP | 0x80) /* PHY A IRQ */
 			DM814X_IOPAD(0x0910, PIN_INPUT_PULLUP | 0x80) /* PHY A RESET */
@@ -349,7 +349,7 @@
 		>;
 	};
 
-	gpio4_pins: pinmux_gpio4_pins {
+	gpio4_pins: gpio4-pins {
 		pinctrl-single,pins = <
 			/* The PLL doesn't react well to the SPI controller reset, so
 			 * we force the CS lines to pull up as GPIOs until we're ready.
@@ -364,14 +364,14 @@
 		>;
 	};
 
-	spi2_pins: pinmux_spi2_pins {
+	spi2_pins: spi2-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0950, PIN_INPUT_PULLUP | 0x80) /* PLL SPI CS1 as GPIO */
 			DM814X_IOPAD(0x0818, PIN_INPUT_PULLUP | 0x80) /* PLL SPI CS2 as GPIO */
 		>;
 	};
 
-	spi4_pins: pinmux_spi4_pins {
+	spi4_pins: spi4-pins {
 		pinctrl-single,pins = <
 			DM814X_IOPAD(0x0a7c, 0x20)
 			DM814X_IOPAD(0x0b74, 0x20)
