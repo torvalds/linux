@@ -2527,6 +2527,10 @@ static void sfp_stop(struct sfp *sfp)
 	sfp_sm_event(sfp, SFP_E_DEV_DOWN);
 }
 
+static void sfp_set_signal_rate(struct sfp *sfp, unsigned int rate_kbd)
+{
+}
+
 static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 {
 	/* locking... and check module is present */
@@ -2611,6 +2615,7 @@ static const struct sfp_socket_ops sfp_module_ops = {
 	.detach = sfp_detach,
 	.start = sfp_start,
 	.stop = sfp_stop,
+	.set_signal_rate = sfp_set_signal_rate,
 	.module_info = sfp_module_info,
 	.module_eeprom = sfp_module_eeprom,
 	.module_eeprom_by_page = sfp_module_eeprom_by_page,
