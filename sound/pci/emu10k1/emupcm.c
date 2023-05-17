@@ -112,6 +112,10 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 		}
 	}
 	if (epcm->extra == NULL) {
+		// The hardware supports only (half-)loop interrupts, so to support an
+		// arbitrary number of periods per buffer, we use an extra voice with a
+		// period-sized loop as the interrupt source. Additionally, the interrupt
+		// timing of the hardware is "suboptimal" and needs some compensation.
 		err = snd_emu10k1_voice_alloc(epcm->emu,
 					      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM : EMU10K1_EFX,
 					      1,
@@ -232,23 +236,6 @@ static unsigned int emu10k1_select_interprom(unsigned int pitch_target)
 		return CCCA_INTERPROM_2;
 }
 
-/*
- * calculate cache invalidate size 
- *
- * stereo: channel is stereo
- * w_16: using 16bit samples
- *
- * returns: cache invalidate size in samples
- */
-static inline int emu10k1_ccis(int stereo, int w_16)
-{
-	if (w_16) {
-		return stereo ? 24 : 26;
-	} else {
-		return stereo ? 24*2 : 26*2;
-	}
-}
-
 static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 				       int master, int extra,
 				       struct snd_emu10k1_voice *evoice,
@@ -264,7 +251,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	unsigned char send_routing[8];
 	unsigned long flags;
 	unsigned int pitch_target;
-	unsigned int ccis;
 
 	voice = evoice->number;
 	stereo = runtime->channels == 2;
@@ -284,10 +270,8 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		memcpy(send_amount, &mix->send_volume[tmp][0], 8);
 	}
 
-	ccis = emu10k1_ccis(stereo, w_16);
-	
 	if (master) {
-		evoice->epcm->ccca_start_addr = start_addr + ccis;
+		evoice->epcm->ccca_start_addr = start_addr + 64 - 3;
 	}
 	if (stereo && !extra) {
 		// Not really necessary for the slave, but it doesn't hurt
@@ -317,11 +301,11 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	else 
 		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
 	if (extra)
-		snd_emu10k1_ptr_write(emu, CCCA, voice, start_addr |
+		snd_emu10k1_ptr_write(emu, CCCA, voice, (end_addr - 3) |
 			      emu10k1_select_interprom(pitch_target) |
 			      (w_16 ? 0 : CCCA_8BITSELECT));
 	else
-		snd_emu10k1_ptr_write(emu, CCCA, voice, (start_addr + ccis) |
+		snd_emu10k1_ptr_write(emu, CCCA, voice, (start_addr + 64 - 3) |
 			      emu10k1_select_interprom(pitch_target) |
 			      (w_16 ? 0 : CCCA_8BITSELECT));
 	/* Clear filter delay memory */
@@ -532,35 +516,30 @@ static void snd_emu10k1_playback_invalidate_cache(struct snd_emu10k1 *emu,
 						  struct snd_emu10k1_voice *evoice)
 {
 	struct snd_pcm_runtime *runtime;
-	unsigned int voice, stereo, i, ccis, cra = 64, cs, sample;
+	unsigned voice, stereo, sample;
+	u32 ccr;
 
 	runtime = evoice->epcm->substream->runtime;
 	voice = evoice->number;
 	stereo = (runtime->channels == 2);
 	sample = snd_pcm_format_width(runtime->format) == 16 ? 0 : 0x80808080;
-	ccis = emu10k1_ccis(stereo, sample == 0);
-	/* set cs to 2 * number of cache registers beside the invalidated */
-	cs = (sample == 0) ? (32-ccis) : (64-ccis+1) >> 1;
-	if (cs > 16) cs = 16;
-	for (i = 0; i < cs; i++) {
+
+	// We assume that the cache is resting at this point (i.e.,
+	// CCR_CACHEINVALIDSIZE is very small).
+
+	// Clear leading frames. For simplicitly, this does too much,
+	// except for 16-bit stereo. And the interpolator will actually
+	// access them at all only when we're pitch-shifting.
+	for (int i = 0; i < 3; i++)
 		snd_emu10k1_ptr_write(emu, CD0 + i, voice, sample);
-		if (stereo) {
-			snd_emu10k1_ptr_write(emu, CD0 + i, voice + 1, sample);
-		}
-	}
-	/* reset cache */
-	snd_emu10k1_ptr_write(emu, CCR_CACHEINVALIDSIZE, voice, 0);
-	snd_emu10k1_ptr_write(emu, CCR_READADDRESS, voice, cra);
+
+	// Fill cache
+	ccr = (64 - 3) << REG_SHIFT(CCR_CACHEINVALIDSIZE);
 	if (stereo) {
-		snd_emu10k1_ptr_write(emu, CCR_CACHEINVALIDSIZE, voice + 1, 0);
-		// The engine goes haywire if this one is out of sync
-		snd_emu10k1_ptr_write(emu, CCR_READADDRESS, voice + 1, cra);
+		// The engine goes haywire if CCR_READADDRESS is out of sync
+		snd_emu10k1_ptr_write(emu, CCR, voice + 1, ccr);
 	}
-	/* fill cache */
-	snd_emu10k1_ptr_write(emu, CCR_CACHEINVALIDSIZE, voice, ccis);
-	if (stereo) {
-		snd_emu10k1_ptr_write(emu, CCR_CACHEINVALIDSIZE, voice+1, ccis);
-	}
+	snd_emu10k1_ptr_write(emu, CCR, voice, ccr);
 }
 
 static void snd_emu10k1_playback_commit_volume(struct snd_emu10k1 *emu,

@@ -116,6 +116,10 @@
 #define IPR_MIDITRANSBUFEMPTY	0x00000100	/* MIDI UART transmit buffer empty		*/
 #define IPR_MIDIRECVBUFEMPTY	0x00000080	/* MIDI UART receive buffer empty		*/
 #define IPR_CHANNELLOOP		0x00000040	/* Channel (half) loop interrupt(s) pending	*/
+						/* The interrupt is triggered shortly after	*/
+						/* CCR_READADDRESS has crossed the boundary;	*/
+						/* due to the cache, this runs ahead of the	*/
+						/* actual playback position.			*/
 #define IPR_CHANNELNUMBERMASK	0x0000003f	/* When IPR_CHANNELLOOP is set, indicates the	*/
 						/* highest set channel in CLIPL, CLIPH, HLIPL,  */
 						/* or HLIPH.  When IPR is written with CL set,	*/
@@ -586,24 +590,22 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 
 /* 0x1f: not used */
 
-#define CD0			0x20		/* Cache data 0 register				*/
-#define CD1			0x21		/* Cache data 1 register				*/
-#define CD2			0x22		/* Cache data 2 register				*/
-#define CD3			0x23		/* Cache data 3 register				*/
-#define CD4			0x24		/* Cache data 4 register				*/
-#define CD5			0x25		/* Cache data 5 register				*/
-#define CD6			0x26		/* Cache data 6 register				*/
-#define CD7			0x27		/* Cache data 7 register				*/
-#define CD8			0x28		/* Cache data 8 register				*/
-#define CD9			0x29		/* Cache data 9 register				*/
-#define CDA			0x2a		/* Cache data A register				*/
-#define CDB			0x2b		/* Cache data B register				*/
-#define CDC			0x2c		/* Cache data C register				*/
-#define CDD			0x2d		/* Cache data D register				*/
-#define CDE			0x2e		/* Cache data E register				*/
-#define CDF			0x2f		/* Cache data F register				*/
-
-/* 0x30-3f seem to be the same as 0x20-2f */
+// 32 cache registers (== 128 bytes) per channel follow.
+// In stereo mode, the two channels' caches are concatenated into one,
+// and hold the interleaved frames.
+// The cache holds 64 frames, so the upper half is not used in 8-bit mode.
+// All registers mentioned below count in frames.
+// The cache is a ring buffer; CCR_READADDRESS operates modulo 64.
+// The cache is filled from (CCCA_CURRADDR - CCR_CACHEINVALIDSIZE)
+// into (CCR_READADDRESS - CCR_CACHEINVALIDSIZE).
+// The engine has a fetch threshold of 32 bytes, so it tries to keep
+// CCR_CACHEINVALIDSIZE below 8 (16-bit stereo), 16 (16-bit mono,
+// 8-bit stereo), or 32 (8-bit mono). The actual transfers are pretty
+// unpredictable, especially if several voices are running.
+// Frames are consumed at CCR_READADDRESS, which is incremented afterwards,
+// along with CCCA_CURRADDR and CCR_CACHEINVALIDSIZE. This implies that the
+// actual playback position always lags CCCA_CURRADDR by exactly 64 frames.
+#define CD0			0x20		/* Cache data registers 0 .. 0x1f			*/
 
 #define PTB			0x40		/* Page table base register				*/
 #define PTB_MASK		0xfffff000	/* Physical address of the page table in host memory	*/
