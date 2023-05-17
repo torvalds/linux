@@ -136,7 +136,7 @@ static const struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 };
 
 /**
- * enum 40_command - The different commands and/or statuses.
+ * enum d40_command - The different commands and/or statuses.
  *
  * @D40_DMA_STOP: DMA channel command STOP or status STOPPED,
  * @D40_DMA_RUN: The DMA channel is RUNNING of the command RUN.
