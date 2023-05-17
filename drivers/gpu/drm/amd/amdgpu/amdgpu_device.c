@@ -1389,6 +1389,15 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	return 0;
 }
 
+static bool amdgpu_device_read_bios(struct amdgpu_device *adev)
+{
+	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU)) {
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * GPU helpers function.
  */
@@ -1406,6 +1415,9 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 	uint32_t reg;
 
 	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (!amdgpu_device_read_bios(adev))
 		return false;
 
 	if (amdgpu_passthrough(adev)) {
@@ -2318,14 +2330,16 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 				return r;
 
 			/* Read BIOS */
-			if (!amdgpu_get_bios(adev))
-				return -EINVAL;
+			if (amdgpu_device_read_bios(adev)) {
+				if (!amdgpu_get_bios(adev))
+					return -EINVAL;
 
-			r = amdgpu_atombios_init(adev);
-			if (r) {
-				dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
-				return r;
+				r = amdgpu_atombios_init(adev);
+				if (r) {
+					dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+					amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
+					return r;
+				}
 			}
 
 			/*get pf2vf msg info at it's earliest time*/
@@ -3945,25 +3959,27 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 
-	if (adev->is_atom_fw) {
-		/* Initialize clocks */
-		r = amdgpu_atomfirmware_get_clock_info(adev);
-		if (r) {
-			dev_err(adev->dev, "amdgpu_atomfirmware_get_clock_info failed\n");
-			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
-			goto failed;
+	if (adev->bios) {
+		if (adev->is_atom_fw) {
+			/* Initialize clocks */
+			r = amdgpu_atomfirmware_get_clock_info(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atomfirmware_get_clock_info failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+				goto failed;
+			}
+		} else {
+			/* Initialize clocks */
+			r = amdgpu_atombios_get_clock_info(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+				goto failed;
+			}
+			/* init i2c buses */
+			if (!amdgpu_device_has_dc_support(adev))
+				amdgpu_atombios_i2c_init(adev);
 		}
-	} else {
-		/* Initialize clocks */
-		r = amdgpu_atombios_get_clock_info(adev);
-		if (r) {
-			dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
-			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
-			goto failed;
-		}
-		/* init i2c buses */
-		if (!amdgpu_device_has_dc_support(adev))
-			amdgpu_atombios_i2c_init(adev);
 	}
 
 fence_driver_init:

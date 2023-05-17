@@ -2010,34 +2010,49 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	r = amdgpu_atomfirmware_get_vram_info(adev,
-		&vram_width, &vram_type, &vram_vendor);
-	if (amdgpu_sriov_vf(adev))
-		/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
-		 * and DF related registers is not readable, seems hardcord is the
-		 * only way to set the correct vram_width
-		 */
-		adev->gmc.vram_width = 2048;
-	else if (amdgpu_emu_mode != 1)
-		adev->gmc.vram_width = vram_width;
-
-	if (!adev->gmc.vram_width) {
-		int chansize, numchan;
-
-		/* hbm memory channel size */
-		if (adev->flags & AMD_IS_APU)
-			chansize = 64;
-		else
-			chansize = 128;
-		if (adev->df.funcs &&
-		    adev->df.funcs->get_hbm_channel_number) {
-			numchan = adev->df.funcs->get_hbm_channel_number(adev);
-			adev->gmc.vram_width = numchan * chansize;
+	if (!(adev->bios) || adev->gmc.is_app_apu) {
+		if (adev->flags & AMD_IS_APU) {
+			if (adev->gmc.is_app_apu) {
+				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+				adev->gmc.vram_width = 128 * 64;
+			} else {
+				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
+				adev->gmc.vram_width = 64 * 64;
+			}
+		} else {
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+			adev->gmc.vram_width = 128 * 64;
 		}
-	}
+	} else {
+		r = amdgpu_atomfirmware_get_vram_info(adev,
+			&vram_width, &vram_type, &vram_vendor);
+		if (amdgpu_sriov_vf(adev))
+			/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
+			 * and DF related registers is not readable, seems hardcord is the
+			 * only way to set the correct vram_width
+			 */
+			adev->gmc.vram_width = 2048;
+		else if (amdgpu_emu_mode != 1)
+			adev->gmc.vram_width = vram_width;
 
-	adev->gmc.vram_type = vram_type;
-	adev->gmc.vram_vendor = vram_vendor;
+		if (!adev->gmc.vram_width) {
+			int chansize, numchan;
+
+			/* hbm memory channel size */
+			if (adev->flags & AMD_IS_APU)
+				chansize = 64;
+			else
+				chansize = 128;
+			if (adev->df.funcs &&
+			    adev->df.funcs->get_hbm_channel_number) {
+				numchan = adev->df.funcs->get_hbm_channel_number(adev);
+				adev->gmc.vram_width = numchan * chansize;
+			}
+		}
+
+		adev->gmc.vram_type = vram_type;
+		adev->gmc.vram_vendor = vram_vendor;
+	}
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 1, 0):
 	case IP_VERSION(9, 2, 2):

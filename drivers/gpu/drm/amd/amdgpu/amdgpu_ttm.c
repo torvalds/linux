@@ -1696,7 +1696,7 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	uint32_t reserve_size = 0;
 	int ret;
 
-	if (!amdgpu_sriov_vf(adev)) {
+	if (adev->bios && !amdgpu_sriov_vf(adev)) {
 		if (amdgpu_atomfirmware_mem_training_supported(adev))
 			mem_train_support = true;
 		else
@@ -1713,7 +1713,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	if (adev->bios)
 		reserve_size =
 			amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!reserve_size)
+
+	if (!adev->bios && adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		reserve_size = max(reserve_size, (uint32_t)280 << 20);
+	else if (!reserve_size)
 		reserve_size = DISCOVERY_TMR_OFFSET;
 
 	if (mem_train_support) {
