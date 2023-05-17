@@ -495,8 +495,19 @@ enum {
 #define WCD_USBSS_EFUSE_REG_14                 (WCD_USBSS_USB_DIG_BASE+0xda)
 #define WCD_USBSS_EFUSE_REG_15                 (WCD_USBSS_USB_DIG_BASE+0xdb)
 #define WCD_USBSS_EFUSE_PRG_CTL                (WCD_USBSS_USB_DIG_BASE+0xe0)
+#define WCD_USBSS_EFUSE_CTL                    (WCD_USBSS_USB_DIG_BASE+0xe1)
+#define WCD_USBSS_EFUSE_TEST_CTL_0             (WCD_USBSS_USB_DIG_BASE+0xe2)
+#define WCD_USBSS_EFUSE_TEST_CTL_1             (WCD_USBSS_USB_DIG_BASE+0xe3)
+#define WCD_USBSS_EFUSE_T_DATA_0               (WCD_USBSS_USB_DIG_BASE+0xe4)
+#define WCD_USBSS_PAD_INP_DIS_0                (WCD_USBSS_USB_DIG_BASE+0xe5)
+#define WCD_USBSS_DRIVE_STRENGTH               (WCD_USBSS_USB_DIG_BASE+0xe6)
+#define WCD_USBSS_PULL_SEL                     (WCD_USBSS_USB_DIG_BASE+0xe7)
+#define WCD_USBSS_HYST_CTL                     (WCD_USBSS_USB_DIG_BASE+0xe8)
+#define WCD_USBSS_PAD_MODE                     (WCD_USBSS_USB_DIG_BASE+0xe9)
+#define WCD_USBSS_ANA_CSR_DBG_ADD              (WCD_USBSS_USB_DIG_BASE+0xea)
+#define WCD_USBSS_ANA_CSR_DBG_CTL              (WCD_USBSS_USB_DIG_BASE+0xeb)
 
-#define WCD_USBSS_NUM_REGISTERS                (WCD_USBSS_EFUSE_PRG_CTL+1)
-#define WCD_USBSS_MAX_REGISTER                 (WCD_USBSS_NUM_REGISTERS-1)
+#define WCD_USBSS_NUM_REGISTERS                (WCD_USBSS_ANA_CSR_DBG_CTL + 1)
+#define WCD_USBSS_MAX_REGISTER                 (WCD_USBSS_NUM_REGISTERS - 1)
 
 #endif /* WCD_USBSS_REGISTERS_H */
