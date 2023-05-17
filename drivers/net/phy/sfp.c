@@ -2601,6 +2601,7 @@ static void sfp_check_state(struct sfp *sfp)
 	unsigned int state, i, changed;
 
 	mutex_lock(&sfp->st_mutex);
+	rtnl_lock();
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
 	if (sfp->tx_fault_ignore)
@@ -2616,7 +2617,6 @@ static void sfp_check_state(struct sfp *sfp)
 	state |= sfp->state & (SFP_F_TX_DISABLE | SFP_F_RATE_SELECT);
 	sfp->state = state;
 
-	rtnl_lock();
 	if (changed & SFP_F_PRESENT)
 		sfp_sm_event(sfp, state & SFP_F_PRESENT ?
 				SFP_E_INSERT : SFP_E_REMOVE);
