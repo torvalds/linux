@@ -1012,7 +1012,7 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 	struct sk_buff *skb_iter;
 	int left;
 
-	left = rxm->full_len - skb->len;
+	left = rxm->full_len + rxm->offset - skb_pagelen(skb);
 	/* Check if all the data is decrypted already */
 	skb_iter = skb_shinfo(skb)->frag_list;
 	while (skb_iter && left > 0) {
