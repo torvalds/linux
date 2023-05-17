@@ -47,6 +47,7 @@ struct kunit;
  * sub-subtest.  See the "Subtests" section in
  * https://node-tap.org/tap-protocol/
  */
+#define KUNIT_INDENT_LEN		4
 #define KUNIT_SUBTEST_INDENT		"    "
 #define KUNIT_SUBSUBTEST_INDENT		"        "
 
