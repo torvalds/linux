@@ -2456,10 +2456,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	}
 }
 
-static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+static void __sfp_sm_event(struct sfp *sfp, unsigned int event)
 {
-	mutex_lock(&sfp->sm_mutex);
-
 	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
 		mod_state_to_str(sfp->sm_mod_state),
 		dev_state_to_str(sfp->sm_dev_state),
@@ -2474,7 +2472,12 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		mod_state_to_str(sfp->sm_mod_state),
 		dev_state_to_str(sfp->sm_dev_state),
 		sm_state_to_str(sfp->sm_state));
+}
 
+static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+{
+	mutex_lock(&sfp->sm_mutex);
+	__sfp_sm_event(sfp, event);
 	mutex_unlock(&sfp->sm_mutex);
 }
 
@@ -2617,17 +2620,19 @@ static void sfp_check_state(struct sfp *sfp)
 	state |= sfp->state & (SFP_F_TX_DISABLE | SFP_F_RATE_SELECT);
 	sfp->state = state;
 
+	mutex_lock(&sfp->sm_mutex);
 	if (changed & SFP_F_PRESENT)
-		sfp_sm_event(sfp, state & SFP_F_PRESENT ?
-				SFP_E_INSERT : SFP_E_REMOVE);
+		__sfp_sm_event(sfp, state & SFP_F_PRESENT ?
+				    SFP_E_INSERT : SFP_E_REMOVE);
 
 	if (changed & SFP_F_TX_FAULT)
-		sfp_sm_event(sfp, state & SFP_F_TX_FAULT ?
-				SFP_E_TX_FAULT : SFP_E_TX_CLEAR);
+		__sfp_sm_event(sfp, state & SFP_F_TX_FAULT ?
+				    SFP_E_TX_FAULT : SFP_E_TX_CLEAR);
 
 	if (changed & SFP_F_LOS)
-		sfp_sm_event(sfp, state & SFP_F_LOS ?
-				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
+		__sfp_sm_event(sfp, state & SFP_F_LOS ?
+				    SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
+	mutex_unlock(&sfp->sm_mutex);
 	mutex_unlock(&sfp->st_mutex);
 	rtnl_unlock();
 }
