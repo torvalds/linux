@@ -1554,48 +1554,54 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 				      struct svm_range *prange, int32_t gpuidx,
 				      bool intr, bool wait, bool flush_tlb)
 {
-	struct svm_validate_context ctx;
+	struct svm_validate_context *ctx;
 	unsigned long start, end, addr;
 	struct kfd_process *p;
 	void *owner;
 	int32_t idx;
 	int r = 0;
 
-	ctx.process = container_of(prange->svms, struct kfd_process, svms);
-	ctx.prange = prange;
-	ctx.intr = intr;
+	ctx = kzalloc(sizeof(struct svm_validate_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->process = container_of(prange->svms, struct kfd_process, svms);
+	ctx->prange = prange;
+	ctx->intr = intr;
 
 	if (gpuidx < MAX_GPU_INSTANCE) {
-		bitmap_zero(ctx.bitmap, MAX_GPU_INSTANCE);
-		bitmap_set(ctx.bitmap, gpuidx, 1);
-	} else if (ctx.process->xnack_enabled) {
-		bitmap_copy(ctx.bitmap, prange->bitmap_aip, MAX_GPU_INSTANCE);
+		bitmap_zero(ctx->bitmap, MAX_GPU_INSTANCE);
+		bitmap_set(ctx->bitmap, gpuidx, 1);
+	} else if (ctx->process->xnack_enabled) {
+		bitmap_copy(ctx->bitmap, prange->bitmap_aip, MAX_GPU_INSTANCE);
 
 		/* If prefetch range to GPU, or GPU retry fault migrate range to
 		 * GPU, which has ACCESS attribute to the range, create mapping
 		 * on that GPU.
 		 */
 		if (prange->actual_loc) {
-			gpuidx = kfd_process_gpuidx_from_gpuid(ctx.process,
+			gpuidx = kfd_process_gpuidx_from_gpuid(ctx->process,
 							prange->actual_loc);
 			if (gpuidx < 0) {
 				WARN_ONCE(1, "failed get device by id 0x%x\n",
 					 prange->actual_loc);
-				return -EINVAL;
+				r = -EINVAL;
+				goto free_ctx;
 			}
 			if (test_bit(gpuidx, prange->bitmap_access))
-				bitmap_set(ctx.bitmap, gpuidx, 1);
+				bitmap_set(ctx->bitmap, gpuidx, 1);
 		}
 	} else {
-		bitmap_or(ctx.bitmap, prange->bitmap_access,
+		bitmap_or(ctx->bitmap, prange->bitmap_access,
 			  prange->bitmap_aip, MAX_GPU_INSTANCE);
 	}
 
-	if (bitmap_empty(ctx.bitmap, MAX_GPU_INSTANCE)) {
-		if (!prange->mapped_to_gpu)
-			return 0;
+	if (bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE)) {
+		if (!prange->mapped_to_gpu) {
+			r = 0;
+			goto free_ctx;
+		}
 
-		bitmap_copy(ctx.bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
+		bitmap_copy(ctx->bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
 	}
 
 	if (prange->actual_loc && !prange->ttm_res) {
@@ -1603,15 +1609,16 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		 * svm_migrate_ram_to_vram after allocating a BO.
 		 */
 		WARN_ONCE(1, "VRAM BO missing during validation\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto free_ctx;
 	}
 
-	svm_range_reserve_bos(&ctx);
+	svm_range_reserve_bos(ctx);
 
 	p = container_of(prange->svms, struct kfd_process, svms);
-	owner = kfd_svm_page_owner(p, find_first_bit(ctx.bitmap,
+	owner = kfd_svm_page_owner(p, find_first_bit(ctx->bitmap,
 						MAX_GPU_INSTANCE));
-	for_each_set_bit(idx, ctx.bitmap, MAX_GPU_INSTANCE) {
+	for_each_set_bit(idx, ctx->bitmap, MAX_GPU_INSTANCE) {
 		if (kfd_svm_page_owner(p, idx) != owner) {
 			owner = NULL;
 			break;
@@ -1648,7 +1655,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		}
 
 		offset = (addr - start) >> PAGE_SHIFT;
-		r = svm_range_dma_map(prange, ctx.bitmap, offset, npages,
+		r = svm_range_dma_map(prange, ctx->bitmap, offset, npages,
 				      hmm_range->hmm_pfns);
 		if (r) {
 			pr_debug("failed %d to dma map range\n", r);
@@ -1668,7 +1675,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		}
 
 		r = svm_range_map_to_gpus(prange, offset, npages, readonly,
-					  ctx.bitmap, wait, flush_tlb);
+					  ctx->bitmap, wait, flush_tlb);
 
 unlock_out:
 		svm_range_unlock(prange);
@@ -1682,10 +1689,13 @@ unlock_out:
 	}
 
 unreserve_out:
-	svm_range_unreserve_bos(&ctx);
+	svm_range_unreserve_bos(ctx);
 
 	if (!r)
 		prange->validate_timestamp = ktime_get_boottime();
+
+free_ctx:
+	kfree(ctx);
 
 	return r;
 }
