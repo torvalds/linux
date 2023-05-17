@@ -7326,15 +7326,19 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	mutex_unlock(&inode->log_mutex);
 
 	/*
-	 * if this directory was already logged any new
-	 * names for this file/dir will get recorded
+	 * If this directory was already logged, any new names will be logged
+	 * with btrfs_log_new_name() and old names will be deleted from the log
+	 * tree with btrfs_del_dir_entries_in_log() or with
+	 * btrfs_del_inode_ref_in_log().
 	 */
 	if (inode_logged(trans, dir, NULL) == 1)
 		return;
 
 	/*
-	 * if the inode we're about to unlink was logged,
-	 * the log will be properly updated for any new names
+	 * If the inode we're about to unlink was logged before, the log will be
+	 * properly updated with the new name with btrfs_log_new_name() and the
+	 * old name removed with btrfs_del_dir_entries_in_log() or with
+	 * btrfs_del_inode_ref_in_log().
 	 */
 	if (inode_logged(trans, inode, NULL) == 1)
 		return;
