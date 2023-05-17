@@ -12,6 +12,7 @@
 #include <soc/sa1100/pwer.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <mach/generic.h>
 
 struct sa1100_gpio_chip {
 	struct gpio_chip chip;
