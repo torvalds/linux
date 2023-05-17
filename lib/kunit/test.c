@@ -627,9 +627,11 @@ int kunit_run_tests(struct kunit_suite *suite)
 
 				kunit_log(KERN_INFO, &test,
 					  KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
-					  "%s %d %s",
+					  "%s %d %s%s%s",
 					  kunit_status_to_ok_not_ok(test.status),
-					  test.param_index + 1, param_desc);
+					  test.param_index + 1, param_desc,
+					  test.status == KUNIT_SKIPPED ? " # SKIP " : "",
+					  test.status == KUNIT_SKIPPED ? test.status_comment : "");
 
 				/* Get next param. */
 				param_desc[0] = '\0';
