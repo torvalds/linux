@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __GH_IRQ_LEND_H
@@ -18,6 +18,7 @@ enum gh_irq_label {
 	GH_IRQ_LABEL_TRUSTED_TOUCH_SECONDARY,
 	GH_IRQ_LABEL_TEST_TUIVM,
 	GH_IRQ_LABEL_TEST_OEMVM,
+	GH_IRQ_LABEL_EVA,
 	GH_IRQ_LABEL_MAX
 };
 
