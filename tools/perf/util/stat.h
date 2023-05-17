@@ -48,6 +48,7 @@ enum aggr_mode {
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
 	AGGR_DIE,
+	AGGR_CACHE,
 	AGGR_CORE,
 	AGGR_THREAD,
 	AGGR_UNSET,
@@ -64,6 +65,7 @@ typedef struct aggr_cpu_id (*aggr_get_id_t)(struct perf_stat_config *config, str
 
 struct perf_stat_config {
 	enum aggr_mode		 aggr_mode;
+	u32			 aggr_level;
 	bool			 scale;
 	bool			 no_inherit;
 	bool			 identifier;

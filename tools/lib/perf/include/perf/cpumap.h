@@ -11,6 +11,11 @@ struct perf_cpu {
 	int cpu;
 };
 
+struct perf_cache {
+	int cache_lvl;
+	int cache;
+};
+
 struct perf_cpu_map;
 
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__dummy_new(void);
