@@ -162,20 +162,20 @@
 };
 
 &omap5_pmx_core {
-	evm_keys_pins: pinmux_evm_keys_gpio_pins {
+	evm_keys_pins: evm-keys-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0b6, PIN_INPUT | MUX_MODE6)	/* gpio3_83 */
 		>;
 	};
 
-	i2c5_pins: pinmux_i2c5_pins {
+	i2c5_pins: i2c5-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
 			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1d4, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio5_152 */
 		>;

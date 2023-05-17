@@ -85,14 +85,14 @@
 };
 
 &omap5_pmx_core {
-	i2c4_pins: pinmux_i2c4_pins {
+	i2c4_pins: i2c4-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0f8, PIN_INPUT | MUX_MODE0)	/* i2c4_scl */
 			OMAP5_IOPAD(0x0fa, PIN_INPUT | MUX_MODE0)	/* i2c4_sda */
 		>;
 	};
 
-	power_button_pin: pinctrl_power_button_pin {
+	power_button_pin: power-button-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x086, PIN_INPUT | MUX_MODE6)	/* gpio4_118 */
 		>;

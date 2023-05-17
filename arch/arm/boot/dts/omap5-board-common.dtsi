@@ -56,7 +56,7 @@
 	};
 
 	/* HS USB Host PHY on PORT 2 */
-	hsusb2_phy: hsusb2_phy {
+	hsusb2_phy: hsusb2-phy-pins {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 16 GPIO_ACTIVE_LOW>; /* gpio3_80 HUB_NRESET */
 		clocks = <&auxclk1_ck>;
@@ -156,13 +156,13 @@
 			&led_gpio_pins
 	>;
 
-	twl6040_pins: pinmux_twl6040_pins {
+	twl6040_pins: twl6040-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 		>;
 	};
 
-	mcpdm_pins: pinmux_mcpdm_pins {
+	mcpdm_pins: mcpdm-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x182, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_clks.abe_clks */
 			OMAP5_IOPAD(0x19c, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_ul_data.abemcpdm_ul_data */
@@ -172,7 +172,7 @@
 		>;
 	};
 
-	mcbsp1_pins: pinmux_mcbsp1_pins {
+	mcbsp1_pins: mcbsp1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x18c, PIN_INPUT | MUX_MODE1)		/* abedmic_clk2.abemcbsp1_fsx */
 			OMAP5_IOPAD(0x18e, PIN_OUTPUT_PULLDOWN | MUX_MODE1)	/* abedmic_clk3.abemcbsp1_dx */
@@ -181,7 +181,7 @@
 		>;
 	};
 
-	mcbsp2_pins: pinmux_mcbsp2_pins {
+	mcbsp2_pins: mcbsp2-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x194, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcbsp2_dr.abemcbsp2_dr */
 			OMAP5_IOPAD(0x196, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* abemcbsp2_dx.abemcbsp2_dx */
@@ -190,14 +190,14 @@
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1f2, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
 			OMAP5_IOPAD(0x1f4, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda */
 		>;
 	};
 
-	mcspi2_pins: pinmux_mcspi2_pins {
+	mcspi2_pins: mcspi2-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0fc, PIN_INPUT | MUX_MODE0)		/*  mcspi2_clk */
 			OMAP5_IOPAD(0x0fe, PIN_INPUT | MUX_MODE0)		/*  mcspi2_simo */
@@ -206,7 +206,7 @@
 		>;
 	};
 
-	mcspi3_pins: pinmux_mcspi3_pins {
+	mcspi3_pins: mcspi3-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0b8, PIN_INPUT | MUX_MODE1)		/*  mcspi3_somi */
 			OMAP5_IOPAD(0x0ba, PIN_INPUT | MUX_MODE1)		/*  mcspi3_cs0 */
@@ -215,7 +215,7 @@
 		>;
 	};
 
-	mmc3_pins: pinmux_mmc3_pins {
+	mmc3_pins: mmc3-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x01a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
 			OMAP5_IOPAD(0x01a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
@@ -226,20 +226,20 @@
 		>;
 	};
 
-	wlan_pins: pinmux_wlan_pins {
+	wlan_pins: wlan-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1bc, PIN_OUTPUT | MUX_MODE6) /* mcspi1_clk.gpio5_140 */
 		>;
 	};
 
 	/* TI trees use GPIO mode; msecure mode does not work reliably? */
-	palmas_msecure_pins: palmas_msecure_pins {
+	palmas_msecure_pins: palmas-msecure-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x180, PIN_OUTPUT | MUX_MODE6) /* gpio8_234 */
 		>;
 	};
 
-	usbhost_pins: pinmux_usbhost_pins {
+	usbhost_pins: usbhost-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0c4, PIN_INPUT | MUX_MODE0) /* usbb2_hsic_strobe */
 			OMAP5_IOPAD(0x0c6, PIN_INPUT | MUX_MODE0) /* usbb2_hsic_data */
@@ -252,13 +252,13 @@
 		>;
 	};
 
-	led_gpio_pins: pinmux_led_gpio_pins {
+	led_gpio_pins: led-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1d6, PIN_OUTPUT | MUX_MODE6) /* uart3_cts_rctx.gpio5_153 */
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0a0, PIN_OUTPUT | MUX_MODE0) /* uart1_tx.uart1_cts */
 			OMAP5_IOPAD(0x0a2, PIN_INPUT_PULLUP | MUX_MODE0) /* uart1_tx.uart1_cts */
@@ -267,14 +267,14 @@
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1da, PIN_OUTPUT | MUX_MODE0) /* uart3_rts_irsd.uart3_tx_irtx */
 			OMAP5_IOPAD(0x1dc, PIN_INPUT_PULLUP | MUX_MODE0) /* uart3_rx_irrx.uart3_usbb3_hsic */
 		>;
 	};
 
-	uart5_pins: pinmux_uart5_pins {
+	uart5_pins: uart5-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1b0, PIN_INPUT_PULLUP | MUX_MODE0) /* uart5_rx.uart5_rx */
 			OMAP5_IOPAD(0x1b2, PIN_OUTPUT | MUX_MODE0) /* uart5_tx.uart5_tx */
@@ -283,7 +283,7 @@
 		>;
 	};
 
-	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+	dss_hdmi_pins: dss-hdmi-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x13c, PIN_INPUT | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
 			OMAP5_IOPAD(0x140, PIN_INPUT | MUX_MODE0)	/* hdmi_ddc_scl.hdmi_ddc_scl */
@@ -291,7 +291,7 @@
 		>;
 	};
 
-	tpd12s015_pins: pinmux_tpd12s015_pins {
+	tpd12s015_pins: tpd12s015-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x13e, PIN_INPUT_PULLDOWN | MUX_MODE6)	/* hdmi_hpd.gpio7_193 */
 		>;
@@ -304,20 +304,20 @@
 			&usbhost_wkup_pins
 	>;
 
-	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
+	palmas_sys_nirq_pins: palmas-sys-nirq-pins {
 		pinctrl-single,pins = <
 			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
 			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
 		>;
 	};
 
-	usbhost_wkup_pins: pinmux_usbhost_wkup_pins {
+	usbhost_wkup_pins: usbhost-wkup-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x05a, PIN_OUTPUT | MUX_MODE0) /* fref_clk1_out, USB hub clk */
 		>;
 	};
 
-	wlcore_irq_pin: pinmux_wlcore_irq_pin {
+	wlcore_irq_pin: wlcore-irq-pin-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x40, PIN_INPUT | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
 		>;
