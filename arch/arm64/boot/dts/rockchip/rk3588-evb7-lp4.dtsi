@@ -515,22 +515,24 @@
 		poll_delay_ms = <100>;
 	};
 
-	mpu6500_acc: mpu_acc@68 {
-		compatible = "mpu6500_acc";
+	icm42607_acc: icm_acc@68 {
+		status = "okay";
+		compatible = "icm42607_acc";
 		reg = <0x68>;
 		irq-gpio = <&gpio4 RK_PC2 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <5>;
+		layout = <0>;
 	};
 
-	mpu6500_gyro: mpu_gyro@68 {
-		compatible = "mpu6500_gyro";
+	icm42607_gyro: icm_gyro@68 {
+		status = "okay";
+		compatible = "icm42607_gyro";
 		reg = <0x68>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <5>;
+		layout = <0>;
 	};
 };
 
