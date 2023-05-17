@@ -250,7 +250,7 @@
 				clock-names = "dma_clk";
 			};
 
-			pmc: pmc@f0018000 {
+			pmc: clock-controller@f0018000 {
 				compatible = "atmel,sama5d4-pmc", "syscon";
 				reg = <0xf0018000 0x120>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;

@@ -118,7 +118,7 @@
 				reg = <0xffffea00 0x200>;
 			};
 
-			pmc: pmc@fffffc00 {
+			pmc: clock-controller@fffffc00 {
 				compatible = "atmel,at91sam9n12-pmc", "syscon";
 				reg = <0xfffffc00 0x200>;
 				#clock-cells = <2>;

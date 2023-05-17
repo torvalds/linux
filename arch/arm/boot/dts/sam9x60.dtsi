@@ -1282,7 +1282,7 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
+			pmc: clock-controller@fffffc00 {
 				compatible = "microchip,sam9x60-pmc", "syscon";
 				reg = <0xfffffc00 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
