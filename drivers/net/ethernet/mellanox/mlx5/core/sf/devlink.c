@@ -20,6 +20,13 @@ struct mlx5_sf {
 	u16 hw_state;
 };
 
+static void *mlx5_sf_by_dl_port(struct devlink_port *dl_port)
+{
+	struct mlx5_devlink_port *mlx5_dl_port = mlx5_devlink_port_get(dl_port);
+
+	return container_of(mlx5_dl_port, struct mlx5_sf, dl_port);
+}
+
 struct mlx5_sf_table {
 	struct mlx5_core_dev *dev; /* To refer from notifier context. */
 	struct xarray port_indices; /* port index based lookup. */
@@ -30,12 +37,6 @@ struct mlx5_sf_table {
 	struct notifier_block vhca_nb;
 	struct notifier_block mdev_nb;
 };
-
-static struct mlx5_sf *
-mlx5_sf_lookup_by_index(struct mlx5_sf_table *table, unsigned int port_index)
-{
-	return xa_load(&table->port_indices, port_index);
-}
 
 static struct mlx5_sf *
 mlx5_sf_lookup_by_function_id(struct mlx5_sf_table *table, unsigned int fn_id)
@@ -172,26 +173,19 @@ int mlx5_devlink_sf_port_fn_state_get(struct devlink_port *dl_port,
 				      struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(dl_port->devlink);
+	struct mlx5_sf *sf = mlx5_sf_by_dl_port(dl_port);
 	struct mlx5_sf_table *table;
-	struct mlx5_sf *sf;
-	int err = 0;
 
 	table = mlx5_sf_table_try_get(dev);
 	if (!table)
 		return -EOPNOTSUPP;
 
-	sf = mlx5_sf_lookup_by_index(table, dl_port->index);
-	if (!sf) {
-		err = -EOPNOTSUPP;
-		goto sf_err;
-	}
 	mutex_lock(&table->sf_state_lock);
 	*state = mlx5_sf_to_devlink_state(sf->hw_state);
 	*opstate = mlx5_sf_to_devlink_opstate(sf->hw_state);
 	mutex_unlock(&table->sf_state_lock);
-sf_err:
 	mlx5_sf_table_put(table);
-	return err;
+	return 0;
 }
 
 static int mlx5_sf_activate(struct mlx5_core_dev *dev, struct mlx5_sf *sf,
@@ -257,8 +251,8 @@ int mlx5_devlink_sf_port_fn_state_set(struct devlink_port *dl_port,
 				      struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(dl_port->devlink);
+	struct mlx5_sf *sf = mlx5_sf_by_dl_port(dl_port);
 	struct mlx5_sf_table *table;
-	struct mlx5_sf *sf;
 	int err;
 
 	table = mlx5_sf_table_try_get(dev);
@@ -267,14 +261,7 @@ int mlx5_devlink_sf_port_fn_state_set(struct devlink_port *dl_port,
 				   "Port state set is only supported in eswitch switchdev mode or SF ports are disabled.");
 		return -EOPNOTSUPP;
 	}
-	sf = mlx5_sf_lookup_by_index(table, dl_port->index);
-	if (!sf) {
-		err = -ENODEV;
-		goto out;
-	}
-
 	err = mlx5_sf_state_set(dev, table, sf, state, extack);
-out:
 	mlx5_sf_table_put(table);
 	return err;
 }
@@ -385,10 +372,9 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 			     struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_sf *sf = mlx5_sf_by_dl_port(dl_port);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5_sf_table *table;
-	struct mlx5_sf *sf;
-	int err = 0;
 
 	table = mlx5_sf_table_try_get(dev);
 	if (!table) {
@@ -396,20 +382,14 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 				   "Port del is only supported in eswitch switchdev mode or SF ports are disabled.");
 		return -EOPNOTSUPP;
 	}
-	sf = mlx5_sf_lookup_by_index(table, dl_port->index);
-	if (!sf) {
-		err = -ENODEV;
-		goto sf_err;
-	}
 
 	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 
 	mutex_lock(&table->sf_state_lock);
 	mlx5_sf_dealloc(table, sf);
 	mutex_unlock(&table->sf_state_lock);
-sf_err:
 	mlx5_sf_table_put(table);
-	return err;
+	return 0;
 }
 
 static bool mlx5_sf_state_update_check(const struct mlx5_sf *sf, u8 new_state)
