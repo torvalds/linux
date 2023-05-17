@@ -374,6 +374,7 @@ struct smu_power_gate {
 	bool vce_gated;
 	atomic_t vcn_gated;
 	atomic_t jpeg_gated;
+	atomic_t vpe_gated;
 };
 
 struct smu_power_context {
