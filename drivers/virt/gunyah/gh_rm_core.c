@@ -947,6 +947,7 @@ static struct notifier_block gh_rm_core_notifier_blk = {
 
 static const struct auxiliary_device_id gh_rm_drv_id_table[] = {
 	{ .name = "gunyah_rsc_mgr.gh_rm_core" },
+	{ .name = "gunyah.gh_rm_core" },
 	{ }
 };
 
