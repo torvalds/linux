@@ -56,7 +56,7 @@ struct hfi_sys_set_resource_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 resource_handle;
 	u32 resource_type;
-	u32 resource_data[1];
+	u32 resource_data[];
 };
 
 struct hfi_sys_release_resource_pkt {

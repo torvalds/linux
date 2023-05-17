@@ -83,7 +83,7 @@ int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt, u32 id, u32 size,
 		res->size = size;
 		res->mem = addr;
 		pkt->resource_type = HFI_RESOURCE_OCMEM;
-		pkt->hdr.size += sizeof(*res) - sizeof(u32);
+		pkt->hdr.size += sizeof(*res);
 		break;
 	}
 	case VIDC_RESOURCE_NONE:
