@@ -785,6 +785,7 @@ retry_multishot:
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
 	kmsg->msg.msg_get_inq = 1;
+	kmsg->msg.msg_inq = -1U;
 	if (req->flags & REQ_F_APOLL_MULTISHOT)
 		ret = io_recvmsg_multishot(sock, sr, kmsg, flags,
 					   &mshot_finished);
@@ -821,7 +822,7 @@ retry_multishot:
 		io_kbuf_recycle(req, issue_flags);
 
 	cflags = io_put_kbuf(req, issue_flags);
-	if (kmsg->msg.msg_inq)
+	if (kmsg->msg.msg_inq && kmsg->msg.msg_inq != -1U)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
 	if (!io_recv_finish(req, &ret, cflags, mshot_finished, issue_flags))
@@ -882,6 +883,7 @@ retry_multishot:
 	if (unlikely(ret))
 		goto out_free;
 
+	msg.msg_inq = -1U;
 	msg.msg_flags = 0;
 
 	flags = sr->msg_flags;
@@ -923,7 +925,7 @@ out_free:
 		io_kbuf_recycle(req, issue_flags);
 
 	cflags = io_put_kbuf(req, issue_flags);
-	if (msg.msg_inq)
+	if (msg.msg_inq && msg.msg_inq != -1U)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
 	if (!io_recv_finish(req, &ret, cflags, ret <= 0, issue_flags))
