@@ -10,12 +10,12 @@
 #include <linux/notifier.h>
 #include <linux/gunyah.h>
 
-#define GH_VMID_INVAL	U16_MAX
+#define GH_VMID_INVAL		U16_MAX
 #define GH_MEM_HANDLE_INVAL	U32_MAX
 
 struct gh_rm;
-int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buff_size,
-		void **resp_buf, size_t *resp_buff_size);
+int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buf, size_t req_buf_size,
+		void **resp_buf, size_t *resp_buf_size);
 int gh_rm_notifier_register(struct gh_rm *rm, struct notifier_block *nb);
 int gh_rm_notifier_unregister(struct gh_rm *rm, struct notifier_block *nb);
 struct device *gh_rm_get(struct gh_rm *rm);
@@ -31,12 +31,6 @@ struct gh_rm_vm_exited_payload {
 #define GH_RM_NOTIFICATION_VM_EXITED		 0x56100001
 
 enum gh_rm_vm_status {
-	/**
-	 * RM doesn't have a state where load partially failed because
-	 * only Linux
-	 */
-	GH_RM_VM_STATUS_LOAD_FAILED	= -1,
-
 	GH_RM_VM_STATUS_NO_STATE	= 0,
 	GH_RM_VM_STATUS_INIT		= 1,
 	GH_RM_VM_STATUS_READY		= 2,
@@ -81,16 +75,16 @@ enum gh_rm_mem_type {
 };
 
 /*
- * struct gh_rm_mem_parcel - Package info about memory to be lent/shared/donated/reclaimed
+ * struct gh_rm_mem_parcel - Info about memory to be lent/shared/donated/reclaimed
  * @mem_type: The type of memory: normal (DDR) or IO
  * @label: An client-specified identifier which can be used by the other VMs to identify the purpose
  *         of the memory parcel.
+ * @n_acl_entries: Count of the number of entries in the @acl_entries array.
  * @acl_entries: An array of access control entries. Each entry specifies a VM and what access
  *               is allowed for the memory parcel.
- * @n_acl_entries: Count of the number of entries in the `acl_entries` array.
- * @mem_entries: An list of regions to be associated with the memory parcel. Addresses should be
+ * @n_mem_entries: Count of the number of entries in the @mem_entries array.
+ * @mem_entries: An array of regions to be associated with the memory parcel. Addresses should be
  *               (intermediate) physical addresses from Linux's perspective.
- * @n_mem_entries: Count of the number of entries in the `mem_entries` array.
  * @mem_handle: On success, filled with memory handle that RM allocates for this memory parcel
  */
 struct gh_rm_mem_parcel {

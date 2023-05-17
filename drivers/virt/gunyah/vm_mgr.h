@@ -3,8 +3,8 @@
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#ifndef _GH_PRIV_VM_MGR_H
-#define _GH_PRIV_VM_MGR_H
+#ifndef _GH_VM_MGR_H
+#define _GH_VM_MGR_H
 
 #include <linux/gunyah_rsc_mgr.h>
 #include <linux/gunyah_vm_mgr.h>
@@ -50,6 +50,7 @@ struct gh_vm {
 
 	struct work_struct free_work;
 	struct kref kref;
+	struct mm_struct *mm; /* userspace tied to this vm */
 	struct mutex mm_lock;
 	struct list_head memory_mappings;
 	struct mutex fn_lock;
@@ -62,9 +63,7 @@ struct gh_vm {
 };
 
 int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *region, bool lend);
-void gh_vm_mem_reclaim(struct gh_vm *ghvm, struct gh_vm_mem *mapping);
-int gh_vm_mem_free(struct gh_vm *ghvm, u32 label);
-struct gh_vm_mem *gh_vm_mem_find_by_label(struct gh_vm *ghvm, u32 label);
+void gh_vm_mem_reclaim(struct gh_vm *ghvm);
 struct gh_vm_mem *gh_vm_mem_find_by_addr(struct gh_vm *ghvm, u64 guest_phys_addr, u32 size);
 
 int gh_vm_mmio_write(struct gh_vm *ghvm, u64 addr, u32 len, u64 data);

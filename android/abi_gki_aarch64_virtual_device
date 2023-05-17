@@ -299,6 +299,8 @@
   page_frag_alloc_align
   __page_frag_cache_drain
   page_frag_free
+  page_pinner_inited
+  __page_pinner_put_page
   param_ops_bool
   param_ops_charp
   param_ops_int
