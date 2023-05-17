@@ -141,6 +141,7 @@ struct rcu_scale_ops {
 	void (*gp_barrier)(void);
 	void (*sync)(void);
 	void (*exp_sync)(void);
+	struct task_struct *(*rso_gp_kthread)(void);
 	const char *name;
 };
 
@@ -336,6 +337,7 @@ static struct rcu_scale_ops tasks_tracing_ops = {
 	.gp_barrier	= rcu_barrier_tasks_trace,
 	.sync		= synchronize_rcu_tasks_trace,
 	.exp_sync	= synchronize_rcu_tasks_trace,
+	.rso_gp_kthread	= get_rcu_tasks_trace_gp_kthread,
 	.name		= "tasks-tracing"
 };
 
@@ -563,6 +565,8 @@ static struct task_struct **kfree_reader_tasks;
 static int kfree_nrealthreads;
 static atomic_t n_kfree_scale_thread_started;
 static atomic_t n_kfree_scale_thread_ended;
+static struct task_struct *kthread_tp;
+static u64 kthread_stime;
 
 struct kfree_obj {
 	char kfree_obj[8];
@@ -808,6 +812,18 @@ rcu_scale_cleanup(void)
 	if (gp_exp && gp_async)
 		SCALEOUT_ERRSTRING("No expedited async GPs, so went with async!");
 
+	// If built-in, just report all of the GP kthread's CPU time.
+	if (IS_BUILTIN(CONFIG_RCU_SCALE_TEST) && !kthread_tp && cur_ops->rso_gp_kthread)
+		kthread_tp = cur_ops->rso_gp_kthread();
+	if (kthread_tp) {
+		u32 ns;
+		u64 us;
+
+		kthread_stime = kthread_tp->stime - kthread_stime;
+		us = div_u64_rem(kthread_stime, 1000, &ns);
+		pr_info("rcu_scale: Grace-period kthread CPU time: %llu.%03u us\n", us, ns);
+		show_rcu_gp_kthreads();
+	}
 	if (kfree_rcu_test) {
 		kfree_scale_cleanup();
 		return;
@@ -921,6 +937,11 @@ rcu_scale_init(void)
 	if (cur_ops->init)
 		cur_ops->init();
 
+	if (cur_ops->rso_gp_kthread) {
+		kthread_tp = cur_ops->rso_gp_kthread();
+		if (kthread_tp)
+			kthread_stime = kthread_tp->stime;
+	}
 	if (kfree_rcu_test)
 		return kfree_scale_init();
 
