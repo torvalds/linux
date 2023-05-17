@@ -35,6 +35,12 @@
 	v3p3-supply = <&pm8916_l13>;
 };
 
+&wcd_codec {
+	vdd-cdc-io-supply = <&pm8916_l5>;
+	vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
+	vdd-micbias-supply = <&pm8916_l13>;
+};
+
 &wcnss {
 	vddpx-supply = <&pm8916_l7>;
 };
