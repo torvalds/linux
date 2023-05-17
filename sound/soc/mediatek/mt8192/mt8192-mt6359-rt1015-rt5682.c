@@ -46,7 +46,7 @@ struct mt8192_mt6359_priv {
 /* Headset jack detection DAPM pins */
 static struct snd_soc_jack_pin mt8192_jack_pins[] = {
 	{
-		.pin = "Headphone Jack",
+		.pin = "Headphone",
 		.mask = SND_JACK_HEADPHONE,
 	},
 	{
