@@ -141,6 +141,7 @@ static struct env {
 	bool verbose;
 	bool debug;
 	bool quiet;
+	bool force_checkpoints;
 	enum resfmt out_fmt;
 	bool show_version;
 	bool comparison_mode;
@@ -209,6 +210,8 @@ static const struct argp_option opts[] = {
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
+	{ "test-states", 't', NULL, 0,
+	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -283,6 +286,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr, "invalid log size: %s\n", arg);
 			argp_usage(state);
 		}
+		break;
+	case 't':
+		env.force_checkpoints = true;
 		break;
 	case 'C':
 		env.comparison_mode = true;
@@ -988,6 +994,9 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	/* increase chances of successful BPF object loading */
 	fixup_obj(obj, prog, base_filename);
+
+	if (env.force_checkpoints)
+		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_STATE_FREQ);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;

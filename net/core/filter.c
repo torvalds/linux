@@ -6916,6 +6916,8 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 					FIELD));			\
 	} while (0)
 
+	BTF_TYPE_EMIT(struct bpf_tcp_sock);
+
 	switch (si->off) {
 	case offsetof(struct bpf_tcp_sock, rtt_min):
 		BUILD_BUG_ON(sizeof_field(struct tcp_sock, rtt_min) !=
