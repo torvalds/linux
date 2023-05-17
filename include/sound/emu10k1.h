@@ -1670,7 +1670,6 @@ struct snd_emu10k1 {
 	unsigned int address_mode;		/* address mode */
 	unsigned long dma_mask;			/* PCI DMA mask */
 	bool iommu_workaround;			/* IOMMU workaround needed */
-	unsigned int delay_pcm_irq;		/* in samples */
 	int max_cache_pages;			/* max memory size / PAGE_SIZE */
 	struct snd_dma_buffer silent_page;	/* silent page */
 	struct snd_dma_buffer ptb_pages;	/* page table pages */

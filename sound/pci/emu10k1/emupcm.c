@@ -290,7 +290,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		evoice->epcm->ccca_start_addr = start_addr + ccis;
 		if (extra) {
 			start_addr += ccis;
-			end_addr += ccis + emu->delay_pcm_irq;
+			end_addr += ccis;
 		}
 	}
 	if (stereo && !extra) {
@@ -315,9 +315,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
 	// Stereo slaves don't need to have the addresses set, but it doesn't hurt
 	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
-	snd_emu10k1_ptr_write(emu, PSST, voice,
-			(start_addr + (extra ? emu->delay_pcm_irq : 0)) |
-			(send_amount[2] << 24));
+	snd_emu10k1_ptr_write(emu, PSST, voice, start_addr | (send_amount[2] << 24));
 	if (emu->card_capabilities->emu_model)
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else 
@@ -647,23 +645,6 @@ static void snd_emu10k1_playback_set_stopped(struct snd_emu10k1 *emu,
 	epcm->running = 0;
 }
 
-static inline void snd_emu10k1_playback_mangle_extra(struct snd_emu10k1 *emu,
-		struct snd_emu10k1_pcm *epcm,
-		struct snd_pcm_substream *substream,
-		struct snd_pcm_runtime *runtime)
-{
-	unsigned int ptr, period_pos;
-
-	/* try to sychronize the current position for the interrupt
-	   source voice */
-	period_pos = runtime->status->hw_ptr - runtime->hw_ptr_interrupt;
-	period_pos %= runtime->period_size;
-	ptr = snd_emu10k1_ptr_read(emu, CCCA, epcm->extra->number);
-	ptr &= ~0x00ffffff;
-	ptr |= epcm->ccca_start_addr + period_pos;
-	snd_emu10k1_ptr_write(emu, CCCA, epcm->extra->number, ptr);
-}
-
 static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 				        int cmd)
 {
@@ -686,8 +667,6 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
-			snd_emu10k1_playback_mangle_extra(emu, epcm, substream, runtime);
 		mix = &emu->pcm_mixer[substream->number];
 		snd_emu10k1_playback_unmute_voice(emu, epcm->voices[0], true, mix);
 		snd_emu10k1_playback_unmute_voice(emu, epcm->voices[1], false, mix);
