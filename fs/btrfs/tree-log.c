@@ -7309,7 +7309,7 @@ error:
  */
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     struct btrfs_inode *dir, struct btrfs_inode *inode,
-			     int for_rename)
+			     bool for_rename)
 {
 	/*
 	 * when we're logging a file, if it hasn't been renamed

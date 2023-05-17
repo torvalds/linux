@@ -4425,7 +4425,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	btrfs_record_unlink_dir(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
-			0);
+				false);
 
 	ret = btrfs_unlink_inode(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
 				 &fname.disk_name);
@@ -8993,9 +8993,9 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	if (old_dentry->d_parent != new_dentry->d_parent) {
 		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
-				BTRFS_I(old_inode), 1);
+					BTRFS_I(old_inode), true);
 		btrfs_record_unlink_dir(trans, BTRFS_I(new_dir),
-				BTRFS_I(new_inode), 1);
+					BTRFS_I(new_inode), true);
 	}
 
 	/* src is a subvolume */
@@ -9261,7 +9261,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 
 	if (old_dentry->d_parent != new_dentry->d_parent)
 		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
-				BTRFS_I(old_inode), 1);
+					BTRFS_I(old_inode), true);
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
