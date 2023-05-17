@@ -51,6 +51,70 @@
 #define UMC_V12_0_TOTAL_CHANNEL_NUM(adev) \
 	(UMC_V12_0_CHANNEL_INSTANCE_NUM * (adev)->gmc.num_umc)
 
+/* one piece of normalized address is mapped to 8 pieces of physical address */
+#define UMC_V12_0_NA_MAP_PA_NUM        8
+/* bank bits in MCA error address */
+#define UMC_V12_0_MCA_B0_BIT 6
+#define UMC_V12_0_MCA_B1_BIT 7
+#define UMC_V12_0_MCA_B2_BIT 8
+#define UMC_V12_0_MCA_B3_BIT 9
+/* column bits in SOC physical address */
+#define UMC_V12_0_PA_C2_BIT 15
+#define UMC_V12_0_PA_C4_BIT 21
+/* row bits in SOC physical address */
+#define UMC_V12_0_PA_R13_BIT 35
+/* channel index bits in SOC physical address */
+#define UMC_V12_0_PA_CH4_BIT 12
+#define UMC_V12_0_PA_CH5_BIT 13
+#define UMC_V12_0_PA_CH6_BIT 14
+
+/* bank hash settings */
+#define UMC_V12_0_XOR_EN0 1
+#define UMC_V12_0_XOR_EN1 1
+#define UMC_V12_0_XOR_EN2 1
+#define UMC_V12_0_XOR_EN3 1
+#define UMC_V12_0_COL_XOR0 0x0
+#define UMC_V12_0_COL_XOR1 0x0
+#define UMC_V12_0_COL_XOR2 0x800
+#define UMC_V12_0_COL_XOR3 0x1000
+#define UMC_V12_0_ROW_XOR0 0x11111
+#define UMC_V12_0_ROW_XOR1 0x22222
+#define UMC_V12_0_ROW_XOR2 0x4444
+#define UMC_V12_0_ROW_XOR3 0x8888
+
+/* channel hash settings */
+#define UMC_V12_0_HASH_4K 0
+#define UMC_V12_0_HASH_64K 1
+#define UMC_V12_0_HASH_2M 1
+#define UMC_V12_0_HASH_1G 1
+#define UMC_V12_0_HASH_1T 1
+
+/* XOR some bits of PA into CH4~CH6 bits (bits 12~14 of PA),
+ * hash bit is only effective when related setting is enabled
+ */
+#define UMC_V12_0_CHANNEL_HASH_CH4(channel_idx, pa) ((((channel_idx) >> 5) & 0x1) ^ \
+				(((pa)  >> 20) & 0x1ULL & UMC_V12_0_HASH_64K) ^ \
+				(((pa)  >> 27) & 0x1ULL & UMC_V12_0_HASH_2M) ^ \
+				(((pa)  >> 34) & 0x1ULL & UMC_V12_0_HASH_1G) ^ \
+				(((pa)  >> 41) & 0x1ULL & UMC_V12_0_HASH_1T))
+#define UMC_V12_0_CHANNEL_HASH_CH5(channel_idx, pa) ((((channel_idx) >> 6) & 0x1) ^ \
+				(((pa)  >> 21) & 0x1ULL & UMC_V12_0_HASH_64K) ^ \
+				(((pa)  >> 28) & 0x1ULL & UMC_V12_0_HASH_2M) ^ \
+				(((pa)  >> 35) & 0x1ULL & UMC_V12_0_HASH_1G) ^ \
+				(((pa)  >> 42) & 0x1ULL & UMC_V12_0_HASH_1T))
+#define UMC_V12_0_CHANNEL_HASH_CH6(channel_idx, pa) ((((channel_idx) >> 4) & 0x1) ^ \
+				(((pa)  >> 19) & 0x1ULL & UMC_V12_0_HASH_64K) ^ \
+				(((pa)  >> 26) & 0x1ULL & UMC_V12_0_HASH_2M) ^ \
+				(((pa)  >> 33) & 0x1ULL & UMC_V12_0_HASH_1G) ^ \
+				(((pa)  >> 40) & 0x1ULL & UMC_V12_0_HASH_1T) ^ \
+				(((pa)  >> 47) & 0x1ULL & UMC_V12_0_HASH_4K))
+#define UMC_V12_0_SET_CHANNEL_HASH(channel_idx, pa) do { \
+		(pa) &= ~(0x7ULL << UMC_V12_0_PA_CH4_BIT); \
+		(pa) |= (UMC_V12_0_CHANNEL_HASH_CH4(channel_idx, pa) << UMC_V12_0_PA_CH4_BIT); \
+		(pa) |= (UMC_V12_0_CHANNEL_HASH_CH5(channel_idx, pa) << UMC_V12_0_PA_CH5_BIT); \
+		(pa) |= (UMC_V12_0_CHANNEL_HASH_CH6(channel_idx, pa) << UMC_V12_0_PA_CH6_BIT); \
+	} while (0)
+
 extern struct amdgpu_umc_ras umc_v12_0_ras;
 
 #endif

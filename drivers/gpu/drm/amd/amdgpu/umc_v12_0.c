@@ -27,6 +27,14 @@
 #include "umc/umc_12_0_0_offset.h"
 #include "umc/umc_12_0_0_sh_mask.h"
 
+/* mapping of MCA error address to normalized address */
+static const uint32_t umc_v12_0_ma2na_mapping[] = {
+	0,  5,  6,  8,  9,  14, 12, 13,
+	10, 11, 15, 16, 17, 18, 19, 20,
+	21, 22, 23, 24, 25, 26, 27, 28,
+	24, 7,  29, 30,
+};
+
 static inline uint64_t get_umc_v12_0_reg_offset(struct amdgpu_device *adev,
 					    uint32_t node_inst,
 					    uint32_t umc_inst,
@@ -137,12 +145,93 @@ static void umc_v12_0_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v12_0_reset_error_count(adev);
 }
 
+static bool umc_v12_0_bit_wise_xor(uint32_t val)
+{
+	bool result = 0;
+	int i;
+
+	for (i = 0; i < 32; i++)
+		result = result ^ ((val >> i) & 0x1);
+
+	return result;
+}
+
 static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					    struct ras_err_data *err_data, uint64_t err_addr,
 					    uint32_t ch_inst, uint32_t umc_inst,
 					    uint32_t node_inst)
 {
+	uint32_t channel_index, i;
+	uint64_t soc_pa, na, retired_page, column;
+	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row;
+	uint32_t bank0, bank1, bank2, bank3, bank;
 
+	bank_hash0 = (err_addr >> UMC_V12_0_MCA_B0_BIT) & 0x1ULL;
+	bank_hash1 = (err_addr >> UMC_V12_0_MCA_B1_BIT) & 0x1ULL;
+	bank_hash2 = (err_addr >> UMC_V12_0_MCA_B2_BIT) & 0x1ULL;
+	bank_hash3 = (err_addr >> UMC_V12_0_MCA_B3_BIT) & 0x1ULL;
+	col = (err_addr >> 1) & 0x1fULL;
+	row = (err_addr >> 10) & 0x3fffULL;
+
+	/* apply bank hash algorithm */
+	bank0 =
+		bank_hash0 ^ (UMC_V12_0_XOR_EN0 &
+		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR0) ^
+		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR0))));
+	bank1 =
+		bank_hash1 ^ (UMC_V12_0_XOR_EN1 &
+		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR1) ^
+		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR1))));
+	bank2 =
+		bank_hash2 ^ (UMC_V12_0_XOR_EN2 &
+		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR2) ^
+		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR2))));
+	bank3 =
+		bank_hash3 ^ (UMC_V12_0_XOR_EN3 &
+		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR3) ^
+		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR3))));
+
+	bank = bank0 | (bank1 << 1) | (bank2 << 2) | (bank3 << 3);
+	err_addr &= ~0x3c0ULL;
+	err_addr |= (bank << UMC_V12_0_MCA_B0_BIT);
+
+	na = 0x0;
+	/* convert mca error address to normalized address */
+	for (i = 1; i < ARRAY_SIZE(umc_v12_0_ma2na_mapping); i++)
+		na |= ((err_addr >> i) & 0x1ULL) << umc_v12_0_ma2na_mapping[i];
+
+	channel_index =
+		adev->umc.channel_idx_tbl[node_inst * adev->umc.umc_inst_num *
+			adev->umc.channel_inst_num +
+			umc_inst * adev->umc.channel_inst_num +
+			ch_inst];
+	/* translate umc channel address to soc pa, 3 parts are included */
+	soc_pa = ADDR_OF_32KB_BLOCK(na) |
+		ADDR_OF_256B_BLOCK(channel_index) |
+		OFFSET_IN_256B_BLOCK(na);
+
+	/* the umc channel bits are not original values, they are hashed */
+	UMC_V12_0_SET_CHANNEL_HASH(channel_index, soc_pa);
+
+	/* clear [C3 C2] in soc physical address */
+	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
+	/* clear [C4] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+
+	/* loop for all possibilities of [C4 C3 C2] */
+	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
+		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+		dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+		amdgpu_umc_fill_error_record(err_data, err_addr,
+			retired_page, channel_index, umc_inst);
+
+		/* shift R13 bit */
+		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
+		dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+		amdgpu_umc_fill_error_record(err_data, err_addr,
+			retired_page, channel_index, umc_inst);
+	}
 }
 
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
