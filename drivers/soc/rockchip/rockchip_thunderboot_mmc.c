@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  */
+#include <linux/clk.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -27,6 +28,8 @@ static int rk_tb_mmc_thread(void *p)
 	struct resource *res;
 	struct device_node *rds, *rdd, *dma;
 	struct device *dev = &pdev->dev;
+	struct clk_bulk_data *clk_bulks;
+	int clk_num;
 	u32 status;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -39,6 +42,18 @@ static int rk_tb_mmc_thread(void *p)
 	rds = of_parse_phandle(dev->of_node, "memory-region-src", 0);
 	rdd = of_parse_phandle(dev->of_node, "memory-region-dst", 0);
 	dma = of_parse_phandle(dev->of_node, "memory-region-idmac", 0);
+
+	clk_num = clk_bulk_get_all(&pdev->dev, &clk_bulks);
+	if (clk_num >= 0) {
+		ret = clk_bulk_prepare_enable(clk_num, clk_bulks);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable clocks\n");
+			return ret;
+		}
+	} else {
+		dev_err(&pdev->dev, "failed to get clks property\\n");
+		return clk_num;
+	}
 
 	if (readl_poll_timeout(regs + SDMMC_STATUS, status,
 			       !(status & (BIT(10) | GENMASK(7, 4))), 100,
@@ -95,6 +110,8 @@ static int rk_tb_mmc_thread(void *p)
 	}
 
 out:
+	clk_bulk_disable_unprepare(clk_num, clk_bulks);
+	clk_bulk_put_all(clk_num, clk_bulks);
 	of_node_put(rds);
 	of_node_put(rdd);
 	of_node_put(dma);
