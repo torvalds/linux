@@ -4797,7 +4797,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	    !test_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &root->state))
 		lockdep_owner = BTRFS_FS_TREE_OBJECTID;
 
-	/* btrfs_clean_tree_block() accesses generation field. */
+	/* btrfs_clear_buffer_dirty() accesses generation field. */
 	btrfs_set_header_generation(buf, trans->transid);
 
 	/*
