@@ -156,12 +156,27 @@ deadline_latter_request(struct request *rq)
 	return NULL;
 }
 
-/* Return the first request for which blk_rq_pos() >= pos. */
+/*
+ * Return the first request for which blk_rq_pos() >= @pos. For zoned devices,
+ * return the first request after the start of the zone containing @pos.
+ */
 static inline struct request *deadline_from_pos(struct dd_per_prio *per_prio,
 				enum dd_data_dir data_dir, sector_t pos)
 {
 	struct rb_node *node = per_prio->sort_list[data_dir].rb_node;
 	struct request *rq, *res = NULL;
+
+	if (!node)
+		return NULL;
+
+	rq = rb_entry_rq(node);
+	/*
+	 * A zoned write may have been requeued with a starting position that
+	 * is below that of the most recently dispatched request. Hence, for
+	 * zoned writes, start searching from the start of a zone.
+	 */
+	if (blk_rq_is_seq_zoned_write(rq))
+		pos -= round_down(pos, rq->q->limits.chunk_sectors);
 
 	while (node) {
 		rq = rb_entry_rq(node);
@@ -806,6 +821,8 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 		list_add(&rq->queuelist, &per_prio->dispatch);
 		rq->fifo_time = jiffies;
 	} else {
+		struct list_head *insert_before;
+
 		deadline_add_rq_rb(per_prio, rq);
 
 		if (rq_mergeable(rq)) {
@@ -818,7 +835,20 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 		 * set expire time and add to fifo list
 		 */
 		rq->fifo_time = jiffies + dd->fifo_expire[data_dir];
-		list_add_tail(&rq->queuelist, &per_prio->fifo_list[data_dir]);
+		insert_before = &per_prio->fifo_list[data_dir];
+#ifdef CONFIG_BLK_DEV_ZONED
+		/*
+		 * Insert zoned writes such that requests are sorted by
+		 * position per zone.
+		 */
+		if (blk_rq_is_seq_zoned_write(rq)) {
+			struct request *rq2 = deadline_latter_request(rq);
+
+			if (rq2 && blk_rq_zone_no(rq2) == blk_rq_zone_no(rq))
+				insert_before = &rq2->queuelist;
+		}
+#endif
+		list_add_tail(&rq->queuelist, insert_before);
 	}
 }
 
