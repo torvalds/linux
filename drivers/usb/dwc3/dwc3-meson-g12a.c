@@ -826,7 +826,7 @@ err_disable_clks:
 	return ret;
 }
 
-static int dwc3_meson_g12a_remove(struct platform_device *pdev)
+static void dwc3_meson_g12a_remove(struct platform_device *pdev)
 {
 	struct dwc3_meson_g12a *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -849,8 +849,6 @@ static int dwc3_meson_g12a_remove(struct platform_device *pdev)
 
 	clk_bulk_disable_unprepare(priv->drvdata->num_clks,
 				   priv->drvdata->clks);
-
-	return 0;
 }
 
 static int __maybe_unused dwc3_meson_g12a_runtime_suspend(struct device *dev)
@@ -961,7 +959,7 @@ MODULE_DEVICE_TABLE(of, dwc3_meson_g12a_match);
 
 static struct platform_driver dwc3_meson_g12a_driver = {
 	.probe		= dwc3_meson_g12a_probe,
-	.remove		= dwc3_meson_g12a_remove,
+	.remove_new	= dwc3_meson_g12a_remove,
 	.driver		= {
 		.name	= "dwc3-meson-g12a",
 		.of_match_table = dwc3_meson_g12a_match,
