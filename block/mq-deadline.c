@@ -74,8 +74,8 @@ struct dd_per_prio {
 	struct list_head dispatch;
 	struct rb_root sort_list[DD_DIR_COUNT];
 	struct list_head fifo_list[DD_DIR_COUNT];
-	/* Next request in FIFO order. Read, write or both are NULL. */
-	struct request *next_rq[DD_DIR_COUNT];
+	/* Position of the most recently dispatched request. */
+	sector_t latest_pos[DD_DIR_COUNT];
 	struct io_stats_per_prio stats;
 };
 
@@ -156,6 +156,25 @@ deadline_latter_request(struct request *rq)
 	return NULL;
 }
 
+/* Return the first request for which blk_rq_pos() >= pos. */
+static inline struct request *deadline_from_pos(struct dd_per_prio *per_prio,
+				enum dd_data_dir data_dir, sector_t pos)
+{
+	struct rb_node *node = per_prio->sort_list[data_dir].rb_node;
+	struct request *rq, *res = NULL;
+
+	while (node) {
+		rq = rb_entry_rq(node);
+		if (blk_rq_pos(rq) >= pos) {
+			res = rq;
+			node = node->rb_left;
+		} else {
+			node = node->rb_right;
+		}
+	}
+	return res;
+}
+
 static void
 deadline_add_rq_rb(struct dd_per_prio *per_prio, struct request *rq)
 {
@@ -167,11 +186,6 @@ deadline_add_rq_rb(struct dd_per_prio *per_prio, struct request *rq)
 static inline void
 deadline_del_rq_rb(struct dd_per_prio *per_prio, struct request *rq)
 {
-	const enum dd_data_dir data_dir = rq_data_dir(rq);
-
-	if (per_prio->next_rq[data_dir] == rq)
-		per_prio->next_rq[data_dir] = deadline_latter_request(rq);
-
 	elv_rb_del(deadline_rb_root(per_prio, rq), rq);
 }
 
@@ -251,10 +265,6 @@ static void
 deadline_move_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 		      struct request *rq)
 {
-	const enum dd_data_dir data_dir = rq_data_dir(rq);
-
-	per_prio->next_rq[data_dir] = deadline_latter_request(rq);
-
 	/*
 	 * take it off the sort and fifo list
 	 */
@@ -363,7 +373,8 @@ deadline_next_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 	struct request *rq;
 	unsigned long flags;
 
-	rq = per_prio->next_rq[data_dir];
+	rq = deadline_from_pos(per_prio, data_dir,
+			       per_prio->latest_pos[data_dir]);
 	if (!rq)
 		return NULL;
 
@@ -426,6 +437,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 		if (started_after(dd, rq, latest_start))
 			return NULL;
 		list_del_init(&rq->queuelist);
+		data_dir = rq_data_dir(rq);
 		goto done;
 	}
 
@@ -433,9 +445,11 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 	 * batches are currently reads XOR writes
 	 */
 	rq = deadline_next_request(dd, per_prio, dd->last_dir);
-	if (rq && dd->batching < dd->fifo_batch)
+	if (rq && dd->batching < dd->fifo_batch) {
 		/* we have a next request and are still entitled to batch */
+		data_dir = rq_data_dir(rq);
 		goto dispatch_request;
+	}
 
 	/*
 	 * at this point we are not running a batch. select the appropriate
@@ -513,6 +527,7 @@ dispatch_request:
 done:
 	ioprio_class = dd_rq_ioclass(rq);
 	prio = ioprio_class_to_prio[ioprio_class];
+	dd->per_prio[prio].latest_pos[data_dir] = blk_rq_pos(rq);
 	dd->per_prio[prio].stats.dispatched++;
 	/*
 	 * If the request needs its target zone locked, do it.
@@ -1026,8 +1041,10 @@ static int deadline_##name##_next_rq_show(void *data,			\
 	struct request_queue *q = data;					\
 	struct deadline_data *dd = q->elevator->elevator_data;		\
 	struct dd_per_prio *per_prio = &dd->per_prio[prio];		\
-	struct request *rq = per_prio->next_rq[data_dir];		\
+	struct request *rq;						\
 									\
+	rq = deadline_from_pos(per_prio, data_dir,			\
+			       per_prio->latest_pos[data_dir]);		\
 	if (rq)								\
 		__blk_mq_debugfs_rq_show(m, rq);			\
 	return 0;							\
