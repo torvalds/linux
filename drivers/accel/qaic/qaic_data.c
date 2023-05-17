@@ -1845,6 +1845,11 @@ void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id)
 	dbc->usr = NULL;
 	empty_xfer_list(qdev, dbc);
 	synchronize_srcu(&dbc->ch_lock);
+	/*
+	 * Threads holding channel lock, may add more elements in the xfer_list.
+	 * Flush out these elements from xfer_list.
+	 */
+	empty_xfer_list(qdev, dbc);
 }
 
 void release_dbc(struct qaic_device *qdev, u32 dbc_id)
