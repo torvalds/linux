@@ -780,7 +780,7 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 
 static int radeon_ttm_page_pool_show(struct seq_file *m, void *data)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 
 	return ttm_pool_debugfs(&rdev->mman.bdev.pool, m);
 }
