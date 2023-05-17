@@ -1144,9 +1144,11 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 #define SND_EMU10K1_PLAYBACK_CHANNELS	8
 #define SND_EMU10K1_CAPTURE_CHANNELS	4
 
+#define HR_VAL(v) ((v) * 0x80000000LL / 100 - 1)
+
 static void
-snd_emu10k1_init_mono_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
-			       const char *name, int gpr, int defval)
+snd_emu10k1_init_mono_control2(struct snd_emu10k1_fx8010_control_gpr *ctl,
+			       const char *name, int gpr, int defval, int defval_hr)
 {
 	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
 	strcpy(ctl->id.name, name);
@@ -1156,7 +1158,7 @@ snd_emu10k1_init_mono_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 		ctl->max = 0x7fffffff;
 		ctl->tlv = snd_emu10k1_db_linear;
 		ctl->translation = EMU10K1_GPR_TRANSLATION_NEGATE;
-		defval = defval * 0x80000000LL / 100 - 1;
+		defval = defval_hr;
 	} else {
 		ctl->min = 0;
 		ctl->max = 100;
@@ -1165,10 +1167,12 @@ snd_emu10k1_init_mono_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	}
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
 }
+#define snd_emu10k1_init_mono_control(ctl, name, gpr, defval) \
+	snd_emu10k1_init_mono_control2(ctl, name, gpr, defval, HR_VAL(defval))
 
 static void
-snd_emu10k1_init_stereo_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
-				 const char *name, int gpr, int defval)
+snd_emu10k1_init_stereo_control2(struct snd_emu10k1_fx8010_control_gpr *ctl,
+				 const char *name, int gpr, int defval, int defval_hr)
 {
 	ctl->id.iface = (__force int)SNDRV_CTL_ELEM_IFACE_MIXER;
 	strcpy(ctl->id.name, name);
@@ -1178,7 +1182,7 @@ snd_emu10k1_init_stereo_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 		ctl->max = 0x7fffffff;
 		ctl->tlv = snd_emu10k1_db_linear;
 		ctl->translation = EMU10K1_GPR_TRANSLATION_NEGATE;
-		defval = defval * 0x80000000LL / 100 - 1;
+		defval = defval_hr;
 	} else {
 		ctl->min = 0;
 		ctl->max = 100;
@@ -1188,6 +1192,8 @@ snd_emu10k1_init_stereo_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
 	ctl->gpr[1] = gpr + 1; ctl->value[1] = defval;
 }
+#define snd_emu10k1_init_stereo_control(ctl, name, gpr, defval) \
+	snd_emu10k1_init_stereo_control2(ctl, name, gpr, defval, HR_VAL(defval))
 
 static void
 snd_emu10k1_init_mono_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
