@@ -1,18 +1,18 @@
-load(":target_variants.bzl", "qx_variants")
-load(":msm_kernel_qx.bzl", "define_msm_qx")
+load(":target_variants.bzl", "lxc_variants")
+load(":msm_kernel_lxc.bzl", "define_msm_lxc")
 load(":image_opts.bzl", "boot_image_opts")
 
 target_name = "gen4auto"
 
-def define_gen4auto():
-    _gen4auto_qx_in_tree_modules = [
+def define_gen4auto_lxc():
+    _gen4auto_lxc_in_tree_modules = [
 	# keep sorted
     ]
 
-    for variant in qx_variants:
-        mod_list = _gen4auto_qx_in_tree_modules
+    for variant in lxc_variants:
+        mod_list = _gen4auto_lxc_in_tree_modules
 
-        define_msm_qx(
+        define_msm_lxc(
             msm_target = target_name,
             variant = variant,
             defconfig = "build.config.msm.auto",

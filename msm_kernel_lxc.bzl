@@ -23,7 +23,7 @@ load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_li
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
 load(":image_opts.bzl", "boot_image_opts")
-load(":target_variants.bzl", "qx_variants")
+load(":target_variants.bzl", "lxc_variants")
 
 def _define_build_config(
         msm_target,
@@ -53,7 +53,7 @@ BOOT_IMAGE_HEADER_VERSION=%d
 BASE_ADDRESS=0x%X
 PAGE_SIZE=%d
 TARGET_HAS_SEPARATE_RD=1
-PREFERRED_USERSPACE=qx
+PREFERRED_USERSPACE=lxc
 BUILD_BOOT_IMG=1
 SKIP_UNPACKING_RAMDISK=1
 BUILD_INITRAMFS=1
@@ -61,7 +61,7 @@ BUILD_INITRAMFS=1
 KERNEL_VENDOR_CMDLINE+=' console=hvc0 earlycon=hvc0 hvc_dcc.enable=1 loglevel=8 nokaslr printk.devkmsg=on root=/dev/ram0 rw rootwait'
 EOF
     """ % (
-        " ".join([v.replace("-", "_") for v in qx_variants]), # VARIANTS
+        " ".join([v.replace("-", "_") for v in lxc_variants]), # VARIANTS
         msm_target.replace("-", "_"),
         variant.replace("-", "_"),
         boot_image_opts.boot_image_header_version,
@@ -168,7 +168,7 @@ def _define_kernel_dist(target, msm_target, variant):
     """
 
     dist_dir = get_out_dir(msm_target, variant) + "/dist"
-    qx_target = msm_target.split("-")[0];
+    lxc_target = msm_target.split("-")[0];
 
     msm_dist_targets = [
         # do not sort
@@ -207,7 +207,7 @@ def _define_kernel_dist(target, msm_target, variant):
         dist_dir = dist_dir,
     )
 
-def define_msm_qx(
+def define_msm_lxc(
         msm_target,
         variant,
         defconfig,
@@ -226,22 +226,22 @@ def define_msm_qx(
       lz4_ramdisk: whether to use an lz4-compressed ramdisk
     """
 
-    if not variant in qx_variants:
-        fail("{} not defined in target_variants.bzl qx_variants!".format(variant))
+    if not variant in lxc_variants:
+        fail("{} not defined in target_variants.bzl lxc_variants!".format(variant))
 
     # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
     # between target and variant)
     target = msm_target.replace("_", "-") + "_" + variant.replace("_", "-")
-    qx_target = msm_target.split("-")[0];
+    lxc_target = msm_target.split("-")[0];
 
-    dtb_list = get_dtb_list(qx_target)
-    dtbo_list = get_dtbo_list(qx_target)
-    dtstree = get_dtstree(qx_target)
+    dtb_list = get_dtb_list(lxc_target)
+    dtbo_list = get_dtbo_list(lxc_target)
+    dtstree = get_dtstree(lxc_target)
     vendor_ramdisk_binaries = ["//prebuilts/qcom_boot_artifacts:le-initrd.gz"]
-    build_config_fragments = get_build_config_fragments(qx_target)
+    build_config_fragments = get_build_config_fragments(lxc_target)
 
     _define_build_config(
-        qx_target,
+        lxc_target,
         target,
         variant,
         defconfig,
