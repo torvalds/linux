@@ -49,13 +49,6 @@ void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
 bool static_dev_dax(struct dev_dax *dev_dax);
 
-/*
- * While run_dax() is potentially a generic operation that could be
- * defined in include/linux/dax.h we don't want to grow any users
- * outside of drivers/dax/
- */
-void run_dax(struct dax_device *dax_dev);
-
 #define MODULE_ALIAS_DAX_DEVICE(type) \
 	MODULE_ALIAS("dax:t" __stringify(type) "*")
 #define DAX_DEVICE_MODALIAS_FMT "dax:t%d"
