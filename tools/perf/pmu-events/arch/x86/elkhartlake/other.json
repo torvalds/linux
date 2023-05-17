@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.SELF_LOCKS",
+        "Deprecated": "1",
         "EdgeDetect": "1",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.ALL",
@@ -16,6 +17,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.BLOCK_CYCLES",
+        "Deprecated": "1",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.CYCLES_OTHER_BLOCK",
         "SampleAfterValue": "200003",
@@ -23,6 +25,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.LOCK_CYCLES",
+        "Deprecated": "1",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.CYCLES_SELF_BLOCK",
         "SampleAfterValue": "200003",
@@ -46,6 +49,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_DRAM_HIT",
+        "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_DRAM_HIT",
         "SampleAfterValue": "200003",
@@ -53,6 +57,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_L2_HIT",
+        "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_L2_HIT",
         "SampleAfterValue": "200003",
@@ -60,6 +65,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_LLC_HIT",
+        "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_LLC_HIT",
         "SampleAfterValue": "200003",
@@ -207,6 +213,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -216,6 +223,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.DRAM",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -225,6 +233,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.LOCAL_DRAM",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -234,6 +243,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.OUTSTANDING",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.OUTSTANDING",
         "MSRIndex": "0x1a6",
