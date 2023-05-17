@@ -1249,7 +1249,7 @@ dma_cont_failed:
 
 int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	struct qaic_manage_msg *user_msg;
+	struct qaic_manage_msg *user_msg = data;
 	struct qaic_device *qdev;
 	struct manage_msg *msg;
 	struct qaic_user *usr;
@@ -1257,6 +1257,9 @@ int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_
 	int qdev_rcu_id;
 	int usr_rcu_id;
 	int ret;
+
+	if (user_msg->len > QAIC_MANAGE_MAX_MSG_LENGTH)
+		return -EINVAL;
 
 	usr = file_priv->driver_priv;
 
@@ -1273,13 +1276,6 @@ int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_
 		srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 		srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
 		return -ENODEV;
-	}
-
-	user_msg = data;
-
-	if (user_msg->len > QAIC_MANAGE_MAX_MSG_LENGTH) {
-		ret = -EINVAL;
-		goto out;
 	}
 
 	msg = kzalloc(QAIC_MANAGE_MAX_MSG_LENGTH + sizeof(*msg), GFP_KERNEL);
