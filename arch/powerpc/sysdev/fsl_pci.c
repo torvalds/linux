@@ -1353,6 +1353,7 @@ static struct platform_driver fsl_pci_driver = {
 		.of_match_table = pci_ids,
 	},
 	.probe = fsl_pci_probe,
+	.driver_managed_dma = true,
 };
 
 static int __init fsl_pci_init(void)
