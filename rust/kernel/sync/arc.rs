@@ -221,6 +221,11 @@ impl<T: ?Sized> Arc<T> {
         // reference can be created.
         unsafe { ArcBorrow::new(self.ptr) }
     }
+
+    /// Compare whether two [`Arc`] pointers reference the same underlying object.
+    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
+        core::ptr::eq(this.ptr.as_ptr(), other.ptr.as_ptr())
+    }
 }
 
 impl<T: 'static> ForeignOwnable for Arc<T> {
