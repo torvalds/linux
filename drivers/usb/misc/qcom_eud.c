@@ -217,7 +217,7 @@ static int eud_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int eud_remove(struct platform_device *pdev)
+static void eud_remove(struct platform_device *pdev)
 {
 	struct eud_chip *chip = platform_get_drvdata(pdev);
 
@@ -226,8 +226,6 @@ static int eud_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, false);
 	disable_irq_wake(chip->irq);
-
-	return 0;
 }
 
 static const struct of_device_id eud_dt_match[] = {
@@ -238,7 +236,7 @@ MODULE_DEVICE_TABLE(of, eud_dt_match);
 
 static struct platform_driver eud_driver = {
 	.probe	= eud_probe,
-	.remove	= eud_remove,
+	.remove_new = eud_remove,
 	.driver	= {
 		.name = "qcom_eud",
 		.dev_groups = eud_groups,
