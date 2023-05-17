@@ -7,7 +7,7 @@
  */
 
 &omap4_pmx_core {
-	mcpdm_pins: pinmux_mcpdm_pins {
+	mcpdm_pins: mcpdm-pins {
 		pinctrl-single,pins = <
 		/* 0x4a100106 abe_pdm_ul_data.abe_pdm_ul_data ag25 */
 		OMAP4_IOPAD(0x106, PIN_INPUT_PULLDOWN | MUX_MODE0)

@@ -19,7 +19,7 @@
 };
 
 &omap4_pmx_core {
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x118, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart2_cts.uart2_cts */
 			OMAP4_IOPAD(0x11a, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts.uart2_rts */
@@ -28,7 +28,7 @@
 		>;
 	};
 
-	wl12xx_ctrl_pins: pinmux_wl12xx_ctrl_pins {
+	wl12xx_ctrl_pins: wl12xx-ctrl-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x062, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_a17.gpio_41 (WLAN_IRQ) */
 			OMAP4_IOPAD(0x064, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a18.gpio_42 (BT_EN) */
@@ -36,7 +36,7 @@
 		>;
 	};
 
-	mmc4_pins: pinmux_mmc4_pins {
+	mmc4_pins: mmc4-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x154, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_clk.sdmmc4_clk */
 			OMAP4_IOPAD(0x156, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_simo.sdmmc4_cmd */
