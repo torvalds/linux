@@ -395,6 +395,7 @@
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
   __traceiter_android_vh_printk_hotplug
@@ -415,6 +416,7 @@
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
+  __traceiter_android_vh_try_to_unmap_one
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_clock_scaling
   __traceiter_android_vh_ufs_compl_command
@@ -561,6 +563,7 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_mmap_region
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
   __tracepoint_android_vh_printk_hotplug
@@ -579,6 +582,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_to_unmap_one
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_ufs_check_int_errors
