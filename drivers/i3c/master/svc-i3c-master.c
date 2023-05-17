@@ -92,6 +92,7 @@
 #define SVC_I3C_MINTCLR      0x094
 #define SVC_I3C_MINTMASKED   0x098
 #define SVC_I3C_MERRWARN     0x09C
+#define   SVC_I3C_MERRWARN_NACK BIT(2)
 #define SVC_I3C_MDMACTRL     0x0A0
 #define SVC_I3C_MDATACTRL    0x0AC
 #define   SVC_I3C_MDATACTRL_FLUSHTB BIT(0)
@@ -1027,6 +1028,11 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 				 SVC_I3C_MSTATUS_MCTRLDONE(reg), 0, 1000);
 	if (ret)
 		goto emit_stop;
+
+	if (readl(master->regs + SVC_I3C_MERRWARN) & SVC_I3C_MERRWARN_NACK) {
+		ret = -ENXIO;
+		goto emit_stop;
+	}
 
 	if (rnw)
 		ret = svc_i3c_master_read(master, in, xfer_len);
