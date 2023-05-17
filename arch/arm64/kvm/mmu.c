@@ -92,8 +92,8 @@ static int kvm_mmu_split_nr_page_tables(u64 range)
 	int n = 0;
 
 	if (KVM_PGTABLE_MIN_BLOCK_LEVEL < 2)
-		n += DIV_ROUND_UP_ULL(range, PUD_SIZE);
-	n += DIV_ROUND_UP_ULL(range, PMD_SIZE);
+		n += DIV_ROUND_UP(range, PUD_SIZE);
+	n += DIV_ROUND_UP(range, PMD_SIZE);
 	return n;
 }
 
