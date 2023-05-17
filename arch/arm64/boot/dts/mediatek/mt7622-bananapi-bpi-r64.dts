@@ -15,6 +15,7 @@
 
 / {
 	model = "Bananapi BPI-R64";
+	chassis-type = "embedded";
 	compatible = "bananapi,bpi-r64", "mediatek,mt7622";
 
 	aliases {

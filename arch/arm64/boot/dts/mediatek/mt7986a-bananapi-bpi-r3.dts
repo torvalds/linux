@@ -16,6 +16,7 @@
 
 / {
 	model = "Bananapi BPI-R3";
+	chassis-type = "embedded";
 	compatible = "bananapi,bpi-r3", "mediatek,mt7986a";
 
 	aliases {
