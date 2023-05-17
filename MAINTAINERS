@@ -11907,9 +11907,8 @@ F:	lib/linear_ranges.c
 F:	lib/test_linear_ranges.c
 
 LINUX FOR POWER MACINTOSH
-M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Odd Fixes
+S:	Orphan
 F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
 X:	drivers/macintosh/adb-iop.c
