@@ -151,6 +151,7 @@ struct usbmisc_ops {
 	int (*charger_detection)(struct imx_usbmisc_data *data);
 	/* It's called when system resume from usb power lost */
 	int (*power_lost_check)(struct imx_usbmisc_data *data);
+	void (*vbus_comparator_on)(struct imx_usbmisc_data *data, bool on);
 };
 
 struct imx_usbmisc {
@@ -874,6 +875,33 @@ static int imx7d_charger_detection(struct imx_usbmisc_data *data)
 	return ret;
 }
 
+static void usbmisc_imx7d_vbus_comparator_on(struct imx_usbmisc_data *data,
+					     bool on)
+{
+	unsigned long flags;
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	u32 val;
+
+	if (data->hsic)
+		return;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	/*
+	 * Disable VBUS valid comparator when in suspend mode,
+	 * when OTG is disabled and DRVVBUS0 is asserted case
+	 * the Bandgap circuitry and VBUS Valid comparator are
+	 * still powered, even in Suspend or Sleep mode.
+	 */
+	val = readl(usbmisc->base + MX7D_USB_OTG_PHY_CFG2);
+	if (on)
+		val |= MX7D_USB_OTG_PHY_CFG2_DRVVBUS0;
+	else
+		val &= ~MX7D_USB_OTG_PHY_CFG2_DRVVBUS0;
+
+	writel(val, usbmisc->base + MX7D_USB_OTG_PHY_CFG2);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+}
+
 static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
 {
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
@@ -1017,6 +1045,7 @@ static const struct usbmisc_ops imx7d_usbmisc_ops = {
 	.set_wakeup = usbmisc_imx7d_set_wakeup,
 	.charger_detection = imx7d_charger_detection,
 	.power_lost_check = usbmisc_imx7d_power_lost_check,
+	.vbus_comparator_on = usbmisc_imx7d_vbus_comparator_on,
 };
 
 static const struct usbmisc_ops imx7ulp_usbmisc_ops = {
@@ -1131,6 +1160,9 @@ int imx_usbmisc_suspend(struct imx_usbmisc_data *data, bool wakeup)
 
 	usbmisc = dev_get_drvdata(data->dev);
 
+	if (usbmisc->ops->vbus_comparator_on)
+		usbmisc->ops->vbus_comparator_on(data, false);
+
 	if (wakeup && usbmisc->ops->set_wakeup)
 		ret = usbmisc->ops->set_wakeup(data, true);
 	if (ret) {
@@ -1183,6 +1215,9 @@ int imx_usbmisc_resume(struct imx_usbmisc_data *data, bool wakeup)
 		dev_err(data->dev, "set_wakeup failed, ret=%d\n", ret);
 		goto hsic_set_clk_fail;
 	}
+
+	if (usbmisc->ops->vbus_comparator_on)
+		usbmisc->ops->vbus_comparator_on(data, true);
 
 	return 0;
 
