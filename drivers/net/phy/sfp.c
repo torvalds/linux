@@ -734,6 +734,12 @@ static void sfp_set_state(struct sfp *sfp, unsigned int state)
 		sfp_soft_set_state(sfp, state);
 }
 
+static void sfp_mod_state(struct sfp *sfp, unsigned int mask, unsigned int set)
+{
+	sfp->state = (sfp->state & ~mask) | set;
+	sfp_set_state(sfp, sfp->state);
+}
+
 static unsigned int sfp_check(void *buf, size_t len)
 {
 	u8 *p, check;
@@ -1537,16 +1543,14 @@ static void sfp_module_tx_disable(struct sfp *sfp)
 {
 	dev_dbg(sfp->dev, "tx disable %u -> %u\n",
 		sfp->state & SFP_F_TX_DISABLE ? 1 : 0, 1);
-	sfp->state |= SFP_F_TX_DISABLE;
-	sfp_set_state(sfp, sfp->state);
+	sfp_mod_state(sfp, SFP_F_TX_DISABLE, SFP_F_TX_DISABLE);
 }
 
 static void sfp_module_tx_enable(struct sfp *sfp)
 {
 	dev_dbg(sfp->dev, "tx disable %u -> %u\n",
 		sfp->state & SFP_F_TX_DISABLE ? 1 : 0, 0);
-	sfp->state &= ~SFP_F_TX_DISABLE;
-	sfp_set_state(sfp, sfp->state);
+	sfp_mod_state(sfp, SFP_F_TX_DISABLE, 0);
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
