@@ -607,7 +607,7 @@ static struct i2c_driver lp5521_driver = {
 		.name	= "lp5521",
 		.of_match_table = of_match_ptr(of_lp5521_leds_match),
 	},
-	.probe_new	= lp5521_probe,
+	.probe		= lp5521_probe,
 	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
 };

@@ -431,7 +431,7 @@ static struct i2c_driver pca963x_driver = {
 		.name	= "leds-pca963x",
 		.of_match_table = of_pca963x_match,
 	},
-	.probe_new = pca963x_probe,
+	.probe = pca963x_probe,
 	.id_table = pca963x_id,
 };
 

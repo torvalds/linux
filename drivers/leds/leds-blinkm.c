@@ -730,7 +730,7 @@ static struct i2c_driver blinkm_driver = {
 	.driver = {
 		   .name = "blinkm",
 		   },
-	.probe_new = blinkm_probe,
+	.probe = blinkm_probe,
 	.remove = blinkm_remove,
 	.id_table = blinkm_id,
 	.detect = blinkm_detect,

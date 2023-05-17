@@ -759,7 +759,7 @@ static struct i2c_driver as3645a_i2c_driver = {
 		.of_match_table = as3645a_of_table,
 		.name = AS_NAME,
 	},
-	.probe_new	= as3645a_probe,
+	.probe = as3645a_probe,
 	.remove	= as3645a_remove,
 	.id_table = as3645a_id_table,
 };
