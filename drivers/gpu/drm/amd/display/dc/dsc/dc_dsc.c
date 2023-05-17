@@ -645,8 +645,6 @@ static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *av
 {
 	int idx = 0;
 
-	memset(available_slices, -1, MIN_AVAILABLE_SLICES_SIZE);
-
 	if (slice_caps.bits.NUM_SLICES_1)
 		available_slices[idx++] = 1;
 
