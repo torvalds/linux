@@ -135,9 +135,10 @@ void perf_event__read_stat_config(struct perf_stat_config *config,
 			config->__val = event->data[i].val;	\
 			break;
 
-		CASE(AGGR_MODE, aggr_mode)
-		CASE(SCALE,     scale)
-		CASE(INTERVAL,  interval)
+		CASE(AGGR_MODE,  aggr_mode)
+		CASE(SCALE,      scale)
+		CASE(INTERVAL,   interval)
+		CASE(AGGR_LEVEL, aggr_level)
 #undef CASE
 		default:
 			pr_warning("unknown stat config term %" PRI_lu64 "\n",
