@@ -5587,7 +5587,6 @@ EXPORT_SYMBOL_GPL(generic_access_phys);
 int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 		       int len, unsigned int gup_flags)
 {
-	struct vm_area_struct *vma;
 	void *old_buf = buf;
 	int write = gup_flags & FOLL_WRITE;
 
@@ -5596,29 +5595,30 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 
 	/* ignore errors, just check how much was successfully transferred */
 	while (len) {
-		int bytes, ret, offset;
+		int bytes, offset;
 		void *maddr;
-		struct page *page = NULL;
+		struct vm_area_struct *vma = NULL;
+		struct page *page = get_user_page_vma_remote(mm, addr,
+							     gup_flags, &vma);
 
-		ret = get_user_pages_remote(mm, addr, 1,
-				gup_flags, &page, &vma, NULL);
-		if (ret <= 0) {
+		if (IS_ERR_OR_NULL(page)) {
 #ifndef CONFIG_HAVE_IOREMAP_PROT
 			break;
 #else
+			int res = 0;
+
 			/*
 			 * Check if this is a VM_IO | VM_PFNMAP VMA, which
 			 * we can access using slightly different code.
 			 */
-			vma = vma_lookup(mm, addr);
 			if (!vma)
 				break;
 			if (vma->vm_ops && vma->vm_ops->access)
-				ret = vma->vm_ops->access(vma, addr, buf,
+				res = vma->vm_ops->access(vma, addr, buf,
 							  len, write);
-			if (ret <= 0)
+			if (res <= 0)
 				break;
-			bytes = ret;
+			bytes = res;
 #endif
 		} else {
 			bytes = len;
