@@ -1305,7 +1305,7 @@ static inline bool bdev_is_zoned(struct block_device *bdev)
 }
 
 static inline bool bdev_op_is_zoned_write(struct block_device *bdev,
-					  blk_opf_t op)
+					  enum req_op op)
 {
 	if (!bdev_is_zoned(bdev))
 		return false;
