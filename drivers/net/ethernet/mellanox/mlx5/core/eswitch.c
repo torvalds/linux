@@ -41,6 +41,7 @@
 #include "esw/qos.h"
 #include "mlx5_core.h"
 #include "lib/eq.h"
+#include "lag/lag.h"
 #include "eswitch.h"
 #include "fs_core.h"
 #include "devlink.h"
@@ -1709,6 +1710,38 @@ err:
 	return err;
 }
 
+static int mlx5_devlink_esw_multiport_set(struct devlink *devlink, u32 id,
+					  struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!MLX5_ESWITCH_MANAGER(dev))
+		return -EOPNOTSUPP;
+
+	if (ctx->val.vbool)
+		return mlx5_lag_mpesw_enable(dev);
+
+	mlx5_lag_mpesw_disable(dev);
+	return 0;
+}
+
+static int mlx5_devlink_esw_multiport_get(struct devlink *devlink, u32 id,
+					  struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	ctx->val.vbool = mlx5_lag_is_mpesw(dev);
+	return 0;
+}
+
+static const struct devlink_param mlx5_eswitch_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_ESW_MULTIPORT,
+			     "esw_multiport", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     mlx5_devlink_esw_multiport_get,
+			     mlx5_devlink_esw_multiport_set, NULL),
+};
+
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eswitch *esw;
@@ -1717,9 +1750,16 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
+	err = devl_params_register(priv_to_devlink(dev), mlx5_eswitch_params,
+				   ARRAY_SIZE(mlx5_eswitch_params));
+	if (err)
+		return err;
+
 	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
-	if (!esw)
-		return -ENOMEM;
+	if (!esw) {
+		err = -ENOMEM;
+		goto unregister_param;
+	}
 
 	esw->dev = dev;
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
@@ -1779,6 +1819,9 @@ abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
 	kfree(esw);
+unregister_param:
+	devl_params_unregister(priv_to_devlink(dev), mlx5_eswitch_params,
+			       ARRAY_SIZE(mlx5_eswitch_params));
 	return err;
 }
 
@@ -1802,6 +1845,8 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw_offloads_cleanup(esw);
 	mlx5_esw_vports_cleanup(esw);
 	kfree(esw);
+	devl_params_unregister(priv_to_devlink(esw->dev), mlx5_eswitch_params,
+			       ARRAY_SIZE(mlx5_eswitch_params));
 }
 
 /* Vport Administration */
