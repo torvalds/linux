@@ -1585,6 +1585,44 @@ chk_add_nr()
 	[ "${dump_stats}" = 1 ] && dump_stats
 }
 
+chk_add_tx_nr()
+{
+	local add_tx_nr=$1
+	local echo_tx_nr=$2
+	local dump_stats
+	local timeout
+	local count
+
+	timeout=$(ip netns exec $ns1 sysctl -n net.mptcp.add_addr_timeout)
+
+	printf "%-${nr_blank}s %s" " " "add TX"
+	count=$(ip netns exec $ns1 nstat -as MPTcpExtAddAddrTx | grep MPTcpExtAddAddrTx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+
+	# if the test configured a short timeout tolerate greater then expected
+	# add addrs options, due to retransmissions
+	if [ "$count" != "$add_tx_nr" ] && { [ "$timeout" -gt 1 ] || [ "$count" -lt "$add_tx_nr" ]; }; then
+		echo "[fail] got $count ADD_ADDR[s] TX, expected $add_tx_nr"
+		fail_test
+		dump_stats=1
+	else
+		echo -n "[ ok ]"
+	fi
+
+	echo -n " - echo TX "
+	count=$(ip netns exec $ns2 nstat -as MPTcpExtEchoAddTx | grep MPTcpExtEchoAddTx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$echo_tx_nr" ]; then
+		echo "[fail] got $count ADD_ADDR echo[s] TX, expected $echo_tx_nr"
+		fail_test
+		dump_stats=1
+	else
+		echo "[ ok ]"
+	fi
+
+	[ "${dump_stats}" = 1 ] && dump_stats
+}
+
 chk_rm_nr()
 {
 	local rm_addr_nr=$1
@@ -1649,6 +1687,26 @@ chk_rm_nr()
 	fi
 	if [ "$count" != "$rm_subflow_nr" ]; then
 		echo "[fail] got $count RM_SUBFLOW[s] expected $rm_subflow_nr"
+		fail_test
+		dump_stats=1
+	else
+		echo -n "[ ok ]"
+	fi
+
+	[ "${dump_stats}" = 1 ] && dump_stats
+
+	echo "$extra_msg"
+}
+
+chk_rm_tx_nr()
+{
+	local rm_addr_tx_nr=$1
+
+	printf "%-${nr_blank}s %s" " " "rm TX "
+	count=$(ip netns exec $ns2 nstat -as MPTcpExtRmAddrTx | grep MPTcpExtRmAddrTx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$rm_addr_tx_nr" ]; then
+		echo "[fail] got $count RM_ADDR[s] expected $rm_addr_tx_nr"
 		fail_test
 		dump_stats=1
 	else
@@ -1939,6 +1997,7 @@ signal_address_tests()
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
 		run_tests $ns1 $ns2 10.0.1.1
 		chk_join_nr 0 0 0
+		chk_add_tx_nr 1 1
 		chk_add_nr 1 1
 	fi
 
@@ -2120,6 +2179,7 @@ add_addr_timeout_tests()
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
 		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow
 		chk_join_nr 1 1 1
+		chk_add_tx_nr 4 4
 		chk_add_nr 4 0
 	fi
 
@@ -2165,6 +2225,7 @@ remove_tests()
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1 0 0 -1 slow
 		chk_join_nr 1 1 1
+		chk_rm_tx_nr 1
 		chk_rm_nr 1 1
 	fi
 
@@ -2263,6 +2324,7 @@ remove_tests()
 		pm_nl_add_endpoint $ns2 10.0.4.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 		chk_join_nr 3 3 3
+		chk_rm_tx_nr 0
 		chk_rm_nr 0 3 simult
 	fi
 
