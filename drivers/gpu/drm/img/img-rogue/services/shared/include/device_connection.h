@@ -77,6 +77,8 @@ typedef const struct PVRSRV_DEV_CONNECTION_TAG *SHARED_DEV_CONNECTION;
  *                     x...........  FBCDC_V3_1_USED
  *                    *............ PVRSRV_SYSTEM_DMA
  *                    x............  PVRSRV_SYSTEM_DMA_USED
+ *                   *............. TFBC_LOSSY_GROUP
+ *                   x.............  TFBC_LOSSY_GROUP_1
  * |...|...|...|...|...|...|...|...
  *****************************************************************************/
 
@@ -109,6 +111,11 @@ typedef const struct PVRSRV_DEV_CONNECTION_TAG *SHARED_DEV_CONNECTION;
    DMA transfer capability to and from device memory */
 #define PVRSRV_SYSTEM_DMA_SHIFT (12)
 #define PVRSRV_SYSTEM_DMA_USED (1U << PVRSRV_SYSTEM_DMA_SHIFT)
+
+/* Flag to be passed over the bridge during connection stating whether GPU supports TFBC and is
+   configured to use lossy compression control group 1 (25% / 37.5% / 50%) */
+#define PVRSRV_TFBC_LOSSY_GROUP_SHIFT (13)
+#define PVRSRV_TFBC_LOSSY_GROUP_1 (1U << PVRSRV_TFBC_LOSSY_GROUP_SHIFT)
 
 static INLINE IMG_HANDLE GetBridgeHandle(SHARED_DEV_CONNECTION hDevConnection)
 {

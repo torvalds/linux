@@ -84,7 +84,7 @@ typedef struct _CONNECTION_DATA_
 
 	IMG_HANDLE          hClientTLStream;
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
+#if defined(SUPPORT_CUSTOM_OSID_EMISSION)
 	/*
 	 * Connection-based values per application which can be modified by the
 	 * AppHint settings 'OSid, OSidReg, bOSidAxiProtReg' for each application.
@@ -94,7 +94,7 @@ typedef struct _CONNECTION_DATA_
 	IMG_UINT32          ui32OSid;
 	IMG_UINT32          ui32OSidReg;
 	IMG_BOOL            bOSidAxiProtReg;
-#endif	/* defined(SUPPORT_GPUVIRT_VALIDATION) */
+#endif	/* defined(SUPPORT_CUSTOM_OSID_EMISSION) */
 
 #if defined(SUPPORT_DMA_TRANSFER)
 	IMG_BOOL            bAcceptDmaRequests;

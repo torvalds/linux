@@ -192,43 +192,87 @@ static void RGXInitBIF(const void *hPrivate)
 {
 	IMG_DEV_PHYADDR sPCAddr;
 	IMG_UINT32 uiPCAddr;
+	IMG_UINT32 ui32CBaseMapCtxReg;
+	RGX_LAYER_PARAMS *psParams = (RGX_LAYER_PARAMS*)hPrivate;
+	PVRSRV_RGXDEV_INFO *psDevInfo = psParams->psDevInfo;
 
 	/*
 	 * Acquire the address of the Kernel Page Catalogue.
 	 */
 	RGXAcquireKernelMMUPC(hPrivate, &sPCAddr);
-	uiPCAddr = (((sPCAddr.uiAddr >> RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT)
-	             << RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT)
-	            & ~RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_CLRMSK);
 
-	/*
-	 * Write the kernel catalogue base.
-	 */
-	RGXCommentLog(hPrivate, "RGX firmware MMU Page Catalogue");
+	if (RGX_GET_FEATURE_VALUE(psDevInfo, HOST_SECURITY_VERSION) > 1)
+	{
+		uiPCAddr = (((sPCAddr.uiAddr >> RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_ALIGNSHIFT)
+		             << RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_SHIFT)
+		            & ~RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_CLRMSK);
 
+		/*
+		 * Write the kernel catalogue base.
+		 */
+		RGXCommentLog(hPrivate, "RGX firmware MMU Page Catalogue");
 
-	/* Set the mapping context */
-	RGXWriteReg32(hPrivate, RGX_CR_MMU_CBASE_MAPPING_CONTEXT, MMU_CONTEXT_MAPPING_FWPRIV);
-	(void)RGXReadReg32(hPrivate, RGX_CR_MMU_CBASE_MAPPING_CONTEXT); /* Fence write */
+		ui32CBaseMapCtxReg = RGX_CR_MMU_CBASE_MAPPING_CONTEXT__HOST_SECURITY_GT1_AND_MH_PASID_WIDTH_LT6_AND_MMU_GE4;
 
-	/* Write the cat-base address */
-	RGXWriteKernelMMUPC32(hPrivate,
-	                      RGX_CR_MMU_CBASE_MAPPING,
-	                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT,
-	                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT,
-	                      uiPCAddr);
+		/* Set the mapping context */
+		RGXWriteReg32(hPrivate, ui32CBaseMapCtxReg, MMU_CONTEXT_MAPPING_FWPRIV);
+		(void)RGXReadReg32(hPrivate, ui32CBaseMapCtxReg); /* Fence write */
+
+		/* Write the cat-base address */
+		RGXWriteKernelMMUPC32(hPrivate,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_ALIGNSHIFT,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_SHIFT,
+		                      uiPCAddr);
 
 #if (MMU_CONTEXT_MAPPING_FWIF != MMU_CONTEXT_MAPPING_FWPRIV)
-	/* Set-up different MMU ID mapping to the same PC used above */
-	RGXWriteReg32(hPrivate, RGX_CR_MMU_CBASE_MAPPING_CONTEXT, MMU_CONTEXT_MAPPING_FWIF);
-	(void)RGXReadReg32(hPrivate, RGX_CR_MMU_CBASE_MAPPING_CONTEXT); /* Fence write */
+		/* Set-up different MMU ID mapping to the same PC used above */
+		RGXWriteReg32(hPrivate, ui32CBaseMapCtxReg, MMU_CONTEXT_MAPPING_FWIF);
+		(void)RGXReadReg32(hPrivate, ui32CBaseMapCtxReg); /* Fence write */
 
-	RGXWriteKernelMMUPC32(hPrivate,
-	                      RGX_CR_MMU_CBASE_MAPPING,
-	                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT,
-	                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT,
-	                      uiPCAddr);
+		RGXWriteKernelMMUPC32(hPrivate,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_ALIGNSHIFT,
+		                      RGX_CR_MMU_CBASE_MAPPING__HOST_SECURITY_GT1__BASE_ADDR_SHIFT,
+		                      uiPCAddr);
 #endif
+	}
+	else
+	{
+		uiPCAddr = (((sPCAddr.uiAddr >> RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT)
+		             << RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT)
+		            & ~RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_CLRMSK);
+
+		/*
+		 * Write the kernel catalogue base.
+		 */
+		RGXCommentLog(hPrivate, "RGX firmware MMU Page Catalogue");
+
+		ui32CBaseMapCtxReg = RGX_CR_MMU_CBASE_MAPPING_CONTEXT;
+
+		/* Set the mapping context */
+		RGXWriteReg32(hPrivate, ui32CBaseMapCtxReg, MMU_CONTEXT_MAPPING_FWPRIV);
+		(void)RGXReadReg32(hPrivate, ui32CBaseMapCtxReg); /* Fence write */
+
+		/* Write the cat-base address */
+		RGXWriteKernelMMUPC32(hPrivate,
+		                      RGX_CR_MMU_CBASE_MAPPING,
+		                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT,
+		                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT,
+		                      uiPCAddr);
+
+#if (MMU_CONTEXT_MAPPING_FWIF != MMU_CONTEXT_MAPPING_FWPRIV)
+		/* Set-up different MMU ID mapping to the same PC used above */
+		RGXWriteReg32(hPrivate, ui32CBaseMapCtxReg, MMU_CONTEXT_MAPPING_FWIF);
+		(void)RGXReadReg32(hPrivate, ui32CBaseMapCtxReg); /* Fence write */
+
+		RGXWriteKernelMMUPC32(hPrivate,
+		                      RGX_CR_MMU_CBASE_MAPPING,
+		                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT,
+		                      RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT,
+		                      uiPCAddr);
+#endif
+	}
 }
 
 
@@ -339,6 +383,12 @@ static void RGXSPUSoftResetDeAssert(const void *hPrivate)
 static void RGXResetSequence(const void *hPrivate, const IMG_CHAR *pcRGXFW_PROCESSOR)
 {
 	/* Set RGX in soft-reset */
+	if (RGX_DEVICE_HAS_FEATURE(hPrivate, RISCV_FW_PROCESSOR))
+	{
+		RGXCommentLog(hPrivate, "RGXStart: soft reset cpu core");
+		RGXWriteReg32(hPrivate, RGX_CR_FWCORE_BOOT, 0);
+	}
+
 	RGXCommentLog(hPrivate, "RGXStart: soft reset assert step 1");
 	RGXSPUSoftResetAssert(hPrivate);
 
@@ -507,6 +557,15 @@ PVRSRV_ERROR RGXStart(const void *hPrivate)
 		{
 			return eError;
 		}
+
+		if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, GPU_MULTICORE_SUPPORT))
+		{
+			/* Set OR reduce for ECC faults to ensure faults are not missed during early boot stages */
+			RGXWriteReg32(hPrivate, RGX_CR_MULTICORE_EVENT_REDUCE, RGX_CR_MULTICORE_EVENT_REDUCE_FAULT_FW_EN | RGX_CR_MULTICORE_EVENT_REDUCE_FAULT_GPU_EN);
+		}
+
+		/* Route fault events to the host */
+		RGXWriteReg32(hPrivate, RGX_CR_EVENT_ENABLE, RGX_CR_EVENT_ENABLE_FAULT_FW_EN);
 	}
 
 	if (RGX_DEVICE_HAS_BRN(hPrivate, BRN_66927))
@@ -772,15 +831,30 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 			 * threads to avoid a race condition).
 			 * This is only really needed for PDumps but we do it anyway driver-live.
 			 */
-			RGXWriteReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__META_REGISTER_UNPACKED_ACCESSES, 0x0);
-			(void)RGXReadReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__META_REGISTER_UNPACKED_ACCESSES); /* Fence write */
+			if (RGX_GET_FEATURE_VALUE(psDevInfo, HOST_SECURITY_VERSION) > 1)
+			{
+				RGXWriteReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__HOST_SECURITY_GT1_AND_METAREG_UNPACKED, 0x0);
+				(void)RGXReadReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__HOST_SECURITY_GT1_AND_METAREG_UNPACKED); /* Fence write */
 
-			eError = RGXPollReg32(hPrivate,
-								  RGX_CR_META_SP_MSLVCTRL1__META_REGISTER_UNPACKED_ACCESSES,
-								  RGX_CR_META_SP_MSLVCTRL1__META_REGISTER_UNPACKED_ACCESSES__READY_EN
-								  | RGX_CR_META_SP_MSLVCTRL1__META_REGISTER_UNPACKED_ACCESSES__GBLPORT_IDLE_EN,
-								  RGX_CR_META_SP_MSLVCTRL1__META_REGISTER_UNPACKED_ACCESSES__READY_EN
-								  | RGX_CR_META_SP_MSLVCTRL1__META_REGISTER_UNPACKED_ACCESSES__GBLPORT_IDLE_EN);
+				eError = RGXPollReg32(hPrivate,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_GT1_AND_METAREG_UNPACKED,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_GT1_AND_METAREG_UNPACKED__READY_EN
+									  | RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_GT1_AND_METAREG_UNPACKED__GBLPORT_IDLE_EN,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_GT1_AND_METAREG_UNPACKED__READY_EN
+									  | RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_GT1_AND_METAREG_UNPACKED__GBLPORT_IDLE_EN);
+			}
+			else
+			{
+				RGXWriteReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__HOST_SECURITY_V1_AND_METAREG_UNPACKED, 0x0);
+				(void)RGXReadReg32(hPrivate, RGX_CR_META_SP_MSLVIRQSTATUS__HOST_SECURITY_V1_AND_METAREG_UNPACKED); /* Fence write */
+
+				eError = RGXPollReg32(hPrivate,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_V1_AND_METAREG_UNPACKED,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_V1_AND_METAREG_UNPACKED__READY_EN
+									  | RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_V1_AND_METAREG_UNPACKED__GBLPORT_IDLE_EN,
+									  RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_V1_AND_METAREG_UNPACKED__READY_EN
+									  | RGX_CR_META_SP_MSLVCTRL1__HOST_SECURITY_V1_AND_METAREG_UNPACKED__GBLPORT_IDLE_EN);
+			}
 		}
 		else
 		{

@@ -58,71 +58,29 @@ extern "C" {
 #include "htbuffer_types.h"
 #include "htbuffer_init.h"
 
-#if defined(__KERNEL__)
-#define HTBLOGK(SF, args...) do { if (HTB_GROUP_ENABLED(SF)) HTBLogSimple((IMG_HANDLE) NULL, SF, ## args); } while (0)
-
-/* Host Trace Buffer name */
-#define HTB_STREAM_NAME	"PVRHTBuffer"
-
-#else
-#define HTBLOG(handle, SF, args...) do { if (HTB_GROUP_ENABLED(SF)) HTBLogSimple(handle, SF, ## args); } while (0)
-#endif
-
-/* macros to cast 64 or 32-bit pointers into 32-bit integer components for Host Trace */
-#define HTBLOG_PTR_BITS_HIGH(p) ((IMG_UINT32)((((IMG_UINT64)((uintptr_t)p))>>32)&0xffffffff))
-#define HTBLOG_PTR_BITS_LOW(p)  ((IMG_UINT32)(((IMG_UINT64)((uintptr_t)p))&0xffffffff))
-
-/* macros to cast 64-bit integers into 32-bit integer components for Host Trace */
-#define HTBLOG_U64_BITS_HIGH(u) ((IMG_UINT32)((u>>32)&0xffffffff))
-#define HTBLOG_U64_BITS_LOW(u)  ((IMG_UINT32)(u&0xffffffff))
-
 /*************************************************************************/ /*!
- @Function      HTBLog
- @Description   Record a Host Trace Buffer log event
-
- @Input         PID             The PID of the process the event is associated
-                                with. This is provided as an argument rather
-                                than querying internally so that events associated
-                                with a particular process, but performed by
-                                another can be logged correctly.
-
- @Input         TID             The TID (Thread ID) of the thread the event is
-                                associated with.
-
- @Input         TimeStampus     The timestamp in us for this event
-
- @Input         SF              The log event ID
-
- @Input         ...             Log parameters
-
- @Return        PVRSRV_OK       Success.
-
+ @Function      HTBControl
+ @Description   Update the configuration of the Host Trace Buffer
+ @Input         hSrvHandle      Server Handle
+ @Input         ui32NumFlagGroups Number of group enable flags words
+ @Input         aui32GroupEnable  Flags words controlling groups to be logged
+ @Input         ui32LogLevel    Log level to record
+ @Input         ui32EnablePID   PID to enable logging for a specific process
+ @Input         eLogPidMode     Enable logging for all or specific processes,
+ @Input         eOpMode         Control what trace data is dropped if the TL
+                                buffer is full
+ @Return        eError          Internal services call returned eError error
+                                number
 */ /**************************************************************************/
 IMG_INTERNAL PVRSRV_ERROR
-HTBLog(IMG_HANDLE hSrvHandle, IMG_UINT32 PID, IMG_UINT32 TID, IMG_UINT64 ui64TimeStampns, IMG_UINT32 SF, ...);
-
-
-/*************************************************************************/ /*!
- @Function      HTBLogSimple
- @Description   Record a Host Trace Buffer log event with implicit PID and Timestamp
-
- @Input         SF              The log event ID
-
- @Input         ...             Log parameters
-
- @Return        PVRSRV_OK       Success.
-
-*/ /**************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-HTBLogSimple(IMG_HANDLE hSrvHandle, IMG_UINT32 SF, ...);
-
-
-
-/*  DEBUG log group enable */
-#if !defined(HTB_DEBUG_LOG_GROUP)
-#undef HTB_LOG_TYPE_DBG    /* No trace statements in this log group should be checked in */
-#define HTB_LOG_TYPE_DBG    __BUILDERROR__
-#endif
+HTBControl(
+	IMG_HANDLE hSrvHandle,
+	IMG_UINT32 ui32NumFlagGroups,
+	IMG_UINT32 * aui32GroupEnable,
+	IMG_UINT32 ui32LogLevel,
+	IMG_UINT32 ui32EnablePID,
+	HTB_LOGMODE_CTRL eLogPidMode,
+	HTB_OPMODE_CTRL eOpMode);
 
 
 #if defined(__cplusplus)

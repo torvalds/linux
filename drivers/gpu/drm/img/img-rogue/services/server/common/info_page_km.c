@@ -51,8 +51,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 PVRSRV_ERROR InfoPageCreate(PVRSRV_DATA *psData)
 {
     const PVRSRV_MEMALLOCFLAGS_T uiMemFlags = PVRSRV_MEMALLOCFLAG_CPU_READABLE |
-                                              PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE |
-                                              PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC |
+                                              PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT |
                                               PVRSRV_MEMALLOCFLAG_CPU_UNCACHED |
                                               PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE |
                                               PVRSRV_MEMALLOCFLAG_PHYS_HEAP_HINT(CPU_LOCAL);
@@ -81,6 +80,12 @@ PVRSRV_ERROR InfoPageCreate(PVRSRV_DATA *psData)
 
     eError = OSLockCreate(&psData->hInfoPageLock);
     PVR_LOG_GOTO_IF_ERROR(eError, "OSLockCreate", e0);
+
+    /* Because the memory is allocated read only we need to explicitly set it to
+     * 0. The reason for this is that if the memory is allocated with
+     * ZERO_ON_ALLOC a WRITEABLE attribute is implicitly added to the flags (see
+     * DevmemValidateParams()). */
+    OSCachedMemSet(psData->pui32InfoPage, 0, OSGetPageSize());
 
     return PVRSRV_OK;
 

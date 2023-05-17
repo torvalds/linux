@@ -72,10 +72,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(__KERNEL__) && defined(__clang__)
 
 #define DEVICE_MEMSETCPY_NON_VECTOR_KM
-#if !defined(BITS_PER_BYTE)
-#define BITS_PER_BYTE (8)
-#endif /* BITS_PER_BYTE */
-
 /* Loading or storing 16 or 32 bytes is only supported on 64-bit machines. */
 #if DEVICE_MEMSETCPY_ALIGN_IN_BYTES > 8
 typedef __uint128_t uint128_t;

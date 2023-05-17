@@ -307,37 +307,6 @@ PTL_SNODE TLFindStreamNodeByDesc(PTL_STREAM_DESC psDesc)
 	PVR_DPF_RETURN_VAL(NULL);
 }
 
-static inline IMG_BOOL IsDigit(IMG_CHAR c)
-{
-	return c >= '0' && c <= '9';
-}
-
-static inline IMG_BOOL ReadNumber(const IMG_CHAR *pszBuffer,
-                                  IMG_UINT32 *pui32Number)
-{
-	IMG_CHAR acTmp[11] = {0}; /* max 10 digits */
-	IMG_UINT32 ui32Result;
-	IMG_UINT i;
-
-	for (i = 0; i < sizeof(acTmp) - 1; i++)
-	{
-		if (!IsDigit(*pszBuffer))
-			break;
-		acTmp[i] = *pszBuffer++;
-	}
-
-	/* if there are no digits or there is something after the number */
-	if (i == 0 || *pszBuffer != '\0')
-		return IMG_FALSE;
-
-	if (OSStringToUINT32(acTmp, 10, &ui32Result) != PVRSRV_OK)
-		return IMG_FALSE;
-
-	*pui32Number = ui32Result;
-
-	return IMG_TRUE;
-}
-
 IMG_UINT32 TLDiscoverStreamNodes(const IMG_CHAR *pszNamePattern,
                           IMG_CHAR aaszStreams[][PRVSRVTL_MAX_STREAM_NAME_SIZE],
                           IMG_UINT32 ui32Max)

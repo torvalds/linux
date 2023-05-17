@@ -188,6 +188,7 @@ typedef enum _IMG_FILTER_
  */
 typedef enum _IMG_ADDRESSMODE_
 {
+	IMG_ADDRESSMODE_DONTCARE,
 	IMG_ADDRESSMODE_REPEAT,	/**< Texture repeats continuously */
 	IMG_ADDRESSMODE_FLIP, /**< Texture flips on odd integer part */
 	IMG_ADDRESSMODE_CLAMP, /**< Texture clamped at 0 or 1 */
@@ -195,7 +196,6 @@ typedef enum _IMG_ADDRESSMODE_
 	IMG_ADDRESSMODE_CLAMPBORDER,
 	IMG_ADDRESSMODE_OGL_CLAMP,
 	IMG_ADDRESSMODE_OVG_TILEFILL,
-	IMG_ADDRESSMODE_DONTCARE,
 } IMG_ADDRESSMODE;
 
 /**

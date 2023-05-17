@@ -135,25 +135,77 @@ PVRSRV_ERROR PDumpGetSymbolicAddr(const IMG_HANDLE hPhysmemPDumpHandle,
 	return PVRSRV_OK;
 }
 
-/**************************************************************************
- * Function Name  : PDumpMalloc
- * Inputs         :
- * Outputs        :
- * Returns        : PVRSRV_ERROR
- * Description    :
- **************************************************************************/
+/*************************************************************************/ /*!
+@Function       PDumpMalloc
+@Description    Builds and writes an allocation command to pdump output. Whilst
+                writing the thread is locked.
+
+@Input          psDeviceNode        A pointer to a device node.
+@Input          pszDevSpace         Device space string.
+@Input          pszSymbolicAddress  Name of the allocation.
+@Input          ui64Size            String size.
+@Input          uiAlign             Command alignment.
+@Input          bInitialise         Should the command initialise the allocation.
+@Input          ui8InitValue        The value memory is initialised to.
+@Input          phHandlePtr         PDump allocation handle.
+@Input          ui32PDumpFlags      PDump allocation flags.
+
+@Return         This function returns a PVRSRV_ERROR. PVRSRV_OK on success.
+*/ /**************************************************************************/
 PVRSRV_ERROR PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
                          const IMG_CHAR *pszDevSpace,
                          const IMG_CHAR *pszSymbolicAddress,
                          IMG_UINT64 ui64Size,
                          IMG_DEVMEM_ALIGN_T uiAlign,
                          IMG_BOOL bInitialise,
-                         IMG_UINT32 ui32InitValue,
+                         IMG_UINT8 ui8InitValue,
                          IMG_HANDLE *phHandlePtr,
                          IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
+	PDUMP_LOCK(ui32PDumpFlags);
+	eError = PDumpMallocUnlocked(psDeviceNode,
+	                             pszDevSpace,
+	                             pszSymbolicAddress,
+	                             ui64Size,
+	                             uiAlign,
+	                             bInitialise,
+	                             ui8InitValue,
+	                             phHandlePtr,
+	                             ui32PDumpFlags);
+	PDUMP_UNLOCK(ui32PDumpFlags);
+	return eError;
+}
+
+/*************************************************************************/ /*!
+@Function       PDumpMallocUnlocked
+@Description    Builds and writes an allocation command to pdump output. Whilst
+                writing the thread remains unlocked.
+
+@Input          psDeviceNode        A pointer to a device node.
+@Input          pszDevSpace         Device space string.
+@Input          pszSymbolicAddress  Name of the allocation.
+@Input          ui64Size            String size.
+@Input          uiAlign             Command alignment.
+@Input          bInitialise         Should the command initialise the allocation.
+@Input          ui8InitValue        The value memory is initialised to.
+@Input          phHandlePtr         PDump allocation handle.
+@Input          ui32PDumpFlags      PDump allocation flags.
+
+@Return         This function returns a PVRSRV_ERROR. PVRSRV_OK on success.
+*/ /**************************************************************************/
+PVRSRV_ERROR PDumpMallocUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                 const IMG_CHAR *pszDevSpace,
+                                 const IMG_CHAR *pszSymbolicAddress,
+                                 IMG_UINT64 ui64Size,
+                                 IMG_DEVMEM_ALIGN_T uiAlign,
+                                 IMG_BOOL bInitialise,
+                                 IMG_UINT8 ui8InitValue,
+                                 IMG_HANDLE *phHandlePtr,
+                                 IMG_UINT32 ui32PDumpFlags)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
 	PDUMP_PHYSMEM_INFO_T *psPDumpAllocationInfo;
 
 	PDUMP_GET_SCRIPT_STRING()
@@ -194,7 +246,7 @@ PVRSRV_ERROR PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
 		                          psPDumpAllocationInfo->aszSymbolicAddress,
 		                          ui64Size,
 		                          uiAlign,
-		                          ui32InitValue);
+		                          ui8InitValue);
 	}
 	else
 	{
@@ -210,9 +262,7 @@ PVRSRV_ERROR PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
 		goto _return;
 	}
 
-	PDUMP_LOCK(ui32PDumpFlags);
 	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
-	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	psPDumpAllocationInfo->ui64Size = ui64Size;
 	psPDumpAllocationInfo->ui32Align = TRUNCATE_64BITS_TO_32BITS(uiAlign);
@@ -224,21 +274,45 @@ _return:
 	return eError;
 }
 
+/*************************************************************************/ /*!
+@Function       PDumpFree
+@Description    Writes a FREE command for an allocation handle to the pdump out2
+                stream. When writing to the output stream the thread is locked.
 
-/**************************************************************************
- * Function Name  : PDumpFree
- * Inputs         :
- * Outputs        :
- * Returns        : PVRSRV_ERROR
- * Description    :
- **************************************************************************/
+@Input          psDeviceNode                A pointer to a device node.
+@Input          hPDumpAllocationInfoHandle  A PDump allocation handle.
+
+@Return         This function returns a PVRSRV_ERROR. PVRSRV_OK on success.
+*/ /**************************************************************************/
 PVRSRV_ERROR PDumpFree(PVRSRV_DEVICE_NODE *psDeviceNode,
                        IMG_HANDLE hPDumpAllocationInfoHandle)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
-	IMG_UINT32 ui32Flags = PDUMP_FLAGS_CONTINUOUS | PDUMP_FLAGS_BLKDATA;
 
+	PDUMP_LOCK(PDUMP_FLAGS_NONE);
+	eError = PDumpFreeUnlocked(psDeviceNode, hPDumpAllocationInfoHandle);
+	PDUMP_UNLOCK(PDUMP_FLAGS_NONE);
+
+	return eError;
+}
+
+/*************************************************************************/ /*!
+@Function       PDumpFreeUnlocked
+@Description    Writes a FREE command for an allocation handle to the pdump
+                out2 stream. When writing to the output stream the thread
+                remains unlocked.
+
+@Input          psDeviceNode                A pointer to a device node.
+@Input          hPDumpAllocationInfoHandle  A PDump allocation handle.
+
+@Return         This function returns a PVRSRV_ERROR. PVRSRV_OK on success.
+*/ /**************************************************************************/
+PVRSRV_ERROR PDumpFreeUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                               IMG_HANDLE hPDumpAllocationInfoHandle)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
 	PDUMP_PHYSMEM_INFO_T *psPDumpAllocationInfo;
+	IMG_UINT32 ui32Flags = PDUMP_FLAGS_CONTINUOUS | PDUMP_FLAGS_BLKDATA;
 
 	PDUMP_GET_SCRIPT_STRING()
 
@@ -251,10 +325,8 @@ PVRSRV_ERROR PDumpFree(PVRSRV_DEVICE_NODE *psDeviceNode,
 	                          psPDumpAllocationInfo->aszSymbolicAddress);
 	PVR_GOTO_IF_ERROR(eError, _return);
 
-	PDUMP_LOCK(ui32Flags);
 	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	OSFreeMem(psPDumpAllocationInfo);
-	PDUMP_UNLOCK(ui32Flags);
 
 _return:
 	PDUMP_RELEASE_SCRIPT_STRING();

@@ -69,7 +69,7 @@ extern "C" {
 	#include <linux/types.h>
 	#include "kernel_types.h"
 #elif defined(__linux__) || defined(__METAG) || defined(__MINGW32__) || \
-	defined(__QNXNTO__) || defined(INTEGRITY_OS) || defined(__riscv)
+	defined(__QNXNTO__) || defined(INTEGRITY_OS) || defined(__riscv) || defined(__APPLE__)
 	#include <stddef.h>			/* NULL */
 	#include <stdint.h>
 	#include <inttypes.h>		/* intX_t/uintX_t, format specifiers */
@@ -162,12 +162,10 @@ typedef union
 
 typedef int				IMG_SECURE_TYPE;
 
-typedef	enum tag_img_bool
-{
-	IMG_FALSE		= 0,
-	IMG_TRUE		= 1,
-	IMG_FORCE_ALIGN = 0x7FFFFFFF
-} IMG_BOOL, *IMG_PBOOL;
+typedef bool      IMG_BOOL;
+typedef bool*     IMG_PBOOL;
+#define IMG_FALSE ((bool) 0)
+#define IMG_TRUE  ((bool) 1)
 
 #if defined(UNDER_WDDM) || defined(WINDOWS_WDF)
 typedef IMG_CHAR const* IMG_PCCHAR;

@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * which should be extended when necessary. */
 #include "rgxfwimageutils.h"
 #include "pvrsrv.h"
+#include "pvrversion.h"
 
 
 /************************************************************************
@@ -143,17 +144,13 @@ found:
 		return PVRSRV_OK;
 	}
 
+	/* Add offset to pointer to FW allocation now that allocation is found */
+
 	/* Direct Mem write to mapped memory */
 	ui32OffsetIn -= asRGXFWLayoutTable[i].ui32BaseAddr;
 	ui32OffsetIn += asRGXFWLayoutTable[i].ui32AllocOffset;
 
-	/* Add offset to pointer to FW allocation only if
-	 * that allocation is available
-	 */
-	if (*uiHostAddrOut)
-	{
-		*(IMG_UINT8 **)uiHostAddrOut += ui32OffsetIn;
-	}
+	*(IMG_UINT8 **)uiHostAddrOut += ui32OffsetIn;
 
 	return PVRSRV_OK;
 }
@@ -746,56 +743,11 @@ IMG_UINT32 RGXGetFWImageSectionAddress(const void *hPrivate, RGX_FW_SECTION_ID e
 	return psEntry->ui32BaseAddr;
 }
 
-PVRSRV_ERROR RGXGetFWImageAllocSize(const void *hPrivate,
-                                    const IMG_BYTE    *pbRGXFirmware,
-                                    const IMG_UINT32  ui32RGXFirmwareSize,
-                                    IMG_DEVMEM_SIZE_T *puiFWCodeAllocSize,
-                                    IMG_DEVMEM_SIZE_T *puiFWDataAllocSize,
-                                    IMG_DEVMEM_SIZE_T *puiFWCorememCodeAllocSize,
-                                    IMG_DEVMEM_SIZE_T *puiFWCorememDataAllocSize)
+static inline
+PVRSRV_ERROR RGXValidateFWHeaderVersion1(const void *hPrivate,
+                                         const RGX_FW_INFO_HEADER *psInfoHeader)
 {
-	RGX_FW_INFO_HEADER *psInfoHeader;
-	const IMG_BYTE *pbRGXFirmwareInfo;
-	const IMG_BYTE *pbRGXFirmwareLayout;
-	IMG_UINT32 i;
-
-	if (pbRGXFirmware == NULL || ui32RGXFirmwareSize == 0 || ui32RGXFirmwareSize <= FW_BLOCK_SIZE)
-	{
-		RGXErrorLog(hPrivate, "%s: Invalid FW binary at %p, size %u",
-		            __func__, pbRGXFirmware, ui32RGXFirmwareSize);
-		return PVRSRV_ERROR_INVALID_PARAMS;
-	}
-
-
-	/*
-	 * Acquire pointer to the FW info header within the FW image.
-	 * The format of the header in the FW image might not be the one expected
-	 * by the driver, but the driver should still be able to correctly read
-	 * the information below, as long as new/incompatible elements are added
-	 * at the end of the header (they will be ignored by the driver).
-	 */
-
-	pbRGXFirmwareInfo = pbRGXFirmware + ui32RGXFirmwareSize - FW_BLOCK_SIZE;
-	psInfoHeader = (RGX_FW_INFO_HEADER*)pbRGXFirmwareInfo;
-
-	/* If any of the following checks fails, the FW will likely not work properly */
-
-	if (psInfoHeader->ui32InfoVersion != FW_INFO_VERSION)
-	{
-		RGXErrorLog(hPrivate, "%s: FW info version mismatch (expected: %u, found: %u)",
-		            __func__,
-		            (IMG_UINT32) FW_INFO_VERSION,
-		            psInfoHeader->ui32InfoVersion);
-	}
-
-	if (psInfoHeader->ui32HeaderLen != sizeof(RGX_FW_INFO_HEADER))
-	{
-		RGXErrorLog(hPrivate, "%s: FW info header sizes mismatch (expected: %u, found: %u)",
-		            __func__,
-		            (IMG_UINT32) sizeof(RGX_FW_INFO_HEADER),
-		            psInfoHeader->ui32HeaderLen);
-	}
-
+	/* Applicable to any FW_INFO_VERSION */
 	if (psInfoHeader->ui32LayoutEntrySize != sizeof(RGX_FW_LAYOUT_ENTRY))
 	{
 		RGXErrorLog(hPrivate, "%s: FW layout entry sizes mismatch (expected: %u, found: %u)",
@@ -804,6 +756,7 @@ PVRSRV_ERROR RGXGetFWImageAllocSize(const void *hPrivate,
 		            psInfoHeader->ui32LayoutEntrySize);
 	}
 
+	/* Applicable to any FW_INFO_VERSION */
 	if (psInfoHeader->ui32LayoutEntryNum > MAX_NUM_ENTRIES)
 	{
 		RGXErrorLog(hPrivate, "%s: Not enough storage for the FW layout table (max: %u entries, found: %u)",
@@ -813,6 +766,7 @@ PVRSRV_ERROR RGXGetFWImageAllocSize(const void *hPrivate,
 	}
 
 #if defined(RGX_FEATURE_MIPS_BIT_MASK)
+	/* Applicable to any FW_INFO_VERSION */
 	if (RGX_DEVICE_HAS_FEATURE(hPrivate, MIPS))
 	{
 		if (psInfoHeader->ui32FwPageSize != RGXGetOSPageSize(hPrivate))
@@ -825,6 +779,121 @@ PVRSRV_ERROR RGXGetFWImageAllocSize(const void *hPrivate,
 		}
 	}
 #endif
+
+	if (psInfoHeader->ui32InfoVersion != FW_INFO_VERSION)
+	{
+		/* Not an error because RGX_FW_INFO_HEADER is now versioned. It can grow
+		 * incrementally and it must be backwards compatible.
+		 */
+		RGXCommentLog(hPrivate, "%s: FW info version mismatch (expected: %u, found: %u)",
+		              __func__,
+		              (IMG_UINT32) FW_INFO_VERSION,
+		              psInfoHeader->ui32InfoVersion);
+		goto exit_version1_validation;
+	}
+
+	if (psInfoHeader->ui32HeaderLen != sizeof(RGX_FW_INFO_HEADER))
+	{
+		RGXErrorLog(hPrivate, "%s: FW info header sizes mismatch (expected: %u, found: %u)",
+		            __func__,
+		            (IMG_UINT32) sizeof(RGX_FW_INFO_HEADER),
+		            psInfoHeader->ui32HeaderLen);
+	}
+
+exit_version1_validation:
+	return PVRSRV_OK;
+}
+
+static inline
+PVRSRV_ERROR RGXValidateFWHeaderVersion2(const void *hPrivate,
+                                         const RGX_FW_INFO_HEADER *psInfoHeader)
+{
+	if (psInfoHeader->ui16PVRVersionMajor != PVRVERSION_MAJ ||
+	    psInfoHeader->ui16PVRVersionMinor != PVRVERSION_MIN)
+	{
+		RGXErrorLog(hPrivate, "%s: KM and FW version mismatch (expected: %u.%u, found: %u.%u)",
+		            __func__,
+		            PVRVERSION_MAJ,
+		            PVRVERSION_MIN,
+		            psInfoHeader->ui16PVRVersionMajor,
+		            psInfoHeader->ui16PVRVersionMinor);
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	return PVRSRV_OK;
+}
+
+static inline
+PVRSRV_ERROR RGXValidateFWHeaderVersion(const void *hPrivate,
+                                        const RGX_FW_INFO_HEADER *psInfoHeader)
+{
+	PVRSRV_ERROR eError;
+
+	switch (psInfoHeader->ui32InfoVersion)
+	{
+		default:
+			__fallthrough;
+		case 2:
+			eError = RGXValidateFWHeaderVersion2(hPrivate, psInfoHeader);
+			if (eError != PVRSRV_OK)
+			{
+				return eError;
+			}
+
+			__fallthrough;
+		case 1:
+			eError = RGXValidateFWHeaderVersion1(hPrivate, psInfoHeader);
+			if (eError != PVRSRV_OK)
+			{
+				return eError;
+			}
+
+			break;
+		case 0:
+			RGXErrorLog(hPrivate, "%s: invalid FW_INFO_VERSION", __func__);
+			return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR RGXGetFWImageAllocSize(const void *hPrivate,
+                                    const IMG_BYTE    *pbRGXFirmware,
+                                    const IMG_UINT32  ui32RGXFirmwareSize,
+                                    IMG_DEVMEM_SIZE_T *puiFWCodeAllocSize,
+                                    IMG_DEVMEM_SIZE_T *puiFWDataAllocSize,
+                                    IMG_DEVMEM_SIZE_T *puiFWCorememCodeAllocSize,
+                                    IMG_DEVMEM_SIZE_T *puiFWCorememDataAllocSize)
+{
+	RGX_FW_INFO_HEADER *psInfoHeader;
+	const IMG_BYTE *pbRGXFirmwareInfo;
+	const IMG_BYTE *pbRGXFirmwareLayout;
+	PVRSRV_ERROR eError;
+	IMG_UINT32 i;
+
+	if (pbRGXFirmware == NULL || ui32RGXFirmwareSize == 0 || ui32RGXFirmwareSize <= FW_BLOCK_SIZE)
+	{
+		RGXErrorLog(hPrivate, "%s: Invalid FW binary at %p, size %u",
+		            __func__, pbRGXFirmware, ui32RGXFirmwareSize);
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	/*
+	 * Acquire pointer to the FW info header within the FW image.
+	 * The format of the header in the FW image might not be the one expected
+	 * by the driver, but the driver should still be able to correctly read
+	 * the information below, as long as new/incompatible elements are added
+	 * at the end of the header (they will be ignored by the driver).
+	 */
+
+	pbRGXFirmwareInfo = pbRGXFirmware + ui32RGXFirmwareSize - FW_BLOCK_SIZE;
+	psInfoHeader = (RGX_FW_INFO_HEADER*)pbRGXFirmwareInfo;
+
+	eError = RGXValidateFWHeaderVersion(hPrivate, psInfoHeader);
+	if (eError != PVRSRV_OK)
+	{
+		return eError;
+	}
 
 	ui32LayoutEntryNum = psInfoHeader->ui32LayoutEntryNum;
 

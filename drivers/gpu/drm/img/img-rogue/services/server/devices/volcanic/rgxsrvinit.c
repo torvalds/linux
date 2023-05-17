@@ -168,7 +168,7 @@ static SRV_INIT_PARAM_UINT32_LOOKUP fwt_loggroup_tbl[] = { RGXFWIF_LOG_GROUP_NAM
 /*
  * Services AppHints initialisation
  */
-#define X(a, b, c, d, e) SrvInitParamInit ## b(a, d, e)
+#define X(a, b, c, d, e, f) SrvInitParamInit ## b(a, d, e)
 APPHINT_LIST_ALL
 #undef X
 #endif /* defined(__linux__) */
@@ -227,6 +227,7 @@ typedef struct _RGX_SRVINIT_APPHINTS_
 	FW_PERF_CONF eFirmwarePerf;
 	RGX_ACTIVEPM_CONF eRGXActivePMConf;
 	RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandConf;
+	IMG_BOOL bSPUClockGating;
 
 	IMG_BOOL   bEnableTrustedDeviceAceConfig;
 	IMG_UINT32 ui32FWContextSwitchCrossDM;
@@ -273,6 +274,7 @@ static INLINE void GetApphints(PVRSRV_RGXDEV_INFO *psDevInfo, RGX_SRVINIT_APPHIN
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,    EnableFWContextSwitch,   psHints->ui32EnableFWContextSwitch);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,    EnableRDPowerIsland,                          ui32ParamTemp);
 	psHints->eRGXRDPowerIslandConf = ui32ParamTemp;
+	SrvInitParamGetBOOL(INITPARAM_NO_DEVICE,		  pvParamState,    EnableSPUClockGating,              psHints->bSPUClockGating);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,    FirmwarePerf,                                 ui32ParamTemp);
 	psHints->eFirmwarePerf = ui32ParamTemp;
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,    FWContextSwitchProfile, psHints->ui32FWContextSwitchProfile);
@@ -367,6 +369,9 @@ static INLINE void GetApphints(PVRSRV_RGXDEV_INFO *psDevInfo, RGX_SRVINIT_APPHIN
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,  TPUTrilinearFracMaskVDM, psHints->aui32TPUTrilinearFracMask[RGXFWIF_TPU_DM_VDM]);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,  TPUTrilinearFracMaskCDM, psHints->aui32TPUTrilinearFracMask[RGXFWIF_TPU_DM_CDM]);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,  TPUTrilinearFracMaskTDM, psHints->aui32TPUTrilinearFracMask[RGXFWIF_TPU_DM_TDM]);
+#if defined(SUPPORT_RAY_TRACING)
+	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,        pvParamState,  TPUTrilinearFracMaskRDM, psHints->aui32TPUTrilinearFracMask[RGXFWIF_TPU_DM_RDM]);
+#endif
 #endif
 
 	/*
@@ -455,14 +460,14 @@ static INLINE void GetFWConfigFlags(PVRSRV_DEVICE_NODE *psDeviceNode,
 #if defined(SUPPORT_VALIDATION)
 		ui32FWConfigFlags |= psHints->bEnablePowUnitsStateMaskChange ? RGXFWIF_INICFG_SPU_POWER_STATE_MASK_CHANGE_EN : 0;
 		ui32FWConfigFlags |= psHints->bValidateSOCUSCTimer ? RGXFWIF_INICFG_VALIDATE_SOCUSC_TIMER : 0;
+		ui32FWConfigFlags |= psHints->bSPUClockGating ? RGXFWIF_INICFG_SPU_CLOCK_GATE : 0;
 
 		if ((ui32FWConfigFlags & RGXFWIF_INICFG_VALIDATE_SOCUSC_TIMER) &&
-		    ((psHints->eRGXActivePMConf != 0) || (psHints->eRGXRDPowerIslandConf != 0)))
+		    (psHints->eRGXActivePMConf != 0) )
 		{
 			psHints->eRGXActivePMConf = 0;
-			psHints->eRGXRDPowerIslandConf = 0;
-			PVR_DPF((PVR_DBG_WARNING, "SoC/USC Timer test needs to run with both EnableAPM and EnableRDPowerIsland disabled.\n"
-				 "Overriding current value for both with new value 0."));
+			PVR_DPF((PVR_DBG_WARNING, "SoC/USC Timer test needs to run with EnableAPM disabled.\n"
+				 "Overriding current value with new value 0."));
 		}
 #endif
 		ui32FWConfigFlags |= psDeviceNode->pfnHasFBCDCVersion31(psDeviceNode) ? RGXFWIF_INICFG_FBCDC_V3_1_EN : 0;
@@ -1212,7 +1217,6 @@ _ParseHTBAppHints(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	void *pvParamState = NULL;
 	IMG_UINT32 ui32LogType;
-	IMG_BOOL bAnyLogGroupConfigured;
 	IMG_UINT32 ui32BufferSize;
 	IMG_UINT32 ui32OpMode;
 
@@ -1222,7 +1226,6 @@ _ParseHTBAppHints(PVRSRV_DEVICE_NODE *psDeviceNode)
 		return;
 
 	SrvInitParamGetUINT32BitField(INITPARAM_NO_DEVICE,  pvParamState,    EnableHTBLogGroup,    ui32LogType);
-	bAnyLogGroupConfigured = ui32LogType ? IMG_TRUE : IMG_FALSE;
 	SrvInitParamGetUINT32List(INITPARAM_NO_DEVICE,      pvParamState,    HTBOperationMode,      ui32OpMode);
 	SrvInitParamGetUINT32(INITPARAM_NO_DEVICE,          pvParamState,    HTBufferSizeInKB,  ui32BufferSize);
 
@@ -1237,7 +1240,7 @@ static PVRSRV_ERROR RGXValidateTDHeap(PVRSRV_DEVICE_NODE *psDeviceNode,
 	PHYS_HEAP *psHeap = psDeviceNode->apsPhysHeap[ePhysHeap];
 	PHYS_HEAP_USAGE_FLAGS ui32HeapFlags = PhysHeapGetFlags(psHeap);
 	PHYS_HEAP_USAGE_FLAGS ui32InvalidFlags = ~(PHYS_HEAP_USAGE_FW_PRIV_DATA | PHYS_HEAP_USAGE_FW_CODE
-											   | PHYS_HEAP_USAGE_GPU_SECURE);
+											   | PHYS_HEAP_USAGE_GPU_SECURE | PHYS_HEAP_USAGE_FW_PRIVATE);
 
 	PVR_LOG_RETURN_IF_FALSE_VA((ui32HeapFlags & ui32RequiredFlags) != 0,
 							   PVRSRV_ERROR_NOT_SUPPORTED,
@@ -1308,7 +1311,7 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	             psDeviceNode->psDevConfig->pszName);
 	PDUMPCOMMENT(psDeviceNode, "Device ID: %u (%d)",
 	             psDeviceNode->sDevId.ui32InternalID,
-	             psDeviceNode->sDevId.i32OsDeviceID);
+	             psDeviceNode->sDevId.i32KernelDeviceID);
 
 	if (psDeviceNode->psDevConfig->pszVersion)
 	{
@@ -1325,29 +1328,6 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	             psDevInfo->sDevFeatureCfg.ui32C);
 
 	RGXInitMultiCoreInfo(psDeviceNode);
-
-#if defined(PDUMP)
-	eError = DevmemIntAllocDefBackingPage(psDeviceNode,
-	                                      &psDeviceNode->sDummyPage,
-	                                      PVR_DUMMY_PAGE_INIT_VALUE,
-	                                      DUMMY_PAGE,
-	                                      IMG_TRUE);
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to allocate dummy page.", __func__));
-		goto cleanup;
-	}
-	eError = DevmemIntAllocDefBackingPage(psDeviceNode,
-	                                      &psDeviceNode->sDevZeroPage,
-	                                      PVR_ZERO_PAGE_INIT_VALUE,
-	                                      DEV_ZERO_PAGE,
-	                                      IMG_TRUE);
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to allocate Zero page.", __func__));
-		goto cleanup;
-	}
-#endif
 
 	sLayerParams.psDevInfo = psDevInfo;
 
@@ -1412,7 +1392,7 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 	if ((sApphints.bEnableTrustedDeviceAceConfig) &&
 		(RGX_IS_FEATURE_SUPPORTED(psDevInfo, AXI_ACE)))
 	{
-		SetTrustedDeviceAceEnabled();
+		SetTrustedDeviceAceEnabled(psDeviceNode->psDevConfig->hSysData);
 	}
 #endif
 #endif
@@ -1476,6 +1456,7 @@ PVRSRV_ERROR RGXInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 #endif
 	                         ui32HWPerfBlkSize,
 	                         sApphints.eRGXRDPowerIslandConf,
+							 sApphints.bSPUClockGating,
 	                         sApphints.eFirmwarePerf,
 	                         sApphints.ui32KCCBSizeLog2,
 	                         ui32FWConfigFlagsExt,

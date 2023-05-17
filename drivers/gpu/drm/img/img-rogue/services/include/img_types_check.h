@@ -50,7 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "pvrsrv_error.h"
 
-static_assert(sizeof(IMG_BOOL) == 4, "invalid size of IMG_BOOL");
+static_assert(sizeof(IMG_BOOL) == 1, "invalid size of IMG_BOOL");
 static_assert(sizeof(IMG_INT) == 4, "invalid size of IMG_INT");
 static_assert(sizeof(IMG_UINT) == 4, "invalid size of IMG_UINT");
 static_assert(sizeof(PVRSRV_ERROR) == 4, "invalid size of PVRSRV_ERROR");

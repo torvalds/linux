@@ -55,10 +55,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "osfunc.h"
 #include "pvr_debug.h"
 #include "pvrsrv.h"
+#include "rgx_fwif_resetframework.h"
 #include "rgx_memallocflags.h"
 #include "rgxhwperf.h"
 #include "ospvr_gputrace.h"
-#include "htbuffer.h"
 #include "rgxshader.h"
 
 #include "pdump_km.h"
@@ -94,7 +94,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct {
 	RGX_SERVER_COMMON_CONTEXT * psServerCommonContext;
-	IMG_UINT32                  ui32Priority;
+	IMG_INT32                   i32Priority;
 #if defined(SUPPORT_BUFFER_SYNC)
 	struct pvr_buffer_sync_context *psBufferSyncContext;
 #endif
@@ -103,8 +103,8 @@ typedef struct {
 
 struct _RGX_SERVER_TQ_TDM_CONTEXT_ {
 	PVRSRV_DEVICE_NODE      *psDeviceNode;
-	DEVMEM_MEMDESC          *psFWTransferContextMemDesc;
 	DEVMEM_MEMDESC          *psFWFrameworkMemDesc;
+	DEVMEM_MEMDESC          *psFWTransferContextMemDesc;
 	IMG_UINT32              ui32Flags;
 	RGX_SERVER_TQ_TDM_DATA  sTDMData;
 	DLLIST_NODE             sListNode;
@@ -123,7 +123,7 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 	IMG_UINT32                ui32AllocatedOffset,
 	SERVER_MMU_CONTEXT      * psServerMMUContext,
 	DEVMEM_MEMDESC          * psFWMemContextMemDesc,
-	IMG_UINT32                ui32Priority,
+	IMG_INT32                 i32Priority,
 	RGX_COMMON_CONTEXT_INFO * psInfo,
 	RGX_SERVER_TQ_TDM_DATA  * psTDMData,
 	IMG_UINT32                ui32CCBAllocSizeLog2,
@@ -135,13 +135,13 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 
 #if defined(SUPPORT_BUFFER_SYNC)
 	psTDMData->psBufferSyncContext =
-		pvr_buffer_sync_context_create(psDeviceNode->psDevConfig->pvOSDevice,
-									   "rogue-tdm");
+			pvr_buffer_sync_context_create(psDeviceNode->psDevConfig->pvOSDevice,
+			                               "rogue-tdm");
 	if (IS_ERR(psTDMData->psBufferSyncContext))
 	{
 		PVR_DPF((PVR_DBG_ERROR,
-				 "%s: failed to create buffer_sync context (err=%ld)",
-				 __func__, PTR_ERR(psTDMData->psBufferSyncContext)));
+				"%s: failed to create buffer_sync context (err=%ld)",
+				__func__, PTR_ERR(psTDMData->psBufferSyncContext)));
 
 		eError = PVRSRV_ERROR_INVALID_PARAMS;
 		goto fail_buffer_sync_context_create;
@@ -161,7 +161,7 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 			ui32CCBAllocSizeLog2 ? ui32CCBAllocSizeLog2 : RGX_TDM_CCB_SIZE_LOG2,
 			ui32CCBMaxAllocSizeLog2 ? ui32CCBMaxAllocSizeLog2 : RGX_TDM_CCB_MAX_SIZE_LOG2,
 			ui32ContextFlags,
-			ui32Priority,
+			i32Priority,
 			UINT_MAX, /* max deadline MS */
 			ui64RobustnessAddress,
 			psInfo,
@@ -171,7 +171,7 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 		goto fail_contextalloc;
 	}
 
-	psTDMData->ui32Priority = ui32Priority;
+	psTDMData->i32Priority = i32Priority;
 	return PVRSRV_OK;
 
 fail_contextalloc:
@@ -226,7 +226,7 @@ static PVRSRV_ERROR _DestroyTDMTransferContext(
 PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	CONNECTION_DATA            * psConnection,
 	PVRSRV_DEVICE_NODE         * psDeviceNode,
-	IMG_UINT32                   ui32Priority,
+	IMG_INT32                    i32Priority,
 	IMG_UINT32                   ui32FrameworkCommandSize,
 	IMG_PBYTE                    pabyFrameworkCommand,
 	IMG_HANDLE                   hMemCtxPrivData,
@@ -269,8 +269,8 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create lock (%s)",
-									__func__,
-						PVRSRVGetErrorString(eError)));
+				 __func__,
+				 PVRSRVGetErrorString(eError)));
 		goto fail_lockcreate;
 	}
 
@@ -278,6 +278,9 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 
 	if (ui32FrameworkCommandSize)
 	{
+		/*
+		 * Create the FW framework buffer
+		 */
 		eError = PVRSRVRGXFrameworkCreateKM(psDeviceNode,
 				&psTransferContext->psFWFrameworkMemDesc,
 				ui32FrameworkCommandSize);
@@ -303,6 +306,7 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 					PVRSRVGetErrorString(eError)));
 			goto fail_frameworkcopy;
 		}
+
 		sInfo.psFWFrameworkMemDesc = psTransferContext->psFWFrameworkMemDesc;
 	}
 
@@ -312,7 +316,7 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	                                   offsetof(RGXFWIF_FWTDMCONTEXT, sTDMContext),
 	                                   hMemCtxPrivData,
 	                                   psFWMemContextMemDesc,
-	                                   ui32Priority,
+	                                   i32Priority,
 	                                   &sInfo,
 	                                   &psTransferContext->sTDMData,
 									   U32toU8_Unpack1(ui32PackedCCBSizeU88),
@@ -325,7 +329,10 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	}
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	WorkEstInitTDM(psDevInfo, &psTransferContext->sWorkEstData);
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
+	{
+		WorkEstInitTDM(psDevInfo, &psTransferContext->sWorkEstData);
+	}
 #endif
 
 	SyncAddrListInit(&psTransferContext->sSyncAddrListFence);
@@ -377,34 +384,38 @@ PVRSRV_ERROR PVRSRVRGXTDMDestroyTransferContextKM(RGX_SERVER_TQ_TDM_CONTEXT *psT
 {
 	PVRSRV_ERROR eError;
 	PVRSRV_RGXDEV_INFO *psDevInfo = psTransferContext->psDeviceNode->pvDevice;
+
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	RGXFWIF_FWTDMCONTEXT	*psFWTransferContext;
-	IMG_UINT32 ui32WorkEstCCBSubmitted;
-
-	eError = DevmemAcquireCpuVirtAddr(psTransferContext->psFWTransferContextMemDesc,
-			(void **)&psFWTransferContext);
-	if (eError != PVRSRV_OK)
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
 	{
-		PVR_DPF((PVR_DBG_ERROR,
-				"%s: Failed to map firmware transfer context (%s)",
-				__func__,
-				PVRSRVGetErrorString(eError)));
-		return eError;
-	}
+		RGXFWIF_FWTDMCONTEXT	*psFWTransferContext;
+		IMG_UINT32 ui32WorkEstCCBSubmitted;
 
-	ui32WorkEstCCBSubmitted = psFWTransferContext->ui32WorkEstCCBSubmitted;
+		eError = DevmemAcquireCpuVirtAddr(psTransferContext->psFWTransferContextMemDesc,
+										  (void **)&psFWTransferContext);
+		if (eError != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					 "%s: Failed to map firmware transfer context (%s)",
+					 __func__,
+					 PVRSRVGetErrorString(eError)));
+			return eError;
+		}
 
-	DevmemReleaseCpuVirtAddr(psTransferContext->psFWTransferContextMemDesc);
+		ui32WorkEstCCBSubmitted = psFWTransferContext->ui32WorkEstCCBSubmitted;
 
-	/* Check if all of the workload estimation CCB commands for this workload are read */
-	if (ui32WorkEstCCBSubmitted != psTransferContext->sWorkEstData.ui32WorkEstCCBReceived)
-	{
-		PVR_DPF((PVR_DBG_WARNING,
-				"%s: WorkEst # cmds submitted (%u) and received (%u) mismatch",
-				__func__, ui32WorkEstCCBSubmitted,
-				psTransferContext->sWorkEstData.ui32WorkEstCCBReceived));
+		DevmemReleaseCpuVirtAddr(psTransferContext->psFWTransferContextMemDesc);
 
-		return PVRSRV_ERROR_RETRY;
+		/* Check if all of the workload estimation CCB commands for this workload are read */
+		if (ui32WorkEstCCBSubmitted != psTransferContext->sWorkEstData.ui32WorkEstCCBReceived)
+		{
+			PVR_DPF((PVR_DBG_WARNING,
+					 "%s: WorkEst # cmds submitted (%u) and received (%u) mismatch",
+					 __func__, ui32WorkEstCCBSubmitted,
+					 psTransferContext->sWorkEstData.ui32WorkEstCCBReceived));
+
+			return PVRSRV_ERROR_RETRY;
+		}
 	}
 #endif
 
@@ -426,16 +437,20 @@ PVRSRV_ERROR PVRSRVRGXTDMDestroyTransferContextKM(RGX_SERVER_TQ_TDM_CONTEXT *psT
 	}
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	WorkEstDeInitTDM(psDevInfo, &psTransferContext->sWorkEstData);
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
+	{
+		WorkEstDeInitTDM(psDevInfo, &psTransferContext->sWorkEstData);
+	}
 #endif
+
+	if (psTransferContext->psFWFrameworkMemDesc)
+	{
+		DevmemFwUnmapAndFree(psDevInfo, psTransferContext->psFWFrameworkMemDesc);
+	}
 
 	SyncAddrListDeinit(&psTransferContext->sSyncAddrListFence);
 	SyncAddrListDeinit(&psTransferContext->sSyncAddrListUpdate);
 
-	if (psTransferContext->psFWFrameworkMemDesc != NULL)
-	{
-		DevmemFwUnmapAndFree(psDevInfo, psTransferContext->psFWFrameworkMemDesc);
-	}
 	DevmemFwUnmapAndFree(psDevInfo, psTransferContext->psFWTransferContextMemDesc);
 
 	OSLockDestroy(psTransferContext->hLock);
@@ -486,15 +501,13 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 	IMG_UINT32        * paui32IntUpdateValue     = paui32ClientUpdateValue;
 	IMG_UINT32          ui32IntClientUpdateCount = ui32ClientUpdateCount;
 	PVRSRV_ERROR eError;
-	PVRSRV_ERROR eError2;
 	PVRSRV_FENCE iUpdateFence = PVRSRV_NO_FENCE;
 	PVRSRV_RGXDEV_INFO  *psDevInfo = FWCommonContextGetRGXDevInfo(psTransferContext->sTDMData.psServerCommonContext);
 	RGX_CLIENT_CCB      *psClientCCB = FWCommonContextGetClientCCB(psTransferContext->sTDMData.psServerCommonContext);
 	IMG_UINT32          ui32IntJobRef = OSAtomicIncrement(&psDevInfo->iCCBSubmissionOrdinal);
 
-	IMG_UINT64          ui64FBSCEntryMask;
+	IMG_UINT64          ui64FBSCEntryMask = 0;
 
-	IMG_UINT32 ui32CmdOffset = 0;
 	IMG_BOOL bCCBStateOpen;
 
 	PRGXFWIF_TIMESTAMP_ADDR pPreAddr;
@@ -504,6 +517,7 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 	IMG_UINT64               uiCheckFenceUID = 0;
 	IMG_UINT64               uiUpdateFenceUID = 0;
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
+	IMG_UINT32 ui32CmdOffset = 0;
 	RGXFWIF_WORKEST_KICK_DATA sWorkloadKickDataTransfer = {0};
 	IMG_UINT32 ui32TDMWorkloadDataRO = 0;
 	IMG_UINT32 ui32TDMCmdHeaderOffset = 0;
@@ -613,9 +627,9 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		}
 
 		eError = SyncAddrListPopulate(&psTransferContext->sSyncAddrListUpdate,
-										ui32ClientUpdateCount,
-										pauiClientUpdateUFODevVarBlock,
-										paui32ClientUpdateSyncOffset);
+		                              ui32ClientUpdateCount,
+		                              pauiClientUpdateUFODevVarBlock,
+		                              paui32ClientUpdateSyncOffset);
 		if (eError != PVRSRV_OK)
 		{
 			goto fail_populate_sync_addr_list;
@@ -666,8 +680,8 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 			{
 				CHKPT_DBG((PVR_DBG_ERROR, "%s:   Append %d buffer sync checkpoints to TQ Fence (&psTransferContext->sSyncAddrListFence=<%p>, pauiIntFenceUFOAddress=<%p>)...", __func__, ui32BufferFenceSyncCheckpointCount, (void*)&psTransferContext->sSyncAddrListFence , (void*)pauiIntFenceUFOAddress));
 				SyncAddrListAppendAndDeRefCheckpoints(&psTransferContext->sSyncAddrListFence,
-													  ui32BufferFenceSyncCheckpointCount,
-													  apsBufferFenceSyncCheckpoints);
+				                                      ui32BufferFenceSyncCheckpointCount,
+				                                      apsBufferFenceSyncCheckpoints);
 				if (!pauiIntFenceUFOAddress)
 				{
 					pauiIntFenceUFOAddress = psTransferContext->sSyncAddrListFence.pasFWAddrs;
@@ -679,8 +693,8 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 			{
 				/* Append the update (from output fence) */
 				SyncAddrListAppendCheckpoints(&psTransferContext->sSyncAddrListUpdate,
-											  1,
-											  &psBufferUpdateSyncCheckpoint);
+				                              1,
+				                              &psBufferUpdateSyncCheckpoint);
 				if (!pauiIntUpdateUFOAddress)
 				{
 					pauiIntUpdateUFOAddress = psTransferContext->sSyncAddrListUpdate.pasFWAddrs;
@@ -719,16 +733,16 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		if (iUpdateTimeline != PVRSRV_NO_TIMELINE)
 		{
 			eError = SyncCheckpointCreateFence(psTransferContext->psDeviceNode,
-											szUpdateFenceName,
-											   iUpdateTimeline,
-											   psTransferContext->psDeviceNode->hSyncCheckpointContext,
-											   &iUpdateFence,
-											   &uiUpdateFenceUID,
-											   &pvUpdateFenceFinaliseData,
-											   &psUpdateSyncCheckpoint,
-											   (void*)&psFenceTimelineUpdateSync,
-											   &ui32FenceTimelineUpdateValue,
-											   ui32PDumpFlags);
+			                                   szUpdateFenceName,
+			                                   iUpdateTimeline,
+			                                   psTransferContext->psDeviceNode->hSyncCheckpointContext,
+			                                   &iUpdateFence,
+			                                   &uiUpdateFenceUID,
+			                                   &pvUpdateFenceFinaliseData,
+			                                   &psUpdateSyncCheckpoint,
+			                                   (void*)&psFenceTimelineUpdateSync,
+			                                   &ui32FenceTimelineUpdateValue,
+			                                   ui32PDumpFlags);
 			if (eError != PVRSRV_OK)
 			{
 				goto fail_create_output_fence;
@@ -789,33 +803,31 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 			}
 		}
 
-		if (ui32FenceSyncCheckpointCount)
+		if (ui32FenceSyncCheckpointCount > 0)
 		{
 			/* Append the checks (from input fence) */
-			if (ui32FenceSyncCheckpointCount > 0)
-			{
-				CHKPT_DBG((PVR_DBG_ERROR, "%s:   Append %d sync checkpoints to TQ Fence (&psTransferContext->sSyncAddrListFence=<%p>)...", __func__, ui32FenceSyncCheckpointCount, (void*)&psTransferContext->sSyncAddrListFence));
+			CHKPT_DBG((PVR_DBG_ERROR, "%s:   Append %d sync checkpoints to TQ Fence (&psTransferContext->sSyncAddrListFence=<%p>)...", __func__, ui32FenceSyncCheckpointCount, (void*)&psTransferContext->sSyncAddrListFence));
 #if defined(TDM_CHECKPOINT_DEBUG)
-				{
-					IMG_UINT32 iii;
-					IMG_UINT32 *pui32Tmp = (IMG_UINT32*)pauiIntFenceUFOAddress;
+			{
+				IMG_UINT32 iii;
+				IMG_UINT32 *pui32Tmp = (IMG_UINT32*)pauiIntFenceUFOAddress;
 
-					for (iii=0; iii<ui32IntClientUpdateCount; iii++)
-					{
-						CHKPT_DBG((PVR_DBG_ERROR, "%s: pui32IntAllocatedUpdateValues[%d](<%p>) = 0x%x", __func__, iii, (void*)pui32Tmp, *pui32Tmp));
-						pui32Tmp++;
-					}
-				}
-#endif
-				SyncAddrListAppendCheckpoints(&psTransferContext->sSyncAddrListFence,
-				                              ui32FenceSyncCheckpointCount,
-				                              apsFenceSyncCheckpoints);
-				if (!pauiIntFenceUFOAddress)
+				for (iii=0; iii<ui32IntClientUpdateCount; iii++)
 				{
-					pauiIntFenceUFOAddress = psTransferContext->sSyncAddrListFence.pasFWAddrs;
+					CHKPT_DBG((PVR_DBG_ERROR, "%s: pauiIntFenceUFOAddress[%d](<%p>) = 0x%x", __func__, iii, (void*)pui32Tmp, *pui32Tmp));
+					pui32Tmp++;
 				}
-				ui32IntClientFenceCount += ui32FenceSyncCheckpointCount;
 			}
+#endif
+			SyncAddrListAppendCheckpoints(&psTransferContext->sSyncAddrListFence,
+										  ui32FenceSyncCheckpointCount,
+										  apsFenceSyncCheckpoints);
+			if (!pauiIntFenceUFOAddress)
+			{
+				pauiIntFenceUFOAddress = psTransferContext->sSyncAddrListFence.pasFWAddrs;
+			}
+			ui32IntClientFenceCount += ui32FenceSyncCheckpointCount;
+
 #if defined(TDM_CHECKPOINT_DEBUG)
 			{
 				IMG_UINT32 iii;
@@ -891,6 +903,8 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		                          &pPreAddr,
 		                          &pPostAddr,
 		                          &pRMWUFOAddr);
+
+#if defined(RGX_FBSC_INVALIDATE_COMMAND_SUPPORTED)
 		/*
 		 * Extract the FBSC entries from MMU Context for the deferred FBSC invalidate command,
 		 * in other words, take the value and set it to zero afterwards.
@@ -907,19 +921,23 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 				goto fail_invalfbsc;
 			}
 		}
+#endif
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		sWorkloadCharacteristics.sTransfer.ui32Characteristic1 = ui32TDMCharacteristic1;
-		sWorkloadCharacteristics.sTransfer.ui32Characteristic2 = ui32TDMCharacteristic2;
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			sWorkloadCharacteristics.sTransfer.ui32Characteristic1 = ui32TDMCharacteristic1;
+			sWorkloadCharacteristics.sTransfer.ui32Characteristic2 = ui32TDMCharacteristic2;
 
-		/* Prepare workload estimation */
-		WorkEstPrepare(psDeviceNode->pvDevice,
-				&psTransferContext->sWorkEstData,
-				&psTransferContext->sWorkEstData.uWorkloadMatchingData.sTransfer.sDataTDM,
-				eType,
-				&sWorkloadCharacteristics,
-				ui64DeadlineInus,
-				&sWorkloadKickDataTransfer);
+			/* Prepare workload estimation */
+			WorkEstPrepare(psDeviceNode->pvDevice,
+					&psTransferContext->sWorkEstData,
+					&psTransferContext->sWorkEstData.uWorkloadMatchingData.sTransfer.sDataTDM,
+					eType,
+					&sWorkloadCharacteristics,
+					ui64DeadlineInus,
+					&sWorkloadKickDataTransfer);
+		}
 #endif
 
 		/*
@@ -973,7 +991,12 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		Only do the command helper release (which takes the server sync
 		operations if the acquire succeeded
 	*/
-	ui32CmdOffset = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psTransferContext->sTDMData.psServerCommonContext));
+#if defined(SUPPORT_WORKLOAD_ESTIMATION)
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
+	{
+		ui32CmdOffset = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psTransferContext->sTDMData.psServerCommonContext));
+	}
+#endif
 	RGXCmdHelperReleaseCmdCCB(1,
 	                          psCmdHelper,
 	                          "TQ_TDM",
@@ -981,22 +1004,25 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-	/* The following is used to determine the offset of the command header containing
-	   the workload estimation data so that can be accessed when the KCCB is read */
-	ui32TDMCmdHeaderOffset = RGXCmdHelperGetDMCommandHeaderOffset(psCmdHelper);
-
-	ui32TDMCmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psTransferContext->sTDMData.psServerCommonContext));
-
-	/* This checks if the command would wrap around at the end of the CCB and
-	 * therefore would start at an offset of 0 rather than the current command
-	 * offset */
-	if (ui32CmdOffset < ui32TDMCmdOffsetWrapCheck)
+	if (!PVRSRV_VZ_MODE_IS(GUEST))
 	{
-		ui32TDMWorkloadDataRO = ui32CmdOffset;
-	}
-	else
-	{
-		ui32TDMWorkloadDataRO = 0;
+		/* The following is used to determine the offset of the command header containing
+		   the workload estimation data so that can be accessed when the KCCB is read */
+		ui32TDMCmdHeaderOffset = RGXCmdHelperGetDMCommandHeaderOffset(psCmdHelper);
+
+		ui32TDMCmdOffsetWrapCheck = RGXGetHostWriteOffsetCCB(FWCommonContextGetClientCCB(psTransferContext->sTDMData.psServerCommonContext));
+
+		/* This checks if the command would wrap around at the end of the CCB and
+		 * therefore would start at an offset of 0 rather than the current command
+		 * offset */
+		if (ui32CmdOffset < ui32TDMCmdOffsetWrapCheck)
+		{
+			ui32TDMWorkloadDataRO = ui32CmdOffset;
+		}
+		else
+		{
+			ui32TDMWorkloadDataRO = 0;
+		}
 	}
 #endif
 
@@ -1019,11 +1045,12 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 
 		/* Add the Workload data into the KCCB kick */
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
-		/* Store the offset to the CCCB command header so that it can be referenced
-		 * when the KCCB command reaches the FW */
-		sTDMKCCBCmd.uCmdData.sCmdKickData.ui32WorkEstCmdHeaderOffset = ui32TDMWorkloadDataRO + ui32TDMCmdHeaderOffset;
-#else
-		sTDMKCCBCmd.uCmdData.sCmdKickData.ui32WorkEstCmdHeaderOffset = 0;
+		if (!PVRSRV_VZ_MODE_IS(GUEST))
+		{
+			/* Store the offset to the CCCB command header so that it can be referenced
+			 * when the KCCB command reaches the FW */
+			sTDMKCCBCmd.uCmdData.sCmdKickData.ui32WorkEstCmdHeaderOffset = ui32TDMWorkloadDataRO + ui32TDMCmdHeaderOffset;
+		}
 #endif
 
 		/* HTBLOGK(HTB_SF_MAIN_KICK_TDM, */
@@ -1034,7 +1061,7 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		                  FWCommonContextGetFWAddress(psTransferContext->sTDMData.psServerCommonContext).ui32Addr,
 		                  ui32ExtJobRef,
 		                  ui32IntJobRef,
-		                  RGX_HWPERF_KICK_TYPE_TQTDM,
+		                  RGX_HWPERF_KICK_TYPE2_TQTDM,
 		                  iCheckFence,
 		                  iUpdateFence,
 		                  iUpdateTimeline,
@@ -1045,39 +1072,25 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 
 		LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 		{
-			eError2 = RGXScheduleCommand(psDeviceNode->pvDevice,
-										 RGXFWIF_DM_TDM,
-										 & sTDMKCCBCmd,
-										 ui32PDumpFlags);
-			if (eError2 != PVRSRV_ERROR_RETRY)
+			eError = RGXScheduleCommand(psDeviceNode->pvDevice,
+			                             RGXFWIF_DM_TDM,
+			                             & sTDMKCCBCmd,
+			                             ui32PDumpFlags);
+			if (eError != PVRSRV_ERROR_RETRY)
 			{
 				break;
 			}
 			OSWaitus(MAX_HW_TIME_US/WAIT_TRY_COUNT);
 		} END_LOOP_UNTIL_TIMEOUT();
 
-		if (eError2 != PVRSRV_OK)
+		if (eError != PVRSRV_OK)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXTDMSubmitTransferKM failed to schedule kernel CCB command. (0x%x)", eError2));
-			if (eError == PVRSRV_OK)
-			{
-				eError = eError2;
-			}
+			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXTDMSubmitTransferKM failed to schedule kernel CCB command. (0x%x)", eError));
 			goto fail_2dcmdacquire;
 		}
 
-		PVRGpuTraceEnqueueEvent(psDeviceNode->pvDevice, ui32FWAddr, ui32ExtJobRef,
-		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE_TQTDM);
-	}
-
-	/*
-	 * Now check eError (which may have returned an error from our earlier calls
-	 * to RGXCmdHelperAcquireCmdCCB) - we needed to process any flush command first
-	 * so we check it now...
-	 */
-	if (eError != PVRSRV_OK )
-	{
-		goto fail_2dcmdacquire;
+		PVRGpuTraceEnqueueEvent(psDeviceNode, ui32FWAddr, ui32ExtJobRef,
+		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE2_TQTDM);
 	}
 
 #if defined(NO_HARDWARE)
@@ -1140,10 +1153,18 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 */
 fail_2dcmdacquire:
 fail_3dcmdacquire:
-
+#if defined(RGX_FBSC_INVALIDATE_COMMAND_SUPPORTED)
 fail_invalfbsc:
+#endif
 	SyncAddrListRollbackCheckpoints(psTransferContext->psDeviceNode, &psTransferContext->sSyncAddrListFence);
 	SyncAddrListRollbackCheckpoints(psTransferContext->psDeviceNode, &psTransferContext->sSyncAddrListUpdate);
+
+	/* Free memory allocated to hold the internal list of update values */
+	if (pui32IntAllocatedUpdateValues)
+	{
+		OSFreeMem(pui32IntAllocatedUpdateValues);
+		pui32IntAllocatedUpdateValues = NULL;
+	}
 fail_alloc_update_values_mem:
 
 /* fail_pdumpcheck: */
@@ -1224,22 +1245,22 @@ PVRSRV_ERROR PVRSRVRGXTDMNotifyWriteOffsetUpdateKM(
 }
 
 PVRSRV_ERROR PVRSRVRGXTDMSetTransferContextPriorityKM(CONNECTION_DATA *psConnection,
-                                                      PVRSRV_DEVICE_NODE * psDevNode,
+                                                      PVRSRV_DEVICE_NODE * psDeviceNode,
                                                       RGX_SERVER_TQ_TDM_CONTEXT *psTransferContext,
-                                                      IMG_UINT32 ui32Priority)
+                                                      IMG_INT32 i32Priority)
 {
 	PVRSRV_ERROR eError;
 
-	PVR_UNREFERENCED_PARAMETER(psDevNode);
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 
 	OSLockAcquire(psTransferContext->hLock);
 
-	if (psTransferContext->sTDMData.ui32Priority != ui32Priority)
+	if (psTransferContext->sTDMData.i32Priority != i32Priority)
 	{
 		eError = ContextSetPriority(psTransferContext->sTDMData.psServerCommonContext,
 		                            psConnection,
 		                            psTransferContext->psDeviceNode->pvDevice,
-		                            ui32Priority,
+		                            i32Priority,
 		                            RGXFWIF_DM_TDM);
 		if (eError != PVRSRV_OK)
 		{
@@ -1316,11 +1337,11 @@ IMG_UINT32 CheckForStalledClientTDMTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
 	dllist_foreach_node(&psDevInfo->sTDMCtxtListHead, psNode, psNext)
 	{
 		RGX_SERVER_TQ_TDM_CONTEXT *psCurrentServerTransferCtx =
-			IMG_CONTAINER_OF(psNode, RGX_SERVER_TQ_TDM_CONTEXT, sListNode);
+				IMG_CONTAINER_OF(psNode, RGX_SERVER_TQ_TDM_CONTEXT, sListNode);
 
 		if (CheckStalledClientCommonContext(
-			             psCurrentServerTransferCtx->sTDMData.psServerCommonContext, RGX_KICK_TYPE_DM_TDM_2D)
-			         == PVRSRV_ERROR_CCCB_STALLED) {
+				psCurrentServerTransferCtx->sTDMData.psServerCommonContext, RGX_KICK_TYPE_DM_TDM_2D)
+				== PVRSRV_ERROR_CCCB_STALLED) {
 			ui32ContextBitMask = RGX_KICK_TYPE_DM_TDM_2D;
 		}
 	}

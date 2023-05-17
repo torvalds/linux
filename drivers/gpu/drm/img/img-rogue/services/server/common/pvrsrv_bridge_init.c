@@ -94,8 +94,10 @@ void DeinitRGXHWPERFBridge(void);
 PVRSRV_ERROR InitRGXREGCONFIGBridge(void);
 void DeinitRGXREGCONFIGBridge(void);
 #endif
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
 PVRSRV_ERROR InitRGXKICKSYNCBridge(void);
 void DeinitRGXKICKSYNCBridge(void);
+#endif
 #endif /* SUPPORT_RGX */
 PVRSRV_ERROR InitCACHEBridge(void);
 void DeinitCACHEBridge(void);
@@ -252,8 +254,10 @@ ServerBridgeInit(void)
 	PVR_LOG_IF_ERROR(eError, "InitRGXREGCONFIGBridge");
 #endif
 
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
 	eError = InitRGXKICKSYNCBridge();
 	PVR_LOG_IF_ERROR(eError, "InitRGXKICKSYNCBridge");
+#endif
 
 	eError = InitRGXTIMERQUERYBridge();
 	PVR_LOG_IF_ERROR(eError, "InitRGXTIMERQUERYBridge");
@@ -377,9 +381,10 @@ void ServerBridgeDeInit(void)
 	DeinitRGXREGCONFIGBridge();
 #endif
 
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
 	DeinitRGXKICKSYNCBridge();
+#endif
 
 	DeinitRGXTIMERQUERYBridge();
-
 #endif /* SUPPORT_RGX */
 }

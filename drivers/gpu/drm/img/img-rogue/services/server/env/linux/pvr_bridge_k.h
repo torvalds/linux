@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_BRIDGE_K_H
 
 #include "pvrsrv_error.h"
+#include "pvr_drv.h"
 
 /*!
 ******************************************************************************
@@ -54,6 +55,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                 to exit and then disable access to the driver. New threads will
                 not be allowed to enter the Server until the driver is
                 unsuspended (see LinuxBridgeUnblockClientsAccess).
+ @Input         psDevPriv pointer to devices OS specific data
  @Input         bShutdown this flag indicates that the function was called
                           from a shutdown callback and therefore it will
                           not wait for the kernel threads to get frozen
@@ -61,16 +63,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                           procedure)
  @Return        PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR LinuxBridgeBlockClientsAccess(IMG_BOOL bShutdown);
+PVRSRV_ERROR LinuxBridgeBlockClientsAccess(struct pvr_drm_private *psDevPriv,
+                                           IMG_BOOL bShutdown);
 
 /*!
 ******************************************************************************
  @Function      LinuxBridgeUnblockClientsAccess
  @Description   This function will re-enable the bridge and allow any threads
                 waiting to enter the Server to continue.
+ @Input         psDevPriv pointer to devices OS specific data
  @Return        PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR LinuxBridgeUnblockClientsAccess(void);
+PVRSRV_ERROR LinuxBridgeUnblockClientsAccess(struct pvr_drm_private *psDevPriv);
 
 void LinuxBridgeNumActiveKernelThreadsIncrement(void);
 void LinuxBridgeNumActiveKernelThreadsDecrement(void);

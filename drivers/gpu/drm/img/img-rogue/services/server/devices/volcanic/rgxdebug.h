@@ -112,12 +112,6 @@ void RGXDumpFirmwareTrace(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 				void *pvDumpDebugFile,
 				PVRSRV_RGXDEV_INFO  *psDevInfo);
 
-#if defined(SUPPORT_POWER_VALIDATION_VIA_DEBUGFS)
-void RGXDumpPowerMonitoring(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-				void *pvDumpDebugFile,
-				PVRSRV_RGXDEV_INFO  *psDevInfo);
-#endif
-
 #if defined(SUPPORT_FW_VIEW_EXTRA_DEBUG)
 /*!
 *******************************************************************************

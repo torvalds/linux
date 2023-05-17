@@ -58,12 +58,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #if defined(RGX_FW_IRQ_OS_COUNTERS)
-#define for_each_irq_cnt(ui32idx) \
-	for (ui32idx = 0; ui32idx < RGX_NUM_OS_SUPPORTED; ui32idx++)
+#define for_each_irq_cnt(ui32idx)   FOREACH_SUPPORTED_DRIVER(ui32idx)
 
 #define get_irq_cnt_val(ui32Dest, ui32idx, psRgxDevInfo) \
 	do { \
-		extern const IMG_UINT32 gaui32FwOsIrqCntRegAddr[RGXFW_MAX_NUM_OS]; \
+		extern const IMG_UINT32 gaui32FwOsIrqCntRegAddr[RGXFW_MAX_NUM_OSIDS]; \
 		ui32Dest = PVRSRV_VZ_MODE_IS(GUEST) ? 0 : OSReadHWReg32((psRgxDevInfo)->pvRegsBaseKM, gaui32FwOsIrqCntRegAddr[ui32idx]); \
 	} while (false)
 
@@ -95,7 +94,7 @@ static inline void RGXDEBUG_PRINT_IRQ_COUNT(PVRSRV_RGXDEV_INFO* psRgxDevInfo)
 		         " %u FW IRQ count = %u", ui32idx, ui32IrqCnt));
 
 #if defined(RGX_FW_IRQ_OS_COUNTERS)
-		if (ui32idx == RGXFW_HOST_OS)
+		if (ui32idx == RGXFW_HOST_DRIVER_ID)
 #endif
 		{
 			PVR_DPF((DBGPRIV_VERBOSE, "Last sampled IRQ count in LISR = %u",
@@ -149,12 +148,6 @@ PVRSRV_ERROR RGXDumpRGXRegisters(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 void RGXDumpFirmwareTrace(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 				void *pvDumpDebugFile,
 				PVRSRV_RGXDEV_INFO  *psDevInfo);
-
-#if defined(SUPPORT_POWER_VALIDATION_VIA_DEBUGFS)
-void RGXDumpPowerMonitoring(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-				void *pvDumpDebugFile,
-				PVRSRV_RGXDEV_INFO  *psDevInfo);
-#endif
 
 #if defined(SUPPORT_FW_VIEW_EXTRA_DEBUG)
 /*!

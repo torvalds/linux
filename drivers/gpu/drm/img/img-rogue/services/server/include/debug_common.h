@@ -52,4 +52,16 @@ void DebugCommonDeInitDriver(void);
 PVRSRV_ERROR DebugCommonInitDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
 void DebugCommonDeInitDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
 
+typedef struct _IMG_FLAGS2DESC_
+{
+	IMG_UINT32		uiFlag;
+	const IMG_CHAR	*pszLabel;
+} IMG_FLAGS2DESC;
+
+void DebugCommonFlagStrings(IMG_CHAR *psDesc,
+							IMG_UINT32 ui32DescSize,
+							const IMG_FLAGS2DESC *psConvTable,
+							IMG_UINT32 ui32TableSize,
+							IMG_UINT32 ui32Flags);
+
 #endif /* DEBUG_COMMON_H */

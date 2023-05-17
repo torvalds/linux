@@ -56,7 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static INLINE void _CheckBlueprintHeapAlignment(DEVMEM_HEAP_BLUEPRINT *psHeapBlueprint)
 {
-	IMG_UINT32 ui32OSPageSize = OSGetPageShift();
+	IMG_UINT32 ui32OSPageSize = OSGetPageSize();
 
 	/* Any heap length should at least match OS page size at the minimum or
 	 * a multiple of OS page size */
@@ -72,7 +72,7 @@ static INLINE void _CheckBlueprintHeapAlignment(DEVMEM_HEAP_BLUEPRINT *psHeapBlu
 		         psHeapBlueprint->uiHeapLength,
 		         psHeapBlueprint->uiHeapLength));
 		PVR_DPF((PVR_DBG_ERROR,
-		         "Heap Size should always be a non-zero value and a "
+		         "Heap Size should always be at least the DevMem minimum size and a "
 		         "multiple of OS Page Size:%u(0x%x)",
 		         ui32OSPageSize, ui32OSPageSize));
 		PVR_ASSERT(psHeapBlueprint->uiHeapLength >= ui32OSPageSize);
@@ -88,6 +88,8 @@ void HeapCfgBlueprintInit(const IMG_CHAR        *pszName,
 	                      IMG_DEVMEM_SIZE_T      uiReservedRegionLength,
 	                      IMG_UINT32             ui32Log2DataPageSize,
 	                      IMG_UINT32             uiLog2ImportAlignment,
+	                      PFN_HEAP_INIT          pfnInit,
+	                      PFN_HEAP_DEINIT        pfnDeInit,
 	                      DEVMEM_HEAP_BLUEPRINT *psHeapBlueprint)
 {
 	psHeapBlueprint->pszName                = pszName;
@@ -96,6 +98,8 @@ void HeapCfgBlueprintInit(const IMG_CHAR        *pszName,
 	psHeapBlueprint->uiReservedRegionLength = uiReservedRegionLength;
 	psHeapBlueprint->uiLog2DataPageSize     = ui32Log2DataPageSize;
 	psHeapBlueprint->uiLog2ImportAlignment  = uiLog2ImportAlignment;
+	psHeapBlueprint->pfnInit                = pfnInit;
+	psHeapBlueprint->pfnDeInit              = pfnDeInit;
 
 	_CheckBlueprintHeapAlignment(psHeapBlueprint);
 }
@@ -142,6 +146,37 @@ HeapCfgHeapConfigName(CONNECTION_DATA * psConnection,
 	}
 
 	OSSNPrintf(pszHeapConfigNameOut, uiHeapConfigNameBufSz, "%s", psDeviceNode->sDevMemoryInfo.psDeviceMemoryHeapConfigArray[uiHeapConfigIndex].pszName);
+
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR
+HeapCfgGetCallbacks(const PVRSRV_DEVICE_NODE *psDeviceNode,
+                    IMG_UINT32 uiHeapConfigIndex,
+                    IMG_UINT32 uiHeapIndex,
+                    PFN_HEAP_INIT *ppfnInit,
+                    PFN_HEAP_DEINIT *ppfnDeinit)
+{
+	DEVMEM_HEAP_BLUEPRINT *psHeapBlueprint;
+
+	PVR_LOG_RETURN_IF_INVALID_PARAM(psDeviceNode, "psDeviceNode");
+	PVR_LOG_RETURN_IF_INVALID_PARAM(ppfnInit, "ppfnInit");
+	PVR_LOG_RETURN_IF_INVALID_PARAM(ppfnDeinit, "ppfnDeinit");
+
+	if (uiHeapConfigIndex >= psDeviceNode->sDevMemoryInfo.uiNumHeapConfigs)
+	{
+		return PVRSRV_ERROR_DEVICEMEM_INVALID_HEAP_CONFIG_INDEX;
+	}
+
+	if (uiHeapIndex >= psDeviceNode->sDevMemoryInfo.psDeviceMemoryHeapConfigArray[uiHeapConfigIndex].uiNumHeaps)
+	{
+		return PVRSRV_ERROR_DEVICEMEM_INVALID_HEAP_INDEX;
+	}
+
+	psHeapBlueprint = &psDeviceNode->sDevMemoryInfo.psDeviceMemoryHeapConfigArray[uiHeapConfigIndex].psHeapBlueprintArray[uiHeapIndex];
+
+	*ppfnInit = psHeapBlueprint->pfnInit;
+	*ppfnDeinit = psHeapBlueprint->pfnDeInit;
 
 	return PVRSRV_OK;
 }

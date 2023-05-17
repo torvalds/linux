@@ -54,6 +54,10 @@ PVRSRV_ERROR DevicememHistoryInitKM(void);
 
 void DevicememHistoryDeInitKM(void);
 
+PVRSRV_ERROR DevicememHistoryDeviceInit(PVRSRV_DEVICE_NODE *psDevNode);
+PVRSRV_ERROR DevicememHistoryDeviceCreate(PVRSRV_DEVICE_NODE *psDevNode);
+void DevicememHistoryDeviceDestroy(PVRSRV_DEVICE_NODE *psDevNode);
+
 PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 							IMG_UINT32 ui32Offset,
 							IMG_DEV_VIRTADDR sDevVAddr,
@@ -114,6 +118,7 @@ typedef struct _DEVICEMEM_HISTORY_QUERY_IN_
 {
 	IMG_PID uiPID;
 	IMG_DEV_VIRTADDR sDevVAddr;
+	PVRSRV_DEVICE_NODE *psDevNode;
 } DEVICEMEM_HISTORY_QUERY_IN;
 
 /* Store up to 4 results for a lookup. In the case of the faulting page being
@@ -144,9 +149,14 @@ typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_RESULT_
 typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_
 {
 	IMG_UINT32 ui32NumResults;
+	IMG_UINT64 ui64SearchCount;
 	/* result 0 is the newest */
 	DEVICEMEM_HISTORY_QUERY_OUT_RESULT sResults[DEVICEMEM_HISTORY_QUERY_OUT_MAX_RESULTS];
 } DEVICEMEM_HISTORY_QUERY_OUT;
+
+void DevicememHistoryDumpRecordStats(PVRSRV_DEVICE_NODE *psDevNode,
+                                    DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+                                    void *pvDumpDebugFile);
 
 IMG_BOOL
 DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn,

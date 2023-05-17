@@ -44,7 +44,7 @@
 #ifndef _PVR_SYNC_API_H
 #define _PVR_SYNC_API_H
 
-#include <stdbool.h>
+#include "img_types.h"
 
 int pvr_sync_api_init(void *file_handle, void **api_priv);
 int pvr_sync_api_deinit(void *api_priv, bool is_sw);

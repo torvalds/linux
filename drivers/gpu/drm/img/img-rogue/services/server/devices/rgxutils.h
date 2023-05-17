@@ -179,6 +179,20 @@ PVRSRV_ERROR RGXSetDeviceFlags(PVRSRV_RGXDEV_INFO *psDevInfo,
 ******************************************************************************/
 const char* RGXStringifyKickTypeDM(RGX_KICK_TYPE_DM eKickTypeDM);
 
+/*************************************************************************/ /*!
+
+@Function       RGXPhysHeapGetLMAPolicy
+
+@Description    Returns the optimal LMA allocation policy based on a heap's
+                usage flags
+
+@Input          ui32UsageFlags Flags specifying a heap's intended use
+
+@Return         PHYS_HEAP_POLICY The recommended LMA policy
+
+*/ /**************************************************************************/
+PHYS_HEAP_POLICY RGXPhysHeapGetLMAPolicy(PHYS_HEAP_USAGE_FLAGS ui32UsageFlags);
+
 #define RGX_STRINGIFY_KICK_TYPE_DM_IF_SET(bitmask, eKickTypeDM) bitmask & eKickTypeDM ? RGXStringifyKickTypeDM(eKickTypeDM) : ""
 /******************************************************************************
  End of file (rgxutils.h)

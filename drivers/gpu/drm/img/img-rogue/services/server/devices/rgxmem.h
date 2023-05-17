@@ -74,12 +74,6 @@ void RGXSetFWMemContextDevVirtAddr(SERVER_MMU_CONTEXT *psServerMMUContext,
 void RGXMMUSyncPrimAlloc(PVRSRV_DEVICE_NODE *psDevNode);
 void RGXMMUSyncPrimFree(void);
 
-PVRSRV_ERROR RGXSLCFlushRange(PVRSRV_DEVICE_NODE *psDevNode,
-							  MMU_CONTEXT *psMMUContext,
-							  IMG_DEV_VIRTADDR sDevVAddr,
-							  IMG_DEVMEM_SIZE_T uiLength,
-							  IMG_BOOL bInvalidate);
-
 PVRSRV_ERROR RGXInvalidateFBSCTable(PVRSRV_DEVICE_NODE *psDeviceNode,
 									MMU_CONTEXT *psMMUContext,
 									IMG_UINT64 ui64FBSCEntryMask);

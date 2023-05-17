@@ -75,80 +75,6 @@ struct SERVER_MMU_CONTEXT_TAG
 	PVRSRV_RGXDEV_INFO *psDevInfo;
 }; /* SERVER_MMU_CONTEXT is typedef-ed in rgxmem.h */
 
-PVRSRV_ERROR RGXSLCFlushRange(PVRSRV_DEVICE_NODE *psDeviceNode,
-							  MMU_CONTEXT *psMMUContext,
-							  IMG_DEV_VIRTADDR sDevVAddr,
-							  IMG_DEVMEM_SIZE_T uiSize,
-							  IMG_BOOL bInvalidate)
-{
-	PVRSRV_ERROR eError;
-	DLLIST_NODE *psNode, *psNext;
-	RGXFWIF_KCCB_CMD sFlushInvalCmd;
-	SERVER_MMU_CONTEXT *psServerMMUContext = NULL;
-	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
-	IMG_UINT32 ui32kCCBCommandSlot;
-
-	OSWRLockAcquireRead(psDevInfo->hMemoryCtxListLock);
-
-	dllist_foreach_node(&psDevInfo->sMemoryContextList, psNode, psNext)
-	{
-		SERVER_MMU_CONTEXT *psIter = IMG_CONTAINER_OF(psNode, SERVER_MMU_CONTEXT, sNode);
-		if (psIter->psMMUContext == psMMUContext)
-		{
-			psServerMMUContext = psIter;
-		}
-	}
-
-	OSWRLockReleaseRead(psDevInfo->hMemoryCtxListLock);
-
-	if (! psServerMMUContext)
-	{
-		return PVRSRV_ERROR_MMU_CONTEXT_NOT_FOUND;
-	}
-
-	/* Schedule the SLC flush command */
-#if defined(PDUMP)
-	PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
-	                      "Submit SLC flush and invalidate");
-#endif
-	sFlushInvalCmd.eCmdType = RGXFWIF_KCCB_CMD_SLCFLUSHINVAL;
-	sFlushInvalCmd.uCmdData.sSLCFlushInvalData.bInval = bInvalidate;
-	sFlushInvalCmd.uCmdData.sSLCFlushInvalData.bDMContext = IMG_FALSE;
-	sFlushInvalCmd.uCmdData.sSLCFlushInvalData.ui64Size = uiSize;
-	sFlushInvalCmd.uCmdData.sSLCFlushInvalData.ui64Address = sDevVAddr.uiAddr;
-	eError = RGXGetFWCommonContextAddrFromServerMMUCtx(psDevInfo,
-													   psServerMMUContext,
-													   &sFlushInvalCmd.uCmdData.sSLCFlushInvalData.psContext);
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
-
-	eError = RGXSendCommandWithPowLockAndGetKCCBSlot(psDevInfo,
-									   &sFlushInvalCmd,
-									   PDUMP_FLAGS_CONTINUOUS,
-									   &ui32kCCBCommandSlot);
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR,
-		         "RGXSLCFlush: Failed to schedule SLC flush command with error (%u)",
-		         eError));
-	}
-	else
-	{
-		/* Wait for the SLC flush to complete */
-		eError = RGXWaitForKCCBSlotUpdate(psDevInfo, ui32kCCBCommandSlot, PDUMP_FLAGS_CONTINUOUS);
-		if (eError != PVRSRV_OK)
-		{
-			PVR_DPF((PVR_DBG_ERROR,
-			         "RGXSLCFlush: SLC flush and invalidate aborted with error (%u)",
-			         eError));
-		}
-	}
-
-	return eError;
-}
-
 PVRSRV_ERROR RGXInvalidateFBSCTable(PVRSRV_DEVICE_NODE *psDeviceNode,
 									MMU_CONTEXT *psMMUContext,
 									IMG_UINT64 ui64FBSCEntryMask)
@@ -596,7 +522,7 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		psFWMemContext->uiBPHandlerAddr = 0;
 		psFWMemContext->uiBreakpointCtl = 0;
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
+#if defined(SUPPORT_CUSTOM_OSID_EMISSION)
 {
 		IMG_UINT32 ui32OSid = 0, ui32OSidReg = 0;
 		IMG_BOOL   bOSidAxiProt;
@@ -830,22 +756,19 @@ IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR s
 		/* no active memory context found with the given PC address.
 		 * Check the list of most recently freed memory contexts.
 		 */
-		IMG_UINT32 i;
+		const IMG_UINT32 ui32Mask = UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE - 1;
+		IMG_UINT32 i, j;
 
 		OSLockAcquire(psDevInfo->hMMUCtxUnregLock);
 
 		/* iterate through the list of unregistered memory contexts
 		 * from newest (one before the head) to the oldest (the current head)
 		 */
-		i = gui32UnregisteredMemCtxsHead;
-
-		do
+		for (i = (gui32UnregisteredMemCtxsHead - 1) & ui32Mask, j = 0;
+		     j < UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE;
+		     i = (i - 1) & ui32Mask, j++)
 		{
-			UNREGISTERED_MEMORY_CONTEXT *psRecord;
-
-			i ? i-- : (i = (UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE - 1));
-
-			psRecord = &gasUnregisteredMemCtxs[i];
+			UNREGISTERED_MEMORY_CONTEXT *psRecord = &gasUnregisteredMemCtxs[i];
 
 			if (psRecord->sPCDevPAddr.uiAddr == sPCAddress.uiAddr)
 			{
@@ -855,10 +778,9 @@ IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR s
 				bRet = IMG_TRUE;
 				break;
 			}
-		} while (i != gui32UnregisteredMemCtxsHead);
+		}
 
 		OSLockRelease(psDevInfo->hMMUCtxUnregLock);
-
 	}
 
 	return bRet;
@@ -913,7 +835,7 @@ IMG_BOOL RGXPCPIDToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_PID uiPID,
 
 		for (i = (gui32UnregisteredMemCtxsHead - 1) & ui32Mask, j = 0;
 		     j < UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE;
-		     i = (gui32UnregisteredMemCtxsHead - 1) & ui32Mask, j++)
+		     i = (i - 1) & ui32Mask, j++)
 		{
 			UNREGISTERED_MEMORY_CONTEXT *psRecord = &gasUnregisteredMemCtxs[i];
 

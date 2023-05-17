@@ -49,9 +49,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv.h"
 #include "vz_vmm_pvz.h"
 
-#if (RGX_NUM_OS_SUPPORTED > 1)
+#if (RGX_NUM_DRIVERS_SUPPORTED > 1)
 static PVRSRV_ERROR
-PvzConnectionValidate(PVRSRV_DEVICE_CONFIG *psDevConfig)
+PvzConnectionValidate(void)
 {
 	VMM_PVZ_CONNECTION *psVmmPvz;
 	PVRSRV_ERROR eError = PVRSRV_OK;
@@ -76,8 +76,8 @@ PvzConnectionValidate(PVRSRV_DEVICE_CONFIG *psDevConfig)
 	 *
 	 *  This setup uses carve-out memory, has no hypercall mechanism & does not support
 	 *  out-of-order initialisation of host/guest VMs/drivers. The host driver has all
-	 *  the information needed to initialize all OSIDs firmware state when it's loaded
-	 *  and its PVZ layer must mark all guest OSIDs as being online as part of its PVZ
+	 *  the information needed to initialize all Drivers firmware state when it's loaded
+	 *  and its PVZ layer must mark all guest Drivers as being online as part of its PVZ
 	 *  initialisation. Having no out-of-order initialisation support, the guest driver
 	 *  can only submit a workload to the device after the host driver has completely
 	 *  initialized the firmware, the VZ hypervisor/VM setup must guarantee this.
@@ -89,10 +89,10 @@ PvzConnectionValidate(PVRSRV_DEVICE_CONFIG *psDevConfig)
 	 *
 	 *  This setup uses guest memory, has PVZ hypercall mechanism & supports out-of-order
 	 *  initialisation of host/guest VMs/drivers. The host driver initializes only its
-	 *  own OSID-0 firmware state when its loaded and each guest driver will use its PVZ
+	 *  own Driver-0 firmware state when its loaded and each guest driver will use its PVZ
 	 *  interface to hypercall to the host driver to both synchronise its initialisation
 	 *  so it does not submit any workload to the firmware before the host driver has
-	 *  had a chance to initialize the firmware and to also initialize its own OSID-x
+	 *  had a chance to initialize the firmware and to also initialize its own Driver-x
 	 *  firmware state.
 	 */
 	PVR_LOG(("Using dynamic PVZ bootstrap setup"));
@@ -110,23 +110,31 @@ PvzConnectionValidate(PVRSRV_DEVICE_CONFIG *psDevConfig)
 e0:
 	return eError;
 }
-#endif /* (RGX_NUM_OS_SUPPORTED > 1) */
+#endif /* (RGX_NUM_DRIVERS_SUPPORTED > 1) */
 
-PVRSRV_ERROR PvzConnectionInit(PVRSRV_DEVICE_CONFIG *psDevConfig)
+PVRSRV_ERROR PvzConnectionInit(void)
 {
 	PVRSRV_ERROR eError;
 	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
 
-#if (RGX_NUM_OS_SUPPORTED == 1)
-# if !defined(PVRSRV_NEED_PVR_DPF)
+#if (RGX_NUM_DRIVERS_SUPPORTED == 1)
+#if !defined(PVRSRV_NEED_PVR_DPF)
 	PVR_UNREFERENCED_PARAMETER(psPVRSRVData);
 # endif
-	PVR_DPF((PVR_DBG_ERROR, "This kernel driver does not support virtualization. Please rebuild with RGX_NUM_OS_SUPPORTED > 1"));
+	PVR_DPF((PVR_DBG_ERROR, "This kernel driver does not support virtualization. Please rebuild with RGX_NUM_DRIVERS_SUPPORTED > 1"));
 	PVR_DPF((PVR_DBG_ERROR,	"Halting initialisation, cannot transition to %s mode",
 			psPVRSRVData->eDriverMode == DRIVER_MODE_HOST ? "host" : "guest"));
 	eError = PVRSRV_ERROR_NOT_SUPPORTED;
 	goto e0;
 #else
+
+	if ((psPVRSRVData->hPvzConnection != NULL) &&
+		(psPVRSRVData->hPvzConnectionLock != NULL))
+	{
+		eError = PVRSRV_OK;
+		PVR_DPF((PVR_DBG_MESSAGE, "PVzConnection already initialised."));
+		goto e0;
+	}
 
 	/* Create para-virtualization connection lock */
 	eError = OSLockCreate(&psPVRSRVData->hPvzConnectionLock);
@@ -144,10 +152,8 @@ PVRSRV_ERROR PvzConnectionInit(PVRSRV_DEVICE_CONFIG *psDevConfig)
 	}
 
 	/* Ensure pvz connection is configured correctly */
-	eError = PvzConnectionValidate(psDevConfig);
+	eError = PvzConnectionValidate();
 	PVR_LOG_RETURN_IF_ERROR(eError, "PvzConnectionValidate");
-
-	psPVRSRVData->abVmOnline[RGXFW_HOST_OS] = IMG_TRUE;
 #endif
 e0:
 	return eError;
@@ -156,6 +162,13 @@ e0:
 void PvzConnectionDeInit(void)
 {
 	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
+
+	if ((psPVRSRVData->hPvzConnection == NULL) &&
+		(psPVRSRVData->hPvzConnectionLock == NULL))
+	{
+		PVR_DPF((PVR_DBG_MESSAGE, "PVzConnection already deinitialised."));
+		return;
+	}
 
 	VMMDestroyPvzConnection(psPVRSRVData->hPvzConnection);
 	psPVRSRVData->hPvzConnection = NULL;

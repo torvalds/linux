@@ -216,6 +216,48 @@ inline const char * RGXStringifyKickTypeDM(RGX_KICK_TYPE_DM eKickTypeDM)
 	}
 }
 
+PHYS_HEAP_POLICY RGXPhysHeapGetLMAPolicy(PHYS_HEAP_USAGE_FLAGS ui32UsageFlags)
+{
+	PHYS_HEAP_POLICY ui32Policy;
+
+	if (OSIsMapPhysNonContigSupported())
+	{
+		ui32Policy = PHYS_HEAP_POLICY_ALLOC_ALLOW_NONCONTIG;
+
+		if (BITMASK_ANY(ui32UsageFlags,
+			(PHYS_HEAP_USAGE_FW_SHARED    |
+			 PHYS_HEAP_USAGE_FW_PRIVATE   |
+			 PHYS_HEAP_USAGE_FW_PREMAP_PT |
+			 PHYS_HEAP_USAGE_FW_CODE      |
+			 PHYS_HEAP_USAGE_FW_PRIV_DATA)))
+		{
+			if (PVRSRV_VZ_MODE_IS(GUEST))
+			{
+				/* Guest Firmware heaps are always premepped */
+				ui32Policy = PHYS_HEAP_POLICY_DEFAULT;
+			}
+#if defined(RGX_PREMAP_FW_HEAPS)
+			else if (PVRSRV_VZ_MODE_IS(HOST))
+			{
+				/* All Firmware heaps are premapped under AutoVz*/
+				ui32Policy = PHYS_HEAP_POLICY_DEFAULT;
+			}
+#endif
+		}
+
+		if (BITMASK_ANY(ui32UsageFlags, PHYS_HEAP_USAGE_FW_PREMAP))
+		{
+			ui32Policy = PHYS_HEAP_POLICY_DEFAULT;
+		}
+	}
+	else
+	{
+		ui32Policy = PHYS_HEAP_POLICY_DEFAULT;
+	}
+
+	return ui32Policy;
+}
+
 /******************************************************************************
  End of file (rgxutils.c)
 ******************************************************************************/

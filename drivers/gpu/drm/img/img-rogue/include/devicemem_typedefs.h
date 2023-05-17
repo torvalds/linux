@@ -139,4 +139,10 @@ typedef IMG_UINT32 SPARSE_MEM_RESIZE_FLAGS;
  */
 #define DEVMEM_ANNOTATION_MAX_LEN ((IMG_UINT32)PVR_ANNOTATION_MAX_LEN + 1U)
 
+
+/* Reserved VA space of a heap must always be multiple of DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY
+ * Granularity has been chosen to support the max possible practically used OS page size.
+ */
+#define DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY        0x10000 /* 64KB is MAX anticipated OS page size */
+
 #endif /* #ifndef DEVICEMEM_TYPEDEFS_H */

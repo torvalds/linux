@@ -165,32 +165,42 @@ endif
 ifeq ($(SUPPORT_RGX),1)
 $(PVRSRV_MODNAME)-y += \
  services/server/devices/rgx_bridge_init.o \
- services/server/env/linux/pvr_gputrace.o \
  services/server/devices/rgxfwdbg.o \
  services/server/devices/rgxtimerquery.o \
  services/server/devices/rgxccb.o \
- services/server/devices/$(PVR_ARCH_DEFS)/rgxdebug.o \
+ services/server/devices/$(PVR_ARCH)/rgxdebug.o \
  services/server/devices/rgxfwtrace_strings.o \
  services/server/devices/$(PVR_ARCH)/rgxfwutils.o \
  services/server/devices/$(PVR_ARCH)/rgxinit.o \
  services/server/devices/rgxbvnc.o \
- services/server/devices/rgxkicksync.o \
  services/server/devices/$(PVR_ARCH)/rgxlayer_impl.o \
  services/server/devices/rgxmem.o \
  services/server/devices/$(PVR_ARCH)/rgxmmuinit.o \
  services/server/devices/rgxregconfig.o \
  services/server/devices/$(PVR_ARCH)/rgxta3d.o \
  services/server/devices/rgxsyncutils.o \
- services/server/devices/$(PVR_ARCH)/rgxtdmtransfer.o \
+ services/server/devices/rgxtdmtransfer.o \
  services/server/devices/rgxutils.o \
  services/server/devices/rgxhwperf_common.o \
  services/server/devices/$(PVR_ARCH)/rgxhwperf.o \
  services/server/devices/$(PVR_ARCH)/rgxpower.o \
  services/server/devices/$(PVR_ARCH)/rgxstartstop.o \
  services/server/devices/rgxtimecorr.o \
- services/server/devices/$(PVR_ARCH)/rgxcompute.o \
+ services/server/devices/rgxcompute.o \
  services/server/devices/$(PVR_ARCH)/rgxmulticore.o \
  services/server/devices/rgxshader.o
+
+$(PVRSRV_MODNAME)-$(CONFIG_EVENT_TRACING) += services/server/env/linux/pvr_gputrace.o
+
+ifeq ($(PVRSRV_ANDROID_TRACE_GPU_WORK_PERIOD),1)
+$(PVRSRV_MODNAME)-y += \
+ services/server/env/linux/pvr_gpuwork.o
+endif
+
+ifeq ($(SUPPORT_RGXKICKSYNC_BRIDGE),1)
+$(PVRSRV_MODNAME)-y += \
+ services/server/devices/rgxkicksync.o
+endif
 
 ifeq ($(SUPPORT_USC_BREAKPOINT),1)
 $(PVRSRV_MODNAME)-y += \
@@ -217,6 +227,10 @@ endif
 ifeq ($(SUPPORT_WORKLOAD_ESTIMATION),1)
  $(PVRSRV_MODNAME)-y += \
  services/server/devices/rgxworkest.o
+ ifeq ($(PVR_ARCH),volcanic)
+  $(PVRSRV_MODNAME)-y += \
+  services/server/devices/$(PVR_ARCH)/rgxworkest_ray.o
+ endif
 endif
 
 ifeq ($(SUPPORT_VALIDATION),1)
@@ -230,7 +244,7 @@ ifeq ($(SUPPORT_VALIDATION),1)
  $(PVRSRV_MODNAME)-y += \
  services/server/devices/rgxsoctimer.o
 endif
-endif
+endif # SUPPORT_RGX
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
 $(PVRSRV_MODNAME)-y += \
@@ -268,6 +282,10 @@ $(PVRSRV_MODNAME)-y += services/server/common/tutils.o
 endif
 
 $(PVRSRV_MODNAME)-y += services/server/common/devicemem_history_server.o
+
+ifeq ($(PVRSRV_PHYSMEM_CPUMAP_HISTORY),1)
+$(PVRSRV_MODNAME)-y += services/server/common/physmem_cpumap_history.o
+endif
 
 ifeq ($(PVR_HANDLE_BACKEND),generic)
 $(PVRSRV_MODNAME)-y += services/server/common/handle_generic.o
@@ -321,6 +339,13 @@ $(PVRSRV_MODNAME)-y += \
  services/server/env/linux/pvr_ion_stats.o
 endif
 
+ifeq ($(SUPPORT_GPUVIRT_VALIDATION),1)
+ ifeq ($(PVRSRV_TEST_FW_PREMAP_MMU),1)
+ $(PVRSRV_MODNAME)-y += \
+ services/system/common/tee/xt_mmu_fw_premap.o
+ endif
+endif
+
 $(PVRSRV_MODNAME)-$(CONFIG_X86) += services/server/env/linux/osfunc_x86.o
 $(PVRSRV_MODNAME)-$(CONFIG_ARM) += services/server/env/linux/osfunc_arm.o
 $(PVRSRV_MODNAME)-$(CONFIG_ARM64) += services/server/env/linux/osfunc_arm64.o
@@ -357,7 +382,7 @@ $(PVRSRV_MODNAME)-y += \
  services/server/devices/rgxfwimageutils.o
 ifeq ($(PVR_ARCH),rogue)
 $(PVRSRV_MODNAME)-y += \
- services/shared/devices/$(PVR_ARCH_DEFS)/rgx_hwperf_table.o
+ services/shared/devices/$(PVR_ARCH)/rgx_hwperf_table.o
 endif
 endif
 
@@ -384,6 +409,7 @@ ccflags-y += \
  -I$(TOP)/services/shared/common \
  -I$(TOP)/services/shared/devices \
  -I$(TOP)/services/system/include \
+ -I$(TOP)/services/system/common/tee \
  -I$(TOP)/services/system/$(PVR_ARCH)/include \
  -I$(TOP)/services/server/common/$(PVR_ARCH) -I$(TOP)/services/server/common
 
@@ -415,9 +441,9 @@ endif
 
 ifeq ($(SUPPORT_RGX),1)
 ccflags-y += \
+ -I$(bridge_base)/rgxtq2_bridge \
  -I$(bridge_base)/rgxta3d_bridge \
  -I$(bridge_base)/rgxhwperf_bridge \
- -I$(bridge_base)/rgxkicksync_bridge \
  -I$(bridge_base)/rgxcmp_bridge \
  -I$(bridge_base)/rgxregconfig_bridge \
  -I$(bridge_base)/rgxtimerquery_bridge \
@@ -430,14 +456,13 @@ ifeq ($(PVR_ARCH),rogue)
 ccflags-y += \
  -I$(bridge_base)/rgxtq_bridge
 endif
-# Oceanic does not support TDM
-ifneq ($(PVR_ARCH_DEFS),oceanic)
-ccflags-y += \
- -I$(bridge_base)/rgxtq2_bridge
-endif
 ifeq ($(SUPPORT_USC_BREAKPOINT),1)
 ccflags-y += \
  -I$(bridge_base)/rgxbreakpoint_bridge
+endif
+ifeq ($(SUPPORT_RGXKICKSYNC_BRIDGE),1)
+ccflags-y += \
+ -I$(bridge_base)/rgxkicksync_bridge
 endif
 endif
 
@@ -458,9 +483,9 @@ endif
 
 ifeq ($(SUPPORT_RGX),1)
 $(PVRSRV_MODNAME)-y += \
+ generated/$(PVR_ARCH)/rgxtq2_bridge/server_rgxtq2_bridge.o \
  generated/$(PVR_ARCH)/rgxta3d_bridge/server_rgxta3d_bridge.o \
  generated/$(PVR_ARCH)/rgxhwperf_bridge/server_rgxhwperf_bridge.o \
- generated/$(PVR_ARCH)/rgxkicksync_bridge/server_rgxkicksync_bridge.o \
  generated/$(PVR_ARCH)/rgxcmp_bridge/server_rgxcmp_bridge.o \
  generated/$(PVR_ARCH)/rgxregconfig_bridge/server_rgxregconfig_bridge.o \
  generated/$(PVR_ARCH)/rgxtimerquery_bridge/server_rgxtimerquery_bridge.o \
@@ -473,14 +498,13 @@ ifeq ($(PVR_ARCH),rogue)
 $(PVRSRV_MODNAME)-y += \
  generated/$(PVR_ARCH)/rgxtq_bridge/server_rgxtq_bridge.o
 endif
-# Oceanic does not support TDM
-ifneq ($(PVR_ARCH_DEFS),oceanic)
-$(PVRSRV_MODNAME)-y += \
- generated/$(PVR_ARCH)/rgxtq2_bridge/server_rgxtq2_bridge.o
-endif
 ifeq ($(SUPPORT_USC_BREAKPOINT),1)
 $(PVRSRV_MODNAME)-y += \
  generated/$(PVR_ARCH)/rgxbreakpoint_bridge/server_rgxbreakpoint_bridge.o
+endif
+ifeq ($(SUPPORT_RGXKICKSYNC_BRIDGE),1)
+$(PVRSRV_MODNAME)-y += \
+ generated/$(PVR_ARCH)/rgxkicksync_bridge/server_rgxkicksync_bridge.o
 endif
 endif
 

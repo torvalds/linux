@@ -50,7 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /*!
 	Pointer to a linked list node
 */
-typedef struct DLLIST_NODE_	*PDLLIST_NODE;
+typedef struct DLLIST_NODE_TAG	*PDLLIST_NODE;
 
 
 /*!
@@ -62,10 +62,10 @@ typedef struct DLLIST_NODE_	*PDLLIST_NODE;
  * used in a structure shared between host and device.
  * Consider such clients if any changes are made to this structure.
  */
-typedef struct DLLIST_NODE_
+typedef struct DLLIST_NODE_TAG
 {
-	struct DLLIST_NODE_	*psPrevNode;
-	struct DLLIST_NODE_	*psNextNode;
+	struct DLLIST_NODE_TAG	*psPrevNode;
+	struct DLLIST_NODE_TAG	*psNextNode;
 } DLLIST_NODE;
 
 
@@ -112,16 +112,16 @@ DLLIST_NODE (n) = {&(n), &(n)}
 */
 /*****************************************************************************/
 #define dllist_foreach(list_head)	\
-	for (DLLIST_NODE *_DllNode = (list_head).psNextNode, *_DllNext = _DllNode->psNextNode;		\
-		 _DllNode != &(list_head);																\
-		 _DllNode = _DllNext, _DllNext = _DllNode->psNextNode)
+	for (DLLIST_NODE *DllCurNode = (list_head).psNextNode, *DllNextNode = DllCurNode->psNextNode;		\
+		 DllCurNode != &(list_head);																\
+		 DllCurNode = DllNextNode, DllNextNode = DllCurNode->psNextNode)
 
 #define dllist_foreach_backwards(list_head)	\
-	for (DLLIST_NODE *_DllNode = (list_head).psPrevNode, *_DllPrev = _DllNode->psPrevNode;		\
-		 _DllNode != &(list_head);																\
-		 _DllNode = _DllPrev, _DllPrev = _DllNode->psPrevNode)
+	for (DLLIST_NODE *DllCurNode = (list_head).psPrevNode, *DllPrevNode = DllCurNode->psPrevNode;		\
+		 DllCurNode != &(list_head);																\
+		 DllCurNode = DllPrevNode, DllPrevNode = DllCurNode->psPrevNode)
 
-#define dllist_cur(type, member)	IMG_CONTAINER_OF(_DllNode, type, member)
+#define dllist_cur(type, member)	IMG_CONTAINER_OF(DllCurNode, type, member)
 
 /*************************************************************************/ /*!
 @Function       dllist_init

@@ -42,7 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef RGXCORE_KM_22_104_208_318_H
 #define RGXCORE_KM_22_104_208_318_H
 
-/* Automatically generated file (04/10/2021 09:01:50): Do not edit manually */
+/* Automatically generated file (21/01/2022 09:01:15): Do not edit manually */
 /* CS: @5124208 */
 
 /******************************************************************************
@@ -60,6 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FIX_HW_BRN_63553
 #define FIX_HW_BRN_64502
 #define FIX_HW_BRN_65101
+#define FIX_HW_BRN_71317
 
 
 

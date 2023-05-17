@@ -42,7 +42,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 #include "rgxdevice.h"
 #include "htbserver.h"
-#include "htbuffer.h"
 #include "htbuffer_types.h"
 #include "tlstream.h"
 #include "tlclient.h"
@@ -311,7 +310,7 @@ static IMG_PBYTE HTB_GetNextMessage(HTB_Sentinel_t *pSentinel)
 			    "%s: Unrecognised LOG value '%x' GID %x Params %d ID %x @ '%p'",
 			    __func__, ui32Data, HTB_SF_GID(ui32Data),
 			    HTB_SF_PARAMNUM(ui32Data), ui32Data & 0xfff, pData));
-			bUnrecognizedErrorPrinted = IMG_FALSE;
+			bUnrecognizedErrorPrinted = IMG_TRUE;
 		}
 
 	} while (HTB_SF_LAST == ui32LogIdx);

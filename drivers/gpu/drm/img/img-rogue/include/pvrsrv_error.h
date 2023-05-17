@@ -58,4 +58,16 @@ typedef enum PVRSRV_ERROR_TAG
 
 } PVRSRV_ERROR;
 
+/*!
+ * @Function PVRSRVIsRetryError
+ * @Description Checks if error code is one of the errors that require retry
+ *              from the caller.
+ * @Input eError Error code.
+ * @Return IMG_TRUE if eError is one of the error codes that require the caller
+ *         to retry.
+ */
+#define PVRSRVIsRetryError(eError) \
+	(((eError == PVRSRV_ERROR_RETRY) || (eError == PVRSRV_ERROR_KERNEL_CCB_FULL)) ? \
+	 IMG_TRUE : IMG_FALSE)
+
 #endif /* !defined(PVRSRV_ERROR_H) */

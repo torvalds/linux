@@ -373,8 +373,7 @@ PVRSRV_ERROR TLClientAcquireData(SHARED_DEV_CONNECTION hDevConnection,
 	if (eError != PVRSRV_OK)
 	{
 		/* Mask reporting of the errors seen under normal operation */
-		if ((eError != PVRSRV_ERROR_RESOURCE_UNAVAILABLE) &&
-			(eError != PVRSRV_ERROR_TIMEOUT) &&
+		if ((eError != PVRSRV_ERROR_TIMEOUT) &&
 			(eError != PVRSRV_ERROR_STREAM_READLIMIT_REACHED))
 		{
 			PVR_LOG_ERROR(eError, "BridgeTLAcquireData");

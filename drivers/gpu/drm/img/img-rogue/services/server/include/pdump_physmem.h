@@ -71,13 +71,31 @@ PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
                page-size. */
             IMG_DEVMEM_ALIGN_T uiAlign,
             IMG_BOOL bInitialise,
-            IMG_UINT32 ui32InitValue,
+            IMG_UINT8 ui8InitValue,
             IMG_HANDLE *phHandlePtr,
             IMG_UINT32 ui32PDumpFlags);
 
 PVRSRV_ERROR
+PDumpMallocUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                    const IMG_CHAR *pszDevSpace,
+                    const IMG_CHAR *pszSymbolicAddress,
+                    IMG_UINT64 ui64Size,
+                    /* alignment is alignment of start of buffer _and_
+                       minimum contiguity - i.e. smallest allowable
+                       page-size. */
+                    IMG_DEVMEM_ALIGN_T uiAlign,
+                    IMG_BOOL bInitialise,
+                    IMG_UINT8 ui8InitValue,
+                    IMG_HANDLE *phHandlePtr,
+                    IMG_UINT32 ui32PDumpFlags);
+
+PVRSRV_ERROR
 PDumpFree(PVRSRV_DEVICE_NODE *psDeviceNode,
           IMG_HANDLE hPDumpAllocationInfoHandle);
+
+PVRSRV_ERROR
+PDumpFreeUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                  IMG_HANDLE hPDumpAllocationInfoHandle);
 
 void
 PDumpMakeStringValid(IMG_CHAR *pszString,
@@ -97,50 +115,75 @@ PDumpGetSymbolicAddr(const IMG_HANDLE hPhysmemPDumpHandle,
 }
 
 static INLINE PVRSRV_ERROR
-PDumpMalloc(const IMG_CHAR *pszDevSpace,
+PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
+            const IMG_CHAR *pszDevSpace,
             const IMG_CHAR *pszSymbolicAddress,
             IMG_UINT64 ui64Size,
             IMG_DEVMEM_ALIGN_T uiAlign,
             IMG_BOOL bInitialise,
-            IMG_UINT32 ui32InitValue,
+            IMG_UINT8 ui8InitValue,
             IMG_HANDLE *phHandlePtr,
             IMG_UINT32 ui32PDumpFlags)
 {
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(pszDevSpace);
 	PVR_UNREFERENCED_PARAMETER(pszSymbolicAddress);
 	PVR_UNREFERENCED_PARAMETER(ui64Size);
 	PVR_UNREFERENCED_PARAMETER(uiAlign);
 	PVR_UNREFERENCED_PARAMETER(bInitialise);
-	PVR_UNREFERENCED_PARAMETER(ui32InitValue);
+	PVR_UNREFERENCED_PARAMETER(ui8InitValue);
 	PVR_UNREFERENCED_PARAMETER(phHandlePtr);
 	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
 	return PVRSRV_OK;
 }
 
 static INLINE PVRSRV_ERROR
-PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
+PDumpMallocUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                    const IMG_CHAR *pszDevSpace,
+                    const IMG_CHAR *pszSymbolicAddress,
+                    IMG_UINT64 ui64Size,
+                    IMG_DEVMEM_ALIGN_T uiAlign,
+                    IMG_BOOL bInitialise,
+                    IMG_UINT8 ui8InitValue,
+                    IMG_HANDLE *phHandlePtr,
+                    IMG_UINT32 ui32PDumpFlags)
 {
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
+	PVR_UNREFERENCED_PARAMETER(pszDevSpace);
+	PVR_UNREFERENCED_PARAMETER(pszSymbolicAddress);
+	PVR_UNREFERENCED_PARAMETER(ui64Size);
+	PVR_UNREFERENCED_PARAMETER(uiAlign);
+	PVR_UNREFERENCED_PARAMETER(bInitialise);
+	PVR_UNREFERENCED_PARAMETER(ui8InitValue);
+	PVR_UNREFERENCED_PARAMETER(phHandlePtr);
+	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
+	return PVRSRV_OK;
+}
+
+static INLINE PVRSRV_ERROR
+PDumpFree(PVRSRV_DEVICE_NODE *psDeviceNode,
+          IMG_HANDLE hPDumpAllocationInfoHandle)
+{
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
+	PVR_UNREFERENCED_PARAMETER(hPDumpAllocationInfoHandle);
+	return PVRSRV_OK;
+}
+
+static INLINE PVRSRV_ERROR
+PDumpFreeUnlocked(PVRSRV_DEVICE_NODE *psDeviceNode,
+                  IMG_HANDLE hPDumpAllocationInfoHandle)
+{
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(hPDumpAllocationInfoHandle);
 	return PVRSRV_OK;
 }
 #endif /* PDUMP */
 
 #define PMR_DEFAULT_PREFIX "PMR"
+#define PMR_SPARSE_PREFIX "SPMR"
 #define PMR_SYMBOLICADDR_FMTSPEC "%s%"IMG_UINT64_FMTSPEC"_%"IMG_UINT64_FMTSPEC"_%s"
 #define PMR_MEMSPACE_FMTSPEC "%s"
 #define PMR_MEMSPACE_CACHE_COHERENT_FMTSPEC "CC_%s"
-
-#if defined(PDUMP)
-#define PDUMP_PHYSMEM_MALLOC_OSPAGES(pszPDumpMemDevName, ui32SerialNum, ui32Size, ui32Align, bInitialise, ui32InitValue, phHandlePtr) \
-    PDumpMalloc(pszPDumpMemDevName, PMR_OSALLOCPAGES_PREFIX, ui32SerialNum, ui32Size, ui32Align, bInitialise, ui32InitValue, phHandlePtr, PDUMP_NONE)
-#define PDUMP_PHYSMEM_FREE_OSPAGES(hHandle) \
-    PDumpFree(hHandle)
-#else
-#define PDUMP_PHYSMEM_MALLOC_OSPAGES(pszPDumpMemDevName, ui32SerialNum, ui32Size, ui32Align, bInitialise, ui32InitValue, phHandlePtr) \
-    ((void)(*phHandlePtr=NULL))
-#define PDUMP_PHYSMEM_FREE_OSPAGES(hHandle) \
-    ((void)(0))
-#endif /* PDUMP */
 
 PVRSRV_ERROR
 PDumpPMRWRW32(PVRSRV_DEVICE_NODE *psDeviceNode,

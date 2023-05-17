@@ -50,28 +50,6 @@ extern "C" {
 #include "img_defs.h"
 
 /*************************************************************************/ /*!
- @Function      HTBConfigure
- @Description   Configure the Host Trace Buffer.
-                Once these parameters are set they may not be changed
-
- @Input         hSrvHandle      Server Handle
-
- @Input         pszBufferName   Name to use for the TL buffer, this will be
-                                required to request trace data from the TL
-
- @Input         ui32BufferSize  Requested TL buffer size in bytes
-
- @Return        eError          Internal services call returned eError error
-                                number
-*/ /**************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-HTBConfigure(
-	IMG_HANDLE hSrvHandle,
-	IMG_CHAR * pszBufferName,
-	IMG_UINT32 ui32BufferSize
-);
-
-/*************************************************************************/ /*!
  @Function      HTBControl
  @Description   Update the configuration of the Host Trace Buffer
 

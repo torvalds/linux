@@ -72,13 +72,13 @@ void PVRSRVCommonDriverDeInit(void);
 @Description  Creates and initialises a common layer Services device node
               for an OS native device. First stage device discovery.
 @Input        pvOSDevice      OS native device
-@Input        i32OsDeviceID A unique identifier which helps recognise this
+@Input        i32KernelDeviceID A unique identifier which helps recognise this
                               Device in the UM space provided by the OS.
 @Output       ppsDeviceNode   Points to the new device node on success
 @Return       PVRSRV_ERROR    PVRSRV_OK on success and an error otherwise
 */ /**************************************************************************/
 PVRSRV_ERROR
-PVRSRVCommonDeviceCreate(void *pvOSDevice, IMG_INT32 i32OsDeviceID,
+PVRSRVCommonDeviceCreate(void *pvOSDevice, IMG_INT32 i32KernelDeviceID,
 				   struct _PVRSRV_DEVICE_NODE_ **ppsDeviceNode);
 
 /*************************************************************************/ /*!

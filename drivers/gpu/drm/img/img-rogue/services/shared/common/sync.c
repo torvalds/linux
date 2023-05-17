@@ -198,6 +198,7 @@ static PVRSRV_ERROR
 SyncPrimBlockImport(RA_PERARENA_HANDLE hArena,
                     RA_LENGTH_T uSize,
                     RA_FLAGS_T uFlags,
+                    RA_LENGTH_T uBaseAlignment,
                     const IMG_CHAR *pszAnnotation,
                     RA_BASE_T *puiBase,
                     RA_LENGTH_T *puiActualSize,
@@ -208,6 +209,7 @@ SyncPrimBlockImport(RA_PERARENA_HANDLE hArena,
 	RA_LENGTH_T uiSpanSize;
 	PVRSRV_ERROR eError;
 	PVR_UNREFERENCED_PARAMETER(uFlags);
+	PVR_UNREFERENCED_PARAMETER(uBaseAlignment);
 
 	/* Check we've not been called with an unexpected size */
 	PVR_LOG_GOTO_IF_INVALID_PARAM(hArena, eError, e0);
@@ -280,18 +282,16 @@ SyncPrimBlockUnimport(RA_PERARENA_HANDLE hArena,
 
 static INLINE IMG_UINT32 SyncPrimGetOffset(SYNC_PRIM *psSyncInt)
 {
-	IMG_UINT64 ui64Temp;
+	IMG_UINT64 ui64Temp = psSyncInt->uiSpanAddr - psSyncInt->psSyncBlock->uiSpanBase;
 
-	PVR_ASSERT(psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL);
-
-	ui64Temp = psSyncInt->u.sLocal.uiSpanAddr - psSyncInt->u.sLocal.psSyncBlock->uiSpanBase;
 	PVR_ASSERT(ui64Temp<IMG_UINT32_MAX);
+
 	return TRUNCATE_64BITS_TO_32BITS(ui64Temp);
 }
 
 static void SyncPrimGetCPULinAddr(SYNC_PRIM *psSyncInt)
 {
-	SYNC_PRIM_BLOCK *psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	SYNC_PRIM_BLOCK *psSyncBlock = psSyncInt->psSyncBlock;
 
 	psSyncInt->sCommon.pui32LinAddr = psSyncBlock->pui32LinAddr +
 			(SyncPrimGetOffset(psSyncInt)/sizeof(IMG_UINT32));
@@ -302,29 +302,29 @@ static void SyncPrimLocalFree(SYNC_PRIM *psSyncInt, IMG_BOOL bFreeFirstSyncPrim)
 	SYNC_PRIM_BLOCK *psSyncBlock;
 	SYNC_PRIM_CONTEXT *psContext;
 
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	psContext = psSyncBlock->psContext;
 
 #if !defined(LOCAL_SYNC_BLOCK_RETAIN_FIRST)
 	PVR_UNREFERENCED_PARAMETER(bFreeFirstSyncPrim);
 #else
 	/* Defer freeing the first allocated sync prim in the sync context */
-	if (psSyncInt != psContext->hFirstSyncPrim || (psSyncInt == psContext->hFirstSyncPrim && bFreeFirstSyncPrim))
+	if (psSyncInt != psContext->hFirstSyncPrim || bFreeFirstSyncPrim)
 #endif
 	{
 		PVRSRV_ERROR eError;
 		SHARED_DEV_CONNECTION hDevConnection =
-			psSyncInt->u.sLocal.psSyncBlock->psContext->hDevConnection;
+			psSyncInt->psSyncBlock->psContext->hDevConnection;
 
 		if (GetInfoPageDebugFlags(hDevConnection) & DEBUG_FEATURE_FULL_SYNC_TRACKING_ENABLED)
 		{
-			if (psSyncInt->u.sLocal.hRecord)
+			if (psSyncInt->hRecord)
 			{
 				/* remove this sync record */
 				eError = DestroyServerResource(hDevConnection,
 				                               NULL,
 				                               BridgeSyncRecordRemoveByHandle,
-				                               psSyncInt->u.sLocal.hRecord);
+				                               psSyncInt->hRecord);
 				PVR_LOG_IF_ERROR(eError, "BridgeSyncRecordRemoveByHandle");
 			}
 		}
@@ -349,7 +349,7 @@ static void SyncPrimLocalFree(SYNC_PRIM *psSyncInt, IMG_BOOL bFreeFirstSyncPrim)
 		(void) _SyncPrimSetValue(psSyncInt, LOCAL_SYNC_PRIM_RESET_VALUE);
 #endif
 
-		RA_Free(psContext->psSubAllocRA, psSyncInt->u.sLocal.uiSpanAddr);
+		RA_Free(psContext->psSubAllocRA, psSyncInt->uiSpanAddr);
 		OSFreeMem(psSyncInt);
 		_SyncPrimContextUnref(psContext);
 	}
@@ -357,11 +357,11 @@ static void SyncPrimLocalFree(SYNC_PRIM *psSyncInt, IMG_BOOL bFreeFirstSyncPrim)
 
 static void SyncPrimLocalUnref(SYNC_PRIM *psSyncInt)
 {
-	if (!OSAtomicRead(&psSyncInt->u.sLocal.hRefCount))
+	if (!OSAtomicRead(&psSyncInt->hRefCount))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "SyncPrimLocalUnref sync already freed"));
 	}
-	else if (0 == OSAtomicDecrement(&psSyncInt->u.sLocal.hRefCount))
+	else if (0 == OSAtomicDecrement(&psSyncInt->hRefCount))
 	{
 		SyncPrimLocalFree(psSyncInt, IMG_FALSE);
 	}
@@ -371,7 +371,7 @@ static IMG_UINT32 SyncPrimGetFirmwareAddrLocal(SYNC_PRIM *psSyncInt)
 {
 	SYNC_PRIM_BLOCK *psSyncBlock;
 
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	return psSyncBlock->ui32FirmwareAddr + SyncPrimGetOffset(psSyncInt);
 }
 
@@ -517,10 +517,9 @@ static PVRSRV_ERROR _SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
 	                  (RA_PERISPAN_HANDLE *) &psSyncBlock);
 	PVR_GOTO_IF_ERROR(eError, fail_raalloc);
 
-	psNewSync->eType = SYNC_PRIM_TYPE_LOCAL;
-	OSAtomicWrite(&psNewSync->u.sLocal.hRefCount, 1);
-	psNewSync->u.sLocal.uiSpanAddr = uiSpanAddr;
-	psNewSync->u.sLocal.psSyncBlock = psSyncBlock;
+	OSAtomicWrite(&psNewSync->hRefCount, 1);
+	psNewSync->uiSpanAddr = uiSpanAddr;
+	psNewSync->psSyncBlock = psSyncBlock;
 	SyncPrimGetCPULinAddr(psNewSync);
 	*ppsSync = &psNewSync->sCommon;
 	_SyncPrimContextRef(psContext);
@@ -530,7 +529,7 @@ static PVRSRV_ERROR _SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
 
 #if defined(LOCAL_SYNC_BLOCK_RETAIN_FIRST)
 	/* If this is the first sync prim allocated in the context, keep a handle to it */
-	if (psSyncBlock->uiSpanBase == 0 && psNewSync->u.sLocal.uiSpanAddr == 0)
+	if (psSyncBlock->uiSpanBase == 0 && psNewSync->uiSpanAddr == 0)
 	{
 		psContext->hFirstSyncPrim = psNewSync;
 	}
@@ -561,7 +560,7 @@ static PVRSRV_ERROR _SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
 		/* record this sync */
 		eError = BridgeSyncRecordAdd(
 				GetBridgeHandle(psSyncBlock->psContext->hDevConnection),
-				&psNewSync->u.sLocal.hRecord,
+				&psNewSync->hRecord,
 				psSyncBlock->hServerSyncPrimBlock,
 				psSyncBlock->ui32FirmwareAddr,
 				SyncPrimGetOffset(psNewSync),
@@ -574,7 +573,7 @@ static PVRSRV_ERROR _SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
 					__func__,
 					szClassName,
 					PVRSRVGETERRORSTRING(eError)));
-			psNewSync->u.sLocal.hRecord = NULL;
+			psNewSync->hRecord = NULL;
 		}
 	}
 	else
@@ -618,24 +617,17 @@ _SyncPrimSetValue(SYNC_PRIM *psSyncInt, IMG_UINT32 ui32Value)
 {
 	PVRSRV_ERROR eError;
 
-	if (psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL)
-	{
-		SYNC_PRIM_BLOCK *psSyncBlock;
-		SYNC_PRIM_CONTEXT *psContext;
+	SYNC_PRIM_BLOCK *psSyncBlock;
+	SYNC_PRIM_CONTEXT *psContext;
 
-		psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
-		psContext = psSyncBlock->psContext;
+	psSyncBlock = psSyncInt->psSyncBlock;
+	psContext = psSyncBlock->psContext;
 
-		eError = BridgeSyncPrimSet(GetBridgeHandle(psContext->hDevConnection),
-		                           psSyncBlock->hServerSyncPrimBlock,
-		                           SyncPrimGetOffset(psSyncInt)/sizeof(IMG_UINT32),
-		                           ui32Value);
-	}
-	else
-	{
-	/* Server sync not supported, attempted use of server sync */
-	return PVRSRV_ERROR_NOT_SUPPORTED;
-	}
+	eError = BridgeSyncPrimSet(GetBridgeHandle(psContext->hDevConnection),
+								psSyncBlock->hServerSyncPrimBlock,
+								SyncPrimGetOffset(psSyncInt)/sizeof(IMG_UINT32),
+								ui32Value);
+
 	return eError;
 }
 
@@ -647,23 +639,9 @@ IMG_INTERNAL PVRSRV_ERROR SyncPrimFree(PVRSRV_CLIENT_SYNC_PRIM *psSync)
 	PVR_LOG_GOTO_IF_INVALID_PARAM(psSync, eError, err_out);
 
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
-	if (psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL)
-	{
-		SyncPrimLocalUnref(psSyncInt);
-	}
-	else if (psSyncInt->eType == SYNC_PRIM_TYPE_SERVER)
-	{
-	/* Server sync not supported, attempted use of server sync */
-	return PVRSRV_ERROR_NOT_SUPPORTED;
-	}
-	else
-	{
-		/*
-			Either the client has given us a bad pointer or there is an
-			error in this module
-		 */
-		PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_SYNC_PRIM, err_out);
-	}
+
+	SyncPrimLocalUnref(psSyncInt);
+
 
 err_out:
 	return eError;
@@ -679,10 +657,6 @@ SyncPrimNoHwUpdate(PVRSRV_CLIENT_SYNC_PRIM *psSync, IMG_UINT32 ui32Value)
 	PVR_LOG_GOTO_IF_INVALID_PARAM(psSync, eError, err_out);
 
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
-
-	/* There is no check for the psSyncInt to be LOCAL as this call
-	   substitutes the Firmware updating a sync and that sync could
-	   be a server one */
 
 	eError =  _SyncPrimSetValue(psSyncInt, ui32Value);
 
@@ -700,11 +674,6 @@ SyncPrimSet(PVRSRV_CLIENT_SYNC_PRIM *psSync, IMG_UINT32 ui32Value)
 	PVR_LOG_GOTO_IF_INVALID_PARAM(psSync, eError, err_out);
 
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
-	if (psSyncInt->eType != SYNC_PRIM_TYPE_LOCAL)
-	{
-		/* Invalid sync type */
-		PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_SYNC_PRIM, err_out);
-	}
 
 	eError = _SyncPrimSetValue(psSyncInt, ui32Value);
 
@@ -728,17 +697,8 @@ IMG_INTERNAL PVRSRV_ERROR SyncPrimLocalGetHandleAndOffset(PVRSRV_CLIENT_SYNC_PRI
 
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
 
-	if (likely(psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL))
-	{
-		*phBlock = psSyncInt->u.sLocal.psSyncBlock->hServerSyncPrimBlock;
-		*pui32Offset = psSyncInt->u.sLocal.uiSpanAddr - psSyncInt->u.sLocal.psSyncBlock->uiSpanBase;
-	}
-	else
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: psSync not a Local sync prim (%d)",
-				__func__, psSyncInt->eType));
-		PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_PARAMS, err_out);
-	}
+	*phBlock = psSyncInt->psSyncBlock->hServerSyncPrimBlock;
+	*pui32Offset = psSyncInt->uiSpanAddr - psSyncInt->psSyncBlock->uiSpanBase;
 
 err_out:
 	return eError;
@@ -754,22 +714,7 @@ SyncPrimGetFirmwareAddr(PVRSRV_CLIENT_SYNC_PRIM *psSync, IMG_UINT32 *pui32FwAddr
 	PVR_LOG_GOTO_IF_INVALID_PARAM(psSync, eError, err_out);
 
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
-	if (psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL)
-	{
-		*pui32FwAddr = SyncPrimGetFirmwareAddrLocal(psSyncInt);
-	}
-	else if (psSyncInt->eType == SYNC_PRIM_TYPE_SERVER)
-	{
-	/* Server sync not supported, attempted use of server sync */
-	return PVRSRV_ERROR_NOT_SUPPORTED;
-	}
-	else
-	{
-		/* Either the client has given us a bad pointer or there is an
-		 * error in this module
-		 */
-		PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_SYNC_PRIM, err_out);
-	}
+	*pui32FwAddr = SyncPrimGetFirmwareAddrLocal(psSyncInt);
 
 err_out:
 	return eError;
@@ -786,14 +731,7 @@ IMG_INTERNAL void SyncPrimPDump(PVRSRV_CLIENT_SYNC_PRIM *psSync)
 	PVR_ASSERT(psSync != NULL);
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
 
-	if (psSyncInt->eType != SYNC_PRIM_TYPE_LOCAL)
-	{
-		/* Invalid sync type */
-		PVR_ASSERT(IMG_FALSE);
-		return;
-	}
-
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	psContext = psSyncBlock->psContext;
 
 	eError = BridgeSyncPrimPDump(GetBridgeHandle(psContext->hDevConnection),
@@ -813,14 +751,7 @@ IMG_INTERNAL void SyncPrimPDumpValue(PVRSRV_CLIENT_SYNC_PRIM *psSync, IMG_UINT32
 	PVR_ASSERT(psSync != NULL);
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
 
-	if (psSyncInt->eType != SYNC_PRIM_TYPE_LOCAL)
-	{
-		/* Invalid sync type */
-		PVR_ASSERT(IMG_FALSE);
-		return;
-	}
-
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	psContext = psSyncBlock->psContext;
 
 	eError = BridgeSyncPrimPDumpValue(GetBridgeHandle(psContext->hDevConnection),
@@ -845,14 +776,7 @@ IMG_INTERNAL void SyncPrimPDumpPol(PVRSRV_CLIENT_SYNC_PRIM *psSync,
 	PVR_ASSERT(psSync != NULL);
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
 
-	if (psSyncInt->eType != SYNC_PRIM_TYPE_LOCAL)
-	{
-		/* Invalid sync type */
-		PVR_ASSERT(IMG_FALSE);
-		return;
-	}
-
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	psContext = psSyncBlock->psContext;
 
 	eError = BridgeSyncPrimPDumpPol(GetBridgeHandle(psContext->hDevConnection),
@@ -879,14 +803,7 @@ IMG_INTERNAL void SyncPrimPDumpCBP(PVRSRV_CLIENT_SYNC_PRIM *psSync,
 	PVR_ASSERT(psSync != NULL);
 	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
 
-	if (psSyncInt->eType != SYNC_PRIM_TYPE_LOCAL)
-	{
-		/* Invalid sync type */
-		PVR_ASSERT(IMG_FALSE);
-		return;
-	}
-
-	psSyncBlock = psSyncInt->u.sLocal.psSyncBlock;
+	psSyncBlock = psSyncInt->psSyncBlock;
 	psContext = psSyncBlock->psContext;
 
 #if defined(__linux__) && defined(__i386__)

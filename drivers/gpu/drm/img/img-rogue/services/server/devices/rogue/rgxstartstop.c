@@ -282,9 +282,11 @@ static void RGXInitMipsProcWrapper(const void *hPrivate)
 	ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_TRUSTED_CLRMSK;
 #endif
 
-#if defined(MIPS_FW_CODE_OSID)
 	ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_CLRMSK;
-	ui64RemapSettings |= MIPS_FW_CODE_OSID << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
+#if defined(MIPS_FW_CODE_OSID)
+	ui64RemapSettings |= ((IMG_UINT64) MIPS_FW_CODE_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
+#else
+	ui64RemapSettings |= ((IMG_UINT64) FW_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
 #endif
 
 	RGXCommentLog(hPrivate, "RGXStart: Write boot remap registers");
@@ -335,9 +337,8 @@ static void RGXInitMipsProcWrapper(const void *hPrivate)
 	}
 #endif
 
-#if defined(MIPS_FW_CODE_OSID)
 	ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_CLRMSK;
-#endif
+	ui64RemapSettings |= ((IMG_UINT64) FW_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
 
 	RGXCommentLog(hPrivate, "RGXStart: Write data remap registers");
 	RGXDataRemapConfig(hPrivate,
@@ -359,9 +360,11 @@ static void RGXInitMipsProcWrapper(const void *hPrivate)
 	ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_TRUSTED_CLRMSK;
 #endif
 
-#if defined(MIPS_FW_CODE_OSID)
 	ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_CLRMSK;
-	ui64RemapSettings |= MIPS_FW_CODE_OSID << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
+#if defined(MIPS_FW_CODE_OSID)
+	ui64RemapSettings |= ((IMG_UINT64) MIPS_FW_CODE_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
+#else
+	ui64RemapSettings |= ((IMG_UINT64) FW_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
 #endif
 
 	RGXCommentLog(hPrivate, "RGXStart: Write exceptions remap registers");
@@ -387,9 +390,8 @@ static void RGXInitMipsProcWrapper(const void *hPrivate)
 		ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_TRUSTED_CLRMSK;
 #endif
 
-#if defined(MIPS_FW_CODE_OSID)
 		ui64RemapSettings &= RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_CLRMSK;
-#endif
+		ui64RemapSettings |= ((IMG_UINT64) FW_OSID) << RGX_CR_MIPS_ADDR_REMAP1_CONFIG2_OS_ID_SHIFT;
 
 		RGXCommentLog(hPrivate, "RGXStart: Write trampoline remap registers");
 		RGXTrampolineRemapConfig(hPrivate,
@@ -577,10 +579,7 @@ static void __RGXInitSLC(const void *hPrivate)
 		 */
 		ui32Reg = RGX_CR_SLC_CTRL_MISC;
 		ui32RegVal = RGX_CR_SLC_CTRL_MISC_ADDR_DECODE_MODE_PVR_HASH1;
-
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 		ui32RegVal |= RGXReadReg32(hPrivate, ui32Reg) & RGX_CR_SLC_CTRL_MISC_ENABLE_PSG_HAZARD_CHECK_EN;
-#endif
 
 #if defined(FIX_HW_BRN_60084_BIT_MASK)
 		if (RGX_DEVICE_HAS_BRN(hPrivate, 60084))
@@ -596,13 +595,11 @@ static void __RGXInitSLC(const void *hPrivate)
 		}
 #endif
 
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 		/* Bypass burst combiner if SLC line size is smaller than 1024 bits */
 		if (RGXGetDeviceCacheLineSize(hPrivate) < 1024)
 		{
 			ui32RegVal |= RGX_CR_SLC_CTRL_MISC_BYPASS_BURST_COMBINER_EN;
 		}
-#endif
 
 		RGXWriteReg32(hPrivate, ui32Reg, ui32RegVal);
 	}
@@ -676,7 +673,7 @@ static void RGXInitBIF(const void *hPrivate)
 		else
 #endif /* defined(RGX_FEATURE_SLC_VIVT_BIT_MASK) */
 		{
-#if defined(RGX_CR_MMU_CBASE_MAPPING) // FIXME_OCEANIC
+#if defined(RGX_CR_MMU_CBASE_MAPPING)
 			IMG_UINT32 uiPCAddr;
 			uiPCAddr = (((sPCAddr.uiAddr >> RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_ALIGNSHIFT)
 			             << RGX_CR_MMU_CBASE_MAPPING_BASE_ADDR_SHIFT)
@@ -764,15 +761,6 @@ static void RGXAXIACELiteInit(const void *hPrivate)
 	}
 #endif
 
-#if defined(SUPPORT_TRUSTED_DEVICE) && defined(RGX_FEATURE_SLC_VIVT_BIT_MASK)
-	if (RGX_DEVICE_HAS_FEATURE(hPrivate, SLC_VIVT))
-	{
-		RGXCommentLog(hPrivate, "OSID 0 and 1 are trusted");
-		ui64RegVal |= IMG_UINT64_C(0xFC)
-	              << RGX_CR_AXI_ACE_LITE_CONFIGURATION_OSID_SECURITY_SHIFT;
-	}
-#endif
-
 	RGXCommentLog(hPrivate, "Init AXI-ACE interface");
 	RGXWriteReg64(hPrivate, ui32RegAddr, ui64RegVal);
 }
@@ -819,6 +807,14 @@ PVRSRV_ERROR RGXStart(const void *hPrivate)
 	RGXCommentLog(hPrivate, "RGXStart: Shared SLC (don't reset SLC as part of RGX reset)");
 #else
 #define RGX_CR_SOFT_RESET_ALL  (RGX_CR_SOFT_RESET_MASKFULL)
+#endif
+
+#if defined(RGX_FEATURE_RISCV_FW_PROCESSOR_BIT_MASK)
+	if (RGX_DEVICE_HAS_FEATURE(hPrivate, RISCV_FW_PROCESSOR))
+	{
+		RGXCommentLog(hPrivate, "RGXStart: soft reset cpu core");
+		RGXWriteReg32(hPrivate, RGX_CR_FWCORE_BOOT, 0);
+	}
 #endif
 
 #if defined(RGX_S7_SOFT_RESET_DUSTS)
@@ -871,11 +867,7 @@ PVRSRV_ERROR RGXStart(const void *hPrivate)
 		/* Take everything out of reset but the FW processor */
 		RGXCommentLog(hPrivate, "RGXStart: Take everything out of reset but %s", pcRGXFW_PROCESSOR);
 
-#if defined(RGX_FEATURE_XE_ARCHITECTURE) && (RGX_FEATURE_XE_ARCHITECTURE > 1)
-		RGXWriteReg64(hPrivate, RGX_CR_SOFT_RESET, RGX_CR_SOFT_RESET_CPU_EN);
-#else
 		RGXWriteReg64(hPrivate, RGX_CR_SOFT_RESET, RGX_CR_SOFT_RESET_GARTEN_EN);
-#endif
 
 		(void) RGXReadReg64(hPrivate, RGX_CR_SOFT_RESET);
 	}
@@ -1015,7 +1007,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 	/* Wait for Sidekick/Jones to signal IDLE except for the Garten Wrapper
 	 * For LAYOUT_MARS = 1, SIDEKICK would have been powered down by FW
 	 */
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 	if (!(PVRSRV_GET_DEVICE_FEATURE_VALUE(psDevInfo->psDeviceNode, LAYOUT_MARS) > 0))
 	{
 #if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
@@ -1037,7 +1028,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 
 		if (eError != PVRSRV_OK) return eError;
 	}
-#endif
 
 	if (!(PVRSRV_GET_DEVICE_FEATURE_VALUE(psDevInfo->psDeviceNode, LAYOUT_MARS) > 0))
 	{
@@ -1075,7 +1065,8 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 	              RGX_CR_MTS_BGCTX_THREAD0_DM_ASSOC,
 	              RGX_CR_MTS_BGCTX_THREAD0_DM_ASSOC_DM_ASSOC_CLRMSK
 	              & RGX_CR_MTS_BGCTX_THREAD0_DM_ASSOC_MASKFULL);
-#if defined(RGX_CR_MTS_INTCTX_THREAD1_DM_ASSOC) // FIXME_OCEANIC
+
+#if defined(RGX_CR_MTS_INTCTX_THREAD1_DM_ASSOC)
 	RGXWriteReg32(hPrivate,
 	              RGX_CR_MTS_INTCTX_THREAD1_DM_ASSOC,
 	              RGX_CR_MTS_INTCTX_THREAD1_DM_ASSOC_DM_ASSOC_CLRMSK
@@ -1119,7 +1110,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 	}
 #endif
 
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 	/* Extra Idle checks */
 	eError = RGXPollReg32(hPrivate,
 	                      RGX_CR_BIF_STATUS_MMU,
@@ -1132,7 +1122,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 	                      0,
 	                      RGX_CR_BIFPM_STATUS_MMU_MASKFULL);
 	if (eError != PVRSRV_OK) return eError;
-#endif
 
 #if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
 	if (!RGX_DEVICE_HAS_FEATURE(hPrivate, S7_TOP_INFRASTRUCTURE) &&
@@ -1146,14 +1135,11 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 		if (eError != PVRSRV_OK) return eError;
 	}
 
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 	eError = RGXPollReg32(hPrivate,
 	                      RGX_CR_BIFPM_READS_EXT_STATUS,
 	                      0,
 	                      RGX_CR_BIFPM_READS_EXT_STATUS_MASKFULL);
 	if (eError != PVRSRV_OK) return eError;
-#endif
-
 	{
 		IMG_UINT64 ui64SLCMask = RGX_CR_SLC_STATUS1_MASKFULL;
 		eError = RGXPollReg64(hPrivate,
@@ -1163,7 +1149,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 		if (eError != PVRSRV_OK) return eError;
 	}
 
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 	if (4 == RGXGetDeviceSLCBanks(hPrivate))
 	{
 		eError = RGXPollReg64(hPrivate,
@@ -1172,7 +1157,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 		                      RGX_CR_SLC_STATUS2_MASKFULL);
 		if (eError != PVRSRV_OK) return eError;
 	}
-#endif
 
 	if (!(PVRSRV_GET_DEVICE_FEATURE_VALUE(psDevInfo->psDeviceNode, LAYOUT_MARS) > 0))
 	{
@@ -1204,7 +1188,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 	/* Wait for Sidekick/Jones to signal IDLE except for the Garten Wrapper
 	 * For LAYOUT_MARS = 1, SIDEKICK would have been powered down by FW
 	 */
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 	if (!(PVRSRV_GET_DEVICE_FEATURE_VALUE(psDevInfo->psDeviceNode, LAYOUT_MARS) > 0))
 	{
 #if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
@@ -1231,7 +1214,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 
 		if (eError != PVRSRV_OK) return eError;
 	}
-#endif
 
 #if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 	if (bMetaFW)
@@ -1281,7 +1263,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 					RGX_CR_MARS_IDLE_CPU_EN | RGX_CR_MARS_IDLE_MH_SYSARB0_EN);
 			if (eError != PVRSRV_OK) return eError;
 		}
-#if !defined(RGX_FEATURE_XE_ARCHITECTURE) || (RGX_FEATURE_XE_ARCHITECTURE == 1)
 		else
 		{
 			eError = RGXPollReg32(hPrivate,
@@ -1290,7 +1271,6 @@ PVRSRV_ERROR RGXStop(const void *hPrivate)
 					RGX_CR_SIDEKICK_IDLE_GARTEN_EN);
 			if (eError != PVRSRV_OK) return eError;
 		}
-#endif
 	}
 
 	return eError;

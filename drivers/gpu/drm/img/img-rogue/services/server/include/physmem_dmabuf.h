@@ -59,8 +59,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "pmr.h"
 
-typedef PVRSRV_ERROR (*PFN_DESTROY_DMABUF_PMR)(PHYS_HEAP *psHeap,
-                                               struct dma_buf_attachment *psAttachment);
+typedef void (*PFN_DESTROY_DMABUF_PMR)(PHYS_HEAP *psHeap,
+                                       struct dma_buf_attachment *psAttachment);
 
 PVRSRV_ERROR
 PhysmemCreateNewDmaBufBackedPMR(PHYS_HEAP *psHeap,

@@ -47,7 +47,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv.h"
 #include "img_types.h"
 #include "pvrsrv_error.h"
-#include "vmm_pvz_common.h"
 #include "vmm_impl.h"
 
 /*!

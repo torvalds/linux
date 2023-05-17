@@ -58,22 +58,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _RGX_SERVER_COMPUTE_CONTEXT_ RGX_SERVER_COMPUTE_CONTEXT;
 
-/*!
-*******************************************************************************
- @Function	PVRSRVRGXCreateComputeContextKM
-
- @Description
-
-@Return   PVRSRV_ERROR
-******************************************************************************/
+/*************************************************************************/ /*!
+@Function       PVRSRVRGXCreateComputeContextKM
+@Description    Creates an RGX device context for submitting commands to CDM.
+@Input          psConnection          Device connection
+@Input          psDeviceNode          Services-managed device
+@Input          i32Priority           Scheduling priority for commands
+                                      on this context
+@Input          ui32FrameworkCommandSize
+                                      Framework command size
+@Input          pabyFrameworkCommand  Pointer to framework command
+@Input          hMemCtxPrivData       Private data
+@Input          ui32StaticComputeContextStateSize
+                                      Size of fixed compute context state
+@Input          pStaticComputeContextState
+                                      Compute context state
+@Input          ui32PackedCCBSizeU88  Packed CCB size. The first byte contains
+                                      the log2 CCB size and the second byte
+                                      the log2 maximum CCB size.
+@Input          ui32ContextFlags      Flags with context properties
+@Input          ui64RobustnessAddress Address for FW to signal a context reset
+@Input          ui32MaxDeadlineMS     Max deadline limit in MS that the
+                                      workload can run
+@Output         ppsComputeContext     Cleanup data
+@Return         PVRSRV_ERROR          Returns PVRSRV_OK or an error.
+*/ /**************************************************************************/
 PVRSRV_ERROR PVRSRVRGXCreateComputeContextKM(CONNECTION_DATA			*psConnection,
 											 PVRSRV_DEVICE_NODE			*psDeviceNode,
-											 IMG_UINT32					ui32Priority,
-											 IMG_UINT32					ui32FrameworkRegisterSize,
-											 IMG_PBYTE					pbyFrameworkRegisters,
+											 IMG_INT32					i32Priority,
+											 IMG_UINT32					ui32FrameworkCommandSize,
+											 IMG_PBYTE					pabyFrameworkCommand,
 											 IMG_HANDLE					hMemCtxPrivData,
-											 IMG_UINT32					ui32StaticComputecontextStateSize,
-											 IMG_PBYTE					pStaticComputecontextState,
+											 IMG_UINT32					ui32StaticComputeContextStateSize,
+											 IMG_PBYTE					pStaticComputeContextState,
 											 IMG_UINT32					ui32PackedCCBSizeU88,
 											 IMG_UINT32					ui32ContextFlags,
 											 IMG_UINT64					ui64RobustnessAddress,
@@ -150,7 +167,7 @@ PVRSRV_ERROR PVRSRVRGXNotifyComputeWriteOffsetUpdateKM(RGX_SERVER_COMPUTE_CONTEX
 PVRSRV_ERROR PVRSRVRGXSetComputeContextPriorityKM(CONNECTION_DATA *psConnection,
 												  PVRSRV_DEVICE_NODE *psDeviceNode,
 												  RGX_SERVER_COMPUTE_CONTEXT *psComputeContext,
-												  IMG_UINT32 ui32Priority);
+												  IMG_INT32 i32Priority);
 
 PVRSRV_ERROR PVRSRVRGXSetComputeContextPropertyKM(RGX_SERVER_COMPUTE_CONTEXT *psComputeContext,
 												  RGX_CONTEXT_PROPERTY eContextProperty,
@@ -160,6 +177,12 @@ PVRSRV_ERROR PVRSRVRGXSetComputeContextPropertyKM(RGX_SERVER_COMPUTE_CONTEXT *ps
 PVRSRV_ERROR PVRSRVRGXGetLastDeviceErrorKM(CONNECTION_DATA    *psConnection,
                                            PVRSRV_DEVICE_NODE *psDeviceNode,
                                            IMG_UINT32         *ui32Error);
+
+PVRSRV_ERROR PVRSRVRGXKickTimestampQueryKM(RGX_SERVER_COMPUTE_CONTEXT *psComputeContext,
+                                           PVRSRV_FENCE iCheckFence,
+                                           IMG_UINT32 ui32CmdSize,
+                                           IMG_PBYTE pui8DMCmd,
+                                           IMG_UINT32 ui32ExtJobRef);
 
 /* Debug - Dump debug info of compute contexts on this device */
 void DumpComputeCtxtsInfo(PVRSRV_RGXDEV_INFO *psDevInfo,

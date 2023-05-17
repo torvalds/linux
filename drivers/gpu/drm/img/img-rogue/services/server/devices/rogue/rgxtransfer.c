@@ -59,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgx_memallocflags.h"
 #include "rgxhwperf.h"
 #include "ospvr_gputrace.h"
-#include "htbuffer.h"
+#include "htbserver.h"
 #include "rgxshader.h"
 
 #include "pdump_km.h"
@@ -92,7 +92,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
 	DEVMEM_MEMDESC				*psFWContextStateMemDesc;
 	RGX_SERVER_COMMON_CONTEXT	*psServerCommonContext;
-	IMG_UINT32					ui32Priority;
+	IMG_INT32					i32Priority;
 #if defined(SUPPORT_BUFFER_SYNC)
 	struct pvr_buffer_sync_context *psBufferSyncContext;
 #endif
@@ -100,7 +100,7 @@ typedef struct {
 
 typedef struct {
 	RGX_SERVER_COMMON_CONTEXT	*psServerCommonContext;
-	IMG_UINT32					ui32Priority;
+	IMG_INT32					i32Priority;
 #if defined(SUPPORT_BUFFER_SYNC)
 	struct pvr_buffer_sync_context *psBufferSyncContext;
 #endif
@@ -132,7 +132,7 @@ static PVRSRV_ERROR _Create3DTransferContext(CONNECTION_DATA *psConnection,
 											 DEVMEM_MEMDESC *psAllocatedMemDesc,
 											 IMG_UINT32 ui32AllocatedOffset,
 											 DEVMEM_MEMDESC *psFWMemContextMemDesc,
-											 IMG_UINT32 ui32Priority,
+											 IMG_INT32 i32Priority,
 											 RGX_COMMON_CONTEXT_INFO *psInfo,
 											 RGX_SERVER_TQ_3D_DATA *ps3DData,
 											 IMG_UINT32 ui32CCBAllocSizeLog2,
@@ -197,7 +197,7 @@ static PVRSRV_ERROR _Create3DTransferContext(CONNECTION_DATA *psConnection,
 	                                 ui32CCBAllocSizeLog2 ? ui32CCBAllocSizeLog2 : RGX_TQ3D_CCB_SIZE_LOG2,
 	                                 ui32CCBMaxAllocSizeLog2 ? ui32CCBMaxAllocSizeLog2 : RGX_TQ3D_CCB_MAX_SIZE_LOG2,
 	                                 ui32ContextFlags,
-	                                 ui32Priority,
+	                                 i32Priority,
 	                                 UINT_MAX, /* max deadline MS */
 	                                 ui64RobustnessAddress,
 	                                 psInfo,
@@ -211,7 +211,7 @@ static PVRSRV_ERROR _Create3DTransferContext(CONNECTION_DATA *psConnection,
 	PDUMPCOMMENT(psDeviceNode, "Dump 3D context suspend state buffer");
 	DevmemPDumpLoadMem(ps3DData->psFWContextStateMemDesc, 0, sizeof(RGXFWIF_3DCTX_STATE), PDUMP_FLAGS_CONTINUOUS);
 
-	ps3DData->ui32Priority = ui32Priority;
+	ps3DData->i32Priority = i32Priority;
 	return PVRSRV_OK;
 
 fail_contextalloc:
@@ -231,7 +231,7 @@ fail_buffer_sync_context_create:
 static PVRSRV_ERROR _Create2DTransferContext(CONNECTION_DATA *psConnection,
 											 PVRSRV_DEVICE_NODE *psDeviceNode,
 											 DEVMEM_MEMDESC *psFWMemContextMemDesc,
-											 IMG_UINT32 ui32Priority,
+											 IMG_INT32 i32Priority,
 											 RGX_COMMON_CONTEXT_INFO *psInfo,
 											 RGX_SERVER_TQ_2D_DATA *ps2DData,
 											 IMG_UINT32 ui32CCBAllocSizeLog2,
@@ -268,7 +268,7 @@ static PVRSRV_ERROR _Create2DTransferContext(CONNECTION_DATA *psConnection,
 	                                 ui32CCBAllocSizeLog2 ? ui32CCBAllocSizeLog2 : RGX_TQ2D_CCB_SIZE_LOG2,
 	                                 ui32CCBMaxAllocSizeLog2 ? ui32CCBMaxAllocSizeLog2 : RGX_TQ2D_CCB_MAX_SIZE_LOG2,
 	                                 ui32ContextFlags,
-	                                 ui32Priority,
+	                                 i32Priority,
 	                                 UINT_MAX, /* max deadline MS */
 	                                 ui64RobustnessAddress,
 	                                 psInfo,
@@ -278,7 +278,7 @@ static PVRSRV_ERROR _Create2DTransferContext(CONNECTION_DATA *psConnection,
 		goto fail_contextalloc;
 	}
 
-	ps2DData->ui32Priority = ui32Priority;
+	ps2DData->i32Priority = i32Priority;
 	return PVRSRV_OK;
 
 fail_contextalloc:
@@ -370,16 +370,14 @@ static PVRSRV_ERROR _Destroy3DTransferContext(RGX_SERVER_TQ_3D_DATA *ps3DData,
  */
 PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA		*psConnection,
 										   PVRSRV_DEVICE_NODE		*psDeviceNode,
-										   IMG_UINT32				ui32Priority,
+										   IMG_INT32				i32Priority,
 										   IMG_UINT32				ui32FrameworkCommandSize,
 										   IMG_PBYTE				pabyFrameworkCommand,
 										   IMG_HANDLE				hMemCtxPrivData,
 										   IMG_UINT32				ui32PackedCCBSizeU8888,
 										   IMG_UINT32				ui32ContextFlags,
 										   IMG_UINT64				ui64RobustnessAddress,
-										   RGX_SERVER_TQ_CONTEXT	**ppsTransferContext,
-										   PMR						**ppsCLIPMRMem,
-										   PMR						**ppsUSCPMRMem)
+										   RGX_SERVER_TQ_CONTEXT	**ppsTransferContext)
 {
 	RGX_SERVER_TQ_CONTEXT	*psTransferContext;
 	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
@@ -460,7 +458,7 @@ PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA		*psConnection,
 									  psTransferContext->psFWTransferContextMemDesc,
 									  offsetof(RGXFWIF_FWTRANSFERCONTEXT, sTQContext),
 									  psFWMemContextMemDesc,
-									  ui32Priority,
+									  i32Priority,
 									  &sInfo,
 									  &psTransferContext->s3DData,
 									  U32toU8_Unpack3(ui32PackedCCBSizeU8888),
@@ -479,7 +477,7 @@ PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA		*psConnection,
 		eError = _Create2DTransferContext(psConnection,
 										  psDeviceNode,
 										  psFWMemContextMemDesc,
-										  ui32Priority,
+										  i32Priority,
 										  &sInfo,
 										  &psTransferContext->s2DData,
 										  U32toU8_Unpack1(ui32PackedCCBSizeU8888),
@@ -493,8 +491,6 @@ PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA		*psConnection,
 		psTransferContext->ui32Flags |= RGX_SERVER_TQ_CONTEXT_FLAGS_2D;
 	}
 #endif
-
-	PVRSRVTQAcquireShaders(psDeviceNode, ppsCLIPMRMem, ppsUSCPMRMem);
 
 	{
 		PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
@@ -1137,18 +1133,16 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		if (bCheckFence && ui32FenceSyncCheckpointCount)
 		{
 			/* Append the checks (from input fence) */
-			if (ui32FenceSyncCheckpointCount > 0)
+			CHKPT_DBG((PVR_DBG_ERROR, "%s:   Append %d sync checkpoints to TQ Fence (psSyncAddrListFence=<%p>)...", __func__, ui32FenceSyncCheckpointCount, (void*)psSyncAddrListFence));
+			SyncAddrListAppendCheckpoints(psSyncAddrListFence,
+										  ui32FenceSyncCheckpointCount,
+										  apsFenceSyncCheckpoints);
+			if (!pauiIntFenceUFOAddress)
 			{
-				CHKPT_DBG((PVR_DBG_ERROR, "%s:   Append %d sync checkpoints to TQ Fence (psSyncAddrListFence=<%p>)...", __func__, ui32FenceSyncCheckpointCount, (void*)psSyncAddrListFence));
-				SyncAddrListAppendCheckpoints(psSyncAddrListFence,
-											  ui32FenceSyncCheckpointCount,
-											  apsFenceSyncCheckpoints);
-				if (!pauiIntFenceUFOAddress)
-				{
-					pauiIntFenceUFOAddress = psSyncAddrListFence->pasFWAddrs;
-				}
-				ui32IntClientFenceCount += ui32FenceSyncCheckpointCount;
+				pauiIntFenceUFOAddress = psSyncAddrListFence->pasFWAddrs;
 			}
+			ui32IntClientFenceCount += ui32FenceSyncCheckpointCount;
+
 #if defined(TRANSFER_CHECKPOINT_DEBUG)
 			if (ui32IntClientFenceCount > 0)
 			{
@@ -1322,7 +1316,10 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		s3DKCCBCmd.uCmdData.sCmdKickData.ui32CWoffUpdate = RGXGetHostWriteOffsetCCB(ps3DTQCCB);
 		s3DKCCBCmd.uCmdData.sCmdKickData.ui32CWrapMaskUpdate = RGXGetWrapMaskCCB(ps3DTQCCB);
 		s3DKCCBCmd.uCmdData.sCmdKickData.ui32NumCleanupCtl = 0;
+
+#if defined(SUPPORT_WORKLOAD_ESTIMATION)
 		s3DKCCBCmd.uCmdData.sCmdKickData.ui32WorkEstCmdHeaderOffset = 0;
+#endif
 
 		HTBLOGK(HTB_SF_MAIN_KICK_3D,
 				s3DKCCBCmd.uCmdData.sCmdKickData.psContext,
@@ -1337,7 +1334,7 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		                  ui32FWCtx,
 		                  ui32ExtJobRef,
 		                  ui32IntJobRef,
-		                  RGX_HWPERF_KICK_TYPE_TQ3D,
+		                  RGX_HWPERF_KICK_TYPE2_TQ3D,
 		                  iCheckFence,
 		                  i3DUpdateFence,
 		                  i3DUpdateTimeline,
@@ -1362,15 +1359,12 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		if (eError2 != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXSubmitTransferKM failed to schedule kernel CCB command. (0x%x)", eError2));
-			if (eError == PVRSRV_OK)
-			{
-				eError = eError2;
-			}
+			eError = eError2;
 			goto fail_cmdacquire;
 		}
 
 		PVRGpuTraceEnqueueEvent(psDeviceNode, ui32FWCtx, ui32ExtJobRef,
-		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE_TQ3D);
+		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE2_TQ3D);
 	}
 
 #if defined(RGX_FEATURE_TLA_BIT_MASK)
@@ -1406,7 +1400,7 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		                  ui32FWCtx,
 		                  ui32ExtJobRef,
 		                  ui32IntJobRef,
-		                  RGX_HWPERF_KICK_TYPE_TQ2D,
+		                  RGX_HWPERF_KICK_TYPE2_TQ2D,
 		                  iCheckFence,
 		                  i2DUpdateFence,
 		                  i2DUpdateTimeline,
@@ -1431,15 +1425,12 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		if (eError2 != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXSubmitTransferKM failed to schedule kernel CCB command. (0x%x)", eError2));
-			if (eError == PVRSRV_OK)
-			{
-				eError = eError2;
-			}
+			eError = eError2;
 			goto fail_cmdacquire;
 		}
 
 		PVRGpuTraceEnqueueEvent(psDeviceNode, ui32FWCtx, ui32ExtJobRef,
-		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE_TQ2D);
+		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE2_TQ2D);
 	}
 #endif
 
@@ -1633,7 +1624,7 @@ fail_alloc3dhelper:
 PVRSRV_ERROR PVRSRVRGXSetTransferContextPriorityKM(CONNECTION_DATA *psConnection,
                                                    PVRSRV_DEVICE_NODE * psDevNode,
                                                    RGX_SERVER_TQ_CONTEXT *psTransferContext,
-                                                   IMG_UINT32 ui32Priority)
+                                                   IMG_INT32 i32Priority)
 {
 	PVRSRV_ERROR eError;
 #if defined(RGX_FEATURE_TLA_BIT_MASK)
@@ -1644,13 +1635,13 @@ PVRSRV_ERROR PVRSRVRGXSetTransferContextPriorityKM(CONNECTION_DATA *psConnection
 	OSLockAcquire(psTransferContext->hLock);
 
 #if defined(RGX_FEATURE_TLA_BIT_MASK)
-	if ((psTransferContext->s2DData.ui32Priority != ui32Priority) &&
+	if ((psTransferContext->s2DData.i32Priority != i32Priority) &&
 			(RGX_IS_FEATURE_SUPPORTED(psDevInfo, TLA)))
 	{
 		eError = ContextSetPriority(psTransferContext->s2DData.psServerCommonContext,
 									psConnection,
 									psTransferContext->psDeviceNode->pvDevice,
-									ui32Priority,
+									i32Priority,
 									RGXFWIF_DM_2D);
 		if (eError != PVRSRV_OK)
 		{
@@ -1660,16 +1651,16 @@ PVRSRV_ERROR PVRSRVRGXSetTransferContextPriorityKM(CONNECTION_DATA *psConnection
 			}
 			goto fail_2dcontext;
 		}
-		psTransferContext->s2DData.ui32Priority = ui32Priority;
+		psTransferContext->s2DData.i32Priority = i32Priority;
 	}
 #endif
 
-	if (psTransferContext->s3DData.ui32Priority != ui32Priority)
+	if (psTransferContext->s3DData.i32Priority != i32Priority)
 	{
 		eError = ContextSetPriority(psTransferContext->s3DData.psServerCommonContext,
 									psConnection,
 									psTransferContext->psDeviceNode->pvDevice,
-									ui32Priority,
+									i32Priority,
 									RGXFWIF_DM_3D);
 		if (eError != PVRSRV_OK)
 		{
@@ -1679,7 +1670,7 @@ PVRSRV_ERROR PVRSRVRGXSetTransferContextPriorityKM(CONNECTION_DATA *psConnection
 			}
 			goto fail_3dcontext;
 		}
-		psTransferContext->s3DData.ui32Priority = ui32Priority;
+		psTransferContext->s3DData.i32Priority = i32Priority;
 	}
 
 	OSLockRelease(psTransferContext->hLock);
@@ -1798,6 +1789,24 @@ IMG_UINT32 CheckForStalledClientTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
 
 	OSWRLockReleaseRead(psDevInfo->hTransferCtxListLock);
 	return ui32ContextBitMask;
+}
+
+PVRSRV_ERROR PVRSRVRGXTQGetSharedMemoryKM(
+	CONNECTION_DATA           * psConnection,
+	PVRSRV_DEVICE_NODE        * psDeviceNode,
+	PMR                      ** ppsCLIPMRMem,
+	PMR                      ** ppsUSCPMRMem)
+{
+	PVRSRVTQAcquireShaders(psDeviceNode, ppsCLIPMRMem, ppsUSCPMRMem);
+
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR PVRSRVRGXTQReleaseSharedMemoryKM(PMR * psPMRMem)
+{
+	PVR_UNREFERENCED_PARAMETER(psPMRMem);
+
+	return PVRSRV_OK;
 }
 
 /**************************************************************************//**
