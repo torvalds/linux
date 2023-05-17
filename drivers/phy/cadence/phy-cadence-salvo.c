@@ -15,7 +15,9 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-/* PHY register definition */
+#define USB3_PHY_OFFSET			0x0
+#define USB2_PHY_OFFSET			0x38000
+/* USB3 PHY register definition */
 #define PHY_PMA_CMN_CTRL1			0xC800
 #define TB_ADDR_CMN_DIAG_HSCLK_SEL		0x01e0
 #define TB_ADDR_CMN_PLL0_VCOCAL_INIT_TMR	0x0084
@@ -109,16 +111,16 @@ struct cdns_salvo_phy {
 };
 
 static const struct of_device_id cdns_salvo_phy_of_match[];
-static u16 cdns_salvo_read(struct cdns_salvo_phy *salvo_phy, u32 reg)
+static u16 cdns_salvo_read(struct cdns_salvo_phy *salvo_phy, u32 offset, u32 reg)
 {
-	return (u16)readl(salvo_phy->base +
+	return (u16)readl(salvo_phy->base + offset +
 		reg * (1 << salvo_phy->data->reg_offset_shift));
 }
 
-static void cdns_salvo_write(struct cdns_salvo_phy *salvo_phy,
+static void cdns_salvo_write(struct cdns_salvo_phy *salvo_phy, u32 offset,
 			     u32 reg, u16 val)
 {
-	writel(val, salvo_phy->base +
+	writel(val, salvo_phy->base + offset +
 		reg * (1 << salvo_phy->data->reg_offset_shift));
 }
 
@@ -219,13 +221,13 @@ static int cdns_salvo_phy_init(struct phy *phy)
 	for (i = 0; i < data->init_sequence_length; i++) {
 		const struct cdns_reg_pairs *reg_pair = data->init_sequence_val + i;
 
-		cdns_salvo_write(salvo_phy, reg_pair->off, reg_pair->val);
+		cdns_salvo_write(salvo_phy, USB3_PHY_OFFSET, reg_pair->off, reg_pair->val);
 	}
 
 	/* RXDET_IN_P3_32KHZ, Receiver detect slow clock enable */
-	value = cdns_salvo_read(salvo_phy, TB_ADDR_TX_RCVDETSC_CTRL);
+	value = cdns_salvo_read(salvo_phy, USB3_PHY_OFFSET, TB_ADDR_TX_RCVDETSC_CTRL);
 	value |= RXDET_IN_P3_32KHZ;
-	cdns_salvo_write(salvo_phy, TB_ADDR_TX_RCVDETSC_CTRL,
+	cdns_salvo_write(salvo_phy, USB3_PHY_OFFSET, TB_ADDR_TX_RCVDETSC_CTRL,
 			 RXDET_IN_P3_32KHZ);
 
 	udelay(10);
