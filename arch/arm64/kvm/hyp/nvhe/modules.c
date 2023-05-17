@@ -29,9 +29,12 @@ static void __update_hcr_el2(unsigned long set_mask, unsigned long clear_mask)
 
 static void __update_hfgwtr_el2(unsigned long set_mask, unsigned long clear_mask)
 {
-	/* TODO (b/282917063): need to check whether FEAT_FGT is supported
-	 * before we can access HFGWTR_EL2. */
-	return;
+	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
+
+	params->hfgwtr_el2 |= set_mask;
+	params->hfgwtr_el2 &= ~clear_mask;
+	__kvm_flush_dcache_to_poc(params, sizeof(*params));
+	write_sysreg_s(params->hfgwtr_el2, SYS_HFGWTR_EL2);
 }
 
 static atomic_t early_lm_pages;
