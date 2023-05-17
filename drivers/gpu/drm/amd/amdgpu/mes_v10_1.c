@@ -632,6 +632,8 @@ static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 	uint64_t hqd_gpu_addr, wb_gpu_addr, eop_base_addr;
 	uint32_t tmp;
 
+	memset(mqd, 0, sizeof(*mqd));
+
 	mqd->header = 0xC0310800;
 	mqd->compute_pipelinestat_enable = 0x00000001;
 	mqd->compute_static_thread_mgmt_se0 = 0xffffffff;
@@ -728,6 +730,7 @@ static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 	/* offset: 184 - this is used for CP_HQD_GFX_CONTROL */
 	mqd->cp_hqd_suspend_cntl_stack_offset = tmp;
 
+	amdgpu_device_flush_hdp(ring->adev, NULL);
 	return 0;
 }
 
