@@ -228,10 +228,10 @@ struct aspeed_jtag_functions {
 };
 
 #ifdef DEBUG_JTAG
-static char *end_status_str[] = { "tlr",   "idle",  "selDR", "capDR",
-				  "sDR",   "ex1DR", "pDR",   "ex2DR",
-				  "updDR", "selIR", "capIR", "sIR",
-				  "ex1IR", "pIR",   "ex2IR", "updIR" };
+static char *end_status_str[] = { "tlr",   "idle",   "selDR", "capDR", "sDR",
+				  "ex1DR", "pDR",    "ex2DR", "updDR", "selIR",
+				  "capIR", "sIR",    "ex1IR", "pIR",   "ex2IR",
+				  "updIR", "current" };
 #endif
 
 static u32 aspeed_jtag_read(struct aspeed_jtag *aspeed_jtag, u32 reg)
