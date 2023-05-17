@@ -50,7 +50,6 @@ extern void *hardirq_ctx[NR_CPUS];
 extern void *softirq_ctx[NR_CPUS];
 
 void __do_IRQ(struct pt_regs *regs);
-extern void __init init_IRQ(void);
 
 int irq_choose_cpu(const struct cpumask *mask);
 
