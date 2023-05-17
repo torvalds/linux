@@ -9,5 +9,6 @@ obj-$(CONFIG_ASPEED_SBC)		+= aspeed-sbc.o
 obj-$(CONFIG_ASPEED_XDMA)		+= aspeed-xdma.o
 obj-$(CONFIG_AST2500_ESPI)		+= ast2500-espi.o
 obj-$(CONFIG_AST2600_ESPI)		+= ast2600-espi.o
+obj-$(CONFIG_AST2700_ESPI)		+= ast2700-espi.o
 obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
 obj-$(CONFIG_ASPEED_LPC_PCC)	+= aspeed-lpc-pcc.o

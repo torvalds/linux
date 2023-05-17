@@ -691,6 +691,24 @@
 			reg = <0x0 0x14c02400 0x0 0x100>;
 		};
 
+		espi0: espi@14c05000 {
+			compatible = "aspeed,ast2700-espi";
+			reg = <0 0x14c05000 0 0x1000>;
+			interrupts-extended = <&intc0 10>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI0CLK>;
+			resets = <&io_clk ASPEED_RESET_ESPI0>;
+			status = "disabled";
+		};
+
+		espi1: espi@14c06000 {
+			compatible = "aspeed,ast2700-espi";
+			reg = <0 0x14c06000 0 0x1000>;
+			interrupts-extended = <&intc1 10>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI1CLK>;
+			resets = <&io_clk ASPEED_RESET_ESPI1>;
+			status = "disabled";
+		};
+
 		i2c: bus@14c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;

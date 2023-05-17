@@ -86,6 +86,7 @@ config ASPEED_ESPI
 	bool "ASPEED eSPI slave driver"
 	select AST2500_ESPI if MACH_ASPEED_G5
 	select AST2600_ESPI if MACH_ASPEED_G6
+	select AST2700_ESPI if MACH_ASPEED_G7
 	default n
 	help
 	  Enable driver support for the Aspeed eSPI engine. The eSPI engine
@@ -100,6 +101,12 @@ config AST2500_ESPI
 	  Enable driver support for Aspeed AST2500 eSPI engine.
 
 config AST2600_ESPI
+	bool
+	depends on ASPEED_ESPI
+	help
+	  Enable driver support for Aspeed AST2600 eSPI engine.
+
+config AST2700_ESPI
 	bool
 	depends on ASPEED_ESPI
 	help
