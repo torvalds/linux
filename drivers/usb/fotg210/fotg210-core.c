@@ -165,7 +165,7 @@ static int fotg210_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int fotg210_remove(struct platform_device *pdev)
+static void fotg210_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	enum usb_dr_mode mode;
@@ -176,8 +176,6 @@ static int fotg210_remove(struct platform_device *pdev)
 		fotg210_udc_remove(pdev);
 	else
 		fotg210_hcd_remove(pdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -196,7 +194,7 @@ static struct platform_driver fotg210_driver = {
 		.of_match_table = of_match_ptr(fotg210_of_match),
 	},
 	.probe  = fotg210_probe,
-	.remove = fotg210_remove,
+	.remove_new = fotg210_remove,
 };
 
 static int __init fotg210_init(void)
