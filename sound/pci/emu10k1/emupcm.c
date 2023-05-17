@@ -288,10 +288,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	
 	if (master) {
 		evoice->epcm->ccca_start_addr = start_addr + ccis;
-		if (extra) {
-			start_addr += ccis;
-			end_addr += ccis;
-		}
 	}
 	if (stereo && !extra) {
 		// Not really necessary for the slave, but it doesn't hurt
