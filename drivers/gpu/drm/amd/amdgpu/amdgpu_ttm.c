@@ -65,7 +65,7 @@
 
 MODULE_IMPORT_NS(DMA_BUF);
 
-#define AMDGPU_TTM_VRAM_MAX_DW_READ	(size_t)128
+#define AMDGPU_TTM_VRAM_MAX_DW_READ	((size_t)128)
 
 static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 				   struct ttm_tt *ttm,
@@ -184,11 +184,11 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 				 struct ttm_resource *mem,
 				 struct amdgpu_res_cursor *mm_cur,
-				 unsigned window, struct amdgpu_ring *ring,
+				 unsigned int window, struct amdgpu_ring *ring,
 				 bool tmz, uint64_t *size, uint64_t *addr)
 {
 	struct amdgpu_device *adev = ring->adev;
-	unsigned offset, num_pages, num_dw, num_bytes;
+	unsigned int offset, num_pages, num_dw, num_bytes;
 	uint64_t src_addr, dst_addr;
 	struct amdgpu_job *job;
 	void *cpu_addr;
@@ -1060,9 +1060,9 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 	enum ttm_caching caching;
 
 	gtt = kzalloc(sizeof(struct amdgpu_ttm_tt), GFP_KERNEL);
-	if (gtt == NULL) {
+	if (!gtt)
 		return NULL;
-	}
+
 	gtt->gobj = &bo->base;
 	if (adev->gmc.mem_partitions && abo->xcp_id >= 0)
 		gtt->pool_id = KFD_XCP_MEM_ID(adev, abo->xcp_id);
@@ -1847,9 +1847,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 *place on the VRAM, so reserve it early.
 	 */
 	r = amdgpu_ttm_fw_reserve_vram_init(adev);
-	if (r) {
+	if (r)
 		return r;
-	}
 
 	/*
 	 *The reserved vram for driver must be pinned to the specified
@@ -1873,7 +1872,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* allocate memory as required for VGA
 	 * This is used for VGA emulation and pre-OS scanout buffers to
 	 * avoid display artifacts while transitioning between pre-OS
-	 * and driver.  */
+	 * and driver.
+	 */
 	if (!adev->gmc.is_app_apu) {
 		r = amdgpu_bo_create_kernel_at(adev, 0,
 					       adev->mman.stolen_vga_size,
@@ -1902,7 +1902,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	}
 
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
-		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
+		 (unsigned int)(adev->gmc.real_vram_size / (1024 * 1024)));
 
 	/* Compute GTT size, either based on TTM limit
 	 * or whatever the user passed on module init.
@@ -1919,7 +1919,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
-		 (unsigned)(gtt_size / (1024 * 1024)));
+		 (unsigned int)(gtt_size / (1024 * 1024)));
 
 	/* Initialize preemptible memory pool */
 	r = amdgpu_preempt_mgr_init(adev);
@@ -1961,6 +1961,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 void amdgpu_ttm_fini(struct amdgpu_device *adev)
 {
 	int idx;
+
 	if (!adev->mman.initialized)
 		return;
 
@@ -2089,10 +2090,10 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       bool vm_needs_flush, bool tmz)
 {
 	struct amdgpu_device *adev = ring->adev;
-	unsigned num_loops, num_dw;
+	unsigned int num_loops, num_dw;
 	struct amdgpu_job *job;
 	uint32_t max_bytes;
-	unsigned i;
+	unsigned int i;
 	int r;
 
 	if (!direct_submit && !ring->sched.ready) {
