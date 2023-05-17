@@ -346,7 +346,7 @@ static struct request *
 deadline_fifo_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 		      enum dd_data_dir data_dir)
 {
-	struct request *rq;
+	struct request *rq, *rb_rq, *next;
 	unsigned long flags;
 
 	if (list_empty(&per_prio->fifo_list[data_dir]))
@@ -364,7 +364,12 @@ deadline_fifo_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 	 * zones and these zones are unlocked.
 	 */
 	spin_lock_irqsave(&dd->zone_lock, flags);
-	list_for_each_entry(rq, &per_prio->fifo_list[DD_WRITE], queuelist) {
+	list_for_each_entry_safe(rq, next, &per_prio->fifo_list[DD_WRITE],
+				 queuelist) {
+		/* Check whether a prior request exists for the same zone. */
+		rb_rq = deadline_from_pos(per_prio, data_dir, blk_rq_pos(rq));
+		if (rb_rq && blk_rq_pos(rb_rq) < blk_rq_pos(rq))
+			rq = rb_rq;
 		if (blk_req_can_dispatch_to_zone(rq) &&
 		    (blk_queue_nonrot(rq->q) ||
 		     !deadline_is_seq_write(dd, rq)))
