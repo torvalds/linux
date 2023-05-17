@@ -358,11 +358,6 @@
 	};
 };
 
-&pm8916_s4 {
-	regulator-always-on;
-	regulator-boot-on;
-};
-
 &sdhc_1 {
 	status = "okay";
 
