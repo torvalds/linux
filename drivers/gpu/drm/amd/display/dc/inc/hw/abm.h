@@ -59,8 +59,6 @@ struct abm_funcs {
 			unsigned int otg_inst,
 			unsigned int option,
 			unsigned int panel_inst);
-	bool (*set_abm_event)(struct abm *abm, unsigned int full_screen, unsigned int video_mode,
-			unsigned int hdr_mode, unsigned int panel_inst);
 };
 
 #endif

@@ -131,17 +131,6 @@ static bool dmub_abm_set_pipe_ex(struct abm *abm, uint32_t otg_inst, uint32_t op
 	return ret;
 }
 
-static bool dmub_abm_set_event_ex(struct abm *abm, unsigned int full_screen, unsigned int video_mode,
-		unsigned int hdr_mode, unsigned int panel_inst)
-{
-	bool ret = false;
-	unsigned int feature_support;
-
-	feature_support = abm_feature_support(abm, panel_inst);
-
-	return ret;
-}
-
 static bool dmub_abm_set_backlight_level_pwm_ex(struct abm *abm,
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
@@ -167,7 +156,6 @@ static const struct abm_funcs abm_funcs = {
 	.init_abm_config = dmub_abm_init_config_ex,
 	.set_abm_pause = dmub_abm_set_pause_ex,
 	.set_pipe_ex = dmub_abm_set_pipe_ex,
-	.set_abm_event = dmub_abm_set_event_ex,
 	.set_backlight_level_pwm = dmub_abm_set_backlight_level_pwm_ex,
 };
 
