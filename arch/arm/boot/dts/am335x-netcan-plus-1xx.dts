@@ -37,14 +37,14 @@
 };
 
 &am33xx_pinmux {
-	user_leds_s0: user_leds_s0 {
+	user_leds_s0: user-leds-s0-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* CAN Data LED */
 			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* CAN Error LED */
 		>;
 	};
 
-	dcan1_pins: pinmux_dcan1_pins {
+	dcan1_pins: dcan1-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT, MUX_MODE2)	/* CAN TX */
 			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT, MUX_MODE2)	/* CAN RX */

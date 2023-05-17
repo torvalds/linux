@@ -37,7 +37,7 @@
 };
 
 &am33xx_pinmux {
-	user_leds: pinmux_user_leds {
+	user_leds: user-leds-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_COL, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* mii1_col.gpio3_0 PWR LED */
 			AM33XX_PADCONF(AM335X_PIN_MII1_TXD3, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* mii1_txd3.gpio0_16 WLAN LED */

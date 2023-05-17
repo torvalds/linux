@@ -41,7 +41,7 @@
 };
 
 &am33xx_pinmux {
-	nxp_hdmi_pins: pinmux_nxp_hdmi_pins {
+	nxp_hdmi_pins: nxp-hdmi-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_OUTPUT, MUX_MODE3)	/* xdma_event_intr0.clkout1 */
 			AM33XX_PADCONF(AM335X_PIN_LCD_DATA0, PIN_OUTPUT, MUX_MODE0)
@@ -66,13 +66,13 @@
 			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_OUTPUT, MUX_MODE0)
 		>;
 	};
-	nxp_hdmi_off_pins: pinmux_nxp_hdmi_off_pins {
+	nxp_hdmi_off_pins: nxp-hdmi-off-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_OUTPUT, MUX_MODE3)	/* xdma_event_intr0.clkout1 */
 		>;
 	};
 
-	leds_base_pins: pinmux_leds_base_pins {
+	leds_base_pins: leds-base-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A5, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* gpmc_a5.gpio1_21 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN3, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* gpmc_csn3.gpio2_0 */
