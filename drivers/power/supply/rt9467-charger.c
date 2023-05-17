@@ -1272,7 +1272,7 @@ static struct i2c_driver rt9467_charger_driver = {
 		.name = "rt9467-charger",
 		.of_match_table = rt9467_charger_of_match_table,
 	},
-	.probe_new = rt9467_charger_probe,
+	.probe = rt9467_charger_probe,
 };
 module_i2c_driver(rt9467_charger_driver);
 

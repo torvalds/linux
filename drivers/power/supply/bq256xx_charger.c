@@ -1812,7 +1812,7 @@ static struct i2c_driver bq256xx_driver = {
 		.of_match_table = bq256xx_of_match,
 		.acpi_match_table = bq256xx_acpi_match,
 	},
-	.probe_new = bq256xx_probe,
+	.probe = bq256xx_probe,
 	.id_table = bq256xx_i2c_ids,
 };
 module_i2c_driver(bq256xx_driver);

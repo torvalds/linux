@@ -240,7 +240,7 @@ static const struct i2c_device_id sbs_id[] = {
 MODULE_DEVICE_TABLE(i2c, sbs_id);
 
 static struct i2c_driver sbs_driver = {
-	.probe_new	= sbs_probe,
+	.probe		= sbs_probe,
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-charger",

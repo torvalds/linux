@@ -1287,7 +1287,7 @@ static struct i2c_driver bq25980_driver = {
 		.name = "bq25980-charger",
 		.of_match_table = bq25980_of_match,
 	},
-	.probe_new = bq25980_probe,
+	.probe = bq25980_probe,
 	.id_table = bq25980_i2c_ids,
 };
 module_i2c_driver(bq25980_driver);

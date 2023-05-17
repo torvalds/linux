@@ -625,7 +625,7 @@ static const struct of_device_id ip5xxx_power_of_match[] = {
 MODULE_DEVICE_TABLE(of, ip5xxx_power_of_match);
 
 static struct i2c_driver ip5xxx_power_driver = {
-	.probe_new	= ip5xxx_power_probe,
+	.probe		= ip5xxx_power_probe,
 	.driver		= {
 		.name		= "ip5xxx-power",
 		.of_match_table	= ip5xxx_power_of_match,
