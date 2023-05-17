@@ -448,8 +448,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 			ring->mqd_size = mqd_size;
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[j + xcc_id * adev->gfx.num_compute_rings] = kmalloc(mqd_size, GFP_KERNEL);
-			if (!adev->gfx.mec.mqd_backup[j + xcc_id * adev->gfx.num_compute_rings])
+			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
+			if (!adev->gfx.mec.mqd_backup[j])
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 		}
 	}
