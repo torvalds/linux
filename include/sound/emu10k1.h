@@ -404,6 +404,14 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 //   distortion), the modulation engine sets the target registers, towards
 //   which the current registers "swerve" gradually.
 
+// For the odd channel in a stereo pair, these registers are meaningless:
+//   CPF_STEREO, CPF_CURRENTPITCH, PTRX_PITCHTARGET, CCR_CACHEINVALIDSIZE,
+//   PSST_LOOPSTARTADDR, DSL_LOOPENDADDR, CCCA_CURRADDR
+// The somewhat non-obviously still meaningful ones are:
+//   CPF_STOP, CPF_FRACADDRESS, CCR_READADDRESS (!),
+//   CCCA_INTERPROM, CCCA_8BITSELECT (!)
+// (The envelope engine is ignored here, as stereo matters only for verbatim playback.)
+
 #define CPF			0x00		/* Current pitch and fraction register			*/
 SUB_REG(CPF, CURRENTPITCH,	0xffff0000)	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
 #define CPF_STEREO_MASK		0x00008000	/* 1 = Even channel interleave, odd channel locked	*/
@@ -1187,7 +1195,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * physical outputs of Hana, or outputs going to Alice2/Tina for capture -
  * 16 x EMU_DST_ALICE2_EMU32_X (2x on rev2 boards). Which data is fed into
  * a channel depends on the mixer control setting for each destination - see
- * emumixer.c - snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
+ * the register arrays in emumixer.c.
  */
 #define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 					/* This channel is delayed by one sample. */
@@ -1493,6 +1501,9 @@ struct snd_emu10k1_pcm_mixer {
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
 ((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
 
+#define snd_emu10k1_compose_audigy_sendamounts(vol) \
+(((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
+
 struct snd_emu10k1_memblk {
 	struct snd_util_memblk mem;
 	/* private part */
@@ -1601,32 +1612,37 @@ struct snd_emu_chip_details {
 	u32 device;
 	u32 subsystem;
 	unsigned char revision;
-	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
-				    /* Redundant with emu10k2_chip being unset. */
-	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
-	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
-				    /* Redundant with ca0108_chip being unset. */
-	unsigned char ca0108_chip;  /* Audigy 2 Value */
-	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
-	unsigned char ca0151_chip;  /* P16V */
-	unsigned char spk71;        /* Has 7.1 speakers */
-	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
-	unsigned char spdif_bug;    /* Has Spdif phasing bug */
-	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
-	unsigned char ecard;        /* APS EEPROM */
-	unsigned char emu_model;     /* EMU model type */
-	unsigned char spi_dac;      /* SPI interface for DAC; requires ca0108_chip */
-	unsigned char i2c_adc;      /* I2C interface for ADC; requires ca0108_chip */
-	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
-	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
+	unsigned char emu_model;	/* EMU model type */
+	unsigned int emu10k1_chip:1;	/* Original SB Live. Not SB Live 24bit. */
+					/* Redundant with emu10k2_chip being unset. */
+	unsigned int emu10k2_chip:1;	/* Audigy 1 or Audigy 2. */
+	unsigned int ca0102_chip:1;	/* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+					/* Redundant with ca0108_chip being unset. */
+	unsigned int ca0108_chip:1;	/* Audigy 2 Value */
+	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Notebook */
+	unsigned int ca0151_chip:1;	/* P16V */
+	unsigned int spk20:1;		/* Stereo only */
+	unsigned int spk71:1;		/* Has 7.1 speakers */
+	unsigned int no_adat:1;		/* Has no ADAT, only SPDIF */
+	unsigned int sblive51:1;	/* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
+	unsigned int spdif_bug:1;	/* Has Spdif phasing bug */
+	unsigned int ac97_chip:2;	/* Has an AC97 chip: 1 = mandatory, 2 = optional */
+	unsigned int ecard:1;		/* APS EEPROM */
+	unsigned int spi_dac:1;		/* SPI interface for DAC; requires ca0108_chip */
+	unsigned int i2c_adc:1;		/* I2C interface for ADC; requires ca0108_chip */
+	unsigned int adc_1361t:1;	/* Use Philips 1361T ADC */
+	unsigned int invert_shared_spdif:1;  /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
 };
 
+#define NUM_OUTPUT_DESTS 28
+#define NUM_INPUT_DESTS 22
+
 struct snd_emu1010 {
-	unsigned int output_source[64];
-	unsigned int input_source[64];
+	unsigned char output_source[NUM_OUTPUT_DESTS];
+	unsigned char input_source[NUM_INPUT_DESTS];
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
 	unsigned int internal_clock; /* 44100 or 48000 */
@@ -1792,13 +1808,14 @@ void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
+#if 0
 void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
+#endif
 void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait);
 static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
-unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
 
 #ifdef CONFIG_PM_SLEEP
 void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
