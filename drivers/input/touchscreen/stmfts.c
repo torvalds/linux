@@ -808,7 +808,7 @@ static struct i2c_driver stmfts_driver = {
 		.pm = pm_ptr(&stmfts_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = stmfts_probe,
+	.probe = stmfts_probe,
 	.remove = stmfts_remove,
 	.id_table = stmfts_id,
 };

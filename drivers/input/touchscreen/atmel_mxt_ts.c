@@ -3462,7 +3462,7 @@ static struct i2c_driver mxt_driver = {
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= pm_sleep_ptr(&mxt_pm_ops),
 	},
-	.probe_new	= mxt_probe,
+	.probe		= mxt_probe,
 	.remove		= mxt_remove,
 	.id_table	= mxt_id,
 };

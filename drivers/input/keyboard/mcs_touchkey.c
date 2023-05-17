@@ -258,7 +258,7 @@ static struct i2c_driver mcs_touchkey_driver = {
 		.name	= "mcs_touchkey",
 		.pm	= pm_sleep_ptr(&mcs_touchkey_pm_ops),
 	},
-	.probe_new	= mcs_touchkey_probe,
+	.probe		= mcs_touchkey_probe,
 	.remove		= mcs_touchkey_remove,
 	.shutdown       = mcs_touchkey_shutdown,
 	.id_table	= mcs_touchkey_id,

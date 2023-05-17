@@ -1053,7 +1053,7 @@ static struct i2c_driver ili210x_ts_driver = {
 		.of_match_table = ili210x_dt_ids,
 	},
 	.id_table = ili210x_i2c_id,
-	.probe_new = ili210x_i2c_probe,
+	.probe = ili210x_i2c_probe,
 };
 
 module_i2c_driver(ili210x_ts_driver);

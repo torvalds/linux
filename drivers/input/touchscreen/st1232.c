@@ -384,7 +384,7 @@ static const struct of_device_id st1232_ts_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
 
 static struct i2c_driver st1232_ts_driver = {
-	.probe_new	= st1232_ts_probe,
+	.probe		= st1232_ts_probe,
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,

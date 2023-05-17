@@ -248,7 +248,7 @@ static struct i2c_driver zet6223_driver = {
 		.name = "zet6223",
 		.of_match_table = zet6223_of_match,
 	},
-	.probe_new = zet6223_probe,
+	.probe = zet6223_probe,
 	.id_table = zet6223_id
 };
 module_i2c_driver(zet6223_driver);

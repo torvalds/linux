@@ -617,7 +617,7 @@ static struct i2c_driver pixcir_i2c_ts_driver = {
 		.pm	= pm_sleep_ptr(&pixcir_dev_pm_ops),
 		.of_match_table = of_match_ptr(pixcir_of_match),
 	},
-	.probe_new	= pixcir_i2c_ts_probe,
+	.probe		= pixcir_i2c_ts_probe,
 	.id_table	= pixcir_i2c_ts_id,
 };
 

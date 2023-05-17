@@ -1591,7 +1591,7 @@ MODULE_DEVICE_TABLE(i2c, mip4_i2c_ids);
 
 static struct i2c_driver mip4_driver = {
 	.id_table = mip4_i2c_ids,
-	.probe_new = mip4_probe,
+	.probe = mip4_probe,
 	.driver = {
 		.name = MIP4_DEVICE_NAME,
 		.of_match_table = of_match_ptr(mip4_of_match),

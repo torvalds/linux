@@ -615,7 +615,7 @@ static const struct of_device_id drv260x_of_match[] = {
 MODULE_DEVICE_TABLE(of, drv260x_of_match);
 
 static struct i2c_driver drv260x_driver = {
-	.probe_new	= drv260x_probe,
+	.probe		= drv260x_probe,
 	.driver		= {
 		.name	= "drv260x-haptics",
 		.of_match_table = drv260x_of_match,
