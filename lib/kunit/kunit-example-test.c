@@ -187,6 +187,39 @@ static void example_static_stub_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, add_one(1), 2);
 }
 
+static const struct example_param {
+	int value;
+} example_params_array[] = {
+	{ .value = 2, },
+	{ .value = 1, },
+	{ .value = 0, },
+};
+
+static void example_param_get_desc(const struct example_param *p, char *desc)
+{
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "example value %d", p->value);
+}
+
+KUNIT_ARRAY_PARAM(example, example_params_array, example_param_get_desc);
+
+/*
+ * This test shows the use of params.
+ */
+static void example_params_test(struct kunit *test)
+{
+	const struct example_param *param = test->param_value;
+
+	/* By design, param pointer will not be NULL */
+	KUNIT_ASSERT_NOT_NULL(test, param);
+
+	/* Test can be skipped on unsupported param values */
+	if (!param->value)
+		kunit_skip(test, "unsupported param value");
+
+	/* You can use param values for parameterized testing */
+	KUNIT_EXPECT_EQ(test, param->value % param->value, 0);
+}
+
 /*
  * Here we make a list of all the test cases we want to add to the test suite
  * below.
@@ -203,6 +236,7 @@ static struct kunit_case example_test_cases[] = {
 	KUNIT_CASE(example_mark_skipped_test),
 	KUNIT_CASE(example_all_expect_macros_test),
 	KUNIT_CASE(example_static_stub_test),
+	KUNIT_CASE_PARAM(example_params_test, example_gen_params),
 	{}
 };
 
