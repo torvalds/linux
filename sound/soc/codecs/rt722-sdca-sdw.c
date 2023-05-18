@@ -163,9 +163,6 @@ static int rt722_sdca_update_status(struct sdw_slave *slave,
 {
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(&slave->dev);
 
-	/* Update the status */
-	rt722->status = status;
-
 	if (status == SDW_SLAVE_UNATTACHED)
 		rt722->hw_init = false;
 
@@ -188,7 +185,7 @@ static int rt722_sdca_update_status(struct sdw_slave *slave,
 	 * Perform initialization only if slave status is present and
 	 * hw_init flag is false
 	 */
-	if (rt722->hw_init || rt722->status != SDW_SLAVE_ATTACHED)
+	if (rt722->hw_init || status != SDW_SLAVE_ATTACHED)
 		return 0;
 
 	/* perform I/O transfers required for Slave initialization */
