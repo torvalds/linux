@@ -146,26 +146,8 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 		}
 
 		if (status) {
-			unsigned int bits;
 			dev_err(emu->card->dev,
 				"unhandled interrupt: 0x%08x\n", status);
-			//make sure any interrupts we don't handle are disabled:
-			bits = INTE_FXDSPENABLE |
-				INTE_PCIERRORENABLE |
-				INTE_VOLINCRENABLE |
-				INTE_VOLDECRENABLE |
-				INTE_MUTEENABLE |
-				INTE_MICBUFENABLE |
-				INTE_ADCBUFENABLE |
-				INTE_EFXBUFENABLE |
-				INTE_GPSPDIFENABLE |
-				INTE_CDSPDIFENABLE |
-				INTE_INTERVALTIMERENB |
-				INTE_MIDITXENABLE |
-				INTE_MIDIRXENABLE;
-			if (emu->audigy)
-				bits |= INTE_A_MIDITXENABLE2 | INTE_A_MIDIRXENABLE2;
-			snd_emu10k1_intr_disable(emu, bits);
 		}
 		outl(orig_status, emu->port + IPR); /* ack all */
 	}
