@@ -392,7 +392,7 @@ void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 
 void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
 {
-	uint8_t i;
+	unsigned int i;
 	struct pipe_ctx *pipe = NULL;
 	bool otg_disabled[MAX_PIPES] = {false};
 
