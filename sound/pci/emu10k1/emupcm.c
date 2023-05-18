@@ -236,6 +236,18 @@ static unsigned int emu10k1_select_interprom(unsigned int pitch_target)
 		return CCCA_INTERPROM_2;
 }
 
+static u16 emu10k1_send_target_from_amount(u8 amount)
+{
+	static const u8 shifts[8] = { 4, 4, 5, 6, 7, 8, 9, 10 };
+	static const u16 offsets[8] = { 0, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000 };
+	u8 exp;
+
+	if (amount == 0xff)
+		return 0xffff;
+	exp = amount >> 5;
+	return ((amount & 0x1f) << shifts[exp]) + offsets[exp];
+}
+
 static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 				       int master, int extra,
 				       struct snd_emu10k1_voice *evoice,
@@ -301,6 +313,11 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 			A_FXRT2, snd_emu10k1_compose_audigy_fxrt2(send_routing),
 			A_SENDAMOUNTS, snd_emu10k1_compose_audigy_sendamounts(send_amount),
 			REGLIST_END);
+		for (int i = 0; i < 4; i++) {
+			u32 aml = emu10k1_send_target_from_amount(send_amount[2 * i]);
+			u32 amh = emu10k1_send_target_from_amount(send_amount[2 * i + 1]);
+			snd_emu10k1_ptr_write(emu, A_CSBA + i, voice, (amh << 16) | aml);
+		}
 	} else {
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));

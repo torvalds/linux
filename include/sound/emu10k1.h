@@ -709,6 +709,8 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
+// On Audigy, the FX send amounts are not applied instantly, but determine
+// targets towards which the following registers swerve gradually.
 #define A_CSBA			0x4c		/* FX send B & A current amounts			*/
 #define A_CSDC			0x4d		/* FX send D & C current amounts			*/
 #define A_CSFE			0x4e		/* FX send F & E current amounts			*/
