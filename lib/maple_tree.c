@@ -4793,13 +4793,10 @@ again:
  */
 static inline void *mas_next_entry(struct ma_state *mas, unsigned long limit)
 {
-	void *entry = NULL;
-
 	if (mas->last >= limit)
 		return NULL;
 
-	entry = mas_next_slot(mas, limit, false);
-	return entry;
+	return mas_next_slot(mas, limit, false);
 }
 
 /*
@@ -5880,6 +5877,34 @@ int mas_expected_entries(struct ma_state *mas, unsigned long nr_entries)
 }
 EXPORT_SYMBOL_GPL(mas_expected_entries);
 
+static inline bool mas_next_setup(struct ma_state *mas, unsigned long max,
+		void **entry)
+{
+	bool was_none = mas_is_none(mas);
+
+	if (mas_is_none(mas) || mas_is_paused(mas))
+		mas->node = MAS_START;
+
+	if (mas_is_start(mas))
+		*entry = mas_walk(mas); /* Retries on dead nodes handled by mas_walk */
+
+	if (mas_is_ptr(mas)) {
+		*entry = NULL;
+		if (was_none && mas->index == 0) {
+			mas->index = mas->last = 0;
+			return true;
+		}
+		mas->index = 1;
+		mas->last = ULONG_MAX;
+		mas->node = MAS_NONE;
+		return true;
+	}
+
+	if (mas_is_none(mas))
+		return true;
+	return false;
+}
+
 /**
  * mas_next() - Get the next entry.
  * @mas: The maple state
@@ -5893,29 +5918,38 @@ EXPORT_SYMBOL_GPL(mas_expected_entries);
  */
 void *mas_next(struct ma_state *mas, unsigned long max)
 {
-	bool was_none = mas_is_none(mas);
+	void *entry = NULL;
 
-	if (mas_is_none(mas) || mas_is_paused(mas))
-		mas->node = MAS_START;
+	if (mas_next_setup(mas, max, &entry))
+		return entry;
 
-	if (mas_is_start(mas))
-		mas_walk(mas); /* Retries on dead nodes handled by mas_walk */
-
-	if (mas_is_ptr(mas)) {
-		if (was_none && mas->index == 0) {
-			mas->index = mas->last = 0;
-			return mas_root(mas);
-		}
-		mas->index = 1;
-		mas->last = ULONG_MAX;
-		mas->node = MAS_NONE;
-		return NULL;
-	}
-
-	/* Retries on dead nodes handled by mas_next_entry */
-	return mas_next_entry(mas, max);
+	/* Retries on dead nodes handled by mas_next_slot */
+	return mas_next_slot(mas, max, false);
 }
 EXPORT_SYMBOL_GPL(mas_next);
+
+/**
+ * mas_next_range() - Advance the maple state to the next range
+ * @mas: The maple state
+ * @max: The maximum index to check.
+ *
+ * Sets @mas->index and @mas->last to the range.
+ * Must hold rcu_read_lock or the write lock.
+ * Can return the zero entry.
+ *
+ * Return: The next entry or %NULL
+ */
+void *mas_next_range(struct ma_state *mas, unsigned long max)
+{
+	void *entry = NULL;
+
+	if (mas_next_setup(mas, max, &entry))
+		return entry;
+
+	/* Retries on dead nodes handled by mas_next_slot */
+	return mas_next_slot(mas, max, true);
+}
+EXPORT_SYMBOL_GPL(mas_next_range);
 
 /**
  * mt_next() - get the next value in the maple tree
@@ -6026,6 +6060,64 @@ void mas_pause(struct ma_state *mas)
 EXPORT_SYMBOL_GPL(mas_pause);
 
 /**
+ * mas_find_setup() - Internal function to set up mas_find*().
+ * @mas: The maple state
+ * @max: The maximum index
+ * @entry: Pointer to the entry
+ *
+ * Returns: True if entry is the answer, false otherwise.
+ */
+static inline bool mas_find_setup(struct ma_state *mas, unsigned long max,
+		void **entry)
+{
+	*entry = NULL;
+
+	if (unlikely(mas_is_none(mas))) {
+		if (unlikely(mas->last >= max))
+			return true;
+
+		mas->index = mas->last;
+		mas->node = MAS_START;
+	} else if (unlikely(mas_is_paused(mas))) {
+		if (unlikely(mas->last >= max))
+			return true;
+
+		mas->node = MAS_START;
+		mas->index = ++mas->last;
+	} else if (unlikely(mas_is_ptr(mas)))
+		goto ptr_out_of_range;
+
+	if (unlikely(mas_is_start(mas))) {
+		/* First run or continue */
+		if (mas->index > max)
+			return true;
+
+		*entry = mas_walk(mas);
+		if (*entry)
+			return true;
+
+	}
+
+	if (unlikely(!mas_searchable(mas))) {
+		if (unlikely(mas_is_ptr(mas)))
+			goto ptr_out_of_range;
+
+		return true;
+	}
+
+	if (mas->index == max)
+		return true;
+
+	return false;
+
+ptr_out_of_range:
+	mas->node = MAS_NONE;
+	mas->index = 1;
+	mas->last = ULONG_MAX;
+	return true;
+}
+
+/**
  * mas_find() - On the first call, find the entry at or after mas->index up to
  * %max.  Otherwise, find the entry after mas->index.
  * @mas: The maple state
@@ -6039,59 +6131,39 @@ EXPORT_SYMBOL_GPL(mas_pause);
  */
 void *mas_find(struct ma_state *mas, unsigned long max)
 {
-	if (unlikely(mas_is_none(mas))) {
-		if (unlikely(mas->last >= max))
-			return NULL;
+	void *entry = NULL;
 
-		mas->index = mas->last;
-		mas->node = MAS_START;
-	}
-
-	if (unlikely(mas_is_paused(mas))) {
-		if (unlikely(mas->last >= max))
-			return NULL;
-
-		mas->node = MAS_START;
-		mas->index = ++mas->last;
-	}
-
-
-	if (unlikely(mas_is_ptr(mas)))
-		goto ptr_out_of_range;
-
-	if (unlikely(mas_is_start(mas))) {
-		/* First run or continue */
-		void *entry;
-
-		if (mas->index > max)
-			return NULL;
-
-		entry = mas_walk(mas);
-		if (entry)
-			return entry;
-
-	}
-
-	if (unlikely(!mas_searchable(mas))) {
-		if (unlikely(mas_is_ptr(mas)))
-			goto ptr_out_of_range;
-
-		return NULL;
-	}
-
-	if (mas->index == max)
-		return NULL;
+	if (mas_find_setup(mas, max, &entry))
+		return entry;
 
 	/* Retries on dead nodes handled by mas_next_slot */
 	return mas_next_slot(mas, max, false);
-
-ptr_out_of_range:
-	mas->node = MAS_NONE;
-	mas->index = 1;
-	mas->last = ULONG_MAX;
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(mas_find);
+
+/**
+ * mas_find_range() - On the first call, find the entry at or after
+ * mas->index up to %max.  Otherwise, advance to the next slot mas->index.
+ * @mas: The maple state
+ * @max: The maximum value to check.
+ *
+ * Must hold rcu_read_lock or the write lock.
+ * If an entry exists, last and index are updated accordingly.
+ * May set @mas->node to MAS_NONE.
+ *
+ * Return: The entry or %NULL.
+ */
+void *mas_find_range(struct ma_state *mas, unsigned long max)
+{
+	void *entry;
+
+	if (mas_find_setup(mas, max, &entry))
+		return entry;
+
+	/* Retries on dead nodes handled by mas_next_slot */
+	return mas_next_slot(mas, max, true);
+}
+EXPORT_SYMBOL_GPL(mas_find_range);
 
 /**
  * mas_find_rev: On the first call, find the first non-null entry at or below
