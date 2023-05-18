@@ -61,11 +61,13 @@
 #include <trace/hooks/audio_usboffload.h>
 #include <trace/hooks/typec.h>
 #include <trace/hooks/user.h>
+#include <trace/hooks/signal.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
  */
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_refrigerator);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_is_fpsimd_save);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_init);
@@ -73,6 +75,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_priority_skip);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_set_priority);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_restore_priority);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_wakeup_ilocked);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_send_sig_info);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_wait_start);
@@ -230,3 +233,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_preset);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_uid);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_user);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpuset_fork);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_alloc_new_buf_locked);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_reply);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_trans);

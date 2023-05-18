@@ -56,6 +56,8 @@
 #include <asm/cacheflush.h>
 #include <asm/syscall.h>	/* for syscall_get_* */
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/signal.h>
 /*
  * SLAB caches for signal bits.
  */
@@ -1291,7 +1293,7 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
 {
 	unsigned long flags;
 	int ret = -ESRCH;
-
+	trace_android_vh_do_send_sig_info(sig, current, p);
 	if (lock_task_sighand(p, &flags)) {
 		ret = send_signal_locked(sig, info, p, type);
 		unlock_task_sighand(p, &flags);

@@ -60,7 +60,7 @@ struct gh_rm_mem_release_req {
 } __packed;
 
 /* Call: MEM_APPEND */
-#define GH_MEM_APPEND_REQ_FLAGS_END	BIT(0)
+#define GH_MEM_APPEND_REQ_FLAGS_END		BIT(0)
 
 struct gh_rm_mem_append_req_header {
 	__le32 mem_handle;
@@ -76,7 +76,7 @@ struct gh_rm_vm_alloc_vmid_resp {
 } __packed;
 
 /* Call: VM_STOP */
-#define GH_RM_VM_STOP_FLAG_FORCE_STOP	BIT(0)
+#define GH_RM_VM_STOP_FLAG_FORCE_STOP		BIT(0)
 
 #define GH_RM_VM_STOP_REASON_FORCE_STOP		3
 
@@ -184,6 +184,7 @@ static int gh_rm_mem_append(struct gh_rm *rm, u32 mem_handle,
 static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_mem_parcel *p)
 {
 	size_t msg_size = 0, initial_mem_entries = p->n_mem_entries, resp_size;
+	size_t acl_section_size, mem_section_size;
 	struct gh_rm_mem_share_req_acl_section *acl_section;
 	struct gh_rm_mem_share_req_mem_section *mem_section;
 	struct gh_rm_mem_share_req_header *req_header;
@@ -199,6 +200,8 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 	if (initial_mem_entries > GH_RM_MAX_MEM_ENTRIES)
 		initial_mem_entries = GH_RM_MAX_MEM_ENTRIES;
 
+	acl_section_size = struct_size(acl_section, entries, p->n_acl_entries);
+	mem_section_size = struct_size(mem_section, entries, initial_mem_entries);
 	/* The format of the message goes:
 	 * request header
 	 * ACL entries (which VMs get what kind of access to this memory parcel)
@@ -206,8 +209,8 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 	 * Memory attributes (currently unused, we'll hard-code the size to 0)
 	 */
 	msg_size += sizeof(struct gh_rm_mem_share_req_header);
-	msg_size += struct_size(acl_section, entries, p->n_acl_entries);
-	msg_size += struct_size(mem_section, entries, initial_mem_entries);
+	msg_size += acl_section_size;
+	msg_size += mem_section_size;
 	msg_size += sizeof(u32); /* for memory attributes, currently unused */
 
 	msg = kzalloc(msg_size, GFP_KERNEL);
@@ -222,8 +225,8 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 
 	req_header = msg;
 	acl_section = (void *)req_header + sizeof(*req_header);
-	mem_section = (void *)acl_section + struct_size(acl_section, entries, p->n_acl_entries);
-	attr_section = (void *)mem_section + struct_size(mem_section, entries, initial_mem_entries);
+	mem_section = (void *)acl_section + acl_section_size;
+	attr_section = (void *)mem_section + mem_section_size;
 
 	req_header->mem_type = p->mem_type;
 	if (initial_mem_entries != p->n_mem_entries)
@@ -231,11 +234,12 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 	req_header->label = cpu_to_le32(p->label);
 
 	acl_section->n_entries = cpu_to_le32(p->n_acl_entries);
-	memcpy(acl_section->entries, p->acl_entries, sizeof(*(p->acl_entries)) * p->n_acl_entries);
+	memcpy(acl_section->entries, p->acl_entries,
+		flex_array_size(acl_section, entries, p->n_acl_entries));
 
 	mem_section->n_entries = cpu_to_le16(initial_mem_entries);
 	memcpy(mem_section->entries, p->mem_entries,
-		sizeof(*(p->mem_entries)) * initial_mem_entries);
+		flex_array_size(mem_section, entries, initial_mem_entries));
 
 	/* Set n_entries for memory attribute section to 0 */
 	*attr_section = 0;
@@ -249,6 +253,7 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 	}
 
 	p->mem_handle = le32_to_cpu(*resp);
+	kfree(resp);
 
 	if (initial_mem_entries != p->n_mem_entries) {
 		ret = gh_rm_mem_append(rm, p->mem_handle,
@@ -260,14 +265,13 @@ static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_
 		}
 	}
 
-	kfree(resp);
 	return ret;
 }
 
 /**
  * gh_rm_mem_lend() - Lend memory to other virtual machines.
  * @rm: Handle to a Gunyah resource manager
- * @parcel: Package the memory information of the memory to be lent.
+ * @parcel: Information about the memory to be lent.
  *
  * Lending removes Linux's access to the memory while the memory parcel is lent.
  */
@@ -280,7 +284,7 @@ int gh_rm_mem_lend(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
 /**
  * gh_rm_mem_share() - Share memory with other virtual machines.
  * @rm: Handle to a Gunyah resource manager
- * @parcel: Package the memory information of the memory to be shared.
+ * @parcel: Information about the memory to be shared.
  *
  * Sharing keeps Linux's access to the memory while the memory parcel is shared.
  */
@@ -292,7 +296,7 @@ int gh_rm_mem_share(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
 /**
  * gh_rm_mem_reclaim() - Reclaim a memory parcel
  * @rm: Handle to a Gunyah resource manager
- * @parcel: Package the memory information of the memory to be reclaimed.
+ * @parcel: Information about the memory to be reclaimed.
  *
  * RM maps the associated memory back into the stage-2 page tables of the owner VM.
  */
@@ -304,7 +308,7 @@ int gh_rm_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
 	int ret;
 
 	ret = gh_rm_call(rm, GH_RM_RPC_MEM_RECLAIM, &req, sizeof(req), NULL, NULL);
-	/* Do not call platform mem reclaim hooks: the reclaim didn't happen*/
+	/* Only call the platform mem reclaim hooks if we reclaimed the memory */
 	if (ret)
 		return ret;
 
@@ -344,7 +348,7 @@ EXPORT_SYMBOL_GPL(gh_rm_vm_set_firmware_mem);
 int gh_rm_alloc_vmid(struct gh_rm *rm, u16 vmid)
 {
 	struct gh_rm_vm_common_vmid_req req_payload = {
-		.vmid = vmid,
+		.vmid = cpu_to_le16(vmid),
 	};
 	struct gh_rm_vm_alloc_vmid_resp *resp_payload;
 	size_t resp_size;
@@ -366,7 +370,7 @@ int gh_rm_alloc_vmid(struct gh_rm *rm, u16 vmid)
 }
 
 /**
- * gh_rm_dealloc_vmid() - Dispose the VMID
+ * gh_rm_dealloc_vmid() - Dispose of a VMID
  * @rm: Handle to a Gunyah resource manager
  * @vmid: VM identifier allocated with gh_rm_alloc_vmid
  */
@@ -376,11 +380,11 @@ int gh_rm_dealloc_vmid(struct gh_rm *rm, u16 vmid)
 }
 
 /**
- * gh_rm_vm_reset() - Reset the VM's resources
+ * gh_rm_vm_reset() - Reset a VM's resources
  * @rm: Handle to a Gunyah resource manager
  * @vmid: VM identifier allocated with gh_rm_alloc_vmid
  *
- * While tearing down the VM, request RM to clean up all the VM resources
+ * As part of tearing down the VM, request RM to clean up all the VM resources
  * associated with the VM. Only after this, Linux can clean up all the
  * references it maintains to resources.
  */
@@ -390,7 +394,7 @@ int gh_rm_vm_reset(struct gh_rm *rm, u16 vmid)
 }
 
 /**
- * gh_rm_vm_start() - Move the VM into "ready to run" state
+ * gh_rm_vm_start() - Move a VM into "ready to run" state
  * @rm: Handle to a Gunyah resource manager
  * @vmid: VM identifier allocated with gh_rm_alloc_vmid
  *
@@ -432,9 +436,7 @@ int gh_rm_vm_stop(struct gh_rm *rm, u16 vmid)
  * @image_size: Size of the VM image
  * @dtb_offset: Start address of the devicetree binary with VM configuration,
  *              relative to start of memparcel.
- * @dtb_size: Maximum size of devicetree binary. Resource manager applies
- *            an overlay to the DTB and dtb_size should include room for
- *            the overlay.
+ * @dtb_size: Maximum size of devicetree binary.
  */
 int gh_rm_vm_configure(struct gh_rm *rm, u16 vmid, enum gh_rm_vm_auth_mechanism auth_mechanism,
 		u32 mem_handle, u64 image_offset, u64 image_size, u64 dtb_offset, u64 dtb_size)
@@ -470,6 +472,7 @@ int gh_rm_vm_init(struct gh_rm *rm, u16 vmid)
  * @rm: Handle to a Gunyah resource manager
  * @vmid: VMID of the other VM to get the resources of
  * @resources: Set by gh_rm_get_hyp_resources and contains the returned hypervisor resources.
+ *             Caller must free the resources pointer if successful.
  */
 int gh_rm_get_hyp_resources(struct gh_rm *rm, u16 vmid,
 				struct gh_rm_hyp_resources **resources)

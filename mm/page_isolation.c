@@ -9,6 +9,7 @@
 #include <linux/memory.h>
 #include <linux/hugetlb.h>
 #include <linux/page_owner.h>
+#include <linux/page_pinner.h>
 #include <linux/migrate.h>
 #include "internal.h"
 
@@ -666,6 +667,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 
 out:
 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
+	if (pfn < end_pfn)
+		page_pinner_failure_detect(pfn_to_page(pfn));
 
 	return ret;
 }
