@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================================
-The Linux SYM-2 driver documentation file
-=========================================
+============
+SYM-2 driver
+============
 
 Written by Gerard Roudier <groudier@free.fr>
 
