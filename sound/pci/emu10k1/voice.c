@@ -98,6 +98,15 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 	return 0;
 }
 
+static void voice_free(struct snd_emu10k1 *emu,
+		       struct snd_emu10k1_voice *pvoice)
+{
+	snd_emu10k1_voice_init(emu, pvoice->number);
+	pvoice->interrupt = NULL;
+	pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
+	pvoice->epcm = NULL;
+}
+
 int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 			    struct snd_emu10k1_voice **rvoice)
 {
@@ -118,12 +127,8 @@ int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 		/* free a voice from synth */
 		if (emu->get_synth_voice) {
 			result = emu->get_synth_voice(emu);
-			if (result >= 0) {
-				struct snd_emu10k1_voice *pvoice = &emu->voices[result];
-				pvoice->interrupt = NULL;
-				pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
-				pvoice->epcm = NULL;
-			}
+			if (result >= 0)
+				voice_free(emu, &emu->voices[result]);
 		}
 		if (result < 0)
 			break;
@@ -143,10 +148,7 @@ int snd_emu10k1_voice_free(struct snd_emu10k1 *emu,
 	if (snd_BUG_ON(!pvoice))
 		return -EINVAL;
 	spin_lock_irqsave(&emu->voice_lock, flags);
-	pvoice->interrupt = NULL;
-	pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
-	pvoice->epcm = NULL;
-	snd_emu10k1_voice_init(emu, pvoice->number);
+	voice_free(emu, pvoice);
 	spin_unlock_irqrestore(&emu->voice_lock, flags);
 	return 0;
 }
