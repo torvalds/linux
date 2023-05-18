@@ -79,9 +79,8 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 				val >>= 1;
 				pvoice++;
 			}
-			status &= ~IPR_CHANNELLOOP;
+			status &= ~(IPR_CHANNELLOOP | IPR_CHANNELNUMBERMASK);
 		}
-		status &= ~IPR_CHANNELNUMBERMASK;
 		if (status & (IPR_ADCBUFFULL|IPR_ADCBUFHALFFULL)) {
 			if (emu->capture_interrupt)
 				emu->capture_interrupt(emu, status);
