@@ -250,6 +250,13 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	vdda-phy-supply = <&vreg_l1b_1p2>;
+	vdda-pll-supply = <&vreg_l4b_0p88>;
+
+	status = "okay";
+};
+
 &qpic_bam {
 	status = "okay";
 };
