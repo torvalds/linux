@@ -10,6 +10,7 @@
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <drm/xe_drm.h>
 
 #include "regs/xe_regs.h"
@@ -157,7 +158,9 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
 
-	destroy_workqueue(xe->ordered_wq);
+	if (xe->ordered_wq)
+		destroy_workqueue(xe->ordered_wq);
+
 	ttm_device_fini(&xe->ttm);
 }
 
@@ -205,6 +208,11 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&xe->pinned.evicted);
 
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
+	if (!xe->ordered_wq) {
+		drm_err(&xe->drm, "Failed to allocate xe-ordered-wq\n");
+		err = -ENOMEM;
+		goto err_put;
+	}
 
 	drmm_mutex_init(&xe->drm, &xe->sb_lock);
 	xe->enabled_irq_mask = ~0;
