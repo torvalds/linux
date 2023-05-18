@@ -73,7 +73,7 @@ config VIDEO_PCI_SKELETON
 	  Enable build of the skeleton PCI driver, used as a reference
 	  when developing new drivers.
 
-source "drivers/media/pci/intel/ipu3/Kconfig"
+source "drivers/media/pci/intel/Kconfig"
 
 endif #MEDIA_PCI_SUPPORT
 endif #PCI

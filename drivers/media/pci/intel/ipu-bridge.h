@@ -1,25 +1,25 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Author: Dan Scally <djrscally@gmail.com> */
-#ifndef __CIO2_BRIDGE_H
-#define __CIO2_BRIDGE_H
+#ifndef __IPU_BRIDGE_H
+#define __IPU_BRIDGE_H
 
 #include <linux/property.h>
 #include <linux/types.h>
 
-#include "ipu3-cio2.h"
+#include "ipu3/ipu3-cio2.h"
 
 struct i2c_client;
 
-#define CIO2_HID				"INT343E"
-#define CIO2_MAX_LANES				4
+#define IPU_HID				"INT343E"
+#define IPU_MAX_LANES				4
 #define MAX_NUM_LINK_FREQS			3
 
 /* Values are educated guesses as we don't have a spec */
-#define CIO2_SENSOR_ROTATION_NORMAL		0
-#define CIO2_SENSOR_ROTATION_INVERTED		1
+#define IPU_SENSOR_ROTATION_NORMAL		0
+#define IPU_SENSOR_ROTATION_INVERTED		1
 
-#define CIO2_SENSOR_CONFIG(_HID, _NR, ...)	\
-	(const struct cio2_sensor_config) {	\
+#define IPU_SENSOR_CONFIG(_HID, _NR, ...)	\
+	(const struct ipu_sensor_config) {	\
 		.hid = _HID,			\
 		.nr_link_freqs = _NR,		\
 		.link_freqs = { __VA_ARGS__ }	\
@@ -49,19 +49,19 @@ struct i2c_client;
 		.name = _TYPE,			\
 	}
 
-enum cio2_sensor_swnodes {
+enum ipu_sensor_swnodes {
 	SWNODE_SENSOR_HID,
 	SWNODE_SENSOR_PORT,
 	SWNODE_SENSOR_ENDPOINT,
-	SWNODE_CIO2_PORT,
-	SWNODE_CIO2_ENDPOINT,
+	SWNODE_IPU_PORT,
+	SWNODE_IPU_ENDPOINT,
 	/* Must be last because it is optional / maybe empty */
 	SWNODE_VCM,
 	SWNODE_COUNT
 };
 
 /* Data representation as it is in ACPI SSDB buffer */
-struct cio2_sensor_ssdb {
+struct ipu_sensor_ssdb {
 	u8 version;
 	u8 sku;
 	u8 guid_csi2[16];
@@ -90,7 +90,7 @@ struct cio2_sensor_ssdb {
 	u8 reserved2[13];
 } __packed;
 
-struct cio2_property_names {
+struct ipu_property_names {
 	char clock_frequency[16];
 	char rotation[9];
 	char orientation[12];
@@ -100,19 +100,19 @@ struct cio2_property_names {
 	char link_frequencies[17];
 };
 
-struct cio2_node_names {
+struct ipu_node_names {
 	char port[7];
 	char endpoint[11];
 	char remote_port[7];
 };
 
-struct cio2_sensor_config {
+struct ipu_sensor_config {
 	const char *hid;
 	const u8 nr_link_freqs;
 	const u64 link_freqs[MAX_NUM_LINK_FREQS];
 };
 
-struct cio2_sensor {
+struct ipu_sensor {
 	/* append ssdb.link(u8) in "-%u" format as suffix of HID */
 	char name[ACPI_ID_LEN + 4];
 	struct acpi_device *adev;
@@ -121,26 +121,32 @@ struct cio2_sensor {
 	/* SWNODE_COUNT + 1 for terminating NULL */
 	const struct software_node *group[SWNODE_COUNT + 1];
 	struct software_node swnodes[SWNODE_COUNT];
-	struct cio2_node_names node_names;
+	struct ipu_node_names node_names;
 
-	struct cio2_sensor_ssdb ssdb;
+	struct ipu_sensor_ssdb ssdb;
 	struct acpi_pld_info *pld;
 
-	struct cio2_property_names prop_names;
+	struct ipu_property_names prop_names;
 	struct property_entry ep_properties[5];
 	struct property_entry dev_properties[5];
-	struct property_entry cio2_properties[3];
+	struct property_entry ipu_properties[3];
 	struct software_node_ref_args local_ref[1];
 	struct software_node_ref_args remote_ref[1];
 	struct software_node_ref_args vcm_ref[1];
 };
 
-struct cio2_bridge {
-	char cio2_node_name[ACPI_ID_LEN];
-	struct software_node cio2_hid_node;
+struct ipu_bridge {
+	char ipu_node_name[ACPI_ID_LEN];
+	struct software_node ipu_hid_node;
 	u32 data_lanes[4];
 	unsigned int n_sensors;
-	struct cio2_sensor sensors[CIO2_NUM_PORTS];
+	struct ipu_sensor sensors[CIO2_NUM_PORTS];
 };
+
+#if IS_ENABLED(CONFIG_IPU_BRIDGE)
+int ipu_bridge_init(struct pci_dev *ipu);
+#else
+static inline int ipu_bridge_init(struct pci_dev *ipu) { return 0; }
+#endif
 
 #endif
