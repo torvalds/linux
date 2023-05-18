@@ -169,16 +169,14 @@ static irqreturn_t aspeed_pcc_dma_isr(int irq, void *arg)
 	wptr = (reg & PCCR6_DMA_CUR_ADDR) - (pcc->dma.addr & PCCR6_DMA_CUR_ADDR);
 	rptr = pcc->dma.rptr;
 
-	if (kfifo_initialized(fifo)) {
-		do {
-			if (kfifo_is_full(fifo))
-				kfifo_skip(fifo);
+	do {
+		if (kfifo_is_full(fifo))
+			kfifo_skip(fifo);
 
-			kfifo_put(fifo, pcc->dma.virt[rptr]);
+		kfifo_put(fifo, pcc->dma.virt[rptr]);
 
-			rptr = (rptr + 1) % pcc->dma.size;
-		} while (rptr != wptr);
-	}
+		rptr = (rptr + 1) % pcc->dma.size;
+	} while (rptr != wptr);
 
 	pcc->dma.rptr = rptr;
 
@@ -204,12 +202,10 @@ static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 	while (sts & PCCR2_DATA_RDY) {
 		regmap_read(pcc->regmap, PCCR3, &reg);
 
-		if(kfifo_initialized(fifo)) {
-			if (kfifo_is_full(&pcc->fifo))
-				kfifo_skip(&pcc->fifo);
+		if (kfifo_is_full(fifo))
+			kfifo_skip(fifo);
 
-			kfifo_put(&pcc->fifo, reg & PCCR3_FIFO_DATA_MASK);
-		}
+		kfifo_put(fifo, reg & PCCR3_FIFO_DATA_MASK);
 
 		regmap_read(pcc->regmap, PCCR2, &sts);
 	}
@@ -219,38 +215,8 @@ static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
+static void aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 {
-	int rc;
-	uint32_t fifo_size = PAGE_SIZE;
-
-	if (pcc->dma_mode) {
-		pcc->dma.size = PCC_DMA_BUFSZ;
-		pcc->dma.virt = dmam_alloc_coherent(dev,
-						    pcc->dma.size,
-						    &pcc->dma.addr,
-						    GFP_KERNEL);
-		if (pcc->dma.virt == NULL) {
-		    rc = -ENOMEM;
-		    goto err_ret;
-		}
-
-		fifo_size = roundup(pcc->dma.size, PAGE_SIZE);
-	}
-
-	rc = kfifo_alloc(&pcc->fifo, fifo_size, GFP_KERNEL);
-	if (rc) {
-		rc = -ENOMEM;
-		goto err_ret;
-	}
-
-	pcc->misc_dev.parent = dev;
-	pcc->misc_dev.name = devm_kasprintf(dev, GFP_KERNEL, "%s", DEVICE_NAME);
-	pcc->misc_dev.fops = &pcc_fops;
-	rc = misc_register(&pcc->misc_dev);
-	if (rc)
-		goto err_free_kfifo;
-
 	/* record mode */
 	regmap_update_bits(pcc->regmap, PCCR0,
 			PCCR0_MODE_SEL_MASK,
@@ -288,13 +254,6 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 
 	regmap_update_bits(pcc->regmap, PCCR0, PCCR0_EN, PCCR0_EN);
 
-	return 0;
-
-err_free_kfifo:
-	kfifo_free(&pcc->fifo);
-
-err_ret:
-	return rc;
 }
 
 static int aspeed_pcc_probe(struct platform_device *pdev)
@@ -302,6 +261,7 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	int rc;
 	struct aspeed_pcc *pcc;
 	struct device *dev = &pdev->dev;
+	uint32_t fifo_size = PAGE_SIZE;
 
 	pcc = devm_kzalloc(&pdev->dev, sizeof(*pcc), GFP_KERNEL);
 	if (!pcc)
@@ -354,33 +314,63 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	else
 		pcc->port_hbits_select = 0x3;
 
+	pcc->dma_mode = of_property_read_bool(dev->of_node, "dma-mode");
+	if (pcc->dma_mode) {
+		pcc->dma.size = PCC_DMA_BUFSZ;
+		pcc->dma.virt = dmam_alloc_coherent(dev,
+						    pcc->dma.size,
+						    &pcc->dma.addr,
+						    GFP_KERNEL);
+		if (!pcc->dma.virt) {
+			dev_err(dev, "cannot allocate DMA buffer\n");
+			return -ENOMEM;
+		}
+
+		fifo_size = roundup(pcc->dma.size, PAGE_SIZE);
+	}
+
+	rc = kfifo_alloc(&pcc->fifo, fifo_size, GFP_KERNEL);
+	if (rc) {
+		dev_err(dev, "cannot allocate kFIFO\n");
+		return -ENOMEM;
+	}
+
 	pcc->irq = platform_get_irq(pdev, 0);
 	if (pcc->irq < 0) {
 		dev_err(dev, "cannot get IRQ\n");
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_free_kfifo;
 	}
 
 	rc = devm_request_irq(dev, pcc->irq, aspeed_pcc_isr, 0, DEVICE_NAME, pcc);
 	if (rc < 0) {
 		dev_err(dev, "cannot request IRQ handler\n");
-		return rc;
+		goto err_free_kfifo;
 	}
-
-	pcc->dma_mode = of_property_read_bool(dev->of_node, "dma-mode");
 
 	init_waitqueue_head(&pcc->wq);
 
-	rc = aspeed_pcc_enable(pcc, dev);
+	pcc->misc_dev.parent = dev;
+	pcc->misc_dev.name = devm_kasprintf(dev, GFP_KERNEL, "%s", DEVICE_NAME);
+	pcc->misc_dev.fops = &pcc_fops;
+	rc = misc_register(&pcc->misc_dev);
 	if (rc) {
-		dev_err(dev, "cannot enable PCC\n");
-		return rc;
+		dev_err(dev, "cannot register misc device\n");
+		goto err_free_kfifo;
 	}
+
+	aspeed_pcc_enable(pcc, dev);
 
 	dev_set_drvdata(&pdev->dev, pcc);
 
 	dev_info(dev, "module loaded\n");
 
 	return 0;
+
+err_free_kfifo:
+	kfifo_free(&pcc->fifo);
+
+	return rc;
 }
 
 static int aspeed_pcc_remove(struct platform_device *pdev)
@@ -388,6 +378,7 @@ static int aspeed_pcc_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aspeed_pcc *pcc = dev_get_drvdata(dev);
 
+	kfifo_free(&pcc->fifo);
 	misc_deregister(&pcc->misc_dev);
 
 	return 0;
