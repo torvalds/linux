@@ -2032,6 +2032,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	int line_flag;
+	uint32_t touch_flag;
 
 	if (!hdmirx_dev->get_timing) {
 		v4l2_err(v4l2_dev, "Err, timing is invalid\n");
@@ -2045,7 +2046,8 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	mutex_lock(&hdmirx_dev->stream_lock);
-	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, 1, 100);
+	touch_flag = (hdmirx_dev->bound_cpu << 1) | 0x1;
+	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, touch_flag, 100);
 	stream->frame_idx = 0;
 	stream->line_flag_int_cnt = 0;
 	stream->curr_buf = NULL;
@@ -4176,9 +4178,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 			__func__, cpu_aff,
 			hdmirx_dev->bound_cpu,
 			hdmirx_dev->wdt_cfg_bound_cpu);
-	if (hdmirx_dev->bound_cpu != 4)
-		dev_err(dev, "%s: Bound_cpu:%d, expect bound cpu 4!\n",
-			__func__, hdmirx_dev->bound_cpu);
 	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
