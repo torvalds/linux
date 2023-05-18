@@ -95,15 +95,13 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 	err = snd_emu10k1_voice_alloc(epcm->emu,
 				      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM : EMU10K1_EFX,
 				      voices,
-				      &epcm->voices[0]);
+				      epcm, &epcm->voices[0]);
 	
 	if (err < 0)
 		return err;
-	epcm->voices[0]->epcm = epcm;
 	if (voices > 1) {
 		for (i = 1; i < voices; i++) {
 			epcm->voices[i] = &epcm->emu->voices[(epcm->voices[0]->number + i) % NUM_G];
-			epcm->voices[i]->epcm = epcm;
 		}
 	}
 	if (epcm->extra == NULL) {
@@ -114,7 +112,7 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 		err = snd_emu10k1_voice_alloc(epcm->emu,
 					      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM_IRQ : EMU10K1_EFX_IRQ,
 					      1,
-					      &epcm->extra);
+					      epcm, &epcm->extra);
 		if (err < 0) {
 			/*
 			dev_dbg(emu->card->dev, "pcm_channel_alloc: "
@@ -124,7 +122,6 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 			snd_emu10k1_pcm_free_voices(epcm);
 			return err;
 		}
-		epcm->extra->epcm = epcm;
 		epcm->extra->interrupt = snd_emu10k1_pcm_interrupt;
 	}
 
