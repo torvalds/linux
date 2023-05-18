@@ -5023,24 +5023,25 @@ void *mas_walk(struct ma_state *mas)
 {
 	void *entry;
 
+	if (mas_is_none(mas) || mas_is_paused(mas) || mas_is_ptr(mas))
+		mas->node = MAS_START;
 retry:
 	entry = mas_state_walk(mas);
-	if (mas_is_start(mas))
+	if (mas_is_start(mas)) {
 		goto retry;
-
-	if (mas_is_ptr(mas)) {
-		if (!mas->index) {
-			mas->last = 0;
-		} else {
-			mas->index = 1;
-			mas->last = ULONG_MAX;
-		}
-		return entry;
-	}
-
-	if (mas_is_none(mas)) {
+	} else if (mas_is_none(mas)) {
 		mas->index = 0;
 		mas->last = ULONG_MAX;
+	} else if (mas_is_ptr(mas)) {
+		if (!mas->index) {
+			mas->last = 0;
+			return entry;
+		}
+
+		mas->index = 1;
+		mas->last = ULONG_MAX;
+		mas->node = MAS_NONE;
+		return NULL;
 	}
 
 	return entry;
