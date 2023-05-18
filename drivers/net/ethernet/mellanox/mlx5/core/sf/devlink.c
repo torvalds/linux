@@ -29,7 +29,7 @@ static void *mlx5_sf_by_dl_port(struct devlink_port *dl_port)
 
 struct mlx5_sf_table {
 	struct mlx5_core_dev *dev; /* To refer from notifier context. */
-	struct xarray port_indices; /* port index based lookup. */
+	struct xarray function_ids; /* function id based lookup. */
 	refcount_t refcount;
 	struct completion disable_complete;
 	struct mutex sf_state_lock; /* Serializes sf state among user cmds & vhca event handler. */
@@ -41,24 +41,17 @@ struct mlx5_sf_table {
 static struct mlx5_sf *
 mlx5_sf_lookup_by_function_id(struct mlx5_sf_table *table, unsigned int fn_id)
 {
-	unsigned long index;
-	struct mlx5_sf *sf;
-
-	xa_for_each(&table->port_indices, index, sf) {
-		if (sf->hw_fn_id == fn_id)
-			return sf;
-	}
-	return NULL;
+	return xa_load(&table->function_ids, fn_id);
 }
 
-static int mlx5_sf_id_insert(struct mlx5_sf_table *table, struct mlx5_sf *sf)
+static int mlx5_sf_function_id_insert(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
-	return xa_insert(&table->port_indices, sf->port_index, sf, GFP_KERNEL);
+	return xa_insert(&table->function_ids, sf->hw_fn_id, sf, GFP_KERNEL);
 }
 
-static void mlx5_sf_id_erase(struct mlx5_sf_table *table, struct mlx5_sf *sf)
+static void mlx5_sf_function_id_erase(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
-	xa_erase(&table->port_indices, sf->port_index);
+	xa_erase(&table->function_ids, sf->hw_fn_id);
 }
 
 static struct mlx5_sf *
@@ -95,7 +88,7 @@ mlx5_sf_alloc(struct mlx5_sf_table *table, struct mlx5_eswitch *esw,
 	sf->hw_state = MLX5_VHCA_STATE_ALLOCATED;
 	sf->controller = controller;
 
-	err = mlx5_sf_id_insert(table, sf);
+	err = mlx5_sf_function_id_insert(table, sf);
 	if (err)
 		goto insert_err;
 
@@ -348,7 +341,7 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 
 static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
-	mlx5_sf_id_erase(table, sf);
+	mlx5_sf_function_id_erase(table, sf);
 
 	if (sf->hw_state == MLX5_VHCA_STATE_ALLOCATED) {
 		mlx5_sf_free(table, sf);
@@ -452,7 +445,7 @@ static void mlx5_sf_deactivate_all(struct mlx5_sf_table *table)
 	/* At this point, no new user commands can start and no vhca event can
 	 * arrive. It is safe to destroy all user created SFs.
 	 */
-	xa_for_each(&table->port_indices, index, sf) {
+	xa_for_each(&table->function_ids, index, sf) {
 		mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 		mlx5_sf_dealloc(table, sf);
 	}
@@ -540,7 +533,7 @@ int mlx5_sf_table_init(struct mlx5_core_dev *dev)
 
 	mutex_init(&table->sf_state_lock);
 	table->dev = dev;
-	xa_init(&table->port_indices);
+	xa_init(&table->function_ids);
 	dev->priv.sf_table = table;
 	refcount_set(&table->refcount, 0);
 	table->esw_nb.notifier_call = mlx5_sf_esw_event;
@@ -579,6 +572,6 @@ void mlx5_sf_table_cleanup(struct mlx5_core_dev *dev)
 	mlx5_esw_event_notifier_unregister(dev->priv.eswitch, &table->esw_nb);
 	WARN_ON(refcount_read(&table->refcount));
 	mutex_destroy(&table->sf_state_lock);
-	WARN_ON(!xa_empty(&table->port_indices));
+	WARN_ON(!xa_empty(&table->function_ids));
 	kfree(table);
 }
