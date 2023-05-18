@@ -4499,11 +4499,14 @@ static void android_rvh_wake_up_new_task(void *unused, struct task_struct *new)
 
 static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *policy)
 {
+	int cpu;
+
 	if (unlikely(walt_disabled))
 		return;
 
 	cpu_cluster(policy->cpu)->max_freq = policy->max;
-	update_cpu_capacity_helper(policy->cpu);
+	for_each_cpu(cpu, policy->related_cpus)
+		update_cpu_capacity_helper(cpu);
 }
 
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
