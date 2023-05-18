@@ -378,6 +378,26 @@ config PINCTRL_SDX55
 	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	 Technologies Inc SDX55 platform.
 
+config PINCTRL_SDX65
+        tristate "Qualcomm Technologies Inc SDX65 pin controller driver"
+        depends on GPIOLIB && OF
+        depends on ARM || COMPILE_TEST
+        depends on PINCTRL_MSM
+        help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SDX65 platform.
+
+config PINCTRL_SDX75
+        tristate "Qualcomm Technologies Inc SDX75 pin controller driver"
+        depends on GPIOLIB && OF
+        depends on ARM64 || COMPILE_TEST
+        depends on PINCTRL_MSM
+        help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SDX75 platform.
+
 config PINCTRL_SM6115
 	tristate "Qualcomm Technologies Inc SM6115,SM4250 pin controller driver"
 	depends on GPIOLIB && OF
@@ -417,16 +437,6 @@ config PINCTRL_SM6375
 	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	 Technologies Inc SM6375 platform.
-
-config PINCTRL_SDX65
-	tristate "Qualcomm Technologies Inc SDX65 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on ARM || COMPILE_TEST
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SDX65 platform.
 
 config PINCTRL_SM7150
 	tristate "Qualcomm Technologies Inc SM7150 pin controller driver"
