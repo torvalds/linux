@@ -212,6 +212,7 @@ struct worker_pool {
 enum pool_workqueue_stats {
 	PWQ_STAT_STARTED,	/* work items started execution */
 	PWQ_STAT_COMPLETED,	/* work items completed execution */
+	PWQ_STAT_CPU_INTENSIVE,	/* wq_cpu_intensive_thresh_us violations */
 	PWQ_STAT_CM_WAKEUP,	/* concurrency-management worker wakeups */
 	PWQ_STAT_MAYDAY,	/* maydays to rescuer */
 	PWQ_STAT_RESCUED,	/* linked work items executed by rescuer */
@@ -331,6 +332,14 @@ static struct kmem_cache *pwq_cache;
 
 static cpumask_var_t *wq_numa_possible_cpumask;
 					/* possible CPUs of each node */
+
+/*
+ * Per-cpu work items which run for longer than the following threshold are
+ * automatically considered CPU intensive and excluded from concurrency
+ * management to prevent them from noticeably delaying other per-cpu work items.
+ */
+static unsigned long wq_cpu_intensive_thresh_us = 10000;
+module_param_named(cpu_intensive_thresh_us, wq_cpu_intensive_thresh_us, ulong, 0644);
 
 static bool wq_disable_numa;
 module_param_named(disable_numa, wq_disable_numa, bool, 0444);
@@ -962,6 +971,13 @@ void wq_worker_running(struct task_struct *task)
 	if (!(worker->flags & WORKER_NOT_RUNNING))
 		worker->pool->nr_running++;
 	preempt_enable();
+
+	/*
+	 * CPU intensive auto-detection cares about how long a work item hogged
+	 * CPU without sleeping. Reset the starting timestamp on wakeup.
+	 */
+	worker->current_at = worker->task->se.sum_exec_runtime;
+
 	worker->sleeping = 0;
 }
 
@@ -1010,6 +1026,45 @@ void wq_worker_sleeping(struct task_struct *task)
 		wake_up_worker(pool);
 	}
 	raw_spin_unlock_irq(&pool->lock);
+}
+
+/**
+ * wq_worker_tick - a scheduler tick occurred while a kworker is running
+ * @task: task currently running
+ *
+ * Called from scheduler_tick(). We're in the IRQ context and the current
+ * worker's fields which follow the 'K' locking rule can be accessed safely.
+ */
+void wq_worker_tick(struct task_struct *task)
+{
+	struct worker *worker = kthread_data(task);
+	struct pool_workqueue *pwq = worker->current_pwq;
+	struct worker_pool *pool = worker->pool;
+
+	if (!pwq)
+		return;
+
+	/*
+	 * If the current worker is concurrency managed and hogged the CPU for
+	 * longer than wq_cpu_intensive_thresh_us, it's automatically marked
+	 * CPU_INTENSIVE to avoid stalling other concurrency-managed work items.
+	 */
+	if ((worker->flags & WORKER_NOT_RUNNING) ||
+	    worker->task->se.sum_exec_runtime - worker->current_at <
+	    wq_cpu_intensive_thresh_us * NSEC_PER_USEC)
+		return;
+
+	raw_spin_lock(&pool->lock);
+
+	worker_set_flags(worker, WORKER_CPU_INTENSIVE);
+	pwq->stats[PWQ_STAT_CPU_INTENSIVE]++;
+
+	if (need_more_worker(pool)) {
+		pwq->stats[PWQ_STAT_CM_WAKEUP]++;
+		wake_up_worker(pool);
+	}
+
+	raw_spin_unlock(&pool->lock);
 }
 
 /**
@@ -2327,7 +2382,6 @@ __acquires(&pool->lock)
 {
 	struct pool_workqueue *pwq = get_work_pwq(work);
 	struct worker_pool *pool = worker->pool;
-	bool cpu_intensive = pwq->wq->flags & WQ_CPU_INTENSIVE;
 	unsigned long work_data;
 	struct worker *collision;
 #ifdef CONFIG_LOCKDEP
@@ -2364,6 +2418,7 @@ __acquires(&pool->lock)
 	worker->current_work = work;
 	worker->current_func = work->func;
 	worker->current_pwq = pwq;
+	worker->current_at = worker->task->se.sum_exec_runtime;
 	work_data = *work_data_bits(work);
 	worker->current_color = get_work_color(work_data);
 
@@ -2381,7 +2436,7 @@ __acquires(&pool->lock)
 	 * of concurrency management and the next code block will chain
 	 * execution of the pending work items.
 	 */
-	if (unlikely(cpu_intensive))
+	if (unlikely(pwq->wq->flags & WQ_CPU_INTENSIVE))
 		worker_set_flags(worker, WORKER_CPU_INTENSIVE);
 
 	/*
@@ -2461,9 +2516,12 @@ __acquires(&pool->lock)
 
 	raw_spin_lock_irq(&pool->lock);
 
-	/* clear cpu intensive status */
-	if (unlikely(cpu_intensive))
-		worker_clr_flags(worker, WORKER_CPU_INTENSIVE);
+	/*
+	 * In addition to %WQ_CPU_INTENSIVE, @worker may also have been marked
+	 * CPU intensive by wq_worker_tick() if @work hogged CPU longer than
+	 * wq_cpu_intensive_thresh_us. Clear it.
+	 */
+	worker_clr_flags(worker, WORKER_CPU_INTENSIVE);
 
 	/* tag the worker for identification in schedule() */
 	worker->last_func = worker->current_func;

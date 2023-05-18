@@ -6931,6 +6931,13 @@
 			it can be updated at runtime by writing to the
 			corresponding sysfs file.
 
+	workqueue.cpu_intensive_thresh_us=
+			Per-cpu work items which run for longer than this
+			threshold are automatically considered CPU intensive
+			and excluded from concurrency management to prevent
+			them from noticeably delaying other per-cpu work
+			items. Default is 10000 (10ms).
+
 	workqueue.disable_numa
 			By default, all work items queued to unbound
 			workqueues are affine to the NUMA nodes they're
