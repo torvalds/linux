@@ -393,10 +393,8 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		RB_CLEAR_NODE(&rq->rb_node);
 
 		if (!op_is_flush(data->cmd_flags) &&
-		    e->type->ops.prepare_request) {
+		    e->type->ops.prepare_request)
 			e->type->ops.prepare_request(rq);
-			rq->rq_flags |= RQF_ELVPRIV;
-		}
 	}
 
 	return rq;
@@ -696,7 +694,7 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if ((rq->rq_flags & RQF_ELVPRIV) &&
+	if ((rq->rq_flags & RQF_ELV) && !op_is_flush(rq->cmd_flags) &&
 	    q->elevator->type->ops.finish_request)
 		q->elevator->type->ops.finish_request(rq);
 

@@ -58,11 +58,11 @@ static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
 
 static inline void blk_mq_sched_requeue_request(struct request *rq)
 {
-	if (rq->rq_flags & RQF_ELV) {
+	if ((rq->rq_flags & RQF_ELV) && !op_is_flush(rq->cmd_flags)) {
 		struct request_queue *q = rq->q;
 		struct elevator_queue *e = q->elevator;
 
-		if ((rq->rq_flags & RQF_ELVPRIV) && e->type->ops.requeue_request)
+		if (e->type->ops.requeue_request)
 			e->type->ops.requeue_request(rq);
 	}
 }

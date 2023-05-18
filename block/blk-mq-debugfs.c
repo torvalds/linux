@@ -251,7 +251,6 @@ static const char *const rqf_name[] = {
 	RQF_NAME(DONTPREP),
 	RQF_NAME(FAILED),
 	RQF_NAME(QUIET),
-	RQF_NAME(ELVPRIV),
 	RQF_NAME(IO_STAT),
 	RQF_NAME(PM),
 	RQF_NAME(HASHED),
