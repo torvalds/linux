@@ -253,7 +253,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 		/* check if sample is finished playing (non-looping only) */
 		if (bp != best + V_OFF && bp != best + V_FREE &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
-			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch);
+			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch) - 64;
 			if (val >= vp->reg.loopstart)
 				bp = best + V_OFF;
 		}
@@ -360,7 +360,7 @@ start_voice(struct snd_emux_voice *vp)
 
 	map = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 
-	addr = vp->reg.start;
+	addr = vp->reg.start + 64;
 	temp = vp->reg.parm.filterQ;
 	ccca = (temp << 28) | addr;
 	if (vp->apitch < 0xe400)
@@ -428,40 +428,14 @@ start_voice(struct snd_emux_voice *vp)
 		/* Q & current address (Q 4bit value, MSB) */
 		CCCA, ccca,
 
+		/* cache */
+		CCR, REG_VAL_PUT(CCR_CACHEINVALIDSIZE, 64),
+
 		/* reset volume */
 		VTFT, vtarget | vp->ftarget,
 		CVCF, vtarget | CVCF_CURRENTFILTER_MASK,
 
 		REGLIST_END);
-#if 0
-	/* cache */
-	{
-		unsigned int val, sample;
-		val = 32;
-		if (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_8BITS)
-			sample = 0x80808080;
-		else {
-			sample = 0;
-			val *= 2;
-		}
-
-		/* cache */
-		snd_emu10k1_ptr_write(hw, CCR, ch, 0x1c << 16);
-		snd_emu10k1_ptr_write(hw, CDE, ch, sample);
-		snd_emu10k1_ptr_write(hw, CDF, ch, sample);
-
-		/* invalidate maps */
-		temp = ((unsigned int)hw->silent_page.addr << hw_address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
-		snd_emu10k1_ptr_write(hw, MAPA, ch, temp);
-		snd_emu10k1_ptr_write(hw, MAPB, ch, temp);
-		
-		/* fill cache */
-		val -= 4;
-		val <<= 25;
-		val |= 0x1c << 16;
-		snd_emu10k1_ptr_write(hw, CCR, ch, val);
-	}
-#endif
 
 	return 0;
 }
