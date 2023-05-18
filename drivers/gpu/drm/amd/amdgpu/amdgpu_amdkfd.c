@@ -804,7 +804,7 @@ u64 amdgpu_amdkfd_xcp_memory_size(struct amdgpu_device *adev, int xcp_id)
 	if (adev->gmc.num_mem_partitions && xcp_id >= 0 && mem_id >= 0) {
 		tmp = adev->gmc.mem_partitions[mem_id].size;
 		do_div(tmp, adev->xcp_mgr->num_xcp_per_mem_partition);
-		return tmp;
+		return ALIGN_DOWN(tmp, PAGE_SIZE);
 	} else {
 		return adev->gmc.real_vram_size;
 	}
