@@ -22,15 +22,18 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 	int handled = 0;
 	int timeout = 0;
 
-	while (((status = inl(emu->port + IPR)) != 0) && (timeout < 1000)) {
-		timeout++;
-		orig_status = status;
+	while ((status = inl(emu->port + IPR)) != 0) {
 		handled = 1;
 		if ((status & 0xffffffff) == 0xffffffff) {
 			dev_info(emu->card->dev,
 				 "Suspected sound card removal\n");
 			break;
 		}
+		if (++timeout == 1000) {
+			dev_info(emu->card->dev, "emu10k1 irq routine failure\n");
+			break;
+		}
+		orig_status = status;
 		if (status & IPR_PCIERROR) {
 			dev_err(emu->card->dev, "interrupt: PCI error\n");
 			snd_emu10k1_intr_disable(emu, INTE_PCIERRORENABLE);
@@ -151,8 +154,6 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 		}
 		outl(orig_status, emu->port + IPR); /* ack all */
 	}
-	if (timeout == 1000)
-		dev_info(emu->card->dev, "emu10k1 irq routine failure\n");
 
 	return IRQ_RETVAL(handled);
 }
