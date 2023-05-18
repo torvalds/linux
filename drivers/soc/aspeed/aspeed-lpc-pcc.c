@@ -98,6 +98,7 @@ struct aspeed_pcc {
 	struct kfifo fifo;
 	wait_queue_head_t wq;
 	struct miscdevice misc_dev;
+	bool a2600_15;
 };
 
 static inline bool is_valid_rec_mode(uint32_t mode)
@@ -215,8 +216,57 @@ static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
+/*
+ * A2600-15 AP note
+ *
+ * SW workaround to prevent generating Non-Fatal-Error (NFE)
+ * eSPI response when PCC is used for port I/O byte snooping
+ * over eSPI.
+ */
+#define SNPWADR	0x90
+#define HICR6	0x84
+#define HICRB	0x100
+static int aspeed_a2600_15(struct aspeed_pcc *pcc, struct device *dev)
 {
+	struct device_node *np;
+
+	/* abort if snoop is enabled */
+	np = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-lpc-snoop");
+	if (np) {
+		if (of_device_is_available(np)) {
+			dev_err(dev, "A2600-15 should be applied with snoop disabled\n");
+			return -EPERM;
+		}
+	}
+
+	/* abort if port is not 4-bytes continuous range */
+	if (pcc->port_xbits != 0x3) {
+		dev_err(dev, "A2600-15 should be applied on 4-bytes continuous I/O address range\n");
+		return -EINVAL;
+	}
+
+	/* set SNPWADR of snoop device */
+	regmap_write(pcc->regmap, SNPWADR, pcc->port | ((pcc->port + 2) << 16));
+
+	/* set HICRB[15:14]=11b to enable ACCEPT response for SNPWADR */
+	regmap_update_bits(pcc->regmap, HICRB, BIT(14) | BIT(15), BIT(14) | BIT(15));
+
+	/* set HICR6[19] to extend SNPWADR to 2x range */
+	regmap_update_bits(pcc->regmap, HICR6, BIT(19), BIT(19));
+
+	return 0;
+}
+
+static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
+{
+	int rc;
+
+	if (pcc->a2600_15) {
+		rc = aspeed_a2600_15(pcc, dev);
+		if (rc)
+			return rc;
+	}
+
 	/* record mode */
 	regmap_update_bits(pcc->regmap, PCCR0,
 			PCCR0_MODE_SEL_MASK,
@@ -254,6 +304,7 @@ static void aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 
 	regmap_update_bits(pcc->regmap, PCCR0, PCCR0_EN, PCCR0_EN);
 
+	return 0;
 }
 
 static int aspeed_pcc_probe(struct platform_device *pdev)
@@ -335,6 +386,11 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	/* AP note A2600-15 */
+	pcc->a2600_15 = of_property_read_bool(dev->of_node, "A2600-15");
+	if (pcc->a2600_15)
+		dev_warn(dev, "A2600-15 AP note patch is selected\n");
+
 	pcc->irq = platform_get_irq(pdev, 0);
 	if (pcc->irq < 0) {
 		dev_err(dev, "cannot get IRQ\n");
@@ -359,13 +415,20 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 		goto err_free_kfifo;
 	}
 
-	aspeed_pcc_enable(pcc, dev);
+	rc = aspeed_pcc_enable(pcc, dev);
+	if (rc) {
+		dev_err(dev, "cannot enable PCC\n");
+		goto err_dereg_mdev;
+	}
 
 	dev_set_drvdata(&pdev->dev, pcc);
 
 	dev_info(dev, "module loaded\n");
 
 	return 0;
+
+err_dereg_mdev:
+	misc_deregister(&pcc->misc_dev);
 
 err_free_kfifo:
 	kfifo_free(&pcc->fifo);
