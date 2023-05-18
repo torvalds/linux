@@ -444,9 +444,8 @@ static const struct snd_pcm_hardware snd_emu10k1_efx_playback =
 	.rate_max =		48000,
 	.channels_min =		NUM_EFX_PLAYBACK,
 	.channels_max =		NUM_EFX_PLAYBACK,
-	.buffer_bytes_max =	(64*1024),
-	.period_bytes_min =	64,
-	.period_bytes_max =	(64*1024),
+	.buffer_bytes_max =	(128*1024),
+	.period_bytes_max =	(128*1024),
 	.periods_min =		2,
 	.periods_max =		2,
 	.fifo_size =		0,
@@ -877,7 +876,6 @@ static const struct snd_pcm_hardware snd_emu10k1_playback =
 	.channels_min =		1,
 	.channels_max =		2,
 	.buffer_bytes_max =	(128*1024),
-	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
 	.periods_min =		1,
 	.periods_max =		1024,
@@ -982,13 +980,29 @@ static int snd_emu10k1_efx_playback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int snd_emu10k1_playback_set_constraints(struct snd_pcm_runtime *runtime)
+{
+	int err;
+
+	// The buffer size must be a multiple of the period size, to avoid a
+	// mismatch between the extra voice and the regular voices.
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
+	// The hardware is typically the cache's size of 64 frames ahead.
+	// Leave enough time for actually filling up the buffer.
+	err = snd_pcm_hw_constraint_minmax(
+			runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 128, UINT_MAX);
+	return err;
+}
+
 static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_emu10k1_pcm *epcm;
 	struct snd_emu10k1_pcm_mixer *mix;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int i, j;
+	int i, j, err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
@@ -1000,7 +1014,12 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_efx_playback;
-	
+	err = snd_emu10k1_playback_set_constraints(runtime);
+	if (err < 0) {
+		kfree(epcm);
+		return err;
+	}
+
 	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
 		mix = &emu->efx_pcm_mixer[i];
 		for (j = 0; j < 8; j++)
@@ -1031,12 +1050,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_playback;
-	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		kfree(epcm);
-		return err;
-	}
-	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
+	err = snd_emu10k1_playback_set_constraints(runtime);
 	if (err < 0) {
 		kfree(epcm);
 		return err;
