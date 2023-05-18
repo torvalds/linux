@@ -1032,21 +1032,6 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
-__be32 nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		  struct file *file, loff_t offset,
-		  struct kvec *vec, int vlen, unsigned long *count,
-		  u32 *eof)
-{
-	struct iov_iter iter;
-	loff_t ppos = offset;
-	ssize_t host_err;
-
-	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
-	iov_iter_kvec(&iter, ITER_DEST, vec, vlen, *count);
-	host_err = vfs_iter_read(file, &iter, &ppos, 0);
-	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
-}
-
 /**
  * nfsd_iter_read - Perform a VFS read using an iterator
  * @rqstp: RPC transaction context
