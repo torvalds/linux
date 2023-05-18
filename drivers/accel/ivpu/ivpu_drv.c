@@ -427,7 +427,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 		return PTR_ERR(vdev->regb);
 	}
 
-	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(38));
+	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(vdev->hw->dma_bits));
 	if (ret) {
 		ivpu_err(vdev, "Failed to set DMA mask: %d\n", ret);
 		return ret;
@@ -477,6 +477,8 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		return -ENOMEM;
 
 	vdev->hw->ops = &ivpu_hw_mtl_ops;
+	vdev->hw->dma_bits = 38;
+
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
 	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;

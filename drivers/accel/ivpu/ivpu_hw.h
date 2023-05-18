@@ -57,6 +57,7 @@ struct ivpu_hw_info {
 	u32 tile_fuse;
 	u32 sku;
 	u16 config;
+	int dma_bits;
 };
 
 extern const struct ivpu_hw_ops ivpu_hw_mtl_ops;
