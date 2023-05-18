@@ -86,32 +86,26 @@ static void snd_emu10k1_pcm_free_voices(struct snd_emu10k1_pcm *epcm)
 	}
 }
 
-static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voices)
+static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm *epcm,
+					 int type, int count, int channels)
 {
-	int err, i;
+	int err;
 
 	snd_emu10k1_pcm_free_voices(epcm);
 
 	err = snd_emu10k1_voice_alloc(epcm->emu,
-				      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM : EMU10K1_EFX,
-				      voices,
+				      type, count, channels,
 				      epcm, &epcm->voices[0]);
-	
 	if (err < 0)
 		return err;
-	if (voices > 1) {
-		for (i = 1; i < voices; i++) {
-			epcm->voices[i] = &epcm->emu->voices[(epcm->voices[0]->number + i) % NUM_G];
-		}
-	}
+
 	if (epcm->extra == NULL) {
 		// The hardware supports only (half-)loop interrupts, so to support an
 		// arbitrary number of periods per buffer, we use an extra voice with a
 		// period-sized loop as the interrupt source. Additionally, the interrupt
 		// timing of the hardware is "suboptimal" and needs some compensation.
 		err = snd_emu10k1_voice_alloc(epcm->emu,
-					      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM_IRQ : EMU10K1_EFX_IRQ,
-					      1,
+					      type + 1, 1, 1,
 					      epcm, &epcm->extra);
 		if (err < 0) {
 			/*
@@ -325,9 +319,19 @@ static int snd_emu10k1_playback_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	size_t alloc_size;
+	int type, channels, count;
 	int err;
 
-	err = snd_emu10k1_pcm_channel_alloc(epcm, params_channels(hw_params));
+	if (epcm->type == PLAYBACK_EMUVOICE) {
+		type = EMU10K1_PCM;
+		channels = 1;
+		count = params_channels(hw_params);
+	} else {
+		type = EMU10K1_EFX;
+		channels = params_channels(hw_params);
+		count = 1;
+	}
+	err = snd_emu10k1_pcm_channel_alloc(epcm, type, count, channels);
 	if (err < 0)
 		return err;
 
@@ -397,8 +401,8 @@ static int snd_emu10k1_playback_prepare(struct snd_pcm_substream *substream)
 	snd_emu10k1_pcm_init_voice(emu, 1, 0, epcm->voices[0], w_16, stereo,
 				   start_addr, end_addr,
 				   &emu->pcm_mixer[substream->number]);
-	if (epcm->voices[1])
-		snd_emu10k1_pcm_init_voice(emu, 0, 0, epcm->voices[1], w_16, true,
+	if (stereo)
+		snd_emu10k1_pcm_init_voice(emu, 0, 0, epcm->voices[0] + 1, w_16, true,
 					   start_addr, end_addr,
 					   &emu->pcm_mixer[substream->number]);
 	return 0;
@@ -589,8 +593,6 @@ static void snd_emu10k1_playback_unmute_voice(struct snd_emu10k1 *emu,
 	unsigned int vattn;
 	unsigned int tmp;
 
-	if (evoice == NULL)	/* skip second voice for mono */
-		return;
 	tmp = stereo ? (master ? 1 : 2) : 0;
 	vattn = mix->attn[tmp] << 16;
 	snd_emu10k1_playback_commit_volume(emu, evoice, vattn);
@@ -599,8 +601,6 @@ static void snd_emu10k1_playback_unmute_voice(struct snd_emu10k1 *emu,
 static void snd_emu10k1_playback_mute_voice(struct snd_emu10k1 *emu,
 					    struct snd_emu10k1_voice *evoice)
 {
-	if (evoice == NULL)
-		return;
 	snd_emu10k1_playback_commit_volume(emu, evoice, 0);
 }
 
@@ -681,7 +681,8 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 		mix = &emu->pcm_mixer[substream->number];
 		snd_emu10k1_playback_unmute_voice(emu, epcm->voices[0], stereo, true, mix);
-		snd_emu10k1_playback_unmute_voice(emu, epcm->voices[1], stereo, false, mix);
+		if (stereo)
+			snd_emu10k1_playback_unmute_voice(emu, epcm->voices[0] + 1, true, false, mix);
 		snd_emu10k1_playback_set_running(emu, epcm);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->voices[0]);
 		snd_emu10k1_playback_trigger_voice(emu, epcm->extra);
@@ -693,7 +694,8 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		snd_emu10k1_playback_stop_voice(emu, epcm->extra);
 		snd_emu10k1_playback_set_stopped(emu, epcm);
 		snd_emu10k1_playback_mute_voice(emu, epcm->voices[0]);
-		snd_emu10k1_playback_mute_voice(emu, epcm->voices[1]);
+		if (stereo)
+			snd_emu10k1_playback_mute_voice(emu, epcm->voices[0] + 1);
 		break;
 	default:
 		result = -EINVAL;

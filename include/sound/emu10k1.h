@@ -1454,6 +1454,7 @@ struct snd_emu10k1_voice {
 	unsigned char number;
 	unsigned char use;
 	unsigned char dirty;
+	unsigned char last;
 	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 	struct snd_emu10k1_pcm *epcm;
@@ -1850,7 +1851,7 @@ int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_me
 int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk);
 
 /* voice allocation */
-int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int pair,
+int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int count, int channels,
 			    struct snd_emu10k1_pcm *epcm, struct snd_emu10k1_voice **rvoice);
 int snd_emu10k1_voice_free(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
