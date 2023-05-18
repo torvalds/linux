@@ -2611,9 +2611,13 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		goto expanded;
 	}
 
+cannot_expand:
+	if (prev)
+		mas_next_range(&mas, ULONG_MAX);
+	BUG_ON(mas.last < addr);
+	BUG_ON(mas.index > end - 1);
 	mas.index = addr;
 	mas.last = end - 1;
-cannot_expand:
 	/*
 	 * Determine the object being mapped and call the appropriate
 	 * specific mapper. the address has already been validated, but
@@ -2710,7 +2714,7 @@ cannot_expand:
 	if (vma->vm_file)
 		i_mmap_lock_write(vma->vm_file->f_mapping);
 
-	vma_mas_store(vma, &mas);
+	mas_store_prealloc(&mas, vma);
 	mm->map_count++;
 	if (vma->vm_file) {
 		if (vma->vm_flags & VM_SHARED)
