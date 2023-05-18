@@ -1790,11 +1790,6 @@ static int hisi_sas_v1_probe(struct platform_device *pdev)
 	return hisi_sas_probe(pdev, &hisi_sas_v1_hw);
 }
 
-static int hisi_sas_v1_remove(struct platform_device *pdev)
-{
-	return hisi_sas_remove(pdev);
-}
-
 static const struct of_device_id sas_v1_of_match[] = {
 	{ .compatible = "hisilicon,hip05-sas-v1",},
 	{},
@@ -1810,7 +1805,7 @@ MODULE_DEVICE_TABLE(acpi, sas_v1_acpi_match);
 
 static struct platform_driver hisi_sas_v1_driver = {
 	.probe = hisi_sas_v1_probe,
-	.remove = hisi_sas_v1_remove,
+	.remove_new = hisi_sas_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v1_of_match,
