@@ -64,6 +64,9 @@
 #define REG_VAL_GET(r, v) ((v & REG_MASK(r)) >> REG_SHIFT(r))
 #define REG_VAL_PUT(r, v) ((v) << REG_SHIFT(r))
 
+// List terminator for snd_emu10k1_ptr_write_multiple()
+#define REGLIST_END ~0
+
 // Audigy specify registers are prefixed with 'A_'
 
 /************************************************************************************************/
@@ -1793,6 +1796,7 @@ int snd_emu10k1_done(struct snd_emu10k1 * emu);
 /* I/O functions */
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
+void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, ...);
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
