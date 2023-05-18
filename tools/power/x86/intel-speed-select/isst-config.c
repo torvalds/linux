@@ -2261,9 +2261,6 @@ static void dump_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 	struct isst_clos_config clos_config;
 	int ret;
 
-	if (id->cpu < 0)
-		return;
-
 	ret = isst_pm_get_clos(id, current_clos, &clos_config);
 	if (ret)
 		isst_display_error_info_message(1, "isst_pm_get_clos failed", 0, 0);
