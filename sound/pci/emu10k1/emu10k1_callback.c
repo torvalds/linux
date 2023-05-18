@@ -165,11 +165,6 @@ free_voice(struct snd_emux_voice *vp)
 	/* Problem apparent on plug, unplug then plug */
 	/* on the Audigy 2 ZS Notebook. */
 	if (hw && (vp->ch >= 0)) {
-		snd_emu10k1_ptr_write(hw, IFATN, vp->ch, 0xff00);
-		snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, 0x807f | DCYSUSV_CHANNELENABLE_MASK);
-		// snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, 0);
-		snd_emu10k1_ptr_write(hw, VTFT, vp->ch, 0xffff);
-		snd_emu10k1_ptr_write(hw, CVCF, vp->ch, 0xffff);
 		snd_emu10k1_voice_free(hw, &hw->voices[vp->ch]);
 		vp->emu->num_voices--;
 		vp->ch = -1;
