@@ -809,10 +809,10 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 		/* Make DMA buffer CPU accessible */
 		dma_sync_single_for_cpu(priv_dev->sysdev,
 			priv_req->aligned_buf->dma,
-			priv_req->aligned_buf->size,
+			request->actual,
 			priv_req->aligned_buf->dir);
 		memcpy(request->buf, priv_req->aligned_buf->buf,
-		       request->length);
+		       request->actual);
 	}
 
 	priv_req->flags &= ~(REQUEST_PENDING | REQUEST_UNALIGNED);
