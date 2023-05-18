@@ -94,6 +94,37 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 
 EXPORT_SYMBOL(snd_emu10k1_ptr_write);
 
+void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, ...)
+{
+	va_list va;
+	u32 addr_mask;
+	unsigned long flags;
+
+	if (snd_BUG_ON(!emu))
+		return;
+	if (snd_BUG_ON(chn & ~PTR_CHANNELNUM_MASK))
+		return;
+	addr_mask = ~((emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK) >> 16);
+
+	va_start(va, chn);
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	for (;;) {
+		u32 data;
+		u32 reg = va_arg(va, u32);
+		if (reg == REGLIST_END)
+			break;
+		data = va_arg(va, u32);
+		if (snd_BUG_ON(reg & addr_mask))  // Only raw registers supported here
+			continue;
+		outl((reg << 16) | chn, emu->port + PTR);
+		outl(data, emu->port + DATA);
+	}
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	va_end(va);
+}
+
+EXPORT_SYMBOL(snd_emu10k1_ptr_write_multiple);
+
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, 
 					  unsigned int reg, 
 					  unsigned int chn)

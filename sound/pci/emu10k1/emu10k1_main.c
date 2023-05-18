@@ -57,44 +57,49 @@ MODULE_FIRMWARE(EMU1010_NOTEBOOK_FILENAME);
 
 void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 {
-	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
-	snd_emu10k1_ptr_write(emu, VTFT, ch, VTFT_FILTERTARGET_MASK);
-	snd_emu10k1_ptr_write(emu, CVCF, ch, CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
-	snd_emu10k1_ptr_write(emu, CPF, ch, 0);
-	snd_emu10k1_ptr_write(emu, CCR, ch, 0);
+	snd_emu10k1_ptr_write_multiple(emu, ch,
+		DCYSUSV, 0,
+		VTFT, VTFT_FILTERTARGET_MASK,
+		CVCF, CVCF_CURRENTFILTER_MASK,
+		PTRX, 0,
+		CPF, 0,
+		CCR, 0,
 
-	snd_emu10k1_ptr_write(emu, PSST, ch, 0);
-	snd_emu10k1_ptr_write(emu, DSL, ch, 0x10);
-	snd_emu10k1_ptr_write(emu, CCCA, ch, 0);
-	snd_emu10k1_ptr_write(emu, Z1, ch, 0);
-	snd_emu10k1_ptr_write(emu, Z2, ch, 0);
-	snd_emu10k1_ptr_write(emu, FXRT, ch, 0x32100000);
+		PSST, 0,
+		DSL, 0x10,
+		CCCA, 0,
+		Z1, 0,
+		Z2, 0,
+		FXRT, 0x32100000,
 
-	// The rest is meaningless as long as DCYSUSV_CHANNELENABLE_MASK is zero
-	snd_emu10k1_ptr_write(emu, DCYSUSM, ch, 0);
-	snd_emu10k1_ptr_write(emu, ATKHLDV, ch, 0);
-	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
-	snd_emu10k1_ptr_write(emu, IP, ch, 0);
-	snd_emu10k1_ptr_write(emu, IFATN, ch, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK);
-	snd_emu10k1_ptr_write(emu, PEFE, ch, 0);
-	snd_emu10k1_ptr_write(emu, FMMOD, ch, 0);
-	snd_emu10k1_ptr_write(emu, TREMFRQ, ch, 24);	/* 1 Hz */
-	snd_emu10k1_ptr_write(emu, FM2FRQ2, ch, 24);	/* 1 Hz */
-	snd_emu10k1_ptr_write(emu, LFOVAL2, ch, 0);
-	snd_emu10k1_ptr_write(emu, LFOVAL1, ch, 0);
-	snd_emu10k1_ptr_write(emu, ENVVOL, ch, 0);
-	snd_emu10k1_ptr_write(emu, ENVVAL, ch, 0);
+		// The rest is meaningless as long as DCYSUSV_CHANNELENABLE_MASK is zero
+		DCYSUSM, 0,
+		ATKHLDV, 0,
+		ATKHLDM, 0,
+		IP, 0,
+		IFATN, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK,
+		PEFE, 0,
+		FMMOD, 0,
+		TREMFRQ, 24,	/* 1 Hz */
+		FM2FRQ2, 24,	/* 1 Hz */
+		LFOVAL2, 0,
+		LFOVAL1, 0,
+		ENVVOL, 0,
+		ENVVAL, 0,
+
+		REGLIST_END);
 
 	/* Audigy extra stuffs */
 	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, A_CSBA, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSDC, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSFE, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSHG, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_FXRT1, ch, 0x03020100);
-		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x07060504);
-		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, ch, 0);
+		snd_emu10k1_ptr_write_multiple(emu, ch,
+			A_CSBA, 0,
+			A_CSDC, 0,
+			A_CSFE, 0,
+			A_CSHG, 0,
+			A_FXRT1, 0x03020100,
+			A_FXRT2, 0x07060504,
+			A_SENDAMOUNTS, 0,
+			REGLIST_END);
 	}
 }
 
@@ -148,22 +153,26 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK |
 		HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
 
-	/* reset recording buffers */
-	snd_emu10k1_ptr_write(emu, MICBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, MICBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, FXBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, ADCBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, ADCBA, 0, 0);
-
-	/* disable channel interrupt */
 	outl(0, emu->port + INTE);
-	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
 
-	/* disable stop on loop end */
-	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		/* reset recording buffers */
+		MICBS, ADCBS_BUFSIZE_NONE,
+		MICBA, 0,
+		FXBS, ADCBS_BUFSIZE_NONE,
+		FXBA, 0,
+		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBA, 0,
+
+		/* disable channel interrupt */
+		CLIEL, 0,
+		CLIEH, 0,
+
+		/* disable stop on loop end */
+		SOLEL, 0,
+		SOLEH, 0,
+
+		REGLIST_END);
 
 	if (emu->audigy) {
 		/* set SPDIF bypass mode */
@@ -177,9 +186,11 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	for (ch = 0; ch < NUM_G; ch++)
 		snd_emu10k1_voice_init(emu, ch);
 
-	snd_emu10k1_ptr_write(emu, SPCS0, 0, emu->spdif_bits[0]);
-	snd_emu10k1_ptr_write(emu, SPCS1, 0, emu->spdif_bits[1]);
-	snd_emu10k1_ptr_write(emu, SPCS2, 0, emu->spdif_bits[2]);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		SPCS0, emu->spdif_bits[0],
+		SPCS1, emu->spdif_bits[1],
+		SPCS2, emu->spdif_bits[2],
+		REGLIST_END);
 
 	if (emu->card_capabilities->emu_model) {
 	} else if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
@@ -390,41 +401,48 @@ int snd_emu10k1_done(struct snd_emu10k1 *emu)
 	outl(0, emu->port + INTE);
 
 	/*
-	 *  Shutdown the chip
+	 *  Shutdown the voices
 	 */
-	for (ch = 0; ch < NUM_G; ch++)
-		snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
 	for (ch = 0; ch < NUM_G; ch++) {
-		snd_emu10k1_ptr_write(emu, VTFT, ch, 0);
-		snd_emu10k1_ptr_write(emu, CVCF, ch, 0);
-		snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
-		snd_emu10k1_ptr_write(emu, CPF, ch, 0);
+		snd_emu10k1_ptr_write_multiple(emu, ch,
+			DCYSUSV, 0,
+			VTFT, 0,
+			CVCF, 0,
+			PTRX, 0,
+			CPF, 0,
+			REGLIST_END);
 	}
 
-	/* reset recording buffers */
-	snd_emu10k1_ptr_write(emu, MICBS, 0, 0);
-	snd_emu10k1_ptr_write(emu, MICBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBS, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXWC, 0, 0);
-	snd_emu10k1_ptr_write(emu, ADCBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, ADCBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_16K);
-	snd_emu10k1_ptr_write(emu, TCB, 0, 0);
+	// stop the DSP
 	if (emu->audigy)
 		snd_emu10k1_ptr_write(emu, A_DBG, 0, A_DBG_SINGLE_STEP);
 	else
 		snd_emu10k1_ptr_write(emu, DBG, 0, EMU10K1_DBG_SINGLE_STEP);
 
-	/* disable channel interrupt */
-	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		/* reset recording buffers */
+		MICBS, 0,
+		MICBA, 0,
+		FXBS, 0,
+		FXBA, 0,
+		FXWC, 0,
+		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBA, 0,
+		TCBS, TCBS_BUFFSIZE_16K,
+		TCB, 0,
+
+		/* disable channel interrupt */
+		CLIEL, 0,
+		CLIEH, 0,
+		SOLEL, 0,
+		SOLEH, 0,
+
+		PTB, 0,
+
+		REGLIST_END);
 
 	/* disable audio and lock cache */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
-	snd_emu10k1_ptr_write(emu, PTB, 0, 0);
 
 	return 0;
 }

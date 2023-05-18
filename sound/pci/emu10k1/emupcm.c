@@ -268,47 +268,43 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		memcpy(send_routing, &mix->send_routing[tmp][0], 8);
 		memcpy(send_amount, &mix->send_volume[tmp][0], 8);
 	}
-
-	if (stereo) {
-		// Not really necessary for the slave, but it doesn't hurt
-		snd_emu10k1_ptr_write(emu, CPF, voice, CPF_STEREO_MASK);
-	} else {
-		snd_emu10k1_ptr_write(emu, CPF, voice, 0);
-	}
-
-	/* setup routing */
-	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, A_FXRT1, voice,
-				      snd_emu10k1_compose_audigy_fxrt1(send_routing));
-		snd_emu10k1_ptr_write(emu, A_FXRT2, voice,
-				      snd_emu10k1_compose_audigy_fxrt2(send_routing));
-		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, voice,
-				      snd_emu10k1_compose_audigy_sendamounts(send_amount));
-	} else
-		snd_emu10k1_ptr_write(emu, FXRT, voice,
-				      snd_emu10k1_compose_send_routing(send_routing));
-	/* Assumption that PT is already 0 so no harm overwriting */
-	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
-	// Stereo slaves don't need to have the addresses set, but it doesn't hurt
-	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
-	snd_emu10k1_ptr_write(emu, PSST, voice, start_addr | (send_amount[2] << 24));
 	if (emu->card_capabilities->emu_model)
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
-	else 
+	else
 		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
-	snd_emu10k1_ptr_write(emu, CCCA, voice,
-			      emu10k1_select_interprom(pitch_target) |
-			      (w_16 ? 0 : CCCA_8BITSELECT));
-	/* Clear filter delay memory */
-	snd_emu10k1_ptr_write(emu, Z1, voice, 0);
-	snd_emu10k1_ptr_write(emu, Z2, voice, 0);
-	/* invalidate maps */
-	silent_page = ((unsigned int)emu->silent_page.addr << emu->address_mode) | (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
-	snd_emu10k1_ptr_write(emu, MAPA, voice, silent_page);
-	snd_emu10k1_ptr_write(emu, MAPB, voice, silent_page);
-	// Disable filter (in conjunction with CCCA_RESONANCE == 0)
-	snd_emu10k1_ptr_write(emu, VTFT, voice, VTFT_FILTERTARGET_MASK);
-	snd_emu10k1_ptr_write(emu, CVCF, voice, CVCF_CURRENTFILTER_MASK);
+	silent_page = ((unsigned int)emu->silent_page.addr << emu->address_mode) |
+		      (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
+	snd_emu10k1_ptr_write_multiple(emu, voice,
+		// Not really necessary for the slave, but it doesn't hurt
+		CPF, stereo ? CPF_STEREO_MASK : 0,
+		// Assumption that PT is already 0 so no harm overwriting
+		PTRX, (send_amount[0] << 8) | send_amount[1],
+		// Stereo slaves don't need to have the addresses set, but it doesn't hurt
+		DSL, end_addr | (send_amount[3] << 24),
+		PSST, start_addr | (send_amount[2] << 24),
+		CCCA, emu10k1_select_interprom(pitch_target) |
+		      (w_16 ? 0 : CCCA_8BITSELECT),
+		// Clear filter delay memory
+		Z1, 0,
+		Z2, 0,
+		// Invalidate maps
+		MAPA, silent_page,
+		MAPB, silent_page,
+		// Disable filter (in conjunction with CCCA_RESONANCE == 0)
+		VTFT, VTFT_FILTERTARGET_MASK,
+		CVCF, CVCF_CURRENTFILTER_MASK,
+		REGLIST_END);
+	// Setup routing
+	if (emu->audigy) {
+		snd_emu10k1_ptr_write_multiple(emu, voice,
+			A_FXRT1, snd_emu10k1_compose_audigy_fxrt1(send_routing),
+			A_FXRT2, snd_emu10k1_compose_audigy_fxrt2(send_routing),
+			A_SENDAMOUNTS, snd_emu10k1_compose_audigy_sendamounts(send_amount),
+			REGLIST_END);
+	} else {
+		snd_emu10k1_ptr_write(emu, FXRT, voice,
+				      snd_emu10k1_compose_send_routing(send_routing));
+	}
 
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
@@ -466,8 +462,10 @@ static int snd_emu10k1_capture_prepare(struct snd_pcm_substream *substream)
 		break;
 	case CAPTURE_EFX:
 		if (emu->audigy) {
-			snd_emu10k1_ptr_write(emu, A_FXWC1, 0, 0);
-			snd_emu10k1_ptr_write(emu, A_FXWC2, 0, 0);
+			snd_emu10k1_ptr_write_multiple(emu, 0,
+				A_FXWC1, 0,
+				A_FXWC2, 0,
+				REGLIST_END);
 		} else
 			snd_emu10k1_ptr_write(emu, FXWC, 0, 0);
 		break;
@@ -574,8 +572,10 @@ static void snd_emu10k1_playback_commit_volume(struct snd_emu10k1 *emu,
 					       struct snd_emu10k1_voice *evoice,
 					       unsigned int vattn)
 {
-	snd_emu10k1_ptr_write(emu, VTFT, evoice->number, vattn | VTFT_FILTERTARGET_MASK);
-	snd_emu10k1_ptr_write(emu, CVCF, evoice->number, vattn | CVCF_CURRENTFILTER_MASK);
+	snd_emu10k1_ptr_write_multiple(emu, evoice->number,
+		VTFT, vattn | VTFT_FILTERTARGET_MASK,
+		CVCF, vattn | CVCF_CURRENTFILTER_MASK,
+		REGLIST_END);
 }
 
 static void snd_emu10k1_playback_unmute_voice(struct snd_emu10k1 *emu,
@@ -716,8 +716,10 @@ static int snd_emu10k1_capture_trigger(struct snd_pcm_substream *substream,
 			break;
 		case CAPTURE_EFX:
 			if (emu->audigy) {
-				snd_emu10k1_ptr_write(emu, A_FXWC1, 0, epcm->capture_cr_val);
-				snd_emu10k1_ptr_write(emu, A_FXWC2, 0, epcm->capture_cr_val2);
+				snd_emu10k1_ptr_write_multiple(emu, 0,
+					A_FXWC1, epcm->capture_cr_val,
+					A_FXWC2, epcm->capture_cr_val2,
+					REGLIST_END);
 				dev_dbg(emu->card->dev,
 					"cr_val=0x%x, cr_val2=0x%x\n",
 					epcm->capture_cr_val,
@@ -744,8 +746,10 @@ static int snd_emu10k1_capture_trigger(struct snd_pcm_substream *substream,
 			break;
 		case CAPTURE_EFX:
 			if (emu->audigy) {
-				snd_emu10k1_ptr_write(emu, A_FXWC1, 0, 0);
-				snd_emu10k1_ptr_write(emu, A_FXWC2, 0, 0);
+				snd_emu10k1_ptr_write_multiple(emu, 0,
+					A_FXWC1, 0,
+					A_FXWC2, 0,
+					REGLIST_END);
 			} else
 				snd_emu10k1_ptr_write(emu, FXWC, 0, 0);
 			break;
@@ -1562,12 +1566,14 @@ static int snd_emu10k1_fx8010_playback_prepare(struct snd_pcm_substream *substre
 	pcm->pcm_rec.sw_buffer_size = snd_pcm_lib_buffer_bytes(substream);
 	pcm->tram_pos = INITIAL_TRAM_POS(pcm->buffer_size);
 	pcm->tram_shift = 0;
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_running, 0, 0);	/* reset */
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_trigger, 0, 0);	/* reset */
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_size, 0, runtime->buffer_size);
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_ptr, 0, 0);		/* reset ptr number */
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_count, 0, runtime->period_size);
-	snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_tmpcount, 0, runtime->period_size);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		emu->gpr_base + pcm->gpr_running, 0,	/* reset */
+		emu->gpr_base + pcm->gpr_trigger, 0,	/* reset */
+		emu->gpr_base + pcm->gpr_size, runtime->buffer_size,
+		emu->gpr_base + pcm->gpr_ptr, 0,	/* reset ptr number */
+		emu->gpr_base + pcm->gpr_count, runtime->period_size,
+		emu->gpr_base + pcm->gpr_tmpcount, runtime->period_size,
+		REGLIST_END);
 	for (i = 0; i < pcm->channels; i++)
 		snd_emu10k1_ptr_write(emu, TANKMEMADDRREGBASE + 0x80 + pcm->etram[i], 0, (TANKMEMADDRREG_READ|TANKMEMADDRREG_ALIGN) + i * (runtime->buffer_size / pcm->channels));
 	return 0;

@@ -1396,10 +1396,10 @@ static const struct snd_kcontrol_new snd_emu10k1_spdif_control =
 static void update_emu10k1_fxrt(struct snd_emu10k1 *emu, int voice, unsigned char *route)
 {
 	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, A_FXRT1, voice,
-				      snd_emu10k1_compose_audigy_fxrt1(route));
-		snd_emu10k1_ptr_write(emu, A_FXRT2, voice,
-				      snd_emu10k1_compose_audigy_fxrt2(route));
+		snd_emu10k1_ptr_write_multiple(emu, voice,
+			A_FXRT1, snd_emu10k1_compose_audigy_fxrt1(route),
+			A_FXRT2, snd_emu10k1_compose_audigy_fxrt2(route),
+			REGLIST_END);
 	} else {
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(route));

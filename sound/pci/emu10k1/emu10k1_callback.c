@@ -33,9 +33,8 @@ static void release_voice(struct snd_emux_voice *vp);
 static void update_voice(struct snd_emux_voice *vp, int update);
 static void terminate_voice(struct snd_emux_voice *vp);
 static void free_voice(struct snd_emux_voice *vp);
-static void set_fmmod(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
-static void set_fm2frq2(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
-static void set_filterQ(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
+static u32 make_fmmod(struct snd_emux_voice *vp);
+static u32 make_fm2frq2(struct snd_emux_voice *vp);
 
 /*
  * Ensure a value is between two points
@@ -116,14 +115,13 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 static void
 release_voice(struct snd_emux_voice *vp)
 {
-	int dcysusv;
 	struct snd_emu10k1 *hw;
 	
 	hw = vp->hw;
-	dcysusv = (unsigned char)vp->reg.parm.modrelease | DCYSUSM_PHASE1_MASK;
-	snd_emu10k1_ptr_write(hw, DCYSUSM, vp->ch, dcysusv);
-	dcysusv = (unsigned char)vp->reg.parm.volrelease | DCYSUSV_PHASE1_MASK | DCYSUSV_CHANNELENABLE_MASK;
-	snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, dcysusv);
+	snd_emu10k1_ptr_write_multiple(hw, vp->ch,
+		DCYSUSM, (unsigned char)vp->reg.parm.modrelease | DCYSUSM_PHASE1_MASK,
+		DCYSUSV, (unsigned char)vp->reg.parm.volrelease | DCYSUSV_PHASE1_MASK | DCYSUSV_CHANNELENABLE_MASK,
+		REGLIST_END);
 }
 
 
@@ -192,13 +190,13 @@ update_voice(struct snd_emux_voice *vp, int update)
 		snd_emu10k1_ptr_write(hw, PTRX_FXSENDAMOUNT_B, vp->ch, vp->aaux);
 	}
 	if (update & SNDRV_EMUX_UPDATE_FMMOD)
-		set_fmmod(hw, vp);
+		snd_emu10k1_ptr_write(hw, FMMOD, vp->ch, make_fmmod(vp));
 	if (update & SNDRV_EMUX_UPDATE_TREMFREQ)
 		snd_emu10k1_ptr_write(hw, TREMFRQ, vp->ch, vp->reg.parm.tremfrq);
 	if (update & SNDRV_EMUX_UPDATE_FM2FRQ2)
-		set_fm2frq2(hw, vp);
+		snd_emu10k1_ptr_write(hw, FM2FRQ2, vp->ch, make_fm2frq2(vp));
 	if (update & SNDRV_EMUX_UPDATE_Q)
-		set_filterQ(hw, vp);
+		snd_emu10k1_ptr_write(hw, CCCA_RESONANCE, vp->ch, vp->reg.parm.filterQ);
 }
 
 
@@ -310,6 +308,7 @@ start_voice(struct snd_emux_voice *vp)
 {
 	unsigned int temp;
 	int ch;
+	u32 psst, dsl, map, ccca, vtarget;
 	unsigned int addr, mapped_offset;
 	struct snd_midi_channel *chan;
 	struct snd_emu10k1 *hw;
@@ -347,66 +346,93 @@ start_voice(struct snd_emux_voice *vp)
 		snd_emu10k1_ptr_write(hw, FXRT, ch, temp);
 	}
 
-	/* channel to be silent and idle */
-	snd_emu10k1_ptr_write(hw, DCYSUSV, ch, 0);
-	snd_emu10k1_ptr_write(hw, VTFT, ch, VTFT_FILTERTARGET_MASK);
-	snd_emu10k1_ptr_write(hw, CVCF, ch, CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(hw, PTRX, ch, 0);
-	snd_emu10k1_ptr_write(hw, CPF, ch, 0);
-
-	/* set pitch offset */
-	snd_emu10k1_ptr_write(hw, IP, vp->ch, vp->apitch);
-
-	/* set envelope parameters */
-	snd_emu10k1_ptr_write(hw, ENVVAL, ch, vp->reg.parm.moddelay);
-	snd_emu10k1_ptr_write(hw, ATKHLDM, ch, vp->reg.parm.modatkhld);
-	snd_emu10k1_ptr_write(hw, DCYSUSM, ch, vp->reg.parm.moddcysus);
-	snd_emu10k1_ptr_write(hw, ENVVOL, ch, vp->reg.parm.voldelay);
-	snd_emu10k1_ptr_write(hw, ATKHLDV, ch, vp->reg.parm.volatkhld);
-	/* decay/sustain parameter for volume envelope is used
-	   for triggerg the voice */
-
-	/* cutoff and volume */
-	temp = (unsigned int)vp->acutoff << 8 | (unsigned char)vp->avol;
-	snd_emu10k1_ptr_write(hw, IFATN, vp->ch, temp);
-
-	/* modulation envelope heights */
-	snd_emu10k1_ptr_write(hw, PEFE, ch, vp->reg.parm.pefe);
-
-	/* lfo1/2 delay */
-	snd_emu10k1_ptr_write(hw, LFOVAL1, ch, vp->reg.parm.lfo1delay);
-	snd_emu10k1_ptr_write(hw, LFOVAL2, ch, vp->reg.parm.lfo2delay);
-
-	/* lfo1 pitch & cutoff shift */
-	set_fmmod(hw, vp);
-	/* lfo1 volume & freq */
-	snd_emu10k1_ptr_write(hw, TREMFRQ, vp->ch, vp->reg.parm.tremfrq);
-	/* lfo2 pitch & freq */
-	set_fm2frq2(hw, vp);
-
-	/* reverb and loop start (reverb 8bit, MSB) */
 	temp = vp->reg.parm.reverb;
 	temp += (int)vp->chan->control[MIDI_CTL_E1_REVERB_DEPTH] * 9 / 10;
 	LIMITMAX(temp, 255);
 	addr = vp->reg.loopstart;
-	snd_emu10k1_ptr_write(hw, PSST, vp->ch, (temp << 24) | addr);
+	psst = (temp << 24) | addr;
 
-	/* chorus & loop end (chorus 8bit, MSB) */
 	addr = vp->reg.loopend;
 	temp = vp->reg.parm.chorus;
 	temp += (int)chan->control[MIDI_CTL_E3_CHORUS_DEPTH] * 9 / 10;
 	LIMITMAX(temp, 255);
-	temp = (temp <<24) | addr;
-	snd_emu10k1_ptr_write(hw, DSL, ch, temp);
+	dsl = (temp << 24) | addr;
 
-	/* clear filter delay memory */
-	snd_emu10k1_ptr_write(hw, Z1, ch, 0);
-	snd_emu10k1_ptr_write(hw, Z2, ch, 0);
+	map = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 
-	/* invalidate maps */
-	temp = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
-	snd_emu10k1_ptr_write(hw, MAPA, ch, temp);
-	snd_emu10k1_ptr_write(hw, MAPB, ch, temp);
+	addr = vp->reg.start;
+	temp = vp->reg.parm.filterQ;
+	ccca = (temp << 28) | addr;
+	if (vp->apitch < 0xe400)
+		ccca |= CCCA_INTERPROM_0;
+	else {
+		unsigned int shift = (vp->apitch - 0xe000) >> 10;
+		ccca |= shift << 25;
+	}
+	if (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_8BITS)
+		ccca |= CCCA_8BITSELECT;
+
+	vtarget = (unsigned int)vp->vtarget << 16;
+
+	snd_emu10k1_ptr_write_multiple(hw, ch,
+		/* channel to be silent and idle */
+		DCYSUSV, 0,
+		VTFT, VTFT_FILTERTARGET_MASK,
+		CVCF, CVCF_CURRENTFILTER_MASK,
+		PTRX, 0,
+		CPF, 0,
+
+		/* set pitch offset */
+		IP, vp->apitch,
+
+		/* set envelope parameters */
+		ENVVAL, vp->reg.parm.moddelay,
+		ATKHLDM, vp->reg.parm.modatkhld,
+		DCYSUSM, vp->reg.parm.moddcysus,
+		ENVVOL, vp->reg.parm.voldelay,
+		ATKHLDV, vp->reg.parm.volatkhld,
+		/* decay/sustain parameter for volume envelope is used
+		   for triggerg the voice */
+
+		/* cutoff and volume */
+		IFATN, (unsigned int)vp->acutoff << 8 | (unsigned char)vp->avol,
+
+		/* modulation envelope heights */
+		PEFE, vp->reg.parm.pefe,
+
+		/* lfo1/2 delay */
+		LFOVAL1, vp->reg.parm.lfo1delay,
+		LFOVAL2, vp->reg.parm.lfo2delay,
+
+		/* lfo1 pitch & cutoff shift */
+		FMMOD, make_fmmod(vp),
+		/* lfo1 volume & freq */
+		TREMFRQ, vp->reg.parm.tremfrq,
+		/* lfo2 pitch & freq */
+		FM2FRQ2, make_fm2frq2(vp),
+
+		/* reverb and loop start (reverb 8bit, MSB) */
+		PSST, psst,
+
+		/* chorus & loop end (chorus 8bit, MSB) */
+		DSL, dsl,
+
+		/* clear filter delay memory */
+		Z1, 0,
+		Z2, 0,
+
+		/* invalidate maps */
+		MAPA, map,
+		MAPB, map,
+
+		/* Q & current address (Q 4bit value, MSB) */
+		CCCA, ccca,
+
+		/* reset volume */
+		VTFT, vtarget | vp->ftarget,
+		CVCF, vtarget | CVCF_CURRENTFILTER_MASK,
+
+		REGLIST_END);
 #if 0
 	/* cache */
 	{
@@ -437,24 +463,6 @@ start_voice(struct snd_emux_voice *vp)
 	}
 #endif
 
-	/* Q & current address (Q 4bit value, MSB) */
-	addr = vp->reg.start;
-	temp = vp->reg.parm.filterQ;
-	temp = (temp<<28) | addr;
-	if (vp->apitch < 0xe400)
-		temp |= CCCA_INTERPROM_0;
-	else {
-		unsigned int shift = (vp->apitch - 0xe000) >> 10;
-		temp |= shift << 25;
-	}
-	if (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_8BITS)
-		temp |= CCCA_8BITSELECT;
-	snd_emu10k1_ptr_write(hw, CCCA, ch, temp);
-
-	/* reset volume */
-	temp = (unsigned int)vp->vtarget << 16;
-	snd_emu10k1_ptr_write(hw, VTFT, ch, temp | vp->ftarget);
-	snd_emu10k1_ptr_write(hw, CVCF, ch, temp | CVCF_CURRENTFILTER_MASK);
 	return 0;
 }
 
@@ -464,7 +472,7 @@ start_voice(struct snd_emux_voice *vp)
 static void
 trigger_voice(struct snd_emux_voice *vp)
 {
-	unsigned int temp, ptarget;
+	unsigned int ptarget;
 	struct snd_emu10k1 *hw;
 	struct snd_emu10k1_memblk *emem;
 	
@@ -479,24 +487,25 @@ trigger_voice(struct snd_emux_voice *vp)
 #else
 	ptarget = IP_TO_CP(vp->apitch);
 #endif
-	/* set pitch target and pan (volume) */
-	temp = ptarget | (vp->apan << 8) | vp->aaux;
-	snd_emu10k1_ptr_write(hw, PTRX, vp->ch, temp);
+	snd_emu10k1_ptr_write_multiple(hw, vp->ch,
+		/* set pitch target and pan (volume) */
+		PTRX, ptarget | (vp->apan << 8) | vp->aaux,
 
-	/* pitch target */
-	snd_emu10k1_ptr_write(hw, CPF, vp->ch, ptarget);
+		/* current pitch and fractional address */
+		CPF, ptarget,
 
-	/* trigger voice */
-	snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, vp->reg.parm.voldcysus|DCYSUSV_CHANNELENABLE_MASK);
+		/* enable envelope engine */
+		DCYSUSV, vp->reg.parm.voldcysus | DCYSUSV_CHANNELENABLE_MASK,
+
+		REGLIST_END);
 }
 
 #define MOD_SENSE 18
 
-/* set lfo1 modulation height and cutoff */
-static void
-set_fmmod(struct snd_emu10k1 *hw, struct snd_emux_voice *vp)
+/* calculate lfo1 modulation height and cutoff register */
+static u32
+make_fmmod(struct snd_emux_voice *vp)
 {
-	unsigned short fmmod;
 	short pitch;
 	unsigned char cutoff;
 	int modulation;
@@ -506,15 +515,13 @@ set_fmmod(struct snd_emu10k1 *hw, struct snd_emux_voice *vp)
 	modulation = vp->chan->gm_modulation + vp->chan->midi_pressure;
 	pitch += (MOD_SENSE * modulation) / 1200;
 	LIMITVALUE(pitch, -128, 127);
-	fmmod = ((unsigned char)pitch<<8) | cutoff;
-	snd_emu10k1_ptr_write(hw, FMMOD, vp->ch, fmmod);
+	return ((unsigned char)pitch << 8) | cutoff;
 }
 
-/* set lfo2 pitch & frequency */
-static void
-set_fm2frq2(struct snd_emu10k1 *hw, struct snd_emux_voice *vp)
+/* calculate set lfo2 pitch & frequency register */
+static u32
+make_fm2frq2(struct snd_emux_voice *vp)
 {
-	unsigned short fm2frq2;
 	short pitch;
 	unsigned char freq;
 	int modulation;
@@ -524,13 +531,5 @@ set_fm2frq2(struct snd_emu10k1 *hw, struct snd_emux_voice *vp)
 	modulation = vp->chan->gm_modulation + vp->chan->midi_pressure;
 	pitch += (MOD_SENSE * modulation) / 1200;
 	LIMITVALUE(pitch, -128, 127);
-	fm2frq2 = ((unsigned char)pitch<<8) | freq;
-	snd_emu10k1_ptr_write(hw, FM2FRQ2, vp->ch, fm2frq2);
-}
-
-/* set filterQ */
-static void
-set_filterQ(struct snd_emu10k1 *hw, struct snd_emux_voice *vp)
-{
-	snd_emu10k1_ptr_write(hw, CCCA_RESONANCE, vp->ch, vp->reg.parm.filterQ);
+	return ((unsigned char)pitch << 8) | freq;
 }
