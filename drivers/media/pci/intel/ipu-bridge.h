@@ -6,12 +6,11 @@
 #include <linux/property.h>
 #include <linux/types.h>
 
-#include "ipu3/ipu3-cio2.h"
-
 struct i2c_client;
 
 #define IPU_HID				"INT343E"
 #define IPU_MAX_LANES				4
+#define IPU_MAX_PORTS				4
 #define MAX_NUM_LINK_FREQS			3
 
 /* Values are educated guesses as we don't have a spec */
@@ -140,7 +139,7 @@ struct ipu_bridge {
 	struct software_node ipu_hid_node;
 	u32 data_lanes[4];
 	unsigned int n_sensors;
-	struct ipu_sensor sensors[CIO2_NUM_PORTS];
+	struct ipu_sensor sensors[IPU_MAX_PORTS];
 };
 
 #if IS_ENABLED(CONFIG_IPU_BRIDGE)

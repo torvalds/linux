@@ -301,7 +301,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		if (!adev->status.enabled)
 			continue;
 
-		if (bridge->n_sensors >= CIO2_NUM_PORTS) {
+		if (bridge->n_sensors >= IPU_MAX_PORTS) {
 			acpi_dev_put(adev);
 			dev_err(&ipu->dev, "Exceeded available IPU ports\n");
 			return -EINVAL;
