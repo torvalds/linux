@@ -15,7 +15,8 @@
 #define IVPU_MMU_PUD_INDEX_MASK          GENMASK(38, 30)
 #define IVPU_MMU_PMD_INDEX_MASK          GENMASK(29, 21)
 #define IVPU_MMU_PTE_INDEX_MASK          GENMASK(20, 12)
-#define IVPU_MMU_ENTRY_FLAGS_MASK        GENMASK(11, 0)
+#define IVPU_MMU_ENTRY_FLAGS_MASK        (BIT(52) | GENMASK(11, 0))
+#define IVPU_MMU_ENTRY_FLAG_CONT         BIT(52)
 #define IVPU_MMU_ENTRY_FLAG_NG           BIT(11)
 #define IVPU_MMU_ENTRY_FLAG_AF           BIT(10)
 #define IVPU_MMU_ENTRY_FLAG_USER         BIT(6)
@@ -23,12 +24,13 @@
 #define IVPU_MMU_ENTRY_FLAG_TYPE_PAGE    BIT(1)
 #define IVPU_MMU_ENTRY_FLAG_VALID        BIT(0)
 
-#define IVPU_MMU_PAGE_SIZE    SZ_4K
-#define IVPU_MMU_PTE_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PAGE_SIZE)
-#define IVPU_MMU_PMD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PTE_MAP_SIZE)
-#define IVPU_MMU_PUD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PMD_MAP_SIZE)
-#define IVPU_MMU_PGD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PUD_MAP_SIZE)
-#define IVPU_MMU_PGTABLE_SIZE (IVPU_MMU_PGTABLE_ENTRIES * sizeof(u64))
+#define IVPU_MMU_PAGE_SIZE       SZ_4K
+#define IVPU_MMU_CONT_PAGES_SIZE (IVPU_MMU_PAGE_SIZE * 16)
+#define IVPU_MMU_PTE_MAP_SIZE    (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PAGE_SIZE)
+#define IVPU_MMU_PMD_MAP_SIZE    (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PTE_MAP_SIZE)
+#define IVPU_MMU_PUD_MAP_SIZE    (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PMD_MAP_SIZE)
+#define IVPU_MMU_PGD_MAP_SIZE    (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PUD_MAP_SIZE)
+#define IVPU_MMU_PGTABLE_SIZE    (IVPU_MMU_PGTABLE_ENTRIES * sizeof(u64))
 
 #define IVPU_MMU_DUMMY_ADDRESS 0xdeadb000
 #define IVPU_MMU_ENTRY_VALID   (IVPU_MMU_ENTRY_FLAG_TYPE_PAGE | IVPU_MMU_ENTRY_FLAG_VALID)
@@ -183,7 +185,7 @@ ivpu_mmu_ensure_pte(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable,
 
 static int
 ivpu_mmu_context_map_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
-			  u64 vpu_addr, dma_addr_t dma_addr, int prot)
+			  u64 vpu_addr, dma_addr_t dma_addr, u64 prot)
 {
 	u64 *pte;
 	int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
@@ -206,6 +208,31 @@ ivpu_mmu_context_map_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx
 
 	/* Update PTE */
 	pte[pte_idx] = dma_addr | prot;
+
+	return 0;
+}
+
+static int
+ivpu_mmu_context_map_cont_64k(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u64 vpu_addr,
+			      dma_addr_t dma_addr, u64 prot)
+{
+	size_t size = IVPU_MMU_CONT_PAGES_SIZE;
+
+	drm_WARN_ON(&vdev->drm, !IS_ALIGNED(vpu_addr, size));
+	drm_WARN_ON(&vdev->drm, !IS_ALIGNED(dma_addr, size));
+
+	prot |= IVPU_MMU_ENTRY_FLAG_CONT;
+
+	while (size) {
+		int ret = ivpu_mmu_context_map_page(vdev, ctx, vpu_addr, dma_addr, prot);
+
+		if (ret)
+			return ret;
+
+		size -= IVPU_MMU_PAGE_SIZE;
+		vpu_addr += IVPU_MMU_PAGE_SIZE;
+		dma_addr += IVPU_MMU_PAGE_SIZE;
+	}
 
 	return 0;
 }
@@ -255,17 +282,27 @@ ivpu_mmu_context_flush_page_tables(struct ivpu_mmu_context *ctx, u64 vpu_addr, s
 
 static int
 ivpu_mmu_context_map_pages(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
-			   u64 vpu_addr, dma_addr_t dma_addr, size_t size, int prot)
+			   u64 vpu_addr, dma_addr_t dma_addr, size_t size, u64 prot)
 {
+	int map_size;
+	int ret;
+
 	while (size) {
-		int ret = ivpu_mmu_context_map_page(vdev, ctx, vpu_addr, dma_addr, prot);
+		if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE &&
+		    IS_ALIGNED(vpu_addr | dma_addr, IVPU_MMU_CONT_PAGES_SIZE)) {
+			ret = ivpu_mmu_context_map_cont_64k(vdev, ctx, vpu_addr, dma_addr, prot);
+			map_size = IVPU_MMU_CONT_PAGES_SIZE;
+		} else {
+			ret = ivpu_mmu_context_map_page(vdev, ctx, vpu_addr, dma_addr, prot);
+			map_size = IVPU_MMU_PAGE_SIZE;
+		}
 
 		if (ret)
 			return ret;
 
-		vpu_addr += IVPU_MMU_PAGE_SIZE;
-		dma_addr += IVPU_MMU_PAGE_SIZE;
-		size -= IVPU_MMU_PAGE_SIZE;
+		vpu_addr += map_size;
+		dma_addr += map_size;
+		size -= map_size;
 	}
 
 	return 0;
@@ -285,8 +322,8 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			 u64 vpu_addr, struct sg_table *sgt,  bool llc_coherent)
 {
 	struct scatterlist *sg;
-	int prot;
 	int ret;
+	u64 prot;
 	u64 i;
 
 	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
@@ -362,8 +399,14 @@ ivpu_mmu_context_insert_node_locked(struct ivpu_mmu_context *ctx,
 {
 	lockdep_assert_held(&ctx->lock);
 
-	return drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE,
-					  0, range->start, range->end, DRM_MM_INSERT_BEST);
+	if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE) {
+		if (!drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
+						 range->start, range->end, DRM_MM_INSERT_BEST))
+			return 0;
+	}
+
+	return drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
+					   range->start, range->end, DRM_MM_INSERT_BEST);
 }
 
 void
