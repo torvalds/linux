@@ -5438,6 +5438,12 @@ status:
 release:
 	if (opdesc && opdesc->op_release)
 		opdesc->op_release(&op->u);
+
+	/*
+	 * Account for pages consumed while encoding this operation.
+	 * The xdr_stream primitives don't manage rq_next_page.
+	 */
+	rqstp->rq_next_page = xdr->page_ptr + 1;
 }
 
 /* 
@@ -5506,9 +5512,6 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	p = resp->statusp;
 
 	*p++ = resp->cstate.status;
-
-	rqstp->rq_next_page = xdr->page_ptr + 1;
-
 	*p++ = htonl(resp->taglen);
 	memcpy(p, resp->tag, resp->taglen);
 	p += XDR_QUADLEN(resp->taglen);
