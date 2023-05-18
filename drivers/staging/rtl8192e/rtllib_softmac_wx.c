@@ -92,7 +92,7 @@ int rtllib_wx_get_freq(struct rtllib_device *ieee,
 
 	if (ieee->current_network.channel == 0)
 		return -1;
-	fwrq->m = rtllib_wlan_frequencies[ieee->current_network.channel-1] *
+	fwrq->m = rtllib_wlan_frequencies[ieee->current_network.channel - 1] *
 		  100000;
 	fwrq->e = 1;
 	return 0;
@@ -231,7 +231,7 @@ int rtllib_wx_set_rate(struct rtllib_device *ieee,
 
 	u32 target_rate = wrqu->bitrate.value;
 
-	ieee->rate = target_rate/100000;
+	ieee->rate = target_rate / 100000;
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_set_rate);

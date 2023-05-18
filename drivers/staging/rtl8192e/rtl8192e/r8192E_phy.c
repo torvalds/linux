@@ -267,9 +267,9 @@ void rtl92e_config_mac(struct net_device *dev)
 	}
 	for (i = 0; i < dwArrayLen; i += 3) {
 		if (pdwArray[i] == 0x318)
-			pdwArray[i+2] = 0x00000800;
-		rtl92e_set_bb_reg(dev, pdwArray[i], pdwArray[i+1],
-				  pdwArray[i+2]);
+			pdwArray[i + 2] = 0x00000800;
+		rtl92e_set_bb_reg(dev, pdwArray[i], pdwArray[i + 1],
+				  pdwArray[i + 2]);
 	}
 	return;
 
@@ -291,13 +291,13 @@ static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 		for (i = 0; i < PHY_REGArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XPHY_REGArray_Table[i],
 					  bMaskDWord,
-					  Rtl819XPHY_REGArray_Table[i+1]);
+					  Rtl819XPHY_REGArray_Table[i + 1]);
 		}
 	} else if (ConfigType == BB_CONFIG_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XAGCTAB_Array_Table[i],
 					  bMaskDWord,
-					  Rtl819XAGCTAB_Array_Table[i+1]);
+					  Rtl819XAGCTAB_Array_Table[i + 1]);
 		}
 	}
 }
@@ -389,10 +389,10 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 	u32 dwRegValue = 0;
 
 	bRegValue = rtl92e_readb(dev, BB_GLOBAL_RESET);
-	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue|BB_GLOBAL_RESET_BIT));
+	rtl92e_writeb(dev, BB_GLOBAL_RESET, (bRegValue | BB_GLOBAL_RESET_BIT));
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writel(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue & (~CPU_GEN_BB_RST)));
 
 	for (eCheckItem = (enum hw90_block)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
@@ -402,18 +402,18 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 		if (!rtStatus)
 			return rtStatus;
 	}
-	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn | bOFDMEn, 0x0);
 	_rtl92e_phy_config_bb(dev, BB_CONFIG_PHY_REG);
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writel(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
+	rtl92e_writel(dev, CPU_GEN, (dwRegValue | CPU_GEN_BB_RST));
 
 	_rtl92e_phy_config_bb(dev, BB_CONFIG_AGC_TAB);
 
 	if (priv->ic_cut  > VERSION_8190_BD) {
 		dwRegValue = 0x0;
 		rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
-				  (bXBTxAGC|bXCTxAGC|bXDTxAGC), dwRegValue);
+				  (bXBTxAGC | bXCTxAGC | bXDTxAGC), dwRegValue);
 
 
 		dwRegValue = priv->crystal_cap;
@@ -645,7 +645,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 					rtl92e_set_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 CurrentCmd->Para1, bMask12Bits,
-						 CurrentCmd->Para2<<7);
+						 CurrentCmd->Para2 << 7);
 				break;
 			default:
 				break;
@@ -880,7 +880,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		}
 
 		rtl92e_set_bb_reg(dev, rCCK0_System, bCCKSideBand,
-				  (priv->n_cur_40mhz_prime_sc>>1));
+				  (priv->n_cur_40mhz_prime_sc >> 1));
 		rtl92e_set_bb_reg(dev, rOFDM1_LSTF, 0xC00,
 				  priv->n_cur_40mhz_prime_sc);
 
