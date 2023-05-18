@@ -64,6 +64,7 @@ static const char version[] =
 #include <linux/isapnp.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
