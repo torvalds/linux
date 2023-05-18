@@ -2394,6 +2394,8 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 #endif
 	}
 
+	if (mas->last >= end)
+		next = mas_walk(mas);
 	if (!next)
 		next = mas_next(mas, ULONG_MAX);
 
