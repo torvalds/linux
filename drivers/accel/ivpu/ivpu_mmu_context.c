@@ -11,7 +11,8 @@
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
 
-#define IVPU_MMU_PGD_INDEX_MASK          GENMASK(38, 30)
+#define IVPU_MMU_PGD_INDEX_MASK          GENMASK(47, 39)
+#define IVPU_MMU_PUD_INDEX_MASK          GENMASK(38, 30)
 #define IVPU_MMU_PMD_INDEX_MASK          GENMASK(29, 21)
 #define IVPU_MMU_PTE_INDEX_MASK          GENMASK(20, 12)
 #define IVPU_MMU_ENTRY_FLAGS_MASK        GENMASK(11, 0)
@@ -25,6 +26,8 @@
 #define IVPU_MMU_PAGE_SIZE    SZ_4K
 #define IVPU_MMU_PTE_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PAGE_SIZE)
 #define IVPU_MMU_PMD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PTE_MAP_SIZE)
+#define IVPU_MMU_PUD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PMD_MAP_SIZE)
+#define IVPU_MMU_PGD_MAP_SIZE (IVPU_MMU_PGTABLE_ENTRIES * IVPU_MMU_PUD_MAP_SIZE)
 #define IVPU_MMU_PGTABLE_SIZE (IVPU_MMU_PGTABLE_ENTRIES * sizeof(u64))
 
 #define IVPU_MMU_DUMMY_ADDRESS 0xdeadb000
@@ -50,25 +53,38 @@ static int ivpu_mmu_pgtable_init(struct ivpu_device *vdev, struct ivpu_mmu_pgtab
 
 static void ivpu_mmu_pgtable_free(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
 {
-	int pgd_index, pmd_index;
+	int pgd_idx, pud_idx, pmd_idx;
 
-	for (pgd_index = 0; pgd_index < IVPU_MMU_PGTABLE_ENTRIES; ++pgd_index) {
-		u64 **pmd_entries = pgtable->pgd_cpu_entries[pgd_index];
-		u64 *pmd = pgtable->pgd_entries[pgd_index];
+	for (pgd_idx = 0; pgd_idx < IVPU_MMU_PGTABLE_ENTRIES; ++pgd_idx) {
+		u64 **pud_entries = pgtable->pgd_cpu_entries[pgd_idx];
+		u64 *pud = pgtable->pgd_entries[pgd_idx];
 
-		if (!pmd_entries)
+		if (!pud_entries)
 			continue;
 
-		for (pmd_index = 0; pmd_index < IVPU_MMU_PGTABLE_ENTRIES; ++pmd_index) {
-			if (pmd_entries[pmd_index])
-				dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE,
-					    pmd_entries[pmd_index],
-					    pmd[pmd_index] & ~IVPU_MMU_ENTRY_FLAGS_MASK);
+		for (pud_idx = 0; pud_idx < IVPU_MMU_PGTABLE_ENTRIES; ++pud_idx) {
+			u64 **pmd_entries = pgtable->pgd_far_entries[pgd_idx][pud_idx];
+			u64 *pmd = pgtable->pgd_cpu_entries[pgd_idx][pud_idx];
+
+			if (!pmd_entries)
+				continue;
+
+			for (pmd_idx = 0; pmd_idx < IVPU_MMU_PGTABLE_ENTRIES; ++pmd_idx) {
+				if (pmd_entries[pmd_idx])
+					dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE,
+						    pmd_entries[pmd_idx],
+						    pmd[pmd_idx] & ~IVPU_MMU_ENTRY_FLAGS_MASK);
+			}
+
+			kfree(pmd_entries);
+			dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE,
+				    pud_entries[pud_idx],
+				    pud[pud_idx] & ~IVPU_MMU_ENTRY_FLAGS_MASK);
 		}
 
-		kfree(pmd_entries);
-		dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, pgtable->pgd_entries[pgd_index],
-			    pgtable->pgd[pgd_index] & ~IVPU_MMU_ENTRY_FLAGS_MASK);
+		kfree(pud_entries);
+		dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, pgtable->pgd_entries[pgd_idx],
+			    pgtable->pgd[pgd_idx] & ~IVPU_MMU_ENTRY_FLAGS_MASK);
 	}
 
 	dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, pgtable->pgd,
@@ -76,14 +92,53 @@ static void ivpu_mmu_pgtable_free(struct ivpu_device *vdev, struct ivpu_mmu_pgta
 }
 
 static u64*
-ivpu_mmu_ensure_pmd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, u64 pgd_index)
+ivpu_mmu_ensure_pud(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, int pgd_idx)
+{
+	u64 ***far_pud_entries;
+	u64 **pud_entries;
+	dma_addr_t pud_dma;
+	u64 *pud;
+
+	if (pgtable->pgd_entries[pgd_idx])
+		return pgtable->pgd_entries[pgd_idx];
+
+	pud = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pud_dma, GFP_KERNEL);
+	if (!pud)
+		return NULL;
+
+	pud_entries = kzalloc(IVPU_MMU_PGTABLE_SIZE, GFP_KERNEL);
+	if (!pud_entries)
+		goto err_free_pud;
+
+	far_pud_entries = kzalloc(IVPU_MMU_PGTABLE_SIZE, GFP_KERNEL);
+	if (!far_pud_entries)
+		goto err_free_pud_entries;
+
+	pgtable->pgd[pgd_idx] = pud_dma | IVPU_MMU_ENTRY_VALID;
+	pgtable->pgd_entries[pgd_idx] = pud;
+	pgtable->pgd_cpu_entries[pgd_idx] = pud_entries;
+	pgtable->pgd_far_entries[pgd_idx] = far_pud_entries;
+
+	return pud;
+
+err_free_pud_entries:
+	kfree(pud_entries);
+
+err_free_pud:
+	dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, pud, pud_dma);
+	return NULL;
+}
+
+static u64*
+ivpu_mmu_ensure_pmd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable,
+		    int pgd_idx, int pud_idx)
 {
 	u64 **pmd_entries;
 	dma_addr_t pmd_dma;
 	u64 *pmd;
 
-	if (pgtable->pgd_entries[pgd_index])
-		return pgtable->pgd_entries[pgd_index];
+	if (pgtable->pgd_cpu_entries[pgd_idx][pud_idx])
+		return pgtable->pgd_cpu_entries[pgd_idx][pud_idx];
 
 	pmd = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pmd_dma, GFP_KERNEL);
 	if (!pmd)
@@ -91,35 +146,35 @@ ivpu_mmu_ensure_pmd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, 
 
 	pmd_entries = kzalloc(IVPU_MMU_PGTABLE_SIZE, GFP_KERNEL);
 	if (!pmd_entries)
-		goto err_free_pgd;
+		goto err_free_pmd;
 
-	pgtable->pgd_entries[pgd_index] = pmd;
-	pgtable->pgd_cpu_entries[pgd_index] = pmd_entries;
-	pgtable->pgd[pgd_index] = pmd_dma | IVPU_MMU_ENTRY_VALID;
+	pgtable->pgd_entries[pgd_idx][pud_idx] = pmd_dma | IVPU_MMU_ENTRY_VALID;
+	pgtable->pgd_cpu_entries[pgd_idx][pud_idx] = pmd;
+	pgtable->pgd_far_entries[pgd_idx][pud_idx] = pmd_entries;
 
 	return pmd;
 
-err_free_pgd:
+err_free_pmd:
 	dma_free_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, pmd, pmd_dma);
 	return NULL;
 }
 
 static u64*
 ivpu_mmu_ensure_pte(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable,
-		    int pgd_index, int pmd_index)
+		    int pgd_idx, int pud_idx, int pmd_idx)
 {
 	dma_addr_t pte_dma;
 	u64 *pte;
 
-	if (pgtable->pgd_cpu_entries[pgd_index][pmd_index])
-		return pgtable->pgd_cpu_entries[pgd_index][pmd_index];
+	if (pgtable->pgd_far_entries[pgd_idx][pud_idx][pmd_idx])
+		return pgtable->pgd_far_entries[pgd_idx][pud_idx][pmd_idx];
 
 	pte = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pte_dma, GFP_KERNEL);
 	if (!pte)
 		return NULL;
 
-	pgtable->pgd_cpu_entries[pgd_index][pmd_index] = pte;
-	pgtable->pgd_entries[pgd_index][pmd_index] = pte_dma | IVPU_MMU_ENTRY_VALID;
+	pgtable->pgd_cpu_entries[pgd_idx][pud_idx][pmd_idx] = pte_dma | IVPU_MMU_ENTRY_VALID;
+	pgtable->pgd_far_entries[pgd_idx][pud_idx][pmd_idx] = pte;
 
 	return pte;
 }
@@ -129,33 +184,39 @@ ivpu_mmu_context_map_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx
 			  u64 vpu_addr, dma_addr_t dma_addr, int prot)
 {
 	u64 *pte;
-	int pgd_index = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
-	int pmd_index = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
-	int pte_index = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+	int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
+	int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
+	int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
+	int pte_idx = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+
+	/* Allocate PUD - first level page table if needed */
+	if (!ivpu_mmu_ensure_pud(vdev, &ctx->pgtable, pgd_idx))
+		return -ENOMEM;
 
 	/* Allocate PMD - second level page table if needed */
-	if (!ivpu_mmu_ensure_pmd(vdev, &ctx->pgtable, pgd_index))
+	if (!ivpu_mmu_ensure_pmd(vdev, &ctx->pgtable, pgd_idx, pud_idx))
 		return -ENOMEM;
 
 	/* Allocate PTE - third level page table if needed */
-	pte = ivpu_mmu_ensure_pte(vdev, &ctx->pgtable, pgd_index, pmd_index);
+	pte = ivpu_mmu_ensure_pte(vdev, &ctx->pgtable, pgd_idx, pud_idx, pmd_idx);
 	if (!pte)
 		return -ENOMEM;
 
 	/* Update PTE - third level page table with DMA address */
-	pte[pte_index] = dma_addr | prot;
+	pte[pte_idx] = dma_addr | prot;
 
 	return 0;
 }
 
 static void ivpu_mmu_context_unmap_page(struct ivpu_mmu_context *ctx, u64 vpu_addr)
 {
-	int pgd_index = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
-	int pmd_index = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
-	int pte_index = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+	int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
+	int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
+	int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
+	int pte_idx = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
 
 	/* Update PTE with dummy physical address and clear flags */
-	ctx->pgtable.pgd_cpu_entries[pgd_index][pmd_index][pte_index] = IVPU_MMU_ENTRY_INVALID;
+	ctx->pgtable.pgd_far_entries[pgd_idx][pud_idx][pmd_idx][pte_idx] = IVPU_MMU_ENTRY_INVALID;
 }
 
 static void
@@ -166,20 +227,27 @@ ivpu_mmu_context_flush_page_tables(struct ivpu_mmu_context *ctx, u64 vpu_addr, s
 
 	/* Align to PMD entry (2 MB) */
 	vpu_addr &= ~(IVPU_MMU_PTE_MAP_SIZE - 1);
-
 	while (vpu_addr < end_addr) {
-		int pgd_index = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
-		u64 pmd_end = (pgd_index + 1) * (u64)IVPU_MMU_PMD_MAP_SIZE;
-		u64 *pmd = ctx->pgtable.pgd_entries[pgd_index];
+		int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
+		u64 pud_end = (pgd_idx + 1) * (u64)IVPU_MMU_PUD_MAP_SIZE;
+		u64 *pud = ctx->pgtable.pgd_entries[pgd_idx];
 
-		while (vpu_addr < end_addr && vpu_addr < pmd_end) {
-			int pmd_index = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
-			u64 *pte = ctx->pgtable.pgd_cpu_entries[pgd_index][pmd_index];
+		while (vpu_addr < end_addr && vpu_addr < pud_end) {
+			int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
+			u64 pmd_end = (pud_idx + 1) * (u64)IVPU_MMU_PMD_MAP_SIZE;
+			u64 *pmd = ctx->pgtable.pgd_cpu_entries[pgd_idx][pud_idx];
 
-			clflush_cache_range(pte, IVPU_MMU_PGTABLE_SIZE);
-			vpu_addr += IVPU_MMU_PTE_MAP_SIZE;
+			while (vpu_addr < end_addr && vpu_addr < pmd_end) {
+				int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
+				u64 *pte = ctx->pgtable.pgd_far_entries
+					[pgd_idx][pud_idx][pmd_idx];
+
+				clflush_cache_range(pte, IVPU_MMU_PGTABLE_SIZE);
+				vpu_addr += IVPU_MMU_PTE_MAP_SIZE;
+			}
+			clflush_cache_range(pmd, IVPU_MMU_PGTABLE_SIZE);
 		}
-		clflush_cache_range(pmd, IVPU_MMU_PGTABLE_SIZE);
+		clflush_cache_range(pud, IVPU_MMU_PGTABLE_SIZE);
 	}
 	clflush_cache_range(pgd, IVPU_MMU_PGTABLE_SIZE);
 }
