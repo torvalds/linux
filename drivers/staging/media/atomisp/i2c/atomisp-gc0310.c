@@ -377,8 +377,8 @@ static void gc0310_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrls.handler);
+	mutex_destroy(&dev->input_lock);
 	pm_runtime_disable(&client->dev);
-	kfree(dev);
 }
 
 static int gc0310_probe(struct i2c_client *client)
