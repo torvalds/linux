@@ -26,6 +26,7 @@
 #define ST_LSM6DSV16BX_ODR_EXPAND(odr, uodr)		((odr * 1000000) + uodr)
 
 #define ST_LSM6DSV16BX_DEV_NAME				"lsm6dsv16bx"
+#define ST_LSM6DSV16B_DEV_NAME				"lsm6dsv16b"
 
 #define ST_LSM6DSV16BX_SAMPLE_SIZE			6
 #define ST_LSM6DSV16BX_TS_SAMPLE_SIZE			4
@@ -398,6 +399,7 @@ struct st_lsm6dsv16bx_fs_table_entry {
  */
 enum st_lsm6dsv16bx_hw_id {
 	ST_LSM6DSV16BX_ID,
+	ST_LSM6DSV16B_ID,
 	ST_LSM6DSV16BX_MAX_ID,
 };
 

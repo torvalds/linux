@@ -41,12 +41,17 @@ static const struct of_device_id st_lsm6dsv16bx_spi_of_match[] = {
 		.compatible = "st," ST_LSM6DSV16BX_DEV_NAME,
 		.data = (void *)ST_LSM6DSV16BX_ID,
 	},
+	{
+		.compatible = "st," ST_LSM6DSV16B_DEV_NAME,
+		.data = (void *)ST_LSM6DSV16B_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsv16bx_spi_of_match);
 
 static const struct spi_device_id st_lsm6dsv16bx_spi_id_table[] = {
 	{ ST_LSM6DSV16BX_DEV_NAME, ST_LSM6DSV16BX_ID },
+	{ ST_LSM6DSV16B_DEV_NAME, ST_LSM6DSV16B_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsv16bx_spi_id_table);
