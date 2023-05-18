@@ -2319,19 +2319,6 @@ static struct ctl_table vm_table[] = {
 	{ }
 };
 
-static struct ctl_table debug_table[] = {
-#ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
-	{
-		.procname	= "exception-trace",
-		.data		= &show_unhandled_signals,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-#endif
-	{ }
-};
-
 int __init sysctl_init_bases(void)
 {
 	register_sysctl_init("kernel", kern_table);
@@ -2341,7 +2328,6 @@ int __init sysctl_init_bases(void)
 #endif
 
 	register_sysctl_init("vm", vm_table);
-	register_sysctl_init("debug", debug_table);
 
 	return 0;
 }
