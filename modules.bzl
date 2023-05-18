@@ -74,6 +74,7 @@ COMMON_GKI_MODULES_LIST = _COMMON_GKI_MODULES_LIST
 
 _ARM64_GKI_MODULES_LIST = [
     # keep sorted
+    "arch/arm64/geniezone/gzvm.ko",
 ]
 
 _RISCV64_GKI_MODULES_LIST = [
