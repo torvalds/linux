@@ -16,12 +16,6 @@ int intel_start_bus(struct sdw_intel *sdw)
 	struct sdw_bus *bus = &cdns->bus;
 	int ret;
 
-	ret = sdw_cdns_enable_interrupt(cdns, true);
-	if (ret < 0) {
-		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
-		return ret;
-	}
-
 	/*
 	 * follow recommended programming flows to avoid timeouts when
 	 * gsync is enabled
@@ -32,30 +26,33 @@ int intel_start_bus(struct sdw_intel *sdw)
 	ret = sdw_cdns_init(cdns);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to initialize Cadence IP: %d\n", __func__, ret);
-		goto err_interrupt;
+		return ret;
 	}
 
 	ret = sdw_cdns_exit_reset(cdns);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to exit bus reset sequence: %d\n", __func__, ret);
-		goto err_interrupt;
+		return ret;
 	}
 
 	if (bus->multi_link) {
 		ret = sdw_intel_sync_go(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: sync go failed: %d\n", __func__, ret);
-			goto err_interrupt;
+			return ret;
 		}
 	}
+
+	ret = sdw_cdns_enable_interrupt(cdns, true);
+	if (ret < 0) {
+		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
+		return ret;
+	}
+
 	sdw_cdns_check_self_clearing_bits(cdns, __func__,
 					  true, INTEL_MASTER_RESET_ITERATIONS);
 
 	return 0;
-
-err_interrupt:
-	sdw_cdns_enable_interrupt(cdns, false);
-	return ret;
 }
 
 int intel_start_bus_after_reset(struct sdw_intel *sdw)
@@ -86,12 +83,6 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 		status = SDW_UNATTACH_REQUEST_MASTER_RESET;
 		sdw_clear_slave_status(bus, status);
 
-		ret = sdw_cdns_enable_interrupt(cdns, true);
-		if (ret < 0) {
-			dev_err(dev, "cannot enable interrupts during resume\n");
-			return ret;
-		}
-
 		/*
 		 * follow recommended programming flows to avoid
 		 * timeouts when gsync is enabled
@@ -115,31 +106,36 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 	ret = sdw_cdns_clock_restart(cdns, !clock_stop0);
 	if (ret < 0) {
 		dev_err(dev, "unable to restart clock during resume\n");
-		goto err_interrupt;
+		if (!clock_stop0)
+			sdw_cdns_enable_interrupt(cdns, false);
+		return ret;
 	}
 
 	if (!clock_stop0) {
 		ret = sdw_cdns_exit_reset(cdns);
 		if (ret < 0) {
 			dev_err(dev, "unable to exit bus reset sequence during resume\n");
-			goto err_interrupt;
+			return ret;
 		}
 
 		if (bus->multi_link) {
 			ret = sdw_intel_sync_go(sdw);
 			if (ret < 0) {
 				dev_err(sdw->cdns.dev, "sync go failed during resume\n");
-				goto err_interrupt;
+				return ret;
 			}
 		}
+
+		ret = sdw_cdns_enable_interrupt(cdns, true);
+		if (ret < 0) {
+			dev_err(dev, "cannot enable interrupts during resume\n");
+			return ret;
+		}
+
 	}
 	sdw_cdns_check_self_clearing_bits(cdns, __func__, true, INTEL_MASTER_RESET_ITERATIONS);
 
 	return 0;
-
-err_interrupt:
-	sdw_cdns_enable_interrupt(cdns, false);
-	return ret;
 }
 
 void intel_check_clock_stop(struct sdw_intel *sdw)
@@ -158,16 +154,15 @@ int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 	struct sdw_cdns *cdns = &sdw->cdns;
 	int ret;
 
-	ret = sdw_cdns_enable_interrupt(cdns, true);
-	if (ret < 0) {
-		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
-		return ret;
-	}
-
 	ret = sdw_cdns_clock_restart(cdns, false);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to restart clock: %d\n", __func__, ret);
-		sdw_cdns_enable_interrupt(cdns, false);
+		return ret;
+	}
+
+	ret = sdw_cdns_enable_interrupt(cdns, true);
+	if (ret < 0) {
+		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
 		return ret;
 	}
 
