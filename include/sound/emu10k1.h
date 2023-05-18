@@ -1439,21 +1439,20 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 /* ------------------- STRUCTURES -------------------- */
 
 enum {
+	EMU10K1_UNUSED,  // This must be zero
 	EMU10K1_EFX,
+	EMU10K1_EFX_IRQ,
 	EMU10K1_PCM,
+	EMU10K1_PCM_IRQ,
 	EMU10K1_SYNTH,
-	EMU10K1_MIDI
+	EMU10K1_NUM_TYPES
 };
 
 struct snd_emu10k1;
 
 struct snd_emu10k1_voice {
-	int number;
-	unsigned int use: 1,
-	    pcm: 1,
-	    efx: 1,
-	    synth: 1,
-	    midi: 1;
+	unsigned char number;
+	unsigned char use;
 	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 	struct snd_emu10k1_pcm *epcm;

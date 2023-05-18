@@ -78,21 +78,7 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 		dev_dbg(emu->card->dev, "voice alloc - %i, %i of %i\n",
 		       voice->number, idx-first_voice+1, number);
 		*/
-		voice->use = 1;
-		switch (type) {
-		case EMU10K1_PCM:
-			voice->pcm = 1;
-			break;
-		case EMU10K1_SYNTH:
-			voice->synth = 1;
-			break;
-		case EMU10K1_MIDI:
-			voice->midi = 1;
-			break;
-		case EMU10K1_EFX:
-			voice->efx = 1;
-			break;
-		}
+		voice->use = type;
 	}
 	*rvoice = &emu->voices[first_voice];
 	return 0;
@@ -103,7 +89,7 @@ static void voice_free(struct snd_emu10k1 *emu,
 {
 	snd_emu10k1_voice_init(emu, pvoice->number);
 	pvoice->interrupt = NULL;
-	pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
+	pvoice->use = 0;
 	pvoice->epcm = NULL;
 }
 
@@ -121,7 +107,7 @@ int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (;;) {
 		result = voice_alloc(emu, type, number, rvoice);
-		if (result == 0 || type == EMU10K1_SYNTH || type == EMU10K1_MIDI)
+		if (result == 0 || type == EMU10K1_SYNTH)
 			break;
 
 		/* free a voice from synth */

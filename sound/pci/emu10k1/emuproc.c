@@ -367,17 +367,17 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 	struct snd_emu10k1 *emu = entry->private_data;
 	struct snd_emu10k1_voice *voice;
 	int idx;
-	
-	snd_iprintf(buffer, "ch\tuse\tpcm\tefx\tsynth\tmidi\n");
+	static const char * const types[] = {
+		"Unused", "EFX", "EFX IRQ", "PCM", "PCM IRQ", "Synth"
+	};
+	static_assert(ARRAY_SIZE(types) == EMU10K1_NUM_TYPES);
+
+	snd_iprintf(buffer, "ch\tuse\n");
 	for (idx = 0; idx < NUM_G; idx++) {
 		voice = &emu->voices[idx];
-		snd_iprintf(buffer, "%i\t%i\t%i\t%i\t%i\t%i\n",
+		snd_iprintf(buffer, "%i\t%s\n",
 			idx,
-			voice->use,
-			voice->pcm,
-			voice->efx,
-			voice->synth,
-			voice->midi);
+			types[voice->use]);
 	}
 }
 
