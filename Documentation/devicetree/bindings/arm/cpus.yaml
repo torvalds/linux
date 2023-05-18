@@ -153,6 +153,7 @@ properties:
       - arm,cortex-r4
       - arm,cortex-r5
       - arm,cortex-r7
+      - arm,cortex-r52
       - arm,cortex-x1
       - arm,cortex-x1c
       - arm,cortex-x2
