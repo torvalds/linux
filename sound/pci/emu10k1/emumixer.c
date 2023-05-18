@@ -516,7 +516,7 @@ struct snd_emu1010_routing_info {
 	unsigned n_ins;
 };
 
-const struct snd_emu1010_routing_info emu1010_routing_info[] = {
+static const struct snd_emu1010_routing_info emu1010_routing_info[] = {
 	{
 		/* rev1 1010 */
 		.src_regs = emu1010_src_regs,
@@ -856,7 +856,7 @@ struct snd_emu1010_pads_info {
 	unsigned n_adc_ctls, n_dac_ctls;
 };
 
-const struct snd_emu1010_pads_info emu1010_pads_info[] = {
+static const struct snd_emu1010_pads_info emu1010_pads_info[] = {
 	{
 		/* rev1 1010 */
 		.adc_ctls = snd_emu1010_adc_pads,
