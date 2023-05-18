@@ -212,6 +212,7 @@ struct worker_pool {
 enum pool_workqueue_stats {
 	PWQ_STAT_STARTED,	/* work items started execution */
 	PWQ_STAT_COMPLETED,	/* work items completed execution */
+	PWQ_STAT_CPU_TIME,	/* total CPU time consumed */
 	PWQ_STAT_CPU_INTENSIVE,	/* wq_cpu_intensive_thresh_us violations */
 	PWQ_STAT_CM_WAKEUP,	/* concurrency-management worker wakeups */
 	PWQ_STAT_MAYDAY,	/* maydays to rescuer */
@@ -1135,6 +1136,8 @@ void wq_worker_tick(struct task_struct *task)
 
 	if (!pwq)
 		return;
+
+	pwq->stats[PWQ_STAT_CPU_TIME] += TICK_USEC;
 
 	/*
 	 * If the current worker is concurrency managed and hogged the CPU for
