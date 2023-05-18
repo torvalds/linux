@@ -12,6 +12,7 @@
 #include <drm/drm_file.h>
 #include <drm/ttm/ttm_device.h>
 
+#include "xe_devcoredump_types.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
 #include "xe_step_types.h"
@@ -48,6 +49,9 @@
 struct xe_device {
 	/** @drm: drm device */
 	struct drm_device drm;
+
+	/** @devcoredump: device coredump */
+	struct xe_devcoredump devcoredump;
 
 	/** @info: device info */
 	struct intel_device_info {
