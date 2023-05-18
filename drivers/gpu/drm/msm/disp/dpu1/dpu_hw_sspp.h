@@ -254,25 +254,14 @@ struct dpu_hw_sspp_ops {
 	void (*setup_sharpening)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_sharp_cfg *cfg);
 
-	/**
-	 * setup_danger_safe_lut - setup danger safe LUTs
-	 * @ctx: Pointer to pipe context
-	 * @danger_lut: LUT for generate danger level based on fill level
-	 * @safe_lut: LUT for generate safe level based on fill level
-	 *
-	 */
-	void (*setup_danger_safe_lut)(struct dpu_hw_sspp *ctx,
-			u32 danger_lut,
-			u32 safe_lut);
 
 	/**
-	 * setup_creq_lut - setup CREQ LUT
+	 * setup_qos_lut - setup QoS LUTs
 	 * @ctx: Pointer to pipe context
-	 * @creq_lut: LUT for generate creq level based on fill level
-	 *
+	 * @cfg: LUT configuration
 	 */
-	void (*setup_creq_lut)(struct dpu_hw_sspp *ctx,
-			u64 creq_lut);
+	void (*setup_qos_lut)(struct dpu_hw_sspp *ctx,
+			struct dpu_hw_qos_cfg *cfg);
 
 	/**
 	 * setup_qos_ctrl - setup QoS control

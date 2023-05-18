@@ -49,9 +49,6 @@
 #define WB_OUT_IMAGE_SIZE                     0x2C0
 #define WB_OUT_XY                             0x2C4
 
-/* WB_QOS_CTRL */
-#define WB_QOS_CTRL_DANGER_SAFE_EN            BIT(0)
-
 static void dpu_hw_wb_setup_outaddress(struct dpu_hw_wb *ctx,
 		struct dpu_hw_wb_cfg *data)
 {
@@ -135,32 +132,14 @@ static void dpu_hw_wb_roi(struct dpu_hw_wb *ctx, struct dpu_hw_wb_cfg *wb)
 }
 
 static void dpu_hw_wb_setup_qos_lut(struct dpu_hw_wb *ctx,
-		struct dpu_hw_wb_qos_cfg *cfg)
+		struct dpu_hw_qos_cfg *cfg)
 {
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 qos_ctrl = 0;
-
 	if (!ctx || !cfg)
 		return;
 
-	DPU_REG_WRITE(c, WB_DANGER_LUT, cfg->danger_lut);
-	DPU_REG_WRITE(c, WB_SAFE_LUT, cfg->safe_lut);
-
-	/*
-	 * for chipsets not using DPU_WB_QOS_8LVL but still using DPU
-	 * driver such as msm8998, the reset value of WB_CREQ_LUT is
-	 * sufficient for writeback to work. SW doesn't need to explicitly
-	 * program a value.
-	 */
-	if (ctx->caps && test_bit(DPU_WB_QOS_8LVL, &ctx->caps->features)) {
-		DPU_REG_WRITE(c, WB_CREQ_LUT_0, cfg->creq_lut);
-		DPU_REG_WRITE(c, WB_CREQ_LUT_1, cfg->creq_lut >> 32);
-	}
-
-	if (cfg->danger_safe_en)
-		qos_ctrl |= WB_QOS_CTRL_DANGER_SAFE_EN;
-
-	DPU_REG_WRITE(c, WB_QOS_CTRL, qos_ctrl);
+	_dpu_hw_setup_qos_lut(&ctx->hw, WB_DANGER_LUT,
+			      test_bit(DPU_WB_QOS_8LVL, &ctx->caps->features),
+			      cfg);
 }
 
 static void dpu_hw_wb_setup_cdp(struct dpu_hw_wb *ctx,

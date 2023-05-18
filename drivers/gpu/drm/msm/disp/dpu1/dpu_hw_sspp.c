@@ -539,30 +539,15 @@ static void dpu_hw_sspp_setup_solidfill(struct dpu_sw_pipe *pipe, u32 color)
 				color);
 }
 
-static void dpu_hw_sspp_setup_danger_safe_lut(struct dpu_hw_sspp *ctx,
-			u32 danger_lut,
-			u32 safe_lut)
+static void dpu_hw_sspp_setup_qos_lut(struct dpu_hw_sspp *ctx,
+				      struct dpu_hw_qos_cfg *cfg)
 {
-	if (!ctx)
+	if (!ctx || !cfg)
 		return;
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_DANGER_LUT, danger_lut);
-	DPU_REG_WRITE(&ctx->hw, SSPP_SAFE_LUT, safe_lut);
-}
-
-static void dpu_hw_sspp_setup_creq_lut(struct dpu_hw_sspp *ctx,
-			u64 creq_lut)
-{
-	if (!ctx)
-		return;
-
-	if (ctx->cap && test_bit(DPU_SSPP_QOS_8LVL, &ctx->cap->features)) {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_0, creq_lut);
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_1,
-				creq_lut >> 32);
-	} else {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT, creq_lut);
-	}
+	_dpu_hw_setup_qos_lut(&ctx->hw, SSPP_DANGER_LUT,
+			      test_bit(DPU_SSPP_QOS_8LVL, &ctx->cap->features),
+			      cfg);
 }
 
 static void dpu_hw_sspp_setup_qos_ctrl(struct dpu_hw_sspp *ctx,
@@ -604,9 +589,7 @@ static void _setup_layer_ops(struct dpu_hw_sspp *c,
 	c->ops.setup_pe = dpu_hw_sspp_setup_pe_config;
 
 	if (test_bit(DPU_SSPP_QOS, &features)) {
-		c->ops.setup_danger_safe_lut =
-			dpu_hw_sspp_setup_danger_safe_lut;
-		c->ops.setup_creq_lut = dpu_hw_sspp_setup_creq_lut;
+		c->ops.setup_qos_lut = dpu_hw_sspp_setup_qos_lut;
 		c->ops.setup_qos_ctrl = dpu_hw_sspp_setup_qos_ctrl;
 	}
 

@@ -102,7 +102,7 @@ static void dpu_encoder_phys_wb_set_qos_remap(
 static void dpu_encoder_phys_wb_set_qos(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_wb *hw_wb;
-	struct dpu_hw_wb_qos_cfg qos_cfg;
+	struct dpu_hw_qos_cfg qos_cfg;
 	const struct dpu_mdss_cfg *catalog;
 	const struct dpu_qos_lut_tbl *qos_lut_tb;
 
@@ -115,7 +115,7 @@ static void dpu_encoder_phys_wb_set_qos(struct dpu_encoder_phys *phys_enc)
 
 	hw_wb = phys_enc->hw_wb;
 
-	memset(&qos_cfg, 0, sizeof(struct dpu_hw_wb_qos_cfg));
+	memset(&qos_cfg, 0, sizeof(struct dpu_hw_qos_cfg));
 	qos_cfg.danger_safe_en = true;
 	qos_cfg.danger_lut =
 		catalog->perf->danger_lut_tbl[DPU_QOS_LUT_USAGE_NRT];

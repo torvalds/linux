@@ -22,20 +22,6 @@ struct dpu_hw_wb_cfg {
 };
 
 /**
- * struct dpu_hw_wb_qos_cfg : Writeback pipe QoS configuration
- * @danger_lut: LUT for generate danger level based on fill level
- * @safe_lut: LUT for generate safe level based on fill level
- * @creq_lut: LUT for generate creq level based on fill level
- * @danger_safe_en: enable danger safe generation
- */
-struct dpu_hw_wb_qos_cfg {
-	u32 danger_lut;
-	u32 safe_lut;
-	u64 creq_lut;
-	bool danger_safe_en;
-};
-
-/**
  *
  * struct dpu_hw_wb_ops : Interface to the wb hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
@@ -56,7 +42,7 @@ struct dpu_hw_wb_ops {
 			struct dpu_hw_wb_cfg *wb);
 
 	void (*setup_qos_lut)(struct dpu_hw_wb *ctx,
-			struct dpu_hw_wb_qos_cfg *cfg);
+			struct dpu_hw_qos_cfg *cfg);
 
 	void (*setup_cdp)(struct dpu_hw_wb *ctx,
 			  const struct dpu_format *fmt,
