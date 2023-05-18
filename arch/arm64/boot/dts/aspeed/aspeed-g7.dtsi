@@ -25,6 +25,14 @@
 		serial10 = &uart10;
 		serial11 = &uart11;
 		serial12 = &uart12;
+		serial13 = &vuart0;
+		serial14 = &vuart1;
+		serial15 = &vuart2;
+		serial16 = &vuart3;
+		serial17 = &pcie0_vuart0;
+		serial18 = &pcie0_vuart1;
+		serial19 = &pcie1_vuart0;
+		serial20 = &pcie1_vuart1;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -511,6 +519,42 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x0 0x14c0f000 0x1100>;
+		};
+
+		vuart0: serial@14c30000 {
+			compatible = "aspeed,ast2600-uart";
+			reg = <0x0 0x14c30000 0x0 0x40>;
+			interrupts-extended = <&intc0 17>;
+			clock-frequency = <1846154>;
+			virtual;
+			status = "disabled";
+		};
+
+		vuart1: serial@14c30100 {
+			compatible = "aspeed,ast2600-uart";
+			reg = <0x0 0x14c30100 0x0 0x40>;
+			interrupts-extended = <&intc0 18>;
+			clock-frequency = <1846154>;
+			virtual;
+			status = "disabled";
+		};
+
+		vuart2: serial@14c30200 {
+			compatible = "aspeed,ast2600-uart";
+			reg = <0x0 0x14c30200 0x0 0x40>;
+			interrupts-extended = <&intc1 17>;
+			clock-frequency = <1846154>;
+			virtual;
+			status = "disabled";
+		};
+
+		vuart3: serial@14c30300 {
+			compatible = "aspeed,ast2600-uart";
+			reg = <0x0 0x14c30300 0x0 0x40>;
+			interrupts-extended = <&intc1 18>;
+			clock-frequency = <1846154>;
+			virtual;
+			status = "disabled";
 		};
 
 		uart0: serial@14c33000 {
