@@ -47,12 +47,13 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 			status &= ~(IPR_VOLINCR|IPR_VOLDECR|IPR_MUTE);
 		}
 		if (status & IPR_CHANNELLOOP) {
+			struct snd_emu10k1_voice *pvoice;
 			int voice;
 			int voice_max = status & IPR_CHANNELNUMBERMASK;
 			u32 val;
-			struct snd_emu10k1_voice *pvoice = emu->voices;
 
 			val = snd_emu10k1_ptr_read(emu, CLIPL, 0);
+			pvoice = emu->voices;
 			for (voice = 0; voice <= voice_max; voice++) {
 				if (voice == 0x20)
 					val = snd_emu10k1_ptr_read(emu, CLIPH, 0);
@@ -68,6 +69,7 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 				pvoice++;
 			}
 			val = snd_emu10k1_ptr_read(emu, HLIPL, 0);
+			pvoice = emu->voices;
 			for (voice = 0; voice <= voice_max; voice++) {
 				if (voice == 0x20)
 					val = snd_emu10k1_ptr_read(emu, HLIPH, 0);
