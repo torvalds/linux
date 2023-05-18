@@ -456,9 +456,9 @@ static int cdns_parity_error_injection(void *data, u64 value)
 			CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
+	ret = cdns_clear_bit(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+	if (ret < 0)
+		goto unlock;
 
 	/* do a broadcast dummy read to avoid bus clashes */
 	ret = sdw_bread_no_pm_unlocked(&cdns->bus, 0xf, SDW_SCP_DEVID_0);
@@ -470,15 +470,16 @@ static int cdns_parity_error_injection(void *data, u64 value)
 			0);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
-
-	/* Continue bus operation with parity error injection disabled */
-	mutex_unlock(&bus->bus_lock);
+	ret = cdns_clear_bit(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+	if (ret < 0)
+		goto unlock;
 
 	/* Userspace changed the hardware state behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+unlock:
+	/* Continue bus operation with parity error injection disabled */
+	mutex_unlock(&bus->bus_lock);
 
 	/*
 	 * allow Master device to enter pm_runtime suspend. This may
