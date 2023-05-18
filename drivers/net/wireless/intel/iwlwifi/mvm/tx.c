@@ -1875,7 +1875,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, sta_id);
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-	if (WARN_ON_ONCE(!sta || !sta->wme)) {
+	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta) || !sta->wme)) {
 		rcu_read_unlock();
 		return;
 	}
