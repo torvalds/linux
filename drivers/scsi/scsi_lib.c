@@ -122,11 +122,9 @@ static void scsi_mq_requeue_cmd(struct scsi_cmnd *cmd, unsigned long msecs)
 		WARN_ON_ONCE(true);
 	}
 
-	if (msecs) {
-		blk_mq_requeue_request(rq, false);
+	blk_mq_requeue_request(rq, false);
+	if (!scsi_host_in_recovery(cmd->device->host))
 		blk_mq_delay_kick_requeue_list(rq->q, msecs);
-	} else
-		blk_mq_requeue_request(rq, true);
 }
 
 /**
@@ -165,7 +163,8 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
 	 */
 	cmd->result = 0;
 
-	blk_mq_requeue_request(scsi_cmd_to_rq(cmd), true);
+	blk_mq_requeue_request(scsi_cmd_to_rq(cmd),
+			       !scsi_host_in_recovery(cmd->device->host));
 }
 
 /**
@@ -453,6 +452,7 @@ static void scsi_run_queue(struct request_queue *q)
 	if (!list_empty(&sdev->host->starved_list))
 		scsi_starved_list_run(sdev->host);
 
+	blk_mq_kick_requeue_list(q);
 	blk_mq_run_hw_queues(q, false);
 }
 
@@ -503,6 +503,9 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 
 static void scsi_run_queue_async(struct scsi_device *sdev)
 {
+	if (scsi_host_in_recovery(sdev->host))
+		return;
+
 	if (scsi_target(sdev)->single_lun ||
 	    !list_empty(&sdev->host->starved_list)) {
 		kblockd_schedule_work(&sdev->requeue_work);
