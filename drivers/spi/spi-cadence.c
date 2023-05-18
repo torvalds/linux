@@ -12,6 +12,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -301,47 +302,43 @@ static int cdns_spi_setup_transfer(struct spi_device *spi,
 }
 
 /**
- * cdns_spi_fill_tx_fifo - Fills the TX FIFO with as many bytes as possible
+ * cdns_spi_process_fifo - Fills the TX FIFO, and drain the RX FIFO
  * @xspi:	Pointer to the cdns_spi structure
+ * @ntx:	Number of bytes to pack into the TX FIFO
+ * @nrx:	Number of bytes to drain from the RX FIFO
  */
-static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi, unsigned int avail)
+static void cdns_spi_process_fifo(struct cdns_spi *xspi, int ntx, int nrx)
 {
-	unsigned long trans_cnt = 0;
+	ntx = clamp(ntx, 0, xspi->tx_bytes);
+	nrx = clamp(nrx, 0, xspi->rx_bytes);
 
-	while ((trans_cnt < avail) && (xspi->tx_bytes > 0)) {
+	xspi->tx_bytes -= ntx;
+	xspi->rx_bytes -= nrx;
+
+	while (ntx || nrx) {
 		/* When xspi in busy condition, bytes may send failed,
 		 * then spi control did't work thoroughly, add one byte delay
 		 */
-		if (cdns_spi_read(xspi, CDNS_SPI_ISR) &
-		    CDNS_SPI_IXR_TXFULL)
+		if (cdns_spi_read(xspi, CDNS_SPI_ISR) & CDNS_SPI_IXR_TXFULL)
 			udelay(10);
 
-		if (xspi->txbuf)
-			cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
-		else
-			cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
+		if (ntx) {
+			if (xspi->txbuf)
+				cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
+			else
+				cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
 
-		xspi->tx_bytes--;
-		trans_cnt++;
-	}
-}
+			ntx--;
+		}
 
-/**
- * cdns_spi_read_rx_fifo - Reads the RX FIFO with as many bytes as possible
- * @xspi:       Pointer to the cdns_spi structure
- * @count:	Read byte count
- */
-static void cdns_spi_read_rx_fifo(struct cdns_spi *xspi, unsigned long count)
-{
-	u8 data;
+		if (nrx) {
+			u8 data = cdns_spi_read(xspi, CDNS_SPI_RXD);
 
-	/* Read out the data from the RX FIFO */
-	while (count > 0) {
-		data = cdns_spi_read(xspi, CDNS_SPI_RXD);
-		if (xspi->rxbuf)
-			*xspi->rxbuf++ = data;
-		xspi->rx_bytes--;
-		count--;
+			if (xspi->rxbuf)
+				*xspi->rxbuf++ = data;
+
+			nrx--;
+		}
 	}
 }
 
@@ -391,11 +388,10 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 		if (xspi->tx_bytes < xspi->tx_fifo_depth >> 1)
 			cdns_spi_write(xspi, CDNS_SPI_THLD, 1);
 
-		cdns_spi_read_rx_fifo(xspi, trans_cnt);
-
 		if (xspi->tx_bytes) {
-			cdns_spi_fill_tx_fifo(xspi, trans_cnt);
+			cdns_spi_process_fifo(xspi, trans_cnt, trans_cnt);
 		} else {
+			cdns_spi_process_fifo(xspi, 0, trans_cnt);
 			cdns_spi_write(xspi, CDNS_SPI_IDR,
 				       CDNS_SPI_IXR_DEFAULT);
 			spi_finalize_current_transfer(ctlr);
@@ -448,7 +444,7 @@ static int cdns_transfer_one(struct spi_controller *ctlr,
 			cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
 	}
 
-	cdns_spi_fill_tx_fifo(xspi, xspi->tx_fifo_depth);
+	cdns_spi_process_fifo(xspi, xspi->tx_fifo_depth, 0);
 	spi_transfer_delay_exec(transfer);
 
 	cdns_spi_write(xspi, CDNS_SPI_IER, CDNS_SPI_IXR_DEFAULT);
