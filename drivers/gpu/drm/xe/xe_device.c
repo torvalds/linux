@@ -181,6 +181,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (WARN_ON(err))
 		goto err_put;
 
+	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
+	if (err)
+		goto err_put;
+
 	xe->info.devid = pdev->device;
 	xe->info.revid = pdev->revision;
 	xe->info.enable_guc = enable_guc;
@@ -204,10 +208,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	drmm_mutex_init(&xe->drm, &xe->sb_lock);
 	xe->enabled_irq_mask = ~0;
-
-	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
-	if (err)
-		goto err_put;
 
 	return xe;
 
