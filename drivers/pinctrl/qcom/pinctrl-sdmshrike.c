@@ -2257,6 +2257,11 @@ static const struct msm_gpio_wakeirq_map sdmshrike_pdc_map[] = {
 	{ 189, 114 },
 };
 
+static struct msm_dir_conn sdmshrike_dir_conn[] = {
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}
+};
+
 static struct msm_pinctrl_soc_data sdmshrike_pinctrl = {
 	.pins = sdmshrike_pins,
 	.npins = ARRAY_SIZE(sdmshrike_pins),
@@ -2268,6 +2273,7 @@ static struct msm_pinctrl_soc_data sdmshrike_pinctrl = {
 	.wakeirq_map = sdmshrike_pdc_map,
 	.nwakeirq_map = ARRAY_SIZE(sdmshrike_pdc_map),
 	.wakeirq_dual_edge_errata = true,
+	.dir_conn = sdmshrike_dir_conn,
 	.egpio_func = 9,
 };
 
