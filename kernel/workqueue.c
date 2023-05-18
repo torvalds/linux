@@ -880,6 +880,60 @@ static void wake_up_worker(struct worker_pool *pool)
 }
 
 /**
+ * worker_set_flags - set worker flags and adjust nr_running accordingly
+ * @worker: self
+ * @flags: flags to set
+ *
+ * Set @flags in @worker->flags and adjust nr_running accordingly.
+ *
+ * CONTEXT:
+ * raw_spin_lock_irq(pool->lock)
+ */
+static inline void worker_set_flags(struct worker *worker, unsigned int flags)
+{
+	struct worker_pool *pool = worker->pool;
+
+	WARN_ON_ONCE(worker->task != current);
+
+	/* If transitioning into NOT_RUNNING, adjust nr_running. */
+	if ((flags & WORKER_NOT_RUNNING) &&
+	    !(worker->flags & WORKER_NOT_RUNNING)) {
+		pool->nr_running--;
+	}
+
+	worker->flags |= flags;
+}
+
+/**
+ * worker_clr_flags - clear worker flags and adjust nr_running accordingly
+ * @worker: self
+ * @flags: flags to clear
+ *
+ * Clear @flags in @worker->flags and adjust nr_running accordingly.
+ *
+ * CONTEXT:
+ * raw_spin_lock_irq(pool->lock)
+ */
+static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
+{
+	struct worker_pool *pool = worker->pool;
+	unsigned int oflags = worker->flags;
+
+	WARN_ON_ONCE(worker->task != current);
+
+	worker->flags &= ~flags;
+
+	/*
+	 * If transitioning out of NOT_RUNNING, increment nr_running.  Note
+	 * that the nested NOT_RUNNING is not a noop.  NOT_RUNNING is mask
+	 * of multiple flags, not a single flag.
+	 */
+	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
+		if (!(worker->flags & WORKER_NOT_RUNNING))
+			pool->nr_running++;
+}
+
+/**
  * wq_worker_running - a worker is running again
  * @task: task waking up
  *
@@ -981,60 +1035,6 @@ work_func_t wq_worker_last_func(struct task_struct *task)
 	struct worker *worker = kthread_data(task);
 
 	return worker->last_func;
-}
-
-/**
- * worker_set_flags - set worker flags and adjust nr_running accordingly
- * @worker: self
- * @flags: flags to set
- *
- * Set @flags in @worker->flags and adjust nr_running accordingly.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock)
- */
-static inline void worker_set_flags(struct worker *worker, unsigned int flags)
-{
-	struct worker_pool *pool = worker->pool;
-
-	WARN_ON_ONCE(worker->task != current);
-
-	/* If transitioning into NOT_RUNNING, adjust nr_running. */
-	if ((flags & WORKER_NOT_RUNNING) &&
-	    !(worker->flags & WORKER_NOT_RUNNING)) {
-		pool->nr_running--;
-	}
-
-	worker->flags |= flags;
-}
-
-/**
- * worker_clr_flags - clear worker flags and adjust nr_running accordingly
- * @worker: self
- * @flags: flags to clear
- *
- * Clear @flags in @worker->flags and adjust nr_running accordingly.
- *
- * CONTEXT:
- * raw_spin_lock_irq(pool->lock)
- */
-static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
-{
-	struct worker_pool *pool = worker->pool;
-	unsigned int oflags = worker->flags;
-
-	WARN_ON_ONCE(worker->task != current);
-
-	worker->flags &= ~flags;
-
-	/*
-	 * If transitioning out of NOT_RUNNING, increment nr_running.  Note
-	 * that the nested NOT_RUNNING is not a noop.  NOT_RUNNING is mask
-	 * of multiple flags, not a single flag.
-	 */
-	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
-		if (!(worker->flags & WORKER_NOT_RUNNING))
-			pool->nr_running++;
 }
 
 /**
