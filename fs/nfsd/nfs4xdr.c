@@ -4032,6 +4032,11 @@ nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr,
 	return nfsd4_encode_stateid(xdr, &od->od_stateid);
 }
 
+/*
+ * The operation of this function assumes that this is the only
+ * READ operation in the COMPOUND. If there are multiple READs,
+ * we use nfsd4_encode_readv().
+ */
 static __be32 nfsd4_encode_splice_read(
 				struct nfsd4_compoundres *resp,
 				struct nfsd4_read *read,
@@ -4042,8 +4047,12 @@ static __be32 nfsd4_encode_splice_read(
 	int status, space_left;
 	__be32 nfserr;
 
-	/* Make sure there will be room for padding if needed */
-	if (xdr->end - xdr->p < 1)
+	/*
+	 * Make sure there is room at the end of buf->head for
+	 * svcxdr_encode_opaque_pages() to create a tail buffer
+	 * to XDR-pad the payload.
+	 */
+	if (xdr->iov != xdr->buf->head || xdr->end - xdr->p < 1)
 		return nfserr_resource;
 
 	nfserr = nfsd_splice_read(read->rd_rqstp, read->rd_fhp,
@@ -4052,6 +4061,8 @@ static __be32 nfsd4_encode_splice_read(
 	read->rd_length = maxcount;
 	if (nfserr)
 		goto out_err;
+	svcxdr_encode_opaque_pages(read->rd_rqstp, xdr, buf->pages,
+				   buf->page_base, maxcount);
 	status = svc_encode_result_payload(read->rd_rqstp,
 					   buf->head[0].iov_len, maxcount);
 	if (status) {
@@ -4059,31 +4070,19 @@ static __be32 nfsd4_encode_splice_read(
 		goto out_err;
 	}
 
-	buf->page_len = maxcount;
-	buf->len += maxcount;
-	xdr->page_ptr += (buf->page_base + maxcount + PAGE_SIZE - 1)
-							/ PAGE_SIZE;
-
-	/* Use rest of head for padding and remaining ops: */
-	buf->tail[0].iov_base = xdr->p;
-	buf->tail[0].iov_len = 0;
-	xdr->iov = buf->tail;
-	if (maxcount&3) {
-		int pad = 4 - (maxcount&3);
-
-		*(xdr->p++) = 0;
-
-		buf->tail[0].iov_base += maxcount&3;
-		buf->tail[0].iov_len = pad;
-		buf->len += pad;
-	}
-
+	/*
+	 * Prepare to encode subsequent operations.
+	 *
+	 * xdr_truncate_encode() is not safe to use after a successful
+	 * splice read has been done, so the following stream
+	 * manipulations are open-coded.
+	 */
 	space_left = min_t(int, (void *)xdr->end - (void *)xdr->p,
 				buf->buflen - buf->len);
 	buf->buflen = buf->len + space_left;
 	xdr->end = (__be32 *)((void *)xdr->end + space_left);
 
-	return 0;
+	return nfs_ok;
 
 out_err:
 	/*
