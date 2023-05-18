@@ -87,9 +87,10 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 static void voice_free(struct snd_emu10k1 *emu,
 		       struct snd_emu10k1_voice *pvoice)
 {
-	snd_emu10k1_voice_init(emu, pvoice->number);
+	if (pvoice->dirty)
+		snd_emu10k1_voice_init(emu, pvoice->number);
 	pvoice->interrupt = NULL;
-	pvoice->use = 0;
+	pvoice->use = pvoice->dirty = 0;
 	pvoice->epcm = NULL;
 }
 

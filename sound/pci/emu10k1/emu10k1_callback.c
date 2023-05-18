@@ -437,6 +437,7 @@ start_voice(struct snd_emux_voice *vp)
 
 		REGLIST_END);
 
+	hw->voices[ch].dirty = 1;
 	return 0;
 }
 

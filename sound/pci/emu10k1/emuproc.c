@@ -372,11 +372,12 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 	};
 	static_assert(ARRAY_SIZE(types) == EMU10K1_NUM_TYPES);
 
-	snd_iprintf(buffer, "ch\tuse\n");
+	snd_iprintf(buffer, "ch\tdirty\tuse\n");
 	for (idx = 0; idx < NUM_G; idx++) {
 		voice = &emu->voices[idx];
-		snd_iprintf(buffer, "%i\t%s\n",
+		snd_iprintf(buffer, "%i\t%u\t%s\n",
 			idx,
+			voice->dirty,
 			types[voice->use]);
 	}
 }

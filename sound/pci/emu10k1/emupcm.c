@@ -80,17 +80,6 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 {
 	int err, i;
 
-	if (epcm->voices[1] != NULL && voices < 2) {
-		snd_emu10k1_voice_free(epcm->emu, epcm->voices[1]);
-		epcm->voices[1] = NULL;
-	}
-	for (i = 0; i < voices; i++) {
-		if (epcm->voices[i] == NULL)
-			break;
-	}
-	if (i == voices)
-		return 0; /* already allocated */
-
 	for (i = 0; i < ARRAY_SIZE(epcm->voices); i++) {
 		if (epcm->voices[i]) {
 			snd_emu10k1_voice_free(epcm->emu, epcm->voices[i]);
@@ -322,6 +311,8 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));
 	}
+
+	emu->voices[voice].dirty = 1;
 
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }

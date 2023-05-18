@@ -1453,6 +1453,7 @@ struct snd_emu10k1;
 struct snd_emu10k1_voice {
 	unsigned char number;
 	unsigned char use;
+	unsigned char dirty;
 	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 	struct snd_emu10k1_pcm *epcm;
