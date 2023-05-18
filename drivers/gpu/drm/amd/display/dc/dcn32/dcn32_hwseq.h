@@ -84,6 +84,8 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *top_pipe_to_program,
 		bool subvp_prev_use);
 
+void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params);
+
 void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
 

@@ -409,6 +409,30 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	}
 }
 
+void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
+{
+	struct dc *dc = params->subvp_pipe_control_lock_fast_params.dc;
+	bool lock = params->subvp_pipe_control_lock_fast_params.lock;
+	struct pipe_ctx *pipe_ctx = params->subvp_pipe_control_lock_fast_params.pipe_ctx;
+	bool subvp_immediate_flip = false;
+
+	if (pipe_ctx && pipe_ctx->stream && pipe_ctx->plane_state) {
+		if (pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN &&
+				pipe_ctx->plane_state->flip_immediate)
+			subvp_immediate_flip = true;
+	}
+
+	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
+	if (subvp_immediate_flip) {
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
+
+		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
+		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
+		hw_lock_cmd.bits.lock = lock;
+		hw_lock_cmd.bits.should_release = !lock;
+		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
+	}
+}
 
 bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)

@@ -553,6 +553,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.recovery_enabled = false, /*enable this by default after testing.*/
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.enable_legacy_fast_update = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

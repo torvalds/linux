@@ -722,6 +722,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.enable_legacy_fast_update = true,
 };
 
 void dcn20_dpp_destroy(struct dpp **dpp)

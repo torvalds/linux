@@ -37,6 +37,7 @@
 #include "dwb.h"
 #include "mcif_wb.h"
 #include "panel_cntl.h"
+#include "dmub/inc/dmub_cmd.h"
 
 #define MAX_CLOCK_SOURCES 7
 #define MAX_SVP_PHANTOM_STREAMS 2
@@ -499,6 +500,11 @@ struct bw_context {
 	struct display_mode_lib dml;
 };
 
+struct dc_dmub_cmd {
+	union dmub_rb_cmd dmub_cmd;
+	enum dm_dmub_wait_type wait_type;
+};
+
 /**
  * struct dc_state - The full description of a state requested by users
  */
@@ -546,6 +552,11 @@ struct dc_state {
 	 * initially copied into every context.
 	 */
 	struct bw_context bw_ctx;
+
+	struct block_sequence block_sequence[50];
+	unsigned int block_sequence_steps;
+	struct dc_dmub_cmd dc_dmub_cmd[10];
+	unsigned int dmub_cmd_count;
 
 	/**
 	 * @refcount: refcount reference

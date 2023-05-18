@@ -884,6 +884,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.afmt = true,
 		}
 	},
+	.enable_legacy_fast_update = true,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

@@ -613,6 +613,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_tri_buf = false,
+		.enable_legacy_fast_update = true,
 };
 
 static void dcn201_dpp_destroy(struct dpp **dpp)

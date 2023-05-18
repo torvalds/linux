@@ -110,6 +110,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.enable_phantom_streams = dcn32_enable_phantom_streams,
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
+	.subvp_pipe_control_lock_fast = dcn32_subvp_pipe_control_lock_fast,
 	.update_phantom_vp_position = dcn32_update_phantom_vp_position,
 	.update_dsc_pg = dcn32_update_dsc_pg,
 	.apply_update_flags_for_phantom = dcn32_apply_update_flags_for_phantom,
