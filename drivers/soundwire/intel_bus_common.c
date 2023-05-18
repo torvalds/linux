@@ -171,8 +171,7 @@ int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 		return ret;
 	}
 
-	sdw_cdns_check_self_clearing_bits(cdns, "intel_resume_runtime no_quirks",
-					  true, INTEL_MASTER_RESET_ITERATIONS);
+	sdw_cdns_check_self_clearing_bits(cdns, __func__, true, INTEL_MASTER_RESET_ITERATIONS);
 
 	return 0;
 }
