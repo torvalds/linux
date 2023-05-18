@@ -409,7 +409,7 @@ int qnoc_probe(struct platform_device *pdev)
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
 	size_t num_nodes, i;
-	const char * const *cds;
+	const char * const *cds = NULL;
 	int cd_num;
 	int ret;
 
@@ -424,6 +424,31 @@ int qnoc_probe(struct platform_device *pdev)
 	qnodes = desc->nodes;
 	num_nodes = desc->num_nodes;
 
+	if (desc->num_intf_clocks) {
+		cds = desc->intf_clocks;
+		cd_num = desc->num_intf_clocks;
+	} else {
+		/* 0 intf clocks is perfectly fine */
+		cd_num = 0;
+	}
+
+	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
+	if (!qp)
+		return -ENOMEM;
+
+	qp->intf_clks = devm_kzalloc(dev, sizeof(qp->intf_clks), GFP_KERNEL);
+	if (!qp->intf_clks)
+		return -ENOMEM;
+
+	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	qp->num_intf_clks = cd_num;
+	for (i = 0; i < cd_num; i++)
+		qp->intf_clks[i].id = cds[i];
+
 	if (desc->num_bus_clocks) {
 		cds = desc->bus_clocks;
 		cd_num = desc->num_bus_clocks;
@@ -431,20 +456,6 @@ int qnoc_probe(struct platform_device *pdev)
 		cds = bus_clocks;
 		cd_num = ARRAY_SIZE(bus_clocks);
 	}
-
-	qp = devm_kzalloc(dev, struct_size(qp, bus_clks, cd_num), GFP_KERNEL);
-	if (!qp)
-		return -ENOMEM;
-
-	qp->bus_clk_rate = devm_kcalloc(dev, cd_num, sizeof(*qp->bus_clk_rate),
-					GFP_KERNEL);
-	if (!qp->bus_clk_rate)
-		return -ENOMEM;
-
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
-			    GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
 
 	for (i = 0; i < cd_num; i++)
 		qp->bus_clks[i].id = cds[i];
@@ -486,6 +497,10 @@ regmap_done:
 	if (ret)
 		return ret;
 
+	ret = devm_clk_bulk_get(dev, qp->num_intf_clks, qp->intf_clks);
+	if (ret)
+		return ret;
+
 	provider = &qp->provider;
 	provider->dev = dev;
 	provider->set = qcom_icc_set;
@@ -495,6 +510,11 @@ regmap_done:
 	provider->data = data;
 
 	icc_provider_init(provider);
+
+	/* If this fails, bus accesses will crash the platform! */
+	ret = clk_bulk_prepare_enable(qp->num_intf_clks, qp->intf_clks);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num_nodes; i++) {
 		size_t j;
@@ -523,6 +543,8 @@ regmap_done:
 		data->nodes[i] = node;
 	}
 	data->num_nodes = num_nodes;
+
+	clk_bulk_disable_unprepare(qp->num_intf_clks, qp->intf_clks);
 
 	ret = icc_provider_register(provider);
 	if (ret)
