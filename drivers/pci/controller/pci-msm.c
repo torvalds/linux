@@ -7859,6 +7859,14 @@ void msm_pcie_allow_l1(struct pci_dev *pci_dev)
 
 	pcie_dev = PCIE_BUS_PRIV_DATA(root_pci_dev->bus);
 
+	if (!pcie_dev->l1_supported) {
+		PCIE_DBG2(pcie_dev,
+			"PCIe: RC%d: %02x:%02x.%01x: l1 not supported\n",
+			pcie_dev->rc_idx, pci_dev->bus->number,
+			PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
+		return;
+	}
+
 	mutex_lock(&pcie_dev->aspm_lock);
 
 	/* Reject the allow_l1 call if we are already in drv state */
@@ -7909,6 +7917,14 @@ int msm_pcie_prevent_l1(struct pci_dev *pci_dev)
 		return -ENODEV;
 
 	pcie_dev = PCIE_BUS_PRIV_DATA(root_pci_dev->bus);
+
+	if (!pcie_dev->l1_supported) {
+		PCIE_DBG2(pcie_dev,
+			"PCIe: RC%d: %02x:%02x.%01x: L1 not supported\n",
+			pcie_dev->rc_idx, pci_dev->bus->number,
+			PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
+		return 0;
+	}
 
 	/* disable L1 */
 	mutex_lock(&pcie_dev->aspm_lock);
