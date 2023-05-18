@@ -172,7 +172,10 @@ static int gc0310_detect(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret >= 0)
+		ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
+	pm_runtime_put(&client->dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
@@ -258,19 +261,6 @@ error_power_down:
 	dev->is_streaming = false;
 error_unlock:
 	mutex_unlock(&dev->input_lock);
-	return ret;
-}
-
-static int gc0310_s_config(struct v4l2_subdev *sd)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret >= 0)
-		ret = gc0310_detect(client);
-
-	pm_runtime_put(&client->dev);
 	return ret;
 }
 
@@ -406,7 +396,7 @@ static int gc0310_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = gc0310_s_config(&dev->sd);
+	ret = gc0310_detect(client);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
