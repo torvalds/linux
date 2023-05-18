@@ -5919,18 +5919,8 @@ void *mt_next(struct maple_tree *mt, unsigned long index, unsigned long max)
 }
 EXPORT_SYMBOL_GPL(mt_next);
 
-/**
- * mas_prev() - Get the previous entry
- * @mas: The maple state
- * @min: The minimum value to check.
- *
- * Must hold rcu_read_lock or the write lock.
- * Will reset mas to MAS_START if the node is MAS_NONE.  Will stop on not
- * searchable nodes.
- *
- * Return: the previous value or %NULL.
- */
-void *mas_prev(struct ma_state *mas, unsigned long min)
+static inline bool mas_prev_setup(struct ma_state *mas, unsigned long min,
+		void **entry)
 {
 	if (mas->index <= min)
 		goto none;
@@ -5948,7 +5938,8 @@ void *mas_prev(struct ma_state *mas, unsigned long min)
 		if (!mas->index)
 			goto none;
 		mas->index = mas->last = 0;
-		return mas_root(mas);
+		*entry = mas_root(mas);
+		return true;
 	}
 
 	if (mas_is_none(mas)) {
@@ -5956,17 +5947,63 @@ void *mas_prev(struct ma_state *mas, unsigned long min)
 			/* Walked to out-of-range pointer? */
 			mas->index = mas->last = 0;
 			mas->node = MAS_ROOT;
-			return mas_root(mas);
+			*entry = mas_root(mas);
+			return true;
 		}
-		return NULL;
+		return true;
 	}
-	return mas_prev_slot(mas, min, false);
+
+	return false;
 
 none:
 	mas->node = MAS_NONE;
-	return NULL;
+	return true;
+}
+
+/**
+ * mas_prev() - Get the previous entry
+ * @mas: The maple state
+ * @min: The minimum value to check.
+ *
+ * Must hold rcu_read_lock or the write lock.
+ * Will reset mas to MAS_START if the node is MAS_NONE.  Will stop on not
+ * searchable nodes.
+ *
+ * Return: the previous value or %NULL.
+ */
+void *mas_prev(struct ma_state *mas, unsigned long min)
+{
+	void *entry = NULL;
+
+	if (mas_prev_setup(mas, min, &entry))
+		return entry;
+
+	return mas_prev_slot(mas, min, false);
 }
 EXPORT_SYMBOL_GPL(mas_prev);
+
+/**
+ * mas_prev_range() - Advance to the previous range
+ * @mas: The maple state
+ * @min: The minimum value to check.
+ *
+ * Sets @mas->index and @mas->last to the range.
+ * Must hold rcu_read_lock or the write lock.
+ * Will reset mas to MAS_START if the node is MAS_NONE.  Will stop on not
+ * searchable nodes.
+ *
+ * Return: the previous value or %NULL.
+ */
+void *mas_prev_range(struct ma_state *mas, unsigned long min)
+{
+	void *entry = NULL;
+
+	if (mas_prev_setup(mas, min, &entry))
+		return entry;
+
+	return mas_prev_slot(mas, min, true);
+}
+EXPORT_SYMBOL_GPL(mas_prev_range);
 
 /**
  * mt_prev() - get the previous value in the maple tree
@@ -6114,6 +6151,72 @@ void *mas_find_range(struct ma_state *mas, unsigned long max)
 EXPORT_SYMBOL_GPL(mas_find_range);
 
 /**
+ * mas_find_rev_setup() - Internal function to set up mas_find_*_rev()
+ * @mas: The maple state
+ * @min: The minimum index
+ * @entry: Pointer to the entry
+ *
+ * Returns: True if entry is the answer, false otherwise.
+ */
+static inline bool mas_find_rev_setup(struct ma_state *mas, unsigned long min,
+		void **entry)
+{
+	*entry = NULL;
+
+	if (unlikely(mas_is_none(mas))) {
+		if (mas->index <= min)
+			goto none;
+
+		mas->last = mas->index;
+		mas->node = MAS_START;
+	}
+
+	if (unlikely(mas_is_paused(mas))) {
+		if (unlikely(mas->index <= min)) {
+			mas->node = MAS_NONE;
+			return true;
+		}
+		mas->node = MAS_START;
+		mas->last = --mas->index;
+	}
+
+	if (unlikely(mas_is_start(mas))) {
+		/* First run or continue */
+		if (mas->index < min)
+			return true;
+
+		*entry = mas_walk(mas);
+		if (*entry)
+			return true;
+	}
+
+	if (unlikely(!mas_searchable(mas))) {
+		if (mas_is_ptr(mas))
+			goto none;
+
+		if (mas_is_none(mas)) {
+			/*
+			 * Walked to the location, and there was nothing so the
+			 * previous location is 0.
+			 */
+			mas->last = mas->index = 0;
+			mas->node = MAS_ROOT;
+			*entry = mas_root(mas);
+			return true;
+		}
+	}
+
+	if (mas->index < min)
+		return true;
+
+	return false;
+
+none:
+	mas->node = MAS_NONE;
+	return true;
+}
+
+/**
  * mas_find_rev: On the first call, find the first non-null entry at or below
  * mas->index down to %min.  Otherwise find the first non-null entry below
  * mas->index down to %min.
@@ -6128,61 +6231,41 @@ EXPORT_SYMBOL_GPL(mas_find_range);
  */
 void *mas_find_rev(struct ma_state *mas, unsigned long min)
 {
-	if (unlikely(mas_is_none(mas))) {
-		if (mas->index <= min)
-			goto none;
+	void *entry;
 
-		mas->last = mas->index;
-		mas->node = MAS_START;
-	}
-
-	if (unlikely(mas_is_paused(mas))) {
-		if (unlikely(mas->index <= min)) {
-			mas->node = MAS_NONE;
-			return NULL;
-		}
-		mas->node = MAS_START;
-		mas->last = --mas->index;
-	}
-
-	if (unlikely(mas_is_start(mas))) {
-		/* First run or continue */
-		void *entry;
-
-		if (mas->index < min)
-			return NULL;
-
-		entry = mas_walk(mas);
-		if (entry)
-			return entry;
-	}
-
-	if (unlikely(!mas_searchable(mas))) {
-		if (mas_is_ptr(mas))
-			goto none;
-
-		if (mas_is_none(mas)) {
-			/*
-			 * Walked to the location, and there was nothing so the
-			 * previous location is 0.
-			 */
-			mas->last = mas->index = 0;
-			mas->node = MAS_ROOT;
-			return mas_root(mas);
-		}
-	}
-
-	if (mas->index < min)
-		return NULL;
+	if (mas_find_rev_setup(mas, min, &entry))
+		return entry;
 
 	/* Retries on dead nodes handled by mas_prev_slot */
 	return mas_prev_slot(mas, min, false);
 
-none:
-	mas->node = MAS_NONE;
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(mas_find_rev);
+
+/**
+ * mas_find_range_rev: On the first call, find the first non-null entry at or
+ * below mas->index down to %min.  Otherwise advance to the previous slot after
+ * mas->index down to %min.
+ * @mas: The maple state
+ * @min: The minimum value to check.
+ *
+ * Must hold rcu_read_lock or the write lock.
+ * If an entry exists, last and index are updated accordingly.
+ * May set @mas->node to MAS_NONE.
+ *
+ * Return: The entry or %NULL.
+ */
+void *mas_find_range_rev(struct ma_state *mas, unsigned long min)
+{
+	void *entry;
+
+	if (mas_find_rev_setup(mas, min, &entry))
+		return entry;
+
+	/* Retries on dead nodes handled by mas_prev_slot */
+	return mas_prev_slot(mas, min, true);
+}
+EXPORT_SYMBOL_GPL(mas_find_range_rev);
 
 /**
  * mas_erase() - Find the range in which index resides and erase the entire
