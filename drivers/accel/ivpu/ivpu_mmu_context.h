@@ -15,10 +15,10 @@ struct ivpu_addr_range;
 #define IVPU_MMU_PGTABLE_ENTRIES	512ull
 
 struct ivpu_mmu_pgtable {
-	u64		***pgd_far_entries[IVPU_MMU_PGTABLE_ENTRIES];
-	u64		**pgd_cpu_entries[IVPU_MMU_PGTABLE_ENTRIES];
-	u64		*pgd_entries[IVPU_MMU_PGTABLE_ENTRIES];
-	u64		*pgd;
+	u64		***pte_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		**pmd_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		*pud_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		*pgd_dma_ptr;
 	dma_addr_t	pgd_dma;
 };
 
