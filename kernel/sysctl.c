@@ -2332,10 +2332,6 @@ static struct ctl_table debug_table[] = {
 	{ }
 };
 
-static struct ctl_table dev_table[] = {
-	{ }
-};
-
 int __init sysctl_init_bases(void)
 {
 	register_sysctl_init("kernel", kern_table);
@@ -2346,7 +2342,6 @@ int __init sysctl_init_bases(void)
 
 	register_sysctl_init("vm", vm_table);
 	register_sysctl_init("debug", debug_table);
-	register_sysctl_init("dev", dev_table);
 
 	return 0;
 }
