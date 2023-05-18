@@ -709,6 +709,8 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
+// On Audigy, the FX send amounts are not applied instantly, but determine
+// targets towards which the following registers swerve gradually.
 #define A_CSBA			0x4c		/* FX send B & A current amounts			*/
 #define A_CSDC			0x4d		/* FX send D & C current amounts			*/
 #define A_CSFE			0x4e		/* FX send F & E current amounts			*/
@@ -1437,21 +1439,21 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 /* ------------------- STRUCTURES -------------------- */
 
 enum {
+	EMU10K1_UNUSED,  // This must be zero
 	EMU10K1_EFX,
+	EMU10K1_EFX_IRQ,
 	EMU10K1_PCM,
+	EMU10K1_PCM_IRQ,
 	EMU10K1_SYNTH,
-	EMU10K1_MIDI
+	EMU10K1_NUM_TYPES
 };
 
 struct snd_emu10k1;
 
 struct snd_emu10k1_voice {
-	int number;
-	unsigned int use: 1,
-	    pcm: 1,
-	    efx: 1,
-	    synth: 1,
-	    midi: 1;
+	unsigned char number;
+	unsigned char use;
+	unsigned char dirty;
 	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 	struct snd_emu10k1_pcm *epcm;

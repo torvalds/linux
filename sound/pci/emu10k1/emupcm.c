@@ -80,17 +80,6 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 {
 	int err, i;
 
-	if (epcm->voices[1] != NULL && voices < 2) {
-		snd_emu10k1_voice_free(epcm->emu, epcm->voices[1]);
-		epcm->voices[1] = NULL;
-	}
-	for (i = 0; i < voices; i++) {
-		if (epcm->voices[i] == NULL)
-			break;
-	}
-	if (i == voices)
-		return 0; /* already allocated */
-
 	for (i = 0; i < ARRAY_SIZE(epcm->voices); i++) {
 		if (epcm->voices[i]) {
 			snd_emu10k1_voice_free(epcm->emu, epcm->voices[i]);
@@ -117,7 +106,7 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 		// period-sized loop as the interrupt source. Additionally, the interrupt
 		// timing of the hardware is "suboptimal" and needs some compensation.
 		err = snd_emu10k1_voice_alloc(epcm->emu,
-					      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM : EMU10K1_EFX,
+					      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM_IRQ : EMU10K1_EFX_IRQ,
 					      1,
 					      &epcm->extra);
 		if (err < 0) {
@@ -236,6 +225,18 @@ static unsigned int emu10k1_select_interprom(unsigned int pitch_target)
 		return CCCA_INTERPROM_2;
 }
 
+static u16 emu10k1_send_target_from_amount(u8 amount)
+{
+	static const u8 shifts[8] = { 4, 4, 5, 6, 7, 8, 9, 10 };
+	static const u16 offsets[8] = { 0, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000 };
+	u8 exp;
+
+	if (amount == 0xff)
+		return 0xffff;
+	exp = amount >> 5;
+	return ((amount & 0x1f) << shifts[exp]) + offsets[exp];
+}
+
 static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 				       int master, int extra,
 				       struct snd_emu10k1_voice *evoice,
@@ -301,10 +302,17 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 			A_FXRT2, snd_emu10k1_compose_audigy_fxrt2(send_routing),
 			A_SENDAMOUNTS, snd_emu10k1_compose_audigy_sendamounts(send_amount),
 			REGLIST_END);
+		for (int i = 0; i < 4; i++) {
+			u32 aml = emu10k1_send_target_from_amount(send_amount[2 * i]);
+			u32 amh = emu10k1_send_target_from_amount(send_amount[2 * i + 1]);
+			snd_emu10k1_ptr_write(emu, A_CSBA + i, voice, (amh << 16) | aml);
+		}
 	} else {
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));
 	}
+
+	emu->voices[voice].dirty = 1;
 
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
@@ -601,6 +609,17 @@ static void snd_emu10k1_playback_mute_voice(struct snd_emu10k1 *emu,
 	snd_emu10k1_playback_commit_volume(emu, evoice, 0);
 }
 
+static void snd_emu10k1_playback_commit_pitch(struct snd_emu10k1 *emu,
+					      u32 voice, u32 pitch_target)
+{
+	u32 ptrx = snd_emu10k1_ptr_read(emu, PTRX, voice);
+	u32 cpf = snd_emu10k1_ptr_read(emu, CPF, voice);
+	snd_emu10k1_ptr_write_multiple(emu, voice,
+		PTRX, (ptrx & ~PTRX_PITCHTARGET_MASK) | pitch_target,
+		CPF, (cpf & ~(CPF_CURRENTPITCH_MASK | CPF_FRACADDRESS_MASK)) | pitch_target,
+		REGLIST_END);
+}
+
 static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
 					       struct snd_emu10k1_voice *evoice)
 {
@@ -616,8 +635,7 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else 
 		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
-	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, pitch_target);
-	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, pitch_target);
+	snd_emu10k1_playback_commit_pitch(emu, voice, pitch_target << 16);
 }
 
 static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
@@ -626,8 +644,7 @@ static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
 	unsigned int voice;
 
 	voice = evoice->number;
-	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, 0);
-	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, 0);
+	snd_emu10k1_playback_commit_pitch(emu, voice, 0);
 }
 
 static void snd_emu10k1_playback_set_running(struct snd_emu10k1 *emu,
