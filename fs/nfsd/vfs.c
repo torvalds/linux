@@ -1036,6 +1036,50 @@ __be32 nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
+/**
+ * nfsd_iter_read - Perform a VFS read using an iterator
+ * @rqstp: RPC transaction context
+ * @fhp: file handle of file to be read
+ * @file: opened struct file of file to be read
+ * @offset: starting byte offset
+ * @count: IN: requested number of bytes; OUT: number of bytes read
+ * @base: offset in first page of read buffer
+ * @eof: OUT: set non-zero if operation reached the end of the file
+ *
+ * Some filesystems or situations cannot use nfsd_splice_read. This
+ * function is the slightly less-performant fallback for those cases.
+ *
+ * Returns nfs_ok on success, otherwise an nfserr stat value is
+ * returned.
+ */
+__be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		      struct file *file, loff_t offset, unsigned long *count,
+		      unsigned int base, u32 *eof)
+{
+	unsigned long v, total;
+	struct iov_iter iter;
+	loff_t ppos = offset;
+	struct page *page;
+	ssize_t host_err;
+
+	v = 0;
+	total = *count;
+	while (total) {
+		page = *(rqstp->rq_next_page++);
+		rqstp->rq_vec[v].iov_base = page_address(page) + base;
+		rqstp->rq_vec[v].iov_len = min_t(size_t, total, PAGE_SIZE - base);
+		total -= rqstp->rq_vec[v].iov_len;
+		++v;
+		base = 0;
+	}
+	WARN_ON_ONCE(v > ARRAY_SIZE(rqstp->rq_vec));
+
+	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
+	iov_iter_kvec(&iter, ITER_DEST, rqstp->rq_vec, v, *count);
+	host_err = vfs_iter_read(file, &iter, &ppos, 0);
+	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
+}
+
 /*
  * Gathered writes: If another process is currently writing to the file,
  * there's a high chance this is another nfsd (triggered by a bulk write
@@ -1161,14 +1205,24 @@ out_nfserr:
 	return nfserr;
 }
 
-/*
- * Read data from a file. count must contain the requested read count
- * on entry. On return, *count contains the number of bytes actually read.
+/**
+ * nfsd_read - Read data from a file
+ * @rqstp: RPC transaction context
+ * @fhp: file handle of file to be read
+ * @offset: starting byte offset
+ * @count: IN: requested number of bytes; OUT: number of bytes read
+ * @eof: OUT: set non-zero if operation reached the end of the file
+ *
+ * The caller must verify that there is enough space in @rqstp.rq_res
+ * to perform this operation.
+ *
  * N.B. After this call fhp needs an fh_put
+ *
+ * Returns nfs_ok on success, otherwise an nfserr stat value is
+ * returned.
  */
 __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
-	loff_t offset, struct kvec *vec, int vlen, unsigned long *count,
-	u32 *eof)
+		 loff_t offset, unsigned long *count, u32 *eof)
 {
 	struct nfsd_file	*nf;
 	struct file *file;
@@ -1183,12 +1237,10 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
 		err = nfsd_splice_read(rqstp, fhp, file, offset, count, eof);
 	else
-		err = nfsd_readv(rqstp, fhp, file, offset, vec, vlen, count, eof);
+		err = nfsd_iter_read(rqstp, fhp, file, offset, count, 0, eof);
 
 	nfsd_file_put(nf);
-
 	trace_nfsd_read_done(rqstp, fhp, offset, *count);
-
 	return err;
 }
 
