@@ -1195,7 +1195,7 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 
 out_err:
 	if (retcode)
-		dev_dbg(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
+		dev_dbg_ratelimited(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
 			  task_pid_nr(current), cmd, nr);
 
 	if (kdata != stack_kdata)
@@ -1219,7 +1219,7 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
 		ioctl = &hl_ioctls[nr];
 	} else {
-		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
+		dev_dbg_ratelimited(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
 			task_pid_nr(current), nr);
 		return -ENOTTY;
 	}
@@ -1242,7 +1242,7 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
 		ioctl = &hl_ioctls_control[nr];
 	} else {
-		dev_err(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
+		dev_dbg_ratelimited(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
 			task_pid_nr(current), nr);
 		return -ENOTTY;
 	}
