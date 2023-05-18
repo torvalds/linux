@@ -800,7 +800,8 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 	if (request->status == -EINPROGRESS)
 		request->status = status;
 
-	usb_gadget_unmap_request_by_dev(priv_dev->sysdev, request,
+	if (likely(!(priv_req->flags & REQUEST_UNALIGNED)))
+		usb_gadget_unmap_request_by_dev(priv_dev->sysdev, request,
 					priv_ep->dir);
 
 	if ((priv_req->flags & REQUEST_UNALIGNED) &&
@@ -2530,10 +2531,12 @@ static int __cdns3_gadget_ep_queue(struct usb_ep *ep,
 	if (ret < 0)
 		return ret;
 
-	ret = usb_gadget_map_request_by_dev(priv_dev->sysdev, request,
+	if (likely(!(priv_req->flags & REQUEST_UNALIGNED))) {
+		ret = usb_gadget_map_request_by_dev(priv_dev->sysdev, request,
 					    usb_endpoint_dir_in(ep->desc));
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	list_add_tail(&request->list, &priv_ep->deferred_req_list);
 
