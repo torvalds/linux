@@ -283,6 +283,29 @@ static int cdns_config_update(struct sdw_cdns *cdns)
 	return ret;
 }
 
+/**
+ * sdw_cdns_config_update() - Update configurations
+ * @cdns: Cadence instance
+ */
+void sdw_cdns_config_update(struct sdw_cdns *cdns)
+{
+	/* commit changes */
+	cdns_writel(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+}
+EXPORT_SYMBOL(sdw_cdns_config_update);
+
+/**
+ * sdw_cdns_config_update_set_wait() - wait until configuration update bit is self-cleared
+ * @cdns: Cadence instance
+ */
+int sdw_cdns_config_update_set_wait(struct sdw_cdns *cdns)
+{
+	/* the hardware recommendation is to wait at least 300us */
+	return cdns_set_wait(cdns, CDNS_MCP_CONFIG_UPDATE,
+			     CDNS_MCP_CONFIG_UPDATE_BIT, 0);
+}
+EXPORT_SYMBOL(sdw_cdns_config_update_set_wait);
+
 /*
  * debugfs
  */
@@ -1116,13 +1139,7 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 		     CDNS_MCP_CONTROL_HW_RST);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
-
-	/* don't wait here */
-	return 0;
-
+	return cdns_config_update(cdns);
 }
 EXPORT_SYMBOL(sdw_cdns_exit_reset);
 

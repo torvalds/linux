@@ -29,11 +29,7 @@ int intel_start_bus(struct sdw_intel *sdw)
 		return ret;
 	}
 
-	ret = sdw_cdns_exit_reset(cdns);
-	if (ret < 0) {
-		dev_err(dev, "%s: unable to exit bus reset sequence: %d\n", __func__, ret);
-		return ret;
-	}
+	sdw_cdns_config_update(cdns);
 
 	if (bus->multi_link) {
 		ret = sdw_intel_sync_go(sdw);
@@ -41,6 +37,18 @@ int intel_start_bus(struct sdw_intel *sdw)
 			dev_err(dev, "%s: sync go failed: %d\n", __func__, ret);
 			return ret;
 		}
+	}
+
+	ret = sdw_cdns_config_update_set_wait(cdns);
+	if (ret < 0) {
+		dev_err(dev, "%s: CONFIG_UPDATE BIT still set\n", __func__);
+		return ret;
+	}
+
+	ret = sdw_cdns_exit_reset(cdns);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to exit bus reset sequence: %d\n", __func__, ret);
+		return ret;
 	}
 
 	ret = sdw_cdns_enable_interrupt(cdns, true);
@@ -112,11 +120,7 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 	}
 
 	if (!clock_stop0) {
-		ret = sdw_cdns_exit_reset(cdns);
-		if (ret < 0) {
-			dev_err(dev, "unable to exit bus reset sequence during resume\n");
-			return ret;
-		}
+		sdw_cdns_config_update(cdns);
 
 		if (bus->multi_link) {
 			ret = sdw_intel_sync_go(sdw);
@@ -124,6 +128,18 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 				dev_err(sdw->cdns.dev, "sync go failed during resume\n");
 				return ret;
 			}
+		}
+
+		ret = sdw_cdns_config_update_set_wait(cdns);
+		if (ret < 0) {
+			dev_err(dev, "%s: CONFIG_UPDATE BIT still set\n", __func__);
+			return ret;
+		}
+
+		ret = sdw_cdns_exit_reset(cdns);
+		if (ret < 0) {
+			dev_err(dev, "unable to exit bus reset sequence during resume\n");
+			return ret;
 		}
 
 		ret = sdw_cdns_enable_interrupt(cdns, true);
