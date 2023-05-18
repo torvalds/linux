@@ -601,6 +601,17 @@ static void snd_emu10k1_playback_mute_voice(struct snd_emu10k1 *emu,
 	snd_emu10k1_playback_commit_volume(emu, evoice, 0);
 }
 
+static void snd_emu10k1_playback_commit_pitch(struct snd_emu10k1 *emu,
+					      u32 voice, u32 pitch_target)
+{
+	u32 ptrx = snd_emu10k1_ptr_read(emu, PTRX, voice);
+	u32 cpf = snd_emu10k1_ptr_read(emu, CPF, voice);
+	snd_emu10k1_ptr_write_multiple(emu, voice,
+		PTRX, (ptrx & ~PTRX_PITCHTARGET_MASK) | pitch_target,
+		CPF, (cpf & ~(CPF_CURRENTPITCH_MASK | CPF_FRACADDRESS_MASK)) | pitch_target,
+		REGLIST_END);
+}
+
 static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
 					       struct snd_emu10k1_voice *evoice)
 {
@@ -616,8 +627,7 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu,
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else 
 		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
-	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, pitch_target);
-	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, pitch_target);
+	snd_emu10k1_playback_commit_pitch(emu, voice, pitch_target << 16);
 }
 
 static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
@@ -626,8 +636,7 @@ static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu,
 	unsigned int voice;
 
 	voice = evoice->number;
-	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, 0);
-	snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, 0);
+	snd_emu10k1_playback_commit_pitch(emu, voice, 0);
 }
 
 static void snd_emu10k1_playback_set_running(struct snd_emu10k1 *emu,
