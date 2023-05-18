@@ -471,7 +471,6 @@ static int gc0310_resume(struct device *dev)
 static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops, gc0310_suspend, gc0310_resume, NULL);
 
 static const struct acpi_device_id gc0310_acpi_match[] = {
-	{"XXGC0310"},
 	{"INT0310"},
 	{},
 };
