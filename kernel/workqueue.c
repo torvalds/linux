@@ -126,6 +126,12 @@ enum {
  *    cpu or grabbing pool->lock is enough for read access.  If
  *    POOL_DISASSOCIATED is set, it's identical to L.
  *
+ * K: Only modified by worker while holding pool->lock. Can be safely read by
+ *    self, while holding pool->lock or from IRQ context if %current is the
+ *    kworker.
+ *
+ * S: Only modified by worker self.
+ *
  * A: wq_pool_attach_mutex protected.
  *
  * PL: wq_pool_mutex protected.
