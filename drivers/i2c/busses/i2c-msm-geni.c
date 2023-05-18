@@ -643,6 +643,10 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 				dev_info(gi2c->dev, "%s: RTL based SE\n", __func__);
 			}
 		}
+
+		if (gi2c->pm_ctrl_client)
+			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+				    "SMP: %s: pm_runtime_get_sync bypassed\n", __func__);
 	}
 	return 0;
 }
@@ -1886,10 +1890,6 @@ static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			return ret;
 		}
 	}
-
-	if (gi2c->pm_ctrl_client)
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-			"SMP: %s: pm_runtime_get_sync bypassed\n", __func__);
 
 	// WAR : Complete previous pending cancel cmd
 	if (gi2c->prev_cancel_pending) {
