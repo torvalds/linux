@@ -183,7 +183,7 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_widget *swidget;
 	struct snd_soc_dapm_widget *w;
-	int ret;
+	int ret = 0;
 
 	w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	swidget = w->dobj.private;
@@ -208,11 +208,11 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 		break;
 	default:
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 out:
 	mutex_unlock(&ipc4_data->pipeline_state_mutex);
-	return 0;
+	return ret;
 }
 
 static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
