@@ -1938,7 +1938,10 @@
 		resets = <&cru SRST_MRESETN_SAI_I2S0>, <&cru SRST_HRESETN_SAI_I2S0>;
 		reset-names = "m", "h";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0m0_pins>;
+		pinctrl-0 = <&i2s0m0_lrck
+			     &i2s0m0_sclk
+			     &i2s0m0_sdi
+			     &i2s0m0_sdo>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -1968,7 +1971,16 @@
 		resets = <&cru SRST_MRESETN_SAI_I2S1>, <&cru SRST_HRESETN_SAI_I2S1>;
 		reset-names = "m", "h";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s1_pins>;
+		pinctrl-0 = <&i2s1_sclk
+			     &i2s1_lrck
+			     &i2s1_sdi0
+			     &i2s1_sdi1
+			     &i2s1_sdi2
+			     &i2s1_sdi3
+			     &i2s1_sdo0
+			     &i2s1_sdo1
+			     &i2s1_sdo2
+			     &i2s1_sdo3>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
