@@ -529,7 +529,7 @@ struct dpu_sspp_cfg {
  * @base               register offset of this block
  * @features           bit mask identifying sub-blocks/features
  * @sblk:              LM Sub-blocks information
- * @pingpong:          ID of connected PingPong, PINGPONG_MAX if unsupported
+ * @pingpong:          ID of connected PingPong, PINGPONG_NONE if unsupported
  * @lm_pair_mask:      Bitmask of LMs that can be controlled by same CTL
  */
 struct dpu_lm_cfg {
