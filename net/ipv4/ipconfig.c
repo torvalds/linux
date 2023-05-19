@@ -173,9 +173,6 @@ static int ic_proto_have_if __initdata;
 /* MTU for boot device */
 static int ic_dev_mtu __initdata;
 
-/* DHCPACK can overwrite DNS if fallback was set upon first BOOTP reply */
-static int ic_nameservers_fallback __initdata;
-
 #ifdef IPCONFIG_DYNAMIC
 static DEFINE_SPINLOCK(ic_recv_lock);
 static volatile int ic_got_reply __initdata;    /* Proto(s) that replied */
@@ -667,6 +664,9 @@ static struct packet_type bootp_packet_type __initdata = {
 	.type =	cpu_to_be16(ETH_P_IP),
 	.func =	ic_bootp_recv,
 };
+
+/* DHCPACK can overwrite DNS if fallback was set upon first BOOTP reply */
+static int ic_nameservers_fallback __initdata;
 
 /*
  *  Initialize DHCP/BOOTP extension fields in the request.
