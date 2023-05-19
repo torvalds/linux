@@ -156,6 +156,23 @@ static const char *phylink_an_mode_str(unsigned int mode)
 	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unknown";
 }
 
+static unsigned int phylink_interface_signal_rate(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX: /* 1.25Mbd */
+		return 1250;
+	case PHY_INTERFACE_MODE_2500BASEX: /* 3.125Mbd */
+		return 3125;
+	case PHY_INTERFACE_MODE_5GBASER: /* 5.15625Mbd */
+		return 5156;
+	case PHY_INTERFACE_MODE_10GBASER: /* 10.3125Mbd */
+		return 10313;
+	default:
+		return 0;
+	}
+}
+
 /**
  * phylink_interface_max_speed() - get the maximum speed of a phy interface
  * @interface: phy interface mode defined by &typedef phy_interface_t
@@ -1025,6 +1042,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 {
 	struct phylink_pcs *pcs = NULL;
 	bool pcs_changed = false;
+	unsigned int rate_kbd;
 	int err;
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
@@ -1082,6 +1100,12 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 		if (err < 0)
 			phylink_err(pl, "mac_finish failed: %pe\n",
 				    ERR_PTR(err));
+	}
+
+	if (pl->sfp_bus) {
+		rate_kbd = phylink_interface_signal_rate(state->interface);
+		if (rate_kbd)
+			sfp_upstream_set_signal_rate(pl->sfp_bus, rate_kbd);
 	}
 
 	phylink_pcs_poll_start(pl);
