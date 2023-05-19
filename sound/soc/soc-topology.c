@@ -700,10 +700,8 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sbe->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to add %s\n", be->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&sbe->dobj.list, &tplg->comp->dobj_list);
 
@@ -783,10 +781,8 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sm->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to add %s\n", mc->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&sm->dobj.list, &tplg->comp->dobj_list);
 
@@ -950,10 +946,8 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &se->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: could not add kcontrol %s\n", ec->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&se->dobj.list, &tplg->comp->dobj_list);
 
