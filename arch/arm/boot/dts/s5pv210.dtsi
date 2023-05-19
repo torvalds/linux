@@ -8,7 +8,7 @@
  * Tomasz Figa <t.figa@samsung.com>
  *
  * Samsung's S5PV210 SoC device nodes are listed in this file. S5PV210
- * based board files can include this file and provide values for board specfic
+ * based board files can include this file and provide values for board specific
  * bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
