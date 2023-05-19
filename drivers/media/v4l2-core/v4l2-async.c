@@ -313,29 +313,43 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 				   struct v4l2_async_connection *asc)
 {
 	struct v4l2_async_notifier *subdev_notifier;
+	bool registered = false;
 	int ret;
 
-	ret = v4l2_device_register_subdev(v4l2_dev, sd);
-	if (ret < 0)
-		return ret;
+	if (list_empty(&sd->asc_list)) {
+		ret = v4l2_device_register_subdev(v4l2_dev, sd);
+		if (ret < 0)
+			return ret;
+		registered = true;
+	}
 
 	ret = v4l2_async_nf_call_bound(notifier, sd, asc);
-	if (ret < 0)
+	if (ret < 0) {
+		if (asc->match.type == V4L2_ASYNC_MATCH_TYPE_FWNODE)
+			dev_dbg(notifier_dev(notifier),
+				"failed binding %pfw (%d)\n",
+				asc->match.fwnode, ret);
 		goto err_unregister_subdev;
+	}
 
-	/*
-	 * Depending of the function of the entities involved, we may want to
-	 * create links between them (for example between a sensor and its lens
-	 * or between a sensor's source pad and the connected device's sink
-	 * pad).
-	 */
-	ret = v4l2_async_create_ancillary_links(notifier, sd);
-	if (ret)
-		goto err_call_unbind;
+	if (registered) {
+		/*
+		 * Depending of the function of the entities involved, we may
+		 * want to create links between them (for example between a
+		 * sensor and its lens or between a sensor's source pad and the
+		 * connected device's sink pad).
+		 */
+		ret = v4l2_async_create_ancillary_links(notifier, sd);
+		if (ret) {
+			if (asc->match.type == V4L2_ASYNC_MATCH_TYPE_FWNODE)
+				dev_dbg(notifier_dev(notifier),
+					"failed creating links for %pfw (%d)\n",
+					asc->match.fwnode, ret);
+			goto err_call_unbind;
+		}
+	}
 
-	sd->asd = asc;
-	sd->notifier = notifier;
-
+	list_add(&asc->asc_subdev_entry, &sd->asc_list);
 	asc->sd = sd;
 
 	/* Move from the waiting list to notifier's done */
@@ -362,9 +376,11 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 
 err_call_unbind:
 	v4l2_async_nf_call_unbind(notifier, sd, asc);
+	list_del(&asc->asc_subdev_entry);
 
 err_unregister_subdev:
-	v4l2_device_unregister_subdev(sd);
+	if (registered)
+		v4l2_device_unregister_subdev(sd);
 
 	return ret;
 }
@@ -410,15 +426,16 @@ again:
 	return 0;
 }
 
-static void v4l2_async_cleanup(struct v4l2_subdev *sd)
+static void v4l2_async_unbind_subdev_one(struct v4l2_async_notifier *notifier,
+					 struct v4l2_async_connection *asc)
 {
-	v4l2_device_unregister_subdev(sd);
-	/*
-	 * Subdevice driver will reprobe and put the subdev back
-	 * onto the list
-	 */
-	list_del_init(&sd->async_list);
-	sd->asd = NULL;
+	list_move_tail(&asc->asc_entry, &notifier->waiting_list);
+	if (list_is_singular(&asc->asc_subdev_entry)) {
+		v4l2_async_nf_call_unbind(notifier, asc->sd, asc);
+		v4l2_device_unregister_subdev(asc->sd);
+		asc->sd = NULL;
+	}
+	list_del(&asc->asc_subdev_entry);
 }
 
 /* Unbind all sub-devices in the notifier tree. */
@@ -435,11 +452,7 @@ v4l2_async_nf_unbind_all_subdevs(struct v4l2_async_notifier *notifier)
 		if (subdev_notifier)
 			v4l2_async_nf_unbind_all_subdevs(subdev_notifier);
 
-		v4l2_async_nf_call_unbind(notifier, asc->sd, asc);
-		v4l2_async_cleanup(asc->sd);
-		list_move_tail(&asc->asc_entry, &notifier->waiting_list);
-		list_move(&asc->sd->async_list, &subdev_list);
-		asc->sd = NULL;
+		v4l2_async_unbind_subdev_one(notifier, asc);
 	}
 
 	notifier->parent = NULL;
@@ -456,13 +469,9 @@ v4l2_async_nf_has_async_match_entry(struct v4l2_async_notifier *notifier,
 		if (v4l2_async_match_equal(&asc->match, match))
 			return true;
 
-	list_for_each_entry(asc, &notifier->done_list, asc_entry) {
-		if (WARN_ON(!asc->sd->asd))
-			continue;
-
+	list_for_each_entry(asc, &notifier->done_list, asc_entry)
 		if (v4l2_async_match_equal(&asc->match, match))
 			return true;
-	}
 
 	return false;
 }
@@ -642,16 +651,12 @@ static void __v4l2_async_nf_cleanup(struct v4l2_async_notifier *notifier)
 	WARN_ON(!list_empty(&notifier->done_list));
 
 	list_for_each_entry_safe(asc, tmp, &notifier->waiting_list, asc_entry) {
-		switch (asc->match.type) {
-		case V4L2_ASYNC_MATCH_TYPE_FWNODE:
-			fwnode_handle_put(asc->match.fwnode);
-			break;
-		default:
-			break;
-		}
-
 		list_del(&asc->asc_entry);
 		v4l2_async_nf_call_destroy(notifier, asc);
+
+		if (asc->match.type == V4L2_ASYNC_MATCH_TYPE_FWNODE)
+			fwnode_handle_put(asc->match.fwnode);
+
 		kfree(asc);
 	}
 }
@@ -666,16 +671,14 @@ void v4l2_async_nf_cleanup(struct v4l2_async_notifier *notifier)
 }
 EXPORT_SYMBOL_GPL(v4l2_async_nf_cleanup);
 
-static int __v4l2_async_nf_add_connection(struct v4l2_async_notifier *notifier,
-					  struct v4l2_async_connection *asc)
+static void __v4l2_async_nf_add_connection(struct v4l2_async_notifier *notifier,
+					   struct v4l2_async_connection *asc)
 {
 	mutex_lock(&list_lock);
 
 	list_add_tail(&asc->asc_entry, &notifier->waiting_list);
 
 	mutex_unlock(&list_lock);
-
-	return 0;
 }
 
 struct v4l2_async_connection *
@@ -684,21 +687,16 @@ __v4l2_async_nf_add_fwnode(struct v4l2_async_notifier *notifier,
 			   unsigned int asc_struct_size)
 {
 	struct v4l2_async_connection *asc;
-	int ret;
 
 	asc = kzalloc(asc_struct_size, GFP_KERNEL);
 	if (!asc)
 		return ERR_PTR(-ENOMEM);
 
+	asc->notifier = notifier;
 	asc->match.type = V4L2_ASYNC_MATCH_TYPE_FWNODE;
 	asc->match.fwnode = fwnode_handle_get(fwnode);
 
-	ret = __v4l2_async_nf_add_connection(notifier, asc);
-	if (ret) {
-		fwnode_handle_put(fwnode);
-		kfree(asc);
-		return ERR_PTR(ret);
-	}
+	__v4l2_async_nf_add_connection(notifier, asc);
 
 	return asc;
 }
@@ -731,21 +729,17 @@ __v4l2_async_nf_add_i2c(struct v4l2_async_notifier *notifier, int adapter_id,
 			unsigned short address, unsigned int asc_struct_size)
 {
 	struct v4l2_async_connection *asc;
-	int ret;
 
 	asc = kzalloc(asc_struct_size, GFP_KERNEL);
 	if (!asc)
 		return ERR_PTR(-ENOMEM);
 
+	asc->notifier = notifier;
 	asc->match.type = V4L2_ASYNC_MATCH_TYPE_I2C;
 	asc->match.i2c.adapter_id = adapter_id;
 	asc->match.i2c.address = address;
 
-	ret = __v4l2_async_nf_add_connection(notifier, asc);
-	if (ret) {
-		kfree(asc);
-		return ERR_PTR(ret);
-	}
+	__v4l2_async_nf_add_connection(notifier, asc);
 
 	return asc;
 }
@@ -754,7 +748,11 @@ EXPORT_SYMBOL_GPL(__v4l2_async_nf_add_i2c);
 struct v4l2_async_connection *
 v4l2_async_connection_unique(struct v4l2_subdev *sd)
 {
-	return sd->asd;
+	if (!list_is_singular(&sd->asc_list))
+		return NULL;
+
+	return list_first_entry(&sd->asc_list,
+				struct v4l2_async_connection, asc_subdev_entry);
 }
 EXPORT_SYMBOL_GPL(v4l2_async_connection_unique);
 
@@ -762,7 +760,10 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {
 	struct v4l2_async_notifier *subdev_notifier;
 	struct v4l2_async_notifier *notifier;
+	struct v4l2_async_connection *asc;
 	int ret;
+
+	INIT_LIST_HEAD(&sd->asc_list);
 
 	/*
 	 * No reference taken. The reference is held by the device (struct
@@ -786,7 +787,6 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 	list_for_each_entry(notifier, &notifier_list, notifier_entry) {
 		struct v4l2_device *v4l2_dev =
 			v4l2_async_nf_find_v4l2_dev(notifier);
-		struct v4l2_async_connection *asc;
 
 		if (!v4l2_dev)
 			continue;
@@ -823,11 +823,8 @@ err_unbind:
 	if (subdev_notifier)
 		v4l2_async_nf_unbind_all_subdevs(subdev_notifier);
 
-	if (sd->asd) {
-		v4l2_async_nf_call_unbind(notifier, sd, sd->asd);
-		sd->asd->sd = NULL;
-	}
-	v4l2_async_cleanup(sd);
+	if (asc)
+		v4l2_async_unbind_subdev_one(notifier, asc);
 
 	mutex_unlock(&list_lock);
 
@@ -837,6 +834,8 @@ EXPORT_SYMBOL(v4l2_async_register_subdev);
 
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
+	struct v4l2_async_connection *asc, *asc_tmp;
+
 	if (!sd->async_list.next)
 		return;
 
@@ -849,15 +848,19 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 	kfree(sd->subdev_notifier);
 	sd->subdev_notifier = NULL;
 
-	if (sd->asd) {
-		struct v4l2_async_notifier *notifier = sd->notifier;
+	if (sd->asc_list.next) {
+		list_for_each_entry_safe(asc, asc_tmp, &sd->asc_list,
+					 asc_subdev_entry) {
+			list_move(&asc->asc_entry,
+				  &asc->notifier->waiting_list);
 
-		list_move(&sd->asd->asc_entry, &notifier->waiting_list);
-		v4l2_async_nf_call_unbind(notifier, sd, sd->asd);
-		sd->asd->sd = NULL;
+			v4l2_async_unbind_subdev_one(asc->notifier, asc);
+			list_del(&asc->asc_subdev_entry);
+		}
 	}
 
-	v4l2_async_cleanup(sd);
+	list_del(&sd->async_list);
+	sd->async_list.next = NULL;
 
 	mutex_unlock(&list_lock);
 }

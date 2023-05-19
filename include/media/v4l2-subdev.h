@@ -1022,10 +1022,10 @@ struct v4l2_subdev_platform_data {
  *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
  * @async_list: Links this subdev to a global subdev_list or
  *		@notifier->done_list list.
- * @asd: Pointer to respective &struct v4l2_async_connection.
- * @notifier: Pointer to the managing notifier.
  * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
  *		     device using v4l2_async_register_subdev_sensor().
+ * @asc_list: Async connection list, of &struct
+ *	      v4l2_async_connection.subdev_entry.
  * @pdata: common part of subdevice platform data
  * @state_lock: A pointer to a lock used for all the subdev's states, set by the
  *		driver. This is	optional. If NULL, each state instance will get
@@ -1065,9 +1065,8 @@ struct v4l2_subdev {
 	struct device *dev;
 	struct fwnode_handle *fwnode;
 	struct list_head async_list;
-	struct v4l2_async_connection *asd;
-	struct v4l2_async_notifier *notifier;
 	struct v4l2_async_notifier *subdev_notifier;
+	struct list_head asc_list;
 	struct v4l2_subdev_platform_data *pdata;
 	struct mutex *state_lock;
 

@@ -62,27 +62,32 @@ struct v4l2_async_match_desc {
 };
 
 /**
- * struct v4l2_async_connection - connection descriptor, as known to a bridge
+ * struct v4l2_async_connection - sub-device connection descriptor, as known to
+ *				  a bridge
  *
  * @match:	struct of match type and per-bus type matching data sets
+ * @notifier:	the async notifier the connection is related to
  * @asc_entry:	used to add struct v4l2_async_connection objects to the
  *		notifier @waiting_list or @done_list
+ * @asc_subdev_entry:	entry in struct v4l2_async_subdev.asc_list list
  * @sd:		the related sub-device
  *
- * When this struct is used as a member in a driver specific struct,
- * the driver specific struct shall contain the &struct
- * v4l2_async_connection as its first member.
+ * When this struct is used as a member in a driver specific struct, the driver
+ * specific struct shall contain the &struct v4l2_async_connection as its first
+ * member.
  */
 struct v4l2_async_connection {
 	struct v4l2_async_match_desc match;
+	struct v4l2_async_notifier *notifier;
 	struct list_head asc_entry;
+	struct list_head asc_subdev_entry;
 	struct v4l2_subdev *sd;
 };
 
 /**
  * struct v4l2_async_notifier_operations - Asynchronous V4L2 notifier operations
- * @bound:	a subdevice driver has successfully probed one of the subdevices
- * @complete:	All subdevices have been probed successfully. The complete
+ * @bound:	a sub-device has been bound by the given connection
+ * @complete:	All connections have been bound successfully. The complete
  *		callback is only executed for the root notifier.
  * @unbind:	a subdevice is leaving
  * @destroy:	the asc is about to be freed
