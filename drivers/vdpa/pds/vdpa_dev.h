@@ -35,12 +35,14 @@ struct pds_vdpa_device {
 	struct pds_vdpa_aux *vdpa_aux;
 
 	struct pds_vdpa_vq_info vqs[PDS_VDPA_MAX_QUEUES];
+	u64 supported_features;		/* specified device features */
 	u64 req_features;		/* features requested by vdpa */
-	u64 actual_features;		/* features negotiated and in use */
 	u8 vdpa_index;			/* rsvd for future subdevice use */
 	u8 num_vqs;			/* num vqs in use */
 	struct vdpa_callback config_cb;
 };
+
+#define PDS_VDPA_PACKED_INVERT_IDX	0x8000
 
 int pds_vdpa_get_mgmt_info(struct pds_vdpa_aux *vdpa_aux);
 #endif /* _VDPA_DEV_H_ */
