@@ -1920,7 +1920,7 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 
 static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 {
-	int r, i, num_xcc;
+	int r = 0, i, num_xcc;
 
 	if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
 					    AMDGPU_XCP_FL_NONE) ==
