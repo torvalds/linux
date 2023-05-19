@@ -2278,13 +2278,6 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
 				ac->highest_zoneidx, ac->nodemask) {
 		unsigned long available;
-		unsigned long watermark;
-
-		/* Allocation can already succeed, nothing to do */
-		watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
-		if (zone_watermark_ok(zone, order, watermark,
-				      ac->highest_zoneidx, alloc_flags))
-			continue;
 
 		/*
 		 * Do not consider all the reclaimable memory because we do not
