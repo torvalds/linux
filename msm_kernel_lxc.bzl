@@ -58,7 +58,7 @@ BUILD_BOOT_IMG=1
 SKIP_UNPACKING_RAMDISK=1
 BUILD_INITRAMFS=1
 [ -z "$${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
-KERNEL_VENDOR_CMDLINE+=' console=hvc0 earlycon=hvc0 hvc_dcc.enable=1 loglevel=8 nokaslr printk.devkmsg=on root=/dev/ram0 rw rootwait'
+KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x99c000 qcom_geni_serial.con_enabled=1 loglevel=8 nokaslr printk.devkmsg=on root=/dev/ram0 rw rootwait'
 EOF
     """ % (
         " ".join([v.replace("-", "_") for v in lxc_variants]), # VARIANTS
