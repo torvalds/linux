@@ -585,11 +585,15 @@ EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_bind_event);
 static int soc_tplg_control_load(struct soc_tplg *tplg,
 	struct snd_kcontrol_new *k, struct snd_soc_tplg_ctl_hdr *hdr)
 {
-	if (tplg->ops && tplg->ops->control_load)
-		return tplg->ops->control_load(tplg->comp, tplg->index, k,
-			hdr);
+	int ret = 0;
 
-	return 0;
+	if (tplg->ops && tplg->ops->control_load)
+		ret = tplg->ops->control_load(tplg->comp, tplg->index, k, hdr);
+
+	if (ret)
+		dev_err(tplg->dev, "ASoC: failed to init %s\n", hdr->name);
+
+	return ret;
 }
 
 
@@ -691,10 +695,8 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &be->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", be->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sbe->dobj.control.kcontrol);
@@ -776,10 +778,8 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &mc->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", mc->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sm->dobj.control.kcontrol);
@@ -945,10 +945,8 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &ec->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", ec->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &se->dobj.control.kcontrol);
@@ -1162,11 +1160,8 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &mc->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			mc->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -1246,11 +1241,8 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &ec->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			ec->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -1298,11 +1290,8 @@ static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &be->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			be->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
