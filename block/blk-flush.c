@@ -188,7 +188,7 @@ static void blk_flush_complete_seq(struct request *rq,
 
 	case REQ_FSEQ_DATA:
 		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
-		blk_mq_add_to_requeue_list(rq, BLK_MQ_INSERT_AT_HEAD);
+		blk_mq_add_to_requeue_list(rq, 0);
 		blk_mq_kick_requeue_list(q);
 		break;
 
