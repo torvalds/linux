@@ -271,7 +271,7 @@ static void mmhub_v1_8_init_cache_regs(struct amdgpu_device *adev)
 					    VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
 		}
 		WREG32_SOC15(MMHUB, i, regVM_L2_CNTL4, tmp);
- 	}
+	}
 }
 
 static void mmhub_v1_8_enable_system_domain(struct amdgpu_device *adev)
@@ -328,7 +328,7 @@ static void mmhub_v1_8_disable_identity_aperture(struct amdgpu_device *adev)
 static void mmhub_v1_8_setup_vmid_config(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub;
-	unsigned num_level, block_size;
+	unsigned int num_level, block_size;
 	uint32_t tmp, inst_mask;
 	int i, j;
 
@@ -776,9 +776,10 @@ static void mmhub_v1_8_inst_reset_ras_err_status(struct amdgpu_device *adev,
 	/* reset mmea ras err status */
 	mmea_cgtt_clk_cntl_addr_dist = regMMEA1_CGTT_CLK_CTRL - regMMEA0_CGTT_CLK_CTRL;
 	mmea_err_status_addr_dist = regMMEA1_ERR_STATUS - regMMEA0_ERR_STATUS;
-	for (i = 0; i < ARRAY_SIZE(mmhub_v1_8_mmea_err_status_reg); i ++) {
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_8_mmea_err_status_reg); i++) {
 		/* force clk branch on for response path
-		 * set MMEA0_CGTT_CLK_CTRL.SOFT_OVERRIDE_RETURN = 1 */
+		 * set MMEA0_CGTT_CLK_CTRL.SOFT_OVERRIDE_RETURN = 1
+		 */
 		reg_value = RREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
 						regMMEA0_CGTT_CLK_CTRL,
 						i * mmea_cgtt_clk_cntl_addr_dist);
@@ -814,7 +815,8 @@ static void mmhub_v1_8_inst_reset_ras_err_status(struct amdgpu_device *adev,
 
 	/* reset mm_cane ras err status
 	 * force clk branch on for response path
-	 * set MM_CANE_ICG_CTRL.SOFT_OVERRIDE_ATRET = 1 */
+	 * set MM_CANE_ICG_CTRL.SOFT_OVERRIDE_ATRET = 1
+	 */
 	reg_value = RREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ICG_CTRL);
 	reg_value = REG_SET_FIELD(reg_value, MM_CANE_ICG_CTRL,
 				  SOFT_OVERRIDE_ATRET, 1);
