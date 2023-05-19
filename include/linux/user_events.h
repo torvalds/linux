@@ -17,7 +17,7 @@
 
 #ifdef CONFIG_USER_EVENTS
 struct user_event_mm {
-	struct list_head	link;
+	struct list_head	mms_link;
 	struct list_head	enablers;
 	struct mm_struct	*mm;
 	struct user_event_mm	*next;

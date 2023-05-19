@@ -96,7 +96,7 @@ struct user_event {
  * these to track enablement sites that are tied to an event.
  */
 struct user_event_enabler {
-	struct list_head	link;
+	struct list_head	mm_enablers_link;
 	struct user_event	*event;
 	unsigned long		addr;
 
@@ -155,7 +155,7 @@ struct user_event_file_info {
 #define VALIDATOR_REL (1 << 1)
 
 struct user_event_validator {
-	struct list_head	link;
+	struct list_head	user_event_link;
 	int			offset;
 	int			flags;
 };
@@ -261,7 +261,7 @@ error:
 
 static void user_event_enabler_destroy(struct user_event_enabler *enabler)
 {
-	list_del_rcu(&enabler->link);
+	list_del_rcu(&enabler->mm_enablers_link);
 
 	/* No longer tracking the event via the enabler */
 	refcount_dec(&enabler->event->refcnt);
@@ -440,7 +440,7 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 {
 	struct user_event_enabler *enabler;
 
-	list_for_each_entry(enabler, &mm->enablers, link) {
+	list_for_each_entry(enabler, &mm->enablers, mm_enablers_link) {
 		if (enabler->addr == uaddr && ENABLE_BIT(enabler) == bit)
 			return true;
 	}
@@ -461,7 +461,7 @@ static void user_event_enabler_update(struct user_event *user)
 		next = mm->next;
 		mmap_read_lock(mm->mm);
 
-		list_for_each_entry(enabler, &mm->enablers, link) {
+		list_for_each_entry(enabler, &mm->enablers, mm_enablers_link) {
 			if (enabler->event == user) {
 				attempt = 0;
 				user_event_enabler_write(mm, enabler, true, &attempt);
@@ -497,7 +497,7 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	refcount_inc(&enabler->event->refcnt);
 
 	/* Enablers not exposed yet, RCU not required */
-	list_add(&enabler->link, &mm->enablers);
+	list_add(&enabler->mm_enablers_link, &mm->enablers);
 
 	return true;
 }
@@ -527,13 +527,15 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	 */
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(mm, &user_event_mms, link)
-		list_for_each_entry_rcu(enabler, &mm->enablers, link)
+	list_for_each_entry_rcu(mm, &user_event_mms, mms_link) {
+		list_for_each_entry_rcu(enabler, &mm->enablers, mm_enablers_link) {
 			if (enabler->event == user) {
 				mm->next = found;
 				found = user_event_mm_get(mm);
 				break;
 			}
+		}
+	}
 
 	rcu_read_unlock();
 
@@ -572,7 +574,7 @@ static void user_event_mm_attach(struct user_event_mm *user_mm, struct task_stru
 	unsigned long flags;
 
 	spin_lock_irqsave(&user_event_mms_lock, flags);
-	list_add_rcu(&user_mm->link, &user_event_mms);
+	list_add_rcu(&user_mm->mms_link, &user_event_mms);
 	spin_unlock_irqrestore(&user_event_mms_lock, flags);
 
 	t->user_event_mm = user_mm;
@@ -601,7 +603,7 @@ static void user_event_mm_destroy(struct user_event_mm *mm)
 {
 	struct user_event_enabler *enabler, *next;
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
+	list_for_each_entry_safe(enabler, next, &mm->enablers, mm_enablers_link)
 		user_event_enabler_destroy(enabler);
 
 	mmdrop(mm->mm);
@@ -638,7 +640,7 @@ void user_event_mm_remove(struct task_struct *t)
 
 	/* Remove the mm from the list, so it can no longer be enabled */
 	spin_lock_irqsave(&user_event_mms_lock, flags);
-	list_del_rcu(&mm->link);
+	list_del_rcu(&mm->mms_link);
 	spin_unlock_irqrestore(&user_event_mms_lock, flags);
 
 	/*
@@ -686,9 +688,10 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(enabler, &old_mm->enablers, link)
+	list_for_each_entry_rcu(enabler, &old_mm->enablers, mm_enablers_link) {
 		if (!user_event_enabler_dup(enabler, mm))
 			goto error;
+	}
 
 	rcu_read_unlock();
 
@@ -757,7 +760,7 @@ retry:
 	 */
 	if (!*write_result) {
 		refcount_inc(&enabler->event->refcnt);
-		list_add_rcu(&enabler->link, &user_mm->enablers);
+		list_add_rcu(&enabler->mm_enablers_link, &user_mm->enablers);
 	}
 
 	mutex_unlock(&event_mutex);
@@ -913,8 +916,8 @@ static void user_event_destroy_validators(struct user_event *user)
 	struct user_event_validator *validator, *next;
 	struct list_head *head = &user->validators;
 
-	list_for_each_entry_safe(validator, next, head, link) {
-		list_del(&validator->link);
+	list_for_each_entry_safe(validator, next, head, user_event_link) {
+		list_del(&validator->user_event_link);
 		kfree(validator);
 	}
 }
@@ -968,7 +971,7 @@ add_validator:
 	validator->offset = offset;
 
 	/* Want sequential access when validating */
-	list_add_tail(&validator->link, &user->validators);
+	list_add_tail(&validator->user_event_link, &user->validators);
 
 add_field:
 	field->type = type;
@@ -1358,7 +1361,7 @@ static int user_event_validate(struct user_event *user, void *data, int len)
 	void *pos, *end = data + len;
 	u32 loc, offset, size;
 
-	list_for_each_entry(validator, head, link) {
+	list_for_each_entry(validator, head, user_event_link) {
 		pos = data + validator->offset;
 
 		/* Already done min_size check, no bounds check here */
@@ -2279,7 +2282,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 	 */
 	mutex_lock(&event_mutex);
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link)
+	list_for_each_entry_safe(enabler, next, &mm->enablers, mm_enablers_link) {
 		if (enabler->addr == reg.disable_addr &&
 		    ENABLE_BIT(enabler) == reg.disable_bit) {
 			set_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler));
@@ -2290,6 +2293,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 			/* Removed at least one */
 			ret = 0;
 		}
+	}
 
 	mutex_unlock(&event_mutex);
 
