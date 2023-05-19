@@ -757,14 +757,6 @@ static void mmhub_v1_8_query_ras_error_status(struct amdgpu_device *adev)
 		mmhub_v1_8_inst_query_ras_err_status(adev, i);
 }
 
-static const uint32_t mmhub_v1_8_mmea_cgtt_clk_cntl_reg[] = {
-	regMMEA0_CGTT_CLK_CTRL,
-	regMMEA1_CGTT_CLK_CTRL,
-	regMMEA2_CGTT_CLK_CTRL,
-	regMMEA3_CGTT_CLK_CTRL,
-	regMMEA4_CGTT_CLK_CTRL,
-};
-
 static void mmhub_v1_8_inst_reset_ras_err_status(struct amdgpu_device *adev,
 						 uint32_t mmhub_inst)
 {
