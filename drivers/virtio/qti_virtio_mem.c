@@ -29,6 +29,7 @@ static struct cdev qvm_char_dev;
 /* Protects qvm_hint_total and qvm_list */
 static DEFINE_MUTEX(qvm_lock);
 static LIST_HEAD(qvm_list);
+
 /* Sum of all hints */
 static s64 qvm_hint_total;
 
@@ -36,6 +37,7 @@ void qvm_update_plugged_size(uint64_t size)
 {
 	qvm_hint_total = (s64)size;
 }
+static uint64_t device_block_size, max_plugin_threshold;
 
 static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 					s64 new_size, bool sync)
@@ -161,7 +163,6 @@ static int qti_virtio_mem_ioc_hint_create(struct qti_virtio_mem_ioc_hint_create_
 	/* ensure name is null-terminated */
 	arg->name[QTI_VIRTIO_MEM_IOC_MAX_NAME_LEN - 1] = '\0';
 
-
 	fd = qti_virtio_mem_hint_create_fd(arg->name, arg->size);
 	if (fd < 0)
 		return fd;
@@ -212,6 +213,51 @@ static const struct file_operations qti_virtio_mem_dev_fops = {
 	.compat_ioctl = compat_ptr_ioctl,
 };
 
+static ssize_t device_block_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	if (!device_block_size &&
+		!virtio_mem_get_device_block_size(&device_block_size))
+		dev_err(dev, "failed to get virtio-mem device block size\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", device_block_size);
+}
+
+static ssize_t max_plugin_threshold_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	if (!max_plugin_threshold &&
+		!virtio_mem_get_max_plugin_threshold(&max_plugin_threshold))
+		dev_err(dev, "failed to get max plugin threshold\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", max_plugin_threshold);
+}
+
+static ssize_t device_block_plugged_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	uint16_t device_block_plugged;
+
+	device_block_plugged =
+			ALIGN(qvm_hint_total, device_block_size) / device_block_size;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", device_block_plugged);
+}
+
+static DEVICE_ATTR_RO(device_block_size);
+static DEVICE_ATTR_RO(max_plugin_threshold);
+static DEVICE_ATTR_RO(device_block_plugged);
+
+static struct attribute *dev_attrs[] = {
+	&dev_attr_device_block_size.attr,
+	&dev_attr_max_plugin_threshold.attr,
+	&dev_attr_device_block_plugged.attr,
+	NULL,
+};
+
+static struct attribute_group dev_group = {
+	.attrs = dev_attrs,
+};
+
 static int __init qti_virtio_mem_init(void)
 {
 	int ret;
@@ -239,6 +285,19 @@ static int __init qti_virtio_mem_init(void)
 		ret = PTR_ERR(dev);
 		goto err_dev_create;
 	}
+
+	if (virtio_mem_get_device_block_size(&device_block_size))
+		dev_err(dev, "failed to get virtio-mem device block size\n");
+
+	if (virtio_mem_get_max_plugin_threshold(&max_plugin_threshold))
+		dev_err(dev, "failed to get max plugin threshold\n");
+
+	ret = sysfs_create_group(&dev->kobj, &dev_group);
+	if (ret < 0) {
+		dev_err(dev, "failed to create sysfs group\n");
+		goto err_dev_create;
+	}
+
 
 	return 0;
 err_dev_create:

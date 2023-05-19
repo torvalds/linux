@@ -2994,6 +2994,28 @@ static void virtio_mem_config_changed(struct platform_device *vdev)
 	virtio_mem_retry(vm);
 }
 
+int virtio_mem_get_device_block_size(uint64_t *device_block_size)
+{
+	struct virtio_mem *vm = virtio_mem_dev;
+
+	if (!vm)
+		return -EINVAL;
+
+	*device_block_size = vm->device_block_size;
+	return 0;
+}
+
+int virtio_mem_get_max_plugin_threshold(uint64_t *max_plugin_threshold)
+{
+	struct virtio_mem *vm = virtio_mem_dev;
+
+	if (!vm)
+		return -EINVAL;
+
+	*max_plugin_threshold = vm->region_size;
+	return 0;
+}
+
 int virtio_mem_update_config_size(s64 size, bool sync)
 {
 	unsigned long flags;
