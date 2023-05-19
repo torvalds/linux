@@ -195,6 +195,8 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 
 		show_link_attach_type_json(info->tracing.attach_type,
 					   json_wtr);
+		jsonw_uint_field(json_wtr, "target_obj_id", info->tracing.target_obj_id);
+		jsonw_uint_field(json_wtr, "target_btf_id", info->tracing.target_btf_id);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		jsonw_lluint_field(json_wtr, "cgroup_id",
@@ -375,6 +377,10 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 			printf("\n\tprog_type %u  ", prog_info.type);
 
 		show_link_attach_type_plain(info->tracing.attach_type);
+		if (info->tracing.target_obj_id || info->tracing.target_btf_id)
+			printf("\n\ttarget_obj_id %u  target_btf_id %u  ",
+			       info->tracing.target_obj_id,
+			       info->tracing.target_btf_id);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		printf("\n\tcgroup_id %zu  ", (size_t)info->cgroup.cgroup_id);
