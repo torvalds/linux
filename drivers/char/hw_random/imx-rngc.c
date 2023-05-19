@@ -27,7 +27,7 @@
 #define RNGC_FIFO			0x0014
 
 /* the fields in the ver id register */
-#define RNGC_TYPE_SHIFT		28
+#define RNG_TYPE			GENMASK(31, 28)
 #define RNGC_VER_MAJ_SHIFT		8
 
 /* the rng_type field */
@@ -251,7 +251,7 @@ static int imx_rngc_probe(struct platform_device *pdev)
 		return irq;
 
 	ver_id = readl(rngc->base + RNGC_VER_ID);
-	rng_type = ver_id >> RNGC_TYPE_SHIFT;
+	rng_type = FIELD_GET(RNG_TYPE, ver_id);
 	/*
 	 * This driver supports only RNGC and RNGB. (There's a different
 	 * driver for RNGA.)
