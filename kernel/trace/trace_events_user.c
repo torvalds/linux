@@ -439,9 +439,8 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 				      unsigned long uaddr, unsigned char bit)
 {
 	struct user_event_enabler *enabler;
-	struct user_event_enabler *next;
 
-	list_for_each_entry_safe(enabler, next, &mm->enablers, link) {
+	list_for_each_entry(enabler, &mm->enablers, link) {
 		if (enabler->addr == uaddr && ENABLE_BIT(enabler) == bit)
 			return true;
 	}
@@ -456,19 +455,19 @@ static void user_event_enabler_update(struct user_event *user)
 	struct user_event_mm *next;
 	int attempt;
 
+	lockdep_assert_held(&event_mutex);
+
 	while (mm) {
 		next = mm->next;
 		mmap_read_lock(mm->mm);
-		rcu_read_lock();
 
-		list_for_each_entry_rcu(enabler, &mm->enablers, link) {
+		list_for_each_entry(enabler, &mm->enablers, link) {
 			if (enabler->event == user) {
 				attempt = 0;
 				user_event_enabler_write(mm, enabler, true, &attempt);
 			}
 		}
 
-		rcu_read_unlock();
 		mmap_read_unlock(mm->mm);
 		user_event_mm_put(mm);
 		mm = next;
@@ -496,7 +495,9 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	enabler->values = orig->values & ENABLE_VAL_DUP_MASK;
 
 	refcount_inc(&enabler->event->refcnt);
-	list_add_rcu(&enabler->link, &mm->enablers);
+
+	/* Enablers not exposed yet, RCU not required */
+	list_add(&enabler->link, &mm->enablers);
 
 	return true;
 }
