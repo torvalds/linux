@@ -594,7 +594,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	struct kfd_node *node;
 	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
 	unsigned int max_proc_per_quantum;
-	int num_xcd, partition_mode;
+	int partition_mode;
 	int xcp_idx;
 
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
@@ -609,8 +609,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	if (kfd->num_nodes == 0) {
 		dev_err(kfd_device,
-			"KFD num nodes cannot be 0, GC inst: %d, num_xcc_in_node: %d\n",
-			num_xcd, kfd->adev->gfx.num_xcc_per_xcp);
+			"KFD num nodes cannot be 0, num_xcc_in_node: %d\n",
+			kfd->adev->gfx.num_xcc_per_xcp);
 		goto out;
 	}
 
