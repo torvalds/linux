@@ -6,7 +6,7 @@
  *		http://www.samsung.com
  *
  * Samsung's Exynos4412 SoC device nodes are listed in this file. Exynos4412
- * based board files can include this file and provide values for board specfic
+ * based board files can include this file and provide values for board specific
  * bindings.
  *
  * Note: This file does not include device nodes for all the controllers in

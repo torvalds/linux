@@ -7,7 +7,7 @@
  *
  * Samsung's Exynos5 SoC series device nodes are listed in this file. Particular
  * SoCs from Exynos5 series can include this file and provide values for SoCs
- * specfic bindings.
+ * specific bindings.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>

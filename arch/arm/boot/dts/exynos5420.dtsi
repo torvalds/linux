@@ -7,7 +7,7 @@
  *
  * Samsung Exynos5420 SoC device nodes are listed in this file.
  * Exynos5420 based board files can include this file and provide
- * values for board specfic bindings.
+ * values for board specific bindings.
  */
 
 #include "exynos54xx.dtsi"
