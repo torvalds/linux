@@ -645,7 +645,6 @@ static int gfxhub_v1_2_xcp_resume(void *handle, uint32_t inst_mask)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
-	int ret;
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;
@@ -655,9 +654,9 @@ static int gfxhub_v1_2_xcp_resume(void *handle, uint32_t inst_mask)
 	gfxhub_v1_2_xcc_set_fault_enable_default(adev, value, inst_mask);
 
 	if (!amdgpu_sriov_vf(adev))
-		ret = gfxhub_v1_2_xcc_gart_enable(adev, inst_mask);
+		return gfxhub_v1_2_xcc_gart_enable(adev, inst_mask);
 
-	return ret;
+	return 0;
 }
 
 static int gfxhub_v1_2_xcp_suspend(void *handle, uint32_t inst_mask)
