@@ -2510,9 +2510,6 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 	/* signal DAPM we are complete */
 	ret = soc_tplg_dapm_complete(tplg);
-	if (ret < 0)
-		dev_err(tplg->dev,
-			"ASoC: failed to initialise DAPM from Firmware\n");
 
 	return ret;
 }
