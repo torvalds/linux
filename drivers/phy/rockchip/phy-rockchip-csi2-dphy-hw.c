@@ -572,7 +572,7 @@ static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 		is_cif = false;
 
 	if (hw->lane_mode == LANE_MODE_FULL) {
-		val = ~GRF_CSI2PHY_LANE_SEL_SPLIT;
+		val = !GRF_CSI2PHY_LANE_SEL_SPLIT;
 		if (dphy->phy_index < 3) {
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN,
 				      GENMASK(sensor->lanes - 1, 0));
