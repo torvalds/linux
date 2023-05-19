@@ -90,13 +90,13 @@ MODULE_LICENSE("GPL v2");
 #define ESD_USB_MAX_TX_URBS		16 /* must be power of 2 */
 
 struct esd_usb_header_msg {
-	u8 len; /* len is always the total message length in 32bit words */
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 rsvd[2];
 };
 
 struct esd_usb_version_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 rsvd;
 	u8 flags;
@@ -104,7 +104,7 @@ struct esd_usb_version_msg {
 };
 
 struct esd_usb_version_reply_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 nets;
 	u8 features;
@@ -115,7 +115,7 @@ struct esd_usb_version_reply_msg {
 };
 
 struct esd_usb_rx_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 net;
 	u8 dlc;
@@ -133,7 +133,7 @@ struct esd_usb_rx_msg {
 };
 
 struct esd_usb_tx_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 net;
 	u8 dlc;
@@ -143,7 +143,7 @@ struct esd_usb_tx_msg {
 };
 
 struct esd_usb_tx_done_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 net;
 	u8 status;
@@ -152,15 +152,15 @@ struct esd_usb_tx_done_msg {
 };
 
 struct esd_usb_id_filter_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 net;
 	u8 option;
-	__le32 mask[ESD_USB_MAX_ID_SEGMENT + 1];
+	__le32 mask[ESD_USB_MAX_ID_SEGMENT + 1]; /* +1 for 29bit extended IDs */
 };
 
 struct esd_usb_set_baudrate_msg {
-	u8 len;
+	u8 len; /* total message length in 32bit words */
 	u8 cmd;
 	u8 net;
 	u8 rsvd;
@@ -438,7 +438,7 @@ static void esd_usb_read_bulk_callback(struct urb *urb)
 			break;
 		}
 
-		pos += msg->hdr.len << 2;
+		pos += msg->hdr.len * sizeof(u32); /* convert to # of bytes */
 
 		if (pos > urb->actual_length) {
 			dev_err(dev->udev->dev.parent, "format error\n");
@@ -532,7 +532,7 @@ static int esd_usb_send_msg(struct esd_usb *dev, union esd_usb_msg *msg)
 	return usb_bulk_msg(dev->udev,
 			    usb_sndbulkpipe(dev->udev, 2),
 			    msg,
-			    msg->hdr.len << 2,
+			    msg->hdr.len * sizeof(u32), /* convert to # of bytes */
 			    &actual_length,
 			    1000);
 }
@@ -648,7 +648,7 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 	 * field followed by only some bitmasks.
 	 */
 	msg->hdr.cmd = ESD_USB_CMD_IDADD;
-	msg->hdr.len = 2 + ESD_USB_MAX_ID_SEGMENT;
+	msg->hdr.len = sizeof(struct esd_usb_id_filter_msg) / sizeof(u32); /* # of 32bit words */
 	msg->filter.net = priv->index;
 	msg->filter.option = ESD_USB_ID_ENABLE; /* start with segment 0 */
 	for (i = 0; i < ESD_USB_MAX_ID_SEGMENT; i++)
@@ -759,7 +759,8 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 
 	msg = (union esd_usb_msg *)buf;
 
-	msg->hdr.len = 3; /* minimal length */
+	/* minimal length as # of 32bit words */
+	msg->hdr.len = offsetof(struct esd_usb_tx_msg, data) / sizeof(u32);
 	msg->hdr.cmd = ESD_USB_CMD_CAN_TX;
 	msg->tx.net = priv->index;
 	msg->tx.dlc = can_get_cc_dlc(cf, priv->can.ctrlmode);
@@ -774,7 +775,8 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 	for (i = 0; i < cf->len; i++)
 		msg->tx.data[i] = cf->data[i];
 
-	msg->hdr.len += (cf->len + 3) >> 2;
+	/* round up, then divide by 4 to add the payload length as # of 32bit words */
+	msg->hdr.len += DIV_ROUND_UP(cf->len, sizeof(u32));
 
 	for (i = 0; i < ESD_USB_MAX_TX_URBS; i++) {
 		if (priv->tx_contexts[i].echo_index == ESD_USB_MAX_TX_URBS) {
@@ -797,7 +799,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 	msg->tx.hnd = 0x80000000 | i; /* returned in TX done message */
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
-			  msg->hdr.len << 2,
+			  msg->hdr.len * sizeof(u32), /* convert to # of bytes */
 			  esd_usb_write_bulk_callback, context);
 
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
@@ -860,7 +862,7 @@ static int esd_usb_close(struct net_device *netdev)
 
 	/* Disable all IDs (see esd_usb_start()) */
 	msg->hdr.cmd = ESD_USB_CMD_IDADD;
-	msg->hdr.len = 2 + ESD_USB_MAX_ID_SEGMENT;
+	msg->hdr.len = sizeof(struct esd_usb_id_filter_msg) / sizeof(u32);/* # of 32bit words */
 	msg->filter.net = priv->index;
 	msg->filter.option = ESD_USB_ID_ENABLE; /* start with segment 0 */
 	for (i = 0; i <= ESD_USB_MAX_ID_SEGMENT; i++)
@@ -869,7 +871,7 @@ static int esd_usb_close(struct net_device *netdev)
 		netdev_err(netdev, "sending idadd message failed\n");
 
 	/* set CAN controller to reset mode */
-	msg->hdr.len = 2;
+	msg->hdr.len = sizeof(struct esd_usb_set_baudrate_msg) / sizeof(u32); /* # of 32bit words */
 	msg->hdr.cmd = ESD_USB_CMD_SETBAUD;
 	msg->setbaud.net = priv->index;
 	msg->setbaud.rsvd = 0;
@@ -947,7 +949,7 @@ static int esd_usb_2_set_bittiming(struct net_device *netdev)
 	if (!msg)
 		return -ENOMEM;
 
-	msg->hdr.len = 2;
+	msg->hdr.len = sizeof(struct esd_usb_set_baudrate_msg) / sizeof(u32); /* # of 32bit words */
 	msg->hdr.cmd = ESD_USB_CMD_SETBAUD;
 	msg->setbaud.net = priv->index;
 	msg->setbaud.rsvd = 0;
@@ -1086,7 +1088,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 
 	/* query number of CAN interfaces (nets) */
 	msg->hdr.cmd = ESD_USB_CMD_VERSION;
-	msg->hdr.len = 2;
+	msg->hdr.len = sizeof(struct esd_usb_version_msg) / sizeof(u32); /* # of 32bit words */
 	msg->version.rsvd = 0;
 	msg->version.flags = 0;
 	msg->version.drv_version = 0;
