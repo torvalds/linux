@@ -3470,21 +3470,6 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
 		return false;
 
 	/*
-	 * Compaction managed to coalesce some page blocks, but the
-	 * allocation failed presumably due to a race. Retry some.
-	 */
-	if (compact_result == COMPACT_SUCCESS)
-		(*compaction_retries)++;
-
-	/*
-	 * All zones were scanned completely and still no result. It
-	 * doesn't really make much sense to retry except when the
-	 * failure could be caused by insufficient priority
-	 */
-	if (compact_result == COMPACT_COMPLETE)
-		goto check_priority;
-
-	/*
 	 * Compaction was skipped due to a lack of free order-0
 	 * migration targets. Continue if reclaim can help.
 	 */
@@ -3494,35 +3479,31 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
 	}
 
 	/*
-	 * If compaction backed due to being deferred, due to
-	 * contended locks in async mode, or due to scanners meeting
-	 * after a partial scan, retry with increased priority.
+	 * Compaction managed to coalesce some page blocks, but the
+	 * allocation failed presumably due to a race. Retry some.
 	 */
-	if (compact_result == COMPACT_DEFERRED ||
-	    compact_result == COMPACT_CONTENDED ||
-	    compact_result == COMPACT_PARTIAL_SKIPPED)
-		goto check_priority;
+	if (compact_result == COMPACT_SUCCESS) {
+		/*
+		 * !costly requests are much more important than
+		 * __GFP_RETRY_MAYFAIL costly ones because they are de
+		 * facto nofail and invoke OOM killer to move on while
+		 * costly can fail and users are ready to cope with
+		 * that. 1/4 retries is rather arbitrary but we would
+		 * need much more detailed feedback from compaction to
+		 * make a better decision.
+		 */
+		if (order > PAGE_ALLOC_COSTLY_ORDER)
+			max_retries /= 4;
 
-	/*
-	 * !costly requests are much more important than __GFP_RETRY_MAYFAIL
-	 * costly ones because they are de facto nofail and invoke OOM
-	 * killer to move on while costly can fail and users are ready
-	 * to cope with that. 1/4 retries is rather arbitrary but we
-	 * would need much more detailed feedback from compaction to
-	 * make a better decision.
-	 */
-	if (order > PAGE_ALLOC_COSTLY_ORDER)
-		max_retries /= 4;
-	if (*compaction_retries <= max_retries) {
-		ret = true;
-		goto out;
+		if (++(*compaction_retries) <= max_retries) {
+			ret = true;
+			goto out;
+		}
 	}
 
 	/*
-	 * Make sure there are attempts at the highest priority if we exhausted
-	 * all retries or failed at the lower priorities.
+	 * Compaction failed. Retry with increasing priority.
 	 */
-check_priority:
 	min_priority = (order > PAGE_ALLOC_COSTLY_ORDER) ?
 			MIN_COMPACT_COSTLY_PRIORITY : MIN_COMPACT_PRIORITY;
 
