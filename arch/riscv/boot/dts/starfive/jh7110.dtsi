@@ -45,6 +45,26 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu1>;
+				};
+
+				core1 {
+					cpu = <&cpu2>;
+				};
+
+				core2 {
+					cpu = <&cpu3>;
+				};
+
+				core3 {
+					cpu = <&cpu4>;
+				};
+			};
+		};
+
 		cpu0: cpu@0 {
 			compatible = "sifive,u74-mc", "riscv";
 			reg = <0>;
