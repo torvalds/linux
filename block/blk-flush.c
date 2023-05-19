@@ -376,6 +376,15 @@ static enum rq_end_io_ret mq_flush_data_end_io(struct request *rq,
 	return RQ_END_IO_NONE;
 }
 
+static void blk_rq_init_flush(struct request *rq)
+{
+	rq->flush.seq = 0;
+	INIT_LIST_HEAD(&rq->flush.list);
+	rq->rq_flags |= RQF_FLUSH_SEQ;
+	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
+	rq->end_io = mq_flush_data_end_io;
+}
+
 /**
  * blk_insert_flush - insert a new PREFLUSH/FUA request
  * @rq: request to insert
@@ -437,13 +446,7 @@ void blk_insert_flush(struct request *rq)
 	 * @rq should go through flush machinery.  Mark it part of flush
 	 * sequence and submit for further processing.
 	 */
-	memset(&rq->flush, 0, sizeof(rq->flush));
-	INIT_LIST_HEAD(&rq->flush.list);
-	rq->rq_flags |= RQF_FLUSH_SEQ;
-	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
-
-	rq->end_io = mq_flush_data_end_io;
-
+	blk_rq_init_flush(rq);
 	spin_lock_irq(&fq->mq_flush_lock);
 	blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
 	spin_unlock_irq(&fq->mq_flush_lock);
