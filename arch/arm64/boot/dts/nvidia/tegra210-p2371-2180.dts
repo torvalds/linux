@@ -58,19 +58,17 @@
 			dev-ctrl = /bits/ 8 <0x80>;
 			init-brt = /bits/ 8 <0xff>;
 
-			pwm-period = <29334>;
-
 			pwms = <&pwm 0 29334>;
 			pwm-names = "lp8557";
 
 			/* boost frequency 1 MHz */
-			rom_13h {
+			rom-13h {
 				rom-addr = /bits/ 8 <0x13>;
 				rom-val = /bits/ 8 <0x01>;
 			};
 
 			/* 3 LED string */
-			rom_14h {
+			rom-14h {
 				rom-addr = /bits/ 8 <0x14>;
 				rom-val = /bits/ 8 <0x87>;
 			};
