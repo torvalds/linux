@@ -3469,35 +3469,39 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
 	if (fatal_signal_pending(current))
 		return false;
 
-	if (compaction_made_progress(compact_result))
+	/*
+	 * Compaction managed to coalesce some page blocks, but the
+	 * allocation failed presumably due to a race. Retry some.
+	 */
+	if (compact_result == COMPACT_SUCCESS)
 		(*compaction_retries)++;
 
 	/*
-	 * compaction considers all the zone as desperately out of memory
-	 * so it doesn't really make much sense to retry except when the
+	 * All zones were scanned completely and still no result. It
+	 * doesn't really make much sense to retry except when the
 	 * failure could be caused by insufficient priority
 	 */
-	if (compaction_failed(compact_result))
+	if (compact_result == COMPACT_COMPLETE)
 		goto check_priority;
 
 	/*
-	 * compaction was skipped because there are not enough order-0 pages
-	 * to work with, so we retry only if it looks like reclaim can help.
+	 * Compaction was skipped due to a lack of free order-0
+	 * migration targets. Continue if reclaim can help.
 	 */
-	if (compaction_needs_reclaim(compact_result)) {
+	if (compact_result == COMPACT_SKIPPED) {
 		ret = compaction_zonelist_suitable(ac, order, alloc_flags);
 		goto out;
 	}
 
 	/*
-	 * make sure the compaction wasn't deferred or didn't bail out early
-	 * due to locks contention before we declare that we should give up.
-	 * But the next retry should use a higher priority if allowed, so
-	 * we don't just keep bailing out endlessly.
+	 * If compaction backed due to being deferred, due to
+	 * contended locks in async mode, or due to scanners meeting
+	 * after a partial scan, retry with increased priority.
 	 */
-	if (compaction_withdrawn(compact_result)) {
+	if (compact_result == COMPACT_DEFERRED ||
+	    compact_result == COMPACT_CONTENDED ||
+	    compact_result == COMPACT_PARTIAL_SKIPPED)
 		goto check_priority;
-	}
 
 	/*
 	 * !costly requests are much more important than __GFP_RETRY_MAYFAIL
