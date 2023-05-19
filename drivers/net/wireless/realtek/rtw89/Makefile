@@ -18,6 +18,15 @@ rtw89_core-y += core.o \
 
 rtw89_core-$(CONFIG_PM) += wow.o
 
+obj-$(CONFIG_RTW89_8851B) += rtw89_8851b.o
+rtw89_8851b-objs := rtw8851b.o \
+		    rtw8851b_table.o \
+		    rtw8851b_rfk.o \
+		    rtw8851b_rfk_table.o
+
+obj-$(CONFIG_RTW89_8851BE) += rtw89_8851be.o
+rtw89_8851be-objs := rtw8851be.o
+
 obj-$(CONFIG_RTW89_8852A) += rtw89_8852a.o
 rtw89_8852a-objs := rtw8852a.o \
 		    rtw8852a_table.o \
