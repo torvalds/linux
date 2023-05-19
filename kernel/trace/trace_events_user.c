@@ -451,11 +451,24 @@ static bool user_event_enabler_exists(struct user_event_mm *mm,
 static void user_event_enabler_update(struct user_event *user)
 {
 	struct user_event_enabler *enabler;
-	struct user_event_mm *mm = user_event_mm_get_all(user);
 	struct user_event_mm *next;
+	struct user_event_mm *mm;
 	int attempt;
 
 	lockdep_assert_held(&event_mutex);
+
+	/*
+	 * We need to build a one-shot list of all the mms that have an
+	 * enabler for the user_event passed in. This list is only valid
+	 * while holding the event_mutex. The only reason for this is due
+	 * to the global mm list being RCU protected and we use methods
+	 * which can wait (mmap_read_lock and pin_user_pages_remote).
+	 *
+	 * NOTE: user_event_mm_get_all() increments the ref count of each
+	 * mm that is added to the list to prevent removal timing windows.
+	 * We must always put each mm after they are used, which may wait.
+	 */
+	mm = user_event_mm_get_all(user);
 
 	while (mm) {
 		next = mm->next;
@@ -514,6 +527,14 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	struct user_event_mm *found = NULL;
 	struct user_event_enabler *enabler;
 	struct user_event_mm *mm;
+
+	/*
+	 * We use the mm->next field to build a one-shot list from the global
+	 * RCU protected list. To build this list the event_mutex must be held.
+	 * This lets us build a list without requiring allocs that could fail
+	 * when user based events are most wanted for diagnostics.
+	 */
+	lockdep_assert_held(&event_mutex);
 
 	/*
 	 * We do not want to block fork/exec while enablements are being
