@@ -3268,7 +3268,7 @@ static int coda_probe(struct platform_device *pdev)
 						       &dev->iram.blob);
 	}
 
-	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	dev->workqueue = alloc_ordered_workqueue("coda", WQ_MEM_RECLAIM);
 	if (!dev->workqueue) {
 		dev_err(&pdev->dev, "unable to alloc workqueue\n");
 		ret = -ENOMEM;
