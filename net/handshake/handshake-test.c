@@ -102,7 +102,7 @@ struct handshake_req_alloc_test_param handshake_req_alloc_params[] = {
 	{
 		.desc			= "handshake_req_alloc excessive privsize",
 		.proto			= &handshake_req_alloc_proto_6,
-		.gfp			= GFP_KERNEL,
+		.gfp			= GFP_KERNEL | __GFP_NOWARN,
 		.expect_success		= false,
 	},
 	{
