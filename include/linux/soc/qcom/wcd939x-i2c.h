@@ -63,6 +63,7 @@ enum linearizer_rdac_cal_code_select {
 };
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+int wcd_usbss_update_default_trim(void);
 int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			    enum wcd_usbss_cable_status status);
 int wcd_usbss_reg_notifier(struct notifier_block *nb,
@@ -103,6 +104,11 @@ static inline int wcd_usbss_dpdm_switch_update(bool enable, bool eq_en)
 
 int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 			   unsigned int power_mode)
+{
+	return 0;
+}
+
+int wcd_usbss_update_default_trim(void)
 {
 	return 0;
 }
