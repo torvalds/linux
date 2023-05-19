@@ -841,6 +841,7 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 	return r;
 }
 
+#ifdef CONFIG_ACPI_NUMA
 static inline uint64_t amdgpu_acpi_get_numa_size(int nid)
 {
 	/* This is directly using si_meminfo_node implementation as the
@@ -886,6 +887,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 
 	return numa_info;
 }
+#endif
 
 /**
  * amdgpu_acpi_get_node_id - obtain the NUMA node id for corresponding amdgpu
