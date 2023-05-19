@@ -4979,19 +4979,19 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		}
 	}
 
-	if (dst->x1 + dsp_w > adjusted_mode->hdisplay) {
+	if (dst->x1 + dsp_w > adjusted_mode->crtc_hdisplay) {
 		DRM_ERROR("vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
-			  vp->id, win->name, dst->x1, dsp_w, adjusted_mode->hdisplay);
-		dsp_w = adjusted_mode->hdisplay - dst->x1;
+			  vp->id, win->name, dst->x1, dsp_w, adjusted_mode->crtc_hdisplay);
+		dsp_w = adjusted_mode->crtc_hdisplay - dst->x1;
 		if (dsp_w < 4)
 			dsp_w = 4;
 		actual_w = dsp_w * actual_w / drm_rect_width(dst);
 	}
 	dsp_h = drm_rect_height(dst);
-	if (dst->y1 + dsp_h > adjusted_mode->vdisplay) {
+	if (dst->y1 + dsp_h > adjusted_mode->crtc_vdisplay) {
 		DRM_ERROR("vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
-			  vp->id, win->name, dst->y1, dsp_h, adjusted_mode->vdisplay);
-		dsp_h = adjusted_mode->vdisplay - dst->y1;
+			  vp->id, win->name, dst->y1, dsp_h, adjusted_mode->crtc_vdisplay);
+		dsp_h = adjusted_mode->crtc_vdisplay - dst->y1;
 		if (dsp_h < 4)
 			dsp_h = 4;
 		actual_h = dsp_h * actual_h / drm_rect_height(dst);
