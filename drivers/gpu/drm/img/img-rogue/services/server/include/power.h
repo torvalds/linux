@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 #include "servicesext.h"
 #include "opaque_types.h"
+#include "di_common.h"
 
 /*!
  *****************************************************************************
@@ -77,6 +78,9 @@ typedef PVRSRV_ERROR (*PFN_POST_POWER) (IMG_HANDLE				hDevHandle,
 										PVRSRV_DEV_POWER_STATE	eNewPowerState,
 										PVRSRV_DEV_POWER_STATE	eCurrentPowerState,
 										PVRSRV_POWER_FLAGS		ePwrFlags);
+
+const char *PVRSRVSysPowerStateToString(PVRSRV_SYS_POWER_STATE eState);
+const char *PVRSRVDevPowerStateToString(PVRSRV_DEV_POWER_STATE eState);
 
 PVRSRV_ERROR PVRSRVPowerLockInit(PPVRSRV_DEVICE_NODE psDeviceNode);
 void PVRSRVPowerLockDeInit(PPVRSRV_DEVICE_NODE psDeviceNode);
@@ -178,6 +182,22 @@ PVRSRV_ERROR PVRSRVSetDeviceSystemPowerState(PPVRSRV_DEVICE_NODE psDeviceNode,
 
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVSetDeviceDefaultPowerState(PCPVRSRV_DEVICE_NODE psDeviceNode,
+					PVRSRV_DEV_POWER_STATE eNewPowerState);
+
+/*!
+******************************************************************************
+
+ @Function      PVRSRVSetDeviceCurrentPowerState
+
+ @Description   Set the current device power state to eNewPowerState
+
+ @Input         psPowerDevice : Power device
+ @Input         eNewPowerState : New power state
+
+ @Return        PVRSRV_ERROR
+
+******************************************************************************/
+PVRSRV_ERROR PVRSRVSetDeviceCurrentPowerState(PVRSRV_POWER_DEV *psPowerDevice,
 					PVRSRV_DEV_POWER_STATE eNewPowerState);
 
 /*!
@@ -422,6 +442,13 @@ PVRSRV_ERROR PVRSRVDeviceIdleCancelRequestKM(PPVRSRV_DEVICE_NODE psDeviceNode);
 PVRSRV_ERROR PVRSRVDeviceGPUUnitsPowerChange(PPVRSRV_DEVICE_NODE psDeviceNode,
 					IMG_UINT32	ui32NewValue);
 
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+void PVRSRVSetFirmwareStartTime(PVRSRV_POWER_DEV *psPowerDevice, IMG_UINT32 ui32TimeStamp);
+
+void PVRSRVSetFirmwareHandshakeIdleTime(PVRSRV_POWER_DEV *psPowerDevice, IMG_UINT64 ui64Duration);
+
+int PVRSRVPowerStatsPrintElements(OSDI_IMPL_ENTRY *psEntry, void *pvData);
+#endif
 
 #endif /* POWER_H */
 

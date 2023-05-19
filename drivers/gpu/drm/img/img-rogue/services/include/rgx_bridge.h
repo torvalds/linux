@@ -74,7 +74,9 @@ extern "C" {
 #if !defined(EXCLUDE_RGXREGCONFIG_BRIDGE)
 #include "common_rgxregconfig_bridge.h"
 #endif
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
 #include "common_rgxkicksync_bridge.h"
+#endif
 #include "common_rgxtimerquery_bridge.h"
 #if defined(SUPPORT_RGXRAY_BRIDGE)
 #include "common_rgxray_bridge.h"
@@ -168,9 +170,13 @@ extern "C" {
 
 /* 136: RGX kicksync interface */
 #define PVRSRV_BRIDGE_RGXKICKSYNC                136UL
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
 #define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST (PVRSRV_BRIDGE_RGXREGCONFIG_DISPATCH_LAST + 1)
 #define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_LAST  (PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST + PVRSRV_BRIDGE_RGXKICKSYNC_CMD_LAST)
-
+#else
+#define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST   0
+#define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_LAST    (PVRSRV_BRIDGE_RGXREGCONFIG_DISPATCH_LAST)
+#endif
 /* 137: RGX TQ2 interface */
 #define PVRSRV_BRIDGE_RGXTQ2                     137UL
 #if defined(SUPPORT_FASTRENDER_DM)
@@ -213,6 +219,9 @@ static const IMG_UINT32 gui32RGXBridges =
 	| (1U << (PVRSRV_BRIDGE_RGXFWDBG - PVRSRV_BRIDGE_RGX_FIRST))
 #if defined(PDUMP)
 	| (1U << (PVRSRV_BRIDGE_RGXPDUMP - PVRSRV_BRIDGE_RGX_FIRST))
+#endif
+#if defined(SUPPORT_RGXKICKSYNC_BRIDGE)
+	| (1U << (PVRSRV_BRIDGE_RGXKICKSYNC - PVRSRV_BRIDGE_RGX_FIRST))
 #endif
 	| (1U << (PVRSRV_BRIDGE_RGXHWPERF - PVRSRV_BRIDGE_RGX_FIRST))
 #if defined(SUPPORT_REGCONFIG)

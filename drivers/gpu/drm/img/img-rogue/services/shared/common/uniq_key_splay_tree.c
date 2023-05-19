@@ -47,11 +47,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "uniq_key_splay_tree.h"
 
 /**
- * This function performs a simple top down splay
+ * PVRSRVSplay - perform a simple top down splay
+ * @ui32Flags: flags that must splayed to the root (if possible)
+ * @psTree:    psTree The tree to splay.
  *
- * @param uiFlags the flags that must splayed to the root (if possible).
- * @param psTree The tree to splay.
- * @return the resulting tree after the splay operation.
+ * Return the resulting tree after the splay operation.
  */
 IMG_INTERNAL
 IMG_PSPLAY_TREE PVRSRVSplay (IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
@@ -143,12 +143,12 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
 
 
 /**
- * This function inserts a node into the Tree (unless it is already present, in
+ * PVRSRVInsert - insert a node into the Tree (unless it is already present, in
  * which case it is equivalent to performing only a splay operation
+ * @ui32Flags: the key of the new node
+ * @psTree:    tree into which one wants to add a new node
  *
- * @param uiFlags the key of the new node
- * @param psTree The tree into which one wants to add a new node
- * @return The resulting with the node in it
+ * Return the resulting tree after the splay operation.
  */
 IMG_INTERNAL
 IMG_PSPLAY_TREE PVRSRVInsert(IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
@@ -203,12 +203,12 @@ IMG_PSPLAY_TREE PVRSRVInsert(IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
 
 
 /**
- * Deletes a node from the tree (unless it is not there, in which case it is
- * equivalent to a splay operation)
+ * PVRSRVDelete - delete a node from the tree (unless it is not there, in which
+ * case it is equivalent to a splay operation)
+ * @ui32Flags: value of the node to remove
+ * @psTree:    tree into which the node must be removed
  *
- * @param uiFlags the value of the node to remove
- * @param psTree the tree into which the node must be removed
- * @return the resulting tree
+ * Return the resulting tree.
  */
 IMG_INTERNAL
 IMG_PSPLAY_TREE PVRSRVDelete(IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
@@ -242,11 +242,11 @@ IMG_PSPLAY_TREE PVRSRVDelete(IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)
 }
 
 /**
- * This function picks up the appropriate node for the given flags
+ * PVRSRVFindNode - pick up the appropriate node for the given flags
+ * @ui32Flags: flags that must associated with the node
+ * @psTree:    current splay tree node
  *
- * @param uiFlags the flags that must associated with the node.
- * @param psTree current splay tree node.
- * @return the resulting tree node after the search operation.
+ * Return the resulting tree node after the search operation.
  */
 IMG_INTERNAL
 IMG_PSPLAY_TREE PVRSRVFindNode(IMG_PSPLAY_FLAGS_T uiFlags, IMG_PSPLAY_TREE psTree)

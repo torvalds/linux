@@ -65,9 +65,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * enabled, since all allocations are tracked in DebugFS mem_area files.
  */
 #if defined(PVRSRV_ENABLE_PROCESS_STATS) && !defined(PVRSRV_ENABLE_MEMORY_STATS)
-#define ALLOCMEM_MEMSTATS_PADDING sizeof(IMG_UINT32)
+/* kmalloc guarantees a minimal alignment which is ARCH_KMALLOC_MINALIGN. This
+ * alignment is architecture specific and can be quite big, e.g. on Aarch64
+ * it can be 64 bytes. This is too much for keeping a single PID field and could
+ * lead to a lot of wasted memory. This is a reason why we're defaulting to 8
+ * bytes alignment which should be enough for any architecture.
+ */
+#define ALLOCMEM_PID_SIZE_PADDING PVR_ALIGN(sizeof(IMG_UINT32), 8)
 #else
-#define ALLOCMEM_MEMSTATS_PADDING 0UL
+#define ALLOCMEM_PID_SIZE_PADDING 0UL
 #endif
 
 /* How many times kmalloc can fail before the allocation threshold is reduced */
@@ -137,7 +143,7 @@ static inline void _pvr_kfree(const void* pvAddr)
 	kfree(pvAddr);
 }
 
-static inline void _pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
+static inline void *_pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 {
 #if !defined(PVRSRV_ENABLE_PROCESS_STATS)
 	PVR_UNREFERENCED_PARAMETER(pvAddr);
@@ -152,16 +158,18 @@ static inline void _pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_
 									  pvAddr,
 									  sCpuPAddr,
 									  ksize(pvAddr),
-									  NULL,
 									  OSGetCurrentClientProcessIDKM()
 									  DEBUG_MEMSTATS_ARGS);
 #else
-		{
-			/* Store the PID in the final additional 4 bytes allocated */
-			IMG_UINT32 *puiTemp = IMG_OFFSET_ADDR(pvAddr, ksize(pvAddr) - ALLOCMEM_MEMSTATS_PADDING);
-			*puiTemp = OSGetCurrentClientProcessIDKM();
-		}
-		PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvAddr), OSGetCurrentClientProcessIDKM());
+		/* because clang has some features that allow detection out-of-bounds
+		 * access we need to put the metadata in the beginning of the allocation */
+		*(IMG_UINT32 *) pvAddr = OSGetCurrentClientProcessIDKM();
+		PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE_KMALLOC, ksize(pvAddr),
+		                            *(IMG_UINT32 *) pvAddr);
+
+		/* because metadata is kept in the beginning of the allocation we need
+		 * to return address offset by the ALLOCMEM_PID_SIZE_PADDING */
+		pvAddr = (IMG_UINT8 *) pvAddr + ALLOCMEM_PID_SIZE_PADDING;
 #endif /* defined(PVRSRV_ENABLE_MEMORY_STATS) */
 	}
 	else
@@ -173,21 +181,22 @@ static inline void _pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_
 		PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
 									  pvAddr,
 									  sCpuPAddr,
-									  ((ui32Size + PAGE_SIZE-1) & ~(PAGE_SIZE-1)),
-									  NULL,
+									  PVR_ALIGN(ui32Size, PAGE_SIZE),
 									  OSGetCurrentClientProcessIDKM()
 									  DEBUG_MEMSTATS_ARGS);
 #else
 		PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
-		                                    ((ui32Size + PAGE_SIZE-1) & ~(PAGE_SIZE-1)),
+		                                    PVR_ALIGN(ui32Size, PAGE_SIZE),
 		                                    (IMG_UINT64)(uintptr_t) pvAddr,
 		                                    OSGetCurrentClientProcessIDKM());
 #endif /* defined(PVRSRV_ENABLE_MEMORY_STATS) */
 	}
 #endif /* !defined(PVRSRV_ENABLE_PROCESS_STATS) */
+
+	return pvAddr;
 }
 
-static inline void _pvr_alloc_stats_remove(void *pvAddr)
+static inline void *_pvr_alloc_stats_remove(void *pvAddr)
 {
 #if !defined(PVRSRV_ENABLE_PROCESS_STATS)
 	PVR_UNREFERENCED_PARAMETER(pvAddr);
@@ -195,10 +204,13 @@ static inline void _pvr_alloc_stats_remove(void *pvAddr)
 	if (!is_vmalloc_addr(pvAddr))
 	{
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
-		{
-			IMG_UINT32 *puiTemp = IMG_OFFSET_ADDR(pvAddr, ksize(pvAddr) - ALLOCMEM_MEMSTATS_PADDING);
-			PVRSRVStatsDecrMemKAllocStat(ksize(pvAddr), *puiTemp);
-		}
+		/* because metadata is kept in the beginning of the allocation we need
+		 * shift address offset by the ALLOCMEM_PID_SIZE_PADDING to the original
+		 * value */
+		pvAddr = (IMG_UINT8 *) pvAddr - ALLOCMEM_PID_SIZE_PADDING;
+
+		/* first 4 bytes of the allocation are the process' PID */
+		PVRSRVStatsDecrMemKAllocStat(ksize(pvAddr), *(IMG_UINT32 *) pvAddr);
 #else
 		PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_KMALLOC,
 		                                (IMG_UINT64)(uintptr_t) pvAddr,
@@ -217,15 +229,17 @@ static inline void _pvr_alloc_stats_remove(void *pvAddr)
 #endif
 	}
 #endif /* !defined(PVRSRV_ENABLE_PROCESS_STATS) */
+
+	return pvAddr;
 }
 
 void *(OSAllocMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 {
 	void *pvRet = NULL;
 
-	if ((ui32Size + ALLOCMEM_MEMSTATS_PADDING) <= g_ui32kmallocThreshold)
+	if ((ui32Size + ALLOCMEM_PID_SIZE_PADDING) <= g_ui32kmallocThreshold)
 	{
-		pvRet = kmalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING, GFP_KERNEL);
+		pvRet = kmalloc(ui32Size + ALLOCMEM_PID_SIZE_PADDING, GFP_KERNEL);
 		if (pvRet == NULL)
 		{
 			OSTryDecreaseKmallocThreshold();
@@ -243,7 +257,7 @@ void *(OSAllocMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 
 	if (pvRet != NULL)
 	{
-		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
+		pvRet = _pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
 	}
 
 	return pvRet;
@@ -253,9 +267,9 @@ void *(OSAllocZMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 {
 	void *pvRet = NULL;
 
-	if ((ui32Size + ALLOCMEM_MEMSTATS_PADDING) <= g_ui32kmallocThreshold)
+	if ((ui32Size + ALLOCMEM_PID_SIZE_PADDING) <= g_ui32kmallocThreshold)
 	{
-		pvRet = kzalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING, GFP_KERNEL);
+		pvRet = kzalloc(ui32Size + ALLOCMEM_PID_SIZE_PADDING, GFP_KERNEL);
 		if (pvRet == NULL)
 		{
 			OSTryDecreaseKmallocThreshold();
@@ -273,7 +287,7 @@ void *(OSAllocZMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 
 	if (pvRet != NULL)
 	{
-		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
+		pvRet = _pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
 	}
 
 	return pvRet;
@@ -313,7 +327,7 @@ void (OSFreeMem)(void *pvMem)
 #endif
 	if (pvMem != NULL)
 	{
-		_pvr_alloc_stats_remove(pvMem);
+		pvMem = _pvr_alloc_stats_remove(pvMem);
 
 		if (!is_vmalloc_addr(pvMem))
 		{

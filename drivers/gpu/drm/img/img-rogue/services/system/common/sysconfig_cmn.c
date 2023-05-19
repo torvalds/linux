@@ -47,6 +47,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_device.h"
 #include "syscommon.h"
 #include "pvr_debug.h"
+#include "oskm_apphint.h"
 
 void SysRGXErrorNotify(IMG_HANDLE hSysData,
                        PVRSRV_ROBUSTNESS_NOTIFY_DATA *psErrorData)
@@ -125,6 +126,64 @@ void SysRGXErrorNotify(IMG_HANDLE hSysData,
 #else
 	PVR_UNREFERENCED_PARAMETER(psErrorData);
 #endif /* PVRSRV_NEED_PVR_DPF */
+}
+
+IMG_UINT64 SysRestrictGpuLocalPhysheap(IMG_UINT64 uiHeapSize)
+{
+#if defined(SUPPORT_VALIDATION)
+	void *pvAppHintState = NULL;
+	IMG_UINT32 uiCurrentHeapSizeMB = B2MB(uiHeapSize);
+	IMG_UINT32 uiForcedHeapSizeMB = 0;
+	IMG_UINT64 uiForcedHeapSizeBytes = 0;
+
+	OSCreateKMAppHintState(&pvAppHintState);
+	OSGetKMAppHintUINT32(APPHINT_NO_DEVICE, pvAppHintState,
+	                     RestrictGpuLocalPhysHeapSizeMB, &uiCurrentHeapSizeMB,
+						 &uiForcedHeapSizeMB);
+	OSFreeKMAppHintState(pvAppHintState);
+
+	uiForcedHeapSizeBytes = MB2B((IMG_UINT64)uiForcedHeapSizeMB);
+
+	if (uiForcedHeapSizeMB == 0)
+	{
+		/* Apphint wasn't set, just return current heapsize */
+		return uiHeapSize;
+	}
+
+	if (uiForcedHeapSizeBytes > uiHeapSize)
+	{
+		PVR_DPF((PVR_DBG_WARNING,"GPU_LOCAL Forced heap value greater than possible heap size. "
+								 "Given: %llu Available: %llu. Reverting to default.",
+								 uiForcedHeapSizeBytes, uiHeapSize));
+	}
+	else
+	{
+		PVR_LOG(("RestrictGpuLocalPhysHeapSizeMB applied GPU_LOCAL Size Bytes: %llu", uiForcedHeapSizeBytes));
+	}
+
+	return uiForcedHeapSizeBytes;
+#else
+	return uiHeapSize;
+#endif
+}
+
+IMG_BOOL SysRestrictGpuLocalAddPrivateHeap(void)
+{
+#if defined(SUPPORT_VALIDATION)
+	void *pvAppHintState = NULL;
+	IMG_UINT32 uiCurrentHeapSizeMB = 0;
+	IMG_UINT32 uiForcedHeapSizeMB = 0;
+
+	OSCreateKMAppHintState(&pvAppHintState);
+	OSGetKMAppHintUINT32(APPHINT_NO_DEVICE, pvAppHintState,
+	                     RestrictGpuLocalPhysHeapSizeMB, &uiCurrentHeapSizeMB,
+						 &uiForcedHeapSizeMB);
+	OSFreeKMAppHintState(pvAppHintState);
+
+	return uiForcedHeapSizeMB ? IMG_TRUE : IMG_FALSE;
+#else
+	return IMG_FALSE;
+#endif
 }
 
 /******************************************************************************

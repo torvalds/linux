@@ -84,6 +84,12 @@ struct pvr_drm_private {
 	 */
 	void *sync_foreign_debug_notify_handle;
 #endif
+
+	/* Flag stating if the device was suspended/resumed. If this is 0 then
+	 * the device was either resumed or no suspend was called but if 1 then
+	 * the OS called suspend on this device.
+	 */
+	atomic_t suspended;
 };
 
 extern const struct dev_pm_ops pvr_pm_ops;

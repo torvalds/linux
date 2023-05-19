@@ -44,32 +44,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SERVICES_KM_H
 #define SERVICES_KM_H
 
+#include "img_types.h"
+
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
 #include "virt_validation_defs.h"
 #endif
 
 /*! 4k page size definition */
-#define PVRSRV_4K_PAGE_SIZE					4096UL      /*!< Size of a 4K Page */
+#define PVRSRV_4K_PAGE_SIZE					4096U      /*!< Size of a 4K Page */
 #define PVRSRV_4K_PAGE_SIZE_ALIGNSHIFT		12          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 /*! 16k page size definition */
-#define PVRSRV_16K_PAGE_SIZE					16384UL      /*!< Size of a 16K Page */
+#define PVRSRV_16K_PAGE_SIZE					16384U      /*!< Size of a 16K Page */
 #define PVRSRV_16K_PAGE_SIZE_ALIGNSHIFT		14          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 /*! 64k page size definition */
-#define PVRSRV_64K_PAGE_SIZE					65536UL      /*!< Size of a 64K Page */
+#define PVRSRV_64K_PAGE_SIZE					65536U      /*!< Size of a 64K Page */
 #define PVRSRV_64K_PAGE_SIZE_ALIGNSHIFT		16          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 /*! 256k page size definition */
-#define PVRSRV_256K_PAGE_SIZE					262144UL      /*!< Size of a 256K Page */
+#define PVRSRV_256K_PAGE_SIZE					262144U      /*!< Size of a 256K Page */
 #define PVRSRV_256K_PAGE_SIZE_ALIGNSHIFT		18          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 /*! 1MB page size definition */
-#define PVRSRV_1M_PAGE_SIZE					1048576UL      /*!< Size of a 1M Page */
+#define PVRSRV_1M_PAGE_SIZE					1048576U      /*!< Size of a 1M Page */
 #define PVRSRV_1M_PAGE_SIZE_ALIGNSHIFT		20          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 /*! 2MB page size definition */
-#define PVRSRV_2M_PAGE_SIZE					2097152UL      /*!< Size of a 2M Page */
+#define PVRSRV_2M_PAGE_SIZE					2097152U      /*!< Size of a 2M Page */
 #define PVRSRV_2M_PAGE_SIZE_ALIGNSHIFT		21          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
 
@@ -166,13 +168,11 @@ typedef struct PVRSRV_DEV_CONNECTION_TAG PVRSRV_DEV_CONNECTION;
 #define PDUMP_FRAME_UNSET           IMG_UINT32_MAX
 
 /* Status of the device. */
-typedef enum
-{
-	PVRSRV_DEVICE_STATUS_UNKNOWN,        /* status of the device is unknown */
-	PVRSRV_DEVICE_STATUS_OK,             /* the device is operational */
-	PVRSRV_DEVICE_STATUS_NOT_RESPONDING, /* the device is not responding */
-	PVRSRV_DEVICE_STATUS_DEVICE_ERROR    /* the device is not operational */
-} PVRSRV_DEVICE_STATUS;
+typedef IMG_UINT32 PVRSRV_DEVICE_STATUS;
+#define PVRSRV_DEVICE_STATUS_UNKNOWN        0U /* status of the device is unknown */
+#define PVRSRV_DEVICE_STATUS_OK             1U /* the device is operational */
+#define PVRSRV_DEVICE_STATUS_NOT_RESPONDING 2U /* the device is not responding */
+#define PVRSRV_DEVICE_STATUS_DEVICE_ERROR   3U /* the device is not operational */
 
 #endif /* SERVICES_KM_H */
 /**************************************************************************//**

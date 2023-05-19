@@ -83,6 +83,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_defs.h"
 #include "pvr_debug.h"
 #include "pvrsrv_error.h"
+#include "dllist.h"
 #include "uniq_key_splay_tree.h"
 
 #include "hash.h"
@@ -99,7 +100,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * resizes on demand so the value chosen is not critical.
  */
 #define MINIMUM_HASH_SIZE (64)
-
 
 /* #define RA_VALIDATE */
 
@@ -165,7 +165,10 @@ struct _RA_ARENA_
 	/* arena name for diagnostics output */
 	IMG_CHAR name[RA_MAX_NAME_LENGTH];
 
-	/* allocations within this arena are quantum sized */
+	/* Spans / Imports within this arena are at least quantum sized
+	 * and are a multiple of the uQuantum. This also has the effect of
+	 * aligning these Spans to the uQuantum.
+	 */
 	RA_LENGTH_T uQuantum;
 
 	/* import interface, if provided */
@@ -190,7 +193,7 @@ struct _RA_ARENA_
 	POS_LOCK hLock;
 
 	/* Policies that govern the resource area */
-	IMG_UINT32 ui32PolicyFlags;
+	RA_POLICY_T ui32PolicyFlags;
 
 	/* LockClass of this arena. This is used within lockdep to decide if a
 	 * recursive call sequence with the same lock class is allowed or not.
@@ -212,6 +215,17 @@ struct _RA_ARENA_ITERATOR_
 	IMG_BOOL bIncludeFreeSegments;
 };
 
+static PVRSRV_ERROR _RA_FreeMultiUnlocked(RA_ARENA *pArena,
+                                   RA_BASE_ARRAY_T aBaseArray,
+                                   RA_BASE_ARRAY_SIZE_T uiBaseArraySize);
+static PVRSRV_ERROR
+_RA_FreeMultiUnlockedSparse(RA_ARENA *pArena,
+                             RA_BASE_ARRAY_T aBaseArray,
+                             RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                             RA_LENGTH_T uiChunkSize,
+                             IMG_UINT32 *puiFreeIndices,
+                             IMG_UINT32 *puiFreeCount);
+
 /*************************************************************************/ /*!
 @Function       _RequestAllocFail
 @Description    Default callback allocator used if no callback is specified,
@@ -219,6 +233,7 @@ struct _RA_ARENA_ITERATOR_
 @Input          _h - callback handle
 @Input          _uSize - requested allocation size
 @Input          _uflags - allocation flags
+@Input          _uBaseAlignment - Alignment for the returned allocated base
 @Input          _pBase - receives allocated base
 @Output         _pActualSize - actual allocation size
 @Input          _pRef - user reference
@@ -229,6 +244,7 @@ static PVRSRV_ERROR
 _RequestAllocFail(RA_PERARENA_HANDLE _h,
                   RA_LENGTH_T _uSize,
                   RA_FLAGS_T _uFlags,
+                  RA_LENGTH_T _uBaseAlignment,
                   const IMG_CHAR *_pszAnnotation,
                   RA_BASE_T *_pBase,
                   RA_LENGTH_T *_pActualSize,
@@ -239,6 +255,7 @@ _RequestAllocFail(RA_PERARENA_HANDLE _h,
 	PVR_UNREFERENCED_PARAMETER(_pActualSize);
 	PVR_UNREFERENCED_PARAMETER(_phPriv);
 	PVR_UNREFERENCED_PARAMETER(_uFlags);
+	PVR_UNREFERENCED_PARAMETER(_uBaseAlignment);
 	PVR_UNREFERENCED_PARAMETER(_pBase);
 	PVR_UNREFERENCED_PARAMETER(_pszAnnotation);
 
@@ -298,6 +315,16 @@ pvr_log2(RA_LENGTH_T n)
 	return l;
 }
 #endif
+
+static INLINE void _FreeTableLimitBoundsCheck(IMG_UINT32 *uiIndex)
+{
+	if (*uiIndex >= FREE_TABLE_LIMIT)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Index exceeds FREE_TABLE_LIMIT (1TB), "
+		                        "Clamping Index to FREE_TABLE_LIMIT"));
+		*uiIndex = FREE_TABLE_LIMIT - 1;
+	}
+}
 
 
 #if defined(RA_VALIDATE)
@@ -582,7 +609,8 @@ _FreeListInsert(RA_ARENA *pArena, BT *pBT)
 	BT *pBTTemp = NULL;
 	uIndex = pvr_log2(pBT->uSize);
 
-	PVR_ASSERT(uIndex < FREE_TABLE_LIMIT);
+	_FreeTableLimitBoundsCheck(&uIndex);
+
 	PVR_ASSERT(!_IsInFreeList(pArena, pBT));
 
 	pBT->type = btt_free;
@@ -591,10 +619,9 @@ _FreeListInsert(RA_ARENA *pArena, BT *pBT)
 	/* the flags item in the splay tree must have been created before-hand by
 	   _InsertResource */
 	PVR_ASSERT(pArena->per_flags_buckets != NULL);
-	PVR_ASSERT(pArena->per_flags_buckets->buckets != NULL);
 
 	/* Handle NULL values for RELEASE builds and/or disabled ASSERT DEBUG builds */
-	if (unlikely((pArena->per_flags_buckets == NULL) || (pArena->per_flags_buckets->buckets == NULL)))
+	if (unlikely(pArena->per_flags_buckets == NULL))
 	{
 		return;
 	}
@@ -676,7 +703,8 @@ _FreeListRemove(RA_ARENA *pArena, BT *pBT)
 	IMG_UINT32 uIndex;
 	uIndex = pvr_log2(pBT->uSize);
 
-	PVR_ASSERT(uIndex < FREE_TABLE_LIMIT);
+	_FreeTableLimitBoundsCheck(&uIndex);
+
 	PVR_ASSERT(_IsInFreeList(pArena, pBT));
 
 	if (pBT->next_free != NULL)
@@ -694,10 +722,9 @@ _FreeListRemove(RA_ARENA *pArena, BT *pBT)
 		/* the flags item in the splay tree must have already been created
 		   (otherwise how could there be a segment with these flags */
 		PVR_ASSERT(pArena->per_flags_buckets != NULL);
-		PVR_ASSERT(pArena->per_flags_buckets->buckets != NULL);
 
 		/* Handle unlikely NULL values for RELEASE or ASSERT-disabled builds */
-		if (unlikely((pArena->per_flags_buckets == NULL) || (pArena->per_flags_buckets->buckets == NULL)))
+		if (unlikely(pArena->per_flags_buckets == NULL))
 		{
 			pBT->type = btt_live;
 			return;
@@ -886,7 +913,7 @@ struct _BT_ *find_chunk_in_bucket(struct _BT_ * first_elt,
 	for (walker = first_elt; (walker != NULL) && (nb_max_try != 0); walker = walker->next_free)
 	{
 		const RA_BASE_T aligned_base = (uAlignment > 1) ?
-			(walker->base + uAlignment - 1) & ~(uAlignment - 1)
+			PVR_ALIGN(walker->base, uAlignment)
 			: walker->base;
 
 		if (walker->base + walker->uSize >= aligned_base + uSize)
@@ -902,6 +929,437 @@ struct _BT_ *find_chunk_in_bucket(struct _BT_ * first_elt,
 	}
 
 	return NULL;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _FreeMultiBaseArray
+ *
+ *  @Description   Given an array (Could be complete or partial reference)
+ *                 free the region given as the array and size. This function
+ *                 should be used only when it is known that multiple Real
+ *                 bases will be freed from the array.
+ *
+ *  @Input  pArena - The RA Arena to free the bases on.
+ *  @Input  aBaseArray - The Base array to free from
+ *  @Input  uiBaseArraySize - The Size of the base array to free.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code otherwise.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_FreeMultiBaseArray(RA_ARENA *pArena,
+                    RA_BASE_ARRAY_T aBaseArray,
+                    RA_BASE_ARRAY_SIZE_T uiBaseArraySize)
+{
+	IMG_UINT32 i;
+	for (i = 0; i < uiBaseArraySize; i++)
+	{
+		if (RA_BASE_IS_REAL(aBaseArray[i]))
+		{
+			BT *pBT;
+			pBT = (BT *) HASH_Remove_Extended(pArena->pSegmentHash, &aBaseArray[i]);
+
+			if (pBT)
+			{
+				pArena->ui64FreeArenaSize += pBT->uSize;
+
+				PVR_ASSERT(pBT->base == aBaseArray[i]);
+				_FreeBT(pArena, pBT);
+				aBaseArray[i] = INVALID_BASE_ADDR;
+			}
+			else
+			{
+				/* Did we attempt to remove a ghost page?
+				 * Essentially the base was marked real but was actually a ghost.
+				 */
+				PVR_ASSERT(!"Attempt to free non-existing real base!");
+				return PVRSRV_ERROR_INVALID_REQUEST;
+			}
+		}
+#if defined(DEBUG)
+		else
+		{
+			aBaseArray[i] = INVALID_BASE_ADDR;
+		}
+#endif
+	}
+
+	return PVRSRV_OK;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _FreeSingleBaseArray
+ *
+ *  @Description   Given an array (Could be complete or partial reference)
+ *                 free the region given as the array and size. This function
+ *                 should be used only when it is known that a single Real
+ *                 base will be freed from the array. All Bases will be
+ *                 sanitised after the real has been freed.
+ *
+ *  @Input  pArena - The RA Arena to free the bases on.
+ *  @Input  aBaseArray - The Base array to free from, entry 0 should be a
+ *                       Real base
+ *  @Input  uiBaseArraySize - The Size of the base array to free.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code otherwise.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_FreeSingleBaseArray(RA_ARENA *pArena,
+                     RA_BASE_ARRAY_T aBaseArray,
+                     RA_BASE_ARRAY_SIZE_T uiBaseArraySize)
+{
+	BT *pBT;
+	PVR_ASSERT(RA_BASE_IS_REAL(aBaseArray[0]));
+
+	pBT = (BT *) HASH_Remove_Extended(pArena->pSegmentHash, &aBaseArray[0]);
+
+	if (pBT)
+	{
+		pArena->ui64FreeArenaSize += pBT->uSize;
+
+		PVR_ASSERT(pBT->base == aBaseArray[0]);
+		_FreeBT(pArena, pBT);
+	}
+	else
+	{
+		/* Did we attempt to remove a ghost page?
+		 * Essentially the base was marked real but was actually ghost.
+		 */
+		PVR_ASSERT(!"Attempt to free non-existing real base!");
+		return PVRSRV_ERROR_INVALID_REQUEST;
+	}
+
+	/* Set all entries to INVALID_BASE_ADDR */
+	OSCachedMemSet(aBaseArray, 0xFF, uiBaseArraySize * sizeof(RA_BASE_T));
+
+	return PVRSRV_OK;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _GenerateGhostBases
+ *
+ *  @Description   Given an array (Could be complete or partial reference)
+ *                 generate Ghost bases for the allocation and size.
+ *
+ *  @Input  uiBase - The Real base to generate Ghost Bases from.
+ *  @Input  uiBaseSize - The size of the Real Base
+ *  @Input  uiChunkSize - The Base chunk size used to generate Ghost
+ *                           bases on specific boundaries.
+ *  @Input  aBaseArray - The array to add the Ghost bases to.
+ *
+ *  @Return array index of element past last Ghost base of given array.
+*/ /**************************************************************************/
+static IMG_UINT32
+_GenerateGhostBases(RA_BASE_T uiRealBase,
+                    RA_LENGTH_T uiBaseSize,
+                    RA_LENGTH_T uiChunkSize,
+                    RA_BASE_ARRAY_T aBaseArray)
+{
+	IMG_UINT32 ui32Index = 0;
+	RA_LENGTH_T uiRemaining = uiBaseSize - uiChunkSize;
+	RA_LENGTH_T uiCurrentBase = uiRealBase + uiChunkSize;
+	aBaseArray[ui32Index] = uiRealBase;
+
+	for (ui32Index = 1; uiRemaining != 0; ui32Index++)
+	{
+		aBaseArray[ui32Index] = RA_BASE_SET_GHOST_BIT(uiCurrentBase);
+		uiCurrentBase += uiChunkSize;
+		uiRemaining -= uiChunkSize;
+	}
+
+	return ui32Index;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _FindRealBaseFromGhost
+ *
+ *  @Description   Given an array and an index into that array for the Ghost Base
+ *                 find the Real Base hosting the Ghost base in the RA.
+ *  @Input aBaseArray - The array the Ghost and Real base reside on.
+ *  @Input ui32GhostBaseIndex - The index into the given array for the Ghost Base.
+ *  @Output pRealBase - The Real Base hosting the Ghost base.
+ *  @Output pui32RealBaseIndex -  The index of the Real Base found in the array.
+ *
+ *  @Return None.
+*/ /**************************************************************************/
+static void
+_FindRealBaseFromGhost(RA_BASE_ARRAY_T aBaseArray,
+                       IMG_UINT32 ui32GhostBaseIndex,
+                       RA_BASE_T *pRealBase,
+                       IMG_UINT32 *pui32RealBaseIndex)
+{
+	IMG_UINT32 ui32Index = ui32GhostBaseIndex;
+
+	PVR_ASSERT(RA_BASE_IS_GHOST(aBaseArray[ui32GhostBaseIndex]));
+
+	while (ui32Index != 0 &&
+	       RA_BASE_IS_GHOST(aBaseArray[ui32Index]))
+	{
+		ui32Index--;
+	}
+
+	*pRealBase = aBaseArray[ui32Index];
+	*pui32RealBaseIndex = ui32Index;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _ConvertGhostBaseToReal
+ *
+ *  @Description   Convert the given Ghost Base to a Real Base in the
+ *                 RA. This is mainly used in free paths so we can be
+ *                 agile with memory regions.
+ *  @Input pArena - The RA Arena to convert the base on.
+ *  @Input aBaseArray - The Base array to convert the base on.
+ *  @Input uiRealBase - The Base hosting the Ghost base to convert.
+ *  @Input ui32RealBaseArrayIndex - The index in the array of the Real Base.
+ *  @Input ui32GhostBaseArrayIndex - The index in the array of the Ghost Base.
+ *  @Input uiChunkSize - The chunk size used to generate the Ghost bases on.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code on Failure.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_ConvertGhostBaseToReal(RA_ARENA *pArena,
+                        RA_BASE_ARRAY_T aBaseArray,
+                        RA_BASE_T uiRealBase,
+                        IMG_UINT32 ui32RealBaseArrayIndex,
+                        IMG_UINT32 ui32GhostBaseArrayIndex,
+                        RA_LENGTH_T uiChunkSize)
+{
+	BT *pOrigRealBT;
+	BT *pNewRealBT;
+
+	pOrigRealBT = (BT *) HASH_Retrieve_Extended(pArena->pSegmentHash, &uiRealBase);
+	pNewRealBT = _SegmentSplit(pOrigRealBT,
+	                           uiChunkSize *
+	                            (ui32GhostBaseArrayIndex - ui32RealBaseArrayIndex));
+	PVR_LOG_RETURN_IF_FALSE(pNewRealBT != NULL,
+	                        "Unable to split BT, no memory available to allocate new BT",
+	                        PVRSRV_ERROR_OUT_OF_MEMORY);
+
+	if (!HASH_Insert_Extended(pArena->pSegmentHash, &pNewRealBT->base, (uintptr_t) pNewRealBT))
+	{
+		PVR_LOG_RETURN_IF_ERROR(PVRSRV_ERROR_UNABLE_TO_INSERT_HASH_VALUE, "HASH_Insert_Extended");
+	}
+
+	aBaseArray[ui32GhostBaseArrayIndex] = pNewRealBT->base;
+
+	return PVRSRV_OK;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _FreeGhostBasesFromReal
+ *
+ *  @Description   Given a ghost base and size, free the contiguous ghost bases from the
+ *                 real base. This has the effect of shrinking the size of the real base.
+ *                 If ghost pages remain after the free region, a new Real base will be
+ *                 created to host them.
+ *  @Input pArena - The RA Arena to free the Ghost Bases from.
+ *  @Input aBaseArray - The array to remove bases from
+ *  @Input uiBaseArraySize - The size of the Base array to free from.
+ *  @Input uiChunkSize - The chunk size used to generate the Ghost Bases.
+ *  @Input ui32GhostBaseIndex - The index into the array of the initial Ghost base to free
+ *  @Input ui32FreeCount - The number of Ghost bases to free from the Real base.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code on Failure.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_FreeGhostBasesFromReal(RA_ARENA *pArena,
+                        RA_BASE_ARRAY_T aBaseArray,
+                        RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                        RA_LENGTH_T uiChunkSize,
+                        IMG_UINT32 ui32GhostBaseIndex,
+                        IMG_UINT32 ui32FreeCount)
+{
+	PVRSRV_ERROR eError;
+	RA_BASE_T uiRealBase;
+	IMG_UINT32 ui32RealBaseIndex;
+	IMG_UINT32 ui32FreeEndIndex;
+
+	_FindRealBaseFromGhost(aBaseArray,
+	                       ui32GhostBaseIndex,
+	                       &uiRealBase,
+	                       &ui32RealBaseIndex);
+
+	/* Make the first Ghost Base to free, real. */
+	eError = _ConvertGhostBaseToReal(pArena,
+	                                 aBaseArray,
+	                                 uiRealBase,
+	                                 ui32RealBaseIndex,
+	                                 ui32GhostBaseIndex,
+	                                 uiChunkSize);
+	PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+
+	/* Calculate the Base after the last to free. */
+	ui32FreeEndIndex = ui32GhostBaseIndex + ui32FreeCount;
+
+	/*
+	 * If the end of the free region is a Ghost base then we need to
+	 * make it a real base so that we can free the intended middle region.
+	 */
+	if (ui32FreeEndIndex != uiBaseArraySize &&
+	    RA_BASE_IS_GHOST(aBaseArray[ui32FreeEndIndex]))
+	{
+		eError = _ConvertGhostBaseToReal(pArena,
+		                                 aBaseArray,
+		                                 aBaseArray[ui32GhostBaseIndex],
+		                                 ui32GhostBaseIndex,
+		                                 ui32FreeEndIndex,
+		                                 uiChunkSize);
+		PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+	}
+
+	/* Free the region calculated */
+	eError = _FreeSingleBaseArray(pArena,
+	                              &aBaseArray[ui32GhostBaseIndex],
+	                              ui32FreeCount);
+	PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+
+	return eError;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _ConvertGhostBaseFreeReal
+ *
+ *  @Description   Used in the case that we want to keep some indices that are ghost pages
+ *                 but the indices to free start with the real base. In this case we can
+ *                 convert the keep point to a real base, then free the original real base
+ *                 along with all ghost bases prior to the new real.
+ *
+ *  @Input pArena - The RA Arena to free the bases from.
+ *  @Input aBaseArray - The Base array to free from.
+ *  @Input uiChunkSize - The chunk size used to generate the Ghost bases.
+ *  @Input uiGhostBaseIndex - The index into the array of the Ghost base to convert.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code on Failure.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_ConvertGhostBaseFreeReal(RA_ARENA *pArena,
+                          RA_BASE_ARRAY_T aBaseArray,
+                          RA_LENGTH_T uiChunkSize,
+                          IMG_UINT32 uiRealBaseIndex,
+                          IMG_UINT32 uiGhostBaseIndex)
+{
+	PVRSRV_ERROR eError;
+	RA_BASE_T uiRealBase = aBaseArray[uiRealBaseIndex];
+
+	eError = _ConvertGhostBaseToReal(pArena,
+	                                 aBaseArray,
+	                                 uiRealBase,
+	                                 uiRealBaseIndex,
+	                                 uiGhostBaseIndex,
+	                                 uiChunkSize);
+	PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+
+	eError = _FreeSingleBaseArray(pArena,
+	                              &aBaseArray[uiRealBaseIndex],
+	                              uiGhostBaseIndex - uiRealBaseIndex);
+	PVR_LOG_RETURN_IF_ERROR(eError, "_FreeBaseArray");
+
+	return eError;
+}
+
+/*************************************************************************/ /*!
+ *  @Function   _FreeBaseArraySlice
+ *
+ *  @Description   Free Bases in an Array Slice.
+ *                 This function assumes that the slice is within a single Real base alloc.
+ *                 i.e the uiFreeStartIndex and uiFreeCount remain fully within a single real
+ *                 base alloc and do not cross into another Real base region.
+ *
+ *  @Input pArena - The RA Arena to free bases from.
+ *  @Input aBaseArray - The Base array to free from.
+ *  @Input uiBaseArraySize - The size of the Base array to free from.
+ *  @Input uiChunkSize - The base chunk size used to generate the Ghost bases.
+ *  @Input uiFreeStartIndex - The index in the array to start freeing from
+ *  @Input uiFreeCount - The number of bases to free.
+ *
+ *  @Return PVRSRV_OK on Success, PVRSRV_ERROR code on Failure.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_FreeBaseArraySlice(RA_ARENA *pArena,
+                    RA_BASE_ARRAY_T aBaseArray,
+                    RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                    RA_LENGTH_T uiChunkSize,
+                    IMG_UINT32 uiFreeStartIndex,
+                    IMG_UINT32 uiFreeCount)
+{
+	/*3 cases:
+	 * Key: () = Region to Free
+	 *      [R] = Newly Real
+	 *      R = Real Base
+	 *      G = Ghost Base
+	 * 1. We free the whole Realbase (inc all Ghost bases)
+	 *    e.g. (RGGGGG)
+	 *    e.g. RGGG(R)RGG
+	 * 2 .We free the Real base but not all the Ghost bases meaning the first
+	 *    ghost base after the last freed will become a real base.
+	 *    e.g. RGGGG(RGGGG)[R]GGG
+	 *    e.g. (RGGGG)[R]GGGG
+	 * 3. We free some ghost bases from the real base
+	 *    e.g. RGGG(GGG)
+	 *    e.g. RGGG(GGG)[R]GGG
+	 *
+	 * Invalid Scenarios:
+	 * 1. RGG(GR)GGGRG
+	 * 2. RGG(GRG)GGRG
+	 * Higher levels should prevent these situations by ensuring that the free
+	 * index and count always focus on a single real base.
+	 * Scenario 1 & 2, correctly handled, would be a case 3. followed by a case 2.
+	 */
+	PVRSRV_ERROR eError;
+
+	PVR_LOG_RETURN_IF_FALSE(uiBaseArraySize >= uiFreeStartIndex &&
+	                        uiBaseArraySize >= uiFreeStartIndex + (uiFreeCount - 1),
+	                        "Free Index given out of array bounds",
+	                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	/* Find which case we have */
+
+	/* Case 1 or 2 */
+	if (RA_BASE_IS_REAL(aBaseArray[uiFreeStartIndex]))
+	{
+		/* Case 1 */
+		if (uiFreeStartIndex + uiFreeCount == uiBaseArraySize ||
+		    RA_BASE_IS_REAL(aBaseArray[uiFreeStartIndex + uiFreeCount]) ||
+		    RA_BASE_IS_INVALID(aBaseArray[uiFreeStartIndex + uiFreeCount]))
+		{
+			eError = _FreeSingleBaseArray(pArena,
+			                              &aBaseArray[uiFreeStartIndex],
+			                              uiFreeCount);
+			PVR_LOG_RETURN_IF_ERROR(eError, "_FreeBaseArray");
+		}
+		/* Case 2*/
+		else
+		{
+			eError = _ConvertGhostBaseFreeReal(pArena,
+			                                   aBaseArray,
+			                                   uiChunkSize,
+			                                   uiFreeStartIndex,
+			                                   uiFreeStartIndex + uiFreeCount);
+			PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+		}
+	}
+	/* Case 3 */
+	else if (RA_BASE_IS_GHOST(aBaseArray[uiFreeStartIndex]))
+	{
+		eError = _FreeGhostBasesFromReal(pArena,
+		                                 aBaseArray,
+		                                 uiBaseArraySize,
+		                                 uiChunkSize,
+		                                 uiFreeStartIndex,
+		                                 uiFreeCount);
+		PVR_LOG_RETURN_IF_ERROR(eError, "_FreeGhostBasesFromReal");
+	}
+	/* Attempt to free an invalid base, this could be a duplicated
+	 * value in the free sparse index array */
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+		        "Attempt to free already free base Index %u", uiFreeStartIndex));
+		PVR_ASSERT(!"Attempted double free.")
+		return PVRSRV_ERROR_RA_FREE_INVALID_CHUNK;
+	}
+
+	return PVRSRV_OK;
 }
 
 /*************************************************************************/ /*!
@@ -932,7 +1390,7 @@ _AllocAlignSplit(RA_ARENA *pArena,
 {
 	RA_BASE_T aligned_base;
 
-	aligned_base = (uAlignment > 1) ? (pBT->base + uAlignment - 1) & ~(uAlignment - 1) : pBT->base;
+	aligned_base = (uAlignment > 1) ? PVR_ALIGN(pBT->base, uAlignment) : pBT->base;
 
 	_FreeListRemove(pArena, pBT);
 
@@ -1041,8 +1499,9 @@ _AttemptAllocAligned(RA_ARENA *pArena,
 		index_high = index_low;
 	}
 
-	PVR_ASSERT(index_low < FREE_TABLE_LIMIT);
-	PVR_ASSERT(index_high < FREE_TABLE_LIMIT);
+	_FreeTableLimitBoundsCheck(&index_high);
+	_FreeTableLimitBoundsCheck(&index_low);
+
 	PVR_ASSERT(index_low <= index_high);
 
 	if (unlikely((pArena->ui32PolicyFlags & RA_POLICY_BUCKET_MASK) == RA_POLICY_BUCKET_BEST_FIT))
@@ -1096,6 +1555,219 @@ _AttemptAllocAligned(RA_ARENA *pArena,
 }
 
 /*************************************************************************/ /*!
+@Function       _AttemptAllocAlignedAssured
+@Description    Attempt an allocation from an arena. If the arena allows
+                non-contiguous allocations, the allocation is guaranteed
+                given there is enough memory to satisfy the full allocation.
+@Input          pArena              The arena.
+@Input          uSize               The requested allocation size.
+@Input          uLog2MinContigSize  The Log2 minimum contiguity of the bases returned.
+@Input          uFlags              Allocation flags
+@Input          uAlignment          Required uAlignment, or 0.
+                                    Must be a power of 2 if not 0
+@Input          aBaseArray          Array to allocate bases to.
+@Input          bSparseAlloc        Is the allocation we are making sparse.
+@Output         bPhysContig         Is the allocation we made physically contiguous
+                                    or did we use the scoop logic
+@Return         Success: PVRSRV_OK
+                Fail:    PVRSRV_ERROR code.
+*/ /**************************************************************************/
+static PVRSRV_ERROR
+_AttemptAllocAlignedAssured(RA_ARENA *pArena,
+                            RA_LENGTH_T uSize,
+                            IMG_UINT32 uLog2MinContigSize,
+                            RA_FLAGS_T uFlags,
+                            RA_LENGTH_T uAlignment,
+                            RA_BASE_ARRAY_T aBaseArray,
+                            IMG_BOOL bSparseAlloc,
+                            IMG_BOOL *bPhysContig)
+{
+	IMG_UINT32 index_low;  /* log2 Lowest contiguity required */
+	IMG_UINT32 index_high; /* log2 Size of full alloc */
+	IMG_UINT32 i;
+	struct _BT_ *pBT = NULL;
+	RA_PERISPAN_HANDLE phPriv;
+	RA_LENGTH_T uiRemaining = uSize;
+	RA_BASE_T uiBase;
+	IMG_UINT32 uiCurrentArrayIndex = 0;
+
+	PVR_ASSERT(pArena != NULL);
+
+	pArena->per_flags_buckets = PVRSRVSplay(uFlags, pArena->per_flags_buckets);
+	if ((pArena->per_flags_buckets == NULL) || (pArena->per_flags_buckets->uiFlags != uFlags))
+	{
+		/* no chunks with these flags. */
+		return PVRSRV_ERROR_RA_NO_RESOURCE_WITH_FLAGS;
+	}
+
+	if (pArena->ui64FreeArenaSize < uSize)
+	{
+		/* Not enough memory to accommodate kick back for a chance to import more */
+		return PVRSRV_ERROR_RA_OUT_OF_RESOURCE;
+	}
+
+	if (uLog2MinContigSize && uAlignment)
+	{
+		index_low = uLog2MinContigSize;
+		index_high = pvr_log2(uSize);
+	}
+	else if (uLog2MinContigSize)
+	{
+		index_low = uLog2MinContigSize;
+		index_high = pvr_log2(uSize);
+	}
+	else if (uAlignment)
+	{
+		index_low = 0;
+		index_high = pvr_log2(uSize + uAlignment - 1);
+	}
+	else
+	{
+		index_low = 0;
+		index_high = pvr_log2(uSize);
+	}
+
+	PVR_ASSERT(index_low < FREE_TABLE_LIMIT);
+	PVR_ASSERT(index_high < FREE_TABLE_LIMIT);
+	PVR_ASSERT(index_low <= index_high);
+
+	/* Start at index_high + 1 as then we can check all buckets larger than the desired alloc
+	 * If we don't find one larger then we could still find one of requested size in index_high and
+	 * shortcut the non-contiguous allocation path. We check index_high + 1 first as it is
+	 * guaranteed to have a free region of the requested size if the bucket has entries. Whereas
+	 * index_high is not guaranteed to have an allocation that meets the size requested due to it
+	 * representing all free regions of size 2^bucket index to 2^bucket index +1. e.g we could have
+	 * a request for 19*4k Pages which would be represented by bucket 16, bucket 16 represents free
+	 * entries from 16*4k pages to 31*4k Pages in size, if this bucket only had free entries of
+	 * 17*4k pages the search would fail, hence not guaranteed at index_high.
+	 */
+#if defined(PVR_CTZLL)
+	i = PVR_CTZLL((~(((IMG_ELTS_MAPPINGS)1 << (index_high + 1)) - 1)) & pArena->per_flags_buckets->bHasEltsMapping);
+#else
+	for (i = index_high + 1; (i < FREE_TABLE_LIMIT) && (pArena->per_flags_buckets->buckets[i] == NULL); i++)
+	{
+	}
+#endif
+
+	PVR_ASSERT(i <= FREE_TABLE_LIMIT);
+
+	if (i != FREE_TABLE_LIMIT)
+	{
+		pBT = find_chunk_in_bucket(pArena->per_flags_buckets->buckets[i], uSize, uAlignment, 1);
+	}
+	else
+	{
+		/* In this case we have searched all buckets index_high + 1 to FREE_TABLE_LIMIT and not found an
+		 * available bucket with the required allocation size.
+		 * Because we haven't found an allocation of the requested size in index_high + 1 there is still a chance
+		 * that we can find an allocation of correct size in index_high, when index_high references the bucket
+		 * containing the largest free chunks in the RA Arena. i.e All buckets > index_high == NULL.
+		 * We do a final search in that bucket here before we attempt to scoop memory or return NULL.
+		 */
+		pBT = find_chunk_in_bucket(pArena->per_flags_buckets->buckets[index_high], uSize, uAlignment, 1);
+	}
+
+	/* We managed to find a contiguous allocation block of sufficient size */
+	if (pBT != NULL)
+	{
+		IMG_BOOL bResult;
+		bResult =  _AllocAlignSplit(pArena, pBT, uSize, uAlignment, &uiBase, &phPriv);
+		if (bResult)
+		{
+			if (!bSparseAlloc)
+			{
+				aBaseArray[0] = uiBase;
+			}
+			else
+			{
+				_GenerateGhostBases(uiBase, uSize, 1ULL << uLog2MinContigSize, aBaseArray);
+			}
+		}
+		else
+		{
+			return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
+		}
+		*bPhysContig = IMG_TRUE;
+
+		return PVRSRV_OK;
+	}
+
+	/*
+	 * If this arena doesn't have the non-contiguous allocation functionality enabled, then
+	 * don't attempt to scoop for non physically contiguous allocations. Sparse allocations
+	 * are still able to use the scoop functionality as they map in a chunk at a time in the
+	 * worst case.
+	 */
+	if (unlikely((pArena->ui32PolicyFlags & RA_POLICY_ALLOC_ALLOW_NONCONTIG_MASK) == 0) &&
+	    !bSparseAlloc)
+	{
+		return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
+	}
+
+	/* Attempt to Scoop memory from non-contiguous blocks */
+	for (i = index_high; i >= index_low && uiRemaining != 0; i--)
+	{
+		/* While we have chunks of at least our contig size in the bucket to use */
+		for (
+		pBT = find_chunk_in_bucket(pArena->per_flags_buckets->buckets[i], 1ULL << uLog2MinContigSize, uAlignment,(unsigned int) ~0);
+		pBT != NULL && uiRemaining != 0;
+		pBT = find_chunk_in_bucket(pArena->per_flags_buckets->buckets[i], 1ULL << uLog2MinContigSize, uAlignment,(unsigned int) ~0))//~0 Try all elements in bucket
+		{
+			/* Grab largest chunk possible that is a multiple of our min contiguity size
+			 * N.B: C always rounds towards 0 so this effectively floors for us */
+			IMG_BOOL bResult;
+			RA_BASE_T uiAlignedBase =
+			(uAlignment > 1) ? PVR_ALIGN(pBT->base, uAlignment) : pBT->base;
+			RA_LENGTH_T uiMaxSizeAvailable = (pBT->uSize - (uiAlignedBase - pBT->base));
+			RA_LENGTH_T uiMaxMultipleOfContig = (uiMaxSizeAvailable >> uLog2MinContigSize) << uLog2MinContigSize;
+
+			/*
+			 * If the size of the BT is larger than the remaining memory to allocate
+			 * then just allocate what we need. The rest will be trimmed and put back
+			 * into the pool in _AllocAlignSplit
+			 */
+			if (uiMaxMultipleOfContig > uiRemaining)
+			{
+				uiMaxMultipleOfContig = uiRemaining;
+			}
+
+			bResult = _AllocAlignSplit(pArena, pBT, uiMaxMultipleOfContig, uAlignment, &uiBase, &phPriv);
+			if (!bResult)
+			{
+				/* Something went wrong with splitting or adding to hash,
+				 * We can try find another chunk, although this should
+				 * never occur.
+				 */
+				PVR_ASSERT(!"_AllocAlignSplit issue.");
+				continue;
+			}
+
+			uiRemaining -= uiMaxMultipleOfContig;
+
+			uiCurrentArrayIndex += _GenerateGhostBases(uiBase,
+			                                           uiMaxMultipleOfContig,
+			                                           1ULL << uLog2MinContigSize,
+			                                           &aBaseArray[uiCurrentArrayIndex]);
+		}
+	}
+
+	/* If we didn't manage to scoop enough memory then we need to unwind the allocations we just made */
+	if (uiRemaining != 0)
+	{
+		goto error_unwind;
+	}
+	*bPhysContig = IMG_FALSE;
+
+	return PVRSRV_OK;
+
+error_unwind:
+	_RA_FreeMultiUnlocked(pArena,
+	                       aBaseArray,
+	                       uiCurrentArrayIndex);
+	return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
+}
+
+/*************************************************************************/ /*!
 @Function       _AttemptImportSpanAlloc
 @Description    Attempt to Import more memory and create a new span.
                 Function attempts to import more memory from the callback
@@ -1133,23 +1805,16 @@ _AttemptImportSpanAlloc(RA_ARENA *pArena,
 	PVRSRV_ERROR eError;
 
 	*pImportSize = uRequestSize;
-	/*
-		Ensure that we allocate sufficient space to meet the uAlignment
-		constraint
-	 */
-	if (uAlignment > pArena->uQuantum)
-	{
-		*pImportSize += (uAlignment - pArena->uQuantum);
-	}
 
 	/* apply over-allocation multiplier after all alignment adjustments */
 	*pImportSize *= uImportMultiplier;
 
 	/* ensure that we import according to the quanta of this arena */
-	*pImportSize = (*pImportSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1);
+	*pImportSize = PVR_ALIGN(*pImportSize, pArena->uQuantum);
 
 	eError = pArena->pImportAlloc(pArena->pImportHandle,
 								  *pImportSize, uImportFlags,
+								  uAlignment,
 								  pszAnnotation,
 								  pImportBase, pImportSize,
 								  &hPriv);
@@ -1189,7 +1854,7 @@ RA_Create(IMG_CHAR *name,
           PFN_RA_ALLOC imp_alloc,
           PFN_RA_FREE imp_free,
           RA_PERARENA_HANDLE arena_handle,
-          IMG_UINT32 ui32PolicyFlags)
+          RA_POLICY_T ui32PolicyFlags)
 {
 	RA_ARENA *pArena;
 	PVRSRV_ERROR eError;
@@ -1287,7 +1952,8 @@ RA_Create_With_Span(IMG_CHAR *name,
                     RA_LOG2QUANTUM_T uLog2Quantum,
                     IMG_UINT64 ui64CpuBase,
                     IMG_UINT64 ui64SpanDevBase,
-                    IMG_UINT64 ui64SpanSize)
+                    IMG_UINT64 ui64SpanSize,
+                    RA_POLICY_T ui32PolicyFlags)
 {
 	RA_ARENA *psRA;
 	IMG_BOOL bSuccess;
@@ -1298,7 +1964,7 @@ RA_Create_With_Span(IMG_CHAR *name,
 	                 NULL,               /* No Import */
 	                 NULL,               /* No free import */
 	                 NULL,               /* No import handle */
-	                 RA_POLICY_DEFAULT); /* No restriction on import splitting */
+	                 ui32PolicyFlags);   /* No restriction on import splitting */
 	PVR_LOG_GOTO_IF_FALSE(psRA != NULL, "RA_Create() failed", return_);
 
 	bSuccess = RA_Add(psRA, (RA_BASE_T) ui64SpanDevBase, (RA_LENGTH_T) ui64SpanSize, 0, NULL);
@@ -1404,7 +2070,7 @@ RA_Add(RA_ARENA *pArena,
 			 "base=0x%llx, size=0x%llx", __func__, pArena->name,
 			 (unsigned long long)base, (unsigned long long)uSize));
 
-	uSize = (uSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1);
+	uSize = PVR_ALIGN(uSize, pArena->uQuantum);
 	bt = _InsertResource(pArena, base, uSize, uFlags);
 	if (bt != NULL)
 	{
@@ -1473,7 +2139,7 @@ RA_Alloc(RA_ARENA *pArena,
 		eError = _AttemptImportSpanAlloc(pArena,
 		                                 uSize,
 		                                 uImportMultiplier,
-		                                 uFlags,
+		                                 uImportFlags,
 		                                 uAlignment,
 		                                 pszAnnotation,
 		                                 &uImportBase,
@@ -1537,6 +2203,328 @@ RA_Alloc(RA_ARENA *pArena,
 	return PVRSRV_OK;
 }
 
+static PVRSRV_ERROR
+_RA_AllocMultiUnlocked(RA_ARENA *pArena,
+                       RA_LENGTH_T uRequestSize,
+                       IMG_UINT32 uiLog2ChunkSize,
+                       IMG_UINT8 uImportMultiplier,
+                       RA_FLAGS_T uImportFlags,
+                       const IMG_CHAR *pszAnnotation,
+                       RA_BASE_ARRAY_T aBaseArray,
+                       RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                       IMG_BOOL bSparseAlloc,
+                       IMG_BOOL *bPhysContig)
+{
+	PVRSRV_ERROR eError;
+	RA_LENGTH_T uSize = uRequestSize;
+	RA_FLAGS_T uFlags = (uImportFlags & PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK);
+
+	PVR_LOG_RETURN_IF_FALSE(pArena != NULL && uImportMultiplier != 0 && uSize != 0,
+	                        "One of the necessary parameters is 0",
+	                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	PVR_ASSERT((uRequestSize & ((1 << uiLog2ChunkSize) - 1)) == 0)
+	PVR_LOG_RETURN_IF_FALSE((uRequestSize & ((1 << uiLog2ChunkSize) - 1)) == 0,
+	                        "Require uiLog2ChunkSize pow 2 & multiple of uRequestSize",
+	                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	/* Enforce these constraints so we can use those bits to handle Ghost bases. */
+	PVR_LOG_RETURN_IF_FALSE(uiLog2ChunkSize >= RA_BASE_FLAGS_LOG2 &&
+	                        uiLog2ChunkSize <= RA_BASE_CHUNK_LOG2_MAX,
+		                    "Log2 chunk size must be 12-64",
+		                    PVRSRV_ERROR_INVALID_PARAMS);
+
+	/* Ensure Base Array is large enough for intended allocation */
+	PVR_LOG_RETURN_IF_FALSE(uiBaseArraySize * (1 << uiLog2ChunkSize) >= uRequestSize,
+		                    "Not enough array space to store alloc bases",
+		                    PVRSRV_ERROR_INVALID_PARAMS);
+
+	PVR_ASSERT(is_arena_valid(pArena));
+
+	/* Must be a power of 2 */
+	PVR_ASSERT((uAlignment & (uAlignment - 1)) == 0);
+
+	PVR_DPF((PVR_DBG_MESSAGE,
+	        "%s: arena='%s', size=0x%llx(0x%llx), "
+	        "log2ChunkSize=0x%llx", __func__, pArena->name,
+	        (unsigned long long)uSize, (unsigned long long)uRequestSize,
+	        (unsigned long long)uiLog2ChunkSize));
+
+	/* if allocation failed then we might have an import source which
+	   can provide more resource, else we will have to fail the
+	   allocation to the caller. */
+	eError = _AttemptAllocAlignedAssured(pArena,
+	                                      uSize,
+	                                      uiLog2ChunkSize,
+	                                      uFlags,
+	                                      1ULL << uiLog2ChunkSize,
+	                                      aBaseArray,
+	                                      bSparseAlloc,
+	                                      bPhysContig);
+	if (eError)
+	{
+		RA_BASE_T uImportBase;
+		RA_LENGTH_T uImportSize;
+		BT *pBT;
+
+		if (eError == PVRSRV_ERROR_RA_OUT_OF_RESOURCE)
+		{
+			PVR_DPF((PVR_DBG_MESSAGE,"RA out of resource, attempt to import more if possible:"
+			                         " uSize:0x%llx"
+			                         " uFlags:0x%llx",
+			                         (unsigned long long) uSize,
+			                         (unsigned long long) uFlags));
+		}
+		else if (eError == PVRSRV_ERROR_RA_NO_RESOURCE_WITH_FLAGS)
+		{
+			PVR_DPF((PVR_DBG_MESSAGE,"RA no resource for flags, attempt to import some if possible:"
+			                         " uSize:0x%llx"
+			                         " uFlags:0x%llx",
+			                         (unsigned long long) uSize,
+			                         (unsigned long long) uFlags));
+		}
+		else
+		{
+			PVR_DPF((PVR_DBG_MESSAGE,"RA Failed to Allocate, could be fragmented, attempt to import"
+			                         " more resource if possible."));
+		}
+
+		eError = _AttemptImportSpanAlloc(pArena,
+		                                 uSize,
+		                                 uImportMultiplier,
+		                                 uFlags,
+		                                 1ULL << uiLog2ChunkSize,
+		                                 pszAnnotation,
+		                                 &uImportBase,
+		                                 &uImportSize,
+		                                 &pBT);
+		if (eError != PVRSRV_OK)
+		{
+			return eError;
+		}
+
+		pArena->ui64FreeArenaSize += uImportSize;
+		pArena->ui64TotalArenaSize += uImportSize;
+
+		eError = _AttemptAllocAlignedAssured(pArena,
+		                                      uSize,
+		                                      uiLog2ChunkSize,
+		                                      uFlags,
+		                                      1Ull << uiLog2ChunkSize,
+		                                      aBaseArray,
+		                                      bSparseAlloc,
+		                                      bPhysContig);
+		if (eError)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					 "%s: name='%s' second alloc failed!",
+					 __func__, pArena->name));
+			/*
+			  On failure of _AttemptAllocAligned() depending on the exact point
+			  of failure, the imported segment may have been used and freed, or
+			  left untouched. If the later, we need to return it.
+			*/
+			_FreeBT(pArena, pBT);
+
+			return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
+		}
+#if defined(DEBUG)
+		/*
+		 * This block of code checks to see if the extra memory we just imported was
+		 * used for the second allocation. If we imported memory but did not use it,
+		 * it indicates there is a bug in the allocation logic. We can still recover by
+		 * freeing the imported span but we emit an error to signal that there is an
+		 * issue.
+		 * */
+		else
+		{
+			IMG_UINT32 i;
+			IMG_BOOL bBasesInNewSpan = IMG_FALSE;
+
+			for (i = 0; i < uiBaseArraySize; i++)
+			{
+				RA_BASE_T uiBase = RA_BASE_STRIP_GHOST_BIT(aBaseArray[i]);
+
+				/* If the base hasn't been allocated then skip it */
+				if (aBaseArray[i] == INVALID_BASE_ADDR)
+				{
+					continue;
+				}
+
+				if (uiBase >= uImportBase &&
+				    uiBase <= uImportBase + uImportSize)
+				{
+					bBasesInNewSpan = IMG_TRUE;
+				}
+			}
+
+			if (!bBasesInNewSpan)
+			{
+				PVR_DPF((PVR_DBG_ERROR,
+						"%s: name='%s' alloc did not occur in the imported span!",
+						__func__, pArena->name));
+				/*
+				  Remove the imported span which should not be in use (if it is then
+				  that is okay, but essentially no span should exist that is not used).
+				*/
+				_FreeBT(pArena, pBT);
+
+				pArena->ui64FreeArenaSize -= uImportSize;
+				pArena->ui64TotalArenaSize -= uImportSize;
+			}
+		}
+#endif
+	}
+
+	PVR_ASSERT(is_arena_valid(pArena));
+
+	pArena->ui64FreeArenaSize -= uSize;
+
+	return PVRSRV_OK;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_AllocMulti(RA_ARENA *pArena,
+              RA_LENGTH_T uRequestSize,
+              IMG_UINT32 uiLog2ChunkSize,
+              IMG_UINT8 uImportMultiplier,
+              RA_FLAGS_T uImportFlags,
+              const IMG_CHAR *pszAnnotation,
+              RA_BASE_ARRAY_T aBaseArray,
+              RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+              IMG_BOOL *bPhysContig)
+{
+	PVRSRV_ERROR eError;
+	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
+	eError = _RA_AllocMultiUnlocked(pArena,
+	                                 uRequestSize,
+	                                 uiLog2ChunkSize,
+	                                 uImportMultiplier,
+	                                 uImportFlags,
+	                                 pszAnnotation,
+	                                 aBaseArray,
+	                                 uiBaseArraySize,
+	                                 IMG_FALSE, /* Sparse alloc */
+	                                 bPhysContig);
+	OSLockRelease(pArena->hLock);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_AllocMultiSparse(RA_ARENA *pArena,
+                     IMG_UINT32 uiLog2ChunkSize,
+                     IMG_UINT8 uImportMultiplier,
+                     RA_FLAGS_T uImportFlags,
+                     const IMG_CHAR *pszAnnotation,
+                     RA_BASE_ARRAY_T aBaseArray,
+                     RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                     IMG_UINT32 *puiAllocIndices,
+                     IMG_UINT32 uiAllocCount)
+{
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError;
+	IMG_BOOL bPhysContig;
+
+	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
+
+	/*
+	 * In this case the arguments given show the allocation is
+	 * sparse but has no specific indices, this indicates
+	 * we want to populate the full aBaseArray
+	 */
+	if (puiAllocIndices == NULL)
+	{
+		RA_LENGTH_T uRequestSize = (RA_LENGTH_T) uiAllocCount << uiLog2ChunkSize;
+		eError = _RA_AllocMultiUnlocked(pArena,
+		                                 uRequestSize,
+		                                 uiLog2ChunkSize,
+		                                 uImportMultiplier,
+		                                 uImportFlags,
+		                                 pszAnnotation,
+		                                 aBaseArray,
+		                                 uiBaseArraySize,
+		                                 IMG_TRUE, /* Sparse alloc */
+		                                 &bPhysContig);
+		PVR_LOG_IF_ERROR(eError, "RA_AllocMulti");
+		OSLockRelease(pArena->hLock);
+		return eError;
+	}
+
+	/*
+	 * This case is optimised for single allocations as we can skip
+	 * some of the iteration logic in the full allocation path.
+	 */
+	if (uiAllocCount == 1)
+	{
+		eError = _RA_AllocMultiUnlocked(pArena,
+		                                 1ULL << uiLog2ChunkSize,
+		                                 uiLog2ChunkSize,
+		                                 uImportMultiplier,
+		                                 uImportFlags,
+		                                 pszAnnotation,
+		                                 &aBaseArray[puiAllocIndices[0]],
+		                                 1,
+		                                 IMG_TRUE, /* Sparse alloc */
+		                                 &bPhysContig);
+		PVR_LOG_IF_ERROR(eError, "RA_AllocMulti");
+		OSLockRelease(pArena->hLock);
+		return eError;
+	}
+
+	/*
+	 * By consolidating / grouping the indices given we can perform sparse allocations
+	 * in blocks, this has the effect of reducing fragmentation and creating optimal free
+	 * scenarios. Free can be performed in blocks rather than a chunk at a time, this reduces
+	 * the amount of BT merging cycles we perform.
+	 */
+	for (i = 0; i < uiAllocCount;)
+	{
+		IMG_UINT32 j;
+		IMG_UINT32 uiConsolidate = 1;
+
+		for (j = i;
+		     j + 1 != uiAllocCount &&
+		     puiAllocIndices[j + 1] == puiAllocIndices[j] + 1;
+		     j++)
+		{
+			uiConsolidate++;
+		}
+
+		eError = _RA_AllocMultiUnlocked(pArena,
+		                                 (IMG_UINT64) uiConsolidate << uiLog2ChunkSize,
+		                                 uiLog2ChunkSize,
+		                                 uImportMultiplier,
+		                                 uImportFlags,
+		                                 pszAnnotation,
+		                                 &aBaseArray[puiAllocIndices[i]],
+		                                 uiConsolidate,
+		                                 IMG_TRUE, /* Sparse alloc */
+		                                 &bPhysContig);
+		PVR_LOG_GOTO_IF_ERROR(eError, "RA_AllocMulti", unwind_alloc);
+		i += uiConsolidate;
+	}
+
+	OSLockRelease(pArena->hLock);
+	return PVRSRV_OK;
+
+unwind_alloc:
+	if (i != 0)
+	{
+		PVRSRV_ERROR eFreeError;
+		eFreeError = _RA_FreeMultiUnlockedSparse(pArena,
+		                                          aBaseArray,
+		                                          uiBaseArraySize,
+		                                          1ULL << uiLog2ChunkSize,
+		                                          puiAllocIndices,
+		                                          &i);
+		PVR_LOG_IF_ERROR(eFreeError, "_RA_FreeMultiUnlockedSparse");
+	}
+
+	OSLockRelease(pArena->hLock);
+	return eError;
+}
+
 /*************************************************************************/ /*!
 @Function       RA_Find_BT_VARange
 @Description    To find the boundary tag associated with the given device
@@ -1553,10 +2541,7 @@ static BT *RA_Find_BT_VARange(RA_ARENA *pArena,
                               RA_FLAGS_T uImportFlags)
 {
 	IMG_PSPLAY_TREE psSplaynode;
-	BT *pBT = pArena->pHeadSegment;
 	IMG_UINT32 uIndex;
-
-	uIndex = pvr_log2 (uRequestSize);
 
 	/* Find the splay node associated with these import flags */
 	psSplaynode = PVRSRVFindNode(uImportFlags, pArena->per_flags_buckets);
@@ -1566,10 +2551,12 @@ static BT *RA_Find_BT_VARange(RA_ARENA *pArena,
 		return NULL;
 	}
 
+	uIndex = pvr_log2(uRequestSize);
+
 	/* Find the free Boundary Tag from the bucket that holds the requested range */
 	while (uIndex < FREE_TABLE_LIMIT)
 	{
-		pBT = psSplaynode->buckets[uIndex];
+		BT *pBT = psSplaynode->buckets[uIndex];
 
 		while (pBT)
 		{
@@ -1623,14 +2610,14 @@ RA_Alloc_Range(RA_ARENA *pArena,
 	PVR_ASSERT(is_arena_valid(pArena));
 
 	/* Align the requested size to the Arena Quantum */
-	uSize = ((uSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1));
+	uSize = PVR_ALIGN(uSize, pArena->uQuantum);
 
 	/* Must be a power of 2 or 0 */
 	PVR_ASSERT((uAlignment == 0) || (uAlignment & (uAlignment - 1)) == 0);
 
 	if (uAlignment > 1)
 	{
-		if (base != ((base + uAlignment - 1) & ~(uAlignment - 1)))
+		if (base != PVR_ALIGN(base, uAlignment))
 		{
 			PVR_GOTO_WITH_ERROR(eError, PVRSRV_ERROR_INVALID_PARAMS, unlock_);
 		}
@@ -1762,11 +2749,317 @@ RA_Free(RA_ARENA *pArena, RA_BASE_T base)
 	OSLockRelease(pArena->hLock);
 }
 
+static PVRSRV_ERROR
+_RA_FreeMultiUnlocked(RA_ARENA *pArena,
+                       RA_BASE_ARRAY_T aBaseArray,
+                       RA_BASE_ARRAY_SIZE_T uiBaseArraySize)
+{
+	PVRSRV_ERROR eError;
+
+	/* Free the whole array */
+	if (uiBaseArraySize == 1)
+	{
+		eError = _FreeSingleBaseArray(pArena, aBaseArray, uiBaseArraySize);
+		PVR_LOG_IF_ERROR(eError, "_FreeSingleBaseArray");
+	}
+	else
+	{
+		eError = _FreeMultiBaseArray(pArena, aBaseArray, uiBaseArraySize);
+		PVR_LOG_IF_ERROR(eError, "_FreeMultiBaseArray");
+	}
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_FreeMulti(RA_ARENA *pArena,
+              RA_BASE_ARRAY_T aBaseArray,
+              RA_BASE_ARRAY_SIZE_T uiBaseArraySize)
+{
+	PVRSRV_ERROR eError;
+	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
+	eError = _RA_FreeMultiUnlocked(pArena,
+	                                aBaseArray,
+	                                uiBaseArraySize);
+	OSLockRelease(pArena->hLock);
+
+	return eError;
+}
+
+static PVRSRV_ERROR
+_RA_FreeMultiUnlockedSparse(RA_ARENA *pArena,
+                             RA_BASE_ARRAY_T aBaseArray,
+                             RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                             RA_LENGTH_T uiChunkSize,
+                             IMG_UINT32 *puiFreeIndices,
+                             IMG_UINT32 *puiFreeCount)
+{
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError;
+	IMG_UINT32 uiFreeCount = *puiFreeCount;
+	*puiFreeCount = 0;
+
+	/* Handle case where we only have 1 base to free. */
+	if (uiFreeCount == 1)
+	{
+		eError = _FreeBaseArraySlice(pArena,
+		                             aBaseArray,
+		                             uiBaseArraySize,
+		                             uiChunkSize,
+		                             puiFreeIndices[0],
+		                             1);
+		PVR_LOG_IF_ERROR(eError, "_FreeBaseArraySlice");
+		if (eError == PVRSRV_OK)
+		{
+			*puiFreeCount = uiFreeCount;
+		}
+		return eError;
+	}
+
+	for (i = 0; i < uiFreeCount;)
+	{
+		IMG_UINT32 j;
+		IMG_UINT32 uiConsolidate = 1;
+
+		PVR_ASSERT(RA_BASE_IS_REAL(aBaseArray[i]));
+
+		for (j = i;
+		     puiFreeIndices[j + 1] == puiFreeIndices[j] + 1 &&
+		     RA_BASE_IS_GHOST(aBaseArray[puiFreeIndices[j + 1]]);
+		     j++)
+		{
+			uiConsolidate++;
+		}
+
+		eError = _FreeBaseArraySlice(pArena,
+		                             aBaseArray,
+		                             uiBaseArraySize,
+		                             uiChunkSize,
+		                             puiFreeIndices[i],
+		                             uiConsolidate);
+		PVR_LOG_RETURN_IF_ERROR(eError, "_FreeBaseArraySlice");
+
+		i += uiConsolidate;
+		*puiFreeCount += uiConsolidate;
+	}
+
+	return PVRSRV_OK;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_FreeMultiSparse(RA_ARENA *pArena,
+                    RA_BASE_ARRAY_T aBaseArray,
+                    RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                    IMG_UINT32 uiLog2ChunkSize,
+                    IMG_UINT32 *puiFreeIndices,
+                    IMG_UINT32 *puiFreeCount)
+{
+	PVRSRV_ERROR eError;
+
+	PVR_LOG_RETURN_IF_FALSE(puiFreeCount != NULL,
+		                        "puiFreeCount Required",
+		                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	/* Ensure Base Array is large enough for intended free */
+	PVR_LOG_RETURN_IF_FALSE(uiBaseArraySize >= *puiFreeCount,
+		                        "Attempt to free more bases than array holds",
+		                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	PVR_LOG_RETURN_IF_FALSE(puiFreeIndices != NULL,
+		                        "puiFreeIndices Required",
+		                        PVRSRV_ERROR_INVALID_PARAMS);
+
+	PVR_LOG_RETURN_IF_FALSE(uiLog2ChunkSize >= RA_BASE_FLAGS_LOG2 &&
+	                        uiLog2ChunkSize <= RA_BASE_CHUNK_LOG2_MAX,
+		                    "Log2 chunk size must be 12-64",
+		                    PVRSRV_ERROR_INVALID_PARAMS);
+
+	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
+	eError = _RA_FreeMultiUnlockedSparse(pArena,
+	                                      aBaseArray,
+	                                      uiBaseArraySize,
+	                                      1ULL << uiLog2ChunkSize,
+	                                      puiFreeIndices,
+	                                      puiFreeCount);
+	OSLockRelease(pArena->hLock);
+
+	return eError;
+}
+
+static PVRSRV_ERROR
+_TrimBlockMakeReal(RA_ARENA *pArena,
+                   RA_BASE_ARRAY_T aBaseArray,
+                   RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                   IMG_UINT32 uiLog2ChunkSize,
+                   IMG_UINT32 uiStartIndex,
+                   IMG_UINT32 uiEndIndex)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
+	RA_BASE_T sRealBase;
+	IMG_UINT32 uiRealBaseIndex;
+
+	/* Note: Error return paths in this function do not require unwinding.
+	 * Free logic is performed based upon indices and detection of Real base regions,
+	 * performance wise it would be more costly to unwind the conversion here than to
+	 * just free a smaller Real base region.
+	 */
+
+	/* Check Start index is real, if not make it real */
+	if (RA_BASE_IS_GHOST(aBaseArray[uiStartIndex]))
+	{
+		_FindRealBaseFromGhost(aBaseArray,
+		                       uiStartIndex,
+		                       &sRealBase,
+		                       &uiRealBaseIndex);
+
+		eError = _ConvertGhostBaseToReal(pArena,
+		                                 aBaseArray,
+		                                 sRealBase,
+		                                 uiRealBaseIndex,
+		                                 uiStartIndex,
+		                                 1ULL << uiLog2ChunkSize);
+		PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+	}
+
+	/* Check end +1 is real or end of array , if ghost make real */
+	if (uiEndIndex + 1 != uiBaseArraySize &&
+	    RA_BASE_IS_GHOST(aBaseArray[uiEndIndex + 1]))
+	{
+		_FindRealBaseFromGhost(aBaseArray,
+		                       uiEndIndex + 1,
+		                       &sRealBase,
+		                       &uiRealBaseIndex);
+
+		eError = _ConvertGhostBaseToReal(pArena,
+		                                 aBaseArray,
+		                                 sRealBase,
+		                                 uiRealBaseIndex,
+		                                 uiEndIndex + 1,
+		                                 1ULL << uiLog2ChunkSize);
+		PVR_LOG_RETURN_IF_ERROR(eError, "_ConvertGhostBaseToReal");
+	}
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_SwapSparseMem(RA_ARENA *pArena,
+                  RA_BASE_ARRAY_T aBaseArray,
+                  RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                  IMG_UINT32 uiLog2ChunkSize,
+                  IMG_UINT32 *puiXIndices,
+                  IMG_UINT32 *puiYIndices,
+                  IMG_UINT32 uiSwapCount)
+{
+	PVRSRV_ERROR eError;
+	IMG_UINT32 uiSwapped = 0;
+	IMG_UINT32 uiStartIndex;
+	/* Consolidation values counting the bases after the start index*/
+	IMG_UINT32 uiXConsol;
+	IMG_UINT32 uiYConsol;
+	/* Consolidation limit, the smallest consecutive indices between the
+	 * two inputs
+	 */
+	IMG_UINT32 uiConsolidateLimit;
+	IMG_UINT32 uiTotalSwapCount;
+	IMG_UINT32 i;
+
+	/*
+	 * The algorithm below aims to swap the desired indices whilst also
+	 * maintaining a maximum contiguity of allocation blocks where possible.
+	 * It does this by:
+	 * Consolidating the contiguous indices of X and Y.
+	 * Selecting the smallest of these consolidations as a range to swap in a block.
+	 * Trim both block ranges using the indices range to ensure that Real bases are
+	 * created to represent regions that have been split due to the indices.
+	 * Perform the swap and update the swapped count ready for the next iteration.
+	 * Note: Maintaining contiguity improves performance of free logic for sparse
+	 * allocations because we can free in regions rather than chunks.
+	 */
+	while (uiSwapped != uiSwapCount)
+	{
+		IMG_UINT32 x, y;
+		uiTotalSwapCount = 1;
+		uiStartIndex = uiSwapped;
+		uiXConsol = 0;
+		uiYConsol = 0;
+
+		/* Calculate contiguous indices at X */
+		for (x = uiStartIndex;
+		     x < uiSwapCount &&
+		     puiXIndices[x] + 1 == puiXIndices[x + 1];
+		     x++)
+		{
+			uiXConsol++;
+		}
+
+		/* Calculate contiguous indices at Y */
+		for (y = uiStartIndex;
+		     y < uiSwapCount &&
+		     puiYIndices[y] + 1 == puiYIndices[y + 1];
+		     y++)
+		{
+			uiYConsol++;
+		}
+
+		/* Find lowest consolidation value */
+		uiConsolidateLimit = (uiXConsol < uiYConsol) ? uiXConsol : uiYConsol;
+
+		/* Perform RealBase translation where required */
+		eError = _TrimBlockMakeReal(pArena,
+		                            aBaseArray,
+		                            uiBaseArraySize,
+		                            uiLog2ChunkSize,
+		                            puiXIndices[uiStartIndex],
+		                            puiXIndices[uiStartIndex + uiConsolidateLimit]);
+		PVR_LOG_GOTO_IF_ERROR(eError, "_TrimBlockMakeReal", unwind);
+
+		eError = _TrimBlockMakeReal(pArena,
+		                            aBaseArray,
+		                            uiBaseArraySize,
+		                            uiLog2ChunkSize,
+		                            puiYIndices[uiStartIndex],
+		                            puiYIndices[uiStartIndex + uiConsolidateLimit]);
+		PVR_LOG_GOTO_IF_ERROR(eError, "_TrimBlockMakeReal", unwind);
+
+		uiTotalSwapCount += uiConsolidateLimit;
+		uiSwapped += uiTotalSwapCount;
+		i = uiStartIndex;
+
+		do
+		{
+			SWAP(aBaseArray[puiXIndices[i]], aBaseArray[puiYIndices[i]]);
+			uiTotalSwapCount--;
+			i++;
+		}
+		while (uiTotalSwapCount != 0);
+	}
+
+	return PVRSRV_OK;
+
+unwind:
+	/* If we hit an error when Trimming we should revert the swapping
+	 * that has already been performed.
+	 */
+	for (i = 0; i < uiSwapped; i++)
+	{
+		SWAP(aBaseArray[puiXIndices[i]], aBaseArray[puiYIndices[i]]);
+	}
+
+	return eError;
+}
+
 IMG_INTERNAL void
 RA_Get_Usage_Stats(RA_ARENA *pArena, PRA_USAGE_STATS psRAStats)
 {
 	psRAStats->ui64TotalArenaSize = pArena->ui64TotalArenaSize;
 	psRAStats->ui64FreeArenaSize = pArena->ui64FreeArenaSize;
+}
+
+IMG_INTERNAL IMG_CHAR *
+RA_GetArenaName(RA_ARENA *pArena)
+{
+	return pArena->name;
 }
 
 /* #define _DBG(...) PVR_LOG((__VA_ARGS__)) */
@@ -1866,8 +3159,9 @@ RA_IteratorNext(RA_ARENA_ITERATOR *pIter, RA_ITERATOR_DATA *pData)
 
 	/* combine contiguous segments */
 	while ((pNext = pNext->pNextSegment) != NULL &&
-	       pNext->type == btt_live &&
-	       pNext->base == pData->uiAddr + pData->uiSize)
+	        pNext->type == pNext->pPrevSegment->type &&
+	        pNext->type == btt_live &&
+	        pNext->base == pData->uiAddr + pData->uiSize)
 	{
 		_DBG("(%s()) combining segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
 		     "type=%u", __func__, (void *) pNext->base, pNext->uSize,
@@ -1917,11 +3211,15 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 
 	IMG_UINT32 uiRecognisedQuantum = 0;
 
-	IMG_UINT32 uiLastBase = 0;
-	IMG_UINT32 uiLastSize = 0;
+	IMG_UINT64 uiLastBase = 0;
+	IMG_UINT64 uiLastSize = 0;
 
 	IMG_UINT32 i;
+	IMG_UINT32 uiRemainder;
 	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	IMG_UINT64 uiLargestFreeSegmentSize = 0;
+	IMG_UINT32 uiFragPercentage = 0;
 
 	/* -- papRegionArray Structure --
 	 *  papRegionArray Indexes
@@ -1942,23 +3240,24 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	pIter = RA_IteratorAcquire(pArena, IMG_FALSE);
+	pIter = RA_IteratorAcquire(pArena, IMG_TRUE);
 	PVR_LOG_RETURN_IF_NOMEM(pIter, "RA_IteratorAcquire");
 
 	uiRecognisedQuantum = pArena->uQuantum > 0 ? pArena->uQuantum : 4096;
 
 	while (RA_IteratorNext(pIter, &sIterData))
 	{
-		if (sIterData.uiAddr >= uiLastBase)
+		if (!sIterData.bFree && sIterData.uiAddr >= uiLastBase)
 		{
 			uiLastBase = sIterData.uiAddr;
 			uiLastSize = sIterData.uiSize;
 		}
 	}
 
-	uiRegionCount = ((uiLastBase + uiLastSize) / uiRecognisedQuantum) / uiRegionSize;
-	if (((uiLastBase + uiLastSize) / uiRecognisedQuantum) % uiRegionSize != 0
-	   || uiRegionCount == 0)
+	uiRegionCount = OSDivide64(uiLastBase + uiLastSize, uiRecognisedQuantum,
+	                           &uiRemainder);
+	uiRegionCount = OSDivide64(uiRegionCount, uiRegionSize, &uiRemainder);
+	if (uiRemainder != 0 || uiRegionCount == 0)
 	{
 		uiRegionCount += 1;
 	}
@@ -1970,6 +3269,8 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 
 	while (RA_IteratorNext(pIter, &sIterData))
 	{
+		IMG_UINT64 uiDataDivRecQuant;
+
 		IMG_UINT32 uiAddrRegionIdx = 0;
 		IMG_UINT32 uiAddrRegionOffset = 0;
 		IMG_UINT32 uiAddrChunkIdx = 0;
@@ -1987,26 +3288,22 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 		IMG_UINT32 uiRegionIdx = 0;
 		IMG_UINT32 uiChunkIdx = 0;
 
-#if defined(__KERNEL__) && defined(__linux__)
-		IMG_UINT64 uiDataDivRecQuant = sIterData.uiSize;
-		uiQuantisedSizeMod = do_div(uiDataDivRecQuant, uiRecognisedQuantum);
-		uiQuantisedSize = (IMG_UINT32)uiDataDivRecQuant;
+		/* If the current data is for a free block, use it to track largest
+		 * contiguous free segment size.
+		 */
+		if (sIterData.bFree && sIterData.uiSize > uiLargestFreeSegmentSize)
+		{
+			uiLargestFreeSegmentSize = sIterData.uiSize;
+			continue;
+		}
 
-		uiDataDivRecQuant = sIterData.uiAddr;
-		do_div(uiDataDivRecQuant, uiRecognisedQuantum);
-		uiAddrRegionOffset = do_div(uiDataDivRecQuant, uiRegionSize);
-		uiAddrRegionIdx = (IMG_UINT32)uiDataDivRecQuant;
+		uiDataDivRecQuant = OSDivide64(sIterData.uiAddr, uiRecognisedQuantum,
+		                               &uiRemainder);
+		uiAddrRegionIdx = OSDivide64(uiDataDivRecQuant, uiRegionSize,
+		                             &uiAddrRegionOffset);
+		uiQuantisedSize = OSDivide64(sIterData.uiSize, uiRecognisedQuantum,
+		                             &uiQuantisedSizeMod);
 
-		uiDataDivRecQuant = sIterData.uiAddr;
-		do_div(uiDataDivRecQuant, uiRecognisedQuantum);
-#else
-		IMG_UINT64 uiDataDivRecQuant = sIterData.uiAddr / uiRecognisedQuantum;
-		uiAddrRegionIdx = uiDataDivRecQuant / uiRegionSize;
-		uiAddrRegionOffset = uiDataDivRecQuant % uiRegionSize;
-
-		uiQuantisedSize = sIterData.uiSize / uiRecognisedQuantum;
-		uiQuantisedSizeMod = sIterData.uiSize % uiRecognisedQuantum;
-#endif
 		uiAddrChunkIdx = uiAddrRegionOffset / uiChunkSize;
 		uiAddrChunkOffset = uiAddrRegionOffset % uiChunkSize;
 		uiAddrChunkShift = uiChunkSize - uiAddrChunkOffset;
@@ -2018,14 +3315,8 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 			uiQuantisedSize += 1;
 		}
 
-#if defined(__KERNEL__) && defined(__linux__)
-		uiDataDivRecQuant += uiQuantisedSize - 1;
-		do_div(uiDataDivRecQuant, uiRegionSize);
-		uiAllocLastRegionIdx = (IMG_UINT32)uiDataDivRecQuant;
-#else
-		uiAllocLastRegionIdx =
-		    (uiDataDivRecQuant + uiQuantisedSize - 1) / uiRegionSize;
-#endif
+		uiAllocLastRegionIdx = OSDivide64(uiDataDivRecQuant + uiQuantisedSize - 1,
+		                                  uiRegionSize, &uiRemainder);
 		uiAllocChunkSize = (uiAddrChunkOffset + uiQuantisedSize) / uiChunkSize;
 
 		if ((uiAddrChunkOffset + uiQuantisedSize) % uiChunkSize > 0)
@@ -2086,16 +3377,28 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 			}
 		}
 	}
-
-	RA_IteratorRelease(pIter);
+	if (pArena->ui64FreeArenaSize && uiLargestFreeSegmentSize)
+	{
+		/* N.B This can look strange in a dual RA when comparing to the dump visualisation
+		 * as spans that are freed are not included in the segment list, regardless it is
+		 * an accurate representation for the spans in the Arena.
+		 */
+		uiFragPercentage = OSDivide64(100 * pArena->ui64FreeArenaSize,
+		                              pArena->ui64FreeArenaSize + uiLargestFreeSegmentSize,
+		                              &uiRemainder);
+	}
 
 	pfnLogDump(pPrivData, "~~~ '%s' Resource Arena Block Dump", pArena->name);
 	pfnLogDump(pPrivData, "    Block Size: %uB", uiRecognisedQuantum);
 	pfnLogDump(pPrivData,
 	           "    Span Memory Usage: %"IMG_UINT64_FMTSPEC"B"
-	           "    Free Span Memory: %"IMG_UINT64_FMTSPEC"B",
+	           "    Free Span Memory: %"IMG_UINT64_FMTSPEC"B"
+	           "    Largest Free Region Size: %"IMG_UINT64_FMTSPEC"B"
+	           "    Percent Fragmented %u%%",
 	           pArena->ui64TotalArenaSize,
-	           pArena->ui64FreeArenaSize);
+	           pArena->ui64FreeArenaSize,
+	           uiLargestFreeSegmentSize,
+	           uiFragPercentage);
 	pfnLogDump(pPrivData,
 	           "===============================================================================");
 
@@ -2146,6 +3449,9 @@ RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *
 			}
 		}
 	}
+
+	RA_IteratorRelease(pIter);
+
 	OSFreeMem(papRegionArray);
 	return eError;
 

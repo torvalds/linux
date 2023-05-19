@@ -91,6 +91,60 @@ typedef IMG_HANDLE RA_PERISPAN_HANDLE;
 typedef IMG_UINT64 RA_BASE_T;
 typedef IMG_UINT32 RA_LOG2QUANTUM_T;
 typedef IMG_UINT64 RA_LENGTH_T;
+typedef IMG_UINT32 RA_POLICY_T;
+
+typedef struct _RA_BASE_MULTI_ RA_BASE_MULTI_T;
+
+typedef IMG_UINT32 RA_BASE_ARRAY_SIZE_T;
+
+
+/*
+ * RA_BASE_ARRAY can represent a number of bases of which are packed,
+ * that is, they can be one of two types, a Real Base or a Ghost base.
+ * A Real Base is a base that has been created by the RA and is used to
+ * represent an allocated region, it has an entry in the RA Hash table and
+ * as such has a BT associated with it.
+ * A Ghost base is a fabricated base address generated at chunk boundaries
+ * given by the caller. These are used to divide a RealBase into
+ * arbitrary regions that the caller requires e.g. 4k pages. Ghost bases don't
+ * exist from the RA memory tracking point of view but they do exist and are treated
+ * as base addresses from the PoV of the caller. This allows the RA to allocate in
+ * largest possible lengths meaning fewer alloc calls whilst allowing the chunk
+ * flexibility for callers. Ghost refers to the concept that they
+ * don't exist in this RA internals context but do in the callers (LMA) context i.e.
+ * they appear Real from another perspective but we the RA know they are a ghost of the
+ * Real Base.
+ * */
+#if defined(__GNUC__) && GCC_VERSION_AT_LEAST(9, 0)
+/* Use C99 dynamic arrays, older compilers do not support this. */
+typedef RA_BASE_T RA_BASE_ARRAY_T[];
+#else
+/* Variable length array work around, will contain at least 1 element.
+ * Causes errors on newer compilers, in which case use dynamic arrays (see above).
+ */
+#define RA_FLEX_ARRAY_ONE_OR_MORE_ELEMENTS 1U
+typedef RA_BASE_T RA_BASE_ARRAY_T[RA_FLEX_ARRAY_ONE_OR_MORE_ELEMENTS];
+#endif
+
+/* Since 0x0 is a valid BaseAddr, we rely on max 64-bit value to be an invalid
+ * page address.
+ */
+#define INVALID_BASE_ADDR (IMG_UINT64_MAX)
+/* Used to check for duplicated alloc indices in sparse alloc path
+ * prior to attempting allocations */
+#define RA_BASE_SPARSE_PREP_ALLOC_ADDR (IMG_UINT64_MAX - 1)
+#define RA_BASE_FLAGS_MASK 0xFFF /* 12 Bits 4k alignment. */
+#define RA_BASE_FLAGS_LOG2 12
+#define RA_BASE_CHUNK_LOG2_MAX 64
+#define RA_BASE_GHOST_BIT (1ULL << 0)
+#define RA_BASE_STRIP_GHOST_BIT(uiBase) ((uiBase) & ~(RA_BASE_GHOST_BIT))
+#define RA_BASE_SET_GHOST_BIT(uiBase)   ((uiBase) |= RA_BASE_GHOST_BIT)
+#define RA_BASE_IS_GHOST(uiBase) (BITMASK_HAS((uiBase), RA_BASE_GHOST_BIT) && (uiBase) != INVALID_BASE_ADDR)
+#define RA_BASE_IS_REAL(uiBase) (!BITMASK_HAS((uiBase), RA_BASE_GHOST_BIT))
+#define RA_BASE_IS_SPARSE_PREP(uiBase) ((uiBase) == RA_BASE_SPARSE_PREP_ALLOC_ADDR)
+#define RA_BASE_IS_INVALID(uiBase) ((uiBase) == INVALID_BASE_ADDR)
+
+typedef struct _RA_MULTIBASE_ITERATOR_ RA_MULTIBASE_ITERATOR;
 
 /* Lock classes: describes the level of nesting between different arenas. */
 #define RA_LOCKCLASS_0 0
@@ -104,8 +158,8 @@ typedef IMG_UINT64 RA_LENGTH_T;
  * */
 
 /* --- Resource allocation policy definitions ---
-* | 31.........4|......3....|........2.............|1...................0|
-* | Reserved    | No split  | Area bucket selection| Alloc node selection|
+* | 31.........5|.......4....|......3....|........2.............|1...................0|
+* | Reserved    | Non-Contig | No split  | Area bucket selection| Alloc node selection|
 */
 
 /*
@@ -152,6 +206,15 @@ typedef IMG_UINT64 RA_LENGTH_T;
 #define RA_POLICY_NO_SPLIT			(8U)
 #define RA_POLICY_NO_SPLIT_MASK		(8U)
 
+/* This flag is used in physmem_lma only. it is used to decide if we should
+ * activate the non-contiguous allocation feature of RA MultiAlloc.
+ * Requirements for activation are that the OS implements the
+ * OSMapPageArrayToKernelVA function in osfunc which allows for mapping
+ * physically sparse pages as a virtually contiguous range.
+ * */
+#define RA_POLICY_ALLOC_ALLOW_NONCONTIG      (16U)
+#define RA_POLICY_ALLOC_ALLOW_NONCONTIG_MASK (16U)
+
 /*
  * Default Arena Policy
  * */
@@ -168,6 +231,7 @@ typedef IMG_UINT64 RA_FLAGS_T;
 @Input          RA_PERARENA_HANDLE RA handle
 @Input          RA_LENGTH_T        Request size
 @Input          RA_FLAGS_T         RA flags
+@Input          RA_LENGTH_T        Base Alignment
 @Input          IMG_CHAR           Annotation
 @Input          RA_BASE_T          Allocation base
 @Input          RA_LENGTH_T        Actual size
@@ -177,6 +241,7 @@ typedef IMG_UINT64 RA_FLAGS_T;
 typedef PVRSRV_ERROR (*PFN_RA_ALLOC)(RA_PERARENA_HANDLE,
 									 RA_LENGTH_T,
 									 RA_FLAGS_T,
+									 RA_LENGTH_T,
 									 const IMG_CHAR*,
 									 RA_BASE_T*,
 									 RA_LENGTH_T*,
@@ -204,7 +269,7 @@ typedef void (*PFN_RA_FREE)(RA_PERARENA_HANDLE,
  *  @Input imp_alloc - a resource allocation callback or 0.
  *  @Input imp_free - a resource de-allocation callback or 0.
  *  @Input per_arena_handle - private handle passed to alloc and free or 0.
- *  @Input ui32PlicyFlags - Policies that govern the arena.
+ *  @Input ui32PolicyFlags - Policies that govern the arena.
  *  @Return pointer to arena, or NULL.
  */
 RA_ARENA *
@@ -215,7 +280,7 @@ RA_Create(IMG_CHAR *name,
           PFN_RA_ALLOC imp_alloc,
           PFN_RA_FREE imp_free,
           RA_PERARENA_HANDLE per_arena_handle,
-          IMG_UINT32 ui32PolicyFlags);
+          RA_POLICY_T ui32PolicyFlags);
 
 /**
  *  @Function   RA_Create_With_Span
@@ -229,6 +294,7 @@ RA_Create(IMG_CHAR *name,
  *  @Input ui64CpuBase - CPU Physical Base Address of the RA.
  *  @Input ui64SpanDevBase - Device Physical Base Address of the RA.
  *  @Input ui64SpanSize - Size of the span to add to the created RA.
+ *  @Input ui32PolicyFlags - Policies that govern the arena.
  *  @Return pointer to arena, or NULL.
 */
 RA_ARENA *
@@ -236,7 +302,8 @@ RA_Create_With_Span(IMG_CHAR *name,
                     RA_LOG2QUANTUM_T uLog2Quantum,
                     IMG_UINT64 ui64CpuBase,
                     IMG_UINT64 ui64SpanDevBase,
-                    IMG_UINT64 ui64SpanSize);
+                    IMG_UINT64 ui64SpanSize,
+                    RA_POLICY_T ui32PolicyFlags);
 
 /**
  *  @Function   RA_Delete
@@ -305,6 +372,155 @@ RA_Alloc(RA_ARENA *pArena,
          RA_LENGTH_T *pActualSize,
          RA_PERISPAN_HANDLE *phPriv);
 
+/*************************************************************************/ /*!
+@Function       RA_AllocMulti
+@Description    To allocate resource from an arena.
+                This method of allocation can be used to guarantee that if there
+                is enough space in the RA and the contiguity given is the
+                greatest common divisor of the contiguities used on this RA
+                the allocation can be made.
+                Allocations with contiguity less than the current GCD
+                (Greatest Common Divisor) abiding to pow2 are also guaranteed to
+                succeed. See scenario 4.
+                Allocations are not guaranteed but still reduce fragmentation
+                using this method when multiple contiguities are used e.g.
+                4k & 16k and the current allocation has a contiguity higher than
+                the greatest common divisor used.
+                Scenarios with Log 2 contiguity examples:
+                1. All allocations have contiguity of 4k. Allocations can be
+                guaranteed given enough RA space since the GCD is always used.
+                2. Allocations of 4k and 16k contiguity have been previously
+                made on this RA. A new allocation of 4k contiguity is guaranteed
+                to succeed given enough RA space since the contiguity is the GCD.
+                3. Allocations of 4k and 16k contiguity have been previously made
+                on this RA. A new allocation of 16k contiguity is not guaranteed
+                to succeed since it is not the GCD of all contiguities used.
+                4. Contiguity 16k and 64k already exist, a 4k contiguity
+                allocation would be guaranteed to succeed but would now be the
+                new GCD. So further allocations would be required to match this
+                GCD to guarantee success.
+                This method does not suffer the same fragmentation pitfalls
+                as RA_Alloc as it constructs the allocation size from many
+                smaller constituent allocations, these are represented and returned
+                in the given array. In addition, Ghost bases are generated in
+                array entries conforming to the chunk size, this allows for
+                representing chunks of any size that work as page addrs
+                in upper levels.
+                The aforementioned array must be at least of size
+                uRequestsize / uiChunkSize, this ensures there is at least one
+                array entry per chunk required.
+                This function must have a uiChunkSize value of
+                at least 4096, this is to ensure space for the base type encoding.
+@Input          pArena            The arena
+@Input          uRequestSize      The size of resource requested.
+@Input          uiLog2ChunkSize   The log2 contiguity multiple of the bases i.e all
+                                  Real bases must be a multiple in size of this
+                                  size, also used to generate Ghost bases.
+                                  Allocations will also be aligned to this value.
+@Input          uImportMultiplier Import x-times more for future requests if
+                                  we have to import new resource.
+@Input          uImportFlags      Flags influencing allocation policy.
+                                  required, otherwise must be a power of 2.
+@Input          pszAnnotation     String to describe the allocation
+@InOut          aBaseArray        Array of bases to populate.
+@Input          uiBaseArraySize   Size of the array to populate.
+@Output         bPhysContig       Are the allocations made in the RA physically
+                                  contiguous.
+@Return         PVRSRV_OK - success
+*/ /**************************************************************************/
+PVRSRV_ERROR
+RA_AllocMulti(RA_ARENA *pArena,
+               RA_LENGTH_T uRequestSize,
+               IMG_UINT32 uiLog2ChunkSize,
+               IMG_UINT8 uImportMultiplier,
+               RA_FLAGS_T uImportFlags,
+               const IMG_CHAR *pszAnnotation,
+               RA_BASE_ARRAY_T aBaseArray,
+               RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+               IMG_BOOL *bPhysContig);
+
+/**
+ * @Function   RA_AllocMultiSparse
+ *
+ * @Description    To Alloc resource from an RA arena at the specified indices.
+ *                 This function follows the same conditions and functionality as
+ *                 RA_AllocMulti although with the added aspect of specifying the
+ *                 indices to allocate in the Base Array. This means we can still
+ *                 attempt to maintain contiguity where possible with the aim of
+ *                 reducing fragmentation and increasing occurrence of optimal free
+ *                 scenarios.
+ * @Input          pArena            The Arena
+ * @Input          uiLog2ChunkSize   The log2 contiguity multiple of the bases i.e all
+ *                                   Real bases must be a multiple in size of this
+ *                                   size, also used to generate Ghost bases.
+ *                                   Allocations will also be aligned to this value.
+ * @Input          uImportMultiplier Import x-times more for future requests if
+ *                                   we have to import new resource.
+ * @Input          uImportFlags      Flags influencing allocation policy.
+ *                                   required, otherwise must be a power of 2.
+ * @Input          pszAnnotation     String to describe the allocation
+ * @InOut          aBaseArray        Array of bases to populate.
+ * @Input          uiBaseArraySize   Size of the array to populate.
+ * @Input          puiAllocIndices   The indices into the array to alloc, if indices are NULL
+ *                                   then we will allocate uiAllocCount chunks sequentially.
+ * @InOut          uiAllocCount      The number of bases to alloc from the array.
+ *
+ *  @Return PVRSRV_OK - success
+ */
+PVRSRV_ERROR
+RA_AllocMultiSparse(RA_ARENA *pArena,
+                     IMG_UINT32 uiLog2ChunkSize,
+                     IMG_UINT8 uImportMultiplier,
+                     RA_FLAGS_T uImportFlags,
+                     const IMG_CHAR *pszAnnotation,
+                     RA_BASE_ARRAY_T aBaseArray,
+                     RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                     IMG_UINT32 *puiAllocIndices,
+                     IMG_UINT32 uiAllocCount);
+/**
+ *  @Function   RA_FreeMulti
+ *
+ *  @Description    To free a multi-base resource constructed using
+ *                  a call to RA_AllocMulti.
+ *
+ *  @Input  pArena     - The arena the segment was originally allocated from.
+ *  @Input  aBaseArray - The array to free bases from.
+ *  @Input  uiBaseArraysize - Size of the array to free bases from.
+ *
+ *  @Return PVRSRV_OK - success
+ */
+PVRSRV_ERROR
+RA_FreeMulti(RA_ARENA *pArena,
+              RA_BASE_ARRAY_T aBaseArray,
+              RA_BASE_ARRAY_SIZE_T uiBaseArraySize);
+
+/**
+ *  @Function   RA_FreeMultiSparse
+ *
+ *  @Description    To free part of a multi-base resource constructed using
+ *                  a call to RA_AllocMulti.
+ *
+ *  @Input  pArena     - The arena the segment was originally allocated from.
+ *  @Input  aBaseArray - The array to free bases from.
+ *  @Input  uiBaseArraysize - Size of the array to free bases from.
+ *  @Input  uiLog2ChunkSize - The log2 chunk size used to generate the Ghost bases.
+ *  @Input  puiFreeIndices - The indices into the array to free.
+ *  @InOut  puiFreeCount - The number of bases to free from the array, becomes the number
+ *                         of bases actually free'd. The in value may differ from the out
+ *                         value in cases of error when freeing. The out value can then be
+ *                         used in upper levels to keep any mem tracking structures consistent
+ *                         with what was actually freed before the error occurred.
+ *
+ *  @Return PVRSRV_OK - success
+ */
+PVRSRV_ERROR
+RA_FreeMultiSparse(RA_ARENA *pArena,
+                    RA_BASE_ARRAY_T aBaseArray,
+                    RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                    IMG_UINT32 uiLog2ChunkSize,
+                    IMG_UINT32 *puiFreeIndices,
+                    IMG_UINT32 *puiFreeCount);
+
 /**
  *  @Function   RA_Alloc_Range
  *
@@ -344,6 +560,36 @@ void
 RA_Free(RA_ARENA *pArena, RA_BASE_T base);
 
 /**
+ *  @Function   RA_SwapSparseMem
+ *
+ *  @Description    Swaps chunk sized allocations at X<->Y indices.
+ *                  The function is most optimal when Indices are provided
+ *                  in ascending order, this allows the internals to optimally
+ *                  swap based on contiguity and reduces the amount of ghost to
+ *                  real conversion performed. Note this function can also be used
+ *                  to move pages, in this case, we effectively swap real allocations
+ *                  with invalid marked bases.
+ *  @Input  pArena     - The arena.
+ *  @InOut  aBaseArray - The array to Swap bases in.
+ *  @Input  uiBaseArraysize - Size of the array to Swap bases in.
+ *  @Input  uiLog2ChunkSize - The log2 chunk size used to generate the Ghost bases
+ *                            and size the Real chunks.
+ *  @Input  puiXIndices - Set of X indices to swap with parallel indices in Y.
+ *  @Input  puiYIndices - Set of Y indices to swap with parallel indices in X.
+ *  @Input  uiSwapCount - Number of indices to swap.
+ *
+ *  @Return PVRSRV_OK - success
+ */
+PVRSRV_ERROR
+RA_SwapSparseMem(RA_ARENA *pArena,
+                  RA_BASE_ARRAY_T aBaseArray,
+                  RA_BASE_ARRAY_SIZE_T uiBaseArraySize,
+                  IMG_UINT32 uiLog2ChunkSize,
+                  IMG_UINT32 *puiXIndices,
+                  IMG_UINT32 *puiYIndices,
+                  IMG_UINT32 uiSwapCount);
+
+/**
  *  @Function   RA_Get_Usage_Stats
  *
  *  @Description    To collect the arena usage statistics.
@@ -355,6 +601,18 @@ RA_Free(RA_ARENA *pArena, RA_BASE_T base);
  */
 IMG_INTERNAL void
 RA_Get_Usage_Stats(RA_ARENA *pArena, PRA_USAGE_STATS psRAStats);
+
+/**
+ *  @Function   RA_GetArenaName
+ *
+ *  @Description    To obtain the arena name.
+ *
+ *  @Input  pArena - the arena to acquire the name from.
+ *
+ *  @Return IMG_CHAR* Arena name.
+ */
+IMG_INTERNAL IMG_CHAR *
+RA_GetArenaName(RA_ARENA *pArena);
 
 IMG_INTERNAL RA_ARENA_ITERATOR *
 RA_IteratorAcquire(RA_ARENA *pArena, IMG_BOOL bIncludeFreeSegments);

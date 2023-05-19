@@ -58,6 +58,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @Function       PhysmemCreateHeapLMA
 @Description    Create and register new LMA heap with LMA specific details.
 @Input          psDevNode    Pointer to device node struct.
+@Input          uiPolicy     Heap allocation policy flags
 @Input          psConfig     Heap configuration.
 @Input          pszLabel     Debug identifier label
 @Output         ppsPhysHeap  Pointer to the created heap.
@@ -65,9 +66,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 PVRSRV_ERROR
 PhysmemCreateHeapLMA(PVRSRV_DEVICE_NODE *psDevNode,
-					 PHYS_HEAP_CONFIG *psConfig,
-					 IMG_CHAR *pszLabel,
-					 PHYS_HEAP **ppsPhysHeap);
+                     PHYS_HEAP_POLICY uiPolicy,
+                     PHYS_HEAP_CONFIG *psConfig,
+                     IMG_CHAR *pszLabel,
+                     PHYS_HEAP **ppsPhysHeap);
 
 /*
  * PhysmemNewLocalRamBackedPMR
@@ -79,7 +81,6 @@ PVRSRV_ERROR
 PhysmemNewLocalRamBackedPMR(PHYS_HEAP *psPhysHeap,
 							CONNECTION_DATA *psConnection,
                             IMG_DEVMEM_SIZE_T uiSize,
-                            IMG_DEVMEM_SIZE_T uiChunkSize,
                             IMG_UINT32 ui32NumPhysChunks,
                             IMG_UINT32 ui32NumVirtChunks,
                             IMG_UINT32 *pui32MappingTable,

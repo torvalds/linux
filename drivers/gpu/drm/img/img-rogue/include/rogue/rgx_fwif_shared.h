@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_defs.h"
 #include "rgx_common.h"
 #include "powervr/mem_types.h"
+#include "devicemem_typedefs.h"
 
 /* Indicates the number of RTDATAs per RTDATASET */
 #if defined(SUPPORT_AGP)
@@ -110,6 +111,10 @@ typedef struct
 	IMG_UINT32			ui32Value;  /*!< Value to check-against/update-to */
 } RGXFWIF_UFO;
 
+/*!
+ * @InGroup RenderTarget
+ * @Brief Track pending and executed workloads of HWRTDATA and ZSBUFFER
+ */
 typedef struct
 {
 	IMG_UINT32			ui32SubmittedCommands;	/*!< Number of commands received by the FW */
@@ -203,9 +208,9 @@ typedef struct
 	                                 *    fence dependencies are not met. */
 	IMG_UINT32  ui32WrapMask;       /*!< Offset wrapping mask, total capacity
 	                                      in bytes of the CCB-1 */
-#if defined(SUPPORT_AGP)
+#if defined(SUPPORT_AGP) || defined(SUPPORT_OPEN_SOURCE_DRIVER)
 	IMG_UINT32  ui32ReadOffset2;
-#if defined(SUPPORT_AGP4)
+#if defined(SUPPORT_AGP4) || defined(SUPPORT_OPEN_SOURCE_DRIVER)
 	IMG_UINT32  ui32ReadOffset3;
 	IMG_UINT32  ui32ReadOffset4;
 #endif
@@ -213,6 +218,10 @@ typedef struct
 
 } UNCACHED_ALIGN RGXFWIF_CCCB_CTL;
 
+#if defined(SUPPORT_OPEN_SOURCE_DRIVER)
+static_assert(sizeof(RGXFWIF_CCCB_CTL) == 32,
+				"RGXFWIF_CCCB_CTL is incorrect size for SUPPORT_OPEN_SOURCE_DRIVER");
+#endif
 
 typedef IMG_UINT32 RGXFW_FREELIST_TYPE;
 
@@ -328,6 +337,25 @@ typedef struct
 	RGX_CONTEXT_RESET_REASON eResetReason; /*!< Reset reason */
 	IMG_UINT32 ui32ResetExtJobRef;  /*!< External Job ID */
 } RGX_CONTEXT_RESET_REASON_DATA;
+
+#define RGX_HEAP_UM_PDS_RESERVED_SIZE               DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY
+#define RGX_HEAP_UM_PDS_RESERVED_REGION_OFFSET      0
+#define RGX_HEAP_PDS_RESERVED_TOTAL_SIZE            RGX_HEAP_UM_PDS_RESERVED_SIZE
+
+#define RGX_HEAP_UM_USC_RESERVED_SIZE               DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY
+#define RGX_HEAP_UM_USC_RESERVED_REGION_OFFSET      0
+#define RGX_HEAP_USC_RESERVED_TOTAL_SIZE            RGX_HEAP_UM_USC_RESERVED_SIZE
+
+#define RGX_HEAP_UM_GENERAL_RESERVED_SIZE           DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY
+#define RGX_HEAP_UM_GENERAL_RESERVED_REGION_OFFSET  0
+#if defined(SUPPORT_TRUSTED_DEVICE)
+#define RGX_HEAP_KM_GENERAL_RESERVED_SIZE           DEVMEM_HEAP_RESERVED_SIZE_GRANULARITY
+#else
+#define RGX_HEAP_KM_GENERAL_RESERVED_SIZE           0
+#endif
+#define RGX_HEAP_KM_GENERAL_RESERVED_REGION_OFFSET  RGX_HEAP_UM_GENERAL_RESERVED_SIZE
+
+#define RGX_HEAP_GENERAL_RESERVED_TOTAL_SIZE        (RGX_HEAP_UM_GENERAL_RESERVED_SIZE + RGX_HEAP_KM_GENERAL_RESERVED_SIZE)
 #endif /*  RGX_FWIF_SHARED_H */
 
 /******************************************************************************

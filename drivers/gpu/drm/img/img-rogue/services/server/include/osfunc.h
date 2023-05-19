@@ -59,7 +59,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #endif
 
-#include <stdarg.h>
+#if defined(__linux__) && defined(__KERNEL__)
+ #include <linux/version.h>
+
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+  #include <linux/stdarg.h>
+ #else
+  #include <stdarg.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
+#else
+ #include <stdarg.h>
+#endif /* __linux__ */
 
 #if defined(__QNXNTO__)
 #include <stdio.h>
@@ -432,6 +442,64 @@ PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
 PVRSRV_ERROR OSThreadDestroy(IMG_HANDLE hThread);
 
 /*************************************************************************/ /*!
+@Function       OSIsMapPhysNonContigSupported
+@Description    Determine if the kernel mapping of physically non-contiguous
+                pages is supported in the OS layer
+
+                Note: For this function to return IMG_TRUE a full implementation
+                of the following functions is required:
+                OSMapPhysArrayToLin
+                OSUnMapPhysArrayToLin
+
+@Return         IMG_BOOL
+*/ /**************************************************************************/
+IMG_BOOL OSIsMapPhysNonContigSupported(void);
+
+/*************************************************************************/ /*!
+@Function       OSUnMapPhysArrayToLin
+@Description    UnMap a kernel virtual address that was produced by mapping
+                a number of Pages in OSMapPhysArrayToLin.
+
+                Note: This function is only required if the Non contiguous
+                allocation feature is required, in this case
+                OSIsMapPhysNonContigSupported should return IMG_TRUE.
+                If not required this function should return
+                PVRSRV_ERROR_PMR_CPU_PAGE_MAP_FAILED
+
+@Input          pvLinAddr       The linear mapping to be unmapped
+@Input          pvPrivData      Optional implementation specific data.
+
+@Return         None
+*/ /**************************************************************************/
+void OSUnMapPhysArrayToLin(void *pvLinAddr, void *pvPrivData);
+
+/*************************************************************************/ /*!
+@Function       OSMapPhysArrayToLin
+@Description    Given an array of OS page physical addresses and a count
+                of said Pages, this function will map those pages into a
+                virtually contiguous range, this allows for non physically
+                contiguous allocations to be mapped into the kernel.
+                Page size is assumed to be OS page size.
+
+                Note: This function is only required if the Non contiguous
+                allocation feature is required, in this case
+                OSIsMapPhysNonContigSupported should return IMG_TRUE.
+                If not required this function should return
+                PVRSRV_ERROR_PMR_CPU_PAGE_MAP_FAILED
+
+@Input          pPagePA          Array of Pages
+@Input          uiPageCount      Page count of pulPages
+@Output         ppvLinAddr       Pointer to a virtual kernel address of the
+                                 mapped Pages.
+@Output         ppvPrivData      Optional implementation specific data.
+@Return         Standard PVRSRV_ERROR error code.
+*/ /**************************************************************************/
+PVRSRV_ERROR OSMapPhysArrayToLin(IMG_CPU_PHYADDR pPagePA[],
+                                 IMG_UINT32 uiPageCount,
+                                 void **ppvLinAddr,
+                                 void **ppvPrivData);
+
+/*************************************************************************/ /*!
 @Function       OSMapPhysToLin
 @Description    Maps physical memory into a linear address range.
 @Input          BasePAddr    physical CPU address
@@ -734,12 +802,6 @@ PVRSRV_ERROR OSInitEnvData(void);
 void OSDeInitEnvData(void);
 
 /*************************************************************************/ /*!
-@Function       OSVSScanf
-@Description    OS function to support the standard C vsscanf() function.
-*/ /**************************************************************************/
-IMG_UINT32 OSVSScanf(const IMG_CHAR *pStr, const IMG_CHAR *pszFormat, ...);
-
-/*************************************************************************/ /*!
 @Function       OSStringLCat
 @Description    OS function to support the BSD C strlcat() function.
 */ /**************************************************************************/
@@ -1021,13 +1083,42 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 		OSWriteMemoryBarrier(addr); \
 	} while (0)
 
-#if defined(__linux__) && defined(__KERNEL__) && !defined(NO_HARDWARE)
-	#define OSReadHWReg8(addr, off)  ((IMG_UINT8)readb((IMG_BYTE __iomem *)(addr) + (off)))
-	#define OSReadHWReg16(addr, off) ((IMG_UINT16)readw((IMG_BYTE __iomem *)(addr) + (off)))
-	#define OSReadHWReg32(addr, off) ((IMG_UINT32)readl((IMG_BYTE __iomem *)(addr) + (off)))
+#if defined(NO_HARDWARE)
+	/* OSReadHWReg operations skipped in no hardware builds */
+	#define OSReadUncheckedHWReg8(addr, off)  ((void)(addr), 0x4eU)
+	#define OSReadUncheckedHWReg16(addr, off) ((void)(addr), 0x3a4eU)
+	#define OSReadUncheckedHWReg32(addr, off) ((void)(addr), 0x30f73a4eU)
+#if defined(__QNXNTO__) && __SIZEOF_LONG__ == 8
+	/* This is needed for 64-bit QNX builds where the size of a long is 64 bits */
+	#define OSReadUncheckedHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eUL)
+#else
+	#define OSReadUncheckedHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eULL)
+#endif
+
+	#define OSWriteUncheckedHWReg8(addr, off, val)
+	#define OSWriteUncheckedHWReg16(addr, off, val)
+	#define OSWriteUncheckedHWReg32(addr, off, val)
+	#define OSWriteUncheckedHWReg64(addr, off, val) ((void)(val))
+
+	#define OSReadHWReg8(addr, off)  OSReadUncheckedHWReg8(addr, off)
+	#define OSReadHWReg16(addr, off) OSReadUncheckedHWReg16(addr, off)
+	#define OSReadHWReg32(addr, off) OSReadUncheckedHWReg32(addr, off)
+	#define OSReadHWReg64(addr, off) OSReadUncheckedHWReg64(addr, off)
+
+	#define OSWriteHWReg8(addr, off, val)  OSWriteUncheckedHWReg8(addr, off, val)
+	#define OSWriteHWReg16(addr, off, val) OSWriteUncheckedHWReg16(addr, off, val)
+	#define OSWriteHWReg32(addr, off, val) OSWriteUncheckedHWReg32(addr, off, val)
+	#define OSWriteHWReg64(addr, off, val) OSWriteUncheckedHWReg64(addr, off, val)
+
+#else
+
+#if defined(__linux__) && defined(__KERNEL__)
+	#define OSReadUncheckedHWReg8(addr, off)  ((IMG_UINT8)readb((IMG_BYTE __iomem *)(addr) + (off)))
+	#define OSReadUncheckedHWReg16(addr, off) ((IMG_UINT16)readw((IMG_BYTE __iomem *)(addr) + (off)))
+	#define OSReadUncheckedHWReg32(addr, off) ((IMG_UINT32)readl((IMG_BYTE __iomem *)(addr) + (off)))
 
 	/* Little endian support only */
-	#define OSReadHWReg64(addr, off) \
+	#define OSReadUncheckedHWReg64(addr, off) \
 			({ \
 				__typeof__(addr) _addr = addr; \
 				__typeof__(off) _off = off; \
@@ -1038,11 +1129,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 				); \
 			})
 
-	#define OSWriteHWReg8(addr, off, val)  writeb((IMG_UINT8)(val), (IMG_BYTE __iomem *)(addr) + (off))
-	#define OSWriteHWReg16(addr, off, val) writew((IMG_UINT16)(val), (IMG_BYTE __iomem *)(addr) + (off))
-	#define OSWriteHWReg32(addr, off, val) writel((IMG_UINT32)(val), (IMG_BYTE __iomem *)(addr) + (off))
+	#define OSWriteUncheckedHWReg8(addr, off, val)  writeb((IMG_UINT8)(val), (IMG_BYTE __iomem *)(addr) + (off))
+	#define OSWriteUncheckedHWReg16(addr, off, val) writew((IMG_UINT16)(val), (IMG_BYTE __iomem *)(addr) + (off))
+	#define OSWriteUncheckedHWReg32(addr, off, val) writel((IMG_UINT32)(val), (IMG_BYTE __iomem *)(addr) + (off))
 	/* Little endian support only */
-	#define OSWriteHWReg64(addr, off, val) do \
+	#define OSWriteUncheckedHWReg64(addr, off, val) do \
 			{ \
 				__typeof__(addr) _addr = addr; \
 				__typeof__(off) _off = off; \
@@ -1051,27 +1142,9 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 				writel((IMG_UINT32)(((IMG_UINT64)(_val) >> 32) & 0xffffffff), (IMG_BYTE __iomem *)(_addr) + (_off) + 4); \
 			} while (0)
 
-
-#elif defined(NO_HARDWARE)
-	/* OSReadHWReg operations skipped in no hardware builds */
-	#define OSReadHWReg8(addr, off)  ((void)(addr), 0x4eU)
-	#define OSReadHWReg16(addr, off) ((void)(addr), 0x3a4eU)
-	#define OSReadHWReg32(addr, off) ((void)(addr), 0x30f73a4eU)
-#if defined(__QNXNTO__) && __SIZEOF_LONG__ == 8
-	/* This is needed for 64-bit QNX builds where the size of a long is 64 bits */
-	#define OSReadHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eUL)
-#else
-	#define OSReadHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eULL)
-#endif
-
-	#define OSWriteHWReg8(addr, off, val)
-	#define OSWriteHWReg16(addr, off, val)
-	#define OSWriteHWReg32(addr, off, val)
-	#define OSWriteHWReg64(addr, off, val)
-
-#else
+#else /* defined(__linux__) && defined(__KERNEL__) */
 /*************************************************************************/ /*!
-@Function       OSReadHWReg8
+@Function       OSReadUncheckedHWReg8
 @Description    Read from an 8-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1084,10 +1157,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
                                    the register to be read.
 @Return         The byte read.
 */ /**************************************************************************/
-	IMG_UINT8 OSReadHWReg8(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+	IMG_UINT8 OSReadUncheckedHWReg8(volatile void *pvLinRegBaseAddr,
+									IMG_UINT32 ui32Offset);
 
 /*************************************************************************/ /*!
-@Function       OSReadHWReg16
+@Function       OSReadUncheckedHWReg16
 @Description    Read from a 16-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1100,10 +1174,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
                                    the register to be read.
 @Return         The word read.
 */ /**************************************************************************/
-	IMG_UINT16 OSReadHWReg16(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+	IMG_UINT16 OSReadUncheckedHWReg16(volatile void *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset);
 
 /*************************************************************************/ /*!
-@Function       OSReadHWReg32
+@Function       OSReadUncheckedHWReg32
 @Description    Read from a 32-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1116,10 +1191,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
                                    the register to be read.
 @Return         The long word read.
 */ /**************************************************************************/
-	IMG_UINT32 OSReadHWReg32(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+	IMG_UINT32 OSReadUncheckedHWReg32(volatile void *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset);
 
 /*************************************************************************/ /*!
-@Function       OSReadHWReg64
+@Function       OSReadUncheckedHWReg64
 @Description    Read from a 64-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1132,10 +1208,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
                                    the register to be read.
 @Return         The long long word read.
 */ /**************************************************************************/
-	IMG_UINT64 OSReadHWReg64(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+	IMG_UINT64 OSReadUncheckedHWReg64(volatile void *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset);
 
 /*************************************************************************/ /*!
-@Function       OSWriteHWReg8
+@Function       OSWriteUncheckedHWReg8
 @Description    Write to an 8-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1148,10 +1225,11 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 @Input          ui8Value           The byte to be written to the register.
 @Return         None.
 */ /**************************************************************************/
-	void OSWriteHWReg8(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 ui8Value);
+	void OSWriteUncheckedHWReg8(volatile void *pvLinRegBaseAddr,
+								IMG_UINT32 ui32Offset, IMG_UINT8 ui8Value);
 
 /*************************************************************************/ /*!
-@Function       OSWriteHWReg16
+@Function       OSWriteUncheckedHWReg16
 @Description    Write to a 16-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1164,10 +1242,12 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 @Input          ui16Value          The word to be written to the register.
 @Return         None.
 */ /**************************************************************************/
-	void OSWriteHWReg16(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT16 ui16Value);
+	void OSWriteUncheckedHWReg16(volatile void *pvLinRegBaseAddr,
+								 IMG_UINT32 ui32Offset,
+								 IMG_UINT16 ui16Value);
 
 /*************************************************************************/ /*!
-@Function       OSWriteHWReg32
+@Function       OSWriteUncheckedHWReg32
 @Description    Write to a 32-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1180,10 +1260,12 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
 @Input          ui32Value          The long word to be written to the register.
 @Return         None.
 */ /**************************************************************************/
-	void OSWriteHWReg32(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT32 ui32Value);
+	void OSWriteUncheckedHWReg32(volatile void *pvLinRegBaseAddr,
+								 IMG_UINT32 ui32Offset,
+								 IMG_UINT32 ui32Value);
 
 /*************************************************************************/ /*!
-@Function       OSWriteHWReg64
+@Function       OSWriteUncheckedHWReg64
 @Description    Write to a 64-bit memory-mapped device register.
                 The implementation should not permit the compiler to
                 reorder the I/O sequence.
@@ -1197,8 +1279,77 @@ void OSWriteMemoryBarrier(volatile void *hReadback);
                                    register.
 @Return         None.
 */ /**************************************************************************/
-	void OSWriteHWReg64(volatile void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT64 ui64Value);
-#endif
+	void OSWriteUncheckedHWReg64(volatile void *pvLinRegBaseAddr,
+								 IMG_UINT32 ui32Offset,
+								 IMG_UINT64 ui64Value);
+
+#endif /* defined(__linux__) && defined(__KERNEL__) */
+
+#if !defined(DOXYGEN)
+	/* systems using real hardware must check that regular register
+	 * operations don't attempt to access secure registers */
+	static INLINE IMG_UINT8 OSReadHWReg8(volatile void __iomem *pvLinRegBaseAddr,
+										 IMG_UINT32 ui32Offset)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		return OSReadUncheckedHWReg8(pvLinRegBaseAddr, ui32Offset);
+	}
+
+	static INLINE IMG_UINT16 OSReadHWReg16(volatile void __iomem *pvLinRegBaseAddr,
+										   IMG_UINT32 ui32Offset)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		return OSReadUncheckedHWReg16(pvLinRegBaseAddr, ui32Offset);
+	}
+
+	static INLINE IMG_UINT32 OSReadHWReg32(volatile void __iomem *pvLinRegBaseAddr,
+										   IMG_UINT32 ui32Offset)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		return OSReadUncheckedHWReg32(pvLinRegBaseAddr, ui32Offset);
+	}
+
+	static INLINE IMG_UINT64 OSReadHWReg64(volatile void __iomem *pvLinRegBaseAddr,
+										   IMG_UINT32 ui32Offset)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		return OSReadUncheckedHWReg64(pvLinRegBaseAddr, ui32Offset);
+	}
+
+	static INLINE void OSWriteHWReg8(volatile void __iomem *pvLinRegBaseAddr,
+									 IMG_UINT32 ui32Offset,
+									 IMG_UINT8 ui8Value)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		OSWriteUncheckedHWReg8(pvLinRegBaseAddr, ui32Offset, ui8Value);
+	}
+
+	static INLINE void OSWriteHWReg16(volatile void __iomem *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset,
+									  IMG_UINT16 ui16Value)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		OSWriteUncheckedHWReg16(pvLinRegBaseAddr, ui32Offset, ui16Value);
+	}
+
+	static INLINE void OSWriteHWReg32(volatile void __iomem *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset,
+									  IMG_UINT32 ui32Value)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		OSWriteUncheckedHWReg32(pvLinRegBaseAddr, ui32Offset, ui32Value);
+	}
+
+	static INLINE void OSWriteHWReg64(volatile void __iomem *pvLinRegBaseAddr,
+									  IMG_UINT32 ui32Offset,
+									  IMG_UINT64 ui64Value)
+	{
+		PVR_ASSERT((ui32Offset) < RGX_HOST_SECURE_REGBANK_OFFSET);
+		OSWriteUncheckedHWReg64(pvLinRegBaseAddr, ui32Offset, ui64Value);
+	}
+
+#endif /* !defined(DOXYGEN) */
+#endif /* defined(NO_HARDWARE) */
 
 /*************************************************************************/ /*!
 @Description    Pointer to a timer callback function.
@@ -1402,10 +1553,10 @@ void OSWRLockReleaseWrite(POSWR_LOCK psLock);
 
 #else
 
-/*! Function not implemented definition. */
+#if !defined(DOXYGEN)
 #define OSFUNC_NOT_IMPLEMENTED 0
-/*! Assert used for OSFUNC_NOT_IMPLEMENTED. */
 #define OSFUNC_NOT_IMPLEMENTED_ASSERT() PVR_ASSERT(OSFUNC_NOT_IMPLEMENTED)
+#endif
 
 /*************************************************************************/ /*!
 @Function       OSWRLockCreate
@@ -1535,7 +1686,7 @@ IMG_UINT64 OSDivide64r64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UI
 @Description    Divide a 64-bit value by a 32-bit value. Return a 32-bit
                 quotient.
                 The remainder is also returned in 'pui32Remainder'.
-                This function allows for a more optional implementation
+                This function allows for a more optimal implementation
                 of a 64-bit division when the result is known to be
                 representable in 32-bits.
 @Input          ui64Divident        The number to be divided.
@@ -1688,6 +1839,16 @@ PVRSRV_ERROR OSDmaSubmitTransfer(PVRSRV_DEVICE_NODE *psDevNode, void *pvOSData, 
 void OSDmaForceCleanup(PVRSRV_DEVICE_NODE *psDevNode, void *pvChan,
 					   void *pvOSData, IMG_HANDLE pvServerCleanupParam,
 					   PFN_SERVER_CLEANUP pfnServerCleanup);
+#endif
+#if defined(SUPPORT_SECURE_ALLOC_KM)
+PVRSRV_ERROR
+OSAllocateSecBuf(PVRSRV_DEVICE_NODE *psDeviceNode,
+				 IMG_DEVMEM_SIZE_T uiSize,
+				 const IMG_CHAR *pszName,
+				 PMR **ppsPMR);
+
+void
+OSFreeSecBuf(PMR *psPMR);
 #endif
 #endif /* OSFUNC_H */
 

@@ -206,8 +206,8 @@ typedef struct {
 	IMG_UINT32				ui32RefCount;
 	IMG_BOOL				bOnDemand;
 
-	IMG_BOOL				ui32NumReqByApp;		/* Number of Backing Requests from Application */
-	IMG_BOOL				ui32NumReqByFW;			/* Number of Backing Requests from Firmware */
+	IMG_UINT32				ui32NumReqByApp;		/* Number of Backing Requests from Application */
+	IMG_UINT32				ui32NumReqByFW;			/* Number of Backing Requests from Firmware */
 
 	IMG_PID					owner;
 
@@ -361,7 +361,7 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 
  @Input psConnection -
  @Input psDeviceNode - device node
- @Input ui32Priority - context priority
+ @Input i32Priority - context priority
  @Input sVDMCallStackAddr - VDM call stack device virtual address
  @Input ui32CallStackDepth - VDM call stack depth
  @Input ui32FrameworkCommandSize - framework command size
@@ -382,7 +382,7 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 											PVRSRV_DEVICE_NODE			*psDeviceNode,
-											IMG_UINT32					ui32Priority,
+											IMG_INT32					i32Priority,
 											IMG_DEV_VIRTADDR			sVDMCallStackAddr,
 											IMG_UINT32					ui32CallStackDepth,
 											IMG_UINT32					ui32FrameworkCommandSize,
@@ -481,7 +481,7 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 PVRSRV_ERROR PVRSRVRGXSetRenderContextPriorityKM(CONNECTION_DATA *psConnection,
                                                  PVRSRV_DEVICE_NODE * psDevNode,
                                                  RGX_SERVER_RENDER_CONTEXT *psRenderContext,
-                                                 IMG_UINT32 ui32Priority);
+                                                 IMG_INT32 i32Priority);
 
 PVRSRV_ERROR PVRSRVRGXSetRenderContextPropertyKM(RGX_SERVER_RENDER_CONTEXT *psRenderContext,
 												 RGX_CONTEXT_PROPERTY eContextProperty,

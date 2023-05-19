@@ -51,6 +51,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pdump_km.h"
 #include "rgx_compat_bvnc.h"
 
+#define RGX_FEATURE_TRUE_VALUE_TYPE_UINT16 (RGX_FEATURE_VALUE_TYPE_UINT16 >> RGX_FEATURE_TYPE_BIT_SHIFT)
+#define RGX_FEATURE_TRUE_VALUE_TYPE_UINT32 (RGX_FEATURE_VALUE_TYPE_UINT32 >> RGX_FEATURE_TYPE_BIT_SHIFT)
 #define RGXBVNC_BUFFER_SIZE (((PVRSRV_MAX_DEVICES)*(RGX_BVNC_STR_SIZE_MAX))+1)
 
 /* This function searches the given array for a given search value */
@@ -88,7 +90,7 @@ static IMG_UINT64* _RGXSearchBVNCTable( IMG_UINT64 *pui64Array,
                                 sizeof((t)[0])/sizeof(IMG_UINT64)) )
 
 
-#if defined(DEBUG)
+#if defined(DEBUG) || defined(SUPPORT_PERFORMANCE_RUN)
 
 #define PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, szShortName, Feature)															\
 	if ( psDevInfo->sDevFeatureCfg.ui32FeaturesValues[RGX_FEATURE_##Feature##_IDX] != RGX_FEATURE_VALUE_DISABLED )			\
@@ -175,37 +177,62 @@ static void _RGXBvncDumpParsedConfig(PVRSRV_DEVICE_NODE *psDeviceNode)
 	}
 #endif
 
+#if !defined(ERNSBRNS_IDS_MAX_IDX) && !defined(FEATURE_NO_VALUES_NAMES_MAX_IDX)
+	PVR_UNREFERENCED_PARAMETER(ui64Mask);
+	PVR_UNREFERENCED_PARAMETER(ui32IdOrNameIdx);
+#endif
+
 }
 #endif
 
-static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64 *pui64Cfg)
+static PVRSRV_ERROR _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo,
+                                               IMG_UINT64 *pui64Cfg)
 {
 	IMG_UINT32 ui32Index;
 
 	/* Read the feature values for the runtime BVNC */
 	for (ui32Index = 0; ui32Index < RGX_FEATURE_WITH_VALUES_MAX_IDX; ui32Index++)
 	{
-		IMG_UINT16 bitPosition = aui16FeaturesWithValuesBitPositions[ui32Index];
-		IMG_UINT64 ui64PackedValues = pui64Cfg[2 + bitPosition / 64];
-		IMG_UINT16 ui16ValueIndex = (ui64PackedValues & aui64FeaturesWithValuesBitMasks[ui32Index]) >> (bitPosition % 64);
+		IMG_UINT16 ui16BitPosition = aui16FeaturesWithValuesBitPositions[ui32Index];
+		IMG_UINT64 ui64PackedValues = pui64Cfg[2 + ui16BitPosition / 64];
+		IMG_UINT16 ui16ValueIndex = (ui64PackedValues & aui64FeaturesWithValuesBitMasks[ui32Index]) >> (ui16BitPosition % 64);
 
-		if (ui16ValueIndex < gaFeaturesValuesMaxIndexes[ui32Index])
-		{
-			if (gaFeaturesValues[ui32Index][ui16ValueIndex] == (IMG_UINT16)RGX_FEATURE_VALUE_DISABLED)
-			{
-				psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] = RGX_FEATURE_VALUE_DISABLED;
-			}
-			else
-			{
-				psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] = gaFeaturesValues[ui32Index][ui16ValueIndex];
-			}
-		}
-		else
+		if (ui16ValueIndex >= gaFeaturesValuesMaxIndexes[ui32Index])
 		{
 			/* This case should never be reached */
 			psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] = RGX_FEATURE_VALUE_INVALID;
 			PVR_DPF((PVR_DBG_ERROR, "%s: Feature with index (%d) decoded wrong value index (%d)", __func__, ui32Index, ui16ValueIndex));
 			PVR_ASSERT(ui16ValueIndex < gaFeaturesValuesMaxIndexes[ui32Index]);
+			return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+		}
+
+		switch (ui16BitPosition >> RGX_FEATURE_TYPE_BIT_SHIFT)
+		{
+			case RGX_FEATURE_TRUE_VALUE_TYPE_UINT16:
+			{
+				IMG_UINT16 *pui16FeatureValues = (IMG_UINT16*)gaFeaturesValues[ui32Index];
+				if (pui16FeatureValues[ui16ValueIndex] == (IMG_UINT16)RGX_FEATURE_VALUE_DISABLED)
+				{
+					psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] =
+						RGX_FEATURE_VALUE_DISABLED;
+				}
+				else
+				{
+					psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] =
+						pui16FeatureValues[ui16ValueIndex];
+				}
+				break;
+			}
+			case RGX_FEATURE_TRUE_VALUE_TYPE_UINT32:
+				psDevInfo->sDevFeatureCfg.ui32FeaturesValues[ui32Index] =
+					((IMG_UINT32*)gaFeaturesValues[ui32Index])[ui16ValueIndex];
+				break;
+			default:
+				PVR_DPF((PVR_DBG_ERROR,
+				         "%s: Feature with index %d has invalid feature type",
+				         __func__,
+				         ui32Index));
+				return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
 		}
 	}
 
@@ -246,6 +273,7 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 			psDevInfo->sDevFeatureCfg.ui32MAXPowUnitCount = RGX_FEATURE_VALUE_INVALID;
 			PVR_DPF((PVR_DBG_ERROR, "%s: Power island feature version not found!", __func__));
 			PVR_ASSERT(0);
+			return PVRSRV_ERROR_FEATURE_DISABLED;
 		}
 
 		if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, RAY_TRACING_ARCH) &&
@@ -267,22 +295,20 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 		psDevInfo->sDevFeatureCfg.ui32MAXPowUnitCount = RGX_FEATURE_VALUE_INVALID;
 		PVR_DPF((PVR_DBG_ERROR, "%s: Number of clusters feature value missing!", __func__));
 		PVR_ASSERT(0);
+		return PVRSRV_ERROR_FEATURE_DISABLED;
 	}
 #else /* defined(RGX_FEATURE_POWER_ISLAND_VERSION_MAX_VALUE_IDX) */
-	/* Code path for Rogue and Oceanic */
+	/* Code path for Rogue */
 
 	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = RGXFWIF_DM_CDM+1;
 #if defined(SUPPORT_AGP)
 	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = MAX(psDevInfo->sDevFeatureCfg.ui32MAXDMCount, RGXFWIF_DM_GEOM2+1);
 #endif
 
-	/* Meta feature not present in oceanic */
-#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, MIPS))
 	{
 		psDevInfo->sDevFeatureCfg.ui32FeaturesValues[RGX_FEATURE_META_IDX] = RGX_FEATURE_VALUE_DISABLED;
 	}
-#endif
 
 	/* Get the max number of dusts in the core */
 	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, NUM_CLUSTERS))
@@ -295,17 +321,17 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 		psDevInfo->sDevFeatureCfg.ui32MAXDustCount = RGX_FEATURE_VALUE_INVALID;
 		PVR_DPF((PVR_DBG_ERROR, "%s: Number of clusters feature value missing!", __func__));
 		PVR_ASSERT(0);
+		return PVRSRV_ERROR_FEATURE_DISABLED;
 	}
 #endif /* defined(RGX_FEATURE_POWER_ISLAND_VERSION_MAX_VALUE_IDX) */
 
-	/* Meta feature not present in oceanic */
-#if defined(RGX_FEATURE_META_COREMEM_SIZE_MAX_VALUE_IDX)
 	/* Transform the META coremem size info in bytes */
 	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, META_COREMEM_SIZE))
 	{
 		psDevInfo->sDevFeatureCfg.ui32FeaturesValues[RGX_FEATURE_META_COREMEM_SIZE_IDX] *= 1024;
 	}
-#endif
+
+	return PVRSRV_OK;
 }
 
 static void _RGXBvncAcquireAppHint(IMG_CHAR *pszBVNC, const IMG_UINT32 ui32RGXDevCount)
@@ -387,8 +413,8 @@ static PVRSRV_ERROR _RGXBvncParseList(IMG_UINT32 *pB,
 									  IMG_UINT32 *pC,
 									  const IMG_UINT32 ui32RGXDevCount)
 {
-	unsigned int ui32ScanCount = 0;
 	IMG_CHAR aszBVNCString[RGX_BVNC_STR_SIZE_MAX];
+	IMG_CHAR *pcTemp, *pcNext;
 
 	aszBVNCString[0] = '\0';
 
@@ -403,16 +429,61 @@ static PVRSRV_ERROR _RGXBvncParseList(IMG_UINT32 *pB,
 	}
 
 	/* Parse the given RGX_BVNC string */
-	ui32ScanCount = OSVSScanf(aszBVNCString, RGX_BVNC_STR_FMTSPEC, pB, pV, pN, pC);
-	if (RGX_BVNC_INFO_PARAMS != ui32ScanCount)
-	{
-		ui32ScanCount = OSVSScanf(aszBVNCString, RGX_BVNC_STRP_FMTSPEC, pB, pV, pN, pC);
-	}
-	if (RGX_BVNC_INFO_PARAMS != ui32ScanCount)
+	pcTemp = &aszBVNCString[0];
+	pcNext = strchr(pcTemp, '.');
+	if (pcNext == NULL)
 	{
 		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
 	}
-	PVR_LOG(("BVNC module parameter honoured: %s", aszBVNCString));
+
+	*pcNext = '\0';
+	if (OSStringToUINT32(pcTemp, 0, pB) != PVRSRV_OK)
+	{
+		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+	}
+	pcTemp = pcNext+1;
+	/* remove any 'p' from the V string, as this will
+	 * cause the call to OSStringToUINT32 to fail
+	 */
+	pcNext = strchr(pcTemp, 'p');
+	if (pcNext)
+	{
+		/* found one- - changing to '\0' */
+		*pcNext = '\0';
+		/* Move to next '.' */
+		pcNext++;
+	}
+	else
+	{
+		/* none found, so find next '.' and change to '\0' */
+		pcNext = strchr(pcTemp, '.');
+		if (pcNext == NULL)
+		{
+			return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+		}
+		*pcNext = '\0';
+	}
+	if (OSStringToUINT32(pcTemp, 0, pV) != PVRSRV_OK)
+	{
+		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+	}
+	pcTemp = pcNext+1;
+	pcNext = strchr(pcTemp, '.');
+	if (pcNext == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+	}
+	*pcNext = '\0';
+	if (OSStringToUINT32(pcTemp, 0, pN) != PVRSRV_OK)
+	{
+		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+	}
+	pcTemp = pcNext+1;
+	if (OSStringToUINT32(pcTemp, 0, pC) != PVRSRV_OK)
+	{
+		return PVRSRV_ERROR_INVALID_BVNC_PARAMS;
+	}
+	PVR_LOG(("BVNC module parameter honoured: %d.%d.%d.%d", *pB, *pV, *pN, *pC));
 
 	return PVRSRV_OK;
 }
@@ -430,7 +501,7 @@ static IMG_UINT32 _RGXBvncReadSLCSize(PVRSRV_DEVICE_NODE *psDeviceNode)
 	IMG_UINT64 ui64SLCSize = 0ULL;
 
 #if defined(RGX_CR_SLC_SIZE_IN_KB)
-	/* Rogue and Oceanic hardware */
+	/* Rogue hardware */
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, SLC_SIZE_CONFIGURABLE))
 	{
 		ui64SLCSize = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_SLC_SIZE_IN_KB);
@@ -614,6 +685,8 @@ PVRSRV_ERROR RGXBvncInitialiseConfiguration(PVRSRV_DEVICE_NODE *psDeviceNode)
 #if defined(RGX_BVNC_KM_B) && defined(RGX_BVNC_KM_N) && defined(RGX_BVNC_KM_C)
 	if (NULL == pui64Cfg)
 	{
+		IMG_CHAR acVStr[5] = RGX_BVNC_KM_V_ST;
+
 		/* We reach here if the HW is not present,
 		 * or we are running in a guest OS with no COREID_PER_OS feature,
 		 * or HW is unstable during register read giving invalid values,
@@ -622,17 +695,18 @@ PVRSRV_ERROR RGXBvncInitialiseConfiguration(PVRSRV_DEVICE_NODE *psDeviceNode)
 		B = RGX_BVNC_KM_B;
 		N = RGX_BVNC_KM_N;
 		C = RGX_BVNC_KM_C;
+
+		/* Clear any 'p' that may have been in RGX_BVNC_KM_V_ST,
+		 * as OSStringToUINT32() will otherwise return an error.
+		 */
+		if (acVStr[strlen(acVStr)-1] == 'p')
 		{
-			IMG_UINT32	ui32ScanCount = 0;
-			ui32ScanCount = OSVSScanf(RGX_BVNC_KM_V_ST, "%u", &V);
-			if (1 != ui32ScanCount)
-			{
-				ui32ScanCount = OSVSScanf(RGX_BVNC_KM_V_ST, "%up", &V);
-				if (1 != ui32ScanCount)
-				{
-					V = 0;
-				}
-			}
+			acVStr[strlen(acVStr)-1] = '\0';
+		}
+
+		if (OSStringToUINT32(&acVStr[0], 0, &V) != PVRSRV_OK)
+		{
+			V = 0;
 		}
 		PVR_LOG(("Reverting to compile time BVNC %s", RGX_BVNC_KM));
 
@@ -659,7 +733,8 @@ PVRSRV_ERROR RGXBvncInitialiseConfiguration(PVRSRV_DEVICE_NODE *psDeviceNode)
 	/* Parsing feature config depends on available features on the core
 	 * hence this parsing should always follow the above feature assignment */
 	psDevInfo->sDevFeatureCfg.ui64Features = pui64Cfg[1];
-	_RGXBvncParseFeatureValues(psDevInfo, pui64Cfg);
+	eError = _RGXBvncParseFeatureValues(psDevInfo, pui64Cfg);
+	PVR_RETURN_IF_ERROR(eError);
 
 	/* Add 'V' to the packed BVNC value to get the BVNC ERN and BRN config. */
 	ui64BVNC = BVNC_PACK(B,V,N,C);
@@ -720,7 +795,7 @@ PVRSRV_ERROR RGXBvncInitialiseConfiguration(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	ui32RGXDevCnt++;
 
-#if defined(DEBUG)
+#if defined(DEBUG) || defined(SUPPORT_PERFORMANCE_RUN)
 	_RGXBvncDumpParsedConfig(psDeviceNode);
 #endif
 	return PVRSRV_OK;

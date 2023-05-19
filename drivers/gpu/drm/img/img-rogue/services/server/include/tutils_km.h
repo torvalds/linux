@@ -78,18 +78,20 @@ PVRSRV_ERROR SyncCheckpointTestIoctlKM(CONNECTION_DATA *psConnection,
 IMG_EXPORT
 PVRSRV_ERROR DevmemIntAllocHostMemKM(IMG_DEVMEM_SIZE_T ui32Size,
                                      PVRSRV_MEMALLOCFLAGS_T uiFlags,
-                                     IMG_UINT32 ui32LableLength,
+                                     IMG_UINT32 ui32LabelLength,
                                      const IMG_CHAR *pszAllocLabel,
                                      PMR **ppsPMR);
 
 PVRSRV_ERROR DevmemIntFreeHostMemKM(PMR *psPMR);
 
 IMG_EXPORT
-PVRSRV_ERROR PowerTestIoctlKM(IMG_UINT32  uiCmd,
-				  IMG_UINT32  uiIn1,
-				  IMG_UINT32  uiIn2,
-				  IMG_UINT32  *puiOut1,
-				  IMG_UINT32  *puiOut2);
+PVRSRV_ERROR PowerTestIoctlKM(CONNECTION_DATA *psConnection,
+							  PVRSRV_DEVICE_NODE *psDeviceNode,
+							  IMG_UINT32  uiCmd,
+							  IMG_UINT32  uiIn1,
+							  IMG_UINT32  uiIn2,
+							  IMG_UINT32  *puiOut1,
+							  IMG_UINT32  *puiOut2);
 
 PVRSRV_ERROR TestIOCTLSyncFbFenceSignalPVR(CONNECTION_DATA * psConnection,
                                            PVRSRV_DEVICE_NODE *psDevNode,

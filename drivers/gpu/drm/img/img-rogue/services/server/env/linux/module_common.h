@@ -79,6 +79,14 @@ typedef struct
 	 * the same psDRMFile.
 	 */
 	void *pvSyncConnectionData;
+
+#if defined(PVRSRV_ANDROID_TRACE_GPU_WORK_PERIOD)
+	/* hGpuWorkPeriodEventStats is used to hold gpu work period event stats
+	 * private data for each apps which have been working with GPU.
+	 */
+	void *pvGpuWorkPeriodEventStats;
+#endif /* defined(PVRSRV_ANDROID_TRACE_GPU_WORK_PERIOD) */
+
 } PVRSRV_CONNECTION_PRIV;
 
 int PVRSRVDriverInit(void);
@@ -87,9 +95,9 @@ void PVRSRVDriverDeinit(void);
 int PVRSRVDeviceInit(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
 void PVRSRVDeviceDeinit(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
 
-void PVRSRVDeviceShutdown(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
-int PVRSRVDeviceSuspend(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
-int PVRSRVDeviceResume(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
+void PVRSRVDeviceShutdown(struct drm_device *psDev);
+int PVRSRVDeviceSuspend(struct drm_device *psDev);
+int PVRSRVDeviceResume(struct drm_device *psDev);
 
 int PVRSRVDeviceServicesOpen(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
                              struct drm_file *psDRMFile);

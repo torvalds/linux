@@ -183,7 +183,7 @@ typedef IMG_UINT32 RGX_HWPERF_FEATURE_FLAGS;
 #define RGX_HWPERF_FEATURE_MULTICORE_FLAG              0x0100U
 #define RGX_HWPERF_FEATURE_VOLCANIC_FLAG               0x0800U
 #define RGX_HWPERF_FEATURE_ROGUE_FLAG                  0x1000U
-#define RGX_HWPERF_FEATURE_OCEANIC_FLAG                0x2000U
+#define RGX_HWPERF_FEATURE_RESERVED1_FLAG              0x2000U
 
 /*! This structure holds the data of a firmware packet. */
 typedef struct
@@ -360,6 +360,14 @@ typedef enum
 	RGX_HWPERF_PWR_DOWN         = 4, /*!< Power turned off to a HW domain */
 	RGX_HWPERF_PWR_SAFETY_RESET = 5, /*!< Resetting the GPU HW units for safety reasons */
 	RGX_HWPERF_PWR_PHR_FULL     = 6, /*!< Periodic HW full GPU Reset */
+	RGX_HWPERF_PWR_RD_UP        = 7, /*!< Power turned on to a Rascal+Dust */
+	RGX_HWPERF_PWR_RD_DOWN      = 8, /*!< Power turned off to a Rascal+Dust */
+	RGX_HWPERF_PWR_SPU_UP       = 9, /*!< Power turned on to a SPU */
+	RGX_HWPERF_PWR_SPU_DOWN     = 10, /*!< Power turned off to a SPU */
+	RGX_HWPERF_PWR_CLUSTER_UP   = 11, /*!< Power turned on to a cluster */
+	RGX_HWPERF_PWR_CLUSTER_DOWN = 12, /*!< Power turned off to a cluster */
+	RGX_HWPERF_PWR_RAC_UP       = 13, /*!< Power turned on to a RAC */
+	RGX_HWPERF_PWR_RAC_DOWN     = 14, /*!< Power turned off to a RAC */
 
 	RGX_HWPERF_PWR_LAST,
 } RGX_HWPERF_PWR;
@@ -469,6 +477,7 @@ typedef enum
 	RGX_HWPERF_FWACT_EV_HWR_FREELIST_READY, /*!< Freelist ready. */
 	RGX_HWPERF_FWACT_EV_FEATURES,           /*!< Features present */
 	RGX_HWPERF_FWACT_EV_FILTER_SET,         /*!< Event filter set. */
+	RGX_HWPERF_FWACT_EV_KICK_CANCEL,        /*!< A previous pipelined kick cancel. */
 
 	RGX_HWPERF_FWACT_EV_LAST                /*!< Number of element. */
 } RGX_HWPERF_FWACT_EV;
@@ -644,17 +653,29 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_UFO_DATA);
  */
 typedef enum
 {
-	RGX_HWPERF_KICK_TYPE_TA3D, /*!< Replaced by separate TA and 3D types */
-	RGX_HWPERF_KICK_TYPE_TQ2D, /*!< 2D TQ Kick */
-	RGX_HWPERF_KICK_TYPE_TQ3D, /*!< 3D TQ Kick */
-	RGX_HWPERF_KICK_TYPE_CDM,  /*!< Compute Kick */
-	RGX_HWPERF_KICK_TYPE_RS,   /*!< Ray Store Kick */
-	RGX_HWPERF_KICK_TYPE_VRDM, /*!< Vertex Ray Data Master Kick */
-	RGX_HWPERF_KICK_TYPE_TQTDM,/*!< 2D Data Master TQ Kick */
-	RGX_HWPERF_KICK_TYPE_SYNC, /*!< Sync Kick */
-	RGX_HWPERF_KICK_TYPE_TA,   /*!< TA Kick */
-	RGX_HWPERF_KICK_TYPE_3D,   /*!< 3D Kick */
-	RGX_HWPERF_KICK_TYPE_LAST,
+	RGX_HWPERF_KICK_TYPE_RESERVED_0,  /*!< Replaced by separate TA and 3D types (Deprecated) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_1,  /*!< 2D TQ Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_TQ2D) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_2,  /*!< 3D TQ Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_TQ3D) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_3,  /*!< Compute Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_CDM) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_4,  /*!< Ray Store Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_RS) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_5,  /*!< Vertex Ray Data Master Kick (Deprecated) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_6,  /*!< 2D Data Master TQ Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_TQTDM) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_7,  /*!< Sync Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_SYNC) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_8,  /*!< TA Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_GEOM) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_9,  /*!< 3D Kick (Deprecated - Use RGX_HWPERF_KICK_TYPE2_3D) */
+	RGX_HWPERF_KICK_TYPE_RESERVED_10,
+
+	RGX_HWPERF_KICK_TYPE_UNIFIED = 0x10,
+
+	RGX_HWPERF_KICK_TYPE2_TQ2D,  /*!< 2D TQ Kick */
+	RGX_HWPERF_KICK_TYPE2_TQ3D,  /*!< 3D TQ Kick */
+	RGX_HWPERF_KICK_TYPE2_TQTDM, /*!< 2D Data Master TQ Kick */
+	RGX_HWPERF_KICK_TYPE2_CDM,   /*!< Compute Kick */
+	RGX_HWPERF_KICK_TYPE2_GEOM,  /*!< GEOM Kick */
+	RGX_HWPERF_KICK_TYPE2_3D,    /*!< 3D Kick */
+	RGX_HWPERF_KICK_TYPE2_SYNC,  /*!< Sync Kick */
+	RGX_HWPERF_KICK_TYPE2_RS,    /*!< Ray Store Kick */
+	RGX_HWPERF_KICK_TYPE2_LAST,
 
 	RGX_HWPERF_KICK_TYPE_FORCE_32BIT = 0x7fffffff
 } RGX_HWPERF_KICK_TYPE;
@@ -904,7 +925,7 @@ typedef enum
 {
 	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_UNDEFINED = 0, /*!< Invalid */
 	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_OK,            /*!< Device OK */
-	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_RESPONDING,    /*!< Device responding to requests */
+	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_NOT_RESPONDING,/*!< Device not responding to requests */
 	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_DEAD,          /*!< Device not responding */
 	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS_FAULT,         /*!< Device has faulted */
 
@@ -927,27 +948,31 @@ typedef enum
 	RGX_HWPERF_HOST_DEVICE_HEALTH_REASON_LAST
 } RGX_HWPERF_HOST_DEVICE_HEALTH_REASON;
 
+/*! Data for device status event */
+typedef struct
+{
+	RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS eDeviceHealthStatus;
+	                                 /*!< Device's health status */
+	RGX_HWPERF_HOST_DEVICE_HEALTH_REASON eDeviceHealthReason;
+	                                 /*!< Reason for device's health status */
+} RGX_HWPERF_HOST_DEVICE_HEALTH;
+
 /*! RGX_HWPERF_DEV_INFO_EV values */
 typedef enum
 {
 	RGX_HWPERF_DEV_INFO_EV_HEALTH,      /*!< Health sub-event */
+	RGX_HWPERF_DEV_INFO_EV_FEATURES,    /*!< Features sub-event */
 
 	RGX_HWPERF_DEV_INFO_EV_LAST         /*!< Last enumeration value */
 } RGX_HWPERF_DEV_INFO_EV;
 
 /*! RGX_HWPERF_HOST_DEV_INFO_DETAIL is a union of structures providing
- *  further data regarding the device's status
+ *  further data regarding the device's features and status
  */
 typedef union
 {
-	/*! Data for device status event */
-	struct
-	{
-		RGX_HWPERF_HOST_DEVICE_HEALTH_STATUS eDeviceHealthStatus;
-		                                 /*!< Device's health status */
-		RGX_HWPERF_HOST_DEVICE_HEALTH_REASON eDeviceHealthReason;
-		                                 /*!< Reason for device's health status */
-	} sDeviceStatus;
+	RGX_HWPERF_HOST_DEVICE_HEALTH sDeviceStatus;    /*!< Device health status */
+	RGX_HWPERF_BVNC               sBVNC;            /*!< Device features */
 } RGX_HWPERF_HOST_DEV_INFO_DETAIL;
 
 /*! RGX_HWPERF_HOST_DEV_INFO_DATA contains device health status information */
@@ -972,8 +997,9 @@ static_assert((sizeof(RGX_HWPERF_HOST_DEV_INFO_DATA) & (PVRSRVTL_PACKET_ALIGNMEN
 /*! RGX_HWPERF_INFO_EV event subtype for RGX_HWPERF_HOST_INFO_DATA events */
 typedef enum
 {
-	RGX_HWPERF_INFO_EV_MEM_USAGE,     /*!< Memory usage event */
-	RGX_HWPERF_INFO_EV_LAST           /*!< End of enumeration */
+	RGX_HWPERF_INFO_EV_RESERVED_0,
+	RGX_HWPERF_INFO_EV_MEM64_USAGE,     /*!< 64-bit memory usage event */
+	RGX_HWPERF_INFO_EV_LAST             /*!< End of enumeration */
 } RGX_HWPERF_INFO_EV;
 
 /*! RGX_HWPERF_HOST_INFO_DETAIL contains the data payload for the
@@ -984,13 +1010,14 @@ typedef union
 	/*! Host Memory usage statistics */
 	struct
 	{
-		IMG_UINT32 ui32TotalMemoryUsage;   /*!< Total memory usage */
+		IMG_UINT64 ui64TotalMemoryUsage;   /*!< Total memory usage (bytes) */
 		/*! Detailed memory usage */
 		struct
 		{
 			IMG_UINT32 ui32Pid;              /*!< Process ID */
-			IMG_UINT32 ui32KernelMemUsage;   /*!< Kernel memory usage */
-			IMG_UINT32 ui32GraphicsMemUsage; /*!< GPU memory usage */
+			IMG_UINT32 ui32Padding;          /*!< Padding */
+			IMG_UINT64 ui64KernelMemUsage;   /*!< Kernel memory usage (bytes) */
+			IMG_UINT64 ui64GraphicsMemUsage; /*!< GPU memory usage (bytes) */
 		} sPerProcessUsage[RGX_HWPERF_ZERO_OR_MORE_ELEMENTS];
 	} sMemUsageStats;
 } RGX_HWPERF_HOST_INFO_DETAIL;
@@ -1288,12 +1315,7 @@ typedef IMG_UINT32 RGX_HWPERF_CNTBLK_ID;
 #define	RGX_CNTBLK_ID_HUB			 0x0002U /*!< Non-cluster grouping cores */
 #define	RGX_CNTBLK_ID_TORNADO		 0x0003U /*!< XT cores */
 #define	RGX_CNTBLK_ID_JONES			 0x0004U /*!< S7 cores */
-#if defined(RGX_FEATURE_HWPERF_OCEANIC)
-#define	RGX_CNTBLK_ID_DIRECT_LAST	 0x0003U /*!< Indirect blocks start from here */
-#else
 #define	RGX_CNTBLK_ID_DIRECT_LAST	 0x0005U /*!< Indirect blocks start from here */
-#endif /* defined(RGX_FEATURE_HWPERF_OCEANIC) */
-
 #define	RGX_CNTBLK_ID_BF_DEPRECATED	 0x0005U /*!< Doppler unit (DEPRECATED) */
 #define	RGX_CNTBLK_ID_BT_DEPRECATED	 0x0006U /*!< Doppler unit (DEPRECATED) */
 #define	RGX_CNTBLK_ID_RT_DEPRECATED	 0x0007U /*!< Doppler unit (DEPRECATED) */
@@ -1427,19 +1449,6 @@ typedef IMG_UINT32 RGX_HWPERF_CNTBLK_ID;
 /*! The number of layout blocks defined with configurable multiplexed
  * performance counters, hence excludes custom counter blocks.
  */
-#if defined(RGX_FEATURE_HWPERF_OCEANIC)
-#define RGX_HWPERF_MAX_MUX_BLKS (\
-	(IMG_UINT32)RGX_CNTBLK_ID_DIRECT_LAST    +\
-	RGX_CNTBLK_INDIRECT_COUNT(PBE,         0) )
-
-#define RGX_HWPERF_MAX_DA_BLKS (\
-	(IMG_UINT32)RGX_CNTBLK_INDIRECT_COUNT(TPU_MCU,     0)+\
-	RGX_CNTBLK_INDIRECT_COUNT(USC,                     0) )
-
-#define RGX_HWPERF_MAX_DEFINED_BLKS (\
-	(IMG_UINT32)RGX_HWPERF_MAX_MUX_BLKS     +\
-	RGX_HWPERF_MAX_DA_BLKS                   )
-#else
 #define RGX_HWPERF_MAX_DEFINED_BLKS  (\
 	(IMG_UINT32)RGX_CNTBLK_ID_DIRECT_LAST    +\
 	RGX_CNTBLK_INDIRECT_COUNT(TPU_MCU,     7)+\
@@ -1450,7 +1459,6 @@ typedef IMG_UINT32 RGX_HWPERF_CNTBLK_ID;
 	RGX_CNTBLK_INDIRECT_COUNT(PBE,        15) )
 #define RGX_HWPERF_MAX_MUX_BLKS      (\
     RGX_HWPERF_MAX_DEFINED_BLKS      )
-#endif
 
 static_assert(
 	((RGX_CNTBLK_ID_DIRECT_LAST + ((RGX_CNTBLK_ID_LAST & RGX_CNTBLK_ID_GROUP_MASK) >> RGX_CNTBLK_ID_GROUP_SHIFT)) <= RGX_HWPERF_MAX_BVNC_BLOCK_LEN),

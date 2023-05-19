@@ -48,7 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgx_hwperf.h"
 #include "device.h"
 
-#if defined(__linux__)
+#if defined(__linux__) && defined(CONFIG_EVENT_TRACING)
 
 void PVRGpuTraceEnqueueEvent(
 		PVRSRV_DEVICE_NODE *psDevNode,
@@ -98,7 +98,15 @@ void PVRGpuTraceDisableUfoCallback(void);
 void PVRGpuTraceEnableFirmwareActivityCallback(void);
 void PVRGpuTraceDisableFirmwareActivityCallback(void);
 
-#else /* defined(__linux__) */
+#if defined(PVRSRV_ANDROID_TRACE_GPU_WORK_PERIOD)
+PVRSRV_ERROR
+PVRSRVGpuTraceWorkPeriodEventStatsRegister(IMG_HANDLE*
+		phGpuWorkPeriodEventStats);
+void PVRSRVGpuTraceWorkPeriodEventStatsUnregister(
+		IMG_HANDLE hGpuWorkPeriodEventStats);
+#endif /* defined(PVRSRV_ANDROID_TRACE_GPU_WORK_PERIOD) */
+
+#else /* defined(__linux__) && defined(CONFIG_EVENT_TRACING) */
 
 static inline void PVRGpuTraceEnqueueEvent(
 		PVRSRV_DEVICE_NODE *psDevNode,
@@ -162,6 +170,6 @@ static inline void PVRGpuTraceDisableUfoCallback(void) {}
 static inline void PVRGpuTraceEnableFirmwareActivityCallback(void) {}
 static inline void PVRGpuTraceDisableFirmwareActivityCallback(void) {}
 
-#endif /* defined(__linux__) */
+#endif /* defined(__linux__) && defined(CONFIG_EVENT_TRACING) */
 
 #endif /* PVR_GPUTRACE_H_ */

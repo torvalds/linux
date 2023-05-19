@@ -72,6 +72,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_bridge_k.h"
 #include "pvr_uaccess.h"
 #include "osdi_impl.h"
+#include "kernel_compatibility.h"
 
 #define _DRIVER_THREAD_ENTER() \
 	do { \
@@ -206,7 +207,7 @@ static struct seq_operations _g_sSeqOps = {
 
 static int _Open(struct inode *psINode, struct file *psFile)
 {
-	DFS_FILE *psDFSFile = PDE_DATA(psINode);
+	DFS_FILE *psDFSFile = pde_data(psINode);
 	int iRes;
 
 	PVR_LOG_RETURN_IF_FALSE(psDFSFile != NULL, "psDFSFile is NULL", -EIO);
@@ -253,7 +254,7 @@ return_:
 
 static int _Close(struct inode *psINode, struct file *psFile)
 {
-	DFS_FILE *psDFSFile = PDE_DATA(psINode);
+	DFS_FILE *psDFSFile = pde_data(psINode);
 	DFS_ENTRY *psEntry;
 	int iRes;
 
@@ -293,7 +294,7 @@ static int _Close(struct inode *psINode, struct file *psFile)
 static ssize_t _Read(struct file *psFile, char __user *pcBuffer,
                      size_t uiCount, loff_t *puiPos)
 {
-	DFS_FILE *psDFSFile = PDE_DATA(psFile->f_path.dentry->d_inode);
+	DFS_FILE *psDFSFile = pde_data(psFile->f_path.dentry->d_inode);
 	ssize_t iRes = -1;
 
 	_DRIVER_THREAD_ENTER();
@@ -303,7 +304,7 @@ static ssize_t _Read(struct file *psFile, char __user *pcBuffer,
 		iRes = seq_read(psFile, pcBuffer, uiCount, puiPos);
 		if (iRes < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: filed to read from file pfnRead() "
+			PVR_DPF((PVR_DBG_ERROR, "%s: failed to read from file pfnRead() "
 			        "returned %zd", __func__, iRes));
 			goto return_;
 		}
@@ -320,7 +321,7 @@ static ssize_t _Read(struct file *psFile, char __user *pcBuffer,
 		                                psEntry->sImplEntry.pvPrivData);
 		if (iRes < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: filed to read from file pfnRead() "
+			PVR_DPF((PVR_DBG_ERROR, "%s: failed to read from file pfnRead() "
 			        "returned %zd", __func__, iRes));
 			OSFreeMem(pcLocalBuffer);
 			goto return_;
@@ -344,7 +345,7 @@ return_:
 
 static loff_t _LSeek(struct file *psFile, loff_t iOffset, int iOrigin)
 {
-	DFS_FILE *psDFSFile = PDE_DATA(psFile->f_path.dentry->d_inode);
+	DFS_FILE *psDFSFile = pde_data(psFile->f_path.dentry->d_inode);
 	loff_t iRes = -1;
 
 	_DRIVER_THREAD_ENTER();
@@ -354,7 +355,7 @@ static loff_t _LSeek(struct file *psFile, loff_t iOffset, int iOrigin)
 		iRes = seq_lseek(psFile, iOffset, iOrigin);
 		if (iRes < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: filed to set file position to "
+			PVR_DPF((PVR_DBG_ERROR, "%s: failed to set file position to "
 			        "offset %lld, pfnSeek() returned %lld", __func__,
 			        iOffset, iRes));
 			goto return_;
@@ -387,7 +388,7 @@ static loff_t _LSeek(struct file *psFile, loff_t iOffset, int iOrigin)
 		                                psEntry->sImplEntry.pvPrivData);
 		if (iRes < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: filed to set file position to "
+			PVR_DPF((PVR_DBG_ERROR, "%s: failed to set file position to "
 			        "offset %lld, pfnSeek() returned %lld", __func__,
 			        iOffset, iRes));
 			goto return_;
@@ -406,7 +407,7 @@ static ssize_t _Write(struct file *psFile, const char __user *pszBuffer,
                       size_t uiCount, loff_t *puiPos)
 {
 	struct inode *psINode = psFile->f_path.dentry->d_inode;
-	DFS_FILE *psDFSFile = PDE_DATA(psINode);
+	DFS_FILE *psDFSFile = pde_data(psINode);
 	DI_ITERATOR_CB *psIter = &psDFSFile->sEntry.sIterCb;
 	IMG_CHAR *pcLocalBuffer;
 	IMG_UINT64 ui64Count;

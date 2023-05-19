@@ -108,7 +108,7 @@ typedef struct _PVRSRV_DEVICE_IDENTIFIER_
 	IMG_CHAR				*pszPDumpRegName;
 
 	/* Under Linux, this is the minor number of RenderNode corresponding to this Device */
-	IMG_INT32				i32OsDeviceID;
+	IMG_INT32				i32KernelDeviceID;
 	/* Services layer enumeration of the device used in pvrdebug */
 	IMG_UINT32				ui32InternalID;
 } PVRSRV_DEVICE_IDENTIFIER;
@@ -125,17 +125,12 @@ typedef struct _DEVICE_MEMORY_INFO_
 } DEVICE_MEMORY_INFO;
 
 #define MMU_BAD_PHYS_ADDR (0xbadbad00badULL)
-#define DUMMY_PAGE	("DUMMY_PAGE")
-#define DEV_ZERO_PAGE	("DEV_ZERO_PAGE")
-#define PVR_DUMMY_PAGE_INIT_VALUE	(0x0)
-#define PVR_ZERO_PAGE_INIT_VALUE	(0x0)
 
 typedef struct __DEFAULT_PAGE__
 {
 	/*Page handle for the page allocated (UMA/LMA)*/
 	PG_HANDLE	sPageHandle;
 	POS_LOCK	psPgLock;
-	ATOMIC_T	atRefCounter;
 	/*Default page size in terms of log2 */
 	IMG_UINT32	ui32Log2PgSize;
 	IMG_UINT64	ui64PgPhysAddr;
@@ -147,7 +142,8 @@ typedef struct __DEFAULT_PAGE__
 typedef enum _PVRSRV_DEVICE_STATE_
 {
 	PVRSRV_DEVICE_STATE_UNDEFINED = 0,
-	PVRSRV_DEVICE_STATE_INIT,
+	PVRSRV_DEVICE_STATE_CREATING,
+	PVRSRV_DEVICE_STATE_CREATED,
 	PVRSRV_DEVICE_STATE_ACTIVE,
 	PVRSRV_DEVICE_STATE_DEINIT,
 	PVRSRV_DEVICE_STATE_BAD,
@@ -190,6 +186,13 @@ typedef struct DI_GROUP DI_GROUP;
 typedef struct DI_ENTRY DI_ENTRY;
 #endif
 
+#if (RGX_NUM_DRIVERS_SUPPORTED > 1)
+#ifndef DI_VZ_DATA_DEFINED
+#define DI_VZ_DATA_DEFINED
+typedef struct DI_VZ_DATA DI_VZ_DATA;
+#endif
+#endif
+
 typedef struct _PVRSRV_DEVICE_DEBUG_INFO_
 {
 	DI_GROUP *psGroup;
@@ -204,15 +207,24 @@ typedef struct _PVRSRV_DEVICE_DEBUG_INFO_
 	DI_ENTRY *psRiscvDmiDIEntry;
 	IMG_UINT64 ui64RiscvDmi;
 #endif
+	DI_ENTRY *psDevMemEntry;
+	IMG_HANDLE hGpuUtilUserDebugFS;
 #endif /* SUPPORT_RGX */
 #ifdef SUPPORT_VALIDATION
 	DI_ENTRY *psRGXRegsEntry;
 #endif /* SUPPORT_VALIDATION */
-#ifdef SUPPORT_POWER_VALIDATION_VIA_DEBUGFS
-	DI_ENTRY *psPowMonEntry;
-#endif
 #ifdef SUPPORT_POWER_SAMPLING_VIA_DEBUGFS
 	DI_ENTRY *psPowerDataEntry;
+#endif
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+	DI_ENTRY *psPowerTimingStatsEntry;
+#endif
+#if (RGX_NUM_DRIVERS_SUPPORTED > 1)
+	DI_GROUP *psVZGroup;
+	DI_GROUP *apsVZDriverGroups[RGX_NUM_DRIVERS_SUPPORTED];
+	DI_ENTRY *apsVZDriverPriorityDIEntries[RGX_NUM_DRIVERS_SUPPORTED];
+	DI_ENTRY *apsVZDriverIsolationGroupDIEntries[RGX_NUM_DRIVERS_SUPPORTED];
+	DI_VZ_DATA *apsVZDriverData[RGX_NUM_DRIVERS_SUPPORTED];
 #endif
 } PVRSRV_DEVICE_DEBUG_INFO;
 
@@ -232,7 +244,7 @@ typedef struct _LISR_EXECUTION_INFO_
 
 	/* snapshot from the last LISR invocation */
 #if defined(RGX_FW_IRQ_OS_COUNTERS)
-	IMG_UINT32 aui32InterruptCountSnapshot[RGX_NUM_OS_SUPPORTED];
+	IMG_UINT32 aui32InterruptCountSnapshot[RGX_NUM_DRIVERS_SUPPORTED];
 #else
 	IMG_UINT32 aui32InterruptCountSnapshot[RGXFW_THREAD_NUM];
 #endif
@@ -241,7 +253,15 @@ typedef struct _LISR_EXECUTION_INFO_
 	IMG_UINT64 ui64Clockns;
 } LISR_EXECUTION_INFO;
 
-#define UPDATE_LISR_DBG_STATUS(status)		psDeviceNode->sLISRExecutionInfo.ui32Status = (status)
+#define UPDATE_LISR_DBG_STATUS(status)		\
+	do { \
+		psDeviceNode->sLISRExecutionInfo.ui32Status = (status); \
+		if ((status > RGX_LISR_INIT) && (status < RGX_LISR_PROCESSED)) \
+		{ \
+			PVR_DPF((PVR_DBG_ERROR, "%s: IRQ %llu rejected: %s", __func__, psDeviceNode->ui64nLISR, #status)); \
+		} \
+	} while (0)
+
 #define UPDATE_LISR_DBG_SNAPSHOT(idx, val)	psDeviceNode->sLISRExecutionInfo.aui32InterruptCountSnapshot[idx] = (val)
 #define UPDATE_LISR_DBG_TIMESTAMP()			psDeviceNode->sLISRExecutionInfo.ui64Clockns = OSClockns64()
 #define UPDATE_LISR_DBG_COUNTER()			psDeviceNode->ui64nLISR++
@@ -271,7 +291,8 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	MMU_DEVICEATTRIBS      *psMMUDevAttrs;
 	/* Device specific MMU firmware attributes, used only in some devices */
 	MMU_DEVICEATTRIBS      *psFirmwareMMUDevAttrs;
-
+	/* Physical Heap where MMU PT pages are allocated from, normally the
+	 * system's default physical heap but can be different for AutoVz driver. */
 	PHYS_HEAP              *psMMUPhysHeap;
 
 	/* lock for power state transitions */
@@ -291,12 +312,6 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	/*
 		callbacks the device must support:
 	*/
-
-	PVRSRV_ERROR (*pfnDevSLCFlushRange)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
-										MMU_CONTEXT *psMMUContext,
-										IMG_DEV_VIRTADDR sDevVAddr,
-										IMG_DEVMEM_SIZE_T uiSize,
-										IMG_BOOL bInvalidate);
 
 	PVRSRV_ERROR (*pfnInvalFBSCTable)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 									  MMU_CONTEXT *psMMUContext,
@@ -351,6 +366,8 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
 	IMG_BOOL (*pfnHasFBCDCVersion31)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
 
+	IMG_UINT32 (*pfnGetTFBCLossyGroup)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
+
 	MMU_DEVICEATTRIBS* (*pfnGetMMUDeviceAttributes)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, IMG_BOOL bKernelMemoryCtx);
 
 	PVRSRV_DEVICE_CONFIG	*psDevConfig;
@@ -361,8 +378,14 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	/* initialise device-specific physheaps */
 	PVRSRV_ERROR			(*pfnPhysMemDeviceHeapsInit) (struct _PVRSRV_DEVICE_NODE_ *);
 
+	/* determining the appropriate LMA allocation policy */
+	PHYS_HEAP_POLICY		(*pfnPhysHeapGetLMAPolicy) (PHYS_HEAP_USAGE_FLAGS);
+
 	/* initialise fw mmu, if FW not using GPU mmu, NULL otherwise. */
 	PVRSRV_ERROR			(*pfnFwMMUInit) (struct _PVRSRV_DEVICE_NODE_ *);
+
+	/* Check device's FW Main physheap free memory */
+	PVRSRV_ERROR			(*pfnCheckForSufficientFWPhysMem) (struct _PVRSRV_DEVICE_NODE_ *);
 
 	/* information about the device's address space and heaps */
 	DEVICE_MEMORY_INFO		sDevMemoryInfo;
@@ -376,39 +399,44 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	void					*pvDevice;
 
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
-	RA_ARENA                *psOSSharedArena;
+	RA_ARENA				*psOSSharedArena;
 	RA_ARENA				*psOSidSubArena[GPUVIRT_VALIDATION_NUM_OS];
 #endif
 
-	/* FW_MAIN, FW_CONFIG and FW_GUEST heaps. Should be part of registered heaps? */
-	PHYS_HEAP               *psFWMainPhysHeap;
-	PHYS_HEAP               *psFWCfgPhysHeap;
-	PHYS_HEAP               *apsFWPremapPhysHeap[RGX_NUM_OS_SUPPORTED];
+	/* When virtualisation support is enabled the Firmware heaps of virtualised
+	 * drivers can be entirely premapped into the Fw's VA space, during init
+	 * or during runtime on explicit request from Guest drivers. */
+	PHYS_HEAP               *apsFWPremapPhysHeap[RGX_NUM_DRIVERS_SUPPORTED];
 
-	IMG_UINT32				ui32RegisteredPhysHeaps;
-	PHYS_HEAP				**papsRegisteredPhysHeaps;
+	/* Head of the physical heap list. Tracks PhysHeap objects created from
+	 * the PHYS_HEAP_CONFIG definitions supplied by the system layer at
+	 * device creation time. There could be 1 or more and varies from system
+	 * to system.
+	 */
+	struct _PHYS_HEAP_		*psPhysHeapList;
+	POS_LOCK				hPhysHeapLock;
 
-	/* PHYS_HEAP Mapping table to the platform's physical memory heap(s)
-	 * used by this device. The physical heaps are created based on
-	 * the PHYS_HEAP_CONFIG data from the platform's system layer at device
-	 * creation time.
-	 *
-	 * Contains PVRSRV_PHYS_HEAP_LAST entries for all the possible physical heaps allowed in the design.
-	 * It allows the system layer PhysHeaps for the device to be identified for use in creating new PMRs.
-	 * See PhysHeapCreatePMR()
+	/* The apsPhysHeap array is a mapping table to the system's, often fewer,
+	 * physical memory heaps defined for this device. It contains
+	 * PVRSRV_PHYS_HEAP_LAST entries, one for each possible physical
+	 * heaps allowed in the design. Each PhysHeap in the design is acquired
+	 * and stored in the mapping table during device create. Fall-back logic
+	 * is employed to ensure a valid heap is always found from the set defined
+	 * in the system layer for the device. Responsibility for this is shared
+	 * between the common layer (PhysHeapInitDeviceHeaps) and sub-device
+	 * layer (pfnPhysMemDeviceHeapsInit).
+	 * It is used in the PhysMem module to create PMRs from a given PhysHeap
+	 * of memory. See PhysHeapCreatePMR()
 	 */
 	PHYS_HEAP				*apsPhysHeap[PVRSRV_PHYS_HEAP_LAST];
 	IMG_UINT32				ui32UserAllocHeapCount;
 
-#if defined(SUPPORT_AUTOVZ)
-	/* Phys Heap reserved for storing the MMU mappings of firmware.
-	 * The memory backing up this Phys Heap must persist between driver or OS reboots */
-	PHYS_HEAP               *psFwMMUReservedPhysHeap;
-#endif
-
 	/* Flag indicating if the firmware has been initialised during the
 	 * 1st boot of the Host driver according to the AutoVz life-cycle. */
 	IMG_BOOL				bAutoVzFwIsUp;
+
+	/* Flags indicating VM state and if PVZ calls originating from it are valid */
+	IMG_UINT32				ui32VmState;
 
 	struct _PVRSRV_DEVICE_NODE_	*psNext;
 	struct _PVRSRV_DEVICE_NODE_	**ppsThis;
@@ -513,6 +541,9 @@ typedef struct _PVRSRV_DEVICE_NODE_
 #endif
 
 	PVRSRV_DEVICE_DEBUG_INFO sDebugInfo;
+	IMG_BOOL                bEnablePFDebug;      /*!< EnablePageFaultDebug AppHint setting for device */
+
+	IMG_UINT32              ui32RGXLog2Non4KPgSize; /* Page size of Non4k heap in log2 form */
 } PVRSRV_DEVICE_NODE;
 
 /*

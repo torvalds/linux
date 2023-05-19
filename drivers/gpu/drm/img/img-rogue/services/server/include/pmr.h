@@ -74,8 +74,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PMR_MAX_TRANSLATION_STACK_ALLOC				(32)
 
-/* Maximum number of pages a PMR can have is 1G of memory */
-#define PMR_MAX_SUPPORTED_PAGE_COUNT				(262144)
+/* Maximum size PMR can have is 8G of memory */
+#define PMR_MAX_SUPPORTED_SIZE (0x200000000ULL)
+/* Max number of pages in a PMR at 4k page size */
+#define PMR_MAX_SUPPORTED_4K_PAGE_COUNT (PMR_MAX_SUPPORTED_SIZE >> 12ULL)
 
 typedef IMG_UINT64 PMR_BASE_T;
 typedef IMG_UINT64 PMR_SIZE_T;
@@ -99,6 +101,18 @@ struct _PMR_MAPPING_TABLE_
 typedef struct _PMR_EXPORT_ PMR_EXPORT;
 
 typedef struct _PMR_PAGELIST_ PMR_PAGELIST;
+
+/*
+ * PMRValidateSize
+ *
+ * Given a size value, check the value against the max supported
+ * PMR size of 1GB. Return IMG_FALSE if size exceeds max, IMG_TRUE
+ * otherwise.
+ */
+static inline IMG_BOOL PMRValidateSize(IMG_UINT64 uiSize)
+{
+	return (uiSize > PMR_MAX_SUPPORTED_SIZE) ? IMG_FALSE : IMG_TRUE;
+}
 
 /*
  * PMRCreatePMR
@@ -175,7 +189,6 @@ typedef struct _PMR_PAGELIST_ PMR_PAGELIST;
 PVRSRV_ERROR
 PMRCreatePMR(PHYS_HEAP *psPhysHeap,
              PMR_SIZE_T uiLogicalSize,
-             PMR_SIZE_T uiChunkSize,
              IMG_UINT32 ui32NumPhysChunks,
              IMG_UINT32 ui32NumVirtChunks,
              IMG_UINT32 *pui32MappingTable,
@@ -234,46 +247,6 @@ PMRUnlockSysPhysAddresses(PMR *psPMR);
 
 PVRSRV_ERROR
 PMRUnlockSysPhysAddressesNested(PMR *psPMR, IMG_UINT32 ui32NestingLevel);
-
-
-/*************************************************************************/ /*!
-@Function       PMRUnpinPMR
-@Description    This is the counterpart to PMRPinPMR(). It is meant to be
-                called before repinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          psPMR           The physical memory to unpin.
-
-@Input          bDevMapped      A flag that indicates if this PMR has been
-                                mapped to device virtual space.
-                                Needed to check if this PMR is allowed to be
-                                unpinned or not.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the memory is
-                                registered to be reclaimed. Error otherwise.
-*/ /**************************************************************************/
-PVRSRV_ERROR PMRUnpinPMR(PMR *psPMR, IMG_BOOL bDevMapped);
-
-/*************************************************************************/ /*!
-@Function       PMRPinPMR
-@Description    This is the counterpart to PMRUnpinPMR(). It is meant to be
-                called after unpinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          psPMR           The physical memory to pin.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the allocation content
-                                was successfully restored.
-
-                                PVRSRV_ERROR_PMR_NEW_MEMORY when the content
-                                could not be restored and new physical memory
-                                was allocated.
-
-                                A different error otherwise.
-*/ /**************************************************************************/
-PVRSRV_ERROR PMRPinPMR(PMR *psPMR);
 
 /*
  * PhysmemPMRExport()
@@ -469,14 +442,19 @@ PMR_WriteBytes(PMR *psPMR,
                 address space. The caller does not need to call
                 PMRLockSysPhysAddresses before calling this function.
 
-@Input          psPMR           PMR to map.
+@Input          psPMR            PMR to map.
 
-@Input          pOSMMapData     OS specific data needed to create a mapping.
+@Input          pOSMMapData      OS specific data needed to create a mapping.
+
+@Input          uiCpuAccessFlags Flags to indicate if the mapping request
+                                 requires read, write or both access.
 
 @Return         PVRSRV_ERROR:   PVRSRV_OK on success or an error otherwise.
 */ /**************************************************************************/
 PVRSRV_ERROR
-PMRMMapPMR(PMR *psPMR, PMR_MMAP_DATA pOSMMapData);
+PMRMMapPMR(PMR *psPMR,
+           PMR_MMAP_DATA pOSMMapData,
+           PVRSRV_MEMALLOCFLAGS_T uiCpuAccessFlags);
 
 /*
  * PMRRefPMR()
@@ -500,6 +478,29 @@ PVRSRV_ERROR
 PMRUnrefPMR(PMR *psPMR);
 
 /*
+ * PMRRefPMR2()
+ *
+ * Take a reference on the passed in PMR.
+ *
+ * This function does not perform address locking as opposed to PMRRefPMR().
+ */
+void
+PMRRefPMR2(PMR *psPMR);
+
+/*
+ * PMRUnrefPMR2()
+ *
+ * This undoes a call to any of the PhysmemNew* family of APIs
+ * (i.e. any PMR factory "constructor").
+ *
+ * This relinquishes a reference to the PMR, and, where the refcount
+ * reaches 0, causes the PMR to be destroyed (calling the finalizer
+ * callback on the PMR, if there is one)
+ */
+void
+PMRUnrefPMR2(PMR *psPMR);
+
+/*
  * PMRUnrefUnlockPMR()
  *
  * Same as above but also unlocks the PMR.
@@ -509,15 +510,6 @@ PMRUnrefUnlockPMR(PMR *psPMR);
 
 PPVRSRV_DEVICE_NODE
 PMR_DeviceNode(const PMR *psPMR);
-
-/*
- * PMRIsPMRLive()
- *
- * This function returns true if the PMR is in use and false otherwise.
- * This function is not thread safe and hence the caller needs to ensure the
- * thread safety by explicitly taking PMR or through other means.
- */
-IMG_BOOL PMRIsPMRLive(PMR *psPMR);
 
 /*
  * PMR_Flags()
@@ -533,9 +525,6 @@ PMR_Flags(const PMR *psPMR);
 
 IMG_BOOL
 PMR_IsSparse(const PMR *psPMR);
-
-IMG_BOOL
-PMR_IsUnpinned(const PMR *psPMR);
 
 void
 PMR_LogicalSize(const PMR *psPMR,
@@ -553,6 +542,14 @@ PMR_GetMappingTable(const PMR *psPMR);
 
 IMG_UINT32
 PMR_GetLog2Contiguity(const PMR *psPMR);
+
+/*
+ * PMRGetMaxChunkCount
+ *
+ * Given a PMR, calculate the maximum number of chunks supported by
+ * the PMR from the contiguity and return it.
+ */
+IMG_UINT32 PMRGetMaxChunkCount(PMR *psPMR);
 
 const IMG_CHAR *
 PMR_GetAnnotation(const PMR *psPMR);

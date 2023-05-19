@@ -63,16 +63,16 @@ extern "C" {
 #define PVR_MAX_DEBUG_MESSAGE_LEN	(512)   /*!< Max length of a Debug Message */
 
 /* These are privately used by pvr_debug, use the PVR_DBG_ defines instead */
-#define DBGPRIV_FATAL     0x001UL  /*!< Debug-Fatal. Privately used by pvr_debug. */
-#define DBGPRIV_ERROR     0x002UL  /*!< Debug-Error. Privately used by pvr_debug. */
-#define DBGPRIV_WARNING   0x004UL  /*!< Debug-Warning. Privately used by pvr_debug. */
-#define DBGPRIV_MESSAGE   0x008UL  /*!< Debug-Message. Privately used by pvr_debug. */
-#define DBGPRIV_VERBOSE   0x010UL  /*!< Debug-Verbose. Privately used by pvr_debug. */
-#define DBGPRIV_CALLTRACE 0x020UL  /*!< Debug-CallTrace. Privately used by pvr_debug. */
-#define DBGPRIV_ALLOC     0x040UL  /*!< Debug-Alloc. Privately used by pvr_debug. */
-#define DBGPRIV_BUFFERED  0x080UL  /*!< Debug-Buffered. Privately used by pvr_debug. */
-#define DBGPRIV_DEBUG     0x100UL  /*!< Debug-AdHoc-Debug. Never submitted. Privately used by pvr_debug. */
-#define DBGPRIV_LAST      0x100UL  /*!< Always set to highest mask value. Privately used by pvr_debug. */
+#define DBGPRIV_FATAL     0x001U  /*!< Debug-Fatal. Privately used by pvr_debug. */
+#define DBGPRIV_ERROR     0x002U  /*!< Debug-Error. Privately used by pvr_debug. */
+#define DBGPRIV_WARNING   0x004U  /*!< Debug-Warning. Privately used by pvr_debug. */
+#define DBGPRIV_MESSAGE   0x008U  /*!< Debug-Message. Privately used by pvr_debug. */
+#define DBGPRIV_VERBOSE   0x010U  /*!< Debug-Verbose. Privately used by pvr_debug. */
+#define DBGPRIV_CALLTRACE 0x020U  /*!< Debug-CallTrace. Privately used by pvr_debug. */
+#define DBGPRIV_ALLOC     0x040U  /*!< Debug-Alloc. Privately used by pvr_debug. */
+#define DBGPRIV_BUFFERED  0x080U  /*!< Debug-Buffered. Privately used by pvr_debug. */
+#define DBGPRIV_DEBUG     0x100U  /*!< Debug-AdHoc-Debug. Never submitted. Privately used by pvr_debug. */
+#define DBGPRIV_LAST      0x100U  /*!< Always set to highest mask value. Privately used by pvr_debug. */
 
 /* Enable DPF logging for locally from some make targets */
 #if defined(PVRSRV_NEED_PVR_DPF_LOCAL)
@@ -242,9 +242,9 @@ PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 
 	/* These levels are always on with PVRSRV_NEED_PVR_DPF */
 	/*! @cond Doxygen_Suppress */
-	#define PVR_DPF_0x001UL(...) PVRSRVDebugPrintf(DBGPRIV_FATAL, __VA_ARGS__)
-	#define PVR_DPF_0x002UL(...) PVRSRVDebugPrintf(DBGPRIV_ERROR, __VA_ARGS__)
-	#define PVR_DPF_0x080UL(...) PVRSRVDebugPrintf(DBGPRIV_BUFFERED, __VA_ARGS__)
+	#define PVR_DPF_0x001U(...) PVRSRVDebugPrintf(DBGPRIV_FATAL, __VA_ARGS__)
+	#define PVR_DPF_0x002U(...) PVRSRVDebugPrintf(DBGPRIV_ERROR, __VA_ARGS__)
+	#define PVR_DPF_0x080U(...) PVRSRVDebugPrintf(DBGPRIV_BUFFERED, __VA_ARGS__)
 
 	/*
 	 * The AdHoc-Debug level is only supported when enabled in the local
@@ -252,25 +252,25 @@ PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 	 * builds. An error is generated in the formal build if it is checked in.
 	 */
 #if defined(PVR_DPF_ADHOC_DEBUG_ON)
-	#define PVR_DPF_0x100UL(...) PVRSRVDebugPrintf(DBGPRIV_DEBUG, __VA_ARGS__)
+	#define PVR_DPF_0x100U(...) PVRSRVDebugPrintf(DBGPRIV_DEBUG, __VA_ARGS__)
 #else
 	/* Use an undefined token here to stop compilation dead in the offending module */
-	#define PVR_DPF_0x100UL(...) __ERROR__PVR_DBG_DEBUG_is_in_use_but_has_not_been_enabled__Note_Debug_DPF_must_not_be_checked_in__Define_PVR_DPF_ADHOC_DEBUG_ON_for_testing
+	#define PVR_DPF_0x100U(...) __ERROR__PVR_DBG_DEBUG_is_in_use_but_has_not_been_enabled__Note_Debug_DPF_must_not_be_checked_in__Define_PVR_DPF_ADHOC_DEBUG_ON_for_testing
 #endif
 
 	/* Some are compiled out completely in release builds */
 #if defined(DEBUG) || defined(DOXYGEN)
-	#define PVR_DPF_0x004UL(...) PVRSRVDebugPrintf(DBGPRIV_WARNING, __VA_ARGS__)
-	#define PVR_DPF_0x008UL(...) PVRSRVDebugPrintf(DBGPRIV_MESSAGE, __VA_ARGS__)
-	#define PVR_DPF_0x010UL(...) PVRSRVDebugPrintf(DBGPRIV_VERBOSE, __VA_ARGS__)
-	#define PVR_DPF_0x020UL(...) PVRSRVDebugPrintf(DBGPRIV_CALLTRACE, __VA_ARGS__)
-	#define PVR_DPF_0x040UL(...) PVRSRVDebugPrintf(DBGPRIV_ALLOC, __VA_ARGS__)
+	#define PVR_DPF_0x004U(...) PVRSRVDebugPrintf(DBGPRIV_WARNING, __VA_ARGS__)
+	#define PVR_DPF_0x008U(...) PVRSRVDebugPrintf(DBGPRIV_MESSAGE, __VA_ARGS__)
+	#define PVR_DPF_0x010U(...) PVRSRVDebugPrintf(DBGPRIV_VERBOSE, __VA_ARGS__)
+	#define PVR_DPF_0x020U(...) PVRSRVDebugPrintf(DBGPRIV_CALLTRACE, __VA_ARGS__)
+	#define PVR_DPF_0x040U(...) PVRSRVDebugPrintf(DBGPRIV_ALLOC, __VA_ARGS__)
 #else
-	#define PVR_DPF_0x004UL(...)
-	#define PVR_DPF_0x008UL(...)
-	#define PVR_DPF_0x010UL(...)
-	#define PVR_DPF_0x020UL(...)
-	#define PVR_DPF_0x040UL(...)
+	#define PVR_DPF_0x004U(...)
+	#define PVR_DPF_0x008U(...)
+	#define PVR_DPF_0x010U(...)
+	#define PVR_DPF_0x020U(...)
+	#define PVR_DPF_0x040U(...)
 #endif
 
 	/* Translate the different log levels to separate macros
@@ -523,7 +523,7 @@ IMG_EXPORT void IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 #if !defined(DOXYGEN)
 #define PVR_DPF_FUNC__(lvl, message, ...) PVR_DPF((lvl, "%s: " message, __func__, ##__VA_ARGS__))
 #define PVR_DPF_FUNC(x) PVR_DPF_FUNC__ x
-#endif /*!defined(DOXYGEN) */
+#endif
 
 /* Note: Use only when a log message due to the error absolutely should not
  *       be printed. Otherwise use PVR_LOG_RETURN_IF_ERROR macro.
@@ -648,7 +648,7 @@ IMG_EXPORT void IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 #endif /* defined(PVR_DPF_FUNCTION_TRACE_ON) */
 /*! @endcond */
 
-#if defined(__KERNEL__) || defined(DOXYGEN) || defined(__QNXNTO__)
+#if (defined(__KERNEL__) || defined(SUPPORT_SERVICES_SC_UNITTESTS_SERVER))|| defined(DOXYGEN) || defined(__QNXNTO__)
 /*Use PVR_DPF() unless message is necessary in release build */
 #define PVR_LOG(X) PVRSRVReleasePrintf X
 

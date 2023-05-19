@@ -46,13 +46,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debug.h"
 #include "cache_ops.h"
 
-
 extern void SysDevHost_Cache_Maintenance(IMG_HANDLE hSysData,
-									PVRSRV_CACHE_OP eRequestType,
-									void *pvVirtStart,
-									void *pvVirtEnd,
-									IMG_CPU_PHYADDR sCPUPhysStart,
-									IMG_CPU_PHYADDR sCPUPhysEnd);
+                                                                        PVRSRV_CACHE_OP eRequestType,
+                                                                        void *pvVirtStart,
+                                                                        void *pvVirtEnd,
+                                                                        IMG_CPU_PHYADDR sCPUPhysStar,
+                                                                        IMG_CPU_PHYADDR sCPUPhysEnd);
+
 
 void OSCPUCacheFlushRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 							void *pvVirtStart,
@@ -79,16 +79,16 @@ void OSCPUCacheFlushRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 #if !defined(NO_HARDWARE)
 	else
 	{
-		//PVR_DPF((PVR_DBG_ERROR,
-		//         "%s: System doesn't register cache maintenance flush. Skipping!",
+		//PVR_DPF((PVR_DBG_WARNING,
+		//        "%s: System doesn't implement cache maintenance. Skipping!",
 		//         __func__));
-		SysDevHost_Cache_Maintenance(
-				psDevNode->psDevConfig->hSysData,
-				PVRSRV_CACHE_OP_FLUSH,
-				pvVirtStart,
-				pvVirtEnd,
-				sCPUPhysStart,
-				sCPUPhysEnd);		
+                SysDevHost_Cache_Maintenance(
+                                psDevNode->psDevConfig->hSysData,
+                                PVRSRV_CACHE_OP_FLUSH,
+                                pvVirtStart,
+                                pvVirtEnd,
+                                sCPUPhysStart,
+                                sCPUPhysEnd);
 
 	}
 #endif
@@ -119,16 +119,17 @@ void OSCPUCacheCleanRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 #if !defined(NO_HARDWARE)
 	else
 	{
-		//PVR_DPF((PVR_DBG_ERROR,
-		//         "%s: System doesn't register cache maintenance clean. Skipping!",
+		//PVR_DPF((PVR_DBG_WARNING,
+		//         "%s: System doesn't implement cache maintenance. Skipping!",
 		//         __func__));
-		SysDevHost_Cache_Maintenance(
-				psDevNode->psDevConfig->hSysData,
-				PVRSRV_CACHE_OP_CLEAN,
-				pvVirtStart,
-				pvVirtEnd,
-				sCPUPhysStart,
-				sCPUPhysEnd);		
+                SysDevHost_Cache_Maintenance(
+                                psDevNode->psDevConfig->hSysData,
+                                PVRSRV_CACHE_OP_CLEAN,
+                                pvVirtStart,
+                                pvVirtEnd,
+                                sCPUPhysStart,
+                                sCPUPhysEnd);
+
 
 	}
 #endif
@@ -159,16 +160,17 @@ void OSCPUCacheInvalidateRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 #if !defined(NO_HARDWARE)
 	else
 	{
-		//PVR_DPF((PVR_DBG_ERROR,
-		//         "%s: System doesn't register cache maintenance invalid. Skipping!",
+		//PVR_DPF((PVR_DBG_WARNING,
+		//         "%s: System doesn't implement cache maintenance. Skipping!",
 		//         __func__));
-		SysDevHost_Cache_Maintenance(
-				psDevNode->psDevConfig->hSysData,
-				PVRSRV_CACHE_OP_INVALIDATE,
-				pvVirtStart,
-				pvVirtEnd,
-				sCPUPhysStart,
-				sCPUPhysEnd);		
+                SysDevHost_Cache_Maintenance(
+                                psDevNode->psDevConfig->hSysData,
+                                PVRSRV_CACHE_OP_INVALIDATE,
+                                pvVirtStart,
+                                pvVirtEnd,
+                                sCPUPhysStart,
+                                sCPUPhysEnd);
+
 	}
 #endif
 }
@@ -190,7 +192,7 @@ OS_CACHE_OP_ADDR_TYPE OSCPUCacheOpAddressType(void)
 
 void OSUserModeAccessToPerfCountersEn(void)
 {
-#if 0// !defined(NO_HARDWARE)
+#if 0//!defined(NO_HARDWARE)
 	PVR_DPF((PVR_DBG_WARNING, "%s: Not implemented!", __func__));
 	PVR_ASSERT(0);
 #endif

@@ -126,12 +126,22 @@ PVRSRV_ERROR RGXInitMultiCoreInfo(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, GPU_MULTICORE_SUPPORT))
 	{
+		IMG_BOOL bPowerWasDown;
 		IMG_UINT32 ui32MulticoreInfo;
 		IMG_UINT32 ui32PrimaryCoreIds;
 		IMG_UINT32 ui32PrimaryId;
 		IMG_UINT32 ui32TotalCores;
 		IMG_UINT32 ui32NumCores;
 		IMG_UINT32 id, i;
+
+		bPowerWasDown = (psDeviceNode->psDevConfig->pfnGpuDomainPower(psDeviceNode) == PVRSRV_SYS_POWER_STATE_OFF);
+
+		/* Power-up the device as required to read the registers */
+		if (bPowerWasDown)
+		{
+			eError = PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_ON);
+			PVR_LOG_RETURN_IF_ERROR(eError, "PVRSRVSetSystemPowerState ON");
+		}
 
 		ui32NumCores = (OSReadHWReg32(psDevInfo->pvRegsBaseKM, RGX_CR_MULTICORE_DOMAIN)
 		                                            & ~RGX_CR_MULTICORE_DOMAIN_GPU_COUNT_CLRMSK)
@@ -184,6 +194,13 @@ PVRSRV_ERROR RGXInitMultiCoreInfo(PVRSRV_DEVICE_NODE *psDeviceNode)
 				++i;
 			}
 			ui32PrimaryCoreIds >>= 3;
+		}
+
+        /* revert power state to what it was on entry to this function */
+		if (bPowerWasDown)
+		{
+			eError = PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_OFF);
+			PVR_LOG_RETURN_IF_ERROR(eError, "PVRSRVSetSystemPowerState OFF");
 		}
 
 		/* Register callback to return info about multicore setup to client bridge */

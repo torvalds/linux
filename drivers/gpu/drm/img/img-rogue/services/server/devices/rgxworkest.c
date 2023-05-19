@@ -59,7 +59,7 @@ static inline IMG_BOOL _WorkEstEnabled(void)
 
 	if (psPVRSRVData->sDriverInfo.sKMBuildInfo.ui32BuildOptions &
 	    psPVRSRVData->sDriverInfo.sUMBuildInfo.ui32BuildOptions &
-	    OPTIONS_WORKLOAD_ESTIMATION_MASK)
+	    OPTIONS_WORKLOAD_ESTIMATION_EN)
 	{
 		return IMG_TRUE;
 	}
@@ -67,7 +67,7 @@ static inline IMG_BOOL _WorkEstEnabled(void)
 	return IMG_FALSE;
 }
 
-static inline IMG_UINT32 _WorkEstDoHash(IMG_UINT32 ui32Input)
+inline IMG_UINT32 _WorkEstDoHash(IMG_UINT32 ui32Input)
 {
 	IMG_UINT32 ui32HashPart;
 
@@ -303,8 +303,15 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 
 #if defined(SUPPORT_SOC_TIMER)
 	psDevConfig = psDevInfo->psDeviceNode->psDevConfig;
-	PVR_LOG_RETURN_IF_FALSE(psDevConfig->pfnSoCTimerRead, "SoC timer not available", eError);
-	ui64CurrentSoCTime = psDevConfig->pfnSoCTimerRead(psDevConfig->hSysData);
+	if (psDevConfig->pfnSoCTimerRead)
+	{
+		ui64CurrentSoCTime = psDevConfig->pfnSoCTimerRead(psDevConfig->hSysData);
+	}
+	else
+	{
+		/* Fallback to OS clock */
+		ui64CurrentSoCTime = 0;
+	}
 #endif
 
 	eError = OSClockMonotonicus64(&ui64CurrentTime);
@@ -322,8 +329,15 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 	{
 		/* Rounding is done to reduce multiple deadlines with minor spread flooding the fw workload array. */
 #if defined(SUPPORT_SOC_TIMER)
-		IMG_UINT64 ui64TimeDelta = (ui64DeadlineInus - ui64CurrentTime) * SOC_TIMER_FREQ;
-		psWorkEstKickData->ui64Deadline = ROUND_DOWN_TO_NEAREST_1024(ui64CurrentSoCTime + ui64TimeDelta);
+		if (psDevConfig->pfnSoCTimerRead)
+		{
+			IMG_UINT64 ui64TimeDelta = (ui64DeadlineInus - ui64CurrentTime) * SOC_TIMER_FREQ;
+			psWorkEstKickData->ui64Deadline = ROUND_DOWN_TO_NEAREST_1024(ui64CurrentSoCTime + ui64TimeDelta);
+		}
+		else
+		{
+			psWorkEstKickData->ui64Deadline = ROUND_DOWN_TO_NEAREST_1024(ui64DeadlineInus);
+		}
 #else
 		psWorkEstKickData->ui64Deadline = ROUND_DOWN_TO_NEAREST_1024(ui64DeadlineInus);
 #endif
@@ -394,6 +408,7 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 					 psWorkloadCharacteristics->sTransfer.ui32Characteristic2,
 					 *pui64CyclePrediction));
 				break;
+
 			default:
 				break;
 		}
@@ -447,6 +462,11 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 	psWorkEstHostData = psReturnData->psWorkEstHostData;
 	PVR_LOG_GOTO_IF_FALSE(psWorkEstHostData,
 	                      "WorkEstRetire: Missing host data",
+	                      unlock_workest);
+
+	/* Skip if cycle data unavailable */
+	PVR_LOG_GOTO_IF_FALSE(psReturnCmd->ui32CyclesTaken,
+	                      "WorkEstRetire: Cycle data not available",
 	                      unlock_workest);
 
 	/* Retrieve/validate completed workload matching data */
@@ -508,6 +528,13 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 		PVR_LOG(("WorkEstRetire: HASH_Insert failed"));
 	}
 
+#if defined(DEBUG)
+	/* Zero the current entry in the return data table.
+	 * Helps detect invalid ReturnDataIndex values from the
+	 * firmware before the hash table is corrupted. */
+	memset(psReturnData, 0, sizeof(WORKEST_RETURN_DATA));
+#endif
+
 	psWorkloadMatchingData->ui32HashArrayWO = (ui32HashArrayWO + 1) & WORKLOAD_HASH_WRAP_MASK;
 
 	OSLockRelease(psWorkloadMatchingData->psHashLock);
@@ -521,12 +548,16 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 unlock_workest:
 	OSLockRelease(psDevInfo->hWorkEstLock);
-	psWorkEstHostData->ui32WorkEstCCBReceived++;
+
+	PVR_ASSERT(psWorkEstHostData);
+	if (psWorkEstHostData)
+	{
+		psWorkEstHostData->ui32WorkEstCCBReceived++;
+	}
 
 	return PVRSRV_ERROR_INVALID_PARAMS;
 }
-
-static void _WorkEstInit(PVRSRV_RGXDEV_INFO *psDevInfo,
+void _WorkEstInit(PVRSRV_RGXDEV_INFO *psDevInfo,
 						 WORKLOAD_MATCHING_DATA *psWorkloadMatchingData,
 						 HASH_FUNC *pfnWorkEstHashFunc,
 						 HASH_KEY_COMP *pfnWorkEstHashCompare)
@@ -545,7 +576,7 @@ static void _WorkEstInit(PVRSRV_RGXDEV_INFO *psDevInfo,
 	psWorkloadMatchingData->psHashTable = psWorkloadHashTable;
 }
 
-static void _WorkEstDeInit(PVRSRV_RGXDEV_INFO *psDevInfo,
+void _WorkEstDeInit(PVRSRV_RGXDEV_INFO *psDevInfo,
 						   WORKLOAD_MATCHING_DATA *psWorkloadMatchingData)
 {
 	HASH_TABLE        *psWorkloadHashTable;

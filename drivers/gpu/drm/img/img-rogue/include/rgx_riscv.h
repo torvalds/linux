@@ -181,69 +181,67 @@ typedef struct
 #define RGXRISCVFW_DMI_SBCS_SBACCESS_32BIT     (2U)
 
 /* Abstract command error codes (descriptions from RISC-V debug spec v0.13) */
-typedef enum
-{
-	/* No error. */
-	RISCV_ABSTRACT_CMD_NO_ERROR = 0,
+typedef IMG_UINT32 RGXRISCVFW_ABSTRACT_CMD_ERR;
 
-	/*
-	 * An abstract command was executing while command, abstractcs, or abstractauto
-	 * was written, or when one of the data or progbuf registers was read or
-	 * written. This status is only written if cmderr contains 0.
-	 */
-	RISCV_ABSTRACT_CMD_BUSY = 1,
+/* No error. */
+#define RISCV_ABSTRACT_CMD_NO_ERROR 0U
 
-	/*
-	 * The requested command is not supported, regardless of whether
-	 * the hart is running or not.
-	 */
-	RISCV_ABSTRACT_CMD_NOT_SUPPORTED = 2,
+/*
+ * An abstract command was executing while command, abstractcs, or abstractauto
+ * was written, or when one of the data or progbuf registers was read or
+ * written. This status is only written if cmderr contains 0.
+ */
+#define RISCV_ABSTRACT_CMD_BUSY 1U
 
-	/*
-	 * An exception occurred while executing the command
-	 * (e.g. while executing the Program Buffer).
-	 */
-	RISCV_ABSTRACT_CMD_EXCEPTION = 3,
+/*
+ * The requested command is not supported, regardless of whether
+ * the hart is running or not.
+ */
+#define RISCV_ABSTRACT_CMD_NOT_SUPPORTED 2U
 
-	/*
-	 * The abstract command couldn't execute because the hart wasn't in the required
-	 * state (running/halted), or unavailable.
-	 */
-	RISCV_ABSTRACT_CMD_HALT_RESUME = 4,
+/*
+ * An exception occurred while executing the command
+ * (e.g. while executing the Program Buffer).
+ */
+#define RISCV_ABSTRACT_CMD_EXCEPTION 3U
 
-	/*
-	 * The abstract command failed due to a bus error
-	 * (e.g. alignment, access size, or timeout).
-	 */
-	RISCV_ABSTRACT_CMD_BUS_ERROR = 5,
+/*
+ * The abstract command couldn't execute because the hart wasn't in the required
+ * state (running/halted), or unavailable.
+ */
+#define RISCV_ABSTRACT_CMD_HALT_RESUME 4U
 
-	/* The command failed for another reason. */
-	RISCV_ABSTRACT_CMD_OTHER_ERROR = 7
+/*
+ * The abstract command failed due to a bus error
+ * (e.g. alignment, access size, or timeout).
+ */
+#define RISCV_ABSTRACT_CMD_BUS_ERROR 5U
 
-} RGXRISCVFW_ABSTRACT_CMD_ERR;
+/* The command failed for another reason. */
+#define RISCV_ABSTRACT_CMD_OTHER_ERROR 7U
+
 
 /* System Bus error codes (descriptions from RISC-V debug spec v0.13) */
-typedef enum
-{
-	/* There was no bus error. */
-	RISCV_SYSBUS_NO_ERROR = 0,
+typedef IMG_UINT32 RGXRISCVFW_SYSBUS_ERR;
 
-	/* There was a timeout. */
-	RISCV_SYSBUS_TIMEOUT = 1,
+/* There was no bus error. */
+#define RISCV_SYSBUS_NO_ERROR 0U
 
-	/* A bad address was accessed. */
-	RISCV_SYSBUS_BAD_ADDRESS = 2,
+/* There was a timeout. */
+#define RISCV_SYSBUS_TIMEOUT 1U
 
-	/* There was an alignment error. */
-	RISCV_SYSBUS_BAD_ALIGNMENT = 3,
+/* A bad address was accessed. */
+#define RISCV_SYSBUS_BAD_ADDRESS 2U
 
-	/* An access of unsupported size was requested. */
-	RISCV_SYSBUS_UNSUPPORTED_SIZE = 4,
+/* There was an alignment error. */
+#define RISCV_SYSBUS_BAD_ALIGNMENT 3U
 
-	/* Other. */
-	RISCV_SYSBUS_OTHER_ERROR = 7
+/* An access of unsupported size was requested. */
+#define RISCV_SYSBUS_UNSUPPORTED_SIZE 4U
 
-} RGXRISCVFW_SYSBUS_ERR;
+/* Other. */
+#define RISCV_SYSBUS_OTHER_ERROR 7U
+
 
 #endif /* RGXRISCVFW_ASSEMBLY_CODE */
 

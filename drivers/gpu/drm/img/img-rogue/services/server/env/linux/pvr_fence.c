@@ -157,7 +157,7 @@ pvr_fence_context_fences_dump(struct pvr_fence_context *fctx,
 		}
 
 		PVR_DUMPDEBUG_LOG(pfnDumpDebugPrintf, pvDumpDebugFile,
-				  " |  @%s (foreign)", value);
+				  " |  @%s (foreign)", fence_value_str);
 	}
 	spin_unlock_irqrestore(&fctx->list_lock, flags);
 }
@@ -1085,6 +1085,7 @@ pvr_fence_get_checkpoint(struct pvr_fence *update_fence)
  * pvr_sync_file.c if the driver determines any GPU work
  * is stuck waiting for a sync checkpoint representing a
  * foreign sync to be signalled.
+ * @fctx:    fence context
  * @nr_ufos: number of ufos in vaddrs
  * @vaddrs:  array of FW addresses of UFOs which the
  *           driver is waiting on.

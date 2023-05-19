@@ -55,6 +55,7 @@ PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
                                       PVRSRV_DEVICE_NODE * psDeviceNode,
                                       IMG_HANDLE           hMemCtxPrivData,
                                       RGXFWIF_DM           eFWDataMaster,
+                                      IMG_UINT64           ui64TempSpillingAddr,
                                       IMG_UINT32           ui32BPAddr,
                                       IMG_UINT32           ui32HandlerAddr,
                                       IMG_UINT32           ui32DataMaster)
@@ -79,6 +80,7 @@ PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
 	sBPCmd.uCmdData.sBPData.ui32BPAddr = ui32BPAddr;
 	sBPCmd.uCmdData.sBPData.ui32HandlerAddr = ui32HandlerAddr;
 	sBPCmd.uCmdData.sBPData.ui32BPDM = ui32DataMaster;
+	sBPCmd.uCmdData.sBPData.ui64SpillAddr = ui64TempSpillingAddr;
 	sBPCmd.uCmdData.sBPData.ui32BPDataFlags = RGXFWIF_BPDATA_FLAGS_WRITE | RGXFWIF_BPDATA_FLAGS_ENABLE;
 	sBPCmd.uCmdData.sBPData.eDM = eFWDataMaster;
 

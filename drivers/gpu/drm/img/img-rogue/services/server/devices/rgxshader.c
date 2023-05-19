@@ -162,13 +162,20 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 
 	RGXShaderReadHeader(psShaderFW, &sHeader);
 
+	if (sHeader.ui32Version != RGX_TQ_SHADERS_VERSION_PACK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: unsupported TQ shaders version: %d != %d",
+				 __func__, sHeader.ui32Version, RGX_TQ_SHADERS_VERSION_PACK));
+		eError = PVRSRV_ERROR_NOT_SUPPORTED;
+		goto failed_firmware;
+	}
+
 	ui32NumPages = (sHeader.ui32SizeFragment / RGX_BIF_PM_PHYSICAL_PAGE_SIZE) + 1;
 
 	PDUMPCOMMENT(psDeviceNode, "Allocate TDM USC PMR Block (Pages %08X)", ui32NumPages);
 
 	eError = PhysmemNewRamBackedPMR(NULL,
 									psDeviceNode,
-									(IMG_DEVMEM_SIZE_T)ui32NumPages * RGX_BIF_PM_PHYSICAL_PAGE_SIZE,
 									(IMG_DEVMEM_SIZE_T)ui32NumPages * RGX_BIF_PM_PHYSICAL_PAGE_SIZE,
 									1,
 									1,
@@ -218,7 +225,6 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 
 	eError = PhysmemNewRamBackedPMR(NULL,
 									psDeviceNode,
-									(IMG_DEVMEM_SIZE_T)ui32NumPages * RGX_BIF_PM_PHYSICAL_PAGE_SIZE,
 									(IMG_DEVMEM_SIZE_T)ui32NumPages * RGX_BIF_PM_PHYSICAL_PAGE_SIZE,
 									1,
 									1,

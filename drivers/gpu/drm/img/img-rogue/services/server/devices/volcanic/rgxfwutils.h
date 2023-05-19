@@ -56,21 +56,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "devicemem_utils.h"
 #include "rgxmem.h"
 
-#define RGX_FIRMWARE_GUEST_RAW_HEAP_IDENT   "FwRawOSID%d" /*!< RGX Raw Firmware Heap identifier */
+#define RGX_FIRMWARE_GUEST_RAW_HEAP_IDENT   "FwRawDriverID%d" /*!< RGX Raw Firmware Heap identifier */
 
 static INLINE PVRSRV_ERROR _SelectDevMemHeap(PVRSRV_RGXDEV_INFO *psDevInfo,
 											 PVRSRV_MEMALLOCFLAGS_T *puiFlags,
 											 DEVMEM_HEAP **ppsFwHeap)
 {
-	PVRSRV_PHYS_HEAP ePhysHeap = (PVRSRV_PHYS_HEAP)(PVRSRV_PHYS_HEAP)PVRSRV_GET_PHYS_HEAP_HINT(*puiFlags);
+	PVRSRV_PHYS_HEAP ePhysHeap = (PVRSRV_PHYS_HEAP)PVRSRV_GET_PHYS_HEAP_HINT(*puiFlags);
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	switch (ePhysHeap)
 	{
-#if defined(SUPPORT_SECURITY_VALIDATION)
-		/* call with GPU_SECURE from RGXSetupFwSysData */
-		case PVRSRV_PHYS_HEAP_GPU_SECURE:
-#endif
 		case PVRSRV_PHYS_HEAP_FW_CODE:
 		case PVRSRV_PHYS_HEAP_FW_PRIV_DATA:
 		case PVRSRV_PHYS_HEAP_FW_MAIN:
@@ -92,10 +88,10 @@ static INLINE PVRSRV_ERROR _SelectDevMemHeap(PVRSRV_RGXDEV_INFO *psDevInfo,
 		case PVRSRV_PHYS_HEAP_FW_PREMAP6:
 		case PVRSRV_PHYS_HEAP_FW_PREMAP7:
 		{
-			IMG_UINT32 ui32OSID = ePhysHeap - PVRSRV_PHYS_HEAP_FW_PREMAP0;
+			IMG_UINT32 ui32DriverID = ePhysHeap - PVRSRV_PHYS_HEAP_FW_PREMAP0;
 
-			PVR_LOG_RETURN_IF_INVALID_PARAM(ui32OSID < RGX_NUM_OS_SUPPORTED, "ui32OSID");
-			*ppsFwHeap = psDevInfo->psGuestFirmwareRawHeap[ui32OSID];
+			PVR_LOG_RETURN_IF_INVALID_PARAM(ui32DriverID < RGX_NUM_DRIVERS_SUPPORTED, "ui32DriverID");
+			*ppsFwHeap = psDevInfo->psPremappedFwRawHeap[ui32DriverID];
 			break;
 		}
 		default:
@@ -140,9 +136,27 @@ static INLINE PVRSRV_ERROR DevmemFwAllocate(PVRSRV_RGXDEV_INFO *psDevInfo,
 		PVR_DPF_RETURN_RC(eError);
 	}
 
-	uiAlign = (psFwHeap == psDevInfo->psFirmwareConfigHeap) ?
-				(RGX_FIRMWARE_CONFIG_HEAP_ALLOC_GRANULARITY) :
-				(GET_ROGUE_CACHE_LINE_SIZE(RGX_GET_FEATURE_VALUE(psDevInfo, SLC_CACHE_LINE_SIZE_BITS)));
+	if (psFwHeap == psDevInfo->psFirmwareConfigHeap)
+	{
+		/*
+		 * All structures allocated from the Firmware Config subheap must start at the same pre-determined
+		 * offsets, regardless of the system's page size (e.g. 4k,16k,64k). The alignment requirement is
+		 * satisfied for virtual addresses during the mapping stage. Physical allocations do not take
+		 * alignment into consideration.
+		 * VZ drivers usually preallocate and premap the entire Firmware heap range. Any allocations from
+		 * this heap are physical alloc only, having their device VAs derived from their PAs. This makes
+		 * it impossible to fulfil alignment requirements.
+		 * To work around this limitation, allocation sizes are rounded to the nearest multiple of 64kb,
+		 * regardless of the actual size of object.
+		 */
+		uiAlign = RGX_FIRMWARE_CONFIG_HEAP_ALLOC_GRANULARITY;
+
+		uiSize = PVR_ALIGN(uiSize, RGX_FIRMWARE_CONFIG_HEAP_ALLOC_GRANULARITY);
+	}
+	else
+	{
+		uiAlign = (GET_ROGUE_CACHE_LINE_SIZE(RGX_GET_FEATURE_VALUE(psDevInfo, SLC_CACHE_LINE_SIZE_BITS)));
+	}
 
 	eError = DevmemAllocateAndMap(psFwHeap,
 				uiSize,
@@ -201,7 +215,7 @@ static INLINE PVRSRV_ERROR DevmemFwAllocateExportable(PVRSRV_DEVICE_NODE *psDevi
 		is set
 	*/
 	eError = DevmemMapToDevice(*ppsMemDescPtr,
-							   psDevInfo->psFirmwareMainHeap,
+							   psFwHeap,
 							   &sTmpDevVAddr);
 	if (eError != PVRSRV_OK)
 	{
@@ -214,7 +228,6 @@ static INLINE PVRSRV_ERROR DevmemFwAllocateExportable(PVRSRV_DEVICE_NODE *psDevi
 
 static INLINE PVRSRV_ERROR DevmemFwAllocateSparse(PVRSRV_RGXDEV_INFO *psDevInfo,
 												IMG_DEVMEM_SIZE_T uiSize,
-												IMG_DEVMEM_SIZE_T uiChunkSize,
 												IMG_UINT32 ui32NumPhysChunks,
 												IMG_UINT32 ui32NumVirtChunks,
 												IMG_UINT32 *pui32MappingTable,
@@ -244,7 +257,6 @@ static INLINE PVRSRV_ERROR DevmemFwAllocateSparse(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 	eError = DevmemAllocateSparse(psDevInfo->psDeviceNode,
 								uiSize,
-								uiChunkSize,
 								ui32NumPhysChunks,
 								ui32NumVirtChunks,
 								pui32MappingTable,
@@ -392,11 +404,6 @@ static INLINE IMG_UINT64 RGXReadHWTimerReg(PVRSRV_RGXDEV_INFO *psDevInfo)
 IMG_BOOL RGXTraceBufferIsInitRequired(PVRSRV_RGXDEV_INFO *psDevInfo);
 PVRSRV_ERROR RGXTraceBufferInitOnDemandResources(PVRSRV_RGXDEV_INFO* psDevInfo, PVRSRV_MEMALLOCFLAGS_T uiAllocFlags);
 
-#if defined(SUPPORT_POWMON_COMPONENT) && defined(SUPPORT_POWER_VALIDATION_VIA_DEBUGFS)
-IMG_BOOL RGXPowmonBufferIsInitRequired(PVRSRV_RGXDEV_INFO *psDevInfo);
-PVRSRV_ERROR RGXPowmonBufferInitOnDemandResources(PVRSRV_RGXDEV_INFO *psDevInfo);
-#endif
-
 #if defined(SUPPORT_TBI_INTERFACE)
 IMG_BOOL RGXTBIBufferIsInitRequired(PVRSRV_RGXDEV_INFO *psDevInfo);
 PVRSRV_ERROR RGXTBIBufferInitOnDemandResources(PVRSRV_RGXDEV_INFO *psDevInfo);
@@ -421,6 +428,7 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE       *psDeviceNode,
                               IMG_UINT32               *pui32USRMNumRegions,
                               IMG_UINT64               *pui64UVBRMNumRegions,
                               RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandConf,
+							  IMG_BOOL                 bSPUClockGating,
                               FW_PERF_CONF             eFirmwarePerf,
                               IMG_UINT32               ui32KCCBSizeLog2,
                               IMG_UINT32               ui32AvailableSPUMask,
@@ -529,7 +537,7 @@ PVRSRV_ERROR RGXReadMetaRegThroughSP(const void *hPrivate, IMG_UINT32 ui32RegAdd
 @Input          ui32CCBAllocSizeLog2    Size of the CCB for this context
 @Input          ui32CCBMaxAllocSizeLog2 Maximum size to which CCB can grow for this context
 @Input          ui32ContextFlags        Flags which specify properties of the context
-@Input          ui32Priority            Priority of the context
+@Input          i32Priority             Priority of the context
 @Input          ui32MaxDeadlineMS       Max deadline limit in MS that the workload can run
 @Input          ui64RobustnessAddress   Address for FW to signal a context reset
 @Input          psInfo                  Structure that contains extra info
@@ -549,7 +557,7 @@ PVRSRV_ERROR FWCommonContextAllocate(CONNECTION_DATA *psConnection,
 									 IMG_UINT32 ui32CCBAllocSizeLog2,
 									 IMG_UINT32 ui32CCBMaxAllocSizeLog2,
 									 IMG_UINT32 ui32ContextFlags,
-									 IMG_UINT32 ui32Priority,
+									 IMG_INT32 i32Priority,
 									 IMG_UINT32 ui32MaxDeadlineMS,
 									 IMG_UINT64 ui64RobustnessAddress,
 									 RGX_COMMON_CONTEXT_INFO *psInfo,
@@ -571,6 +579,9 @@ PVRSRV_RGXDEV_INFO* FWCommonContextGetRGXDevInfo(RGX_SERVER_COMMON_CONTEXT *psSe
 PVRSRV_ERROR RGXGetFWCommonContextAddrFromServerMMUCtx(PVRSRV_RGXDEV_INFO *psDevInfo,
 													   SERVER_MMU_CONTEXT *psServerMMUContext,
 													   PRGXFWIF_FWCOMMONCONTEXT *psFWCommonContextFWAddr);
+
+PRGXFWIF_FWCOMMONCONTEXT RGXGetFWCommonContextAddrFromServerCommonCtx(PVRSRV_RGXDEV_INFO *psDevInfo,
+													                  DLLIST_NODE *psNode);
 
 PVRSRV_ERROR FWCommonContextSetFlags(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
                                      IMG_UINT32 ui32ContextFlags);
@@ -861,7 +872,7 @@ PVRSRV_ERROR RGXFWRequestZSBufferCleanUp(PVRSRV_RGXDEV_INFO *psDevInfo,
 PVRSRV_ERROR ContextSetPriority(RGX_SERVER_COMMON_CONTEXT *psContext,
 								CONNECTION_DATA *psConnection,
 								PVRSRV_RGXDEV_INFO *psDevInfo,
-								IMG_UINT32 ui32Priority,
+								IMG_INT32 i32Priority,
 								RGXFWIF_DM eDM);
 
 /*!
@@ -882,24 +893,6 @@ PVRSRV_ERROR RGXFWSetHCSDeadline(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 /*!
 *******************************************************************************
-@Function       RGXFWChangeOSidPriority
-
-@Description    Requests the Firmware to change the priority of an operating
-                system. Higher priority number equals higher priority on the
-                scheduling system.
-
-@Input          psDevInfo       pointer to device info
-@Input          ui32OSid        The OSid whose priority is to be altered
-@Input          ui32Priority    The new priority number for the specified OSid
-
-@Return         PVRSRV_ERROR
-******************************************************************************/
-PVRSRV_ERROR RGXFWChangeOSidPriority(PVRSRV_RGXDEV_INFO *psDevInfo,
-									 IMG_UINT32 ui32OSid,
-									 IMG_UINT32 ui32Priority);
-
-/*!
-*******************************************************************************
 @Function       RGXFWHealthCheckCmd
 
 @Description    Ping the firmware to check if it is responsive.
@@ -917,18 +910,18 @@ PVRSRV_ERROR RGXFWHealthCheckCmd(PVRSRV_RGXDEV_INFO *psDevInfo);
 @Description    Requests the Firmware to change the guest OS Online states.
                 This should be initiated by the VMM when a guest VM comes
                 online or goes offline. If offline, the FW offloads any current
-                resource from that OSID. The request is repeated until the FW
-                has had time to free all the resources or has waited for
+                resource from that DriverID. The request is repeated until the
+                FW has had time to free all the resources or has waited for
                 workloads to finish.
 
 @Input          psDevInfo       pointer to device info
-@Input          ui32OSid        The Guest OSid whose state is being altered
+@Input          ui32DriverID    The driver whose state is being altered
 @Input          eOSOnlineState  The new state (Online or Offline)
 
 @Return         PVRSRV_ERROR
 ******************************************************************************/
 PVRSRV_ERROR RGXFWSetFwOsState(PVRSRV_RGXDEV_INFO *psDevInfo,
-								IMG_UINT32 ui32OSid,
+								IMG_UINT32 ui32DriverID,
 								RGXFWIF_OS_STATE_CHANGE eOSOnlineState);
 
 #if defined(SUPPORT_AUTOVZ)
@@ -1026,6 +1019,9 @@ void RGXCheckForStalledClientContexts(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_BOOL bI
 PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
                                    IMG_BOOL bCheckAfterTimePassed);
 
+
+PVRSRV_ERROR CheckStalledClientCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext, RGX_KICK_TYPE_DM eKickTypeDM);
+
 #if defined(SUPPORT_AUTOVZ)
 /*!
 *******************************************************************************
@@ -1037,8 +1033,6 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 ******************************************************************************/
 void RGXUpdateAutoVzWatchdog(PVRSRV_DEVICE_NODE* psDevNode);
 #endif /* SUPPORT_AUTOVZ */
-
-PVRSRV_ERROR CheckStalledClientCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext, RGX_KICK_TYPE_DM eKickTypeDM);
 
 void DumpFWCommonContextInfo(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext,
                              DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
@@ -1132,7 +1126,7 @@ PVRSRV_ERROR RGXPdumpDrainKCCB(PVRSRV_RGXDEV_INFO *psDevInfo,
                                 Otherwise, a PVRSRV error code
 ******************************************************************************/
 PVRSRV_ERROR RGXFwRawHeapAllocMap(PVRSRV_DEVICE_NODE *psDeviceNode,
-								  IMG_UINT32 ui32OSID,
+								  IMG_UINT32 ui32DriverID,
 								  IMG_DEV_PHYADDR sDevPAddr,
 								  IMG_UINT64 ui64DevPSize);
 
@@ -1144,7 +1138,7 @@ PVRSRV_ERROR RGXFwRawHeapAllocMap(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 ******************************************************************************/
 void RGXFwRawHeapUnmapFree(PVRSRV_DEVICE_NODE *psDeviceNode,
-						   IMG_UINT32 ui32OSID);
+						   IMG_UINT32 ui32DriverID);
 
 /*!
 *******************************************************************************
@@ -1322,6 +1316,33 @@ PVRSRV_ERROR RGXGetFwMapping(PVRSRV_RGXDEV_INFO *psDevInfo,
                                     IMG_DEV_PHYADDR *psDevPA,
                                     IMG_UINT64 *pui64RawPTE);
 
+#if defined(SUPPORT_WORKLOAD_ESTIMATION)
+/*!
+*******************************************************************************
+@Function       RGXIsValidWorkloadEstCCBCommand
+
+@Description    Checks if command type can be used for workload estimation
+
+@Input          eType       Command type to check
+
+@Return        IMG_BOOL
+******************************************************************************/
+INLINE IMG_BOOL RGXIsValidWorkloadEstCCBCommand(RGXFWIF_CCB_CMD_TYPE eType);
+
+#endif
+
+/*!
+*******************************************************************************
+@Function       RGXFWInjectFault
+
+@Description    Injecting firmware fault to validate recovery through Host
+
+@Input          psDevInfo       Pointer to device info
+
+@Return         PVRSRV_ERROR
+******************************************************************************/
+PVRSRV_ERROR RGXFWInjectFault(PVRSRV_RGXDEV_INFO *psDevInfo);
+
 #if defined(SUPPORT_AUTOVZ_HW_REGS) && !defined(SUPPORT_AUTOVZ)
 #error "VZ build configuration error: use of OS scratch registers supported only in AutoVz drivers."
 #endif
@@ -1343,7 +1364,7 @@ PVRSRV_ERROR RGXGetFwMapping(PVRSRV_RGXDEV_INFO *psDevInfo,
 #define KM_SET_OS_ALIVE_TOKEN(val, psDevInfo)		OSWriteDeviceMem32WithWMB(&psDevInfo->psRGXFWIfConnectionCtl->ui32AliveOsToken, val)
 #endif /* defined(SUPPORT_AUTOVZ) */
 
-#if !defined(NO_HARDWARE) && (defined(RGX_VZ_STATIC_CARVEOUT_FW_HEAPS) || (defined(RGX_NUM_OS_SUPPORTED) && (RGX_NUM_OS_SUPPORTED == 1)))
+#if !defined(NO_HARDWARE) && (defined(RGX_VZ_STATIC_CARVEOUT_FW_HEAPS) || (defined(RGX_NUM_DRIVERS_SUPPORTED) && (RGX_NUM_DRIVERS_SUPPORTED == 1)))
 /* native, static-vz and AutoVz using shared memory */
 #define KM_GET_FW_CONNECTION(psDevInfo)			(psDevInfo->psRGXFWIfConnectionCtl->eConnectionFwState)
 #define KM_GET_OS_CONNECTION(psDevInfo)			(psDevInfo->psRGXFWIfConnectionCtl->eConnectionOsState)
@@ -1353,13 +1374,13 @@ PVRSRV_ERROR RGXGetFwMapping(PVRSRV_RGXDEV_INFO *psDevInfo,
 #define KM_GET_FW_CONNECTION(psDevInfo)			(RGXFW_CONNECTION_FW_ACTIVE)
 #define KM_GET_OS_CONNECTION(psDevInfo)			(RGXFW_CONNECTION_OS_ACTIVE)
 #define KM_SET_OS_CONNECTION(val, psDevInfo)
-#endif /* defined(RGX_VZ_STATIC_CARVEOUT_FW_HEAPS) || (RGX_NUM_OS_SUPPORTED == 1) */
+#endif /* defined(RGX_VZ_STATIC_CARVEOUT_FW_HEAPS) || (RGX_NUM_DRIVERS_SUPPORTED == 1) */
 #endif /* defined(SUPPORT_AUTOVZ_HW_REGS) */
 
-#if defined(SUPPORT_AUTOVZ)
-#define RGX_FIRST_RAW_HEAP_OSID		RGXFW_HOST_OS
+#if defined(RGX_PREMAP_FW_HEAPS)
+#define RGX_FIRST_RAW_HEAP_DRIVER_ID		RGXFW_HOST_DRIVER_ID
 #else
-#define RGX_FIRST_RAW_HEAP_OSID		RGXFW_GUEST_OSID_START
+#define RGX_FIRST_RAW_HEAP_DRIVER_ID		RGXFW_GUEST_DRIVER_ID_START
 #endif
 
 #define KM_OS_CONNECTION_IS(val, psDevInfo)		(KM_GET_OS_CONNECTION(psDevInfo) == RGXFW_CONNECTION_OS_##val)

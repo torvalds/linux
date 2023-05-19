@@ -49,11 +49,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debug.h"
 #include "devicemem_server.h"
 #include "lock.h"
+#include "di_server.h"
 #include "devicemem_history_server.h"
 #include "pdump_km.h"
-#include "di_server.h"
 
-#define ALLOCATION_LIST_NUM_ENTRIES 10000
+
+#if (PVRSRV_APPHINT_DEVMEM_HISTORY_MAX_ENTRIES < 5000)
+#error PVRSRV_APPHINT_DEVMEM_HISTORY_MAX_ENTRIES is too low.
+#elif (PVRSRV_APPHINT_DEVMEM_HISTORY_MAX_ENTRIES > 250000)
+#error PVRSRV_APPHINT_DEVMEM_HISTORY_MAX_ENTRIES is too high.
+#else
+#define ALLOCATION_LIST_NUM_ENTRIES PVRSRV_APPHINT_DEVMEM_HISTORY_MAX_ENTRIES
+#endif
+
 
 /* data type to hold an allocation index.
  * we make it 16 bits wide if possible
@@ -171,13 +179,21 @@ typedef struct _COMMAND_WRAPPER_
 } COMMAND_WRAPPER;
 
 /* target size for the circular buffer of commands */
-#define CIRCULAR_BUFFER_SIZE_KB 2048
+#if (PVRSRV_APPHINT_DEVMEM_HISTORY_BUFSIZE_LOG2 < 5)
+#error PVRSRV_APPHINT_DEVMEM_HISTORY_BUFSIZE_LOG2 is too low.
+#elif (PVRSRV_APPHINT_DEVMEM_HISTORY_BUFSIZE_LOG2 > 18)
+#error PVRSRV_APPHINT_DEVMEM_HISTORY_BUFSIZE_LOG2 is too high.
+#else
+#define CIRCULAR_BUFFER_SIZE_KB (1 << PVRSRV_APPHINT_DEVMEM_HISTORY_BUFSIZE_LOG2)
+#endif
+
+
 /* turn the circular buffer target size into a number of commands */
 #define CIRCULAR_BUFFER_NUM_COMMANDS ((CIRCULAR_BUFFER_SIZE_KB * 1024) / sizeof(COMMAND_WRAPPER))
 
 /* index value denoting the end of a list */
 #define END_OF_LIST 0xFFFFFFFF
-#define ALLOC_INDEX_TO_PTR(idx) (&(gsDevicememHistoryData.sRecords.pasAllocations[idx]))
+#define ALLOC_INDEX_TO_PTR(psDevHData, idx) (&((psDevHData)->sRecords.pasAllocations[idx]))
 #define CHECK_ALLOC_INDEX(idx) (idx < ALLOCATION_LIST_NUM_ENTRIES)
 
 /* wrapper structure for the allocation records and the commands circular buffer */
@@ -189,36 +205,62 @@ typedef struct _RECORDS_
 	IMG_UINT32 ui32Head;
 	IMG_UINT32 ui32Tail;
 	COMMAND_WRAPPER *pasCircularBuffer;
+	/* Times the CB has wrapped back to start */
+	IMG_UINT64 ui64CBWrapCount;
+	/* Records of CB commands sent */
+	IMG_UINT64 ui64MapAllCount;//Incremented by InsertMapAllCommand()
+	IMG_UINT64 ui64UnMapAllCount;//Incremented by InsertUnmapAllCommand()
+	IMG_UINT64 ui64MapRangeCount;//Incremented by InsertMapRangeCommand()
+	IMG_UINT64 ui64UnMapRangeCount;//Incremented by InsertUnmapRangeCommand()
+	IMG_UINT64 ui64TimeStampCount;//Incremented by InsertTimeStampCommand()
 } RECORDS;
 
 typedef struct _DEVICEMEM_HISTORY_DATA_
 {
-	/* DI entry */
-	DI_ENTRY *psDIEntry;
-
 	RECORDS sRecords;
 	POS_LOCK hLock;
 } DEVICEMEM_HISTORY_DATA;
 
-static DEVICEMEM_HISTORY_DATA gsDevicememHistoryData;
+/* Maximum number of device instances supported. This should be DDK global */
+static DEVICEMEM_HISTORY_DATA *gapsDevicememHistoryData[PVRSRV_MAX_DEVICES] = { NULL };
+
+/* DevmemFindDataFromDev
+ *
+ * Return the address of the associated DEVICEMEM_HISTORY_DATA for the given
+ * device. If psDevNode associated unit is out of range we return NULL.
+ */
+static DEVICEMEM_HISTORY_DATA *DevmemFindDataFromDev(PVRSRV_DEVICE_NODE *psDevNode)
+{
+	DEVICEMEM_HISTORY_DATA *psDevmemData = NULL;
+
+	IMG_UINT32 uiUnit = psDevNode->sDevId.ui32InternalID;
+
+	PVR_ASSERT(uiUnit < PVRSRV_MAX_DEVICES);
+	if ((uiUnit < PVRSRV_MAX_DEVICES) && (gapsDevicememHistoryData[uiUnit] != NULL))
+	{
+		psDevmemData = gapsDevicememHistoryData[uiUnit];
+	}
+
+	return psDevmemData;
+}
 
 /* gsDevicememHistoryData is static, hLock is NULL unless
  * EnablePageFaultDebug is set and DevicememHistoryInitKM()
  * was called.
  */
-static void DevicememHistoryLock(void)
+static void DevicememHistoryLock(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
-	if (gsDevicememHistoryData.hLock)
+	if (psDevHData->hLock)
 	{
-		OSLockAcquire(gsDevicememHistoryData.hLock);
+		OSLockAcquire(psDevHData->hLock);
 	}
 }
 
-static void DevicememHistoryUnlock(void)
+static void DevicememHistoryUnlock(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
-	if (gsDevicememHistoryData.hLock)
+	if (psDevHData->hLock)
 	{
-		OSLockRelease(gsDevicememHistoryData.hLock);
+		OSLockRelease(psDevHData->hLock);
 	}
 }
 
@@ -244,15 +286,20 @@ static IMG_UINT64 _CalculateAge(IMG_UINT64 ui64Now,
  * move the circular buffer head along by one
  * Returns a pointer to the acquired slot.
  */
-static COMMAND_WRAPPER *AcquireCBSlot(void)
+static COMMAND_WRAPPER *AcquireCBSlot(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
 	COMMAND_WRAPPER *psSlot;
 
-	psSlot = &gsDevicememHistoryData.sRecords.pasCircularBuffer[gsDevicememHistoryData.sRecords.ui32Head];
+	psSlot = &psDevHData->sRecords.pasCircularBuffer[psDevHData->sRecords.ui32Head];
 
-	gsDevicememHistoryData.sRecords.ui32Head =
-		(gsDevicememHistoryData.sRecords.ui32Head + 1)
+	psDevHData->sRecords.ui32Head =
+		(psDevHData->sRecords.ui32Head + 1)
 				% CIRCULAR_BUFFER_NUM_COMMANDS;
+
+	if (psDevHData->sRecords.ui32Head == 0)
+	{
+		psDevHData->sRecords.ui64CBWrapCount++;
+	}
 
 	return psSlot;
 }
@@ -382,14 +429,20 @@ static void EmitPDumpMapUnmapRange(PVRSRV_DEVICE_NODE *psDeviceNode,
 /* InsertTimeStampCommand:
  * Insert a timestamp command into the circular buffer.
  */
-static void InsertTimeStampCommand(IMG_UINT64 ui64Now)
+static void InsertTimeStampCommand(IMG_UINT64 ui64Now, PVRSRV_DEVICE_NODE *psDevNode)
 {
 	COMMAND_WRAPPER *psCommand;
+	DEVICEMEM_HISTORY_DATA *psDevHData = DevmemFindDataFromDev(psDevNode);
 
-	psCommand = AcquireCBSlot();
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	psCommand = AcquireCBSlot(psDevHData);
 
 	psCommand->ui8Type = COMMAND_TYPE_TIMESTAMP;
-
+	psDevHData->sRecords.ui64TimeStampCount++;
 	TimeStampPack(&psCommand->u.sTimeStamp, ui64Now);
 }
 
@@ -400,16 +453,21 @@ static void InsertMapAllCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
                                 IMG_UINT32 ui32AllocIndex)
 {
 	COMMAND_WRAPPER *psCommand;
+	DEVICEMEM_HISTORY_DATA *psDevHData = DevmemFindDataFromDev(psDeviceNode);
 
-	psCommand = AcquireCBSlot();
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	psCommand = AcquireCBSlot(psDevHData);
 
 	psCommand->ui8Type = COMMAND_TYPE_MAP_ALL;
 	psCommand->u.sMapAll.uiAllocIndex = ui32AllocIndex;
+	psDevHData->sRecords.ui64MapAllCount++;
 
 #if defined(PDUMP)
 	EmitPDumpMapUnmapAll(psDeviceNode, COMMAND_TYPE_MAP_ALL, ui32AllocIndex);
-#else
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -420,16 +478,21 @@ static void InsertUnmapAllCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
                                   IMG_UINT32 ui32AllocIndex)
 {
 	COMMAND_WRAPPER *psCommand;
+	DEVICEMEM_HISTORY_DATA *psDevHData = DevmemFindDataFromDev(psDeviceNode);
 
-	psCommand = AcquireCBSlot();
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	psCommand = AcquireCBSlot(psDevHData);
 
 	psCommand->ui8Type = COMMAND_TYPE_UNMAP_ALL;
 	psCommand->u.sUnmapAll.uiAllocIndex = ui32AllocIndex;
+	psDevHData->sRecords.ui64UnMapAllCount++;
 
 #if defined(PDUMP)
 	EmitPDumpMapUnmapAll(psDeviceNode, COMMAND_TYPE_UNMAP_ALL, ui32AllocIndex);
-#else
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -491,11 +554,18 @@ static void InsertMapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 						IMG_UINT32 ui32Count)
 {
 	COMMAND_WRAPPER *psCommand;
+	DEVICEMEM_HISTORY_DATA *psDevHData = DevmemFindDataFromDev(psDeviceNode);
 
-	psCommand = AcquireCBSlot();
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	psCommand = AcquireCBSlot(psDevHData);
 
 	psCommand->ui8Type = COMMAND_TYPE_MAP_RANGE;
 	psCommand->u.sMapRange.uiAllocIndex = ui32AllocIndex;
+	psDevHData->sRecords.ui64MapRangeCount++;
 
 	MapRangePack(&psCommand->u.sMapRange, ui32StartPage, ui32Count);
 
@@ -505,8 +575,6 @@ static void InsertMapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 	                       ui32AllocIndex,
 	                       ui32StartPage,
 	                       ui32Count);
-#else
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -520,11 +588,18 @@ static void InsertUnmapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 						IMG_UINT32 ui32Count)
 {
 	COMMAND_WRAPPER *psCommand;
+	DEVICEMEM_HISTORY_DATA *psDevHData = DevmemFindDataFromDev(psDeviceNode);
 
-	psCommand = AcquireCBSlot();
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	psCommand = AcquireCBSlot(psDevHData);
 
 	psCommand->ui8Type = COMMAND_TYPE_UNMAP_RANGE;
 	psCommand->u.sMapRange.uiAllocIndex = ui32AllocIndex;
+	psDevHData->sRecords.ui64UnMapRangeCount++;
 
 	MapRangePack(&psCommand->u.sMapRange, ui32StartPage, ui32Count);
 
@@ -534,8 +609,6 @@ static void InsertUnmapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 	                       ui32AllocIndex,
 	                       ui32StartPage,
 	                       ui32Count);
-#else
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -547,8 +620,12 @@ static void InsertUnmapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 static void InsertAllocationToList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32Alloc)
 {
 	RECORD_ALLOCATION *psAlloc;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
-	psAlloc = ALLOC_INDEX_TO_PTR(ui32Alloc);
+	psDevHData = IMG_CONTAINER_OF(pui32ListHead, DEVICEMEM_HISTORY_DATA,
+	                              sRecords.ui32AllocationsListHead);
+
+	psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc);
 
 	if (*pui32ListHead == END_OF_LIST)
 	{
@@ -561,8 +638,8 @@ static void InsertAllocationToList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32All
 		RECORD_ALLOCATION *psHeadAlloc;
 		RECORD_ALLOCATION *psTailAlloc;
 
-		psHeadAlloc = ALLOC_INDEX_TO_PTR(*pui32ListHead);
-		psTailAlloc = ALLOC_INDEX_TO_PTR(psHeadAlloc->ui32Prev);
+		psHeadAlloc = ALLOC_INDEX_TO_PTR(psDevHData, *pui32ListHead);
+		psTailAlloc = ALLOC_INDEX_TO_PTR(psDevHData, psHeadAlloc->ui32Prev);
 
 		/* make the new alloc point forwards to the previous head */
 		psAlloc->ui32Next = *pui32ListHead;
@@ -580,9 +657,10 @@ static void InsertAllocationToList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32All
 	}
 }
 
-static void InsertAllocationToBusyList(IMG_UINT32 ui32Alloc)
+static void InsertAllocationToBusyList(DEVICEMEM_HISTORY_DATA *psDevHData,
+                                       IMG_UINT32 ui32Alloc)
 {
-	InsertAllocationToList(&gsDevicememHistoryData.sRecords.ui32AllocationsListHead, ui32Alloc);
+	InsertAllocationToList(&psDevHData->sRecords.ui32AllocationsListHead, ui32Alloc);
 }
 
 /* RemoveAllocationFromList:
@@ -594,7 +672,12 @@ static void RemoveAllocationFromList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32A
 {
 	RECORD_ALLOCATION *psAlloc;
 
-	psAlloc = ALLOC_INDEX_TO_PTR(ui32Alloc);
+	DEVICEMEM_HISTORY_DATA *psDevHData;
+
+	psDevHData = IMG_CONTAINER_OF(pui32ListHead, DEVICEMEM_HISTORY_DATA,
+	                              sRecords.ui32AllocationsListHead);
+
+	psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc);
 
 	/* if this is the only element in the list then just make the list empty */
 	if ((*pui32ListHead == ui32Alloc) && (psAlloc->ui32Next == ui32Alloc))
@@ -605,8 +688,8 @@ static void RemoveAllocationFromList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32A
 	{
 		RECORD_ALLOCATION *psPrev, *psNext;
 
-		psPrev = ALLOC_INDEX_TO_PTR(psAlloc->ui32Prev);
-		psNext = ALLOC_INDEX_TO_PTR(psAlloc->ui32Next);
+		psPrev = ALLOC_INDEX_TO_PTR(psDevHData, psAlloc->ui32Prev);
+		psNext = ALLOC_INDEX_TO_PTR(psDevHData, psAlloc->ui32Next);
 
 		/* remove the allocation from the list */
 		psPrev->ui32Next = psAlloc->ui32Next;
@@ -620,45 +703,52 @@ static void RemoveAllocationFromList(IMG_UINT32 *pui32ListHead, IMG_UINT32 ui32A
 	}
 }
 
-static void RemoveAllocationFromBusyList(IMG_UINT32 ui32Alloc)
+static void RemoveAllocationFromBusyList(DEVICEMEM_HISTORY_DATA *psDevHData, IMG_UINT32 ui32Alloc)
 {
-	RemoveAllocationFromList(&gsDevicememHistoryData.sRecords.ui32AllocationsListHead, ui32Alloc);
+	RemoveAllocationFromList(&psDevHData->sRecords.ui32AllocationsListHead, ui32Alloc);
 }
 
 /* TouchBusyAllocation:
  * Move the given allocation to the head of the list
  */
-static void TouchBusyAllocation(IMG_UINT32 ui32Alloc)
+static void TouchBusyAllocation(DEVICEMEM_HISTORY_DATA *psDevHData, IMG_UINT32 ui32Alloc)
 {
-	RemoveAllocationFromBusyList(ui32Alloc);
-	InsertAllocationToBusyList(ui32Alloc);
+	RemoveAllocationFromBusyList(psDevHData, ui32Alloc);
+	InsertAllocationToBusyList(psDevHData, ui32Alloc);
 }
 
 /* GetOldestBusyAllocation:
  * Returns the index of the oldest allocation in the MRU list
  */
-static IMG_UINT32 GetOldestBusyAllocation(void)
+static IMG_UINT32 GetOldestBusyAllocation(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
 	IMG_UINT32 ui32Alloc;
 	RECORD_ALLOCATION *psAlloc;
 
-	ui32Alloc = gsDevicememHistoryData.sRecords.ui32AllocationsListHead;
+	if (psDevHData != NULL)
+	{
+		ui32Alloc = psDevHData->sRecords.ui32AllocationsListHead;
+	}
+	else
+	{
+		ui32Alloc = END_OF_LIST;	/* Default if no psDevHData */
+	}
 
 	if (ui32Alloc == END_OF_LIST)
 	{
 		return END_OF_LIST;
 	}
 
-	psAlloc = ALLOC_INDEX_TO_PTR(ui32Alloc);
+	psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc);
 
 	return psAlloc->ui32Prev;
 }
 
-static IMG_UINT32 GetFreeAllocation(void)
+static IMG_UINT32 GetFreeAllocation(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
 	IMG_UINT32 ui32Alloc;
 
-	ui32Alloc = GetOldestBusyAllocation();
+	ui32Alloc = GetOldestBusyAllocation(psDevHData);
 
 	return ui32Alloc;
 }
@@ -701,11 +791,20 @@ static PVRSRV_ERROR CreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
 	IMG_UINT32 ui32Alloc;
 	RECORD_ALLOCATION *psAlloc;
 
-	ui32Alloc = GetFreeAllocation();
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
-	psAlloc = ALLOC_INDEX_TO_PTR(ui32Alloc);
+	psDevHData = DevmemFindDataFromDev(psDeviceNode);
 
-	InitialiseAllocation(ALLOC_INDEX_TO_PTR(ui32Alloc),
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	ui32Alloc = GetFreeAllocation(psDevHData);
+
+	psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc);
+
+	InitialiseAllocation(ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc),
 						pszName,
 						ui64Serial,
 						uiPID,
@@ -714,14 +813,12 @@ static PVRSRV_ERROR CreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
 						ui32Log2PageSize);
 
 	/* put the newly initialised allocation at the front of the MRU list */
-	TouchBusyAllocation(ui32Alloc);
+	TouchBusyAllocation(psDevHData, ui32Alloc);
 
 	*puiAllocationIndex = ui32Alloc;
 
 #if defined(PDUMP)
 	EmitPDumpAllocation(psDeviceNode, ui32Alloc, psAlloc);
-#else
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 
 	return PVRSRV_OK;
@@ -731,7 +828,8 @@ static PVRSRV_ERROR CreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
  * Tests if the allocation at the given index matches the supplied properties.
  * Returns IMG_TRUE if it is a match, otherwise IMG_FALSE.
  */
-static IMG_BOOL MatchAllocation(IMG_UINT32 ui32AllocationIndex,
+static IMG_BOOL MatchAllocation(DEVICEMEM_HISTORY_DATA *psDevHData,
+						IMG_UINT32 ui32AllocationIndex,
 						IMG_UINT64 ui64Serial,
 						IMG_DEV_VIRTADDR sDevVAddr,
 						IMG_DEVMEM_SIZE_T uiSize,
@@ -741,7 +839,12 @@ static IMG_BOOL MatchAllocation(IMG_UINT32 ui32AllocationIndex,
 {
 	RECORD_ALLOCATION *psAlloc;
 
-	psAlloc = ALLOC_INDEX_TO_PTR(ui32AllocationIndex);
+	if (psDevHData == NULL)
+	{
+		return IMG_FALSE;
+	}
+
+	psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32AllocationIndex);
 
 	return (psAlloc->ui64Serial == ui64Serial) &&
 	       (psAlloc->sDevVAddr.uiAddr == sDevVAddr.uiAddr) &&
@@ -779,7 +882,8 @@ static PVRSRV_ERROR FindOrCreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
 		 * if the caller provided a hint but the allocation record is no longer
 		 * there, it must have been purged, so go ahead and create a new allocation
 		 */
-		bHaveAllocation = MatchAllocation(ui32AllocationIndexHint,
+		bHaveAllocation = MatchAllocation(DevmemFindDataFromDev(psDeviceNode),
+								ui32AllocationIndexHint,
 								ui64Serial,
 								sDevVAddr,
 								uiSize,
@@ -901,7 +1005,7 @@ static void GenerateMapUnmapCommandsForSparsePMR(PMR *psPMR,
 
 				if (ui32DonePages == ui32NumPages)
 				{
-					 break;
+					break;
 				}
 
 				bInARun = IMG_FALSE;
@@ -1003,6 +1107,7 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 	IMG_PID uiPID = OSGetCurrentClientProcessIDKM();
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
 	if ((ui32AllocationIndex != DEVICEMEM_HISTORY_ALLOC_INDEX_NONE) &&
 		!CHECK_ALLOC_INDEX(ui32AllocationIndex))
@@ -1015,7 +1120,14 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 
 	PMRGetUID(psPMR, &ui64Serial);
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(PMR_DeviceNode(psPMR));
+
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
 						ui32AllocationIndex,
@@ -1032,7 +1144,7 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 	if ((eError == PVRSRV_OK) && !bCreated)
 	{
 		/* touch the allocation so it goes to the head of our MRU list */
-		TouchBusyAllocation(ui32AllocationIndex);
+		TouchBusyAllocation(psDevHData, ui32AllocationIndex);
 	}
 	else if (eError != PVRSRV_OK)
 	{
@@ -1054,12 +1166,12 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 								IMG_TRUE);
 	}
 
-	InsertTimeStampCommand(OSClockns64());
+	InsertTimeStampCommand(OSClockns64(), PMR_DeviceNode(psPMR));
 
 	*pui32AllocationIndexOut = ui32AllocationIndex;
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return eError;
 }
@@ -1122,6 +1234,7 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
 	IMG_PID uiPID = OSGetCurrentClientProcessIDKM();
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
@@ -1134,7 +1247,14 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(psDeviceNode);
+
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	eError = FindOrCreateAllocation(psDeviceNode,
 						ui32AllocationIndex,
@@ -1151,7 +1271,7 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
 	if ((eError == PVRSRV_OK) && !bCreated)
 	{
 		/* touch the allocation so it goes to the head of our MRU list */
-		TouchBusyAllocation(ui32AllocationIndex);
+		TouchBusyAllocation(psDevHData, ui32AllocationIndex);
 	}
 	else if (eError != PVRSRV_OK)
 	{
@@ -1173,7 +1293,7 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
 	*pui32AllocationIndexOut = ui32AllocationIndex;
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return eError;
 
@@ -1193,6 +1313,7 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
 	IMG_PID uiPID = OSGetCurrentClientProcessIDKM();
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
@@ -1205,7 +1326,14 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(psDeviceNode);
+
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	eError = FindOrCreateAllocation(psDeviceNode,
 						ui32AllocationIndex,
@@ -1222,7 +1350,7 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
 	if ((eError == PVRSRV_OK) && !bCreated)
 	{
 		/* touch the allocation so it goes to the head of our MRU list */
-		TouchBusyAllocation(ui32AllocationIndex);
+		TouchBusyAllocation(psDevHData, ui32AllocationIndex);
 	}
 	else if (eError != PVRSRV_OK)
 	{
@@ -1244,7 +1372,7 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
 	*pui32AllocationIndexOut = ui32AllocationIndex;
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return eError;
 }
@@ -1280,6 +1408,7 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 	IMG_PID uiPID = OSGetCurrentClientProcessIDKM();
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
 	if ((ui32AllocationIndex != DEVICEMEM_HISTORY_ALLOC_INDEX_NONE) &&
 		!CHECK_ALLOC_INDEX(ui32AllocationIndex))
@@ -1292,7 +1421,14 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 
 	PMRGetUID(psPMR, &ui64Serial);
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(PMR_DeviceNode(psPMR));
+
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
 						ui32AllocationIndex,
@@ -1309,7 +1445,7 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 	if ((eError == PVRSRV_OK) && !bCreated)
 	{
 		/* touch the allocation so it goes to the head of our MRU list */
-		TouchBusyAllocation(ui32AllocationIndex);
+		TouchBusyAllocation(psDevHData, ui32AllocationIndex);
 	}
 	else if (eError != PVRSRV_OK)
 	{
@@ -1331,12 +1467,12 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 								IMG_FALSE);
 	}
 
-	InsertTimeStampCommand(OSClockns64());
+	InsertTimeStampCommand(OSClockns64(), PMR_DeviceNode(psPMR));
 
 	*pui32AllocationIndexOut = ui32AllocationIndex;
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return eError;
 }
@@ -1378,6 +1514,16 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 	IMG_PID uiPID = OSGetCurrentClientProcessIDKM();
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
+
+	if (!PMRValidateSize((IMG_UINT64) ui32AllocPageCount << ui32Log2PageSize))
+	{
+		PVR_LOG_VA(PVR_DBG_ERROR,
+				 "PMR size exceeds limit #Chunks: %u ChunkSz %"IMG_UINT64_FMTSPECX"",
+				 ui32AllocPageCount,
+				 (IMG_UINT64) 1ULL << ui32Log2PageSize);
+		return PVRSRV_ERROR_PMR_TOO_LARGE;
+	}
 
 	if ((ui32AllocationIndex != DEVICEMEM_HISTORY_ALLOC_INDEX_NONE) &&
 		!CHECK_ALLOC_INDEX(ui32AllocationIndex))
@@ -1390,7 +1536,14 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 
 	PMRGetUID(psPMR, &ui64Serial);
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(PMR_DeviceNode(psPMR));
+
+	if (psDevHData == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
 						ui32AllocationIndex,
@@ -1407,7 +1560,7 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 	if ((eError == PVRSRV_OK) && !bCreated)
 	{
 		/* touch the allocation so it goes to the head of our MRU list */
-		TouchBusyAllocation(ui32AllocationIndex);
+		TouchBusyAllocation(psDevHData, ui32AllocationIndex);
 	}
 	else if (eError != PVRSRV_OK)
 	{
@@ -1430,12 +1583,12 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 							ui32AllocationIndex,
 							IMG_FALSE);
 
-	InsertTimeStampCommand(OSClockns64());
+	InsertTimeStampCommand(OSClockns64(), PMR_DeviceNode(psPMR));
 
 	*pui32AllocationIndexOut = ui32AllocationIndex;
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return eError;
 
@@ -1444,9 +1597,9 @@ out_unlock:
 /* CircularBufferIterateStart:
  * Initialise local state for iterating over the circular buffer
  */
-static void CircularBufferIterateStart(IMG_UINT32 *pui32Head, IMG_UINT32 *pui32Iter)
+static void CircularBufferIterateStart(DEVICEMEM_HISTORY_DATA *psHData, IMG_UINT32 *pui32Head, IMG_UINT32 *pui32Iter)
 {
-	*pui32Head = gsDevicememHistoryData.sRecords.ui32Head;
+	*pui32Head = psHData->sRecords.ui32Head;
 
 	if (*pui32Head != 0)
 	{
@@ -1462,7 +1615,8 @@ static void CircularBufferIterateStart(IMG_UINT32 *pui32Head, IMG_UINT32 *pui32I
  * Iterate to the previous item in the circular buffer.
  * This is called repeatedly to iterate over the whole circular buffer.
  */
-static COMMAND_WRAPPER *CircularBufferIteratePrevious(IMG_UINT32 ui32Head,
+static COMMAND_WRAPPER *CircularBufferIteratePrevious(DEVICEMEM_HISTORY_DATA *psHData,
+							IMG_UINT32 ui32Head,
 							IMG_UINT32 *pui32Iter,
 							COMMAND_TYPE *peType,
 							IMG_BOOL *pbLast)
@@ -1470,7 +1624,7 @@ static COMMAND_WRAPPER *CircularBufferIteratePrevious(IMG_UINT32 ui32Head,
 	IMG_UINT8 *pui8Header;
 	COMMAND_WRAPPER *psOut = NULL;
 
-	psOut = gsDevicememHistoryData.sRecords.pasCircularBuffer + *pui32Iter;
+	psOut = psHData->sRecords.pasCircularBuffer + *pui32Iter;
 
 	pui8Header = (void *) psOut;
 
@@ -1517,7 +1671,8 @@ static COMMAND_WRAPPER *CircularBufferIteratePrevious(IMG_UINT32 ui32Head,
  * Helper function to get the address and mapping information from a MAP_ALL, UNMAP_ALL,
  * MAP_RANGE or UNMAP_RANGE command
  */
-static void MapUnmapCommandGetInfo(COMMAND_WRAPPER *psCommand,
+static void MapUnmapCommandGetInfo(DEVICEMEM_HISTORY_DATA *psHData,
+					COMMAND_WRAPPER *psCommand,
 					COMMAND_TYPE eType,
 					IMG_DEV_VIRTADDR *psDevVAddrStart,
 					IMG_DEV_VIRTADDR *psDevVAddrEnd,
@@ -1532,7 +1687,7 @@ static void MapUnmapCommandGetInfo(COMMAND_WRAPPER *psCommand,
 		*pbMap = (eType == COMMAND_TYPE_MAP_ALL);
 		*pui32AllocIndex = psMapAll->uiAllocIndex;
 
-		psAlloc = ALLOC_INDEX_TO_PTR(psMapAll->uiAllocIndex);
+		psAlloc = ALLOC_INDEX_TO_PTR(psHData, psMapAll->uiAllocIndex);
 
 		*psDevVAddrStart = psAlloc->sDevVAddr;
 		psDevVAddrEnd->uiAddr = psDevVAddrStart->uiAddr + psAlloc->uiSize - 1;
@@ -1546,7 +1701,7 @@ static void MapUnmapCommandGetInfo(COMMAND_WRAPPER *psCommand,
 		*pbMap = (eType == COMMAND_TYPE_MAP_RANGE);
 		*pui32AllocIndex = psMapRange->uiAllocIndex;
 
-		psAlloc = ALLOC_INDEX_TO_PTR(psMapRange->uiAllocIndex);
+		psAlloc = ALLOC_INDEX_TO_PTR(psHData, psMapRange->uiAllocIndex);
 
 		MapRangeUnpack(psMapRange, &ui32StartPage, &ui32Count);
 
@@ -1564,6 +1719,39 @@ static void MapUnmapCommandGetInfo(COMMAND_WRAPPER *psCommand,
 	}
 }
 
+void DevicememHistoryDumpRecordStats(PVRSRV_DEVICE_NODE *psDevNode,
+                                    DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+                                    void *pvDumpDebugFile)
+{
+	DEVICEMEM_HISTORY_DATA *psDevHData;
+	psDevHData = DevmemFindDataFromDev(psDevNode);
+
+	if (psDevHData)
+	{
+		PVR_DUMPDEBUG_LOG("    DevmemHistoryRecordStats -"
+							  " CBWC:%"IMG_UINT64_FMTSPEC
+							  " MAC:%"IMG_UINT64_FMTSPEC
+							  " UMAC:%"IMG_UINT64_FMTSPEC
+							  " MRC:%"IMG_UINT64_FMTSPEC
+							  " UMRC:%"IMG_UINT64_FMTSPEC
+							  " TSC:%"IMG_UINT64_FMTSPEC
+							  " MAX:%"IMG_UINT64_FMTSPEC
+							  " CHD:%u",
+							  psDevHData->sRecords.ui64CBWrapCount,
+							  psDevHData->sRecords.ui64MapAllCount,
+							  psDevHData->sRecords.ui64UnMapAllCount,
+							  psDevHData->sRecords.ui64MapRangeCount,
+							  psDevHData->sRecords.ui64UnMapRangeCount,
+							  psDevHData->sRecords.ui64TimeStampCount,
+							  (IMG_UINT64)CIRCULAR_BUFFER_NUM_COMMANDS,
+							  psDevHData->sRecords.ui32Head);
+	}
+	else
+	{
+		PVR_DUMPDEBUG_LOG("    DevmemHistoryRecordStats - None");
+	}
+}
+
 /* DevicememHistoryQuery:
  * Entry point for rgxdebug to look up addresses relating to a page fault
  */
@@ -1578,11 +1766,20 @@ IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn,
 	IMG_BOOL bLast = IMG_FALSE;
 	IMG_UINT64 ui64StartTime = OSClockns64();
 	IMG_UINT64 ui64TimeNs = 0;
+	DEVICEMEM_HISTORY_DATA *psDevHData;
 
 	/* initialise the results count for the caller */
 	psQueryOut->ui32NumResults = 0;
+	psQueryOut->ui64SearchCount = 0;
 
-	DevicememHistoryLock();
+	psDevHData = DevmemFindDataFromDev(psQueryIn->psDevNode);
+
+	if (psDevHData == NULL)
+	{
+		return IMG_FALSE;
+	}
+
+	DevicememHistoryLock(psDevHData);
 
 	/* if the search is constrained to a particular PID then we
 	 * first search the list of allocations to see if this
@@ -1591,20 +1788,20 @@ IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn,
 	if (psQueryIn->uiPID != DEVICEMEM_HISTORY_PID_ANY)
 	{
 		IMG_UINT32 ui32Alloc;
-		ui32Alloc = gsDevicememHistoryData.sRecords.ui32AllocationsListHead;
+		ui32Alloc = psDevHData->sRecords.ui32AllocationsListHead;
 
 		while (ui32Alloc != END_OF_LIST)
 		{
 			RECORD_ALLOCATION *psAlloc;
 
-			psAlloc = ALLOC_INDEX_TO_PTR(ui32Alloc);
+			psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32Alloc);
 
 			if (psAlloc->uiPID == psQueryIn->uiPID)
 			{
 				goto found_pid;
 			}
 
-			if (ui32Alloc == gsDevicememHistoryData.sRecords.ui32AllocationsListHead)
+			if (ui32Alloc == psDevHData->sRecords.ui32AllocationsListHead)
 			{
 				/* gone through whole list */
 				break;
@@ -1619,11 +1816,11 @@ IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn,
 
 found_pid:
 
-	CircularBufferIterateStart(&ui32Head, &ui32Iter);
+	CircularBufferIterateStart(psDevHData, &ui32Head, &ui32Iter);
 
 	while (!bLast)
 	{
-		psCommand = CircularBufferIteratePrevious(ui32Head, &ui32Iter, &eType, &bLast);
+		psCommand = CircularBufferIteratePrevious(psDevHData, ui32Head, &ui32Iter, &eType, &bLast);
 
 		if (eType == COMMAND_TYPE_TIMESTAMP)
 		{
@@ -1642,7 +1839,8 @@ found_pid:
 			IMG_BOOL bMap;
 			IMG_UINT32 ui32AllocIndex;
 
-			MapUnmapCommandGetInfo(psCommand,
+			MapUnmapCommandGetInfo(psDevHData,
+			                psCommand,
 							eType,
 							&sAllocStartAddrOrig,
 							&sAllocEndAddrOrig,
@@ -1652,7 +1850,7 @@ found_pid:
 			sAllocStartAddr = sAllocStartAddrOrig;
 			sAllocEndAddr = sAllocEndAddrOrig;
 
-			psAlloc = ALLOC_INDEX_TO_PTR(ui32AllocIndex);
+			psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32AllocIndex);
 
 			/* skip this command if we need to search within
 			 * a particular PID, and this allocation is not from
@@ -1672,6 +1870,8 @@ found_pid:
 				continue;
 			}
 
+			psQueryOut->ui64SearchCount++;
+
 			/* if the caller wants us to match any allocation in the
 			 * same page as the allocation then tweak the real start/end
 			 * addresses of the allocation here
@@ -1679,7 +1879,7 @@ found_pid:
 			if (bMatchAnyAllocInPage)
 			{
 				sAllocStartAddr.uiAddr = sAllocStartAddr.uiAddr & ~(IMG_UINT64) (ui32PageSizeBytes - 1);
-				sAllocEndAddr.uiAddr = (sAllocEndAddr.uiAddr + ui32PageSizeBytes - 1) & ~(IMG_UINT64) (ui32PageSizeBytes - 1);
+				sAllocEndAddr.uiAddr = PVR_ALIGN(sAllocEndAddr.uiAddr, ui32PageSizeBytes);
 			}
 
 			if ((psQueryIn->sDevVAddr.uiAddr >= sAllocStartAddr.uiAddr) &&
@@ -1724,11 +1924,12 @@ found_pid:
 	}
 
 out_unlock:
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return psQueryOut->ui32NumResults > 0;
 }
 
+#if defined(SUPPORT_RGX)
 static void DeviceMemHistoryFmt(IMG_CHAR szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN],
 							IMG_PID uiPID,
 							const IMG_CHAR *pszName,
@@ -1793,19 +1994,28 @@ static void DevicememHistoryPrintAll(OSDI_IMPL_ENTRY *psEntry)
 	IMG_BOOL bLast = IMG_FALSE;
 	IMG_UINT64 ui64TimeNs = 0;
 	IMG_UINT64 ui64StartTime = OSClockns64();
+	DEVICEMEM_HISTORY_DATA *psDevHData;
+	PVRSRV_DEVICE_NODE *psDeviceNode = DIGetPrivData(psEntry);
 
 	DeviceMemHistoryFmtHeader(szBuffer);
 	DIPrintf(psEntry, "%s\n", szBuffer);
 
-	CircularBufferIterateStart(&ui32Head, &ui32Iter);
+	psDevHData = DevmemFindDataFromDev(psDeviceNode);
+
+	if (psDevHData == NULL)
+	{
+		return;
+	}
+
+	CircularBufferIterateStart(psDevHData, &ui32Head, &ui32Iter);
 
 	while (!bLast)
 	{
 		COMMAND_WRAPPER *psCommand;
 		COMMAND_TYPE eType = COMMAND_TYPE_NONE;
 
-		psCommand = CircularBufferIteratePrevious(ui32Head, &ui32Iter, &eType,
-		                                          &bLast);
+		psCommand = CircularBufferIteratePrevious(psDevHData, ui32Head, &ui32Iter,
+		                                          &eType, &bLast);
 
 		if (eType == COMMAND_TYPE_TIMESTAMP)
 		{
@@ -1824,14 +2034,15 @@ static void DevicememHistoryPrintAll(OSDI_IMPL_ENTRY *psEntry)
 			IMG_BOOL bMap;
 			IMG_UINT32 ui32AllocIndex;
 
-			MapUnmapCommandGetInfo(psCommand,
+			MapUnmapCommandGetInfo(psDevHData,
+			                       psCommand,
 			                       eType,
 			                       &sDevVAddrStart,
 			                       &sDevVAddrEnd,
 			                       &bMap,
 			                       &ui32AllocIndex);
 
-			psAlloc = ALLOC_INDEX_TO_PTR(ui32AllocIndex);
+			psAlloc = ALLOC_INDEX_TO_PTR(psDevHData, ui32AllocIndex);
 
 			if (DO_TIME_STAMP_MASK(psAlloc->ui64CreationTime) > ui64TimeNs)
 			{
@@ -1860,103 +2071,222 @@ static void DevicememHistoryPrintAll(OSDI_IMPL_ENTRY *psEntry)
 static int DevicememHistoryPrintAllWrapper(OSDI_IMPL_ENTRY *psEntry,
                                            void *pvData)
 {
+	PVRSRV_DEVICE_NODE *psDeviceNode = (PVRSRV_DEVICE_NODE *)DIGetPrivData(psEntry);
+	DEVICEMEM_HISTORY_DATA *psDevHData;
+
+	/* Get the backing store associated with the device. If we are
+	 * called before the device has been started (i.e. FW loaded)
+	 * then we haven't yet had this data allocated.
+	 * Return to provide a NULL data stream to the consumer.
+	 */
+	psDevHData = DevmemFindDataFromDev(psDeviceNode);
+	if (psDevHData == NULL)
+	{
+		return 0;
+	}
 	PVR_UNREFERENCED_PARAMETER(pvData);
 
-	DevicememHistoryLock();
+	DevicememHistoryLock(psDevHData);
 	DevicememHistoryPrintAll(psEntry);
-	DevicememHistoryUnlock();
+	DevicememHistoryUnlock(psDevHData);
 
 	return 0;
 }
+#endif	/* defined(SUPPORT_RGX) */
 
-static PVRSRV_ERROR CreateRecords(void)
+static PVRSRV_ERROR CreateRecords(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
-	gsDevicememHistoryData.sRecords.pasAllocations =
-			OSAllocMem(sizeof(RECORD_ALLOCATION) * ALLOCATION_LIST_NUM_ENTRIES);
+	psDevHData->sRecords.pasAllocations =
+			OSAllocMemNoStats(sizeof(RECORD_ALLOCATION) * ALLOCATION_LIST_NUM_ENTRIES);
 
-	PVR_RETURN_IF_NOMEM(gsDevicememHistoryData.sRecords.pasAllocations);
+	PVR_RETURN_IF_NOMEM(psDevHData->sRecords.pasAllocations);
 
 	/* Allocated and initialise the circular buffer with zeros so every
 	 * command is initialised as a command of type COMMAND_TYPE_NONE. */
-	gsDevicememHistoryData.sRecords.pasCircularBuffer =
-			OSAllocZMem(sizeof(COMMAND_WRAPPER) * CIRCULAR_BUFFER_NUM_COMMANDS);
+	psDevHData->sRecords.pasCircularBuffer =
+			OSAllocZMemNoStats(sizeof(COMMAND_WRAPPER) * CIRCULAR_BUFFER_NUM_COMMANDS);
 
-	if (gsDevicememHistoryData.sRecords.pasCircularBuffer == NULL)
+	if (psDevHData->sRecords.pasCircularBuffer == NULL)
 	{
-		OSFreeMem(gsDevicememHistoryData.sRecords.pasAllocations);
+		OSFreeMemNoStats(psDevHData->sRecords.pasAllocations);
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
 
 	return PVRSRV_OK;
 }
 
-static void DestroyRecords(void)
+static void DestroyRecords(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
-	OSFreeMem(gsDevicememHistoryData.sRecords.pasCircularBuffer);
-	OSFreeMem(gsDevicememHistoryData.sRecords.pasAllocations);
+	OSFreeMemNoStats(psDevHData->sRecords.pasCircularBuffer);
+	OSFreeMemNoStats(psDevHData->sRecords.pasAllocations);
 }
 
-static void InitialiseRecords(void)
+static void InitialiseRecords(DEVICEMEM_HISTORY_DATA *psDevHData)
 {
 	IMG_UINT32 i;
 
 	/* initialise the allocations list */
 
-	gsDevicememHistoryData.sRecords.pasAllocations[0].ui32Prev = ALLOCATION_LIST_NUM_ENTRIES - 1;
-	gsDevicememHistoryData.sRecords.pasAllocations[0].ui32Next = 1;
+	psDevHData->sRecords.pasAllocations[0].ui32Prev = ALLOCATION_LIST_NUM_ENTRIES - 1;
+	psDevHData->sRecords.pasAllocations[0].ui32Next = 1;
 
 	for (i = 1; i < ALLOCATION_LIST_NUM_ENTRIES; i++)
 	{
-		gsDevicememHistoryData.sRecords.pasAllocations[i].ui32Prev = i - 1;
-		gsDevicememHistoryData.sRecords.pasAllocations[i].ui32Next = i + 1;
+		psDevHData->sRecords.pasAllocations[i].ui32Prev = i - 1;
+		psDevHData->sRecords.pasAllocations[i].ui32Next = i + 1;
 	}
 
-	gsDevicememHistoryData.sRecords.pasAllocations[ALLOCATION_LIST_NUM_ENTRIES - 1].ui32Next = 0;
+	psDevHData->sRecords.pasAllocations[ALLOCATION_LIST_NUM_ENTRIES - 1].ui32Next = 0;
 
-	gsDevicememHistoryData.sRecords.ui32AllocationsListHead = 0;
+	psDevHData->sRecords.ui32AllocationsListHead = 0;
 }
+
+static void DevicememHistoryDevDeInitUnit(IMG_UINT32 uiUnit);
+static PVRSRV_ERROR DevicememHistoryDevInitUnit(IMG_UINT32 uiUnit);
 
 PVRSRV_ERROR DevicememHistoryInitKM(void)
 {
-	PVRSRV_ERROR eError;
-	DI_ITERATOR_CB sIterator = {.pfnShow = DevicememHistoryPrintAllWrapper};
+	IMG_UINT32 ui;
 
-	eError = OSLockCreate(&gsDevicememHistoryData.hLock);
-	PVR_LOG_GOTO_IF_ERROR(eError, "OSLockCreate", err_lock);
-
-	eError = CreateRecords();
-	PVR_LOG_GOTO_IF_ERROR(eError, "CreateRecords", err_allocations);
-
-	InitialiseRecords();
-
-	eError = DICreateEntry("devicemem_history", NULL, &sIterator, NULL,
-	                       DI_ENTRY_TYPE_GENERIC,
-	                       &gsDevicememHistoryData.psDIEntry);
-	PVR_LOG_GOTO_IF_ERROR(eError, "DICreateEntry", err_di_creation);
+	/* Zero-fill the gapsDevicememHistoryData array entries */
+	for (ui = 0; ui < PVRSRV_MAX_DEVICES; ui++)
+	{
+		gapsDevicememHistoryData[ui] = NULL;
+	}
 
 	return PVRSRV_OK;
-
-err_di_creation:
-	DestroyRecords();
-err_allocations:
-	OSLockDestroy(gsDevicememHistoryData.hLock);
-	gsDevicememHistoryData.hLock = NULL;
-err_lock:
-	return eError;
 }
 
 void DevicememHistoryDeInitKM(void)
 {
-	if (gsDevicememHistoryData.psDIEntry != NULL)
+	IMG_UINT32 uiUnit;
+
+	/* Iterate over all potential units and remove their data.
+	 * DI entry is removed by DevicememHistoryDeviceDestroy()
+	 */
+	for (uiUnit = 0; uiUnit < PVRSRV_MAX_DEVICES; uiUnit++)
 	{
-		DIDestroyEntry(gsDevicememHistoryData.psDIEntry);
+		DevicememHistoryDevDeInitUnit(uiUnit);
+	}
+}
+
+/* Allocate DEVICEMEM_HISTORY_DATA entry for the specified unit */
+static PVRSRV_ERROR DevicememHistoryDevInitUnit(IMG_UINT32 uiUnit)
+{
+	PVRSRV_ERROR eError;
+	DEVICEMEM_HISTORY_DATA *psDevicememHistoryData;
+
+	if (uiUnit >= PVRSRV_MAX_DEVICES)
+	{
+		PVR_LOG_RETURN_IF_FALSE(uiUnit < PVRSRV_MAX_DEVICES, "Invalid Unit",
+		                        PVRSRV_ERROR_INVALID_PARAMS);
+		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	DestroyRecords();
+	/* Valid unit, try and allocate and fill all structure members */
 
-	if (gsDevicememHistoryData.hLock != NULL)
+	psDevicememHistoryData = OSAllocZMemNoStats(sizeof(DEVICEMEM_HISTORY_DATA));
+	PVR_RETURN_IF_NOMEM(psDevicememHistoryData);
+
+	eError = OSLockCreate(&psDevicememHistoryData->hLock);
+	PVR_LOG_GOTO_IF_ERROR(eError, "OSLockCreate", err_lock);
+
+	eError = CreateRecords(psDevicememHistoryData);
+	PVR_LOG_GOTO_IF_ERROR(eError, "CreateRecords", err_allocations);
+
+	InitialiseRecords(psDevicememHistoryData);
+
+	gapsDevicememHistoryData[uiUnit] = psDevicememHistoryData;
+
+	return PVRSRV_OK;
+
+err_allocations:
+	OSLockDestroy(psDevicememHistoryData->hLock);
+	psDevicememHistoryData->hLock = NULL;
+err_lock:
+	OSFreeMemNoStats(psDevicememHistoryData);
+	return eError;
+}
+
+/* Allocate DI entry for specified psDeviceNode */
+PVRSRV_ERROR DevicememHistoryDeviceCreate(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
+	IMG_UINT32 uiUnit = psDeviceNode->sDevId.ui32InternalID;
+#if defined(SUPPORT_RGX)
+	PVRSRV_DEVICE_DEBUG_INFO *psDevDebugInfo = &psDeviceNode->sDebugInfo;
+	DI_ITERATOR_CB sIterator = {.pfnShow = DevicememHistoryPrintAllWrapper};
+#endif
+
+	if (uiUnit >= PVRSRV_MAX_DEVICES)
 	{
-		OSLockDestroy(gsDevicememHistoryData.hLock);
-		gsDevicememHistoryData.hLock = NULL;
+		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
+
+	/* Create the DI entry for the device's devicemem_history handle */
+
+
+#if defined(SUPPORT_RGX)
+	eError = DICreateEntry("devicemem_history", psDevDebugInfo->psGroup,
+	                       &sIterator, psDeviceNode,
+	                       DI_ENTRY_TYPE_GENERIC,
+	                       &psDevDebugInfo->psDevMemEntry);
+#endif	/* defined(SUPPORT_RGX) */
+
+	return eError;
+}
+
+/* Allocate the DEVICEMEM_HISTORY_DATA for specified psDeviceNode */
+PVRSRV_ERROR DevicememHistoryDeviceInit(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	PVRSRV_ERROR eError;
+	IMG_UINT32 uiUnit = psDeviceNode->sDevId.ui32InternalID;
+
+	if (uiUnit >= PVRSRV_MAX_DEVICES)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	eError = DevicememHistoryDevInitUnit(uiUnit);
+
+	return eError;
+}
+
+static void DevicememHistoryDevDeInitUnit(IMG_UINT32 uiUnit)
+{
+	DEVICEMEM_HISTORY_DATA *psDevicememHistoryData;
+
+	if (uiUnit >= PVRSRV_MAX_DEVICES)
+	{
+		return;
+	}
+
+	psDevicememHistoryData = gapsDevicememHistoryData[uiUnit];
+
+	if (psDevicememHistoryData == NULL)
+	{
+		return;
+	}
+
+	DestroyRecords(psDevicememHistoryData);
+
+	if (psDevicememHistoryData->hLock != NULL)
+	{
+		OSLockDestroy(psDevicememHistoryData->hLock);
+		psDevicememHistoryData->hLock = NULL;
+	}
+
+	OSFreeMemNoStats(psDevicememHistoryData);
+	gapsDevicememHistoryData[uiUnit] = NULL;
+}
+
+void DevicememHistoryDeviceDestroy(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+#if defined(SUPPORT_RGX)
+	PVRSRV_DEVICE_DEBUG_INFO *psDevDebugInfo = &psDeviceNode->sDebugInfo;
+
+	/* Remove the DI entry associated with this device */
+	DIDestroyEntry(psDevDebugInfo->psDevMemEntry);
+#endif	/* defined(SUPPORT_RGX) */
+
 }

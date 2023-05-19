@@ -48,7 +48,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_km.h"
 
 #if defined(PDUMP)
-#include <stdarg.h>
+#if defined(__linux__)
+ #include <linux/version.h>
+
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+  #include <linux/stdarg.h>
+ #else
+  #include <stdarg.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
+#else
+ #include <stdarg.h>
+#endif /* __linux__ */
 #endif
 
 void RGXMemCopy(const void *hPrivate,
@@ -167,13 +177,14 @@ void RGXWriteReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT32 ui32
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (!(psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW))
 #endif
 	{
-		OSWriteHWReg32(pvRegsBase, ui32RegAddr, ui32RegValue);
+		OSWriteUncheckedHWReg32(pvRegsBase, ui32RegAddr, ui32RegValue);
 	}
 
 	PDUMPREG32(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
@@ -189,13 +200,14 @@ void RGXWriteReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT64 ui64
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (!(psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW))
 #endif
 	{
-		OSWriteHWReg64(pvRegsBase, ui32RegAddr, ui64RegValue);
+		OSWriteUncheckedHWReg64(pvRegsBase, ui32RegAddr, ui64RegValue);
 	}
 
 	PDUMPREG64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
@@ -212,7 +224,8 @@ IMG_UINT32 RGXReadReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW)
@@ -222,7 +235,7 @@ IMG_UINT32 RGXReadReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 	else
 #endif
 	{
-		ui32RegValue = OSReadHWReg32(pvRegsBase, ui32RegAddr);
+		ui32RegValue = OSReadUncheckedHWReg32(pvRegsBase, ui32RegAddr);
 	}
 
 	PDUMPREGREAD32(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
@@ -241,7 +254,8 @@ IMG_UINT64 RGXReadReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW)
@@ -251,7 +265,7 @@ IMG_UINT64 RGXReadReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 	else
 #endif
 	{
-		ui64RegValue = OSReadHWReg64(pvRegsBase, ui32RegAddr);
+		ui64RegValue = OSReadUncheckedHWReg64(pvRegsBase, ui32RegAddr);
 	}
 
 	PDUMPREGREAD64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
@@ -272,7 +286,8 @@ IMG_UINT32 RGXReadModifyWriteReg64(const void *hPrivate,
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 	/* only use the new values for bits we update according to the keep mask */
 	uiRegValueNew &= ~uiRegKeepMask;
@@ -298,9 +313,9 @@ IMG_UINT32 RGXReadModifyWriteReg64(const void *hPrivate,
 #endif
 
 	{
-		IMG_UINT64 uiRegValue = OSReadHWReg64(pvRegsBase, ui32RegAddr);
+		IMG_UINT64 uiRegValue = OSReadUncheckedHWReg64(pvRegsBase, ui32RegAddr);
 		uiRegValue &= uiRegKeepMask;
-		OSWriteHWReg64(pvRegsBase, ui32RegAddr, uiRegValue | uiRegValueNew);
+		OSWriteUncheckedHWReg64(pvRegsBase, ui32RegAddr, uiRegValue | uiRegValueNew);
 	}
 
 	return PVRSRV_OK;
@@ -318,7 +333,8 @@ PVRSRV_ERROR RGXPollReg32(const void *hPrivate,
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (!(psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW))
@@ -364,7 +380,8 @@ PVRSRV_ERROR RGXPollReg64(const void *hPrivate,
 	PVR_ASSERT(hPrivate != NULL);
 	psParams = (RGX_LAYER_PARAMS*)hPrivate;
 	psDevInfo = psParams->psDevInfo;
-	pvRegsBase = psDevInfo->pvRegsBaseKM;
+	pvRegsBase = (ui32RegAddr < RGX_HOST_SECURE_REGBANK_OFFSET) ?
+	             (psDevInfo->pvRegsBaseKM) : (psDevInfo->pvSecureRegsBaseKM);
 
 #if defined(PDUMP)
 	if (!(psParams->ui32PdumpFlags & PDUMP_FLAGS_NOHW))
@@ -440,7 +457,7 @@ void RGXWriteKernelMMUPC32(const void *hPrivate,
 	psDevInfo = ((RGX_LAYER_PARAMS*)hPrivate)->psDevInfo;
 
 	/* Write the cat-base address */
-	OSWriteHWReg32(psDevInfo->pvRegsBaseKM, ui32PCReg, ui32PCVal);
+	OSWriteUncheckedHWReg32(psDevInfo->pvSecureRegsBaseKM, ui32PCReg, ui32PCVal);
 
 	/* Pdump catbase address */
 	MMU_PDumpWritePageCatBase(psDevInfo->psKernelMMUCtx,

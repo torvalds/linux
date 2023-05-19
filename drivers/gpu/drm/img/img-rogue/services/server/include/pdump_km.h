@@ -78,11 +78,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #undef PDUMP_TRACE
 
 #if defined(PDUMP_TRACE)
-#define PDUMP_HERE_VAR  IMG_UINT32 here = 0;
+#define PDUMP_HERE_VAR  __maybe_unused IMG_UINT32 here = 0;
 #define PDUMP_HERE(a)	{ here = (a); if (ui32Flags & PDUMP_FLAGS_DEBUG) PVR_DPF((PVR_DBG_WARNING, "HERE %d", (a))); }
 #define PDUMP_HEREA(a)	{ here = (a); PVR_DPF((PVR_DBG_WARNING, "HERE ALWAYS %d", (a))); }
 #else
-#define PDUMP_HERE_VAR  IMG_UINT32 here = 0;
+#define PDUMP_HERE_VAR  __maybe_unused IMG_UINT32 here = 0;
 #define PDUMP_HERE(a)	here = (a);
 #define PDUMP_HEREA(a)	here = (a);
 #endif
@@ -213,6 +213,7 @@ typedef PVRSRV_ERROR (*PFN_PDUMP_TRANSITION_FENCE_SYNC)(void *pvData, PDUMP_TRAN
 /* Shared across pdump_x files */
 PVRSRV_ERROR PDumpInitCommon(void);
 void PDumpDeInitCommon(void);
+PVRSRV_ERROR PDumpValidateUMFlags(PDUMP_FLAGS_T uiFlags);
 PVRSRV_ERROR PDumpReady(void);
 void PDumpGetParameterZeroPageInfo(PDUMP_FILEOFFSET_T *puiZeroPageOffset,
                                    size_t *puiZeroPageSize,
@@ -240,7 +241,8 @@ PVRSRV_ERROR PDumpSetDefaultCaptureParamsKM(CONNECTION_DATA *psConnection,
                                             IMG_UINT32 ui32Start,
                                             IMG_UINT32 ui32End,
                                             IMG_UINT32 ui32Interval,
-                                            IMG_UINT32 ui32MaxParamFileSize);
+                                            IMG_UINT32 ui32MaxParamFileSize,
+                                            IMG_UINT32 ui32AutoTermTimeout);
 
 
 PVRSRV_ERROR PDumpReg32(PVRSRV_DEVICE_NODE *psDeviceNode,
@@ -641,13 +643,15 @@ PDumpWriteSymbAddress(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 /* Register the connection with the PDump subsystem */
 PVRSRV_ERROR
-PDumpRegisterConnection(void *hSyncPrivData,
+PDumpRegisterConnection(PVRSRV_DEVICE_NODE *psDeviceNode,
+                        void *hSyncPrivData,
                         PFN_PDUMP_SYNCBLOCKS pfnPDumpSyncBlocks,
                         PDUMP_CONNECTION_DATA **ppsPDumpConnectionData);
 
 /* Unregister the connection with the PDump subsystem */
 void
-PDumpUnregisterConnection(PDUMP_CONNECTION_DATA *psPDumpConnectionData);
+PDumpUnregisterConnection(PVRSRV_DEVICE_NODE *psDeviceNode,
+                          PDUMP_CONNECTION_DATA *psPDumpConnectionData);
 
 /* Register for notification of PDump Transition into/out of capture range */
 PVRSRV_ERROR
@@ -863,7 +867,8 @@ PDumpSetDefaultCaptureParamsKM(CONNECTION_DATA *psConnection,
                                IMG_UINT32 ui32Start,
                                IMG_UINT32 ui32End,
                                IMG_UINT32 ui32Interval,
-                               IMG_UINT32 ui32MaxParamFileSize)
+                               IMG_UINT32 ui32MaxParamFileSize,
+                               IMG_UINT32 ui32AutoTermTimeout)
 {
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
@@ -872,6 +877,7 @@ PDumpSetDefaultCaptureParamsKM(CONNECTION_DATA *psConnection,
 	PVR_UNREFERENCED_PARAMETER(ui32End);
 	PVR_UNREFERENCED_PARAMETER(ui32Interval);
 	PVR_UNREFERENCED_PARAMETER(ui32MaxParamFileSize);
+	PVR_UNREFERENCED_PARAMETER(ui32AutoTermTimeout);
 
 	return PVRSRV_OK;
 }
@@ -1011,10 +1017,12 @@ PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 #pragma inline(PDumpRegisterConnection)
 #endif
 static INLINE PVRSRV_ERROR
-PDumpRegisterConnection(void *hSyncPrivData,
+PDumpRegisterConnection(PVRSRV_DEVICE_NODE *psDeviceNode,
+                        void *hSyncPrivData,
                         PFN_PDUMP_SYNCBLOCKS pfnPDumpSyncBlocks,
                         PDUMP_CONNECTION_DATA **ppsPDumpConnectionData)
 {
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(hSyncPrivData);
 	PVR_UNREFERENCED_PARAMETER(pfnPDumpSyncBlocks);
 	PVR_UNREFERENCED_PARAMETER(ppsPDumpConnectionData);
@@ -1026,8 +1034,10 @@ PDumpRegisterConnection(void *hSyncPrivData,
 #pragma inline(PDumpUnregisterConnection)
 #endif
 static INLINE void
-PDumpUnregisterConnection(PDUMP_CONNECTION_DATA *psPDumpConnectionData)
+PDumpUnregisterConnection(PVRSRV_DEVICE_NODE *psDeviceNode,
+                          PDUMP_CONNECTION_DATA *psPDumpConnectionData)
 {
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(psPDumpConnectionData);
 }
 

@@ -55,7 +55,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sync.h"
 #include "sync_internal.h"
 #include "connection_server.h"
-#include "htbuffer.h"
+#include "htbserver.h"
 #include "rgxhwperf.h"
 #include "info_page.h"
 
@@ -721,10 +721,7 @@ void _SyncConnectionAddBlock(CONNECTION_DATA *psConnection, SYNC_PRIMITIVE_BLOCK
 		_SyncConnectionRef(psSyncConnectionData);
 
 		OSLockAcquire(psSyncConnectionData->hLock);
-		if (psConnection != NULL)
-		{
-			dllist_add_to_head(&psSyncConnectionData->sListHead, &psBlock->sConnectionNode);
-		}
+		dllist_add_to_head(&psSyncConnectionData->sListHead, &psBlock->sConnectionNode);
 		OSLockRelease(psSyncConnectionData->hLock);
 		psBlock->psSyncConnectionData = psSyncConnectionData;
 	}

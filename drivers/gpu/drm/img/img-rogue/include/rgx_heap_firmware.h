@@ -59,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define RGX_FIRMWARE_NUMBER_OF_FW_HEAPS              (IMG_UINT32_C(2))
 #define RGX_FIRMWARE_HEAP_SHIFT                      RGX_FW_HEAP_SHIFT
-#define RGX_FIRMWARE_RAW_HEAP_BASE                   (0xE1C0000000ULL)
+#define RGX_FIRMWARE_RAW_HEAP_BASE                   (IMG_UINT64_C(0xE1C0000000))
 #define RGX_FIRMWARE_RAW_HEAP_SIZE                   (IMG_UINT32_C(1) << RGX_FIRMWARE_HEAP_SHIFT)
 
 /* To enable the firmware to compute the exact address of structures allocated by the KM
@@ -107,6 +107,12 @@ static_assert((RGX_FIRMWARE_RAW_HEAP_SIZE) >= IMG_UINT32_C(0x800000), "MIPS GPU 
 #define RGX_FIRMWARE_CONFIG_HEAP_BASE           (RGX_FIRMWARE_MAIN_HEAP_BASE + \
                                                  RGX_FIRMWARE_RAW_HEAP_SIZE - \
                                                  RGX_FIRMWARE_CONFIG_HEAP_SIZE)
+
+
+/* 1 Mb can hold the maximum amount of page tables for the memory shared between the firmware and all KM drivers:
+ *  MAX(RAW_HEAP_SIZE) = 32 Mb; MAX(NUMBER_OS) = 8; Total shared memory = 256 Mb;
+ *  MMU objects required: 65536 PTEs; 16 PDEs; 1 PCE; */
+#define RGX_FIRMWARE_MAX_PAGETABLE_SIZE (1 * 1024 * 1024)
 
 /*
  * The maximum configurable size via RGX_FW_HEAP_SHIFT is 32MiB (1<<25) and

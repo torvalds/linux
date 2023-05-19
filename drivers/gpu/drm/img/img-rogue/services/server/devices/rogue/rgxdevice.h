@@ -101,9 +101,13 @@ typedef struct {
  ******************************************************************************
  * Global flags for driver validation
  *****************************************************************************/
-#define RGX_VAL_KZ_SIG_CHECK_NOERR_EN            (0x10U)  /*!< Enable KZ signature check. Signatures must match */
-#define RGX_VAL_KZ_SIG_CHECK_ERR_EN              (0x20U)  /*!< Enable KZ signature check. Signatures must not match */
-#define RGX_VAL_SIG_CHECK_ERR_EN                 (0U)     /*!< Not supported on Rogue cores */
+#define RGX_VAL_FBDC_SIG_CHECK_NOERR_EN          (0U)     /*!< Not supported on Rogue cores */
+#define RGX_VAL_FBDC_SIG_CHECK_ERR_EN            (0U)     /*!< Not supported on Rogue cores */
+#define RGX_VAL_WGP_SIG_CHECK_NOERR_EN           (0x10U)  /*!< Enable WGP signature check. Signatures must match */
+#define RGX_VAL_WGP_SIG_CHECK_ERR_EN             (0x20U)  /*!< Enable WGP signature check. Signatures must not match */
+#define RGX_VAL_TRP_SIG_CHECK_NOERR_EN           (0U)     /*!< Not supported on Rogue cores */
+#define RGX_VAL_TRP_SIG_CHECK_ERR_EN             (0U)     /*!< Not supported on Rogue cores */
+
 
 typedef struct _GPU_FREQ_TRACKING_DATA_
 {
@@ -168,6 +172,12 @@ typedef struct _RGXFWIF_GPU_UTIL_STATS_
 	IMG_UINT64 ui64GpuStatBlocked;    /* GPU blocked statistic */
 	IMG_UINT64 ui64GpuStatIdle;       /* GPU idle statistic */
 	IMG_UINT64 ui64GpuStatCumulative; /* Sum of active/blocked/idle stats */
+
+	IMG_UINT64 aaui64DMOSStatActive[RGXFWIF_DM_MAX][RGX_NUM_DRIVERS_SUPPORTED];     /* Per-DM per-OS active statistic */
+	IMG_UINT64 aaui64DMOSStatBlocked[RGXFWIF_DM_MAX][RGX_NUM_DRIVERS_SUPPORTED];    /* Per-DM per-OS blocked statistic */
+	IMG_UINT64 aaui64DMOSStatIdle[RGXFWIF_DM_MAX][RGX_NUM_DRIVERS_SUPPORTED];       /* Per-DM per-OS idle statistic */
+	IMG_UINT64 aaui64DMOSStatCumulative[RGXFWIF_DM_MAX][RGX_NUM_DRIVERS_SUPPORTED]; /* Per-DM per-OS sum of active/blocked/idle stats */
+
 	IMG_UINT64 ui64TimeStamp;         /* Timestamp of the most recent sample of the GPU stats */
 } RGXFWIF_GPU_UTIL_STATS;
 
@@ -488,10 +498,10 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	RGXFWIF_TRACEBUF		*psRGXFWIfTraceBufCtl;								/*!< structure containing trace control data and actual trace buffer */
 
 	DEVMEM_MEMDESC			*psRGXFWIfFwSysDataMemDesc;							/*!< memdesc of the firmware-shared system data structure */
-	RGXFWIF_SYSDATA			*psRGXFWIfFwSysData;								/*!< structure containing trace control data and actual trace buffer */
+	RGXFWIF_SYSDATA			*psRGXFWIfFwSysData;								/*!< structure containing km-firmware shared system data */
 
 	DEVMEM_MEMDESC			*psRGXFWIfFwOsDataMemDesc;							/*!< memdesc of the firmware-shared os structure */
-	RGXFWIF_OSDATA			*psRGXFWIfFwOsData;									/*!< structure containing trace control data and actual trace buffer */
+	RGXFWIF_OSDATA			*psRGXFWIfFwOsData;									/*!< structure containing km-firmware shared os data */
 
 #if defined(SUPPORT_TBI_INTERFACE)
 	DEVMEM_MEMDESC			*psRGXFWIfTBIBufferMemDesc;							/*!< memdesc of actual FW TBI buffer */
@@ -528,9 +538,14 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	DEVMEM_MEMDESC			*psRGXFWIfRuntimeCfgMemDesc;
 	RGXFWIF_RUNTIME_CFG		*psRGXFWIfRuntimeCfg;
 
-	/* Additional guest firmware memory context info */
-	DEVMEM_HEAP				*psGuestFirmwareRawHeap[RGX_NUM_OS_SUPPORTED];
-	DEVMEM_MEMDESC			*psGuestFirmwareRawMemDesc[RGX_NUM_OS_SUPPORTED];
+#if defined(SUPPORT_FW_HOST_SIDE_RECOVERY)
+	DEVMEM_MEMDESC			*psRGXFWIfActiveContextBufDesc;
+	RGXFWIF_ACTIVE_CONTEXT_BUF_DATA		*psRGXFWIfActiveContextBuf;
+#endif
+
+	/* Premapped firmware memory context info */
+	DEVMEM_HEAP				*psPremappedFwRawHeap[RGX_NUM_DRIVERS_SUPPORTED];
+	DEVMEM_MEMDESC			*psPremappedFwRawMemDesc[RGX_NUM_DRIVERS_SUPPORTED];
 
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
 	/* Array to store data needed for workload estimation when a workload
@@ -565,10 +580,12 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	                           *  and loss/freeing of FW & Host resources while in
 	                           *  use in another thread e.g. MSIR. */
 
-	IMG_UINT64  ui64HWPerfFilter; /*! Event filter for FW events (settable by AppHint) */
-	IMG_HANDLE  hHWPerfStream;    /*! TL Stream buffer (L2) for firmware event stream */
-	IMG_UINT32  ui32L2BufMaxPacketSize;/*!< Max allowed packet size in FW HWPerf TL (L2) buffer */
+	IMG_UINT64  ui64HWPerfFilter;          /*! Event filter for FW events (settable by AppHint) */
+	IMG_HANDLE  hHWPerfStream;             /*! TL Stream buffer (L2) for firmware event stream */
+	IMG_UINT32  ui32L2BufMaxPacketSize;    /*!< Max allowed packet size in FW HWPerf TL (L2) buffer */
 	IMG_BOOL    bSuspendHWPerfL2DataCopy;  /*! Flag to indicate if copying HWPerf data is suspended */
+	IMG_BOOL    bHWPerfHasRun;             /*! Flag to indicate that the HWPerf was enabled. Used by FTrace
+	                                           to determine if HWPerf has been enabled outside of FTrace module. */
 
 	IMG_UINT32  ui32HWPerfHostFilter;      /*! Event filter for HWPerfHost stream (settable by AppHint) */
 	POS_LOCK    hLockHWPerfHostStream;     /*! Lock guarding access to HWPerfHost stream from multiple threads */
@@ -791,7 +808,12 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_UINT32 ui32ECCRAMErrInjInterval;
 #endif
 
-	IMG_UINT32              ui32Log2Non4KPgSize; /* Page size of Non4k heap in log2 form */
+#if defined(SUPPORT_SECURE_ALLOC_KM)
+	PMR						*psGenHeapSecMem;		/*!< An allocation of secure memory mapped to
+													  the general devmem heap. The allocation is
+													  created and mapped at driver init. It's used for
+													  various purposes. See rgx_fwif_km.h for all use cases. */
+#endif
 } PVRSRV_RGXDEV_INFO;
 
 

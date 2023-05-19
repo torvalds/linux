@@ -44,13 +44,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define __KERNEL_COMPATIBILITY_H__
 
 #include <linux/version.h>
+#include <linux/compiler.h>
 
 /*
  * Stop supporting an old kernel? Remove the top block.
  * New incompatible kernel?       Append a new block at the bottom.
  *
- * Please write you version test as `VERSION < X.Y`, and use the earliest
+ * Please write your version test as `VERSION < X.Y`, and use the earliest
  * possible version :)
+ *
+ * If including this header file in other files, this should always be the
+ * last file included, as it can affect definitions/declarations in files
+ * included after it.
  */
 
 /* Linux 3.6 introduced seq_vprintf(). Earlier versions don't have this
@@ -446,6 +451,10 @@ __pvr_access_ok_compat(int type, const void __user * addr, unsigned long size)
 
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0))
+#define MODULE_IMPORT_NS(ns)
+#endif
+
 /*
  * Before v5.8, the "struct mm" has a semaphore named "mmap_sem" which is
  * renamed to "mmap_lock" in v5.8. Moreover, new APIs are provided to
@@ -516,6 +525,46 @@ struct dma_buf_map {
 	((LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)) && !defined(ANDROID))
 #define uaccess_enable_privileged() uaccess_enable()
 #define uaccess_disable_privileged() uaccess_disable()
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0))
+#define pde_data PDE_DATA
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)) */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
+#define iosys_map dma_buf_map
+#define iosys_map_set_vaddr_iomem dma_buf_map_set_vaddr_iomem
+#define iosys_map_clear dma_buf_map_clear
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)) */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0))
+
+#define register_shrinker(shrinker, name) \
+	register_shrinker(shrinker)
+
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0)) */
+
+#if defined(__GNUC__)
+#define GCC_VERSION_AT_LEAST(major, minor) \
+	(__GNUC__ > (major) || \
+	(__GNUC__ == (major) && __GNUC_MINOR__ >= (minor)))
+#else
+#define GCC_VERSION_AT_LEAST(major, minor) 0
+#endif
+
+#if defined(__clang__)
+#define CLANG_VERSION_AT_LEAST(major) \
+	(__clang_major__ >= (major))
+#else
+#define CLANG_VERSION_AT_LEAST(major) 0
+#endif
+
+#if !defined(__fallthrough)
+	#if GCC_VERSION_AT_LEAST(7, 0) || CLANG_VERSION_AT_LEAST(10)
+		#define __fallthrough __attribute__((__fallthrough__))
+	#else
+		#define __fallthrough
+	#endif
 #endif
 
 #endif /* __KERNEL_COMPATIBILITY_H__ */

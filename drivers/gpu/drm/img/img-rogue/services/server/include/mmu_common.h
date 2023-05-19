@@ -292,6 +292,31 @@ typedef struct _MMU_PAGESIZECONFIG_
 } MMU_PAGESIZECONFIG;
 
 /*************************************************************************/ /*!
+@Function       MMU_InitDevice
+
+@Description    Creates MMU device specific resources.
+
+@Input          psDevNode               Device node of the device to create the
+                                        MMU context for
+
+@Return         PVRSRV_OK if the initialisation process was successful
+*/
+/*****************************************************************************/
+PVRSRV_ERROR MMU_InitDevice(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
+
+/*************************************************************************/ /*!
+@Function       MMU_DeInitDevice
+
+@Description    Clean-up MMU device specific resources.
+
+@Input          psDevNode               Device node of the device
+
+@Return         None
+*/
+/*****************************************************************************/
+void MMU_DeInitDevice(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
+
+/*************************************************************************/ /*!
 @Function       MMU_ContextCreate
 
 @Description    Create a new MMU context
@@ -504,41 +529,6 @@ MMU_UnmapPMRFast(MMU_CONTEXT *psMMUContext,
                  IMG_UINT32 uiLog2PageSize);
 
 /*************************************************************************/ /*!
-@Function       MMU_ChangeValidity
-
-@Description    Sets or unsets the valid bit of page table entries for a given
-                address range.
-
-@Input          psMMUContext            MMU context to operate on
-
-@Input          sDevVAddr               The device virtual base address of
-                                        the range we want to modify
-
-@Input          uiSizeBytes             The size of the range in bytes
-
-@Input          uiLog2PageSize          Log2 of the used page size
-
-@Input          bMakeValid              Choose to set or unset the valid bit.
-                                        (bMakeValid == IMG_TRUE ) -> SET
-                                        (bMakeValid == IMG_FALSE) -> UNSET
-
-@Input          psPMR                   The PMR backing the allocation.
-                                        Needed in case we have sparse memory
-                                        where we have to check whether a physical
-                                        address actually backs the virtual.
-
-@Return         PVRSRV_OK if successful
-*/
-/*****************************************************************************/
-PVRSRV_ERROR
-MMU_ChangeValidity(MMU_CONTEXT *psMMUContext,
-                   IMG_DEV_VIRTADDR sDevVAddr,
-                   IMG_DEVMEM_SIZE_T uiSizeBytes,
-                   IMG_UINT32 uiLog2PageSize,
-                   IMG_BOOL bMakeValid,
-                   PMR *psPMR);
-
-/*************************************************************************/ /*!
 @Function       MMU_AcquireBaseAddr
 
 @Description    Acquire the device physical address of the base level MMU object
@@ -583,7 +573,7 @@ MMU_AcquireCPUBaseAddr(MMU_CONTEXT *psMMUContext, void **ppvCPUVAddr);
 void
 MMU_ReleaseBaseAddr(MMU_CONTEXT *psMMUContext);
 
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
+#if defined(SUPPORT_CUSTOM_OSID_EMISSION)
 /***********************************************************************************/ /*!
 @Function       MMU_SetOSid
 

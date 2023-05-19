@@ -266,8 +266,8 @@ void RGXReleaseCCB(RGX_CLIENT_CCB *psClientCCB,
 IMG_UINT32 RGXGetHostWriteOffsetCCB(RGX_CLIENT_CCB *psClientCCB);
 IMG_UINT32 RGXGetWrapMaskCCB(RGX_CLIENT_CCB *psClientCCB);
 
-PVRSRV_ERROR RGXSetCCBFlags(RGX_CLIENT_CCB *psClientCCB,
-							IMG_UINT32		ui32Flags);
+void RGXSetCCBFlags(RGX_CLIENT_CCB *psClientCCB,
+					IMG_UINT32		ui32Flags);
 
 void RGXCmdHelperInitCmdCCB_CommandSize(PVRSRV_RGXDEV_INFO *psDevInfo,
 										IMG_UINT64 ui64FBSCEntryMask,
@@ -339,7 +339,7 @@ IMG_UINT32 RGXCmdHelperGetCommandOffset(RGX_CCB_CMD_HELPER_DATA *asCmdHelperData
 
 IMG_UINT32 RGXCmdHelperGetDMCommandHeaderOffset(RGX_CCB_CMD_HELPER_DATA *psCmdHelperData);
 
-void DumpStalledCCBCommand(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext,
+void DumpFirstCCBCmd(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext,
 				RGX_CLIENT_CCB  *psCurrentClientCCB,
 				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 				void *pvDumpDebugFile);

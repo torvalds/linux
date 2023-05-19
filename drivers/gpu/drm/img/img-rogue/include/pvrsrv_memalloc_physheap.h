@@ -56,49 +56,43 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  * NOTE: Enum order important, table in physheap.c must change if order changed.
  */
-typedef IMG_UINT32 PVRSRV_PHYS_HEAP;
-/* Services client accessible heaps */
-#define PVRSRV_PHYS_HEAP_DEFAULT      0U  /* default phys heap for device memory allocations */
-#define PVRSRV_PHYS_HEAP_GPU_LOCAL    1U  /* used for buffers with more GPU access than CPU */
-#define PVRSRV_PHYS_HEAP_CPU_LOCAL    2U  /* used for buffers with more CPU access than GPU */
-#define PVRSRV_PHYS_HEAP_GPU_PRIVATE  3U  /* used for buffers that only required GPU read/write access, not visible to the CPU. */
+#define PHYS_HEAP_LIST                                                                                                                           \
+	X(DEFAULT)       /* Client: default phys heap for device memory allocations */                                                               \
+	X(GPU_LOCAL)     /* Client: used for buffers with more GPU access than CPU */                                                                \
+	X(CPU_LOCAL)     /* Client: used for buffers with more CPU access than GPU */                                                                \
+	X(GPU_PRIVATE)   /* Client: used for buffers that only required GPU read/write access, not visible to the CPU. */                            \
+	X(FW_MAIN)       /* Internal: runtime data, e.g. CCBs, sync objects */                                                                       \
+	X(EXTERNAL)      /* Internal: used by some PMR import/export factories where the physical memory heap is not managed by the pvrsrv driver */ \
+	X(GPU_COHERENT)  /* Internal: used for a cache coherent region */                                                                            \
+	X(GPU_SECURE)    /* Internal: used by security validation */                                                                                 \
+	X(FW_CONFIG)     /* Internal: subheap of FW_MAIN, configuration data for FW init */                                                          \
+	X(FW_CODE)       /* Internal: used by security validation or dedicated fw */                                                                 \
+	X(FW_PRIV_DATA)  /* Internal: internal FW data (like the stack, FW control data structures, etc.) */                                         \
+	X(FW_PREMAP_PT)  /* Internal: page tables for premapped firmware memory */                                                                   \
+	X(FW_PREMAP0)    /* Internal: Host OS premap fw heap */                                                                                      \
+	X(FW_PREMAP1)    /* Internal: Guest OS 1 premap fw heap */                                                                                   \
+	X(FW_PREMAP2)    /* Internal: Guest OS 2 premap fw heap */                                                                                   \
+	X(FW_PREMAP3)    /* Internal: Guest OS 3 premap fw heap */                                                                                   \
+	X(FW_PREMAP4)    /* Internal: Guest OS 4 premap fw heap */                                                                                   \
+	X(FW_PREMAP5)    /* Internal: Guest OS 5 premap fw heap */                                                                                   \
+	X(FW_PREMAP6)    /* Internal: Guest OS 6 premap fw heap */                                                                                   \
+	X(FW_PREMAP7)    /* Internal: Guest OS 7 premap fw heap */                                                                                   \
+	X(WRAP)          /* External: Wrap memory */                                                                                                 \
+	X(DISPLAY)       /* External: Display memory */                                                                                              \
+	X(LAST)
 
-#define HEAPSTR(x) #x
-static inline const IMG_CHAR *PVRSRVGetClientPhysHeapName(PVRSRV_PHYS_HEAP ePhysHeapID)
+typedef enum _PVRSRV_PHYS_HEAP_
 {
-	switch (ePhysHeapID)
-	{
-		case PVRSRV_PHYS_HEAP_DEFAULT:
-			return HEAPSTR(PVRSRV_PHYS_HEAP_DEFAULT);
-		case PVRSRV_PHYS_HEAP_GPU_LOCAL:
-			return HEAPSTR(PVRSRV_PHYS_HEAP_GPU_LOCAL);
-		case PVRSRV_PHYS_HEAP_CPU_LOCAL:
-			return HEAPSTR(PVRSRV_PHYS_HEAP_CPU_LOCAL);
-		case PVRSRV_PHYS_HEAP_GPU_PRIVATE:
-			return HEAPSTR(PVRSRV_PHYS_HEAP_GPU_PRIVATE);
-		default:
-			return "Unknown Heap";
-	}
-}
+#define X(_name) PVRSRV_PHYS_HEAP_ ## _name,
+	PHYS_HEAP_LIST
+#undef X
 
-/* Services internal heaps */
-#define PVRSRV_PHYS_HEAP_FW_MAIN      4U  /* runtime data, e.g. CCBs, sync objects */
-#define PVRSRV_PHYS_HEAP_EXTERNAL     5U  /* used by some PMR import/export factories where the physical memory heap is not managed by the pvrsrv driver */
-#define PVRSRV_PHYS_HEAP_GPU_COHERENT 6U  /* used for a cache coherent region */
-#define PVRSRV_PHYS_HEAP_GPU_SECURE   7U  /* used by security validation */
-#define PVRSRV_PHYS_HEAP_FW_CONFIG    8U  /* subheap of FW_MAIN, configuration data for FW init */
-#define PVRSRV_PHYS_HEAP_FW_CODE      9U  /* used by security validation or dedicated fw */
-#define PVRSRV_PHYS_HEAP_FW_PRIV_DATA 10U /* internal FW data (like the stack, FW control data structures, etc.) */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP0   11U /* Host OS premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP1   12U /* Guest OS 1 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP2   13U /* Guest OS 2 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP3   14U /* Guest OS 3 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP4   15U /* Guest OS 4 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP5   16U /* Guest OS 5 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP6   17U /* Guest OS 6 premap fw heap */
-#define PVRSRV_PHYS_HEAP_FW_PREMAP7   18U /* Guest OS 7 premap fw heap */
-#define PVRSRV_PHYS_HEAP_LAST         19U
+	PVRSRV_PHYS_HEAP_INVALID = 0x7FFFFFFF
+} PVRSRV_PHYS_HEAP;
 
+/* Defines the number of user mode physheaps. These physheaps are: DEFAULT, GPU_LOCAL,
+ * CPU_LOCAL, GPU_PRIVATE, GPU_SECURE. */
+#define MAX_USER_MODE_ALLOC_PHYS_HEAPS 5
 
 static_assert(PVRSRV_PHYS_HEAP_LAST <= (0x1FU + 1U), "Ensure enum fits in memalloc flags bitfield.");
 
@@ -118,8 +112,9 @@ typedef enum _PHYS_HEAP_TYPE_
 	PHYS_HEAP_TYPE_DMA,             /*!< Heap represents a physical memory pool managed by
 	                                     Services, alias of LMA and is only used on
 	                                     VZ non-native system configurations for
-	                                     a heap used for PHYS_HEAP_USAGE_FW_MAIN tagged
-	                                     buffers */
+	                                     a heap used for allocations tagged with
+	                                     PVRSRV_PHYS_HEAP_FW_MAIN or
+	                                     PVRSRV_PHYS_HEAP_FW_CONFIG */
 #if defined(SUPPORT_WRAP_EXTMEMOBJECT)
 	PHYS_HEAP_TYPE_WRAP,            /*!< Heap used to group UM buffers given
 	                                     to Services. Integrity OS port only. */
@@ -138,23 +133,36 @@ typedef enum _PHYS_HEAP_TYPE_
 #define PVRSRV_PHYS_HEAP_FLAGS_TYPE_MASK  (0x7U << 0)
 #define PVRSRV_PHYS_HEAP_FLAGS_IS_DEFAULT (0x1U << 7)
 
+/* Force PHYS_HEAP_MEM_STATS size to be a multiple of 8 bytes
+ * (as type is a parameter in bridge calls)
+ */
 typedef struct PHYS_HEAP_MEM_STATS_TAG
 {
 	IMG_UINT64	ui64TotalSize;
 	IMG_UINT64	ui64FreeSize;
 	IMG_UINT32	ui32PhysHeapFlags;
+	IMG_UINT32	ui32UnusedPadding;
 }PHYS_HEAP_MEM_STATS, *PHYS_HEAP_MEM_STATS_PTR;
 
-typedef struct PHYS_HEAP_MEM_STATS_PKD_TAG
-{
-	IMG_UINT64	ui64TotalSize;
-	IMG_UINT64	ui64FreeSize;
-	IMG_UINT32	ui32PhysHeapFlags;
-	IMG_UINT32	ui32Dummy;
-}PHYS_HEAP_MEM_STATS_PKD, *PHYS_HEAP_MEM_STATS_PKD_PTR;
+#if defined(PHYSHEAP_STRINGS)
 
+static const char *const _pszPhysHeapStrings[] = {
+#define X(_name) #_name,
+	PHYS_HEAP_LIST
+#undef X
+};
+
+/*************************************************************************/ /*!
+@Function       PVRSRVGetClientPhysHeapTypeName
+@Description    Returns the phys heap type as a string.
+
+@Input          ePhysHeapType   The physheap type.
+
+@Return         const IMG_CHAR pointer.
+*/ /**************************************************************************/
 static inline const IMG_CHAR *PVRSRVGetClientPhysHeapTypeName(PHYS_HEAP_TYPE ePhysHeapType)
 {
+#define HEAPSTR(x) #x
 	switch (ePhysHeapType)
 	{
 		case PHYS_HEAP_TYPE_UMA:
@@ -164,7 +172,44 @@ static inline const IMG_CHAR *PVRSRVGetClientPhysHeapTypeName(PHYS_HEAP_TYPE ePh
 		default:
 			return "Unknown Heap Type";
 	}
-}
 #undef HEAPSTR
+}
+
+/*************************************************************************/ /*!
+@Function       PVRSRVGetPhysHeapName
+@Description    Returns the name of a PhysHeap.
+
+@Input          ePhysHeap   The enum value of the physheap.
+
+@Return         const IMG_CHAR pointer.
+*/ /**************************************************************************/
+static inline const IMG_CHAR *PVRSRVGetPhysHeapName(PVRSRV_PHYS_HEAP ePhysHeap)
+{
+	if (ePhysHeap < 0 || ePhysHeap >= PVRSRV_PHYS_HEAP_LAST)
+	{
+		return "Undefined";
+	}
+
+	return _pszPhysHeapStrings[ePhysHeap];
+}
+
+/*************************************************************************/ /*!
+@Function       PVRSRVGetClientPhysHeapName
+@Description    Returns the name of a client PhysHeap.
+
+@Input          ePhysHeap   The enum value of the physheap.
+
+@Return         const IMG_CHAR pointer.
+*/ /**************************************************************************/
+static inline const IMG_CHAR *PVRSRVGetClientPhysHeapName(PVRSRV_PHYS_HEAP ePhysHeap)
+{
+    if (ePhysHeap > PVRSRV_PHYS_HEAP_GPU_PRIVATE)
+    {
+        return "Unknown Heap";
+    }
+
+    return PVRSRVGetPhysHeapName(ePhysHeap);
+}
+#endif /* PHYSHEAP_STRINGS */
 
 #endif /* PVRSRV_MEMALLOC_PHYSHEAP_H */

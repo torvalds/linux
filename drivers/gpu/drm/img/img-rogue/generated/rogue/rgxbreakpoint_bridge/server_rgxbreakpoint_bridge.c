@@ -100,6 +100,7 @@ PVRSRVBridgeRGXSetBreakpoint(IMG_UINT32 ui32DispatchTableEntry,
 	    PVRSRVRGXSetBreakpointKM(psConnection, OSGetDevNode(psConnection),
 				     hPrivDataInt,
 				     psRGXSetBreakpointIN->eFWDataMaster,
+				     psRGXSetBreakpointIN->ui64TempSpillingAddr,
 				     psRGXSetBreakpointIN->ui32BreakpointAddr,
 				     psRGXSetBreakpointIN->ui32HandlerAddr,
 				     psRGXSetBreakpointIN->ui32DM);

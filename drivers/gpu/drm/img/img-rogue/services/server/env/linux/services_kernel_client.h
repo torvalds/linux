@@ -78,8 +78,6 @@ struct PVRSRV_CLIENT_SYNC_PRIM_OP {
 struct PVRSRV_CLIENT_SYNC_PRIM_TAG;
 struct PVRSRV_CLIENT_SYNC_PRIM_OP;
 
-enum tag_img_bool;
-
 #endif /* __pvrsrv_defined_struct_enum__ */
 
 struct _PMR_;
@@ -171,7 +169,7 @@ __u32 OSStringUINT32ToStr(char *pszBuf, size_t uSize, __u32 ui32Num);
 /* srvkm.h */
 
 enum PVRSRV_ERROR_TAG PVRSRVCommonDeviceCreate(void *pvOSDevice,
-	int i32OsDeviceID,
+	int i32KernelDeviceID,
 	struct _PVRSRV_DEVICE_NODE_ **ppsDeviceNode);
 enum PVRSRV_ERROR_TAG PVRSRVCommonDeviceDestroy(
 	struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
@@ -211,7 +209,7 @@ typedef __u32 (*PFN_SYNC_CHECKPOINT_DUMP_INFO_ON_STALLED_UFOS_FN)(__u32 num_ufos
 #endif
 
 #ifndef CHECKPOINT_PFNS
-typedef enum tag_img_bool (*PFN_SYNC_CHECKPOINT_UFO_HAS_SIGNALLED_FN)(
+typedef bool (*PFN_SYNC_CHECKPOINT_UFO_HAS_SIGNALLED_FN)(
 	__u32 ui32FwAddr, __u32 ui32Value);
 typedef enum PVRSRV_ERROR_TAG (*PFN_SYNC_CHECKPOINT_SIGNAL_WAITERS_FN)(void);
 typedef void(*PFN_SYNC_CHECKPOINT_CHECK_STATE_FN)(void);
@@ -260,8 +258,8 @@ void SyncCheckpointContextUnref(PSYNC_CHECKPOINT_CONTEXT psContext);
 enum PVRSRV_ERROR_TAG SyncCheckpointAlloc(PSYNC_CHECKPOINT_CONTEXT psSyncContext, PVRSRV_TIMELINE timeline, PVRSRV_FENCE fence, const char *pszCheckpointName, PSYNC_CHECKPOINT *ppsSyncCheckpoint);
 void SyncCheckpointSignal(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
 void SyncCheckpointError(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
-enum tag_img_bool SyncCheckpointIsSignalled(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
-enum tag_img_bool SyncCheckpointIsErrored(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
+bool SyncCheckpointIsSignalled(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
+bool SyncCheckpointIsErrored(PSYNC_CHECKPOINT psSyncCheckpoint, u32 fence_sync_flags);
 enum PVRSRV_ERROR_TAG SyncCheckpointTakeRef(PSYNC_CHECKPOINT psSyncCheckpoint);
 enum PVRSRV_ERROR_TAG SyncCheckpointDropRef(PSYNC_CHECKPOINT psSyncCheckpoint);
 void SyncCheckpointFree(PSYNC_CHECKPOINT psSyncCheckpoint);

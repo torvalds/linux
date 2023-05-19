@@ -91,28 +91,13 @@ typedef struct SYNC_PRIM_BLOCK_TAG
 	DLLIST_NODE			sListNode;				/*!< List node for the sync block list */
 } SYNC_PRIM_BLOCK;
 
-typedef enum SYNC_PRIM_TYPE_TAG
-{
-	SYNC_PRIM_TYPE_UNKNOWN = 0,
-	SYNC_PRIM_TYPE_LOCAL,
-	SYNC_PRIM_TYPE_SERVER,
-} SYNC_PRIM_TYPE;
-
-typedef struct SYNC_PRIM_LOCAL_TAG
-{
-	ATOMIC_T				hRefCount;	/*!< Ref count for this sync */
-	SYNC_PRIM_BLOCK			*psSyncBlock;	/*!< Synchronisation block this primitive is allocated on */
-	IMG_UINT64				uiSpanAddr;		/*!< Span address of the sync */
-	IMG_HANDLE				hRecord;		/*!< Sync record handle */
-} SYNC_PRIM_LOCAL;
-
 typedef struct SYNC_PRIM_TAG
 {
 	PVRSRV_CLIENT_SYNC_PRIM	sCommon;		/*!< Client visible part of the sync prim */
-	SYNC_PRIM_TYPE			eType;			/*!< Sync primitive type */
-	union {
-		SYNC_PRIM_LOCAL		sLocal;			/*!< Local sync primitive data */
-	} u;
+	ATOMIC_T				hRefCount;		/*!< Ref count for this sync */
+	SYNC_PRIM_BLOCK			*psSyncBlock;	/*!< Synchronisation block this primitive is allocated on */
+	IMG_UINT64				uiSpanAddr;		/*!< Span address of the sync */
+	IMG_HANDLE				hRecord;		/*!< Sync record handle */
 } SYNC_PRIM;
 
 

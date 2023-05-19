@@ -179,7 +179,7 @@ RGXWriteTimestampCommand(void                  ** ppvPtr,
 	           || eCmdType == RGXFWIF_CCB_CMD_TYPE_POST_TIMESTAMP);
 
 	psHeader->eCmdType    = eCmdType;
-	psHeader->ui32CmdSize = (sizeof(RGXFWIF_DEV_VIRTADDR) + RGXFWIF_FWALLOC_ALIGN - 1) & ~(RGXFWIF_FWALLOC_ALIGN  - 1);
+	psHeader->ui32CmdSize = PVR_ALIGN(sizeof(RGXFWIF_DEV_VIRTADDR), RGXFWIF_FWALLOC_ALIGN);
 
 	(*ppvPtr) = IMG_OFFSET_ADDR(*ppvPtr, sizeof(RGXFWIF_CCB_CMD_HEADER));
 

@@ -123,13 +123,17 @@ PVRSRV_ERROR DIInit(void)
 {
 	PVRSRV_ERROR eError;
 
+#if defined(__linux__) && defined(__KERNEL__)
+	eError = OSLockCreateNoStats(&_g_hLock);
+#else
 	eError = OSLockCreate(&_g_hLock);
+#endif
 	PVR_LOG_GOTO_IF_ERROR(eError, "OSLockCreate", return_);
 
-	_g_psRootGroup = OSAllocMem(sizeof(*_g_psRootGroup));
+	_g_psRootGroup = OSAllocMemNoStats(sizeof(*_g_psRootGroup));
 	PVR_LOG_GOTO_IF_NOMEM(_g_psRootGroup, eError, destroy_lock_);
 
-	_g_psRootGroup->pszName = OSAllocMem(sizeof(ROOT_GROUP_NAME));
+	_g_psRootGroup->pszName = OSAllocMemNoStats(sizeof(ROOT_GROUP_NAME));
 	PVR_LOG_GOTO_IF_NOMEM(_g_psRootGroup->pszName, eError, cleanup_name_);
 	OSStringLCopy(_g_psRootGroup->pszName, ROOT_GROUP_NAME,
 				  sizeof(ROOT_GROUP_NAME));
@@ -142,9 +146,13 @@ PVRSRV_ERROR DIInit(void)
 	return PVRSRV_OK;
 
 cleanup_name_:
-	OSFreeMem(_g_psRootGroup);
+	OSFreeMemNoStats(_g_psRootGroup);
 destroy_lock_:
+#if defined(__linux__) && defined(__KERNEL__)
+	OSLockDestroyNoStats(_g_hLock);
+#else
 	OSLockDestroy(_g_hLock);
+#endif
 return_:
 	return eError;
 }
@@ -205,7 +213,11 @@ void DIDeInit(void)
 
 	/* all resources freed so free the lock itself too */
 
+#if defined(__linux__) && defined(__KERNEL__)
+	OSLockDestroyNoStats(_g_hLock);
+#else
 	OSLockDestroy(_g_hLock);
+#endif
 }
 
 static IMG_BOOL _ValidateIteratorCb(const DI_ITERATOR_CB *psIterCb,
@@ -515,8 +527,16 @@ void DIDestroyGroup(DI_GROUP *psGroup)
 
 	dllist_remove_node(&psGroup->sListNode);
 
-	OSFreeMem(psGroup->pszName);
-	OSFreeMem(psGroup);
+	if (psGroup == _g_psRootGroup)
+	{
+		OSFreeMemNoStats(psGroup->pszName);
+		OSFreeMemNoStats(psGroup);
+	}
+	else
+	{
+		OSFreeMem(psGroup->pszName);
+		OSFreeMem(psGroup);
+	}
 }
 
 void *DIGetPrivData(const OSDI_IMPL_ENTRY *psEntry)

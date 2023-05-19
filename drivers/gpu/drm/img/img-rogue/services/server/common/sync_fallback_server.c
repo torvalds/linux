@@ -2942,7 +2942,6 @@ PVRSRV_ERROR SyncFbFenceImportSecure(CONNECTION_DATA *psConnection,
 
 	eError = _SyncFbFenceImport(psImport, ppsFence);
 
-	PVR_DPF_RETURN_OK;
 err_out:
 	PVR_DPF_RETURN_RC(eError);
 }

@@ -258,11 +258,6 @@ static inline IMG_UINT32 HandlePut(HANDLE_DATA *psHandleData)
 	return --psHandleData->iLookupCount;
 }
 
-static inline IMG_BOOL IsRetryError(PVRSRV_ERROR eError)
-{
-	return eError == PVRSRV_ERROR_RETRY || eError == PVRSRV_ERROR_KERNEL_CCB_FULL;
-}
-
 #if defined(PVRSRV_NEED_PVR_DPF)
 static const IMG_CHAR *HandleTypeToString(PVRSRV_HANDLE_TYPE eType)
 {
@@ -1527,7 +1522,7 @@ static PVRSRV_ERROR HandleFreePrivData(PVRSRV_HANDLE_BASE *psBase,
 		eError = psHandleData->pfnReleaseData(psHandleData->pvData);
 		if (eError != PVRSRV_OK)
 		{
-			if (IsRetryError(eError))
+			if (PVRSRVIsRetryError(eError))
 			{
 				PVR_DPF((PVR_DBG_MESSAGE, "%s: Got retry while calling release "
 						"data callback for handle %p of type = %s", __func__,
@@ -1640,7 +1635,7 @@ static PVRSRV_ERROR DestroyHandle(PVRSRV_HANDLE_BASE *psBase,
 
 		/* If the data could not be freed due to a temporary condition the
 		 * handle must be kept alive so that the next destroy call can try again */
-		if (IsRetryError(eError))
+		if (PVRSRVIsRetryError(eError))
 		{
 			psHandleData->bCanLookup = IMG_TRUE;
 		}
@@ -2060,6 +2055,7 @@ static const PVRSRV_HANDLE_TYPE g_aeOrderedFreeList[] =
 	PVRSRV_HANDLE_TYPE_PVRSRV_FENCE_SERVER,
 	PVRSRV_HANDLE_TYPE_DEVMEMINT_MAPPING,
 	PVRSRV_HANDLE_TYPE_DEVMEMINT_RESERVATION,
+	PVRSRV_HANDLE_TYPE_DEVMEMXINT_RESERVATION,
 	PVRSRV_HANDLE_TYPE_DEVMEMINT_HEAP,
 	PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT,
 	PVRSRV_HANDLE_TYPE_DEV_PRIV_DATA,
