@@ -321,7 +321,7 @@ static int __maybe_unused imx_rngc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(imx_rngc_pm_ops, imx_rngc_suspend, imx_rngc_resume);
 
 static const struct of_device_id imx_rngc_dt_ids[] = {
-	{ .compatible = "fsl,imx25-rngb", .data = NULL, },
+	{ .compatible = "fsl,imx25-rngb" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_rngc_dt_ids);
