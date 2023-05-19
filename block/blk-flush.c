@@ -385,22 +385,17 @@ static void blk_rq_init_flush(struct request *rq)
 	rq->end_io = mq_flush_data_end_io;
 }
 
-/**
- * blk_insert_flush - insert a new PREFLUSH/FUA request
- * @rq: request to insert
- *
- * To be called from __elv_add_request() for %ELEVATOR_INSERT_FLUSH insertions.
- * or __blk_mq_run_hw_queue() to dispatch request.
- * @rq is being submitted.  Analyze what needs to be done and put it on the
- * right queue.
+/*
+ * Insert a PREFLUSH/FUA request into the flush state machine.
+ * Returns true if the request has been consumed by the flush state machine,
+ * or false if the caller should continue to process it.
  */
-void blk_insert_flush(struct request *rq)
+bool blk_insert_flush(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
-	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	/* FLUSH/FUA request must never be merged */
 	WARN_ON_ONCE(rq->bio != rq->biotail);
@@ -429,16 +424,14 @@ void blk_insert_flush(struct request *rq)
 		 * complete the request.
 		 */
 		blk_mq_end_request(rq, 0);
-		return;
+		return true;
 	case REQ_FSEQ_DATA:
 		/*
 		 * If there's data, but no flush is necessary, the request can
 		 * be processed directly without going through flush machinery.
 		 * Queue for normal execution.
 		 */
-		blk_mq_request_bypass_insert(rq, 0);
-		blk_mq_run_hw_queue(hctx, false);
-		return;
+		return false;
 	default:
 		/*
 		 * Mark the request as part of a flush sequence and submit it
@@ -448,6 +441,7 @@ void blk_insert_flush(struct request *rq)
 		spin_lock_irq(&fq->mq_flush_lock);
 		blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
 		spin_unlock_irq(&fq->mq_flush_lock);
+		return true;
 	}
 }
 

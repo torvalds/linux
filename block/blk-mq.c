@@ -45,6 +45,8 @@
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
 static void blk_mq_insert_request(struct request *rq, blk_insert_t flags);
+static void blk_mq_request_bypass_insert(struct request *rq,
+		blk_insert_t flags);
 static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list);
 
@@ -2430,7 +2432,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
  * Should only be used carefully, when the caller knows we want to
  * bypass a potential IO scheduler on the target device.
  */
-void blk_mq_request_bypass_insert(struct request *rq, blk_insert_t flags)
+static void blk_mq_request_bypass_insert(struct request *rq, blk_insert_t flags)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
@@ -2977,10 +2979,8 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (op_is_flush(bio->bi_opf)) {
-		blk_insert_flush(rq);
+	if (op_is_flush(bio->bi_opf) && blk_insert_flush(rq))
 		return;
-	}
 
 	if (plug) {
 		blk_add_rq_to_plug(plug, rq);
