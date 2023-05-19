@@ -8,6 +8,22 @@
 
 #include <linux/types.h>
 
+/* rkep device mode status definition */
+#define RKEP_MODE_BOOTROM       1
+#define RKEP_MODE_LOADER        2
+#define RKEP_MODE_KERNEL        3
+#define RKEP_MODE_FUN0          4
+/* Common status */
+#define RKEP_SMODE_INIT         0
+#define RKEP_SMODE_LNKRDY       1
+#define RKEP_SMODE_LNKUP        2
+#define RKEP_SMODE_ERR          0xff
+/* Firmware download status */
+#define RKEP_SMODE_FWDLRDY      0x10
+#define RKEP_SMODE_FWDLDONE     0x11
+/* Application status*/
+#define RKEP_SMODE_APPRDY       0x20
+
 /*
  * rockchip pcie driver elbi ioctrl output data
  */
@@ -52,7 +68,11 @@ enum pcie_ep_mmap_resource {
 struct pcie_ep_obj_info {
 	__u32 magic;
 	__u32 version;
-	__u8 reserved[0x1F8];
+	struct {
+		__u16 mode;
+		__u16 submode;
+	} devmode;
+	__u8 reserved[0x1F4];
 
 	__u32 irq_type_rc;					/* Generate in ep isr, valid only for rc, clear in rc */
 	struct pcie_ep_obj_irq_dma_status dma_status_rc;	/* Generate in ep isr, valid only for rc, clear in rc */

@@ -149,6 +149,12 @@ static const struct of_device_id rockchip_pcie_ep_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, rockchip_pcie_ep_of_match);
 
+static void rockchip_pcie_devmode_update(struct rockchip_pcie *rockchip, int mode, int submode)
+{
+	rockchip->obj_info->devmode.mode = mode;
+	rockchip->obj_info->devmode.submode = submode;
+}
+
 static int rockchip_pcie_readl_apb(struct rockchip_pcie *rockchip, u32 reg)
 {
 	return readl(rockchip->apb_base + reg);
@@ -294,6 +300,7 @@ static int rockchip_pcie_resource_get(struct platform_device *pdev,
 		memset_io(rockchip->obj_info, 0, sizeof(struct pcie_ep_obj_info));
 		rockchip->obj_info->magic = PCIE_EP_OBJ_INFO_MAGIC;
 		rockchip->obj_info->version = PCIE_EP_OBJ_INFO_DRV_VERSION;
+		rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_INIT);
 	} else {
 		dev_err(dev, "missing bar0 memory region\n");
 		return -ENODEV;
@@ -1173,6 +1180,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	rockchip_pcie_fast_link_setup(rockchip);
 
 	rockchip_pcie_start_link(&rockchip->pci);
+	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKRDY);
 
 	for (retry = 0; retry < 10000; retry++) {
 		if (dw_pcie_link_up(&rockchip->pci)) {
@@ -1200,6 +1208,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	}
 
 already_linkup:
+	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKUP);
 	rockchip->pci.iatu_unroll_enabled = rockchip_pcie_iatu_unroll_enabled(&rockchip->pci);
 	for (i = 0; i < PCIE_BAR_MAX_NUM; i++)
 		if (rockchip->ib_target_size[i])
