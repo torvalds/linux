@@ -50,7 +50,7 @@ static u8 engine_event_instance(struct perf_event *event)
 	return (event->attr.config >> I915_PMU_SAMPLE_BITS) & 0xff;
 }
 
-static bool is_engine_config(u64 config)
+static bool is_engine_config(const u64 config)
 {
 	return config < __I915_PMU_OTHER(0);
 }
@@ -88,9 +88,20 @@ static unsigned int config_bit(const u64 config)
 		return other_bit(config);
 }
 
-static u64 config_mask(u64 config)
+static u32 config_mask(const u64 config)
 {
-	return BIT_ULL(config_bit(config));
+	unsigned int bit = config_bit(config);
+
+	if (__builtin_constant_p(config))
+		BUILD_BUG_ON(bit >
+			     BITS_PER_TYPE(typeof_member(struct i915_pmu,
+							 enable)) - 1);
+	else
+		WARN_ON_ONCE(bit >
+			     BITS_PER_TYPE(typeof_member(struct i915_pmu,
+							 enable)) - 1);
+
+	return BIT(config_bit(config));
 }
 
 static bool is_engine_event(struct perf_event *event)
@@ -633,11 +644,10 @@ static void i915_pmu_enable(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
+	const unsigned int bit = event_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
-	unsigned int bit;
 
-	bit = event_bit(event);
 	if (bit == -1)
 		goto update;
 
@@ -651,7 +661,7 @@ static void i915_pmu_enable(struct perf_event *event)
 	GEM_BUG_ON(bit >= ARRAY_SIZE(pmu->enable_count));
 	GEM_BUG_ON(pmu->enable_count[bit] == ~0);
 
-	pmu->enable |= BIT_ULL(bit);
+	pmu->enable |= BIT(bit);
 	pmu->enable_count[bit]++;
 
 	/*
@@ -698,7 +708,7 @@ static void i915_pmu_disable(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
-	unsigned int bit = event_bit(event);
+	const unsigned int bit = event_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
 
@@ -734,7 +744,7 @@ static void i915_pmu_disable(struct perf_event *event)
 	 * bitmask when the last listener on an event goes away.
 	 */
 	if (--pmu->enable_count[bit] == 0) {
-		pmu->enable &= ~BIT_ULL(bit);
+		pmu->enable &= ~BIT(bit);
 		pmu->timer_enabled &= pmu_needs_timer(pmu, true);
 	}
 
