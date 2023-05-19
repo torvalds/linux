@@ -347,21 +347,11 @@
 			};
 
 			espi: espi@1e6ee000 {
-				compatible = "aspeed,ast2500-espi", "simple-mfd", "syscon";
+				compatible = "aspeed,ast2500-espi";
 				reg = <0x1e6ee000 0x1000>;
-
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0x0 0x1e6ee000 0x1000>;
-
-				espi_ctrl: espi-ctrl@0 {
-					compatible = "aspeed,ast2500-espi-ctrl";
-					reg = <0x0 0x1000>;
-					interrupts = <23>;
-					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
-					aspeed,scu = <&syscon>;
-					status = "disabled";
-				};
+				interrupts = <23>;
+				clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
+				status = "disabled";
 			};
 
 			video: video@1e700000 {

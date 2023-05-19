@@ -632,16 +632,16 @@
 	pinctrl-0 = <&pinctrl_espi_default>;
 };
 
-&espi_ctrl {
+&espi {
+	status = "okay";
 	interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
 	resets = <&syscon ASPEED_RESET_ESPI>;
-};
 
-&espi_mmbi {
-	status = "okay";
-	host-src-addr = <0xf6810000>;
 	memory-region = <&espi_mmbi_memory>;
-	instance-size = <1>;
+
+	perif-mmbi-enable;
+	perif-mmbi-src-addr = <0xf6810000>;
+	perif-mmbi-instance-size = <1>;
 	instance@0 {
 		channel = <0x00>;
 		protocols = [02 03];
