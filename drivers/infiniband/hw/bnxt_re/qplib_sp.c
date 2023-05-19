@@ -233,10 +233,6 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int index;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (!sgid_tbl->active) {
 		dev_err(&res->pdev->dev, "SGID table has no active entries\n");
@@ -297,10 +293,6 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int i, free_idx;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (sgid_tbl->active == sgid_tbl->max) {
 		dev_err(&res->pdev->dev, "SGID table is full\n");
