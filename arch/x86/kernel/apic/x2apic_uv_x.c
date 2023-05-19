@@ -1022,7 +1022,7 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 	switch (index) {
 	case UVY_MMIOH0:
 		mmr = UVH_RH10_GAM_MMIOH_REDIRECT_CONFIG0;
-		nasid_mask = UVH_RH10_GAM_MMIOH_OVERLAY_CONFIG0_BASE_MASK;
+		nasid_mask = UVYH_RH10_GAM_MMIOH_REDIRECT_CONFIG0_NASID_MASK;
 		n = UVH_RH10_GAM_MMIOH_REDIRECT_CONFIG0_DEPTH;
 		min_nasid = min_pnode;
 		max_nasid = max_pnode;
@@ -1030,7 +1030,7 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 		break;
 	case UVY_MMIOH1:
 		mmr = UVH_RH10_GAM_MMIOH_REDIRECT_CONFIG1;
-		nasid_mask = UVH_RH10_GAM_MMIOH_OVERLAY_CONFIG1_BASE_MASK;
+		nasid_mask = UVYH_RH10_GAM_MMIOH_REDIRECT_CONFIG1_NASID_MASK;
 		n = UVH_RH10_GAM_MMIOH_REDIRECT_CONFIG1_DEPTH;
 		min_nasid = min_pnode;
 		max_nasid = max_pnode;
@@ -1038,7 +1038,7 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 		break;
 	case UVX_MMIOH0:
 		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0;
-		nasid_mask = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_BASE_MASK;
+		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_NASID_MASK;
 		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_DEPTH;
 		min_nasid = min_pnode * 2;
 		max_nasid = max_pnode * 2;
@@ -1046,7 +1046,7 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 		break;
 	case UVX_MMIOH1:
 		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1;
-		nasid_mask = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_BASE_MASK;
+		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_NASID_MASK;
 		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_DEPTH;
 		min_nasid = min_pnode * 2;
 		max_nasid = max_pnode * 2;
@@ -1072,8 +1072,9 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 
 		/* Invalid NASID check */
 		if (nasid < min_nasid || max_nasid < nasid) {
-			pr_err("UV:%s:Invalid NASID:%x (range:%x..%x)\n",
-				__func__, index, min_nasid, max_nasid);
+			/* Not an error: unused table entries get "poison" values */
+			pr_debug("UV:%s:Invalid NASID(%x):%x (range:%x..%x)\n",
+			       __func__, index, nasid, min_nasid, max_nasid);
 			nasid = -1;
 		}
 
