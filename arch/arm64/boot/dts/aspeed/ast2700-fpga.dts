@@ -43,10 +43,24 @@
 
 &uart4 {
 	clock-frequency = <1846154>;
+	status = "okay";
 };
 
 &uart12 {
 	clock-frequency = <1846154>;
+	status = "okay";
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+#include "fpga-flash-layout.dtsi"
+	};
 };
 
 &mdio0 {
