@@ -39,3 +39,4 @@ local_config.h
 local_config.mk
 ksm_functional_tests
 mdwe_test
+gup_longterm

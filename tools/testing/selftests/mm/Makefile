@@ -34,6 +34,7 @@ LDLIBS = -lrt -lpthread
 
 TEST_GEN_PROGS = cow
 TEST_GEN_PROGS += compaction_test
+TEST_GEN_PROGS += gup_longterm
 TEST_GEN_PROGS += gup_test
 TEST_GEN_PROGS += hmm-tests
 TEST_GEN_PROGS += hugetlb-madvise
@@ -163,6 +164,8 @@ endif
 
 # IOURING_EXTRA_LIBS may get set in local_config.mk, or it may be left empty.
 $(OUTPUT)/cow: LDLIBS += $(IOURING_EXTRA_LIBS)
+
+$(OUTPUT)/gup_longterm: LDLIBS += $(IOURING_EXTRA_LIBS)
 
 $(OUTPUT)/mlock-random-test $(OUTPUT)/memfd_secret: LDLIBS += -lcap
 
