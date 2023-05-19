@@ -14,7 +14,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <dirent.h>
 #include <assert.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -68,31 +67,6 @@ static void detect_huge_zeropage(void)
 	}
 
 	close(fd);
-}
-
-static void detect_hugetlbsizes(void)
-{
-	DIR *dir = opendir("/sys/kernel/mm/hugepages/");
-
-	if (!dir)
-		return;
-
-	while (nr_hugetlbsizes < ARRAY_SIZE(hugetlbsizes)) {
-		struct dirent *entry = readdir(dir);
-		size_t kb;
-
-		if (!entry)
-			break;
-		if (entry->d_type != DT_DIR)
-			continue;
-		if (sscanf(entry->d_name, "hugepages-%zukB", &kb) != 1)
-			continue;
-		hugetlbsizes[nr_hugetlbsizes] = kb * 1024;
-		nr_hugetlbsizes++;
-		ksft_print_msg("[INFO] detected hugetlb size: %zu KiB\n",
-			       kb);
-	}
-	closedir(dir);
 }
 
 static bool range_is_swapped(void *addr, size_t size)
@@ -1717,7 +1691,8 @@ int main(int argc, char **argv)
 	if (thpsize)
 		ksft_print_msg("[INFO] detected THP size: %zu KiB\n",
 			       thpsize / 1024);
-	detect_hugetlbsizes();
+	nr_hugetlbsizes = detect_hugetlb_page_sizes(hugetlbsizes,
+						    ARRAY_SIZE(hugetlbsizes));
 	detect_huge_zeropage();
 
 	ksft_print_header();
