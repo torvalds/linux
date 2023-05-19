@@ -17,6 +17,7 @@
 #include <linux/hw_random.h>
 #include <linux/completion.h>
 #include <linux/io.h>
+#include <linux/bitfield.h>
 
 #define RNGC_VER_ID			0x0000
 #define RNGC_COMMAND			0x0004
@@ -44,8 +45,7 @@
 #define RNGC_CTRL_AUTO_SEED		0x00000010
 
 #define RNGC_STATUS_ERROR		0x00010000
-#define RNGC_STATUS_FIFO_LEVEL_MASK	0x00000f00
-#define RNGC_STATUS_FIFO_LEVEL_SHIFT	8
+#define RNGC_STATUS_FIFO_LEVEL_MASK	GENMASK(11, 8)
 #define RNGC_STATUS_SEED_DONE		0x00000020
 #define RNGC_STATUS_ST_DONE		0x00000010
 
@@ -122,7 +122,6 @@ static int imx_rngc_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
 	struct imx_rngc *rngc = container_of(rng, struct imx_rngc, rng);
 	unsigned int status;
-	unsigned int level;
 	int retval = 0;
 
 	while (max >= sizeof(u32)) {
@@ -132,11 +131,7 @@ static int imx_rngc_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		if (status & RNGC_STATUS_ERROR)
 			break;
 
-		/* how many random numbers are in FIFO? [0-16] */
-		level = (status & RNGC_STATUS_FIFO_LEVEL_MASK) >>
-			RNGC_STATUS_FIFO_LEVEL_SHIFT;
-
-		if (level) {
+		if (status & RNGC_STATUS_FIFO_LEVEL_MASK) {
 			/* retrieve a random number from FIFO */
 			*(u32 *)data = readl(rngc->base + RNGC_FIFO);
 
