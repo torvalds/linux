@@ -22,6 +22,9 @@
 #include <linux/memfd.h>
 
 #include "local_config.h"
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+#include <liburing.h>
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 
 #include "../../../../mm/gup_test.h"
 #include "../kselftest.h"
@@ -80,6 +83,9 @@ enum test_type {
 	TEST_TYPE_RO_FAST,
 	TEST_TYPE_RW,
 	TEST_TYPE_RW_FAST,
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+	TEST_TYPE_IOURING,
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 };
 
 static void do_test(int fd, size_t size, enum test_type type, bool shared)
@@ -173,6 +179,51 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 		ksft_test_result(should_work, "Should have worked\n");
 		break;
 	}
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+	case TEST_TYPE_IOURING: {
+		struct io_uring ring;
+		struct iovec iov;
+
+		/* io_uring always pins pages writable. */
+		if (shared && fs_is_unknown(fs_type)) {
+			ksft_test_result_skip("Unknown filesystem\n");
+			return;
+		}
+		should_work = !shared ||
+			      fs_supports_writable_longterm_pinning(fs_type);
+
+		/* Skip on errors, as we might just lack kernel support. */
+		ret = io_uring_queue_init(1, &ring, 0);
+		if (ret < 0) {
+			ksft_test_result_skip("io_uring_queue_init() failed\n");
+			break;
+		}
+		/*
+		 * Register the range as a fixed buffer. This will FOLL_WRITE |
+		 * FOLL_PIN | FOLL_LONGTERM the range.
+		 */
+		iov.iov_base = mem;
+		iov.iov_len = size;
+		ret = io_uring_register_buffers(&ring, &iov, 1);
+		/* Only new kernels return EFAULT. */
+		if (ret && (errno == ENOSPC || errno == EOPNOTSUPP ||
+			    errno == EFAULT)) {
+			ksft_test_result(!should_work, "Should have failed\n");
+		} else if (ret) {
+			/*
+			 * We might just lack support or have insufficient
+			 * MEMLOCK limits.
+			 */
+			ksft_test_result_skip("io_uring_register_buffers() failed\n");
+		} else {
+			ksft_test_result(should_work, "Should have worked\n");
+			io_uring_unregister_buffers(&ring);
+		}
+
+		io_uring_queue_exit(&ring);
+		break;
+	}
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 	default:
 		assert(false);
 	}
@@ -310,6 +361,18 @@ static void test_private_ro_fast_pin(int fd, size_t size)
 	do_test(fd, size, TEST_TYPE_RO_FAST, false);
 }
 
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+static void test_shared_iouring(int fd, size_t size)
+{
+	do_test(fd, size, TEST_TYPE_IOURING, true);
+}
+
+static void test_private_iouring(int fd, size_t size)
+{
+	do_test(fd, size, TEST_TYPE_IOURING, false);
+}
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
+
 static const struct test_case test_cases[] = {
 	{
 		"R/W longterm GUP pin in MAP_SHARED file mapping",
@@ -343,6 +406,16 @@ static const struct test_case test_cases[] = {
 		"R/O longterm GUP-fast pin in MAP_PRIVATE file mapping",
 		test_private_ro_fast_pin,
 	},
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+	{
+		"io_uring fixed buffer with MAP_SHARED file mapping",
+		test_shared_iouring,
+	},
+	{
+		"io_uring fixed buffer with MAP_PRIVATE file mapping",
+		test_private_iouring,
+	},
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 };
 
 static void run_test_case(struct test_case const *test_case)
