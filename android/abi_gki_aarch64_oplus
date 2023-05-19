@@ -101,6 +101,9 @@
   __traceiter_android_vh_binder_select_worklist_ilocked
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
+  __traceiter_android_vh_dup_task_struct
+  __traceiter_android_vh_exit_signal
+  __traceiter_android_vh_irqtime_account_process_tick
   __traceiter_android_vh_mutex_can_spin_on_owner
   __traceiter_android_vh_mutex_opt_spin_finish
   __traceiter_android_vh_mutex_opt_spin_start
@@ -109,8 +112,10 @@
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
   __traceiter_android_vh_rwsem_wake_finish
+  __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
+  __traceiter_sched_stat_runtime
   __traceiter_sched_stat_sleep
   __traceiter_sched_stat_wait
   __traceiter_sched_waking
@@ -130,12 +135,15 @@
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_do_futex
+  __tracepoint_android_vh_dup_task_struct
+  __tracepoint_android_vh_exit_signal
   __tracepoint_android_vh_futex_sleep_start
   __tracepoint_android_vh_futex_wait_end
   __tracepoint_android_vh_futex_wait_start
   __tracepoint_android_vh_futex_wake_this
   __tracepoint_android_vh_futex_wake_traverse_plist
   __tracepoint_android_vh_futex_wake_up_q_finish
+  __tracepoint_android_vh_irqtime_account_process_tick
   __tracepoint_android_vh_mutex_can_spin_on_owner
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
@@ -144,8 +152,10 @@
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
   __tracepoint_android_vh_rwsem_wake_finish
+  __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
+  __tracepoint_sched_stat_runtime
   __tracepoint_sched_stat_sleep
   __tracepoint_sched_stat_wait
   __tracepoint_sched_waking
