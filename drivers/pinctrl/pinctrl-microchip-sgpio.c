@@ -719,8 +719,6 @@ static void microchip_sgpio_irq_ack(struct irq_data *data)
 
 static int microchip_sgpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	type &= IRQ_TYPE_SENSE_MASK;
-
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
 		irq_set_handler_locked(data, handle_edge_irq);
