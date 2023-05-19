@@ -30,7 +30,7 @@ struct rtw89_debugfs_priv {
 		u32 cb_data;
 		struct {
 			u32 addr;
-			u8 len;
+			u32 len;
 		} read_reg;
 		struct {
 			u32 addr;
@@ -164,11 +164,14 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	u32 addr, data;
-	u8 len;
+	u32 addr, end, data, k;
+	u32 len;
 
 	len = debugfs_priv->read_reg.len;
 	addr = debugfs_priv->read_reg.addr;
+
+	if (len > 4)
+		goto ndata;
 
 	switch (len) {
 	case 1:
@@ -186,6 +189,20 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "get %d bytes at 0x%08x=0x%08x\n", len, addr, data);
+
+	return 0;
+
+ndata:
+	end = addr + len;
+
+	for (; addr < end; addr += 16) {
+		seq_printf(m, "%08xh : ", 0x18600000 + addr);
+		for (k = 0; k < 16; k += 4) {
+			data = rtw89_read32(rtwdev, addr + k);
+			seq_printf(m, "%08x ", data);
+		}
+		seq_puts(m, "\n");
+	}
 
 	return 0;
 }
