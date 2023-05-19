@@ -88,6 +88,23 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
 	struct max96745 *max96745 = ser->parent;
+	struct drm_display_mode *mode = &bridge->encoder->crtc->state->adjusted_mode;
+	u8 cxtp, tx_rate;
+	u32 reg;
+
+	regmap_read(ser->regmap, 0x0011, &reg);
+	cxtp = FIELD_GET(CXTP_A, reg);
+	regmap_read(ser->regmap, 0x0028, &reg);
+	tx_rate = FIELD_GET(TX_RATE, reg);
+	if (!cxtp && mode->clock > 95000 && tx_rate == 1) {
+		regmap_update_bits(ser->regmap, 0x0028, TX_RATE,
+				   FIELD_PREP(TX_RATE, 2));
+		regmap_update_bits(ser->regmap, 0x0029, RESET_ONESHOT,
+				   FIELD_PREP(RESET_ONESHOT, 1));
+		if (regmap_read_poll_timeout(ser->regmap, 0x002a, reg,
+					     reg & LINK_LOCKED, 10000, 200000))
+			dev_err(ser->dev, "%s: GMSL link not locked\n", __func__);
+	}
 
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
@@ -109,9 +126,30 @@ static void max96745_bridge_disable(struct drm_bridge *bridge)
 static void max96745_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+	u8 cxtp, tx_rate, link_locked;
+	u32 reg;
+
+	regmap_read(ser->regmap, 0x002a, &reg);
+	link_locked = FIELD_GET(LINK_LOCKED, reg);
 
 	if (ser->panel)
 		drm_panel_unprepare(ser->panel);
+
+	regmap_read(ser->regmap, 0x0011, &reg);
+	cxtp = FIELD_GET(CXTP_A, reg);
+	regmap_read(ser->regmap, 0x0028, &reg);
+	tx_rate = FIELD_GET(TX_RATE, reg);
+	if (!cxtp && tx_rate == 2) {
+		regmap_update_bits(ser->regmap, 0x0028, TX_RATE,
+				   FIELD_PREP(TX_RATE, 1));
+		regmap_update_bits(ser->regmap, 0x0029, RESET_ONESHOT,
+				   FIELD_PREP(RESET_ONESHOT, 1));
+		if (link_locked) {
+			if (regmap_read_poll_timeout(ser->regmap, 0x002a, reg,
+					     reg & LINK_LOCKED, 10000, 200000))
+				dev_err(ser->dev, "%s: GMSL link not locked\n", __func__);
+		}
+	}
 }
 
 static enum drm_connector_status

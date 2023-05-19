@@ -35,6 +35,10 @@ struct max96745 {
 #define RESET_ALL		BIT(7)
 #define SLEEP			BIT(3)
 
+/* 0011h */
+#define CXTP_B			BIT(2)
+#define CXTP_A			BIT(0)
+
 /* 0013h */
 #define LOCKED			BIT(3)
 #define ERROR			BIT(2)
@@ -49,6 +53,7 @@ struct max96745 {
 
 /* 0028h, 0032h */
 #define LINK_EN			BIT(7)
+#define TX_RATE			GENMASK(3, 2)
 
 /* 0029h, 0033h */
 #define RESET_LINK		BIT(0)

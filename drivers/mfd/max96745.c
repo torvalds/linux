@@ -46,8 +46,6 @@ static bool max96745_vid_tx_active(struct max96745 *max96745)
 static bool max96745_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0x0028 ... 0x0029:
-	case 0x0032 ... 0x0033:
 	case 0x0076:
 	case 0x0086:
 	case 0x0100:
