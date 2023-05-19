@@ -17540,8 +17540,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/usb/qcom,pmic-*.yaml
 F:	drivers/usb/typec/tcpm/qcom/
-F:	include/dt-bindings/usb/typec/qcom,pmic-pdphy.h
-F:	include/dt-bindings/usb/typec/qcom,pmic-typec.h
 
 QUALCOMM VENUS VIDEO ACCELERATOR DRIVER
 M:	Stanimir Varbanov <stanimir.k.varbanov@gmail.com>
