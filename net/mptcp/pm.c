@@ -26,7 +26,8 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 
 	if (add_addr &
 	    (echo ? BIT(MPTCP_ADD_ADDR_ECHO) : BIT(MPTCP_ADD_ADDR_SIGNAL))) {
-		pr_warn("addr_signal error, add_addr=%d, echo=%d", add_addr, echo);
+		MPTCP_INC_STATS(sock_net((struct sock *)msk),
+				echo ? MPTCP_MIB_ECHOADDTXDROP : MPTCP_MIB_ADDADDRTXDROP);
 		return -EINVAL;
 	}
 
@@ -48,7 +49,8 @@ int mptcp_pm_remove_addr(struct mptcp_sock *msk, const struct mptcp_rm_list *rm_
 	pr_debug("msk=%p, rm_list_nr=%d", msk, rm_list->nr);
 
 	if (rm_addr) {
-		pr_warn("addr_signal error, rm_addr=%d", rm_addr);
+		MPTCP_ADD_STATS(sock_net((struct sock *)msk),
+				MPTCP_MIB_RMADDRTXDROP, rm_list->nr);
 		return -EINVAL;
 	}
 
