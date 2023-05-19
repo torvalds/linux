@@ -1478,6 +1478,7 @@
   pci_generic_config_write32
   pci_lock_rescan_remove
   pci_pio_to_address
+  pci_prepare_to_sleep
   pci_unlock_rescan_remove
   PDE_DATA
   __per_cpu_offset
@@ -1499,6 +1500,7 @@
   phy_drivers_register
   phy_drivers_unregister
   phy_ethtool_get_link_ksettings
+  phy_ethtool_get_wol
   phy_ethtool_nway_reset
   phy_ethtool_set_link_ksettings
   phy_exit
@@ -1518,6 +1520,7 @@
   phy_set_mode_ext
   phy_start
   phy_stop
+  phy_support_asym_pause
   phy_write_paged
   pid_task
   pinconf_generic_parse_dt_config
