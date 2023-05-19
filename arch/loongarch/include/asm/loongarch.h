@@ -1167,7 +1167,7 @@ static __always_inline void iocsr_write64(u64 val, u32 reg)
 
 #ifndef __ASSEMBLY__
 
-static inline u64 drdtime(void)
+static __always_inline u64 drdtime(void)
 {
 	int rID = 0;
 	u64 val = 0;
