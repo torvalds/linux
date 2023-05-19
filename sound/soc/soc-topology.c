@@ -1513,15 +1513,13 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	 * If so, just return success.
 	*/
 	if (!snd_soc_card_is_instantiated(card)) {
-		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
-			" widget card binding deferred\n");
+		dev_warn(tplg->dev, "ASoC: Parent card not yet available, widget card binding deferred\n");
 		return 0;
 	}
 
 	ret = snd_soc_dapm_new_widgets(card);
 	if (ret < 0)
-		dev_err(tplg->dev, "ASoC: failed to create new widgets %d\n",
-			ret);
+		dev_err(tplg->dev, "ASoC: failed to create new widgets %d\n", ret);
 
 	return ret;
 }
