@@ -1416,13 +1416,16 @@ static void __blk_mq_requeue_request(struct request *rq)
 void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list)
 {
 	struct request_queue *q = rq->q;
+	unsigned long flags;
 
 	__blk_mq_requeue_request(rq);
 
 	/* this request will be re-inserted to io scheduler queue */
 	blk_mq_sched_requeue_request(rq);
 
-	blk_mq_add_to_requeue_list(rq, BLK_MQ_INSERT_AT_HEAD);
+	spin_lock_irqsave(&q->requeue_lock, flags);
+	list_add_tail(&rq->queuelist, &q->requeue_list);
+	spin_unlock_irqrestore(&q->requeue_lock, flags);
 
 	if (kick_requeue_list)
 		blk_mq_kick_requeue_list(q);
@@ -1434,13 +1437,16 @@ static void blk_mq_requeue_work(struct work_struct *work)
 	struct request_queue *q =
 		container_of(work, struct request_queue, requeue_work.work);
 	LIST_HEAD(rq_list);
-	struct request *rq, *next;
+	LIST_HEAD(flush_list);
+	struct request *rq;
 
 	spin_lock_irq(&q->requeue_lock);
 	list_splice_init(&q->requeue_list, &rq_list);
+	list_splice_init(&q->flush_list, &flush_list);
 	spin_unlock_irq(&q->requeue_lock);
 
-	list_for_each_entry_safe(rq, next, &rq_list, queuelist) {
+	while (!list_empty(&rq_list)) {
+		rq = list_entry(rq_list.next, struct request, queuelist);
 		/*
 		 * If RQF_DONTPREP ist set, the request has been started by the
 		 * driver already and might have driver-specific data allocated
@@ -1448,44 +1454,21 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		 * block layer merges for the request.
 		 */
 		if (rq->rq_flags & RQF_DONTPREP) {
-			rq->rq_flags &= ~RQF_SOFTBARRIER;
 			list_del_init(&rq->queuelist);
 			blk_mq_request_bypass_insert(rq, 0);
-		} else if (rq->rq_flags & RQF_SOFTBARRIER) {
-			rq->rq_flags &= ~RQF_SOFTBARRIER;
+		} else {
 			list_del_init(&rq->queuelist);
 			blk_mq_insert_request(rq, BLK_MQ_INSERT_AT_HEAD);
 		}
 	}
 
-	while (!list_empty(&rq_list)) {
-		rq = list_entry(rq_list.next, struct request, queuelist);
+	while (!list_empty(&flush_list)) {
+		rq = list_entry(flush_list.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
 		blk_mq_insert_request(rq, 0);
 	}
 
 	blk_mq_run_hw_queues(q, false);
-}
-
-void blk_mq_add_to_requeue_list(struct request *rq, blk_insert_t insert_flags)
-{
-	struct request_queue *q = rq->q;
-	unsigned long flags;
-
-	/*
-	 * We abuse this flag that is otherwise used by the I/O scheduler to
-	 * request head insertion from the workqueue.
-	 */
-	BUG_ON(rq->rq_flags & RQF_SOFTBARRIER);
-
-	spin_lock_irqsave(&q->requeue_lock, flags);
-	if (insert_flags & BLK_MQ_INSERT_AT_HEAD) {
-		rq->rq_flags |= RQF_SOFTBARRIER;
-		list_add(&rq->queuelist, &q->requeue_list);
-	} else {
-		list_add_tail(&rq->queuelist, &q->requeue_list);
-	}
-	spin_unlock_irqrestore(&q->requeue_lock, flags);
 }
 
 void blk_mq_kick_requeue_list(struct request_queue *q)
@@ -4239,6 +4222,7 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	blk_mq_update_poll_flag(q);
 
 	INIT_DELAYED_WORK(&q->requeue_work, blk_mq_requeue_work);
+	INIT_LIST_HEAD(&q->flush_list);
 	INIT_LIST_HEAD(&q->requeue_list);
 	spin_lock_init(&q->requeue_lock);
 
