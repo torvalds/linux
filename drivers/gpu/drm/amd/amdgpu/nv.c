@@ -341,11 +341,6 @@ void nv_grbm_select(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
-static void nv_vga_set_state(struct amdgpu_device *adev, bool state)
-{
-	/* todo */
-}
-
 static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
@@ -654,7 +649,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
 	.reset_method = &nv_asic_reset_method,
-	.set_vga_state = &nv_vga_set_state,
 	.get_xclk = &nv_get_xclk,
 	.set_uvd_clocks = &nv_set_uvd_clocks,
 	.set_vce_clocks = &nv_set_vce_clocks,

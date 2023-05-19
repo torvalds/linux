@@ -346,11 +346,6 @@ void soc15_grbm_select(struct amdgpu_device *adev,
 	WREG32_SOC15_RLC_SHADOW(GC, xcc_id, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
-static void soc15_vga_set_state(struct amdgpu_device *adev, bool state)
-{
-	/* todo */
-}
-
 static bool soc15_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
@@ -849,7 +844,6 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
 	.reset_method = &soc15_asic_reset_method,
-	.set_vga_state = &soc15_vga_set_state,
 	.get_xclk = &soc15_get_xclk,
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
@@ -871,7 +865,6 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
 	.reset_method = &soc15_asic_reset_method,
-	.set_vga_state = &soc15_vga_set_state,
 	.get_xclk = &soc15_get_xclk,
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
@@ -893,7 +886,6 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
 	.reset_method = &soc15_asic_reset_method,
-	.set_vga_state = &soc15_vga_set_state,
 	.get_xclk = &soc15_get_xclk,
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,

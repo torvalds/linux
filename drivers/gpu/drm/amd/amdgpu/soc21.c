@@ -248,11 +248,6 @@ void soc21_grbm_select(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, regGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
-static void soc21_vga_set_state(struct amdgpu_device *adev, bool state)
-{
-	/* todo */
-}
-
 static bool soc21_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
@@ -559,7 +554,6 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs =
 	.read_register = &soc21_read_register,
 	.reset = &soc21_asic_reset,
 	.reset_method = &soc21_asic_reset_method,
-	.set_vga_state = &soc21_vga_set_state,
 	.get_xclk = &soc21_get_xclk,
 	.set_uvd_clocks = &soc21_set_uvd_clocks,
 	.set_vce_clocks = &soc21_set_vce_clocks,
