@@ -176,6 +176,8 @@ void crypto_cipher_encrypt_one(struct crypto_cipher *tfm,
 void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
 			       u8 *dst, const u8 *src);
 
+struct crypto_cipher *crypto_clone_cipher(struct crypto_cipher *cipher);
+
 struct crypto_cipher_spawn {
 	struct crypto_spawn base;
 };

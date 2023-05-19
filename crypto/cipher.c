@@ -90,3 +90,26 @@ void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
 	cipher_crypt_one(tfm, dst, src, false);
 }
 EXPORT_SYMBOL_NS_GPL(crypto_cipher_decrypt_one, CRYPTO_INTERNAL);
+
+struct crypto_cipher *crypto_clone_cipher(struct crypto_cipher *cipher)
+{
+	struct crypto_tfm *tfm = crypto_cipher_tfm(cipher);
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct crypto_cipher *ncipher;
+	struct crypto_tfm *ntfm;
+
+	if (alg->cra_init)
+		return ERR_PTR(-ENOSYS);
+
+	ntfm = __crypto_alloc_tfm(alg, CRYPTO_ALG_TYPE_CIPHER,
+				  CRYPTO_ALG_TYPE_MASK);
+	if (IS_ERR(ntfm))
+		return ERR_CAST(ntfm);
+
+	ntfm->crt_flags = tfm->crt_flags;
+
+	ncipher = __crypto_cipher_cast(ntfm);
+
+	return ncipher;
+}
+EXPORT_SYMBOL_GPL(crypto_clone_cipher);
