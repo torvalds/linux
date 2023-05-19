@@ -150,47 +150,48 @@
 		bl-name = "backlight";
 		dev-ctrl = /bits/ 8 <0x05>;
 		init-brt = /bits/ 8 <0x3f>;
-		rom_a0h {
+
+		rom-a0h {
 			rom-addr = /bits/ 8 <0xa0>;
 			rom-val = /bits/ 8 <0xff>;
 		};
-		rom_a1h {
+		rom-a1h {
 			rom-addr = /bits/ 8 <0xa1>;
 			rom-val = /bits/ 8 <0x3f>;
 		};
-		rom_a2h {
+		rom-a2h {
 			rom-addr = /bits/ 8 <0xa2>;
 			rom-val = /bits/ 8 <0x20>;
 		};
-		rom_a3h {
+		rom-a3h {
 			rom-addr = /bits/ 8 <0xa3>;
 			rom-val = /bits/ 8 <0x5e>;
 		};
-		rom_a4h {
+		rom-a4h {
 			rom-addr = /bits/ 8 <0xa4>;
 			rom-val = /bits/ 8 <0x02>;
 		};
-		rom_a5h {
+		rom-a5h {
 			rom-addr = /bits/ 8 <0xa5>;
 			rom-val = /bits/ 8 <0x04>;
 		};
-		rom_a6h {
+		rom-a6h {
 			rom-addr = /bits/ 8 <0xa6>;
 			rom-val = /bits/ 8 <0x80>;
 		};
-		rom_a7h {
+		rom-a7h {
 			rom-addr = /bits/ 8 <0xa7>;
 			rom-val = /bits/ 8 <0xf7>;
 		};
-		rom_a9h {
+		rom-a9h {
 			rom-addr = /bits/ 8 <0xa9>;
 			rom-val = /bits/ 8 <0x80>;
 		};
-		rom_aah {
+		rom-aah {
 			rom-addr = /bits/ 8 <0xaa>;
 			rom-val = /bits/ 8 <0x0f>;
 		};
-		rom_aeh {
+		rom-aeh {
 			rom-addr = /bits/ 8 <0xae>;
 			rom-val = /bits/ 8 <0x0f>;
 		};
