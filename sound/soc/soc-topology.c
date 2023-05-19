@@ -2486,11 +2486,8 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 			/* make sure header is valid before loading */
 			ret = soc_tplg_valid_header(tplg, hdr);
-			if (ret < 0) {
-				dev_err(tplg->dev,
-					"ASoC: topology: invalid header: %d\n", ret);
+			if (ret < 0)
 				return ret;
-			}
 
 			/* load the header object */
 			ret = soc_tplg_load_header(tplg, hdr);
