@@ -4130,7 +4130,7 @@ F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.yaml
 F:	drivers/gpio/gpio-brcmstb.c
 
 BROADCOM BRCMSTB I2C DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported
@@ -4293,7 +4293,7 @@ F:	drivers/bcma/
 F:	include/linux/bcma/
 
 BROADCOM SPI DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/spi/brcm,spi-bcm-qspi.yaml
@@ -4327,7 +4327,7 @@ F:	drivers/memory/brcmstb_dpfe.c
 
 BROADCOM STB NAND FLASH DRIVER
 M:	Brian Norris <computersforpeace@gmail.com>
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
@@ -18896,7 +18896,7 @@ K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) Broadcom BRCMSTB DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-mmc@vger.kernel.org
