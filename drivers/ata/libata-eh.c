@@ -3813,16 +3813,29 @@ void ata_eh_finish(struct ata_port *ap)
 			 * generate sense data in this function,
 			 * considering both err_mask and tf.
 			 */
-			if (qc->flags & ATA_QCFLAG_RETRY)
+			if (qc->flags & ATA_QCFLAG_RETRY) {
+				/*
+				 * Since qc->err_mask is set, ata_eh_qc_retry()
+				 * will not increment scmd->allowed, so upper
+				 * layer will only retry the command if it has
+				 * not already been retried too many times.
+				 */
 				ata_eh_qc_retry(qc);
-			else
+			} else {
 				ata_eh_qc_complete(qc);
+			}
 		} else {
 			if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
 				ata_eh_qc_complete(qc);
 			} else {
 				/* feed zero TF to sense generation */
 				memset(&qc->result_tf, 0, sizeof(qc->result_tf));
+				/*
+				 * Since qc->err_mask is not set,
+				 * ata_eh_qc_retry() will increment
+				 * scmd->allowed, so upper layer is guaranteed
+				 * to retry the command.
+				 */
 				ata_eh_qc_retry(qc);
 			}
 		}
