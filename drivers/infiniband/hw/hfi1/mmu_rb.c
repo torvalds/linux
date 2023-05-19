@@ -124,7 +124,7 @@ int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 	unsigned long flags;
 	int ret = 0;
 
-	trace_hfi1_mmu_rb_insert(mnode->addr, mnode->len);
+	trace_hfi1_mmu_rb_insert(mnode);
 
 	if (current->mm != handler->mn.mm)
 		return -EPERM;
@@ -189,6 +189,7 @@ static void release_immediate(struct kref *refcount)
 {
 	struct mmu_rb_node *mnode =
 		container_of(refcount, struct mmu_rb_node, refcount);
+	trace_hfi1_mmu_release_node(mnode);
 	mnode->handler->ops->remove(mnode->handler->ops_arg, mnode);
 }
 
@@ -252,6 +253,7 @@ void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 	spin_unlock_irqrestore(&handler->lock, flags);
 
 	list_for_each_entry_safe(rbnode, ptr, &del_list, list) {
+		trace_hfi1_mmu_rb_evict(rbnode);
 		kref_put(&rbnode->refcount, release_immediate);
 	}
 }
@@ -271,7 +273,7 @@ static int mmu_notifier_range_start(struct mmu_notifier *mn,
 		/* Guard against node removal. */
 		ptr = __mmu_int_rb_iter_next(node, range->start,
 					     range->end - 1);
-		trace_hfi1_mmu_mem_invalidate(node->addr, node->len);
+		trace_hfi1_mmu_mem_invalidate(node);
 		/* Remove from rb tree and lru_list. */
 		__mmu_int_rb_remove(node, root);
 		list_del_init(&node->list);
@@ -304,6 +306,7 @@ static void handle_remove(struct work_struct *work)
 	while (!list_empty(&del_list)) {
 		node = list_first_entry(&del_list, struct mmu_rb_node, list);
 		list_del(&node->list);
+		trace_hfi1_mmu_release_node(node);
 		handler->ops->remove(handler->ops_arg, node);
 	}
 }
