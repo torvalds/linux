@@ -2998,9 +2998,16 @@ static bool seq_sk_match(struct seq_file *seq, const struct sock *sk)
 		net_eq(sock_net(sk), seq_file_net(seq)));
 }
 
-static struct udp_table *udp_get_table_afinfo(struct udp_seq_afinfo *afinfo,
-					      struct net *net)
+static struct udp_table *udp_get_table_seq(struct seq_file *seq,
+					   struct net *net)
 {
+	const struct udp_iter_state *state = seq->private;
+	const struct udp_seq_afinfo *afinfo;
+
+	if (state->bpf_seq_afinfo)
+		return net->ipv4.udp_table;
+
+	afinfo = pde_data(file_inode(seq->file));
 	return afinfo->udp_table ? : net->ipv4.udp_table;
 }
 
@@ -3008,16 +3015,10 @@ static struct sock *udp_get_first(struct seq_file *seq, int start)
 {
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
-	struct udp_seq_afinfo *afinfo;
 	struct udp_table *udptable;
 	struct sock *sk;
 
-	if (state->bpf_seq_afinfo)
-		afinfo = state->bpf_seq_afinfo;
-	else
-		afinfo = pde_data(file_inode(seq->file));
-
-	udptable = udp_get_table_afinfo(afinfo, net);
+	udptable = udp_get_table_seq(seq, net);
 
 	for (state->bucket = start; state->bucket <= udptable->mask;
 	     ++state->bucket) {
@@ -3042,20 +3043,14 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 {
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
-	struct udp_seq_afinfo *afinfo;
 	struct udp_table *udptable;
-
-	if (state->bpf_seq_afinfo)
-		afinfo = state->bpf_seq_afinfo;
-	else
-		afinfo = pde_data(file_inode(seq->file));
 
 	do {
 		sk = sk_next(sk);
 	} while (sk && !seq_sk_match(seq, sk));
 
 	if (!sk) {
-		udptable = udp_get_table_afinfo(afinfo, net);
+		udptable = udp_get_table_seq(seq, net);
 
 		if (state->bucket <= udptable->mask)
 			spin_unlock_bh(&udptable->hash[state->bucket].lock);
@@ -3101,15 +3096,9 @@ EXPORT_SYMBOL(udp_seq_next);
 void udp_seq_stop(struct seq_file *seq, void *v)
 {
 	struct udp_iter_state *state = seq->private;
-	struct udp_seq_afinfo *afinfo;
 	struct udp_table *udptable;
 
-	if (state->bpf_seq_afinfo)
-		afinfo = state->bpf_seq_afinfo;
-	else
-		afinfo = pde_data(file_inode(seq->file));
-
-	udptable = udp_get_table_afinfo(afinfo, seq_file_net(seq));
+	udptable = udp_get_table_seq(seq, seq_file_net(seq));
 
 	if (state->bucket <= udptable->mask)
 		spin_unlock_bh(&udptable->hash[state->bucket].lock);
