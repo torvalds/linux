@@ -1349,7 +1349,7 @@ static void __init decode_gam_rng_tbl(unsigned long ptr)
 	struct uv_gam_range_entry *gre = (struct uv_gam_range_entry *)ptr;
 	unsigned long lgre = 0, gend = 0;
 	int index = 0;
-	int sock_min = 999999, pnode_min = 99999;
+	int sock_min = INT_MAX, pnode_min = INT_MAX;
 	int sock_max = -1, pnode_max = -1;
 
 	uv_gre_table = gre;
@@ -1694,7 +1694,7 @@ static void __init uv_system_init_hub(void)
 {
 	struct uv_hub_info_s hub_info = {0};
 	int bytes, cpu, nodeid;
-	unsigned short min_pnode = 9999, max_pnode = 0;
+	unsigned short min_pnode = USHRT_MAX, max_pnode = 0;
 	char *hub = is_uv5_hub() ? "UV500" :
 		    is_uv4_hub() ? "UV400" :
 		    is_uv3_hub() ? "UV300" :
