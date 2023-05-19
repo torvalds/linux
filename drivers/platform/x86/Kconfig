@@ -125,6 +125,7 @@ config YOGABOOK
 	tristate "Lenovo Yoga Book tablet key driver"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on I2C
 	select LEDS_CLASS
 	select NEW_LEDS
 	help
