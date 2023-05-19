@@ -420,6 +420,14 @@ static const struct psp_vdata pspv5 = {
 	.intsts_reg		= 0x10514,	/* P2CMSG_INTSTS */
 };
 
+static const struct psp_vdata pspv6 = {
+	.sev                    = &sevv2,
+	.tee                    = &teev2,
+	.feature_reg            = 0x109fc,	/* C2PMSG_63 */
+	.inten_reg              = 0x10510,	/* P2CMSG_INTEN */
+	.intsts_reg             = 0x10514,	/* P2CMSG_INTSTS */
+};
+
 #endif
 
 static const struct sp_dev_vdata dev_vdata[] = {
@@ -480,6 +488,12 @@ static const struct sp_dev_vdata dev_vdata[] = {
 		.psp_vdata = &pspv5,
 #endif
 	},
+	{	/* 8 */
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+		.psp_vdata = &pspv6,
+#endif
+	},
 };
 static const struct pci_device_id sp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&dev_vdata[0] },
@@ -491,6 +505,7 @@ static const struct pci_device_id sp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x15C7), (kernel_ulong_t)&dev_vdata[6] },
 	{ PCI_VDEVICE(AMD, 0x1649), (kernel_ulong_t)&dev_vdata[6] },
 	{ PCI_VDEVICE(AMD, 0x17E0), (kernel_ulong_t)&dev_vdata[7] },
+	{ PCI_VDEVICE(AMD, 0x156E), (kernel_ulong_t)&dev_vdata[8] },
 	/* Last entry must be zero */
 	{ 0, }
 };
