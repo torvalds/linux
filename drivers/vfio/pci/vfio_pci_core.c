@@ -885,6 +885,37 @@ int vfio_pci_core_register_dev_region(struct vfio_pci_core_device *vdev,
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_register_dev_region);
 
+static int vfio_pci_info_atomic_cap(struct vfio_pci_core_device *vdev,
+				    struct vfio_info_cap *caps)
+{
+	struct vfio_device_info_cap_pci_atomic_comp cap = {
+		.header.id = VFIO_DEVICE_INFO_CAP_PCI_ATOMIC_COMP,
+		.header.version = 1
+	};
+	struct pci_dev *pdev = pci_physfn(vdev->pdev);
+	u32 devcap2;
+
+	pcie_capability_read_dword(pdev, PCI_EXP_DEVCAP2, &devcap2);
+
+	if ((devcap2 & PCI_EXP_DEVCAP2_ATOMIC_COMP32) &&
+	    !pci_enable_atomic_ops_to_root(pdev, PCI_EXP_DEVCAP2_ATOMIC_COMP32))
+		cap.flags |= VFIO_PCI_ATOMIC_COMP32;
+
+	if ((devcap2 & PCI_EXP_DEVCAP2_ATOMIC_COMP64) &&
+	    !pci_enable_atomic_ops_to_root(pdev, PCI_EXP_DEVCAP2_ATOMIC_COMP64))
+		cap.flags |= VFIO_PCI_ATOMIC_COMP64;
+
+	if ((devcap2 & PCI_EXP_DEVCAP2_ATOMIC_COMP128) &&
+	    !pci_enable_atomic_ops_to_root(pdev,
+					   PCI_EXP_DEVCAP2_ATOMIC_COMP128))
+		cap.flags |= VFIO_PCI_ATOMIC_COMP128;
+
+	if (!cap.flags)
+		return -ENODEV;
+
+	return vfio_info_add_capability(caps, &cap.header, sizeof(cap));
+}
+
 static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 				   struct vfio_device_info __user *arg)
 {
@@ -920,6 +951,13 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 	if (ret && ret != -ENODEV) {
 		pci_warn(vdev->pdev,
 			 "Failed to setup zPCI info capabilities\n");
+		return ret;
+	}
+
+	ret = vfio_pci_info_atomic_cap(vdev, &caps);
+	if (ret && ret != -ENODEV) {
+		pci_warn(vdev->pdev,
+			 "Failed to setup AtomicOps info capability\n");
 		return ret;
 	}
 
