@@ -1036,10 +1036,6 @@ static struct net_device_ops altera_tse_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static void alt_tse_mac_an_restart(struct phylink_config *config)
-{
-}
-
 static void alt_tse_mac_config(struct phylink_config *config, unsigned int mode,
 			       const struct phylink_link_state *state)
 {
@@ -1096,7 +1092,6 @@ static struct phylink_pcs *alt_tse_select_pcs(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops alt_tse_phylink_ops = {
-	.mac_an_restart = alt_tse_mac_an_restart,
 	.mac_config = alt_tse_mac_config,
 	.mac_link_down = alt_tse_mac_link_down,
 	.mac_link_up = alt_tse_mac_link_up,
