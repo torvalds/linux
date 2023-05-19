@@ -701,7 +701,7 @@ static void mmhub_v1_8_reset_ras_error_count(struct amdgpu_device *adev)
 		mmhub_v1_8_inst_reset_ras_error_count(adev, i);
 }
 
-static const uint32_t mmhub_v1_8_mmea_err_status_reg[] = {
+static const u32 mmhub_v1_8_mmea_err_status_reg[] __maybe_unused = {
 	regMMEA0_ERR_STATUS,
 	regMMEA1_ERR_STATUS,
 	regMMEA2_ERR_STATUS,
