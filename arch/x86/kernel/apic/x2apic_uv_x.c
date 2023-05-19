@@ -617,7 +617,8 @@ static __init void build_uv_gr_table(void)
 
 	bytes = _gr_table_len * sizeof(struct uv_gam_range_s);
 	grt = kzalloc(bytes, GFP_KERNEL);
-	BUG_ON(!grt);
+	if (WARN_ON_ONCE(!grt))
+		return;
 	_gr_table = grt;
 
 	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
@@ -1548,7 +1549,8 @@ static void __init build_socket_tables(void)
 			return;
 		}
 		pr_err("UV: Error: UVsystab address translations not available!\n");
-		BUG();
+		WARN_ON_ONCE(!gre);
+		return;
 	}
 
 	numn = num_possible_nodes();
