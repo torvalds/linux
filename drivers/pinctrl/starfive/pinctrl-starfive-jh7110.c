@@ -1003,7 +1003,7 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 				GPIO_INPUT_ENABLE_X_REG + (loop << 2));
 	}
 
-	dev_info(dev, "SiFive GPIO chip registered %d GPIOs\n", ngpio);
+	dev_info(dev, "StarFive GPIO chip registered %d GPIOs\n", ngpio);
 
 	return 0;
 }
@@ -1707,7 +1707,7 @@ static int starfive_jh7110_aon_gpio_register(struct platform_device *pdev,
 				AON_GPIO_INPUT_ENABLE_REG + (loop << 2));
 	}
 
-	dev_info(dev, "SiFive GPIO chip registered %d GPIOs\n", ngpio);
+	dev_info(dev, "StarFive GPIO chip registered %d GPIOs\n", ngpio);
 
 	return 0;
 }
