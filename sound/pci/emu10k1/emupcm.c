@@ -76,16 +76,22 @@ static void snd_emu10k1_pcm_efx_interrupt(struct snd_emu10k1 *emu,
 	snd_pcm_period_elapsed(emu->pcm_capture_efx_substream);
 }	 
 
-static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voices)
+static void snd_emu10k1_pcm_free_voices(struct snd_emu10k1_pcm *epcm)
 {
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(epcm->voices); i++) {
+	for (unsigned i = 0; i < ARRAY_SIZE(epcm->voices); i++) {
 		if (epcm->voices[i]) {
 			snd_emu10k1_voice_free(epcm->emu, epcm->voices[i]);
 			epcm->voices[i] = NULL;
 		}
 	}
+}
+
+static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voices)
+{
+	int err, i;
+
+	snd_emu10k1_pcm_free_voices(epcm);
+
 	err = snd_emu10k1_voice_alloc(epcm->emu,
 				      epcm->type == PLAYBACK_EMUVOICE ? EMU10K1_PCM : EMU10K1_EFX,
 				      voices,
@@ -115,15 +121,13 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 			       "failed extra: voices=%d, frame=%d\n",
 			       voices, frame);
 			*/
-			for (i = 0; i < voices; i++) {
-				snd_emu10k1_voice_free(epcm->emu, epcm->voices[i]);
-				epcm->voices[i] = NULL;
-			}
+			snd_emu10k1_pcm_free_voices(epcm);
 			return err;
 		}
 		epcm->extra->epcm = epcm;
 		epcm->extra->interrupt = snd_emu10k1_pcm_interrupt;
 	}
+
 	return 0;
 }
 
@@ -359,7 +363,6 @@ static int snd_emu10k1_playback_hw_free(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm;
-	int i;
 
 	if (runtime->private_data == NULL)
 		return 0;
@@ -368,12 +371,7 @@ static int snd_emu10k1_playback_hw_free(struct snd_pcm_substream *substream)
 		snd_emu10k1_voice_free(epcm->emu, epcm->extra);
 		epcm->extra = NULL;
 	}
-	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
-		if (epcm->voices[i]) {
-			snd_emu10k1_voice_free(epcm->emu, epcm->voices[i]);
-			epcm->voices[i] = NULL;
-		}
-	}
+	snd_emu10k1_pcm_free_voices(epcm);
 	if (epcm->memblk) {
 		snd_emu10k1_free_pages(emu, epcm->memblk);
 		epcm->memblk = NULL;
