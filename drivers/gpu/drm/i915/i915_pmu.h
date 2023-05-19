@@ -77,6 +77,10 @@ struct i915_pmu {
 	 */
 	spinlock_t lock;
 	/**
+	 * @unparked: GT unparked mask.
+	 */
+	unsigned int unparked;
+	/**
 	 * @timer: Timer for internal i915 PMU sampling.
 	 */
 	struct hrtimer timer;
