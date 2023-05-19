@@ -55,7 +55,8 @@
 		| UBLK_F_USER_RECOVERY \
 		| UBLK_F_USER_RECOVERY_REISSUE \
 		| UBLK_F_UNPRIVILEGED_DEV \
-		| UBLK_F_CMD_IOCTL_ENCODE)
+		| UBLK_F_CMD_IOCTL_ENCODE \
+		| UBLK_F_USER_COPY)
 
 /* All UBLK_PARAM_TYPE_* should be included here */
 #define UBLK_PARAM_TYPE_ALL (UBLK_PARAM_TYPE_BASIC | \
@@ -312,9 +313,18 @@ static int ublk_apply_params(struct ublk_device *ub)
 	return 0;
 }
 
+static inline bool ublk_support_user_copy(const struct ublk_queue *ubq)
+{
+	return ubq->flags & UBLK_F_USER_COPY;
+}
+
 static inline bool ublk_need_req_ref(const struct ublk_queue *ubq)
 {
-	return false;
+	/*
+	 * read()/write() is involved in user copy, so request reference
+	 * has to be grabbed
+	 */
+	return ublk_support_user_copy(ubq);
 }
 
 static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
@@ -591,6 +601,9 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
 
+	if (ublk_support_user_copy(ubq))
+		return rq_bytes;
+
 	/*
 	 * no zero copy, we delay copy WRITE request data into ublksrv
 	 * context and the big benefit is that pinning pages in current
@@ -614,6 +627,9 @@ static int ublk_unmap_io(const struct ublk_queue *ubq,
 		struct ublk_io *io)
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
+
+	if (ublk_support_user_copy(ubq))
+		return rq_bytes;
 
 	if (ublk_need_unmap_req(req)) {
 		struct iov_iter iter;
@@ -1390,6 +1406,11 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 			^ (_IOC_NR(cmd_op) == UBLK_IO_NEED_GET_DATA))
 		goto out;
 
+	if (ublk_support_user_copy(ubq) && ub_cmd->addr) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = ublk_check_cmd_op(cmd_op);
 	if (ret)
 		goto out;
@@ -1408,23 +1429,34 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		 */
 		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV)
 			goto out;
-		/* FETCH_RQ has to provide IO buffer if NEED GET DATA is not enabled */
-		if (!ub_cmd->addr && !ublk_need_get_data(ubq))
-			goto out;
+
+		if (!ublk_support_user_copy(ubq)) {
+			/*
+			 * FETCH_RQ has to provide IO buffer if NEED GET
+			 * DATA is not enabled
+			 */
+			if (!ub_cmd->addr && !ublk_need_get_data(ubq))
+				goto out;
+		}
 
 		ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
 		ublk_mark_io_ready(ub, ubq);
 		break;
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		req = blk_mq_tag_to_rq(ub->tag_set.tags[ub_cmd->q_id], tag);
-		/*
-		 * COMMIT_AND_FETCH_REQ has to provide IO buffer if NEED GET DATA is
-		 * not enabled or it is Read IO.
-		 */
-		if (!ub_cmd->addr && (!ublk_need_get_data(ubq) || req_op(req) == REQ_OP_READ))
-			goto out;
+
 		if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
 			goto out;
+
+		if (!ublk_support_user_copy(ubq)) {
+			/*
+			 * COMMIT_AND_FETCH_REQ has to provide IO buffer if
+			 * NEED GET DATA is not enabled or it is Read IO.
+			 */
+			if (!ub_cmd->addr && (!ublk_need_get_data(ubq) ||
+						req_op(req) == REQ_OP_READ))
+				goto out;
+		}
 		ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
 		ublk_commit_completion(ub, ub_cmd);
 		break;
@@ -1995,6 +2027,10 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 
 	ub->dev_info.flags |= UBLK_F_CMD_IOCTL_ENCODE |
 		UBLK_F_URING_CMD_COMP_IN_TASK;
+
+	/* GET_DATA isn't needed any more with USER_COPY */
+	if (ub->dev_info.flags & UBLK_F_USER_COPY)
+		ub->dev_info.flags &= ~UBLK_F_NEED_GET_DATA;
 
 	/* We are not ready to support zero copy */
 	ub->dev_info.flags &= ~UBLK_F_SUPPORT_ZERO_COPY;
