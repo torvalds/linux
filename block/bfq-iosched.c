@@ -5405,6 +5405,7 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 
 	WARN_ON_ONCE(!list_empty(&bfqq->fifo));
 	WARN_ON_ONCE(!RB_EMPTY_ROOT(&bfqq->sort_list));
+	WARN_ON_ONCE(bfqq->dispatched);
 
 	kmem_cache_free(bfq_pool, bfqq);
 	bfqg_and_blkg_put(bfqg);
@@ -7150,7 +7151,6 @@ static void bfq_exit_queue(struct elevator_queue *e)
 	for (actuator = 0; actuator < bfqd->num_actuators; actuator++)
 		WARN_ON_ONCE(bfqd->rq_in_driver[actuator]);
 	WARN_ON_ONCE(bfqd->tot_rq_in_driver);
-	WARN_ON_ONCE(bfqq->dispatched);
 
 	hrtimer_cancel(&bfqd->idle_slice_timer);
 
