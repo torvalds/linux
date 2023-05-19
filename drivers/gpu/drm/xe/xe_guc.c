@@ -598,8 +598,14 @@ int xe_guc_suspend(struct xe_guc *guc)
 void xe_guc_notify(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	const u32 default_notify_data = 0;
 
-	xe_mmio_write32(gt, guc->notify_reg, GUC_SEND_TRIGGER);
+	/*
+	 * Both GUC_HOST_INTERRUPT and MED_GUC_HOST_INTERRUPT can pass
+	 * additional payload data to the GuC but this capability is not
+	 * used by the firmware yet. Use default value in the meantime.
+	 */
+	xe_mmio_write32(gt, guc->notify_reg, default_notify_data);
 }
 
 int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
