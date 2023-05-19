@@ -8,10 +8,13 @@
 
 / {
 	model = "AST2600 EVB";
-	compatible = "aspeed,ast2600-evb", "aspeed,ast2600";
+	compatible = "aspeed,ast2600";
 
 	aliases {
 		serial4 = &uart5;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
@@ -21,26 +24,6 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		video_engine_memory: video {
-			size = <0x04000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-		};
-
-		gfx_memory: framebuffer {
-			size = <0x01000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-		};
 	};
 
 	vcc_sdhci0: regulator-vcc-sdhci0 {
@@ -82,6 +65,39 @@
 		states = <3300000 1>,
 			 <1800000 0>;
 	};
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};
+};
+
+&adc0 {
+	vref = <2500>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	vref = <2500>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&peci0 {
+	status = "okay";
 };
 
 &mdio0 {
@@ -130,7 +146,6 @@
 	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
-
 &mac1 {
 	status = "okay";
 
@@ -161,15 +176,44 @@
 	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
+&syscon {
+	mac0-clk-delay = <0x10 0x0a
+			  0x10 0x10
+			  0x10 0x10>;
+	mac1-clk-delay = <0x10 0x0a
+			  0x10 0x10
+			  0x10 0x10>;
+	mac2-clk-delay = <0x08 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+	mac3-clk-delay = <0x08 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+};
+
 &emmc_controller {
 	status = "okay";
+	aspeed-max-tap-delay = <736>;
+	mmc-hs200-1_8v;
 };
 
 &emmc {
-	non-removable;
+	status = "okay";
+#if 1
 	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+	non-removable;
 	max-frequency = <100000000>;
-	clk-phase-mmc-hs200 = <9>, <225>;
+	/* <0 (MHz * 0.26496)>, <1 (MHz * 0.04968 + 180)> */
+	clk-phase-mmc-hs200 = <0 27>, <1 185>;
+	/*
+	 * max-frequency = <200000000>;
+	 * clk-phase-mmc-hs200 = <0 53>, <1 190>;
+	 */
 };
 
 &rtc {
@@ -177,50 +221,100 @@
 };
 
 &fmc {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwqspi_default>;
 	status = "okay";
+
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
-		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout-64.dtsi"
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+#include "aspeed-evb-flash-layout-64.dtsi"
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
 &spi1 {
-	status = "okay";
+	fmc-spi-user-mode;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_qspi1_default>;
+	status = "okay";
 
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "spi1:0";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
-		spi-max-frequency = <100000000>;
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
-&uart5 {
-	// Workaround for A0
-	compatible = "snps,dw-apb-uart";
-};
-
-&i2c0 {
+&spi2 {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
 	status = "okay";
-};
 
-&i2c1 {
-	status = "okay";
-};
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
 
-&i2c2 {
-	status = "okay";
-};
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
 
-&i2c3 {
-	status = "okay";
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:2";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
 };
 
 &i2c4 {
@@ -248,6 +342,7 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
 };
 
 &i2c8 {
@@ -257,31 +352,18 @@
 		compatible = "national,lm75";
 		reg = <0x4d>;
 	};
+
 };
 
 &i2c9 {
 	status = "okay";
 };
 
-&i2c12 {
+#if 0
+&ehci0 {
 	status = "okay";
 };
-
-&i2c13 {
-	status = "okay";
-};
-
-&i2c14 {
-	status = "okay";
-};
-
-&i2c15 {
-	status = "okay";
-};
-
-&fsim0 {
-	status = "okay";
-};
+#endif
 
 &ehci1 {
 	status = "okay";
@@ -291,8 +373,23 @@
 	status = "okay";
 };
 
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+};
+
+#if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
 &sdc {
 	status = "okay";
+	aspeed-max-tap-delay = <9000>;
 };
 
 /*
@@ -315,11 +412,13 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x7 0x0>;
+	/* SDR104/DDR50 bits in CAPA2 are not supported */
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci0>;
 	vqmmc-supply = <&vccq_sdhci0>;
-	clk-phase-sd-hs = <7>, <200>;
+	/* <0 (MHz * 1.296)>, <1 (MHz * 2.376> */
+	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
 };
 
 &sdhci1 {
@@ -327,26 +426,13 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x7 0x0>;
+	/* SDR104/DDR50 bits in CAPA2 are not supported */
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
-	clk-phase-sd-hs = <7>, <200>;
-};
-
-&vhub {
-	status = "okay";
-	pinctrl-names = "default";
-};
-
-&video {
-	status = "okay";
-	memory-region = <&video_engine_memory>;
-};
-
-&gfx {
-	status = "okay";
-	memory-region = <&gfx_memory>;
+	/* <0 (MHz * 1.296)>, <1 (MHz * 1.296> */
+	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
 };
 
 &espi {
@@ -359,54 +445,4 @@
 &lpc_snoop {
 	status = "okay";
 	snoop-ports = <0x80>;
-};
-
-&ibt {
-	status = "okay";
-};
-
-&kcs3 {
-	status = "okay";
-	aspeed,lpc-io-reg = <0xca2>;
-};
-
-&kcs4 {
-	status = "okay";
-	aspeed,lpc-io-reg = <0xca4>;
-};
-
-&mbox {
-	status = "okay";
-};
-
-&hace {
-	status = "okay";
-};
-
-&acry {
-	status = "okay";
-};
-
-&uart3 {
-	status = "okay";
-};
-
-&uart4 {
-	status = "okay";
-};
-
-&uart10 {
-	status = "okay";
-};
-
-&uart11 {
-	status = "okay";
-};
-
-&uart_routing {
-	status = "okay";
-};
-
-&udma {
-	status = "okay";
 };

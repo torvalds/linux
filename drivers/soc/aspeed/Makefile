@@ -7,11 +7,7 @@ obj-$(CONFIG_ASPEED_P2A_CTRL)		+= aspeed-p2a-ctrl.o
 obj-$(CONFIG_ASPEED_SOCINFO)		+= aspeed-socinfo.o
 obj-$(CONFIG_ASPEED_SBC)		+= aspeed-sbc.o
 obj-$(CONFIG_ASPEED_XDMA)		+= aspeed-xdma.o
-obj-$(CONFIG_ASPEED_ESPI)		+= aspeed-espi-ctrl.o \
-					   aspeed-espi-perif.o \
-					   aspeed-espi-vw.o \
-					   aspeed-espi-oob.o \
-					   aspeed-espi-flash.o
-obj-$(CONFIG_ASPEED_ESPI_MMBI)		+= aspeed-espi-mmbi.o
+obj-$(CONFIG_AST2500_ESPI)		+= ast2500-espi.o
+obj-$(CONFIG_AST2600_ESPI)		+= ast2600-espi.o
 obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
 obj-$(CONFIG_ASPEED_LPC_PCC)	+= aspeed-lpc-pcc.o

@@ -474,29 +474,12 @@
 			};
 
 			espi: espi@1e6ee000 {
-				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
+				compatible = "aspeed,ast2600-espi";
 				reg = <0x1e6ee000 0x1000>;
-
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0x0 0x1e6ee000 0x1000>;
-
-				espi_ctrl: espi-ctrl@0 {
-					compatible = "aspeed,ast2600-espi-ctrl";
-					reg = <0x0 0x800>;
-					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
-					aspeed,scu = <&syscon>;
-					aspeed,espi-mmbi = <&espi_mmbi>;
-					status = "disabled";
-				};
-
-				espi_mmbi: espi-mmbi@800 {
-					compatible = "aspeed,ast2600-espi-mmbi";
-					reg = <0x800 0x50>;
-					interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-					status = "disabled";
-				};
+				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
+				status = "disabled";
 			};
 
 			gpio0: gpio@1e780000 {

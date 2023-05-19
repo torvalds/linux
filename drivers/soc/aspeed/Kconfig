@@ -84,8 +84,8 @@ config ASPEED_SBC
 
 config ASPEED_ESPI
 	bool "ASPEED eSPI slave driver"
-	select REGMAP
-	select MFD_SYSCON
+	select AST2500_ESPI if MACH_ASPEED_G5
+	select AST2600_ESPI if MACH_ASPEED_G6
 	default n
 	help
 	  Enable driver support for the Aspeed eSPI engine. The eSPI engine
@@ -93,11 +93,17 @@ config ASPEED_ESPI
 	  the eSPI interface. The four eSPI channels, namely peripheral,
 	  virtual wire, out-of-band, and flash are supported.
 
-config ASPEED_ESPI_MMBI
-	tristate "Aspeed eSPI MMBI Driver"
+config AST2500_ESPI
+	bool
 	depends on ASPEED_ESPI
 	help
-	  Control Aspeed eSPI MMBI driver
+	  Enable driver support for Aspeed AST2500 eSPI engine.
+
+config AST2600_ESPI
+	bool
+	depends on ASPEED_ESPI
+	help
+	  Enable driver support for Aspeed AST2600 eSPI engine.
 
 config ASPEED_LPC_PCC
 	tristate "Aspeed Post Code Capture support"

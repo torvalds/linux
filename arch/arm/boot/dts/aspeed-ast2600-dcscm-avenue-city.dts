@@ -1,0 +1,714 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) ASPEED Technology Inc.
+
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+
+/ {
+	model = "AST2600 DC-SCM Avenue City";
+	compatible = "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		espi_mmbi_memory: espi_mmbi_memory {
+			no-map;
+			reg = <0x9eff0000 0x10000>;
+		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};
+
+	fan0: pwm-fan0 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 0 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan1: pwm-fan1 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 1 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan2: pwm-fan2 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 2 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan3: pwm-fan3 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 3 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan4: pwm-fan4 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 4 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan5: pwm-fan5 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 5 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan6: pwm-fan6 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 6 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan7: pwm-fan7 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 7 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan8: pwm-fan8 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 8 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan9: pwm-fan9 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 9 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan10: pwm-fan10 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 10 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan11: pwm-fan11 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 11 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan12: pwm-fan12 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 12 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan13: pwm-fan13 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 13 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan14: pwm-fan14 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 14 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+};
+
+&adc0 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&fmc {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwqspi_default>;
+	timing-calibration-disabled;
+	status = "okay";
+	num-cs = <1>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/delete-node/ u-boot-env@e0000;
+			/delete-node/ kernel@100000;
+			/delete-node/ rofs@a00000;
+			/delete-node/ rwfs@2e00000;
+
+			pfm@e0000 {
+				reg = <0xe0000 0x20000>; // 128KB
+				label = "pfm";
+			};
+
+			u-boot-env@100000 {
+				reg = <0x100000 0x20000>; // 128KB
+				label = "u-boot-env";
+			};
+
+			sofs@120000 {
+				reg = <0x120000 0x200000>; // 2048KB
+				label = "sofs";
+			};
+
+			rwfs@320000 {
+				reg = <0x320000 0x1200000>; // 18432KB
+				label = "rwfs";
+			};
+
+			kernel@1520000 {
+				reg = <0x1520000 0x900000>; // 9216KB
+				label = "kernel";
+			};
+
+			rofs@1e20000 {
+				reg = <0x1e20000 0x2400000>; // 36864KB
+				label = "rofs";
+			};
+
+			rc-image@4220000 {
+				reg = <0x4220000 0x3de0000>; // 63360KB
+				label = "rc-image";
+			};
+
+			image-stg@8000000 {
+				reg = <0x8000000 0x3de0000>; // 63360KB
+				label = "img-stg";
+			};
+
+			pch-stg@bde0000 {
+				reg = <0xbde0000 0x1000000>; // 16384KB
+				label = "pch-stg";
+			};
+
+			pfr-stg@cde0000 {
+				reg = <0xcde0000 0x100000>; // 1024KB
+				label = "pfr-stg";
+			};
+
+			cpld-stg@cee0000 {
+				reg = <0xcee0000 0x400000>; // 4096KB
+				label = "cpld-stg";
+			};
+
+			afm-stg@d2e0000 {
+				reg = <0xd2e0000 0x20000>; // 128KB
+				label = "afm-stg";
+			};
+
+			afm-rc@d300000 {
+				reg = <0xd300000 0x20000>; // 128KB
+				label = "afm-rc";
+			};
+
+			reserved@d320000 {
+				reg = <0xd320000 0x2ce0000>; // 45952KB
+				label = "reserved";
+			};
+		};
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+};
+
+&spi1 {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_spi1_default>;
+	timing-calibration-disabled;
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:0";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&peci0 {
+	status = "okay";
+};
+
+&mctp0 {
+	status = "okay";
+};
+
+&chassis {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+	multi-master;
+};
+
+&i2c5 {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2c9 {
+	status = "okay";
+};
+
+&i2c10 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+};
+
+&i2c13 {
+	status = "okay";
+};
+
+&i2c14 {
+	status = "okay";
+};
+
+&i2c15 {
+	status = "okay";
+};
+
+#if 0
+&ehci0 {
+	status = "disabled";
+};
+#endif
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+#if 0
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
+};
+
+#if 0
+&udc {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+&uphyb {
+	status = "okay";
+};
+
+&sdc {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+
+	gpio-line-names =
+		"CPU1_PRESENCE", "", "CPU1_THERMTRIP", "", "CPU1_VRHOT", "", "H_CPU0_MON_FAIL_LVC1_N", "",
+		"CPU1_MEM_VRHOT", "", "CPU1_MEM_THERM_EVENT", "", "FM_CPU0_PROC_ID0", "", "FM_CPU0_PROC_ID1", "",
+		"CPU1_MISMATCH", "LED_CPU1_CH1_DIMM1_FAULT", "", "LED_CPU1_CH1_DIMM2_FAULT", "CPU2_PRESENCE", "LED_CPU1_CH2_DIMM1_FAULT", "CPU2_THERMTRIP", "LED_CPU1_CH2_DIMM2_FAULT",
+		"CPU2_VRHOT", "LED_CPU1_CH3_DIMM1_FAULT", "H_CPU1_MON_FAIL_LVC1_N", "LED_CPU1_CH3_DIMM2_FAULT", "CPU2_MEM_VRHOT", "LED_CPU1_CH4_DIMM1_FAULT", "CPU2_MEM_THERM_EVENT", "LED_CPU1_CH4_DIMM2_FAULT",
+		"FM_CPU1_PROC_ID0", "LED_CPU1_CH5_DIMM1_FAULT", "FM_CPU1_PROC_ID1", "LED_CPU1_CH5_DIMM2_FAULT", "CPU2_MISMATCH", "LED_CPU1_CH6_DIMM1_FAULT", "", "LED_CPU1_CH6_DIMM2_FAULT",
+		"", "LED_FAN1_FAULT", "", "LED_FAN2_FAULT", "", "LED_FAN3_FAULT", "", "LED_FAN4_FAULT",
+		"", "LED_FAN5_FAULT", "", "LED_FAN6_FAULT", "", "LED_FAN7_FAULT", "", "LED_FAN8_FAULT",
+		"", "LED_CPU2_CH1_DIMM1_FAULT", "", "LED_CPU2_CH1_DIMM2_FAULT", "", "LED_CPU2_CH2_DIMM1_FAULT", "", "LED_CPU2_CH2_DIMM2_FAULT",
+		"", "LED_CPU2_CH3_DIMM1_FAULT", "", "LED_CPU2_CH3_DIMM2_FAULT", "", "LED_CPU2_CH4_DIMM1_FAULT", "", "LED_CPU2_CH4_DIMM2_FAULT",
+		"", "LED_CPU2_CH5_DIMM1_FAULT", "", "LED_CPU2_CH5_DIMM2_FAULT", "", "LED_CPU2_CH6_DIMM1_FAULT", "CPU1_CPLD_CRC_ERROR", "LED_CPU2_CH6_DIMM2_FAULT",
+		"CPU2_CPLD_CRC_ERROR", "", "CPU1_CATERR_IERR", "", "CPU1_CATERR_MCERR", "", "CPU2_CATERR_IERR", "",
+		"CPU2_CATERR_MCERR", "", "", "", "", "", "", "",
+		"MAIN_PLD_MINOR_REV_BIT0", "", "MAIN_PLD_MINOR_REV_BIT1", "", "MAIN_PLD_MINOR_REV_BIT2", "", "MAIN_PLD_MINOR_REV_BIT3", "",
+		"MAIN_PLD_MAJOR_REV_BIT0", "", "MAIN_PLD_MAJOR_REV_BIT1", "", "MAIN_PLD_MAJOR_REV_BIT2", "", "MAIN_PLD_MAJOR_REV_BIT3", "",
+		"", "", "WMEMX_PWR_FLT", "", "WCPUX_MEM_PWR_FLT", "", "PWRGD_P3V3_FF", "",
+		"WPSU_PWR_FLT", "", "", "", "", "", "WPCH_PWR_FLT", "",
+		"FM_CPU0_PKGID0", "LED_CPU1_CH7_DIMM1_FAULT", "FM_CPU0_PKGID1", "LED_CPU1_CH7_DIMM2_FAULT", "FM_CPU0_PKGID2", "LED_CPU1_CH8_DIMM1_FAULT", "H_CPU0_MEMTRIP_LVC1_N", "LED_CPU1_CH8_DIMM2_FAULT",
+		"FM_CPU1_PKGID0", "LED_CPU2_CH7_DIMM1_FAULT", "FM_CPU1_PKGID1", "LED_CPU2_CH7_DIMM2_FAULT", "FM_CPU1_PKGID2", "LED_CPU2_CH8_DIMM1_FAULT", "H_CPU1_MEMTRIP_LVC1_N", "LED_CPU2_CH8_DIMM2_FAULT",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"FM_BOARD_REV_ID0", "LED_CPU0_CH9_DIMM1_FAULT", "FM_BOARD_REV_ID1", "LED_CPU0_CH9_DIMM2_FAULT", "FM_BOARD_REV_ID2", "LED_CPU0_CH10_DIMM1_FAULT", "FM_BOARD_SKU_ID0", "LED_CPU0_CH10_DIMM2_FAULT",
+		"FM_BOARD_SKU_ID1", "LED_CPU0_CH11_DIMM1_FAULT", "FM_BOARD_SKU_ID2", "LED_CPU0_CH11_DIMM2_FAULT", "FM_BOARD_SKU_ID3", "LED_CPU0_CH12_DIMM1_FAULT", "FM_BOARD_SKU_ID4", "LED_CPU0_CH12_DIMM2_FAULT",
+		"FM_BOARD_SKU_ID5", "LED_CPU1_CH9_DIMM1_FAULT", "FM_BMC_VAL_EN", "LED_CPU1_CH9_DIMM2_FAULT", "FM_SERIAL_BOOT", "LED_CPU1_CH10_DIMM1_FAULT", "", "LED_CPU1_CH10_DIMM2_FAULT",
+		"S0_PWROK", "LED_CPU1_CH11_DIMM1_FAULT", "", "LED_CPU1_CH11_DIMM2_FAULT", "", "LED_CPU1_CH12_DIMM1_FAULT", "", "LED_CPU1_CH12_DIMM1_FAULT",
+		"", "FM_SURPRISE_RESET_N", "", "FM_CPU1_INTR_CLK_CONFDONE_N", "", "", "FM_1200VA_OC", "BMC_BOOT_DONE",
+		"", "IRQ_BMC_CPU_NMI_P0", "", "IRQ_BMC_CPU_NMI_P1", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"R1S_PRESENCE", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "",	"", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio0 {
+	gpio-line-names =
+		"", "", "", "", "SMB_CPU_PIROM_SCL", "SMB_CPU_PIROM_SDA", "", "",
+		"", "", "", "FM_CPU1_ERR2_LVT3_N", "RGMII_BMC_RMM4_LVC3_R_MDC", "RGMII_BMC_RMM4_LVC3_R_MDIO", "FM_BMC_BMCINIT_R", "FP_ID_LED_N",
+		"FM_FORCE_BMC_UPDATE_N", "RST_RGMII_PHYRST_N", "FM_TPM_EN_PULSE", "", "", "", "FM_CPU1_ERR0_LVT3_N", "FM_CPU1_ERR1_LVT3_N",
+		"CPU_ERR0", "CPU_ERR1", "CPU_ERR2", "PRDY_N", "FM_SPD_SWITCH_CTRL_N", "", "", "",
+		"FM_SKT1_FAULT_LED", "FM_SKT0_FAULT_LED", "CLK_50M_CKMNG_BMCB", "ID_BUTTON", "", "", "", "",
+		"", "FM_DUAL_PARTITION_MODE_N", "FM_STANDALONE_MODE_N", "FM_4S_8S_N_MODE", "FM_NODE_ID0", "FM_NODE_ID1", "", "",
+		"FM_SMB_BMC_NVME_LVC3_ALERT_N", "RST_BMC_HSBP_MUX_N", "FP_LED_STATUS_GREEN_N", "FP_LED_STATUS_AMBER_N", "PS_PWROK", "FM_PARTITION_SEL", "FM_BMC_CPU_FBRK_OUT_R_N", "DBP_PRESENT_IN_R2_N",
+		"SGPIO_BMC_CLK_R", "SGPIO_BMC_LD_R", "SGPIO_BMC_DOUT_R", "SGPIO_BMC_DIN", "PLTRST_N", "CPU_CATERR", "", "",
+		"", "JTAG_ASD_TDI_R", "JTAG_ASD_TCK_R", "JTAG_ASD_TMS_R", "JTAG_ASD_TDO", "FM_BMC_PWRBTN_OUT_R_N", "FM_BMC_PWR_BTN_N", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "PREQ_N", "TCK_MUX_SEL", "", "",
+		"", "", "", "", "", "", "SPA_SOUT", "SPA_SIN",
+		"", "", "", "POST_COMPLETE", "", "", "SPB_SOUT", "SPB_SIN",
+		"", "", "", "", "", "", "NMI_BUTTON", "SPEAKER_BMC_R",
+		"RESET_BUTTON", "RESET_OUT", "POWER_BUTTON", "POWER_OUT", "", "", "", "LED_BMC_HB_LED_N",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"RST_BMC_PCIE_MUX_N", "FM_BMC_TRUST_N", "FM_BMC_FRU_WP_N", "", "PWRGD_CPU0_AUXPWRGD", "A_P3V_BAT_SCALED_EN", "REMOTE_DEBUG_ENABLE", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"SIO_S3", "SIO_S5", "", "SIO_ONCONTROL", "SIO_POWER_GOOD", "", "", "",
+		"LPC_LAD0_ESPI_R_IO0", "LPC_LAD1_ESPI_R_IO1", "LPC_LAD2_ESPI_R_IO2", "LPC_LAD3_ESPI_R_IO3", "CLK_24M_66M_LPC0_ESPI_BMC", "LPC_LFRAME_N_ESPI_CS0_BMC_N", "IRQ_LPC_SERIRQ_ESPI_ALERT_N", "RST_LPC_LRST_ESPI_RST_BMC_R_N",
+		"", "", "PCH_BMC_THERMTRIP", "", "", "", "", "",
+		"FM_BMC_CMOS_CLR_R_N", "", "FM_BMC_SAFS_EN", "IRQ_SML1_PMBUS_BMC_ALERT_N", "SPI_BMC_BOOT_R_IO2", "SPI_BMC_BOOT_R_IO3", "PU_SPI_BMC_BOOT_ABR", "PU_SPI_BMC_BOOT_WP_N",
+		"", "", "", "HW_STRAP_5", "HW_STRAP_6", "HW_STRAP_7", "HW_STRAP_2", "HW_STRAP_3";
+};
+
+&i3c1 {
+	status = "okay";
+	secondary;
+};
+
+&i3c2 {
+	status = "okay";
+};
+
+&i3c3 {
+	status = "okay";
+};
+
+&i3c4 {
+	status = "okay";
+};
+
+&i3c5 {
+	status = "okay";
+};
+
+&mbox {
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+	dummy-key1 = /bits/ 8 <0x15 0x89 0x87 0x89 0xFA 0x42 0xA2 0x1D 0xCE 0x85 0x78 0x1A 0x39 0xFA 0xD7 0x5B 0xFD 0x65 0x32 0xC5 0x25 0x6B 0x34 0xCC 0xEE 0x70 0x03 0x23 0x29 0x06 0x57 0xD0>;
+	dummy-key2 = /bits/ 8 <0x02 0x89 0x87 0x89 0xFA 0x42 0xA2 0x1D 0xCE 0x85 0x78 0x1A 0x39 0xFA 0xD7 0x5B 0xFD 0x65 0x32 0xC5 0x25 0x6B 0x34 0xCC 0xEE 0x70 0x03 0x23 0x29 0x06 0x57 0xD0>;
+};
+
+&acry {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&pwm {
+	status = "disabled";
+};
+
+&tach {
+	status = "disabled";
+};
+
+&espi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_espi_default>;
+};
+
+&espi {
+	status = "okay";
+	interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+	resets = <&syscon ASPEED_RESET_ESPI>;
+
+	memory-region = <&espi_mmbi_memory>;
+
+	perif-mmbi-enable;
+	perif-mmbi-src-addr = <0xf6810000>;
+	perif-mmbi-instance-size = <1>;
+	instance@0 {
+		channel = <0x00>;
+		protocols = [02 03];
+	};
+};
+
+&pciecfg {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&kcs1 {
+	kcs_addr = <0xca0>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs_addr = <0xca8>;
+	status = "okay";
+};
+
+&kcs3 {
+	kcs_addr = <0xca2>;
+	status = "okay";
+};
+
+&kcs4 {
+	kcs_addr = <0xca4>;
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs_addr = <0x3a0>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs_addr = <0x3a8>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs_addr = <0x3a2>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs_addr = <0x3a4>;
+	status = "okay";
+};
+
+#if 1
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&rvas_memory>;
+};
+#endif
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
