@@ -1112,6 +1112,34 @@ struct phy_driver {
 #define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 4)
 #define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 10)
 
+/**
+ * phy_id_compare - compare @id1 with @id2 taking account of @mask
+ * @id1: first PHY ID
+ * @id2: second PHY ID
+ * @mask: the PHY ID mask, set bits are significant in matching
+ *
+ * Return true if the bits from @id1 and @id2 specified by @mask match.
+ * This uses an equivalent test to (@id & @mask) == (@phy_id & @mask).
+ */
+static inline bool phy_id_compare(u32 id1, u32 id2, u32 mask)
+{
+	return !((id1 ^ id2) & mask);
+}
+
+/**
+ * phydev_id_compare - compare @id with the PHY's Clause 22 ID
+ * @phydev: the PHY device
+ * @id: the PHY ID to be matched
+ *
+ * Compare the @phydev clause 22 ID with the provided @id and return true or
+ * false depending whether it matches, using the bound driver mask. The
+ * @phydev must be bound to a driver.
+ */
+static inline bool phydev_id_compare(struct phy_device *phydev, u32 id)
+{
+	return phy_id_compare(id, phydev->phy_id, phydev->drv->phy_id_mask);
+}
+
 /* A Structure for boards to register fixups with the PHY Lib */
 struct phy_fixup {
 	struct list_head list;

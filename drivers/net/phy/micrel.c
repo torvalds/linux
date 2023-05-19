@@ -637,7 +637,7 @@ static int ksz8051_ksz8795_match_phy_device(struct phy_device *phydev,
 {
 	int ret;
 
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) != PHY_ID_KSZ8051)
+	if (!phy_id_compare(phydev->phy_id, PHY_ID_KSZ8051, MICREL_PHY_ID_MASK))
 		return 0;
 
 	ret = phy_read(phydev, MII_BMSR);
@@ -1566,7 +1566,7 @@ static int ksz9x31_cable_test_fault_length(struct phy_device *phydev, u16 stat)
 	 *
 	 * distance to fault = (VCT_DATA - 22) * 4 / cable propagation velocity
 	 */
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) == PHY_ID_KSZ9131)
+	if (phydev_id_compare(phydev, PHY_ID_KSZ9131))
 		dt = clamp(dt - 22, 0, 255);
 
 	return (dt * 400) / 10;
@@ -1998,7 +1998,7 @@ static __always_inline int ksz886x_cable_test_fault_length(struct phy_device *ph
 	 */
 	dt = FIELD_GET(data_mask, status);
 
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) == PHY_ID_LAN8814)
+	if (phydev_id_compare(phydev, PHY_ID_LAN8814))
 		return ((dt - 22) * 800) / 10;
 	else
 		return (dt * 400) / 10;
