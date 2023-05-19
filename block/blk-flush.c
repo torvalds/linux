@@ -432,6 +432,17 @@ bool blk_insert_flush(struct request *rq)
 		 * Queue for normal execution.
 		 */
 		return false;
+	case REQ_FSEQ_DATA | REQ_FSEQ_POSTFLUSH:
+		/*
+		 * Initialize the flush fields and completion handler to trigger
+		 * the post flush, and then just pass the command on.
+		 */
+		blk_rq_init_flush(rq);
+		rq->flush.seq |= REQ_FSEQ_POSTFLUSH;
+		spin_lock_irq(&fq->mq_flush_lock);
+		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
+		spin_unlock_irq(&fq->mq_flush_lock);
+		return false;
 	default:
 		/*
 		 * Mark the request as part of a flush sequence and submit it
