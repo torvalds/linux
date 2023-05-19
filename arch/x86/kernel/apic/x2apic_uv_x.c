@@ -1491,16 +1491,50 @@ static __init void boot_init_possible_blades(struct uv_hub_info_s *hub_info)
 	pr_info("UV: number nodes/possible blades %d\n", uv_pb);
 }
 
+static int __init alloc_conv_table(int num_elem, unsigned short **table)
+{
+	int i;
+	size_t bytes;
+
+	bytes = num_elem * sizeof(*table[0]);
+	*table = kmalloc(bytes, GFP_KERNEL);
+	if (WARN_ON_ONCE(!*table))
+		return -ENOMEM;
+	for (i = 0; i < num_elem; i++)
+		((unsigned short *)*table)[i] = SOCK_EMPTY;
+	return 0;
+}
+
+/* Remove conversion table if it's 1:1 */
+#define FREE_1_TO_1_TABLE(tbl, min, max, max2) free_1_to_1_table(&tbl, #tbl, min, max, max2)
+
+static void __init free_1_to_1_table(unsigned short **tp, char *tname, int min, int max, int max2)
+{
+	int i;
+	unsigned short *table = *tp;
+
+	if (table == NULL)
+		return;
+	if (max != max2)
+		return;
+	for (i = 0; i < max; i++) {
+		if (i != table[i])
+			return;
+	}
+	kfree(table);
+	*tp = NULL;
+	pr_info("UV: %s is 1:1, conversion table removed\n", tname);
+}
+
 static void __init build_socket_tables(void)
 {
 	struct uv_gam_range_entry *gre = uv_gre_table;
-	int num, nump;
+	int nums, numn, nump;
 	int cpu, i, lnid;
 	int minsock = _min_socket;
 	int maxsock = _max_socket;
 	int minpnode = _min_pnode;
 	int maxpnode = _max_pnode;
-	size_t bytes;
 
 	if (!gre) {
 		if (is_uv2_hub() || is_uv3_hub()) {
@@ -1511,22 +1545,20 @@ static void __init build_socket_tables(void)
 		BUG();
 	}
 
-	/* Build socket id -> node id, pnode */
-	num = maxsock - minsock + 1;
-	bytes = num * sizeof(_socket_to_node[0]);
-	_socket_to_node = kmalloc(bytes, GFP_KERNEL);
-	_socket_to_pnode = kmalloc(bytes, GFP_KERNEL);
-
+	numn = num_possible_nodes();
 	nump = maxpnode - minpnode + 1;
-	bytes = nump * sizeof(_pnode_to_socket[0]);
-	_pnode_to_socket = kmalloc(bytes, GFP_KERNEL);
-	BUG_ON(!_socket_to_node || !_socket_to_pnode || !_pnode_to_socket);
+	nums = maxsock - minsock + 1;
 
-	for (i = 0; i < num; i++)
-		_socket_to_node[i] = _socket_to_pnode[i] = SOCK_EMPTY;
-
-	for (i = 0; i < nump; i++)
-		_pnode_to_socket[i] = SOCK_EMPTY;
+	/* Allocate and clear tables */
+	if ((alloc_conv_table(nump, &_pnode_to_socket) < 0)
+	    || (alloc_conv_table(nums, &_socket_to_pnode) < 0)
+	    || (alloc_conv_table(numn, &_node_to_pnode) < 0)
+	    || (alloc_conv_table(nums, &_socket_to_node) < 0)) {
+		kfree(_pnode_to_socket);
+		kfree(_socket_to_pnode);
+		kfree(_node_to_pnode);
+		return;
+	}
 
 	/* Fill in pnode/node/addr conversion list values: */
 	pr_info("UV: GAM Building socket/pnode conversion tables\n");
@@ -1565,10 +1597,6 @@ static void __init build_socket_tables(void)
 	}
 
 	/* Set up physical blade to pnode translation from GAM Range Table: */
-	bytes = num_possible_nodes() * sizeof(_node_to_pnode[0]);
-	_node_to_pnode = kmalloc(bytes, GFP_KERNEL);
-	BUG_ON(!_node_to_pnode);
-
 	for (lnid = 0; lnid < num_possible_nodes(); lnid++) {
 		unsigned short sockid;
 
@@ -1585,31 +1613,12 @@ static void __init build_socket_tables(void)
 	}
 
 	/*
-	 * If socket id == pnode or socket id == node for all nodes,
+	 * If e.g. socket id == pnode for all pnodes,
 	 *   system runs faster by removing corresponding conversion table.
 	 */
-	pr_info("UV: Checking socket->node/pnode for identity maps\n");
-	if (minsock == 0) {
-		for (i = 0; i < num; i++)
-			if (_socket_to_node[i] == SOCK_EMPTY || i != _socket_to_node[i])
-				break;
-		if (i >= num) {
-			kfree(_socket_to_node);
-			_socket_to_node = NULL;
-			pr_info("UV: 1:1 socket_to_node table removed\n");
-		}
-	}
-	if (minsock == minpnode) {
-		for (i = 0; i < num; i++)
-			if (_socket_to_pnode[i] != SOCK_EMPTY &&
-				_socket_to_pnode[i] != i + minpnode)
-				break;
-		if (i >= num) {
-			kfree(_socket_to_pnode);
-			_socket_to_pnode = NULL;
-			pr_info("UV: 1:1 socket_to_pnode table removed\n");
-		}
-	}
+	FREE_1_TO_1_TABLE(_socket_to_node, _min_socket, nums, numn);
+	FREE_1_TO_1_TABLE(_socket_to_pnode, _min_pnode, nums, nump);
+	FREE_1_TO_1_TABLE(_pnode_to_socket, _min_pnode, nums, nump);
 }
 
 /* Check which reboot to use */
