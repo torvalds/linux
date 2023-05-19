@@ -1334,8 +1334,7 @@ out:
 
 u32 vc4_plane_dlist_size(const struct drm_plane_state *state)
 {
-	const struct vc4_plane_state *vc4_state =
-		container_of(state, typeof(*vc4_state), base);
+	const struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
 	return vc4_state->dlist_count;
 }

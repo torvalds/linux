@@ -576,9 +576,19 @@ struct fb_info {
 extern int fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var);
 extern int fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var);
 extern int fb_blank(struct fb_info *info, int blank);
+
+/*
+ * Drawing operations where framebuffer is in I/O memory
+ */
+
 extern void cfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 extern void cfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
+extern ssize_t fb_io_read(struct fb_info *info, char __user *buf,
+			  size_t count, loff_t *ppos);
+extern ssize_t fb_io_write(struct fb_info *info, const char __user *buf,
+			   size_t count, loff_t *ppos);
+
 /*
  * Drawing operations where framebuffer is in system RAM
  */

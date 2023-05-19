@@ -1,34 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC_FB_H_
 #define _SPARC_FB_H_
-#include <linux/console.h>
-#include <linux/fb.h>
-#include <linux/fs.h>
-#include <asm/page.h>
-#include <asm/prom.h>
 
+struct fb_info;
+struct file;
+struct vm_area_struct;
+
+#ifdef CONFIG_SPARC32
 static inline void fb_pgprotect(struct file *file, struct vm_area_struct *vma,
 				unsigned long off)
-{
-#ifdef CONFIG_SPARC64
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+{ }
+#define fb_pgprotect fb_pgprotect
 #endif
-}
 
-static inline int fb_is_primary_device(struct fb_info *info)
-{
-	struct device *dev = info->device;
-	struct device_node *node;
+int fb_is_primary_device(struct fb_info *info);
+#define fb_is_primary_device fb_is_primary_device
 
-	if (console_set_on_cmdline)
-		return 0;
-
-	node = dev->of_node;
-	if (node &&
-	    node == of_console_device)
-		return 1;
-
-	return 0;
-}
+#include <asm-generic/fb.h>
 
 #endif /* _SPARC_FB_H_ */

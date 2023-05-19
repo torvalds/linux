@@ -186,7 +186,7 @@ union meson_hdmi_venc_mode {
 	} encp;
 };
 
-union meson_hdmi_venc_mode meson_hdmi_enci_mode_480i = {
+static union meson_hdmi_venc_mode meson_hdmi_enci_mode_480i = {
 	.enci = {
 		.hso_begin = 5,
 		.hso_end = 129,
@@ -206,7 +206,7 @@ union meson_hdmi_venc_mode meson_hdmi_enci_mode_480i = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_enci_mode_576i = {
+static union meson_hdmi_venc_mode meson_hdmi_enci_mode_576i = {
 	.enci = {
 		.hso_begin = 3,
 		.hso_end = 129,
@@ -226,7 +226,7 @@ union meson_hdmi_venc_mode meson_hdmi_enci_mode_576i = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_480p = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_480p = {
 	.encp = {
 		.dvi_settings = 0x21,
 		.video_mode = 0x4000,
@@ -272,7 +272,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_480p = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_576p = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_576p = {
 	.encp = {
 		.dvi_settings = 0x21,
 		.video_mode = 0x4000,
@@ -318,7 +318,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_576p = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p60 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p60 = {
 	.encp = {
 		.dvi_settings = 0x2029,
 		.video_mode = 0x4040,
@@ -360,7 +360,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p60 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p50 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p50 = {
 	.encp = {
 		.dvi_settings = 0x202d,
 		.video_mode = 0x4040,
@@ -405,7 +405,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_720p50 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i60 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i60 = {
 	.encp = {
 		.dvi_settings = 0x2029,
 		.video_mode = 0x5ffc,
@@ -454,7 +454,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i60 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i50 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i50 = {
 	.encp = {
 		.dvi_settings = 0x202d,
 		.video_mode = 0x5ffc,
@@ -503,7 +503,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080i50 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p24 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p24 = {
 	.encp = {
 		.dvi_settings = 0xd,
 		.video_mode = 0x4040,
@@ -552,7 +552,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p24 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p30 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p30 = {
 	.encp = {
 		.dvi_settings = 0x1,
 		.video_mode = 0x4040,
@@ -596,7 +596,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p30 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p50 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p50 = {
 	.encp = {
 		.dvi_settings = 0xd,
 		.video_mode = 0x4040,
@@ -644,7 +644,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p50 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p60 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p60 = {
 	.encp = {
 		.dvi_settings = 0x1,
 		.video_mode = 0x4040,
@@ -688,7 +688,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p60 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p24 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p24 = {
 	.encp = {
 		.dvi_settings = 0x1,
 		.video_mode = 0x4040,
@@ -730,7 +730,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p24 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p25 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p25 = {
 	.encp = {
 		.dvi_settings = 0x1,
 		.video_mode = 0x4040,
@@ -772,7 +772,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p25 = {
 	},
 };
 
-union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p30 = {
+static union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p30 = {
 	.encp = {
 		.dvi_settings = 0x1,
 		.video_mode = 0x4040,
@@ -814,7 +814,7 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_2160p30 = {
 	},
 };
 
-struct meson_hdmi_venc_vic_mode {
+static struct meson_hdmi_venc_vic_mode {
 	unsigned int vic;
 	union meson_hdmi_venc_mode *mode;
 } meson_hdmi_venc_vic_modes[] = {

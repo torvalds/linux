@@ -19,10 +19,11 @@ ssize_t fb_sys_read(struct fb_info *info, char __user *buf, size_t count,
 	unsigned long p = *ppos;
 	void *src;
 	int err = 0;
-	unsigned long total_size;
+	unsigned long total_size, c;
+	ssize_t ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!info->screen_buffer)
+		return -ENODEV;
 
 	total_size = info->screen_size;
 
@@ -38,18 +39,19 @@ ssize_t fb_sys_read(struct fb_info *info, char __user *buf, size_t count,
 	if (count + p > total_size)
 		count = total_size - p;
 
-	src = (void __force *)(info->screen_base + p);
+	src = info->screen_buffer + p;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
 
-	if (copy_to_user(buf, src, count))
+	c = copy_to_user(buf, src, count);
+	if (c)
 		err = -EFAULT;
+	ret = count - c;
 
-	if  (!err)
-		*ppos += count;
+	*ppos += ret;
 
-	return (err) ? err : count;
+	return ret ? ret : err;
 }
 EXPORT_SYMBOL_GPL(fb_sys_read);
 
@@ -59,10 +61,11 @@ ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 	unsigned long p = *ppos;
 	void *dst;
 	int err = 0;
-	unsigned long total_size;
+	unsigned long total_size, c;
+	size_t ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!info->screen_buffer)
+		return -ENODEV;
 
 	total_size = info->screen_size;
 
@@ -84,18 +87,19 @@ ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void __force *) (info->screen_base + p);
+	dst = info->screen_buffer + p;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
 
-	if (copy_from_user(dst, buf, count))
+	c = copy_from_user(dst, buf, count);
+	if (c)
 		err = -EFAULT;
+	ret = count - c;
 
-	if  (!err)
-		*ppos += count;
+	*ppos += ret;
 
-	return (err) ? err : count;
+	return ret ? ret : err;
 }
 EXPORT_SYMBOL_GPL(fb_sys_write);
 
