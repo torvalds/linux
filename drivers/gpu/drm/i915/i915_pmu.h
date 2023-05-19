@@ -38,13 +38,16 @@ enum {
 	__I915_NUM_PMU_SAMPLERS
 };
 
+#define I915_PMU_MAX_GTS 2
+
 /*
  * How many different events we track in the global PMU mask.
  *
  * It is also used to know to needed number of event reference counters.
  */
 #define I915_PMU_MASK_BITS \
-	(I915_ENGINE_SAMPLE_COUNT + __I915_PMU_TRACKED_EVENT_COUNT)
+	(I915_ENGINE_SAMPLE_COUNT + \
+	 I915_PMU_MAX_GTS * __I915_PMU_TRACKED_EVENT_COUNT)
 
 #define I915_ENGINE_SAMPLE_COUNT (I915_SAMPLE_SEMA + 1)
 
@@ -124,11 +127,11 @@ struct i915_pmu {
 	 * Only global counters are held here, while the per-engine ones are in
 	 * struct intel_engine_cs.
 	 */
-	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
+	struct i915_pmu_sample sample[I915_PMU_MAX_GTS * __I915_NUM_PMU_SAMPLERS];
 	/**
 	 * @sleep_last: Last time GT parked for RC6 estimation.
 	 */
-	ktime_t sleep_last;
+	ktime_t sleep_last[I915_PMU_MAX_GTS];
 	/**
 	 * @irq_count: Number of interrupts
 	 *
