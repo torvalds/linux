@@ -146,6 +146,7 @@ err:
 
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(icc_clk_register);
 
 /**
  * icc_clk_unregister() - unregister a previously registered clk interconnect provider
@@ -166,3 +167,8 @@ void icc_clk_unregister(struct icc_provider *provider)
 			clk_disable_unprepare(qn->clk);
 	}
 }
+EXPORT_SYMBOL_GPL(icc_clk_unregister);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Interconnect wrapper for clocks");
+MODULE_AUTHOR("Dmitry Baryshkov <dmitry.baryshkov@linaro.org>");
