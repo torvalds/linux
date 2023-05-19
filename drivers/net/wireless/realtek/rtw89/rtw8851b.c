@@ -1542,6 +1542,44 @@ static void rtw8851b_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	}
 }
 
+static void rtw8851b_rfk_init(struct rtw89_dev *rtwdev)
+{
+	rtwdev->is_tssi_mode[RF_PATH_A] = false;
+	rtwdev->is_tssi_mode[RF_PATH_B] = false;
+
+	rtw8851b_dpk_init(rtwdev);
+	rtw8851b_aack(rtwdev);
+	rtw8851b_rck(rtwdev);
+	rtw8851b_dack(rtwdev);
+	rtw8851b_rx_dck(rtwdev, RTW89_PHY_0);
+}
+
+static void rtw8851b_rfk_channel(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+
+	rtw8851b_rx_dck(rtwdev, phy_idx);
+	rtw8851b_iqk(rtwdev, phy_idx);
+	rtw8851b_tssi(rtwdev, phy_idx, true);
+	rtw8851b_dpk(rtwdev, phy_idx);
+}
+
+static void rtw8851b_rfk_band_changed(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
+{
+	rtw8851b_tssi_scan(rtwdev, phy_idx);
+}
+
+static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+{
+	rtw8851b_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+}
+
+static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
+{
+	rtw8851b_dpk_track(rtwdev);
+}
+
 static u32 rtw8851b_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 				     enum rtw89_phy_idx phy_idx, s16 ref)
 {
@@ -1835,6 +1873,23 @@ static void rtw8851b_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_phy_write32_idx(rtwdev, R_MAC_SEL, B_MAC_SEL_MOD, 0x0, RTW89_PHY_0);
+}
+
+static u8 rtw8851b_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
+{
+	if (rtwdev->is_tssi_mode[rf_path]) {
+		u32 addr = R_TSSI_THER + (rf_path << 13);
+
+		return rtw89_phy_read32_mask(rtwdev, addr, B_TSSI_THER);
+	}
+
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x0);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+
+	fsleep(200);
+
+	return rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
 }
 
 static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
@@ -2226,10 +2281,16 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.read_phycap		= rtw8851b_read_phycap,
 	.fem_setup		= NULL,
 	.rfe_gpio		= rtw8851b_rfe_gpio,
+	.rfk_init		= rtw8851b_rfk_init,
+	.rfk_channel		= rtw8851b_rfk_channel,
+	.rfk_band_changed	= rtw8851b_rfk_band_changed,
+	.rfk_scan		= rtw8851b_rfk_scan,
+	.rfk_track		= rtw8851b_rfk_track,
 	.power_trim		= rtw8851b_power_trim,
 	.set_txpwr		= rtw8851b_set_txpwr,
 	.set_txpwr_ctrl		= rtw8851b_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8851b_init_txpwr_unit,
+	.get_thermal		= rtw8851b_get_thermal,
 	.ctrl_btg		= rtw8851b_ctrl_btg,
 	.query_ppdu		= rtw8851b_query_ppdu,
 	.bb_ctrl_btc_preagc	= rtw8851b_bb_ctrl_btc_preagc,
