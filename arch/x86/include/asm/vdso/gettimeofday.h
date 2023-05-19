@@ -238,10 +238,12 @@ static u64 vread_pvclock(void)
 #ifdef CONFIG_HYPERV_TIMER
 static u64 vread_hvclock(void)
 {
-	u64 ret = hv_read_tsc_page(&hvclock_page);
-	if (likely(ret != U64_MAX))
-		ret &= S64_MAX;
-	return ret;
+	u64 tsc, time;
+
+	if (hv_read_tsc_page_tsc(&hvclock_page, &tsc, &time))
+		return time & S64_MAX;
+
+	return U64_MAX;
 }
 #endif
 

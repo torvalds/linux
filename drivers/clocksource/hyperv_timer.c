@@ -393,14 +393,20 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_clock_tsc(void)
+static notrace u64 read_hv_clock_tsc(void)
 {
-	u64 current_tick = hv_read_tsc_page(hv_get_tsc_page());
+	u64 cur_tsc, time;
 
-	if (current_tick == U64_MAX)
-		current_tick = hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+	/*
+	 * The Hyper-V Top-Level Function Spec (TLFS), section Timers,
+	 * subsection Refererence Counter, guarantees that the TSC and MSR
+	 * times are in sync and monotonic. Therefore we can fall back
+	 * to the MSR in case the TSC page indicates unavailability.
+	 */
+	if (!hv_read_tsc_page_tsc(tsc_page, &cur_tsc, &time))
+		time = hv_get_register(HV_REGISTER_TIME_REF_COUNT);
 
-	return current_tick;
+	return time;
 }
 
 static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
