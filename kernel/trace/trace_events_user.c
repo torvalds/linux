@@ -539,10 +539,9 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	return found;
 }
 
-static struct user_event_mm *user_event_mm_create(struct task_struct *t)
+static struct user_event_mm *user_event_mm_alloc(struct task_struct *t)
 {
 	struct user_event_mm *user_mm;
-	unsigned long flags;
 
 	user_mm = kzalloc(sizeof(*user_mm), GFP_KERNEL_ACCOUNT);
 
@@ -553,12 +552,6 @@ static struct user_event_mm *user_event_mm_create(struct task_struct *t)
 	INIT_LIST_HEAD(&user_mm->enablers);
 	refcount_set(&user_mm->refcnt, 1);
 	refcount_set(&user_mm->tasks, 1);
-
-	spin_lock_irqsave(&user_event_mms_lock, flags);
-	list_add_rcu(&user_mm->link, &user_event_mms);
-	spin_unlock_irqrestore(&user_event_mms_lock, flags);
-
-	t->user_event_mm = user_mm;
 
 	/*
 	 * The lifetime of the memory descriptor can slightly outlast
@@ -573,6 +566,17 @@ static struct user_event_mm *user_event_mm_create(struct task_struct *t)
 	return user_mm;
 }
 
+static void user_event_mm_attach(struct user_event_mm *user_mm, struct task_struct *t)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&user_event_mms_lock, flags);
+	list_add_rcu(&user_mm->link, &user_event_mms);
+	spin_unlock_irqrestore(&user_event_mms_lock, flags);
+
+	t->user_event_mm = user_mm;
+}
+
 static struct user_event_mm *current_user_event_mm(void)
 {
 	struct user_event_mm *user_mm = current->user_event_mm;
@@ -580,10 +584,12 @@ static struct user_event_mm *current_user_event_mm(void)
 	if (user_mm)
 		goto inc;
 
-	user_mm = user_event_mm_create(current);
+	user_mm = user_event_mm_alloc(current);
 
 	if (!user_mm)
 		goto error;
+
+	user_event_mm_attach(user_mm, current);
 inc:
 	refcount_inc(&user_mm->refcnt);
 error:
@@ -671,7 +677,7 @@ void user_event_mm_remove(struct task_struct *t)
 
 void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 {
-	struct user_event_mm *mm = user_event_mm_create(t);
+	struct user_event_mm *mm = user_event_mm_alloc(t);
 	struct user_event_enabler *enabler;
 
 	if (!mm)
@@ -685,10 +691,11 @@ void user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm)
 
 	rcu_read_unlock();
 
+	user_event_mm_attach(mm, t);
 	return;
 error:
 	rcu_read_unlock();
-	user_event_mm_remove(t);
+	user_event_mm_destroy(mm);
 }
 
 static bool current_user_event_enabler_exists(unsigned long uaddr,
