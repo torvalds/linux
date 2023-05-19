@@ -27,7 +27,7 @@ static void aspeed_intc_ic_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	status = readl(intc_ic->base);
+	status = readl(intc_ic->base + 4);
 	for_each_set_bit(bit, &status, 32) {
 		generic_handle_domain_irq(intc_ic->irq_domain, bit);
 		writel(BIT(bit), intc_ic->base + 4);
