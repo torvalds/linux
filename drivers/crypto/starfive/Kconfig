@@ -4,14 +4,13 @@
 
 config CRYPTO_DEV_JH7110
 	tristate "StarFive JH7110 cryptographic engine driver"
-	depends on SOC_STARFIVE || COMPILE_TEST
+	depends on (SOC_STARFIVE || COMPILE_TEST) && DMADEVICES
 	select CRYPTO_ENGINE
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
 	select CRYPTO_SM3_GENERIC
 	select ARM_AMBA
-	select DMADEVICES
 	select AMBA_PL08X
 	help
 	  Support for StarFive JH7110 crypto hardware acceleration engine.
