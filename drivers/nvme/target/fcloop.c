@@ -645,8 +645,6 @@ fcloop_fcp_recv_work(struct work_struct *work)
 	}
 	if (ret)
 		fcloop_call_host_done(fcpreq, tfcp_req, ret);
-
-	return;
 }
 
 static void
