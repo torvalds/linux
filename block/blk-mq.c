@@ -458,7 +458,7 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 		 * Flush/passthrough requests are special and go directly to the
 		 * dispatch list.
 		 */
-		if (!op_is_flush(data->cmd_flags) &&
+		if ((data->cmd_flags & REQ_OP_MASK) != REQ_OP_FLUSH &&
 		    !blk_op_is_passthrough(data->cmd_flags)) {
 			struct elevator_mq_ops *ops = &q->elevator->type->ops;
 
@@ -2497,7 +2497,7 @@ static void blk_mq_insert_request(struct request *rq, blk_insert_t flags)
 		 * dispatch it given we prioritize requests in hctx->dispatch.
 		 */
 		blk_mq_request_bypass_insert(rq, flags);
-	} else if (rq->rq_flags & RQF_FLUSH_SEQ) {
+	} else if (req_op(rq) == REQ_OP_FLUSH) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
 		 * sw queue, meantime we add flush request to dispatch queue(
