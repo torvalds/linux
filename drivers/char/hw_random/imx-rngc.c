@@ -224,7 +224,7 @@ static void imx_rngc_cleanup(struct hwrng *rng)
 	imx_rngc_irq_mask_clear(rngc);
 }
 
-static int imx_rngc_probe(struct platform_device *pdev)
+static int __init imx_rngc_probe(struct platform_device *pdev)
 {
 	struct imx_rngc *rngc;
 	int ret;
