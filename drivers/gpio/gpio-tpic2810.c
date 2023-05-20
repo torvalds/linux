@@ -127,7 +127,7 @@ static struct i2c_driver tpic2810_driver = {
 		.name = "tpic2810",
 		.of_match_table = tpic2810_of_match_table,
 	},
-	.probe_new = tpic2810_probe,
+	.probe = tpic2810_probe,
 	.id_table = tpic2810_id_table,
 };
 module_i2c_driver(tpic2810_driver);
