@@ -962,6 +962,8 @@ EXPORT_SYMBOL_GPL(blk_update_request);
 
 static inline void blk_account_io_done(struct request *req, u64 now)
 {
+	trace_block_io_done(req);
+
 	/*
 	 * Account IO completion.  flush_rq isn't accounted as a
 	 * normal IO on queueing nor completion.  Accounting the
@@ -981,6 +983,8 @@ static inline void blk_account_io_done(struct request *req, u64 now)
 
 static inline void blk_account_io_start(struct request *req)
 {
+	trace_block_io_start(req);
+
 	if (blk_do_io_stat(req)) {
 		/*
 		 * All non-passthrough requests are created from a bio with one
