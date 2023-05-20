@@ -1467,13 +1467,13 @@ static int snd_emu10k1_send_routing_put(struct snd_kcontrol *kcontrol,
 				change = 1;
 			}
 		}	
-	if (change && mix->epcm) {
-		if (mix->epcm->voices[0] && mix->epcm->voices[1]) {
+	if (change && mix->epcm && mix->epcm->voices[0]) {
+		if (!mix->epcm->voices[0]->last) {
 			update_emu10k1_fxrt(emu, mix->epcm->voices[0]->number,
 					    &mix->send_routing[1][0]);
-			update_emu10k1_fxrt(emu, mix->epcm->voices[1]->number,
+			update_emu10k1_fxrt(emu, mix->epcm->voices[0]->number + 1,
 					    &mix->send_routing[2][0]);
-		} else if (mix->epcm->voices[0]) {
+		} else {
 			update_emu10k1_fxrt(emu, mix->epcm->voices[0]->number,
 					    &mix->send_routing[0][0]);
 		}
@@ -1535,13 +1535,13 @@ static int snd_emu10k1_send_volume_put(struct snd_kcontrol *kcontrol,
 			change = 1;
 		}
 	}
-	if (change && mix->epcm) {
-		if (mix->epcm->voices[0] && mix->epcm->voices[1]) {
+	if (change && mix->epcm && mix->epcm->voices[0]) {
+		if (!mix->epcm->voices[0]->last) {
 			update_emu10k1_send_volume(emu, mix->epcm->voices[0]->number,
 						   &mix->send_volume[1][0]);
-			update_emu10k1_send_volume(emu, mix->epcm->voices[1]->number,
+			update_emu10k1_send_volume(emu, mix->epcm->voices[0]->number + 1,
 						   &mix->send_volume[2][0]);
-		} else if (mix->epcm->voices[0]) {
+		} else {
 			update_emu10k1_send_volume(emu, mix->epcm->voices[0]->number,
 						   &mix->send_volume[0][0]);
 		}
@@ -1601,11 +1601,11 @@ static int snd_emu10k1_attn_put(struct snd_kcontrol *kcontrol,
 			change = 1;
 		}
 	}
-	if (change && mix->epcm) {
-		if (mix->epcm->voices[0] && mix->epcm->voices[1]) {
+	if (change && mix->epcm && mix->epcm->voices[0]) {
+		if (!mix->epcm->voices[0]->last) {
 			snd_emu10k1_ptr_write(emu, VTFT_VOLUMETARGET, mix->epcm->voices[0]->number, mix->attn[1]);
-			snd_emu10k1_ptr_write(emu, VTFT_VOLUMETARGET, mix->epcm->voices[1]->number, mix->attn[2]);
-		} else if (mix->epcm->voices[0]) {
+			snd_emu10k1_ptr_write(emu, VTFT_VOLUMETARGET, mix->epcm->voices[0]->number + 1, mix->attn[2]);
+		} else {
 			snd_emu10k1_ptr_write(emu, VTFT_VOLUMETARGET, mix->epcm->voices[0]->number, mix->attn[0]);
 		}
 	}
