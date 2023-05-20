@@ -93,7 +93,7 @@ static u8 aquaero_secondary_ctrl_report[] = {
 #define AQC_FIRMWARE_VERSION		0xD
 
 #define AQC_SENSOR_SIZE			0x02
-#define AQC_TEMP_SENSOR_DISCONNECTED	0x7FFF
+#define AQC_SENSOR_NA			0x7FFF
 #define AQC_FAN_PERCENT_OFFSET		0x00
 #define AQC_FAN_VOLTAGE_OFFSET		0x02
 #define AQC_FAN_CURRENT_OFFSET		0x04
@@ -1224,7 +1224,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 		sensor_value = get_unaligned_be16(data +
 						  priv->temp_sensor_start_offset +
 						  i * AQC_SENSOR_SIZE);
-		if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
+		if (sensor_value == AQC_SENSOR_NA)
 			priv->temp_input[i] = -ENODATA;
 		else
 			priv->temp_input[i] = sensor_value * 10;
@@ -1235,7 +1235,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 		sensor_value = get_unaligned_be16(data +
 						  priv->virtual_temp_sensor_start_offset +
 						  j * AQC_SENSOR_SIZE);
-		if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
+		if (sensor_value == AQC_SENSOR_NA)
 			priv->temp_input[i] = -ENODATA;
 		else
 			priv->temp_input[i] = sensor_value * 10;
@@ -1277,7 +1277,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 			sensor_value = get_unaligned_be16(data +
 					priv->calc_virt_temp_sensor_start_offset +
 					j * AQC_SENSOR_SIZE);
-			if (sensor_value == AQC_TEMP_SENSOR_DISCONNECTED)
+			if (sensor_value == AQC_SENSOR_NA)
 				priv->temp_input[i] = -ENODATA;
 			else
 				priv->temp_input[i] = sensor_value * 10;
