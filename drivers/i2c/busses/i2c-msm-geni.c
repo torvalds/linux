@@ -843,12 +843,34 @@ static void gi2c_gsi_cb_err(struct msm_gpi_dma_async_tx_cb_param *cb,
  */
 static void gi2c_gsi_tre_process(struct geni_i2c_dev *gi2c, struct gsi_tre_queue *gsi_tre)
 {
+	int wait_cnt = 0;
+
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 		    "%s:start unmap_cnt:%d rd_idx:%d\n",
 		    __func__, gsi_tre->unmap_msg_cnt, gsi_tre->msg_rd_idx);
 
 	if (gsi_tre->unmap_msg_cnt == gsi_tre->msg_rd_idx)
 		return;
+
+	/**
+	 * When irq context and thread context are running independently
+	 * on different cpu cores, read index is incremenated in irq context
+	 * by one core while thread context which is being processed on
+	 * another core is submitting quickly another descriptor for gsi hw.
+	 * In this scenario previous irq context execution is still in
+	 * progress and current descriptor wait for completion is cleared by
+	 * previous descriptor in irq context, resulting in race condition.
+	 * To solve this added explicit wait until irq context is processed
+	 * when descriptors reached to maximum.
+	 */
+	if (atomic_read(&gi2c->gsi_tx.msg_cnt) == MAX_NUM_TRE_MSGS) {
+		while (spin_is_locked(&gi2c->multi_tre_lock)) {
+			if (wait_cnt % 10 == 0)
+				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+					    "%s: wait_cnt:%d\n", __func__, wait_cnt);
+			wait_cnt++;
+		}
+	}
 
 	while (gsi_tre->unmap_msg_cnt < gsi_tre->msg_rd_idx) {
 		geni_se_common_iommu_unmap_buf(gi2c->wrapper_dev,
