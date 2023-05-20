@@ -276,8 +276,8 @@ static void program_cursor_attributes(
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
-
-		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
+		if (dc->ctx->dmub_srv)
+			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
@@ -396,8 +396,8 @@ static void program_cursor_position(
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
-
-		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
+		if (dc->ctx->dmub_srv)
+			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 	}
 
 	if (pipe_to_program)
