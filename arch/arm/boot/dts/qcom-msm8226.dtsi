@@ -647,6 +647,20 @@
 				label = "lpass";
 			};
 		};
+
+		sram@fe805000 {
+			compatible = "qcom,msm8226-imem", "syscon", "simple-mfd";
+			reg = <0xfe805000 0x1000>;
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x65c>;
+
+				mode-bootloader = <0x77665500>;
+				mode-normal     = <0x77665501>;
+				mode-recovery   = <0x77665502>;
+			};
+		};
 	};
 
 	timer {
