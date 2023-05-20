@@ -1376,8 +1376,6 @@ enum blk_unique_id {
 	BLK_UID_NAA	= 3,
 };
 
-#define NFL4_UFLG_MASK			0x0000003F
-
 struct block_device_operations {
 	void (*submit_bio)(struct bio *bio);
 	int (*poll_bio)(struct bio *bio, struct io_comp_batch *iob,
