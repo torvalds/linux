@@ -227,10 +227,9 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 				     "Failed to get IRQ\n");
 
 	ddata->extclk = devm_clk_get(dev, "extclk");
-	if (IS_ERR(ddata->extclk)) {
-		dev_err(dev, "Failed to get extclk");
-		return PTR_ERR(ddata->extclk);
-	}
+	if (IS_ERR(ddata->extclk))
+		return dev_err_probe(dev, PTR_ERR(ddata->extclk),
+				     "Failed to get extclk");
 
 	ddata->supplies[0].supply = "vdd-buck";
 	ddata->supplies[1].supply = "vdd-buck-sido";
@@ -239,16 +238,12 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 	ddata->supplies[4].supply = "vdd-io";
 
 	ret = regulator_bulk_get(dev, WCD934X_MAX_SUPPLY, ddata->supplies);
-	if (ret) {
-		dev_err(dev, "Failed to get supplies: err = %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get supplies\n");
 
 	ret = regulator_bulk_enable(WCD934X_MAX_SUPPLY, ddata->supplies);
-	if (ret) {
-		dev_err(dev, "Failed to enable supplies: err = %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable supplies\n");
 
 	/*
 	 * For WCD934X, it takes about 600us for the Vout_A and
