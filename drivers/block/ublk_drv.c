@@ -564,7 +564,8 @@ static size_t ublk_copy_user_pages(const struct request *req,
 
 	while (iov_iter_count(uiter) && iter.bio) {
 		unsigned nr_pages;
-		size_t len, off;
+		ssize_t len;
+		size_t off;
 		int i;
 
 		len = iov_iter_get_pages2(uiter, iter.pages,
