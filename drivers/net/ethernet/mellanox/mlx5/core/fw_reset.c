@@ -276,6 +276,44 @@ static void mlx5_fw_live_patch_event(struct work_struct *work)
 		mlx5_core_err(dev, "Failed to reload FW tracer\n");
 }
 
+static int mlx5_check_dev_ids(struct mlx5_core_dev *dev, u16 dev_id)
+{
+	struct pci_bus *bridge_bus = dev->pdev->bus;
+	struct pci_dev *sdev;
+	u16 sdev_id;
+	int err;
+
+	/* Check that all functions under the pci bridge are PFs of
+	 * this device otherwise fail this function.
+	 */
+	list_for_each_entry(sdev, &bridge_bus->devices, bus_list) {
+		err = pci_read_config_word(sdev, PCI_DEVICE_ID, &sdev_id);
+		if (err)
+			return err;
+		if (sdev_id != dev_id) {
+			mlx5_core_warn(dev, "unrecognized dev_id (0x%x)\n", sdev_id);
+			return -EPERM;
+		}
+	}
+	return 0;
+}
+
+static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev)
+{
+	u16 dev_id;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, fast_teardown)) {
+		mlx5_core_warn(dev, "fast teardown is not supported by firmware\n");
+		return -EOPNOTSUPP;
+	}
+
+	err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &dev_id);
+	if (err)
+		return false;
+	return (!mlx5_check_dev_ids(dev, dev_id));
+}
+
 static void mlx5_sync_reset_request_event(struct work_struct *work)
 {
 	struct mlx5_fw_reset *fw_reset = container_of(work, struct mlx5_fw_reset,
@@ -283,7 +321,8 @@ static void mlx5_sync_reset_request_event(struct work_struct *work)
 	struct mlx5_core_dev *dev = fw_reset->dev;
 	int err;
 
-	if (test_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST, &fw_reset->reset_flags)) {
+	if (test_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST, &fw_reset->reset_flags) ||
+	    !mlx5_is_reset_now_capable(dev)) {
 		err = mlx5_fw_reset_set_reset_sync_nack(dev);
 		mlx5_core_warn(dev, "PCI Sync FW Update Reset Nack %s",
 			       err ? "Failed" : "Sent");
@@ -303,26 +342,18 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 {
 	struct pci_bus *bridge_bus = dev->pdev->bus;
 	struct pci_dev *bridge = bridge_bus->self;
-	u16 reg16, dev_id, sdev_id;
 	unsigned long timeout;
 	struct pci_dev *sdev;
+	u16 reg16, dev_id;
 	int cap, err;
 	u32 reg32;
 
-	/* Check that all functions under the pci bridge are PFs of
-	 * this device otherwise fail this function.
-	 */
 	err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &dev_id);
 	if (err)
 		return err;
-	list_for_each_entry(sdev, &bridge_bus->devices, bus_list) {
-		err = pci_read_config_word(sdev, PCI_DEVICE_ID, &sdev_id);
-		if (err)
-			return err;
-		if (sdev_id != dev_id)
-			return -EPERM;
-	}
-
+	err = mlx5_check_dev_ids(dev, dev_id);
+	if (err)
+		return err;
 	cap = pci_find_capability(bridge, PCI_CAP_ID_EXP);
 	if (!cap)
 		return -EOPNOTSUPP;
