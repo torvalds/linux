@@ -269,9 +269,9 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
 	int rw = flags & WRITE;
 
-	if (alloc_v4_u64s(a.v) != bkey_val_u64s(k.k)) {
-		prt_printf(err, "bad val size (%lu != %u)",
-		       bkey_val_u64s(k.k), alloc_v4_u64s(a.v));
+	if (alloc_v4_u64s(a.v) > bkey_val_u64s(k.k)) {
+		prt_printf(err, "bad val size (%u > %lu)",
+		       alloc_v4_u64s(a.v), bkey_val_u64s(k.k));
 		return -BCH_ERR_invalid_bkey;
 	}
 
