@@ -195,7 +195,7 @@ void dp_power_client_deinit(struct dp_power *dp_power)
 	pm_runtime_disable(&power->pdev->dev);
 }
 
-int dp_power_init(struct dp_power *dp_power, bool flip)
+int dp_power_init(struct dp_power *dp_power)
 {
 	int rc = 0;
 	struct dp_power_private *power = NULL;

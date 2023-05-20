@@ -26,13 +26,12 @@ struct dp_power {
  * dp_power_init() - enable power supplies for display controller
  *
  * @power: instance of power module
- * @flip: bool for flipping gpio direction
  * return: 0 if success or error if failure.
  *
  * This API will turn on the regulators and configures gpio's
  * aux/hpd.
  */
-int dp_power_init(struct dp_power *power, bool flip);
+int dp_power_init(struct dp_power *power);
 
 /**
  * dp_power_deinit() - turn off regulators and gpios.
