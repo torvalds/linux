@@ -11,6 +11,7 @@
 #include "dw-edma-core.h"
 #include "dw-hdma-v0-core.h"
 #include "dw-hdma-v0-regs.h"
+#include "dw-hdma-v0-debugfs.h"
 
 enum dw_hdma_control {
 	DW_HDMA_V0_CB					= BIT(0),
@@ -276,6 +277,7 @@ static void dw_hdma_v0_core_ch_config(struct dw_edma_chan *chan)
 /* HDMA debugfs callbacks */
 static void dw_hdma_v0_core_debugfs_on(struct dw_edma *dw)
 {
+	dw_hdma_v0_debugfs_on(dw);
 }
 
 static const struct dw_edma_core_ops dw_hdma_v0_core = {
