@@ -170,7 +170,6 @@ static const enum gpiod_flags gpio_flags[] = {
  * on board (for a copper SFP) time to initialise.
  */
 #define T_WAIT			msecs_to_jiffies(50)
-#define T_WAIT_ROLLBALL		msecs_to_jiffies(25000)
 #define T_START_UP		msecs_to_jiffies(300)
 #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
 
@@ -351,6 +350,27 @@ static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
 	sfp->tx_fault_ignore = true;
 }
 
+// For 10GBASE-T short-reach modules
+static void sfp_fixup_10gbaset_30m(struct sfp *sfp)
+{
+	sfp->id.base.connector = SFF8024_CONNECTOR_RJ45;
+	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SR;
+}
+
+static void sfp_fixup_rollball_proto(struct sfp *sfp, unsigned int secs)
+{
+	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
+	sfp->module_t_wait = msecs_to_jiffies(secs * 1000);
+}
+
+static void sfp_fixup_fs_10gt(struct sfp *sfp)
+{
+	sfp_fixup_10gbaset_30m(sfp);
+
+	// These SFPs need 4 seconds before the PHY can be accessed
+	sfp_fixup_rollball_proto(sfp, 4);
+}
+
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 {
 	/* Ignore the TX_FAULT and LOS signals on this module.
@@ -362,8 +382,8 @@ static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 
 static void sfp_fixup_rollball(struct sfp *sfp)
 {
-	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
-	sfp->module_t_wait = T_WAIT_ROLLBALL;
+	// Rollball SFPs need 25 seconds before the PHY can be accessed
+	sfp_fixup_rollball_proto(sfp, 25);
 }
 
 static void sfp_fixup_rollball_cc(struct sfp *sfp)
@@ -428,6 +448,10 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
 		  sfp_fixup_long_startup),
 
+	// Fiberstore SFP-10G-T doesn't identify as copper, and uses the
+	// Rollball protocol to talk to the PHY.
+	SFP_QUIRK_F("FS", "SFP-10G-T", sfp_fixup_fs_10gt),
+
 	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
 
 	// HG MXPD-483II-F 2.5G supports 2500Base-X, but incorrectly reports
@@ -444,6 +468,10 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK_M("Lantech", "8330-262D-E", sfp_quirk_2500basex),
 
 	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
+
+	// Walsun HXSX-ATRC-1 doesn't identify as copper, and uses the
+	// Rollball protocol to talk to the PHY.
+	SFP_QUIRK_F("Walsun", "HXSX-ATRC-1", sfp_fixup_fs_10gt),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
 	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
