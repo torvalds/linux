@@ -1393,6 +1393,9 @@ config CRYPTO_STATS
 	help
 	  Enable the gathering of crypto stats.
 
+	  Enabling this option reduces the performance of the crypto API.  It
+	  should only be enabled when there is actually a use case for it.
+
 	  This collects data sizes, numbers of requests, and numbers
 	  of errors processed by:
 	  - AEAD ciphers (encrypt, decrypt)
