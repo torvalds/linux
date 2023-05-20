@@ -48,7 +48,8 @@ struct dw_edma_plat_ops {
 enum dw_edma_map_format {
 	EDMA_MF_EDMA_LEGACY = 0x0,
 	EDMA_MF_EDMA_UNROLL = 0x1,
-	EDMA_MF_HDMA_COMPAT = 0x5
+	EDMA_MF_HDMA_COMPAT = 0x5,
+	EDMA_MF_HDMA_NATIVE = 0x7,
 };
 
 /**

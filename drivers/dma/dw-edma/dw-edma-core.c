@@ -18,6 +18,7 @@
 
 #include "dw-edma-core.h"
 #include "dw-edma-v0-core.h"
+#include "dw-hdma-v0-core.h"
 #include "../dmaengine.h"
 #include "../virt-dma.h"
 
@@ -922,7 +923,10 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 
 	dw->chip = chip;
 
-	dw_edma_v0_core_register(dw);
+	if (dw->chip->mf == EDMA_MF_HDMA_NATIVE)
+		dw_hdma_v0_core_register(dw);
+	else
+		dw_edma_v0_core_register(dw);
 
 	raw_spin_lock_init(&dw->lock);
 
