@@ -2848,14 +2848,9 @@ static int rt5682s_dai_probe_clks(struct snd_soc_component *component)
 	int ret;
 
 	/* Check if MCLK provided */
-	rt5682s->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(rt5682s->mclk)) {
-		if (PTR_ERR(rt5682s->mclk) != -ENOENT) {
-			ret = PTR_ERR(rt5682s->mclk);
-			return ret;
-		}
-		rt5682s->mclk = NULL;
-	}
+	rt5682s->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(rt5682s->mclk))
+		return PTR_ERR(rt5682s->mclk);
 
 	/* Register CCF DAI clock control */
 	ret = rt5682s_register_dai_clks(component);
