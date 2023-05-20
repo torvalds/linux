@@ -724,12 +724,9 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 	dev_set_drvdata(dev, cs42l51);
 	cs42l51->regmap = regmap;
 
-	cs42l51->mclk_handle = devm_clk_get(dev, "MCLK");
-	if (IS_ERR(cs42l51->mclk_handle)) {
-		if (PTR_ERR(cs42l51->mclk_handle) != -ENOENT)
-			return PTR_ERR(cs42l51->mclk_handle);
-		cs42l51->mclk_handle = NULL;
-	}
+	cs42l51->mclk_handle = devm_clk_get_optional(dev, "MCLK");
+	if (IS_ERR(cs42l51->mclk_handle))
+		return PTR_ERR(cs42l51->mclk_handle);
 
 	for (i = 0; i < ARRAY_SIZE(cs42l51->supplies); i++)
 		cs42l51->supplies[i].supply = cs42l51_supply_names[i];
