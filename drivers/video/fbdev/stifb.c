@@ -741,7 +741,7 @@ ngleClearOverlayPlanes(struct stifb_info *fb, int mask, int data)
         packed_len = (fb->info.var.xres << 16) | fb->info.var.yres;
         NGLE_SET_DSTXY(fb, packed_dst);
 
-        /* Write zeroes to overlay planes */
+	/* Write zeroes to overlay planes */
 	NGLE_QUICK_SET_IMAGE_BITMAP_OP(fb,
 				       IBOvals(RopSrc, MaskAddrOffset(0),
 					       BitmapExtent08, StaticReg(0),
@@ -1297,14 +1297,14 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		break;
 	default:
 #ifdef FALLBACK_TO_1BPP
-	       	printk(KERN_WARNING
+		printk(KERN_WARNING
 			"stifb: Unsupported graphics card (id=0x%08x) "
 				"- now trying 1bpp mode instead\n",
 			fb->id);
 		bpp = 1;	/* default to 1 bpp */
 		break;
 #else
-	       	printk(KERN_WARNING
+		printk(KERN_WARNING
 			"stifb: Unsupported graphics card (id=0x%08x) "
 				"- skipping.\n",
 			fb->id);
