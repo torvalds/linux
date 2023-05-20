@@ -338,7 +338,7 @@ __setup("rootfstype=", fs_names_setup);
 __setup("rootdelay=", root_delay_setup);
 
 /* This can return zero length strings. Caller should check */
-static int __init split_fs_names(char *page, size_t size, char *names)
+static int __init split_fs_names(char *page, size_t size)
 {
 	int count = 1;
 	char *p = page;
@@ -402,7 +402,7 @@ void __init mount_block_root(char *name, int flags)
 	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
 		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	if (root_fs_names)
-		num_fs = split_fs_names(fs_names, PAGE_SIZE, root_fs_names);
+		num_fs = split_fs_names(fs_names, PAGE_SIZE);
 	else
 		num_fs = list_bdev_fs_names(fs_names, PAGE_SIZE);
 retry:
@@ -545,7 +545,7 @@ static int __init mount_nodev_root(void)
 	fs_names = (void *)__get_free_page(GFP_KERNEL);
 	if (!fs_names)
 		return -EINVAL;
-	num_fs = split_fs_names(fs_names, PAGE_SIZE, root_fs_names);
+	num_fs = split_fs_names(fs_names, PAGE_SIZE);
 
 	for (i = 0, fstype = fs_names; i < num_fs;
 	     i++, fstype += strlen(fstype) + 1) {
