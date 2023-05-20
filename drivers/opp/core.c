@@ -1091,7 +1091,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 
 	/* Return early if nothing to do */
 	if (!forced && old_opp == opp && opp_table->enabled) {
-		dev_dbg(dev, "%s: OPPs are same, nothing to do\n", __func__);
+		dev_dbg_ratelimited(dev, "%s: OPPs are same, nothing to do\n", __func__);
 		return 0;
 	}
 
