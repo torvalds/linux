@@ -8,7 +8,7 @@
 #include "bcm47081.dtsi"
 
 / {
-	compatible = "luxul,xap-1410v1", "brcm,bcm47081", "brcm,bcm4708";
+	compatible = "luxul,xap-1410-v1", "brcm,bcm47081", "brcm,bcm4708";
 	model = "Luxul XAP-1410 V1";
 
 	chosen {

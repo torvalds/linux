@@ -9,7 +9,7 @@
 #include "bcm5301x-nand-cs0-bch4.dtsi"
 
 / {
-	compatible = "luxul,xwr-3100v1", "brcm,bcm47094", "brcm,bcm4708";
+	compatible = "luxul,xwr-3100-v1", "brcm,bcm47094", "brcm,bcm4708";
 	model = "Luxul XWR-3100 V1";
 
 	chosen {
