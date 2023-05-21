@@ -662,7 +662,7 @@ static void ovl_free(struct fs_context *fc)
 static int ovl_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	struct super_block *upper_sb;
 	int ret = 0;
 
@@ -947,7 +947,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
 	const struct ovl_layer *data_layers = &ofs->layers[nr_merged_lower];
 
