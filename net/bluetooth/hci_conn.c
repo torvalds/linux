@@ -947,8 +947,8 @@ static void find_cis(struct hci_conn *conn, void *data)
 {
 	struct iso_list_data *d = data;
 
-	/* Ignore broadcast */
-	if (!bacmp(&conn->dst, BDADDR_ANY))
+	/* Ignore broadcast or if CIG don't match */
+	if (!bacmp(&conn->dst, BDADDR_ANY) || d->cig != conn->iso_qos.ucast.cig)
 		return;
 
 	d->count++;
@@ -962,6 +962,9 @@ static void cis_cleanup(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct iso_list_data d;
+
+	if (conn->iso_qos.ucast.cig == BT_ISO_QOS_CIG_UNSET)
+		return;
 
 	memset(&d, 0, sizeof(d));
 	d.cig = conn->iso_qos.ucast.cig;
