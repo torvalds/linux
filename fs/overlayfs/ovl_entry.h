@@ -121,6 +121,9 @@ extern struct file_system_type ovl_fs_type;
 
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
 {
+	if (IS_ENABLED(CONFIG_OVERLAY_FS_DEBUG))
+		WARN_ON_ONCE(sb->s_type != &ovl_fs_type);
+
 	return (struct ovl_fs *)sb->s_fs_info;
 }
 
