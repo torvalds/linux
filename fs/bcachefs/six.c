@@ -40,6 +40,8 @@ struct six_lock_vals {
 	enum six_lock_type	unlock_wakeup;
 };
 
+#define __SIX_VAL(field, _v)	(((union six_lock_state) { .field = _v }).v)
+
 #define __SIX_LOCK_HELD_read	__SIX_VAL(read_lock, ~0)
 #define __SIX_LOCK_HELD_intent	__SIX_VAL(intent_lock, ~0)
 #define __SIX_LOCK_HELD_write	__SIX_VAL(seq, 1)
@@ -847,3 +849,14 @@ struct six_lock_count six_lock_counts(struct six_lock *lock)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(six_lock_counts);
+
+void six_lock_readers_add(struct six_lock *lock, int nr)
+{
+	if (lock->readers)
+		this_cpu_add(*lock->readers, nr);
+	else if (nr > 0)
+		atomic64_add(__SIX_VAL(read_lock, nr), &lock->state.counter);
+	else
+		atomic64_sub(__SIX_VAL(read_lock, -nr), &lock->state.counter);
+}
+EXPORT_SYMBOL_GPL(six_lock_readers_add);

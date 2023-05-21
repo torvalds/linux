@@ -152,8 +152,6 @@ do {									\
 	__six_lock_init((lock), #lock, &__key);				\
 } while (0)
 
-#define __SIX_VAL(field, _v)	(((union six_lock_state) { .field = _v }).v)
-
 #define __SIX_LOCK(type)						\
 bool six_trylock_ip_##type(struct six_lock *, unsigned long);		\
 bool six_relock_ip_##type(struct six_lock *, u32, unsigned long);	\
@@ -258,5 +256,6 @@ struct six_lock_count {
 };
 
 struct six_lock_count six_lock_counts(struct six_lock *);
+void six_lock_readers_add(struct six_lock *, int);
 
 #endif /* _LINUX_SIX_H */
