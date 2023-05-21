@@ -144,17 +144,8 @@ static int __do_six_trylock_type(struct six_lock *lock,
 		 * lock, issue a wakeup because we might have caused a
 		 * spurious trylock failure:
 		 */
-#if 0
-		/*
-		 * This code should be sufficient, but we're seeing unexplained
-		 * lost wakeups:
-		 */
 		if (old.write_locking)
 			ret = -1 - SIX_LOCK_write;
-#else
-		if (!ret)
-			ret = -1 - SIX_LOCK_write;
-#endif
 	} else if (type == SIX_LOCK_write && lock->readers) {
 		if (try) {
 			atomic64_add(__SIX_VAL(write_locking, 1),
@@ -332,7 +323,7 @@ static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
 		 */
 		if (ret)
 			six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
-		else
+		else if (old.write_locking)
 			six_lock_wakeup(lock, old, SIX_LOCK_write);
 
 		return ret;
