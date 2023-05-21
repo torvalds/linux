@@ -859,8 +859,7 @@ static const char *const optim_symbols[] = { "*.constprop.*", NULL };
 enum mismatch {
 	TEXT_TO_ANY_INIT,
 	DATA_TO_ANY_INIT,
-	TEXT_TO_ANY_EXIT,
-	DATA_TO_ANY_EXIT,
+	TEXTDATA_TO_ANY_EXIT,
 	XXXINIT_TO_SOME_INIT,
 	XXXEXIT_TO_SOME_EXIT,
 	ANY_INIT_TO_ANY_EXIT,
@@ -904,14 +903,9 @@ static const struct sectioncheck sectioncheck[] = {
 	.mismatch = DATA_TO_ANY_INIT,
 },
 {
-	.fromsec = { TEXT_SECTIONS, NULL },
+	.fromsec = { TEXT_SECTIONS, DATA_SECTIONS, NULL },
 	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_ANY_EXIT,
-},
-{
-	.fromsec = { DATA_SECTIONS, NULL },
-	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_ANY_EXIT,
+	.mismatch = TEXTDATA_TO_ANY_EXIT,
 },
 /* Do not reference init code/data from meminit code/data */
 {
@@ -1203,8 +1197,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	switch (mismatch->mismatch) {
 	case TEXT_TO_ANY_INIT:
 	case DATA_TO_ANY_INIT:
-	case TEXT_TO_ANY_EXIT:
-	case DATA_TO_ANY_EXIT:
+	case TEXTDATA_TO_ANY_EXIT:
 	case XXXINIT_TO_SOME_INIT:
 	case XXXEXIT_TO_SOME_EXIT:
 	case ANY_INIT_TO_ANY_EXIT:
