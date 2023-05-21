@@ -89,29 +89,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sa8775p-qmp-usb3-uni-phy
-              - qcom,sc8280xp-qmp-usb3-uni-phy
-    then:
-      properties:
-        clocks:
-          maxItems: 4
-        clock-names:
-          items:
-            - const: aux
-            - const: ref
-            - const: com_aux
-            - const: pipe
-      required:
-        - power-domains
-
-additionalProperties: false
-
-allOf:
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,qcm2290-qmp-usb3-phy
               - qcom,sm6115-qmp-usb3-phy
     then:
@@ -130,6 +107,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sa8775p-qmp-usb3-uni-phy
               - qcom,sc8280xp-qmp-usb3-uni-phy
     then:
       properties:
@@ -141,6 +119,10 @@ allOf:
             - const: ref
             - const: com_aux
             - const: pipe
+      required:
+        - power-domains
+
+additionalProperties: false
 
 examples:
   - |
