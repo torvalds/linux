@@ -151,14 +151,6 @@ static int __do_six_trylock_type(struct six_lock *lock,
 			atomic64_add(__SIX_VAL(write_locking, 1),
 				     &lock->state.counter);
 			smp_mb__after_atomic();
-		} else if (!(lock->state.waiters & (1 << SIX_LOCK_write))) {
-			atomic64_add(__SIX_VAL(waiters, 1 << SIX_LOCK_write),
-				     &lock->state.counter);
-			/*
-			 * pairs with barrier after unlock and before checking
-			 * for readers in unlock path
-			 */
-			smp_mb__after_atomic();
 		}
 
 		ret = !pcpu_read_count(lock);
@@ -190,10 +182,9 @@ static int __do_six_trylock_type(struct six_lock *lock,
 
 				if (type == SIX_LOCK_write)
 					new.write_locking = 0;
-			} else if (!try && !(new.waiters & (1 << type)))
-				new.waiters |= 1 << type;
-			else
-				break; /* waiting bit already set */
+			} else {
+				break;
+			}
 		} while ((v = atomic64_cmpxchg_acquire(&lock->state.counter,
 					old.v, new.v)) != old.v);
 
