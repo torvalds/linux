@@ -121,7 +121,6 @@ static struct btree *__btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 		return NULL;
 
 	bkey_btree_ptr_init(&b->key);
-	bch2_btree_lock_init(&b->c);
 	INIT_LIST_HEAD(&b->list);
 	INIT_LIST_HEAD(&b->write_blocked);
 	b->byte_order = ilog2(btree_bytes(c));
@@ -141,6 +140,8 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 		kfree(b);
 		return NULL;
 	}
+
+	bch2_btree_lock_init(&b->c, 0);
 
 	bc->used++;
 	list_add(&b->list, &bc->freeable);
@@ -435,7 +436,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	while (!list_empty(&bc->freed_nonpcpu)) {
 		b = list_first_entry(&bc->freed_nonpcpu, struct btree, list);
 		list_del(&b->list);
-		six_lock_pcpu_free(&b->c.lock);
+		six_lock_exit(&b->c.lock);
 		kfree(b);
 	}
 
@@ -595,8 +596,7 @@ struct btree *bch2_btree_node_mem_alloc(struct btree_trans *trans, bool pcpu_rea
 		mutex_lock(&bc->lock);
 	}
 
-	if (pcpu_read_locks)
-		six_lock_pcpu_alloc(&b->c.lock);
+	bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0);
 
 	BUG_ON(!six_trylock_intent(&b->c.lock));
 	BUG_ON(!six_trylock_write(&b->c.lock));

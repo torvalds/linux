@@ -132,24 +132,20 @@ struct six_lock_waiter {
 
 typedef int (*six_lock_should_sleep_fn)(struct six_lock *lock, void *);
 
-static __always_inline void __six_lock_init(struct six_lock *lock,
-					    const char *name,
-					    struct lock_class_key *key)
-{
-	atomic64_set(&lock->state.counter, 0);
-	raw_spin_lock_init(&lock->wait_lock);
-	INIT_LIST_HEAD(&lock->wait_list);
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *) lock, sizeof(*lock));
-	lockdep_init_map(&lock->dep_map, name, key, 0);
-#endif
-}
+void six_lock_exit(struct six_lock *lock);
 
-#define six_lock_init(lock)						\
+enum six_lock_init_flags {
+	SIX_LOCK_INIT_PCPU	= 1U << 0,
+};
+
+void __six_lock_init(struct six_lock *lock, const char *name,
+		     struct lock_class_key *key, enum six_lock_init_flags flags);
+
+#define six_lock_init(lock, flags)					\
 do {									\
 	static struct lock_class_key __key;				\
 									\
-	__six_lock_init((lock), #lock, &__key);				\
+	__six_lock_init((lock), #lock, &__key, flags);			\
 } while (0)
 
 #define __SIX_LOCK(type)						\
@@ -247,9 +243,6 @@ bool six_trylock_convert(struct six_lock *, enum six_lock_type,
 void six_lock_increment(struct six_lock *, enum six_lock_type);
 
 void six_lock_wakeup_all(struct six_lock *);
-
-void six_lock_pcpu_free(struct six_lock *);
-void six_lock_pcpu_alloc(struct six_lock *);
 
 struct six_lock_count {
 	unsigned n[3];

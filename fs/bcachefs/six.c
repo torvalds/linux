@@ -814,25 +814,6 @@ void six_lock_wakeup_all(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_wakeup_all);
 
-void six_lock_pcpu_free(struct six_lock *lock)
-{
-	BUG_ON(lock->readers && pcpu_read_count(lock));
-	BUG_ON(lock->state.read_lock);
-
-	free_percpu(lock->readers);
-	lock->readers = NULL;
-}
-EXPORT_SYMBOL_GPL(six_lock_pcpu_free);
-
-void six_lock_pcpu_alloc(struct six_lock *lock)
-{
-#ifdef __KERNEL__
-	if (!lock->readers)
-		lock->readers = alloc_percpu(unsigned);
-#endif
-}
-EXPORT_SYMBOL_GPL(six_lock_pcpu_alloc);
-
 /*
  * Returns lock held counts, for both read and intent
  */
@@ -860,3 +841,37 @@ void six_lock_readers_add(struct six_lock *lock, int nr)
 		atomic64_sub(__SIX_VAL(read_lock, -nr), &lock->state.counter);
 }
 EXPORT_SYMBOL_GPL(six_lock_readers_add);
+
+void six_lock_exit(struct six_lock *lock)
+{
+	WARN_ON(lock->readers && pcpu_read_count(lock));
+	WARN_ON(lock->state.read_lock);
+
+	free_percpu(lock->readers);
+	lock->readers = NULL;
+}
+EXPORT_SYMBOL_GPL(six_lock_exit);
+
+void __six_lock_init(struct six_lock *lock, const char *name,
+		     struct lock_class_key *key, enum six_lock_init_flags flags)
+{
+	atomic64_set(&lock->state.counter, 0);
+	raw_spin_lock_init(&lock->wait_lock);
+	INIT_LIST_HEAD(&lock->wait_list);
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	debug_check_no_locks_freed((void *) lock, sizeof(*lock));
+	lockdep_init_map(&lock->dep_map, name, key, 0);
+#endif
+
+	if (flags & SIX_LOCK_INIT_PCPU) {
+		/*
+		 * We don't return an error here on memory allocation failure
+		 * since percpu is an optimization, and locks will work with the
+		 * same semantics in non-percpu mode: callers can check for
+		 * failure if they wish by checking lock->readers, but generally
+		 * will not want to treat it as an error.
+		 */
+		lock->readers = alloc_percpu(unsigned);
+	}
+}
+EXPORT_SYMBOL_GPL(__six_lock_init);
