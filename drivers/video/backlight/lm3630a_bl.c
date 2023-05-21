@@ -620,7 +620,7 @@ static struct i2c_driver lm3630a_i2c_driver = {
 		   .name = LM3630A_NAME,
 		   .of_match_table = lm3630a_match_table,
 		   },
-	.probe_new = lm3630a_probe,
+	.probe = lm3630a_probe,
 	.remove = lm3630a_remove,
 	.id_table = lm3630a_id,
 };

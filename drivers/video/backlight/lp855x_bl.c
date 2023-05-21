@@ -587,7 +587,7 @@ static struct i2c_driver lp855x_driver = {
 		   .of_match_table = of_match_ptr(lp855x_dt_ids),
 		   .acpi_match_table = ACPI_PTR(lp855x_acpi_match),
 		   },
-	.probe_new = lp855x_probe,
+	.probe = lp855x_probe,
 	.remove = lp855x_remove,
 	.id_table = lp855x_ids,
 };
