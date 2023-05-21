@@ -193,10 +193,8 @@ static inline unsigned pcpu_read_count(struct six_lock *lock)
 	return read_count;
 }
 
-static int __do_six_trylock_type(struct six_lock *lock,
-				 enum six_lock_type type,
-				 struct task_struct *task,
-				 bool try)
+static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
+			    struct task_struct *task, bool try)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
 	int ret;
@@ -316,7 +314,7 @@ again:
 			goto unlock;
 		saw_one = true;
 
-		ret = __do_six_trylock_type(lock, lock_type, w->task, false);
+		ret = __do_six_trylock(lock, lock_type, w->task, false);
 		if (ret <= 0)
 			goto unlock;
 
@@ -355,32 +353,48 @@ static void six_lock_wakeup(struct six_lock *lock, u64 state,
 }
 
 __always_inline
-static bool do_six_trylock_type(struct six_lock *lock,
-				enum six_lock_type type,
-				bool try)
+static bool do_six_trylock(struct six_lock *lock, enum six_lock_type type, bool try)
 {
 	int ret;
 
-	ret = __do_six_trylock_type(lock, type, current, try);
+	ret = __do_six_trylock(lock, type, current, try);
 	if (ret < 0)
 		__six_lock_wakeup(lock, -ret - 1);
 
 	return ret > 0;
 }
 
-bool six_trylock_ip_type(struct six_lock *lock, enum six_lock_type type,
-			 unsigned long ip)
+/**
+ * six_trylock_ip - attempt to take a six lock without blocking
+ * @lock:	lock to take
+ * @type:	SIX_LOCK_read, SIX_LOCK_intent, or SIX_LOCK_write
+ * @ip:		ip parameter for lockdep/lockstat, i.e. _THIS_IP_
+ *
+ * Return: true on success, false on failure.
+ */
+bool six_trylock_ip(struct six_lock *lock, enum six_lock_type type, unsigned long ip)
 {
-	if (!do_six_trylock_type(lock, type, true))
+	if (!do_six_trylock(lock, type, true))
 		return false;
 
 	if (type != SIX_LOCK_write)
 		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
 	return true;
 }
+EXPORT_SYMBOL_GPL(six_trylock_ip);
 
-bool six_relock_ip_type(struct six_lock *lock, enum six_lock_type type,
-			unsigned seq, unsigned long ip)
+/**
+ * six_relock_ip - attempt to re-take a lock that was held previously
+ * @lock:	lock to take
+ * @type:	SIX_LOCK_read, SIX_LOCK_intent, or SIX_LOCK_write
+ * @seq:	lock sequence number obtained from six_lock_seq() while lock was
+ *		held previously
+ * @ip:		ip parameter for lockdep/lockstat, i.e. _THIS_IP_
+ *
+ * Return: true on success, false on failure.
+ */
+bool six_relock_ip(struct six_lock *lock, enum six_lock_type type,
+		   unsigned seq, unsigned long ip)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
 	u64 old, v;
@@ -421,15 +435,15 @@ bool six_relock_ip_type(struct six_lock *lock, enum six_lock_type type,
 		if ((old & l[type].lock_fail) || six_state_seq(old) != seq)
 			return false;
 	} while ((v = atomic64_cmpxchg_acquire(&lock->state,
-				old,
-				old + l[type].lock_val)) != old);
+					       old,
+					       old + l[type].lock_val)) != old);
 
 	six_set_owner(lock, type, old, current);
 	if (type != SIX_LOCK_write)
 		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
 	return true;
 }
-EXPORT_SYMBOL_GPL(six_relock_ip_type);
+EXPORT_SYMBOL_GPL(six_relock_ip);
 
 #ifdef CONFIG_SIX_LOCK_SPIN_ON_OWNER
 
@@ -512,7 +526,7 @@ static inline bool six_optimistic_spin(struct six_lock *lock, enum six_lock_type
 		if (owner && !six_spin_on_owner(lock, owner, end_time))
 			break;
 
-		if (do_six_trylock_type(lock, type, false)) {
+		if (do_six_trylock(lock, type, false)) {
 			osq_unlock(&lock->osq);
 			preempt_enable();
 			return true;
@@ -561,10 +575,10 @@ static inline bool six_optimistic_spin(struct six_lock *lock, enum six_lock_type
 #endif
 
 noinline
-static int __six_lock_type_slowpath(struct six_lock *lock, enum six_lock_type type,
-				    struct six_lock_waiter *wait,
-				    six_lock_should_sleep_fn should_sleep_fn, void *p,
-				    unsigned long ip)
+static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
+			     struct six_lock_waiter *wait,
+			     six_lock_should_sleep_fn should_sleep_fn, void *p,
+			     unsigned long ip)
 {
 	u64 old;
 	int ret = 0;
@@ -587,10 +601,10 @@ static int __six_lock_type_slowpath(struct six_lock *lock, enum six_lock_type ty
 	raw_spin_lock(&lock->wait_lock);
 	six_set_bitmask(lock, SIX_STATE_WAITING_READ << type);
 	/*
-	 * Retry taking the lock after taking waitlist lock, have raced with an
-	 * unlock:
+	 * Retry taking the lock after taking waitlist lock, in case we raced
+	 * with an unlock:
 	 */
-	ret = __do_six_trylock_type(lock, type, current, false);
+	ret = __do_six_trylock(lock, type, current, false);
 	if (ret <= 0) {
 		wait->start_time = local_clock();
 
@@ -648,10 +662,40 @@ out:
 	return ret;
 }
 
-int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
-			    struct six_lock_waiter *wait,
-			    six_lock_should_sleep_fn should_sleep_fn, void *p,
-			    unsigned long ip)
+/**
+ * six_lock_ip_waiter - take a lock, with full waitlist interface
+ * @lock:	lock to take
+ * @type:	SIX_LOCK_read, SIX_LOCK_intent, or SIX_LOCK_write
+ * @wait:	pointer to wait object, which will be added to lock's waitlist
+ * @should_sleep_fn: callback run after adding to waitlist, immediately prior
+ *		to scheduling
+ * @p:		passed through to @should_sleep_fn
+ * @ip:		ip parameter for lockdep/lockstat, i.e. _THIS_IP_
+ *
+ * This is the most general six_lock() variant, with parameters to support full
+ * cycle detection for deadlock avoidance.
+ *
+ * The code calling this function must implement tracking of held locks, and the
+ * @wait object should be embedded into the struct that tracks held locks -
+ * which must also be accessible in a thread-safe way.
+ *
+ * @should_sleep_fn should invoke the cycle detector; it should walk each
+ * lock's waiters, and for each waiter recursively walk their held locks.
+ *
+ * When this function must block, @wait will be added to @lock's waitlist before
+ * calling trylock, and before calling @should_sleep_fn, and @wait will not be
+ * removed from the lock waitlist until the lock has been successfully acquired,
+ * or we abort.
+ *
+ * @wait.start_time will be monotonically increasing for any given waitlist, and
+ * thus may be used as a loop cursor.
+ *
+ * Return: 0 on success, or the return code from @should_sleep_fn on failure.
+ */
+int six_lock_ip_waiter(struct six_lock *lock, enum six_lock_type type,
+		       struct six_lock_waiter *wait,
+		       six_lock_should_sleep_fn should_sleep_fn, void *p,
+		       unsigned long ip)
 {
 	int ret;
 
@@ -660,8 +704,8 @@ int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
 	if (type != SIX_LOCK_write)
 		six_acquire(&lock->dep_map, 0, type == SIX_LOCK_read, ip);
 
-	ret = do_six_trylock_type(lock, type, true) ? 0
-		: __six_lock_type_slowpath(lock, type, wait, should_sleep_fn, p, ip);
+	ret = do_six_trylock(lock, type, true) ? 0
+		: six_lock_slowpath(lock, type, wait, should_sleep_fn, p, ip);
 
 	if (ret && type != SIX_LOCK_write)
 		six_release(&lock->dep_map, ip);
@@ -670,7 +714,7 @@ int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(six_lock_type_ip_waiter);
+EXPORT_SYMBOL_GPL(six_lock_ip_waiter);
 
 __always_inline
 static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
@@ -700,7 +744,22 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 	six_lock_wakeup(lock, state, l[type].unlock_wakeup);
 }
 
-void six_unlock_ip_type(struct six_lock *lock, enum six_lock_type type, unsigned long ip)
+/**
+ * six_unlock_ip - drop a six lock
+ * @lock:	lock to unlock
+ * @type:	SIX_LOCK_read, SIX_LOCK_intent, or SIX_LOCK_write
+ * @ip:		ip parameter for lockdep/lockstat, i.e. _THIS_IP_
+ *
+ * When a lock is held multiple times (because six_lock_incement()) was used),
+ * this decrements the 'lock held' counter by one.
+ *
+ * For example:
+ * six_lock_read(&foo->lock);				read count 1
+ * six_lock_increment(&foo->lock, SIX_LOCK_read);	read count 2
+ * six_lock_unlock(&foo->lock, SIX_LOCK_read);		read count 1
+ * six_lock_unlock(&foo->lock, SIX_LOCK_read);		read count 0
+ */
+void six_unlock_ip(struct six_lock *lock, enum six_lock_type type, unsigned long ip)
 {
 	EBUG_ON(type == SIX_LOCK_write &&
 		!(atomic64_read(&lock->state) & SIX_LOCK_HELD_intent));
@@ -719,9 +778,14 @@ void six_unlock_ip_type(struct six_lock *lock, enum six_lock_type type, unsigned
 
 	do_six_unlock_type(lock, type);
 }
-EXPORT_SYMBOL_GPL(six_unlock_ip_type);
+EXPORT_SYMBOL_GPL(six_unlock_ip);
 
-/* Convert from intent to read: */
+/**
+ * six_lock_downgrade - convert an intent lock to a read lock
+ * @lock:	lock to dowgrade
+ *
+ * @lock will have read count incremented and intent count decremented
+ */
 void six_lock_downgrade(struct six_lock *lock)
 {
 	six_lock_increment(lock, SIX_LOCK_read);
@@ -729,6 +793,15 @@ void six_lock_downgrade(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_downgrade);
 
+/**
+ * six_lock_tryupgrade - attempt to convert read lock to an intent lock
+ * @lock:	lock to upgrade
+ *
+ * On success, @lock will have intent count incremented and read count
+ * decremented
+ *
+ * Return: true on success, false on failure
+ */
 bool six_lock_tryupgrade(struct six_lock *lock)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
@@ -757,6 +830,17 @@ bool six_lock_tryupgrade(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_tryupgrade);
 
+/**
+ * six_trylock_convert - attempt to convert a held lock from one type to another
+ * @lock:	lock to upgrade
+ * @from:	SIX_LOCK_read or SIX_LOCK_intent
+ * @to:		SIX_LOCK_read or SIX_LOCK_intent
+ *
+ * On success, @lock will have intent count incremented and read count
+ * decremented
+ *
+ * Return: true on success, false on failure
+ */
 bool six_trylock_convert(struct six_lock *lock,
 			 enum six_lock_type from,
 			 enum six_lock_type to)
@@ -775,9 +859,16 @@ bool six_trylock_convert(struct six_lock *lock,
 }
 EXPORT_SYMBOL_GPL(six_trylock_convert);
 
-/*
- * Increment read/intent lock count, assuming we already have it read or intent
- * locked:
+/**
+ * six_lock_increment - increase held lock count on a lock that is already held
+ * @lock:	lock to increment
+ * @type:	SIX_LOCK_read or SIX_LOCK_intent
+ *
+ * @lock must already be held, with a lock type that is greater than or equal to
+ * @type
+ *
+ * A corresponding six_unlock_type() call will be required for @lock to be fully
+ * unlocked.
  */
 void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 {
@@ -809,6 +900,16 @@ void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 }
 EXPORT_SYMBOL_GPL(six_lock_increment);
 
+/**
+ * six_lock_wakeup_all - wake up all waiters on @lock
+ * @lock:	lock to wake up waiters for
+ *
+ * Wakeing up waiters will cause them to re-run should_sleep_fn, which may then
+ * abort the lock operation.
+ *
+ * This function is never needed in a bug-free program; it's only useful in
+ * debug code, e.g. to determine if a cycle detector is at fault.
+ */
 void six_lock_wakeup_all(struct six_lock *lock)
 {
 	u64 state = atomic64_read(&lock->state);
@@ -825,8 +926,11 @@ void six_lock_wakeup_all(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_wakeup_all);
 
-/*
- * Returns lock held counts, for both read and intent
+/**
+ * six_lock_counts - return held lock counts, for each lock type
+ * @lock:	lock to return counters for
+ *
+ * Return: the number of times a lock is held for read, intent and write.
  */
 struct six_lock_count six_lock_counts(struct six_lock *lock)
 {
@@ -843,15 +947,45 @@ struct six_lock_count six_lock_counts(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_counts);
 
+/**
+ * six_lock_readers_add - directly manipulate reader count of a lock
+ * @lock:	lock to add/subtract readers for
+ * @nr:		reader count to add/subtract
+ *
+ * When an upper layer is implementing lock reentrency, we may have both read
+ * and intent locks on the same lock.
+ *
+ * When we need to take a write lock, the read locks will cause self-deadlock,
+ * because six locks themselves do not track which read locks are held by the
+ * current thread and which are held by a different thread - it does no
+ * per-thread tracking of held locks.
+ *
+ * The upper layer that is tracking held locks may however, if trylock() has
+ * failed, count up its own read locks, subtract them, take the write lock, and
+ * then re-add them.
+ *
+ * As in any other situation when taking a write lock, @lock must be held for
+ * intent one (or more) times, so @lock will never be left unlocked.
+ */
 void six_lock_readers_add(struct six_lock *lock, int nr)
 {
-	if (lock->readers)
+	if (lock->readers) {
 		this_cpu_add(*lock->readers, nr);
-	else /* reader count starts at bit 0 */
+	} else {
+		EBUG_ON((int) (atomic64_read(&lock->state) & SIX_STATE_READ_LOCK) + nr < 0);
+		/* reader count starts at bit 0 */
 		atomic64_add(nr, &lock->state);
+	}
 }
 EXPORT_SYMBOL_GPL(six_lock_readers_add);
 
+/**
+ * six_lock_exit - release resources held by a lock prior to freeing
+ * @lock:	lock to exit
+ *
+ * When a lock was initialized in percpu mode (SIX_OLCK_INIT_PCPU), this is
+ * required to free the percpu read counts.
+ */
 void six_lock_exit(struct six_lock *lock)
 {
 	WARN_ON(lock->readers && pcpu_read_count(lock));

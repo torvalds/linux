@@ -205,8 +205,8 @@ static inline int __btree_node_lock_nopath(struct btree_trans *trans,
 	trans->lock_must_abort	= false;
 	trans->locking		= b;
 
-	ret = six_lock_type_ip_waiter(&b->lock, type, &trans->locking_wait,
-				   bch2_six_check_for_deadlock, trans, ip);
+	ret = six_lock_ip_waiter(&b->lock, type, &trans->locking_wait,
+				 bch2_six_check_for_deadlock, trans, ip);
 	WRITE_ONCE(trans->locking, NULL);
 	WRITE_ONCE(trans->locking_wait.start_time, 0);
 	return ret;
