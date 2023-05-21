@@ -838,24 +838,6 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_TEXT_SECTIONS  ALL_INIT_TEXT_SECTIONS, ALL_EXIT_TEXT_SECTIONS, \
 		TEXT_SECTIONS, OTHER_TEXT_SECTIONS
 
-/* init data sections */
-static const char *const init_data_sections[] =
-	{ ALL_INIT_DATA_SECTIONS, NULL };
-
-/* all init sections */
-static const char *const init_sections[] = { ALL_INIT_SECTIONS, NULL };
-
-/* all text sections */
-static const char *const text_sections[] = { ALL_TEXT_SECTIONS, NULL };
-
-/* data section */
-static const char *const data_sections[] = { DATA_SECTIONS, NULL };
-
-static const char *const head_sections[] = { ".head.text*", NULL };
-static const char *const linker_symbols[] =
-	{ "__init_begin", "_sinittext", "_einittext", NULL };
-static const char *const optim_symbols[] = { "*.constprop.*", NULL };
-
 enum mismatch {
 	TEXT_TO_ANY_INIT,
 	DATA_TO_ANY_INIT,
@@ -1028,14 +1010,14 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
 			    const char *tosec, const char *tosym)
 {
 	/* Check for pattern 1 */
-	if (match(tosec, init_data_sections) &&
-	    match(fromsec, data_sections) &&
+	if (match(tosec, PATTERNS(ALL_INIT_DATA_SECTIONS)) &&
+	    match(fromsec, PATTERNS(DATA_SECTIONS)) &&
 	    strstarts(fromsym, "__param"))
 		return 0;
 
 	/* Check for pattern 1a */
 	if (strcmp(tosec, ".init.text") == 0 &&
-	    match(fromsec, data_sections) &&
+	    match(fromsec, PATTERNS(DATA_SECTIONS)) &&
 	    strstarts(fromsym, "__param_ops_"))
 		return 0;
 
@@ -1058,18 +1040,18 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
 		return 0;
 
 	/* Check for pattern 3 */
-	if (match(fromsec, head_sections) &&
-	    match(tosec, init_sections))
+	if (strstarts(fromsec, ".head.text") &&
+	    match(tosec, PATTERNS(ALL_INIT_SECTIONS)))
 		return 0;
 
 	/* Check for pattern 4 */
-	if (match(tosym, linker_symbols))
+	if (match(tosym, PATTERNS("__init_begin", "_sinittext", "_einittext")))
 		return 0;
 
 	/* Check for pattern 5 */
-	if (match(fromsec, text_sections) &&
-	    match(tosec, init_sections) &&
-	    match(fromsym, optim_symbols))
+	if (match(fromsec, PATTERNS(ALL_TEXT_SECTIONS)) &&
+	    match(tosec, PATTERNS(ALL_INIT_SECTIONS)) &&
+	    match(fromsym, PATTERNS("*.constprop.*")))
 		return 0;
 
 	return 1;
