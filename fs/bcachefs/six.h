@@ -148,92 +148,122 @@ do {									\
 	__six_lock_init((lock), #lock, &__key, flags);			\
 } while (0)
 
+bool six_trylock_ip_type(struct six_lock *lock, enum six_lock_type type,
+			 unsigned long ip);
+
+static inline bool six_trylock_type(struct six_lock *lock, enum six_lock_type type)
+{
+	return six_trylock_ip_type(lock, type, _THIS_IP_);
+}
+
+int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
+			    struct six_lock_waiter *wait,
+			    six_lock_should_sleep_fn should_sleep_fn, void *p,
+			    unsigned long ip);
+
+static inline int six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type,
+				struct six_lock_waiter *wait,
+				six_lock_should_sleep_fn should_sleep_fn, void *p)
+{
+	return six_lock_type_ip_waiter(lock, type, wait, should_sleep_fn, p, _THIS_IP_);
+}
+
+static inline int six_lock_ip_type(struct six_lock *lock, enum six_lock_type type,
+				six_lock_should_sleep_fn should_sleep_fn, void *p,
+				unsigned long ip)
+{
+	struct six_lock_waiter wait;
+
+	return six_lock_type_ip_waiter(lock, type, &wait, should_sleep_fn, p, ip);
+}
+
+static inline int six_lock_type(struct six_lock *lock, enum six_lock_type type,
+				six_lock_should_sleep_fn should_sleep_fn, void *p)
+{
+	struct six_lock_waiter wait;
+
+	return six_lock_type_ip_waiter(lock, type, &wait, should_sleep_fn, p, _THIS_IP_);
+}
+
+bool six_relock_ip_type(struct six_lock *lock, enum six_lock_type type,
+			unsigned seq, unsigned long ip);
+
+static inline bool six_relock_type(struct six_lock *lock, enum six_lock_type type,
+				   unsigned seq)
+{
+	return six_relock_ip_type(lock, type, seq, _THIS_IP_);
+}
+
+void six_unlock_ip_type(struct six_lock *lock, enum six_lock_type type, unsigned long ip);
+
+static inline void six_unlock_type(struct six_lock *lock, enum six_lock_type type)
+{
+	six_unlock_ip_type(lock, type, _THIS_IP_);
+}
+
 #define __SIX_LOCK(type)						\
-bool six_trylock_ip_##type(struct six_lock *, unsigned long);		\
-bool six_relock_ip_##type(struct six_lock *, u32, unsigned long);	\
-int six_lock_ip_##type(struct six_lock *, six_lock_should_sleep_fn,	\
-		       void *, unsigned long);				\
-int six_lock_ip_waiter_##type(struct six_lock *, struct six_lock_waiter *,\
-			six_lock_should_sleep_fn, void *, unsigned long);\
-void six_unlock_ip_##type(struct six_lock *, unsigned long);		\
+static inline bool six_trylock_ip_##type(struct six_lock *lock, unsigned long ip)\
+{									\
+	return six_trylock_ip_type(lock, SIX_LOCK_##type, ip);		\
+}									\
 									\
 static inline bool six_trylock_##type(struct six_lock *lock)		\
 {									\
-	return six_trylock_ip_##type(lock, _THIS_IP_);			\
+	return six_trylock_ip_type(lock, SIX_LOCK_##type, _THIS_IP_);	\
 }									\
+									\
+static inline int six_lock_ip_waiter_##type(struct six_lock *lock,	\
+			   struct six_lock_waiter *wait,		\
+			   six_lock_should_sleep_fn should_sleep_fn, void *p,\
+			   unsigned long ip)				\
+{									\
+	return six_lock_type_ip_waiter(lock, SIX_LOCK_##type, wait, should_sleep_fn, p, ip);\
+}									\
+									\
+static inline int six_lock_ip_##type(struct six_lock *lock,		\
+		    six_lock_should_sleep_fn should_sleep_fn, void *p,	\
+		    unsigned long ip)					\
+{									\
+	return six_lock_ip_type(lock, SIX_LOCK_##type, should_sleep_fn, p, ip);\
+}									\
+									\
+static inline bool six_relock_ip_##type(struct six_lock *lock, u32 seq, unsigned long ip)\
+{									\
+	return six_relock_ip_type(lock, SIX_LOCK_##type, seq, ip);	\
+}									\
+									\
 static inline bool six_relock_##type(struct six_lock *lock, u32 seq)	\
 {									\
-	return six_relock_ip_##type(lock, seq, _THIS_IP_);		\
+	return six_relock_ip_type(lock, SIX_LOCK_##type, seq, _THIS_IP_);\
 }									\
+									\
 static inline int six_lock_##type(struct six_lock *lock,		\
 				  six_lock_should_sleep_fn fn, void *p)\
 {									\
 	return six_lock_ip_##type(lock, fn, p, _THIS_IP_);		\
 }									\
+									\
 static inline int six_lock_waiter_##type(struct six_lock *lock,		\
 			struct six_lock_waiter *wait,			\
 			six_lock_should_sleep_fn fn, void *p)		\
 {									\
 	return six_lock_ip_waiter_##type(lock, wait, fn, p, _THIS_IP_);	\
 }									\
+									\
+static inline void six_unlock_ip_##type(struct six_lock *lock, unsigned long ip)	\
+{									\
+	six_unlock_ip_type(lock, SIX_LOCK_##type, ip);			\
+}									\
+									\
 static inline void six_unlock_##type(struct six_lock *lock)		\
 {									\
-	return six_unlock_ip_##type(lock, _THIS_IP_);			\
+	six_unlock_ip_type(lock, SIX_LOCK_##type, _THIS_IP_);		\
 }
 
 __SIX_LOCK(read)
 __SIX_LOCK(intent)
 __SIX_LOCK(write)
 #undef __SIX_LOCK
-
-#define SIX_LOCK_DISPATCH(type, fn, ...)			\
-	switch (type) {						\
-	case SIX_LOCK_read:					\
-		return fn##_read(__VA_ARGS__);			\
-	case SIX_LOCK_intent:					\
-		return fn##_intent(__VA_ARGS__);		\
-	case SIX_LOCK_write:					\
-		return fn##_write(__VA_ARGS__);			\
-	default:						\
-		BUG();						\
-	}
-
-static inline bool six_trylock_type(struct six_lock *lock, enum six_lock_type type)
-{
-	SIX_LOCK_DISPATCH(type, six_trylock, lock);
-}
-
-static inline bool six_relock_type(struct six_lock *lock, enum six_lock_type type,
-				   unsigned seq)
-{
-	SIX_LOCK_DISPATCH(type, six_relock, lock, seq);
-}
-
-static inline int six_lock_type(struct six_lock *lock, enum six_lock_type type,
-				six_lock_should_sleep_fn should_sleep_fn, void *p)
-{
-	SIX_LOCK_DISPATCH(type, six_lock, lock, should_sleep_fn, p);
-}
-
-static inline int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
-				struct six_lock_waiter *wait,
-				six_lock_should_sleep_fn should_sleep_fn, void *p,
-				unsigned long ip)
-{
-	SIX_LOCK_DISPATCH(type, six_lock_ip_waiter, lock, wait, should_sleep_fn, p, ip);
-}
-
-static inline int six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type,
-				struct six_lock_waiter *wait,
-				six_lock_should_sleep_fn should_sleep_fn, void *p)
-{
-	SIX_LOCK_DISPATCH(type, six_lock_waiter, lock, wait, should_sleep_fn, p);
-}
-
-static inline void six_unlock_type(struct six_lock *lock, enum six_lock_type type)
-{
-	SIX_LOCK_DISPATCH(type, six_unlock, lock);
-}
 
 void six_lock_downgrade(struct six_lock *);
 bool six_lock_tryupgrade(struct six_lock *);

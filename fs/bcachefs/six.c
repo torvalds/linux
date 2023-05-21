@@ -245,9 +245,10 @@ unlock:
 	}
 }
 
-static inline void six_lock_wakeup(struct six_lock *lock,
-				   union six_lock_state state,
-				   enum six_lock_type lock_type)
+__always_inline
+static void six_lock_wakeup(struct six_lock *lock,
+			    union six_lock_state state,
+			    enum six_lock_type lock_type)
 {
 	if (lock_type == SIX_LOCK_write && state.read_lock)
 		return;
@@ -258,6 +259,7 @@ static inline void six_lock_wakeup(struct six_lock *lock,
 	__six_lock_wakeup(lock, lock_type);
 }
 
+__always_inline
 static bool do_six_trylock_type(struct six_lock *lock,
 				enum six_lock_type type,
 				bool try)
@@ -271,9 +273,8 @@ static bool do_six_trylock_type(struct six_lock *lock,
 	return ret > 0;
 }
 
-__always_inline __flatten
-static bool __six_trylock_type(struct six_lock *lock, enum six_lock_type type,
-			       unsigned long ip)
+bool six_trylock_ip_type(struct six_lock *lock, enum six_lock_type type,
+			 unsigned long ip)
 {
 	if (!do_six_trylock_type(lock, type, true))
 		return false;
@@ -283,9 +284,8 @@ static bool __six_trylock_type(struct six_lock *lock, enum six_lock_type type,
 	return true;
 }
 
-__always_inline __flatten
-static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
-			      unsigned seq, unsigned long ip)
+bool six_relock_ip_type(struct six_lock *lock, enum six_lock_type type,
+			unsigned seq, unsigned long ip)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
 	union six_lock_state old;
@@ -335,6 +335,7 @@ static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
 		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
 	return true;
 }
+EXPORT_SYMBOL_GPL(six_relock_ip_type);
 
 #ifdef CONFIG_SIX_LOCK_SPIN_ON_OWNER
 
@@ -566,11 +567,10 @@ out:
 	return ret;
 }
 
-__always_inline __flatten
-static int __six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type,
-			 struct six_lock_waiter *wait,
-			 six_lock_should_sleep_fn should_sleep_fn, void *p,
-			 unsigned long ip)
+int six_lock_type_ip_waiter(struct six_lock *lock, enum six_lock_type type,
+			    struct six_lock_waiter *wait,
+			    six_lock_should_sleep_fn should_sleep_fn, void *p,
+			    unsigned long ip)
 {
 	int ret;
 
@@ -589,18 +589,9 @@ static int __six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(six_lock_type_ip_waiter);
 
 __always_inline
-static int __six_lock_type(struct six_lock *lock, enum six_lock_type type,
-			   six_lock_should_sleep_fn should_sleep_fn, void *p,
-			   unsigned long ip)
-{
-	struct six_lock_waiter wait;
-
-	return __six_lock_type_waiter(lock, type, &wait, should_sleep_fn, p, ip);
-}
-
-__always_inline __flatten
 static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
@@ -628,9 +619,7 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 	six_lock_wakeup(lock, state, l[type].unlock_wakeup);
 }
 
-__always_inline __flatten
-static void __six_unlock_type(struct six_lock *lock, enum six_lock_type type,
-			      unsigned long ip)
+void six_unlock_ip_type(struct six_lock *lock, enum six_lock_type type, unsigned long ip)
 {
 	EBUG_ON(type == SIX_LOCK_write &&
 		!(lock->state.v & __SIX_LOCK_HELD_intent));
@@ -649,48 +638,7 @@ static void __six_unlock_type(struct six_lock *lock, enum six_lock_type type,
 
 	do_six_unlock_type(lock, type);
 }
-
-#define __SIX_LOCK(type)						\
-bool six_trylock_ip_##type(struct six_lock *lock, unsigned long ip)	\
-{									\
-	return __six_trylock_type(lock, SIX_LOCK_##type, ip);		\
-}									\
-EXPORT_SYMBOL_GPL(six_trylock_ip_##type);				\
-									\
-bool six_relock_ip_##type(struct six_lock *lock, u32 seq, unsigned long ip)\
-{									\
-	return __six_relock_type(lock, SIX_LOCK_##type, seq, ip);	\
-}									\
-EXPORT_SYMBOL_GPL(six_relock_ip_##type);				\
-									\
-int six_lock_ip_##type(struct six_lock *lock,				\
-		    six_lock_should_sleep_fn should_sleep_fn, void *p,	\
-		    unsigned long ip)					\
-{									\
-	return __six_lock_type(lock, SIX_LOCK_##type, should_sleep_fn, p, ip);\
-}									\
-EXPORT_SYMBOL_GPL(six_lock_ip_##type);					\
-									\
-int six_lock_ip_waiter_##type(struct six_lock *lock,			\
-			   struct six_lock_waiter *wait,		\
-			   six_lock_should_sleep_fn should_sleep_fn, void *p,\
-			   unsigned long ip)				\
-{									\
-	return __six_lock_type_waiter(lock, SIX_LOCK_##type, wait, should_sleep_fn, p, ip);\
-}									\
-EXPORT_SYMBOL_GPL(six_lock_ip_waiter_##type);				\
-									\
-void six_unlock_ip_##type(struct six_lock *lock, unsigned long ip)	\
-{									\
-	__six_unlock_type(lock, SIX_LOCK_##type, ip);			\
-}									\
-EXPORT_SYMBOL_GPL(six_unlock_ip_##type);
-
-__SIX_LOCK(read)
-__SIX_LOCK(intent)
-__SIX_LOCK(write)
-
-#undef __SIX_LOCK
+EXPORT_SYMBOL_GPL(six_unlock_ip_type);
 
 /* Convert from intent to read: */
 void six_lock_downgrade(struct six_lock *lock)
