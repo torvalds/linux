@@ -1185,11 +1185,10 @@ static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
 
 static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 				     const struct sectioncheck* const mismatch,
-				     Elf_Rela *r, Elf_Sym *sym,
+				     Elf_Rela *r, Elf_Sym *tsym,
 				     unsigned int fsecndx, const char *fromsec,
 				     const char *tosec)
 {
-	Elf_Sym *to;
 	Elf_Sym *from;
 	const char *tosym;
 	const char *fromsym;
@@ -1197,8 +1196,8 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	from = find_fromsym(elf, r->r_offset, fsecndx);
 	fromsym = sym_name(elf, from);
 
-	to = find_tosym(elf, r->r_addend, sym);
-	tosym = sym_name(elf, to);
+	tsym = find_tosym(elf, r->r_addend, tsym);
+	tosym = sym_name(elf, tsym);
 
 	/* check whitelist - we may ignore it */
 	if (!secref_whitelist(fromsec, fromsym, tosec, tosym))
@@ -1233,7 +1232,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 			      "You might get more information about where this is\n"
 			      "coming from by using scripts/check_extable.sh %s\n",
 			      fromsec, (long)r->r_offset, tosec, modname);
-		else if (is_executable_section(elf, get_secindex(elf, sym)))
+		else if (is_executable_section(elf, get_secindex(elf, tsym)))
 			warn("The relocation at %s+0x%lx references\n"
 			     "section \"%s\" which is not in the list of\n"
 			     "authorized sections.  If you're adding a new section\n"
