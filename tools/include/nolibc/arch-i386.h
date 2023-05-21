@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_I386_H
 #define _NOLIBC_ARCH_I386_H
 
+#include "compiler.h"
+
 /* The struct returned by the stat() syscall, 32-bit only, the syscall returns
  * exactly 56 bytes (stops before the unused array).
  */
@@ -181,8 +183,6 @@ struct sys_stat_struct {
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
-#define __ARCH_SUPPORTS_STACK_PROTECTOR
-
 /* startup code */
 /*
  * i386 System V ABI mandates:
@@ -193,7 +193,7 @@ const unsigned long *_auxv __attribute__((weak));
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protector)) _start(void)
 {
 	__asm__ volatile (
-#ifdef NOLIBC_STACKPROTECTOR
+#ifdef _NOLIBC_STACKPROTECTOR
 		"call __stack_chk_init\n"   /* initialize stack protector                    */
 #endif
 		"pop %eax\n"                /* argc   (first arg, %eax)                      */

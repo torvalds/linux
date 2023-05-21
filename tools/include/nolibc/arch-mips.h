@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_MIPS_H
 #define _NOLIBC_ARCH_MIPS_H
 
+#include "compiler.h"
+
 /* The struct returned by the stat() syscall. 88 bytes are returned by the
  * syscall.
  */
@@ -179,8 +181,6 @@ struct sys_stat_struct {
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
-#define __ARCH_SUPPORTS_STACK_PROTECTOR
-
 /* startup code, note that it's called __start on MIPS */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protector)) __start(void)
 {
@@ -189,7 +189,7 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protec
 		".set push\n"
 		".set    noreorder\n"
 		".option pic0\n"
-#ifdef NOLIBC_STACKPROTECTOR
+#ifdef _NOLIBC_STACKPROTECTOR
 		"jal __stack_chk_init\n" /* initialize stack protector                         */
 		"nop\n"                  /* delayed slot                                       */
 #endif

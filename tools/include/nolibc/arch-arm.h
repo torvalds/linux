@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_ARM_H
 #define _NOLIBC_ARCH_ARM_H
 
+#include "compiler.h"
+
 /* The struct returned by the stat() syscall, 32-bit only, the syscall returns
  * exactly 56 bytes (stops before the unused array). In big endian, the format
  * differs as devices are returned as short only.
@@ -199,13 +201,11 @@ struct sys_stat_struct {
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
-#define __ARCH_SUPPORTS_STACK_PROTECTOR
-
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protector)) _start(void)
 {
 	__asm__ volatile (
-#ifdef NOLIBC_STACKPROTECTOR
+#ifdef _NOLIBC_STACKPROTECTOR
 		"bl __stack_chk_init\n"       /* initialize stack protector                          */
 #endif
 		"pop {%r0}\n"                 /* argc was in the stack                               */

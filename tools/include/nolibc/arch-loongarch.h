@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_LOONGARCH_H
 #define _NOLIBC_ARCH_LOONGARCH_H
 
+#include "compiler.h"
+
 /* Syscalls for LoongArch :
  *   - stack is 16-byte aligned
  *   - syscall number is passed in a7
@@ -149,8 +151,6 @@
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
-#define __ARCH_SUPPORTS_STACK_PROTECTOR
-
 #if __loongarch_grlen == 32
 #define LONGLOG      "2"
 #define SZREG        "4"
@@ -175,7 +175,7 @@ const unsigned long *_auxv __attribute__((weak));
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"),no_stack_protector)) _start(void)
 {
 	__asm__ volatile (
-#ifdef NOLIBC_STACKPROTECTOR
+#ifdef _NOLIBC_STACKPROTECTOR
 		"bl __stack_chk_init\n"               /* initialize stack protector                          */
 #endif
 		REG_L        " $a0, $sp, 0\n"         /* argc (a0) was in the stack                          */

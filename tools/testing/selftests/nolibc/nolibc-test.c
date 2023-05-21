@@ -802,13 +802,13 @@ static int run_protection(int min, int max)
 
 	llen += printf("0 -fstackprotector ");
 
-#if !defined(NOLIBC_STACKPROTECTOR)
+#if !defined(_NOLIBC_STACKPROTECTOR)
 	llen += printf("not supported");
 	pad_spc(llen, 64, "[SKIPPED]\n");
 	return 0;
 #endif
 
-#if defined(NOLIBC_STACKPROTECTOR)
+#if defined(_NOLIBC_STACKPROTECTOR)
 	if (!__stack_chk_guard) {
 		llen += printf("__stack_chk_guard not initialized");
 		pad_spc(llen, 64, "[FAIL]\n");

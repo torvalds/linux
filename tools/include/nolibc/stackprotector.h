@@ -7,13 +7,9 @@
 #ifndef _NOLIBC_STACKPROTECTOR_H
 #define _NOLIBC_STACKPROTECTOR_H
 
-#include "arch.h"
+#include "compiler.h"
 
-#if defined(NOLIBC_STACKPROTECTOR)
-
-#if !defined(__ARCH_SUPPORTS_STACK_PROTECTOR)
-#error "nolibc does not support stack protectors on this arch"
-#endif
+#if defined(_NOLIBC_STACKPROTECTOR)
 
 #include "sys.h"
 #include "stdlib.h"
@@ -49,6 +45,6 @@ void __stack_chk_init(void)
 	if (__stack_chk_guard != (uintptr_t) &__stack_chk_guard)
 		__stack_chk_guard ^= (uintptr_t) &__stack_chk_guard;
 }
-#endif /* defined(NOLIBC_STACKPROTECTOR) */
+#endif /* defined(_NOLIBC_STACKPROTECTOR) */
 
 #endif /* _NOLIBC_STACKPROTECTOR_H */
