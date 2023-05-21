@@ -586,6 +586,12 @@ c_show(struct seq_file *f, void *slot)
 # if XCHAL_HAVE_OCD
 		     "ocd "
 # endif
+#if XCHAL_HAVE_TRAX
+		     "trax "
+#endif
+#if XCHAL_NUM_PERF_COUNTERS
+		     "perf "
+#endif
 #endif
 #if XCHAL_HAVE_DENSITY
 	    	     "density "
@@ -635,11 +641,13 @@ c_show(struct seq_file *f, void *slot)
 	seq_printf(f,"physical aregs\t: %d\n"
 		     "misc regs\t: %d\n"
 		     "ibreak\t\t: %d\n"
-		     "dbreak\t\t: %d\n",
+		     "dbreak\t\t: %d\n"
+		     "perf counters\t: %d\n",
 		     XCHAL_NUM_AREGS,
 		     XCHAL_NUM_MISC_REGS,
 		     XCHAL_NUM_IBREAK,
-		     XCHAL_NUM_DBREAK);
+		     XCHAL_NUM_DBREAK,
+		     XCHAL_NUM_PERF_COUNTERS);
 
 
 	/* Interrupt. */
