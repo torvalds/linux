@@ -483,7 +483,7 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 	struct btree_node_entry *bne;
 	bool reinit_iter = false;
 
-	EBUG_ON(!(b->c.lock.state.seq & 1));
+	EBUG_ON(!six_lock_counts(&b->c.lock).n[SIX_LOCK_write]);
 	BUG_ON(bset_written(b, bset(b, &b->set[1])));
 	BUG_ON(btree_node_just_written(b));
 

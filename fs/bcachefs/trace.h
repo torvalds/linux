@@ -420,7 +420,9 @@ TRACE_EVENT(btree_path_relock_fail,
 		else
 			scnprintf(__entry->node, sizeof(__entry->node), "%px", b);
 		__entry->iter_lock_seq		= path->l[level].lock_seq;
-		__entry->node_lock_seq		= is_btree_node(path, level) ? path->l[level].b->c.lock.state.seq : 0;
+		__entry->node_lock_seq		= is_btree_node(path, level)
+			? six_lock_seq(&path->l[level].b->c.lock)
+			: 0;
 	),
 
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u node %s iter seq %u lock seq %u",
@@ -475,7 +477,9 @@ TRACE_EVENT(btree_path_upgrade_fail,
 		__entry->read_count		= c.n[SIX_LOCK_read];
 		__entry->intent_count		= c.n[SIX_LOCK_read];
 		__entry->iter_lock_seq		= path->l[level].lock_seq;
-		__entry->node_lock_seq		= is_btree_node(path, level) ? path->l[level].b->c.lock.state.seq : 0;
+		__entry->node_lock_seq		= is_btree_node(path, level)
+			? six_lock_seq(&path->l[level].b->c.lock)
+			: 0;
 	),
 
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u locked %u held %u:%u lock count %u:%u iter seq %u lock seq %u",

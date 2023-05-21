@@ -688,7 +688,7 @@ err:
 		bch2_trans_unlock(&trans);
 		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_intent);
 		mark_btree_node_locked(&trans, path, b->c.level, SIX_LOCK_intent);
-		path->l[b->c.level].lock_seq = b->c.lock.state.seq;
+		path->l[b->c.level].lock_seq = six_lock_seq(&b->c.lock);
 		path->l[b->c.level].b = b;
 
 		bch2_btree_node_lock_write_nofail(&trans, path, &b->c);

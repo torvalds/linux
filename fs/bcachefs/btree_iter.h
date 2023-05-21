@@ -49,7 +49,7 @@ static inline bool btree_node_lock_seq_matches(const struct btree_path *path,
 	 * write lock. The lock sequence number is incremented by taking and
 	 * releasing write locks and is even when unlocked:
 	 */
-	return path->l[level].lock_seq >> 1 == b->c.lock.state.seq >> 1;
+	return path->l[level].lock_seq >> 1 == six_lock_seq(&b->c.lock) >> 1;
 }
 
 static inline struct btree *btree_node_parent(struct btree_path *path,

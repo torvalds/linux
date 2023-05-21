@@ -175,7 +175,7 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_pat
 	struct btree_path *linked;
 
 	EBUG_ON(path->l[b->c.level].b != b);
-	EBUG_ON(path->l[b->c.level].lock_seq + 1 != b->c.lock.state.seq);
+	EBUG_ON(path->l[b->c.level].lock_seq + 1 != six_lock_seq(&b->c.lock));
 	EBUG_ON(btree_node_locked_type(path, b->c.level) != SIX_LOCK_write);
 
 	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_intent);
@@ -283,7 +283,7 @@ static inline int __btree_node_lock_write(struct btree_trans *trans,
 					  bool lock_may_not_fail)
 {
 	EBUG_ON(&path->l[b->level].b->c != b);
-	EBUG_ON(path->l[b->level].lock_seq != b->lock.state.seq);
+	EBUG_ON(path->l[b->level].lock_seq != six_lock_seq(&b->lock));
 	EBUG_ON(!btree_node_intent_locked(path, b->level));
 
 	/*

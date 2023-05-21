@@ -735,7 +735,7 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	set_btree_node_read_in_flight(b);
 
 	six_unlock_write(&b->c.lock);
-	seq = b->c.lock.state.seq;
+	seq = six_lock_seq(&b->c.lock);
 	six_unlock_intent(&b->c.lock);
 
 	/* Unlock before doing IO: */
@@ -859,7 +859,7 @@ retry:
 	}
 
 	if (unlikely(btree_node_read_in_flight(b))) {
-		u32 seq = b->c.lock.state.seq;
+		u32 seq = six_lock_seq(&b->c.lock);
 
 		six_unlock_type(&b->c.lock, lock_type);
 		bch2_trans_unlock(trans);
@@ -957,7 +957,7 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 	}
 
 	if (unlikely(btree_node_read_in_flight(b))) {
-		u32 seq = b->c.lock.state.seq;
+		u32 seq = six_lock_seq(&b->c.lock);
 
 		six_unlock_type(&b->c.lock, lock_type);
 		bch2_trans_unlock(trans);

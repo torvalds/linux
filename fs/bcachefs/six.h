@@ -68,39 +68,6 @@
 
 #define SIX_LOCK_SEPARATE_LOCKFNS
 
-union six_lock_state {
-	struct {
-		atomic64_t	counter;
-	};
-
-	struct {
-		u64		v;
-	};
-
-	struct {
-		/* for waitlist_bitnr() */
-		unsigned long	l;
-	};
-
-	struct {
-		unsigned	read_lock:26;
-		unsigned	write_locking:1;
-		unsigned	intent_lock:1;
-		unsigned	nospin:1;
-		unsigned	waiters:3;
-		/*
-		 * seq works much like in seqlocks: it's incremented every time
-		 * we lock and unlock for write.
-		 *
-		 * If it's odd write lock is held, even unlocked.
-		 *
-		 * Thus readers can unlock, and then lock again later iff it
-		 * hasn't been modified in the meantime.
-		 */
-		u32		seq;
-	};
-};
-
 enum six_lock_type {
 	SIX_LOCK_read,
 	SIX_LOCK_intent,
@@ -108,7 +75,7 @@ enum six_lock_type {
 };
 
 struct six_lock {
-	union six_lock_state	state;
+	atomic64_t		state;
 	unsigned		intent_lock_recurse;
 	struct task_struct	*owner;
 	unsigned __percpu	*readers;
@@ -147,6 +114,11 @@ do {									\
 									\
 	__six_lock_init((lock), #lock, &__key, flags);			\
 } while (0)
+
+static inline u32 six_lock_seq(const struct six_lock *lock)
+{
+	return atomic64_read(&lock->state) >> 32;
+}
 
 bool six_trylock_ip_type(struct six_lock *lock, enum six_lock_type type,
 			 unsigned long ip);
