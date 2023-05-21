@@ -3619,6 +3619,12 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 
 	prop->supports_compute_reset = true;
 
+	/* Event queue sanity check added in FW version 1.11 */
+	if (hl_is_fw_sw_ver_below(hdev, 1, 11))
+		hdev->event_queue.check_eqe_index = false;
+	else
+		hdev->event_queue.check_eqe_index = true;
+
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
 	rc = gaudi2_special_blocks_iterator_config(hdev);
