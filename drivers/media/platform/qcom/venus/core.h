@@ -83,6 +83,22 @@ struct venus_resources {
 	const char *fwname;
 };
 
+enum venus_fmt {
+	VENUS_FMT_NV12			= 0,
+	VENUS_FMT_QC08C			= 1,
+	VENUS_FMT_QC10C			= 2,
+	VENUS_FMT_H264			= 3,
+	VENUS_FMT_VP8			= 4,
+	VENUS_FMT_VP9			= 5,
+	VENUS_FMT_HEVC			= 6,
+	VENUS_FMT_VC1_ANNEX_G		= 7,
+	VENUS_FMT_VC1_ANNEX_L		= 8,
+	VENUS_FMT_MPEG4			= 9,
+	VENUS_FMT_MPEG2			= 10,
+	VENUS_FMT_H263			= 11,
+	VENUS_FMT_XVID			= 12,
+};
+
 struct venus_format {
 	u32 pixfmt;
 	unsigned int num_planes;

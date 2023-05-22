@@ -32,28 +32,33 @@
  * - future firmware versions could add support for >1 planes
  */
 static const struct venus_format venc_formats[] = {
-	{
+	[VENUS_FMT_NV12] = {
 		.pixfmt = V4L2_PIX_FMT_NV12,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
-	}, {
-		.pixfmt = V4L2_PIX_FMT_MPEG4,
-		.num_planes = 1,
-		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-	}, {
-		.pixfmt = V4L2_PIX_FMT_H263,
-		.num_planes = 1,
-		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-	}, {
+	},
+	[VENUS_FMT_H264] = {
 		.pixfmt = V4L2_PIX_FMT_H264,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-	}, {
+	},
+	[VENUS_FMT_VP8] = {
 		.pixfmt = V4L2_PIX_FMT_VP8,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-	}, {
+	},
+	[VENUS_FMT_HEVC] = {
 		.pixfmt = V4L2_PIX_FMT_HEVC,
+		.num_planes = 1,
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+	},
+	[VENUS_FMT_MPEG4] = {
+		.pixfmt = V4L2_PIX_FMT_MPEG4,
+		.num_planes = 1,
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+	},
+	[VENUS_FMT_H263] = {
+		.pixfmt = V4L2_PIX_FMT_H263,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
 	},
@@ -1416,8 +1421,8 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 
 static void venc_inst_init(struct venus_inst *inst)
 {
-	inst->fmt_cap = &venc_formats[3];
-	inst->fmt_out = &venc_formats[0];
+	inst->fmt_cap = &venc_formats[VENUS_FMT_H264];
+	inst->fmt_out = &venc_formats[VENUS_FMT_NV12];
 	inst->width = 1280;
 	inst->height = ALIGN(720, 32);
 	inst->out_width = 1280;
