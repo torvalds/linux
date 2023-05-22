@@ -3195,6 +3195,16 @@ static int dwc3_gadget_init_in_endpoint(struct dwc3_ep *dep)
 	else
 		maxpacket = mdwidth * ((size - 1) - 1) - mdwidth;
 
+
+	/*
+	 * To meet performance requirement, a minimum TxFIFO size of 2x
+	 * MaxPacketSize is recommended for endpoints that support for
+	 * Rockchip platform with UVC function.
+	 */
+	if (IS_REACHABLE(CONFIG_ARCH_ROCKCHIP) &&
+	    (dwc->maximum_speed >= USB_SPEED_HIGH))
+		maxpacket /= 2;
+
 	/* Functionally, space for one max packet is sufficient */
 	size = min_t(int, maxpacket, 1024);
 	/*
