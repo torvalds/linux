@@ -474,6 +474,58 @@
 			};
 		};
 
+		spi0: spi@14010000 {
+			reg = <0x0 0x14010000 0x0 0xc4>, <0x1 0x80000000 0x0 0x80000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2600-spi";
+			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			status = "disabled";
+			num-cs = <2>;
+
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				spi-rx-bus-width = <2>;
+				status = "disabled";
+			};
+
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				spi-rx-bus-width = <2>;
+				status = "disabled";
+			};
+		};
+
+		spi1: spi@14020000 {
+			reg = <0x0 0x14020000 0x0 0xc4>, <0x2 0x00000000 0x0 0x80000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2600-spi";
+			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			status = "disabled";
+			num-cs = <3>;
+
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				spi-rx-bus-width = <2>;
+				status = "disabled";
+			};
+
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				spi-rx-bus-width = <2>;
+				status = "disabled";
+			};
+		};
+
 		mdio: bus@14040000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;
