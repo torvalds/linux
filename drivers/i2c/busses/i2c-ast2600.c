@@ -22,8 +22,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/i2c-smbus.h>
 
-#define FPGA
-
 /*
  * APB clk : 100Mhz
  * div	: scl		: baseclk [APB/((div/2) + 1)] : tBuf [1/bclk * 16]
@@ -53,10 +51,10 @@
 #define AST2600_GLOBAL_INIT				\
 			(AST2600_I2CG_CTRL_NEW_REG |	\
 			AST2600_I2CG_CTRL_NEW_CLK_DIV)
-#ifndef FPGA
-#define I2CCG_DIV_CTRL 0xC6411208
-#else
+#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
 #define I2CCG_DIV_CTRL 0x16060100
+#else
+#define I2CCG_DIV_CTRL 0xC6411208
 #endif
 
 /* 0x00 : I2CC Master/Slave Function Control Register  */
@@ -1565,11 +1563,7 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_bus->clk))
 		return dev_err_probe(i2c_bus->dev, PTR_ERR(i2c_bus->clk), "Can't get clock\n");
 
-#ifndef FPGA
 	i2c_bus->apb_clk = clk_get_rate(i2c_bus->clk);
-#else
-	i2c_bus->apb_clk = 12000000;
-#endif
 
 	ret = of_property_read_u32(dev->of_node, "clock-frequency", &i2c_bus->bus_frequency);
 	if (ret < 0) {
