@@ -1503,8 +1503,13 @@ static void vdec_event_change(struct venus_inst *inst,
 	inst->out_width = ev_data->width;
 	inst->out_height = ev_data->height;
 
-	if (inst->bit_depth != ev_data->bit_depth)
+	if (inst->bit_depth != ev_data->bit_depth) {
 		inst->bit_depth = ev_data->bit_depth;
+		if (inst->bit_depth == VIDC_BITDEPTH_10)
+			inst->fmt_cap = &vdec_formats[VENUS_FMT_P010];
+		else
+			inst->fmt_cap = &vdec_formats[VENUS_FMT_NV12];
+	}
 
 	if (inst->pic_struct != ev_data->pic_struct)
 		inst->pic_struct = ev_data->pic_struct;
