@@ -966,6 +966,13 @@ sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage += total;
+
+	/* Update base_config->cpc from the module manifest */
+	sof_ipc4_update_cpc_from_manifest(sdev, fw_module, base_config);
+
+	dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
+		swidget->widget->name, base_config->ibs, base_config->obs,
+		base_config->cpc);
 }
 
 static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
