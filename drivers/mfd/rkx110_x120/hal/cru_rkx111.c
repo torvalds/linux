@@ -341,6 +341,8 @@ static HAL_Status RKX11x_HAL_CRU_ClkSetFreq(struct hwclk *hw, uint32_t clockName
     /* link(dclk): Allowed to change PLL rate if need ! */
     case RKX111_CPS_DCLK_D_DSI_0_REC:
     case RKX111_CPS_DCLK_D_DSI_1_REC:
+    case RKX111_CPS_CLK_D_LVDS0_PATTERN_GEN:
+    case RKX111_CPS_CLK_D_LVDS1_PATTERN_GEN:
     case RKX110_CPS_CLK_2X_LVDS_RKLINK_TX:
     /* i2s */
     case RKX110_CPS_CLK_I2S_SRC_RKLINK_TX:
@@ -384,9 +386,6 @@ static HAL_Status RKX11x_HAL_CRU_ClkSetFreq(struct hwclk *hw, uint32_t clockName
     /* bus */
     case RKX110_CPS_DCLK_RX_PRE:
     case RKX111_CPS_DCLK_RX_PRE_200M:
-    /* lvds */
-    case RKX111_CPS_CLK_D_LVDS0_PATTERN_GEN:
-    case RKX111_CPS_CLK_D_LVDS1_PATTERN_GEN:
     /* camera */
     case RKX110_CPS_CLK_CAM0_OUT2IO:
     case RKX110_CPS_CLK_CAM1_OUT2IO:

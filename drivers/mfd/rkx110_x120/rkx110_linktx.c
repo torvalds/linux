@@ -93,6 +93,7 @@
  #define DSI_VSA(x)			UPDATE(x, 9, 0)
 
 #define SER_RKLINK_DSI_REC3(x)		LINK_REG(0x0014 + 0x10 * x)
+ #define DSI_DELAY_LENGTH_MASK		GENMASK(31, 12)
  #define DSI_DELAY_LENGTH(x)		UPDATE(x, 31, 12)
  #define DSI_HSA(x)			UPDATE(x, 11, 0)
 
@@ -548,6 +549,37 @@ static int rkx110_linktx_input_port_cfg(struct rk_serdes *serdes, u8 dev_id, u32
 
 	val = rk_serdes_get_stream_source(serdes, port);
 	serdes->i2c_update_bits(client, RKLINK_TX_VIDEO_CTRL, SOURCE_ID_MASK, val);
+
+	return 0;
+}
+
+int rkx110_linktx_dsi_rec_start(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id, bool enable)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, SER_RKLINK_DSI_REC0(dsi_id), DSI_REC_START,
+				enable ? DSI_REC_START : 0);
+
+	return 0;
+}
+
+int rkx110_linktx_dsi_type_select(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id, bool is_cmd)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, SER_RKLINK_DSI_REC0(dsi_id), DSI_CMD_TYPE,
+				is_cmd ? DSI_CMD_TYPE : 0);
+
+	return 0;
+}
+
+int rkx110_linktx_dsi_deley_length_config(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id,
+					  u32 length)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, SER_RKLINK_DSI_REC3(dsi_id), DSI_DELAY_LENGTH_MASK,
+				DSI_DELAY_LENGTH(length));
 
 	return 0;
 }

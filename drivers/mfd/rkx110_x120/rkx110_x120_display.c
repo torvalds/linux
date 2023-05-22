@@ -67,7 +67,7 @@ int rk_serdes_display_route_prepare(struct rk_serdes *serdes, struct rk_serdes_r
 	return 0;
 }
 
-static int rk_serdes_display_video_start(struct rk_serdes *serdes,
+int rk_serdes_display_video_start(struct rk_serdes *serdes,
 					 struct rk_serdes_route *route, bool enable)
 {
 	if (route->local_port0) {

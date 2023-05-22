@@ -13,7 +13,7 @@
 #include <linux/i2c.h>
 #include <video/videomode.h>
 
-#define MAX_PANEL 2
+#define RK_SERDES_MAX_ROUTE		2
 #define RK_SERDES_PASSTHROUGH_CNT	11
 
 #define SERDES_VERSION_V0(type)		0x2201
@@ -237,9 +237,11 @@ struct rk_serdes_chip {
 struct pattern_gen {
 	const char *name;
 	struct rk_serdes_chip *chip;
+	struct rk_serdes_route *route;
 	u32 base;
 	u32 link_src_reg;
 	u8 link_src_offset;
+	u8 type;
 };
 
 struct rk_serdes_pt_pin {
@@ -283,7 +285,7 @@ struct rk_serdes {
 	struct dentry *debugfs_remote1;
 	struct dentry *debugfs_rate;
 
-	struct videomode *vm;
+	struct rk_serdes_route *route[RK_SERDES_MAX_ROUTE];
 	u32 stream_type;
 	u32 version;
 	u8 remote_nr;
@@ -384,4 +386,9 @@ int rkx110_irq_handler(struct rk_serdes *serdes, u8 dev_id);
 void rkx120_irq_enable(struct rk_serdes *serdes, u8 dev_id);
 void rkx120_irq_disable(struct rk_serdes *serdes, u8 dev_id);
 int rkx120_irq_handler(struct rk_serdes *serdes, u8 dev_id);
+
+int rkx110_linktx_dsi_rec_start(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id, bool enable);
+int rkx110_linktx_dsi_type_select(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id, bool is_cmd);
+int rkx110_linktx_dsi_deley_length_config(struct rk_serdes *serdes, u8 dev_id, u8 dsi_id,
+					  u32 length);
 #endif

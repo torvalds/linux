@@ -15,21 +15,30 @@ static struct pattern_gen rkx110_pattern_gen[] = {
 		.base = RKX110_PATTERN_GEN_DSI0_BASE,
 		.link_src_reg = SER_GRF_SOC_CON4,
 		.link_src_offset = 12,
+		.type = RK_SERDES_DSI_RX0,
 	}, {
 		.name = "dsi1",
 		.base = RKX110_PATTERN_GEN_DSI1_BASE,
 		.link_src_reg = SER_GRF_SOC_CON4,
 		.link_src_offset = 13,
+		.type = RK_SERDES_DSI_RX1,
+	}, {
+		.name = "dual-lvds",
+		.link_src_reg = SER_GRF_SOC_CON1,
+		.link_src_offset = 14,
+		.type = RK_SERDES_DUAL_LVDS_RX,
 	}, {
 		.name = "lvds0",
 		.base = RKX110_PATTERN_GEN_LVDS0_BASE,
 		.link_src_reg = SER_GRF_SOC_CON4,
 		.link_src_offset = 14,
+		.type = RK_SERDES_LVDS_RX0,
 	}, {
 		.name = "lvds1",
 		.base = RKX110_PATTERN_GEN_LVDS1_BASE,
 		.link_src_reg = SER_GRF_SOC_CON4,
 		.link_src_offset = 15,
+		.type = RK_SERDES_LVDS_RX1,
 	},
 	{ /* sentinel */ }
 };

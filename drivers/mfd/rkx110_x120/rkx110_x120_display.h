@@ -13,5 +13,7 @@ int rk_serdes_display_route_enable(struct rk_serdes *serdes, struct rk_serdes_ro
 int rk_serdes_display_route_disable(struct rk_serdes *serdes, struct rk_serdes_route *route);
 int rk_serdes_display_route_unprepare(struct rk_serdes *serdes, struct rk_serdes_route *route);
 int rk_serdes_display_route_init(struct  rk_serdes *serdes);
+int rk_serdes_display_video_start(struct rk_serdes *serdes,
+					 struct rk_serdes_route *route, bool enable);
 
 #endif

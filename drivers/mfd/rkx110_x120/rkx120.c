@@ -21,16 +21,24 @@ static struct pattern_gen rkx120_pattern_gen[] = {
 		.base = RKX120_PATTERN_GEN_DSI_BASE,
 		.link_src_reg = DES_GRF_SOC_CON2,
 		.link_src_offset = 12,
+		.type = RK_SERDES_DSI_TX0,
+	}, {
+		.name = "dual-lvds",
+		.link_src_reg = DES_GRF_SOC_CON1,
+		.link_src_offset = 14,
+		.type = RK_SERDES_DUAL_LVDS_TX,
 	}, {
 		.name = "lvds0",
 		.base = RKX120_PATTERN_GEN_LVDS0_BASE,
 		.link_src_reg = DES_GRF_SOC_CON2,
 		.link_src_offset = 13,
+		.type = RK_SERDES_LVDS_TX0,
 	}, {
 		.name = "lvds1",
 		.base = RKX120_PATTERN_GEN_LVDS1_BASE,
 		.link_src_reg = DES_GRF_SOC_CON2,
 		.link_src_offset = 14,
+		.type = RK_SERDES_LVDS_TX1,
 	},
 	{ /* sentinel */ }
 };
@@ -236,8 +244,13 @@ static const struct file_operations rkx120_reg_fops = {
 void rkx120_debugfs_init(struct rk_serdes_chip *chip, struct dentry *dentry)
 {
 	const struct rk_serdes_reg *regs = rkx120_regs;
-	struct pattern_gen *pattern_gen = rkx120_pattern_gen;
+	struct pattern_gen *pattern_gen;
 	struct dentry *dir;
+
+	pattern_gen = devm_kmemdup(chip->serdes->dev, &rkx120_pattern_gen,
+				   sizeof(rkx120_pattern_gen), GFP_KERNEL);
+	if (!pattern_gen)
+		return;
 
 	dir = debugfs_create_dir("registers", dentry);
 	if (!IS_ERR(dir)) {

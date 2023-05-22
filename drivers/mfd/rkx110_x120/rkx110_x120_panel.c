@@ -693,11 +693,15 @@ static int serdes_panel_probe(struct platform_device *pdev)
 	if (sd_panel->route.route_flag & ROUTE_MULTI_CHANNEL)
 		serdes->channel_nr = 2;
 
-	if (sd_panel->route.local_port0 && sd_panel->id == 0)
+	if (sd_panel->route.local_port0 && sd_panel->id == 0) {
+		serdes->route[0] = &sd_panel->route;
 		serdes->route_nr++;
+	}
 
-	if (sd_panel->route.local_port1 && sd_panel->id == 1)
+	if (sd_panel->route.local_port1 && sd_panel->id == 1) {
+		serdes->route[1] = &sd_panel->route;
 		serdes->route_nr++;
+	}
 
 	if (serdes->route_nr == 2)
 		serdes->channel_nr = 2;
