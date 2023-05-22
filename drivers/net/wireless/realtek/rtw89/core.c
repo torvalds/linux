@@ -1806,27 +1806,27 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 	u8 shift_len, drv_info_len;
 
 	rxd_s = (struct rtw89_rxdesc_short *)(data + data_offset);
-	desc_info->pkt_size = RTW89_GET_RXWD_PKT_SIZE(rxd_s);
-	desc_info->drv_info_size = RTW89_GET_RXWD_DRV_INFO_SIZE(rxd_s);
-	desc_info->long_rxdesc = RTW89_GET_RXWD_LONG_RXD(rxd_s);
-	desc_info->pkt_type = RTW89_GET_RXWD_RPKT_TYPE(rxd_s);
-	desc_info->mac_info_valid = RTW89_GET_RXWD_MAC_INFO_VALID(rxd_s);
+	desc_info->pkt_size = le32_get_bits(rxd_s->dword0, AX_RXD_RPKT_LEN_MASK);
+	desc_info->drv_info_size = le32_get_bits(rxd_s->dword0, AX_RXD_DRV_INFO_SIZE_MASK);
+	desc_info->long_rxdesc = le32_get_bits(rxd_s->dword0,  AX_RXD_LONG_RXD);
+	desc_info->pkt_type = le32_get_bits(rxd_s->dword0,  AX_RXD_RPKT_TYPE_MASK);
+	desc_info->mac_info_valid = le32_get_bits(rxd_s->dword0, AX_RXD_MAC_INFO_VLD);
 	if (chip->chip_id == RTL8852C)
-		desc_info->bw = RTW89_GET_RXWD_BW_V1(rxd_s);
+		desc_info->bw = le32_get_bits(rxd_s->dword1, AX_RXD_BW_v1_MASK);
 	else
-		desc_info->bw = RTW89_GET_RXWD_BW(rxd_s);
-	desc_info->data_rate = RTW89_GET_RXWD_DATA_RATE(rxd_s);
-	desc_info->gi_ltf = RTW89_GET_RXWD_GI_LTF(rxd_s);
-	desc_info->user_id = RTW89_GET_RXWD_USER_ID(rxd_s);
-	desc_info->sr_en = RTW89_GET_RXWD_SR_EN(rxd_s);
-	desc_info->ppdu_cnt = RTW89_GET_RXWD_PPDU_CNT(rxd_s);
-	desc_info->ppdu_type = RTW89_GET_RXWD_PPDU_TYPE(rxd_s);
-	desc_info->free_run_cnt = RTW89_GET_RXWD_FREE_RUN_CNT(rxd_s);
-	desc_info->icv_err = RTW89_GET_RXWD_ICV_ERR(rxd_s);
-	desc_info->crc32_err = RTW89_GET_RXWD_CRC32_ERR(rxd_s);
-	desc_info->hw_dec = RTW89_GET_RXWD_HW_DEC(rxd_s);
-	desc_info->sw_dec = RTW89_GET_RXWD_SW_DEC(rxd_s);
-	desc_info->addr1_match = RTW89_GET_RXWD_A1_MATCH(rxd_s);
+		desc_info->bw = le32_get_bits(rxd_s->dword1, AX_RXD_BW_MASK);
+	desc_info->data_rate = le32_get_bits(rxd_s->dword1, AX_RXD_RX_DATARATE_MASK);
+	desc_info->gi_ltf = le32_get_bits(rxd_s->dword1, AX_RXD_RX_GI_LTF_MASK);
+	desc_info->user_id = le32_get_bits(rxd_s->dword1, AX_RXD_USER_ID_MASK);
+	desc_info->sr_en = le32_get_bits(rxd_s->dword1, AX_RXD_SR_EN);
+	desc_info->ppdu_cnt = le32_get_bits(rxd_s->dword1, AX_RXD_PPDU_CNT_MASK);
+	desc_info->ppdu_type = le32_get_bits(rxd_s->dword1, AX_RXD_PPDU_TYPE_MASK);
+	desc_info->free_run_cnt = le32_get_bits(rxd_s->dword2, AX_RXD_FREERUN_CNT_MASK);
+	desc_info->icv_err = le32_get_bits(rxd_s->dword3, AX_RXD_ICV_ERR);
+	desc_info->crc32_err = le32_get_bits(rxd_s->dword3, AX_RXD_CRC32_ERR);
+	desc_info->hw_dec = le32_get_bits(rxd_s->dword3, AX_RXD_HW_DEC);
+	desc_info->sw_dec = le32_get_bits(rxd_s->dword3, AX_RXD_SW_DEC);
+	desc_info->addr1_match = le32_get_bits(rxd_s->dword3, AX_RXD_A1_MATCH);
 
 	shift_len = desc_info->shift << 1; /* 2-byte unit */
 	drv_info_len = desc_info->drv_info_size << 3; /* 8-byte unit */
@@ -1841,12 +1841,12 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 		return;
 
 	rxd_l = (struct rtw89_rxdesc_long *)(data + data_offset);
-	desc_info->frame_type = RTW89_GET_RXWD_TYPE(rxd_l);
-	desc_info->addr_cam_valid = RTW89_GET_RXWD_ADDR_CAM_VLD(rxd_l);
-	desc_info->addr_cam_id = RTW89_GET_RXWD_ADDR_CAM_ID(rxd_l);
-	desc_info->sec_cam_id = RTW89_GET_RXWD_SEC_CAM_ID(rxd_l);
-	desc_info->mac_id = RTW89_GET_RXWD_MAC_ID(rxd_l);
-	desc_info->rx_pl_id = RTW89_GET_RXWD_RX_PL_ID(rxd_l);
+	desc_info->frame_type = le32_get_bits(rxd_l->dword4, AX_RXD_TYPE_MASK);
+	desc_info->addr_cam_valid = le32_get_bits(rxd_l->dword5, AX_RXD_ADDR_CAM_VLD);
+	desc_info->addr_cam_id = le32_get_bits(rxd_l->dword5, AX_RXD_ADDR_CAM_MASK);
+	desc_info->sec_cam_id = le32_get_bits(rxd_l->dword5, AX_RXD_SEC_CAM_IDX_MASK);
+	desc_info->mac_id = le32_get_bits(rxd_l->dword5, AX_RXD_MAC_ID_MASK);
+	desc_info->rx_pl_id = le32_get_bits(rxd_l->dword5, AX_RXD_RX_PL_ID_MASK);
 }
 EXPORT_SYMBOL(rtw89_core_query_rxdesc);
 
