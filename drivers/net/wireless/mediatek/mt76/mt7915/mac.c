@@ -1407,8 +1407,12 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 
 	if (dev_is_pci(mdev->dev)) {
 		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
-		if (dev->hif2)
-			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0x0);
+		if (dev->hif2) {
+			if (is_mt7915(mdev))
+				mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0x0);
+			else
+				mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE_MT7916, 0x0);
+		}
 	}
 
 	set_bit(MT76_RESET, &dev->mphy.state);
@@ -1458,8 +1462,12 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 	}
 	if (dev_is_pci(mdev->dev)) {
 		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
-		if (dev->hif2)
-			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
+		if (dev->hif2) {
+			if (is_mt7915(mdev))
+				mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
+			else
+				mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE_MT7916, 0xff);
+		}
 	}
 
 	/* load firmware */
@@ -1629,6 +1637,12 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		mt7915_wait_reset_state(dev, MT_MCU_CMD_RECOVERY_DONE);
 	}
 
+	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
+	mt7915_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
+
+	/* enable DMA Tx/Rx and interrupt */
+	mt7915_dma_start(dev, false, false);
+
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);
 	if (phy2)
@@ -1642,9 +1656,6 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	local_bh_enable();
 
 	tasklet_schedule(&dev->mt76.irq_tasklet);
-
-	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
-	mt7915_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
