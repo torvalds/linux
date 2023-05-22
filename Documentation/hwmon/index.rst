@@ -77,6 +77,7 @@ Hardware Monitoring Kernel Drivers
    gl518sm
    gxp-fan-ctrl
    hih6130
+   hp-wmi-sensors
    ibmaem
    ibm-cffps
    ibmpowernv

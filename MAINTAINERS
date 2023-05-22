@@ -9425,6 +9425,13 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
 F:	drivers/platform/x86/hp/tc1100-wmi.c
 
+HP WMI HARDWARE MONITOR DRIVER
+M:	James Seo <james@equiv.tech>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/hp-wmi-sensors.rst
+F:	drivers/hwmon/hp-wmi-sensors.c
+
 HPET:	High Precision Event Timers driver
 M:	Clemens Ladisch <clemens@ladisch.de>
 S:	Maintained
