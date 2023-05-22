@@ -34,20 +34,14 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type);
  * bits 31-32		has write waiters
  */
 
-#define SIX_STATE_READ_OFFSET		0
-#define SIX_STATE_READ_BITS		26
-
-#define SIX_STATE_READ_LOCK		~(~0U << 26)
-#define SIX_STATE_INTENT_HELD		(1U << 26)
-#define SIX_STATE_WRITE_LOCK		(1U << 27)
-#define SIX_STATE_NOSPIN		(1U << 28)
-#define SIX_STATE_WAITING_READ		(1U << (29 + SIX_LOCK_read))
-#define SIX_STATE_WAITING_INTENT	(1U << (29 + SIX_LOCK_intent))
-#define SIX_STATE_WAITING_WRITE		(1U << (29 + SIX_LOCK_write))
-
-#define SIX_LOCK_HELD_read		SIX_STATE_READ_LOCK
-#define SIX_LOCK_HELD_intent		SIX_STATE_INTENT_HELD
-#define SIX_LOCK_HELD_write		SIX_STATE_WRITE_LOCK
+#define SIX_LOCK_HELD_read_OFFSET	0
+#define SIX_LOCK_HELD_read		~(~0U << 26)
+#define SIX_LOCK_HELD_intent		(1U << 26)
+#define SIX_LOCK_HELD_write		(1U << 27)
+#define SIX_LOCK_WAITING_read		(1U << (28 + SIX_LOCK_read))
+#define SIX_LOCK_WAITING_intent		(1U << (28 + SIX_LOCK_intent))
+#define SIX_LOCK_WAITING_write		(1U << (28 + SIX_LOCK_write))
+#define SIX_LOCK_NOSPIN			(1U << 31)
 
 struct six_lock_vals {
 	/* Value we add to the lock in order to take the lock: */
@@ -65,13 +59,13 @@ struct six_lock_vals {
 
 static const struct six_lock_vals l[] = {
 	[SIX_LOCK_read] = {
-		.lock_val	= 1U << SIX_STATE_READ_OFFSET,
+		.lock_val	= 1U << SIX_LOCK_HELD_read_OFFSET,
 		.lock_fail	= SIX_LOCK_HELD_write,
 		.held_mask	= SIX_LOCK_HELD_read,
 		.unlock_wakeup	= SIX_LOCK_write,
 	},
 	[SIX_LOCK_intent] = {
-		.lock_val	= SIX_STATE_INTENT_HELD,
+		.lock_val	= SIX_LOCK_HELD_intent,
 		.lock_fail	= SIX_LOCK_HELD_intent,
 		.held_mask	= SIX_LOCK_HELD_intent,
 		.unlock_wakeup	= SIX_LOCK_intent,
@@ -137,7 +131,7 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 
 	EBUG_ON(type == SIX_LOCK_write && lock->owner != task);
 	EBUG_ON(type == SIX_LOCK_write &&
-		(try != !(atomic_read(&lock->state) & SIX_STATE_WRITE_LOCK)));
+		(try != !(atomic_read(&lock->state) & SIX_LOCK_HELD_write)));
 
 	/*
 	 * Percpu reader mode:
@@ -178,19 +172,19 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		this_cpu_sub(*lock->readers, !ret);
 		preempt_enable();
 
-		if (!ret && (old & SIX_STATE_WAITING_WRITE))
+		if (!ret && (old & SIX_LOCK_WAITING_write))
 			ret = -1 - SIX_LOCK_write;
 	} else if (type == SIX_LOCK_write && lock->readers) {
 		if (try) {
-			atomic_add(SIX_STATE_WRITE_LOCK, &lock->state);
+			atomic_add(SIX_LOCK_HELD_write, &lock->state);
 			smp_mb__after_atomic();
 		}
 
 		ret = !pcpu_read_count(lock);
 
 		if (try && !ret) {
-			old = atomic_sub_return(SIX_STATE_WRITE_LOCK, &lock->state);
-			if (old & SIX_STATE_WAITING_READ)
+			old = atomic_sub_return(SIX_LOCK_HELD_write, &lock->state);
+			if (old & SIX_LOCK_WAITING_read)
 				ret = -1 - SIX_LOCK_read;
 		}
 	} else {
@@ -200,8 +194,10 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 
 			ret = !(old & l[type].lock_fail);
 
-			if (!ret || (type == SIX_LOCK_write && !try))
+			if (!ret || (type == SIX_LOCK_write && !try)) {
+				smp_mb();
 				break;
+			}
 
 			new += l[type].lock_val;
 		} while ((v = atomic_cmpxchg_acquire(&lock->state, old, new)) != old);
@@ -213,7 +209,7 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		six_set_owner(lock, type, old, task);
 
 	EBUG_ON(type == SIX_LOCK_write && try && ret <= 0 &&
-		(atomic_read(&lock->state) & SIX_STATE_WRITE_LOCK));
+		(atomic_read(&lock->state) & SIX_LOCK_HELD_write));
 
 	return ret;
 }
@@ -252,7 +248,7 @@ again:
 		wake_up_process(task);
 	}
 
-	six_clear_bitmask(lock, SIX_STATE_WAITING_READ << lock_type);
+	six_clear_bitmask(lock, SIX_LOCK_WAITING_read << lock_type);
 unlock:
 	raw_spin_unlock(&lock->wait_lock);
 
@@ -269,7 +265,7 @@ static void six_lock_wakeup(struct six_lock *lock, u32 state,
 	if (lock_type == SIX_LOCK_write && (state & SIX_LOCK_HELD_read))
 		return;
 
-	if (!(state & (SIX_STATE_WAITING_READ << lock_type)))
+	if (!(state & (SIX_LOCK_WAITING_read << lock_type)))
 		return;
 
 	__six_lock_wakeup(lock, lock_type);
@@ -372,7 +368,7 @@ static inline bool six_spin_on_owner(struct six_lock *lock,
 		}
 
 		if (!(++loop & 0xf) && (time_after64(sched_clock(), end_time))) {
-			six_set_bitmask(lock, SIX_STATE_NOSPIN);
+			six_set_bitmask(lock, SIX_LOCK_NOSPIN);
 			ret = false;
 			break;
 		}
@@ -470,8 +466,8 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 	int ret = 0;
 
 	if (type == SIX_LOCK_write) {
-		EBUG_ON(atomic_read(&lock->state) & SIX_STATE_WRITE_LOCK);
-		atomic_add(SIX_STATE_WRITE_LOCK, &lock->state);
+		EBUG_ON(atomic_read(&lock->state) & SIX_LOCK_HELD_write);
+		atomic_add(SIX_LOCK_HELD_write, &lock->state);
 		smp_mb__after_atomic();
 	}
 
@@ -485,7 +481,7 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 	wait->lock_acquired	= false;
 
 	raw_spin_lock(&lock->wait_lock);
-	six_set_bitmask(lock, SIX_STATE_WAITING_READ << type);
+	six_set_bitmask(lock, SIX_LOCK_WAITING_read << type);
 	/*
 	 * Retry taking the lock after taking waitlist lock, in case we raced
 	 * with an unlock:
@@ -530,7 +526,7 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 				list_del(&wait->list);
 			raw_spin_unlock(&lock->wait_lock);
 
-			if (wait->lock_acquired)
+			if (unlikely(wait->lock_acquired))
 				do_six_unlock_type(lock, type);
 			break;
 		}
@@ -541,7 +537,7 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 	__set_current_state(TASK_RUNNING);
 out:
 	if (ret && type == SIX_LOCK_write) {
-		six_clear_bitmask(lock, SIX_STATE_WRITE_LOCK);
+		six_clear_bitmask(lock, SIX_LOCK_HELD_write);
 		six_lock_wakeup(lock, old, SIX_LOCK_read);
 	}
 
@@ -620,7 +616,7 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 		u32 v = l[type].lock_val;
 
 		if (type != SIX_LOCK_read)
-			v += atomic_read(&lock->state) & SIX_STATE_NOSPIN;
+			v += atomic_read(&lock->state) & SIX_LOCK_NOSPIN;
 
 		EBUG_ON(!(atomic_read(&lock->state) & l[type].held_mask));
 		state = atomic_sub_return_release(v, &lock->state);
@@ -821,7 +817,7 @@ struct six_lock_count six_lock_counts(struct six_lock *lock)
 	struct six_lock_count ret;
 
 	ret.n[SIX_LOCK_read]	= !lock->readers
-		? atomic_read(&lock->state) & SIX_STATE_READ_LOCK
+		? atomic_read(&lock->state) & SIX_LOCK_HELD_read
 		: pcpu_read_count(lock);
 	ret.n[SIX_LOCK_intent]	= !!(atomic_read(&lock->state) & SIX_LOCK_HELD_intent) +
 		lock->intent_lock_recurse;
@@ -856,7 +852,7 @@ void six_lock_readers_add(struct six_lock *lock, int nr)
 	if (lock->readers) {
 		this_cpu_add(*lock->readers, nr);
 	} else {
-		EBUG_ON((int) (atomic_read(&lock->state) & SIX_STATE_READ_LOCK) + nr < 0);
+		EBUG_ON((int) (atomic_read(&lock->state) & SIX_LOCK_HELD_read) + nr < 0);
 		/* reader count starts at bit 0 */
 		atomic_add(nr, &lock->state);
 	}
