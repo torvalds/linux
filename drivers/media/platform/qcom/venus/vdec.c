@@ -736,6 +736,9 @@ static int vdec_set_work_route(struct venus_inst *inst)
 }
 
 #define is_ubwc_fmt(fmt) (!!((fmt) & HFI_COLOR_FORMAT_UBWC_BASE))
+#define is_10bit_ubwc_fmt(fmt) (!!((fmt) & HFI_COLOR_FORMAT_10_BIT_BASE & \
+				 HFI_COLOR_FORMAT_UBWC_BASE))
+
 
 static int vdec_output_conf(struct venus_inst *inst)
 {
@@ -783,7 +786,7 @@ static int vdec_output_conf(struct venus_inst *inst)
 		inst->opb_fmt = out2_fmt;
 		inst->dpb_buftype = HFI_BUFFER_OUTPUT;
 		inst->dpb_fmt = out_fmt;
-	} else if (is_ubwc_fmt(out2_fmt)) {
+	} else if (is_ubwc_fmt(out2_fmt) || is_10bit_ubwc_fmt(out_fmt)) {
 		inst->opb_buftype = HFI_BUFFER_OUTPUT;
 		inst->opb_fmt = out_fmt;
 		inst->dpb_buftype = HFI_BUFFER_OUTPUT2;
