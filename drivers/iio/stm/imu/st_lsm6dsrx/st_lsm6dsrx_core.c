@@ -1971,10 +1971,10 @@ static int __maybe_unused st_lsm6dsrx_suspend(struct device *dev)
 	int i, err = 0;
 
 	for (i = 0; i < ST_LSM6DSRX_ID_MAX; i++) {
-		sensor = iio_priv(hw->iio_devs[i]);
 		if (!hw->iio_devs[i])
 			continue;
 
+		sensor = iio_priv(hw->iio_devs[i]);
 		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
 			continue;
 
@@ -2027,10 +2027,10 @@ static int __maybe_unused st_lsm6dsrx_resume(struct device *dev)
 		return err;
 
 	for (i = 0; i < ST_LSM6DSRX_ID_MAX; i++) {
-		sensor = iio_priv(hw->iio_devs[i]);
 		if (!hw->iio_devs[i])
 			continue;
 
+		sensor = iio_priv(hw->iio_devs[i]);
 		if (hw->enable_mask & BIT_ULL(sensor->id)) {
 			err = st_lsm6dsrx_set_odr(sensor, sensor->odr,
 						  sensor->uodr);
