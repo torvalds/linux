@@ -18,7 +18,9 @@
 #include "clk-aspeed.h"
 
 #define FPGA
-#define AST2700_CLK_IN 25000000
+#define AST2700_CLK_25MHZ 25000000
+#define AST2700_CLK_24MHZ 24000000
+#define AST2700_CLK_192MHZ 192000000
 
 ////////CPU Die
 #define AST2700_CPU_RESET_CTRL 0x00
@@ -336,6 +338,11 @@ static const char *const sdclk_sel[] = {
 	"io-apll_divn",
 };
 
+static const char *const cpu_uartclk_sel[] = {
+	"cpu-clk24Mhz",
+	"cpu-clk192Mhz",
+};
+
 static const char *const uartclk_sel[] = {
 	"uxclk",
 	"huxclk",
@@ -369,7 +376,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	if (WARN_ON(IS_ERR(clk_base)))
 		return PTR_ERR(clk_base);
 
-	hw = clk_hw_register_fixed_rate(dev, "io-clkin", NULL, 0, AST2700_CLK_IN);
+	hw = clk_hw_register_fixed_rate(dev, "io-clkin", NULL, 0, AST2700_CLK_25MHZ);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clks[AST2700_IO_CLKIN] = hw;
@@ -793,7 +800,13 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 
 	//refclk
 	clks[AST2700_CPU_CLKIN] =
-		clk_hw_register_fixed_rate(dev, "cpu-clkin", NULL, 0, AST2700_CLK_IN);
+		clk_hw_register_fixed_rate(dev, "cpu-clkin", NULL, 0, AST2700_CLK_25MHZ);
+
+	clks[AST2700_CPU_CLK_24M] =
+		clk_hw_register_fixed_rate(dev, "cpu-clk24Mhz", NULL, 0, AST2700_CLK_24MHZ);
+
+	clks[AST2700_CPU_CLK_192M] =
+		clk_hw_register_fixed_rate(dev, "cpu-clk192Mhz", NULL, 0, AST2700_CLK_192MHZ);
 
 	//hpll
 	val = readl(clk_base + AST2700_CPU_HPLL_PARAM);
@@ -871,7 +884,7 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 					     5, 0, &ast2700_clk_lock);
 
 	clks[AST2700_CPU_CLK_GATE_REFCLK] =
-		ast2700_clk_hw_register_gate(NULL, "cpu-refclk-gate", "clkin",
+		ast2700_clk_hw_register_gate(NULL, "cpu-refclk-gate", "cpu-clkin",
 					     CLK_IS_CRITICAL, clk_base + AST2700_CPU_CLK_STOP,
 					     6, 0, &ast2700_clk_lock);
 
@@ -900,13 +913,18 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST2700_CPU_CLK_STOP,
 					     14, 0, &ast2700_clk_lock);
 
+	clks[AST2700_CPU_CLK_UART] =
+		clk_hw_register_mux(dev, "cpu-uartclk", cpu_uartclk_sel, ARRAY_SIZE(cpu_uartclk_sel),
+				    0, clk_base + AST2700_CPU_CLK_SEL2,
+				    14, 1, 0, &ast2700_clk_lock);
+
 	if (readl(clk_base + AST2700_CPU_CLK_SEL2) & UART_DIV13_EN)
 		div = 13;
 	else
 		div = 1;
 
-	clks[AST2700_CPU_CLK_UART5] =
-		clk_hw_register_fixed_factor(NULL, "uart5clk", "clkin", 0, 1, div);
+	clks[AST2700_CPU_CLK_UART4] =
+		clk_hw_register_fixed_factor(NULL, "uart4clk", "cpu-uartclk", 0, 1, div);
 
 	clks[AST2700_CPU_CLK_GATE_UART4CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart4clk-gate", "uart4clk",
