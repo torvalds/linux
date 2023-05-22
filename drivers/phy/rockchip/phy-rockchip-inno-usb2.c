@@ -53,6 +53,7 @@ enum rockchip_usb2phy_host_state {
 	PHY_STATE_DISCONNECT	= 1,
 	PHY_STATE_CONNECT	= 2,
 	PHY_STATE_FS_LS_ONLINE	= 4,
+	PHY_STATE_SE1		= 6,
 };
 
 /**
@@ -1645,6 +1646,15 @@ static void rockchip_usb2phy_sm_work(struct work_struct *work)
 		} else {
 			/* D+ line pull-up, D- line pull-down */
 			dev_dbg(&rport->phy->dev, "FS/LS online\n");
+		}
+		break;
+	case PHY_STATE_SE1:
+		if (rport->suspended) {
+			dev_dbg(&rport->phy->dev, "linestate is SE1, power on phy\n");
+			mutex_unlock(&rport->mutex);
+			rockchip_usb2phy_power_on(rport->phy);
+			mutex_lock(&rport->mutex);
+			rport->suspended = false;
 		}
 		break;
 	case PHY_STATE_DISCONNECT:
