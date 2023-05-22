@@ -684,7 +684,7 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 /**************************************************************
  * Scheduling class statistics methods:
  */
-#ifdef CONFIG_SMP
+
 int sched_update_scaling(void)
 {
 	unsigned int factor = get_update_sysctl_factor();
@@ -701,7 +701,6 @@ int sched_update_scaling(void)
 
 	return 0;
 }
-#endif
 #endif
 
 /*
@@ -6169,8 +6168,9 @@ static inline int throttled_lb_pair(struct task_group *tg,
 	return 0;
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
 void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b) {}
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
 static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq) {}
 #endif
 
