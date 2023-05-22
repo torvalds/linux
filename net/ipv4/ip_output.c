@@ -946,17 +946,6 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 }
 EXPORT_SYMBOL(ip_generic_getfrag);
 
-static inline __wsum
-csum_page(struct page *page, int offset, int copy)
-{
-	char *kaddr;
-	__wsum csum;
-	kaddr = kmap(page);
-	csum = csum_partial(kaddr + offset, copy, 0);
-	kunmap(page);
-	return csum;
-}
-
 static int __ip_append_data(struct sock *sk,
 			    struct flowi4 *fl4,
 			    struct sk_buff_head *queue,
@@ -1327,10 +1316,10 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 }
 
 /*
- *	ip_append_data() and ip_append_page() can make one large IP datagram
- *	from many pieces of data. Each pieces will be holded on the socket
- *	until ip_push_pending_frames() is called. Each piece can be a page
- *	or non-page data.
+ *	ip_append_data() can make one large IP datagram from many pieces of
+ *	data.  Each piece will be held on the socket until
+ *	ip_push_pending_frames() is called. Each piece can be a page or
+ *	non-page data.
  *
  *	Not only UDP, other transport protocols - e.g. raw sockets - can use
  *	this interface potentially.
@@ -1361,135 +1350,6 @@ int ip_append_data(struct sock *sk, struct flowi4 *fl4,
 	return __ip_append_data(sk, fl4, &sk->sk_write_queue, &inet->cork.base,
 				sk_page_frag(sk), getfrag,
 				from, length, transhdrlen, flags);
-}
-
-ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
-		       int offset, size_t size, int flags)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct sk_buff *skb;
-	struct rtable *rt;
-	struct ip_options *opt = NULL;
-	struct inet_cork *cork;
-	int hh_len;
-	int mtu;
-	int len;
-	int err;
-	unsigned int maxfraglen, fragheaderlen, fraggap, maxnonfragsize;
-
-	if (inet->hdrincl)
-		return -EPERM;
-
-	if (flags&MSG_PROBE)
-		return 0;
-
-	if (skb_queue_empty(&sk->sk_write_queue))
-		return -EINVAL;
-
-	cork = &inet->cork.base;
-	rt = (struct rtable *)cork->dst;
-	if (cork->flags & IPCORK_OPT)
-		opt = cork->opt;
-
-	if (!(rt->dst.dev->features & NETIF_F_SG))
-		return -EOPNOTSUPP;
-
-	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
-	mtu = cork->gso_size ? IP_MAX_MTU : cork->fragsize;
-
-	fragheaderlen = sizeof(struct iphdr) + (opt ? opt->optlen : 0);
-	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
-	maxnonfragsize = ip_sk_ignore_df(sk) ? 0xFFFF : mtu;
-
-	if (cork->length + size > maxnonfragsize - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport,
-			       mtu - (opt ? opt->optlen : 0));
-		return -EMSGSIZE;
-	}
-
-	skb = skb_peek_tail(&sk->sk_write_queue);
-	if (!skb)
-		return -EINVAL;
-
-	cork->length += size;
-
-	while (size > 0) {
-		/* Check if the remaining data fits into current packet. */
-		len = mtu - skb->len;
-		if (len < size)
-			len = maxfraglen - skb->len;
-
-		if (len <= 0) {
-			struct sk_buff *skb_prev;
-			int alloclen;
-
-			skb_prev = skb;
-			fraggap = skb_prev->len - maxfraglen;
-
-			alloclen = fragheaderlen + hh_len + fraggap + 15;
-			skb = sock_wmalloc(sk, alloclen, 1, sk->sk_allocation);
-			if (unlikely(!skb)) {
-				err = -ENOBUFS;
-				goto error;
-			}
-
-			/*
-			 *	Fill in the control structures
-			 */
-			skb->ip_summed = CHECKSUM_NONE;
-			skb->csum = 0;
-			skb_reserve(skb, hh_len);
-
-			/*
-			 *	Find where to start putting bytes.
-			 */
-			skb_put(skb, fragheaderlen + fraggap);
-			skb_reset_network_header(skb);
-			skb->transport_header = (skb->network_header +
-						 fragheaderlen);
-			if (fraggap) {
-				skb->csum = skb_copy_and_csum_bits(skb_prev,
-								   maxfraglen,
-						    skb_transport_header(skb),
-								   fraggap);
-				skb_prev->csum = csum_sub(skb_prev->csum,
-							  skb->csum);
-				pskb_trim_unique(skb_prev, maxfraglen);
-			}
-
-			/*
-			 * Put the packet on the pending queue.
-			 */
-			__skb_queue_tail(&sk->sk_write_queue, skb);
-			continue;
-		}
-
-		if (len > size)
-			len = size;
-
-		if (skb_append_pagefrags(skb, page, offset, len,
-					 MAX_SKB_FRAGS)) {
-			err = -EMSGSIZE;
-			goto error;
-		}
-
-		if (skb->ip_summed == CHECKSUM_NONE) {
-			__wsum csum;
-			csum = csum_page(page, offset, len);
-			skb->csum = csum_block_add(skb->csum, csum, skb->len);
-		}
-
-		skb_len_add(skb, len);
-		refcount_add(len, &sk->sk_wmem_alloc);
-		offset += len;
-		size -= len;
-	}
-	return 0;
-
-error:
-	cork->length -= size;
-	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
-	return err;
 }
 
 static void ip_cork_release(struct inet_cork *cork)
