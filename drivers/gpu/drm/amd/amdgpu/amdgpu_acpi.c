@@ -901,7 +901,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
  *
  * Returns ACPI STATUS OK with Node ID on success or the corresponding failure reason
  */
-acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
+static acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
 				    struct amdgpu_numa_info **numa_info)
 {
 #ifdef CONFIG_ACPI_NUMA
@@ -927,7 +927,7 @@ acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
 #endif
 }
 
-struct amdgpu_acpi_dev_info *amdgpu_acpi_get_dev(u16 bdf)
+static struct amdgpu_acpi_dev_info *amdgpu_acpi_get_dev(u16 bdf)
 {
 	struct amdgpu_acpi_dev_info *acpi_dev;
 
