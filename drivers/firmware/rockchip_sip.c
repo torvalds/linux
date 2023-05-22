@@ -471,16 +471,21 @@ static ulong cpu_logical_map_mpidr(u32 cpu)
 {
 #ifdef MODULE
 	/* Empirically, local "cpu_logical_map()" for rockchip platforms */
-	ulong mpidr = 0x00;
+	ulong mpidr = read_cpuid_mpidr();
 
-	if (cpu < 4)
-		/* 0x00, 0x01, 0x02, 0x03 */
-		mpidr = cpu;
-	else if (cpu < 8)
-		/* 0x100, 0x101, 0x102, 0x103 */
-		mpidr = 0x100 | (cpu - 4);
-	else
-		pr_err("Unsupported map cpu: %d\n", cpu);
+	if (mpidr & MPIDR_MT_BITMASK) {
+		/* 0x100, 0x200, 0x300, 0x400 ... */
+		mpidr = (cpu & 0xff) << 8;
+	} else {
+		if (cpu < 4)
+			/* 0x00, 0x01, 0x02, 0x03 */
+			mpidr = cpu;
+		else if (cpu < 8)
+			/* 0x100, 0x101, 0x102, 0x103 */
+			mpidr = 0x100 | (cpu - 4);
+		else
+			pr_err("Unsupported map cpu: %d\n", cpu);
+	}
 
 	return mpidr;
 #else
