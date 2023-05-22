@@ -448,17 +448,16 @@ static int bpf_obj_do_pin(const char __user *pathname, void *raw,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
-
-	ret = security_path_mknod(&path, dentry, mode, 0);
-	if (ret)
-		goto out;
-
 	dir = d_inode(path.dentry);
 	if (dir->i_op != &bpf_dir_iops) {
 		ret = -EPERM;
 		goto out;
 	}
+
+	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
+	ret = security_path_mknod(&path, dentry, mode, 0);
+	if (ret)
+		goto out;
 
 	switch (type) {
 	case BPF_TYPE_PROG:
