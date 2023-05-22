@@ -603,5 +603,5 @@ static ssize_t afs_file_splice_read(struct file *in, loff_t *ppos,
 	if (ret < 0)
 		return ret;
 
-	return generic_file_splice_read(in, ppos, pipe, len, flags);
+	return filemap_splice_read(in, ppos, pipe, len, flags);
 }

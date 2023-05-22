@@ -47,7 +47,7 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 /*
  * ecryptfs_splice_read_update_atime
  *
- * generic_file_splice_read updates the atime of upper layer inode.  But, it
+ * filemap_splice_read updates the atime of upper layer inode.  But, it
  * doesn't give us a chance to update the atime of the lower layer inode.  This
  * function is a wrapper to generic_file_read.  It updates the atime of the
  * lower level inode if generic_file_read returns without any errors. This is
@@ -61,7 +61,7 @@ static ssize_t ecryptfs_splice_read_update_atime(struct file *in, loff_t *ppos,
 	ssize_t rc;
 	const struct path *path;
 
-	rc = generic_file_splice_read(in, ppos, pipe, len, flags);
+	rc = filemap_splice_read(in, ppos, pipe, len, flags);
 	if (rc >= 0) {
 		path = ecryptfs_dentry_to_lower_path(in->f_path.dentry);
 		touch_atime(path);

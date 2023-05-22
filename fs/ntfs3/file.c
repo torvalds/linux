@@ -770,7 +770,7 @@ static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
 		return -EOPNOTSUPP;
 	}
 
-	return generic_file_splice_read(in, ppos, pipe, len, flags);
+	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
 
 /*

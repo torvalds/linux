@@ -155,7 +155,7 @@ static ssize_t ext4_file_splice_read(struct file *in, loff_t *ppos,
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return -EIO;
-	return generic_file_splice_read(in, ppos, pipe, len, flags);
+	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
 
 /*
