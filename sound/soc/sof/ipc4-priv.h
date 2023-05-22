@@ -28,11 +28,13 @@ enum sof_ipc4_mtrace_type {
 /**
  * struct sof_ipc4_fw_module - IPC4 module info
  * @sof_man4_module: Module info
+ * @fw_mod_cfg: Pointer to the module config start of the module
  * @m_ida: Module instance identifier
  * @private: Module private data
  */
 struct sof_ipc4_fw_module {
 	struct sof_man4_module man4_module_entry;
+	const struct sof_man4_module_config *fw_mod_cfg;
 	struct ida m_ida;
 	void *private;
 };

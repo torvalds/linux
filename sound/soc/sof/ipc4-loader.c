@@ -112,6 +112,7 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 				return -EINVAL;
 			}
 
+			fw_module->fw_mod_cfg = &fm_config[fm_entry->cfg_offset];
 
 			dev_dbg(sdev->dev,
 				"module %s: UUID %pUL cfg_count: %u, bss_size: %#x\n",
