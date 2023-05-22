@@ -497,14 +497,17 @@ struct phy_device *mdiobus_scan_c22(struct mii_bus *bus, int addr);
  * Once complete, move to UP to restart the PHY.
  * - phy_stop aborts the running test and moves to @PHY_HALTED
  *
- * @PHY_HALTED: PHY is up, but no polling or interrupts are done. Or
- * PHY is in an error state.
+ * @PHY_HALTED: PHY is up, but no polling or interrupts are done.
  * - phy_start moves to @PHY_UP
+ *
+ * @PHY_ERROR: PHY is up, but is in an error state.
+ * - phy_stop moves to @PHY_HALTED
  */
 enum phy_state {
 	PHY_DOWN = 0,
 	PHY_READY,
 	PHY_HALTED,
+	PHY_ERROR,
 	PHY_UP,
 	PHY_RUNNING,
 	PHY_NOLINK,
