@@ -13,7 +13,9 @@
 #define BOOT_LOG_SIZE    SZ_512K
 
 static char *boot_log_buf;
+static char *boot_log_pos;
 static unsigned int boot_log_buf_size;
+static unsigned int boot_log_buf_left;
 static struct kmsg_dump_iter iter;
 static struct task_struct *dump_thread;
 
@@ -22,10 +24,10 @@ int dump_thread_func(void *arg)
 	size_t text_len;
 
 	while (!kthread_should_stop()) {
-		while (kmsg_dump_get_line(&iter, true, boot_log_buf,
-			boot_log_buf_size, &text_len)) {
-			boot_log_buf += text_len;
-			boot_log_buf_size -= text_len;
+		while (kmsg_dump_get_line(&iter, true, boot_log_pos,
+			boot_log_buf_left, &text_len)) {
+			boot_log_pos += text_len;
+			boot_log_buf_left -= text_len;
 			if (text_len == 0)
 				goto out;
 		}
@@ -61,6 +63,8 @@ static int boot_log_init(void)
 
 	boot_log_buf_size = size;
 	boot_log_buf = start;
+	boot_log_pos = boot_log_buf;
+	boot_log_buf_left = boot_log_buf_size;
 
 	/*
 	 * Ensure boot_log_buf and boot_log_buf initialization
@@ -83,8 +87,8 @@ static int __init boot_log_dump_init(void)
 	kmsg_dump_rewind(&iter);
 	dumped_line = iter.next_seq;
 	kmsg_dump_get_buffer(&iter, true, boot_log_buf, boot_log_buf_size, &text_len);
-	boot_log_buf += text_len;
-	boot_log_buf_size -= text_len;
+	boot_log_pos += text_len;
+	boot_log_buf_left -= text_len;
 	iter.cur_seq = dumped_line;
 	dump_thread = kthread_run(dump_thread_func, NULL, "dump_thread");
 
