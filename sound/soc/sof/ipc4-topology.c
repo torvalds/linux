@@ -39,8 +39,6 @@ static const struct sof_topology_token pipeline_tokens[] = {
 };
 
 static const struct sof_topology_token ipc4_comp_tokens[] = {
-	{SOF_TKN_COMP_CPC, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc4_base_module_cfg, cpc)},
 	{SOF_TKN_COMP_IS_PAGES, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_base_module_cfg, is_pages)},
 };
@@ -235,7 +233,7 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 		"Number of input audio formats: %d. Number of output audio formats: %d\n",
 		available_fmt->num_input_formats, available_fmt->num_output_formats);
 
-	/* set cpc and is_pages in the module's base_config */
+	/* set is_pages in the module's base_config */
 	ret = sof_update_ipc_object(scomp, module_base_cfg, SOF_COMP_TOKENS, swidget->tuples,
 				    swidget->num_tuples, sizeof(*module_base_cfg), 1);
 	if (ret) {
@@ -244,8 +242,8 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 		return ret;
 	}
 
-	dev_dbg(scomp->dev, "widget %s cpc: %d is_pages: %d\n",
-		swidget->widget->name, module_base_cfg->cpc, module_base_cfg->is_pages);
+	dev_dbg(scomp->dev, "widget %s: is_pages: %d\n", swidget->widget->name,
+		module_base_cfg->is_pages);
 
 	if (available_fmt->num_input_formats) {
 		in_format = kcalloc(available_fmt->num_input_formats,
@@ -723,9 +721,9 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	}
 
 	dev_dbg(scomp->dev,
-		"pga widget %s: ramp type: %d, ramp duration %d, initial gain value: %#x, cpc %d\n",
+		"pga widget %s: ramp type: %d, ramp duration %d, initial gain value: %#x\n",
 		swidget->widget->name, gain->data.curve_type, gain->data.curve_duration_l,
-		gain->data.init_val, gain->base_config.cpc);
+		gain->data.init_val);
 
 	ret = sof_ipc4_widget_setup_msg(swidget, &gain->msg);
 	if (ret)
@@ -936,8 +934,8 @@ static void sof_ipc4_widget_free_comp_process(struct snd_sof_widget *swidget)
 }
 
 static void
-sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
-				   struct sof_ipc4_base_module_cfg *base_config)
+sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			       struct sof_ipc4_base_module_cfg *base_config)
 {
 	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 	struct snd_sof_widget *pipe_widget;
@@ -968,6 +966,13 @@ sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widg
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage += total;
+
+	/* Update base_config->cpc from the module manifest */
+	sof_ipc4_update_cpc_from_manifest(sdev, fw_module, base_config);
+
+	dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
+		swidget->widget->name, base_config->ibs, base_config->obs,
+		base_config->cpc);
 }
 
 static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
@@ -1711,7 +1716,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		       *data, copier_data->gtw_cfg.config_length * 4);
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &copier_data->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
 
 	return 0;
 }
@@ -1748,7 +1753,7 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &gain->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &gain->base_config);
 
 	return 0;
 }
@@ -1785,7 +1790,7 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &mixer->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &mixer->base_config);
 
 	return 0;
 }
@@ -1822,7 +1827,7 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &src->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &src->base_config);
 
 	/* update pipeline_params for sink widgets */
 	rate = hw_param_interval(pipeline_params, SNDRV_PCM_HW_PARAM_RATE);
@@ -1959,7 +1964,7 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &process->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &process->base_config);
 
 	/* ipc_config_data is composed of the base_config followed by an optional extension */
 	memcpy(cfg, &process->base_config, sizeof(struct sof_ipc4_base_module_cfg));
