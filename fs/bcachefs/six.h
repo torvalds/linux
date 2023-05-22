@@ -138,7 +138,8 @@ enum six_lock_type {
 };
 
 struct six_lock {
-	atomic64_t		state;
+	atomic_t		state;
+	u32			seq;
 	unsigned		intent_lock_recurse;
 	struct task_struct	*owner;
 	unsigned __percpu	*readers;
@@ -196,7 +197,7 @@ do {									\
  */
 static inline u32 six_lock_seq(const struct six_lock *lock)
 {
-	return atomic64_read(&lock->state) >> 32;
+	return lock->seq;
 }
 
 bool six_trylock_ip(struct six_lock *lock, enum six_lock_type type, unsigned long ip);
