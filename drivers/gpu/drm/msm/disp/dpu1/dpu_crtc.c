@@ -1392,7 +1392,7 @@ DEFINE_SHOW_ATTRIBUTE(_dpu_debugfs_status);
 
 static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
-	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
+	struct drm_crtc *crtc = s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
