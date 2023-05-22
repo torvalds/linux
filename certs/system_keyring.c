@@ -51,6 +51,26 @@ int restrict_link_by_builtin_trusted(struct key *dest_keyring,
 					  builtin_trusted_keys);
 }
 
+/**
+ * restrict_link_by_digsig_builtin - Restrict digitalSignature key additions by the built-in keyring
+ * @dest_keyring: Keyring being linked to.
+ * @type: The type of key being added.
+ * @payload: The payload of the new key.
+ * @restriction_key: A ring of keys that can be used to vouch for the new cert.
+ *
+ * Restrict the addition of keys into a keyring based on the key-to-be-added
+ * being vouched for by a key in the built in system keyring. The new key
+ * must have the digitalSignature usage field set.
+ */
+int restrict_link_by_digsig_builtin(struct key *dest_keyring,
+				    const struct key_type *type,
+				    const union key_payload *payload,
+				    struct key *restriction_key)
+{
+	return restrict_link_by_digsig(dest_keyring, type, payload,
+				       builtin_trusted_keys);
+}
+
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
 /**
  * restrict_link_by_builtin_and_secondary_trusted - Restrict keyring
@@ -81,6 +101,35 @@ int restrict_link_by_builtin_and_secondary_trusted(
 
 	return restrict_link_by_signature(dest_keyring, type, payload,
 					  secondary_trusted_keys);
+}
+
+/**
+ * restrict_link_by_digsig_builtin_and_secondary - Restrict by digitalSignature.
+ * @dest_keyring: Keyring being linked to.
+ * @type: The type of key being added.
+ * @payload: The payload of the new key.
+ * @restrict_key: A ring of keys that can be used to vouch for the new cert.
+ *
+ * Restrict the addition of keys into a keyring based on the key-to-be-added
+ * being vouched for by a key in either the built-in or the secondary system
+ * keyrings. The new key must have the digitalSignature usage field set.
+ */
+int restrict_link_by_digsig_builtin_and_secondary(struct key *dest_keyring,
+						  const struct key_type *type,
+						  const union key_payload *payload,
+						  struct key *restrict_key)
+{
+	/* If we have a secondary trusted keyring, then that contains a link
+	 * through to the builtin keyring and the search will follow that link.
+	 */
+	if (type == &key_type_keyring &&
+	    dest_keyring == secondary_trusted_keys &&
+	    payload == &builtin_trusted_keys->payload)
+		/* Allow the builtin keyring to be added to the secondary */
+		return 0;
+
+	return restrict_link_by_digsig(dest_keyring, type, payload,
+				       secondary_trusted_keys);
 }
 
 /*
