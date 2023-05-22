@@ -112,16 +112,12 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 				return -EINVAL;
 			}
 
-			/* a module's config is always the same size */
-			fw_module->bss_size = fm_config[fm_entry->cfg_offset].is_bytes;
 
 			dev_dbg(sdev->dev,
 				"module %s: UUID %pUL cfg_count: %u, bss_size: %#x\n",
 				fm_entry->name, &fm_entry->uuid, fm_entry->cfg_count,
-				fw_module->bss_size);
+				fm_config[fm_entry->cfg_offset].is_bytes);
 		} else {
-			fw_module->bss_size = 0;
-
 			dev_dbg(sdev->dev, "module %s: UUID %pUL\n", fm_entry->name,
 				&fm_entry->uuid);
 		}

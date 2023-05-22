@@ -29,13 +29,11 @@ enum sof_ipc4_mtrace_type {
  * struct sof_ipc4_fw_module - IPC4 module info
  * @sof_man4_module: Module info
  * @m_ida: Module instance identifier
- * @bss_size: Module object size
  * @private: Module private data
  */
 struct sof_ipc4_fw_module {
 	struct sof_man4_module man4_module_entry;
 	struct ida m_ida;
-	u32 bss_size;
 	void *private;
 };
 
