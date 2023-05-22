@@ -585,11 +585,15 @@ EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_bind_event);
 static int soc_tplg_control_load(struct soc_tplg *tplg,
 	struct snd_kcontrol_new *k, struct snd_soc_tplg_ctl_hdr *hdr)
 {
-	if (tplg->ops && tplg->ops->control_load)
-		return tplg->ops->control_load(tplg->comp, tplg->index, k,
-			hdr);
+	int ret = 0;
 
-	return 0;
+	if (tplg->ops && tplg->ops->control_load)
+		ret = tplg->ops->control_load(tplg->comp, tplg->index, k, hdr);
+
+	if (ret)
+		dev_err(tplg->dev, "ASoC: failed to init %s\n", hdr->name);
+
+	return ret;
 }
 
 
@@ -691,17 +695,13 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &be->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", be->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sbe->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to add %s\n", be->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&sbe->dobj.list, &tplg->comp->dobj_list);
 
@@ -776,17 +776,13 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &mc->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", mc->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sm->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to add %s\n", mc->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&sm->dobj.list, &tplg->comp->dobj_list);
 
@@ -945,17 +941,13 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 
 	/* pass control to driver for optional further init */
 	ret = soc_tplg_control_load(tplg, &kc, &ec->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n", ec->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	/* register control here */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &se->dobj.control.kcontrol);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: could not add kcontrol %s\n", ec->hdr.name);
+	if (ret < 0)
 		goto err;
-	}
 
 	list_add(&se->dobj.list, &tplg->comp->dobj_list);
 
@@ -1162,11 +1154,8 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &mc->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			mc->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -1246,11 +1235,8 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &ec->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			ec->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -1298,11 +1284,8 @@ static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_
 
 	/* pass control to driver for optional further init */
 	err = soc_tplg_control_load(tplg, kc, &be->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
-			be->hdr.name);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -1530,15 +1513,13 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	 * If so, just return success.
 	*/
 	if (!snd_soc_card_is_instantiated(card)) {
-		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
-			" widget card binding deferred\n");
+		dev_warn(tplg->dev, "ASoC: Parent card not yet available, widget card binding deferred\n");
 		return 0;
 	}
 
 	ret = snd_soc_dapm_new_widgets(card);
 	if (ret < 0)
-		dev_err(tplg->dev, "ASoC: failed to create new widgets %d\n",
-			ret);
+		dev_err(tplg->dev, "ASoC: failed to create new widgets %d\n", ret);
 
 	return ret;
 }
@@ -2505,11 +2486,8 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 			/* make sure header is valid before loading */
 			ret = soc_tplg_valid_header(tplg, hdr);
-			if (ret < 0) {
-				dev_err(tplg->dev,
-					"ASoC: topology: invalid header: %d\n", ret);
+			if (ret < 0)
 				return ret;
-			}
 
 			/* load the header object */
 			ret = soc_tplg_load_header(tplg, hdr);
@@ -2529,9 +2507,6 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 	/* signal DAPM we are complete */
 	ret = soc_tplg_dapm_complete(tplg);
-	if (ret < 0)
-		dev_err(tplg->dev,
-			"ASoC: failed to initialise DAPM from Firmware\n");
 
 	return ret;
 }
