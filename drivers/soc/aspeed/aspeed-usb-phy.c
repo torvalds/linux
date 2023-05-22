@@ -9,11 +9,12 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <asm/io.h>
 
 struct usb_phy_ctrl {
 	u32 offset;
-	u32 set_bit;
+	u32 value;
 };
 
 static const struct of_device_id aspeed_usb_phy_dt_ids[] = {
@@ -29,22 +30,39 @@ static int aspeed_usb_phy_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct usb_phy_ctrl *ctrl_data;
 	void __iomem *base;
-	int ret;
+	struct regmap *scu;
+	int ctrl_num = 1;
+	int ret, i;
+	u32 val;
 
-	ctrl_data = devm_kzalloc(&pdev->dev, sizeof(struct usb_phy_ctrl), GFP_KERNEL);
+	scu = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "aspeed,scu");
+	if (IS_ERR(scu)) {
+		dev_err(&pdev->dev, "cannot to find SCU regmap\n");
+		return -ENODEV;
+	}
+
+	/* Check SCU040[3] USB port B controller reset is deassert */
+	regmap_read(scu, 0x40, &val);
+	if ((val & BIT(3)))
+		return -EPROBE_DEFER;
+
+	ctrl_data = devm_kzalloc(&pdev->dev,
+				 sizeof(struct usb_phy_ctrl) * ctrl_num,
+				 GFP_KERNEL);
 	if (!ctrl_data)
 		return -ENOMEM;
 
 	base = of_iomap(node, 0);
 
-	ret = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data, 2);
+	ret = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data,
+					 ctrl_num * 2);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not read ctrl property\n");
 		return -EINVAL;
 	}
 
-	writel(readl(base + ctrl_data->offset) | BIT(ctrl_data->set_bit),
-		base + ctrl_data->offset);
+	for (i = 0; i < ctrl_num; i++)
+		writel(ctrl_data[i].value, base + ctrl_data[i].offset);
 
 	dev_info(&pdev->dev, "Initialized USB PHY\n");
 
