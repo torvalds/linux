@@ -96,72 +96,17 @@ static inline u32 six_state_seq(u64 state)
 	return state >> SIX_STATE_SEQ_OFFSET;
 }
 
-#ifdef CONFIG_GENERIC_ATOMIC64
-
 static inline void six_set_bitmask(struct six_lock *lock, u64 mask)
 {
-	u64 old, new, v = atomic64_read(&lock->state);
-
-	do {
-		old = new = v;
-		if ((old & mask) == mask)
-			break;
-		new |= mask;
-	} while ((v = atomic64_cmpxchg(&lock->state, old, new)) != old);
+	if ((atomic64_read(&lock->state) & mask) != mask)
+		atomic64_or(mask, &lock->state);
 }
 
 static inline void six_clear_bitmask(struct six_lock *lock, u64 mask)
 {
-	u64 old, new, v = atomic64_read(&lock->state);
-
-	do {
-		old = new = v;
-		if (!(old & mask))
-			break;
-		new &= ~mask;
-	} while ((v = atomic64_cmpxchg(&lock->state, old, new)) != old);
+	if (atomic64_read(&lock->state) & mask)
+		atomic64_and(~mask, &lock->state);
 }
-
-#else
-
-/*
- * Returns the index of the first set bit, treating @mask as an array of ulongs:
- * that is, a bit index that can be passed to test_bit()/set_bit().
- *
- * Assumes the set bit we want is in the low 4 bytes:
- */
-static inline unsigned u64_mask_to_ulong_bitnr(u64 mask)
-{
-#if BITS_PER_LONG == 64
-	return ilog2(mask);
-#else
-#if defined(__LITTLE_ENDIAN)
-	return ilog2((u32) mask);
-#elif defined(__BIG_ENDIAN)
-	return ilog2((u32) mask) + 32;
-#else
-#error Unknown byteorder
-#endif
-#endif
-}
-
-static inline void six_set_bitmask(struct six_lock *lock, u64 mask)
-{
-	unsigned bitnr = u64_mask_to_ulong_bitnr(mask);
-
-	if (!test_bit(bitnr, (unsigned long *) &lock->state))
-		set_bit(bitnr, (unsigned long *) &lock->state);
-}
-
-static inline void six_clear_bitmask(struct six_lock *lock, u64 mask)
-{
-	unsigned bitnr = u64_mask_to_ulong_bitnr(mask);
-
-	if (test_bit(bitnr, (unsigned long *) &lock->state))
-		clear_bit(bitnr, (unsigned long *) &lock->state);
-}
-
-#endif
 
 static inline void six_set_owner(struct six_lock *lock, enum six_lock_type type,
 				 u64 old, struct task_struct *owner)
