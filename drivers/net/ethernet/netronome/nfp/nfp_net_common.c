@@ -2418,6 +2418,8 @@ static void nfp_net_rss_init(struct nfp_net *nn)
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
 		      NFP_NET_CFG_RSS_IPV6_TCP |
+		      NFP_NET_CFG_RSS_IPV4_UDP |
+		      NFP_NET_CFG_RSS_IPV6_UDP |
 		      FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc) |
 		      NFP_NET_CFG_RSS_MASK;
 }
