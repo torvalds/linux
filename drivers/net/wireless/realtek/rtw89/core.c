@@ -1280,7 +1280,8 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 
 #define VAR_LEN 0xff
 #define VAR_LEN_UNIT 8
-static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev, u8 *addr)
+static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev,
+					    const struct rtw89_phy_sts_iehdr *iehdr)
 {
 	static const u8 physts_ie_len_tab[32] = {
 		16, 32, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
@@ -1290,19 +1291,20 @@ static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev, u8 *addr)
 	u16 ie_len;
 	u8 ie;
 
-	ie = RTW89_GET_PHY_STS_IE_TYPE(addr);
+	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
 	if (physts_ie_len_tab[ie] != VAR_LEN)
 		ie_len = physts_ie_len_tab[ie];
 	else
-		ie_len = RTW89_GET_PHY_STS_IE_LEN(addr) * VAR_LEN_UNIT;
+		ie_len = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_LEN) * VAR_LEN_UNIT;
 
 	return ie_len;
 }
 
-static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
+static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
+					     const struct rtw89_phy_sts_iehdr *iehdr,
 					     struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	const struct rtw89_phy_sts_ie0 *ie = (const struct rtw89_phy_sts_ie0 *)addr;
+	const struct rtw89_phy_sts_ie0 *ie = (const struct rtw89_phy_sts_ie0 *)iehdr;
 	s16 cfo;
 	u32 t;
 
@@ -1330,15 +1332,17 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 	rtw89_phy_cfo_parse(rtwdev, cfo, phy_ppdu);
 }
 
-static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev, u8 *addr,
+static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
+					    const struct rtw89_phy_sts_iehdr *iehdr,
 					    struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
 	u8 ie;
 
-	ie = RTW89_GET_PHY_STS_IE_TYPE(addr);
+	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
+
 	switch (ie) {
 	case RTW89_PHYSTS_IE01_CMN_OFDM:
-		rtw89_core_parse_phy_status_ie01(rtwdev, addr, phy_ppdu);
+		rtw89_core_parse_phy_status_ie01(rtwdev, iehdr, phy_ppdu);
 		break;
 	default:
 		break;
@@ -1349,21 +1353,26 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev, u8 *addr,
 
 static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
+	const struct rtw89_phy_sts_hdr *hdr = phy_ppdu->buf;
 	u8 *rssi = phy_ppdu->rssi;
-	u8 *buf = phy_ppdu->buf;
 
-	phy_ppdu->ie = RTW89_GET_PHY_STS_IE_MAP(buf);
-	phy_ppdu->rssi_avg = RTW89_GET_PHY_STS_RSSI_AVG(buf);
-	rssi[RF_PATH_A] = RTW89_GET_PHY_STS_RSSI_A(buf);
-	rssi[RF_PATH_B] = RTW89_GET_PHY_STS_RSSI_B(buf);
-	rssi[RF_PATH_C] = RTW89_GET_PHY_STS_RSSI_C(buf);
-	rssi[RF_PATH_D] = RTW89_GET_PHY_STS_RSSI_D(buf);
+	phy_ppdu->ie = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_IE_MAP);
+	phy_ppdu->rssi_avg = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_RSSI_AVG);
+	rssi[RF_PATH_A] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_A);
+	rssi[RF_PATH_B] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_B);
+	rssi[RF_PATH_C] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_C);
+	rssi[RF_PATH_D] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_D);
 }
 
 static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	if (RTW89_GET_PHY_STS_LEN(phy_ppdu->buf) << 3 != phy_ppdu->len) {
+	const struct rtw89_phy_sts_hdr *hdr = phy_ppdu->buf;
+	u32 len_from_header;
+
+	len_from_header = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_LEN) << 3;
+
+	if (len_from_header != phy_ppdu->len) {
 		rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "phy ppdu len mismatch\n");
 		return -EINVAL;
 	}
@@ -1376,17 +1385,19 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 				       struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
 	u16 ie_len;
-	u8 *pos, *end;
+	void *pos, *end;
 
 	/* mark invalid reports and bypass them */
 	if (phy_ppdu->ie < RTW89_CCK_PKT)
 		return -EINVAL;
 
-	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
-	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
+	pos = phy_ppdu->buf + PHY_STS_HDR_LEN;
+	end = phy_ppdu->buf + phy_ppdu->len;
 	while (pos < end) {
-		ie_len = rtw89_core_get_phy_status_ie_len(rtwdev, pos);
-		rtw89_core_process_phy_status_ie(rtwdev, pos, phy_ppdu);
+		const struct rtw89_phy_sts_iehdr *iehdr = pos;
+
+		ie_len = rtw89_core_get_phy_status_ie_len(rtwdev, iehdr);
+		rtw89_core_process_phy_status_ie(rtwdev, iehdr, phy_ppdu);
 		pos += ie_len;
 		if (pos > end || ie_len == 0) {
 			rtw89_debug(rtwdev, RTW89_DBG_TXRX,

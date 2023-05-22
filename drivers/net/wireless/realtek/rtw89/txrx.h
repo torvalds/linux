@@ -277,24 +277,25 @@ struct rtw89_rxinfo {
 #define RTW89_RXINFO_W1_SERVICE GENMASK(15, 0)
 #define RTW89_RXINFO_W1_PLCP_LEN GENMASK(23, 16)
 
-#define RTW89_GET_PHY_STS_IE_MAP(sts) \
-	le32_get_bits(*((const __le32 *)(sts)), GENMASK(4, 0))
-#define RTW89_GET_PHY_STS_RSSI_A(sts) \
-	le32_get_bits(*((const __le32 *)(sts) + 1), GENMASK(7, 0))
-#define RTW89_GET_PHY_STS_RSSI_B(sts) \
-	le32_get_bits(*((const __le32 *)(sts) + 1), GENMASK(15, 8))
-#define RTW89_GET_PHY_STS_RSSI_C(sts) \
-	le32_get_bits(*((const __le32 *)(sts) + 1), GENMASK(23, 16))
-#define RTW89_GET_PHY_STS_RSSI_D(sts) \
-	le32_get_bits(*((const __le32 *)(sts) + 1), GENMASK(31, 24))
-#define RTW89_GET_PHY_STS_LEN(sts) \
-	le32_get_bits(*((const __le32 *)sts), GENMASK(15, 8))
-#define RTW89_GET_PHY_STS_RSSI_AVG(sts) \
-	le32_get_bits(*((const __le32 *)sts), GENMASK(31, 24))
-#define RTW89_GET_PHY_STS_IE_TYPE(ie) \
-	le32_get_bits(*((const __le32 *)ie), GENMASK(4, 0))
-#define RTW89_GET_PHY_STS_IE_LEN(ie) \
-	le32_get_bits(*((const __le32 *)ie), GENMASK(11, 5))
+struct rtw89_phy_sts_hdr {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_PHY_STS_HDR_W0_IE_MAP GENMASK(4, 0)
+#define RTW89_PHY_STS_HDR_W0_LEN GENMASK(15, 8)
+#define RTW89_PHY_STS_HDR_W0_RSSI_AVG GENMASK(31, 24)
+#define RTW89_PHY_STS_HDR_W1_RSSI_A GENMASK(7, 0)
+#define RTW89_PHY_STS_HDR_W1_RSSI_B GENMASK(15, 8)
+#define RTW89_PHY_STS_HDR_W1_RSSI_C GENMASK(23, 16)
+#define RTW89_PHY_STS_HDR_W1_RSSI_D GENMASK(31, 24)
+
+struct rtw89_phy_sts_iehdr {
+	__le32 w0;
+};
+
+#define RTW89_PHY_STS_IEHDR_TYPE GENMASK(4, 0)
+#define RTW89_PHY_STS_IEHDR_LEN GENMASK(11, 5)
 
 struct rtw89_phy_sts_ie0 {
 	__le32 w0;

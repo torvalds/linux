@@ -550,7 +550,7 @@ struct rtw89_rate_desc {
 #define RF_PATH_MAX 4
 #define RTW89_MAX_PPDU_CNT 8
 struct rtw89_rx_phy_ppdu {
-	u8 *buf;
+	void *buf;
 	u32 len;
 	u8 rssi_avg;
 	u8 rssi[RF_PATH_MAX];
