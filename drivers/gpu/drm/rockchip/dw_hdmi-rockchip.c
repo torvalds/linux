@@ -2763,7 +2763,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	}
 
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
-	if (version >= 0x211a || hdmi->is_hdmi_qp)
+	if (hdmi->is_hdmi_qp)
 		drm_object_attach_property(&connector->base, prop, 0);
 
 	if (!drm_mode_create_hdmi_colorspace_property(connector))
