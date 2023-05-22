@@ -1705,7 +1705,7 @@ static void _dpk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 		    id == 0x2c ? "GAIN_LOSS" :
 		    id == 0x2d ? "MDPK_IDL" :
 		    id == 0x2f ? "DPK_GAIN_NORM" :
-		    id == 0x31 ? "KIP_RESOTRE" :
+		    id == 0x31 ? "KIP_RESTORE" :
 		    id == 0x6 ? "LBK_RXIQK" : "Unknown id",
 		    dpk_cmd);
 }
