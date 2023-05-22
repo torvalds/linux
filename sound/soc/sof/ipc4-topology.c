@@ -39,8 +39,6 @@ static const struct sof_topology_token pipeline_tokens[] = {
 };
 
 static const struct sof_topology_token ipc4_comp_tokens[] = {
-	{SOF_TKN_COMP_CPC, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc4_base_module_cfg, cpc)},
 	{SOF_TKN_COMP_IS_PAGES, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_base_module_cfg, is_pages)},
 };
@@ -235,7 +233,7 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 		"Number of input audio formats: %d. Number of output audio formats: %d\n",
 		available_fmt->num_input_formats, available_fmt->num_output_formats);
 
-	/* set cpc and is_pages in the module's base_config */
+	/* set is_pages in the module's base_config */
 	ret = sof_update_ipc_object(scomp, module_base_cfg, SOF_COMP_TOKENS, swidget->tuples,
 				    swidget->num_tuples, sizeof(*module_base_cfg), 1);
 	if (ret) {
@@ -244,8 +242,8 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 		return ret;
 	}
 
-	dev_dbg(scomp->dev, "widget %s cpc: %d is_pages: %d\n",
-		swidget->widget->name, module_base_cfg->cpc, module_base_cfg->is_pages);
+	dev_dbg(scomp->dev, "widget %s: is_pages: %d\n", swidget->widget->name,
+		module_base_cfg->is_pages);
 
 	if (available_fmt->num_input_formats) {
 		in_format = kcalloc(available_fmt->num_input_formats,
@@ -723,9 +721,9 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	}
 
 	dev_dbg(scomp->dev,
-		"pga widget %s: ramp type: %d, ramp duration %d, initial gain value: %#x, cpc %d\n",
+		"pga widget %s: ramp type: %d, ramp duration %d, initial gain value: %#x\n",
 		swidget->widget->name, gain->data.curve_type, gain->data.curve_duration_l,
-		gain->data.init_val, gain->base_config.cpc);
+		gain->data.init_val);
 
 	ret = sof_ipc4_widget_setup_msg(swidget, &gain->msg);
 	if (ret)
