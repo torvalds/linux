@@ -776,6 +776,7 @@ struct rtw89_rx_desc_info {
 	u8 sec_cam_id;
 	u8 mac_id;
 	u16 offset;
+	u16 rxd_len;
 	bool ready;
 };
 
@@ -2824,6 +2825,9 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
+	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
+			     struct rtw89_rx_desc_info *desc_info,
+			     u8 *data, u32 data_offset);
 	void (*fill_txdesc)(struct rtw89_dev *rtwdev,
 			    struct rtw89_tx_desc_info *desc_info,
 			    void *txdesc);
@@ -4853,6 +4857,16 @@ static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 
 	if (chip->ops->ctrl_btg)
 		chip->ops->ctrl_btg(rtwdev, btg);
+}
+
+static inline
+void rtw89_chip_query_rxdesc(struct rtw89_dev *rtwdev,
+			     struct rtw89_rx_desc_info *desc_info,
+			     u8 *data, u32 data_offset)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->query_rxdesc(rtwdev, desc_info, data, data_offset);
 }
 
 static inline

@@ -1819,6 +1819,10 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 	shift_len = desc_info->shift << 1; /* 2-byte unit */
 	drv_info_len = desc_info->drv_info_size << 3; /* 8-byte unit */
 	desc_info->offset = data_offset + shift_len + drv_info_len;
+	if (desc_info->long_rxdesc)
+		desc_info->rxd_len = sizeof(struct rtw89_rxdesc_long);
+	else
+		desc_info->rxd_len = sizeof(struct rtw89_rxdesc_short);
 	desc_info->ready = true;
 
 	if (!desc_info->long_rxdesc)

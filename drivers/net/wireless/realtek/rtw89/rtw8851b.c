@@ -2298,6 +2298,7 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8851b_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8851b_pwr_on_func,
 	.pwr_off_func		= rtw8851b_pwr_off_func,
+	.query_rxdesc		= rtw89_core_query_rxdesc,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc,
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path,
