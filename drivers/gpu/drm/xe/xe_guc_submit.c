@@ -483,6 +483,14 @@ static void register_engine(struct xe_engine *e)
 		parallel_write(xe, map, wq_desc.wq_status, WQ_STATUS_ACTIVE);
 	}
 
+	/*
+	 * We must keep a reference for LR engines if engine is registered with
+	 * the GuC as jobs signal immediately and can't destroy an engine if the
+	 * GuC has a reference to it.
+	 */
+	if (xe_engine_is_lr(e))
+		xe_engine_get(e);
+
 	set_engine_registered(e);
 	trace_xe_engine_register(e);
 	if (xe_engine_is_parallel(e))
@@ -645,6 +653,7 @@ guc_engine_run_job(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 	struct xe_engine *e = job->engine;
+	bool lr = xe_engine_is_lr(e);
 
 	XE_BUG_ON((engine_destroyed(e) || engine_pending_disable(e)) &&
 		  !engine_banned(e) && !engine_suspended(e));
@@ -654,14 +663,19 @@ guc_engine_run_job(struct drm_sched_job *drm_job)
 	if (!engine_killed_or_banned(e) && !xe_sched_job_is_error(job)) {
 		if (!engine_registered(e))
 			register_engine(e);
-		e->ring_ops->emit_job(job);
+		if (!lr)	/* LR jobs are emitted in the exec IOCTL */
+			e->ring_ops->emit_job(job);
 		submit_engine(e);
 	}
 
-	if (test_and_set_bit(JOB_FLAG_SUBMIT, &job->fence->flags))
+	if (lr) {
+		xe_sched_job_set_error(job, -EOPNOTSUPP);
+		return NULL;
+	} else if (test_and_set_bit(JOB_FLAG_SUBMIT, &job->fence->flags)) {
 		return job->fence;
-	else
+	} else {
 		return dma_fence_get(job->fence);
+	}
 }
 
 static void guc_engine_free_job(struct drm_sched_job *drm_job)
@@ -764,6 +778,55 @@ static void simple_error_capture(struct xe_engine *e)
 }
 #endif
 
+static void xe_guc_engine_trigger_cleanup(struct xe_engine *e)
+{
+	struct xe_guc *guc = engine_to_guc(e);
+
+	if (xe_engine_is_lr(e))
+		queue_work(guc_to_gt(guc)->ordered_wq, &e->guc->lr_tdr);
+	else
+		xe_sched_tdr_queue_imm(&e->guc->sched);
+}
+
+static void xe_guc_engine_lr_cleanup(struct work_struct *w)
+{
+	struct xe_guc_engine *ge =
+		container_of(w, struct xe_guc_engine, lr_tdr);
+	struct xe_engine *e = ge->engine;
+	struct xe_gpu_scheduler *sched = &ge->sched;
+
+	XE_WARN_ON(!xe_engine_is_lr(e));
+	trace_xe_engine_lr_cleanup(e);
+
+	/* Kill the run_job / process_msg entry points */
+	xe_sched_submission_stop(sched);
+
+	/* Engine state now stable, disable scheduling / deregister if needed */
+	if (engine_registered(e)) {
+		struct xe_guc *guc = engine_to_guc(e);
+		int ret;
+
+		set_engine_banned(e);
+		disable_scheduling_deregister(guc, e);
+
+		/*
+		 * Must wait for scheduling to be disabled before signalling
+		 * any fences, if GT broken the GT reset code should signal us.
+		 */
+		ret = wait_event_timeout(guc->ct.wq,
+					 !engine_pending_disable(e) ||
+					 guc_read_stopped(guc), HZ * 5);
+		if (!ret) {
+			XE_WARN_ON("Schedule disable failed to respond");
+			xe_sched_submission_start(sched);
+			xe_gt_reset_async(e->gt);
+			return;
+		}
+	}
+
+	xe_sched_submission_start(sched);
+}
+
 static enum drm_gpu_sched_stat
 guc_engine_timedout_job(struct drm_sched_job *drm_job)
 {
@@ -815,7 +878,7 @@ guc_engine_timedout_job(struct drm_sched_job *drm_job)
 			err = -EIO;
 		set_engine_banned(e);
 		xe_engine_get(e);
-		disable_scheduling_deregister(engine_to_guc(e), e);
+		disable_scheduling_deregister(guc, e);
 
 		/*
 		 * Must wait for scheduling to be disabled before signalling
@@ -848,7 +911,7 @@ guc_engine_timedout_job(struct drm_sched_job *drm_job)
 	 */
 	xe_sched_add_pending_job(sched, job);
 	xe_sched_submission_start(sched);
-	xe_sched_tdr_queue_imm(&e->guc->sched);
+	xe_guc_engine_trigger_cleanup(e);
 
 	/* Mark all outstanding jobs as bad, thus completing them */
 	spin_lock(&sched->base.job_list_lock);
@@ -872,6 +935,8 @@ static void __guc_engine_fini_async(struct work_struct *w)
 
 	trace_xe_engine_destroy(e);
 
+	if (xe_engine_is_lr(e))
+		cancel_work_sync(&ge->lr_tdr);
 	if (e->flags & ENGINE_FLAG_PERSISTENT)
 		xe_device_remove_persistent_engines(gt_to_xe(e->gt), e);
 	release_guc_id(guc, e);
@@ -889,7 +954,7 @@ static void guc_engine_fini_async(struct xe_engine *e)
 	bool kernel = e->flags & ENGINE_FLAG_KERNEL;
 
 	INIT_WORK(&e->guc->fini_async, __guc_engine_fini_async);
-	queue_work(system_unbound_wq, &e->guc->fini_async);
+	queue_work(system_wq, &e->guc->fini_async);
 
 	/* We must block on kernel engines so slabs are empty on driver unload */
 	if (kernel) {
@@ -1080,6 +1145,9 @@ static int guc_engine_init(struct xe_engine *e)
 		goto err_sched;
 	e->priority = XE_ENGINE_PRIORITY_NORMAL;
 
+	if (xe_engine_is_lr(e))
+		INIT_WORK(&e->guc->lr_tdr, xe_guc_engine_lr_cleanup);
+
 	mutex_lock(&guc->submission_state.lock);
 
 	err = alloc_guc_id(guc, e);
@@ -1131,7 +1199,7 @@ static void guc_engine_kill(struct xe_engine *e)
 {
 	trace_xe_engine_kill(e);
 	set_engine_killed(e);
-	xe_sched_tdr_queue_imm(&e->guc->sched);
+	xe_guc_engine_trigger_cleanup(e);
 }
 
 static void guc_engine_add_msg(struct xe_engine *e, struct xe_sched_msg *msg,
@@ -1283,10 +1351,11 @@ static void guc_engine_stop(struct xe_guc *guc, struct xe_engine *e)
 	xe_sched_submission_stop(sched);
 
 	/* Clean up lost G2H + reset engine state */
-	if (engine_destroyed(e) && engine_registered(e)) {
-		if (engine_banned(e))
+	if (engine_registered(e)) {
+		if ((engine_banned(e) && engine_destroyed(e)) ||
+		    xe_engine_is_lr(e))
 			xe_engine_put(e);
-		else
+		else if (engine_destroyed(e))
 			__guc_engine_fini(guc, e);
 	}
 	if (e->guc->suspend_pending) {
@@ -1501,7 +1570,8 @@ int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	trace_xe_engine_deregister_done(e);
 
 	clear_engine_registered(e);
-	if (engine_banned(e))
+
+	if (engine_banned(e) || xe_engine_is_lr(e))
 		xe_engine_put(e);
 	else
 		__guc_engine_fini(guc, e);
@@ -1538,7 +1608,7 @@ int xe_guc_engine_reset_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 */
 	set_engine_reset(e);
 	if (!engine_banned(e))
-		xe_sched_tdr_queue_imm(&e->guc->sched);
+		xe_guc_engine_trigger_cleanup(e);
 
 	return 0;
 }
@@ -1565,7 +1635,7 @@ int xe_guc_engine_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	/* Treat the same as engine reset */
 	set_engine_reset(e);
 	if (!engine_banned(e))
-		xe_sched_tdr_queue_imm(&e->guc->sched);
+		xe_guc_engine_trigger_cleanup(e);
 
 	return 0;
 }

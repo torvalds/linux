@@ -42,6 +42,10 @@ static inline bool xe_engine_is_parallel(struct xe_engine *engine)
 	return engine->width > 1;
 }
 
+bool xe_engine_is_lr(struct xe_engine *e);
+
+bool xe_engine_ring_full(struct xe_engine *e);
+
 bool xe_engine_is_idle(struct xe_engine *engine);
 
 void xe_engine_kill(struct xe_engine *e);

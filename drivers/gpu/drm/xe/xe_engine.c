@@ -18,6 +18,7 @@
 #include "xe_macros.h"
 #include "xe_migrate.h"
 #include "xe_pm.h"
+#include "xe_ring_ops_types.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
 
@@ -677,6 +678,37 @@ static void engine_kill_compute(struct xe_engine *e)
 		e->compute.pfence = NULL;
 	}
 	up_write(&e->vm->lock);
+}
+
+/**
+ * xe_engine_is_lr() - Whether an engine is long-running
+ * @e: The engine
+ *
+ * Return: True if the engine is long-running, false otherwise.
+ */
+bool xe_engine_is_lr(struct xe_engine *e)
+{
+	return e->vm && xe_vm_no_dma_fences(e->vm) &&
+		!(e->flags & ENGINE_FLAG_VM);
+}
+
+static s32 xe_engine_num_job_inflight(struct xe_engine *e)
+{
+	return e->lrc->fence_ctx.next_seqno - xe_lrc_seqno(e->lrc) - 1;
+}
+
+/**
+ * xe_engine_ring_full() - Whether an engine's ring is full
+ * @e: The engine
+ *
+ * Return: True if the engine's ring is full, false otherwise.
+ */
+bool xe_engine_ring_full(struct xe_engine *e)
+{
+	struct xe_lrc *lrc = e->lrc;
+	s32 max_job = lrc->ring.size / MAX_JOB_SIZE_BYTES;
+
+	return xe_engine_num_job_inflight(e) >= max_job;
 }
 
 /**

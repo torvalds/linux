@@ -31,6 +31,8 @@ struct xe_guc_engine {
 	 */
 #define MAX_STATIC_MSG_TYPE	3
 	struct xe_sched_msg static_msgs[MAX_STATIC_MSG_TYPE];
+	/** @lr_tdr: long running TDR worker */
+	struct work_struct lr_tdr;
 	/** @fini_async: do final fini async from this worker */
 	struct work_struct fini_async;
 	/** @resume_time: time of last resume */

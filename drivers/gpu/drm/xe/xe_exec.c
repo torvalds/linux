@@ -14,6 +14,7 @@
 #include "xe_device.h"
 #include "xe_engine.h"
 #include "xe_macros.h"
+#include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
 #include "xe_sync.h"
 #include "xe_vm.h"
@@ -302,6 +303,11 @@ retry:
 		goto err_engine_end;
 	}
 
+	if (xe_engine_is_lr(engine) && xe_engine_ring_full(engine)) {
+		err = -EWOULDBLOCK;
+		goto err_engine_end;
+	}
+
 	job = xe_sched_job_create(engine, xe_engine_is_parallel(engine) ?
 				  addresses : &args->address);
 	if (IS_ERR(job)) {
@@ -388,6 +394,8 @@ retry:
 		xe_sync_entry_signal(&syncs[i], job,
 				     &job->drm.s_fence->finished);
 
+	if (xe_engine_is_lr(engine))
+		engine->ring_ops->emit_job(job);
 	xe_sched_job_push(job);
 	xe_vm_reactivate_rebind(vm);
 
