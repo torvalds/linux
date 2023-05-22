@@ -356,7 +356,7 @@ struct list_head *zstd_alloc_workspace(unsigned int level)
 	workspace->level = level;
 	workspace->req_level = level;
 	workspace->last_used = jiffies;
-	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL);
+	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL | __GFP_NOWARN);
 	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf)
 		goto fail;
