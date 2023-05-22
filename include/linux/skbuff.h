@@ -1383,7 +1383,7 @@ static inline int skb_pad(struct sk_buff *skb, int pad)
 #define dev_kfree_skb(a)	consume_skb(a)
 
 int skb_append_pagefrags(struct sk_buff *skb, struct page *page,
-			 int offset, size_t size);
+			 int offset, size_t size, size_t max_frags);
 
 struct skb_seq_state {
 	__u32		lower_offset;

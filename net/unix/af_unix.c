@@ -2349,7 +2349,7 @@ alloc_skb:
 		newskb = NULL;
 	}
 
-	if (skb_append_pagefrags(skb, page, offset, size)) {
+	if (skb_append_pagefrags(skb, page, offset, size, MAX_SKB_FRAGS)) {
 		tail = skb;
 		goto alloc_skb;
 	}
