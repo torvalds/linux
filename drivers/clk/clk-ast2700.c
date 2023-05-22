@@ -17,6 +17,7 @@
 
 #include "clk-aspeed.h"
 
+#define FPGA
 #define AST2700_CLK_IN 25000000
 
 ////////CPU Die
@@ -414,12 +415,16 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 					      0, clk_base + AST2700_CPU_CLK_SEL2,
 					      20, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
+#ifdef FPGA
+	hw = clk_hw_register_fixed_rate(dev, "io-apb", NULL, 0, 12000000);
+	clks[AST2700_IO_CLK_APB] = hw;
+#else
 	/* APB CLK = 100Mhz */
 	clks[AST2700_IO_CLK_APB] =
 		clk_hw_register_divider_table(dev, "io-apb", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_CPU_CLK_SEL1,
 					      18, 3, 0, ast2700_pclk_div_table, &ast2700_clk_lock);
-
+#endif
 	//rmii
 	clks[AST2700_IO_CLK_RMII] =
 		clk_hw_register_divider_table(dev, "rmii", "io-hpll",
@@ -548,11 +553,6 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 		ast2700_clk_hw_register_gate(NULL, "uart3clk-gate", "uart3clk",
 					     0, clk_base + AST2700_IO_CLK_STOP,
 					     14, 0, &ast2700_clk_lock);
-
-	clks[AST2700_IO_CLK_GATE_I2CCLK] =
-		ast2700_clk_hw_register_gate(NULL, "i2cclk-gate", NULL,
-					     0, clk_base + AST2700_IO_CLK_STOP,
-					     15, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_I3C0CLK] =
 		ast2700_clk_hw_register_gate(NULL, "i3c0clk-gate", NULL,
