@@ -390,10 +390,18 @@ static void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_wqe_frag_info *wi = get_frag(rq, ix);
 
-	if (rq->xsk_pool)
+	if (rq->xsk_pool) {
 		mlx5e_xsk_free_rx_wqe(wi);
-	else
+	} else {
 		mlx5e_free_rx_wqe(rq, wi);
+
+		/* Avoid a second release of the wqe pages: dealloc is called
+		 * for the same missing wqes on regular RQ flush and on regular
+		 * RQ close. This happens when XSK RQs come into play.
+		 */
+		for (int i = 0; i < rq->wqe.info.num_frags; i++, wi++)
+			wi->flags |= BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
+	}
 }
 
 static void mlx5e_xsk_free_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
