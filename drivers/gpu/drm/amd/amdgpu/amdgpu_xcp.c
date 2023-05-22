@@ -359,7 +359,7 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 						file_priv->minor->index, i);
 				return -ENOENT;
 			}
-			dev_dbg(adev->dev, "renderD%d partition %d openned!",
+			dev_dbg(adev->dev, "renderD%d partition %d opened!",
 					file_priv->minor->index, i);
 			fpriv->xcp_id = i;
 			break;

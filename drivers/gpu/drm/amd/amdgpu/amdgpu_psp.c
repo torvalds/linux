@@ -1007,7 +1007,7 @@ int psp_spatial_partition(struct psp_context *psp, int mode)
 	cmd->cmd_id = GFX_CMD_ID_SRIOV_SPATIAL_PART;
 	cmd->cmd.cmd_spatial_part.mode = mode;
 
-	dev_info(psp->adev->dev, "Requesting %d paritions through PSP", mode);
+	dev_info(psp->adev->dev, "Requesting %d partitions through PSP", mode);
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	release_psp_cmd_buf(psp);
