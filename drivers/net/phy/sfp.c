@@ -469,9 +469,10 @@ static const struct sfp_quirk sfp_quirks[] = {
 
 	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
 
-	// Walsun HXSX-ATRC-1 doesn't identify as copper, and uses the
+	// Walsun HXSX-ATR[CI]-1 don't identify as copper, and use the
 	// Rollball protocol to talk to the PHY.
 	SFP_QUIRK_F("Walsun", "HXSX-ATRC-1", sfp_fixup_fs_10gt),
+	SFP_QUIRK_F("Walsun", "HXSX-ATRI-1", sfp_fixup_fs_10gt),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
 	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
