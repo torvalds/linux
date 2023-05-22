@@ -632,9 +632,9 @@ int kvm_pgtable_stage2_flush(struct kvm_pgtable *pgt, u64 addr, u64 size);
  *
  * The walker will walk the page-table entries corresponding to the input
  * address range specified, visiting entries according to the walker flags.
- * Invalid entries are treated as leaf entries. Leaf entries are reloaded
- * after invoking the walker callback, allowing the walker to descend into
- * a newly installed table.
+ * Invalid entries are treated as leaf entries. The visited page table entry is
+ * reloaded after invoking the walker callback, allowing the walker to descend
+ * into a newly installed table.
  *
  * Returning a negative error code from the walker callback function will
  * terminate the walk immediately with the same error code.
