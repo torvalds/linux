@@ -127,87 +127,94 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <40000000>; /* 40MHz */
-		partition@0 {
-			label = "Image Selector";
-			reg = <0x0 0x80000>; /* 512KB */
-			read-only;
-			lock;
-		};
-		partition@80000 {
-			label = "Image Selector Golden";
-			reg = <0x80000 0x80000>; /* 512KB */
-			read-only;
-			lock;
-		};
-		partition@100000 {
-			label = "Persistent Register";
-			reg = <0x100000 0x20000>; /* 128KB */
-		};
-		partition@120000 {
-			label = "Persistent Register Backup";
-			reg = <0x120000 0x20000>; /* 128KB */
-		};
-		partition@140000 {
-			label = "Open_1";
-			reg = <0x140000 0xC0000>; /* 768KB */
-		};
-		partition@200000 {
-			label = "Image A (FSBL, PMU, ATF, U-Boot)";
-			reg = <0x200000 0xD00000>; /* 13MB */
-		};
-		partition@f00000 {
-			label = "ImgSel Image A Catch";
-			reg = <0xF00000 0x80000>; /* 512KB */
-			read-only;
-			lock;
-		};
-		partition@f80000 {
-			label = "Image B (FSBL, PMU, ATF, U-Boot)";
-			reg = <0xF80000 0xD00000>; /* 13MB */
-		};
-		partition@1c80000 {
-			label = "ImgSel Image B Catch";
-			reg = <0x1C80000 0x80000>; /* 512KB */
-			read-only;
-			lock;
-		};
-		partition@1d00000 {
-			label = "Open_2";
-			reg = <0x1D00000 0x100000>; /* 1MB */
-		};
-		partition@1e00000 {
-			label = "Recovery Image";
-			reg = <0x1E00000 0x200000>; /* 2MB */
-			read-only;
-			lock;
-		};
-		partition@2000000 {
-			label = "Recovery Image Backup";
-			reg = <0x2000000 0x200000>; /* 2MB */
-			read-only;
-			lock;
-		};
-		partition@2200000 {
-			label = "U-Boot storage variables";
-			reg = <0x2200000 0x20000>; /* 128KB */
-		};
-		partition@2220000 {
-			label = "U-Boot storage variables backup";
-			reg = <0x2220000 0x20000>; /* 128KB */
-		};
-		partition@2240000 {
-			label = "SHA256";
-			reg = <0x2240000 0x40000>; /* 256B but 256KB sector */
-			read-only;
-			lock;
-		};
-		partition@2280000 {
-			label = "Secure OS Storage";
-			reg = <0x2280000 0x20000>; /* 128KB */
-		};
-		partition@22A0000 {
-			label = "User";
-			reg = <0x22A0000 0x1d60000>; /* 29.375 MB */
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "Image Selector";
+				reg = <0x0 0x80000>; /* 512KB */
+				read-only;
+				lock;
+			};
+			partition@80000 {
+				label = "Image Selector Golden";
+				reg = <0x80000 0x80000>; /* 512KB */
+				read-only;
+				lock;
+			};
+			partition@100000 {
+				label = "Persistent Register";
+				reg = <0x100000 0x20000>; /* 128KB */
+			};
+			partition@120000 {
+				label = "Persistent Register Backup";
+				reg = <0x120000 0x20000>; /* 128KB */
+			};
+			partition@140000 {
+				label = "Open_1";
+				reg = <0x140000 0xC0000>; /* 768KB */
+			};
+			partition@200000 {
+				label = "Image A (FSBL, PMU, ATF, U-Boot)";
+				reg = <0x200000 0xD00000>; /* 13MB */
+			};
+			partition@f00000 {
+				label = "ImgSel Image A Catch";
+				reg = <0xF00000 0x80000>; /* 512KB */
+				read-only;
+				lock;
+			};
+			partition@f80000 {
+				label = "Image B (FSBL, PMU, ATF, U-Boot)";
+				reg = <0xF80000 0xD00000>; /* 13MB */
+			};
+			partition@1c80000 {
+				label = "ImgSel Image B Catch";
+				reg = <0x1C80000 0x80000>; /* 512KB */
+				read-only;
+				lock;
+			};
+			partition@1d00000 {
+				label = "Open_2";
+				reg = <0x1D00000 0x100000>; /* 1MB */
+			};
+			partition@1e00000 {
+				label = "Recovery Image";
+				reg = <0x1E00000 0x200000>; /* 2MB */
+				read-only;
+				lock;
+			};
+			partition@2000000 {
+				label = "Recovery Image Backup";
+				reg = <0x2000000 0x200000>; /* 2MB */
+				read-only;
+				lock;
+			};
+			partition@2200000 {
+				label = "U-Boot storage variables";
+				reg = <0x2200000 0x20000>; /* 128KB */
+			};
+			partition@2220000 {
+				label = "U-Boot storage variables backup";
+				reg = <0x2220000 0x20000>; /* 128KB */
+			};
+			partition@2240000 {
+				label = "SHA256";
+				reg = <0x2240000 0x40000>; /* 256B but 256KB sector */
+				read-only;
+				lock;
+			};
+			partition@2280000 {
+				label = "Secure OS Storage";
+				reg = <0x2280000 0x20000>; /* 128KB */
+			};
+			partition@22A0000 {
+				label = "User";
+				reg = <0x22A0000 0x1d60000>; /* 29.375 MB */
+			};
 		};
 	};
 };
