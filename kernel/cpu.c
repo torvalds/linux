@@ -1770,9 +1770,6 @@ static void __init cpuhp_bringup_mask(const struct cpumask *mask, unsigned int n
 	for_each_cpu(cpu, mask) {
 		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 
-		if (!--ncpus)
-			break;
-
 		if (cpu_up(cpu, target) && can_rollback_cpu(st)) {
 			/*
 			 * If this failed then cpu_up() might have only
@@ -1781,6 +1778,9 @@ static void __init cpuhp_bringup_mask(const struct cpumask *mask, unsigned int n
 			 */
 			WARN_ON(cpuhp_invoke_callback_range(false, cpu, st, CPUHP_OFFLINE));
 		}
+
+		if (!--ncpus)
+			break;
 	}
 }
 
