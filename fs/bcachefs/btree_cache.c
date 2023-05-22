@@ -55,6 +55,8 @@ static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 
 	EBUG_ON(btree_node_write_in_flight(b));
 
+	clear_btree_node_just_written(b);
+
 	kvpfree(b->data, btree_bytes(c));
 	b->data = NULL;
 #ifdef __KERNEL__
@@ -648,6 +650,7 @@ err:
 	/* Try to cannibalize another cached btree node: */
 	if (bc->alloc_lock == current) {
 		b2 = btree_node_cannibalize(c);
+		clear_btree_node_just_written(b2);
 		bch2_btree_node_hash_remove(bc, b2);
 
 		if (b) {
