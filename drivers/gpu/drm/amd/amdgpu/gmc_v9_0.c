@@ -557,8 +557,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	const char *hub_name;
 	u64 addr;
 	uint32_t cam_index = 0;
-	int ret;
-	uint32_t node_id, xcc_id = 0;
+	int ret, xcc_id = 0;
+	uint32_t node_id;
 
 	node_id = entry->node_id;
 
