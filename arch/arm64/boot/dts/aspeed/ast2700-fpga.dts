@@ -42,7 +42,6 @@
 };
 
 &uart4 {
-	clock-frequency = <1846154>;
 	status = "okay";
 };
 
