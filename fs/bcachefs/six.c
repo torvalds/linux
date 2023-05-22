@@ -193,6 +193,15 @@ static inline unsigned pcpu_read_count(struct six_lock *lock)
 	return read_count;
 }
 
+/*
+ * __do_six_trylock() - main trylock routine
+ *
+ * Returns 1 on success, 0 on failure
+ *
+ * In percpu reader mode, a failed trylock may cause a spurious trylock failure
+ * for anoter thread taking the competing lock type, and we may havve to do a
+ * wakeup: when a wakeup is required, we return -1 - wakeup_type.
+ */
 static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 			    struct task_struct *task, bool try)
 {
@@ -219,8 +228,20 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 	 * the lock, then issues a full memory barrier, then reads from the
 	 * other thread's variable to check if the other thread thinks it has
 	 * the lock. If we raced, we backoff and retry/sleep.
+	 *
+	 * Failure to take the lock may cause a spurious trylock failure in
+	 * another thread, because we temporarily set the lock to indicate that
+	 * we held it. This would be a problem for a thread in six_lock(), when
+	 * they are calling trylock after adding themself to the waitlist and
+	 * prior to sleeping.
+	 *
+	 * Therefore, if we fail to get the lock, and there were waiters of the
+	 * type we conflict with, we will have to issue a wakeup.
+	 *
+	 * Since we may be called under wait_lock (and by the wakeup code
+	 * itself), we return that the wakeup has to be done instead of doing it
+	 * here.
 	 */
-
 	if (type == SIX_LOCK_read && lock->readers) {
 		preempt_disable();
 		this_cpu_inc(*lock->readers); /* signal that we own lock */
@@ -233,17 +254,11 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		this_cpu_sub(*lock->readers, !ret);
 		preempt_enable();
 
-		/*
-		 * If we failed because a writer was trying to take the
-		 * lock, issue a wakeup because we might have caused a
-		 * spurious trylock failure:
-		 */
-		if (old & SIX_STATE_WRITE_LOCKING)
+		if (!ret && (old & SIX_STATE_WAITING_WRITE))
 			ret = -1 - SIX_LOCK_write;
 	} else if (type == SIX_LOCK_write && lock->readers) {
 		if (try) {
-			atomic64_add(SIX_STATE_WRITE_LOCKING,
-				     &lock->state);
+			atomic64_add(SIX_STATE_WRITE_LOCKING, &lock->state);
 			smp_mb__after_atomic();
 		}
 
@@ -259,12 +274,10 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		if (ret || try)
 			v -= SIX_STATE_WRITE_LOCKING;
 
-		if (try && !ret) {
+		if (v) {
 			old = atomic64_add_return(v, &lock->state);
-			if (old & SIX_STATE_WAITING_READ)
+			if (!ret && try && (old & SIX_STATE_WAITING_READ))
 				ret = -1 - SIX_LOCK_read;
-		} else {
-			atomic64_add(v, &lock->state);
 		}
 	} else {
 		v = atomic64_read(&lock->state);
@@ -422,7 +435,7 @@ bool six_relock_ip(struct six_lock *lock, enum six_lock_type type,
 		 */
 		if (ret)
 			six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read, ip);
-		else if (old & SIX_STATE_WRITE_LOCKING)
+		else if (old & SIX_STATE_WAITING_WRITE)
 			six_lock_wakeup(lock, old, SIX_LOCK_write);
 
 		return ret;
