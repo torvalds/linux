@@ -27,7 +27,7 @@ struct xe_devcoredump_snapshot {
 	ktime_t boot_time;
 
 	/* GuC snapshots */
-	/** @ct_snapshot: GuC CT snapshot */
+	/** @ct: GuC CT snapshot */
 	struct xe_guc_ct_snapshot *ct;
 	/** @ge: Guc Engine snapshot */
 	struct xe_guc_submit_engine_snapshot *ge;

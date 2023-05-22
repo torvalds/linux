@@ -41,7 +41,7 @@ struct sync_semaphore {
 };
 
 /**
- * Struct guc_submit_parallel_scratch - A scratch shared mapped buffer.
+ * struct guc_submit_parallel_scratch - A scratch shared mapped buffer.
  */
 struct guc_submit_parallel_scratch {
 	/** @wq_desc: Guc scheduler workqueue descriptor */
