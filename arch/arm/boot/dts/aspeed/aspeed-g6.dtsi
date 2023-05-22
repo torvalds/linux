@@ -341,6 +341,14 @@
 			status = "disabled";
 		};
 
+		uphyb: uphyb@1e6a2800 {
+			compatible = "aspeed,ast2600-uphyb";
+			reg = <0x1e6a2800 0x10>;
+			ctrl = <0x0 0x100>;	/* <offset, value> */
+			aspeed,scu = <&syscon>;
+			status = "disabled";
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
