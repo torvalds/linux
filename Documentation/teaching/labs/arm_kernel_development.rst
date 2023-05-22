@@ -349,7 +349,7 @@ Inspect I/O space configuration for ``NXP i.MX6UL`` board. Start with ``arch/arm
 
 .. code:: bash
 
-   $ cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq
+   $ cat /proc/iomem
      00900000-0091ffff : 900000.sram sram@900000
      0209c000-0209ffff : 209c000.gpio gpio@209c000
      021a0000-021a3fff : 21a0000.i2c i2c@21a0000
