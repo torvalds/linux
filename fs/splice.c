@@ -299,8 +299,25 @@ void splice_shrink_spd(struct splice_pipe_desc *spd)
 	kfree(spd->partial);
 }
 
-/*
- * Copy data from a file into pages and then splice those into the output pipe.
+/**
+ * copy_splice_read -  Copy data from a file and splice the copy into a pipe
+ * @in: The file to read from
+ * @ppos: Pointer to the file position to read from
+ * @pipe: The pipe to splice into
+ * @len: The amount to splice
+ * @flags: The SPLICE_F_* flags
+ *
+ * This function allocates a bunch of pages sufficient to hold the requested
+ * amount of data (but limited by the remaining pipe capacity), passes it to
+ * the file's ->read_iter() to read into and then splices the used pages into
+ * the pipe.
+ *
+ * Return: On success, the number of bytes read will be returned and *@ppos
+ * will be updated if appropriate; 0 will be returned if there is no more data
+ * to be read; -EAGAIN will be returned if the pipe had no space, and some
+ * other negative error code will be returned on error.  A short read may occur
+ * if the pipe has insufficient space, we reach the end of the data or we hit a
+ * hole.
  */
 ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 			 struct pipe_inode_info *pipe,
