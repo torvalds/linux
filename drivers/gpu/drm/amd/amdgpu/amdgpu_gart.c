@@ -143,7 +143,7 @@ int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
 		return -EFAULT;
 	}
 
-	dev_info(adev->dev, "%s dma_addr:%llx\n", __func__, dma_addr);
+	dev_info(adev->dev, "%s dma_addr:%pad\n", __func__, &dma_addr);
 	/* Create SG table */
 	sg = kmalloc(sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
