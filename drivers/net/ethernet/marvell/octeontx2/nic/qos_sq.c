@@ -63,7 +63,7 @@ static int otx2_qos_sq_aura_pool_init(struct otx2_nic *pfvf, int qidx)
 
 	/* Initialize pool context */
 	err = otx2_pool_init(pfvf, pool_id, stack_pages,
-			     num_sqbs, hw->sqb_size);
+			     num_sqbs, hw->sqb_size, AURA_NIX_SQ);
 	if (err)
 		goto aura_free;
 
