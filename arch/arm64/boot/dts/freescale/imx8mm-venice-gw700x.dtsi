@@ -234,8 +234,6 @@
 		};
 
 		fan-controller@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			compatible = "gw,gsc-fan";
 			reg = <0x0a>;
 		};
