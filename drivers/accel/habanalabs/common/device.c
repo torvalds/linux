@@ -2689,3 +2689,11 @@ void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info)
 	if (info->event_mask)
 		*info->event_mask |= HL_NOTIFIER_EVENT_CRITICL_FW_ERR;
 }
+
+void hl_enable_err_info_capture(struct hl_error_info *captured_err_info)
+{
+	vfree(captured_err_info->page_fault_info.user_mappings);
+	memset(captured_err_info, 0, sizeof(struct hl_error_info));
+	atomic_set(&captured_err_info->cs_timeout.write_enable, 1);
+	captured_err_info->undef_opcode.write_enable = true;
+}

@@ -219,10 +219,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
-	vfree(hdev->captured_err_info.page_fault_info.user_mappings);
-	memset(&hdev->captured_err_info, 0, sizeof(hdev->captured_err_info));
-	atomic_set(&hdev->captured_err_info.cs_timeout.write_enable, 1);
-	hdev->captured_err_info.undef_opcode.write_enable = true;
+	hl_enable_err_info_capture(&hdev->captured_err_info);
 
 	hdev->open_counter++;
 	hdev->last_successful_open_jif = jiffies;
