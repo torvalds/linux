@@ -2328,13 +2328,9 @@ out_disabled:
 	hdev->disabled = true;
 	if (expose_interfaces_on_err)
 		cdev_sysfs_debugfs_add(hdev);
-	if (hdev->pdev)
-		dev_err(&hdev->pdev->dev,
-			"Failed to initialize hl%d. Device %s is NOT usable !\n",
-			hdev->cdev_idx, dev_name(&(hdev)->pdev->dev));
-	else
-		pr_err("Failed to initialize hl%d. Device %s is NOT usable !\n",
-			hdev->cdev_idx, dev_name(&(hdev)->pdev->dev));
+	dev_err(&hdev->pdev->dev,
+		"Failed to initialize hl%d. Device %s is NOT usable !\n",
+		hdev->cdev_idx, dev_name(&hdev->pdev->dev));
 
 	return rc;
 }

@@ -2558,12 +2558,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	ktime_t __timeout; \
 	u32 __elbi_read; \
 	int __rc = 0; \
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min((u64)(timeout_us * 10), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		if (elbi) { \
@@ -2615,13 +2610,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	u8 __arr_idx;	\
 	int __rc = 0; \
 	\
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min(((u64)timeout_us * 10), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
-	\
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	if (arr_size >= 64) \
 		__rc = -EINVAL; \
@@ -2679,12 +2668,8 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				mem_written_by_device) \
 ({ \
 	ktime_t __timeout; \
-	if (hdev->pdev) \
-		__timeout = ktime_add_us(ktime_get(), timeout_us); \
-	else \
-		__timeout = ktime_add_us(ktime_get(),\
-				min((u64)(timeout_us * 100), \
-					(u64) HL_SIM_MAX_TIMEOUT_US)); \
+	\
+	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		/* Verify we read updates done by other cores or by device */ \
