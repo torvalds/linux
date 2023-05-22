@@ -1325,7 +1325,7 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 	return 0;
 }
 
-int smu_v13_0_6_set_irq_state(struct amdgpu_device *adev,
+static int smu_v13_0_6_set_irq_state(struct amdgpu_device *adev,
 			      struct amdgpu_irq_src *source,
 			      unsigned tyep,
 			      enum amdgpu_interrupt_state state)
@@ -1365,7 +1365,7 @@ static const struct amdgpu_irq_src_funcs smu_v13_0_6_irq_funcs =
 	.process = smu_v13_0_6_irq_process,
 };
 
-int smu_v13_0_6_register_irq_handler(struct smu_context *smu)
+static int smu_v13_0_6_register_irq_handler(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_irq_src *irq_src = &smu->irq_source;
