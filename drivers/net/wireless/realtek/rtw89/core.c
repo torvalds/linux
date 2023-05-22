@@ -1213,14 +1213,15 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 					  struct sk_buff *skb,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
+	const struct rtw89_rxinfo *rxinfo = (const struct rtw89_rxinfo *)skb->data;
 	bool rx_cnt_valid = false;
 	u8 plcp_size = 0;
 	u8 usr_num = 0;
 	u8 *phy_sts;
 
-	rx_cnt_valid = RTW89_GET_RXINFO_RX_CNT_VLD(skb->data);
-	plcp_size = RTW89_GET_RXINFO_PLCP_LEN(skb->data) << 3;
-	usr_num = RTW89_GET_RXINFO_USR_NUM(skb->data);
+	rx_cnt_valid = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_RX_CNT_VLD);
+	plcp_size = le32_get_bits(rxinfo->w1, RTW89_RXINFO_W1_PLCP_LEN) << 3;
+	usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM);
 	if (usr_num > RTW89_PPDU_MAX_USR) {
 		rtw89_warn(rtwdev, "Invalid user number in mac info\n");
 		return -EINVAL;

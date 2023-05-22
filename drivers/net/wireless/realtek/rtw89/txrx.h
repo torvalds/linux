@@ -251,34 +251,31 @@
 #define RTW89_GET_RXWD_SEC_CAM_ID(rxdesc) \
 	le32_get_bits((rxdesc)->dword5, GENMASK(7, 0))
 
-#define RTW89_GET_RXINFO_USR_NUM(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), GENMASK(3, 0))
-#define RTW89_GET_RXINFO_FW_DEFINE(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), GENMASK(15, 8))
-#define RTW89_GET_RXINFO_LSIG_LEN(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), GENMASK(27, 16))
-#define RTW89_GET_RXINFO_IS_TO_SELF(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), BIT(28))
-#define RTW89_GET_RXINFO_RX_CNT_VLD(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), BIT(29))
-#define RTW89_GET_RXINFO_LONG_RXD(rpt) \
-	le32_get_bits(*((const __le32 *)rpt), GENMASK(31, 30))
-#define RTW89_GET_RXINFO_SERVICE(rpt) \
-	le32_get_bits(*((const __le32 *)(rpt) + 1), GENMASK(15, 0))
-#define RTW89_GET_RXINFO_PLCP_LEN(rpt) \
-	le32_get_bits(*((const __le32 *)(rpt) + 1), GENMASK(23, 16))
-#define RTW89_GET_RXINFO_MAC_ID_VALID(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), BIT(0))
-#define RTW89_GET_RXINFO_DATA(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), BIT(1))
-#define RTW89_GET_RXINFO_CTRL(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), BIT(2))
-#define RTW89_GET_RXINFO_MGMT(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), BIT(3))
-#define RTW89_GET_RXINFO_BCM(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), BIT(4))
-#define RTW89_GET_RXINFO_MACID(rpt, usr) \
-	le32_get_bits(*((const __le32 *)(rpt) + (usr) + 2), GENMASK(15, 8))
+struct rtw89_rxinfo_user {
+	__le32 w0;
+};
+
+#define RTW89_RXINFO_USER_MAC_ID_VALID BIT(0)
+#define RTW89_RXINFO_USER_DATA BIT(1)
+#define RTW89_RXINFO_USER_CTRL BIT(2)
+#define RTW89_RXINFO_USER_MGMT BIT(3)
+#define RTW89_RXINFO_USER_BCM BIT(4)
+#define RTW89_RXINFO_USER_MACID GENMASK(15, 8)
+
+struct rtw89_rxinfo {
+	__le32 w0;
+	__le32 w1;
+	struct rtw89_rxinfo_user user[];
+} __packed;
+
+#define RTW89_RXINFO_W0_USR_NUM GENMASK(3, 0)
+#define RTW89_RXINFO_W0_FW_DEFINE GENMASK(15, 8)
+#define RTW89_RXINFO_W0_LSIG_LEN GENMASK(27, 16)
+#define RTW89_RXINFO_W0_IS_TO_SELF BIT(28)
+#define RTW89_RXINFO_W0_RX_CNT_VLD BIT(29)
+#define RTW89_RXINFO_W0_LONG_RXD GENMASK(31, 30)
+#define RTW89_RXINFO_W1_SERVICE GENMASK(15, 0)
+#define RTW89_RXINFO_W1_PLCP_LEN GENMASK(23, 16)
 
 #define RTW89_GET_PHY_STS_IE_MAP(sts) \
 	le32_get_bits(*((const __le32 *)(sts)), GENMASK(4, 0))
