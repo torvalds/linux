@@ -49,6 +49,11 @@ struct rtw8723du_efuse {
 	u8 mac_addr[ETH_ALEN];          /* 0x107 */
 };
 
+struct rtw8723ds_efuse {
+	u8 res4[0x4a];			/* 0xd0 */
+	u8 mac_addr[ETH_ALEN];		/* 0x11a */
+};
+
 struct rtw8723d_efuse {
 	__le16 rtl_id;
 	u8 rsvd[2];
@@ -80,6 +85,7 @@ struct rtw8723d_efuse {
 	union {
 		struct rtw8723de_efuse e;
 		struct rtw8723du_efuse u;
+		struct rtw8723ds_efuse s;
 	};
 };
 
