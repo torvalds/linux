@@ -201,7 +201,7 @@ static inline enum req_op req_op(const struct request *req)
 
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {
-	return blk_op_is_passthrough(req_op(rq));
+	return blk_op_is_passthrough(rq->cmd_flags);
 }
 
 static inline unsigned short req_get_ioprio(struct request *req)
