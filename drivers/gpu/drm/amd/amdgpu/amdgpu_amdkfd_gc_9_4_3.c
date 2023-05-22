@@ -54,7 +54,7 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 	return retval;
 }
 
-int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
+static int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 				 uint32_t __user *wptr, struct mm_struct *mm)
 {
 	struct v9_sdma_mqd *m;
@@ -123,7 +123,7 @@ int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 	return 0;
 }
 
-int kgd_gfx_v9_4_3_hqd_sdma_dump(struct amdgpu_device *adev,
+static int kgd_gfx_v9_4_3_hqd_sdma_dump(struct amdgpu_device *adev,
 				 uint32_t engine_id, uint32_t queue_id,
 				 uint32_t (**dump)[2], uint32_t *n_regs)
 {
@@ -160,7 +160,7 @@ int kgd_gfx_v9_4_3_hqd_sdma_dump(struct amdgpu_device *adev,
 	return 0;
 }
 
-bool kgd_gfx_v9_4_3_hqd_sdma_is_occupied(struct amdgpu_device *adev, void *mqd)
+static bool kgd_gfx_v9_4_3_hqd_sdma_is_occupied(struct amdgpu_device *adev, void *mqd)
 {
 	struct v9_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
@@ -178,7 +178,7 @@ bool kgd_gfx_v9_4_3_hqd_sdma_is_occupied(struct amdgpu_device *adev, void *mqd)
 	return false;
 }
 
-int kgd_gfx_v9_4_3_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
+static int kgd_gfx_v9_4_3_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 				    unsigned int utimeout)
 {
 	struct v9_sdma_mqd *m;
