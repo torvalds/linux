@@ -33,6 +33,8 @@
 #define SCHEDULE_DELAY		(60 * HZ)
 #define OTG_SCHEDULE_DELAY	(2 * HZ)
 
+struct rockchip_usb2phy;
+
 enum rockchip_usb2phy_port_id {
 	USB2PHY_PORT_OTG,
 	USB2PHY_PORT_HOST,
@@ -163,6 +165,7 @@ struct rockchip_usb2phy_port_cfg {
  * struct rockchip_usb2phy_cfg - usb-phy configuration.
  * @reg: the address offset of grf for usb-phy config.
  * @num_ports: specify how many ports that the phy has.
+ * @phy_tuning: phy default parameters tuning.
  * @clkout_ctl: keep on/turn off output clk of phy.
  * @port_cfgs: usb-phy port configurations.
  * @chg_det: charger detection registers.
@@ -170,6 +173,7 @@ struct rockchip_usb2phy_port_cfg {
 struct rockchip_usb2phy_cfg {
 	unsigned int	reg;
 	unsigned int	num_ports;
+	int (*phy_tuning)(struct rockchip_usb2phy *rphy);
 	struct usb2phy_reg	clkout_ctl;
 	const struct rockchip_usb2phy_port_cfg	port_cfgs[USB2PHY_NUM_PORTS];
 	const struct rockchip_chg_det_reg	chg_det;
@@ -1400,6 +1404,12 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		goto disable_clks;
 	}
 
+	if (rphy->phy_cfg->phy_tuning) {
+		ret = rphy->phy_cfg->phy_tuning(rphy);
+		if (ret)
+			goto disable_clks;
+	}
+
 	index = 0;
 	for_each_available_child_of_node(np, child_np) {
 		struct rockchip_usb2phy_port *rport = &rphy->ports[index];
@@ -1465,6 +1475,55 @@ disable_clks:
 		clk_disable_unprepare(rphy->clk);
 		clk_put(rphy->clk);
 	}
+	return ret;
+}
+
+static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	int ret;
+	bool usb3otg = false;
+	/*
+	 * utmi_termselect = 1'b1 (en FS terminations)
+	 * utmi_xcvrselect = 2'b01 (FS transceiver)
+	 */
+	int suspend_cfg = 0x14;
+
+	if (rphy->phy_cfg->reg == 0x0000 || rphy->phy_cfg->reg == 0x4000) {
+		/* USB2 config for USB3_0 and USB3_1 */
+		suspend_cfg |= 0x01; /* utmi_opmode = 2'b01 (no-driving) */
+		usb3otg = true;
+	} else if (rphy->phy_cfg->reg == 0x8000 || rphy->phy_cfg->reg == 0xc000) {
+		/* USB2 config for USB2_0 and USB2_1 */
+		suspend_cfg |= 0x00; /* utmi_opmode = 2'b00 (normal) */
+	} else {
+		return -EINVAL;
+	}
+
+	/* Deassert SIDDQ to power on analog block */
+	ret = regmap_write(rphy->grf, 0x0008, GENMASK(29, 29) | 0x0000);
+	if (ret)
+		return ret;
+
+	/* Do reset after exit IDDQ mode */
+	ret = rockchip_usb2phy_reset(rphy);
+	if (ret)
+		return ret;
+
+	/* suspend configuration */
+	ret |= regmap_write(rphy->grf, 0x000c, GENMASK(20, 16) | suspend_cfg);
+
+	/* HS DC Voltage Level Adjustment 4'b1001 : +5.89% */
+	ret |= regmap_write(rphy->grf, 0x0004, GENMASK(27, 24) | 0x0900);
+
+	/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
+	ret |= regmap_write(rphy->grf, 0x0008, GENMASK(20, 19) | 0x0010);
+
+	if (!usb3otg)
+		return ret;
+
+	/* Pullup iddig pin for USB3_0 OTG mode */
+	ret |= regmap_write(rphy->grf, 0x0010, GENMASK(17, 16) | 0x0003);
+
 	return ret;
 }
 
@@ -1785,6 +1844,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 	{
 		.reg = 0x0000,
 		.num_ports	= 1,
+		.phy_tuning	= rk3588_usb2phy_tuning,
 		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
@@ -1821,6 +1881,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 	{
 		.reg = 0x4000,
 		.num_ports	= 1,
+		.phy_tuning	= rk3588_usb2phy_tuning,
 		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
@@ -1857,6 +1918,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 	{
 		.reg = 0x8000,
 		.num_ports	= 1,
+		.phy_tuning	= rk3588_usb2phy_tuning,
 		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
@@ -1877,6 +1939,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 	{
 		.reg = 0xc000,
 		.num_ports	= 1,
+		.phy_tuning	= rk3588_usb2phy_tuning,
 		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
