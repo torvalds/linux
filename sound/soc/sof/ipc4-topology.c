@@ -936,8 +936,8 @@ static void sof_ipc4_widget_free_comp_process(struct snd_sof_widget *swidget)
 }
 
 static void
-sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
-				   struct sof_ipc4_base_module_cfg *base_config)
+sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			       struct sof_ipc4_base_module_cfg *base_config)
 {
 	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 	struct snd_sof_widget *pipe_widget;
@@ -1711,7 +1711,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		       *data, copier_data->gtw_cfg.config_length * 4);
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &copier_data->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);
 
 	return 0;
 }
@@ -1748,7 +1748,7 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &gain->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &gain->base_config);
 
 	return 0;
 }
@@ -1785,7 +1785,7 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &mixer->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &mixer->base_config);
 
 	return 0;
 }
@@ -1822,7 +1822,7 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &src->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &src->base_config);
 
 	/* update pipeline_params for sink widgets */
 	rate = hw_param_interval(pipeline_params, SNDRV_PCM_HW_PARAM_RATE);
@@ -1959,7 +1959,7 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	}
 
 	/* update pipeline memory usage */
-	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &process->base_config);
+	sof_ipc4_update_resource_usage(sdev, swidget, &process->base_config);
 
 	/* ipc_config_data is composed of the base_config followed by an optional extension */
 	memcpy(cfg, &process->base_config, sizeof(struct sof_ipc4_base_module_cfg));
