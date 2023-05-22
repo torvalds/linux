@@ -954,6 +954,12 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 					      DACSRT_MASK, dtop_digen_sr_lmt0);
 		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
 					      dtop_digen_clke, dtop_digen_clke);
+		snd_soc_component_update_bits(component, RK817_CODEC_APLL_CFG5,
+					      PLL_PW_DOWN, PLL_PW_DOWN);
+		usleep_range(50, 60);
+		snd_soc_component_update_bits(component, RK817_CODEC_APLL_CFG5,
+					      PLL_PW_DOWN, PLL_PW_UP);
+		usleep_range(500, 600);
 	}
 
 	switch (params_format(params)) {
