@@ -1286,13 +1286,19 @@ static void lpuart_dma_rx_complete(void *arg)
 static void lpuart_timer_func(struct timer_list *t)
 {
 	struct lpuart_port *sport = from_timer(sport, t, lpuart_timer);
+	enum dma_status dmastat;
 	struct dma_chan *chan = sport->dma_rx_chan;
 	struct circ_buf *ring = &sport->rx_ring;
 	struct dma_tx_state state;
 	unsigned long flags;
 	int count;
 
-	dmaengine_tx_status(chan, sport->dma_rx_cookie, &state);
+	dmastat = dmaengine_tx_status(chan, sport->dma_rx_cookie, &state);
+	if (dmastat == DMA_ERROR) {
+		dev_err(sport->port.dev, "Rx DMA transfer failed!\n");
+		return;
+	}
+
 	ring->head = sport->rx_sgl.length - state.residue;
 	count = CIRC_CNT(ring->head, ring->tail, sport->rx_sgl.length);
 
