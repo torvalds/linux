@@ -785,8 +785,11 @@ static int hdmi_bus_fmt_to_color_format(unsigned int bus_format)
 		return RK_IF_FORMAT_YCBCR444;
 
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YVYU12_1X24:
 		return RK_IF_FORMAT_YCBCR422;
 
 	case MEDIA_BUS_FMT_RGB888_1X24:
