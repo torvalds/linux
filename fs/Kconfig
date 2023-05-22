@@ -371,14 +371,7 @@ config NFS_V4_2_SSC_HELPER
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
 
-source "fs/cifs/Kconfig"
-source "fs/ksmbd/Kconfig"
-
-config SMBFS_COMMON
-	tristate
-	default y if CIFS=y || SMB_SERVER=y
-	default m if CIFS=m || SMB_SERVER=m
-
+source "fs/smb/Kconfig"
 source "fs/coda/Kconfig"
 source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"
