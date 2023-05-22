@@ -2887,6 +2887,9 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	bool writably_mapped;
 	int i, error = 0;
 
+	if (unlikely(*ppos >= in->f_mapping->host->i_sb->s_maxbytes))
+		return 0;
+
 	init_sync_kiocb(&iocb, in);
 	iocb.ki_pos = *ppos;
 
