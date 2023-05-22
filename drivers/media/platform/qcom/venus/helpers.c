@@ -636,12 +636,16 @@ static int platform_get_bufreq(struct venus_inst *inst, u32 buftype,
 	if (is_dec) {
 		params.width = inst->width;
 		params.height = inst->height;
+		params.out_width = inst->out_width;
+		params.out_height = inst->out_height;
 		params.codec = inst->fmt_out->pixfmt;
 		params.hfi_color_fmt = to_hfi_raw_fmt(inst->fmt_cap->pixfmt);
 		params.dec.max_mbs_per_frame = mbs_per_frame_max(inst);
 		params.dec.buffer_size_limit = 0;
 		params.dec.is_secondary_output =
 			inst->opb_buftype == HFI_BUFFER_OUTPUT2;
+		if (params.dec.is_secondary_output)
+			params.hfi_dpb_color_fmt = inst->dpb_fmt;
 		params.dec.is_interlaced =
 			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE;
 	} else {
