@@ -151,9 +151,15 @@
 
 /* 0x1C : I2CM Master DMA Transfer Length Register	 */
 #define AST2600_I2CM_DMA_LEN		0x1C
+
 /* Tx Rx support length 1 ~ 4096 */
+#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
+#define AST2600_I2CM_SET_RX_DMA_LEN(x)	(((x) & GENMASK(15, 0)) << 16)
+#define AST2600_I2CM_SET_TX_DMA_LEN(x)	((x) & GENMASK(15, 0))
+#else
 #define AST2600_I2CM_SET_RX_DMA_LEN(x)	((((x) & GENMASK(11, 0)) << 16) | BIT(31))
 #define AST2600_I2CM_SET_TX_DMA_LEN(x)	(((x) & GENMASK(11, 0)) | BIT(15))
+#endif
 
 /* 0x20 : I2CS Slave Interrupt Control Register   */
 #define AST2600_I2CS_IER			0x20
@@ -200,11 +206,14 @@
 #define AST2600_I2CS_TX_CMD				BIT(2)
 
 #define AST2600_I2CS_DMA_LEN		0x2C
-#define AST2600_I2CS_SET_RX_DMA_LEN(x)	(((((x) - 1) & GENMASK(11, 0)) << 16) | BIT(31))
-#define AST2600_I2CS_RX_DMA_LEN_MASK	(GENMASK(11, 0) << 16)
 
+#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
+#define AST2600_I2CS_SET_RX_DMA_LEN(x)	((((x) - 1) & GENMASK(15, 0)) << 16)
+#define AST2600_I2CS_SET_TX_DMA_LEN(x)	(((x) - 1) & GENMASK(15, 0))
+#else
+#define AST2600_I2CS_SET_RX_DMA_LEN(x)	(((((x) - 1) & GENMASK(11, 0)) << 16) | BIT(31))
 #define AST2600_I2CS_SET_TX_DMA_LEN(x)	((((x) - 1) & GENMASK(11, 0)) | BIT(15))
-#define AST2600_I2CS_TX_DMA_LEN_MASK	GENMASK(11, 0)
+#endif
 
 /* I2CM Master DMA Tx Buffer Register   */
 #define AST2600_I2CM_TX_DMA			0x30
