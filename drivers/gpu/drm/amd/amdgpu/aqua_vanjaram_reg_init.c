@@ -166,7 +166,7 @@ static int aqua_vanjaram_update_partition_sched_list(struct amdgpu_device *adev)
 	return aqua_vanjaram_xcp_sched_list_update(adev);
 }
 
-int aqua_vanjaram_select_scheds(
+static int aqua_vanjaram_select_scheds(
 		struct amdgpu_device *adev,
 		u32 hw_ip,
 		u32 hw_prio,
@@ -307,7 +307,7 @@ static int aqua_vanjaram_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	return mode;
 }
 
-int __aqua_vanjaram_get_xcc_per_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
+static int __aqua_vanjaram_get_xcc_per_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
 {
 	int num_xcc, num_xcc_per_xcp = 0;
 
@@ -334,7 +334,7 @@ int __aqua_vanjaram_get_xcc_per_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
 	return num_xcc_per_xcp;
 }
 
-int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+static int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 				    enum AMDGPU_XCP_IP_BLOCK ip_id,
 				    struct amdgpu_xcp_ip *ip)
 {
@@ -590,7 +590,7 @@ static int aqua_vanjaram_get_xcp_mem_id(struct amdgpu_xcp_mgr *xcp_mgr,
 	return r;
 }
 
-int aqua_vanjaram_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+static int aqua_vanjaram_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 				     enum AMDGPU_XCP_IP_BLOCK ip_id,
 				     struct amdgpu_xcp_ip *ip)
 {
