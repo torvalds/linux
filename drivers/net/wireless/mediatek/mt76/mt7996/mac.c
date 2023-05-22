@@ -2051,6 +2051,12 @@ void mt7996_mac_reset_work(struct work_struct *work)
 		mt7996_wait_reset_state(dev, MT_MCU_CMD_RECOVERY_DONE);
 	}
 
+	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
+	mt7996_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
+
+	/* enable DMA Tx/Tx and interrupt */
+	mt7996_dma_start(dev, false);
+
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);
 	if (phy2)
@@ -2066,9 +2072,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	local_bh_enable();
 
 	tasklet_schedule(&dev->mt76.irq_tasklet);
-
-	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
-	mt7996_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
 

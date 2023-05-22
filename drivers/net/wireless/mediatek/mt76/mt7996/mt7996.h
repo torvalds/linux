@@ -351,6 +351,7 @@ int mt7996_dma_init(struct mt7996_dev *dev);
 void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
 void mt7996_dma_prefetch(struct mt7996_dev *dev);
 void mt7996_dma_cleanup(struct mt7996_dev *dev);
+void mt7996_dma_start(struct mt7996_dev *dev, bool reset);
 void mt7996_init_txpower(struct mt7996_dev *dev,
 			 struct ieee80211_supported_band *sband);
 int mt7996_txbf_init(struct mt7996_dev *dev);
