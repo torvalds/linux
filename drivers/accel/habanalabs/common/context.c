@@ -102,7 +102,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	kfree(ctx->cs_pending);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
-		dev_dbg(hdev->dev, "closing user context %d\n", ctx->asid);
+		dev_dbg(hdev->dev, "closing user context, asid=%u\n", ctx->asid);
 
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
@@ -198,6 +198,7 @@ out_err:
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 {
+	char task_comm[TASK_COMM_LEN];
 	int rc = 0, i;
 
 	ctx->hdev = hdev;
@@ -267,7 +268,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 		hl_encaps_sig_mgr_init(&ctx->sig_mgr);
 
-		dev_dbg(hdev->dev, "create user context %d\n", ctx->asid);
+		dev_dbg(hdev->dev, "create user context, comm=\"%s\", asid=%u\n",
+			get_task_comm(task_comm, current), ctx->asid);
 	}
 
 	return 0;
