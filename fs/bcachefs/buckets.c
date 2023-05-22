@@ -137,17 +137,17 @@ u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *c)
 {
 	struct bch_fs_usage_online *ret;
-	unsigned seq, i, v, u64s = fs_usage_u64s(c) + 1;
+	unsigned nr_replicas = READ_ONCE(c->replicas.nr);
+	unsigned seq, i;
 retry:
-	ret = kmalloc(u64s * sizeof(u64), GFP_NOFS);
+	ret = kmalloc(__fs_usage_online_u64s(nr_replicas) * sizeof(u64), GFP_NOFS);
 	if (unlikely(!ret))
 		return NULL;
 
 	percpu_down_read(&c->mark_lock);
 
-	v = fs_usage_u64s(c) + 1;
-	if (unlikely(u64s != v)) {
-		u64s = v;
+	if (nr_replicas != c->replicas.nr) {
+		nr_replicas = c->replicas.nr;
 		percpu_up_read(&c->mark_lock);
 		kfree(ret);
 		goto retry;
@@ -157,10 +157,12 @@ retry:
 
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		unsafe_memcpy(&ret->u, c->usage_base, u64s * sizeof(u64),
+		unsafe_memcpy(&ret->u, c->usage_base,
+			      __fs_usage_u64s(nr_replicas) * sizeof(u64),
 			      "embedded variable length struct");
 		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-			acc_u64s_percpu((u64 *) &ret->u, (u64 __percpu *) c->usage[i], u64s);
+			acc_u64s_percpu((u64 *) &ret->u, (u64 __percpu *) c->usage[i],
+					__fs_usage_u64s(nr_replicas));
 	} while (read_seqcount_retry(&c->usage_lock, seq));
 
 	return ret;
