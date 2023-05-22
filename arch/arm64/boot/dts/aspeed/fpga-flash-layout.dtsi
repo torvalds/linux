@@ -42,6 +42,6 @@ partitions {
 
 	reserve@aa0000 {
 		label = "reserve";
-		reg = <0xaa0000 0x600000>;
+		reg = <0xaa0000 0x560000>;
 	};
 };
