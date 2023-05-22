@@ -6226,12 +6226,14 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	RETURN_EIO_IF_NOT_UP(cfg);
 
 	/* Get the device rev info */
+#ifdef OEM_ANDROID
 	bzero(&revinfo, sizeof(revinfo));
 	err = wldev_ioctl_get(bcmcfg_to_prmry_ndev(cfg), WLC_GET_REVINFO, &revinfo,
 			sizeof(revinfo));
 	if (err != BCME_OK) {
 		goto exit;
 	}
+#endif
 
 	outdata = (void *)MALLOCZ(cfg->osh, WLC_IOCTL_MAXLEN);
 	if (outdata == NULL) {

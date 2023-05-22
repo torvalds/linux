@@ -239,11 +239,29 @@ typedef struct dhd_tx_lb_pkttag_fr {
 				} \
 			} while (0)
 
+typedef struct wifi_adapter_info {
+	const char	*name;
+	uint		irq_num;
+	uint		intr_flags;
+	const char	*fw_path;
+	const char	*nv_path;
+	void		*wifi_plat_data;	/* wifi ctrl func, for backward compatibility */
+	uint		bus_type;
+	int index;
+	uint		bus_num;
+	uint		slot_num;
+	int         gpio_wl_reg_on;
+	int         gpio_wl_host_wake;
+#if defined(BT_OVER_SDIO)
+	const char	*btfw_path;
+#endif /* defined (BT_OVER_SDIO) */
+} wifi_adapter_info_t;
+
 #if !defined(CONFIG_WIFI_CONTROL_FUNC)
 #define WLAN_PLAT_NODFS_FLAG	0x01
 #define WLAN_PLAT_AP_FLAG	0x02
 struct wifi_platform_data {
-	int (*set_power)(int val);
+	int (*set_power)(int val,  wifi_adapter_info_t *adapter);
 	int (*set_reset)(int val);
 	int (*set_carddetect)(int val);
 	void *(*mem_prealloc)(int section, unsigned long size);
@@ -261,20 +279,6 @@ struct wifi_platform_data {
 
 #define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
 
-typedef struct wifi_adapter_info {
-	const char	*name;
-	uint		irq_num;
-	uint		intr_flags;
-	const char	*fw_path;
-	const char	*nv_path;
-	void		*wifi_plat_data;	/* wifi ctrl func, for backward compatibility */
-	uint		bus_type;
-	uint		bus_num;
-	uint		slot_num;
-#if defined(BT_OVER_SDIO)
-	const char	*btfw_path;
-#endif /* defined (BT_OVER_SDIO) */
-} wifi_adapter_info_t;
 
 typedef struct bcmdhd_wifi_platdata {
 	uint				num_adapters;

@@ -250,7 +250,6 @@ struct resource dhd_wlan_resources = {
 	IORESOURCE_IRQ_HIGHLEVEL,
 #endif /* CONFIG_BCMDHD_PCIE */
 };
-EXPORT_SYMBOL(dhd_wlan_resources);
 
 struct wifi_platform_data dhd_wlan_control = {
 	.set_power	= dhd_wlan_power,
@@ -260,7 +259,6 @@ struct wifi_platform_data dhd_wlan_control = {
 	.mem_prealloc	= dhd_wlan_mem_prealloc,
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 };
-EXPORT_SYMBOL(dhd_wlan_control);
 
 #ifndef USE_CUSTOM_MSM_PCIE
 int __init
