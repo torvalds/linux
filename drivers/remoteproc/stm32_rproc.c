@@ -755,7 +755,7 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 
 	ddata->hold_boot_rst = devm_reset_control_get_optional(dev, "hold_boot");
 	if (IS_ERR(ddata->hold_boot_rst))
-		return dev_err_probe(dev, PTR_ERR(ddata->rst),
+		return dev_err_probe(dev, PTR_ERR(ddata->hold_boot_rst),
 				     "failed to get hold_boot reset\n");
 
 	if (!ddata->hold_boot_rst && IS_ENABLED(CONFIG_HAVE_ARM_SMCCC)) {
