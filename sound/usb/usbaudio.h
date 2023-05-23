@@ -51,6 +51,7 @@ struct snd_usb_audio {
 
 	unsigned int num_rawmidis;	/* number of created rawmidi devices */
 	struct list_head midi_list;	/* list of midi interfaces */
+	struct list_head midi_v2_list;	/* list of MIDI 2 interfaces */
 
 	struct list_head mixer_list;	/* list of mixer interfaces */
 
