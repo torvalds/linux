@@ -26,6 +26,10 @@ config SND_RAWMIDI
 	tristate
 	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
+config SND_UMP
+	tristate
+	select SND_RAWMIDI
+
 config SND_COMPRESS_OFFLOAD
 	tristate
 

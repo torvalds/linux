@@ -708,7 +708,7 @@ enum {
  *  Raw MIDI section - /dev/snd/midi??
  */
 
-#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
+#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 3)
 
 enum {
 	SNDRV_RAWMIDI_STREAM_OUTPUT = 0,
@@ -719,6 +719,7 @@ enum {
 #define SNDRV_RAWMIDI_INFO_OUTPUT		0x00000001
 #define SNDRV_RAWMIDI_INFO_INPUT		0x00000002
 #define SNDRV_RAWMIDI_INFO_DUPLEX		0x00000004
+#define SNDRV_RAWMIDI_INFO_UMP			0x00000008
 
 struct snd_rawmidi_info {
 	unsigned int device;		/* RO/WR (control): device number */
@@ -779,6 +780,57 @@ struct snd_rawmidi_status {
 };
 #endif
 
+/* UMP EP Protocol / JRTS capability bits */
+#define SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK	0x0300
+#define SNDRV_UMP_EP_INFO_PROTO_MIDI1		0x0100 /* MIDI 1.0 */
+#define SNDRV_UMP_EP_INFO_PROTO_MIDI2		0x0200 /* MIDI 2.0 */
+#define SNDRV_UMP_EP_INFO_PROTO_JRTS_MASK	0x0003
+#define SNDRV_UMP_EP_INFO_PROTO_JRTS_TX		0x0001 /* JRTS Transmit */
+#define SNDRV_UMP_EP_INFO_PROTO_JRTS_RX		0x0002 /* JRTS Receive */
+
+/* UMP Endpoint information */
+struct snd_ump_endpoint_info {
+	int card;			/* card number */
+	int device;			/* device number */
+	unsigned int flags;		/* additional info */
+	unsigned int protocol_caps;	/* protocol capabilities */
+	unsigned int protocol;		/* current protocol */
+	unsigned int num_blocks;	/* # of function blocks */
+	unsigned short version;		/* UMP major/minor version */
+	unsigned short padding[7];
+	unsigned char name[128];	/* endpoint name string */
+	unsigned char product_id[128];	/* unique product id string */
+	unsigned char reserved[32];
+} __packed;
+
+/* UMP direction */
+#define SNDRV_UMP_DIR_INPUT		0x01
+#define SNDRV_UMP_DIR_OUTPUT		0x02
+#define SNDRV_UMP_DIR_BIDIRECTION	0x03
+
+/* UMP block info flags */
+#define SNDRV_UMP_BLOCK_IS_MIDI1	(1U << 0) /* MIDI 1.0 port w/o restrict */
+#define SNDRV_UMP_BLOCK_IS_LOWSPEED	(1U << 1) /* 31.25Kbps B/W MIDI1 port */
+
+/* UMP groups and blocks */
+#define SNDRV_UMP_MAX_GROUPS		16
+#define SNDRV_UMP_MAX_BLOCKS		32
+
+/* UMP Block information */
+struct snd_ump_block_info {
+	int card;			/* card number */
+	int device;			/* device number */
+	unsigned char block_id;		/* block ID (R/W) */
+	unsigned char direction;	/* UMP direction */
+	unsigned char active;		/* Activeness */
+	unsigned char first_group;	/* first group ID */
+	unsigned char num_groups;	/* number of groups */
+	unsigned char padding[3];
+	unsigned int flags;		/* various info flags */
+	unsigned char name[128];	/* block name string */
+	unsigned char reserved[32];
+} __packed;
+
 #define SNDRV_RAWMIDI_IOCTL_PVERSION	_IOR('W', 0x00, int)
 #define SNDRV_RAWMIDI_IOCTL_INFO	_IOR('W', 0x01, struct snd_rawmidi_info)
 #define SNDRV_RAWMIDI_IOCTL_USER_PVERSION _IOW('W', 0x02, int)
@@ -786,6 +838,9 @@ struct snd_rawmidi_status {
 #define SNDRV_RAWMIDI_IOCTL_STATUS	_IOWR('W', 0x20, struct snd_rawmidi_status)
 #define SNDRV_RAWMIDI_IOCTL_DROP	_IOW('W', 0x30, int)
 #define SNDRV_RAWMIDI_IOCTL_DRAIN	_IOW('W', 0x31, int)
+/* Additional ioctls for UMP rawmidi devices */
+#define SNDRV_UMP_IOCTL_ENDPOINT_INFO	_IOR('W', 0x40, struct snd_ump_endpoint_info)
+#define SNDRV_UMP_IOCTL_BLOCK_INFO	_IOR('W', 0x41, struct snd_ump_block_info)
 
 /*
  *  Timer section - /dev/snd/timer
