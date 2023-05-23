@@ -711,93 +711,6 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	return (result < 0) ? result : num_ev;
 }
 
-
-#ifdef SUPPORT_BROADCAST 
-/*
- * broadcast to all ports:
- */
-static int port_broadcast_event(struct snd_seq_client *client,
-				struct snd_seq_event *event,
-				int atomic, int hop)
-{
-	int num_ev = 0, err, result = 0;
-	struct snd_seq_client *dest_client;
-	struct snd_seq_client_port *port;
-
-	dest_client = get_event_dest_client(event, SNDRV_SEQ_FILTER_BROADCAST);
-	if (dest_client == NULL)
-		return 0; /* no matching destination */
-
-	read_lock(&dest_client->ports_lock);
-	list_for_each_entry(port, &dest_client->ports_list_head, list) {
-		event->dest.port = port->addr.port;
-		/* pass NULL as source client to avoid error bounce */
-		err = snd_seq_deliver_single_event(NULL, event,
-						   SNDRV_SEQ_FILTER_BROADCAST,
-						   atomic, hop);
-		if (err < 0) {
-			/* save first error that occurs and continue */
-			if (!result)
-				result = err;
-			continue;
-		}
-		num_ev++;
-	}
-	read_unlock(&dest_client->ports_lock);
-	snd_seq_client_unlock(dest_client);
-	event->dest.port = SNDRV_SEQ_ADDRESS_BROADCAST; /* restore */
-	return (result < 0) ? result : num_ev;
-}
-
-/*
- * send the event to all clients:
- * if destination port is also ADDRESS_BROADCAST, deliver to all ports.
- */
-static int broadcast_event(struct snd_seq_client *client,
-			   struct snd_seq_event *event, int atomic, int hop)
-{
-	int err, result = 0, num_ev = 0;
-	int dest;
-	struct snd_seq_addr addr;
-
-	addr = event->dest; /* save */
-
-	for (dest = 0; dest < SNDRV_SEQ_MAX_CLIENTS; dest++) {
-		/* don't send to itself */
-		if (dest == client->number)
-			continue;
-		event->dest.client = dest;
-		event->dest.port = addr.port;
-		if (addr.port == SNDRV_SEQ_ADDRESS_BROADCAST)
-			err = port_broadcast_event(client, event, atomic, hop);
-		else
-			/* pass NULL as source client to avoid error bounce */
-			err = snd_seq_deliver_single_event(NULL, event,
-							   SNDRV_SEQ_FILTER_BROADCAST,
-							   atomic, hop);
-		if (err < 0) {
-			/* save first error that occurs and continue */
-			if (!result)
-				result = err;
-			continue;
-		}
-		num_ev += err;
-	}
-	event->dest = addr; /* restore */
-	return (result < 0) ? result : num_ev;
-}
-
-
-/* multicast - not supported yet */
-static int multicast_event(struct snd_seq_client *client, struct snd_seq_event *event,
-			   int atomic, int hop)
-{
-	pr_debug("ALSA: seq: multicast not supported yet.\n");
-	return 0; /* ignored */
-}
-#endif /* SUPPORT_BROADCAST */
-
-
 /* deliver an event to the destination port(s).
  * if the event is to subscribers or broadcast, the event is dispatched
  * to multiple targets.
@@ -826,15 +739,6 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 	if (event->queue == SNDRV_SEQ_ADDRESS_SUBSCRIBERS ||
 	    event->dest.client == SNDRV_SEQ_ADDRESS_SUBSCRIBERS)
 		result = deliver_to_subscribers(client, event, atomic, hop);
-#ifdef SUPPORT_BROADCAST
-	else if (event->queue == SNDRV_SEQ_ADDRESS_BROADCAST ||
-		 event->dest.client == SNDRV_SEQ_ADDRESS_BROADCAST)
-		result = broadcast_event(client, event, atomic, hop);
-	else if (event->dest.client >= SNDRV_SEQ_MAX_CLIENTS)
-		result = multicast_event(client, event, atomic, hop);
-	else if (event->dest.port == SNDRV_SEQ_ADDRESS_BROADCAST)
-		result = port_broadcast_event(client, event, atomic, hop);
-#endif
 	else
 		result = snd_seq_deliver_single_event(client, event, 0, atomic, hop);
 
@@ -936,14 +840,7 @@ static int snd_seq_client_enqueue_event(struct snd_seq_client *client,
 	if (event->queue == SNDRV_SEQ_ADDRESS_SUBSCRIBERS) {
 		event->dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
 		event->queue = SNDRV_SEQ_QUEUE_DIRECT;
-	} else
-#ifdef SUPPORT_BROADCAST
-		if (event->queue == SNDRV_SEQ_ADDRESS_BROADCAST) {
-			event->dest.client = SNDRV_SEQ_ADDRESS_BROADCAST;
-			event->queue = SNDRV_SEQ_QUEUE_DIRECT;
-		}
-#endif
-	if (event->dest.client == SNDRV_SEQ_ADDRESS_SUBSCRIBERS) {
+	} else if (event->dest.client == SNDRV_SEQ_ADDRESS_SUBSCRIBERS) {
 		/* check presence of source port */
 		struct snd_seq_client_port *src_port = snd_seq_port_use_ptr(client, event->source.port);
 		if (src_port == NULL)
