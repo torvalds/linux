@@ -495,6 +495,12 @@ static int snd_emu10k1_capture_prepare(struct snd_pcm_substream *substream)
 		snd_emu10k1_ptr_write(emu, ADCCR, 0, 0);
 		break;
 	case CAPTURE_EFX:
+		if (emu->card_capabilities->emu_model) {
+			// The upper 32 16-bit capture voices, two for each of the 16 32-bit channels.
+			// The lower voices are occupied by A_EXTOUT_*_CAP*.
+			epcm->capture_cr_val = 0;
+			epcm->capture_cr_val2 = 0xffffffff >> (32 - runtime->channels * 2);
+		}
 		if (emu->audigy) {
 			snd_emu10k1_ptr_write_multiple(emu, 0,
 				A_FXWC1, 0,
@@ -1042,8 +1048,8 @@ static const struct snd_pcm_hardware snd_emu10k1_capture_efx =
 				 SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000,
 	.rate_min =		44100,
 	.rate_max =		192000,
-	.channels_min =		8,
-	.channels_max =		8,
+	.channels_min =		1,
+	.channels_max =		16,
 	.buffer_bytes_max =	(64*1024),
 	.period_bytes_min =	384,
 	.period_bytes_max =	(64*1024),
@@ -1269,7 +1275,6 @@ static int snd_emu10k1_capture_mic_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_emu10k1_capture;
 	runtime->hw.rates = SNDRV_PCM_RATE_8000;
 	runtime->hw.rate_min = runtime->hw.rate_max = 8000;
-	runtime->hw.channels_min = 1;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   &hw_constraints_capture_buffer_sizes);
 	emu->capture_mic_interrupt = snd_emu10k1_pcm_ac97mic_interrupt;
@@ -1310,7 +1315,6 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_emu10k1_capture_efx;
 	runtime->hw.rates = SNDRV_PCM_RATE_48000;
 	runtime->hw.rate_min = runtime->hw.rate_max = 48000;
-	spin_lock_irq(&emu->reg_lock);
 	if (emu->card_capabilities->emu_model) {
 		/* TODO
 		 * SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
@@ -1318,8 +1322,6 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000
 		 * rate_min = 44100,
 		 * rate_max = 192000,
-		 * channels_min = 16,
-		 * channels_max = 16,
 		 * Need to add mixer control to fix sample rate
 		 *                 
 		 * There are 32 mono channels of 16bits each.
@@ -1338,15 +1340,11 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 			/* For 44.1kHz */
 			runtime->hw.rates = SNDRV_PCM_RATE_44100;
 			runtime->hw.rate_min = runtime->hw.rate_max = 44100;
-			runtime->hw.channels_min =
-				runtime->hw.channels_max = 16;
 			break;
 		case 1:
 			/* For 48kHz */
 			runtime->hw.rates = SNDRV_PCM_RATE_48000;
 			runtime->hw.rate_min = runtime->hw.rate_max = 48000;
-			runtime->hw.channels_min =
-				runtime->hw.channels_max = 16;
 			break;
 		}
 #endif
@@ -1363,10 +1361,8 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		runtime->hw.channels_min = runtime->hw.channels_max = 2;
 #endif
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
-		/* efx_voices_mask[0] is expected to be zero
- 		 * efx_voices_mask[1] is expected to have 32bits set
-		 */
 	} else {
+		spin_lock_irq(&emu->reg_lock);
 		runtime->hw.channels_min = runtime->hw.channels_max = 0;
 		for (idx = 0; idx < nefx; idx++) {
 			if (emu->efx_voices_mask[idx/32] & (1 << (idx%32))) {
@@ -1374,10 +1370,10 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 				runtime->hw.channels_max++;
 			}
 		}
+		epcm->capture_cr_val = emu->efx_voices_mask[0];
+		epcm->capture_cr_val2 = emu->efx_voices_mask[1];
+		spin_unlock_irq(&emu->reg_lock);
 	}
-	epcm->capture_cr_val = emu->efx_voices_mask[0];
-	epcm->capture_cr_val2 = emu->efx_voices_mask[1];
-	spin_unlock_irq(&emu->reg_lock);
 	err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 					 &hw_constraints_efx_capture_channels);
 	if (err < 0) {
@@ -1844,37 +1840,29 @@ int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device)
 		strcpy(pcm->name, "Multichannel Capture/PT Playback");
 	emu->pcm_efx = pcm;
 
-	/* EFX capture - record the "FXBUS2" channels, by default we connect the EXTINs 
-	 * to these
-	 */	
-	
-	if (emu->audigy) {
-		emu->efx_voices_mask[0] = 0;
-		if (emu->card_capabilities->emu_model)
-			/* Pavel Hofman - 32 voices will be used for
-			 * capture (write mode) -
-			 * each bit = corresponding voice
-			 */
-			emu->efx_voices_mask[1] = 0xffffffff;
-		else
+	if (!emu->card_capabilities->emu_model) {
+		// On Sound Blasters, the DSP code copies the EXTINs to FXBUS2.
+		// The mask determines which of these and the EXTOUTs the multi-
+		// channel capture actually records (the channel order is fixed).
+		if (emu->audigy) {
+			emu->efx_voices_mask[0] = 0;
 			emu->efx_voices_mask[1] = 0xffff;
+		} else {
+			emu->efx_voices_mask[0] = 0xffff0000;
+			emu->efx_voices_mask[1] = 0;
+		}
+		kctl = snd_ctl_new1(&snd_emu10k1_pcm_efx_voices_mask, emu);
+		if (!kctl)
+			return -ENOMEM;
+		kctl->id.device = device;
+		err = snd_ctl_add(emu->card, kctl);
+		if (err < 0)
+			return err;
 	} else {
-		emu->efx_voices_mask[0] = 0xffff0000;
-		emu->efx_voices_mask[1] = 0;
+		// On E-MU cards, the DSP code copies the P16VINs/EMU32INs to
+		// FXBUS2. These are already selected & routed by the FPGA,
+		// so there is no need to apply additional masking.
 	}
-	/* For emu1010, the control has to set 32 upper bits (voices)
-	 * out of the 64 bits (voices) to true for the 16-channels capture
-	 * to work correctly. Correct A_FXWC2 initial value (0xffffffff)
-	 * is already defined but the snd_emu10k1_pcm_efx_voices_mask
-	 * control can override this register's value.
-	 */
-	kctl = snd_ctl_new1(&snd_emu10k1_pcm_efx_voices_mask, emu);
-	if (!kctl)
-		return -ENOMEM;
-	kctl->id.device = device;
-	err = snd_ctl_add(emu->card, kctl);
-	if (err < 0)
-		return err;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &emu->pci->dev,
 				       64*1024, 64*1024);
