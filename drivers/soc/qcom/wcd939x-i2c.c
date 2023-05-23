@@ -330,7 +330,7 @@ static int wcd_usbss_reset_routine(void)
 	/* Write 0xFF to WCD_USBSS_CPLDO_CTL2 */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, 0xFF, 0xFF);
 
-	/* If in none audio mode, reset RCO */
+	/* If in non-audio mode, reset RCO. Else, notify codec */
 	if (!(wcd_usbss_ctxt_->cable_status & (BIT(WCD_USBSS_AATC) |
 					       BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
 					       BIT(WCD_USBSS_HSJ_CONNECT) |
@@ -338,7 +338,9 @@ static int wcd_usbss_reset_routine(void)
 		/* Set RCO_EN: WCD_USBSS_USB_SS_CNTL Bit<3> --> 0x0 --> 0x1 */
 		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
 		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
-	}
+	} else
+		blocking_notifier_call_chain(&wcd_usbss_ctxt_->wcd_usbss_notifier,
+				WCD_USBSS_SURGE_RESET_EVENT, NULL);
 
 	if (disable_rpm)
 		pm_runtime_disable(i2c_bus_dev);

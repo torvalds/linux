@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
+#include <linux/usb/typec.h>
 
 enum wcd_usbss_config_type {
 	WCD_USBSS_CONFIG_TYPE_POWER_MODE,
@@ -61,6 +62,10 @@ enum wcd_usbss_switch_state {
 enum linearizer_rdac_cal_code_select {
 	LINEARIZER_SOURCE_HW,
 	LINEARIZER_SOURCE_SW,
+};
+
+enum wcd_usbss_notifier_events {
+	WCD_USBSS_SURGE_RESET_EVENT = TYPEC_MAX_ACCESSORY,
 };
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
