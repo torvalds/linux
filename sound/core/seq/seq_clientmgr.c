@@ -2416,6 +2416,8 @@ static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 
 	mutex_lock(&client->ports_mutex);
 	list_for_each_entry(p, &client->ports_list_head, list) {
+		if (p->capability & SNDRV_SEQ_PORT_CAP_INACTIVE)
+			continue;
 		snd_iprintf(buffer, "  Port %3d : \"%s\" (%c%c%c%c)\n",
 			    p->addr.port, p->name,
 			    FLAG_PERM_RD(p->capability),
