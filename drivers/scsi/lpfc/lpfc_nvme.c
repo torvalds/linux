@@ -310,20 +310,20 @@ lpfc_nvme_handle_lsreq(struct lpfc_hba *phba,
  * for the LS request.
  **/
 void
-__lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
+__lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba, struct lpfc_vport *vport,
 			struct lpfc_iocbq *cmdwqe,
 			struct lpfc_wcqe_complete *wcqe)
 {
 	struct nvmefc_ls_req *pnvme_lsreq;
 	struct lpfc_dmabuf *buf_ptr;
 	struct lpfc_nodelist *ndlp;
-	uint32_t status;
+	int status;
 
 	pnvme_lsreq = cmdwqe->context_un.nvme_lsreq;
 	ndlp = cmdwqe->ndlp;
 	buf_ptr = cmdwqe->bpl_dmabuf;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6047 NVMEx LS REQ x%px cmpl DID %x Xri: %x "
@@ -343,14 +343,17 @@ __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 		kfree(buf_ptr);
 		cmdwqe->bpl_dmabuf = NULL;
 	}
-	if (pnvme_lsreq->done)
+	if (pnvme_lsreq->done) {
+		if (status != CQE_STATUS_SUCCESS)
+			status = -ENXIO;
 		pnvme_lsreq->done(pnvme_lsreq, status);
-	else
+	} else {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6046 NVMEx cmpl without done call back? "
 				 "Data x%px DID %x Xri: %x status %x\n",
 				pnvme_lsreq, ndlp ? ndlp->nlp_DID : 0,
 				cmdwqe->sli4_xritag, status);
+	}
 	if (ndlp) {
 		lpfc_nlp_put(ndlp);
 		cmdwqe->ndlp = NULL;
@@ -367,7 +370,7 @@ lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	uint32_t status;
 	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
 
 	if (vport->localport) {
 		lport = (struct lpfc_nvme_lport *)vport->localport->private;
@@ -1040,7 +1043,7 @@ lpfc_nvme_io_cmd_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		nCmd->rcv_rsplen = LPFC_NVME_ERSP_LEN;
 		nCmd->transferred_length = nCmd->payload_length;
 	} else {
-		lpfc_ncmd->status = (status & LPFC_IOCB_STATUS_MASK);
+		lpfc_ncmd->status = status;
 		lpfc_ncmd->result = (wcqe->parameter & IOERR_PARAM_MASK);
 
 		/* For NVME, the only failure path that results in an

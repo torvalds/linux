@@ -932,8 +932,6 @@ struct lpfc_hba {
 	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
 			 struct lpfc_iocbq *);
 	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
-	void (*lpfc_scsi_cmd_iocb_cmpl)
-		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
 
 	/* MBOX interface function jump table entries */
 	int (*lpfc_sli_issue_mbox)

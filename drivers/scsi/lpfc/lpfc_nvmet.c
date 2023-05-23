@@ -300,7 +300,7 @@ __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct nvmefc_ls_rsp *ls_rsp = &axchg->ls_rsp;
 	uint32_t status, result;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
 	if (axchg->state != LPFC_NVME_STE_LS_RSP || axchg->entry_cnt != 2) {
@@ -350,7 +350,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (!phba->targetport)
 		goto finish;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
