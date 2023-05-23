@@ -8,8 +8,6 @@ title: Xilinx Versal clock controller
 
 maintainers:
   - Michal Simek <michal.simek@amd.com>
-  - Jolly Shah <jolly.shah@xilinx.com>
-  - Rajan Vaja <rajan.vaja@xilinx.com>
 
 description: |
   The clock controller is a hardware block of Xilinx versal clock tree. It
