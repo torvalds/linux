@@ -519,10 +519,8 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val |= 0x2 << 10;
 			writel(val, priv->mmio + 0x18);
 
-			/* su_trim[6:4]=111, [10:7]=1001, [2:0]=000 */
-			val = readl(priv->mmio + 0x108);
-			val &= ~(0x7f7);
-			val |= 0x4f0;
+			/* su_trim[6:4]=111, [10:7]=1001, [2:0]=000, swing 650mv */
+			val = 0x570804f0;
 			writel(val, priv->mmio + 0x108);
 		}
 		break;
