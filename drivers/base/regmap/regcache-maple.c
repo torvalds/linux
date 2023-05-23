@@ -239,11 +239,41 @@ static int regcache_maple_exit(struct regmap *map)
 	return 0;
 }
 
+static int regcache_maple_insert_block(struct regmap *map, int first,
+					int last)
+{
+	struct maple_tree *mt = map->cache;
+	MA_STATE(mas, mt, first, last);
+	unsigned long *entry;
+	int i, ret;
+
+	entry = kcalloc(last - first + 1, sizeof(unsigned long), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	for (i = 0; i < last - first + 1; i++)
+		entry[i] = map->reg_defaults[first + i].def;
+
+	mas_lock(&mas);
+
+	mas_set_range(&mas, map->reg_defaults[first].reg,
+		      map->reg_defaults[last].reg);
+	ret = mas_store_gfp(&mas, entry, GFP_KERNEL);
+
+	mas_unlock(&mas);
+
+	if (ret)
+		kfree(entry);
+
+	return ret;
+}
+
 static int regcache_maple_init(struct regmap *map)
 {
 	struct maple_tree *mt;
 	int i;
 	int ret;
+	int range_start;
 
 	mt = kmalloc(sizeof(*mt), GFP_KERNEL);
 	if (!mt)
@@ -252,13 +282,29 @@ static int regcache_maple_init(struct regmap *map)
 
 	mt_init(mt);
 
-	for (i = 0; i < map->num_reg_defaults; i++) {
-		ret = regcache_maple_write(map,
-					   map->reg_defaults[i].reg,
-					   map->reg_defaults[i].def);
-		if (ret)
-			goto err;
+	if (!map->num_reg_defaults)
+		return 0;
+
+	range_start = 0;
+
+	/* Scan for ranges of contiguous registers */
+	for (i = 1; i < map->num_reg_defaults; i++) {
+		if (map->reg_defaults[i].reg !=
+		    map->reg_defaults[i - 1].reg + 1) {
+			ret = regcache_maple_insert_block(map, range_start,
+							  i - 1);
+			if (ret != 0)
+				goto err;
+
+			range_start = i;
+		}
 	}
+
+	/* Add the last block */
+	ret = regcache_maple_insert_block(map, range_start,
+					  map->num_reg_defaults - 1);
+	if (ret != 0)
+		goto err;
 
 	return 0;
 
