@@ -171,7 +171,7 @@ fscrypt_policy_flags(const union fscrypt_policy *policy)
  */
 struct fscrypt_symlink_data {
 	__le16 len;
-	char encrypted_path[1];
+	char encrypted_path[];
 } __packed;
 
 /**
