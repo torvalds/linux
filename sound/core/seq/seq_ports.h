@@ -72,8 +72,9 @@ struct snd_seq_client_port {
 	int midi_voices;
 	int synth_voices;
 		
-	/* direction */
+	/* UMP direction and group */
 	unsigned char direction;
+	unsigned char ump_group;
 };
 
 struct snd_seq_client;

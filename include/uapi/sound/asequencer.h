@@ -478,7 +478,8 @@ struct snd_seq_port_info {
 	unsigned int flags;		/* misc. conditioning */
 	unsigned char time_queue;	/* queue # for timestamping */
 	unsigned char direction;	/* port usage direction (r/w/bidir) */
-	char reserved[58];		/* for future use */
+	unsigned char ump_group;	/* 0 = UMP EP (no conversion), 1-16 = UMP group number */
+	char reserved[57];		/* for future use */
 };
 
 

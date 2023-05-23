@@ -356,8 +356,12 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 	port->time_real = (info->flags & SNDRV_SEQ_PORT_FLG_TIME_REAL) ? 1 : 0;
 	port->time_queue = info->time_queue;
 
-	/* direction */
+	/* UMP direction and group */
 	port->direction = info->direction;
+	port->ump_group = info->ump_group;
+	if (port->ump_group > SNDRV_UMP_MAX_GROUPS)
+		port->ump_group = 0;
+
 	/* fill default port direction */
 	if (!port->direction) {
 		if (info->capability & SNDRV_SEQ_PORT_CAP_READ)
@@ -403,8 +407,9 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 		info->time_queue = port->time_queue;
 	}
 
-	/* direction */
+	/* UMP direction and group */
 	info->direction = port->direction;
+	info->ump_group = port->ump_group;
 
 	return 0;
 }
