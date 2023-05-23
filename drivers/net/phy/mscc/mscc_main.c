@@ -528,8 +528,6 @@ static int vsc85xx_rgmii_set_skews(struct phy_device *phydev, u32 rgmii_cntl,
 	u16 reg_val = 0;
 	int rc;
 
-	mutex_lock(&phydev->lock);
-
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
 	    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 		reg_val |= RGMII_CLK_DELAY_2_0_NS << rgmii_rx_delay_pos;
@@ -541,8 +539,6 @@ static int vsc85xx_rgmii_set_skews(struct phy_device *phydev, u32 rgmii_cntl,
 			      rgmii_cntl,
 			      rgmii_rx_delay_mask | rgmii_tx_delay_mask,
 			      reg_val);
-
-	mutex_unlock(&phydev->lock);
 
 	return rc;
 }
