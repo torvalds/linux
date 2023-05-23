@@ -290,6 +290,62 @@ static void update_group_attrs(struct seq_ump_client *client)
 	}
 }
 
+/* create a UMP Endpoint port */
+static int create_ump_endpoint_port(struct seq_ump_client *client)
+{
+	struct snd_seq_port_info *port;
+	struct snd_seq_port_callback pcallbacks;
+	unsigned int rawmidi_info = client->ump->core.info_flags;
+	int err;
+
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return -ENOMEM;
+
+	port->addr.client = client->seq_client;
+	port->addr.port = 0; /* fixed */
+	port->flags = SNDRV_SEQ_PORT_FLG_GIVEN_PORT;
+	port->capability = SNDRV_SEQ_PORT_CAP_UMP_ENDPOINT;
+	if (rawmidi_info & SNDRV_RAWMIDI_INFO_INPUT) {
+		port->capability |= SNDRV_SEQ_PORT_CAP_READ |
+			SNDRV_SEQ_PORT_CAP_SYNC_READ |
+			SNDRV_SEQ_PORT_CAP_SUBS_READ;
+		port->direction |= SNDRV_SEQ_PORT_DIR_INPUT;
+	}
+	if (rawmidi_info & SNDRV_RAWMIDI_INFO_OUTPUT) {
+		port->capability |= SNDRV_SEQ_PORT_CAP_WRITE |
+			SNDRV_SEQ_PORT_CAP_SYNC_WRITE |
+			SNDRV_SEQ_PORT_CAP_SUBS_WRITE;
+		port->direction |= SNDRV_SEQ_PORT_DIR_OUTPUT;
+	}
+	if (rawmidi_info & SNDRV_RAWMIDI_INFO_DUPLEX)
+		port->capability |= SNDRV_SEQ_PORT_CAP_DUPLEX;
+	port->ump_group = 0; /* no associated group, no conversion */
+	port->type = SNDRV_SEQ_PORT_TYPE_MIDI_UMP |
+		SNDRV_SEQ_PORT_TYPE_HARDWARE |
+		SNDRV_SEQ_PORT_TYPE_PORT;
+	port->midi_channels = 16;
+	strcpy(port->name, "MIDI 2.0");
+	memset(&pcallbacks, 0, sizeof(pcallbacks));
+	pcallbacks.owner = THIS_MODULE;
+	pcallbacks.private_data = client;
+	if (rawmidi_info & SNDRV_RAWMIDI_INFO_INPUT) {
+		pcallbacks.subscribe = seq_ump_subscribe;
+		pcallbacks.unsubscribe = seq_ump_unsubscribe;
+	}
+	if (rawmidi_info & SNDRV_RAWMIDI_INFO_OUTPUT) {
+		pcallbacks.use = seq_ump_use;
+		pcallbacks.unuse = seq_ump_unuse;
+		pcallbacks.event_input = seq_ump_process_event;
+	}
+	port->kernel = &pcallbacks;
+	err = snd_seq_kernel_client_ctl(client->seq_client,
+					SNDRV_SEQ_IOCTL_CREATE_PORT,
+					port);
+	kfree(port);
+	return err;
+}
+
 /* release the client resources */
 static void seq_ump_client_free(struct seq_ump_client *client)
 {
@@ -352,6 +408,10 @@ static int snd_seq_ump_probe(struct device *_dev)
 		if (err < 0)
 			goto error;
 	}
+
+	err = create_ump_endpoint_port(client);
+	if (err < 0)
+		goto error;
 
 	ump->seq_client = client;
 	ump->seq_ops = &seq_ump_ops;
