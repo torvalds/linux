@@ -106,4 +106,12 @@ static inline unsigned long host_s2_pgtable_pages(void)
 	return res;
 }
 
+#define KVM_FFA_MBOX_NR_PAGES	1
+
+static inline unsigned long hyp_ffa_proxy_pages(void)
+{
+	/* A page each for the hypervisor's RX and TX mailboxes. */
+	return 2 * KVM_FFA_MBOX_NR_PAGES;
+}
+
 #endif	/* __ARM64_KVM_PKVM_H__ */
