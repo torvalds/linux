@@ -476,6 +476,14 @@
 			status = "disabled";
 		};
 
+		hace: crypto@12070000 {
+			compatible = "aspeed,ast2700-hace";
+			reg = <0x0 0x12070000 0x0 0x200>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_YCLK>;
+			resets = <&cpu_clk ASPEED_RESET_HACE>;
+			status = "disabled";
+		};
 	};
 
 	soc1: soc@14000000 {
