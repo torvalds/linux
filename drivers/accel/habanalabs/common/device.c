@@ -2701,6 +2701,20 @@ void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info)
 		*info->event_mask |= HL_NOTIFIER_EVENT_CRITICL_FW_ERR;
 }
 
+void hl_capture_engine_err(struct hl_device *hdev, u16 engine_id, u16 error_count)
+{
+	struct engine_err_info *info = &hdev->captured_err_info.engine_err;
+
+	/* Capture only the first engine error */
+	if (atomic_cmpxchg(&info->event_detected, 0, 1))
+		return;
+
+	info->event.timestamp = ktime_to_ns(ktime_get());
+	info->event.engine_id = engine_id;
+	info->event.error_count = error_count;
+	info->event_info_available = true;
+}
+
 void hl_enable_err_info_capture(struct hl_error_info *captured_err_info)
 {
 	vfree(captured_err_info->page_fault_info.user_mappings);

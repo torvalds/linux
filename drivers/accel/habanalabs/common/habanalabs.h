@@ -3063,6 +3063,20 @@ struct fw_err_info {
 };
 
 /**
+ * struct engine_err_info - engine error information.
+ * @event: holds information on the event.
+ * @event_detected: if set as 1, then an engine event was discovered for the
+ *                  first time after the driver has finished booting-up.
+ * @event_info_available: indicates that an engine event info is now available.
+ */
+struct engine_err_info {
+	struct hl_info_engine_err_event	event;
+	atomic_t			event_detected;
+	bool				event_info_available;
+};
+
+
+/**
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
  * @razwi_info: RAZWI information.
@@ -3070,6 +3084,7 @@ struct fw_err_info {
  * @page_fault_info: page fault information.
  * @hw_err: (fatal) hardware error information.
  * @fw_err: firmware error information.
+ * @engine_err: engine error information.
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
@@ -3078,6 +3093,7 @@ struct hl_error_info {
 	struct page_fault_info		page_fault_info;
 	struct hw_err_info		hw_err;
 	struct fw_err_info		fw_err;
+	struct engine_err_info		engine_err;
 };
 
 /**
@@ -3952,6 +3968,7 @@ void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_
 				u64 *event_mask);
 void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_mask);
 void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info);
+void hl_capture_engine_err(struct hl_device *hdev, u16 engine_id, u16 error_count);
 void hl_enable_err_info_capture(struct hl_error_info *captured_err_info);
 
 #ifdef CONFIG_DEBUG_FS

@@ -809,6 +809,7 @@ enum hl_server_type {
  * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
  *                          May return 0 even though no new data is available, in that case
  *                          timestamp will be 0.
+ * HL_INFO_USER_ENGINE_ERR_EVENT - Retrieve the last engine id that reported an error.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -845,6 +846,7 @@ enum hl_server_type {
 #define HL_INFO_FW_GENERIC_REQ			35
 #define HL_INFO_HW_ERR_EVENT			36
 #define HL_INFO_FW_ERR_EVENT			37
+#define HL_INFO_USER_ENGINE_ERR_EVENT		38
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -1223,6 +1225,20 @@ struct hl_info_fw_err_event {
 	__s64 timestamp;
 	__u16 err_type;
 	__u16 event_id;
+	__u32 pad;
+};
+
+/**
+ * struct hl_info_engine_err_event - engine error info
+ * @timestamp: time-stamp of error occurrence
+ * @engine_id: engine id who reported the error.
+ * @error_count: Amount of errors reported.
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_engine_err_event {
+	__s64 timestamp;
+	__u16 engine_id;
+	__u16 error_count;
 	__u32 pad;
 };
 
