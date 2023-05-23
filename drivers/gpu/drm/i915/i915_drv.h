@@ -205,6 +205,7 @@ struct drm_i915_private {
 
 	const struct intel_device_info __info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
+	struct intel_display_runtime_info __display_runtime; /* Access with DISPLAY_RUNTIME_INFO() */
 	struct intel_driver_caps caps;
 
 	struct i915_dsm dsm;
@@ -410,6 +411,7 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 #define INTEL_INFO(dev_priv)	(&(dev_priv)->__info)
 #define DISPLAY_INFO(i915)	(INTEL_INFO(i915)->display)
 #define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)
+#define DISPLAY_RUNTIME_INFO(i915)	(&(i915)->__display_runtime)
 #define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
 
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
@@ -428,7 +430,7 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 #define IS_MEDIA_VER(i915, from, until) \
 	(MEDIA_VER(i915) >= (from) && MEDIA_VER(i915) <= (until))
 
-#define DISPLAY_VER(i915)	(RUNTIME_INFO(i915)->display.ip.ver)
+#define DISPLAY_VER(i915)	(DISPLAY_RUNTIME_INFO(i915)->ip.ver)
 #define IS_DISPLAY_VER(i915, from, until) \
 	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 
@@ -811,7 +813,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define I915_HAS_HOTPLUG(dev_priv)	(DISPLAY_INFO(dev_priv)->has_hotplug)
 
 #define HAS_FW_BLC(dev_priv)	(DISPLAY_VER(dev_priv) > 2)
-#define HAS_FBC(dev_priv)	(RUNTIME_INFO(dev_priv)->fbc_mask != 0)
+#define HAS_FBC(dev_priv)	(DISPLAY_RUNTIME_INFO(dev_priv)->fbc_mask != 0)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH(dev_priv) && DISPLAY_VER(dev_priv) >= 7)
 
 #define HAS_DPT(dev_priv)	(DISPLAY_VER(dev_priv) >= 13)
@@ -831,7 +833,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_PSR_HW_TRACKING(dev_priv) \
 	(DISPLAY_INFO(dev_priv)->has_psr_hw_tracking)
 #define HAS_PSR2_SEL_FETCH(dev_priv)	 (DISPLAY_VER(dev_priv) >= 12)
-#define HAS_TRANSCODER(dev_priv, trans)	 ((RUNTIME_INFO(dev_priv)->cpu_transcoder_mask & BIT(trans)) != 0)
+#define HAS_TRANSCODER(dev_priv, trans)	 ((DISPLAY_RUNTIME_INFO(dev_priv)->cpu_transcoder_mask & BIT(trans)) != 0)
 
 #define HAS_RC6(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6)
 #define HAS_RC6p(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6p)
@@ -839,9 +841,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_RPS(dev_priv)	(INTEL_INFO(dev_priv)->has_rps)
 
-#define HAS_DMC(dev_priv)	(RUNTIME_INFO(dev_priv)->has_dmc)
+#define HAS_DMC(dev_priv)	(DISPLAY_RUNTIME_INFO(dev_priv)->has_dmc)
 #define HAS_DSB(dev_priv)	(DISPLAY_INFO(dev_priv)->has_dsb)
-#define HAS_DSC(__i915)		(RUNTIME_INFO(__i915)->has_dsc)
+#define HAS_DSC(__i915)		(DISPLAY_RUNTIME_INFO(__i915)->has_dsc)
 #define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 
 #define HAS_HECI_PXP(dev_priv) \
@@ -903,9 +905,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define NUM_L3_SLICES(dev_priv) (IS_HSW_GT3(dev_priv) ? \
 				 2 : HAS_L3_DPF(dev_priv))
 
-#define INTEL_NUM_PIPES(dev_priv) (hweight8(RUNTIME_INFO(dev_priv)->pipe_mask))
+#define INTEL_NUM_PIPES(dev_priv) (hweight8(DISPLAY_RUNTIME_INFO(dev_priv)->pipe_mask))
 
-#define HAS_DISPLAY(dev_priv) (RUNTIME_INFO(dev_priv)->pipe_mask != 0)
+#define HAS_DISPLAY(dev_priv) (DISPLAY_RUNTIME_INFO(dev_priv)->pipe_mask != 0)
 
 #define HAS_VRR(i915)	(DISPLAY_VER(i915) >= 11)
 

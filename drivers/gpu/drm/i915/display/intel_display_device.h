@@ -29,7 +29,30 @@
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
+struct intel_display_runtime_info {
+	struct {
+		u16 ver;
+		u16 rel;
+		u16 step;
+	} ip;
+
+	u8 pipe_mask;
+	u8 cpu_transcoder_mask;
+
+	u8 num_sprites[I915_MAX_PIPES];
+	u8 num_scalers[I915_MAX_PIPES];
+
+	u8 fbc_mask;
+
+	bool has_hdcp;
+	bool has_dmc;
+	bool has_dsc;
+};
+
 struct intel_display_device_info {
+	/* Initial runtime info. */
+	const struct intel_display_runtime_info __runtime_defaults;
+
 	u8 abox_mask;
 
 	struct {

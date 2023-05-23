@@ -3366,7 +3366,7 @@ static u8 bigjoiner_pipes(struct drm_i915_private *i915)
 	else
 		pipes = 0;
 
-	return pipes & RUNTIME_INFO(i915)->pipe_mask;
+	return pipes & DISPLAY_RUNTIME_INFO(i915)->pipe_mask;
 }
 
 static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,

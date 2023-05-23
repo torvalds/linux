@@ -306,7 +306,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		return PTR_ERR(crtc);
 
 	crtc->pipe = pipe;
-	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
+	crtc->num_scalers = DISPLAY_RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
 	if (DISPLAY_VER(dev_priv) >= 9)
 		primary = skl_universal_plane_create(dev_priv, pipe,

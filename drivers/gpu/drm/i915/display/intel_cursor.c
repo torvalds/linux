@@ -814,7 +814,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 						   DRM_MODE_ROTATE_0 |
 						   DRM_MODE_ROTATE_180);
 
-	zpos = RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
+	zpos = DISPLAY_RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
 	drm_plane_create_zpos_immutable_property(&cursor->base, zpos);
 
 	if (DISPLAY_VER(dev_priv) >= 12)

@@ -95,6 +95,9 @@ void intel_device_info_print(const struct intel_device_info *info,
 			     const struct intel_runtime_info *runtime,
 			     struct drm_printer *p)
 {
+	const struct intel_display_runtime_info *display_runtime =
+		&info->display->__runtime_defaults;
+
 	if (runtime->graphics.ip.rel)
 		drm_printf(p, "graphics version: %u.%02u\n",
 			   runtime->graphics.ip.ver,
@@ -111,13 +114,13 @@ void intel_device_info_print(const struct intel_device_info *info,
 		drm_printf(p, "media version: %u\n",
 			   runtime->media.ip.ver);
 
-	if (runtime->display.ip.rel)
+	if (display_runtime->ip.rel)
 		drm_printf(p, "display version: %u.%02u\n",
-			   runtime->display.ip.ver,
-			   runtime->display.ip.rel);
+			   display_runtime->ip.ver,
+			   display_runtime->ip.rel);
 	else
 		drm_printf(p, "display version: %u\n",
-			   runtime->display.ip.ver);
+			   display_runtime->ip.ver);
 
 	drm_printf(p, "graphics stepping: %s\n", intel_step_name(runtime->step.graphics_step));
 	drm_printf(p, "media stepping: %s\n", intel_step_name(runtime->step.media_step));
@@ -142,9 +145,9 @@ void intel_device_info_print(const struct intel_device_info *info,
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 
-	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
-	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
-	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+	drm_printf(p, "has_hdcp: %s\n", str_yes_no(display_runtime->has_hdcp));
+	drm_printf(p, "has_dmc: %s\n", str_yes_no(display_runtime->has_dmc));
+	drm_printf(p, "has_dsc: %s\n", str_yes_no(display_runtime->has_dsc));
 
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
@@ -342,6 +345,7 @@ static void ip_ver_read(struct drm_i915_private *i915, u32 offset, struct intel_
 static void intel_ipver_early_init(struct drm_i915_private *i915)
 {
 	struct intel_runtime_info *runtime = RUNTIME_INFO(i915);
+	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
 
 	if (!HAS_GMD_ID(i915)) {
 		drm_WARN_ON(&i915->drm, RUNTIME_INFO(i915)->graphics.ip.ver > 12);
@@ -363,7 +367,7 @@ static void intel_ipver_early_init(struct drm_i915_private *i915)
 		RUNTIME_INFO(i915)->graphics.ip.rel = 70;
 	}
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_DISPLAY),
-		    &runtime->display.ip);
+		    (struct intel_ip_version *)&display_runtime->ip);
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_MEDIA),
 		    &runtime->media.ip);
 }
@@ -410,32 +414,34 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
+	struct intel_display_runtime_info *display_runtime =
+		DISPLAY_RUNTIME_INFO(dev_priv);
 	enum pipe pipe;
 
 	/* Wa_14011765242: adl-s A0,A1 */
 	if (IS_ADLS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A2))
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_scalers[pipe] = 0;
+			display_runtime->num_scalers[pipe] = 0;
 	else if (DISPLAY_VER(dev_priv) >= 11) {
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_scalers[pipe] = 2;
+			display_runtime->num_scalers[pipe] = 2;
 	} else if (DISPLAY_VER(dev_priv) >= 9) {
-		runtime->num_scalers[PIPE_A] = 2;
-		runtime->num_scalers[PIPE_B] = 2;
-		runtime->num_scalers[PIPE_C] = 1;
+		display_runtime->num_scalers[PIPE_A] = 2;
+		display_runtime->num_scalers[PIPE_B] = 2;
+		display_runtime->num_scalers[PIPE_C] = 1;
 	}
 
 	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 
 	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_sprites[pipe] = 4;
+			display_runtime->num_sprites[pipe] = 4;
 	else if (DISPLAY_VER(dev_priv) >= 11)
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_sprites[pipe] = 6;
+			display_runtime->num_sprites[pipe] = 6;
 	else if (DISPLAY_VER(dev_priv) == 10)
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_sprites[pipe] = 3;
+			display_runtime->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
 		/*
 		 * Skylake and Broxton currently don't expose the topmost plane as its
@@ -446,15 +452,15 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		 * down the line.
 		 */
 
-		runtime->num_sprites[PIPE_A] = 2;
-		runtime->num_sprites[PIPE_B] = 2;
-		runtime->num_sprites[PIPE_C] = 1;
+		display_runtime->num_sprites[PIPE_A] = 2;
+		display_runtime->num_sprites[PIPE_B] = 2;
+		display_runtime->num_sprites[PIPE_C] = 1;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_sprites[pipe] = 2;
+			display_runtime->num_sprites[pipe] = 2;
 	} else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
-			runtime->num_sprites[pipe] = 1;
+			display_runtime->num_sprites[pipe] = 1;
 	}
 
 	if (HAS_DISPLAY(dev_priv) &&
@@ -462,7 +468,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	    !(intel_de_read(dev_priv, GU_CNTL_PROTECTED) & DEPRESENT)) {
 		drm_info(&dev_priv->drm, "Display not present, disabling\n");
 
-		runtime->pipe_mask = 0;
+		display_runtime->pipe_mask = 0;
 	}
 
 	if (HAS_DISPLAY(dev_priv) && IS_GRAPHICS_VER(dev_priv, 7, 8) &&
@@ -485,47 +491,47 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			drm_info(&dev_priv->drm,
 				 "Display fused off, disabling\n");
-			runtime->pipe_mask = 0;
+			display_runtime->pipe_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			drm_info(&dev_priv->drm, "PipeC fused off\n");
-			runtime->pipe_mask &= ~BIT(PIPE_C);
-			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			display_runtime->pipe_mask &= ~BIT(PIPE_C);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
 		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
-			runtime->pipe_mask &= ~BIT(PIPE_A);
-			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
-			runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
+			display_runtime->pipe_mask &= ~BIT(PIPE_A);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
+			display_runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
 		}
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
-			runtime->pipe_mask &= ~BIT(PIPE_B);
-			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
+			display_runtime->pipe_mask &= ~BIT(PIPE_B);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
 		}
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
-			runtime->pipe_mask &= ~BIT(PIPE_C);
-			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			display_runtime->pipe_mask &= ~BIT(PIPE_C);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 
 		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
-			runtime->pipe_mask &= ~BIT(PIPE_D);
-			runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
+			display_runtime->pipe_mask &= ~BIT(PIPE_D);
+			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
 		}
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
-			runtime->has_hdcp = 0;
+			display_runtime->has_hdcp = 0;
 
 		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			runtime->fbc_mask = 0;
+			display_runtime->fbc_mask = 0;
 
 		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
-			runtime->has_dmc = 0;
+			display_runtime->has_dmc = 0;
 
 		if (IS_DISPLAY_VER(dev_priv, 10, 12) &&
 		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
-			runtime->has_dsc = 0;
+			display_runtime->has_dsc = 0;
 	}
 
 	if (GRAPHICS_VER(dev_priv) == 6 && i915_vtd_active(dev_priv)) {
@@ -542,13 +548,13 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 						   DRIVER_ATOMIC);
 		info->display = &no_display;
 
-		runtime->cpu_transcoder_mask = 0;
-		memset(runtime->num_sprites, 0, sizeof(runtime->num_sprites));
-		memset(runtime->num_scalers, 0, sizeof(runtime->num_scalers));
-		runtime->fbc_mask = 0;
-		runtime->has_hdcp = false;
-		runtime->has_dmc = false;
-		runtime->has_dsc = false;
+		display_runtime->cpu_transcoder_mask = 0;
+		memset(display_runtime->num_sprites, 0, sizeof(display_runtime->num_sprites));
+		memset(display_runtime->num_scalers, 0, sizeof(display_runtime->num_scalers));
+		display_runtime->fbc_mask = 0;
+		display_runtime->has_hdcp = false;
+		display_runtime->has_dmc = false;
+		display_runtime->has_dsc = false;
 	}
 
 	/* Disable nuclear pageflip by default on pre-g4x */
@@ -568,6 +574,7 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 {
 	struct intel_device_info *info;
 	struct intel_runtime_info *runtime;
+	struct intel_display_runtime_info *display_runtime;
 
 	/* Setup the write-once "constant" device info */
 	info = mkwrite_device_info(i915);
@@ -576,6 +583,10 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 	/* Initialize initial runtime info from static const data and pdev. */
 	runtime = RUNTIME_INFO(i915);
 	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+	display_runtime = DISPLAY_RUNTIME_INFO(i915);
+	memcpy(display_runtime, &DISPLAY_INFO(i915)->__runtime_defaults,
+	       sizeof(*display_runtime));
+
 	runtime->device_id = device_id;
 }
 

@@ -1103,7 +1103,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
-	return RUNTIME_INFO(dev_priv)->has_hdcp &&
+	return DISPLAY_RUNTIME_INFO(dev_priv)->has_hdcp &&
 		(DISPLAY_VER(dev_priv) >= 12 || port < PORT_E);
 }
 
