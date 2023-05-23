@@ -538,11 +538,20 @@ static void xpcs_resolve_lpa_c73(struct dw_xpcs *xpcs,
 				 struct phylink_link_state *state)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(res);
+	bool tx_pause, rx_pause;
 
 	/* Calculate the union of the advertising masks */
 	linkmode_and(res, state->lp_advertising, state->advertising);
 
-	state->pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
+	/* Resolve pause modes */
+	linkmode_resolve_pause(state->advertising, state->lp_advertising,
+			       &tx_pause, &rx_pause);
+
+	if (tx_pause)
+		state->pause |= MLO_PAUSE_TX;
+	if (rx_pause)
+		state->pause |= MLO_PAUSE_RX;
+
 	state->speed = xpcs_get_max_usxgmii_speed(res);
 	state->duplex = DUPLEX_FULL;
 }
