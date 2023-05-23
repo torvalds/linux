@@ -278,6 +278,7 @@ static bool lru_gen_test_recent(void *shadow, bool file, struct lruvec **lruvec,
 
 static void lru_gen_refault(struct folio *folio, void *shadow)
 {
+	bool recent;
 	int hist, tier, refs;
 	bool workingset;
 	unsigned long token;
@@ -288,10 +289,13 @@ static void lru_gen_refault(struct folio *folio, void *shadow)
 
 	rcu_read_lock();
 
-	if (!lru_gen_test_recent(shadow, type, &lruvec, &token, &workingset))
+	recent = lru_gen_test_recent(shadow, type, &lruvec, &token, &workingset);
+	if (lruvec != folio_lruvec(folio))
 		goto unlock;
 
-	if (lruvec != folio_lruvec(folio))
+	mod_lruvec_state(lruvec, WORKINGSET_REFAULT_BASE + type, delta);
+
+	if (!recent)
 		goto unlock;
 
 	lrugen = &lruvec->lrugen;
@@ -302,7 +306,7 @@ static void lru_gen_refault(struct folio *folio, void *shadow)
 	tier = lru_tier_from_refs(refs);
 
 	atomic_long_add(delta, &lrugen->refaulted[hist][type][tier]);
-	mod_lruvec_state(lruvec, WORKINGSET_REFAULT_BASE + type, delta);
+	mod_lruvec_state(lruvec, WORKINGSET_ACTIVATE_BASE + type, delta);
 
 	/*
 	 * Count the following two cases as stalls:

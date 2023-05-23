@@ -4925,7 +4925,6 @@ static bool sort_folio(struct lruvec *lruvec, struct folio *folio, int tier_idx)
 
 		WRITE_ONCE(lrugen->protected[hist][type][tier - 1],
 			   lrugen->protected[hist][type][tier - 1] + delta);
-		__mod_lruvec_state(lruvec, WORKINGSET_ACTIVATE_BASE + type, delta);
 		return true;
 	}
 
