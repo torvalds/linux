@@ -23,7 +23,6 @@
 #include <linux/firmware.h>
 
 #include "amdgpu.h"
-#include "amdgpu_xcp.h"
 #include "amdgpu_gfx.h"
 #include "soc15.h"
 #include "soc15d.h"
