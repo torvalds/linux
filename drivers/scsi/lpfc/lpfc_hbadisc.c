@@ -4498,14 +4498,6 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (vport->load_flag & FC_UNLOADING)
 		return;
 
-	/*
-	 * Disassociate any older association between this ndlp and rport
-	 */
-	if (ndlp->rport) {
-		rdata = ndlp->rport->dd_data;
-		rdata->pnode = NULL;
-	}
-
 	ndlp->rport = rport = fc_remote_port_add(shost, 0, &rport_ids);
 	if (!rport) {
 		dev_printk(KERN_WARNING, &phba->pcidev->dev,
