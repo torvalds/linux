@@ -23,12 +23,30 @@ static long snd_ump_ioctl(struct snd_rawmidi *rmidi, unsigned int cmd,
 			  void __user *argp);
 static void snd_ump_proc_read(struct snd_info_entry *entry,
 			      struct snd_info_buffer *buffer);
+static int snd_ump_rawmidi_open(struct snd_rawmidi_substream *substream);
+static int snd_ump_rawmidi_close(struct snd_rawmidi_substream *substream);
+static void snd_ump_rawmidi_trigger(struct snd_rawmidi_substream *substream,
+				    int up);
+static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream);
 
 static const struct snd_rawmidi_global_ops snd_ump_rawmidi_ops = {
 	.dev_register = snd_ump_dev_register,
 	.dev_unregister = snd_ump_dev_unregister,
 	.ioctl = snd_ump_ioctl,
 	.proc_read = snd_ump_proc_read,
+};
+
+static const struct snd_rawmidi_ops snd_ump_rawmidi_input_ops = {
+	.open = snd_ump_rawmidi_open,
+	.close = snd_ump_rawmidi_close,
+	.trigger = snd_ump_rawmidi_trigger,
+};
+
+static const struct snd_rawmidi_ops snd_ump_rawmidi_output_ops = {
+	.open = snd_ump_rawmidi_open,
+	.close = snd_ump_rawmidi_close,
+	.trigger = snd_ump_rawmidi_trigger,
+	.drain = snd_ump_rawmidi_drain,
 };
 
 static void snd_ump_endpoint_free(struct snd_rawmidi *rmidi)
@@ -104,6 +122,12 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 
 	ump->core.private_free = snd_ump_endpoint_free;
 	ump->core.ops = &snd_ump_rawmidi_ops;
+	if (input)
+		snd_rawmidi_set_ops(&ump->core, SNDRV_RAWMIDI_STREAM_INPUT,
+				    &snd_ump_rawmidi_input_ops);
+	if (output)
+		snd_rawmidi_set_ops(&ump->core, SNDRV_RAWMIDI_STREAM_OUTPUT,
+				    &snd_ump_rawmidi_output_ops);
 
 	ump_dbg(ump, "Created a UMP EP #%d (%s)\n", device, id);
 	*ump_ret = ump;
@@ -136,6 +160,93 @@ snd_ump_get_block(struct snd_ump_endpoint *ump, unsigned char id)
 	}
 	return NULL;
 }
+
+/*
+ * rawmidi ops for UMP endpoint
+ */
+static int snd_ump_rawmidi_open(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(substream->rmidi);
+	int dir = substream->stream;
+	int err;
+
+	if (ump->substreams[dir])
+		return -EBUSY;
+	err = ump->ops->open(ump, dir);
+	if (err < 0)
+		return err;
+	ump->substreams[dir] = substream;
+	return 0;
+}
+
+static int snd_ump_rawmidi_close(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(substream->rmidi);
+	int dir = substream->stream;
+
+	ump->substreams[dir] = NULL;
+	ump->ops->close(ump, dir);
+	return 0;
+}
+
+static void snd_ump_rawmidi_trigger(struct snd_rawmidi_substream *substream,
+				    int up)
+{
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(substream->rmidi);
+	int dir = substream->stream;
+
+	ump->ops->trigger(ump, dir, up);
+}
+
+static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(substream->rmidi);
+
+	if (ump->ops->drain)
+		ump->ops->drain(ump, SNDRV_RAWMIDI_STREAM_OUTPUT);
+}
+
+/**
+ * snd_ump_receive - transfer UMP packets from the device
+ * @ump: the UMP endpoint
+ * @buffer: the buffer pointer to transfer
+ * @count: byte size to transfer
+ *
+ * Called from the driver to submit the received UMP packets from the device
+ * to user-space.  It's essentially a wrapper of rawmidi_receive().
+ * The data to receive is in CPU-native endianness.
+ */
+int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count)
+{
+	struct snd_rawmidi_substream *substream =
+		ump->substreams[SNDRV_RAWMIDI_STREAM_INPUT];
+
+	if (!substream)
+		return 0;
+	return snd_rawmidi_receive(substream, (const char *)buffer, count);
+}
+EXPORT_SYMBOL_GPL(snd_ump_receive);
+
+/**
+ * snd_ump_transmit - transmit UMP packets
+ * @ump: the UMP endpoint
+ * @buffer: the buffer pointer to transfer
+ * @count: byte size to transfer
+ *
+ * Called from the driver to obtain the UMP packets from user-space to the
+ * device.  It's essentially a wrapper of rawmidi_transmit().
+ * The data to transmit is in CPU-native endianness.
+ */
+int snd_ump_transmit(struct snd_ump_endpoint *ump, u32 *buffer, int count)
+{
+	struct snd_rawmidi_substream *substream =
+		ump->substreams[SNDRV_RAWMIDI_STREAM_OUTPUT];
+
+	if (!substream)
+		return -ENODEV;
+	return snd_rawmidi_transmit(substream, (char *)buffer, count);
+}
+EXPORT_SYMBOL_GPL(snd_ump_transmit);
 
 /**
  * snd_ump_block_new - Create a UMP block
