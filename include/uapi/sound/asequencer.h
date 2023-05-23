@@ -362,7 +362,8 @@ struct snd_seq_client_info {
 	int card;			/* RO: card number[kernel] */
 	int pid;			/* RO: pid[user] */
 	unsigned int midi_version;	/* MIDI version */
-	char reserved[52];		/* for future use */
+	unsigned int group_filter;	/* UMP group filter bitmap (for 1-based Group indices) */
+	char reserved[48];		/* for future use */
 };
 
 /* MIDI version numbers in client info */

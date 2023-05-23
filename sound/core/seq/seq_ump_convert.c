@@ -527,6 +527,17 @@ static int deliver_with_group_convert(struct snd_seq_client *dest,
 					      atomic, hop);
 }
 
+/* apply the UMP event filter; return true to skip the event */
+static bool ump_event_filtered(struct snd_seq_client *dest,
+			       const struct snd_seq_ump_event *ev)
+{
+	unsigned char group;
+
+	group = ump_message_group(ev->ump[0]);
+	/* check the bitmap for 1-based group number */
+	return dest->group_filter & (1U << (group + 1));
+}
+
 /* Convert from UMP packet and deliver */
 int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 			     struct snd_seq_client *dest,
@@ -539,6 +550,8 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 
 	if (snd_seq_ev_is_variable(event))
 		return 0; // skip, no variable event for UMP, so far
+	if (ump_event_filtered(dest, ump_ev))
+		return 0; // skip if group filter is set and matching
 	type = ump_message_type(ump_ev->ump[0]);
 
 	if (snd_seq_client_is_ump(dest)) {
