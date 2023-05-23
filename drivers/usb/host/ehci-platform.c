@@ -126,6 +126,9 @@ static struct usb_ehci_pdata ehci_platform_defaults = {
 	.power_on =		ehci_platform_power_on,
 	.power_suspend =	ehci_platform_power_off,
 	.power_off =		ehci_platform_power_off,
+#ifdef CONFIG_MACH_ASPEED_G7
+	.dma_mask_64 =		1,
+#endif
 };
 
 /**
@@ -297,7 +300,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_device_is_compatible(dev->dev.of_node,
 					    "aspeed,ast2500-ehci") ||
 		    of_device_is_compatible(dev->dev.of_node,
-					    "aspeed,ast2600-ehci"))
+					    "aspeed,ast2600-ehci") ||
+		    of_device_is_compatible(dev->dev.of_node,
+					    "aspeed,ast2700-ehci"))
 			ehci->is_aspeed = 1;
 
 		if (soc_device_match(quirk_poll_match))
