@@ -21,11 +21,10 @@
 #include "walt.h"
 #include "trace.h"
 
-/* mask of all CPUs with any full or partial pause claim outstanding */
+/* mask of all CPUs with a fully pause claim outstanding */
 static cpumask_t cpus_paused_by_us = { CPU_BITS_NONE };
 
-/* mask of the just the CPUs with a partial pause claim outstanding */
-/* this must always be a subset of cpus_paused_by_us */
+/* mask of all CPUS with a partial pause claim outstanding */
 static cpumask_t cpus_part_paused_by_us = { CPU_BITS_NONE };
 
 struct cluster_data {
@@ -310,9 +309,17 @@ static ssize_t show_active_cpus(const struct cluster_data *state, char *buf)
 static unsigned int cluster_paused_cpus(const struct cluster_data *cluster)
 {
 	cpumask_t cluster_paused_cpus;
+	cpumask_t cluster_part_paused_cpus;
+
+	unsigned int total_paused_cpus;
 
 	cpumask_and(&cluster_paused_cpus, &cluster->cpu_mask, &cpus_paused_by_us);
-	return cpumask_weight(&cluster_paused_cpus);
+	cpumask_and(&cluster_part_paused_cpus, &cluster->cpu_mask, &cpus_part_paused_by_us);
+
+	total_paused_cpus = cpumask_weight(&cluster_paused_cpus) +
+		cpumask_weight(&cluster_part_paused_cpus);
+
+	return min(total_paused_cpus, cpumask_weight(&cluster->cpu_mask));
 }
 
 static ssize_t show_global_state(const struct cluster_data *state, char *buf)
@@ -958,6 +965,7 @@ static void update_running_avg(void)
 		nr_assist_active = get_assist_active_cpu_count(cluster);
 
 		if (!cpumask_intersects(&cluster->assist_cpu_mask, &cpus_paused_by_us) &&
+		    !cpumask_intersects(&cluster->assist_cpu_mask, &cpus_part_paused_by_us) &&
 		    nr_assist_need + nr_misfit_assist_need > nr_assist_active)
 			cluster->nr_assist = nr_assist_need +
 					nr_misfit_assist_need - nr_assist_active;
@@ -1327,6 +1335,7 @@ static void try_to_partial_pause(struct cluster_data *cluster,
 		if (cpumask_test_cpu(c->cpu, pause_cpus)) {
 			if (!cpumask_test_cpu(c->cpu, &cpus_part_paused_by_us)) {
 				cpumask_set_cpu(c->cpu, part_pause_cpus);
+				cpumask_clear_cpu(c->cpu, pause_cpus);
 				num_cpus--;
 				move_cpu_lru(c);
 			}
@@ -1438,7 +1447,8 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 		if (!num_cpus--)
 			break;
 
-		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us))
+		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us) &&
+		    !cpumask_test_cpu(c->cpu, &cpus_part_paused_by_us))
 			continue;
 		if (is_active(c) ||
 			(!force && c->not_preferred))
@@ -1501,17 +1511,12 @@ static void core_ctl_pause_cpus(struct cpumask *cpus_to_pause, struct cpumask *c
 	cpumask_copy(&saved_cpus, cpus_to_part_pause);
 
 	if (cpumask_any(cpus_to_part_pause) < nr_cpu_ids) {
-		if (walt_partial_pause_cpus(cpus_to_part_pause, PAUSE_CORE_CTL) < 0) {
+		if (walt_partial_pause_cpus(cpus_to_part_pause, PAUSE_CORE_CTL) < 0)
 			pr_debug("core_ctl pause failed cpus=%*pbl part_paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_part_pause),
 				 cpumask_pr_args(&cpus_part_paused_by_us));
-		} else {
-			/* track all cpus paused in any way */
-			cpumask_or(&cpus_paused_by_us, &cpus_paused_by_us, &saved_cpus);
-
-			/* track all cpus that are partially paused */
+		else
 			cpumask_or(&cpus_part_paused_by_us, &cpus_part_paused_by_us, &saved_cpus);
-		}
 	}
 
 	/* only fully pause cpus that are not currently paused by us, including not currently
@@ -1551,23 +1556,15 @@ static void core_ctl_resume_cpus(struct cpumask *cpus_to_unpause,
 	cpumask_copy(&saved_cpus, cpus_to_part_unpause);
 
 	if (cpumask_any(cpus_to_part_unpause) < nr_cpu_ids) {
-		if (walt_partial_resume_cpus(cpus_to_part_unpause, PAUSE_CORE_CTL) < 0) {
+		if (walt_partial_resume_cpus(cpus_to_part_unpause, PAUSE_CORE_CTL) < 0)
 			pr_debug("core_ctl resume failed cpus=%*pbl part_paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_part_unpause),
 				 cpumask_pr_args(&cpus_part_paused_by_us));
-		} else {
-			/* remove part resumed cpus from part paused and total paused masks */
+		else
 			cpumask_andnot(&cpus_part_paused_by_us,
 				       &cpus_part_paused_by_us, &saved_cpus);
-
-			cpumask_andnot(&cpus_paused_by_us,
-				       &cpus_paused_by_us, &saved_cpus);
-		}
 	}
 
-	/* do not unpause cpus that are not paused by us, including cpus that were just unpaused
-	 * above, and removed from the cpus_paused_by_us_mask
-	 */
 	cpumask_and(cpus_to_unpause, cpus_to_unpause, &cpus_paused_by_us);
 	cpumask_copy(&saved_cpus, cpus_to_unpause);
 
