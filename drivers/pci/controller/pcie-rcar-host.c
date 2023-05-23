@@ -41,21 +41,6 @@ struct rcar_msi {
 	int irq2;
 };
 
-#ifdef CONFIG_ARM
-/*
- * Here we keep a static copy of the remapped PCIe controller address.
- * This is only used on aarch32 systems, all of which have one single
- * PCIe controller, to provide quick access to the PCIe controller in
- * the L1 link state fixup function, called from the ARM fault handler.
- */
-static void __iomem *pcie_base;
-/*
- * Static copy of PCIe device pointer, so we can check whether the
- * device is runtime suspended or not.
- */
-static struct device *pcie_dev;
-#endif
-
 /* Structure representing the PCIe interface */
 struct rcar_pcie_host {
 	struct rcar_pcie	pcie;
@@ -878,12 +863,6 @@ static int rcar_pcie_get_resources(struct rcar_pcie_host *host)
 		goto err_irq2;
 	}
 	host->msi.irq2 = i;
-
-#ifdef CONFIG_ARM
-	/* Cache static copy for L1 link state fixup hook on aarch32 */
-	pcie_base = pcie->base;
-	pcie_dev = pcie->dev;
-#endif
 
 	return 0;
 
