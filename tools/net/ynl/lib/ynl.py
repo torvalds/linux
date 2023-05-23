@@ -124,7 +124,7 @@ class NlAttr:
         offset = 0
         for m in members:
             # TODO: handle non-scalar members
-            format = self.get_format(m.type)
+            format = self.get_format(m.type, m.byte_order)
             decoded = format.unpack_from(self.raw, offset)
             offset += format.size
             value[m.name] = decoded[0]
@@ -305,7 +305,7 @@ class GenlMsg:
 
         self.fixed_header_attrs = dict()
         for m in fixed_header_members:
-            format = NlAttr.get_format(m.type)
+            format = NlAttr.get_format(m.type, m.byte_order)
             decoded = format.unpack_from(nl_msg.raw, offset)
             offset += format.size
             self.fixed_header_attrs[m.name] = decoded[0]
@@ -542,7 +542,7 @@ class YnlFamily(SpecFamily):
             fixed_header_members = self.consts[op.fixed_header].members
             for m in fixed_header_members:
                 value = vals.pop(m.name)
-                format = NlAttr.get_format(m.type)
+                format = NlAttr.get_format(m.type, m.byte_order)
                 msg += format.pack(value)
         for name, value in vals.items():
             msg += self._add_attr(op.attr_set.name, name, value)
