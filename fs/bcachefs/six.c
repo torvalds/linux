@@ -23,17 +23,6 @@
 
 static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type);
 
-/*
- * bits 0-26		reader count
- * bits 26-27		write_locking (a thread is trying to get a write lock,
- *			but does not have one yet)
- * bits 27-28		held for intent
- * bits 28-29		nospin - optimistic spinning has timed out
- * bits 29-30		has read waiters
- * bits 30-31		has intent waiters
- * bits 31-32		has write waiters
- */
-
 #define SIX_LOCK_HELD_read_OFFSET	0
 #define SIX_LOCK_HELD_read		~(~0U << 26)
 #define SIX_LOCK_HELD_intent		(1U << 26)
