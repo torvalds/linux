@@ -249,9 +249,7 @@ gh_rm_vm_get_id(gh_vmid_t vmid, u32 *n_entries)
 		return ERR_PTR(ret);
 	}
 
-	if (resp_payload_size < sizeof(*resp_payload) ||
-		resp_payload_size != struct_size(resp_payload,
-		resp_entries, resp_payload->n_id_entries)) {
+	if (resp_payload_size < sizeof(*resp_payload)) {
 		if (resp_payload_size)
 			kfree(resp_payload);
 		return ERR_PTR(-EBADMSG);
