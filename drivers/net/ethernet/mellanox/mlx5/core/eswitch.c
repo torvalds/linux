@@ -92,7 +92,7 @@ mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager))
+	if (!esw)
 		return ERR_PTR(-EPERM);
 
 	vport = xa_load(&esw->vports, vport_num);
@@ -113,7 +113,8 @@ static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 		 opcode, MLX5_CMD_OP_MODIFY_NIC_VPORT_CONTEXT);
 	MLX5_SET(modify_nic_vport_context_in, in, field_select.change_event, 1);
 	MLX5_SET(modify_nic_vport_context_in, in, vport_number, vport);
-	MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
+	if (vport || mlx5_core_is_ecpf(dev))
+		MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
 	nic_vport_ctx = MLX5_ADDR_OF(modify_nic_vport_context_in,
 				     in, nic_vport_context);
 
@@ -309,11 +310,12 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 
 fdb_add:
 	/* SRIOV is enabled: Forward UC MAC to vport */
-	if (esw->fdb_table.legacy.fdb && esw->mode == MLX5_ESWITCH_LEGACY)
+	if (esw->fdb_table.legacy.fdb && esw->mode == MLX5_ESWITCH_LEGACY) {
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
-	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
-		  vport, mac, vaddr->flow_rule);
+		esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
+			  vport, mac, vaddr->flow_rule);
+	}
 
 	return 0;
 }
@@ -710,6 +712,9 @@ void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	u8 mac[ETH_ALEN];
 
+	if (!MLX5_CAP_GEN(dev, log_max_l2_table))
+		return;
+
 	mlx5_query_nic_vport_mac_address(dev, vport->vport, true, mac);
 	esw_debug(dev, "vport[%d] Context Changed: perm mac: %pM\n",
 		  vport->vport, mac);
@@ -946,7 +951,8 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 	vport->enabled = false;
 
 	/* Disable events from this vport */
-	arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
+	if (MLX5_CAP_GEN(esw->dev, log_max_l2_table))
+		arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
 
 	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager))
@@ -1616,7 +1622,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	struct mlx5_eswitch *esw;
 	int err;
 
-	if (!MLX5_VPORT_MANAGER(dev))
+	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
 	esw = kzalloc(sizeof(*esw), GFP_KERNEL);
@@ -1686,7 +1692,7 @@ abort:
 
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 {
-	if (!esw || !MLX5_VPORT_MANAGER(esw->dev))
+	if (!esw)
 		return;
 
 	esw_info(esw->dev, "cleanup\n");

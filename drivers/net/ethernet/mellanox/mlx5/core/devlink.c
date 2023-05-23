@@ -162,9 +162,8 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		return -EOPNOTSUPP;
 	}
 
-	if (pci_num_vf(pdev)) {
+	if (mlx5_core_is_pf(dev) && pci_num_vf(pdev))
 		NL_SET_ERR_MSG_MOD(extack, "reload while VFs are present is unfavorable");
-	}
 
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
@@ -464,27 +463,6 @@ static int mlx5_devlink_esw_multiport_get(struct devlink *devlink, u32 id,
 	ctx->val.vbool = mlx5_lag_is_mpesw(dev);
 	return 0;
 }
-
-static int mlx5_devlink_esw_multiport_validate(struct devlink *devlink, u32 id,
-					       union devlink_param_value val,
-					       struct netlink_ext_ack *extack)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-
-	if (!MLX5_ESWITCH_MANAGER(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "E-Switch is unsupported");
-		return -EOPNOTSUPP;
-	}
-
-	if (mlx5_eswitch_mode(dev) != MLX5_ESWITCH_OFFLOADS) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "E-Switch must be in switchdev mode");
-		return -EBUSY;
-	}
-
-	return 0;
-}
-
 #endif
 
 static int mlx5_devlink_eq_depth_validate(struct devlink *devlink, u32 id,
@@ -563,7 +541,7 @@ static const struct devlink_param mlx5_devlink_params[] = {
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     mlx5_devlink_esw_multiport_get,
 			     mlx5_devlink_esw_multiport_set,
-			     mlx5_devlink_esw_multiport_validate),
+			     NULL),
 #endif
 	DEVLINK_PARAM_GENERIC(IO_EQ_SIZE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_eq_depth_validate),
