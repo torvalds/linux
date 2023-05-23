@@ -959,7 +959,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_DP_AUX_CC2:
 			/* Update Leakage Canceller Coefficient for AUXP pins */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
-					WCD_USBSS_DISP_AUXP_CTL, 0x07, 0x05);
+					WCD_USBSS_DISP_AUXP_CTL, 0x07, 0x01);
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_DISP_AUXP_THRESH, 0xE0, 0xE0);
 			ret = wcd_usbss_display_port_switch_update(wcd_usbss_ctxt_, ctype);
