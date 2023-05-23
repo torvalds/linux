@@ -65,7 +65,7 @@ static int amdgpu_xcp_run_transition(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 	struct amdgpu_xcp *xcp;
 	int i, ret;
 
-	if (xcp_id > MAX_XCP || !xcp_mgr->xcp[xcp_id].valid)
+	if (xcp_id >= MAX_XCP || !xcp_mgr->xcp[xcp_id].valid)
 		return -EINVAL;
 
 	xcp = &xcp_mgr->xcp[xcp_id];
