@@ -192,8 +192,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		nvmem-cells = <&cpu_leakage>, <&cpu_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		mbist-vmin = <825000 925000 975000>;
+		nvmem-cells = <&cpu_leakage>, <&cpu_opp_info>, <&cpu_mbist_vmin>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin";
 
 		rockchip,video-4k-freq = <1200000>;
 		rockchip,pvtm-voltage-sel = <
@@ -374,8 +375,9 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&log_leakage>, <&dmc_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		mbist-vmin = <850000 900000>;
+		nvmem-cells = <&log_leakage>, <&dmc_opp_info>, <&logic_mbist_vmin>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin";
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
@@ -1033,8 +1035,9 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		mbist-vmin = <825000 925000>;
+		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>, <&gpu_mbist_vmin>;
+		nvmem-cell-names = "leakage", "opp-info", "mbist-vmin";
 
 		rockchip,pvtm-voltage-sel = <
 			0	750	0
@@ -2237,6 +2240,18 @@
 		otp_cpu_version: cpu-version@8 {
 			reg = <0x08 0x1>;
 			bits = <3 3>;
+		};
+		cpu_mbist_vmin: cpu-mbist-vmin@9 {
+			reg = <0x09 0x1>;
+			bits = <0 3>;
+		};
+		gpu_mbist_vmin: gpu-mbist-vmin@9 {
+			reg = <0x09 0x1>;
+			bits = <3 2>;
+		};
+		logic_mbist_vmin: logic-mbist-vmin@9 {
+			reg = <0x09 0x1>;
+			bits = <5 2>;
 		};
 		otp_id: id@a {
 			reg = <0x0a 0x10>;
