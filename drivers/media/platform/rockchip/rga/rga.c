@@ -76,10 +76,7 @@ static irqreturn_t rga_isr(int irq, void *prv)
 		WARN_ON(!src);
 		WARN_ON(!dst);
 
-		dst->timecode = src->timecode;
-		dst->vb2_buf.timestamp = src->vb2_buf.timestamp;
-		dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst->flags |= src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+		v4l2_m2m_buf_copy_metadata(src, dst, true);
 
 		v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
