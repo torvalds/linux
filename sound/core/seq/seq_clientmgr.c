@@ -2390,6 +2390,21 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 }
 EXPORT_SYMBOL(snd_seq_kernel_client_write_poll);
 
+/* get a sequencer client object; for internal use from a kernel client */
+struct snd_seq_client *snd_seq_kernel_client_get(int id)
+{
+	return snd_seq_client_use_ptr(id);
+}
+EXPORT_SYMBOL_GPL(snd_seq_kernel_client_get);
+
+/* put a sequencer client object; for internal use from a kernel client */
+void snd_seq_kernel_client_put(struct snd_seq_client *cptr)
+{
+	if (cptr)
+		snd_seq_client_unlock(cptr);
+}
+EXPORT_SYMBOL_GPL(snd_seq_kernel_client_put);
+
 /*---------------------------------------------------------------------------*/
 
 #ifdef CONFIG_SND_PROC_FS

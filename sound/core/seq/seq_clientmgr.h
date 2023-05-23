@@ -88,4 +88,8 @@ void snd_seq_client_ioctl_unlock(int clientid);
 
 extern int seq_client_load[15];
 
+/* for internal use between kernel sequencer clients */
+struct snd_seq_client *snd_seq_kernel_client_get(int client);
+void snd_seq_kernel_client_put(struct snd_seq_client *cptr);
+
 #endif
