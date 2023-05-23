@@ -40,6 +40,11 @@ static const struct shmob_drm_format_info shmob_drm_format_infos[] = {
 		.yuv = false,
 		.lddfr = LDDFR_PKF_ARGB32,
 	}, {
+		.fourcc = DRM_FORMAT_XRGB8888,
+		.bpp = 32,
+		.yuv = false,
+		.lddfr = LDDFR_PKF_ARGB32,
+	}, {
 		.fourcc = DRM_FORMAT_NV12,
 		.bpp = 12,
 		.yuv = true,
