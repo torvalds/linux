@@ -560,7 +560,7 @@ static void snd_emu10k1_playback_prepare_voices(struct snd_emu10k1 *emu,
 	// we need to compensate for two circumstances:
 	// - The actual position is delayed by the cache size (64 frames)
 	// - The interpolator is centered around the 4th frame
-	loop_start += 64 - 3;
+	loop_start += (epcm->resume_pos + 64 - 3) % loop_size;
 	for (int i = 0; i < channels; i++) {
 		unsigned voice = epcm->voices[i]->number;
 		snd_emu10k1_ptr_write(emu, CCCA_CURRADDR, voice, loop_start);
@@ -584,7 +584,7 @@ static void snd_emu10k1_playback_prepare_voices(struct snd_emu10k1 *emu,
 	// This is why all other (open) drivers for these chips use timer-based
 	// interrupts.
 	//
-	eloop_start += eloop_size - 3;
+	eloop_start += (epcm->resume_pos + eloop_size - 3) % eloop_size;
 	snd_emu10k1_ptr_write(emu, CCCA_CURRADDR, epcm->extra->number, eloop_start);
 
 	// It takes a moment until the cache fills complete,
@@ -844,6 +844,49 @@ static snd_pcm_uframes_t snd_emu10k1_playback_pointer(struct snd_pcm_substream *
 	return ptr;
 }
 
+static u64 snd_emu10k1_efx_playback_voice_mask(struct snd_emu10k1_pcm *epcm,
+					       int channels)
+{
+	u64 mask = 0;
+
+	for (int i = 0; i < channels; i++) {
+		int voice = epcm->voices[i]->number;
+		mask |= 1ULL << voice;
+	}
+	return mask;
+}
+
+static void snd_emu10k1_efx_playback_freeze_voices(struct snd_emu10k1 *emu,
+						   struct snd_emu10k1_pcm *epcm,
+						   int channels)
+{
+	for (int i = 0; i < channels; i++) {
+		int voice = epcm->voices[i]->number;
+		snd_emu10k1_ptr_write(emu, CPF_STOP, voice, 1);
+		snd_emu10k1_playback_commit_pitch(emu, voice, PITCH_48000 << 16);
+	}
+}
+
+static void snd_emu10k1_efx_playback_unmute_voices(struct snd_emu10k1 *emu,
+						   struct snd_emu10k1_pcm *epcm,
+						   int channels)
+{
+	for (int i = 0; i < channels; i++)
+		snd_emu10k1_playback_unmute_voice(emu, epcm->voices[i], false, true,
+						  &emu->efx_pcm_mixer[i]);
+}
+
+static void snd_emu10k1_efx_playback_stop_voices(struct snd_emu10k1 *emu,
+						 struct snd_emu10k1_pcm *epcm,
+						 int channels)
+{
+	for (int i = 0; i < channels; i++)
+		snd_emu10k1_playback_stop_voice(emu, epcm->voices[i]);
+	snd_emu10k1_playback_set_stopped(emu, epcm);
+
+	for (int i = 0; i < channels; i++)
+		snd_emu10k1_playback_mute_voice(emu, epcm->voices[i]);
+}
 
 static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 				        int cmd)
@@ -851,41 +894,62 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
-	int i;
+	u64 mask;
 	int result = 0;
 
 	spin_lock(&emu->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		snd_emu10k1_playback_prepare_voices(emu, epcm, true, false, NUM_EFX_PLAYBACK);
-		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		for (i = 0; i < NUM_EFX_PLAYBACK; i++)
-			snd_emu10k1_playback_unmute_voice(emu, epcm->voices[i], false, true,
-							  &emu->efx_pcm_mixer[i]);
+		mask = snd_emu10k1_efx_playback_voice_mask(
+				epcm, NUM_EFX_PLAYBACK);
+		for (int i = 0; i < 10; i++) {
+			// Note that the freeze is not interruptible, so we make no
+			// effort to reset the bits outside the error handling here.
+			snd_emu10k1_voice_set_loop_stop_multiple(emu, mask);
+			snd_emu10k1_efx_playback_freeze_voices(
+					emu, epcm, NUM_EFX_PLAYBACK);
+			snd_emu10k1_playback_prepare_voices(
+					emu, epcm, true, false, NUM_EFX_PLAYBACK);
 
-		snd_emu10k1_playback_set_running(emu, epcm);
-		for (i = 0; i < NUM_EFX_PLAYBACK; i++)
-			snd_emu10k1_playback_trigger_voice(emu, epcm->voices[i]);
-		snd_emu10k1_playback_trigger_voice(emu, epcm->extra);
+			// It might seem to make more sense to unmute the voices only after
+			// they have been started, to potentially avoid torturing the speakers
+			// if something goes wrong. However, we cannot unmute atomically,
+			// which means that we'd get some mild artifacts in the regular case.
+			snd_emu10k1_efx_playback_unmute_voices(emu, epcm, NUM_EFX_PLAYBACK);
+
+			snd_emu10k1_playback_set_running(emu, epcm);
+			result = snd_emu10k1_voice_clear_loop_stop_multiple_atomic(emu, mask);
+			if (result == 0) {
+				// The extra voice is allowed to lag a bit
+				snd_emu10k1_playback_trigger_voice(emu, epcm->extra);
+				goto leave;
+			}
+
+			snd_emu10k1_efx_playback_stop_voices(
+					emu, epcm, NUM_EFX_PLAYBACK);
+
+			if (result != -EAGAIN)
+				break;
+			// The sync start can legitimately fail due to NMIs, etc.
+		}
+		snd_emu10k1_voice_clear_loop_stop_multiple(emu, mask);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		for (i = 0; i < NUM_EFX_PLAYBACK; i++) {	
-			snd_emu10k1_playback_stop_voice(emu, epcm->voices[i]);
-		}
 		snd_emu10k1_playback_stop_voice(emu, epcm->extra);
-		snd_emu10k1_playback_set_stopped(emu, epcm);
+		snd_emu10k1_efx_playback_stop_voices(
+				emu, epcm, NUM_EFX_PLAYBACK);
 
-		for (i = 0; i < NUM_EFX_PLAYBACK; i++)
-			snd_emu10k1_playback_mute_voice(emu, epcm->voices[i]);
+		epcm->resume_pos = snd_emu10k1_playback_pointer(substream);
 		break;
 	default:
 		result = -EINVAL;
 		break;
 	}
+leave:
 	spin_unlock(&emu->reg_lock);
 	return result;
 }
