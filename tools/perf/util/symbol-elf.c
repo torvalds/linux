@@ -42,6 +42,10 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258
+#endif
+
 #ifndef ELF32_ST_VISIBILITY
 #define ELF32_ST_VISIBILITY(o)	((o) & 0x03)
 #endif
@@ -435,6 +439,10 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_entry_size = 12;
 		return true;
 	case EM_AARCH64:
+		*plt_header_size = 32;
+		*plt_entry_size = 16;
+		return true;
+	case EM_LOONGARCH:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
 		return true;
