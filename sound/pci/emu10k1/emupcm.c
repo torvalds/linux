@@ -430,7 +430,7 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	unsigned int start_addr;
 	unsigned int extra_size, channel_size;
-	int i;
+	unsigned int i;
 
 	start_addr = epcm->start_addr >> 1;  // 16-bit voices
 
@@ -441,7 +441,7 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 					 start_addr, start_addr + extra_size);
 
 	epcm->ccca_start_addr = start_addr;
-	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
+	for (i = 0; i < runtime->channels; i++) {
 		snd_emu10k1_pcm_init_voices(emu, epcm->voices[i], true, false,
 					    start_addr, start_addr + channel_size,
 					    &emu->efx_pcm_mixer[i]);
@@ -461,7 +461,7 @@ static const struct snd_pcm_hardware snd_emu10k1_efx_playback =
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
 	.rate_max =		48000,
-	.channels_min =		NUM_EFX_PLAYBACK,
+	.channels_min =		1,
 	.channels_max =		NUM_EFX_PLAYBACK,
 	.buffer_bytes_max =	(128*1024),
 	.period_bytes_max =	(128*1024),
@@ -903,21 +903,21 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		mask = snd_emu10k1_efx_playback_voice_mask(
-				epcm, NUM_EFX_PLAYBACK);
+				epcm, runtime->channels);
 		for (int i = 0; i < 10; i++) {
 			// Note that the freeze is not interruptible, so we make no
 			// effort to reset the bits outside the error handling here.
 			snd_emu10k1_voice_set_loop_stop_multiple(emu, mask);
 			snd_emu10k1_efx_playback_freeze_voices(
-					emu, epcm, NUM_EFX_PLAYBACK);
+					emu, epcm, runtime->channels);
 			snd_emu10k1_playback_prepare_voices(
-					emu, epcm, true, false, NUM_EFX_PLAYBACK);
+					emu, epcm, true, false, runtime->channels);
 
 			// It might seem to make more sense to unmute the voices only after
 			// they have been started, to potentially avoid torturing the speakers
 			// if something goes wrong. However, we cannot unmute atomically,
 			// which means that we'd get some mild artifacts in the regular case.
-			snd_emu10k1_efx_playback_unmute_voices(emu, epcm, NUM_EFX_PLAYBACK);
+			snd_emu10k1_efx_playback_unmute_voices(emu, epcm, runtime->channels);
 
 			snd_emu10k1_playback_set_running(emu, epcm);
 			result = snd_emu10k1_voice_clear_loop_stop_multiple_atomic(emu, mask);
@@ -928,7 +928,7 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 			}
 
 			snd_emu10k1_efx_playback_stop_voices(
-					emu, epcm, NUM_EFX_PLAYBACK);
+					emu, epcm, runtime->channels);
 
 			if (result != -EAGAIN)
 				break;
@@ -941,7 +941,7 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_emu10k1_playback_stop_voice(emu, epcm->extra);
 		snd_emu10k1_efx_playback_stop_voices(
-				emu, epcm, NUM_EFX_PLAYBACK);
+				emu, epcm, runtime->channels);
 
 		epcm->resume_pos = snd_emu10k1_playback_pointer(substream);
 		break;
