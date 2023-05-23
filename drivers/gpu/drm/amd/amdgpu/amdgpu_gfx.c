@@ -509,7 +509,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		j = i + xcc_id * adev->gfx.num_compute_rings;
 		kiq->pmf->kiq_unmap_queues(kiq_ring,
-					   &adev->gfx.compute_ring[i],
+					   &adev->gfx.compute_ring[j],
 					   RESET_QUEUES, 0, 0);
 	}
 
@@ -541,7 +541,7 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			kiq->pmf->kiq_unmap_queues(kiq_ring,
-						   &adev->gfx.gfx_ring[i],
+						   &adev->gfx.gfx_ring[j],
 						   PREEMPT_QUEUES, 0, 0);
 		}
 	}
@@ -648,7 +648,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			kiq->pmf->kiq_map_queues(kiq_ring,
-						 &adev->gfx.gfx_ring[i]);
+						 &adev->gfx.gfx_ring[j]);
 		}
 	}
 
