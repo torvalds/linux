@@ -66,5 +66,7 @@ config SND_SEQ_UMP
 	  Say Y here to enable the support for handling UMP (Universal MIDI
 	  Packet) events via ALSA sequencer infrastructure, which is an
 	  essential feature for enabling MIDI 2.0 support.
+	  It includes the automatic conversion of ALSA sequencer events
+	  among legacy and UMP clients.
 
 endif # SND_SEQUENCER

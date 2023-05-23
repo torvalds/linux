@@ -20,6 +20,7 @@
 #include "seq_timer.h"
 #include "seq_info.h"
 #include "seq_system.h"
+#include "seq_ump_convert.h"
 #include <sound/seq_device.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -612,6 +613,27 @@ static int update_timestamp_of_queue(struct snd_seq_event *event,
 	return 1;
 }
 
+/* deliver a single event; called from below and UMP converter */
+int __snd_seq_deliver_single_event(struct snd_seq_client *dest,
+				   struct snd_seq_client_port *dest_port,
+				   struct snd_seq_event *event,
+				   int atomic, int hop)
+{
+	switch (dest->type) {
+	case USER_CLIENT:
+		if (!dest->data.user.fifo)
+			return 0;
+		return snd_seq_fifo_event_in(dest->data.user.fifo, event);
+	case KERNEL_CLIENT:
+		if (!dest_port->event_input)
+			return 0;
+		return dest_port->event_input(event,
+					      snd_seq_ev_is_direct(event),
+					      dest_port->private_data,
+					      atomic, hop);
+	}
+	return 0;
+}
 
 /*
  * deliver an event to the specified destination.
@@ -648,22 +670,20 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 		update_timestamp_of_queue(event, dest_port->time_queue,
 					  dest_port->time_real);
 
-	switch (dest->type) {
-	case USER_CLIENT:
-		if (dest->data.user.fifo)
-			result = snd_seq_fifo_event_in(dest->data.user.fifo, event);
-		break;
-
-	case KERNEL_CLIENT:
-		if (dest_port->event_input == NULL)
-			break;
-		result = dest_port->event_input(event, direct,
-						dest_port->private_data,
-						atomic, hop);
-		break;
-	default:
-		break;
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+	if (snd_seq_ev_is_ump(event)) {
+		result = snd_seq_deliver_from_ump(client, dest, dest_port,
+						  event, atomic, hop);
+		goto __skip;
+	} else if (snd_seq_client_is_ump(dest)) {
+		result = snd_seq_deliver_to_ump(client, dest, dest_port,
+						event, atomic, hop);
+		goto __skip;
 	}
+#endif /* CONFIG_SND_SEQ_UMP */
+
+	result = __snd_seq_deliver_single_event(dest, dest_port, event,
+						atomic, hop);
 
   __skip:
 	if (dest_port)
