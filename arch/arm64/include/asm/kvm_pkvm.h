@@ -6,7 +6,9 @@
 #ifndef __ARM64_KVM_PKVM_H__
 #define __ARM64_KVM_PKVM_H__
 
+#include <linux/arm_ffa.h>
 #include <linux/memblock.h>
+#include <linux/scatterlist.h>
 #include <asm/kvm_pgtable.h>
 
 /* Maximum number of VMs that can co-exist under pKVM. */
@@ -110,8 +112,19 @@ static inline unsigned long host_s2_pgtable_pages(void)
 
 static inline unsigned long hyp_ffa_proxy_pages(void)
 {
-	/* A page each for the hypervisor's RX and TX mailboxes. */
-	return 2 * KVM_FFA_MBOX_NR_PAGES;
+	size_t desc_max;
+
+	/*
+	 * The hypervisor FFA proxy needs enough memory to buffer a fragmented
+	 * descriptor returned from EL3 in response to a RETRIEVE_REQ call.
+	 */
+	desc_max = sizeof(struct ffa_mem_region) +
+		   sizeof(struct ffa_mem_region_attributes) +
+		   sizeof(struct ffa_composite_mem_region) +
+		   SG_MAX_SEGMENTS * sizeof(struct ffa_mem_region_addr_range);
+
+	/* Plus a page each for the hypervisor's RX and TX mailboxes. */
+	return (2 * KVM_FFA_MBOX_NR_PAGES) + DIV_ROUND_UP(desc_max, PAGE_SIZE);
 }
 
 #endif	/* __ARM64_KVM_PKVM_H__ */
