@@ -832,16 +832,8 @@ struct kmem_obj_info {
 void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
 #endif
 
-#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
 void __check_heap_object(const void *ptr, unsigned long n,
 			 const struct slab *slab, bool to_user);
-#else
-static inline
-void __check_heap_object(const void *ptr, unsigned long n,
-			 const struct slab *slab, bool to_user)
-{
-}
-#endif
 
 #ifdef CONFIG_SLUB_DEBUG
 void skip_orig_size_check(struct kmem_cache *s, const void *object);
