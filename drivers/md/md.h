@@ -122,8 +122,6 @@ struct md_rdev {
 
 	struct serial_in_rdev *serial;  /* used for raid1 io serialization */
 
-	struct work_struct del_work;	/* used for delayed sysfs removal */
-
 	struct kernfs_node *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
 	/* handle for 'unacknowledged_bad_blocks' sysfs dentry */
@@ -530,6 +528,14 @@ struct mddev {
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
 	unsigned int			noio_flag; /* for memalloc scope API */
+
+	/*
+	 * Temporarily store rdev that will be finally removed when
+	 * reconfig_mutex is unlocked.
+	 */
+	struct list_head		deleting;
+	/* Protect the deleting list */
+	struct mutex			delete_mutex;
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
