@@ -1500,7 +1500,6 @@ struct devlink_ops {
 	 * @devlink: Devlink instance
 	 * @attrs: attributes of the new port
 	 * @extack: extack for reporting error messages
-	 * @new_port_index: index of the new port
 	 *
 	 * Devlink core will call this device driver function upon user request
 	 * to create a new port function of a specified flavor and optional
@@ -1515,8 +1514,7 @@ struct devlink_ops {
 	 */
 	int (*port_new)(struct devlink *devlink,
 			const struct devlink_port_new_attrs *attrs,
-			struct netlink_ext_ack *extack,
-			unsigned int *new_port_index);
+			struct netlink_ext_ack *extack);
 	/**
 	 * port_del() - Delete a port function
 	 * @devlink: Devlink instance

@@ -1354,45 +1354,12 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 	return devlink->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
-static int devlink_port_new_notify(struct devlink *devlink,
-				   unsigned int port_index,
-				   struct genl_info *info)
-{
-	struct devlink_port *devlink_port;
-	struct sk_buff *msg;
-	int err;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	lockdep_assert_held(&devlink->lock);
-	devlink_port = devlink_port_get_by_index(devlink, port_index);
-	if (!devlink_port) {
-		err = -ENODEV;
-		goto out;
-	}
-
-	err = devlink_nl_port_fill(msg, devlink_port, DEVLINK_CMD_NEW,
-				   info->snd_portid, info->snd_seq, 0, NULL);
-	if (err)
-		goto out;
-
-	return genlmsg_reply(msg, info);
-
-out:
-	nlmsg_free(msg);
-	return err;
-}
-
 static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 					struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink_port_new_attrs new_attrs = {};
 	struct devlink *devlink = info->user_ptr[0];
-	unsigned int new_port_index;
-	int err;
 
 	if (!devlink->ops->port_new || !devlink->ops->port_del)
 		return -EOPNOTSUPP;
@@ -1423,17 +1390,7 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 		new_attrs.sfnum_valid = true;
 	}
 
-	err = devlink->ops->port_new(devlink, &new_attrs, extack,
-				     &new_port_index);
-	if (err)
-		return err;
-
-	err = devlink_port_new_notify(devlink, new_port_index, info);
-	if (err && err != -ENODEV) {
-		/* Fail to send the response; destroy newly created port. */
-		devlink->ops->port_del(devlink, new_port_index, extack);
-	}
-	return err;
+	return devlink->ops->port_new(devlink, &new_attrs, extack);
 }
 
 static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,

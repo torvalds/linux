@@ -20,8 +20,7 @@ void mlx5_sf_table_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_devlink_sf_port_new(struct devlink *devlink,
 			     const struct devlink_port_new_attrs *add_attr,
-			     struct netlink_ext_ack *extack,
-			     unsigned int *new_port_index);
+			     struct netlink_ext_ack *extack);
 int mlx5_devlink_sf_port_del(struct devlink *devlink, unsigned int port_index,
 			     struct netlink_ext_ack *extack);
 int mlx5_devlink_sf_port_fn_state_get(struct devlink_port *dl_port,
