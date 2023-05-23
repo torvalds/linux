@@ -68,7 +68,6 @@ dependencies:
 required:
   - compatible
   - pwms
-  - power-supply
 
 additionalProperties: false
 
