@@ -132,7 +132,7 @@
 #define ATC_DST_PIP		BIT(12)		/* Destination Picture-in-Picture enabled */
 #define ATC_SRC_DSCR_DIS	BIT(16)		/* Src Descriptor fetch disable */
 #define ATC_DST_DSCR_DIS	BIT(20)		/* Dst Descriptor fetch disable */
-#define ATC_FC			GENMASK(22, 21)	/* Choose Flow Controller */
+#define ATC_FC			GENMASK(23, 21)	/* Choose Flow Controller */
 #define ATC_FC_MEM2MEM		0x0		/* Mem-to-Mem (DMA) */
 #define ATC_FC_MEM2PER		0x1		/* Mem-to-Periph (DMA) */
 #define ATC_FC_PER2MEM		0x2		/* Periph-to-Mem (DMA) */
