@@ -581,6 +581,7 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 				      const struct usb_ms20_gr_trm_block_descriptor *desc)
 {
 	struct snd_ump_endpoint *ump = rmidi->ump;
+	unsigned int protocol, protocol_caps;
 
 	/* set default protocol */
 	switch (desc->bMIDIProtocol) {
@@ -588,23 +589,39 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 	case USB_MS_MIDI_PROTO_1_0_64_JRTS:
 	case USB_MS_MIDI_PROTO_1_0_128:
 	case USB_MS_MIDI_PROTO_1_0_128_JRTS:
-		ump->info.protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI1;
+		protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI1;
 		break;
 	case USB_MS_MIDI_PROTO_2_0:
 	case USB_MS_MIDI_PROTO_2_0_JRTS:
-		ump->info.protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI2;
+		protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI2;
 		break;
+	default:
+		return 0;
 	}
 
-	ump->info.protocol_caps = ump->info.protocol;
+	if (ump->info.protocol && ump->info.protocol != protocol)
+		usb_audio_info(rmidi->umidi->chip,
+			       "Overriding preferred MIDI protocol in GTB %d: %x -> %x\n",
+			       rmidi->usb_block_id, ump->info.protocol,
+			       protocol);
+	ump->info.protocol = protocol;
+
+	protocol_caps = protocol;
 	switch (desc->bMIDIProtocol) {
 	case USB_MS_MIDI_PROTO_1_0_64_JRTS:
 	case USB_MS_MIDI_PROTO_1_0_128_JRTS:
 	case USB_MS_MIDI_PROTO_2_0_JRTS:
-		ump->info.protocol_caps |= SNDRV_UMP_EP_INFO_PROTO_JRTS_TX |
+		protocol_caps |= SNDRV_UMP_EP_INFO_PROTO_JRTS_TX |
 			SNDRV_UMP_EP_INFO_PROTO_JRTS_RX;
 		break;
 	}
+
+	if (ump->info.protocol_caps && ump->info.protocol_caps != protocol_caps)
+		usb_audio_info(rmidi->umidi->chip,
+			       "Overriding MIDI protocol caps in GTB %d: %x -> %x\n",
+			       rmidi->usb_block_id, ump->info.protocol_caps,
+			       protocol_caps);
+	ump->info.protocol_caps = protocol_caps;
 
 	return 0;
 }
