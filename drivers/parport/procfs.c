@@ -384,6 +384,7 @@ parport_device_sysctl_template = {
 			.extra1		= (void*) &parport_min_timeslice_value,
 			.extra2		= (void*) &parport_max_timeslice_value
 		},
+		{}
 	},
 	{
 		{
@@ -393,22 +394,6 @@ parport_device_sysctl_template = {
 			.mode		= 0555,
 			.child		= NULL
 		},
-		{}
-	},
-	{
-		PARPORT_DEVICES_ROOT_DIR,
-		{}
-	},
-	{
-		PARPORT_PORT_DIR(NULL),
-		{}
-	},
-	{
-		PARPORT_PARPORT_DIR(NULL),
-		{}
-	},
-	{
-		PARPORT_DEV_DIR(NULL),
 		{}
 	}
 };
@@ -551,30 +536,53 @@ int parport_proc_unregister(struct parport *port)
 
 int parport_device_proc_register(struct pardevice *device)
 {
+	int bytes_written, err = 0;
 	struct parport_device_sysctl_table *t;
 	struct parport * port = device->port;
+	size_t port_name_len, device_name_len, tmp_dir_path_len;
+	char *tmp_dir_path;
 	
 	t = kmemdup(&parport_device_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return -ENOMEM;
 
-	t->dev_dir[0].child = t->parport_dir;
-	t->parport_dir[0].child = t->port_dir;
-	t->port_dir[0].procname = port->name;
-	t->port_dir[0].child = t->devices_root_dir;
-	t->devices_root_dir[0].child = t->device_dir;
+	port_name_len = strnlen(port->name, PARPORT_NAME_MAX_LEN);
+	device_name_len = strnlen(device->name, PATH_MAX);
 
-	t->device_dir[0].procname = device->name;
-	t->device_dir[0].child = t->vars;
+	/* Allocate a buffer for two paths: dev/parport/PORT/devices/DEVICE. */
+	tmp_dir_path_len = PARPORT_BASE_DEVICES_PATH_SIZE + port_name_len + device_name_len;
+	tmp_dir_path = kzalloc(tmp_dir_path_len, GFP_KERNEL);
+	if (!tmp_dir_path) {
+		err = -ENOMEM;
+		goto exit_free_t;
+	}
+
+	bytes_written = snprintf(tmp_dir_path, tmp_dir_path_len, "dev/parport/%s/devices/%s",
+				 port->name, device->name);
+	if (tmp_dir_path_len <= bytes_written) {
+		err = -ENOENT;
+		goto exit_free_path;
+	}
+
 	t->vars[0].data = &device->timeslice;
 
-	t->sysctl_header = register_sysctl_table(t->dev_dir);
+	t->sysctl_header = register_sysctl(tmp_dir_path, t->vars);
 	if (t->sysctl_header == NULL) {
 		kfree(t);
 		t = NULL;
 	}
 	device->sysctl_table = t;
+
+	kfree(tmp_dir_path);
 	return 0;
+
+exit_free_path:
+	kfree(tmp_dir_path);
+
+exit_free_t:
+	kfree(t);
+
+	return err;
 }
 
 int parport_device_proc_unregister(struct pardevice *device)
