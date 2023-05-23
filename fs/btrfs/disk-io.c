@@ -1183,19 +1183,13 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 	if (objectid == BTRFS_CSUM_TREE_OBJECTID)
 		return btrfs_grab_root(btrfs_global_root(fs_info, &key));
 	if (objectid == BTRFS_QUOTA_TREE_OBJECTID)
-		return btrfs_grab_root(fs_info->quota_root) ?
-			fs_info->quota_root : ERR_PTR(-ENOENT);
+		return btrfs_grab_root(fs_info->quota_root);
 	if (objectid == BTRFS_UUID_TREE_OBJECTID)
-		return btrfs_grab_root(fs_info->uuid_root) ?
-			fs_info->uuid_root : ERR_PTR(-ENOENT);
+		return btrfs_grab_root(fs_info->uuid_root);
 	if (objectid == BTRFS_BLOCK_GROUP_TREE_OBJECTID)
-		return btrfs_grab_root(fs_info->block_group_root) ?
-			fs_info->block_group_root : ERR_PTR(-ENOENT);
-	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID) {
-		struct btrfs_root *root = btrfs_global_root(fs_info, &key);
-
-		return btrfs_grab_root(root) ? root : ERR_PTR(-ENOENT);
-	}
+		return btrfs_grab_root(fs_info->block_group_root);
+	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
+		return btrfs_grab_root(btrfs_global_root(fs_info, &key));
 	return NULL;
 }
 
