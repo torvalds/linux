@@ -47,6 +47,7 @@ struct seq_ump_client {
 	struct snd_rawmidi_file out_rfile; /* rawmidi for output */
 	struct seq_ump_input_buffer input; /* input parser context */
 	struct seq_ump_group groups[SNDRV_UMP_MAX_GROUPS]; /* table of groups */
+	void *ump_info[SNDRV_UMP_MAX_BLOCKS + 1]; /* shadow of seq client ump_info */
 };
 
 /* number of 32bit words for each UMP message type */
@@ -384,6 +385,8 @@ static int snd_seq_ump_probe(struct device *_dev)
 	struct snd_ump_endpoint *ump = dev->private_data;
 	struct snd_card *card = dev->card;
 	struct seq_ump_client *client;
+	struct snd_ump_block *fb;
+	struct snd_seq_client *cptr;
 	int p, err;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -400,6 +403,10 @@ static int snd_seq_ump_probe(struct device *_dev)
 		goto error;
 	}
 
+	client->ump_info[0] = &ump->info;
+	list_for_each_entry(fb, &ump->block_list, list)
+		client->ump_info[fb->info.block_id + 1] = &fb->info;
+
 	setup_client_midi_version(client);
 	update_group_attrs(client);
 
@@ -412,6 +419,14 @@ static int snd_seq_ump_probe(struct device *_dev)
 	err = create_ump_endpoint_port(client);
 	if (err < 0)
 		goto error;
+
+	cptr = snd_seq_kernel_client_get(client->seq_client);
+	if (!cptr) {
+		err = -EINVAL;
+		goto error;
+	}
+	cptr->ump_info = client->ump_info;
+	snd_seq_kernel_client_put(cptr);
 
 	ump->seq_client = client;
 	ump->seq_ops = &seq_ump_ops;

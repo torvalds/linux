@@ -12,7 +12,6 @@
 #include "seq_ports.h"
 #include "seq_lock.h"
 
-
 /* client manager */
 
 struct snd_seq_user_client {
@@ -59,6 +58,9 @@ struct snd_seq_client {
 		struct snd_seq_user_client user;
 		struct snd_seq_kernel_client kernel;
 	} data;
+
+	/* for UMP */
+	void **ump_info;
 };
 
 /* usage statistics */

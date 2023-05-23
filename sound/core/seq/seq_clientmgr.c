@@ -14,6 +14,7 @@
 #include <linux/kmod.h>
 
 #include <sound/seq_kernel.h>
+#include <sound/ump.h>
 #include "seq_clientmgr.h"
 #include "seq_memory.h"
 #include "seq_queue.h"
@@ -70,6 +71,10 @@ static int bounce_error_event(struct snd_seq_client *client,
 static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 					struct snd_seq_event *event,
 					int filter, int atomic, int hop);
+
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+static void free_ump_info(struct snd_seq_client *client);
+#endif
 
 /*
  */
@@ -382,6 +387,9 @@ static int snd_seq_release(struct inode *inode, struct file *file)
 		seq_free_client(client);
 		if (client->data.user.fifo)
 			snd_seq_fifo_delete(&client->data.user.fifo);
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+		free_ump_info(client);
+#endif
 		put_pid(client->data.user.owner);
 		kfree(client);
 	}
@@ -1282,7 +1290,6 @@ static int snd_seq_ioctl_set_client_info(struct snd_seq_client *client,
 	if (client->user_pversion >= SNDRV_PROTOCOL_VERSION(1, 0, 3))
 		client->midi_version = client_info->midi_version;
 	memcpy(client->event_filter, client_info->event_filter, 32);
-
 	return 0;
 }
 
@@ -2087,6 +2094,108 @@ static int snd_seq_ioctl_query_next_port(struct snd_seq_client *client,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+#define NUM_UMP_INFOS (SNDRV_UMP_MAX_BLOCKS + 1)
+
+static void free_ump_info(struct snd_seq_client *client)
+{
+	int i;
+
+	if (!client->ump_info)
+		return;
+	for (i = 0; i < NUM_UMP_INFOS; i++)
+		kfree(client->ump_info[i]);
+	kfree(client->ump_info);
+	client->ump_info = NULL;
+}
+
+static void terminate_ump_info_strings(void *p, int type)
+{
+	if (type == SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT) {
+		struct snd_ump_endpoint_info *ep = p;
+		ep->name[sizeof(ep->name) - 1] = 0;
+	} else {
+		struct snd_ump_block_info *bp = p;
+		bp->name[sizeof(bp->name) - 1] = 0;
+	}
+}
+
+/* UMP-specific ioctls -- called directly without data copy */
+static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
+					 unsigned int cmd,
+					 unsigned long arg)
+{
+	struct snd_seq_client_ump_info __user *argp =
+		(struct snd_seq_client_ump_info __user *)arg;
+	struct snd_seq_client *cptr;
+	int client, type, err = 0;
+	size_t size;
+	void *p;
+
+	if (get_user(client, &argp->client) || get_user(type, &argp->type))
+		return -EFAULT;
+	if (cmd == SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO &&
+	    caller->number != client)
+		return -EPERM;
+	if (type < 0 || type >= NUM_UMP_INFOS)
+		return -EINVAL;
+	if (type == SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT)
+		size = sizeof(struct snd_ump_endpoint_info);
+	else
+		size = sizeof(struct snd_ump_block_info);
+	cptr = snd_seq_client_use_ptr(client);
+	if (!cptr)
+		return -ENOENT;
+
+	mutex_lock(&cptr->ioctl_mutex);
+	if (!cptr->midi_version) {
+		err = -EBADFD;
+		goto error;
+	}
+
+	if (cmd == SNDRV_SEQ_IOCTL_GET_CLIENT_UMP_INFO) {
+		if (!cptr->ump_info)
+			p = NULL;
+		else
+			p = cptr->ump_info[type];
+		if (!p) {
+			err = -ENODEV;
+			goto error;
+		}
+		if (copy_to_user(argp->info, p, size)) {
+			err = -EFAULT;
+			goto error;
+		}
+	} else {
+		if (cptr->type != USER_CLIENT) {
+			err = -EBADFD;
+			goto error;
+		}
+		if (!cptr->ump_info) {
+			cptr->ump_info = kcalloc(NUM_UMP_INFOS,
+						 sizeof(void *), GFP_KERNEL);
+			if (!cptr->ump_info) {
+				err = -ENOMEM;
+				goto error;
+			}
+		}
+		p = memdup_user(argp->info, size);
+		if (IS_ERR(p)) {
+			err = PTR_ERR(p);
+			goto error;
+		}
+		kfree(cptr->ump_info[type]);
+		terminate_ump_info_strings(p, type);
+		cptr->ump_info[type] = p;
+	}
+
+ error:
+	mutex_unlock(&cptr->ioctl_mutex);
+	snd_seq_client_unlock(cptr);
+	return err;
+}
+#endif
+
 /* -------------------------------------------------------- */
 
 static const struct ioctl_handler {
@@ -2156,6 +2265,15 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 
 	if (snd_BUG_ON(!client))
 		return -ENXIO;
+
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+	/* exception - handling large data */
+	switch (cmd) {
+	case SNDRV_SEQ_IOCTL_GET_CLIENT_UMP_INFO:
+	case SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO:
+		return snd_seq_ioctl_client_ump_info(client, cmd, arg);
+	}
+#endif
 
 	for (handler = ioctl_handlers; handler->cmd > 0; ++handler) {
 		if (handler->cmd == cmd)

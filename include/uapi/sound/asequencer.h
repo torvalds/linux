@@ -585,6 +585,18 @@ struct snd_seq_query_subs {
 	char reserved[64];	/* for future use */
 };
 
+/*
+ * UMP-specific information
+ */
+/* type of UMP info query */
+#define SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT	0
+#define SNDRV_SEQ_CLIENT_UMP_INFO_BLOCK		1
+
+struct snd_seq_client_ump_info {
+	int client;			/* client number to inquire/set */
+	int type;			/* type to inquire/set */
+	unsigned char info[512];	/* info (either UMP ep or block info) */
+} __packed;
 
 /*
  *  IOCTL commands
@@ -598,6 +610,8 @@ struct snd_seq_query_subs {
 
 #define SNDRV_SEQ_IOCTL_GET_CLIENT_INFO	_IOWR('S', 0x10, struct snd_seq_client_info)
 #define SNDRV_SEQ_IOCTL_SET_CLIENT_INFO	_IOW ('S', 0x11, struct snd_seq_client_info)
+#define SNDRV_SEQ_IOCTL_GET_CLIENT_UMP_INFO	_IOWR('S', 0x12, struct snd_seq_client_ump_info)
+#define SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO	_IOWR('S', 0x13, struct snd_seq_client_ump_info)
 
 #define SNDRV_SEQ_IOCTL_CREATE_PORT	_IOWR('S', 0x20, struct snd_seq_port_info)
 #define SNDRV_SEQ_IOCTL_DELETE_PORT	_IOW ('S', 0x21, struct snd_seq_port_info)
