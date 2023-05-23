@@ -10,6 +10,8 @@
 
 #include "display/intel_display_limits.h"
 
+struct drm_i915_private;
+
 #define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
@@ -81,6 +83,7 @@ struct intel_display_device_info {
 };
 
 const struct intel_display_device_info *
-intel_display_device_probe(u16 pci_devid);
+intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
+			   u16 *ver, u16 *rel, u16 *step);
 
 #endif

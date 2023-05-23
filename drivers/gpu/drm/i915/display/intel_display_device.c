@@ -5,7 +5,10 @@
 
 #include <drm/i915_pciids.h>
 #include <drm/drm_color_mgmt.h>
+#include <linux/pci.h>
 
+#include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_display_device.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
@@ -700,19 +703,73 @@ static const struct {
 	INTEL_RPLP_IDS(&xe_lpd_display),
 	INTEL_DG2_IDS(&xe_hpd_display),
 
-	/* FIXME: Replace this with a GMD_ID lookup */
-	INTEL_MTL_IDS(&xe_lpdp_display),
+	/*
+	 * Do not add any GMD_ID-based platforms to this list.  They will
+	 * be probed automatically based on the IP version reported by
+	 * the hardware.
+	 */
 };
 
-const struct intel_display_device_info *
-intel_display_device_probe(u16 pci_devid)
+static const struct {
+	u16 ver;
+	u16 rel;
+	const struct intel_display_device_info *display;
+} gmdid_display_map[] = {
+	{ 14,  0, &xe_lpdp_display },
+};
+
+static const struct intel_display_device_info *
+probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step)
 {
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	void __iomem *addr;
+	u32 val;
 	int i;
 
+	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
+	if (!addr) {
+		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
+		return &no_display;
+	}
+
+	val = ioread32(addr);
+	pci_iounmap(pdev, addr);
+
+	if (val == 0)
+		/* Platform doesn't have display */
+		return &no_display;
+
+	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
+	*rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
+	*step = REG_FIELD_GET(GMD_ID_STEP, val);
+
+	for (i = 0; i < ARRAY_SIZE(gmdid_display_map); i++)
+		if (*ver == gmdid_display_map[i].ver &&
+		    *rel == gmdid_display_map[i].rel)
+			return gmdid_display_map[i].display;
+
+	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
+		*ver, *rel);
+	return &no_display;
+}
+
+const struct intel_display_device_info *
+intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
+			   u16 *gmdid_ver, u16 *gmdid_rel, u16 *gmdid_step)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	int i;
+
+	if (has_gmdid)
+		return probe_gmdid_display(i915, gmdid_ver, gmdid_rel, gmdid_step);
+
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
-		if (intel_display_ids[i].devid == pci_devid)
+		if (intel_display_ids[i].devid == pdev->device)
 			return intel_display_ids[i].info;
 	}
+
+	drm_dbg(&i915->drm, "No display ID found for device ID %04x; disabling display.\n",
+		pdev->device);
 
 	return &no_display;
 }

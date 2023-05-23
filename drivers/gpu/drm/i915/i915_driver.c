@@ -754,13 +754,17 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *i915;
 	int ret;
 
-	i915 = i915_driver_create(pdev, ent);
-	if (IS_ERR(i915))
-		return PTR_ERR(i915);
-
 	ret = pci_enable_device(pdev);
-	if (ret)
-		goto out_fini;
+	if (ret) {
+		pr_err("Failed to enable graphics device: %pe\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	i915 = i915_driver_create(pdev, ent);
+	if (IS_ERR(i915)) {
+		ret = PTR_ERR(i915);
+		goto out_pci_disable;
+	}
 
 	ret = i915_driver_early_probe(i915);
 	if (ret < 0)
@@ -843,7 +847,6 @@ out_runtime_pm_put:
 	i915_driver_late_release(i915);
 out_pci_disable:
 	pci_disable_device(pdev);
-out_fini:
 	i915_probe_error(i915, "Device initialization failed (%d)\n", ret);
 	return ret;
 }
