@@ -64,16 +64,23 @@ struct slabinfo;
 DECLARE_HOOK(android_vh_cache_show,
 	TP_PROTO(struct seq_file *m, struct slabinfo *sinfo, struct kmem_cache *s),
 	TP_ARGS(m, sinfo, s));
-
 DECLARE_HOOK(android_vh_alloc_pages_reclaim_bypass,
     TP_PROTO(gfp_t gfp_mask, int order, int alloc_flags,
 	int migratetype, struct page **page),
 	TP_ARGS(gfp_mask, order, alloc_flags, migratetype, page));
-
 DECLARE_HOOK(android_vh_alloc_pages_failure_bypass,
 	TP_PROTO(gfp_t gfp_mask, int order, int alloc_flags,
 	int migratetype, struct page **page),
 	TP_ARGS(gfp_mask, order, alloc_flags, migratetype, page));
+DECLARE_HOOK(android_vh_madvise_pageout_swap_entry,
+	TP_PROTO(swp_entry_t entry, int swapcount),
+	TP_ARGS(entry, swapcount));
+DECLARE_HOOK(android_vh_madvise_swapin_walk_pmd_entry,
+	TP_PROTO(swp_entry_t entry),
+	TP_ARGS(entry));
+DECLARE_HOOK(android_vh_process_madvise_end,
+	TP_PROTO(int behavior, ssize_t *ret),
+	TP_ARGS(behavior, ret));
 
 #endif /* _TRACE_HOOK_MM_H */
 
