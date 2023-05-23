@@ -26,6 +26,19 @@ config SND_RAWMIDI
 	tristate
 	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
+config SND_UMP
+	tristate
+	select SND_RAWMIDI
+
+config SND_UMP_LEGACY_RAWMIDI
+	bool "Legacy raw MIDI support for UMP streams"
+	depends on SND_UMP
+	help
+	  This option enables the legacy raw MIDI support for UMP streams.
+	  When this option is set, an additional rawmidi device for the
+	  legacy MIDI 1.0 byte streams is created for each UMP Endpoint.
+	  The device contains 16 substreams corresponding to UMP groups.
+
 config SND_COMPRESS_OFFLOAD
 	tristate
 
