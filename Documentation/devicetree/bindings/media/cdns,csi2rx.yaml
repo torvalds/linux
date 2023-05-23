@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/cdns,csi2rx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cadence MIPI-CSI2 RX controller
+
+maintainers:
+  - Maxime Ripard <mripard@kernel.org>
+
+description:
+  The Cadence MIPI-CSI2 RX controller is a CSI-2 bridge supporting up to 4 CSI
+  lanes in input, and 4 different pixel streams in output.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - starfive,jh7110-csi2rx
+      - const: cdns,csi2rx
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: CSI2Rx system clock
+      - description: Gated Register bank clock for APB interface
+      - description: pixel Clock for Stream interface 0
+      - description: pixel Clock for Stream interface 1
+      - description: pixel Clock for Stream interface 2
+      - description: pixel Clock for Stream interface 3
+
+  clock-names:
+    items:
+      - const: sys_clk
+      - const: p_clk
+      - const: pixel_if0_clk
+      - const: pixel_if1_clk
+      - const: pixel_if2_clk
+      - const: pixel_if3_clk
+
+  phys:
+    maxItems: 1
+    description: MIPI D-PHY
+
+  phy-names:
+    items:
+      - const: dphy
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description:
+          Input port node, single endpoint describing the CSI-2 transmitter.
+
+        properties:
+          endpoint:
+            $ref: video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              bus-type:
+                const: 4
+
+              clock-lanes:
+                const: 0
+
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+                items:
+                  maximum: 4
+
+            required:
+              - data-lanes
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Stream 0 Output port node
+
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Stream 1 Output port node
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Stream 2 Output port node
+
+      port@4:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Stream 3 Output port node
+
+    required:
+      - port@0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    csi@d060000 {
+        compatible = "starfive,jh7110-csi2rx", "cdns,csi2rx";
+        reg = <0x0d060000 0x1000>;
+        clocks = <&byteclock 7>, <&byteclock 6>,
+                 <&coreclock 8>, <&coreclock 9>,
+                 <&coreclock 10>, <&coreclock 11>;
+        clock-names = "sys_clk", "p_clk",
+                      "pixel_if0_clk", "pixel_if1_clk",
+                      "pixel_if2_clk", "pixel_if3_clk";
+        phys = <&csi_phy>;
+        phy-names = "dphy";
+
+        ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    csi2rx_in_sensor: endpoint {
+                        remote-endpoint = <&sensor_out_csi2rx>;
+                        clock-lanes = <0>;
+                        data-lanes = <1 2>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+
+                    csi2rx_out_grabber0: endpoint {
+                        remote-endpoint = <&grabber0_in_csi2rx>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+
+                    csi2rx_out_grabber1: endpoint {
+                        remote-endpoint = <&grabber1_in_csi2rx>;
+                    };
+                };
+
+                port@3 {
+                    reg = <3>;
+
+                    csi2rx_out_grabber2: endpoint {
+                        remote-endpoint = <&grabber2_in_csi2rx>;
+                    };
+                };
+
+                port@4 {
+                    reg = <4>;
+
+                    csi2rx_out_grabber3: endpoint {
+                        remote-endpoint = <&grabber3_in_csi2rx>;
+                    };
+                };
+        };
+    };
+
+...
