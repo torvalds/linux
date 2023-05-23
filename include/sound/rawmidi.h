@@ -18,6 +18,7 @@
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #include <sound/seq_device.h>
 #endif
+#include <sound/info.h>
 
 /*
  *  Raw MIDI interface
@@ -49,6 +50,8 @@ struct snd_rawmidi_global_ops {
 			      struct snd_seq_port_info *info);
 	long (*ioctl)(struct snd_rawmidi *rmidi, unsigned int cmd,
 		      void __user *argp);
+	void (*proc_read)(struct snd_info_entry *entry,
+			  struct snd_info_buffer *buf);
 };
 
 struct snd_rawmidi_runtime {

@@ -21,11 +21,14 @@ static int snd_ump_dev_register(struct snd_rawmidi *rmidi);
 static int snd_ump_dev_unregister(struct snd_rawmidi *rmidi);
 static long snd_ump_ioctl(struct snd_rawmidi *rmidi, unsigned int cmd,
 			  void __user *argp);
+static void snd_ump_proc_read(struct snd_info_entry *entry,
+			      struct snd_info_buffer *buffer);
 
 static const struct snd_rawmidi_global_ops snd_ump_rawmidi_ops = {
 	.dev_register = snd_ump_dev_register,
 	.dev_unregister = snd_ump_dev_unregister,
 	.ioctl = snd_ump_ioctl,
+	.proc_read = snd_ump_proc_read,
 };
 
 static void snd_ump_endpoint_free(struct snd_rawmidi *rmidi)
@@ -223,6 +226,52 @@ static long snd_ump_ioctl(struct snd_rawmidi *rmidi, unsigned int cmd,
 	default:
 		ump_dbg(ump, "rawmidi: unknown command = 0x%x\n", cmd);
 		return -ENOTTY;
+	}
+}
+
+static const char *ump_direction_string(int dir)
+{
+	switch (dir) {
+	case SNDRV_UMP_DIR_INPUT:
+		return "input";
+	case SNDRV_UMP_DIR_OUTPUT:
+		return "output";
+	case SNDRV_UMP_DIR_BIDIRECTION:
+		return "bidirection";
+	default:
+		return "unknown";
+	}
+}
+
+/* Additional proc file output */
+static void snd_ump_proc_read(struct snd_info_entry *entry,
+			      struct snd_info_buffer *buffer)
+{
+	struct snd_rawmidi *rmidi = entry->private_data;
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(rmidi);
+	struct snd_ump_block *fb;
+
+	snd_iprintf(buffer, "EP Name: %s\n", ump->info.name);
+	snd_iprintf(buffer, "EP Product ID: %s\n", ump->info.product_id);
+	snd_iprintf(buffer, "UMP Version: 0x%04x\n", ump->info.version);
+	snd_iprintf(buffer, "Protocol Caps: 0x%08x\n", ump->info.protocol_caps);
+	snd_iprintf(buffer, "Protocol: 0x%08x\n", ump->info.protocol);
+	snd_iprintf(buffer, "Num Blocks: %d\n\n", ump->info.num_blocks);
+
+	list_for_each_entry(fb, &ump->block_list, list) {
+		snd_iprintf(buffer, "Block %d (%s)\n", fb->info.block_id,
+			    fb->info.name);
+		snd_iprintf(buffer, "  Direction: %s\n",
+			    ump_direction_string(fb->info.direction));
+		snd_iprintf(buffer, "  Active: %s\n",
+			    fb->info.active ? "Yes" : "No");
+		snd_iprintf(buffer, "  Groups: %d-%d\n",
+			    fb->info.first_group + 1,
+			    fb->info.first_group + fb->info.num_groups);
+		snd_iprintf(buffer, "  Is MIDI1: %s%s\n",
+			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1) ? "Yes" : "No",
+			    (fb->info.flags & SNDRV_UMP_BLOCK_IS_LOWSPEED) ? " (Low Speed)" : "");
+		snd_iprintf(buffer, "\n");
 	}
 }
 
