@@ -1910,6 +1910,7 @@ static bool __init init_psci_relay(void)
 	}
 
 	kvm_host_psci_config.version = psci_ops.get_version();
+	kvm_host_psci_config.smccc_version = arm_smccc_get_version();
 
 	if (kvm_host_psci_config.version == PSCI_VERSION(0, 1)) {
 		kvm_host_psci_config.function_ids_0_1 = get_psci_0_1_function_ids();

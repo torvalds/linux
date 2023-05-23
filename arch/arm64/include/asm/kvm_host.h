@@ -405,6 +405,7 @@ struct kvm_host_data {
 struct kvm_host_psci_config {
 	/* PSCI version used by host. */
 	u32 version;
+	u32 smccc_version;
 
 	/* Function IDs used by host if version is v0.1. */
 	struct psci_0_1_function_ids function_ids_0_1;
