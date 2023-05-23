@@ -874,8 +874,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.force_abm_enable = false,
 	.timing_trace = false,
 	.clock_trace = true,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
+	.disable_dpp_power_gate = false,
+	.disable_hubp_power_gate = false,
 	.disable_pplib_clock_request = false,
 	.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 	.force_single_disp_pipe_split = false,
@@ -1882,6 +1882,13 @@ static bool dcn314_resource_construct(
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
+
+	/* Disable pipe power gating when unsupported */
+	if (ctx->asic_id.hw_internal_rev == 0x01 ||
+			ctx->asic_id.hw_internal_rev == 0x80) {
+		dc->debug.disable_dpp_power_gate = true;
+		dc->debug.disable_hubp_power_gate = true;
+	}
 
 	/* read VBIOS LTTPR caps */
 	{
