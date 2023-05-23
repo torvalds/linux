@@ -362,7 +362,7 @@ static void vcn_v4_0_3_mc_resume(struct amdgpu_device *adev, int inst_idx)
 }
 
 /**
- * vcn_v4_0_mc_resume_dpg_mode - memory controller programming for dpg mode
+ * vcn_v4_0_3_mc_resume_dpg_mode - memory controller programming for dpg mode
  *
  * @adev: amdgpu_device pointer
  * @inst_idx: instance number index
@@ -620,7 +620,7 @@ static void vcn_v4_0_3_disable_clock_gating_dpg_mode(struct amdgpu_device *adev,
 }
 
 /**
- * vcn_v4_0_enable_clock_gating - enable VCN clock gating
+ * vcn_v4_0_3_enable_clock_gating - enable VCN clock gating
  *
  * @adev: amdgpu_device pointer
  * @inst_idx: instance number
