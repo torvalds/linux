@@ -1057,6 +1057,7 @@
   dma_buf_unmap_attachment
   dma_get_sgtable_attrs
   down_read
+  down_write
   find_vma
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
@@ -1068,6 +1069,7 @@
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
   up_read
+  up_write
 
 # required by gpi.ko
   krealloc
