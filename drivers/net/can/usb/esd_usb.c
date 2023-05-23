@@ -67,23 +67,23 @@ MODULE_LICENSE("GPL v2");
 #define ESD_USB_TRIPLE_SAMPLES	BIT(23)
 
 /* esd IDADD message */
-#define ESD_USB_ID_ENABLE	0x80
+#define ESD_USB_ID_ENABLE	BIT(7)
 #define ESD_USB_MAX_ID_SEGMENT	64
 
 /* SJA1000 ECC register (emulated by usb firmware) */
-#define ESD_USB_SJA1000_ECC_SEG		0x1F
-#define ESD_USB_SJA1000_ECC_DIR		0x20
-#define ESD_USB_SJA1000_ECC_ERR		0x06
+#define ESD_USB_SJA1000_ECC_SEG		GENMASK(4, 0)
+#define ESD_USB_SJA1000_ECC_DIR		BIT(5)
+#define ESD_USB_SJA1000_ECC_ERR		BIT(2, 1)
 #define ESD_USB_SJA1000_ECC_BIT		0x00
-#define ESD_USB_SJA1000_ECC_FORM	0x40
-#define ESD_USB_SJA1000_ECC_STUFF	0x80
-#define ESD_USB_SJA1000_ECC_MASK	0xc0
+#define ESD_USB_SJA1000_ECC_FORM	BIT(6)
+#define ESD_USB_SJA1000_ECC_STUFF	BIT(7)
+#define ESD_USB_SJA1000_ECC_MASK	GENMASK(7, 6)
 
 /* esd bus state event codes */
-#define ESD_USB_BUSSTATE_MASK	0xc0
-#define ESD_USB_BUSSTATE_WARN	0x40
-#define ESD_USB_BUSSTATE_ERRPASSIVE	0x80
-#define ESD_USB_BUSSTATE_BUSOFF	0xc0
+#define ESD_USB_BUSSTATE_MASK	GENMASK(7, 6)
+#define ESD_USB_BUSSTATE_WARN	BIT(6)
+#define ESD_USB_BUSSTATE_ERRPASSIVE	BIT(7)
+#define ESD_USB_BUSSTATE_BUSOFF	GENMASK(7, 6)
 
 #define ESD_USB_RX_BUFFER_SIZE		1024
 #define ESD_USB_MAX_RX_URBS		4
@@ -652,9 +652,9 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 	msg->filter.net = priv->index;
 	msg->filter.option = ESD_USB_ID_ENABLE; /* start with segment 0 */
 	for (i = 0; i < ESD_USB_MAX_ID_SEGMENT; i++)
-		msg->filter.mask[i] = cpu_to_le32(0xffffffff);
+		msg->filter.mask[i] = cpu_to_le32(GENMASK(31, 0));
 	/* enable 29bit extended IDs */
-	msg->filter.mask[ESD_USB_MAX_ID_SEGMENT] = cpu_to_le32(0x00000001);
+	msg->filter.mask[ESD_USB_MAX_ID_SEGMENT] = cpu_to_le32(BIT(0));
 
 	err = esd_usb_send_msg(dev, msg);
 	if (err)
@@ -796,7 +796,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 	context->echo_index = i;
 
 	/* hnd must not be 0 - MSB is stripped in txdone handling */
-	msg->tx.hnd = 0x80000000 | i; /* returned in TX done message */
+	msg->tx.hnd = BIT(31) | i; /* returned in TX done message */
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
 			  msg->hdr.len * sizeof(u32), /* convert to # of bytes */
