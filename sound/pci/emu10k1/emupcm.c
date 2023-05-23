@@ -233,37 +233,21 @@ static u16 emu10k1_send_target_from_amount(u8 amount)
 }
 
 static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
-				       int master, int extra,
 				       struct snd_emu10k1_voice *evoice,
 				       bool w_16, bool stereo,
 				       unsigned int start_addr,
 				       unsigned int end_addr,
-				       struct snd_emu10k1_pcm_mixer *mix)
+				       const unsigned char *send_routing,
+				       const unsigned char *send_amount)
 {
 	struct snd_pcm_substream *substream = evoice->epcm->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int silent_page, tmp;
+	unsigned int silent_page;
 	int voice;
-	unsigned char send_amount[8];
-	unsigned char send_routing[8];
-	unsigned long flags;
 	unsigned int pitch_target;
 
 	voice = evoice->number;
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
-
-	/* volume parameters */
-	if (extra) {
-		for (int i = 0; i < 8; i++)
-			send_routing[i] = i;
-		memset(send_amount, 0, sizeof(send_amount));
-	} else {
-		/* mono, left, right (master voice = left) */
-		tmp = stereo ? (master ? 1 : 2) : 0;
-		memcpy(send_routing, &mix->send_routing[tmp][0], 8);
-		memcpy(send_amount, &mix->send_volume[tmp][0], 8);
-	}
 	if (emu->card_capabilities->emu_model)
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else
@@ -308,8 +292,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	}
 
 	emu->voices[voice].dirty = 1;
-
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
 
 static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
@@ -319,11 +301,19 @@ static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
 					unsigned int end_addr,
 					struct snd_emu10k1_pcm_mixer *mix)
 {
-	snd_emu10k1_pcm_init_voice(emu, 1, 0, evoice, w_16, stereo,
-				   start_addr, end_addr, mix);
+	unsigned long flags;
+
+	spin_lock_irqsave(&emu->reg_lock, flags);
+	snd_emu10k1_pcm_init_voice(emu, evoice, w_16, stereo,
+				   start_addr, end_addr,
+				   &mix->send_routing[stereo][0],
+				   &mix->send_volume[stereo][0]);
 	if (stereo)
-		snd_emu10k1_pcm_init_voice(emu, 0, 0, evoice + 1, w_16, true,
-					   start_addr, end_addr, mix);
+		snd_emu10k1_pcm_init_voice(emu, evoice + 1, w_16, true,
+					   start_addr, end_addr,
+					   &mix->send_routing[2][0],
+					   &mix->send_volume[2][0]);
+	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
 
 static void snd_emu10k1_pcm_init_extra_voice(struct snd_emu10k1 *emu,
@@ -332,8 +322,12 @@ static void snd_emu10k1_pcm_init_extra_voice(struct snd_emu10k1 *emu,
 					     unsigned int start_addr,
 					     unsigned int end_addr)
 {
-	snd_emu10k1_pcm_init_voice(emu, 1, 1, evoice, w_16, false,
-				   start_addr, end_addr, NULL);
+	static const unsigned char send_routing[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	static const unsigned char send_amount[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+	snd_emu10k1_pcm_init_voice(emu, evoice, w_16, false,
+				   start_addr, end_addr,
+				   send_routing, send_amount);
 }
 
 static int snd_emu10k1_playback_hw_params(struct snd_pcm_substream *substream,
@@ -447,9 +441,9 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 
 	epcm->ccca_start_addr = start_addr;
 	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
-		snd_emu10k1_pcm_init_voice(emu, 0, 0, epcm->voices[i], true, false,
-					   start_addr, start_addr + channel_size,
-					   &emu->efx_pcm_mixer[i]);
+		snd_emu10k1_pcm_init_voices(emu, epcm->voices[i], true, false,
+					    start_addr, start_addr + channel_size,
+					    &emu->efx_pcm_mixer[i]);
 		start_addr += channel_size;
 	}
 
