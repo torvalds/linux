@@ -336,22 +336,6 @@ static int xpcs_read_link_c73(struct dw_xpcs *xpcs)
 	return link;
 }
 
-static int xpcs_get_max_usxgmii_speed(const unsigned long *supported)
-{
-	int max = SPEED_UNKNOWN;
-
-	if (phylink_test(supported, 1000baseKX_Full))
-		max = SPEED_1000;
-	if (phylink_test(supported, 2500baseX_Full))
-		max = SPEED_2500;
-	if (phylink_test(supported, 10000baseKX4_Full))
-		max = SPEED_10000;
-	if (phylink_test(supported, 10000baseKR_Full))
-		max = SPEED_10000;
-
-	return max;
-}
-
 static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 {
 	int ret, speed_sel;
@@ -532,28 +516,6 @@ static int xpcs_read_lpa_c73(struct dw_xpcs *xpcs,
 	mii_c73_mod_linkmode(state->lp_advertising, lpa);
 
 	return 0;
-}
-
-static void xpcs_resolve_lpa_c73(struct dw_xpcs *xpcs,
-				 struct phylink_link_state *state)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(res);
-	bool tx_pause, rx_pause;
-
-	/* Calculate the union of the advertising masks */
-	linkmode_and(res, state->lp_advertising, state->advertising);
-
-	/* Resolve pause modes */
-	linkmode_resolve_pause(state->advertising, state->lp_advertising,
-			       &tx_pause, &rx_pause);
-
-	if (tx_pause)
-		state->pause |= MLO_PAUSE_TX;
-	if (rx_pause)
-		state->pause |= MLO_PAUSE_RX;
-
-	state->speed = xpcs_get_max_usxgmii_speed(res);
-	state->duplex = DUPLEX_FULL;
 }
 
 static int xpcs_get_max_xlgmii_speed(struct dw_xpcs *xpcs,
@@ -940,7 +902,7 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 	if (an_enabled && xpcs_aneg_done_c73(xpcs, state, compat)) {
 		state->an_complete = true;
 		xpcs_read_lpa_c73(xpcs, state);
-		xpcs_resolve_lpa_c73(xpcs, state);
+		phylink_resolve_c73(state);
 	} else if (an_enabled) {
 		state->link = 0;
 	} else if (state->link) {
