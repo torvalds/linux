@@ -3850,6 +3850,7 @@ static unsigned int ata_mselect_control_ata_feature(struct ata_queued_cmd *qc,
 /**
  *	ata_mselect_control - Simulate MODE SELECT for control page
  *	@qc: Storage for translated ATA taskfile
+ *	@spg: target sub-page of the control page
  *	@buf: input buffer
  *	@len: number of valid bytes in the input buffer
  *	@fp: out parameter for the failed field on error
