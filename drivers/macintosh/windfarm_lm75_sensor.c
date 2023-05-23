@@ -177,7 +177,7 @@ static struct i2c_driver wf_lm75_driver = {
 		.name	= "wf_lm75",
 		.of_match_table = wf_lm75_of_id,
 	},
-	.probe_new	= wf_lm75_probe,
+	.probe		= wf_lm75_probe,
 	.remove		= wf_lm75_remove,
 	.id_table	= wf_lm75_id,
 };

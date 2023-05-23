@@ -69,7 +69,7 @@ static struct i2c_driver ams_i2c_driver = {
 	.driver = {
 		.name   = "ams",
 	},
-	.probe_new      = ams_i2c_probe,
+	.probe          = ams_i2c_probe,
 	.remove         = ams_i2c_remove,
 	.id_table       = ams_id,
 };
