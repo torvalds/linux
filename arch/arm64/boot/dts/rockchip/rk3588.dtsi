@@ -731,6 +731,13 @@
 		};
 	};
 
+	gmac_uio0: uio@fe1b0000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe1b0000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac0>;
+		status = "disabled";
+	};
+
 	gmac0: ethernet@fe1b0000 {
 		compatible = "rockchip,rk3588-gmac", "snps,dwmac-4.20a";
 		reg = <0x0 0xfe1b0000 0x0 0x10000>;
