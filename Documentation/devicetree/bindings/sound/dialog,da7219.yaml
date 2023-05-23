@@ -122,6 +122,12 @@ properties:
           Debounce time for jack insertion (ms).
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      dlg,jack-ins-det-pty:
+        enum: ["low", "high"]
+        description:
+          Polarity for jack insertion detection.
+        $ref: /schemas/types.yaml#/definitions/string
+
       dlg,jack-det-rate:
         enum: ["32_64", "64_128", "128_256", "256_512"]
         description:
@@ -215,6 +221,7 @@ examples:
               dlg,btn-cfg = <50>;
               dlg,mic-det-thr = <500>;
               dlg,jack-ins-deb = <20>;
+              dlg,jack-ins-det-pty = "low";
               dlg,jack-det-rate = "32_64";
               dlg,jack-rem-deb = <1>;
 
