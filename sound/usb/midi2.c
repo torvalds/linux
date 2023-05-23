@@ -857,6 +857,25 @@ static int create_blocks_from_gtb(struct snd_usb_midi2_interface *umidi)
 	return 0;
 }
 
+/* attach legacy rawmidis */
+static int attach_legacy_rawmidi(struct snd_usb_midi2_interface *umidi)
+{
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+	struct snd_usb_midi2_ump *rmidi;
+	int err;
+
+	list_for_each_entry(rmidi, &umidi->rawmidi_list, list) {
+		err = snd_ump_attach_legacy_rawmidi(rmidi->ump,
+						    "Legacy MIDI",
+						    umidi->chip->num_rawmidis);
+		if (err < 0)
+			return err;
+		umidi->chip->num_rawmidis++;
+	}
+#endif
+	return 0;
+}
+
 static void snd_usb_midi_v2_free(struct snd_usb_midi2_interface *umidi)
 {
 	free_all_midi2_endpoints(umidi);
@@ -922,7 +941,7 @@ static int parse_midi_2_0(struct snd_usb_midi2_interface *umidi)
 		}
 	}
 
-	return 0;
+	return attach_legacy_rawmidi(umidi);
 }
 
 /* is the given interface for MIDI 2.0? */
@@ -991,6 +1010,12 @@ static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 			usb_string(dev, dev->descriptor.iSerialNumber,
 				   ump->info.product_id,
 				   sizeof(ump->info.product_id));
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+		if (ump->legacy_rmidi && !*ump->legacy_rmidi->name)
+			snprintf(ump->legacy_rmidi->name,
+				 sizeof(ump->legacy_rmidi->name),
+				 "%s (MIDI 1.0)", ump->info.name);
+#endif
 	}
 }
 
