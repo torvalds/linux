@@ -47,6 +47,8 @@ struct snd_rawmidi_global_ops {
 	int (*dev_unregister) (struct snd_rawmidi * rmidi);
 	void (*get_port_info)(struct snd_rawmidi *rmidi, int number,
 			      struct snd_seq_port_info *info);
+	long (*ioctl)(struct snd_rawmidi *rmidi, unsigned int cmd,
+		      void __user *argp);
 };
 
 struct snd_rawmidi_runtime {
