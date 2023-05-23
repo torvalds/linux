@@ -531,18 +531,19 @@ static int xpcs_read_lpa_c73(struct dw_xpcs *xpcs,
 
 	mii_c73_mod_linkmode(state->lp_advertising, lpa);
 
-	linkmode_and(state->lp_advertising, state->lp_advertising,
-		     state->advertising);
 	return 0;
 }
 
 static void xpcs_resolve_lpa_c73(struct dw_xpcs *xpcs,
 				 struct phylink_link_state *state)
 {
-	int max_speed = xpcs_get_max_usxgmii_speed(state->lp_advertising);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(res);
+
+	/* Calculate the union of the advertising masks */
+	linkmode_and(res, state->lp_advertising, state->advertising);
 
 	state->pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
-	state->speed = max_speed;
+	state->speed = xpcs_get_max_usxgmii_speed(res);
 	state->duplex = DUPLEX_FULL;
 }
 
