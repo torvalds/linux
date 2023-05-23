@@ -152,12 +152,16 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 			return -EINVAL;
 		if (copy_from_user(buf, (void __force __user *)event->data.ext.ptr, len))
 			return -EFAULT;
-		return newlen;
+	} else {
+		err = snd_seq_dump_var_event(event,
+					     in_kernel ? seq_copy_in_kernel : seq_copy_in_user,
+					     &buf);
+		if (err < 0)
+			return err;
 	}
-	err = snd_seq_dump_var_event(event,
-				     in_kernel ? seq_copy_in_kernel : seq_copy_in_user,
-				     &buf);
-	return err < 0 ? err : newlen;
+	if (len != newlen)
+		memset(buf + len, 0, newlen - len);
+	return newlen;
 }
 EXPORT_SYMBOL(snd_seq_expand_var_event);
 
