@@ -2289,8 +2289,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (DC_OK != status)
 			return status;
 
+#ifdef CONFIG_DRM_AMD_DC_FP
 		if (hws->funcs.resync_fifo_dccg_dio)
 			hws->funcs.resync_fifo_dccg_dio(hws, dc, context);
+#endif
 	}
 
 	if (dc->fbc_compressor)
