@@ -1172,25 +1172,28 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 		.offset = 0,
 	};
 
-	if (objectid == BTRFS_ROOT_TREE_OBJECTID)
+	switch (objectid) {
+	case BTRFS_ROOT_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->tree_root);
-	if (objectid == BTRFS_EXTENT_TREE_OBJECTID)
+	case BTRFS_EXTENT_TREE_OBJECTID:
 		return btrfs_grab_root(btrfs_global_root(fs_info, &key));
-	if (objectid == BTRFS_CHUNK_TREE_OBJECTID)
+	case BTRFS_CHUNK_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->chunk_root);
-	if (objectid == BTRFS_DEV_TREE_OBJECTID)
+	case BTRFS_DEV_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->dev_root);
-	if (objectid == BTRFS_CSUM_TREE_OBJECTID)
+	case BTRFS_CSUM_TREE_OBJECTID:
 		return btrfs_grab_root(btrfs_global_root(fs_info, &key));
-	if (objectid == BTRFS_QUOTA_TREE_OBJECTID)
+	case BTRFS_QUOTA_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->quota_root);
-	if (objectid == BTRFS_UUID_TREE_OBJECTID)
+	case BTRFS_UUID_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->uuid_root);
-	if (objectid == BTRFS_BLOCK_GROUP_TREE_OBJECTID)
+	case BTRFS_BLOCK_GROUP_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->block_group_root);
-	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
+	case BTRFS_FREE_SPACE_TREE_OBJECTID:
 		return btrfs_grab_root(btrfs_global_root(fs_info, &key));
-	return NULL;
+	default:
+		return NULL;
+	}
 }
 
 int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
