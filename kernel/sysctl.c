@@ -1783,11 +1783,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= sysctl_max_threads,
 	},
 	{
-		.procname	= "usermodehelper",
-		.mode		= 0555,
-		.child		= usermodehelper_table,
-	},
-	{
 		.procname	= "overflowuid",
 		.data		= &overflowuid,
 		.maxlen		= sizeof(int),
@@ -1960,13 +1955,6 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_KEYS
-	{
-		.procname	= "keys",
-		.mode		= 0555,
-		.child		= key_sysctls,
 	},
 #endif
 #ifdef CONFIG_PERF_EVENTS
@@ -2348,17 +2336,17 @@ static struct ctl_table dev_table[] = {
 	{ }
 };
 
-DECLARE_SYSCTL_BASE(kernel, kern_table);
-DECLARE_SYSCTL_BASE(vm, vm_table);
-DECLARE_SYSCTL_BASE(debug, debug_table);
-DECLARE_SYSCTL_BASE(dev, dev_table);
-
 int __init sysctl_init_bases(void)
 {
-	register_sysctl_base(kernel);
-	register_sysctl_base(vm);
-	register_sysctl_base(debug);
-	register_sysctl_base(dev);
+	register_sysctl_init("kernel", kern_table);
+	register_sysctl_init("kernel/usermodehelper", usermodehelper_table);
+#ifdef CONFIG_KEYS
+	register_sysctl_init("kernel/keys", key_sysctls);
+#endif
+
+	register_sysctl_init("vm", vm_table);
+	register_sysctl_init("debug", debug_table);
+	register_sysctl_init("dev", dev_table);
 
 	return 0;
 }
