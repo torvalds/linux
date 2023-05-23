@@ -10,6 +10,7 @@
 struct snd_ump_endpoint;
 struct snd_ump_block;
 struct snd_ump_ops;
+struct ump_cvt_to_ump;
 
 struct snd_ump_endpoint {
 	struct snd_rawmidi core;	/* raw UMP access */
@@ -23,6 +24,24 @@ struct snd_ump_endpoint {
 	void (*private_free)(struct snd_ump_endpoint *ump);
 
 	struct list_head block_list;	/* list of snd_ump_block objects */
+
+	/* intermediate buffer for UMP input */
+	u32 input_buf[4];
+	int input_buf_head;
+	int input_pending;
+
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+	struct mutex open_mutex;
+
+	spinlock_t legacy_locks[2];
+	struct snd_rawmidi *legacy_rmidi;
+	struct snd_rawmidi_substream *legacy_substreams[2][SNDRV_UMP_MAX_GROUPS];
+
+	/* for legacy output; need to open the actual substream unlike input */
+	int legacy_out_opens;
+	struct snd_rawmidi_file legacy_out_rfile;
+	struct ump_cvt_to_ump *out_cvts;
+#endif
 };
 
 /* ops filled by UMP drivers */
@@ -53,6 +72,17 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 		      unsigned int num_groups, struct snd_ump_block **blk_ret);
 int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count);
 int snd_ump_transmit(struct snd_ump_endpoint *ump, u32 *buffer, int count);
+
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
+				  char *id, int device);
+#else
+static inline int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
+						char *id, int device)
+{
+	return 0;
+}
+#endif
 
 /*
  * Some definitions for UMP

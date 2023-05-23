@@ -11,6 +11,7 @@
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/ump.h>
+#include "ump_convert.h"
 
 #define ump_err(ump, fmt, args...)	dev_err(&(ump)->core.dev, fmt, ##args)
 #define ump_warn(ump, fmt, args...)	dev_warn(&(ump)->core.dev, fmt, ##args)
@@ -28,6 +29,23 @@ static int snd_ump_rawmidi_close(struct snd_rawmidi_substream *substream);
 static void snd_ump_rawmidi_trigger(struct snd_rawmidi_substream *substream,
 				    int up);
 static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream);
+
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+static int process_legacy_output(struct snd_ump_endpoint *ump,
+				 u32 *buffer, int count);
+static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
+				 int words);
+#else
+static inline int process_legacy_output(struct snd_ump_endpoint *ump,
+					u32 *buffer, int count)
+{
+	return 0;
+}
+static inline void process_legacy_input(struct snd_ump_endpoint *ump,
+					const u32 *src, int words)
+{
+}
+#endif
 
 static const struct snd_rawmidi_global_ops snd_ump_rawmidi_ops = {
 	.dev_register = snd_ump_dev_register,
@@ -65,6 +83,10 @@ static void snd_ump_endpoint_free(struct snd_rawmidi *rmidi)
 
 	if (ump->private_free)
 		ump->private_free(ump);
+
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+	snd_ump_convert_free(ump);
+#endif
 }
 
 /**
@@ -110,6 +132,11 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 	if (!ump)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ump->block_list);
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+	mutex_init(&ump->open_mutex);
+	spin_lock_init(&ump->legacy_locks[0]);
+	spin_lock_init(&ump->legacy_locks[1]);
+#endif
 	err = snd_rawmidi_init(&ump->core, card, id, device,
 			       output, input, info_flags);
 	if (err < 0) {
@@ -206,6 +233,33 @@ static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream)
 		ump->ops->drain(ump, SNDRV_RAWMIDI_STREAM_OUTPUT);
 }
 
+/* number of 32bit words per message type */
+static unsigned char ump_packet_words[0x10] = {
+	1, 1, 1, 2, 2, 4, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4
+};
+
+/* parse the UMP packet data;
+ * the data is copied onto ump->input_buf[].
+ * When a full packet is completed, returns the number of words (from 1 to 4).
+ * OTOH, if the packet is incomplete, returns 0.
+ */
+static int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val)
+{
+	int words;
+
+	if (!ump->input_pending)
+		ump->input_pending = ump_packet_words[ump_message_type(val)];
+
+	ump->input_buf[ump->input_buf_head++] = val;
+	ump->input_pending--;
+	if (!ump->input_pending) {
+		words = ump->input_buf_head;
+		ump->input_buf_head = 0;
+		return words;
+	}
+	return 0;
+}
+
 /**
  * snd_ump_receive - transfer UMP packets from the device
  * @ump: the UMP endpoint
@@ -218,9 +272,18 @@ static void snd_ump_rawmidi_drain(struct snd_rawmidi_substream *substream)
  */
 int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count)
 {
-	struct snd_rawmidi_substream *substream =
-		ump->substreams[SNDRV_RAWMIDI_STREAM_INPUT];
+	struct snd_rawmidi_substream *substream;
+	const u32 *p = buffer;
+	int n, words = count >> 2;
 
+	while (words--) {
+		n = snd_ump_receive_ump_val(ump, *p++);
+		if (!n)
+			continue;
+		process_legacy_input(ump, ump->input_buf, n);
+	}
+
+	substream = ump->substreams[SNDRV_RAWMIDI_STREAM_INPUT];
 	if (!substream)
 		return 0;
 	return snd_rawmidi_receive(substream, (const char *)buffer, count);
@@ -241,10 +304,15 @@ int snd_ump_transmit(struct snd_ump_endpoint *ump, u32 *buffer, int count)
 {
 	struct snd_rawmidi_substream *substream =
 		ump->substreams[SNDRV_RAWMIDI_STREAM_OUTPUT];
+	int err;
 
 	if (!substream)
 		return -ENODEV;
-	return snd_rawmidi_transmit(substream, (char *)buffer, count);
+	err = snd_rawmidi_transmit(substream, (char *)buffer, count);
+	/* received either data or an error? */
+	if (err)
+		return err;
+	return process_legacy_output(ump, buffer, count);
 }
 EXPORT_SYMBOL_GPL(snd_ump_transmit);
 
@@ -385,6 +453,190 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "\n");
 	}
 }
+
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
+/*
+ * Legacy rawmidi support
+ */
+static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
+	int dir = substream->stream;
+	int group = substream->number;
+	int err;
+
+	mutex_lock(&ump->open_mutex);
+	if (ump->legacy_substreams[dir][group]) {
+		err = -EBUSY;
+		goto unlock;
+	}
+	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
+		if (!ump->legacy_out_opens) {
+			err = snd_rawmidi_kernel_open(&ump->core, 0,
+						      SNDRV_RAWMIDI_LFLG_OUTPUT |
+						      SNDRV_RAWMIDI_LFLG_APPEND,
+						      &ump->legacy_out_rfile);
+			if (err < 0)
+				goto unlock;
+		}
+		ump->legacy_out_opens++;
+		snd_ump_reset_convert_to_ump(ump, group);
+	}
+	spin_lock_irq(&ump->legacy_locks[dir]);
+	ump->legacy_substreams[dir][group] = substream;
+	spin_unlock_irq(&ump->legacy_locks[dir]);
+ unlock:
+	mutex_unlock(&ump->open_mutex);
+	return 0;
+}
+
+static int snd_ump_legacy_close(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
+	int dir = substream->stream;
+	int group = substream->number;
+
+	mutex_lock(&ump->open_mutex);
+	spin_lock_irq(&ump->legacy_locks[dir]);
+	ump->legacy_substreams[dir][group] = NULL;
+	spin_unlock_irq(&ump->legacy_locks[dir]);
+	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
+		if (!--ump->legacy_out_opens)
+			snd_rawmidi_kernel_release(&ump->legacy_out_rfile);
+	}
+	mutex_unlock(&ump->open_mutex);
+	return 0;
+}
+
+static void snd_ump_legacy_trigger(struct snd_rawmidi_substream *substream,
+				   int up)
+{
+	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
+	int dir = substream->stream;
+
+	ump->ops->trigger(ump, dir, up);
+}
+
+static void snd_ump_legacy_drain(struct snd_rawmidi_substream *substream)
+{
+	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
+
+	if (ump->ops->drain)
+		ump->ops->drain(ump, SNDRV_RAWMIDI_STREAM_OUTPUT);
+}
+
+static int snd_ump_legacy_dev_register(struct snd_rawmidi *rmidi)
+{
+	/* dummy, just for avoiding create superfluous seq clients */
+	return 0;
+}
+
+static const struct snd_rawmidi_ops snd_ump_legacy_input_ops = {
+	.open = snd_ump_legacy_open,
+	.close = snd_ump_legacy_close,
+	.trigger = snd_ump_legacy_trigger,
+};
+
+static const struct snd_rawmidi_ops snd_ump_legacy_output_ops = {
+	.open = snd_ump_legacy_open,
+	.close = snd_ump_legacy_close,
+	.trigger = snd_ump_legacy_trigger,
+	.drain = snd_ump_legacy_drain,
+};
+
+static const struct snd_rawmidi_global_ops snd_ump_legacy_ops = {
+	.dev_register = snd_ump_legacy_dev_register,
+};
+
+static int process_legacy_output(struct snd_ump_endpoint *ump,
+				 u32 *buffer, int count)
+{
+	struct snd_rawmidi_substream *substream;
+	struct ump_cvt_to_ump *ctx;
+	const int dir = SNDRV_RAWMIDI_STREAM_OUTPUT;
+	unsigned char c;
+	int group, size = 0;
+	unsigned long flags;
+
+	if (!ump->out_cvts || !ump->legacy_out_opens)
+		return 0;
+
+	spin_lock_irqsave(&ump->legacy_locks[dir], flags);
+	for (group = 0; group < SNDRV_UMP_MAX_GROUPS; group++) {
+		substream = ump->legacy_substreams[dir][group];
+		if (!substream)
+			continue;
+		ctx = &ump->out_cvts[group];
+		while (!ctx->ump_bytes &&
+		       snd_rawmidi_transmit(substream, &c, 1) > 0)
+			snd_ump_convert_to_ump(ump, group, c);
+		if (ctx->ump_bytes && ctx->ump_bytes <= count) {
+			size = ctx->ump_bytes;
+			memcpy(buffer, ctx->ump, size);
+			ctx->ump_bytes = 0;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&ump->legacy_locks[dir], flags);
+	return size;
+}
+
+static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
+				 int words)
+{
+	struct snd_rawmidi_substream *substream;
+	unsigned char buf[16];
+	unsigned char group;
+	unsigned long flags;
+	const int dir = SNDRV_RAWMIDI_STREAM_INPUT;
+	int size;
+
+	size = snd_ump_convert_from_ump(ump, src, buf, &group);
+	if (size <= 0)
+		return;
+	spin_lock_irqsave(&ump->legacy_locks[dir], flags);
+	substream = ump->legacy_substreams[dir][group];
+	if (substream)
+		snd_rawmidi_receive(substream, buf, size);
+	spin_unlock_irqrestore(&ump->legacy_locks[dir], flags);
+}
+
+int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
+				  char *id, int device)
+{
+	struct snd_rawmidi *rmidi;
+	bool input, output;
+	int err;
+
+	err = snd_ump_convert_init(ump);
+	if (err < 0)
+		return err;
+
+	input = ump->core.info_flags & SNDRV_RAWMIDI_INFO_INPUT;
+	output = ump->core.info_flags & SNDRV_RAWMIDI_INFO_OUTPUT;
+	err = snd_rawmidi_new(ump->core.card, id, device,
+			      output ? 16 : 0, input ? 16 : 0,
+			      &rmidi);
+	if (err < 0) {
+		snd_ump_convert_free(ump);
+		return err;
+	}
+
+	if (input)
+		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT,
+				    &snd_ump_legacy_input_ops);
+	if (output)
+		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
+				    &snd_ump_legacy_output_ops);
+	rmidi->info_flags = ump->core.info_flags & ~SNDRV_RAWMIDI_INFO_UMP;
+	rmidi->ops = &snd_ump_legacy_ops;
+	rmidi->private_data = ump;
+	ump->legacy_rmidi = rmidi;
+	ump_dbg(ump, "Created a legacy rawmidi #%d (%s)\n", device, id);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_ump_attach_legacy_rawmidi);
+#endif /* CONFIG_SND_UMP_LEGACY_RAWMIDI */
 
 MODULE_DESCRIPTION("Universal MIDI Packet (UMP) Core Driver");
 MODULE_LICENSE("GPL");
