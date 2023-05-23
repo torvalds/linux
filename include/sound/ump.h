@@ -11,6 +11,7 @@ struct snd_ump_endpoint;
 struct snd_ump_block;
 struct snd_ump_ops;
 struct ump_cvt_to_ump;
+struct snd_seq_ump_ops;
 
 struct snd_ump_endpoint {
 	struct snd_rawmidi core;	/* raw UMP access */
@@ -30,9 +31,9 @@ struct snd_ump_endpoint {
 	int input_buf_head;
 	int input_pending;
 
-#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	struct mutex open_mutex;
 
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	spinlock_t legacy_locks[2];
 	struct snd_rawmidi *legacy_rmidi;
 	struct snd_rawmidi_substream *legacy_substreams[2][SNDRV_UMP_MAX_GROUPS];
@@ -42,6 +43,12 @@ struct snd_ump_endpoint {
 	struct snd_rawmidi_file legacy_out_rfile;
 	struct ump_cvt_to_ump *out_cvts;
 #endif
+
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	struct snd_seq_device *seq_dev;
+	const struct snd_seq_ump_ops *seq_ops;
+	void *seq_client;
+#endif
 };
 
 /* ops filled by UMP drivers */
@@ -50,6 +57,12 @@ struct snd_ump_ops {
 	void (*close)(struct snd_ump_endpoint *ump, int dir);
 	void (*trigger)(struct snd_ump_endpoint *ump, int dir, int up);
 	void (*drain)(struct snd_ump_endpoint *ump, int dir);
+};
+
+/* ops filled by sequencer binding */
+struct snd_seq_ump_ops {
+	void (*input_receive)(struct snd_ump_endpoint *ump,
+			      const u32 *data, int words);
 };
 
 struct snd_ump_block {

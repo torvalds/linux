@@ -14,12 +14,14 @@ snd-seq-midi-emul-objs := seq_midi_emul.o
 snd-seq-midi-event-objs := seq_midi_event.o
 snd-seq-dummy-objs := seq_dummy.o
 snd-seq-virmidi-objs := seq_virmidi.o
+snd-seq-ump-client-objs := seq_ump_client.o
 
 obj-$(CONFIG_SND_SEQUENCER) += snd-seq.o
 obj-$(CONFIG_SND_SEQUENCER_OSS) += oss/
 
 obj-$(CONFIG_SND_SEQ_DUMMY) += snd-seq-dummy.o
 obj-$(CONFIG_SND_SEQ_MIDI) += snd-seq-midi.o
+obj-$(CONFIG_SND_SEQ_UMP_CLIENT) += snd-seq-ump-client.o
 obj-$(CONFIG_SND_SEQ_MIDI_EMUL) += snd-seq-midi-emul.o
 obj-$(CONFIG_SND_SEQ_MIDI_EVENT) += snd-seq-midi-event.o
 obj-$(CONFIG_SND_SEQ_VIRMIDI) += snd-seq-virmidi.o

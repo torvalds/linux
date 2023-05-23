@@ -132,8 +132,8 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 	if (!ump)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ump->block_list);
-#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	mutex_init(&ump->open_mutex);
+#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	spin_lock_init(&ump->legacy_locks[0]);
 	spin_lock_init(&ump->legacy_locks[1]);
 #endif
@@ -166,8 +166,30 @@ EXPORT_SYMBOL_GPL(snd_ump_endpoint_new);
  * Device register / unregister hooks;
  *  do nothing, placeholders for avoiding the default rawmidi handling
  */
+
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+static void snd_ump_dev_seq_free(struct snd_seq_device *device)
+{
+	struct snd_ump_endpoint *ump = device->private_data;
+
+	ump->seq_dev = NULL;
+}
+#endif
+
 static int snd_ump_dev_register(struct snd_rawmidi *rmidi)
 {
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	struct snd_ump_endpoint *ump = rawmidi_to_ump(rmidi);
+	int err;
+
+	err = snd_seq_device_new(ump->core.card, ump->core.device,
+				 SNDRV_SEQ_DEV_ID_UMP, 0, &ump->seq_dev);
+	if (err < 0)
+		return err;
+	ump->seq_dev->private_data = ump;
+	ump->seq_dev->private_free = snd_ump_dev_seq_free;
+	snd_device_register(ump->core.card, ump->seq_dev);
+#endif
 	return 0;
 }
 
@@ -280,6 +302,10 @@ int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count)
 		n = snd_ump_receive_ump_val(ump, *p++);
 		if (!n)
 			continue;
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+		if (ump->seq_ops)
+			ump->seq_ops->input_receive(ump, ump->input_buf, n);
+#endif
 		process_legacy_input(ump, ump->input_buf, n);
 	}
 
