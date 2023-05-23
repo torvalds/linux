@@ -89,7 +89,7 @@ int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
 /*
- * Register a set of sysctl names by calling register_sysctl_table
+ * Register a set of sysctl names by calling register_sysctl
  * with an initialised array of struct ctl_table's.  An entry with 
  * NULL procname terminates the table.  table->de will be
  * set up by the registration and need not be initialised in advance.
@@ -222,7 +222,6 @@ struct ctl_table_header *__register_sysctl_table(
 	struct ctl_table_set *set,
 	const char *path, struct ctl_table *table);
 struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *table);
-struct ctl_table_header *register_sysctl_table(struct ctl_table * table);
 void unregister_sysctl_table(struct ctl_table_header * table);
 
 extern int sysctl_init_bases(void);
@@ -256,11 +255,6 @@ static inline int __register_sysctl_base(struct ctl_table *base_table)
 }
 
 #define register_sysctl_base(table) __register_sysctl_base(table)
-
-static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
-{
-	return NULL;
-}
 
 static inline void register_sysctl_init(const char *path, struct ctl_table *table)
 {

@@ -1582,7 +1582,7 @@ out:
  * array. A completely 0 filled entry terminates the table.
  * We are slowly deprecating this call so avoid its use.
  */
-struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
+static struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
 {
 	struct ctl_table *ctl_table_arg = table;
 	int nr_subheaders = count_subheaders(table);
@@ -1634,7 +1634,6 @@ err_register_leaves:
 	header = NULL;
 	goto out;
 }
-EXPORT_SYMBOL(register_sysctl_table);
 
 int __register_sysctl_base(struct ctl_table *base_table)
 {
@@ -1700,7 +1699,7 @@ static void drop_sysctl_table(struct ctl_table_header *header)
 
 /**
  * unregister_sysctl_table - unregister a sysctl table hierarchy
- * @header: the header returned from register_sysctl_table
+ * @header: the header returned from register_sysctl or __register_sysctl_table
  *
  * Unregisters the sysctl table and all children. proc entries may not
  * actually be removed until they are no longer used by anyone.
