@@ -84,6 +84,27 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 			    status & CXLMDEV_DEV_FATAL ? " fatal" : "",        \
 			    status & CXLMDEV_FW_HALT ? " firmware-halt" : "")
 
+struct cxl_dev_id {
+	struct cxl_dev_state *cxlds;
+};
+
+static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
+			   irq_handler_t handler, irq_handler_t thread_fn)
+{
+	struct device *dev = cxlds->dev;
+	struct cxl_dev_id *dev_id;
+
+	/* dev_id must be globally unique and must contain the cxlds */
+	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
+	if (!dev_id)
+		return -ENOMEM;
+	dev_id->cxlds = cxlds;
+
+	return devm_request_threaded_irq(dev, irq, handler, thread_fn,
+					 IRQF_SHARED | IRQF_ONESHOT,
+					 NULL, dev_id);
+}
+
 /**
  * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
  * @cxlds: The device state to communicate with.
@@ -469,10 +490,6 @@ static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
 	return 0;
 }
 
-struct cxl_dev_id {
-	struct cxl_dev_state *cxlds;
-};
-
 static irqreturn_t cxl_event_thread(int irq, void *id)
 {
 	struct cxl_dev_id *dev_id = id;
@@ -498,28 +515,18 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 
 static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 {
-	struct device *dev = cxlds->dev;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct cxl_dev_id *dev_id;
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	int irq;
 
 	if (FIELD_GET(CXLDEV_EVENT_INT_MODE_MASK, setting) != CXL_INT_MSI_MSIX)
 		return -ENXIO;
-
-	/* dev_id must be globally unique and must contain the cxlds */
-	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
-	if (!dev_id)
-		return -ENOMEM;
-	dev_id->cxlds = cxlds;
 
 	irq =  pci_irq_vector(pdev,
 			      FIELD_GET(CXLDEV_EVENT_INT_MSGNUM_MASK, setting));
 	if (irq < 0)
 		return irq;
 
-	return devm_request_threaded_irq(dev, irq, NULL, cxl_event_thread,
-					 IRQF_SHARED | IRQF_ONESHOT, NULL,
-					 dev_id);
+	return cxl_request_irq(cxlds, irq, NULL, cxl_event_thread);
 }
 
 static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
