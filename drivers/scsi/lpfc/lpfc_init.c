@@ -14747,10 +14747,10 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	INIT_LIST_HEAD(&dma_buffer_list);
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
 	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3023 Updating Firmware, Current Version:%s "
-				"New Version:%s\n",
-				fwrev, image->revision);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3023 Updating Firmware, Current Version:%s "
+			     "New Version:%s\n",
+			     fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
 			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
 					 GFP_KERNEL);
@@ -14797,10 +14797,10 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 		}
 		rc = offset;
 	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3029 Skipped Firmware update, Current "
-				"Version:%s New Version:%s\n",
-				fwrev, image->revision);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3029 Skipped Firmware update, Current "
+			     "Version:%s New Version:%s\n",
+			     fwrev, image->revision);
 
 release_out:
 	list_for_each_entry_safe(dmabuf, next, &dma_buffer_list, list) {
@@ -14812,11 +14812,11 @@ release_out:
 	release_firmware(fw);
 out:
 	if (rc < 0)
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3062 Firmware update error, status %d.\n", rc);
+		lpfc_log_msg(phba, KERN_ERR, LOG_INIT | LOG_SLI,
+			     "3062 Firmware update error, status %d.\n", rc);
 	else
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3024 Firmware update success: size %d.\n", rc);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3024 Firmware update success: size %d.\n", rc);
 }
 
 /**
