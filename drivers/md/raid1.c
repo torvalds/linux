@@ -3087,7 +3087,8 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	}
 
 	err = -ENOMEM;
-	conf->thread = md_register_thread(raid1d, mddev, "raid1");
+	rcu_assign_pointer(conf->thread,
+			   md_register_thread(raid1d, mddev, "raid1"));
 	if (!conf->thread)
 		goto abort;
 
@@ -3180,8 +3181,8 @@ static int raid1_run(struct mddev *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->thread = conf->thread;
-	conf->thread = NULL;
+	rcu_assign_pointer(mddev->thread, conf->thread);
+	rcu_assign_pointer(conf->thread, NULL);
 	mddev->private = conf;
 	set_bit(MD_FAILFAST_SUPPORTED, &mddev->flags);
 

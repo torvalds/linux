@@ -982,6 +982,7 @@ static void lower_barrier(struct r10conf *conf)
 static bool stop_waiting_barrier(struct r10conf *conf)
 {
 	struct bio_list *bio_list = current->bio_list;
+	struct md_thread *thread;
 
 	/* barrier is dropped */
 	if (!conf->barrier)
@@ -997,12 +998,14 @@ static bool stop_waiting_barrier(struct r10conf *conf)
 	    (!bio_list_empty(&bio_list[0]) || !bio_list_empty(&bio_list[1])))
 		return true;
 
+	/* daemon thread must exist while handling io */
+	thread = rcu_dereference_protected(conf->mddev->thread, true);
 	/*
 	 * move on if io is issued from raid10d(), nr_pending is not released
 	 * from original io(see handle_read_error()). All raise barrier is
 	 * blocked until this io is done.
 	 */
-	if (conf->mddev->thread->tsk == current) {
+	if (thread->tsk == current) {
 		WARN_ON_ONCE(atomic_read(&conf->nr_pending) == 0);
 		return true;
 	}
@@ -4107,7 +4110,8 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	atomic_set(&conf->nr_pending, 0);
 
 	err = -ENOMEM;
-	conf->thread = md_register_thread(raid10d, mddev, "raid10");
+	rcu_assign_pointer(conf->thread,
+			   md_register_thread(raid10d, mddev, "raid10"));
 	if (!conf->thread)
 		goto out;
 
@@ -4152,8 +4156,8 @@ static int raid10_run(struct mddev *mddev)
 	if (!conf)
 		goto out;
 
-	mddev->thread = conf->thread;
-	conf->thread = NULL;
+	rcu_assign_pointer(mddev->thread, conf->thread);
+	rcu_assign_pointer(conf->thread, NULL);
 
 	if (mddev_is_clustered(conf->mddev)) {
 		int fc, fo;
@@ -4296,8 +4300,8 @@ static int raid10_run(struct mddev *mddev)
 		clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 		set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-		mddev->sync_thread = md_register_thread(md_do_sync, mddev,
-							"reshape");
+		rcu_assign_pointer(mddev->sync_thread,
+			md_register_thread(md_do_sync, mddev, "reshape"));
 		if (!mddev->sync_thread)
 			goto out_free_conf;
 	}
@@ -4698,8 +4702,8 @@ out:
 	set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 	set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 
-	mddev->sync_thread = md_register_thread(md_do_sync, mddev,
-						"reshape");
+	rcu_assign_pointer(mddev->sync_thread,
+			   md_register_thread(md_do_sync, mddev, "reshape"));
 	if (!mddev->sync_thread) {
 		ret = -EAGAIN;
 		goto abort;

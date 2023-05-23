@@ -1237,13 +1237,19 @@ static bitmap_counter_t *md_bitmap_get_counter(struct bitmap_counts *bitmap,
 static void mddev_set_timeout(struct mddev *mddev, unsigned long timeout,
 			      bool force)
 {
-	struct md_thread *thread = mddev->thread;
+	struct md_thread *thread;
+
+	rcu_read_lock();
+	thread = rcu_dereference(mddev->thread);
 
 	if (!thread)
-		return;
+		goto out;
 
 	if (force || thread->timeout < MAX_SCHEDULE_TIMEOUT)
 		thread->timeout = timeout;
+
+out:
+	rcu_read_unlock();
 }
 
 /*
