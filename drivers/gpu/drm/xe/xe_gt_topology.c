@@ -128,6 +128,11 @@ xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum)
 	return find_next_bit(mask, XE_MAX_DSS_FUSE_BITS, groupnum * groupsize);
 }
 
+bool xe_dss_mask_empty(const xe_dss_mask_t mask)
+{
+	return bitmap_empty(mask, XE_MAX_DSS_FUSE_BITS);
+}
+
 /**
  * xe_gt_topology_has_dss_in_quadrant - check fusing of DSS in GT quadrant
  * @gt: GT to check

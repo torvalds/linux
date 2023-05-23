@@ -315,7 +315,7 @@ bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 	unsigned int dss_per_gslice = 4;
 	unsigned int dss;
 
-	if (drm_WARN(&gt_to_xe(gt)->drm, !gt->fuse_topo.g_dss_mask,
+	if (drm_WARN(&gt_to_xe(gt)->drm, xe_dss_mask_empty(gt->fuse_topo.g_dss_mask),
 		     "Checking gslice for platform without geometry pipeline\n"))
 		return false;
 
