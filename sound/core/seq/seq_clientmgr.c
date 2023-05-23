@@ -1206,6 +1206,8 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 		port_idx = info->addr.port;
 	else
 		port_idx = -1;
+	if (port_idx >= SNDRV_SEQ_ADDRESS_UNKNOWN)
+		return -EINVAL;
 	err = snd_seq_create_port(client, port_idx, &port);
 	if (err < 0)
 		return err;
