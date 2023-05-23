@@ -2044,7 +2044,7 @@ static const struct pci_device_id pciidlist[] = {
 	  .driver_data = CHIP_IP_DISCOVERY },
 
 	{ PCI_DEVICE(0x1002, PCI_ANY_ID),
-	  .class = AMD_ACCELERATOR_PROCESSING << 8,
+	  .class = PCI_CLASS_ACCELERATOR_PROCESSING << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = CHIP_IP_DISCOVERY },
 

@@ -57,7 +57,7 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	/* enable virtual display */
 	if (adev->asic_type != CHIP_ALDEBARAN &&
 	    adev->asic_type != CHIP_ARCTURUS &&
-	    ((adev->pdev->class >> 8) != AMD_ACCELERATOR_PROCESSING)) {
+	    ((adev->pdev->class >> 8) != PCI_CLASS_ACCELERATOR_PROCESSING)) {
 		if (adev->mode_info.num_crtc == 0)
 			adev->mode_info.num_crtc = 1;
 		adev->enable_virtual_display = true;

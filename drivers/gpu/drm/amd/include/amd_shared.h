@@ -27,7 +27,6 @@
 
 
 #define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
-#define AMD_ACCELERATOR_PROCESSING	0x1200   /* hardcoded pci class */
 
 /*
  * Chip flags
