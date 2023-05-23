@@ -392,7 +392,8 @@ static int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *hace_dev)
 			       AES_BLOCK_SIZE);
 	}
 
-	if (hace_dev->version == AST2600_VERSION) {
+	if (hace_dev->version == AST2600_VERSION ||
+	    hace_dev->version == AST2700_VERSION) {
 		memcpy(crypto_engine->cipher_ctx + 16, ctx->key, ctx->key_len);
 
 		return aspeed_sk_start_sg(hace_dev);
@@ -1149,7 +1150,7 @@ void aspeed_unregister_hace_crypto_algs(struct aspeed_hace_dev *hace_dev)
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++)
 		crypto_engine_unregister_skcipher(&aspeed_crypto_algs[i].alg.skcipher);
 
-	if (hace_dev->version != AST2600_VERSION)
+	if (hace_dev->version == AST2500_VERSION)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs_g6); i++)
@@ -1171,7 +1172,7 @@ void aspeed_register_hace_crypto_algs(struct aspeed_hace_dev *hace_dev)
 		}
 	}
 
-	if (hace_dev->version != AST2600_VERSION)
+	if (hace_dev->version == AST2500_VERSION)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs_g6); i++) {

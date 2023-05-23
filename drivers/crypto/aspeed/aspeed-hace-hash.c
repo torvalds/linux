@@ -508,12 +508,12 @@ static int aspeed_ahash_req_update(struct aspeed_hace_dev *hace_dev)
 
 	AHASH_DBG(hace_dev, "\n");
 
-	if (hace_dev->version == AST2600_VERSION) {
-		rctx->cmd |= HASH_CMD_HASH_SRC_SG_CTRL;
-		resume = aspeed_ahash_update_resume_sg;
+	if (hace_dev->version == AST2500_VERSION) {
+		resume = aspeed_ahash_update_resume;
 
 	} else {
-		resume = aspeed_ahash_update_resume;
+		rctx->cmd |= HASH_CMD_HASH_SRC_SG_CTRL;
+		resume = aspeed_ahash_update_resume_sg;
 	}
 
 	ret = hash_engine->dma_prepare(hace_dev);
@@ -566,10 +566,10 @@ static void aspeed_ahash_prepare_request(struct crypto_engine *engine,
 	hash_engine = &hace_dev->hash_engine;
 	hash_engine->req = req;
 
-	if (hace_dev->version == AST2600_VERSION)
-		hash_engine->dma_prepare = aspeed_ahash_dma_prepare_sg;
-	else
+	if (hace_dev->version == AST2500_VERSION)
 		hash_engine->dma_prepare = aspeed_ahash_dma_prepare;
+	else
+		hash_engine->dma_prepare = aspeed_ahash_dma_prepare_sg;
 }
 
 static int aspeed_ahash_do_one(struct crypto_engine *engine, void *areq)
@@ -1196,7 +1196,7 @@ void aspeed_unregister_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs); i++)
 		crypto_engine_unregister_ahash(&aspeed_ahash_algs[i].alg.ahash);
 
-	if (hace_dev->version != AST2600_VERSION)
+	if (hace_dev->version == AST2500_VERSION)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs_g6); i++)
@@ -1218,7 +1218,7 @@ void aspeed_register_hace_hash_algs(struct aspeed_hace_dev *hace_dev)
 		}
 	}
 
-	if (hace_dev->version != AST2600_VERSION)
+	if (hace_dev->version == AST2500_VERSION)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_algs_g6); i++) {

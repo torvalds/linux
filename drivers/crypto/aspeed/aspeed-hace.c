@@ -95,6 +95,7 @@ static void aspeed_hace_unregister(struct aspeed_hace_dev *hace_dev)
 static const struct of_device_id aspeed_hace_of_matches[] = {
 	{ .compatible = "aspeed,ast2500-hace", .data = (void *)5, },
 	{ .compatible = "aspeed,ast2600-hace", .data = (void *)6, },
+	{ .compatible = "aspeed,ast2700-hace", .data = (void *)7, },
 	{},
 };
 
@@ -226,7 +227,8 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate DMA buffer for crypto engine output used */
-	if (hace_dev->version == AST2600_VERSION) {
+	if (hace_dev->version == AST2600_VERSION ||
+	    hace_dev->version == AST2700_VERSION) {
 		crypto_engine->dst_sg_addr =
 			dmam_alloc_coherent(&pdev->dev,
 					    ASPEED_CRYPTO_DST_DMA_BUF_LEN,

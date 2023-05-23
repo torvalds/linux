@@ -268,7 +268,8 @@ struct aspeed_hace_alg {
 
 enum aspeed_version {
 	AST2500_VERSION = 5,
-	AST2600_VERSION
+	AST2600_VERSION,
+	AST2700_VERSION,
 };
 
 #define ast_hace_write(hace, val, offset)	\
