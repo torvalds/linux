@@ -684,6 +684,12 @@ static int rk3562_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 			writel(0x32, priv->mmio + (0x11 << 2));
 			writel(0xf0, priv->mmio + (0xa << 2));
+
+			/* CKDRV output swing adjust to 650mv */
+			val = readl(priv->mmio + (0xd << 2));
+			val &= ~(0xf << 1);
+			val |= 0xb;
+			writel(val, priv->mmio + (0xd << 2));
 		}
 		break;
 	default:
