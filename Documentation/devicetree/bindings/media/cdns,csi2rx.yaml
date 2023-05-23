@@ -41,6 +41,24 @@ properties:
       - const: pixel_if2_clk
       - const: pixel_if3_clk
 
+  resets:
+    items:
+      - description: CSI2Rx system reset
+      - description: Gated Register bank reset for APB interface
+      - description: pixel reset for Stream interface 0
+      - description: pixel reset for Stream interface 1
+      - description: pixel reset for Stream interface 2
+      - description: pixel reset for Stream interface 3
+
+  reset-names:
+    items:
+      - const: sys
+      - const: reg_bank
+      - const: pixel_if0
+      - const: pixel_if1
+      - const: pixel_if2
+      - const: pixel_if3
+
   phys:
     maxItems: 1
     description: MIPI D-PHY
@@ -123,6 +141,12 @@ examples:
         clock-names = "sys_clk", "p_clk",
                       "pixel_if0_clk", "pixel_if1_clk",
                       "pixel_if2_clk", "pixel_if3_clk";
+        resets = <&bytereset 9>, <&bytereset 4>,
+                 <&corereset 5>, <&corereset 6>,
+                 <&corereset 7>, <&corereset 8>;
+        reset-names = "sys", "reg_bank",
+                      "pixel_if0", "pixel_if1",
+                      "pixel_if2", "pixel_if3";
         phys = <&csi_phy>;
         phy-names = "dphy";
 
