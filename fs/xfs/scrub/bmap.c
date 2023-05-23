@@ -42,12 +42,12 @@ xchk_setup_inode_bmap(
 	xfs_ilock(sc->ip, XFS_IOLOCK_EXCL);
 
 	/*
-	 * We don't want any ephemeral data fork updates sitting around
+	 * We don't want any ephemeral data/cow fork updates sitting around
 	 * while we inspect block mappings, so wait for directio to finish
 	 * and flush dirty data if we have delalloc reservations.
 	 */
 	if (S_ISREG(VFS_I(sc->ip)->i_mode) &&
-	    sc->sm->sm_type == XFS_SCRUB_TYPE_BMBTD) {
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_BMBTA) {
 		struct address_space	*mapping = VFS_I(sc->ip)->i_mapping;
 
 		sc->ilock_flags |= XFS_MMAPLOCK_EXCL;
