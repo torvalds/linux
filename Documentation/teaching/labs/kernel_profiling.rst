@@ -244,10 +244,10 @@ Exercises
 .. note::
 
     In order to improve the course of SO2, its components and the way it is
-    conducted, your opinions are very useful to us.
-    `curs.upb.ro platform <https://curs.upb.ro/2021/mod/feedbackadm/view.php?id=16907>`_
+    conducted, your opinions are very useful to us. Please fill the feedback form
+    on `curs.upb.ro platform <https://curs.upb.ro/2022/mod/feedbackadm/view.php?id=15292>`_.
 
-    The form is anonymous and is active between May 21 and June 2, 2021. The
+    The form is anonymous and is active between May 22 and June 2, 2023. The
     results will be visible to the SO2 team after all the grades have been
     marked.
 
@@ -257,9 +257,10 @@ Exercises
     in the coming years.
 
     We are particularly interested in:
-    * What did you not like and what do you think did not go well?
-    * Why didn't you like it and why do you think it didn't go well?
-    * What should we do to make things better?
+
+      * What did you not like and what do you think did not go well?
+      * Why didn't you like it and why do you think it didn't go well?
+      * What should we do to make things better?
 
 0. Demo: Profiling I/O Problems
 ===============================
