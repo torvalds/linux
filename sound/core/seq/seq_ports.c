@@ -356,6 +356,16 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 	port->time_real = (info->flags & SNDRV_SEQ_PORT_FLG_TIME_REAL) ? 1 : 0;
 	port->time_queue = info->time_queue;
 
+	/* direction */
+	port->direction = info->direction;
+	/* fill default port direction */
+	if (!port->direction) {
+		if (info->capability & SNDRV_SEQ_PORT_CAP_READ)
+			port->direction |= SNDRV_SEQ_PORT_DIR_INPUT;
+		if (info->capability & SNDRV_SEQ_PORT_CAP_WRITE)
+			port->direction |= SNDRV_SEQ_PORT_DIR_OUTPUT;
+	}
+
 	return 0;
 }
 
@@ -392,6 +402,9 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 			info->flags |= SNDRV_SEQ_PORT_FLG_TIME_REAL;
 		info->time_queue = port->time_queue;
 	}
+
+	/* direction */
+	info->direction = port->direction;
 
 	return 0;
 }

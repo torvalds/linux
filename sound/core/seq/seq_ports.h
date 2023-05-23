@@ -72,6 +72,8 @@ struct snd_seq_client_port {
 	int midi_voices;
 	int synth_voices;
 		
+	/* direction */
+	unsigned char direction;
 };
 
 struct snd_seq_client;
