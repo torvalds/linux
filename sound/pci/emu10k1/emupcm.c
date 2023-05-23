@@ -122,6 +122,17 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm *epcm,
 	return 0;
 }
 
+// Primes 2-7 and 2^n multiples thereof, up to 16.
+static const unsigned int efx_capture_channels[] = {
+	1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16
+};
+
+static const struct snd_pcm_hw_constraint_list hw_constraints_efx_capture_channels = {
+	.count = ARRAY_SIZE(efx_capture_channels),
+	.list = efx_capture_channels,
+	.mask = 0
+};
+
 static const unsigned int capture_buffer_sizes[31] = {
 	384,	448,	512,	640,
 	384*2,	448*2,	512*2,	640*2,
@@ -1281,7 +1292,7 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 	struct snd_emu10k1_pcm *epcm;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int nefx = emu->audigy ? 64 : 32;
-	int idx;
+	int idx, err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
@@ -1367,6 +1378,12 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 	epcm->capture_cr_val = emu->efx_voices_mask[0];
 	epcm->capture_cr_val2 = emu->efx_voices_mask[1];
 	spin_unlock_irq(&emu->reg_lock);
+	err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+					 &hw_constraints_efx_capture_channels);
+	if (err < 0) {
+		kfree(epcm);
+		return err;
+	}
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   &hw_constraints_capture_buffer_sizes);
 	emu->capture_efx_interrupt = snd_emu10k1_pcm_efx_interrupt;
@@ -1531,7 +1548,6 @@ static int snd_emu10k1_pcm_efx_voices_mask_put(struct snd_kcontrol *kcontrol, st
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int nval[2], bits;
 	int nefx = emu->audigy ? 64 : 32;
-	int nefxb = emu->audigy ? 7 : 6;
 	int change, idx;
 	
 	nval[0] = nval[1] = 0;
@@ -1541,12 +1557,7 @@ static int snd_emu10k1_pcm_efx_voices_mask_put(struct snd_kcontrol *kcontrol, st
 			bits++;
 		}
 
-	// Check that the number of requested channels is a power of two
-	// not bigger than the number of available channels.
-	for (idx = 0; idx < nefxb; idx++)
-		if (1 << idx == bits)
-			break;
-	if (idx >= nefxb)
+	if (bits == 9 || bits == 11 || bits == 13 || bits == 15 || bits > 16)
 		return -EINVAL;
 
 	spin_lock_irq(&emu->reg_lock);
