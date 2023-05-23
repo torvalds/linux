@@ -1029,7 +1029,7 @@
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <6>;
+					kcs_chan = <5>;
 					status = "disabled";
 				};
 
@@ -1037,7 +1037,7 @@
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <7>;
+					kcs_chan = <6>;
 					status = "disabled";
 				};
 
@@ -1045,7 +1045,7 @@
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <8>;
+					kcs_chan = <7>;
 					status = "disabled";
 				};
 
@@ -1053,7 +1053,7 @@
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <9>;
+					kcs_chan = <8>;
 					status = "disabled";
 				};
 
