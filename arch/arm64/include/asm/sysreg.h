@@ -143,9 +143,6 @@
 #define SYS_DBGWCRn_EL1(n)		sys_reg(2, 0, 0, n, 7)
 #define SYS_MDRAR_EL1			sys_reg(2, 0, 1, 0, 0)
 
-#define SYS_OSLAR_EL1			sys_reg(2, 0, 1, 0, 4)
-#define OSLAR_EL1_OSLK			BIT(0)
-
 #define SYS_OSLSR_EL1			sys_reg(2, 0, 1, 1, 4)
 #define OSLSR_EL1_OSLM_MASK		(BIT(3) | BIT(0))
 #define OSLSR_EL1_OSLM_NI		0
