@@ -51,7 +51,7 @@
 #define AST2600_GLOBAL_INIT				\
 			(AST2600_I2CG_CTRL_NEW_REG |	\
 			AST2600_I2CG_CTRL_NEW_CLK_DIV)
-#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700 FPGA*/
 #define I2CCG_DIV_CTRL 0x16060100
 #else
 #define I2CCG_DIV_CTRL 0xC6411208
@@ -152,11 +152,12 @@
 /* 0x1C : I2CM Master DMA Transfer Length Register	 */
 #define AST2600_I2CM_DMA_LEN		0x1C
 
-/* Tx Rx support length 1 ~ 4096 */
-#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
+/* Master Tx Rx support length 1 ~ 65536 */
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700*/
 #define AST2600_I2CM_SET_RX_DMA_LEN(x)	(((x) & GENMASK(15, 0)) << 16)
 #define AST2600_I2CM_SET_TX_DMA_LEN(x)	((x) & GENMASK(15, 0))
 #else
+/* Master Tx Rx support length 1 ~ 4096 */
 #define AST2600_I2CM_SET_RX_DMA_LEN(x)	((((x) & GENMASK(11, 0)) << 16) | BIT(31))
 #define AST2600_I2CM_SET_TX_DMA_LEN(x)	(((x) & GENMASK(11, 0)) | BIT(15))
 #endif
@@ -207,10 +208,12 @@
 
 #define AST2600_I2CS_DMA_LEN		0x2C
 
-#ifdef CONFIG_MACH_ASPEED_G7	//FPGA setting
+/* Slave Tx Rx support length 1 ~ 65536 */
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700*/
 #define AST2600_I2CS_SET_RX_DMA_LEN(x)	((((x) - 1) & GENMASK(15, 0)) << 16)
 #define AST2600_I2CS_SET_TX_DMA_LEN(x)	(((x) - 1) & GENMASK(15, 0))
 #else
+/* Slave Tx Rx support length 1 ~ 4096 */
 #define AST2600_I2CS_SET_RX_DMA_LEN(x)	(((((x) - 1) & GENMASK(11, 0)) << 16) | BIT(31))
 #define AST2600_I2CS_SET_TX_DMA_LEN(x)	((((x) - 1) & GENMASK(11, 0)) | BIT(15))
 #endif
@@ -965,6 +968,9 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 			}
 		}
 	}
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700*/
+	writel(0, i2c_bus->reg_base + AST2600_I2CM_DMA_LEN_STS);
+#endif
 	writel(cmd, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
 	return 0;
 }
@@ -1016,10 +1022,13 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		break;
 	case AST2600_I2CM_TX_ACK:
 	case AST2600_I2CM_TX_ACK | AST2600_I2CM_NORMAL_STOP:
-		if (i2c_bus->mode == DMA_MODE)
+		if (i2c_bus->mode == DMA_MODE) {
 			xfer_len = AST2600_I2C_GET_TX_DMA_LEN(readl(i2c_bus->reg_base +
 							  AST2600_I2CM_DMA_LEN_STS));
-		else if (i2c_bus->mode == BUFF_MODE)
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700*/
+			writel(0, i2c_bus->reg_base + AST2600_I2CM_DMA_LEN_STS);
+#endif
+		} else if (i2c_bus->mode == BUFF_MODE)
 			xfer_len = AST2600_I2CC_GET_TX_BUF_LEN(readl(i2c_bus->reg_base +
 							   AST2600_I2CC_BUFF_CTRL));
 		else
@@ -1115,6 +1124,9 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		if (i2c_bus->mode == DMA_MODE) {
 			xfer_len = AST2600_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
 							  AST2600_I2CM_DMA_LEN_STS));
+#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700*/
+			writel(0, i2c_bus->reg_base + AST2600_I2CM_DMA_LEN_STS);
+#endif
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			xfer_len = AST2600_I2CC_GET_RX_BUF_LEN(
 						readl(i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL));
