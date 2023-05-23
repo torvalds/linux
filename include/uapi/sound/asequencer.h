@@ -10,7 +10,7 @@
 #include <sound/asound.h>
 
 /** version of the sequencer */
-#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 2)
+#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 3)
 
 /**
  * definition of sequencer event types
@@ -174,6 +174,7 @@ struct snd_seq_connect {
 #define SNDRV_SEQ_PRIORITY_HIGH		(1<<4)	/* event should be processed before others */
 #define SNDRV_SEQ_PRIORITY_MASK		(1<<4)
 
+#define SNDRV_SEQ_EVENT_UMP		(1<<5)	/* event holds a UMP packet */
 
 	/* note event */
 struct snd_seq_ev_note {
@@ -252,6 +253,19 @@ struct snd_seq_ev_quote {
 	struct snd_seq_event *event;		/* quoted event */
 } __attribute__((packed));
 
+union snd_seq_event_data { /* event data... */
+	struct snd_seq_ev_note note;
+	struct snd_seq_ev_ctrl control;
+	struct snd_seq_ev_raw8 raw8;
+	struct snd_seq_ev_raw32 raw32;
+	struct snd_seq_ev_ext ext;
+	struct snd_seq_ev_queue_control queue;
+	union snd_seq_timestamp time;
+	struct snd_seq_addr addr;
+	struct snd_seq_connect connect;
+	struct snd_seq_result result;
+	struct snd_seq_ev_quote quote;
+};
 
 	/* sequencer event */
 struct snd_seq_event {
@@ -262,25 +276,27 @@ struct snd_seq_event {
 	unsigned char queue;		/* schedule queue */
 	union snd_seq_timestamp time;	/* schedule time */
 
-
 	struct snd_seq_addr source;	/* source address */
 	struct snd_seq_addr dest;	/* destination address */
 
-	union {				/* event data... */
-		struct snd_seq_ev_note note;
-		struct snd_seq_ev_ctrl control;
-		struct snd_seq_ev_raw8 raw8;
-		struct snd_seq_ev_raw32 raw32;
-		struct snd_seq_ev_ext ext;
-		struct snd_seq_ev_queue_control queue;
-		union snd_seq_timestamp time;
-		struct snd_seq_addr addr;
-		struct snd_seq_connect connect;
-		struct snd_seq_result result;
-		struct snd_seq_ev_quote quote;
-	} data;
+	union snd_seq_event_data data;
 };
 
+	/* (compatible) event for UMP-capable clients */
+struct snd_seq_ump_event {
+	snd_seq_event_type_t type;	/* event type */
+	unsigned char flags;		/* event flags */
+	char tag;
+	unsigned char queue;		/* schedule queue */
+	union snd_seq_timestamp time;	/* schedule time */
+	struct snd_seq_addr source;	/* source address */
+	struct snd_seq_addr dest;	/* destination address */
+
+	union {
+		union snd_seq_event_data data;
+		unsigned int ump[4];
+	};
+};
 
 /*
  * bounce event - stored as variable size data
@@ -344,9 +360,14 @@ struct snd_seq_client_info {
 	int event_lost;			/* number of lost events */
 	int card;			/* RO: card number[kernel] */
 	int pid;			/* RO: pid[user] */
-	char reserved[56];		/* for future use */
+	unsigned int midi_version;	/* MIDI version */
+	char reserved[52];		/* for future use */
 };
 
+/* MIDI version numbers in client info */
+#define SNDRV_SEQ_CLIENT_LEGACY_MIDI		0	/* Legacy client */
+#define SNDRV_SEQ_CLIENT_UMP_MIDI_1_0		1	/* UMP MIDI 1.0 */
+#define SNDRV_SEQ_CLIENT_UMP_MIDI_2_0		2	/* UMP MIDI 2.0 */
 
 /* client pool size */
 struct snd_seq_client_pool {
