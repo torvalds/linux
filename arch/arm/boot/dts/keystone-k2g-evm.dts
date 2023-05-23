@@ -120,14 +120,14 @@
 };
 
 &k2g_pinctrl {
-	uart0_pins: pinmux_uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x11cc) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
 			K2G_CORE_IOPAD(0x11d0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
 		>;
 	};
 
-	mmc0_pins: pinmux_mmc0_pins {
+	mmc0_pins: mmc0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1300) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat3.mmc0_dat3 */
 			K2G_CORE_IOPAD(0x1304) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat2.mmc0_dat2 */
@@ -139,7 +139,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x10ec) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat7.mmc1_dat7 */
 			K2G_CORE_IOPAD(0x10f0) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat6.mmc1_dat6 */
@@ -154,27 +154,27 @@
 		>;
 	};
 
-	i2c0_pins: pinmux_i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x137c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 			K2G_CORE_IOPAD(0x1380) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1384) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c1_scl.i2c1_scl */
 			K2G_CORE_IOPAD(0x1388) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c1_sda.i2c1_sda */
 		>;
 	};
 
-	ecap0_pins: ecap0_pins {
+	ecap0_pins: ecap0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1374) (BUFFER_CLASS_B | MUX_MODE4)	/* pr1_mdio_data.ecap0_in_apwm0_out */
 		>;
 	};
 
-	spi1_pins: pinmux_spi1_pins {
+	spi1_pins: spi1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x11a4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_scs0.spi1_scs0 */
 			K2G_CORE_IOPAD(0x11ac) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_clk.spi1_clk */
@@ -183,7 +183,7 @@
 		>;
 	};
 
-	qspi_pins: pinmux_qspi_pins {
+	qspi_pins: qspi-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1204) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_clk.qspi_clk */
 			K2G_CORE_IOPAD(0x1208) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_rclk.qspi_rclk */
@@ -195,28 +195,28 @@
 		>;
 	};
 
-	uart2_pins: pinmux_uart2_pins {
+	uart2_pins: uart2-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x11ec) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)      /* uart2_rxd.uart2_rxd */
 			K2G_CORE_IOPAD(0x11f0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)      /* uart2_txd.uart2_txd */
 		>;
 	};
 
-	dcan0_pins: pinmux_dcan0_pins {
+	dcan0_pins: dcan0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x11fc) (BUFFER_CLASS_B | PULL_DISABLE  | MUX_MODE0)	/* dcan0tx.dcan0tx */
 			K2G_CORE_IOPAD(0x1200) (BUFFER_CLASS_B | PIN_PULLDOWN  | MUX_MODE0)	/* dcan0rx.dcan0rx */
 		>;
 	};
 
-	dcan1_pins: pinmux_dcan1_pins {
+	dcan1_pins: dcan1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1224) (BUFFER_CLASS_B | PULL_DISABLE  | MUX_MODE1)	/* qspicsn2.dcan1tx */
 			K2G_CORE_IOPAD(0x1228) (BUFFER_CLASS_B | PIN_PULLDOWN  | MUX_MODE1)	/* qspicsn3.dcan1rx */
 		>;
 	};
 
-	emac_pins: pinmux_emac_pins {
+	emac_pins: emac-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x113C) (BUFFER_CLASS_D | PULL_DISABLE | MUX_MODE1)	/* MII_RXD1.RGMII_RXD1 */
 			K2G_CORE_IOPAD(0x1138) (BUFFER_CLASS_D | PULL_DISABLE | MUX_MODE1)	/* MII_RXD2.RGMII_RXD2 */
@@ -233,14 +233,14 @@
 		>;
 	};
 
-	mdio_pins: pinmux_mdio_pins {
+	mdio_pins: mdio-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x118C) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* MDIO_CLK.MDIO_CLK */
 			K2G_CORE_IOPAD(0x1188) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* MDIO_DATA.MDIO_DATA */
 		>;
 	};
 
-	vout_pins: pinmux_vout_pins {
+	vout_pins: vout-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1078) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* dssdata23.dssdata23 */
 			K2G_CORE_IOPAD(0x107c) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* dssdata22.dssdata22 */
@@ -274,7 +274,7 @@
 		>;
 	};
 
-	mcasp2_pins: pinmux_mcasp2_pins {
+	mcasp2_pins: mcasp2-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1234) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo2.mcasp2_axr2 */
 			K2G_CORE_IOPAD(0x1238) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo3.mcasp2_axr3 */

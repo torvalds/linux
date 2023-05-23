@@ -218,14 +218,14 @@
 };
 
 &k2g_pinctrl {
-	uart0_pins: pinmux_uart0_pins {
+	uart0_pins: uart0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x11cc) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
 			K2G_CORE_IOPAD(0x11d0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
 		>;
 	};
 
-	qspi_pins: pinmux_qspi_pins {
+	qspi_pins: qspi-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1204) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_clk.qspi_clk */
 			K2G_CORE_IOPAD(0x1208) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_rclk.qspi_rclk */
@@ -237,7 +237,7 @@
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x10FC) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat3.mmc1_dat3 */
 			K2G_CORE_IOPAD(0x1100) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat2.mmc1_dat2 */
@@ -251,21 +251,21 @@
 		>;
 	};
 
-	i2c0_pins: pinmux_i2c0_pins {
+	i2c0_pins: i2c0-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x137c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 			K2G_CORE_IOPAD(0x1380) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x1384) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c1_scl.i2c1_scl */
 			K2G_CORE_IOPAD(0x1388) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c1_sda.i2c1_sda */
 		>;
 	};
 
-	user_leds: pinmux_user_leds {
+	user_leds: user-leds-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x102c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE3)	/* gpmc_ad11.gpio0_11 */
 			K2G_CORE_IOPAD(0x1030) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE3)	/* gpmc_ad12.gpio0_12 */
@@ -283,7 +283,7 @@
 		>;
 	};
 
-	emac_pins: pinmux_emac_pins {
+	emac_pins: emac-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x113C) (BUFFER_CLASS_D | PULL_DISABLE | MUX_MODE1)	/* MII_RXD1.RGMII_RXD1 */
 			K2G_CORE_IOPAD(0x1138) (BUFFER_CLASS_D | PULL_DISABLE | MUX_MODE1)	/* MII_RXD2.RGMII_RXD2 */
@@ -300,7 +300,7 @@
 		>;
 	};
 
-	mdio_pins: pinmux_mdio_pins {
+	mdio_pins: mdio-pins {
 		pinctrl-single,pins = <
 			K2G_CORE_IOPAD(0x118C) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* MDIO_CLK.MDIO_CLK */
 			K2G_CORE_IOPAD(0x1188) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* MDIO_DATA.MDIO_DATA */
