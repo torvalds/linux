@@ -373,7 +373,7 @@ static const struct xe_mocs_entry mtl_mocs_desc[] = {
 static unsigned int get_mocs_settings(struct xe_device *xe,
 				      struct xe_mocs_info *info)
 {
-	unsigned int flags;
+	unsigned int flags = 0;
 
 	memset(info, 0, sizeof(struct xe_mocs_info));
 

@@ -3297,7 +3297,7 @@ destroy_vmas:
 		if (!vmas[i])
 			break;
 
-		list_for_each_entry_safe(vma, next, &vma->unbind_link,
+		list_for_each_entry_safe(vma, next, &vmas[i]->unbind_link,
 					 unbind_link) {
 			list_del_init(&vma->unbind_link);
 			if (!vma->destroyed) {

@@ -136,7 +136,7 @@ static bool rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 	if (!rule_matches(xe, gt, hwe, entry->rules, entry->n_rules))
 		return false;
 
-	for (action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
+	for (i = 0, action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
 		if ((entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) ||
 		    (action->flags & XE_RTP_ACTION_FLAG_ENGINE_BASE))
 			mmio_base = hwe->mmio_base;
