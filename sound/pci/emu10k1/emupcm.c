@@ -429,15 +429,16 @@ static int snd_emu10k1_efx_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	unsigned int start_addr;
-	unsigned int channel_size;
+	unsigned int extra_size, channel_size;
 	int i;
 
 	start_addr = epcm->start_addr >> 1;  // 16-bit voices
 
+	extra_size = runtime->period_size;
 	channel_size = runtime->buffer_size;
 
 	snd_emu10k1_pcm_init_extra_voice(emu, epcm->extra, true,
-					 start_addr, start_addr + (channel_size / 2));
+					 start_addr, start_addr + extra_size);
 
 	epcm->ccca_start_addr = start_addr;
 	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
@@ -465,7 +466,7 @@ static const struct snd_pcm_hardware snd_emu10k1_efx_playback =
 	.buffer_bytes_max =	(128*1024),
 	.period_bytes_max =	(128*1024),
 	.periods_min =		2,
-	.periods_max =		2,
+	.periods_max =		1024,
 	.fifo_size =		0,
 };
 
@@ -925,7 +926,7 @@ static const struct snd_pcm_hardware snd_emu10k1_playback =
 	.channels_max =		2,
 	.buffer_bytes_max =	(128*1024),
 	.period_bytes_max =	(128*1024),
-	.periods_min =		1,
+	.periods_min =		2,
 	.periods_max =		1024,
 	.fifo_size =		0,
 };
