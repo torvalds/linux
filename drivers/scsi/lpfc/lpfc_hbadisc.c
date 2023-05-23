@@ -556,6 +556,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_DID, ndlp->nlp_flag,
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	}
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
 
 	/* If we are devloss, but we are in the process of rediscovering the
 	 * ndlp, don't issue a NLP_EVT_DEVICE_RM event.
@@ -565,9 +568,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		return fcf_inuse;
 	}
 
-	spin_lock_irqsave(&ndlp->lock, iflags);
-	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-	spin_unlock_irqrestore(&ndlp->lock, iflags);
 	if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
