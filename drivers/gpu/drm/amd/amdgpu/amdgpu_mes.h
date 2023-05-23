@@ -294,6 +294,7 @@ struct mes_misc_op_input {
 			} flags;
 			uint32_t spi_gdbg_per_vmid_cntl;
 			uint32_t tcp_watch_cntl[4];
+			uint32_t trap_en;
 		} set_shader_debugger;
 	};
 };
@@ -361,7 +362,8 @@ int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 				uint64_t process_context_addr,
 				uint32_t spi_gdbg_per_vmid_cntl,
 				const uint32_t *tcp_watch_cntl,
-				uint32_t flags);
+				uint32_t flags,
+				bool trap_en);
 
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,

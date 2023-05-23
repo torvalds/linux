@@ -349,12 +349,13 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd)
 {
 	uint32_t spi_dbg_cntl = pdd->spi_dbg_override | pdd->spi_dbg_launch_mode;
 	uint32_t flags = pdd->process->dbg_flags;
+	bool sq_trap_en = !!spi_dbg_cntl;
 
 	if (!kfd_dbg_is_per_vmid_supported(pdd->dev))
 		return 0;
 
 	return amdgpu_mes_set_shader_debugger(pdd->dev->adev, pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
-						pdd->watch_points, flags);
+						pdd->watch_points, flags, sq_trap_en);
 }
 
 #define KFD_DEBUGGER_INVALID_WATCH_POINT_ID -1
@@ -557,6 +558,10 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 
 	if (!unwind) {
 		uint32_t flags = 0;
+		int resume_count = resume_queues(target, 0, NULL);
+
+		if (resume_count)
+			pr_debug("Resumed %d queues\n", resume_count);
 
 		cancel_work_sync(&target->debug_event_workarea);
 		kfd_dbg_clear_process_address_watch(target);
@@ -598,13 +603,6 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 	}
 
 	kfd_dbg_set_workaround(target, false);
-
-	if (!unwind) {
-		int resume_count = resume_queues(target, 0, NULL);
-
-		if (resume_count)
-			pr_debug("Resumed %d queues\n", resume_count);
-	}
 }
 
 static void kfd_dbg_clean_exception_status(struct kfd_process *target)

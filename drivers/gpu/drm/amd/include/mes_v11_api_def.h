@@ -575,6 +575,7 @@ struct SET_SHADER_DEBUGGER {
 	} flags;
 	uint32_t spi_gdbg_per_vmid_cntl;
 	uint32_t tcp_watch_cntl[4]; /* TCP_WATCHx_CNTL */
+	uint32_t trap_en;
 };
 
 union MESAPI__MISC {

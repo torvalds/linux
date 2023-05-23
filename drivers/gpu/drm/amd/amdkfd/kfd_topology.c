@@ -1863,13 +1863,15 @@ static void kfd_topology_set_dbg_firmware_support(struct kfd_topology_device *de
 {
 	bool firmware_supported = true;
 
-	/*
-	 * FIXME: GFX11 FW currently not sufficient to deal with CWSR WA.
-	 * Updated FW with API changes coming soon.
-	 */
 	if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(11, 0, 0) &&
 			KFD_GC_VERSION(dev->gpu) < IP_VERSION(12, 0, 0)) {
-		firmware_supported = false;
+		uint32_t mes_api_rev = (dev->gpu->adev->mes.sched_version &
+						AMDGPU_MES_API_VERSION_MASK) >>
+						AMDGPU_MES_API_VERSION_SHIFT;
+		uint32_t mes_rev = dev->gpu->adev->mes.sched_version &
+						AMDGPU_MES_VERSION_MASK;
+
+		firmware_supported = (mes_api_rev >= 14) && (mes_rev >= 64);
 		goto out;
 	}
 
