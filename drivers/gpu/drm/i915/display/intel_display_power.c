@@ -1053,7 +1053,7 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			     u8 req_slices)
 {
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
-	u8 slice_mask = INTEL_INFO(dev_priv)->display.dbuf.slice_mask;
+	u8 slice_mask = DISPLAY_INFO(dev_priv)->dbuf.slice_mask;
 	enum dbuf_slice slice;
 
 	drm_WARN(&dev_priv->drm, req_slices & ~slice_mask,
@@ -1113,7 +1113,7 @@ static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
-	unsigned long abox_regs = INTEL_INFO(dev_priv)->display.abox_mask;
+	unsigned long abox_regs = DISPLAY_INFO(dev_priv)->abox_mask;
 	u32 mask, val, i;
 
 	if (IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14)
@@ -1568,7 +1568,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	enum intel_dram_type type = dev_priv->dram_info.type;
 	u8 num_channels = dev_priv->dram_info.num_channels;
 	const struct buddy_page_mask *table;
-	unsigned long abox_mask = INTEL_INFO(dev_priv)->display.abox_mask;
+	unsigned long abox_mask = DISPLAY_INFO(dev_priv)->abox_mask;
 	int config, i;
 
 	/* BW_BUDDY registers are not used on dgpu's beyond DG1 */

@@ -1824,14 +1824,14 @@ static u32 intel_gamma_lut_tests(const struct intel_crtc_state *crtc_state)
 	if (lut_is_legacy(gamma_lut))
 		return 0;
 
-	return INTEL_INFO(i915)->display.color.gamma_lut_tests;
+	return DISPLAY_INFO(i915)->color.gamma_lut_tests;
 }
 
 static u32 intel_degamma_lut_tests(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	return INTEL_INFO(i915)->display.color.degamma_lut_tests;
+	return DISPLAY_INFO(i915)->color.degamma_lut_tests;
 }
 
 static int intel_gamma_lut_size(const struct intel_crtc_state *crtc_state)
@@ -1842,14 +1842,14 @@ static int intel_gamma_lut_size(const struct intel_crtc_state *crtc_state)
 	if (lut_is_legacy(gamma_lut))
 		return LEGACY_LUT_LENGTH;
 
-	return INTEL_INFO(i915)->display.color.gamma_lut_size;
+	return DISPLAY_INFO(i915)->color.gamma_lut_size;
 }
 
 static u32 intel_degamma_lut_size(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	return INTEL_INFO(i915)->display.color.degamma_lut_size;
+	return DISPLAY_INFO(i915)->color.degamma_lut_size;
 }
 
 static int check_lut_size(const struct drm_property_blob *lut, int expected)
@@ -2321,7 +2321,7 @@ static int glk_assign_luts(struct intel_crtc_state *crtc_state)
 		struct drm_property_blob *gamma_lut;
 
 		gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut,
-					       INTEL_INFO(i915)->display.color.degamma_lut_size,
+					       DISPLAY_INFO(i915)->color.degamma_lut_size,
 					       false);
 		if (IS_ERR(gamma_lut))
 			return PTR_ERR(gamma_lut);
@@ -2855,7 +2855,7 @@ static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 static struct drm_property_blob *i9xx_read_lut_10(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 lut_size = INTEL_INFO(dev_priv)->display.color.gamma_lut_size;
+	u32 lut_size = DISPLAY_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -2904,7 +2904,7 @@ static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
 static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(dev_priv)->display.color.gamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -2954,7 +2954,7 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 static struct drm_property_blob *chv_read_cgm_degamma(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(dev_priv)->display.color.degamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(dev_priv)->color.degamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -2980,7 +2980,7 @@ static struct drm_property_blob *chv_read_cgm_degamma(struct intel_crtc *crtc)
 static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(i915)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -3044,7 +3044,7 @@ static struct drm_property_blob *ilk_read_lut_8(struct intel_crtc *crtc)
 static struct drm_property_blob *ilk_read_lut_10(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(i915)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -3228,7 +3228,7 @@ static void bdw_read_luts(struct intel_crtc_state *crtc_state)
 static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(dev_priv)->display.color.degamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(dev_priv)->color.degamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -3293,7 +3293,7 @@ static struct drm_property_blob *
 icl_read_lut_multi_segment(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int i, lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
+	int i, lut_size = DISPLAY_INFO(i915)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
@@ -3471,8 +3471,8 @@ void intel_color_crtc_init(struct intel_crtc *crtc)
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
-	gamma_lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
-	degamma_lut_size = INTEL_INFO(i915)->display.color.degamma_lut_size;
+	gamma_lut_size = DISPLAY_INFO(i915)->color.gamma_lut_size;
+	degamma_lut_size = DISPLAY_INFO(i915)->color.degamma_lut_size;
 	has_ctm = degamma_lut_size != 0;
 
 	/*
@@ -3497,7 +3497,8 @@ int intel_color_init(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) != 10)
 		return 0;
 
-	blob = create_linear_lut(i915, INTEL_INFO(i915)->display.color.degamma_lut_size);
+	blob = create_linear_lut(i915,
+				 DISPLAY_INFO(i915)->color.degamma_lut_size);
 	if (IS_ERR(blob))
 		return PTR_ERR(blob);
 

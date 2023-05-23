@@ -257,7 +257,7 @@ struct intel_device_info {
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 
-	struct intel_display_device_info display;
+	const struct intel_display_device_info *display;
 
 	/*
 	 * Initial runtime info. Do not access outside of i915_driver_create().
