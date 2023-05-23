@@ -80,4 +80,7 @@ struct intel_display_device_info {
 	} color;
 };
 
+const struct intel_display_device_info *
+intel_display_device_probe(u16 pci_devid);
+
 #endif

@@ -1966,15 +1966,6 @@
 #define _TRANS_VSYNC_DSI1	0x6b814
 #define _TRANS_VSYNCSHIFT_DSI1	0x6b828
 
-#define TRANSCODER_A_OFFSET 0x60000
-#define TRANSCODER_B_OFFSET 0x61000
-#define TRANSCODER_C_OFFSET 0x62000
-#define CHV_TRANSCODER_C_OFFSET 0x63000
-#define TRANSCODER_D_OFFSET 0x63000
-#define TRANSCODER_EDP_OFFSET 0x6f000
-#define TRANSCODER_DSI0_OFFSET	0x6b000
-#define TRANSCODER_DSI1_OFFSET	0x6b800
-
 #define TRANS_HTOTAL(trans)	_MMIO_TRANS2((trans), _TRANS_HTOTAL_A)
 #define TRANS_HBLANK(trans)	_MMIO_TRANS2((trans), _TRANS_HBLANK_A)
 #define TRANS_HSYNC(trans)	_MMIO_TRANS2((trans), _TRANS_HSYNC_A)
@@ -2622,23 +2613,6 @@
 #define PIPESTAT_INT_ENABLE_MASK		0x7fff0000
 #define PIPESTAT_INT_STATUS_MASK		0x0000ffff
 
-#define PIPE_A_OFFSET		0x70000
-#define PIPE_B_OFFSET		0x71000
-#define PIPE_C_OFFSET		0x72000
-#define PIPE_D_OFFSET		0x73000
-#define CHV_PIPE_C_OFFSET	0x74000
-/*
- * There's actually no pipe EDP. Some pipe registers have
- * simply shifted from the pipe to the transcoder, while
- * keeping their original offset. Thus we need PIPE_EDP_OFFSET
- * to access such registers in transcoder EDP.
- */
-#define PIPE_EDP_OFFSET	0x7f000
-
-/* ICL DSI 0 and 1 */
-#define PIPE_DSI0_OFFSET	0x7b000
-#define PIPE_DSI1_OFFSET	0x7b800
-
 #define TRANSCONF(trans)	_MMIO_PIPE2((trans), _TRANSACONF)
 #define PIPEDSL(pipe)		_MMIO_PIPE2(pipe, _PIPEADSL)
 #define PIPEFRAME(pipe)		_MMIO_PIPE2(pipe, _PIPEAFRAMEHIGH)
@@ -3098,13 +3072,6 @@
 #define CUR_FBC_CTL(pipe) _MMIO_CURSOR2(pipe, _CUR_FBC_CTL_A)
 #define CUR_CHICKEN(pipe) _MMIO_CURSOR2(pipe, _CUR_CHICKEN_A)
 #define CURSURFLIVE(pipe) _MMIO_CURSOR2(pipe, _CURASURFLIVE)
-
-#define CURSOR_A_OFFSET 0x70080
-#define CURSOR_B_OFFSET 0x700c0
-#define CHV_CURSOR_C_OFFSET 0x700e0
-#define IVB_CURSOR_B_OFFSET 0x71080
-#define IVB_CURSOR_C_OFFSET 0x72080
-#define TGL_CURSOR_D_OFFSET 0x73080
 
 /* Display A control */
 #define _DSPAADDR_VLV				0x7017C /* vlv/chv */

@@ -42,127 +42,6 @@
 	.__runtime.graphics.ip.ver = (x), \
 	.__runtime.media.ip.ver = (x)
 
-static const struct intel_display_device_info no_display = {};
-
-#define I845_PIPE_OFFSETS \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET,	\
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-	}
-
-#define I9XX_PIPE_OFFSETS \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET,	\
-		[TRANSCODER_B] = PIPE_B_OFFSET, \
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
-	}
-
-#define IVB_PIPE_OFFSETS \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET,	\
-		[TRANSCODER_B] = PIPE_B_OFFSET, \
-		[TRANSCODER_C] = PIPE_C_OFFSET, \
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
-		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
-	}
-
-#define HSW_PIPE_OFFSETS \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET,	\
-		[TRANSCODER_B] = PIPE_B_OFFSET, \
-		[TRANSCODER_C] = PIPE_C_OFFSET, \
-		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
-		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
-		[TRANSCODER_EDP] = TRANSCODER_EDP_OFFSET, \
-	}
-
-#define CHV_PIPE_OFFSETS \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET, \
-		[TRANSCODER_B] = PIPE_B_OFFSET, \
-		[TRANSCODER_C] = CHV_PIPE_C_OFFSET, \
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
-		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
-	}
-
-#define I845_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-	}
-
-#define I9XX_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = CURSOR_B_OFFSET, \
-	}
-
-#define CHV_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = CURSOR_B_OFFSET, \
-		[PIPE_C] = CHV_CURSOR_C_OFFSET, \
-	}
-
-#define IVB_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
-		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
-	}
-
-#define TGL_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
-		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
-		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
-	}
-
-#define I845_COLORS \
-	.color = { .gamma_lut_size = 256 }
-#define I9XX_COLORS \
-	.color = { .gamma_lut_size = 129, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-	}
-#define ILK_COLORS \
-	.color = { .gamma_lut_size = 1024 }
-#define IVB_COLORS \
-	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
-#define CHV_COLORS \
-	.color = { \
-		.degamma_lut_size = 65, .gamma_lut_size = 257, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-	}
-#define GLK_COLORS \
-	.color = { \
-		.degamma_lut_size = 33, .gamma_lut_size = 1024, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
-	}
-#define ICL_COLORS \
-	.color = { \
-		.degamma_lut_size = 33, .gamma_lut_size = 262145, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
-		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-	}
-
 /* Keep in gen based order, and chronological order within a gen */
 
 #define GEN_DEFAULT_PAGE_SIZES \
@@ -170,24 +49,6 @@ static const struct intel_display_device_info no_display = {};
 
 #define GEN_DEFAULT_REGIONS \
 	.__runtime.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
-
-#define I830_DISPLAY \
-	.has_overlay = 1, \
-	.cursor_needs_physical = 1, \
-	.overlay_needs_physical = 1, \
-	.has_gmch = 1, \
-	I9XX_PIPE_OFFSETS, \
-	I9XX_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 2, \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
-
-static const struct intel_display_device_info i830_display = {
-	I830_DISPLAY,
-};
 
 #define I830_FEATURES \
 	GEN(2), \
@@ -202,22 +63,6 @@ static const struct intel_display_device_info i830_display = {
 	.dma_mask_size = 32, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
-
-#define I845_DISPLAY \
-	.has_overlay = 1, \
-	.overlay_needs_physical = 1, \
-	.has_gmch = 1, \
-	I845_PIPE_OFFSETS, \
-	I845_CURSOR_OFFSETS, \
-	I845_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 2, \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A), \
-	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
-
-static const struct intel_display_device_info i845_display = {
-	I845_DISPLAY,
-};
 
 #define I845_FEATURES \
 	GEN(2), \
@@ -235,86 +80,21 @@ static const struct intel_display_device_info i845_display = {
 static const struct intel_device_info i830_info = {
 	I830_FEATURES,
 	PLATFORM(INTEL_I830),
-	.display = &i830_display,
 };
 
 static const struct intel_device_info i845g_info = {
 	I845_FEATURES,
 	PLATFORM(INTEL_I845G),
-	.display = &i845_display,
-};
-
-static const struct intel_display_device_info i85x_display = {
-	I830_DISPLAY,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 static const struct intel_device_info i85x_info = {
 	I830_FEATURES,
 	PLATFORM(INTEL_I85X),
-	.display = &i85x_display,
-};
-
-static const struct intel_display_device_info i865g_display = {
-	I845_DISPLAY,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 static const struct intel_device_info i865g_info = {
 	I845_FEATURES,
 	PLATFORM(INTEL_I865G),
-	.display = &i865g_display,
-};
-
-#define GEN3_DISPLAY \
-	.has_gmch = 1, \
-	.has_overlay = 1, \
-	I9XX_PIPE_OFFSETS, \
-	I9XX_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 3, \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
-
-static const struct intel_display_device_info i915g_display = {
-	GEN3_DISPLAY,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-};
-
-static const struct intel_display_device_info i915gm_display = {
-	GEN3_DISPLAY,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-	.supports_tv = 1,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
-static const struct intel_display_device_info i945g_display = {
-	GEN3_DISPLAY,
-	.has_hotplug = 1,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-};
-
-static const struct intel_display_device_info i945gm_display = {
-	GEN3_DISPLAY,
-	.has_hotplug = 1,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-	.supports_tv = 1,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
-static const struct intel_display_device_info g33_display = {
-	GEN3_DISPLAY,
-	.has_hotplug = 1,
 };
 
 #define GEN3_FEATURES \
@@ -331,7 +111,6 @@ static const struct intel_display_device_info g33_display = {
 static const struct intel_device_info i915g_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_I915G),
-	.display = &i915g_display,
 	.has_coherent_ggtt = false,
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
@@ -340,7 +119,6 @@ static const struct intel_device_info i915g_info = {
 static const struct intel_device_info i915gm_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_I915GM),
-	.display = &i915gm_display,
 	.is_mobile = 1,
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
@@ -349,7 +127,6 @@ static const struct intel_device_info i915gm_info = {
 static const struct intel_device_info i945g_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_I945G),
-	.display = &i945g_display,
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
 };
@@ -357,7 +134,6 @@ static const struct intel_device_info i945g_info = {
 static const struct intel_device_info i945gm_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_I945GM),
-	.display = &i945gm_display,
 	.is_mobile = 1,
 	.hws_needs_physical = 1,
 	.unfenced_needs_alignment = 1,
@@ -366,14 +142,12 @@ static const struct intel_device_info i945gm_info = {
 static const struct intel_device_info g33_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_G33),
-	.display = &g33_display,
 	.dma_mask_size = 36,
 };
 
 static const struct intel_device_info pnv_g_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_PINEVIEW),
-	.display = &g33_display,
 	.dma_mask_size = 36,
 };
 
@@ -381,44 +155,7 @@ static const struct intel_device_info pnv_m_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_PINEVIEW),
 	.is_mobile = 1,
-	.display = &g33_display,
 	.dma_mask_size = 36,
-};
-
-#define GEN4_DISPLAY \
-	.has_hotplug = 1, \
-	.has_gmch = 1, \
-	I9XX_PIPE_OFFSETS, \
-	I9XX_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 4, \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
-
-static const struct intel_display_device_info i965g_display = {
-	GEN4_DISPLAY,
-	.has_overlay = 1,
-};
-
-static const struct intel_display_device_info i965gm_display = {
-	GEN4_DISPLAY,
-	.has_overlay = 1,
-	.supports_tv = 1,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
-static const struct intel_display_device_info g45_display = {
-	GEN4_DISPLAY,
-};
-
-static const struct intel_display_device_info gm45_display = {
-	GEN4_DISPLAY,
-	.supports_tv = 1,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
 #define GEN4_FEATURES \
@@ -435,7 +172,6 @@ static const struct intel_display_device_info gm45_display = {
 static const struct intel_device_info i965g_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_I965G),
-	.display = &i965g_display,
 	.hws_needs_physical = 1,
 	.has_snoop = false,
 };
@@ -443,7 +179,6 @@ static const struct intel_device_info i965g_info = {
 static const struct intel_device_info i965gm_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_I965GM),
-	.display = &i965gm_display,
 	.is_mobile = 1,
 	.hws_needs_physical = 1,
 	.has_snoop = false,
@@ -453,7 +188,6 @@ static const struct intel_device_info g45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_G45),
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
-	.display = &g45_display,
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -462,7 +196,6 @@ static const struct intel_device_info gm45_info = {
 	PLATFORM(INTEL_GM45),
 	.is_mobile = 1,
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0),
-	.display = &gm45_display,
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -478,37 +211,14 @@ static const struct intel_device_info gm45_info = {
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
-#define ILK_DISPLAY \
-	.has_hotplug = 1, \
-	I9XX_PIPE_OFFSETS, \
-	I9XX_CURSOR_OFFSETS, \
-	ILK_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 5, \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
-
-static const struct intel_display_device_info ilk_d_display = {
-	ILK_DISPLAY,
-};
-
 static const struct intel_device_info ilk_d_info = {
 	GEN5_FEATURES,
 	PLATFORM(INTEL_IRONLAKE),
-	.display = &ilk_d_display,
 };
-
-static const struct intel_display_device_info ilk_m_display = {
-	ILK_DISPLAY,
-
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
- };
 
 static const struct intel_device_info ilk_m_info = {
 	GEN5_FEATURES,
 	PLATFORM(INTEL_IRONLAKE),
-	.display = &ilk_m_display,
 	.is_mobile = 1,
 	.has_rps = true,
 };
@@ -529,32 +239,17 @@ static const struct intel_device_info ilk_m_info = {
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
-static const struct intel_display_device_info snb_display = {
-	.has_hotplug = 1,
-	I9XX_PIPE_OFFSETS,
-	I9XX_CURSOR_OFFSETS,
-	ILK_COLORS,
-
-	.__runtime_defaults.ip.ver = 6,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 #define SNB_D_PLATFORM \
 	GEN6_FEATURES, \
 	PLATFORM(INTEL_SANDYBRIDGE)
 
 static const struct intel_device_info snb_d_gt1_info = {
 	SNB_D_PLATFORM,
-	.display = &snb_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info snb_d_gt2_info = {
 	SNB_D_PLATFORM,
-	.display = &snb_display,
 	.gt = 2,
 };
 
@@ -566,13 +261,11 @@ static const struct intel_device_info snb_d_gt2_info = {
 
 static const struct intel_device_info snb_m_gt1_info = {
 	SNB_M_PLATFORM,
-	.display = &snb_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info snb_m_gt2_info = {
 	SNB_M_PLATFORM,
-	.display = &snb_display,
 	.gt = 2,
 };
 
@@ -597,28 +290,13 @@ static const struct intel_device_info snb_m_gt2_info = {
 	PLATFORM(INTEL_IVYBRIDGE), \
 	.has_l3_dpf = 1
 
-static const struct intel_display_device_info ivb_display = {
-	.has_hotplug = 1,
-	IVB_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
-
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 static const struct intel_device_info ivb_d_gt1_info = {
 	IVB_D_PLATFORM,
-	.display = &ivb_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info ivb_d_gt2_info = {
 	IVB_D_PLATFORM,
-	.display = &ivb_display,
 	.gt = 2,
 };
 
@@ -630,43 +308,25 @@ static const struct intel_device_info ivb_d_gt2_info = {
 
 static const struct intel_device_info ivb_m_gt1_info = {
 	IVB_M_PLATFORM,
-	.display = &ivb_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info ivb_m_gt2_info = {
 	IVB_M_PLATFORM,
-	.display = &ivb_display,
 	.gt = 2,
 };
 
 static const struct intel_device_info ivb_q_info = {
 	GEN7_FEATURES,
 	PLATFORM(INTEL_IVYBRIDGE),
-	.display = &no_display,
 	.gt = 2,
 	.has_l3_dpf = 1,
-};
-
-static const struct intel_display_device_info vlv_display = {
-	.has_gmch = 1,
-	.has_hotplug = 1,
-	.mmio_offset = VLV_DISPLAY_BASE,
-	I9XX_PIPE_OFFSETS,
-	I9XX_CURSOR_OFFSETS,
-	I9XX_COLORS,
-
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
 };
 
 static const struct intel_device_info vlv_info = {
 	PLATFORM(INTEL_VALLEYVIEW),
 	GEN(7),
 	.is_lp = 1,
-	.display = &vlv_display,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_reset_engine = true,
@@ -692,38 +352,18 @@ static const struct intel_device_info vlv_info = {
 	PLATFORM(INTEL_HASWELL), \
 	.has_l3_dpf = 1
 
-static const struct intel_display_device_info hsw_display = {
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	HSW_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
-
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 static const struct intel_device_info hsw_gt1_info = {
 	HSW_PLATFORM,
-	.display = &hsw_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info hsw_gt2_info = {
 	HSW_PLATFORM,
-	.display = &hsw_display,
 	.gt = 2,
 };
 
 static const struct intel_device_info hsw_gt3_info = {
 	HSW_PLATFORM,
-	.display = &hsw_display,
 	.gt = 3,
 };
 
@@ -736,42 +376,22 @@ static const struct intel_device_info hsw_gt3_info = {
 	.__runtime.ppgtt_size = 48, \
 	.has_64bit_reloc = 1
 
-static const struct intel_display_device_info bdw_display = {
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	HSW_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
-
-	.__runtime_defaults.ip.ver = 8,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 #define BDW_PLATFORM \
 	GEN8_FEATURES, \
 	PLATFORM(INTEL_BROADWELL)
 
 static const struct intel_device_info bdw_gt1_info = {
 	BDW_PLATFORM,
-	.display = &bdw_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info bdw_gt2_info = {
 	BDW_PLATFORM,
-	.display = &bdw_display,
 	.gt = 2,
 };
 
 static const struct intel_device_info bdw_rsvd_info = {
 	BDW_PLATFORM,
-	.display = &bdw_display,
 	.gt = 3,
 	/* According to the device ID those devices are GT3, they were
 	 * previously treated as not GT3, keep it like that.
@@ -780,30 +400,14 @@ static const struct intel_device_info bdw_rsvd_info = {
 
 static const struct intel_device_info bdw_gt3_info = {
 	BDW_PLATFORM,
-	.display = &bdw_display,
 	.gt = 3,
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
-static const struct intel_display_device_info chv_display = {
-	.has_hotplug = 1,
-	.has_gmch = 1,
-	.mmio_offset = VLV_DISPLAY_BASE,
-	CHV_PIPE_OFFSETS,
-	CHV_CURSOR_OFFSETS,
-	CHV_COLORS,
-
-	.__runtime_defaults.ip.ver = 8,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-};
-
 static const struct intel_device_info chv_info = {
 	PLATFORM(INTEL_CHERRYVIEW),
 	GEN(8),
-	.display = &chv_display,
 	.is_lp = 1,
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
@@ -831,43 +435,17 @@ static const struct intel_device_info chv_info = {
 	GEN9_DEFAULT_PAGE_SIZES, \
 	.has_gt_uc = 1
 
-static const struct intel_display_device_info skl_display = {
-	.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */
-	.dbuf.slice_mask = BIT(DBUF_S1),
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	.has_ipc = 1,
-	.has_psr = 1,
-	.has_psr_hw_tracking = 1,
-	HSW_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
-
-	.__runtime_defaults.ip.ver = 9,
-	.__runtime_defaults.has_dmc = 1,
-	.__runtime_defaults.has_hdcp = 1,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
 	PLATFORM(INTEL_SKYLAKE)
 
 static const struct intel_device_info skl_gt1_info = {
 	SKL_PLATFORM,
-	.display = &skl_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info skl_gt2_info = {
 	SKL_PLATFORM,
-	.display = &skl_display,
 	.gt = 2,
 };
 
@@ -879,13 +457,11 @@ static const struct intel_device_info skl_gt2_info = {
 
 static const struct intel_device_info skl_gt3_info = {
 	SKL_GT3_PLUS_PLATFORM,
-	.display = &skl_display,
 	.gt = 3,
 };
 
 static const struct intel_device_info skl_gt4_info = {
 	SKL_GT3_PLUS_PLATFORM,
-	.display = &skl_display,
 	.gt = 4,
 };
 
@@ -909,53 +485,14 @@ static const struct intel_device_info skl_gt4_info = {
 	GEN9_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
-#define GEN9_LP_DISPLAY \
-	.dbuf.slice_mask = BIT(DBUF_S1), \
-	.has_dp_mst = 1, \
-	.has_ddi = 1, \
-	.has_fpga_dbg = 1, \
-	.has_hotplug = 1, \
-	.has_ipc = 1, \
-	.has_psr = 1, \
-	.has_psr_hw_tracking = 1, \
-	HSW_PIPE_OFFSETS, \
-	IVB_CURSOR_OFFSETS, \
-	IVB_COLORS, \
-	\
-	.__runtime_defaults.has_dmc = 1, \
-	.__runtime_defaults.has_hdcp = 1, \
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A), \
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
-		BIT(TRANSCODER_DSI_A) | BIT(TRANSCODER_DSI_C)
-
-static const struct intel_display_device_info bxt_display = {
-	GEN9_LP_DISPLAY,
-	.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
-
-	.__runtime_defaults.ip.ver = 9,
-};
-
 static const struct intel_device_info bxt_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_BROXTON),
-	.display = &bxt_display,
-};
-
-static const struct intel_display_device_info glk_display = {
-	GEN9_LP_DISPLAY,
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
-	GLK_COLORS,
-
-	.__runtime_defaults.ip.ver = 10,
 };
 
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
-	.display = &glk_display,
 };
 
 #define KBL_PLATFORM \
@@ -964,19 +501,16 @@ static const struct intel_device_info glk_info = {
 
 static const struct intel_device_info kbl_gt1_info = {
 	KBL_PLATFORM,
-	.display = &skl_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info kbl_gt2_info = {
 	KBL_PLATFORM,
-	.display = &skl_display,
 	.gt = 2,
 };
 
 static const struct intel_device_info kbl_gt3_info = {
 	KBL_PLATFORM,
-	.display = &skl_display,
 	.gt = 3,
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
@@ -988,19 +522,16 @@ static const struct intel_device_info kbl_gt3_info = {
 
 static const struct intel_device_info cfl_gt1_info = {
 	CFL_PLATFORM,
-	.display = &skl_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info cfl_gt2_info = {
 	CFL_PLATFORM,
-	.display = &skl_display,
 	.gt = 2,
 };
 
 static const struct intel_device_info cfl_gt3_info = {
 	CFL_PLATFORM,
-	.display = &skl_display,
 	.gt = 3,
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
@@ -1012,13 +543,11 @@ static const struct intel_device_info cfl_gt3_info = {
 
 static const struct intel_device_info cml_gt1_info = {
 	CML_PLATFORM,
-	.display = &skl_display,
 	.gt = 1,
 };
 
 static const struct intel_device_info cml_gt2_info = {
 	CML_PLATFORM,
-	.display = &skl_display,
 	.gt = 2,
 };
 
@@ -1034,54 +563,11 @@ static const struct intel_device_info cml_gt2_info = {
 	.has_coherent_ggtt = false, \
 	.has_logical_ring_elsq = 1
 
-static const struct intel_display_device_info gen11_display = {
-	.abox_mask = BIT(0),
-	.dbuf.size = 2048,
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2),
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	.has_ipc = 1,
-	.has_psr = 1,
-	.has_psr_hw_tracking = 1,
-	.pipe_offsets = {
-		[TRANSCODER_A] = PIPE_A_OFFSET,
-		[TRANSCODER_B] = PIPE_B_OFFSET,
-		[TRANSCODER_C] = PIPE_C_OFFSET,
-		[TRANSCODER_EDP] = PIPE_EDP_OFFSET,
-		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET,
-		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET,
-	},
-	.trans_offsets = {
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET,
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET,
-		[TRANSCODER_C] = TRANSCODER_C_OFFSET,
-		[TRANSCODER_EDP] = TRANSCODER_EDP_OFFSET,
-		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET,
-		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET,
-	},
-	IVB_CURSOR_OFFSETS,
-	ICL_COLORS,
-
-	.__runtime_defaults.ip.ver = 11,
-	.__runtime_defaults.has_dmc = 1,
-	.__runtime_defaults.has_dsc = 1,
-	.__runtime_defaults.has_hdcp = 1,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) |
-		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-};
-
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.display = &gen11_display,
 };
 
 static const struct intel_device_info ehl_info = {
@@ -1089,7 +575,6 @@ static const struct intel_device_info ehl_info = {
 	PLATFORM(INTEL_ELKHARTLAKE),
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.__runtime.ppgtt_size = 36,
-	.display = &gen11_display,
 };
 
 static const struct intel_device_info jsl_info = {
@@ -1097,7 +582,6 @@ static const struct intel_device_info jsl_info = {
 	PLATFORM(INTEL_JASPERLAKE),
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.__runtime.ppgtt_size = 36,
-	.display = &gen11_display,
 };
 
 #define GEN12_FEATURES \
@@ -1106,70 +590,11 @@ static const struct intel_device_info jsl_info = {
 	.has_global_mocs = 1, \
 	.has_pxp = 1
 
-#define XE_D_DISPLAY \
-	.abox_mask = GENMASK(2, 1), \
-	.dbuf.size = 2048, \
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
-	.has_ddi = 1, \
-	.has_dp_mst = 1, \
-	.has_dsb = 1, \
-	.has_fpga_dbg = 1, \
-	.has_hotplug = 1, \
-	.has_ipc = 1, \
-	.has_psr = 1, \
-	.has_psr_hw_tracking = 1, \
-	.pipe_offsets = { \
-		[TRANSCODER_A] = PIPE_A_OFFSET, \
-		[TRANSCODER_B] = PIPE_B_OFFSET, \
-		[TRANSCODER_C] = PIPE_C_OFFSET, \
-		[TRANSCODER_D] = PIPE_D_OFFSET, \
-		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
-		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
-	}, \
-	.trans_offsets = { \
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
-		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
-		[TRANSCODER_D] = TRANSCODER_D_OFFSET, \
-		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
-		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
-	}, \
-	TGL_CURSOR_OFFSETS, \
-	ICL_COLORS, \
-	\
-	.__runtime_defaults.ip.ver = 12, \
-	.__runtime_defaults.has_dmc = 1, \
-	.__runtime_defaults.has_dsc = 1, \
-	.__runtime_defaults.has_hdcp = 1, \
-	.__runtime_defaults.pipe_mask = \
-		BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
-	.__runtime_defaults.cpu_transcoder_mask = \
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
-		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A)
-
-static const struct intel_display_device_info tgl_display = {
-	XE_D_DISPLAY,
-};
-
 static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.display = &tgl_display,
-};
-
-static const struct intel_display_device_info rkl_display = {
-	XE_D_DISPLAY,
-	.abox_mask = BIT(0),
-	.has_hti = 1,
-	.has_psr_hw_tracking = 0,
-
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
 };
 
 static const struct intel_device_info rkl_info = {
@@ -1177,7 +602,6 @@ static const struct intel_device_info rkl_info = {
 	PLATFORM(INTEL_ROCKETLAKE),
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0),
-	.display = &rkl_display,
 };
 
 #define DGFX_FEATURES \
@@ -1199,13 +623,6 @@ static const struct intel_device_info dg1_info = {
 		BIT(VCS0) | BIT(VCS2),
 	/* Wa_16011227922 */
 	.__runtime.ppgtt_size = 47,
-	.display = &tgl_display,
-};
-
-static const struct intel_display_device_info adl_s_display = {
-	XE_D_DISPLAY,
-	.has_hti = 1,
-	.has_psr_hw_tracking = 0,
 };
 
 static const struct intel_device_info adl_s_info = {
@@ -1214,61 +631,6 @@ static const struct intel_device_info adl_s_info = {
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.dma_mask_size = 39,
-	.display = &adl_s_display,
-};
-
-#define XE_LPD_FEATURES \
-	.abox_mask = GENMASK(1, 0),						\
-	.color = {								\
-		.degamma_lut_size = 129, .gamma_lut_size = 1024,		\
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
-		DRM_COLOR_LUT_EQUAL_CHANNELS,					\
-	},									\
-	.dbuf.size = 4096,							\
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |		\
-		BIT(DBUF_S4),							\
-	.has_ddi = 1,								\
-	.has_dp_mst = 1,							\
-	.has_dsb = 1,								\
-	.has_fpga_dbg = 1,							\
-	.has_hotplug = 1,							\
-	.has_ipc = 1,								\
-	.has_psr = 1,								\
-	.pipe_offsets = {							\
-		[TRANSCODER_A] = PIPE_A_OFFSET,					\
-		[TRANSCODER_B] = PIPE_B_OFFSET,					\
-		[TRANSCODER_C] = PIPE_C_OFFSET,					\
-		[TRANSCODER_D] = PIPE_D_OFFSET,					\
-		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET,				\
-		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET,				\
-	},									\
-	.trans_offsets = {						\
-		[TRANSCODER_A] = TRANSCODER_A_OFFSET,				\
-		[TRANSCODER_B] = TRANSCODER_B_OFFSET,				\
-		[TRANSCODER_C] = TRANSCODER_C_OFFSET,				\
-		[TRANSCODER_D] = TRANSCODER_D_OFFSET,				\
-		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET,			\
-		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET,			\
-	},									\
-	TGL_CURSOR_OFFSETS,							\
-										\
-	.__runtime_defaults.ip.ver = 13,					\
-	.__runtime_defaults.has_dmc = 1,					\
-	.__runtime_defaults.has_dsc = 1,					\
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),			\
-	.__runtime_defaults.has_hdcp = 1,					\
-	.__runtime_defaults.pipe_mask =						\
-		BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D)
-
-static const struct intel_display_device_info xe_lpd_display = {
-	XE_LPD_FEATURES,
-	.has_cdclk_crawl = 1,
-	.has_psr_hw_tracking = 0,
-
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) |
-		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1),
 };
 
 static const struct intel_device_info adl_p_info = {
@@ -1277,7 +639,6 @@ static const struct intel_device_info adl_p_info = {
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.__runtime.ppgtt_size = 48,
-	.display = &xe_lpd_display,
 	.dma_mask_size = 39,
 };
 
@@ -1323,7 +684,6 @@ static const struct intel_device_info xehpsdv_info = {
 	XE_HPM_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(INTEL_XEHPSDV),
-	.display = &no_display,
 	.has_64k_pages = 1,
 	.has_media_ratio_mode = 1,
 	.__runtime.platform_engine_mask =
@@ -1352,23 +712,12 @@ static const struct intel_device_info xehpsdv_info = {
 		BIT(VCS0) | BIT(VCS2) | \
 		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3)
 
-static const struct intel_display_device_info xe_hpd_display = {
-	XE_LPD_FEATURES,
-	.has_cdclk_squash = 1,
-
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
-};
-
 static const struct intel_device_info dg2_info = {
 	DG2_FEATURES,
-	.display = &xe_hpd_display,
 };
 
 static const struct intel_device_info ats_m_info = {
 	DG2_FEATURES,
-	.display = &no_display,
 	.require_force_probe = 1,
 	.tuning_thread_rr_after_dep = 1,
 };
@@ -1390,7 +739,6 @@ static const struct intel_device_info pvc_info = {
 	.__runtime.graphics.ip.rel = 60,
 	.__runtime.media.ip.rel = 60,
 	PLATFORM(INTEL_PONTEVECCHIO),
-	.display = &no_display,
 	.has_flat_ccs = 0,
 	.__runtime.platform_engine_mask =
 		BIT(BCS0) |
@@ -1409,18 +757,6 @@ static const struct intel_gt_definition xelpmp_extra_gt[] = {
 	{}
 };
 
-static const struct intel_display_device_info xe_lpdp_display = {
-	XE_LPD_FEATURES,
-	.has_cdclk_crawl = 1,
-	.has_cdclk_squash = 1,
-
-	.__runtime_defaults.ip.ver = 14,
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B),
-	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
-};
-
 static const struct intel_device_info mtl_info = {
 	XE_HP_FEATURES,
 	/*
@@ -1431,7 +767,6 @@ static const struct intel_device_info mtl_info = {
 	.__runtime.graphics.ip.rel = 70,
 	.__runtime.media.ip.ver = 13,
 	PLATFORM(INTEL_METEORLAKE),
-	.display = &xe_lpdp_display,
 	.extra_gt_list = xelpmp_extra_gt,
 	.has_flat_ccs = 0,
 	.has_gmd_id = 1,

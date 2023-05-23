@@ -574,7 +574,6 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 {
 	struct intel_device_info *info;
 	struct intel_runtime_info *runtime;
-	struct intel_display_runtime_info *display_runtime;
 
 	/* Setup the write-once "constant" device info */
 	info = mkwrite_device_info(i915);
@@ -583,9 +582,12 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 	/* Initialize initial runtime info from static const data and pdev. */
 	runtime = RUNTIME_INFO(i915);
 	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
-	display_runtime = DISPLAY_RUNTIME_INFO(i915);
-	memcpy(display_runtime, &DISPLAY_INFO(i915)->__runtime_defaults,
-	       sizeof(*display_runtime));
+
+	/* Probe display support */
+	info->display = intel_display_device_probe(device_id);
+	memcpy(DISPLAY_RUNTIME_INFO(i915),
+	       &DISPLAY_INFO(i915)->__runtime_defaults,
+	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
 	runtime->device_id = device_id;
 }
