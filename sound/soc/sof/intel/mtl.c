@@ -613,6 +613,36 @@ static u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
 	return ((u64)llp_u << 32) | llp_l;
 }
 
+static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
+{
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+
+	if (core == SOF_DSP_PRIMARY_CORE)
+		return mtl_dsp_core_power_up(sdev, SOF_DSP_PRIMARY_CORE);
+
+	if (pm_ops->set_core_state)
+		return pm_ops->set_core_state(sdev, core, true);
+
+	return 0;
+}
+
+static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
+{
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	int ret;
+
+	if (pm_ops->set_core_state) {
+		ret = pm_ops->set_core_state(sdev, core, false);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (core == SOF_DSP_PRIMARY_CORE)
+		return mtl_dsp_core_power_down(sdev, SOF_DSP_PRIMARY_CORE);
+
+	return 0;
+}
+
 /* Meteorlake ops */
 struct snd_sof_dsp_ops sof_mtl_ops;
 EXPORT_SYMBOL_NS(sof_mtl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
@@ -649,7 +679,8 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	sof_mtl_ops.parse_platform_ext_manifest = NULL;
 
 	/* dsp core get/put */
-	/* TODO: add core_get and core_put */
+	sof_mtl_ops.core_get = mtl_dsp_core_get;
+	sof_mtl_ops.core_put = mtl_dsp_core_put;
 
 	sof_mtl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
 
