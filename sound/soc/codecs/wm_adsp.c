@@ -15,7 +15,6 @@
 #include <linux/firmware.h>
 #include <linux/list.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>

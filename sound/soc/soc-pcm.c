@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>

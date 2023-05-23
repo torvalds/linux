@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <linux/pm_runtime.h>
 #include "fsl_sai.h"
 #include "fsl_audmix.h"
 
