@@ -183,6 +183,14 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	tasklet_init(&crypto_engine->done_task, aspeed_hace_crypto_done_task,
 		     (unsigned long)hace_dev);
 
+#ifdef CONFIG_MACH_ASPEED_G7
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		dev_warn(&pdev->dev, "No suitable DMA available\n");
+		goto err_engine_crypto_start;
+	}
+#endif
+
 	/* Allocate DMA buffer for hash engine input used */
 	hash_engine->ahash_src_addr =
 		dmam_alloc_coherent(&pdev->dev,
