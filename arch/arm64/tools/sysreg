@@ -93,6 +93,11 @@ Res0	63:32
 Field	31:0	DTRTX
 EndSysreg
 
+Sysreg	OSECCR_EL1	2	0	0	6	2
+Res0	63:32
+Field	31:0	EDECCR
+EndSysreg
+
 Sysreg	OSLAR_EL1	2	0	1	0	4
 Res0	63:1
 Field	0	OSLK
