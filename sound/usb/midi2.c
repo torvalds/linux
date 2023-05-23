@@ -892,15 +892,39 @@ static int set_altset(struct snd_usb_midi2_interface *umidi)
 				 umidi->hostif->desc.bAlternateSetting);
 }
 
+/* fill UMP Endpoint name string from USB descriptor */
+static void fill_ump_ep_name(struct snd_ump_endpoint *ump,
+			     struct usb_device *dev, int id)
+{
+	usb_string(dev, id, ump->info.name, sizeof(ump->info.name));
+}
+
 /* fill the fallback name string for each rawmidi instance */
 static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 {
+	struct usb_device *dev = umidi->chip->dev;
 	struct snd_usb_midi2_ump *rmidi;
+	struct snd_ump_endpoint *ump;
 
 	list_for_each_entry(rmidi, &umidi->rawmidi_list, list) {
-		if (!*rmidi->ump->core.name)
-			sprintf(rmidi->ump->core.name, "USB MIDI %d",
-				rmidi->index);
+		ump = rmidi->ump;
+		/* fill UMP EP name from USB descriptors */
+		if (!*ump->info.name && umidi->hostif->desc.iInterface)
+			fill_ump_ep_name(ump, dev, umidi->hostif->desc.iInterface);
+		else if (!*ump->info.name && dev->descriptor.iProduct)
+			fill_ump_ep_name(ump, dev, dev->descriptor.iProduct);
+		/* fill fallback name */
+		if (!*ump->info.name)
+			sprintf(ump->info.name, "USB MIDI %d", rmidi->index);
+		/* copy as rawmidi name if not set */
+		if (!*ump->core.name)
+			strscpy(ump->core.name, ump->info.name,
+				sizeof(ump->core.name));
+		/* use serial number string as unique UMP product id */
+		if (!*ump->info.product_id && dev->descriptor.iSerialNumber)
+			usb_string(dev, dev->descriptor.iSerialNumber,
+				   ump->info.product_id,
+				   sizeof(ump->info.product_id));
 	}
 }
 
