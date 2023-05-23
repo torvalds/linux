@@ -1374,16 +1374,13 @@ static int mlx4_mf_bond(struct mlx4_dev *dev)
 	int nvfs;
 	struct mlx4_slaves_pport slaves_port1;
 	struct mlx4_slaves_pport slaves_port2;
-	DECLARE_BITMAP(slaves_port_1_2, MLX4_MFUNC_MAX);
 
 	slaves_port1 = mlx4_phys_to_slaves_pport(dev, 1);
 	slaves_port2 = mlx4_phys_to_slaves_pport(dev, 2);
-	bitmap_and(slaves_port_1_2,
-		   slaves_port1.slaves, slaves_port2.slaves,
-		   dev->persist->num_vfs + 1);
 
 	/* only single port vfs are allowed */
-	if (bitmap_weight(slaves_port_1_2, dev->persist->num_vfs + 1) > 1) {
+	if (bitmap_weight_and(slaves_port1.slaves, slaves_port2.slaves,
+			      dev->persist->num_vfs + 1) > 1) {
 		mlx4_warn(dev, "HA mode unsupported for dual ported VFs\n");
 		return -EINVAL;
 	}
