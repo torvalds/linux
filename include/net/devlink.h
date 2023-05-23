@@ -1516,7 +1516,7 @@ struct devlink_ops {
 	/**
 	 * port_del() - Delete a port function
 	 * @devlink: Devlink instance
-	 * @port_index: port function index to delete
+	 * @port: The devlink port
 	 * @extack: extack for reporting error messages
 	 *
 	 * Devlink core will call this device driver function upon user request
@@ -1528,7 +1528,7 @@ struct devlink_ops {
 	 *
 	 * Return: 0 on success, negative value otherwise.
 	 */
-	int (*port_del)(struct devlink *devlink, unsigned int port_index,
+	int (*port_del)(struct devlink *devlink, struct devlink_port *port,
 			struct netlink_ext_ack *extack);
 	/**
 	 * port_fn_state_get() - Get the state of a port function

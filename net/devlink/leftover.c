@@ -1396,20 +1396,14 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,
 					struct genl_info *info)
 {
+	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
-	unsigned int port_index;
 
 	if (!devlink->ops->port_del)
 		return -EOPNOTSUPP;
 
-	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_INDEX)) {
-		NL_SET_ERR_MSG(extack, "Port index is not specified");
-		return -EINVAL;
-	}
-	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
-
-	return devlink->ops->port_del(devlink, port_index, extack);
+	return devlink->ops->port_del(devlink, devlink_port, extack);
 }
 
 static int
@@ -6341,6 +6335,7 @@ const struct genl_small_ops devlink_nl_ops[56] = {
 		.cmd = DEVLINK_CMD_PORT_DEL,
 		.doit = devlink_nl_cmd_port_del_doit,
 		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT,
 	},
 	{
 		.cmd = DEVLINK_CMD_LINECARD_GET,
