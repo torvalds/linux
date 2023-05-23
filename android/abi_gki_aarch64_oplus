@@ -2793,6 +2793,7 @@
   __traceiter_android_vh_clear_mask_adjust
   __traceiter_android_vh_clear_reserved_fmt_fields
   __traceiter_android_vh_cma_drain_all_pages_bypass
+  __traceiter_android_vh_cleanup_old_buffers_bypass
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_cpufreq_acct_update_power
   __traceiter_android_vh_cpufreq_fast_switch
@@ -2806,6 +2807,7 @@
   __traceiter_android_vh_do_page_trylock
   __traceiter_android_vh_do_send_sig_info
   __traceiter_android_vh_do_traversal_lruvec
+  __traceiter_android_vh_dm_bufio_shrink_scan_bypass
   __traceiter_android_vh_drain_all_pages_bypass
   __traceiter_android_vh_em_cpu_energy
   __traceiter_android_vh_exclude_reserved_zone
@@ -3047,6 +3049,7 @@
   __tracepoint_android_vh_clear_mask_adjust
   __tracepoint_android_vh_clear_reserved_fmt_fields
   __tracepoint_android_vh_cma_drain_all_pages_bypass
+  __tracepoint_android_vh_cleanup_old_buffers_bypass
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_cpufreq_acct_update_power
   __tracepoint_android_vh_cpufreq_fast_switch
@@ -3056,6 +3059,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
   __tracepoint_android_vh_del_page_from_lrulist
+  __tracepoint_android_vh_dm_bufio_shrink_scan_bypass
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_do_page_trylock
   __tracepoint_android_vh_do_send_sig_info
