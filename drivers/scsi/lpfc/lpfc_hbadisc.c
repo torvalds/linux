@@ -458,11 +458,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_type & NLP_FABRIC) {
 		spin_lock_irqsave(&ndlp->lock, iflags);
 
-		/* In massive vport configuration settings or when the FLOGI
-		 * completes with a sequence timeout, it's possible
-		 * dev_loss_tmo fired during node recovery.  The driver has to
-		 * account for this race to allow for recovery and keep
-		 * the reference counting correct.
+		/* The driver has to account for a race between any fabric
+		 * node that's in recovery when dev_loss_tmo expires. When this
+		 * happens, the driver has to allow node recovery.
 		 */
 		switch (ndlp->nlp_DID) {
 		case Fabric_DID:
@@ -488,6 +486,17 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 			if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
 			    ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE)
 				recovering = true;
+			break;
+		default:
+			/* Ensure the nlp_DID at least has the correct prefix.
+			 * The fabric domain controller's last three nibbles
+			 * vary so we handle it in the default case.
+			 */
+			if (ndlp->nlp_DID & Fabric_DID_MASK) {
+				if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
+				    ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE)
+					recovering = true;
+			}
 			break;
 		}
 		spin_unlock_irqrestore(&ndlp->lock, iflags);
