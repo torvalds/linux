@@ -992,6 +992,25 @@ static void phylink_resolve_an_pause(struct phylink_link_state *state)
 	}
 }
 
+static int phylink_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+			      const struct phylink_link_state *state,
+			      bool permit_pause_to_mac)
+{
+	if (!pcs)
+		return 0;
+
+	return pcs->ops->pcs_config(pcs, mode, state->interface,
+				    state->advertising, permit_pause_to_mac);
+}
+
+static void phylink_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+				phy_interface_t interface, int speed,
+				int duplex)
+{
+	if (pcs && pcs->ops->pcs_link_up)
+		pcs->ops->pcs_link_up(pcs, mode, interface, speed, duplex);
+}
+
 static void phylink_pcs_poll_stop(struct phylink *pl)
 {
 	if (pl->cfg_link_an_mode == MLO_AN_INBAND)
@@ -1075,18 +1094,15 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 
 	phylink_mac_config(pl, state);
 
-	if (pl->pcs) {
-		err = pl->pcs->ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
-					       state->interface,
-					       state->advertising,
-					       !!(pl->link_config.pause &
-						  MLO_PAUSE_AN));
-		if (err < 0)
-			phylink_err(pl, "pcs_config failed: %pe\n",
-				    ERR_PTR(err));
-		if (err > 0)
-			restart = true;
-	}
+	err = phylink_pcs_config(pl->pcs, pl->cur_link_an_mode, state,
+				 !!(pl->link_config.pause &
+				    MLO_PAUSE_AN));
+	if (err < 0)
+		phylink_err(pl, "pcs_config failed: %pe\n",
+			    ERR_PTR(err));
+	else if (err > 0)
+		restart = true;
+
 	if (restart)
 		phylink_mac_pcs_an_restart(pl);
 
@@ -1137,11 +1153,9 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	 * restart negotiation if the pcs_config() helper indicates that
 	 * the programmed advertisement has changed.
 	 */
-	ret = pl->pcs->ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
-				       pl->link_config.interface,
-				       pl->link_config.advertising,
-				       !!(pl->link_config.pause &
-					  MLO_PAUSE_AN));
+	ret = phylink_pcs_config(pl->pcs, pl->cur_link_an_mode,
+				 &pl->link_config,
+				 !!(pl->link_config.pause & MLO_PAUSE_AN));
 	if (ret < 0)
 		return ret;
 
@@ -1273,9 +1287,8 @@ static void phylink_link_up(struct phylink *pl,
 
 	pl->cur_interface = link_state.interface;
 
-	if (pl->pcs && pl->pcs->ops->pcs_link_up)
-		pl->pcs->ops->pcs_link_up(pl->pcs, pl->cur_link_an_mode,
-					  pl->cur_interface, speed, duplex);
+	phylink_pcs_link_up(pl->pcs, pl->cur_link_an_mode, pl->cur_interface,
+			    speed, duplex);
 
 	pl->mac_ops->mac_link_up(pl->config, pl->phydev, pl->cur_link_an_mode,
 				 pl->cur_interface, speed, duplex,
