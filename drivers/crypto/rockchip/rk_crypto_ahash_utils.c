@@ -286,7 +286,6 @@ int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct rk_crypto_algt *algt = rk_ahash_get_algt(tfm);
 	struct scatterlist *src_sg;
-	unsigned long flags;
 	unsigned int nbytes;
 	int ret = 0;
 
@@ -378,14 +377,12 @@ int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 		     ctx->hash_tmp_len, ctx->lastc_len, nbytes);
 
 	if (nbytes) {
-		spin_lock_irqsave(&rk_dev->lock, flags);
 		if (ctx->calc_cnt == 0)
 			alg_ctx->ops.hw_init(rk_dev, algt->algo, algt->type);
 
 		/* flush all 64byte key buffer for hmac */
 		alg_ctx->ops.hw_write_key(ctx->rk_dev, ctx->authkey, sizeof(ctx->authkey));
 		ret = rk_ahash_set_data_start(rk_dev, rctx->flag);
-		spin_unlock_irqrestore(&rk_dev->lock, flags);
 	}
 exit:
 	return ret;

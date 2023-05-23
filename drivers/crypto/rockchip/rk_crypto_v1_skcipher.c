@@ -269,7 +269,6 @@ static int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 	struct skcipher_request *req =
 		skcipher_request_cast(rk_dev->async_req);
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
-	unsigned long flags;
 	int err = 0;
 
 	alg_ctx->left_bytes = req->cryptlen;
@@ -281,10 +280,9 @@ static int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 	alg_ctx->req_dst    = req->dst;
 	alg_ctx->dst_nents  = sg_nents_for_len(req->dst, req->cryptlen);
 
-	spin_lock_irqsave(&rk_dev->lock, flags);
 	rk_ablk_hw_init(rk_dev);
 	err = rk_set_data_start(rk_dev);
-	spin_unlock_irqrestore(&rk_dev->lock, flags);
+
 	return err;
 }
 

@@ -331,7 +331,6 @@ int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct rk_crypto_algt *algt = rk_cipher_get_algt(tfm);
 	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
-	unsigned long flags;
 	int err = 0;
 
 	alg_ctx->left_bytes = req->cryptlen;
@@ -345,10 +344,9 @@ int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 
 	CRYPTO_TRACE("total = %u", alg_ctx->total);
 
-	spin_lock_irqsave(&rk_dev->lock, flags);
 	alg_ctx->ops.hw_init(rk_dev, algt->algo, algt->mode);
 	err = rk_set_data_start(rk_dev);
-	spin_unlock_irqrestore(&rk_dev->lock, flags);
+
 	return err;
 }
 
@@ -443,7 +441,6 @@ int rk_aead_start(struct rk_crypto_dev *rk_dev)
 	struct rk_crypto_algt *algt = rk_aead_get_algt(tfm);
 	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
 	unsigned int total = 0, authsize;
-	unsigned long flags;
 	int err = 0;
 
 	total = req->cryptlen + req->assoclen;
@@ -464,10 +461,9 @@ int rk_aead_start(struct rk_crypto_dev *rk_dev)
 	CRYPTO_TRACE("is_enc = %d, authsize = %u, cryptlen = %u, total = %u, assoclen = %u",
 		     ctx->is_enc, authsize, req->cryptlen, alg_ctx->total, alg_ctx->assoclen);
 
-	spin_lock_irqsave(&rk_dev->lock, flags);
 	alg_ctx->ops.hw_init(rk_dev, algt->algo, algt->mode);
 	err = rk_set_data_start(rk_dev);
-	spin_unlock_irqrestore(&rk_dev->lock, flags);
+
 	return err;
 }
 

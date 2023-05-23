@@ -281,9 +281,11 @@ static void rk_crypto_irq_timer_handle(struct timer_list *t)
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
-	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+	struct rk_alg_ctx *alg_ctx;
 
 	spin_lock(&rk_dev->lock);
+
+	alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	rk_dev->stat.irq_cnt++;
 
@@ -390,23 +392,22 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 	struct crypto_async_request *async_req, *backlog;
 	unsigned long flags;
 
+	spin_lock_irqsave(&rk_dev->lock, flags);
 	if (rk_dev->async_req) {
 		dev_err(rk_dev->dev, "%s: Unexpected crypto paths.\n", __func__);
-		return;
+		goto exit;
 	}
 
 	rk_dev->err = 0;
-	spin_lock_irqsave(&rk_dev->lock, flags);
+
 	backlog   = crypto_get_backlog(&rk_dev->queue);
 	async_req = crypto_dequeue_request(&rk_dev->queue);
 
 	if (!async_req) {
 		rk_dev->busy = false;
-		spin_unlock_irqrestore(&rk_dev->lock, flags);
-		return;
+		goto exit;
 	}
 	rk_dev->stat.dequeue_cnt++;
-	spin_unlock_irqrestore(&rk_dev->lock, flags);
 
 	if (backlog) {
 		backlog->complete(backlog, -EINPROGRESS);
@@ -417,15 +418,22 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 	rk_dev->err = rk_start_op(rk_dev);
 	if (rk_dev->err)
 		rk_complete_op(rk_dev, rk_dev->err);
+
+exit:
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
 }
 
 static void rk_crypto_done_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct rk_alg_ctx *alg_ctx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rk_dev->lock, flags);
 
 	if (!rk_dev->async_req) {
 		dev_err(rk_dev->dev, "done task receive invalid async_req\n");
+		spin_unlock_irqrestore(&rk_dev->lock, flags);
 		return;
 	}
 
@@ -447,9 +455,12 @@ static void rk_crypto_done_task_cb(unsigned long data)
 	if (rk_dev->err)
 		goto exit;
 
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
+
 	return;
 exit:
 	rk_complete_op(rk_dev, rk_dev->err);
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
 }
 
 static struct rk_crypto_algt *rk_crypto_find_algs(struct rk_crypto_dev *rk_dev,
