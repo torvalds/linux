@@ -896,7 +896,14 @@ static int set_altset(struct snd_usb_midi2_interface *umidi)
 static void fill_ump_ep_name(struct snd_ump_endpoint *ump,
 			     struct usb_device *dev, int id)
 {
+	int len;
+
 	usb_string(dev, id, ump->info.name, sizeof(ump->info.name));
+
+	/* trim superfluous "MIDI" suffix */
+	len = strlen(ump->info.name);
+	if (len > 5 && !strcmp(ump->info.name + len - 5, " MIDI"))
+		ump->info.name[len - 5] = 0;
 }
 
 /* fill the fallback name string for each rawmidi instance */
