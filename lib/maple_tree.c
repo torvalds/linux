@@ -5750,7 +5750,11 @@ EXPORT_SYMBOL_GPL(mas_next_range);
  * @index: The start index
  * @max: The maximum index to check
  *
- * Return: The entry at @index or higher, or %NULL if nothing is found.
+ * Takes RCU read lock internally to protect the search, which does not
+ * protect the returned pointer after dropping RCU read lock.
+ * See also: Documentation/core-api/maple_tree.rst
+ *
+ * Return: The entry higher than @index or %NULL if nothing is found.
  */
 void *mt_next(struct maple_tree *mt, unsigned long index, unsigned long max)
 {
@@ -5856,7 +5860,11 @@ EXPORT_SYMBOL_GPL(mas_prev_range);
  * @index: The start index
  * @min: The minimum index to check
  *
- * Return: The entry at @index or lower, or %NULL if nothing is found.
+ * Takes RCU read lock internally to protect the search, which does not
+ * protect the returned pointer after dropping RCU read lock.
+ * See also: Documentation/core-api/maple_tree.rst
+ *
+ * Return: The entry before @index or %NULL if nothing is found.
  */
 void *mt_prev(struct maple_tree *mt, unsigned long index, unsigned long min)
 {
@@ -6468,9 +6476,15 @@ EXPORT_SYMBOL(mtree_destroy);
  * mt_find() - Search from the start up until an entry is found.
  * @mt: The maple tree
  * @index: Pointer which contains the start location of the search
- * @max: The maximum value to check
+ * @max: The maximum value of the search range
  *
- * Handles locking.  @index will be incremented to one beyond the range.
+ * Takes RCU read lock internally to protect the search, which does not
+ * protect the returned pointer after dropping RCU read lock.
+ * See also: Documentation/core-api/maple_tree.rst
+ *
+ * In case that an entry is found @index is updated to point to the next
+ * possible entry independent whether the found entry is occupying a
+ * single index or a range if indices.
  *
  * Return: The entry at or after the @index or %NULL
  */
@@ -6528,7 +6542,9 @@ EXPORT_SYMBOL(mt_find);
  * @index: Pointer which contains the start location of the search
  * @max: The maximum value to check
  *
- * Handles locking, detects wrapping on index == 0
+ * Same as mt_find() except that it checks @index for 0 before
+ * searching. If @index == 0, the search is aborted. This covers a wrap
+ * around of @index to 0 in an iterator loop.
  *
  * Return: The entry at or after the @index or %NULL
  */
