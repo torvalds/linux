@@ -877,12 +877,17 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 			stream->oa_buffer.last_ctx_id = ctx_id;
 		}
 
-		/*
-		 * Clear out the report id and timestamp as a means to detect unlanded
-		 * reports.
-		 */
-		oa_report_id_clear(stream, report32);
-		oa_timestamp_clear(stream, report32);
+		if (is_power_of_2(report_size)) {
+			/*
+			 * Clear out the report id and timestamp as a means
+			 * to detect unlanded reports.
+			 */
+			oa_report_id_clear(stream, report32);
+			oa_timestamp_clear(stream, report32);
+		} else {
+			/* Zero out the entire report */
+			memset(report32, 0, report_size);
+		}
 	}
 
 	if (start_offset != *offset) {
