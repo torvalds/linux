@@ -487,7 +487,7 @@ static int xpcs_aneg_done_c73(struct dw_xpcs *xpcs,
 		return ret;
 
 	if (ret & MDIO_AN_STAT1_COMPLETE) {
-		ret = xpcs_read(xpcs, MDIO_MMD_AN, DW_SR_AN_LP_ABL1);
+		ret = xpcs_read(xpcs, MDIO_MMD_AN, MDIO_AN_LPA);
 		if (ret < 0)
 			return ret;
 
@@ -506,7 +506,8 @@ static int xpcs_aneg_done_c73(struct dw_xpcs *xpcs,
 static int xpcs_read_lpa_c73(struct dw_xpcs *xpcs,
 			     struct phylink_link_state *state)
 {
-	int ret;
+	u16 lpa[3];
+	int i, ret;
 
 	ret = xpcs_read(xpcs, MDIO_MMD_AN, MDIO_STAT1);
 	if (ret < 0)
@@ -519,32 +520,26 @@ static int xpcs_read_lpa_c73(struct dw_xpcs *xpcs,
 
 	phylink_set(state->lp_advertising, Autoneg);
 
-	/* Clause 73 outcome */
-	ret = xpcs_read(xpcs, MDIO_MMD_AN, DW_SR_AN_LP_ABL3);
-	if (ret < 0)
-		return ret;
+	/* Read Clause 73 link partner advertisement */
+	for (i = ARRAY_SIZE(lpa); --i >= 0; ) {
+		ret = xpcs_read(xpcs, MDIO_MMD_AN, MDIO_AN_LPA + i);
+		if (ret < 0)
+			return ret;
 
-	if (ret & DW_C73_2500KX)
+		lpa[i] = ret;
+	}
+
+	if (lpa[2] & DW_C73_2500KX)
 		phylink_set(state->lp_advertising, 2500baseX_Full);
-
-	ret = xpcs_read(xpcs, MDIO_MMD_AN, DW_SR_AN_LP_ABL2);
-	if (ret < 0)
-		return ret;
-
-	if (ret & DW_C73_1000KX)
+	if (lpa[1] & DW_C73_1000KX)
 		phylink_set(state->lp_advertising, 1000baseKX_Full);
-	if (ret & DW_C73_10000KX4)
+	if (lpa[1] & DW_C73_10000KX4)
 		phylink_set(state->lp_advertising, 10000baseKX4_Full);
-	if (ret & DW_C73_10000KR)
+	if (lpa[1] & DW_C73_10000KR)
 		phylink_set(state->lp_advertising, 10000baseKR_Full);
-
-	ret = xpcs_read(xpcs, MDIO_MMD_AN, DW_SR_AN_LP_ABL1);
-	if (ret < 0)
-		return ret;
-
-	if (ret & DW_C73_PAUSE)
+	if (lpa[0] & DW_C73_PAUSE)
 		phylink_set(state->lp_advertising, Pause);
-	if (ret & DW_C73_ASYM_PAUSE)
+	if (lpa[0] & DW_C73_ASYM_PAUSE)
 		phylink_set(state->lp_advertising, Asym_Pause);
 
 	linkmode_and(state->lp_advertising, state->lp_advertising,
