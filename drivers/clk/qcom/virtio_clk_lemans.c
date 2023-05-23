@@ -124,6 +124,16 @@ static const struct virtio_clk_init_data lemans_gcc_virtio_clocks[] = {
 				.parent_names = lemans_gcc_parent_names_pcie_1,
 				.num_parents = ARRAY_SIZE(lemans_gcc_parent_names_pcie_1),
 				},
+	[GCC_EDP_REF_CLKREF_EN] = {.name = "gcc_edp_ref_clkref_en",},
+	[GCC_UFS_CARD_PHY_AUX_CLK] = {.name = "gcc_ufs_card_phy_aux_clk",},
+	[GCC_UFS_CARD_AXI_CLK] = {.name = "gcc_ufs_card_axi_clk",},
+	[GCC_AGGRE_UFS_CARD_AXI_CLK] = {.name = "gcc_aggre_ufs_card_axi_clk",},
+	[GCC_UFS_CARD_AHB_CLK] = {.name = "gcc_ufs_card_ahb_clk",},
+	[GCC_UFS_CARD_UNIPRO_CORE_CLK] = {.name = "gcc_ufs_card_unipro_core_clk",},
+	[GCC_UFS_CARD_ICE_CORE_CLK] = {.name = "gcc_ufs_card_ice_core_clk",},
+	[GCC_UFS_CARD_TX_SYMBOL_0_CLK] = {.name = "gcc_ufs_card_tx_symbol_0_clk",},
+	[GCC_UFS_CARD_RX_SYMBOL_0_CLK] = {.name = "gcc_ufs_card_rx_symbol_0_clk",},
+	[GCC_UFS_CARD_RX_SYMBOL_1_CLK] = {.name = "gcc_ufs_card_rx_symbol_1_clk",},
 };
 
 static const char * const lemans_gcc_virtio_resets[] = {
@@ -141,6 +151,7 @@ static const char * const lemans_gcc_virtio_resets[] = {
 	[GCC_PCIE_0_PHY_BCR] = "gcc_pcie_0_phy_bcr",
 	[GCC_PCIE_1_BCR] = "gcc_pcie_1_bcr",
 	[GCC_PCIE_1_PHY_BCR] = "gcc_pcie_1_phy_bcr",
+	[GCC_UFS_CARD_BCR] = "gcc_ufs_card_bcr",
 };
 
 const struct clk_virtio_desc clk_virtio_lemans_gcc = {
