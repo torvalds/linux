@@ -529,18 +529,7 @@ static int xpcs_read_lpa_c73(struct dw_xpcs *xpcs,
 		lpa[i] = ret;
 	}
 
-	if (lpa[2] & DW_C73_2500KX)
-		phylink_set(state->lp_advertising, 2500baseX_Full);
-	if (lpa[1] & DW_C73_1000KX)
-		phylink_set(state->lp_advertising, 1000baseKX_Full);
-	if (lpa[1] & DW_C73_10000KX4)
-		phylink_set(state->lp_advertising, 10000baseKX4_Full);
-	if (lpa[1] & DW_C73_10000KR)
-		phylink_set(state->lp_advertising, 10000baseKR_Full);
-	if (lpa[0] & DW_C73_PAUSE)
-		phylink_set(state->lp_advertising, Pause);
-	if (lpa[0] & DW_C73_ASYM_PAUSE)
-		phylink_set(state->lp_advertising, Asym_Pause);
+	mii_c73_mod_linkmode(state->lp_advertising, lpa);
 
 	linkmode_and(state->lp_advertising, state->lp_advertising,
 		     state->advertising);
