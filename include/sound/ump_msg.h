@@ -192,13 +192,13 @@ struct snd_ump_midi1_msg_program {
 	u32 program:8;
 	u32 reserved:8;
 #else
-#endif
 	u32 reserved:8;
 	u32 program:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
 	u32 type:4;
+#endif
 } __packed;
 
 /* MIDI 1.0 Channel Pressure (32bit) */
