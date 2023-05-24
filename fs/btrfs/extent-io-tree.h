@@ -43,6 +43,15 @@ enum {
 	 * want the extent states to go away.
 	 */
 	ENUM_BIT(EXTENT_CLEAR_ALL_BITS),
+
+	/*
+	 * This must be last.
+	 *
+	 * Bit not representing a state but a request for NOWAIT semantics,
+	 * e.g. when allocating memory, and must be masked out from the other
+	 * bits.
+	 */
+	ENUM_BIT(EXTENT_NOWAIT)
 };
 
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \

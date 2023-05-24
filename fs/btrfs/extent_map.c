@@ -365,8 +365,8 @@ static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
 		struct btrfs_device *device = stripe->dev;
 
 		set_extent_bit(&device->alloc_state, stripe->physical,
-			       stripe->physical + stripe_size - 1, bits, NULL,
-			       GFP_NOWAIT);
+			       stripe->physical + stripe_size - 1,
+			       bits | EXTENT_NOWAIT, NULL, GFP_NOWAIT);
 	}
 }
 
@@ -381,7 +381,8 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 		struct btrfs_device *device = stripe->dev;
 
 		__clear_extent_bit(&device->alloc_state, stripe->physical,
-				   stripe->physical + stripe_size - 1, bits,
+				   stripe->physical + stripe_size - 1,
+				   bits | EXTENT_NOWAIT,
 				   NULL, GFP_NOWAIT, NULL);
 	}
 }

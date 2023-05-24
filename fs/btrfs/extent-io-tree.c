@@ -533,6 +533,16 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 }
 
 /*
+ * Detect if extent bits request NOWAIT semantics and set the gfp mask accordingly,
+ * unset the EXTENT_NOWAIT bit.
+ */
+static void set_gfp_mask_from_bits(u32 *bits, gfp_t *mask)
+{
+	*mask = (*bits & EXTENT_NOWAIT ? GFP_NOWAIT : GFP_NOFS);
+	*bits &= EXTENT_NOWAIT - 1;
+}
+
+/*
  * Clear some bits on a range in the tree.  This may require splitting or
  * inserting elements in the tree, so the gfp mask is used to indicate which
  * allocations or sleeping are allowed.
@@ -557,6 +567,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int wake;
 	int delete = (bits & EXTENT_CLEAR_ALL_BITS);
 
+	set_gfp_mask_from_bits(&bits, &mask);
 	btrfs_debug_check_extent_io_range(tree, start, end);
 	trace_btrfs_clear_extent_bit(tree, start, end - start + 1, bits);
 
@@ -979,6 +990,7 @@ static int __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_end;
 	u32 exclusive_bits = (bits & EXTENT_LOCKED);
 
+	set_gfp_mask_from_bits(&bits, &mask);
 	btrfs_debug_check_extent_io_range(tree, start, end);
 	trace_btrfs_set_extent_bit(tree, start, end - start + 1, bits);
 
