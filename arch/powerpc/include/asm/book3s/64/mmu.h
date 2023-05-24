@@ -261,7 +261,7 @@ static inline void radix_init_pseries(void) { }
 #define arch_clear_mm_cpumask_cpu(cpu, mm)				\
 	do {								\
 		if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {		\
-			atomic_dec(&(mm)->context.active_cpus);		\
+			dec_mm_active_cpus(mm);				\
 			cpumask_clear_cpu(cpu, mm_cpumask(mm));		\
 		}							\
 	} while (0)

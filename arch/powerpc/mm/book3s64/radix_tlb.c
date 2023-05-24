@@ -820,7 +820,7 @@ void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 	 * that's what the caller expects.
 	 */
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
-		atomic_dec(&mm->context.active_cpus);
+		dec_mm_active_cpus(mm);
 		cpumask_clear_cpu(cpu, mm_cpumask(mm));
 		always_flush = true;
 	}
