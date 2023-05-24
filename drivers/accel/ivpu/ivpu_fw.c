@@ -11,6 +11,7 @@
 #include "vpu_boot_api.h"
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
@@ -158,6 +159,10 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->cold_boot_entry_point = fw_hdr->entry_point;
 	fw->entry_point = fw->cold_boot_entry_point;
 
+	fw->trace_level = min_t(u32, ivpu_log_level, IVPU_FW_LOG_FATAL);
+	fw->trace_destination_mask = VPU_TRACE_DESTINATION_VERBOSE_TRACING;
+	fw->trace_hw_component_mask = -1;
+
 	ivpu_dbg(vdev, FW_BOOT, "Size: file %lu image %u runtime %u shavenn %u\n",
 		 fw->file->size, fw->image_size, fw->runtime_size, fw->shave_nn_size);
 	ivpu_dbg(vdev, FW_BOOT, "Address: runtime 0x%llx, load 0x%llx, entry point 0x%llx\n",
@@ -189,6 +194,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
+	int log_verb_size;
 	int ret;
 
 	ret = ivpu_fw_update_global_range(vdev);
@@ -201,17 +207,45 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 		return -ENOMEM;
 	}
 
+	fw->mem_log_crit = ivpu_bo_alloc_internal(vdev, 0, IVPU_FW_CRITICAL_BUFFER_SIZE,
+						  DRM_IVPU_BO_CACHED);
+	if (!fw->mem_log_crit) {
+		ivpu_err(vdev, "Failed to allocate critical log buffer\n");
+		ret = -ENOMEM;
+		goto err_free_fw_mem;
+	}
+
+	if (ivpu_log_level <= IVPU_FW_LOG_INFO)
+		log_verb_size = IVPU_FW_VERBOSE_BUFFER_LARGE_SIZE;
+	else
+		log_verb_size = IVPU_FW_VERBOSE_BUFFER_SMALL_SIZE;
+
+	fw->mem_log_verb = ivpu_bo_alloc_internal(vdev, 0, log_verb_size, DRM_IVPU_BO_CACHED);
+	if (!fw->mem_log_verb) {
+		ivpu_err(vdev, "Failed to allocate verbose log buffer\n");
+		ret = -ENOMEM;
+		goto err_free_log_crit;
+	}
+
 	if (fw->shave_nn_size) {
 		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.global_high.start,
 							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
-			ivpu_bo_free_internal(fw->mem);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_free_log_verb;
 		}
 	}
 
 	return 0;
+
+err_free_log_verb:
+	ivpu_bo_free_internal(fw->mem_log_verb);
+err_free_log_crit:
+	ivpu_bo_free_internal(fw->mem_log_crit);
+err_free_fw_mem:
+	ivpu_bo_free_internal(fw->mem);
+	return ret;
 }
 
 static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
@@ -223,7 +257,12 @@ static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
 		fw->mem_shave_nn = NULL;
 	}
 
+	ivpu_bo_free_internal(fw->mem_log_verb);
+	ivpu_bo_free_internal(fw->mem_log_crit);
 	ivpu_bo_free_internal(fw->mem);
+
+	fw->mem_log_verb = NULL;
+	fw->mem_log_crit = NULL;
 	fw->mem = NULL;
 }
 
@@ -423,6 +462,15 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->min_freq_pll_ratio = vdev->hw->pll.min_ratio;
 	boot_params->pn_freq_pll_ratio = vdev->hw->pll.pn_ratio;
 	boot_params->max_freq_pll_ratio = vdev->hw->pll.max_ratio;
+
+	boot_params->default_trace_level = vdev->fw->trace_level;
+	boot_params->tracing_buff_message_format_mask = BIT(VPU_TRACING_FORMAT_STRING);
+	boot_params->trace_destination_mask = vdev->fw->trace_destination_mask;
+	boot_params->trace_hw_component_mask = vdev->fw->trace_hw_component_mask;
+	boot_params->crit_tracing_buff_addr = vdev->fw->mem_log_crit->vpu_addr;
+	boot_params->crit_tracing_buff_size = vdev->fw->mem_log_crit->base.size;
+	boot_params->verbose_tracing_buff_addr = vdev->fw->mem_log_verb->vpu_addr;
+	boot_params->verbose_tracing_buff_size = vdev->fw->mem_log_verb->base.size;
 
 	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);

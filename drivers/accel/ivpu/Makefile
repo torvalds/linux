@@ -5,6 +5,7 @@ intel_vpu-y := \
 	ivpu_debugfs.o \
 	ivpu_drv.o \
 	ivpu_fw.o \
+	ivpu_fw_log.o \
 	ivpu_gem.o \
 	ivpu_hw_mtl.o \
 	ivpu_ipc.o \
