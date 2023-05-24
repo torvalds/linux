@@ -280,7 +280,19 @@ enum btrfs_read_policy {
 
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
+
+	/*
+	 * UUID written into the btree blocks:
+	 *
+	 * - If metadata_uuid != fsid then super block must have
+	 *   BTRFS_FEATURE_INCOMPAT_METADATA_UUID flag set.
+	 *
+	 * - Following shall be true at all times:
+	 *   - metadata_uuid == btrfs_header::fsid
+	 *   - metadata_uuid == btrfs_dev_item::fsid
+	 */
 	u8 metadata_uuid[BTRFS_FSID_SIZE];
+
 	struct list_head fs_list;
 
 	/*
