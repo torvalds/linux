@@ -413,16 +413,20 @@ static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_diversity_iter_data *data = _data;
-	int i;
+	int i, link_id;
 
-	if (mvmvif->deflink.phy_ctxt != data->ctxt)
-		return;
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 
-	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
-			data->result = false;
-			break;
+		if (link_info->phy_ctxt != data->ctxt)
+			continue;
+
+		for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+			if (link_info->smps_requests[i] == IEEE80211_SMPS_STATIC ||
+			    link_info->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+				data->result = false;
+				break;
+			}
 		}
 	}
 }
