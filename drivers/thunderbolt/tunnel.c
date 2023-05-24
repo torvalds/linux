@@ -1137,6 +1137,47 @@ static int tb_dp_init_video_path(struct tb_path *path)
 	return 0;
 }
 
+static void tb_dp_dump(struct tb_tunnel *tunnel)
+{
+	struct tb_port *in, *out;
+	u32 dp_cap, rate, lanes;
+
+	in = tunnel->src_port;
+	out = tunnel->dst_port;
+
+	if (tb_port_read(in, &dp_cap, TB_CFG_PORT,
+			 in->cap_adap + DP_LOCAL_CAP, 1))
+		return;
+
+	rate = tb_dp_cap_get_rate(dp_cap);
+	lanes = tb_dp_cap_get_lanes(dp_cap);
+
+	tb_port_dbg(in, "maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
+		    rate, lanes, tb_dp_bandwidth(rate, lanes));
+
+	out = tunnel->dst_port;
+
+	if (tb_port_read(out, &dp_cap, TB_CFG_PORT,
+			 out->cap_adap + DP_LOCAL_CAP, 1))
+		return;
+
+	rate = tb_dp_cap_get_rate(dp_cap);
+	lanes = tb_dp_cap_get_lanes(dp_cap);
+
+	tb_port_dbg(out, "maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
+		    rate, lanes, tb_dp_bandwidth(rate, lanes));
+
+	if (tb_port_read(in, &dp_cap, TB_CFG_PORT,
+			 in->cap_adap + DP_REMOTE_CAP, 1))
+		return;
+
+	rate = tb_dp_cap_get_rate(dp_cap);
+	lanes = tb_dp_cap_get_lanes(dp_cap);
+
+	tb_port_dbg(in, "reduced bandwidth %u Mb/s x%u = %u Mb/s\n",
+		    rate, lanes, tb_dp_bandwidth(rate, lanes));
+}
+
 /**
  * tb_tunnel_discover_dp() - Discover existing Display Port tunnels
  * @tb: Pointer to the domain structure
@@ -1213,6 +1254,8 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
 		goto err_deactivate;
 	}
+
+	tb_dp_dump(tunnel);
 
 	tb_tunnel_dbg(tunnel, "discovered\n");
 	return tunnel;
