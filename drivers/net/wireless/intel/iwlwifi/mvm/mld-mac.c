@@ -115,16 +115,16 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->cfg.assoc && !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		cmd.client.is_assoc = cpu_to_le32(1);
+		cmd.client.is_assoc = 1;
 
 		if (!mvmvif->authorized &&
 		    fw_has_capa(&mvm->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO))
 			cmd.client.data_policy |=
-				cpu_to_le32(COEX_HIGH_PRIORITY_ENABLE);
+				cpu_to_le16(COEX_HIGH_PRIORITY_ENABLE);
 
 	} else {
-		cmd.client.is_assoc = cpu_to_le32(0);
+		cmd.client.is_assoc = 0;
 
 		/* Allow beacons to pass through as long as we are not
 		 * associated, or we do not have dtim period information.
@@ -132,14 +132,14 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		cmd.filter_flags |= cpu_to_le32(MAC_CFG_FILTER_ACCEPT_BEACON);
 	}
 
-	cmd.client.assoc_id = cpu_to_le32(vif->cfg.aid);
+	cmd.client.assoc_id = cpu_to_le16(vif->cfg.aid);
 
 	if (vif->probe_req_reg && vif->cfg.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_CFG_FILTER_ACCEPT_PROBE_REQ);
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax)
 		cmd.client.data_policy |=
-			iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(mvm, vif);
+			cpu_to_le16(iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(mvm, vif));
 
 	return iwl_mvm_mld_mac_ctxt_send_cmd(mvm, &cmd);
 }

@@ -629,17 +629,17 @@ __le32 iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(struct iwl_mvm *mvm,
 			IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 }
 
-__le32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
-					       struct ieee80211_vif *vif)
+u32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif)
 {
-	__le32 twt_policy = cpu_to_le32(0);
+	u32 twt_policy = 0;
 
 	if (vif->bss_conf.twt_requester && IWL_MVM_USE_TWT)
-		twt_policy |= cpu_to_le32(TWT_SUPPORTED);
+		twt_policy |= TWT_SUPPORTED;
 	if (vif->bss_conf.twt_protected)
-		twt_policy |= cpu_to_le32(PROTECTED_TWT_SUPPORTED);
+		twt_policy |= PROTECTED_TWT_SUPPORTED;
 	if (vif->bss_conf.twt_broadcast)
-		twt_policy |= cpu_to_le32(BROADCAST_TWT_SUPPORTED);
+		twt_policy |= BROADCAST_TWT_SUPPORTED;
 
 	return twt_policy;
 }
@@ -711,7 +711,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
 		ctxt_sta->data_policy |=
-			iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(mvm, vif);
+			cpu_to_le32(iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(mvm, vif));
 	}
 
 
