@@ -13,6 +13,8 @@
 	compatible = "storopack,imx7d-smegw01", "fsl,imx7d";
 
 	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec2;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc3;
 		mmc2 = &usdhc2;
