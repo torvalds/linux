@@ -422,7 +422,8 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 #define CPF			0x00		/* Current pitch and fraction register			*/
 SUB_REG(CPF, CURRENTPITCH,	0xffff0000)	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
 #define CPF_STEREO_MASK		0x00008000	/* 1 = Even channel interleave, odd channel locked	*/
-#define CPF_STOP_MASK		0x00004000	/* 1 = Current pitch forced to 0			*/
+SUB_REG(CPF, STOP,		0x00004000)	/* 1 = Current pitch forced to 0			*/
+						/* Can be set only while matching bit in SOLEx is 1	*/
 #define CPF_FRACADDRESS_MASK	0x00003fff	/* Linear fractional address of the current channel	*/
 
 #define PTRX			0x01		/* Pitch target and send A/B amounts register		*/
@@ -771,6 +772,9 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define CLIPL			0x5a		/* Channel loop interrupt pending low register	*/
 #define CLIPH			0x5b		/* Channel loop interrupt pending high register	*/
 
+// These cause CPF_STOP_MASK to be set shortly after CCCA_CURRADDR passes DSL_LOOPENDADDR.
+// Subsequent changes to the address registers don't resume; clearing the bit here or in CPF does.
+// The registers are NOT synchronized; the next serviced channel picks up immediately.
 #define SOLEL			0x5c		/* Stop on loop enable low register		*/
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
@@ -1476,6 +1480,7 @@ struct snd_emu10k1_pcm {
 	struct snd_emu10k1_voice *extra;
 	unsigned short running;
 	unsigned short first_ptr;
+	snd_pcm_uframes_t resume_pos;
 	struct snd_util_memblk *memblk;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
@@ -1820,6 +1825,9 @@ void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int 
 void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
 #endif
+void snd_emu10k1_voice_set_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices);
+void snd_emu10k1_voice_clear_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices);
+int snd_emu10k1_voice_clear_loop_stop_multiple_atomic(struct snd_emu10k1 *emu, u64 voices);
 void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait);
 static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
