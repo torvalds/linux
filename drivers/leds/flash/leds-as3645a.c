@@ -651,8 +651,8 @@ static int as3645a_v4l2_setup(struct as3645a *flash)
 		},
 	};
 
-	strlcpy(cfg.dev_name, led->dev->kobj.name, sizeof(cfg.dev_name));
-	strlcpy(cfgind.dev_name, flash->iled_cdev.dev->kobj.name,
+	strscpy(cfg.dev_name, led->dev->kobj.name, sizeof(cfg.dev_name));
+	strscpy(cfgind.dev_name, flash->iled_cdev.dev->kobj.name,
 		sizeof(cfgind.dev_name));
 
 	flash->vf = v4l2_flash_init(
