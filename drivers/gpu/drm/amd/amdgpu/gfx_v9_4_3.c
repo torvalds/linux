@@ -29,7 +29,6 @@
 #include "soc15_common.h"
 #include "vega10_enum.h"
 
-#include "clearstate_gfx9.h"
 #include "v9_structs.h"
 
 #include "ivsrcid/gfx/irqsrcs_gfx_9_0.h"
