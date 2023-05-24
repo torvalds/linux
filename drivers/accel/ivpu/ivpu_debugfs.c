@@ -27,6 +27,15 @@ static int bo_list_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int fw_name_show(struct seq_file *s, void *v)
+{
+	struct drm_info_node *node = (struct drm_info_node *)s->private;
+	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+
+	seq_printf(s, "%s\n", vdev->fw->name);
+	return 0;
+}
+
 static int fw_trace_capability_show(struct seq_file *s, void *v)
 {
 	struct drm_info_node *node = (struct drm_info_node *)s->private;
@@ -97,6 +106,7 @@ static int reset_pending_show(struct seq_file *s, void *v)
 
 static const struct drm_info_list vdev_debugfs_list[] = {
 	{"bo_list", bo_list_show, 0},
+	{"fw_name", fw_name_show, 0},
 	{"fw_trace_capability", fw_trace_capability_show, 0},
 	{"fw_trace_config", fw_trace_config_show, 0},
 	{"last_bootmode", last_bootmode_show, 0},
