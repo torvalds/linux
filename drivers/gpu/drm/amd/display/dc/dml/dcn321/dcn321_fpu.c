@@ -252,14 +252,48 @@ static void remove_entry_from_table_at_index(struct _vcs_dpi_voltage_scaling_st 
 	memset(&table[--(*num_entries)], 0, sizeof(struct _vcs_dpi_voltage_scaling_st));
 }
 
-static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
+/*
+ * override_max_clk_values - Overwrite the max clock frequencies with the max DC mode timings
+ * Input:
+ *	max_clk_limit - struct containing the desired clock timings
+ * Output:
+ *	curr_clk_limit  - struct containing the timings that need to be overwritten
+ * Return: 0 upon success, non-zero for failure
+ */
+static int override_max_clk_values(struct clk_limit_table_entry *max_clk_limit,
+		struct clk_limit_table_entry *curr_clk_limit)
+{
+	if (NULL == max_clk_limit || NULL == curr_clk_limit)
+		return -1; //invalid parameters
+
+	//only overwrite if desired max clock frequency is initialized
+	if (max_clk_limit->dcfclk_mhz != 0)
+		curr_clk_limit->dcfclk_mhz = max_clk_limit->dcfclk_mhz;
+
+	if (max_clk_limit->fclk_mhz != 0)
+		curr_clk_limit->fclk_mhz = max_clk_limit->fclk_mhz;
+
+	if (max_clk_limit->memclk_mhz != 0)
+		curr_clk_limit->memclk_mhz = max_clk_limit->memclk_mhz;
+
+	if (max_clk_limit->socclk_mhz != 0)
+		curr_clk_limit->socclk_mhz = max_clk_limit->socclk_mhz;
+
+	if (max_clk_limit->dtbclk_mhz != 0)
+		curr_clk_limit->dtbclk_mhz = max_clk_limit->dtbclk_mhz;
+
+	if (max_clk_limit->dispclk_mhz != 0)
+		curr_clk_limit->dispclk_mhz = max_clk_limit->dispclk_mhz;
+
+	return 0;
+}
+
+static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk_bw_params *bw_params,
 		struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
 {
 	int i, j;
 	struct _vcs_dpi_voltage_scaling_st entry = {0};
-
-	unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0,
-			max_phyclk_mhz = 0, max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0;
+	struct clk_limit_table_entry max_clk_data = {0};
 
 	unsigned int min_dcfclk_mhz = 199, min_fclk_mhz = 299;
 
@@ -270,53 +304,78 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	unsigned int num_fclk_dpms = 0;
 	unsigned int num_dcfclk_dpms = 0;
 
-	for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
-		if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
-			max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
-		if (bw_params->clk_table.entries[i].fclk_mhz > max_fclk_mhz)
-			max_fclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
-		if (bw_params->clk_table.entries[i].memclk_mhz > max_uclk_mhz)
-			max_uclk_mhz = bw_params->clk_table.entries[i].memclk_mhz;
-		if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
-			max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
-		if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
-			max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
-		if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
-			max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
-		if (bw_params->clk_table.entries[i].dtbclk_mhz > max_dtbclk_mhz)
-			max_dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+	unsigned int num_dc_uclk_dpms = 0;
+	unsigned int num_dc_fclk_dpms = 0;
+	unsigned int num_dc_dcfclk_dpms = 0;
 
-		if (bw_params->clk_table.entries[i].memclk_mhz > 0)
+	for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
+		if (bw_params->clk_table.entries[i].dcfclk_mhz > max_clk_data.dcfclk_mhz)
+			max_clk_data.dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+		if (bw_params->clk_table.entries[i].fclk_mhz > max_clk_data.fclk_mhz)
+			max_clk_data.fclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
+		if (bw_params->clk_table.entries[i].memclk_mhz > max_clk_data.memclk_mhz)
+			max_clk_data.memclk_mhz = bw_params->clk_table.entries[i].memclk_mhz;
+		if (bw_params->clk_table.entries[i].dispclk_mhz > max_clk_data.dispclk_mhz)
+			max_clk_data.dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
+		if (bw_params->clk_table.entries[i].dppclk_mhz > max_clk_data.dppclk_mhz)
+			max_clk_data.dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
+		if (bw_params->clk_table.entries[i].phyclk_mhz > max_clk_data.phyclk_mhz)
+			max_clk_data.phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
+		if (bw_params->clk_table.entries[i].dtbclk_mhz > max_clk_data.dtbclk_mhz)
+			max_clk_data.dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+
+		if (bw_params->clk_table.entries[i].memclk_mhz > 0) {
 			num_uclk_dpms++;
-		if (bw_params->clk_table.entries[i].fclk_mhz > 0)
+			if (bw_params->clk_table.entries[i].memclk_mhz <= bw_params->dc_mode_limit.memclk_mhz)
+				num_dc_uclk_dpms++;
+		}
+		if (bw_params->clk_table.entries[i].fclk_mhz > 0) {
 			num_fclk_dpms++;
-		if (bw_params->clk_table.entries[i].dcfclk_mhz > 0)
+			if (bw_params->clk_table.entries[i].fclk_mhz <= bw_params->dc_mode_limit.fclk_mhz)
+				num_dc_fclk_dpms++;
+		}
+		if (bw_params->clk_table.entries[i].dcfclk_mhz > 0) {
 			num_dcfclk_dpms++;
+			if (bw_params->clk_table.entries[i].dcfclk_mhz <= bw_params->dc_mode_limit.dcfclk_mhz)
+				num_dc_dcfclk_dpms++;
+		}
+	}
+
+	if (!disable_dc_mode_overwrite) {
+		//Overwrite max frequencies with max DC mode frequencies for DC mode systems
+		override_max_clk_values(&bw_params->dc_mode_limit, &max_clk_data);
+		num_uclk_dpms = num_dc_uclk_dpms;
+		num_fclk_dpms = num_dc_fclk_dpms;
+		num_dcfclk_dpms = num_dc_dcfclk_dpms;
+		bw_params->clk_table.num_entries_per_clk.num_memclk_levels = num_uclk_dpms;
+		bw_params->clk_table.num_entries_per_clk.num_fclk_levels = num_fclk_dpms;
 	}
 
 	if (num_dcfclk_dpms > 0 && bw_params->clk_table.entries[0].fclk_mhz > min_fclk_mhz)
 		min_fclk_mhz = bw_params->clk_table.entries[0].fclk_mhz;
 
-	if (!max_dcfclk_mhz || !max_dispclk_mhz || !max_dtbclk_mhz)
+	if (!max_clk_data.dcfclk_mhz || !max_clk_data.dispclk_mhz || !max_clk_data.dtbclk_mhz)
 		return -1;
 
-	if (max_dppclk_mhz == 0)
-		max_dppclk_mhz = max_dispclk_mhz;
+	if (max_clk_data.dppclk_mhz == 0)
+		max_clk_data.dppclk_mhz = max_clk_data.dispclk_mhz;
 
-	if (max_fclk_mhz == 0)
-		max_fclk_mhz = max_dcfclk_mhz * dcn3_21_soc.pct_ideal_sdp_bw_after_urgent / dcn3_21_soc.pct_ideal_fabric_bw_after_urgent;
+	if (max_clk_data.fclk_mhz == 0)
+		max_clk_data.fclk_mhz = max_clk_data.dcfclk_mhz *
+				dcn3_2_soc.pct_ideal_sdp_bw_after_urgent /
+				dcn3_2_soc.pct_ideal_fabric_bw_after_urgent;
 
-	if (max_phyclk_mhz == 0)
-		max_phyclk_mhz = dcn3_21_soc.clock_limits[0].phyclk_mhz;
+	if (max_clk_data.phyclk_mhz == 0)
+		max_clk_data.phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
 
 	*num_entries = 0;
-	entry.dispclk_mhz = max_dispclk_mhz;
-	entry.dscclk_mhz = max_dispclk_mhz / 3;
-	entry.dppclk_mhz = max_dppclk_mhz;
-	entry.dtbclk_mhz = max_dtbclk_mhz;
-	entry.phyclk_mhz = max_phyclk_mhz;
-	entry.phyclk_d18_mhz = dcn3_21_soc.clock_limits[0].phyclk_d18_mhz;
-	entry.phyclk_d32_mhz = dcn3_21_soc.clock_limits[0].phyclk_d32_mhz;
+	entry.dispclk_mhz = max_clk_data.dispclk_mhz;
+	entry.dscclk_mhz = max_clk_data.dispclk_mhz / 3;
+	entry.dppclk_mhz = max_clk_data.dppclk_mhz;
+	entry.dtbclk_mhz = max_clk_data.dtbclk_mhz;
+	entry.phyclk_mhz = max_clk_data.phyclk_mhz;
+	entry.phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
+	entry.phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
 
 	// Insert all the DCFCLK STAs
 	for (i = 0; i < num_dcfclk_stas; i++) {
@@ -328,7 +387,7 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	}
 
 	// Insert the max DCFCLK
-	entry.dcfclk_mhz = max_dcfclk_mhz;
+	entry.dcfclk_mhz = max_clk_data.dcfclk_mhz;
 	entry.fabricclk_mhz = 0;
 	entry.dram_speed_mts = 0;
 
@@ -356,7 +415,7 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	// If FCLK fine grained, only insert max
 	else {
 		entry.dcfclk_mhz = 0;
-		entry.fabricclk_mhz = max_fclk_mhz;
+		entry.fabricclk_mhz = max_clk_data.fclk_mhz;
 		entry.dram_speed_mts = 0;
 
 		dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
@@ -368,9 +427,9 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 
 	// Remove states that require higher clocks than are supported
 	for (i = *num_entries - 1; i >= 0 ; i--) {
-		if (table[i].dcfclk_mhz > max_dcfclk_mhz ||
-				table[i].fabricclk_mhz > max_fclk_mhz ||
-				table[i].dram_speed_mts > max_uclk_mhz * 16)
+		if (table[i].dcfclk_mhz > max_clk_data.dcfclk_mhz ||
+				table[i].fabricclk_mhz > max_clk_data.fclk_mhz ||
+				table[i].dram_speed_mts > max_clk_data.memclk_mhz * 16)
 			remove_entry_from_table_at_index(table, num_entries, i);
 	}
 
@@ -689,7 +748,8 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 			dcn3_21_soc.clock_limits[i].phyclk_d32_mhz = dcn3_21_soc.clock_limits[0].phyclk_d32_mhz;
 		}
 	} else {
-		build_synthetic_soc_states(bw_params, dcn3_21_soc.clock_limits, &dcn3_21_soc.num_states);
+		build_synthetic_soc_states(dc->debug.disable_dc_mode_overwrite, bw_params,
+			dcn3_21_soc.clock_limits, &dcn3_21_soc.num_states);
 	}
 
 	/* Re-init DML with updated bb */
