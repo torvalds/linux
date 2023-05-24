@@ -4360,10 +4360,10 @@ out:
 
 void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   u32 mac_id)
+				   u32 id)
 {
 	struct iwl_cancel_channel_switch_cmd cancel_channel_switch_cmd = {
-		.mac_id = cpu_to_le32(mac_id),
+		.id = cpu_to_le32(id),
 	};
 	int ret;
 

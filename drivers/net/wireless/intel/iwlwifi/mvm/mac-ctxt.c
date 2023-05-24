@@ -1747,20 +1747,44 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_channel_switch_start_notif *notif = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif, *vif;
-	struct iwl_mvm_vif *mvmvif;
-	u32 id_n_color, csa_id, mac_id;
-
-	id_n_color = le32_to_cpu(notif->id_and_color);
-	mac_id = id_n_color & FW_CTXT_ID_MSK;
-
-	if (WARN_ON_ONCE(mac_id >= NUM_MAC_INDEX_DRIVER))
-		return;
+	struct iwl_mvm_vif *mvmvif, *csa_mvmvif;
+	u32 id_n_color, csa_id;
+	/* save mac_id or link_id to use later to cancel csa if needed */
+	u32 id;
+	u8 notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					       CHANNEL_SWITCH_START_NOTIF, 0);
 
 	rcu_read_lock();
-	vif = rcu_dereference(mvm->vif_id_to_mac[mac_id]);
+
+	if (notif_ver < 3) {
+		struct iwl_channel_switch_start_notif_v1 *notif = (void *)pkt->data;
+		u32 mac_id;
+
+		id_n_color = le32_to_cpu(notif->id_and_color);
+		mac_id = id_n_color & FW_CTXT_ID_MSK;
+
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, mac_id, true);
+		if (!vif)
+			goto out_unlock;
+
+		id = mac_id;
+	} else {
+		struct iwl_channel_switch_start_notif *notif = (void *)pkt->data;
+		u32 link_id = le32_to_cpu(notif->link_id);
+		struct ieee80211_bss_conf *bss_conf =
+			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, link_id, true);
+
+		if (!bss_conf)
+			goto out_unlock;
+
+		id = link_id;
+		vif = bss_conf->vif;
+	}
+
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	if (notif_ver >= 3)
+		id_n_color = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -1769,7 +1793,8 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 			    csa_vif != vif))
 			goto out_unlock;
 
-		csa_id = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
+		csa_mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
+		csa_id = FW_CMD_ID_AND_COLOR(csa_mvmvif->id, csa_mvmvif->color);
 		if (WARN(csa_id != id_n_color,
 			 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
 			 csa_id, id_n_color))
@@ -1796,7 +1821,7 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 					    CHANNEL_SWITCH_ERROR_NOTIF,
 					    0) && !vif->bss_conf.csa_active) {
 			IWL_DEBUG_INFO(mvm, "Channel Switch was canceled\n");
-			iwl_mvm_cancel_channel_switch(mvm, vif, mac_id);
+			iwl_mvm_cancel_channel_switch(mvm, vif, id);
 			break;
 		}
 
@@ -1819,7 +1844,7 @@ void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_channel_switch_error_notif *notif = (void *)pkt->data;
 	struct ieee80211_vif *vif;
-	u32 id = le32_to_cpu(notif->mac_id);
+	u32 id = le32_to_cpu(notif->link_id);
 	u32 csa_err_mask = le32_to_cpu(notif->csa_err_mask);
 
 	rcu_read_lock();
@@ -1829,7 +1854,7 @@ void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 		return;
 	}
 
-	IWL_DEBUG_INFO(mvm, "FW reports CSA error: mac_id=%u, csa_err_mask=%u\n",
+	IWL_DEBUG_INFO(mvm, "FW reports CSA error: id=%u, csa_err_mask=%u\n",
 		       id, csa_err_mask);
 	if (csa_err_mask & (CS_ERR_COUNT_ERROR |
 			    CS_ERR_LONG_DELAY_AFTER_CS |

@@ -140,9 +140,18 @@ struct iwl_missed_vap_notif {
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_start_notif {
+struct iwl_channel_switch_start_notif_v1 {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_channel_switch_start_notif - Channel switch start notification
+ *
+ * @link_id: FW link id
+ */
+struct iwl_channel_switch_start_notif {
+	__le32 link_id;
+} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_3 */
 
 #define CS_ERR_COUNT_ERROR BIT(0)
 #define CS_ERR_LONG_DELAY_AFTER_CS BIT(1)
@@ -150,23 +159,34 @@ struct iwl_channel_switch_start_notif {
 #define CS_ERR_TX_BLOCK_TIMER_EXPIRED BIT(3)
 
 /**
- * struct iwl_channel_switch_error_notif - Channel switch error notification
+ * struct iwl_channel_switch_error_notif_v1 - Channel switch error notification
  *
  * @mac_id: the mac for which the ucode sends the notification for
  * @csa_err_mask: mask of channel switch error that can occur
  */
-struct iwl_channel_switch_error_notif {
+struct iwl_channel_switch_error_notif_v1 {
 	__le32 mac_id;
 	__le32 csa_err_mask;
 } __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_1 */
 
 /**
+ * struct iwl_channel_switch_error_notif - Channel switch error notification
+ *
+ * @link_id: FW link id
+ * @csa_err_mask: mask of channel switch error that can occur
+ */
+struct iwl_channel_switch_error_notif {
+	__le32 link_id;
+	__le32 csa_err_mask;
+} __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_2 */
+
+/**
  * struct iwl_cancel_channel_switch_cmd - Cancel Channel Switch command
  *
- * @mac_id: the mac that should cancel the channel switch
+ * @id: the id of the link or mac that should cancel the channel switch
  */
 struct iwl_cancel_channel_switch_cmd {
-	__le32 mac_id;
+	__le32 id;
 } __packed; /* MAC_CANCEL_CHANNEL_SWITCH_S_VER_1 */
 
 /**
