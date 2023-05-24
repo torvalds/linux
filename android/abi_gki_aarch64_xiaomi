@@ -223,8 +223,10 @@
 #required by io_limit.ko
   __traceiter_android_vh_psi_event
   __traceiter_android_vh_psi_group
+  __traceiter_android_rvh_ctl_dirty_rate
   __tracepoint_android_vh_psi_event
   __tracepoint_android_vh_psi_group
+  __tracepoint_android_rvh_ctl_dirty_rate
 
 #required by touch module
   power_supply_is_system_supplied
