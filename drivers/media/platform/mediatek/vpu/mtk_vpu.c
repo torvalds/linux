@@ -1018,6 +1018,7 @@ static int mtk_vpu_resume(struct device *dev)
 	clk_prepare(vpu->clk);
 	ret = vpu_clock_enable(vpu);
 	if (ret) {
+		clk_unprepare(vpu->clk);
 		dev_err(dev, "failed to enable vpu clock\n");
 		return ret;
 	}
