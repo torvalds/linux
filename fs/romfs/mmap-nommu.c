@@ -78,7 +78,7 @@ static unsigned romfs_mmap_capabilities(struct file *file)
 const struct file_operations romfs_ro_fops = {
 	.llseek			= generic_file_llseek,
 	.read_iter		= generic_file_read_iter,
-	.splice_read		= generic_file_splice_read,
+	.splice_read		= filemap_splice_read,
 	.mmap			= romfs_mmap,
 	.get_unmapped_area	= romfs_get_unmapped_area,
 	.mmap_capabilities	= romfs_mmap_capabilities,
