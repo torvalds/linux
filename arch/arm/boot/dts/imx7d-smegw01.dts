@@ -97,8 +97,6 @@
 	sram@0 {
 		compatible = "microchip,48l640";
 		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 		spi-max-frequency = <16000000>;
 	};
 };
