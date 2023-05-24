@@ -146,6 +146,102 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 	return ret;
 }
 
+static struct btrfs_ordered_extent *alloc_ordered_extent(
+			struct btrfs_inode *inode, u64 file_offset, u64 num_bytes,
+			u64 ram_bytes, u64 disk_bytenr, u64 disk_num_bytes,
+			u64 offset, unsigned long flags, int compress_type)
+{
+	struct btrfs_ordered_extent *entry;
+	int ret;
+
+	if (flags &
+	    ((1 << BTRFS_ORDERED_NOCOW) | (1 << BTRFS_ORDERED_PREALLOC))) {
+		/* For nocow write, we can release the qgroup rsv right now */
+		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes);
+		if (ret < 0)
+			return ERR_PTR(ret);
+	} else {
+		/*
+		 * The ordered extent has reserved qgroup space, release now
+		 * and pass the reserved number for qgroup_record to free.
+		 */
+		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
+		if (ret < 0)
+			return ERR_PTR(ret);
+	}
+	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	entry->file_offset = file_offset;
+	entry->num_bytes = num_bytes;
+	entry->ram_bytes = ram_bytes;
+	entry->disk_bytenr = disk_bytenr;
+	entry->disk_num_bytes = disk_num_bytes;
+	entry->offset = offset;
+	entry->bytes_left = num_bytes;
+	entry->inode = igrab(&inode->vfs_inode);
+	entry->compress_type = compress_type;
+	entry->truncated_len = (u64)-1;
+	entry->qgroup_rsv = ret;
+	entry->flags = flags;
+	refcount_set(&entry->refs, 1);
+	init_waitqueue_head(&entry->wait);
+	INIT_LIST_HEAD(&entry->list);
+	INIT_LIST_HEAD(&entry->log_list);
+	INIT_LIST_HEAD(&entry->root_extent_list);
+	INIT_LIST_HEAD(&entry->work_list);
+	init_completion(&entry->completion);
+
+	/*
+	 * We don't need the count_max_extents here, we can assume that all of
+	 * that work has been done at higher layers, so this is truly the
+	 * smallest the extent is going to get.
+	 */
+	spin_lock(&inode->lock);
+	btrfs_mod_outstanding_extents(inode, 1);
+	spin_unlock(&inode->lock);
+
+	return entry;
+}
+
+static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
+{
+	struct btrfs_inode *inode = BTRFS_I(entry->inode);
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct rb_node *node;
+
+	trace_btrfs_ordered_extent_add(inode, entry);
+
+	percpu_counter_add_batch(&fs_info->ordered_bytes, entry->num_bytes,
+				 fs_info->delalloc_batch);
+
+	/* One ref for the tree. */
+	refcount_inc(&entry->refs);
+
+	spin_lock_irq(&tree->lock);
+	node = tree_insert(&tree->tree, entry->file_offset, &entry->rb_node);
+	if (node)
+		btrfs_panic(fs_info, -EEXIST,
+				"inconsistency in ordered tree at offset %llu",
+				entry->file_offset);
+	spin_unlock_irq(&tree->lock);
+
+	spin_lock(&root->ordered_extent_lock);
+	list_add_tail(&entry->root_extent_list,
+		      &root->ordered_extents);
+	root->nr_ordered_extents++;
+	if (root->nr_ordered_extents == 1) {
+		spin_lock(&fs_info->ordered_root_lock);
+		BUG_ON(!list_empty(&root->ordered_root));
+		list_add_tail(&root->ordered_root, &fs_info->ordered_roots);
+		spin_unlock(&fs_info->ordered_root_lock);
+	}
+	spin_unlock(&root->ordered_extent_lock);
+}
+
 /*
  * Add an ordered extent to the per-inode tree.
  *
@@ -171,95 +267,15 @@ struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 			u64 disk_num_bytes, u64 offset, unsigned long flags,
 			int compress_type)
 {
-	struct btrfs_root *root = inode->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
-	struct rb_node *node;
 	struct btrfs_ordered_extent *entry;
-	int ret;
-
-	if (flags &
-	    ((1 << BTRFS_ORDERED_NOCOW) | (1 << BTRFS_ORDERED_PREALLOC))) {
-		/* For nocow write, we can release the qgroup rsv right now */
-		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes);
-		if (ret < 0)
-			return ERR_PTR(ret);
-		ret = 0;
-	} else {
-		/*
-		 * The ordered extent has reserved qgroup space, release now
-		 * and pass the reserved number for qgroup_record to free.
-		 */
-		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	}
-	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
-	if (!entry)
-		return ERR_PTR(-ENOMEM);
-
-	entry->file_offset = file_offset;
-	entry->num_bytes = num_bytes;
-	entry->ram_bytes = ram_bytes;
-	entry->disk_bytenr = disk_bytenr;
-	entry->disk_num_bytes = disk_num_bytes;
-	entry->offset = offset;
-	entry->bytes_left = num_bytes;
-	entry->inode = igrab(&inode->vfs_inode);
-	entry->compress_type = compress_type;
-	entry->truncated_len = (u64)-1;
-	entry->qgroup_rsv = ret;
 
 	ASSERT((flags & ~BTRFS_ORDERED_TYPE_FLAGS) == 0);
-	entry->flags = flags;
 
-	percpu_counter_add_batch(&fs_info->ordered_bytes, num_bytes,
-				 fs_info->delalloc_batch);
-
-	/* one ref for the tree */
-	refcount_set(&entry->refs, 1);
-	init_waitqueue_head(&entry->wait);
-	INIT_LIST_HEAD(&entry->list);
-	INIT_LIST_HEAD(&entry->log_list);
-	INIT_LIST_HEAD(&entry->root_extent_list);
-	INIT_LIST_HEAD(&entry->work_list);
-	init_completion(&entry->completion);
-
-	trace_btrfs_ordered_extent_add(inode, entry);
-
-	spin_lock_irq(&tree->lock);
-	node = tree_insert(&tree->tree, file_offset,
-			   &entry->rb_node);
-	if (node)
-		btrfs_panic(fs_info, -EEXIST,
-				"inconsistency in ordered tree at offset %llu",
-				file_offset);
-	spin_unlock_irq(&tree->lock);
-
-	spin_lock(&root->ordered_extent_lock);
-	list_add_tail(&entry->root_extent_list,
-		      &root->ordered_extents);
-	root->nr_ordered_extents++;
-	if (root->nr_ordered_extents == 1) {
-		spin_lock(&fs_info->ordered_root_lock);
-		BUG_ON(!list_empty(&root->ordered_root));
-		list_add_tail(&root->ordered_root, &fs_info->ordered_roots);
-		spin_unlock(&fs_info->ordered_root_lock);
-	}
-	spin_unlock(&root->ordered_extent_lock);
-
-	/*
-	 * We don't need the count_max_extents here, we can assume that all of
-	 * that work has been done at higher layers, so this is truly the
-	 * smallest the extent is going to get.
-	 */
-	spin_lock(&inode->lock);
-	btrfs_mod_outstanding_extents(inode, 1);
-	spin_unlock(&inode->lock);
-
-	/* One ref for the returned entry to match semantics of lookup. */
-	refcount_inc(&entry->refs);
-
+	entry = alloc_ordered_extent(inode, file_offset, num_bytes, ram_bytes,
+				     disk_bytenr, disk_num_bytes, offset, flags,
+				     compress_type);
+	if (!IS_ERR(entry))
+		insert_ordered_extent(entry);
 	return entry;
 }
 
