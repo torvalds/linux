@@ -791,12 +791,8 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 
 	if (!fs_devices) {
-		if (has_metadata_uuid)
-			fs_devices = alloc_fs_devices(disk_super->fsid,
-						      disk_super->metadata_uuid);
-		else
-			fs_devices = alloc_fs_devices(disk_super->fsid, NULL);
-
+		fs_devices = alloc_fs_devices(disk_super->fsid,
+				has_metadata_uuid ? disk_super->metadata_uuid : NULL);
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
 
