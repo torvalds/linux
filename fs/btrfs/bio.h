@@ -39,8 +39,8 @@ struct btrfs_bio {
 
 	union {
 		/*
-		 * Data checksumming and original I/O information for internal
-		 * use in the btrfs_submit_bio machinery.
+		 * For data reads: checksumming and original I/O information.
+		 * (for internal use in the btrfs_submit_bio machinery only)
 		 */
 		struct {
 			u8 *csum;
@@ -48,7 +48,18 @@ struct btrfs_bio {
 			struct bvec_iter saved_iter;
 		};
 
-		/* For metadata parentness verification. */
+		/*
+		 * For data writes:
+		 * - pointer to the checksums for this bio
+		 * - original physical address from the allocator
+		 *   (for zone append only)
+		 */
+		struct {
+			struct btrfs_ordered_sum *sums;
+			u64 orig_physical;
+		};
+
+		/* For metadata reads: parentness verification. */
 		struct btrfs_tree_parent_check parent_check;
 	};
 

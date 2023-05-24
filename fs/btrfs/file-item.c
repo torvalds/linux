@@ -818,7 +818,37 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 
 	}
 	this_sum_bytes = 0;
+
+	/*
+	 * The ->sums assignment is for zoned writes, where a bio never spans
+	 * ordered extents and is only done unconditionally because that's cheaper
+	 * than a branch.
+	 */
+	bbio->sums = sums;
 	btrfs_add_ordered_sum(ordered, sums);
+	btrfs_put_ordered_extent(ordered);
+	return 0;
+}
+
+/*
+ * Nodatasum I/O on zoned file systems still requires an btrfs_ordered_sum to
+ * record the updated logical address on Zone Append completion.
+ * Allocate just the structure with an empty sums array here for that case.
+ */
+blk_status_t btrfs_alloc_dummy_sum(struct btrfs_bio *bbio)
+{
+	struct btrfs_ordered_extent *ordered =
+		btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
+
+	if (WARN_ON_ONCE(!ordered))
+		return BLK_STS_IOERR;
+
+	bbio->sums = kmalloc(sizeof(*bbio->sums), GFP_NOFS);
+	if (!bbio->sums)
+		return BLK_STS_RESOURCE;
+	bbio->sums->len = bbio->bio.bi_iter.bi_size;
+	bbio->sums->logical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
+	btrfs_add_ordered_sum(ordered, bbio->sums);
 	btrfs_put_ordered_extent(ordered);
 	return 0;
 }

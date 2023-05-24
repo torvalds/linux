@@ -1657,51 +1657,28 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
 	const u64 physical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
-	struct btrfs_ordered_extent *ordered;
+	struct btrfs_ordered_sum *sum = bbio->sums;
 
-	ordered = btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
-	if (WARN_ON(!ordered))
-		return;
-
-	ordered->physical = physical;
-	btrfs_put_ordered_extent(ordered);
+	if (physical < bbio->orig_physical)
+		sum->logical -= bbio->orig_physical - physical;
+	else
+		sum->logical += physical - bbio->orig_physical;
 }
 
 void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 {
 	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_map_tree *em_tree;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
-	struct btrfs_ordered_sum *sum;
-	u64 orig_logical = ordered->disk_bytenr;
-	struct map_lookup *map;
-	u64 physical = ordered->physical;
-	u64 chunk_start_phys;
-	u64 logical;
+	struct btrfs_ordered_sum *sum =
+		list_first_entry(&ordered->list, typeof(*sum), list);
+	u64 logical = sum->logical;
 
-	em = btrfs_get_chunk_map(fs_info, orig_logical, 1);
-	if (IS_ERR(em))
-		return;
-	map = em->map_lookup;
-	chunk_start_phys = map->stripes[0].physical;
-
-	if (WARN_ON_ONCE(map->num_stripes > 1) ||
-	    WARN_ON_ONCE((map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) ||
-	    WARN_ON_ONCE(physical < chunk_start_phys) ||
-	    WARN_ON_ONCE(physical > chunk_start_phys + em->orig_block_len)) {
-		free_extent_map(em);
-		return;
-	}
-	logical = em->start + (physical - map->stripes[0].physical);
-	free_extent_map(em);
-
-	if (orig_logical == logical)
-		return;
+	if (ordered->disk_bytenr == logical)
+		goto out;
 
 	ordered->disk_bytenr = logical;
 
-	em_tree = &inode->extent_tree;
 	write_lock(&em_tree->lock);
 	em = search_extent_mapping(em_tree, ordered->file_offset,
 				   ordered->num_bytes);
@@ -1709,11 +1686,17 @@ void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 	free_extent_map(em);
 	write_unlock(&em_tree->lock);
 
-	list_for_each_entry(sum, &ordered->list, list) {
-		if (logical < orig_logical)
-			sum->logical -= orig_logical - logical;
-		else
-			sum->logical += logical - orig_logical;
+out:
+	/*
+	 * If we end up here for nodatasum I/O, the btrfs_ordered_sum structures
+	 * were allocated by btrfs_alloc_dummy_sum only to record the logical
+	 * addresses and don't contain actual checksums.  We thus must free them
+	 * here so that we don't attempt to log the csums later.
+	 */
+	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
+	    test_bit(BTRFS_FS_STATE_NO_CSUMS, &inode->root->fs_info->fs_state)) {
+		list_del(&sum->list);
+		kfree(sum);
 	}
 }
 

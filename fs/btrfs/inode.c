@@ -3301,12 +3301,8 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	/* A valid ->physical implies a write on a sequential zone. */
-	if (ordered_extent->physical != (u64)-1) {
+	if (btrfs_is_zoned(fs_info)) {
 		btrfs_rewrite_logical_zoned(ordered_extent);
-		btrfs_zone_finish_endio(fs_info, ordered_extent->disk_bytenr,
-					ordered_extent->disk_num_bytes);
-	} else if (btrfs_is_data_reloc_root(inode->root)) {
 		btrfs_zone_finish_endio(fs_info, ordered_extent->disk_bytenr,
 					ordered_extent->disk_num_bytes);
 	}

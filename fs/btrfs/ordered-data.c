@@ -209,7 +209,6 @@ struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = ret;
-	entry->physical = (u64)-1;
 
 	ASSERT((flags & ~BTRFS_ORDERED_TYPE_FLAGS) == 0);
 	entry->flags = flags;
