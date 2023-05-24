@@ -1066,6 +1066,8 @@ static void msm_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		return;
 
 	msm_gpu_show_fdinfo(priv->gpu, file->driver_priv, p);
+
+	drm_show_memory_stats(p, file);
 }
 
 static const struct file_operations fops = {
