@@ -807,7 +807,7 @@ static struct rtrs_srv_ctx *rtrs_ctx;
 static struct rtrs_srv_ops rtrs_ops;
 static int __init rnbd_srv_init_module(void)
 {
-	int err;
+	int err = 0;
 
 	BUILD_BUG_ON(sizeof(struct rnbd_msg_hdr) != 4);
 	BUILD_BUG_ON(sizeof(struct rnbd_msg_sess_info) != 36);
@@ -821,19 +821,17 @@ static int __init rnbd_srv_init_module(void)
 	};
 	rtrs_ctx = rtrs_srv_open(&rtrs_ops, port_nr);
 	if (IS_ERR(rtrs_ctx)) {
-		err = PTR_ERR(rtrs_ctx);
 		pr_err("rtrs_srv_open(), err: %d\n", err);
-		return err;
+		return PTR_ERR(rtrs_ctx);
 	}
 
 	err = rnbd_srv_create_sysfs_files();
 	if (err) {
 		pr_err("rnbd_srv_create_sysfs_files(), err: %d\n", err);
 		rtrs_srv_close(rtrs_ctx);
-		return err;
 	}
 
-	return 0;
+	return err;
 }
 
 static void __exit rnbd_srv_cleanup_module(void)
