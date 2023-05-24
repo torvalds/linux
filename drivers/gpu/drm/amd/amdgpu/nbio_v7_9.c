@@ -382,7 +382,7 @@ static void nbio_v7_9_enable_doorbell_interrupt(struct amdgpu_device *adev,
 			      DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
-static enum amdgpu_gfx_partition nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
+static int nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
 {
 	u32 tmp, px;
 
@@ -408,8 +408,8 @@ static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
 	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS, tmp);
 }
 
-static enum amdgpu_memory_partition
-nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev, u32 *supp_modes)
+static u32 nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev,
+					       u32 *supp_modes)
 {
 	u32 tmp;
 
