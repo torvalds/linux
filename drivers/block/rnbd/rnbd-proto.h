@@ -185,7 +185,6 @@ struct rnbd_msg_io {
 enum rnbd_io_flags {
 
 	/* Operations */
-
 	RNBD_OP_READ		= 0,
 	RNBD_OP_WRITE		= 1,
 	RNBD_OP_FLUSH		= 2,
@@ -193,15 +192,9 @@ enum rnbd_io_flags {
 	RNBD_OP_SECURE_ERASE	= 4,
 	RNBD_OP_WRITE_SAME	= 5,
 
-	RNBD_OP_LAST,
-
 	/* Flags */
-
 	RNBD_F_SYNC  = 1<<(RNBD_OP_BITS + 0),
 	RNBD_F_FUA   = 1<<(RNBD_OP_BITS + 1),
-
-	RNBD_F_ALL   = (RNBD_F_SYNC | RNBD_F_FUA)
-
 };
 
 static inline u32 rnbd_op(u32 flags)
@@ -212,21 +205,6 @@ static inline u32 rnbd_op(u32 flags)
 static inline u32 rnbd_flags(u32 flags)
 {
 	return flags & ~RNBD_OP_MASK;
-}
-
-static inline bool rnbd_flags_supported(u32 flags)
-{
-	u32 op;
-
-	op = rnbd_op(flags);
-	flags = rnbd_flags(flags);
-
-	if (op >= RNBD_OP_LAST)
-		return false;
-	if (flags & ~RNBD_F_ALL)
-		return false;
-
-	return true;
 }
 
 static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
