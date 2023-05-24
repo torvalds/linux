@@ -107,7 +107,14 @@ static const int pvc_basedie_subids[] = {
 
 __diag_pop();
 
-struct xe_step_info xe_step_get(struct xe_device *xe)
+/**
+ * xe_step_pre_gmdid_get - Determine IP steppings from PCI revid
+ * @xe: Xe device
+ *
+ * Convert the PCI revid into proper IP steppings.  This should only be
+ * used on platforms that do not have GMD_ID support.
+ */
+struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe)
 {
 	const struct xe_step_info *revids = NULL;
 	struct xe_step_info step = {};
@@ -193,6 +200,42 @@ struct xe_step_info xe_step_get(struct xe_device *xe)
 			drm_warn(&xe->drm, "Unknown baseid 0x%02x\n", baseid);
 			step.basedie = STEP_FUTURE;
 		}
+	}
+
+	return step;
+}
+
+/**
+ * xe_step_gmdid_get - Determine IP steppings from GMD_ID revid fields
+ * @xe: Xe device
+ * @graphics_gmdid_revid: value of graphics GMD_ID register's revid field
+ * @media_gmdid_revid: value of media GMD_ID register's revid field
+ *
+ * Convert the revid fields of the GMD_ID registers into proper IP steppings.
+ *
+ * GMD_ID revid values are currently expected to have consistent meanings on
+ * all platforms:  major steppings (A0, B0, etc.) are 4 apart, with minor
+ * steppings (A1, A2, etc.) taking the values in between.
+ */
+struct xe_step_info xe_step_gmdid_get(struct xe_device *xe,
+				      u32 graphics_gmdid_revid,
+				      u32 media_gmdid_revid)
+{
+	struct xe_step_info step = {
+		.graphics = STEP_A0 + graphics_gmdid_revid,
+		.media = STEP_A0 + media_gmdid_revid,
+	};
+
+	if (step.graphics >= STEP_FUTURE) {
+		step.graphics = STEP_FUTURE;
+		drm_dbg(&xe->drm, "Graphics GMD_ID revid value %d treated as future stepping\n",
+			graphics_gmdid_revid);
+	}
+
+	if (step.media >= STEP_FUTURE) {
+		step.media = STEP_FUTURE;
+		drm_dbg(&xe->drm, "Media GMD_ID revid value %d treated as future stepping\n",
+			graphics_gmdid_revid);
 	}
 
 	return step;

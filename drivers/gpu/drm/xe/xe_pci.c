@@ -441,11 +441,14 @@ static void handle_pre_gmdid(struct xe_device *xe,
 static void handle_gmdid(struct xe_device *xe,
 			 const struct xe_device_desc *desc,
 			 const struct xe_graphics_desc **graphics,
-			 const struct xe_media_desc **media)
+			 const struct xe_media_desc **media,
+			 u32 *graphics_revid,
+			 u32 *media_revid)
 {
 	u32 ver;
 
 	ver = peek_gmdid(xe, GMD_ID.addr);
+	*graphics_revid = REG_FIELD_GET(GMD_ID_REVID, ver);
 	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
 		if (ver == graphics_ip_map[i].ver) {
 			xe->info.graphics_verx100 = ver;
@@ -461,6 +464,7 @@ static void handle_gmdid(struct xe_device *xe,
 	}
 
 	ver = peek_gmdid(xe, GMD_ID.addr + 0x380000);
+	*media_revid = REG_FIELD_GET(GMD_ID_REVID, ver);
 	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
 		if (ver == media_ip_map[i].ver) {
 			xe->info.media_verx100 = ver;
@@ -483,8 +487,13 @@ static int xe_info_init(struct xe_device *xe,
 {
 	const struct xe_graphics_desc *graphics_desc = NULL;
 	const struct xe_media_desc *media_desc = NULL;
+	u32 graphics_gmdid_revid = 0, media_gmdid_revid = 0;
 	struct xe_gt *gt;
 	u8 id;
+
+	xe->info.platform = desc->platform;
+	xe->info.subplatform = subplatform_desc ?
+		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
 
 	/*
 	 * If this platform supports GMD_ID, we'll detect the proper IP
@@ -492,10 +501,16 @@ static int xe_info_init(struct xe_device *xe,
 	 * ever be set at this point for platforms before GMD_ID. In that case
 	 * the IP descriptions and versions are simply derived from that.
 	 */
-	if (desc->graphics)
+	if (desc->graphics) {
 		handle_pre_gmdid(xe, desc, &graphics_desc, &media_desc);
-	else
-		handle_gmdid(xe, desc, &graphics_desc, &media_desc);
+		xe->info.step = xe_step_pre_gmdid_get(xe);
+	} else {
+		handle_gmdid(xe, desc, &graphics_desc, &media_desc,
+			     &graphics_gmdid_revid, &media_gmdid_revid);
+		xe->info.step = xe_step_gmdid_get(xe,
+						  graphics_gmdid_revid,
+						  media_gmdid_revid);
+	}
 
 	/*
 	 * If we couldn't detect the graphics IP, that's considered a fatal
@@ -506,7 +521,6 @@ static int xe_info_init(struct xe_device *xe,
 		return -ENODEV;
 
 	xe->info.is_dgfx = desc->is_dgfx;
-	xe->info.platform = desc->platform;
 	xe->info.graphics_name = graphics_desc->name;
 	xe->info.media_name = media_desc ? media_desc->name : "none";
 	xe->info.has_4tile = desc->has_4tile;
@@ -533,10 +547,6 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.tile_count = 1 + graphics_desc->max_remote_tiles;
 	if (MEDIA_VER(xe) >= 13)
 		xe->info.tile_count++;
-
-	xe->info.subplatform = subplatform_desc ?
-		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
-	xe->info.step = xe_step_get(xe);
 
 	for (id = 0; id < xe->info.tile_count; ++id) {
 		gt = xe->gt + id;

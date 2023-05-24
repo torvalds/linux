@@ -12,7 +12,10 @@
 
 struct xe_device;
 
-struct xe_step_info xe_step_get(struct xe_device *xe);
+struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe);
+struct xe_step_info xe_step_gmdid_get(struct xe_device *xe,
+				      u32 graphics_gmdid_revid,
+				      u32 media_gmdid_revid);
 const char *xe_step_name(enum xe_step step);
 
 #endif

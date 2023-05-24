@@ -21,21 +21,20 @@ struct xe_step_info {
 	func(A0)			\
 	func(A1)			\
 	func(A2)			\
+	func(A3)			\
 	func(B0)			\
 	func(B1)			\
 	func(B2)			\
 	func(B3)			\
 	func(C0)			\
 	func(C1)			\
+	func(C2)			\
+	func(C3)			\
 	func(D0)			\
 	func(D1)			\
-	func(E0)			\
-	func(F0)			\
-	func(G0)			\
-	func(H0)			\
-	func(I0)			\
-	func(I1)			\
-	func(J0)
+	func(D2)			\
+	func(D3)			\
+	func(E0)
 
 /*
  * Symbolic steppings that do not match the hardware. These are valid both as gt
