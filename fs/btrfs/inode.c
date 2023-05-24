@@ -2719,6 +2719,7 @@ int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 {
 	u64 start = (u64)bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 len = bbio->bio.bi_iter.bi_size;
+	struct btrfs_ordered_extent *new;
 	int ret;
 
 	/* Must always be called for the beginning of an ordered extent. */
@@ -2740,7 +2741,12 @@ int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 			return ret;
 	}
 
-	return btrfs_split_ordered_extent(ordered, len);
+	new = btrfs_split_ordered_extent(ordered, len);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+	btrfs_put_ordered_extent(new);
+
+	return 0;
 }
 
 /*

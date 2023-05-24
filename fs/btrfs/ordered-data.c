@@ -1116,7 +1116,8 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
 }
 
 /* Split out a new ordered extent for this first @len bytes of @ordered. */
-int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 len)
+struct btrfs_ordered_extent *btrfs_split_ordered_extent(
+			struct btrfs_ordered_extent *ordered, u64 len)
 {
 	struct inode *inode = ordered->inode;
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
@@ -1135,16 +1136,16 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 len)
 	 * reduce the original extent to a zero length either.
 	 */
 	if (WARN_ON_ONCE(len >= ordered->num_bytes))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	/* We cannot split once ordered extent is past end_bio. */
 	if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	/* We cannot split a compressed ordered extent. */
 	if (WARN_ON_ONCE(ordered->disk_num_bytes != ordered->num_bytes))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	/* Checksum list should be empty. */
 	if (WARN_ON_ONCE(!list_empty(&ordered->list)))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	spin_lock_irq(&tree->lock);
 	/* Remove from tree once */
@@ -1171,13 +1172,13 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 len)
 
 	/*
 	 * The splitting extent is already counted and will be added again in
-	 * btrfs_add_ordered_extent(). Subtract len to avoid double counting.
+	 * btrfs_alloc_ordered_extent(). Subtract len to avoid double counting.
 	 */
 	percpu_counter_add_batch(&fs_info->ordered_bytes, -len, fs_info->delalloc_batch);
 
-	return btrfs_add_ordered_extent(BTRFS_I(inode), file_offset, len, len,
-					disk_bytenr, len, 0, flags,
-					ordered->compress_type);
+	return btrfs_alloc_ordered_extent(BTRFS_I(inode), file_offset, len, len,
+					  disk_bytenr, len, 0, flags,
+					  ordered->compress_type);
 }
 
 int __init ordered_data_init(void)

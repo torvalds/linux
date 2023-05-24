@@ -206,7 +206,8 @@ void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 					struct extent_state **cached_state);
 bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct extent_state **cached_state);
-int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 len);
+struct btrfs_ordered_extent *btrfs_split_ordered_extent(
+			struct btrfs_ordered_extent *ordered, u64 len);
 int __init ordered_data_init(void);
 void __cold ordered_data_exit(void);
 
