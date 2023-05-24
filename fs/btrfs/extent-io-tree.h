@@ -156,12 +156,6 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, struct extent_state **cached_state, gfp_t mask);
 
-static inline int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start,
-					 u64 end, u32 bits)
-{
-	return set_extent_bit(tree, start, end, bits, NULL, GFP_NOWAIT);
-}
-
 static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
 		u64 end, u32 bits)
 {
