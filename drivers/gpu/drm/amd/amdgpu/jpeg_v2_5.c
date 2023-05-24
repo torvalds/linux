@@ -60,6 +60,7 @@ static int jpeg_v2_5_early_init(void *handle)
 	u32 harvest;
 	int i;
 
+	adev->jpeg.num_jpeg_rings = 1;
 	adev->jpeg.num_jpeg_inst = JPEG25_MAX_HW_INSTANCES_ARCTURUS;
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
 		harvest = RREG32_SOC15(JPEG, i, mmCC_UVD_HARVESTING);

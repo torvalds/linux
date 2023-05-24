@@ -460,6 +460,7 @@ int jpeg_v1_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->jpeg.num_jpeg_inst = 1;
+	adev->jpeg.num_jpeg_rings = 1;
 
 	jpeg_v1_0_set_dec_ring_funcs(adev);
 	jpeg_v1_0_set_irq_funcs(adev);
