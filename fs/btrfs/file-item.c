@@ -561,7 +561,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			}
 
 			sums->bytenr = start;
-			sums->len = (int)size;
+			sums->len = size;
 
 			offset = bytes_to_csum_size(fs_info, start - key.offset);
 
