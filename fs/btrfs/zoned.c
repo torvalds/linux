@@ -1711,9 +1711,9 @@ void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 
 	list_for_each_entry(sum, &ordered->list, list) {
 		if (logical < orig_logical)
-			sum->bytenr -= orig_logical - logical;
+			sum->logical -= orig_logical - logical;
 		else
-			sum->bytenr += logical - orig_logical;
+			sum->logical += logical - orig_logical;
 	}
 }
 

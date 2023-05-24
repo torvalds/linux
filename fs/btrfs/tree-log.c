@@ -859,10 +859,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						struct btrfs_ordered_sum,
 						list);
 				csum_root = btrfs_csum_root(fs_info,
-							    sums->bytenr);
+							    sums->logical);
 				if (!ret)
 					ret = btrfs_del_csums(trans, csum_root,
-							      sums->bytenr,
+							      sums->logical,
 							      sums->len);
 				if (!ret)
 					ret = btrfs_csum_file_blocks(trans,
@@ -4221,7 +4221,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *log_root,
 		     struct btrfs_ordered_sum *sums)
 {
-	const u64 lock_end = sums->bytenr + sums->len - 1;
+	const u64 lock_end = sums->logical + sums->len - 1;
 	struct extent_state *cached_state = NULL;
 	int ret;
 
@@ -4239,7 +4239,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * file which happens to refer to the same extent as well. Such races
 	 * can leave checksum items in the log with overlapping ranges.
 	 */
-	ret = lock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+	ret = lock_extent(&log_root->log_csum_range, sums->logical, lock_end,
 			  &cached_state);
 	if (ret)
 		return ret;
@@ -4252,11 +4252,11 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * some checksums missing in the fs/subvolume tree. So just delete (or
 	 * trim and adjust) any existing csum items in the log for this range.
 	 */
-	ret = btrfs_del_csums(trans, log_root, sums->bytenr, sums->len);
+	ret = btrfs_del_csums(trans, log_root, sums->logical, sums->len);
 	if (!ret)
 		ret = btrfs_csum_file_blocks(trans, log_root, sums);
 
-	unlock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+	unlock_extent(&log_root->log_csum_range, sums->logical, lock_end,
 		      &cached_state);
 
 	return ret;

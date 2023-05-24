@@ -14,13 +14,13 @@ struct btrfs_ordered_inode_tree {
 };
 
 struct btrfs_ordered_sum {
-	/* bytenr is the start of this extent on disk */
-	u64 bytenr;
-
 	/*
-	 * this is the length in bytes covered by the sums array below.
+	 * Logical start address and length for of the blocks covered by
+	 * the sums array.
 	 */
+	u64 logical;
 	u32 len;
+
 	struct list_head list;
 	/* last field is a variable length array of csums */
 	u8 sums[];

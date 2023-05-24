@@ -560,7 +560,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 				goto fail;
 			}
 
-			sums->bytenr = start;
+			sums->logical = start;
 			sums->len = size;
 
 			offset = bytes_to_csum_size(fs_info, start - key.offset);
@@ -749,7 +749,7 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 	sums->len = bio->bi_iter.bi_size;
 	INIT_LIST_HEAD(&sums->list);
 
-	sums->bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
+	sums->logical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	index = 0;
 
 	shash->tfm = fs_info->csum_shash;
@@ -799,7 +799,7 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 				ordered = btrfs_lookup_ordered_extent(inode,
 								offset);
 				ASSERT(ordered); /* Logic error */
-				sums->bytenr = (bio->bi_iter.bi_sector << SECTOR_SHIFT)
+				sums->logical = (bio->bi_iter.bi_sector << SECTOR_SHIFT)
 					+ total_bytes;
 				index = 0;
 			}
@@ -1086,7 +1086,7 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 again:
 	next_offset = (u64)-1;
 	found_next = 0;
-	bytenr = sums->bytenr + total_bytes;
+	bytenr = sums->logical + total_bytes;
 	file_key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 	file_key.offset = bytenr;
 	file_key.type = BTRFS_EXTENT_CSUM_KEY;

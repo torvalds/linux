@@ -4379,8 +4379,8 @@ int btrfs_reloc_clone_csums(struct btrfs_inode *inode, u64 file_pos, u64 len)
 		 * disk_len vs real len like with real inodes since it's all
 		 * disk length.
 		 */
-		new_bytenr = ordered->disk_bytenr + sums->bytenr - disk_bytenr;
-		sums->bytenr = new_bytenr;
+		new_bytenr = ordered->disk_bytenr + sums->logical - disk_bytenr;
+		sums->logical = new_bytenr;
 
 		btrfs_add_ordered_sum(ordered, sums);
 	}
