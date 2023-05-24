@@ -1098,6 +1098,17 @@ config SENSORS_MAX31760
 	  This driver can also be built as a module. If so, the module
 	  will be called max31760.
 
+config MAX31827
+	tristate "MAX31827 low-power temperature switch and similar devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for MAX31827, MAX31828 and
+	  MAX31829 low-power temperature switches and sensors connected with I2C.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31827.
+
 config SENSORS_MAX6620
 	tristate "Maxim MAX6620 fan controller"
 	depends on I2C
