@@ -1437,6 +1437,19 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 EXPORT_SYMBOL(drm_dsc_compute_rc_parameters);
 
 /**
+ * drm_dsc_get_bpp_int() - Get integer bits per pixel value for the given DRM DSC config
+ * @vdsc_cfg: Pointer to DRM DSC config struct
+ *
+ * Return: Integer BPP value
+ */
+u32 drm_dsc_get_bpp_int(const struct drm_dsc_config *vdsc_cfg)
+{
+	WARN_ON_ONCE(vdsc_cfg->bits_per_pixel & 0xf);
+	return vdsc_cfg->bits_per_pixel >> 4;
+}
+EXPORT_SYMBOL(drm_dsc_get_bpp_int);
+
+/**
  * drm_dsc_initial_scale_value() - Calculate the initial scale value for the given DSC config
  * @dsc: Pointer to DRM DSC config struct
  *
