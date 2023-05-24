@@ -2394,6 +2394,9 @@ static void brcmf_pcie_debugfs_create(struct device *dev)
 }
 #endif
 
+/* Forward declaration for pci_match_id() call */
+static const struct pci_device_id brcmf_pcie_devid_table[];
+
 static int
 brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -2403,6 +2406,14 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_core *core;
 	struct brcmf_bus *bus;
+
+	if (!id) {
+		id = pci_match_id(brcmf_pcie_devid_table, pdev);
+		if (!id) {
+			pci_err(pdev, "Error could not find pci_device_id for %x:%x\n", pdev->vendor, pdev->device);
+			return -ENODEV;
+		}
+	}
 
 	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
 

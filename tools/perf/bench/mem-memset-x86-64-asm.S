@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// memset_orig and memset_erms are being defined as SYM_L_LOCAL but we need it
+// memset_orig is being defined as SYM_L_LOCAL but we need it
 #define SYM_FUNC_START_LOCAL(name)                      \
         SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
 #define memset MEMSET /* don't hide glibc's memset() */

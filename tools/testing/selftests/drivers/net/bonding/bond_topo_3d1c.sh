@@ -61,6 +61,8 @@ server_create()
 		ip -n ${g_ns} link set s${i} up
 		ip -n ${g_ns} link set s${i} master br0
 		ip -n ${s_ns} link set eth${i} master bond0
+
+		tc -n ${g_ns} qdisc add dev s${i} clsact
 	done
 
 	ip -n ${s_ns} link set bond0 up
