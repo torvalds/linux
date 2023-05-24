@@ -765,7 +765,7 @@ static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev);
 static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 				struct amdgpu_cu_info *cu_info);
 static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev);
-static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume);
+static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume, bool usegds);
 static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
 static void gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status);
@@ -5158,7 +5158,8 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 			gfx_v9_0_ring_emit_de_meta(ring,
 						   (!amdgpu_sriov_vf(ring->adev) &&
 						   flags & AMDGPU_IB_PREEMPTED) ?
-						   true : false);
+						   true : false,
+						   job->gds_size > 0 && job->gds_base != 0);
 	}
 
 	amdgpu_ring_write(ring, header);
@@ -5433,7 +5434,7 @@ static int gfx_v9_0_ring_preempt_ib(struct amdgpu_ring *ring)
 	return r;
 }
 
-static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume)
+static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume, bool usegds)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct v9_de_ib_state de_payload = {0};
@@ -5464,8 +5465,10 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume)
 				 PAGE_SIZE);
 	}
 
-	de_payload.gds_backup_addrlo = lower_32_bits(gds_addr);
-	de_payload.gds_backup_addrhi = upper_32_bits(gds_addr);
+	if (usegds) {
+		de_payload.gds_backup_addrlo = lower_32_bits(gds_addr);
+		de_payload.gds_backup_addrhi = upper_32_bits(gds_addr);
+	}
 
 	cnt = (sizeof(de_payload) >> 2) + 4 - 2;
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt));
