@@ -796,7 +796,7 @@ static int btrfs_set_target_alloc_state(struct btrfs_device *srcdev,
 				      &found_start, &found_end,
 				      CHUNK_ALLOCATED, &cached_state)) {
 		ret = set_extent_bit(&tgtdev->alloc_state, found_start,
-				     found_end, CHUNK_ALLOCATED, NULL, GFP_NOFS);
+				     found_end, CHUNK_ALLOCATED, NULL);
 		if (ret)
 			break;
 		start = found_end + 1;

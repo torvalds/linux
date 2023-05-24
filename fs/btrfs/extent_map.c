@@ -366,7 +366,7 @@ static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
 
 		set_extent_bit(&device->alloc_state, stripe->physical,
 			       stripe->physical + stripe_size - 1,
-			       bits | EXTENT_NOWAIT, NULL, GFP_NOWAIT);
+			       bits | EXTENT_NOWAIT, NULL);
 	}
 }
 
@@ -383,7 +383,7 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 		__clear_extent_bit(&device->alloc_state, stripe->physical,
 				   stripe->physical + stripe_size - 1,
 				   bits | EXTENT_NOWAIT,
-				   NULL, GFP_NOWAIT, NULL);
+				   NULL, NULL);
 	}
 }
 

@@ -95,7 +95,7 @@ int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start,
 	if (btrfs_fs_incompat(inode->root->fs_info, NO_HOLES))
 		return 0;
 	return set_extent_bit(&inode->file_extent_tree, start, start + len - 1,
-			      EXTENT_DIRTY, NULL, GFP_NOFS);
+			      EXTENT_DIRTY, NULL);
 }
 
 /*
@@ -440,7 +440,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 
 				set_extent_bit(&inode->io_tree, file_offset,
 					       file_offset + sectorsize - 1,
-					       EXTENT_NODATASUM, NULL, GFP_NOFS);
+					       EXTENT_NODATASUM, NULL);
 			} else {
 				btrfs_warn_rl(fs_info,
 			"csum hole found for disk bytenr range [%llu, %llu)",

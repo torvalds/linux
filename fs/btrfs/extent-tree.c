@@ -74,7 +74,7 @@ int btrfs_add_excluded_extent(struct btrfs_fs_info *fs_info,
 {
 	u64 end = start + num_bytes - 1;
 	set_extent_bit(&fs_info->excluded_extents, start, end,
-		       EXTENT_UPTODATE, NULL, GFP_NOFS);
+		       EXTENT_UPTODATE, NULL);
 	return 0;
 }
 
@@ -2508,7 +2508,7 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 	spin_unlock(&cache->space_info->lock);
 
 	set_extent_bit(&trans->transaction->pinned_extents, bytenr,
-		       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL, GFP_NOFS);
+		       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL);
 	return 0;
 }
 
@@ -4831,16 +4831,15 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		if (buf->log_index == 0)
 			set_extent_bit(&root->dirty_log_pages, buf->start,
 				       buf->start + buf->len - 1,
-				       EXTENT_DIRTY, NULL, GFP_NOFS);
+				       EXTENT_DIRTY, NULL);
 		else
 			set_extent_bit(&root->dirty_log_pages, buf->start,
 				       buf->start + buf->len - 1,
-				       EXTENT_NEW, NULL, GFP_NOFS);
+				       EXTENT_NEW, NULL);
 	} else {
 		buf->log_index = -1;
 		set_extent_bit(&trans->transaction->dirty_pages, buf->start,
-			       buf->start + buf->len - 1, EXTENT_DIRTY, NULL,
-			       GFP_NOFS);
+			       buf->start + buf->len - 1, EXTENT_DIRTY, NULL);
 	}
 	/* this returns a buffer locked for blocking */
 	return buf;
@@ -5981,8 +5980,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 					  &bytes);
 		if (!ret)
 			set_extent_bit(&device->alloc_state, start,
-				       start + bytes - 1,
-				       CHUNK_TRIMMED, NULL, GFP_NOFS);
+				       start + bytes - 1, CHUNK_TRIMMED, NULL);
 		mutex_unlock(&fs_info->chunk_mutex);
 
 		if (ret)

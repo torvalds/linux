@@ -175,8 +175,7 @@ static void mark_block_processed(struct reloc_control *rc,
 		     rc->block_group->length)) {
 		blocksize = rc->extent_root->fs_info->nodesize;
 		set_extent_bit(&rc->processed_blocks, node->bytenr,
-			       node->bytenr + blocksize - 1, EXTENT_DIRTY,
-			       NULL, GFP_NOFS);
+			       node->bytenr + blocksize - 1, EXTENT_DIRTY, NULL);
 	}
 	node->processed = 1;
 }
@@ -3054,7 +3053,7 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 
 			set_extent_bit(&BTRFS_I(inode)->io_tree,
 				       boundary_start, boundary_end,
-				       EXTENT_BOUNDARY, NULL, GFP_NOFS);
+				       EXTENT_BOUNDARY, NULL);
 		}
 		unlock_extent(&BTRFS_I(inode)->io_tree, clamped_start, clamped_end,
 			      &cached_state);
