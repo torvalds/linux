@@ -2719,9 +2719,7 @@ int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 {
 	u64 start = (u64)bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 len = bbio->bio.bi_iter.bi_size;
-	struct btrfs_inode *inode = bbio->inode;
-	u64 ordered_len = ordered->num_bytes;
-	int ret = 0;
+	int ret;
 
 	/* Must always be called for the beginning of an ordered extent. */
 	if (WARN_ON_ONCE(start != ordered->disk_bytenr))
@@ -2731,18 +2729,18 @@ int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 	if (ordered->disk_num_bytes == len)
 		return 0;
 
-	ret = btrfs_split_ordered_extent(ordered, len);
-	if (ret)
-		return ret;
-
 	/*
 	 * Don't split the extent_map for NOCOW extents, as we're writing into
 	 * a pre-existing one.
 	 */
-	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags))
-		return 0;
+	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
+		ret = split_extent_map(bbio->inode, bbio->file_offset,
+				       ordered->num_bytes, len);
+		if (ret)
+			return ret;
+	}
 
-	return split_extent_map(inode, bbio->file_offset, ordered_len, len);
+	return btrfs_split_ordered_extent(ordered, len);
 }
 
 /*
