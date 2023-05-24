@@ -67,7 +67,7 @@
 	reg_wlan_rfkill: regulator-wlan-rfkill {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-2 = <&pinctrl_rfkill>;
+		pinctrl-0 = <&pinctrl_rfkill>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "wlan_rfkill";
