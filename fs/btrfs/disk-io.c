@@ -317,7 +317,7 @@ error:
 	return errno_to_blk_status(ret);
 }
 
-static int check_tree_block_fsid(struct extent_buffer *eb)
+static bool check_tree_block_fsid(struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
@@ -337,13 +337,13 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 		metadata_uuid = fs_devices->fsid;
 
 	if (!memcmp(fsid, metadata_uuid, BTRFS_FSID_SIZE))
-		return 0;
+		return false;
 
 	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list)
 		if (!memcmp(fsid, seed_devs->fsid, BTRFS_FSID_SIZE))
-			return 0;
+			return false;
 
-	return 1;
+	return true;
 }
 
 /* Do basic extent buffer checks at read time */
