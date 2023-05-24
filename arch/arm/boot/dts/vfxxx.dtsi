@@ -294,7 +294,6 @@
 				reg = <0x4003e000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_WDT>;
-				clock-names = "wdog";
 				status = "disabled";
 			};
 
