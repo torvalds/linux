@@ -963,11 +963,13 @@ int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
 }
 
 /*
- * Split off the first pre bytes from the extent_map at [start, start + len]
+ * Split off the first pre bytes from the extent_map at [start, start + len],
+ * and set the block_start for it to new_logical.
  *
  * This function is used when an ordered_extent needs to be split.
  */
-int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre)
+int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+		     u64 new_logical)
 {
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
@@ -1010,7 +1012,7 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre)
 	split_pre->start = em->start;
 	split_pre->len = pre;
 	split_pre->orig_start = split_pre->start;
-	split_pre->block_start = em->block_start;
+	split_pre->block_start = new_logical;
 	split_pre->block_len = split_pre->len;
 	split_pre->orig_block_len = split_pre->block_len;
 	split_pre->ram_bytes = split_pre->len;

@@ -1689,15 +1689,13 @@ static bool btrfs_zoned_split_ordered(struct btrfs_ordered_extent *ordered,
 
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
 	    split_extent_map(BTRFS_I(ordered->inode), ordered->file_offset,
-			     ordered->num_bytes, len))
+			     ordered->num_bytes, len, logical))
 		return false;
 
 	new = btrfs_split_ordered_extent(ordered, len);
 	if (IS_ERR(new))
 		return false;
-
-	if (new->disk_bytenr != logical)
-		btrfs_rewrite_logical_zoned(new, logical);
+	new->disk_bytenr = logical;
 	btrfs_finish_one_ordered(new);
 	return true;
 }
