@@ -427,6 +427,21 @@ void __exit btrfs_cleanup_fs_uuids(void)
 	}
 }
 
+static bool match_fsid_fs_devices(const struct btrfs_fs_devices *fs_devices,
+				  const u8 *fsid, const u8 *metadata_fsid)
+{
+	if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) != 0)
+		return false;
+
+	if (!metadata_fsid)
+		return true;
+
+	if (memcmp(metadata_fsid, fs_devices->metadata_uuid, BTRFS_FSID_SIZE) != 0)
+		return false;
+
+	return true;
+}
+
 static noinline struct btrfs_fs_devices *find_fsid(
 		const u8 *fsid, const u8 *metadata_fsid)
 {
@@ -436,15 +451,8 @@ static noinline struct btrfs_fs_devices *find_fsid(
 
 	/* Handle non-split brain cases */
 	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (metadata_fsid) {
-			if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) == 0
-			    && memcmp(metadata_fsid, fs_devices->metadata_uuid,
-				      BTRFS_FSID_SIZE) == 0)
-				return fs_devices;
-		} else {
-			if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) == 0)
-				return fs_devices;
-		}
+		if (match_fsid_fs_devices(fs_devices, fsid, metadata_fsid))
+			return fs_devices;
 	}
 	return NULL;
 }
@@ -462,14 +470,14 @@ static struct btrfs_fs_devices *find_fsid_with_metadata_uuid(
 	 * at all and the CHANGING_FSID_V2 flag set.
 	 */
 	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (fs_devices->fsid_change &&
-		    memcmp(disk_super->metadata_uuid, fs_devices->fsid,
-			   BTRFS_FSID_SIZE) == 0 &&
-		    memcmp(fs_devices->fsid, fs_devices->metadata_uuid,
-			   BTRFS_FSID_SIZE) == 0) {
+		if (!fs_devices->fsid_change)
+			continue;
+
+		if (match_fsid_fs_devices(fs_devices, disk_super->metadata_uuid,
+					  fs_devices->fsid))
 			return fs_devices;
-		}
 	}
+
 	/*
 	 * Handle scanned device having completed its fsid change but
 	 * belonging to a fs_devices that was created by a device that
