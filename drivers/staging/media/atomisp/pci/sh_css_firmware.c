@@ -233,8 +233,16 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	struct sh_css_fw_bi_file_h *file_header;
 	int ret;
 
+	/* some sanity checks */
+	if (!fw_data || fw_size < sizeof(struct sh_css_fw_bi_file_h))
+		return -EINVAL;
+
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
+
+	if (file_header->h_size != sizeof(struct sh_css_fw_bi_file_h))
+		return -EINVAL;
+
 	binaries = &firmware_header->binary_header;
 	strscpy(FW_rel_ver_name, file_header->version,
 		min(sizeof(FW_rel_ver_name), sizeof(file_header->version)));
@@ -250,13 +258,6 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	} else {
 		IA_CSS_LOG("successfully load firmware version %s", release_version);
 	}
-
-	/* some sanity checks */
-	if (!fw_data || fw_size < sizeof(struct sh_css_fw_bi_file_h))
-		return -EINVAL;
-
-	if (file_header->h_size != sizeof(struct sh_css_fw_bi_file_h))
-		return -EINVAL;
 
 	sh_css_num_binaries = file_header->binary_nr;
 	/* Only allocate memory for ISP blob info */
