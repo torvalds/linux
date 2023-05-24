@@ -2,6 +2,7 @@
 # Copyright (C) 2023 Intel Corporation
 
 intel_vpu-y := \
+	ivpu_debugfs.o \
 	ivpu_drv.o \
 	ivpu_fw.o \
 	ivpu_gem.o \

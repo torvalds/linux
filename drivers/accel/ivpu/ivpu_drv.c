@@ -14,6 +14,7 @@
 #include <drm/drm_prime.h>
 
 #include "vpu_boot_api.h"
+#include "ivpu_debugfs.h"
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
 #include "ivpu_gem.h"
@@ -374,6 +375,10 @@ static const struct drm_driver driver = {
 	.open = ivpu_open,
 	.postclose = ivpu_postclose,
 	.gem_prime_import = ivpu_gem_prime_import,
+
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = ivpu_debugfs_init,
+#endif
 
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
