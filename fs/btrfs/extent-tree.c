@@ -2508,8 +2508,7 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 	spin_unlock(&cache->space_info->lock);
 
 	set_extent_bit(&trans->transaction->pinned_extents, bytenr,
-		       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL,
-		       GFP_NOFS | __GFP_NOFAIL);
+		       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL, GFP_NOFS);
 	return 0;
 }
 

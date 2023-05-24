@@ -3523,8 +3523,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 
 			set_extent_bit(&trans->transaction->pinned_extents,
 				       bytenr, bytenr + num_bytes - 1,
-				       EXTENT_DIRTY, NULL,
-				       GFP_NOFS | __GFP_NOFAIL);
+				       EXTENT_DIRTY, NULL, GFP_NOFS);
 		}
 
 		spin_lock(&trans->transaction->dirty_bgs_lock);
