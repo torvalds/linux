@@ -8732,9 +8732,13 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 		if (acrtc)
 			old_crtc_state = drm_atomic_get_old_crtc_state(state, &acrtc->base);
 
+		if (!acrtc->wb_enabled)
+			continue;
+
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
 		dm_clear_writeback(dm, dm_old_crtc_state);
+		acrtc->wb_enabled = false;
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
@@ -9312,9 +9316,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		if (acrtc)
 			new_crtc_state = drm_atomic_get_new_crtc_state(state, &acrtc->base);
 
+		if (acrtc->wb_enabled)
+			continue;
+
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
 		dm_set_writeback(dm, dm_new_crtc_state, connector, new_con_state);
+		acrtc->wb_enabled = true;
 	}
 
 	/* Update audio instances for each connector. */
