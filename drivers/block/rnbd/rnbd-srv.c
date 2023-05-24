@@ -483,7 +483,7 @@ static int rnbd_srv_check_update_open_perm(struct rnbd_srv_dev *srv_dev,
 			pr_err("Mapping device '%s' for session %s with RW permissions failed. Device already opened as 'RW' by %d client(s), access mode %s.\n",
 			       srv_dev->id, srv_sess->sessname,
 			       srv_dev->open_write_cnt,
-			       rnbd_access_mode_str(access_mode));
+			       rnbd_access_modes[access_mode].str);
 		}
 		break;
 	case RNBD_ACCESS_MIGRATION:
@@ -494,7 +494,7 @@ static int rnbd_srv_check_update_open_perm(struct rnbd_srv_dev *srv_dev,
 			pr_err("Mapping device '%s' for session %s with migration permissions failed. Device already opened as 'RW' by %d client(s), access mode %s.\n",
 			       srv_dev->id, srv_sess->sessname,
 			       srv_dev->open_write_cnt,
-			       rnbd_access_mode_str(access_mode));
+			       rnbd_access_modes[access_mode].str);
 		}
 		break;
 	default:

@@ -61,6 +61,15 @@ enum rnbd_access_mode {
 	RNBD_ACCESS_MIGRATION,
 };
 
+static const __maybe_unused struct {
+	enum rnbd_access_mode mode;
+	const char *str;
+} rnbd_access_modes[] = {
+	[RNBD_ACCESS_RO] = {RNBD_ACCESS_RO, "ro"},
+	[RNBD_ACCESS_RW] = {RNBD_ACCESS_RW, "rw"},
+	[RNBD_ACCESS_MIGRATION] = {RNBD_ACCESS_MIGRATION, "migration"},
+};
+
 /**
  * struct rnbd_msg_sess_info - initial session info from client to server
  * @hdr:		message header
