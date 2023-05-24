@@ -114,7 +114,6 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	 * need to be updated.
 	 */
 
-	xe_device_mem_access_get(gt->xe);
 	mutex_lock(&guc->ct.lock);
 	seqno = gt->tlb_invalidation.seqno;
 	if (fence) {
@@ -143,7 +142,6 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	if (ret < 0 && fence)
 		invalidation_fence_signal(fence);
 	mutex_unlock(&guc->ct.lock);
-	xe_device_mem_access_put(gt->xe);
 
 	return ret;
 }
@@ -196,7 +194,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 	struct xe_device *xe = gt_to_xe(gt);
 #define MAX_TLB_INVALIDATION_LEN	7
 	u32 action[MAX_TLB_INVALIDATION_LEN];
-	int len = 0;
+	int len = 0, ret;
 
 	XE_BUG_ON(!vma);
 
@@ -250,7 +248,11 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 	XE_BUG_ON(len > MAX_TLB_INVALIDATION_LEN);
 
-	return send_tlb_invalidation(&gt->uc.guc, fence, action, len);
+	xe_device_mem_access_get(gt->xe);
+	ret = send_tlb_invalidation(&gt->uc.guc, fence, action, len);
+	xe_device_mem_access_put(gt->xe);
+
+	return ret;
 }
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
