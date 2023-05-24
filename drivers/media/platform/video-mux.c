@@ -389,7 +389,7 @@ static int video_mux_async_register(struct video_mux *vmux,
 			ret = PTR_ERR(asd);
 			/* OK if asd already exists */
 			if (ret != -EEXIST)
-				return ret;
+				goto err_nf_cleanup;
 		}
 	}
 
@@ -397,9 +397,19 @@ static int video_mux_async_register(struct video_mux *vmux,
 
 	ret = v4l2_async_subdev_nf_register(&vmux->subdev, &vmux->notifier);
 	if (ret)
-		return ret;
+		goto err_nf_cleanup;
 
-	return v4l2_async_register_subdev(&vmux->subdev);
+	ret = v4l2_async_register_subdev(&vmux->subdev);
+	if (ret)
+		goto err_nf_unregister;
+
+	return 0;
+
+err_nf_unregister:
+	v4l2_async_nf_unregister(&vmux->notifier);
+err_nf_cleanup:
+	v4l2_async_nf_cleanup(&vmux->notifier);
+	return ret;
 }
 
 static int video_mux_probe(struct platform_device *pdev)
@@ -473,12 +483,13 @@ static int video_mux_probe(struct platform_device *pdev)
 	vmux->subdev.entity.ops = &video_mux_ops;
 
 	ret = video_mux_async_register(vmux, num_pads - 1);
-	if (ret) {
-		media_entity_cleanup(&vmux->subdev.entity);
-		v4l2_async_nf_unregister(&vmux->notifier);
-		v4l2_async_nf_cleanup(&vmux->notifier);
-	}
+	if (ret)
+		goto err_entity_cleanup;
 
+	return 0;
+
+err_entity_cleanup:
+	media_entity_cleanup(&vmux->subdev.entity);
 	return ret;
 }
 
