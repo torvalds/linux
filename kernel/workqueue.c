@@ -1051,7 +1051,7 @@ void wq_worker_running(struct task_struct *task)
 {
 	struct worker *worker = kthread_data(task);
 
-	if (!worker->sleeping)
+	if (!READ_ONCE(worker->sleeping))
 		return;
 
 	/*
@@ -1071,7 +1071,7 @@ void wq_worker_running(struct task_struct *task)
 	 */
 	worker->current_at = worker->task->se.sum_exec_runtime;
 
-	worker->sleeping = 0;
+	WRITE_ONCE(worker->sleeping, 0);
 }
 
 /**
@@ -1097,10 +1097,10 @@ void wq_worker_sleeping(struct task_struct *task)
 	pool = worker->pool;
 
 	/* Return if preempted before wq_worker_running() was reached */
-	if (worker->sleeping)
+	if (READ_ONCE(worker->sleeping))
 		return;
 
-	worker->sleeping = 1;
+	WRITE_ONCE(worker->sleeping, 1);
 	raw_spin_lock_irq(&pool->lock);
 
 	/*
@@ -1143,8 +1143,15 @@ void wq_worker_tick(struct task_struct *task)
 	 * If the current worker is concurrency managed and hogged the CPU for
 	 * longer than wq_cpu_intensive_thresh_us, it's automatically marked
 	 * CPU_INTENSIVE to avoid stalling other concurrency-managed work items.
+	 *
+	 * Set @worker->sleeping means that @worker is in the process of
+	 * switching out voluntarily and won't be contributing to
+	 * @pool->nr_running until it wakes up. As wq_worker_sleeping() also
+	 * decrements ->nr_running, setting CPU_INTENSIVE here can lead to
+	 * double decrements. The task is releasing the CPU anyway. Let's skip.
+	 * We probably want to make this prettier in the future.
 	 */
-	if ((worker->flags & WORKER_NOT_RUNNING) ||
+	if ((worker->flags & WORKER_NOT_RUNNING) || READ_ONCE(worker->sleeping) ||
 	    worker->task->se.sum_exec_runtime - worker->current_at <
 	    wq_cpu_intensive_thresh_us * NSEC_PER_USEC)
 		return;
