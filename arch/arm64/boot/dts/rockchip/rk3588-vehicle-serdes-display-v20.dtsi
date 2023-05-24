@@ -215,7 +215,7 @@
 		display-timings {
 			native-mode = <&dsi2lvds0>;
 			dsi2lvds0: timing0 {
-				clock-frequency = <87000000>;
+				clock-frequency = <88208000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <32>;
@@ -251,7 +251,7 @@
 		display-timings {
 			native-mode = <&dsi2lvds1>;
 			dsi2lvds1: timing0 {
-				clock-frequency = <87000000>;
+				clock-frequency = <88208000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <32>;
@@ -1915,4 +1915,29 @@
 &usbdp_phy1 {
 	rockchip,dp-lane-mux = <0 1 2 3>;
 	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru PLL_V0PLL>;
+	assigned-clock-rates = <1152000000>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp1 {
+	assigned-clocks = <&cru DCLK_VOP1_SRC>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VOP2_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp3 {
+	assigned-clocks = <&cru DCLK_VOP3>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
 };
