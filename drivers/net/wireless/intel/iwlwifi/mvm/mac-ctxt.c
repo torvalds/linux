@@ -1555,21 +1555,38 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	u32 stop_trig_missed_bcon, stop_trig_missed_bcon_since_rx;
 	u32 rx_missed_bcon, rx_missed_bcon_since_rx;
 	struct ieee80211_vif *vif;
-	u32 id = le32_to_cpu(mb->mac_id);
+	/* Id can be mac/link id depending on the notification version */
+	u32 id = le32_to_cpu(mb->link_id);
 	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
 	u32 mac_type;
+	u8 notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+					       MISSED_BEACONS_NOTIFICATION,
+					       0);
+
+	rcu_read_lock();
+
+	/* before version four the ID in the notification refers to mac ID */
+	if (notif_ver < 4) {
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	} else {
+		struct ieee80211_bss_conf *bss_conf =
+			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, true);
+
+		if (!bss_conf)
+			goto out;
+
+		vif = bss_conf->vif;
+	}
 
 	IWL_DEBUG_INFO(mvm,
-		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
-		       le32_to_cpu(mb->mac_id),
+		       "missed bcn %s_id=%u, consecutive=%u (%u, %u, %u)\n",
+		       notif_ver < 4 ? "mac" : "link",
+		       id,
 		       le32_to_cpu(mb->consec_missed_beacons),
 		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx),
 		       le32_to_cpu(mb->num_recvd_beacons),
 		       le32_to_cpu(mb->num_expected_beacons));
 
-	rcu_read_lock();
-
-	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
 	if (!vif)
 		goto out;
 
