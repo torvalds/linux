@@ -1413,3 +1413,27 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dsc_compute_rc_parameters);
+
+/**
+ * drm_dsc_initial_scale_value() - Calculate the initial scale value for the given DSC config
+ * @dsc: Pointer to DRM DSC config struct
+ *
+ * Return: Calculated initial scale value
+ */
+u8 drm_dsc_initial_scale_value(const struct drm_dsc_config *dsc)
+{
+	return 8 * dsc->rc_model_size / (dsc->rc_model_size - dsc->initial_offset);
+}
+EXPORT_SYMBOL(drm_dsc_initial_scale_value);
+
+/**
+ * drm_dsc_flatness_det_thresh() - Calculate the flatness_det_thresh for the given DSC config
+ * @dsc: Pointer to DRM DSC config struct
+ *
+ * Return: Calculated flatness det thresh value
+ */
+u32 drm_dsc_flatness_det_thresh(const struct drm_dsc_config *dsc)
+{
+	return 2 << (dsc->bits_per_component - 8);
+}
+EXPORT_SYMBOL(drm_dsc_flatness_det_thresh);
