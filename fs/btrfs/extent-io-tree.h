@@ -193,15 +193,6 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       u32 bits, u32 clear_bits,
 		       struct extent_state **cached_state);
 
-static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
-				      u64 end, u32 extra_bits,
-				      struct extent_state **cached_state)
-{
-	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | extra_bits,
-			      cached_state, GFP_NOFS);
-}
-
 static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
 		u64 end)
 {
