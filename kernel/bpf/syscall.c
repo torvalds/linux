@@ -1931,6 +1931,11 @@ static int map_freeze(const union bpf_attr *attr)
 		return -ENOTSUPP;
 	}
 
+	if (!(map_get_sys_perms(map, f) & FMODE_CAN_WRITE)) {
+		err = -EPERM;
+		goto err_put;
+	}
+
 	mutex_lock(&map->freeze_mutex);
 	if (bpf_map_write_active(map)) {
 		err = -EBUSY;
@@ -1938,10 +1943,6 @@ static int map_freeze(const union bpf_attr *attr)
 	}
 	if (READ_ONCE(map->frozen)) {
 		err = -EBUSY;
-		goto err_put;
-	}
-	if (!bpf_capable()) {
-		err = -EPERM;
 		goto err_put;
 	}
 
