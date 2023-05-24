@@ -79,6 +79,7 @@ struct rk_priv_data {
 	struct regmap *xpcs;
 
 	unsigned char otp_data;
+	unsigned int bgs_increment;
 };
 
 /* XPCS */
@@ -279,6 +280,8 @@ static void rk_gmac_integrated_ephy_powerdown(struct rk_priv_data *priv)
 
 #define RK_FEPHY_BGS			HIWORD_UPDATE(0x0, 0xf, 0)
 
+#define RK_FEPHY_BGS_MAX		7
+
 static void rk_gmac_integrated_fephy_power(struct rk_priv_data *priv,
 					   unsigned int ctrl_offset,
 					   unsigned int bgs_offset,
@@ -293,7 +296,7 @@ static void rk_gmac_integrated_fephy_power(struct rk_priv_data *priv,
 	}
 
 	if (up) {
-		unsigned int bgs = RK_FEPHY_BGS;
+		unsigned int bgs = priv->otp_data;
 
 		reset_control_assert(priv->phy_reset);
 		udelay(20);
@@ -303,8 +306,14 @@ static void rk_gmac_integrated_fephy_power(struct rk_priv_data *priv,
 			     RK_FEPHY_24M_CLK_SEL |
 			     RK_FEPHY_PHY_ID);
 
-		if (priv->otp_data > 0)
-			bgs = HIWORD_UPDATE(priv->otp_data, 0xf, 0);
+		if (bgs > (RK_FEPHY_BGS_MAX - priv->bgs_increment) &&
+		    bgs <= RK_FEPHY_BGS_MAX) {
+			bgs = HIWORD_UPDATE(RK_FEPHY_BGS_MAX, 0xf, 0);
+		} else {
+			bgs += priv->bgs_increment;
+			bgs &= 0xf;
+			bgs = HIWORD_UPDATE(bgs, 0xf, 0);
+		}
 
 		regmap_write(priv->grf, bgs_offset, bgs);
 		usleep_range(10 * 1000, 12 * 1000);
@@ -2518,6 +2527,17 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 			if (IS_ERR(bsp_priv->phy_reset)) {
 				dev_err(&pdev->dev, "No PHY reset control found.\n");
 				bsp_priv->phy_reset = NULL;
+			}
+
+			if (of_property_read_u32(plat->phy_node, "bgs,increment",
+						 &bsp_priv->bgs_increment)) {
+				bsp_priv->bgs_increment = 0;
+			} else {
+				if (bsp_priv->bgs_increment > RK_FEPHY_BGS_MAX) {
+					dev_err(dev, "%s: error bgs increment: %d\n",
+						__func__, bsp_priv->bgs_increment);
+					bsp_priv->bgs_increment = RK_FEPHY_BGS_MAX;
+				}
 			}
 
 			/* Read bgs from OTP if it exists */
