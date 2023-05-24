@@ -971,4 +971,13 @@ config CLK_GFM_LPASS_SM8250
 	  Support for the Glitch Free Mux (GFM) Low power audio
           subsystem (LPASS) clocks found on SM8250 SoCs.
 
+config SM_VIDEOCC_8450
+	tristate "SM8450 Video Clock Controller"
+	select SM_GCC_8450
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SM8450 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 endif
