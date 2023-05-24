@@ -886,13 +886,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.create_hwseq = dcn10_hwseq_create,
 };
 
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
-	.create_hwseq = dcn10_hwseq_create,
-};
-
 static void dcn10_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
