@@ -1364,7 +1364,7 @@ static const char *hist_field_name(struct hist_field *field,
 		if (field->field)
 			field_name = field->field->name;
 		else
-			field_name = "stacktrace";
+			field_name = "common_stacktrace";
 	} else if (field->flags & HIST_FIELD_FL_HITCOUNT)
 		field_name = "hitcount";
 
@@ -2367,7 +2367,7 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		hist_data->enable_timestamps = true;
 		if (*flags & HIST_FIELD_FL_TIMESTAMP_USECS)
 			hist_data->attrs->ts_in_usecs = true;
-	} else if (strcmp(field_name, "stacktrace") == 0) {
+	} else if (strcmp(field_name, "common_stacktrace") == 0) {
 		*flags |= HIST_FIELD_FL_STACKTRACE;
 	} else if (strcmp(field_name, "common_cpu") == 0)
 		*flags |= HIST_FIELD_FL_CPU;
@@ -2378,11 +2378,15 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		if (!field || !field->size) {
 			/*
 			 * For backward compatibility, if field_name
-			 * was "cpu", then we treat this the same as
-			 * common_cpu. This also works for "CPU".
+			 * was "cpu" or "stacktrace", then we treat this
+			 * the same as common_cpu and common_stacktrace
+			 * respectively. This also works for "CPU", and
+			 * "STACKTRACE".
 			 */
 			if (field && field->filter_type == FILTER_CPU) {
 				*flags |= HIST_FIELD_FL_CPU;
+			} else if (field && field->filter_type == FILTER_STACKTRACE) {
+				*flags |= HIST_FIELD_FL_STACKTRACE;
 			} else {
 				hist_err(tr, HIST_ERR_FIELD_NOT_FOUND,
 					 errpos(field_name));
@@ -5394,7 +5398,7 @@ static void hist_trigger_print_key(struct seq_file *m,
 			if (key_field->field)
 				seq_printf(m, "%s.stacktrace", key_field->field->name);
 			else
-				seq_puts(m, "stacktrace:\n");
+				seq_puts(m, "common_stacktrace:\n");
 			hist_trigger_stacktrace_print(m,
 						      key + key_field->offset,
 						      HIST_STACKTRACE_DEPTH);
@@ -5977,7 +5981,7 @@ static int event_hist_trigger_print(struct seq_file *m,
 			if (field->field)
 				seq_printf(m, "%s.stacktrace", field->field->name);
 			else
-				seq_puts(m, "stacktrace");
+				seq_puts(m, "common_stacktrace");
 		} else
 			hist_field_print(m, field);
 	}
