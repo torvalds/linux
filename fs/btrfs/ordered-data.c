@@ -1141,9 +1141,11 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 file_offset = ordered->file_offset;
 	u64 disk_bytenr = ordered->disk_bytenr;
-	unsigned long flags = ordered->flags & BTRFS_ORDERED_TYPE_FLAGS;
+	unsigned long flags = ordered->flags;
+	struct btrfs_ordered_sum *sum, *tmpsum;
 	struct btrfs_ordered_extent *new;
 	struct rb_node *node;
+	u64 offset = 0;
 
 	trace_btrfs_ordered_extent_split(inode, ordered);
 
@@ -1155,14 +1157,14 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	 */
 	if (WARN_ON_ONCE(len >= ordered->num_bytes))
 		return ERR_PTR(-EINVAL);
-	/* We cannot split once ordered extent is past end_bio. */
-	if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes))
-		return ERR_PTR(-EINVAL);
+	/* We cannot split partially completed ordered extents. */
+	if (ordered->bytes_left) {
+		ASSERT(!(flags & ~BTRFS_ORDERED_TYPE_FLAGS));
+		if (WARN_ON_ONCE(ordered->bytes_left != ordered->disk_num_bytes))
+			return ERR_PTR(-EINVAL);
+	}
 	/* We cannot split a compressed ordered extent. */
 	if (WARN_ON_ONCE(ordered->disk_num_bytes != ordered->num_bytes))
-		return ERR_PTR(-EINVAL);
-	/* Checksum list should be empty. */
-	if (WARN_ON_ONCE(!list_empty(&ordered->list)))
 		return ERR_PTR(-EINVAL);
 
 	new = alloc_ordered_extent(inode, file_offset, len, len, disk_bytenr,
@@ -1186,7 +1188,29 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	ordered->disk_bytenr += len;
 	ordered->num_bytes -= len;
 	ordered->disk_num_bytes -= len;
-	ordered->bytes_left -= len;
+
+	if (test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags)) {
+		ASSERT(ordered->bytes_left == 0);
+		new->bytes_left = 0;
+	} else {
+		ordered->bytes_left -= len;
+	}
+
+	if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags)) {
+		if (ordered->truncated_len > len) {
+			ordered->truncated_len -= len;
+		} else {
+			new->truncated_len = ordered->truncated_len;
+			ordered->truncated_len = 0;
+		}
+	}
+
+	list_for_each_entry_safe(sum, tmpsum, &ordered->list, list) {
+		if (offset == len)
+			break;
+		list_move_tail(&sum->list, &new->list);
+		offset += sum->len;
+	}
 
 	/* Re-insert the node */
 	node = tree_insert(&tree->tree, ordered->file_offset, &ordered->rb_node);
