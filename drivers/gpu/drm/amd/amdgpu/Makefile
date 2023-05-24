@@ -39,6 +39,15 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
 	-I$(FULL_AMD_PATH)/amdkfd
 
+subdir-ccflags-y := -Wextra
+subdir-ccflags-y += -Wunused-but-set-variable
+subdir-ccflags-y += -Wno-unused-parameter
+subdir-ccflags-y += -Wno-type-limits
+subdir-ccflags-y += -Wno-sign-compare
+subdir-ccflags-y += -Wno-missing-field-initializers
+subdir-ccflags-y += -Wno-override-init
+subdir-ccflags-$(CONFIG_DRM_AMDGPU_WERROR) += -Werror
+
 amdgpu-y := amdgpu_drv.o
 
 # add KMS driver
