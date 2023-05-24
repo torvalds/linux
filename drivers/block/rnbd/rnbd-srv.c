@@ -467,34 +467,33 @@ static int rnbd_srv_check_update_open_perm(struct rnbd_srv_dev *srv_dev,
 					    struct rnbd_srv_session *srv_sess,
 					    enum rnbd_access_mode access_mode)
 {
-	int ret = -EPERM;
+	int ret = 0;
 
 	mutex_lock(&srv_dev->lock);
 
 	switch (access_mode) {
 	case RNBD_ACCESS_RO:
-		ret = 0;
 		break;
 	case RNBD_ACCESS_RW:
 		if (srv_dev->open_write_cnt == 0)  {
 			srv_dev->open_write_cnt++;
-			ret = 0;
 		} else {
 			pr_err("Mapping device '%s' for session %s with RW permissions failed. Device already opened as 'RW' by %d client(s), access mode %s.\n",
 			       srv_dev->name, srv_sess->sessname,
 			       srv_dev->open_write_cnt,
 			       rnbd_access_modes[access_mode].str);
+			ret = -EPERM;
 		}
 		break;
 	case RNBD_ACCESS_MIGRATION:
 		if (srv_dev->open_write_cnt < 2) {
 			srv_dev->open_write_cnt++;
-			ret = 0;
 		} else {
 			pr_err("Mapping device '%s' for session %s with migration permissions failed. Device already opened as 'RW' by %d client(s), access mode %s.\n",
 			       srv_dev->name, srv_sess->sessname,
 			       srv_dev->open_write_cnt,
 			       rnbd_access_modes[access_mode].str);
+			ret = -EPERM;
 		}
 		break;
 	default:
