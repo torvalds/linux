@@ -85,7 +85,7 @@ try:
     expected_items = 7
   elif args.interval or args.per_thread or args.system_wide_no_aggr:
     expected_items = 8
-  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cache_instance:
+  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cache:
     expected_items = 9
   else:
     # If no option is specified, don't check the number of items.
