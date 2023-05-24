@@ -330,34 +330,31 @@ struct btrfs_fs_devices {
 	 */
 	struct btrfs_device *latest_dev;
 
-	/* all of the devices in the FS, protected by a mutex
-	 * so we can safely walk it to write out the supers without
-	 * worrying about add/remove by the multi-device code.
-	 * Scrubbing super can kick off supers writing by holding
-	 * this mutex lock.
+	/*
+	 * All of the devices in the filesystem, protected by a mutex so we can
+	 * safely walk it to write out the super blocks without worrying about
+	 * adding/removing by the multi-device code. Scrubbing super block can
+	 * kick off supers writing by holding this mutex lock.
 	 */
 	struct mutex device_list_mutex;
 
 	/* List of all devices, protected by device_list_mutex */
 	struct list_head devices;
 
-	/*
-	 * Devices which can satisfy space allocation. Protected by
-	 * chunk_mutex
-	 */
+	/* Devices which can satisfy space allocation. Protected by * chunk_mutex. */
 	struct list_head alloc_list;
 
 	struct list_head seed_list;
 
+	/* Count fs-devices opened. */
 	int opened;
 
-	/* set when we find or add a device that doesn't have the
-	 * nonrot flag set
-	 */
+	/* Set when we find or add a device that doesn't have the nonrot flag set. */
 	bool rotating;
-	/* Devices support TRIM/discard commands */
+	/* Devices support TRIM/discard commands. */
 	bool discardable;
 	bool fsid_change;
+	/* The filesystem is a seed filesystem. */
 	bool seeding;
 
 	struct btrfs_fs_info *fs_info;
@@ -369,7 +366,7 @@ struct btrfs_fs_devices {
 
 	enum btrfs_chunk_allocation_policy chunk_alloc_policy;
 
-	/* Policy used to read the mirrored stripes */
+	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
 };
 
