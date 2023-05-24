@@ -327,7 +327,7 @@
 		>;
 	};
 
-	pinctrl_rfkill: rfkillrp {
+	pinctrl_rfkill: rfkillgrp {
 		fsl,pins = <
 			MX7D_PAD_EPDC_DATA11__GPIO2_IO11	0x17059
 		>;
@@ -353,19 +353,19 @@
 		>;
 	};
 
-	pinctrl_usbotg1_lpsr: usbotg1 {
+	pinctrl_usbotg1_lpsr: usbotg1grp {
 		fsl,pins = <
 			MX7D_PAD_LPSR_GPIO1_IO04__USB_OTG1_OC	0x04
 		>;
 	};
 
-	pinctrl_usbotg1_pwr: usbotg1-pwr {
+	pinctrl_usbotg1_pwr: usbotg1-pwrgrp {
 		fsl,pins = <
 			MX7D_PAD_LPSR_GPIO1_IO05__USB_OTG1_PWR	0x04
 		>;
 	};
 
-	pinctrl_usbotg1_pwr_gpio: usbotg1-pwr-gpio {
+	pinctrl_usbotg1_pwr_gpio: usbotg1-pwr-gpiogrp {
 		fsl,pins = <
 			MX7D_PAD_LPSR_GPIO1_IO05__GPIO1_IO5	0x04
 		>;
