@@ -203,7 +203,7 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
-		      unsigned cookie, bool need_resize_uevent);
+		      unsigned int cookie, bool need_resize_uevent);
 
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
@@ -222,6 +222,6 @@ void dm_free_md_mempools(struct dm_md_mempools *pools);
 /*
  * Various helpers
  */
-unsigned dm_get_reserved_bio_based_ios(void);
+unsigned int dm_get_reserved_bio_based_ios(void);
 
 #endif

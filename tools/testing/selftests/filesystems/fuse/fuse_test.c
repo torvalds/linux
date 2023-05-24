@@ -175,8 +175,8 @@ static int basic_test(const char *mount_dir)
 			.open_flags = open_in->flags,
 		}));
 
-		//TESTFUSEINNULL(FUSE_CANONICAL_PATH);
-		//TESTFUSEOUTREAD("ignored", 7);
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_READ, read_in);
 		TESTFUSEOUTREAD(test_data, strlen(test_data));
@@ -631,8 +631,8 @@ static int bpf_test_creat(const char *mount_dir)
 			.open_flags = create_in->flags,
 			}));
 
-		//TESTFUSEINNULL(FUSE_CANONICAL_PATH);
-		//TESTFUSEOUTREAD("ignored", 7);
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_FLUSH, flush_in);
 		TESTFUSEOUTEMPTY();
@@ -1023,6 +1023,7 @@ static int bpf_test_xattr(const char *mount_dir)
 	const size_t xattr_size = sizeof(xattr_value);
 	char xattr_value_ret[256];
 	ssize_t xattr_size_ret;
+	ssize_t xattr_size_ret_se;
 	int result = TEST_FAILURE;
 	int fd = -1;
 	int src_fd = -1;
@@ -1053,9 +1054,8 @@ static int bpf_test_xattr(const char *mount_dir)
 
 	TESTSYSCALL(s_listxattr(s_path(s(mount_dir), s(file_name)),
 				xattr_value_ret, sizeof(xattr_value_ret),
-				&xattr_size_ret));
+				&xattr_size_ret_se));
 	TESTEQUAL(bpf_test_trace("listxattr"), 0);
-	TESTEQUAL(xattr_size_ret, 0);
 
 	TESTSYSCALL(s_setxattr(s_path(s(mount_dir), s(file_name)), xattr_name,
 			       xattr_value, xattr_size, 0));
@@ -1065,8 +1065,8 @@ static int bpf_test_xattr(const char *mount_dir)
 				xattr_value_ret, sizeof(xattr_value_ret),
 				&xattr_size_ret));
 	TESTEQUAL(bpf_test_trace("listxattr"), 0);
-	TESTEQUAL(xattr_size_ret, sizeof(xattr_name));
-	TESTEQUAL(strcmp(xattr_name, xattr_value_ret), 0);
+	TESTEQUAL(xattr_size_ret - xattr_size_ret_se, sizeof(xattr_name));
+	TESTEQUAL(strcmp(xattr_name, xattr_value_ret + xattr_size_ret_se), 0);
 
 	TESTSYSCALL(s_getxattr(s_path(s(mount_dir), s(file_name)), xattr_name,
 			       xattr_value_ret, sizeof(xattr_value_ret),

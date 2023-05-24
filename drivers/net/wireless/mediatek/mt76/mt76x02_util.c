@@ -455,20 +455,20 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	msta = sta ? (struct mt76x02_sta *)sta->drv_priv : NULL;
 	wcid = msta ? &msta->wcid : &mvif->group_wcid;
 
-	if (cmd == SET_KEY) {
-		key->hw_key_idx = wcid->idx;
-		wcid->hw_key_idx = idx;
-		if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
-			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
-			wcid->sw_iv = true;
-		}
-	} else {
+	if (cmd != SET_KEY) {
 		if (idx == wcid->hw_key_idx) {
 			wcid->hw_key_idx = -1;
 			wcid->sw_iv = false;
 		}
 
-		key = NULL;
+		return 0;
+	}
+
+	key->hw_key_idx = wcid->idx;
+	wcid->hw_key_idx = idx;
+	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
+		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		wcid->sw_iv = true;
 	}
 	mt76_wcid_key_setup(&dev->mt76, wcid, key);
 

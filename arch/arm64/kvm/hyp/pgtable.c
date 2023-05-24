@@ -993,6 +993,8 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	 */
 	if (pte_ops->pte_is_counted_cb(pte, level))
 		stage2_put_pte(ptep, mmu, addr, level, mm_ops);
+	else
+		stage2_clear_pte(ptep, mmu, addr, level);
 
 	if (need_flush && mm_ops->dcache_clean_inval_poc)
 		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(pte, mm_ops),

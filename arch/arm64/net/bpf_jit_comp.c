@@ -1905,7 +1905,8 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		restore_args(ctx, args_off, nargs);
 		/* call original func */
 		emit(A64_LDR64I(A64_R(10), A64_SP, retaddr_off), ctx);
-		emit(A64_BLR(A64_R(10)), ctx);
+		emit(A64_ADR(A64_LR, AARCH64_INSN_SIZE * 2), ctx);
+		emit(A64_RET(A64_R(10)), ctx);
 		/* store return value */
 		emit(A64_STR64I(A64_R(0), A64_SP, retval_off), ctx);
 		/* reserve a nop for bpf_tramp_image_put */

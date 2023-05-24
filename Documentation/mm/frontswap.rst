@@ -8,6 +8,12 @@ Frontswap provides a "transcendent memory" interface for swap pages.
 In some environments, dramatic performance savings may be obtained because
 swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
 
+(Note, frontswap -- and :ref:`cleancache` (merged at 3.0) -- are the "frontends"
+and the only necessary changes to the core kernel for transcendent memory;
+all other supporting code -- the "backends" -- is implemented as drivers.
+See the LWN.net article `Transcendent memory in a nutshell`_
+for a detailed overview of frontswap and related kernel parts)
+
 .. _Transcendent memory in a nutshell: https://lwn.net/Articles/454795/
 
 Frontswap is so named because it can be thought of as the opposite of
@@ -75,9 +81,11 @@ This interface is ideal when data is transformed to a different form
 and size (such as with compression) or secretly moved (as might be
 useful for write-balancing for some RAM-like devices).  Swap pages (and
 evicted page-cache pages) are a great use for this kind of slower-than-RAM-
-but-much-faster-than-disk "pseudo-RAM device".
+but-much-faster-than-disk "pseudo-RAM device" and the frontswap (and
+cleancache) interface to transcendent memory provides a nice way to read
+and write -- and indirectly "name" -- the pages.
 
-Frontswap with a fairly small impact on the kernel,
+Frontswap -- and cleancache -- with a fairly small impact on the kernel,
 provides a huge amount of flexibility for more dynamic, flexible RAM
 utilization in various system configurations:
 

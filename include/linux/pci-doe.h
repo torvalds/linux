@@ -34,6 +34,10 @@ struct pci_doe_mb;
  * @work: Used internally by the mailbox
  * @doe_mb: Used internally by the mailbox
  *
+ * Payloads are treated as opaque byte streams which are transmitted verbatim,
+ * without byte-swapping.  If payloads contain little-endian register values,
+ * the caller is responsible for conversion with cpu_to_le32() / le32_to_cpu().
+ *
  * The payload sizes and rv are specified in bytes with the following
  * restrictions concerning the protocol.
  *
@@ -45,9 +49,9 @@ struct pci_doe_mb;
  */
 struct pci_doe_task {
 	struct pci_doe_protocol prot;
-	u32 *request_pl;
+	__le32 *request_pl;
 	size_t request_pl_sz;
-	u32 *response_pl;
+	__le32 *response_pl;
 	size_t response_pl_sz;
 	int rv;
 	void (*complete)(struct pci_doe_task *task);

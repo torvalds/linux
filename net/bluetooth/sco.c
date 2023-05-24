@@ -1129,6 +1129,8 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
+		release_sock(sk);
+
 		/* find total buffer size required to copy codec + caps */
 		hci_dev_lock(hdev);
 		list_for_each_entry(c, &hdev->local_codecs, list) {
@@ -1146,15 +1148,13 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 		buf_len += sizeof(struct bt_codecs);
 		if (buf_len > len) {
 			hci_dev_put(hdev);
-			err = -ENOBUFS;
-			break;
+			return -ENOBUFS;
 		}
 		ptr = optval;
 
 		if (put_user(num_codecs, ptr)) {
 			hci_dev_put(hdev);
-			err = -EFAULT;
-			break;
+			return -EFAULT;
 		}
 		ptr += sizeof(num_codecs);
 
@@ -1194,11 +1194,13 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			ptr += len;
 		}
 
-		if (!err && put_user(buf_len, optlen))
-			err = -EFAULT;
-
 		hci_dev_unlock(hdev);
 		hci_dev_put(hdev);
+
+		lock_sock(sk);
+
+		if (!err && put_user(buf_len, optlen))
+			err = -EFAULT;
 
 		break;
 

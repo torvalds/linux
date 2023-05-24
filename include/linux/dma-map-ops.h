@@ -291,6 +291,14 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 #define pgprot_dmacoherent(prot)	pgprot_noncached(prot)
 #endif
 
+/*
+ * If there is no system cache pgprot, then fallback to dmacoherent
+ * pgprot, as the expectation is that the device is not coherent.
+ */
+#ifndef pgprot_syscached
+#define pgprot_syscached(prot)		pgprot_dmacoherent(prot)
+#endif
+
 pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs);
 #else
 static inline pgprot_t dma_pgprot(struct device *dev, pgprot_t prot,
