@@ -303,9 +303,14 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	expected = gen8_pte_encode(NULL, pt, 0, XE_CACHE_WB, 0, 0);
 	if (m->eng->vm->flags & XE_VM_FLAGS_64K)
 		expected |= XE_PTE_PS64;
-	xe_res_first(pt->ttm.resource, 0, pt->size, &src_it);
+	if (xe_bo_is_vram(pt))
+		xe_res_first(pt->ttm.resource, 0, pt->size, &src_it);
+	else
+		xe_res_first_sg(xe_bo_get_sg(pt), 0, pt->size, &src_it);
+
 	emit_pte(m, bb, NUM_KERNEL_PDE - 1, xe_bo_is_vram(pt),
 		 &src_it, XE_PAGE_SIZE, pt);
+
 	run_sanity_job(m, xe, bb, bb->len, "Writing PTE for our fake PT", test);
 
 	retval = xe_map_rd(xe, &bo->vmap, XE_PAGE_SIZE * (NUM_KERNEL_PDE - 1),
