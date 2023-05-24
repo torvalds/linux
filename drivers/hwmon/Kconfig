@@ -255,10 +255,11 @@ config SENSORS_ADT7475
 	  will be called adt7475.
 
 config SENSORS_AHT10
-	tristate "Aosong AHT10"
+	tristate "Aosong AHT10, AHT20"
 	depends on I2C
+	select CRC8
 	help
-	  If you say yes here, you get support for the Aosong AHT10
+	  If you say yes here, you get support for the Aosong AHT10 and AHT20
 	  temperature and humidity sensors
 
 	  This driver can also be built as a module. If so, the module
