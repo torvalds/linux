@@ -15,12 +15,14 @@ description: |
 
   See also::
     include/dt-bindings/clock/qcom,sm8450-gpucc.h
+    include/dt-bindings/clock/qcom,sm8550-gpucc.h
     include/dt-bindings/reset/qcom,sm8450-gpucc.h
 
 properties:
   compatible:
     enum:
       - qcom,sm8450-gpucc
+      - qcom,sm8550-gpucc
 
   clocks:
     items:
