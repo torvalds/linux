@@ -15,6 +15,21 @@ static bool clx_enabled = true;
 module_param_named(clx, clx_enabled, bool, 0444);
 MODULE_PARM_DESC(clx, "allow low power states on the high-speed lanes (default: true)");
 
+static const char *clx_name(unsigned int clx)
+{
+	if (!clx)
+		return "disabled";
+
+	if (clx & TB_CL2)
+		return "CL0s/CL1/CL2";
+	if (clx & TB_CL1)
+		return "CL0s/CL1";
+	if (clx & TB_CL0S)
+		return "CL0s";
+
+	return "unknown";
+}
+
 static int tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
 {
 	u32 phy;
@@ -117,6 +132,29 @@ static int tb_port_clx_enable(struct tb_port *port, unsigned int clx)
 	return tb_port_clx_set(port, clx, true);
 }
 
+static int tb_port_clx(struct tb_port *port)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_port_clx_supported(port, TB_CL0S | TB_CL1 | TB_CL2))
+		return 0;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (val & LANE_ADP_CS_1_CL0S_ENABLE)
+		ret |= TB_CL0S;
+	if (val & LANE_ADP_CS_1_CL1_ENABLE)
+		ret |= TB_CL1;
+	if (val & LANE_ADP_CS_1_CL2_ENABLE)
+		ret |= TB_CL2;
+
+	return ret;
+}
+
 /**
  * tb_port_clx_is_enabled() - Is given CL state enabled
  * @port: USB4 port to check
@@ -126,25 +164,45 @@ static int tb_port_clx_enable(struct tb_port *port, unsigned int clx)
  */
 bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx)
 {
-	u32 val, mask = 0;
-	int ret;
+	return !!(tb_port_clx(port) & clx);
+}
 
-	if (!tb_port_clx_supported(port, clx))
-		return false;
+/**
+ * tb_switch_clx_init() - Initialize router CL states
+ * @sw: Router
+ *
+ * Can be called for any router. Initializes the current CL state by
+ * reading it from the hardware.
+ *
+ * Returns %0 in case of success and negative errno in case of failure.
+ */
+int tb_switch_clx_init(struct tb_switch *sw)
+{
+	struct tb_port *up, *down;
+	unsigned int clx, tmp;
 
-	if (clx & TB_CL0S)
-		mask |= LANE_ADP_CS_1_CL0S_ENABLE;
-	if (clx & TB_CL1)
-		mask |= LANE_ADP_CS_1_CL1_ENABLE;
-	if (clx & TB_CL2)
-		mask |= LANE_ADP_CS_1_CL2_ENABLE;
+	if (tb_switch_is_icm(sw))
+		return 0;
 
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return false;
+	if (!tb_route(sw))
+		return 0;
 
-	return !!(val & mask);
+	if (!tb_switch_clx_is_supported(sw))
+		return 0;
+
+	up = tb_upstream_port(sw);
+	down = tb_switch_downstream_port(sw);
+
+	clx = tb_port_clx(up);
+	tmp = tb_port_clx(down);
+	if (clx != tmp)
+		tb_sw_warn(sw, "CLx: inconsistent configuration %#x != %#x\n",
+			   clx, tmp);
+
+	tb_sw_dbg(sw, "CLx: current mode: %s\n", clx_name(clx));
+
+	sw->clx = clx;
+	return 0;
 }
 
 static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
@@ -238,18 +296,6 @@ static bool validate_mask(unsigned int clx)
 	if (clx & TB_CL1)
 		return (clx & TB_CL0S) == TB_CL0S;
 	return true;
-}
-
-static const char *clx_name(unsigned int clx)
-{
-	if (clx & TB_CL2)
-		return "CL0s/CL1/CL2";
-	if (clx & TB_CL1)
-		return "CL0s/CL1";
-	if (clx & TB_CL0S)
-		return "CL0s";
-
-	return "unknown";
 }
 
 /**

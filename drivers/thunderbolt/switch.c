@@ -2859,6 +2859,10 @@ int tb_switch_add(struct tb_switch *sw)
 		if (ret)
 			return ret;
 
+		ret = tb_switch_clx_init(sw);
+		if (ret)
+			return ret;
+
 		ret = tb_switch_tmu_init(sw);
 		if (ret)
 			return ret;

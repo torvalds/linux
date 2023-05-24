@@ -1002,6 +1002,7 @@ static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
 
 bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx);
 
+int tb_switch_clx_init(struct tb_switch *sw);
 bool tb_switch_clx_is_supported(const struct tb_switch *sw);
 int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx);
 int tb_switch_clx_disable(struct tb_switch *sw);
