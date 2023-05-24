@@ -190,6 +190,18 @@ static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
 
+static bool has_aux_ccs(struct xe_device *xe)
+{
+	/*
+	 * PVC is a special case that has no compression of either type
+	 * (FlatCCS or AuxCCS).
+	 */
+	if (xe->info.platform == XE_PVC)
+		return false;
+
+	return !xe->info.has_flat_ccs;
+}
+
 static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 				   u64 batch_addr, u32 seqno)
 {
@@ -202,7 +214,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	dw[i++] = preparser_disable(true);
 
 	/* hsdes: 1809175790 */
-	if (!xe->info.has_flat_ccs) {
+	if (has_aux_ccs(xe)) {
 		if (decode)
 			i = emit_aux_table_inv(gt, VD0_AUX_INV, dw, i);
 		else
@@ -248,7 +260,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	i = emit_pipe_invalidate(mask_flags, dw, i);
 
 	/* hsdes: 1809175790 */
-	if (!xe->info.has_flat_ccs)
+	if (has_aux_ccs(xe))
 		i = emit_aux_table_inv(gt, CCS_AUX_INV, dw, i);
 
 	dw[i++] = preparser_disable(false);
