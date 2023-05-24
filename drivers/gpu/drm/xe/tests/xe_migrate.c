@@ -150,7 +150,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	xe_map_memset(xe, &bo->vmap, 0, 0xd0, bo->size);
 
 	expected = 0xc0c0c0c0c0c0c0c0;
-	fence = xe_migrate_copy(m, sysmem, sysmem->ttm.resource,
+	fence = xe_migrate_copy(m, sysmem, bo, sysmem->ttm.resource,
 				bo->ttm.resource);
 	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo sysmem -> vram" :
 				 "Copying small bo sysmem -> vram", test)) {
@@ -167,7 +167,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	xe_map_memset(xe, &sysmem->vmap, 0, 0xd0, sysmem->size);
 	xe_map_memset(xe, &bo->vmap, 0, 0xc0, bo->size);
 
-	fence = xe_migrate_copy(m, sysmem, bo->ttm.resource,
+	fence = xe_migrate_copy(m, bo, sysmem, bo->ttm.resource,
 				sysmem->ttm.resource);
 	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo vram -> sysmem" :
 				 "Copying small bo vram -> sysmem", test)) {
@@ -347,10 +347,8 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	retval = xe_map_rd(xe, &tiny->vmap, tiny->size - 4, u32);
 	check(retval, expected, "Command clear small last value", test);
 
-	if (IS_DGFX(xe)) {
-		kunit_info(test, "Copying small buffer object to system\n");
-		test_copy(m, tiny, test);
-	}
+	kunit_info(test, "Copying small buffer object to system\n");
+	test_copy(m, tiny, test);
 
 	/* Clear a big bo */
 	kunit_info(test, "Clearing big buffer object\n");
@@ -366,10 +364,8 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	retval = xe_map_rd(xe, &big->vmap, big->size - 4, u32);
 	check(retval, expected, "Command clear big last value", test);
 
-	if (IS_DGFX(xe)) {
-		kunit_info(test, "Copying big buffer object to system\n");
-		test_copy(m, big, test);
-	}
+	kunit_info(test, "Copying big buffer object to system\n");
+	test_copy(m, big, test);
 
 	kunit_info(test, "Testing page table update using CPU if GPU idle.\n");
 	test_pt_update(m, pt, test, false);

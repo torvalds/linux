@@ -679,7 +679,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		if (move_lacks_source)
 			fence = xe_migrate_clear(gt->migrate, bo, new_mem);
 		else
-			fence = xe_migrate_copy(gt->migrate, bo, old_mem, new_mem);
+			fence = xe_migrate_copy(gt->migrate, bo, bo, old_mem, new_mem);
 		if (IS_ERR(fence)) {
 			ret = PTR_ERR(fence);
 			xe_device_mem_access_put(xe);

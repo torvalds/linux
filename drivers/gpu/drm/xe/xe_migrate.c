@@ -582,30 +582,31 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 /**
  * xe_migrate_copy() - Copy content of TTM resources.
  * @m: The migration context.
- * @bo: The buffer object @src is currently bound to.
+ * @src_bo: The buffer object @src is currently bound to.
+ * @dst_bo: If copying between resources created for the same bo, set this to
+ * the same value as @src_bo. If copying between buffer objects, set it to
+ * the buffer object @dst is currently bound to.
  * @src: The source TTM resource.
  * @dst: The dst TTM resource.
  *
  * Copies the contents of @src to @dst: On flat CCS devices,
  * the CCS metadata is copied as well if needed, or if not present,
  * the CCS metadata of @dst is cleared for security reasons.
- * It's currently not possible to copy between two system resources,
- * since that would require two TTM page-vectors.
- * TODO: Eliminate the @bo argument and supply two TTM page-vectors.
  *
  * Return: Pointer to a dma_fence representing the last copy batch, or
  * an error pointer on failure. If there is a failure, any copy operation
  * started by the function call has been synced.
  */
 struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
-				  struct xe_bo *bo,
+				  struct xe_bo *src_bo,
+				  struct xe_bo *dst_bo,
 				  struct ttm_resource *src,
 				  struct ttm_resource *dst)
 {
 	struct xe_gt *gt = m->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct dma_fence *fence = NULL;
-	u64 size = bo->size;
+	u64 size = src_bo->size;
 	struct xe_res_cursor src_it, dst_it, ccs_it;
 	u64 src_L0_ofs, dst_L0_ofs;
 	u32 src_L0_pt, dst_L0_pt;
@@ -614,20 +615,28 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 	int err;
 	bool src_is_vram = mem_type_is_vram(src->mem_type);
 	bool dst_is_vram = mem_type_is_vram(dst->mem_type);
-	bool copy_ccs = xe_device_has_flat_ccs(xe) && xe_bo_needs_ccs_pages(bo);
+	bool copy_ccs = xe_device_has_flat_ccs(xe) &&
+		xe_bo_needs_ccs_pages(src_bo) && xe_bo_needs_ccs_pages(dst_bo);
 	bool copy_system_ccs = copy_ccs && (!src_is_vram || !dst_is_vram);
 
+	/* Copying CCS between two different BOs is not supported yet. */
+	if (XE_WARN_ON(copy_ccs && src_bo != dst_bo))
+		return ERR_PTR(-EINVAL);
+
+	if (src_bo != dst_bo && XE_WARN_ON(src_bo->size != dst_bo->size))
+		return ERR_PTR(-EINVAL);
+
 	if (!src_is_vram)
-		xe_res_first_sg(xe_bo_get_sg(bo), 0, size, &src_it);
+		xe_res_first_sg(xe_bo_get_sg(src_bo), 0, size, &src_it);
 	else
 		xe_res_first(src, 0, size, &src_it);
 	if (!dst_is_vram)
-		xe_res_first_sg(xe_bo_get_sg(bo), 0, size, &dst_it);
+		xe_res_first_sg(xe_bo_get_sg(dst_bo), 0, size, &dst_it);
 	else
 		xe_res_first(dst, 0, size, &dst_it);
 
 	if (copy_system_ccs)
-		xe_res_first_sg(xe_bo_get_sg(bo), xe_bo_ccs_pages_start(bo),
+		xe_res_first_sg(xe_bo_get_sg(src_bo), xe_bo_ccs_pages_start(src_bo),
 				PAGE_ALIGN(xe_device_ccs_bytes(xe, size)),
 				&ccs_it);
 
@@ -681,18 +690,18 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		if (!src_is_vram)
 			emit_pte(m, bb, src_L0_pt, src_is_vram, &src_it, src_L0,
-				 bo);
+				 src_bo);
 		else
 			xe_res_next(&src_it, src_L0);
 
 		if (!dst_is_vram)
 			emit_pte(m, bb, dst_L0_pt, dst_is_vram, &dst_it, src_L0,
-				 bo);
+				 dst_bo);
 		else
 			xe_res_next(&dst_it, src_L0);
 
 		if (copy_system_ccs)
-			emit_pte(m, bb, ccs_pt, false, &ccs_it, ccs_size, bo);
+			emit_pte(m, bb, ccs_pt, false, &ccs_it, ccs_size, src_bo);
 
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
@@ -714,8 +723,11 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		xe_sched_job_add_migrate_flush(job, flush_flags);
 		if (!fence) {
-			err = job_add_deps(job, bo->ttm.base.resv,
+			err = job_add_deps(job, src_bo->ttm.base.resv,
 					   DMA_RESV_USAGE_BOOKKEEP);
+			if (!err && src_bo != dst_bo)
+				err = job_add_deps(job, dst_bo->ttm.base.resv,
+						   DMA_RESV_USAGE_BOOKKEEP);
 			if (err)
 				goto err_job;
 		}

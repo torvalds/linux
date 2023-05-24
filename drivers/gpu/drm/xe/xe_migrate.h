@@ -73,7 +73,8 @@ struct xe_migrate_pt_update {
 struct xe_migrate *xe_migrate_init(struct xe_gt *gt);
 
 struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
-				  struct xe_bo *bo,
+				  struct xe_bo *src_bo,
+				  struct xe_bo *dst_bo,
 				  struct ttm_resource *src,
 				  struct ttm_resource *dst);
 
