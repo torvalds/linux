@@ -40,6 +40,7 @@
 
 #define DEFAULT_DEBUG_TIME (10 * 1000)
 #define DEFAULT_TIMER (5000)
+#define MAX_DRV_NAMES	26
 
 #define read_word(base, itr) ({					\
 		u32 v;						\
@@ -78,8 +79,10 @@ struct vx_log {
 struct vx_platform_data {
 	void __iomem *base;
 	struct dentry *vx_dir;
-	size_t ndrv;
-	const char **drvs;
+	size_t n_cxpc_drv;
+	size_t n_aoss_drv;
+	const char **cxpc_drvs;
+	const char **aoss_drvs;
 	struct mutex lock;
 	struct qmp *qmp;
 	ktime_t suspend_time;
@@ -93,21 +96,28 @@ struct vx_platform_data {
 
 static struct vx_platform_data *g_pd;
 
-static const char * const drv_names_kalama[] = {
-	"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "AOP", "DEBUG",
-	"GPU", "DISPLAY", "COMPUTE_DSP", "TME_SW", "TME_HW", "MDM SW",
-	"MDM HW", "WLAN RF", "WLAN BB", "CAM_IFE0", "CAM_IFE1", "CAM_IFE2",
-	"DDR AUX", "ARC CPRF",
-	""
+enum {
+	CXPC_DRV_NAME,
+	AOSS_DRV_NAME,
 };
 
-static const char * const drv_names_pineapple[] = {
-	"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "AOP", "DEBUG",
-	"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "MDM SW",
-	"MDM HW", "MDM Q6 CESTA", "WLAN RF", "WLAN BB", "CAM_IFE0 CESTA",
-	"CAM_IFE1", "CAM_IFE2", "PCI0 CESTA", "PCI1 CESTA",
-	"DDR AUX", "ARC CPRF",
-	""
+static const char * const drv_names_kalama[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "AOP", "DEBUG",
+			"GPU", "DISPLAY", "COMPUTE_DSP", "TME_SW", "TME_HW", "MDM SW",
+			"MDM HW", "WLAN RF", "WLAN BB", "CAM_IFE0", "CAM_IFE1", "CAM_IFE2",
+			"DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {"APPS", "SP", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
+			"TME", "MODEM", "WLAN BB", "CAM", ""},
+};
+
+static const char * const drv_names_pineapple[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "AOP", "DEBUG",
+			"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "MDM SW",
+			"MDM HW", "MDM Q6 CESTA", "WLAN RF", "WLAN BB", "CAM_IFE0 CESTA",
+			"CAM_IFE1", "CAM_IFE2", "PCI0 CESTA", "PCI1 CESTA",
+			"DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {"APPS", "SP", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
+			"TME", "MODEM", "WLAN BB", "CAM", "PCIE", ""},
 };
 
 static ssize_t debug_time_ms_show(struct device *dev,
@@ -241,6 +251,28 @@ static void sys_pm_vx_send_msg(struct vx_platform_data *pd, bool enable)
 	mutex_unlock(&pd->lock);
 }
 
+static const char **vx_get_drvs_info(u8 type, struct vx_platform_data *pd,
+				      size_t *ndrvs)
+{
+	const char **drvs;
+
+	switch (type) {
+	case MODE_CXPC:
+	case MODE_DDR:
+		*ndrvs = pd->n_cxpc_drv;
+		drvs = pd->cxpc_drvs;
+		break;
+	case MODE_AOSS:
+		*ndrvs = pd->n_aoss_drv;
+		drvs = pd->aoss_drvs;
+		break;
+	default:
+		return NULL;
+	}
+
+	return drvs;
+}
+
 static int read_vx_data(struct vx_platform_data *pd, struct vx_log *log)
 {
 	void __iomem *base = pd->base;
@@ -248,6 +280,8 @@ static int read_vx_data(struct vx_platform_data *pd, struct vx_log *log)
 	struct vx_data *data;
 	u32 *vx, val, itr = 0;
 	int i, j, k;
+	size_t n_drv;
+	const char **drvs;
 
 	val = read_word(base, itr);
 	if (!val)
@@ -256,6 +290,9 @@ static int read_vx_data(struct vx_platform_data *pd, struct vx_log *log)
 	hdr->mode.type = val & VX_MODE_MASK_TYPE;
 	hdr->mode.logsize = (val >> VX_MODE_SHIFT_LOGSIZE) &
 				    VX_MODE_MASK_LOGSIZE;
+	drvs = vx_get_drvs_info(hdr->mode.type, pd, &n_drv);
+	if (!drvs || !n_drv)
+		return -ENODEV;
 
 	val = read_word(base, itr);
 	if (!val)
@@ -275,11 +312,11 @@ static int read_vx_data(struct vx_platform_data *pd, struct vx_log *log)
 		if (!data[i].ts)
 			break;
 		data[i].ts <<= hdr->flags.ts_shift;
-		vx = kcalloc(ALIGN(pd->ndrv, 4), sizeof(*vx), GFP_KERNEL);
+		vx = kcalloc(ALIGN(n_drv, 4), sizeof(*vx), GFP_KERNEL);
 		if (!vx)
 			goto no_mem;
 
-		for (j = 0; j < pd->ndrv;) {
+		for (j = 0; j < n_drv;) {
 			val = read_word(base, itr);
 			for (k = 0; k < 4; k++)
 				vx[j++] = val >> (8 * k) & 0xFF;
@@ -310,12 +347,12 @@ static void vx_check_drv(struct vx_platform_data *pd)
 		return;
 	}
 
-	for (i = 0; i < pd->ndrv; i++) {
+	for (i = 0; i < pd->n_cxpc_drv; i++) {
 		for (j = 0; j < log.loglines; j++) {
 			if (log.data[j].drv_vx[i] == 0)
 				break;
 			if (j == log.loglines - 1) {
-				pr_warn("DRV: %s has blocked power collapse\n", pd->drvs[i]);
+				pr_warn("DRV: %s has blocked power collapse\n", pd->cxpc_drvs[i]);
 				trigger_dump(pd);
 			}
 		}
@@ -334,6 +371,12 @@ static void show_vx_data(struct vx_platform_data *pd, struct vx_log *log,
 	struct vx_data *data;
 	u32 prev;
 	bool from_exit = false;
+	const char **drvs;
+	size_t ndrv;
+
+	drvs = vx_get_drvs_info(hdr->mode.type, pd, &ndrv);
+	if (!drvs || !ndrv)
+		return;
 
 	seq_printf(seq, "Mode           : %s\n"
 			"Duration (ms)  : %u\n"
@@ -348,15 +391,15 @@ static void show_vx_data(struct vx_platform_data *pd, struct vx_log *log,
 
 	seq_puts(seq, "Timestamp|");
 
-	for (i = 0; i < pd->ndrv; i++)
-		seq_printf(seq, "%*s|", 8, pd->drvs[i]);
+	for (i = 0; i < ndrv; i++)
+		seq_printf(seq, "%*s|", 8, drvs[i]);
 	seq_puts(seq, "\n");
 
 	for (i = 0; i < log->loglines; i++) {
 		data = &log->data[i];
 		seq_printf(seq, "%*x|", 9, data->ts);
 		/* An all-zero line indicates we entered LPM */
-		for (j = 0, prev = data->drv_vx[0]; j < pd->ndrv; j++)
+		for (j = 0, prev = data->drv_vx[0]; j < ndrv; j++)
 			prev |= data->drv_vx[j];
 		if (!prev) {
 			if (!from_exit) {
@@ -368,7 +411,7 @@ static void show_vx_data(struct vx_platform_data *pd, struct vx_log *log,
 			}
 			continue;
 		}
-		for (j = 0; j < pd->ndrv; j++)
+		for (j = 0; j < ndrv; j++)
 			seq_printf(seq, "%*u|", 8, data->drv_vx[j]);
 		seq_puts(seq, "\n");
 	}
@@ -497,8 +540,17 @@ static int vx_probe(struct platform_device *pdev)
 		if (!name[0])
 			break;
 	}
-	pd->ndrv = i;
-	pd->drvs = drvs;
+	pd->n_cxpc_drv = i;
+	pd->cxpc_drvs = drvs;
+
+	for (i = 0; ; i++) {
+		const char *name = (const char *)drvs[MAX_DRV_NAMES + i];
+
+		if (!name[0])
+			break;
+	}
+	pd->n_aoss_drv = i;
+	pd->aoss_drvs = &drvs[MAX_DRV_NAMES];
 
 	pd->vx_dir = debugfs_create_dir("sys_pm_vx", NULL);
 	if (!pd->vx_dir)
