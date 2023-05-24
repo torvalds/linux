@@ -1294,6 +1294,7 @@
 				phy-is-integrated;
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
+				bgs,increment = <2>;
 			};
 		};
 
