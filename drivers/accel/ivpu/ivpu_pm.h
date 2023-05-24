@@ -14,6 +14,7 @@ struct ivpu_pm_info {
 	struct ivpu_device *vdev;
 	struct work_struct recovery_work;
 	atomic_t in_reset;
+	atomic_t reset_counter;
 	bool is_warmboot;
 	u32 suspend_reschedule_counter;
 };

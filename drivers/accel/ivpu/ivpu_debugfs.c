@@ -77,11 +77,31 @@ static int last_bootmode_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int reset_counter_show(struct seq_file *s, void *v)
+{
+	struct drm_info_node *node = (struct drm_info_node *)s->private;
+	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+
+	seq_printf(s, "%d\n", atomic_read(&vdev->pm->reset_counter));
+	return 0;
+}
+
+static int reset_pending_show(struct seq_file *s, void *v)
+{
+	struct drm_info_node *node = (struct drm_info_node *)s->private;
+	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+
+	seq_printf(s, "%d\n", atomic_read(&vdev->pm->in_reset));
+	return 0;
+}
+
 static const struct drm_info_list vdev_debugfs_list[] = {
 	{"bo_list", bo_list_show, 0},
 	{"fw_trace_capability", fw_trace_capability_show, 0},
 	{"fw_trace_config", fw_trace_config_show, 0},
 	{"last_bootmode", last_bootmode_show, 0},
+	{"reset_counter", reset_counter_show, 0},
+	{"reset_pending", reset_pending_show, 0},
 };
 
 static int fw_log_show(struct seq_file *s, void *v)
@@ -216,6 +236,24 @@ ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size
 	return size;
 }
 
+static ssize_t
+ivpu_force_recovery_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+
+	if (!size)
+		return -EINVAL;
+
+	ivpu_pm_schedule_recovery(vdev);
+	return size;
+}
+
+static const struct file_operations ivpu_force_recovery_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = ivpu_force_recovery_fn,
+};
+
 static const struct file_operations ivpu_reset_engine_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -228,6 +266,9 @@ void ivpu_debugfs_init(struct drm_minor *minor)
 
 	drm_debugfs_create_files(vdev_debugfs_list, ARRAY_SIZE(vdev_debugfs_list),
 				 minor->debugfs_root, minor);
+
+	debugfs_create_file("force_recovery", 0200, minor->debugfs_root, vdev,
+			    &ivpu_force_recovery_fops);
 
 	debugfs_create_file("fw_log", 0644, minor->debugfs_root, vdev,
 			    &fw_log_fops);
