@@ -107,6 +107,7 @@ const char *errorname(int err)
 	CASE_ERR(EDOM);
 	CASE_ERR(ERANGE);
 	CASE_ERR(ENOSYS);
+	CASE_ERR(EOVERFLOW);
 	default:
 		return itoa(err);
 	}
