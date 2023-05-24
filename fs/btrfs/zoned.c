@@ -15,6 +15,7 @@
 #include "transaction.h"
 #include "dev-replace.h"
 #include "space-info.h"
+#include "super.h"
 #include "fs.h"
 #include "accessors.h"
 #include "bio.h"
@@ -1665,17 +1666,11 @@ void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 		sum->logical += physical - bbio->orig_physical;
 }
 
-void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
+static void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered,
+					u64 logical)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
-	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct extent_map_tree *em_tree = &BTRFS_I(ordered->inode)->extent_tree;
 	struct extent_map *em;
-	struct btrfs_ordered_sum *sum =
-		list_first_entry(&ordered->list, typeof(*sum), list);
-	u64 logical = sum->logical;
-
-	if (ordered->disk_bytenr == logical)
-		goto out;
 
 	ordered->disk_bytenr = logical;
 
@@ -1685,6 +1680,54 @@ void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 	em->block_start = logical;
 	free_extent_map(em);
 	write_unlock(&em_tree->lock);
+}
+
+static bool btrfs_zoned_split_ordered(struct btrfs_ordered_extent *ordered,
+				      u64 logical, u64 len)
+{
+	struct btrfs_ordered_extent *new;
+
+	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
+	    split_extent_map(BTRFS_I(ordered->inode), ordered->file_offset,
+			     ordered->num_bytes, len))
+		return false;
+
+	new = btrfs_split_ordered_extent(ordered, len);
+	if (IS_ERR(new))
+		return false;
+
+	if (new->disk_bytenr != logical)
+		btrfs_rewrite_logical_zoned(new, logical);
+	btrfs_finish_one_ordered(new);
+	return true;
+}
+
+void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered)
+{
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_ordered_sum *sum =
+		list_first_entry(&ordered->list, typeof(*sum), list);
+	u64 logical = sum->logical;
+	u64 len = sum->len;
+
+	while (len < ordered->disk_num_bytes) {
+		sum = list_next_entry(sum, list);
+		if (sum->logical == logical + len) {
+			len += sum->len;
+			continue;
+		}
+		if (!btrfs_zoned_split_ordered(ordered, logical, len)) {
+			set_bit(BTRFS_ORDERED_IOERR, &ordered->flags);
+			btrfs_err(fs_info, "failed to split ordered extent");
+			goto out;
+		}
+		logical = sum->logical;
+		len = sum->len;
+	}
+
+	if (ordered->disk_bytenr != logical)
+		btrfs_rewrite_logical_zoned(ordered, logical);
 
 out:
 	/*
@@ -1694,9 +1737,12 @@ out:
 	 * here so that we don't attempt to log the csums later.
 	 */
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
-	    test_bit(BTRFS_FS_STATE_NO_CSUMS, &inode->root->fs_info->fs_state)) {
-		list_del(&sum->list);
-		kfree(sum);
+	    test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state)) {
+		while ((sum = list_first_entry_or_null(&ordered->list,
+						       typeof(*sum), list))) {
+			list_del(&sum->list);
+			kfree(sum);
+		}
 	}
 }
 

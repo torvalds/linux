@@ -61,20 +61,6 @@ struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 	return bbio;
 }
 
-static blk_status_t btrfs_bio_extract_ordered_extent(struct btrfs_bio *bbio)
-{
-	struct btrfs_ordered_extent *ordered;
-	int ret;
-
-	ordered = btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
-	if (WARN_ON_ONCE(!ordered))
-		return BLK_STS_IOERR;
-	ret = btrfs_extract_ordered_extent(bbio, ordered);
-	btrfs_put_ordered_extent(ordered);
-
-	return errno_to_blk_status(ret);
-}
-
 static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 					 struct btrfs_bio *orig_bbio,
 					 u64 map_length, bool use_append)
@@ -668,9 +654,6 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		if (use_append) {
 			bio->bi_opf &= ~REQ_OP_WRITE;
 			bio->bi_opf |= REQ_OP_ZONE_APPEND;
-			ret = btrfs_bio_extract_ordered_extent(bbio);
-			if (ret)
-				goto fail_put_bio;
 		}
 
 		/*

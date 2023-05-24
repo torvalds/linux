@@ -2714,8 +2714,8 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 	}
 }
 
-int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
-				 struct btrfs_ordered_extent *ordered)
+static int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
+					struct btrfs_ordered_extent *ordered)
 {
 	u64 start = (u64)bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 len = bbio->bio.bi_iter.bi_size;
@@ -3180,7 +3180,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
  * an ordered extent if the range of bytes in the file it covers are
  * fully written.
  */
-int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
+int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 {
 	struct btrfs_inode *inode = BTRFS_I(ordered_extent->inode);
 	struct btrfs_root *root = inode->root;
@@ -3215,11 +3215,9 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	if (btrfs_is_zoned(fs_info)) {
-		btrfs_rewrite_logical_zoned(ordered_extent);
+	if (btrfs_is_zoned(fs_info))
 		btrfs_zone_finish_endio(fs_info, ordered_extent->disk_bytenr,
 					ordered_extent->disk_num_bytes);
-	}
 
 	if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered_extent->flags)) {
 		truncated = true;
@@ -3385,6 +3383,14 @@ out:
 	btrfs_put_ordered_extent(ordered_extent);
 
 	return ret;
+}
+
+int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
+{
+	if (btrfs_is_zoned(btrfs_sb(ordered->inode->i_sb)) &&
+	    !test_bit(BTRFS_ORDERED_IOERR, &ordered->flags))
+		btrfs_finish_ordered_zoned(ordered);
+	return btrfs_finish_one_ordered(ordered);
 }
 
 void btrfs_writepage_endio_finish_ordered(struct btrfs_inode *inode,
