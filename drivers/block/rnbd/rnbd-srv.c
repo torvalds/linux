@@ -96,7 +96,7 @@ rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
 		ret = kref_get_unless_zero(&sess_dev->kref);
 	rcu_read_unlock();
 
-	if (!sess_dev || !ret)
+	if (!ret)
 		return ERR_PTR(-ENXIO);
 
 	return sess_dev;
