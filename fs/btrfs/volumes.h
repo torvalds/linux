@@ -281,7 +281,6 @@ enum btrfs_read_policy {
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 	u8 metadata_uuid[BTRFS_FSID_SIZE];
-	bool fsid_change;
 	struct list_head fs_list;
 
 	/*
@@ -337,7 +336,6 @@ struct btrfs_fs_devices {
 	struct list_head alloc_list;
 
 	struct list_head seed_list;
-	bool seeding;
 
 	int opened;
 
@@ -347,6 +345,8 @@ struct btrfs_fs_devices {
 	bool rotating;
 	/* Devices support TRIM/discard commands */
 	bool discardable;
+	bool fsid_change;
+	bool seeding;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
