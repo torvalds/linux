@@ -5,6 +5,7 @@
 
 #include "xe_gt_tlb_invalidation.h"
 
+#include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
@@ -112,6 +113,8 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	 * in order which they currently are, if that changes the algorithm will
 	 * need to be updated.
 	 */
+
+	xe_device_mem_access_get(gt->xe);
 	mutex_lock(&guc->ct.lock);
 	seqno = gt->tlb_invalidation.seqno;
 	if (fence) {
@@ -140,6 +143,7 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	if (ret < 0 && fence)
 		invalidation_fence_signal(fence);
 	mutex_unlock(&guc->ct.lock);
+	xe_device_mem_access_put(gt->xe);
 
 	return ret;
 }
