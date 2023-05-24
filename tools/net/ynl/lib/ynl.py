@@ -591,8 +591,9 @@ class YnlFamily(SpecFamily):
                         print('Unexpected message: ' + repr(gm))
                         continue
 
-                rsp.append(self._decode(gm.raw_attrs, op.attr_set.name)
-                           | gm.fixed_header_attrs)
+                rsp_msg = self._decode(gm.raw_attrs, op.attr_set.name)
+                rsp_msg.update(gm.fixed_header_attrs)
+                rsp.append(rsp_msg)
 
         if not rsp:
             return None
