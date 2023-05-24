@@ -1155,7 +1155,15 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
                         IWL_DEBUG_RADIO(fwrt,
                                         "PPAG table rev is %d but FW supports v1, sending truncated table\n",
                                         fwrt->ppag_ver);
-                        cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+			if (!fw_has_capa(&fwrt->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) {
+				cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
+				IWL_DEBUG_RADIO(fwrt,
+						"FW doesn't support ppag China bit\n");
+			} else {
+				IWL_DEBUG_RADIO(fwrt,
+						"FW supports ppag China bit\n");
+			}
 		}
 	} else if (cmd_ver >= 2 && cmd_ver <= 4) {
                 num_sub_bands = IWL_NUM_SUB_BANDS_V2;
