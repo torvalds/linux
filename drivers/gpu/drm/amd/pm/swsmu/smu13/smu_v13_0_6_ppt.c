@@ -192,6 +192,7 @@ struct PPTable_t {
 	uint32_t LclkFrequencyTable[4];
 	uint32_t MaxLclkDpmRange;
 	uint32_t MinLclkDpmRange;
+	uint64_t PublicSerialNumber_AID;
 	bool Init;
 };
 
@@ -351,6 +352,9 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			pptable->LclkFrequencyTable[i] =
 				SMUQ10_TO_UINT(metrics->LclkFrequencyTable[i]);
 		}
+
+		/* use AID0 serial number by default */
+		pptable->PublicSerialNumber_AID = metrics->PublicSerialNumber_AID[0];
 
 		pptable->Init = true;
 	}
@@ -1856,19 +1860,11 @@ static void smu_v13_0_6_i2c_control_fini(struct smu_context *smu)
 static void smu_v13_0_6_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	//SmuMetrics_t *metrics = smu->smu_table.metrics_table;
-	uint32_t upper32 = 0, lower32 = 0;
-	int ret;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
 
-	ret = smu_cmn_get_metrics_table(smu, NULL, false);
-	if (ret)
-		goto out;
-
-	//upper32 = metrics->PublicSerialNumUpper32;
-	//lower32 = metrics->PublicSerialNumLower32;
-
-out:
-	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
+	adev->unique_id = pptable->PublicSerialNumber_AID;
 	if (adev->serial[0] == '\0')
 		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
