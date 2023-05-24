@@ -52,13 +52,19 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 	int ret = -ENOENT;
 	int i;
 
-	if (ivpu_firmware)
-		return request_firmware(&vdev->fw->file, ivpu_firmware, vdev->drm.dev);
+	if (ivpu_firmware) {
+		ret = request_firmware(&vdev->fw->file, ivpu_firmware, vdev->drm.dev);
+		if (!ret)
+			vdev->fw->name = ivpu_firmware;
+		return ret;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_names); i++) {
 		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i], vdev->drm.dev);
-		if (!ret)
+		if (!ret) {
+			vdev->fw->name = fw_names[i];
 			return 0;
+		}
 	}
 
 	ivpu_err(vdev, "Failed to request firmware: %d\n", ret);
@@ -143,7 +149,9 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	}
 	ivpu_dbg(vdev, FW_BOOT, "Header version: 0x%x, format 0x%x\n",
 		 fw_hdr->header_version, fw_hdr->image_format);
-	ivpu_dbg(vdev, FW_BOOT, "FW version: %s\n", (char *)fw_hdr + VPU_FW_HEADER_SIZE);
+
+	ivpu_info(vdev, "Firmware: %s, version: %s", fw->name,
+		  (const char *)fw_hdr + VPU_FW_HEADER_SIZE);
 
 	if (IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT, 3))
 		return -EINVAL;

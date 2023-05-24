@@ -12,6 +12,7 @@ struct vpu_boot_params;
 
 struct ivpu_fw_info {
 	const struct firmware *file;
+	const char *name;
 	struct ivpu_bo *mem;
 	struct ivpu_bo *mem_shave_nn;
 	struct ivpu_bo *mem_log_crit;
