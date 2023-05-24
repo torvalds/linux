@@ -250,6 +250,13 @@
 			reg = <0 0x12c02a80 0 0x80>;
 		};
 
+		rtc: rtc@12c0f000 {
+			compatible = "aspeed,ast2700-rtc";
+			reg = <0 0x12c0f000 0 0x18>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		pcie0_vuart0: serial@12c18000 {
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18000 0x0 0x40>;

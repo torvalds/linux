@@ -149,6 +149,10 @@
 	status = "okay";
 };
 
+&rtc {
+	status = "okay";
+};
+
 #if 0
 &bmc_dev0 {
 	status = "okay";
