@@ -81,6 +81,14 @@ DECLARE_HOOK(android_vh_madvise_swapin_walk_pmd_entry,
 DECLARE_HOOK(android_vh_process_madvise_end,
 	TP_PROTO(int behavior, ssize_t *ret),
 	TP_ARGS(behavior, ret));
+DECLARE_HOOK(android_vh_smaps_pte_entry,
+	TP_PROTO(swp_entry_t entry, unsigned long *writeback,
+		unsigned long *same, unsigned long *huge),
+	TP_ARGS(entry, writeback, same, huge));
+DECLARE_HOOK(android_vh_show_smap,
+	TP_PROTO(struct seq_file *m, unsigned long writeback,
+		unsigned long same, unsigned long huge),
+	TP_ARGS(m, writeback, same, huge));
 
 #endif /* _TRACE_HOOK_MM_H */
 
