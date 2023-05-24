@@ -1478,20 +1478,36 @@ iwl_mvm_chandef_get_primary_80(struct cfg80211_chan_def *chandef)
 	return (control_start - data_start) / 80;
 }
 
-/*
- * Returns true if addding the interface is done
- * (either with success or failure)
- *
- * FIXME: remove this again and merge it in
- */
-static bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
-					     struct ieee80211_hw *hw,
-					     struct ieee80211_vif *vif,
-					     int *ret)
+static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to allocate bcast sta\n");
+		return ret;
+	}
+
+	/* Only queue for this station is the mcast queue,
+	 * which shouldn't be in TFD mask anyway
+	 */
+	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->deflink.mcast_sta, 0,
+					vif->type,
+					IWL_STA_MULTICAST);
+}
+
+static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
 
 	mvmvif->mvm = mvm;
 
@@ -1510,11 +1526,17 @@ static bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
 			mvmvif->deflink.beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
-	*ret = iwl_mvm_mac_ctxt_init(mvm, vif);
-	if (*ret)
-		return true;
+	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
+	if (ret)
+		goto out;
 
 	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
+
+	/* Currently not much to do for NAN */
+	if (vif->type == NL80211_IFTYPE_NAN) {
+		ret = 0;
+		goto out;
+	}
 
 	/*
 	 * The AP binding flow can be done only after the beacon
@@ -1530,49 +1552,11 @@ static bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
-		return true;
+		ret = 0;
+		goto out;
 	}
 
 	mvmvif->features |= hw->netdev_features;
-
-	return false;
-}
-
-static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to allocate bcast sta\n");
-		return ret;
-	}
-
-	/*
-	 * Only queue for this station is the mcast queue,
-	 * which shouldn't be in TFD mask anyway
-	 */
-	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->deflink.mcast_sta, 0,
-					vif->type,
-					IWL_STA_MULTICAST);
-}
-
-static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
-
-	mutex_lock(&mvm->mutex);
-
-	/* Common for MLD and non-MLD API */
-	if (iwl_mvm_mac_add_interface_common(mvm, hw, vif, &ret))
-		goto out;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
