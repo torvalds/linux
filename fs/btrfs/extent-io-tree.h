@@ -175,12 +175,6 @@ static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
 				  cached_state, GFP_NOFS, NULL);
 }
 
-static inline int set_extent_dirty(struct extent_io_tree *tree, u64 start,
-		u64 end, gfp_t mask)
-{
-	return set_extent_bit(tree, start, end, EXTENT_DIRTY, NULL, mask);
-}
-
 static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 				     u64 end, struct extent_state **cached)
 {

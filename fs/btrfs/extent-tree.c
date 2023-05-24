@@ -2507,8 +2507,9 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 	spin_unlock(&cache->lock);
 	spin_unlock(&cache->space_info->lock);
 
-	set_extent_dirty(&trans->transaction->pinned_extents, bytenr,
-			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
+	set_extent_bit(&trans->transaction->pinned_extents, bytenr,
+		       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL,
+		       GFP_NOFS | __GFP_NOFAIL);
 	return 0;
 }
 
@@ -4829,16 +4830,18 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		 * EXTENT bit to differentiate dirty pages.
 		 */
 		if (buf->log_index == 0)
-			set_extent_dirty(&root->dirty_log_pages, buf->start,
-					buf->start + buf->len - 1, GFP_NOFS);
+			set_extent_bit(&root->dirty_log_pages, buf->start,
+				       buf->start + buf->len - 1,
+				       EXTENT_DIRTY, NULL, GFP_NOFS);
 		else
 			set_extent_bit(&root->dirty_log_pages, buf->start,
 				       buf->start + buf->len - 1,
 				       EXTENT_NEW, NULL, GFP_NOFS);
 	} else {
 		buf->log_index = -1;
-		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
-			 buf->start + buf->len - 1, GFP_NOFS);
+		set_extent_bit(&trans->transaction->dirty_pages, buf->start,
+			       buf->start + buf->len - 1, EXTENT_DIRTY, NULL,
+			       GFP_NOFS);
 	}
 	/* this returns a buffer locked for blocking */
 	return buf;
