@@ -51,10 +51,10 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_fw_id_mask(mvm, sta, keyconf->link_id);
 }
 
-static u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta,
-				 struct ieee80211_key_conf *keyconf)
+u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *keyconf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 flags = 0;
@@ -164,13 +164,9 @@ static int __iwl_mvm_sec_key_del(struct iwl_mvm *mvm, u32 sta_mask,
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, flags, sizeof(cmd), &cmd);
 }
 
-int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
-			struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta,
-			struct ieee80211_key_conf *keyconf)
+int iwl_mvm_mld_send_key(struct iwl_mvm *mvm, u32 sta_mask, u32 key_flags,
+			 struct ieee80211_key_conf *keyconf)
 {
-	u32 sta_mask = iwl_mvm_get_sec_sta_mask(mvm, vif, sta, keyconf);
-	u32 key_flags = iwl_mvm_get_sec_flags(mvm, vif, sta, keyconf);
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, SEC_KEY_CMD);
 	struct iwl_sec_key_cmd cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
@@ -221,6 +217,17 @@ int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
 	}
 
 	return ret;
+}
+
+int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
+			struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta,
+			struct ieee80211_key_conf *keyconf)
+{
+	u32 sta_mask = iwl_mvm_get_sec_sta_mask(mvm, vif, sta, keyconf);
+	u32 key_flags = iwl_mvm_get_sec_flags(mvm, vif, sta, keyconf);
+
+	return iwl_mvm_mld_send_key(mvm, sta_mask, key_flags, keyconf);
 }
 
 static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
