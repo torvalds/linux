@@ -139,7 +139,7 @@ static u32 frequency_enabled_mask(void)
 	return mask;
 }
 
-static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
+static bool pmu_needs_timer(struct i915_pmu *pmu)
 {
 	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
 	u32 enable;
@@ -158,16 +158,10 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	enable &= frequency_enabled_mask() | ENGINE_SAMPLE_MASK;
 
 	/*
-	 * When the GPU is idle per-engine counters do not need to be
-	 * running so clear those bits out.
-	 */
-	if (!gpu_active)
-		enable &= ~ENGINE_SAMPLE_MASK;
-	/*
 	 * Also there is software busyness tracking available we do not
 	 * need the timer for I915_SAMPLE_BUSY counter.
 	 */
-	else if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
+	if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*
@@ -295,7 +289,7 @@ static void park_rc6(struct intel_gt *gt)
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
-	if (!pmu->timer_enabled && pmu_needs_timer(pmu, true)) {
+	if (!pmu->timer_enabled && pmu_needs_timer(pmu)) {
 		pmu->timer_enabled = true;
 		pmu->timer_last = ktime_get();
 		hrtimer_start_range_ns(&pmu->timer,
@@ -321,7 +315,7 @@ void i915_pmu_gt_parked(struct intel_gt *gt)
 	 */
 	pmu->unparked &= ~BIT(gt->info.id);
 	if (pmu->unparked == 0)
-		pmu->timer_enabled = pmu_needs_timer(pmu, false);
+		pmu->timer_enabled = false;
 
 	spin_unlock_irq(&pmu->lock);
 }
@@ -827,7 +821,7 @@ static void i915_pmu_disable(struct perf_event *event)
 	 */
 	if (--pmu->enable_count[bit] == 0) {
 		pmu->enable &= ~BIT(bit);
-		pmu->timer_enabled &= pmu_needs_timer(pmu, true);
+		pmu->timer_enabled &= pmu_needs_timer(pmu);
 	}
 
 	spin_unlock_irqrestore(&pmu->lock, flags);
