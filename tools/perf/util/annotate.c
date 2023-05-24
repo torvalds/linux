@@ -70,6 +70,7 @@ struct arch {
 	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 	bool		sorted_instructions;
 	bool		initialized;
+	const char	*insn_suffix;
 	void		*priv;
 	unsigned int	model;
 	unsigned int	family;
@@ -179,6 +180,7 @@ static struct arch architectures[] = {
 		.init = x86__annotate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
+		.insn_suffix = "bwlq",
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -720,6 +722,26 @@ static struct ins_ops *__ins__find(struct arch *arch, const char *name)
 	}
 
 	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	if (ins)
+		return ins->ops;
+
+	if (arch->insn_suffix) {
+		char tmp[32];
+		char suffix;
+		size_t len = strlen(name);
+
+		if (len == 0 || len >= sizeof(tmp))
+			return NULL;
+
+		suffix = name[len - 1];
+		if (strchr(arch->insn_suffix, suffix) == NULL)
+			return NULL;
+
+		strcpy(tmp, name);
+		tmp[len - 1] = '\0'; /* remove the suffix and check again */
+
+		ins = bsearch(tmp, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	}
 	return ins ? ins->ops : NULL;
 }
 
