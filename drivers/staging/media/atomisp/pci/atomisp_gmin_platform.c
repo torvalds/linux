@@ -1524,7 +1524,7 @@ static int v4l2_acpi_handle_gpio_res(struct acpi_resource *ares, void *_data)
 	const char *name;
 	bool active_low;
 	unsigned int i;
-	u32 settings;
+	u32 settings = 0;
 	u8 pin;
 
 	if (!acpi_gpio_get_io_resource(ares, &agpio))
