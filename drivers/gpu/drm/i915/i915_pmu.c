@@ -191,31 +191,21 @@ static inline s64 ktime_since_raw(const ktime_t kt)
 	return ktime_to_ns(ktime_sub(ktime_get_raw(), kt));
 }
 
-static unsigned int
-__sample_idx(struct i915_pmu *pmu, unsigned int gt_id, int sample)
-{
-	unsigned int idx = gt_id * __I915_NUM_PMU_SAMPLERS + sample;
-
-	GEM_BUG_ON(idx >= ARRAY_SIZE(pmu->sample));
-
-	return idx;
-}
-
 static u64 read_sample(struct i915_pmu *pmu, unsigned int gt_id, int sample)
 {
-	return pmu->sample[__sample_idx(pmu, gt_id, sample)].cur;
+	return pmu->sample[gt_id][sample].cur;
 }
 
 static void
 store_sample(struct i915_pmu *pmu, unsigned int gt_id, int sample, u64 val)
 {
-	pmu->sample[__sample_idx(pmu, gt_id, sample)].cur = val;
+	pmu->sample[gt_id][sample].cur = val;
 }
 
 static void
 add_sample_mult(struct i915_pmu *pmu, unsigned int gt_id, int sample, u32 val, u32 mul)
 {
-	pmu->sample[__sample_idx(pmu, gt_id, sample)].cur += mul_u32_u32(val, mul);
+	pmu->sample[gt_id][sample].cur += mul_u32_u32(val, mul);
 }
 
 static u64 get_rc6(struct intel_gt *gt)
