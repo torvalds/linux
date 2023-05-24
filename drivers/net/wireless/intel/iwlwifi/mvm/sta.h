@@ -616,7 +616,7 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
 				 enum ieee80211_sta_state old_state,
 				 enum ieee80211_sta_state new_state,
-				 struct iwl_mvm_sta_state_ops *callbacks);
+				 const struct iwl_mvm_sta_state_ops *callbacks);
 
 /* New MLD STA related APIs */
 /* STA */

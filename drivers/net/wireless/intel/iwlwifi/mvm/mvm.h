@@ -1888,7 +1888,7 @@ void
 iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				struct iwl_mvm_bss_info_changed_ops *callbacks,
+				const struct iwl_mvm_bss_info_changed_ops *callbacks,
 				u64 changes);
 void
 iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
@@ -1922,7 +1922,7 @@ struct iwl_mvm_roc_ops {
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel, int duration,
 		       enum ieee80211_roc_type type,
-		       struct iwl_mvm_roc_ops *ops);
+		       const struct iwl_mvm_roc_ops *ops);
 int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif);
 /*Session Protection */
@@ -2420,7 +2420,7 @@ iwl_mvm_switch_vif_chanctx_common(struct ieee80211_hw *hw,
 				  struct ieee80211_vif_chanctx_switch *vifs,
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode,
-				  struct iwl_mvm_switch_vif_chanctx_ops *ops);
+				  const struct iwl_mvm_switch_vif_chanctx_ops *ops);
 
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)

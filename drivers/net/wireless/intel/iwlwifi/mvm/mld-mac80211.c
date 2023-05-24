@@ -492,7 +492,7 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 				     enum ieee80211_sta_state old_state,
 				     enum ieee80211_sta_state new_state)
 {
-	struct iwl_mvm_sta_state_ops callbacks = {
+	static const struct iwl_mvm_sta_state_ops callbacks = {
 		.add_sta = iwl_mvm_mld_add_sta,
 		.update_sta = iwl_mvm_mld_update_sta,
 		.rm_sta = iwl_mvm_mld_rm_sta,
@@ -779,7 +779,7 @@ iwl_mvm_mld_switch_vif_chanctx(struct ieee80211_hw *hw,
 			       int n_vifs,
 			       enum ieee80211_chanctx_switch_mode mode)
 {
-	struct iwl_mvm_switch_vif_chanctx_ops ops = {
+	static const struct iwl_mvm_switch_vif_chanctx_ops ops = {
 		.__assign_vif_chanctx = __iwl_mvm_mld_assign_vif_chanctx,
 		.__unassign_vif_chanctx = __iwl_mvm_mld_unassign_vif_chanctx,
 	};
@@ -871,7 +871,7 @@ static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_channel *channel, int duration,
 			   enum ieee80211_roc_type type)
 {
-	struct iwl_mvm_roc_ops ops = {
+	static const struct iwl_mvm_roc_ops ops = {
 		.add_aux_sta_for_hs20 = iwl_mvm_mld_add_aux_sta,
 		.switch_phy_ctxt = iwl_mvm_link_switch_phy_ctx,
 	};

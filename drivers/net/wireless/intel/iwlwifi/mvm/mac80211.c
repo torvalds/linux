@@ -3054,7 +3054,7 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u64 changes)
 {
-	struct iwl_mvm_bss_info_changed_ops callbacks = {
+	static const struct iwl_mvm_bss_info_changed_ops callbacks = {
 		.bss_info_changed_sta = iwl_mvm_bss_info_changed_station,
 		.bss_info_changed_ap_ibss = iwl_mvm_bss_info_changed_ap_ibss,
 	};
@@ -3067,7 +3067,7 @@ void
 iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				struct iwl_mvm_bss_info_changed_ops *callbacks,
+				const struct iwl_mvm_bss_info_changed_ops *callbacks,
 				u64 changes)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -3564,7 +3564,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 enum ieee80211_sta_state old_state,
 				 enum ieee80211_sta_state new_state)
 {
-	struct iwl_mvm_sta_state_ops callbacks = {
+	static const struct iwl_mvm_sta_state_ops callbacks = {
 		.add_sta = iwl_mvm_add_sta,
 		.update_sta = iwl_mvm_update_sta,
 		.rm_sta = iwl_mvm_rm_sta,
@@ -3672,7 +3672,7 @@ static int
 iwl_mvm_sta_state_notexist_to_none(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
-				   struct iwl_mvm_sta_state_ops *callbacks)
+				   const struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	unsigned int i;
@@ -3721,7 +3721,7 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 				struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
-				struct iwl_mvm_sta_state_ops *callbacks)
+				const struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
@@ -3778,7 +3778,7 @@ static int
 iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta,
-				      struct iwl_mvm_sta_state_ops *callbacks)
+				      const struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
@@ -3813,7 +3813,7 @@ static int
 iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta,
-				      struct iwl_mvm_sta_state_ops *callbacks)
+				      const struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -3851,7 +3851,7 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
 				 enum ieee80211_sta_state old_state,
 				 enum ieee80211_sta_state new_state,
-				 struct iwl_mvm_sta_state_ops *callbacks)
+				 const struct iwl_mvm_sta_state_ops *callbacks)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -4578,7 +4578,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       int duration,
 		       enum ieee80211_roc_type type)
 {
-	struct iwl_mvm_roc_ops ops = {
+	static const struct iwl_mvm_roc_ops ops = {
 		.add_aux_sta_for_hs20 = iwl_mvm_add_aux_sta_for_hs20,
 		.switch_phy_ctxt = iwl_mvm_roc_switch_binding,
 	};
@@ -4590,7 +4590,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel, int duration,
 		       enum ieee80211_roc_type type,
-		       struct iwl_mvm_roc_ops *ops)
+		       const struct iwl_mvm_roc_ops *ops)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -5097,7 +5097,7 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 static int
 iwl_mvm_switch_vif_chanctx_swap(struct iwl_mvm *mvm,
 				struct ieee80211_vif_chanctx_switch *vifs,
-				struct iwl_mvm_switch_vif_chanctx_ops *ops)
+				const struct iwl_mvm_switch_vif_chanctx_ops *ops)
 {
 	int ret;
 
@@ -5156,7 +5156,7 @@ out:
 static int
 iwl_mvm_switch_vif_chanctx_reassign(struct iwl_mvm *mvm,
 				    struct ieee80211_vif_chanctx_switch *vifs,
-				    struct iwl_mvm_switch_vif_chanctx_ops *ops)
+				    const struct iwl_mvm_switch_vif_chanctx_ops *ops)
 {
 	int ret;
 
@@ -5199,7 +5199,7 @@ iwl_mvm_switch_vif_chanctx_common(struct ieee80211_hw *hw,
 				  struct ieee80211_vif_chanctx_switch *vifs,
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode,
-				  struct iwl_mvm_switch_vif_chanctx_ops *ops)
+				  const struct iwl_mvm_switch_vif_chanctx_ops *ops)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
@@ -5228,7 +5228,7 @@ static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
 				      int n_vifs,
 				      enum ieee80211_chanctx_switch_mode mode)
 {
-	struct iwl_mvm_switch_vif_chanctx_ops ops = {
+	static const struct iwl_mvm_switch_vif_chanctx_ops ops = {
 		.__assign_vif_chanctx = __iwl_mvm_assign_vif_chanctx,
 		.__unassign_vif_chanctx = __iwl_mvm_unassign_vif_chanctx,
 	};
