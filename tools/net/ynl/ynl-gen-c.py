@@ -2101,7 +2101,9 @@ def main():
             if args.out_file:
                 cw.p(f'#include "{os.path.basename(args.out_file[:-2])}.h"')
             cw.nl()
-    headers = [parsed.uapi_header]
+        headers = ['uapi/' + parsed.uapi_header]
+    else:
+        headers = [parsed.uapi_header]
     for definition in parsed['definitions']:
         if 'header' in definition:
             headers.append(definition['header'])
