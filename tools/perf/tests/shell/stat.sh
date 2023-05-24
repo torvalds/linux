@@ -28,6 +28,18 @@ test_stat_record_report() {
   echo "stat record and report test [Success]"
 }
 
+test_stat_record_script() {
+  echo "stat record and script test"
+  if ! perf stat record -o - true | perf script -i - 2>&1 | \
+    grep -E -q "CPU[[:space:]]+THREAD[[:space:]]+VAL[[:space:]]+ENA[[:space:]]+RUN[[:space:]]+TIME[[:space:]]+EVENT"
+  then
+    echo "stat record and script test [Failed]"
+    err=1
+    return
+  fi
+  echo "stat record and script test [Success]"
+}
+
 test_stat_repeat_weak_groups() {
   echo "stat repeat weak groups test"
   if ! perf stat -e '{cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles}' \
@@ -93,6 +105,7 @@ test_topdown_weak_groups() {
 
 test_default_stat
 test_stat_record_report
+test_stat_record_script
 test_stat_repeat_weak_groups
 test_topdown_groups
 test_topdown_weak_groups

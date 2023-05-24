@@ -865,28 +865,3 @@ void __init pnv_pci_init(void)
 	/* Configure IOMMU DMA hooks */
 	set_pci_dma_ops(&dma_iommu_ops);
 }
-
-static int pnv_tce_iommu_bus_notifier(struct notifier_block *nb,
-		unsigned long action, void *data)
-{
-	struct device *dev = data;
-
-	switch (action) {
-	case BUS_NOTIFY_DEL_DEVICE:
-		iommu_del_device(dev);
-		return 0;
-	default:
-		return 0;
-	}
-}
-
-static struct notifier_block pnv_tce_iommu_bus_nb = {
-	.notifier_call = pnv_tce_iommu_bus_notifier,
-};
-
-static int __init pnv_tce_iommu_bus_notifier_init(void)
-{
-	bus_register_notifier(&pci_bus_type, &pnv_tce_iommu_bus_nb);
-	return 0;
-}
-machine_subsys_initcall_sync(powernv, pnv_tce_iommu_bus_notifier_init);
