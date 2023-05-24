@@ -134,6 +134,11 @@
 #define AXP22X_PWR_OUT_DLDO4_MASK	BIT_MASK(6)
 #define AXP22X_PWR_OUT_ALDO3_MASK	BIT_MASK(7)
 
+#define AXP313A_DCDC1_NUM_VOLTAGES	107
+#define AXP313A_DCDC23_NUM_VOLTAGES	88
+#define AXP313A_DCDC_V_OUT_MASK		GENMASK(6, 0)
+#define AXP313A_LDO_V_OUT_MASK		GENMASK(4, 0)
+
 #define AXP803_PWR_OUT_DCDC1_MASK	BIT_MASK(0)
 #define AXP803_PWR_OUT_DCDC2_MASK	BIT_MASK(1)
 #define AXP803_PWR_OUT_DCDC3_MASK	BIT_MASK(2)
@@ -638,6 +643,48 @@ static const struct regulator_desc axp22x_drivevbus_regulator = {
 	.ops		= &axp20x_ops_sw,
 };
 
+static const struct linear_range axp313a_dcdc1_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000,   0,  70,  10000),
+	REGULATOR_LINEAR_RANGE(1220000, 71,  87,  20000),
+	REGULATOR_LINEAR_RANGE(1600000, 88, 106, 100000),
+};
+
+static const struct linear_range axp313a_dcdc2_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000,   0, 70, 10000),
+	REGULATOR_LINEAR_RANGE(1220000, 71, 87, 20000),
+};
+
+/*
+ * This is deviating from the datasheet. The values here are taken from the
+ * BSP driver and have been confirmed by measurements.
+ */
+static const struct linear_range axp313a_dcdc3_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000,   0,  70, 10000),
+	REGULATOR_LINEAR_RANGE(1220000, 71, 102, 20000),
+};
+
+static const struct regulator_desc axp313a_regulators[] = {
+	AXP_DESC_RANGES(AXP313A, DCDC1, "dcdc1", "vin1",
+			axp313a_dcdc1_ranges, AXP313A_DCDC1_NUM_VOLTAGES,
+			AXP313A_DCDC1_CONRTOL, AXP313A_DCDC_V_OUT_MASK,
+			AXP313A_OUTPUT_CONTROL, BIT(0)),
+	AXP_DESC_RANGES(AXP313A, DCDC2, "dcdc2", "vin2",
+			axp313a_dcdc2_ranges, AXP313A_DCDC23_NUM_VOLTAGES,
+			AXP313A_DCDC2_CONRTOL, AXP313A_DCDC_V_OUT_MASK,
+			AXP313A_OUTPUT_CONTROL, BIT(1)),
+	AXP_DESC_RANGES(AXP313A, DCDC3, "dcdc3", "vin3",
+			axp313a_dcdc3_ranges, AXP313A_DCDC23_NUM_VOLTAGES,
+			AXP313A_DCDC3_CONRTOL, AXP313A_DCDC_V_OUT_MASK,
+			AXP313A_OUTPUT_CONTROL, BIT(2)),
+	AXP_DESC(AXP313A, ALDO1, "aldo1", "vin1", 500, 3500, 100,
+		 AXP313A_ALDO1_CONRTOL, AXP313A_LDO_V_OUT_MASK,
+		 AXP313A_OUTPUT_CONTROL, BIT(3)),
+	AXP_DESC(AXP313A, DLDO1, "dldo1", "vin1", 500, 3500, 100,
+		 AXP313A_DLDO1_CONRTOL, AXP313A_LDO_V_OUT_MASK,
+		 AXP313A_OUTPUT_CONTROL, BIT(4)),
+	AXP_DESC_FIXED(AXP313A, RTC_LDO, "rtc-ldo", "vin1", 1800),
+};
+
 /* DCDC ranges shared with AXP813 */
 static const struct linear_range axp803_dcdc234_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000,
@@ -1040,6 +1087,15 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		def = 3000;
 		step = 150;
 		break;
+	case AXP313A_ID:
+		/* The DCDC PWM frequency seems to be fixed to 3 MHz. */
+		if (dcdcfreq != 0) {
+			dev_err(&pdev->dev,
+				"DCDC frequency on AXP313a is fixed to 3 MHz.\n");
+			return -EINVAL;
+		}
+
+		return 0;
 	default:
 		dev_err(&pdev->dev,
 			"Setting DCDC frequency for unsupported AXP variant\n");
@@ -1231,6 +1287,10 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		nregulators = AXP22X_REG_ID_MAX;
 		drivevbus = of_property_read_bool(pdev->dev.parent->of_node,
 						  "x-powers,drive-vbus-en");
+		break;
+	case AXP313A_ID:
+		regulators = axp313a_regulators;
+		nregulators = AXP313A_REG_ID_MAX;
 		break;
 	case AXP803_ID:
 		regulators = axp803_regulators;
