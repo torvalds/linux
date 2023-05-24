@@ -40,19 +40,26 @@ static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 	unsigned int tx_vis = efx->n_tx_channels + efx->n_extra_tx_channels;
 	unsigned int rx_vis = efx->n_rx_channels;
 	unsigned int min_vis, max_vis;
+	int rc;
 
 	EFX_WARN_ON_PARANOID(efx->tx_queues_per_channel != 1);
 
 	tx_vis += efx->n_xdp_channels * efx->xdp_tx_per_channel;
 
 	max_vis = max(rx_vis, tx_vis);
-	/* Currently don't handle resource starvation and only accept
-	 * our maximum needs and no less.
-	 */
-	min_vis = max_vis;
+	/* We require at least a single complete TX channel worth of queues. */
+	min_vis = efx->tx_queues_per_channel;
 
-	return efx_mcdi_alloc_vis(efx, min_vis, max_vis,
-				  NULL, allocated_vis);
+	rc = efx_mcdi_alloc_vis(efx, min_vis, max_vis,
+				NULL, allocated_vis);
+
+	/* We retry allocating VIs by reallocating channels when we have not
+	 * been able to allocate the maximum VIs.
+	 */
+	if (!rc && *allocated_vis < max_vis)
+		rc = -EAGAIN;
+
+	return rc;
 }
 
 static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
@@ -133,8 +140,40 @@ static int ef100_net_open(struct net_device *net_dev)
 		goto fail;
 
 	rc = ef100_alloc_vis(efx, &allocated_vis);
-	if (rc)
+	if (rc && rc != -EAGAIN)
 		goto fail;
+
+	/* Try one more time but with the maximum number of channels
+	 * equal to the allocated VIs, which would more likely succeed.
+	 */
+	if (rc == -EAGAIN) {
+		rc = efx_mcdi_free_vis(efx);
+		if (rc)
+			goto fail;
+
+		efx_remove_interrupts(efx);
+		efx->max_channels = allocated_vis;
+
+		rc = efx_probe_interrupts(efx);
+		if (rc)
+			goto fail;
+
+		rc = efx_set_channels(efx);
+		if (rc)
+			goto fail;
+
+		rc = ef100_alloc_vis(efx, &allocated_vis);
+		if (rc && rc != -EAGAIN)
+			goto fail;
+
+		/* It should be very unlikely that we failed here again, but in
+		 * such a case we return ENOSPC.
+		 */
+		if (rc == -EAGAIN) {
+			rc = -ENOSPC;
+			goto fail;
+		}
+	}
 
 	rc = efx_probe_channels(efx);
 	if (rc)
