@@ -1500,41 +1500,35 @@ struct devlink_ops {
 	 * @devlink: Devlink instance
 	 * @attrs: attributes of the new port
 	 * @extack: extack for reporting error messages
-	 * @new_port_index: index of the new port
 	 *
 	 * Devlink core will call this device driver function upon user request
 	 * to create a new port function of a specified flavor and optional
 	 * attributes
 	 *
 	 * Notes:
-	 *	- Called without devlink instance lock being held. Drivers must
-	 *	  implement own means of synchronization
 	 *	- On success, drivers must register a port with devlink core
 	 *
 	 * Return: 0 on success, negative value otherwise.
 	 */
 	int (*port_new)(struct devlink *devlink,
 			const struct devlink_port_new_attrs *attrs,
-			struct netlink_ext_ack *extack,
-			unsigned int *new_port_index);
+			struct netlink_ext_ack *extack);
 	/**
 	 * port_del() - Delete a port function
 	 * @devlink: Devlink instance
-	 * @port_index: port function index to delete
+	 * @port: The devlink port
 	 * @extack: extack for reporting error messages
 	 *
 	 * Devlink core will call this device driver function upon user request
 	 * to delete a previously created port function
 	 *
 	 * Notes:
-	 *	- Called without devlink instance lock being held. Drivers must
-	 *	  implement own means of synchronization
 	 *	- On success, drivers must unregister the corresponding devlink
 	 *	  port
 	 *
 	 * Return: 0 on success, negative value otherwise.
 	 */
-	int (*port_del)(struct devlink *devlink, unsigned int port_index,
+	int (*port_del)(struct devlink *devlink, struct devlink_port *port,
 			struct netlink_ext_ack *extack);
 	/**
 	 * port_fn_state_get() - Get the state of a port function
