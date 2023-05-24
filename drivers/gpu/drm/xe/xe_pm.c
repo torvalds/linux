@@ -214,3 +214,17 @@ int xe_pm_runtime_get_if_active(struct xe_device *xe)
 	WARN_ON(pm_runtime_suspended(xe->drm.dev));
 	return pm_runtime_get_if_active(xe->drm.dev, true);
 }
+
+void xe_pm_assert_unbounded_bridge(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	struct pci_dev *bridge = pci_upstream_bridge(pdev);
+
+	if (!bridge)
+		return;
+
+	if (!bridge->driver) {
+		drm_warn(&xe->drm, "unbounded parent pci bridge, device won't support any PM support.\n");
+		device_set_pm_not_required(&pdev->dev);
+	}
+}
