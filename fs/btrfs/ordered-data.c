@@ -1135,15 +1135,17 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
 struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 			struct btrfs_ordered_extent *ordered, u64 len)
 {
-	struct inode *inode = ordered->inode;
-	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 file_offset = ordered->file_offset;
 	u64 disk_bytenr = ordered->disk_bytenr;
 	unsigned long flags = ordered->flags & BTRFS_ORDERED_TYPE_FLAGS;
+	struct btrfs_ordered_extent *new;
 	struct rb_node *node;
 
-	trace_btrfs_ordered_extent_split(BTRFS_I(inode), ordered);
+	trace_btrfs_ordered_extent_split(inode, ordered);
 
 	ASSERT(!(flags & (1U << BTRFS_ORDERED_COMPRESSED)));
 
@@ -1163,7 +1165,16 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	if (WARN_ON_ONCE(!list_empty(&ordered->list)))
 		return ERR_PTR(-EINVAL);
 
-	spin_lock_irq(&tree->lock);
+	new = alloc_ordered_extent(inode, file_offset, len, len, disk_bytenr,
+				   len, 0, flags, ordered->compress_type);
+	if (IS_ERR(new))
+		return new;
+
+	/* One ref for the tree. */
+	refcount_inc(&new->refs);
+
+	spin_lock_irq(&root->ordered_extent_lock);
+	spin_lock(&tree->lock);
 	/* Remove from tree once */
 	node = &ordered->rb_node;
 	rb_erase(node, &tree->tree);
@@ -1182,19 +1193,19 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 	if (node)
 		btrfs_panic(fs_info, -EEXIST,
 			"zoned: inconsistency in ordered tree at offset %llu",
-			    ordered->file_offset);
+			ordered->file_offset);
 
-	spin_unlock_irq(&tree->lock);
+	node = tree_insert(&tree->tree, new->file_offset, &new->rb_node);
+	if (node)
+		btrfs_panic(fs_info, -EEXIST,
+			"zoned: inconsistency in ordered tree at offset %llu",
+			new->file_offset);
+	spin_unlock(&tree->lock);
 
-	/*
-	 * The splitting extent is already counted and will be added again in
-	 * btrfs_alloc_ordered_extent(). Subtract len to avoid double counting.
-	 */
-	percpu_counter_add_batch(&fs_info->ordered_bytes, -len, fs_info->delalloc_batch);
-
-	return btrfs_alloc_ordered_extent(BTRFS_I(inode), file_offset, len, len,
-					  disk_bytenr, len, 0, flags,
-					  ordered->compress_type);
+	list_add_tail(&new->root_extent_list, &root->ordered_extents);
+	root->nr_ordered_extents++;
+	spin_unlock_irq(&root->ordered_extent_lock);
+	return new;
 }
 
 int __init ordered_data_init(void)
