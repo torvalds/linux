@@ -291,11 +291,11 @@ static void handle_break(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KPROBES
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN && !user_mode(regs))) {
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2 && !user_mode(regs))) {
 		parisc_kprobe_ss_handler(regs);
 		return;
 	}
