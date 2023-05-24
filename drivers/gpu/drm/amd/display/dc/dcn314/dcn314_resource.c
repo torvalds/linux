@@ -1387,15 +1387,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.create_hwseq = dcn314_hwseq_create,
 };
 
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
-	.create_hpo_dp_stream_encoder = dcn31_hpo_dp_stream_encoder_create,
-	.create_hpo_dp_link_encoder = dcn31_hpo_dp_link_encoder_create,
-	.create_hwseq = dcn314_hwseq_create,
-};
-
 static void dcn314_resource_destruct(struct dcn314_resource_pool *pool)
 {
 	unsigned int i;
