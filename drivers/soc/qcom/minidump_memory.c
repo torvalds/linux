@@ -799,7 +799,7 @@ static int dump_tracking(const struct kmem_cache *s,
 	priv_buf = (struct priv_buf *)private;
 	buf = priv_buf->buf + priv_buf->offset;
 	size = priv_buf->size - priv_buf->offset;
-#ifdef CONFIG_STACKTRACE
+#ifdef CONFIG_STACKDEPOT
 	{
 		int i;
 		nr_entries = stack_depot_fetch(t->handle, &entries);
