@@ -202,14 +202,6 @@ static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
 			      cached_state, GFP_NOFS);
 }
 
-static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached_state)
-{
-	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_DEFRAG,
-			      cached_state, GFP_NOFS);
-}
-
 static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
 		u64 end)
 {
