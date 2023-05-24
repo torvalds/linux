@@ -37,7 +37,7 @@ void __stack_chk_fail_local(void)
 __attribute__((weak,section(".data.nolibc_stack_chk")))
 uintptr_t __stack_chk_guard;
 
-__attribute__((weak,no_stack_protector,section(".text.nolibc_stack_chk")))
+__attribute__((weak,section(".text.nolibc_stack_chk"))) __no_stack_protector
 void __stack_chk_init(void)
 {
 	my_syscall3(__NR_getrandom, &__stack_chk_guard, sizeof(__stack_chk_guard), 0);
