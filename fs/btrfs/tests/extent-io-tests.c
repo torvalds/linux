@@ -503,8 +503,8 @@ static int test_find_first_clear_extent_bit(void)
 	 * Set 1M-4M alloc/discard and 32M-64M thus leaving a hole between
 	 * 4M-32M
 	 */
-	set_extent_bits(&tree, SZ_1M, SZ_4M - 1,
-			CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_1M, SZ_4M - 1,
+		       CHUNK_TRIMMED | CHUNK_ALLOCATED, NULL, GFP_NOFS);
 
 	find_first_clear_extent_bit(&tree, SZ_512K, &start, &end,
 				    CHUNK_TRIMMED | CHUNK_ALLOCATED);
@@ -516,8 +516,8 @@ static int test_find_first_clear_extent_bit(void)
 	}
 
 	/* Now add 32M-64M so that we have a hole between 4M-32M */
-	set_extent_bits(&tree, SZ_32M, SZ_64M - 1,
-			CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_32M, SZ_64M - 1,
+		       CHUNK_TRIMMED | CHUNK_ALLOCATED, NULL, GFP_NOFS);
 
 	/*
 	 * Request first hole starting at 12M, we should get 4M-32M
@@ -548,7 +548,8 @@ static int test_find_first_clear_extent_bit(void)
 	 * Set 64M-72M with CHUNK_ALLOC flag, then search for CHUNK_TRIMMED flag
 	 * being unset in this range, we should get the entry in range 64M-72M
 	 */
-	set_extent_bits(&tree, SZ_64M, SZ_64M + SZ_8M - 1, CHUNK_ALLOCATED);
+	set_extent_bit(&tree, SZ_64M, SZ_64M + SZ_8M - 1, CHUNK_ALLOCATED, NULL,
+		       GFP_NOFS);
 	find_first_clear_extent_bit(&tree, SZ_64M + SZ_1M, &start, &end,
 				    CHUNK_TRIMMED);
 

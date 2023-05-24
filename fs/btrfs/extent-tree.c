@@ -73,8 +73,8 @@ int btrfs_add_excluded_extent(struct btrfs_fs_info *fs_info,
 			      u64 start, u64 num_bytes)
 {
 	u64 end = start + num_bytes - 1;
-	set_extent_bits(&fs_info->excluded_extents, start, end,
-			EXTENT_UPTODATE);
+	set_extent_bit(&fs_info->excluded_extents, start, end,
+		       EXTENT_UPTODATE, NULL, GFP_NOFS);
 	return 0;
 }
 
@@ -5981,9 +5981,9 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 		ret = btrfs_issue_discard(device->bdev, start, len,
 					  &bytes);
 		if (!ret)
-			set_extent_bits(&device->alloc_state, start,
-					start + bytes - 1,
-					CHUNK_TRIMMED);
+			set_extent_bit(&device->alloc_state, start,
+				       start + bytes - 1,
+				       CHUNK_TRIMMED, NULL, GFP_NOFS);
 		mutex_unlock(&fs_info->chunk_mutex);
 
 		if (ret)
