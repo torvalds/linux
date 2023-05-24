@@ -219,7 +219,7 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 	/* Switch to page 6 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0600);
 	/* PHYAFE ADC optimization */
-	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, 0x5540);
+	phy_write(phydev, REG_PAGE6_ADC_ANONTROL, 0x555e);
 	/* PHYAFE Gain optimization */
 	phy_write(phydev, REG_PAGE6_GAIN_ANONTROL, 0x0400);
 	/* PHYAFE EQ optimization */
@@ -282,6 +282,23 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 	rk630_phy_ieee_set(phydev, true);
 
 	return 0;
+}
+
+static void rk630_link_change_notify(struct phy_device *phydev)
+{
+	unsigned int val;
+
+	if (phydev->state == PHY_RUNNING || phydev->state == PHY_NOLINK) {
+		/* Switch to page 6 */
+		phy_write(phydev, REG_PAGE_SEL, 0x0600);
+		val = phy_read(phydev, REG_PAGE6_AFE_TX_CTRL);
+		val &= ~GENMASK(14, 13);
+		if (phydev->speed == SPEED_10 && phydev->link)
+			val |= BIT(13);
+		phy_write(phydev, REG_PAGE6_AFE_TX_CTRL, val);
+		/* Switch to page 0 */
+		phy_write(phydev, REG_PAGE_SEL, 0x0000);
+	}
 }
 
 static irqreturn_t rk630_wol_irq_thread(int irq, void *dev_id)
@@ -369,6 +386,7 @@ static struct phy_driver rk630_phy_driver[] = {
 	.name			= "RK630 PHY",
 	.features		= PHY_BASIC_FEATURES,
 	.flags			= 0,
+	.link_change_notify	= rk630_link_change_notify,
 	.probe			= rk630_phy_probe,
 	.remove			= rk630_phy_remove,
 	.soft_reset		= genphy_soft_reset,
