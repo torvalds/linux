@@ -464,6 +464,9 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 		       IEEE80211_VHT_MAX_AMPDU_1024K <<
 		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
 
+	if (!trans->cfg->ht_params->stbc)
+		vht_cap->cap &= ~IEEE80211_VHT_CAP_RXSTBC_MASK;
+
 	if (data->vht160_supported)
 		vht_cap->cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ |
 				IEEE80211_VHT_CAP_SHORT_GI_160;
@@ -985,6 +988,13 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	    !is_ap) {
 		iftype_data->vendor_elems.data = iwl_vendor_caps;
 		iftype_data->vendor_elems.len = ARRAY_SIZE(iwl_vendor_caps);
+	}
+
+	if (!trans->cfg->ht_params->stbc) {
+		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] &=
+			~IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
+		iftype_data->he_cap.he_cap_elem.phy_cap_info[7] &=
+			~IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
 	}
 }
 
