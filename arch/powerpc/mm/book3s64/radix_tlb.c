@@ -1313,7 +1313,35 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 * See the comment for radix in arch_exit_mmap().
 	 */
 	if (tlb->fullmm) {
-		__flush_all_mm(mm, true);
+		if (IS_ENABLED(CONFIG_MMU_LAZY_TLB_SHOOTDOWN)) {
+			/*
+			 * Shootdown based lazy tlb mm refcounting means we
+			 * have to IPI everyone in the mm_cpumask anyway soon
+			 * when the mm goes away, so might as well do it as
+			 * part of the final flush now.
+			 *
+			 * If lazy shootdown was improved to reduce IPIs (e.g.,
+			 * by batching), then it may end up being better to use
+			 * tlbies here instead.
+			 */
+			preempt_disable();
+
+			smp_mb(); /* see radix__flush_tlb_mm */
+			exit_flush_lazy_tlbs(mm);
+			_tlbiel_pid(mm->context.id, RIC_FLUSH_ALL);
+
+			/*
+			 * It should not be possible to have coprocessors still
+			 * attached here.
+			 */
+			if (WARN_ON_ONCE(atomic_read(&mm->context.copros) > 0))
+				__flush_all_mm(mm, true);
+
+			preempt_enable();
+		} else {
+			__flush_all_mm(mm, true);
+		}
+
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
 		if (!tlb->freed_tables)
 			radix__flush_tlb_mm(mm);
