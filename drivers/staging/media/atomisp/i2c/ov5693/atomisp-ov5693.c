@@ -1794,7 +1794,7 @@ static struct i2c_driver ov5693_driver = {
 		.name = "ov5693",
 		.acpi_match_table = ov5693_acpi_match,
 	},
-	.probe_new = ov5693_probe,
+	.probe = ov5693_probe,
 	.remove = ov5693_remove,
 };
 module_i2c_driver(ov5693_driver);

@@ -1019,7 +1019,7 @@ static struct i2c_driver ov2722_driver = {
 		.name = "ov2722",
 		.acpi_match_table = ov2722_acpi_match,
 	},
-	.probe_new = ov2722_probe,
+	.probe = ov2722_probe,
 	.remove = ov2722_remove,
 };
 module_i2c_driver(ov2722_driver);

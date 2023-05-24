@@ -705,7 +705,7 @@ static struct i2c_driver gc0310_driver = {
 		.pm = pm_sleep_ptr(&gc0310_pm_ops),
 		.acpi_match_table = gc0310_acpi_match,
 	},
-	.probe_new = gc0310_probe,
+	.probe = gc0310_probe,
 	.remove = gc0310_remove,
 };
 module_i2c_driver(gc0310_driver);
