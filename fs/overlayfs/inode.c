@@ -97,8 +97,9 @@ out:
 
 static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 {
-	bool samefs = ovl_same_fs(dentry->d_sb);
-	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+	bool samefs = ovl_same_fs(ofs);
+	unsigned int xinobits = ovl_xino_bits(ofs);
 	unsigned int xinoshift = 64 - xinobits;
 
 	if (samefs) {
@@ -123,7 +124,7 @@ static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
 			return;
-		} else if (ovl_xino_warn(dentry->d_sb)) {
+		} else if (ovl_xino_warn(ofs)) {
 			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
 		}
@@ -149,7 +150,7 @@ static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 * is unique per underlying fs, so we use the unique anonymous
 		 * bdev assigned to the underlying fs.
 		 */
-		stat->dev = OVL_FS(dentry->d_sb)->fs[fsid].pseudo_dev;
+		stat->dev = ofs->fs[fsid].pseudo_dev;
 	}
 }
 
@@ -186,7 +187,7 @@ int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 	 * If lower filesystem supports NFS file handles, this also guaranties
 	 * persistent st_ino across mount cycle.
 	 */
-	if (!is_dir || ovl_same_dev(dentry->d_sb)) {
+	if (!is_dir || ovl_same_dev(OVL_FS(dentry->d_sb))) {
 		if (!OVL_TYPE_UPPER(type)) {
 			fsid = ovl_layer_lower(dentry)->fsid;
 		} else if (OVL_TYPE_ORIGIN(type)) {
@@ -961,7 +962,7 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 
 static void ovl_next_ino(struct inode *inode)
 {
-	struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 
 	inode->i_ino = atomic_long_inc_return(&ofs->last_ino);
 	if (unlikely(!inode->i_ino))
@@ -970,7 +971,8 @@ static void ovl_next_ino(struct inode *inode)
 
 static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 {
-	int xinobits = ovl_xino_bits(inode->i_sb);
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
+	int xinobits = ovl_xino_bits(ofs);
 	unsigned int xinoshift = 64 - xinobits;
 
 	/*
@@ -981,7 +983,7 @@ static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 	 * with d_ino also causes nfsd readdirplus to fail.
 	 */
 	inode->i_ino = ino;
-	if (ovl_same_fs(inode->i_sb)) {
+	if (ovl_same_fs(ofs)) {
 		return;
 	} else if (xinobits && likely(!(ino >> xinoshift))) {
 		inode->i_ino |= (unsigned long)fsid << (xinoshift + 1);

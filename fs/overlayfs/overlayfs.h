@@ -494,26 +494,26 @@ static inline bool ovl_is_impuredir(struct super_block *sb,
  * d_ino consistent with st_ino.
  * With xino=on, we do the same effort but we warn if we failed.
  */
-static inline bool ovl_xino_warn(struct super_block *sb)
+static inline bool ovl_xino_warn(struct ovl_fs *ofs)
 {
-	return OVL_FS(sb)->config.xino == OVL_XINO_ON;
+	return ofs->config.xino == OVL_XINO_ON;
 }
 
 /* All layers on same fs? */
-static inline bool ovl_same_fs(struct super_block *sb)
+static inline bool ovl_same_fs(struct ovl_fs *ofs)
 {
-	return OVL_FS(sb)->xino_mode == 0;
+	return ofs->xino_mode == 0;
 }
 
 /* All overlay inodes have same st_dev? */
-static inline bool ovl_same_dev(struct super_block *sb)
+static inline bool ovl_same_dev(struct ovl_fs *ofs)
 {
-	return OVL_FS(sb)->xino_mode >= 0;
+	return ofs->xino_mode >= 0;
 }
 
-static inline unsigned int ovl_xino_bits(struct super_block *sb)
+static inline unsigned int ovl_xino_bits(struct ovl_fs *ofs)
 {
-	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
+	return ovl_same_dev(ofs) ? ofs->xino_mode : 0;
 }
 
 static inline void ovl_inode_lock(struct inode *inode)

@@ -16,6 +16,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/exportfs.h>
 #include <linux/file.h>
+#include <linux/fs_parser.h>
 #include "overlayfs.h"
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
@@ -334,11 +335,17 @@ static const char *ovl_redirect_mode_def(void)
 	return ovl_redirect_dir_def ? "on" : "off";
 }
 
-static const char * const ovl_xino_str[] = {
-	"off",
-	"auto",
-	"on",
+static const struct constant_table ovl_parameter_xino[] = {
+	{ "off",	OVL_XINO_OFF  },
+	{ "auto",	OVL_XINO_AUTO },
+	{ "on",		OVL_XINO_ON   },
+	{}
 };
+
+static const char *ovl_xino_mode(struct ovl_config *config)
+{
+	return ovl_parameter_xino[config->xino].name;
+}
 
 static inline int ovl_xino_def(void)
 {
@@ -374,8 +381,8 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
-	if (ofs->config.xino != ovl_xino_def() && !ovl_same_fs(sb))
-		seq_printf(m, ",xino=%s", ovl_xino_str[ofs->config.xino]);
+	if (ofs->config.xino != ovl_xino_def() && !ovl_same_fs(ofs))
+		seq_printf(m, ",xino=%s", ovl_xino_mode(&ofs->config));
 	if (ofs->config.metacopy != ovl_metacopy_def)
 		seq_printf(m, ",metacopy=%s",
 			   ofs->config.metacopy ? "on" : "off");
@@ -1566,7 +1573,7 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 			pr_warn("%s uuid detected in lower fs '%pd2', falling back to xino=%s,index=off,nfs_export=off.\n",
 				uuid_is_null(&sb->s_uuid) ? "null" :
 							    "conflicting",
-				path->dentry, ovl_xino_str[ofs->config.xino]);
+				path->dentry, ovl_xino_mode(&ofs->config));
 		}
 	}
 
