@@ -4414,16 +4414,15 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 	if (!new_name)
 		return libbpf_err(-errno);
 
-	new_fd = open("/", O_RDONLY | O_CLOEXEC);
+	/*
+	 * Like dup(), but make sure new FD is >= 3 and has O_CLOEXEC set.
+	 * This is similar to what we do in ensure_good_fd(), but without
+	 * closing original FD.
+	 */
+	new_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 	if (new_fd < 0) {
 		err = -errno;
 		goto err_free_new_name;
-	}
-
-	new_fd = dup3(fd, new_fd, O_CLOEXEC);
-	if (new_fd < 0) {
-		err = -errno;
-		goto err_close_new_fd;
 	}
 
 	err = zclose(map->fd);
