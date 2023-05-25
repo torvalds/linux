@@ -1,0 +1,2095 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	dsi2lvds_backlight1: dsi2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	dp2lvds_backlight0: dp2lvds_backlight0 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	dp2lvds_backlight1: dp2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	edp2lvds_backlight0: edp2lvds_backlight0 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	edp2lvds_backlight1: edp2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	dsi2lvds_panel0 {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+
+		display-timings {
+			native-mode = <&dsi2lvds0>;
+			dsi2lvds0: timing0 {
+				clock-frequency = <115200000>;//115200000/105573600
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel0_in_i2c2_bu18rl82: endpoint {
+					remote-endpoint = <&i2c2_bu18rl82_out_panel0>;
+				};
+			};
+		};
+	};
+
+	dsi2lvds_panel1 {
+		compatible = "simple-panel";
+		backlight = <&dsi2lvds_backlight1>;
+
+		display-timings {
+			native-mode = <&dsi2lvds1>;
+			dsi2lvds1: timing0 {
+				clock-frequency = <115200000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel1_in_i2c6_bu18rl82: endpoint {
+					remote-endpoint = <&i2c6_bu18rl82_out_panel1>;
+				};
+			};
+		};
+	};
+
+	dp2lvds_panel0 {
+		compatible = "simple-panel";
+		backlight = <&dp2lvds_backlight0>;
+		status = "okay";
+
+		panel-timing {
+			clock-frequency = <115200000>;
+			hactive = <1920>;
+			vactive = <720>;
+			hfront-porch = <56>;
+			hsync-len = <32>;
+			hback-porch = <56>;
+			vfront-porch = <200>;
+			vsync-len = <2>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel0_in_i2c4_bu18rl82: endpoint {
+				remote-endpoint = <&i2c4_bu18rl82_out_panel0>;
+			};
+		};
+	};
+
+	dp2lvds_panel1 {
+		compatible = "simple-panel";
+		backlight = <&dp2lvds_backlight1>;
+		status = "disabled";
+
+		panel-timing {
+			clock-frequency = <148500000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <140>;
+			hsync-len = <40>;
+			hback-porch = <100>;
+			vfront-porch = <15>;
+			vsync-len = <20>;
+			vback-porch = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel1_in_i2c8_bu18rl82: endpoint {
+				remote-endpoint = <&i2c8_bu18rl82_out_panel1>;
+			};
+		};
+	};
+
+	edp2lvds_panel0 {
+		compatible = "simple-panel";
+		backlight = <&edp2lvds_backlight0>;
+		status = "okay";
+
+		panel-timing {
+			clock-frequency = <148500000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <140>;
+			hsync-len = <40>;
+			hback-porch = <100>;
+			vfront-porch = <15>;
+			vsync-len = <20>;
+			vback-porch = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel0_in_i2c5_bu18rl82: endpoint {
+				remote-endpoint = <&i2c5_bu18rl82_out_panel0>;
+			};
+		};
+	};
+
+	edp2lvds_panel1 {
+		compatible = "simple-panel";
+		backlight = <&edp2lvds_backlight1>;
+		status = "disabled";
+
+		panel-timing {
+			clock-frequency = <148500000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <140>;
+			hsync-len = <40>;
+			hback-porch = <100>;
+			vfront-porch = <15>;
+			vsync-len = <20>;
+			vback-porch = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel1_in_i2c7_bu18rl82: endpoint {
+				remote-endpoint = <&i2c7_bu18rl82_out_panel1>;
+			};
+		};
+	};
+};
+
+&backlight {
+	pwms = <&pwm0 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl0_enable_pin>;
+	enable-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dsi2lvds_backlight1 {
+	pwms = <&pwm13 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl1_enable_pin>;
+	enable-gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dp0_out_i2c4_bu18tl82: endpoint {
+				remote-endpoint = <&i2c4_bu18tl82_in_dp0>;
+			};
+		};
+	};
+};
+
+&dp0_in_vp0 {
+	status = "okay";
+};
+
+&dp0_in_vp1 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1 {
+	force-hpd;
+	status = "disabled";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dp1_out_i2c8_bu18tl82: endpoint {
+				remote-endpoint = <&i2c8_bu18tl82_in_dp1>;
+			};
+		};
+	};
+};
+
+&dp1_in_vp0 {
+	status = "okay";
+};
+
+&dp1_in_vp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&dp2lvds_backlight0 {
+	pwms = <&pwm10 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl2_enable_pin>;
+	enable-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dp2lvds_backlight1 {
+	pwms = <&pwm14 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl3_enable_pin>;
+	enable-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi0_out_i2c2_bu18tl82: endpoint {
+				remote-endpoint = <&i2c2_bu18tl82_in_dsi0>;
+			};
+		};
+	};
+};
+
+&dsi0_in_vp2 {
+	status = "okay";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+/*
+ * mipi_dcphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi1_out_i2c6_bu18tl82: endpoint {
+				remote-endpoint = <&i2c6_bu18tl82_in_dsi1>;
+			};
+		};
+	};
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};
+
+&edp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp0_out_i2c5_bu18tl82: endpoint {
+				remote-endpoint = <&i2c5_bu18tl82_in_edp0>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp0 {
+	status = "disabled";
+};
+
+&edp0_in_vp1 {
+	status = "okay";
+};
+
+&edp0_in_vp2 {
+	status = "disabled";
+};
+
+&edp1 {
+	force-hpd;
+	status = "disabled";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp1_out_i2c7_bu18tl82: endpoint {
+				remote-endpoint = <&i2c7_bu18tl82_in_edp1>;
+			};
+		};
+	};
+};
+
+&edp1_in_vp0 {
+	status = "disabled";
+};
+
+&edp1_in_vp1 {
+	status = "okay";
+};
+
+&edp1_in_vp2 {
+	status = "disabled";
+};
+
+&edp2lvds_backlight0 {
+	pwms = <&pwm7 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl4_enable_pin>;
+	enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&edp2lvds_backlight1 {
+	pwms = <&pwm11 0 25000 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bl5_enable_pin>;
+	enable-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m4_xfer>;
+	clock-frequency = <400000>;
+
+	bu18tl82: bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ser0_rst_pin>;
+		reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+		sel-mipi;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0013 0019
+			0014 0008	//014h[3]-lane1 enable
+			0021 0008
+			0023 0009
+			0024 0009
+			022b 0038
+			022c 0072
+			022d 0023	//VPLL=75MHZS
+			//022b 00d8
+			//022c 0089
+			//022d 003d	//VPLL=99MHz (ref26MHz) 4032984*26/1024x1024=99M
+			022e 0080
+			027c 0048
+			027d 0048	//i2c addr 0x48
+			0296 0004
+			0297 0009	//CLLTX0_PLL_GAIN 297h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0297 000d	//CLLTX0_PLL_GAIN 297h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0018 00a5
+			0019 0069
+			0267 003d
+			0268 002c
+			0269 002c
+			026a 002c
+			026b 002c
+			0367 003d
+			0368 002c
+			0369 002c
+			036a 002c
+			036b 002c
+			0018 0000
+			0019 0000
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0018	//gpio3 input		tp_rst
+			0034 0005	//bypass des gpio3
+			0036 0000	//gpio4 output		tp_int
+			0037 0006	//bypass des gpio4
+
+			02a7 0002
+			02a8 0003
+			02a9 0004
+			02aa 0005
+			0045 0080
+			0046 0007	//1920
+			004b 00d0
+			004c 0002	//720
+			004d 00d0
+			004e 0002	//720
+			0051 0080
+			0052 0007	//1920
+			0053 0024	//CLLCH2_EN 53h[5] 0:1 Clock Tx lane/1:2 Clock Tx lanes
+			0054 0080
+			024d 0061
+			0252 0005
+			0274 0030	//I2C slave address of BU18RL82 for accessing via BU18TL82
+			0275 0020
+			0396 0004
+			0397 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.31 Gbps/lane
+			//0397 000d	//CLLTX0_PLL_GAIN 397h[3:2] 1101 2'b11: 2.2~3.60 Gbps/lane
+			0061 0003	//CLLTX0 enable CLLTX1 enable
+			0060 0003	//CLLTX0/1 RGB data output Enable
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0090
+			0446 00d2
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c2_bu18tl82_in_dsi0: endpoint {
+					remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
+					remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82: bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 0003	//Clockless Link Receiver Lane-0+ LVDS portA
+			0012 0003	//Clockless Link Receiver Lane-1+ LVDS portB
+			0013 0000
+			001d 0008
+			001f 0002	//LVDSTX0_REFSEL
+			0020 0002	//LVDSTX1_REFSEL
+			0031 0048
+			0032 0048	//i2c addr 0x48
+			0423 0000
+			0424 0000
+			0425 0020
+			0426 0080
+			0057 0000
+			0058 0002
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0003	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0005	//bypass ser gpio3
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0001	//set gpio5 high
+
+			0073 0080
+			0074 0007	//0x0780 = 1920
+			0075 0080
+			0076 0007	//0x0780 = 1920
+			0079 000a	//h[3]: dual lvds mode h[1] single lane / dual lane
+			007b 00d0
+			007c 0002	//0x02d0 = 720
+			007d 00d0
+			007e 0002	//0x02d0 = 720
+			0081 0003	//01---> Sync OFF
+			0082 0010	//Hsync=16clk
+			0084 001c	//HBP=28clk
+			0086 0002	//Vsync=2lines
+			0087 0008	//VBP=8lines
+			0088 0000	//VSYNC_CHG=0CLK
+			0089 0010	//Hsync = 16?
+			008b 001c	//HFP=28clk?
+			008d 0002	//Vsync=2lines?
+			008e 0008	//VFP=8line?
+			008f 0000	//VSYNC_CHG=0CLK?
+			00d0 0040	//[3]FixHtotalEN
+			00d8 00c0
+			00d9 0003	//DE=960
+			0429 000a	//LVDSTX0_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			045d 0001
+			0529 000a	//LVDSTX1_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			055d 0001
+			0091 0003
+			0090 0001
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0090
+			0646 00d2
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
+					remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c2_bu18rl82_out_panel0: endpoint {
+					remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	himax@48 {
+		compatible = "himax,hxcommon";
+		reg = <0x48>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dsi0>;
+		pinctrl-1 = <&touch_gpio_dsi0>;
+		himax,location = "himax-touch-dsi0";
+		//himax,irq-gpio = <&gpio1 RK_PB0 IRQ_TYPE_EDGE_FALLING>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m2_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0013 001a	//013h[3]1-lane1 enable 013h[3] 1-LVDS Receiver Port-A
+			0014 000a	//014h[3]1-lane1 enable 014h[3] 1-LVDS Receiver Port-B
+			0021 0008
+			0023 0009
+			0024 0009
+			022b 0038
+			022c 0072
+			022d 0023	//VPLL=75MHZS
+			//022b 00d8
+			//022c 0089
+			//022d 003d	//VPLL=99MHz (ref26MHz) 4032984*26/1024x1024=99M
+			022e 0080
+			027c 0048
+			027d 0048	//i2c addr 0x48
+			0296 0004
+			0297 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.31 Gbps/lane
+			//0297 000d	//CLLTX0_PLL_GAIN 297h[3:2] 1101 2'b11: 2.2~3.60 Gbps/lane
+			0018 00a5
+			0019 0069
+			0267 003d
+			0268 002c
+			0269 002c
+			026a 002c
+			026b 002c
+			0367 003d
+			0368 002c
+			0369 002c
+			036a 002c
+			036b 002c
+			0018 0000
+			0019 0000
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0018	//gpio3 input		tp_rst
+			0034 0005	//bypass des gpio3
+			0036 0000	//gpio4 output		tp_int
+			0037 0006	//bypass des gpio4
+
+			02a7 0002
+			02a8 0003
+			02a9 0004
+			02aa 0005
+			0045 0080
+			0046 0007	//1920
+			004b 00d0
+			004c 0002	//720
+			004d 00d0
+			004e 0002	//720
+			0051 0080
+			0052 0007	//1920
+			0053 0064	//0053h[6]1:2 Rx ports CLLCH2_EN 53h[5] 1:2 Clock Tx lanes
+			024d 0061
+			0252 0005
+			0274 0030
+			0275 0020
+			0396 0004
+			0397 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0397 000d	//CLLTX0_PLL_GAIN 397h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0061 0003	//CLLTX0 enable CLLTX1 enable
+			0060 0003	//CLLTX0/1 RGB data output Enable
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0090	//h_blank=144
+			0446 00d2	//v_blank=210
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c4_bu18tl82_in_dp0: endpoint {
+					remote-endpoint = <&dp0_out_i2c4_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c4_bu18tl82_out_i2c4_bu18rl82: endpoint {
+					remote-endpoint = <&i2c4_bu18rl82_in_i2c4_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 0003	//Clockless Link Receiver Lane-0+ LVDS portA
+			0012 0003	//Clockless Link Receiver Lane-1+ LVDS portB
+			0013 0000
+			001d 0008
+			001f 0002	//LVDSTX0_REFSEL
+			0020 0002	//LVDSTX1_REFSEL
+			0031 0048
+			0032 0048	//i2c addr 0x48
+			0423 0000
+			0424 0000
+			0425 0020
+			0426 0080
+			0057 0000
+			0058 0002
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0003	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0005	//bypass ser gpio3
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0001	//set gpio5 high
+
+			0073 0080
+			0074 0007	//0x0780 = 1920
+			0075 0080
+			0076 0007	//0x0780 = 1920
+			0079 000a	//h[3]: dual lvds mode h[1] single lane / dual lane
+			007b 00d0
+			007c 0002	//0x02d0 = 720
+			007d 00d0
+			007e 0002	//0x02d0 = 720
+			0081 0003	//01---> Sync OFF
+			0082 0010	//Hsync=16clk
+			0084 001c	//HBP=28clk
+			0086 0002	//Vsync=2lines
+			0087 0008	//VBP=8lines
+			0088 0000	//VSYNC_CHG=0CLK
+			0089 0010	//Hsync = 16?
+			008b 001c	//HFP=28clk?
+			008d 0002	//Vsync=2lines?
+			008e 0008	//VFP=8line?
+			008f 0000	//VSYNC_CHG=0CLK?
+			00d0 0040	//[3]FixHtotalEN
+			00d8 00c0
+			00d9 0003	//DE=960
+			0429 000a	//LVDSTX0_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			045d 0001
+			0529 000a	//LVDSTX1_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			055d 0001
+			0091 0003
+			0090 0001
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0090
+			0646 00d2
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c4_bu18rl82_in_i2c4_bu18tl82: endpoint {
+					remote-endpoint = <&i2c4_bu18tl82_out_i2c4_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c4_bu18rl82_out_panel0: endpoint {
+					remote-endpoint = <&panel0_in_i2c4_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	himax@48 {
+		compatible = "himax,hxcommon";
+		reg = <0x48>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dp0>;
+		pinctrl-1 = <&touch_gpio_dp0>;
+		himax,location = "himax-touch-dp0";
+		himax,irq-gpio = <&gpio0 RK_PC0 IRQ_TYPE_EDGE_FALLING>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d";
+		reg = <0x2b>;
+		reset-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0013 001a
+			0014 000a
+			0021 0008
+			0023 0009
+			0024 0009
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0000	//gpio3 output		tp_int
+			0034 0005	//bypass des gpio3
+			0036 0018	//gpio4 input		tp_rst
+			0037 0006	//bypass des gpio4
+			027c 0041
+			027d 0041
+			0045 0080
+			0046 0007
+			004b 0038
+			004c 0004
+			0053 0064
+			022b 0062
+			022c 0027
+			022d 002e
+			0274 0030
+			0275 0020
+			0296 0004
+			0297 000d
+			02b2 00c8
+			02b4 0001
+			02b8 00ff
+			02b9 000f
+			02ba 00ff
+			02bb 000f
+			02be 00ff
+			02bf 001f
+			02c2 00ff
+			02c3 001f
+			0396 0004
+			0397 000d
+			03b2 00c8
+			03b4 0001
+			03b8 00ff
+			03b9 000f
+			03ba 00ff
+			03bb 000f
+			03be 00ff
+			03bf 001f
+			03c2 00ff
+			03c3 001f
+			0060 0001
+			0061 0003
+			022e 0080
+			032e 0080
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0019
+			0445 0020
+			0446 001f
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c5_bu18tl82_in_edp0: endpoint {
+					remote-endpoint = <&edp0_out_i2c5_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c5_bu18tl82_out_i2c5_bu18rl82: endpoint {
+					remote-endpoint = <&i2c5_bu18rl82_in_i2c5_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 000b
+			0012 0003
+			0013 0001
+			001d 0008
+			001f 0002
+			0020 0002
+			0031 0041	//i2c addr 0x41
+			0032 0041	//i2c addr 0x41
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0001	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0018	//rl gpio3 input	tp-int
+			042e 0005	//bypass ser gpio3
+			0061 0005	//bypass ser gpio3
+			0063 0000	//rl gpio4 output	tp-rst
+			042f 0006	//bypass ser gpio4
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0007	//bypass ser gpio5
+			0073 0080
+			0074 0007
+			0079 000a
+			007b 0038
+			007c 0004
+			0081 0003
+			0082 0010
+			0084 0020
+			0086 0002
+			0087 0002
+			0088 0010
+			0089 0010
+			008b 0020
+			008d 0002
+			008e 0002
+			008f 0010
+			00d0 0040
+			00d8 0042
+			00d9 0004
+			0423 0002
+			0424 00ec
+			0425 0027
+			0429 000a
+			045d 0001
+			0529 000a
+			055d 0003
+			0090 0001
+			0091 0003
+			0426 0080
+			042d 0004
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0019
+			0645 0020
+			0646 001f
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c5_bu18rl82_in_i2c5_bu18tl82: endpoint {
+					remote-endpoint = <&i2c5_bu18tl82_out_i2c5_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c5_bu18rl82_out_panel0: endpoint {
+					remote-endpoint = <&panel0_in_i2c5_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	ilitek@41 {
+		compatible = "ilitek,ili251x";
+		reg = <0x41>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PD4 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_gpio_edp0>;
+		reset-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
+		ilitek,name = "ilitek_i2c";
+		status = "okay";
+	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d";
+		reg = <0x2b>;
+		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&i2c6 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6m3_xfer>;
+	clock-frequency = <400000>;
+
+	bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ser1_rst_pin>;
+		reset-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
+		sel-mipi;
+		status = "okay";
+		serdes-init-sequence = [
+			0013 0019
+			0014 0008	//014h[3]-lane1 enable
+			0021 0008
+			0023 0009
+			0024 0009
+			022b 0038
+			022c 0072
+			022d 0023	//VPLL=75MHZS
+			//022b 00d8
+			//022c 0089
+			//022d 003d	//VPLL=99MHz (ref26MHz) 4032984*26/1024x1024=99M
+			022e 0080
+			027c 0048
+			027d 0048	//i2c addr 0x48
+			0296 0004
+			0297 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0297 000d	//CLLTX0_PLL_GAIN 297h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0018 00a5
+			0019 0069
+			0267 003d
+			0268 002c
+			0269 002c
+			026a 002c
+			026b 002c
+			0367 003d
+			0368 002c
+			0369 002c
+			036a 002c
+			036b 002c
+			0018 0000
+			0019 0000
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0018	//gpio3 input		tp_rst
+			0034 0005	//bypass des gpio3
+			0036 0000	//gpio4 output		tp_int
+			0037 0006	//bypass des gpio4
+
+			02a7 0002
+			02a8 0003
+			02a9 0004
+			02aa 0005
+			0045 0080
+			0046 0007	//1920
+			004b 00d0
+			004c 0002	//720
+			004d 00d0
+			004e 0002	//720
+			0051 0080
+			0052 0007	//1920
+			0053 0024	//CLLCH2_EN 53h[5] 0:1 Clock Tx lane/1:2 Clock Tx lanes
+			0054 0080
+			024d 0061
+			0252 0005
+			0274 0030
+			0275 0020
+			0396 0004
+			0397 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0397 000d	//CLLTX0_PLL_GAIN 397h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0061 0003	//CLLTX0 enable CLLTX1 enable
+			0060 0003	//CLLTX0/1 RGB data output Enable
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0090	//h_blank=144
+			0446 00d2	//v_blank=210
+
+
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c6_bu18tl82_in_dsi1: endpoint {
+					remote-endpoint = <&dsi1_out_i2c6_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c6_bu18tl82_out_i2c6_bu18rl82: endpoint {
+					remote-endpoint = <&i2c6_bu18rl82_in_i2c6_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 0003	//Clockless Link Receiver Lane-0+ LVDS portA
+			0012 0003	//Clockless Link Receiver Lane-1+ LVDS portB
+			0013 0000
+			001d 0008
+			001f 0002	//LVDSTX0_REFSEL
+			0020 0002	//LVDSTX1_REFSEL
+			0031 0048
+			0032 0048	//i2c addr 0x48
+			0423 0000
+			0424 0000
+			0425 0020
+			0426 0080
+			0057 0000
+			0058 0002
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0003	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0005	//bypass ser gpio3
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0001	//set gpio5 high
+
+			0073 0080
+			0074 0007	//0x0780 = 1920
+			0075 0080
+			0076 0007	//0x0780 = 1920
+			0079 000a	//h[3]: dual lvds mode h[1] single lane / dual lane
+			007b 00d0
+			007c 0002	//0x02d0 = 720
+			007d 00d0
+			007e 0002	//0x02d0 = 720
+			0081 0003	//01---> Sync OFF
+			0082 0010	//Hsync=16clk
+			0084 001c	//HBP=28clk
+			0086 0002	//Vsync=2lines
+			0087 0008	//VBP=8lines
+			0088 0000	//VSYNC_CHG=0CLK
+			0089 0010	//Hsync = 16?
+			008b 001c	//HFP=28clk?
+			008d 0002	//Vsync=2lines?
+			008e 0008	//VFP=8line?
+			008f 0000	//VSYNC_CHG=0CLK?
+			00d0 0040	//[3]FixHtotalEN
+			00d8 00c0
+			00d9 0003	//DE=960
+			0429 000a	//LVDSTX0_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			045d 0001
+			0529 000a	//LVDSTX1_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			055d 0001
+			0091 0003
+			0090 0001
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0090
+			0646 00d2
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c6_bu18rl82_in_i2c6_bu18tl82: endpoint {
+					remote-endpoint = <&i2c6_bu18tl82_out_i2c6_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c6_bu18rl82_out_panel1: endpoint {
+					remote-endpoint = <&panel1_in_i2c6_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	himax@48 {
+		compatible = "himax,hxcommon";
+		reg = <0x48>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dsi1>;
+		pinctrl-1 = <&touch_gpio_dsi1>;
+		himax,location = "himax-touch-dsi1";
+		himax,irq-gpio = <&gpio1 RK_PB1 IRQ_TYPE_EDGE_FALLING>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+};
+
+&i2c7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m3_xfer>;
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0013 001a
+			0014 000a
+			0021 0008
+			0023 0009
+			0024 0009
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0000	//gpio3 output		tp_int
+			0034 0005	//bypass des gpio3
+			0036 0018	//gpio4 input		tp_rst
+			0037 0006	//bypass des gpio4
+			027c 0041
+			027d 0041
+			0045 0080
+			0046 0007
+			004b 0038
+			004c 0004
+			0053 0064
+			022b 0062
+			022c 0027
+			022d 002e
+			0274 0030
+			0275 0020
+			0296 0004
+			0297 000d
+			02b2 00c8
+			02b4 0001
+			02b8 00ff
+			02b9 000f
+			02ba 00ff
+			02bb 000f
+			02be 00ff
+			02bf 001f
+			02c2 00ff
+			02c3 001f
+			0396 0004
+			0397 000d
+			03b2 00c8
+			03b4 0001
+			03b8 00ff
+			03b9 000f
+			03ba 00ff
+			03bb 000f
+			03be 00ff
+			03bf 001f
+			03c2 00ff
+			03c3 001f
+			0060 0001
+			0061 0003
+			022e 0080
+			032e 0080
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0019
+			0445 0020
+			0446 001f
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c7_bu18tl82_in_edp1: endpoint {
+					remote-endpoint = <&edp1_out_i2c7_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c7_bu18tl82_out_i2c7_bu18rl82: endpoint {
+					remote-endpoint = <&i2c7_bu18rl82_in_i2c7_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 000b
+			0012 0003
+			0013 0001
+			001d 0008
+			001f 0002
+			0020 0002
+			0031 0041	//i2c addr 0x41
+			0032 0041	//i2c addr 0x41
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0001	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0018	//rl gpio3 input	tp-int
+			042e 0005	//bypass ser gpio3
+			0061 0005	//bypass ser gpio3
+			0063 0000	//rl gpio4 output	tp-rst
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0007	//bypass ser gpio5
+			0073 0080
+			0074 0007
+			0079 000a
+			007b 0038
+			007c 0004
+			0081 0003
+			0082 0010
+			0084 0020
+			0086 0002
+			0087 0002
+			0088 0010
+			0089 0010
+			008b 0020
+			008d 0002
+			008e 0002
+			008f 0010
+			00d0 0040
+			00d8 0042
+			00d9 0004
+			0423 0002
+			0424 00ec
+			0425 0027
+			0429 000a
+			045d 0001
+			0529 000a
+			055d 0003
+			0090 0001
+			0091 0003
+			0426 0080
+			042d 0004
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0019
+			0645 0020
+			0646 001f
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c7_bu18rl82_in_i2c7_bu18tl82: endpoint {
+					remote-endpoint = <&i2c7_bu18tl82_out_i2c7_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c7_bu18rl82_out_panel1: endpoint {
+					remote-endpoint = <&panel1_in_i2c7_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d";
+		reg = <0x2b>;
+		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&i2c8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m2_xfer>;
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			0013 001a	//013h[3]1-lane1 enable 013h[3] 1-LVDS Receiver Port-A
+			0014 000a	//014h[3]1-lane1 enable 014h[3] 1-LVDS Receiver Port-B
+			0021 0008
+			0023 0009
+			0024 0009
+			022b 0038
+			022c 0072
+			022d 0023	//VPLL=75MHZS
+			//022b 00d8
+			//022c 0089
+			//022d 003d	//VPLL=99MHz (ref26MHz) 4032984*26/1024x1024=99M
+			022e 0080
+			027c 0048
+			027d 0048	//i2c addr 0x48
+			0296 0004
+			0297 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0297 000d	//CLLTX0_PLL_GAIN 297h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0018 00a5
+			0019 0069
+			0267 003d
+			0268 002c
+			0269 002c
+			026a 002c
+			026b 002c
+			0367 003d
+			0368 002c
+			0369 002c
+			036a 002c
+			036b 002c
+			0018 0000
+			0019 0000
+			002a 0018	//gpio0 input		lcd_bl_pwm
+			002d 0018	//gpio1 input		lcd_pwr_en
+
+			0030 0018	//gpio2 input		lcd_rst
+			0033 0018	//gpio3 input		tp_rst
+			0034 0005	//bypass des gpio3
+			0036 0000	//gpio4 output		tp_int
+			0037 0006	//bypass des gpio4
+
+			02a7 0002
+			02a8 0003
+			02a9 0004
+			02aa 0005
+			0045 0080
+			0046 0007	//1920
+			004b 00d0
+			004c 0002	//720
+			004d 00d0
+			004e 0002	//720
+			0051 0080
+			0052 0007	//1920
+			0053 0064	//0053h[6]1:2 Rx ports CLLCH2_EN 53h[5] 1:2 Clock Tx lanes
+			024d 0061
+			0252 0005
+			0274 0030
+			0275 0020
+			0396 0004
+			0397 0009	//CLLTX0_PLL_GAIN 397h[3:2] 1001 2'b10: 1.2~2.3 Gbps/lane
+			//0397 000d	//CLLTX0_PLL_GAIN 397h[3:2] 1101 2'b11: 2.2~3.6 Gbps/lane
+			0061 0003	//CLLTX0 enable CLLTX1 enable
+			0060 0003	//CLLTX0/1 RGB data output Enable
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0090	//h_blank=144
+			0446 00d2	//v_blank=210
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c8_bu18tl82_in_dp1: endpoint {
+					remote-endpoint = <&dp1_out_i2c8_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c8_bu18tl82_out_i2c8_bu18rl82: endpoint {
+					remote-endpoint = <&i2c8_bu18rl82_in_i2c8_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			0011 0003	//Clockless Link Receiver Lane-0+ LVDS portA
+			0012 0003	//Clockless Link Receiver Lane-1+ LVDS portB
+			0013 0000
+			001d 0008
+			001f 0002	//LVDSTX0_REFSEL
+			0020 0002	//LVDSTX1_REFSEL
+			0031 0048
+			0032 0048	//i2c addr 0x48
+			0423 0000
+			0424 0000
+			0425 0020
+			0426 0080
+			0057 0000
+			0058 0002
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0002	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0003	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0004	//bypass ser gpio2
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0005	//bypass ser gpio3
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0001	//set gpio5 high
+
+			0073 0080
+			0074 0007	//0x0780 = 1920
+			0075 0080
+			0076 0007	//0x0780 = 1920
+			0079 000a	//h[3]: dual lvds mode h[1] single lane / dual lane
+			007b 00d0
+			007c 0002	//0x02d0 = 720
+			007d 00d0
+			007e 0002	//0x02d0 = 720
+			0081 0003	//01---> Sync OFF
+			0082 0010	//Hsync=16clk
+			0084 001c	//HBP=28clk
+			0086 0002	//Vsync=2lines
+			0087 0008	//VBP=8lines
+			0088 0000	//VSYNC_CHG=0CLK
+			0089 0010	//Hsync = 16?
+			008b 001c	//HFP=28clk?
+			008d 0002	//Vsync=2lines?
+			008e 0008	//VFP=8line?
+			008f 0000	//VSYNC_CHG=0CLK?
+			00d0 0040	//[3]FixHtotalEN
+			00d8 00c0
+			00d9 0003	//DE=960
+			0429 000a	//LVDSTX0_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			045d 0001
+			0529 000a	//LVDSTX1_PLLGAIN 2'b10: 30 MHz ~ 80 MHz
+			055d 0001
+			0091 0003
+			0090 0001
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0090
+			0646 00d2
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c8_bu18rl82_in_i2c8_bu18tl82: endpoint {
+					remote-endpoint = <&i2c8_bu18tl82_out_i2c8_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c8_bu18rl82_out_panel1: endpoint {
+					remote-endpoint = <&panel1_in_i2c8_bu18rl82>;
+				};
+			};
+		};
+	};
+
+	lt7911d@2b {
+		compatible = "lontium,lt7911d";
+		reg = <0x2b>;
+		reset-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+
+&pinctrl {
+
+	bl {
+		bl0_enable_pin: bl0-enable-pin {
+			rockchip,pins =
+				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+
+		};
+
+		bl1_enable_pin: bl1-enable-pin {
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl2_enable_pin: bl2-enable-pin {
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl3_enable_pin: bl3-enable-pin {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl4_enable_pin: bl4-enable-pin {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl5_enable_pin: bl5-enable-pin {
+			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	serdes {
+		//dsi0
+		ser0_rst_pin: ser0-rst-pin {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		//dsi1
+		ser1_rst_pin: ser1-rst-pin {
+			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touch {
+		//dsi0-i2c2
+		touch_gpio_dsi0: touch-gpio-dsi0 {
+			rockchip,pins =
+				//<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,  //INT
+				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;  //RST
+		};
+		//dsi1-i2c6
+		touch_gpio_dsi1: touch-gpio-dsi1 {
+			rockchip,pins =
+				<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>,  //INT
+				<1 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;  //RST
+		};
+		//dp0-i2c4
+		touch_gpio_dp0: touch-gpio-dp0 {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		//edp0-i2c5
+		touch_gpio_edp0: touch-gpio-edp0 {
+			rockchip,pins =
+				<0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,  //INT
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;  //RST
+		};
+	};
+};
+
+/* dsi0->serdes->lvds_panel */
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m2_pins>;
+};
+
+/* dp0->serdes->lvds_panel */
+&pwm10 {
+	pinctrl-0 = <&pwm10m2_pins>;
+	status = "okay";
+};
+
+/* edp1->serdes->lvds_panel */
+&pwm11 {
+	pinctrl-0 = <&pwm11m3_pins>;
+	status = "okay";
+};
+
+/* edp0->serdes->lvds_panel */
+&pwm7 {
+	pinctrl-0 = <&pwm7m0_pins>;
+	status = "okay";
+};
+
+/* dsi1->serdes->lvds_panel */
+&pwm13 {
+	status = "okay";
+	pinctrl-0 = <&pwm13m1_pins>;
+};
+
+/* dp1->serdes->lvds_panel */
+&pwm14 {
+	pinctrl-0 = <&pwm14m0_pins>;
+	status = "okay";
+};
+
+&route_dp0 {
+	status = "disabled";
+	connect = <&vp0_out_dp0>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
+};
+
+&route_dp1 {
+	status = "disabled";
+	connect = <&vp0_out_dp1>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp2_out_dsi0>;
+	logo,uboot = "logo1.bmp";
+	logo,kernel = "logo1.bmp";
+};
+
+&route_dsi1 {
+	status = "okay";
+	connect = <&vp3_out_dsi1>;
+	logo,uboot = "logo2.bmp";
+	logo,kernel = "logo2.bmp";
+};
+
+&route_edp0 {
+	status = "disabled";
+	connect = <&vp1_out_edp0>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
+};
+
+&route_edp1 {
+	status = "disabled";
+	connect = <&vp1_out_edp1>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
+};
+
+&usbdp_phy0 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru PLL_V0PLL>;
+	assigned-clock-rates = <1152000000>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp1 {
+	assigned-clocks = <&cru DCLK_VOP1_SRC>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VOP2_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp3 {
+	assigned-clocks = <&cru DCLK_VOP3>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};

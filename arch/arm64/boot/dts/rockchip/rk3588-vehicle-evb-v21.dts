@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-vehicle-evb-v21.dtsi"
+#include "rk3588-vehicle-evb-maxim-max96712.dtsi"
+#include "rk3588-vehicle-serdes-display-v21.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 VEHICLE EVB V21 Board";
+	compatible = "rockchip,rk3588-vehicle-evb-v21", "rockchip,rk3588";
+
+	bt-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2_2ch>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco>;
+		};
+	};
+
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		reverse {
+			label = "GPIO Key Reverse";
+			linux,code = <KEY_CAMERA_DOWN>;
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+			debounce-interval = <100>;
+		};
+
+		park {
+			label = "GPIO Key Park";
+			linux,code = <KEY_CAMERA>;
+			gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+			debounce-interval = <100>;
+		};
+	};
+};
+
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m1_lrck
+		     &i2s2m1_sclk
+		     &i2s2m1_sdi
+		     &i2s2m1_sdo>;
+	status = "okay";
+};
+
+&rockchip_suspend {
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF_DDRPD
+		| RKPM_SLP_PMU_PMUALIVE_32K
+		| RKPM_SLP_PMU_DIS_OSC
+		| RKPM_SLP_32K_EXT
+		)
+	>;
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_CPU0_WKUP_EN
+		| RKPM_GPIO_WKUP_EN
+		)
+	>;
+	status = "okay";
+};
+
+&vdd_log_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <800000>;
+	};
+};
+
+&vcc_3v3_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <3300000>;
+	};
+};
+
+&vcc_1v8_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <1800000>;
+	};
+};
+
+&vdd_1v8_pll_s0 {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <1800000>;
+};
