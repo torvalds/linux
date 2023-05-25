@@ -1533,10 +1533,9 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 
 	mutex_lock(&xef->vm.lock);
 	vm = xa_load(&xef->vm.xa, id);
-	mutex_unlock(&xef->vm.lock);
-
 	if (vm)
 		xe_vm_get(vm);
+	mutex_unlock(&xef->vm.lock);
 
 	return vm;
 }
@@ -2011,27 +2010,26 @@ int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,
 	struct xe_file *xef = to_xe_file(file);
 	struct drm_xe_vm_destroy *args = data;
 	struct xe_vm *vm;
+	int err = 0;
 
 	if (XE_IOCTL_ERR(xe, args->pad) ||
 	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	vm = xe_vm_lookup(xef, args->vm_id);
-	if (XE_IOCTL_ERR(xe, !vm))
-		return -ENOENT;
-	xe_vm_put(vm);
-
-	/* FIXME: Extend this check to non-compute mode VMs */
-	if (XE_IOCTL_ERR(xe, vm->preempt.num_engines))
-		return -EBUSY;
-
 	mutex_lock(&xef->vm.lock);
-	xa_erase(&xef->vm.xa, args->vm_id);
+	vm = xa_load(&xef->vm.xa, args->vm_id);
+	if (XE_IOCTL_ERR(xe, !vm))
+		err = -ENOENT;
+	else if (XE_IOCTL_ERR(xe, vm->preempt.num_engines))
+		err = -EBUSY;
+	else
+		xa_erase(&xef->vm.xa, args->vm_id);
 	mutex_unlock(&xef->vm.lock);
 
-	xe_vm_close_and_put(vm);
+	if (!err)
+		xe_vm_close_and_put(vm);
 
-	return 0;
+	return err;
 }
 
 static const u32 region_to_mem_type[] = {
