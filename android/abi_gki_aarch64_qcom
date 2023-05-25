@@ -3155,6 +3155,7 @@
   sysfs_remove_link
   sysfs_remove_link_from_group
   sysfs_streq
+  sysfs_update_group
   sysrq_mask
   system_32bit_el0_cpumask
   system_freezable_power_efficient_wq

@@ -254,7 +254,6 @@
   dma_unmap_resource
   dma_unmap_sg_attrs
   do_wait_intr
-  down_read
   down_write
   d_path
   driver_unregister
@@ -543,7 +542,6 @@
   mipi_dsi_dcs_set_display_brightness
   misc_deregister
   misc_register
-  mmput
   mod_delayed_work_on
   mod_timer
   module_layout
@@ -1791,11 +1789,13 @@
 
 # required by mcDrvModule.ko
   crypto_shash_final
+  down_read
   freezer_active
   freezing_slow_path
   get_zeroed_page
   kstrtol_from_user
   ktime_get_raw_ts64
+  mmput
   pin_user_pages
   __refrigerator
   release_pages
@@ -2216,14 +2216,7 @@
   jiffies64_to_msecs
   memremap
   memunmap
-  __mmap_lock_do_trace_acquire_returned
-  __mmap_lock_do_trace_released
-  __mmap_lock_do_trace_start_locking
-  mmu_interval_notifier_insert
-  mmu_interval_notifier_remove
-  mmu_interval_read_begin
   mmu_notifier_synchronize
-  mtree_load
   param_ops_hexint
   pci_assign_unassigned_bus_resources
   pci_bus_resource_n
@@ -2257,13 +2250,7 @@
   si_meminfo
   sysfs_remove_files
   __traceiter_gpu_mem_total
-  __traceiter_mmap_lock_acquire_returned
-  __traceiter_mmap_lock_released
-  __traceiter_mmap_lock_start_locking
   __tracepoint_gpu_mem_total
-  __tracepoint_mmap_lock_acquire_returned
-  __tracepoint_mmap_lock_released
-  __tracepoint_mmap_lock_start_locking
   ttm_bo_eviction_valuable
   ttm_bo_init_reserved
   ttm_bo_kmap
@@ -2304,6 +2291,7 @@
   ttm_resource_manager_usage
   ttm_sg_tt_init
   ttm_tt_fini
+  vm_get_page_prot
   __wake_up_locked
   ww_mutex_lock_interruptible
   ww_mutex_trylock
