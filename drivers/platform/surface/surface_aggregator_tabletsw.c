@@ -340,6 +340,7 @@ enum ssam_pos_state_cover {
 	SSAM_POS_COVER_LAPTOP        = 0x03,
 	SSAM_POS_COVER_FOLDED_CANVAS = 0x04,
 	SSAM_POS_COVER_FOLDED_BACK   = 0x05,
+	SSAM_POS_COVER_BOOK          = 0x06,
 };
 
 enum ssam_pos_state_sls {
@@ -371,6 +372,9 @@ static const char *ssam_pos_state_name_cover(struct ssam_tablet_sw *sw, u32 stat
 
 	case SSAM_POS_COVER_FOLDED_BACK:
 		return "folded-back";
+
+	case SSAM_POS_COVER_BOOK:
+		return "book";
 
 	default:
 		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
@@ -421,6 +425,7 @@ static bool ssam_pos_state_is_tablet_mode_cover(struct ssam_tablet_sw *sw, u32 s
 	case SSAM_POS_COVER_DISCONNECTED:
 	case SSAM_POS_COVER_FOLDED_CANVAS:
 	case SSAM_POS_COVER_FOLDED_BACK:
+	case SSAM_POS_COVER_BOOK:
 		return true;
 
 	case SSAM_POS_COVER_CLOSED:
