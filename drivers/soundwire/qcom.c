@@ -790,6 +790,26 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 	return ret;
 }
 
+static bool swrm_wait_for_frame_gen_enabled(struct qcom_swrm_ctrl *ctrl)
+{
+	int retry = SWRM_LINK_STATUS_RETRY_CNT;
+	int comp_sts;
+
+	do {
+		ctrl->reg_read(ctrl, SWRM_COMP_STATUS, &comp_sts);
+
+		if (comp_sts & SWRM_FRM_GEN_ENABLED)
+			return true;
+
+		usleep_range(500, 510);
+	} while (retry--);
+
+	dev_err(ctrl->dev, "%s: link status not %s\n", __func__,
+		comp_sts & SWRM_FRM_GEN_ENABLED ? "connected" : "disconnected");
+
+	return false;
+}
+
 static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 {
 	u32 val;
@@ -838,16 +858,28 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 				SWRM_RD_WR_CMD_RETRIES);
 	}
 
+	/* COMP Enable */
+	ctrl->reg_write(ctrl, SWRM_COMP_CFG_ADDR, SWRM_COMP_CFG_ENABLE_MSK);
+
 	/* Set IRQ to PULSE */
 	ctrl->reg_write(ctrl, SWRM_COMP_CFG_ADDR,
-			SWRM_COMP_CFG_IRQ_LEVEL_OR_PULSE_MSK |
-			SWRM_COMP_CFG_ENABLE_MSK);
+			SWRM_COMP_CFG_IRQ_LEVEL_OR_PULSE_MSK);
+
+	ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CLEAR],
+			0xFFFFFFFF);
 
 	/* enable CPU IRQs */
 	if (ctrl->mmio) {
 		ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CPU_EN],
 				SWRM_INTERRUPT_STATUS_RMSK);
 	}
+
+	/* Set IRQ to PULSE */
+	ctrl->reg_write(ctrl, SWRM_COMP_CFG_ADDR,
+			SWRM_COMP_CFG_IRQ_LEVEL_OR_PULSE_MSK |
+			SWRM_COMP_CFG_ENABLE_MSK);
+
+	swrm_wait_for_frame_gen_enabled(ctrl);
 	ctrl->slave_status = 0;
 	ctrl->reg_read(ctrl, SWRM_COMP_PARAMS, &val);
 	ctrl->rd_fifo_depth = FIELD_GET(SWRM_COMP_PARAMS_RD_FIFO_DEPTH, val);
@@ -1621,26 +1653,6 @@ static int qcom_swrm_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ctrl->hclk);
 
 	return 0;
-}
-
-static bool swrm_wait_for_frame_gen_enabled(struct qcom_swrm_ctrl *ctrl)
-{
-	int retry = SWRM_LINK_STATUS_RETRY_CNT;
-	int comp_sts;
-
-	do {
-		ctrl->reg_read(ctrl, SWRM_COMP_STATUS, &comp_sts);
-
-		if (comp_sts & SWRM_FRM_GEN_ENABLED)
-			return true;
-
-		usleep_range(500, 510);
-	} while (retry--);
-
-	dev_err(ctrl->dev, "%s: link status not %s\n", __func__,
-		comp_sts & SWRM_FRM_GEN_ENABLED ? "connected" : "disconnected");
-
-	return false;
 }
 
 static int __maybe_unused swrm_runtime_resume(struct device *dev)
