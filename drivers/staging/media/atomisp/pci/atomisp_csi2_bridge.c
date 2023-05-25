@@ -89,6 +89,8 @@ static const guid_t atomisp_dsm_guid =
  * power-management and with v4l2-async probing.
  */
 static const struct atomisp_csi2_sensor_config supported_sensors[] = {
+	/* GalaxyCore GC0310 */
+	{ "INT0310", 1 },
 	/* Omnivision OV2680 */
 	{ "OVTI2680", 1 },
 };

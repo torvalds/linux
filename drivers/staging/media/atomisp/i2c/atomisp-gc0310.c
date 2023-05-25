@@ -29,8 +29,6 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
-#include "../include/linux/atomisp_gmin_platform.h"
-
 #define GC0310_NATIVE_WIDTH			656
 #define GC0310_NATIVE_HEIGHT			496
 
@@ -85,6 +83,7 @@ struct gc0310_device {
 	struct mutex input_lock;
 	bool is_streaming;
 
+	struct fwnode_handle *ep_fwnode;
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
 
@@ -596,11 +595,11 @@ static void gc0310_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "gc0310_remove...\n");
 
-	atomisp_unregister_subdev(sd);
-	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrls.handler);
 	mutex_destroy(&dev->input_lock);
+	fwnode_handle_put(dev->ep_fwnode);
 	pm_runtime_disable(&client->dev);
 }
 
@@ -613,19 +612,27 @@ static int gc0310_probe(struct i2c_client *client)
 	if (!dev)
 		return -ENOMEM;
 
-	ret = v4l2_get_acpi_sensor_info(&client->dev, NULL);
-	if (ret)
-		return ret;
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
+	 */
+	dev->ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	if (!dev->ep_fwnode)
+		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
 
 	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(dev->reset))
+	if (IS_ERR(dev->reset)) {
+		fwnode_handle_put(dev->ep_fwnode);
 		return dev_err_probe(&client->dev, PTR_ERR(dev->reset),
 				     "getting reset GPIO\n");
+	}
 
 	dev->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
-	if (IS_ERR(dev->powerdown))
+	if (IS_ERR(dev->powerdown)) {
+		fwnode_handle_put(dev->ep_fwnode);
 		return dev_err_probe(&client->dev, PTR_ERR(dev->powerdown),
 				     "getting powerdown GPIO\n");
+	}
 
 	mutex_init(&dev->input_lock);
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
@@ -645,6 +652,7 @@ static int gc0310_probe(struct i2c_client *client)
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	dev->sd.fwnode = dev->ep_fwnode;
 
 	ret = gc0310_init_controls(dev);
 	if (ret) {
@@ -658,8 +666,7 @@ static int gc0310_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = atomisp_register_sensor_no_gmin(&dev->sd, 1, ATOMISP_INPUT_FORMAT_RAW_8,
-					      atomisp_bayer_order_grbg);
+	ret = v4l2_async_register_subdev_sensor(&dev->sd);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
