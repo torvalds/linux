@@ -927,7 +927,14 @@ static int bcm54xx_phy_probe(struct phy_device *phydev)
 
 	if (!IS_ERR(wakeup_gpio)) {
 		priv->wake_irq = gpiod_to_irq(wakeup_gpio);
-		ret = irq_set_irq_type(priv->wake_irq, IRQ_TYPE_LEVEL_LOW);
+
+		/* Dummy interrupt handler which is not enabled but is provided
+		 * in order for the interrupt descriptor to be fully set-up.
+		 */
+		ret = devm_request_irq(&phydev->mdio.dev, priv->wake_irq,
+				       bcm_phy_wol_isr,
+				       IRQF_TRIGGER_LOW | IRQF_NO_AUTOEN,
+				       dev_name(&phydev->mdio.dev), phydev);
 		if (ret)
 			return ret;
 	}
