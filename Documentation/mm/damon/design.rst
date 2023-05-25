@@ -370,3 +370,64 @@ access-aware applications using DAMON's core features.  For this, DAMON exposes
 its all features to other kernel components via its application programming
 interface, namely ``include/linux/damon.h``.  Please refer to the API
 :doc:`document </mm/damon/api>` for details of the interface.
+
+
+Modules
+=======
+
+Because the core of DAMON is a framework for kernel components, it doesn't
+provide any direct interface for the user space.  Such interfaces should be
+implemented by each DAMON API user kernel components, instead.  DAMON subsystem
+itself implements such DAMON API user modules, which are supposed to be used
+for general purpose DAMON control and special purpose data access-aware system
+operations, and provides stable application binary interfaces (ABI) for the
+user space.  The user space can build their efficient data access-aware
+applications using the interfaces.
+
+
+General Purpose User Interface Modules
+--------------------------------------
+
+DAMON modules that provide user space ABIs for general purpose DAMON usage in
+runtime.
+
+DAMON user interface modules, namely 'DAMON sysfs interface' and 'DAMON debugfs
+interface' are DAMON API user kernel modules that provide ABIs to the
+user-space.  Please note that DAMON debugfs interface is currently deprecated.
+
+Like many other ABIs, the modules create files on sysfs and debugfs, allow
+users to specify their requests to and get the answers from DAMON by writing to
+and reading from the files.  As a response to such I/O, DAMON user interface
+modules control DAMON and retrieve the results as user requested via the DAMON
+API, and return the results to the user-space.
+
+The ABIs are designed to be used for user space applications development,
+rather than human beings' fingers.  Human users are recommended to use such
+user space tools.  One such Python-written user space tool is available at
+Github (https://github.com/awslabs/damo), Pypi
+(https://pypistats.org/packages/damo), and Fedora
+(https://packages.fedoraproject.org/pkgs/python-damo/damo/).
+
+Please refer to the ABI :doc:`document </admin-guide/mm/damon/usage>` for
+details of the interfaces.
+
+
+Special-Purpose Access-aware Kernel Modules
+-------------------------------------------
+
+DAMON modules that provide user space ABI for specific purpose DAMON usage.
+
+DAMON sysfs/debugfs user interfaces are for full control of all DAMON features
+in runtime.  For each special-purpose system-wide data access-aware system
+operations such as proactive reclamation or LRU lists balancing, the interfaces
+could be simplified by removing unnecessary knobs for the specific purpose, and
+extended for boot-time and even compile time control.  Default values of DAMON
+control parameters for the usage would also need to be optimized for the
+purpose.
+
+To support such cases, yet more DAMON API user kernel modules that provide more
+simple and optimized user space interfaces are available.  Currently, two
+modules for proactive reclamation and LRU lists manipulation are provided.  For
+more detail, please read the usage documents for those
+(:doc:`/admin-guide/mm/damon/reclaim` and
+:doc:`/admin-guide/mm/damon/lru_sort`).
