@@ -5,7 +5,7 @@
 #include <engine/gr.h>
 #include <core/enum.h>
 struct nvkm_fb_tile;
-struct nvkm_fifo_chan;
+struct nvkm_chan;
 
 int nvkm_gr_ctor(const struct nvkm_gr_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		 bool enable, struct nvkm_gr *);
@@ -21,7 +21,7 @@ struct nvkm_gr_func {
 	void (*intr)(struct nvkm_gr *);
 	void (*tile)(struct nvkm_gr *, int region, struct nvkm_fb_tile *);
 	int (*tlb_flush)(struct nvkm_gr *);
-	int (*chan_new)(struct nvkm_gr *, struct nvkm_fifo_chan *,
+	int (*chan_new)(struct nvkm_gr *, struct nvkm_chan *,
 			const struct nvkm_oclass *, struct nvkm_object **);
 	int (*object_get)(struct nvkm_gr *, int, struct nvkm_sclass *);
 	/* Returns chipset-specific counts of units packed into an u64.

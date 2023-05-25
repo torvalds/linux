@@ -109,8 +109,7 @@ nvkm_gr_oclass_get(struct nvkm_oclass *oclass, int index)
 }
 
 static int
-nvkm_gr_cclass_new(struct nvkm_fifo_chan *chan,
-		   const struct nvkm_oclass *oclass,
+nvkm_gr_cclass_new(struct nvkm_chan *chan, const struct nvkm_oclass *oclass,
 		   struct nvkm_object **pobject)
 {
 	struct nvkm_gr *gr = nvkm_gr(oclass->engine);
