@@ -19,8 +19,8 @@ DAMON subsystem is configured with three layers including
   interfaces for the user space, on top of the core layer.
 
 
-Configurable Layers
-===================
+Configurable Operations Set
+---------------------------
 
 DAMON provides data access monitoring functionality while making the accuracy
 and the overhead controllable.  The fundamental access monitorings require
@@ -42,8 +42,8 @@ Also, if some architectures or devices support special optimized access check
 primitives, those will be easily configurable.
 
 
-Reference Implementations of Address Space Specific Monitoring Operations
-=========================================================================
+Operations Set Layer
+====================
 
 The monitoring operations are defined in two parts:
 
@@ -105,8 +105,12 @@ conflict with the reclaim logic using ``PG_idle`` and ``PG_young`` page flags,
 as Idle page tracking does.
 
 
-Address Space Independent Core Mechanisms
-=========================================
+Core Logics
+===========
+
+
+Monitoring
+----------
 
 Below four sections describe each of the DAMON core mechanisms and the five
 monitoring attributes, ``sampling interval``, ``aggregation interval``,
@@ -115,7 +119,7 @@ regions``.
 
 
 Access Frequency Monitoring
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The output of DAMON says what pages are how frequently accessed for a given
 duration.  The resolution of the access frequency is controlled by setting
@@ -142,7 +146,7 @@ size of the target workload grows.
 
 
 Region Based Sampling
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 To avoid the unbounded increase of the overhead, DAMON groups adjacent pages
 that assumed to have the same access frequencies into a region.  As long as the
@@ -159,7 +163,7 @@ assumption is not guaranteed.
 
 
 Adaptive Regions Adjustment
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Even somehow the initial monitoring target regions are well constructed to
 fulfill the assumption (pages in same region have similar access frequencies),
@@ -178,7 +182,7 @@ keeping the bounds users set for their trade-off.
 
 
 Dynamic Target Space Updates Handling
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The monitoring target address range could dynamically changed.  For example,
 virtual memory could be dynamically mapped and unmapped.  Physical memory could
