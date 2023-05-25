@@ -27,6 +27,10 @@
 
 #include "internal.h"
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <linux/fscrypt.h>
+#endif
+
 /*
  * Initialise a struct file's readahead state.  Assumes that the caller has
  * memset *ra to zero.
@@ -287,6 +291,9 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct address_space *mapping = ractl->mapping;
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	bool force_lookahead = false;
+#endif
 
 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages &&
 			!mapping->a_ops->readahead))
@@ -298,6 +305,13 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	 */
 	index = readahead_index(ractl);
 	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	/* For files with fscrypt enabled, to allow IO and the encryption
+	 * or decryption process to ping-pong, lookahead is forcibly enabled.
+	 */
+	if (nr_to_read > max_pages && fscrypt_inode_uses_fs_layer_crypto(mapping->host))
+		force_lookahead = true;
+#endif
 	nr_to_read = min_t(unsigned long, nr_to_read, max_pages);
 	while (nr_to_read) {
 		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
@@ -305,7 +319,14 @@ void force_page_cache_ra(struct readahead_control *ractl,
 		if (this_chunk > nr_to_read)
 			this_chunk = nr_to_read;
 		ractl->_index = index;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		if (force_lookahead)
+			do_page_cache_ra(ractl, this_chunk, this_chunk / 2);
+		else
+			do_page_cache_ra(ractl, this_chunk, 0);
+#else
 		do_page_cache_ra(ractl, this_chunk, 0);
+#endif
 
 		index += this_chunk;
 		nr_to_read -= this_chunk;
