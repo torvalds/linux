@@ -533,6 +533,10 @@ static void omap_8250_pm(struct uart_port *port, unsigned int state,
 	u8 efr;
 
 	pm_runtime_get_sync(port->dev);
+
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
+
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, efr | UART_EFR_ECB);
@@ -542,6 +546,8 @@ static void omap_8250_pm(struct uart_port *port, unsigned int state,
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, efr);
 	serial_out(up, UART_LCR, 0);
+
+	spin_unlock_irq(&port->lock);
 
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
@@ -760,8 +766,11 @@ static void omap_8250_shutdown(struct uart_port *port)
 	if (priv->habit & UART_HAS_EFR2)
 		serial_out(up, UART_OMAP_EFR2, 0x0);
 
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
 	up->ier = 0;
 	serial_out(up, UART_IER, 0);
+	spin_unlock_irq(&port->lock);
 	disable_irq_nosync(up->port.irq);
 	dev_pm_clear_wake_irq(port->dev);
 
@@ -803,6 +812,7 @@ static void omap_8250_unthrottle(struct uart_port *port)
 
 	pm_runtime_get_sync(port->dev);
 
+	/* Synchronize UART_IER access against the console. */
 	spin_lock_irqsave(&port->lock, flags);
 	priv->throttled = false;
 	if (up->dma)
@@ -953,6 +963,7 @@ static void __dma_rx_complete(void *param)
 	struct dma_tx_state     state;
 	unsigned long flags;
 
+	/* Synchronize UART_IER access against the console. */
 	spin_lock_irqsave(&p->port.lock, flags);
 
 	/*
@@ -1227,6 +1238,9 @@ static u16 omap_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir, u16 status
 static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 				     u16 status)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	/*
 	 * Queue a new transfer if FIFO has data.
 	 */

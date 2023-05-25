@@ -539,6 +539,9 @@ EXPORT_SYMBOL_GPL(serial8250_rpm_put);
  */
 static int serial8250_em485_init(struct uart_8250_port *p)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&p->port.lock);
+
 	if (p->em485)
 		goto deassert_rts;
 
@@ -677,6 +680,8 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 	serial8250_rpm_get(p);
 
 	if (p->capabilities & UART_CAP_SLEEP) {
+		/* Synchronize UART_IER access against the console. */
+		spin_lock_irq(&p->port.lock);
 		if (p->capabilities & UART_CAP_EFR) {
 			lcr = serial_in(p, UART_LCR);
 			efr = serial_in(p, UART_EFR);
@@ -690,6 +695,7 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 			serial_out(p, UART_EFR, efr);
 			serial_out(p, UART_LCR, lcr);
 		}
+		spin_unlock_irq(&p->port.lock);
 	}
 
 	serial8250_rpm_put(p);
@@ -697,6 +703,9 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 
 static void serial8250_clear_IER(struct uart_8250_port *up)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	if (up->capabilities & UART_CAP_UUE)
 		serial_out(up, UART_IER, UART_IER_UUE);
 	else
@@ -969,6 +978,9 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	unsigned char status1, status2;
 	unsigned int iersave;
 
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	up->port.type = PORT_16550A;
 	up->capabilities |= UART_CAP_FIFO;
 
@@ -1152,6 +1164,8 @@ static void autoconfig(struct uart_8250_port *up)
 	/*
 	 * We really do need global IRQs disabled here - we're going to
 	 * be frobbing the chips IRQ enable register to see if it exists.
+	 *
+	 * Synchronize UART_IER access against the console.
 	 */
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1324,7 +1338,10 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	/* forget possible initially masked and pending IRQ */
 	probe_irq_off(probe_irq_on());
 	save_mcr = serial8250_in_MCR(up);
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
 	save_ier = serial_in(up, UART_IER);
+	spin_unlock_irq(&port->lock);
 	serial8250_out_MCR(up, UART_MCR_OUT1 | UART_MCR_OUT2);
 
 	irqs = probe_irq_on();
@@ -1336,7 +1353,10 @@ static void autoconfig_irq(struct uart_8250_port *up)
 		serial8250_out_MCR(up,
 			UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2);
 	}
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
 	serial_out(up, UART_IER, UART_IER_ALL_INTR);
+	spin_unlock_irq(&port->lock);
 	serial_in(up, UART_LSR);
 	serial_in(up, UART_RX);
 	serial_in(up, UART_IIR);
@@ -1346,7 +1366,10 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	irq = probe_irq_off(irqs);
 
 	serial8250_out_MCR(up, save_mcr);
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
 	serial_out(up, UART_IER, save_ier);
+	spin_unlock_irq(&port->lock);
 
 	if (port->flags & UPF_FOURPORT)
 		outb_p(save_ICP, ICP);
@@ -1360,6 +1383,9 @@ static void autoconfig_irq(struct uart_8250_port *up)
 static void serial8250_stop_rx(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&port->lock);
 
 	serial8250_rpm_get(up);
 
@@ -1379,6 +1405,9 @@ static void serial8250_stop_rx(struct uart_port *port)
 void serial8250_em485_stop_tx(struct uart_8250_port *p)
 {
 	unsigned char mcr = serial8250_in_MCR(p);
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&p->port.lock);
 
 	if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
 		mcr |= UART_MCR_RTS;
@@ -1428,6 +1457,9 @@ static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 static void __stop_tx_rs485(struct uart_8250_port *p, u64 stop_delay)
 {
 	struct uart_8250_em485 *em485 = p->em485;
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&p->port.lock);
 
 	stop_delay += (u64)p->port.rs485.delay_rts_after_send * NSEC_PER_MSEC;
 
@@ -1608,6 +1640,9 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct uart_8250_em485 *em485 = up->em485;
 
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&port->lock);
+
 	if (!port->x_char && uart_circ_empty(&port->state->xmit))
 		return;
 
@@ -1635,6 +1670,9 @@ static void serial8250_disable_ms(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&port->lock);
+
 	/* no MSR capabilities */
 	if (up->bugs & UART_BUG_NOMSR)
 		return;
@@ -1648,6 +1686,9 @@ static void serial8250_disable_ms(struct uart_port *port)
 static void serial8250_enable_ms(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&port->lock);
 
 	/* no MSR capabilities */
 	if (up->bugs & UART_BUG_NOMSR)
@@ -2105,6 +2146,14 @@ static void serial8250_put_poll_char(struct uart_port *port,
 	unsigned int ier;
 	struct uart_8250_port *up = up_to_u8250p(port);
 
+	/*
+	 * Normally the port is locked to synchronize UART_IER access
+	 * against the console. However, this function is only used by
+	 * KDB/KGDB, where it may not be possible to acquire the port
+	 * lock because all other CPUs are quiesced. The quiescence
+	 * should allow safe lockless usage here.
+	 */
+
 	serial8250_rpm_get(up);
 	/*
 	 *	First save the IER then disable the interrupts
@@ -2440,6 +2489,8 @@ void serial8250_do_shutdown(struct uart_port *port)
 	serial8250_rpm_get(up);
 	/*
 	 * Disable interrupts from this port
+	 *
+	 * Synchronize UART_IER access against the console.
 	 */
 	spin_lock_irqsave(&port->lock, flags);
 	up->ier = 0;
@@ -2739,6 +2790,8 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Ok, we're now changing the port state.  Do it with
 	 * interrupts disabled.
+	 *
+	 * Synchronize UART_IER access against the console.
 	 */
 	serial8250_rpm_get(up);
 	spin_lock_irqsave(&port->lock, flags);

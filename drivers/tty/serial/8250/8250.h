@@ -179,6 +179,9 @@ static inline void serial_dl_write(struct uart_8250_port *up, u32 value)
 
 static inline bool serial8250_set_THRI(struct uart_8250_port *up)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	if (up->ier & UART_IER_THRI)
 		return false;
 	up->ier |= UART_IER_THRI;
@@ -188,6 +191,9 @@ static inline bool serial8250_set_THRI(struct uart_8250_port *up)
 
 static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	if (!(up->ier & UART_IER_THRI))
 		return false;
 	up->ier &= ~UART_IER_THRI;

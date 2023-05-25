@@ -222,11 +222,17 @@ static void mtk8250_shutdown(struct uart_port *port)
 
 static void mtk8250_disable_intrs(struct uart_8250_port *up, int mask)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	serial_out(up, UART_IER, serial_in(up, UART_IER) & (~mask));
 }
 
 static void mtk8250_enable_intrs(struct uart_8250_port *up, int mask)
 {
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	serial_out(up, UART_IER, serial_in(up, UART_IER) | mask);
 }
 
@@ -234,6 +240,9 @@ static void mtk8250_set_flow_ctrl(struct uart_8250_port *up, int mode)
 {
 	struct uart_port *port = &up->port;
 	int lcr = serial_in(up, UART_LCR);
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&port->lock);
 
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, MTK_UART_EFR, UART_EFR_ECB);
