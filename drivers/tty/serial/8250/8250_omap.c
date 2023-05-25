@@ -309,6 +309,9 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 	struct uart_8250_dma	*dma = up->dma;
 	u8 mcr = serial8250_in_MCR(up);
 
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	if (dma && dma->tx_running) {
 		/*
 		 * TCSANOW requests the change to occur immediately however if
@@ -1739,8 +1742,11 @@ static int omap8250_runtime_resume(struct device *dev)
 	if (priv->line >= 0)
 		up = serial8250_get_port(priv->line);
 
-	if (up && omap8250_lost_context(up))
+	if (up && omap8250_lost_context(up)) {
+		spin_lock_irq(&up->port.lock);
 		omap8250_restore_regs(up);
+		spin_unlock_irq(&up->port.lock);
+	}
 
 	if (up && up->dma && up->dma->rxchan && !(priv->habit & UART_HAS_EFR2)) {
 		spin_lock_irq(&up->port.lock);
