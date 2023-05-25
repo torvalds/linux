@@ -28,16 +28,7 @@
 #include <media/ov_16bit_addr_reg_helpers.h>
 #include <media/v4l2-device.h>
 
-#include "../include/linux/atomisp_gmin_platform.h"
-
 #include "ov2680.h"
-
-static enum atomisp_bayer_order ov2680_bayer_order_mapping[] = {
-	atomisp_bayer_order_bggr,
-	atomisp_bayer_order_grbg,
-	atomisp_bayer_order_gbrg,
-	atomisp_bayer_order_rggb,
-};
 
 static int ov2680_write_reg_array(struct i2c_client *client,
 				  const struct ov2680_reg *reglist)
@@ -62,7 +53,6 @@ static void ov2680_set_bayer_order(struct ov2680_device *sensor, struct v4l2_mbu
 		MEDIA_BUS_FMT_SGBRG10_1X10,
 		MEDIA_BUS_FMT_SRGGB10_1X10,
 	};
-	struct camera_mipi_info *ov2680_info;
 	int hv_flip = 0;
 
 	if (sensor->ctrls.vflip->val)
@@ -72,11 +62,6 @@ static void ov2680_set_bayer_order(struct ov2680_device *sensor, struct v4l2_mbu
 		hv_flip += 2;
 
 	fmt->code = ov2680_hv_flip_bayer_order[hv_flip];
-
-	/* TODO atomisp specific custom API, should be removed */
-	ov2680_info = v4l2_get_subdev_hostdata(&sensor->sd);
-	if (ov2680_info)
-		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[hv_flip];
 }
 
 static int ov2680_set_vflip(struct ov2680_device *sensor, s32 val)
@@ -609,10 +594,11 @@ static void ov2680_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "ov2680_remove...\n");
 
-	atomisp_unregister_subdev(sd);
-	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(&sensor->sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+	mutex_destroy(&sensor->input_lock);
+	fwnode_handle_put(sensor->ep_fwnode);
 	pm_runtime_disable(&client->dev);
 }
 
@@ -631,13 +617,19 @@ static int ov2680_probe(struct i2c_client *client)
 	sensor->client = client;
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
 
-	ret = v4l2_get_acpi_sensor_info(dev, NULL);
-	if (ret)
-		return ret;
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
+	 */
+	sensor->ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	if (!sensor->ep_fwnode)
+		return dev_err_probe(dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
 
 	sensor->powerdown = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
-	if (IS_ERR(sensor->powerdown))
+	if (IS_ERR(sensor->powerdown)) {
+		fwnode_handle_put(sensor->ep_fwnode);
 		return dev_err_probe(dev, PTR_ERR(sensor->powerdown), "getting powerdown GPIO\n");
+	}
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
@@ -653,6 +645,7 @@ static int ov2680_probe(struct i2c_client *client)
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	sensor->sd.fwnode = sensor->ep_fwnode;
 
 	ret = ov2680_init_controls(sensor);
 	if (ret) {
@@ -668,8 +661,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	ov2680_fill_format(sensor, &sensor->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
 
-	ret = atomisp_register_sensor_no_gmin(&sensor->sd, 1, ATOMISP_INPUT_FORMAT_RAW_10,
-					      atomisp_bayer_order_bggr);
+	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;

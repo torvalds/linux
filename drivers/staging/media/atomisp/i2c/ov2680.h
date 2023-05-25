@@ -30,8 +30,6 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/media-entity.h>
 
-#include "../include/linux/atomisp_platform.h"
-
 #define OV2680_NATIVE_WIDTH			1616
 #define OV2680_NATIVE_HEIGHT			1216
 
@@ -114,6 +112,7 @@ struct ov2680_device {
 	struct mutex input_lock;
 	struct i2c_client *client;
 	struct gpio_desc *powerdown;
+	struct fwnode_handle *ep_fwnode;
 	bool is_streaming;
 
 	struct ov2680_mode {
