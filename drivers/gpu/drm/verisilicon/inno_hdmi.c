@@ -700,6 +700,9 @@ inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 
 	for (i = 0; cfg[i].pixclock != (~0UL); i++) {
 		if (pclk == cfg[i].pixclock) {
+			if (pclk > 297000 * 1000) {
+				continue;
+			}
 			valid = true;
 			break;
 		}
