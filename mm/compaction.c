@@ -1389,7 +1389,7 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn)
 	isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
 
 	/* Skip this pageblock in the future as it's full or nearly full */
-	if (cc->nr_freepages < cc->nr_migratepages)
+	if (start_pfn == end_pfn)
 		set_pageblock_skip(page);
 
 	return;
