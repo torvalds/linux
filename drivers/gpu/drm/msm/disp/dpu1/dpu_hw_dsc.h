@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2020-2022, Linaro Limited */
+/*
+ * Copyright (c) 2020-2022, Linaro Limited
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved
+ */
 
 #ifndef _DPU_HW_DSC_H
 #define _DPU_HW_DSC_H
@@ -67,6 +70,15 @@ struct dpu_hw_dsc {
  */
 struct dpu_hw_dsc *dpu_hw_dsc_init(const struct dpu_dsc_cfg *cfg,
 		void __iomem *addr);
+
+/**
+ * dpu_hw_dsc_init_1_2() - initializes the v1.2 DSC hw driver object
+ * @cfg:  DSC catalog entry for which driver object is required
+ * @addr: Mapped register io address of MDP
+ * Returns: Error code or allocated dpu_hw_dsc context
+ */
+struct dpu_hw_dsc *dpu_hw_dsc_init_1_2(const struct dpu_dsc_cfg *cfg,
+				       void __iomem *addr);
 
 /**
  * dpu_hw_dsc_destroy - destroys dsc driver context

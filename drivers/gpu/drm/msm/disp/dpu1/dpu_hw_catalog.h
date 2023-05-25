@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -240,12 +240,18 @@ enum {
 };
 
 /**
- * DSC features
+ * DSC sub-blocks/features
  * @DPU_DSC_OUTPUT_CTRL       Configure which PINGPONG block gets
  *                            the pixel output from this DSC.
+ * @DPU_DSC_HW_REV_1_2        DSC block supports DSC 1.1 and 1.2
+ * @DPU_DSC_NATIVE_42x_EN     Supports NATIVE_422_EN and NATIVE_420_EN encoding
+ * @DPU_DSC_MAX
  */
 enum {
 	DPU_DSC_OUTPUT_CTRL = 0x1,
+	DPU_DSC_HW_REV_1_2,
+	DPU_DSC_NATIVE_42x_EN,
+	DPU_DSC_MAX
 };
 
 /**
@@ -299,6 +305,14 @@ struct dpu_csc_blk {
 struct dpu_pp_blk {
 	DPU_HW_SUBBLK_INFO;
 	u32 version;
+};
+
+/**
+ * struct dpu_dsc_blk - DSC Encoder sub-blk information
+ * @info:   HW register and features supported by this sub-blk
+ */
+struct dpu_dsc_blk {
+	DPU_HW_SUBBLK_INFO;
 };
 
 /**
@@ -429,6 +443,16 @@ struct dpu_pingpong_sub_blks {
 	struct dpu_pp_blk te;
 	struct dpu_pp_blk te2;
 	struct dpu_pp_blk dither;
+};
+
+/**
+ * struct dpu_dsc_sub_blks - DSC sub-blks
+ * @enc: DSC encoder sub-block
+ * @ctl: DSC controller sub-block
+ */
+struct dpu_dsc_sub_blks {
+	struct dpu_dsc_blk enc;
+	struct dpu_dsc_blk ctl;
 };
 
 /**
@@ -585,10 +609,13 @@ struct dpu_merge_3d_cfg  {
  * struct dpu_dsc_cfg - information of DSC blocks
  * @id                 enum identifying this block
  * @base               register offset of this block
+ * @len:               length of hardware block
  * @features           bit mask identifying sub-blocks/features
+ * @sblk:              sub-blocks information
  */
 struct dpu_dsc_cfg {
 	DPU_HW_BLK_INFO;
+	const struct dpu_dsc_sub_blks *sblk;
 };
 
 /**
