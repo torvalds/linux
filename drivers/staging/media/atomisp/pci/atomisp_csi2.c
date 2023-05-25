@@ -371,6 +371,10 @@ int atomisp_mipi_csi2_init(struct atomisp_device *isp)
 	unsigned int i;
 	int ret;
 
+	ret = atomisp_csi2_bridge_init(isp);
+	if (ret < 0)
+		return ret;
+
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		csi2_port = &isp->csi2_port[i];
 		csi2_port->isp = isp;

@@ -16,6 +16,7 @@ atomisp-objs += \
 	pci/atomisp_cmd.o \
 	pci/atomisp_compat_css20.o \
 	pci/atomisp_csi2.o \
+	pci/atomisp_csi2_bridge.o \
 	pci/atomisp_drvfs.o \
 	pci/atomisp_fops.o \
 	pci/atomisp_ioctl.o \

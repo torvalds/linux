@@ -27,6 +27,7 @@
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/bits.h>
+#include <media/v4l2-fwnode.h>
 
 #include <asm/iosf_mbi.h>
 
@@ -782,7 +783,11 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 {
 	const struct atomisp_platform_data *pdata;
 	struct intel_v4l2_subdev_table *subdevs;
-	int ret, mipi_port, count;
+	int ret, mipi_port;
+
+	ret = atomisp_csi2_bridge_parse_firmware(isp);
+	if (ret)
+		return ret;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata) {
@@ -790,23 +795,12 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		return 0;
 	}
 
-	/* FIXME: should return -EPROBE_DEFER if not all subdevs were probed */
-	for (count = 0; count < SUBDEV_WAIT_TIMEOUT_MAX_COUNT; count++) {
-		int camera_count = 0;
-
-		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-			if (subdevs->type == RAW_CAMERA)
-				camera_count++;
-		}
-		if (camera_count)
-			break;
-		msleep(SUBDEV_WAIT_TIMEOUT);
-	}
-	/* Wait more time to give more time for subdev init code to finish */
-	msleep(5 * SUBDEV_WAIT_TIMEOUT);
-
-	/* FIXME: should, instead, use I2C probe */
-
+	/*
+	 * TODO: this is left here for now to allow testing atomisp-sensor
+	 * drivers which are still using the atomisp_gmin_platform infra before
+	 * converting them to standard v4l2 sensor drivers using runtime-pm +
+	 * ACPI for pm and v4l2_async_register_subdev_sensor() registration.
+	 */
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
 		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
 		if (ret)
@@ -937,7 +931,7 @@ v4l2_device_failed:
 	return ret;
 }
 
-static int atomisp_register_device_nodes(struct atomisp_device *isp)
+int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
 	struct atomisp_input_subdev *input;
 	int i, err;
@@ -1429,9 +1423,11 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	err = atomisp_register_device_nodes(isp);
-	if (err)
+	err = v4l2_async_nf_register(&isp->v4l2_dev, &isp->notifier);
+	if (err) {
+		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
 		goto css_init_fail;
+	}
 
 	atomisp_drvfs_init(isp);
 

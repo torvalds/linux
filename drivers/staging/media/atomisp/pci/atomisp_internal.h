@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 
 #include <media/media-device.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-subdev.h>
 
 /* ISP2400*/
@@ -173,6 +174,7 @@ struct atomisp_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
 	struct atomisp_sub_device asd;
+	struct v4l2_async_notifier notifier;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
