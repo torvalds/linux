@@ -451,7 +451,6 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 			     six_lock_should_sleep_fn should_sleep_fn, void *p,
 			     unsigned long ip)
 {
-	u32 old;
 	int ret = 0;
 
 	if (type == SIX_LOCK_write) {
@@ -527,7 +526,7 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 out:
 	if (ret && type == SIX_LOCK_write) {
 		six_clear_bitmask(lock, SIX_LOCK_HELD_write);
-		six_lock_wakeup(lock, old, SIX_LOCK_read);
+		six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
 	}
 
 	return ret;
