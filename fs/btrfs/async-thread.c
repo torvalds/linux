@@ -71,6 +71,16 @@ bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq)
 	return atomic_read(&wq->pending) > wq->thresh * 2;
 }
 
+static void btrfs_init_workqueue(struct btrfs_workqueue *wq,
+				 struct btrfs_fs_info *fs_info)
+{
+	wq->fs_info = fs_info;
+	atomic_set(&wq->pending, 0);
+	INIT_LIST_HEAD(&wq->ordered_list);
+	spin_lock_init(&wq->list_lock);
+	spin_lock_init(&wq->thres_lock);
+}
+
 struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 					      const char *name, unsigned int flags,
 					      int limit_active, int thresh)
@@ -80,9 +90,9 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 	if (!ret)
 		return NULL;
 
-	ret->fs_info = fs_info;
+	btrfs_init_workqueue(ret, fs_info);
+
 	ret->limit_active = limit_active;
-	atomic_set(&ret->pending, 0);
 	if (thresh == 0)
 		thresh = DFT_THRESHOLD;
 	/* For low threshold, disabling threshold is a better choice */
@@ -106,9 +116,33 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&ret->ordered_list);
-	spin_lock_init(&ret->list_lock);
-	spin_lock_init(&ret->thres_lock);
+	trace_btrfs_workqueue_alloc(ret, name);
+	return ret;
+}
+
+struct btrfs_workqueue *btrfs_alloc_ordered_workqueue(
+				struct btrfs_fs_info *fs_info, const char *name,
+				unsigned int flags)
+{
+	struct btrfs_workqueue *ret;
+
+	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	if (!ret)
+		return NULL;
+
+	btrfs_init_workqueue(ret, fs_info);
+
+	/* Ordered workqueues don't allow @max_active adjustments. */
+	ret->limit_active = 1;
+	ret->current_active = 1;
+	ret->thresh = NO_THRESHOLD;
+
+	ret->normal_wq = alloc_ordered_workqueue("btrfs-%s", flags, name);
+	if (!ret->normal_wq) {
+		kfree(ret);
+		return NULL;
+	}
+
 	trace_btrfs_workqueue_alloc(ret, name);
 	return ret;
 }
