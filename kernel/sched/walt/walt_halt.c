@@ -460,6 +460,21 @@ int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 }
 EXPORT_SYMBOL(walt_partial_resume_cpus);
 
+/* return true if the requested client has fully halted one of the cpus */
+bool cpus_halted_by_client(struct cpumask *cpus, enum pause_client client)
+{
+	struct halt_cpu_state *halt_cpu_state;
+	int cpu;
+
+	for_each_cpu(cpu, cpus) {
+		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
+		if ((bool)(halt_cpu_state->client_vote_mask[HALT] & client))
+			return true;
+	}
+
+	return false;
+}
+
 static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done)
 {
 	int i, default_cpu = -1;
