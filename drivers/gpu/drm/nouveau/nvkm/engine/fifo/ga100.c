@@ -429,7 +429,9 @@ static int
 ga100_runl_new(struct nvkm_fifo *fifo, int id, u32 addr, struct nvkm_runl **prunl)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_top_device *tdev;
 	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
 	u32 chcfg  = nvkm_rd32(device, addr + 0x004);
 	u32 chnum  = 1 << (chcfg & 0x0000000f);
 	u32 chaddr = (chcfg & 0xfffffff0);
@@ -437,26 +439,50 @@ ga100_runl_new(struct nvkm_fifo *fifo, int id, u32 addr, struct nvkm_runl **prun
 	u32 vector = nvkm_rd32(device, addr + 0x160);
 	int i, ret;
 
-	runl = *prunl = nvkm_runl_new(fifo, id, addr, chnum);
+	runl = nvkm_runl_new(fifo, id, addr, chnum);
 	if (IS_ERR(runl))
 		return PTR_ERR(runl);
+
+	*prunl = runl;
 
 	for (i = 0; i < 2; i++) {
 		u32 pbcfg = nvkm_rd32(device, addr + 0x010 + (i * 0x04));
 		if (pbcfg & 0x80000000) {
 			runl->runq[runl->runq_nr] =
 				nvkm_runq_new(fifo, ((pbcfg & 0x03fffc00) - 0x040000) / 0x800);
-			if (!runl->runq[runl->runq_nr])
+			if (!runl->runq[runl->runq_nr]) {
+				RUNL_ERROR(runl, "runq %d", runl->runq_nr);
 				return -ENOMEM;
+			}
 
 			runl->runq_nr++;
 		}
 	}
 
+	nvkm_list_foreach(tdev, &device->top->device, head, tdev->runlist == runl->addr) {
+		if (tdev->engine < 0) {
+			RUNL_DEBUG(runl, "engn !top");
+			return -EINVAL;
+		}
+
+		engn = nvkm_runl_add(runl, tdev->engine, (tdev->type == NVKM_ENGINE_CE) ?
+				     fifo->func->engn_ce : fifo->func->engn,
+				     tdev->type, tdev->inst);
+		if (!engn)
+			return -EINVAL;
+	}
+
+	if (list_empty(&runl->engns)) {
+		RUNL_DEBUG(runl, "!engns");
+		return -EINVAL;
+	}
+
 	ret = nvkm_inth_add(&device->vfn->intr, vector & 0x00000fff, NVKM_INTR_PRIO_NORMAL,
 			    &fifo->engine.subdev, ga100_runl_intr, &runl->inth);
-	if (ret)
+	if (ret) {
+		RUNL_ERROR(runl, "inth %d", ret);
 		return ret;
+	}
 
 	runl->chan = chaddr;
 	runl->doorbell = dbcfg >> 16;
@@ -514,15 +540,13 @@ ga100_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		runl = nvkm_runl_get(fifo, -1, tdev->runlist);
 		if (!runl) {
 			ret = ga100_runl_new(fifo, id++, tdev->runlist, &runl);
-			if (ret)
-				return ret;
+			if (ret) {
+				if (runl)
+					nvkm_runl_del(runl);
+
+				continue;
+			}
 		}
-
-		if (tdev->engine < 0)
-			continue;
-
-		nvkm_runl_add(runl, tdev->engine, (tdev->type == NVKM_ENGINE_CE) ?
-			      fifo->func->engn_ce : fifo->func->engn, tdev->type, tdev->inst);
 	}
 
 	return 0;
