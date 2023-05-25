@@ -2391,7 +2391,7 @@ static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 		__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
-int mlx5_esw_offloads_rep_load(struct mlx5_eswitch *esw, u16 vport_num)
+static int mlx5_esw_offloads_rep_load(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
@@ -2415,7 +2415,7 @@ err_reps:
 	return err;
 }
 
-void mlx5_esw_offloads_rep_unload(struct mlx5_eswitch *esw, u16 vport_num)
+static void mlx5_esw_offloads_rep_unload(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
