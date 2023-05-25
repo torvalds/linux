@@ -340,9 +340,6 @@ static int cvt_legacy_cmd_to_ump(struct snd_ump_endpoint *ump,
 
 	switch (status) {
 	case UMP_MSG_STATUS_NOTE_ON:
-		if (!buf[2])
-			status = UMP_MSG_STATUS_NOTE_OFF;
-		fallthrough;
 	case UMP_MSG_STATUS_NOTE_OFF:
 		midi2->note.note = buf[1];
 		midi2->note.velocity = upscale_7_to_16bit(buf[2]);
