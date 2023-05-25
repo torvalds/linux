@@ -2236,9 +2236,10 @@ static void _vm_unmap_aliases(unsigned long start, unsigned long end, int flush)
 	for_each_possible_cpu(cpu) {
 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
 		struct vmap_block *vb;
+		unsigned long idx;
 
 		rcu_read_lock();
-		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
+		xa_for_each(&vbq->vmap_blocks, idx, vb) {
 			spin_lock(&vb->lock);
 			if (vb->dirty && vb->dirty != VMAP_BBMAP_BITS) {
 				unsigned long va_start = vb->va->va_start;
