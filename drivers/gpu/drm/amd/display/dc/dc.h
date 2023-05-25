@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-14 Advanced Micro Devices, Inc.
+ * Copyright 2012-2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -60,7 +60,9 @@ struct dc_versions {
 };
 
 enum dp_protocol_version {
-	DP_VERSION_1_4,
+	DP_VERSION_1_4 = 0,
+	DP_VERSION_2_1,
+	DP_VERSION_UNKNOWN,
 };
 
 enum dc_plane_type {
