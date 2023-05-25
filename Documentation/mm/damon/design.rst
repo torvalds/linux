@@ -41,6 +41,16 @@ Also, if some architectures or devices supporting special optimized access
 check primitives, those will be easily configurable.
 
 
+Programmable Modules
+--------------------
+
+Core layer of DAMON is implemented as a framework, and exposes its application
+programming interface to all kernel space components such as subsystems and
+modules.  For common use cases of DAMON, DAMON subsystem provides kernel
+modules that built on top of the core layer using the API, which can be easily
+used by the user space end users.
+
+
 Operations Set Layer
 ====================
 
