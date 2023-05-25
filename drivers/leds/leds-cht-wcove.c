@@ -141,7 +141,7 @@ out:
 	return ret;
 }
 
-enum led_brightness cht_wc_leds_brightness_get(struct led_classdev *cdev)
+static enum led_brightness cht_wc_leds_brightness_get(struct led_classdev *cdev)
 {
 	struct cht_wc_led *led = container_of(cdev, struct cht_wc_led, cdev);
 	unsigned int val;
