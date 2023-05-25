@@ -13,12 +13,12 @@
 #include <linux/of.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/gunyah/gh_errno.h>
+#include <linux/gunyah.h>
 #include "hcall_ctrl.h"
 
 #define QC_HYP_SMCCC_CALL_UID                                                  \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32,              \
-			   ARM_SMCCC_OWNER_VENDOR_HYP, 0xff01)
+			   ARM_SMCCC_OWNER_VENDOR_HYP, 0x3f01)
 #define QC_HYP_SMCCC_REVISION                                                  \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32,              \
 			   ARM_SMCCC_OWNER_VENDOR_HYP, 0xff03)
@@ -32,6 +32,12 @@
 #define QC_HYP1_UID1 0x1b57370b
 #define QC_HYP1_UID2 0x9b606f94
 #define QC_HYP1_UID3 0xe69d5354
+
+/* Use */
+#undef GH_API_INFO_API_VERSION
+#undef GH_API_INFO_BIG_ENDIAN
+#undef GH_API_INFO_IS_64BIT
+#undef GH_API_INFO_VARIANT
 
 #define GH_API_INFO_API_VERSION(x)	(((x) >> 0) & 0x3fff)
 #define GH_API_INFO_BIG_ENDIAN(x)	(((x) >> 14) & 1)

@@ -71,6 +71,16 @@ config GH_VIRT_WATCHDOG
 	  actions such as setting the bark/bite time and also petting the
 	  watchdog in the hypervisor.
 
+config GH_CTRL
+	tristate "Create Gunyah entries under /sys/hypervisor"
+	depends on SYSFS
+	select SYS_HYPERVISOR
+	help
+	  Create entries under /sys/hypervisor for the Gunyah hypervisor.
+	  The driver also provides a facility for controlling
+	  hypervisor debug features.
+	  See Documentation/ABI/testing/sysfs-hypervisor-gunyah for more details.
+
 config GH_DBL
 	tristate "Gunyah Doorbell driver"
 	help
