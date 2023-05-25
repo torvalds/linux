@@ -32,9 +32,6 @@
 
 #include <nvif/class.h>
 
-/*TODO: allocate? */
-#define GA100_FIFO_NONSTALL_VECTOR 0
-
 static u32
 ga100_chan_doorbell_handle(struct nvkm_chan *chan)
 {
@@ -83,7 +80,7 @@ ga100_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm,
 	nvkm_wo32(chan->inst, 0x0e4, priv ? 0x00000020 : 0x00000000);
 	nvkm_wo32(chan->inst, 0x0e8, chan->id);
 	nvkm_wo32(chan->inst, 0x0f4, 0x00001000 | (priv ? 0x00000100 : 0x00000000));
-	nvkm_wo32(chan->inst, 0x0f8, 0x80000000 | GA100_FIFO_NONSTALL_VECTOR);
+	nvkm_wo32(chan->inst, 0x0f8, 0x80000000 | chan->cgrp->runl->nonstall.vector);
 	nvkm_mo32(chan->inst, 0x218, 0x00000000, 0x00000000);
 	nvkm_done(chan->inst);
 	return 0;
@@ -148,8 +145,20 @@ ga100_engn_cxid(struct nvkm_engn *engn, bool *cgid)
 	return -ENODEV;
 }
 
+static int
+ga100_engn_nonstall(struct nvkm_engn *engn)
+{
+	struct nvkm_engine *engine = engn->engine;
+
+	if (WARN_ON(!engine->func->nonstall))
+		return -EINVAL;
+
+	return engine->func->nonstall(engine);
+}
+
 const struct nvkm_engn_func
 ga100_engn = {
+	.nonstall = ga100_engn_nonstall,
 	.cxid = ga100_engn_cxid,
 	.ctor = gk104_ectx_ctor,
 	.bind = gv100_ectx_bind,
@@ -157,6 +166,7 @@ ga100_engn = {
 
 const struct nvkm_engn_func
 ga100_engn_ce = {
+	.nonstall = ga100_engn_nonstall,
 	.cxid = ga100_engn_cxid,
 	.ctor = gv100_ectx_ce_ctor,
 	.bind = gv100_ectx_ce_bind,
@@ -470,6 +480,11 @@ ga100_runl_new(struct nvkm_fifo *fifo, int id, u32 addr, struct nvkm_runl **prun
 				     tdev->type, tdev->inst);
 		if (!engn)
 			return -EINVAL;
+
+		if (!engn->engine->func->nonstall) {
+			RUNL_DEBUG(runl, "engn %s !nonstall", engn->engine->subdev.name);
+			return -EINVAL;
+		}
 	}
 
 	if (list_empty(&runl->engns)) {
@@ -492,9 +507,9 @@ ga100_runl_new(struct nvkm_fifo *fifo, int id, u32 addr, struct nvkm_runl **prun
 static irqreturn_t
 ga100_fifo_nonstall_intr(struct nvkm_inth *inth)
 {
-	struct nvkm_fifo *fifo = container_of(inth, typeof(*fifo), nonstall.intr);
+	struct nvkm_runl *runl = container_of(inth, typeof(*runl), nonstall.inth);
 
-	nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
+	nvkm_event_ntfy(&runl->fifo->nonstall.event, runl->id, NVKM_FIFO_NONSTALL_EVENT);
 	return IRQ_HANDLED;
 }
 
@@ -502,16 +517,18 @@ static void
 ga100_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_runl *runl = nvkm_runl_get(fifo, index, 0);
 
-	nvkm_inth_block(&fifo->nonstall.intr);
+	nvkm_inth_block(&runl->nonstall.inth);
 }
 
 static void
 ga100_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_runl *runl = nvkm_runl_get(fifo, index, 0);
 
-	nvkm_inth_allow(&fifo->nonstall.intr);
+	nvkm_inth_allow(&runl->nonstall.inth);
 }
 
 const struct nvkm_event_func
@@ -523,9 +540,29 @@ ga100_fifo_nonstall = {
 int
 ga100_fifo_nonstall_ctor(struct nvkm_fifo *fifo)
 {
-	return nvkm_inth_add(&fifo->engine.subdev.device->vfn->intr, GA100_FIFO_NONSTALL_VECTOR,
-			     NVKM_INTR_PRIO_NORMAL, &fifo->engine.subdev, ga100_fifo_nonstall_intr,
-			     &fifo->nonstall.intr);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
+	struct nvkm_vfn *vfn = subdev->device->vfn;
+	struct nvkm_runl *runl;
+	int ret, nr = 0;
+
+	nvkm_runl_foreach(runl, fifo) {
+		struct nvkm_engn *engn = list_first_entry(&runl->engns, typeof(*engn), head);
+
+		runl->nonstall.vector = engn->func->nonstall(engn);
+		if (runl->nonstall.vector < 0) {
+			RUNL_ERROR(runl, "nonstall %d", runl->nonstall.vector);
+			return runl->nonstall.vector;
+		}
+
+		ret = nvkm_inth_add(&vfn->intr, runl->nonstall.vector, NVKM_INTR_PRIO_NORMAL,
+				    subdev, ga100_fifo_nonstall_intr, &runl->nonstall.inth);
+		if (ret)
+			return ret;
+
+		nr = max(nr, runl->id + 1);
+	}
+
+	return nr;
 }
 
 int

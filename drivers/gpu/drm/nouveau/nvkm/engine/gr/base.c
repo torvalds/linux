@@ -126,6 +126,17 @@ nvkm_gr_intr(struct nvkm_engine *engine)
 }
 
 static int
+nvkm_gr_nonstall(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+
+	if (gr->func->nonstall)
+		return gr->func->nonstall(gr);
+
+	return -EINVAL;
+}
+
+static int
 nvkm_gr_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_gr *gr = nvkm_gr(engine);
@@ -177,6 +188,7 @@ nvkm_gr = {
 	.init = nvkm_gr_init,
 	.fini = nvkm_gr_fini,
 	.reset = nvkm_gr_reset,
+	.nonstall = nvkm_gr_nonstall,
 	.intr = nvkm_gr_intr,
 	.tile = nvkm_gr_tile,
 	.chsw_load = nvkm_gr_chsw_load,

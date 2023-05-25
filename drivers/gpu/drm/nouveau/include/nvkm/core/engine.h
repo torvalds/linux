@@ -22,6 +22,7 @@ struct nvkm_engine_func {
 	int (*init)(struct nvkm_engine *);
 	int (*fini)(struct nvkm_engine *, bool suspend);
 	int (*reset)(struct nvkm_engine *);
+	int (*nonstall)(struct nvkm_engine *);
 	void (*intr)(struct nvkm_engine *);
 	void (*tile)(struct nvkm_engine *, int region, struct nvkm_fb_tile *);
 	bool (*chsw_load)(struct nvkm_engine *);
