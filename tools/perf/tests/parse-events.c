@@ -486,6 +486,93 @@ static int test__checkevent_breakpoint_rw_modifier(struct evlist *evlist)
 	return test__checkevent_breakpoint_rw(evlist);
 }
 
+static int test__checkevent_breakpoint_modifier_name(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong name",
+			!strcmp(evsel__name(evsel), "breakpoint"));
+
+	return test__checkevent_breakpoint(evlist);
+}
+
+static int test__checkevent_breakpoint_x_modifier_name(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", !evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong name",
+			!strcmp(evsel__name(evsel), "breakpoint"));
+
+	return test__checkevent_breakpoint_x(evlist);
+}
+
+static int test__checkevent_breakpoint_r_modifier_name(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong name",
+			!strcmp(evsel__name(evsel), "breakpoint"));
+
+	return test__checkevent_breakpoint_r(evlist);
+}
+
+static int test__checkevent_breakpoint_w_modifier_name(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong name",
+			!strcmp(evsel__name(evsel), "breakpoint"));
+
+	return test__checkevent_breakpoint_w(evlist);
+}
+
+static int test__checkevent_breakpoint_rw_modifier_name(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude_user", evsel->core.attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", !evsel->core.attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", evsel->core.attr.precise_ip);
+	TEST_ASSERT_VAL("wrong name",
+			!strcmp(evsel__name(evsel), "breakpoint"));
+
+	return test__checkevent_breakpoint_rw(evlist);
+}
+
+static int test__checkevent_breakpoint_2_events(struct evlist *evlist)
+{
+	struct evsel *evsel = evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_BREAKPOINT == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong name", !strcmp(evsel__name(evsel), "breakpoint1"));
+
+	evsel = evsel__next(evsel);
+
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_BREAKPOINT == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong name", !strcmp(evsel__name(evsel), "breakpoint2"));
+
+	return TEST_OK;
+}
+
 static int test__checkevent_pmu(struct evlist *evlist)
 {
 
@@ -1972,6 +2059,76 @@ static const struct evlist_test test__events[] = {
 		.name  = "cycles/name=l1d/",
 		.check = test__term_equal_legacy,
 		/* 9 */
+	},
+	{
+		.name  = "mem:0/name=breakpoint/",
+		.check = test__checkevent_breakpoint,
+		/* 0 */
+	},
+	{
+		.name  = "mem:0:x/name=breakpoint/",
+		.check = test__checkevent_breakpoint_x,
+		/* 1 */
+	},
+	{
+		.name  = "mem:0:r/name=breakpoint/",
+		.check = test__checkevent_breakpoint_r,
+		/* 2 */
+	},
+	{
+		.name  = "mem:0:w/name=breakpoint/",
+		.check = test__checkevent_breakpoint_w,
+		/* 3 */
+	},
+	{
+		.name  = "mem:0/name=breakpoint/u",
+		.check = test__checkevent_breakpoint_modifier_name,
+		/* 4 */
+	},
+	{
+		.name  = "mem:0:x/name=breakpoint/k",
+		.check = test__checkevent_breakpoint_x_modifier_name,
+		/* 5 */
+	},
+	{
+		.name  = "mem:0:r/name=breakpoint/hp",
+		.check = test__checkevent_breakpoint_r_modifier_name,
+		/* 6 */
+	},
+	{
+		.name  = "mem:0:w/name=breakpoint/up",
+		.check = test__checkevent_breakpoint_w_modifier_name,
+		/* 7 */
+	},
+	{
+		.name  = "mem:0:rw/name=breakpoint/",
+		.check = test__checkevent_breakpoint_rw,
+		/* 8 */
+	},
+	{
+		.name  = "mem:0:rw/name=breakpoint/kp",
+		.check = test__checkevent_breakpoint_rw_modifier_name,
+		/* 9 */
+	},
+	{
+		.name  = "mem:0/1/name=breakpoint/",
+		.check = test__checkevent_breakpoint_len,
+		/* 0 */
+	},
+	{
+		.name  = "mem:0/2:w/name=breakpoint/",
+		.check = test__checkevent_breakpoint_len_w,
+		/* 1 */
+	},
+	{
+		.name  = "mem:0/4:rw/name=breakpoint/u",
+		.check = test__checkevent_breakpoint_len_rw_modifier,
+		/* 2 */
+	},
+	{
+		.name  = "mem:0/1/name=breakpoint1/,mem:0/4:rw/name=breakpoint2/",
+		.check = test__checkevent_breakpoint_2_events,
+		/* 3 */
 	},
 };
 

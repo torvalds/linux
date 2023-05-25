@@ -185,8 +185,10 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			   struct parse_events_state *parse_state,
 			   struct list_head *head_config);
 int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config);
-int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				u64 addr, char *type, u64 len);
+int parse_events_add_breakpoint(struct parse_events_state *parse_state,
+				struct list_head *list,
+				u64 addr, char *type, u64 len,
+				struct list_head *head_config);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
@@ -225,6 +227,10 @@ void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help);
 void parse_events_error__print(struct parse_events_error *err,
 			       const char *event);
+
+static inline void parse_events_unused_value(const void *x __maybe_unused)
+{
+}
 
 #ifdef HAVE_LIBELF_SUPPORT
 /*

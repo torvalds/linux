@@ -59,7 +59,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 %token PE_EVENT_NAME
 %token PE_RAW PE_NAME
 %token PE_BPF_OBJECT PE_BPF_SOURCE
-%token PE_MODIFIER_EVENT PE_MODIFIER_BP
+%token PE_MODIFIER_EVENT PE_MODIFIER_BP PE_BP_COLON PE_BP_SLASH
 %token PE_LEGACY_CACHE
 %token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
 %token PE_ERROR
@@ -80,6 +80,8 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <str> PE_LEGACY_CACHE
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
+%type <str> PE_BP_COLON
+%type <str> PE_BP_SLASH
 %type <str> PE_EVENT_NAME
 %type <str> PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
 %type <str> PE_DRV_CFG_TERM
@@ -275,7 +277,7 @@ event_def
 event_def: event_pmu |
 	   event_legacy_symbol |
 	   event_legacy_cache sep_dc |
-	   event_legacy_mem |
+	   event_legacy_mem sep_dc |
 	   event_legacy_tracepoint sep_dc |
 	   event_legacy_numeric sep_dc |
 	   event_legacy_raw sep_dc |
@@ -503,16 +505,19 @@ PE_LEGACY_CACHE opt_event_config
 }
 
 event_legacy_mem:
-PE_PREFIX_MEM PE_VALUE '/' PE_VALUE ':' PE_MODIFIER_BP sep_dc
+PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event_config
 {
-	struct parse_events_state *parse_state = _parse_state;
 	struct list_head *list;
 	int err;
 
+	parse_events_unused_value(&$3);
+	parse_events_unused_value(&$5);
+
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_breakpoint(list, &parse_state->idx,
-					  $2, $6, $4);
+	err = parse_events_add_breakpoint(_parse_state, list,
+					  $2, $6, $4, $7);
+	parse_events_terms__delete($7);
 	free($6);
 	if (err) {
 		free(list);
@@ -521,31 +526,37 @@ PE_PREFIX_MEM PE_VALUE '/' PE_VALUE ':' PE_MODIFIER_BP sep_dc
 	$$ = list;
 }
 |
-PE_PREFIX_MEM PE_VALUE '/' PE_VALUE sep_dc
+PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE opt_event_config
 {
-	struct parse_events_state *parse_state = _parse_state;
 	struct list_head *list;
+	int err;
+
+	parse_events_unused_value(&$3);
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	if (parse_events_add_breakpoint(list, &parse_state->idx,
-					$2, NULL, $4)) {
+	err = parse_events_add_breakpoint(_parse_state, list,
+					  $2, NULL, $4, $5);
+	parse_events_terms__delete($5);
+	if (err) {
 		free(list);
 		YYABORT;
 	}
 	$$ = list;
 }
 |
-PE_PREFIX_MEM PE_VALUE ':' PE_MODIFIER_BP sep_dc
+PE_PREFIX_MEM PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event_config
 {
-	struct parse_events_state *parse_state = _parse_state;
 	struct list_head *list;
 	int err;
 
+	parse_events_unused_value(&$3);
+
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_breakpoint(list, &parse_state->idx,
-					  $2, $4, 0);
+	err = parse_events_add_breakpoint(_parse_state, list,
+					  $2, $4, 0, $5);
+	parse_events_terms__delete($5);
 	free($4);
 	if (err) {
 		free(list);
@@ -554,15 +565,17 @@ PE_PREFIX_MEM PE_VALUE ':' PE_MODIFIER_BP sep_dc
 	$$ = list;
 }
 |
-PE_PREFIX_MEM PE_VALUE sep_dc
+PE_PREFIX_MEM PE_VALUE opt_event_config
 {
-	struct parse_events_state *parse_state = _parse_state;
 	struct list_head *list;
+	int err;
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	if (parse_events_add_breakpoint(list, &parse_state->idx,
-					$2, NULL, 0)) {
+	err = parse_events_add_breakpoint(_parse_state, list,
+					  $2, NULL, 0, $3);
+	parse_events_terms__delete($3);
+	if (err) {
 		free(list);
 		YYABORT;
 	}

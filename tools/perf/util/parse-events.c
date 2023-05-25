@@ -946,10 +946,14 @@ do {					\
 	return 0;
 }
 
-int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				u64 addr, char *type, u64 len)
+int parse_events_add_breakpoint(struct parse_events_state *parse_state,
+				struct list_head *list,
+				u64 addr, char *type, u64 len,
+				struct list_head *head_config __maybe_unused)
 {
 	struct perf_event_attr attr;
+	LIST_HEAD(config_terms);
+	const char *name;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.bp_addr = addr;
@@ -970,8 +974,19 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_BREAKPOINT;
 	attr.sample_period = 1;
 
-	return add_event(list, idx, &attr, /*name=*/NULL, /*mertic_id=*/NULL,
-			 /*config_terms=*/NULL);
+	if (head_config) {
+		if (config_attr(&attr, head_config, parse_state->error,
+				config_term_common))
+			return -EINVAL;
+
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+	}
+
+	name = get_config_name(head_config);
+
+	return add_event(list, &parse_state->idx, &attr, name, /*mertic_id=*/NULL,
+			 &config_terms);
 }
 
 static int check_type_val(struct parse_events_term *term,

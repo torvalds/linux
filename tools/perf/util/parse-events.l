@@ -190,11 +190,16 @@ name		[a-zA-Z_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
 name_tag	[\'][a-zA-Z_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
 name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
-/* If you add a modifier you need to update check_modifier() */
+/*
+ * If you add a modifier you need to update check_modifier().
+ * Also, the letters in modifier_event must not be in modifier_bp.
+ */
 modifier_event	[ukhpPGHSDIWeb]+
 modifier_bp	[rwx]{1,3}
 lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
 lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
+digit		[0-9]
+non_digit	[^0-9]
 
 %%
 
@@ -304,8 +309,20 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 
 <mem>{
 {modifier_bp}		{ return str(yyscanner, PE_MODIFIER_BP); }
-:			{ return ':'; }
-"/"			{ return '/'; }
+	/*
+	 * The colon before memory access modifiers can get mixed up with the
+	 * colon before event modifiers. Fortunately none of the option letters
+	 * are the same, so trailing context can be used disambiguate the two
+	 * cases.
+	 */
+":"/{modifier_bp}	{ return str(yyscanner, PE_BP_COLON); }
+	/*
+	 * The slash before memory length can get mixed up with the slash before
+	 * config terms. Fortunately config terms do not start with a numeric
+	 * digit, so trailing context can be used disambiguate the two cases.
+	 */
+"/"/{digit}		{ return str(yyscanner, PE_BP_SLASH); }
+"/"/{non_digit}		{ BEGIN(config); return '/'; }
 {num_dec}		{ return value(yyscanner, 10); }
 {num_hex}		{ return value(yyscanner, 16); }
 	/*
