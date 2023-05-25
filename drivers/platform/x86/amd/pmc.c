@@ -261,7 +261,7 @@ static int amd_pmc_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 	dev->msg_port = 1;
 
 	/* Get the num_samples to calculate the last push location */
-	ret = amd_pmc_send_cmd(dev, S2D_NUM_SAMPLES, &num_samples, STB_SPILL_TO_DRAM, 1);
+	ret = amd_pmc_send_cmd(dev, S2D_NUM_SAMPLES, &num_samples, STB_SPILL_TO_DRAM, true);
 	/* Clear msg_port for other SMU operation */
 	dev->msg_port = 0;
 	if (ret) {
@@ -317,15 +317,15 @@ static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 
 	/* Get Active devices list from SMU */
 	if (!dev->active_ips)
-		amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, 1);
+		amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, true);
 
 	/* Get dram address */
 	if (!dev->smu_virt_addr) {
 		u32 phys_addr_low, phys_addr_hi;
 		u64 smu_phys_addr;
 
-		amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, 1);
-		amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, 1);
+		amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, true);
+		amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, true);
 		smu_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
 
 		dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr,
@@ -335,8 +335,8 @@ static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 	}
 
 	/* Start the logging */
-	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_RESET, 0);
-	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, 0);
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_RESET, false);
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, false);
 
 	return 0;
 }
@@ -377,7 +377,7 @@ static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
 	if (dev->cpu_id == AMD_CPU_ID_PCO)
 		return -ENODEV;
 
-	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
+	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, true);
 	if (rc)
 		return rc;
 
@@ -794,7 +794,7 @@ static void amd_pmc_s2idle_prepare(void)
 	}
 
 	msg = amd_pmc_get_os_hint(pdev);
-	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, 0);
+	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, false);
 	if (rc) {
 		dev_err(pdev->dev, "suspend failed: %d\n", rc);
 		return;
@@ -829,7 +829,7 @@ static int amd_pmc_dump_data(struct amd_pmc_dev *pdev)
 	if (pdev->cpu_id == AMD_CPU_ID_PCO)
 		return -ENODEV;
 
-	return amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, 0);
+	return amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, false);
 }
 
 static void amd_pmc_s2idle_restore(void)
@@ -839,7 +839,7 @@ static void amd_pmc_s2idle_restore(void)
 	u8 msg;
 
 	msg = amd_pmc_get_os_hint(pdev);
-	rc = amd_pmc_send_cmd(pdev, 0, NULL, msg, 0);
+	rc = amd_pmc_send_cmd(pdev, 0, NULL, msg, false);
 	if (rc)
 		dev_err(pdev->dev, "resume failed: %d\n", rc);
 
@@ -899,13 +899,13 @@ static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 	/* Spill to DRAM feature uses separate SMU message port */
 	dev->msg_port = 1;
 
-	amd_pmc_send_cmd(dev, S2D_TELEMETRY_SIZE, &size, STB_SPILL_TO_DRAM, 1);
+	amd_pmc_send_cmd(dev, S2D_TELEMETRY_SIZE, &size, STB_SPILL_TO_DRAM, true);
 	if (size != S2D_TELEMETRY_BYTES_MAX)
 		return -EIO;
 
 	/* Get STB DRAM address */
-	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_LOW, &phys_addr_low, STB_SPILL_TO_DRAM, 1);
-	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_HIGH, &phys_addr_hi, STB_SPILL_TO_DRAM, 1);
+	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_LOW, &phys_addr_low, STB_SPILL_TO_DRAM, true);
+	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_HIGH, &phys_addr_hi, STB_SPILL_TO_DRAM, true);
 
 	stb_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
 
