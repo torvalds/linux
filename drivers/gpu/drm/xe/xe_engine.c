@@ -348,7 +348,8 @@ static int engine_user_ext_set_property(struct xe_device *xe,
 		return -EFAULT;
 
 	if (XE_IOCTL_ERR(xe, ext.property >=
-			 ARRAY_SIZE(engine_set_property_funcs)))
+			 ARRAY_SIZE(engine_set_property_funcs)) ||
+	    XE_IOCTL_ERR(xe, ext.pad))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(engine_set_property_funcs));
@@ -380,7 +381,8 @@ static int engine_user_extensions(struct xe_device *xe, struct xe_engine *e,
 	if (XE_IOCTL_ERR(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.name >=
+	if (XE_IOCTL_ERR(xe, ext.pad) ||
+	    XE_IOCTL_ERR(xe, ext.name >=
 			 ARRAY_SIZE(engine_user_extension_funcs)))
 		return -EINVAL;
 
@@ -523,7 +525,8 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 	int len;
 	int err;
 
-	if (XE_IOCTL_ERR(xe, args->flags))
+	if (XE_IOCTL_ERR(xe, args->flags) ||
+	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	len = args->width * args->num_placements;
@@ -639,6 +642,9 @@ int xe_engine_get_property_ioctl(struct drm_device *dev, void *data,
 	struct drm_xe_engine_get_property *args = data;
 	struct xe_engine *e;
 
+	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+		return -EINVAL;
+
 	mutex_lock(&xef->engine.lock);
 	e = xa_load(&xef->engine.xa, args->engine_id);
 	mutex_unlock(&xef->engine.lock);
@@ -718,7 +724,8 @@ int xe_engine_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_xe_engine_destroy *args = data;
 	struct xe_engine *e;
 
-	if (XE_IOCTL_ERR(xe, args->pad))
+	if (XE_IOCTL_ERR(xe, args->pad) ||
+	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	mutex_lock(&xef->engine.lock);
@@ -747,6 +754,9 @@ int xe_engine_set_property_ioctl(struct drm_device *dev, void *data,
 	struct xe_engine *e;
 	int ret;
 	u32 idx;
+
+	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+		return -EINVAL;
 
 	e = xe_engine_lookup(xef, args->engine_id);
 	if (XE_IOCTL_ERR(xe, !e))

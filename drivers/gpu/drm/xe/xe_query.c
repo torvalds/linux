@@ -374,7 +374,8 @@ int xe_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_xe_device_query *query = data;
 	u32 idx;
 
-	if (XE_IOCTL_ERR(xe, query->extensions != 0))
+	if (XE_IOCTL_ERR(xe, query->extensions) ||
+	    XE_IOCTL_ERR(xe, query->reserved[0] || query->reserved[1]))
 		return -EINVAL;
 
 	if (XE_IOCTL_ERR(xe, query->query > ARRAY_SIZE(xe_query_funcs)))

@@ -1856,7 +1856,9 @@ static int vm_user_ext_set_property(struct xe_device *xe, struct xe_vm *vm,
 		return -EFAULT;
 
 	if (XE_IOCTL_ERR(xe, ext.property >=
-			 ARRAY_SIZE(vm_set_property_funcs)))
+			 ARRAY_SIZE(vm_set_property_funcs)) ||
+	    XE_IOCTL_ERR(xe, ext.pad) ||
+	    XE_IOCTL_ERR(xe, ext.reserved[0] || ext.reserved[1]))
 		return -EINVAL;
 
 	return vm_set_property_funcs[ext.property](xe, vm, ext.value);
@@ -1884,7 +1886,8 @@ static int vm_user_extensions(struct xe_device *xe, struct xe_vm *vm,
 	if (XE_IOCTL_ERR(xe, err))
 		return -EFAULT;
 
-	if (XE_IOCTL_ERR(xe, ext.name >=
+	if (XE_IOCTL_ERR(xe, ext.pad) ||
+	    XE_IOCTL_ERR(xe, ext.name >=
 			 ARRAY_SIZE(vm_user_extension_funcs)))
 		return -EINVAL;
 
@@ -1914,6 +1917,9 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	u32 id, asid;
 	int err;
 	u32 flags = 0;
+
+	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
+		return -EINVAL;
 
 	if (XE_IOCTL_ERR(xe, args->flags & ~ALL_DRM_XE_VM_CREATE_FLAGS))
 		return -EINVAL;
@@ -1998,7 +2004,8 @@ int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_xe_vm_destroy *args = data;
 	struct xe_vm *vm;
 
-	if (XE_IOCTL_ERR(xe, args->pad))
+	if (XE_IOCTL_ERR(xe, args->pad) ||
+	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
 	vm = xe_vm_lookup(xef, args->vm_id);
@@ -2914,6 +2921,8 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 	int i;
 
 	if (XE_IOCTL_ERR(xe, args->extensions) ||
+	    XE_IOCTL_ERR(xe, args->pad || args->pad2) ||
+	    XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]) ||
 	    XE_IOCTL_ERR(xe, !args->num_binds) ||
 	    XE_IOCTL_ERR(xe, args->num_binds > MAX_BINDS))
 		return -EINVAL;
@@ -2945,6 +2954,13 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		u32 obj = (*bind_ops)[i].obj;
 		u64 obj_offset = (*bind_ops)[i].obj_offset;
 		u32 region = (*bind_ops)[i].region;
+
+		if (XE_IOCTL_ERR(xe, (*bind_ops)[i].pad) ||
+		    XE_IOCTL_ERR(xe, (*bind_ops)[i].reserved[0] ||
+				     (*bind_ops)[i].reserved[1])) {
+			err = -EINVAL;
+			goto free_bind_ops;
+		}
 
 		if (i == 0) {
 			*async = !!(op & XE_VM_BIND_FLAG_ASYNC);
