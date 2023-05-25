@@ -4351,7 +4351,7 @@ static int bpf_get_map_info_from_fdinfo(int fd, struct bpf_map_info *info)
 	snprintf(file, sizeof(file), "/proc/%d/fdinfo/%d", getpid(), fd);
 	memset(info, 0, sizeof(*info));
 
-	fp = fopen(file, "r");
+	fp = fopen(file, "re");
 	if (!fp) {
 		err = -errno;
 		pr_warn("failed to open %s: %d. No procfs support?\n", file,
@@ -7455,7 +7455,7 @@ int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *ctx)
 	int ret, err = 0;
 	FILE *f;
 
-	f = fopen("/proc/kallsyms", "r");
+	f = fopen("/proc/kallsyms", "re");
 	if (!f) {
 		err = -errno;
 		pr_warn("failed to open /proc/kallsyms: %d\n", err);
@@ -10075,7 +10075,7 @@ static int parse_uint_from_file(const char *file, const char *fmt)
 	int err, ret;
 	FILE *f;
 
-	f = fopen(file, "r");
+	f = fopen(file, "re");
 	if (!f) {
 		err = -errno;
 		pr_debug("failed to open '%s': %s\n", file,
