@@ -2162,7 +2162,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		} else {
 			if (gi2c->is_high_perf)
 				ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
-						I2C_CORE2X_VOTE, APPS_PROC_TO_QUP_VOTE,
+						I2C_CORE2X_VOTE, GENI_DEFAULT_BW,
 						(DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
 			else
 				ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
