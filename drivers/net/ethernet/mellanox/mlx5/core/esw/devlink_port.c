@@ -16,8 +16,7 @@ mlx5_esw_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_i
 
 static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	return vport_num == MLX5_VPORT_UPLINK ||
-	       (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF) ||
+	return (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF) ||
 	       mlx5_eswitch_is_vf_vport(esw, vport_num) ||
 	       mlx5_core_is_ec_vf_vport(esw->dev, vport_num);
 }
@@ -25,7 +24,6 @@ static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_
 static struct devlink_port *mlx5_esw_dl_port_alloc(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_core_dev *dev = esw->dev;
-	struct devlink_port_attrs attrs = {};
 	struct netdev_phys_item_id ppid = {};
 	struct devlink_port *dl_port;
 	u32 controller_num = 0;
@@ -42,13 +40,7 @@ static struct devlink_port *mlx5_esw_dl_port_alloc(struct mlx5_eswitch *esw, u16
 	if (external)
 		controller_num = dev->priv.eswitch->offloads.host_number + 1;
 
-	if (vport_num == MLX5_VPORT_UPLINK) {
-		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = pfnum;
-		memcpy(attrs.switch_id.id, ppid.id, ppid.id_len);
-		attrs.switch_id.id_len = ppid.id_len;
-		devlink_port_attrs_set(dl_port, &attrs);
-	} else if (vport_num == MLX5_VPORT_PF) {
+	if (vport_num == MLX5_VPORT_PF) {
 		memcpy(dl_port->attrs.switch_id.id, ppid.id, ppid.id_len);
 		dl_port->attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_pf_set(dl_port, controller_num, pfnum, external);
