@@ -1319,17 +1319,17 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 	hci_free_dev(hdev);
 }
 
-static struct btnxpuart_data w8987_data = {
+static struct btnxpuart_data w8987_data __maybe_unused = {
 	.helper_fw_name = NULL,
 	.fw_name = FIRMWARE_W8987,
 };
 
-static struct btnxpuart_data w8997_data = {
+static struct btnxpuart_data w8997_data __maybe_unused = {
 	.helper_fw_name = FIRMWARE_HELPER,
 	.fw_name = FIRMWARE_W8997,
 };
 
-static const struct of_device_id nxpuart_of_match_table[] = {
+static const struct of_device_id nxpuart_of_match_table[] __maybe_unused = {
 	{ .compatible = "nxp,88w8987-bt", .data = &w8987_data },
 	{ .compatible = "nxp,88w8997-bt", .data = &w8997_data },
 	{ }
