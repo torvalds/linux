@@ -1413,8 +1413,7 @@ static int next_search_order(struct compact_control *cc, int order)
 	return order;
 }
 
-static unsigned long
-fast_isolate_freepages(struct compact_control *cc)
+static void fast_isolate_freepages(struct compact_control *cc)
 {
 	unsigned int limit = max(1U, freelist_scan_limit(cc) >> 1);
 	unsigned int nr_scanned = 0;
@@ -1427,7 +1426,7 @@ fast_isolate_freepages(struct compact_control *cc)
 
 	/* Full compaction passes in a negative order */
 	if (cc->order <= 0)
-		return cc->free_pfn;
+		return;
 
 	/*
 	 * If starting the scan, use a deeper search and use the highest
@@ -1566,11 +1565,10 @@ fast_isolate_freepages(struct compact_control *cc)
 
 	cc->total_free_scanned += nr_scanned;
 	if (!page)
-		return cc->free_pfn;
+		return;
 
 	low_pfn = page_to_pfn(page);
 	fast_isolate_around(cc, low_pfn);
-	return low_pfn;
 }
 
 /*
