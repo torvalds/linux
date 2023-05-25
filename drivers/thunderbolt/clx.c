@@ -296,9 +296,9 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 	up_clx_support = tb_port_clx_supported(up, clx);
 	down_clx_support = tb_port_clx_supported(down, clx);
 
-	tb_port_dbg(up, "%s %ssupported\n", clx_name(clx),
+	tb_port_dbg(up, "CLx: %s %ssupported\n", clx_name(clx),
 		    up_clx_support ? "" : "not ");
-	tb_port_dbg(down, "%s %ssupported\n", clx_name(clx),
+	tb_port_dbg(down, "CLx: %s %ssupported\n", clx_name(clx),
 		    down_clx_support ? "" : "not ");
 
 	if (!up_clx_support || !down_clx_support)
@@ -323,7 +323,7 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 
 	sw->clx |= clx;
 
-	tb_port_dbg(up, "%s enabled\n", clx_name(clx));
+	tb_sw_dbg(sw, "CLx: %s enabled\n", clx_name(clx));
 	return 0;
 }
 
@@ -361,6 +361,6 @@ int tb_switch_clx_disable(struct tb_switch *sw)
 
 	sw->clx = 0;
 
-	tb_port_dbg(up, "%s disabled\n", clx_name(clx));
+	tb_sw_dbg(sw, "CLx: %s disabled\n", clx_name(clx));
 	return 0;
 }
