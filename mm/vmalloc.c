@@ -2094,9 +2094,9 @@ static bool purge_fragmented_block(struct vmap_block *vb,
 		return false;
 
 	/* prevent further allocs after releasing lock */
-	vb->free = 0;
+	WRITE_ONCE(vb->free, 0);
 	/* prevent purging it again */
-	vb->dirty = VMAP_BBMAP_BITS;
+	WRITE_ONCE(vb->dirty, VMAP_BBMAP_BITS);
 	vb->dirty_min = 0;
 	vb->dirty_max = VMAP_BBMAP_BITS;
 	spin_lock(&vbq->lock);
@@ -2124,8 +2124,11 @@ static void purge_fragmented_blocks(int cpu)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
-		if (vb->free + vb->dirty != VMAP_BBMAP_BITS ||
-		    vb->dirty == VMAP_BBMAP_BITS)
+		unsigned long free = READ_ONCE(vb->free);
+		unsigned long dirty = READ_ONCE(vb->dirty);
+
+		if (free + dirty != VMAP_BBMAP_BITS ||
+		    dirty == VMAP_BBMAP_BITS)
 			continue;
 
 		spin_lock(&vb->lock);
@@ -2233,7 +2236,7 @@ static void vb_free(unsigned long addr, unsigned long size)
 	vb->dirty_min = min(vb->dirty_min, offset);
 	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
 
-	vb->dirty += 1UL << order;
+	WRITE_ONCE(vb->dirty, vb->dirty + (1UL << order));
 	if (vb->dirty == VMAP_BBMAP_BITS) {
 		BUG_ON(vb->free);
 		spin_unlock(&vb->lock);
