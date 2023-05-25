@@ -421,7 +421,6 @@ config SC_GCC_7280
 
 config SC_GCC_8180X
 	tristate "SC8180X Global Clock Controller"
-	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
 	help
 	  Support for the global clock controller on SC8180X devices.
@@ -816,7 +815,6 @@ config SM_GPUCC_PINEAPPLE
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"
 	select SM_GCC_8150
-	select QCOM_GDSC
 	help
 	  Support for the video clock controller on SM8150 devices.
 	  Say Y if you want to support video devices and functionality such as
@@ -1030,6 +1028,25 @@ config SM_DEBUGCC_BLAIR
 	  BLAIR devices.
 	  Say Y if you want to support the debug clocks such as
 	  clock measurement functionality.
+
+config SC_CAMCC_8180X
+	tristate "SC8180X Camera Clock Controller"
+	select SC_GCC_8180X
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SC8180X devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config SC_DEBUGCC_SC8180X
+	tristate "SC8180X Debug Clock Controller"
+	depends on COMMON_CLK_QCOM
+	depends on SC_GCC_8180X
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  SC8180X devices.
+	  Say Y if you want to support the debug clocks such as clock
+	  measurement functionality.
 
 endif
 
