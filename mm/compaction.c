@@ -436,9 +436,6 @@ static void update_pageblock_skip(struct compact_control *cc,
 	if (cc->no_set_skip_hint)
 		return;
 
-	if (!page)
-		return;
-
 	set_pageblock_skip(page);
 
 	/* Update where async and sync compaction should restart */
