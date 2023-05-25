@@ -141,7 +141,7 @@ static int read_from_ec(u8 reg, int size, long *val)
 	return 0;
 }
 
-static int write_to_ec(const struct device *dev, u8 reg, u8 value)
+static int write_to_ec(u8 reg, u8 value)
 {
 	int ret;
 
@@ -156,14 +156,14 @@ static int write_to_ec(const struct device *dev, u8 reg, u8 value)
 	return ret;
 }
 
-static int oxp_pwm_enable(const struct device *dev)
+static int oxp_pwm_enable(void)
 {
-	return write_to_ec(dev, OXP_SENSOR_PWM_ENABLE_REG, 0x01);
+	return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, 0x01);
 }
 
-static int oxp_pwm_disable(const struct device *dev)
+static int oxp_pwm_disable(void)
 {
-	return write_to_ec(dev, OXP_SENSOR_PWM_ENABLE_REG, 0x00);
+	return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, 0x00);
 }
 
 /* Callbacks for hwmon interface */
@@ -234,9 +234,9 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 		switch (attr) {
 		case hwmon_pwm_enable:
 			if (val == 1)
-				return oxp_pwm_enable(dev);
+				return oxp_pwm_enable();
 			else if (val == 0)
-				return oxp_pwm_disable(dev);
+				return oxp_pwm_disable();
 			return -EINVAL;
 		case hwmon_pwm_input:
 			if (val < 0 || val > 255)
@@ -254,7 +254,7 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 			default:
 				break;
 			}
-			return write_to_ec(dev, OXP_SENSOR_PWM_REG, val);
+			return write_to_ec(OXP_SENSOR_PWM_REG, val);
 		default:
 			break;
 		}
