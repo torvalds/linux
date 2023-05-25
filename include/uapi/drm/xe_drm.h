@@ -91,7 +91,7 @@ struct xe_user_extension {
 	 */
 	__u32 name;
 	/**
-	 * @flags: MBZ
+	 * @pad: MBZ
 	 *
 	 * All undefined bits must be zero.
 	 */
@@ -291,6 +291,9 @@ struct drm_xe_gem_create {
 	 */
 	__u32 handle;
 
+	/** @pad: MBZ */
+	__u32 pad;
+
 	/** @reserved: Reserved */
 	__u64 reserved[2];
 };
@@ -335,6 +338,9 @@ struct drm_xe_ext_vm_set_property {
 #define XE_VM_PROPERTY_BIND_OP_ERROR_CAPTURE_ADDRESS		0
 	__u32 property;
 
+	/** @pad: MBZ */
+	__u32 pad;
+
 	/** @value: property value */
 	__u64 value;
 
@@ -378,6 +384,9 @@ struct drm_xe_vm_bind_op {
 	 * @obj: GEM object to operate on, MBZ for MAP_USERPTR, MBZ for UNMAP
 	 */
 	__u32 obj;
+
+	/** @pad: MBZ */
+	__u32 pad;
 
 	union {
 		/**
@@ -469,6 +478,9 @@ struct drm_xe_vm_bind {
 	/** @num_binds: number of binds in this IOCTL */
 	__u32 num_binds;
 
+	/** @pad: MBZ */
+	__u32 pad;
+
 	union {
 		/** @bind: used if num_binds == 1 */
 		struct drm_xe_vm_bind_op bind;
@@ -481,6 +493,9 @@ struct drm_xe_vm_bind {
 
 	/** @num_syncs: amount of syncs to wait on */
 	__u32 num_syncs;
+
+	/** @pad2: MBZ */
+	__u32 pad2;
 
 	/** @syncs: pointer to struct drm_xe_sync array */
 	__u64 syncs;
@@ -496,6 +511,9 @@ struct drm_xe_ext_engine_set_property {
 
 	/** @property: property to set */
 	__u32 property;
+
+	/** @pad: MBZ */
+	__u32 pad;
 
 	/** @value: property value */
 	__u64 value;
@@ -612,6 +630,9 @@ struct drm_xe_sync {
 #define DRM_XE_SYNC_USER_FENCE		0x3
 #define DRM_XE_SYNC_SIGNAL		0x10
 
+	/** @pad: MBZ */
+	__u32 pad;
+
 	union {
 		__u32 handle;
 		/**
@@ -655,6 +676,9 @@ struct drm_xe_exec {
 	 * the width of the engine
 	 */
 	__u16 num_batch_buffer;
+
+	/** @pad: MBZ */
+	__u16 pad[3];
 
 	/** @reserved: Reserved */
 	__u64 reserved[2];
@@ -718,6 +742,8 @@ struct drm_xe_wait_user_fence {
 #define DRM_XE_UFENCE_WAIT_ABSTIME	(1 << 1)
 #define DRM_XE_UFENCE_WAIT_VM_ERROR	(1 << 2)
 	__u16 flags;
+	/** @pad: MBZ */
+	__u32 pad;
 	/** @value: compare value */
 	__u64 value;
 	/** @mask: comparison mask */
@@ -749,6 +775,9 @@ struct drm_xe_vm_madvise {
 
 	/** @vm_id: The ID VM in which the VMA exists */
 	__u32 vm_id;
+
+	/** @pad: MBZ */
+	__u32 pad;
 
 	/** @range: Number of bytes in the VMA */
 	__u64 range;
@@ -793,6 +822,9 @@ struct drm_xe_vm_madvise {
 
 	/** @property: property to set */
 	__u32 property;
+
+	/** @pad2: MBZ */
+	__u32 pad2;
 
 	/** @value: property value */
 	__u64 value;
