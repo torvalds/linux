@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018, 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -77,6 +78,8 @@ struct qcom_cpufreq_data {
 	unsigned long last_non_boost_freq;
 
 	bool per_core_dcvs;
+	unsigned long dcvsh_freq_limit;
+	struct device_attribute freq_limit_attr;
 };
 
 static unsigned long cpu_hw_rate, xo_rate;
@@ -408,6 +411,14 @@ static void qcom_get_related_cpus(int index, struct cpumask *m)
 	}
 }
 
+static ssize_t dcvsh_freq_limit_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct qcom_cpufreq_data *c = container_of(attr, struct qcom_cpufreq_data,
+						   freq_limit_attr);
+	return scnprintf(buf, PAGE_SIZE, "%lu\n", c->dcvsh_freq_limit);
+}
+
 static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 {
 	struct cpufreq_policy *policy = data->policy;
@@ -470,6 +481,7 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 
 	/* Update thermal pressure (the boost frequencies are accepted) */
 	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
+	data->dcvsh_freq_limit = throttled_freq;
 
 out:
 	mutex_unlock(&data->throttle_lock);
@@ -534,7 +546,8 @@ static const struct of_device_id qcom_cpufreq_hw_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qcom_cpufreq_hw_match);
 
-static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
+static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index,
+				    struct device *cpu_dev)
 {
 	struct qcom_cpufreq_data *data = policy->driver_data;
 	struct platform_device *pdev = cpufreq_get_driver_data();
@@ -568,6 +581,13 @@ static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
 			data->irq_name, data->throttle_irq);
+
+	sysfs_attr_init(&data->freq_limit_attr.attr);
+	data->freq_limit_attr.attr.name = "dcvsh_freq_limit";
+	data->freq_limit_attr.show = dcvsh_freq_limit_show;
+	data->freq_limit_attr.attr.mode = 0444;
+	data->dcvsh_freq_limit = U32_MAX;
+	device_create_file(cpu_dev, &data->freq_limit_attr);
 
 	return 0;
 }
@@ -731,7 +751,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 			dev_warn(cpu_dev, "failed to enable boost: %d\n", ret);
 	}
 
-	ret = qcom_cpufreq_hw_lmh_init(policy, index);
+	ret = qcom_cpufreq_hw_lmh_init(policy, index, cpu_dev);
 	if (ret)
 		goto error;
 
