@@ -1528,6 +1528,10 @@ static void fast_isolate_freepages(struct compact_control *cc)
 
 		spin_unlock_irqrestore(&cc->zone->lock, flags);
 
+		/* Skip fast search if enough freepages isolated */
+		if (cc->nr_freepages >= cc->nr_migratepages)
+			break;
+
 		/*
 		 * Smaller scan on next order so the total scan is related
 		 * to freelist_scan_limit.
