@@ -20,6 +20,10 @@ struct nvkm_fb_func {
 		void (*flush_page_init)(struct nvkm_fb *);
 	} sysmem;
 
+	struct nvkm_fb_func_vidmem {
+		u64 (*size)(struct nvkm_fb *);
+	} vidmem;
+
 	struct {
 		bool (*scrub_required)(struct nvkm_fb *);
 		int (*scrub)(struct nvkm_fb *);
@@ -84,6 +88,7 @@ void gp100_fb_init_remapper(struct nvkm_fb *);
 void gp100_fb_init_unkn(struct nvkm_fb *);
 
 int gp102_fb_oneinit(struct nvkm_fb *);
+u64 gp102_fb_vidmem_size(struct nvkm_fb *);
 bool gp102_fb_vpr_scrub_required(struct nvkm_fb *);
 int gp102_fb_vpr_scrub(struct nvkm_fb *);
 
