@@ -9444,8 +9444,8 @@ static int map_btf_datasec_resize(struct bpf_map *map, __u32 size)
 	struct btf_var_secinfo *var;
 	const struct btf_type *array_type;
 	const struct btf_array *array;
-	int vlen, element_sz;
-	__u32 nr_elements, new_array_id;
+	int vlen, element_sz, new_array_id;
+	__u32 nr_elements;
 
 	/* check btf existence */
 	btf = bpf_object__btf(map->obj);
