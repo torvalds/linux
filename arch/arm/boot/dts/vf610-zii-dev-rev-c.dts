@@ -44,7 +44,7 @@
 
 					port@0 {
 						reg = <0>;
-						label = "cpu";
+						phy-mode = "rmii";
 						ethernet = <&fec1>;
 
 						fixed-link {
@@ -82,6 +82,11 @@
 						label = "dsa";
 						phy-mode = "xaui";
 						link = <&switch1port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 				};
 
@@ -174,6 +179,11 @@
 						label = "dsa";
 						phy-mode = "xaui";
 						link = <&switch0port10>;
+
+						fixed-link {
+							speed = <10000>;
+							full-duplex;
+						};
 					};
 				};
 				mdio {

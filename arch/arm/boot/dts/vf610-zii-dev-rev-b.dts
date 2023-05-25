@@ -75,7 +75,7 @@
 
 					port@6 {
 						reg = <6>;
-						label = "cpu";
+						phy-mode = "rmii";
 						ethernet = <&fec1>;
 
 						fixed-link {

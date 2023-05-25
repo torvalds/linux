@@ -140,7 +140,7 @@
 
 				port@0 {
 					reg = <0>;
-					label = "cpu";
+					phy-mode = "rmii";
 					ethernet = <&fec1>;
 
 					fixed-link {
