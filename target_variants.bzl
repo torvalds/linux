@@ -1,4 +1,4 @@
-targets = [
+la_targets = [
     # keep sorted
     "gen3auto",
     "autogvm",
@@ -51,7 +51,7 @@ vm_variants = [
 ]
 
 def get_all_la_variants():
-    return [(t, v) for t in targets for v in la_variants]
+    return [(t, v) for t in la_targets for v in la_variants]
 
 def get_all_le_variants():
     return [(t, v) for t in le_targets for v in le_variants]
