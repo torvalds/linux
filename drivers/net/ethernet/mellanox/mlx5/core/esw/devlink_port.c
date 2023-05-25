@@ -54,7 +54,7 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 	}
 }
 
-static int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num)
+int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct devlink_port *dl_port;
 	struct mlx5_vport *vport;
@@ -76,7 +76,7 @@ static int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw, u
 	return 0;
 }
 
-static void mlx5_esw_offloads_pf_vf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_offloads_pf_vf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport;
 
@@ -152,10 +152,6 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
 
-	err = mlx5_esw_offloads_pf_vf_devlink_port_init(esw, vport_num);
-	if (err)
-		return err;
-
 	dl_port = vport->dl_port;
 	if (!dl_port)
 		return 0;
@@ -165,7 +161,7 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index,
 					  &mlx5_esw_pf_vf_dl_port_ops);
 	if (err)
-		goto reg_err;
+		return err;
 
 	err = devl_rate_leaf_create(dl_port, vport, NULL);
 	if (err)
@@ -175,8 +171,6 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 
 rate_err:
 	devl_port_unregister(dl_port);
-reg_err:
-	mlx5_esw_offloads_pf_vf_devlink_port_cleanup(esw, vport_num);
 	return err;
 }
 
@@ -192,7 +186,6 @@ void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, u16 vpo
 	devl_rate_leaf_destroy(vport->dl_port);
 
 	devl_port_unregister(vport->dl_port);
-	mlx5_esw_offloads_pf_vf_devlink_port_cleanup(esw, vport_num);
 }
 
 struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u16 vport_num)
