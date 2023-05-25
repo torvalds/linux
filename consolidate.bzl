@@ -43,6 +43,12 @@ def define_consolidate():
             "certs/signing_key.pem",
             "certs/signing_key.x509",
         ],
+        make_goals = [
+            "Image",
+            "modules",
+            "Image.lz4",
+            "Image.gz",
+        ],
         module_implicit_outs = COMMON_GKI_MODULES_LIST,
         build_config = rule_base + "_build_config",
     )
