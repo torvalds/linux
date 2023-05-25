@@ -177,29 +177,20 @@ void vdec_msg_queue_update_ube_wptr(struct vdec_msg_queue *msg_queue, uint64_t u
 
 bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue)
 {
-	struct vdec_lat_buf *buf, *tmp;
-	struct list_head *list_core[3];
-	struct vdec_msg_queue_ctx *core_ctx;
-	int ret, i, in_core_count = 0, count = 0;
+	int ret;
 	long timeout_jiff;
 
-	core_ctx = &msg_queue->ctx->dev->msg_queue_core_ctx;
-	spin_lock(&core_ctx->ready_lock);
-	list_for_each_entry_safe(buf, tmp, &core_ctx->ready_queue, core_list) {
-		if (buf && buf->ctx == msg_queue->ctx) {
-			list_core[in_core_count++] = &buf->core_list;
-			list_del(&buf->core_list);
-		}
+	if (atomic_read(&msg_queue->lat_list_cnt) == NUM_BUFFER_COUNT) {
+		mtk_v4l2_debug(3, "wait buf full: list(%d %d) ready_num:%d status:%d",
+			       atomic_read(&msg_queue->lat_list_cnt),
+			       atomic_read(&msg_queue->core_list_cnt),
+			       msg_queue->lat_ctx.ready_num,
+			       msg_queue->status);
+		return true;
 	}
-
-	for (i = 0; i < in_core_count; i++) {
-		list_add(list_core[in_core_count - (1 + i)], &core_ctx->ready_queue);
-		queue_work(msg_queue->ctx->dev->core_workqueue, &msg_queue->core_work);
-	}
-	spin_unlock(&core_ctx->ready_lock);
 
 	timeout_jiff = msecs_to_jiffies(1000 * (NUM_BUFFER_COUNT + 2));
-	ret = wait_event_timeout(msg_queue->ctx->msg_queue.core_dec_done,
+	ret = wait_event_timeout(msg_queue->core_dec_done,
 				 msg_queue->lat_ctx.ready_num == NUM_BUFFER_COUNT,
 				 timeout_jiff);
 	if (ret) {
@@ -208,18 +199,9 @@ bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue)
 		return true;
 	}
 
-	spin_lock(&core_ctx->ready_lock);
-	list_for_each_entry_safe(buf, tmp, &core_ctx->ready_queue, core_list) {
-		if (buf && buf->ctx == msg_queue->ctx) {
-			count++;
-			list_del(&buf->core_list);
-		}
-	}
-	spin_unlock(&core_ctx->ready_lock);
-
-	mtk_v4l2_err("failed with lat buf isn't full: list(%d %d) count:%d",
+	mtk_v4l2_err("failed with lat buf isn't full: list(%d %d)",
 		     atomic_read(&msg_queue->lat_list_cnt),
-		     atomic_read(&msg_queue->core_list_cnt), count);
+		     atomic_read(&msg_queue->core_list_cnt));
 
 	return false;
 }
@@ -247,6 +229,8 @@ void vdec_msg_queue_deinit(struct vdec_msg_queue *msg_queue,
 
 		kfree(lat_buf->private_data);
 	}
+
+	cancel_work_sync(&msg_queue->core_work);
 }
 
 static void vdec_msg_queue_core_work(struct work_struct *work)
@@ -258,11 +242,11 @@ static void vdec_msg_queue_core_work(struct work_struct *work)
 	struct mtk_vcodec_dev *dev = ctx->dev;
 	struct vdec_lat_buf *lat_buf;
 
-	spin_lock(&ctx->dev->msg_queue_core_ctx.ready_lock);
+	spin_lock(&msg_queue->core_ctx.ready_lock);
 	ctx->msg_queue.status &= ~CONTEXT_LIST_QUEUED;
-	spin_unlock(&ctx->dev->msg_queue_core_ctx.ready_lock);
+	spin_unlock(&msg_queue->core_ctx.ready_lock);
 
-	lat_buf = vdec_msg_queue_dqbuf(&dev->msg_queue_core_ctx);
+	lat_buf = vdec_msg_queue_dqbuf(&msg_queue->core_ctx);
 	if (!lat_buf)
 		return;
 
@@ -276,12 +260,11 @@ static void vdec_msg_queue_core_work(struct work_struct *work)
 	mtk_vcodec_dec_disable_hardware(ctx, MTK_VDEC_CORE);
 	vdec_msg_queue_qbuf(&ctx->msg_queue.lat_ctx, lat_buf);
 
-	wake_up_all(&ctx->msg_queue.core_dec_done);
 	if (!(ctx->msg_queue.status & CONTEXT_LIST_QUEUED) &&
 	    atomic_read(&msg_queue->core_list_cnt)) {
-		spin_lock(&ctx->dev->msg_queue_core_ctx.ready_lock);
+		spin_lock(&msg_queue->core_ctx.ready_lock);
 		ctx->msg_queue.status |= CONTEXT_LIST_QUEUED;
-		spin_unlock(&ctx->dev->msg_queue_core_ctx.ready_lock);
+		spin_unlock(&msg_queue->core_ctx.ready_lock);
 		queue_work(ctx->dev->core_workqueue, &msg_queue->core_work);
 	}
 }
@@ -297,8 +280,8 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 	if (msg_queue->wdma_addr.size)
 		return 0;
 
-	msg_queue->ctx = ctx;
 	vdec_msg_queue_init_ctx(&msg_queue->lat_ctx, MTK_VDEC_LAT0);
+	vdec_msg_queue_init_ctx(&msg_queue->core_ctx, MTK_VDEC_CORE);
 	INIT_WORK(&msg_queue->core_work, vdec_msg_queue_core_work);
 
 	atomic_set(&msg_queue->lat_list_cnt, 0);
