@@ -759,13 +759,10 @@ xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
 	int ret;
 
 	if (is_vram) {
-		struct xe_gt *bo_gt = xe_bo_to_gt(bo);
-
 		xe_walk.default_pte = XE_PPGTT_PTE_LM;
 		if (vma && vma->use_atomic_access_pte_bit)
 			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
-		xe_walk.dma_offset = bo_gt->mem.vram.io_start -
-			gt_to_xe(gt)->mem.vram.io_start;
+		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
 		xe_walk.cache = XE_CACHE_WB;
 	} else {
 		if (!xe_vma_is_userptr(vma) && bo->flags & XE_BO_SCANOUT_BIT)
