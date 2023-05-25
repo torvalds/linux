@@ -156,6 +156,12 @@ int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int wri
 
 	mmc_claim_host(this_card->host);
 
+	if (this_card->ext_csd.cmdq_en) {
+		ret = mmc_cmdq_disable(this_card);
+		if (ret)
+			goto exit;
+	}
+
 	areatype = (enum emmc_area_type)this_card->ext_csd.part_config
 		    & EXT_CSD_PART_CONFIG_ACC_MASK;
 	if (areatype != MMC_DATA_AREA_MAIN) {
@@ -186,6 +192,9 @@ int rk_emmc_transfer(u8 *buffer, unsigned int addr, unsigned int datasz, int wri
 	}
 
 exit:
+	if (this_card->reenable_cmdq && !this_card->ext_csd.cmdq_en)
+		mmc_cmdq_enable(this_card);
+
 	mmc_release_host(this_card->host);
 	return ret;
 }
