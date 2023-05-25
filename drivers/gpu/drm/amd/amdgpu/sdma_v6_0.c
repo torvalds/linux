@@ -238,6 +238,8 @@ static void sdma_v6_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  *
  * @ring: amdgpu ring pointer
  * @ib: IB object to schedule
+ * @flags: unused
+ * @job: job to retrieve vmid from
  *
  * Schedule an IB in the DMA ring.
  */
@@ -938,6 +940,7 @@ static int sdma_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test a simple IB in the DMA ring.
  * Returns 0 on success, error on failure.
@@ -1167,6 +1170,8 @@ static void sdma_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using sDMA.
