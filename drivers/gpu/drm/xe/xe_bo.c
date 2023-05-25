@@ -285,6 +285,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_ttm_tt *tt;
+	unsigned long extra_pages;
 	int err;
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
@@ -293,12 +294,15 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 
 	tt->dev = xe->drm.dev;
 
+	extra_pages = 0;
+	if (xe_bo_needs_ccs_pages(bo))
+		extra_pages = DIV_ROUND_UP(xe_device_ccs_bytes(xe, bo->size),
+					   PAGE_SIZE);
+
 	/* TODO: Select caching mode */
 	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags,
 			  bo->flags & XE_BO_SCANOUT_BIT ? ttm_write_combined : ttm_cached,
-			  DIV_ROUND_UP(xe_device_ccs_bytes(xe_bo_device(bo),
-							   bo->ttm.base.size),
-				       PAGE_SIZE));
+			  extra_pages);
 	if (err) {
 		kfree(tt);
 		return NULL;
