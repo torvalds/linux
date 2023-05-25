@@ -2201,6 +2201,8 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	spin_lock_init(&gi2c->multi_tre_lock);
+
 	gi2c->adap.algo = &geni_i2c_algo;
 	init_completion(&gi2c->xfer);
 	platform_set_drvdata(pdev, gi2c);
