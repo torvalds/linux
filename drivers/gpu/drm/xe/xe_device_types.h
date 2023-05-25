@@ -144,6 +144,8 @@ struct xe_device {
 			resource_size_t io_size;
 			/** @size: Total size of VRAM */
 			resource_size_t size;
+			/** @base: Offset to apply for Device Physical Address control */
+			resource_size_t base;
 			/** @mapping: pointer to VRAM mappable space */
 			void *__iomem mapping;
 		} vram;
