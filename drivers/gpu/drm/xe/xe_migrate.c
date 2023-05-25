@@ -552,11 +552,19 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 
 	if (xe_device_has_flat_ccs(gt_to_xe(gt)) && !copy_ccs && dst_is_vram) {
 		/*
-		 * If the bo doesn't have any CCS metadata attached, we still
-		 * need to clear it for security reasons.
+		 * If the src is already in vram, then it should already
+		 * have been cleared by us, or has been populated by the
+		 * user. Make sure we copy the CCS aux state as-is.
+		 *
+		 * Otherwise if the bo doesn't have any CCS metadata attached,
+		 * we still need to clear it for security reasons.
 		 */
-		emit_copy_ccs(gt, bb, dst_ofs, true, m->cleared_vram_ofs, false,
-			      dst_size);
+		u64 ccs_src_ofs =  src_is_vram ? src_ofs : m->cleared_vram_ofs;
+
+		emit_copy_ccs(gt, bb,
+			      dst_ofs, true,
+			      ccs_src_ofs, src_is_vram, dst_size);
+
 		flush_flags = MI_FLUSH_DW_CCS;
 	} else if (copy_ccs) {
 		if (!src_is_vram)
