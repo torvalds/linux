@@ -956,7 +956,8 @@ F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
 F:	drivers/net/ethernet/amazon/
 
 AMAZON RDMA EFA DRIVER
-M:	Gal Pressman <galpress@amazon.com>
+M:	Michael Margolin <mrgolin@amazon.com>
+R:	Gal Pressman <gal.pressman@linux.dev>
 R:	Yossi Leybovich <sleybo@amazon.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
