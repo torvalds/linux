@@ -358,3 +358,15 @@ example, the memory cgroup filter type asks users to specify the file path of
 the memory cgroup for the filter.  Hence, users can apply specific schemes to
 only anonymous pages, non-anonymous pages, pages of specific cgroups, all pages
 excluding those of specific cgroups, and any combination of those.
+
+
+Application Programming Interface
+---------------------------------
+
+The programming interface for kernel space data access-aware applications.
+DAMON is a framework, so it does nothing by itself.  Instead, it only helps
+other kernel components such as subsystems and modules building their data
+access-aware applications using DAMON's core features.  For this, DAMON exposes
+its all features to other kernel components via its application programming
+interface, namely ``include/linux/damon.h``.  Please refer to the API
+:doc:`document </mm/damon/api>` for details of the interface.
