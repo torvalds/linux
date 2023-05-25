@@ -454,7 +454,7 @@ static int do_convert_to_ump(struct snd_ump_endpoint *ump,
 	}
 
 	if (c & 0x80) {
-		bytes = cmd_bytes[(c >> 8) & 7];
+		bytes = cmd_bytes[(c >> 4) & 7];
 		cvt->buf[0] = c;
 		cvt->len = 1;
 		cvt->cmd_bytes = bytes;
