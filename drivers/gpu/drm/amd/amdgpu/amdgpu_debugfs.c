@@ -478,15 +478,16 @@ done:
 static long amdgpu_debugfs_gprwave_ioctl(struct file *f, unsigned int cmd, unsigned long data)
 {
 	struct amdgpu_debugfs_gprwave_data *rd = f->private_data;
-	int r;
+	int r = 0;
 
 	mutex_lock(&rd->lock);
 
 	switch (cmd) {
 	case AMDGPU_DEBUGFS_GPRWAVE_IOC_SET_STATE:
-		r = copy_from_user(&rd->id, (struct amdgpu_debugfs_gprwave_iocdata *)data, sizeof rd->id);
-		if (r)
-			return r ? -EINVAL : 0;
+		if (copy_from_user(&rd->id,
+				   (struct amdgpu_debugfs_gprwave_iocdata *)data,
+				   sizeof(rd->id)))
+			r = -EFAULT;
 		goto done;
 	default:
 		r = -EINVAL;
