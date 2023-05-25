@@ -130,6 +130,9 @@ static int intel_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return i915_gem_fb_mmap(obj, vma);
 }
 
+__diag_push();
+__diag_ignore_all("-Woverride-init", "Allow overriding the default ops");
+
 static const struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
@@ -143,6 +146,8 @@ static const struct fb_ops intelfb_ops = {
 	.fb_blank = intel_fbdev_blank,
 	.fb_mmap = intel_fbdev_mmap,
 };
+
+__diag_pop();
 
 static int intelfb_alloc(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
