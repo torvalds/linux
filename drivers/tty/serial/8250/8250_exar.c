@@ -198,8 +198,12 @@ static int xr17v35x_startup(struct uart_port *port)
 	/*
 	 * Make sure all interrups are masked until initialization is
 	 * complete and the FIFOs are cleared
+	 *
+	 * Synchronize UART_IER access against the console.
 	 */
+	spin_lock_irq(&port->lock);
 	serial_port_out(port, UART_IER, 0);
+	spin_unlock_irq(&port->lock);
 
 	return serial8250_do_startup(port);
 }

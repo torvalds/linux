@@ -710,8 +710,11 @@ static int omap_8250_startup(struct uart_port *port)
 		up->dma = NULL;
 	}
 
+	/* Synchronize UART_IER access against the console. */
+	spin_lock_irq(&port->lock);
 	up->ier = UART_IER_RLSI | UART_IER_RDI;
 	serial_out(up, UART_IER, up->ier);
+	spin_unlock_irq(&port->lock);
 
 #ifdef CONFIG_PM
 	up->capabilities |= UART_CAP_RPM;

@@ -2150,7 +2150,12 @@ int serial8250_do_startup(struct uart_port *port)
 
 	serial8250_rpm_get(up);
 	if (port->type == PORT_16C950) {
-		/* Wake up and initialize UART */
+		/*
+		 * Wake up and initialize UART
+		 *
+		 * Synchronize UART_IER access against the console.
+		 */
+		spin_lock_irqsave(&port->lock, flags);
 		up->acr = 0;
 		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_port_out(port, UART_EFR, UART_EFR_ECB);
@@ -2160,12 +2165,19 @@ int serial8250_do_startup(struct uart_port *port)
 		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_port_out(port, UART_EFR, UART_EFR_ECB);
 		serial_port_out(port, UART_LCR, 0);
+		spin_unlock_irqrestore(&port->lock, flags);
 	}
 
 	if (port->type == PORT_DA830) {
-		/* Reset the port */
+		/*
+		 * Reset the port
+		 *
+		 * Synchronize UART_IER access against the console.
+		 */
+		spin_lock_irqsave(&port->lock, flags);
 		serial_port_out(port, UART_IER, 0);
 		serial_port_out(port, UART_DA830_PWREMU_MGMT, 0);
+		spin_unlock_irqrestore(&port->lock, flags);
 		mdelay(10);
 
 		/* Enable Tx, Rx and free run mode */
@@ -2276,6 +2288,8 @@ int serial8250_do_startup(struct uart_port *port)
 		 * this interrupt whenever the transmitter is idle and
 		 * the interrupt is enabled.  Delays are necessary to
 		 * allow register changes to become visible.
+		 *
+		 * Synchronize UART_IER access against the console.
 		 */
 		spin_lock_irqsave(&port->lock, flags);
 
