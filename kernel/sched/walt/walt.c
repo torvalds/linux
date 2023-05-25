@@ -690,7 +690,7 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 	if (!cpumask_test_cpu(cpu, &asym_cap_sibling_cpus))
 		goto finish;
 
-	if (cpumask_weight(cpu_partial_halt_mask) > 0)
+	if (cluster_partial_halted())
 		goto finish;
 
 	for_each_cpu(i, &asym_cap_sibling_cpus) {

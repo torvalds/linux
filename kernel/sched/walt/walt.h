@@ -1016,15 +1016,6 @@ extern struct cpumask __cpu_partial_halt_mask;
 /* a partially halted may be used for helping smaller cpus with small tasks */
 #define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
 
-/*
- * a partially halted cpu should help silvers with rt and region2 tasks
- * but cannot help smaller cpus if the cpu is halted
- */
-#define cpu_should_help_mincpus(cpu) (cpu_partial_halted(cpu) && !cpu_halted(cpu))
-
-/* a halted cpu cannot help anyone (per-cpu kthreads may remain) */
-#define cpu_should_not_help_mincpus(cpu) cpu_halted(cpu)
-
 static inline bool cluster_partial_halted(void)
 {
 	return cpumask_equal(cpu_partial_halt_mask, &part_haltable_cpus);
