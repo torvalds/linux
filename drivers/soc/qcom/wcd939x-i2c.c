@@ -818,9 +818,14 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_GND_MIC_SWAP_AATC:
 			wcd_usbss_ctxt_->cable_status &= ~BIT(WCD_USBSS_AATC);
 			break;
+		case WCD_USBSS_HSJ_CONNECT:
+			wcd_usbss_ctxt_->cable_status &= ~BIT(WCD_USBSS_GND_MIC_SWAP_HSJ);
+			break;
+		case WCD_USBSS_GND_MIC_SWAP_HSJ:
+			wcd_usbss_ctxt_->cable_status &= ~BIT(WCD_USBSS_HSJ_CONNECT);
+			break;
 		default:
 			break;
-
 		}
 
 		/* reset to defaults when all cable types are disconnected */
@@ -939,6 +944,17 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Disable OVP_MG1_BIAS PCOMP_DYN_BST_EN */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_MG1_BIAS, 0x08, 0x00);
+			/* Enable SENSE, MIC, AGND switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
+			break;
+		case WCD_USBSS_GND_MIC_SWAP_HSJ:
+			/* Disable SENSE, MIC, AGND switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x00);
+			/* Select MG1, GSBU2 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x2);
 			/* Enable SENSE, MIC, AGND switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
