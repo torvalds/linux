@@ -484,6 +484,7 @@ static void sched_update_updown_migrate_values(bool up)
 				sysctl_sched_capacity_margin_dn_pct[i];
 		}
 
+		trace_sched_update_updown_migrate_values(up, i);
 		if (++i >= num_sched_clusters - 1)
 			break;
 	}

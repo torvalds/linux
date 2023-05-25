@@ -1650,6 +1650,35 @@ TRACE_EVENT(sched_fmax_uncap,
 			__entry->fmax_cap_2,
 			__entry->fmax_cap_3)
 );
+
+TRACE_EVENT(sched_update_updown_migrate_values,
+
+	TP_PROTO(bool up, int cluster),
+
+	TP_ARGS(up, cluster),
+
+
+	TP_STRUCT__entry(
+		__field(bool, up)
+		__field(int, cluster)
+		__field(unsigned int, cluster_up)
+		__field(unsigned int, cluster_down)
+	),
+
+	TP_fast_assign(
+		__entry->up		= up;
+		__entry->cluster	= cluster;
+		__entry->cluster_up	= sched_capacity_margin_up[cluster_first_cpu(
+						sched_cluster[cluster])];
+		__entry->cluster_down	= sched_capacity_margin_down[cluster_first_cpu(
+						sched_cluster[cluster])];
+	),
+
+	TP_printk("up=%d cluster=%d cluster_up=%u cluster_down=%u",
+			__entry->up, __entry->cluster,
+			__entry->cluster_up, __entry->cluster_down)
+);
+
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH
