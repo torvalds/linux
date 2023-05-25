@@ -863,6 +863,7 @@ static struct mlx5_esw_bridge *mlx5_esw_bridge_create(struct net_device *br_netd
 	bridge->ageing_time = clock_t_to_jiffies(BR_DEFAULT_AGEING_TIME);
 	bridge->vlan_proto = ETH_P_8021Q;
 	list_add(&bridge->list, &br_offloads->bridges);
+	mlx5_esw_bridge_debugfs_init(br_netdev, bridge);
 
 	return bridge;
 
@@ -886,6 +887,7 @@ static void mlx5_esw_bridge_put(struct mlx5_esw_bridge_offloads *br_offloads,
 	if (--bridge->refcnt)
 		return;
 
+	mlx5_esw_bridge_debugfs_cleanup(bridge);
 	mlx5_esw_bridge_egress_table_cleanup(bridge);
 	mlx5_esw_bridge_mcast_disable(bridge);
 	list_del(&bridge->list);
@@ -1904,6 +1906,7 @@ struct mlx5_esw_bridge_offloads *mlx5_esw_bridge_init(struct mlx5_eswitch *esw)
 	xa_init(&br_offloads->ports);
 	br_offloads->esw = esw;
 	esw->br_offloads = br_offloads;
+	mlx5_esw_bridge_debugfs_offloads_init(br_offloads);
 
 	return br_offloads;
 }
@@ -1919,6 +1922,7 @@ void mlx5_esw_bridge_cleanup(struct mlx5_eswitch *esw)
 
 	mlx5_esw_bridge_flush(br_offloads);
 	WARN_ON(!xa_empty(&br_offloads->ports));
+	mlx5_esw_bridge_debugfs_offloads_cleanup(br_offloads);
 
 	esw->br_offloads = NULL;
 	kvfree(br_offloads);
