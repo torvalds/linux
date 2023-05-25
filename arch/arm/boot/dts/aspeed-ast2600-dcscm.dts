@@ -385,6 +385,7 @@
 
 &i3c1 {
 	status = "okay";
+	secondary;
 
 	/delete-property/ jdec-spd;
 	/delete-node/ i3cmux@0f,4cc31020000;
@@ -397,5 +398,13 @@
 };
 
 &i3c3 {
+	status = "disabled";
+};
+
+&i3c4 {
+	status = "disabled";
+};
+
+&i3c5 {
 	status = "disabled";
 };
