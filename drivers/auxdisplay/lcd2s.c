@@ -365,7 +365,7 @@ static struct i2c_driver lcd2s_i2c_driver = {
 		.name = "lcd2s",
 		.of_match_table = lcd2s_of_table,
 	},
-	.probe_new = lcd2s_i2c_probe,
+	.probe = lcd2s_i2c_probe,
 	.remove = lcd2s_i2c_remove,
 	.id_table = lcd2s_i2c_id,
 };
