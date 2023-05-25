@@ -2686,7 +2686,7 @@ static struct i2c_driver unittest_i2c_dev_driver = {
 	.driver = {
 		.name = "unittest-i2c-dev",
 	},
-	.probe_new = unittest_i2c_dev_probe,
+	.probe = unittest_i2c_dev_probe,
 	.remove = unittest_i2c_dev_remove,
 	.id_table = unittest_i2c_dev_id,
 };
@@ -2763,7 +2763,7 @@ static struct i2c_driver unittest_i2c_mux_driver = {
 	.driver = {
 		.name = "unittest-i2c-mux",
 	},
-	.probe_new = unittest_i2c_mux_probe,
+	.probe = unittest_i2c_mux_probe,
 	.remove = unittest_i2c_mux_remove,
 	.id_table = unittest_i2c_mux_id,
 };
