@@ -894,7 +894,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
  * acpi device handle
  *
  * @handle: acpi handle
- * @nid: NUMA Node id returned by the platform firmware
+ * @numa_info: amdgpu_numa_info structure holding numa information
  *
  * Queries the ACPI interface to fetch the corresponding NUMA Node ID for a
  * given amdgpu acpi device.
