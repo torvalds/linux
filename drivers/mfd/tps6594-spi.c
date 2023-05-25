@@ -107,7 +107,7 @@ static int tps6594_spi_probe(struct spi_device *spi)
 
 	match = of_match_device(tps6594_spi_of_match_table, dev);
 	if (!match)
-		return dev_err_probe(dev, PTR_ERR(match), "Failed to find matching chip ID\n");
+		return dev_err_probe(dev, -EINVAL, "Failed to find matching chip ID\n");
 	tps->chip_id = (unsigned long)match->data;
 
 	crc8_populate_msb(tps6594_spi_crc_table, TPS6594_CRC8_POLYNOMIAL);
