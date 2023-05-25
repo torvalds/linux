@@ -35,6 +35,7 @@ clk-spmi-pmic-div.ko
 proxy-consumer.ko
 qti-fixed-regulator.ko
 rpm-smd-regulator.ko
+debug-regulator.ko
 qcom-i2c-pmic.ko
 qcom-spmi-pmic.ko
 pinctrl-spmi-gpio.ko
