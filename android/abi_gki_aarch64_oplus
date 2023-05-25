@@ -12,6 +12,7 @@
   device_remove_bin_file
   devres_destroy
   down_read_trylock
+  drm_crtc_vblank_waitqueue
   filp_close
   for_each_kernel_tracepoint
   freq_qos_add_notifier
