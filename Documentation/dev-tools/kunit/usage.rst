@@ -615,6 +615,57 @@ For example:
 		KUNIT_ASSERT_STREQ(test, buffer, "");
 	}
 
+Registering Cleanup Actions
+---------------------------
+
+If you need to perform some cleanup beyond simple use of ``kunit_kzalloc``,
+you can register a custom "deferred action", which is a cleanup function
+run when the test exits (whether cleanly, or via a failed assertion).
+
+Actions are simple functions with no return value, and a single ``void*``
+context argument, and fulfill the same role as "cleanup" functions in Python
+and Go tests, "defer" statements in languages which support them, and
+(in some cases) destructors in RAII languages.
+
+These are very useful for unregistering things from global lists, closing
+files or other resources, or freeing resources.
+
+For example:
+
+.. code-block:: C
+
+	static void cleanup_device(void *ctx)
+	{
+		struct device *dev = (struct device *)ctx;
+
+		device_unregister(dev);
+	}
+
+	void example_device_test(struct kunit *test)
+	{
+		struct my_device dev;
+
+		device_register(&dev);
+
+		kunit_add_action(test, &cleanup_device, &dev);
+	}
+
+Note that, for functions like device_unregister which only accept a single
+pointer-sized argument, it's possible to directly cast that function to
+a ``kunit_action_t`` rather than writing a wrapper function, for example:
+
+.. code-block:: C
+
+	kunit_add_action(test, (kunit_action_t *)&device_unregister, &dev);
+
+``kunit_add_action`` can fail if, for example, the system is out of memory.
+You can use ``kunit_add_action_or_reset`` instead which runs the action
+immediately if it cannot be deferred.
+
+If you need more control over when the cleanup function is called, you
+can trigger it early using ``kunit_release_action``, or cancel it entirely
+with ``kunit_remove_action``.
+
 
 Testing Static Functions
 ------------------------
