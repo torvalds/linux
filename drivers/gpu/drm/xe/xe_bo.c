@@ -1134,7 +1134,7 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 
 	if (resv) {
-		ctx.allow_res_evict = true;
+		ctx.allow_res_evict = !(flags & XE_BO_CREATE_NO_RESV_EVICT);
 		ctx.resv = resv;
 	}
 
