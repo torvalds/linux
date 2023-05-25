@@ -36,7 +36,7 @@ static int mtk_mipi_tx_power_on(struct phy *phy)
 	int ret;
 
 	/* Power up core and enable PLL */
-	ret = clk_prepare_enable(mipi_tx->pll);
+	ret = clk_prepare_enable(mipi_tx->pll_hw.clk);
 	if (ret < 0)
 		return ret;
 
@@ -53,7 +53,7 @@ static int mtk_mipi_tx_power_off(struct phy *phy)
 	mipi_tx->driver_data->mipi_tx_disable_signal(phy);
 
 	/* Disable PLL and power down core */
-	clk_disable_unprepare(mipi_tx->pll);
+	clk_disable_unprepare(mipi_tx->pll_hw.clk);
 
 	return 0;
 }
@@ -158,9 +158,9 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 	clk_init.ops = mipi_tx->driver_data->mipi_tx_clk_ops;
 
 	mipi_tx->pll_hw.init = &clk_init;
-	mipi_tx->pll = devm_clk_register(dev, &mipi_tx->pll_hw);
-	if (IS_ERR(mipi_tx->pll))
-		return dev_err_probe(dev, PTR_ERR(mipi_tx->pll), "Failed to register PLL\n");
+	ret = devm_clk_hw_register(dev, &mipi_tx->pll_hw);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register PLL\n");
 
 	phy = devm_phy_create(dev, NULL, &mtk_mipi_tx_ops);
 	if (IS_ERR(phy))
@@ -176,8 +176,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	mtk_mipi_tx_get_calibration_datal(mipi_tx);
 
-	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
-				   mipi_tx->pll);
+	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get, &mipi_tx->pll_hw);
 }
 
 static void mtk_mipi_tx_remove(struct platform_device *pdev)
