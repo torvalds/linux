@@ -895,8 +895,9 @@ retry:
 			up_write(&sb->s_umount);
 		else
 			up_read(&sb->s_umount);
-		wait_event(sb->s_writers.wait_unfrozen,
-			   sb->s_writers.frozen == SB_UNFROZEN);
+		/* Wait for sb to unfreeze */
+		sb_start_write(sb);
+		sb_end_write(sb);
 		put_super(sb);
 		goto retry;
 	}
