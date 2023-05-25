@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
+
+#define pr_fmt(fmt)	"tmecom: [%s][%d]:" fmt, __func__, __LINE__
 
 #include <linux/module.h>
 #include <linux/kernel.h>
