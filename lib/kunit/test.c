@@ -752,58 +752,28 @@ static struct notifier_block kunit_mod_nb = {
 };
 #endif
 
-struct kunit_kmalloc_array_params {
-	size_t n;
-	size_t size;
-	gfp_t gfp;
-};
-
-static int kunit_kmalloc_array_init(struct kunit_resource *res, void *context)
-{
-	struct kunit_kmalloc_array_params *params = context;
-
-	res->data = kmalloc_array(params->n, params->size, params->gfp);
-	if (!res->data)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void kunit_kmalloc_array_free(struct kunit_resource *res)
-{
-	kfree(res->data);
-}
-
 void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp)
 {
-	struct kunit_kmalloc_array_params params = {
-		.size = size,
-		.n = n,
-		.gfp = gfp
-	};
+	void *data;
 
-	return kunit_alloc_resource(test,
-				    kunit_kmalloc_array_init,
-				    kunit_kmalloc_array_free,
-				    gfp,
-				    &params);
+	data = kmalloc_array(n, size, gfp);
+
+	if (!data)
+		return NULL;
+
+	if (kunit_add_action_or_reset(test, (kunit_action_t *)kfree, data) != 0)
+		return NULL;
+
+	return data;
 }
 EXPORT_SYMBOL_GPL(kunit_kmalloc_array);
-
-static inline bool kunit_kfree_match(struct kunit *test,
-				     struct kunit_resource *res, void *match_data)
-{
-	/* Only match resources allocated with kunit_kmalloc() and friends. */
-	return res->free == kunit_kmalloc_array_free && res->data == match_data;
-}
 
 void kunit_kfree(struct kunit *test, const void *ptr)
 {
 	if (!ptr)
 		return;
 
-	if (kunit_destroy_resource(test, kunit_kfree_match, (void *)ptr))
-		KUNIT_FAIL(test, "kunit_kfree: %px already freed or not allocated by kunit", ptr);
+	kunit_release_action(test, (kunit_action_t *)kfree, (void *)ptr);
 }
 EXPORT_SYMBOL_GPL(kunit_kfree);
 
