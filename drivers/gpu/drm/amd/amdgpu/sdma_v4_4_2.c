@@ -418,6 +418,7 @@ static void sdma_v4_4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 
  * sdma_v4_4_2_inst_gfx_stop - stop the gfx async dma engines
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be disabled
  *
  * Stop the gfx async dma ring buffers.
  */
@@ -449,6 +450,7 @@ static void sdma_v4_4_2_inst_gfx_stop(struct amdgpu_device *adev,
  * sdma_v4_4_2_inst_rlc_stop - stop the compute async dma engines
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be disabled
  *
  * Stop the compute async dma queues.
  */
@@ -462,6 +464,7 @@ static void sdma_v4_4_2_inst_rlc_stop(struct amdgpu_device *adev,
  * sdma_v4_4_2_inst_page_stop - stop the page async dma engines
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be disabled
  *
  * Stop the page async dma ring buffers.
  */
@@ -498,6 +501,7 @@ static void sdma_v4_4_2_inst_page_stop(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @enable: enable/disable the DMA MEs context switch.
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Halt or unhalt the async dma engines context switch.
  */
@@ -785,6 +789,7 @@ static void sdma_v4_4_2_init_pg(struct amdgpu_device *adev)
  * sdma_v4_4_2_inst_rlc_resume - setup and start the async dma engines
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Set up the compute DMA queues and enable them.
  * Returns 0 for success, error for failure.
@@ -801,6 +806,7 @@ static int sdma_v4_4_2_inst_rlc_resume(struct amdgpu_device *adev,
  * sdma_v4_4_2_inst_load_microcode - load the sDMA ME ucode
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Loads the sDMA0/1 ucode.
  * Returns 0 for success, -EINVAL if the ucode is not available.
@@ -845,6 +851,7 @@ static int sdma_v4_4_2_inst_load_microcode(struct amdgpu_device *adev,
  * sdma_v4_4_2_inst_start - setup and start the async dma engines
  *
  * @adev: amdgpu_device pointer
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Set up the DMA engines and enable them.
  * Returns 0 for success, error for failure.
