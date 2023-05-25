@@ -202,3 +202,73 @@ monitoring operations to check dynamic changes including memory mapping changes
 and applies it to monitoring operations-related data structures such as the
 abstracted monitoring target memory area only for each of a user-specified time
 interval (``update interval``).
+
+
+Operation Schemes
+-----------------
+
+One common purpose of data access monitoring is access-aware system efficiency
+optimizations.  For example,
+
+    paging out memory regions that are not accessed for more than two minutes
+
+or
+
+    using THP for memory regions that are larger than 2 MiB and showing a high
+    access frequency for more than one minute.
+
+One straightforward approach for such schemes would be profile-guided
+optimizations.  That is, getting data access monitoring results of the
+workloads or the system using DAMON, finding memory regions of special
+characteristics by profiling the monitoring results, and making system
+operation changes for the regions.  The changes could be made by modifying or
+providing advice to the software (the application and/or the kernel), or
+reconfiguring the hardware.  Both offline and online approaches could be
+available.
+
+Among those, providing advice to the kernel at runtime would be flexible and
+effective, and therefore widely be used.   However, implementing such schemes
+could impose unnecessary redundancy and inefficiency.  The profiling could be
+redundant if the type of interest is common.  Exchanging the information
+including monitoring results and operation advice between kernel and user
+spaces could be inefficient.
+
+To allow users to reduce such redundancy and inefficiencies by offloading the
+works, DAMON provides a feature called Data Access Monitoring-based Operation
+Schemes (DAMOS).  It lets users specify their desired schemes at a high
+level.  For such specifications, DAMON starts monitoring, finds regions having
+the access pattern of interest, and applies the user-desired operation actions
+to the regions as soon as found.
+
+
+Operation Action
+~~~~~~~~~~~~~~~~
+
+The management action that the users desire to apply to the regions of their
+interest.  For example, paging out, prioritizing for next reclamation victim
+selection, advising ``khugepaged`` to collapse or split, or doing nothing but
+collecting statistics of the regions.
+
+The list of supported actions is defined in DAMOS, but the implementation of
+each action is in the DAMON operations set layer because the implementation
+normally depends on the monitoring target address space.  For example, the code
+for paging specific virtual address ranges out would be different from that for
+physical address ranges.  And the monitoring operations implementation sets are
+not mandated to support all actions of the list.  Hence, the availability of
+specific DAMOS action depends on what operations set is selected to be used
+together.
+
+Applying an action to a region is considered as changing the region's
+characteristics.  Hence, DAMOS resets the age of regions when an action is
+applied to those.
+
+
+Target Access Pattern
+~~~~~~~~~~~~~~~~~~~~~
+
+The access pattern of the schemes' interest.  The patterns are constructed with
+the properties that DAMON's monitoring results provide, specifically the size,
+the access frequency, and the age.  Users can describe their access pattern of
+interest by setting minimum and maximum values of the three properties.  If a
+region's three properties are in the ranges, DAMOS classifies it as one of the
+regions that the scheme is having an interest in.
