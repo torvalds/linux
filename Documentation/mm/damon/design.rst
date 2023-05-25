@@ -4,6 +4,21 @@
 Design
 ======
 
+
+Overall Architecture
+====================
+
+DAMON subsystem is configured with three layers including
+
+- Operations Set: Implements fundamental operations for DAMON that depends on
+  the given monitoring target address-space and available set of
+  software/hardware primitives,
+- Core: Implements core logics including monitoring overhead/accurach control
+  and access-aware system operations on top of the operations set layer, and
+- Modules: Implements kernel modules for various purposes that provides
+  interfaces for the user space, on top of the core layer.
+
+
 Configurable Layers
 ===================
 
