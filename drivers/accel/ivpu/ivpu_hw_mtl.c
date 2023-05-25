@@ -754,9 +754,8 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	if (ivpu_hw_mtl_reset(vdev)) {
+	if (!ivpu_hw_mtl_is_idle(vdev) && ivpu_hw_mtl_reset(vdev)) {
 		ivpu_err(vdev, "Failed to reset the VPU\n");
-		ret = -EIO;
 	}
 
 	if (ivpu_pll_disable(vdev)) {
@@ -764,8 +763,10 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 		ret = -EIO;
 	}
 
-	if (ivpu_hw_mtl_d0i3_enable(vdev))
-		ivpu_warn(vdev, "Failed to enable D0I3\n");
+	if (ivpu_hw_mtl_d0i3_enable(vdev)) {
+		ivpu_err(vdev, "Failed to enter D0I3\n");
+		ret = -EIO;
+	}
 
 	return ret;
 }
