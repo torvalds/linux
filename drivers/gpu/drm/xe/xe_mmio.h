@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright © 2021 Intel Corporation
+ * Copyright © 2021-2023 Intel Corporation
  */
 
 #ifndef _XE_MMIO_H_
@@ -15,6 +15,8 @@
 struct drm_device;
 struct drm_file;
 struct xe_device;
+
+#define GEN12_LMEM_BAR		2
 
 int xe_mmio_init(struct xe_device *xe);
 
@@ -131,6 +133,6 @@ static inline bool xe_mmio_in_range(const struct xe_mmio_range *range,
 }
 
 int xe_mmio_probe_vram(struct xe_device *xe);
-int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *flat_ccs_base);
+int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64 *tile_base);
 
 #endif
