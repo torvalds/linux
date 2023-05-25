@@ -116,7 +116,7 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 			    struct task_struct *task, bool try)
 {
 	int ret;
-	u32 old, new, v;
+	u32 old;
 
 	EBUG_ON(type == SIX_LOCK_write && lock->owner != task);
 	EBUG_ON(type == SIX_LOCK_write &&
@@ -177,19 +177,14 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 				ret = -1 - SIX_LOCK_read;
 		}
 	} else {
-		v = atomic_read(&lock->state);
+		old = atomic_read(&lock->state);
 		do {
-			new = old = v;
-
 			ret = !(old & l[type].lock_fail);
-
 			if (!ret || (type == SIX_LOCK_write && !try)) {
 				smp_mb();
 				break;
 			}
-
-			new += l[type].lock_val;
-		} while ((v = atomic_cmpxchg_acquire(&lock->state, old, new)) != old);
+		} while (!atomic_try_cmpxchg_acquire(&lock->state, &old, old + l[type].lock_val));
 
 		EBUG_ON(ret && !(atomic_read(&lock->state) & l[type].held_mask));
 	}
@@ -675,10 +670,10 @@ EXPORT_SYMBOL_GPL(six_lock_downgrade);
  */
 bool six_lock_tryupgrade(struct six_lock *lock)
 {
-	u32 old, new, v = atomic_read(&lock->state);
+	u32 old = atomic_read(&lock->state), new;
 
 	do {
-		new = old = v;
+		new = old;
 
 		if (new & SIX_LOCK_HELD_intent)
 			return false;
@@ -689,7 +684,7 @@ bool six_lock_tryupgrade(struct six_lock *lock)
 		}
 
 		new |= SIX_LOCK_HELD_intent;
-	} while ((v = atomic_cmpxchg_acquire(&lock->state, old, new)) != old);
+	} while (!atomic_try_cmpxchg_acquire(&lock->state, &old, new));
 
 	if (lock->readers)
 		this_cpu_dec(*lock->readers);
