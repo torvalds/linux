@@ -728,8 +728,11 @@ static int omap_8250_startup(struct uart_port *port)
 		priv->wer |= OMAP_UART_TX_WAKEUP_EN;
 	serial_out(up, UART_OMAP_WER, priv->wer);
 
-	if (up->dma && !(priv->habit & UART_HAS_EFR2))
+	if (up->dma && !(priv->habit & UART_HAS_EFR2)) {
+		spin_lock_irq(&port->lock);
 		up->dma->rx_dma(up);
+		spin_unlock_irq(&port->lock);
+	}
 
 	enable_irq(up->port.irq);
 
@@ -1002,6 +1005,9 @@ static int omap_8250_rx_dma(struct uart_8250_port *p)
 	struct dma_async_tx_descriptor  *desc;
 	unsigned long			flags;
 	u32				reg;
+
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&p->port.lock);
 
 	if (priv->rx_dma_broken)
 		return -EINVAL;
@@ -1736,8 +1742,11 @@ static int omap8250_runtime_resume(struct device *dev)
 	if (up && omap8250_lost_context(up))
 		omap8250_restore_regs(up);
 
-	if (up && up->dma && up->dma->rxchan && !(priv->habit & UART_HAS_EFR2))
+	if (up && up->dma && up->dma->rxchan && !(priv->habit & UART_HAS_EFR2)) {
+		spin_lock_irq(&up->port.lock);
 		omap_8250_rx_dma(up);
+		spin_unlock_irq(&up->port.lock);
+	}
 
 	priv->latency = priv->calc_latency;
 	schedule_work(&priv->qos_work);
