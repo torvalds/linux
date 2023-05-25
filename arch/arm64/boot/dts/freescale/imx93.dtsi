@@ -724,6 +724,7 @@
 				assigned-clock-rates = <100000000>, <250000000>, <50000000>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				fsl,stop-mode = <&wakeupmix_gpr 0x0c 1>;
 				status = "disabled";
 			};
 
