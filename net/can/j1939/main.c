@@ -286,16 +286,18 @@ struct j1939_priv *j1939_netdev_start(struct net_device *ndev)
 		return priv_new;
 	}
 	j1939_priv_set(ndev, priv);
-	mutex_unlock(&j1939_netdev_lock);
 
 	ret = j1939_can_rx_register(priv);
 	if (ret < 0)
 		goto out_priv_put;
 
+	mutex_unlock(&j1939_netdev_lock);
 	return priv;
 
  out_priv_put:
 	j1939_priv_set(ndev, NULL);
+	mutex_unlock(&j1939_netdev_lock);
+
 	dev_put(ndev);
 	kfree(priv);
 
