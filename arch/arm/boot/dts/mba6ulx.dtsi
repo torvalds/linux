@@ -57,7 +57,7 @@
 			label = "POWER";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
