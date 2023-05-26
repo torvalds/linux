@@ -3054,6 +3054,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	struct btree_path *path;
 	struct btree_bkey_cached_common *b;
 	static char lock_types[] = { 'r', 'i', 'w' };
+	struct task_struct *task = READ_ONCE(trans->locking_wait.task);
 	unsigned l, idx;
 
 	if (!out->nr_tabstops) {
@@ -3061,7 +3062,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		printbuf_tabstop_push(out, 32);
 	}
 
-	prt_printf(out, "%i %s\n", trans->locking_wait.task->pid, trans->fn);
+	prt_printf(out, "%i %s\n", task ? task->pid : 0, trans->fn);
 
 	trans_for_each_path_safe(trans, path, idx) {
 		if (!path->nodes_locked)
