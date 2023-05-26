@@ -1430,24 +1430,6 @@ struct devlink_ops {
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
 	/**
-	 * @port_fn_roce_get: Port function's roce get function.
-	 *
-	 * Query RoCE state of a function managed by the devlink port.
-	 * Return -EOPNOTSUPP if port function RoCE handling is not supported.
-	 */
-	int (*port_fn_roce_get)(struct devlink_port *devlink_port,
-				bool *is_enable,
-				struct netlink_ext_ack *extack);
-	/**
-	 * @port_fn_roce_set: Port function's roce set function.
-	 *
-	 * Enable/Disable the RoCE state of a function managed by the devlink
-	 * port.
-	 * Return -EOPNOTSUPP if port function RoCE handling is not supported.
-	 */
-	int (*port_fn_roce_set)(struct devlink_port *devlink_port,
-				bool enable, struct netlink_ext_ack *extack);
-	/**
 	 * @port_fn_migratable_get: Port function's migratable get function.
 	 *
 	 * Query migratable state of a function managed by the devlink port.
@@ -1636,6 +1618,14 @@ void devlink_free(struct devlink *devlink);
  * @port_fn_hw_addr_set: Callback used to set port function's hardware address.
  *			 Should be used by device drivers to set the hardware
  *			 address of a function managed by the devlink port.
+ * @port_fn_roce_get: Callback used to get port function's RoCE capability.
+ *		      Should be used by device drivers to report
+ *		      the current state of RoCE capability of a function
+ *		      managed by the devlink port.
+ * @port_fn_roce_set: Callback used to set port function's RoCE capability.
+ *		      Should be used by device drivers to enable/disable
+ *		      RoCE capability of a function managed
+ *		      by the devlink port.
  *
  * Note: Driver should return -EOPNOTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
@@ -1653,6 +1643,11 @@ struct devlink_port_ops {
 	int (*port_fn_hw_addr_set)(struct devlink_port *port,
 				   const u8 *hw_addr, int hw_addr_len,
 				   struct netlink_ext_ack *extack);
+	int (*port_fn_roce_get)(struct devlink_port *devlink_port,
+				bool *is_enable,
+				struct netlink_ext_ack *extack);
+	int (*port_fn_roce_set)(struct devlink_port *devlink_port,
+				bool enable, struct netlink_ext_ack *extack);
 };
 
 void devlink_port_init(struct devlink *devlink,

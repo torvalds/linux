@@ -447,18 +447,18 @@ static void devlink_port_fn_cap_fill(struct nla_bitfield32 *caps,
 		caps->value |= cap;
 }
 
-static int devlink_port_fn_roce_fill(const struct devlink_ops *ops,
-				     struct devlink_port *devlink_port,
+static int devlink_port_fn_roce_fill(struct devlink_port *devlink_port,
 				     struct nla_bitfield32 *caps,
 				     struct netlink_ext_ack *extack)
 {
 	bool is_enable;
 	int err;
 
-	if (!ops->port_fn_roce_get)
+	if (!devlink_port->ops->port_fn_roce_get)
 		return 0;
 
-	err = ops->port_fn_roce_get(devlink_port, &is_enable, extack);
+	err = devlink_port->ops->port_fn_roce_get(devlink_port, &is_enable,
+						  extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -501,7 +501,7 @@ static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
 	struct nla_bitfield32 caps = {};
 	int err;
 
-	err = devlink_port_fn_roce_fill(ops, devlink_port, &caps, extack);
+	err = devlink_port_fn_roce_fill(devlink_port, &caps, extack);
 	if (err)
 		return err;
 
@@ -837,9 +837,8 @@ static int
 devlink_port_fn_roce_set(struct devlink_port *devlink_port, bool enable,
 			 struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
-
-	return ops->port_fn_roce_set(devlink_port, enable, extack);
+	return devlink_port->ops->port_fn_roce_set(devlink_port, enable,
+						   extack);
 }
 
 static int devlink_port_fn_caps_set(struct devlink_port *devlink_port,
@@ -1214,7 +1213,7 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 
 		caps = nla_get_bitfield32(attr);
 		if (caps.selector & DEVLINK_PORT_FN_CAP_ROCE &&
-		    !ops->port_fn_roce_set) {
+		    !devlink_port->ops->port_fn_roce_set) {
 			NL_SET_ERR_MSG_ATTR(extack, attr,
 					    "Port doesn't support RoCE function attribute");
 			return -EOPNOTSUPP;
