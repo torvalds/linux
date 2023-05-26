@@ -23,11 +23,11 @@
  * the values to the registers that have matching rules.
  */
 
-static bool rule_matches(struct xe_gt *gt,
+static bool rule_matches(const struct xe_device *xe,
+			 struct xe_gt *gt,
 			 struct xe_hw_engine *hwe,
 			 const struct xe_rtp_entry *entry)
 {
-	const struct xe_device *xe = gt_to_xe(gt);
 	const struct xe_rtp_rule *r;
 	unsigned int i;
 	bool match;
@@ -62,22 +62,27 @@ static bool rule_matches(struct xe_gt *gt,
 			match = xe->info.step.graphics >= r->step_start &&
 				xe->info.step.graphics < r->step_end;
 			break;
-		case XE_RTP_MATCH_ENGINE_CLASS:
-			match = hwe->class == r->engine_class;
-			break;
-		case XE_RTP_MATCH_NOT_ENGINE_CLASS:
-			match = hwe->class != r->engine_class;
-			break;
-		case XE_RTP_MATCH_FUNC:
-			match = r->match_func(gt, hwe);
-			break;
 		case XE_RTP_MATCH_INTEGRATED:
 			match = !xe->info.is_dgfx;
 			break;
 		case XE_RTP_MATCH_DISCRETE:
 			match = xe->info.is_dgfx;
 			break;
+		case XE_RTP_MATCH_ENGINE_CLASS:
+			if (drm_WARN_ON(&xe->drm, !hwe))
+				return false;
 
+			match = hwe->class == r->engine_class;
+			break;
+		case XE_RTP_MATCH_NOT_ENGINE_CLASS:
+			if (drm_WARN_ON(&xe->drm, !hwe))
+				return false;
+
+			match = hwe->class != r->engine_class;
+			break;
+		case XE_RTP_MATCH_FUNC:
+			match = r->match_func(gt, hwe);
+			break;
 		default:
 			XE_WARN_ON(r->match_type);
 		}
@@ -105,14 +110,15 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 	xe_reg_sr_add(sr, &sr_entry);
 }
 
-static void rtp_process_one(const struct xe_rtp_entry *entry, struct xe_gt *gt,
+static void rtp_process_one(const struct xe_rtp_entry *entry,
+			    struct xe_device *xe, struct xe_gt *gt,
 			    struct xe_hw_engine *hwe, struct xe_reg_sr *sr)
 {
 	const struct xe_rtp_action *action;
 	u32 mmio_base;
 	unsigned int i;
 
-	if (!rule_matches(gt, hwe, entry))
+	if (!rule_matches(xe, gt, hwe, entry))
 		return;
 
 	for (action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
@@ -126,23 +132,46 @@ static void rtp_process_one(const struct xe_rtp_entry *entry, struct xe_gt *gt,
 	}
 }
 
+static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
+			    struct xe_hw_engine **hwe,
+			    struct xe_gt **gt,
+			    struct xe_device **xe)
+{
+	switch (ctx->type) {
+	case XE_RTP_PROCESS_TYPE_GT:
+		*hwe = NULL;
+		*gt = ctx->gt;
+		*xe = gt_to_xe(*gt);
+		break;
+	case XE_RTP_PROCESS_TYPE_ENGINE:
+		*hwe = ctx->hwe;
+		*gt = (*hwe)->gt;
+		*xe = gt_to_xe(*gt);
+		break;
+	};
+}
+
 /**
  * xe_rtp_process - Process all rtp @entries, adding the matching ones to @sr
+ * @ctx: The context for processing the table, with one of device, gt or hwe
  * @entries: Table with RTP definitions
  * @sr: Where to add an entry to with the values for matching. This can be
  *      viewed as the "coalesced view" of multiple the tables. The bits for each
  *      register set are expected not to collide with previously added entries
- * @gt: The GT to be used for matching rules
- * @hwe: Engine instance to use for matching rules and as mmio base
  *
  * Walk the table pointed by @entries (with an empty sentinel) and add all
  * entries with matching rules to @sr. If @hwe is not NULL, its mmio_base is
  * used to calculate the right register offset
  */
-void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
-		    struct xe_gt *gt, struct xe_hw_engine *hwe)
+void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
+		    const struct xe_rtp_entry *entries, struct xe_reg_sr *sr)
 {
 	const struct xe_rtp_entry *entry;
+	struct xe_hw_engine *hwe = NULL;
+	struct xe_gt *gt = NULL;
+	struct xe_device *xe = NULL;
+
+	rtp_get_context(ctx, &hwe, &gt, &xe);
 
 	for (entry = entries; entry && entry->name; entry++) {
 		if (entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) {
@@ -150,9 +179,9 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 			enum xe_hw_engine_id id;
 
 			for_each_hw_engine(each_hwe, gt, id)
-				rtp_process_one(entry, gt, each_hwe, sr);
+				rtp_process_one(entry, xe, gt, each_hwe, sr);
 		} else {
-			rtp_process_one(entry, gt, hwe, sr);
+			rtp_process_one(entry, xe, gt, hwe, sr);
 		}
 	}
 }

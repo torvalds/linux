@@ -63,7 +63,9 @@ static const struct xe_rtp_entry register_whitelist[] = {
  */
 void xe_reg_whitelist_process_engine(struct xe_hw_engine *hwe)
 {
-	xe_rtp_process(register_whitelist, &hwe->reg_whitelist, hwe->gt, hwe);
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
+
+	xe_rtp_process(&ctx, register_whitelist, &hwe->reg_whitelist);
 }
 
 /**

@@ -355,8 +355,13 @@ struct xe_reg_sr;
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
 
-void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
-		    struct xe_gt *gt, struct xe_hw_engine *hwe);
+#define XE_RTP_PROCESS_CTX_INITIALIZER(arg__) _Generic((arg__),							\
+	struct xe_hw_engine *:	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
+	struct xe_gt *:		(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT })
+
+void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
+		    const struct xe_rtp_entry *entries,
+		    struct xe_reg_sr *sr);
 
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
 

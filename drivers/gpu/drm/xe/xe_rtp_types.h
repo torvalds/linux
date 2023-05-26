@@ -95,4 +95,17 @@ struct xe_rtp_entry {
 	u8 flags;
 };
 
+enum xe_rtp_process_type {
+	XE_RTP_PROCESS_TYPE_GT,
+	XE_RTP_PROCESS_TYPE_ENGINE,
+};
+
+struct xe_rtp_process_ctx {
+	union {
+		struct xe_gt *gt;
+		struct xe_hw_engine *hwe;
+	};
+	enum xe_rtp_process_type type;
+};
+
 #endif

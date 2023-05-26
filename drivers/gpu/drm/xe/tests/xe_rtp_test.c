@@ -238,10 +238,11 @@ static void xe_rtp_process_tests(struct kunit *test)
 	struct xe_device *xe = test->priv;
 	struct xe_reg_sr *reg_sr = &xe->gt[0].reg_sr;
 	const struct xe_reg_sr_entry *sre, *sr_entry = NULL;
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(&xe->gt[0]);
 	unsigned long idx, count = 0;
 
 	xe_reg_sr_init(reg_sr, "xe_rtp_tests", xe);
-	xe_rtp_process(param->entries, reg_sr, &xe->gt[0], NULL);
+	xe_rtp_process(&ctx, param->entries, reg_sr);
 
 	xa_for_each(&reg_sr->xa, idx, sre) {
 		if (idx == param->expected_reg.addr)

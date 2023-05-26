@@ -579,7 +579,9 @@ __diag_pop();
  */
 void xe_wa_process_gt(struct xe_gt *gt)
 {
-	xe_rtp_process(gt_was, &gt->reg_sr, gt, NULL);
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
+
+	xe_rtp_process(&ctx, gt_was, &gt->reg_sr);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_wa_process_gt);
 
@@ -593,7 +595,9 @@ EXPORT_SYMBOL_IF_KUNIT(xe_wa_process_gt);
  */
 void xe_wa_process_engine(struct xe_hw_engine *hwe)
 {
-	xe_rtp_process(engine_was, &hwe->reg_sr, hwe->gt, hwe);
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
+
+	xe_rtp_process(&ctx, engine_was, &hwe->reg_sr);
 }
 
 /**
@@ -606,5 +610,7 @@ void xe_wa_process_engine(struct xe_hw_engine *hwe)
  */
 void xe_wa_process_lrc(struct xe_hw_engine *hwe)
 {
-	xe_rtp_process(lrc_was, &hwe->reg_lrc, hwe->gt, hwe);
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
+
+	xe_rtp_process(&ctx, lrc_was, &hwe->reg_lrc);
 }
