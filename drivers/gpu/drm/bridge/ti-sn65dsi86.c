@@ -1970,7 +1970,7 @@ static struct i2c_driver ti_sn65dsi86_driver = {
 		.of_match_table = ti_sn65dsi86_match_table,
 		.pm = &ti_sn65dsi86_pm_ops,
 	},
-	.probe_new = ti_sn65dsi86_probe,
+	.probe = ti_sn65dsi86_probe,
 	.id_table = ti_sn65dsi86_id,
 };
 
