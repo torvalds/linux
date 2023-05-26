@@ -21,23 +21,23 @@
 	};
 
 	i2c@3e016000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3e017000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3e018000 {
-		status = "okay";
 		clock-frequency = <400000>;
+		status = "okay";
 	};
 
 	i2c@3500d000 {
-		status = "okay";
 		clock-frequency = <100000>;
+		status = "okay";
 
 		pmu: pmu@8 {
 			reg = <0x08>;

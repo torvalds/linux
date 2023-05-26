@@ -129,32 +129,32 @@
 
 		uartb: serial@0 {
 			compatible = "snps,dw-apb-uart";
-			status = "disabled";
 			reg = <0x00000000 0x118>;
 			clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		uartb2: serial@1000 {
 			compatible = "snps,dw-apb-uart";
-			status = "disabled";
 			reg = <0x00001000 0x118>;
 			clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB2>;
 			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		uartb3: serial@2000 {
 			compatible = "snps,dw-apb-uart";
-			status = "disabled";
 			reg = <0x00002000 0x118>;
 			clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB3>;
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		bsc1: i2c@16000 {

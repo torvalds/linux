@@ -51,42 +51,42 @@
 
 	serial@3e000000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e000000 0x1000>;
 		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB>;
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
 	serial@3e001000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e001000 0x1000>;
 		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB2>;
 		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
 	serial@3e002000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e002000 0x1000>;
 		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB3>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
 	serial@3e003000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
-		status = "disabled";
 		reg = <0x3e003000 0x1000>;
 		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB4>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
 	};
 
 	L2: l2-cache@3ff20000 {
