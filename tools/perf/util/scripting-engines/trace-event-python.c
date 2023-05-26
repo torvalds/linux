@@ -93,8 +93,6 @@ PyMODINIT_FUNC PyInit_perf_trace_context(void);
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
-
 #define N_COMMON_FIELDS	7
 
 static char *cur_field_name;
@@ -934,6 +932,9 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	unsigned long long nsecs = sample->time;
 	const char *comm = thread__comm_str(al->thread);
 	const char *default_handler_name = "trace_unhandled";
+	DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
+
+	bitmap_zero(events_defined, TRACE_EVENT_TYPE_MAX);
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),

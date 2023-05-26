@@ -67,8 +67,6 @@ INTERP my_perl;
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
-
 extern struct scripting_context *scripting_context;
 
 static char *cur_field_name;
@@ -353,7 +351,9 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
 	const char *comm = thread__comm_str(thread);
+	DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
+	bitmap_zero(events_defined, TRACE_EVENT_TYPE_MAX);
 	dSP;
 
 	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
