@@ -19,6 +19,7 @@
 		serial0 = &uart10;
 		serial1 = &uart12;
 		serial2 = &uart17;
+		i2c11 = &i2c11;
 		i2c18 = &i2c18;
 		spi16 = &spi16;
 		ufshc1 = &ufs_mem_hc;
@@ -260,6 +261,13 @@
 	};
 };
 
+&i2c11 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&qup_i2c11_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &i2c18 {
 	clock-frequency = <400000>;
 	pinctrl-0 = <&qup_i2c18_default>;
@@ -368,6 +376,13 @@
 		function = "qup2_se2";
 		drive-strength = <6>;
 		bias-disable;
+	};
+
+	qup_i2c11_default: qup-i2c11-state {
+		pins = "gpio48", "gpio49";
+		function = "qup1_se4";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	qup_i2c18_default: qup-i2c18-state {
