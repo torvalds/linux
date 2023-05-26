@@ -211,4 +211,3 @@ static struct i2c_driver pm8008_mfd_driver = {
 module_i2c_driver(pm8008_mfd_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:qcom-pm8008");
