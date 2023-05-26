@@ -26,7 +26,7 @@
 static bool rule_matches(const struct xe_device *xe,
 			 struct xe_gt *gt,
 			 struct xe_hw_engine *hwe,
-			 const struct xe_rtp_entry *entry)
+			 const struct xe_rtp_entry_sr *entry)
 {
 	const struct xe_rtp_rule *r;
 	unsigned int i;
@@ -112,9 +112,9 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 	xe_reg_sr_add(sr, &sr_entry);
 }
 
-static void rtp_process_one(const struct xe_rtp_entry *entry,
-			    struct xe_device *xe, struct xe_gt *gt,
-			    struct xe_hw_engine *hwe, struct xe_reg_sr *sr)
+static void rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
+			       struct xe_device *xe, struct xe_gt *gt,
+			       struct xe_hw_engine *hwe, struct xe_reg_sr *sr)
 {
 	const struct xe_rtp_action *action;
 	u32 mmio_base;
@@ -154,10 +154,11 @@ static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
 }
 
 /**
- * xe_rtp_process - Process all rtp @entries, adding the matching ones to @sr
+ * xe_rtp_process_to_sr - Process all rtp @entries, adding the matching ones to
+ *                        the save-restore argument.
  * @ctx: The context for processing the table, with one of device, gt or hwe
  * @entries: Table with RTP definitions
- * @sr: Where to add an entry to with the values for matching. This can be
+ * @sr: Save-restore struct where matching rules execute the action. This can be
  *      viewed as the "coalesced view" of multiple the tables. The bits for each
  *      register set are expected not to collide with previously added entries
  *
@@ -165,10 +166,11 @@ static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
  * entries with matching rules to @sr. If @hwe is not NULL, its mmio_base is
  * used to calculate the right register offset
  */
-void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
-		    const struct xe_rtp_entry *entries, struct xe_reg_sr *sr)
+void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
+			  const struct xe_rtp_entry_sr *entries,
+			  struct xe_reg_sr *sr)
 {
-	const struct xe_rtp_entry *entry;
+	const struct xe_rtp_entry_sr *entry;
 	struct xe_hw_engine *hwe = NULL;
 	struct xe_gt *gt = NULL;
 	struct xe_device *xe = NULL;
@@ -181,13 +183,13 @@ void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 			enum xe_hw_engine_id id;
 
 			for_each_hw_engine(each_hwe, gt, id)
-				rtp_process_one(entry, xe, gt, each_hwe, sr);
+				rtp_process_one_sr(entry, xe, gt, each_hwe, sr);
 		} else {
-			rtp_process_one(entry, xe, gt, hwe, sr);
+			rtp_process_one_sr(entry, xe, gt, hwe, sr);
 		}
 	}
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
+EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
 
 bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe)

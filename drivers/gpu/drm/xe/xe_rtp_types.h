@@ -84,8 +84,8 @@ struct xe_rtp_rule {
 	};
 };
 
-/** struct xe_rtp_entry - Entry in an rtp table */
-struct xe_rtp_entry {
+/** struct xe_rtp_entry_sr - Entry in an rtp table */
+struct xe_rtp_entry_sr {
 	const char *name;
 	const struct xe_rtp_action *actions;
 	const struct xe_rtp_rule *rules;

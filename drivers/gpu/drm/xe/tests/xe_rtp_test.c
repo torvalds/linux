@@ -36,7 +36,7 @@ struct rtp_test_case {
 	u32 expected_clr_bits;
 	unsigned long expected_count;
 	unsigned int expected_sr_errors;
-	const struct xe_rtp_entry *entries;
+	const struct xe_rtp_entry_sr *entries;
 };
 
 static bool match_yes(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
@@ -57,7 +57,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0) | REG_BIT(1),
 		.expected_count = 1,
 		/* Different bits on the same register: create a single entry */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -76,7 +76,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
 		/* Don't coalesce second entry since rules don't match */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -95,7 +95,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
 		/* Don't coalesce second entry due to one of the rules */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -114,7 +114,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 2,
 		/* Same bits on different registers are not coalesced */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -133,7 +133,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(1) | REG_BIT(0),
 		.expected_count = 1,
 		/* Check clr vs set actions on different bits */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -154,7 +154,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = TEMP_MASK,
 		.expected_count = 1,
 		/* Check FIELD_SET works */
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(FIELD_SET(REGULAR_REG1,
@@ -172,7 +172,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
 		.expected_sr_errors = 1,
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -192,7 +192,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
 		.expected_sr_errors = 1,
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -212,7 +212,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 1,
 		.expected_sr_errors = 2,
-		.entries = (const struct xe_rtp_entry[]) {
+		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
@@ -242,7 +242,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	unsigned long idx, count = 0;
 
 	xe_reg_sr_init(reg_sr, "xe_rtp_tests", xe);
-	xe_rtp_process(&ctx, param->entries, reg_sr);
+	xe_rtp_process_to_sr(&ctx, param->entries, reg_sr);
 
 	xa_for_each(&reg_sr->xa, idx, sre) {
 		if (idx == param->expected_reg.addr)

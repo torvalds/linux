@@ -261,7 +261,7 @@ struct xe_reg_sr;
 #define XE_RTP_NAME(s_)	.name = (s_)
 
 /**
- * XE_RTP_ENTRY_FLAG - Helper to add multiple flags to a struct xe_rtp_entry
+ * XE_RTP_ENTRY_FLAG - Helper to add multiple flags to a struct xe_rtp_entry_sr
  * @...: Entry flags, without the ``XE_RTP_ENTRY_FLAG_`` prefix
  *
  * Helper to automatically add a ``XE_RTP_ENTRY_FLAG_`` prefix to the flags
@@ -269,7 +269,7 @@ struct xe_reg_sr;
  *
  * .. code-block:: c
  *
- *	const struct xe_rtp_entry wa_entries[] = {
+ *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
  *		  ...
@@ -291,7 +291,7 @@ struct xe_reg_sr;
  *
  * .. code-block:: c
  *
- *	const struct xe_rtp_entry wa_entries[] = {
+ *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
  *		  ...
@@ -305,7 +305,7 @@ struct xe_reg_sr;
 	.flags = (XE_RTP_PASTE_FOREACH(ACTION_FLAG_, BITWISE_OR, (__VA_ARGS__)))
 
 /**
- * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry entry
+ * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry_sr entry
  * @...: Rules
  *
  * At least one rule is needed and up to 4 are supported. Multiple rules are
@@ -314,7 +314,7 @@ struct xe_reg_sr;
  *
  * .. code-block:: c
  *
- *	const struct xe_rtp_entry wa_entries[] = {
+ *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
  *		  XE_RTP_RULES(SUBPLATFORM(DG2, G10), STEP(A0, B0)),
@@ -330,7 +330,7 @@ struct xe_reg_sr;
 	}
 
 /**
- * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry
+ * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry_sr
  * @...: Actions to be taken
  *
  * At least one rule is needed and up to 4 are supported. Multiple rules are
@@ -339,7 +339,7 @@ struct xe_reg_sr;
  *
  * .. code-block:: c
  *
- *	const struct xe_rtp_entry wa_entries[] = {
+ *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
  *		  XE_RTP_RULES(...),
@@ -359,9 +359,9 @@ struct xe_reg_sr;
 	struct xe_hw_engine *:	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
 	struct xe_gt *:		(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT })
 
-void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
-		    const struct xe_rtp_entry *entries,
-		    struct xe_reg_sr *sr);
+void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
+			  const struct xe_rtp_entry_sr *entries,
+			  struct xe_reg_sr *sr);
 
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
 
