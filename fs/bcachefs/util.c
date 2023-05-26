@@ -350,7 +350,7 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 
 	if (time_after64(end, start)) {
 		duration = end - start;
-		stats->duration_stats = mean_and_variance_update(stats->duration_stats, duration);
+		mean_and_variance_update(&stats->duration_stats, duration);
 		mean_and_variance_weighted_update(&stats->duration_stats_weighted, duration);
 		stats->max_duration = max(stats->max_duration, duration);
 		stats->min_duration = min(stats->min_duration, duration);
@@ -359,7 +359,7 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 
 	if (time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
-		stats->freq_stats = mean_and_variance_update(stats->freq_stats, freq);
+		mean_and_variance_update(&stats->freq_stats, freq);
 		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);

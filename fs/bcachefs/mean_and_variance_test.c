@@ -9,15 +9,15 @@ static void mean_and_variance_basic_test(struct kunit *test)
 {
 	struct mean_and_variance s = {};
 
-	s = mean_and_variance_update(s, 2);
-	s = mean_and_variance_update(s, 2);
+	mean_and_variance_update(&s, 2);
+	mean_and_variance_update(&s, 2);
 
 	KUNIT_EXPECT_EQ(test, mean_and_variance_get_mean(s), 2);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_get_variance(s), 0);
 	KUNIT_EXPECT_EQ(test, s.n, 2);
 
-	s = mean_and_variance_update(s, 4);
-	s = mean_and_variance_update(s, 4);
+	mean_and_variance_update(&s, 4);
+	mean_and_variance_update(&s, 4);
 
 	KUNIT_EXPECT_EQ(test, mean_and_variance_get_mean(s), 3);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_get_variance(s), 1);
@@ -32,8 +32,6 @@ static void mean_and_variance_basic_test(struct kunit *test)
 static void mean_and_variance_weighted_test(struct kunit *test)
 {
 	struct mean_and_variance_weighted s = { .weight = 2 };
-
-	s.weight = 2;
 
 	mean_and_variance_weighted_update(&s, 10);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_mean(s), 10);
@@ -60,7 +58,6 @@ static void mean_and_variance_weighted_test(struct kunit *test)
 	mean_and_variance_weighted_update(&s, -30);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_mean(s), -16);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_variance(s), 72);
-
 }
 
 static void mean_and_variance_weighted_advanced_test(struct kunit *test)
@@ -81,7 +78,93 @@ static void mean_and_variance_weighted_advanced_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_mean(s), -11);
 	KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_variance(s), 107);
+}
 
+static void do_mean_and_variance_test(struct kunit *test,
+				      s64 initial_value,
+				      s64 initial_n,
+				      s64 n,
+				      unsigned weight,
+				      s64 *data,
+				      s64 *mean,
+				      s64 *stddev,
+				      s64 *weighted_mean,
+				      s64 *weighted_stddev)
+{
+	struct mean_and_variance mv = {};
+	struct mean_and_variance_weighted vw = { .weight = weight };
+
+	for (unsigned i = 0; i < initial_n; i++) {
+		mean_and_variance_update(&mv, initial_value);
+		mean_and_variance_weighted_update(&vw, initial_value);
+
+		KUNIT_EXPECT_EQ(test, mean_and_variance_get_mean(mv),		initial_value);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_get_stddev(mv),		0);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_mean(vw),	initial_value);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_stddev(vw),0);
+	}
+
+	for (unsigned i = 0; i < n; i++) {
+		mean_and_variance_update(&mv, data[i]);
+		mean_and_variance_weighted_update(&vw, data[i]);
+
+		KUNIT_EXPECT_EQ(test, mean_and_variance_get_mean(mv),		mean[i]);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_get_stddev(mv),		stddev[i]);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_mean(vw),	weighted_mean[i]);
+		KUNIT_EXPECT_EQ(test, mean_and_variance_weighted_get_stddev(vw),weighted_stddev[i]);
+	}
+
+	KUNIT_EXPECT_EQ(test, mv.n, initial_n + n);
+}
+
+/* Test behaviour with a single outlier, then back to steady state: */
+static void mean_and_variance_test_1(struct kunit *test)
+{
+	s64 d[]			= { 100, 10, 10, 10, 10, 10, 10 };
+	s64 mean[]		= {  22, 21, 20, 19, 18, 17, 16 };
+	s64 stddev[]		= {  32, 29, 28, 27, 26, 25, 24 };
+	s64 weighted_mean[]	= {  32, 27, 22, 19, 17, 15, 14 };
+	s64 weighted_stddev[]	= {  38, 35, 31, 27, 24, 21, 18 };
+
+	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
+			d, mean, stddev, weighted_mean, weighted_stddev);
+}
+
+static void mean_and_variance_test_2(struct kunit *test)
+{
+	s64 d[]			= { 100, 10, 10, 10, 10, 10, 10 };
+	s64 mean[]		= {  10, 10, 10, 10, 10, 10, 10 };
+	s64 stddev[]		= {   9,  9,  9,  9,  9,  9,  9 };
+	s64 weighted_mean[]	= {  32, 27, 22, 19, 17, 15, 14 };
+	s64 weighted_stddev[]	= {  38, 35, 31, 27, 24, 21, 18 };
+
+	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
+			d, mean, stddev, weighted_mean, weighted_stddev);
+}
+
+/* Test behaviour where we switch from one steady state to another: */
+static void mean_and_variance_test_3(struct kunit *test)
+{
+	s64 d[]			= { 100, 100, 100, 100, 100 };
+	s64 mean[]		= {  22,  32,  40,  46,  50 };
+	s64 stddev[]		= {  32,  39,  42,  44,  45 };
+	s64 weighted_mean[]	= {  32,  49,  61,  71,  78 };
+	s64 weighted_stddev[]	= {  38,  44,  44,  41,  38 };
+
+	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
+			d, mean, stddev, weighted_mean, weighted_stddev);
+}
+
+static void mean_and_variance_test_4(struct kunit *test)
+{
+	s64 d[]			= { 100, 100, 100, 100, 100 };
+	s64 mean[]		= {  10,  11,  12,  13,  14 };
+	s64 stddev[]		= {   9,  13,  15,  17,  19 };
+	s64 weighted_mean[]	= {  32,  49,  61,  71,  78 };
+	s64 weighted_stddev[]	= {  38,  44,  44,  41,  38 };
+
+	do_mean_and_variance_test(test, 10, 6, ARRAY_SIZE(d), 2,
+			d, mean, stddev, weighted_mean, weighted_stddev);
 }
 
 static void mean_and_variance_fast_divpow2(struct kunit *test)
@@ -139,6 +222,10 @@ static struct kunit_case mean_and_variance_test_cases[] = {
 	KUNIT_CASE(mean_and_variance_basic_test),
 	KUNIT_CASE(mean_and_variance_weighted_test),
 	KUNIT_CASE(mean_and_variance_weighted_advanced_test),
+	KUNIT_CASE(mean_and_variance_test_1),
+	KUNIT_CASE(mean_and_variance_test_2),
+	KUNIT_CASE(mean_and_variance_test_3),
+	KUNIT_CASE(mean_and_variance_test_4),
 	{}
 };
 
