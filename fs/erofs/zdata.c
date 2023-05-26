@@ -91,10 +91,8 @@ struct z_erofs_pcluster {
 	struct z_erofs_bvec compressed_bvecs[];
 };
 
-/* let's avoid the valid 32-bit kernel addresses */
-
 /* the end of a chain of pclusters */
-#define Z_EROFS_PCLUSTER_TAIL           ((void *)0x5F0ECAFE)
+#define Z_EROFS_PCLUSTER_TAIL           ((void *) 0x700 + POISON_POINTER_DELTA)
 #define Z_EROFS_PCLUSTER_NIL            (NULL)
 
 struct z_erofs_decompressqueue {
