@@ -3116,6 +3116,9 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_res_get);
 
+static const struct devlink_port_ops mlxsw_devlink_port_ops = {
+};
+
 static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
 				  enum devlink_port_flavour flavour,
 				  u8 slot_index, u32 port_number, bool split,
@@ -3150,7 +3153,8 @@ static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
 		devlink_port_linecard_set(devlink_port,
 					  linecard->devlink_linecard);
 	}
-	err = devl_port_register(devlink, devlink_port, local_port);
+	err = devl_port_register_with_ops(devlink, devlink_port, local_port,
+					  &mlxsw_devlink_port_ops);
 	if (err)
 		memset(mlxsw_core_port, 0, sizeof(*mlxsw_core_port));
 	return err;
