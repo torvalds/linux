@@ -561,15 +561,19 @@ int snd_emu10k1_proc_init(struct snd_emu10k1 *emu)
 	snd_card_rw_proc_new(emu->card, "ptr_regs00b", emu,
 			     snd_emu_proc_ptr_reg_read00b,
 			     snd_emu_proc_ptr_reg_write00);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20a", emu,
-			     snd_emu_proc_ptr_reg_read20a,
-			     snd_emu_proc_ptr_reg_write20);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20b", emu,
-			     snd_emu_proc_ptr_reg_read20b,
-			     snd_emu_proc_ptr_reg_write20);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20c", emu,
-			     snd_emu_proc_ptr_reg_read20c,
-			     snd_emu_proc_ptr_reg_write20);
+	if (!emu->card_capabilities->emu_model &&
+	    (emu->card_capabilities->ca0151_chip || emu->card_capabilities->ca0108_chip)) {
+		snd_card_rw_proc_new(emu->card, "ptr_regs20a", emu,
+				     snd_emu_proc_ptr_reg_read20a,
+				     snd_emu_proc_ptr_reg_write20);
+		snd_card_rw_proc_new(emu->card, "ptr_regs20b", emu,
+				     snd_emu_proc_ptr_reg_read20b,
+				     snd_emu_proc_ptr_reg_write20);
+		if (emu->card_capabilities->ca0108_chip)
+			snd_card_rw_proc_new(emu->card, "ptr_regs20c", emu,
+					     snd_emu_proc_ptr_reg_read20c,
+					     snd_emu_proc_ptr_reg_write20);
+	}
 #endif
 	
 	snd_card_ro_proc_new(emu->card, "emu10k1", emu, snd_emu10k1_proc_read);
