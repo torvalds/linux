@@ -503,8 +503,10 @@ out:
 	return ret;
 }
 
-static int tb_switch_tmu_objection_mask(struct tb_switch *sw)
+/* Only needed for Titan Ridge */
+static int tb_switch_tmu_disable_objections(struct tb_switch *sw)
 {
+	struct tb_port *up = tb_upstream_port(sw);
 	u32 val;
 	int ret;
 
@@ -515,17 +517,15 @@ static int tb_switch_tmu_objection_mask(struct tb_switch *sw)
 
 	val &= ~TB_TIME_VSEC_3_CS_9_TMU_OBJ_MASK;
 
-	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
-			   sw->cap_vsec_tmu + TB_TIME_VSEC_3_CS_9, 1);
-}
-
-static int tb_switch_tmu_unidirectional_enable(struct tb_switch *sw)
-{
-	struct tb_port *up = tb_upstream_port(sw);
+	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			  sw->cap_vsec_tmu + TB_TIME_VSEC_3_CS_9, 1);
+	if (ret)
+		return ret;
 
 	return tb_port_tmu_write(up, TMU_ADP_CS_6,
 				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_MASK,
-				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_MASK);
+				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_CL1 |
+				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_CL2);
 }
 
 /*
@@ -670,11 +670,7 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 		if (!tb_switch_is_clx_enabled(sw, TB_CL1))
 			return -EOPNOTSUPP;
 
-		ret = tb_switch_tmu_objection_mask(sw);
-		if (ret)
-			return ret;
-
-		ret = tb_switch_tmu_unidirectional_enable(sw);
+		ret = tb_switch_tmu_disable_objections(sw);
 		if (ret)
 			return ret;
 	}
