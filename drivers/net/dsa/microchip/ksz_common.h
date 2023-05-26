@@ -508,7 +508,14 @@ static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
 
 static inline int ksz_rmw8(struct ksz_device *dev, int offset, u8 mask, u8 val)
 {
-	return regmap_update_bits(dev->regmap[0], offset, mask, val);
+	int ret;
+
+	ret = regmap_update_bits(dev->regmap[0], offset, mask, val);
+	if (ret)
+		dev_err(dev->dev, "can't rmw 8bit reg 0x%x: %pe\n", offset,
+			ERR_PTR(ret));
+
+	return ret;
 }
 
 static inline int ksz_pread8(struct ksz_device *dev, int port, int offset,
@@ -549,12 +556,21 @@ static inline int ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 			   data);
 }
 
-static inline void ksz_prmw8(struct ksz_device *dev, int port, int offset,
-			     u8 mask, u8 val)
+static inline int ksz_prmw8(struct ksz_device *dev, int port, int offset,
+			    u8 mask, u8 val)
 {
-	regmap_update_bits(dev->regmap[0],
-			   dev->dev_ops->get_port_addr(port, offset),
-			   mask, val);
+	int ret;
+
+	ret = regmap_update_bits(dev->regmap[0],
+				 dev->dev_ops->get_port_addr(port, offset),
+				 mask, val);
+	if (ret)
+		dev_err(dev->dev, "can't rmw 8bit reg 0x%x: %pe\n",
+			dev->dev_ops->get_port_addr(port, offset),
+			ERR_PTR(ret));
+
+	return ret;
+
 }
 
 static inline void ksz_regmap_lock(void *__mtx)
