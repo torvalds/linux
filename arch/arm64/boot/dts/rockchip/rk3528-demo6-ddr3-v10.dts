@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3528-demo6-ddr3-v10.dtsi"
+#include "rk3528-android.dtsi"
+
+&pdm {
+	status = "okay";
+	pinctrl-0 = <&pdm_clk1
+		     &pdm_sdi1>;
+};
+
+&pdmics {
+	status = "okay";
+};
+
+&pdm_mic_array {
+	status = "okay";
+};

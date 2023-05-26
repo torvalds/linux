@@ -72,6 +72,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399pro-rock-pi-n10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-demo1-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-demo4-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-demo4-ddr4-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-demo6-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-evb1-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-evb1-ddr4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3528-evb1-ddr4-v10-spi-nand-linux.dtb
