@@ -128,8 +128,52 @@
 		m25p,fast-read;
 		label = "spi1:0";
 		spi-max-frequency = <12500000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			spi1_pch_pfm@0 {
+				reg = <0x0 0x10000>;
+				label = "spi1_pch_pfm";
+			};
+
+			spi1_pch_stg@10000 {
+				reg = <0x10000 0xf00000>;
+				label = "spi1_pch_stg";
+			};
+
+			spi1_pch_reserved1@f10000 {
+				reg = <0xf10000 0x650000>;
+				label = "spi1_pch_reserved1";
+			};
+
+			// pch_gpnv 0x1560000 0x14000
+			// pch_reserved2 0x1574000 0xc000
+			spi1_pch_gpnv_reserved2@1560000 {
+				reg = <0x1560000 0x20000>;
+				label = "spi1_pch_gpnv_reserved2";
+			};
+
+			// pch_fv_whea 0x1580000 0x4000
+			// pch_fv_main 0x1584000 0x77c000
+			spi1_pch_fv_whea_main@1580000 {
+				reg = <0x1580000 0x780000>;
+				label = "spi1_pch_fv_whea_main";
+			};
+
+			spi1_pch_fv_bb@1d00000 {
+				reg = <0x1d00000 0x300000>;
+				label = "spi1_pch_fv_bb";
+			};
+
+			spi1_pch_rc@2000000 {
+				reg = <0x2000000 0x2000000>;
+				label = "spi1_pch_rc";
+			};
+		};
 	};
 
 	flash@1 {
@@ -137,8 +181,8 @@
 		m25p,fast-read;
 		label = "spi1:1";
 		spi-max-frequency = <12500000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
 	};
 };
 
@@ -375,6 +419,7 @@
 
 &i3c1 {
 	status = "okay";
+	secondary;
 
 	/delete-property/ jdec-spd;
 	/delete-node/ i3cmux@0f,4cc31020000;
@@ -387,5 +432,13 @@
 };
 
 &i3c3 {
+	status = "disabled";
+};
+
+&i3c4 {
+	status = "disabled";
+};
+
+&i3c5 {
 	status = "disabled";
 };
