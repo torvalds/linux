@@ -15,33 +15,33 @@
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
+};
 
-	serial@3e000000 {
-		status = "okay";
-	};
+&sdio1 {
+	max-frequency = <48000000>;
+	status = "okay";
+};
 
-	sdio1: mmc@3f180000 {
-		max-frequency = <48000000>;
-		status = "okay";
-	};
+&sdio2 {
+	non-removable;
+	max-frequency = <48000000>;
+	status = "okay";
+};
 
-	sdio2: mmc@3f190000 {
-		non-removable;
-		max-frequency = <48000000>;
-		status = "okay";
-	};
+&sdio4 {
+	max-frequency = <48000000>;
+	cd-gpios = <&gpio 91 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
 
-	sdio4: mmc@3f1b0000 {
-		max-frequency = <48000000>;
-		cd-gpios = <&gpio 91 GPIO_ACTIVE_LOW>;
-		status = "okay";
-	};
+&uartb {
+	status = "okay";
+};
 
-	usbotg: usb@3f120000 {
-		status = "okay";
-	};
+&usbotg {
+	status = "okay";
+};
 
-	usbphy: usb-phy@3f130000 {
-		status = "okay";
-	};
+&usbphy {
+	status = "okay";
 };
