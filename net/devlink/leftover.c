@@ -6793,12 +6793,15 @@ void devlink_port_fini(struct devlink_port *devlink_port)
 }
 EXPORT_SYMBOL_GPL(devlink_port_fini);
 
+static const struct devlink_port_ops devlink_port_dummy_ops = {};
+
 /**
- * devl_port_register() - Register devlink port
+ * devl_port_register_with_ops() - Register devlink port
  *
  * @devlink: devlink
  * @devlink_port: devlink port
  * @port_index: driver-specific numerical identifier of the port
+ * @ops: port ops
  *
  * Register devlink port with provided port index. User can use
  * any indexing, even hw-related one. devlink_port structure
@@ -6806,9 +6809,10 @@ EXPORT_SYMBOL_GPL(devlink_port_fini);
  * Note that the caller should take care of zeroing the devlink_port
  * structure.
  */
-int devl_port_register(struct devlink *devlink,
-		       struct devlink_port *devlink_port,
-		       unsigned int port_index)
+int devl_port_register_with_ops(struct devlink *devlink,
+				struct devlink_port *devlink_port,
+				unsigned int port_index,
+				const struct devlink_port_ops *ops)
 {
 	int err;
 
@@ -6819,6 +6823,7 @@ int devl_port_register(struct devlink *devlink,
 	devlink_port_init(devlink, devlink_port);
 	devlink_port->registered = true;
 	devlink_port->index = port_index;
+	devlink_port->ops = ops ? ops : &devlink_port_dummy_ops;
 	spin_lock_init(&devlink_port->type_lock);
 	INIT_LIST_HEAD(&devlink_port->reporter_list);
 	err = xa_insert(&devlink->ports, port_index, devlink_port, GFP_KERNEL);
@@ -6830,14 +6835,15 @@ int devl_port_register(struct devlink *devlink,
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devl_port_register);
+EXPORT_SYMBOL_GPL(devl_port_register_with_ops);
 
 /**
- *	devlink_port_register - Register devlink port
+ *	devlink_port_register_with_ops - Register devlink port
  *
  *	@devlink: devlink
  *	@devlink_port: devlink port
  *	@port_index: driver-specific numerical identifier of the port
+ *	@ops: port ops
  *
  *	Register devlink port with provided port index. User can use
  *	any indexing, even hw-related one. devlink_port structure
@@ -6847,18 +6853,20 @@ EXPORT_SYMBOL_GPL(devl_port_register);
  *
  *	Context: Takes and release devlink->lock <mutex>.
  */
-int devlink_port_register(struct devlink *devlink,
-			  struct devlink_port *devlink_port,
-			  unsigned int port_index)
+int devlink_port_register_with_ops(struct devlink *devlink,
+				   struct devlink_port *devlink_port,
+				   unsigned int port_index,
+				   const struct devlink_port_ops *ops)
 {
 	int err;
 
 	devl_lock(devlink);
-	err = devl_port_register(devlink, devlink_port, port_index);
+	err = devl_port_register_with_ops(devlink, devlink_port,
+					  port_index, ops);
 	devl_unlock(devlink);
 	return err;
 }
-EXPORT_SYMBOL_GPL(devlink_port_register);
+EXPORT_SYMBOL_GPL(devlink_port_register_with_ops);
 
 /**
  * devl_port_unregister() - Unregister devlink port

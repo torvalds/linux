@@ -123,6 +123,7 @@ struct devlink_port {
 	struct list_head list;
 	struct list_head region_list;
 	struct devlink *devlink;
+	const struct devlink_port_ops *ops;
 	unsigned int index;
 	spinlock_t type_lock; /* Protects type and type_eth/ib
 			       * structures consistency.
@@ -1649,15 +1650,43 @@ void devl_unregister(struct devlink *devlink);
 void devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
+
+/**
+ * struct devlink_port_ops - Port operations
+ */
+struct devlink_port_ops {
+};
+
 void devlink_port_init(struct devlink *devlink,
 		       struct devlink_port *devlink_port);
 void devlink_port_fini(struct devlink_port *devlink_port);
-int devl_port_register(struct devlink *devlink,
-		       struct devlink_port *devlink_port,
-		       unsigned int port_index);
-int devlink_port_register(struct devlink *devlink,
-			  struct devlink_port *devlink_port,
-			  unsigned int port_index);
+
+int devl_port_register_with_ops(struct devlink *devlink,
+				struct devlink_port *devlink_port,
+				unsigned int port_index,
+				const struct devlink_port_ops *ops);
+
+static inline int devl_port_register(struct devlink *devlink,
+				     struct devlink_port *devlink_port,
+				     unsigned int port_index)
+{
+	return devl_port_register_with_ops(devlink, devlink_port,
+					   port_index, NULL);
+}
+
+int devlink_port_register_with_ops(struct devlink *devlink,
+				   struct devlink_port *devlink_port,
+				   unsigned int port_index,
+				   const struct devlink_port_ops *ops);
+
+static inline int devlink_port_register(struct devlink *devlink,
+					struct devlink_port *devlink_port,
+					unsigned int port_index)
+{
+	return devlink_port_register_with_ops(devlink, devlink_port,
+					      port_index, NULL);
+}
+
 void devl_port_unregister(struct devlink_port *devlink_port);
 void devlink_port_unregister(struct devlink_port *devlink_port);
 void devlink_port_type_eth_set(struct devlink_port *devlink_port);
