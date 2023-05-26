@@ -308,7 +308,7 @@ int tb_switch_tmu_post_time(struct tb_switch *sw)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(gm_local_time); i++)
-		tb_sw_dbg(root_switch, "local_time[%d]=0x%08x\n", i,
+		tb_sw_dbg(root_switch, "TMU: local_time[%d]=0x%08x\n", i,
 			  gm_local_time[i]);
 
 	/* Convert to nanoseconds (drop fractional part) */
