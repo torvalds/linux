@@ -66,6 +66,8 @@ static void mlx5_esw_dl_port_free(struct devlink_port *dl_port)
 }
 
 static const struct devlink_port_ops mlx5_esw_dl_port_ops = {
+	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
+	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
 };
 
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num)
@@ -139,6 +141,8 @@ struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u1
 }
 
 static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
+	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
+	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
 };
 
 int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
