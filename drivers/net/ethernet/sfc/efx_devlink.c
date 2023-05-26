@@ -25,6 +25,10 @@ struct efx_devlink {
 };
 
 #ifdef CONFIG_SFC_SRIOV
+
+static const struct devlink_port_ops sfc_devlink_port_ops = {
+};
+
 static void efx_devlink_del_port(struct devlink_port *dl_port)
 {
 	if (!dl_port)
@@ -57,7 +61,9 @@ static int efx_devlink_add_port(struct efx_nic *efx,
 
 	mport->dl_port.index = mport->mport_id;
 
-	return devl_port_register(efx->devlink, &mport->dl_port, mport->mport_id);
+	return devl_port_register_with_ops(efx->devlink, &mport->dl_port,
+					   mport->mport_id,
+					   &sfc_devlink_port_ops);
 }
 
 static int efx_devlink_port_addr_get(struct devlink_port *port, u8 *hw_addr,
