@@ -90,7 +90,7 @@ struct daemon {
 	char			*base;
 	struct list_head	 sessions;
 	FILE			*out;
-	char			 perf[PATH_MAX];
+	char			*perf;
 	int			 signal_fd;
 	time_t			 start;
 };
@@ -1490,6 +1490,14 @@ static int __cmd_ping(struct daemon *daemon, struct option parent_options[],
 	return send_cmd(daemon, &cmd);
 }
 
+static char *alloc_perf_exe_path(void)
+{
+	char path[PATH_MAX];
+
+	perf_exe(path, sizeof(path));
+	return strdup(path);
+}
+
 int cmd_daemon(int argc, const char **argv)
 {
 	struct option daemon_options[] = {
@@ -1502,8 +1510,12 @@ int cmd_daemon(int argc, const char **argv)
 			"field separator", "print counts with custom separator", ","),
 		OPT_END()
 	};
+	int ret = -1;
 
-	perf_exe(__daemon.perf, sizeof(__daemon.perf));
+	__daemon.perf = alloc_perf_exe_path();
+	if (!__daemon.perf)
+		return -ENOMEM;
+
 	__daemon.out = stdout;
 
 	argc = parse_options(argc, argv, daemon_options, daemon_usage,
@@ -1511,22 +1523,22 @@ int cmd_daemon(int argc, const char **argv)
 
 	if (argc) {
 		if (!strcmp(argv[0], "start"))
-			return __cmd_start(&__daemon, daemon_options, argc, argv);
+			ret = __cmd_start(&__daemon, daemon_options, argc, argv);
 		if (!strcmp(argv[0], "signal"))
-			return __cmd_signal(&__daemon, daemon_options, argc, argv);
+			ret = __cmd_signal(&__daemon, daemon_options, argc, argv);
 		else if (!strcmp(argv[0], "stop"))
-			return __cmd_stop(&__daemon, daemon_options, argc, argv);
+			ret = __cmd_stop(&__daemon, daemon_options, argc, argv);
 		else if (!strcmp(argv[0], "ping"))
-			return __cmd_ping(&__daemon, daemon_options, argc, argv);
-
-		pr_err("failed: unknown command '%s'\n", argv[0]);
-		return -1;
+			ret = __cmd_ping(&__daemon, daemon_options, argc, argv);
+		else
+			pr_err("failed: unknown command '%s'\n", argv[0]);
+	} else {
+		ret = setup_config(&__daemon);
+		if (ret)
+			pr_err("failed: config not found\n");
+		else
+			ret = send_cmd_list(&__daemon);
 	}
-
-	if (setup_config(&__daemon)) {
-		pr_err("failed: config not found\n");
-		return -1;
-	}
-
-	return send_cmd_list(&__daemon);
+	zfree(&__daemon.perf);
+	return ret;
 }
