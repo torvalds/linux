@@ -806,7 +806,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	rx_buf = to_cif_rx_buf(dbufs);
-
+	v4l2_dbg(rkcif_debug, 3, &cif_dev->v4l2_dev, "buf back to vicap 0x%x\n",
+		 (u32)rx_buf->dummy.dma_addr);
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	stream->last_rx_buf_idx = dbufs->sequence + 1;
 	atomic_inc(&stream->buf_cnt);

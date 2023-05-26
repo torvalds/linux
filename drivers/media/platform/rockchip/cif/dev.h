@@ -556,6 +556,7 @@ struct rkcif_stream {
 	bool				is_in_vblank;
 	bool				is_change_toisp;
 	bool				is_stop_capture;
+	bool				is_wait_dma_stop;
 };
 
 struct rkcif_lvds_subdev {
