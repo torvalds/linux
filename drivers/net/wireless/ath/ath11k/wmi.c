@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -19,6 +19,7 @@
 #include "mac.h"
 #include "hw.h"
 #include "peer.h"
+#include "testmode.h"
 
 struct wmi_tlv_policy {
 	size_t min_len;
@@ -237,9 +238,8 @@ static int ath11k_wmi_tlv_parse(struct ath11k_base *ar, const void **tb,
 				   (void *)tb);
 }
 
-static const void **
-ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab, const void *ptr,
-			   size_t len, gfp_t gfp)
+const void **ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab, const void *ptr,
+					size_t len, gfp_t gfp)
 {
 	const void **tb;
 	int ret;
@@ -8605,6 +8605,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID:
 		ath11k_wmi_pdev_csa_switch_count_status_event(ab, skb);
+		break;
+	case WMI_PDEV_UTF_EVENTID:
+		ath11k_tm_wmi_event(ab, id, skb);
 		break;
 	case WMI_PDEV_TEMPERATURE_EVENTID:
 		ath11k_wmi_pdev_temperature_event(ab, skb);

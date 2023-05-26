@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CORE_H
@@ -52,6 +52,7 @@
 #define ATH11K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 extern unsigned int ath11k_frame_mode;
+extern bool ath11k_ftm_mode;
 
 #define ATH11K_SCAN_TIMEOUT_HZ (20 * HZ)
 
@@ -277,6 +278,7 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_FIXED_MEM_RGN,
 	ATH11K_FLAG_DEVICE_INIT_DONE,
 	ATH11K_FLAG_MULTI_MSI_VECTORS,
+	ATH11K_FLAG_FTM_SEGMENTED,
 };
 
 enum ath11k_monitor_flags {
@@ -530,6 +532,7 @@ enum ath11k_state {
 	ATH11K_STATE_RESTARTING,
 	ATH11K_STATE_RESTARTED,
 	ATH11K_STATE_WEDGED,
+	ATH11K_STATE_FTM,
 	/* Add other states as required */
 };
 
@@ -709,6 +712,8 @@ struct ath11k {
 	u32 last_ppdu_id;
 	u32 cached_ppdu_id;
 	int monitor_vdev_id;
+	struct completion fw_mode_reset;
+	u8 ftm_msgref;
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct ath11k_debug debug;
 #endif
@@ -838,6 +843,7 @@ struct ath11k_msi_config {
 /* Master structure to hold the hw data which may be used in core module */
 struct ath11k_base {
 	enum ath11k_hw_rev hw_rev;
+	enum ath11k_firmware_mode fw_mode;
 	struct platform_device *pdev;
 	struct device *dev;
 	struct ath11k_qmi qmi;
@@ -977,6 +983,14 @@ struct ath11k_base {
 
 		const struct ath11k_pci_ops *ops;
 	} pci;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 data_pos;
+		u32 expected_seq;
+		u8 *eventdata;
+	} testmode;
+#endif
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
