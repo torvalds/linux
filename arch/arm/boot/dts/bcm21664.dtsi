@@ -49,7 +49,7 @@
 		reg = <0x3404e000 0x400>; /* 1 KiB in SRAM */
 	};
 
-	serial@3e000000 {
+	uartb: serial@3e000000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
 		reg = <0x3e000000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB>;
@@ -59,7 +59,7 @@
 		status = "disabled";
 	};
 
-	serial@3e001000 {
+	uartb2: serial@3e001000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
 		reg = <0x3e001000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB2>;
@@ -69,7 +69,7 @@
 		status = "disabled";
 	};
 
-	serial@3e002000 {
+	uartb3: serial@3e002000 {
 		compatible = "brcm,bcm21664-dw-apb-uart", "snps,dw-apb-uart";
 		reg = <0x3e002000 0x118>;
 		clocks = <&slave_ccu BCM21664_SLAVE_CCU_UARTB3>;
@@ -144,7 +144,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e016000 {
+	bsc1: i2c@3e016000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e016000 0x70>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
@@ -154,7 +154,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e017000 {
+	bsc2: i2c@3e017000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e017000 0x70>;
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
@@ -164,7 +164,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e018000 {
+	bsc3: i2c@3e018000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e018000 0x70>;
 		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
@@ -174,7 +174,7 @@
 		status = "disabled";
 	};
 
-	i2c@3e01c000 {
+	bsc4: i2c@3e01c000 {
 		compatible = "brcm,bcm21664-i2c", "brcm,kona-i2c";
 		reg = <0x3e01c000 0x70>;
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
