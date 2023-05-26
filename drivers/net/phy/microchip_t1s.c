@@ -12,8 +12,6 @@
 
 #define PHY_ID_LAN867X_REVB1 0x0007C162
 
-#define LAN867X_REG_IRQ_1_CTL 0x001C
-#define LAN867X_REG_IRQ_2_CTL 0x001D
 #define LAN867X_REG_STS2 0x0019
 
 #define LAN867x_RESET_COMPLETE_STS BIT(11)
@@ -89,17 +87,7 @@ static int lan867x_revb1_config_init(struct phy_device *phydev)
 			return err;
 	}
 
-	/* None of the interrupts in the lan867x phy seem relevant.
-	 * Other phys inspect the link status and call phy_trigger_machine
-	 * in the interrupt handler.
-	 * This phy does not support link status, and thus has no interrupt
-	 * for it either.
-	 * So we'll just disable all interrupts on the chip.
-	 */
-	err = phy_write_mmd(phydev, MDIO_MMD_VEND2, LAN867X_REG_IRQ_1_CTL, 0xFFFF);
-	if (err != 0)
-		return err;
-	return phy_write_mmd(phydev, MDIO_MMD_VEND2, LAN867X_REG_IRQ_2_CTL, 0xFFFF);
+	return 0;
 }
 
 static int lan867x_read_status(struct phy_device *phydev)
