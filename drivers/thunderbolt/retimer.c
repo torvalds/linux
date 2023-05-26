@@ -206,6 +206,15 @@ static void tb_retimer_set_inbound_sbtx(struct tb_port *port)
 {
 	int i;
 
+	/*
+	 * When USB4 port is online sideband communications are
+	 * already up.
+	 */
+	if (!usb4_port_device_is_offline(port->usb4))
+		return;
+
+	tb_port_dbg(port, "enabling sideband transactions\n");
+
 	for (i = 1; i <= TB_MAX_RETIMER_INDEX; i++)
 		usb4_port_retimer_set_inbound_sbtx(port, i);
 }
@@ -213,6 +222,16 @@ static void tb_retimer_set_inbound_sbtx(struct tb_port *port)
 static void tb_retimer_unset_inbound_sbtx(struct tb_port *port)
 {
 	int i;
+
+	/*
+	 * When USB4 port is offline we need to keep the sideband
+	 * communications up to make it possible to communicate with
+	 * the connected retimers.
+	 */
+	if (usb4_port_device_is_offline(port->usb4))
+		return;
+
+	tb_port_dbg(port, "disabling sideband transactions\n");
 
 	for (i = TB_MAX_RETIMER_INDEX; i >= 1; i--)
 		usb4_port_retimer_unset_inbound_sbtx(port, i);

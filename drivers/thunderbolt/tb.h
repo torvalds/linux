@@ -1301,6 +1301,11 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port);
 void usb4_port_device_remove(struct usb4_port *usb4);
 int usb4_port_device_resume(struct usb4_port *usb4);
 
+static inline bool usb4_port_device_is_offline(const struct usb4_port *usb4)
+{
+	return usb4->offline;
+}
+
 void tb_check_quirks(struct tb_switch *sw);
 
 #ifdef CONFIG_ACPI
