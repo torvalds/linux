@@ -480,10 +480,6 @@
 	};
 };
 
-&pmi8998_rradc {
-	status = "okay";
-};
-
 &q6afedai {
 	qi2s@22 {
 		reg = <22>;

@@ -346,10 +346,6 @@
 	status = "okay";
 };
 
-&pmi8998_rradc {
-	status = "okay";
-};
-
 /* QUAT I2S Uses 1 I2S SD Line for audio on TAS2559/60 amplifiers */
 &q6afedai {
 	dai@22 {

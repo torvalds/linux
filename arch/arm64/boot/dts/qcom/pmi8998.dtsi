@@ -23,8 +23,6 @@
 			compatible = "qcom,pmi8998-rradc";
 			reg = <0x4500>;
 			#io-channel-cells = <1>;
-
-			status = "disabled";
 		};
 	};
 
