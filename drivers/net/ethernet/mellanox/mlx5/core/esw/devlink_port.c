@@ -112,9 +112,9 @@ static void mlx5_esw_offloads_sf_devlink_port_attrs_set(struct mlx5_eswitch *esw
 	devlink_port_attrs_pci_sf_set(dl_port, controller, pfnum, sfnum, !!controller);
 }
 
-static int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num,
-						  struct devlink_port *dl_port,
-						  u32 controller, u32 sfnum)
+int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num,
+					   struct devlink_port *dl_port,
+					   u32 controller, u32 sfnum)
 {
 	struct mlx5_vport *vport;
 
@@ -128,7 +128,7 @@ static int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, u16 
 	return 0;
 }
 
-static void mlx5_esw_offloads_sf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_offloads_sf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport;
 

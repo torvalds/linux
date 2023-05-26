@@ -1119,6 +1119,33 @@ static void mlx5_eswitch_unload_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_
 	mlx5_esw_offloads_cleanup_pf_vf_rep(esw, vport_num);
 }
 
+int mlx5_eswitch_load_sf_vport(struct mlx5_eswitch *esw, u16 vport_num,
+			       enum mlx5_eswitch_vport_event enabled_events,
+			       struct devlink_port *dl_port, u32 controller, u32 sfnum)
+{
+	int err;
+
+	err = mlx5_esw_offloads_init_sf_rep(esw, vport_num, dl_port, controller, sfnum);
+	if (err)
+		return err;
+
+	err = mlx5_eswitch_load_vport(esw, vport_num, enabled_events);
+	if (err)
+		goto err_load;
+
+	return 0;
+
+err_load:
+	mlx5_esw_offloads_cleanup_sf_rep(esw, vport_num);
+	return err;
+}
+
+void mlx5_eswitch_unload_sf_vport(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	mlx5_eswitch_unload_vport(esw, vport_num);
+	mlx5_esw_offloads_cleanup_sf_rep(esw, vport_num);
+}
+
 void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs)
 {
 	struct mlx5_vport *vport;

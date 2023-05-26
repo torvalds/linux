@@ -2551,6 +2551,18 @@ void mlx5_esw_offloads_cleanup_pf_vf_rep(struct mlx5_eswitch *esw, u16 vport_num
 	mlx5_esw_offloads_pf_vf_devlink_port_cleanup(esw, vport_num);
 }
 
+int mlx5_esw_offloads_init_sf_rep(struct mlx5_eswitch *esw, u16 vport_num,
+				  struct devlink_port *dl_port,
+				  u32 controller, u32 sfnum)
+{
+	return mlx5_esw_offloads_sf_devlink_port_init(esw, vport_num, dl_port, controller, sfnum);
+}
+
+void mlx5_esw_offloads_cleanup_sf_rep(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	mlx5_esw_offloads_sf_devlink_port_cleanup(esw, vport_num);
+}
+
 int mlx5_esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	int err;
