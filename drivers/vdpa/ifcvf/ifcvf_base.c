@@ -178,15 +178,6 @@ void ifcvf_reset(struct ifcvf_hw *hw)
 	ifcvf_get_status(hw);
 }
 
-static void ifcvf_add_status(struct ifcvf_hw *hw, u8 status)
-{
-	if (status != 0)
-		status |= ifcvf_get_status(hw);
-
-	ifcvf_set_status(hw, status);
-	ifcvf_get_status(hw);
-}
-
 u64 ifcvf_get_hw_features(struct ifcvf_hw *hw)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
@@ -385,16 +376,6 @@ static void ifcvf_hw_disable(struct ifcvf_hw *hw)
 	for (i = 0; i < hw->nr_vring; i++) {
 		ifcvf_set_vq_vector(hw, i, VIRTIO_MSI_NO_VECTOR);
 	}
-}
-
-int ifcvf_start_hw(struct ifcvf_hw *hw)
-{
-	ifcvf_add_status(hw, VIRTIO_CONFIG_S_ACKNOWLEDGE);
-	ifcvf_add_status(hw, VIRTIO_CONFIG_S_DRIVER);
-
-	ifcvf_add_status(hw, VIRTIO_CONFIG_S_DRIVER_OK);
-
-	return 0;
 }
 
 void ifcvf_stop_hw(struct ifcvf_hw *hw)
