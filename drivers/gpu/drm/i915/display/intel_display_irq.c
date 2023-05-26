@@ -873,7 +873,7 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 	enum pipe pipe = INVALID_PIPE;
 	enum transcoder dsi_trans;
 	enum port port;
-	u32 val, tmp;
+	u32 val;
 
 	/*
 	 * Incase of dual link, TE comes from DSI_1
@@ -920,7 +920,7 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 
 	/* clear TE in dsi IIR */
 	port = (te_trigger & DSI1_TE) ? PORT_B : PORT_A;
-	tmp = intel_uncore_rmw(&dev_priv->uncore, DSI_INTR_IDENT_REG(port), 0, 0);
+	intel_uncore_rmw(&dev_priv->uncore, DSI_INTR_IDENT_REG(port), 0, 0);
 }
 
 static u32 gen8_de_pipe_flip_done_mask(struct drm_i915_private *i915)
