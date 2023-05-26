@@ -42,7 +42,7 @@ ssize_t fb_io_read(struct fb_info *info, char __user *buf, size_t count, loff_t 
 	while (count) {
 		c  = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		dst = buffer;
-		fb_memcpy_fromfb(dst, src, c);
+		fb_memcpy_fromio(dst, src, c);
 		dst += c;
 		src += c;
 
@@ -117,7 +117,7 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 		}
 		c -= trailing;
 
-		fb_memcpy_tofb(dst, src, c);
+		fb_memcpy_toio(dst, src, c);
 		dst += c;
 		src += c;
 		*ppos += c;

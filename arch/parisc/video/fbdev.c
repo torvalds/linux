@@ -5,9 +5,8 @@
  * Copyright (C) 2001-2002 Thomas Bogendoerfer <tsbogend@alpha.franken.de>
  */
 
+#include <linux/fb.h>
 #include <linux/module.h>
-
-#include <asm/fb.h>
 
 #include <video/sticore.h>
 

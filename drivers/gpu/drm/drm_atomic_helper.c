@@ -3154,7 +3154,7 @@ fail:
 EXPORT_SYMBOL(drm_atomic_helper_update_plane);
 
 /**
- * drm_atomic_helper_disable_plane - Helper for primary plane disable using * atomic
+ * drm_atomic_helper_disable_plane - Helper for primary plane disable using atomic
  * @plane: plane to disable
  * @ctx: lock acquire context
  *
