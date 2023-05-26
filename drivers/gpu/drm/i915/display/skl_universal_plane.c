@@ -2529,6 +2529,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	offset = intel_de_read(dev_priv, PLANE_OFFSET(pipe, plane_id));
+	drm_WARN_ON(&dev_priv->drm, offset != 0);
 
 	val = intel_de_read(dev_priv, PLANE_SIZE(pipe, plane_id));
 	fb->height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
