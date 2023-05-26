@@ -1176,10 +1176,6 @@ static unsigned long __init zone_absent_pages_in_node(int nid,
 	unsigned long zone_start_pfn, zone_end_pfn;
 	unsigned long nr_absent;
 
-	/* When hotadd a new node from cpu_up(), the node should be empty */
-	if (!node_start_pfn && !node_end_pfn)
-		return 0;
-
 	zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
 	zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
 
@@ -1229,9 +1225,6 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
 {
 	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
 	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
-	/* When hotadd a new node from cpu_up(), the node should be empty */
-	if (!node_start_pfn && !node_end_pfn)
-		return 0;
 
 	/* Get the start and end of the zone */
 	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
@@ -1250,6 +1243,24 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
 
 	/* Return the spanned pages */
 	return *zone_end_pfn - *zone_start_pfn;
+}
+
+static void __init reset_memoryless_node_totalpages(struct pglist_data *pgdat)
+{
+	struct zone *z;
+
+	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++) {
+		z->zone_start_pfn = 0;
+		z->spanned_pages = 0;
+		z->present_pages = 0;
+#if defined(CONFIG_MEMORY_HOTPLUG)
+		z->present_early_pages = 0;
+#endif
+	}
+
+	pgdat->node_spanned_pages = 0;
+	pgdat->node_present_pages = 0;
+	pr_debug("On node %d totalpages: 0\n", pgdat->node_id);
 }
 
 static void __init calculate_node_totalpages(struct pglist_data *pgdat,
@@ -1704,11 +1715,13 @@ static void __init free_area_init_node(int nid)
 		pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
 			(u64)start_pfn << PAGE_SHIFT,
 			end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
+
+		calculate_node_totalpages(pgdat, start_pfn, end_pfn);
 	} else {
 		pr_info("Initmem setup node %d as memoryless\n", nid);
-	}
 
-	calculate_node_totalpages(pgdat, start_pfn, end_pfn);
+		reset_memoryless_node_totalpages(pgdat);
+	}
 
 	alloc_node_mem_map(pgdat);
 	pgdat_set_deferred_range(pgdat);
