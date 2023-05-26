@@ -1105,6 +1105,13 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 	struct device *dev = cxlds->dev;
 	int rc;
 
+	if (!cxlds->media_ready) {
+		cxlds->dpa_res = DEFINE_RES_MEM(0, 0);
+		cxlds->ram_res = DEFINE_RES_MEM(0, 0);
+		cxlds->pmem_res = DEFINE_RES_MEM(0, 0);
+		return 0;
+	}
+
 	cxlds->dpa_res =
 		(struct resource)DEFINE_RES_MEM(0, cxlds->total_bytes);
 
@@ -1118,12 +1125,10 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 				   cxlds->persistent_only_bytes, "pmem");
 	}
 
-	if (cxlds->media_ready) {
-		rc = cxl_mem_get_partition_info(cxlds);
-		if (rc) {
-			dev_err(dev, "Failed to query partition information\n");
-			return rc;
-		}
+	rc = cxl_mem_get_partition_info(cxlds);
+	if (rc) {
+		dev_err(dev, "Failed to query partition information\n");
+		return rc;
 	}
 
 	rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->ram_res, 0,
