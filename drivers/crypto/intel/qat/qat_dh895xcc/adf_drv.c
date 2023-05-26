@@ -16,6 +16,7 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
+#include <adf_dbgfs.h>
 #include "adf_dh895xcc_hw_data.h"
 
 static const struct pci_device_id adf_pci_tbl[] = {
@@ -65,8 +66,8 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		kfree(accel_dev->hw_device);
 		accel_dev->hw_device = NULL;
 	}
+	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
-	debugfs_remove(accel_dev->debugfs_dir);
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
 
@@ -75,7 +76,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adf_accel_dev *accel_dev;
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
-	char name[ADF_DEVICE_NAME_LENGTH];
 	unsigned int i, bar_nr;
 	unsigned long bar_mask;
 	int ret;
@@ -140,12 +140,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
-	/* Create dev top level debugfs entry */
-	snprintf(name, sizeof(name), "%s%s_%s", ADF_DEVICE_NAME_PREFIX,
-		 hw_data->dev_class->name, pci_name(pdev));
-
-	accel_dev->debugfs_dir = debugfs_create_dir(name, NULL);
-
 	/* Create device configuration table */
 	ret = adf_cfg_dev_add(accel_dev);
 	if (ret)
@@ -198,6 +192,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = -ENOMEM;
 		goto out_err_free_reg;
 	}
+
+	adf_dbgfs_init(accel_dev);
 
 	ret = adf_dev_up(accel_dev, true);
 	if (ret)
