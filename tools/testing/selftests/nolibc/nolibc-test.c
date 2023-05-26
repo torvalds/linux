@@ -831,6 +831,7 @@ static int run_protection(int min, int max)
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 
+		prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
 		smash_stack();
 		return 1;
 
