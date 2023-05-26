@@ -1430,27 +1430,6 @@ struct devlink_ops {
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
 	/**
-	 * @port_fn_migratable_get: Port function's migratable get function.
-	 *
-	 * Query migratable state of a function managed by the devlink port.
-	 * Return -EOPNOTSUPP if port function migratable handling is not
-	 * supported.
-	 */
-	int (*port_fn_migratable_get)(struct devlink_port *devlink_port,
-				      bool *is_enable,
-				      struct netlink_ext_ack *extack);
-	/**
-	 * @port_fn_migratable_set: Port function's migratable set function.
-	 *
-	 * Enable/Disable migratable state of a function managed by the devlink
-	 * port.
-	 * Return -EOPNOTSUPP if port function migratable handling is not
-	 * supported.
-	 */
-	int (*port_fn_migratable_set)(struct devlink_port *devlink_port,
-				      bool enable,
-				      struct netlink_ext_ack *extack);
-	/**
 	 * port_new() - Add a new port function of a specified flavor
 	 * @devlink: Devlink instance
 	 * @attrs: attributes of the new port
@@ -1626,6 +1605,14 @@ void devlink_free(struct devlink *devlink);
  *		      Should be used by device drivers to enable/disable
  *		      RoCE capability of a function managed
  *		      by the devlink port.
+ * @port_fn_migratable_get: Callback used to get port function's migratable
+ *			    capability. Should be used by device drivers
+ *			    to report the current state of migratable capability
+ *			    of a function managed by the devlink port.
+ * @port_fn_migratable_set: Callback used to set port function's migratable
+ *			    capability. Should be used by device drivers
+ *			    to enable/disable migratable capability of
+ *			    a function managed by the devlink port.
  *
  * Note: Driver should return -EOPNOTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
@@ -1648,6 +1635,12 @@ struct devlink_port_ops {
 				struct netlink_ext_ack *extack);
 	int (*port_fn_roce_set)(struct devlink_port *devlink_port,
 				bool enable, struct netlink_ext_ack *extack);
+	int (*port_fn_migratable_get)(struct devlink_port *devlink_port,
+				      bool *is_enable,
+				      struct netlink_ext_ack *extack);
+	int (*port_fn_migratable_set)(struct devlink_port *devlink_port,
+				      bool enable,
+				      struct netlink_ext_ack *extack);
 };
 
 void devlink_port_init(struct devlink *devlink,

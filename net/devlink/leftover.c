@@ -469,19 +469,19 @@ static int devlink_port_fn_roce_fill(struct devlink_port *devlink_port,
 	return 0;
 }
 
-static int devlink_port_fn_migratable_fill(const struct devlink_ops *ops,
-					   struct devlink_port *devlink_port,
+static int devlink_port_fn_migratable_fill(struct devlink_port *devlink_port,
 					   struct nla_bitfield32 *caps,
 					   struct netlink_ext_ack *extack)
 {
 	bool is_enable;
 	int err;
 
-	if (!ops->port_fn_migratable_get ||
+	if (!devlink_port->ops->port_fn_migratable_get ||
 	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF)
 		return 0;
 
-	err = ops->port_fn_migratable_get(devlink_port, &is_enable, extack);
+	err = devlink_port->ops->port_fn_migratable_get(devlink_port,
+							&is_enable, extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -492,8 +492,7 @@ static int devlink_port_fn_migratable_fill(const struct devlink_ops *ops,
 	return 0;
 }
 
-static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
-				     struct devlink_port *devlink_port,
+static int devlink_port_fn_caps_fill(struct devlink_port *devlink_port,
 				     struct sk_buff *msg,
 				     struct netlink_ext_ack *extack,
 				     bool *msg_updated)
@@ -505,7 +504,7 @@ static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
 	if (err)
 		return err;
 
-	err = devlink_port_fn_migratable_fill(ops, devlink_port, &caps, extack);
+	err = devlink_port_fn_migratable_fill(devlink_port, &caps, extack);
 	if (err)
 		return err;
 
@@ -828,9 +827,8 @@ static int
 devlink_port_fn_mig_set(struct devlink_port *devlink_port, bool enable,
 			struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
-
-	return ops->port_fn_migratable_set(devlink_port, enable, extack);
+	return devlink_port->ops->port_fn_migratable_set(devlink_port, enable,
+							 extack);
 }
 
 static int
@@ -885,8 +883,7 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	err = devlink_port_fn_hw_addr_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
-	err = devlink_port_fn_caps_fill(ops, port, msg, extack,
-					&msg_updated);
+	err = devlink_port_fn_caps_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
 	err = devlink_port_fn_state_fill(ops, port, msg, extack, &msg_updated);
@@ -1219,7 +1216,7 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 			return -EOPNOTSUPP;
 		}
 		if (caps.selector & DEVLINK_PORT_FN_CAP_MIGRATABLE) {
-			if (!ops->port_fn_migratable_set) {
+			if (!devlink_port->ops->port_fn_migratable_set) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "Port doesn't support migratable function attribute");
 				return -EOPNOTSUPP;
