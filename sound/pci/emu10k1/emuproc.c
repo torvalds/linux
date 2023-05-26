@@ -66,118 +66,22 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 static void snd_emu10k1_proc_read(struct snd_info_entry *entry, 
 				  struct snd_info_buffer *buffer)
 {
-	/* FIXME - output names are in emufx.c too */
-	static const char * const creative_outs[32] = {
-		/* 00 */ "AC97 Left",
-		/* 01 */ "AC97 Right",
-		/* 02 */ "Optical IEC958 Left",
-		/* 03 */ "Optical IEC958 Right",
-		/* 04 */ "Center",
-		/* 05 */ "LFE",
-		/* 06 */ "Headphone Left",
-		/* 07 */ "Headphone Right",
-		/* 08 */ "Surround Left",
-		/* 09 */ "Surround Right",
-		/* 10 */ "PCM Capture Left",
-		/* 11 */ "PCM Capture Right",
-		/* 12 */ "MIC Capture",
-		/* 13 */ "AC97 Surround Left",
-		/* 14 */ "AC97 Surround Right",
-		/* 15 */ "???",
-		/* 16 */ "???",
-		/* 17 */ "Analog Center",
-		/* 18 */ "Analog LFE",
-		/* 19 */ "???",
-		/* 20 */ "???",
-		/* 21 */ "???",
-		/* 22 */ "???",
-		/* 23 */ "???",
-		/* 24 */ "???",
-		/* 25 */ "???",
-		/* 26 */ "???",
-		/* 27 */ "???",
-		/* 28 */ "???",
-		/* 29 */ "???",
-		/* 30 */ "???",
-		/* 31 */ "???"
-	};
-
-	static const char * const audigy_outs[64] = {
-		/* 00 */ "Digital Front Left",
-		/* 01 */ "Digital Front Right",
-		/* 02 */ "Digital Center",
-		/* 03 */ "Digital LEF",
-		/* 04 */ "Headphone Left",
-		/* 05 */ "Headphone Right",
-		/* 06 */ "Digital Rear Left",
-		/* 07 */ "Digital Rear Right",
-		/* 08 */ "Front Left",
-		/* 09 */ "Front Right",
-		/* 10 */ "Center",
-		/* 11 */ "LFE",
-		/* 12 */ "???",
-		/* 13 */ "???",
-		/* 14 */ "Rear Left",
-		/* 15 */ "Rear Right",
-		/* 16 */ "AC97 Front Left",
-		/* 17 */ "AC97 Front Right",
-		/* 18 */ "ADC Capture Left",
-		/* 19 */ "ADC Capture Right",
-		/* 20 */ "???",
-		/* 21 */ "???",
-		/* 22 */ "???",
-		/* 23 */ "???",
-		/* 24 */ "???",
-		/* 25 */ "???",
-		/* 26 */ "???",
-		/* 27 */ "???",
-		/* 28 */ "???",
-		/* 29 */ "???",
-		/* 30 */ "???",
-		/* 31 */ "???",
-		/* 32 */ "FXBUS2_0",
-		/* 33 */ "FXBUS2_1",
-		/* 34 */ "FXBUS2_2",
-		/* 35 */ "FXBUS2_3",
-		/* 36 */ "FXBUS2_4",
-		/* 37 */ "FXBUS2_5",
-		/* 38 */ "FXBUS2_6",
-		/* 39 */ "FXBUS2_7",
-		/* 40 */ "FXBUS2_8",
-		/* 41 */ "FXBUS2_9",
-		/* 42 */ "FXBUS2_10",
-		/* 43 */ "FXBUS2_11",
-		/* 44 */ "FXBUS2_12",
-		/* 45 */ "FXBUS2_13",
-		/* 46 */ "FXBUS2_14",
-		/* 47 */ "FXBUS2_15",
-		/* 48 */ "FXBUS2_16",
-		/* 49 */ "FXBUS2_17",
-		/* 50 */ "FXBUS2_18",
-		/* 51 */ "FXBUS2_19",
-		/* 52 */ "FXBUS2_20",
-		/* 53 */ "FXBUS2_21",
-		/* 54 */ "FXBUS2_22",
-		/* 55 */ "FXBUS2_23",
-		/* 56 */ "FXBUS2_24",
-		/* 57 */ "FXBUS2_25",
-		/* 58 */ "FXBUS2_26",
-		/* 59 */ "FXBUS2_27",
-		/* 60 */ "FXBUS2_28",
-		/* 61 */ "FXBUS2_29",
-		/* 62 */ "FXBUS2_30",
-		/* 63 */ "FXBUS2_31"
-	};
-
 	struct snd_emu10k1 *emu = entry->private_data;
+	const char * const *inputs = emu->audigy ?
+		snd_emu10k1_audigy_ins : snd_emu10k1_sblive_ins;
+	const char * const *outputs = emu->audigy ?
+		snd_emu10k1_audigy_outs : snd_emu10k1_sblive_outs;
+	unsigned short extin_mask = emu->audigy ? ~0 : emu->fx8010.extin_mask;
+	unsigned short extout_mask = emu->audigy ? ~0 : emu->fx8010.extout_mask;
 	unsigned int val, val1, ptrx, psst, dsl, snda;
-	int nefx = emu->audigy ? 64 : 32;
-	const char * const *outputs = emu->audigy ? audigy_outs : creative_outs;
+	int nefx = emu->audigy ? 32 : 16;
 	int idx;
 	
 	snd_iprintf(buffer, "EMU10K1\n\n");
 	snd_iprintf(buffer, "Card                  : %s\n",
-		    emu->audigy ? "Audigy" : (emu->card_capabilities->ecard ? "EMU APS" : "Creative"));
+		    emu->card_capabilities->emu_model ? "E-MU D.A.S." :
+		    emu->card_capabilities->ecard ? "E-MU A.P.S." :
+		    emu->audigy ? "SB Audigy" : "SB Live!");
 	snd_iprintf(buffer, "Internal TRAM (words) : 0x%x\n", emu->fx8010.itram_size);
 	snd_iprintf(buffer, "External TRAM (words) : 0x%x\n", (int)emu->fx8010.etram_pages.bytes / 2);
 
@@ -211,14 +115,51 @@ static void snd_emu10k1_proc_read(struct snd_info_entry *entry,
 				(val >> 28) & 0x0f, REG_VAL_GET(DSL_FXSENDAMOUNT_D, dsl));
 		}
 	}
-	snd_iprintf(buffer, "\nCaptured FX Outputs   :\n");
-	for (idx = 0; idx < nefx; idx++) {
-		if (emu->efx_voices_mask[idx/32] & (1 << (idx%32)))
-			snd_iprintf(buffer, "  Output %02i [%s]\n", idx, outputs[idx]);
+	snd_iprintf(buffer, "\nEffect Send Targets:\n");
+	// Audigy actually has 64, but we don't use them all.
+	for (idx = 0; idx < 32; idx++) {
+		const char *c = snd_emu10k1_fxbus[idx];
+		if (c)
+			snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, c);
 	}
-	snd_iprintf(buffer, "\nAll FX Outputs        :\n");
-	for (idx = 0; idx < (emu->audigy ? 64 : 32); idx++)
-		snd_iprintf(buffer, "  Output %02i [%s]\n", idx, outputs[idx]);
+	if (!emu->card_capabilities->emu_model) {
+		snd_iprintf(buffer, "\nOutput Channels:\n");
+		for (idx = 0; idx < 32; idx++)
+			if (outputs[idx] && (extout_mask & (1 << idx)))
+				snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, outputs[idx]);
+		snd_iprintf(buffer, "\nInput Channels:\n");
+		for (idx = 0; idx < 16; idx++)
+			if (inputs[idx] && (extin_mask & (1 << idx)))
+				snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, inputs[idx]);
+		snd_iprintf(buffer, "\nMultichannel Capture Sources:\n");
+		for (idx = 0; idx < nefx; idx++)
+			if (emu->efx_voices_mask[0] & (1 << idx))
+				snd_iprintf(buffer, "  Channel %02i [Output: %s]\n",
+					    idx, outputs[idx] ? outputs[idx] : "???");
+		if (emu->audigy) {
+			for (idx = 0; idx < 32; idx++)
+				if (emu->efx_voices_mask[1] & (1 << idx))
+					snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+						    idx + 32, inputs[idx] ? inputs[idx] : "???");
+		} else {
+			for (idx = 0; idx < 16; idx++) {
+				if (emu->efx_voices_mask[0] & ((1 << 16) << idx)) {
+					if (emu->card_capabilities->sblive51) {
+						s8 c = snd_emu10k1_sblive51_fxbus2_map[idx];
+						if (c == -1)
+							snd_iprintf(buffer, "  Channel %02i [Output: %s]\n",
+								    idx + 16, outputs[idx + 16]);
+						else
+							snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+								    idx + 16, inputs[c]);
+					} else {
+						snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+							    idx + 16, inputs[idx] ? inputs[idx] : "???");
+					}
+				}
+			}
+		}
+	}
 }
 
 static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry, 

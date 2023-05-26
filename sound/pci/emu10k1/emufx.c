@@ -46,26 +46,45 @@ MODULE_PARM_DESC(high_res_gpr_volume, "GPR mixer controls use 31-bit range.");
  *  Tables
  */ 
 
-static const char * const fxbuses[16] = {
+// Playback channel labels; corresponds with the public FXBUS_* defines.
+// Unlike the tables below, this is not determined by the hardware.
+const char * const snd_emu10k1_fxbus[32] = {
 	/* 0x00 */ "PCM Left",
 	/* 0x01 */ "PCM Right",
-	/* 0x02 */ "PCM Surround Left",
-	/* 0x03 */ "PCM Surround Right",
+	/* 0x02 */ "PCM Rear Left",
+	/* 0x03 */ "PCM Rear Right",
 	/* 0x04 */ "MIDI Left",
 	/* 0x05 */ "MIDI Right",
-	/* 0x06 */ "Center",
-	/* 0x07 */ "LFE",
-	/* 0x08 */ NULL,
-	/* 0x09 */ NULL,
+	/* 0x06 */ "PCM Center",
+	/* 0x07 */ "PCM LFE",
+	/* 0x08 */ "PCM Front Left",
+	/* 0x09 */ "PCM Front Right",
 	/* 0x0a */ NULL,
 	/* 0x0b */ NULL,
 	/* 0x0c */ "MIDI Reverb",
 	/* 0x0d */ "MIDI Chorus",
-	/* 0x0e */ NULL,
-	/* 0x0f */ NULL
+	/* 0x0e */ "PCM Side Left",
+	/* 0x0f */ "PCM Side Right",
+	/* 0x10 */ NULL,
+	/* 0x11 */ NULL,
+	/* 0x12 */ NULL,
+	/* 0x13 */ NULL,
+	/* 0x14 */ "Passthrough Left",
+	/* 0x15 */ "Passthrough Right",
+	/* 0x16 */ NULL,
+	/* 0x17 */ NULL,
+	/* 0x18 */ NULL,
+	/* 0x19 */ NULL,
+	/* 0x1a */ NULL,
+	/* 0x1b */ NULL,
+	/* 0x1c */ NULL,
+	/* 0x1d */ NULL,
+	/* 0x1e */ NULL,
+	/* 0x1f */ NULL
 };
 
-static const char * const creative_ins[16] = {
+// Physical inputs; corresponds with the public EXTIN_* defines.
+const char * const snd_emu10k1_sblive_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "TTL IEC958 Left",
@@ -84,7 +103,8 @@ static const char * const creative_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static const char * const audigy_ins[16] = {
+// Physical inputs; corresponds with the public A_EXTIN_* defines.
+const char * const snd_emu10k1_audigy_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Audigy CD Left",
@@ -103,7 +123,8 @@ static const char * const audigy_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static const char * const creative_outs[32] = {
+// Physical outputs; corresponds with the public EXTOUT_* defines.
+const char * const snd_emu10k1_sblive_outs[32] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Optical IEC958 Left",
@@ -120,6 +141,7 @@ static const char * const creative_outs[32] = {
 	/* 0x0d */ "AC97 Surround Left",
 	/* 0x0e */ "AC97 Surround Right",
 	/* 0x0f */ NULL,
+	// This is actually the FXBUS2 range; SB Live! 5.1 only.
 	/* 0x10 */ NULL,
 	/* 0x11 */ "Analog Center",
 	/* 0x12 */ "Analog LFE",
@@ -138,7 +160,8 @@ static const char * const creative_outs[32] = {
 	/* 0x1f */ NULL,
 };
 
-static const char * const audigy_outs[32] = {
+// Physical outputs; corresponds with the public A_EXTOUT_* defines.
+const char * const snd_emu10k1_audigy_outs[32] = {
 	/* 0x00 */ "Digital Front Left",
 	/* 0x01 */ "Digital Front Right",
 	/* 0x02 */ "Digital Center",
@@ -171,6 +194,18 @@ static const char * const audigy_outs[32] = {
 	/* 0x1d */ NULL,
 	/* 0x1e */ NULL,
 	/* 0x1f */ NULL,
+};
+
+// On the SB Live! 5.1, FXBUS2[1] and FXBUS2[2] are occupied by EXTOUT_ACENTER
+// and EXTOUT_ALFE, so we can't connect inputs to them for multitrack recording.
+//
+// Since only 14 of the 16 EXTINs are used, this is not a big problem.
+// We route AC97 to FX capture 14 and 15, SPDIF_CD to FX capture 0 and 3,
+// and the rest of the EXTINs to the corresponding FX capture channel.
+// Multitrack recorders will still see the center/LFE output signal
+// on the second and third "input" channel.
+const s8 snd_emu10k1_sblive51_fxbus2_map[16] = {
+	2, -1, -1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1
 };
 
 static const u32 bass_table[41][5] = {
@@ -2290,21 +2325,11 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 
 	/* EFX capture - capture the 16 EXTINS */
 	if (emu->card_capabilities->sblive51) {
-		/* On the Live! 5.1, FXBUS2(1) and FXBUS(2) are shared with EXTOUT_ACENTER
-		 * and EXTOUT_ALFE, so we can't connect inputs to them for multitrack recording.
-		 *
-		 * Since only 14 of the 16 EXTINs are used, this is not a big problem.  
-		 * We route AC97L and R to FX capture 14 and 15, SPDIF CD in to FX capture 
-		 * 0 and 3, then the rest of the EXTINs to the corresponding FX capture 
-		 * channel.  Multitrack recorders will still see the center/lfe output signal 
-		 * on the second and third channels.
-		 */
-		OP(icode, &ptr, iACC3, FXBUS2(14), C_00000000, C_00000000, EXTIN(0));
-		OP(icode, &ptr, iACC3, FXBUS2(15), C_00000000, C_00000000, EXTIN(1));
-		OP(icode, &ptr, iACC3, FXBUS2(0), C_00000000, C_00000000, EXTIN(2));
-		OP(icode, &ptr, iACC3, FXBUS2(3), C_00000000, C_00000000, EXTIN(3));
-		for (z = 4; z < 14; z++)
-			OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(z));
+		for (z = 0; z < 16; z++) {
+			s8 c = snd_emu10k1_sblive51_fxbus2_map[z];
+			if (c != -1)
+				OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(c));
+		}
 	} else {
 		for (z = 0; z < 16; z++)
 			OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(z));
@@ -2448,9 +2473,9 @@ static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 
 	info->internal_tram_size = emu->fx8010.itram_size;
 	info->external_tram_size = emu->fx8010.etram_pages.bytes / 2;
-	fxbus = fxbuses;
-	extin = emu->audigy ? audigy_ins : creative_ins;
-	extout = emu->audigy ? audigy_outs : creative_outs;
+	fxbus = snd_emu10k1_fxbus;
+	extin = emu->audigy ? snd_emu10k1_audigy_ins : snd_emu10k1_sblive_ins;
+	extout = emu->audigy ? snd_emu10k1_audigy_outs : snd_emu10k1_sblive_outs;
 	extin_mask = emu->audigy ? ~0 : emu->fx8010.extin_mask;
 	extout_mask = emu->audigy ? ~0 : emu->fx8010.extout_mask;
 	for (res = 0; res < 16; res++, fxbus++, extin++, extout++) {
