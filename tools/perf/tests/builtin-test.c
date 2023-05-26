@@ -97,6 +97,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__backward_ring_buffer,
 	&suite__cpu_map_print,
 	&suite__cpu_map_merge,
+	&suite__cpu_map_intersect,
 	&suite__sdt_event,
 	&suite__is_printable_array,
 	&suite__bitmap_print,

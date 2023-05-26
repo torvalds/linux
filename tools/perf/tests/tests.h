@@ -127,6 +127,7 @@ DECLARE_SUITE(event_times);
 DECLARE_SUITE(backward_ring_buffer);
 DECLARE_SUITE(cpu_map_print);
 DECLARE_SUITE(cpu_map_merge);
+DECLARE_SUITE(cpu_map_intersect);
 DECLARE_SUITE(sdt_event);
 DECLARE_SUITE(is_printable_array);
 DECLARE_SUITE(bitmap_print);
