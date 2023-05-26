@@ -3024,7 +3024,33 @@ no_msi:
 	}
 }
 
+static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
+				      enum devlink_port_type port_type)
+{
+	struct mlx4_port_info *info = container_of(devlink_port,
+						   struct mlx4_port_info,
+						   devlink_port);
+	enum mlx4_port_type mlx4_port_type;
+
+	switch (port_type) {
+	case DEVLINK_PORT_TYPE_AUTO:
+		mlx4_port_type = MLX4_PORT_TYPE_AUTO;
+		break;
+	case DEVLINK_PORT_TYPE_ETH:
+		mlx4_port_type = MLX4_PORT_TYPE_ETH;
+		break;
+	case DEVLINK_PORT_TYPE_IB:
+		mlx4_port_type = MLX4_PORT_TYPE_IB;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return __set_port_type(info, mlx4_port_type);
+}
+
 static const struct devlink_port_ops mlx4_devlink_port_ops = {
+	.port_type_set = mlx4_devlink_port_type_set,
 };
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
@@ -3878,31 +3904,6 @@ err_disable_pdev:
 	return err;
 }
 
-static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
-				      enum devlink_port_type port_type)
-{
-	struct mlx4_port_info *info = container_of(devlink_port,
-						   struct mlx4_port_info,
-						   devlink_port);
-	enum mlx4_port_type mlx4_port_type;
-
-	switch (port_type) {
-	case DEVLINK_PORT_TYPE_AUTO:
-		mlx4_port_type = MLX4_PORT_TYPE_AUTO;
-		break;
-	case DEVLINK_PORT_TYPE_ETH:
-		mlx4_port_type = MLX4_PORT_TYPE_ETH;
-		break;
-	case DEVLINK_PORT_TYPE_IB:
-		mlx4_port_type = MLX4_PORT_TYPE_IB;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return __set_port_type(info, mlx4_port_type);
-}
-
 static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
 {
 	struct mlx4_priv *priv = devlink_priv(devlink);
@@ -3987,7 +3988,6 @@ static int mlx4_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 }
 
 static const struct devlink_ops mlx4_devlink_ops = {
-	.port_type_set	= mlx4_devlink_port_type_set,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
 	.reload_down	= mlx4_devlink_reload_down,
 	.reload_up	= mlx4_devlink_reload_up,
