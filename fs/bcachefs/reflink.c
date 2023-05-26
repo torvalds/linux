@@ -167,23 +167,12 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	if (orig->k.type == KEY_TYPE_inline_data)
 		bch2_check_set_feature(c, BCH_FEATURE_reflink_inline_data);
 
-	for_each_btree_key_norestart(trans, reflink_iter, BTREE_ID_reflink,
-			   POS(0, c->reflink_hint),
-			   BTREE_ITER_SLOTS, k, ret) {
-		if (reflink_iter.pos.inode) {
-			bch2_btree_iter_set_pos(&reflink_iter, POS_MIN);
-			continue;
-		}
-
-		if (bkey_deleted(k.k) && orig->k.size <= k.k->size)
-			break;
-	}
-
+	bch2_trans_iter_init(trans, &reflink_iter, BTREE_ID_reflink, POS_MAX,
+			     BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_prev(&reflink_iter);
+	ret = bkey_err(k);
 	if (ret)
 		goto err;
-
-	/* rewind iter to start of hole, if necessary: */
-	bch2_btree_iter_set_pos_to_extent_start(&reflink_iter);
 
 	r_v = bch2_trans_kmalloc(trans, sizeof(__le64) + bkey_bytes(&orig->k));
 	ret = PTR_ERR_OR_ZERO(r_v);
@@ -226,7 +215,6 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 err:
-	c->reflink_hint = reflink_iter.pos.offset;
 	bch2_trans_iter_exit(trans, &reflink_iter);
 
 	return ret;

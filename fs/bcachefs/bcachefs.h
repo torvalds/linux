@@ -963,7 +963,6 @@ struct bch_fs {
 	struct bio_set		ec_bioset;
 
 	/* REFLINK */
-	u64			reflink_hint;
 	reflink_gc_table	reflink_gc_table;
 	size_t			reflink_gc_nr;
 
