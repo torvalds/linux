@@ -1023,13 +1023,13 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	return 0;
 }
 
-u64 dpu_kms_get_clk_rate(struct dpu_kms *dpu_kms, char *clock_name)
+unsigned long dpu_kms_get_clk_rate(struct dpu_kms *dpu_kms, char *clock_name)
 {
 	struct clk *clk;
 
 	clk = msm_clk_bulk_get_clock(dpu_kms->clocks, dpu_kms->num_clocks, clock_name);
 	if (!clk)
-		return -EINVAL;
+		return 0;
 
 	return clk_get_rate(clk);
 }
