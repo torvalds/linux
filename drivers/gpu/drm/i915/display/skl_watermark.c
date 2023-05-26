@@ -2900,7 +2900,7 @@ static int
 skl_compute_wm(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
-	struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc_state __maybe_unused *new_crtc_state;
 	int ret, i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
