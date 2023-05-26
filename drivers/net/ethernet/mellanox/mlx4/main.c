@@ -3024,13 +3024,17 @@ no_msi:
 	}
 }
 
+static const struct devlink_port_ops mlx4_devlink_port_ops = {
+};
+
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 {
 	struct devlink *devlink = priv_to_devlink(mlx4_priv(dev));
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
 	int err;
 
-	err = devl_port_register(devlink, &info->devlink_port, port);
+	err = devl_port_register_with_ops(devlink, &info->devlink_port, port,
+					  &mlx4_devlink_port_ops);
 	if (err)
 		return err;
 
