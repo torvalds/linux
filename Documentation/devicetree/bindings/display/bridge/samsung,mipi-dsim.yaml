@@ -70,9 +70,7 @@ properties:
   samsung,burst-clock-frequency:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      DSIM high speed burst mode frequency when connected to devices
-      that support burst mode. If absent, the driver will use the pixel
-      clock from the attached device or bridge.
+      DSIM high speed burst mode frequency.
 
   samsung,esc-clock-frequency:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -82,8 +80,7 @@ properties:
   samsung,pll-clock-frequency:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      DSIM oscillator clock frequency. If absent, the driver will
-      use the clock frequency of sclk_mipi.
+      DSIM oscillator clock frequency.
 
   phys:
     maxItems: 1
@@ -137,7 +134,9 @@ required:
   - compatible
   - interrupts
   - reg
+  - samsung,burst-clock-frequency
   - samsung,esc-clock-frequency
+  - samsung,pll-clock-frequency
 
 allOf:
   - $ref: ../dsi-controller.yaml#
