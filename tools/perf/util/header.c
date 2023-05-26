@@ -24,6 +24,7 @@
 #include <bpf/libbpf.h>
 #endif
 #include <perf/cpumap.h>
+#include <tools/libc_compat.h> // reallocarray
 
 #include "dso.h"
 #include "evlist.h"
@@ -1396,13 +1397,14 @@ static int memory_node__sort(const void *a, const void *b)
 	return na->node - nb->node;
 }
 
-static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
+static int build_mem_topology(struct memory_node **nodesp, u64 *cntp)
 {
 	char path[PATH_MAX];
 	struct dirent *ent;
 	DIR *dir;
-	u64 cnt = 0;
 	int ret = 0;
+	size_t cnt = 0, size = 0;
+	struct memory_node *nodes = NULL;
 
 	scnprintf(path, PATH_MAX, "%s/devices/system/node/",
 		  sysfs__mountpoint());
@@ -1426,25 +1428,31 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 		if (r != 1)
 			continue;
 
-		if (WARN_ONCE(cnt >= size,
-			"failed to write MEM_TOPOLOGY, way too many nodes\n")) {
-			closedir(dir);
-			return -1;
-		}
+		if (cnt >= size) {
+			struct memory_node *new_nodes =
+				reallocarray(nodes, cnt + 4, sizeof(*nodes));
 
+			if (!new_nodes) {
+				pr_err("Failed to write MEM_TOPOLOGY, size %zd nodes\n", size);
+				ret = -ENOMEM;
+				goto out;
+			}
+			nodes = new_nodes;
+			size += 4;
+		}
 		ret = memory_node__read(&nodes[cnt++], idx);
 	}
-
-	*cntp = cnt;
+out:
 	closedir(dir);
-
-	if (!ret)
+	if (!ret) {
+		*cntp = cnt;
+		*nodesp = nodes;
 		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
+	} else
+		free(nodes);
 
 	return ret;
 }
-
-#define MAX_MEMORY_NODES 2000
 
 /*
  * The MEM_TOPOLOGY holds physical memory map for every
@@ -1464,8 +1472,8 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 			      struct evlist *evlist __maybe_unused)
 {
-	static struct memory_node nodes[MAX_MEMORY_NODES];
-	u64 bsize, version = 1, i, nr;
+	struct memory_node *nodes = NULL;
+	u64 bsize, version = 1, i, nr = 0;
 	int ret;
 
 	ret = sysfs__read_xll("devices/system/memory/block_size_bytes",
@@ -1473,7 +1481,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	if (ret)
 		return ret;
 
-	ret = build_mem_topology(&nodes[0], MAX_MEMORY_NODES, &nr);
+	ret = build_mem_topology(&nodes, &nr);
 	if (ret)
 		return ret;
 
@@ -1508,6 +1516,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	}
 
 out:
+	free(nodes);
 	return ret;
 }
 
