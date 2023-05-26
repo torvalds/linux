@@ -496,6 +496,15 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 }
 
 #ifdef CONFIG_SND_DEBUG
+
+static void snd_emu_proc_emu1010_link_read(struct snd_emu10k1 *emu,
+					   struct snd_info_buffer *buffer,
+					   u32 dst)
+{
+	u32 src = snd_emu1010_fpga_link_dst_src_read(emu, dst);
+	snd_iprintf(buffer, "%04x: %04x\n", dst, src);
+}
+
 static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
@@ -506,7 +515,39 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 
 	for(i = 0; i < 0x40; i+=1) {
 		snd_emu1010_fpga_read(emu, i, &value);
-		snd_iprintf(buffer, "%02X: %08X, %02X\n", i, value, (value >> 8) & 0x7f);
+		snd_iprintf(buffer, "%02x: %02x\n", i, value);
+	}
+
+	snd_iprintf(buffer, "\nEMU1010 Routes:\n\n");
+
+	for (i = 0; i < 16; i++)  // To Alice2/Tina[2] via EMU32
+		snd_emu_proc_emu1010_link_read(emu, buffer, i);
+	if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404)
+		for (i = 0; i < 32; i++)  // To Dock via EDI
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x100 + i);
+	if (emu->card_capabilities->emu_model != EMU_MODEL_EMU1616)
+		for (i = 0; i < 8; i++)  // To Hamoa/local
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x200 + i);
+	for (i = 0; i < 8; i++)  // To Hamoa/Mana/local
+		snd_emu_proc_emu1010_link_read(emu, buffer, 0x300 + i);
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
+		for (i = 0; i < 16; i++)  // To Tina2 via EMU32
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x400 + i);
+	} else if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404) {
+		for (i = 0; i < 8; i++)  // To Hana ADAT
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x400 + i);
+		if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010B) {
+			for (i = 0; i < 16; i++)  // To Tina via EMU32
+				snd_emu_proc_emu1010_link_read(emu, buffer, 0x500 + i);
+		} else {
+			// To Alice2 via I2S
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x500);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x501);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x600);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x601);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x700);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x701);
+		}
 	}
 }
 
