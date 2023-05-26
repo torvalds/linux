@@ -745,3 +745,45 @@ void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
 	/* Have writers, use proper subpage helper to end it */
 	btrfs_page_end_writer_lock(fs_info, page, start, len);
 }
+
+#define GET_SUBPAGE_BITMAP(subpage, subpage_info, name, dst)		\
+	bitmap_cut(dst, subpage->bitmaps, 0,				\
+		   subpage_info->name##_offset, subpage_info->bitmap_nr_bits)
+
+void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
+				      struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage_info *subpage_info = fs_info->subpage_info;
+	struct btrfs_subpage *subpage;
+	unsigned long uptodate_bitmap;
+	unsigned long error_bitmap;
+	unsigned long dirty_bitmap;
+	unsigned long writeback_bitmap;
+	unsigned long ordered_bitmap;
+	unsigned long checked_bitmap;
+	unsigned long flags;
+
+	ASSERT(PagePrivate(page) && page->private);
+	ASSERT(subpage_info);
+	subpage = (struct btrfs_subpage *)page->private;
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, uptodate, &uptodate_bitmap);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, error, &error_bitmap);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, dirty, &dirty_bitmap);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, writeback, &writeback_bitmap);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, ordered, &ordered_bitmap);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, checked, &checked_bitmap);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+
+	dump_page(page, "btrfs subpage dump");
+	btrfs_warn(fs_info,
+"start=%llu len=%u page=%llu, bitmaps uptodate=%*pbl error=%*pbl dirty=%*pbl writeback=%*pbl ordered=%*pbl checked=%*pbl",
+		    start, len, page_offset(page),
+		    subpage_info->bitmap_nr_bits, &uptodate_bitmap,
+		    subpage_info->bitmap_nr_bits, &error_bitmap,
+		    subpage_info->bitmap_nr_bits, &dirty_bitmap,
+		    subpage_info->bitmap_nr_bits, &writeback_bitmap,
+		    subpage_info->bitmap_nr_bits, &ordered_bitmap,
+		    subpage_info->bitmap_nr_bits, &checked_bitmap);
+}

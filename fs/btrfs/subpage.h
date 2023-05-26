@@ -154,5 +154,7 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 				 struct page *page);
 void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
 			      u64 start, u32 len);
+void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
+				      struct page *page, u64 start, u32 len);
 
 #endif

@@ -4262,8 +4262,9 @@ static void assert_eb_page_uptodate(const struct extent_buffer *eb,
 		return;
 
 	if (fs_info->nodesize < PAGE_SIZE) {
-		WARN_ON(!btrfs_subpage_test_uptodate(fs_info, page,
-						     eb->start, eb->len));
+		if (WARN_ON(!btrfs_subpage_test_uptodate(fs_info, page,
+							 eb->start, eb->len)))
+			btrfs_subpage_dump_bitmap(fs_info, page, eb->start, eb->len);
 	} else {
 		WARN_ON(!PageUptodate(page));
 	}
