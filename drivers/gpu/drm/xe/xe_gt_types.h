@@ -359,6 +359,16 @@ struct xe_gt {
 	 *    of a steered operation
 	 */
 	spinlock_t mcr_lock;
+
+	/** @wa_active: keep track of active workarounds */
+	struct {
+		/** @gt: bitmap with active GT workarounds */
+		unsigned long *gt;
+		/** @engine: bitmap with active engine workarounds */
+		unsigned long *engine;
+		/** @lrc: bitmap with active LRC workarounds */
+		unsigned long *lrc;
+	} wa_active;
 };
 
 #endif

@@ -315,6 +315,11 @@ int xe_gt_init_early(struct xe_gt *gt)
 		return err;
 
 	xe_reg_sr_init(&gt->reg_sr, "GT", gt_to_xe(gt));
+
+	err = xe_wa_init(gt);
+	if (err)
+		return err;
+
 	xe_wa_process_gt(gt);
 	xe_tuning_process_gt(gt);
 
