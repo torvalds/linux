@@ -389,6 +389,20 @@ static u32 rzv2m_i2c_func(struct i2c_adapter *adap)
 	       I2C_FUNC_10BIT_ADDR;
 }
 
+static int rzv2m_i2c_disable(struct device *dev, struct rzv2m_i2c_priv *priv)
+{
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
+	bit_clrl(priv->base + IICB0CTL0, IICB0IICE);
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
 static const struct i2c_adapter_quirks rzv2m_i2c_quirks = {
 	.flags = I2C_AQ_NO_ZERO_LEN,
 };
@@ -461,8 +475,10 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	ret = i2c_add_numbered_adapter(adap);
-	if (ret < 0)
+	if (ret < 0) {
+		rzv2m_i2c_disable(dev, priv);
 		pm_runtime_disable(dev);
+	}
 
 	return ret;
 }
@@ -473,23 +489,15 @@ static void rzv2m_i2c_remove(struct platform_device *pdev)
 	struct device *dev = priv->adap.dev.parent;
 
 	i2c_del_adapter(&priv->adap);
-	bit_clrl(priv->base + IICB0CTL0, IICB0IICE);
+	rzv2m_i2c_disable(dev, priv);
 	pm_runtime_disable(dev);
 }
 
 static int rzv2m_i2c_suspend(struct device *dev)
 {
 	struct rzv2m_i2c_priv *priv = dev_get_drvdata(dev);
-	int ret;
 
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0)
-		return ret;
-
-	bit_clrl(priv->base + IICB0CTL0, IICB0IICE);
-	pm_runtime_put(dev);
-
-	return 0;
+	return rzv2m_i2c_disable(dev, priv);
 }
 
 static int rzv2m_i2c_resume(struct device *dev)
