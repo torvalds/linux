@@ -211,7 +211,15 @@ static int test__cpu_map_intersect(struct test_suite *test __maybe_unused,
 	return ret;
 }
 
-DEFINE_SUITE("Synthesize cpu map", cpu_map_synthesize);
-DEFINE_SUITE("Print cpu map", cpu_map_print);
-DEFINE_SUITE("Merge cpu map", cpu_map_merge);
-DEFINE_SUITE("Intersect cpu map", cpu_map_intersect);
+static struct test_case tests__cpu_map[] = {
+	TEST_CASE("Synthesize cpu map", cpu_map_synthesize),
+	TEST_CASE("Print cpu map", cpu_map_print),
+	TEST_CASE("Merge cpu map", cpu_map_merge),
+	TEST_CASE("Intersect cpu map", cpu_map_intersect),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__cpu_map = {
+	.desc = "CPU map",
+	.test_cases = tests__cpu_map,
+};
