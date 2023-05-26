@@ -82,6 +82,7 @@ struct ifcvf_hw {
 	int vqs_reused_irq;
 	u16 nr_vring;
 	/* VIRTIO_PCI_CAP_DEVICE_CFG size */
+	u32 num_msix_vectors;
 	u32 cap_dev_config_size;
 	struct pci_dev *pdev;
 };
@@ -110,7 +111,7 @@ struct ifcvf_vdpa_mgmt_dev {
 };
 
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);
-void ifcvf_stop_hw(struct ifcvf_hw *hw);
+void ifcvf_stop(struct ifcvf_hw *hw);
 void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid);
 void ifcvf_read_dev_config(struct ifcvf_hw *hw, u64 offset,
 			   void *dst, int length);

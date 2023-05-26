@@ -170,12 +170,9 @@ void ifcvf_set_status(struct ifcvf_hw *hw, u8 status)
 
 void ifcvf_reset(struct ifcvf_hw *hw)
 {
-	hw->config_cb.callback = NULL;
-	hw->config_cb.private = NULL;
-
 	ifcvf_set_status(hw, 0);
-	/* flush set_status, make sure VF is stopped, reset */
-	ifcvf_get_status(hw);
+	while (ifcvf_get_status(hw))
+		msleep(1);
 }
 
 u64 ifcvf_get_hw_features(struct ifcvf_hw *hw)
@@ -368,20 +365,42 @@ void ifcvf_set_vq_ready(struct ifcvf_hw *hw, u16 qid, bool ready)
 	vp_iowrite16(ready, &cfg->queue_enable);
 }
 
-static void ifcvf_hw_disable(struct ifcvf_hw *hw)
+static void ifcvf_reset_vring(struct ifcvf_hw *hw)
 {
-	u32 i;
+	u16 qid;
 
-	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
-	for (i = 0; i < hw->nr_vring; i++) {
-		ifcvf_set_vq_vector(hw, i, VIRTIO_MSI_NO_VECTOR);
+	for (qid = 0; qid < hw->nr_vring; qid++) {
+		hw->vring[qid].cb.callback = NULL;
+		hw->vring[qid].cb.private = NULL;
+		ifcvf_set_vq_vector(hw, qid, VIRTIO_MSI_NO_VECTOR);
 	}
 }
 
-void ifcvf_stop_hw(struct ifcvf_hw *hw)
+static void ifcvf_reset_config_handler(struct ifcvf_hw *hw)
 {
-	ifcvf_hw_disable(hw);
-	ifcvf_reset(hw);
+	hw->config_cb.callback = NULL;
+	hw->config_cb.private = NULL;
+	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
+}
+
+static void ifcvf_synchronize_irq(struct ifcvf_hw *hw)
+{
+	u32 nvectors = hw->num_msix_vectors;
+	struct pci_dev *pdev = hw->pdev;
+	int i, irq;
+
+	for (i = 0; i < nvectors; i++) {
+		irq = pci_irq_vector(pdev, i);
+		if (irq >= 0)
+			synchronize_irq(irq);
+	}
+}
+
+void ifcvf_stop(struct ifcvf_hw *hw)
+{
+	ifcvf_synchronize_irq(hw);
+	ifcvf_reset_vring(hw);
+	ifcvf_reset_config_handler(hw);
 }
 
 void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid)

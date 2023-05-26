@@ -125,6 +125,7 @@ static void ifcvf_free_irq(struct ifcvf_hw *vf)
 	ifcvf_free_vq_irq(vf);
 	ifcvf_free_config_irq(vf);
 	ifcvf_free_irq_vectors(pdev);
+	vf->num_msix_vectors = 0;
 }
 
 /* ifcvf MSIX vectors allocator, this helper tries to allocate
@@ -343,34 +344,9 @@ static int ifcvf_request_irq(struct ifcvf_hw *vf)
 	if (ret)
 		return ret;
 
-	return 0;
-}
-
-static int ifcvf_stop_datapath(struct ifcvf_adapter *adapter)
-{
-	struct ifcvf_hw *vf = adapter->vf;
-	int i;
-
-	for (i = 0; i < vf->nr_vring; i++)
-		vf->vring[i].cb.callback = NULL;
-
-	ifcvf_stop_hw(vf);
+	vf->num_msix_vectors = nvectors;
 
 	return 0;
-}
-
-static void ifcvf_reset_vring(struct ifcvf_adapter *adapter)
-{
-	struct ifcvf_hw *vf = adapter->vf;
-	int i;
-
-	for (i = 0; i < vf->nr_vring; i++) {
-		vf->vring[i].last_avail_idx = 0;
-		vf->vring[i].cb.callback = NULL;
-		vf->vring[i].cb.private = NULL;
-	}
-
-	ifcvf_reset(vf);
 }
 
 static struct ifcvf_adapter *vdpa_to_adapter(struct vdpa_device *vdpa_dev)
@@ -462,23 +438,15 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 
 static int ifcvf_vdpa_reset(struct vdpa_device *vdpa_dev)
 {
-	struct ifcvf_adapter *adapter;
-	struct ifcvf_hw *vf;
-	u8 status_old;
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	u8 status = ifcvf_get_status(vf);
 
-	vf  = vdpa_to_vf(vdpa_dev);
-	adapter = vdpa_to_adapter(vdpa_dev);
-	status_old = ifcvf_get_status(vf);
+	ifcvf_stop(vf);
 
-	if (status_old == 0)
-		return 0;
-
-	if (status_old & VIRTIO_CONFIG_S_DRIVER_OK) {
-		ifcvf_stop_datapath(adapter);
+	if (status & VIRTIO_CONFIG_S_DRIVER_OK)
 		ifcvf_free_irq(vf);
-	}
 
-	ifcvf_reset_vring(adapter);
+	ifcvf_reset(vf);
 
 	return 0;
 }
