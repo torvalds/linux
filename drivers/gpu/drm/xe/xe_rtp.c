@@ -84,7 +84,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = r->match_func(gt, hwe);
 			break;
 		default:
-			XE_WARN_ON(r->match_type);
+			drm_warn(&xe->drm, "Invalid RTP match %u\n",
+				 r->match_type);
+			match = false;
 		}
 
 		if (!match)
