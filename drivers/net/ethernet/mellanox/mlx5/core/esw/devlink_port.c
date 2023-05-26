@@ -63,7 +63,7 @@ static void mlx5_esw_dl_port_free(struct devlink_port *dl_port)
 	kfree(dl_port);
 }
 
-static const struct devlink_port_ops mlx5_esw_dl_port_ops = {
+static const struct devlink_port_ops mlx5_esw_pf_vf_dl_port_ops = {
 	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
 	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
 	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,
@@ -95,7 +95,7 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 	devlink = priv_to_devlink(dev);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, vport_num);
 	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index,
-					  &mlx5_esw_dl_port_ops);
+					  &mlx5_esw_pf_vf_dl_port_ops);
 	if (err)
 		goto reg_err;
 
