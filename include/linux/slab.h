@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/percpu-refcount.h>
+#include <linux/cleanup.h>
 
 
 /*
@@ -196,6 +197,8 @@ void * __must_check krealloc(const void *objp, size_t new_size, gfp_t flags) __r
 void kfree(const void *objp);
 void kfree_sensitive(const void *objp);
 size_t __ksize(const void *objp);
+
+DEFINE_FREE(kfree, void *, if (_T) kfree(_T))
 
 /**
  * ksize - Report actual allocation size of associated object
