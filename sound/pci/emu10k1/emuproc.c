@@ -170,7 +170,7 @@ static void snd_emu10k1_proc_read(struct snd_info_entry *entry,
 	};
 
 	struct snd_emu10k1 *emu = entry->private_data;
-	unsigned int val, val1;
+	unsigned int val, val1, ptrx, psst, dsl, snda;
 	int nefx = emu->audigy ? 64 : 32;
 	const char * const *outputs = emu->audigy ? audigy_outs : creative_outs;
 	int idx;
@@ -180,34 +180,35 @@ static void snd_emu10k1_proc_read(struct snd_info_entry *entry,
 		    emu->audigy ? "Audigy" : (emu->card_capabilities->ecard ? "EMU APS" : "Creative"));
 	snd_iprintf(buffer, "Internal TRAM (words) : 0x%x\n", emu->fx8010.itram_size);
 	snd_iprintf(buffer, "External TRAM (words) : 0x%x\n", (int)emu->fx8010.etram_pages.bytes / 2);
-	snd_iprintf(buffer, "\n");
-	snd_iprintf(buffer, "Effect Send Routing   :\n");
+
+	snd_iprintf(buffer, "\nEffect Send Routing & Amounts:\n");
 	for (idx = 0; idx < NUM_G; idx++) {
-		val = emu->audigy ?
-			snd_emu10k1_ptr_read(emu, A_FXRT1, idx) :
-			snd_emu10k1_ptr_read(emu, FXRT, idx);
-		val1 = emu->audigy ?
-			snd_emu10k1_ptr_read(emu, A_FXRT2, idx) :
-			0;
+		ptrx = snd_emu10k1_ptr_read(emu, PTRX, idx);
+		psst = snd_emu10k1_ptr_read(emu, PSST, idx);
+		dsl = snd_emu10k1_ptr_read(emu, DSL, idx);
 		if (emu->audigy) {
-			snd_iprintf(buffer, "Ch%i: A=%i, B=%i, C=%i, D=%i, ",
+			val = snd_emu10k1_ptr_read(emu, A_FXRT1, idx);
+			val1 = snd_emu10k1_ptr_read(emu, A_FXRT2, idx);
+			snda = snd_emu10k1_ptr_read(emu, A_SENDAMOUNTS, idx);
+			snd_iprintf(buffer, "Ch%-2i: A=%2i:%02x, B=%2i:%02x, C=%2i:%02x, D=%2i:%02x, ",
 				idx,
-				val & 0x3f,
-				(val >> 8) & 0x3f,
-				(val >> 16) & 0x3f,
-				(val >> 24) & 0x3f);
-			snd_iprintf(buffer, "E=%i, F=%i, G=%i, H=%i\n",
-				val1 & 0x3f,
-				(val1 >> 8) & 0x3f,
-				(val1 >> 16) & 0x3f,
-				(val1 >> 24) & 0x3f);
+				val & 0x3f, REG_VAL_GET(PTRX_FXSENDAMOUNT_A, ptrx),
+				(val >> 8) & 0x3f, REG_VAL_GET(PTRX_FXSENDAMOUNT_B, ptrx),
+				(val >> 16) & 0x3f, REG_VAL_GET(PSST_FXSENDAMOUNT_C, psst),
+				(val >> 24) & 0x3f, REG_VAL_GET(DSL_FXSENDAMOUNT_D, dsl));
+			snd_iprintf(buffer, "E=%2i:%02x, F=%2i:%02x, G=%2i:%02x, H=%2i:%02x\n",
+				val1 & 0x3f, (snda >> 24) & 0xff,
+				(val1 >> 8) & 0x3f, (snda >> 16) & 0xff,
+				(val1 >> 16) & 0x3f, (snda >> 8) & 0xff,
+				(val1 >> 24) & 0x3f, snda & 0xff);
 		} else {
-			snd_iprintf(buffer, "Ch%i: A=%i, B=%i, C=%i, D=%i\n",
+			val = snd_emu10k1_ptr_read(emu, FXRT, idx);
+			snd_iprintf(buffer, "Ch%-2i: A=%2i:%02x, B=%2i:%02x, C=%2i:%02x, D=%2i:%02x\n",
 				idx,
-				(val >> 16) & 0x0f,
-				(val >> 20) & 0x0f,
-				(val >> 24) & 0x0f,
-				(val >> 28) & 0x0f);
+				(val >> 16) & 0x0f, REG_VAL_GET(PTRX_FXSENDAMOUNT_A, ptrx),
+				(val >> 20) & 0x0f, REG_VAL_GET(PTRX_FXSENDAMOUNT_B, ptrx),
+				(val >> 24) & 0x0f, REG_VAL_GET(PSST_FXSENDAMOUNT_C, psst),
+				(val >> 28) & 0x0f, REG_VAL_GET(DSL_FXSENDAMOUNT_D, dsl));
 		}
 	}
 	snd_iprintf(buffer, "\nCaptured FX Outputs   :\n");
