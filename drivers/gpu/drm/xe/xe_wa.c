@@ -651,3 +651,20 @@ int xe_wa_init(struct xe_gt *gt)
 
 	return 0;
 }
+
+void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
+{
+	size_t idx;
+
+	drm_printf(p, "GT Workarounds\n");
+	for_each_set_bit(idx, gt->wa_active.gt, ARRAY_SIZE(gt_was))
+		drm_printf_indent(p, 1, "%s\n", gt_was[idx].name);
+
+	drm_printf(p, "\nEngine Workarounds\n");
+	for_each_set_bit(idx, gt->wa_active.engine, ARRAY_SIZE(engine_was))
+		drm_printf_indent(p, 1, "%s\n", engine_was[idx].name);
+
+	drm_printf(p, "\nLRC Workarounds\n");
+	for_each_set_bit(idx, gt->wa_active.lrc, ARRAY_SIZE(lrc_was))
+		drm_printf_indent(p, 1, "%s\n", lrc_was[idx].name);
+}
