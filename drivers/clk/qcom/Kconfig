@@ -1229,6 +1229,24 @@ config SM_DEBUGCC_6150
 	  Say Y if you want to support the debug clocks such as
 	  clock measurement functionality.
 
+config SM_GCC_CLIFFS
+	tristate "Cliffs Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  Cliffs devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SM_GPUCC_CLIFFS
+	tristate "CLIFFS Graphics Clock Controller"
+	select SM_GCC_CLIFFS
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc
+	  Cliffs devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK
