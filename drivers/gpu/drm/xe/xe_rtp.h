@@ -359,6 +359,10 @@ struct xe_reg_sr;
 	struct xe_hw_engine *:	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
 	struct xe_gt *:		(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT })
 
+void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
+					       unsigned long *active_entries,
+					       size_t n_entries);
+
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 			  const struct xe_rtp_entry_sr *entries,
 			  struct xe_reg_sr *sr);

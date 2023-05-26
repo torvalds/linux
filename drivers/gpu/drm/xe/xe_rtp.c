@@ -112,7 +112,7 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 	xe_reg_sr_add(sr, &sr_entry);
 }
 
-static void rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
+static bool rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 			       struct xe_device *xe, struct xe_gt *gt,
 			       struct xe_hw_engine *hwe, struct xe_reg_sr *sr)
 {
@@ -121,7 +121,7 @@ static void rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 	unsigned int i;
 
 	if (!rule_matches(xe, gt, hwe, entry))
-		return;
+		return false;
 
 	for (action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
 		if ((entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) ||
@@ -132,6 +132,8 @@ static void rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 
 		rtp_add_sr_entry(action, gt, mmio_base, sr);
 	}
+
+	return true;
 }
 
 static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
@@ -151,6 +153,38 @@ static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
 		*xe = gt_to_xe(*gt);
 		break;
 	};
+}
+
+/**
+ * xe_rtp_process_ctx_enable_active_tracking - Enable tracking of active entries
+ *
+ * Set additional metadata to track what entries are considered "active", i.e.
+ * their rules match the condition. Bits are never cleared: entries with
+ * matching rules set the corresponding bit in the bitmap.
+ *
+ * @ctx: The context for processing the table
+ * @active_entries: bitmap to store the active entries
+ * @n_entries: number of entries to be processed
+ */
+void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
+					       unsigned long *active_entries,
+					       size_t n_entries)
+{
+	ctx->active_entries = active_entries;
+	ctx->n_entries = n_entries;
+}
+
+static void rtp_mark_active(struct xe_device *xe,
+			    struct xe_rtp_process_ctx *ctx,
+			    unsigned int bit)
+{
+	if (!ctx->active_entries)
+		return;
+
+	if (drm_WARN_ON(&xe->drm, bit > ctx->n_entries))
+		return;
+
+	bitmap_set(ctx->active_entries, bit, 1);
 }
 
 /**
@@ -178,15 +212,21 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 	rtp_get_context(ctx, &hwe, &gt, &xe);
 
 	for (entry = entries; entry && entry->name; entry++) {
+		bool match = false;
+
 		if (entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) {
 			struct xe_hw_engine *each_hwe;
 			enum xe_hw_engine_id id;
 
 			for_each_hw_engine(each_hwe, gt, id)
-				rtp_process_one_sr(entry, xe, gt, each_hwe, sr);
+				match |= rtp_process_one_sr(entry, xe, gt,
+							    each_hwe, sr);
 		} else {
-			rtp_process_one_sr(entry, xe, gt, hwe, sr);
+			match = rtp_process_one_sr(entry, xe, gt, hwe, sr);
 		}
+
+		if (match)
+			rtp_mark_active(xe, ctx, entry - entries);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);

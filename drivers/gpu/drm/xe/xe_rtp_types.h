@@ -106,6 +106,8 @@ struct xe_rtp_process_ctx {
 		struct xe_hw_engine *hwe;
 	};
 	enum xe_rtp_process_type type;
+	unsigned long *active_entries;
+	size_t n_entries;
 };
 
 #endif
