@@ -543,6 +543,7 @@ static char *home_perfconfig(void)
 	const char *home = NULL;
 	char *config;
 	struct stat st;
+	char path[PATH_MAX];
 
 	home = getenv("HOME");
 
@@ -554,7 +555,7 @@ static char *home_perfconfig(void)
 	if (!home || !*home || !perf_config_global())
 		return NULL;
 
-	config = strdup(mkpath("%s/.perfconfig", home));
+	config = strdup(mkpath(path, sizeof(path), "%s/.perfconfig", home));
 	if (config == NULL) {
 		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.\n", home);
 		return NULL;
