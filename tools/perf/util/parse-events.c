@@ -1984,6 +1984,42 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
+static int evsel__compute_group_pmu_name(struct evsel *evsel,
+					  const struct list_head *head)
+{
+	struct evsel *leader = evsel__leader(evsel);
+	struct evsel *pos;
+	const char *group_pmu_name = evsel->pmu_name ?: "cpu";
+
+	/*
+	 * Software events may be in a group with other uncore PMU events. Use
+	 * the pmu_name of the first non-software event to avoid breaking the
+	 * software event out of the group.
+	 *
+	 * Aux event leaders, like intel_pt, expect a group with events from
+	 * other PMUs, so substitute the AUX event's PMU in this case.
+	 */
+	if (evsel->core.attr.type == PERF_TYPE_SOFTWARE || evsel__is_aux_event(leader)) {
+		/*
+		 * Starting with the leader, find the first event with a named
+		 * PMU. for_each_group_(member|evsel) isn't used as the list
+		 * isn't yet sorted putting evsel's in the same group together.
+		 */
+		if (leader->pmu_name) {
+			group_pmu_name = leader->pmu_name;
+		} else if (leader->core.nr_members > 1) {
+			list_for_each_entry(pos, head, core.node) {
+				if (evsel__leader(pos) == leader && pos->pmu_name) {
+					group_pmu_name = pos->pmu_name;
+					break;
+				}
+			}
+		}
+	}
+	evsel->group_pmu_name = strdup(group_pmu_name);
+	return evsel->group_pmu_name ? 0 : -ENOMEM;
+}
+
 __weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 {
 	/* Order by insertion index. */
@@ -2003,7 +2039,11 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 
 	/*
 	 * First sort by grouping/leader. Read the leader idx only if the evsel
-	 * is part of a group, as -1 indicates no group.
+	 * is part of a group, by default ungrouped events will be sorted
+	 * relative to grouped events based on where the first ungrouped event
+	 * occurs. If both events don't have a group we want to fall-through to
+	 * the arch specific sorting, that can reorder and fix things like
+	 * Intel's topdown events.
 	 */
 	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1) {
 		lhs_has_group = true;
@@ -2019,8 +2059,8 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 
 	/* Group by PMU if there is a group. Groups can't span PMUs. */
 	if (lhs_has_group && rhs_has_group) {
-		lhs_pmu_name = evsel__group_pmu_name(lhs);
-		rhs_pmu_name = evsel__group_pmu_name(rhs);
+		lhs_pmu_name = lhs->group_pmu_name;
+		rhs_pmu_name = rhs->group_pmu_name;
 		ret = strcmp(lhs_pmu_name, rhs_pmu_name);
 		if (ret)
 			return ret;
@@ -2030,13 +2070,14 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 	return arch_evlist__cmp(lhs, rhs);
 }
 
-static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
+static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 {
 	int idx = 0, unsorted_idx = -1;
 	struct evsel *pos, *cur_leader = NULL;
 	struct perf_evsel *cur_leaders_grp = NULL;
 	bool idx_changed = false;
 	int orig_num_leaders = 0, num_leaders = 0;
+	int ret;
 
 	/*
 	 * Compute index to insert ungrouped events at. Place them where the
@@ -2044,6 +2085,10 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 	 */
 	list_for_each_entry(pos, list, core.node) {
 		const struct evsel *pos_leader = evsel__leader(pos);
+
+		ret = evsel__compute_group_pmu_name(pos, list);
+		if (ret)
+			return ret;
 
 		if (pos == pos_leader)
 			orig_num_leaders++;
@@ -2069,7 +2114,7 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 	idx = 0;
 	list_for_each_entry(pos, list, core.node) {
 		const struct evsel *pos_leader = evsel__leader(pos);
-		const char *pos_pmu_name = evsel__group_pmu_name(pos);
+		const char *pos_pmu_name = pos->group_pmu_name;
 		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
 		bool force_grouped = arch_evsel__must_be_in_group(pos);
 
@@ -2086,7 +2131,7 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 		if (!cur_leader)
 			cur_leader = pos;
 
-		cur_leader_pmu_name = evsel__group_pmu_name(cur_leader);
+		cur_leader_pmu_name = cur_leader->group_pmu_name;
 		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
 		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
 			/* Event is for a different group/PMU than last. */
@@ -2098,7 +2143,7 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 			 */
 			cur_leaders_grp = pos->core.leader;
 		}
-		pos_leader_pmu_name = evsel__group_pmu_name(pos_leader);
+		pos_leader_pmu_name = pos_leader->group_pmu_name;
 		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
 			/*
 			 * Event's PMU differs from its leader's. Groups can't
@@ -2115,7 +2160,7 @@ static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 			num_leaders++;
 		pos_leader->core.nr_members++;
 	}
-	return idx_changed || num_leaders != orig_num_leaders;
+	return (idx_changed || num_leaders != orig_num_leaders) ? 1 : 0;
 }
 
 int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
@@ -2132,7 +2177,7 @@ int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filte
 		.pmu_filter = pmu_filter,
 		.match_legacy_cache_terms = true,
 	};
-	int ret;
+	int ret, ret2;
 
 	ret = parse_events__scanner(str, &parse_state);
 
@@ -2141,8 +2186,11 @@ int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filte
 		return -1;
 	}
 
-	if (parse_events__sort_events_and_fix_groups(&parse_state.list) &&
-	    warn_if_reordered && !parse_state.wild_card_pmus)
+	ret2 = parse_events__sort_events_and_fix_groups(&parse_state.list);
+	if (ret2 < 0)
+		return ret;
+
+	if (ret2 && warn_if_reordered && !parse_state.wild_card_pmus)
 		pr_warning("WARNING: events were regrouped to match PMUs\n");
 
 	/*
