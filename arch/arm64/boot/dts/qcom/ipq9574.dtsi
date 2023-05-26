@@ -198,6 +198,13 @@
 			clock-names = "core";
 		};
 
+		qfprom: efuse@a4000 {
+			compatible = "qcom,ipq9574-qfprom", "qcom,qfprom";
+			reg = <0x000a4000 0x5a1>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		tlmm: pinctrl@1000000 {
 			compatible = "qcom,ipq9574-tlmm";
 			reg = <0x01000000 0x300000>;
