@@ -224,7 +224,7 @@ int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *regio
 
 	/* reduce number of entries by combining contiguous pages into single memory entry */
 	prev_page = mapping->pages[0];
-	parcel->mem_entries[0].ipa_base = cpu_to_le64(page_to_phys(prev_page));
+	parcel->mem_entries[0].phys_addr = cpu_to_le64(page_to_phys(prev_page));
 	entry_size = PAGE_SIZE;
 	for (i = 1, j = 0; i < mapping->npages; i++) {
 		curr_page = mapping->pages[i];
@@ -233,7 +233,7 @@ int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *regio
 		} else {
 			parcel->mem_entries[j].size = cpu_to_le64(entry_size);
 			j++;
-			parcel->mem_entries[j].ipa_base =
+			parcel->mem_entries[j].phys_addr =
 				cpu_to_le64(page_to_phys(curr_page));
 			entry_size = PAGE_SIZE;
 		}

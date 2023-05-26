@@ -13,7 +13,7 @@
 #define QCOM_SCM_RM_MANAGED_VMID	0x3A
 #define QCOM_SCM_MAX_MANAGED_VMID	0x3F
 
-static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel)
+static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_parcel)
 {
 	struct qcom_scm_vmperm *new_perms;
 	u64 src, src_cpy;
@@ -42,7 +42,7 @@ static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parce
 
 	for (i = 0; i < mem_parcel->n_mem_entries; i++) {
 		src_cpy = src;
-		ret = qcom_scm_assign_mem(le64_to_cpu(mem_parcel->mem_entries[i].ipa_base),
+		ret = qcom_scm_assign_mem(le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
 						le64_to_cpu(mem_parcel->mem_entries[i].size),
 						&src_cpy, new_perms, mem_parcel->n_acl_entries);
 		if (ret) {
@@ -60,7 +60,7 @@ static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parce
 			for (i--; i >= 0; i--) {
 				src_cpy = src;
 				WARN_ON_ONCE(qcom_scm_assign_mem(
-						le64_to_cpu(mem_parcel->mem_entries[i].ipa_base),
+						le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
 						le64_to_cpu(mem_parcel->mem_entries[i].size),
 						&src_cpy, new_perms, 1));
 			}
@@ -72,7 +72,7 @@ static int qcom_scm_gh_rm_pre_mem_share(struct gh_rm *rm, struct gh_rm_mem_parce
 	return ret;
 }
 
-static int qcom_scm_gh_rm_post_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *mem_parcel)
+static int qcom_scm_gh_rm_post_mem_reclaim(void *rm, struct gh_rm_mem_parcel *mem_parcel)
 {
 	struct qcom_scm_vmperm new_perms;
 	u64 src = 0, src_cpy;
@@ -92,7 +92,7 @@ static int qcom_scm_gh_rm_post_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_pa
 
 	for (i = 0; i < mem_parcel->n_mem_entries; i++) {
 		src_cpy = src;
-		ret = qcom_scm_assign_mem(le64_to_cpu(mem_parcel->mem_entries[i].ipa_base),
+		ret = qcom_scm_assign_mem(le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
 						le64_to_cpu(mem_parcel->mem_entries[i].size),
 						&src_cpy, &new_perms, 1);
 		WARN_ON_ONCE(ret);
