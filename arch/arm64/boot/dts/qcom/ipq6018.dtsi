@@ -90,6 +90,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq6018", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
