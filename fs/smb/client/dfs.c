@@ -303,7 +303,7 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	if (!nodfs) {
 		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL);
 		if (rc) {
-			if (rc != -ENOENT && rc != -EOPNOTSUPP)
+			if (rc != -ENOENT && rc != -EOPNOTSUPP && rc != -EIO)
 				goto out;
 			nodfs = true;
 		}

@@ -11,7 +11,7 @@
 
 #include <net/sock.h>
 #include <asm/unaligned.h>
-#include "../smbfs_common/smbfsctl.h"
+#include "../common/smbfsctl.h"
 
 #define CIFS_PROT   0
 #define POSIX_PROT  (CIFS_PROT+1)
