@@ -369,7 +369,6 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 {
 	struct pmic_glink_altmode_port *alt_port;
 	struct pmic_glink_altmode *altmode;
-	struct typec_altmode_desc mux_desc = {};
 	const struct of_device_id *match;
 	struct fwnode_handle *fwnode;
 	struct device *dev = &adev->dev;
@@ -427,9 +426,7 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		alt_port->dp_alt.mode = USB_TYPEC_DP_MODE;
 		alt_port->dp_alt.active = 1;
 
-		mux_desc.svid = USB_TYPEC_DP_SID;
-		mux_desc.mode = USB_TYPEC_DP_MODE;
-		alt_port->typec_mux = fwnode_typec_mux_get(fwnode, &mux_desc);
+		alt_port->typec_mux = fwnode_typec_mux_get(fwnode);
 		if (IS_ERR(alt_port->typec_mux))
 			return dev_err_probe(dev, PTR_ERR(alt_port->typec_mux),
 					     "failed to acquire mode-switch for port: %d\n",
