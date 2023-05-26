@@ -45,6 +45,13 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 
 static pte_t pte_z;
 
+static inline void kasan_populate(unsigned long start, unsigned long end, enum populate_mode mode)
+{
+	start = PAGE_ALIGN_DOWN(__sha(start));
+	end = PAGE_ALIGN(__sha(end));
+	pgtable_populate(start, end, mode);
+}
+
 static void kasan_populate_shadow(void)
 {
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
@@ -95,17 +102,17 @@ static void kasan_populate_shadow(void)
 	 */
 
 	for_each_physmem_usable_range(i, &start, &end)
-		pgtable_populate(__sha(start), __sha(end), POPULATE_KASAN_MAP_SHADOW);
+		kasan_populate(start, end, POPULATE_KASAN_MAP_SHADOW);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
 		untracked_end = VMALLOC_START;
 		/* shallowly populate kasan shadow for vmalloc and modules */
-		pgtable_populate(__sha(VMALLOC_START), __sha(MODULES_END), POPULATE_KASAN_SHALLOW);
+		kasan_populate(VMALLOC_START, MODULES_END, POPULATE_KASAN_SHALLOW);
 	} else {
 		untracked_end = MODULES_VADDR;
 	}
 	/* populate kasan shadow for untracked memory */
-	pgtable_populate(__sha(ident_map_size), __sha(untracked_end), POPULATE_KASAN_ZERO_SHADOW);
-	pgtable_populate(__sha(MODULES_END), __sha(_REGION1_SIZE), POPULATE_KASAN_ZERO_SHADOW);
+	kasan_populate(ident_map_size, untracked_end, POPULATE_KASAN_ZERO_SHADOW);
+	kasan_populate(MODULES_END, _REGION1_SIZE, POPULATE_KASAN_ZERO_SHADOW);
 }
 
 static bool kasan_pgd_populate_zero_shadow(pgd_t *pgd, unsigned long addr,
