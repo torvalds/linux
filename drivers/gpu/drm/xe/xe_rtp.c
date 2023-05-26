@@ -23,6 +23,11 @@
  * the values to the registers that have matching rules.
  */
 
+static bool has_samedia(const struct xe_device *xe)
+{
+	return xe->info.media_verx100 >= 1300;
+}
+
 static bool rule_matches(const struct xe_device *xe,
 			 struct xe_gt *gt,
 			 struct xe_hw_engine *hwe,
@@ -43,26 +48,32 @@ static bool rule_matches(const struct xe_device *xe,
 				xe->info.subplatform == r->subplatform;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION:
-			match = xe->info.graphics_verx100 == r->ver_start;
+			match = xe->info.graphics_verx100 == r->ver_start &&
+				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION_RANGE:
 			match = xe->info.graphics_verx100 >= r->ver_start &&
-				xe->info.graphics_verx100 <= r->ver_end;
+				xe->info.graphics_verx100 <= r->ver_end &&
+				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_GRAPHICS_STEP:
 			match = xe->info.step.graphics >= r->step_start &&
-				xe->info.step.graphics < r->step_end;
+				xe->info.step.graphics < r->step_end &&
+				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION:
-			match = xe->info.media_verx100 == r->ver_start;
+			match = xe->info.media_verx100 == r->ver_start &&
+				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION_RANGE:
 			match = xe->info.media_verx100 >= r->ver_start &&
-				xe->info.media_verx100 <= r->ver_end;
+				xe->info.media_verx100 <= r->ver_end &&
+				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_STEP:
 			match = xe->info.step.media >= r->step_start &&
-				xe->info.step.media < r->step_end;
+				xe->info.step.media < r->step_end &&
+				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_INTEGRATED:
 			match = !xe->info.is_dgfx;
