@@ -1436,6 +1436,20 @@ static const struct adsp_data msm8998_adsp_resource = {
 		.ssctl_id = 0x14,
 };
 
+static const struct adsp_data blair_adsp_resource = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mdt",
+	.pas_id = 1,
+	.minidump_id = 5,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.qmp_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
 static const struct adsp_data cdsp_resource_init = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -1586,6 +1600,20 @@ static const struct adsp_data khaje_cdsp_resource = {
 	.ssctl_id = 0x17,
 };
 
+static const struct adsp_data blair_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.pas_id = 18,
+	.minidump_id = 7,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.qmp_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
 static const struct adsp_data mpss_resource_init = {
 	.crash_reason_smem = 421,
 	.firmware_name = "modem.mdt",
@@ -1684,6 +1712,21 @@ static const struct adsp_data khaje_mpss_resource = {
 	.uses_elf64 = true,
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
+	.ssctl_id = 0x12,
+};
+
+static const struct adsp_data blair_mpss_resource = {
+	.crash_reason_smem = 421,
+	.firmware_name = "modem.mdt",
+	.pas_id = 4,
+	.free_after_auth_reset = true,
+	.minidump_id = 3,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "mpss",
+	.sysmon_name = "modem",
+	.qmp_name = "modem",
 	.ssctl_id = 0x12,
 };
 
@@ -1902,6 +1945,9 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,khaje-modem-pas", .data = &khaje_mpss_resource},
 	{ .compatible = "qcom,sdmshrike-adsp-pas", .data = &sdmshrike_adsp_resource},
 	{ .compatible = "qcom,sdmshrike-cdsp-pas", .data = &sdmshrike_cdsp_resource},
+	{ .compatible = "qcom,blair-adsp-pas", .data = &blair_adsp_resource},
+	{ .compatible = "qcom,blair-cdsp-pas", .data = &blair_cdsp_resource},
+	{ .compatible = "qcom,blair-modem-pas", .data = &blair_mpss_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
