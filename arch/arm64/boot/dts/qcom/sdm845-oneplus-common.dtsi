@@ -480,6 +480,10 @@
 	};
 };
 
+&pmi8998_charger {
+	status = "okay";
+};
+
 &q6afedai {
 	qi2s@22 {
 		reg = <22>;
