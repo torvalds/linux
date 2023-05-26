@@ -483,7 +483,8 @@ static void snd_emu_proc_ptr_reg_read(struct snd_info_entry *entry,
 }
 
 static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
-				       struct snd_info_buffer *buffer, int iobase)
+				       struct snd_info_buffer *buffer,
+				       int iobase, int length, int voices)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
 	char line[64];
@@ -491,7 +492,7 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if (reg < 0xa0 && val <= 0xffffffff && channel_id <= 3)
+		if (reg < length && channel_id < voices)
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }
@@ -499,13 +500,15 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 static void snd_emu_proc_ptr_reg_write00(struct snd_info_entry *entry,
 					 struct snd_info_buffer *buffer)
 {
-	snd_emu_proc_ptr_reg_write(entry, buffer, 0);
+	snd_emu_proc_ptr_reg_write(entry, buffer, 0, 0x80, 64);
 }
 
 static void snd_emu_proc_ptr_reg_write20(struct snd_info_entry *entry,
 					 struct snd_info_buffer *buffer)
 {
-	snd_emu_proc_ptr_reg_write(entry, buffer, 0x20);
+	struct snd_emu10k1 *emu = entry->private_data;
+	snd_emu_proc_ptr_reg_write(entry, buffer, 0x20,
+				   emu->card_capabilities->ca0108_chip ? 0xa0 : 0x80, 4);
 }
 	
 
