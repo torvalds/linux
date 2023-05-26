@@ -492,6 +492,19 @@ void mlx5e_encap_put(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
 	mlx5e_encap_dealloc(priv, e);
 }
 
+static void mlx5e_encap_put_locked(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	lockdep_assert_held(&esw->offloads.encap_tbl_lock);
+
+	if (!refcount_dec_and_test(&e->refcnt))
+		return;
+	list_del(&e->route_list);
+	hash_del_rcu(&e->encap_hlist);
+	mlx5e_encap_dealloc(priv, e);
+}
+
 static void mlx5e_decap_put(struct mlx5e_priv *priv, struct mlx5e_decap_entry *d)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -816,6 +829,8 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	uintptr_t hash_key;
 	int err = 0;
 
+	lockdep_assert_held(&esw->offloads.encap_tbl_lock);
+
 	parse_attr = attr->parse_attr;
 	tun_info = parse_attr->tun_info[out_index];
 	mpls_info = &parse_attr->mpls_info[out_index];
@@ -829,7 +844,6 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	hash_key = hash_encap_info(&key);
 
-	mutex_lock(&esw->offloads.encap_tbl_lock);
 	e = mlx5e_encap_get(priv, &key, hash_key);
 
 	/* must verify if encap is valid or not */
@@ -840,15 +854,6 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			goto out_err;
 		}
 
-		mutex_unlock(&esw->offloads.encap_tbl_lock);
-		wait_for_completion(&e->res_ready);
-
-		/* Protect against concurrent neigh update. */
-		mutex_lock(&esw->offloads.encap_tbl_lock);
-		if (e->compl_result < 0) {
-			err = -EREMOTEIO;
-			goto out_err;
-		}
 		goto attach_flow;
 	}
 
@@ -877,15 +882,12 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	INIT_LIST_HEAD(&e->flows);
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 	tbl_time_before = mlx5e_route_tbl_get_last_update(priv);
-	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
 	if (family == AF_INET)
 		err = mlx5e_tc_tun_create_header_ipv4(priv, mirred_dev, e);
 	else if (family == AF_INET6)
 		err = mlx5e_tc_tun_create_header_ipv6(priv, mirred_dev, e);
 
-	/* Protect against concurrent neigh update. */
-	mutex_lock(&esw->offloads.encap_tbl_lock);
 	complete_all(&e->res_ready);
 	if (err) {
 		e->compl_result = err;
@@ -920,18 +922,15 @@ attach_flow:
 	} else {
 		flow_flag_set(flow, SLOW);
 	}
-	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
 	return err;
 
 out_err:
-	mutex_unlock(&esw->offloads.encap_tbl_lock);
 	if (e)
-		mlx5e_encap_put(priv, e);
+		mlx5e_encap_put_locked(priv, e);
 	return err;
 
 out_err_init:
-	mutex_unlock(&esw->offloads.encap_tbl_lock);
 	kfree(tun_info);
 	kfree(e);
 	return err;
@@ -1014,6 +1013,93 @@ out_free:
 out_err:
 	mutex_unlock(&esw->offloads.decap_tbl_lock);
 	return err;
+}
+
+int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
+				 struct mlx5e_tc_flow *flow,
+				 struct mlx5_flow_attr *attr,
+				 struct netlink_ext_ack *extack,
+				 bool *vf_tun)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct net_device *encap_dev = NULL;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *out_priv;
+	struct mlx5_eswitch *esw;
+	int out_index;
+	int err = 0;
+
+	if (!mlx5e_is_eswitch_flow(flow))
+		return 0;
+
+	parse_attr = attr->parse_attr;
+	esw_attr = attr->esw_attr;
+	*vf_tun = false;
+
+	esw = priv->mdev->priv.eswitch;
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		struct net_device *out_dev;
+		int mirred_ifindex;
+
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
+		out_dev = dev_get_by_index(dev_net(priv->netdev), mirred_ifindex);
+		if (!out_dev) {
+			NL_SET_ERR_MSG_MOD(extack, "Requested mirred device not found");
+			err = -ENODEV;
+			goto out;
+		}
+		err = mlx5e_attach_encap(priv, flow, attr, out_dev, out_index,
+					 extack, &encap_dev);
+		dev_put(out_dev);
+		if (err)
+			goto out;
+
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
+		    !esw_attr->dest_int_port)
+			*vf_tun = true;
+
+		out_priv = netdev_priv(encap_dev);
+		rpriv = out_priv->ppriv;
+		esw_attr->dests[out_index].rep = rpriv->rep;
+		esw_attr->dests[out_index].mdev = out_priv->mdev;
+	}
+
+	if (*vf_tun && esw_attr->out_count > 1) {
+		NL_SET_ERR_MSG_MOD(extack, "VF tunnel encap with mirroring is not supported");
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+out:
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	return err;
+}
+
+void mlx5e_tc_tun_encap_dests_unset(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_attr *attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr;
+	int out_index;
+
+	if (!mlx5e_is_eswitch_flow(flow))
+		return;
+
+	esw_attr = attr->esw_attr;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mlx5e_detach_encap(flow->priv, flow, attr, out_index);
+		kfree(attr->parse_attr->tun_info[out_index]);
+	}
 }
 
 static int cmp_route_info(struct mlx5e_route_key *a,
