@@ -3,14 +3,14 @@
  * Driver for Microchip 10BASE-T1S PHYs
  *
  * Support: Microchip Phys:
- *  lan8670, lan8671, lan8672
+ *  lan8670/1/2 Rev.B1
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 
-#define PHY_ID_LAN867X 0x0007C160
+#define PHY_ID_LAN867X_REVB1 0x0007C162
 
 #define LAN867X_REG_IRQ_1_CTL 0x001C
 #define LAN867X_REG_IRQ_2_CTL 0x001D
@@ -31,25 +31,25 @@
  * W   0x1F 0x0099 0x7F80 ------
  */
 
-static const u32 lan867x_fixup_registers[12] = {
+static const u32 lan867x_revb1_fixup_registers[12] = {
 	0x00D0, 0x00D1, 0x0084, 0x0085,
 	0x008A, 0x0087, 0x0088, 0x008B,
 	0x0080, 0x00F1, 0x0096, 0x0099,
 };
 
-static const u16 lan867x_fixup_values[12] = {
+static const u16 lan867x_revb1_fixup_values[12] = {
 	0x0002, 0x0000, 0x3380, 0x0006,
 	0xC000, 0x801C, 0x033F, 0x0404,
 	0x0600, 0x2400, 0x2000, 0x7F80,
 };
 
-static const u16 lan867x_fixup_masks[12] = {
+static const u16 lan867x_revb1_fixup_masks[12] = {
 	0x0E03, 0x0300, 0xFFC0, 0x000F,
 	0xF800, 0x801C, 0x1FFF, 0xFFFF,
 	0x0600, 0x7F00, 0x2000, 0xFFFF,
 };
 
-static int lan867x_config_init(struct phy_device *phydev)
+static int lan867x_revb1_config_init(struct phy_device *phydev)
 {
 	int err;
 
@@ -59,11 +59,11 @@ static int lan867x_config_init(struct phy_device *phydev)
 	 * register already has the required value. So it is safe to use
 	 * phy_modify_mmd here.
 	 */
-	for (int i = 0; i < ARRAY_SIZE(lan867x_fixup_registers); i++) {
+	for (int i = 0; i < ARRAY_SIZE(lan867x_revb1_fixup_registers); i++) {
 		err = phy_modify_mmd(phydev, MDIO_MMD_VEND2,
-				     lan867x_fixup_registers[i],
-				     lan867x_fixup_masks[i],
-				     lan867x_fixup_values[i]);
+				     lan867x_revb1_fixup_registers[i],
+				     lan867x_revb1_fixup_masks[i],
+				     lan867x_revb1_fixup_values[i]);
 		if (err)
 			return err;
 	}
@@ -98,10 +98,10 @@ static int lan867x_read_status(struct phy_device *phydev)
 
 static struct phy_driver microchip_t1s_driver[] = {
 	{
-		PHY_ID_MATCH_MODEL(PHY_ID_LAN867X),
-		.name               = "LAN867X",
+		PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVB1),
+		.name               = "LAN867X Rev.B1",
 		.features           = PHY_BASIC_T1S_P2MP_FEATURES,
-		.config_init        = lan867x_config_init,
+		.config_init        = lan867x_revb1_config_init,
 		.read_status        = lan867x_read_status,
 		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
 		.set_plca_cfg	    = genphy_c45_plca_set_cfg,
@@ -112,7 +112,7 @@ static struct phy_driver microchip_t1s_driver[] = {
 module_phy_driver(microchip_t1s_driver);
 
 static struct mdio_device_id __maybe_unused tbl[] = {
-	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN867X) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVB1) },
 	{ }
 };
 
