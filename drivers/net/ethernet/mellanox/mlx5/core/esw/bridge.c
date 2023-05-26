@@ -834,7 +834,7 @@ mlx5_esw_bridge_egress_miss_flow_create(struct mlx5_flow_table *egress_ft,
 	return handle;
 }
 
-static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
+static struct mlx5_esw_bridge *mlx5_esw_bridge_create(struct net_device *br_netdev,
 						      struct mlx5_esw_bridge_offloads *br_offloads)
 {
 	struct mlx5_esw_bridge *bridge;
@@ -858,7 +858,7 @@ static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
 		goto err_mdb_ht;
 
 	INIT_LIST_HEAD(&bridge->fdb_list);
-	bridge->ifindex = ifindex;
+	bridge->ifindex = br_netdev->ifindex;
 	bridge->refcnt = 1;
 	bridge->ageing_time = clock_t_to_jiffies(BR_DEFAULT_AGEING_TIME);
 	bridge->vlan_proto = ETH_P_8021Q;
@@ -898,14 +898,14 @@ static void mlx5_esw_bridge_put(struct mlx5_esw_bridge_offloads *br_offloads,
 }
 
 static struct mlx5_esw_bridge *
-mlx5_esw_bridge_lookup(int ifindex, struct mlx5_esw_bridge_offloads *br_offloads)
+mlx5_esw_bridge_lookup(struct net_device *br_netdev, struct mlx5_esw_bridge_offloads *br_offloads)
 {
 	struct mlx5_esw_bridge *bridge;
 
 	ASSERT_RTNL();
 
 	list_for_each_entry(bridge, &br_offloads->bridges, list) {
-		if (bridge->ifindex == ifindex) {
+		if (bridge->ifindex == br_netdev->ifindex) {
 			mlx5_esw_bridge_get(bridge);
 			return bridge;
 		}
@@ -918,7 +918,7 @@ mlx5_esw_bridge_lookup(int ifindex, struct mlx5_esw_bridge_offloads *br_offloads
 			return ERR_PTR(err);
 	}
 
-	bridge = mlx5_esw_bridge_create(ifindex, br_offloads);
+	bridge = mlx5_esw_bridge_create(br_netdev, br_offloads);
 	if (IS_ERR(bridge) && list_empty(&br_offloads->bridges))
 		mlx5_esw_bridge_ingress_table_cleanup(br_offloads);
 	return bridge;
@@ -1601,15 +1601,15 @@ static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_off
 	return 0;
 }
 
-static int mlx5_esw_bridge_vport_link_with_flags(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
-						 u16 flags,
+static int mlx5_esw_bridge_vport_link_with_flags(struct net_device *br_netdev, u16 vport_num,
+						 u16 esw_owner_vhca_id, u16 flags,
 						 struct mlx5_esw_bridge_offloads *br_offloads,
 						 struct netlink_ext_ack *extack)
 {
 	struct mlx5_esw_bridge *bridge;
 	int err;
 
-	bridge = mlx5_esw_bridge_lookup(ifindex, br_offloads);
+	bridge = mlx5_esw_bridge_lookup(br_netdev, br_offloads);
 	if (IS_ERR(bridge)) {
 		NL_SET_ERR_MSG_MOD(extack, "Error checking for existing bridge with same ifindex");
 		return PTR_ERR(bridge);
@@ -1627,15 +1627,16 @@ err_vport:
 	return err;
 }
 
-int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_link(struct net_device *br_netdev, u16 vport_num, u16 esw_owner_vhca_id,
 			       struct mlx5_esw_bridge_offloads *br_offloads,
 			       struct netlink_ext_ack *extack)
 {
-	return mlx5_esw_bridge_vport_link_with_flags(ifindex, vport_num, esw_owner_vhca_id, 0,
+	return mlx5_esw_bridge_vport_link_with_flags(br_netdev, vport_num, esw_owner_vhca_id, 0,
 						     br_offloads, extack);
 }
 
-int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_unlink(struct net_device *br_netdev, u16 vport_num,
+				 u16 esw_owner_vhca_id,
 				 struct mlx5_esw_bridge_offloads *br_offloads,
 				 struct netlink_ext_ack *extack)
 {
@@ -1647,7 +1648,7 @@ int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_
 		NL_SET_ERR_MSG_MOD(extack, "Port is not attached to any bridge");
 		return -EINVAL;
 	}
-	if (port->bridge->ifindex != ifindex) {
+	if (port->bridge->ifindex != br_netdev->ifindex) {
 		NL_SET_ERR_MSG_MOD(extack, "Port is attached to another bridge");
 		return -EINVAL;
 	}
@@ -1658,23 +1659,25 @@ int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_
 	return err;
 }
 
-int mlx5_esw_bridge_vport_peer_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_peer_link(struct net_device *br_netdev, u16 vport_num,
+				    u16 esw_owner_vhca_id,
 				    struct mlx5_esw_bridge_offloads *br_offloads,
 				    struct netlink_ext_ack *extack)
 {
 	if (!MLX5_CAP_ESW(br_offloads->esw->dev, merged_eswitch))
 		return 0;
 
-	return mlx5_esw_bridge_vport_link_with_flags(ifindex, vport_num, esw_owner_vhca_id,
+	return mlx5_esw_bridge_vport_link_with_flags(br_netdev, vport_num, esw_owner_vhca_id,
 						     MLX5_ESW_BRIDGE_PORT_FLAG_PEER,
 						     br_offloads, extack);
 }
 
-int mlx5_esw_bridge_vport_peer_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_peer_unlink(struct net_device *br_netdev, u16 vport_num,
+				      u16 esw_owner_vhca_id,
 				      struct mlx5_esw_bridge_offloads *br_offloads,
 				      struct netlink_ext_ack *extack)
 {
-	return mlx5_esw_bridge_vport_unlink(ifindex, vport_num, esw_owner_vhca_id, br_offloads,
+	return mlx5_esw_bridge_vport_unlink(br_netdev, vport_num, esw_owner_vhca_id, br_offloads,
 					    extack);
 }
 
