@@ -26,14 +26,14 @@
 static bool rule_matches(const struct xe_device *xe,
 			 struct xe_gt *gt,
 			 struct xe_hw_engine *hwe,
-			 const struct xe_rtp_entry_sr *entry)
+			 const struct xe_rtp_rule *rules,
+			 unsigned int n_rules)
 {
 	const struct xe_rtp_rule *r;
 	unsigned int i;
 	bool match;
 
-	for (r = entry->rules, i = 0; i < entry->n_rules;
-	     r = &entry->rules[++i]) {
+	for (r = rules, i = 0; i < n_rules; r = &rules[++i]) {
 		switch (r->match_type) {
 		case XE_RTP_MATCH_PLATFORM:
 			match = xe->info.platform == r->platform;
@@ -122,7 +122,7 @@ static bool rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 	u32 mmio_base;
 	unsigned int i;
 
-	if (!rule_matches(xe, gt, hwe, entry))
+	if (!rule_matches(xe, gt, hwe, entry->rules, entry->n_rules))
 		return false;
 
 	for (action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
@@ -178,15 +178,18 @@ void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
 
 static void rtp_mark_active(struct xe_device *xe,
 			    struct xe_rtp_process_ctx *ctx,
-			    unsigned int bit)
+			    unsigned int first, unsigned int last)
 {
 	if (!ctx->active_entries)
 		return;
 
-	if (drm_WARN_ON(&xe->drm, bit > ctx->n_entries))
+	if (drm_WARN_ON(&xe->drm, last > ctx->n_entries))
 		return;
 
-	bitmap_set(ctx->active_entries, bit, 1);
+	if (first == last)
+		bitmap_set(ctx->active_entries, first, 1);
+	else
+		bitmap_set(ctx->active_entries, first, last - first + 2);
 }
 
 /**
@@ -228,10 +231,56 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 		}
 
 		if (match)
-			rtp_mark_active(xe, ctx, entry - entries);
+			rtp_mark_active(xe, ctx, entry - entries,
+					entry - entries);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
+
+/**
+ * xe_rtp_process - Process all rtp @entries, without running any action
+ * @ctx: The context for processing the table, with one of device, gt or hwe
+ * @entries: Table with RTP definitions
+ *
+ * Walk the table pointed by @entries (with an empty sentinel), executing the
+ * rules. A few differences from xe_rtp_process_to_sr():
+ *
+ * 1. There is no action associated with each entry since this uses
+ *    struct xe_rtp_entry. Its main use is for marking active workarounds via
+ *    xe_rtp_process_ctx_enable_active_tracking().
+ * 2. There is support for OR operations by having entries with no name.
+ */
+void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
+		    const struct xe_rtp_entry *entries)
+{
+	const struct xe_rtp_entry *entry, *first_entry;
+	struct xe_hw_engine *hwe;
+	struct xe_gt *gt;
+	struct xe_device *xe;
+
+	rtp_get_context(ctx, &hwe, &gt, &xe);
+
+	first_entry = entries;
+	if (drm_WARN_ON(&xe->drm, !first_entry->name))
+		return;
+
+	for (entry = entries; entry && entry->rules; entry++) {
+		if (entry->name)
+			first_entry = entry;
+
+		if (!rule_matches(xe, gt, hwe, entry->rules, entry->n_rules))
+			continue;
+
+		/* Fast-forward entry, eliminating the OR'ed entries */
+		for (entry++; entry && entry->rules; entry++)
+			if (entry->name)
+				break;
+		entry--;
+
+		rtp_mark_active(xe, ctx, first_entry - entries,
+				entry - entries);
+	}
+}
 
 bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe)

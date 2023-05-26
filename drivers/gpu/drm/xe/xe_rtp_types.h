@@ -96,6 +96,13 @@ struct xe_rtp_entry_sr {
 	u8 flags;
 };
 
+/** struct xe_rtp_entry - Entry in an rtp table, with no action associated */
+struct xe_rtp_entry {
+	const char *name;
+	const struct xe_rtp_rule *rules;
+	u8 n_rules;
+};
+
 enum xe_rtp_process_type {
 	XE_RTP_PROCESS_TYPE_GT,
 	XE_RTP_PROCESS_TYPE_ENGINE,

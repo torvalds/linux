@@ -384,6 +384,9 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 			  const struct xe_rtp_entry_sr *entries,
 			  struct xe_reg_sr *sr);
 
+void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
+		    const struct xe_rtp_entry *entries);
+
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
 
 /**
