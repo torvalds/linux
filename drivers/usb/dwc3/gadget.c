@@ -3771,6 +3771,7 @@ void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force,
 	 * controller to handle the command completely before DWC3
 	 * remove requests attempts to unmap USB request buffers.
 	 */
+
 	__dwc3_stop_active_transfer(dep, force, interrupt);
 }
 EXPORT_SYMBOL_GPL(dwc3_stop_active_transfer);

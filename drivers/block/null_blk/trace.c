@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  */
-#include "null_blk_trace.h"
+#include "trace.h"
 
 /*
  * Helper to use for all null_blk traces to extract disk name.
