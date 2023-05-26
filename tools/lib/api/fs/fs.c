@@ -88,7 +88,7 @@ static const char * const bpf_fs__known_mountpoints[] = {
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
-	char			 path[PATH_MAX];
+	char			*path;
 	bool			 found;
 	bool			 checked;
 	long			 magic;
@@ -151,17 +151,23 @@ static bool fs__read_mounts(struct fs *fs)
 	bool found = false;
 	char type[100];
 	FILE *fp;
+	char path[PATH_MAX + 1];
 
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
-		return NULL;
+		return false;
 
 	while (!found &&
 	       fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-		      fs->path, type) == 2) {
+		      path, type) == 2) {
 
-		if (strcmp(type, fs->name) == 0)
+		if (strcmp(type, fs->name) == 0) {
+			free(fs->path);
+			fs->path = strdup(path);
+			if (!fs->path)
+				return false;
 			found = true;
+		}
 	}
 
 	fclose(fp);
@@ -188,8 +194,11 @@ static bool fs__check_mounts(struct fs *fs)
 	ptr = fs->mounts;
 	while (*ptr) {
 		if (fs__valid_mount(*ptr, fs->magic) == 0) {
+			free(fs->path);
+			fs->path = strdup(*ptr);
+			if (!fs->path)
+				return false;
 			fs->found = true;
-			strcpy(fs->path, *ptr);
 			return true;
 		}
 		ptr++;
@@ -227,10 +236,12 @@ static bool fs__env_override(struct fs *fs)
 	if (!override_path)
 		return false;
 
+	free(fs->path);
+	fs->path = strdup(override_path);
+	if (!fs->path)
+		return false;
 	fs->found = true;
 	fs->checked = true;
-	strncpy(fs->path, override_path, sizeof(fs->path) - 1);
-	fs->path[sizeof(fs->path) - 1] = '\0';
 	return true;
 }
 
