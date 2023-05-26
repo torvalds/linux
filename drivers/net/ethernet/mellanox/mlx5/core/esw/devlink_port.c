@@ -139,9 +139,24 @@ static void mlx5_esw_offloads_sf_devlink_port_cleanup(struct mlx5_eswitch *esw, 
 	vport->dl_port = NULL;
 }
 
+static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
+#ifdef CONFIG_MLX5_SF_MANAGER
+	.port_del = mlx5_devlink_sf_port_del,
+#endif
+	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
+	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
+	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,
+	.port_fn_roce_set = mlx5_devlink_port_fn_roce_set,
+#ifdef CONFIG_MLX5_SF_MANAGER
+	.port_fn_state_get = mlx5_devlink_sf_port_fn_state_get,
+	.port_fn_state_set = mlx5_devlink_sf_port_fn_state_set,
+#endif
+};
+
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_core_dev *dev = esw->dev;
+	const struct devlink_port_ops *ops;
 	struct devlink_port *dl_port;
 	unsigned int dl_port_index;
 	struct mlx5_vport *vport;
@@ -156,10 +171,14 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 	if (!dl_port)
 		return 0;
 
+	if (mlx5_esw_is_sf_vport(esw, vport_num))
+		ops = &mlx5_esw_dl_sf_port_ops;
+	else
+		ops = &mlx5_esw_pf_vf_dl_port_ops;
+
 	devlink = priv_to_devlink(dev);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, vport_num);
-	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index,
-					  &mlx5_esw_pf_vf_dl_port_ops);
+	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index, ops);
 	if (err)
 		return err;
 
@@ -195,20 +214,6 @@ struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u1
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
 	return IS_ERR(vport) ? ERR_CAST(vport) : vport->dl_port;
 }
-
-static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
-#ifdef CONFIG_MLX5_SF_MANAGER
-	.port_del = mlx5_devlink_sf_port_del,
-#endif
-	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
-	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
-	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,
-	.port_fn_roce_set = mlx5_devlink_port_fn_roce_set,
-#ifdef CONFIG_MLX5_SF_MANAGER
-	.port_fn_state_get = mlx5_devlink_sf_port_fn_state_get,
-	.port_fn_state_set = mlx5_devlink_sf_port_fn_state_set,
-#endif
-};
 
 int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 controller, u32 sfnum)
