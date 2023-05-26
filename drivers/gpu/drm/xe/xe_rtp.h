@@ -35,8 +35,8 @@ struct xe_reg_sr;
 	{ .match_type = XE_RTP_MATCH_SUBPLATFORM,				\
 	  .platform = plat__, .subplatform = sub__ }
 
-#define _XE_RTP_RULE_STEP(start__, end__)					\
-	{ .match_type = XE_RTP_MATCH_STEP,					\
+#define _XE_RTP_RULE_GRAPHICS_STEP(start__, end__)				\
+	{ .match_type = XE_RTP_MATCH_GRAPHICS_STEP,				\
 	  .step_start = start__, .step_end = end__ }
 
 #define _XE_RTP_RULE_ENGINE_CLASS(cls__)					\
@@ -63,17 +63,17 @@ struct xe_reg_sr;
 	_XE_RTP_RULE_SUBPLATFORM(XE_##plat_, XE_SUBPLATFORM_##plat_##_##sub_)
 
 /**
- * XE_RTP_RULE_STEP - Create rule matching platform stepping
+ * XE_RTP_RULE_GRAPHICS_STEP - Create rule matching graphics stepping
  * @start_: First stepping matching the rule
  * @end_: First stepping that does not match the rule
  *
- * Note that the range matching this rule [ @start_, @end_ ), i.e. inclusive on
- * the left, exclusive on the right.
+ * Note that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
+ * on the left, exclusive on the right.
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
-#define XE_RTP_RULE_STEP(start_, end_)						\
-	_XE_RTP_RULE_STEP(STEP_##start_, STEP_##end_)
+#define XE_RTP_RULE_GRAPHICS_STEP(start_, end_)					\
+	_XE_RTP_RULE_GRAPHICS_STEP(STEP_##start_, STEP_##end_)
 
 /**
  * XE_RTP_RULE_ENGINE_CLASS - Create rule matching an engine class
@@ -317,7 +317,7 @@ struct xe_reg_sr;
  *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
- *		  XE_RTP_RULES(SUBPLATFORM(DG2, G10), STEP(A0, B0)),
+ *		  XE_RTP_RULES(SUBPLATFORM(DG2, G10), GRAPHICS_STEP(A0, B0)),
  *		  ...
  *		},
  *		...

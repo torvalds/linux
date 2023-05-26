@@ -57,7 +57,7 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.media_verx100 >= r->ver_start &&
 				xe->info.media_verx100 <= r->ver_end;
 			break;
-		case XE_RTP_MATCH_STEP:
+		case XE_RTP_MATCH_GRAPHICS_STEP:
 			/* TODO: match media/display */
 			match = xe->info.step.graphics >= r->step_start &&
 				xe->info.step.graphics < r->step_end;
