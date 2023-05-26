@@ -340,8 +340,6 @@ static void adm1266_init_debugfs(struct adm1266_data *data)
 		return;
 
 	data->debugfs_dir = debugfs_create_dir(data->client->name, root);
-	if (!data->debugfs_dir)
-		return;
 
 	debugfs_create_devm_seqfile(&data->client->dev, "sequencer_state", data->debugfs_dir,
 				    adm1266_state_read);
