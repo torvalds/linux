@@ -139,9 +139,7 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 22012773006))
 		flags |= GUC_WA_POLLCS;
 
-	/* Wa_16011759253 */
-	/* Wa_22011383443 */
-	if (IS_SUBPLATFORM_STEP(xe, XE_DG2, XE_SUBPLATFORM_DG2_G10, STEP_A0, STEP_B0))
+	if (XE_WA(gt, 16011759253))
 		flags |= GUC_WA_GAM_CREDITS;
 
 	/* Wa_14014475959 */
