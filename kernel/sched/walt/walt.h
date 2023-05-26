@@ -158,7 +158,7 @@ struct walt_sched_cluster {
 };
 
 extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
-
+extern cpumask_t part_haltable_cpus;
 /*END SCHED.H PORT*/
 
 extern int num_sched_clusters;
@@ -1024,6 +1024,11 @@ extern struct cpumask __cpu_partial_halt_mask;
 
 /* a halted cpu cannot help anyone (per-cpu kthreads may remain) */
 #define cpu_should_not_help_mincpus(cpu) cpu_halted(cpu)
+
+static inline bool cluster_partial_halted(void)
+{
+	return cpumask_equal(cpu_partial_halt_mask, &part_haltable_cpus);
+}
 
 /* determine if this task should be allowed to use a partially halted cpu */
 static inline bool task_reject_partialhalt_cpu(struct task_struct *p, int cpu)

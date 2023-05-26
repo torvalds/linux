@@ -99,6 +99,7 @@ static unsigned int get_assist_active_cpu_count(const struct cluster_data *clust
 static unsigned int active_cpu_count_from_mask(const cpumask_t *cpus);
 static void __ref do_core_ctl(void);
 
+cpumask_t part_haltable_cpus = { CPU_BITS_NONE };
 /* ========================= sysfs interface =========================== */
 
 static ssize_t store_min_cpus(struct cluster_data *state,
@@ -130,6 +131,9 @@ static ssize_t store_min_partial_cpus(struct cluster_data *state,
 
 	state->min_partial_cpus = min(val, state->num_cpus);
 	sysfs_param_changed(state);
+
+	if (state->min_partial_cpus > 0)
+		cpumask_copy(&part_haltable_cpus, &state->cpu_mask);
 
 	return count;
 }
