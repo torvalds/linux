@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2012-2013 Broadcom Corporation
 
+#include <dt-bindings/clock/bcm281xx.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-
-#include "dt-bindings/clock/bcm281xx.h"
 
 / {
 	#address-cells = <1>;
