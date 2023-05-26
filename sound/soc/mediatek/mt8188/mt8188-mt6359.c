@@ -99,8 +99,8 @@ SND_SOC_DAILINK_DEFS(capture10,
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 /* BE */
-SND_SOC_DAILINK_DEFS(adda,
-		     DAILINK_COMP_ARRAY(COMP_CPU("ADDA")),
+SND_SOC_DAILINK_DEFS(dl_src,
+		     DAILINK_COMP_ARRAY(COMP_CPU("DL_SRC")),
 		     DAILINK_COMP_ARRAY(COMP_CODEC("mt6359-sound",
 						   "mt6359-snd-codec-aif1")),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
@@ -138,6 +138,12 @@ SND_SOC_DAILINK_DEFS(etdm3_out,
 SND_SOC_DAILINK_DEFS(pcm1,
 		     DAILINK_COMP_ARRAY(COMP_CPU("PCM1")),
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
+		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(ul_src,
+		     DAILINK_COMP_ARRAY(COMP_CPU("UL_SRC")),
+		     DAILINK_COMP_ARRAY(COMP_CODEC("mt6359-sound",
+						   "mt6359-snd-codec-aif1")),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 struct mt8188_mt6359_priv {
@@ -345,7 +351,7 @@ enum {
 	DAI_LINK_UL8_FE,
 	DAI_LINK_UL9_FE,
 	DAI_LINK_UL10_FE,
-	DAI_LINK_ADDA_BE,
+	DAI_LINK_DL_SRC_BE,
 	DAI_LINK_DPTX_BE,
 	DAI_LINK_ETDM1_IN_BE,
 	DAI_LINK_ETDM2_IN_BE,
@@ -353,6 +359,7 @@ enum {
 	DAI_LINK_ETDM2_OUT_BE,
 	DAI_LINK_ETDM3_OUT_BE,
 	DAI_LINK_PCM1_BE,
+	DAI_LINK_UL_SRC_BE,
 };
 
 static int mt8188_dptx_hw_params(struct snd_pcm_substream *substream,
@@ -604,13 +611,11 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 		SND_SOC_DAILINK_REG(capture10),
 	},
 	/* BE */
-	[DAI_LINK_ADDA_BE] = {
-		.name = "ADDA_BE",
+	[DAI_LINK_DL_SRC_BE] = {
+		.name = "DL_SRC_BE",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.init = mt8188_mt6359_init,
-		SND_SOC_DAILINK_REG(adda),
+		SND_SOC_DAILINK_REG(dl_src),
 	},
 	[DAI_LINK_DPTX_BE] = {
 		.name = "DPTX_BE",
@@ -676,6 +681,12 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
+	[DAI_LINK_UL_SRC_BE] = {
+		.name = "UL_SRC_BE",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(ul_src),
+	},
 };
 
 static struct snd_soc_card mt8188_mt6359_soc_card = {
@@ -695,6 +706,7 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 	struct mt8188_mt6359_priv *priv;
 	struct mt8188_card_data *card_data;
 	struct snd_soc_dai_link *dai_link;
+	bool init_mt6359 = false;
 	int ret, i;
 
 	card_data = (struct mt8188_card_data *)of_device_get_match_data(&pdev->dev);
@@ -739,6 +751,12 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 		} else if (strcmp(dai_link->name, "ETDM3_OUT_BE") == 0) {
 			if (strcmp(dai_link->codecs->dai_name, "snd-soc-dummy-dai"))
 				dai_link->init = mt8188_hdmi_codec_init;
+		} else if (strcmp(dai_link->name, "DL_SRC_BE") == 0 ||
+			   strcmp(dai_link->name, "UL_SRC_BE") == 0) {
+			if (!init_mt6359) {
+				dai_link->init = mt8188_mt6359_init;
+				init_mt6359 = true;
+			}
 		}
 	}
 
