@@ -43,12 +43,15 @@ static bool rule_matches(const struct xe_device *xe,
 				xe->info.subplatform == r->subplatform;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION:
-			/* TODO: match display */
 			match = xe->info.graphics_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION_RANGE:
 			match = xe->info.graphics_verx100 >= r->ver_start &&
 				xe->info.graphics_verx100 <= r->ver_end;
+			break;
+		case XE_RTP_MATCH_GRAPHICS_STEP:
+			match = xe->info.step.graphics >= r->step_start &&
+				xe->info.step.graphics < r->step_end;
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION:
 			match = xe->info.media_verx100 == r->ver_start;
@@ -57,10 +60,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.media_verx100 >= r->ver_start &&
 				xe->info.media_verx100 <= r->ver_end;
 			break;
-		case XE_RTP_MATCH_GRAPHICS_STEP:
-			/* TODO: match media/display */
-			match = xe->info.step.graphics >= r->step_start &&
-				xe->info.step.graphics < r->step_end;
+		case XE_RTP_MATCH_MEDIA_STEP:
+			match = xe->info.step.media >= r->step_start &&
+				xe->info.step.media < r->step_end;
 			break;
 		case XE_RTP_MATCH_INTEGRATED:
 			match = !xe->info.is_dgfx;

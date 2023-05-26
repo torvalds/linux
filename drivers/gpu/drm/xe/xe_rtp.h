@@ -39,6 +39,10 @@ struct xe_reg_sr;
 	{ .match_type = XE_RTP_MATCH_GRAPHICS_STEP,				\
 	  .step_start = start__, .step_end = end__ }
 
+#define _XE_RTP_RULE_MEDIA_STEP(start__, end__)					\
+	{ .match_type = XE_RTP_MATCH_MEDIA_STEP,				\
+	  .step_start = start__, .step_end = end__ }
+
 #define _XE_RTP_RULE_ENGINE_CLASS(cls__)					\
 	{ .match_type = XE_RTP_MATCH_ENGINE_CLASS,				\
 	  .engine_class = (cls__) }
@@ -74,6 +78,19 @@ struct xe_reg_sr;
  */
 #define XE_RTP_RULE_GRAPHICS_STEP(start_, end_)					\
 	_XE_RTP_RULE_GRAPHICS_STEP(STEP_##start_, STEP_##end_)
+
+/**
+ * XE_RTP_RULE_MEDIA_STEP - Create rule matching media stepping
+ * @start_: First stepping matching the rule
+ * @end_: First stepping that does not match the rule
+ *
+ * Note that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
+ * on the left, exclusive on the right.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_MEDIA_STEP(start_, end_)					\
+	_XE_RTP_RULE_MEDIA_STEP(STEP_##start_, STEP_##end_)
 
 /**
  * XE_RTP_RULE_ENGINE_CLASS - Create rule matching an engine class
