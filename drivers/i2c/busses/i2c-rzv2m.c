@@ -50,9 +50,6 @@
 #define IICB0MDSC	BIT(7)		/* Bus Mode */
 #define IICB0SLSE	BIT(1)		/* Start condition output */
 
-#define bit_setl(addr, val)		writel(readl(addr) | (val), (addr))
-#define bit_clrl(addr, val)		writel(readl(addr) & ~(val), (addr))
-
 struct rzv2m_i2c_priv {
 	void __iomem *base;
 	struct i2c_adapter adap;
@@ -77,6 +74,16 @@ static const struct bitrate_config bitrate_configs[] = {
 	[RZV2M_I2C_100K] = { 47, 3450 },
 	[RZV2M_I2C_400K] = { 52, 900 },
 };
+
+static inline void bit_setl(void __iomem *addr, u32 val)
+{
+	writel(readl(addr) | val, addr);
+}
+
+static inline void bit_clrl(void __iomem *addr, u32 val)
+{
+	writel(readl(addr) & ~val, addr);
+}
 
 static irqreturn_t rzv2m_i2c_tia_irq_handler(int this_irq, void *dev_id)
 {
