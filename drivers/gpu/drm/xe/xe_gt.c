@@ -321,6 +321,7 @@ int xe_gt_init_early(struct xe_gt *gt)
 		return err;
 
 	xe_wa_process_gt(gt);
+	xe_wa_process_oob(gt);
 	xe_tuning_process_gt(gt);
 
 	return 0;

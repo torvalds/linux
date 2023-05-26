@@ -368,6 +368,8 @@ struct xe_gt {
 		unsigned long *engine;
 		/** @lrc: bitmap with active LRC workarounds */
 		unsigned long *lrc;
+		/** @oob: bitmap with active OOB workaroudns */
+		unsigned long *oob;
 	} wa_active;
 };
 

@@ -9,6 +9,7 @@
 #include <kunit/visibility.h>
 #include <linux/compiler_types.h>
 
+#include "generated/xe_wa_oob.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
@@ -73,8 +74,8 @@
  *      engine registers are restored in a context restore sequence. This is
  *      currently not used in the driver.
  *
- * - Other:  There are WAs that, due to their nature, cannot be applied from a
- *   central place. Those are peppered around the rest of the code, as needed.
+ * - Other/OOB:  There are WAs that, due to their nature, cannot be applied from
+ *   a central place. Those are peppered around the rest of the code, as needed.
  *   Workarounds related to the display IP are the main example.
  *
  * .. [1] Technically, some registers are powercontext saved & restored, so they
@@ -579,7 +580,30 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 	{}
 };
 
+static __maybe_unused const struct xe_rtp_entry oob_was[] = {
+#include <generated/xe_wa_oob.c>
+	{}
+};
+
+static_assert(ARRAY_SIZE(oob_was) - 1 == _XE_WA_OOB_COUNT);
+
 __diag_pop();
+
+/**
+ * xe_wa_process_oob - process OOB workaround table
+ * @gt: GT instance to process workarounds for
+ *
+ * Process OOB workaround table for this platform, marking in @gt the
+ * workarounds that are active.
+ */
+void xe_wa_process_oob(struct xe_gt *gt)
+{
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
+
+	xe_rtp_process_ctx_enable_active_tracking(&ctx, gt->wa_active.oob,
+						  ARRAY_SIZE(oob_was));
+	xe_rtp_process(&ctx, oob_was);
+}
 
 /**
  * xe_wa_process_gt - process GT workaround table
@@ -641,13 +665,14 @@ void xe_wa_process_lrc(struct xe_hw_engine *hwe)
 int xe_wa_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	size_t n_lrc, n_engine, n_gt, total;
+	size_t n_oob, n_lrc, n_engine, n_gt, total;
 	unsigned long *p;
 
 	n_gt = BITS_TO_LONGS(ARRAY_SIZE(gt_was));
 	n_engine = BITS_TO_LONGS(ARRAY_SIZE(engine_was));
 	n_lrc = BITS_TO_LONGS(ARRAY_SIZE(lrc_was));
-	total = n_gt + n_engine + n_lrc;
+	n_oob = BITS_TO_LONGS(ARRAY_SIZE(oob_was));
+	total = n_gt + n_engine + n_lrc + n_oob;
 
 	p = drmm_kzalloc(&xe->drm, sizeof(*p) * total, GFP_KERNEL);
 	if (!p)
@@ -658,6 +683,8 @@ int xe_wa_init(struct xe_gt *gt)
 	gt->wa_active.engine = p;
 	p += n_engine;
 	gt->wa_active.lrc = p;
+	p += n_lrc;
+	gt->wa_active.oob = p;
 
 	return 0;
 }
@@ -677,4 +704,9 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 	drm_printf(p, "\nLRC Workarounds\n");
 	for_each_set_bit(idx, gt->wa_active.lrc, ARRAY_SIZE(lrc_was))
 		drm_printf_indent(p, 1, "%s\n", lrc_was[idx].name);
+
+	drm_printf(p, "\nOOB Workarounds\n");
+	for_each_set_bit(idx, gt->wa_active.oob, ARRAY_SIZE(oob_was))
+		if (oob_was[idx].name)
+			drm_printf_indent(p, 1, "%s\n", oob_was[idx].name);
 }

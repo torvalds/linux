@@ -29,6 +29,19 @@ CFLAGS_xe_pci.o = $(call cc-disable-warning, override-init)
 
 subdir-ccflags-y += -I$(obj) -I$(srctree)/$(src)
 
+# generated sources
+hostprogs := xe_gen_wa_oob
+
+generated_oob := $(obj)/generated/xe_wa_oob.c $(obj)/generated/xe_wa_oob.h
+
+quiet_cmd_wa_oob = GEN     $(notdir $(generated_oob))
+      cmd_wa_oob = mkdir -p $(@D); $^ $(generated_oob)
+
+$(generated_oob) &: $(obj)/xe_gen_wa_oob $(srctree)/$(src)/xe_wa_oob.rules
+	$(call cmd,wa_oob)
+
+$(obj)/xe_wa.o: $(generated_oob)
+
 # Please keep these build lists sorted!
 
 # core driver code
