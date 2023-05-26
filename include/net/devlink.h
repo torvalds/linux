@@ -1261,7 +1261,7 @@ struct devlink_ops {
 	/**
 	 * @supported_flash_update_params:
 	 * mask of parameters supported by the driver's .flash_update
-	 * implemementation.
+	 * implementation.
 	 */
 	u32 supported_flash_update_params;
 	unsigned long reload_actions;

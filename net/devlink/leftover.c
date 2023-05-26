@@ -6761,7 +6761,7 @@ static void devlink_port_type_warn_cancel(struct devlink_port *devlink_port)
  * @devlink: devlink
  * @devlink_port: devlink port
  *
- * Initialize essencial stuff that is needed for functions
+ * Initialize essential stuff that is needed for functions
  * that may be called before devlink port registration.
  * Call to this function is optional and not needed
  * in case the driver does not use such functions.
@@ -6782,7 +6782,7 @@ EXPORT_SYMBOL_GPL(devlink_port_init);
  *
  * @devlink_port: devlink port
  *
- * Deinitialize essencial stuff that is in use for functions
+ * Deinitialize essential stuff that is in use for functions
  * that may be called after devlink port unregistration.
  * Call to this function is optional and not needed
  * in case the driver does not use such functions.
