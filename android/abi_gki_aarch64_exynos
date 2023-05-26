@@ -2002,6 +2002,8 @@
   dma_heap_get_name
   is_dma_buf_file
   iterate_fd
+  __traceiter_android_vh_show_mem
+  __tracepoint_android_vh_show_mem
 
 # required by samsung_iommu_v9.ko
   device_link_add

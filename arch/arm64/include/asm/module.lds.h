@@ -40,4 +40,12 @@ SECTIONS {
 	}
 	.hyp.reloc : ALIGN(4) {	*(.hyp.reloc) }
 #endif
+
+#ifdef CONFIG_UNWIND_TABLES
+	/*
+	 * Currently, we only use unwind info at module load time, so we can
+	 * put it into the .init allocation.
+	 */
+	.init.eh_frame : { *(.eh_frame) }
+#endif
 }

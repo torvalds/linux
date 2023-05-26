@@ -30,6 +30,7 @@
   ip6_route_me_harder
   ip_route_me_harder
   ipv6_find_hdr
+  is_ashmem_file
   jiffies_64_to_clock_t
   ktime_get_coarse_real_ts64
   memory_cgrp_subsys
@@ -109,12 +110,15 @@
   __traceiter_android_vh_mutex_opt_spin_finish
   __traceiter_android_vh_mutex_opt_spin_start
   __traceiter_android_vh_cpufreq_acct_update_power  
+  __traceiter_android_vh_cleanup_old_buffers_bypass
+  __traceiter_android_vh_dm_bufio_shrink_scan_bypass
   __traceiter_android_vh_mutex_unlock_slowpath
   __traceiter_android_vh_rwsem_can_spin_on_owner
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_sched_stat_runtime_rt
+  __traceiter_android_vh_shrink_node_memcgs
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
   __traceiter_sched_stat_runtime
@@ -150,12 +154,15 @@
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
   __tracepoint_android_vh_cpufreq_acct_update_power
+  __tracepoint_android_vh_cleanup_old_buffers_bypass
+  __tracepoint_android_vh_dm_bufio_shrink_scan_bypass
   __tracepoint_android_vh_mutex_unlock_slowpath
   __tracepoint_android_vh_rwsem_can_spin_on_owner
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_sched_stat_runtime_rt
+  __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
   __tracepoint_sched_stat_runtime

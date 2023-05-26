@@ -15,9 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/moduleloader.h>
+#include <linux/scs.h>
 #include <linux/vmalloc.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
+#include <asm/scs.h>
 #include <asm/sections.h>
 
 void *module_alloc(unsigned long size)
@@ -568,6 +570,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 	s = find_section(hdr, sechdrs, ".altinstructions");
 	if (s)
 		apply_alternatives_module((void *)s->sh_addr, s->sh_size);
+
+	if (scs_is_dynamic()) {
+		s = find_section(hdr, sechdrs, ".init.eh_frame");
+		if (s)
+			scs_patch((void *)s->sh_addr, s->sh_size);
+	}
 
 	err = module_init_ftrace_plt(hdr, sechdrs, me);
 	if (err)
