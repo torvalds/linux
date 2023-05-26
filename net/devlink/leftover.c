@@ -1185,16 +1185,16 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 					  struct nlattr **tb,
 					  struct netlink_ext_ack *extack)
 {
+	const struct devlink_port_ops *ops = devlink_port->ops;
 	struct nlattr *attr;
 
 	if (tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] &&
-	    !devlink_port->ops->port_fn_hw_addr_set) {
+	    !ops->port_fn_hw_addr_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Port doesn't support function attributes");
 		return -EOPNOTSUPP;
 	}
-	if (tb[DEVLINK_PORT_FN_ATTR_STATE] &&
-	    !devlink_port->ops->port_fn_state_set) {
+	if (tb[DEVLINK_PORT_FN_ATTR_STATE] && !ops->port_fn_state_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Function does not support state setting");
 		return -EOPNOTSUPP;
@@ -1205,13 +1205,13 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 
 		caps = nla_get_bitfield32(attr);
 		if (caps.selector & DEVLINK_PORT_FN_CAP_ROCE &&
-		    !devlink_port->ops->port_fn_roce_set) {
+		    !ops->port_fn_roce_set) {
 			NL_SET_ERR_MSG_ATTR(extack, attr,
 					    "Port doesn't support RoCE function attribute");
 			return -EOPNOTSUPP;
 		}
 		if (caps.selector & DEVLINK_PORT_FN_CAP_MIGRATABLE) {
-			if (!devlink_port->ops->port_fn_migratable_set) {
+			if (!ops->port_fn_migratable_set) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "Port doesn't support migratable function attribute");
 				return -EOPNOTSUPP;
