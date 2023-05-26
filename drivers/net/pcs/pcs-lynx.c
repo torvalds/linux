@@ -323,6 +323,7 @@ struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 	if (!lynx)
 		return NULL;
 
+	mdio_device_get(mdio);
 	lynx->mdio = mdio;
 	lynx->pcs.ops = &lynx_pcs_phylink_ops;
 	lynx->pcs.poll = true;
@@ -331,10 +332,40 @@ struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 }
 EXPORT_SYMBOL(lynx_pcs_create);
 
+struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
+{
+	struct mdio_device *mdio;
+	struct phylink_pcs *pcs;
+
+	mdio = mdio_device_create(bus, addr);
+	if (IS_ERR(mdio))
+		return ERR_CAST(mdio);
+
+	pcs = lynx_pcs_create(mdio);
+
+	/* Convert failure to create the PCS to an error pointer, so this
+	 * function has a consistent return value strategy.
+	 */
+	if (!pcs)
+		pcs = ERR_PTR(-ENOMEM);
+
+	/* lynx_create() has taken a refcount on the mdiodev if it was
+	 * successful. If lynx_create() fails, this will free the mdio
+	 * device here. In any case, we don't need to hold our reference
+	 * anymore, and putting it here will allow mdio_device_put() in
+	 * lynx_destroy() to automatically free the mdio device.
+	 */
+	mdio_device_put(mdio);
+
+	return pcs;
+}
+EXPORT_SYMBOL(lynx_pcs_create_mdiodev);
+
 void lynx_pcs_destroy(struct phylink_pcs *pcs)
 {
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
 
+	mdio_device_put(lynx->mdio);
 	kfree(lynx);
 }
 EXPORT_SYMBOL(lynx_pcs_destroy);
