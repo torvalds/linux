@@ -160,9 +160,11 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
-	 * Wa_2201180203
+	 * Wa_22011802037: FIXME - there's more to be done than simply setting
+	 * this flag: make sure each CS is stopped when preparing for GT reset
+	 * and wait for pending MI_FW.
 	 */
-	if (GRAPHICS_VER(xe) <= 12)
+	if (GRAPHICS_VERx100(xe) < 1270)
 		flags |= GUC_WA_PRE_PARSER;
 
 	/* Wa_16011777198 */
