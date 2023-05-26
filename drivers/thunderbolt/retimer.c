@@ -244,6 +244,13 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	rt->auth_status = 0;
 
 	if (val) {
+		/*
+		 * When NVM authentication starts the retimer is not
+		 * accessible so calling tb_retimer_unset_inbound_sbtx()
+		 * will fail and therefore we do not call it. Exception
+		 * is when the validation fails or we only write the new
+		 * NVM image without authentication.
+		 */
 		tb_retimer_set_inbound_sbtx(rt->port);
 		if (val == AUTHENTICATE_ONLY) {
 			ret = tb_retimer_nvm_authenticate(rt, true);
@@ -264,7 +271,8 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	}
 
 exit_unlock:
-	tb_retimer_unset_inbound_sbtx(rt->port);
+	if (ret || val == WRITE_ONLY)
+		tb_retimer_unset_inbound_sbtx(rt->port);
 	mutex_unlock(&rt->tb->lock);
 exit_rpm:
 	pm_runtime_mark_last_busy(&rt->dev);
