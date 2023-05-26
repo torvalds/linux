@@ -21,25 +21,25 @@
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
-	regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
+	regmap_update_bits(ksz_regmap_8(dev), addr, bits, set ? bits : 0);
 }
 
 static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			 bool set)
 {
-	regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
+	regmap_update_bits(ksz_regmap_8(dev), PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
 }
 
 static void ksz9477_cfg32(struct ksz_device *dev, u32 addr, u32 bits, bool set)
 {
-	regmap_update_bits(dev->regmap[2], addr, bits, set ? bits : 0);
+	regmap_update_bits(ksz_regmap_32(dev), addr, bits, set ? bits : 0);
 }
 
 static void ksz9477_port_cfg32(struct ksz_device *dev, int port, int offset,
 			       u32 bits, bool set)
 {
-	regmap_update_bits(dev->regmap[2], PORT_CTRL_ADDR(port, offset),
+	regmap_update_bits(ksz_regmap_32(dev), PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
 }
 
@@ -52,7 +52,7 @@ int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu)
 
 	frame_size = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
-	return regmap_update_bits(dev->regmap[1], REG_SW_MTU__2,
+	return regmap_update_bits(ksz_regmap_16(dev), REG_SW_MTU__2,
 				  REG_SW_MTU_MASK, frame_size);
 }
 
@@ -60,7 +60,7 @@ static int ksz9477_wait_vlan_ctrl_ready(struct ksz_device *dev)
 {
 	unsigned int val;
 
-	return regmap_read_poll_timeout(dev->regmap[0], REG_SW_VLAN_CTRL,
+	return regmap_read_poll_timeout(ksz_regmap_8(dev), REG_SW_VLAN_CTRL,
 					val, !(val & VLAN_START), 10, 1000);
 }
 
@@ -147,7 +147,7 @@ static int ksz9477_wait_alu_ready(struct ksz_device *dev)
 {
 	unsigned int val;
 
-	return regmap_read_poll_timeout(dev->regmap[2], REG_SW_ALU_CTRL__4,
+	return regmap_read_poll_timeout(ksz_regmap_32(dev), REG_SW_ALU_CTRL__4,
 					val, !(val & ALU_START), 10, 1000);
 }
 
@@ -155,7 +155,7 @@ static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 {
 	unsigned int val;
 
-	return regmap_read_poll_timeout(dev->regmap[2],
+	return regmap_read_poll_timeout(ksz_regmap_32(dev),
 					REG_SW_ALU_STAT_CTRL__4,
 					val, !(val & ALU_STAT_START),
 					10, 1000);
@@ -170,7 +170,7 @@ int ksz9477_reset_switch(struct ksz_device *dev)
 	ksz_cfg(dev, REG_SW_OPERATION, SW_RESET, true);
 
 	/* turn off SPI DO Edge select */
-	regmap_update_bits(dev->regmap[0], REG_SW_GLOBAL_SERIAL_CTRL_0,
+	regmap_update_bits(ksz_regmap_8(dev), REG_SW_GLOBAL_SERIAL_CTRL_0,
 			   SPI_AUTO_EDGE_DETECTION, 0);
 
 	/* default configuration */
@@ -213,7 +213,7 @@ void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 	data |= (addr << MIB_COUNTER_INDEX_S);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, data);
 
-	ret = regmap_read_poll_timeout(dev->regmap[2],
+	ret = regmap_read_poll_timeout(ksz_regmap_32(dev),
 			PORT_CTRL_ADDR(port, REG_PORT_MIB_CTRL_STAT__4),
 			val, !(val & MIB_COUNTER_READ), 10, 1000);
 	/* failed to read MIB. get out of loop */
@@ -346,7 +346,7 @@ void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	const u16 *regs = dev->info->regs;
 	u8 data;
 
-	regmap_update_bits(dev->regmap[0], REG_SW_LUE_CTRL_2,
+	regmap_update_bits(ksz_regmap_8(dev), REG_SW_LUE_CTRL_2,
 			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
 			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
 
@@ -1165,7 +1165,7 @@ int ksz9477_setup(struct dsa_switch *ds)
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_JUMBO_PACKET, true);
 
 	/* Now we can configure default MTU value */
-	ret = regmap_update_bits(dev->regmap[1], REG_SW_MTU__2, REG_SW_MTU_MASK,
+	ret = regmap_update_bits(ksz_regmap_16(dev), REG_SW_MTU__2, REG_SW_MTU_MASK,
 				 VLAN_ETH_FRAME_LEN + ETH_FCS_LEN);
 	if (ret)
 		return ret;

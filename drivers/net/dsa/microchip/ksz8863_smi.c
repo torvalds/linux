@@ -136,7 +136,7 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 	if (!dev)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(ksz8863_regmap_config); i++) {
+	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz8863_regmap_config[i];
 		rc.lock_arg = &dev->regmap_mutex;
 		dev->regmap[i] = devm_regmap_init(&mdiodev->dev,

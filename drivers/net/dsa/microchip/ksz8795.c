@@ -28,13 +28,13 @@
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
-	regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
+	regmap_update_bits(ksz_regmap_8(dev), addr, bits, set ? bits : 0);
 }
 
 static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			 bool set)
 {
-	regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
+	regmap_update_bits(ksz_regmap_8(dev), PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
 }
 
@@ -1425,14 +1425,14 @@ int ksz8_setup(struct dsa_switch *ds)
 	ksz_cfg(dev, S_LINK_AGING_CTRL, SW_LINK_AUTO_AGING, true);
 
 	/* Enable aggressive back off algorithm in half duplex mode. */
-	regmap_update_bits(dev->regmap[0], REG_SW_CTRL_1,
+	regmap_update_bits(ksz_regmap_8(dev), REG_SW_CTRL_1,
 			   SW_AGGR_BACKOFF, SW_AGGR_BACKOFF);
 
 	/*
 	 * Make sure unicast VLAN boundary is set as default and
 	 * enable no excessive collision drop.
 	 */
-	regmap_update_bits(dev->regmap[0], REG_SW_CTRL_2,
+	regmap_update_bits(ksz_regmap_8(dev), REG_SW_CTRL_2,
 			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
 			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
 

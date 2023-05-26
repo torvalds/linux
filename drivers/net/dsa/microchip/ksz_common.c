@@ -2095,7 +2095,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* set broadcast storm protection 10% rate */
-	regmap_update_bits(dev->regmap[1], regs[S_BROADCAST_CTRL],
+	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
 			   BROADCAST_STORM_RATE,
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
@@ -2106,7 +2106,7 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	ds->num_tx_queues = dev->info->num_tx_queues;
 
-	regmap_update_bits(dev->regmap[0], regs[S_MULTICAST_CTRL],
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_MULTICAST_CTRL],
 			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
 
 	ksz_init_mib_timer(dev);
@@ -2156,7 +2156,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* start switch */
-	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;
