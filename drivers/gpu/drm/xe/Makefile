@@ -27,7 +27,7 @@ subdir-ccflags-$(CONFIG_DRM_XE_WERROR) += -Werror
 # Fine grained warnings disable
 CFLAGS_xe_pci.o = $(call cc-disable-warning, override-init)
 
-subdir-ccflags-y += -I$(srctree)/$(src)
+subdir-ccflags-y += -I$(obj) -I$(srctree)/$(src)
 
 # Please keep these build lists sorted!
 
