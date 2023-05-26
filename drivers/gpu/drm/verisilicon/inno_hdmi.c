@@ -660,6 +660,7 @@ inno_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	ret = pm_runtime_get_sync(hdmi->dev);
 	if (ret < 0)
 		return ret;
+	mdelay(500);
 	ret = (hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG) ?
 		connector_status_connected : connector_status_disconnected;
 
