@@ -204,9 +204,27 @@ u64 ifcvf_get_hw_features(struct ifcvf_hw *hw)
 	return features;
 }
 
-u64 ifcvf_get_features(struct ifcvf_hw *hw)
+/* return provisioned vDPA dev features */
+u64 ifcvf_get_dev_features(struct ifcvf_hw *hw)
 {
 	return hw->dev_features;
+}
+
+u64 ifcvf_get_driver_features(struct ifcvf_hw *hw)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
+	u32 features_lo, features_hi;
+	u64 features;
+
+	vp_iowrite32(0, &cfg->device_feature_select);
+	features_lo = vp_ioread32(&cfg->guest_feature);
+
+	vp_iowrite32(1, &cfg->device_feature_select);
+	features_hi = vp_ioread32(&cfg->guest_feature);
+
+	features = ((u64)features_hi << 32) | features_lo;
+
+	return features;
 }
 
 int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features)
@@ -275,7 +293,7 @@ void ifcvf_write_dev_config(struct ifcvf_hw *hw, u64 offset,
 		vp_iowrite8(*p++, hw->dev_cfg + offset + i);
 }
 
-static void ifcvf_set_features(struct ifcvf_hw *hw, u64 features)
+void ifcvf_set_driver_features(struct ifcvf_hw *hw, u64 features)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
 
@@ -284,19 +302,6 @@ static void ifcvf_set_features(struct ifcvf_hw *hw, u64 features)
 
 	vp_iowrite32(1, &cfg->guest_feature_select);
 	vp_iowrite32(features >> 32, &cfg->guest_feature);
-}
-
-static int ifcvf_config_features(struct ifcvf_hw *hw)
-{
-	ifcvf_set_features(hw, hw->req_features);
-	ifcvf_add_status(hw, VIRTIO_CONFIG_S_FEATURES_OK);
-
-	if (!(ifcvf_get_status(hw) & VIRTIO_CONFIG_S_FEATURES_OK)) {
-		IFCVF_ERR(hw->pdev, "Failed to set FEATURES_OK status\n");
-		return -EIO;
-	}
-
-	return 0;
 }
 
 u16 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid)
@@ -386,9 +391,6 @@ int ifcvf_start_hw(struct ifcvf_hw *hw)
 {
 	ifcvf_add_status(hw, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 	ifcvf_add_status(hw, VIRTIO_CONFIG_S_DRIVER);
-
-	if (ifcvf_config_features(hw) < 0)
-		return -EINVAL;
 
 	ifcvf_add_status(hw, VIRTIO_CONFIG_S_DRIVER_OK);
 
