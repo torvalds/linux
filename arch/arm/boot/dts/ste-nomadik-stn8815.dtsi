@@ -769,7 +769,7 @@
 			reg = <0x10140020 0x20>;
 		};
 
-		uart0: uart@101fd000 {
+		uart0: serial@101fd000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101fd000 0x1000>;
 			interrupt-parent = <&vica>;
@@ -782,7 +782,7 @@
 			dma-names = "rx", "tx";
 		};
 
-		uart1: uart@101fb000 {
+		uart1: serial@101fb000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101fb000 0x1000>;
 			interrupt-parent = <&vica>;
@@ -796,7 +796,7 @@
 			dma-names = "rx", "tx";
 		};
 
-		uart2: uart@101f2000 {
+		uart2: serial@101f2000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x101f2000 0x1000>;
 			interrupt-parent = <&vica>;

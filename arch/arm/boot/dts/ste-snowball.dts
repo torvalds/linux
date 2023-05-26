@@ -308,7 +308,7 @@
 			status = "okay";
 		};
 
-		uart@80120000 {
+		serial@80120000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u0_a_1_default>;
 			pinctrl-1 = <&u0_a_1_sleep>;
@@ -316,13 +316,13 @@
 		};
 
 		/* This UART is unused and thus left disabled */
-		uart@80121000 {
+		serial@80121000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u1rxtx_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep>;
 		};
 
-		uart@80007000 {
+		serial@80007000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u2rxtx_c_1_default>;
 			pinctrl-1 = <&u2rxtx_c_1_sleep>;

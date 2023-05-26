@@ -467,7 +467,7 @@
 		};
 
 		/* GBF (Bluetooth) UART */
-		uart@80120000 {
+		serial@80120000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u0_a_1_default>;
 			pinctrl-1 = <&u0_a_1_sleep>;
@@ -491,7 +491,7 @@
 		};
 
 		/* GPS UART */
-		uart@80121000 {
+		serial@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
 			/* CTS/RTS is not used, CTS is repurposed as GPIO */
@@ -520,7 +520,7 @@
 		};
 
 		/* Debugging console UART connected to TSU6111RSVR (FSA880) */
-		uart@80007000 {
+		serial@80007000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u2rxtx_c_1_default>;

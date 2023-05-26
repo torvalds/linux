@@ -190,7 +190,7 @@
 		};
 
 		/* Activate RX/TX and CTS/RTS on UART 0 */
-		uart0: uart@101fd000 {
+		uart0: serial@101fd000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_nhk_mode>;
 			status = "okay";
