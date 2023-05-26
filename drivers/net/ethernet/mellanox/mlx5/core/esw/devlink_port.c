@@ -145,6 +145,9 @@ struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u1
 }
 
 static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
+#ifdef CONFIG_MLX5_SF_MANAGER
+	.port_del = mlx5_devlink_sf_port_del,
+#endif
 	.port_fn_hw_addr_get = mlx5_devlink_port_fn_hw_addr_get,
 	.port_fn_hw_addr_set = mlx5_devlink_port_fn_hw_addr_set,
 	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,

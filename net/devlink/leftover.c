@@ -1348,7 +1348,7 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 	struct devlink_port_new_attrs new_attrs = {};
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_new || !devlink->ops->port_del)
+	if (!devlink->ops->port_new)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[DEVLINK_ATTR_PORT_FLAVOUR] ||
@@ -1387,10 +1387,10 @@ static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_del)
+	if (!devlink_port->ops->port_del)
 		return -EOPNOTSUPP;
 
-	return devlink->ops->port_del(devlink, devlink_port, extack);
+	return devlink_port->ops->port_del(devlink, devlink_port, extack);
 }
 
 static int

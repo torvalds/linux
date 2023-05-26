@@ -1447,23 +1447,6 @@ struct devlink_ops {
 	int (*port_new)(struct devlink *devlink,
 			const struct devlink_port_new_attrs *attrs,
 			struct netlink_ext_ack *extack);
-	/**
-	 * port_del() - Delete a port function
-	 * @devlink: Devlink instance
-	 * @port: The devlink port
-	 * @extack: extack for reporting error messages
-	 *
-	 * Devlink core will call this device driver function upon user request
-	 * to delete a previously created port function
-	 *
-	 * Notes:
-	 *	- On success, drivers must unregister the corresponding devlink
-	 *	  port
-	 *
-	 * Return: 0 on success, negative value otherwise.
-	 */
-	int (*port_del)(struct devlink *devlink, struct devlink_port *port,
-			struct netlink_ext_ack *extack);
 
 	/**
 	 * Rate control callbacks.
@@ -1560,6 +1543,9 @@ void devlink_free(struct devlink *devlink);
  * @port_unsplit: Callback used to unsplit the port group back into
  *		  a single port.
  * @port_type_set: Callback used to set a type of a port.
+ * @port_del: Callback used to delete selected port along with related function.
+ *	      Devlink core calls this upon user request to delete
+ *	      a port previously created by devlink_ops->port_new().
  * @port_fn_hw_addr_get: Callback used to set port function's hardware address.
  *			 Should be used by device drivers to report
  *			 the hardware address of a function managed
@@ -1602,6 +1588,8 @@ struct devlink_port_ops {
 			    struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
+	int (*port_del)(struct devlink *devlink, struct devlink_port *port,
+			struct netlink_ext_ack *extack);
 	int (*port_fn_hw_addr_get)(struct devlink_port *port, u8 *hw_addr,
 				   int *hw_addr_len,
 				   struct netlink_ext_ack *extack);
