@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Driver for Microchip 10BASE-T1S LAN867X PHY
+ * Driver for Microchip 10BASE-T1S PHYs
  *
  * Support: Microchip Phys:
  *  lan8670, lan8671, lan8672
@@ -111,7 +111,7 @@ static int lan867x_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-static struct phy_driver lan867x_driver[] = {
+static struct phy_driver microchip_t1s_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_LAN867X),
 		.name               = "LAN867X",
@@ -124,7 +124,7 @@ static struct phy_driver lan867x_driver[] = {
 	}
 };
 
-module_phy_driver(lan867x_driver);
+module_phy_driver(microchip_t1s_driver);
 
 static struct mdio_device_id __maybe_unused tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN867X) },
@@ -133,6 +133,6 @@ static struct mdio_device_id __maybe_unused tbl[] = {
 
 MODULE_DEVICE_TABLE(mdio, tbl);
 
-MODULE_DESCRIPTION("Microchip 10BASE-T1S lan867x Phy driver");
+MODULE_DESCRIPTION("Microchip 10BASE-T1S PHYs driver");
 MODULE_AUTHOR("Ramón Nordin Rodriguez");
 MODULE_LICENSE("GPL");
