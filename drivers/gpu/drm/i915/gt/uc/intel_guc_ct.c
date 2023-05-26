@@ -426,11 +426,11 @@ static int ct_write(struct intel_guc_ct *ct,
 		 FIELD_PREP(GUC_CTB_MSG_0_NUM_DWORDS, len) |
 		 FIELD_PREP(GUC_CTB_MSG_0_FENCE, fence);
 
-	type = (flags & INTEL_GUC_CT_SEND_NB) ? GUC_HXG_TYPE_EVENT :
+	type = (flags & INTEL_GUC_CT_SEND_NB) ? GUC_HXG_TYPE_FAST_REQUEST :
 		GUC_HXG_TYPE_REQUEST;
 	hxg = FIELD_PREP(GUC_HXG_MSG_0_TYPE, type) |
-		FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
-			   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
+		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION |
+			   GUC_HXG_REQUEST_MSG_0_DATA0, action[0]);
 
 	CT_DEBUG(ct, "writing (tail %u) %*ph %*ph %*ph\n",
 		 tail, 4, &header, 4, &hxg, 4 * (len - 1), &action[1]);
