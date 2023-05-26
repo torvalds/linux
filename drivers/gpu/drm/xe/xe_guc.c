@@ -147,14 +147,7 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	    xe->info.platform == XE_DG2)
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	/*
-	 * Wa_14012197797
-	 * Wa_22011391025
-	 *
-	 * The same WA bit is used for both and 22011391025 is applicable to
-	 * all DG2.
-	 */
-	if (xe->info.platform == XE_DG2)
+	if (XE_WA(gt, 22011391025) || XE_WA(gt, 14012197797))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
