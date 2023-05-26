@@ -1464,36 +1464,6 @@ struct devlink_ops {
 	 */
 	int (*port_del)(struct devlink *devlink, struct devlink_port *port,
 			struct netlink_ext_ack *extack);
-	/**
-	 * port_fn_state_get() - Get the state of a port function
-	 * @devlink: Devlink instance
-	 * @port: The devlink port
-	 * @state: Admin configured state
-	 * @opstate: Current operational state
-	 * @extack: extack for reporting error messages
-	 *
-	 * Reports the admin and operational state of a devlink port function
-	 *
-	 * Return: 0 on success, negative value otherwise.
-	 */
-	int (*port_fn_state_get)(struct devlink_port *port,
-				 enum devlink_port_fn_state *state,
-				 enum devlink_port_fn_opstate *opstate,
-				 struct netlink_ext_ack *extack);
-	/**
-	 * port_fn_state_set() - Set the admin state of a port function
-	 * @devlink: Devlink instance
-	 * @port: The devlink port
-	 * @state: Admin state
-	 * @extack: extack for reporting error messages
-	 *
-	 * Set the admin state of a devlink port function
-	 *
-	 * Return: 0 on success, negative value otherwise.
-	 */
-	int (*port_fn_state_set)(struct devlink_port *port,
-				 enum devlink_port_fn_state state,
-				 struct netlink_ext_ack *extack);
 
 	/**
 	 * Rate control callbacks.
@@ -1613,6 +1583,14 @@ void devlink_free(struct devlink *devlink);
  *			    capability. Should be used by device drivers
  *			    to enable/disable migratable capability of
  *			    a function managed by the devlink port.
+ * @port_fn_state_get: Callback used to get port function's state.
+ *		       Should be used by device drivers to report
+ *		       the current admin and operational state of a
+ *		       function managed by the devlink port.
+ * @port_fn_state_set: Callback used to get port function's state.
+ *		       Should be used by device drivers set
+ *		       the admin state of a function managed
+ *		       by the devlink port.
  *
  * Note: Driver should return -EOPNOTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
@@ -1641,6 +1619,13 @@ struct devlink_port_ops {
 	int (*port_fn_migratable_set)(struct devlink_port *devlink_port,
 				      bool enable,
 				      struct netlink_ext_ack *extack);
+	int (*port_fn_state_get)(struct devlink_port *port,
+				 enum devlink_port_fn_state *state,
+				 enum devlink_port_fn_opstate *opstate,
+				 struct netlink_ext_ack *extack);
+	int (*port_fn_state_set)(struct devlink_port *port,
+				 enum devlink_port_fn_state state,
+				 struct netlink_ext_ack *extack);
 };
 
 void devlink_port_init(struct devlink *devlink,

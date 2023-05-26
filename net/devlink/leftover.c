@@ -787,8 +787,7 @@ devlink_port_fn_opstate_valid(enum devlink_port_fn_opstate opstate)
 	       opstate == DEVLINK_PORT_FN_OPSTATE_ATTACHED;
 }
 
-static int devlink_port_fn_state_fill(const struct devlink_ops *ops,
-				      struct devlink_port *port,
+static int devlink_port_fn_state_fill(struct devlink_port *port,
 				      struct sk_buff *msg,
 				      struct netlink_ext_ack *extack,
 				      bool *msg_updated)
@@ -797,10 +796,10 @@ static int devlink_port_fn_state_fill(const struct devlink_ops *ops,
 	enum devlink_port_fn_state state;
 	int err;
 
-	if (!ops->port_fn_state_get)
+	if (!port->ops->port_fn_state_get)
 		return 0;
 
-	err = ops->port_fn_state_get(port, &state, &opstate, extack);
+	err = port->ops->port_fn_state_get(port, &state, &opstate, extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -870,7 +869,6 @@ static int
 devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *port,
 				   struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops;
 	struct nlattr *function_attr;
 	bool msg_updated = false;
 	int err;
@@ -879,14 +877,13 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	if (!function_attr)
 		return -EMSGSIZE;
 
-	ops = port->devlink->ops;
 	err = devlink_port_fn_hw_addr_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
 	err = devlink_port_fn_caps_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
-	err = devlink_port_fn_state_fill(ops, port, msg, extack, &msg_updated);
+	err = devlink_port_fn_state_fill(port, msg, extack, &msg_updated);
 out:
 	if (err || !msg_updated)
 		nla_nest_cancel(msg, function_attr);
@@ -1179,18 +1176,15 @@ static int devlink_port_fn_state_set(struct devlink_port *port,
 				     struct netlink_ext_ack *extack)
 {
 	enum devlink_port_fn_state state;
-	const struct devlink_ops *ops;
 
 	state = nla_get_u8(attr);
-	ops = port->devlink->ops;
-	return ops->port_fn_state_set(port, state, extack);
+	return port->ops->port_fn_state_set(port, state, extack);
 }
 
 static int devlink_port_function_validate(struct devlink_port *devlink_port,
 					  struct nlattr **tb,
 					  struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
 	struct nlattr *attr;
 
 	if (tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] &&
@@ -1199,7 +1193,8 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 				    "Port doesn't support function attributes");
 		return -EOPNOTSUPP;
 	}
-	if (tb[DEVLINK_PORT_FN_ATTR_STATE] && !ops->port_fn_state_set) {
+	if (tb[DEVLINK_PORT_FN_ATTR_STATE] &&
+	    !devlink_port->ops->port_fn_state_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Function does not support state setting");
 		return -EOPNOTSUPP;
