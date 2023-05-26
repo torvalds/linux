@@ -1932,8 +1932,8 @@ static int map_freeze(const union bpf_attr *attr)
 	}
 
 	if (!(map_get_sys_perms(map, f) & FMODE_CAN_WRITE)) {
-		err = -EPERM;
-		goto err_put;
+		fdput(f);
+		return -EPERM;
 	}
 
 	mutex_lock(&map->freeze_mutex);
