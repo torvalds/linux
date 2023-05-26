@@ -6931,8 +6931,8 @@ ssize_t skb_splice_from_iter(struct sk_buff *skb, struct iov_iter *iter,
 	unsigned int i;
 
 	while (iter->count > 0) {
-		ssize_t space, nr;
-		size_t off, len;
+		ssize_t space, nr, len;
+		size_t off;
 
 		ret = -EMSGSIZE;
 		space = frag_limit - skb_shinfo(skb)->nr_frags;
