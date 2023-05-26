@@ -1320,7 +1320,7 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_SPLIT_COUNT))
 		return -EINVAL;
-	if (!devlink->ops->port_split)
+	if (!devlink_port->ops->port_split)
 		return -EOPNOTSUPP;
 
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
@@ -1339,8 +1339,8 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	return devlink->ops->port_split(devlink, devlink_port, count,
-					info->extack);
+	return devlink_port->ops->port_split(devlink, devlink_port, count,
+					     info->extack);
 }
 
 static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
@@ -1349,9 +1349,9 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_unsplit)
+	if (!devlink_port->ops->port_unsplit)
 		return -EOPNOTSUPP;
-	return devlink->ops->port_unsplit(devlink, devlink_port, info->extack);
+	return devlink_port->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
 static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
