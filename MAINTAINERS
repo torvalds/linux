@@ -1600,7 +1600,7 @@ F:	drivers/media/i2c/ar0521.c
 
 ARASAN NAND CONTROLLER DRIVER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
-M:	Naga Sureshkumar Relli <nagasure@xilinx.com>
+R:	Michal Simek <michal.simek@amd.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/arasan,nand-controller.yaml
@@ -1763,7 +1763,7 @@ F:	include/linux/amba/mmci.h
 
 ARM PRIMECELL PL35X NAND CONTROLLER DRIVER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
-M:	Naga Sureshkumar Relli <nagasure@xilinx.com>
+R:	Michal Simek <michal.simek@amd.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/arm,pl353-nand-r2p1.yaml
@@ -1771,7 +1771,7 @@ F:	drivers/mtd/nand/raw/pl35x-nand-controller.c
 
 ARM PRIMECELL PL35X SMC DRIVER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
-M:	Naga Sureshkumar Relli <nagasure@xilinx.com>
+R:	Michal Simek <michal.simek@amd.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/memory-controllers/arm,pl35x-smc.yaml
