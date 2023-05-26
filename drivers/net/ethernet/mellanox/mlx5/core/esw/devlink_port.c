@@ -65,6 +65,9 @@ static void mlx5_esw_dl_port_free(struct devlink_port *dl_port)
 	kfree(dl_port);
 }
 
+static const struct devlink_port_ops mlx5_esw_dl_port_ops = {
+};
+
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_core_dev *dev = esw->dev;
@@ -87,7 +90,8 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 
 	devlink = priv_to_devlink(dev);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, vport_num);
-	err = devl_port_register(devlink, dl_port, dl_port_index);
+	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index,
+					  &mlx5_esw_dl_port_ops);
 	if (err)
 		goto reg_err;
 
@@ -134,6 +138,9 @@ struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u1
 	return IS_ERR(vport) ? ERR_CAST(vport) : vport->dl_port;
 }
 
+static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
+};
+
 int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 controller, u32 sfnum)
 {
@@ -156,7 +163,8 @@ int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_p
 	devlink_port_attrs_pci_sf_set(dl_port, controller, pfnum, sfnum, !!controller);
 	devlink = priv_to_devlink(dev);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, vport_num);
-	err = devl_port_register(devlink, dl_port, dl_port_index);
+	err = devl_port_register_with_ops(devlink, dl_port, dl_port_index,
+					  &mlx5_esw_dl_sf_port_ops);
 	if (err)
 		return err;
 
