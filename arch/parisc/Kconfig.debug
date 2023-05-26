@@ -10,3 +10,14 @@ config LIGHTWEIGHT_SPINLOCK_CHECK
 	  spinlock debugging you should choose the DEBUG_SPINLOCK option
 	  which will detect unitialized spinlocks too.
 	  If unsure say Y here.
+
+config TLB_PTLOCK
+	bool "Use page table locks in TLB fault handler"
+	depends on SMP
+	default n
+	help
+	  Select this option to enable page table locking in the TLB
+	  fault handler. This ensures that page table entries are
+	  updated consistently on SMP machines at the expense of some
+	  loss in performance.
+
