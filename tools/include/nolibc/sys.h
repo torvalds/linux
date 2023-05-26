@@ -22,6 +22,7 @@
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
 #include <linux/reboot.h> /* for LINUX_REBOOT_* */
+#include <linux/prctl.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -866,6 +867,32 @@ int open(const char *path, int flags, ...)
 	}
 
 	ret = sys_open(path, flags, mode);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+
+/*
+ * int prctl(int option, unsigned long arg2, unsigned long arg3,
+ *                       unsigned long arg4, unsigned long arg5);
+ */
+
+static __attribute__((unused))
+int sys_prctl(int option, unsigned long arg2, unsigned long arg3,
+		          unsigned long arg4, unsigned long arg5)
+{
+	return my_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
+}
+
+static __attribute__((unused))
+int prctl(int option, unsigned long arg2, unsigned long arg3,
+		      unsigned long arg4, unsigned long arg5)
+{
+	int ret = sys_prctl(option, arg2, arg3, arg4, arg5);
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
