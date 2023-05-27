@@ -237,7 +237,8 @@ int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 }
 EXPORT_SYMBOL(shrinker_debugfs_rename);
 
-struct dentry *shrinker_debugfs_remove(struct shrinker *shrinker)
+struct dentry *shrinker_debugfs_detach(struct shrinker *shrinker,
+				       int *debugfs_id)
 {
 	struct dentry *entry = shrinker->debugfs_entry;
 
@@ -246,12 +247,16 @@ struct dentry *shrinker_debugfs_remove(struct shrinker *shrinker)
 	kfree_const(shrinker->name);
 	shrinker->name = NULL;
 
-	if (entry) {
-		ida_free(&shrinker_debugfs_ida, shrinker->debugfs_id);
-		shrinker->debugfs_entry = NULL;
-	}
+	*debugfs_id = entry ? shrinker->debugfs_id : -1;
+	shrinker->debugfs_entry = NULL;
 
 	return entry;
+}
+
+void shrinker_debugfs_remove(struct dentry *debugfs_entry, int debugfs_id)
+{
+	debugfs_remove_recursive(debugfs_entry);
+	ida_free(&shrinker_debugfs_ida, debugfs_id);
 }
 
 static int __init shrinker_debugfs_init(void)
