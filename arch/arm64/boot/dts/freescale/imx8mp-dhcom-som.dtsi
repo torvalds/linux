@@ -49,6 +49,14 @@
 		startup-delay-us = <100>;
 		vin-supply = <&buck4>;
 	};
+
+	reg_vdd_3p3v_awo: regulator-vdd-3p3v-awo {	/* VDD_3V3_AWO */
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "VDD_3P3V_AWO";
+	};
 };
 
 &A53_0 {
@@ -915,6 +923,15 @@
 			MX8MP_IOMUXC_SAI1_RXC__GPIO4_IO01		0x40000146
 			/* DSI-CONV_INT Interrupt */
 			MX8MP_IOMUXC_SAI5_RXD0__GPIO3_IO21		0x141
+		>;
+	};
+
+	pinctrl_sai3: dhcom-sai3-grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI3_TXFS__AUDIOMIX_SAI3_TX_SYNC	0xd6
+			MX8MP_IOMUXC_SAI3_TXC__AUDIOMIX_SAI3_TX_BCLK	0xd6
+			MX8MP_IOMUXC_SAI3_RXD__AUDIOMIX_SAI3_RX_DATA00	0xd6
+			MX8MP_IOMUXC_SAI3_TXD__AUDIOMIX_SAI3_TX_DATA00	0xd6
 		>;
 	};
 
