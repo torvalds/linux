@@ -44,7 +44,7 @@ static int save_result(void)
 	struct list_head *list;
 	struct pmu_scan_result *r;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		r = realloc(results, (nr_pmus + 1) * sizeof(*r));
 		if (r == NULL)
 			return -ENOMEM;
@@ -68,7 +68,7 @@ static int save_result(void)
 		nr_pmus++;
 	}
 
-	perf_pmu__destroy();
+	perf_pmus__destroy();
 	return 0;
 }
 
@@ -81,7 +81,7 @@ static int check_result(void)
 
 	for (int i = 0; i < nr_pmus; i++) {
 		r = &results[i];
-		pmu = perf_pmu__find(r->name);
+		pmu = perf_pmus__find(r->name);
 		if (pmu == NULL) {
 			pr_err("Cannot find PMU %s\n", r->name);
 			return -1;
@@ -144,7 +144,7 @@ static int run_pmu_scan(void)
 
 	for (i = 0; i < iterations; i++) {
 		gettimeofday(&start, NULL);
-		perf_pmu__scan(NULL);
+		perf_pmus__scan(NULL);
 		gettimeofday(&end, NULL);
 
 		timersub(&end, &start, &diff);
@@ -152,7 +152,7 @@ static int run_pmu_scan(void)
 		update_stats(&stats, runtime_us);
 
 		ret = check_result();
-		perf_pmu__destroy();
+		perf_pmus__destroy();
 		if (ret < 0)
 			break;
 	}

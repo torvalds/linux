@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "symbol.h"
 #include "pmu.h"
+#include "pmus.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
@@ -128,14 +129,14 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		if (!perf_pmu__has_hybrid()) {
+		if (!perf_pmus__has_hybrid()) {
 			scnprintf(sysfs_name, sizeof(sysfs_name),
 				  e->sysfs_name, "cpu");
 			e->supported = perf_mem_event__supported(mnt, sysfs_name);
 		} else {
 			struct perf_pmu *pmu = NULL;
 
-			while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 				if (!pmu->is_core)
 					continue;
 
@@ -175,7 +176,7 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 	char sysfs_name[100];
 	struct perf_pmu *pmu = NULL;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!pmu->is_core)
 			continue;
 
@@ -201,7 +202,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 		if (!e->record)
 			continue;
 
-		if (!perf_pmu__has_hybrid()) {
+		if (!perf_pmus__has_hybrid()) {
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
 				       perf_mem_events__name(j, NULL));
@@ -216,7 +217,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				return -1;
 			}
 
-			while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 				if (!pmu->is_core)
 					continue;
 				rec_argv[i++] = "-e";

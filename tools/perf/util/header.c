@@ -37,6 +37,7 @@
 #include "debug.h"
 #include "cpumap.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "vdso.h"
 #include "strbuf.h"
 #include "build-id.h"
@@ -744,7 +745,7 @@ static int write_pmu_mappings(struct feat_fd *ff,
 	 * Do a first pass to count number of pmu to avoid lseek so this
 	 * works in pipe mode as well.
 	 */
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (!pmu->name)
 			continue;
 		pmu_num++;
@@ -754,7 +755,7 @@ static int write_pmu_mappings(struct feat_fd *ff,
 	if (ret < 0)
 		return ret;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (!pmu->name)
 			continue;
 
@@ -1566,7 +1567,7 @@ static int __write_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
 static int write_cpu_pmu_caps(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
-	struct perf_pmu *cpu_pmu = perf_pmu__find("cpu");
+	struct perf_pmu *cpu_pmu = perf_pmus__find("cpu");
 	int ret;
 
 	if (!cpu_pmu)
@@ -1586,7 +1587,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 	int nr_pmu = 0;
 	int ret;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (!pmu->name || !strcmp(pmu->name, "cpu") ||
 		    perf_pmu__caps_parse(pmu) <= 0)
 			continue;
@@ -1604,9 +1605,9 @@ static int write_pmu_caps(struct feat_fd *ff,
 	 * Write hybrid pmu caps first to maintain compatibility with
 	 * older perf tool.
 	 */
-	if (perf_pmu__has_hybrid()) {
+	if (perf_pmus__has_hybrid()) {
 		pmu = NULL;
-		while ((pmu = perf_pmu__scan(pmu))) {
+		while ((pmu = perf_pmus__scan(pmu))) {
 			if (!pmu->is_core)
 				continue;
 
@@ -1617,7 +1618,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 	}
 
 	pmu = NULL;
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (pmu->is_core || !pmu->nr_caps)
 			continue;
 

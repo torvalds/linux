@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/evlist.h"
 #include "util/parse-events.h"
 #include "util/event.h"
@@ -17,7 +18,7 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 	for (i = 0; i < nr_attrs; i++)
 		event_attr_init(attrs + i);
 
-	if (!perf_pmu__has_hybrid())
+	if (!perf_pmus__has_hybrid())
 		return evlist__add_attrs(evlist, attrs, nr_attrs);
 
 	for (i = 0; i < nr_attrs; i++) {
@@ -32,7 +33,7 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 			continue;
 		}
 
-		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			struct perf_cpu_map *cpus;
 			struct evsel *evsel;
 

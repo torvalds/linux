@@ -53,7 +53,7 @@ static int setup_uncore_event(void)
 	struct perf_pmu *pmu = NULL;
 	int i, fd;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		for (i = 0; i < NR_UNCORE_PMUS; i++) {
 			if (!strcmp(uncore_pmus[i].name, pmu->name)) {
 				pr_debug("Using %s for uncore pmu event\n", pmu->name);

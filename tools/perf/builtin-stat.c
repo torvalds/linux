@@ -2140,11 +2140,11 @@ static int add_default_attributes(void)
 
 		if (evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
 			return -1;
-		if (pmu_have_event("cpu", "stalled-cycles-frontend")) {
+		if (perf_pmus__have_event("cpu", "stalled-cycles-frontend")) {
 			if (evlist__add_default_attrs(evsel_list, frontend_attrs) < 0)
 				return -1;
 		}
-		if (pmu_have_event("cpu", "stalled-cycles-backend")) {
+		if (perf_pmus__have_event("cpu", "stalled-cycles-backend")) {
 			if (evlist__add_default_attrs(evsel_list, backend_attrs) < 0)
 				return -1;
 		}

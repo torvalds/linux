@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "env.h"
 #include "pmu.h"
+#include "pmus.h"
 
 #define PACKAGE_CPUS_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/package_cpus_list"
@@ -473,10 +474,10 @@ struct hybrid_topology *hybrid_topology__new(void)
 	struct hybrid_topology *tp = NULL;
 	u32 nr = 0, i = 0;
 
-	if (!perf_pmu__has_hybrid())
+	if (!perf_pmus__has_hybrid())
 		return NULL;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (pmu->is_core)
 			nr++;
 	}
@@ -488,7 +489,7 @@ struct hybrid_topology *hybrid_topology__new(void)
 		return NULL;
 
 	tp->nr = nr;
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!pmu->is_core)
 			continue;
 

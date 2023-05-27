@@ -10,6 +10,7 @@
 #include "../../../util/debug.h"
 #include "../../../util/event.h"
 #include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
@@ -291,7 +292,7 @@ uint64_t arch__intr_reg_mask(void)
 	 */
 	attr.sample_period = 1;
 
-	if (perf_pmu__has_hybrid()) {
+	if (perf_pmus__has_hybrid()) {
 		struct perf_pmu *pmu = NULL;
 		__u64 type = PERF_TYPE_RAW;
 
@@ -299,7 +300,7 @@ uint64_t arch__intr_reg_mask(void)
 		 * The same register set is supported among different hybrid PMUs.
 		 * Only check the first available one.
 		 */
-		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			if (pmu->is_core) {
 				type = pmu->type;
 				break;

@@ -2,6 +2,7 @@
 #include "math.h"
 #include "parse-events.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "tests.h"
 #include <errno.h>
 #include <stdio.h>
@@ -708,7 +709,7 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 	struct perf_pmu *pmu = NULL;
 	unsigned long i;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		int count = 0;
 
 		if (!is_pmu_core(pmu->name))

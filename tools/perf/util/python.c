@@ -22,6 +22,7 @@
 #include "util/bpf-filter.h"
 #include "util/env.h"
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include <internal/lib.h>
 #include "util.h"
 
@@ -102,7 +103,7 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	return EOF;
 }
 
-bool perf_pmu__has_hybrid(void)
+bool perf_pmus__has_hybrid(void)
 {
 	return false;
 }

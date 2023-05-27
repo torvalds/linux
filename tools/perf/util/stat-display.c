@@ -20,6 +20,7 @@
 #include "util.h"
 #include "iostat.h"
 #include "pmu.h"
+#include "pmus.h"
 
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
@@ -695,7 +696,7 @@ static bool evlist__has_hybrid(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
-	if (!perf_pmu__has_hybrid())
+	if (!perf_pmus__has_hybrid())
 		return false;
 
 	evlist__for_each_entry(evlist, evsel) {

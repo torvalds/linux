@@ -527,7 +527,7 @@ int cmd_list(int argc, const char **argv)
 			 strcmp(argv[i], "hwcache") == 0)
 			print_hwcache_events(&print_cb, ps);
 		else if (strcmp(argv[i], "pmu") == 0)
-			print_pmu_events(&print_cb, ps);
+			perf_pmus__print_pmu_events(&print_cb, ps);
 		else if (strcmp(argv[i], "sdt") == 0)
 			print_sdt_events(&print_cb, ps);
 		else if (strcmp(argv[i], "metric") == 0 || strcmp(argv[i], "metrics") == 0) {
@@ -567,7 +567,7 @@ int cmd_list(int argc, const char **argv)
 					event_symbols_sw, PERF_COUNT_SW_MAX);
 			print_tool_events(&print_cb, ps);
 			print_hwcache_events(&print_cb, ps);
-			print_pmu_events(&print_cb, ps);
+			perf_pmus__print_pmu_events(&print_cb, ps);
 			print_tracepoint_events(&print_cb, ps);
 			print_sdt_events(&print_cb, ps);
 			default_ps.metrics = true;

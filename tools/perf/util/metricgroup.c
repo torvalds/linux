@@ -11,6 +11,7 @@
 #include "evsel.h"
 #include "strbuf.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "print-events.h"
 #include "smt.h"
 #include "expr.h"
@@ -273,7 +274,7 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 	const char *metric_id;
 	struct evsel *ev;
 	size_t ids_size, matched_events, i;
-	bool all_pmus = !strcmp(pmu, "all") || !perf_pmu__has_hybrid() || !is_pmu_hybrid(pmu);
+	bool all_pmus = !strcmp(pmu, "all") || !perf_pmus__has_hybrid() || !is_pmu_hybrid(pmu);
 
 	*out_metric_events = NULL;
 	ids_size = hashmap__size(ids);
@@ -488,7 +489,7 @@ static int metricgroup__sys_event_iter(const struct pmu_metric *pm,
 	if (!pm->metric_expr || !pm->compat)
 		return 0;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 
 		if (!pmu->id || strcmp(pmu->id, pm->compat))
 			continue;

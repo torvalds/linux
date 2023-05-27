@@ -10,7 +10,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/parse-events.h"
-#include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/pfm.h"
 #include "util/strbuf.h"
 
@@ -49,7 +49,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 	/*
 	 * force loading of the PMU list
 	 */
-	perf_pmu__scan(NULL);
+	perf_pmus__scan(NULL);
 
 	for (q = p; strsep(&p, ",{}"); q = p) {
 		sep = p ? str + (p - p_orig - 1) : "";
@@ -86,7 +86,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 			goto error;
 		}
 
-		pmu = perf_pmu__find_by_type((unsigned int)attr.type);
+		pmu = perf_pmus__find_by_type((unsigned int)attr.type);
 		evsel = parse_events__add_event(evlist->core.nr_entries,
 						&attr, q, /*metric_id=*/NULL,
 						pmu);

@@ -112,7 +112,7 @@ static int test__checkevent_raw(struct evlist *evlist)
 		bool type_matched = false;
 
 		TEST_ASSERT_VAL("wrong config", test_perf_config(evsel, 0x1a));
-		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			if (pmu->type == evsel->attr.type) {
 				TEST_ASSERT_VAL("PMU type expected once", !type_matched);
 				type_matched = true;
@@ -1443,12 +1443,12 @@ static int test__checkevent_config_cache(struct evlist *evlist)
 
 static bool test__pmu_cpu_valid(void)
 {
-	return !!perf_pmu__find("cpu");
+	return !!perf_pmus__find("cpu");
 }
 
 static bool test__intel_pt_valid(void)
 {
-	return !!perf_pmu__find("intel_pt");
+	return !!perf_pmus__find("intel_pt");
 }
 
 static int test__intel_pt(struct evlist *evlist)
@@ -2246,7 +2246,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 	struct perf_pmu *pmu = NULL;
 	int ret = TEST_OK;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		struct stat st;
 		char path[PATH_MAX];
 		struct dirent *ent;

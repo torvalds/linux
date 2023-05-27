@@ -21,6 +21,7 @@
 #include "parse-events-bison.h"
 #include "parse-events-flex.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
 #include "util/evsel_config.h"
@@ -452,7 +453,7 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 	const char *config_name = get_config_name(head_config);
 	const char *metric_id = get_config_metric_id(head_config);
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		LIST_HEAD(config_terms);
 		struct perf_event_attr attr;
 		int ret;
@@ -1193,7 +1194,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_error *err)
 {
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
-		const struct perf_pmu *pmu = perf_pmu__find_by_type(attr->type);
+		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
 		if (perf_pmu__supports_legacy_cache(pmu)) {
 			attr->type = PERF_TYPE_HW_CACHE;
@@ -1203,7 +1204,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_HARDWARE) {
-		const struct perf_pmu *pmu = perf_pmu__find_by_type(attr->type);
+		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
 		if (!pmu) {
 			pr_debug("Failed to find PMU for type %d", attr->type);
@@ -1480,7 +1481,7 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 		return __parse_events_add_numeric(parse_state, list, /*pmu=*/NULL,
 						  type, config, head_config);
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		int ret;
 
 		if (!perf_pmu__supports_wildcard_numeric(pmu))
@@ -1529,7 +1530,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct parse_events_error *err = parse_state->error;
 	LIST_HEAD(config_terms);
 
-	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
+	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
 
 	if (verbose > 1 && !(pmu && pmu->selectable)) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
@@ -1674,7 +1675,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	INIT_LIST_HEAD(list);
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		struct perf_pmu_alias *alias;
 		bool auto_merge_stats;
 
@@ -2410,7 +2411,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		return 0;
 	}
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL)
+	while ((pmu = perf_pmus__scan(pmu)) != NULL)
 		if (pmu->type == evsel->core.attr.type) {
 			found = true;
 			break;

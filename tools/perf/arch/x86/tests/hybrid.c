@@ -4,6 +4,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "tests/tests.h"
 
 static bool test_config(const struct evsel *evsel, __u64 expected_config)
@@ -113,7 +114,7 @@ static int test__hybrid_raw1(struct evlist *evlist)
 	struct perf_evsel *evsel;
 
 	perf_evlist__for_each_evsel(&evlist->core, evsel) {
-		struct perf_pmu *pmu = perf_pmu__find_by_type(evsel->attr.type);
+		struct perf_pmu *pmu = perf_pmus__find_by_type(evsel->attr.type);
 
 		TEST_ASSERT_VAL("missing pmu", pmu);
 		TEST_ASSERT_VAL("unexpected pmu", !strncmp(pmu->name, "cpu_", 4));
@@ -280,7 +281,7 @@ static int test_events(const struct evlist_test *events, int cnt)
 
 int test__hybrid(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	if (!perf_pmu__has_hybrid())
+	if (!perf_pmus__has_hybrid())
 		return TEST_SKIP;
 
 	return test_events(test__hybrid_events, ARRAY_SIZE(test__hybrid_events));

@@ -8,7 +8,7 @@
 #include "session.h"
 #include "evlist.h"
 #include "debug.h"
-#include "pmu.h"
+#include "pmus.h"
 #include <linux/err.h>
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
@@ -41,7 +41,7 @@ static int session_write_header(char *path)
 	session = perf_session__new(&data, NULL);
 	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
 
-	if (!perf_pmu__has_hybrid()) {
+	if (!perf_pmus__has_hybrid()) {
 		session->evlist = evlist__new_default();
 		TEST_ASSERT_VAL("can't get evlist", session->evlist);
 	} else {

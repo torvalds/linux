@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/env.h"
 #include "map_symbol.h"
 #include "mem-events.h"
@@ -55,12 +56,12 @@ struct perf_mem_event *perf_mem_events__ptr(int i)
 
 bool is_mem_loads_aux_event(struct evsel *leader)
 {
-	struct perf_pmu *pmu = perf_pmu__find("cpu");
+	struct perf_pmu *pmu = perf_pmus__find("cpu");
 
 	if (!pmu)
-		pmu = perf_pmu__find("cpu_core");
+		pmu = perf_pmus__find("cpu_core");
 
-	if (pmu && !pmu_have_event(pmu->name, "mem-loads-aux"))
+	if (pmu && !perf_pmu__have_event(pmu, "mem-loads-aux"))
 		return false;
 
 	return leader->core.attr.config == MEM_LOADS_AUX;
@@ -82,7 +83,7 @@ char *perf_mem_events__name(int i, char *pmu_name)
 			pmu_name = (char *)"cpu";
 		}
 
-		if (pmu_have_event(pmu_name, "mem-loads-aux")) {
+		if (perf_pmus__have_event(pmu_name, "mem-loads-aux")) {
 			scnprintf(mem_loads_name, sizeof(mem_loads_name),
 				  MEM_LOADS_AUX_NAME, pmu_name, pmu_name,
 				  perf_mem_events__loads_ldlat);

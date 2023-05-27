@@ -34,7 +34,7 @@
 #include "event.h"
 #include "util.h"
 #include "tests.h"
-#include "pmu.h"
+#include "pmus.h"
 
 #define ENV "PERF_TEST_ATTR"
 
@@ -185,7 +185,7 @@ static int test__attr(struct test_suite *test __maybe_unused, int subtest __mayb
 	char path_dir[PATH_MAX];
 	char *exec_path;
 
-	if (perf_pmu__has_hybrid())
+	if (perf_pmus__has_hybrid())
 		return TEST_SKIP;
 
 	/* First try development tree tests. */

@@ -4,6 +4,7 @@
 #include "util/evsel.h"
 #include "util/env.h"
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include "linux/string.h"
 #include "evsel.h"
 #include "util/debug.h"
@@ -30,7 +31,7 @@ bool evsel__sys_has_perf_metrics(const struct evsel *evsel)
 	 * should be good enough to detect the perf metrics feature.
 	 */
 	if ((evsel->core.attr.type == PERF_TYPE_RAW) &&
-	    pmu_have_event(pmu_name, "slots"))
+	    perf_pmus__have_event(pmu_name, "slots"))
 		return true;
 
 	return false;
@@ -98,8 +99,8 @@ void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr)
 	if (!evsel_pmu)
 		return;
 
-	ibs_fetch_pmu = perf_pmu__find("ibs_fetch");
-	ibs_op_pmu = perf_pmu__find("ibs_op");
+	ibs_fetch_pmu = perf_pmus__find("ibs_fetch");
+	ibs_op_pmu = perf_pmus__find("ibs_op");
 
 	if (ibs_fetch_pmu && ibs_fetch_pmu->type == evsel_pmu->type) {
 		if (attr->config & IBS_FETCH_L3MISSONLY) {

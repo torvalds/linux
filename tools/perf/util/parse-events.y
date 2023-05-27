@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/zalloc.h>
 #include "pmu.h"
+#include "pmus.h"
 #include "evsel.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
@@ -316,7 +317,7 @@ PE_NAME opt_pmu_config
 		if (asprintf(&pattern, "%s*", $1) < 0)
 			CLEANUP_YYABORT;
 
-		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			char *name = pmu->name;
 
 			if (parse_events__filter_pmu(parse_state, pmu))

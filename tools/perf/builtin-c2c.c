@@ -41,7 +41,7 @@
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
-#include "pmu.h"
+#include "pmus.h"
 #include "string2.h"
 #include "util/util.h"
 
@@ -3259,7 +3259,7 @@ static int perf_c2c__record(int argc, const char **argv)
 			     PARSE_OPT_KEEP_UNKNOWN);
 
 	/* Max number of arguments multiplied by number of PMUs that can support them. */
-	rec_argc = argc + 11 * perf_pmu__num_mem_pmus();
+	rec_argc = argc + 11 * perf_pmus__num_mem_pmus();
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)

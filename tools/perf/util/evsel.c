@@ -48,6 +48,7 @@
 #include "util/hashmap.h"
 #include "off_cpu.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include "util/bpf-filter.h"
@@ -3139,7 +3140,7 @@ void evsel__zero_per_pkg(struct evsel *evsel)
  */
 bool evsel__is_hybrid(const struct evsel *evsel)
 {
-	if (!perf_pmu__has_hybrid())
+	if (!perf_pmus__has_hybrid())
 		return false;
 
 	return evsel->core.is_pmu_core;

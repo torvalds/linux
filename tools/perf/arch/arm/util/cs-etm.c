@@ -25,7 +25,7 @@
 #include "../../../util/evsel.h"
 #include "../../../util/perf_api_probe.h"
 #include "../../../util/evsel_config.h"
-#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "../../../util/cs-etm.h"
 #include <internal/lib.h> // page_size
 #include "../../../util/session.h"
@@ -881,7 +881,7 @@ struct auxtrace_record *cs_etm_record_init(int *err)
 	struct perf_pmu *cs_etm_pmu;
 	struct cs_etm_recording *ptr;
 
-	cs_etm_pmu = perf_pmu__find(CORESIGHT_ETM_PMU_NAME);
+	cs_etm_pmu = perf_pmus__find(CORESIGHT_ETM_PMU_NAME);
 
 	if (!cs_etm_pmu) {
 		*err = -EINVAL;

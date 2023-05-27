@@ -20,6 +20,7 @@
 #include "metricgroup.h"
 #include "parse-events.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "print-events.h"
 #include "probe-file.h"
 #include "string2.h"
@@ -271,7 +272,7 @@ int print_hwcache_events(const struct print_callbacks *print_cb, void *print_sta
 	struct perf_pmu *pmu = NULL;
 	const char *event_type_descriptor = event_type_descriptors[PERF_TYPE_HW_CACHE];
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		/*
 		 * Skip uncore PMUs for performance. PERF_TYPE_HW_CACHE type
 		 * attributes can accept software PMUs in the extended type, so
@@ -404,7 +405,7 @@ void print_events(const struct print_callbacks *print_cb, void *print_state)
 
 	print_hwcache_events(print_cb, print_state);
 
-	print_pmu_events(print_cb, print_state);
+	perf_pmus__print_pmu_events(print_cb, print_state);
 
 	print_cb->print_event(print_state,
 			/*topic=*/NULL,
