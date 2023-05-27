@@ -140,10 +140,6 @@ static inline void touch_nmi_watchdog(void)
 	 */
 	arch_touch_nmi_watchdog();
 
-	/*
-	 * Touching the hardlock detector implicitly resets the
-	 * softlockup detector too
-	 */
 	touch_softlockup_watchdog();
 }
 
