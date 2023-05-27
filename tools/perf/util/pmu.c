@@ -60,8 +60,6 @@ struct perf_pmu_format {
 	struct list_head list;
 };
 
-static bool hybrid_scanned;
-
 static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name);
 
 /*
@@ -2013,12 +2011,20 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 
 bool perf_pmu__has_hybrid(void)
 {
-	if (!hybrid_scanned) {
-		hybrid_scanned = true;
-		perf_pmu__scan(NULL);
-	}
+	static bool hybrid_scanned, has_hybrid;
 
-	return !list_empty(&perf_pmu__hybrid_pmus);
+	if (!hybrid_scanned) {
+		struct perf_pmu *pmu = NULL;
+
+		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+			if (pmu->is_core && is_pmu_hybrid(pmu->name)) {
+				has_hybrid = true;
+				break;
+			}
+		}
+		hybrid_scanned = true;
+	}
+	return has_hybrid;
 }
 
 int perf_pmu__match(char *pattern, char *name, char *tok)
