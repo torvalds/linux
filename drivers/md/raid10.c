@@ -2151,9 +2151,10 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r10conf *conf = mddev->private;
 	int err = -EEXIST;
-	int mirror;
+	int mirror, repl_slot = -1;
 	int first = 0;
 	int last = conf->geo.raid_disks - 1;
+	struct raid10_info *p;
 
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
@@ -2176,23 +2177,14 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	else
 		mirror = first;
 	for ( ; mirror <= last ; mirror++) {
-		struct raid10_info *p = &conf->mirrors[mirror];
+		p = &conf->mirrors[mirror];
 		if (p->recovery_disabled == mddev->recovery_disabled)
 			continue;
 		if (p->rdev) {
-			if (!test_bit(WantReplacement, &p->rdev->flags) ||
-			    p->replacement != NULL)
-				continue;
-			clear_bit(In_sync, &rdev->flags);
-			set_bit(Replacement, &rdev->flags);
-			rdev->raid_disk = mirror;
-			err = 0;
-			if (mddev->gendisk)
-				disk_stack_limits(mddev->gendisk, rdev->bdev,
-						  rdev->data_offset << 9);
-			conf->fullsync = 1;
-			rcu_assign_pointer(p->replacement, rdev);
-			break;
+			if (test_bit(WantReplacement, &p->rdev->flags) &&
+			    p->replacement == NULL && repl_slot < 0)
+				repl_slot = mirror;
+			continue;
 		}
 
 		if (mddev->gendisk)
@@ -2207,6 +2199,19 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			conf->fullsync = 1;
 		rcu_assign_pointer(p->rdev, rdev);
 		break;
+	}
+
+	if (err && repl_slot >= 0) {
+		p = &conf->mirrors[repl_slot];
+		clear_bit(In_sync, &rdev->flags);
+		set_bit(Replacement, &rdev->flags);
+		rdev->raid_disk = repl_slot;
+		err = 0;
+		if (mddev->gendisk)
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
+		conf->fullsync = 1;
+		rcu_assign_pointer(p->replacement, rdev);
 	}
 
 	print_conf(conf);
