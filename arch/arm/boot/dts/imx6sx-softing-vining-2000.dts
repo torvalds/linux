@@ -171,7 +171,7 @@
 		reset-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
 	};
 
-	pmic: pfuze100@8 {
+	pmic: pmic@8 {
 		compatible = "fsl,pfuze200";
 		reg = <0x08>;
 
