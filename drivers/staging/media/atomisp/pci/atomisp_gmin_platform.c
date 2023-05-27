@@ -1429,8 +1429,8 @@ static int gmin_get_config_var(struct device *maindev,
 
 int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 {
-	char val[CFG_VAR_NAME_MAX];
-	size_t len = sizeof(val);
+	char val[CFG_VAR_NAME_MAX + 1];
+	size_t len = CFG_VAR_NAME_MAX;
 	long result;
 	int ret;
 
