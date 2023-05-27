@@ -463,6 +463,12 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *gc)
 	return p;
 }
 
+static void gpiochip_free_mask(unsigned long **p)
+{
+	bitmap_free(*p);
+	*p = NULL;
+}
+
 static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
 {
 	struct device *dev = &gc->gpiodev->dev;
@@ -542,8 +548,7 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 
 static void gpiochip_free_valid_mask(struct gpio_chip *gc)
 {
-	bitmap_free(gc->valid_mask);
-	gc->valid_mask = NULL;
+	gpiochip_free_mask(&gc->valid_mask);
 }
 
 static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
@@ -1087,8 +1092,7 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gc)
 
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gc)
 {
-	bitmap_free(gc->irq.valid_mask);
-	gc->irq.valid_mask = NULL;
+	gpiochip_free_mask(&gc->irq.valid_mask);
 }
 
 bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
