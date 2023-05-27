@@ -122,7 +122,7 @@ struct perf_inject {
 	u64			aux_id;
 	struct list_head	samples;
 	struct itrace_synth_opts itrace_synth_opts;
-	char			event_copy[PERF_SAMPLE_MAX_SIZE];
+	char			*event_copy;
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
 	struct strlist		*known_build_ids;
@@ -320,8 +320,14 @@ perf_inject__cut_auxtrace_sample(struct perf_inject *inject,
 {
 	size_t sz1 = sample->aux_sample.data - (void *)event;
 	size_t sz2 = event->header.size - sample->aux_sample.size - sz1;
-	union perf_event *ev = (union perf_event *)inject->event_copy;
+	union perf_event *ev;
 
+	if (inject->event_copy == NULL) {
+		inject->event_copy = malloc(PERF_SAMPLE_MAX_SIZE);
+		if (!inject->event_copy)
+			return ERR_PTR(-ENOMEM);
+	}
+	ev = (union perf_event *)inject->event_copy;
 	if (sz1 > event->header.size || sz2 > event->header.size ||
 	    sz1 + sz2 > event->header.size ||
 	    sz1 < sizeof(struct perf_event_header) + sizeof(u64))
@@ -357,8 +363,11 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 
 	build_id__mark_dso_hit(tool, event, sample, evsel, machine);
 
-	if (inject->itrace_synth_opts.set && sample->aux_sample.size)
+	if (inject->itrace_synth_opts.set && sample->aux_sample.size) {
 		event = perf_inject__cut_auxtrace_sample(inject, event, sample);
+		if (IS_ERR(event))
+			return PTR_ERR(event);
+	}
 
 	return perf_event__repipe_synth(tool, event);
 }
@@ -2391,5 +2400,6 @@ out_close_output:
 	if (!inject.in_place_update)
 		perf_data__close(&inject.output);
 	free(inject.itrace_synth_opts.vm_tm_corr_args);
+	free(inject.event_copy);
 	return ret;
 }
