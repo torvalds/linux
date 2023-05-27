@@ -1108,7 +1108,6 @@ ssize_t crash_get_memory_size(void)
 int crash_shrink_memory(unsigned long new_size)
 {
 	int ret = 0;
-	unsigned long start, end;
 	unsigned long old_size;
 	struct resource *ram_res;
 
@@ -1119,9 +1118,7 @@ int crash_shrink_memory(unsigned long new_size)
 		ret = -ENOENT;
 		goto unlock;
 	}
-	start = crashk_res.start;
-	end = crashk_res.end;
-	old_size = (end == 0) ? 0 : end - start + 1;
+	old_size = !crashk_res.end ? 0 : resource_size(&crashk_res);
 	new_size = roundup(new_size, KEXEC_CRASH_MEM_ALIGN);
 	if (new_size >= old_size) {
 		ret = (new_size == old_size) ? 0 : -EINVAL;
@@ -1134,22 +1131,20 @@ int crash_shrink_memory(unsigned long new_size)
 		goto unlock;
 	}
 
-	end = start + new_size;
-	crash_free_reserved_phys_range(end, crashk_res.end);
-
-	ram_res->start = end;
+	ram_res->start = crashk_res.start + new_size;
 	ram_res->end = crashk_res.end;
 	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 	ram_res->name = "System RAM";
 
-	if (start == end) {
+	if (!new_size) {
 		release_resource(&crashk_res);
 		crashk_res.start = 0;
 		crashk_res.end = 0;
 	} else {
-		crashk_res.end = end - 1;
+		crashk_res.end = ram_res->start - 1;
 	}
 
+	crash_free_reserved_phys_range(ram_res->start, ram_res->end);
 	insert_resource(&iomem_resource, ram_res);
 
 unlock:
