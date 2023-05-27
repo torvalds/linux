@@ -321,7 +321,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb;
 	__u64	ExtAttrBits = 0;
+#ifdef CONFIG_CIFS_POSIX
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	__u64   caps;
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
+#endif /* CONFIG_CIFS_POSIX */
 
 	xid = get_xid();
 
@@ -331,9 +335,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			if (pSMBFile == NULL)
 				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
-			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 #ifdef CONFIG_CIFS_POSIX
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
+			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
 				__u64	ExtAttrMask = 0;
 				rc = CIFSGetExtAttr(xid, tcon,
