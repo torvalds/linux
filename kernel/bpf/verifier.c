@@ -10939,7 +10939,7 @@ static int fetch_kfunc_meta(struct bpf_verifier_env *env,
 		*kfunc_name = func_name;
 	func_proto = btf_type_by_id(desc_btf, func->type);
 
-	kfunc_flags = btf_kfunc_id_set_contains(desc_btf, resolve_prog_type(env->prog), func_id);
+	kfunc_flags = btf_kfunc_id_set_contains(desc_btf, func_id, env->prog);
 	if (!kfunc_flags) {
 		return -EACCES;
 	}
@@ -19010,7 +19010,8 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 				 * in the fmodret id set with the KF_SLEEPABLE flag.
 				 */
 				else {
-					u32 *flags = btf_kfunc_is_modify_return(btf, btf_id);
+					u32 *flags = btf_kfunc_is_modify_return(btf, btf_id,
+										prog);
 
 					if (flags && (*flags & KF_SLEEPABLE))
 						ret = 0;
@@ -19038,7 +19039,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 				return -EINVAL;
 			}
 			ret = -EINVAL;
-			if (btf_kfunc_is_modify_return(btf, btf_id) ||
+			if (btf_kfunc_is_modify_return(btf, btf_id, prog) ||
 			    !check_attach_modify_return(addr, tname))
 				ret = 0;
 			if (ret) {

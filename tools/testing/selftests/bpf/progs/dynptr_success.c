@@ -2,6 +2,7 @@
 /* Copyright (c) 2022 Facebook */
 
 #include <string.h>
+#include <stdbool.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"

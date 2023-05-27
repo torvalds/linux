@@ -1287,6 +1287,11 @@ static int do_create(int argc, char **argv)
 					  "flags"))
 				goto exit;
 		} else if (is_prefix(*argv, "dev")) {
+			p_info("Warning: 'bpftool map create [...] dev <ifname>' syntax is deprecated.\n"
+			       "Going further, please use 'offload_dev <ifname>' to request hardware offload for the map.");
+			goto offload_dev;
+		} else if (is_prefix(*argv, "offload_dev")) {
+offload_dev:
 			NEXT_ARG();
 
 			if (attr.map_ifindex) {
@@ -1431,7 +1436,7 @@ static int do_help(int argc, char **argv)
 		"Usage: %1$s %2$s { show | list }   [MAP]\n"
 		"       %1$s %2$s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
 		"                                  entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
-		"                                  [inner_map MAP] [dev NAME]\n"
+		"                                  [inner_map MAP] [offload_dev NAME]\n"
 		"       %1$s %2$s dump       MAP\n"
 		"       %1$s %2$s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
 		"       %1$s %2$s lookup     MAP [key DATA]\n"

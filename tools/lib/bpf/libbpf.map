@@ -391,3 +391,8 @@ LIBBPF_1.2.0 {
 		bpf_map_get_info_by_fd;
 		bpf_prog_get_info_by_fd;
 } LIBBPF_1.1.0;
+
+LIBBPF_1.3.0 {
+	global:
+		bpf_obj_pin_opts;
+} LIBBPF_1.2.0;

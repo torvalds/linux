@@ -1931,6 +1931,11 @@ static int map_freeze(const union bpf_attr *attr)
 		return -ENOTSUPP;
 	}
 
+	if (!(map_get_sys_perms(map, f) & FMODE_CAN_WRITE)) {
+		fdput(f);
+		return -EPERM;
+	}
+
 	mutex_lock(&map->freeze_mutex);
 	if (bpf_map_write_active(map)) {
 		err = -EBUSY;
@@ -1938,10 +1943,6 @@ static int map_freeze(const union bpf_attr *attr)
 	}
 	if (READ_ONCE(map->frozen)) {
 		err = -EBUSY;
-		goto err_put;
-	}
-	if (!bpf_capable()) {
-		err = -EPERM;
 		goto err_put;
 	}
 
@@ -2697,23 +2698,38 @@ free_prog:
 	return err;
 }
 
-#define BPF_OBJ_LAST_FIELD file_flags
+#define BPF_OBJ_LAST_FIELD path_fd
 
 static int bpf_obj_pin(const union bpf_attr *attr)
 {
-	if (CHECK_ATTR(BPF_OBJ) || attr->file_flags != 0)
+	int path_fd;
+
+	if (CHECK_ATTR(BPF_OBJ) || attr->file_flags & ~BPF_F_PATH_FD)
 		return -EINVAL;
 
-	return bpf_obj_pin_user(attr->bpf_fd, u64_to_user_ptr(attr->pathname));
+	/* path_fd has to be accompanied by BPF_F_PATH_FD flag */
+	if (!(attr->file_flags & BPF_F_PATH_FD) && attr->path_fd)
+		return -EINVAL;
+
+	path_fd = attr->file_flags & BPF_F_PATH_FD ? attr->path_fd : AT_FDCWD;
+	return bpf_obj_pin_user(attr->bpf_fd, path_fd,
+				u64_to_user_ptr(attr->pathname));
 }
 
 static int bpf_obj_get(const union bpf_attr *attr)
 {
+	int path_fd;
+
 	if (CHECK_ATTR(BPF_OBJ) || attr->bpf_fd != 0 ||
-	    attr->file_flags & ~BPF_OBJ_FLAG_MASK)
+	    attr->file_flags & ~(BPF_OBJ_FLAG_MASK | BPF_F_PATH_FD))
 		return -EINVAL;
 
-	return bpf_obj_get_user(u64_to_user_ptr(attr->pathname),
+	/* path_fd has to be accompanied by BPF_F_PATH_FD flag */
+	if (!(attr->file_flags & BPF_F_PATH_FD) && attr->path_fd)
+		return -EINVAL;
+
+	path_fd = attr->file_flags & BPF_F_PATH_FD ? attr->path_fd : AT_FDCWD;
+	return bpf_obj_get_user(path_fd, u64_to_user_ptr(attr->pathname),
 				attr->file_flags);
 }
 
@@ -2968,10 +2984,17 @@ static void bpf_tracing_link_show_fdinfo(const struct bpf_link *link,
 {
 	struct bpf_tracing_link *tr_link =
 		container_of(link, struct bpf_tracing_link, link.link);
+	u32 target_btf_id, target_obj_id;
 
+	bpf_trampoline_unpack_key(tr_link->trampoline->key,
+				  &target_obj_id, &target_btf_id);
 	seq_printf(seq,
-		   "attach_type:\t%d\n",
-		   tr_link->attach_type);
+		   "attach_type:\t%d\n"
+		   "target_obj_id:\t%u\n"
+		   "target_btf_id:\t%u\n",
+		   tr_link->attach_type,
+		   target_obj_id,
+		   target_btf_id);
 }
 
 static int bpf_tracing_link_fill_link_info(const struct bpf_link *link,
