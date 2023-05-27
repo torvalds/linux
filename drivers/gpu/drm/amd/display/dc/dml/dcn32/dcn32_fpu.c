@@ -2803,12 +2803,11 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 }
 
 /**
- * ************************************************************************************************
  * dcn32_allow_subvp_high_refresh_rate: Determine if the high refresh rate config will allow subvp
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
- * @param [in]: pipe: Pipe to be considered for use in subvp
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @pipe: Pipe to be considered for use in subvp
  *
  * On high refresh rate display configs, we will allow subvp under the following conditions:
  * 1. Resolution is 3840x2160, 3440x1440, or 2560x1440
@@ -2817,9 +2816,7 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
  * 4. Freesync is inactive
  * 5. For single display cases, freesync must be disabled
  *
- * @return: True if pipe can be used for subvp, false otherwise
- *
- * ************************************************************************************************
+ * Return: True if pipe can be used for subvp, false otherwise
  */
 bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe)
 {
@@ -2852,15 +2849,12 @@ bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context
 }
 
 /**
- * *******************************************************************************************
  * dcn32_determine_max_vratio_prefetch: Determine max Vratio for prefetch by driver policy
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
  *
- * @return: Max vratio for prefetch
- *
- * *******************************************************************************************
+ * Return: Max vratio for prefetch
  */
 double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *context)
 {
@@ -2890,9 +2884,9 @@ double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *conte
  * ActiveMargin <= 0 to be the FPO stream candidate if found.
  *
  *
- * @param [in]: dc - current dc state
- * @param [in]: context - new dc state
- * @param [out]: fpo_candidate_stream - pointer to FPO stream candidate if one is found
+ * @dc: current dc state
+ * @context: new dc state
+ * @fpo_candidate_stream: pointer to FPO stream candidate if one is found
  *
  * Return: void
  */
@@ -2918,10 +2912,9 @@ void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *co
 /**
  * dcn32_find_vactive_pipe - Determines if the config has a pipe that can switch in VACTIVE
  *
- * @param [in]: dc - current dc state
- * @param [in]: context - new dc state
- * @param [in]: vactive_margin_req_us - The vactive marign required for a vactive pipe to be
- *                                      considered "found"
+ * @dc: current dc state
+ * @context: new dc state
+ * @vactive_margin_req_us: The vactive marign required for a vactive pipe to be considered "found"
  *
  * Return: True if VACTIVE display is found, false otherwise
  */
