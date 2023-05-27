@@ -141,7 +141,7 @@
 	pinctrl-0 = <&pinctrl_audmux>;
 	status = "okay";
 
-	ssi2 {
+	mux-ssi2 {
 		fsl,audmux-port = <1>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_RCLKDIR |
@@ -152,7 +152,7 @@
 		>;
 	};
 
-	audmux4 {
+	mux-audmux4 {
 		fsl,audmux-port = <3>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSDIR |

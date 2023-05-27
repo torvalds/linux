@@ -48,7 +48,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_audmux>;
 
-	audmux_ssi1 {
+	mux-ssi1 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT1_SSI0>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSDIR |
@@ -60,7 +60,7 @@
 		>;
 	};
 
-	audmux_aud6 {
+	mux-aud6 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT6>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN

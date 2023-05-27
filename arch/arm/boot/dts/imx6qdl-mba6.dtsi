@@ -129,7 +129,7 @@
 &audmux {
 	status = "okay";
 
-	ssi0 {
+	mux-ssi0 {
 		fsl,audmux-port = <MX31_AUDMUX_PORT1_SSI0>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_SYN |
@@ -141,7 +141,7 @@
 		>;
 	};
 
-	aud3 {
+	mux-aud3 {
 		fsl,audmux-port = <MX31_AUDMUX_PORT3_SSI_PINS_3>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
