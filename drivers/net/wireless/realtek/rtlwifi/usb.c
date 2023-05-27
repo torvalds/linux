@@ -433,7 +433,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	skb_pull(skb, RTL_RX_DESC_SIZE);
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
-	hdr = (struct ieee80211_hdr *)(skb->data);
+	hdr = rtl_get_hdr(skb);
 	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -475,7 +475,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	skb_pull(skb, RTL_RX_DESC_SIZE);
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
-	hdr = (struct ieee80211_hdr *)(skb->data);
+	hdr = rtl_get_hdr(skb);
 	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -926,7 +926,7 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl_tx_desc *pdesc = NULL;
 	struct rtl_tcb_desc tcb_desc;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 	u8 *pda_addr = hdr->addr1;
 
@@ -961,7 +961,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw,
 {
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 	u16 hw_queue;
 
