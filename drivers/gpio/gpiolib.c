@@ -482,18 +482,6 @@ static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
 	return 0;
 }
 
-static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
-{
-	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
-		return 0;
-
-	gc->valid_mask = gpiochip_allocate_mask(gc);
-	if (!gc->valid_mask)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 {
 	struct device *dev = &gc->gpiodev->dev;
@@ -533,6 +521,13 @@ static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 {
 	int ret;
+
+	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
+		return 0;
+
+	gc->valid_mask = gpiochip_allocate_mask(gc);
+	if (!gc->valid_mask)
+		return -ENOMEM;
 
 	ret = gpiochip_apply_reserved_ranges(gc);
 	if (ret)
@@ -860,17 +855,13 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_from_list;
 
-	ret = gpiochip_alloc_valid_mask(gc);
+	ret = gpiochip_init_valid_mask(gc);
 	if (ret)
 		goto err_remove_from_list;
 
 	ret = of_gpiochip_add(gc);
 	if (ret)
 		goto err_free_gpiochip_mask;
-
-	ret = gpiochip_init_valid_mask(gc);
-	if (ret)
-		goto err_remove_of_chip;
 
 	for (i = 0; i < gc->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
