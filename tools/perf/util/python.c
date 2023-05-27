@@ -50,6 +50,14 @@
 #endif
 
 /*
+ * Avoid bringing in event parsing.
+ */
+int parse_event(struct evlist *evlist __maybe_unused, const char *str __maybe_unused)
+{
+	return 0;
+}
+
+/*
  * Provide these two so that we don't have to link against callchain.c and
  * start dragging hist.c, etc.
  */
