@@ -541,7 +541,7 @@ class YnlFamily(SpecFamily):
         if op.fixed_header:
             fixed_header_members = self.consts[op.fixed_header].members
             for m in fixed_header_members:
-                value = vals.pop(m.name)
+                value = vals.pop(m.name) if m.name in vals else 0
                 format = NlAttr.get_format(m.type, m.byte_order)
                 msg += format.pack(value)
         for name, value in vals.items():
