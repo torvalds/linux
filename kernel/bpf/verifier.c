@@ -5894,7 +5894,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		 * program allocated objects (which always have ref_obj_id > 0),
 		 * but not for untrusted PTR_TO_BTF_ID | MEM_ALLOC.
 		 */
-		if (atype != BPF_READ && reg->type != (PTR_TO_BTF_ID | MEM_ALLOC)) {
+		if (atype != BPF_READ && !type_is_ptr_alloc_obj(reg->type)) {
 			verbose(env, "only read is supported\n");
 			return -EACCES;
 		}
@@ -7514,7 +7514,7 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 	if (base_type(arg_type) == ARG_PTR_TO_MEM)
 		type &= ~DYNPTR_TYPE_FLAG_MASK;
 
-	if (meta->func_id == BPF_FUNC_kptr_xchg && type & MEM_ALLOC)
+	if (meta->func_id == BPF_FUNC_kptr_xchg && type_is_alloc(type))
 		type &= ~MEM_ALLOC;
 
 	for (i = 0; i < ARRAY_SIZE(compatible->types); i++) {
