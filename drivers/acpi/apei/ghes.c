@@ -152,7 +152,6 @@ struct ghes_vendor_record_entry {
 };
 
 static struct gen_pool *ghes_estatus_pool;
-static unsigned long ghes_estatus_pool_size_request;
 
 static struct ghes_estatus_cache __rcu *ghes_estatus_caches[GHES_ESTATUS_CACHES_SIZE];
 static atomic_t ghes_estatus_cache_alloced;
@@ -191,7 +190,6 @@ int ghes_estatus_pool_init(unsigned int num_ghes)
 	len = GHES_ESTATUS_CACHE_AVG_SIZE * GHES_ESTATUS_CACHE_ALLOCED_MAX;
 	len += (num_ghes * GHES_ESOURCE_PREALLOC_MAX_SIZE);
 
-	ghes_estatus_pool_size_request = PAGE_ALIGN(len);
 	addr = (unsigned long)vmalloc(PAGE_ALIGN(len));
 	if (!addr)
 		goto err_pool_alloc;
