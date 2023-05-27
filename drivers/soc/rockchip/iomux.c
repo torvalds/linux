@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/gpio/driver.h>
 #include <uapi/linux/rk-iomux.h>
 #include "../../pinctrl/pinctrl-rockchip.h"
 
