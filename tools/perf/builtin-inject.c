@@ -47,7 +47,7 @@
 struct guest_event {
 	struct perf_sample		sample;
 	union perf_event		*event;
-	char				event_buf[PERF_SAMPLE_MAX_SIZE];
+	char				*event_buf;
 };
 
 struct guest_id {
@@ -1374,11 +1374,19 @@ static void guest_session__convert_time(struct guest_session *gs, u64 guest_time
 
 static int guest_session__fetch(struct guest_session *gs)
 {
-	void *buf = gs->ev.event_buf;
-	struct perf_event_header *hdr = buf;
+	void *buf;
+	struct perf_event_header *hdr;
 	size_t hdr_sz = sizeof(*hdr);
 	ssize_t ret;
 
+	buf = gs->ev.event_buf;
+	if (!buf) {
+		buf = malloc(PERF_SAMPLE_MAX_SIZE);
+		if (!buf)
+			return -ENOMEM;
+		gs->ev.event_buf = buf;
+	}
+	hdr = buf;
 	ret = readn(gs->tmp_fd, buf, hdr_sz);
 	if (ret < 0)
 		return ret;
@@ -2401,5 +2409,6 @@ out_close_output:
 		perf_data__close(&inject.output);
 	free(inject.itrace_synth_opts.vm_tm_corr_args);
 	free(inject.event_copy);
+	free(inject.guest_session.ev.event_buf);
 	return ret;
 }
