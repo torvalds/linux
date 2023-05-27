@@ -290,8 +290,9 @@ void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 }
 
 /**
- * @create_dmamap_sg_bo: Creates a amdgpu_bo object to reflect information
+ * create_dmamap_sg_bo() - Creates a amdgpu_bo object to reflect information
  * about USERPTR or DOOREBELL or MMIO BO.
+ *
  * @adev: Device for which dmamap BO is being created
  * @mem: BO of peer device that is being DMA mapped. Provides parameters
  *	 in building the dmamap BO
