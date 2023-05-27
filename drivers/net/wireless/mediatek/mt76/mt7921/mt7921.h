@@ -484,7 +484,6 @@ int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 void mt7921_txwi_free(struct mt7921_dev *dev, struct mt76_txwi_cache *t,
 		      struct ieee80211_sta *sta, bool clear_status,
 		      struct list_head *free_list);
-void mt7921_mac_sta_poll(struct mt7921_dev *dev);
 int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
 

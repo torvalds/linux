@@ -52,7 +52,7 @@ bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask)
 			 0, 5000);
 }
 
-void mt7921_mac_sta_poll(struct mt7921_dev *dev)
+static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
 		[IEEE80211_AC_BE] = 0,
@@ -183,7 +183,6 @@ void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 		ewma_avg_signal_add(&msta->avg_ack_signal, -msta->ack_signal);
 	}
 }
-EXPORT_SYMBOL_GPL(mt7921_mac_sta_poll);
 
 static void
 mt7921_get_status_freq_info(struct mt7921_dev *dev, struct mt76_phy *mphy,
