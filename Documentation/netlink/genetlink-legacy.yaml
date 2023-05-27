@@ -124,6 +124,9 @@ properties:
                 $ref: '#/$defs/len-or-define'
               byte-order:
                 enum: [ little-endian, big-endian ]
+              doc:
+                description: Documentation for the struct member attribute.
+                type: string
         # End genetlink-legacy
 
   attribute-sets:
