@@ -193,8 +193,8 @@ struct perf_sched {
  * weird events, such as a task being switched away that is not current.
  */
 	struct perf_cpu	 max_cpu;
-	u32		 curr_pid[MAX_CPUS];
-	struct thread	 *curr_thread[MAX_CPUS];
+	u32		 *curr_pid;
+	struct thread	 **curr_thread;
 	char		 next_shortname1;
 	char		 next_shortname2;
 	unsigned int	 replay_repeat;
@@ -224,7 +224,7 @@ struct perf_sched {
 	u64		 run_avg;
 	u64		 all_runtime;
 	u64		 all_count;
-	u64		 cpu_last_switched[MAX_CPUS];
+	u64		 *cpu_last_switched;
 	struct rb_root_cached atom_root, sorted_atom_root, merged_atom_root;
 	struct list_head sort_list, cmp_pid;
 	bool force;
@@ -3595,7 +3595,22 @@ int cmd_sched(int argc, const char **argv)
 
 	mutex_init(&sched.start_work_mutex);
 	mutex_init(&sched.work_done_wait_mutex);
-	for (i = 0; i < ARRAY_SIZE(sched.curr_pid); i++)
+	sched.curr_thread = calloc(MAX_CPUS, sizeof(*sched.curr_thread));
+	if (!sched.curr_thread) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	sched.cpu_last_switched = calloc(MAX_CPUS, sizeof(*sched.cpu_last_switched));
+	if (!sched.cpu_last_switched) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	sched.curr_pid = malloc(MAX_CPUS * sizeof(*sched.curr_pid));
+	if (!sched.curr_pid) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	for (i = 0; i < MAX_CPUS; i++)
 		sched.curr_pid[i] = -1;
 
 	argc = parse_options_subcommand(argc, argv, sched_options, sched_subcommands,
@@ -3664,6 +3679,9 @@ int cmd_sched(int argc, const char **argv)
 	}
 
 out:
+	free(sched.curr_pid);
+	free(sched.cpu_last_switched);
+	free(sched.curr_thread);
 	mutex_destroy(&sched.start_work_mutex);
 	mutex_destroy(&sched.work_done_wait_mutex);
 
