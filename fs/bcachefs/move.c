@@ -427,7 +427,7 @@ static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 		goto err;
 
 	if (!k.k || !bkey_eq(k.k->p, pos)) {
-		ret = -ENOENT;
+		ret = -BCH_ERR_ENOENT_inode;
 		goto err;
 	}
 

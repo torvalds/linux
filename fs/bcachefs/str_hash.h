@@ -181,7 +181,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 	}
 	bch2_trans_iter_exit(trans, iter);
 
-	return ret ?: -ENOENT;
+	return ret ?: -BCH_ERR_ENOENT_str_hash_lookup;
 }
 
 static __always_inline int
@@ -288,7 +288,7 @@ found:
 not_found:
 
 	if (!found && (flags & BCH_HASH_SET_MUST_REPLACE)) {
-		ret = -ENOENT;
+		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
 	} else if (found && (flags & BCH_HASH_SET_MUST_CREATE)) {
 		ret = -EEXIST;
 	} else {

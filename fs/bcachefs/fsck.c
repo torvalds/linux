@@ -78,7 +78,7 @@ static int __snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
 					  snapshot, &s);
 	if (!ret)
 		*subvol = le32_to_cpu(s.subvol);
-	else if (ret == -ENOENT)
+	else if (bch2_err_matches(ret, ENOENT))
 		bch_err(trans->c, "snapshot %u not fonud", snapshot);
 	return ret;
 
@@ -119,7 +119,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 		goto err;
 
 	if (!k.k || !bkey_eq(k.k->p, POS(0, inode_nr))) {
-		ret = -ENOENT;
+		ret = -BCH_ERR_ENOENT_inode;
 		goto err;
 	}
 
@@ -148,7 +148,7 @@ static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 
 	ret = bkey_is_inode(k.k)
 		? bch2_inode_unpack(k, inode)
-		: -ENOENT;
+		: -BCH_ERR_ENOENT_inode;
 	if (!ret)
 		*snapshot = iter.pos.snapshot;
 err:
@@ -333,7 +333,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 subvol,
 
 	ret = __lookup_dirent(trans, root_hash_info, root_inum,
 			    &lostfound_str, &inum, &d_type);
-	if (ret == -ENOENT) {
+	if (bch2_err_matches(ret, ENOENT)) {
 		bch_notice(c, "creating lost+found");
 		goto create_lostfound;
 	}
@@ -1088,7 +1088,7 @@ static int inode_backpointer_exists(struct btree_trans *trans,
 			SPOS(inode->bi_dir, inode->bi_dir_offset, snapshot));
 	ret = bkey_err(d);
 	if (ret)
-		return ret == -ENOENT ? 0 : ret;
+		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 
 	ret = dirent_points_to_inode(d, inode);
 	bch2_trans_iter_exit(trans, &iter);
@@ -1653,7 +1653,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 		ret = __subvol_lookup(trans, target_subvol,
 				      &target_snapshot, &target_inum);
-		if (ret && ret != -ENOENT)
+		if (ret && !bch2_err_matches(ret, ENOENT))
 			goto err;
 
 		if (fsck_err_on(ret, c,
@@ -1665,7 +1665,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 		ret = __lookup_inode(trans, target_inum,
 				   &subvol_root, &target_snapshot);
-		if (ret && ret != -ENOENT)
+		if (ret && !bch2_err_matches(ret, ENOENT))
 			goto err;
 
 		if (fsck_err_on(ret, c,
@@ -1846,7 +1846,7 @@ static int check_root_trans(struct btree_trans *trans)
 	int ret;
 
 	ret = __subvol_lookup(trans, BCACHEFS_ROOT_SUBVOL, &snapshot, &inum);
-	if (ret && ret != -ENOENT)
+	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
 	if (mustfix_fsck_err_on(ret, c, "root subvol missing")) {
@@ -1873,7 +1873,7 @@ static int check_root_trans(struct btree_trans *trans)
 	}
 
 	ret = __lookup_inode(trans, BCACHEFS_ROOT_INO, &root_inode, &snapshot);
-	if (ret && ret != -ENOENT)
+	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
 	if (mustfix_fsck_err_on(ret, c, "root directory missing") ||
@@ -1972,15 +1972,15 @@ static int check_path(struct btree_trans *trans,
 			PTR_ERR_OR_ZERO((d = dirent_get_by_pos(trans, &dirent_iter,
 					  SPOS(inode->bi_dir, inode->bi_dir_offset,
 					       parent_snapshot))).k));
-		if (ret && ret != -ENOENT)
+		if (ret && !bch2_err_matches(ret, ENOENT))
 			break;
 
 		if (!ret && !dirent_points_to_inode(d, inode)) {
 			bch2_trans_iter_exit(trans, &dirent_iter);
-			ret = -ENOENT;
+			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
 		}
 
-		if (ret == -ENOENT) {
+		if (bch2_err_matches(ret, ENOENT)) {
 			if (fsck_err(c,  "unreachable inode %llu:%u, type %s nlink %u backptr %llu:%llu",
 				     inode->bi_inum, snapshot,
 				     bch2_d_type_str(inode_d_type(inode)),

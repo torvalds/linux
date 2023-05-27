@@ -900,7 +900,7 @@ static int bch2_get_next_quota(struct super_block *sb, struct kqid *kqid,
 	ret = -ENOENT;
 found:
 	mutex_unlock(&q->lock);
-	return ret;
+	return bch2_err_class(ret);
 }
 
 static int bch2_set_quota_trans(struct btree_trans *trans,
@@ -960,7 +960,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 			    bch2_set_quota_trans(&trans, &new_quota, qdq)) ?:
 		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i), qdq);
 
-	return ret;
+	return bch2_err_class(ret);
 }
 
 const struct quotactl_ops bch2_quotactl_operations = {

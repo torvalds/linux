@@ -382,7 +382,7 @@ retry:
 
 	dir = dst_path.dentry->d_inode;
 	if (IS_DEADDIR(dir)) {
-		error = -ENOENT;
+		error = -BCH_ERR_ENOENT_directory_dead;
 		goto err3;
 	}
 

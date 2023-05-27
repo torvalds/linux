@@ -105,7 +105,7 @@ retry:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
-	bch2_fs_fatal_err_on(ret == -ENOENT, c,
+	bch2_fs_fatal_err_on(bch2_err_matches(ret, ENOENT), c,
 			     "inode %u:%llu not found when updating",
 			     inode_inum(inode).subvol,
 			     inode_inum(inode).inum);
@@ -1261,14 +1261,14 @@ retry:
 			goto err;
 
 		if (k.k->type != KEY_TYPE_dirent) {
-			ret = -ENOENT;
+			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
 			goto err;
 		}
 
 		d = bkey_s_c_to_dirent(k);
 		ret = bch2_dirent_read_target(&trans, inode_inum(dir), d, &target);
 		if (ret > 0)
-			ret = -ENOENT;
+			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
 		if (ret)
 			goto err;
 

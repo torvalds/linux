@@ -1455,7 +1455,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			BTREE_ITER_WITH_UPDATES, stripe);
 	ret = PTR_ERR_OR_ZERO(s);
 	if (unlikely(ret)) {
-		bch2_trans_inconsistent_on(ret == -ENOENT, trans,
+		bch2_trans_inconsistent_on(bch2_err_matches(ret, ENOENT), trans,
 			"pointer to nonexistent stripe %llu",
 			(u64) p.ec.idx);
 		goto err;

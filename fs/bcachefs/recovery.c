@@ -1082,7 +1082,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 
 	if (!bkey_is_inode(k.k)) {
 		bch_err(trans->c, "root inode not found");
-		ret = -ENOENT;
+		ret = -BCH_ERR_ENOENT_inode;
 		goto err;
 	}
 

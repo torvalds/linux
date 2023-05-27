@@ -236,7 +236,7 @@ err:
 	darray_exit(&buckets);
 
 	/* no entries in LRU btree found, or got to end: */
-	if (ret == -ENOENT)
+	if (bch2_err_matches(ret, ENOENT))
 		ret = 0;
 
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))

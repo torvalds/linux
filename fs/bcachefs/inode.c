@@ -336,7 +336,7 @@ int bch2_inode_peek(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	ret = bkey_is_inode(k.k) ? 0 : -ENOENT;
+	ret = bkey_is_inode(k.k) ? 0 : -BCH_ERR_ENOENT_inode;
 	if (ret)
 		goto err;
 

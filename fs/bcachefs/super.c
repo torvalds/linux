@@ -1833,7 +1833,7 @@ struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 	for_each_member_device_rcu(ca, c, i, NULL)
 		if (!strcmp(name, ca->name))
 			goto found;
-	ca = ERR_PTR(-ENOENT);
+	ca = ERR_PTR(-BCH_ERR_ENOENT_dev_not_found);
 found:
 	rcu_read_unlock();
 

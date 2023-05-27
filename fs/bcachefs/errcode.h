@@ -94,6 +94,17 @@
 	x(ENOSPC,			ENOSPC_sb_crypt)			\
 	x(ENOSPC,			ENOSPC_btree_slot)			\
 	x(ENOSPC,			ENOSPC_snapshot_tree)			\
+	x(ENOENT,			ENOENT_bkey_type_mismatch)		\
+	x(ENOENT,			ENOENT_str_hash_lookup)			\
+	x(ENOENT,			ENOENT_str_hash_set_must_replace)	\
+	x(ENOENT,			ENOENT_inode)				\
+	x(ENOENT,			ENOENT_not_subvol)			\
+	x(ENOENT,			ENOENT_directory_dead)			\
+	x(ENOENT,			ENOENT_subvolume)			\
+	x(ENOENT,			ENOENT_snapshot_tree)			\
+	x(ENOENT,			ENOENT_dirent_doesnt_match_inode)	\
+	x(ENOENT,			ENOENT_dev_not_found)			\
+	x(ENOENT,			ENOENT_dev_idx_not_found)		\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\

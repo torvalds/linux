@@ -516,7 +516,7 @@ static inline struct bkey_s_c __bch2_bkey_get_iter(struct btree_trans *trans,
 	k = bch2_btree_iter_peek_slot(iter);
 
 	if (!bkey_err(k) && type && k.k->type != type)
-		k = bkey_s_c_err(-ENOENT);
+		k = bkey_s_c_err(-BCH_ERR_ENOENT_bkey_type_mismatch);
 	if (unlikely(bkey_err(k)))
 		bch2_trans_iter_exit(trans, iter);
 	return k;

@@ -236,7 +236,7 @@ retry:
 	if (ret) {
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
-		if (ret != -ENOENT)
+		if (!bch2_err_matches(ret, ENOENT))
 			acl = ERR_PTR(ret);
 		goto out;
 	}
@@ -287,7 +287,7 @@ int bch2_set_acl_trans(struct btree_trans *trans, subvol_inum inum,
 				       inum, &search);
 	}
 
-	return ret == -ENOENT ? 0 : ret;
+	return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 }
 
 int bch2_set_acl(struct mnt_idmap *idmap,
@@ -368,7 +368,7 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 			&X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0),
 			BTREE_ITER_INTENT);
 	if (ret)
-		return ret == -ENOENT ? 0 : ret;
+		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 
 	k = bch2_btree_iter_peek_slot(&iter);
 	xattr = bkey_s_c_to_xattr(k);

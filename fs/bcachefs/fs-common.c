@@ -281,7 +281,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	}
 
 	if (deleting_snapshot && !inode_u->bi_subvol) {
-		ret = -ENOENT;
+		ret = -BCH_ERR_ENOENT_not_subvol;
 		goto err;
 	}
 

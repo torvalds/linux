@@ -37,8 +37,12 @@ int bch2_snapshot_tree_invalid(const struct bch_fs *c, struct bkey_s_c k,
 int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
 			      struct bch_snapshot_tree *s)
 {
-	return bch2_bkey_get_val_typed(trans, BTREE_ID_snapshot_trees, POS(0, id),
-				       BTREE_ITER_WITH_UPDATES, snapshot_tree, s);
+	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_snapshot_trees, POS(0, id),
+					  BTREE_ITER_WITH_UPDATES, snapshot_tree, s);
+
+	if (bch2_err_matches(ret, ENOENT))
+		ret = -BCH_ERR_ENOENT_snapshot_tree;
+	return ret;
 }
 
 static struct bkey_i_snapshot_tree *
@@ -284,6 +288,7 @@ static int bch2_snapshot_tree_master_subvol(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_subvolume s;
+	bool found = false;
 	int ret;
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
@@ -296,14 +301,14 @@ static int bch2_snapshot_tree_master_subvol(struct btree_trans *trans,
 			continue;
 		if (!BCH_SUBVOLUME_SNAP(s.v)) {
 			*subvol_id = s.k->p.offset;
-			goto found;
+			found = true;
+			break;
 		}
 	}
-	ret = ret ?: -ENOENT;
-found:
+
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (bch2_err_matches(ret, ENOENT)) {
+	if (!ret && !found) {
 		struct bkey_i_subvolume *s;
 
 		*subvol_id = bch2_snapshot_tree_oldest_subvol(c, snapshot_root);
@@ -1217,7 +1222,7 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_subvolumes, POS(0, subvol),
 			       BTREE_ITER_CACHED|
 			       BTREE_ITER_WITH_UPDATES);
-	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -ENOENT;
+	ret = bkey_err(k) ?: k.k->type == KEY_TYPE_subvolume ? 0 : -BCH_ERR_ENOENT_subvolume;
 
 	if (likely(!ret))
 		*snapid = le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot);
@@ -1444,7 +1449,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 				BTREE_ITER_CACHED, subvolume);
 		ret = PTR_ERR_OR_ZERO(src_subvol);
 		if (unlikely(ret)) {
-			bch2_fs_inconsistent_on(ret == -ENOENT, c,
+			bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
 						"subvolume %u not found", src_subvolid);
 			goto err;
 		}

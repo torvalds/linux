@@ -578,7 +578,7 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 			return i;
 		}
 
-	return -ENOENT;
+	return -BCH_ERR_ENOENT_dev_idx_not_found;
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,
