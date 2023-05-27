@@ -2914,6 +2914,10 @@ static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
 #endif
 	if (!p)
 		p = mempool_alloc(&trans->c->btree_paths_pool, GFP_NOFS);
+	/*
+	 * paths need to be zeroed, bch2_check_for_deadlock looks at paths in
+	 * other threads
+	 */
 
 	trans->paths		= p; p += paths_bytes;
 	trans->updates		= p; p += updates_bytes;
@@ -3111,7 +3115,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	struct btree_path *path;
 	struct btree_bkey_cached_common *b;
 	static char lock_types[] = { 'r', 'i', 'w' };
-	unsigned l;
+	unsigned l, idx;
 
 	if (!out->nr_tabstops) {
 		printbuf_tabstop_push(out, 16);
@@ -3120,7 +3124,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	prt_printf(out, "%i %s\n", trans->locking_wait.task->pid, trans->fn);
 
-	trans_for_each_path(trans, path) {
+	trans_for_each_path_safe(trans, path, idx) {
 		if (!path->nodes_locked)
 			continue;
 

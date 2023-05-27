@@ -89,6 +89,35 @@ __trans_next_path(struct btree_trans *trans, unsigned idx)
 #define trans_for_each_path(_trans, _path)				\
 	trans_for_each_path_from(_trans, _path, 0)
 
+static inline struct btree_path *
+__trans_next_path_safe(struct btree_trans *trans, unsigned *idx)
+{
+	u64 l;
+
+	if (*idx == BTREE_ITER_MAX)
+		return NULL;
+
+	l = trans->paths_allocated >> *idx;
+	if (!l)
+		return NULL;
+
+	*idx += __ffs64(l);
+	EBUG_ON(*idx >= BTREE_ITER_MAX);
+	return &trans->paths[*idx];
+}
+
+/*
+ * This version is intended to be safe for use on a btree_trans that is owned by
+ * another thread, for bch2_btree_trans_to_text();
+ */
+#define trans_for_each_path_safe_from(_trans, _path, _idx, _start)	\
+	for (_idx = _start;						\
+	     (_path = __trans_next_path_safe((_trans), &_idx));		\
+	     _idx++)
+
+#define trans_for_each_path_safe(_trans, _path, _idx)			\
+	trans_for_each_path_safe_from(_trans, _path, _idx, 0)
+
 static inline struct btree_path *next_btree_path(struct btree_trans *trans, struct btree_path *path)
 {
 	unsigned idx = path ? path->sorted_idx + 1 : 0;

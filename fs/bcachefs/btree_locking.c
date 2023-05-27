@@ -255,6 +255,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	struct trans_waiting_for_lock *top;
 	struct btree_bkey_cached_common *b;
 	struct btree_path *path;
+	unsigned path_idx;
 	int ret;
 
 	if (trans->lock_must_abort) {
@@ -273,12 +274,12 @@ next:
 
 	top = &g.g[g.nr - 1];
 
-	trans_for_each_path_from(top->trans, path, top->path_idx) {
+	trans_for_each_path_safe_from(top->trans, path, path_idx, top->path_idx) {
 		if (!path->nodes_locked)
 			continue;
 
-		if (top->path_idx != path->idx) {
-			top->path_idx		= path->idx;
+		if (path_idx != top->path_idx) {
+			top->path_idx		= path_idx;
 			top->level		= 0;
 			top->lock_start_time	= 0;
 		}
