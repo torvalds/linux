@@ -18,7 +18,7 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 	for (i = 0; i < nr_attrs; i++)
 		event_attr_init(attrs + i);
 
-	if (!perf_pmus__has_hybrid())
+	if (perf_pmus__num_core_pmus() == 1)
 		return evlist__add_attrs(evlist, attrs, nr_attrs);
 
 	for (i = 0; i < nr_attrs; i++) {

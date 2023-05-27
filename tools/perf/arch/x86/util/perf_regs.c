@@ -292,7 +292,7 @@ uint64_t arch__intr_reg_mask(void)
 	 */
 	attr.sample_period = 1;
 
-	if (perf_pmus__has_hybrid()) {
+	if (perf_pmus__num_core_pmus() > 1) {
 		struct perf_pmu *pmu = NULL;
 		__u64 type = PERF_TYPE_RAW;
 

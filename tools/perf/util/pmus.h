@@ -18,7 +18,6 @@ const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str);
 int perf_pmus__num_mem_pmus(void);
 void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *print_state);
 bool perf_pmus__have_event(const char *pname, const char *name);
-bool perf_pmus__has_hybrid(void);
 int perf_pmus__num_core_pmus(void);
 
 #endif /* __PMUS_H */

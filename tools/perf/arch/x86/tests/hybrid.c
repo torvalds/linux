@@ -281,7 +281,7 @@ static int test_events(const struct evlist_test *events, int cnt)
 
 int test__hybrid(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	if (!perf_pmus__has_hybrid())
+	if (perf_pmus__num_core_pmus() == 1)
 		return TEST_SKIP;
 
 	return test_events(test__hybrid_events, ARRAY_SIZE(test__hybrid_events));

@@ -1605,7 +1605,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 	 * Write hybrid pmu caps first to maintain compatibility with
 	 * older perf tool.
 	 */
-	if (perf_pmus__has_hybrid()) {
+	if (perf_pmus__num_core_pmus() > 1) {
 		pmu = NULL;
 		while ((pmu = perf_pmus__scan_core(pmu))) {
 			ret = __write_pmu_caps(ff, pmu, true);

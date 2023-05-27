@@ -3140,7 +3140,7 @@ void evsel__zero_per_pkg(struct evsel *evsel)
  */
 bool evsel__is_hybrid(const struct evsel *evsel)
 {
-	if (!perf_pmus__has_hybrid())
+	if (perf_pmus__num_core_pmus() == 1)
 		return false;
 
 	return evsel->core.is_pmu_core;

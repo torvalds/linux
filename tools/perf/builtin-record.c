@@ -1294,7 +1294,7 @@ static int record__open(struct record *rec)
 	 * of waiting or event synthesis.
 	 */
 	if (opts->target.initial_delay || target__has_cpu(&opts->target) ||
-	    perf_pmus__has_hybrid()) {
+	    perf_pmus__num_core_pmus() > 1) {
 		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
 			/* Set up dummy event. */
@@ -2193,7 +2193,7 @@ static void record__uniquify_name(struct record *rec)
 	char *new_name;
 	int ret;
 
-	if (!perf_pmus__has_hybrid())
+	if (perf_pmus__num_core_pmus() == 1)
 		return;
 
 	evlist__for_each_entry(evlist, pos) {

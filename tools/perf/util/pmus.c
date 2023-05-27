@@ -464,24 +464,6 @@ bool perf_pmus__have_event(const char *pname, const char *name)
 	return pmu && perf_pmu__have_event(pmu, name);
 }
 
-bool perf_pmus__has_hybrid(void)
-{
-	static bool hybrid_scanned, has_hybrid;
-
-	if (!hybrid_scanned) {
-		struct perf_pmu *pmu = NULL;
-
-		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
-			if (is_pmu_hybrid(pmu->name)) {
-				has_hybrid = true;
-				break;
-			}
-		}
-		hybrid_scanned = true;
-	}
-	return has_hybrid;
-}
-
 int perf_pmus__num_core_pmus(void)
 {
 	static int count;

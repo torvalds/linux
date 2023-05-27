@@ -472,15 +472,9 @@ struct hybrid_topology *hybrid_topology__new(void)
 {
 	struct perf_pmu *pmu = NULL;
 	struct hybrid_topology *tp = NULL;
-	u32 nr = 0, i = 0;
+	int nr = perf_pmus__num_core_pmus(), i = 0;
 
-	if (!perf_pmus__has_hybrid())
-		return NULL;
-
-	while ((pmu = perf_pmus__scan_core(pmu)) != NULL)
-		nr++;
-
-	if (nr == 0)
+	if (nr <= 1)
 		return NULL;
 
 	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0]) * nr);

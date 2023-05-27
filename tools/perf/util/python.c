@@ -103,9 +103,9 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	return EOF;
 }
 
-bool perf_pmus__has_hybrid(void)
+int perf_pmus__num_core_pmus(void)
 {
-	return false;
+	return 1;
 }
 
 bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
