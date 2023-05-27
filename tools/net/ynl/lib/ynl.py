@@ -412,7 +412,11 @@ class YnlFamily(SpecFamily):
 
     def _decode_binary(self, attr, attr_spec):
         if attr_spec.struct_name:
-            decoded = attr.as_struct(self.consts[attr_spec.struct_name])
+            members = self.consts[attr_spec.struct_name]
+            decoded = attr.as_struct(members)
+            for m in members:
+                if m.enum:
+                    self._decode_enum(decoded, m)
         elif attr_spec.sub_type:
             decoded = attr.as_c_array(attr_spec.sub_type)
         else:

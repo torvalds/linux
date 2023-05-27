@@ -228,11 +228,13 @@ class SpecStructMember(SpecElement):
     Attributes:
         type        string, type of the member attribute
         byte_order  string or None for native byte order
+        enum        string, name of the enum definition
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
         self.type = yaml['type']
         self.byte_order = yaml.get('byte-order')
+        self.enum = yaml.get('enum')
 
 
 class SpecStruct(SpecElement):

@@ -127,6 +127,9 @@ properties:
               doc:
                 description: Documentation for the struct member attribute.
                 type: string
+              enum:
+                description: Name of the enum type used for the attribute.
+                type: string
         # End genetlink-legacy
 
   attribute-sets:
