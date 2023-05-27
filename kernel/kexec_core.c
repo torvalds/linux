@@ -1137,15 +1137,18 @@ int crash_shrink_memory(unsigned long new_size)
 	end = start + new_size;
 	crash_free_reserved_phys_range(end, crashk_res.end);
 
-	if (start == end)
-		release_resource(&crashk_res);
-
 	ram_res->start = end;
 	ram_res->end = crashk_res.end;
 	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 	ram_res->name = "System RAM";
 
-	crashk_res.end = end - 1;
+	if (start == end) {
+		release_resource(&crashk_res);
+		crashk_res.start = 0;
+		crashk_res.end = 0;
+	} else {
+		crashk_res.end = end - 1;
+	}
 
 	insert_resource(&iomem_resource, ram_res);
 
