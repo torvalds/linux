@@ -62,9 +62,9 @@ struct perf_evsel {
 	int			 nr_members;
 	/*
 	 * system_wide is for events that need to be on every CPU, irrespective
-	 * of user requested CPUs or threads. Map propagation will set cpus to
-	 * this event's own_cpus, whereby they will contribute to evlist
-	 * all_cpus.
+	 * of user requested CPUs or threads. Tha main example of this is the
+	 * dummy event. Map propagation will set cpus for this event to all CPUs
+	 * as software PMU events like dummy, have a CPU map that is empty.
 	 */
 	bool			 system_wide;
 	/*
