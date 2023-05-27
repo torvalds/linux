@@ -279,11 +279,9 @@ static int cn23xx_setup_vf_mbox(struct octeon_device *oct)
 {
 	struct octeon_mbox *mbox = NULL;
 
-	mbox = vmalloc(sizeof(*mbox));
+	mbox = vzalloc(sizeof(*mbox));
 	if (!mbox)
 		return 1;
-
-	memset(mbox, 0, sizeof(struct octeon_mbox));
 
 	spin_lock_init(&mbox->lock);
 
