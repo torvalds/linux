@@ -365,6 +365,14 @@ static inline void reverse_planes_order(struct dc_surface_update *array_of_surfa
  * adjustments and preparation before calling it. This function is a wrapper
  * for the dc_update_planes_and_stream that does any required configuration
  * before passing control to DC.
+ *
+ * @dc: Display Core control structure
+ * @update_type: specify whether it is FULL/MEDIUM/FAST update
+ * @planes_count: planes count to update
+ * @stream: stream state
+ * @stream_update: stream update
+ * @array_of_surface_update: dc surface update pointer
+ *
  */
 static inline bool update_planes_and_stream_adapter(struct dc *dc,
 						    int update_type,
