@@ -709,11 +709,8 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 	struct perf_pmu *pmu = NULL;
 	unsigned long i;
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		int count = 0;
-
-		if (!is_pmu_core(pmu->name))
-			continue;
 
 		if (list_empty(&pmu->format)) {
 			pr_debug2("skipping testing core PMU %s\n", pmu->name);

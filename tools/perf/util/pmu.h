@@ -223,9 +223,7 @@ void perf_pmu__del_formats(struct list_head *formats);
 bool is_pmu_core(const char *name);
 bool is_pmu_hybrid(const char *name);
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
-bool perf_pmu__supports_wildcard_numeric(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
-bool perf_pmu__is_mem_pmu(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name);
 
 FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);

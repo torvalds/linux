@@ -33,12 +33,9 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 			continue;
 		}
 
-		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 			struct perf_cpu_map *cpus;
 			struct evsel *evsel;
-
-			if (!pmu->is_core)
-				continue;
 
 			evsel = evsel__new(attrs + i);
 			if (evsel == NULL)

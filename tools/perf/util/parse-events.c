@@ -453,14 +453,11 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 	const char *config_name = get_config_name(head_config);
 	const char *metric_id = get_config_metric_id(head_config);
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+	/* Legacy cache events are only supported by core PMUs. */
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		LIST_HEAD(config_terms);
 		struct perf_event_attr attr;
 		int ret;
-
-		/* Skip unsupported PMUs. */
-		if (!perf_pmu__supports_legacy_cache(pmu))
-			continue;
 
 		if (parse_events__filter_pmu(parse_state, pmu))
 			continue;
@@ -1481,11 +1478,9 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 		return __parse_events_add_numeric(parse_state, list, /*pmu=*/NULL,
 						  type, config, head_config);
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+	/* Wildcards on numeric values are only supported by core PMUs. */
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		int ret;
-
-		if (!perf_pmu__supports_wildcard_numeric(pmu))
-			continue;
 
 		if (parse_events__filter_pmu(parse_state, pmu))
 			continue;

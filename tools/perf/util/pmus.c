@@ -87,7 +87,7 @@ static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
 }
 
 /* Add all pmus in sysfs to pmu list: */
-static void pmu_read_sysfs(void)
+static void pmu_read_sysfs(bool core_only)
 {
 	int fd;
 	DIR *dir;
@@ -103,6 +103,8 @@ static void pmu_read_sysfs(void)
 
 	while ((dent = readdir(dir))) {
 		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
+			continue;
+		if (core_only && !is_pmu_core(dent->d_name))
 			continue;
 		/* add to static LIST_HEAD(core_pmus) or LIST_HEAD(other_pmus): */
 		perf_pmu__find2(fd, dent->d_name);
@@ -135,7 +137,7 @@ struct perf_pmu *perf_pmus__scan(struct perf_pmu *pmu)
 	bool use_core_pmus = !pmu || pmu->is_core;
 
 	if (!pmu) {
-		pmu_read_sysfs();
+		pmu_read_sysfs(/*core_only=*/false);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	}
 	if (use_core_pmus) {
@@ -147,6 +149,18 @@ struct perf_pmu *perf_pmus__scan(struct perf_pmu *pmu)
 	}
 	list_for_each_entry_continue(pmu, &other_pmus, list)
 		return pmu;
+	return NULL;
+}
+
+struct perf_pmu *perf_pmus__scan_core(struct perf_pmu *pmu)
+{
+	if (!pmu) {
+		pmu_read_sysfs(/*core_only=*/true);
+		pmu = list_prepare_entry(pmu, &core_pmus, list);
+	}
+	list_for_each_entry_continue(pmu, &core_pmus, list)
+		return pmu;
+
 	return NULL;
 }
 
@@ -176,10 +190,10 @@ int perf_pmus__num_mem_pmus(void)
 	struct perf_pmu *pmu = NULL;
 	int count = 0;
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		if (perf_pmu__is_mem_pmu(pmu))
-			count++;
-	}
+	/* All core PMUs are for mem events. */
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL)
+		count++;
+
 	return count;
 }
 
@@ -421,8 +435,8 @@ bool perf_pmus__has_hybrid(void)
 	if (!hybrid_scanned) {
 		struct perf_pmu *pmu = NULL;
 
-		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			if (pmu->is_core && is_pmu_hybrid(pmu->name)) {
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			if (is_pmu_hybrid(pmu->name)) {
 				has_hybrid = true;
 				break;
 			}

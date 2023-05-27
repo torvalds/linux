@@ -11,10 +11,7 @@ static struct perf_pmu *pmu__find_core_pmu(void)
 {
 	struct perf_pmu *pmu = NULL;
 
-	while ((pmu = perf_pmus__scan(pmu))) {
-		if (!is_pmu_core(pmu->name))
-			continue;
-
+	while ((pmu = perf_pmus__scan_core(pmu))) {
 		/*
 		 * The cpumap should cover all CPUs. Otherwise, some CPUs may
 		 * not support some events or have different event IDs.

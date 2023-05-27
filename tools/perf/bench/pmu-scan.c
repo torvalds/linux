@@ -22,6 +22,7 @@ struct pmu_scan_result {
 	int nr_aliases;
 	int nr_formats;
 	int nr_caps;
+	bool is_core;
 };
 
 static const struct option options[] = {
@@ -53,6 +54,7 @@ static int save_result(void)
 		r = results + nr_pmus;
 
 		r->name = strdup(pmu->name);
+		r->is_core = pmu->is_core;
 		r->nr_caps = pmu->nr_caps;
 
 		r->nr_aliases = 0;
@@ -72,7 +74,7 @@ static int save_result(void)
 	return 0;
 }
 
-static int check_result(void)
+static int check_result(bool core_only)
 {
 	struct pmu_scan_result *r;
 	struct perf_pmu *pmu;
@@ -81,6 +83,9 @@ static int check_result(void)
 
 	for (int i = 0; i < nr_pmus; i++) {
 		r = &results[i];
+		if (core_only && !r->is_core)
+			continue;
+
 		pmu = perf_pmus__find(r->name);
 		if (pmu == NULL) {
 			pr_err("Cannot find PMU %s\n", r->name);
@@ -130,7 +135,6 @@ static int run_pmu_scan(void)
 	struct timeval start, end, diff;
 	double time_average, time_stddev;
 	u64 runtime_us;
-	unsigned int i;
 	int ret;
 
 	init_stats(&stats);
@@ -142,26 +146,30 @@ static int run_pmu_scan(void)
 		return -1;
 	}
 
-	for (i = 0; i < iterations; i++) {
-		gettimeofday(&start, NULL);
-		perf_pmus__scan(NULL);
-		gettimeofday(&end, NULL);
+	for (int j = 0; j < 2; j++) {
+		bool core_only = (j == 0);
 
-		timersub(&end, &start, &diff);
-		runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
-		update_stats(&stats, runtime_us);
+		for (unsigned int i = 0; i < iterations; i++) {
+			gettimeofday(&start, NULL);
+			if (core_only)
+				perf_pmus__scan_core(NULL);
+			else
+				perf_pmus__scan(NULL);
+			gettimeofday(&end, NULL);
+			timersub(&end, &start, &diff);
+			runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
+			update_stats(&stats, runtime_us);
 
-		ret = check_result();
-		perf_pmus__destroy();
-		if (ret < 0)
-			break;
+			ret = check_result(core_only);
+			perf_pmus__destroy();
+			if (ret < 0)
+				break;
+		}
+		time_average = avg_stats(&stats);
+		time_stddev = stddev_stats(&stats);
+		pr_info("  Average%s PMU scanning took: %.3f usec (+- %.3f usec)\n",
+			core_only ? " core" : "", time_average, time_stddev);
 	}
-
-	time_average = avg_stats(&stats);
-	time_stddev = stddev_stats(&stats);
-	pr_info("  Average PMU scanning took: %.3f usec (+- %.3f usec)\n",
-		time_average, time_stddev);
-
 	delete_result();
 	return 0;
 }

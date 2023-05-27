@@ -300,11 +300,9 @@ uint64_t arch__intr_reg_mask(void)
 		 * The same register set is supported among different hybrid PMUs.
 		 * Only check the first available one.
 		 */
-		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			if (pmu->is_core) {
-				type = pmu->type;
-				break;
-			}
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			type = pmu->type;
+			break;
 		}
 		attr.config |= type << PERF_PMU_TYPE_SHIFT;
 	}

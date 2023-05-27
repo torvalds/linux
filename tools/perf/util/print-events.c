@@ -272,12 +272,11 @@ int print_hwcache_events(const struct print_callbacks *print_cb, void *print_sta
 	struct perf_pmu *pmu = NULL;
 	const char *event_type_descriptor = event_type_descriptors[PERF_TYPE_HW_CACHE];
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		/*
-		 * Skip uncore PMUs for performance. PERF_TYPE_HW_CACHE type
-		 * attributes can accept software PMUs in the extended type, so
-		 * also skip.
-		 */
+	/*
+	 * Only print core PMUs, skipping uncore for performance and
+	 * PERF_TYPE_SOFTWARE that can succeed in opening legacy cache evenst.
+	 */
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		if (pmu->is_uncore || pmu->type == PERF_TYPE_SOFTWARE)
 			continue;
 

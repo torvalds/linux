@@ -1607,10 +1607,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 	 */
 	if (perf_pmus__has_hybrid()) {
 		pmu = NULL;
-		while ((pmu = perf_pmus__scan(pmu))) {
-			if (!pmu->is_core)
-				continue;
-
+		while ((pmu = perf_pmus__scan_core(pmu))) {
 			ret = __write_pmu_caps(ff, pmu, true);
 			if (ret < 0)
 				return ret;

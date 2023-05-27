@@ -136,10 +136,7 @@ int perf_mem_events__init(void)
 		} else {
 			struct perf_pmu *pmu = NULL;
 
-			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-				if (!pmu->is_core)
-					continue;
-
+			while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 				scnprintf(sysfs_name, sizeof(sysfs_name),
 					  e->sysfs_name, pmu->name);
 				e->supported |= perf_mem_event__supported(mnt, sysfs_name);
@@ -176,10 +173,7 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 	char sysfs_name[100];
 	struct perf_pmu *pmu = NULL;
 
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		if (!pmu->is_core)
-			continue;
-
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name,
 			  pmu->name);
 		if (!perf_mem_event__supported(mnt, sysfs_name)) {
@@ -217,9 +211,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				return -1;
 			}
 
-			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-				if (!pmu->is_core)
-					continue;
+			while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 				rec_argv[i++] = "-e";
 				s = perf_mem_events__name(j, pmu->name);
 				if (s) {
