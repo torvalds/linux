@@ -3318,13 +3318,20 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 				  int unset __maybe_unused)
 {
 	struct dirent *script_dirent, *lang_dirent;
-	char scripts_path[MAXPATHLEN];
+	char *buf, *scripts_path, *script_path, *lang_path, *first_half;
 	DIR *scripts_dir, *lang_dir;
-	char script_path[MAXPATHLEN];
-	char lang_path[MAXPATHLEN];
 	struct script_desc *desc;
-	char first_half[BUFSIZ];
 	char *script_root;
+
+	buf = malloc(3 * MAXPATHLEN + BUFSIZ);
+	if (!buf) {
+		pr_err("malloc failed\n");
+		exit(-1);
+	}
+	scripts_path = buf;
+	script_path = buf + MAXPATHLEN;
+	lang_path = buf + 2 * MAXPATHLEN;
+	first_half = buf + 3 * MAXPATHLEN;
 
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
@@ -3334,6 +3341,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 			"open(%s) failed.\n"
 			"Check \"PERF_EXEC_PATH\" env to set scripts dir.\n",
 			scripts_path);
+		free(buf);
 		exit(-1);
 	}
 
@@ -3364,6 +3372,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 			desc->half_liner ? desc->half_liner : "");
 	}
 
+	free(buf);
 	exit(0);
 }
 
