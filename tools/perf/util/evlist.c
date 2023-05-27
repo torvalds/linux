@@ -2465,3 +2465,42 @@ void evlist__check_mem_load_aux(struct evlist *evlist)
 		}
 	}
 }
+
+/**
+ * evlist__warn_user_requested_cpus() - Check each evsel against requested CPUs
+ *     and warn if the user CPU list is inapplicable for the event's PMU's
+ *     CPUs. Not core PMUs list a CPU in sysfs, but this may be overwritten by a
+ *     user requested CPU and so any online CPU is applicable. Core PMUs handle
+ *     events on the CPUs in their list and otherwise the event isn't supported.
+ * @evlist: The list of events being checked.
+ * @cpu_list: The user provided list of CPUs.
+ */
+void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_list)
+{
+	struct perf_cpu_map *user_requested_cpus;
+	struct evsel *pos;
+
+	if (!cpu_list)
+		return;
+
+	user_requested_cpus = perf_cpu_map__new(cpu_list);
+	if (!user_requested_cpus)
+		return;
+
+	evlist__for_each_entry(evlist, pos) {
+		struct perf_cpu_map *intersect, *to_test;
+		const struct perf_pmu *pmu = evsel__find_pmu(pos);
+
+		to_test = pmu && pmu->is_core ? pmu->cpus : cpu_map__online();
+		intersect = perf_cpu_map__intersect(to_test, user_requested_cpus);
+		if (!perf_cpu_map__equal(intersect, user_requested_cpus)) {
+			char buf[128];
+
+			cpu_map__snprint(to_test, buf, sizeof(buf));
+			pr_warning("WARNING: A requested CPU in '%s' is not supported by PMU '%s' (CPUs %s) for event '%s'\n",
+				cpu_list, pmu ? pmu->name : "cpu", buf, evsel__name(pos));
+		}
+		perf_cpu_map__put(intersect);
+	}
+	perf_cpu_map__put(user_requested_cpus);
+}

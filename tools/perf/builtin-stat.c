@@ -2725,10 +2725,7 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (evlist__fix_hybrid_cpus(evsel_list, target.cpu_list)) {
-		pr_err("failed to use cpu list %s\n", target.cpu_list);
-		goto out;
-	}
+	evlist__warn_user_requested_cpus(evsel_list, target.cpu_list);
 
 	if (evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
