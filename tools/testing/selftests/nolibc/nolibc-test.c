@@ -501,6 +501,28 @@ static int test_fork(void)
 	}
 }
 
+static int test_stat_timestamps(void)
+{
+	struct stat st;
+
+	if (sizeof(st.st_atim.tv_sec) != sizeof(st.st_atime))
+		return 1;
+
+	if (stat("/proc/self/", &st))
+		return 1;
+
+	if (st.st_atim.tv_sec != st.st_atime || st.st_atim.tv_nsec > 1000000000)
+		return 1;
+
+	if (st.st_mtim.tv_sec != st.st_mtime || st.st_mtim.tv_nsec > 1000000000)
+		return 1;
+
+	if (st.st_ctim.tv_sec != st.st_ctime || st.st_ctim.tv_nsec > 1000000000)
+		return 1;
+
+	return 0;
+}
+
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
  */
@@ -589,6 +611,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(select_fault);      EXPECT_SYSER(1, select(1, (void *)1, NULL, NULL, 0), -1, EFAULT); break;
 		CASE_TEST(stat_blah);         EXPECT_SYSER(1, stat("/proc/self/blah", &stat_buf), -1, ENOENT); break;
 		CASE_TEST(stat_fault);        EXPECT_SYSER(1, stat(NULL, &stat_buf), -1, EFAULT); break;
+		CASE_TEST(stat_timestamps);   EXPECT_SYSZR(1, test_stat_timestamps()); break;
 		CASE_TEST(symlink_root);      EXPECT_SYSER(1, symlink("/", "/"), -1, EEXIST); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;
 		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, ENOENT); break;
