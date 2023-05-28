@@ -574,7 +574,7 @@ static struct bch_folio *__bch2_folio_create(struct folio *folio, gfp_t gfp)
 
 	s = kzalloc(sizeof(*s) +
 		    sizeof(struct bch_folio_sector) *
-		    folio_sectors(folio), GFP_NOFS|gfp);
+		    folio_sectors(folio), gfp);
 	if (!s)
 		return NULL;
 
@@ -601,7 +601,7 @@ static void __bch2_folio_set(struct folio *folio,
 			     unsigned pg_offset, unsigned pg_len,
 			     unsigned nr_ptrs, unsigned state)
 {
-	struct bch_folio *s = bch2_folio_create(folio, __GFP_NOFAIL);
+	struct bch_folio *s = bch2_folio(folio);
 	unsigned i, sectors = folio_sectors(folio);
 
 	BUG_ON(pg_offset >= sectors);
@@ -630,11 +630,25 @@ static int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct bch_folio *s;
 	u64 offset = folio_sector(folios[0]);
-	unsigned folio_idx = 0;
+	unsigned folio_idx;
 	u32 snapshot;
+	bool need_set = false;
 	int ret;
 
+	for (folio_idx = 0; folio_idx < nr_folios; folio_idx++) {
+		s = bch2_folio_create(folios[folio_idx], GFP_KERNEL);
+		if (!s)
+			return -ENOMEM;
+
+		need_set |= !s->uptodate;
+	}
+
+	if (!need_set)
+		return 0;
+
+	folio_idx = 0;
 	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
@@ -659,7 +673,7 @@ retry:
 			BUG_ON(k.k->p.offset < folio_start);
 			BUG_ON(bkey_start_offset(k.k) > folio_end);
 
-			if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate)
+			if (!bch2_folio(folio)->uptodate)
 				__bch2_folio_set(folio, folio_offset, folio_len, nr_ptrs, state);
 
 			if (k.k->p.offset < folio_end)
@@ -1051,15 +1065,8 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 
 	len = min_t(loff_t, folio_size(folio), isize - folio_pos(folio));
 
-	if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
-		if (bch2_folio_set(c, inode_inum(inode), &folio, 1)) {
-			folio_unlock(folio);
-			ret = VM_FAULT_SIGBUS;
-			goto out;
-		}
-	}
-
-	if (bch2_folio_reservation_get(c, inode, folio, &res, 0, len)) {
+	if (bch2_folio_set(c, inode_inum(inode), &folio, 1) ?:
+	    bch2_folio_reservation_get(c, inode, folio, &res, 0, len)) {
 		folio_unlock(folio);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
@@ -1139,7 +1146,7 @@ static int readpages_iter_init(struct readpages_iter *iter,
 
 	darray_for_each(iter->folios, fi) {
 		ractl->_nr_pages -= 1U << folio_order(*fi);
-		__bch2_folio_create(*fi, __GFP_NOFAIL);
+		__bch2_folio_create(*fi, __GFP_NOFAIL|GFP_KERNEL);
 		folio_put(*fi);
 		folio_put(*fi);
 	}
@@ -1171,11 +1178,15 @@ static bool extent_partial_reads_expensive(struct bkey_s_c k)
 	return false;
 }
 
-static void readpage_bio_extend(struct readpages_iter *iter,
-				struct bio *bio,
-				unsigned sectors_this_extent,
-				bool get_more)
+static int readpage_bio_extend(struct btree_trans *trans,
+			       struct readpages_iter *iter,
+			       struct bio *bio,
+			       unsigned sectors_this_extent,
+			       bool get_more)
 {
+	/* Don't hold btree locks while allocating memory: */
+	bch2_trans_unlock(trans);
+
 	while (bio_sectors(bio) < sectors_this_extent &&
 	       bio->bi_vcnt < bio->bi_max_vecs) {
 		struct folio *folio = readpage_iter_peek(iter);
@@ -1197,12 +1208,12 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 			if (!folio)
 				break;
 
-			if (!__bch2_folio_create(folio, 0)) {
+			if (!__bch2_folio_create(folio, GFP_KERNEL)) {
 				folio_put(folio);
 				break;
 			}
 
-			ret = filemap_add_folio(iter->mapping, folio, folio_offset, GFP_NOFS);
+			ret = filemap_add_folio(iter->mapping, folio, folio_offset, GFP_KERNEL);
 			if (ret) {
 				__bch2_folio_release(folio);
 				folio_put(folio);
@@ -1216,6 +1227,8 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 
 		BUG_ON(!bio_add_folio(bio, folio, folio_size(folio), 0));
 	}
+
+	return bch2_trans_relock(trans);
 }
 
 static void bchfs_read(struct btree_trans *trans,
@@ -1283,9 +1296,12 @@ retry:
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
-		if (readpages_iter)
-			readpage_bio_extend(readpages_iter, &rbio->bio, sectors,
-					    extent_partial_reads_expensive(k));
+		if (readpages_iter) {
+			ret = readpage_bio_extend(trans, readpages_iter, &rbio->bio, sectors,
+						  extent_partial_reads_expensive(k));
+			if (ret)
+				break;
+		}
 
 		bytes = min(sectors, bio_sectors(&rbio->bio)) << 9;
 		swap(rbio->bio.bi_iter.bi_size, bytes);
@@ -1594,7 +1610,7 @@ static int __bch2_writepage(struct folio *folio,
 			   folio_size(folio));
 do_io:
 	f_sectors = folio_sectors(folio);
-	s = bch2_folio_create(folio, __GFP_NOFAIL);
+	s = bch2_folio(folio);
 
 	if (f_sectors > w->tmp_sectors) {
 		kfree(w->tmp);
@@ -1776,11 +1792,9 @@ readpage:
 	if (ret)
 		goto err;
 out:
-	if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
-		ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
-		if (ret)
-			goto err;
-	}
+	ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
+	if (ret)
+		goto err;
 
 	ret = bch2_folio_reservation_get(c, inode, folio, res, offset, len);
 	if (ret) {
@@ -1916,18 +1930,15 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		}
 	}
 
+	ret = bch2_folio_set(c, inode_inum(inode), folios.data, folios.nr);
+	if (ret)
+		goto out;
+
 	f_pos = pos;
 	f_offset = pos - folio_pos(darray_first(folios));
 	darray_for_each(folios, fi) {
 		struct folio *f = *fi;
 		u64 f_len = min(end, folio_end_pos(f)) - f_pos;
-
-		if (!bch2_folio_create(f, __GFP_NOFAIL)->uptodate) {
-			ret = bch2_folio_set(c, inode_inum(inode), fi,
-					     folios.data + folios.nr - fi);
-			if (ret)
-				goto out;
-		}
 
 		/*
 		 * XXX: per POSIX and fstests generic/275, on -ENOSPC we're
@@ -2884,11 +2895,9 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 			goto unlock;
 	}
 
-	if (!s->uptodate) {
-		ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
-		if (ret)
-			goto unlock;
-	}
+	ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
+	if (ret)
+		goto unlock;
 
 	for (i = round_up(start_offset, block_bytes(c)) >> 9;
 	     i < round_down(end_offset, block_bytes(c)) >> 9;
