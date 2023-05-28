@@ -544,7 +544,8 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-struct ctl_table usermodehelper_table[] = {
+#if defined(CONFIG_SYSCTL)
+static struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
 		.data		= &usermodehelper_bset,
@@ -561,3 +562,11 @@ struct ctl_table usermodehelper_table[] = {
 	},
 	{ }
 };
+
+static int __init init_umh_sysctls(void)
+{
+	register_sysctl_init("kernel/usermodehelper", usermodehelper_table);
+	return 0;
+}
+early_initcall(init_umh_sysctls);
+#endif /* CONFIG_SYSCTL */

@@ -42,8 +42,6 @@ call_usermodehelper_setup(const char *path, char **argv, char **envp,
 extern int
 call_usermodehelper_exec(struct subprocess_info *info, int wait);
 
-extern struct ctl_table usermodehelper_table[];
-
 enum umh_disable_depth {
 	UMH_ENABLED = 0,
 	UMH_FREEZING,
