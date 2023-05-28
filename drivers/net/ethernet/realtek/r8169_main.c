@@ -5164,6 +5164,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int jumbo_max, region, rc;
 	enum mac_version chipset;
 	struct net_device *dev;
+	u32 txconfig;
 	u16 xid;
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
@@ -5218,7 +5219,13 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
-	xid = (RTL_R32(tp, TxConfig) >> 20) & 0xfcf;
+	txconfig = RTL_R32(tp, TxConfig);
+	if (txconfig == ~0U) {
+		dev_err(&pdev->dev, "PCI read failed\n");
+		return -EIO;
+	}
+
+	xid = (txconfig >> 20) & 0xfcf;
 
 	/* Identify chip attached to board */
 	chipset = rtl8169_get_mac_version(xid, tp->supports_gmii);
