@@ -1083,9 +1083,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
 	else if (!down_read_trylock(&c->gc_lock)) {
-		bch2_trans_unlock(trans);
-		down_read(&c->gc_lock);
-		ret = bch2_trans_relock(trans);
+		ret = drop_locks_do(trans, (down_read(&c->gc_lock), 0));
 		if (ret) {
 			up_read(&c->gc_lock);
 			return ERR_PTR(ret);
@@ -2256,9 +2254,7 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 	if (btree_ptr_hash_val(new_key) != b->hash_val) {
 		ret = bch2_btree_cache_cannibalize_lock(c, &cl);
 		if (ret) {
-			bch2_trans_unlock(trans);
-			closure_sync(&cl);
-			ret = bch2_trans_relock(trans);
+			ret = drop_locks_do(trans, (closure_sync(&cl), 0));
 			if (ret)
 				return ret;
 		}

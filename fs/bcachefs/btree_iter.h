@@ -854,6 +854,11 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	     !((_ret) = bkey_err(_k)) && (_k).k;				\
 	     bch2_btree_iter_advance(&(_iter)))
 
+#define drop_locks_do(_trans, _do)					\
+({									\
+	bch2_trans_unlock(_trans);					\
+	_do ?: bch2_trans_relock(_trans);				\
+})
 /* new multiple iterator interface: */
 
 void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);

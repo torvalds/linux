@@ -316,25 +316,11 @@ static noinline int
 bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned flags,
 				   unsigned long trace_ip)
 {
-	struct bch_fs *c = trans->c;
-	int ret;
-
-	bch2_trans_unlock(trans);
-
-	ret = bch2_journal_preres_get(&c->journal,
+	return drop_locks_do(trans,
+		bch2_journal_preres_get(&trans->c->journal,
 			&trans->journal_preres,
 			trans->journal_preres_u64s,
-			(flags & JOURNAL_WATERMARK_MASK));
-	if (ret)
-		return ret;
-
-	ret = bch2_trans_relock(trans);
-	if (ret) {
-		trace_and_count(c, trans_restart_journal_preres_get, trans, trace_ip, 0);
-		return ret;
-	}
-
-	return 0;
+			(flags & JOURNAL_WATERMARK_MASK)));
 }
 
 static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
@@ -1053,10 +1039,7 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans, unsigned flags)
 	    test_bit(BCH_FS_STARTED, &c->flags))
 		return -BCH_ERR_erofs_trans_commit;
 
-	bch2_trans_unlock(trans);
-
-	ret =   bch2_fs_read_write_early(c) ?:
-		bch2_trans_relock(trans);
+	ret = drop_locks_do(trans, bch2_fs_read_write_early(c));
 	if (ret)
 		return ret;
 

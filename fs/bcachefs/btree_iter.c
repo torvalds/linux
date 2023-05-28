@@ -41,13 +41,10 @@ static struct btree_path *btree_path_alloc(struct btree_trans *, struct btree_pa
  */
 static inline int bch2_trans_cond_resched(struct btree_trans *trans)
 {
-	if (need_resched() || race_fault()) {
-		bch2_trans_unlock(trans);
-		schedule();
-		return bch2_trans_relock(trans);
-	} else {
+	if (need_resched() || race_fault())
+		return drop_locks_do(trans, (schedule(), 0));
+	else
 		return 0;
-	}
 }
 
 static inline int __btree_path_cmp(const struct btree_path *l,

@@ -736,11 +736,8 @@ bool bch2_trans_locked(struct btree_trans *trans)
 int __bch2_trans_mutex_lock(struct btree_trans *trans,
 			    struct mutex *lock)
 {
-	int ret;
+	int ret = drop_locks_do(trans, (mutex_lock(lock), 0));
 
-	bch2_trans_unlock(trans);
-	mutex_lock(lock);
-	ret = bch2_trans_relock(trans);
 	if (ret)
 		mutex_unlock(lock);
 	return ret;
