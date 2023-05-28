@@ -2790,6 +2790,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	unsigned new_top = trans->mem_top + size;
 	size_t old_bytes = trans->mem_bytes;
 	size_t new_bytes = roundup_pow_of_two(new_top);
+	int ret;
 	void *new_mem;
 	void *p;
 
@@ -2797,15 +2798,27 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 
 	WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX);
 
-	new_mem = krealloc(trans->mem, new_bytes, GFP_NOFS);
-	if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
-		new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
-		new_bytes = BTREE_TRANS_MEM_MAX;
-		kfree(trans->mem);
-	}
+	new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
+	if (unlikely(!new_mem)) {
+		bch2_trans_unlock(trans);
 
-	if (!new_mem)
-		return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
+		new_mem = krealloc(trans->mem, new_bytes, GFP_KERNEL);
+		if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
+			new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
+			new_bytes = BTREE_TRANS_MEM_MAX;
+			kfree(trans->mem);
+		}
+
+		if (!new_mem)
+			return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
+
+		trans->mem = new_mem;
+		trans->mem_bytes = new_bytes;
+
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	trans->mem = new_mem;
 	trans->mem_bytes = new_bytes;
