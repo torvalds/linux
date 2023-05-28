@@ -526,7 +526,7 @@ static int f_ospi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 static bool f_ospi_supports_op_width(struct spi_mem *mem,
 				     const struct spi_mem_op *op)
 {
-	u8 width_available[] = { 0, 1, 2, 4, 8 };
+	static const u8 width_available[] = { 0, 1, 2, 4, 8 };
 	u8 width_op[] = { op->cmd.buswidth, op->addr.buswidth,
 			  op->dummy.buswidth, op->data.buswidth };
 	bool is_match_found;
