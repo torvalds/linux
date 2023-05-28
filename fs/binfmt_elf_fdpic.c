@@ -743,11 +743,12 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	struct elf32_fdpic_loadmap *loadmap;
 #ifdef CONFIG_MMU
 	struct elf32_fdpic_loadseg *mseg;
+	unsigned long load_addr;
 #endif
 	struct elf32_fdpic_loadseg *seg;
 	struct elf32_phdr *phdr;
-	unsigned long load_addr, stop;
 	unsigned nloads, tmp;
+	unsigned long stop;
 	int loop, ret;
 
 	/* allocate a load map table */
@@ -767,9 +768,6 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 	loadmap->version = ELF32_FDPIC_LOADMAP_VERSION;
 	loadmap->nsegs = nloads;
-
-	load_addr = params->load_addr;
-	seg = loadmap->segs;
 
 	/* map the requested LOADs into the memory space */
 	switch (params->flags & ELF_FDPIC_FLAG_ARRANGEMENT) {
