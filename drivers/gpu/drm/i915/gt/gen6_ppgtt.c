@@ -109,7 +109,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      struct i915_vma_resource *vma_res,
-				      enum i915_cache_level cache_level,
+				      unsigned int pat_index,
 				      u32 flags)
 {
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
@@ -117,7 +117,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	unsigned int first_entry = vma_res->start / I915_GTT_PAGE_SIZE;
 	unsigned int act_pt = first_entry / GEN6_PTES;
 	unsigned int act_pte = first_entry % GEN6_PTES;
-	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
+	const u32 pte_encode = vm->pte_encode(0, pat_index, flags);
 	struct sgt_dma iter = sgt_dma(vma_res);
 	gen6_pte_t *vaddr;
 
@@ -227,7 +227,9 @@ static int gen6_ppgtt_init_scratch(struct gen6_ppgtt *ppgtt)
 
 	vm->scratch[0]->encode =
 		vm->pte_encode(px_dma(vm->scratch[0]),
-			       I915_CACHE_NONE, PTE_READ_ONLY);
+			       i915_gem_get_pat_index(vm->i915,
+						      I915_CACHE_NONE),
+			       PTE_READ_ONLY);
 
 	vm->scratch[1] = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
 	if (IS_ERR(vm->scratch[1])) {
@@ -278,7 +280,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 static void pd_vma_bind(struct i915_address_space *vm,
 			struct i915_vm_pt_stash *stash,
 			struct i915_vma_resource *vma_res,
-			enum i915_cache_level cache_level,
+			unsigned int pat_index,
 			u32 unused)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
