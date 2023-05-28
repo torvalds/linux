@@ -1069,6 +1069,9 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 	void *misc;
 	int err;
 
+	if (!MLX5_VPORT_MANAGER(esw->dev) && !mlx5_core_is_ecpf_esw_manager(esw->dev))
+		return 0;
+
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
@@ -1177,11 +1180,14 @@ alloc_flows_err:
 static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 					struct mlx5_core_dev *peer_dev)
 {
+	u16 peer_index = mlx5_get_dev_index(peer_dev);
 	struct mlx5_flow_handle **flows;
 	struct mlx5_vport *vport;
 	unsigned long i;
 
-	flows = esw->fdb_table.offloads.peer_miss_rules[mlx5_get_dev_index(peer_dev)];
+	flows = esw->fdb_table.offloads.peer_miss_rules[peer_index];
+	if (!flows)
+		return;
 
 	if (mlx5_core_ec_sriov_enabled(esw->dev)) {
 		mlx5_esw_for_each_ec_vf_vport(esw, i, vport, mlx5_core_max_ec_vfs(esw->dev)) {
@@ -1206,7 +1212,9 @@ static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
 		mlx5_del_flow_rules(flows[vport->index]);
 	}
+
 	kvfree(flows);
+	esw->fdb_table.offloads.peer_miss_rules[peer_index] = NULL;
 }
 
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
