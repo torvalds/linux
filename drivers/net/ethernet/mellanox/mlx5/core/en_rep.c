@@ -408,7 +408,7 @@ static int mlx5e_sqs2vport_add_peers_rules(struct mlx5_eswitch *esw, struct mlx5
 
 	mlx5_devcom_for_each_peer_entry(devcom, MLX5_DEVCOM_ESW_OFFLOADS,
 					peer_esw, tmp) {
-		int peer_rule_idx = mlx5_get_dev_index(peer_esw->dev);
+		u16 peer_rule_idx = MLX5_CAP_GEN(peer_esw->dev, vhca_id);
 		struct mlx5e_rep_sq_peer *sq_peer;
 		int err;
 
@@ -1581,7 +1581,7 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 static void mlx5e_vport_rep_event_unpair(struct mlx5_eswitch_rep *rep,
 					 struct mlx5_eswitch *peer_esw)
 {
-	int i = mlx5_get_dev_index(peer_esw->dev);
+	u16 i = MLX5_CAP_GEN(peer_esw->dev, vhca_id);
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
 
@@ -1603,7 +1603,7 @@ static int mlx5e_vport_rep_event_pair(struct mlx5_eswitch *esw,
 				      struct mlx5_eswitch_rep *rep,
 				      struct mlx5_eswitch *peer_esw)
 {
-	int i = mlx5_get_dev_index(peer_esw->dev);
+	u16 i = MLX5_CAP_GEN(peer_esw->dev, vhca_id);
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_sq_peer *sq_peer;
 	struct mlx5e_rep_priv *rpriv;
