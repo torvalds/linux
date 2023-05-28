@@ -1054,7 +1054,10 @@ int __trace_array_puts(struct trace_array *tr, unsigned long ip,
 	if (!(tr->trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
-	if (unlikely(tracing_selftest_running || tracing_disabled))
+	if (unlikely(tracing_selftest_running && tr == &global_trace))
+		return 0;
+
+	if (unlikely(tracing_disabled))
 		return 0;
 
 	alloc = sizeof(*entry) + size + 2; /* possible \n added */
@@ -3512,7 +3515,7 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	unsigned int trace_ctx;
 	char *tbuffer;
 
-	if (tracing_disabled || tracing_selftest_running)
+	if (tracing_disabled)
 		return 0;
 
 	/* Don't pollute graph traces with trace_vprintk internals */
@@ -3560,6 +3563,9 @@ __printf(3, 0)
 int trace_array_vprintk(struct trace_array *tr,
 			unsigned long ip, const char *fmt, va_list args)
 {
+	if (tracing_selftest_running && tr == &global_trace)
+		return 0;
+
 	return __trace_array_vprintk(tr->array_buffer.buffer, ip, fmt, args);
 }
 
