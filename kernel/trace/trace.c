@@ -2045,6 +2045,13 @@ static int do_run_tracer_selftest(struct tracer *type)
 {
 	int ret;
 
+	/*
+	 * Tests can take a long time, especially if they are run one after the
+	 * other, as does happen during bootup when all the tracers are
+	 * registered. This could cause the soft lockup watchdog to trigger.
+	 */
+	cond_resched();
+
 	tracing_selftest_running = true;
 	ret = run_tracer_selftest(type);
 	tracing_selftest_running = false;
