@@ -353,7 +353,7 @@ struct mlx5_eswitch {
 		u32             large_group_num;
 	}  params;
 	struct blocking_notifier_head n_head;
-	bool paired[MLX5_MAX_PORTS];
+	struct xarray paired;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);

@@ -2807,7 +2807,13 @@ static int mlx5_esw_offloads_devcom_event(int event,
 	struct mlx5_eswitch *esw = my_data;
 	struct mlx5_devcom *devcom = esw->dev->priv.devcom;
 	struct mlx5_eswitch *peer_esw = event_data;
+	u16 esw_i, peer_esw_i;
+	bool esw_paired;
 	int err;
+
+	peer_esw_i = MLX5_CAP_GEN(peer_esw->dev, vhca_id);
+	esw_i = MLX5_CAP_GEN(esw->dev, vhca_id);
+	esw_paired = !!xa_load(&esw->paired, peer_esw_i);
 
 	switch (event) {
 	case ESW_OFFLOADS_DEVCOM_PAIR:
@@ -2815,7 +2821,7 @@ static int mlx5_esw_offloads_devcom_event(int event,
 		    mlx5_eswitch_vport_match_metadata_enabled(peer_esw))
 			break;
 
-		if (esw->paired[mlx5_get_dev_index(peer_esw->dev)])
+		if (esw_paired)
 			break;
 
 		err = mlx5_esw_offloads_set_ns_peer(esw, peer_esw, true);
@@ -2829,23 +2835,29 @@ static int mlx5_esw_offloads_devcom_event(int event,
 		if (err)
 			goto err_pair;
 
-		esw->paired[mlx5_get_dev_index(peer_esw->dev)] = true;
-		peer_esw->paired[mlx5_get_dev_index(esw->dev)] = true;
+		err = xa_insert(&esw->paired, peer_esw_i, peer_esw, GFP_KERNEL);
+		if (err)
+			goto err_xa;
+
+		err = xa_insert(&peer_esw->paired, esw_i, esw, GFP_KERNEL);
+		if (err)
+			goto err_peer_xa;
+
 		esw->num_peers++;
 		peer_esw->num_peers++;
 		mlx5_devcom_comp_set_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS, true);
 		break;
 
 	case ESW_OFFLOADS_DEVCOM_UNPAIR:
-		if (!esw->paired[mlx5_get_dev_index(peer_esw->dev)])
+		if (!esw_paired)
 			break;
 
 		peer_esw->num_peers--;
 		esw->num_peers--;
 		if (!esw->num_peers && !peer_esw->num_peers)
 			mlx5_devcom_comp_set_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS, false);
-		esw->paired[mlx5_get_dev_index(peer_esw->dev)] = false;
-		peer_esw->paired[mlx5_get_dev_index(esw->dev)] = false;
+		xa_erase(&peer_esw->paired, esw_i);
+		xa_erase(&esw->paired, peer_esw_i);
 		mlx5_esw_offloads_unpair(peer_esw, esw);
 		mlx5_esw_offloads_unpair(esw, peer_esw);
 		mlx5_esw_offloads_set_ns_peer(esw, peer_esw, false);
@@ -2854,6 +2866,10 @@ static int mlx5_esw_offloads_devcom_event(int event,
 
 	return 0;
 
+err_peer_xa:
+	xa_erase(&esw->paired, peer_esw_i);
+err_xa:
+	mlx5_esw_offloads_unpair(peer_esw, esw);
 err_pair:
 	mlx5_esw_offloads_unpair(esw, peer_esw);
 err_peer:
@@ -2879,6 +2895,7 @@ void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw)
 	if (!mlx5_lag_is_supported(esw->dev))
 		return;
 
+	xa_init(&esw->paired);
 	mlx5_devcom_register_component(devcom,
 				       MLX5_DEVCOM_ESW_OFFLOADS,
 				       mlx5_esw_offloads_devcom_event,
@@ -2906,6 +2923,7 @@ void mlx5_esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw)
 			       ESW_OFFLOADS_DEVCOM_UNPAIR, esw);
 
 	mlx5_devcom_unregister_component(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	xa_destroy(&esw->paired);
 }
 
 bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
