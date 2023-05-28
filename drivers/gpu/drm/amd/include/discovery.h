@@ -122,7 +122,7 @@ typedef struct ip_v3
 	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
 	uint8_t variant : 4;                    /* HW variant */
 #endif
-	uint32_t base_address[1];               /* Base Address list. Corresponds to the num_base_address field*/
+	uint32_t base_address[];		/* Base Address list. Corresponds to the num_base_address field*/
 } ip_v3;
 
 typedef struct ip_v4 {
@@ -140,8 +140,8 @@ typedef struct ip_v4 {
 	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
 #endif
 	union {
-		uint32_t base_address[0];               /* 32-bit Base Address list. Corresponds to the num_base_address field*/
-		uint64_t base_address_64[0];            /* 64-bit Base Address list. Corresponds to the num_base_address field*/
+		DECLARE_FLEX_ARRAY(uint32_t, base_address);	/* 32-bit Base Address list. Corresponds to the num_base_address field*/
+		DECLARE_FLEX_ARRAY(uint64_t, base_address_64);	/* 64-bit Base Address list. Corresponds to the num_base_address field*/
 	} __packed;
 } ip_v4;
 
