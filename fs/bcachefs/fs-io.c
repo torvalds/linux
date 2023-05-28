@@ -1368,7 +1368,7 @@ void bch2_readahead(struct readahead_control *ractl)
 				   BIO_MAX_VECS);
 		struct bch_read_bio *rbio =
 			rbio_init(bio_alloc_bioset(NULL, n, REQ_OP_READ,
-						   GFP_NOFS, &c->bio_read),
+						   GFP_KERNEL, &c->bio_read),
 				  opts);
 
 		readpage_iter_advance(&readpages_iter);
@@ -1379,6 +1379,7 @@ void bch2_readahead(struct readahead_control *ractl)
 
 		bchfs_read(&trans, rbio, inode_inum(inode),
 			   &readpages_iter);
+		bch2_trans_unlock(&trans);
 	}
 
 	bch2_pagecache_add_put(inode);
@@ -1420,7 +1421,7 @@ static int bch2_read_single_folio(struct folio *folio,
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
-	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS, &c->bio_read),
+	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_KERNEL, &c->bio_read),
 			 opts);
 	rbio->bio.bi_private = &done;
 	rbio->bio.bi_end_io = bch2_read_single_folio_end_io;
@@ -1555,7 +1556,7 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 
 	w->io = container_of(bio_alloc_bioset(NULL, BIO_MAX_VECS,
 					      REQ_OP_WRITE,
-					      GFP_NOFS,
+					      GFP_KERNEL,
 					      &c->writepage_bioset),
 			     struct bch_writepage_io, op.wbio.bio);
 
