@@ -4,6 +4,7 @@
 
 #include "btree_iter.h"
 #include "journal.h"
+#include "journal.h"
 
 struct bch_fs;
 struct btree;
@@ -82,6 +83,28 @@ int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
 			       struct btree *, struct bkey_i *, bool);
 int bch2_btree_node_update_key_get_iter(struct btree_trans *,
 				struct btree *, struct bkey_i *, bool);
+
+int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
+				     struct bpos, struct bpos);
+
+/*
+ * For use when splitting extents in existing snapshots:
+ *
+ * If @old_pos is an interior snapshot node, iterate over descendent snapshot
+ * nodes: for every descendent snapshot in whiche @old_pos is overwritten and
+ * not visible, emit a whiteout at @new_pos.
+ */
+static inline int bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
+						 enum btree_id btree,
+						 struct bpos old_pos,
+						 struct bpos new_pos)
+{
+	if (!btree_type_has_snapshots(btree) ||
+	    bkey_eq(old_pos, new_pos))
+		return 0;
+
+	return __bch2_insert_snapshot_whiteouts(trans, btree, old_pos, new_pos);
+}
 
 int bch2_trans_update_extent(struct btree_trans *, struct btree_iter *,
 			     struct bkey_i *, enum btree_update_flags);
