@@ -576,6 +576,13 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 					le32_to_cpu(s_t.master_subvol),
 					k.k->p.offset,
 				}, &u);
+	/*
+	 * Inode might be deleted in this snapshot - the easiest way to handle
+	 * that is to just skip it here:
+	 */
+	if (bch2_err_matches(ret, ENOENT))
+		goto advance;
+
 	if (ret)
 		return ret;
 
@@ -615,7 +622,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(&trans, &iter, k));
 	if (ret)
-		bch_err(c, "err in quota_read: %s", bch2_err_str(ret));
+		bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
 
 	bch2_trans_exit(&trans);
 	return ret;
