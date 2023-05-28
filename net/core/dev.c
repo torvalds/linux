@@ -10571,8 +10571,10 @@ void netdev_sw_irq_coalesce_default_on(struct net_device *dev)
 {
 	WARN_ON(dev->reg_state == NETREG_REGISTERED);
 
-	dev->gro_flush_timeout = 20000;
-	dev->napi_defer_hard_irqs = 1;
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		dev->gro_flush_timeout = 20000;
+		dev->napi_defer_hard_irqs = 1;
+	}
 }
 EXPORT_SYMBOL_GPL(netdev_sw_irq_coalesce_default_on);
 
