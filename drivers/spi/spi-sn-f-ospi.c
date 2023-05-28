@@ -566,7 +566,7 @@ static bool f_ospi_supports_op(struct spi_mem *mem,
 
 static int f_ospi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	op->data.nbytes = min((int)op->data.nbytes, (int)(OSPI_DAT_SIZE_MAX));
+	op->data.nbytes = min_t(int, op->data.nbytes, OSPI_DAT_SIZE_MAX);
 
 	return 0;
 }
