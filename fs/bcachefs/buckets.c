@@ -140,7 +140,7 @@ struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *c)
 	unsigned nr_replicas = READ_ONCE(c->replicas.nr);
 	unsigned seq, i;
 retry:
-	ret = kmalloc(__fs_usage_online_u64s(nr_replicas) * sizeof(u64), GFP_NOFS);
+	ret = kmalloc(__fs_usage_online_u64s(nr_replicas) * sizeof(u64), GFP_KERNEL);
 	if (unlikely(!ret))
 		return NULL;
 
@@ -423,8 +423,8 @@ static inline int update_cached_sectors(struct bch_fs *c,
 	return update_replicas(c, k, &r.e, sectors, journal_seq, gc);
 }
 
-static struct replicas_delta_list *
-replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
+static int __replicas_deltas_realloc(struct btree_trans *trans, unsigned more,
+				     gfp_t gfp)
 {
 	struct replicas_delta_list *d = trans->fs_usage_deltas;
 	unsigned new_size = d ? (d->size + more) * 2 : 128;
@@ -433,12 +433,16 @@ replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 	WARN_ON_ONCE(alloc_size > REPLICAS_DELTA_LIST_MAX);
 
 	if (!d || d->used + more > d->size) {
-		d = krealloc(d, alloc_size, GFP_NOFS|__GFP_ZERO);
+		d = krealloc(d, alloc_size, gfp|__GFP_ZERO);
 
-		BUG_ON(!d && alloc_size > REPLICAS_DELTA_LIST_MAX);
+		if (unlikely(!d)) {
+			if (alloc_size > REPLICAS_DELTA_LIST_MAX)
+				return -ENOMEM;
 
-		if (!d) {
-			d = mempool_alloc(&trans->c->replicas_delta_pool, GFP_NOFS);
+			d = mempool_alloc(&trans->c->replicas_delta_pool, gfp);
+			if (!d)
+				return -ENOMEM;
+
 			memset(d, 0, REPLICAS_DELTA_LIST_MAX);
 
 			if (trans->fs_usage_deltas)
@@ -452,39 +456,51 @@ replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 		d->size = new_size;
 		trans->fs_usage_deltas = d;
 	}
-	return d;
+
+	return 0;
 }
 
-static inline void update_replicas_list(struct btree_trans *trans,
+static int replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
+{
+	return allocate_dropping_locks_errcode(trans,
+				__replicas_deltas_realloc(trans, more, _gfp));
+}
+
+static inline int update_replicas_list(struct btree_trans *trans,
 					struct bch_replicas_entry *r,
 					s64 sectors)
 {
 	struct replicas_delta_list *d;
 	struct replicas_delta *n;
 	unsigned b;
+	int ret;
 
 	if (!sectors)
-		return;
+		return 0;
 
 	b = replicas_entry_bytes(r) + 8;
-	d = replicas_deltas_realloc(trans, b);
+	ret = replicas_deltas_realloc(trans, b);
+	if (ret)
+		return ret;
 
+	d = trans->fs_usage_deltas;
 	n = (void *) d->d + d->used;
 	n->delta = sectors;
 	memcpy((void *) n + offsetof(struct replicas_delta, r),
 	       r, replicas_entry_bytes(r));
 	bch2_replicas_entry_sort(&n->r);
 	d->used += b;
+	return 0;
 }
 
-static inline void update_cached_sectors_list(struct btree_trans *trans,
+static inline int update_cached_sectors_list(struct btree_trans *trans,
 					      unsigned dev, s64 sectors)
 {
 	struct bch_replicas_padded r;
 
 	bch2_replicas_entry_cached(&r.e, dev);
 
-	update_replicas_list(trans, &r.e, sectors);
+	return update_replicas_list(trans, &r.e, sectors);
 }
 
 int bch2_mark_alloc(struct btree_trans *trans,
@@ -1475,7 +1491,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 
 	bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
 	r.e.data_type = data_type;
-	update_replicas_list(trans, &r.e, sectors);
+	ret = update_replicas_list(trans, &r.e, sectors);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1502,7 +1518,7 @@ int bch2_trans_mark_extent(struct btree_trans *trans,
 		: k.k->size;
 	s64 dirty_sectors = 0;
 	bool stale;
-	int ret;
+	int ret = 0;
 
 	r.e.data_type	= data_type;
 	r.e.nr_devs	= 0;
@@ -1521,9 +1537,12 @@ int bch2_trans_mark_extent(struct btree_trans *trans,
 		stale = ret > 0;
 
 		if (p.ptr.cached) {
-			if (!stale)
-				update_cached_sectors_list(trans, p.ptr.dev,
-							   disk_sectors);
+			if (!stale) {
+				ret = update_cached_sectors_list(trans, p.ptr.dev,
+								 disk_sectors);
+				if (ret)
+					return ret;
+			}
 		} else if (!p.has_ec) {
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
@@ -1538,9 +1557,9 @@ int bch2_trans_mark_extent(struct btree_trans *trans,
 	}
 
 	if (r.e.nr_devs)
-		update_replicas_list(trans, &r.e, dirty_sectors);
+		ret = update_replicas_list(trans, &r.e, dirty_sectors);
 
-	return 0;
+	return ret;
 }
 
 static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
@@ -1657,14 +1676,18 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 		s64 sectors = le16_to_cpu(new_s->sectors);
 
 		bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(new));
-		update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+		ret = update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+		if (ret)
+			return ret;
 	}
 
 	if (old_s) {
 		s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
 
 		bch2_bkey_to_replicas(&r.e, old);
-		update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+		ret = update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < nr_blocks; i++) {
@@ -1701,8 +1724,12 @@ int bch2_trans_mark_inode(struct btree_trans *trans,
 	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
 
 	if (nr) {
-		struct replicas_delta_list *d =
-			replicas_deltas_realloc(trans, 0);
+		int ret = replicas_deltas_realloc(trans, 0);
+		struct replicas_delta_list *d = trans->fs_usage_deltas;
+
+		if (ret)
+			return ret;
+
 		d->nr_inodes += nr;
 	}
 
@@ -1721,13 +1748,17 @@ int bch2_trans_mark_reservation(struct btree_trans *trans,
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size;
 	struct replicas_delta_list *d;
+	int ret;
 
 	if (flags & BTREE_TRIGGER_OVERWRITE)
 		sectors = -sectors;
 	sectors *= replicas;
 
-	d = replicas_deltas_realloc(trans, 0);
+	ret = replicas_deltas_realloc(trans, 0);
+	if (ret)
+		return ret;
 
+	d = trans->fs_usage_deltas;
 	replicas = clamp_t(unsigned, replicas, 1,
 			   ARRAY_SIZE(d->persistent_reserved));
 
