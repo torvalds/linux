@@ -35,12 +35,14 @@ static inline int acl_to_xattr_type(int type)
 /*
  * Convert from filesystem to in-memory representation.
  */
-static struct posix_acl *bch2_acl_from_disk(const void *value, size_t size)
+static struct posix_acl *bch2_acl_from_disk(struct btree_trans *trans,
+					    const void *value, size_t size)
 {
 	const void *p, *end = value + size;
 	struct posix_acl *acl;
 	struct posix_acl_entry *out;
 	unsigned count = 0;
+	int ret;
 
 	if (!value)
 		return NULL;
@@ -81,9 +83,14 @@ static struct posix_acl *bch2_acl_from_disk(const void *value, size_t size)
 	if (!count)
 		return NULL;
 
-	acl = posix_acl_alloc(count, GFP_KERNEL);
+	acl = allocate_dropping_locks(trans, ret,
+			posix_acl_alloc(count, _gfp));
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
+	if (ret) {
+		kfree(acl);
+		return ERR_PTR(ret);
+	}
 
 	out = acl->a_entries;
 
@@ -234,8 +241,6 @@ retry:
 			&X_SEARCH(acl_to_xattr_type(type), "", 0),
 			0);
 	if (ret) {
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			goto retry;
 		if (!bch2_err_matches(ret, ENOENT))
 			acl = ERR_PTR(ret);
 		goto out;
@@ -249,12 +254,15 @@ retry:
 	}
 
 	xattr = bkey_s_c_to_xattr(k);
-	acl = bch2_acl_from_disk(xattr_val(xattr.v),
+	acl = bch2_acl_from_disk(&trans, xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 
 	if (!IS_ERR(acl))
 		set_cached_acl(&inode->v, type, acl);
 out:
+	if (bch2_err_matches(PTR_ERR_OR_ZERO(acl), BCH_ERR_transaction_restart))
+		goto retry;
+
 	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	return acl;
@@ -375,13 +383,14 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 	if (ret)
 		goto err;
 
-	acl = bch2_acl_from_disk(xattr_val(xattr.v),
+	acl = bch2_acl_from_disk(trans, xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 	ret = PTR_ERR_OR_ZERO(acl);
 	if (IS_ERR_OR_NULL(acl))
 		goto err;
 
-	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
+	ret = allocate_dropping_locks_errcode(trans,
+				__posix_acl_chmod(&acl, _gfp, mode));
 	if (ret)
 		goto err;
 
