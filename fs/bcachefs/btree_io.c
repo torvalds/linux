@@ -117,7 +117,7 @@ static void *btree_bounce_alloc(struct bch_fs *c, size_t size,
 	p = vpmalloc(size, __GFP_NOWARN|GFP_NOWAIT);
 	if (!p) {
 		*used_mempool = true;
-		p = mempool_alloc(&c->btree_bounce_pool, GFP_NOIO);
+		p = mempool_alloc(&c->btree_bounce_pool, GFP_NOFS);
 	}
 	memalloc_nofs_restore(flags);
 	return p;
@@ -937,7 +937,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	/* We might get called multiple times on read retry: */
 	b->written = 0;
 
-	iter = mempool_alloc(&c->fill_iter, GFP_NOIO);
+	iter = mempool_alloc(&c->fill_iter, GFP_NOFS);
 	sort_iter_init(iter, b);
 	iter->size = (btree_blocks(c) + 1) * 2;
 
@@ -1580,7 +1580,7 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	bio = bio_alloc_bioset(NULL,
 			       buf_pages(b->data, btree_bytes(c)),
 			       REQ_OP_READ|REQ_SYNC|REQ_META,
-			       GFP_NOIO,
+			       GFP_NOFS,
 			       &c->btree_bio);
 	rb = container_of(bio, struct btree_read_bio, bio);
 	rb->c			= c;
@@ -2077,7 +2077,7 @@ do_write:
 	wbio = container_of(bio_alloc_bioset(NULL,
 				buf_pages(data, sectors_to_write << 9),
 				REQ_OP_WRITE|REQ_META,
-				GFP_NOIO,
+				GFP_NOFS,
 				&c->btree_bio),
 			    struct btree_write_bio, wbio.bio);
 	wbio_init(&wbio->wbio.bio);

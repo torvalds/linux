@@ -28,11 +28,11 @@ static struct bbuf __bounce_alloc(struct bch_fs *c, unsigned size, int rw)
 
 	BUG_ON(size > c->opts.encoded_extent_max);
 
-	b = kmalloc(size, GFP_NOIO|__GFP_NOWARN);
+	b = kmalloc(size, GFP_NOFS|__GFP_NOWARN);
 	if (b)
 		return (struct bbuf) { .b = b, .type = BB_KMALLOC, .rw = rw };
 
-	b = mempool_alloc(&c->compression_bounce[rw], GFP_NOIO);
+	b = mempool_alloc(&c->compression_bounce[rw], GFP_NOFS);
 	if (b)
 		return (struct bbuf) { .b = b, .type = BB_MEMPOOL, .rw = rw };
 
@@ -94,7 +94,7 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 	BUG_ON(DIV_ROUND_UP(start.bi_size, PAGE_SIZE) > nr_pages);
 
 	pages = nr_pages > ARRAY_SIZE(stack_pages)
-		? kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOIO)
+		? kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS)
 		: stack_pages;
 	if (!pages)
 		goto bounce;
@@ -177,7 +177,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 			.avail_out	= dst_len,
 		};
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOIO);
+		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
 
 		zlib_set_workspace(&strm, workspace);
 		zlib_inflateInit2(&strm, -MAX_WBITS);
@@ -196,7 +196,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		if (real_src_len > src_len - 4)
 			goto err;
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOIO);
+		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
 		ctx = zstd_init_dctx(workspace, zstd_dctx_workspace_bound());
 
 		ret = zstd_decompress_dctx(ctx,
@@ -382,7 +382,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 	dst_data = bio_map_or_bounce(c, dst, WRITE);
 	src_data = bio_map_or_bounce(c, src, READ);
 
-	workspace = mempool_alloc(&c->compress_workspace[compression_type], GFP_NOIO);
+	workspace = mempool_alloc(&c->compress_workspace[compression_type], GFP_NOFS);
 
 	*src_len = src->bi_iter.bi_size;
 	*dst_len = dst->bi_iter.bi_size;

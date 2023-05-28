@@ -271,7 +271,7 @@ void bch2_journal_do_discards(struct journal *j)
 				blkdev_issue_discard(ca->disk_sb.bdev,
 					bucket_to_sector(ca,
 						ja->buckets[ja->discard_idx]),
-					ca->mi.bucket_size, GFP_NOIO);
+					ca->mi.bucket_size, GFP_NOFS);
 
 			spin_lock(&j->lock);
 			ja->discard_idx = (ja->discard_idx + 1) % ja->nr;

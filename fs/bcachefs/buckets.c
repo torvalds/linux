@@ -433,12 +433,12 @@ replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 	WARN_ON_ONCE(alloc_size > REPLICAS_DELTA_LIST_MAX);
 
 	if (!d || d->used + more > d->size) {
-		d = krealloc(d, alloc_size, GFP_NOIO|__GFP_ZERO);
+		d = krealloc(d, alloc_size, GFP_NOFS|__GFP_ZERO);
 
 		BUG_ON(!d && alloc_size > REPLICAS_DELTA_LIST_MAX);
 
 		if (!d) {
-			d = mempool_alloc(&trans->c->replicas_delta_pool, GFP_NOIO);
+			d = mempool_alloc(&trans->c->replicas_delta_pool, GFP_NOFS);
 			memset(d, 0, REPLICAS_DELTA_LIST_MAX);
 
 			if (trans->fs_usage_deltas)

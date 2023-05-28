@@ -1092,7 +1092,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		}
 	}
 
-	as = mempool_alloc(&c->btree_interior_update_pool, GFP_NOIO);
+	as = mempool_alloc(&c->btree_interior_update_pool, GFP_NOFS);
 	memset(as, 0, sizeof(*as));
 	closure_init(&as->cl, NULL);
 	as->c		= c;

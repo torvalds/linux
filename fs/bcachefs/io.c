@@ -163,7 +163,7 @@ static struct page *__bio_alloc_page_pool(struct bch_fs *c, bool *using_mempool)
 	struct page *page;
 
 	if (likely(!*using_mempool)) {
-		page = alloc_page(GFP_NOIO);
+		page = alloc_page(GFP_NOFS);
 		if (unlikely(!page)) {
 			mutex_lock(&c->bio_bounce_pages_lock);
 			*using_mempool = true;
@@ -172,7 +172,7 @@ static struct page *__bio_alloc_page_pool(struct bch_fs *c, bool *using_mempool)
 		}
 	} else {
 pool_alloc:
-		page = mempool_alloc(&c->bio_bounce_pages, GFP_NOIO);
+		page = mempool_alloc(&c->bio_bounce_pages, GFP_NOFS);
 	}
 
 	return page;
@@ -660,7 +660,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 
 		if (to_entry(ptr + 1) < ptrs.end) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio,
-						GFP_NOIO, &ca->replica_set));
+						GFP_NOFS, &ca->replica_set));
 
 			n->bio.bi_end_io	= wbio->bio.bi_end_io;
 			n->bio.bi_private	= wbio->bio.bi_private;
@@ -976,7 +976,7 @@ static struct bio *bch2_write_bio_alloc(struct bch_fs *c,
 	pages = min(pages, BIO_MAX_VECS);
 
 	bio = bio_alloc_bioset(NULL, pages, 0,
-			       GFP_NOIO, &c->bio_write);
+			       GFP_NOFS, &c->bio_write);
 	wbio			= wbio_init(bio);
 	wbio->put_bio		= true;
 	/* copy WRITE_SYNC flag */
@@ -1314,7 +1314,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		BUG_ON(total_output != total_input);
 
 		dst = bio_split(src, total_input >> 9,
-				GFP_NOIO, &c->bio_write);
+				GFP_NOFS, &c->bio_write);
 		wbio_init(dst)->put_bio	= true;
 		/* copy WRITE_SYNC flag */
 		dst->bi_opf		= src->bi_opf;
@@ -2013,7 +2013,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
 		return NULL;
 
-	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_NOIO);
+	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_NOFS);
 	if (!op)
 		goto err;
 
@@ -2026,7 +2026,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	 */
 	*rbio = kzalloc(sizeof(struct bch_read_bio) +
 			sizeof(struct bio_vec) * pages,
-			GFP_NOIO);
+			GFP_NOFS);
 	if (!*rbio)
 		goto err;
 
@@ -2034,7 +2034,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
 	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9,
-				 GFP_NOIO))
+				 GFP_NOFS))
 		goto err;
 
 	(*rbio)->bounce		= true;
@@ -2746,7 +2746,7 @@ get_bio:
 		rbio = rbio_init(bio_alloc_bioset(NULL,
 						  DIV_ROUND_UP(sectors, PAGE_SECTORS),
 						  0,
-						  GFP_NOIO,
+						  GFP_NOFS,
 						  &c->bio_read_split),
 				 orig->opts);
 
@@ -2762,7 +2762,7 @@ get_bio:
 		 * from the whole bio, in which case we don't want to retry and
 		 * lose the error)
 		 */
-		rbio = rbio_init(bio_alloc_clone(NULL, &orig->bio, GFP_NOIO,
+		rbio = rbio_init(bio_alloc_clone(NULL, &orig->bio, GFP_NOFS,
 						 &c->bio_read_split),
 				 orig->opts);
 		rbio->bio.bi_iter = iter;

@@ -485,7 +485,7 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 
 	BUG_ON(!rbio->pick.has_ec);
 
-	buf = kzalloc(sizeof(*buf), GFP_NOIO);
+	buf = kzalloc(sizeof(*buf), GFP_NOFS);
 	if (!buf)
 		return -BCH_ERR_ENOMEM_ec_read_extent;
 

@@ -1438,7 +1438,7 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 	if (buf->buf_size >= new_size)
 		return;
 
-	new_buf = kvpmalloc(new_size, GFP_NOIO|__GFP_NOWARN);
+	new_buf = kvpmalloc(new_size, GFP_NOFS|__GFP_NOWARN);
 	if (!new_buf)
 		return;
 
