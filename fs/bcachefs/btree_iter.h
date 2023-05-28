@@ -859,6 +859,32 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	bch2_trans_unlock(_trans);					\
 	_do ?: bch2_trans_relock(_trans);				\
 })
+
+#define allocate_dropping_locks_errcode(_trans, _do)			\
+({									\
+	gfp_t _gfp = GFP_NOWAIT|__GFP_NOWARN;				\
+	int _ret = _do;							\
+									\
+	if (bch2_err_matches(_ret, ENOMEM)) {				\
+		_gfp = GFP_KERNEL;					\
+		_ret = drop_locks_do(trans, _do);			\
+	}								\
+	_ret;								\
+})
+
+#define allocate_dropping_locks(_trans, _ret, _do)			\
+({									\
+	gfp_t _gfp = GFP_NOWAIT|__GFP_NOWARN;				\
+	typeof(_do) _p = _do;						\
+									\
+	_ret = 0;							\
+	if (unlikely(!_p)) {						\
+		_gfp = GFP_KERNEL;					\
+		_ret = drop_locks_do(trans, ((_p = _do), 0));		\
+	}								\
+	_p;								\
+})
+
 /* new multiple iterator interface: */
 
 void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);

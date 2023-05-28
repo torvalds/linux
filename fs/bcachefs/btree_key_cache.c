@@ -264,15 +264,8 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		return ck;
 	}
 
-	ck = kmem_cache_zalloc(bch2_key_cache, GFP_NOWAIT|__GFP_NOWARN);
-	if (likely(ck))
-		goto init;
-
-	bch2_trans_unlock(trans);
-
-	ck = kmem_cache_zalloc(bch2_key_cache, GFP_KERNEL);
-
-	ret = bch2_trans_relock(trans);
+	ck = allocate_dropping_locks(trans, ret,
+			kmem_cache_zalloc(bch2_key_cache, _gfp));
 	if (ret) {
 		kmem_cache_free(bch2_key_cache, ck);
 		return ERR_PTR(ret);
@@ -280,7 +273,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 
 	if (!ck)
 		return NULL;
-init:
+
 	INIT_LIST_HEAD(&ck->list);
 	bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0);
 

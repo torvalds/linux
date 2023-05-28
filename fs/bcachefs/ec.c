@@ -578,15 +578,8 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 static int ec_stripe_mem_alloc(struct btree_trans *trans,
 			       struct btree_iter *iter)
 {
-	size_t idx = iter->pos.offset;
-
-	if (!__ec_stripe_mem_alloc(trans->c, idx, GFP_NOWAIT|__GFP_NOWARN))
-		return 0;
-
-	bch2_trans_unlock(trans);
-
-	return   __ec_stripe_mem_alloc(trans->c, idx, GFP_KERNEL) ?:
-		bch2_trans_relock(trans);
+	return allocate_dropping_locks_errcode(trans,
+			__ec_stripe_mem_alloc(trans->c, iter->pos.offset, _gfp));
 }
 
 /*
