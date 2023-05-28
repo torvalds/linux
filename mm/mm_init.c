@@ -1754,11 +1754,6 @@ void __init setup_nr_node_ids(void)
 }
 #endif
 
-static void __init free_area_init_memoryless_node(int nid)
-{
-	free_area_init_node(nid);
-}
-
 /*
  * Some architectures, e.g. ARC may have ZONE_HIGHMEM below ZONE_NORMAL. For
  * such cases we allow max_zone_pfn sorted in the descending order
@@ -1869,7 +1864,7 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 				panic("Cannot allocate %zuB for node %d.\n",
 				       sizeof(*pgdat), nid);
 			arch_refresh_nodedata(nid, pgdat);
-			free_area_init_memoryless_node(nid);
+			free_area_init_node(nid);
 
 			/*
 			 * We do not want to confuse userspace by sysfs
