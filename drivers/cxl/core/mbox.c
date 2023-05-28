@@ -1028,7 +1028,7 @@ static int cxl_mem_get_partition_info(struct cxl_dev_state *cxlds)
  * cxl_dev_state_identify() - Send the IDENTIFY command to the device.
  * @cxlds: The device data for the operation
  *
- * Return: 0 if identify was executed successfully.
+ * Return: 0 if identify was executed successfully or media not ready.
  *
  * This will dispatch the identify command to the device and on success populate
  * structures to be exported to sysfs.
@@ -1040,6 +1040,9 @@ int cxl_dev_state_identify(struct cxl_dev_state *cxlds)
 	struct cxl_mbox_cmd mbox_cmd;
 	u32 val;
 	int rc;
+
+	if (!cxlds->media_ready)
+		return 0;
 
 	mbox_cmd = (struct cxl_mbox_cmd) {
 		.opcode = CXL_MBOX_OP_IDENTIFY,
@@ -1101,6 +1104,13 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 {
 	struct device *dev = cxlds->dev;
 	int rc;
+
+	if (!cxlds->media_ready) {
+		cxlds->dpa_res = DEFINE_RES_MEM(0, 0);
+		cxlds->ram_res = DEFINE_RES_MEM(0, 0);
+		cxlds->pmem_res = DEFINE_RES_MEM(0, 0);
+		return 0;
+	}
 
 	cxlds->dpa_res =
 		(struct resource)DEFINE_RES_MEM(0, cxlds->total_bytes);
