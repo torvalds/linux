@@ -2322,10 +2322,6 @@ static struct ctl_table vm_table[] = {
 int __init sysctl_init_bases(void)
 {
 	register_sysctl_init("kernel", kern_table);
-#ifdef CONFIG_KEYS
-	register_sysctl_init("kernel/keys", key_sysctls);
-#endif
-
 	register_sysctl_init("vm", vm_table);
 
 	return 0;
