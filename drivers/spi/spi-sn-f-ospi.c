@@ -634,16 +634,10 @@ static int f_ospi_probe(struct platform_device *pdev)
 		goto err_put_ctlr;
 	}
 
-	ospi->clk = devm_clk_get(dev, NULL);
+	ospi->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(ospi->clk)) {
 		ret = PTR_ERR(ospi->clk);
 		goto err_put_ctlr;
-	}
-
-	ret = clk_prepare_enable(ospi->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable the clock\n");
-		goto err_disable_clk;
 	}
 
 	mutex_init(&ospi->mlock);
@@ -661,9 +655,6 @@ static int f_ospi_probe(struct platform_device *pdev)
 err_destroy_mutex:
 	mutex_destroy(&ospi->mlock);
 
-err_disable_clk:
-	clk_disable_unprepare(ospi->clk);
-
 err_put_ctlr:
 	spi_controller_put(ctlr);
 
@@ -673,8 +664,6 @@ err_put_ctlr:
 static void f_ospi_remove(struct platform_device *pdev)
 {
 	struct f_ospi *ospi = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(ospi->clk);
 
 	mutex_destroy(&ospi->mlock);
 }
