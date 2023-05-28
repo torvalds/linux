@@ -26,9 +26,11 @@
  */
 #define ARMPMU_EVT_64BIT		0x00001 /* Event uses a 64bit counter */
 #define ARMPMU_EVT_47BIT		0x00002 /* Event uses a 47bit counter */
+#define ARMPMU_EVT_63BIT		0x00004 /* Event uses a 63bit counter */
 
 static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_64BIT) == ARMPMU_EVT_64BIT);
 static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_47BIT) == ARMPMU_EVT_47BIT);
+static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_63BIT) == ARMPMU_EVT_63BIT);
 
 #define HW_OP_UNSUPPORTED		0xFFFF
 #define C(_x)				PERF_COUNT_HW_CACHE_##_x
