@@ -748,7 +748,6 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	struct elf32_phdr *phdr;
 	unsigned long load_addr, stop;
 	unsigned nloads, tmp;
-	size_t size;
 	int loop, ret;
 
 	/* allocate a load map table */
@@ -760,8 +759,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	if (nloads == 0)
 		return -ELIBBAD;
 
-	size = sizeof(*loadmap) + nloads * sizeof(*seg);
-	loadmap = kzalloc(size, GFP_KERNEL);
+	loadmap = kzalloc(struct_size(loadmap, segs, nloads), GFP_KERNEL);
 	if (!loadmap)
 		return -ENOMEM;
 
