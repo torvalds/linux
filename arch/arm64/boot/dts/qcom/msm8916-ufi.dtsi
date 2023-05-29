@@ -9,6 +9,7 @@
 	chassis-type = "embedded";
 
 	aliases {
+		mmc0 = &sdhc_1; /* eMMC */
 		serial0 = &blsp_uart2;
 	};
 

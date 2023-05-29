@@ -18,6 +18,8 @@
 	compatible = "qcom,apq8016-sbc", "qcom,apq8016";
 
 	aliases {
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
 		serial0 = &blsp_uart2;
 		serial1 = &blsp_uart1;
 		usid0 = &pm8916_0;

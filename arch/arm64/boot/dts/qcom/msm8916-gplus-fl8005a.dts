@@ -14,6 +14,8 @@
 	chassis-type = "tablet";
 
 	aliases {
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
 		serial0 = &blsp_uart2;
 	};
 
