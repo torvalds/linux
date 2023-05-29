@@ -1329,9 +1329,10 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
 }
 
 static bool
-mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid, int pid,
-		       __le32 *txs_data, struct mt76_sta_stats *stats)
+mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+		       int pid, __le32 *txs_data)
 {
+	struct mt76_sta_stats *stats = &wcid->stats;
 	struct ieee80211_supported_band *sband;
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_phy *mphy;
@@ -1493,7 +1494,7 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
 
 	msta = container_of(wcid, struct mt7996_sta, wcid);
 
-	mt7996_mac_add_txs_skb(dev, wcid, pid, txs_data, &msta->stats);
+	mt7996_mac_add_txs_skb(dev, wcid, pid, txs_data);
 
 	if (!wcid->sta)
 		goto out;
