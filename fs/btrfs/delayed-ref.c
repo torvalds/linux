@@ -531,7 +531,7 @@ again:
 				href_node);
 	}
 
-	head->processing = 1;
+	head->processing = true;
 	WARN_ON(delayed_refs->num_heads_ready == 0);
 	delayed_refs->num_heads_ready--;
 	delayed_refs->run_delayed_start = head->bytenr +
@@ -549,7 +549,7 @@ void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 	RB_CLEAR_NODE(&head->href_node);
 	atomic_dec(&delayed_refs->num_entries);
 	delayed_refs->num_heads--;
-	if (head->processing == 0)
+	if (!head->processing)
 		delayed_refs->num_heads_ready--;
 }
 
@@ -697,7 +697,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 				  bool is_system)
 {
 	int count_mod = 1;
-	int must_insert_reserved = 0;
+	bool must_insert_reserved = false;
 
 	/* If reserved is provided, it must be a data extent. */
 	BUG_ON(!is_data && reserved);
@@ -722,9 +722,9 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	 * BTRFS_ADD_DELAYED_REF because other special casing is not required.
 	 */
 	if (action == BTRFS_ADD_DELAYED_EXTENT)
-		must_insert_reserved = 1;
+		must_insert_reserved = true;
 	else
-		must_insert_reserved = 0;
+		must_insert_reserved = false;
 
 	refcount_set(&head_ref->refs, 1);
 	head_ref->bytenr = bytenr;
@@ -736,7 +736,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	head_ref->ref_tree = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	RB_CLEAR_NODE(&head_ref->href_node);
-	head_ref->processing = 0;
+	head_ref->processing = false;
 	head_ref->total_ref_mod = count_mod;
 	spin_lock_init(&head_ref->lock);
 	mutex_init(&head_ref->mutex);

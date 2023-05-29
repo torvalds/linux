@@ -116,10 +116,10 @@ struct btrfs_delayed_ref_head {
 	 * we need to update the in ram accounting to properly reflect
 	 * the free has happened.
 	 */
-	unsigned int must_insert_reserved:1;
-	unsigned int is_data:1;
-	unsigned int is_system:1;
-	unsigned int processing:1;
+	bool must_insert_reserved;
+	bool is_data;
+	bool is_system;
+	bool processing;
 };
 
 struct btrfs_delayed_tree_ref {
