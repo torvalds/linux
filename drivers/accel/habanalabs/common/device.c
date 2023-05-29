@@ -315,7 +315,9 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
 
-	if (hdev->reset_info.in_reset) {
+	if (hdev->device_fini_pending) {
+		status = HL_DEVICE_STATUS_MALFUNCTION;
+	} else if (hdev->reset_info.in_reset) {
 		if (hdev->reset_info.in_compute_reset)
 			status = HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE;
 		else
@@ -343,9 +345,9 @@ bool hl_device_operational(struct hl_device *hdev,
 		*status = current_status;
 
 	switch (current_status) {
+	case HL_DEVICE_STATUS_MALFUNCTION:
 	case HL_DEVICE_STATUS_IN_RESET:
 	case HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE:
-	case HL_DEVICE_STATUS_MALFUNCTION:
 	case HL_DEVICE_STATUS_NEEDS_RESET:
 		return false;
 	case HL_DEVICE_STATUS_OPERATIONAL:
