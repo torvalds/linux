@@ -48,23 +48,23 @@
 
 #define PREISP_POWER_ON		_IO('p',   1)
 #define PREISP_POWER_OFF	_IO('p',   2)
-#define PREISP_REQUEST_SLEEP	_IOW('p',  3, s32)
+#define PREISP_REQUEST_SLEEP	_IOW('p',  3, __s32)
 #define PREISP_WAKEUP		_IO('p',   4)
 #define PREISP_DOWNLOAD_FW	_IOW('p',  5, char[PREISP_FW_NAME_LEN])
 #define PREISP_WRITE		_IOW('p',  6, struct preisp_apb_pkt)
 #define PREISP_READ		_IOR('p',  7, struct preisp_apb_pkt)
-#define PREISP_ST_QUERY		_IOR('p',  8, s32)
-#define PREISP_IRQ_REQUEST	_IOW('p',  9, s32)
-#define PREISP_SEND_MSG		_IOW('p', 11, s32)
-#define PREISP_QUERY_MSG	_IOR('p', 12, s32)
-#define PREISP_RECV_MSG		_IOR('p', 13, s32)
-#define PREISP_CLIENT_CONNECT	_IOW('p', 15, s32)
+#define PREISP_ST_QUERY		_IOR('p',  8, __s32)
+#define PREISP_IRQ_REQUEST	_IOW('p',  9, __s32)
+#define PREISP_SEND_MSG		_IOW('p', 11, __s32)
+#define PREISP_QUERY_MSG	_IOR('p', 12, __s32)
+#define PREISP_RECV_MSG		_IOR('p', 13, __s32)
+#define PREISP_CLIENT_CONNECT	_IOW('p', 15, __s32)
 #define PREISP_CLIENT_DISCONNECT _IO('p', 16)
 
 struct preisp_apb_pkt {
-	s32 data_len;
-	s32 addr;
-	s32 *data;
+	__s32 data_len;
+	__s32 addr;
+	__s32 *data;
 };
 
 /**
