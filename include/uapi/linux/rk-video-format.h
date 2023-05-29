@@ -5,6 +5,8 @@
 #ifndef _UAPI_RK_VIDEO_FORMAT_H
 #define _UAPI_RK_VIDEO_FORMAT_H
 
+#include <linux/types.h>
+
 /*  Four-character-code (FOURCC) */
 #define v4l2_fourcc(a, b, c, d)\
 	((__u32)(a) | ((__u32)(b) << 8) | ((__u32)(c) << 16) | ((__u32)(d) << 24))
