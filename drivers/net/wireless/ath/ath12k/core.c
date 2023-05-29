@@ -886,6 +886,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 
 void ath12k_core_free(struct ath12k_base *ab)
 {
+	timer_delete_sync(&ab->rx_replenish_retry);
 	destroy_workqueue(ab->workqueue_aux);
 	destroy_workqueue(ab->workqueue);
 	kfree(ab);
