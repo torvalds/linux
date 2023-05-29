@@ -4602,7 +4602,6 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		while ((n = rb_first_cached(&head->ref_tree)) != NULL) {
 			ref = rb_entry(n, struct btrfs_delayed_ref_node,
 				       ref_node);
-			ref->in_tree = 0;
 			rb_erase_cached(&ref->ref_node, &head->ref_tree);
 			RB_CLEAR_NODE(&ref->ref_node);
 			if (!list_empty(&ref->add_list))

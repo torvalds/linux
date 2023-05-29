@@ -407,7 +407,6 @@ static inline void drop_delayed_ref(struct btrfs_delayed_ref_root *delayed_refs,
 	RB_CLEAR_NODE(&ref->ref_node);
 	if (!list_empty(&ref->add_list))
 		list_del(&ref->add_list);
-	ref->in_tree = 0;
 	btrfs_put_delayed_ref(ref);
 	atomic_dec(&delayed_refs->num_entries);
 }
@@ -853,7 +852,6 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	ref->num_bytes = num_bytes;
 	ref->ref_mod = 1;
 	ref->action = action;
-	ref->in_tree = 1;
 	ref->seq = seq;
 	ref->type = ref_type;
 	RB_CLEAR_NODE(&ref->ref_node);

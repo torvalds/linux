@@ -48,7 +48,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	unsigned int in_tree:1;
 };
 
 struct btrfs_delayed_extent_op {
@@ -341,7 +340,7 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	WARN_ON(refcount_read(&ref->refs) == 0);
 	if (refcount_dec_and_test(&ref->refs)) {
-		WARN_ON(ref->in_tree);
+		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
 		switch (ref->type) {
 		case BTRFS_TREE_BLOCK_REF_KEY:
 		case BTRFS_SHARED_BLOCK_REF_KEY:
