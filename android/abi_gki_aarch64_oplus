@@ -107,6 +107,8 @@
   __traceiter_android_vh_binder_select_worklist_ilocked
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
+  __traceiter_android_vh_binder_wait_for_work
+  __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_exit_signal
   __traceiter_android_vh_irqtime_account_process_tick
@@ -123,6 +125,7 @@
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_shrink_node_memcgs
+  __traceiter_android_vh_sync_txn_recvd
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
   __traceiter_sched_stat_runtime
@@ -148,6 +151,8 @@
   __tracepoint_android_vh_binder_select_worklist_ilocked
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
+  __tracepoint_android_vh_binder_wait_for_work
+  __tracepoint_android_vh_cgroup_set_task
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_exit_signal
@@ -171,6 +176,7 @@
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_shrink_node_memcgs
+  __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
   __tracepoint_sched_stat_runtime
