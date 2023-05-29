@@ -11,22 +11,22 @@
 
 #define FEC_API_VERSION		KERNEL_VERSION(1, 0, 0)
 struct fec_config {
-	u32 mesh_density;
-	u32 src_width;
-	u32 src_height;
-	u32 dst_width;
-	u32 dst_height;
-	u32 mesh_size;
-	s32 buf_fd;
-	u32 fec_bic_mode;
+	__u32 mesh_density;
+	__u32 src_width;
+	__u32 src_height;
+	__u32 dst_width;
+	__u32 dst_height;
+	__u32 mesh_size;
+	__s32 buf_fd;
+	__u32 fec_bic_mode;
 } __attribute__ ((packed));
 
 struct fec_params_cfg {
-	u32 module_en_update;
-	u32 module_ens;
-	u32 module_cfg_update;
+	__u32 module_en_update;
+	__u32 module_ens;
+	__u32 module_cfg_update;
 
-	u32 frame_id;
+	__u32 frame_id;
 	struct fec_config fec_cfg;
 } __attribute__ ((packed));
 
