@@ -27,6 +27,7 @@
 #include <linux/tcp.h>
 #include <linux/ptp_classify.h>
 #include <net/flow_dissector.h>
+#include <net/pkt_cls.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <uapi/linux/batadv_packet.h>
 #include <linux/bpf.h>
@@ -241,6 +242,15 @@ void skb_flow_dissect_meta(const struct sk_buff *skb,
 					 FLOW_DISSECTOR_KEY_META,
 					 target_container);
 	meta->ingress_ifindex = skb->skb_iif;
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	if (tc_skb_ext_tc_enabled()) {
+		struct tc_skb_ext *ext;
+
+		ext = skb_ext_find(skb, TC_SKB_EXT);
+		if (ext)
+			meta->l2_miss = ext->l2_miss;
+	}
+#endif
 }
 EXPORT_SYMBOL(skb_flow_dissect_meta);
 
