@@ -431,7 +431,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	dev = dev_get_by_name(net, dev_name);
 	if (!dev)
 		return -ENODEV;
-	if (tipc_mtu_bad(dev, 0)) {
+	if (tipc_mtu_bad(dev)) {
 		dev_put(dev);
 		return -EINVAL;
 	}
@@ -708,7 +708,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		test_and_set_bit_lock(0, &b->up);
 		break;
 	case NETDEV_CHANGEMTU:
-		if (tipc_mtu_bad(dev, 0)) {
+		if (tipc_mtu_bad(dev)) {
 			bearer_disable(net, b);
 			break;
 		}
