@@ -860,30 +860,8 @@ struct dlm_processed_nodes {
 	struct list_head list;
 };
 
-static void add_processed_node(int nodeid, struct list_head *processed_nodes)
-{
-	struct dlm_processed_nodes *n;
-
-	list_for_each_entry(n, processed_nodes, list) {
-		/* we already remembered this node */
-		if (n->nodeid == nodeid)
-			return;
-	}
-
-	/* if it's fails in worst case we simple don't send an ack back.
-	 * We try it next time.
-	 */
-	n = kmalloc(sizeof(*n), GFP_NOFS);
-	if (!n)
-		return;
-
-	n->nodeid = nodeid;
-	list_add(&n->list, processed_nodes);
-}
-
 static void process_dlm_messages(struct work_struct *work)
 {
-	struct dlm_processed_nodes *n, *n_tmp;
 	struct processqueue_entry *pentry;
 	LIST_HEAD(processed_nodes);
 
@@ -902,7 +880,6 @@ static void process_dlm_messages(struct work_struct *work)
 	for (;;) {
 		dlm_process_incoming_buffer(pentry->nodeid, pentry->buf,
 					    pentry->buflen);
-		add_processed_node(pentry->nodeid, &processed_nodes);
 		free_processqueue_entry(pentry);
 
 		spin_lock(&processqueue_lock);
@@ -916,13 +893,6 @@ static void process_dlm_messages(struct work_struct *work)
 
 		list_del(&pentry->list);
 		spin_unlock(&processqueue_lock);
-	}
-
-	/* send ack back after we processed couple of messages */
-	list_for_each_entry_safe(n, n_tmp, &processed_nodes, list) {
-		list_del(&n->list);
-		dlm_midcomms_receive_done(n->nodeid);
-		kfree(n);
 	}
 }
 
