@@ -193,11 +193,11 @@ static void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_base *ab,
 	ab->hw_params->hal_ops->rx_desc_set_msdu_len(desc, len);
 }
 
-static bool ath12k_dp_rx_h_is_mcbc(struct ath12k_base *ab,
-				   struct hal_rx_desc *desc)
+static bool ath12k_dp_rx_h_is_da_mcbc(struct ath12k_base *ab,
+				      struct hal_rx_desc *desc)
 {
 	return (ath12k_dp_rx_h_first_msdu(ab, desc) &&
-		ab->hw_params->hal_ops->rx_desc_is_mcbc(desc));
+		ab->hw_params->hal_ops->rx_desc_is_da_mcbc(desc));
 }
 
 static bool ath12k_dp_rxdesc_mac_addr2_valid(struct ath12k_base *ab,
@@ -2208,7 +2208,7 @@ static void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
 
 	/* PN for multicast packets will be checked in mac80211 */
 	rxcb = ATH12K_SKB_RXCB(msdu);
-	fill_crypto_hdr = ath12k_dp_rx_h_is_mcbc(ar->ab, rx_desc);
+	fill_crypto_hdr = ath12k_dp_rx_h_is_da_mcbc(ar->ab, rx_desc);
 	rxcb->is_mcbc = fill_crypto_hdr;
 
 	if (rxcb->is_mcbc)
