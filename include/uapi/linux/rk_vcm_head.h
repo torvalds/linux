@@ -4,6 +4,9 @@
 #ifndef RK_VCM_HEAD_H
 #define RK_VCM_HEAD_H
 
+#include <linux/types.h>
+#include <linux/time_types.h>
+
 #define RK_VCM_HEAD_VERSION	KERNEL_VERSION(0, 0x02, 0x0)
 /*
  * Focus position values:
@@ -85,25 +88,25 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 11, struct rk_cam_compat_vcm_tim)
 
 struct rk_cam_modify_pos {
-	s32 focus_pos;
-	s32 zoom_pos;
-	s32 zoom1_pos;
+	__s32 focus_pos;
+	__s32 zoom_pos;
+	__s32 zoom1_pos;
 };
 
 struct rk_cam_set_focus {
-	bool is_need_reback;
-	s32 focus_pos;
+	_Bool is_need_reback;
+	__s32 focus_pos;
 };
 
 struct rk_cam_zoom_pos {
-	s32 zoom_pos;
-	s32 focus_pos;
+	__s32 zoom_pos;
+	__s32 focus_pos;
 };
 
 struct rk_cam_set_zoom {
-	bool is_need_zoom_reback;
-	bool is_need_focus_reback;
-	u32 setzoom_cnt;
+	_Bool is_need_zoom_reback;
+	_Bool is_need_focus_reback;
+	__u32 setzoom_cnt;
 	struct rk_cam_zoom_pos zoom_pos[VCMDRV_SETZOOM_MAXCNT];
 };
 
@@ -112,9 +115,16 @@ struct rk_cam_vcm_tim {
 	struct __kernel_old_timeval vcm_end_t;
 };
 
+#ifndef __kernel_old_timeval32
+struct __kernel_old_timeval32 {
+	__s32 tv_sec;
+	__s32 tv_usec;
+};
+#endif
+
 struct rk_cam_compat_vcm_tim {
-	struct old_timeval32 vcm_start_t;
-	struct old_timeval32 vcm_end_t;
+	struct __kernel_old_timeval32 vcm_start_t;
+	struct __kernel_old_timeval32 vcm_end_t;
 };
 
 struct rk_cam_vcm_cfg {
