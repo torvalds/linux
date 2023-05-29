@@ -31,6 +31,7 @@
  * amdgpu_gfx_rlc_enter_safe_mode - Set RLC into safe mode
  *
  * @adev: amdgpu_device pointer
+ * @xcc_id: xcc accelerated compute core id
  *
  * Set RLC enter into safe mode if RLC is enabled and haven't in safe mode.
  */
@@ -55,6 +56,7 @@ void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev, int xcc_id)
  * amdgpu_gfx_rlc_exit_safe_mode - Set RLC out of safe mode
  *
  * @adev: amdgpu_device pointer
+ * @xcc_id: xcc accelerated compute core id
  *
  * Set RLC exit safe mode if RLC is enabled and have entered into safe mode.
  */

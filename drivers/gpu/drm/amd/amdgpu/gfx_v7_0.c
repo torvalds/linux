@@ -1548,7 +1548,7 @@ static void gfx_v7_0_tiling_mode_table_init(struct amdgpu_device *adev)
  * @sh_num: sh block to address
  * @instance: Certain registers are instanced per SE or SH.
  *            0xffffffff means broadcast to all SEs or SHs (CIK).
- *
+ * @xcc_id: xcc accelerated compute core id
  * Select which SE, SH combinations to address.
  */
 static void gfx_v7_0_select_se_sh(struct amdgpu_device *adev,
