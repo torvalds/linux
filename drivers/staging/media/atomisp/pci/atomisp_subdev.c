@@ -357,8 +357,6 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *ffmt[ATOMISP_SUBDEV_PADS_NUM];
 	struct v4l2_rect *crop[ATOMISP_SUBDEV_PADS_NUM],
 		       *comp[ATOMISP_SUBDEV_PADS_NUM];
-	unsigned int padding_w = pad_w;
-	unsigned int padding_h = pad_h;
 
 	if ((pad == ATOMISP_SUBDEV_PAD_SINK && target != V4L2_SEL_TGT_CROP) ||
 	    (pad == ATOMISP_SUBDEV_PAD_SOURCE && target != V4L2_SEL_TGT_COMPOSE))
@@ -384,18 +382,10 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 		crop[pad]->width = ffmt[pad]->width;
 		crop[pad]->height = ffmt[pad]->height;
 
-		/* Workaround for BYT 1080p perfectshot since the maxinum resolution of
-		 * front camera ov2722 is 1932x1092 and cannot use pad_w > 12*/
-		if (!strncmp(isp->inputs[isp_sd->input_curr].camera->name,
-			     "ov2722", 6) && crop[pad]->height == 1092) {
-			padding_w = 12;
-			padding_h = 12;
-		}
-
 		if (atomisp_subdev_format_conversion(isp_sd)
 		    && crop[pad]->width && crop[pad]->height) {
-			crop[pad]->width -= padding_w;
-			crop[pad]->height -= padding_h;
+			crop[pad]->width -= isp_sd->sink_pad_padding_w;
+			crop[pad]->height -= isp_sd->sink_pad_padding_h;
 		}
 
 		if (isp_sd->params.video_dis_en &&

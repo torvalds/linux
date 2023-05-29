@@ -3690,6 +3690,33 @@ static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
 	f->xfer_func = V4L2_XFER_FUNC_709;
 }
 
+/* Get sensor padding values for the non padded width x height resolution */
+static void atomisp_get_padding(struct atomisp_device *isp,
+				u32 width, u32 height,
+				u32 *padding_w, u32 *padding_h)
+{
+	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
+	struct v4l2_rect native_rect = input->native_rect;
+
+	if (!input->crop_support) {
+		*padding_w = pad_w;
+		*padding_h = pad_h;
+		return;
+	}
+
+	width = min(width, input->active_rect.width);
+	height = min(height, input->active_rect.height);
+
+	if (input->binning_support && width <= (input->active_rect.width / 2) &&
+				      height <= (input->active_rect.height / 2)) {
+		native_rect.width /= 2;
+		native_rect.height /= 2;
+	}
+
+	*padding_w = min_t(u32, (native_rect.width - width) & ~1, pad_w);
+	*padding_h = min_t(u32, (native_rect.height - height) & ~1, pad_h);
+}
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,
@@ -3704,6 +3731,7 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
+	u32 padding_w, padding_h;
 	int ret;
 
 	if (!input->camera)
@@ -3724,9 +3752,10 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 	 * resolution + padding. Add padding here and remove it again after
 	 * the set_fmt call, like atomisp_set_fmt_to_snr() does.
 	 */
+	atomisp_get_padding(isp, f->width, f->height, &padding_w, &padding_h);
 	v4l2_fill_mbus_format(&format.format, f, fmt->mbus_code);
-	format.format.width += pad_w;
-	format.format.height += pad_h;
+	format.format.width += padding_w;
+	format.format.height += padding_h;
 
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
@@ -3745,8 +3774,8 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		return -EINVAL;
 	}
 
-	f->width = format.format.width - pad_w;
-	f->height = format.format.height - pad_h;
+	f->width = format.format.width - padding_w;
+	f->height = format.format.height - padding_h;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -4155,7 +4184,6 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 }
 
 static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_pix_format *f,
-				  unsigned int padding_w, unsigned int padding_h,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
@@ -4186,11 +4214,11 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 		return -EINVAL;
 
 	v4l2_fill_mbus_format(ffmt, f, format->mbus_code);
-	ffmt->height += padding_h + dvs_env_h;
-	ffmt->width += padding_w + dvs_env_w;
+	ffmt->height += asd->sink_pad_padding_h + dvs_env_h;
+	ffmt->width += asd->sink_pad_padding_w + dvs_env_w;
 
 	dev_dbg(isp->dev, "s_mbus_fmt: ask %ux%u (padding %ux%u, dvs %ux%u)\n",
-		ffmt->width, ffmt->height, padding_w, padding_h,
+		ffmt->width, ffmt->height, asd->sink_pad_padding_w, asd->sink_pad_padding_h,
 		dvs_env_w, dvs_env_h);
 
 	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL, stream_info);
@@ -4254,7 +4282,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
-	unsigned int padding_w = pad_w, padding_h = pad_h;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
 	struct v4l2_rect isp_sink_crop;
 	int ret;
@@ -4285,16 +4312,18 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 				V4L2_SUBDEV_FORMAT_ACTIVE,
 				ATOMISP_SUBDEV_PAD_SOURCE, &isp_source_fmt);
 
-	if (!atomisp_subdev_format_conversion(asd)) {
-		padding_w = 0;
-		padding_h = 0;
+	if (atomisp_subdev_format_conversion(asd)) {
+		atomisp_get_padding(isp, f->fmt.pix.width, f->fmt.pix.height,
+				    &asd->sink_pad_padding_w, &asd->sink_pad_padding_h);
+	} else {
+		asd->sink_pad_padding_w = 0;
+		asd->sink_pad_padding_h = 0;
 	}
 
 	atomisp_get_dis_envelop(asd, f->fmt.pix.width, f->fmt.pix.height,
 				&dvs_env_w, &dvs_env_h);
 
-	ret = atomisp_set_fmt_to_snr(vdev, &f->fmt.pix,
-				     padding_w, padding_h, dvs_env_w, dvs_env_h);
+	ret = atomisp_set_fmt_to_snr(vdev, &f->fmt.pix, dvs_env_w, dvs_env_h);
 	if (ret) {
 		dev_warn(isp->dev,
 			 "Set format to sensor failed with %d\n", ret);
