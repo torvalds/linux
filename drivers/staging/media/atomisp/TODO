@@ -32,9 +32,6 @@ TODO
 * The atomisp ov2680 and ov5693 sensor drivers bind to the same hw-ids as
   the standard ov2680 and ov5693 drivers under drivers/media/i2c, which
   conflicts. Drop the atomisp private ov2680 and ov5693 drivers:
-  * Make atomisp code use v4l2 selections to deal with the extra padding
-    it wants to receive from sensors instead of relying on the ov2680 code
-    sending e.g. 1616x1216 for a 1600x1200 mode
   * Port various ov2680 improvements from atomisp_ov2680.c to regular ov2680.c
     and switch to regular ov2680 driver
   * Make atomisp work with the regular ov5693 driver and drop atomisp_ov5693

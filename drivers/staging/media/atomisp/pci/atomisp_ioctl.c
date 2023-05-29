@@ -697,6 +697,72 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	return 0;
 }
 
+/*
+ * With crop any framesize <= sensor-size can be made, give
+ * userspace a list of sizes to choice from.
+ */
+static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
+					      struct v4l2_frmsizeenum *fsize,
+					      struct v4l2_rect *active,
+					      int *valid_sizes)
+{
+	static const struct v4l2_frmsize_discrete frame_sizes[] = {
+		{ 1600, 1200 },
+		{ 1600, 1080 },
+		{ 1600,  900 },
+		{ 1440, 1080 },
+		{ 1280,  960 },
+		{ 1280,  720 },
+		{  800,  600 },
+		{  640,  480 },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(frame_sizes); i++) {
+		if (frame_sizes[i].width > active->width ||
+		    frame_sizes[i].height > active->height)
+			continue;
+
+		/*
+		 * Skip sizes where width and height are less then 2/3th of the
+		 * sensor size to avoid sizes with a too small field of view.
+		 */
+		if (frame_sizes[i].width < (active->width * 2 / 3) &&
+		    frame_sizes[i].height < (active->height * 2 / 3))
+			continue;
+
+		if (*valid_sizes == fsize->index) {
+			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fsize->discrete = frame_sizes[i];
+			return 0;
+		}
+
+		(*valid_sizes)++;
+	}
+
+	return -EINVAL;
+}
+
+static int atomisp_enum_framesizes_crop(struct atomisp_device *isp,
+					struct v4l2_frmsizeenum *fsize)
+{
+	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
+	struct v4l2_rect active = input->active_rect;
+	int ret, valid_sizes = 0;
+
+	ret = atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &valid_sizes);
+	if (ret == 0)
+		return 0;
+
+	if (!input->binning_support)
+		return -EINVAL;
+
+	active.width /= 2;
+	active.height /= 2;
+
+	return atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &valid_sizes);
+}
+
 static int atomisp_enum_framesizes(struct file *file, void *priv,
 				   struct v4l2_frmsizeenum *fsize)
 {
@@ -710,6 +776,9 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 		.code = input->code,
 	};
 	int ret;
+
+	if (input->crop_support)
+		return atomisp_enum_framesizes_crop(isp, fsize);
 
 	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
 	if (ret)
