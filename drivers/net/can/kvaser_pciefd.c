@@ -1768,7 +1768,6 @@ static irqreturn_t kvaser_pciefd_irq_handler(int irq, void *dev)
 			kvaser_pciefd_transmit_irq(pcie->can[i]);
 	}
 
-	iowrite32(board_irq, pcie->reg_base + KVASER_PCIEFD_IRQ_REG);
 	return IRQ_HANDLED;
 }
 
@@ -1842,9 +1841,7 @@ static int kvaser_pciefd_probe(struct pci_dev *pdev,
 		  KVASER_PCIEFD_SRB_IRQ_DUF0 | KVASER_PCIEFD_SRB_IRQ_DUF1,
 		  pcie->reg_base + KVASER_PCIEFD_SRB_IEN_REG);
 
-	/* Reset IRQ handling, expected to be off before */
-	iowrite32(KVASER_PCIEFD_IRQ_ALL_MSK,
-		  pcie->reg_base + KVASER_PCIEFD_IRQ_REG);
+	/* Enable PCI interrupts */
 	iowrite32(KVASER_PCIEFD_IRQ_ALL_MSK,
 		  pcie->reg_base + KVASER_PCIEFD_IEN_REG);
 
@@ -1906,10 +1903,8 @@ static void kvaser_pciefd_remove(struct pci_dev *pdev)
 
 	kvaser_pciefd_remove_all_ctrls(pcie);
 
-	/* Turn off IRQ generation */
+	/* Disable interrupts */
 	iowrite32(0, pcie->reg_base + KVASER_PCIEFD_SRB_CTRL_REG);
-	iowrite32(KVASER_PCIEFD_IRQ_ALL_MSK,
-		  pcie->reg_base + KVASER_PCIEFD_IRQ_REG);
 	iowrite32(0, pcie->reg_base + KVASER_PCIEFD_IEN_REG);
 
 	free_irq(pcie->pci->irq, pcie);
