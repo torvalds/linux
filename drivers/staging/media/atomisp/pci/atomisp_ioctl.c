@@ -707,6 +707,7 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 	struct v4l2_subdev_frame_size_enum fse = {
 		.index = fsize->index,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.code = input->code,
 	};
 	int ret;
 

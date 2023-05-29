@@ -933,11 +933,17 @@ v4l2_device_failed:
 
 static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 {
+	struct v4l2_subdev_mbus_code_enum mbus_code_enum = { };
 	struct v4l2_subdev_state sd_state = {
 		.pads = &input->pad_cfg,
 	};
 	struct v4l2_subdev_selection sel = { };
 	int err;
+
+	mbus_code_enum.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code, NULL, &mbus_code_enum);
+	if (!err)
+		input->code = mbus_code_enum.code;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
