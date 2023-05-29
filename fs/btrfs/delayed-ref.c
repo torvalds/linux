@@ -555,16 +555,17 @@ void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 /*
  * Helper to insert the ref_node to the tail or merge with tail.
  *
- * Return 0 for insert.
- * Return >0 for merge.
+ * Return false if the ref was inserted.
+ * Return true if the ref was merged into an existing one (and therefore can be
+ * freed by the caller).
  */
-static int insert_delayed_ref(struct btrfs_delayed_ref_root *root,
-			      struct btrfs_delayed_ref_head *href,
-			      struct btrfs_delayed_ref_node *ref)
+static bool insert_delayed_ref(struct btrfs_delayed_ref_root *root,
+			       struct btrfs_delayed_ref_head *href,
+			       struct btrfs_delayed_ref_node *ref)
 {
 	struct btrfs_delayed_ref_node *exist;
 	int mod;
-	int ret = 0;
+	bool ret = false;
 
 	spin_lock(&href->lock);
 	exist = tree_insert(&href->ref_tree, ref);
@@ -572,7 +573,7 @@ static int insert_delayed_ref(struct btrfs_delayed_ref_root *root,
 		goto inserted;
 
 	/* Now we are sure we can merge */
-	ret = 1;
+	ret = true;
 	if (exist->action == ref->action) {
 		mod = ref->ref_mod;
 	} else {
@@ -874,9 +875,9 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_extent_record *record = NULL;
 	bool qrecord_inserted;
 	bool is_system;
+	bool merged;
 	int action = generic_ref->action;
 	int level = generic_ref->tree_ref.level;
-	int ret;
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
@@ -932,7 +933,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
 					action, &qrecord_inserted);
 
-	ret = insert_delayed_ref(delayed_refs, head_ref, &ref->node);
+	merged = insert_delayed_ref(delayed_refs, head_ref, &ref->node);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
@@ -944,7 +945,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	trace_add_delayed_tree_ref(fs_info, &ref->node, ref,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
-	if (ret > 0)
+	if (merged)
 		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
 
 	if (qrecord_inserted)
@@ -967,7 +968,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_extent_record *record = NULL;
 	bool qrecord_inserted;
 	int action = generic_ref->action;
-	int ret;
+	bool merged;
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
@@ -1024,7 +1025,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
 					action, &qrecord_inserted);
 
-	ret = insert_delayed_ref(delayed_refs, head_ref, &ref->node);
+	merged = insert_delayed_ref(delayed_refs, head_ref, &ref->node);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
@@ -1036,7 +1037,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	trace_add_delayed_data_ref(trans->fs_info, &ref->node, ref,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
-	if (ret > 0)
+	if (merged)
 		kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
 
 
