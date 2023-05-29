@@ -357,6 +357,21 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov2680_init_cfg(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state)
+{
+	struct v4l2_subdev_format fmt = {
+		.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+		: V4L2_SUBDEV_FORMAT_ACTIVE,
+		.format = {
+			.width = 800,
+			.height = 600,
+		},
+	};
+
+	return ov2680_set_fmt(sd, sd_state, &fmt);
+}
+
 static int ov2680_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -537,6 +552,7 @@ static const struct v4l2_subdev_sensor_ops ov2680_sensor_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
+	.init_cfg = ov2680_init_cfg,
 	.enum_mbus_code = ov2680_enum_mbus_code,
 	.enum_frame_size = ov2680_enum_frame_size,
 	.enum_frame_interval = ov2680_enum_frame_interval,
