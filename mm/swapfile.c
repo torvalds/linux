@@ -1444,7 +1444,7 @@ int __swap_count(swp_entry_t entry)
  * This does not give an exact answer when swap count is continued,
  * but does include the high COUNT_CONTINUED flag to allow for that.
  */
-static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
+int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 {
 	pgoff_t offset = swp_offset(entry);
 	struct swap_cluster_info *ci;
@@ -1453,24 +1453,6 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 	ci = lock_cluster_or_swap_info(si, offset);
 	count = swap_count(si->swap_map[offset]);
 	unlock_cluster_or_swap_info(si, ci);
-	return count;
-}
-
-/*
- * How many references to @entry are currently swapped out?
- * This does not give an exact answer when swap count is continued,
- * but does include the high COUNT_CONTINUED flag to allow for that.
- */
-int __swp_swapcount(swp_entry_t entry)
-{
-	int count = 0;
-	struct swap_info_struct *si;
-
-	si = get_swap_device(entry);
-	if (si) {
-		count = swap_swapcount(si, entry);
-		put_swap_device(si);
-	}
 	return count;
 }
 
