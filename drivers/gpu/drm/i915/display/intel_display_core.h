@@ -404,8 +404,8 @@ struct intel_display {
 		 * this is only populated post Meteorlake
 		 */
 		struct intel_hdcp_gsc_message *hdcp_message;
-		/* Mutex to protect the above hdcp component related values. */
-		struct mutex comp_mutex;
+		/* Mutex to protect the above hdcp related values. */
+		struct mutex hdcp_mutex;
 	} hdcp;
 
 	struct {

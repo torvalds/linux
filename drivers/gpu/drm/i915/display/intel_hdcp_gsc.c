@@ -704,12 +704,12 @@ int intel_hdcp_gsc_init(struct drm_i915_private *i915)
 	if (!data)
 		return -ENOMEM;
 
-	mutex_lock(&i915->display.hdcp.comp_mutex);
+	mutex_lock(&i915->display.hdcp.hdcp_mutex);
 	i915->display.hdcp.arbiter = data;
 	i915->display.hdcp.arbiter->hdcp_dev = i915->drm.dev;
 	i915->display.hdcp.arbiter->ops = &gsc_hdcp_ops;
 	ret = intel_hdcp_gsc_hdcp2_init(i915);
-	mutex_unlock(&i915->display.hdcp.comp_mutex);
+	mutex_unlock(&i915->display.hdcp.hdcp_mutex);
 
 	return ret;
 }
