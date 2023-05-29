@@ -281,13 +281,51 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int
+mlxsw_sp_flower_parse_meta_iif(struct mlxsw_sp_acl_rule_info *rulei,
+			       const struct mlxsw_sp_flow_block *block,
+			       const struct flow_match_meta *match,
+			       struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct net_device *ingress_dev;
+
+	if (match->mask->ingress_ifindex != 0xFFFFFFFF) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
+		return -EINVAL;
+	}
+
+	ingress_dev = __dev_get_by_index(block->net,
+					 match->key->ingress_ifindex);
+	if (!ingress_dev) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't find specified ingress port to match on");
+		return -EINVAL;
+	}
+
+	if (!mlxsw_sp_port_dev_check(ingress_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't match on non-mlxsw ingress port");
+		return -EINVAL;
+	}
+
+	mlxsw_sp_port = netdev_priv(ingress_dev);
+	if (mlxsw_sp_port->mlxsw_sp != block->mlxsw_sp) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't match on a port from different device");
+		return -EINVAL;
+	}
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei,
+				       MLXSW_AFK_ELEMENT_SRC_SYS_PORT,
+				       mlxsw_sp_port->local_port,
+				       0xFFFFFFFF);
+
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse_meta(struct mlxsw_sp_acl_rule_info *rulei,
 				      struct flow_cls_offload *f,
 				      struct mlxsw_sp_flow_block *block)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct net_device *ingress_dev;
 	struct flow_match_meta match;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META))
@@ -300,34 +338,8 @@ static int mlxsw_sp_flower_parse_meta(struct mlxsw_sp_acl_rule_info *rulei,
 		return -EOPNOTSUPP;
 	}
 
-	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported ingress ifindex mask");
-		return -EINVAL;
-	}
-
-	ingress_dev = __dev_get_by_index(block->net,
-					 match.key->ingress_ifindex);
-	if (!ingress_dev) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't find specified ingress port to match on");
-		return -EINVAL;
-	}
-
-	if (!mlxsw_sp_port_dev_check(ingress_dev)) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't match on non-mlxsw ingress port");
-		return -EINVAL;
-	}
-
-	mlxsw_sp_port = netdev_priv(ingress_dev);
-	if (mlxsw_sp_port->mlxsw_sp != block->mlxsw_sp) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't match on a port from different device");
-		return -EINVAL;
-	}
-
-	mlxsw_sp_acl_rulei_keymask_u32(rulei,
-				       MLXSW_AFK_ELEMENT_SRC_SYS_PORT,
-				       mlxsw_sp_port->local_port,
-				       0xFFFFFFFF);
-	return 0;
+	return mlxsw_sp_flower_parse_meta_iif(rulei, block, &match,
+					      f->common.extack);
 }
 
 static void mlxsw_sp_flower_parse_ipv4(struct mlxsw_sp_acl_rule_info *rulei,
