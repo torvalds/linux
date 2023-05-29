@@ -333,8 +333,12 @@ static inline void aspeed_jtag_output_disable(struct aspeed_jtag *aspeed_jtag)
 static inline void
 aspeed_jtag_output_disable_26xx(struct aspeed_jtag *aspeed_jtag)
 {
+	u32 reg_val;
+
+	reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL) &
+		  ASPEED_JTAG_CLK_DIVISOR_MASK;
 	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_CTRL);
-	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_GBLCTRL);
+	aspeed_jtag_write(aspeed_jtag, reg_val, ASPEED_JTAG_GBLCTRL);
 }
 
 static inline void aspeed_jtag_master(struct aspeed_jtag *aspeed_jtag)
@@ -360,15 +364,19 @@ static inline void aspeed_jtag_master(struct aspeed_jtag *aspeed_jtag)
 
 static inline void aspeed_jtag_master_26xx(struct aspeed_jtag *aspeed_jtag)
 {
+	u32 reg_val;
+
+	reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL) &
+		ASPEED_JTAG_CLK_DIVISOR_MASK;
 	if (aspeed_jtag->mode & JTAG_XFER_HW_MODE) {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_CTRL);
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
 		aspeed_jtag_write(aspeed_jtag,
-				  ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
+				  reg_val | ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
 					  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN,
 				  ASPEED_JTAG_GBLCTRL);
 	} else {
-		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_GBLCTRL);
+		aspeed_jtag_write(aspeed_jtag, reg_val, ASPEED_JTAG_GBLCTRL);
 		aspeed_jtag_write(aspeed_jtag,
 				  ASPEED_JTAG_CTL_ENG_EN |
 					  ASPEED_JTAG_CTL_ENG_OUT_EN,
@@ -1568,6 +1576,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	err = devm_jtag_register(aspeed_jtag->dev, jtag);
 	if (err)
 		goto err_jtag_register;
+
+	jtag_functions->aspeed_jtag_ops->freq_set(jtag, 1000000);
 
 	return 0;
 
