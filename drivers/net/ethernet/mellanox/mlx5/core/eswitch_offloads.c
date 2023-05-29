@@ -2618,8 +2618,12 @@ out:
 
 static void esw_master_egress_destroy_resources(struct mlx5_vport *vport)
 {
+	if (!xa_empty(&vport->egress.offloads.bounce_rules))
+		return;
 	mlx5_destroy_flow_group(vport->egress.offloads.bounce_grp);
+	vport->egress.offloads.bounce_grp = NULL;
 	mlx5_destroy_flow_table(vport->egress.acl);
+	vport->egress.acl = NULL;
 }
 
 static int esw_set_master_egress_rule(struct mlx5_core_dev *master,
