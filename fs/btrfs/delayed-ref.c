@@ -506,6 +506,7 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 {
 	struct btrfs_delayed_ref_head *head;
 
+	lockdep_assert_held(&delayed_refs->lock);
 again:
 	head = find_ref_head(delayed_refs, delayed_refs->run_delayed_start,
 			     true);
