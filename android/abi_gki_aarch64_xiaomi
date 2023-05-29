@@ -240,3 +240,7 @@
 #required by mi_mempool.ko
   __traceiter_android_vh_mmput
   __tracepoint_android_vh_mmput
+
+#required by mi_mempool.ko
+  __traceiter_android_vh_madvise_cold_pageout_skip
+  __tracepoint_android_vh_madvise_cold_pageout_skip
