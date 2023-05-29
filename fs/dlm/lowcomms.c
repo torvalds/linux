@@ -735,19 +735,15 @@ static void stop_connection_io(struct connection *con)
 	if (con->othercon)
 		stop_connection_io(con->othercon);
 
+	spin_lock_bh(&con->writequeue_lock);
+	set_bit(CF_IO_STOP, &con->flags);
+	spin_unlock_bh(&con->writequeue_lock);
+
 	down_write(&con->sock_lock);
 	if (con->sock) {
 		lock_sock(con->sock->sk);
 		restore_callbacks(con->sock->sk);
-
-		spin_lock_bh(&con->writequeue_lock);
-		set_bit(CF_IO_STOP, &con->flags);
-		spin_unlock_bh(&con->writequeue_lock);
 		release_sock(con->sock->sk);
-	} else {
-		spin_lock_bh(&con->writequeue_lock);
-		set_bit(CF_IO_STOP, &con->flags);
-		spin_unlock_bh(&con->writequeue_lock);
 	}
 	up_write(&con->sock_lock);
 
