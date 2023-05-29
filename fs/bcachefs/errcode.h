@@ -230,7 +230,7 @@ static inline bool _bch2_err_matches(int err, int class)
 #define bch2_err_matches(_err, _class)			\
 ({							\
 	BUILD_BUG_ON(!__builtin_constant_p(_class));	\
-	_bch2_err_matches(_err, _class);		\
+	unlikely(_bch2_err_matches(_err, _class));	\
 })
 
 int __bch2_err_class(int);
