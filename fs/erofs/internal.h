@@ -208,45 +208,11 @@ enum {
 	EROFS_ZIP_CACHE_READAROUND
 };
 
-#define EROFS_LOCKED_MAGIC     (INT_MIN | 0xE0F510CCL)
-
 /* basic unit of the workstation of a super_block */
 struct erofs_workgroup {
-	/* the workgroup index in the workstation */
 	pgoff_t index;
-
-	/* overall workgroup reference count */
-	atomic_t refcount;
+	struct lockref lockref;
 };
-
-static inline bool erofs_workgroup_try_to_freeze(struct erofs_workgroup *grp,
-						 int val)
-{
-	preempt_disable();
-	if (val != atomic_cmpxchg(&grp->refcount, val, EROFS_LOCKED_MAGIC)) {
-		preempt_enable();
-		return false;
-	}
-	return true;
-}
-
-static inline void erofs_workgroup_unfreeze(struct erofs_workgroup *grp,
-					    int orig_val)
-{
-	/*
-	 * other observers should notice all modifications
-	 * in the freezing period.
-	 */
-	smp_mb();
-	atomic_set(&grp->refcount, orig_val);
-	preempt_enable();
-}
-
-static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
-{
-	return atomic_cond_read_relaxed(&grp->refcount,
-					VAL != EROFS_LOCKED_MAGIC);
-}
 
 enum erofs_kmap_type {
 	EROFS_NO_KMAP,		/* don't map the buffer */
@@ -486,7 +452,7 @@ static inline void erofs_pagepool_add(struct page **pagepool, struct page *page)
 void erofs_release_pages(struct page **pagepool);
 
 #ifdef CONFIG_EROFS_FS_ZIP
-int erofs_workgroup_put(struct erofs_workgroup *grp);
+void erofs_workgroup_put(struct erofs_workgroup *grp);
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
 					     pgoff_t index);
 struct erofs_workgroup *erofs_insert_workgroup(struct super_block *sb,

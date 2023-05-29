@@ -641,7 +641,7 @@ int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 
 	DBG_BUGON(z_erofs_is_inline_pcluster(pcl));
 	/*
-	 * refcount of workgroup is now freezed as 1,
+	 * refcount of workgroup is now freezed as 0,
 	 * therefore no need to worry about available decompression users.
 	 */
 	for (i = 0; i < pcl->pclusterpages; ++i) {
@@ -674,10 +674,11 @@ static bool z_erofs_cache_release_folio(struct folio *folio, gfp_t gfp)
 	if (!folio_test_private(folio))
 		return true;
 
-	if (!erofs_workgroup_try_to_freeze(&pcl->obj, 1))
-		return false;
-
 	ret = false;
+	spin_lock(&pcl->obj.lockref.lock);
+	if (pcl->obj.lockref.count > 0)
+		goto out;
+
 	DBG_BUGON(z_erofs_is_inline_pcluster(pcl));
 	for (i = 0; i < pcl->pclusterpages; ++i) {
 		if (pcl->compressed_bvecs[i].page == &folio->page) {
@@ -686,10 +687,10 @@ static bool z_erofs_cache_release_folio(struct folio *folio, gfp_t gfp)
 			break;
 		}
 	}
-	erofs_workgroup_unfreeze(&pcl->obj, 1);
-
 	if (ret)
 		folio_detach_private(folio);
+out:
+	spin_unlock(&pcl->obj.lockref.lock);
 	return ret;
 }
 
@@ -805,7 +806,7 @@ static int z_erofs_register_pcluster(struct z_erofs_decompress_frontend *fe)
 	if (IS_ERR(pcl))
 		return PTR_ERR(pcl);
 
-	atomic_set(&pcl->obj.refcount, 1);
+	spin_lock_init(&pcl->obj.lockref.lock);
 	pcl->algorithmformat = map->m_algorithmformat;
 	pcl->length = 0;
 	pcl->partial = true;
