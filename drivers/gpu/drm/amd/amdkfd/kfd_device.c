@@ -56,6 +56,7 @@ extern const struct kfd2kgd_calls gc_9_4_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v11_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v12_kfd2kgd;
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
@@ -444,11 +445,11 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		case IP_VERSION(12, 0, 0):
 			gfx_target_version = 120000;
-			f2g = &gfx_v11_kfd2kgd; /* GFX12_TODO: Change to v12 when available. */
+			f2g = &gfx_v12_kfd2kgd;
 			break;
 		case IP_VERSION(12, 0, 1):
 			gfx_target_version = 120001;
-			f2g = &gfx_v11_kfd2kgd; /* GFX12_TODO: Change to v12 when available. */
+			f2g = &gfx_v12_kfd2kgd;
 			break;
 		default:
 			break;
