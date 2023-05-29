@@ -8,6 +8,7 @@
 #include <linux/hid.h>
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -35,6 +36,7 @@ enum {
 	THUNDERSTRIKE_FW_VERSION_UPDATE = 0,
 	THUNDERSTRIKE_BOARD_INFO_UPDATE,
 	THUNDERSTRIKE_HAPTICS_UPDATE,
+	THUNDERSTRIKE_LED_UPDATE,
 };
 
 enum {
@@ -45,11 +47,18 @@ enum {
 
 enum {
 	THUNDERSTRIKE_HOSTCMD_ID_FW_VERSION = 1,
+	THUNDERSTRIKE_HOSTCMD_ID_LED = 6,
 	THUNDERSTRIKE_HOSTCMD_ID_BOARD_INFO = 16,
 	THUNDERSTRIKE_HOSTCMD_ID_USB_INIT = 53,
 	THUNDERSTRIKE_HOSTCMD_ID_HAPTICS = 57,
 	THUNDERSTRIKE_HOSTCMD_ID_BLUETOOTH_INIT = 58,
 };
+
+enum thunderstrike_led_state {
+	THUNDERSTRIKE_LED_OFF = 1,
+	THUNDERSTRIKE_LED_ON = 8,
+} __packed;
+static_assert(sizeof(enum thunderstrike_led_state) == 1);
 
 struct thunderstrike_hostcmd_board_info {
 	__le16 revision;
@@ -70,6 +79,7 @@ struct thunderstrike_hostcmd_resp_report {
 		struct thunderstrike_hostcmd_board_info board_info;
 		struct thunderstrike_hostcmd_haptics motors;
 		__le16 fw_version;
+		enum thunderstrike_led_state led_state;
 		u8 payload[30];
 	};
 } __packed;
@@ -81,10 +91,16 @@ struct thunderstrike_hostcmd_req_report {
 	u8 cmd_id;
 	u8 reserved_at_10;
 
-	struct {
-		u8 update;
-		struct thunderstrike_hostcmd_haptics motors;
-	} haptics;
+	union {
+		struct {
+			u8 update;
+			enum thunderstrike_led_state state;
+		} led;
+		struct {
+			u8 update;
+			struct thunderstrike_hostcmd_haptics motors;
+		} haptics;
+	};
 	u8 reserved_at_30[27];
 } __packed;
 static_assert(sizeof(struct thunderstrike_hostcmd_req_report) ==
@@ -108,12 +124,15 @@ struct thunderstrike {
 
 	/* Sub-devices */
 	struct input_dev *haptics_dev;
+	struct led_classdev led_dev;
 
 	/* Resources */
 	void *req_report_dmabuf;
 	unsigned long update_flags;
 	struct thunderstrike_hostcmd_haptics haptics_val;
 	spinlock_t haptics_update_lock;
+	u8 led_state : 1;
+	enum thunderstrike_led_state led_value;
 	struct work_struct hostcmd_req_work;
 };
 
@@ -221,6 +240,13 @@ static void thunderstrike_hostcmd_req_work_handler(struct work_struct *work)
 		thunderstrike_send_hostcmd_request(ts);
 	}
 
+	if (test_and_clear_bit(THUNDERSTRIKE_LED_UPDATE, &ts->update_flags)) {
+		thunderstrike_hostcmd_req_report_init(report, THUNDERSTRIKE_HOSTCMD_ID_LED);
+		report->led.update = 1;
+		report->led.state = ts->led_value;
+		thunderstrike_send_hostcmd_request(ts);
+	}
+
 	if (test_and_clear_bit(THUNDERSTRIKE_BOARD_INFO_UPDATE, &ts->update_flags)) {
 		thunderstrike_hostcmd_req_report_init(
 			report, THUNDERSTRIKE_HOSTCMD_ID_BOARD_INFO);
@@ -292,6 +318,40 @@ static int thunderstrike_play_effect(struct input_dev *idev, void *data,
 	return thunderstrike_update_haptics(ts, &motors);
 }
 
+static enum led_brightness
+thunderstrike_led_get_brightness(struct led_classdev *led)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct shield_device *shield_dev = hid_get_drvdata(hdev);
+	struct thunderstrike *ts;
+
+	ts = container_of(shield_dev, struct thunderstrike, base);
+
+	return ts->led_state;
+}
+
+static void thunderstrike_led_set_brightness(struct led_classdev *led,
+					    enum led_brightness value)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct shield_device *shield_dev = hid_get_drvdata(hdev);
+	struct thunderstrike *ts;
+
+	ts = container_of(shield_dev, struct thunderstrike, base);
+
+	switch (value) {
+	case LED_OFF:
+		ts->led_value = THUNDERSTRIKE_LED_OFF;
+		break;
+	default:
+		ts->led_value = THUNDERSTRIKE_LED_ON;
+		break;
+	}
+
+	set_bit(THUNDERSTRIKE_LED_UPDATE, &ts->update_flags);
+	schedule_work(&ts->hostcmd_req_work);
+}
+
 static void
 thunderstrike_parse_fw_version_payload(struct shield_device *shield_dev,
 				       __le16 fw_version)
@@ -338,6 +398,24 @@ thunderstrike_parse_haptics_payload(struct shield_device *shield_dev,
 		haptics->motor_left, haptics->motor_right);
 }
 
+static void
+thunderstrike_parse_led_payload(struct shield_device *shield_dev,
+				enum thunderstrike_led_state led_state)
+{
+	struct thunderstrike *ts = container_of(shield_dev, struct thunderstrike, base);
+
+	switch (led_state) {
+	case THUNDERSTRIKE_LED_OFF:
+		ts->led_state = 0;
+		break;
+	case THUNDERSTRIKE_LED_ON:
+		ts->led_state = 1;
+		break;
+	}
+
+	hid_dbg(shield_dev->hdev, "Thunderstrike led HOSTCMD response, 0x%02X\n", led_state);
+}
+
 static int thunderstrike_parse_report(struct shield_device *shield_dev,
 				      struct hid_report *report, u8 *data,
 				      int size)
@@ -363,6 +441,9 @@ static int thunderstrike_parse_report(struct shield_device *shield_dev,
 		case THUNDERSTRIKE_HOSTCMD_ID_FW_VERSION:
 			thunderstrike_parse_fw_version_payload(
 				shield_dev, hostcmd_resp_report->fw_version);
+			break;
+		case THUNDERSTRIKE_HOSTCMD_ID_LED:
+			thunderstrike_parse_led_payload(shield_dev, hostcmd_resp_report->led_state);
 			break;
 		case THUNDERSTRIKE_HOSTCMD_ID_BOARD_INFO:
 			thunderstrike_parse_board_info_payload(
@@ -395,10 +476,24 @@ static int thunderstrike_parse_report(struct shield_device *shield_dev,
 	return 0;
 }
 
+static inline int thunderstrike_led_create(struct thunderstrike *ts)
+{
+	struct led_classdev *led = &ts->led_dev;
+
+	led->name = "thunderstrike:blue:led";
+	led->max_brightness = 1;
+	led->flags = LED_CORE_SUSPENDRESUME;
+	led->brightness_get = &thunderstrike_led_get_brightness;
+	led->brightness_set = &thunderstrike_led_set_brightness;
+
+	return led_classdev_register(&ts->base.hdev->dev, led);
+}
+
 static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 {
 	struct shield_device *shield_dev;
 	struct thunderstrike *ts;
+	int ret;
 
 	ts = devm_kzalloc(&hdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
@@ -418,12 +513,22 @@ static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 
 	hid_set_drvdata(hdev, shield_dev);
 
+	ret = thunderstrike_led_create(ts);
+	if (ret) {
+		hid_err(hdev, "Failed to create Thunderstrike LED instance\n");
+		return ERR_PTR(ret);
+	}
+
 	ts->haptics_dev = shield_haptics_create(shield_dev, thunderstrike_play_effect);
 	if (IS_ERR(ts->haptics_dev))
-		return ERR_CAST(ts->haptics_dev);
+		goto err;
 
 	hid_info(hdev, "Registered Thunderstrike controller\n");
 	return shield_dev;
+
+err:
+	led_classdev_unregister(&ts->led_dev);
+	return ERR_CAST(ts->haptics_dev);
 }
 
 static int android_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -599,6 +704,7 @@ static void shield_remove(struct hid_device *hdev)
 	ts = container_of(dev, struct thunderstrike, base);
 
 	hid_hw_close(hdev);
+	led_classdev_unregister(&ts->led_dev);
 	if (ts->haptics_dev)
 		input_unregister_device(ts->haptics_dev);
 	cancel_work_sync(&ts->hostcmd_req_work);
