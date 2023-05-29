@@ -110,8 +110,6 @@ struct ov08x40_reg_list {
 
 /* Link frequency config */
 struct ov08x40_link_freq_config {
-	u32 pixels_per_line;
-
 	/* registers for this link frequency */
 	struct ov08x40_reg_list reg_list;
 };
@@ -127,6 +125,9 @@ struct ov08x40_mode {
 	/* V-timing */
 	u32 vts_def;
 	u32 vts_min;
+
+	/* HTS */
+	u32 hts;
 
 	/* Index of Link frequency config to be used */
 	u32 link_freq_index;
@@ -2391,6 +2392,7 @@ static const struct ov08x40_mode supported_modes[] = {
 		.height = 2416,
 		.vts_def = OV08X40_VTS_30FPS,
 		.vts_min = OV08X40_VTS_30FPS,
+		.hts = 640,
 		.lanes = 4,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3856x2416_regs),
@@ -2403,6 +2405,7 @@ static const struct ov08x40_mode supported_modes[] = {
 		.height = 1208,
 		.vts_def = OV08X40_VTS_BIN_30FPS,
 		.vts_min = OV08X40_VTS_BIN_30FPS,
+		.hts = 720,
 		.lanes = 4,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1928x1208_regs),
@@ -2846,9 +2849,7 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 					 1,
 					 vblank_def);
 		__v4l2_ctrl_s_ctrl(ov08x->vblank, vblank_def);
-		h_blank =
-			link_freq_configs[mode->link_freq_index].pixels_per_line
-			 - ov08x->cur_mode->width;
+		h_blank = ov08x->cur_mode->hts;
 		__v4l2_ctrl_modify_range(ov08x->hblank, h_blank,
 					 h_blank, 1, h_blank);
 	}
@@ -3074,8 +3075,7 @@ static int ov08x40_init_controls(struct ov08x40 *ov08x)
 					  OV08X40_VTS_MAX - mode->height, 1,
 					  vblank_def);
 
-	hblank = link_freq_configs[mode->link_freq_index].pixels_per_line -
-		 mode->width;
+	hblank = ov08x->cur_mode->hts;
 	ov08x->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov08x40_ctrl_ops,
 					  V4L2_CID_HBLANK,
 					  hblank, hblank, 1, hblank);
