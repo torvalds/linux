@@ -10,6 +10,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/property.h>
@@ -37,6 +38,8 @@
 		.parent = _PORT,		\
 		.properties = _PROPS,		\
 	})
+
+#define PMC_CLK_RATE_19_2MHZ			19200000
 
 /*
  * 79234640-9e10-4fea-a5c1-b5aa8b19756f
@@ -250,24 +253,61 @@ static int atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(struct acpi_device *adev)
 	}
 
 	ACPI_FREE(buffer.pointer);
+
+	if (ret < 0)
+		acpi_handle_warn(adev->handle, "Could not find PMC clk in _PR0\n");
+
 	return ret;
 }
 
-static int atomisp_csi2_get_port(struct acpi_device *adev)
+static int atomisp_csi2_set_pmc_clk_freq(struct acpi_device *adev, int clock_num)
 {
-	int clock_num, port;
+	struct clk *clk;
+	char name[14];
+	int ret;
+
+	if (clock_num < 0)
+		return 0;
+
+	snprintf(name, sizeof(name), "pmc_plt_clk_%d", clock_num);
+
+	clk = clk_get(NULL, name);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		acpi_handle_err(adev->handle, "Error getting clk %s:%d\n", name, ret);
+		return ret;
+	}
 
 	/*
-	 * Get PMC-clock number from ACPI _PR0 method and compare this to
-	 * the CsiPort 1 PMC-clock used in the CHT/BYT reference designs.
+	 * The firmware might enable the clock at boot, to change
+	 * the rate we must ensure the clock is disabled.
 	 */
-	clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
+	ret = clk_prepare_enable(clk);
+	if (!ret)
+		clk_disable_unprepare(clk);
+	if (!ret)
+		ret = clk_set_rate(clk, PMC_CLK_RATE_19_2MHZ);
+	if (ret)
+		acpi_handle_err(adev->handle, "Error setting clk-rate for %s:%d\n", name, ret);
+
+	clk_put(clk);
+	return ret;
+}
+
+static int atomisp_csi2_get_port(struct acpi_device *adev, int clock_num)
+{
+	int port;
+
+	/*
+	 * Compare clock-number to the PMC-clock used for CsiPort 1
+	 * in the CHT/BYT reference designs.
+	 */
 	if (IS_ISP2401)
 		port = clock_num == 4 ? 1 : 0;
 	else
 		port = clock_num == 0 ? 1 : 0;
 
-	/* Intel DSM or DMI quirk overrides PR0 derived default */
+	/* Intel DSM or DMI quirk overrides _PR0 CLK derived default */
 	return gmin_cfg_get_int(adev, "CsiPort", port);
 }
 
@@ -551,7 +591,7 @@ static int atomisp_csi2_connect_sensor(const struct atomisp_csi2_sensor_config *
 	struct fwnode_handle *fwnode, *primary;
 	struct atomisp_csi2_sensor *sensor;
 	struct acpi_device *adev;
-	int ret;
+	int ret, clock_num;
 
 	for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
 		if (!adev->status.enabled)
@@ -565,7 +605,19 @@ static int atomisp_csi2_connect_sensor(const struct atomisp_csi2_sensor_config *
 
 		sensor = &bridge->sensors[bridge->n_sensors];
 
-		sensor->port = atomisp_csi2_get_port(adev);
+		/*
+		 * ACPI takes care of turning the PMC clock on and off, but on BYT
+		 * the clock defaults to 25 MHz instead of the expected 19.2 MHz.
+		 * Get the PMC-clock number from ACPI _PR0 method and set it to 19.2 MHz.
+		 * The PMC-clock number is also used to determine the default CSI port.
+		 */
+		clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
+
+		ret = atomisp_csi2_set_pmc_clk_freq(adev, clock_num);
+		if (ret)
+			goto err_put_adev;
+
+		sensor->port = atomisp_csi2_get_port(adev, clock_num);
 		if (sensor->port >= ATOMISP_CAMERA_NR_PORTS) {
 			acpi_handle_err(adev->handle, "Invalid port: %d\n", sensor->port);
 			ret = -EINVAL;
