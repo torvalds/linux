@@ -65,6 +65,7 @@
 #define SE_SBPROC		0x0200
 #define SE_SBGENFS		0x0400
 #define SE_SBGENFS_XATTR	0x0800
+#define SE_SBNATIVE		0x1000
 
 #define CONTEXT_STR	"context"
 #define FSCONTEXT_STR	"fscontext"
