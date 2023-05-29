@@ -1274,11 +1274,12 @@ static void init_interrupts(struct device_queue_manager *dqm)
 	uint32_t xcc_mask = dqm->dev->xcc_mask;
 	unsigned int i, xcc_id;
 
-	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++) {
-		if (is_pipe_enabled(dqm, 0, i)) {
-			for_each_inst(xcc_id, xcc_mask)
+	for_each_inst(xcc_id, xcc_mask) {
+		for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++) {
+			if (is_pipe_enabled(dqm, 0, i)) {
 				dqm->dev->kfd2kgd->init_interrupts(
 					dqm->dev->adev, i, xcc_id);
+			}
 		}
 	}
 }
