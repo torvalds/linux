@@ -48,8 +48,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	/* is this node still in the rbtree? */
-	unsigned int is_head:1;
 	unsigned int in_tree:1;
 };
 

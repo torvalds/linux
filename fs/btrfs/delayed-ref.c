@@ -853,7 +853,6 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	ref->num_bytes = num_bytes;
 	ref->ref_mod = 1;
 	ref->action = action;
-	ref->is_head = 0;
 	ref->in_tree = 1;
 	ref->seq = seq;
 	ref->type = ref_type;
