@@ -565,15 +565,18 @@ static bool insert_delayed_ref(struct btrfs_delayed_ref_root *root,
 {
 	struct btrfs_delayed_ref_node *exist;
 	int mod;
-	bool ret = false;
 
 	spin_lock(&href->lock);
 	exist = tree_insert(&href->ref_tree, ref);
-	if (!exist)
-		goto inserted;
+	if (!exist) {
+		if (ref->action == BTRFS_ADD_DELAYED_REF)
+			list_add_tail(&ref->add_list, &href->ref_add_list);
+		atomic_inc(&root->num_entries);
+		spin_unlock(&href->lock);
+		return false;
+	}
 
 	/* Now we are sure we can merge */
-	ret = true;
 	if (exist->action == ref->action) {
 		mod = ref->ref_mod;
 	} else {
@@ -600,13 +603,7 @@ static bool insert_delayed_ref(struct btrfs_delayed_ref_root *root,
 	if (exist->ref_mod == 0)
 		drop_delayed_ref(root, href, exist);
 	spin_unlock(&href->lock);
-	return ret;
-inserted:
-	if (ref->action == BTRFS_ADD_DELAYED_REF)
-		list_add_tail(&ref->add_list, &href->ref_add_list);
-	atomic_inc(&root->num_entries);
-	spin_unlock(&href->lock);
-	return ret;
+	return true;
 }
 
 /*
