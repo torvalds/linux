@@ -643,6 +643,7 @@ void mddev_init(struct mddev *mddev)
 {
 	mutex_init(&mddev->open_mutex);
 	mutex_init(&mddev->reconfig_mutex);
+	mutex_init(&mddev->sync_mutex);
 	mutex_init(&mddev->bitmap_info.mutex);
 	INIT_LIST_HEAD(&mddev->disks);
 	INIT_LIST_HEAD(&mddev->all_mddevs);
@@ -4777,14 +4778,18 @@ static void stop_sync_thread(struct mddev *mddev)
 
 static void idle_sync_thread(struct mddev *mddev)
 {
+	mutex_lock(&mddev->sync_mutex);
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	stop_sync_thread(mddev);
+	mutex_unlock(&mddev->sync_mutex);
 }
 
 static void frozen_sync_thread(struct mddev *mddev)
 {
+	mutex_lock(&mddev->sync_mutex);
 	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	stop_sync_thread(mddev);
+	mutex_unlock(&mddev->sync_mutex);
 }
 
 static ssize_t
