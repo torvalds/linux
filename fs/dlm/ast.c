@@ -181,10 +181,12 @@ void dlm_callback_work(struct work_struct *work)
 
 	spin_lock(&lkb->lkb_cb_lock);
 	rv = dlm_dequeue_lkb_callback(lkb, &cb);
-	spin_unlock(&lkb->lkb_cb_lock);
-
-	if (WARN_ON_ONCE(rv == DLM_DEQUEUE_CALLBACK_EMPTY))
+	if (WARN_ON_ONCE(rv == DLM_DEQUEUE_CALLBACK_EMPTY)) {
+		clear_bit(DLM_IFL_CB_PENDING_BIT, &lkb->lkb_iflags);
+		spin_unlock(&lkb->lkb_cb_lock);
 		goto out;
+	}
+	spin_unlock(&lkb->lkb_cb_lock);
 
 	for (;;) {
 		castfn = lkb->lkb_astfn;
