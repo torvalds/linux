@@ -3662,6 +3662,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 {
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
 		.pads = &pad_cfg,
@@ -3678,7 +3679,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 		return -EINVAL;
 	}
 
-	if (!isp->inputs[asd->input_curr].camera)
+	if (!input->camera)
 		return -EINVAL;
 
 	fmt = atomisp_get_format_bridge(f->pixelformat);
@@ -3700,8 +3701,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       pad, set_fmt, &pad_state, &format);
+	ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &format);
 	if (ret)
 		return ret;
 
@@ -3761,6 +3761,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 {
 	struct v4l2_control ctrl;
 	struct atomisp_device *isp = asd->isp;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_in_fmt_conv *fc;
 	int mipi_freq = 0;
 	unsigned int input_format, bayer_order;
@@ -3768,8 +3769,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	u32 mipi_port, metadata_width = 0, metadata_height = 0;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl) == 0)
+	if (v4l2_g_ctrl(input->camera->ctrl_handler, &ctrl) == 0)
 		mipi_freq = ctrl.value;
 
 	if (asd->stream_env[stream_id].isys_configs == 1) {
@@ -3827,7 +3827,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		return -EINVAL;
 
 	input_format = fc->atomisp_in_fmt;
-	mipi_port = atomisp_port_to_mipi_port(isp, isp->inputs[asd->input_curr].port);
+	mipi_port = atomisp_port_to_mipi_port(isp, input->port);
 	atomisp_css_input_configure_port(asd, mipi_port,
 					 isp->sensor_lanes[mipi_port],
 					 0xffff4, mipi_freq,
@@ -3905,6 +3905,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	struct camera_mipi_info *mipi_info;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
 	struct v4l2_rect *isp_sink_crop;
 	enum ia_css_pipe_id pipe_id;
@@ -3936,9 +3937,8 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	if (isp->inputs[asd->input_curr].type != TEST_PATTERN) {
-		mipi_info = atomisp_to_sensor_mipi_info(
-				isp->inputs[asd->input_curr].camera);
+	if (input->type != TEST_PATTERN) {
+		mipi_info = atomisp_to_sensor_mipi_info(input->camera);
 
 		if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
 						   mipi_info))
@@ -4122,6 +4122,8 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 {
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
+	struct atomisp_device *isp = asd->isp;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
@@ -4132,7 +4134,6 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	};
 	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_mbus_framefmt *req_ffmt;
-	struct atomisp_device *isp;
 	struct atomisp_input_stream_info *stream_info =
 	    (struct atomisp_input_stream_info *)ffmt->reserved;
 	int ret;
@@ -4142,8 +4143,6 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 			__func__, vdev->name);
 		return -EINVAL;
 	}
-
-	isp = asd->isp;
 
 	format = atomisp_get_format_bridge(f->pixelformat);
 	if (!format)
@@ -4164,8 +4163,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 		vformat.which = V4L2_SUBDEV_FORMAT_TRY;
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       pad, set_fmt, &pad_state, &vformat);
+		ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &vformat);
 		if (ret)
 			return ret;
 
@@ -4183,8 +4181,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 		}
 	}
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
-			       set_fmt, NULL, &vformat);
+	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
 	if (ret)
 		return ret;
 
@@ -4216,6 +4213,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info;
@@ -4259,8 +4257,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	vformat.format.height += padding_h;
 	vformat.format.width += padding_w;
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
-			       set_fmt, NULL, &vformat);
+	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
 	if (ret)
 		return ret;
 

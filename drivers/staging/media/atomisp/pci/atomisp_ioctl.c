@@ -703,14 +703,14 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	struct v4l2_subdev_frame_size_enum fse = {
 		.index = fsize->index,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	int ret;
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       pad, enum_frame_size, NULL, &fse);
+	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
 	if (ret)
 		return ret;
 
