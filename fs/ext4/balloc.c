@@ -111,10 +111,8 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 	itbl_blk_start = ext4_inode_table(sb, gdp);
 	itbl_blk_end = itbl_blk_start + sbi->s_itb_per_group - 1;
 	if (itbl_blk_start <= end && itbl_blk_end >= start) {
-		itbl_blk_start = itbl_blk_start >= start ?
-			itbl_blk_start : start;
-		itbl_blk_end = itbl_blk_end <= end ?
-			itbl_blk_end : end;
+		itbl_blk_start = max(itbl_blk_start, start);
+		itbl_blk_end = min(itbl_blk_end, end);
 
 		itbl_cluster_start = EXT4_B2C(sbi, itbl_blk_start - start);
 		itbl_cluster_end = EXT4_B2C(sbi, itbl_blk_end - start);
