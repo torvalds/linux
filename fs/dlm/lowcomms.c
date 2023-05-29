@@ -898,6 +898,7 @@ static void process_dlm_messages(struct work_struct *work)
 	pentry = list_first_entry_or_null(&processqueue,
 					  struct processqueue_entry, list);
 	if (WARN_ON_ONCE(!pentry)) {
+		process_dlm_messages_pending = false;
 		spin_unlock(&processqueue_lock);
 		return;
 	}
