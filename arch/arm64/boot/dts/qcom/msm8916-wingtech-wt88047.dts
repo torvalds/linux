@@ -25,8 +25,8 @@
 
 	flash-led-controller {
 		compatible = "ocs,ocp8110";
-		enable-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
-		flash-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_flash_default>;
@@ -47,14 +47,14 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 110 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -67,7 +67,7 @@
 		compatible = "invensense,mpu6880";
 		reg = <0x68>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -90,10 +90,10 @@
 		compatible = "edt,edt-ft5506";
 		reg = <0x38>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
-		reset-gpios = <&msmgpio 12 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
 
 		vcc-supply = <&pm8916_l17>;
 		iovcc-supply = <&pm8916_l6>;
@@ -204,7 +204,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	camera_flash_default: camera-flash-default-state {
 		pins = "gpio31", "gpio32";
 		function = "gpio";

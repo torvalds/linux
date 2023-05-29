@@ -3,7 +3,7 @@
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  */
 
-&msmgpio {
+&tlmm {
 
 	blsp1_uart1_default: blsp1-uart1-default-state {
 		/* TX, RX, CTS_N, RTS_N */

@@ -22,8 +22,8 @@
 
 	flash-led-controller {
 		compatible = "ocs,ocp8110";
-		enable-gpios = <&msmgpio 49 GPIO_ACTIVE_HIGH>;
-		flash-gpios = <&msmgpio 119 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&tlmm 119 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-0 = <&camera_front_flash_default>;
 		pinctrl-names = "default";
@@ -45,7 +45,7 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
@@ -54,7 +54,7 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			gpios = <&msmgpio 17 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 17 GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_WHITE>;
 			default-state = "off";
 			function = LED_FUNCTION_KBD_BACKLIGHT;
@@ -66,7 +66,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 110 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -82,7 +82,7 @@
 		vdd-supply = <&pm8916_l17>;
 		vid-supply = <&pm8916_l6>;
 
-		reset-gpios = <&msmgpio 111 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 111 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&mag_reset_default>;
@@ -136,7 +136,7 @@
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 };
 
 &usb {
@@ -156,7 +156,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	button_backlight_default: button-backlight-default-state {
 		pins = "gpio17";
 		function = "gpio";

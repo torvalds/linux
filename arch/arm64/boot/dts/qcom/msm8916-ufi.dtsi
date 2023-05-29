@@ -126,7 +126,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	/* pins are board-specific */
 	button_default: button-default-state {
 		function = "gpio";

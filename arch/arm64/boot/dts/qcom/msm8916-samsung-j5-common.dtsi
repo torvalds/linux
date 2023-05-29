@@ -32,7 +32,7 @@
 
 		event-hall-sensor {
 			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
@@ -49,21 +49,21 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		button-home {
 			label = "Home Key";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
 
 	i2c_muic: i2c-muic {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&muic_i2c_default>;
@@ -75,7 +75,7 @@
 			compatible = "siliconmitus,sm5703-muic";
 			reg = <0x25>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 
 			pinctrl-names = "default";
@@ -108,7 +108,7 @@
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 };
 
 &usb {
@@ -128,7 +128,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio52";
 		function = "gpio";

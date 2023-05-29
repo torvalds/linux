@@ -44,13 +44,13 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		button-home {
 			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
@@ -65,7 +65,7 @@
 
 		event-hall-sensor {
 			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
@@ -83,7 +83,7 @@
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 
-		gpio = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 76 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -96,7 +96,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -105,8 +105,8 @@
 
 	i2c-muic {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&muic_i2c_default>;
@@ -118,7 +118,7 @@
 			compatible = "siliconmitus,sm5502-muic";
 
 			reg = <0x25>;
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 
 			pinctrl-names = "default";
@@ -128,8 +128,8 @@
 
 	i2c-tkey {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&tkey_i2c_default>;
@@ -142,7 +142,7 @@
 			compatible = "coreriver,tc360-touchkey";
 			reg = <0x20>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <98 IRQ_TYPE_EDGE_FALLING>;
 
 			/* vcc/vdd-supply are board-specific */
@@ -157,8 +157,8 @@
 
 	i2c-nfc {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&nfc_i2c_default>;
@@ -170,11 +170,11 @@
 			compatible = "samsung,s3fwrn5-i2c";
 			reg = <0x27>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <21 IRQ_TYPE_EDGE_RISING>;
 
-			en-gpios = <&msmgpio 20 GPIO_ACTIVE_LOW>;
-			wake-gpios = <&msmgpio 49 GPIO_ACTIVE_HIGH>;
+			en-gpios = <&tlmm 20 GPIO_ACTIVE_LOW>;
+			wake-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
 
 			clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
 
@@ -200,7 +200,7 @@
 	accelerometer: accelerometer@10 {
 		compatible = "bosch,bmc150_accel";
 		reg = <0x10>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -225,7 +225,7 @@
 	battery@35 {
 		compatible = "richtek,rt5033-battery";
 		reg = <0x35>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <121 IRQ_TYPE_EDGE_BOTH>;
 
 		pinctrl-names = "default";
@@ -274,7 +274,7 @@
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 };
 
 &usb {
@@ -286,7 +286,7 @@
 	extcon = <&muic>;
 };
 
-&msmgpio {
+&tlmm {
 	accel_int_default: accel-int-default-state {
 		pins = "gpio115";
 		function = "gpio";

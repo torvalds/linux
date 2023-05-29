@@ -75,7 +75,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -101,13 +101,13 @@
 		button {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 		};
 	};
 
 	leds {
 		pinctrl-names = "default";
-		pinctrl-0 = <&msmgpio_leds>,
+		pinctrl-0 = <&tlmm_leds>,
 			    <&pm8916_gpios_leds>,
 			    <&pm8916_mpps_leds>;
 
@@ -117,7 +117,7 @@
 			label = "apq8016-sbc:green:user1";
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
@@ -126,7 +126,7 @@
 			label = "apq8016-sbc:green:user2";
 			function = LED_FUNCTION_DISK_ACTIVITY;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 120 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
@@ -186,14 +186,14 @@
 		compatible = "adi,adv7533";
 		reg = <0x39>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 
 		adi,dsi-lanes = <4>;
 		clocks = <&rpmcc RPM_SMD_BB_CLK2>;
 		clock-names = "cec";
 
-		pd-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		pd-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		avdd-supply = <&pm8916_l6>;
 		v1p2-supply = <&pm8916_l6>;
@@ -276,8 +276,8 @@
 		compatible = "ovti,ov5640";
 		reg = <0x3b>;
 
-		enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&tlmm 34 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_rear_default>;
 
@@ -373,7 +373,7 @@
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 };
 
 &sound {
@@ -515,7 +515,7 @@
  * ones actually used for GPIO.
  */
 
-&msmgpio {
+&tlmm {
 	gpio-line-names =
 		"[UART0_TX]", /* GPIO_0, LSEC pin 5 */
 		"[UART0_RX]", /* GPIO_1, LSEC pin 7 */
@@ -640,7 +640,7 @@
 		"USR_LED_2_CTRL", /* GPIO 120 */
 		"SB_HS_ID";
 
-	msmgpio_leds: msmgpio-leds-state {
+	tlmm_leds: tlmm-leds-state {
 		pins = "gpio21", "gpio120";
 		function = "gpio";
 

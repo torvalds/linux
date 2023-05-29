@@ -53,13 +53,13 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		button-home {
 			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
@@ -74,7 +74,7 @@
 
 		event-hall-sensor {
 			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
@@ -87,7 +87,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -100,7 +100,7 @@
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 
-		gpio = <&msmgpio 86 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 86 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -113,7 +113,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 60 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 60 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -122,8 +122,8 @@
 
 	i2c-muic {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&muic_i2c_default>;
@@ -135,7 +135,7 @@
 			compatible = "siliconmitus,sm5504-muic";
 			reg = <0x14>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 
 			pinctrl-names = "default";
@@ -145,8 +145,8 @@
 
 	i2c-tkey {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&tkey_i2c_default>;
@@ -158,7 +158,7 @@
 			compatible = "coreriver,tc360-touchkey";
 			reg = <0x20>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <98 IRQ_TYPE_EDGE_FALLING>;
 
 			vcc-supply = <&reg_touch_key>;
@@ -174,8 +174,8 @@
 
 	i2c-nfc {
 		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&nfc_i2c_default>;
@@ -187,11 +187,11 @@
 			compatible = "nxp,pn547", "nxp,nxp-nci-i2c";
 			reg = <0x2b>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <21 IRQ_TYPE_EDGE_RISING>;
 
-			enable-gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
-			firmware-gpios = <&msmgpio 49 GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+			firmware-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&nfc_default>;
@@ -206,7 +206,7 @@
 		compatible = "st,lsm6ds3";
 		reg = <0x6b>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
 		pinctrl-names = "default";
@@ -230,7 +230,7 @@
 		compatible = "richtek,rt5033-battery";
 		reg = <0x35>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-names = "default";
@@ -245,7 +245,7 @@
 		compatible = "zinitix,bt541";
 		reg = <0x20>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		touchscreen-size-x = <540>;
@@ -320,7 +320,7 @@
 	compatible = "qcom,wcn3660b";
 };
 
-&msmgpio {
+&tlmm {
 	fg_alert_default: fg-alert-default-state {
 		pins = "gpio121";
 		function = "gpio";

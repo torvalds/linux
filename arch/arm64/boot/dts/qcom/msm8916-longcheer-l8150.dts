@@ -41,7 +41,7 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
@@ -53,7 +53,7 @@
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 
-		gpio = <&msmgpio 17 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 17 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -62,8 +62,8 @@
 
 	flash-led-controller {
 		compatible = "sgmicro,sgm3140";
-		flash-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
-		enable-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_flash_default>;
@@ -122,7 +122,7 @@
 		 * to the BMC156. However, there are two pads next to the chip
 		 * that can be shorted to make it work if needed.
 		 *
-		 * interrupt-parent = <&msmgpio>;
+		 * interrupt-parent = <&tlmm>;
 		 * interrupts = <116 IRQ_TYPE_EDGE_RISING>;
 		 */
 
@@ -141,7 +141,7 @@
 		compatible = "bosch,bmc156_magn";
 		reg = <0x12>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <113 IRQ_TYPE_EDGE_RISING>;
 
 		pinctrl-names = "default";
@@ -156,7 +156,7 @@
 		reg = <0x23>;
 		proximity-near-level = <75>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-names = "default";
@@ -170,7 +170,7 @@
 		compatible = "bosch,bmg160";
 		reg = <0x68>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <23 IRQ_TYPE_EDGE_RISING>,
 			     <22 IRQ_TYPE_EDGE_RISING>;
 
@@ -191,7 +191,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		vdd-supply = <&reg_ctp>;
@@ -274,7 +274,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	accel_int_default: accel-int-default-state {
 		pins = "gpio116";
 		function = "gpio";

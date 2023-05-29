@@ -24,8 +24,8 @@
 	flash-led-controller {
 		/* Actually qcom,leds-gpio-flash */
 		compatible = "sgmicro,sgm3140";
-		enable-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
-		flash-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-0 = <&camera_flash_default>;
 		pinctrl-names = "default";
@@ -45,7 +45,7 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
@@ -59,21 +59,21 @@
 		led-red {
 			function = LED_FUNCTION_CHARGING;
 			color = <LED_COLOR_ID_RED>;
-			gpios = <&msmgpio 117 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 117 GPIO_ACTIVE_HIGH>;
 			retain-state-suspended;
 		};
 
 		led-green {
 			function = LED_FUNCTION_CHARGING;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&msmgpio 118 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 118 GPIO_ACTIVE_HIGH>;
 			retain-state-suspended;
 		};
 	};
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 110 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&usb_id_default>;
 		pinctrl-names = "default";
 	};
@@ -87,10 +87,10 @@
 		compatible = "edt,edt-ft5406";
 		reg = <0x38>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
-		reset-gpios = <&msmgpio 12 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
 
 		vcc-supply = <&pm8916_l17>;
 		iovcc-supply = <&pm8916_l6>;
@@ -138,7 +138,7 @@
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
 	pinctrl-names = "default", "sleep";
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
@@ -160,7 +160,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
+&tlmm {
 	camera_flash_default: camera-flash-default-state {
 		pins = "gpio31", "gpio32";
 		function = "gpio";

@@ -34,13 +34,13 @@
 
 		volume-up-button {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		home-button {
 			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
@@ -55,7 +55,7 @@
 
 		hall-sensor-switch {
 			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
@@ -74,7 +74,7 @@
 		maxim,over-heat-temp = <600>;
 		maxim,over-volt = <4400>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-0 = <&fuelgauge_int_default>;
@@ -97,7 +97,7 @@
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l5>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "INT1";
 
@@ -145,7 +145,7 @@
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 	pinctrl-names = "default", "sleep";
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
@@ -169,7 +169,7 @@
 	compatible = "qcom,wcn3660b";
 };
 
-&msmgpio {
+&tlmm {
 	accel_int_default: accel-int-default-state {
 		pins = "gpio115";
 		function = "gpio";
