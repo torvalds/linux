@@ -303,9 +303,6 @@ gpio_request()前將這類細節配置好，例如使用 pinctrl 子系統的映
 	* GPIOF_OPEN_DRAIN	- gpio引腳爲開漏信號
 	* GPIOF_OPEN_SOURCE	- gpio引腳爲源極開路信號
 
-	* GPIOF_EXPORT_DIR_FIXED	- 將 gpio 導出到 sysfs，並保持方向
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- 同樣是導出, 但允許改變方向
-
 因爲 GPIOF_INIT_* 僅有在配置爲輸出的時候才存在,所以有效的組合爲:
 
 	* GPIOF_IN		- 配置爲輸入

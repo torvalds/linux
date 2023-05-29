@@ -297,9 +297,6 @@ gpio_request()前将这类细节配置好，例如使用引脚控制子系统的
 	* GPIOF_OPEN_DRAIN	- gpio引脚为开漏信号
 	* GPIOF_OPEN_SOURCE	- gpio引脚为源极开路信号
 
-	* GPIOF_EXPORT_DIR_FIXED	- 将 gpio 导出到 sysfs，并保持方向
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- 同样是导出, 但允许改变方向
-
 因为 GPIOF_INIT_* 仅有在配置为输出的时候才存在,所以有效的组合为:
 
 	* GPIOF_IN		- 配置为输入
