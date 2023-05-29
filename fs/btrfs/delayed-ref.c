@@ -762,11 +762,11 @@ static noinline struct btrfs_delayed_ref_head *
 add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		     struct btrfs_delayed_ref_head *head_ref,
 		     struct btrfs_qgroup_extent_record *qrecord,
-		     int action, int *qrecord_inserted_ret)
+		     int action, bool *qrecord_inserted_ret)
 {
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	int qrecord_inserted = 0;
+	bool qrecord_inserted = false;
 
 	delayed_refs = &trans->transaction->delayed_refs;
 
@@ -776,7 +776,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 					delayed_refs, qrecord))
 			kfree(qrecord);
 		else
-			qrecord_inserted = 1;
+			qrecord_inserted = true;
 	}
 
 	trace_add_delayed_ref_head(trans->fs_info, head_ref, action);
@@ -872,7 +872,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
-	int qrecord_inserted;
+	bool qrecord_inserted;
 	bool is_system;
 	int action = generic_ref->action;
 	int level = generic_ref->tree_ref.level;
@@ -965,7 +965,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
-	int qrecord_inserted;
+	bool qrecord_inserted;
 	int action = generic_ref->action;
 	int ret;
 	u64 bytenr = generic_ref->bytenr;
