@@ -23,7 +23,7 @@
 	aliases {
 		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
 		mmc1 = &sdhc_2; /* SDC2 SD card slot */
-		serial0 = &blsp1_uart2;
+		serial0 = &blsp_uart2;
 	};
 
 	chosen {

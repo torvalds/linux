@@ -9,7 +9,7 @@
 	chassis-type = "embedded";
 
 	aliases {
-		serial0 = &blsp1_uart2;
+		serial0 = &blsp_uart2;
 	};
 
 	chosen {
@@ -82,7 +82,7 @@
 	status = "okay";
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };
 

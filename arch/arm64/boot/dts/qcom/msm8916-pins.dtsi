@@ -5,7 +5,7 @@
 
 &tlmm {
 
-	blsp1_uart1_default: blsp1-uart1-default-state {
+	blsp_uart1_default: blsp-uart1-default-state {
 		/* TX, RX, CTS_N, RTS_N */
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "blsp_uart1";
@@ -14,7 +14,7 @@
 		bias-disable;
 	};
 
-	blsp1_uart1_sleep: blsp1-uart1-sleep-state {
+	blsp_uart1_sleep: blsp-uart1-sleep-state {
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "gpio";
 
@@ -22,7 +22,7 @@
 		bias-pull-down;
 	};
 
-	blsp1_uart2_default: blsp1-uart2-default-state {
+	blsp_uart2_default: blsp-uart2-default-state {
 		pins = "gpio4", "gpio5";
 		function = "blsp_uart2";
 
@@ -30,7 +30,7 @@
 		bias-disable;
 	};
 
-	blsp1_uart2_sleep: blsp1-uart2-sleep-state {
+	blsp_uart2_sleep: blsp-uart2-sleep-state {
 		pins = "gpio4", "gpio5";
 		function = "gpio";
 

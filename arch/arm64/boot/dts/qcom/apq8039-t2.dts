@@ -24,8 +24,8 @@
 	aliases {
 		mmc0 = &sdhc_1;
 		mmc1 = &sdhc_2;
-		serial0 = &blsp1_uart1;
-		serial1 = &blsp1_uart2;
+		serial0 = &blsp_uart1;
+		serial1 = &blsp_uart2;
 	};
 
 	bl: backlight {
@@ -115,19 +115,19 @@
 	status = "okay";
 };
 
-&blsp1_uart1 {
+&blsp_uart1 {
 	status = "okay";
 };
 
-&blsp1_uart1_default {
+&blsp_uart1_default {
 	pins = "gpio0", "gpio1";
 };
 
-&blsp1_uart1_sleep {
+&blsp_uart1_sleep {
 	pins = "gpio0", "gpio1";
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };
 

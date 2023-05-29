@@ -18,8 +18,8 @@
 	compatible = "qcom,apq8016-sbc", "qcom,apq8016";
 
 	aliases {
-		serial0 = &blsp1_uart2;
-		serial1 = &blsp1_uart1;
+		serial0 = &blsp_uart2;
+		serial1 = &blsp_uart1;
 		usid0 = &pm8916_0;
 		i2c0 = &blsp_i2c2;
 		i2c1 = &blsp_i2c6;
@@ -243,12 +243,12 @@
 	label = "LS-SPI0";
 };
 
-&blsp1_uart1 {
+&blsp_uart1 {
 	status = "okay";
 	label = "LS-UART0";
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 	label = "LS-UART1";
 };
