@@ -195,8 +195,10 @@ static void ov2680_fill_format(struct ov2680_dev *sensor,
 	ov2680_set_bayer_order(sensor, fmt);
 }
 
-static void ov2680_calc_mode(struct ov2680_dev *sensor, int width, int height)
+static void ov2680_calc_mode(struct ov2680_dev *sensor)
 {
+	int width = sensor->mode.fmt.width;
+	int height = sensor->mode.fmt.height;
 	int orig_width = width;
 	int orig_height = height;
 
@@ -338,7 +340,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 
 	mutex_lock(&sensor->lock);
-	ov2680_calc_mode(sensor, fmt->width, fmt->height);
+	ov2680_calc_mode(sensor);
 	mutex_unlock(&sensor->lock);
 	return 0;
 }
@@ -660,6 +662,7 @@ static int ov2680_probe(struct i2c_client *client)
 	}
 
 	ov2680_fill_format(sensor, &sensor->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
+	ov2680_calc_mode(sensor);
 
 	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret) {
