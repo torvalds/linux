@@ -702,29 +702,33 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	/* If reserved is provided, it must be a data extent. */
 	BUG_ON(!is_data && reserved);
 
-	/*
-	 * The head node stores the sum of all the mods, so dropping a ref
-	 * should drop the sum in the head node by one.
-	 */
-	if (action == BTRFS_UPDATE_DELAYED_HEAD)
+	switch (action) {
+	case BTRFS_UPDATE_DELAYED_HEAD:
 		count_mod = 0;
-	else if (action == BTRFS_DROP_DELAYED_REF)
+		break;
+	case BTRFS_DROP_DELAYED_REF:
+		/*
+		 * The head node stores the sum of all the mods, so dropping a ref
+		 * should drop the sum in the head node by one.
+		 */
 		count_mod = -1;
-
-	/*
-	 * BTRFS_ADD_DELAYED_EXTENT means that we need to update the reserved
-	 * accounting when the extent is finally added, or if a later
-	 * modification deletes the delayed ref without ever inserting the
-	 * extent into the extent allocation tree.  ref->must_insert_reserved
-	 * is the flag used to record that accounting mods are required.
-	 *
-	 * Once we record must_insert_reserved, switch the action to
-	 * BTRFS_ADD_DELAYED_REF because other special casing is not required.
-	 */
-	if (action == BTRFS_ADD_DELAYED_EXTENT)
+		break;
+	case BTRFS_ADD_DELAYED_EXTENT:
+		/*
+		 * BTRFS_ADD_DELAYED_EXTENT means that we need to update the
+		 * reserved accounting when the extent is finally added, or if a
+		 * later modification deletes the delayed ref without ever
+		 * inserting the extent into the extent allocation tree.
+		 * ref->must_insert_reserved is the flag used to record that
+		 * accounting mods are required.
+		 *
+		 * Once we record must_insert_reserved, switch the action to
+		 * BTRFS_ADD_DELAYED_REF because other special casing is not
+		 * required.
+		 */
 		must_insert_reserved = true;
-	else
-		must_insert_reserved = false;
+		break;
+	}
 
 	refcount_set(&head_ref->refs, 1);
 	head_ref->bytenr = bytenr;
