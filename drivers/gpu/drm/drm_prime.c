@@ -778,8 +778,6 @@ int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	dma_resv_assert_held(dma_buf->resv);
-
 	return drm_gem_prime_mmap(obj, vma);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_mmap);
