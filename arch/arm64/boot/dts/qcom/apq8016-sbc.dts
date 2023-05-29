@@ -324,6 +324,14 @@
 	firmware-name = "qcom/apq8016/mba.mbn", "qcom/apq8016/modem.mbn";
 };
 
+&pm8916_codec {
+	status = "okay";
+	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
+	clock-names = "mclk";
+	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
@@ -403,7 +411,7 @@
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
 		};
 	};
 
@@ -413,7 +421,7 @@
 			sound-dai = <&lpass MI2S_TERTIARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
 		};
 	};
 };
@@ -429,14 +437,6 @@
 
 &usb_hs_phy {
 	extcon = <&usb_id>;
-};
-
-&wcd_codec {
-	status = "okay";
-	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
-	clock-names = "mclk";
-	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
-	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
 };
 
 &wcnss {

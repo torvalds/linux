@@ -139,6 +139,13 @@
 	status = "okay";
 };
 
+&pm8916_codec {
+	qcom,hphl-jack-type-normally-open;
+	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+	status = "okay";
+};
+
 &pm8916_gpios {
 	gpio-line-names =
 		"PM_GPIO1",     /* WIFI_GPIO1_PRE */
@@ -265,7 +272,7 @@
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
 		};
 	};
 
@@ -275,7 +282,7 @@
 			sound-dai = <&lpass MI2S_TERTIARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
 		};
 	};
 };
@@ -474,13 +481,6 @@
 			remote-endpoint = <&typec_ep>;
 		};
 	};
-};
-
-&wcd_codec {
-	qcom,hphl-jack-type-normally-open;
-	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
-	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
-	status = "okay";
 };
 
 &wcnss {

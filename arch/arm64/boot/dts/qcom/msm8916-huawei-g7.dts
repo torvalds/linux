@@ -222,6 +222,14 @@
 	status = "okay";
 };
 
+&pm8916_codec {
+	status = "okay";
+	qcom,micbias-lvl = <2800>;
+	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+	qcom,hphl-jack-type-normally-open;
+};
+
 &pm8916_l8 {
 	regulator-min-microvolt = <2950000>;
 	regulator-max-microvolt = <2950000>;
@@ -298,7 +306,7 @@
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
 		};
 	};
 
@@ -308,7 +316,7 @@
 			sound-dai = <&lpass MI2S_TERTIARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
 		};
 	};
 };
@@ -320,14 +328,6 @@
 
 &usb_hs_phy {
 	extcon = <&usb_id>;
-};
-
-&wcd_codec {
-	status = "okay";
-	qcom,micbias-lvl = <2800>;
-	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
-	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
-	qcom,hphl-jack-type-normally-open;
 };
 
 &wcnss {
