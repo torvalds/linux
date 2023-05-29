@@ -4329,12 +4329,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 		atomisp_subdev_set_selection(&asd->subdev, fh.state,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     ATOMISP_SUBDEV_PAD_SINK,
-					     V4L2_SEL_TGT_CROP,
-					     V4L2_SEL_FLAG_KEEP_CONFIG,
-					     &isp_sink_crop);
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
 					     ATOMISP_SUBDEV_PAD_SOURCE, V4L2_SEL_TGT_COMPOSE,
 					     0, &isp_sink_crop);
 	} else if (IS_MOFD) {
@@ -4358,37 +4352,10 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 					     V4L2_SEL_TGT_COMPOSE, 0,
 					     &main_compose);
 	} else {
-		struct v4l2_rect sink_crop = {0};
 		struct v4l2_rect main_compose = {0};
 
 		main_compose.width = f->fmt.pix.width;
 		main_compose.height = f->fmt.pix.height;
-
-		/* WORKAROUND: this override is universally enabled in
-		 * GMIN to work around a CTS failures (GMINL-539)
-		 * which appears to be related by a hardware
-		 * performance limitation.  It's unclear why this
-		 * particular code triggers the issue. */
-		if (isp_sink_crop.width * main_compose.height >
-		    isp_sink_crop.height * main_compose.width) {
-			sink_crop.height = isp_sink_crop.height;
-			sink_crop.width =
-				DIV_NEAREST_STEP(sink_crop.height * f->fmt.pix.width,
-						 f->fmt.pix.height,
-						 ATOM_ISP_STEP_WIDTH);
-		} else {
-			sink_crop.width = isp_sink_crop.width;
-			sink_crop.height =
-				DIV_NEAREST_STEP(sink_crop.width * f->fmt.pix.height,
-						 f->fmt.pix.width,
-						 ATOM_ISP_STEP_HEIGHT);
-		}
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     ATOMISP_SUBDEV_PAD_SINK,
-					     V4L2_SEL_TGT_CROP,
-					     V4L2_SEL_FLAG_KEEP_CONFIG,
-					     &sink_crop);
 
 		atomisp_subdev_set_selection(&asd->subdev, fh.state,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
