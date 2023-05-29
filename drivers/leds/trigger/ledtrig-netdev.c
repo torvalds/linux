@@ -110,6 +110,24 @@ static bool supports_hw_control(struct led_classdev *led_cdev)
 	return !strcmp(led_cdev->hw_control_trigger, led_cdev->trigger->name);
 }
 
+/*
+ * Validate the configured netdev is the same as the one associated with
+ * the LED driver in hw control.
+ */
+static bool validate_net_dev(struct led_classdev *led_cdev,
+			     struct net_device *net_dev)
+{
+	struct device *dev = led_cdev->hw_control_get_device(led_cdev);
+	struct net_device *ndev;
+
+	if (!dev)
+		return false;
+
+	ndev = to_net_dev(dev);
+
+	return ndev == net_dev;
+}
+
 static bool can_hw_control(struct led_netdev_data *trigger_data)
 {
 	unsigned long default_interval = msecs_to_jiffies(NETDEV_LED_DEFAULT_INTERVAL);
@@ -131,9 +149,11 @@ static bool can_hw_control(struct led_netdev_data *trigger_data)
 	/*
 	 * net_dev must be set with hw control, otherwise no
 	 * blinking can be happening and there is nothing to
-	 * offloaded.
+	 * offloaded. Additionally, for hw control to be
+	 * valid, the configured netdev must be the same as
+	 * netdev associated to the LED.
 	 */
-	if (!trigger_data->net_dev)
+	if (!validate_net_dev(led_cdev, trigger_data->net_dev))
 		return false;
 
 	/* Check if the requested mode is supported */
