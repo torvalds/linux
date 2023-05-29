@@ -4616,7 +4616,7 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 {
 	int error = 0, noent = 0;
 
-	if (!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid))) {
+	if (WARN_ON_ONCE(!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid)))) {
 		log_limit(ls, "receive %d from non-member %d %x %x %d",
 			  le32_to_cpu(ms->m_type),
 			  le32_to_cpu(ms->m_header.h_nodeid),
@@ -4754,7 +4754,7 @@ static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 		/* If we were a member of this lockspace, left, and rejoined,
 		   other nodes may still be sending us messages from the
 		   lockspace generation before we left. */
-		if (!ls->ls_generation) {
+		if (WARN_ON_ONCE(!ls->ls_generation)) {
 			log_limit(ls, "receive %d from %d ignore old gen",
 				  le32_to_cpu(ms->m_type), nodeid);
 			return;
