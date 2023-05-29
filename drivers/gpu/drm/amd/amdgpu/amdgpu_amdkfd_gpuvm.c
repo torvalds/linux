@@ -153,8 +153,11 @@ void amdgpu_amdkfd_reserve_system_mem(uint64_t size)
  * @size: Size of buffer, in bytes, encapsulated by B0. This should be
  * equivalent to amdgpu_bo_size(BO)
  * @alloc_flag: Flag used in allocating a BO as noted above
+ * @xcp_id: xcp_id is used to get xcp from xcp manager, one xcp is
+ * managed as one compute node in driver for app
  *
- * Return: returns -ENOMEM in case of error, ZERO otherwise
+ * Return:
+ *	returns -ENOMEM in case of error, ZERO otherwise
  */
 int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 alloc_flag, int8_t xcp_id)
