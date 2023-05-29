@@ -60,10 +60,10 @@ enum cif_csi_lvds_memory {
  */
 
 struct bayer_blc {
-	u8 pattern00;
-	u8 pattern01;
-	u8 pattern02;
-	u8 pattern03;
+	__u8 pattern00;
+	__u8 pattern01;
+	__u8 pattern02;
+	__u8 pattern03;
 };
 
 struct rkcif_fps {
