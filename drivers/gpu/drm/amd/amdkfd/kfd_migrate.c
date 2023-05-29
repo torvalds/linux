@@ -651,11 +651,13 @@ out_oom:
 /**
  * svm_migrate_vma_to_ram - migrate range inside one vma from device to system
  *
- * @adev: amdgpu device to migrate from
  * @prange: svm range structure
  * @vma: vm_area_struct that range [start, end] belongs to
  * @start: range start virtual address in pages
  * @end: range end virtual address in pages
+ * @node: kfd node device to migrate from
+ * @trigger: reason of migration
+ * @fault_page: is from vmf->page, svm_migrate_to_ram(), this is CPU page fault callback
  *
  * Context: Process context, caller hold mmap read lock, prange->migrate_mutex
  *
@@ -760,6 +762,7 @@ out:
  * @prange: range structure
  * @mm: process mm, use current->mm if NULL
  * @trigger: reason of migration
+ * @fault_page: is from vmf->page, svm_migrate_to_ram(), this is CPU page fault callback
  *
  * Context: Process context, caller hold mmap read lock, prange->migrate_mutex
  *
