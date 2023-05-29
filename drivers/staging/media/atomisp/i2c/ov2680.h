@@ -32,6 +32,14 @@
 
 #define OV2680_NATIVE_WIDTH			1616
 #define OV2680_NATIVE_HEIGHT			1216
+#define OV2680_NATIVE_START_LEFT		0
+#define OV2680_NATIVE_START_TOP			0
+#define OV2680_ACTIVE_WIDTH			1600
+#define OV2680_ACTIVE_HEIGHT			1200
+#define OV2680_ACTIVE_START_LEFT		8
+#define OV2680_ACTIVE_START_TOP			8
+#define OV2680_MIN_CROP_WIDTH			2
+#define OV2680_MIN_CROP_HEIGHT			2
 
 /* 1704 * 1294 * 30fps = 66MHz pixel clock */
 #define OV2680_PIXELS_PER_LINE			1704
@@ -117,6 +125,7 @@ struct ov2680_dev {
 	bool is_streaming;
 
 	struct ov2680_mode {
+		struct v4l2_rect crop;
 		struct v4l2_mbus_framefmt fmt;
 		bool binning;
 		u16 h_start;

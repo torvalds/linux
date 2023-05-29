@@ -30,6 +30,13 @@
 
 #include "ov2680.h"
 
+static const struct v4l2_rect ov2680_default_crop = {
+	.left = OV2680_ACTIVE_START_LEFT,
+	.top = OV2680_ACTIVE_START_TOP,
+	.width = OV2680_ACTIVE_WIDTH,
+	.height = OV2680_ACTIVE_HEIGHT,
+};
+
 static int ov2680_write_reg_array(struct i2c_client *client,
 				  const struct ov2680_reg *reglist)
 {
@@ -174,14 +181,23 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 }
 
 static struct v4l2_mbus_framefmt *
-__ov2680_get_pad_format(struct ov2680_dev *sensor,
-			struct v4l2_subdev_state *state,
+__ov2680_get_pad_format(struct ov2680_dev *sensor, struct v4l2_subdev_state *state,
 			unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&sensor->sd, state, pad);
 
 	return &sensor->mode.fmt;
+}
+
+static struct v4l2_rect *
+__ov2680_get_pad_crop(struct ov2680_dev *sensor, struct v4l2_subdev_state *state,
+		      unsigned int pad, enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_crop(&sensor->sd, state, pad);
+
+	return &sensor->mode.crop;
 }
 
 static void ov2680_fill_format(struct ov2680_dev *sensor,
@@ -202,8 +218,8 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 	int orig_width = width;
 	int orig_height = height;
 
-	if (width  <= (OV2680_NATIVE_WIDTH / 2) &&
-	    height <= (OV2680_NATIVE_HEIGHT / 2)) {
+	if (width  <= (sensor->mode.crop.width / 2) &&
+	    height <= (sensor->mode.crop.height / 2)) {
 		sensor->mode.binning = true;
 		width *= 2;
 		height *= 2;
@@ -211,8 +227,10 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 		sensor->mode.binning = false;
 	}
 
-	sensor->mode.h_start = ((OV2680_NATIVE_WIDTH - width) / 2) & ~1;
-	sensor->mode.v_start = ((OV2680_NATIVE_HEIGHT - height) / 2) & ~1;
+	sensor->mode.h_start =
+		(sensor->mode.crop.left + (sensor->mode.crop.width - width) / 2) & ~1;
+	sensor->mode.v_start =
+		(sensor->mode.crop.top + (sensor->mode.crop.height - height) / 2) & ~1;
 	sensor->mode.h_end = min(sensor->mode.h_start + width + OV2680_END_MARGIN - 1,
 				 OV2680_NATIVE_WIDTH - 1);
 	sensor->mode.v_end = min(sensor->mode.v_start + height + OV2680_END_MARGIN - 1,
@@ -326,10 +344,16 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 {
 	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
+	const struct v4l2_rect *crop;
 	unsigned int width, height;
 
-	width = min_t(unsigned int, ALIGN(format->format.width, 2), OV2680_NATIVE_WIDTH);
-	height = min_t(unsigned int, ALIGN(format->format.height, 2), OV2680_NATIVE_HEIGHT);
+	crop = __ov2680_get_pad_crop(sensor, sd_state, format->pad, format->which);
+
+	/* Limit set_fmt max size to crop width / height */
+	width = clamp_t(unsigned int, ALIGN(format->format.width, 2),
+			OV2680_MIN_CROP_WIDTH, crop->width);
+	height = clamp_t(unsigned int, ALIGN(format->format.height, 2),
+			 OV2680_MIN_CROP_HEIGHT, crop->height);
 
 	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad, format->which);
 	ov2680_fill_format(sensor, fmt, width, height);
@@ -357,6 +381,88 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov2680_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		mutex_lock(&sensor->lock);
+		sel->r = *__ov2680_get_pad_crop(sensor, state, sel->pad, sel->which);
+		mutex_unlock(&sensor->lock);
+		break;
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = OV2680_NATIVE_WIDTH;
+		sel->r.height = OV2680_NATIVE_HEIGHT;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = OV2680_ACTIVE_START_TOP;
+		sel->r.left = OV2680_ACTIVE_START_LEFT;
+		sel->r.width = OV2680_ACTIVE_WIDTH;
+		sel->r.height = OV2680_ACTIVE_HEIGHT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ov2680_set_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *__crop;
+	struct v4l2_rect rect;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	/*
+	 * Clamp the boundaries of the crop rectangle to the size of the sensor
+	 * pixel array. Align to multiples of 2 to ensure Bayer pattern isn't
+	 * disrupted.
+	 */
+	rect.left = clamp(ALIGN(sel->r.left, 2), OV2680_NATIVE_START_LEFT,
+			  OV2680_NATIVE_WIDTH);
+	rect.top = clamp(ALIGN(sel->r.top, 2), OV2680_NATIVE_START_TOP,
+			 OV2680_NATIVE_HEIGHT);
+	rect.width = clamp_t(unsigned int, ALIGN(sel->r.width, 2),
+			     OV2680_MIN_CROP_WIDTH, OV2680_NATIVE_WIDTH);
+	rect.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
+			      OV2680_MIN_CROP_HEIGHT, OV2680_NATIVE_HEIGHT);
+
+	/* Make sure the crop rectangle isn't outside the bounds of the array */
+	rect.width = min_t(unsigned int, rect.width,
+			   OV2680_NATIVE_WIDTH - rect.left);
+	rect.height = min_t(unsigned int, rect.height,
+			    OV2680_NATIVE_HEIGHT - rect.top);
+
+	__crop = __ov2680_get_pad_crop(sensor, state, sel->pad, sel->which);
+
+	if (rect.width != __crop->width || rect.height != __crop->height) {
+		/*
+		 * Reset the output image size if the crop rectangle size has
+		 * been modified.
+		 */
+		format = __ov2680_get_pad_format(sensor, state, sel->pad, sel->which);
+		format->width = rect.width;
+		format->height = rect.height;
+	}
+
+	*__crop = rect;
+	sel->r = rect;
+
+	return 0;
+}
+
 static int ov2680_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state)
 {
@@ -368,6 +474,8 @@ static int ov2680_init_cfg(struct v4l2_subdev *sd,
 			.height = 600,
 		},
 	};
+
+	sd_state->pads[0].try_crop = ov2680_default_crop;
 
 	return ov2680_set_fmt(sd, sd_state, &fmt);
 }
@@ -558,6 +666,8 @@ static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.enum_frame_interval = ov2680_enum_frame_interval,
 	.get_fmt = ov2680_get_fmt,
 	.set_fmt = ov2680_set_fmt,
+	.get_selection = ov2680_get_selection,
+	.set_selection = ov2680_set_selection,
 };
 
 static const struct v4l2_subdev_ops ov2680_ops = {
@@ -677,6 +787,7 @@ static int ov2680_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	sensor->mode.crop = ov2680_default_crop;
 	ov2680_fill_format(sensor, &sensor->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
 	ov2680_calc_mode(sensor);
 
