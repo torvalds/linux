@@ -3657,11 +3657,46 @@ static void __atomisp_init_stream_info(u16 stream_index,
 	}
 }
 
-/* This function looks up the closest available resolution. */
-int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
+static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
+				    u32 width, u32 height,
+				    const struct atomisp_format_bridge *br_fmt)
 {
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	u32 bytes;
+
+	f->width = width;
+	f->height = height;
+	f->pixelformat = br_fmt->pixelformat;
+
+	/* Adding padding to width for bytesperline calculation */
+	width = ia_css_frame_pad_width(width, br_fmt->sh_fmt);
+	bytes = BITS_TO_BYTES(br_fmt->depth * width);
+
+	if (br_fmt->planar)
+		f->bytesperline = width;
+	else
+		f->bytesperline = bytes;
+
+	f->sizeimage = PAGE_ALIGN(height * bytes);
+
+	if (f->field == V4L2_FIELD_ANY)
+		f->field = V4L2_FIELD_NONE;
+
+	/*
+	 * FIXME: do we need to set this up differently, depending on the
+	 * sensor or the pipeline?
+	 */
+	f->colorspace = V4L2_COLORSPACE_REC709;
+	f->ycbcr_enc = V4L2_YCBCR_ENC_709;
+	f->xfer_func = V4L2_XFER_FUNC_709;
+}
+
+/* This function looks up the closest available resolution. */
+int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
+		    const struct atomisp_format_bridge **fmt_ret,
+		    const struct atomisp_format_bridge **snr_fmt_ret)
+{
+	const struct atomisp_format_bridge *fmt, *snr_fmt;
+	struct atomisp_sub_device *asd = &isp->asd;
 	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
@@ -3670,33 +3705,29 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
-	const struct atomisp_format_bridge *fmt;
 	int ret;
-
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
 
 	if (!input->camera)
 		return -EINVAL;
 
 	fmt = atomisp_get_format_bridge(f->pixelformat);
-	if (!fmt) {
-		dev_err(isp->dev, "unsupported pixelformat!\n");
-		fmt = atomisp_output_fmts;
+	/* Currently, raw formats are broken!!! */
+	if (!fmt || fmt->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
+		f->pixelformat = V4L2_PIX_FMT_YUV420;
+
+		fmt = atomisp_get_format_bridge(f->pixelformat);
+		if (!fmt)
+			return -EINVAL;
 	}
 
-	if (f->width <= 0 || f->height <= 0)
-		return -EINVAL;
-
-	format.format.code = fmt->mbus_code;
-	format.format.width = f->width;
-	format.format.height = f->height;
-
-	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL,
-				   (struct atomisp_input_stream_info *)format.format.reserved);
+	/*
+	 * atomisp_set_fmt() will set the sensor resolution to the requested
+	 * resolution + padding. Add padding here and remove it again after
+	 * the set_fmt call, like atomisp_set_fmt_to_snr() does.
+	 */
+	v4l2_fill_mbus_format(&format.format, f, fmt->mbus_code);
+	format.format.width += pad_w;
+	format.format.height += pad_h;
 
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
@@ -3708,16 +3739,15 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 	dev_dbg(isp->dev, "try_mbus_fmt: got %ux%u\n",
 		format.format.width, format.format.height);
 
-	fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
-	if (!fmt) {
+	snr_fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
+	if (!snr_fmt) {
 		dev_err(isp->dev, "unknown sensor format 0x%8.8x\n",
 			format.format.code);
 		return -EINVAL;
 	}
 
-	f->pixelformat = fmt->pixelformat;
-	f->width = format.format.width;
-	f->height = format.format.height;
+	f->width = format.format.width - pad_w;
+	f->height = format.format.height - pad_h;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -3727,13 +3757,22 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f)
 	 */
 	if (f->pixelformat == V4L2_PIX_FMT_JPEG ||
 	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW)
-		return 0;
+		goto out_fill_pix_format;
 
 	/* app vs isp */
 	f->width = rounddown(clamp_t(u32, f->width, ATOM_ISP_MIN_WIDTH,
 				     ATOM_ISP_MAX_WIDTH), ATOM_ISP_STEP_WIDTH);
 	f->height = rounddown(clamp_t(u32, f->height, ATOM_ISP_MIN_HEIGHT,
 				      ATOM_ISP_MAX_HEIGHT), ATOM_ISP_STEP_HEIGHT);
+
+out_fill_pix_format:
+	atomisp_fill_pix_format(f, f->width, f->height, fmt);
+
+	if (fmt_ret)
+		*fmt_ret = fmt;
+
+	if (snr_fmt_ret)
+		*snr_fmt_ret = snr_fmt;
 
 	return 0;
 }
@@ -3900,7 +3939,7 @@ static int css_input_resolution_changed(struct atomisp_sub_device *asd,
 
 static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				  struct ia_css_frame_info *output_info,
-				  struct v4l2_pix_format *pix)
+				  const struct v4l2_pix_format *pix)
 {
 	struct camera_mipi_info *mipi_info;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
@@ -4213,16 +4252,12 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
-	struct v4l2_subdev_format vformat = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
 	struct v4l2_rect isp_sink_crop;
 	int ret;
 
@@ -4234,41 +4269,13 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		"setting resolution %ux%u bytesperline %u\n",
 		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.bytesperline);
 
-	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-	if (!format_bridge)
-		return -EINVAL;
-
-	/* Currently, raw formats are broken!!! */
-
-	if (format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
-
-		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-		if (!format_bridge)
-			return -EINVAL;
-	}
-	pipe->sh_fmt = format_bridge->sh_fmt;
-	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
-
 	/* Ensure that the resolution is equal or below the maximum supported */
-
-	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_fill_mbus_format(&vformat.format, &f->fmt.pix, format_bridge->mbus_code);
-	vformat.format.height += padding_h;
-	vformat.format.width += padding_w;
-
-	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
+	ret = atomisp_try_fmt(isp, &f->fmt.pix, &format_bridge, &snr_format_bridge);
 	if (ret)
 		return ret;
 
-	f->fmt.pix.width = vformat.format.width - padding_w;
-	f->fmt.pix.height = vformat.format.height - padding_h;
-
-	snr_format_bridge = atomisp_get_format_bridge_from_mbus(vformat.format.code);
-	if (!snr_format_bridge) {
-		dev_warn(isp->dev, "Can't find bridge format\n");
-		return -EINVAL;
-	}
+	pipe->sh_fmt = format_bridge->sh_fmt;
+	pipe->pix.pixelformat = format_bridge->pixelformat;
 
 	atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -4348,42 +4355,11 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		return -EINVAL;
 	}
 
-	pipe->pix.width = f->fmt.pix.width;
-	pipe->pix.height = f->fmt.pix.height;
-	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
-	/*
-	 * FIXME: do we need to setup this differently, depending on the
-	 * sensor or the pipeline?
-	 */
-	pipe->pix.colorspace = V4L2_COLORSPACE_REC709;
-	pipe->pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	pipe->pix.xfer_func = V4L2_XFER_FUNC_709;
-
-	if (format_bridge->planar) {
-		pipe->pix.bytesperline = output_info.padded_width;
-		pipe->pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
-						 DIV_ROUND_UP(format_bridge->depth *
-							 output_info.padded_width, 8));
-	} else {
-		pipe->pix.bytesperline =
-		    DIV_ROUND_UP(format_bridge->depth *
-				 output_info.padded_width, 8);
-		pipe->pix.sizeimage =
-		    PAGE_ALIGN(f->fmt.pix.height * pipe->pix.bytesperline);
-	}
-	dev_dbg(isp->dev, "%s: image size: %d, %d bytes per line\n",
-		__func__, pipe->pix.sizeimage, pipe->pix.bytesperline);
-
-	if (f->fmt.pix.field == V4L2_FIELD_ANY)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-	pipe->pix.field = f->fmt.pix.field;
+	atomisp_fill_pix_format(&pipe->pix, f->fmt.pix.width, f->fmt.pix.height, format_bridge);
 
 	f->fmt.pix = pipe->pix;
 	f->fmt.pix.priv = PAGE_ALIGN(pipe->pix.width *
 				     pipe->pix.height * 2);
-	/* Report the needed sizes */
-	f->fmt.pix.sizeimage = pipe->pix.sizeimage;
-	f->fmt.pix.bytesperline = pipe->pix.bytesperline;
 
 	dev_dbg(isp->dev, "%s: %dx%d, image size: %d, %d bytes per line\n",
 		__func__,

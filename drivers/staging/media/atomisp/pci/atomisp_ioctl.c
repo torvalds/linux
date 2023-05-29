@@ -806,77 +806,14 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-static int atomisp_adjust_fmt(struct v4l2_format *f)
-{
-	const struct atomisp_format_bridge *format_bridge;
-	u32 padded_width;
-
-	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-	/* Currently, raw formats are broken!!! */
-	if (!format_bridge || format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
-
-		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-		if (!format_bridge)
-			return -EINVAL;
-	}
-
-	padded_width = f->fmt.pix.width + pad_w;
-
-	if (format_bridge->planar) {
-		f->fmt.pix.bytesperline = padded_width;
-		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
-						  DIV_ROUND_UP(format_bridge->depth *
-						  padded_width, 8));
-	} else {
-		f->fmt.pix.bytesperline = DIV_ROUND_UP(format_bridge->depth *
-						      padded_width, 8);
-		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
-	}
-
-	if (f->fmt.pix.field == V4L2_FIELD_ANY)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-
-	/*
-	 * FIXME: do we need to setup this differently, depending on the
-	 * sensor or the pipeline?
-	 */
-	f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
-	f->fmt.pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	f->fmt.pix.xfer_func = V4L2_XFER_FUNC_709;
-
-	f->fmt.pix.width -= pad_w;
-	f->fmt.pix.height -= pad_h;
-
-	return 0;
-}
-
 /* This function looks up the closest available resolution. */
 static int atomisp_try_fmt_cap(struct file *file, void *fh,
 			       struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
-	u32 pixfmt = f->fmt.pix.pixelformat;
-	int ret;
+	struct atomisp_device *isp = video_get_drvdata(vdev);
 
-	/*
-	 * atomisp_try_fmt() gived results with padding included, note
-	 * (this gets removed again by the atomisp_adjust_fmt() call below.
-	 */
-	f->fmt.pix.width += pad_w;
-	f->fmt.pix.height += pad_h;
-
-	ret = atomisp_try_fmt(vdev, &f->fmt.pix);
-	if (ret)
-		return ret;
-
-	/*
-	 * atomisp_try_fmt() replaces pixelformat with the sensors native
-	 * format, restore the actual format requested by userspace.
-	 */
-	f->fmt.pix.pixelformat = pixfmt;
-
-	return atomisp_adjust_fmt(f);
+	return atomisp_try_fmt(isp, &f->fmt.pix, NULL, NULL);
 }
 
 static int atomisp_g_fmt_cap(struct file *file, void *fh,
