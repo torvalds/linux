@@ -1497,8 +1497,7 @@ int dlm_lowcomms_close(int nodeid)
 	call_srcu(&connections_srcu, &con->rcu, connection_release);
 	if (con->othercon) {
 		clean_one_writequeue(con->othercon);
-		if (con->othercon)
-			call_srcu(&connections_srcu, &con->othercon->rcu, connection_release);
+		call_srcu(&connections_srcu, &con->othercon->rcu, connection_release);
 	}
 	srcu_read_unlock(&connections_srcu, idx);
 
