@@ -106,7 +106,7 @@
 /*
  * ov2680 device structure.
  */
-struct ov2680_device {
+struct ov2680_dev {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct mutex input_lock;
@@ -151,12 +151,12 @@ struct ov2680_reg {
 	u32 val;	/* @set value for read/mod/write, @mask */
 };
 
-#define to_ov2680_sensor(x) container_of(x, struct ov2680_device, sd)
+#define to_ov2680_sensor(x) container_of(x, struct ov2680_dev, sd)
 
 static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 {
-	struct ov2680_device *sensor =
-		container_of(ctrl->handler, struct ov2680_device, ctrls.handler);
+	struct ov2680_dev *sensor =
+		container_of(ctrl->handler, struct ov2680_dev, ctrls.handler);
 
 	return &sensor->sd;
 }

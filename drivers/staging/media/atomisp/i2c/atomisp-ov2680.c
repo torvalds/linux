@@ -45,7 +45,7 @@ static int ov2680_write_reg_array(struct i2c_client *client,
 	return 0;
 }
 
-static void ov2680_set_bayer_order(struct ov2680_device *sensor, struct v4l2_mbus_framefmt *fmt)
+static void ov2680_set_bayer_order(struct ov2680_dev *sensor, struct v4l2_mbus_framefmt *fmt)
 {
 	static const int ov2680_hv_flip_bayer_order[] = {
 		MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -64,7 +64,7 @@ static void ov2680_set_bayer_order(struct ov2680_device *sensor, struct v4l2_mbu
 	fmt->code = ov2680_hv_flip_bayer_order[hv_flip];
 }
 
-static int ov2680_set_vflip(struct ov2680_device *sensor, s32 val)
+static int ov2680_set_vflip(struct ov2680_dev *sensor, s32 val)
 {
 	int ret;
 
@@ -79,7 +79,7 @@ static int ov2680_set_vflip(struct ov2680_device *sensor, s32 val)
 	return 0;
 }
 
-static int ov2680_set_hflip(struct ov2680_device *sensor, s32 val)
+static int ov2680_set_hflip(struct ov2680_dev *sensor, s32 val)
 {
 	int ret;
 
@@ -94,17 +94,17 @@ static int ov2680_set_hflip(struct ov2680_device *sensor, s32 val)
 	return 0;
 }
 
-static int ov2680_exposure_set(struct ov2680_device *sensor, u32 exp)
+static int ov2680_exposure_set(struct ov2680_dev *sensor, u32 exp)
 {
 	return ov_write_reg24(sensor->client, OV2680_REG_EXPOSURE_PK_HIGH, exp << 4);
 }
 
-static int ov2680_gain_set(struct ov2680_device *sensor, u32 gain)
+static int ov2680_gain_set(struct ov2680_dev *sensor, u32 gain)
 {
 	return ov_write_reg16(sensor->client, OV2680_REG_GAIN_PK, gain);
 }
 
-static int ov2680_test_pattern_set(struct ov2680_device *sensor, int value)
+static int ov2680_test_pattern_set(struct ov2680_dev *sensor, int value)
 {
 	int ret;
 
@@ -125,7 +125,7 @@ static int ov2680_test_pattern_set(struct ov2680_device *sensor, int value)
 static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	int ret;
 
 	/* Only apply changes to the controls if the device is powered up */
@@ -174,7 +174,7 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 }
 
 static struct v4l2_mbus_framefmt *
-__ov2680_get_pad_format(struct ov2680_device *sensor,
+__ov2680_get_pad_format(struct ov2680_dev *sensor,
 			struct v4l2_subdev_state *state,
 			unsigned int pad, enum v4l2_subdev_format_whence which)
 {
@@ -184,7 +184,7 @@ __ov2680_get_pad_format(struct ov2680_device *sensor,
 	return &sensor->mode.fmt;
 }
 
-static void ov2680_fill_format(struct ov2680_device *sensor,
+static void ov2680_fill_format(struct ov2680_dev *sensor,
 			       struct v4l2_mbus_framefmt *fmt,
 			       unsigned int width, unsigned int height)
 {
@@ -195,7 +195,7 @@ static void ov2680_fill_format(struct ov2680_device *sensor,
 	ov2680_set_bayer_order(sensor, fmt);
 }
 
-static void ov2680_calc_mode(struct ov2680_device *sensor, int width, int height)
+static void ov2680_calc_mode(struct ov2680_dev *sensor, int width, int height)
 {
 	int orig_width = width;
 	int orig_height = height;
@@ -221,7 +221,7 @@ static void ov2680_calc_mode(struct ov2680_device *sensor, int width, int height
 	sensor->mode.vts = OV2680_LINES_PER_FRAME;
 }
 
-static int ov2680_set_mode(struct ov2680_device *sensor)
+static int ov2680_set_mode(struct ov2680_dev *sensor)
 {
 	struct i2c_client *client = sensor->client;
 	u8 pll_div, unknown, inc, fmt1, fmt2;
@@ -322,7 +322,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int width, height;
 
@@ -347,7 +347,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
 
 	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad, format->which);
@@ -390,7 +390,7 @@ static int ov2680_detect(struct i2c_client *client)
 
 static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
@@ -548,7 +548,7 @@ static const struct v4l2_subdev_ops ov2680_ops = {
 	.sensor = &ov2680_sensor_ops,
 };
 
-static int ov2680_init_controls(struct ov2680_device *sensor)
+static int ov2680_init_controls(struct ov2680_dev *sensor)
 {
 	static const char * const test_pattern_menu[] = {
 		"Disabled",
@@ -590,7 +590,7 @@ static int ov2680_init_controls(struct ov2680_device *sensor)
 static void ov2680_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 
 	dev_dbg(&client->dev, "ov2680_remove...\n");
 
@@ -605,7 +605,7 @@ static void ov2680_remove(struct i2c_client *client)
 static int ov2680_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct ov2680_device *sensor;
+	struct ov2680_dev *sensor;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
@@ -673,7 +673,7 @@ static int ov2680_probe(struct i2c_client *client)
 static int ov2680_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 
 	gpiod_set_value_cansleep(sensor->powerdown, 1);
 	return 0;
@@ -682,7 +682,7 @@ static int ov2680_suspend(struct device *dev)
 static int ov2680_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
+	struct ov2680_dev *sensor = to_ov2680_sensor(sd);
 
 	/* according to DS, at least 5ms is needed after DOVDD (enabled by ACPI) */
 	usleep_range(5000, 6000);
