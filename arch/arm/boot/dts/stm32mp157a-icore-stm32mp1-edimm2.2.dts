@@ -107,8 +107,7 @@
 	status = "okay";
 
 	port {
-		ltdc_out_dsi: endpoint@0 {
-			reg = <0>;
+		ltdc_out_dsi: endpoint {
 			remote-endpoint = <&dsi_in_ltdc>;
 		};
 	};
