@@ -290,6 +290,9 @@ mlxsw_sp_flower_parse_meta_iif(struct mlxsw_sp_acl_rule_info *rulei,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *ingress_dev;
 
+	if (!match->mask->ingress_ifindex)
+		return 0;
+
 	if (match->mask->ingress_ifindex != 0xFFFFFFFF) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
 		return -EINVAL;
