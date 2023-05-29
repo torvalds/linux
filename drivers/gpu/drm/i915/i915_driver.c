@@ -1118,18 +1118,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	return 0;
 }
 
-static enum i915_drm_suspend_mode
-get_suspend_mode(struct drm_i915_private *dev_priv, bool hibernate)
-{
-	if (hibernate)
-		return I915_DRM_SUSPEND_HIBERNATE;
-
-	if (suspend_to_idle(dev_priv))
-		return I915_DRM_SUSPEND_IDLE;
-
-	return I915_DRM_SUSPEND_MEM;
-}
-
 static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1137,6 +1125,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	struct intel_gt *gt;
 	int ret, i;
+	bool s2idle = !hibernation && suspend_to_idle(dev_priv);
 
 	disable_rpm_wakeref_asserts(rpm);
 
@@ -1147,8 +1136,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	for_each_gt(gt, dev_priv, i)
 		intel_uncore_suspend(gt->uncore);
 
-	intel_power_domains_suspend(dev_priv,
-				    get_suspend_mode(dev_priv, hibernation));
+	intel_power_domains_suspend(dev_priv, s2idle);
 
 	intel_display_power_suspend_late(dev_priv);
 
