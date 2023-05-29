@@ -66,7 +66,7 @@ features surfaced as a result:
 ::
 
   struct dma_async_tx_descriptor *
-  async_<operation>(<op specific parameters>, struct async_submit ctl *submit)
+  async_<operation>(<op specific parameters>, struct async_submit_ctl *submit)
 
 3.2 Supported operations
 ------------------------
