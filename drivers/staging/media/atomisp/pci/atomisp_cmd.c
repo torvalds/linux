@@ -3717,6 +3717,47 @@ static void atomisp_get_padding(struct atomisp_device *isp,
 	*padding_h = min_t(u32, (native_rect.height - height) & ~1, pad_h);
 }
 
+static int atomisp_set_crop(struct atomisp_device *isp,
+			    const struct v4l2_mbus_framefmt *format,
+			    int which)
+{
+	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
+	struct v4l2_subdev_state pad_state = {
+		.pads = &input->pad_cfg,
+	};
+	struct v4l2_subdev_selection sel = {
+		.which = which,
+		.target = V4L2_SEL_TGT_CROP,
+		.r.width = format->width,
+		.r.height = format->height,
+	};
+	int ret;
+
+	if (!input->crop_support)
+		return 0;
+
+	/* Cropping is done before binning, when binning double the crop rect */
+	if (input->binning_support && sel.r.width <= (input->active_rect.width / 2) &&
+				      sel.r.height <= (input->active_rect.height / 2)) {
+		sel.r.width *= 2;
+		sel.r.height *= 2;
+	}
+
+	/* Clamp to avoid top/left calculations overflowing */
+	sel.r.width = min(sel.r.width, input->native_rect.width);
+	sel.r.height = min(sel.r.height, input->native_rect.height);
+
+	sel.r.left = ((input->native_rect.width - sel.r.width) / 2) & ~1;
+	sel.r.top = ((input->native_rect.height - sel.r.height) / 2) & ~1;
+
+	ret = v4l2_subdev_call(input->camera, pad, set_selection, &pad_state, &sel);
+	if (ret)
+		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
+			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
+
+	return ret;
+}
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,
@@ -3759,6 +3800,10 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
+
+	ret = atomisp_set_crop(isp, &format.format, V4L2_SUBDEV_FORMAT_TRY);
+	if (ret)
+		return ret;
 
 	ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &format);
 	if (ret)
@@ -4227,6 +4272,10 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
+		ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_TRY);
+		if (ret)
+			return ret;
+
 		vformat.which = V4L2_SUBDEV_FORMAT_TRY;
 		ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &vformat);
 		if (ret)
@@ -4245,6 +4294,11 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 			asd->params.video_dis_en = false;
 		}
 	}
+
+	ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_ACTIVE);
+	if (ret)
+		return ret;
+
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
 	if (ret)
