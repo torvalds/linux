@@ -546,9 +546,6 @@ int dlm_lowcomms_connect_node(int nodeid)
 	struct connection *con;
 	int idx;
 
-	if (nodeid == dlm_our_nodeid())
-		return 0;
-
 	idx = srcu_read_lock(&connections_srcu);
 	con = nodeid2con(nodeid, 0);
 	if (WARN_ON_ONCE(!con)) {

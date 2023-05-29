@@ -1280,9 +1280,6 @@ void dlm_midcomms_add_member(int nodeid)
 	struct midcomms_node *node;
 	int idx;
 
-	if (nodeid == dlm_our_nodeid())
-		return;
-
 	idx = srcu_read_lock(&nodes_srcu);
 	node = nodeid2node(nodeid, GFP_NOFS);
 	if (!node) {
@@ -1327,9 +1324,6 @@ void dlm_midcomms_remove_member(int nodeid)
 {
 	struct midcomms_node *node;
 	int idx;
-
-	if (nodeid == dlm_our_nodeid())
-		return;
 
 	idx = srcu_read_lock(&nodes_srcu);
 	node = nodeid2node(nodeid, 0);
@@ -1486,9 +1480,6 @@ int dlm_midcomms_close(int nodeid)
 {
 	struct midcomms_node *node;
 	int idx, ret;
-
-	if (nodeid == dlm_our_nodeid())
-		return 0;
 
 	idx = srcu_read_lock(&nodes_srcu);
 	/* Abort pending close/remove operation */
