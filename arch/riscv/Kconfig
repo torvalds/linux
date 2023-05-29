@@ -873,6 +873,9 @@ config ARCH_HIBERNATION_POSSIBLE
 config ARCH_HIBERNATION_HEADER
 	def_bool HIBERNATION
 
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
 endmenu # "Power management options"
 
 menu "CPU Power Management"
