@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 #define HL_DRIVER_ALLOCATE_DYNAMIC_MEM 0xffffffff
-// hl_drv_ioctl numbers
+/* hl_drv_ioctl numbers */
 enum {
 	HL_DRV_NR_MIN = 0x10,
 	HL_DRV_NR_INIT,
@@ -127,4 +127,4 @@ struct hl_drv_ioc_status {
 
 #define RK_DRV_IOC_RESET _IOR('H', RK_DRV_NR_RESET, __u32)
 
-#endif // _DW_HDCP_HOST_LIB_DRIVER_LINUX_IF_H_
+#endif /* _DW_HDCP_HOST_LIB_DRIVER_LINUX_IF_H_ */
