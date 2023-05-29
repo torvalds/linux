@@ -159,13 +159,6 @@ int atomisp_set_dis_vector(struct atomisp_sub_device *asd,
 int atomisp_3a_stat(struct atomisp_sub_device *asd, int flag,
 		    struct atomisp_3a_statistics *config);
 
-/* Function to get metadata from isp */
-int atomisp_get_metadata(struct atomisp_sub_device *asd, int flag,
-			 struct atomisp_metadata *config);
-
-int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
-				 struct atomisp_metadata_with_type *config);
-
 int atomisp_set_parameters(struct video_device *vdev,
 			   struct atomisp_parameters *arg);
 
@@ -266,9 +259,6 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);
 
 void atomisp_free_internal_buffers(struct atomisp_sub_device *asd);
-
-int atomisp_s_ae_window(struct atomisp_sub_device *asd,
-			struct atomisp_ae_window *arg);
 
 int  atomisp_flash_enable(struct atomisp_sub_device *asd,
 			  int num_frames);

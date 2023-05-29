@@ -1763,13 +1763,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
-	struct v4l2_subdev *motor;
 	int err;
-
-	if (!IS_ISP2401)
-		motor = isp->inputs[asd->input_curr].motor;
-	else
-		motor = isp->motor;
 
 	switch (cmd) {
 	case ATOMISP_IOC_S_SENSOR_RUNMODE:
@@ -1921,30 +1915,9 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_fixed_pattern_table(asd, arg);
 		break;
 
-	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:
-		if (motor)
-			err = v4l2_subdev_call(motor, core, ioctl, cmd, arg);
-		else
-			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					       core, ioctl, cmd, arg);
-		break;
-
 	case ATOMISP_IOC_S_EXPOSURE:
-	case ATOMISP_IOC_G_SENSOR_CALIBRATION_GROUP:
-	case ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA:
-	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_INFO:
-	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_MODE:
-	case ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE:
-	case ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT:
 		err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, ioctl, cmd, arg);
-		break;
-	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-		if (IS_ISP2401)
-			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					       core, ioctl, cmd, arg);
-		else
-			err = -EINVAL;
 		break;
 
 	case ATOMISP_IOC_S_ISP_SHD_TAB:
@@ -1963,12 +1936,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_set_parameters(vdev, arg);
 		break;
 
-	case ATOMISP_IOC_G_METADATA:
-		err = atomisp_get_metadata(asd, 0, arg);
-		break;
-	case ATOMISP_IOC_G_METADATA_BY_TYPE:
-		err = atomisp_get_metadata_by_type(asd, 0, arg);
-		break;
 	case ATOMISP_IOC_EXT_ISP_CTRL:
 		err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, ioctl, cmd, arg);
@@ -1989,14 +1956,8 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	case ATOMISP_IOC_S_FORMATS_CONFIG:
 		err = atomisp_formats(asd, 1, arg);
 		break;
-	case ATOMISP_IOC_S_EXPOSURE_WINDOW:
-		err = atomisp_s_ae_window(asd, arg);
-		break;
 	case ATOMISP_IOC_INJECT_A_FAKE_EVENT:
 		err = atomisp_inject_a_fake_event(asd, arg);
-		break;
-	case ATOMISP_IOC_G_INVALID_FRAME_NUM:
-		err = atomisp_get_invalid_frame_num(vdev, arg);
 		break;
 	case ATOMISP_IOC_S_ARRAY_RESOLUTION:
 		err = atomisp_set_array_res(asd, arg);
