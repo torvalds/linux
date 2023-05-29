@@ -134,6 +134,7 @@ struct svm_range {
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
 	bool				validated_once;
 	bool				mapped_to_gpu;
+	bool				is_error_flag;
 };
 
 static inline void svm_range_lock(struct svm_range *prange)
