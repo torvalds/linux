@@ -355,6 +355,21 @@ static u8 __calc_hdr_byte_sum(const struct amdgpu_ras_eeprom_control *control)
 	return csum;
 }
 
+static u8 __calc_ras_info_byte_sum(const struct amdgpu_ras_eeprom_control *control)
+{
+	int ii;
+	u8  *pp, csum;
+	size_t sz;
+
+	sz = sizeof(control->tbl_rai);
+	pp = (u8 *) &control->tbl_rai;
+	csum = 0;
+	for (ii = 0; ii < sz; ii++, pp++)
+		csum += *pp;
+
+	return csum;
+}
+
 static int amdgpu_ras_eeprom_correct_header_tag(
 	struct amdgpu_ras_eeprom_control *control,
 	uint32_t header)
@@ -414,6 +429,8 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	}
 
 	csum = __calc_hdr_byte_sum(control);
+	if (hdr->version == RAS_TABLE_VER_V2_1)
+		csum += __calc_ras_info_byte_sum(control);
 	csum = -csum;
 	hdr->checksum = csum;
 	res = __write_table_header(control);
@@ -739,6 +756,8 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		csum += *pp;
 
 	csum += __calc_hdr_byte_sum(control);
+	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
+		csum += __calc_ras_info_byte_sum(control);
 	/* avoid sign extension when assigning to "checksum" */
 	csum = -csum;
 	control->tbl_hdr.checksum = csum;
