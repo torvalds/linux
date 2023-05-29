@@ -92,8 +92,22 @@ static void set_baseline_state(struct led_netdev_data *trigger_data)
 	}
 }
 
+static bool supports_hw_control(struct led_classdev *led_cdev)
+{
+	if (!led_cdev->hw_control_get || !led_cdev->hw_control_set ||
+	    !led_cdev->hw_control_is_supported)
+		return false;
+
+	return !strcmp(led_cdev->hw_control_trigger, led_cdev->trigger->name);
+}
+
 static bool can_hw_control(struct led_netdev_data *trigger_data)
 {
+	struct led_classdev *led_cdev = trigger_data->led_cdev;
+
+	if (!supports_hw_control(led_cdev))
+		return false;
+
 	return false;
 }
 
