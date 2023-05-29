@@ -4747,6 +4747,46 @@ action_show(struct mddev *mddev, char *page)
 	return sprintf(page, "%s\n", type);
 }
 
+static void stop_sync_thread(struct mddev *mddev)
+{
+	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return;
+
+	if (mddev_lock(mddev))
+		return;
+
+	/*
+	 * Check again in case MD_RECOVERY_RUNNING is cleared before lock is
+	 * held.
+	 */
+	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery)) {
+		mddev_unlock(mddev);
+		return;
+	}
+
+	if (work_pending(&mddev->del_work))
+		flush_workqueue(md_misc_wq);
+
+	if (mddev->sync_thread) {
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+		md_reap_sync_thread(mddev);
+	}
+
+	mddev_unlock(mddev);
+}
+
+static void idle_sync_thread(struct mddev *mddev)
+{
+	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	stop_sync_thread(mddev);
+}
+
+static void frozen_sync_thread(struct mddev *mddev)
+{
+	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	stop_sync_thread(mddev);
+}
+
 static ssize_t
 action_store(struct mddev *mddev, const char *page, size_t len)
 {
@@ -4754,22 +4794,11 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 		return -EINVAL;
 
 
-	if (cmd_match(page, "idle") || cmd_match(page, "frozen")) {
-		if (cmd_match(page, "frozen"))
-			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-		else
-			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
-		    mddev_lock(mddev) == 0) {
-			if (work_pending(&mddev->del_work))
-				flush_workqueue(md_misc_wq);
-			if (mddev->sync_thread) {
-				set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-				md_reap_sync_thread(mddev);
-			}
-			mddev_unlock(mddev);
-		}
-	} else if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+	if (cmd_match(page, "idle"))
+		idle_sync_thread(mddev);
+	else if (cmd_match(page, "frozen"))
+		frozen_sync_thread(mddev);
+	else if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		return -EBUSY;
 	else if (cmd_match(page, "resync"))
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
