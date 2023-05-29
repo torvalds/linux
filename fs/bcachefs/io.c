@@ -2057,14 +2057,16 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 				.write_flags	= BCH_WRITE_ALLOC_NOWAIT|BCH_WRITE_CACHED,
 			},
 			btree_id, k);
-	if (ret == -BCH_ERR_nocow_lock_blocked) {
+	if (ret) {
+		WARN_ONCE(ret != -BCH_ERR_nocow_lock_blocked,
+			  "%s: saw unknown error %s\n", __func__, bch2_err_str(ret));
+
 		ret = rhashtable_remove_fast(&c->promote_table, &op->hash,
 					bch_promote_params);
 		BUG_ON(ret);
 		goto err;
 	}
 
-	BUG_ON(ret);
 	op->write.op.end_io = promote_done;
 
 	return op;
