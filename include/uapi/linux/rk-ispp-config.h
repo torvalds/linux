@@ -18,14 +18,14 @@
 #define ISPP_ID_ORB			(4)
 #define ISPP_ID_MAX			(5)
 
-#define ISPP_MODULE_TNR			BIT(ISPP_ID_TNR)//2TO1
+#define ISPP_MODULE_TNR			BIT(ISPP_ID_TNR)/* 2TO1 */
 #define ISPP_MODULE_NR			BIT(ISPP_ID_NR)
 #define ISPP_MODULE_SHP			BIT(ISPP_ID_SHP)
-#define ISPP_MODULE_FEC			BIT(ISPP_ID_FEC)//CALIBRATION
+#define ISPP_MODULE_FEC			BIT(ISPP_ID_FEC)/* CALIBRATION */
 #define ISPP_MODULE_ORB			BIT(ISPP_ID_ORB)
-//extra function
+/* extra function */
 #define ISPP_MODULE_TNR_3TO1		(BIT(16) | ISPP_MODULE_TNR)
-#define ISPP_MODULE_FEC_ST		(BIT(17) | ISPP_MODULE_FEC)//STABILIZATION
+#define ISPP_MODULE_FEC_ST		(BIT(17) | ISPP_MODULE_FEC)/* STABILIZATION */
 
 #define TNR_SIGMA_CURVE_SIZE		17
 #define TNR_LUMA_CURVE_SIZE		6
@@ -129,157 +129,157 @@ struct rkispp_fec_in_out {
 };
 
 struct rkispp_buf_idxfd {
-	u32 buf_num;
-	u32 index[MAX_BUF_IDXFD_NUM];
-	s32 dmafd[MAX_BUF_IDXFD_NUM];
+	__u32 buf_num;
+	__u32 index[MAX_BUF_IDXFD_NUM];
+	__s32 dmafd[MAX_BUF_IDXFD_NUM];
 } __attribute__ ((packed));
 
 struct rkispp_trigger_mode {
-	u32 module;
-	u32 on;
+	__u32 module;
+	__u32 on;
 } __attribute__ ((packed));
 
 struct rkispp_tnr_config {
-	u8 opty_en;
-	u8 optc_en;
-	u8 gain_en;
-	u8 pk0_y;
-	u8 pk1_y;
-	u8 pk0_c;
-	u8 pk1_c;
-	u8 glb_gain_cur_sqrt;
-	u8 sigma_x[TNR_SIGMA_CURVE_SIZE - 1];
-	u8 gfcoef_y0[TNR_GFCOEF6_SIZE];
-	u8 gfcoef_y1[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_y2[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_y3[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_yg0[TNR_GFCOEF6_SIZE];
-	u8 gfcoef_yg1[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_yg2[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_yg3[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_yl0[TNR_GFCOEF6_SIZE];
-	u8 gfcoef_yl1[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_yl2[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_cg0[TNR_GFCOEF6_SIZE];
-	u8 gfcoef_cg1[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_cg2[TNR_GFCOEF3_SIZE];
-	u8 gfcoef_cl0[TNR_GFCOEF6_SIZE];
-	u8 gfcoef_cl1[TNR_GFCOEF3_SIZE];
-	u8 weight_y[TNR_WEIGHT_Y_SIZE];
+	__u8 opty_en;
+	__u8 optc_en;
+	__u8 gain_en;
+	__u8 pk0_y;
+	__u8 pk1_y;
+	__u8 pk0_c;
+	__u8 pk1_c;
+	__u8 glb_gain_cur_sqrt;
+	__u8 sigma_x[TNR_SIGMA_CURVE_SIZE - 1];
+	__u8 gfcoef_y0[TNR_GFCOEF6_SIZE];
+	__u8 gfcoef_y1[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_y2[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_y3[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_yg0[TNR_GFCOEF6_SIZE];
+	__u8 gfcoef_yg1[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_yg2[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_yg3[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_yl0[TNR_GFCOEF6_SIZE];
+	__u8 gfcoef_yl1[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_yl2[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_cg0[TNR_GFCOEF6_SIZE];
+	__u8 gfcoef_cg1[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_cg2[TNR_GFCOEF3_SIZE];
+	__u8 gfcoef_cl0[TNR_GFCOEF6_SIZE];
+	__u8 gfcoef_cl1[TNR_GFCOEF3_SIZE];
+	__u8 weight_y[TNR_WEIGHT_Y_SIZE];
 
-	u16 glb_gain_cur __attribute__((aligned(2)));
-	u16 glb_gain_nxt;
-	u16 glb_gain_cur_div;
-	u16 txt_th1_y;
-	u16 txt_th0_c;
-	u16 txt_th1_c;
-	u16 txt_thy_dlt;
-	u16 txt_thc_dlt;
-	u16 txt_th0_y;
-	u16 sigma_y[TNR_SIGMA_CURVE_SIZE];
-	u16 luma_curve[TNR_LUMA_CURVE_SIZE];
-	u16 scale_yg[TNR_SCALE_YG_SIZE];
-	u16 scale_yl[TNR_SCALE_YL_SIZE];
-	u16 scale_cg[TNR_SCALE_CG_SIZE];
-	u16 scale_y2cg[TNR_SCALE_Y2CG_SIZE];
-	u16 scale_cl[TNR_SCALE_CL_SIZE];
-	u16 scale_y2cl[TNR_SCALE_Y2CL_SIZE];
+	__u16 glb_gain_cur __attribute__((aligned(2)));
+	__u16 glb_gain_nxt;
+	__u16 glb_gain_cur_div;
+	__u16 txt_th1_y;
+	__u16 txt_th0_c;
+	__u16 txt_th1_c;
+	__u16 txt_thy_dlt;
+	__u16 txt_thc_dlt;
+	__u16 txt_th0_y;
+	__u16 sigma_y[TNR_SIGMA_CURVE_SIZE];
+	__u16 luma_curve[TNR_LUMA_CURVE_SIZE];
+	__u16 scale_yg[TNR_SCALE_YG_SIZE];
+	__u16 scale_yl[TNR_SCALE_YL_SIZE];
+	__u16 scale_cg[TNR_SCALE_CG_SIZE];
+	__u16 scale_y2cg[TNR_SCALE_Y2CG_SIZE];
+	__u16 scale_cl[TNR_SCALE_CL_SIZE];
+	__u16 scale_y2cl[TNR_SCALE_Y2CL_SIZE];
 } __attribute__ ((packed));
 
 struct rkispp_nr_config {
-	u8 uvnr_step1_en;
-	u8 uvnr_step2_en;
-	u8 nr_gain_en;
-	u8 uvnr_sd32_self_en;
-	u8 uvnr_nobig_en;
-	u8 uvnr_big_en;
-	u8 uvnr_gain_1sigma;
-	u8 uvnr_gain_offset;
-	u8 uvnr_gain_t2gen;
-	u8 uvnr_gain_iso;
-	u8 uvnr_t1gen_m3alpha;
-	u8 uvnr_t1flt_mode;
-	u8 uvnr_t1flt_wtp;
-	u8 uvnr_t2gen_m3alpha;
-	u8 uvnr_t2gen_wtp;
-	u8 uvnr_gain_uvgain[NR_UVNR_UVGAIN_SIZE];
-	u8 uvnr_t1flt_wtq[NR_UVNR_T1FLT_WTQ_SIZE];
-	u8 uvnr_t2gen_wtq[NR_UVNR_T2GEN_WTQ_SIZE];
-	u8 uvnr_t2flt_wtp;
-	u8 uvnr_t2flt_wt[NR_UVNR_T2FLT_WT_SIZE];
-	u8 ynr_sgm_dx[NR_YNR_SGM_DX_SIZE];
-	u8 ynr_lci[NR_YNR_CI_SIZE];
-	u8 ynr_lgain_min[NR_YNR_LGAIN_MIN_SIZE];
-	u8 ynr_lgain_max;
-	u8 ynr_lmerge_bound;
-	u8 ynr_lmerge_ratio;
-	u8 ynr_lweit_flt[NR_YNR_LWEIT_FLT_SIZE];
-	u8 ynr_hlci[NR_YNR_CI_SIZE];
-	u8 ynr_lhci[NR_YNR_CI_SIZE];
-	u8 ynr_hhci[NR_YNR_CI_SIZE];
-	u8 ynr_hgain_sgm[NR_YNR_HGAIN_SGM_SIZE];
-	u8 ynr_hweit_d[NR_YNR_HWEIT_D_SIZE];
-	u8 ynr_hgrad_y[NR_YNR_HGRAD_Y_SIZE];
-	u8 ynr_hmax_adjust;
-	u8 ynr_hstrength;
-	u8 ynr_lweit_cmp[NR_YNR_LWEIT_CMP_SIZE];
-	u8 ynr_lmaxgain_lv4;
+	__u8 uvnr_step1_en;
+	__u8 uvnr_step2_en;
+	__u8 nr_gain_en;
+	__u8 uvnr_sd32_self_en;
+	__u8 uvnr_nobig_en;
+	__u8 uvnr_big_en;
+	__u8 uvnr_gain_1sigma;
+	__u8 uvnr_gain_offset;
+	__u8 uvnr_gain_t2gen;
+	__u8 uvnr_gain_iso;
+	__u8 uvnr_t1gen_m3alpha;
+	__u8 uvnr_t1flt_mode;
+	__u8 uvnr_t1flt_wtp;
+	__u8 uvnr_t2gen_m3alpha;
+	__u8 uvnr_t2gen_wtp;
+	__u8 uvnr_gain_uvgain[NR_UVNR_UVGAIN_SIZE];
+	__u8 uvnr_t1flt_wtq[NR_UVNR_T1FLT_WTQ_SIZE];
+	__u8 uvnr_t2gen_wtq[NR_UVNR_T2GEN_WTQ_SIZE];
+	__u8 uvnr_t2flt_wtp;
+	__u8 uvnr_t2flt_wt[NR_UVNR_T2FLT_WT_SIZE];
+	__u8 ynr_sgm_dx[NR_YNR_SGM_DX_SIZE];
+	__u8 ynr_lci[NR_YNR_CI_SIZE];
+	__u8 ynr_lgain_min[NR_YNR_LGAIN_MIN_SIZE];
+	__u8 ynr_lgain_max;
+	__u8 ynr_lmerge_bound;
+	__u8 ynr_lmerge_ratio;
+	__u8 ynr_lweit_flt[NR_YNR_LWEIT_FLT_SIZE];
+	__u8 ynr_hlci[NR_YNR_CI_SIZE];
+	__u8 ynr_lhci[NR_YNR_CI_SIZE];
+	__u8 ynr_hhci[NR_YNR_CI_SIZE];
+	__u8 ynr_hgain_sgm[NR_YNR_HGAIN_SGM_SIZE];
+	__u8 ynr_hweit_d[NR_YNR_HWEIT_D_SIZE];
+	__u8 ynr_hgrad_y[NR_YNR_HGRAD_Y_SIZE];
+	__u8 ynr_hmax_adjust;
+	__u8 ynr_hstrength;
+	__u8 ynr_lweit_cmp[NR_YNR_LWEIT_CMP_SIZE];
+	__u8 ynr_lmaxgain_lv4;
 
-	u16 uvnr_t1flt_msigma __attribute__((aligned(2)));
-	u16 uvnr_t2gen_msigma;
-	u16 uvnr_t2flt_msigma;
-	u16 ynr_lsgm_y[NR_YNR_SGM_Y_SIZE];
-	u16 ynr_hsgm_y[NR_YNR_SGM_Y_SIZE];
-	u16 ynr_hweit[NR_YNR_HWEIT_SIZE];
-	u16 ynr_hstv_y[NR_YNR_HSTV_Y_SIZE];
-	u16 ynr_st_scale[NR_YNR_ST_SCALE_SIZE];
+	__u16 uvnr_t1flt_msigma __attribute__((aligned(2)));
+	__u16 uvnr_t2gen_msigma;
+	__u16 uvnr_t2flt_msigma;
+	__u16 ynr_lsgm_y[NR_YNR_SGM_Y_SIZE];
+	__u16 ynr_hsgm_y[NR_YNR_SGM_Y_SIZE];
+	__u16 ynr_hweit[NR_YNR_HWEIT_SIZE];
+	__u16 ynr_hstv_y[NR_YNR_HSTV_Y_SIZE];
+	__u16 ynr_st_scale[NR_YNR_ST_SCALE_SIZE];
 } __attribute__ ((packed));
 
 struct rkispp_sharp_config {
-	u8 rotation;
-	u8 scl_down_v;
-	u8 scl_down_h;
-	u8 tile_ycnt;
-	u8 tile_xcnt;
-	u8 alpha_adp_en;
-	u8 yin_flt_en;
-	u8 edge_avg_en;
-	u8 ehf_th;
-	u8 pbf_ratio;
-	u8 edge_thed;
-	u8 dir_min;
-	u8 pbf_shf_bits;
-	u8 mbf_shf_bits;
-	u8 hbf_shf_bits;
-	u8 m_ratio;
-	u8 h_ratio;
-	u8 pbf_k[SHP_PBF_KERNEL_SIZE];
-	u8 mrf_k[SHP_MRF_KERNEL_SIZE];
-	u8 mbf_k[SHP_MBF_KERNEL_SIZE];
-	u8 hrf_k[SHP_HRF_KERNEL_SIZE];
-	u8 hbf_k[SHP_HBF_KERNEL_SIZE];
-	s8 eg_coef[SHP_EDGE_COEF_SIZE];
-	u8 eg_smoth[SHP_EDGE_SMOTH_SIZE];
-	u8 eg_gaus[SHP_EDGE_GAUS_SIZE];
-	s8 dog_k[SHP_DOG_KERNEL_SIZE];
-	u8 lum_point[SHP_LUM_POINT_SIZE];
-	u8 pbf_sigma[SHP_SIGMA_SIZE];
-	u8 lum_clp_m[SHP_LUM_CLP_SIZE];
-	s8 lum_min_m[SHP_LUM_MIN_SIZE];
-	u8 mbf_sigma[SHP_SIGMA_SIZE];
-	u8 lum_clp_h[SHP_LUM_CLP_SIZE];
-	u8 hbf_sigma[SHP_SIGMA_SIZE];
-	u8 edge_lum_thed[SHP_EDGE_LUM_THED_SIZE];
-	u8 clamp_pos[SHP_CLAMP_SIZE];
-	u8 clamp_neg[SHP_CLAMP_SIZE];
-	u8 detail_alpha[SHP_DETAIL_ALPHA_SIZE];
+	__u8 rotation;
+	__u8 scl_down_v;
+	__u8 scl_down_h;
+	__u8 tile_ycnt;
+	__u8 tile_xcnt;
+	__u8 alpha_adp_en;
+	__u8 yin_flt_en;
+	__u8 edge_avg_en;
+	__u8 ehf_th;
+	__u8 pbf_ratio;
+	__u8 edge_thed;
+	__u8 dir_min;
+	__u8 pbf_shf_bits;
+	__u8 mbf_shf_bits;
+	__u8 hbf_shf_bits;
+	__u8 m_ratio;
+	__u8 h_ratio;
+	__u8 pbf_k[SHP_PBF_KERNEL_SIZE];
+	__u8 mrf_k[SHP_MRF_KERNEL_SIZE];
+	__u8 mbf_k[SHP_MBF_KERNEL_SIZE];
+	__u8 hrf_k[SHP_HRF_KERNEL_SIZE];
+	__u8 hbf_k[SHP_HBF_KERNEL_SIZE];
+	__s8 eg_coef[SHP_EDGE_COEF_SIZE];
+	__u8 eg_smoth[SHP_EDGE_SMOTH_SIZE];
+	__u8 eg_gaus[SHP_EDGE_GAUS_SIZE];
+	__s8 dog_k[SHP_DOG_KERNEL_SIZE];
+	__u8 lum_point[SHP_LUM_POINT_SIZE];
+	__u8 pbf_sigma[SHP_SIGMA_SIZE];
+	__u8 lum_clp_m[SHP_LUM_CLP_SIZE];
+	__s8 lum_min_m[SHP_LUM_MIN_SIZE];
+	__u8 mbf_sigma[SHP_SIGMA_SIZE];
+	__u8 lum_clp_h[SHP_LUM_CLP_SIZE];
+	__u8 hbf_sigma[SHP_SIGMA_SIZE];
+	__u8 edge_lum_thed[SHP_EDGE_LUM_THED_SIZE];
+	__u8 clamp_pos[SHP_CLAMP_SIZE];
+	__u8 clamp_neg[SHP_CLAMP_SIZE];
+	__u8 detail_alpha[SHP_DETAIL_ALPHA_SIZE];
 
-	u16 hbf_ratio __attribute__((aligned(2)));
-	u16 smoth_th4;
-	u16 l_alpha;
-	u16 g_alpha;
-	u16 rfl_ratio;
-	u16 rfh_ratio;
+	__u16 hbf_ratio __attribute__((aligned(2)));
+	__u16 smoth_th4;
+	__u16 l_alpha;
+	__u16 g_alpha;
+	__u16 rfl_ratio;
+	__u16 rfh_ratio;
 } __attribute__ ((packed));
 
 enum rkispp_fecbuf_stat {
@@ -289,43 +289,43 @@ enum rkispp_fecbuf_stat {
 };
 
 struct rkispp_fecbuf_info {
-	s32 buf_fd[FEC_MESH_BUF_MAX];
-	u32 buf_size[FEC_MESH_BUF_MAX];
+	__s32 buf_fd[FEC_MESH_BUF_MAX];
+	__u32 buf_size[FEC_MESH_BUF_MAX];
 } __attribute__ ((packed));
 
 struct rkispp_fecbuf_size {
-	u32 meas_width;
-	u32 meas_height;
-	u32 meas_mode;
+	__u32 meas_width;
+	__u32 meas_height;
+	__u32 meas_mode;
 	int buf_cnt;
 } __attribute__ ((packed));
 
 struct rkispp_fec_head {
 	enum rkispp_fecbuf_stat stat;
-	u32 meshxf_oft;
-	u32 meshyf_oft;
-	u32 meshxi_oft;
-	u32 meshyi_oft;
+	__u32 meshxf_oft;
+	__u32 meshyf_oft;
+	__u32 meshxi_oft;
+	__u32 meshyi_oft;
 } __attribute__ ((packed));
 
 struct rkispp_fec_config {
-	u8 mesh_density;
-	u8 crop_en;
-	u16 crop_width __attribute__((aligned(2)));
-	u16 crop_height;
-	u32 mesh_size __attribute__((aligned(4)));
-	s32 buf_fd;
+	__u8 mesh_density;
+	__u8 crop_en;
+	__u16 crop_width __attribute__((aligned(2)));
+	__u16 crop_height;
+	__u32 mesh_size __attribute__((aligned(4)));
+	__s32 buf_fd;
 } __attribute__ ((packed));
 
 struct rkispp_orb_config {
-	u8 limit_value;
-	u32 max_feature __attribute__((aligned(4)));
+	__u8 limit_value;
+	__u32 max_feature __attribute__((aligned(4)));
 } __attribute__ ((packed));
 
 struct rkispp_buf_info {
-	//s32 fd;
-	u32 index;
-	u32 size;
+	/* __s32 fd; */
+	__u32 index;
+	__u32 size;
 } __attribute__ ((packed));
 
 /**
@@ -337,11 +337,11 @@ struct rkispp_buf_info {
  * @module_cfg_update: mask the config bits of which module  should be updated
  */
 struct rkispp_params_cfghead {
-	u32 module_en_update;
-	u32 module_ens;
-	u32 module_cfg_update;
+	__u32 module_en_update;
+	__u32 module_ens;
+	__u32 module_cfg_update;
 
-	u32 frame_id;
+	__u32 frame_id;
 } __attribute__ ((packed));
 
 /**
@@ -351,8 +351,8 @@ struct rkispp_params_tnrcfg {
 	struct rkispp_params_cfghead head;
 
 	struct rkispp_tnr_config tnr_cfg;
-	//struct rkispp_buf_info gain;
-	//struct rkispp_buf_info image;
+	/* struct rkispp_buf_info gain; */
+	/* struct rkispp_buf_info image; */
 } __attribute__ ((packed));
 
 /**
@@ -366,7 +366,7 @@ struct rkispp_params_nrcfg {
 	struct rkispp_orb_config orb_cfg;
 
 	struct rkispp_buf_info gain;
-	//struct rkispp_buf_info image;
+	/* struct rkispp_buf_info image; */
 } __attribute__ ((packed));
 
 /**
@@ -380,11 +380,11 @@ struct rkispp_params_feccfg {
 } __attribute__ ((packed));
 
 struct rkispp_orb_data {
-	u8 brief[ORB_BRIEF_NUM];
-	u32 y : 13;
-	u32 x : 13;
-	u32 dmy1 : 6;
-	u8 dmy2[ORB_DUMMY_NUM];
+	__u8 brief[ORB_BRIEF_NUM];
+	__u32 y : 13;
+	__u32 x : 13;
+	__u32 dmy1 : 6;
+	__u8 dmy2[ORB_DUMMY_NUM];
 } __attribute__ ((packed));
 
 /**
@@ -397,9 +397,9 @@ struct rkispp_orb_data {
 struct rkispp_stats_nrbuf {
 	struct rkispp_orb_data data[ORB_DATA_NUM];
 
-	u32 total_num __attribute__((aligned(4)));
-	u32 meas_type;
-	u32 frame_id;
+	__u32 total_num __attribute__((aligned(4)));
+	__u32 meas_type;
+	__u32 frame_id;
 
 	struct rkispp_buf_info image;
 } __attribute__ ((packed));
@@ -411,12 +411,12 @@ struct rkispp_stats_nrbuf {
  * @frame_id: frame ID for sync
  */
 struct rkispp_stats_tnrbuf {
-	u32 meas_type;
-	u32 frame_id;
+	__u32 meas_type;
+	__u32 frame_id;
 
 	struct rkispp_buf_info gain;
 	struct rkispp_buf_info gainkg;
-	//struct rkispp_buf_info image;
+	/* struct rkispp_buf_info image; */
 } __attribute__ ((packed));
 
 #endif
