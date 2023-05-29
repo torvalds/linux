@@ -15,6 +15,16 @@
 #include "hid-ids.h"
 
 #define NOT_INIT_STR "NOT INITIALIZED"
+#define android_map_key(c) hid_map_usage(hi, usage, bit, max, EV_KEY, (c))
+
+enum {
+	HID_USAGE_ANDROID_PLAYPAUSE_BTN = 0xcd, /* Double-tap volume slider */
+	HID_USAGE_ANDROID_VOLUMEUP_BTN = 0xe9,
+	HID_USAGE_ANDROID_VOLUMEDOWN_BTN = 0xea,
+	HID_USAGE_ANDROID_SEARCH_BTN = 0x221, /* NVIDIA btn on Thunderstrike */
+	HID_USAGE_ANDROID_HOME_BTN = 0x223,
+	HID_USAGE_ANDROID_BACK_BTN = 0x224,
+};
 
 enum {
 	SHIELD_FW_VERSION_INITIALIZED = 0,
@@ -416,6 +426,40 @@ static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 	return shield_dev;
 }
 
+static int android_input_mapping(struct hid_device *hdev, struct hid_input *hi,
+				 struct hid_field *field,
+				 struct hid_usage *usage, unsigned long **bit,
+				 int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
+		return 0;
+
+	switch (usage->hid & HID_USAGE) {
+	case HID_USAGE_ANDROID_PLAYPAUSE_BTN:
+		android_map_key(KEY_PLAYPAUSE);
+		break;
+	case HID_USAGE_ANDROID_VOLUMEUP_BTN:
+		android_map_key(KEY_VOLUMEUP);
+		break;
+	case HID_USAGE_ANDROID_VOLUMEDOWN_BTN:
+		android_map_key(KEY_VOLUMEDOWN);
+		break;
+	case HID_USAGE_ANDROID_SEARCH_BTN:
+		android_map_key(BTN_Z);
+		break;
+	case HID_USAGE_ANDROID_HOME_BTN:
+		android_map_key(BTN_MODE);
+		break;
+	case HID_USAGE_ANDROID_BACK_BTN:
+		android_map_key(BTN_SELECT);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
 static ssize_t firmware_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -571,11 +615,12 @@ static const struct hid_device_id shield_devices[] = {
 MODULE_DEVICE_TABLE(hid, shield_devices);
 
 static struct hid_driver shield_driver = {
-	.name         = "shield",
-	.id_table     = shield_devices,
-	.probe        = shield_probe,
-	.remove       = shield_remove,
-	.raw_event    = shield_raw_event,
+	.name          = "shield",
+	.id_table      = shield_devices,
+	.input_mapping = android_input_mapping,
+	.probe         = shield_probe,
+	.remove        = shield_remove,
+	.raw_event     = shield_raw_event,
 	.driver = {
 		.dev_groups = shield_device_groups,
 	},
