@@ -275,37 +275,148 @@ static void snd_emu10k1_proc_rates_read(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry, 
+struct emu10k1_reg_entry {
+	unsigned short base, size;
+	const char *name;
+};
+
+static const struct emu10k1_reg_entry sblive_reg_entries[] = {
+	{    0, 0x10, "FXBUS" },
+	{ 0x10, 0x10, "EXTIN" },
+	{ 0x20, 0x10, "EXTOUT" },
+	{ 0x30, 0x10, "FXBUS2" },
+	{ 0x40, 0x20, NULL },  // Constants
+	{ 0x100, 0x100, "GPR" },
+	{ 0x200, 0x80, "ITRAM_DATA" },
+	{ 0x280, 0x20, "ETRAM_DATA" },
+	{ 0x300, 0x80, "ITRAM_ADDR" },
+	{ 0x380, 0x20, "ETRAM_ADDR" },
+	{ 0x400, 0, NULL }
+};
+
+static const struct emu10k1_reg_entry audigy_reg_entries[] = {
+	{    0, 0x40, "FXBUS" },
+	{ 0x40, 0x10, "EXTIN" },
+	{ 0x50, 0x10, "P16VIN" },
+	{ 0x60, 0x20, "EXTOUT" },
+	{ 0x80, 0x20, "FXBUS2" },
+	{ 0xa0, 0x10, "EMU32OUTH" },
+	{ 0xb0, 0x10, "EMU32OUTL" },
+	{ 0xc0, 0x20, NULL },  // Constants
+	// This can't be quite right - overlap.
+	//{ 0x100, 0xc0, "ITRAM_CTL" },
+	//{ 0x1c0, 0x40, "ETRAM_CTL" },
+	{ 0x160, 0x20, "A3_EMU32IN" },
+	{ 0x1e0, 0x20, "A3_EMU32OUT" },
+	{ 0x200, 0xc0, "ITRAM_DATA" },
+	{ 0x2c0, 0x40, "ETRAM_DATA" },
+	{ 0x300, 0xc0, "ITRAM_ADDR" },
+	{ 0x3c0, 0x40, "ETRAM_ADDR" },
+	{ 0x400, 0x200, "GPR" },
+	{ 0x600, 0, NULL }
+};
+
+static const char * const emu10k1_const_entries[] = {
+	"C_00000000",
+	"C_00000001",
+	"C_00000002",
+	"C_00000003",
+	"C_00000004",
+	"C_00000008",
+	"C_00000010",
+	"C_00000020",
+	"C_00000100",
+	"C_00010000",
+	"C_00000800",
+	"C_10000000",
+	"C_20000000",
+	"C_40000000",
+	"C_80000000",
+	"C_7fffffff",
+	"C_ffffffff",
+	"C_fffffffe",
+	"C_c0000000",
+	"C_4f1bbcdc",
+	"C_5a7ef9db",
+	"C_00100000",
+	"GPR_ACCU",
+	"GPR_COND",
+	"GPR_NOISE0",
+	"GPR_NOISE1",
+	"GPR_IRQ",
+	"GPR_DBAC",
+	"GPR_DBACE",
+	"???",
+};
+
+static int disasm_emu10k1_reg(char *buffer,
+			      const struct emu10k1_reg_entry *entries,
+			      unsigned reg, const char *pfx)
+{
+	for (int i = 0; ; i++) {
+		unsigned base = entries[i].base;
+		unsigned size = entries[i].size;
+		if (!size)
+			return sprintf(buffer, "%s0x%03x", pfx, reg);
+		if (reg >= base && reg < base + size) {
+			const char *name = entries[i].name;
+			reg -= base;
+			if (name)
+				return sprintf(buffer, "%s%s(%u)", pfx, name, reg);
+			return sprintf(buffer, "%s%s", pfx, emu10k1_const_entries[reg]);
+		}
+	}
+}
+
+static int disasm_sblive_reg(char *buffer, unsigned reg, const char *pfx)
+{
+	return disasm_emu10k1_reg(buffer, sblive_reg_entries, reg, pfx);
+}
+
+static int disasm_audigy_reg(char *buffer, unsigned reg, const char *pfx)
+{
+	return disasm_emu10k1_reg(buffer, audigy_reg_entries, reg, pfx);
+}
+
+static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry,
 				        struct snd_info_buffer *buffer)
 {
 	u32 pc;
 	struct snd_emu10k1 *emu = entry->private_data;
+	static const char * const insns[16] = {
+		"MAC0", "MAC1", "MAC2", "MAC3", "MACINT0", "MACINT1", "ACC3", "MACMV",
+		"ANDXOR", "TSTNEG", "LIMITGE", "LIMITLT", "LOG", "EXP", "INTERP", "SKIP",
+	};
+	static const char spaces[] = "                              ";
+	const int nspaces = sizeof(spaces) - 1;
 
 	snd_iprintf(buffer, "FX8010 Instruction List '%s'\n", emu->fx8010.name);
 	snd_iprintf(buffer, "  Code dump      :\n");
 	for (pc = 0; pc < (emu->audigy ? 1024 : 512); pc++) {
 		u32 low, high;
+		int len;
+		char buf[100];
+		char *bufp = buf;
 			
 		low = snd_emu10k1_efx_read(emu, pc * 2);
 		high = snd_emu10k1_efx_read(emu, pc * 2 + 1);
-		if (emu->audigy)
-			snd_iprintf(buffer, "    OP(0x%02x, 0x%03x, 0x%03x, 0x%03x, 0x%03x) /* 0x%04x: 0x%08x%08x */\n",
-				    (high >> 24) & 0x0f,
-				    (high >> 12) & 0x7ff,
-				    (high >> 0) & 0x7ff,
-				    (low >> 12) & 0x7ff,
-				    (low >> 0) & 0x7ff,
-				    pc,
-				    high, low);
-		else
-			snd_iprintf(buffer, "    OP(0x%02x, 0x%03x, 0x%03x, 0x%03x, 0x%03x) /* 0x%04x: 0x%08x%08x */\n",
-				    (high >> 20) & 0x0f,
-				    (high >> 10) & 0x3ff,
-				    (high >> 0) & 0x3ff,
-				    (low >> 10) & 0x3ff,
-				    (low >> 0) & 0x3ff,
-				    pc,
-				    high, low);
+		if (emu->audigy) {
+			bufp += sprintf(bufp, "    %-7s  ", insns[(high >> 24) & 0x0f]);
+			bufp += disasm_audigy_reg(bufp, (high >> 12) & 0x7ff, "");
+			bufp += disasm_audigy_reg(bufp, (high >> 0) & 0x7ff, ", ");
+			bufp += disasm_audigy_reg(bufp, (low >> 12) & 0x7ff, ", ");
+			bufp += disasm_audigy_reg(bufp, (low >> 0) & 0x7ff, ", ");
+		} else {
+			bufp += sprintf(bufp, "    %-7s  ", insns[(high >> 20) & 0x0f]);
+			bufp += disasm_sblive_reg(bufp, (high >> 10) & 0x3ff, "");
+			bufp += disasm_sblive_reg(bufp, (high >> 0) & 0x3ff, ", ");
+			bufp += disasm_sblive_reg(bufp, (low >> 10) & 0x3ff, ", ");
+			bufp += disasm_sblive_reg(bufp, (low >> 0) & 0x3ff, ", ");
+		}
+		len = (int)(ptrdiff_t)(bufp - buf);
+		snd_iprintf(buffer, "%s %s /* 0x%04x: 0x%08x%08x */\n",
+			    buf, &spaces[nspaces - clamp(65 - len, 0, nspaces)],
+			    pc, high, low);
 	}
 }
 
