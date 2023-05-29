@@ -360,6 +360,10 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 	unsigned int padding_w = pad_w;
 	unsigned int padding_h = pad_h;
 
+	if ((pad == ATOMISP_SUBDEV_PAD_SINK && target != V4L2_SEL_TGT_CROP) ||
+	    (pad == ATOMISP_SUBDEV_PAD_SOURCE && target != V4L2_SEL_TGT_COMPOSE))
+		return -EINVAL;
+
 	isp_get_fmt_rect(sd, sd_state, which, ffmt, crop, comp);
 
 	dev_dbg(isp->dev,
