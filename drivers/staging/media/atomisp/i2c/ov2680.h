@@ -109,7 +109,8 @@
 struct ov2680_dev {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct mutex input_lock;
+	/* Protect against concurrent changes to controls */
+	struct mutex lock;
 	struct i2c_client *client;
 	struct gpio_desc *powerdown;
 	struct fwnode_handle *ep_fwnode;

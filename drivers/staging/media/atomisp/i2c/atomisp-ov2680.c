@@ -337,9 +337,9 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
 
-	mutex_lock(&sensor->input_lock);
+	mutex_lock(&sensor->lock);
 	ov2680_calc_mode(sensor, fmt->width, fmt->height);
-	mutex_unlock(&sensor->input_lock);
+	mutex_unlock(&sensor->lock);
 	return 0;
 }
 
@@ -394,7 +394,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	mutex_lock(&sensor->input_lock);
+	mutex_lock(&sensor->lock);
 
 	if (sensor->is_streaming == enable) {
 		dev_warn(&client->dev, "stream already %s\n", enable ? "started" : "stopped");
@@ -427,14 +427,14 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l2_ctrl_activate(sensor->ctrls.vflip, !enable);
 	v4l2_ctrl_activate(sensor->ctrls.hflip, !enable);
 
-	mutex_unlock(&sensor->input_lock);
+	mutex_unlock(&sensor->lock);
 	return 0;
 
 error_power_down:
 	pm_runtime_put(sensor->sd.dev);
 	sensor->is_streaming = false;
 error_unlock:
-	mutex_unlock(&sensor->input_lock);
+	mutex_unlock(&sensor->lock);
 	return ret;
 }
 
@@ -564,7 +564,7 @@ static int ov2680_init_controls(struct ov2680_dev *sensor)
 
 	v4l2_ctrl_handler_init(hdl, 4);
 
-	hdl->lock = &sensor->input_lock;
+	hdl->lock = &sensor->lock;
 
 	ctrls->hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	ctrls->vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
@@ -597,7 +597,7 @@ static void ov2680_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&sensor->sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
-	mutex_destroy(&sensor->input_lock);
+	mutex_destroy(&sensor->lock);
 	fwnode_handle_put(sensor->ep_fwnode);
 	pm_runtime_disable(&client->dev);
 }
@@ -612,7 +612,7 @@ static int ov2680_probe(struct i2c_client *client)
 	if (!sensor)
 		return -ENOMEM;
 
-	mutex_init(&sensor->input_lock);
+	mutex_init(&sensor->lock);
 
 	sensor->client = client;
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
