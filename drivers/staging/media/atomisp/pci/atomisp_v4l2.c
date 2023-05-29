@@ -934,11 +934,12 @@ v4l2_device_failed:
 static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 {
 	struct v4l2_subdev_mbus_code_enum mbus_code_enum = { };
+	struct v4l2_subdev_frame_size_enum fse = { };
 	struct v4l2_subdev_state sd_state = {
 		.pads = &input->pad_cfg,
 	};
 	struct v4l2_subdev_selection sel = { };
-	int err;
+	int i, err;
 
 	mbus_code_enum.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code, NULL, &mbus_code_enum);
@@ -962,6 +963,28 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	input->active_rect = sel.r;
 
 	/*
+	 * Check for a framesize with half active_rect width and height,
+	 * if found assume the sensor supports binning.
+	 * Do this before changing the crop-rect since that may influence
+	 * enum_frame_size results.
+	 */
+	for (i = 0; ; i++) {
+		fse.index = i;
+		fse.code = input->code;
+		fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		err = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
+		if (err)
+			break;
+
+		if (fse.min_width <= (input->active_rect.width / 2) &&
+		    fse.min_height <= (input->active_rect.height / 2)) {
+			input->binning_support = true;
+			break;
+		}
+	}
+
+	/*
 	 * The ISP also wants the non-active pixels at the border of the sensor
 	 * for padding, set the crop rect to cover the entire sensor instead
 	 * of only the default active area.
@@ -983,9 +1006,10 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	if (err)
 		return;
 
-	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d\n",
+	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d binning %d\n",
 		 input->native_rect.width, input->native_rect.height,
-		 input->active_rect.width, input->active_rect.height);
+		 input->active_rect.width, input->active_rect.height,
+		 input->binning_support);
 
 	input->crop_support = true;
 }

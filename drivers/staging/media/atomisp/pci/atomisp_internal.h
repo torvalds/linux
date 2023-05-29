@@ -126,6 +126,7 @@ struct atomisp_input_subdev {
 	unsigned int type;
 	enum atomisp_camera_port port;
 	u32 code; /* MEDIA_BUS_FMT_* */
+	bool binning_support;
 	bool crop_support;
 	struct v4l2_subdev *camera;
 	/* Sensor rects for sensors which support crop */
