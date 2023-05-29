@@ -30,7 +30,7 @@ struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
-struct i915_hdcp_comp_master;
+struct i915_hdcp_arbiter;
 struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_bios_encoder_data;
@@ -395,7 +395,7 @@ struct intel_display {
 	} gmbus;
 
 	struct {
-		struct i915_hdcp_master *master;
+		struct i915_hdcp_arbiter *arbiter;
 		bool comp_added;
 
 		/*

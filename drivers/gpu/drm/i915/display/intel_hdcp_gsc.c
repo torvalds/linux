@@ -697,17 +697,17 @@ static void intel_hdcp_gsc_free_message(struct drm_i915_private *i915)
 
 int intel_hdcp_gsc_init(struct drm_i915_private *i915)
 {
-	struct i915_hdcp_master *data;
+	struct i915_hdcp_arbiter *data;
 	int ret;
 
-	data = kzalloc(sizeof(struct i915_hdcp_master), GFP_KERNEL);
+	data = kzalloc(sizeof(struct i915_hdcp_arbiter), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	mutex_lock(&i915->display.hdcp.comp_mutex);
-	i915->display.hdcp.master = data;
-	i915->display.hdcp.master->hdcp_dev = i915->drm.dev;
-	i915->display.hdcp.master->ops = &gsc_hdcp_ops;
+	i915->display.hdcp.arbiter = data;
+	i915->display.hdcp.arbiter->hdcp_dev = i915->drm.dev;
+	i915->display.hdcp.arbiter->ops = &gsc_hdcp_ops;
 	ret = intel_hdcp_gsc_hdcp2_init(i915);
 	mutex_unlock(&i915->display.hdcp.comp_mutex);
 
@@ -717,7 +717,7 @@ int intel_hdcp_gsc_init(struct drm_i915_private *i915)
 void intel_hdcp_gsc_fini(struct drm_i915_private *i915)
 {
 	intel_hdcp_gsc_free_message(i915);
-	kfree(i915->display.hdcp.master);
+	kfree(i915->display.hdcp.arbiter);
 }
 
 static int intel_gsc_send_sync(struct drm_i915_private *i915,
