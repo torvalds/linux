@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
 #include <linux/firmware/qcom/qcom_scm.h>
@@ -82,9 +83,9 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 			 phys_addr_t *mem_phys, size_t *mem_size)
 {
 	const struct firmware *mdt;
+	struct reserved_mem *rmem;
 	struct device_node *node;
 	struct device *dev;
-	struct resource r;
 	ssize_t fw_size;
 	void *mem_va;
 	int ret;
@@ -99,13 +100,16 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	if (ret)
-		goto err_put_node;
+	rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(dev, "failed to lookup reserved memory-region\n");
+		return -EINVAL;
+	}
 
 	ret = request_firmware(&mdt, fwname, dev);
 	if (ret < 0)
-		goto err_put_node;
+		return ret;
 
 	fw_size = qcom_mdt_get_size(mdt);
 	if (fw_size < 0) {
@@ -113,17 +117,17 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		goto err_release_fw;
 	}
 
-	*mem_phys = r.start;
-	*mem_size = resource_size(&r);
+	*mem_phys = rmem->base;
+	*mem_size = rmem->size;
 
 	if (*mem_size < fw_size || fw_size > VENUS_FW_MEM_SIZE) {
 		ret = -EINVAL;
 		goto err_release_fw;
 	}
 
-	mem_va = memremap(r.start, *mem_size, MEMREMAP_WC);
+	mem_va = memremap(*mem_phys, *mem_size, MEMREMAP_WC);
 	if (!mem_va) {
-		dev_err(dev, "unable to map memory region: %pR\n", &r);
+		dev_err(dev, "unable to map memory region %pa size %#zx\n", mem_phys, *mem_size);
 		ret = -ENOMEM;
 		goto err_release_fw;
 	}
@@ -138,8 +142,6 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	memunmap(mem_va);
 err_release_fw:
 	release_firmware(mdt);
-err_put_node:
-	of_node_put(node);
 	return ret;
 }
 
