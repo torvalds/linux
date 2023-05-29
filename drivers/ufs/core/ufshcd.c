@@ -3141,6 +3141,15 @@ retry:
 		err = -ETIMEDOUT;
 		dev_dbg(hba->dev, "%s: dev_cmd request timedout, tag %d\n",
 			__func__, lrbp->task_tag);
+
+		/* MCQ mode */
+		if (is_mcq_enabled(hba)) {
+			err = ufshcd_clear_cmd(hba, lrbp->task_tag);
+			hba->dev_cmd.complete = NULL;
+			return err;
+		}
+
+		/* SDB mode */
 		if (ufshcd_clear_cmd(hba, lrbp->task_tag) == 0) {
 			/* successfully cleared the command, retry if needed */
 			err = -EAGAIN;
@@ -5565,6 +5574,57 @@ static int ufshcd_poll(struct Scsi_Host *shost, unsigned int queue_num)
 }
 
 /**
+ * ufshcd_mcq_compl_pending_transfer - MCQ mode function. It is
+ * invoked from the error handler context or ufshcd_host_reset_and_restore()
+ * to complete the pending transfers and free the resources associated with
+ * the scsi command.
+ *
+ * @hba: per adapter instance
+ * @force_compl: This flag is set to true when invoked
+ * from ufshcd_host_reset_and_restore() in which case it requires special
+ * handling because the host controller has been reset by ufshcd_hba_stop().
+ */
+static void ufshcd_mcq_compl_pending_transfer(struct ufs_hba *hba,
+					      bool force_compl)
+{
+	struct ufs_hw_queue *hwq;
+	struct ufshcd_lrb *lrbp;
+	struct scsi_cmnd *cmd;
+	unsigned long flags;
+	u32 hwq_num, utag;
+	int tag;
+
+	for (tag = 0; tag < hba->nutrs; tag++) {
+		lrbp = &hba->lrb[tag];
+		cmd = lrbp->cmd;
+		if (!ufshcd_cmd_inflight(cmd) ||
+		    test_bit(SCMD_STATE_COMPLETE, &cmd->state))
+			continue;
+
+		utag = blk_mq_unique_tag(scsi_cmd_to_rq(cmd));
+		hwq_num = blk_mq_unique_tag_to_hwq(utag);
+		hwq = &hba->uhq[hwq_num + UFSHCD_MCQ_IO_QUEUE_OFFSET];
+
+		if (force_compl) {
+			ufshcd_mcq_compl_all_cqes_lock(hba, hwq);
+			/*
+			 * For those cmds of which the cqes are not present
+			 * in the cq, complete them explicitly.
+			 */
+			if (cmd && !test_bit(SCMD_STATE_COMPLETE, &cmd->state)) {
+				spin_lock_irqsave(&hwq->cq_lock, flags);
+				set_host_byte(cmd, DID_REQUEUE);
+				ufshcd_release_scsi_cmd(hba, lrbp);
+				scsi_done(cmd);
+				spin_unlock_irqrestore(&hwq->cq_lock, flags);
+			}
+		} else {
+			ufshcd_mcq_poll_cqe_lock(hba, hwq);
+		}
+	}
+}
+
+/**
  * ufshcd_transfer_req_compl - handle SCSI and query command completion
  * @hba: per adapter instance
  *
@@ -6128,9 +6188,13 @@ out:
 }
 
 /* Complete requests that have door-bell cleared */
-static void ufshcd_complete_requests(struct ufs_hba *hba)
+static void ufshcd_complete_requests(struct ufs_hba *hba, bool force_compl)
 {
-	ufshcd_transfer_req_compl(hba);
+	if (is_mcq_enabled(hba))
+		ufshcd_mcq_compl_pending_transfer(hba, force_compl);
+	else
+		ufshcd_transfer_req_compl(hba);
+
 	ufshcd_tmc_handler(hba);
 }
 
@@ -6371,18 +6435,36 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 	bool needs_reset = false;
 	int tag, ret;
 
-	/* Clear pending transfer requests */
-	for_each_set_bit(tag, &hba->outstanding_reqs, hba->nutrs) {
-		ret = ufshcd_try_to_abort_task(hba, tag);
-		dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
-			hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
-			ret ? "failed" : "succeeded");
-		if (ret) {
-			needs_reset = true;
-			goto out;
+	if (is_mcq_enabled(hba)) {
+		struct ufshcd_lrb *lrbp;
+		int tag;
+
+		for (tag = 0; tag < hba->nutrs; tag++) {
+			lrbp = &hba->lrb[tag];
+			if (!ufshcd_cmd_inflight(lrbp->cmd))
+				continue;
+			ret = ufshcd_try_to_abort_task(hba, tag);
+			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
+				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
+				ret ? "failed" : "succeeded");
+			if (ret) {
+				needs_reset = true;
+				goto out;
+			}
+		}
+	} else {
+		/* Clear pending transfer requests */
+		for_each_set_bit(tag, &hba->outstanding_reqs, hba->nutrs) {
+			ret = ufshcd_try_to_abort_task(hba, tag);
+			dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
+				hba->lrb[tag].cmd ? hba->lrb[tag].cmd->cmnd[0] : -1,
+				ret ? "failed" : "succeeded");
+			if (ret) {
+				needs_reset = true;
+				goto out;
+			}
 		}
 	}
-
 	/* Clear pending task management requests */
 	for_each_set_bit(tag, &hba->outstanding_tasks, hba->nutmrs) {
 		if (ufshcd_clear_tm_cmd(hba, tag)) {
@@ -6393,7 +6475,7 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 
 out:
 	/* Complete the requests that are cleared by s/w */
-	ufshcd_complete_requests(hba);
+	ufshcd_complete_requests(hba, false);
 
 	return needs_reset;
 }
@@ -6433,7 +6515,7 @@ static void ufshcd_err_handler(struct work_struct *work)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 	ufshcd_err_handling_prepare(hba);
 	/* Complete requests that have door-bell cleared by h/w */
-	ufshcd_complete_requests(hba);
+	ufshcd_complete_requests(hba, false);
 	spin_lock_irqsave(hba->host->host_lock, flags);
 again:
 	needs_restore = false;
@@ -7314,6 +7396,8 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	unsigned long flags, pending_reqs = 0, not_cleared = 0;
 	struct Scsi_Host *host;
 	struct ufs_hba *hba;
+	struct ufs_hw_queue *hwq;
+	struct ufshcd_lrb *lrbp;
 	u32 pos, not_cleared_mask = 0;
 	int err;
 	u8 resp = 0xF, lun;
@@ -7326,6 +7410,20 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
 		if (!err)
 			err = resp;
+		goto out;
+	}
+
+	if (is_mcq_enabled(hba)) {
+		for (pos = 0; pos < hba->nutrs; pos++) {
+			lrbp = &hba->lrb[pos];
+			if (ufshcd_cmd_inflight(lrbp->cmd) &&
+			    lrbp->lun == lun) {
+				ufshcd_clear_cmd(hba, pos);
+				hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
+				ufshcd_mcq_poll_cqe_lock(hba, hwq);
+			}
+		}
+		err = 0;
 		goto out;
 	}
 
@@ -7612,7 +7710,7 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	ufshpb_toggle_state(hba, HPB_PRESENT, HPB_RESET);
 	ufshcd_hba_stop(hba);
 	hba->silence_err_logs = true;
-	ufshcd_complete_requests(hba);
+	ufshcd_complete_requests(hba, true);
 	hba->silence_err_logs = false;
 
 	/* scale up clocks to max frequency before full reinitialization */

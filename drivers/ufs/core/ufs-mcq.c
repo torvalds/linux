@@ -276,12 +276,34 @@ static int ufshcd_mcq_get_tag(struct ufs_hba *hba,
 }
 
 static void ufshcd_mcq_process_cqe(struct ufs_hba *hba,
-					    struct ufs_hw_queue *hwq)
+				   struct ufs_hw_queue *hwq)
 {
 	struct cq_entry *cqe = ufshcd_mcq_cur_cqe(hwq);
 	int tag = ufshcd_mcq_get_tag(hba, hwq, cqe);
 
-	ufshcd_compl_one_cqe(hba, tag, cqe);
+	if (cqe->command_desc_base_addr) {
+		ufshcd_compl_one_cqe(hba, tag, cqe);
+		/* After processed the cqe, mark it empty (invalid) entry */
+		cqe->command_desc_base_addr = 0;
+	}
+}
+
+void ufshcd_mcq_compl_all_cqes_lock(struct ufs_hba *hba,
+				    struct ufs_hw_queue *hwq)
+{
+	unsigned long flags;
+	u32 entries = hwq->max_entries;
+
+	spin_lock_irqsave(&hwq->cq_lock, flags);
+	while (entries > 0) {
+		ufshcd_mcq_process_cqe(hba, hwq);
+		ufshcd_mcq_inc_cq_head_slot(hwq);
+		entries--;
+	}
+
+	ufshcd_mcq_update_cq_tail_slot(hwq);
+	hwq->cq_head_slot = hwq->cq_tail_slot;
+	spin_unlock_irqrestore(&hwq->cq_lock, flags);
 }
 
 static unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
