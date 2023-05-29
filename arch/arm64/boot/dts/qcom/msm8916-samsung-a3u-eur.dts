@@ -85,7 +85,7 @@
 	status = "okay";
 };
 
-&dsi0 {
+&mdss_dsi0 {
 	panel@0 {
 		reg = <0>;
 
@@ -97,13 +97,13 @@
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	data-lanes = <0 1>;
 	remote-endpoint = <&panel_in>;
 };

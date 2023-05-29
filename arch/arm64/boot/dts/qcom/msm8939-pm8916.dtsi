@@ -3,21 +3,21 @@
 #include "msm8939.dtsi"
 #include "pm8916.dtsi"
 
-&dsi0 {
+&mdss_dsi0 {
 	vdda-supply = <&pm8916_l2>;
 	vddio-supply = <&pm8916_l6>;
 };
 
-&dsi1 {
+&mdss_dsi0_phy {
+	vddio-supply = <&pm8916_l6>;
+};
+
+&mdss_dsi1 {
 	vdda-supply = <&pm8916_l2>;
 	vddio-supply = <&pm8916_l6>;
 };
 
-&dsi_phy0 {
-	vddio-supply = <&pm8916_l6>;
-};
-
-&dsi_phy1 {
+&mdss_dsi1_phy {
 	vddio-supply = <&pm8916_l6>;
 };
 

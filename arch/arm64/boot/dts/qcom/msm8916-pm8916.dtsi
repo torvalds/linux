@@ -15,12 +15,12 @@
 	vdda-supply = <&pm8916_l2>;
 };
 
-&dsi0 {
+&mdss_dsi0 {
 	vdda-supply = <&pm8916_l2>;
 	vddio-supply = <&pm8916_l6>;
 };
 
-&dsi_phy0 {
+&mdss_dsi0_phy {
 	vddio-supply = <&pm8916_l6>;
 };
 

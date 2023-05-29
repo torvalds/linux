@@ -211,7 +211,7 @@
 			port@0 {
 				reg = <0>;
 				adv7533_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -301,11 +301,6 @@
 	};
 };
 
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-	remote-endpoint = <&adv7533_in>;
-};
-
 &lpass {
 	status = "okay";
 };
@@ -316,6 +311,11 @@
 
 &mdss {
 	status = "okay";
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&adv7533_in>;
 };
 
 &mpss {

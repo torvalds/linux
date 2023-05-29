@@ -86,7 +86,7 @@
 	status = "okay";
 };
 
-/* Remove &dsi_phy0 from clocks to make sure that gcc probes with display disabled */
+/* Remove &mdss_dsi0_phy from clocks to make sure that gcc probes with display disabled */
 &gcc {
 	clocks = <&xo_board>, <&sleep_clk>, <0>, <0>, <0>, <0>, <0>;
 };
