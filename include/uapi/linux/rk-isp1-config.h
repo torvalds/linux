@@ -369,7 +369,7 @@ struct cifisp_awb_meas_config {
 	unsigned char frames;
 	unsigned char awb_ref_cr;
 	unsigned char awb_ref_cb;
-	bool enable_ymax_cmp;
+	_Bool enable_ymax_cmp;
 } __attribute__ ((packed));
 
 /**
@@ -548,14 +548,14 @@ struct cifisp_dpf_nll {
 struct cifisp_dpf_rb_flt {
 	enum cifisp_dpf_rb_filtersize fltsize;
 	unsigned char spatial_coeff[CIFISP_DPF_MAX_SPATIAL_COEFFS];
-	bool r_enable;
-	bool b_enable;
+	_Bool r_enable;
+	_Bool b_enable;
 } __attribute__ ((packed));
 
 struct cifisp_dpf_g_flt {
 	unsigned char spatial_coeff[CIFISP_DPF_MAX_SPATIAL_COEFFS];
-	bool gr_enable;
-	bool gb_enable;
+	_Bool gr_enable;
+	_Bool gb_enable;
 } __attribute__ ((packed));
 
 struct cifisp_dpf_gain {
