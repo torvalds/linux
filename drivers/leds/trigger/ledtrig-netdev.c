@@ -51,6 +51,7 @@ struct led_netdev_data {
 
 	unsigned long mode;
 	bool carrier_link_up;
+	bool hw_control;
 };
 
 enum led_trigger_netdev_modes {
@@ -89,6 +90,11 @@ static void set_baseline_state(struct led_netdev_data *trigger_data)
 		    test_bit(TRIGGER_NETDEV_RX, &trigger_data->mode))
 			schedule_delayed_work(&trigger_data->work, 0);
 	}
+}
+
+static bool can_hw_control(struct led_netdev_data *trigger_data)
+{
+	return false;
 }
 
 static ssize_t device_name_show(struct device *dev,
@@ -203,6 +209,8 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 		set_bit(bit, &trigger_data->mode);
 	else
 		clear_bit(bit, &trigger_data->mode);
+
+	trigger_data->hw_control = can_hw_control(trigger_data);
 
 	set_baseline_state(trigger_data);
 
