@@ -70,19 +70,25 @@ struct btrfs_delayed_extent_op {
 struct btrfs_delayed_ref_head {
 	u64 bytenr;
 	u64 num_bytes;
-	refcount_t refs;
+	/*
+	 * For insertion into struct btrfs_delayed_ref_root::href_root.
+	 * Keep it in the same cache line as 'bytenr' for more efficient
+	 * searches in the rbtree.
+	 */
+	struct rb_node href_node;
 	/*
 	 * the mutex is held while running the refs, and it is also
 	 * held when checking the sum of reference modifications.
 	 */
 	struct mutex mutex;
 
+	refcount_t refs;
+
+	/* Protects 'ref_tree' and 'ref_add_list'. */
 	spinlock_t lock;
 	struct rb_root_cached ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
-
-	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
 
