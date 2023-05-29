@@ -537,6 +537,8 @@ struct mddev {
 
 	/* Used to synchronize idle and frozen for action_store() */
 	struct mutex			sync_mutex;
+	/* The sequence number for sync thread */
+	atomic_t sync_seq;
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
