@@ -931,6 +931,59 @@ v4l2_device_failed:
 	return ret;
 }
 
+static void atomisp_init_sensor(struct atomisp_input_subdev *input)
+{
+	struct v4l2_subdev_state sd_state = {
+		.pads = &input->pad_cfg,
+	};
+	struct v4l2_subdev_selection sel = { };
+	int err;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
+	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	if (err)
+		return;
+
+	input->native_rect = sel.r;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP_DEFAULT;
+	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	if (err)
+		return;
+
+	input->active_rect = sel.r;
+
+	/*
+	 * The ISP also wants the non-active pixels at the border of the sensor
+	 * for padding, set the crop rect to cover the entire sensor instead
+	 * of only the default active area.
+	 *
+	 * Do this for both try and active formats since the try_crop rect in
+	 * pad_cfg may influence (clamp) future try_fmt calls with which == try.
+	 */
+	sel.which = V4L2_SUBDEV_FORMAT_TRY;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.r = input->native_rect;
+	err = v4l2_subdev_call(input->camera, pad, set_selection, &sd_state, &sel);
+	if (err)
+		return;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.r = input->native_rect;
+	err = v4l2_subdev_call(input->camera, pad, set_selection, NULL, &sel);
+	if (err)
+		return;
+
+	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d\n",
+		 input->native_rect.width, input->native_rect.height,
+		 input->active_rect.width, input->active_rect.height);
+
+	input->crop_support = true;
+}
+
 int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
 	struct atomisp_input_subdev *input;
@@ -951,6 +1004,8 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		input->type = RAW_CAMERA;
 		input->port = i;
 		input->camera = isp->sensor_subdevs[i];
+
+		atomisp_init_sensor(input);
 
 		/*
 		 * HACK: Currently VCM belongs to primary sensor only, but correct
