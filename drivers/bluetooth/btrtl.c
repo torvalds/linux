@@ -1044,12 +1044,11 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 	struct btrtl_device_info *btrtl_dev;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *resp;
+	struct hci_command_hdr *cmd;
 	char cfg_name[40];
 	u16 hci_rev, lmp_subver;
 	u8 hci_ver, lmp_ver, chip_type = 0;
 	int ret;
-	u16 opcode;
-	u8 cmd[2];
 	u8 reg_val[2];
 
 	btrtl_dev = kzalloc(sizeof(*btrtl_dev), GFP_KERNEL);
@@ -1118,15 +1117,14 @@ next:
 		btrtl_dev->drop_fw = false;
 
 	if (btrtl_dev->drop_fw) {
-		opcode = hci_opcode_pack(0x3f, 0x66);
-		cmd[0] = opcode & 0xff;
-		cmd[1] = opcode >> 8;
-
-		skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
+		skb = bt_skb_alloc(sizeof(*cmd), GFP_KERNEL);
 		if (!skb)
 			goto err_free;
 
-		skb_put_data(skb, cmd, sizeof(cmd));
+		cmd = skb_put(skb, HCI_COMMAND_HDR_SIZE);
+		cmd->opcode = cpu_to_le16(0xfc66);
+		cmd->plen = 0;
+
 		hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 		ret = hdev->send(hdev, skb);
