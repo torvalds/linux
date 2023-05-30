@@ -1312,7 +1312,7 @@ static int mtk_spi_suspend(struct device *dev)
 		clk_disable_unprepare(mdata->spi_hclk);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mtk_spi_resume(struct device *dev)
