@@ -76,9 +76,8 @@ struct reloc {
 	struct symbol *sym;
 	struct list_head sym_reloc_entry;
 	unsigned long offset;
-	unsigned int type;
 	s64 addend;
-	int idx;
+	unsigned int type;
 	bool jump_table_start;
 };
 
@@ -200,6 +199,11 @@ static inline unsigned int sec_num_entries(struct section *sec)
 	return sec->sh.sh_size / sec->sh.sh_entsize;
 }
 
+static inline unsigned int reloc_idx(struct reloc *reloc)
+{
+	return reloc - reloc->sec->relocs;
+}
+
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
 
@@ -219,7 +223,7 @@ static inline unsigned int sec_num_entries(struct section *sec)
 		     __i++, reloc++)
 
 #define for_each_reloc_from(rsec, reloc)				\
-	for (int __i = reloc->idx;					\
+	for (int __i = reloc_idx(reloc);				\
 	     __i < sec_num_entries(rsec);				\
 	     __i++, reloc++)
 

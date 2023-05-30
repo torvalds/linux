@@ -829,7 +829,6 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 		return NULL;
 	}
 
-	reloc->idx = reloc_idx;
 	reloc->sec = rsec;
 	reloc->offset = offset;
 	reloc->type = type;
@@ -954,7 +953,6 @@ static int read_relocs(struct elf *elf)
 				return -1;
 
 			reloc->sec = rsec;
-			reloc->idx = i;
 			symndx = GELF_R_SYM(reloc->rel.r_info);
 			reloc->sym = sym = find_symbol_by_index(elf, symndx);
 			if (!reloc->sym) {
@@ -1237,9 +1235,9 @@ int elf_write_reloc(struct elf *elf, struct reloc *reloc)
 
 	if (rsec->sh.sh_type == SHT_RELA) {
 		reloc->rela.r_addend = reloc->addend;
-		ret = gelf_update_rela(rsec->data, reloc->idx, &reloc->rela);
+		ret = gelf_update_rela(rsec->data, reloc_idx(reloc), &reloc->rela);
 	} else {
-		ret = gelf_update_rel(rsec->data, reloc->idx, &reloc->rel);
+		ret = gelf_update_rel(rsec->data, reloc_idx(reloc), &reloc->rel);
 	}
 
 	if (!ret) {
