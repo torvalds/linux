@@ -293,7 +293,6 @@ static int read_sections(struct elf *elf)
 		sec = &elf->section_data[i];
 
 		INIT_LIST_HEAD(&sec->symbol_list);
-		INIT_LIST_HEAD(&sec->reloc_list);
 
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
@@ -333,7 +332,7 @@ static int read_sections(struct elf *elf)
 		elf_hash_add(section_name, &sec->name_hash, str_hash(sec->name));
 
 		if (is_reloc_sec(sec))
-			elf->num_relocs += sec->sh.sh_size / sec->sh.sh_entsize;
+			elf->num_relocs += sec_num_entries(sec);
 	}
 
 	if (opts.stats) {
@@ -407,7 +406,7 @@ static int read_symbols(struct elf *elf)
 		if (symtab_shndx)
 			shndx_data = symtab_shndx->data;
 
-		symbols_nr = symtab->sh.sh_size / symtab->sh.sh_entsize;
+		symbols_nr = sec_num_entries(symtab);
 	} else {
 		/*
 		 * A missing symbol table is actually possible if it's an empty
@@ -701,7 +700,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		return NULL;
 	}
 
-	new_idx = symtab->sh.sh_size / symtab->sh.sh_entsize;
+	new_idx = sec_num_entries(symtab);
 
 	if (GELF_ST_BIND(sym->sym.st_info) != STB_LOCAL)
 		goto non_local;
@@ -816,13 +815,13 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 {
 	struct reloc *reloc, empty = { 0 };
 
-	if (reloc_idx >= rsec->sh.sh_size / elf_rela_size(elf)) {
-		WARN("%s: bad reloc_idx %u for %s with size 0x%lx",
-		     __func__, reloc_idx, rsec->name, rsec->sh.sh_size);
+	if (reloc_idx >= sec_num_entries(rsec)) {
+		WARN("%s: bad reloc_idx %u for %s with %d relocs",
+		     __func__, reloc_idx, rsec->name, sec_num_entries(rsec));
 		return NULL;
 	}
 
-	reloc = &rsec->reloc_data[reloc_idx];
+	reloc = &rsec->relocs[reloc_idx];
 
 	if (memcmp(reloc, &empty, sizeof(empty))) {
 		WARN("%s: %s: reloc %d already initialized!",
@@ -841,7 +840,6 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 		return NULL;
 
 	list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
-	list_add_tail(&reloc->list, &rsec->reloc_list);
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 
 	return reloc;
@@ -944,14 +942,13 @@ static int read_relocs(struct elf *elf)
 		rsec->base->rsec = rsec;
 
 		nr_reloc = 0;
-		rsec->reloc_data = calloc(rsec->sh.sh_size / rsec->sh.sh_entsize,
-					  sizeof(*reloc));
-		if (!rsec->reloc_data) {
+		rsec->relocs = calloc(sec_num_entries(rsec), sizeof(*reloc));
+		if (!rsec->relocs) {
 			perror("calloc");
 			return -1;
 		}
-		for (i = 0; i < rsec->sh.sh_size / rsec->sh.sh_entsize; i++) {
-			reloc = &rsec->reloc_data[i];
+		for (i = 0; i < sec_num_entries(rsec); i++) {
+			reloc = &rsec->relocs[i];
 
 			if (read_reloc(rsec, i, reloc))
 				return -1;
@@ -967,7 +964,6 @@ static int read_relocs(struct elf *elf)
 			}
 
 			list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
-			list_add_tail(&reloc->list, &rsec->reloc_list);
 			elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 
 			nr_reloc++;
@@ -1093,7 +1089,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	memset(sec, 0, sizeof(*sec));
 
 	INIT_LIST_HEAD(&sec->symbol_list);
-	INIT_LIST_HEAD(&sec->reloc_list);
 
 	s = elf_newscn(elf->elf);
 	if (!s) {
@@ -1186,9 +1181,8 @@ static struct section *elf_create_rela_section(struct elf *elf,
 	rsec->sh.sh_info = sec->idx;
 	rsec->sh.sh_flags = SHF_INFO_LINK;
 
-	rsec->reloc_data = calloc(rsec->sh.sh_size / rsec->sh.sh_entsize,
-				  sizeof(struct reloc));
-	if (!rsec->reloc_data) {
+	rsec->relocs = calloc(sec_num_entries(rsec), sizeof(struct reloc));
+	if (!rsec->relocs) {
 		perror("calloc");
 		return NULL;
 	}

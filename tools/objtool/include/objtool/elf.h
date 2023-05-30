@@ -33,14 +33,13 @@ struct section {
 	GElf_Shdr sh;
 	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
-	struct list_head reloc_list;
 	struct section *base, *rsec;
 	struct symbol *sym;
 	Elf_Data *data;
 	char *name;
 	int idx;
 	bool _changed, text, rodata, noinstr, init, truncate;
-	struct reloc *reloc_data;
+	struct reloc *relocs;
 };
 
 struct symbol {
@@ -68,7 +67,6 @@ struct symbol {
 };
 
 struct reloc {
-	struct list_head list;
 	struct hlist_node hash;
 	union {
 		GElf_Rela rela;
@@ -197,6 +195,11 @@ static inline void mark_sec_changed(struct elf *elf, struct section *sec,
 	elf->changed |= changed;
 }
 
+static inline unsigned int sec_num_entries(struct section *sec)
+{
+	return sec->sh.sh_size / sec->sh.sh_entsize;
+}
+
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
 
@@ -210,10 +213,15 @@ static inline void mark_sec_changed(struct elf *elf, struct section *sec,
 			sec_for_each_sym(__sec, sym)
 
 #define for_each_reloc(rsec, reloc)					\
-	list_for_each_entry(reloc, &rsec->reloc_list, list)
+	for (int __i = 0, __fake = 1; __fake; __fake = 0)		\
+		for (reloc = rsec->relocs;				\
+		     __i < sec_num_entries(rsec);			\
+		     __i++, reloc++)
 
 #define for_each_reloc_from(rsec, reloc)				\
-	list_for_each_entry_from(reloc, &rsec->reloc_list, list)
+	for (int __i = reloc->idx;					\
+	     __i < sec_num_entries(rsec);				\
+	     __i++, reloc++)
 
 #define OFFSET_STRIDE_BITS	4
 #define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
