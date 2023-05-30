@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -2477,52 +2477,6 @@ int sps_bam_set_satellite(struct sps_bam *dev, u32 pipe_index)
 	pipe->state |= BAM_STATE_REMOTE;
 
 	return 0;
-}
-
-/**
- * Perform BAM pipe timer control
- *
- */
-int sps_bam_pipe_timer_ctrl(struct sps_bam *dev,
-			    u32 pipe_index,
-			    struct sps_timer_ctrl *timer_ctrl,
-			    struct sps_timer_result *timer_result)
-{
-	enum bam_pipe_timer_mode mode;
-	int result = 0;
-
-	/* Is this pipe locally controlled? */
-	if ((dev->pipe_active_mask & (1UL << pipe_index)) == 0) {
-		SPS_ERR(dev, "sps:BAM %pa pipe %d not local and active\n",
-			BAM_ID(dev), pipe_index);
-		return SPS_ERROR;
-	}
-
-	/* Perform the timer operation */
-	switch (timer_ctrl->op) {
-	case SPS_TIMER_OP_CONFIG:
-		mode = (timer_ctrl->mode == SPS_TIMER_MODE_ONESHOT) ?
-			BAM_PIPE_TIMER_ONESHOT :
-			BAM_PIPE_TIMER_PERIODIC;
-		bam_pipe_timer_config(&dev->base, pipe_index, mode,
-				    timer_ctrl->timeout_msec * 8);
-		break;
-	case SPS_TIMER_OP_RESET:
-		bam_pipe_timer_reset(&dev->base, pipe_index);
-		break;
-	case SPS_TIMER_OP_READ:
-		break;
-	default:
-		result = SPS_ERROR;
-		break;
-	}
-
-	/* Provide the current timer value */
-	if (timer_result != NULL)
-		timer_result->current_timer =
-			bam_pipe_timer_get_count(&dev->base, pipe_index);
-
-	return result;
 }
 
 /**

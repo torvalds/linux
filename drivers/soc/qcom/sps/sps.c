@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 /* Smart-Peripheral-Switch (SPS) Module. */
 
@@ -2268,35 +2268,7 @@ int sps_timer_ctrl(struct sps_pipe *h,
 			struct sps_timer_ctrl *timer_ctrl,
 			struct sps_timer_result *timer_result)
 {
-	struct sps_pipe *pipe = h;
-	struct sps_bam *bam;
-	int result;
-
-	if (h == NULL) {
-		SPS_ERR(sps, "sps: pipe is NULL\n");
-		return SPS_ERROR;
-	} else if (timer_ctrl == NULL) {
-		SPS_ERR(sps, "sps: timer_ctrl pointer is NULL\n");
-		return SPS_ERROR;
-	} else if (timer_result == NULL) {
-		SPS_DBG(sps, "sps: no result to return\n");
-	}
-
-	bam = sps_bam_lock(pipe);
-	if (bam == NULL) {
-		SPS_ERR(sps, "sps: BAM is not found by handle\n");
-		return SPS_ERROR;
-	}
-
-	SPS_DBG2(bam, "sps: BAM: %pa; pipe index:%d\n",
-			BAM_ID(bam), pipe->pipe_index);
-
-	/* Perform the BAM pipe timer control operation */
-	result = sps_bam_pipe_timer_ctrl(bam, pipe->pipe_index, timer_ctrl,
-					 timer_result);
-	sps_bam_unlock(bam);
-
-	return result;
+	return 0;
 }
 EXPORT_SYMBOL(sps_timer_ctrl);
 
