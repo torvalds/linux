@@ -2730,19 +2730,20 @@ open_end:
 static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 				    int *playback, int *capture)
 {
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
-	if (rtd->dai_link->dynamic && rtd->dai_link->num_cpus > 1) {
+	if (dai_link->dynamic && dai_link->num_cpus > 1) {
 		dev_err(rtd->dev,
 			"DPCM doesn't support Multi CPU for Front-Ends yet\n");
 		return -EINVAL;
 	}
 
-	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+	if (dai_link->dynamic || dai_link->no_pcm) {
 		int stream;
 
-		if (rtd->dai_link->dpcm_playback) {
+		if (dai_link->dpcm_playback) {
 			stream = SNDRV_PCM_STREAM_PLAYBACK;
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
@@ -2754,11 +2755,11 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 			if (!*playback) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support playback for stream %s\n",
-					rtd->dai_link->stream_name);
+					dai_link->stream_name);
 				return -EINVAL;
 			}
 		}
-		if (rtd->dai_link->dpcm_capture) {
+		if (dai_link->dpcm_capture) {
 			stream = SNDRV_PCM_STREAM_CAPTURE;
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
@@ -2771,7 +2772,7 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 			if (!*capture) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support capture for stream %s\n",
-					rtd->dai_link->stream_name);
+					dai_link->stream_name);
 				return -EINVAL;
 			}
 		}
@@ -2779,15 +2780,15 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		struct snd_soc_dai *codec_dai;
 
 		/* Adapt stream for codec2codec links */
-		int cpu_capture = rtd->dai_link->c2c_params ?
+		int cpu_capture = dai_link->c2c_params ?
 			SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
-		int cpu_playback = rtd->dai_link->c2c_params ?
+		int cpu_playback = dai_link->c2c_params ?
 			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
-			if (rtd->dai_link->num_cpus == 1) {
+			if (dai_link->num_cpus == 1) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-			} else if (rtd->dai_link->num_cpus == rtd->dai_link->num_codecs) {
+			} else if (dai_link->num_cpus == dai_link->num_codecs) {
 				cpu_dai = asoc_rtd_to_cpu(rtd, i);
 			} else {
 				dev_err(rtd->card->dev,
@@ -2804,19 +2805,19 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		}
 	}
 
-	if (rtd->dai_link->playback_only) {
+	if (dai_link->playback_only) {
 		*playback = 1;
 		*capture = 0;
 	}
 
-	if (rtd->dai_link->capture_only) {
+	if (dai_link->capture_only) {
 		*playback = 0;
 		*capture = 1;
 	}
 
 	if (!*playback && !*capture) {
 		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
-			rtd->dai_link->stream_name);
+			dai_link->stream_name);
 
 		return -EINVAL;
 	}
