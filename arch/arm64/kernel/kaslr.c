@@ -25,7 +25,30 @@ u16 __initdata memstart_offset_seed;
 
 struct arm64_ftr_override kaslr_feature_override __initdata;
 
-static int __init kaslr_init(void)
+bool __ro_after_init __kaslr_is_enabled = false;
+
+void __init kaslr_init(void)
+{
+	if (kaslr_feature_override.val & kaslr_feature_override.mask & 0xf) {
+		pr_info("KASLR disabled on command line\n");
+		return;
+	}
+
+	/*
+	 * The KASLR offset modulo MIN_KIMG_ALIGN is taken from the physical
+	 * placement of the image rather than from the seed, so a displacement
+	 * of less than MIN_KIMG_ALIGN means that no seed was provided.
+	 */
+	if (kaslr_offset() < MIN_KIMG_ALIGN) {
+		pr_warn("KASLR disabled due to lack of seed\n");
+		return;
+	}
+
+	pr_info("KASLR enabled\n");
+	__kaslr_is_enabled = true;
+}
+
+int kaslr_module_init(void)
 {
 	u64 module_range;
 	u32 seed;
@@ -35,18 +58,6 @@ static int __init kaslr_init(void)
 	 * we end up running with module randomization disabled.
 	 */
 	module_alloc_base = (u64)_etext - MODULES_VSIZE;
-
-	if (kaslr_feature_override.val & kaslr_feature_override.mask & 0xf) {
-		pr_info("KASLR disabled on command line\n");
-		return 0;
-	}
-
-	if (!kaslr_enabled()) {
-		pr_warn("KASLR disabled due to lack of seed\n");
-		return 0;
-	}
-
-	pr_info("KASLR enabled\n");
 
 	seed = get_random_u32();
 
@@ -80,4 +91,4 @@ static int __init kaslr_init(void)
 
 	return 0;
 }
-subsys_initcall(kaslr_init)
+subsys_initcall(kaslr_module_init)
