@@ -789,9 +789,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	 * Each mux group will appear in 4 functions' list of groups.
 	 * This over-allocates slightly, since not all groups are mux groups.
 	 */
-	pmx->group_pins = devm_kcalloc(&pdev->dev,
-		soc_data->ngroups * 4, sizeof(*pmx->group_pins),
-		GFP_KERNEL);
+	pmx->group_pins = devm_kcalloc(&pdev->dev, pmx->soc->ngroups * 4,
+				       sizeof(*pmx->group_pins), GFP_KERNEL);
 	if (!pmx->group_pins)
 		return -ENOMEM;
 
@@ -802,14 +801,14 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	group_pins = pmx->group_pins;
 
-	for (fn = 0; fn < soc_data->nfunctions; fn++) {
+	for (fn = 0; fn < pmx->soc->nfunctions; fn++) {
 		struct tegra_function *func = &pmx->functions[fn];
 
 		func->name = pmx->soc->functions[fn];
 		func->groups = group_pins;
 
-		for (gn = 0; gn < soc_data->ngroups; gn++) {
-			const struct tegra_pingroup *g = &soc_data->groups[gn];
+		for (gn = 0; gn < pmx->soc->ngroups; gn++) {
+			const struct tegra_pingroup *g = &pmx->soc->groups[gn];
 
 			if (g->mux_reg == -1)
 				continue;
@@ -821,7 +820,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 				continue;
 
 			BUG_ON(group_pins - pmx->group_pins >=
-				soc_data->ngroups * 4);
+				pmx->soc->ngroups * 4);
 			*group_pins++ = g->name;
 			func->ngroups++;
 		}
