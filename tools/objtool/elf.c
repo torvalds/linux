@@ -534,16 +534,18 @@ err:
 }
 
 /*
- * Ensure that any reloc section containing references to @sym is marked
- * changed such that it will get re-generated in elf_rebuild_reloc_sections()
- * with the new symbol index.
+ * @sym's idx has changed.  Update the relocs which reference it.
  */
-static void elf_dirty_reloc_sym(struct elf *elf, struct symbol *sym)
+static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 {
 	struct reloc *reloc;
 
-	list_for_each_entry(reloc, &sym->reloc_list, sym_reloc_entry)
-		mark_sec_changed(elf, reloc->sec, true);
+	list_for_each_entry(reloc, &sym->reloc_list, sym_reloc_entry) {
+		if (elf_write_reloc(elf, reloc))
+			return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -716,12 +718,13 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		hlist_del(&old->hash);
 		elf_hash_add(symbol, &old->hash, old->idx);
 
-		elf_dirty_reloc_sym(elf, old);
-
 		if (elf_update_symbol(elf, symtab, symtab_shndx, old)) {
 			WARN("elf_update_symbol move");
 			return NULL;
 		}
+
+		if (elf_update_sym_relocs(elf, old))
+			return NULL;
 
 		new_idx = first_non_local;
 	}
@@ -833,11 +836,12 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	reloc->sym = sym;
 	reloc->addend = addend;
 
+	if (elf_write_reloc(elf, reloc))
+		return NULL;
+
 	list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
 	list_add_tail(&reloc->list, &rsec->reloc_list);
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
-
-	mark_sec_changed(elf, rsec, true);
 
 	return reloc;
 }
@@ -1203,31 +1207,6 @@ struct section *elf_create_section_pair(struct elf *elf, const char *name,
 	return sec;
 }
 
-static int elf_rebuild_reloc_section(struct elf *elf, struct section *rsec)
-{
-	struct reloc *reloc;
-	int idx = 0, ret;
-
-	idx = 0;
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
-		reloc->rel.r_offset = reloc->offset;
-		reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
-		if (rsec->sh.sh_type == SHT_RELA) {
-			reloc->rela.r_addend = reloc->addend;
-			ret = gelf_update_rela(rsec->data, idx, &reloc->rela);
-		} else {
-			ret = gelf_update_rel(rsec->data, idx, &reloc->rel);
-		}
-		if (!ret) {
-			WARN_ELF("gelf_update_rel");
-			return -1;
-		}
-		idx++;
-	}
-
-	return 0;
-}
-
 int elf_write_insn(struct elf *elf, struct section *sec,
 		   unsigned long offset, unsigned int len,
 		   const char *insn)
@@ -1348,12 +1327,6 @@ int elf_write(struct elf *elf)
 			/* Note this also flags the section dirty */
 			if (!gelf_update_shdr(s, &sec->sh)) {
 				WARN_ELF("gelf_update_shdr");
-				return -1;
-			}
-
-			if (sec->base &&
-			    elf_rebuild_reloc_section(elf, sec)) {
-				WARN("elf_rebuild_reloc_section");
 				return -1;
 			}
 
