@@ -184,6 +184,7 @@ struct ext4_allocation_context {
 	__u16 ac_groups_scanned;
 	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
+	__u16 ac_cX_found[EXT4_MB_NUM_CRS];
 	__u16 ac_tail;
 	__u16 ac_buddy;
 	__u8 ac_status;

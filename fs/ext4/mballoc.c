@@ -2103,6 +2103,7 @@ static void ext4_mb_measure_extent(struct ext4_allocation_context *ac,
 	BUG_ON(ac->ac_status != AC_STATUS_CONTINUE);
 
 	ac->ac_found++;
+	ac->ac_cX_found[ac->ac_criteria]++;
 
 	/*
 	 * The special case - take what you catch first
@@ -2277,6 +2278,7 @@ void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
 			break;
 		}
 		ac->ac_found++;
+		ac->ac_cX_found[ac->ac_criteria]++;
 
 		ac->ac_b_ex.fe_len = 1 << i;
 		ac->ac_b_ex.fe_start = k << i;
@@ -2392,6 +2394,7 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 			max = mb_find_extent(e4b, i, stripe, &ex);
 			if (max >= stripe) {
 				ac->ac_found++;
+				ac->ac_cX_found[ac->ac_criteria]++;
 				ex.fe_logical = 0xDEADF00D; /* debug value */
 				ac->ac_b_ex = ex;
 				ext4_mb_use_best_found(ac, e4b);
@@ -2929,6 +2932,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR0]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR0]));
+	seq_printf(seq, "\t\textents_scanned: %u\n", atomic_read(&sbi->s_bal_cX_ex_scanned[CR0]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_failed[CR0]));
 	seq_printf(seq, "\t\tbad_suggestions: %u\n",
@@ -2938,6 +2942,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR1]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR1]));
+	seq_printf(seq, "\t\textents_scanned: %u\n", atomic_read(&sbi->s_bal_cX_ex_scanned[CR1]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_failed[CR1]));
 	seq_printf(seq, "\t\tbad_suggestions: %u\n",
@@ -2947,6 +2952,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR2]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR2]));
+	seq_printf(seq, "\t\textents_scanned: %u\n", atomic_read(&sbi->s_bal_cX_ex_scanned[CR2]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_failed[CR2]));
 
@@ -2954,6 +2960,7 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR3]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR3]));
+	seq_printf(seq, "\t\textents_scanned: %u\n", atomic_read(&sbi->s_bal_cX_ex_scanned[CR3]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
 		   atomic64_read(&sbi->s_bal_cX_failed[CR3]));
 	seq_printf(seq, "\textents_scanned: %u\n", atomic_read(&sbi->s_bal_ex_scanned));
@@ -4393,7 +4400,12 @@ static void ext4_mb_collect_stats(struct ext4_allocation_context *ac)
 		atomic_add(ac->ac_b_ex.fe_len, &sbi->s_bal_allocated);
 		if (ac->ac_b_ex.fe_len >= ac->ac_o_ex.fe_len)
 			atomic_inc(&sbi->s_bal_success);
+
 		atomic_add(ac->ac_found, &sbi->s_bal_ex_scanned);
+		for (int i=0; i<EXT4_MB_NUM_CRS; i++) {
+			atomic_add(ac->ac_cX_found[i], &sbi->s_bal_cX_ex_scanned[i]);
+		}
+
 		atomic_add(ac->ac_groups_scanned, &sbi->s_bal_groups_scanned);
 		if (ac->ac_g_ex.fe_start == ac->ac_b_ex.fe_start &&
 				ac->ac_g_ex.fe_group == ac->ac_b_ex.fe_group)
