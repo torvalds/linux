@@ -120,19 +120,19 @@ TRACE_DEFINE_ENUM(EXT4_FC_REASON_MAX);
 		{ EXT4_FC_REASON_INODE_JOURNAL_DATA,	"INODE_JOURNAL_DATA"}, \
 		{ EXT4_FC_REASON_ENCRYPTED_FILENAME,	"ENCRYPTED_FILENAME"})
 
-TRACE_DEFINE_ENUM(CR0);
-TRACE_DEFINE_ENUM(CR1);
-TRACE_DEFINE_ENUM(CR1_5);
-TRACE_DEFINE_ENUM(CR2);
-TRACE_DEFINE_ENUM(CR3);
+TRACE_DEFINE_ENUM(CR_POWER2_ALIGNED);
+TRACE_DEFINE_ENUM(CR_GOAL_LEN_FAST);
+TRACE_DEFINE_ENUM(CR_BEST_AVAIL_LEN);
+TRACE_DEFINE_ENUM(CR_GOAL_LEN_SLOW);
+TRACE_DEFINE_ENUM(CR_ANY_FREE);
 
-#define show_criteria(cr)                       \
-	__print_symbolic(cr,                    \
-			 { CR0, "CR0" },	\
-			 { CR1, "CR1" },        \
-			 { CR1_5, "CR1.5" }     \
-			 { CR2, "CR2" },        \
-			 { CR3, "CR3" })
+#define show_criteria(cr)                                               \
+	__print_symbolic(cr,                                            \
+			 { CR_POWER2_ALIGNED, "CR_POWER2_ALIGNED" },	\
+			 { CR_GOAL_LEN_FAST, "CR_GOAL_LEN_FAST" },      \
+			 { CR_BEST_AVAIL_LEN, "CR_BEST_AVAIL_LEN" },    \
+			 { CR_GOAL_LEN_SLOW, "CR_GOAL_LEN_SLOW" },      \
+			 { CR_ANY_FREE, "CR_ANY_FREE" })
 
 TRACE_EVENT(ext4_other_inode_update_time,
 	TP_PROTO(struct inode *inode, ino_t orig_ino),
