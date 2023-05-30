@@ -111,15 +111,26 @@ struct elf {
 };
 
 struct elf *elf_open_read(const char *name, int flags);
-struct section *elf_create_section(struct elf *elf, const char *name, size_t entsize, int nr);
+
+struct section *elf_create_section(struct elf *elf, const char *name,
+				   size_t entsize, unsigned int nr);
+struct section *elf_create_section_pair(struct elf *elf, const char *name,
+					size_t entsize, unsigned int nr,
+					unsigned int reloc_nr);
 
 struct symbol *elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size);
 
-int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
-		  unsigned int type, struct symbol *sym, s64 addend);
-int elf_add_reloc_to_insn(struct elf *elf, struct section *sec,
-			  unsigned long offset, unsigned int type,
-			  struct section *insn_sec, unsigned long insn_off);
+struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
+				      unsigned long offset,
+				      unsigned int reloc_idx,
+				      struct section *insn_sec,
+				      unsigned long insn_off);
+
+struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
+				      unsigned long offset,
+				      unsigned int reloc_idx,
+				      struct symbol *sym,
+				      s64 addend);
 
 int elf_write_insn(struct elf *elf, struct section *sec,
 		   unsigned long offset, unsigned int len,
@@ -157,6 +168,16 @@ static inline size_t elf_addr_size(struct elf *elf)
 static inline size_t elf_rela_size(struct elf *elf)
 {
 	return elf_addr_size(elf) == 4 ? sizeof(Elf32_Rela) : sizeof(Elf64_Rela);
+}
+
+static inline unsigned int elf_data_rela_type(struct elf *elf)
+{
+	return elf_addr_size(elf) == 4 ? R_DATA32 : R_DATA64;
+}
+
+static inline unsigned int elf_text_rela_type(struct elf *elf)
+{
+	return elf_addr_size(elf) == 4 ? R_TEXT32 : R_TEXT64;
 }
 
 static inline bool is_reloc_sec(struct section *sec)

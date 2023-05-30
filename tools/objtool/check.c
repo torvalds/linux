@@ -8,7 +8,6 @@
 #include <inttypes.h>
 #include <sys/mman.h>
 
-#include <arch/elf.h>
 #include <objtool/builtin.h>
 #include <objtool/cfi.h>
 #include <objtool/arch.h>
@@ -656,8 +655,8 @@ reachable:
 
 static int create_static_call_sections(struct objtool_file *file)
 {
-	struct section *sec;
 	struct static_call_site *site;
+	struct section *sec;
 	struct instruction *insn;
 	struct symbol *key_sym;
 	char *key_name, *tmp;
@@ -677,25 +676,21 @@ static int create_static_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->static_call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".static_call_sites",
-				 sizeof(struct static_call_site), idx);
+	sec = elf_create_section_pair(file->elf, ".static_call_sites",
+				      sizeof(*site), idx, idx * 2);
 	if (!sec)
 		return -1;
 
-	/* Allow modules to set the low bits of static_call_site::key */
+	/* Allow modules to modify the low bits of static_call_site::key */
 	sec->sh.sh_flags |= SHF_WRITE;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->static_call_list, call_node) {
 
-		site = (struct static_call_site *)sec->data->d_buf + idx;
-		memset(site, 0, sizeof(struct static_call_site));
-
 		/* populate reloc for 'addr' */
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(struct static_call_site),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(*site), idx * 2,
+					     insn->sec, insn->offset))
 			return -1;
 
 		/* find key symbol */
@@ -735,10 +730,10 @@ static int create_static_call_sections(struct objtool_file *file)
 		free(key_name);
 
 		/* populate reloc for 'key' */
-		if (elf_add_reloc(file->elf, sec,
-				  idx * sizeof(struct static_call_site) + 4,
-				  R_X86_64_PC32, key_sym,
-				  is_sibling_call(insn) * STATIC_CALL_SITE_TAIL))
+		if (!elf_init_reloc_data_sym(file->elf, sec,
+					     idx * sizeof(*site) + 4,
+					     (idx * 2) + 1, key_sym,
+					     is_sibling_call(insn) * STATIC_CALL_SITE_TAIL))
 			return -1;
 
 		idx++;
@@ -766,26 +761,18 @@ static int create_retpoline_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".retpoline_sites",
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .retpoline_sites");
+	sec = elf_create_section_pair(file->elf, ".retpoline_sites",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->retpoline_call_list, call_node) {
 
-		int *site = (int *)sec->data->d_buf + idx;
-		*site = 0;
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .retpoline_sites");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -812,26 +799,18 @@ static int create_return_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".return_sites",
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .return_sites");
+	sec = elf_create_section_pair(file->elf, ".return_sites",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->return_thunk_list, call_node) {
 
-		int *site = (int *)sec->data->d_buf + idx;
-		*site = 0;
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .return_sites");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -864,12 +843,10 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".ibt_endbr_seal",
-				 sizeof(int), idx);
-	if (!sec) {
-		WARN("elf_create_section: .ibt_endbr_seal");
+	sec = elf_create_section_pair(file->elf, ".ibt_endbr_seal",
+				      sizeof(int), idx, idx);
+	if (!sec)
 		return -1;
-	}
 
 	idx = 0;
 	list_for_each_entry(insn, &file->endbr_list, call_node) {
@@ -884,13 +861,10 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 		     !strcmp(sym->name, "cleanup_module")))
 			WARN("%s(): not an indirect call target", sym->name);
 
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset)) {
-			WARN("elf_add_reloc_to_insn: .ibt_endbr_seal");
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(int), idx,
+					     insn->sec, insn->offset))
 			return -1;
-		}
 
 		idx++;
 	}
@@ -902,7 +876,6 @@ static int create_cfi_sections(struct objtool_file *file)
 {
 	struct section *sec;
 	struct symbol *sym;
-	unsigned int *loc;
 	int idx;
 
 	sec = find_section_by_name(file->elf, ".cfi_sites");
@@ -923,7 +896,8 @@ static int create_cfi_sections(struct objtool_file *file)
 		idx++;
 	}
 
-	sec = elf_create_section(file->elf, ".cfi_sites", sizeof(unsigned int), idx);
+	sec = elf_create_section_pair(file->elf, ".cfi_sites",
+				      sizeof(unsigned int), idx, idx);
 	if (!sec)
 		return -1;
 
@@ -935,13 +909,9 @@ static int create_cfi_sections(struct objtool_file *file)
 		if (strncmp(sym->name, "__cfi_", 6))
 			continue;
 
-		loc = (unsigned int *)sec->data->d_buf + idx;
-		memset(loc, 0, sizeof(unsigned int));
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(unsigned int),
-					  R_X86_64_PC32,
-					  sym->sec, sym->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(unsigned int), idx,
+					     sym->sec, sym->offset))
 			return -1;
 
 		idx++;
@@ -971,7 +941,8 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, "__mcount_loc", addr_size, idx);
+	sec = elf_create_section_pair(file->elf, "__mcount_loc", addr_size,
+				      idx, idx);
 	if (!sec)
 		return -1;
 
@@ -979,17 +950,17 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 
 	idx = 0;
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node) {
-		void *loc;
 
-		loc = sec->data->d_buf + idx;
-		memset(loc, 0, addr_size);
+		struct reloc *reloc;
 
-		if (elf_add_reloc_to_insn(file->elf, sec, idx,
-					  addr_size == sizeof(u64) ? R_ABS64 : R_ABS32,
-					  insn->sec, insn->offset))
+		reloc = elf_init_reloc_text_sym(file->elf, sec, idx * addr_size, idx,
+					       insn->sec, insn->offset);
+		if (!reloc)
 			return -1;
 
-		idx += addr_size;
+		reloc->type = addr_size == 8 ? R_ABS64 : R_ABS32;
+
+		idx++;
 	}
 
 	return 0;
@@ -999,7 +970,6 @@ static int create_direct_call_sections(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct section *sec;
-	unsigned int *loc;
 	int idx;
 
 	sec = find_section_by_name(file->elf, ".call_sites");
@@ -1016,20 +986,17 @@ static int create_direct_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".call_sites", sizeof(unsigned int), idx);
+	sec = elf_create_section_pair(file->elf, ".call_sites",
+				      sizeof(unsigned int), idx, idx);
 	if (!sec)
 		return -1;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->call_list, call_node) {
 
-		loc = (unsigned int *)sec->data->d_buf + idx;
-		memset(loc, 0, sizeof(unsigned int));
-
-		if (elf_add_reloc_to_insn(file->elf, sec,
-					  idx * sizeof(unsigned int),
-					  R_X86_64_PC32,
-					  insn->sec, insn->offset))
+		if (!elf_init_reloc_text_sym(file->elf, sec,
+					     idx * sizeof(unsigned int), idx,
+					     insn->sec, insn->offset))
 			return -1;
 
 		idx++;
