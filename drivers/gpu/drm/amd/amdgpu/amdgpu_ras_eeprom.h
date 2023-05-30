@@ -26,6 +26,8 @@
 
 #include <linux/i2c.h>
 
+#define RAS_TABLE_VER_V1           0x00010000
+
 struct amdgpu_device;
 
 enum amdgpu_ras_eeprom_err_type {

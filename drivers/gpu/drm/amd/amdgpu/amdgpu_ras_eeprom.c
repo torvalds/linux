@@ -68,7 +68,6 @@
 
 /* Table hdr is 'AMDR' */
 #define RAS_TABLE_HDR_VAL       0x414d4452
-#define RAS_TABLE_VER           0x00010000
 
 /* Bad GPU tag ‘BADG’ */
 #define RAS_TABLE_HDR_BAD       0x42414447
@@ -289,7 +288,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	mutex_lock(&control->ras_tbl_mutex);
 
 	hdr->header = RAS_TABLE_HDR_VAL;
-	hdr->version = RAS_TABLE_VER;
+	hdr->version = RAS_TABLE_VER_V1;
 	hdr->first_rec_offset = RAS_RECORD_START;
 	hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
 
@@ -575,7 +574,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
 	}
 
-	control->tbl_hdr.version = RAS_TABLE_VER;
+	control->tbl_hdr.version = RAS_TABLE_VER_V1;
 	control->tbl_hdr.first_rec_offset = RAS_INDEX_TO_OFFSET(control, control->ras_fri);
 	control->tbl_hdr.tbl_size = RAS_TABLE_HEADER_SIZE + control->ras_num_recs * RAS_TABLE_RECORD_SIZE;
 	control->tbl_hdr.checksum = 0;
