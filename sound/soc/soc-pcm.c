@@ -2814,6 +2814,13 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		*capture = 1;
 	}
 
+	if (!*playback && !*capture) {
+		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
+			rtd->dai_link->stream_name);
+
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
