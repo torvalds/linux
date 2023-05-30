@@ -80,6 +80,15 @@
 #define RAS_MAX_RECORD_COUNT    ((RAS_TBL_SIZE_BYTES - RAS_TABLE_HEADER_SIZE) \
 				 / RAS_TABLE_RECORD_SIZE)
 
+/* EEPROM Table V2_1 */
+#define RAS_TABLE_V2_1_INFO_SIZE       256
+#define RAS_TABLE_V2_1_INFO_START      RAS_TABLE_HEADER_SIZE
+#define RAS_RECORD_START_V2_1          (RAS_HDR_START + RAS_TABLE_HEADER_SIZE + \
+					RAS_TABLE_V2_1_INFO_SIZE)
+#define RAS_MAX_RECORD_COUNT_V2_1      ((RAS_TBL_SIZE_BYTES - RAS_TABLE_HEADER_SIZE - \
+					RAS_TABLE_V2_1_INFO_SIZE) \
+					/ RAS_TABLE_RECORD_SIZE)
+
 /* Given a zero-based index of an EEPROM RAS record, yields the EEPROM
  * offset off of RAS_TABLE_START.  That is, this is something you can
  * add to control->i2c_address, and then tell I2C layer to read
@@ -101,6 +110,10 @@
 
 #define RAS_NUM_RECS(_tbl_hdr)  (((_tbl_hdr)->tbl_size - \
 				  RAS_TABLE_HEADER_SIZE) / RAS_TABLE_RECORD_SIZE)
+
+#define RAS_NUM_RECS_V2_1(_tbl_hdr)  (((_tbl_hdr)->tbl_size - \
+				       RAS_TABLE_HEADER_SIZE - \
+				       RAS_TABLE_V2_1_INFO_SIZE) / RAS_TABLE_RECORD_SIZE)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
 
