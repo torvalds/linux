@@ -159,11 +159,51 @@ static const struct mtk_stateless_control mtk_stateless_controls[] = {
 		},
 		.codec_type = V4L2_PIX_FMT_HEVC_SLICE,
 	},
+	{
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_SEQUENCE,
+
+		},
+		.codec_type = V4L2_PIX_FMT_AV1_FRAME,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_FRAME,
+
+		},
+		.codec_type = V4L2_PIX_FMT_AV1_FRAME,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY,
+			.dims = { V4L2_AV1_MAX_TILE_COUNT },
+
+		},
+		.codec_type = V4L2_PIX_FMT_AV1_FRAME,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_AV1_PROFILE,
+			.min = V4L2_MPEG_VIDEO_AV1_PROFILE_MAIN,
+			.def = V4L2_MPEG_VIDEO_AV1_PROFILE_MAIN,
+			.max = V4L2_MPEG_VIDEO_AV1_PROFILE_MAIN,
+		},
+		.codec_type = V4L2_PIX_FMT_AV1_FRAME,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_AV1_LEVEL,
+			.min = V4L2_MPEG_VIDEO_AV1_LEVEL_2_0,
+			.def = V4L2_MPEG_VIDEO_AV1_LEVEL_4_0,
+			.max = V4L2_MPEG_VIDEO_AV1_LEVEL_5_1,
+		},
+		.codec_type = V4L2_PIX_FMT_AV1_FRAME,
+	},
 };
 
 #define NUM_CTRLS ARRAY_SIZE(mtk_stateless_controls)
 
-static struct mtk_video_fmt mtk_video_formats[6];
+static struct mtk_video_fmt mtk_video_formats[7];
 
 static struct mtk_video_fmt default_out_format;
 static struct mtk_video_fmt default_cap_format;
@@ -409,6 +449,7 @@ static void mtk_vcodec_add_formats(unsigned int fourcc,
 	case V4L2_PIX_FMT_VP8_FRAME:
 	case V4L2_PIX_FMT_VP9_FRAME:
 	case V4L2_PIX_FMT_HEVC_SLICE:
+	case V4L2_PIX_FMT_AV1_FRAME:
 		mtk_video_formats[count_formats].fourcc = fourcc;
 		mtk_video_formats[count_formats].type = MTK_FMT_DEC;
 		mtk_video_formats[count_formats].num_planes = 1;
@@ -467,6 +508,10 @@ static void mtk_vcodec_get_supported_formats(struct mtk_vcodec_ctx *ctx)
 	}
 	if (ctx->dev->dec_capability & MTK_VDEC_FORMAT_HEVC_FRAME) {
 		mtk_vcodec_add_formats(V4L2_PIX_FMT_HEVC_SLICE, ctx);
+		out_format_count++;
+	}
+	if (ctx->dev->dec_capability & MTK_VDEC_FORMAT_AV1_FRAME) {
+		mtk_vcodec_add_formats(V4L2_PIX_FMT_AV1_FRAME, ctx);
 		out_format_count++;
 	}
 

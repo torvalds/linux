@@ -54,6 +54,8 @@ struct vdec_msg_queue_ctx {
  * struct vdec_lat_buf - lat buffer message used to store lat info for core decode
  * @wdma_err_addr: wdma error address used for lat hardware
  * @slice_bc_addr: slice bc address used for lat hardware
+ * @rd_mv_addr:	mv addr for av1 lat hardware output, core hardware input
+ * @tile_addr:	tile buffer for av1 core input
  * @ts_info: need to set timestamp from output to capture
  * @src_buf_req: output buffer media request object
  *
@@ -68,6 +70,8 @@ struct vdec_msg_queue_ctx {
 struct vdec_lat_buf {
 	struct mtk_vcodec_mem wdma_err_addr;
 	struct mtk_vcodec_mem slice_bc_addr;
+	struct mtk_vcodec_mem rd_mv_addr;
+	struct mtk_vcodec_mem tile_addr;
 	struct vb2_v4l2_buffer ts_info;
 	struct media_request *src_buf_req;
 

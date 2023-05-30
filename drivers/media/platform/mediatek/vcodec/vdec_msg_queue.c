@@ -20,6 +20,9 @@
 /* the size used to store avc error information */
 #define VDEC_ERR_MAP_SZ_AVC         (17 * SZ_1K)
 
+#define VDEC_RD_MV_BUFFER_SZ        (((SZ_4K * 2304 >> 4) + SZ_1K) << 1)
+#define VDEC_LAT_TILE_SZ            (64 * V4L2_AV1_MAX_TILE_COUNT)
+
 /* core will read the trans buffer which decoded by lat to decode again.
  * The trans buffer size of FHD and 4K bitstreams are different.
  */
@@ -219,6 +222,14 @@ void vdec_msg_queue_deinit(struct vdec_msg_queue *msg_queue,
 		if (mem->va)
 			mtk_vcodec_mem_free(ctx, mem);
 
+		mem = &lat_buf->rd_mv_addr;
+		if (mem->va)
+			mtk_vcodec_mem_free(ctx, mem);
+
+		mem = &lat_buf->tile_addr;
+		if (mem->va)
+			mtk_vcodec_mem_free(ctx, mem);
+
 		kfree(lat_buf->private_data);
 	}
 
@@ -319,6 +330,22 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 		if (err) {
 			mtk_v4l2_err("failed to allocate wdma_addr buf[%d]", i);
 			goto mem_alloc_err;
+		}
+
+		if (ctx->current_codec == V4L2_PIX_FMT_AV1_FRAME) {
+			lat_buf->rd_mv_addr.size = VDEC_RD_MV_BUFFER_SZ;
+			err = mtk_vcodec_mem_alloc(ctx, &lat_buf->rd_mv_addr);
+			if (err) {
+				mtk_v4l2_err("failed to allocate rd_mv_addr buf[%d]", i);
+				return -ENOMEM;
+			}
+
+			lat_buf->tile_addr.size = VDEC_LAT_TILE_SZ;
+			err = mtk_vcodec_mem_alloc(ctx, &lat_buf->tile_addr);
+			if (err) {
+				mtk_v4l2_err("failed to allocate tile_addr buf[%d]", i);
+				return -ENOMEM;
+			}
 		}
 
 		lat_buf->private_data = kzalloc(private_size, GFP_KERNEL);
