@@ -88,4 +88,6 @@ int bch2_dev_group_set(struct bch_fs *, struct bch_dev *, const char *);
 const char *bch2_sb_validate_disk_groups(struct bch_sb *,
 					 struct bch_sb_field *);
 
+void bch2_disk_groups_to_text(struct printbuf *, struct bch_fs *);
+
 #endif /* _BCACHEFS_DISK_GROUPS_H */

@@ -223,6 +223,7 @@ static void bch2_write_refs_to_text(struct printbuf *out, struct bch_fs *c)
 #endif
 
 read_attribute(internal_uuid);
+read_attribute(disk_groups);
 
 read_attribute(has_data);
 read_attribute(alloc_debug);
@@ -471,6 +472,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_nocow_lock_table)
 		bch2_nocow_locks_to_text(out, &c->nocow_locks);
 
+	if (attr == &sysfs_disk_groups)
+		bch2_disk_groups_to_text(out, c);
+
 	return 0;
 }
 
@@ -681,6 +685,8 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_moving_ctxts,
 
 	&sysfs_internal_uuid,
+
+	&sysfs_disk_groups,
 	NULL
 };
 

@@ -87,6 +87,40 @@ err:
 	return ret;
 }
 
+void bch2_disk_groups_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct bch_disk_groups_cpu *g;
+	struct bch_dev *ca;
+	int i;
+	unsigned iter;
+
+	out->atomic++;
+	rcu_read_lock();
+
+	g = rcu_dereference(c->disk_groups);
+	if (!g)
+		goto out;
+
+	for (i = 0; i < g->nr; i++) {
+		if (i)
+			prt_printf(out, " ");
+
+		if (g->entries[i].deleted) {
+			prt_printf(out, "[deleted]");
+			continue;
+		}
+
+		prt_printf(out, "[parent %d devs", g->entries[i].parent);
+		for_each_member_device_rcu(ca, c, iter, &g->entries[i].devs)
+			prt_printf(out, " %s", ca->name);
+		prt_printf(out, "]");
+	}
+
+out:
+	rcu_read_unlock();
+	out->atomic--;
+}
+
 static void bch2_sb_disk_groups_to_text(struct printbuf *out,
 					struct bch_sb *sb,
 					struct bch_sb_field *f)
