@@ -36,8 +36,8 @@ typedef  ssize_t       int_fast16_t;
 typedef   size_t      uint_fast16_t;
 typedef  ssize_t       int_fast32_t;
 typedef   size_t      uint_fast32_t;
-typedef  ssize_t       int_fast64_t;
-typedef   size_t      uint_fast64_t;
+typedef  int64_t       int_fast64_t;
+typedef uint64_t      uint_fast64_t;
 
 typedef  int64_t           intmax_t;
 typedef uint64_t          uintmax_t;
@@ -84,16 +84,16 @@ typedef uint64_t          uintmax_t;
 #define  INT_FAST8_MIN   INT8_MIN
 #define INT_FAST16_MIN   INTPTR_MIN
 #define INT_FAST32_MIN   INTPTR_MIN
-#define INT_FAST64_MIN   INTPTR_MIN
+#define INT_FAST64_MIN   INT64_MIN
 
 #define  INT_FAST8_MAX   INT8_MAX
 #define INT_FAST16_MAX   INTPTR_MAX
 #define INT_FAST32_MAX   INTPTR_MAX
-#define INT_FAST64_MAX   INTPTR_MAX
+#define INT_FAST64_MAX   INT64_MAX
 
 #define  UINT_FAST8_MAX  UINT8_MAX
 #define UINT_FAST16_MAX  SIZE_MAX
 #define UINT_FAST32_MAX  SIZE_MAX
-#define UINT_FAST64_MAX  SIZE_MAX
+#define UINT_FAST64_MAX  UINT64_MAX
 
 #endif /* _NOLIBC_STDINT_H */
