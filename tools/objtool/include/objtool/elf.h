@@ -39,7 +39,7 @@ struct section {
 	Elf_Data *data;
 	char *name;
 	int idx;
-	bool changed, text, rodata, noinstr, init, truncate;
+	bool _changed, text, rodata, noinstr, init, truncate;
 	struct reloc *reloc_data;
 };
 
@@ -162,6 +162,18 @@ static inline size_t elf_rela_size(struct elf *elf)
 static inline bool is_reloc_sec(struct section *sec)
 {
 	return sec->sh.sh_type == SHT_RELA || sec->sh.sh_type == SHT_REL;
+}
+
+static inline bool sec_changed(struct section *sec)
+{
+	return sec->_changed;
+}
+
+static inline void mark_sec_changed(struct elf *elf, struct section *sec,
+				    bool changed)
+{
+	sec->_changed = changed;
+	elf->changed |= changed;
 }
 
 #define for_each_sec(file, sec)						\

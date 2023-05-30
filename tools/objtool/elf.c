@@ -562,7 +562,8 @@ int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 
 	sec->rsec->sh.sh_size += sec->rsec->sh.sh_entsize;
-	sec->rsec->changed = true;
+
+	mark_sec_changed(elf, sec->rsec, true);
 
 	return 0;
 }
@@ -577,7 +578,7 @@ static void elf_dirty_reloc_sym(struct elf *elf, struct symbol *sym)
 	struct reloc *reloc;
 
 	list_for_each_entry(reloc, &sym->reloc_list, sym_reloc_entry)
-		reloc->sec->changed = true;
+		mark_sec_changed(elf, reloc->sec, true);
 }
 
 /*
@@ -654,7 +655,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 			symtab_data->d_align = 1;
 			symtab_data->d_type = ELF_T_SYM;
 
-			symtab->changed = true;
+			mark_sec_changed(elf, symtab, true);
 			symtab->truncate = true;
 
 			if (t) {
@@ -669,7 +670,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 				shndx_data->d_align = sizeof(Elf32_Word);
 				shndx_data->d_type = ELF_T_WORD;
 
-				symtab_shndx->changed = true;
+				mark_sec_changed(elf, symtab_shndx, true);
 				symtab_shndx->truncate = true;
 			}
 
@@ -773,11 +774,11 @@ non_local:
 	}
 
 	symtab->sh.sh_size += symtab->sh.sh_entsize;
-	symtab->changed = true;
+	mark_sec_changed(elf, symtab, true);
 
 	if (symtab_shndx) {
 		symtab_shndx->sh.sh_size += sizeof(Elf32_Word);
-		symtab_shndx->changed = true;
+		mark_sec_changed(elf, symtab_shndx, true);
 	}
 
 	return sym;
@@ -1040,7 +1041,8 @@ static int elf_add_string(struct elf *elf, struct section *strtab, char *str)
 
 	len = strtab->sh.sh_size;
 	strtab->sh.sh_size += data->d_size;
-	strtab->changed = true;
+
+	mark_sec_changed(elf, strtab, true);
 
 	return len;
 }
@@ -1075,7 +1077,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	}
 
 	sec->idx = elf_ndxscn(s);
-	sec->changed = true;
 
 	sec->data = elf_newdata(s);
 	if (!sec->data) {
@@ -1122,7 +1123,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	elf_hash_add(section, &sec->hash, sec->idx);
 	elf_hash_add(section_name, &sec->name_hash, str_hash(sec->name));
 
-	elf->changed = true;
+	mark_sec_changed(elf, sec, true);
 
 	return sec;
 }
@@ -1208,9 +1209,8 @@ int elf_write_insn(struct elf *elf, struct section *sec,
 	}
 
 	memcpy(data->d_buf + offset, insn, len);
-	elf_flagdata(data, ELF_C_SET, ELF_F_DIRTY);
 
-	elf->changed = true;
+	mark_sec_changed(elf, sec, true);
 
 	return 0;
 }
@@ -1235,7 +1235,7 @@ int elf_write_reloc(struct elf *elf, struct reloc *reloc)
 		return -1;
 	}
 
-	elf->changed = true;
+	mark_sec_changed(elf, rsec, true);
 
 	return 0;
 }
@@ -1307,12 +1307,14 @@ int elf_write(struct elf *elf)
 		if (sec->truncate)
 			elf_truncate_section(elf, sec);
 
-		if (sec->changed) {
+		if (sec_changed(sec)) {
 			s = elf_getscn(elf->elf, sec->idx);
 			if (!s) {
 				WARN_ELF("elf_getscn");
 				return -1;
 			}
+
+			/* Note this also flags the section dirty */
 			if (!gelf_update_shdr(s, &sec->sh)) {
 				WARN_ELF("gelf_update_shdr");
 				return -1;
@@ -1324,8 +1326,7 @@ int elf_write(struct elf *elf)
 				return -1;
 			}
 
-			sec->changed = false;
-			elf->changed = true;
+			mark_sec_changed(elf, sec, false);
 		}
 	}
 
