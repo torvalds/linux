@@ -250,6 +250,8 @@ Now we are ready to write the test cases.
 	};
 	kunit_test_suite(misc_example_test_suite);
 
+	MODULE_LICENSE("GPL");
+
 2. Add the following lines to ``drivers/misc/Kconfig``:
 
 .. code-block:: kconfig
