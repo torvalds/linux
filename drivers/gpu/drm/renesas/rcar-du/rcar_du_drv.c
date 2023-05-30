@@ -710,7 +710,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 	if (ret)
 		goto error;
 
-	DRM_INFO("Device %s probed\n", dev_name(&pdev->dev));
+	drm_info(&rcdu->ddev, "Device %s probed\n", dev_name(&pdev->dev));
 
 	drm_fbdev_generic_setup(&rcdu->ddev, 32);
 
