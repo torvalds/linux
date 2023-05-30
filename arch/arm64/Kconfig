@@ -207,6 +207,7 @@ config ARM64
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KVM
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
@@ -577,7 +578,6 @@ config ARM64_ERRATUM_845719
 config ARM64_ERRATUM_843419
 	bool "Cortex-A53: 843419: A load or store might access an incorrect address"
 	default y
-	select ARM64_MODULE_PLTS if MODULES
 	help
 	  This option links the kernel with '--fix-cortex-a53-843419' and
 	  enables PLT support to replace certain ADRP instructions, which can
@@ -2107,26 +2107,6 @@ config ARM64_SME
 	  register state capable of holding two dimensional matrix tiles to
 	  enable various matrix operations.
 
-config ARM64_MODULE_PLTS
-	bool "Use PLTs to allow module memory to spill over into vmalloc area"
-	depends on MODULES
-	select HAVE_MOD_ARCH_SPECIFIC
-	help
-	  Allocate PLTs when loading modules so that jumps and calls whose
-	  targets are too far away for their relative offsets to be encoded
-	  in the instructions themselves can be bounced via veneers in the
-	  module's PLT. This allows modules to be allocated in the generic
-	  vmalloc area after the dedicated module memory area has been
-	  exhausted.
-
-	  When running with address space randomization (KASLR), the module
-	  region itself may be too far away for ordinary relative jumps and
-	  calls, and so in that case, module PLTs are required and cannot be
-	  disabled.
-
-	  Specific errata workaround(s) might also force module PLTs to be
-	  enabled (ARM64_ERRATUM_843419).
-
 config ARM64_PSEUDO_NMI
 	bool "Support for NMI-like interrupts"
 	select ARM_GIC_V3
@@ -2167,7 +2147,6 @@ config RELOCATABLE
 
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
-	select ARM64_MODULE_PLTS if MODULES
 	select RELOCATABLE
 	help
 	  Randomizes the virtual address at which the kernel image is
@@ -2198,9 +2177,8 @@ config RANDOMIZE_MODULE_REGION_FULL
 	  When this option is not set, the module region will be randomized over
 	  a limited range that contains the [_stext, _etext] interval of the
 	  core kernel, so branch relocations are almost always in range unless
-	  ARM64_MODULE_PLTS is enabled and the region is exhausted. In this
-	  particular case of region exhaustion, modules might be able to fall
-	  back to a larger 2GB area.
+	  the region is exhausted. In this particular case of region
+	  exhaustion, modules might be able to fall back to a larger 2GB area.
 
 config CC_HAVE_STACKPROTECTOR_SYSREG
 	def_bool $(cc-option,-mstack-protector-guard=sysreg -mstack-protector-guard-reg=sp_el0 -mstack-protector-guard-offset=0)

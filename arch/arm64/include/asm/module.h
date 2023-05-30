@@ -7,7 +7,6 @@
 
 #include <asm-generic/module.h>
 
-#ifdef CONFIG_ARM64_MODULE_PLTS
 struct mod_plt_sec {
 	int			plt_shndx;
 	int			plt_num_entries;
@@ -21,7 +20,6 @@ struct mod_arch_specific {
 	/* for CONFIG_DYNAMIC_FTRACE */
 	struct plt_entry	*ftrace_trampolines;
 };
-#endif
 
 u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
 			  void *loc, const Elf64_Rela *rela,
