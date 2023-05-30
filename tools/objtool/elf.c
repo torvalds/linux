@@ -575,11 +575,8 @@ static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 {
 	struct reloc *reloc;
 
-	for (reloc = sym->relocs; reloc; reloc = reloc->sym_next_reloc) {
-		reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc_type(reloc));
-		if (elf_write_reloc(elf, reloc))
-			return -1;
-	}
+	for (reloc = sym->relocs; reloc; reloc = reloc->sym_next_reloc)
+		set_reloc_sym(elf, reloc, reloc->sym->idx);
 
 	return 0;
 }
@@ -869,12 +866,10 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	reloc->sec = rsec;
 	reloc->sym = sym;
 
-	reloc->rel.r_offset = offset;
-	reloc->rel.r_info = GELF_R_INFO(sym->idx, type);
-	reloc->rela.r_addend = addend;
-
-	if (elf_write_reloc(elf, reloc))
-		return NULL;
+	set_reloc_offset(elf, reloc, offset);
+	set_reloc_sym(elf, reloc, sym->idx);
+	set_reloc_type(elf, reloc, type);
+	set_reloc_addend(elf, reloc, addend);
 
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 	reloc->sym_next_reloc = sym->relocs;
@@ -932,24 +927,6 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 			      elf_data_rela_type(elf));
 }
 
-static int read_reloc(struct section *rsec, int i, struct reloc *reloc)
-{
-	bool rela = rsec->sh.sh_type == SHT_RELA;
-	void *retp;
-
-	if (rela)
-		retp = gelf_getrela(rsec->data, i, &reloc->rela);
-	else
-		retp = gelf_getrel(rsec->data, i, &reloc->rel);
-
-	if (!retp) {
-		WARN_ELF("gelf_getrela");
-		return -1;
-	}
-
-	return 0;
-}
-
 static int read_relocs(struct elf *elf)
 {
 	unsigned long nr_reloc, max_reloc = 0;
@@ -984,11 +961,8 @@ static int read_relocs(struct elf *elf)
 		for (i = 0; i < sec_num_entries(rsec); i++) {
 			reloc = &rsec->relocs[i];
 
-			if (read_reloc(rsec, i, reloc))
-				return -1;
-
 			reloc->sec = rsec;
-			symndx = GELF_R_SYM(reloc->rel.r_info);
+			symndx = reloc_sym(reloc);
 			reloc->sym = sym = find_symbol_by_index(elf, symndx);
 			if (!reloc->sym) {
 				WARN("can't find reloc entry symbol %d for %s",
@@ -1257,26 +1231,6 @@ int elf_write_insn(struct elf *elf, struct section *sec,
 	memcpy(data->d_buf + offset, insn, len);
 
 	mark_sec_changed(elf, sec, true);
-
-	return 0;
-}
-
-int elf_write_reloc(struct elf *elf, struct reloc *reloc)
-{
-	struct section *rsec = reloc->sec;
-	int ret;
-
-	if (rsec->sh.sh_type == SHT_RELA)
-		ret = gelf_update_rela(rsec->data, reloc_idx(reloc), &reloc->rela);
-	else
-		ret = gelf_update_rel(rsec->data, reloc_idx(reloc), &reloc->rel);
-
-	if (!ret) {
-		WARN_ELF("gelf_update_rela");
-		return -1;
-	}
-
-	mark_sec_changed(elf, rsec, true);
 
 	return 0;
 }

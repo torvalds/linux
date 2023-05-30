@@ -968,7 +968,7 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 		if (!reloc)
 			return -1;
 
-		set_reloc_type(reloc, addr_size == 8 ? R_ABS64 : R_ABS32);
+		set_reloc_type(file->elf, reloc, addr_size == 8 ? R_ABS64 : R_ABS32);
 
 		idx++;
 	}
@@ -1363,10 +1363,8 @@ static void annotate_call_site(struct objtool_file *file,
 	 * noinstr text.
 	 */
 	if (opts.hack_noinstr && insn->sec->noinstr && sym->profiling_func) {
-		if (reloc) {
-			set_reloc_type(reloc, R_NONE);
-			elf_write_reloc(file->elf, reloc);
-		}
+		if (reloc)
+			set_reloc_type(file->elf, reloc, R_NONE);
 
 		elf_write_insn(file->elf, insn->sec,
 			       insn->offset, insn->len,
@@ -1392,10 +1390,8 @@ static void annotate_call_site(struct objtool_file *file,
 		if (sibling)
 			WARN_INSN(insn, "tail call to __fentry__ !?!?");
 		if (opts.mnop) {
-			if (reloc) {
-				set_reloc_type(reloc, R_NONE);
-				elf_write_reloc(file->elf, reloc);
-			}
+			if (reloc)
+				set_reloc_type(file->elf, reloc, R_NONE);
 
 			elf_write_insn(file->elf, insn->sec,
 				       insn->offset, insn->len,
@@ -1874,10 +1870,8 @@ static int handle_jump_alt(struct objtool_file *file,
 	if (opts.hack_jump_label && special_alt->key_addend & 2) {
 		struct reloc *reloc = insn_reloc(file, orig_insn);
 
-		if (reloc) {
-			set_reloc_type(reloc, R_NONE);
-			elf_write_reloc(file->elf, reloc);
-		}
+		if (reloc)
+			set_reloc_type(file->elf, reloc, R_NONE);
 		elf_write_insn(file->elf, orig_insn->sec,
 			       orig_insn->offset, orig_insn->len,
 			       arch_nop_insn(orig_insn->len));

@@ -72,10 +72,6 @@ struct symbol {
 
 struct reloc {
 	struct elf_hash_node hash;
-	union {
-		GElf_Rela rela;
-		GElf_Rel  rel;
-	};
 	struct section *sec;
 	struct symbol *sym;
 	struct reloc *sym_next_reloc;
@@ -132,7 +128,6 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 int elf_write_insn(struct elf *elf, struct section *sec,
 		   unsigned long offset, unsigned int len,
 		   const char *insn);
-int elf_write_reloc(struct elf *elf, struct reloc *reloc);
 int elf_write(struct elf *elf);
 void elf_close(struct elf *elf);
 
@@ -204,24 +199,99 @@ static inline unsigned int reloc_idx(struct reloc *reloc)
 	return reloc - reloc->sec->relocs;
 }
 
-static inline unsigned long reloc_offset(struct reloc *reloc)
+static inline void *reloc_rel(struct reloc *reloc)
 {
-	return reloc->rel.r_offset;
+	struct section *rsec = reloc->sec;
+
+	return rsec->data->d_buf + (reloc_idx(reloc) * rsec->sh.sh_entsize);
 }
 
-static inline unsigned int reloc_type(struct reloc *reloc)
+static inline bool is_32bit_reloc(struct reloc *reloc)
 {
-	return GELF_R_TYPE(reloc->rel.r_info);
+	/*
+	 * Elf32_Rel:   8 bytes
+	 * Elf32_Rela: 12 bytes
+	 * Elf64_Rel:  16 bytes
+	 * Elf64_Rela: 24 bytes
+	 */
+	return reloc->sec->sh.sh_entsize < 16;
 }
 
-static inline void set_reloc_type(struct reloc *reloc, int type)
+#define __get_reloc_field(reloc, field)					\
+({									\
+	is_32bit_reloc(reloc) ?						\
+		((Elf32_Rela *)reloc_rel(reloc))->field :		\
+		((Elf64_Rela *)reloc_rel(reloc))->field;		\
+})
+
+#define __set_reloc_field(reloc, field, val)				\
+({									\
+	if (is_32bit_reloc(reloc))					\
+		((Elf32_Rela *)reloc_rel(reloc))->field = val;		\
+	else								\
+		((Elf64_Rela *)reloc_rel(reloc))->field = val;		\
+})
+
+static inline u64 reloc_offset(struct reloc *reloc)
 {
-	reloc->rel.r_info = GELF_R_INFO(GELF_R_SYM(reloc->rel.r_info), type);
+	return __get_reloc_field(reloc, r_offset);
+}
+
+static inline void set_reloc_offset(struct elf *elf, struct reloc *reloc, u64 offset)
+{
+	__set_reloc_field(reloc, r_offset, offset);
+	mark_sec_changed(elf, reloc->sec, true);
 }
 
 static inline s64 reloc_addend(struct reloc *reloc)
 {
-	return reloc->rela.r_addend;
+	return __get_reloc_field(reloc, r_addend);
+}
+
+static inline void set_reloc_addend(struct elf *elf, struct reloc *reloc, s64 addend)
+{
+	__set_reloc_field(reloc, r_addend, addend);
+	mark_sec_changed(elf, reloc->sec, true);
+}
+
+
+static inline unsigned int reloc_sym(struct reloc *reloc)
+{
+	u64 info = __get_reloc_field(reloc, r_info);
+
+	return is_32bit_reloc(reloc) ?
+		ELF32_R_SYM(info) :
+		ELF64_R_SYM(info);
+}
+
+static inline unsigned int reloc_type(struct reloc *reloc)
+{
+	u64 info = __get_reloc_field(reloc, r_info);
+
+	return is_32bit_reloc(reloc) ?
+		ELF32_R_TYPE(info) :
+		ELF64_R_TYPE(info);
+}
+
+static inline void set_reloc_sym(struct elf *elf, struct reloc *reloc, unsigned int sym)
+{
+	u64 info = is_32bit_reloc(reloc) ?
+		ELF32_R_INFO(sym, reloc_type(reloc)) :
+		ELF64_R_INFO(sym, reloc_type(reloc));
+
+	__set_reloc_field(reloc, r_info, info);
+
+	mark_sec_changed(elf, reloc->sec, true);
+}
+static inline void set_reloc_type(struct elf *elf, struct reloc *reloc, unsigned int type)
+{
+	u64 info = is_32bit_reloc(reloc) ?
+		ELF32_R_INFO(reloc_sym(reloc), type) :
+		ELF64_R_INFO(reloc_sym(reloc), type);
+
+	__set_reloc_field(reloc, r_info, info);
+
+	mark_sec_changed(elf, reloc->sec, true);
 }
 
 #define for_each_sec(file, sec)						\
