@@ -496,7 +496,7 @@ struct fw_update_info {
 	/*file update*/
 	char *fw_name;
 	u8 *buffer;
-	mm_segment_t old_fs;
+	//mm_segment_t old_fs;
 	struct file *fw_file;
 	/*header update*/
 	u8 *fw_data;

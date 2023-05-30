@@ -550,7 +550,6 @@ gt1x_update_pre_fail1:
 	filp_close(update_info.fw_file, NULL);
 	return ret;
 }
-#endif
 
 void gt1x_update_cleanup(void)
 {
@@ -647,6 +646,7 @@ int gt1x_check_firmware(void)
 
 	return 0;
 }
+#endif
 
 /**
  * @return: return a pointer pointed at the content of firmware
