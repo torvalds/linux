@@ -4961,7 +4961,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	uint32_t actual_w, actual_h, dsp_w, dsp_h;
 	uint32_t dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	uint32_t format;
+	uint32_t format, check_size;
 	uint32_t afbc_format;
 	uint32_t rb_swap;
 	uint32_t uv_swap;
@@ -5014,7 +5014,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		actual_w = dsp_w * actual_w / drm_rect_width(dst);
 	}
 	dsp_h = drm_rect_height(dst);
-	if (dst->y1 + dsp_h > adjusted_mode->crtc_vdisplay) {
+	check_size = adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE ? adjusted_mode->vdisplay : adjusted_mode->crtc_vdisplay;
+	if (dst->y1 + dsp_h > check_size) {
 		DRM_ERROR("vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
 			  vp->id, win->name, dst->y1, dsp_h, adjusted_mode->crtc_vdisplay);
 		dsp_h = adjusted_mode->crtc_vdisplay - dst->y1;
