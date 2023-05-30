@@ -310,6 +310,15 @@ static void ufshcd_wb_toggle_buf_flush_during_h8(struct ufs_hba *hba,
 static void ufshcd_hba_vreg_set_lpm(struct ufs_hba *hba);
 static void ufshcd_hba_vreg_set_hpm(struct ufs_hba *hba);
 
+static inline int ufshcd_use_mcq_hooks(struct ufs_hba *hba)
+{
+	bool mcq_hooks = false;
+
+	trace_android_vh_ufs_use_mcq_hooks(hba, &mcq_hooks);
+
+	return mcq_hooks;
+}
+
 static inline void ufshcd_enable_irq(struct ufs_hba *hba)
 {
 	if (!hba->is_irq_enabled) {
@@ -7475,6 +7484,11 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	u32 reg;
 
 	WARN_ONCE(tag < 0, "Invalid tag %d\n", tag);
+
+	if (ufshcd_use_mcq_hooks(hba)) {
+		trace_android_vh_ufs_mcq_abort(hba, cmd, &err);
+		return err;
+	}
 
 	ufshcd_hold(hba, false);
 	reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);

@@ -172,6 +172,21 @@
   __tracepoint_android_rvh_refrigerator
   freezer_cgrp_subsys
 
+#required by bfq module
+  __blkg_prfill_rwstat
+  blkg_rwstat_recursive_sum
+  blkg_prfill_rwstat
+  blkg_conf_finish
+  blkg_conf_prep
+  __blkg_prfill_u64
+  blkcg_print_blkgs
+  blkg_rwstat_exit
+  blkg_rwstat_init
+  percpu_counter_add_batch
+  io_cgrp_subsys_on_dfl_key
+  ioc_lookup_icq
+  bdi_dev_name
+
 #required by metis.ko module
   __traceiter_android_vh_rwsem_read_wait_start
   __traceiter_android_vh_rwsem_write_wait_start
