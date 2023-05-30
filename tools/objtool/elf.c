@@ -32,16 +32,52 @@ static inline u32 str_hash(const char *str)
 #define __elf_table(name)	(elf->name##_hash)
 #define __elf_bits(name)	(elf->name##_bits)
 
-#define elf_hash_add(name, node, key) \
-	hlist_add_head(node, &__elf_table(name)[hash_min(key, __elf_bits(name))])
+#define __elf_table_entry(name, key) \
+	__elf_table(name)[hash_min(key, __elf_bits(name))]
 
-#define elf_hash_for_each_possible(name, obj, member, key) \
-	hlist_for_each_entry(obj, &__elf_table(name)[hash_min(key, __elf_bits(name))], member)
+#define elf_hash_add(name, node, key)					\
+({									\
+	struct elf_hash_node *__node = node;				\
+	__node->next = __elf_table_entry(name, key);			\
+	__elf_table_entry(name, key) = __node;				\
+})
+
+static inline void __elf_hash_del(struct elf_hash_node *node,
+				  struct elf_hash_node **head)
+{
+	struct elf_hash_node *cur, *prev;
+
+	if (node == *head) {
+		*head = node->next;
+		return;
+	}
+
+	for (prev = NULL, cur = *head; cur; prev = cur, cur = cur->next) {
+		if (cur == node) {
+			prev->next = cur->next;
+			break;
+		}
+	}
+}
+
+#define elf_hash_del(name, node, key) \
+	__elf_hash_del(node, &__elf_table_entry(name, key))
+
+#define elf_list_entry(ptr, type, member)				\
+({									\
+	typeof(ptr) __ptr = (ptr);					\
+	__ptr ? container_of(__ptr, type, member) : NULL;		\
+})
+
+#define elf_hash_for_each_possible(name, obj, member, key)		\
+	for (obj = elf_list_entry(__elf_table_entry(name, key), typeof(*obj), member); \
+	     obj;							\
+	     obj = elf_list_entry(obj->member.next, typeof(*(obj)), member))
 
 #define elf_alloc_hash(name, size) \
 ({ \
 	__elf_bits(name) = max(10, ilog2(size)); \
-	__elf_table(name) = mmap(NULL, sizeof(struct hlist_head) << __elf_bits(name), \
+	__elf_table(name) = mmap(NULL, sizeof(struct elf_hash_node *) << __elf_bits(name), \
 				 PROT_READ|PROT_WRITE, \
 				 MAP_PRIVATE|MAP_ANON, -1, 0); \
 	if (__elf_table(name) == (void *)-1L) { \
@@ -713,10 +749,10 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 	first_non_local = symtab->sh.sh_info;
 	old = find_symbol_by_index(elf, first_non_local);
 	if (old) {
-		old->idx = new_idx;
 
-		hlist_del(&old->hash);
-		elf_hash_add(symbol, &old->hash, old->idx);
+		elf_hash_del(symbol, &old->hash, old->idx);
+		elf_hash_add(symbol, &old->hash, new_idx);
+		old->idx = new_idx;
 
 		if (elf_update_symbol(elf, symtab, symtab_shndx, old)) {
 			WARN("elf_update_symbol move");

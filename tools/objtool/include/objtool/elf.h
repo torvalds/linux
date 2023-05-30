@@ -26,10 +26,14 @@
 #define ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+struct elf_hash_node {
+	struct elf_hash_node *next;
+};
+
 struct section {
 	struct list_head list;
-	struct hlist_node hash;
-	struct hlist_node name_hash;
+	struct elf_hash_node hash;
+	struct elf_hash_node name_hash;
 	GElf_Shdr sh;
 	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
@@ -45,8 +49,8 @@ struct section {
 struct symbol {
 	struct list_head list;
 	struct rb_node node;
-	struct hlist_node hash;
-	struct hlist_node name_hash;
+	struct elf_hash_node hash;
+	struct elf_hash_node name_hash;
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
@@ -67,7 +71,7 @@ struct symbol {
 };
 
 struct reloc {
-	struct hlist_node hash;
+	struct elf_hash_node hash;
 	union {
 		GElf_Rela rela;
 		GElf_Rel  rel;
@@ -93,11 +97,11 @@ struct elf {
 	int section_name_bits;
 	int reloc_bits;
 
-	struct hlist_head *symbol_hash;
-	struct hlist_head *symbol_name_hash;
-	struct hlist_head *section_hash;
-	struct hlist_head *section_name_hash;
-	struct hlist_head *reloc_hash;
+	struct elf_hash_node **symbol_hash;
+	struct elf_hash_node **symbol_name_hash;
+	struct elf_hash_node **section_hash;
+	struct elf_hash_node **section_name_hash;
+	struct elf_hash_node **reloc_hash;
 
 	struct section *section_data;
 	struct symbol *symbol_data;
