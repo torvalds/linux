@@ -1446,7 +1446,8 @@ static void rk3528_set_to_rmii(struct rk_priv_data *bsp_priv)
 			     RK3528_GMAC1_PHY_INTF_SEL_RMII);
 	else
 		regmap_write(bsp_priv->grf, RK3528_VO_GRF_GMAC_CON,
-			     RK3528_GMAC0_PHY_INTF_SEL_RMII);
+			     RK3528_GMAC0_PHY_INTF_SEL_RMII |
+			     RK3528_GMAC0_CLK_RMII_DIV2);
 }
 
 static void rk3528_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -2022,7 +2023,8 @@ static void rv1106_set_to_rmii(struct rk_priv_data *bsp_priv)
 	}
 
 	regmap_write(bsp_priv->grf, RV1106_VOGRF_GMAC_CLK_CON,
-		     RV1106_VOGRF_MACPHY_RMII_MODE);
+		     RV1106_VOGRF_MACPHY_RMII_MODE |
+		     RV1106_VOGRF_GMAC_CLK_RMII_DIV2);
 }
 
 static void rv1106_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
