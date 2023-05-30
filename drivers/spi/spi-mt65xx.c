@@ -1269,7 +1269,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_spi_remove(struct platform_device *pdev)
+static void mtk_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
@@ -1294,8 +1294,6 @@ static int mtk_spi_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1415,7 +1413,7 @@ static struct platform_driver mtk_spi_driver = {
 		.of_match_table = mtk_spi_of_match,
 	},
 	.probe = mtk_spi_probe,
-	.remove = mtk_spi_remove,
+	.remove_new = mtk_spi_remove,
 };
 
 module_platform_driver(mtk_spi_driver);
