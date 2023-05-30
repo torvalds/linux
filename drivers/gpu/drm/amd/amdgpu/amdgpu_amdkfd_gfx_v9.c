@@ -685,7 +685,8 @@ static void unlock_spi_csq_mutexes(struct amdgpu_device *adev)
  * @queue_idx: Index of queue in the queue-map bit-field
  * @wave_cnt: Output parameter updated with number of waves in flight
  * @vmid: Output parameter updated with VMID of queue whose wave count
- * is being collected
+ *        is being collected
+ * @inst: xcc's instance number on a multi-XCC setup
  */
 static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
 		int *wave_cnt, int *vmid, uint32_t inst)
@@ -721,9 +722,10 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  * @adev: Handle of device from which to get number of waves in flight
  * @pasid: Identifies the process for which this query call is invoked
  * @pasid_wave_cnt: Output parameter updated with number of waves in flight that
- * belong to process with given pasid
+ *                  belong to process with given pasid
  * @max_waves_per_cu: Output parameter updated with maximum number of waves
- * possible per Compute Unit
+ *                    possible per Compute Unit
+ * @inst: xcc's instance number on a multi-XCC setup
  *
  * Note: It's possible that the device has too many queues (oversubscription)
  * in which case a VMID could be remapped to a different PASID. This could lead
