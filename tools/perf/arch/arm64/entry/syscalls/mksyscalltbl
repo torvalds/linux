@@ -19,7 +19,7 @@ if ! test -r $input; then
 	exit 1
 fi
 
-create_table_from_c()
+create_sc_table()
 {
 	local sc nr last_sc
 
@@ -35,7 +35,7 @@ create_table()
 {
 	echo "#include \"$input\""
 	echo "static const char *const syscalltbl_arm64[] = {"
-	create_table_from_c
+	create_sc_table
 	echo "};"
 }
 
