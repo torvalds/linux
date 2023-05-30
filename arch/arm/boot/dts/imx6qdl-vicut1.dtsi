@@ -432,6 +432,7 @@
 	pinctrl-names = "default";
 	phy_type = "utmi";
 	dr_mode = "host";
+	disable-over-current;
 	status = "okay";
 };
 
@@ -443,6 +444,14 @@
 	dr_mode = "host";
 	disable-over-current;
 	status = "okay";
+};
+
+&usbphynop1 {
+	status = "disabled";
+};
+
+&usbphynop2 {
+	status = "disabled";
 };
 
 &usdhc1 {
