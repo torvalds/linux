@@ -591,7 +591,7 @@ static int add_dead_ends(struct objtool_file *file)
 	if (!rsec)
 		goto reachable;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -626,7 +626,7 @@ reachable:
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -1019,7 +1019,7 @@ static void add_ignores(struct objtool_file *file)
 	if (!rsec)
 		return;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		switch (reloc->sym->type) {
 		case STT_FUNC:
 			func = reloc->sym;
@@ -1260,7 +1260,7 @@ static int add_ignore_alternatives(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -1991,7 +1991,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 	 * Each @reloc is a switch table relocation which points to the target
 	 * instruction.
 	 */
-	list_for_each_entry_from(reloc, &table->sec->reloc_list, list) {
+	for_each_reloc_from(table->sec, reloc) {
 
 		/* Check for the end of the table: */
 		if (reloc != table && reloc->jump_table_start)
@@ -2270,7 +2270,7 @@ static int read_noendbr_hints(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		insn = find_insn(file, reloc->sym->sec, reloc->sym->offset + reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.noendbr entry");
@@ -2293,7 +2293,7 @@ static int read_retpoline_hints(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -2329,7 +2329,7 @@ static int read_instr_hints(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -2348,7 +2348,7 @@ static int read_instr_hints(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -2376,7 +2376,7 @@ static int read_validate_unret_hints(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
@@ -2404,7 +2404,7 @@ static int read_intra_function_calls(struct objtool_file *file)
 	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
+	for_each_reloc(rsec, reloc) {
 		unsigned long dest_off;
 
 		if (reloc->sym->type != STT_SECTION) {
@@ -4404,7 +4404,7 @@ static int validate_ibt(struct objtool_file *file)
 		    strstr(sec->name, "__patchable_function_entries"))
 			continue;
 
-		list_for_each_entry(reloc, &sec->rsec->reloc_list, list)
+		for_each_reloc(sec->rsec, reloc)
 			warnings += validate_ibt_data_reloc(file, reloc);
 	}
 

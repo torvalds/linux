@@ -209,6 +209,12 @@ static inline void mark_sec_changed(struct elf *elf, struct section *sec,
 		for_each_sec(file, __sec)				\
 			sec_for_each_sym(__sec, sym)
 
+#define for_each_reloc(rsec, reloc)					\
+	list_for_each_entry(reloc, &rsec->reloc_list, list)
+
+#define for_each_reloc_from(rsec, reloc)				\
+	list_for_each_entry_from(reloc, &rsec->reloc_list, list)
+
 #define OFFSET_STRIDE_BITS	4
 #define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
 #define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
