@@ -105,7 +105,7 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 	    !text_reloc->sym->sec->rodata)
 		return NULL;
 
-	table_offset = text_reloc->addend;
+	table_offset = reloc_addend(text_reloc);
 	table_sec = text_reloc->sym->sec;
 
 	if (reloc_type(text_reloc) == R_X86_64_PC32)

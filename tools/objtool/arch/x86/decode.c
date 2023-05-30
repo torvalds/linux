@@ -623,11 +623,11 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			if (!immr || strcmp(immr->sym->name, "pv_ops"))
 				break;
 
-			idx = (immr->addend + 8) / sizeof(void *);
+			idx = (reloc_addend(immr) + 8) / sizeof(void *);
 
 			func = disp->sym;
 			if (disp->sym->type == STT_SECTION)
-				func = find_symbol_by_offset(disp->sym->sec, disp->addend);
+				func = find_symbol_by_offset(disp->sym->sec, reloc_addend(disp));
 			if (!func) {
 				WARN("no func for pv_ops[]");
 				return -1;

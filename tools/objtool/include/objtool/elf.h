@@ -75,7 +75,6 @@ struct reloc {
 	struct section *sec;
 	struct symbol *sym;
 	struct list_head sym_reloc_entry;
-	s64 addend;
 	bool jump_table_start;
 };
 
@@ -215,6 +214,11 @@ static inline unsigned int reloc_type(struct reloc *reloc)
 static inline void set_reloc_type(struct reloc *reloc, int type)
 {
 	reloc->rel.r_info = GELF_R_INFO(GELF_R_SYM(reloc->rel.r_info), type);
+}
+
+static inline s64 reloc_addend(struct reloc *reloc)
+{
+	return reloc->rela.r_addend;
 }
 
 #define for_each_sec(file, sec)						\
