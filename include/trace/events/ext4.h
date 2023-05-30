@@ -120,6 +120,18 @@ TRACE_DEFINE_ENUM(EXT4_FC_REASON_MAX);
 		{ EXT4_FC_REASON_INODE_JOURNAL_DATA,	"INODE_JOURNAL_DATA"}, \
 		{ EXT4_FC_REASON_ENCRYPTED_FILENAME,	"ENCRYPTED_FILENAME"})
 
+TRACE_DEFINE_ENUM(CR0);
+TRACE_DEFINE_ENUM(CR1);
+TRACE_DEFINE_ENUM(CR2);
+TRACE_DEFINE_ENUM(CR3);
+
+#define show_criteria(cr)                       \
+	__print_symbolic(cr,                    \
+			 { CR0, "CR0" },	\
+			 { CR1, "CR1" },        \
+			 { CR2, "CR2" },        \
+			 { CR3, "CR3" })
+
 TRACE_EVENT(ext4_other_inode_update_time,
 	TP_PROTO(struct inode *inode, ino_t orig_ino),
 
@@ -1063,7 +1075,7 @@ TRACE_EVENT(ext4_mballoc_alloc,
 	),
 
 	TP_printk("dev %d,%d inode %lu orig %u/%d/%u@%u goal %u/%d/%u@%u "
-		  "result %u/%d/%u@%u blks %u grps %u cr %u flags %s "
+		  "result %u/%d/%u@%u blks %u grps %u cr %s flags %s "
 		  "tail %u broken %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
@@ -1073,7 +1085,7 @@ TRACE_EVENT(ext4_mballoc_alloc,
 		  __entry->goal_len, __entry->goal_logical,
 		  __entry->result_group, __entry->result_start,
 		  __entry->result_len, __entry->result_logical,
-		  __entry->found, __entry->groups, __entry->cr,
+		  __entry->found, __entry->groups, show_criteria(__entry->cr),
 		  show_mballoc_flags(__entry->flags), __entry->tail,
 		  __entry->buddy ? 1 << __entry->buddy : 0)
 );

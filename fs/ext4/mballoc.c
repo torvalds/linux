@@ -154,19 +154,19 @@
  * structures to decide the order in which groups are to be traversed for
  * fulfilling an allocation request.
  *
- * At CR = 0, we look for groups which have the largest_free_order >= the order
+ * At CR0 , we look for groups which have the largest_free_order >= the order
  * of the request. We directly look at the largest free order list in the data
  * structure (1) above where largest_free_order = order of the request. If that
  * list is empty, we look at remaining list in the increasing order of
- * largest_free_order. This allows us to perform CR = 0 lookup in O(1) time.
+ * largest_free_order. This allows us to perform CR0 lookup in O(1) time.
  *
- * At CR = 1, we only consider groups where average fragment size > request
+ * At CR1, we only consider groups where average fragment size > request
  * size. So, we lookup a group which has average fragment size just above or
  * equal to request size using our average fragment size group lists (data
  * structure 2) in O(1) time.
  *
  * If "mb_optimize_scan" mount option is not set, mballoc traverses groups in
- * linear order which requires O(N) search time for each CR 0 and CR 1 phase.
+ * linear order which requires O(N) search time for each CR0 and CR1 phase.
  *
  * The regular allocator (using the buddy cache) supports a few tunables.
  *
@@ -409,7 +409,7 @@ static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
 static void ext4_mb_new_preallocation(struct ext4_allocation_context *ac);
 
 static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
-			       ext4_group_t group, int cr);
+			       ext4_group_t group, enum criteria cr);
 
 static int ext4_try_to_trim_range(struct super_block *sb,
 		struct ext4_buddy *e4b, ext4_grpblk_t start,
@@ -859,7 +859,7 @@ mb_update_avg_fragment_size(struct super_block *sb, struct ext4_group_info *grp)
  * cr level needs an update.
  */
 static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
-			int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
+			enum criteria *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	struct ext4_group_info *iter, *grp;
@@ -884,8 +884,8 @@ static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
 		list_for_each_entry(iter, &sbi->s_mb_largest_free_orders[i],
 				    bb_largest_free_order_node) {
 			if (sbi->s_mb_stats)
-				atomic64_inc(&sbi->s_bal_cX_groups_considered[0]);
-			if (likely(ext4_mb_good_group(ac, iter->bb_group, 0))) {
+				atomic64_inc(&sbi->s_bal_cX_groups_considered[CR0]);
+			if (likely(ext4_mb_good_group(ac, iter->bb_group, CR0))) {
 				grp = iter;
 				break;
 			}
@@ -897,7 +897,7 @@ static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
 
 	if (!grp) {
 		/* Increment cr and search again */
-		*new_cr = 1;
+		*new_cr = CR1;
 	} else {
 		*group = grp->bb_group;
 		ac->ac_flags |= EXT4_MB_CR0_OPTIMIZED;
@@ -909,7 +909,7 @@ static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
  * order. Updates *new_cr if cr level needs an update.
  */
 static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
-		int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
+		enum criteria *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	struct ext4_group_info *grp = NULL, *iter;
@@ -932,8 +932,8 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		list_for_each_entry(iter, &sbi->s_mb_avg_fragment_size[i],
 				    bb_avg_fragment_size_node) {
 			if (sbi->s_mb_stats)
-				atomic64_inc(&sbi->s_bal_cX_groups_considered[1]);
-			if (likely(ext4_mb_good_group(ac, iter->bb_group, 1))) {
+				atomic64_inc(&sbi->s_bal_cX_groups_considered[CR1]);
+			if (likely(ext4_mb_good_group(ac, iter->bb_group, CR1))) {
 				grp = iter;
 				break;
 			}
@@ -947,7 +947,7 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		*group = grp->bb_group;
 		ac->ac_flags |= EXT4_MB_CR1_OPTIMIZED;
 	} else {
-		*new_cr = 2;
+		*new_cr = CR2;
 	}
 }
 
@@ -955,7 +955,7 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
 {
 	if (unlikely(!test_opt2(ac->ac_sb, MB_OPTIMIZE_SCAN)))
 		return 0;
-	if (ac->ac_criteria >= 2)
+	if (ac->ac_criteria >= CR2)
 		return 0;
 	if (!ext4_test_inode_flag(ac->ac_inode, EXT4_INODE_EXTENTS))
 		return 0;
@@ -1000,7 +1000,7 @@ inc_and_return:
  * @ngroups   Total number of groups
  */
 static void ext4_mb_choose_next_group(struct ext4_allocation_context *ac,
-		int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
+		enum criteria *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	*new_cr = ac->ac_criteria;
 
@@ -1009,9 +1009,9 @@ static void ext4_mb_choose_next_group(struct ext4_allocation_context *ac,
 		return;
 	}
 
-	if (*new_cr == 0) {
+	if (*new_cr == CR0) {
 		ext4_mb_choose_next_group_cr0(ac, new_cr, group, ngroups);
-	} else if (*new_cr == 1) {
+	} else if (*new_cr == CR1) {
 		ext4_mb_choose_next_group_cr1(ac, new_cr, group, ngroups);
 	} else {
 		/*
@@ -2408,13 +2408,13 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
  * for the allocation or not.
  */
 static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
-				ext4_group_t group, int cr)
+				ext4_group_t group, enum criteria cr)
 {
 	ext4_grpblk_t free, fragments;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(ac->ac_sb));
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 
-	BUG_ON(cr < 0 || cr >= 4);
+	BUG_ON(cr < CR0 || cr >= EXT4_MB_NUM_CRS);
 
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp) || !grp))
 		return false;
@@ -2428,7 +2428,7 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 		return false;
 
 	switch (cr) {
-	case 0:
+	case CR0:
 		BUG_ON(ac->ac_2order == 0);
 
 		/* Avoid using the first bg of a flexgroup for data files */
@@ -2447,15 +2447,15 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 			return false;
 
 		return true;
-	case 1:
+	case CR1:
 		if ((free / fragments) >= ac->ac_g_ex.fe_len)
 			return true;
 		break;
-	case 2:
+	case CR2:
 		if (free >= ac->ac_g_ex.fe_len)
 			return true;
 		break;
-	case 3:
+	case CR3:
 		return true;
 	default:
 		BUG();
@@ -2476,7 +2476,7 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
  * out"!
  */
 static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
-				     ext4_group_t group, int cr)
+				     ext4_group_t group, enum criteria cr)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 	struct super_block *sb = ac->ac_sb;
@@ -2496,7 +2496,7 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 	free = grp->bb_free;
 	if (free == 0)
 		goto out;
-	if (cr <= 2 && free < ac->ac_g_ex.fe_len)
+	if (cr <= CR2 && free < ac->ac_g_ex.fe_len)
 		goto out;
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		goto out;
@@ -2511,7 +2511,7 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 			ext4_get_group_desc(sb, group, NULL);
 		int ret;
 
-		/* cr=0/1 is a very optimistic search to find large
+		/* cr=CR0/CR1 is a very optimistic search to find large
 		 * good chunks almost for free.  If buddy data is not
 		 * ready, then this optimization makes no sense.  But
 		 * we never skip the first block group in a flex_bg,
@@ -2519,7 +2519,7 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 		 * and we want to make sure we locate metadata blocks
 		 * in the first block group in the flex_bg if possible.
 		 */
-		if (cr < 2 &&
+		if (cr < CR2 &&
 		    (!sbi->s_log_groups_per_flex ||
 		     ((group & ((1 << sbi->s_log_groups_per_flex) - 1)) != 0)) &&
 		    !(ext4_has_group_desc_csum(sb) &&
@@ -2625,7 +2625,7 @@ static noinline_for_stack int
 ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
 	ext4_group_t prefetch_grp = 0, ngroups, group, i;
-	int cr = -1, new_cr;
+	enum criteria cr, new_cr;
 	int err = 0, first_err = 0;
 	unsigned int nr = 0, prefetch_ios = 0;
 	struct ext4_sb_info *sbi;
@@ -2683,13 +2683,13 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	}
 
 	/* Let's just scan groups to find more-less suitable blocks */
-	cr = ac->ac_2order ? 0 : 1;
+	cr = ac->ac_2order ? CR0 : CR1;
 	/*
-	 * cr == 0 try to get exact allocation,
-	 * cr == 3  try to get anything
+	 * cr == CR0 try to get exact allocation,
+	 * cr == CR3 try to get anything
 	 */
 repeat:
-	for (; cr < 4 && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
+	for (; cr < EXT4_MB_NUM_CRS && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
 		/*
 		 * searching for the right group start
@@ -2716,7 +2716,7 @@ repeat:
 			 * spend a lot of time loading imperfect groups
 			 */
 			if ((prefetch_grp == group) &&
-			    (cr > 1 ||
+			    (cr > CR1 ||
 			     prefetch_ios < sbi->s_mb_prefetch_limit)) {
 				unsigned int curr_ios = prefetch_ios;
 
@@ -2758,9 +2758,9 @@ repeat:
 			}
 
 			ac->ac_groups_scanned++;
-			if (cr == 0)
+			if (cr == CR0)
 				ext4_mb_simple_scan_group(ac, &e4b);
-			else if (cr == 1 && sbi->s_stripe &&
+			else if (cr == CR1 && sbi->s_stripe &&
 				 !(ac->ac_g_ex.fe_len %
 				 EXT4_B2C(sbi, sbi->s_stripe)))
 				ext4_mb_scan_aligned(ac, &e4b);
@@ -2801,7 +2801,7 @@ repeat:
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
 			ac->ac_flags |= EXT4_MB_HINT_FIRST;
-			cr = 3;
+			cr = CR3;
 			goto repeat;
 		}
 	}
@@ -2926,36 +2926,36 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\tgroups_scanned: %u\n",  atomic_read(&sbi->s_bal_groups_scanned));
 
 	seq_puts(seq, "\tcr0_stats:\n");
-	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[0]));
+	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR0]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_groups_considered[0]));
+		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR0]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_failed[0]));
+		   atomic64_read(&sbi->s_bal_cX_failed[CR0]));
 	seq_printf(seq, "\t\tbad_suggestions: %u\n",
 		   atomic_read(&sbi->s_bal_cr0_bad_suggestions));
 
 	seq_puts(seq, "\tcr1_stats:\n");
-	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[1]));
+	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR1]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_groups_considered[1]));
+		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR1]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_failed[1]));
+		   atomic64_read(&sbi->s_bal_cX_failed[CR1]));
 	seq_printf(seq, "\t\tbad_suggestions: %u\n",
 		   atomic_read(&sbi->s_bal_cr1_bad_suggestions));
 
 	seq_puts(seq, "\tcr2_stats:\n");
-	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[2]));
+	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR2]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_groups_considered[2]));
+		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR2]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_failed[2]));
+		   atomic64_read(&sbi->s_bal_cX_failed[CR2]));
 
 	seq_puts(seq, "\tcr3_stats:\n");
-	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[3]));
+	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR3]));
 	seq_printf(seq, "\t\tgroups_considered: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_groups_considered[3]));
+		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR3]));
 	seq_printf(seq, "\t\tuseless_loops: %llu\n",
-		   atomic64_read(&sbi->s_bal_cX_failed[3]));
+		   atomic64_read(&sbi->s_bal_cX_failed[CR3]));
 	seq_printf(seq, "\textents_scanned: %u\n", atomic_read(&sbi->s_bal_ex_scanned));
 	seq_printf(seq, "\t\tgoal_hits: %u\n", atomic_read(&sbi->s_bal_goals));
 	seq_printf(seq, "\t\t2^n_hits: %u\n", atomic_read(&sbi->s_bal_2orders));

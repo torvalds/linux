@@ -128,6 +128,23 @@ enum SHIFT_DIRECTION {
 };
 
 /*
+ * Number of criterias defined. For each criteria, mballoc has slightly
+ * different way of finding the required blocks nad usually, higher the
+ * criteria the slower the allocation. We start at lower criterias and keep
+ * falling back to higher ones if we are not able to find any blocks.
+ */
+#define EXT4_MB_NUM_CRS 4
+/*
+ * All possible allocation criterias for mballoc
+ */
+enum criteria {
+	CR0,
+	CR1,
+	CR2,
+	CR3,
+};
+
+/*
  * Flags used in mballoc's allocation_context flags field.
  *
  * Also used to show what's going on for debugging purposes when the
@@ -1544,9 +1561,9 @@ struct ext4_sb_info {
 	atomic_t s_bal_2orders;	/* 2^order hits */
 	atomic_t s_bal_cr0_bad_suggestions;
 	atomic_t s_bal_cr1_bad_suggestions;
-	atomic64_t s_bal_cX_groups_considered[4];
-	atomic64_t s_bal_cX_hits[4];
-	atomic64_t s_bal_cX_failed[4];		/* cX loop didn't find blocks */
+	atomic64_t s_bal_cX_groups_considered[EXT4_MB_NUM_CRS];
+	atomic64_t s_bal_cX_hits[EXT4_MB_NUM_CRS];
+	atomic64_t s_bal_cX_failed[EXT4_MB_NUM_CRS];		/* cX loop didn't find blocks */
 	atomic_t s_mb_buddies_generated;	/* number of buddies generated */
 	atomic64_t s_mb_generation_time;
 	atomic_t s_mb_lost_chunks;
