@@ -232,7 +232,7 @@ static const char *tegra_pinctrl_get_func_name(struct pinctrl_dev *pctldev,
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 
-	return pmx->soc->functions[function].name;
+	return pmx->functions[function].name;
 }
 
 static int tegra_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
@@ -242,8 +242,8 @@ static int tegra_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups = pmx->soc->functions[function].groups;
-	*num_groups = pmx->soc->functions[function].ngroups;
+	*groups = pmx->functions[function].groups;
+	*num_groups = pmx->functions[function].ngroups;
 
 	return 0;
 }
@@ -795,10 +795,17 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	if (!pmx->group_pins)
 		return -ENOMEM;
 
-	group_pins = pmx->group_pins;
-	for (fn = 0; fn < soc_data->nfunctions; fn++) {
-		struct tegra_function *func = &soc_data->functions[fn];
+	pmx->functions = devm_kcalloc(&pdev->dev, pmx->soc->nfunctions,
+				      sizeof(*pmx->functions), GFP_KERNEL);
+	if (!pmx->functions)
+		return -ENOMEM;
 
+	group_pins = pmx->group_pins;
+
+	for (fn = 0; fn < soc_data->nfunctions; fn++) {
+		struct tegra_function *func = &pmx->functions[fn];
+
+		func->name = pmx->soc->functions[fn];
 		func->groups = group_pins;
 
 		for (gn = 0; gn < soc_data->ngroups; gn++) {
