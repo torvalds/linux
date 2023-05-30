@@ -9195,6 +9195,22 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 	return 0;
 }
 
+static void rkcif_send_sof(struct rkcif_device *cif_dev)
+{
+	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
+	struct csi2_dev *csi;
+
+	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
+	    mbus->type == V4L2_MBUS_CSI2_CPHY) {
+		csi = container_of(cif_dev->active_sensor->sd, struct csi2_dev, sd);
+		rkcif_csi2_event_inc_sof(csi);
+	} else if (mbus->type == V4L2_MBUS_CCP2) {
+		rkcif_lvds_event_inc_sof(cif_dev);
+	} else {
+		rkcif_dvp_event_inc_sof(cif_dev);
+	}
+}
+
 static int rkcif_g_toisp_ch(unsigned int intstat_glb, int index)
 {
 	if (intstat_glb & TOISP_END_CH0(index))
@@ -9280,6 +9296,8 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				stream = &priv->cif_dev->stream[0];
 			else
 				stream = &priv->cif_dev->stream[src_id % 4];
+			if (stream->id == 0)
+				rkcif_send_sof(stream->cifdev);
 			stream->frame_idx++;
 			cur_time = ktime_get_ns();
 			stream->readout.readout_time = cur_time - stream->readout.fs_timestamp;
@@ -9395,22 +9413,6 @@ static int rkcif_check_group_sync_state(struct rkcif_device *cif_dev)
 	return ret;
 }
 
-static void rkcif_send_sof(struct rkcif_device *cif_dev)
-{
-	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
-	struct csi2_dev *csi;
-
-	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus->type == V4L2_MBUS_CSI2_CPHY) {
-		csi = container_of(cif_dev->active_sensor->sd, struct csi2_dev, sd);
-		rkcif_csi2_event_inc_sof(csi);
-	} else if (mbus->type == V4L2_MBUS_CCP2) {
-		rkcif_lvds_event_inc_sof(cif_dev);
-	} else {
-		rkcif_dvp_event_inc_sof(cif_dev);
-	}
-}
-
 static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
@@ -9463,9 +9465,10 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 			}
 		}
 	} else {
-		rkcif_send_sof(cif_dev);
-		if (!cif_dev->sditf[0] || cif_dev->sditf[0]->mode.rdbk_mode)
+		if (!cif_dev->sditf[0] || cif_dev->sditf[0]->mode.rdbk_mode) {
+			rkcif_send_sof(cif_dev);
 			detect_stream->frame_idx++;
+		}
 		if (detect_stream->cifdev->rdbk_debug &&
 		    detect_stream->frame_idx < 15 &&
 		    (!cif_dev->sditf[0] || cif_dev->sditf[0]->mode.rdbk_mode))
