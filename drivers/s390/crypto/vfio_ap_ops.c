@@ -716,6 +716,7 @@ static int vfio_ap_mdev_probe(struct mdev_device *mdev)
 	ret = vfio_register_emulated_iommu_dev(&matrix_mdev->vdev);
 	if (ret)
 		goto err_put_vdev;
+	matrix_mdev->req_trigger = NULL;
 	dev_set_drvdata(&mdev->dev, matrix_mdev);
 	mutex_lock(&matrix_dev->mdevs_lock);
 	list_add(&matrix_mdev->node, &matrix_dev->mdev_list);
@@ -1780,6 +1781,85 @@ static ssize_t vfio_ap_get_irq_info(unsigned long arg)
 	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
 }
 
+static int vfio_ap_irq_set_init(struct vfio_irq_set *irq_set, unsigned long arg)
+{
+	int ret;
+	size_t data_size;
+	unsigned long minsz;
+
+	minsz = offsetofend(struct vfio_irq_set, count);
+
+	if (copy_from_user(irq_set, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	ret = vfio_set_irqs_validate_and_prepare(irq_set, 1, VFIO_AP_NUM_IRQS,
+						 &data_size);
+	if (ret)
+		return ret;
+
+	if (!(irq_set->flags & VFIO_IRQ_SET_ACTION_TRIGGER))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int vfio_ap_set_request_irq(struct ap_matrix_mdev *matrix_mdev,
+				   unsigned long arg)
+{
+	s32 fd;
+	void __user *data;
+	unsigned long minsz;
+	struct eventfd_ctx *req_trigger;
+
+	minsz = offsetofend(struct vfio_irq_set, count);
+	data = (void __user *)(arg + minsz);
+
+	if (get_user(fd, (s32 __user *)data))
+		return -EFAULT;
+
+	if (fd == -1) {
+		if (matrix_mdev->req_trigger)
+			eventfd_ctx_put(matrix_mdev->req_trigger);
+		matrix_mdev->req_trigger = NULL;
+	} else if (fd >= 0) {
+		req_trigger = eventfd_ctx_fdget(fd);
+		if (IS_ERR(req_trigger))
+			return PTR_ERR(req_trigger);
+
+		if (matrix_mdev->req_trigger)
+			eventfd_ctx_put(matrix_mdev->req_trigger);
+
+		matrix_mdev->req_trigger = req_trigger;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vfio_ap_set_irqs(struct ap_matrix_mdev *matrix_mdev,
+			    unsigned long arg)
+{
+	int ret;
+	struct vfio_irq_set irq_set;
+
+	ret = vfio_ap_irq_set_init(&irq_set, arg);
+	if (ret)
+		return ret;
+
+	switch (irq_set.flags & VFIO_IRQ_SET_DATA_TYPE_MASK) {
+	case VFIO_IRQ_SET_DATA_EVENTFD:
+		switch (irq_set.index) {
+		case VFIO_AP_REQ_IRQ_INDEX:
+			return vfio_ap_set_request_irq(matrix_mdev, arg);
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
 static ssize_t vfio_ap_mdev_ioctl(struct vfio_device *vdev,
 				    unsigned int cmd, unsigned long arg)
 {
@@ -1798,6 +1878,9 @@ static ssize_t vfio_ap_mdev_ioctl(struct vfio_device *vdev,
 	case VFIO_DEVICE_GET_IRQ_INFO:
 			ret = vfio_ap_get_irq_info(arg);
 			break;
+	case VFIO_DEVICE_SET_IRQS:
+		ret = vfio_ap_set_irqs(matrix_mdev, arg);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
