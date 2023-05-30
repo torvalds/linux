@@ -6936,6 +6936,7 @@ static void hci_le_create_big_complete_evt(struct hci_dev *hdev, void *data,
 {
 	struct hci_evt_le_create_big_complete *ev = data;
 	struct hci_conn *conn;
+	__u8 bis_idx = 0;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -6944,33 +6945,44 @@ static void hci_le_create_big_complete_evt(struct hci_dev *hdev, void *data,
 		return;
 
 	hci_dev_lock(hdev);
+	rcu_read_lock();
 
-	conn = hci_conn_hash_lookup_big(hdev, ev->handle);
-	if (!conn)
-		goto unlock;
+	/* Connect all BISes that are bound to the BIG */
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (bacmp(&conn->dst, BDADDR_ANY) ||
+		    conn->type != ISO_LINK ||
+		    conn->iso_qos.bcast.big != ev->handle)
+			continue;
 
-	if (conn->type != ISO_LINK) {
-		bt_dev_err(hdev,
-			   "Invalid connection link type handle 0x%2.2x",
-			   ev->handle);
-		goto unlock;
+		conn->handle = __le16_to_cpu(ev->bis_handle[bis_idx++]);
+
+		if (!ev->status) {
+			conn->state = BT_CONNECTED;
+			set_bit(HCI_CONN_BIG_CREATED, &conn->flags);
+			rcu_read_unlock();
+			hci_debugfs_create_conn(conn);
+			hci_conn_add_sysfs(conn);
+			hci_iso_setup_path(conn);
+			rcu_read_lock();
+			continue;
+		}
+
+		hci_connect_cfm(conn, ev->status);
+		rcu_read_unlock();
+		hci_conn_del(conn);
+		rcu_read_lock();
 	}
 
-	if (ev->num_bis)
-		conn->handle = __le16_to_cpu(ev->bis_handle[0]);
+	if (!ev->status && !bis_idx)
+		/* If no BISes have been connected for the BIG,
+		 * terminate. This is in case all bound connections
+		 * have been closed before the BIG creation
+		 * has completed.
+		 */
+		hci_le_terminate_big_sync(hdev, ev->handle,
+					  HCI_ERROR_LOCAL_HOST_TERM);
 
-	if (!ev->status) {
-		conn->state = BT_CONNECTED;
-		hci_debugfs_create_conn(conn);
-		hci_conn_add_sysfs(conn);
-		hci_iso_setup_path(conn);
-		goto unlock;
-	}
-
-	hci_connect_cfm(conn, ev->status);
-	hci_conn_del(conn);
-
-unlock:
+	rcu_read_unlock();
 	hci_dev_unlock(hdev);
 }
 

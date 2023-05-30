@@ -287,13 +287,24 @@ static int iso_connect_bis(struct sock *sk)
 		goto unlock;
 	}
 
-	hcon = hci_connect_bis(hdev, &iso_pi(sk)->dst,
-			       le_addr_type(iso_pi(sk)->dst_type),
-			       &iso_pi(sk)->qos, iso_pi(sk)->base_len,
-			       iso_pi(sk)->base);
-	if (IS_ERR(hcon)) {
-		err = PTR_ERR(hcon);
-		goto unlock;
+	/* Just bind if DEFER_SETUP has been set */
+	if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
+		hcon = hci_bind_bis(hdev, &iso_pi(sk)->dst,
+				    &iso_pi(sk)->qos, iso_pi(sk)->base_len,
+				    iso_pi(sk)->base);
+		if (IS_ERR(hcon)) {
+			err = PTR_ERR(hcon);
+			goto unlock;
+		}
+	} else {
+		hcon = hci_connect_bis(hdev, &iso_pi(sk)->dst,
+				       le_addr_type(iso_pi(sk)->dst_type),
+				       &iso_pi(sk)->qos, iso_pi(sk)->base_len,
+				       iso_pi(sk)->base);
+		if (IS_ERR(hcon)) {
+			err = PTR_ERR(hcon);
+			goto unlock;
+		}
 	}
 
 	conn = iso_conn_add(hcon);
@@ -317,6 +328,9 @@ static int iso_connect_bis(struct sock *sk)
 	if (hcon->state == BT_CONNECTED) {
 		iso_sock_clear_timer(sk);
 		sk->sk_state = BT_CONNECTED;
+	} else if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
+		iso_sock_clear_timer(sk);
+		sk->sk_state = BT_CONNECT;
 	} else {
 		sk->sk_state = BT_CONNECT;
 		iso_sock_set_timer(sk, sk->sk_sndtimeo);
