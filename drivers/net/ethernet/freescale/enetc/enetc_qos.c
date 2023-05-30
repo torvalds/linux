@@ -65,7 +65,7 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_len = admin_conf->num_entries;
 
 	tge = enetc_rd(hw, ENETC_PTGCR);
-	if (!admin_conf->enable) {
+	if (admin_conf->cmd == TAPRIO_CMD_DESTROY) {
 		enetc_wr(hw, ENETC_PTGCR, tge & ~ENETC_PTGCR_TGE);
 		enetc_reset_ptcmsdur(hw);
 
@@ -137,6 +137,10 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 	struct tc_taprio_qopt_offload *taprio = type_data;
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int err, i;
+
+	if (taprio->cmd != TAPRIO_CMD_REPLACE &&
+	    taprio->cmd != TAPRIO_CMD_DESTROY)
+		return -EOPNOTSUPP;
 
 	/* TSD and Qbv are mutually exclusive in hardware */
 	for (i = 0; i < priv->num_tx_rings; i++)

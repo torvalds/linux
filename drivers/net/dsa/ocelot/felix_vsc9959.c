@@ -1411,7 +1411,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 
 	mutex_lock(&ocelot->tas_lock);
 
-	if (!taprio->enable) {
+	if (taprio->cmd == TAPRIO_CMD_DESTROY) {
 		ocelot_port_mqprio(ocelot, port, &taprio->mqprio);
 		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG, port);
@@ -1423,6 +1423,8 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 
 		mutex_unlock(&ocelot->tas_lock);
 		return 0;
+	} else if (taprio->cmd != TAPRIO_CMD_REPLACE) {
+		return -EOPNOTSUPP;
 	}
 
 	ret = ocelot_port_mqprio(ocelot, port, &taprio->mqprio);

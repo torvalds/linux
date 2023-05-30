@@ -185,6 +185,11 @@ struct tc_taprio_caps {
 	bool broken_mqprio:1;
 };
 
+enum tc_taprio_qopt_cmd {
+	TAPRIO_CMD_REPLACE,
+	TAPRIO_CMD_DESTROY,
+};
+
 struct tc_taprio_sched_entry {
 	u8 command; /* TC_TAPRIO_CMD_* */
 
@@ -196,7 +201,7 @@ struct tc_taprio_sched_entry {
 struct tc_taprio_qopt_offload {
 	struct tc_mqprio_qopt_offload mqprio;
 	struct netlink_ext_ack *extack;
-	u8 enable;
+	enum tc_taprio_qopt_cmd cmd;
 	ktime_t base_time;
 	u64 cycle_time;
 	u64 cycle_time_extension;

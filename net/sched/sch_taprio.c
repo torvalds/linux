@@ -1524,7 +1524,7 @@ static int taprio_enable_offload(struct net_device *dev,
 			       "Not enough memory for enabling offload mode");
 		return -ENOMEM;
 	}
-	offload->enable = 1;
+	offload->cmd = TAPRIO_CMD_REPLACE;
 	offload->extack = extack;
 	mqprio_qopt_reconstruct(dev, &offload->mqprio.qopt);
 	offload->mqprio.extack = extack;
@@ -1572,7 +1572,7 @@ static int taprio_disable_offload(struct net_device *dev,
 			       "Not enough memory to disable offload mode");
 		return -ENOMEM;
 	}
-	offload->enable = 0;
+	offload->cmd = TAPRIO_CMD_DESTROY;
 
 	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_TAPRIO, offload);
 	if (err < 0) {
