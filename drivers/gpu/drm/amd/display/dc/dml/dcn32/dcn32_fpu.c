@@ -679,7 +679,6 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 	unsigned int max_frame_time = 0;
 	bool valid_assignment_found = false;
 	unsigned int free_pipes = dcn32_get_num_free_pipes(dc, context);
-	bool current_assignment_freesync = false;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
@@ -720,19 +719,10 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 				struct dc_stream_state *stream = pipe->stream;
 				unsigned int frame_us = (stream->timing.v_total * stream->timing.h_total /
 						(double)(stream->timing.pix_clk_100hz * 100)) * 1000000;
-				if (frame_us > max_frame_time && !stream->ignore_msa_timing_param) {
+				if (frame_us > max_frame_time) {
 					*index = i;
 					max_frame_time = frame_us;
 					valid_assignment_found = true;
-					current_assignment_freesync = false;
-				/* For the 2-Freesync display case, still choose the one with the
-			     * longest frame time
-			     */
-				} else if (stream->ignore_msa_timing_param && (!valid_assignment_found ||
-						(current_assignment_freesync && frame_us > max_frame_time))) {
-					*index = i;
-					valid_assignment_found = true;
-					current_assignment_freesync = true;
 				}
 			}
 		}
@@ -878,11 +868,12 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
  *
  * Return: True if the SubVP + DRR config is schedulable, false otherwise
  */
-static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struct pipe_ctx *drr_pipe)
+static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 {
 	bool schedulable = false;
 	uint32_t i;
 	struct pipe_ctx *pipe = NULL;
+	struct pipe_ctx *drr_pipe = NULL;
 	struct dc_crtc_timing *main_timing = NULL;
 	struct dc_crtc_timing *phantom_timing = NULL;
 	struct dc_crtc_timing *drr_timing = NULL;
@@ -905,6 +896,19 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struc
 
 		// Find the SubVP pipe
 		if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+			break;
+	}
+
+	// Find the DRR pipe
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		drr_pipe = &context->res_ctx.pipe_ctx[i];
+
+		// We check for master pipe only
+		if (!drr_pipe->stream || !drr_pipe->plane_state || drr_pipe->top_pipe || drr_pipe->prev_odm_pipe)
+			continue;
+
+		if (drr_pipe->stream->mall_stream_config.type == SUBVP_NONE && drr_pipe->stream->ignore_msa_timing_param &&
+				(drr_pipe->stream->allow_freesync || drr_pipe->stream->vrr_active_variable))
 			break;
 	}
 
@@ -993,13 +997,7 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 		if (!subvp_pipe && pipe->stream->mall_stream_config.type == SUBVP_MAIN)
 			subvp_pipe = pipe;
 	}
-	// Use ignore_msa_timing_param and VRR active, or Freesync flag to identify as DRR On
-	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param &&
-			(context->res_ctx.pipe_ctx[vblank_index].stream->allow_freesync ||
-			context->res_ctx.pipe_ctx[vblank_index].stream->vrr_active_variable)) {
-		// SUBVP + DRR case -- only allowed if run through DRR validation path
-		schedulable = false;
-	} else if (found) {
+	if (found) {
 		main_timing = &subvp_pipe->stream->timing;
 		phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
 		vblank_timing = &context->res_ctx.pipe_ctx[vblank_index].stream->timing;
@@ -1029,6 +1027,56 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 }
 
 /**
+ * ************************************************************************************************
+ * subvp_subvp_admissable: Determine if subvp + subvp config is admissible
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ *
+ * SubVP + SubVP is admissible under the following conditions:
+ * - All SubVP pipes are < 120Hz OR
+ * - All SubVP pipes are >= 120hz
+ *
+ * @return: True if admissible, false otherwise
+ *
+ * ************************************************************************************************
+ */
+static bool subvp_subvp_admissable(struct dc *dc,
+				struct dc_state *context)
+{
+	bool result = false;
+	uint32_t i;
+	uint8_t subvp_count = 0;
+	uint32_t min_refresh = subvp_high_refresh_list.min_refresh, max_refresh = 0;
+	uint32_t refresh_rate = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && !pipe->top_pipe &&
+				pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
+					pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
+					/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
+			if (refresh_rate < min_refresh)
+				min_refresh = refresh_rate;
+			if (refresh_rate > max_refresh)
+				max_refresh = refresh_rate;
+			subvp_count++;
+		}
+	}
+
+	if (subvp_count == 2 && ((min_refresh < 120 && max_refresh < 120) ||
+			(min_refresh >= 120 && max_refresh >= 120)))
+		result = true;
+
+	return result;
+}
+
+/**
  * subvp_validate_static_schedulability - Check which SubVP case is calculated
  * and handle static analysis based on the case.
  * @dc: current dc state
@@ -1046,11 +1094,12 @@ static bool subvp_validate_static_schedulability(struct dc *dc,
 				struct dc_state *context,
 				int vlevel)
 {
-	bool schedulable = true;	// true by default for single display case
+	bool schedulable = false;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	uint32_t i, pipe_idx;
 	uint8_t subvp_count = 0;
 	uint8_t vactive_count = 0;
+	uint8_t non_subvp_pipes = 0;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1058,14 +1107,18 @@ static bool subvp_validate_static_schedulability(struct dc *dc,
 		if (!pipe->stream)
 			continue;
 
-		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
-			subvp_count++;
+		if (pipe->plane_state && !pipe->top_pipe) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				subvp_count++;
+			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				non_subvp_pipes++;
+			}
+		}
 
 		// Count how many planes that aren't SubVP/phantom are capable of VACTIVE
 		// switching (SubVP + VACTIVE unsupported). In situations where we force
 		// SubVP for a VACTIVE plane, we don't want to increment the vactive_count.
-		if (vba->ActiveDRAMClockChangeLatencyMargin[vba->pipe_plane[pipe_idx]] > 0 &&
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vlevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] > 0 &&
 		    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 			vactive_count++;
 		}
@@ -1074,13 +1127,14 @@ static bool subvp_validate_static_schedulability(struct dc *dc,
 
 	if (subvp_count == 2) {
 		// Static schedulability check for SubVP + SubVP case
-		schedulable = subvp_subvp_schedulable(dc, context);
-	} else if (vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp) {
-		// Static schedulability check for SubVP + VBLANK case. Also handle the case where
-		// DML outputs SubVP + VBLANK + VACTIVE (DML will report as SubVP + VBLANK)
-		if (vactive_count > 0)
-			schedulable = false;
-		else
+		schedulable = subvp_subvp_admissable(dc, context) && subvp_subvp_schedulable(dc, context);
+	} else if (subvp_count == 1 && non_subvp_pipes == 0) {
+		// Single SubVP configs will be supported by default as long as it's suppported by DML
+		schedulable = true;
+	} else if (subvp_count == 1 && non_subvp_pipes == 1) {
+		if (dcn32_subvp_drr_admissable(dc, context))
+			schedulable = subvp_drr_schedulable(dc, context);
+		else if (dcn32_subvp_vblank_admissable(dc, context, vlevel))
 			schedulable = subvp_vblank_schedulable(dc, context);
 	} else if (vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vactive_w_mall_sub_vp &&
 			vactive_count > 0) {
@@ -1104,10 +1158,6 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	unsigned int dc_pipe_idx = 0;
 	int i = 0;
 	bool found_supported_config = false;
-	struct pipe_ctx *pipe = NULL;
-	uint32_t non_subvp_pipes = 0;
-	bool drr_pipe_found = false;
-	uint32_t drr_pipe_index = 0;
 
 	dc_assert_fp_enabled();
 
@@ -1197,31 +1247,12 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 				}
 			}
 
-			if (*vlevel < context->bw_ctx.dml.soc.num_states &&
-			    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] != dm_dram_clock_change_unsupported
-			    && subvp_validate_static_schedulability(dc, context, *vlevel)) {
+			if (*vlevel < context->bw_ctx.dml.soc.num_states
+			    && subvp_validate_static_schedulability(dc, context, *vlevel))
 				found_supported_config = true;
-			} else if (*vlevel < context->bw_ctx.dml.soc.num_states) {
-				/* Case where 1 SubVP is added, and DML reports MCLK unsupported or DRR is allowed.
-				 * This handles the case for SubVP + DRR, where the DRR display does not support MCLK
-				 * switch at it's native refresh rate / timing, or DRR is allowed for the non-subvp
-				 * display.
-				 */
-				for (i = 0; i < dc->res_pool->pipe_count; i++) {
-					pipe = &context->res_ctx.pipe_ctx[i];
-					if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
-					    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
-						non_subvp_pipes++;
-						// Use ignore_msa_timing_param flag to identify as DRR
-						if (pipe->stream->ignore_msa_timing_param && pipe->stream->allow_freesync) {
-							drr_pipe_found = true;
-							drr_pipe_index = i;
-						}
-					}
-				}
-				// If there is only 1 remaining non SubVP pipe that is DRR, check static
-				// schedulability for SubVP + DRR.
-				if (non_subvp_pipes == 1 && drr_pipe_found) {
+			if (found_supported_config) {
+				// For SubVP + DRR cases, we can force the lowest vlevel that supports the mode
+				if (dcn32_subvp_drr_admissable(dc, context) && subvp_drr_schedulable(dc, context)) {
 					/* find lowest vlevel that supports the config */
 					for (i = *vlevel; i >= 0; i--) {
 						if (vba->ModeSupport[i][vba->maxMpcComb]) {
@@ -1230,9 +1261,6 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 							break;
 						}
 					}
-
-					found_supported_config = subvp_drr_schedulable(dc, context,
-										       &context->res_ctx.pipe_ctx[drr_pipe_index]);
 				}
 			}
 		}
@@ -2882,16 +2910,34 @@ bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context
 {
 	bool allow = false;
 	uint32_t refresh_rate = 0;
-	uint32_t min_refresh = subvp_high_refresh_list.min_refresh;
-	uint32_t max_refresh = subvp_high_refresh_list.max_refresh;
+	uint32_t subvp_min_refresh = subvp_high_refresh_list.min_refresh;
+	uint32_t subvp_max_refresh = subvp_high_refresh_list.max_refresh;
+	uint32_t min_refresh = subvp_max_refresh;
 	uint32_t i;
 
-	if (!dc->debug.disable_subvp_high_refresh && pipe->stream &&
+	/* Only allow SubVP on high refresh displays if all connected displays
+	 * are considered "high refresh" (i.e. >= 120hz). We do not want to
+	 * allow combinations such as 120hz (SubVP) + 60hz (SubVP).
+	 */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->stream)
+			continue;
+		refresh_rate = (pipe_ctx->stream->timing.pix_clk_100hz * 100 +
+				pipe_ctx->stream->timing.v_total * pipe_ctx->stream->timing.h_total - 1)
+						/ (double)(pipe_ctx->stream->timing.v_total * pipe_ctx->stream->timing.h_total);
+
+		if (refresh_rate < min_refresh)
+			min_refresh = refresh_rate;
+	}
+
+	if (!dc->debug.disable_subvp_high_refresh && min_refresh >= subvp_min_refresh && pipe->stream &&
 			pipe->plane_state && !(pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
 						pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
 						/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
-		if (refresh_rate >= min_refresh && refresh_rate <= max_refresh) {
+		if (refresh_rate >= subvp_min_refresh && refresh_rate <= subvp_max_refresh) {
 			for (i = 0; i < SUBVP_HIGH_REFRESH_LIST_LEN; i++) {
 				uint32_t width = subvp_high_refresh_list.res[i].width;
 				uint32_t height = subvp_high_refresh_list.res[i].height;

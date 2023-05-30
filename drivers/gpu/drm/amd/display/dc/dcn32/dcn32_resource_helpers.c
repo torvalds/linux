@@ -660,3 +660,104 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
 
 	return is_native_scaling;
 }
+
+/**
+ * ************************************************************************************************
+ * dcn32_subvp_drr_admissable: Determine if SubVP + DRR config is admissible
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ *
+ * SubVP + DRR is admissible under the following conditions:
+ * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - One display is SubVP
+ * - Other display must have Freesync enabled
+ *
+ * @return: True if admissible, false otherwise
+ *
+ * ************************************************************************************************
+ */
+bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
+{
+	bool result = false;
+	uint32_t i;
+	uint8_t subvp_count = 0;
+	uint8_t non_subvp_pipes = 0;
+	bool drr_pipe_found = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				subvp_count++;
+			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				non_subvp_pipes++;
+				if (pipe->stream->ignore_msa_timing_param &&
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+					drr_pipe_found = true;
+				}
+			}
+		}
+	}
+
+	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found)
+		result = true;
+
+	return result;
+}
+
+/**
+ * ************************************************************************************************
+ * dcn32_subvp_vblank_admissable: Determine if SubVP + Vblank config is admissible
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ *
+ * SubVP + Vblank is admissible under the following conditions:
+ * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - One display is SubVP
+ * - Other display must not have Freesync capability
+ * - DML must have output DRAM clock change support as SubVP + Vblank
+ *
+ * @return: True if admissible, false otherwise
+ *
+ * ************************************************************************************************
+ */
+bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel)
+{
+	bool result = false;
+	uint32_t i;
+	uint8_t subvp_count = 0;
+	uint8_t non_subvp_pipes = 0;
+	bool drr_pipe_found = false;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				subvp_count++;
+			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				non_subvp_pipes++;
+				if (pipe->stream->ignore_msa_timing_param &&
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+					drr_pipe_found = true;
+				}
+			}
+		}
+	}
+
+	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found &&
+			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
+		result = true;
+
+	return result;
+}
