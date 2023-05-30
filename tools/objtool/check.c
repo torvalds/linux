@@ -1989,13 +1989,14 @@ out:
 }
 
 static int add_jump_table(struct objtool_file *file, struct instruction *insn,
-			    struct reloc *table)
+			  struct reloc *next_table)
 {
-	struct reloc *reloc = table;
-	struct instruction *dest_insn;
-	struct alternative *alt;
 	struct symbol *pfunc = insn_func(insn)->pfunc;
+	struct reloc *table = insn_jump_table(insn);
+	struct instruction *dest_insn;
 	unsigned int prev_offset = 0;
+	struct reloc *reloc = table;
+	struct alternative *alt;
 
 	/*
 	 * Each @reloc is a switch table relocation which points to the target
@@ -2004,7 +2005,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 	for_each_reloc_from(table->sec, reloc) {
 
 		/* Check for the end of the table: */
-		if (reloc != table && reloc->jump_table_start)
+		if (reloc != table && reloc == next_table)
 			break;
 
 		/* Make sure the table entries are consecutive: */
@@ -2119,29 +2120,39 @@ static void mark_func_jump_tables(struct objtool_file *file,
 			continue;
 
 		reloc = find_jump_table(file, func, insn);
-		if (reloc) {
-			reloc->jump_table_start = true;
+		if (reloc)
 			insn->_jump_table = reloc;
-		}
 	}
 }
 
 static int add_func_jump_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
-	struct instruction *insn;
-	int ret;
+	struct instruction *insn, *insn_t1 = NULL, *insn_t2;
+	int ret = 0;
 
 	func_for_each_insn(file, func, insn) {
 		if (!insn_jump_table(insn))
 			continue;
 
-		ret = add_jump_table(file, insn, insn_jump_table(insn));
+		if (!insn_t1) {
+			insn_t1 = insn;
+			continue;
+		}
+
+		insn_t2 = insn;
+
+		ret = add_jump_table(file, insn_t1, insn_jump_table(insn_t2));
 		if (ret)
 			return ret;
+
+		insn_t1 = insn_t2;
 	}
 
-	return 0;
+	if (insn_t1)
+		ret = add_jump_table(file, insn_t1, NULL);
+
+	return ret;
 }
 
 /*
