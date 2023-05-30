@@ -12,6 +12,7 @@
 #include <linux/hashtable.h>
 #include <linux/rbtree.h>
 #include <linux/jhash.h>
+#include <arch/elf.h>
 
 #ifdef LIBELF_USE_DEPRECATED
 # define elf_getshdrnum    elf_getshnum
@@ -147,12 +148,14 @@ static inline bool has_multiple_files(struct elf *elf)
 	return elf->num_files > 1;
 }
 
-static inline int elf_class_addrsize(struct elf *elf)
+static inline size_t elf_addr_size(struct elf *elf)
 {
-	if (elf->ehdr.e_ident[EI_CLASS] == ELFCLASS32)
-		return sizeof(u32);
-	else
-		return sizeof(u64);
+	return elf->ehdr.e_ident[EI_CLASS] == ELFCLASS32 ? 4 : 8;
+}
+
+static inline size_t elf_rela_size(struct elf *elf)
+{
+	return elf_addr_size(elf) == 4 ? sizeof(Elf32_Rela) : sizeof(Elf64_Rela);
 }
 
 #define for_each_sec(file, sec)						\

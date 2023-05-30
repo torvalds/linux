@@ -952,7 +952,7 @@ static int create_cfi_sections(struct objtool_file *file)
 
 static int create_mcount_loc_sections(struct objtool_file *file)
 {
-	int addrsize = elf_class_addrsize(file->elf);
+	size_t addr_size = elf_addr_size(file->elf);
 	struct instruction *insn;
 	struct section *sec;
 	int idx;
@@ -971,25 +971,25 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, "__mcount_loc", addrsize, idx);
+	sec = elf_create_section(file->elf, "__mcount_loc", addr_size, idx);
 	if (!sec)
 		return -1;
 
-	sec->sh.sh_addralign = addrsize;
+	sec->sh.sh_addralign = addr_size;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node) {
 		void *loc;
 
 		loc = sec->data->d_buf + idx;
-		memset(loc, 0, addrsize);
+		memset(loc, 0, addr_size);
 
 		if (elf_add_reloc_to_insn(file->elf, sec, idx,
-					  addrsize == sizeof(u64) ? R_ABS64 : R_ABS32,
+					  addr_size == sizeof(u64) ? R_ABS64 : R_ABS32,
 					  insn->sec, insn->offset))
 			return -1;
 
-		idx += addrsize;
+		idx += addr_size;
 	}
 
 	return 0;

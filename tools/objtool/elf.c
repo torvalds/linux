@@ -533,16 +533,15 @@ err:
 	return -1;
 }
 
-static struct section *elf_create_reloc_section(struct elf *elf,
-						struct section *sec,
-						int reltype);
+static struct section *elf_create_rela_section(struct elf *elf,
+					       struct section *sec);
 
 int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 		  unsigned int type, struct symbol *sym, s64 addend)
 {
 	struct reloc *reloc;
 
-	if (!sec->rsec && !elf_create_reloc_section(elf, sec, SHT_RELA))
+	if (!sec->rsec && !elf_create_rela_section(elf, sec))
 		return -1;
 
 	reloc = malloc(sizeof(*reloc));
@@ -865,29 +864,25 @@ int elf_add_reloc_to_insn(struct elf *elf, struct section *sec,
 	return elf_add_reloc(elf, sec, offset, type, sym, addend);
 }
 
-static int read_rel_reloc(struct section *rsec, int i, struct reloc *reloc, unsigned int *symndx)
+static int read_reloc(struct section *rsec, int i, struct reloc *reloc)
 {
-	if (!gelf_getrel(rsec->data, i, &reloc->rel)) {
-		WARN_ELF("gelf_getrel");
-		return -1;
-	}
-	reloc->type = GELF_R_TYPE(reloc->rel.r_info);
-	reloc->addend = 0;
-	reloc->offset = reloc->rel.r_offset;
-	*symndx = GELF_R_SYM(reloc->rel.r_info);
-	return 0;
-}
+	bool rela = rsec->sh.sh_type == SHT_RELA;
+	void *retp;
 
-static int read_rela_reloc(struct section *rsec, int i, struct reloc *reloc, unsigned int *symndx)
-{
-	if (!gelf_getrela(rsec->data, i, &reloc->rela)) {
+	if (rela)
+		retp = gelf_getrela(rsec->data, i, &reloc->rela);
+	else
+		retp = gelf_getrel(rsec->data, i, &reloc->rel);
+
+	if (!retp) {
 		WARN_ELF("gelf_getrela");
 		return -1;
 	}
-	reloc->type = GELF_R_TYPE(reloc->rela.r_info);
-	reloc->addend = reloc->rela.r_addend;
-	reloc->offset = reloc->rela.r_offset;
-	*symndx = GELF_R_SYM(reloc->rela.r_info);
+
+	reloc->offset = reloc->rel.r_offset;
+	reloc->type = GELF_R_TYPE(reloc->rel.r_info);
+	reloc->addend = rela ? reloc->rela.r_addend : 0;
+
 	return 0;
 }
 
@@ -926,20 +921,13 @@ static int read_relocs(struct elf *elf)
 		}
 		for (i = 0; i < rsec->sh.sh_size / rsec->sh.sh_entsize; i++) {
 			reloc = &rsec->reloc_data[i];
-			switch (rsec->sh.sh_type) {
-			case SHT_REL:
-				if (read_rel_reloc(rsec, i, reloc, &symndx))
-					return -1;
-				break;
-			case SHT_RELA:
-				if (read_rela_reloc(rsec, i, reloc, &symndx))
-					return -1;
-				break;
-			default: return -1;
-			}
+
+			if (read_reloc(rsec, i, reloc))
+				return -1;
 
 			reloc->sec = rsec;
 			reloc->idx = i;
+			symndx = GELF_R_SYM(reloc->rel.r_info);
 			reloc->sym = sym = find_symbol_by_index(elf, symndx);
 			if (!reloc->sym) {
 				WARN("can't find reloc entry symbol %d for %s",
@@ -1141,30 +1129,30 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	return sec;
 }
 
-static struct section *elf_create_rel_reloc_section(struct elf *elf,
-						    struct section *sec)
+static struct section *elf_create_rela_section(struct elf *elf,
+					       struct section *sec)
 {
-	char *relocname;
 	struct section *rsec;
+	char *rsec_name;
 
-	relocname = malloc(strlen(sec->name) + strlen(".rel") + 1);
-	if (!relocname) {
+	rsec_name = malloc(strlen(sec->name) + strlen(".rela") + 1);
+	if (!rsec_name) {
 		perror("malloc");
 		return NULL;
 	}
-	strcpy(relocname, ".rel");
-	strcat(relocname, sec->name);
+	strcpy(rsec_name, ".rela");
+	strcat(rsec_name, sec->name);
 
-	rsec = elf_create_section(elf, relocname, sizeof(GElf_Rel), 0);
-	free(relocname);
+	rsec = elf_create_section(elf, rsec_name, elf_rela_size(elf), 0);
+	free(rsec_name);
 	if (!rsec)
 		return NULL;
 
 	sec->rsec = rsec;
 	rsec->base = sec;
 
-	rsec->sh.sh_type = SHT_REL;
-	rsec->sh.sh_addralign = 8;
+	rsec->sh.sh_type = SHT_RELA;
+	rsec->sh.sh_addralign = elf_addr_size(elf);
 	rsec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
 	rsec->sh.sh_info = sec->idx;
 	rsec->sh.sh_flags = SHF_INFO_LINK;
@@ -1172,55 +1160,11 @@ static struct section *elf_create_rel_reloc_section(struct elf *elf,
 	return rsec;
 }
 
-static struct section *elf_create_rela_reloc_section(struct elf *elf, struct section *base)
+static int elf_rebuild_reloc_section(struct elf *elf, struct section *rsec)
 {
-	char *relocname;
-	struct section *rsec;
-	int addrsize = elf_class_addrsize(elf);
-
-	relocname = malloc(strlen(base->name) + strlen(".rela") + 1);
-	if (!relocname) {
-		perror("malloc");
-		return NULL;
-	}
-	strcpy(relocname, ".rela");
-	strcat(relocname, base->name);
-
-	if (addrsize == sizeof(u32))
-		rsec = elf_create_section(elf, relocname, sizeof(Elf32_Rela), 0);
-	else
-		rsec = elf_create_section(elf, relocname, sizeof(GElf_Rela), 0);
-	free(relocname);
-	if (!rsec)
-		return NULL;
-
-	base->rsec = rsec;
-	rsec->base = base;
-
-	rsec->sh.sh_type = SHT_RELA;
-	rsec->sh.sh_addralign = addrsize;
-	rsec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
-	rsec->sh.sh_info = base->idx;
-	rsec->sh.sh_flags = SHF_INFO_LINK;
-
-	return rsec;
-}
-
-static struct section *elf_create_reloc_section(struct elf *elf,
-					 struct section *base,
-					 int reltype)
-{
-	switch (reltype) {
-	case SHT_REL:  return elf_create_rel_reloc_section(elf, base);
-	case SHT_RELA: return elf_create_rela_reloc_section(elf, base);
-	default:       return NULL;
-	}
-}
-
-static int elf_rebuild_rel_reloc_section(struct section *rsec)
-{
+	bool rela = rsec->sh.sh_type == SHT_RELA;
 	struct reloc *reloc;
-	int idx = 0;
+	int idx = 0, ret;
 	void *buf;
 
 	/* Allocate a buffer for relocations */
@@ -1232,13 +1176,19 @@ static int elf_rebuild_rel_reloc_section(struct section *rsec)
 
 	rsec->data->d_buf = buf;
 	rsec->data->d_size = rsec->sh.sh_size;
-	rsec->data->d_type = ELF_T_REL;
+	rsec->data->d_type = rela ? ELF_T_RELA : ELF_T_REL;
 
 	idx = 0;
 	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		reloc->rel.r_offset = reloc->offset;
 		reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
-		if (!gelf_update_rel(rsec->data, idx, &reloc->rel)) {
+		if (rela) {
+			reloc->rela.r_addend = reloc->addend;
+			ret = gelf_update_rela(rsec->data, idx, &reloc->rela);
+		} else {
+			ret = gelf_update_rel(rsec->data, idx, &reloc->rel);
+		}
+		if (!ret) {
 			WARN_ELF("gelf_update_rel");
 			return -1;
 		}
@@ -1246,47 +1196,6 @@ static int elf_rebuild_rel_reloc_section(struct section *rsec)
 	}
 
 	return 0;
-}
-
-static int elf_rebuild_rela_reloc_section(struct section *rsec)
-{
-	struct reloc *reloc;
-	int idx = 0;
-	void *buf;
-
-	/* Allocate a buffer for relocations with addends */
-	buf = malloc(rsec->sh.sh_size);
-	if (!buf) {
-		perror("malloc");
-		return -1;
-	}
-
-	rsec->data->d_buf = buf;
-	rsec->data->d_size = rsec->sh.sh_size;
-	rsec->data->d_type = ELF_T_RELA;
-
-	idx = 0;
-	list_for_each_entry(reloc, &rsec->reloc_list, list) {
-		reloc->rela.r_offset = reloc->offset;
-		reloc->rela.r_addend = reloc->addend;
-		reloc->rela.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
-		if (!gelf_update_rela(rsec->data, idx, &reloc->rela)) {
-			WARN_ELF("gelf_update_rela");
-			return -1;
-		}
-		idx++;
-	}
-
-	return 0;
-}
-
-static int elf_rebuild_reloc_section(struct elf *elf, struct section *rsec)
-{
-	switch (rsec->sh.sh_type) {
-	case SHT_REL:  return elf_rebuild_rel_reloc_section(rsec);
-	case SHT_RELA: return elf_rebuild_rela_reloc_section(rsec);
-	default:       return -1;
-	}
 }
 
 int elf_write_insn(struct elf *elf, struct section *sec,
@@ -1311,24 +1220,21 @@ int elf_write_insn(struct elf *elf, struct section *sec,
 int elf_write_reloc(struct elf *elf, struct reloc *reloc)
 {
 	struct section *rsec = reloc->sec;
+	int ret;
 
-	if (rsec->sh.sh_type == SHT_REL) {
-		reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
-		reloc->rel.r_offset = reloc->offset;
+	reloc->rel.r_offset = reloc->offset;
+	reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
 
-		if (!gelf_update_rel(rsec->data, reloc->idx, &reloc->rel)) {
-			WARN_ELF("gelf_update_rel");
-			return -1;
-		}
-	} else {
-		reloc->rela.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
+	if (rsec->sh.sh_type == SHT_RELA) {
 		reloc->rela.r_addend = reloc->addend;
-		reloc->rela.r_offset = reloc->offset;
+		ret = gelf_update_rela(rsec->data, reloc->idx, &reloc->rela);
+	} else {
+		ret = gelf_update_rel(rsec->data, reloc->idx, &reloc->rel);
+	}
 
-		if (!gelf_update_rela(rsec->data, reloc->idx, &reloc->rela)) {
-			WARN_ELF("gelf_update_rela");
-			return -1;
-		}
+	if (!ret) {
+		WARN_ELF("gelf_update_rela");
+		return -1;
 	}
 
 	elf->changed = true;
