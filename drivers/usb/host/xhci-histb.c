@@ -319,7 +319,7 @@ disable_pm:
 	return ret;
 }
 
-static int xhci_histb_remove(struct platform_device *dev)
+static void xhci_histb_remove(struct platform_device *dev)
 {
 	struct xhci_hcd_histb *histb = platform_get_drvdata(dev);
 	struct usb_hcd *hcd = histb->hcd;
@@ -339,8 +339,6 @@ static int xhci_histb_remove(struct platform_device *dev)
 	usb_put_hcd(hcd);
 	pm_runtime_put_sync(&dev->dev);
 	pm_runtime_disable(&dev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused xhci_histb_suspend(struct device *dev)
@@ -385,7 +383,7 @@ MODULE_DEVICE_TABLE(of, histb_xhci_of_match);
 
 static struct platform_driver histb_xhci_driver = {
 	.probe	= xhci_histb_probe,
-	.remove	= xhci_histb_remove,
+	.remove_new = xhci_histb_remove,
 	.driver	= {
 		.name = "xhci-histb",
 		.pm = DEV_PM_OPS,
