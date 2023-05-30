@@ -80,6 +80,35 @@
 		startup-delay-us = <100>;
 		off-on-delay-us = <12000>;
 	};
+
+	panel {
+		compatible = "panel-lvds";
+		width-mm = <170>;
+		height-mm = <28>;
+		data-mapping = "jeida-18";
+
+		panel-timing {
+			clock-frequency = <49500000>;
+			hactive = <800>;
+			hback-porch = <48>;
+			hfront-porch = <312>;
+			hsync-len = <40>;
+			vactive = <600>;
+			vback-porch = <19>;
+			vfront-porch = <61>;
+			vsync-len = <20>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+
+		port {
+			panel_out_bridge: endpoint {
+				remote-endpoint = <&bridge_out_panel>;
+			};
+		};
+	};
 };
 
 &ecspi1 {
@@ -113,7 +142,59 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	bridge@2c {
+		compatible = "ti,sn65dsi83";
+		reg = <0x2c>;
+		enable-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dsi_bridge>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				bridge_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_bridge>;
+					data-lanes = <1 2 3 4>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				bridge_out_panel: endpoint {
+					remote-endpoint = <&panel_out_bridge>;
+				};
+			};
+		};
+	};
 };
+
+&lcdif {
+	status = "okay";
+};
+
+&mipi_dsi {
+	samsung,esc-clock-frequency = <10000000>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi_out_bridge: endpoint {
+				data-lanes = <1 2>;
+				lane-polarities = <1 0 0 0 0>;
+				remote-endpoint = <&bridge_in_dsi>;
+			};
+		};
+	};
+};
+
 
 &uart2 {
 	pinctrl-names = "default";
@@ -163,6 +244,12 @@
 	pinctrl_beeper: beepergrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0		0x19
+		>;
+	};
+
+	pinctrl_dsi_bridge: dsibridgeggrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_DATA1_GPIO2_IO3		0x19
 		>;
 	};
 
