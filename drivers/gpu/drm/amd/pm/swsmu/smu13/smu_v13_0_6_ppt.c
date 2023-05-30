@@ -325,14 +325,24 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
-	int ret;
-	int i;
+	int ret, i, retry = 100;
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
-		ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
-		if (ret)
-			return ret;
+		while (retry--) {
+			ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
+			if (ret)
+				return ret;
+
+			/* Ensure that metrics have been updated */
+			if (metrics->AccumulationCounter)
+				break;
+
+			usleep_range(1000, 1100);
+		}
+
+		if (!retry)
+			return -ETIME;
 
 		pptable->MaxSocketPowerLimit =
 			SMUQ10_TO_UINT(metrics->MaxSocketPowerLimit);
