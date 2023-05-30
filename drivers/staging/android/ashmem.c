@@ -937,6 +937,15 @@ static const struct file_operations ashmem_fops = {
 #endif
 };
 
+/*
+ * is_ashmem_file - Check if struct file* is associated with ashmem
+ */
+int is_ashmem_file(struct file *file)
+{
+	return file->f_op == &ashmem_fops;
+}
+EXPORT_SYMBOL_GPL(is_ashmem_file);
+
 static struct miscdevice ashmem_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "ashmem",

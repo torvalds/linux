@@ -7,3 +7,5 @@
  __traceiter_android_vh_page_add_new_anon_rmap
  __traceiter_android_vh_do_shrink_slab
  __traceiter_android_vh_shrink_slab_bypass
+ __traceiter_android_vh_mutex_init
+ __tracepoint_android_vh_mutex_init

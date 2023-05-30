@@ -31,6 +31,9 @@ DECLARE_HOOK(android_vh_mutex_opt_spin_finish,
 DECLARE_HOOK(android_vh_mutex_can_spin_on_owner,
 	TP_PROTO(struct mutex *lock, int *retval),
 	TP_ARGS(lock, retval));
+DECLARE_HOOK(android_vh_mutex_init,
+	TP_PROTO(struct mutex *lock),
+	TP_ARGS(lock));
 
 DECLARE_HOOK(android_vh_rtmutex_wait_start,
 	TP_PROTO(struct rt_mutex_base *lock),

@@ -55,6 +55,7 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 	osq_lock_init(&lock->osq);
 #endif
 
+	trace_android_vh_mutex_init(lock);
 	debug_mutex_init(lock, name, key);
 }
 EXPORT_SYMBOL(__mutex_init);

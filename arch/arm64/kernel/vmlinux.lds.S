@@ -143,6 +143,17 @@ jiffies = jiffies_64;
 #define TRAMP_TEXT
 #endif
 
+#ifdef CONFIG_UNWIND_TABLES
+#define UNWIND_DATA_SECTIONS				\
+	.eh_frame : {					\
+		__eh_frame_start = .;			\
+		*(.eh_frame)				\
+		__eh_frame_end = .;			\
+	}
+#else
+#define UNWIND_DATA_SECTIONS
+#endif
+
 /*
  * The size of the PE/COFF section that covers the kernel image, which
  * runs from _stext to _edata, must be a round multiple of the PE/COFF
@@ -260,6 +271,8 @@ SECTIONS
 		*(.altinstructions)
 		__alt_instructions_end = .;
 	}
+
+	UNWIND_DATA_SECTIONS
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__inittext_end = .;

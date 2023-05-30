@@ -373,6 +373,9 @@ config KASAN_SHADOW_OFFSET
 	default 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
 	default 0xffffffffffffffff
 
+config UNWIND_TABLES
+	bool
+
 source "arch/arm64/Kconfig.platforms"
 
 menu "Kernel Features"
@@ -2175,6 +2178,15 @@ config ARCH_NR_GPIO
           Maximum number of GPIOs in the system.
 
           If unsure, leave the default value.
+
+config UNWIND_PATCH_PAC_INTO_SCS
+	bool "Enable shadow call stack dynamically using code patching"
+	# needs Clang with https://reviews.llvm.org/D111780 incorporated
+	depends on CC_IS_CLANG && CLANG_VERSION >= 150000
+	depends on ARM64_PTR_AUTH_KERNEL && CC_HAS_BRANCH_PROT_PAC_RET
+	depends on SHADOW_CALL_STACK
+	select UNWIND_TABLES
+	select DYNAMIC_SCS
 
 endmenu # "Kernel Features"
 
