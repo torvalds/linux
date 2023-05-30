@@ -20,6 +20,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-amdgpu-y := amdgpu_xcp_drv.o
+amdxcp-y := amdgpu_xcp_drv.o
 
-obj-$(CONFIG_DRM_AMDGPU) += amdgpu_xcp_drv.o
+obj-$(CONFIG_DRM_AMDGPU) += amdxcp.o
