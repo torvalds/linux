@@ -117,8 +117,6 @@ struct intel_sdvo {
 
 	enum port port;
 
-	bool has_hdmi_audio;
-
 	/* DDC bus used by this SDVO encoder */
 	u8 ddc_bus;
 
@@ -1328,7 +1326,9 @@ static bool intel_sdvo_has_audio(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state,
 				 const struct drm_connector_state *conn_state)
 {
-	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	struct drm_connector *connector = conn_state->connector;
+	struct intel_sdvo_connector *intel_sdvo_connector =
+		to_intel_sdvo_connector(connector);
 	const struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
 
@@ -1336,7 +1336,8 @@ static bool intel_sdvo_has_audio(struct intel_encoder *encoder,
 		return false;
 
 	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		return intel_sdvo->has_hdmi_audio;
+		return intel_sdvo_connector->is_hdmi &&
+			connector->display_info.has_audio;
 	else
 		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
 }
@@ -2057,8 +2058,6 @@ static enum drm_connector_status
 intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
-	struct intel_sdvo_connector *intel_sdvo_connector =
-		to_intel_sdvo_connector(connector);
 	enum drm_connector_status status;
 	struct edid *edid;
 
@@ -2095,12 +2094,9 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 	status = connector_status_unknown;
 	if (edid != NULL) {
 		/* DDC bus is shared, match EDID to connector type */
-		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+		if (edid->input & DRM_EDID_INPUT_DIGITAL)
 			status = connector_status_connected;
-			if (intel_sdvo_connector->is_hdmi) {
-				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
-			}
-		} else
+		else
 			status = connector_status_disconnected;
 		kfree(edid);
 	}
@@ -2148,8 +2144,6 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 
 	intel_sdvo->attached_output = response;
-
-	intel_sdvo->has_hdmi_audio = false;
 
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
