@@ -284,6 +284,11 @@ enum rxe_mr_lookup_type {
 	RXE_LOOKUP_REMOTE,
 };
 
+enum rxe_rereg {
+	RXE_MR_REREG_SUPPORTED	= IB_MR_REREG_PD
+				| IB_MR_REREG_ACCESS,
+};
+
 static inline int rkey_is_mw(u32 rkey)
 {
 	u32 index = rkey >> 8;
