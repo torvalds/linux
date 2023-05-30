@@ -745,7 +745,7 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 		/* Update page status and unlock. */
 		end_page_read(page, uptodate, start, len);
 		endio_readpage_release_extent(&processed, BTRFS_I(inode),
-					      start, end, PageUptodate(page));
+					      start, end, uptodate);
 
 		ASSERT(bio_offset + len > bio_offset);
 		bio_offset += len;
