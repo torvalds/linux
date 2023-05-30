@@ -2806,15 +2806,11 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 		}
 	}
 
-	if (dai_link->playback_only) {
-		has_playback = 1;
+	if (dai_link->playback_only)
 		has_capture = 0;
-	}
 
-	if (dai_link->capture_only) {
+	if (dai_link->capture_only)
 		has_playback = 0;
-		has_capture = 1;
-	}
 
 	if (!has_playback && !has_capture) {
 		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
