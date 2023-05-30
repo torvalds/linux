@@ -68,7 +68,6 @@ static void dw_spi_debugfs_init(struct dw_spi *dws)
 	dws->regset.nregs = ARRAY_SIZE(dw_spi_dbgfs_regs);
 	dws->regset.base = dws->regs;
 	debugfs_create_regset32("registers", 0400, dws->debugfs, &dws->regset);
-
 }
 
 static void dw_spi_debugfs_remove(struct dw_spi *dws)
