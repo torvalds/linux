@@ -260,8 +260,8 @@
 	model = "apq8039-square-sndcard";
 	audio-routing = "AMIC2", "MIC BIAS Internal2";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&cdc_pdm_lines_default>;
-	pinctrl-1 = <&cdc_pdm_lines_sleep>;
+	pinctrl-0 = <&cdc_pdm_default>;
+	pinctrl-1 = <&cdc_pdm_sleep>;
 
 	internal-codec-playback-dai-link {
 		link-name = "WCD";

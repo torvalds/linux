@@ -969,7 +969,37 @@
 				bias-disable;
 			};
 
-			cdc_pdm_lines_default: pdm-lines-default-state {
+			cdc_dmic_default: cdc-dmic-default-state {
+				clk-pins {
+					pins = "gpio0";
+					function = "dmic0_clk";
+					drive-strength = <8>;
+				};
+
+				data-pins {
+					pins = "gpio1";
+					function = "dmic0_data";
+					drive-strength = <8>;
+				};
+			};
+
+			cdc_dmic_sleep: cdc-dmic-sleep-state {
+				clk-pins {
+					pins = "gpio0";
+					function = "dmic0_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				data-pins {
+					pins = "gpio1";
+					function = "dmic0_data";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			cdc_pdm_default: cdc-pdm-default-state {
 				pins = "gpio63", "gpio64", "gpio65", "gpio66",
 				       "gpio67", "gpio68";
 				function = "cdc_pdm0";
@@ -977,7 +1007,7 @@
 				bias-disable;
 			};
 
-			cdc_pdm_lines_sleep: pdm-lines-suspend-state {
+			cdc_pdm_sleep: cdc-pdm-sleep-state {
 				pins = "gpio63", "gpio64", "gpio65", "gpio66",
 				       "gpio67", "gpio68";
 				function = "cdc_pdm0";
@@ -985,99 +1015,60 @@
 				bias-pull-down;
 			};
 
-			cdc_dmic_lines_act: cdc-dmic-lines-on-state {
-				clk-pins {
-					pins = "gpio0";
-					function = "dmic0_clk";
-					drive-strength = <8>;
-				};
-
-				data-pins {
-					pins = "gpio1";
-					function = "dmic0_data";
-					drive-strength = <8>;
-				};
+			pri_mi2s_default: mi2s-pri-default-state {
+				pins = "gpio113", "gpio114", "gpio115", "gpio116";
+				function = "pri_mi2s";
+				drive-strength = <8>;
+				bias-disable;
 			};
 
-			cdc_dmic_lines_sus: cdc-dmic-lines-off-state {
-				clk-pins {
-					pins = "gpio0";
-					function = "dmic0_clk";
-					drive-strength = <2>;
-					bias-disable;
-				};
-
-				data-pins {
-					pins = "gpio1";
-					function = "dmic0_data";
-					drive-strength = <2>;
-					bias-disable;
-				};
+			pri_mi2s_sleep: mi2s-pri-sleep-state {
+				pins = "gpio113", "gpio114", "gpio115", "gpio116";
+				function = "pri_mi2s";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
-			ext-mclk-tlmm-lines-state {
-				ext_mclk_tlmm_lines_act: mclk-lines-on-pins {
-					pins = "gpio116";
-					function = "pri_mi2s";
-					drive-strength = <8>;
-					bias-disable;
-				};
-
-				ext_mclk_tlmm_lines_sus: mclk-lines-off-pins {
-					pins = "gpio116";
-					function = "pri_mi2s";
-					drive-strength = <2>;
-					bias-disable;
-				};
+			pri_mi2s_mclk_default: mi2s-pri-mclk-default-state {
+				pins = "gpio116";
+				function = "pri_mi2s";
+				drive-strength = <8>;
+				bias-disable;
 			};
 
-			ext-pri-tlmm-lines-state {
-				ext_pri_tlmm_lines_act: ext-pa-on-pins {
-					pins = "gpio113", "gpio114", "gpio115", "gpio116";
-					function = "pri_mi2s";
-					drive-strength = <8>;
-					bias-disable;
-				};
-
-				ext_pri_tlmm_lines_sus: ext-pa-off-pins {
-					pins = "gpio113", "gpio114", "gpio115", "gpio116";
-					function = "pri_mi2s";
-					drive-strength = <2>;
-					bias-disable;
-				};
+			pri_mi2s_mclk_sleep: mi2s-pri-mclk-sleep-state {
+				pins = "gpio116";
+				function = "pri_mi2s";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
-			ext-pri-ws-line-state {
-				ext_pri_ws_act: ext-pa-on-pins {
-					pins = "gpio110";
-					function = "pri_mi2s_ws";
-					drive-strength = <8>;
-					bias-disable;
-				};
-
-				ext_pri_ws_sus: ext-pa-off-pins {
-					pins = "gpio110";
-					function = "pri_mi2s_ws";
-					drive-strength = <2>;
-					bias-disable;
-				};
+			pri_mi2s_ws_default: mi2s-pri-ws-default-state {
+				pins = "gpio110";
+				function = "pri_mi2s_ws";
+				drive-strength = <8>;
+				bias-disable;
 			};
 
-			/* secondary Mi2S */
-			ext-sec-tlmm-lines-state {
-				ext_sec_tlmm_lines_act: tlmm-lines-on-pins {
-					pins = "gpio112", "gpio117", "gpio118", "gpio119";
-					function = "sec_mi2s";
-					drive-strength = <8>;
-					bias-disable;
-				};
+			pri_mi2s_ws_sleep: mi2s-pri-ws-sleep-state {
+				pins = "gpio110";
+				function = "pri_mi2s_ws";
+				drive-strength = <2>;
+				bias-disable;
+			};
 
-				ext_sec_tlmm_lines_sus: tlmm-lines-off-pins {
-					pins = "gpio112", "gpio117", "gpio118", "gpio119";
-					function = "sec_mi2s";
-					drive-strength = <2>;
-					bias-disable;
-				};
+			sec_mi2s_default: mi2s-sec-default-state {
+				pins = "gpio112", "gpio117", "gpio118", "gpio119";
+				function = "sec_mi2s";
+				drive-strength = <8>;
+				bias-disable;
+			};
+
+			sec_mi2s_sleep: mi2s-sec-sleep-state {
+				pins = "gpio112", "gpio117", "gpio118", "gpio119";
+				function = "sec_mi2s";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
 			sdc1_default: sdc1-default-state {

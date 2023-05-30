@@ -295,8 +295,8 @@
 		"AMIC3", "MIC BIAS External1";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&cdc_pdm_lines_act>;
-	pinctrl-1 = <&cdc_pdm_lines_sus>;
+	pinctrl-0 = <&cdc_pdm_default>;
+	pinctrl-1 = <&cdc_pdm_sleep>;
 
 	primary-dai-link {
 		link-name = "WCD";
