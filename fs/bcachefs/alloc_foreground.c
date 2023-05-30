@@ -934,9 +934,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 	unsigned i;
 	int ret;
 
-	rcu_read_lock();
 	devs = target_rw_devs(c, wp->data_type, target);
-	rcu_read_unlock();
 
 	/* Don't allocate from devices we already have pointers to: */
 	for (i = 0; i < devs_have->nr; i++)

@@ -208,26 +208,36 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 const struct bch_devs_mask *bch2_target_to_mask(struct bch_fs *c, unsigned target)
 {
 	struct target t = target_decode(target);
+	struct bch_devs_mask *devs;
+
+	rcu_read_lock();
 
 	switch (t.type) {
 	case TARGET_NULL:
-		return NULL;
+		devs = NULL;
+		break;
 	case TARGET_DEV: {
 		struct bch_dev *ca = t.dev < c->sb.nr_devices
 			? rcu_dereference(c->devs[t.dev])
 			: NULL;
-		return ca ? &ca->self : NULL;
+		devs = ca ? &ca->self : NULL;
+		break;
 	}
 	case TARGET_GROUP: {
 		struct bch_disk_groups_cpu *g = rcu_dereference(c->disk_groups);
 
-		return g && t.group < g->nr && !g->entries[t.group].deleted
+		devs = g && t.group < g->nr && !g->entries[t.group].deleted
 			? &g->entries[t.group].devs
 			: NULL;
+		break;
 	}
 	default:
 		BUG();
 	}
+
+	rcu_read_unlock();
+
+	return devs;
 }
 
 bool bch2_dev_in_target(struct bch_fs *c, unsigned dev, unsigned target)
