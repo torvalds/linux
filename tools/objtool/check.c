@@ -677,10 +677,13 @@ static int create_static_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->static_call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".static_call_sites", SHF_WRITE,
+	sec = elf_create_section(file->elf, ".static_call_sites",
 				 sizeof(struct static_call_site), idx);
 	if (!sec)
 		return -1;
+
+	/* Allow modules to set the low bits of static_call_site::key */
+	sec->sh.sh_flags |= SHF_WRITE;
 
 	idx = 0;
 	list_for_each_entry(insn, &file->static_call_list, call_node) {
@@ -763,7 +766,7 @@ static int create_retpoline_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".retpoline_sites", 0,
+	sec = elf_create_section(file->elf, ".retpoline_sites",
 				 sizeof(int), idx);
 	if (!sec) {
 		WARN("elf_create_section: .retpoline_sites");
@@ -809,7 +812,7 @@ static int create_return_sites_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".return_sites", 0,
+	sec = elf_create_section(file->elf, ".return_sites",
 				 sizeof(int), idx);
 	if (!sec) {
 		WARN("elf_create_section: .return_sites");
@@ -861,7 +864,7 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 	if (!idx)
 		return 0;
 
-	sec = elf_create_section(file->elf, ".ibt_endbr_seal", 0,
+	sec = elf_create_section(file->elf, ".ibt_endbr_seal",
 				 sizeof(int), idx);
 	if (!sec) {
 		WARN("elf_create_section: .ibt_endbr_seal");
@@ -920,7 +923,7 @@ static int create_cfi_sections(struct objtool_file *file)
 		idx++;
 	}
 
-	sec = elf_create_section(file->elf, ".cfi_sites", 0, sizeof(unsigned int), idx);
+	sec = elf_create_section(file->elf, ".cfi_sites", sizeof(unsigned int), idx);
 	if (!sec)
 		return -1;
 
@@ -968,7 +971,7 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->mcount_loc_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, "__mcount_loc", 0, addrsize, idx);
+	sec = elf_create_section(file->elf, "__mcount_loc", addrsize, idx);
 	if (!sec)
 		return -1;
 
@@ -1013,7 +1016,7 @@ static int create_direct_call_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->call_list, call_node)
 		idx++;
 
-	sec = elf_create_section(file->elf, ".call_sites", 0, sizeof(unsigned int), idx);
+	sec = elf_create_section(file->elf, ".call_sites", sizeof(unsigned int), idx);
 	if (!sec)
 		return -1;
 
