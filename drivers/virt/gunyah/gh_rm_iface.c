@@ -2507,6 +2507,9 @@ int gh_rm_minidump_get_info(void)
 	size_t resp_size;
 	int ret = 0;
 
+	if (!rm)
+		return -EPROBE_DEFER;
+
 	ret = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_INFO,
 				  &req_payload, sizeof(req_payload),
 				  (void **)&resp_payload, &resp_size);
