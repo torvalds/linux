@@ -253,7 +253,7 @@ int __register_blkdev(unsigned int major, const char *name,
 #ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
 	p->probe = probe;
 #endif
-	strlcpy(p->name, name, sizeof(p->name));
+	strscpy(p->name, name, sizeof(p->name));
 	p->next = NULL;
 	index = major_to_index(major);
 
