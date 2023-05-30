@@ -3712,7 +3712,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 
 		WARN_ON(btrfs_page_test_dirty(fs_info, p, eb->start, eb->len));
 		eb->pages[i] = p;
-		if (!PageUptodate(p))
+		if (!btrfs_page_test_uptodate(fs_info, p, eb->start, eb->len))
 			uptodate = 0;
 
 		/*
