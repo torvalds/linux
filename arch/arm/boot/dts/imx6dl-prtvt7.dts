@@ -267,8 +267,6 @@
                               <&adc_ts 5>;
 		io-channel-names = "y", "z1", "z2", "x";
 		touchscreen-min-pressure = <64687>;
-		touchscreen-inverted-x;
-		touchscreen-inverted-y;
 		touchscreen-x-plate-ohms = <300>;
 		touchscreen-y-plate-ohms = <800>;
 	};
