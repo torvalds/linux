@@ -242,6 +242,7 @@ enum nvme_ctrl_flags {
 	NVME_CTRL_ADMIN_Q_STOPPED	= 1,
 	NVME_CTRL_STARTED_ONCE		= 2,
 	NVME_CTRL_STOPPED		= 3,
+	NVME_CTRL_SKIP_ID_CNS_CS	= 4,
 };
 
 struct nvme_ctrl {
