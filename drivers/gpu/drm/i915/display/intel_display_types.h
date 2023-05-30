@@ -1587,7 +1587,6 @@ struct intel_hdmi {
 		int max_tmds_clock;
 	} dp_dual_mode;
 	bool has_hdmi_sink;
-	bool has_audio;
 	struct intel_connector *attached_connector;
 	struct cec_notifier *cec_notifier;
 };

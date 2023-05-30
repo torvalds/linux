@@ -252,13 +252,11 @@ static void intel_dp_mst_info(struct seq_file *m,
 }
 
 static void intel_hdmi_info(struct seq_file *m,
-			    struct intel_connector *intel_connector)
+			    struct intel_connector *connector)
 {
-	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(intel_encoder);
+	bool has_audio = connector->base.display_info.has_audio;
 
-	seq_printf(m, "\taudio support: %s\n",
-		   str_yes_no(intel_hdmi->has_audio));
+	seq_printf(m, "\taudio support: %s\n", str_yes_no(has_audio));
 }
 
 static void intel_connector_info(struct seq_file *m,
