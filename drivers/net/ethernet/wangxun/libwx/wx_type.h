@@ -321,9 +321,31 @@
 /******************* Receive Descriptor bit definitions **********************/
 #define WX_RXD_STAT_DD               BIT(0) /* Done */
 #define WX_RXD_STAT_EOP              BIT(1) /* End of Packet */
+#define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
+#define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
+#define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
 
+#define WX_RXD_ERR_OUTERIPER         BIT(26) /* CRC IP Header error */
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
+#define WX_RXD_ERR_TCPE              BIT(30) /* TCP/UDP Checksum Error */
+#define WX_RXD_ERR_IPE               BIT(31) /* IP Checksum Error */
 
+/* RSS Hash results */
+#define WX_RXD_RSSTYPE_MASK          GENMASK(3, 0)
+#define WX_RXD_RSSTYPE_IPV4_TCP      0x00000001U
+#define WX_RXD_RSSTYPE_IPV6_TCP      0x00000003U
+#define WX_RXD_RSSTYPE_IPV4_SCTP     0x00000004U
+#define WX_RXD_RSSTYPE_IPV6_SCTP     0x00000006U
+#define WX_RXD_RSSTYPE_IPV4_UDP      0x00000007U
+#define WX_RXD_RSSTYPE_IPV6_UDP      0x00000008U
+
+#define WX_RSS_L4_TYPES_MASK \
+	((1ul << WX_RXD_RSSTYPE_IPV4_TCP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV4_UDP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV4_SCTP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_TCP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_UDP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_SCTP))
 /* TUN */
 #define WX_PTYPE_TUN_IPV4            0x80
 #define WX_PTYPE_TUN_IPV6            0xC0
@@ -347,6 +369,10 @@
 #define WX_PTYPE_TYP_TCP             0x04
 #define WX_PTYPE_TYP_SCTP            0x05
 
+#define WX_RXD_PKTTYPE(_rxd) \
+	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 9) & 0xFF)
+#define WX_RXD_IPV6EX(_rxd) \
+	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 6) & 0x1)
 /*********************** Transmit Descriptor Config Masks ****************/
 #define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
 #define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */
@@ -397,6 +423,70 @@ enum wx_tx_flags {
 /* VLAN info */
 #define WX_TX_FLAGS_VLAN_MASK			GENMASK(31, 16)
 #define WX_TX_FLAGS_VLAN_SHIFT			16
+
+/* wx_dec_ptype.mac: outer mac */
+enum wx_dec_ptype_mac {
+	WX_DEC_PTYPE_MAC_IP	= 0,
+	WX_DEC_PTYPE_MAC_L2	= 2,
+	WX_DEC_PTYPE_MAC_FCOE	= 3,
+};
+
+/* wx_dec_ptype.[e]ip: outer&encaped ip */
+#define WX_DEC_PTYPE_IP_FRAG	0x4
+enum wx_dec_ptype_ip {
+	WX_DEC_PTYPE_IP_NONE = 0,
+	WX_DEC_PTYPE_IP_IPV4 = 1,
+	WX_DEC_PTYPE_IP_IPV6 = 2,
+	WX_DEC_PTYPE_IP_FGV4 = WX_DEC_PTYPE_IP_FRAG | WX_DEC_PTYPE_IP_IPV4,
+	WX_DEC_PTYPE_IP_FGV6 = WX_DEC_PTYPE_IP_FRAG | WX_DEC_PTYPE_IP_IPV6,
+};
+
+/* wx_dec_ptype.etype: encaped type */
+enum wx_dec_ptype_etype {
+	WX_DEC_PTYPE_ETYPE_NONE	= 0,
+	WX_DEC_PTYPE_ETYPE_IPIP	= 1,	/* IP+IP */
+	WX_DEC_PTYPE_ETYPE_IG	= 2,	/* IP+GRE */
+	WX_DEC_PTYPE_ETYPE_IGM	= 3,	/* IP+GRE+MAC */
+	WX_DEC_PTYPE_ETYPE_IGMV	= 4,	/* IP+GRE+MAC+VLAN */
+};
+
+/* wx_dec_ptype.proto: payload proto */
+enum wx_dec_ptype_prot {
+	WX_DEC_PTYPE_PROT_NONE	= 0,
+	WX_DEC_PTYPE_PROT_UDP	= 1,
+	WX_DEC_PTYPE_PROT_TCP	= 2,
+	WX_DEC_PTYPE_PROT_SCTP	= 3,
+	WX_DEC_PTYPE_PROT_ICMP	= 4,
+	WX_DEC_PTYPE_PROT_TS	= 5,	/* time sync */
+};
+
+/* wx_dec_ptype.layer: payload layer */
+enum wx_dec_ptype_layer {
+	WX_DEC_PTYPE_LAYER_NONE = 0,
+	WX_DEC_PTYPE_LAYER_PAY2 = 1,
+	WX_DEC_PTYPE_LAYER_PAY3 = 2,
+	WX_DEC_PTYPE_LAYER_PAY4 = 3,
+};
+
+struct wx_dec_ptype {
+	u32 known:1;
+	u32 mac:2;	/* outer mac */
+	u32 ip:3;	/* outer ip*/
+	u32 etype:3;	/* encaped type */
+	u32 eip:3;	/* encaped ip */
+	u32 prot:4;	/* payload proto */
+	u32 layer:3;	/* payload layer */
+};
+
+/* macro to make the table lines short */
+#define WX_PTT(mac, ip, etype, eip, proto, layer)\
+	      {1, \
+	       WX_DEC_PTYPE_MAC_##mac,		/* mac */\
+	       WX_DEC_PTYPE_IP_##ip,		/* ip */ \
+	       WX_DEC_PTYPE_ETYPE_##etype,	/* etype */\
+	       WX_DEC_PTYPE_IP_##eip,		/* eip */\
+	       WX_DEC_PTYPE_PROT_##proto,	/* proto */\
+	       WX_DEC_PTYPE_LAYER_##layer	/* layer */}
 
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
@@ -620,6 +710,11 @@ struct wx_queue_stats {
 	u64 bytes;
 };
 
+struct wx_rx_queue_stats {
+	u64 csum_good_cnt;
+	u64 csum_err;
+};
+
 /* iterator for handling rings in ring container */
 #define wx_for_each_ring(posm, headm) \
 	for (posm = (headm).ring; posm; posm = posm->next)
@@ -661,6 +756,9 @@ struct wx_ring {
 
 	struct wx_queue_stats stats;
 	struct u64_stats_sync syncp;
+	union {
+		struct wx_rx_queue_stats rx_stats;
+	};
 } ____cacheline_internodealigned_in_smp;
 
 struct wx_q_vector {
