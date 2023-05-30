@@ -2734,8 +2734,6 @@ repeat:
 			if ((prefetch_grp == group) &&
 			    (cr > CR1 ||
 			     prefetch_ios < sbi->s_mb_prefetch_limit)) {
-				unsigned int curr_ios = prefetch_ios;
-
 				nr = sbi->s_mb_prefetch;
 				if (ext4_has_feature_flex_bg(sb)) {
 					nr = 1 << sbi->s_log_groups_per_flex;
@@ -2744,8 +2742,6 @@ repeat:
 				}
 				prefetch_grp = ext4_mb_prefetch(sb, group,
 							nr, &prefetch_ios);
-				if (prefetch_ios == curr_ios)
-					nr = 0;
 			}
 
 			/* This now checks without needing the buddy page */
