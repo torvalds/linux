@@ -3957,9 +3957,9 @@ is_port_function_supported(struct mlx5_eswitch *esw, u16 vport_num)
 	       mlx5_esw_is_sf_vport(esw, vport_num);
 }
 
-int mlx5_devlink_port_function_hw_addr_get(struct devlink_port *port,
-					   u8 *hw_addr, int *hw_addr_len,
-					   struct netlink_ext_ack *extack)
+int mlx5_devlink_port_fn_hw_addr_get(struct devlink_port *port,
+				     u8 *hw_addr, int *hw_addr_len,
+				     struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
@@ -3986,9 +3986,9 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink_port *port,
 	return 0;
 }
 
-int mlx5_devlink_port_function_hw_addr_set(struct devlink_port *port,
-					   const u8 *hw_addr, int hw_addr_len,
-					   struct netlink_ext_ack *extack)
+int mlx5_devlink_port_fn_hw_addr_set(struct devlink_port *port,
+				     const u8 *hw_addr, int hw_addr_len,
+				     struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw;
 	u16 vport_num;

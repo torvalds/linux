@@ -447,18 +447,18 @@ static void devlink_port_fn_cap_fill(struct nla_bitfield32 *caps,
 		caps->value |= cap;
 }
 
-static int devlink_port_fn_roce_fill(const struct devlink_ops *ops,
-				     struct devlink_port *devlink_port,
+static int devlink_port_fn_roce_fill(struct devlink_port *devlink_port,
 				     struct nla_bitfield32 *caps,
 				     struct netlink_ext_ack *extack)
 {
 	bool is_enable;
 	int err;
 
-	if (!ops->port_fn_roce_get)
+	if (!devlink_port->ops->port_fn_roce_get)
 		return 0;
 
-	err = ops->port_fn_roce_get(devlink_port, &is_enable, extack);
+	err = devlink_port->ops->port_fn_roce_get(devlink_port, &is_enable,
+						  extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -469,19 +469,19 @@ static int devlink_port_fn_roce_fill(const struct devlink_ops *ops,
 	return 0;
 }
 
-static int devlink_port_fn_migratable_fill(const struct devlink_ops *ops,
-					   struct devlink_port *devlink_port,
+static int devlink_port_fn_migratable_fill(struct devlink_port *devlink_port,
 					   struct nla_bitfield32 *caps,
 					   struct netlink_ext_ack *extack)
 {
 	bool is_enable;
 	int err;
 
-	if (!ops->port_fn_migratable_get ||
+	if (!devlink_port->ops->port_fn_migratable_get ||
 	    devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF)
 		return 0;
 
-	err = ops->port_fn_migratable_get(devlink_port, &is_enable, extack);
+	err = devlink_port->ops->port_fn_migratable_get(devlink_port,
+							&is_enable, extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -492,8 +492,7 @@ static int devlink_port_fn_migratable_fill(const struct devlink_ops *ops,
 	return 0;
 }
 
-static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
-				     struct devlink_port *devlink_port,
+static int devlink_port_fn_caps_fill(struct devlink_port *devlink_port,
 				     struct sk_buff *msg,
 				     struct netlink_ext_ack *extack,
 				     bool *msg_updated)
@@ -501,11 +500,11 @@ static int devlink_port_fn_caps_fill(const struct devlink_ops *ops,
 	struct nla_bitfield32 caps = {};
 	int err;
 
-	err = devlink_port_fn_roce_fill(ops, devlink_port, &caps, extack);
+	err = devlink_port_fn_roce_fill(devlink_port, &caps, extack);
 	if (err)
 		return err;
 
-	err = devlink_port_fn_migratable_fill(ops, devlink_port, &caps, extack);
+	err = devlink_port_fn_migratable_fill(devlink_port, &caps, extack);
 	if (err)
 		return err;
 
@@ -691,8 +690,7 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 	return 0;
 }
 
-static int devlink_port_fn_hw_addr_fill(const struct devlink_ops *ops,
-					struct devlink_port *port,
+static int devlink_port_fn_hw_addr_fill(struct devlink_port *port,
 					struct sk_buff *msg,
 					struct netlink_ext_ack *extack,
 					bool *msg_updated)
@@ -701,10 +699,10 @@ static int devlink_port_fn_hw_addr_fill(const struct devlink_ops *ops,
 	int hw_addr_len;
 	int err;
 
-	if (!ops->port_function_hw_addr_get)
+	if (!port->ops->port_fn_hw_addr_get)
 		return 0;
 
-	err = ops->port_function_hw_addr_get(port, hw_addr, &hw_addr_len,
+	err = port->ops->port_fn_hw_addr_get(port, hw_addr, &hw_addr_len,
 					     extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
@@ -789,8 +787,7 @@ devlink_port_fn_opstate_valid(enum devlink_port_fn_opstate opstate)
 	       opstate == DEVLINK_PORT_FN_OPSTATE_ATTACHED;
 }
 
-static int devlink_port_fn_state_fill(const struct devlink_ops *ops,
-				      struct devlink_port *port,
+static int devlink_port_fn_state_fill(struct devlink_port *port,
 				      struct sk_buff *msg,
 				      struct netlink_ext_ack *extack,
 				      bool *msg_updated)
@@ -799,10 +796,10 @@ static int devlink_port_fn_state_fill(const struct devlink_ops *ops,
 	enum devlink_port_fn_state state;
 	int err;
 
-	if (!ops->port_fn_state_get)
+	if (!port->ops->port_fn_state_get)
 		return 0;
 
-	err = ops->port_fn_state_get(port, &state, &opstate, extack);
+	err = port->ops->port_fn_state_get(port, &state, &opstate, extack);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
@@ -829,18 +826,16 @@ static int
 devlink_port_fn_mig_set(struct devlink_port *devlink_port, bool enable,
 			struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
-
-	return ops->port_fn_migratable_set(devlink_port, enable, extack);
+	return devlink_port->ops->port_fn_migratable_set(devlink_port, enable,
+							 extack);
 }
 
 static int
 devlink_port_fn_roce_set(struct devlink_port *devlink_port, bool enable,
 			 struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
-
-	return ops->port_fn_roce_set(devlink_port, enable, extack);
+	return devlink_port->ops->port_fn_roce_set(devlink_port, enable,
+						   extack);
 }
 
 static int devlink_port_fn_caps_set(struct devlink_port *devlink_port,
@@ -874,7 +869,6 @@ static int
 devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *port,
 				   struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops;
 	struct nlattr *function_attr;
 	bool msg_updated = false;
 	int err;
@@ -883,16 +877,13 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	if (!function_attr)
 		return -EMSGSIZE;
 
-	ops = port->devlink->ops;
-	err = devlink_port_fn_hw_addr_fill(ops, port, msg, extack,
-					   &msg_updated);
+	err = devlink_port_fn_hw_addr_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
-	err = devlink_port_fn_caps_fill(ops, port, msg, extack,
-					&msg_updated);
+	err = devlink_port_fn_caps_fill(port, msg, extack, &msg_updated);
 	if (err)
 		goto out;
-	err = devlink_port_fn_state_fill(ops, port, msg, extack, &msg_updated);
+	err = devlink_port_fn_state_fill(port, msg, extack, &msg_updated);
 out:
 	if (err || !msg_updated)
 		nla_nest_cancel(msg, function_attr);
@@ -1137,14 +1128,13 @@ static int devlink_port_type_set(struct devlink_port *devlink_port,
 {
 	int err;
 
-	if (!devlink_port->devlink->ops->port_type_set)
+	if (!devlink_port->ops->port_type_set)
 		return -EOPNOTSUPP;
 
 	if (port_type == devlink_port->type)
 		return 0;
 
-	err = devlink_port->devlink->ops->port_type_set(devlink_port,
-							port_type);
+	err = devlink_port->ops->port_type_set(devlink_port, port_type);
 	if (err)
 		return err;
 
@@ -1157,7 +1147,6 @@ static int devlink_port_function_hw_addr_set(struct devlink_port *port,
 					     const struct nlattr *attr,
 					     struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = port->devlink->ops;
 	const u8 *hw_addr;
 	int hw_addr_len;
 
@@ -1178,7 +1167,7 @@ static int devlink_port_function_hw_addr_set(struct devlink_port *port,
 		}
 	}
 
-	return ops->port_function_hw_addr_set(port, hw_addr, hw_addr_len,
+	return port->ops->port_fn_hw_addr_set(port, hw_addr, hw_addr_len,
 					      extack);
 }
 
@@ -1187,22 +1176,20 @@ static int devlink_port_fn_state_set(struct devlink_port *port,
 				     struct netlink_ext_ack *extack)
 {
 	enum devlink_port_fn_state state;
-	const struct devlink_ops *ops;
 
 	state = nla_get_u8(attr);
-	ops = port->devlink->ops;
-	return ops->port_fn_state_set(port, state, extack);
+	return port->ops->port_fn_state_set(port, state, extack);
 }
 
 static int devlink_port_function_validate(struct devlink_port *devlink_port,
 					  struct nlattr **tb,
 					  struct netlink_ext_ack *extack)
 {
-	const struct devlink_ops *ops = devlink_port->devlink->ops;
+	const struct devlink_port_ops *ops = devlink_port->ops;
 	struct nlattr *attr;
 
 	if (tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] &&
-	    !ops->port_function_hw_addr_set) {
+	    !ops->port_fn_hw_addr_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Port doesn't support function attributes");
 		return -EOPNOTSUPP;
@@ -1320,7 +1307,7 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_SPLIT_COUNT))
 		return -EINVAL;
-	if (!devlink->ops->port_split)
+	if (!devlink_port->ops->port_split)
 		return -EOPNOTSUPP;
 
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
@@ -1339,8 +1326,8 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	return devlink->ops->port_split(devlink, devlink_port, count,
-					info->extack);
+	return devlink_port->ops->port_split(devlink, devlink_port, count,
+					     info->extack);
 }
 
 static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
@@ -1349,9 +1336,9 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_unsplit)
+	if (!devlink_port->ops->port_unsplit)
 		return -EOPNOTSUPP;
-	return devlink->ops->port_unsplit(devlink, devlink_port, info->extack);
+	return devlink_port->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
 static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
@@ -1361,7 +1348,7 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 	struct devlink_port_new_attrs new_attrs = {};
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_new || !devlink->ops->port_del)
+	if (!devlink->ops->port_new)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[DEVLINK_ATTR_PORT_FLAVOUR] ||
@@ -1400,10 +1387,10 @@ static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
 
-	if (!devlink->ops->port_del)
+	if (!devlink_port->ops->port_del)
 		return -EOPNOTSUPP;
 
-	return devlink->ops->port_del(devlink, devlink_port, extack);
+	return devlink_port->ops->port_del(devlink, devlink_port, extack);
 }
 
 static int
@@ -6793,12 +6780,15 @@ void devlink_port_fini(struct devlink_port *devlink_port)
 }
 EXPORT_SYMBOL_GPL(devlink_port_fini);
 
+static const struct devlink_port_ops devlink_port_dummy_ops = {};
+
 /**
- * devl_port_register() - Register devlink port
+ * devl_port_register_with_ops() - Register devlink port
  *
  * @devlink: devlink
  * @devlink_port: devlink port
  * @port_index: driver-specific numerical identifier of the port
+ * @ops: port ops
  *
  * Register devlink port with provided port index. User can use
  * any indexing, even hw-related one. devlink_port structure
@@ -6806,9 +6796,10 @@ EXPORT_SYMBOL_GPL(devlink_port_fini);
  * Note that the caller should take care of zeroing the devlink_port
  * structure.
  */
-int devl_port_register(struct devlink *devlink,
-		       struct devlink_port *devlink_port,
-		       unsigned int port_index)
+int devl_port_register_with_ops(struct devlink *devlink,
+				struct devlink_port *devlink_port,
+				unsigned int port_index,
+				const struct devlink_port_ops *ops)
 {
 	int err;
 
@@ -6819,6 +6810,7 @@ int devl_port_register(struct devlink *devlink,
 	devlink_port_init(devlink, devlink_port);
 	devlink_port->registered = true;
 	devlink_port->index = port_index;
+	devlink_port->ops = ops ? ops : &devlink_port_dummy_ops;
 	spin_lock_init(&devlink_port->type_lock);
 	INIT_LIST_HEAD(&devlink_port->reporter_list);
 	err = xa_insert(&devlink->ports, port_index, devlink_port, GFP_KERNEL);
@@ -6830,14 +6822,15 @@ int devl_port_register(struct devlink *devlink,
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devl_port_register);
+EXPORT_SYMBOL_GPL(devl_port_register_with_ops);
 
 /**
- *	devlink_port_register - Register devlink port
+ *	devlink_port_register_with_ops - Register devlink port
  *
  *	@devlink: devlink
  *	@devlink_port: devlink port
  *	@port_index: driver-specific numerical identifier of the port
+ *	@ops: port ops
  *
  *	Register devlink port with provided port index. User can use
  *	any indexing, even hw-related one. devlink_port structure
@@ -6847,18 +6840,20 @@ EXPORT_SYMBOL_GPL(devl_port_register);
  *
  *	Context: Takes and release devlink->lock <mutex>.
  */
-int devlink_port_register(struct devlink *devlink,
-			  struct devlink_port *devlink_port,
-			  unsigned int port_index)
+int devlink_port_register_with_ops(struct devlink *devlink,
+				   struct devlink_port *devlink_port,
+				   unsigned int port_index,
+				   const struct devlink_port_ops *ops)
 {
 	int err;
 
 	devl_lock(devlink);
-	err = devl_port_register(devlink, devlink_port, port_index);
+	err = devl_port_register_with_ops(devlink, devlink_port,
+					  port_index, ops);
 	devl_unlock(devlink);
 	return err;
 }
-EXPORT_SYMBOL_GPL(devlink_port_register);
+EXPORT_SYMBOL_GPL(devlink_port_register_with_ops);
 
 /**
  * devl_port_unregister() - Unregister devlink port

@@ -310,8 +310,6 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.eswitch_inline_mode_get = mlx5_devlink_eswitch_inline_mode_get,
 	.eswitch_encap_mode_set = mlx5_devlink_eswitch_encap_mode_set,
 	.eswitch_encap_mode_get = mlx5_devlink_eswitch_encap_mode_get,
-	.port_function_hw_addr_get = mlx5_devlink_port_function_hw_addr_get,
-	.port_function_hw_addr_set = mlx5_devlink_port_function_hw_addr_set,
 	.rate_leaf_tx_share_set = mlx5_esw_devlink_rate_leaf_tx_share_set,
 	.rate_leaf_tx_max_set = mlx5_esw_devlink_rate_leaf_tx_max_set,
 	.rate_node_tx_share_set = mlx5_esw_devlink_rate_node_tx_share_set,
@@ -319,16 +317,9 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.rate_node_new = mlx5_esw_devlink_rate_node_new,
 	.rate_node_del = mlx5_esw_devlink_rate_node_del,
 	.rate_leaf_parent_set = mlx5_esw_devlink_rate_parent_set,
-	.port_fn_roce_get = mlx5_devlink_port_fn_roce_get,
-	.port_fn_roce_set = mlx5_devlink_port_fn_roce_set,
-	.port_fn_migratable_get = mlx5_devlink_port_fn_migratable_get,
-	.port_fn_migratable_set = mlx5_devlink_port_fn_migratable_set,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
 	.port_new = mlx5_devlink_sf_port_new,
-	.port_del = mlx5_devlink_sf_port_del,
-	.port_fn_state_get = mlx5_devlink_sf_port_fn_state_get,
-	.port_fn_state_set = mlx5_devlink_sf_port_fn_state_set,
 #endif
 	.flash_update = mlx5_devlink_flash_update,
 	.info_get = mlx5_devlink_info_get,
