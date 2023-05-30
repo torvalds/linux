@@ -1093,14 +1093,14 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	 * in that case.
 	 */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
-		dev_warn_once(adev->dev,
+		dev_err_once(adev->dev,
 			      "Power consumption will be higher as BIOS has not been configured for suspend-to-idle.\n"
 			      "To use suspend-to-idle change the sleep mode in BIOS setup.\n");
 		return false;
 	}
 
 #if !IS_ENABLED(CONFIG_AMD_PMC)
-	dev_warn_once(adev->dev,
+	dev_err_once(adev->dev,
 		      "Power consumption will be higher as the kernel has not been compiled with CONFIG_AMD_PMC.\n");
 	return false;
 #else
