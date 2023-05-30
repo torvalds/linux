@@ -48,16 +48,6 @@ static int __init kaslr_init(void)
 
 	pr_info("KASLR enabled\n");
 
-	/*
-	 * KASAN without KASAN_VMALLOC does not expect the module region to
-	 * intersect the vmalloc region, since shadow memory is allocated for
-	 * each module at load time, whereas the vmalloc region will already be
-	 * shadowed by KASAN zero pages.
-	 */
-	BUILD_BUG_ON((IS_ENABLED(CONFIG_KASAN_GENERIC) ||
-	              IS_ENABLED(CONFIG_KASAN_SW_TAGS)) &&
-		     !IS_ENABLED(CONFIG_KASAN_VMALLOC));
-
 	seed = get_random_u32();
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_MODULE_REGION_FULL)) {
