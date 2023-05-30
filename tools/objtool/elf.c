@@ -246,8 +246,9 @@ struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *se
 			if (reloc->sec != rsec)
 				continue;
 
-			if (reloc->offset >= offset && reloc->offset < offset + len) {
-				if (!r || reloc->offset < r->offset)
+			if (reloc_offset(reloc) >= offset &&
+			    reloc_offset(reloc) < offset + len) {
+				if (!r || reloc_offset(reloc) < reloc_offset(r))
 					r = reloc;
 			}
 		}
@@ -830,10 +831,11 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	}
 
 	reloc->sec = rsec;
-	reloc->offset = offset;
 	reloc->type = type;
 	reloc->sym = sym;
 	reloc->addend = addend;
+
+	reloc->rel.r_offset = offset;
 
 	if (elf_write_reloc(elf, reloc))
 		return NULL;
@@ -908,7 +910,6 @@ static int read_reloc(struct section *rsec, int i, struct reloc *reloc)
 		return -1;
 	}
 
-	reloc->offset = reloc->rel.r_offset;
 	reloc->type = GELF_R_TYPE(reloc->rel.r_info);
 	reloc->addend = rela ? reloc->rela.r_addend : 0;
 
@@ -1230,7 +1231,6 @@ int elf_write_reloc(struct elf *elf, struct reloc *reloc)
 	struct section *rsec = reloc->sec;
 	int ret;
 
-	reloc->rel.r_offset = reloc->offset;
 	reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
 
 	if (rsec->sh.sh_type == SHT_RELA) {

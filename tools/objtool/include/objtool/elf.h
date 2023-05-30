@@ -75,7 +75,6 @@ struct reloc {
 	struct section *sec;
 	struct symbol *sym;
 	struct list_head sym_reloc_entry;
-	unsigned long offset;
 	s64 addend;
 	unsigned int type;
 	bool jump_table_start;
@@ -204,6 +203,11 @@ static inline unsigned int reloc_idx(struct reloc *reloc)
 	return reloc - reloc->sec->relocs;
 }
 
+static inline unsigned long reloc_offset(struct reloc *reloc)
+{
+	return reloc->rel.r_offset;
+}
+
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
 
@@ -253,7 +257,7 @@ static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
 
 static inline u32 reloc_hash(struct reloc *reloc)
 {
-	return sec_offset_hash(reloc->sec, reloc->offset);
+	return sec_offset_hash(reloc->sec, reloc_offset(reloc));
 }
 
 #endif /* _OBJTOOL_ELF_H */

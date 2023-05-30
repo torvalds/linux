@@ -511,11 +511,11 @@ static int add_pv_ops(struct objtool_file *file, const char *symname)
 		if (func->type == STT_SECTION)
 			func = find_symbol_by_offset(reloc->sym->sec, reloc->addend);
 
-		idx = (reloc->offset - sym->offset) / sizeof(unsigned long);
+		idx = (reloc_offset(reloc) - sym->offset) / sizeof(unsigned long);
 
 		objtool_pv_add(file, idx, func);
 
-		off = reloc->offset + 1;
+		off = reloc_offset(reloc) + 1;
 		if (off > end)
 			break;
 	}
@@ -1998,7 +1998,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 			break;
 
 		/* Make sure the table entries are consecutive: */
-		if (prev_offset && reloc->offset != prev_offset + 8)
+		if (prev_offset && reloc_offset(reloc) != prev_offset + 8)
 			break;
 
 		/* Detect function pointers from contiguous objects: */
@@ -2023,7 +2023,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 		alt->insn = dest_insn;
 		alt->next = insn->alts;
 		insn->alts = alt;
-		prev_offset = reloc->offset;
+		prev_offset = reloc_offset(reloc);
 	}
 
 	if (!prev_offset) {
@@ -4266,8 +4266,8 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	for (reloc = insn_reloc(file, insn);
 	     reloc;
 	     reloc = find_reloc_by_dest_range(file->elf, insn->sec,
-					      reloc->offset + 1,
-					      (insn->offset + insn->len) - (reloc->offset + 1))) {
+					      reloc_offset(reloc) + 1,
+					      (insn->offset + insn->len) - (reloc_offset(reloc) + 1))) {
 
 		/*
 		 * static_call_update() references the trampoline, which
@@ -4350,7 +4350,7 @@ static int validate_ibt_data_reloc(struct objtool_file *file,
 		return 0;
 
 	WARN_FUNC("data relocation to !ENDBR: %s",
-		  reloc->sec->base, reloc->offset,
+		  reloc->sec->base, reloc_offset(reloc),
 		  offstr(dest->sec, dest->offset));
 
 	return 1;
