@@ -75,8 +75,17 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	if (ei->start_clu == EXFAT_EOF_CLUSTER)
 		on_disk_size = 0;
 
-	ep2->dentry.stream.valid_size = cpu_to_le64(ei->valid_size);
 	ep2->dentry.stream.size = cpu_to_le64(on_disk_size);
+	/*
+	 * mmap write does not use exfat_write_end(), valid_size may be
+	 * extended to the sector-aligned length in exfat_get_block().
+	 * So we need to fixup valid_size to the writren length.
+	 */
+	if (on_disk_size < ei->valid_size)
+		ep2->dentry.stream.valid_size = ep2->dentry.stream.size;
+	else
+		ep2->dentry.stream.valid_size = cpu_to_le64(ei->valid_size);
+
 	if (on_disk_size) {
 		ep2->dentry.stream.flags = ei->flags;
 		ep2->dentry.stream.start_clu = cpu_to_le32(ei->start_clu);
@@ -340,6 +349,9 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 					pos, ei->i_size_aligned);
 			goto unlock_ret;
 		}
+
+		ei->valid_size = EXFAT_BLK_TO_B(iblock + max_blocks, sb);
+		mark_inode_dirty(inode);
 	} else {
 		valid_blks = EXFAT_B_TO_BLK(ei->valid_size, sb);
 
