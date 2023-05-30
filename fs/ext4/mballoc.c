@@ -165,6 +165,14 @@
  * equal to request size using our average fragment size group lists (data
  * structure 2) in O(1) time.
  *
+ * At CR1.5 (aka CR1_5), we aim to optimize allocations which can't be satisfied
+ * in CR1. The fact that we couldn't find a group in CR1 suggests that there is
+ * no BG that has average fragment size > goal length. So before falling to the
+ * slower CR2, in CR1.5 we proactively trim goal length and then use the same
+ * fragment lists as CR1 to find a BG with a big enough average fragment size.
+ * This increases the chances of finding a suitable block group in O(1) time and
+ * results * in faster allocation at the cost of reduced size of allocation.
+ *
  * If "mb_optimize_scan" mount option is not set, mballoc traverses groups in
  * linear order which requires O(N) search time for each CR0 and CR1 phase.
  *
@@ -962,6 +970,91 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		*group = grp->bb_group;
 		ac->ac_flags |= EXT4_MB_CR1_OPTIMIZED;
 	} else {
+		*new_cr = CR1_5;
+	}
+}
+
+/*
+ * We couldn't find a group in CR1 so try to find the highest free fragment
+ * order we have and proactively trim the goal request length to that order to
+ * find a suitable group faster.
+ *
+ * This optimizes allocation speed at the cost of slightly reduced
+ * preallocations. However, we make sure that we don't trim the request too
+ * much and fall to CR2 in that case.
+ */
+static void ext4_mb_choose_next_group_cr1_5(struct ext4_allocation_context *ac,
+		enum criteria *new_cr, ext4_group_t *group, ext4_group_t ngroups)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
+	struct ext4_group_info *grp = NULL;
+	int i, order, min_order;
+	unsigned long num_stripe_clusters = 0;
+
+	if (unlikely(ac->ac_flags & EXT4_MB_CR1_5_OPTIMIZED)) {
+		if (sbi->s_mb_stats)
+			atomic_inc(&sbi->s_bal_cr1_5_bad_suggestions);
+	}
+
+	/*
+	 * mb_avg_fragment_size_order() returns order in a way that makes
+	 * retrieving back the length using (1 << order) inaccurate. Hence, use
+	 * fls() instead since we need to know the actual length while modifying
+	 * goal length.
+	 */
+	order = fls(ac->ac_g_ex.fe_len);
+	min_order = order - sbi->s_mb_cr1_5_max_trim_order;
+	if (min_order < 0)
+		min_order = 0;
+
+	if (1 << min_order < ac->ac_o_ex.fe_len)
+		min_order = fls(ac->ac_o_ex.fe_len) + 1;
+
+	if (sbi->s_stripe > 0) {
+		/*
+		 * We are assuming that stripe size is always a multiple of
+		 * cluster ratio otherwise __ext4_fill_super exists early.
+		 */
+		num_stripe_clusters = EXT4_NUM_B2C(sbi, sbi->s_stripe);
+		if (1 << min_order < num_stripe_clusters)
+			min_order = fls(num_stripe_clusters);
+	}
+
+	for (i = order; i >= min_order; i--) {
+		int frag_order;
+		/*
+		 * Scale down goal len to make sure we find something
+		 * in the free fragments list. Basically, reduce
+		 * preallocations.
+		 */
+		ac->ac_g_ex.fe_len = 1 << i;
+
+		if (num_stripe_clusters > 0) {
+			/*
+			 * Try to round up the adjusted goal to stripe size
+			 * (in cluster units) multiple for efficiency.
+			 *
+			 * XXX: Is s->stripe always a power of 2? In that case
+			 * we can use the faster round_up() variant.
+			 */
+			ac->ac_g_ex.fe_len = roundup(ac->ac_g_ex.fe_len,
+						     num_stripe_clusters);
+		}
+
+		frag_order = mb_avg_fragment_size_order(ac->ac_sb,
+							ac->ac_g_ex.fe_len);
+
+		grp = ext4_mb_find_good_group_avg_frag_lists(ac, frag_order);
+		if (grp)
+			break;
+	}
+
+	if (grp) {
+		*group = grp->bb_group;
+		ac->ac_flags |= EXT4_MB_CR1_5_OPTIMIZED;
+	} else {
+		/* Reset goal length to original goal length before falling into CR2 */
+		ac->ac_g_ex.fe_len = ac->ac_orig_goal_len;
 		*new_cr = CR2;
 	}
 }
@@ -1028,6 +1121,8 @@ static void ext4_mb_choose_next_group(struct ext4_allocation_context *ac,
 		ext4_mb_choose_next_group_cr0(ac, new_cr, group, ngroups);
 	} else if (*new_cr == CR1) {
 		ext4_mb_choose_next_group_cr1(ac, new_cr, group, ngroups);
+	} else if (*new_cr == CR1_5) {
+		ext4_mb_choose_next_group_cr1_5(ac, new_cr, group, ngroups);
 	} else {
 		/*
 		 * TODO: For CR=2, we can arrange groups in an rb tree sorted by
@@ -2351,7 +2446,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 
 		if (ac->ac_criteria < CR2) {
 			/*
-			 * In CR1, we are sure that this group will
+			 * In CR1 and CR1_5, we are sure that this group will
 			 * have a large enough continuous free extent, so skip
 			 * over the smaller free extents
 			 */
@@ -2483,6 +2578,7 @@ static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 
 		return true;
 	case CR1:
+	case CR1_5:
 		if ((free / fragments) >= ac->ac_g_ex.fe_len)
 			return true;
 		break;
@@ -2747,7 +2843,7 @@ repeat:
 			 * spend a lot of time loading imperfect groups
 			 */
 			if ((prefetch_grp == group) &&
-			    (cr > CR1 ||
+			    (cr > CR1_5 ||
 			     prefetch_ios < sbi->s_mb_prefetch_limit)) {
 				nr = sbi->s_mb_prefetch;
 				if (ext4_has_feature_flex_bg(sb)) {
@@ -2787,7 +2883,7 @@ repeat:
 			ac->ac_groups_scanned++;
 			if (cr == CR0)
 				ext4_mb_simple_scan_group(ac, &e4b);
-			else if (cr == CR1 && sbi->s_stripe &&
+			else if ((cr == CR1 || cr == CR1_5) && sbi->s_stripe &&
 				 !(ac->ac_g_ex.fe_len %
 				 EXT4_B2C(sbi, sbi->s_stripe)))
 				ext4_mb_scan_aligned(ac, &e4b);
@@ -2803,6 +2899,11 @@ repeat:
 		/* Processed all groups and haven't found blocks */
 		if (sbi->s_mb_stats && i == ngroups)
 			atomic64_inc(&sbi->s_bal_cX_failed[cr]);
+
+		if (i == ngroups && ac->ac_criteria == CR1_5)
+			/* Reset goal length to original goal length before
+			 * falling into CR2 */
+			ac->ac_g_ex.fe_len = ac->ac_orig_goal_len;
 	}
 
 	if (ac->ac_b_ex.fe_len > 0 && ac->ac_status != AC_STATUS_FOUND &&
@@ -2971,6 +3072,16 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 		   atomic64_read(&sbi->s_bal_cX_failed[CR1]));
 	seq_printf(seq, "\t\tbad_suggestions: %u\n",
 		   atomic_read(&sbi->s_bal_cr1_bad_suggestions));
+
+	seq_puts(seq, "\tcr1.5_stats:\n");
+	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR1_5]));
+	seq_printf(seq, "\t\tgroups_considered: %llu\n",
+		   atomic64_read(&sbi->s_bal_cX_groups_considered[CR1_5]));
+	seq_printf(seq, "\t\textents_scanned: %u\n", atomic_read(&sbi->s_bal_cX_ex_scanned[CR1_5]));
+	seq_printf(seq, "\t\tuseless_loops: %llu\n",
+		   atomic64_read(&sbi->s_bal_cX_failed[CR1_5]));
+	seq_printf(seq, "\t\tbad_suggestions: %u\n",
+		   atomic_read(&sbi->s_bal_cr1_5_bad_suggestions));
 
 	seq_puts(seq, "\tcr2_stats:\n");
 	seq_printf(seq, "\t\thits: %llu\n", atomic64_read(&sbi->s_bal_cX_hits[CR2]));
@@ -3489,6 +3600,8 @@ int ext4_mb_init(struct super_block *sb)
 	sbi->s_mb_stats = MB_DEFAULT_STATS;
 	sbi->s_mb_stream_request = MB_DEFAULT_STREAM_THRESHOLD;
 	sbi->s_mb_order2_reqs = MB_DEFAULT_ORDER2_REQS;
+	sbi->s_mb_cr1_5_max_trim_order = MB_DEFAULT_CR1_5_TRIM_ORDER;
+
 	/*
 	 * The default group preallocation is 512, which for 4k block
 	 * sizes translates to 2 megabytes.  However for bigalloc file
@@ -4392,6 +4505,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	 * placement or satisfy big request as is */
 	ac->ac_g_ex.fe_logical = start;
 	ac->ac_g_ex.fe_len = EXT4_NUM_B2C(sbi, size);
+	ac->ac_orig_goal_len = ac->ac_g_ex.fe_len;
 
 	/* define goal start in order to merge */
 	if (ar->pright && (ar->lright == (start + size)) &&
@@ -4435,8 +4549,10 @@ static void ext4_mb_collect_stats(struct ext4_allocation_context *ac)
 		if (ac->ac_g_ex.fe_start == ac->ac_b_ex.fe_start &&
 				ac->ac_g_ex.fe_group == ac->ac_b_ex.fe_group)
 			atomic_inc(&sbi->s_bal_goals);
-		if (ac->ac_f_ex.fe_len == ac->ac_g_ex.fe_len)
+		/* did we allocate as much as normalizer originally wanted? */
+		if (ac->ac_f_ex.fe_len == ac->ac_orig_goal_len)
 			atomic_inc(&sbi->s_bal_len_goals);
+
 		if (ac->ac_found > sbi->s_mb_max_to_scan)
 			atomic_inc(&sbi->s_bal_breaks);
 	}
@@ -4921,7 +5037,7 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 
 	pa = ac->ac_pa;
 
-	if (ac->ac_b_ex.fe_len < ac->ac_g_ex.fe_len) {
+	if (ac->ac_b_ex.fe_len < ac->ac_orig_goal_len) {
 		int new_bex_start;
 		int new_bex_end;
 
@@ -4936,14 +5052,14 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 		 * fragmentation in check while ensuring logical range of best
 		 * extent doesn't overflow out of goal extent:
 		 *
-		 * 1. Check if best ex can be kept at end of goal and still
-		 *    cover original start
+		 * 1. Check if best ex can be kept at end of goal (before
+		 *    cr_best_avail trimmed it) and still cover original start
 		 * 2. Else, check if best ex can be kept at start of goal and
 		 *    still cover original start
 		 * 3. Else, keep the best ex at start of original request.
 		 */
 		new_bex_end = ac->ac_g_ex.fe_logical +
-			EXT4_C2B(sbi, ac->ac_g_ex.fe_len);
+			EXT4_C2B(sbi, ac->ac_orig_goal_len);
 		new_bex_start = new_bex_end - EXT4_C2B(sbi, ac->ac_b_ex.fe_len);
 		if (ac->ac_o_ex.fe_logical >= new_bex_start)
 			goto adjust_bex;
@@ -4964,7 +5080,7 @@ adjust_bex:
 		BUG_ON(ac->ac_o_ex.fe_logical < ac->ac_b_ex.fe_logical);
 		BUG_ON(ac->ac_o_ex.fe_len > ac->ac_b_ex.fe_len);
 		BUG_ON(new_bex_end > (ac->ac_g_ex.fe_logical +
-				      EXT4_C2B(sbi, ac->ac_g_ex.fe_len)));
+				      EXT4_C2B(sbi, ac->ac_orig_goal_len)));
 	}
 
 	pa->pa_lstart = ac->ac_b_ex.fe_logical;
@@ -5584,6 +5700,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_o_ex.fe_start = block;
 	ac->ac_o_ex.fe_len = len;
 	ac->ac_g_ex = ac->ac_o_ex;
+	ac->ac_orig_goal_len = ac->ac_g_ex.fe_len;
 	ac->ac_flags = ar->flags;
 
 	/* we have to define context: we'll work with a file or

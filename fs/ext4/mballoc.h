@@ -86,6 +86,13 @@
 #define MB_DEFAULT_LINEAR_SCAN_THRESHOLD	16
 
 /*
+ * The maximum order upto which CR1.5 can trim a particular allocation request.
+ * Example, if we have an order 7 request and max trim order of 3, CR1.5 can
+ * trim this upto order 4.
+ */
+#define MB_DEFAULT_CR1_5_TRIM_ORDER	3
+
+/*
  * Number of valid buddy orders
  */
 #define MB_NUM_ORDERS(sb)		((sb)->s_blocksize_bits + 2)
@@ -178,6 +185,12 @@ struct ext4_allocation_context {
 
 	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
+
+	/*
+	 * goal len can change in CR1.5, so save the original len. This is
+	 * used while adjusting the PA window and for accounting.
+	 */
+	ext4_grpblk_t	ac_orig_goal_len;
 
 	__u32 ac_groups_considered;
 	__u32 ac_flags;		/* allocation hints */

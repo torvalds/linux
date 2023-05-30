@@ -133,13 +133,14 @@ enum SHIFT_DIRECTION {
  * criteria the slower the allocation. We start at lower criterias and keep
  * falling back to higher ones if we are not able to find any blocks.
  */
-#define EXT4_MB_NUM_CRS 4
+#define EXT4_MB_NUM_CRS 5
 /*
  * All possible allocation criterias for mballoc
  */
 enum criteria {
 	CR0,
 	CR1,
+	CR1_5,
 	CR2,
 	CR3,
 };
@@ -185,6 +186,9 @@ enum criteria {
 #define EXT4_MB_CR0_OPTIMIZED		0x8000
 /* Avg fragment size rb tree lookup succeeded at least once for cr = 1 */
 #define EXT4_MB_CR1_OPTIMIZED		0x00010000
+/* Avg fragment size rb tree lookup succeeded at least once for cr = 1.5 */
+#define EXT4_MB_CR1_5_OPTIMIZED		0x00020000
+
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
 	struct inode *inode;
@@ -1549,6 +1553,7 @@ struct ext4_sb_info {
 	unsigned long s_mb_last_start;
 	unsigned int s_mb_prefetch;
 	unsigned int s_mb_prefetch_limit;
+	unsigned int s_mb_cr1_5_max_trim_order;
 
 	/* stats for buddy allocator */
 	atomic_t s_bal_reqs;	/* number of reqs with len > 1 */
@@ -1563,6 +1568,7 @@ struct ext4_sb_info {
 	atomic_t s_bal_2orders;	/* 2^order hits */
 	atomic_t s_bal_cr0_bad_suggestions;
 	atomic_t s_bal_cr1_bad_suggestions;
+	atomic_t s_bal_cr1_5_bad_suggestions;
 	atomic64_t s_bal_cX_groups_considered[EXT4_MB_NUM_CRS];
 	atomic64_t s_bal_cX_hits[EXT4_MB_NUM_CRS];
 	atomic64_t s_bal_cX_failed[EXT4_MB_NUM_CRS];		/* cX loop didn't find blocks */

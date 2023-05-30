@@ -122,6 +122,7 @@ TRACE_DEFINE_ENUM(EXT4_FC_REASON_MAX);
 
 TRACE_DEFINE_ENUM(CR0);
 TRACE_DEFINE_ENUM(CR1);
+TRACE_DEFINE_ENUM(CR1_5);
 TRACE_DEFINE_ENUM(CR2);
 TRACE_DEFINE_ENUM(CR3);
 
@@ -129,6 +130,7 @@ TRACE_DEFINE_ENUM(CR3);
 	__print_symbolic(cr,                    \
 			 { CR0, "CR0" },	\
 			 { CR1, "CR1" },        \
+			 { CR1_5, "CR1.5" }     \
 			 { CR2, "CR2" },        \
 			 { CR3, "CR3" })
 
