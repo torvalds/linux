@@ -1624,9 +1624,6 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
-		return -EINVAL;
-
 	gpd_data = genpd_alloc_dev_data(dev, gd);
 	if (IS_ERR(gpd_data))
 		return PTR_ERR(gpd_data);
@@ -1667,6 +1664,9 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 {
 	int ret;
+
+	if (!genpd || !dev)
+		return -EINVAL;
 
 	mutex_lock(&gpd_list_lock);
 	ret = genpd_add_device(genpd, dev, dev);
@@ -2513,6 +2513,9 @@ int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	int ret;
+
+	if (!dev)
+		return -EINVAL;
 
 	mutex_lock(&gpd_list_lock);
 
