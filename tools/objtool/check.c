@@ -4596,6 +4596,34 @@ static int disas_warned_funcs(struct objtool_file *file)
 	return 0;
 }
 
+struct insn_chunk {
+	void *addr;
+	struct insn_chunk *next;
+};
+
+/*
+ * Reduce peak RSS usage by freeing insns memory before writing the ELF file,
+ * which can trigger more allocations for .debug_* sections whose data hasn't
+ * been read yet.
+ */
+static void free_insns(struct objtool_file *file)
+{
+	struct instruction *insn;
+	struct insn_chunk *chunks = NULL, *chunk;
+
+	for_each_insn(file, insn) {
+		if (!insn->idx) {
+			chunk = malloc(sizeof(*chunk));
+			chunk->addr = insn;
+			chunk->next = chunks;
+			chunks = chunk;
+		}
+	}
+
+	for (chunk = chunks; chunk; chunk = chunk->next)
+		free(chunk->addr);
+}
+
 int check(struct objtool_file *file)
 {
 	int ret, warnings = 0;
@@ -4741,6 +4769,8 @@ int check(struct objtool_file *file)
 			goto out;
 		warnings += ret;
 	}
+
+	free_insns(file);
 
 	if (opts.verbose)
 		disas_warned_funcs(file);
