@@ -393,8 +393,6 @@
 };
 
 &ssi1 {
-	#sound-dai-cells = <0>;
-	fsl,mode = "ac97-slave";
 	status = "okay";
 };
 
