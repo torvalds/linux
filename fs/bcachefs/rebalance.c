@@ -57,7 +57,8 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 		i = 0;
 		bkey_for_each_ptr(ptrs, ptr) {
 			if (!ptr->cached &&
-			    !bch2_dev_in_target(c, ptr->dev, io_opts->background_target))
+			    !bch2_dev_in_target(c, ptr->dev, io_opts->background_target) &&
+			    bch2_target_accepts_data(c, BCH_DATA_user, io_opts->background_target))
 				data_opts->rewrite_ptrs |= 1U << i;
 			i++;
 		}
