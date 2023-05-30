@@ -197,6 +197,11 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		mr = NULL;
 	}
 
+	if (access & ~RXE_ACCESS_SUPPORTED_MW) {
+		rxe_err_mw(mw, "access %#x not supported", access);
+		return -EOPNOTSUPP;
+	}
+
 	spin_lock_bh(&mw->lock);
 
 	ret = rxe_check_bind_mw(qp, wqe, mw, mr, access);

@@ -1260,6 +1260,12 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 	struct rxe_mr *mr;
 	int err, cleanup_err;
 
+	if (access & ~RXE_ACCESS_SUPPORTED_MR) {
+		rxe_err_pd(pd, "access = %#x not supported (%#x)", access,
+				RXE_ACCESS_SUPPORTED_MR);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
