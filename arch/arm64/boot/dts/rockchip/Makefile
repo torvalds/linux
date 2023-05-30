@@ -166,6 +166,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb6-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v10-rk1608-ipc-8x-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb7-lp4-v11-linux-ipc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-h0-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-h0-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-nvr-demo-v10.dtb
