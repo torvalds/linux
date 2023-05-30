@@ -1118,7 +1118,7 @@ static void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
 	/* set pvtpll ref clk mux */
 	writel_relaxed(CPU_PVTPLL_PATH_CORE, ctx->reg_base + CPU_CLK_PATH_BASE);
 
-	regmap_write(ctx->grf, CPU_PVTPLL_CON0_H, HIWORD_UPDATE(0x6, PVTPLL_LENGTH_SEL_MASK,
+	regmap_write(ctx->grf, CPU_PVTPLL_CON0_H, HIWORD_UPDATE(0x7, PVTPLL_LENGTH_SEL_MASK,
 		     PVTPLL_LENGTH_SEL_SHIFT));
 	regmap_write(ctx->grf, CPU_PVTPLL_CON0_L, HIWORD_UPDATE(0x1, PVTPLL_RING_SEL_MASK,
 		     PVTPLL_RING_SEL_SHIFT));
