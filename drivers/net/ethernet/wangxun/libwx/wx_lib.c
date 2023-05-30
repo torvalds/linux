@@ -2704,4 +2704,24 @@ void wx_get_stats64(struct net_device *netdev,
 }
 EXPORT_SYMBOL(wx_get_stats64);
 
+int wx_set_features(struct net_device *netdev, netdev_features_t features)
+{
+	netdev_features_t changed = netdev->features ^ features;
+	struct wx *wx = netdev_priv(netdev);
+
+	if (changed & NETIF_F_RXHASH)
+		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN,
+		      WX_RDB_RA_CTL_RSS_EN);
+	else
+		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN, 0);
+
+	if (changed &
+	    (NETIF_F_HW_VLAN_CTAG_RX |
+	     NETIF_F_HW_VLAN_STAG_RX))
+		wx_set_rx_mode(netdev);
+
+	return 1;
+}
+EXPORT_SYMBOL(wx_set_features);
+
 MODULE_LICENSE("GPL");

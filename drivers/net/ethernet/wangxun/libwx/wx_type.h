@@ -111,6 +111,8 @@
 #define WX_RDB_PL_CFG_L2HDR          BIT(3)
 #define WX_RDB_PL_CFG_TUN_TUNHDR     BIT(4)
 #define WX_RDB_PL_CFG_TUN_OUTL2HDR   BIT(5)
+#define WX_RDB_RA_CTL                0x194F4
+#define WX_RDB_RA_CTL_RSS_EN         BIT(2) /* RSS Enable */
 
 /******************************* PSR Registers *******************************/
 /* psr control */
