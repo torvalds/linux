@@ -15,7 +15,7 @@
 #include "transition.h"
 
 #define MAX_STACK_ENTRIES  100
-DEFINE_PER_CPU(unsigned long[MAX_STACK_ENTRIES], klp_stack_entries);
+static DEFINE_PER_CPU(unsigned long[MAX_STACK_ENTRIES], klp_stack_entries);
 
 #define STACK_ERR_BUF_SIZE 128
 
