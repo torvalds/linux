@@ -1639,7 +1639,7 @@ static int ast2600_i2c_unreg_slave(struct i2c_client *slave)
 
 static u32 ast2600_i2c_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_BLOCK_DATA;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL_ALL;
 }
 
 static const struct i2c_algorithm i2c_ast2600_algorithm = {
