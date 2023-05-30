@@ -2307,7 +2307,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 	struct super_block *sb = ac->ac_sb;
 	void *bitmap = e4b->bd_bitmap;
 	struct ext4_free_extent ex;
-	int i;
+	int i, j, freelen;
 	int free;
 
 	free = e4b->bd_info->bb_free;
@@ -2332,6 +2332,23 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			ext4_mark_group_bitmap_corrupted(sb, e4b->bd_group,
 					EXT4_GROUP_INFO_BBITMAP_CORRUPT);
 			break;
+		}
+
+		if (ac->ac_criteria < CR2) {
+			/*
+			 * In CR1, we are sure that this group will
+			 * have a large enough continuous free extent, so skip
+			 * over the smaller free extents
+			 */
+			j = mb_find_next_bit(bitmap,
+						EXT4_CLUSTERS_PER_GROUP(sb), i);
+			freelen = j - i;
+
+			if (freelen < ac->ac_g_ex.fe_len) {
+				i = j;
+				free -= freelen;
+				continue;
+			}
 		}
 
 		mb_find_extent(e4b, i, ac->ac_g_ex.fe_len, &ex);
