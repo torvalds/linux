@@ -1282,6 +1282,11 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 			"M : AST2600_I2CM_RX_DONE | AST2600_I2CM_NORMAL_STOP = %x (%d)\n", sts, xfer_len);
 
 		if (msg->flags & I2C_M_RECV_LEN) {
+			if (unlikely(msg->buf[0] > I2C_SMBUS_BLOCK_MAX)) {
+				dev_dbg(i2c_bus->dev, "smbus len = %x is over max length\n", msg->buf[0]);
+				i2c_bus->cmd_err = -EPROTO;
+				complete(&i2c_bus->cmd_complete);
+			}
 			dev_dbg(i2c_bus->dev, "smbus first len = %x\n", msg->buf[0]);
 			msg->len = msg->buf[0] + ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
 			msg->flags &= ~I2C_M_RECV_LEN;
