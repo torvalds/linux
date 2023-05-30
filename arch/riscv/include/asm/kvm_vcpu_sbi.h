@@ -14,9 +14,14 @@
 #define KVM_SBI_VERSION_MAJOR 1
 #define KVM_SBI_VERSION_MINOR 0
 
+enum kvm_riscv_sbi_ext_status {
+	KVM_RISCV_SBI_EXT_AVAILABLE,
+	KVM_RISCV_SBI_EXT_UNAVAILABLE,
+};
+
 struct kvm_vcpu_sbi_context {
 	int return_handled;
-	bool extension_disabled[KVM_RISCV_SBI_EXT_MAX];
+	enum kvm_riscv_sbi_ext_status ext_status[KVM_RISCV_SBI_EXT_MAX];
 };
 
 struct kvm_vcpu_sbi_return {
