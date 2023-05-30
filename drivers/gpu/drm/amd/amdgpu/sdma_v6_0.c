@@ -1121,6 +1121,7 @@ static void sdma_v6_0_vm_set_pte_pde(struct amdgpu_ib *ib,
 /**
  * sdma_v6_0_ring_pad_ib - pad the IB
  * @ib: indirect buffer to fill with padding
+ * @ring: amdgpu ring pointer
  *
  * Pad the IB with NOPs to a boundary multiple of 8.
  */
