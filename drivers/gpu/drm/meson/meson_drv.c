@@ -451,10 +451,17 @@ static void meson_drv_shutdown(struct platform_device *pdev)
 	drm_atomic_helper_shutdown(priv->drm);
 }
 
-/* Possible connectors nodes to ignore */
-static const struct of_device_id connectors_match[] = {
-	{ .compatible = "composite-video-connector" },
-	{ .compatible = "svideo-connector" },
+/*
+ * Only devices to use as components
+ * TOFIX: get rid of components when we can finally
+ * get meson_dx_hdmi to stop using the meson_drm
+ * private structure for HHI registers.
+ */
+static const struct of_device_id components_dev_match[] = {
+	{ .compatible = "amlogic,meson-gxbb-dw-hdmi" },
+	{ .compatible = "amlogic,meson-gxl-dw-hdmi" },
+	{ .compatible = "amlogic,meson-gxm-dw-hdmi" },
+	{ .compatible = "amlogic,meson-g12a-dw-hdmi" },
 	{}
 };
 
@@ -472,17 +479,12 @@ static int meson_drv_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		/* If an analog connector is detected, count it as an output */
-		if (of_match_node(connectors_match, remote)) {
-			++count;
-			of_node_put(remote);
-			continue;
+		if (of_match_node(components_dev_match, remote)) {
+			component_match_add(&pdev->dev, &match, component_compare_of, remote);
+
+			dev_dbg(&pdev->dev, "parent %pOF remote match add %pOF parent %s\n",
+				np, remote, dev_name(&pdev->dev));
 		}
-
-		dev_dbg(&pdev->dev, "parent %pOF remote match add %pOF parent %s\n",
-			np, remote, dev_name(&pdev->dev));
-
-		component_match_add(&pdev->dev, &match, component_compare_of, remote);
 
 		of_node_put(remote);
 
