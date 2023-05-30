@@ -9,7 +9,7 @@
  * "Y" - A01 board modified with legacy interposer (Nexperia)
  * "Z" - A01 board modified with Diode interposer
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #include <dt-bindings/gpio/gpio.h>
