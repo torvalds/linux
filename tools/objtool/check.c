@@ -958,7 +958,7 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 		if (!reloc)
 			return -1;
 
-		reloc->type = addr_size == 8 ? R_ABS64 : R_ABS32;
+		set_reloc_type(reloc, addr_size == 8 ? R_ABS64 : R_ABS32);
 
 		idx++;
 	}
@@ -1354,7 +1354,7 @@ static void annotate_call_site(struct objtool_file *file,
 	 */
 	if (opts.hack_noinstr && insn->sec->noinstr && sym->profiling_func) {
 		if (reloc) {
-			reloc->type = R_NONE;
+			set_reloc_type(reloc, R_NONE);
 			elf_write_reloc(file->elf, reloc);
 		}
 
@@ -1383,7 +1383,7 @@ static void annotate_call_site(struct objtool_file *file,
 			WARN_INSN(insn, "tail call to __fentry__ !?!?");
 		if (opts.mnop) {
 			if (reloc) {
-				reloc->type = R_NONE;
+				set_reloc_type(reloc, R_NONE);
 				elf_write_reloc(file->elf, reloc);
 			}
 
@@ -1865,7 +1865,7 @@ static int handle_jump_alt(struct objtool_file *file,
 		struct reloc *reloc = insn_reloc(file, orig_insn);
 
 		if (reloc) {
-			reloc->type = R_NONE;
+			set_reloc_type(reloc, R_NONE);
 			elf_write_reloc(file->elf, reloc);
 		}
 		elf_write_insn(file->elf, orig_insn->sec,
@@ -4277,7 +4277,8 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 			continue;
 
 		off = reloc->sym->offset;
-		if (reloc->type == R_X86_64_PC32 || reloc->type == R_X86_64_PLT32)
+		if (reloc_type(reloc) == R_X86_64_PC32 ||
+		    reloc_type(reloc) == R_X86_64_PLT32)
 			off += arch_dest_reloc_offset(reloc->addend);
 		else
 			off += reloc->addend;

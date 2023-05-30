@@ -76,7 +76,6 @@ struct reloc {
 	struct symbol *sym;
 	struct list_head sym_reloc_entry;
 	s64 addend;
-	unsigned int type;
 	bool jump_table_start;
 };
 
@@ -206,6 +205,16 @@ static inline unsigned int reloc_idx(struct reloc *reloc)
 static inline unsigned long reloc_offset(struct reloc *reloc)
 {
 	return reloc->rel.r_offset;
+}
+
+static inline unsigned int reloc_type(struct reloc *reloc)
+{
+	return GELF_R_TYPE(reloc->rel.r_info);
+}
+
+static inline void set_reloc_type(struct reloc *reloc, int type)
+{
+	reloc->rel.r_info = GELF_R_INFO(GELF_R_SYM(reloc->rel.r_info), type);
 }
 
 #define for_each_sec(file, sec)						\
