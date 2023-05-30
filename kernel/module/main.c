@@ -3057,26 +3057,16 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	return load_module(&info, uargs, 0);
 }
 
-SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
 {
 	struct load_info info = { };
 	void *buf = NULL;
 	int len;
-	int err;
 
-	err = may_init_module();
-	if (err)
-		return err;
+	if (!f || !(f->f_mode & FMODE_READ))
+		return -EBADF;
 
-	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
-
-	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
-		      |MODULE_INIT_IGNORE_VERMAGIC
-		      |MODULE_INIT_COMPRESSED_FILE))
-		return -EINVAL;
-
-	len = kernel_read_file_from_fd(fd, 0, &buf, INT_MAX, NULL,
-				       READING_MODULE);
+	len = kernel_read_file(f, 0, &buf, INT_MAX, NULL, READING_MODULE);
 	if (len < 0) {
 		mod_stat_inc(&failed_kreads);
 		mod_stat_add_long(len, &invalid_kread_bytes);
@@ -3084,7 +3074,7 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 	}
 
 	if (flags & MODULE_INIT_COMPRESSED_FILE) {
-		err = module_decompress(&info, buf, len);
+		int err = module_decompress(&info, buf, len);
 		vfree(buf); /* compressed data is no longer needed */
 		if (err) {
 			mod_stat_inc(&failed_decompress);
@@ -3097,6 +3087,28 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 	}
 
 	return load_module(&info, uargs, flags);
+}
+
+SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+{
+	int err;
+	struct fd f;
+
+	err = may_init_module();
+	if (err)
+		return err;
+
+	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
+
+	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
+		      |MODULE_INIT_IGNORE_VERMAGIC
+		      |MODULE_INIT_COMPRESSED_FILE))
+		return -EINVAL;
+
+	f = fdget(fd);
+	err = init_module_from_file(f.file, uargs, flags);
+	fdput(f);
+	return err;
 }
 
 /* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */
