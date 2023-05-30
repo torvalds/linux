@@ -33,7 +33,7 @@ struct section {
 	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
 	struct list_head reloc_list;
-	struct section *base, *reloc;
+	struct section *base, *rsec;
 	struct symbol *sym;
 	Elf_Data *data;
 	char *name;

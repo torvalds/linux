@@ -494,7 +494,7 @@ static int add_pv_ops(struct objtool_file *file, const char *symname)
 {
 	struct symbol *sym, *func;
 	unsigned long off, end;
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
 	sym = find_symbol_by_name(file->elf, symname);
@@ -504,19 +504,19 @@ static int add_pv_ops(struct objtool_file *file, const char *symname)
 	off = sym->offset;
 	end = off + sym->len;
 	for (;;) {
-		rel = find_reloc_by_dest_range(file->elf, sym->sec, off, end - off);
-		if (!rel)
+		reloc = find_reloc_by_dest_range(file->elf, sym->sec, off, end - off);
+		if (!reloc)
 			break;
 
-		func = rel->sym;
+		func = reloc->sym;
 		if (func->type == STT_SECTION)
-			func = find_symbol_by_offset(rel->sym->sec, rel->addend);
+			func = find_symbol_by_offset(reloc->sym->sec, reloc->addend);
 
-		idx = (rel->offset - sym->offset) / sizeof(unsigned long);
+		idx = (reloc->offset - sym->offset) / sizeof(unsigned long);
 
 		objtool_pv_add(file, idx, func);
 
-		off = rel->offset + 1;
+		off = reloc->offset + 1;
 		if (off > end)
 			break;
 	}
@@ -581,20 +581,20 @@ static struct instruction *find_last_insn(struct objtool_file *file,
  */
 static int add_dead_ends(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 	struct instruction *insn;
 
 	/*
 	 * Check for manually annotated dead ends.
 	 */
-	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.unreachable");
+	if (!rsec)
 		goto reachable;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 		insn = find_insn(file, reloc->sym->sec, reloc->addend);
@@ -623,13 +623,13 @@ reachable:
 	 * GCC doesn't know the "ud2" is fatal, so it generates code as if it's
 	 * not a dead end.
 	 */
-	sec = find_section_by_name(file->elf, ".rela.discard.reachable");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.reachable");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 		insn = find_insn(file, reloc->sym->sec, reloc->addend);
@@ -1044,15 +1044,15 @@ static int create_direct_call_sections(struct objtool_file *file)
 static void add_ignores(struct objtool_file *file)
 {
 	struct instruction *insn;
-	struct section *sec;
+	struct section *rsec;
 	struct symbol *func;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
+	if (!rsec)
 		return;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		switch (reloc->sym->type) {
 		case STT_FUNC:
 			func = reloc->sym;
@@ -1065,7 +1065,8 @@ static void add_ignores(struct objtool_file *file)
 			break;
 
 		default:
-			WARN("unexpected relocation symbol type in %s: %d", sec->name, reloc->sym->type);
+			WARN("unexpected relocation symbol type in %s: %d",
+			     rsec->name, reloc->sym->type);
 			continue;
 		}
 
@@ -1284,17 +1285,17 @@ static void add_uaccess_safe(struct objtool_file *file)
  */
 static int add_ignore_alternatives(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 	struct instruction *insn;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
@@ -2204,7 +2205,7 @@ static void set_func_state(struct cfi_state *state)
 static int read_unwind_hints(struct objtool_file *file)
 {
 	struct cfi_state cfi = init_cfi;
-	struct section *sec, *relocsec;
+	struct section *sec;
 	struct unwind_hint *hint;
 	struct instruction *insn;
 	struct reloc *reloc;
@@ -2214,8 +2215,7 @@ static int read_unwind_hints(struct objtool_file *file)
 	if (!sec)
 		return 0;
 
-	relocsec = sec->reloc;
-	if (!relocsec) {
+	if (!sec->rsec) {
 		WARN("missing .rela.discard.unwind_hints section");
 		return -1;
 	}
@@ -2295,15 +2295,15 @@ static int read_unwind_hints(struct objtool_file *file)
 
 static int read_noendbr_hints(struct objtool_file *file)
 {
-	struct section *sec;
 	struct instruction *insn;
+	struct section *rsec;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.noendbr");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.noendbr");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		insn = find_insn(file, reloc->sym->sec, reloc->sym->offset + reloc->addend);
 		if (!insn) {
 			WARN("bad .discard.noendbr entry");
@@ -2318,17 +2318,17 @@ static int read_noendbr_hints(struct objtool_file *file)
 
 static int read_retpoline_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.retpoline_safe");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.retpoline_safe");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
@@ -2354,17 +2354,17 @@ static int read_retpoline_hints(struct objtool_file *file)
 
 static int read_instr_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.instr_end");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.instr_end");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
@@ -2377,13 +2377,13 @@ static int read_instr_hints(struct objtool_file *file)
 		insn->instr--;
 	}
 
-	sec = find_section_by_name(file->elf, ".rela.discard.instr_begin");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.instr_begin");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
@@ -2401,17 +2401,17 @@ static int read_instr_hints(struct objtool_file *file)
 
 static int read_validate_unret_hints(struct objtool_file *file)
 {
-	struct section *sec;
+	struct section *rsec;
 	struct instruction *insn;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.validate_unret");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.validate_unret");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s", sec->name);
+			WARN("unexpected relocation symbol type in %s", rsec->name);
 			return -1;
 		}
 
@@ -2430,19 +2430,19 @@ static int read_validate_unret_hints(struct objtool_file *file)
 static int read_intra_function_calls(struct objtool_file *file)
 {
 	struct instruction *insn;
-	struct section *sec;
+	struct section *rsec;
 	struct reloc *reloc;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
-	if (!sec)
+	rsec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
+	if (!rsec)
 		return 0;
 
-	list_for_each_entry(reloc, &sec->reloc_list, list) {
+	list_for_each_entry(reloc, &rsec->reloc_list, list) {
 		unsigned long dest_off;
 
 		if (reloc->sym->type != STT_SECTION) {
 			WARN("unexpected relocation symbol type in %s",
-			     sec->name);
+			     rsec->name);
 			return -1;
 		}
 
@@ -3342,15 +3342,15 @@ static inline bool func_uaccess_safe(struct symbol *func)
 static inline const char *call_dest_name(struct instruction *insn)
 {
 	static char pvname[19];
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
 	if (insn_call_dest(insn))
 		return insn_call_dest(insn)->name;
 
-	rel = insn_reloc(NULL, insn);
-	if (rel && !strcmp(rel->sym->name, "pv_ops")) {
-		idx = (rel->addend / sizeof(void *));
+	reloc = insn_reloc(NULL, insn);
+	if (reloc && !strcmp(reloc->sym->name, "pv_ops")) {
+		idx = (reloc->addend / sizeof(void *));
 		snprintf(pvname, sizeof(pvname), "pv_ops[%d]", idx);
 		return pvname;
 	}
@@ -3361,14 +3361,14 @@ static inline const char *call_dest_name(struct instruction *insn)
 static bool pv_call_dest(struct objtool_file *file, struct instruction *insn)
 {
 	struct symbol *target;
-	struct reloc *rel;
+	struct reloc *reloc;
 	int idx;
 
-	rel = insn_reloc(file, insn);
-	if (!rel || strcmp(rel->sym->name, "pv_ops"))
+	reloc = insn_reloc(file, insn);
+	if (!reloc || strcmp(reloc->sym->name, "pv_ops"))
 		return false;
 
-	idx = (arch_dest_reloc_offset(rel->addend) / sizeof(void *));
+	idx = (arch_dest_reloc_offset(reloc->addend) / sizeof(void *));
 
 	if (file->pv_ops[idx].clean)
 		return true;
@@ -4410,7 +4410,7 @@ static int validate_ibt(struct objtool_file *file)
 		if (sec->sh.sh_flags & SHF_EXECINSTR)
 			continue;
 
-		if (!sec->reloc)
+		if (!sec->rsec)
 			continue;
 
 		/*
@@ -4437,7 +4437,7 @@ static int validate_ibt(struct objtool_file *file)
 		    strstr(sec->name, "__patchable_function_entries"))
 			continue;
 
-		list_for_each_entry(reloc, &sec->reloc->reloc_list, list)
+		list_for_each_entry(reloc, &sec->rsec->reloc_list, list)
 			warnings += validate_ibt_data_reloc(file, reloc);
 	}
 
