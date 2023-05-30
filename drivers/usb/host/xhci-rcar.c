@@ -276,10 +276,10 @@ static int xhci_renesas_probe(struct platform_device *pdev)
 }
 
 static struct platform_driver usb_xhci_renesas_driver = {
-	.probe	= xhci_renesas_probe,
-	.remove	= xhci_plat_remove,
+	.probe = xhci_renesas_probe,
+	.remove_new = xhci_plat_remove,
 	.shutdown = usb_hcd_platform_shutdown,
-	.driver	= {
+	.driver = {
 		.name = "xhci-renesas-hcd",
 		.pm = &xhci_plat_pm_ops,
 		.of_match_table = usb_xhci_of_match,
