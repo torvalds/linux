@@ -174,6 +174,7 @@
 #define CONTROL_GAINT_EN	29
 #define CONTROL_XT_EN		50
 #define CONTROL_INTCAPXT_EN	51
+#define CONTROL_IRTCACHEDIS	59
 #define CONTROL_SNPAVIC_EN	61
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
@@ -715,6 +716,9 @@ struct amd_iommu {
 
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
+
+	/* true if disable irte caching */
+	bool irtcachedis_enabled;
 
 	/* Handle for IOMMU core code */
 	struct iommu_device iommu;
