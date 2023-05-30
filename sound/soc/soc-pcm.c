@@ -2732,6 +2732,8 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai;
+	int has_playback = 0;
+	int has_capture  = 0;
 	int i;
 
 	if (dai_link->dynamic && dai_link->num_cpus > 1) {
@@ -2747,11 +2749,11 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					*playback = 1;
+					has_playback = 1;
 					break;
 				}
 			}
-			if (!*playback) {
+			if (!has_playback) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support playback for stream %s\n",
 					dai_link->stream_name);
@@ -2763,12 +2765,12 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					*capture = 1;
+					has_capture = 1;
 					break;
 				}
 			}
 
-			if (!*capture) {
+			if (!has_capture) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support capture for stream %s\n",
 					dai_link->stream_name);
@@ -2797,29 +2799,32 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_playback))
-				*playback = 1;
+				has_playback = 1;
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_capture))
-				*capture = 1;
+				has_capture = 1;
 		}
 	}
 
 	if (dai_link->playback_only) {
-		*playback = 1;
-		*capture = 0;
+		has_playback = 1;
+		has_capture = 0;
 	}
 
 	if (dai_link->capture_only) {
-		*playback = 0;
-		*capture = 1;
+		has_playback = 0;
+		has_capture = 1;
 	}
 
-	if (!*playback && !*capture) {
+	if (!has_playback && !has_capture) {
 		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
 			dai_link->stream_name);
 
 		return -EINVAL;
 	}
+
+	*playback = has_playback;
+	*capture  = has_capture;
 
 	return 0;
 }
