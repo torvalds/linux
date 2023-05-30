@@ -143,8 +143,8 @@
 };
 
 &sdhc_2 {
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_default>;
 	pinctrl-names = "default", "sleep";
 
 	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
@@ -195,6 +195,13 @@
 
 	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio52";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

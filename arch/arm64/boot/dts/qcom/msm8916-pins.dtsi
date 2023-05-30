@@ -380,23 +380,6 @@
 		};
 	};
 
-	pmx-sdc2-cd-pin-state {
-		sdc2_cd_on: cd-on-pins {
-			pins = "gpio38";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-		sdc2_cd_off: cd-off-pins {
-			pins = "gpio38";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
 	cdc-pdm-lines-state {
 		cdc_pdm_lines_act: pdm-lines-on-pins {
 			pins = "gpio63", "gpio64", "gpio65", "gpio66",

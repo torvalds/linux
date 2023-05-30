@@ -43,6 +43,13 @@
 };
 
 &tlmm {
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
 	usb_id_default: usb-id-default-state {
 		pins = "gpio110";
 		function = "gpio";
@@ -158,8 +165,8 @@
 };
 
 &sdhc_2 {
-	pinctrl-0 = <&sdc2_default_state>;
-	pinctrl-1 = <&sdc2_sleep_state>;
+	pinctrl-0 = <&sdc2_default_state &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep_state &sdc2_cd_default>;
 	pinctrl-names = "default", "sleep";
 	cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
 	status = "okay";

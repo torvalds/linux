@@ -1138,13 +1138,6 @@
 					bias-pull-up;
 					drive-strength = <10>;
 				};
-
-				cd-pins {
-					pins = "gpio38";
-					function = "gpio";
-					drive-strength = <2>;
-					bias-pull-up;
-				};
 			};
 
 			sdc2_sleep_state: sdc2-sleep-state {
@@ -1164,13 +1157,6 @@
 					pins = "sdc2_data";
 					bias-pull-up;
 					drive-strength = <2>;
-				};
-
-				cd-pins {
-					pins = "gpio38";
-					function = "gpio";
-					drive-strength = <2>;
-					bias-disable;
 				};
 			};
 

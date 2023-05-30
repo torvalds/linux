@@ -270,8 +270,8 @@
 	status = "okay";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdhc2_cd_default>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdhc2_cd_default>;
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_default>;
 
 	/*
 	 * The Huawei device tree sets cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>.
@@ -397,7 +397,7 @@
 		bias-disable;
 	};
 
-	sdhc2_cd_default: sdhc2-cd-default-state {
+	sdc2_cd_default: sdc2-cd-default-state {
 		pins = "gpio56";
 		function = "gpio";
 
