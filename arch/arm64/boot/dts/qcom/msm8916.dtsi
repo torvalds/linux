@@ -1894,7 +1894,7 @@
 			qcom,smem-state-names = "stop";
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&wcnss_pin_a>;
+			pinctrl-0 = <&wcss_wlan_default>;
 
 			status = "disabled";
 

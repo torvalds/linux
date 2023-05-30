@@ -488,7 +488,7 @@
 		};
 	};
 
-	wcnss_pin_a: wcnss-active-state {
+	wcss_wlan_default: wcss-wlan-default-state {
 		pins = "gpio40", "gpio41", "gpio42", "gpio43", "gpio44";
 		function = "wcss_wlan";
 
