@@ -50,7 +50,7 @@ create_table_from_c()
 
 create_table()
 {
-	echo "static const char *syscalltbl_loongarch[] = {"
+	echo "static const char *const syscalltbl_loongarch[] = {"
 	create_table_from_c
 	echo "};"
 }

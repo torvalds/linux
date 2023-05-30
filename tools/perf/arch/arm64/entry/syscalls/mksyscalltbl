@@ -34,7 +34,7 @@ create_table_from_c()
 create_table()
 {
 	echo "#include \"$input\""
-	echo "static const char *syscalltbl_arm64[] = {"
+	echo "static const char *const syscalltbl_arm64[] = {"
 	create_table_from_c
 	echo "};"
 }
