@@ -486,7 +486,13 @@ static int test_getpagesize(void)
 static int test_fork(void)
 {
 	int status;
-	pid_t pid = fork();
+	pid_t pid;
+
+	/* flush the printf buffer to avoid child flush it */
+	fflush(stdout);
+	fflush(stderr);
+
+	pid = fork();
 
 	switch (pid) {
 	case -1:
