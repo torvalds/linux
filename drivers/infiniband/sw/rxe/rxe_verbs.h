@@ -253,6 +253,12 @@ struct rxe_qp {
 	struct execute_work	cleanup_work;
 };
 
+enum rxe_access {
+	RXE_ACCESS_REMOTE	= (IB_ACCESS_REMOTE_READ
+				| IB_ACCESS_REMOTE_WRITE
+				| IB_ACCESS_REMOTE_ATOMIC),
+};
+
 enum rxe_mr_state {
 	RXE_MR_STATE_INVALID,
 	RXE_MR_STATE_FREE,

@@ -45,14 +45,10 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 	}
 }
 
-#define IB_ACCESS_REMOTE	(IB_ACCESS_REMOTE_READ		\
-				| IB_ACCESS_REMOTE_WRITE	\
-				| IB_ACCESS_REMOTE_ATOMIC)
-
 static void rxe_mr_init(int access, struct rxe_mr *mr)
 {
 	u32 lkey = mr->elem.index << 8 | rxe_get_next_key(-1);
-	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
+	u32 rkey = (access & RXE_ACCESS_REMOTE) ? lkey : 0;
 
 	/* set ibmr->l/rkey and also copy into private l/rkey
 	 * for user MRs these will always be the same
@@ -195,7 +191,7 @@ int rxe_mr_init_fast(int max_pages, struct rxe_mr *mr)
 	int err;
 
 	/* always allow remote access for FMRs */
-	rxe_mr_init(IB_ACCESS_REMOTE, mr);
+	rxe_mr_init(RXE_ACCESS_REMOTE, mr);
 
 	err = rxe_mr_alloc(mr, max_pages);
 	if (err)
@@ -715,7 +711,7 @@ int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 	mr->access = access;
 	mr->lkey = key;
-	mr->rkey = (access & IB_ACCESS_REMOTE) ? key : 0;
+	mr->rkey = (access & RXE_ACCESS_REMOTE) ? key : 0;
 	mr->ibmr.iova = wqe->wr.wr.reg.mr->iova;
 	mr->state = RXE_MR_STATE_VALID;
 
