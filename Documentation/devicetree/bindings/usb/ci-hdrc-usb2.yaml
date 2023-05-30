@@ -45,7 +45,9 @@ properties:
               - fsl,vf610-usb
           - const: fsl,imx27-usb
       - items:
-          - const: fsl,imx8dxl-usb
+          - enum:
+              - fsl,imx8dxl-usb
+              - fsl,imx8ulp-usb
           - const: fsl,imx7ulp-usb
           - const: fsl,imx6ul-usb
       - items:
