@@ -2589,9 +2589,7 @@ ext4_group_t ext4_mb_prefetch(struct super_block *sb, ext4_group_t group,
 		 */
 		if (gdp && grp && !EXT4_MB_GRP_TEST_AND_SET_READ(grp) &&
 		    EXT4_MB_GRP_NEED_INIT(grp) &&
-		    ext4_free_group_clusters(sb, gdp) > 0 &&
-		    !(ext4_has_group_desc_csum(sb) &&
-		      (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)))) {
+		    ext4_free_group_clusters(sb, gdp) > 0 ) {
 			bh = ext4_read_block_bitmap_nowait(sb, group, true);
 			if (bh && !IS_ERR(bh)) {
 				if (!buffer_uptodate(bh) && cnt)
@@ -2632,9 +2630,7 @@ void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
 		grp = ext4_get_group_info(sb, group);
 
 		if (grp && gdp && EXT4_MB_GRP_NEED_INIT(grp) &&
-		    ext4_free_group_clusters(sb, gdp) > 0 &&
-		    !(ext4_has_group_desc_csum(sb) &&
-		      (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)))) {
+		    ext4_free_group_clusters(sb, gdp) > 0) {
 			if (ext4_mb_init_group(sb, group, GFP_NOFS))
 				break;
 		}
