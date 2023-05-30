@@ -6841,7 +6841,7 @@ static ssize_t pqi_lockup_action_store(struct device *dev,
 	char *action_name;
 	char action_name_buffer[32];
 
-	strlcpy(action_name_buffer, buffer, sizeof(action_name_buffer));
+	strscpy(action_name_buffer, buffer, sizeof(action_name_buffer));
 	action_name = strstrip(action_name_buffer);
 
 	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
