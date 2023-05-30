@@ -1080,7 +1080,7 @@
 				};
 			};
 
-			sdc1_default_state: sdc1-default-state {
+			sdc1_default: sdc1-default-state {
 				clk-pins {
 					pins = "sdc1_clk";
 					bias-disable;
@@ -1100,7 +1100,7 @@
 				};
 			};
 
-			sdc1_sleep_state: sdc1-sleep-state {
+			sdc1_sleep: sdc1-sleep-state {
 				clk-pins {
 					pins = "sdc1_clk";
 					bias-disable;
@@ -1120,7 +1120,7 @@
 				};
 			};
 
-			sdc2_default_state: sdc2-default-state {
+			sdc2_default: sdc2-default-state {
 				clk-pins {
 					pins = "sdc2_clk";
 					bias-disable;
@@ -1140,7 +1140,7 @@
 				};
 			};
 
-			sdc2_sleep_state: sdc2-sleep-state {
+			sdc2_sleep: sdc2-sleep-state {
 				clk-pins {
 					pins = "sdc2_clk";
 					bias-disable;
@@ -1632,6 +1632,9 @@
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "core", "xo";
 			resets = <&gcc GCC_SDCC1_BCR>;
+			pinctrl-0 = <&sdc1_default>;
+			pinctrl-1 = <&sdc1_sleep>;
+			pinctrl-names = "default", "sleep";
 			mmc-ddr-1_8v;
 			bus-width = <8>;
 			non-removable;
@@ -1651,6 +1654,9 @@
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names =  "iface", "core", "xo";
 			resets = <&gcc GCC_SDCC2_BCR>;
+			pinctrl-0 = <&sdc2_default>;
+			pinctrl-1 = <&sdc2_sleep>;
+			pinctrl-names = "default", "sleep";
 			bus-width = <4>;
 			status = "disabled";
 		};

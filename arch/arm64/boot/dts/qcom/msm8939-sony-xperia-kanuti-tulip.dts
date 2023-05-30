@@ -158,15 +158,12 @@
 };
 
 &sdhc_1 {
-	pinctrl-0 = <&sdc1_default_state>;
-	pinctrl-1 = <&sdc1_sleep_state>;
-	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
 
 &sdhc_2 {
-	pinctrl-0 = <&sdc2_default_state &sdc2_cd_default>;
-	pinctrl-1 = <&sdc2_sleep_state &sdc2_cd_default>;
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
 	pinctrl-names = "default", "sleep";
 	cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
 	status = "okay";

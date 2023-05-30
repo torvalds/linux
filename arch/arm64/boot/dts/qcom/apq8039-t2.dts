@@ -253,9 +253,6 @@
 };
 
 &sdhc_1 {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_default_state>;
-	pinctrl-1 = <&sdc1_sleep_state>;
 	status = "okay";
 };
 

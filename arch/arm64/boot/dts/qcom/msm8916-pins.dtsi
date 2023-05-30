@@ -290,44 +290,41 @@
 		bias-disable;
 	};
 
-	pmx-sdc1-clk-state {
-		sdc1_clk_on: clk-on-pins {
+	sdc1_default: sdc1-default-state {
+		clk-pins {
 			pins = "sdc1_clk";
 
 			bias-disable;
 			drive-strength = <16>;
 		};
-		sdc1_clk_off: clk-off-pins {
+		cmd-pins {
+			pins = "sdc1_cmd";
+
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+		data-pins {
+			pins = "sdc1_data";
+
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+	};
+
+	sdc1_sleep: sdc1-sleep-state {
+		clk-pins {
 			pins = "sdc1_clk";
 
 			bias-disable;
 			drive-strength = <2>;
 		};
-	};
-
-	pmx-sdc1-cmd-state {
-		sdc1_cmd_on: cmd-on-pins {
-			pins = "sdc1_cmd";
-
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-		sdc1_cmd_off: cmd-off-pins {
+		cmd-pins {
 			pins = "sdc1_cmd";
 
 			bias-pull-up;
 			drive-strength = <2>;
 		};
-	};
-
-	pmx-sdc1-data-state {
-		sdc1_data_on: data-on-pins {
-			pins = "sdc1_data";
-
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-		sdc1_data_off: data-off-pins {
+		data-pins {
 			pins = "sdc1_data";
 
 			bias-pull-up;
@@ -335,44 +332,41 @@
 		};
 	};
 
-	pmx-sdc2-clk-state {
-		sdc2_clk_on: clk-on-pins {
+	sdc2_default: sdc2-default-state {
+		clk-pins {
 			pins = "sdc2_clk";
 
 			bias-disable;
 			drive-strength = <16>;
 		};
-		sdc2_clk_off: clk-off-pins {
-			pins = "sdc2_clk";
-
-			bias-disable;
-			drive-strength = <2>;
-		};
-	};
-
-	pmx-sdc2-cmd-state {
-		sdc2_cmd_on: cmd-on-pins {
+		cmd-pins {
 			pins = "sdc2_cmd";
 
 			bias-pull-up;
 			drive-strength = <10>;
 		};
-		sdc2_cmd_off: cmd-off-pins {
-			pins = "sdc2_cmd";
-
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-	};
-
-	pmx-sdc2-data-state {
-		sdc2_data_on: data-on-pins {
+		data-pins {
 			pins = "sdc2_data";
 
 			bias-pull-up;
 			drive-strength = <10>;
 		};
-		sdc2_data_off: data-off-pins {
+	};
+
+	sdc2_sleep: sdc2-sleep-state {
+		clk-pins {
+			pins = "sdc2_clk";
+
+			bias-disable;
+			drive-strength = <2>;
+		};
+		cmd-pins {
+			pins = "sdc2_cmd";
+
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+		data-pins {
 			pins = "sdc2_data";
 
 			bias-pull-up;

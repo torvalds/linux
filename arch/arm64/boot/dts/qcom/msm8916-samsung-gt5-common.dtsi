@@ -135,16 +135,12 @@
 };
 
 &sdhc_1 {
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
-	pinctrl-names = "default", "sleep";
-
 	status = "okay";
 };
 
 &sdhc_2 {
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_default>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_default>;
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
 	pinctrl-names = "default", "sleep";
 
 	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
