@@ -328,6 +328,9 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
+	struct _vcs_dpi_display_rq_params_st dml_rq_param;
+	struct _vcs_dpi_display_dlg_sys_params_st dml_dlg_sys_param;
+	struct _vcs_dpi_display_e2e_pipe_params_st dml_input;
 #endif
 	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;

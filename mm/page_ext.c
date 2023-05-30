@@ -148,7 +148,7 @@ struct page_ext *page_ext_get(struct page *page)
 
 /**
  * page_ext_put() - Working with page extended information is done.
- * @page_ext - Page extended information received from page_ext_get().
+ * @page_ext: Page extended information received from page_ext_get().
  *
  * The page extended information of the page may not be valid after this
  * function is called.

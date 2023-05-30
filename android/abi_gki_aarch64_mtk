@@ -199,8 +199,8 @@
   cpufreq_disable_fast_switch
   cpufreq_driver_fast_switch
   cpufreq_driver_resolve_freq
-  cpufreq_driver_target
   __cpufreq_driver_target
+  cpufreq_driver_target
   cpufreq_enable_fast_switch
   cpufreq_frequency_table_get_index
   cpufreq_generic_attr
@@ -374,8 +374,8 @@
   __dev_kfree_skb_any
   __dev_kfree_skb_irq
   devm_add_action
-  __devm_alloc_percpu
   devm_alloc_etherdev_mqs
+  __devm_alloc_percpu
   devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_optional
@@ -1478,6 +1478,7 @@
   pci_generic_config_write32
   pci_lock_rescan_remove
   pci_pio_to_address
+  pci_prepare_to_sleep
   pci_unlock_rescan_remove
   PDE_DATA
   __per_cpu_offset
@@ -1499,6 +1500,7 @@
   phy_drivers_register
   phy_drivers_unregister
   phy_ethtool_get_link_ksettings
+  phy_ethtool_get_wol
   phy_ethtool_nway_reset
   phy_ethtool_set_link_ksettings
   phy_exit
@@ -1518,6 +1520,7 @@
   phy_set_mode_ext
   phy_start
   phy_stop
+  phy_support_asym_pause
   phy_write_paged
   pid_task
   pinconf_generic_parse_dt_config
@@ -3142,6 +3145,7 @@
   __traceiter_android_vh_snd_soc_card_get_comp_chain
   __traceiter_android_vh_sound_usb_support_cpu_suspend
   __traceiter_android_vh_syscall_prctl_finished
+  __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_v4l2subdev_set_fmt
   __traceiter_android_vh_v4l2subdev_set_frame_interval
   __traceiter_android_vh_v4l2subdev_set_selection
@@ -3159,10 +3163,10 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_user_nice
+  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_v4l2subdev_set_fmt
   __tracepoint_android_rvh_v4l2subdev_set_frame_interval
   __tracepoint_android_rvh_v4l2subdev_set_selection
-  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale

@@ -84,9 +84,9 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
-  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run12
+  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -938,8 +938,8 @@
   mempool_free
   mempool_free_slab
   memremap
-  memset
   memset64
+  memset
   __memset_io
   memstart_addr
   memunmap
@@ -975,8 +975,8 @@
   __next_zones_zonelist
   nla_find
   nla_put
-  nla_reserve
   nla_reserve_64bit
+  nla_reserve
   __nla_validate
   __nlmsg_put
   no_llseek
@@ -1687,6 +1687,7 @@
   __traceiter_android_rvh_flush_task
   __traceiter_android_rvh_migrate_queued_task
   __traceiter_android_rvh_new_task_stats
+  __traceiter_android_rvh_refrigerator
   __traceiter_android_rvh_replace_next_task_fair
   __traceiter_android_rvh_resume_cpus
   __traceiter_android_rvh_sched_cpu_dying
@@ -1704,22 +1705,30 @@
   __traceiter_android_rvh_set_readahead_gfp_mask
   __traceiter_android_rvh_set_skip_swapcache_flags
   __traceiter_android_rvh_set_task_cpu
+  __traceiter_android_rvh_tcp_recvmsg
+  __traceiter_android_rvh_tcp_recvmsg_stat
+  __traceiter_android_rvh_tcp_sendmsg_locked
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_try_to_wake_up
   __traceiter_android_rvh_try_to_wake_up_success
   __traceiter_android_rvh_ttwu_cond
+  __traceiter_android_rvh_udp_recvmsg
+  __traceiter_android_rvh_udp_sendmsg
   __traceiter_android_rvh_update_cpu_capacity
   __traceiter_android_rvh_update_cpus_allowed
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_account_task_time
   __traceiter_android_vh_allow_domain_state
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
+  __traceiter_android_vh_binder_trans
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_blk_alloc_rqs
   __traceiter_android_vh_blk_rq_ctx_init
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_filemap_fault_cache_page
   __traceiter_android_vh_filemap_fault_get_page
   __traceiter_android_vh_ftrace_dump_buffer
@@ -1729,6 +1738,7 @@
   __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
+  __traceiter_android_vh_irqtime_account_process_tick
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mmc_attach_sd
@@ -1746,10 +1756,13 @@
   __traceiter_android_vh_shrink_slab_bypass
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_unmap_one
+  __traceiter_android_vh_tune_scan_type
+  __traceiter_android_vh_tune_swappiness
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_update_sdev
+  __traceiter_android_vh_vmpressure
   __traceiter_binder_transaction_received
   __traceiter_block_bio_complete
   __traceiter_block_bio_queue

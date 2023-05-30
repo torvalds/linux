@@ -73,12 +73,6 @@ static inline int eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n,
 	return -ENOSYS;
 }
 
-static inline int eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n,
-				      unsigned mask)
-{
-	return -ENOSYS;
-}
-
 static inline void eventfd_ctx_put(struct eventfd_ctx *ctx)
 {
 

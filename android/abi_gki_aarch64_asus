@@ -265,8 +265,8 @@ up_read
 up_write
 vfree
 vfs_fsync_range
-vmalloc
 __vmalloc
+vmalloc
 vsnprintf
 vzalloc
 __wait_on_buffer

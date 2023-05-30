@@ -254,6 +254,9 @@
   __tasklet_schedule
   thermal_zone_device_disable
   thermal_zone_device_enable
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
   __tracepoint_rwmmio_post_read
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write

@@ -271,11 +271,16 @@ Description:	Shows current reserved blocks in system, it may be temporarily
 What:		/sys/fs/f2fs/<disk>/gc_urgent
 Date:		August 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Do background GC agressively when set. When gc_urgent = 1,
-		background thread starts to do GC by given gc_urgent_sleep_time
-		interval. When gc_urgent = 2, F2FS will lower the bar of
-		checking idle in order to process outstanding discard commands
-		and GC a little bit aggressively. It is set to 0 by default.
+Description:	Do background GC aggressively when set. Set to 0 by default.
+		gc urgent high(1): does GC forcibly in a period of given
+		gc_urgent_sleep_time and ignores I/O idling check. uses greedy
+		GC approach and turns SSR mode on.
+		gc urgent low(2): lowers the bar of checking I/O idling in
+		order to process outstanding discard commands and GC a
+		little bit aggressively. uses cost benefit GC approach.
+		gc urgent mid(3): does GC forcibly in a period of given
+		gc_urgent_sleep_time and executes a mid level of I/O idling check.
+		uses cost benefit GC approach.
 
 What:		/sys/fs/f2fs/<disk>/gc_urgent_sleep_time
 Date:		August 2017
@@ -506,7 +511,7 @@ Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Show how many segments have been reclaimed by GC during a specific
 		GC mode (0: GC normal, 1: GC idle CB, 2: GC idle greedy,
-		3: GC idle AT, 4: GC urgent high, 5: GC urgent low)
+		3: GC idle AT, 4: GC urgent high, 5: GC urgent low 6: GC urgent mid)
 		You can re-initialize this value to "0".
 
 What:		/sys/fs/f2fs/<disk>/gc_segment_mode

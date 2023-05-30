@@ -1128,6 +1128,7 @@ static unsigned int shrink_page_list(struct list_head *page_list,
 	LIST_HEAD(free_pages);
 	unsigned int nr_reclaimed = 0;
 	unsigned int pgactivate = 0;
+	bool page_trylock_result;
 
 	memset(stat, 0, sizeof(*stat));
 	cond_resched();
@@ -1527,6 +1528,18 @@ activate_locked:
 			count_memcg_page_event(page, PGACTIVATE);
 		}
 keep_locked:
+		/*
+		 * The page with trylock-bit will be added ret_pages and
+		 * handled in trace_android_vh_handle_failed_page_trylock.
+		 * In the progress[unlock_page, handled], the page carried
+		 * with trylock-bit will cause some error-issues in other
+		 * scene, so clear trylock-bit here.
+		 * trace_android_vh_page_trylock_get_result will clear
+		 * trylock-bit and return if page tyrlock failed in
+		 * reclaim-process. Here we just want to clear trylock-bit
+		 * so that ignore page_trylock_result.
+		 */
+		trace_android_vh_page_trylock_get_result(page, &page_trylock_result);
 		unlock_page(page);
 keep:
 		list_add(&page->lru, &ret_pages);
