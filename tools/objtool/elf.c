@@ -328,12 +328,12 @@ static int read_sections(struct elf *elf)
 			}
 		}
 
-		if (sec->sh.sh_flags & SHF_EXECINSTR)
-			elf->text_size += sec->sh.sh_size;
-
 		list_add_tail(&sec->list, &elf->sections);
 		elf_hash_add(section, &sec->hash, sec->idx);
 		elf_hash_add(section_name, &sec->name_hash, str_hash(sec->name));
+
+		if (is_reloc_sec(sec))
+			elf->num_relocs += sec->sh.sh_size / sec->sh.sh_entsize;
 	}
 
 	if (opts.stats) {
@@ -888,19 +888,18 @@ static int read_reloc(struct section *rsec, int i, struct reloc *reloc)
 
 static int read_relocs(struct elf *elf)
 {
-	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
+	unsigned long nr_reloc, max_reloc = 0;
 	struct section *rsec;
 	struct reloc *reloc;
 	unsigned int symndx;
 	struct symbol *sym;
 	int i;
 
-	if (!elf_alloc_hash(reloc, elf->text_size / 16))
+	if (!elf_alloc_hash(reloc, elf->num_relocs))
 		return -1;
 
 	list_for_each_entry(rsec, &elf->sections, list) {
-		if ((rsec->sh.sh_type != SHT_RELA) &&
-		    (rsec->sh.sh_type != SHT_REL))
+		if (!is_reloc_sec(rsec))
 			continue;
 
 		rsec->base = find_section_by_index(elf, rsec->sh.sh_info);
@@ -942,12 +941,11 @@ static int read_relocs(struct elf *elf)
 			nr_reloc++;
 		}
 		max_reloc = max(max_reloc, nr_reloc);
-		tot_reloc += nr_reloc;
 	}
 
 	if (opts.stats) {
 		printf("max_reloc: %lu\n", max_reloc);
-		printf("tot_reloc: %lu\n", tot_reloc);
+		printf("num_relocs: %lu\n", elf->num_relocs);
 		printf("reloc_bits: %d\n", elf->reloc_bits);
 	}
 

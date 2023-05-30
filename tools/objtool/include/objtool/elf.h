@@ -90,8 +90,9 @@ struct elf {
 	int fd;
 	bool changed;
 	char *name;
-	unsigned int text_size, num_files;
+	unsigned int num_files;
 	struct list_head sections;
+	unsigned long num_relocs;
 
 	int symbol_bits;
 	int symbol_name_bits;
@@ -156,6 +157,11 @@ static inline size_t elf_addr_size(struct elf *elf)
 static inline size_t elf_rela_size(struct elf *elf)
 {
 	return elf_addr_size(elf) == 4 ? sizeof(Elf32_Rela) : sizeof(Elf64_Rela);
+}
+
+static inline bool is_reloc_sec(struct section *sec)
+{
+	return sec->sh.sh_type == SHT_RELA || sec->sh.sh_type == SHT_REL;
 }
 
 #define for_each_sec(file, sec)						\
