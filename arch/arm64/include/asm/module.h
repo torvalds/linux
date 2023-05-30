@@ -30,12 +30,6 @@ u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
 u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 				void *loc, u64 val);
 
-#ifdef CONFIG_RANDOMIZE_BASE
-extern u64 module_alloc_base;
-#else
-#define module_alloc_base	((u64)_etext - MODULES_VSIZE)
-#endif
-
 struct plt_entry {
 	/*
 	 * A program that conforms to the AArch64 Procedure Call Standard
