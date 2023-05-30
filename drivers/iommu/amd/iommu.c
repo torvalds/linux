@@ -3702,44 +3702,26 @@ int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 
 int amd_iommu_update_ga(int cpu, bool is_run, void *data)
 {
-	unsigned long flags;
-	struct amd_iommu *iommu;
-	struct irq_remap_table *table;
 	struct amd_ir_data *ir_data = (struct amd_ir_data *)data;
-	int devid = ir_data->irq_2_irte.devid;
 	struct irte_ga *entry = (struct irte_ga *) ir_data->entry;
-	struct irte_ga *ref = (struct irte_ga *) ir_data->ref;
 
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) ||
-	    !ref || !entry || !entry->lo.fields_vapic.guest_mode)
+	    !entry || !entry->lo.fields_vapic.guest_mode)
 		return 0;
 
-	iommu = ir_data->iommu;
-	if (!iommu)
+	if (!ir_data->iommu)
 		return -ENODEV;
 
-	table = get_irq_table(iommu, devid);
-	if (!table)
-		return -ENODEV;
-
-	raw_spin_lock_irqsave(&table->lock, flags);
-
-	if (ref->lo.fields_vapic.guest_mode) {
-		if (cpu >= 0) {
-			ref->lo.fields_vapic.destination =
-						APICID_TO_IRTE_DEST_LO(cpu);
-			ref->hi.fields.destination =
-						APICID_TO_IRTE_DEST_HI(cpu);
-		}
-		ref->lo.fields_vapic.is_run = is_run;
-		barrier();
+	if (cpu >= 0) {
+		entry->lo.fields_vapic.destination =
+					APICID_TO_IRTE_DEST_LO(cpu);
+		entry->hi.fields.destination =
+					APICID_TO_IRTE_DEST_HI(cpu);
 	}
+	entry->lo.fields_vapic.is_run = is_run;
 
-	raw_spin_unlock_irqrestore(&table->lock, flags);
-
-	iommu_flush_irt(iommu, devid);
-	iommu_completion_wait(iommu);
-	return 0;
+	return modify_irte_ga(ir_data->iommu, ir_data->irq_2_irte.devid,
+			      ir_data->irq_2_irte.index, entry, ir_data);
 }
 EXPORT_SYMBOL(amd_iommu_update_ga);
 #endif
