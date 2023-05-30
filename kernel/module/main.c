@@ -3057,14 +3057,81 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	return load_module(&info, uargs, 0);
 }
 
+struct idempotent {
+	const void *cookie;
+	struct hlist_node entry;
+	struct completion complete;
+	int ret;
+};
+
+#define IDEM_HASH_BITS 8
+static struct hlist_head idem_hash[1 << IDEM_HASH_BITS];
+static DEFINE_SPINLOCK(idem_lock);
+
+static bool idempotent(struct idempotent *u, const void *cookie)
+{
+	int hash = hash_ptr(cookie, IDEM_HASH_BITS);
+	struct hlist_head *head = idem_hash + hash;
+	struct idempotent *existing;
+	bool first;
+
+	u->ret = 0;
+	u->cookie = cookie;
+	init_completion(&u->complete);
+
+	spin_lock(&idem_lock);
+	first = true;
+	hlist_for_each_entry(existing, head, entry) {
+		if (existing->cookie != cookie)
+			continue;
+		first = false;
+		break;
+	}
+	hlist_add_head(&u->entry, idem_hash + hash);
+	spin_unlock(&idem_lock);
+
+	return !first;
+}
+
+/*
+ * We were the first one with 'cookie' on the list, and we ended
+ * up completing the operation. We now need to walk the list,
+ * remove everybody - which includes ourselves - fill in the return
+ * value, and then complete the operation.
+ */
+static void idempotent_complete(struct idempotent *u, int ret)
+{
+	const void *cookie = u->cookie;
+	int hash = hash_ptr(cookie, IDEM_HASH_BITS);
+	struct hlist_head *head = idem_hash + hash;
+	struct hlist_node *next;
+	struct idempotent *pos;
+
+	spin_lock(&idem_lock);
+	hlist_for_each_entry_safe(pos, next, head, entry) {
+		if (pos->cookie != cookie)
+			continue;
+		hlist_del(&pos->entry);
+		pos->ret = ret;
+		complete(&pos->complete);
+	}
+	spin_unlock(&idem_lock);
+}
+
 static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
 {
+	struct idempotent idem;
 	struct load_info info = { };
 	void *buf = NULL;
-	int len;
+	int len, ret;
 
 	if (!f || !(f->f_mode & FMODE_READ))
 		return -EBADF;
+
+	if (idempotent(&idem, file_inode(f))) {
+		wait_for_completion(&idem.complete);
+		return idem.ret;
+	}
 
 	len = kernel_read_file(f, 0, &buf, INT_MAX, NULL, READING_MODULE);
 	if (len < 0) {
@@ -3086,7 +3153,9 @@ static int init_module_from_file(struct file *f, const char __user * uargs, int 
 		info.len = len;
 	}
 
-	return load_module(&info, uargs, flags);
+	ret = load_module(&info, uargs, flags);
+	idempotent_complete(&idem, ret);
+	return ret;
 }
 
 SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
