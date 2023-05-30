@@ -33,8 +33,8 @@ AArch64 Linux memory layout with 4KB pages + 4 levels (48-bit)::
   0000000000000000	0000ffffffffffff	 256TB		user
   ffff000000000000	ffff7fffffffffff	 128TB		kernel logical memory map
  [ffff600000000000	ffff7fffffffffff]	  32TB		[kasan shadow region]
-  ffff800000000000	ffff800007ffffff	 128MB		modules
-  ffff800008000000	fffffbffefffffff	 124TB		vmalloc
+  ffff800000000000	ffff80007fffffff	   2GB		modules
+  ffff800080000000	fffffbffefffffff	 124TB		vmalloc
   fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
   fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
   fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
@@ -50,8 +50,8 @@ AArch64 Linux memory layout with 64KB pages + 3 levels (52-bit with HW support):
   0000000000000000	000fffffffffffff	   4PB		user
   fff0000000000000	ffff7fffffffffff	  ~4PB		kernel logical memory map
  [fffd800000000000	ffff7fffffffffff]	 512TB		[kasan shadow region]
-  ffff800000000000	ffff800007ffffff	 128MB		modules
-  ffff800008000000	fffffbffefffffff	 124TB		vmalloc
+  ffff800000000000	ffff80007fffffff	   2GB		modules
+  ffff800080000000	fffffbffefffffff	 124TB		vmalloc
   fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
   fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
   fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
