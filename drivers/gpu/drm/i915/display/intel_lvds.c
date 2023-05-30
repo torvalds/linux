@@ -944,17 +944,8 @@ void intel_lvds_init(struct drm_i915_private *i915)
 	 */
 	mutex_lock(&i915->drm.mode_config.mutex);
 	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) {
-		const struct edid *edid;
-
-		/* FIXME: Make drm_get_edid_switcheroo() return drm_edid */
-		edid = drm_get_edid_switcheroo(&connector->base,
-					       intel_gmbus_get_adapter(i915, pin));
-		if (edid) {
-			drm_edid = drm_edid_alloc(edid, (edid->extensions + 1) * EDID_LENGTH);
-			kfree(edid);
-		} else {
-			drm_edid = NULL;
-		}
+		drm_edid = drm_edid_read_switcheroo(&connector->base,
+						    intel_gmbus_get_adapter(i915, pin));
 	} else {
 		drm_edid = drm_edid_read_ddc(&connector->base,
 					     intel_gmbus_get_adapter(i915, pin));
