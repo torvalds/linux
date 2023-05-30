@@ -1126,23 +1126,19 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 				      BTREE_UPDATE_JOURNAL_RES,
 				      journal_flags|JOURNAL_RES_GET_NONBLOCK);
 	if (ret) {
-		bch2_trans_unlock(trans);
-
 		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			goto err;
 		}
 
-		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
+		ret = drop_locks_do(trans,
+			bch2_journal_preres_get(&c->journal, &as->journal_preres,
 					      BTREE_UPDATE_JOURNAL_RES,
-					      journal_flags);
-		if (ret) {
+					      journal_flags));
+		if (ret == -BCH_ERR_journal_preres_get_blocked) {
 			trace_and_count(c, trans_restart_journal_preres_get, trans, _RET_IP_, journal_flags);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_journal_preres_get);
-			goto err;
 		}
-
-		ret = bch2_trans_relock(trans);
 		if (ret)
 			goto err;
 	}

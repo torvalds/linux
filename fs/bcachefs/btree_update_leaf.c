@@ -947,34 +947,20 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			trace_and_count(c, trans_restart_btree_node_split, trans, trace_ip, i->path);
 		break;
 	case -BCH_ERR_btree_insert_need_mark_replicas:
-		bch2_trans_unlock(trans);
-
-		ret = bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas);
-		if (ret)
-			break;
-
-		ret = bch2_trans_relock(trans);
-		if (ret)
-			trace_and_count(c, trans_restart_mark_replicas, trans, trace_ip);
+		ret = drop_locks_do(trans,
+			bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas));
 		break;
 	case -BCH_ERR_journal_res_get_blocked:
-		bch2_trans_unlock(trans);
-
 		if ((flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
 		    !(flags & JOURNAL_WATERMARK_reserved)) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			break;
 		}
 
-		ret = bch2_trans_journal_res_get(trans,
+		ret = drop_locks_do(trans,
+			bch2_trans_journal_res_get(trans,
 					(flags & JOURNAL_WATERMARK_MASK)|
-					JOURNAL_RES_GET_CHECK);
-		if (ret)
-			break;
-
-		ret = bch2_trans_relock(trans);
-		if (ret)
-			trace_and_count(c, trans_restart_journal_res_get, trans, trace_ip);
+					JOURNAL_RES_GET_CHECK));
 		break;
 	case -BCH_ERR_btree_insert_need_journal_reclaim:
 		bch2_trans_unlock(trans);
@@ -987,8 +973,6 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			break;
 
 		ret = bch2_trans_relock(trans);
-		if (ret)
-			trace_and_count(c, trans_restart_journal_reclaim, trans, trace_ip);
 		break;
 	case -BCH_ERR_btree_insert_need_flush_buffer: {
 		struct btree_write_buffer *wb = &c->btree_write_buffer;
@@ -996,20 +980,20 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		ret = 0;
 
 		if (wb->state.nr > wb->size * 3 / 4) {
-			bch2_trans_reset_updates(trans);
 			bch2_trans_unlock(trans);
-
 			mutex_lock(&wb->flush_lock);
 
-			if (wb->state.nr > wb->size * 3 / 4)
+			if (wb->state.nr > wb->size * 3 / 4) {
+				bch2_trans_begin(trans);
 				ret = __bch2_btree_write_buffer_flush(trans,
 						flags|BTREE_INSERT_NOCHECK_RW, true);
-			else
+				if (!ret) {
+					trace_and_count(c, trans_restart_write_buffer_flush, trans, _THIS_IP_);
+					ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_write_buffer_flush);
+				}
+			} else {
 				mutex_unlock(&wb->flush_lock);
-
-			if (!ret) {
-				trace_and_count(c, trans_restart_write_buffer_flush, trans, _THIS_IP_);
-				ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_write_buffer_flush);
+				ret = bch2_trans_relock(trans);
 			}
 		}
 		break;

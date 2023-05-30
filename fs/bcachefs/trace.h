@@ -905,13 +905,6 @@ DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
 	TP_ARGS(trans, caller_ip)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_journal_res_get,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
-);
-
-
 TRACE_EVENT(trans_restart_journal_preres_get,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
@@ -935,12 +928,6 @@ TRACE_EVENT(trans_restart_journal_preres_get,
 		  __entry->flags)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_journal_reclaim,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
-);
-
 DEFINE_EVENT(transaction_event,	trans_restart_fault_inject,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),
@@ -948,12 +935,6 @@ DEFINE_EVENT(transaction_event,	trans_restart_fault_inject,
 );
 
 DEFINE_EVENT(transaction_event,	trans_traverse_all,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
-);
-
-DEFINE_EVENT(transaction_event,	trans_restart_mark_replicas,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),
 	TP_ARGS(trans, caller_ip)

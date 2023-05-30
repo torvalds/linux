@@ -2892,9 +2892,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	if (!trans->restarted &&
 	    (need_resched() ||
 	     now - trans->last_begin_time > BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS)) {
-		bch2_trans_unlock(trans);
-		cond_resched();
-		bch2_trans_relock(trans);
+		drop_locks_do(trans, (cond_resched(), 0));
 		now = local_clock();
 	}
 	trans->last_begin_time = now;
