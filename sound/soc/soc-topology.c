@@ -2030,11 +2030,11 @@ static struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 		if (link->id != id)
 			continue;
 
-		if (name && (!link->name || strcmp(name, link->name)))
+		if (name && (!link->name || !strstr(link->name, name)))
 			continue;
 
-		if (stream_name && (!link->stream_name
-				    || strcmp(stream_name, link->stream_name)))
+		if (stream_name && (!link->stream_name ||
+				    !strstr(link->stream_name, stream_name)))
 			continue;
 
 		return link;
