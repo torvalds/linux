@@ -445,7 +445,7 @@ static int qcom_qspi_transfer_one(struct spi_master *master,
 				qcom_qspi_dma_xfer(ctrl);
 			goto exit;
 		}
-		dev_warn_once(ctrl->dev, "DMA failure, falling back to PIO");
+		dev_warn_once(ctrl->dev, "DMA failure, falling back to PIO\n");
 		ret = 0; /* We'll retry w/ PIO */
 	}
 
