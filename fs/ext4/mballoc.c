@@ -905,6 +905,37 @@ static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
 }
 
 /*
+ * Find a suitable group of given order from the average fragments list.
+ */
+static struct ext4_group_info *
+ext4_mb_find_good_group_avg_frag_lists(struct ext4_allocation_context *ac, int order)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
+	struct list_head *frag_list = &sbi->s_mb_avg_fragment_size[order];
+	rwlock_t *frag_list_lock = &sbi->s_mb_avg_fragment_size_locks[order];
+	struct ext4_group_info *grp = NULL, *iter;
+	enum criteria cr = ac->ac_criteria;
+
+	if (list_empty(frag_list))
+		return NULL;
+	read_lock(frag_list_lock);
+	if (list_empty(frag_list)) {
+		read_unlock(frag_list_lock);
+		return NULL;
+	}
+	list_for_each_entry(iter, frag_list, bb_avg_fragment_size_node) {
+		if (sbi->s_mb_stats)
+			atomic64_inc(&sbi->s_bal_cX_groups_considered[cr]);
+		if (likely(ext4_mb_good_group(ac, iter->bb_group, cr))) {
+			grp = iter;
+			break;
+		}
+	}
+	read_unlock(frag_list_lock);
+	return grp;
+}
+
+/*
  * Choose next group by traversing average fragment size list of suitable
  * order. Updates *new_cr if cr level needs an update.
  */
@@ -912,7 +943,7 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		enum criteria *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
-	struct ext4_group_info *grp = NULL, *iter;
+	struct ext4_group_info *grp = NULL;
 	int i;
 
 	if (unlikely(ac->ac_flags & EXT4_MB_CR1_OPTIMIZED)) {
@@ -922,23 +953,7 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 
 	for (i = mb_avg_fragment_size_order(ac->ac_sb, ac->ac_g_ex.fe_len);
 	     i < MB_NUM_ORDERS(ac->ac_sb); i++) {
-		if (list_empty(&sbi->s_mb_avg_fragment_size[i]))
-			continue;
-		read_lock(&sbi->s_mb_avg_fragment_size_locks[i]);
-		if (list_empty(&sbi->s_mb_avg_fragment_size[i])) {
-			read_unlock(&sbi->s_mb_avg_fragment_size_locks[i]);
-			continue;
-		}
-		list_for_each_entry(iter, &sbi->s_mb_avg_fragment_size[i],
-				    bb_avg_fragment_size_node) {
-			if (sbi->s_mb_stats)
-				atomic64_inc(&sbi->s_bal_cX_groups_considered[CR1]);
-			if (likely(ext4_mb_good_group(ac, iter->bb_group, CR1))) {
-				grp = iter;
-				break;
-			}
-		}
-		read_unlock(&sbi->s_mb_avg_fragment_size_locks[i]);
+		grp = ext4_mb_find_good_group_avg_frag_lists(ac, i);
 		if (grp)
 			break;
 	}
