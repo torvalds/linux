@@ -2881,6 +2881,9 @@ EXPORT_SYMBOL(drm_edid_read_switcheroo);
  */
 struct edid *drm_edid_duplicate(const struct edid *edid)
 {
+	if (!edid)
+		return NULL;
+
 	return kmemdup(edid, edid_size(edid), GFP_KERNEL);
 }
 EXPORT_SYMBOL(drm_edid_duplicate);
