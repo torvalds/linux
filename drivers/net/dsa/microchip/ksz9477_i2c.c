@@ -24,7 +24,7 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c)
 	if (!dev)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(ksz9477_regmap_config); i++) {
+	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz9477_regmap_config[i];
 		rc.lock_arg = &dev->regmap_mutex;
 		dev->regmap[i] = devm_regmap_init_i2c(i2c, &rc);
