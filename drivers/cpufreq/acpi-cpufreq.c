@@ -975,7 +975,7 @@ static int __init acpi_cpufreq_probe(struct platform_device *pdev)
 
 	/* don't keep reloading if cpufreq_driver exists */
 	if (cpufreq_get_current_driver())
-		return -EEXIST;
+		return -ENODEV;
 
 	pr_debug("%s\n", __func__);
 

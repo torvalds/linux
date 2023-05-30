@@ -1137,7 +1137,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_set_incr_burst_type(dwc);
 
-	dwc3_phy_power_on(dwc);
+	ret = dwc3_phy_power_on(dwc);
 	if (ret)
 		goto err_exit_phy;
 

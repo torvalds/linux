@@ -74,6 +74,7 @@ struct class {
 struct class_dev_iter {
 	struct klist_iter		ki;
 	const struct device_type	*type;
+	struct subsys_private		*sp;
 };
 
 int __must_check class_register(const struct class *class);
