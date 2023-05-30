@@ -1275,15 +1275,21 @@ static int mtk_spi_remove(struct platform_device *pdev)
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 	int ret;
 
-	ret = pm_runtime_resume_and_get(&pdev->dev);
-	if (ret < 0)
-		return ret;
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_warn(&pdev->dev, "Failed to resume hardware (%pe)\n", ERR_PTR(ret));
+	} else {
+		/*
+		 * If pm runtime resume failed, clks are disabled and
+		 * unprepared. So don't access the hardware and skip clk
+		 * unpreparing.
+		 */
+		mtk_spi_reset(mdata);
 
-	mtk_spi_reset(mdata);
-
-	if (mdata->dev_comp->no_need_unprepare) {
-		clk_unprepare(mdata->spi_clk);
-		clk_unprepare(mdata->spi_hclk);
+		if (mdata->dev_comp->no_need_unprepare) {
+			clk_unprepare(mdata->spi_clk);
+			clk_unprepare(mdata->spi_hclk);
+		}
 	}
 
 	pm_runtime_put_noidle(&pdev->dev);
