@@ -6,6 +6,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <net/ip.h>
 
 #define WX_NCSI_SUP                             0x8000
 #define WX_NCSI_MASK                            0x8000
@@ -315,9 +316,6 @@
 #define TXD_USE_COUNT(S)     DIV_ROUND_UP((S), WX_MAX_DATA_PER_TXD)
 #define DESC_NEEDED          (MAX_SKB_FRAGS + 4)
 
-/* Ether Types */
-#define WX_ETH_P_CNM                 0x22E7
-
 #define WX_CFG_PORT_ST               0x14404
 
 /******************* Receive Descriptor bit definitions **********************/
@@ -326,6 +324,29 @@
 
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
 
+/* TUN */
+#define WX_PTYPE_TUN_IPV4            0x80
+#define WX_PTYPE_TUN_IPV6            0xC0
+
+/* PKT for TUN */
+#define WX_PTYPE_PKT_IPIP            0x00 /* IP+IP */
+#define WX_PTYPE_PKT_IG              0x10 /* IP+GRE */
+#define WX_PTYPE_PKT_IGM             0x20 /* IP+GRE+MAC */
+#define WX_PTYPE_PKT_IGMV            0x30 /* IP+GRE+MAC+VLAN */
+/* PKT for !TUN */
+#define WX_PTYPE_PKT_MAC             0x10
+#define WX_PTYPE_PKT_IP              0x20
+
+/* TYP for PKT=mac */
+#define WX_PTYPE_TYP_MAC             0x01
+/* TYP for PKT=ip */
+#define WX_PTYPE_PKT_IPV6            0x08
+#define WX_PTYPE_TYP_IPFRAG          0x01
+#define WX_PTYPE_TYP_IP              0x02
+#define WX_PTYPE_TYP_UDP             0x03
+#define WX_PTYPE_TYP_TCP             0x04
+#define WX_PTYPE_TYP_SCTP            0x05
+
 /*********************** Transmit Descriptor Config Masks ****************/
 #define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
 #define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */
@@ -333,6 +354,49 @@
 #define WX_TXD_EOP                   BIT(24) /* End of Packet */
 #define WX_TXD_IFCS                  BIT(25) /* Insert FCS */
 #define WX_TXD_RS                    BIT(27) /* Report Status */
+
+/*********************** Adv Transmit Descriptor Config Masks ****************/
+#define WX_TXD_MAC_TSTAMP            BIT(19) /* IEEE1588 time stamp */
+#define WX_TXD_DTYP_CTXT             BIT(20) /* Adv Context Desc */
+#define WX_TXD_LINKSEC               BIT(26) /* enable linksec */
+#define WX_TXD_VLE                   BIT(30) /* VLAN pkt enable */
+#define WX_TXD_TSE                   BIT(31) /* TCP Seg enable */
+#define WX_TXD_CC                    BIT(7) /* Check Context */
+#define WX_TXD_IPSEC                 BIT(8) /* enable ipsec esp */
+#define WX_TXD_L4CS                  BIT(9)
+#define WX_TXD_IIPCS                 BIT(10)
+#define WX_TXD_EIPCS                 BIT(11)
+#define WX_TXD_PAYLEN_SHIFT          13 /* Adv desc PAYLEN shift */
+#define WX_TXD_MACLEN_SHIFT          9  /* Adv ctxt desc mac len shift */
+#define WX_TXD_TAG_TPID_SEL_SHIFT    11
+
+#define WX_TXD_L4LEN_SHIFT           8  /* Adv ctxt L4LEN shift */
+#define WX_TXD_MSS_SHIFT             16  /* Adv ctxt MSS shift */
+
+#define WX_TXD_OUTER_IPLEN_SHIFT     12 /* Adv ctxt OUTERIPLEN shift */
+#define WX_TXD_TUNNEL_LEN_SHIFT      21 /* Adv ctxt TUNNELLEN shift */
+#define WX_TXD_TUNNEL_TYPE_SHIFT     11 /* Adv Tx Desc Tunnel Type shift */
+#define WX_TXD_TUNNEL_UDP            FIELD_PREP(BIT(WX_TXD_TUNNEL_TYPE_SHIFT), 0)
+#define WX_TXD_TUNNEL_GRE            FIELD_PREP(BIT(WX_TXD_TUNNEL_TYPE_SHIFT), 1)
+
+enum wx_tx_flags {
+	/* cmd_type flags */
+	WX_TX_FLAGS_HW_VLAN	= 0x01,
+	WX_TX_FLAGS_TSO		= 0x02,
+	WX_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	WX_TX_FLAGS_CC		= 0x08,
+	WX_TX_FLAGS_IPV4	= 0x10,
+	WX_TX_FLAGS_CSUM	= 0x20,
+	WX_TX_FLAGS_OUTER_IPV4	= 0x100,
+	WX_TX_FLAGS_LINKSEC	= 0x200,
+	WX_TX_FLAGS_IPSEC	= 0x400,
+};
+
+/* VLAN info */
+#define WX_TX_FLAGS_VLAN_MASK			GENMASK(31, 16)
+#define WX_TX_FLAGS_VLAN_SHIFT			16
 
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
@@ -508,10 +572,25 @@ union wx_rx_desc {
 	} wb;  /* writeback */
 };
 
+struct wx_tx_context_desc {
+	__le32 vlan_macip_lens;
+	__le32 seqnum_seed;
+	__le32 type_tucmd_mlhl;
+	__le32 mss_l4len_idx;
+};
+
+/* if _flag is in _input, return _result */
+#define WX_SET_FLAG(_input, _flag, _result) \
+	(((_flag) <= (_result)) ? \
+	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) : \
+	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
+
 #define WX_RX_DESC(R, i)     \
 	(&(((union wx_rx_desc *)((R)->desc))[i]))
 #define WX_TX_DESC(R, i)     \
 	(&(((union wx_tx_desc *)((R)->desc))[i]))
+#define WX_TX_CTXTDESC(R, i) \
+	(&(((struct wx_tx_context_desc *)((R)->desc))[i]))
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
@@ -523,6 +602,8 @@ struct wx_tx_buffer {
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
+	__be16 protocol;
+	u32 tx_flags;
 };
 
 struct wx_rx_buffer {
