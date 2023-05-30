@@ -933,18 +933,16 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 }
 
 /**
- * ********************************************************************************************
  * cache_debug_params: Cache any params that needed to be maintained from the initial validation
  * for debug purposes.
  *
  * The DML getters can modify some of the VBA params that we are interested in (for example when
  * calculating with dummy p-state latency), so cache any params here that we want for debugging
  *
- * @param [in] mode_lib: mode_lib input/output of validate call
+ * @mode_lib: mode_lib input/output of validate call
  *
- * @return: void
+ * Return: void
  *
- * ********************************************************************************************
  */
 static void cache_debug_params(struct display_mode_lib *mode_lib)
 {
