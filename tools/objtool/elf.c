@@ -814,7 +814,7 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 				    unsigned long offset, struct symbol *sym,
 				    s64 addend, unsigned int type)
 {
-	struct reloc *reloc;
+	struct reloc *reloc, empty = { 0 };
 
 	if (reloc_idx >= rsec->sh.sh_size / elf_rela_size(elf)) {
 		WARN("%s: bad reloc_idx %u for %s with size 0x%lx",
@@ -822,12 +822,13 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 		return NULL;
 	}
 
-	reloc = malloc(sizeof(*reloc));
-	if (!reloc) {
-		perror("malloc");
+	reloc = &rsec->reloc_data[reloc_idx];
+
+	if (memcmp(reloc, &empty, sizeof(empty))) {
+		WARN("%s: %s: reloc %d already initialized!",
+		     __func__, rsec->name, reloc_idx);
 		return NULL;
 	}
-	memset(reloc, 0, sizeof(*reloc));
 
 	reloc->idx = reloc_idx;
 	reloc->sec = rsec;
@@ -1184,6 +1185,13 @@ static struct section *elf_create_rela_section(struct elf *elf,
 	rsec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
 	rsec->sh.sh_info = sec->idx;
 	rsec->sh.sh_flags = SHF_INFO_LINK;
+
+	rsec->reloc_data = calloc(rsec->sh.sh_size / rsec->sh.sh_entsize,
+				  sizeof(struct reloc));
+	if (!rsec->reloc_data) {
+		perror("calloc");
+		return NULL;
+	}
 
 	sec->rsec = rsec;
 	rsec->base = sec;
