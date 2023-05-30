@@ -1750,7 +1750,32 @@ static int vfio_ap_mdev_get_device_info(unsigned long arg)
 
 	info.flags = VFIO_DEVICE_FLAGS_AP | VFIO_DEVICE_FLAGS_RESET;
 	info.num_regions = 0;
-	info.num_irqs = 0;
+	info.num_irqs = VFIO_AP_NUM_IRQS;
+
+	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+}
+
+static ssize_t vfio_ap_get_irq_info(unsigned long arg)
+{
+	unsigned long minsz;
+	struct vfio_irq_info info;
+
+	minsz = offsetofend(struct vfio_irq_info, count);
+
+	if (copy_from_user(&info, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (info.argsz < minsz || info.index >= VFIO_AP_NUM_IRQS)
+		return -EINVAL;
+
+	switch (info.index) {
+	case VFIO_AP_REQ_IRQ_INDEX:
+		info.count = 1;
+		info.flags = VFIO_IRQ_INFO_EVENTFD;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
 }
@@ -1770,6 +1795,9 @@ static ssize_t vfio_ap_mdev_ioctl(struct vfio_device *vdev,
 	case VFIO_DEVICE_RESET:
 		ret = vfio_ap_mdev_reset_queues(&matrix_mdev->qtable);
 		break;
+	case VFIO_DEVICE_GET_IRQ_INFO:
+			ret = vfio_ap_get_irq_info(arg);
+			break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
