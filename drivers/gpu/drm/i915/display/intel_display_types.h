@@ -1586,7 +1586,6 @@ struct intel_hdmi {
 		enum drm_dp_dual_mode_type type;
 		int max_tmds_clock;
 	} dp_dual_mode;
-	bool has_hdmi_sink;
 	struct intel_connector *attached_connector;
 	struct cec_notifier *cec_notifier;
 };

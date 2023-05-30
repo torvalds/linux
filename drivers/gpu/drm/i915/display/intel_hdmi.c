@@ -1790,7 +1790,9 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 static bool intel_has_hdmi_sink(struct intel_hdmi *hdmi,
 				const struct drm_connector_state *conn_state)
 {
-	return hdmi->has_hdmi_sink &&
+	struct intel_connector *connector = hdmi->attached_connector;
+
+	return connector->base.display_info.is_hdmi &&
 		READ_ONCE(to_intel_digital_connector_state(conn_state)->force_audio) != HDMI_AUDIO_OFF_DVI;
 }
 
@@ -2385,8 +2387,6 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 {
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
 
-	intel_hdmi->has_hdmi_sink = false;
-
 	intel_hdmi->dp_dual_mode.type = DRM_DP_DUAL_MODE_NONE;
 	intel_hdmi->dp_dual_mode.max_tmds_clock = 0;
 
@@ -2478,8 +2478,6 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 	/* FIXME: Get rid of drm_edid_raw() */
 	edid = drm_edid_raw(drm_edid);
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
-		intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
-
 		intel_hdmi_dp_dual_mode_detect(connector);
 
 		connected = true;
