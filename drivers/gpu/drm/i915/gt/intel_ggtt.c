@@ -1015,16 +1015,16 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 /*
  * For pre-gen8 platforms pat_index is the same as enum i915_cache_level,
- * so these PTE encode functions are left with using cache_level.
+ * so the switch-case statements in these PTE encode functions are still valid.
  * See translation table LEGACY_CACHELEVEL.
  */
 static u64 snb_pte_encode(dma_addr_t addr,
-			  enum i915_cache_level level,
+			  unsigned int pat_index,
 			  u32 flags)
 {
 	gen6_pte_t pte = GEN6_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
-	switch (level) {
+	switch (pat_index) {
 	case I915_CACHE_L3_LLC:
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
@@ -1033,19 +1033,19 @@ static u64 snb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		MISSING_CASE(level);
+		MISSING_CASE(pat_index);
 	}
 
 	return pte;
 }
 
 static u64 ivb_pte_encode(dma_addr_t addr,
-			  enum i915_cache_level level,
+			  unsigned int pat_index,
 			  u32 flags)
 {
 	gen6_pte_t pte = GEN6_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
-	switch (level) {
+	switch (pat_index) {
 	case I915_CACHE_L3_LLC:
 		pte |= GEN7_PTE_CACHE_L3_LLC;
 		break;
@@ -1056,14 +1056,14 @@ static u64 ivb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		MISSING_CASE(level);
+		MISSING_CASE(pat_index);
 	}
 
 	return pte;
 }
 
 static u64 byt_pte_encode(dma_addr_t addr,
-			  enum i915_cache_level level,
+			  unsigned int pat_index,
 			  u32 flags)
 {
 	gen6_pte_t pte = GEN6_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
@@ -1071,31 +1071,31 @@ static u64 byt_pte_encode(dma_addr_t addr,
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
-	if (level != I915_CACHE_NONE)
+	if (pat_index != I915_CACHE_NONE)
 		pte |= BYT_PTE_SNOOPED_BY_CPU_CACHES;
 
 	return pte;
 }
 
 static u64 hsw_pte_encode(dma_addr_t addr,
-			  enum i915_cache_level level,
+			  unsigned int pat_index,
 			  u32 flags)
 {
 	gen6_pte_t pte = HSW_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
-	if (level != I915_CACHE_NONE)
+	if (pat_index != I915_CACHE_NONE)
 		pte |= HSW_WB_LLC_AGE3;
 
 	return pte;
 }
 
 static u64 iris_pte_encode(dma_addr_t addr,
-			   enum i915_cache_level level,
+			   unsigned int pat_index,
 			   u32 flags)
 {
 	gen6_pte_t pte = HSW_PTE_ADDR_ENCODE(addr) | GEN6_PTE_VALID;
 
-	switch (level) {
+	switch (pat_index) {
 	case I915_CACHE_NONE:
 		break;
 	case I915_CACHE_WT:
