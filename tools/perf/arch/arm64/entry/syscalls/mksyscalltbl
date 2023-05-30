@@ -21,14 +21,14 @@ fi
 
 create_sc_table()
 {
-	local sc nr last_sc
+	local sc nr max_nr
 
 	while read sc nr; do
 		printf "%s\n" "	[$nr] = \"$sc\","
-		last_sc=$sc
+		max_nr=$nr
 	done
 
-	printf "%s\n" "#define SYSCALLTBL_ARM64_MAX_ID __NR_$last_sc"
+	echo "#define SYSCALLTBL_ARM64_MAX_ID $max_nr"
 }
 
 create_table()
