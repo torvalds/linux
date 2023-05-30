@@ -63,7 +63,7 @@ struct symbol {
 	u8 profiling_func    : 1;
 	u8 warned	     : 1;
 	struct list_head pv_target;
-	struct list_head reloc_list;
+	struct reloc *relocs;
 };
 
 struct reloc {
@@ -74,7 +74,7 @@ struct reloc {
 	};
 	struct section *sec;
 	struct symbol *sym;
-	struct list_head sym_reloc_entry;
+	struct reloc *sym_next_reloc;
 };
 
 struct elf {

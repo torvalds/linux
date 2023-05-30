@@ -356,7 +356,6 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	struct rb_node *pnode;
 	struct symbol *iter;
 
-	INIT_LIST_HEAD(&sym->reloc_list);
 	INIT_LIST_HEAD(&sym->pv_target);
 	sym->alias = sym;
 
@@ -540,7 +539,7 @@ static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 {
 	struct reloc *reloc;
 
-	list_for_each_entry(reloc, &sym->reloc_list, sym_reloc_entry) {
+	for (reloc = sym->relocs; reloc; reloc = reloc->sym_next_reloc) {
 		reloc->rel.r_info = GELF_R_INFO(reloc->sym->idx, reloc_type(reloc));
 		if (elf_write_reloc(elf, reloc))
 			return -1;
@@ -841,8 +840,9 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	if (elf_write_reloc(elf, reloc))
 		return NULL;
 
-	list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
+	reloc->sym_next_reloc = sym->relocs;
+	sym->relocs = reloc;
 
 	return reloc;
 }
@@ -960,8 +960,9 @@ static int read_relocs(struct elf *elf)
 				return -1;
 			}
 
-			list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
 			elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
+			reloc->sym_next_reloc = sym->relocs;
+			sym->relocs = reloc;
 
 			nr_reloc++;
 		}
