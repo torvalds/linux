@@ -83,8 +83,6 @@ struct reloc {
 	bool jump_table_start;
 };
 
-#define ELF_HASH_BITS	20
-
 struct elf {
 	Elf *elf;
 	GElf_Ehdr ehdr;
@@ -109,53 +107,6 @@ struct elf {
 	struct section *section_data;
 	struct symbol *symbol_data;
 };
-
-#define OFFSET_STRIDE_BITS	4
-#define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
-#define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
-
-#define for_offset_range(_offset, _start, _end)			\
-	for (_offset = ((_start) & OFFSET_STRIDE_MASK);		\
-	     _offset >= ((_start) & OFFSET_STRIDE_MASK) &&	\
-	     _offset <= ((_end) & OFFSET_STRIDE_MASK);		\
-	     _offset += OFFSET_STRIDE)
-
-static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
-{
-	u32 ol, oh, idx = sec->idx;
-
-	offset &= OFFSET_STRIDE_MASK;
-
-	ol = offset;
-	oh = (offset >> 16) >> 16;
-
-	__jhash_mix(ol, oh, idx);
-
-	return ol;
-}
-
-static inline u32 reloc_hash(struct reloc *reloc)
-{
-	return sec_offset_hash(reloc->sec, reloc->offset);
-}
-
-/*
- * Try to see if it's a whole archive (vmlinux.o or module).
- *
- * Note this will miss the case where a module only has one source file.
- */
-static inline bool has_multiple_files(struct elf *elf)
-{
-	return elf->num_files > 1;
-}
-
-static inline int elf_class_addrsize(struct elf *elf)
-{
-	if (elf->ehdr.e_ident[EI_CLASS] == ELFCLASS32)
-		return sizeof(u32);
-	else
-		return sizeof(u64);
-}
 
 struct elf *elf_open_read(const char *name, int flags);
 struct section *elf_create_section(struct elf *elf, const char *name, unsigned int sh_flags, size_t entsize, int nr);
@@ -186,6 +137,24 @@ struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *se
 				     unsigned long offset, unsigned int len);
 struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 
+/*
+ * Try to see if it's a whole archive (vmlinux.o or module).
+ *
+ * Note this will miss the case where a module only has one source file.
+ */
+static inline bool has_multiple_files(struct elf *elf)
+{
+	return elf->num_files > 1;
+}
+
+static inline int elf_class_addrsize(struct elf *elf)
+{
+	if (elf->ehdr.e_ident[EI_CLASS] == ELFCLASS32)
+		return sizeof(u32);
+	else
+		return sizeof(u64);
+}
+
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
 
@@ -197,5 +166,34 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 	     __fake; __fake = NULL)					\
 		for_each_sec(file, __sec)				\
 			sec_for_each_sym(__sec, sym)
+
+#define OFFSET_STRIDE_BITS	4
+#define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
+#define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
+
+#define for_offset_range(_offset, _start, _end)			\
+	for (_offset = ((_start) & OFFSET_STRIDE_MASK);		\
+	     _offset >= ((_start) & OFFSET_STRIDE_MASK) &&	\
+	     _offset <= ((_end) & OFFSET_STRIDE_MASK);		\
+	     _offset += OFFSET_STRIDE)
+
+static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
+{
+	u32 ol, oh, idx = sec->idx;
+
+	offset &= OFFSET_STRIDE_MASK;
+
+	ol = offset;
+	oh = (offset >> 16) >> 16;
+
+	__jhash_mix(ol, oh, idx);
+
+	return ol;
+}
+
+static inline u32 reloc_hash(struct reloc *reloc)
+{
+	return sec_offset_hash(reloc->sec, reloc->offset);
+}
 
 #endif /* _OBJTOOL_ELF_H */
