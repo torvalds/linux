@@ -255,8 +255,6 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
 	return psr_capable;
 }
 
-#define DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER 7
-
 /**
  * dcn32_determine_det_override(): Determine DET allocation for each pipe
  *
@@ -267,6 +265,7 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
  * If there is a plane that's driven by more than 1 pipe (i.e. pipe split), then the
  * number of DET for that given plane will be split among the pipes driving that plane.
  *
+ *
  * High level algorithm:
  * 1. Split total DET among number of streams
  * 2. For each stream, split DET among the planes
@@ -274,21 +273,9 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
  *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
  *
- * Special cases:
- *
- * For two displays that have a large difference in pixel rate, we may experience
- *  underflow on the larger display when we divide the DET equally. For this, we
- *  will implement a modified algorithm to assign more DET to larger display.
- *
- * 1. Calculate difference in pixel rates ( multiplier ) between two displays
- * 2. If the multiplier exceeds DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER, then
- *    implement the modified DET override algorithm.
- * 3. Assign smaller DET size for lower pixel display and higher DET size for
- *    higher pixel display
- *
- * @dc: Current DC state
- * @context: New DC state to be programmed
- * @pipes: Array of DML pipes
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ * @param [in]: pipes: Array of DML pipes
  *
  * Return: void
  */
@@ -303,31 +290,10 @@ void dcn32_determine_det_override(struct dc *dc,
 	struct dc_plane_state *current_plane = NULL;
 	uint8_t stream_count = 0;
 
-	int phy_pix_clk_mult, lower_mode_stream_index;
-	int phy_pix_clk[MAX_PIPES] = {0};
-	bool use_new_det_override_algorithm = false;
-
 	for (i = 0; i < context->stream_count; i++) {
 		/* Don't count SubVP streams for DET allocation */
-		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
-			phy_pix_clk[i] = context->streams[i]->phy_pix_clk;
+		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM)
 			stream_count++;
-		}
-	}
-
-	/* Check for special case with two displays, one with much higher pixel rate */
-	if (stream_count == 2) {
-		ASSERT((phy_pix_clk[0] > 0) && (phy_pix_clk[1] > 0));
-		if (phy_pix_clk[0] < phy_pix_clk[1]) {
-			lower_mode_stream_index = 0;
-			phy_pix_clk_mult = phy_pix_clk[1] / phy_pix_clk[0];
-		} else {
-			lower_mode_stream_index = 1;
-			phy_pix_clk_mult = phy_pix_clk[0] / phy_pix_clk[1];
-		}
-
-		if (phy_pix_clk_mult >= DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER)
-			use_new_det_override_algorithm = true;
 	}
 
 	if (stream_count > 0) {
@@ -335,13 +301,6 @@ void dcn32_determine_det_override(struct dc *dc,
 		for (i = 0; i < context->stream_count; i++) {
 			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
 				continue;
-
-			if (use_new_det_override_algorithm) {
-				if (i == lower_mode_stream_index)
-					stream_segments = 4;
-				else
-					stream_segments = 14;
-			}
 
 			if (context->stream_status[i].plane_count > 0)
 				plane_segments = stream_segments / context->stream_status[i].plane_count;
