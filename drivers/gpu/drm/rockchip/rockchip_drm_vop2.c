@@ -3142,6 +3142,18 @@ vop2_wb_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static inline bool
+vop2_wb_connector_changed_only(struct drm_crtc_state *cstate, struct drm_connector *conn)
+{
+	struct drm_crtc_state *old_state;
+	u32 changed_connectors;
+
+	old_state = drm_atomic_get_old_crtc_state(cstate->state, cstate->crtc);
+	changed_connectors = cstate->connector_mask ^ old_state->connector_mask;
+
+	return BIT(drm_connector_index(conn)) == changed_connectors;
+}
+
 static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_crtc_state *cstate,
 			       struct drm_connector_state *conn_state)
@@ -3153,8 +3165,15 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 
-
-
+	/*
+	 * No need for a full modested when the only connector changed is the
+	 * writeback connector.
+	 */
+	if (cstate->connectors_changed &&
+	    vop2_wb_connector_changed_only(cstate, conn_state->connector)) {
+		cstate->connectors_changed = false;
+		DRM_DEBUG("VP%d force change connectors_changed to false when only wb changed\n", vp->id);
+	}
 	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
 		return 0;
 
