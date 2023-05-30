@@ -419,6 +419,7 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
  * @pasid: pasid to be flush
  * @flush_type: type of flush
  * @all_hub: flush all hubs
+ * @inst: is used to select which instance of KIQ to use for the invalidation
  *
  * Flush the TLB for the requested pasid.
  */

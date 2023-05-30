@@ -414,6 +414,7 @@ error_alloc:
  * @pasid: pasid to be flush
  * @flush_type: the flush type
  * @all_hub: Used with PACKET3_INVALIDATE_TLBS_ALL_HUB()
+ * @inst: is used to select which instance of KIQ to use for the invalidation
  *
  * Flush the TLB for the requested pasid.
  */
