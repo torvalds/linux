@@ -85,3 +85,5 @@ static struct kunit_suite structure_layout_test_suite = {
 	.test_cases = structure_layout_test_cases,
 };
 kunit_test_suite(structure_layout_test_suite);
+
+MODULE_LICENSE("GPL");
