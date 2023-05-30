@@ -593,7 +593,7 @@ static const struct of_device_id tusb320_extcon_dt_match[] = {
 MODULE_DEVICE_TABLE(of, tusb320_extcon_dt_match);
 
 static struct i2c_driver tusb320_extcon_driver = {
-	.probe_new	= tusb320_probe,
+	.probe		= tusb320_probe,
 	.remove		= tusb320_remove,
 	.driver		= {
 		.name	= "extcon-tusb320",
