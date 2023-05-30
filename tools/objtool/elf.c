@@ -1350,30 +1350,14 @@ int elf_write(struct elf *elf)
 
 void elf_close(struct elf *elf)
 {
-	struct section *sec, *tmpsec;
-	struct symbol *sym, *tmpsym;
-	struct reloc *reloc, *tmpreloc;
-
 	if (elf->elf)
 		elf_end(elf->elf);
 
 	if (elf->fd > 0)
 		close(elf->fd);
 
-	list_for_each_entry_safe(sec, tmpsec, &elf->sections, list) {
-		list_for_each_entry_safe(sym, tmpsym, &sec->symbol_list, list) {
-			list_del(&sym->list);
-			hash_del(&sym->hash);
-		}
-		list_for_each_entry_safe(reloc, tmpreloc, &sec->reloc_list, list) {
-			list_del(&reloc->list);
-			hash_del(&reloc->hash);
-		}
-		list_del(&sec->list);
-		free(sec->reloc_data);
-	}
-
-	free(elf->symbol_data);
-	free(elf->section_data);
-	free(elf);
+	/*
+	 * NOTE: All remaining allocations are leaked on purpose.  Objtool is
+	 * about to exit anyway.
+	 */
 }
