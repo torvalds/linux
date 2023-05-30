@@ -4170,7 +4170,7 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 	else {
 		edid = drm_get_edid(connector, &port->aux.ddc);
 	}
-	port->has_audio = drm_detect_monitor_audio(edid);
+
 	drm_dp_mst_topology_put_port(port);
 	return edid;
 }

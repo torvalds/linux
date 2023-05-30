@@ -298,7 +298,7 @@ static bool intel_dp_mst_has_audio(const struct drm_connector_state *conn_state)
 		to_intel_connector(conn_state->connector);
 
 	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		return connector->port->has_audio;
+		return connector->base.display_info.has_audio;
 	else
 		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
 }

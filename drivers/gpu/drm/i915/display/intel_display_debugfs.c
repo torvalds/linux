@@ -244,9 +244,9 @@ static void intel_dp_info(struct seq_file *m,
 }
 
 static void intel_dp_mst_info(struct seq_file *m,
-			      struct intel_connector *intel_connector)
+			      struct intel_connector *connector)
 {
-	bool has_audio = intel_connector->port->has_audio;
+	bool has_audio = connector->base.display_info.has_audio;
 
 	seq_printf(m, "\taudio support: %s\n", str_yes_no(has_audio));
 }

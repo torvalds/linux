@@ -139,11 +139,6 @@ struct drm_dp_mst_port {
 	 * that the EDID for all connectors is read immediately.
 	 */
 	struct edid *cached_edid;
-	/**
-	 * @has_audio: Tracks whether the sink connector to this port is
-	 * audio-capable.
-	 */
-	bool has_audio;
 
 	/**
 	 * @fec_capable: bool indicating if FEC can be supported up to that
