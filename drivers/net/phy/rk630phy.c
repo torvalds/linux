@@ -160,14 +160,33 @@ static void rk630_phy_ieee_set(struct phy_device *phydev, bool enable)
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
 }
 
-static void rk630_phy_set_uaps(struct phy_device *phydev)
+static void rk630_phy_set_aps(struct phy_device *phydev, bool enable)
+{
+	u32 value;
+
+	/* Switch to page 1 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0100);
+	value = phy_read(phydev, REG_PAGE1_APS_CTRL);
+	if (enable)
+		value |= BIT(15);
+	else
+		value &= ~BIT(15);
+	phy_write(phydev, REG_PAGE1_APS_CTRL, value);
+	/* Switch to page 0 */
+	phy_write(phydev, REG_PAGE_SEL, 0x0000);
+}
+
+static void rk630_phy_set_uaps(struct phy_device *phydev, bool enable)
 {
 	u32 value;
 
 	/* Switch to page 1 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0100);
 	value = phy_read(phydev, REG_PAGE1_UAPS_CONFIGURE);
-	value |= BIT(15);
+	if (enable)
+		value |= BIT(15);
+	else
+		value &= ~BIT(15);
 	phy_write(phydev, REG_PAGE1_UAPS_CONFIGURE, value);
 	/* Switch to page 0 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
@@ -268,10 +287,12 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 		 * Ultra Auto-Power Saving Mode (UAPS) is designed to
 		 * save power when cable is not plugged into PHY.
 		 */
-		rk630_phy_set_uaps(phydev);
+		rk630_phy_set_uaps(phydev, true);
 		break;
 	case PHY_ADDR_T22:
 		rk630_phy_t22_config_init(phydev);
+		rk630_phy_set_aps(phydev, true);
+		rk630_phy_set_uaps(phydev, true);
 		break;
 	default:
 		phydev_err(phydev, "Unsupported address for current phy: %d\n",
