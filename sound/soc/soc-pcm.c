@@ -2735,8 +2735,7 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	int i;
 
 	if (dai_link->dynamic && dai_link->num_cpus > 1) {
-		dev_err(rtd->dev,
-			"DPCM doesn't support Multi CPU for Front-Ends yet\n");
+		dev_err(rtd->dev, "DPCM doesn't support Multi CPU for Front-Ends yet\n");
 		return -EINVAL;
 	}
 
