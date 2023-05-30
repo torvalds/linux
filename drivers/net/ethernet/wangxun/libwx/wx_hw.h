@@ -26,10 +26,13 @@ void wx_set_rx_mode(struct net_device *netdev);
 int wx_change_mtu(struct net_device *netdev, int new_mtu);
 void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring);
 void wx_configure(struct wx *wx);
+void wx_start_hw(struct wx *wx);
 int wx_disable_pcie_master(struct wx *wx);
 int wx_stop_adapter(struct wx *wx);
 void wx_reset_misc(struct wx *wx);
 int wx_get_pcie_msix_counts(struct wx *wx, u16 *msix_count, u16 max_msix_count);
 int wx_sw_init(struct wx *wx);
+int wx_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid);
+int wx_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid);
 
 #endif /* _WX_HW_H_ */

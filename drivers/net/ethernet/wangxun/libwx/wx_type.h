@@ -6,6 +6,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 
 #define WX_NCSI_SUP                             0x8000
@@ -65,6 +66,8 @@
 #define WX_CFG_PORT_CTL_QINQ         BIT(2)
 #define WX_CFG_PORT_CTL_D_VLAN       BIT(0) /* double vlan*/
 #define WX_CFG_TAG_TPID(_i)          (0x14430 + ((_i) * 4))
+#define WX_CFG_PORT_CTL_NUM_VT_MASK  GENMASK(13, 12) /* number of TVs */
+
 
 /* GPIO Registers */
 #define WX_GPIO_DR                   0x14800
@@ -88,6 +91,8 @@
 /* TDM CTL BIT */
 #define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
 #define WX_TDM_PB_THRE(_i)           (0x18020 + ((_i) * 4))
+#define WX_TDM_RP_IDX                0x1820C
+#define WX_TDM_RP_RATE               0x18404
 
 /***************************** RDB registers *********************************/
 /* receive packet buffer */
@@ -151,6 +156,9 @@
 #define WX_PSR_LAN_FLEX_DW_H(_i)     (0x15C04 + ((_i) * 16))
 #define WX_PSR_LAN_FLEX_MSK(_i)      (0x15C08 + ((_i) * 16))
 
+/* vlan tbl */
+#define WX_PSR_VLAN_TBL(_i)          (0x16000 + ((_i) * 4))
+
 /* mac switcher */
 #define WX_PSR_MAC_SWC_AD_L          0x16200
 #define WX_PSR_MAC_SWC_AD_H          0x16204
@@ -161,6 +169,15 @@
 #define WX_PSR_MAC_SWC_VM_H          0x1620C
 #define WX_PSR_MAC_SWC_IDX           0x16210
 #define WX_CLEAR_VMDQ_ALL            0xFFFFFFFFU
+
+/* vlan switch */
+#define WX_PSR_VLAN_SWC              0x16220
+#define WX_PSR_VLAN_SWC_VM_L         0x16224
+#define WX_PSR_VLAN_SWC_VM_H         0x16228
+#define WX_PSR_VLAN_SWC_IDX          0x16230         /* 64 vlan entries */
+/* VLAN pool filtering masks */
+#define WX_PSR_VLAN_SWC_VIEN         BIT(31)  /* filter is valid */
+#define WX_PSR_VLAN_SWC_ENTRIES      64
 
 /********************************* RSEC **************************************/
 /* general rsec */
@@ -256,6 +273,7 @@
 #define WX_PX_RR_RP(_i)              (0x0100C + ((_i) * 0x40))
 #define WX_PX_RR_CFG(_i)             (0x01010 + ((_i) * 0x40))
 /* PX_RR_CFG bit definitions */
+#define WX_PX_RR_CFG_VLAN            BIT(31)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
 #define WX_PX_RR_CFG_RR_THER_SHIFT   16
 #define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
@@ -297,6 +315,7 @@
 #define WX_MAX_TXD                   8192
 
 #define WX_MAX_JUMBO_FRAME_SIZE      9432 /* max payload 9414 */
+#define VMDQ_P(p)                    p
 
 /* Supported Rx Buffer Sizes */
 #define WX_RXBUFFER_256      256    /* Used for skb receive header */
@@ -321,6 +340,7 @@
 /******************* Receive Descriptor bit definitions **********************/
 #define WX_RXD_STAT_DD               BIT(0) /* Done */
 #define WX_RXD_STAT_EOP              BIT(1) /* End of Packet */
+#define WX_RXD_STAT_VP               BIT(5) /* IEEE VLAN Pkt */
 #define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
 #define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
 #define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
@@ -566,6 +586,8 @@ struct wx_mac_info {
 	u32 mta_shadow[128];
 	s32 mc_filter_type;
 	u32 mcft_size;
+	u32 vft_shadow[128];
+	u32 vft_size;
 	u32 num_rar_entries;
 	u32 rx_pb_size;
 	u32 tx_pb_size;
@@ -726,7 +748,6 @@ struct wx_ring_container {
 	u8 count;                       /* total number of rings in vector */
 	u8 itr;                         /* current ITR setting for ring */
 };
-
 struct wx_ring {
 	struct wx_ring *next;           /* pointer to next ring in q_vector */
 	struct wx_q_vector *q_vector;   /* backpointer to host q_vector */
@@ -789,6 +810,8 @@ enum wx_isb_idx {
 };
 
 struct wx {
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
