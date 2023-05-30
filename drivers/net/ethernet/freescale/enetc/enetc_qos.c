@@ -147,6 +147,35 @@ static void enetc_taprio_destroy(struct net_device *ndev)
 	enetc_reset_tc_mqprio(ndev);
 }
 
+static void enetc_taprio_stats(struct net_device *ndev,
+			       struct tc_taprio_qopt_stats *stats)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	u64 window_drops = 0;
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		window_drops += priv->tx_ring[i]->stats.win_drop;
+
+	stats->window_drops = window_drops;
+}
+
+static void enetc_taprio_tc_stats(struct net_device *ndev,
+				  struct tc_taprio_qopt_tc_stats *tc_stats)
+{
+	struct tc_taprio_qopt_stats *stats = &tc_stats->stats;
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int tc = tc_stats->tc;
+	u64 window_drops = 0;
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		if (priv->tx_ring[i]->prio == tc)
+			window_drops += priv->tx_ring[i]->stats.win_drop;
+
+	stats->window_drops = window_drops;
+}
+
 static int enetc_taprio_replace(struct net_device *ndev,
 				struct tc_taprio_qopt_offload *offload)
 {
@@ -175,6 +204,12 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 		break;
 	case TAPRIO_CMD_DESTROY:
 		enetc_taprio_destroy(ndev);
+		break;
+	case TAPRIO_CMD_STATS:
+		enetc_taprio_stats(ndev, &offload->stats);
+		break;
+	case TAPRIO_CMD_TC_STATS:
+		enetc_taprio_tc_stats(ndev, &offload->tc_stats);
 		break;
 	default:
 		err = -EOPNOTSUPP;
