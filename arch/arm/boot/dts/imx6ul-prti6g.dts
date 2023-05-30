@@ -177,6 +177,7 @@
 
 &usbotg1 {
 	dr_mode = "host";
+	over-current-active-low;
 	status = "okay";
 };
 
