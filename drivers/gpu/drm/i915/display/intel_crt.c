@@ -609,37 +609,38 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-static struct edid *intel_crt_get_edid(struct drm_connector *connector,
-				struct i2c_adapter *i2c)
+static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector,
+						 struct i2c_adapter *i2c)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
-	edid = drm_get_edid(connector, i2c);
+	drm_edid = drm_edid_read_ddc(connector, i2c);
 
-	if (!edid && !intel_gmbus_is_forced_bit(i2c)) {
+	if (!drm_edid && !intel_gmbus_is_forced_bit(i2c)) {
 		drm_dbg_kms(connector->dev,
 			    "CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
 		intel_gmbus_force_bit(i2c, true);
-		edid = drm_get_edid(connector, i2c);
+		drm_edid = drm_edid_read_ddc(connector, i2c);
 		intel_gmbus_force_bit(i2c, false);
 	}
 
-	return edid;
+	return drm_edid;
 }
 
 /* local version of intel_ddc_get_modes() to use intel_crt_get_edid() */
 static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 				struct i2c_adapter *adapter)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
-	edid = intel_crt_get_edid(connector, adapter);
-	if (!edid)
+	drm_edid = intel_crt_get_edid(connector, adapter);
+	if (!drm_edid)
 		return 0;
 
-	ret = intel_connector_update_modes(connector, edid);
-	kfree(edid);
+	ret = intel_connector_update_modes(connector, drm_edid);
+
+	drm_edid_free(drm_edid);
 
 	return ret;
 }
@@ -648,14 +649,15 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	struct i2c_adapter *i2c;
 	bool ret = false;
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
-	edid = intel_crt_get_edid(connector, i2c);
+	drm_edid = intel_crt_get_edid(connector, i2c);
 
-	if (edid) {
+	if (drm_edid) {
+		const struct edid *edid = drm_edid_raw(drm_edid);
 		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
 
 		/*
@@ -676,7 +678,7 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 			    "CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }

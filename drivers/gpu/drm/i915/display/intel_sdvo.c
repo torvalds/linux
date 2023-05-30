@@ -2036,22 +2036,23 @@ intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
 	return hweight16(intel_sdvo->caps.output_flags) > 1;
 }
 
-static struct edid *
+static const struct drm_edid *
 intel_sdvo_get_edid(struct drm_connector *connector)
 {
 	struct intel_sdvo *sdvo = intel_attached_sdvo(to_intel_connector(connector));
-	return drm_get_edid(connector, &sdvo->ddc);
+	return drm_edid_read_ddc(connector, &sdvo->ddc);
 }
 
 /* Mac mini hack -- use the same DDC as the analog connector */
-static struct edid *
+static const struct drm_edid *
 intel_sdvo_get_analog_edid(struct drm_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct i2c_adapter *i2c;
 
-	return drm_get_edid(connector,
-			    intel_gmbus_get_adapter(dev_priv,
-						    dev_priv->display.vbt.crt_ddc_pin));
+	i2c = intel_gmbus_get_adapter(i915, i915->display.vbt.crt_ddc_pin);
+
+	return drm_edid_read_ddc(connector, i2c);
 }
 
 static enum drm_connector_status
@@ -2059,11 +2060,11 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	enum drm_connector_status status;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
-	edid = intel_sdvo_get_edid(connector);
+	drm_edid = intel_sdvo_get_edid(connector);
 
-	if (edid == NULL && intel_sdvo_multifunc_encoder(intel_sdvo)) {
+	if (!drm_edid && intel_sdvo_multifunc_encoder(intel_sdvo)) {
 		u8 ddc, saved_ddc = intel_sdvo->ddc_bus;
 
 		/*
@@ -2072,15 +2073,15 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 		 */
 		for (ddc = intel_sdvo->ddc_bus >> 1; ddc > 1; ddc >>= 1) {
 			intel_sdvo->ddc_bus = ddc;
-			edid = intel_sdvo_get_edid(connector);
-			if (edid)
+			drm_edid = intel_sdvo_get_edid(connector);
+			if (drm_edid)
 				break;
 		}
 		/*
 		 * If we found the EDID on the other bus,
 		 * assume that is the correct DDC bus.
 		 */
-		if (edid == NULL)
+		if (!drm_edid)
 			intel_sdvo->ddc_bus = saved_ddc;
 	}
 
@@ -2088,17 +2089,19 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 	 * When there is no edid and no monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector.
 	 */
-	if (edid == NULL)
-		edid = intel_sdvo_get_analog_edid(connector);
+	if (!drm_edid)
+		drm_edid = intel_sdvo_get_analog_edid(connector);
 
 	status = connector_status_unknown;
-	if (edid != NULL) {
+	if (drm_edid) {
+		const struct edid *edid = drm_edid_raw(drm_edid);
+
 		/* DDC bus is shared, match EDID to connector type */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL)
 			status = connector_status_connected;
 		else
 			status = connector_status_disconnected;
-		kfree(edid);
+		drm_edid_free(drm_edid);
 	}
 
 	return status;
@@ -2106,8 +2109,9 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 
 static bool
 intel_sdvo_connector_matches_edid(struct intel_sdvo_connector *sdvo,
-				  struct edid *edid)
+				  const struct drm_edid *drm_edid)
 {
+	const struct edid *edid = drm_edid_raw(drm_edid);
 	bool monitor_is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
 	bool connector_is_digital = !!IS_DIGITAL(sdvo);
 
@@ -2150,22 +2154,23 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	else if (IS_TMDS(intel_sdvo_connector))
 		ret = intel_sdvo_tmds_sink_detect(connector);
 	else {
-		struct edid *edid;
+		const struct drm_edid *drm_edid;
 
 		/* if we have an edid check it matches the connection */
-		edid = intel_sdvo_get_edid(connector);
-		if (edid == NULL)
-			edid = intel_sdvo_get_analog_edid(connector);
-		if (edid != NULL) {
+		drm_edid = intel_sdvo_get_edid(connector);
+		if (!drm_edid)
+			drm_edid = intel_sdvo_get_analog_edid(connector);
+		if (drm_edid) {
 			if (intel_sdvo_connector_matches_edid(intel_sdvo_connector,
-							      edid))
+							      drm_edid))
 				ret = connector_status_connected;
 			else
 				ret = connector_status_disconnected;
 
-			kfree(edid);
-		} else
+			drm_edid_free(drm_edid);
+		} else {
 			ret = connector_status_connected;
+		}
 	}
 
 	return ret;
@@ -2174,13 +2179,13 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
 	int num_modes = 0;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
 	/* set the bus switch and get the modes */
-	edid = intel_sdvo_get_edid(connector);
+	drm_edid = intel_sdvo_get_edid(connector);
 
 	/*
 	 * Mac mini hack.  On this device, the DVI-I connector shares one DDC
@@ -2188,17 +2193,17 @@ static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	 * DDC fails, check to see if the analog output is disconnected, in
 	 * which case we'll look there for the digital DDC data.
 	 */
-	if (!edid)
-		edid = intel_sdvo_get_analog_edid(connector);
+	if (!drm_edid)
+		drm_edid = intel_sdvo_get_analog_edid(connector);
 
-	if (!edid)
+	if (!drm_edid)
 		return 0;
 
 	if (intel_sdvo_connector_matches_edid(to_intel_sdvo_connector(connector),
-					      edid))
-		num_modes += intel_connector_update_modes(connector, edid);
+					      drm_edid))
+		num_modes += intel_connector_update_modes(connector, drm_edid);
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return num_modes;
 }
