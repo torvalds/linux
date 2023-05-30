@@ -236,7 +236,7 @@ fwnode_remove:
 	return ret;
 }
 
-static int qcom_pmic_typec_remove(struct platform_device *pdev)
+static void qcom_pmic_typec_remove(struct platform_device *pdev)
 {
 	struct pmic_typec *tcpm = platform_get_drvdata(pdev);
 
@@ -244,8 +244,6 @@ static int qcom_pmic_typec_remove(struct platform_device *pdev)
 	qcom_pmic_typec_port_stop(tcpm->pmic_typec_port);
 	tcpm_unregister_port(tcpm->tcpm_port);
 	fwnode_remove_software_node(tcpm->tcpc.fwnode);
-
-	return 0;
 }
 
 static struct pmic_typec_pdphy_resources pm8150b_pdphy_res = {
@@ -337,7 +335,7 @@ static struct platform_driver qcom_pmic_typec_driver = {
 		.of_match_table = qcom_pmic_typec_table,
 	},
 	.probe = qcom_pmic_typec_probe,
-	.remove = qcom_pmic_typec_remove,
+	.remove_new = qcom_pmic_typec_remove,
 };
 
 module_platform_driver(qcom_pmic_typec_driver);
