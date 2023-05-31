@@ -1464,8 +1464,8 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_device *device;
 
 	length = len;
-	ret = __btrfs_map_block(fs_info, BTRFS_MAP_READ, bytenr, &length, &bioc,
-				NULL, &mirror_num, 0);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, bytenr, &length, &bioc,
+			      NULL, &mirror_num, 0);
 	if (ret) {
 		block_ctx_out->start = 0;
 		block_ctx_out->dev_bytenr = 0;

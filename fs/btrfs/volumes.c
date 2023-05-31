@@ -6232,11 +6232,11 @@ static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *
 			stripe_offset + (stripe_nr << BTRFS_STRIPE_LEN_SHIFT);
 }
 
-int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-		      u64 logical, u64 *length,
-		      struct btrfs_io_context **bioc_ret,
-		      struct btrfs_io_stripe *smap, int *mirror_num_ret,
-		      int need_raid_map)
+int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+		    u64 logical, u64 *length,
+		    struct btrfs_io_context **bioc_ret,
+		    struct btrfs_io_stripe *smap, int *mirror_num_ret,
+		    int need_raid_map)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -6486,7 +6486,7 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_io_context **bioc_ret)
 {
-	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret,
+	return btrfs_map_block(fs_info, op, logical, length, bioc_ret,
 				 NULL, NULL, 1);
 }
 
@@ -8066,8 +8066,8 @@ int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 
 	ASSERT(mirror_num > 0);
 
-	ret = __btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical, &map_length,
-				&bioc, smap, &mirror_ret, true);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical, &map_length,
+			      &bioc, smap, &mirror_ret, true);
 	if (ret < 0)
 		return ret;
 

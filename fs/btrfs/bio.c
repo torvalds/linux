@@ -623,8 +623,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	int error;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	error = __btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-				  &bioc, &smap, &mirror_num, 1);
+	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
+				&bioc, &smap, &mirror_num, 1);
 	if (error) {
 		ret = errno_to_blk_status(error);
 		goto fail;
