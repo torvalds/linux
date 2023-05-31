@@ -538,9 +538,9 @@ static int qcom_flash_register_led_device(struct device *dev,
 	struct led_init_data init_data;
 	struct led_classdev_flash *flash = &led->flash;
 	struct led_flash_setting *brightness, *timeout;
-	u32 count, current_ua, timeout_us;
+	u32 current_ua, timeout_us;
 	u32 channels[4];
-	int i, rc;
+	int i, rc, count;
 
 	count = fwnode_property_count_u32(node, "led-sources");
 	if (count <= 0) {
