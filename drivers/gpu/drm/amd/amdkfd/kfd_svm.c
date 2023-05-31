@@ -1826,6 +1826,7 @@ out_reschedule:
  * @mm: current process mm_struct
  * @start: starting process queue number
  * @last: last process queue number
+ * @event: mmu notifier event when range is evicted or migrated
  *
  * Stop all queues of the process to ensure GPU doesn't access the memory, then
  * return to let CPU evict the buffer and proceed CPU pagetable update.
