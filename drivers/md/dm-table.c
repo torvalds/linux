@@ -324,20 +324,6 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 }
 
 /*
- * Convert the path to a device
- */
-dev_t dm_get_dev_t(const char *path)
-{
-	dev_t dev;
-
-	if (lookup_bdev(path, &dev) &&
-	    early_lookup_bdev(path, &dev))
-		return 0;
-	return dev;
-}
-EXPORT_SYMBOL_GPL(dm_get_dev_t);
-
-/*
  * Add a device to the list, or just increment the usage count if
  * it's already present.
  */
@@ -359,9 +345,11 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		if (MAJOR(dev) != major || MINOR(dev) != minor)
 			return -EOVERFLOW;
 	} else {
-		dev = dm_get_dev_t(path);
-		if (!dev)
-			return -ENODEV;
+		r = lookup_bdev(path, &dev);
+		if (r)
+			r = early_lookup_bdev(path, &dev);
+		if (r)
+			return r;
 	}
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
