@@ -82,6 +82,7 @@ enum mv88e6xxx_model {
 	MV88E6350,
 	MV88E6351,
 	MV88E6352,
+	MV88E6361,
 	MV88E6390,
 	MV88E6390X,
 	MV88E6393X,
@@ -100,7 +101,7 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
 	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
-	MV88E6XXX_FAMILY_6393,	/* 6191X 6193X 6393X */
+	MV88E6XXX_FAMILY_6393,	/* 6191X 6193X 6361 6393X */
 };
 
 /**
@@ -167,6 +168,11 @@ struct mv88e6xxx_info {
 
 	/* Supports PTP */
 	bool ptp_support;
+
+	/* Internal PHY start index. 0 means that internal PHYs range starts at
+	 * port 0, 1 means internal PHYs range starts at port 1, etc
+	 */
+	unsigned int internal_phys_offset;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -513,7 +519,8 @@ struct mv88e6xxx_ops {
 				     int speed, int duplex);
 
 	/* What interface mode should be used for maximum speed? */
-	phy_interface_t (*port_max_speed_mode)(int port);
+	phy_interface_t (*port_max_speed_mode)(struct mv88e6xxx_chip *chip,
+					       int port);
 
 	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
 

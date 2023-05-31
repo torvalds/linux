@@ -133,6 +133,7 @@
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6220	0x2200
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6240	0x2400
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6250	0x2500
+#define MV88E6XXX_PORT_SWITCH_ID_PROD_6361	0x2610
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6290	0x2900
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6321	0x3100
 #define MV88E6XXX_PORT_SWITCH_ID_PROD_6141	0x3400
@@ -359,10 +360,14 @@ int mv88e6390x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex);
 
-phy_interface_t mv88e6341_port_max_speed_mode(int port);
-phy_interface_t mv88e6390_port_max_speed_mode(int port);
-phy_interface_t mv88e6390x_port_max_speed_mode(int port);
-phy_interface_t mv88e6393x_port_max_speed_mode(int port);
+phy_interface_t mv88e6341_port_max_speed_mode(struct mv88e6xxx_chip *chip,
+					      int port);
+phy_interface_t mv88e6390_port_max_speed_mode(struct mv88e6xxx_chip *chip,
+					      int port);
+phy_interface_t mv88e6390x_port_max_speed_mode(struct mv88e6xxx_chip *chip,
+					       int port);
+phy_interface_t mv88e6393x_port_max_speed_mode(struct mv88e6xxx_chip *chip,
+					       int port);
 
 int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
 
