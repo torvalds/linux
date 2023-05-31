@@ -294,39 +294,6 @@ __CMPXCHG_CASE( ,  ,  mb_, 64, dmb ish,  , l, "memory", L)
 
 #undef __CMPXCHG_CASE
 
-#define __CMPXCHG_DBL(name, mb, rel, cl)				\
-static __always_inline long						\
-__ll_sc__cmpxchg_double##name(unsigned long old1,			\
-				      unsigned long old2,		\
-				      unsigned long new1,		\
-				      unsigned long new2,		\
-				      volatile void *ptr)		\
-{									\
-	unsigned long tmp, ret;						\
-									\
-	asm volatile("// __cmpxchg_double" #name "\n"			\
-	"	prfm	pstl1strm, %2\n"				\
-	"1:	ldxp	%0, %1, %2\n"					\
-	"	eor	%0, %0, %3\n"					\
-	"	eor	%1, %1, %4\n"					\
-	"	orr	%1, %0, %1\n"					\
-	"	cbnz	%1, 2f\n"					\
-	"	st" #rel "xp	%w0, %5, %6, %2\n"			\
-	"	cbnz	%w0, 1b\n"					\
-	"	" #mb "\n"						\
-	"2:"								\
-	: "=&r" (tmp), "=&r" (ret), "+Q" (*(__uint128_t *)ptr)		\
-	: "r" (old1), "r" (old2), "r" (new1), "r" (new2)		\
-	: cl);								\
-									\
-	return ret;							\
-}
-
-__CMPXCHG_DBL(   ,        ,  ,         )
-__CMPXCHG_DBL(_mb, dmb ish, l, "memory")
-
-#undef __CMPXCHG_DBL
-
 union __u128_halves {
 	u128 full;
 	struct {

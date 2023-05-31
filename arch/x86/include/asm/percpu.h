@@ -351,23 +351,6 @@ do {									\
 #define this_cpu_cmpxchg_2(pcp, oval, nval)	percpu_cmpxchg_op(2, volatile, pcp, oval, nval)
 #define this_cpu_cmpxchg_4(pcp, oval, nval)	percpu_cmpxchg_op(4, volatile, pcp, oval, nval)
 
-#ifdef CONFIG_X86_CMPXCHG64
-#define percpu_cmpxchg8b_double(pcp1, pcp2, o1, o2, n1, n2)		\
-({									\
-	bool __ret;							\
-	typeof(pcp1) __o1 = (o1), __n1 = (n1);				\
-	typeof(pcp2) __o2 = (o2), __n2 = (n2);				\
-	asm volatile("cmpxchg8b "__percpu_arg(1)			\
-		     CC_SET(z)						\
-		     : CC_OUT(z) (__ret), "+m" (pcp1), "+m" (pcp2), "+a" (__o1), "+d" (__o2) \
-		     : "b" (__n1), "c" (__n2));				\
-	__ret;								\
-})
-
-#define raw_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
-#define this_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
-#endif /* CONFIG_X86_CMPXCHG64 */
-
 /*
  * Per cpu atomic 64 bit operations are only available under 64 bit.
  * 32 bit must fall back to generic operations.
@@ -390,31 +373,6 @@ do {									\
 #define this_cpu_add_return_8(pcp, val)		percpu_add_return_op(8, volatile, pcp, val)
 #define this_cpu_xchg_8(pcp, nval)		percpu_xchg_op(8, volatile, pcp, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(8, volatile, pcp, oval, nval)
-
-/*
- * Pretty complex macro to generate cmpxchg16 instruction.  The instruction
- * is not supported on early AMD64 processors so we must be able to emulate
- * it in software.  The address used in the cmpxchg16 instruction must be
- * aligned to a 16 byte boundary.
- */
-#define percpu_cmpxchg16b_double(pcp1, pcp2, o1, o2, n1, n2)		\
-({									\
-	bool __ret;							\
-	typeof(pcp1) __o1 = (o1), __n1 = (n1);				\
-	typeof(pcp2) __o2 = (o2), __n2 = (n2);				\
-	asm volatile (ALTERNATIVE("leaq %P1, %%rsi; call this_cpu_cmpxchg16b_emu", \
-				  "cmpxchg16b " __percpu_arg(1), X86_FEATURE_CX16) \
-			     "setz %0"					\
-			     : "=a" (__ret), "+m" (pcp1)		\
-			     : "b" (__n1), "c" (__n2),			\
-			       "a" (__o1), "d" (__o2)			\
-			     : "memory", "rsi");			\
-	__ret;								\
-})
-
-#define raw_cpu_cmpxchg_double_8	percpu_cmpxchg16b_double
-#define this_cpu_cmpxchg_double_8	percpu_cmpxchg16b_double
-
 #endif
 
 static __always_inline bool x86_this_cpu_constant_test_bit(unsigned int nr,

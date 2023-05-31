@@ -180,24 +180,6 @@
 #define this_cpu_xchg_4(pcp, nval) arch_this_cpu_xchg(pcp, nval)
 #define this_cpu_xchg_8(pcp, nval) arch_this_cpu_xchg(pcp, nval)
 
-#define arch_this_cpu_cmpxchg_double(pcp1, pcp2, o1, o2, n1, n2)	    \
-({									    \
-	typeof(pcp1) *p1__;						    \
-	typeof(pcp2) *p2__;						    \
-	int ret__;							    \
-									    \
-	preempt_disable_notrace();					    \
-	p1__ = raw_cpu_ptr(&(pcp1));					    \
-	p2__ = raw_cpu_ptr(&(pcp2));					    \
-	ret__ = __cmpxchg_double((unsigned long)p1__, (unsigned long)p2__,  \
-				 (unsigned long)(o1), (unsigned long)(o2),  \
-				 (unsigned long)(n1), (unsigned long)(n2)); \
-	preempt_enable_notrace();					    \
-	ret__;								    \
-})
-
-#define this_cpu_cmpxchg_double_8 arch_this_cpu_cmpxchg_double
-
 #include <asm-generic/percpu.h>
 
 #endif /* __ARCH_S390_PERCPU__ */

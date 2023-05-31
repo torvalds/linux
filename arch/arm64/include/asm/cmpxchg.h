@@ -130,22 +130,6 @@ __CMPXCHG_CASE(mb_, 64)
 
 #undef __CMPXCHG_CASE
 
-#define __CMPXCHG_DBL(name)						\
-static inline long __cmpxchg_double##name(unsigned long old1,		\
-					 unsigned long old2,		\
-					 unsigned long new1,		\
-					 unsigned long new2,		\
-					 volatile void *ptr)		\
-{									\
-	return __lse_ll_sc_body(_cmpxchg_double##name, 			\
-				old1, old2, new1, new2, ptr);		\
-}
-
-__CMPXCHG_DBL(   )
-__CMPXCHG_DBL(_mb)
-
-#undef __CMPXCHG_DBL
-
 #define __CMPXCHG128(name)						\
 static inline u128 __cmpxchg128##name(volatile u128 *ptr,		\
 				      u128 old, u128 new)		\
@@ -210,36 +194,6 @@ __CMPXCHG_GEN(_mb)
 #define arch_cmpxchg64_release		arch_cmpxchg_release
 #define arch_cmpxchg64			arch_cmpxchg
 #define arch_cmpxchg64_local		arch_cmpxchg_local
-
-/* cmpxchg_double */
-#define system_has_cmpxchg_double()     1
-
-#define __cmpxchg_double_check(ptr1, ptr2)					\
-({										\
-	if (sizeof(*(ptr1)) != 8)						\
-		BUILD_BUG();							\
-	VM_BUG_ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
-})
-
-#define arch_cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2)				\
-({										\
-	int __ret;								\
-	__cmpxchg_double_check(ptr1, ptr2);					\
-	__ret = !__cmpxchg_double_mb((unsigned long)(o1), (unsigned long)(o2),	\
-				     (unsigned long)(n1), (unsigned long)(n2),	\
-				     ptr1);					\
-	__ret;									\
-})
-
-#define arch_cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2)			\
-({										\
-	int __ret;								\
-	__cmpxchg_double_check(ptr1, ptr2);					\
-	__ret = !__cmpxchg_double((unsigned long)(o1), (unsigned long)(o2),	\
-				  (unsigned long)(n1), (unsigned long)(n2),	\
-				  ptr1);					\
-	__ret;									\
-})
 
 /* cmpxchg128 */
 #define system_has_cmpxchg128()		1

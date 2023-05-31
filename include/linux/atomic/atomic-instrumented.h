@@ -2234,21 +2234,6 @@ atomic_long_dec_if_positive(atomic_long_t *v)
 	arch_try_cmpxchg128_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
 })
 
-#define cmpxchg_double(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, 2 * sizeof(*__ai_ptr)); \
-	arch_cmpxchg_double(__ai_ptr, __VA_ARGS__); \
-})
-
-
-#define cmpxchg_double_local(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, 2 * sizeof(*__ai_ptr)); \
-	arch_cmpxchg_double_local(__ai_ptr, __VA_ARGS__); \
-})
 
 #endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
-// 82d1be694fab30414527d0877c29fa75ed5a0b74
+// 3611991b015450e119bcd7417a9431af7f3ba13c

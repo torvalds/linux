@@ -84,7 +84,6 @@ gen_xchg()
 {
 	local xchg="$1"; shift
 	local order="$1"; shift
-	local mult="$1"; shift
 
 	kcsan_barrier=""
 	if [ "${xchg%_local}" = "${xchg}" ]; then
@@ -104,8 +103,8 @@ cat <<EOF
 EOF
 [ -n "$kcsan_barrier" ] && printf "\t${kcsan_barrier}; \\\\\n"
 cat <<EOF
-	instrument_atomic_read_write(__ai_ptr, ${mult}sizeof(*__ai_ptr)); \\
-	instrument_read_write(__ai_oldp, ${mult}sizeof(*__ai_oldp)); \\
+	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \\
+	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \\
 	arch_${xchg}${order}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
 })
 EOF
@@ -168,21 +167,15 @@ done
 
 for xchg in "xchg" "cmpxchg" "cmpxchg64" "cmpxchg128" "try_cmpxchg" "try_cmpxchg64" "try_cmpxchg128"; do
 	for order in "" "_acquire" "_release" "_relaxed"; do
-		gen_xchg "${xchg}" "${order}" ""
+		gen_xchg "${xchg}" "${order}"
 		printf "\n"
 	done
 done
 
 for xchg in "cmpxchg_local" "cmpxchg64_local" "cmpxchg128_local" "sync_cmpxchg" "try_cmpxchg_local" "try_cmpxchg64_local" "try_cmpxchg128_local"; do
-	gen_xchg "${xchg}" "" ""
+	gen_xchg "${xchg}" ""
 	printf "\n"
 done
-
-gen_xchg "cmpxchg_double" "" "2 * "
-
-printf "\n\n"
-
-gen_xchg "cmpxchg_double_local" "" "2 * "
 
 cat <<EOF
 
