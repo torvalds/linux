@@ -25,7 +25,7 @@
 #include <linux/sizes.h>
 #include <linux/cma.h>
 
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

@@ -26,7 +26,7 @@
 #include <linux/clk.h>
 
 #include <asm/setup.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <linux/sizes.h>

@@ -17,7 +17,6 @@
 #include <asm/cputype.h>
 #include <asm/highmem.h>
 #include <asm/mach/map.h>
-#include <asm/memory.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/procinfo.h>
