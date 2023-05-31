@@ -2501,7 +2501,7 @@ static void ufshcd_sgl_to_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp, int
 			 * 11b to indicate Dword granularity. A value of '3'
 			 * indicates 4 bytes, '7' indicates 8 bytes, etc."
 			 */
-			WARN_ONCE(len > 256 * 1024, "len = %#x\n", len);
+			WARN_ONCE(len > SZ_256K, "len = %#x\n", len);
 			prd->size = cpu_to_le32(len - 1);
 			prd->addr = cpu_to_le64(sg->dma_address);
 			prd->reserved = 0;
@@ -3733,7 +3733,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 
 	/*
 	 * Allocate memory for UTP Transfer descriptors
-	 * UFSHCI requires 1024 byte alignment of UTRD
+	 * UFSHCI requires 1KB alignment of UTRD
 	 */
 	utrdl_size = (sizeof(struct utp_transfer_req_desc) * hba->nutrs);
 	hba->utrdl_base_addr = dmam_alloc_coherent(hba->dev,
@@ -3741,7 +3741,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 						   &hba->utrdl_dma_addr,
 						   GFP_KERNEL);
 	if (!hba->utrdl_base_addr ||
-	    WARN_ON(hba->utrdl_dma_addr & (1024 - 1))) {
+	    WARN_ON(hba->utrdl_dma_addr & (SZ_1K - 1))) {
 		dev_err(hba->dev,
 			"Transfer Descriptor Memory allocation failed\n");
 		goto out;
@@ -3757,7 +3757,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 		goto skip_utmrdl;
 	/*
 	 * Allocate memory for UTP Task Management descriptors
-	 * UFSHCI requires 1024 byte alignment of UTMRD
+	 * UFSHCI requires 1KB alignment of UTMRD
 	 */
 	utmrdl_size = sizeof(struct utp_task_req_desc) * hba->nutmrs;
 	hba->utmrdl_base_addr = dmam_alloc_coherent(hba->dev,
@@ -3765,7 +3765,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 						    &hba->utmrdl_dma_addr,
 						    GFP_KERNEL);
 	if (!hba->utmrdl_base_addr ||
-	    WARN_ON(hba->utmrdl_dma_addr & (1024 - 1))) {
+	    WARN_ON(hba->utmrdl_dma_addr & (SZ_1K - 1))) {
 		dev_err(hba->dev,
 		"Task Management Descriptor Memory allocation failed\n");
 		goto out;
@@ -5102,7 +5102,7 @@ static int ufshcd_slave_configure(struct scsi_device *sdev)
 
 	blk_queue_update_dma_pad(q, PRDT_DATA_BYTE_COUNT_PAD - 1);
 	if (hba->quirks & UFSHCD_QUIRK_4KB_DMA_ALIGNMENT)
-		blk_queue_update_dma_alignment(q, 4096 - 1);
+		blk_queue_update_dma_alignment(q, SZ_4K - 1);
 	/*
 	 * Block runtime-pm until all consumers are added.
 	 * Refer ufshcd_setup_links().
@@ -8728,7 +8728,7 @@ static const struct scsi_host_template ufshcd_driver_template = {
 	.cmd_per_lun		= UFSHCD_CMD_PER_LUN,
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_segment_size	= PRDT_DATA_BYTE_COUNT_MAX,
-	.max_sectors		= (1 << 20) / SECTOR_SIZE, /* 1 MiB */
+	.max_sectors		= SZ_1M / SECTOR_SIZE,
 	.max_host_blocked	= 1,
 	.track_queue_depth	= 1,
 	.skip_settle_delay	= 1,

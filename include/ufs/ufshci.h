@@ -453,7 +453,7 @@ enum {
 };
 
 /* The maximum length of the data byte count field in the PRDT is 256KB */
-#define PRDT_DATA_BYTE_COUNT_MAX	(256 * 1024)
+#define PRDT_DATA_BYTE_COUNT_MAX	SZ_256K
 /* The granularity of the data byte count field in the PRDT is 32-bit */
 #define PRDT_DATA_BYTE_COUNT_PAD	4
 

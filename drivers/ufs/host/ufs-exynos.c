@@ -1306,7 +1306,7 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 		 * (ufshcd_async_scan()). Note: this callback may also be called
 		 * from other functions than ufshcd_init().
 		 */
-		hba->host->max_segment_size = 4096;
+		hba->host->max_segment_size = SZ_4K;
 
 		if (ufs->drv_data->pre_hce_enable) {
 			ret = ufs->drv_data->pre_hce_enable(ufs);
