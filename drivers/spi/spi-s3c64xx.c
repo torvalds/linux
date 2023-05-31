@@ -1244,46 +1244,28 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Setup clocks */
-	sdd->clk = devm_clk_get(&pdev->dev, "spi");
+	sdd->clk = devm_clk_get_enabled(&pdev->dev, "spi");
 	if (IS_ERR(sdd->clk)) {
 		dev_err(&pdev->dev, "Unable to acquire clock 'spi'\n");
 		ret = PTR_ERR(sdd->clk);
 		goto err_deref_master;
 	}
 
-	ret = clk_prepare_enable(sdd->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't enable clock 'spi'\n");
-		goto err_deref_master;
-	}
-
 	sprintf(clk_name, "spi_busclk%d", sci->src_clk_nr);
-	sdd->src_clk = devm_clk_get(&pdev->dev, clk_name);
+	sdd->src_clk = devm_clk_get_enabled(&pdev->dev, clk_name);
 	if (IS_ERR(sdd->src_clk)) {
 		dev_err(&pdev->dev,
 			"Unable to acquire clock '%s'\n", clk_name);
 		ret = PTR_ERR(sdd->src_clk);
-		goto err_disable_clk;
-	}
-
-	ret = clk_prepare_enable(sdd->src_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't enable clock '%s'\n", clk_name);
-		goto err_disable_clk;
+		goto err_deref_master;
 	}
 
 	if (sdd->port_conf->clk_ioclk) {
-		sdd->ioclk = devm_clk_get(&pdev->dev, "spi_ioclk");
+		sdd->ioclk = devm_clk_get_enabled(&pdev->dev, "spi_ioclk");
 		if (IS_ERR(sdd->ioclk)) {
 			dev_err(&pdev->dev, "Unable to acquire 'ioclk'\n");
 			ret = PTR_ERR(sdd->ioclk);
-			goto err_disable_src_clk;
-		}
-
-		ret = clk_prepare_enable(sdd->ioclk);
-		if (ret) {
-			dev_err(&pdev->dev, "Couldn't enable clock 'ioclk'\n");
-			goto err_disable_src_clk;
+			goto err_deref_master;
 		}
 	}
 
@@ -1332,11 +1314,6 @@ err_pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	clk_disable_unprepare(sdd->ioclk);
-err_disable_src_clk:
-	clk_disable_unprepare(sdd->src_clk);
-err_disable_clk:
-	clk_disable_unprepare(sdd->clk);
 err_deref_master:
 	spi_master_put(master);
 
@@ -1356,12 +1333,6 @@ static void s3c64xx_spi_remove(struct platform_device *pdev)
 		dma_release_channel(sdd->rx_dma.ch);
 		dma_release_channel(sdd->tx_dma.ch);
 	}
-
-	clk_disable_unprepare(sdd->ioclk);
-
-	clk_disable_unprepare(sdd->src_clk);
-
-	clk_disable_unprepare(sdd->clk);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
