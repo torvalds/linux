@@ -956,7 +956,8 @@ F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
 F:	drivers/net/ethernet/amazon/
 
 AMAZON RDMA EFA DRIVER
-M:	Gal Pressman <galpress@amazon.com>
+M:	Michael Margolin <mrgolin@amazon.com>
+R:	Gal Pressman <gal.pressman@linux.dev>
 R:	Yossi Leybovich <sleybo@amazon.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -9343,7 +9344,7 @@ F:	include/linux/hisi_acc_qm.h
 
 HISILICON ROCE DRIVER
 M:	Haoyue Xu <xuhaoyue1@hisilicon.com>
-M:	Wenpeng Liang <liangwenpeng@huawei.com>
+M:	Junxian Huang <huangjunxian6@hisilicon.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/infiniband/hisilicon-hns-roce.txt
