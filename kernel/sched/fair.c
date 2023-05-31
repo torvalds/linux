@@ -715,6 +715,15 @@ u64 avg_vruntime(struct cfs_rq *cfs_rq)
 	return cfs_rq->min_vruntime + avg;
 }
 
+/*
+ * lag_i = S - s_i = w_i * (V - v_i)
+ */
+void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	SCHED_WARN_ON(!se->on_rq);
+	se->vlag = avg_vruntime(cfs_rq) - se->vruntime;
+}
+
 static u64 __update_min_vruntime(struct cfs_rq *cfs_rq, u64 vruntime)
 {
 	u64 min_vruntime = cfs_rq->min_vruntime;
@@ -3492,6 +3501,8 @@ dequeue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) { }
 static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			    unsigned long weight)
 {
+	unsigned long old_weight = se->load.weight;
+
 	if (se->on_rq) {
 		/* commit outstanding execution time */
 		if (cfs_rq->curr == se)
@@ -3503,6 +3514,14 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	dequeue_load_avg(cfs_rq, se);
 
 	update_load_set(&se->load, weight);
+
+	if (!se->on_rq) {
+		/*
+		 * Because we keep se->vlag = V - v_i, while: lag_i = w_i*(V - v_i),
+		 * we need to scale se->vlag when w_i changes.
+		 */
+		se->vlag = div_s64(se->vlag * old_weight, weight);
+	}
 
 #ifdef CONFIG_SMP
 	do {
@@ -4853,49 +4872,119 @@ static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
 	u64 vruntime = avg_vruntime(cfs_rq);
-
-	/* sleeps up to a single latency don't count. */
-	if (!initial) {
-		unsigned long thresh;
-
-		if (se_is_idle(se))
-			thresh = sysctl_sched_min_granularity;
-		else
-			thresh = sysctl_sched_latency;
-
-		/*
-		 * Halve their sleep time's effect, to allow
-		 * for a gentler effect of sleepers:
-		 */
-		if (sched_feat(GENTLE_FAIR_SLEEPERS))
-			thresh >>= 1;
-
-		vruntime -= thresh;
-	}
+	s64 lag = 0;
 
 	/*
-	 * Pull vruntime of the entity being placed to the base level of
-	 * cfs_rq, to prevent boosting it if placed backwards.
-	 * However, min_vruntime can advance much faster than real time, with
-	 * the extreme being when an entity with the minimal weight always runs
-	 * on the cfs_rq. If the waking entity slept for a long time, its
-	 * vruntime difference from min_vruntime may overflow s64 and their
-	 * comparison may get inversed, so ignore the entity's original
-	 * vruntime in that case.
-	 * The maximal vruntime speedup is given by the ratio of normal to
-	 * minimal weight: scale_load_down(NICE_0_LOAD) / MIN_SHARES.
-	 * When placing a migrated waking entity, its exec_start has been set
-	 * from a different rq. In order to take into account a possible
-	 * divergence between new and prev rq's clocks task because of irq and
-	 * stolen time, we take an additional margin.
-	 * So, cutting off on the sleep time of
-	 *     2^63 / scale_load_down(NICE_0_LOAD) ~ 104 days
-	 * should be safe.
+	 * Due to how V is constructed as the weighted average of entities,
+	 * adding tasks with positive lag, or removing tasks with negative lag
+	 * will move 'time' backwards, this can screw around with the lag of
+	 * other tasks.
+	 *
+	 * EEVDF: placement strategy #1 / #2
 	 */
-	if (entity_is_long_sleeper(se))
-		se->vruntime = vruntime;
-	else
-		se->vruntime = max_vruntime(se->vruntime, vruntime);
+	if (sched_feat(PLACE_LAG) && cfs_rq->nr_running > 1) {
+		struct sched_entity *curr = cfs_rq->curr;
+		unsigned long load;
+
+		lag = se->vlag;
+
+		/*
+		 * If we want to place a task and preserve lag, we have to
+		 * consider the effect of the new entity on the weighted
+		 * average and compensate for this, otherwise lag can quickly
+		 * evaporate.
+		 *
+		 * Lag is defined as:
+		 *
+		 *   lag_i = S - s_i = w_i * (V - v_i)
+		 *
+		 * To avoid the 'w_i' term all over the place, we only track
+		 * the virtual lag:
+		 *
+		 *   vl_i = V - v_i <=> v_i = V - vl_i
+		 *
+		 * And we take V to be the weighted average of all v:
+		 *
+		 *   V = (\Sum w_j*v_j) / W
+		 *
+		 * Where W is: \Sum w_j
+		 *
+		 * Then, the weighted average after adding an entity with lag
+		 * vl_i is given by:
+		 *
+		 *   V' = (\Sum w_j*v_j + w_i*v_i) / (W + w_i)
+		 *      = (W*V + w_i*(V - vl_i)) / (W + w_i)
+		 *      = (W*V + w_i*V - w_i*vl_i) / (W + w_i)
+		 *      = (V*(W + w_i) - w_i*l) / (W + w_i)
+		 *      = V - w_i*vl_i / (W + w_i)
+		 *
+		 * And the actual lag after adding an entity with vl_i is:
+		 *
+		 *   vl'_i = V' - v_i
+		 *         = V - w_i*vl_i / (W + w_i) - (V - vl_i)
+		 *         = vl_i - w_i*vl_i / (W + w_i)
+		 *
+		 * Which is strictly less than vl_i. So in order to preserve lag
+		 * we should inflate the lag before placement such that the
+		 * effective lag after placement comes out right.
+		 *
+		 * As such, invert the above relation for vl'_i to get the vl_i
+		 * we need to use such that the lag after placement is the lag
+		 * we computed before dequeue.
+		 *
+		 *   vl'_i = vl_i - w_i*vl_i / (W + w_i)
+		 *         = ((W + w_i)*vl_i - w_i*vl_i) / (W + w_i)
+		 *
+		 *   (W + w_i)*vl'_i = (W + w_i)*vl_i - w_i*vl_i
+		 *                   = W*vl_i
+		 *
+		 *   vl_i = (W + w_i)*vl'_i / W
+		 */
+		load = cfs_rq->avg_load;
+		if (curr && curr->on_rq)
+			load += curr->load.weight;
+
+		lag *= load + se->load.weight;
+		if (WARN_ON_ONCE(!load))
+			load = 1;
+		lag = div_s64(lag, load);
+
+		vruntime -= lag;
+	}
+
+	if (sched_feat(FAIR_SLEEPERS)) {
+
+		/* sleeps up to a single latency don't count. */
+		if (!initial) {
+			unsigned long thresh;
+
+			if (se_is_idle(se))
+				thresh = sysctl_sched_min_granularity;
+			else
+				thresh = sysctl_sched_latency;
+
+			/*
+			 * Halve their sleep time's effect, to allow
+			 * for a gentler effect of sleepers:
+			 */
+			if (sched_feat(GENTLE_FAIR_SLEEPERS))
+				thresh >>= 1;
+
+			vruntime -= thresh;
+		}
+
+		/*
+		 * Pull vruntime of the entity being placed to the base level of
+		 * cfs_rq, to prevent boosting it if placed backwards.  If the entity
+		 * slept for a long time, don't even try to compare its vruntime with
+		 * the base as it may be too far off and the comparison may get
+		 * inversed due to s64 overflow.
+		 */
+		if (!entity_is_long_sleeper(se))
+			vruntime = max_vruntime(se->vruntime, vruntime);
+	}
+
+	se->vruntime = vruntime;
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
@@ -5076,6 +5165,9 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	update_stats_dequeue_fair(cfs_rq, se, flags);
 
 	clear_buddies(cfs_rq, se);
+
+	if (flags & DEQUEUE_SLEEP)
+		update_entity_lag(cfs_rq, se);
 
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
