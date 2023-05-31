@@ -610,7 +610,6 @@ struct ufs_qcom_host {
 	struct list_head regs_list_head;
 	bool ber_th_exceeded;
 
-	int esi_base;
 	bool esi_enabled;
 
 	bool bypass_pbl_rst_wa;
