@@ -798,9 +798,10 @@ unlock_out:
 	return -EIO;
 }
 
-static int gfs2_write_disk_quota(struct gfs2_inode *ip, struct gfs2_quota *qp,
+static int gfs2_write_disk_quota(struct gfs2_sbd *sdp, struct gfs2_quota *qp,
 				 loff_t loc)
 {
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	unsigned long pg_beg;
 	unsigned pg_off, nbytes, overflow = 0;
 	int pg_oflow = 0, error;
@@ -884,7 +885,7 @@ static int gfs2_adjust_quota(struct gfs2_sbd *sdp, loff_t loc,
 		}
 	}
 
-	err = gfs2_write_disk_quota(ip, &q, loc);
+	err = gfs2_write_disk_quota(sdp, &q, loc);
 	if (!err) {
 		size = loc + sizeof(struct gfs2_quota);
 		if (size > inode->i_size)
