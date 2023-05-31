@@ -1725,9 +1725,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
-		iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
-					 IWL_TIME_SYNC_PROTOCOL_TM |
-					 IWL_TIME_SYNC_PROTOCOL_FTM);
+
+		if (mvm->time_sync.active)
+			iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
+						 IWL_TIME_SYNC_PROTOCOL_TM |
+						 IWL_TIME_SYNC_PROTOCOL_FTM);
 	}
 
 	if (!mvm->ptp_data.ptp_clock)
