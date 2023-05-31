@@ -19,6 +19,7 @@ blocklist fc2580
 blocklist it913x
 blocklist kheaders
 blocklist limits_stat
+blocklist limits_stress
 blocklist lkdtm
 blocklist llcc_perfmon
 blocklist locktorture
