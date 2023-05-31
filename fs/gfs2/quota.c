@@ -802,7 +802,7 @@ static int gfs2_write_disk_quota(struct gfs2_sbd *sdp, struct gfs2_quota *qp,
 {
 	unsigned long pg_beg;
 	unsigned pg_off, nbytes, overflow = 0;
-	int pg_oflow = 0, error;
+	int error;
 	void *ptr;
 
 	nbytes = sizeof(struct gfs2_quota);
@@ -811,16 +811,14 @@ static int gfs2_write_disk_quota(struct gfs2_sbd *sdp, struct gfs2_quota *qp,
 	pg_off = offset_in_page(loc);
 
 	/* If the quota straddles a page boundary, split the write in two */
-	if ((pg_off + nbytes) > PAGE_SIZE) {
-		pg_oflow = 1;
+	if ((pg_off + nbytes) > PAGE_SIZE)
 		overflow = (pg_off + nbytes) - PAGE_SIZE;
-	}
 
 	ptr = qp;
 	error = gfs2_write_buf_to_page(sdp, pg_beg, pg_off, ptr,
 				       nbytes - overflow);
 	/* If there's an overflow, write the remaining bytes to the next page */
-	if (!error && pg_oflow)
+	if (!error && overflow)
 		error = gfs2_write_buf_to_page(sdp, pg_beg + 1, 0,
 					       ptr + nbytes - overflow,
 					       overflow);
