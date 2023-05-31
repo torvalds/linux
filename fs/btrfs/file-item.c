@@ -721,13 +721,12 @@ fail:
  */
 blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 {
+	struct btrfs_ordered_extent *ordered = bbio->ordered;
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	struct bio *bio = &bbio->bio;
-	u64 offset = bbio->file_offset;
 	struct btrfs_ordered_sum *sums;
-	struct btrfs_ordered_extent *ordered = NULL;
 	char *data;
 	struct bvec_iter iter;
 	struct bio_vec bvec;
@@ -753,22 +752,6 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 	shash->tfm = fs_info->csum_shash;
 
 	bio_for_each_segment(bvec, bio, iter) {
-		if (!ordered) {
-			ordered = btrfs_lookup_ordered_extent(inode, offset);
-			/*
-			 * The bio range is not covered by any ordered extent,
-			 * must be a code logic error.
-			 */
-			if (unlikely(!ordered)) {
-				WARN(1, KERN_WARNING
-			"no ordered extent for root %llu ino %llu offset %llu\n",
-				     inode->root->root_key.objectid,
-				     btrfs_ino(inode), offset);
-				kvfree(sums);
-				return BLK_STS_IOERR;
-			}
-		}
-
 		blockcount = BTRFS_BYTES_TO_BLKS(fs_info,
 						 bvec.bv_len + fs_info->sectorsize
 						 - 1);
@@ -781,14 +764,12 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 					    sums->sums + index);
 			kunmap_local(data);
 			index += fs_info->csum_size;
-			offset += fs_info->sectorsize;
 		}
 
 	}
 
 	bbio->sums = sums;
 	btrfs_add_ordered_sum(ordered, sums);
-	btrfs_put_ordered_extent(ordered);
 	return 0;
 }
 
