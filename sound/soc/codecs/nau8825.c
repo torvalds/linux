@@ -1704,6 +1704,10 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 {
 	struct regmap *regmap = nau8825->regmap;
 
+	/* Enable HSD function */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_HSD_AUTO_MODE, NAU8825_HSD_AUTO_MODE);
+
 	/* Enable headset jack type detection complete interruption and
 	 * jack ejection interruption.
 	 */
@@ -1954,6 +1958,9 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 	/* Update to the default divider of internal clock for power saving */
 	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			   NAU8825_CLK_MCLK_SRC_MASK, 0xf);
+
+	/* Disable HSD function */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL, NAU8825_HSD_AUTO_MODE, 0);
 
 	/* Leaving HPOL/R grounded after jack insert by default. They will be
 	 * ungrounded as part of the widget power up sequence at the beginning
