@@ -17,6 +17,7 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <poll.h>
+#include <limits.h>
 #include <lkl_host.h>
 #include "iomem.h"
 #include "jmp_buf.h"
@@ -247,7 +248,7 @@ void *thread_stack(unsigned long *size)
 	return thread_stack;
 }
 
-static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
+static struct lkl_tls_key *tsd_alloc(void (*destructor)(void *))
 {
 	struct lkl_tls_key *ret = malloc(sizeof(struct lkl_tls_key));
 
@@ -258,23 +259,106 @@ static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
 	return ret;
 }
 
-static void tls_free(struct lkl_tls_key *key)
+static void tsd_free(struct lkl_tls_key *key)
 {
 	WARN_PTHREAD(pthread_key_delete(key->key));
 	free(key);
 }
 
-static int tls_set(struct lkl_tls_key *key, void *data)
+static int tsd_set(struct lkl_tls_key *key, void *data)
 {
 	if (WARN_PTHREAD(pthread_setspecific(key->key, data)))
 		return -1;
 	return 0;
 }
 
-static void *tls_get(struct lkl_tls_key *key)
+static void *tsd_get(struct lkl_tls_key *key)
 {
 	return pthread_getspecific(key->key);
 }
+
+/**
+ * when LKL is loaded via dl*m*open(3), the pthread_getspecific()
+ * doesn't work correctly, as a global symbol, __pthread_keys, is
+ * duplicated across multiple namespaces and conflicts the same keys
+ * in multiple users of TSD in a single process, which makes our case
+ * impossible to work (e.g., host_task from each thread).
+ *
+ * To work around this issue, we use TLS, using __thread which doesn't
+ * require any conflict global symbols.  but the default __thread uses
+ * __tls_get_addr() of glibc function, calling futex, and making a
+ * dead-lock in our thread.  So explicitly initialize with
+ * initial-exec is needed.
+ *
+ * We'll still use the previous *TSD* (thread specific data)
+ * implementation based on pthread_key_create, as the most of the
+ * cases, don't hit this situation, as dlmopen is not a common
+ * practice and a few implementation (i.e., like glibc) has this
+ * function.
+ *
+ */
+#define LKL_MAX_TLS_KEYS           (PTHREAD_KEYS_MAX/8) /* 1024/8 = 128 */
+struct __lkl_tls_keys {
+	int used;
+	void *data;
+};
+static __thread struct __lkl_tls_keys __tls_keys[LKL_MAX_TLS_KEYS];
+
+static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
+{
+	int idx;
+	struct lkl_tls_key *ret = malloc(sizeof(struct lkl_tls_key));
+
+	for (idx = 0; idx < LKL_MAX_TLS_KEYS; idx++) {
+		/* data = NULL means the key unused */
+		if (__tls_keys[idx].used == 0) {
+			ret->key = (pthread_key_t)idx;
+			__tls_keys[idx].used = 1;
+			return ret;
+		}
+	}
+
+	/* if there are no unused keys, return NULL */
+	free(ret);
+	return NULL;
+}
+
+static void tls_free(struct lkl_tls_key *key)
+{
+	int idx = (int)key->key;
+
+	if (idx < 0 || idx >= LKL_MAX_TLS_KEYS) {
+		lkl_printf("%s; key not found\n", __func__);
+		return;
+	}
+	__tls_keys[idx].used = 0;
+	free(key);
+}
+
+static int tls_set(struct lkl_tls_key *key, void *data)
+{
+	int idx = (int)key->key;
+
+	if (idx < 0 || idx >= LKL_MAX_TLS_KEYS) {
+		lkl_printf("%s; key not found\n", __func__);
+		return -1;
+	}
+	__tls_keys[idx].data = data;
+	return 0;
+}
+
+static void *tls_get(struct lkl_tls_key *key)
+{
+	int idx = (int)key->key;
+
+	if (idx < 0 || idx >= LKL_MAX_TLS_KEYS) {
+		lkl_printf("%s; key not found\n", __func__);
+		return NULL;
+	}
+
+	return __tls_keys[idx].data;
+}
+
 
 static unsigned long long time_ns(void)
 {
@@ -423,10 +507,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.mutex_free = mutex_free,
 	.mutex_lock = mutex_lock,
 	.mutex_unlock = mutex_unlock,
-	.tls_alloc = tls_alloc,
-	.tls_free = tls_free,
-	.tls_set = tls_set,
-	.tls_get = tls_get,
+	.tls_alloc = tsd_alloc,
+	.tls_free = tsd_free,
+	.tls_set = tsd_set,
+	.tls_get = tsd_get,
 	.time = time_ns,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,
@@ -450,6 +534,14 @@ struct lkl_host_operations lkl_host_ops = {
 	.pci_ops = &vfio_pci_ops,
 #endif
 };
+
+void lkl_change_tls_mode(void)
+{
+	lkl_host_ops.tls_alloc = tls_alloc;
+	lkl_host_ops.tls_free = tls_free;
+	lkl_host_ops.tls_set = tls_set;
+	lkl_host_ops.tls_get = tls_get;
+}
 
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
 {
