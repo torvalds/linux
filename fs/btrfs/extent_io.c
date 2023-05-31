@@ -484,7 +484,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 static bool btrfs_verify_page(struct page *page, u64 start)
 {
 	if (!fsverity_active(page->mapping->host) ||
-	    PageError(page) || PageUptodate(page) ||
+	    PageUptodate(page) ||
 	    start >= i_size_read(page->mapping->host))
 		return true;
 	return fsverity_verify_page(page);
