@@ -94,18 +94,15 @@ uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 }
 
 /**
- * ********************************************************************************************
- * dcn32_helper_calculate_num_ways_for_subvp: Calculate number of ways needed for SubVP
+ * dcn32_helper_calculate_num_ways_for_subvp(): Calculate number of ways needed for SubVP
  *
  * Gets total allocation required for the phantom viewport calculated by DML in bytes and
  * converts to number of cache ways.
  *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
+ * @dc: current dc state
+ * @context: new dc state
  *
- * @return: number of ways required for SubVP
- *
- * ********************************************************************************************
+ * Return: number of ways required for SubVP
  */
 uint32_t dcn32_helper_calculate_num_ways_for_subvp(
 		struct dc *dc,
@@ -261,8 +258,7 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
 #define DCN3_2_NEW_DET_OVERRIDE_MIN_MULTIPLIER 7
 
 /**
- * *******************************************************************************************
- * dcn32_determine_det_override: Determine DET allocation for each pipe
+ * dcn32_determine_det_override(): Determine DET allocation for each pipe
  *
  * This function determines how much DET to allocate for each pipe. The total number of
  * DET segments will be split equally among each of the streams, and after that the DET
@@ -290,13 +286,11 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
  * 3. Assign smaller DET size for lower pixel display and higher DET size for
  *    higher pixel display
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
- * @param [in]: pipes: Array of DML pipes
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @pipes: Array of DML pipes
  *
- * @return: void
- *
- * *******************************************************************************************
+ * Return: void
  */
 void dcn32_determine_det_override(struct dc *dc,
 		struct dc_state *context,
@@ -432,8 +426,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 }
 
 /**
- * *******************************************************************************************
- * dcn32_save_mall_state: Save MALL (SubVP) state for fast validation cases
+ * dcn32_save_mall_state(): Save MALL (SubVP) state for fast validation cases
  *
  * This function saves the MALL (SubVP) case for fast validation cases. For fast validation,
  * there are situations where a shallow copy of the dc->current_state is created for the
@@ -446,13 +439,11 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
  * NOTE: This function ONLY works if the streams are not moved to a different pipe in the
  *       validation. We don't expect this to happen in fast_validation=1 cases.
  *
- * @param [in]: dc: Current DC state
- * @param [in]: context: New DC state to be programmed
- * @param [out]: temp_config: struct used to cache the existing MALL state
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @temp_config: struct used to cache the existing MALL state
  *
- * @return: void
- *
- * *******************************************************************************************
+ * Return: void
  */
 void dcn32_save_mall_state(struct dc *dc,
 		struct dc_state *context,
@@ -472,18 +463,15 @@ void dcn32_save_mall_state(struct dc *dc,
 }
 
 /**
- * *******************************************************************************************
- * dcn32_restore_mall_state: Restore MALL (SubVP) state for fast validation cases
+ * dcn32_restore_mall_state(): Restore MALL (SubVP) state for fast validation cases
  *
  * Restore the MALL state based on the previously saved state from dcn32_save_mall_state
  *
- * @param [in]: dc: Current DC state
- * @param [in/out]: context: New DC state to be programmed, restore MALL state into here
- * @param [in]: temp_config: struct that has the cached MALL state
+ * @dc: Current DC state
+ * @context: New DC state to be programmed, restore MALL state into here
+ * @temp_config: struct that has the cached MALL state
  *
- * @return: void
- *
- * *******************************************************************************************
+ * Return: void
  */
 void dcn32_restore_mall_state(struct dc *dc,
 		struct dc_state *context,
@@ -588,10 +576,11 @@ static int get_refresh_rate(struct dc_stream_state *fpo_candidate_stream)
 }
 
 /**
- * dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch - Determines if config can support FPO
+ * dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch() - Determines if config can
+ *								    support FPO
  *
- * @param [in]: dc - current dc state
- * @param [in]: context - new dc state
+ * @dc: current dc state
+ * @context: new dc state
  *
  * Return: Pointer to FPO stream candidate if config can support FPO, otherwise NULL
  */
