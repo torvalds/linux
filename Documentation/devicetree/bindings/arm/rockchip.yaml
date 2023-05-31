@@ -546,6 +546,11 @@ properties:
           - const: hugsun,x99
           - const: rockchip,rk3399
 
+      - description: Indiedroid Nova SBC
+        items:
+          - const: indiedroid,nova
+          - const: rockchip,rk3588s
+
       - description: Khadas Edge series boards
         items:
           - enum:
