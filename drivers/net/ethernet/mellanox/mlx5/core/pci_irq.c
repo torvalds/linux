@@ -571,11 +571,11 @@ int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 
 	af_desc.is_managed = false;
 	for (i = 0; i < nirqs; i++) {
+		cpumask_clear(&af_desc.mask);
 		cpumask_set_cpu(cpus[i], &af_desc.mask);
 		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
 		if (IS_ERR(irq))
 			break;
-		cpumask_clear(&af_desc.mask);
 		irqs[i] = irq;
 	}
 
