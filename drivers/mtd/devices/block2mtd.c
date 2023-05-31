@@ -215,13 +215,42 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	kfree(dev);
 }
 
+static struct block_device *mdtblock_early_get_bdev(const char *devname,
+		fmode_t mode, int timeout, struct block2mtd_dev *dev)
+{
+	struct block_device *bdev = ERR_PTR(-ENODEV);
+#ifndef MODULE
+	int i;
+
+	/*
+	 * We might not have the root device mounted at this point.
+	 * Try to resolve the device name by other means.
+	 */
+	for (i = 0; i <= timeout; i++) {
+		dev_t devt;
+
+		if (i)
+			/*
+			 * Calling wait_for_device_probe in the first loop
+			 * was not enough, sleep for a bit in subsequent
+			 * go-arounds.
+			 */
+			msleep(1000);
+		wait_for_device_probe();
+
+		if (!early_lookup_bdev(devname, &devt)) {
+			bdev = blkdev_get_by_dev(devt, mode, dev, NULL);
+			if (!IS_ERR(bdev))
+				break;
+		}
+	}
+#endif
+	return bdev;
+}
 
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		char *label, int timeout)
 {
-#ifndef MODULE
-	int i;
-#endif
 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
@@ -236,30 +265,8 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	/* Get a handle on the device */
 	bdev = blkdev_get_by_path(devname, mode, dev, NULL);
-
-#ifndef MODULE
-	/*
-	 * We might not have the root device mounted at this point.
-	 * Try to resolve the device name by other means.
-	 */
-	for (i = 0; IS_ERR(bdev) && i <= timeout; i++) {
-		dev_t devt;
-
-		if (i)
-			/*
-			 * Calling wait_for_device_probe in the first loop
-			 * was not enough, sleep for a bit in subsequent
-			 * go-arounds.
-			 */
-			msleep(1000);
-		wait_for_device_probe();
-
-		if (early_lookup_bdev(devname, &devt))
-			continue;
-		bdev = blkdev_get_by_dev(devt, mode, dev, NULL);
-	}
-#endif
-
+	if (IS_ERR(bdev))
+		bdev = mdtblock_early_get_bdev(devname, mode, timeout, dev);
 	if (IS_ERR(bdev)) {
 		pr_err("error: cannot open device %s\n", devname);
 		goto err_free_block2mtd;
