@@ -415,53 +415,6 @@
 	firmware-name = "qcom/sdm845/cdsp.mbn";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vreg_l26a_1p2>;
-
-	qcom,dual-dsi-mode;
-	qcom,master-dsi;
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&lt9611_a>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vreg_l1a_0p875>;
-};
-
-&dsi1 {
-	vdda-supply = <&vreg_l26a_1p2>;
-
-	qcom,dual-dsi-mode;
-
-	/* DSI1 is slave, so use DSI0 clocks */
-	assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
-
-	status = "okay";
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&lt9611_b>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi1_phy {
-	vdds-supply = <&vreg_l1a_0p875>;
-	status = "okay";
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -517,7 +470,7 @@
 				reg = <0>;
 
 				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -525,7 +478,7 @@
 				reg = <1>;
 
 				lt9611_b: endpoint {
-					remote-endpoint = <&dsi1_out>;
+					remote-endpoint = <&mdss_dsi1_out>;
 				};
 			};
 
@@ -553,6 +506,53 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vreg_l26a_1p2>;
+
+	qcom,dual-dsi-mode;
+	qcom,master-dsi;
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lt9611_a>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l1a_0p875>;
+};
+
+&mdss_dsi1 {
+	vdda-supply = <&vreg_l26a_1p2>;
+
+	qcom,dual-dsi-mode;
+
+	/* DSI1 is slave, so use DSI0 clocks */
+	assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
+
+	status = "okay";
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lt9611_b>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&mdss_dsi1_phy {
+	vdds-supply = <&vreg_l1a_0p875>;
 	status = "okay";
 };
 
