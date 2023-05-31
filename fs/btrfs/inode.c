@@ -2716,8 +2716,11 @@ static int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 		return -EINVAL;
 
 	/* No need to split if the ordered extent covers the entire bio. */
-	if (ordered->disk_num_bytes == len)
+	if (ordered->disk_num_bytes == len) {
+		refcount_inc(&ordered->refs);
+		bbio->ordered = ordered;
 		return 0;
+	}
 
 	/*
 	 * Don't split the extent_map for NOCOW extents, as we're writing into
@@ -2734,8 +2737,7 @@ static int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 	new = btrfs_split_ordered_extent(ordered, len);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	btrfs_put_ordered_extent(new);
-
+	bbio->ordered = new;
 	return 0;
 }
 

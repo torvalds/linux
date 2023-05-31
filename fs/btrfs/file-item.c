@@ -799,19 +799,12 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
  */
 blk_status_t btrfs_alloc_dummy_sum(struct btrfs_bio *bbio)
 {
-	struct btrfs_ordered_extent *ordered =
-		btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
-
-	if (WARN_ON_ONCE(!ordered))
-		return BLK_STS_IOERR;
-
 	bbio->sums = kmalloc(sizeof(*bbio->sums), GFP_NOFS);
 	if (!bbio->sums)
 		return BLK_STS_RESOURCE;
 	bbio->sums->len = bbio->bio.bi_iter.bi_size;
 	bbio->sums->logical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
-	btrfs_add_ordered_sum(ordered, bbio->sums);
-	btrfs_put_ordered_extent(ordered);
+	btrfs_add_ordered_sum(bbio->ordered, bbio->sums);
 	return 0;
 }
 

@@ -303,10 +303,10 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 	INIT_WORK(&cb->write_end_work, btrfs_finish_compressed_write_work);
 	cb->nr_pages = nr_pages;
 	cb->bbio.bio.bi_iter.bi_sector = ordered->disk_bytenr >> SECTOR_SHIFT;
+	cb->bbio.ordered = ordered;
 	btrfs_add_compressed_bio_pages(cb);
 
 	btrfs_submit_bio(&cb->bbio, 0);
-	btrfs_put_ordered_extent(ordered);
 }
 
 /*
