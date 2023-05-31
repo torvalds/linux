@@ -258,7 +258,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 		break;
 	case INT3472_GPIO_TYPE_CLK_ENABLE:
-		ret = skl_int3472_register_clock(int3472, agpio, polarity);
+		ret = skl_int3472_register_gpio_clock(int3472, agpio, polarity);
 		if (ret)
 			err_msg = "Failed to register clock\n";
 
@@ -311,6 +311,11 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 
 	acpi_dev_free_resource_list(&resource_list);
 
+	/* Register _DSM based clock (no-op if a GPIO clock was already registered) */
+	ret = skl_int3472_register_dsm_clock(int3472);
+	if (ret < 0)
+		return ret;
+
 	int3472->gpios.dev_id = int3472->sensor_name;
 	gpiod_add_lookup_table(&int3472->gpios);
 
@@ -356,6 +361,7 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	int3472->adev = adev;
 	int3472->dev = &pdev->dev;
 	platform_set_drvdata(pdev, int3472);
+	int3472->clock.imgclk_index = cldb.clock_source;
 
 	ret = skl_int3472_get_sensor_adev_and_name(&pdev->dev, &int3472->sensor,
 						   &int3472->sensor_name);

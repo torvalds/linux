@@ -12,6 +12,41 @@
 #include "common.h"
 
 /*
+ * 82c0d13a-78c5-4244-9bb1-eb8b539a8d11
+ * This _DSM GUID allows controlling the sensor clk when it is not controlled
+ * through a GPIO.
+ */
+static const guid_t img_clk_guid =
+	GUID_INIT(0x82c0d13a, 0x78c5, 0x4244,
+		  0x9b, 0xb1, 0xeb, 0x8b, 0x53, 0x9a, 0x8d, 0x11);
+
+static void skl_int3472_enable_clk(struct int3472_clock *clk, int enable)
+{
+	struct int3472_discrete_device *int3472 = to_int3472_device(clk);
+	union acpi_object args[3];
+	union acpi_object argv4;
+
+	if (clk->ena_gpio) {
+		gpiod_set_value_cansleep(clk->ena_gpio, enable);
+		return;
+	}
+
+	args[0].integer.type = ACPI_TYPE_INTEGER;
+	args[0].integer.value = clk->imgclk_index;
+	args[1].integer.type = ACPI_TYPE_INTEGER;
+	args[1].integer.value = enable;
+	args[2].integer.type = ACPI_TYPE_INTEGER;
+	args[2].integer.value = 1;
+
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 3;
+	argv4.package.elements = args;
+
+	acpi_evaluate_dsm(acpi_device_handle(int3472->adev), &img_clk_guid,
+			  0, 1, &argv4);
+}
+
+/*
  * The regulators have to have .ops to be valid, but the only ops we actually
  * support are .enable and .disable which are handled via .ena_gpiod. Pass an
  * empty struct to clear the check without lying about capabilities.
@@ -20,17 +55,13 @@ static const struct regulator_ops int3472_gpio_regulator_ops;
 
 static int skl_int3472_clk_prepare(struct clk_hw *hw)
 {
-	struct int3472_gpio_clock *clk = to_int3472_clk(hw);
-
-	gpiod_set_value_cansleep(clk->ena_gpio, 1);
+	skl_int3472_enable_clk(to_int3472_clk(hw), 1);
 	return 0;
 }
 
 static void skl_int3472_clk_unprepare(struct clk_hw *hw)
 {
-	struct int3472_gpio_clock *clk = to_int3472_clk(hw);
-
-	gpiod_set_value_cansleep(clk->ena_gpio, 0);
+	skl_int3472_enable_clk(to_int3472_clk(hw), 0);
 }
 
 static int skl_int3472_clk_enable(struct clk_hw *hw)
@@ -73,7 +104,7 @@ static unsigned int skl_int3472_get_clk_frequency(struct int3472_discrete_device
 static unsigned long skl_int3472_clk_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
-	struct int3472_gpio_clock *clk = to_int3472_clk(hw);
+	struct int3472_clock *clk = to_int3472_clk(hw);
 
 	return clk->frequency;
 }
@@ -86,8 +117,51 @@ static const struct clk_ops skl_int3472_clock_ops = {
 	.recalc_rate = skl_int3472_clk_recalc_rate,
 };
 
-int skl_int3472_register_clock(struct int3472_discrete_device *int3472,
-			       struct acpi_resource_gpio *agpio, u32 polarity)
+int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472)
+{
+	struct acpi_device *adev = int3472->adev;
+	struct clk_init_data init = {
+		.ops = &skl_int3472_clock_ops,
+		.flags = CLK_GET_RATE_NOCACHE,
+	};
+	int ret;
+
+	if (int3472->clock.cl)
+		return 0; /* A GPIO controlled clk has already been registered */
+
+	if (!acpi_check_dsm(adev->handle, &img_clk_guid, 0, BIT(1)))
+		return 0; /* DSM clock control is not available */
+
+	init.name = kasprintf(GFP_KERNEL, "%s-clk", acpi_dev_name(adev));
+	if (!init.name)
+		return -ENOMEM;
+
+	int3472->clock.frequency = skl_int3472_get_clk_frequency(int3472);
+	int3472->clock.clk_hw.init = &init;
+	int3472->clock.clk = clk_register(&adev->dev, &int3472->clock.clk_hw);
+	if (IS_ERR(int3472->clock.clk)) {
+		ret = PTR_ERR(int3472->clock.clk);
+		goto out_free_init_name;
+	}
+
+	int3472->clock.cl = clkdev_create(int3472->clock.clk, NULL, int3472->sensor_name);
+	if (!int3472->clock.cl) {
+		ret = -ENOMEM;
+		goto err_unregister_clk;
+	}
+
+	kfree(init.name);
+	return 0;
+
+err_unregister_clk:
+	clk_unregister(int3472->clock.clk);
+out_free_init_name:
+	kfree(init.name);
+	return ret;
+}
+
+int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
+				    struct acpi_resource_gpio *agpio, u32 polarity)
 {
 	char *path = agpio->resource_source.string_ptr;
 	struct clk_init_data init = {
