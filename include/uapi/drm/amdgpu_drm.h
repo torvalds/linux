@@ -798,6 +798,8 @@ struct drm_amdgpu_cs_chunk_cp_gfx_shadow {
 	#define AMDGPU_INFO_FW_MES		0x1a
 	/* Subquery id: Query IMU firmware version */
 	#define AMDGPU_INFO_FW_IMU		0x1b
+	/* Subquery id: Query VPE firmware version */
+	#define AMDGPU_INFO_FW_VPE		0x1c
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
