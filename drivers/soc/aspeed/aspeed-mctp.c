@@ -2208,6 +2208,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		regmap_update_bits(priv->map, ASPEED_MCTP_ENGINE_CTRL,
 				   TX_MAX_PAYLOAD_SIZE_MASK,
 				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
+		aspeed_mctp_rx_trigger(&priv->rx);
 	}
 
 	name = kasprintf(GFP_KERNEL, "peci-mctp%d", id);
