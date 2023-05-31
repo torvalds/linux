@@ -4223,17 +4223,7 @@ int mlx5_devlink_port_fn_hw_addr_get(struct devlink_port *port,
 				     struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
-	struct mlx5_vport *vport;
-	u16 vport_num;
-
-
-	vport_num = mlx5_esw_devlink_port_index_to_vport_num(port->index);
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
-	}
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 
 	mutex_lock(&esw->state_lock);
 	ether_addr_copy(hw_addr, vport->info.mac);
@@ -4247,26 +4237,16 @@ int mlx5_devlink_port_fn_hw_addr_set(struct devlink_port *port,
 				     struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
-	u16 vport_num;
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 
-	vport_num = mlx5_esw_devlink_port_index_to_vport_num(port->index);
-	return mlx5_eswitch_set_vport_mac(esw, vport_num, hw_addr);
-}
-
-static struct mlx5_vport *
-mlx5_devlink_port_fn_get_vport(struct devlink_port *port, struct mlx5_eswitch *esw)
-{
-	u16 vport_num;
-
-	vport_num = mlx5_esw_devlink_port_index_to_vport_num(port->index);
-	return mlx5_eswitch_get_vport(esw, vport_num);
+	return mlx5_eswitch_set_vport_mac(esw, vport->vport, hw_addr);
 }
 
 int mlx5_devlink_port_fn_migratable_get(struct devlink_port *port, bool *is_enabled,
 					struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
-	struct mlx5_vport *vport;
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 
 	if (!MLX5_CAP_GEN(esw->dev, migration)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support migration");
@@ -4276,12 +4256,6 @@ int mlx5_devlink_port_fn_migratable_get(struct devlink_port *port, bool *is_enab
 	if (!MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support VHCA management");
 		return -EOPNOTSUPP;
-	}
-
-	vport = mlx5_devlink_port_fn_get_vport(port, esw);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
 	}
 
 	mutex_lock(&esw->state_lock);
@@ -4294,8 +4268,8 @@ int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 					struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 	int query_out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	struct mlx5_vport *vport;
 	void *query_ctx;
 	void *hca_caps;
 	int err;
@@ -4308,12 +4282,6 @@ int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 	if (!MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support VHCA management");
 		return -EOPNOTSUPP;
-	}
-
-	vport = mlx5_devlink_port_fn_get_vport(port, esw);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
 	}
 
 	mutex_lock(&esw->state_lock);
@@ -4359,17 +4327,11 @@ int mlx5_devlink_port_fn_roce_get(struct devlink_port *port, bool *is_enabled,
 				  struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
-	struct mlx5_vport *vport;
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 
 	if (!MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support VHCA management");
 		return -EOPNOTSUPP;
-	}
-
-	vport = mlx5_devlink_port_fn_get_vport(port, esw);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
 	}
 
 	mutex_lock(&esw->state_lock);
@@ -4382,24 +4344,17 @@ int mlx5_devlink_port_fn_roce_set(struct devlink_port *port, bool enable,
 				  struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = mlx5_devlink_eswitch_nocheck_get(port->devlink);
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
 	int query_out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	struct mlx5_vport *vport;
+	u16 vport_num = vport->vport;
 	void *query_ctx;
 	void *hca_caps;
-	u16 vport_num;
 	int err;
 
 	if (!MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support VHCA management");
 		return -EOPNOTSUPP;
 	}
-
-	vport = mlx5_devlink_port_fn_get_vport(port, esw);
-	if (IS_ERR(vport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid port");
-		return PTR_ERR(vport);
-	}
-	vport_num = vport->vport;
 
 	mutex_lock(&esw->state_lock);
 

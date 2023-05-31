@@ -172,9 +172,28 @@ enum mlx5_eswitch_vport_event {
 	MLX5_VPORT_PROMISC_CHANGE = BIT(3),
 };
 
+struct mlx5_vport;
+
 struct mlx5_devlink_port {
 	struct devlink_port dl_port;
+	struct mlx5_vport *vport;
 };
+
+static inline void mlx5_devlink_port_init(struct mlx5_devlink_port *dl_port,
+					  struct mlx5_vport *vport)
+{
+	dl_port->vport = vport;
+}
+
+static inline struct mlx5_devlink_port *mlx5_devlink_port_get(struct devlink_port *dl_port)
+{
+	return container_of(dl_port, struct mlx5_devlink_port, dl_port);
+}
+
+static inline struct mlx5_vport *mlx5_devlink_port_vport_get(struct devlink_port *dl_port)
+{
+	return mlx5_devlink_port_get(dl_port)->vport;
+}
 
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;

@@ -71,6 +71,7 @@ int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw,
 						       &dl_port->dl_port);
 
 	vport->dl_port = dl_port;
+	mlx5_devlink_port_init(dl_port, vport);
 	return 0;
 }
 
@@ -115,6 +116,7 @@ int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, struct mlx5
 	mlx5_esw_offloads_sf_devlink_port_attrs_set(esw, &dl_port->dl_port, controller, sfnum);
 
 	vport->dl_port = dl_port;
+	mlx5_devlink_port_init(dl_port, vport);
 	return 0;
 }
 
