@@ -740,7 +740,6 @@ static int gfs2_write_buf_to_page(struct gfs2_sbd *sdp, unsigned long index,
 	u64 blk;
 	unsigned bsize = sdp->sd_sb.sb_bsize, bnum = 0, boff = 0;
 	unsigned to_write = bytes, pg_off = off;
-	int done = 0;
 
 	blk = index << (PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift);
 	boff = off % bsize;
@@ -752,7 +751,7 @@ static int gfs2_write_buf_to_page(struct gfs2_sbd *sdp, unsigned long index,
 		create_empty_buffers(page, bsize, 0);
 
 	bh = page_buffers(page);
-	while (!done) {
+	for(;;) {
 		/* Find the beginning block within the page */
 		if (pg_off >= ((bnum * bsize) + bsize)) {
 			bh = bh->b_this_page;
@@ -781,7 +780,7 @@ static int gfs2_write_buf_to_page(struct gfs2_sbd *sdp, unsigned long index,
 			boff = pg_off % bsize;
 			continue;
 		}
-		done = 1;
+		break;
 	}
 
 	/* Write to the page, now that we have setup the buffer(s) */
