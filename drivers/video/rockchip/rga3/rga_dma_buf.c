@@ -209,6 +209,8 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	shift = iova_shift(iovad);
 	iova_len = size >> shift;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
 	/*
 	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
 	 * will come back to bite us badly, so we have to waste a bit of space
@@ -217,6 +219,7 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	 */
 	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
 		iova_len = roundup_pow_of_two(iova_len);
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 	dma_limit = min_not_zero(dma_limit, dev->bus_dma_limit);
