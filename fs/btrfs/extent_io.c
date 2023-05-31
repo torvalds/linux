@@ -1370,12 +1370,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		return 1;
 	}
 
-	/*
-	 * we don't want to touch the inode after unlocking the page,
-	 * so we update the mapping writeback index now
-	 */
-	bio_ctrl->wbc->nr_to_write--;
-
 	bio_ctrl->end_io_func = end_bio_extent_writepage;
 	while (cur <= end) {
 		u64 disk_bytenr;
@@ -1520,6 +1514,8 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 	ret = __extent_writepage_io(BTRFS_I(inode), page, bio_ctrl, i_size, &nr);
 	if (ret == 1)
 		return 0;
+
+	bio_ctrl->wbc->nr_to_write--;
 
 done:
 	if (nr == 0) {
