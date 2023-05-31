@@ -639,10 +639,6 @@
 	status = "okay";
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &pm8150_adc {
 	xo-therm@4c {
 		reg = <ADC5_XO_THERM_100K_PU>;
