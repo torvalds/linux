@@ -280,29 +280,6 @@ struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 }
 
 /*
- * Add a new btrfs_ordered_extent for the range, but drop the reference instead
- * of returning it to the caller.
- */
-int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
-			     u64 num_bytes, u64 ram_bytes, u64 disk_bytenr,
-			     u64 disk_num_bytes, u64 offset, unsigned long flags,
-			     int compress_type)
-{
-	struct btrfs_ordered_extent *ordered;
-
-	ordered = btrfs_alloc_ordered_extent(inode, file_offset, num_bytes,
-					     ram_bytes, disk_bytenr,
-					     disk_num_bytes, offset, flags,
-					     compress_type);
-
-	if (IS_ERR(ordered))
-		return PTR_ERR(ordered);
-	btrfs_put_ordered_extent(ordered);
-
-	return 0;
-}
-
-/*
  * Add a struct btrfs_ordered_sum into the list of checksums to be inserted
  * when an ordered extent is finished.  If the list covers more than one
  * ordered extent, it is split across multiples.
@@ -579,7 +556,7 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 	freespace_inode = btrfs_is_free_space_inode(btrfs_inode);
 
 	btrfs_lockdep_acquire(fs_info, btrfs_trans_pending_ordered);
-	/* This is paired with btrfs_add_ordered_extent. */
+	/* This is paired with btrfs_alloc_ordered_extent. */
 	spin_lock(&btrfs_inode->lock);
 	btrfs_mod_outstanding_extents(btrfs_inode, -1);
 	spin_unlock(&btrfs_inode->lock);
