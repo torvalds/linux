@@ -296,14 +296,12 @@ update_connector_routing(struct drm_atomic_state *state,
 	if (old_connector_state->crtc != new_connector_state->crtc) {
 		if (old_connector_state->crtc) {
 			crtc_state = drm_atomic_get_new_crtc_state(state, old_connector_state->crtc);
-			if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-				crtc_state->connectors_changed = true;
+			crtc_state->connectors_changed = true;
 		}
 
 		if (new_connector_state->crtc) {
 			crtc_state = drm_atomic_get_new_crtc_state(state, new_connector_state->crtc);
-			if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-				crtc_state->connectors_changed = true;
+			crtc_state->connectors_changed = true;
 		}
 	}
 
@@ -388,8 +386,7 @@ update_connector_routing(struct drm_atomic_state *state,
 
 	set_best_encoder(state, new_connector_state, new_encoder);
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-		crtc_state->connectors_changed = true;
+	crtc_state->connectors_changed = true;
 
 	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] using [ENCODER:%d:%s] on [CRTC:%d:%s]\n",
 			 connector->base.id,
