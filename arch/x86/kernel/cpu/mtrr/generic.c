@@ -41,7 +41,7 @@ struct cache_map {
 	u64 fixed:1;
 };
 
-static bool mtrr_debug;
+bool mtrr_debug;
 
 static int __init mtrr_param_setup(char *str)
 {

@@ -55,9 +55,6 @@ static int __initdata				nr_range;
 
 static struct var_mtrr_range_state __initdata	range_state[RANGE_NUM];
 
-static int __initdata debug_print;
-#define Dprintk(x...) do { if (debug_print) pr_debug(x); } while (0)
-
 #define BIOS_BUG_MSG \
 	"WARNING: BIOS bug: VAR MTRR %d contains strange UC entry under 1M, check with your system vendor!\n"
 
@@ -79,12 +76,11 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		nr_range = add_range_with_merge(range, RANGE_NUM, nr_range,
 						base, base + size);
 	}
-	if (debug_print) {
-		pr_debug("After WB checking\n");
-		for (i = 0; i < nr_range; i++)
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end);
-	}
+
+	Dprintk("After WB checking\n");
+	for (i = 0; i < nr_range; i++)
+		Dprintk("MTRR MAP PFN: %016llx - %016llx\n",
+			 range[i].start, range[i].end);
 
 	/* Take out UC ranges: */
 	for (i = 0; i < num_var_ranges; i++) {
@@ -112,24 +108,22 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		subtract_range(range, RANGE_NUM, extra_remove_base,
 				 extra_remove_base + extra_remove_size);
 
-	if  (debug_print) {
-		pr_debug("After UC checking\n");
-		for (i = 0; i < RANGE_NUM; i++) {
-			if (!range[i].end)
-				continue;
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end);
-		}
+	Dprintk("After UC checking\n");
+	for (i = 0; i < RANGE_NUM; i++) {
+		if (!range[i].end)
+			continue;
+
+		Dprintk("MTRR MAP PFN: %016llx - %016llx\n",
+			 range[i].start, range[i].end);
 	}
 
 	/* sort the ranges */
 	nr_range = clean_sort_range(range, RANGE_NUM);
-	if  (debug_print) {
-		pr_debug("After sorting\n");
-		for (i = 0; i < nr_range; i++)
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end);
-	}
+
+	Dprintk("After sorting\n");
+	for (i = 0; i < nr_range; i++)
+		Dprintk("MTRR MAP PFN: %016llx - %016llx\n",
+			range[i].start, range[i].end);
 
 	return nr_range;
 }
@@ -163,13 +157,6 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 	return 0;
 }
 early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);
-
-static int __init mtrr_cleanup_debug_setup(char *str)
-{
-	debug_print = 1;
-	return 0;
-}
-early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
 
 static void __init
 set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
@@ -267,7 +254,7 @@ range_to_mtrr(unsigned int reg, unsigned long range_startk,
 			align = max_align;
 
 		sizek = 1UL << align;
-		if (debug_print) {
+		if (mtrr_debug) {
 			char start_factor = 'K', size_factor = 'K';
 			unsigned long start_base, size_base;
 
@@ -542,7 +529,7 @@ static void __init print_out_mtrr_range_state(void)
 		start_base = to_size_factor(start_base, &start_factor);
 		type = range_state[i].type;
 
-		pr_debug("reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
+		Dprintk("reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
 			i, start_base, start_factor,
 			size_base, size_factor,
 			(type == MTRR_TYPE_UNCACHABLE) ? "UC" :
@@ -714,7 +701,7 @@ int __init mtrr_cleanup(void)
 		return 0;
 
 	/* Print original var MTRRs at first, for debugging: */
-	pr_debug("original variable MTRRs\n");
+	Dprintk("original variable MTRRs\n");
 	print_out_mtrr_range_state();
 
 	memset(range, 0, sizeof(range));
@@ -746,7 +733,7 @@ int __init mtrr_cleanup(void)
 
 		if (!result[i].bad) {
 			set_var_mtrr_all();
-			pr_debug("New variable MTRRs\n");
+			Dprintk("New variable MTRRs\n");
 			print_out_mtrr_range_state();
 			return 1;
 		}
@@ -766,7 +753,7 @@ int __init mtrr_cleanup(void)
 
 			mtrr_calc_range_state(chunk_size, gran_size,
 				      x_remove_base, x_remove_size, i);
-			if (debug_print) {
+			if (mtrr_debug) {
 				mtrr_print_out_one_result(i);
 				pr_info("\n");
 			}
@@ -790,7 +777,7 @@ int __init mtrr_cleanup(void)
 		gran_size <<= 10;
 		x86_setup_var_mtrrs(range, nr_range, chunk_size, gran_size);
 		set_var_mtrr_all();
-		pr_debug("New variable MTRRs\n");
+		Dprintk("New variable MTRRs\n");
 		print_out_mtrr_range_state();
 		return 1;
 	} else {

@@ -332,7 +332,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
 {
 	if ((base & (PAGE_SIZE - 1)) || (size & (PAGE_SIZE - 1))) {
 		pr_warn("size and base must be multiples of 4 kiB\n");
-		pr_debug("size: 0x%lx  base: 0x%lx\n", size, base);
+		Dprintk("size: 0x%lx  base: 0x%lx\n", size, base);
 		dump_stack();
 		return -1;
 	}
@@ -423,8 +423,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 			}
 		}
 		if (reg < 0) {
-			pr_debug("no MTRR for %lx000,%lx000 found\n",
-				 base, size);
+			Dprintk("no MTRR for %lx000,%lx000 found\n", base, size);
 			goto out;
 		}
 	}

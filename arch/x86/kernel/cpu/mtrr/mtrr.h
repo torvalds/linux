@@ -10,6 +10,9 @@
 #define MTRR_CHANGE_MASK_VARIABLE  0x02
 #define MTRR_CHANGE_MASK_DEFTYPE   0x04
 
+extern bool mtrr_debug;
+#define Dprintk(x...) do { if (mtrr_debug) pr_info(x); } while (0)
+
 extern unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 
 struct mtrr_ops {
