@@ -388,7 +388,7 @@ static ssize_t perfmon_configure_store(struct device *dev, struct device_attribu
 
 	token = strsep((char **)&buf, delim);
 	/* Getting filter information if provided */
-	if (strlen(token) == strlen("FILTERX")) {
+	if (token && strlen(token) == strlen("FILTERX")) {
 		if (llcc_priv->fltr_logic != multiple_filtr) {
 			pr_err("Error Multifilter configuration not present\n");
 			goto out_configure;
@@ -523,7 +523,7 @@ static ssize_t perfmon_remove_store(struct device *dev, struct device_attribute 
 	}
 
 	/* Getting filter information if provided */
-	if (strlen(token) == strlen("FILTERX")) {
+	if (token && strlen(token) == strlen("FILTERX")) {
 		if (llcc_priv->fltr_logic != multiple_filtr) {
 			pr_err("Error! Multifilter configuration not present\n");
 			goto out_remove_store_err;
