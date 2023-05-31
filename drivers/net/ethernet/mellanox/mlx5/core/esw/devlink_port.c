@@ -54,17 +54,14 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 	}
 }
 
-int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num)
+int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw,
+					      struct mlx5_vport *vport)
 {
 	struct mlx5_devlink_port *dl_port;
-	struct mlx5_vport *vport;
+	u16 vport_num = vport->vport;
 
 	if (!mlx5_esw_devlink_port_supported(esw, vport_num))
 		return 0;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
 
 	dl_port = kzalloc(sizeof(*dl_port), GFP_KERNEL);
 	if (!dl_port)
@@ -77,12 +74,10 @@ int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw, u16 vpor
 	return 0;
 }
 
-void mlx5_esw_offloads_pf_vf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_offloads_pf_vf_devlink_port_cleanup(struct mlx5_eswitch *esw,
+						  struct mlx5_vport *vport)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport) || !vport->dl_port)
+	if (!vport->dl_port)
 		return;
 
 	kfree(vport->dl_port);
@@ -113,30 +108,18 @@ static void mlx5_esw_offloads_sf_devlink_port_attrs_set(struct mlx5_eswitch *esw
 	devlink_port_attrs_pci_sf_set(dl_port, controller, pfnum, sfnum, !!controller);
 }
 
-int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, u16 vport_num,
+int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 					   struct mlx5_devlink_port *dl_port,
 					   u32 controller, u32 sfnum)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
-
 	mlx5_esw_offloads_sf_devlink_port_attrs_set(esw, &dl_port->dl_port, controller, sfnum);
 
 	vport->dl_port = dl_port;
 	return 0;
 }
 
-void mlx5_esw_offloads_sf_devlink_port_cleanup(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_offloads_sf_devlink_port_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return;
-
 	vport->dl_port = NULL;
 }
 
@@ -154,19 +137,15 @@ static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
 #endif
 };
 
-int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num)
+int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
 	struct mlx5_core_dev *dev = esw->dev;
 	const struct devlink_port_ops *ops;
 	struct mlx5_devlink_port *dl_port;
+	u16 vport_num = vport->vport;
 	unsigned int dl_port_index;
-	struct mlx5_vport *vport;
 	struct devlink *devlink;
 	int err;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
 
 	dl_port = vport->dl_port;
 	if (!dl_port)
@@ -196,13 +175,11 @@ rate_err:
 	return err;
 }
 
-void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
 	struct mlx5_devlink_port *dl_port;
-	struct mlx5_vport *vport;
 
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport) || !vport->dl_port)
+	if (!vport->dl_port)
 		return;
 	dl_port = vport->dl_port;
 

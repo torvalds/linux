@@ -882,15 +882,11 @@ static void esw_vport_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 	esw_vport_cleanup_acl(esw, vport);
 }
 
-int mlx5_esw_vport_enable(struct mlx5_eswitch *esw, u16 vport_num,
+int mlx5_esw_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 			  enum mlx5_eswitch_vport_event enabled_events)
 {
-	struct mlx5_vport *vport;
+	u16 vport_num = vport->vport;
 	int ret;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
 
 	mutex_lock(&esw->state_lock);
 	WARN_ON(vport->enabled);
@@ -912,7 +908,7 @@ int mlx5_esw_vport_enable(struct mlx5_eswitch *esw, u16 vport_num,
 	    (!vport_num && mlx5_core_is_ecpf(esw->dev)))
 		vport->info.trusted = true;
 
-	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
+	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
 		ret = mlx5_esw_vport_vhca_id_set(esw, vport_num);
 		if (ret)
@@ -939,15 +935,12 @@ err_vhca_mapping:
 	return ret;
 }
 
-void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return;
+	u16 vport_num = vport->vport;
 
 	mutex_lock(&esw->state_lock);
+
 	if (!vport->enabled)
 		goto done;
 
@@ -957,9 +950,9 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 
 	/* Disable events from this vport */
 	if (MLX5_CAP_GEN(esw->dev, log_max_l2_table))
-		arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
+		arm_vport_context_events_cmd(esw->dev, vport_num, 0);
 
-	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
+	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager))
 		mlx5_esw_vport_vhca_id_clear(esw, vport_num);
 
@@ -1068,82 +1061,104 @@ static void mlx5_eswitch_clear_ec_vf_vports_info(struct mlx5_eswitch *esw)
 	}
 }
 
-static int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
+static int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 				   enum mlx5_eswitch_vport_event enabled_events)
 {
 	int err;
 
-	err = mlx5_esw_vport_enable(esw, vport_num, enabled_events);
+	err = mlx5_esw_vport_enable(esw, vport, enabled_events);
 	if (err)
 		return err;
 
-	err = mlx5_esw_offloads_load_rep(esw, vport_num);
+	err = mlx5_esw_offloads_load_rep(esw, vport);
 	if (err)
 		goto err_rep;
 
 	return err;
 
 err_rep:
-	mlx5_esw_vport_disable(esw, vport_num);
+	mlx5_esw_vport_disable(esw, vport);
 	return err;
 }
 
-static void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
+static void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
-	mlx5_esw_offloads_unload_rep(esw, vport_num);
-	mlx5_esw_vport_disable(esw, vport_num);
+	mlx5_esw_offloads_unload_rep(esw, vport);
+	mlx5_esw_vport_disable(esw, vport);
 }
 
 static int mlx5_eswitch_load_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_num,
 					 enum mlx5_eswitch_vport_event enabled_events)
 {
+	struct mlx5_vport *vport;
 	int err;
 
-	err = mlx5_esw_offloads_init_pf_vf_rep(esw, vport_num);
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	err = mlx5_esw_offloads_init_pf_vf_rep(esw, vport);
 	if (err)
 		return err;
 
-	err = mlx5_eswitch_load_vport(esw, vport_num, enabled_events);
+	err = mlx5_eswitch_load_vport(esw, vport, enabled_events);
 	if (err)
 		goto err_load;
 	return 0;
 
 err_load:
-	mlx5_esw_offloads_cleanup_pf_vf_rep(esw, vport_num);
+	mlx5_esw_offloads_cleanup_pf_vf_rep(esw, vport);
 	return err;
 }
 
 static void mlx5_eswitch_unload_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	mlx5_eswitch_unload_vport(esw, vport_num);
-	mlx5_esw_offloads_cleanup_pf_vf_rep(esw, vport_num);
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return;
+
+	mlx5_eswitch_unload_vport(esw, vport);
+	mlx5_esw_offloads_cleanup_pf_vf_rep(esw, vport);
 }
 
 int mlx5_eswitch_load_sf_vport(struct mlx5_eswitch *esw, u16 vport_num,
 			       enum mlx5_eswitch_vport_event enabled_events,
 			       struct mlx5_devlink_port *dl_port, u32 controller, u32 sfnum)
 {
+	struct mlx5_vport *vport;
 	int err;
 
-	err = mlx5_esw_offloads_init_sf_rep(esw, vport_num, dl_port, controller, sfnum);
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	err = mlx5_esw_offloads_init_sf_rep(esw, vport, dl_port, controller, sfnum);
 	if (err)
 		return err;
 
-	err = mlx5_eswitch_load_vport(esw, vport_num, enabled_events);
+	err = mlx5_eswitch_load_vport(esw, vport, enabled_events);
 	if (err)
 		goto err_load;
 
 	return 0;
 
 err_load:
-	mlx5_esw_offloads_cleanup_sf_rep(esw, vport_num);
+	mlx5_esw_offloads_cleanup_sf_rep(esw, vport);
 	return err;
 }
 
 void mlx5_eswitch_unload_sf_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	mlx5_eswitch_unload_vport(esw, vport_num);
-	mlx5_esw_offloads_cleanup_sf_rep(esw, vport_num);
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return;
+
+	mlx5_eswitch_unload_vport(esw, vport);
+	mlx5_esw_offloads_cleanup_sf_rep(esw, vport);
 }
 
 void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs)
