@@ -6113,9 +6113,18 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	size_t n;
 	int i;
 
-	adapter->qbv_enable = qopt->enable;
+	switch (qopt->cmd) {
+	case TAPRIO_CMD_REPLACE:
+		adapter->qbv_enable = true;
+		break;
+	case TAPRIO_CMD_DESTROY:
+		adapter->qbv_enable = false;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
-	if (!qopt->enable)
+	if (!adapter->qbv_enable)
 		return igc_tsn_clear_schedule(adapter);
 
 	if (qopt->base_time < 0)

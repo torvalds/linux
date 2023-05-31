@@ -2624,7 +2624,7 @@ static void enetc_debug_tx_ring_prios(struct enetc_ndev_priv *priv)
 			   priv->tx_ring[i]->prio);
 }
 
-static void enetc_reset_tc_mqprio(struct net_device *ndev)
+void enetc_reset_tc_mqprio(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
@@ -2649,6 +2649,7 @@ static void enetc_reset_tc_mqprio(struct net_device *ndev)
 
 	enetc_change_preemptible_tcs(priv, 0);
 }
+EXPORT_SYMBOL_GPL(enetc_reset_tc_mqprio);
 
 int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 {
