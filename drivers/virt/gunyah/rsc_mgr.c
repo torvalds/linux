@@ -665,10 +665,10 @@ int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buf_
 	if (ret < 0)
 		goto out;
 
-	/* Wait for response */
-	ret = wait_for_completion_interruptible(&connection->reply.seq_done);
-	if (ret)
-		goto out;
+	/* Wait for response. Uninterruptible because rollback based on what RM did to VM
+	 * requires us to know how RM handled the call.
+	 */
+	wait_for_completion(&connection->reply.seq_done);
 
 	/* Check for internal (kernel) error waiting for the response */
 	if (connection->reply.ret) {
@@ -682,7 +682,6 @@ int gh_rm_call(struct gh_rm *rm, u32 message_id, void *req_buff, size_t req_buf_
 	if (connection->reply.rm_error != GH_RM_ERROR_OK) {
 		dev_warn(rm->dev, "RM rejected message %08x. Error: %d\n", message_id,
 			connection->reply.rm_error);
-		dump_stack();
 		ret = gh_rm_remap_error(connection->reply.rm_error);
 		kfree(connection->payload);
 		goto out;

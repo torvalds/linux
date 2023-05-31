@@ -1432,8 +1432,8 @@ static int ufs_qcom_mcq_config_resource(struct ufs_hba *hba)
 		if (IS_ERR(res->base)) {
 			dev_err(hba->dev, "Failed to map res %s, err=%d\n",
 					 res->name, (int)PTR_ERR(res->base));
-			res->base = NULL;
 			ret = PTR_ERR(res->base);
+			res->base = NULL;
 			return ret;
 		}
 	}
@@ -1447,7 +1447,7 @@ static int ufs_qcom_mcq_config_resource(struct ufs_hba *hba)
 	/* Explicitly allocate MCQ resource from ufs_mem */
 	res_mcq = devm_kzalloc(hba->dev, sizeof(*res_mcq), GFP_KERNEL);
 	if (!res_mcq)
-		return ret;
+		return -ENOMEM;
 
 	res_mcq->start = res_mem->start +
 			 MCQ_SQATTR_OFFSET(hba->mcq_capabilities);
@@ -1459,7 +1459,7 @@ static int ufs_qcom_mcq_config_resource(struct ufs_hba *hba)
 	if (ret) {
 		dev_err(hba->dev, "Failed to insert MCQ resource, err=%d\n",
 			ret);
-		goto insert_res_err;
+		return ret;
 	}
 
 	res->base = devm_ioremap_resource(hba->dev, res_mcq);
@@ -1476,8 +1476,6 @@ out:
 ioremap_err:
 	res->base = NULL;
 	remove_resource(res_mcq);
-insert_res_err:
-	devm_kfree(hba->dev, res_mcq);
 	return ret;
 }
 
