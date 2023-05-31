@@ -2314,7 +2314,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	atomic_set(&con->in_recovery, 0);
 	con->eeprom_control.bad_channel_bitmap = 0;
 
-	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count();
+	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count(&con->eeprom_control);
 	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
 
 	/* Todo: During test the SMU might fail to read the eeprom through I2C
