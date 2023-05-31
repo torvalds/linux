@@ -357,6 +357,17 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 	return true;
 }
 
+static void btrfs_queue_ordered_fn(struct btrfs_ordered_extent *ordered)
+{
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_workqueue *wq = btrfs_is_free_space_inode(inode) ?
+		fs_info->endio_freespace_worker : fs_info->endio_write_workers;
+
+	btrfs_init_work(&ordered->work, finish_ordered_fn, NULL, NULL);
+	btrfs_queue_work(wq, &ordered->work);
+}
+
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
@@ -375,17 +386,10 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 				    u64 num_bytes, bool uptodate)
 {
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_workqueue *wq;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 	unsigned long flags;
 	u64 cur = file_offset;
-
-	if (btrfs_is_free_space_inode(inode))
-		wq = fs_info->endio_freespace_worker;
-	else
-		wq = fs_info->endio_write_workers;
 
 	spin_lock_irqsave(&tree->lock, flags);
 	while (cur < file_offset + num_bytes) {
@@ -441,8 +445,7 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 
 		if (can_finish_ordered_extent(entry, page, cur, len, uptodate)) {
 			spin_unlock_irqrestore(&tree->lock, flags);
-			btrfs_init_work(&entry->work, finish_ordered_fn, NULL, NULL);
-			btrfs_queue_work(wq, &entry->work);
+			btrfs_queue_ordered_fn(entry);
 			spin_lock_irqsave(&tree->lock, flags);
 		}
 		cur += len;
