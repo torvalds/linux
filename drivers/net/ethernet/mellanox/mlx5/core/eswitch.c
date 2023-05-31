@@ -1121,7 +1121,7 @@ static void mlx5_eswitch_unload_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_
 
 int mlx5_eswitch_load_sf_vport(struct mlx5_eswitch *esw, u16 vport_num,
 			       enum mlx5_eswitch_vport_event enabled_events,
-			       struct devlink_port *dl_port, u32 controller, u32 sfnum)
+			       struct mlx5_devlink_port *dl_port, u32 controller, u32 sfnum)
 {
 	int err;
 

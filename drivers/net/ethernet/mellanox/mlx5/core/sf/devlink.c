@@ -12,7 +12,7 @@
 #include "diag/sf_tracepoint.h"
 
 struct mlx5_sf {
-	struct devlink_port dl_port;
+	struct mlx5_devlink_port dl_port;
 	unsigned int port_index;
 	u32 controller;
 	u16 id;
@@ -296,7 +296,7 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 					 &sf->dl_port, new_attr->controller, new_attr->sfnum);
 	if (err)
 		goto esw_err;
-	*dl_port = &sf->dl_port;
+	*dl_port = &sf->dl_port.dl_port;
 	trace_mlx5_sf_add(dev, sf->port_index, sf->controller, sf->hw_fn_id, new_attr->sfnum);
 	return 0;
 
