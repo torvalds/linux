@@ -28,7 +28,6 @@
 #include "do_mounts.h"
 
 int root_mountflags = MS_RDONLY | MS_SILENT;
-static char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
 static int root_wait;
 
@@ -391,7 +390,7 @@ out:
 	return ret;
 }
 
-void __init mount_root_generic(char *name, int flags)
+void __init mount_root_generic(char *name, char *pretty_name, int flags)
 {
 	struct page *page = alloc_page(GFP_KERNEL);
 	char *fs_names = page_address(page);
@@ -425,7 +424,7 @@ retry:
 		 * and give them a list of the available devices
 		 */
 		printk("VFS: Cannot open root device \"%s\" or %s: error %d\n",
-				root_device_name, b, err);
+				pretty_name, b, err);
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
 
 		printk_all_partitions();
@@ -541,7 +540,7 @@ static bool __init fs_is_nodev(char *fstype)
 	return ret;
 }
 
-static int __init mount_nodev_root(void)
+static int __init mount_nodev_root(char *root_device_name)
 {
 	char *fs_names, *fstype;
 	int err = -EINVAL;
@@ -569,21 +568,21 @@ static int __init mount_nodev_root(void)
 }
 
 #ifdef CONFIG_BLOCK
-static void __init mount_block_root(void)
+static void __init mount_block_root(char *root_device_name)
 {
 	int err = create_dev("/dev/root", ROOT_DEV);
 
 	if (err < 0)
 		pr_emerg("Failed to create /dev/root: %d\n", err);
-	mount_root_generic("/dev/root", root_mountflags);
+	mount_root_generic("/dev/root", root_device_name, root_mountflags);
 }
 #else
-static inline void mount_block_root(void)
+static inline void mount_block_root(char *root_device_name)
 {
 }
 #endif /* CONFIG_BLOCK */
 
-void __init mount_root(void)
+void __init mount_root(char *root_device_name)
 {
 	switch (ROOT_DEV) {
 	case Root_NFS:
@@ -593,11 +592,12 @@ void __init mount_root(void)
 		mount_cifs_root();
 		break;
 	case 0:
-		if (root_device_name && root_fs_names && mount_nodev_root() == 0)
+		if (root_device_name && root_fs_names &&
+		    mount_nodev_root(root_device_name) == 0)
 			break;
 		fallthrough;
 	default:
-		mount_block_root();
+		mount_block_root(root_device_name);
 		break;
 	}
 }
@@ -607,6 +607,8 @@ void __init mount_root(void)
  */
 void __init prepare_namespace(void)
 {
+	char *root_device_name;
+
 	if (root_delay) {
 		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
 		       root_delay);
@@ -628,7 +630,8 @@ void __init prepare_namespace(void)
 		root_device_name = saved_root_name;
 		if (!strncmp(root_device_name, "mtd", 3) ||
 		    !strncmp(root_device_name, "ubi", 3)) {
-			mount_root_generic(root_device_name, root_mountflags);
+			mount_root_generic(root_device_name, root_device_name,
+					   root_mountflags);
 			goto out;
 		}
 		ROOT_DEV = name_to_dev_t(root_device_name);
@@ -636,7 +639,7 @@ void __init prepare_namespace(void)
 			root_device_name += 5;
 	}
 
-	if (initrd_load())
+	if (initrd_load(root_device_name))
 		goto out;
 
 	/* wait for any asynchronous scanning to complete */
@@ -649,7 +652,7 @@ void __init prepare_namespace(void)
 		async_synchronize_full();
 	}
 
-	mount_root();
+	mount_root(root_device_name);
 out:
 	devtmpfs_mount();
 	init_mount(".", "/", NULL, MS_MOVE, NULL);
