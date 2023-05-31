@@ -7845,7 +7845,8 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 
 		ret = btrfs_extract_ordered_extent(bbio, dio_data->ordered);
 		if (ret) {
-			btrfs_bio_end_io(bbio, errno_to_blk_status(ret));
+			bbio->bio.bi_status = errno_to_blk_status(ret);
+			btrfs_dio_end_io(bbio);
 			return;
 		}
 	}
