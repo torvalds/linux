@@ -47,6 +47,18 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
 		},
 	},
+	{ .ident = "GOOGLE-ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek COMPUTER INC."),
+		},
+	},
+	{ .ident = "GOOGLE-SAMSUNG",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
 	{}
 };
 
