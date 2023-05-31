@@ -5124,6 +5124,24 @@ Valid values for 'action'::
   #define KVM_PMU_EVENT_ALLOW 0
   #define KVM_PMU_EVENT_DENY 1
 
+Via this API, KVM userspace can also control the behavior of the VM's fixed
+counters (if any) by configuring the "action" and "fixed_counter_bitmap" fields.
+
+Specifically, KVM follows the following pseudo-code when determining whether to
+allow the guest FixCtr[i] to count its pre-defined fixed event::
+
+  FixCtr[i]_is_allowed = (action == ALLOW) && (bitmap & BIT(i)) ||
+    (action == DENY) && !(bitmap & BIT(i));
+  FixCtr[i]_is_denied = !FixCtr[i]_is_allowed;
+
+KVM always consumes fixed_counter_bitmap, it's userspace's responsibility to
+ensure fixed_counter_bitmap is set correctly, e.g. if userspace wants to define
+a filter that only affects general purpose counters.
+
+Note, the "events" field also applies to fixed counters' hardcoded event_select
+and unit_mask values.  "fixed_counter_bitmap" has higher priority than "events"
+if there is a contradiction between the two.
+
 4.121 KVM_PPC_SVM_OFF
 ---------------------
 
