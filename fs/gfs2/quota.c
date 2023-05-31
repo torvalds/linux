@@ -830,7 +830,7 @@ static int gfs2_write_disk_quota(struct gfs2_inode *ip, struct gfs2_quota *qp,
 
 /**
  * gfs2_adjust_quota - adjust record of current block usage
- * @ip: The quota inode
+ * @sdp: The superblock
  * @loc: Offset of the entry in the quota file
  * @change: The amount of usage change to record
  * @qd: The quota data
@@ -842,12 +842,12 @@ static int gfs2_write_disk_quota(struct gfs2_inode *ip, struct gfs2_quota *qp,
  * Returns: 0 or -ve on error
  */
 
-static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
+static int gfs2_adjust_quota(struct gfs2_sbd *sdp, loff_t loc,
 			     s64 change, struct gfs2_quota_data *qd,
 			     struct qc_dqblk *fdq)
 {
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	struct inode *inode = &ip->i_inode;
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_quota q;
 	int err;
 	u64 size;
@@ -971,7 +971,8 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	for (x = 0; x < num_qd; x++) {
 		qd = qda[x];
 		offset = qd2offset(qd);
-		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync, qd, NULL);
+		error = gfs2_adjust_quota(sdp, offset, qd->qd_change_sync, qd,
+							NULL);
 		if (error)
 			goto out_end_trans;
 
@@ -1749,7 +1750,7 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 		goto out_release;
 
 	/* Apply changes */
-	error = gfs2_adjust_quota(ip, offset, 0, qd, fdq);
+	error = gfs2_adjust_quota(sdp, offset, 0, qd, fdq);
 	if (!error)
 		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
 
