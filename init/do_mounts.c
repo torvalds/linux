@@ -96,11 +96,10 @@ static int match_dev_by_uuid(struct device *dev, const void *data)
  *
  * Returns the matching dev_t on success or 0 on failure.
  */
-static dev_t devt_from_partuuid(const char *uuid_str)
+static int devt_from_partuuid(const char *uuid_str, dev_t *devt)
 {
 	struct uuidcmp cmp;
 	struct device *dev = NULL;
-	dev_t devt = 0;
 	int offset = 0;
 	char *slash;
 
@@ -124,21 +123,21 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 
 	dev = class_find_device(&block_class, NULL, &cmp, &match_dev_by_uuid);
 	if (!dev)
-		return 0;
+		return -ENODEV;
 
 	if (offset) {
 		/*
 		 * Attempt to find the requested partition by adding an offset
 		 * to the partition number found by UUID.
 		 */
-		devt = part_devt(dev_to_disk(dev),
-				 dev_to_bdev(dev)->bd_partno + offset);
+		*devt = part_devt(dev_to_disk(dev),
+				  dev_to_bdev(dev)->bd_partno + offset);
 	} else {
-		devt = dev->devt;
+		*devt = dev->devt;
 	}
 
 	put_device(dev);
-	return devt;
+	return 0;
 
 clear_root_wait:
 	pr_err("VFS: PARTUUID= is invalid.\n"
@@ -146,7 +145,7 @@ clear_root_wait:
 	if (root_wait)
 		pr_err("Disabling rootwait; root= is invalid.\n");
 	root_wait = 0;
-	return 0;
+	return -EINVAL;
 }
 
 /**
@@ -166,38 +165,35 @@ static int match_dev_by_label(struct device *dev, const void *data)
 	return 1;
 }
 
-static dev_t devt_from_partlabel(const char *label)
+static int devt_from_partlabel(const char *label, dev_t *devt)
 {
 	struct device *dev;
-	dev_t devt = 0;
 
 	dev = class_find_device(&block_class, NULL, label, &match_dev_by_label);
-	if (dev) {
-		devt = dev->devt;
-		put_device(dev);
-	}
-
-	return devt;
+	if (!dev)
+		return -ENODEV;
+	*devt = dev->devt;
+	put_device(dev);
+	return 0;
 }
 
-static dev_t devt_from_devname(const char *name)
+static int devt_from_devname(const char *name, dev_t *devt)
 {
-	dev_t devt = 0;
 	int part;
 	char s[32];
 	char *p;
 
 	if (strlen(name) > 31)
-		return 0;
+		return -EINVAL;
 	strcpy(s, name);
 	for (p = s; *p; p++) {
 		if (*p == '/')
 			*p = '!';
 	}
 
-	devt = blk_lookup_devt(s, 0);
-	if (devt)
-		return devt;
+	*devt = blk_lookup_devt(s, 0);
+	if (*devt)
+		return 0;
 
 	/*
 	 * Try non-existent, but valid partition, which may only exist after
@@ -206,41 +202,42 @@ static dev_t devt_from_devname(const char *name)
 	while (p > s && isdigit(p[-1]))
 		p--;
 	if (p == s || !*p || *p == '0')
-		return 0;
+		return -EINVAL;
 
 	/* try disk name without <part number> */
 	part = simple_strtoul(p, NULL, 10);
 	*p = '\0';
-	devt = blk_lookup_devt(s, part);
-	if (devt)
-		return devt;
+	*devt = blk_lookup_devt(s, part);
+	if (*devt)
+		return 0;
 
 	/* try disk name without p<part number> */
 	if (p < s + 2 || !isdigit(p[-2]) || p[-1] != 'p')
-		return 0;
+		return -EINVAL;
 	p[-1] = '\0';
-	return blk_lookup_devt(s, part);
+	*devt = blk_lookup_devt(s, part);
+	if (*devt)
+		return 0;
+	return -EINVAL;
 }
-#endif /* CONFIG_BLOCK */
 
-static dev_t devt_from_devnum(const char *name)
+static int devt_from_devnum(const char *name, dev_t *devt)
 {
 	unsigned maj, min, offset;
-	dev_t devt = 0;
 	char *p, dummy;
 
 	if (sscanf(name, "%u:%u%c", &maj, &min, &dummy) == 2 ||
 	    sscanf(name, "%u:%u:%u:%c", &maj, &min, &offset, &dummy) == 3) {
-		devt = MKDEV(maj, min);
-		if (maj != MAJOR(devt) || min != MINOR(devt))
-			return 0;
+		*devt = MKDEV(maj, min);
+		if (maj != MAJOR(*devt) || min != MINOR(*devt))
+			return -EINVAL;
 	} else {
-		devt = new_decode_dev(simple_strtoul(name, &p, 16));
+		*devt = new_decode_dev(simple_strtoul(name, &p, 16));
 		if (*p)
-			return 0;
+			return -EINVAL;
 	}
 
-	return devt;
+	return 0;
 }
 
 /*
@@ -271,19 +268,18 @@ static dev_t devt_from_devnum(const char *name)
  *	name contains slashes, the device name has them replaced with
  *	bangs.
  */
-dev_t name_to_dev_t(const char *name)
+int early_lookup_bdev(const char *name, dev_t *devt)
 {
-#ifdef CONFIG_BLOCK
 	if (strncmp(name, "PARTUUID=", 9) == 0)
-		return devt_from_partuuid(name + 9);
+		return devt_from_partuuid(name + 9, devt);
 	if (strncmp(name, "PARTLABEL=", 10) == 0)
-		return devt_from_partlabel(name + 10);
+		return devt_from_partlabel(name + 10, devt);
 	if (strncmp(name, "/dev/", 5) == 0)
-		return devt_from_devname(name + 5);
-#endif
-	return devt_from_devnum(name);
+		return devt_from_devname(name + 5, devt);
+	return devt_from_devnum(name, devt);
 }
-EXPORT_SYMBOL_GPL(name_to_dev_t);
+EXPORT_SYMBOL_GPL(early_lookup_bdev);
+#endif
 
 static int __init root_dev_setup(char *line)
 {
@@ -606,20 +602,17 @@ static void __init wait_for_root(char *root_device_name)
 
 	pr_info("Waiting for root device %s...\n", root_device_name);
 
-	for (;;) {
-		if (driver_probe_done()) {
-			ROOT_DEV = name_to_dev_t(root_device_name);
-			if (ROOT_DEV)
-				break;
-		}
+	while (!driver_probe_done() ||
+	       early_lookup_bdev(root_device_name, &ROOT_DEV) < 0)
 		msleep(5);
-	}
 	async_synchronize_full();
 
 }
 
 static dev_t __init parse_root_device(char *root_device_name)
 {
+	dev_t dev;
+
 	if (!strncmp(root_device_name, "mtd", 3) ||
 	    !strncmp(root_device_name, "ubi", 3))
 		return Root_Generic;
@@ -629,7 +622,10 @@ static dev_t __init parse_root_device(char *root_device_name)
 		return Root_CIFS;
 	if (strcmp(root_device_name, "/dev/ram") == 0)
 		return Root_RAM0;
-	return name_to_dev_t(root_device_name);
+
+	if (early_lookup_bdev(root_device_name, &dev))
+		return 0;
+	return dev;
 }
 
 /*

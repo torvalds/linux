@@ -5453,8 +5453,8 @@
 
 	root=		[KNL] Root filesystem
 			Usually this a a block device specifier of some kind,
-			see the name_to_dev_t comment in init/do_mounts.c for
-			details.
+			see the early_lookup_bdev comment in init/do_mounts.c
+			for details.
 			Alternatively this can be "ram" for the legacy initial
 			ramdisk, "nfs" and "cifs" for root on a network file
 			system, or "mtd" and "ubi" for mounting from raw flash.

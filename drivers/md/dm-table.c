@@ -330,8 +330,9 @@ dev_t dm_get_dev_t(const char *path)
 {
 	dev_t dev;
 
-	if (lookup_bdev(path, &dev))
-		dev = name_to_dev_t(path);
+	if (lookup_bdev(path, &dev) &&
+	    early_lookup_bdev(path, &dev))
+		return 0;
 	return dev;
 }
 EXPORT_SYMBOL_GPL(dm_get_dev_t);

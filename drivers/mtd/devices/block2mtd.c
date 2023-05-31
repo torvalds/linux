@@ -254,8 +254,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 			msleep(1000);
 		wait_for_device_probe();
 
-		devt = name_to_dev_t(devname);
-		if (!devt)
+		if (early_lookup_bdev(devname, &devt))
 			continue;
 		bdev = blkdev_get_by_dev(devt, mode, dev, NULL);
 	}

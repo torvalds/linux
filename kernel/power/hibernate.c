@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "PM: hibernation: " fmt
 
+#include <linux/blkdev.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
@@ -921,8 +922,7 @@ static int __init find_resume_device(void)
 	}
 
 	/* Check if the device is there */
-	swsusp_resume_device = name_to_dev_t(resume_file);
-	if (swsusp_resume_device)
+	if (!early_lookup_bdev(resume_file, &swsusp_resume_device))
 		return 0;
 
 	/*
@@ -931,15 +931,12 @@ static int __init find_resume_device(void)
 	 */
 	wait_for_device_probe();
 	if (resume_wait) {
-		while (!(swsusp_resume_device = name_to_dev_t(resume_file)))
+		while (early_lookup_bdev(resume_file, &swsusp_resume_device))
 			msleep(10);
 		async_synchronize_full();
 	}
 
-	swsusp_resume_device = name_to_dev_t(resume_file);
-	if (!swsusp_resume_device)
-		return -ENODEV;
-	return 0;
+	return early_lookup_bdev(resume_file, &swsusp_resume_device);
 }
 
 static int software_resume(void)
@@ -1169,7 +1166,8 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 	unsigned int sleep_flags;
 	int len = n;
 	char *name;
-	dev_t res;
+	dev_t dev;
+	int error;
 
 	if (!hibernation_available())
 		return 0;
@@ -1180,13 +1178,13 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (!name)
 		return -ENOMEM;
 
-	res = name_to_dev_t(name);
+	error = early_lookup_bdev(name, &dev);
 	kfree(name);
-	if (!res)
-		return -EINVAL;
+	if (error)
+		return error;
 
 	sleep_flags = lock_system_sleep();
-	swsusp_resume_device = res;
+	swsusp_resume_device = dev;
 	unlock_system_sleep(sleep_flags);
 
 	pm_pr_dbg("Configured hibernation resume from disk to %u\n",
