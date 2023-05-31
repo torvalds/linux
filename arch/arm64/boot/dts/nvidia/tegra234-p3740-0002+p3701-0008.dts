@@ -88,6 +88,7 @@
 		pcie@14100000 {
 			status = "okay";
 			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			vpcie3v3-supply = <&vdd_3v3_wifi>;
 			phys = <&p2u_hsio_3>;
 			phy-names = "p2u-0";
 		};
