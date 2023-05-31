@@ -557,8 +557,7 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 		"incomplete page write with offset %u and length %u",
 				   bvec->bv_offset, bvec->bv_len);
 
-		btrfs_writepage_endio_finish_ordered(BTRFS_I(inode), page, start,
-						     start + len - 1, !error);
+		btrfs_finish_ordered_extent(bbio->ordered, page, start, len, !error);
 		if (error) {
 			btrfs_page_clear_uptodate(fs_info, page, start, len);
 			mapping_set_error(page->mapping, error);
