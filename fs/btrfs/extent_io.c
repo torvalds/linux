@@ -223,8 +223,6 @@ static int process_one_page(struct btrfs_fs_info *fs_info,
 
 	if (page_ops & PAGE_SET_ORDERED)
 		btrfs_page_clamp_set_ordered(fs_info, page, start, len);
-	if (page_ops & PAGE_SET_ERROR)
-		btrfs_page_clamp_set_error(fs_info, page, start, len);
 	if (page_ops & PAGE_START_WRITEBACK) {
 		btrfs_page_clamp_clear_dirty(fs_info, page, start, len);
 		btrfs_page_clamp_set_writeback(fs_info, page, start, len);
@@ -497,12 +495,10 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 	ASSERT(page_offset(page) <= start &&
 	       start + len <= page_offset(page) + PAGE_SIZE);
 
-	if (uptodate && btrfs_verify_page(page, start)) {
+	if (uptodate && btrfs_verify_page(page, start))
 		btrfs_page_set_uptodate(fs_info, page, start, len);
-	} else {
+	else
 		btrfs_page_clear_uptodate(fs_info, page, start, len);
-		btrfs_page_set_error(fs_info, page, start, len);
-	}
 
 	if (!btrfs_is_subpage(fs_info, page))
 		unlock_page(page);
@@ -530,7 +526,6 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 		len = end + 1 - start;
 
 		btrfs_page_clear_uptodate(fs_info, page, start, len);
-		btrfs_page_set_error(fs_info, page, start, len);
 		ret = err < 0 ? err : -EIO;
 		mapping_set_error(page->mapping, ret);
 	}
@@ -1059,7 +1054,6 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 	ret = set_page_extent_mapped(page);
 	if (ret < 0) {
 		unlock_extent(tree, start, end, NULL);
-		btrfs_page_set_error(fs_info, page, start, PAGE_SIZE);
 		unlock_page(page);
 		return ret;
 	}
@@ -1263,11 +1257,9 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		}
 		ret = btrfs_run_delalloc_range(inode, page, delalloc_start,
 				delalloc_end, &page_started, &nr_written, wbc);
-		if (ret) {
-			btrfs_page_set_error(inode->root->fs_info, page,
-					     page_offset(page), PAGE_SIZE);
+		if (ret)
 			return ret;
-		}
+
 		/*
 		 * delalloc_end is already one less than the total length, so
 		 * we don't subtract one from PAGE_SIZE
@@ -1420,7 +1412,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 
 		em = btrfs_get_extent(inode, NULL, 0, cur, end - cur + 1);
 		if (IS_ERR(em)) {
-			btrfs_page_set_error(fs_info, page, cur, end - cur + 1);
 			ret = PTR_ERR_OR_ZERO(em);
 			goto out_error;
 		}
@@ -1519,9 +1510,6 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 
 	WARN_ON(!PageLocked(page));
 
-	btrfs_page_clear_error(btrfs_sb(inode->i_sb), page,
-			       page_offset(page), PAGE_SIZE);
-
 	pg_offset = offset_in_page(i_size);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
@@ -1534,10 +1522,8 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 		memzero_page(page, pg_offset, PAGE_SIZE - pg_offset);
 
 	ret = set_page_extent_mapped(page);
-	if (ret < 0) {
-		SetPageError(page);
+	if (ret < 0)
 		goto done;
-	}
 
 	if (!bio_ctrl->extent_locked) {
 		ret = writepage_delalloc(BTRFS_I(inode), page, bio_ctrl->wbc);

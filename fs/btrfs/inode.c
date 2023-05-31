@@ -1153,8 +1153,6 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 			const u64 page_start = page_offset(locked_page);
 			const u64 page_end = page_start + PAGE_SIZE - 1;
 
-			btrfs_page_set_error(inode->root->fs_info, locked_page,
-					     page_start, PAGE_SIZE);
 			set_page_writeback(locked_page);
 			end_page_writeback(locked_page);
 			end_extent_writepage(locked_page, ret, page_start, page_end);
@@ -2942,7 +2940,6 @@ out_page:
 		mapping_set_error(page->mapping, ret);
 		end_extent_writepage(page, ret, page_start, page_end);
 		clear_page_dirty_for_io(page);
-		SetPageError(page);
 	}
 	btrfs_page_clear_checked(inode->root->fs_info, page, page_start, PAGE_SIZE);
 	unlock_page(page);
