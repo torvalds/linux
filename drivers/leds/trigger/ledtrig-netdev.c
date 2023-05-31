@@ -24,6 +24,8 @@
 #include <linux/timer.h>
 #include "../leds.h"
 
+#define NETDEV_LED_DEFAULT_INTERVAL	50
+
 /*
  * Configurable sysfs attributes:
  *
@@ -51,21 +53,20 @@ struct led_netdev_data {
 
 	unsigned long mode;
 	bool carrier_link_up;
-};
-
-enum led_trigger_netdev_modes {
-	TRIGGER_NETDEV_LINK = 0,
-	TRIGGER_NETDEV_TX,
-	TRIGGER_NETDEV_RX,
-
-	/* Keep last */
-	__TRIGGER_NETDEV_MAX,
+	bool hw_control;
 };
 
 static void set_baseline_state(struct led_netdev_data *trigger_data)
 {
 	int current_brightness;
 	struct led_classdev *led_cdev = trigger_data->led_cdev;
+
+	/* Already validated, hw control is possible with the requested mode */
+	if (trigger_data->hw_control) {
+		led_cdev->hw_control_set(led_cdev, trigger_data->mode);
+
+		return;
+	}
 
 	current_brightness = led_cdev->brightness;
 	if (current_brightness)
@@ -91,6 +92,75 @@ static void set_baseline_state(struct led_netdev_data *trigger_data)
 	}
 }
 
+static bool supports_hw_control(struct led_classdev *led_cdev)
+{
+	if (!led_cdev->hw_control_get || !led_cdev->hw_control_set ||
+	    !led_cdev->hw_control_is_supported)
+		return false;
+
+	return !strcmp(led_cdev->hw_control_trigger, led_cdev->trigger->name);
+}
+
+/*
+ * Validate the configured netdev is the same as the one associated with
+ * the LED driver in hw control.
+ */
+static bool validate_net_dev(struct led_classdev *led_cdev,
+			     struct net_device *net_dev)
+{
+	struct device *dev = led_cdev->hw_control_get_device(led_cdev);
+	struct net_device *ndev;
+
+	if (!dev)
+		return false;
+
+	ndev = to_net_dev(dev);
+
+	return ndev == net_dev;
+}
+
+static bool can_hw_control(struct led_netdev_data *trigger_data)
+{
+	unsigned long default_interval = msecs_to_jiffies(NETDEV_LED_DEFAULT_INTERVAL);
+	unsigned int interval = atomic_read(&trigger_data->interval);
+	struct led_classdev *led_cdev = trigger_data->led_cdev;
+	int ret;
+
+	if (!supports_hw_control(led_cdev))
+		return false;
+
+	/*
+	 * Interval must be set to the default
+	 * value. Any different value is rejected if in hw
+	 * control.
+	 */
+	if (interval != default_interval)
+		return false;
+
+	/*
+	 * net_dev must be set with hw control, otherwise no
+	 * blinking can be happening and there is nothing to
+	 * offloaded. Additionally, for hw control to be
+	 * valid, the configured netdev must be the same as
+	 * netdev associated to the LED.
+	 */
+	if (!validate_net_dev(led_cdev, trigger_data->net_dev))
+		return false;
+
+	/* Check if the requested mode is supported */
+	ret = led_cdev->hw_control_is_supported(led_cdev, trigger_data->mode);
+	/* Fall back to software blinking if not supported */
+	if (ret == -EOPNOTSUPP)
+		return false;
+	if (ret) {
+		dev_warn(led_cdev->dev,
+			 "Current mode check failed with error %d\n", ret);
+		return false;
+	}
+
+	return true;
+}
+
 static ssize_t device_name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -104,15 +174,9 @@ static ssize_t device_name_show(struct device *dev,
 	return len;
 }
 
-static ssize_t device_name_store(struct device *dev,
-				 struct device_attribute *attr, const char *buf,
-				 size_t size)
+static int set_device_name(struct led_netdev_data *trigger_data,
+			   const char *name, size_t size)
 {
-	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
-
-	if (size >= IFNAMSIZ)
-		return -EINVAL;
-
 	cancel_delayed_work_sync(&trigger_data->work);
 
 	mutex_lock(&trigger_data->lock);
@@ -122,7 +186,7 @@ static ssize_t device_name_store(struct device *dev,
 		trigger_data->net_dev = NULL;
 	}
 
-	memcpy(trigger_data->device_name, buf, size);
+	memcpy(trigger_data->device_name, name, size);
 	trigger_data->device_name[size] = 0;
 	if (size > 0 && trigger_data->device_name[size - 1] == '\n')
 		trigger_data->device_name[size - 1] = 0;
@@ -140,6 +204,23 @@ static ssize_t device_name_store(struct device *dev,
 	set_baseline_state(trigger_data);
 	mutex_unlock(&trigger_data->lock);
 
+	return 0;
+}
+
+static ssize_t device_name_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t size)
+{
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
+	int ret;
+
+	if (size >= IFNAMSIZ)
+		return -EINVAL;
+
+	ret = set_device_name(trigger_data, buf, size);
+
+	if (ret < 0)
+		return ret;
 	return size;
 }
 
@@ -193,6 +274,8 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 	else
 		clear_bit(bit, &trigger_data->mode);
 
+	trigger_data->hw_control = can_hw_control(trigger_data);
+
 	set_baseline_state(trigger_data);
 
 	return size;
@@ -231,6 +314,9 @@ static ssize_t interval_store(struct device *dev,
 	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 	unsigned long value;
 	int ret;
+
+	if (trigger_data->hw_control)
+		return -EINVAL;
 
 	ret = kstrtoul(buf, 0, &value);
 	if (ret)
@@ -359,6 +445,8 @@ static void netdev_trig_work(struct work_struct *work)
 static int netdev_trig_activate(struct led_classdev *led_cdev)
 {
 	struct led_netdev_data *trigger_data;
+	unsigned long mode;
+	struct device *dev;
 	int rc;
 
 	trigger_data = kzalloc(sizeof(struct led_netdev_data), GFP_KERNEL);
@@ -377,8 +465,23 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 	trigger_data->device_name[0] = 0;
 
 	trigger_data->mode = 0;
-	atomic_set(&trigger_data->interval, msecs_to_jiffies(50));
+	atomic_set(&trigger_data->interval, msecs_to_jiffies(NETDEV_LED_DEFAULT_INTERVAL));
 	trigger_data->last_activity = 0;
+
+	/* Check if hw control is active by default on the LED.
+	 * Init already enabled mode in hw control.
+	 */
+	if (supports_hw_control(led_cdev) &&
+	    !led_cdev->hw_control_get(led_cdev, &mode)) {
+		dev = led_cdev->hw_control_get_device(led_cdev);
+		if (dev) {
+			const char *name = dev_name(dev);
+
+			set_device_name(trigger_data, name, strlen(name));
+			trigger_data->hw_control = true;
+			trigger_data->mode = mode;
+		}
+	}
 
 	led_set_trigger_data(led_cdev, trigger_data);
 
