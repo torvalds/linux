@@ -3748,8 +3748,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 		rap->obj[0].entity_id_len = vmid->vmid_len;
 		memcpy(rap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
 		size = RAPP_IDENT_OFFSET +
-			sizeof(struct lpfc_vmid_rapp_ident_list) +
-			sizeof(struct entity_id_object);
+		       struct_size(rap, obj, be32_to_cpu(rap->no_of_objects));
 		retry = 1;
 		break;
 
@@ -3768,8 +3767,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 		dap->obj[0].entity_id_len = vmid->vmid_len;
 		memcpy(dap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
 		size = DAPP_IDENT_OFFSET +
-			sizeof(struct lpfc_vmid_dapp_ident_list) +
-			sizeof(struct entity_id_object);
+		       struct_size(dap, obj, be32_to_cpu(dap->no_of_objects));
 		write_lock(&vport->vmid_lock);
 		vmid->flag &= ~LPFC_VMID_REGISTERED;
 		write_unlock(&vport->vmid_lock);
