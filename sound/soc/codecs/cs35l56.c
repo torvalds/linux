@@ -852,10 +852,11 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	 */
 	if (cs35l56->sdw_peripheral) {
 		cs35l56->sdw_irq_no_unmask = true;
-		cancel_work_sync(&cs35l56->sdw_irq_work);
+		flush_work(&cs35l56->sdw_irq_work);
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
 		sdw_read_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
+		flush_work(&cs35l56->sdw_irq_work);
 	}
 
 	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_SHUTDOWN);

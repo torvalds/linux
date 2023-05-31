@@ -281,7 +281,7 @@ static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 	 * A-MDPU and hence the timer continues to run. Then, the
 	 * timer expires and sta is NULL.
 	 */
-	if (!sta)
+	if (IS_ERR_OR_NULL(sta))
 		goto unlock;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
@@ -2089,9 +2089,6 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_has_new_rx_api(mvm))
-		kfree(mvm_sta->dup_data);
-
 	ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 	if (ret)
 		return ret;
@@ -3785,6 +3782,9 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 		u8 sta_id = mvmvif->deflink.ap_sta_id;
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						lockdep_is_held(&mvm->mutex));
+		if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
+			return NULL;
+
 		return sta->addr;
 	}
 
@@ -3822,6 +3822,11 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 
 	if (keyconf->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		addr = iwl_mvm_get_mac_addr(mvm, vif, sta);
+		if (!addr) {
+			IWL_ERR(mvm, "Failed to find mac address\n");
+			return -EINVAL;
+		}
+
 		/* get phase 1 key from mac80211 */
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);

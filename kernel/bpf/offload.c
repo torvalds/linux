@@ -859,4 +859,4 @@ static int __init bpf_offload_init(void)
 	return rhashtable_init(&offdevs, &offdevs_params);
 }
 
-late_initcall(bpf_offload_init);
+core_initcall(bpf_offload_init);
