@@ -2140,6 +2140,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 		u64 ram_bytes;
 		u64 nocow_end;
 		int extent_type;
+		bool is_prealloc;
 
 		nocow = false;
 
@@ -2278,8 +2279,8 @@ out_check:
 		}
 
 		nocow_end = cur_offset + nocow_args.num_bytes - 1;
-
-		if (extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
+		is_prealloc = extent_type == BTRFS_FILE_EXTENT_PREALLOC;
+		if (is_prealloc) {
 			u64 orig_start = found_key.offset - nocow_args.extent_offset;
 			struct extent_map *em;
 
@@ -2295,29 +2296,21 @@ out_check:
 				goto error;
 			}
 			free_extent_map(em);
-			ret = btrfs_add_ordered_extent(inode,
-					cur_offset, nocow_args.num_bytes,
-					nocow_args.num_bytes,
-					nocow_args.disk_bytenr,
-					nocow_args.num_bytes, 0,
-					1 << BTRFS_ORDERED_PREALLOC,
-					BTRFS_COMPRESS_NONE);
-			if (ret) {
+		}
+
+		ret = btrfs_add_ordered_extent(inode, cur_offset,
+				nocow_args.num_bytes, nocow_args.num_bytes,
+				nocow_args.disk_bytenr, nocow_args.num_bytes, 0,
+				is_prealloc
+				? (1 << BTRFS_ORDERED_PREALLOC)
+				: (1 << BTRFS_ORDERED_NOCOW),
+				BTRFS_COMPRESS_NONE);
+		if (ret) {
+			if (is_prealloc) {
 				btrfs_drop_extent_map_range(inode, cur_offset,
 							    nocow_end, false);
-				goto error;
 			}
-		} else {
-			ret = btrfs_add_ordered_extent(inode, cur_offset,
-						       nocow_args.num_bytes,
-						       nocow_args.num_bytes,
-						       nocow_args.disk_bytenr,
-						       nocow_args.num_bytes,
-						       0,
-						       1 << BTRFS_ORDERED_NOCOW,
-						       BTRFS_COMPRESS_NONE);
-			if (ret)
-				goto error;
+			goto error;
 		}
 
 		if (nocow) {
