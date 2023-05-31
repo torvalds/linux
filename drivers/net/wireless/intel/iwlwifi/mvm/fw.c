@@ -1104,7 +1104,26 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 		},
 	},
-
+	{ .ident = "Acer",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		},
+	},
+	{ .ident = "MSI",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+		},
+	},
+	{ .ident = "Honor",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
 	/* keep last */
 	{}
 };
@@ -1176,6 +1195,10 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 					"Unable to add US/Canada to TAS block list, disabling TAS\n");
 			return;
 		}
+	} else {
+		IWL_DEBUG_RADIO(mvm,
+				"System vendor '%s' is in the approved list.\n",
+				dmi_get_system_info(DMI_SYS_VENDOR));
 	}
 
 	/* v4 is the same size as v3, so no need to differentiate here */
