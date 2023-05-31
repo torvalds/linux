@@ -223,8 +223,7 @@ static int cht_wc_leds_set_effect(struct led_classdev *cdev,
 				  u8 effect)
 {
 	struct cht_wc_led *led = container_of(cdev, struct cht_wc_led, cdev);
-	unsigned int ctrl;
-	int ret;
+	int ctrl, ret;
 
 	mutex_lock(&led->mutex);
 
