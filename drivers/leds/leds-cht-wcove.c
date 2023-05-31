@@ -190,7 +190,7 @@ static unsigned long cht_wc_leds_get_period(int ctrl)
 		return 1000;
 	case CHT_WC_LED_F_2_HZ:
 		return 1000 / 2;
-	};
+	}
 
 	return 0;
 }
