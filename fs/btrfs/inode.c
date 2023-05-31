@@ -1494,6 +1494,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		min_alloc_size = fs_info->sectorsize;
 
 	while (num_bytes > 0) {
+		struct btrfs_ordered_extent *ordered;
+
 		cur_alloc_size = num_bytes;
 		ret = btrfs_reserve_extent(root, cur_alloc_size, cur_alloc_size,
 					   min_alloc_size, 0, alloc_hint,
@@ -1518,16 +1520,18 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		}
 		free_extent_map(em);
 
-		ret = btrfs_add_ordered_extent(inode, start, ram_size, ram_size,
-					       ins.objectid, cur_alloc_size, 0,
-					       1 << BTRFS_ORDERED_REGULAR,
-					       BTRFS_COMPRESS_NONE);
-		if (ret)
+		ordered = btrfs_alloc_ordered_extent(inode, start, ram_size,
+					ram_size, ins.objectid, cur_alloc_size,
+					0, 1 << BTRFS_ORDERED_REGULAR,
+					BTRFS_COMPRESS_NONE);
+		if (IS_ERR(ordered)) {
+			ret = PTR_ERR(ordered);
 			goto out_drop_extent_cache;
+		}
 
 		if (btrfs_is_data_reloc_root(root)) {
-			ret = btrfs_reloc_clone_csums(inode, start,
-						      cur_alloc_size);
+			ret = btrfs_reloc_clone_csums(ordered);
+
 			/*
 			 * Only drop cache here, and process as normal.
 			 *
@@ -1544,6 +1548,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 							    start + ram_size - 1,
 							    false);
 		}
+		btrfs_put_ordered_extent(ordered);
 
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
@@ -2133,6 +2138,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	nocow_args.writeback_path = true;
 
 	while (1) {
+		struct btrfs_ordered_extent *ordered;
 		struct btrfs_key found_key;
 		struct btrfs_file_extent_item *fi;
 		struct extent_buffer *leaf;
@@ -2298,18 +2304,19 @@ out_check:
 			free_extent_map(em);
 		}
 
-		ret = btrfs_add_ordered_extent(inode, cur_offset,
+		ordered = btrfs_alloc_ordered_extent(inode, cur_offset,
 				nocow_args.num_bytes, nocow_args.num_bytes,
 				nocow_args.disk_bytenr, nocow_args.num_bytes, 0,
 				is_prealloc
 				? (1 << BTRFS_ORDERED_PREALLOC)
 				: (1 << BTRFS_ORDERED_NOCOW),
 				BTRFS_COMPRESS_NONE);
-		if (ret) {
+		if (IS_ERR(ordered)) {
 			if (is_prealloc) {
 				btrfs_drop_extent_map_range(inode, cur_offset,
 							    nocow_end, false);
 			}
+			ret = PTR_ERR(ordered);
 			goto error;
 		}
 
@@ -2324,8 +2331,8 @@ out_check:
 			 * extent_clear_unlock_delalloc() in error handler
 			 * from freeing metadata of created ordered extent.
 			 */
-			ret = btrfs_reloc_clone_csums(inode, cur_offset,
-						      nocow_args.num_bytes);
+			ret = btrfs_reloc_clone_csums(ordered);
+		btrfs_put_ordered_extent(ordered);
 
 		extent_clear_unlock_delalloc(inode, cur_offset, nocow_end,
 					     locked_page, EXTENT_LOCKED |
