@@ -2119,6 +2119,16 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	atomic_set_release(&bp_desc.refs, 1);
 
 	/*
+	 * Function tracing can enable thousands of places that need to be
+	 * updated. This can take quite some time, and with full kernel debugging
+	 * enabled, this could cause the softlockup watchdog to trigger.
+	 * This function gets called every 256 entries added to be patched.
+	 * Call cond_resched() here to make sure that other tasks can get scheduled
+	 * while processing all the functions being patched.
+	 */
+	cond_resched();
+
+	/*
 	 * Corresponding read barrier in int3 notifier for making sure the
 	 * nr_entries and handler are correctly ordered wrt. patching.
 	 */
