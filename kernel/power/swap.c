@@ -30,6 +30,7 @@
 #include <linux/kthread.h>
 #include <linux/crc32.h>
 #include <linux/ktime.h>
+#include <trace/hooks/bl_hib.h>
 
 #include "power.h"
 
@@ -1524,6 +1525,7 @@ int swsusp_check(void)
 					    FMODE_READ | FMODE_EXCL, &holder);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
+		trace_android_vh_save_hib_resume_bdev(hib_resume_bdev);
 		clear_page(swsusp_header);
 		error = hib_submit_io(REQ_OP_READ, swsusp_resume_block,
 					swsusp_header, NULL);
