@@ -482,7 +482,9 @@ void __printf(2, 3) kunit_log_append(char *log, const char *fmt, ...);
  */
 #define KUNIT_SUCCEED(test) do {} while (0)
 
-void kunit_do_failed_assertion(struct kunit *test,
+void __noreturn __kunit_abort(struct kunit *test);
+
+void __kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
 			       enum kunit_assert_type type,
 			       const struct kunit_assert *assert,
@@ -492,13 +494,15 @@ void kunit_do_failed_assertion(struct kunit *test,
 #define _KUNIT_FAILED(test, assert_type, assert_class, assert_format, INITIALIZER, fmt, ...) do { \
 	static const struct kunit_loc __loc = KUNIT_CURRENT_LOC;	       \
 	const struct assert_class __assertion = INITIALIZER;		       \
-	kunit_do_failed_assertion(test,					       \
-				  &__loc,				       \
-				  assert_type,				       \
-				  &__assertion.assert,			       \
-				  assert_format,			       \
-				  fmt,					       \
-				  ##__VA_ARGS__);			       \
+	__kunit_do_failed_assertion(test,				       \
+				    &__loc,				       \
+				    assert_type,			       \
+				    &__assertion.assert,		       \
+				    assert_format,			       \
+				    fmt,				       \
+				    ##__VA_ARGS__);			       \
+	if (assert_type == KUNIT_ASSERTION)				       \
+		__kunit_abort(test);					       \
 } while (0)
 
 

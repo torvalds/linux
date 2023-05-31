@@ -323,7 +323,7 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 	string_stream_destroy(stream);
 }
 
-static void __noreturn kunit_abort(struct kunit *test)
+void __noreturn __kunit_abort(struct kunit *test)
 {
 	kunit_try_catch_throw(&test->try_catch); /* Does not return. */
 
@@ -335,8 +335,9 @@ static void __noreturn kunit_abort(struct kunit *test)
 	 */
 	WARN_ONCE(true, "Throw could not abort from test!\n");
 }
+EXPORT_SYMBOL_GPL(__kunit_abort);
 
-void kunit_do_failed_assertion(struct kunit *test,
+void __kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
 			       enum kunit_assert_type type,
 			       const struct kunit_assert *assert,
@@ -353,11 +354,8 @@ void kunit_do_failed_assertion(struct kunit *test,
 	kunit_fail(test, loc, type, assert, assert_format, &message);
 
 	va_end(args);
-
-	if (type == KUNIT_ASSERTION)
-		kunit_abort(test);
 }
-EXPORT_SYMBOL_GPL(kunit_do_failed_assertion);
+EXPORT_SYMBOL_GPL(__kunit_do_failed_assertion);
 
 void kunit_init_test(struct kunit *test, const char *name, char *log)
 {
