@@ -536,8 +536,6 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 	struct bio *bio = &bbio->bio;
 	int error = blk_status_to_errno(bio->bi_status);
 	struct bio_vec *bvec;
-	u64 start;
-	u64 end;
 	struct bvec_iter_all iter_all;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
@@ -546,6 +544,8 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 		struct inode *inode = page->mapping->host;
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 		const u32 sectorsize = fs_info->sectorsize;
+		u64 start = page_offset(page) + bvec->bv_offset;
+		u32 len = bvec->bv_len;
 
 		/* Our read/write should always be sector aligned. */
 		if (!IS_ALIGNED(bvec->bv_offset, sectorsize))
@@ -557,12 +557,13 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 		"incomplete page write with offset %u and length %u",
 				   bvec->bv_offset, bvec->bv_len);
 
-		start = page_offset(page) + bvec->bv_offset;
-		end = start + bvec->bv_len - 1;
-
-		end_extent_writepage(page, error, start, end);
-
-		btrfs_page_clear_writeback(fs_info, page, start, bvec->bv_len);
+		btrfs_writepage_endio_finish_ordered(BTRFS_I(inode), page, start,
+						     start + len - 1, !error);
+		if (error) {
+			btrfs_page_clear_uptodate(fs_info, page, start, len);
+			mapping_set_error(page->mapping, error);
+		}
+		btrfs_page_clear_writeback(fs_info, page, start, len);
 	}
 
 	bio_put(bio);
