@@ -905,14 +905,13 @@ err_unroll_intr:
  */
 static int ice_pci_sriov_ena(struct ice_pf *pf, int num_vfs)
 {
-	int pre_existing_vfs = pci_num_vf(pf->pdev);
 	struct device *dev = ice_pf_to_dev(pf);
 	int err;
 
-	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
+	if (!num_vfs) {
 		ice_free_vfs(pf);
-	else if (pre_existing_vfs && pre_existing_vfs == num_vfs)
 		return 0;
+	}
 
 	if (num_vfs > pf->vfs.num_supported) {
 		dev_err(dev, "Can't enable %d VFs, max VFs supported is %d\n",
