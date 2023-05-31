@@ -7775,8 +7775,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		pos += submitted;
 		length -= submitted;
 		if (write)
-			btrfs_mark_ordered_io_finished(BTRFS_I(inode), NULL,
-						       pos, length, false);
+			btrfs_finish_ordered_extent(dio_data->ordered, NULL,
+						    pos, length, false);
 		else
 			unlock_extent(&BTRFS_I(inode)->io_tree, pos,
 				      pos + length - 1, NULL);
@@ -7806,12 +7806,14 @@ static void btrfs_dio_end_io(struct btrfs_bio *bbio)
 			   dip->file_offset, dip->bytes, bio->bi_status);
 	}
 
-	if (btrfs_op(bio) == BTRFS_MAP_WRITE)
-		btrfs_mark_ordered_io_finished(inode, NULL, dip->file_offset,
-					       dip->bytes, !bio->bi_status);
-	else
+	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
+		btrfs_finish_ordered_extent(bbio->ordered, NULL,
+					    dip->file_offset, dip->bytes,
+					    !bio->bi_status);
+	} else {
 		unlock_extent(&inode->io_tree, dip->file_offset,
 			      dip->file_offset + dip->bytes - 1, NULL);
+	}
 
 	bbio->bio.bi_private = bbio->private;
 	iomap_dio_bio_end_io(bio);
