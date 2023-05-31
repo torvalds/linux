@@ -6173,11 +6173,6 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 	bioc->replace_nr_stripes = nr_extra_stripes;
 }
 
-static bool need_full_stripe(enum btrfs_map_op op)
-{
-	return (op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS);
-}
-
 static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 			    u64 offset, u32 *stripe_nr, u64 *stripe_offset,
 			    u64 *full_stripe_start)
@@ -6290,21 +6285,21 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		stripe_index = stripe_nr % map->num_stripes;
 		stripe_nr /= map->num_stripes;
-		if (!need_full_stripe(op))
+		if (op == BTRFS_MAP_READ)
 			mirror_num = 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
-		if (need_full_stripe(op))
+		if (op != BTRFS_MAP_READ) {
 			num_stripes = map->num_stripes;
-		else if (mirror_num)
+		} else if (mirror_num) {
 			stripe_index = mirror_num - 1;
-		else {
+		} else {
 			stripe_index = find_live_mirror(fs_info, map, 0,
 					    dev_replace_is_ongoing);
 			mirror_num = stripe_index + 1;
 		}
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
-		if (need_full_stripe(op)) {
+		if (op != BTRFS_MAP_READ) {
 			num_stripes = map->num_stripes;
 		} else if (mirror_num) {
 			stripe_index = mirror_num - 1;
@@ -6318,7 +6313,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		stripe_index = (stripe_nr % factor) * map->sub_stripes;
 		stripe_nr /= factor;
 
-		if (need_full_stripe(op))
+		if (op != BTRFS_MAP_READ)
 			num_stripes = map->sub_stripes;
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
@@ -6331,7 +6326,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		}
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		if (need_raid_map && (need_full_stripe(op) || mirror_num > 1)) {
+		if (need_raid_map && (op != BTRFS_MAP_READ || mirror_num > 1)) {
 			/*
 			 * Push stripe_nr back to the start of the full stripe
 			 * For those cases needing a full stripe, @stripe_nr
@@ -6366,7 +6361,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 
 			/* We distribute the parity blocks across stripes */
 			stripe_index = (stripe_nr + stripe_index) % map->num_stripes;
-			if (!need_full_stripe(op) && mirror_num <= 1)
+			if (op == BTRFS_MAP_READ && mirror_num <= 1)
 				mirror_num = 1;
 		}
 	} else {
@@ -6406,7 +6401,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 */
 	if (smap && num_alloc_stripes == 1 &&
 	    !((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && mirror_num > 1) &&
-	    (!need_full_stripe(op) || !dev_replace_is_ongoing ||
+	    (op == BTRFS_MAP_READ || !dev_replace_is_ongoing ||
 	     !dev_replace->tgtdev)) {
 		set_io_stripe(smap, map, stripe_index, stripe_offset, stripe_nr);
 		*mirror_num_ret = mirror_num;
@@ -6430,7 +6425,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 * It's still mostly the same as other profiles, just with extra rotation.
 	 */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK && need_raid_map &&
-	    (need_full_stripe(op) || mirror_num > 1)) {
+	    (op != BTRFS_MAP_READ || mirror_num > 1)) {
 		/*
 		 * For RAID56 @stripe_nr is already the number of full stripes
 		 * before us, which is also the rotation value (needs to modulo
@@ -6457,11 +6452,11 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		}
 	}
 
-	if (need_full_stripe(op))
+	if (op != BTRFS_MAP_READ)
 		max_errors = btrfs_chunk_max_errors(map);
 
 	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL &&
-	    need_full_stripe(op)) {
+	    op != BTRFS_MAP_READ) {
 		handle_ops_on_dev_replace(op, bioc, dev_replace, logical,
 					  &num_stripes, &max_errors);
 	}
