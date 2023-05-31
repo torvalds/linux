@@ -120,6 +120,7 @@ struct cls_fl_filter {
 	u32 handle;
 	u32 flags;
 	u32 in_hw_count;
+	u8 needs_tc_skb_ext:1;
 	struct rcu_work rwork;
 	struct net_device *hw_dev;
 	/* Flower classifier is unlocked, which means that its reference counter
@@ -415,6 +416,8 @@ static struct cls_fl_head *fl_head_dereference(struct tcf_proto *tp)
 
 static void __fl_destroy_filter(struct cls_fl_filter *f)
 {
+	if (f->needs_tc_skb_ext)
+		tc_skb_ext_tc_disable();
 	tcf_exts_destroy(&f->exts);
 	tcf_exts_put_net(&f->exts);
 	kfree(f);
@@ -615,7 +618,8 @@ static void *fl_get(struct tcf_proto *tp, u32 handle)
 }
 
 static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
-	[TCA_FLOWER_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TCA_FLOWER_UNSPEC]		= { .strict_start_type =
+						TCA_FLOWER_L2_MISS },
 	[TCA_FLOWER_CLASSID]		= { .type = NLA_U32 },
 	[TCA_FLOWER_INDEV]		= { .type = NLA_STRING,
 					    .len = IFNAMSIZ },
@@ -720,7 +724,7 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_PPPOE_SID]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_PPP_PROTO]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_L2TPV3_SID]	= { .type = NLA_U32 },
-
+	[TCA_FLOWER_L2_MISS]		= NLA_POLICY_MAX(NLA_U8, 1),
 };
 
 static const struct nla_policy
@@ -1668,6 +1672,10 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		mask->meta.ingress_ifindex = 0xffffffff;
 	}
 
+	fl_set_key_val(tb, &key->meta.l2_miss, TCA_FLOWER_L2_MISS,
+		       &mask->meta.l2_miss, TCA_FLOWER_UNSPEC,
+		       sizeof(key->meta.l2_miss));
+
 	fl_set_key_val(tb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 		       mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
 		       sizeof(key->eth.dst));
@@ -2085,6 +2093,11 @@ errout_cleanup:
 	return ret;
 }
 
+static bool fl_needs_tc_skb_ext(const struct fl_flow_key *mask)
+{
+	return mask->meta.l2_miss;
+}
+
 static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
@@ -2119,6 +2132,14 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 	if (!fl_mask_fits_tmplt(tmplt, mask)) {
 		NL_SET_ERR_MSG_MOD(extack, "Mask does not fit the template");
 		return -EINVAL;
+	}
+
+	/* Enable tc skb extension if filter matches on data extracted from
+	 * this extension.
+	 */
+	if (fl_needs_tc_skb_ext(&mask->key)) {
+		f->needs_tc_skb_ext = 1;
+		tc_skb_ext_tc_enable();
 	}
 
 	return 0;
@@ -3073,6 +3094,11 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 		if (dev && nla_put_string(skb, TCA_FLOWER_INDEV, dev->name))
 			goto nla_put_failure;
 	}
+
+	if (fl_dump_key_val(skb, &key->meta.l2_miss,
+			    TCA_FLOWER_L2_MISS, &mask->meta.l2_miss,
+			    TCA_FLOWER_UNSPEC, sizeof(key->meta.l2_miss)))
+		goto nla_put_failure;
 
 	if (fl_dump_key_val(skb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 			    mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
