@@ -888,8 +888,9 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 
 		/* For scrub, our mirror_num should always start at 1. */
 		ASSERT(stripe->mirror_num >= 1);
-		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
-				       stripe->logical, &mapped_len, &bioc);
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
+				      stripe->logical, &mapped_len, &bioc,
+				      NULL, NULL, 1);
 		/*
 		 * If we failed, dev will be NULL, and later detailed reports
 		 * will just be skipped.
@@ -1921,8 +1922,8 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	bio->bi_end_io = raid56_scrub_wait_endio;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
-			       &length, &bioc);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
+			      &length, &bioc, NULL, NULL, 1);
 	if (ret < 0) {
 		btrfs_put_bioc(bioc);
 		btrfs_bio_counter_dec(fs_info);

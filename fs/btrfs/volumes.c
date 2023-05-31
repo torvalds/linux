@@ -6481,15 +6481,6 @@ out:
 	return ret;
 }
 
-/* For Scrub/replace */
-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-		     u64 logical, u64 *length,
-		     struct btrfs_io_context **bioc_ret)
-{
-	return btrfs_map_block(fs_info, op, logical, length, bioc_ret,
-				 NULL, NULL, 1);
-}
-
 static bool dev_args_match_fs_devices(const struct btrfs_dev_lookup_args *args,
 				      const struct btrfs_fs_devices *fs_devices)
 {
