@@ -222,7 +222,6 @@ static const struct intel_display_device_info i865g_display = {
 	.has_overlay = 1, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
 	\
 	.__runtime_defaults.ip.ver = 3, \
 	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
@@ -231,12 +230,14 @@ static const struct intel_display_device_info i865g_display = {
 
 static const struct intel_display_device_info i915g_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
 };
 
 static const struct intel_display_device_info i915gm_display = {
 	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
 	.supports_tv = 1,
@@ -246,6 +247,7 @@ static const struct intel_display_device_info i915gm_display = {
 
 static const struct intel_display_device_info i945g_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
 	.has_hotplug = 1,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
@@ -253,6 +255,7 @@ static const struct intel_display_device_info i945g_display = {
 
 static const struct intel_display_device_info i945gm_display = {
 	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.has_hotplug = 1,
 	.cursor_needs_physical = 1,
 	.overlay_needs_physical = 1,
@@ -263,6 +266,13 @@ static const struct intel_display_device_info i945gm_display = {
 
 static const struct intel_display_device_info g33_display = {
 	GEN3_DISPLAY,
+	I845_COLORS,
+	.has_hotplug = 1,
+};
+
+static const struct intel_display_device_info pnv_display = {
+	GEN3_DISPLAY,
+	I9XX_COLORS,
 	.has_hotplug = 1,
 };
 
@@ -677,8 +687,8 @@ static const struct {
 	INTEL_I965GM_IDS(&i965gm_display),
 	INTEL_GM45_IDS(&gm45_display),
 	INTEL_G45_IDS(&g45_display),
-	INTEL_PINEVIEW_G_IDS(&g33_display),
-	INTEL_PINEVIEW_M_IDS(&g33_display),
+	INTEL_PINEVIEW_G_IDS(&pnv_display),
+	INTEL_PINEVIEW_M_IDS(&pnv_display),
 	INTEL_IRONLAKE_D_IDS(&ilk_d_display),
 	INTEL_IRONLAKE_M_IDS(&ilk_m_display),
 	INTEL_SNB_D_IDS(&snb_display),
