@@ -1042,7 +1042,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 			    	is_patched ? patched_ihre : ih_ring_entry)) {
 			kfd_queue_work(node->ih_wq, &node->interrupt_work);
 			spin_unlock_irqrestore(&node->interrupt_lock, flags);
-				return;
+			return;
 		}
 		spin_unlock_irqrestore(&node->interrupt_lock, flags);
 	}
