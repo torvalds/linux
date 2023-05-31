@@ -89,14 +89,35 @@ do {									\
 	__ret;								\
 })
 
-#define raw_cpu_generic_cmpxchg(pcp, oval, nval)			\
+#define __cpu_fallback_try_cmpxchg(pcp, ovalp, nval, _cmpxchg)		\
+({									\
+	typeof(pcp) __val, __old = *(ovalp);				\
+	__val = _cmpxchg(pcp, __old, nval);				\
+	if (__val != __old)						\
+		*(ovalp) = __val;					\
+	__val == __old;							\
+})
+
+#define raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)			\
 ({									\
 	typeof(pcp) *__p = raw_cpu_ptr(&(pcp));				\
-	typeof(pcp) __ret;						\
-	__ret = *__p;							\
-	if (__ret == (oval))						\
+	typeof(pcp) __val = *__p, __old = *(ovalp);			\
+	bool __ret;							\
+	if (__val == __old) {						\
 		*__p = nval;						\
+		__ret = true;						\
+	} else {							\
+		*(ovalp) = __val;					\
+		__ret = false;						\
+	}								\
 	__ret;								\
+})
+
+#define raw_cpu_generic_cmpxchg(pcp, oval, nval)			\
+({									\
+	typeof(pcp) __old = (oval);					\
+	raw_cpu_generic_try_cmpxchg(pcp, &__old, nval);			\
+	__old;								\
 })
 
 #define raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2) \
@@ -166,6 +187,16 @@ do {									\
 	unsigned long __flags;						\
 	raw_local_irq_save(__flags);					\
 	__ret = raw_cpu_generic_xchg(pcp, nval);			\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
+})
+
+#define this_cpu_generic_try_cmpxchg(pcp, ovalp, nval)			\
+({									\
+	bool __ret;							\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	__ret = raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval);		\
 	raw_local_irq_restore(__flags);					\
 	__ret;								\
 })
@@ -280,6 +311,43 @@ do {									\
 #endif
 #ifndef raw_cpu_xchg_8
 #define raw_cpu_xchg_8(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
+#endif
+
+#ifndef raw_cpu_try_cmpxchg_1
+#ifdef raw_cpu_cmpxchg_1
+#define raw_cpu_try_cmpxchg_1(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, raw_cpu_cmpxchg_1)
+#else
+#define raw_cpu_try_cmpxchg_1(pcp, ovalp, nval) \
+	raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef raw_cpu_try_cmpxchg_2
+#ifdef raw_cpu_cmpxchg_2
+#define raw_cpu_try_cmpxchg_2(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, raw_cpu_cmpxchg_2)
+#else
+#define raw_cpu_try_cmpxchg_2(pcp, ovalp, nval) \
+	raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef raw_cpu_try_cmpxchg_4
+#ifdef raw_cpu_cmpxchg_4
+#define raw_cpu_try_cmpxchg_4(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, raw_cpu_cmpxchg_4)
+#else
+#define raw_cpu_try_cmpxchg_4(pcp, ovalp, nval) \
+	raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef raw_cpu_try_cmpxchg_8
+#ifdef raw_cpu_cmpxchg_8
+#define raw_cpu_try_cmpxchg_8(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, raw_cpu_cmpxchg_8)
+#else
+#define raw_cpu_try_cmpxchg_8(pcp, ovalp, nval) \
+	raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
 #endif
 
 #ifndef raw_cpu_cmpxchg_1
@@ -405,6 +473,43 @@ do {									\
 #endif
 #ifndef this_cpu_xchg_8
 #define this_cpu_xchg_8(pcp, nval)	this_cpu_generic_xchg(pcp, nval)
+#endif
+
+#ifndef this_cpu_try_cmpxchg_1
+#ifdef this_cpu_cmpxchg_1
+#define this_cpu_try_cmpxchg_1(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, this_cpu_cmpxchg_1)
+#else
+#define this_cpu_try_cmpxchg_1(pcp, ovalp, nval) \
+	this_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef this_cpu_try_cmpxchg_2
+#ifdef this_cpu_cmpxchg_2
+#define this_cpu_try_cmpxchg_2(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, this_cpu_cmpxchg_2)
+#else
+#define this_cpu_try_cmpxchg_2(pcp, ovalp, nval) \
+	this_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef this_cpu_try_cmpxchg_4
+#ifdef this_cpu_cmpxchg_4
+#define this_cpu_try_cmpxchg_4(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, this_cpu_cmpxchg_4)
+#else
+#define this_cpu_try_cmpxchg_4(pcp, ovalp, nval) \
+	this_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
+#endif
+#ifndef this_cpu_try_cmpxchg_8
+#ifdef this_cpu_cmpxchg_8
+#define this_cpu_try_cmpxchg_8(pcp, ovalp, nval) \
+	__cpu_fallback_try_cmpxchg(pcp, ovalp, nval, this_cpu_cmpxchg_8)
+#else
+#define this_cpu_try_cmpxchg_8(pcp, ovalp, nval) \
+	this_cpu_generic_try_cmpxchg(pcp, ovalp, nval)
+#endif
 #endif
 
 #ifndef this_cpu_cmpxchg_1
