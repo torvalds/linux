@@ -313,24 +313,33 @@ static int scmi_powercap_xfer_cap_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_powercap_cap_get(const struct scmi_protocol_handle *ph,
-				 u32 domain_id, u32 *power_cap)
+static int __scmi_powercap_cap_get(const struct scmi_protocol_handle *ph,
+				   const struct scmi_powercap_info *dom,
+				   u32 *power_cap)
 {
-	struct scmi_powercap_info *dom;
-	struct powercap_info *pi = ph->get_priv(ph);
-
-	if (!power_cap || domain_id >= pi->num_domains)
-		return -EINVAL;
-
-	dom = pi->powercaps + domain_id;
 	if (dom->fc_info && dom->fc_info[POWERCAP_FC_CAP].get_addr) {
 		*power_cap = ioread32(dom->fc_info[POWERCAP_FC_CAP].get_addr);
 		trace_scmi_fc_call(SCMI_PROTOCOL_POWERCAP, POWERCAP_CAP_GET,
-				   domain_id, *power_cap, 0);
+				   dom->id, *power_cap, 0);
 		return 0;
 	}
 
-	return scmi_powercap_xfer_cap_get(ph, domain_id, power_cap);
+	return scmi_powercap_xfer_cap_get(ph, dom->id, power_cap);
+}
+
+static int scmi_powercap_cap_get(const struct scmi_protocol_handle *ph,
+				 u32 domain_id, u32 *power_cap)
+{
+	const struct scmi_powercap_info *dom;
+
+	if (!power_cap)
+		return -EINVAL;
+
+	dom = scmi_powercap_dom_info_get(ph, domain_id);
+	if (!dom)
+		return -EINVAL;
+
+	return __scmi_powercap_cap_get(ph, dom, power_cap);
 }
 
 static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
@@ -375,17 +384,20 @@ static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
-				 u32 domain_id, u32 power_cap,
-				 bool ignore_dresp)
+static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
+				   struct powercap_info *pi, u32 domain_id,
+				   u32 power_cap, bool ignore_dresp)
 {
+	int ret = -EINVAL;
 	const struct scmi_powercap_info *pc;
 
 	pc = scmi_powercap_dom_info_get(ph, domain_id);
-	if (!pc || !pc->powercap_cap_config || !power_cap ||
-	    power_cap < pc->min_power_cap ||
-	    power_cap > pc->max_power_cap)
-		return -EINVAL;
+	if (!pc || !pc->powercap_cap_config)
+		return ret;
+
+	if (power_cap &&
+	    (power_cap < pc->min_power_cap || power_cap > pc->max_power_cap))
+		return ret;
 
 	if (pc->fc_info && pc->fc_info[POWERCAP_FC_CAP].set_addr) {
 		struct scmi_fc_info *fci = &pc->fc_info[POWERCAP_FC_CAP];
@@ -394,10 +406,23 @@ static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 		ph->hops->fastchannel_db_ring(fci->set_db);
 		trace_scmi_fc_call(SCMI_PROTOCOL_POWERCAP, POWERCAP_CAP_SET,
 				   domain_id, power_cap, 0);
-		return 0;
+		ret = 0;
+	} else {
+		ret = scmi_powercap_xfer_cap_set(ph, pc, power_cap,
+						 ignore_dresp);
 	}
 
-	return scmi_powercap_xfer_cap_set(ph, pc, power_cap, ignore_dresp);
+	return ret;
+}
+
+static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
+				 u32 domain_id, u32 power_cap,
+				 bool ignore_dresp)
+{
+	struct powercap_info *pi = ph->get_priv(ph);
+
+	return __scmi_powercap_cap_set(ph, pi, domain_id,
+				       power_cap, ignore_dresp);
 }
 
 static int scmi_powercap_xfer_pai_get(const struct scmi_protocol_handle *ph,
