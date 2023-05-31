@@ -2127,6 +2127,9 @@ void dcn20_optimize_bandwidth(
 		dc_dmub_srv_p_state_delegate(dc,
 			true, context);
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		dc->clk_mgr->clks.fw_based_mclk_switching = true;
+	} else {
+		dc->clk_mgr->clks.fw_based_mclk_switching = false;
 	}
 
 	dc->clk_mgr->funcs->update_clocks(
