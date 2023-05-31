@@ -15,6 +15,7 @@
 #include <linux/hrtimer.h>
 
 struct bus_type;
+struct i915_vma;
 
 enum intel_huc_delayed_load_status {
 	INTEL_HUC_WAITING_ON_GSC = 0,
@@ -46,6 +47,9 @@ struct intel_huc {
 		enum intel_huc_delayed_load_status status;
 	} delayed_load;
 
+	/* for load via GSCCS */
+	struct i915_vma *heci_pkt;
+
 	bool loaded_via_gsc;
 };
 
@@ -54,7 +58,7 @@ void intel_huc_init_early(struct intel_huc *huc);
 int intel_huc_init(struct intel_huc *huc);
 void intel_huc_fini(struct intel_huc *huc);
 void intel_huc_suspend(struct intel_huc *huc);
-int intel_huc_auth(struct intel_huc *huc);
+int intel_huc_auth(struct intel_huc *huc, enum intel_huc_authentication_type type);
 int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
 				     enum intel_huc_authentication_type type);
 bool intel_huc_is_authenticated(struct intel_huc *huc,

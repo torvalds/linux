@@ -11,6 +11,7 @@
 #include "intel_huc_print.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "pxp/intel_pxp_cmd_interface_43.h"
 
 #include <linux/device/bus.h>
 #include <linux/mei_aux.h>
@@ -371,20 +372,36 @@ static int check_huc_loading_mode(struct intel_huc *huc)
 
 int intel_huc_init(struct intel_huc *huc)
 {
+	struct intel_gt *gt = huc_to_gt(huc);
 	int err;
 
 	err = check_huc_loading_mode(huc);
 	if (err)
 		goto out;
 
+	if (HAS_ENGINE(gt, GSC0)) {
+		struct i915_vma *vma;
+
+		vma = intel_guc_allocate_vma(&gt->uc.guc, PXP43_HUC_AUTH_INOUT_SIZE * 2);
+		if (IS_ERR(vma)) {
+			huc_info(huc, "Failed to allocate heci pkt\n");
+			goto out;
+		}
+
+		huc->heci_pkt = vma;
+	}
+
 	err = intel_uc_fw_init(&huc->fw);
 	if (err)
-		goto out;
+		goto out_pkt;
 
 	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_LOADABLE);
 
 	return 0;
 
+out_pkt:
+	if (huc->heci_pkt)
+		i915_vma_unpin_and_release(&huc->heci_pkt, 0);
 out:
 	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_INIT_FAIL);
 	huc_info(huc, "initialization failed %pe\n", ERR_PTR(err));
@@ -398,6 +415,9 @@ void intel_huc_fini(struct intel_huc *huc)
 	 * even if HuC loading is off.
 	 */
 	delayed_huc_load_fini(huc);
+
+	if (huc->heci_pkt)
+		i915_vma_unpin_and_release(&huc->heci_pkt, 0);
 
 	if (intel_uc_fw_is_loadable(&huc->fw))
 		intel_uc_fw_fini(&huc->fw);
@@ -454,6 +474,7 @@ int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
 /**
  * intel_huc_auth() - Authenticate HuC uCode
  * @huc: intel_huc structure
+ * @type: authentication type (via GuC or via GSC)
  *
  * Called after HuC and GuC firmware loading during intel_uc_init_hw().
  *
@@ -461,7 +482,7 @@ int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
  * passing the offset of the RSA signature to intel_guc_auth_huc(). It then
  * waits for up to 50ms for firmware verification ACK.
  */
-int intel_huc_auth(struct intel_huc *huc)
+int intel_huc_auth(struct intel_huc *huc, enum intel_huc_authentication_type type)
 {
 	struct intel_gt *gt = huc_to_gt(huc);
 	struct intel_guc *guc = &gt->uc.guc;
@@ -470,31 +491,41 @@ int intel_huc_auth(struct intel_huc *huc)
 	if (!intel_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
 
-	/* GSC will do the auth */
+	/* GSC will do the auth with the load */
 	if (intel_huc_is_loaded_by_gsc(huc))
 		return -ENODEV;
+
+	if (intel_huc_is_authenticated(huc, type))
+		return -EEXIST;
 
 	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		goto fail;
 
-	GEM_BUG_ON(intel_uc_fw_is_running(&huc->fw));
-
-	ret = intel_guc_auth_huc(guc, intel_guc_ggtt_offset(guc, huc->fw.rsa_data));
-	if (ret) {
-		huc_err(huc, "authentication by GuC failed %pe\n", ERR_PTR(ret));
-		goto fail;
+	switch (type) {
+	case INTEL_HUC_AUTH_BY_GUC:
+		ret = intel_guc_auth_huc(guc, intel_guc_ggtt_offset(guc, huc->fw.rsa_data));
+		break;
+	case INTEL_HUC_AUTH_BY_GSC:
+		ret = intel_huc_fw_auth_via_gsccs(huc);
+		break;
+	default:
+		MISSING_CASE(type);
+		ret = -EINVAL;
 	}
+	if (ret)
+		goto fail;
 
 	/* Check authentication status, it should be done by now */
-	ret = intel_huc_wait_for_auth_complete(huc, INTEL_HUC_AUTH_BY_GUC);
+	ret = intel_huc_wait_for_auth_complete(huc, type);
 	if (ret)
 		goto fail;
 
 	return 0;
 
 fail:
-	huc_probe_error(huc, "authentication failed %pe\n", ERR_PTR(ret));
+	huc_probe_error(huc, "%s authentication failed %pe\n",
+			auth_mode_string(huc, type), ERR_PTR(ret));
 	return ret;
 }
 

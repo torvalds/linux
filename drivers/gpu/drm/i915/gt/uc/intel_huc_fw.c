@@ -6,11 +6,106 @@
 #include "gt/intel_gsc.h"
 #include "gt/intel_gt.h"
 #include "intel_gsc_binary_headers.h"
+#include "intel_gsc_uc_heci_cmd_submit.h"
 #include "intel_huc.h"
 #include "intel_huc_fw.h"
 #include "intel_huc_print.h"
 #include "i915_drv.h"
 #include "pxp/intel_pxp_huc.h"
+#include "pxp/intel_pxp_cmd_interface_43.h"
+
+struct mtl_huc_auth_msg_in {
+	struct intel_gsc_mtl_header header;
+	struct pxp43_new_huc_auth_in huc_in;
+} __packed;
+
+struct mtl_huc_auth_msg_out {
+	struct intel_gsc_mtl_header header;
+	struct pxp43_huc_auth_out huc_out;
+} __packed;
+
+int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
+{
+	struct intel_gt *gt = huc_to_gt(huc);
+	struct drm_i915_private *i915 = gt->i915;
+	struct drm_i915_gem_object *obj;
+	struct mtl_huc_auth_msg_in *msg_in;
+	struct mtl_huc_auth_msg_out *msg_out;
+	void *pkt_vaddr;
+	u64 pkt_offset;
+	int retry = 5;
+	int err = 0;
+
+	if (!huc->heci_pkt)
+		return -ENODEV;
+
+	obj = huc->heci_pkt->obj;
+	pkt_offset = i915_ggtt_offset(huc->heci_pkt);
+
+	pkt_vaddr = i915_gem_object_pin_map_unlocked(obj,
+						     i915_coherent_map_type(i915, obj, true));
+	if (IS_ERR(pkt_vaddr))
+		return PTR_ERR(pkt_vaddr);
+
+	msg_in = pkt_vaddr;
+	msg_out = pkt_vaddr + PXP43_HUC_AUTH_INOUT_SIZE;
+
+	intel_gsc_uc_heci_cmd_emit_mtl_header(&msg_in->header,
+					      HECI_MEADDRESS_PXP,
+					      sizeof(*msg_in), 0);
+
+	msg_in->huc_in.header.api_version = PXP_APIVER(4, 3);
+	msg_in->huc_in.header.command_id = PXP43_CMDID_NEW_HUC_AUTH;
+	msg_in->huc_in.header.status = 0;
+	msg_in->huc_in.header.buffer_len = sizeof(msg_in->huc_in) -
+					   sizeof(msg_in->huc_in.header);
+	msg_in->huc_in.huc_base_address = huc->fw.vma_res.start;
+	msg_in->huc_in.huc_size = huc->fw.obj->base.size;
+
+	do {
+		err = intel_gsc_uc_heci_cmd_submit_packet(&gt->uc.gsc,
+							  pkt_offset, sizeof(*msg_in),
+							  pkt_offset + PXP43_HUC_AUTH_INOUT_SIZE,
+							  PXP43_HUC_AUTH_INOUT_SIZE);
+		if (err) {
+			huc_err(huc, "failed to submit GSC request to auth: %d\n", err);
+			goto out_unpin;
+		}
+
+		if (msg_out->header.flags & GSC_OUTFLAG_MSG_PENDING) {
+			msg_in->header.gsc_message_handle = msg_out->header.gsc_message_handle;
+			err = -EBUSY;
+			msleep(50);
+		}
+	} while (--retry && err == -EBUSY);
+
+	if (err)
+		goto out_unpin;
+
+	if (msg_out->header.message_size != sizeof(*msg_out)) {
+		huc_err(huc, "invalid GSC reply length %u [expected %zu]\n",
+			msg_out->header.message_size, sizeof(*msg_out));
+		err = -EPROTO;
+		goto out_unpin;
+	}
+
+	/*
+	 * The GSC will return PXP_STATUS_OP_NOT_PERMITTED if the HuC is already
+	 * loaded. If the same error is ever returned with HuC not loaded we'll
+	 * still catch it when we check the authentication bit later.
+	 */
+	if (msg_out->huc_out.header.status != PXP_STATUS_SUCCESS &&
+	    msg_out->huc_out.header.status != PXP_STATUS_OP_NOT_PERMITTED) {
+		huc_err(huc, "auth failed with GSC error = 0x%x\n",
+			msg_out->huc_out.header.status);
+		err = -EIO;
+		goto out_unpin;
+	}
+
+out_unpin:
+	i915_gem_object_unpin_map(obj);
+	return err;
+}
 
 static void get_version_from_gsc_manifest(struct intel_uc_fw_ver *ver, const void *data)
 {
