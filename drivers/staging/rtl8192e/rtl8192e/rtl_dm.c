@@ -159,7 +159,6 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev);
 static void _rtl92e_dm_init_bandwidth_autoswitch(struct net_device *dev);
 static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
-
 static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
 static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
@@ -178,7 +177,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
 static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev);
 static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev);
-
 
 static void _rtl92e_dm_init_fsync(struct net_device *dev);
 static void _rtl92e_dm_deinit_fsync(struct net_device *dev);
@@ -219,9 +217,7 @@ void rtl92e_dm_init(struct net_device *dev)
 
 void rtl92e_dm_deinit(struct net_device *dev)
 {
-
 	_rtl92e_dm_deinit_fsync(dev);
-
 }
 
 void rtl92e_dm_watchdog(struct net_device *dev)
@@ -250,7 +246,6 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 void rtl92e_init_adaptive_rate(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rate_adaptive *pra = &priv->rate_adaptive;
 
@@ -297,7 +292,6 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 		return;
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
-
 		bshort_gi_enabled = (ht_info->cur_tx_bw40mhz &&
 				     ht_info->bCurShortGI40MHz) ||
 				    (!ht_info->cur_tx_bw40mhz &&
@@ -524,7 +518,6 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	priv->rtllib->bdynamic_txpower_enable = false;
 
 	for (j = 0; j <= 30; j++) {
-
 		tx_cmd.op	= TXCMD_SET_TX_PWR_TRACKING;
 		tx_cmd.length	= 4;
 		tx_cmd.value	= priv->pwr_track >> 24;
@@ -756,19 +749,16 @@ void rtl92e_dm_txpower_tracking_wq(void *data)
 
 static void _rtl92e_dm_initialize_tx_power_tracking_tssi(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
 	priv->tx_pwr_tracking_init = false;
-
 }
 
 static void _rtl92e_dm_init_tx_power_tracking_thermal(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-
 
 	if (priv->rtllib->FwRWRF)
 		priv->btxpower_tracking = true;
@@ -799,12 +789,10 @@ static void _rtl92e_dm_check_tx_power_tracking_tssi(struct net_device *dev)
 		return;
 	tx_power_track_counter++;
 
-
 	if (tx_power_track_counter >= 180) {
 		schedule_delayed_work(&priv->txpower_tracking_wq, 0);
 		tx_power_track_counter = 0;
 	}
-
 }
 
 static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
@@ -833,7 +821,6 @@ static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
 	netdev_info(dev, "===============>Schedule TxPowerTrackingWorkItem\n");
 	schedule_delayed_work(&priv->txpower_tracking_wq, 0);
 	TM_Trigger = 0;
-
 }
 
 static void _rtl92e_dm_check_tx_power_tracking(struct net_device *dev)
@@ -965,7 +952,6 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 		_rtl92e_dm_tx_power_reset_recovery(dev);
 
 	_rtl92e_dm_bb_initialgain_restore(dev);
-
 }
 
 static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev)
@@ -989,7 +975,6 @@ static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rCCK0_CCA, bit_mask,
 			  (u32)priv->initgain_backup.cca);
 	rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
-
 }
 
 void rtl92e_dm_backup_state(struct net_device *dev)
@@ -1043,7 +1028,6 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
-
 	if (!dm_digtable.dig_enable_flag)
 		return;
 
@@ -1096,7 +1080,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	else
 		dm_digtable.cur_sta_connect_state = DIG_STA_DISCONNECT;
 
-
 	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
 	_rtl92e_dm_initial_gain(dev);
 	_rtl92e_dm_pd_th(dev);
@@ -1104,7 +1087,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	if (dm_digtable.dig_algorithm_switch)
 		dm_digtable.dig_algorithm_switch = 0;
 	dm_digtable.pre_sta_connect_state = dm_digtable.cur_sta_connect_state;
-
 }
 
 static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
@@ -1193,7 +1175,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 	}
 	_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
 }
-
 
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 {
@@ -1392,7 +1373,6 @@ static void _rtl92e_dm_cs_ratio(struct net_device *dev)
 		reset_cnt = priv->reset_count;
 	}
 
-
 	if ((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
 	    !initialized || force_write) {
 		if (dm_digtable.curcs_ratio_state == DIG_CS_RATIO_LOWER)
@@ -1474,7 +1454,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 						      edca_setting_UL[ht_info->IOTPeer]);
 					priv->bis_cur_rdlstate = false;
 				}
-
 			}
 
 			priv->bcurrent_turbo_EDCA = true;
@@ -1488,7 +1467,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 			priv->bcurrent_turbo_EDCA = false;
 		}
 	}
-
 
 dm_CheckEdcaTurbo_EXIT:
 	priv->rtllib->bis_any_nonbepkts = false;
@@ -1746,7 +1724,6 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 						tmp_cck_min_pwdb = cur_cck_pwdb;
 					}
 				}
-
 			}
 		}
 	}
@@ -1812,7 +1789,6 @@ static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev)
 	schedule_delayed_work(&priv->rfpath_check_wq, 0);
 }
 
-
 static void _rtl92e_dm_init_fsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1828,7 +1804,6 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev)
 
 	timer_setup(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback, 0);
 }
-
 
 static void _rtl92e_dm_deinit_fsync(struct net_device *dev)
 {
@@ -1864,7 +1839,6 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 		else
 			rate_count_diff = rate_count - priv->rate_record;
 		if (rate_count_diff < priv->rate_count_diff_rec) {
-
 			u32 DiffNum = priv->rate_count_diff_rec -
 				      rate_count_diff;
 			if (DiffNum >=
@@ -2005,7 +1979,6 @@ static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 	add_timer(&priv->fsync_timer);
 
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c12cd);
-
 }
 
 static void _rtl92e_dm_check_fsync(struct net_device *dev)
@@ -2048,7 +2021,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			case SW_Fsync:
 			default:
 				break;
-
 			}
 		}
 		if (reg_c38_State != RegC38_Fsync_AP_BCM) {
@@ -2164,7 +2136,6 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 	}
 	priv->last_dtp_flag_high = priv->dynamic_tx_high_pwr;
 	priv->last_dtp_flag_low = priv->dynamic_tx_low_pwr;
-
 }
 
 static void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev)

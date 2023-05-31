@@ -32,7 +32,6 @@ static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		       u32 dwData)
 {
-
 	u32 OriginalValue, BitShift, NewValue;
 
 	if (dwBitMask != bMaskDWord) {
@@ -99,7 +98,6 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 
 	return ret;
-
 }
 
 static void _rtl92e_phy_rf_write(struct net_device *dev,
@@ -226,7 +224,6 @@ static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
 			return 0;
 	}
 	return rtl92e_readl(dev, RF_DATA);
-
 }
 
 static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
@@ -247,9 +244,7 @@ static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
 			break;
 	}
 	rtl92e_writel(dev, QPNR, Data);
-
 }
-
 
 void rtl92e_config_mac(struct net_device *dev)
 {
@@ -272,7 +267,6 @@ void rtl92e_config_mac(struct net_device *dev)
 				  pdwArray[i + 2]);
 	}
 	return;
-
 }
 
 static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
@@ -370,7 +364,6 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 			break;
 		}
 
-
 		if (dwRegRead != WriteData[i]) {
 			netdev_warn(dev, "%s(): Check failed.\n", __func__);
 			ret = false;
@@ -414,7 +407,6 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 		dwRegValue = 0x0;
 		rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
 				  (bXBTxAGC | bXCTxAGC | bXDTxAGC), dwRegValue);
-
 
 		dwRegValue = priv->crystal_cap;
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, bXtalCap92x,
@@ -470,7 +462,6 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 
 u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 {
-
 	int i;
 
 	switch (eRFPath) {
@@ -483,7 +474,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_A_ARR[i],
 					  bMask12Bits,
 					  RTL8192E_RADIO_A_ARR[i + 1]);
-
 		}
 		break;
 	case RF90_PATH_B:
@@ -495,7 +485,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_B_ARR[i],
 					  bMask12Bits,
 					  RTL8192E_RADIO_B_ARR[i + 1]);
-
 		}
 		break;
 	default:
@@ -503,7 +492,6 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 	}
 
 	return 0;
-
 }
 
 static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
@@ -677,7 +665,6 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 
 static void _rtl92e_phy_switch_channel_work_item(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	_rtl92e_phy_switch_channel(dev, priv->chan);
@@ -693,7 +680,6 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	}
 	if (priv->sw_chnl_in_progress)
 		return false;
-
 
 	switch (priv->rtllib->mode) {
 	case WIRELESS_MODE_B:
@@ -824,7 +810,6 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 
 static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 regBwOpMode;
 
@@ -890,7 +875,6 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
 			   priv->current_chnl_bw);
 		break;
-
 	}
 
 	rtl92e_set_bandwidth(dev, priv->current_chnl_bw);
@@ -903,7 +887,6 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-
 
 	if (priv->set_bw_mode_in_progress)
 		return;
@@ -921,7 +904,6 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	_rtl92e_set_bw_mode_work_item(dev);
-
 }
 
 void rtl92e_init_gain(struct net_device *dev, u8 Operation)
@@ -993,7 +975,6 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 void rtl92e_set_rf_off(struct net_device *dev)
 {
-
 	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
@@ -1002,7 +983,6 @@ void rtl92e_set_rf_off(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
 	rtl92e_writeb(dev, ANAPAR_FOR_8192PCIE, 0x07);
-
 }
 
 static bool _rtl92e_set_rf_power_state(struct net_device *dev,

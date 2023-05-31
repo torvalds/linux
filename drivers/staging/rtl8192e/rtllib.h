@@ -1137,7 +1137,6 @@ struct rtllib_network {
 };
 
 enum rtllib_state {
-
 	/* the card is not linked at all */
 	RTLLIB_NOLINK = 0,
 
@@ -1298,7 +1297,6 @@ enum fw_cmd_io_type {
 
 #define RT_MAX_LD_SLOT_NUM	10
 struct rt_link_detect {
-
 	u32				NumRecvBcnInPeriod;
 	u32				NumRecvDataInPeriod;
 
@@ -1316,7 +1314,6 @@ struct rt_link_detect {
 };
 
 struct sw_cam_table {
-
 	u8				macaddr[ETH_ALEN];
 	bool				bused;
 	u8				key_buf[16];

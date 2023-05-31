@@ -107,7 +107,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		}
 
 		rtl92e_writeb(dev, MSR, btMsr);
-
 	}
 	break;
 
@@ -126,7 +125,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 		rtl92e_writel(dev, RCR, RegRCR);
 		priv->receive_config = RegRCR;
-
 	}
 	break;
 
@@ -266,7 +264,6 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	default:
 		break;
 	}
-
 }
 
 static void _rtl92e_read_eeprom_info(struct net_device *dev)
@@ -714,7 +711,6 @@ end:
 
 static void _rtl92e_net_update(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_network *net;
 	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
@@ -1006,7 +1002,6 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->SecCAMID = 0;
 	pdesc->RATid = cb_desc->ratr_index;
 
-
 	pdesc->NoEnc = 1;
 	pdesc->SecType = 0x0;
 	if (cb_desc->bHwSec) {
@@ -1213,7 +1208,6 @@ static long _rtl92e_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 	return retsig;
 }
 
-
 #define	 rx_hal_is_cck_rate(_pdrvinfo)\
 			((_pdrvinfo->RxRate == DESC90_RATE1M ||\
 			_pdrvinfo->RxRate == DESC90_RATE2M ||\
@@ -1260,7 +1254,6 @@ static void _rtl92e_query_rxphystatus(
 						0x200);
 		check_reg824 = 1;
 	}
-
 
 	prxpkt = (u8 *)pdrvinfo;
 
@@ -1367,7 +1360,6 @@ static void _rtl92e_query_rxphystatus(
 				precord_stats->RxMIMOSignalStrength[i] = RSSI;
 			}
 		}
-
 
 		rx_pwr_all = (((pofdm_buf->pwdb_all) >> 1) & 0x7f) - 106;
 		pwdb_all = rtl92e_rx_db_to_percent(rx_pwr_all);
@@ -1484,7 +1476,6 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 			}
 		}
 	}
-
 
 	if (prev_st->bPacketBeacon) {
 		if (slide_beacon_adc_pwdb_statistics++ >=
@@ -1802,7 +1793,6 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 			rtl92e_writel(dev, WFCRC1, 0xffffffff);
 			rtl92e_writel(dev, WFCRC2, 0xffffffff);
 
-
 			rtl92e_writeb(dev, PMR, 0x5);
 			rtl92e_writeb(dev, MAC_BLK_CTRL, 0xa);
 		}
@@ -1897,7 +1887,6 @@ void rtl92e_enable_irq(struct net_device *dev)
 	priv->irq_enabled = 1;
 
 	rtl92e_writel(dev, INTA_MASK, priv->irq_mask[0]);
-
 }
 
 void rtl92e_disable_irq(struct net_device *dev)
@@ -1928,7 +1917,6 @@ void rtl92e_enable_tx(struct net_device *dev)
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 		rtl92e_writel(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
-
 
 void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
@@ -1986,8 +1974,6 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 				TotalRxStuckCount +=
 					 priv->silent_reset_rx_stuck_event[i];
 		}
-
-
 	} else {
 		priv->silent_reset_rx_stuck_event[SlotIndex] = 0;
 	}

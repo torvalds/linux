@@ -25,7 +25,6 @@ const long rtllib_wlan_frequencies[] = {
 };
 EXPORT_SYMBOL(rtllib_wlan_frequencies);
 
-
 int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -83,7 +82,6 @@ out:
 }
 EXPORT_SYMBOL(rtllib_wx_set_freq);
 
-
 int rtllib_wx_get_freq(struct rtllib_device *ieee,
 			     struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -128,13 +126,11 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 }
 EXPORT_SYMBOL(rtllib_wx_get_wap);
 
-
 int rtllib_wx_set_wap(struct rtllib_device *ieee,
 			 struct iw_request_info *info,
 			 union iwreq_data *awrq,
 			 char *extra)
 {
-
 	int ret = 0;
 	unsigned long flags;
 
@@ -163,7 +159,6 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 		ret = -1;
 		goto out;
 	}
-
 
 	if (ifup)
 		rtllib_stop_protocol(ieee, true);
@@ -220,7 +215,6 @@ out:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 	return ret;
-
 }
 EXPORT_SYMBOL(rtllib_wx_get_essid);
 
@@ -228,7 +222,6 @@ int rtllib_wx_set_rate(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-
 	u32 target_rate = wrqu->bitrate.value;
 
 	ieee->rate = target_rate / 100000;
@@ -249,7 +242,6 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_get_rate);
-
 
 int rtllib_wx_set_rts(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
@@ -397,7 +389,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 out:
 	mutex_unlock(&ieee->wx_mutex);
-
 }
 
 int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
@@ -425,7 +416,6 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 			struct iw_request_info *a,
 			union iwreq_data *wrqu, char *extra)
 {
-
 	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
@@ -444,7 +434,6 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 	if (proto_started)
 		rtllib_stop_protocol(ieee, true);
-
 
 	/* this is just to be sure that the GET wx callback
 	 * has consistent infos. not needed otherwise
@@ -483,7 +472,6 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 			struct iw_request_info *info,
 			union iwreq_data *wrqu, char *extra)
 {
-
 	int *parms = (int *)extra;
 	int enable = (parms[0] > 0);
 	short prev = ieee->raw_tx;
@@ -523,7 +511,6 @@ int rtllib_wx_get_name(struct rtllib_device *ieee, struct iw_request_info *info,
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_get_name);
-
 
 /* this is mostly stolen from hostap */
 int rtllib_wx_set_power(struct rtllib_device *ieee,
@@ -570,12 +557,10 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 	default:
 		ret = -EINVAL;
 		goto exit;
-
 	}
 exit:
 	mutex_unlock(&ieee->wx_mutex);
 	return ret;
-
 }
 EXPORT_SYMBOL(rtllib_wx_set_power);
 
@@ -612,6 +597,5 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 exit:
 	mutex_unlock(&ieee->wx_mutex);
 	return 0;
-
 }
 EXPORT_SYMBOL(rtllib_wx_get_power);
