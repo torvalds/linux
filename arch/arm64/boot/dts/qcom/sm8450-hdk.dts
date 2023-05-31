@@ -568,10 +568,6 @@
 	};
 };
 
-&mdss_mdp {
-	status = "okay";
-};
-
 &pcie0 {
 	status = "okay";
 	max-link-speed = <2>;
