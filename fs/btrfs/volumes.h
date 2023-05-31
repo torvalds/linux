@@ -556,15 +556,12 @@ struct btrfs_dev_lookup_args {
 enum btrfs_map_op {
 	BTRFS_MAP_READ,
 	BTRFS_MAP_WRITE,
-	BTRFS_MAP_DISCARD,
 	BTRFS_MAP_GET_READ_MIRRORS,
 };
 
 static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 {
 	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-		return BTRFS_MAP_DISCARD;
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_APPEND:
 		return BTRFS_MAP_WRITE;

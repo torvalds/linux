@@ -6182,8 +6182,6 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 			    u64 offset, u32 *stripe_nr, u64 *stripe_offset,
 			    u64 *full_stripe_start)
 {
-	ASSERT(op != BTRFS_MAP_DISCARD);
-
 	/*
 	 * Stripe_nr is the stripe where this block falls.  stripe_offset is
 	 * the offset of this block in its stripe.
@@ -6261,7 +6259,6 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	u64 max_len;
 
 	ASSERT(bioc_ret);
-	ASSERT(op != BTRFS_MAP_DISCARD);
 
 	num_copies = btrfs_num_copies(fs_info, logical, fs_info->sectorsize);
 	if (mirror_num > num_copies)
