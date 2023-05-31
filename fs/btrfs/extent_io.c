@@ -481,6 +481,15 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 			       start, end, page_ops, NULL);
 }
 
+static bool btrfs_verify_page(struct page *page, u64 start)
+{
+	if (!fsverity_active(page->mapping->host) ||
+	    PageError(page) || PageUptodate(page) ||
+	    start >= i_size_read(page->mapping->host))
+		return true;
+	return fsverity_verify_page(page);
+}
+
 static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
@@ -489,11 +498,7 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 	       start + len <= page_offset(page) + PAGE_SIZE);
 
 	if (uptodate) {
-		if (fsverity_active(page->mapping->host) &&
-		    !PageError(page) &&
-		    !PageUptodate(page) &&
-		    start < i_size_read(page->mapping->host) &&
-		    !fsverity_verify_page(page)) {
+		if (!btrfs_verify_page(page, start)) {
 			btrfs_page_set_error(fs_info, page, start, len);
 		} else {
 			btrfs_page_set_uptodate(fs_info, page, start, len);
