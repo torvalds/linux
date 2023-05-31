@@ -108,6 +108,8 @@ struct scmi_powercap_meas_changed_notify_payld {
 };
 
 struct scmi_powercap_state {
+	bool enabled;
+	u32 last_pcap;
 	bool meas_notif_enabled;
 	u64 thresholds;
 #define THRESH_LOW(p, id)				\
@@ -412,6 +414,10 @@ static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 						 ignore_dresp);
 	}
 
+	/* Save the last explicitly set non-zero powercap value */
+	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x2 && !ret && power_cap)
+		pi->states[domain_id].last_pcap = power_cap;
+
 	return ret;
 }
 
@@ -420,6 +426,20 @@ static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 				 bool ignore_dresp)
 {
 	struct powercap_info *pi = ph->get_priv(ph);
+
+	/*
+	 * Disallow zero as a possible explicitly requested powercap:
+	 * there are enable/disable operations for this.
+	 */
+	if (!power_cap)
+		return -EINVAL;
+
+	/* Just log the last set request if acting on a disabled domain */
+	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x2 &&
+	    !pi->states[domain_id].enabled) {
+		pi->states[domain_id].last_pcap = power_cap;
+		return 0;
+	}
 
 	return __scmi_powercap_cap_set(ph, pi, domain_id,
 				       power_cap, ignore_dresp);
@@ -589,11 +609,78 @@ scmi_powercap_measurements_threshold_set(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static int scmi_powercap_cap_enable_set(const struct scmi_protocol_handle *ph,
+					u32 domain_id, bool enable)
+{
+	int ret;
+	u32 power_cap;
+	struct powercap_info *pi = ph->get_priv(ph);
+
+	if (PROTOCOL_REV_MAJOR(pi->version) < 0x2)
+		return -EINVAL;
+
+	if (enable == pi->states[domain_id].enabled)
+		return 0;
+
+	if (enable) {
+		/* Cannot enable with a zero powercap. */
+		if (!pi->states[domain_id].last_pcap)
+			return -EINVAL;
+
+		ret = __scmi_powercap_cap_set(ph, pi, domain_id,
+					      pi->states[domain_id].last_pcap,
+					      true);
+	} else {
+		ret = __scmi_powercap_cap_set(ph, pi, domain_id, 0, true);
+	}
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Update our internal state to reflect final platform state: the SCMI
+	 * server could have ignored a disable request and kept enforcing some
+	 * powercap limit requested by other agents.
+	 */
+	ret = scmi_powercap_cap_get(ph, domain_id, &power_cap);
+	if (!ret)
+		pi->states[domain_id].enabled = !!power_cap;
+
+	return ret;
+}
+
+static int scmi_powercap_cap_enable_get(const struct scmi_protocol_handle *ph,
+					u32 domain_id, bool *enable)
+{
+	int ret;
+	u32 power_cap;
+	struct powercap_info *pi = ph->get_priv(ph);
+
+	*enable = true;
+	if (PROTOCOL_REV_MAJOR(pi->version) < 0x2)
+		return 0;
+
+	/*
+	 * Report always real platform state; platform could have ignored
+	 * a previous disable request. Default true on any error.
+	 */
+	ret = scmi_powercap_cap_get(ph, domain_id, &power_cap);
+	if (!ret)
+		*enable = !!power_cap;
+
+	/* Update internal state with current real platform state */
+	pi->states[domain_id].enabled = *enable;
+
+	return 0;
+}
+
 static const struct scmi_powercap_proto_ops powercap_proto_ops = {
 	.num_domains_get = scmi_powercap_num_domains_get,
 	.info_get = scmi_powercap_dom_info_get,
 	.cap_get = scmi_powercap_cap_get,
 	.cap_set = scmi_powercap_cap_set,
+	.cap_enable_set = scmi_powercap_cap_enable_set,
+	.cap_enable_get = scmi_powercap_cap_enable_get,
 	.pai_get = scmi_powercap_pai_get,
 	.pai_set = scmi_powercap_pai_set,
 	.measurements_get = scmi_powercap_measurements_get,
@@ -854,6 +941,11 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo->powercaps)
 		return -ENOMEM;
 
+	pinfo->states = devm_kcalloc(ph->dev, pinfo->num_domains,
+				     sizeof(*pinfo->states), GFP_KERNEL);
+	if (!pinfo->states)
+		return -ENOMEM;
+
 	/*
 	 * Note that any failure in retrieving any domain attribute leads to
 	 * the whole Powercap protocol initialization failure: this way the
@@ -868,15 +960,21 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 		if (pinfo->powercaps[domain].fastchannels)
 			scmi_powercap_domain_init_fc(ph, domain,
 						     &pinfo->powercaps[domain].fc_info);
+
+		/* Grab initial state when disable is supported. */
+		if (PROTOCOL_REV_MAJOR(version) >= 0x2) {
+			ret = __scmi_powercap_cap_get(ph,
+						      &pinfo->powercaps[domain],
+						      &pinfo->states[domain].last_pcap);
+			if (ret)
+				return ret;
+
+			pinfo->states[domain].enabled =
+				!!pinfo->states[domain].last_pcap;
+		}
 	}
 
-	pinfo->states = devm_kcalloc(ph->dev, pinfo->num_domains,
-				     sizeof(*pinfo->states), GFP_KERNEL);
-	if (!pinfo->states)
-		return -ENOMEM;
-
 	pinfo->version = version;
-
 	return ph->set_priv(ph, pinfo);
 }
 
