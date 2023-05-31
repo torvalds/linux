@@ -117,23 +117,6 @@
 #define regBIF_BX2_BIOS_SCRATCH_6			0x003e
 #define regBIF_BX2_BIOS_SCRATCH_6_BASE_IDX		1
 
-struct IP_BASE_INSTANCE {
-	unsigned int segment[MAX_SEGMENT];
-};
-
-struct IP_BASE {
-	struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
-
-static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C0, 0x00009000, 0x02403C00, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0, 0, 0 } } } };
-
-
 #define DC_LOGGER_INIT(logger)
 
 enum dcn31_clk_src_array_id {
