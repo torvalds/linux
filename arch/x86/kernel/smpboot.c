@@ -1267,23 +1267,8 @@ void __init smp_prepare_cpus_common(void)
 /* Establish whether parallel bringup can be supported. */
 bool __init arch_cpuhp_init_parallel_bringup(void)
 {
-	/*
-	 * Encrypted guests require special handling. They enforce X2APIC
-	 * mode but the RDMSR to read the APIC ID is intercepted and raises
-	 * #VC or #VE which cannot be handled in the early startup code.
-	 *
-	 * AMD-SEV does not provide a RDMSR GHCB protocol so the early
-	 * startup code cannot directly communicate with the secure
-	 * firmware. The alternative solution to retrieve the APIC ID via
-	 * CPUID(0xb), which is covered by the GHCB protocol, is not viable
-	 * either because there is no enforcement of the CPUID(0xb)
-	 * provided "initial" APIC ID to be the same as the real APIC ID.
-	 *
-	 * Intel-TDX has a secure RDMSR hypercall, but that needs to be
-	 * implemented seperately in the low level startup ASM code.
-	 */
-	if (cc_platform_has(CC_ATTR_GUEST_STATE_ENCRYPT)) {
-		pr_info("Parallel CPU startup disabled due to guest state encryption\n");
+	if (!x86_cpuinit.parallel_bringup) {
+		pr_info("Parallel CPU startup disabled by the platform\n");
 		return false;
 	}
 
