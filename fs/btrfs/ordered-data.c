@@ -368,6 +368,25 @@ static void btrfs_queue_ordered_fn(struct btrfs_ordered_extent *ordered)
 	btrfs_queue_work(wq, &ordered->work);
 }
 
+bool btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
+				 struct page *page, u64 file_offset, u64 len,
+				 bool uptodate)
+{
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	unsigned long flags;
+	bool ret;
+
+	trace_btrfs_finish_ordered_extent(inode, file_offset, len, uptodate);
+
+	spin_lock_irqsave(&inode->ordered_tree.lock, flags);
+	ret = can_finish_ordered_extent(ordered, page, file_offset, len, uptodate);
+	spin_unlock_irqrestore(&inode->ordered_tree.lock, flags);
+
+	if (ret)
+		btrfs_queue_ordered_fn(ordered);
+	return ret;
+}
+
 /*
  * Mark all ordered extents io inside the specified range finished.
  *

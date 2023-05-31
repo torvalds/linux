@@ -661,6 +661,35 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_mark_finished,
 	     TP_ARGS(inode, ordered)
 );
 
+TRACE_EVENT(btrfs_finish_ordered_extent,
+
+	TP_PROTO(const struct btrfs_inode *inode, u64 start, u64 len,
+		 bool uptodate),
+
+	TP_ARGS(inode, start, len, uptodate),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	 ino		)
+		__field(	u64,	 start		)
+		__field(	u64,	 len		)
+		__field(	bool,	 uptodate	)
+		__field(	u64,	 root_objectid	)
+	),
+
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino	= btrfs_ino(inode);
+		__entry->start	= start;
+		__entry->len	= len;
+		__entry->uptodate = uptodate;
+		__entry->root_objectid = inode->root->root_key.objectid;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu uptodate=%d",
+		  show_root_type(__entry->root_objectid),
+		  __entry->ino, __entry->start,
+		  __entry->len, !!__entry->uptodate)
+);
+
 DECLARE_EVENT_CLASS(btrfs__writepage,
 
 	TP_PROTO(const struct page *page, const struct inode *inode,
