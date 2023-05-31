@@ -224,13 +224,8 @@ static void btrfs_finish_compressed_write_work(struct work_struct *work)
 	struct compressed_bio *cb =
 		container_of(work, struct compressed_bio, write_end_work);
 
-	/*
-	 * Ok, we're the last bio for this extent, step one is to call back
-	 * into the FS and do all the end_io operations.
-	 */
-	btrfs_writepage_endio_finish_ordered(cb->bbio.inode, NULL,
-			cb->start, cb->start + cb->len - 1,
-			cb->bbio.bio.bi_status == BLK_STS_OK);
+	btrfs_finish_ordered_extent(cb->bbio.ordered, NULL, cb->start, cb->len,
+				    cb->bbio.bio.bi_status == BLK_STS_OK);
 
 	if (cb->writeback)
 		end_compressed_writeback(cb);
