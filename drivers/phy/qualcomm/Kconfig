@@ -102,6 +102,16 @@ config PHY_QCOM_QMP_USB
 	  Enable this to support the QMP USB PHY transceiver that is used
 	  with USB3 controllers on Qualcomm chips.
 
+config PHY_QCOM_QMP_USB_LEGACY
+	tristate "Qualcomm QMP legacy USB PHY Driver"
+	select GENERIC_PHY
+	default n
+	help
+	  Enable this legacy driver to support the QMP USB+DisplayPort Combo
+	  PHY transceivers working only in USB3 mode on Qualcomm chips. This
+	  driver exists only for compatibility with older device trees,
+	  existing users have been migrated to PHY_QCOM_QMP_COMBO driver.
+
 endif # PHY_QCOM_QMP
 
 config PHY_QCOM_QUSB2
