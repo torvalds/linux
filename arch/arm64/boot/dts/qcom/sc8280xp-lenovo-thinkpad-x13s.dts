@@ -334,7 +334,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb0_sbu_mux: endpoint {
@@ -354,7 +353,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb1_sbu_mux: endpoint {

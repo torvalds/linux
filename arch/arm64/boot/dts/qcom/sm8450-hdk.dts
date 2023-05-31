@@ -517,7 +517,6 @@
 		vcc-supply = <&vreg_bob>;
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		ports {
 			#address-cells = <1>;
