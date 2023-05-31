@@ -3801,7 +3801,6 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -3820,10 +3819,7 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 		mvmvif->authorized = 0;
 
 		/* disable beacon filtering */
-		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
-		WARN_ON(ret &&
-			!test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-				  &mvm->status));
+		iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 	}
 
 	return 0;
