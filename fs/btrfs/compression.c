@@ -279,33 +279,34 @@ static void btrfs_add_compressed_bio_pages(struct compressed_bio *cb)
  * This also checksums the file bytes and gets things ready for
  * the end io hooks.
  */
-void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
-				 unsigned int len, u64 disk_start,
-				 unsigned int compressed_len,
-				 struct page **compressed_pages,
-				 unsigned int nr_pages,
-				 blk_opf_t write_flags,
-				 bool writeback)
+void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
+				   struct page **compressed_pages,
+				   unsigned int nr_pages,
+				   blk_opf_t write_flags,
+				   bool writeback)
 {
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct compressed_bio *cb;
 
-	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
-	       IS_ALIGNED(len, fs_info->sectorsize));
+	ASSERT(IS_ALIGNED(ordered->file_offset, fs_info->sectorsize));
+	ASSERT(IS_ALIGNED(ordered->num_bytes, fs_info->sectorsize));
 
-	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE | write_flags,
+	cb = alloc_compressed_bio(inode, ordered->file_offset,
+				  REQ_OP_WRITE | write_flags,
 				  end_compressed_bio_write);
-	cb->start = start;
-	cb->len = len;
+	cb->start = ordered->file_offset;
+	cb->len = ordered->num_bytes;
 	cb->compressed_pages = compressed_pages;
-	cb->compressed_len = compressed_len;
+	cb->compressed_len = ordered->disk_num_bytes;
 	cb->writeback = writeback;
 	INIT_WORK(&cb->write_end_work, btrfs_finish_compressed_write_work);
 	cb->nr_pages = nr_pages;
-	cb->bbio.bio.bi_iter.bi_sector = disk_start >> SECTOR_SHIFT;
+	cb->bbio.bio.bi_iter.bi_sector = ordered->disk_bytenr >> SECTOR_SHIFT;
 	btrfs_add_compressed_bio_pages(cb);
 
 	btrfs_submit_bio(&cb->bbio, 0);
+	btrfs_put_ordered_extent(ordered);
 }
 
 /*

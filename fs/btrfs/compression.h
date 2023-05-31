@@ -10,6 +10,7 @@
 #include "bio.h"
 
 struct btrfs_inode;
+struct btrfs_ordered_extent;
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
@@ -86,9 +87,7 @@ int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed);
 
-void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
-				  unsigned int len, u64 disk_start,
-				  unsigned int compressed_len,
+void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 				  struct page **compressed_pages,
 				  unsigned int nr_pages,
 				  blk_opf_t write_flags,
