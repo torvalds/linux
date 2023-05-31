@@ -293,8 +293,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
 	       IS_ALIGNED(len, fs_info->sectorsize));
 
-	write_flags |= REQ_BTRFS_ONE_ORDERED;
-
 	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE | write_flags,
 				  end_compressed_bio_write);
 	cb->start = start;

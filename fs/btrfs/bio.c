@@ -457,9 +457,6 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 static void __btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
 			       struct btrfs_io_stripe *smap, int mirror_num)
 {
-	/* Do not leak our private flag into the block layer. */
-	bio->bi_opf &= ~REQ_BTRFS_ONE_ORDERED;
-
 	if (!bioc) {
 		/* Single mirror read/write fast path. */
 		btrfs_bio(bio)->mirror_num = mirror_num;

@@ -826,13 +826,8 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 	bio_ctrl->bbio = bbio;
 	bio_ctrl->len_to_oe_boundary = U32_MAX;
 
-	/*
-	 * Limit the extent to the ordered boundary for Zone Append.
-	 * Compressed bios aren't submitted directly, so it doesn't apply to
-	 * them.
-	 */
-	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
-	    btrfs_use_zone_append(bbio)) {
+	/* Limit data write bios to the ordered boundary. */
+	if (bio_ctrl->wbc) {
 		struct btrfs_ordered_extent *ordered;
 
 		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
@@ -842,9 +837,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 					ordered->disk_num_bytes - file_offset);
 			btrfs_put_ordered_extent(ordered);
 		}
-	}
 
-	if (bio_ctrl->wbc) {
 		/*
 		 * Pick the last added device to support cgroup writeback.  For
 		 * multi-device file systems this means blk-cgroup policies have
