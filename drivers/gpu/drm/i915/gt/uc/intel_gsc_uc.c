@@ -90,7 +90,12 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 
-	intel_uc_fw_init_early(&gsc->fw, INTEL_UC_FW_TYPE_GSC);
+	/*
+	 * GSC FW needs to be copied to a dedicated memory allocations for
+	 * loading (see gsc->local), so we don't need to GGTT map the FW image
+	 * itself into GGTT.
+	 */
+	intel_uc_fw_init_early(&gsc->fw, INTEL_UC_FW_TYPE_GSC, false);
 	INIT_WORK(&gsc->work, gsc_work);
 
 	/* we can arrive here from i915_driver_early_probe for primary

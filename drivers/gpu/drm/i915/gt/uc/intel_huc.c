@@ -276,7 +276,7 @@ void intel_huc_init_early(struct intel_huc *huc)
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 	struct intel_gt *gt = huc_to_gt(huc);
 
-	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC);
+	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC, true);
 
 	/*
 	 * we always init the fence as already completed, even if HuC is not

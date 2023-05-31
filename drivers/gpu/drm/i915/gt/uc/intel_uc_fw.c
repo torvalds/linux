@@ -471,12 +471,14 @@ static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc
  * intel_uc_fw_init_early - initialize the uC object and select the firmware
  * @uc_fw: uC firmware
  * @type: type of uC
+ * @needs_ggtt_mapping: whether the FW needs to be GGTT mapped for loading
  *
  * Initialize the state of our uC object and relevant tracking and select the
  * firmware to fetch and load.
  */
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
-			    enum intel_uc_fw_type type)
+			    enum intel_uc_fw_type type,
+			    bool needs_ggtt_mapping)
 {
 	struct intel_gt *gt = ____uc_fw_to_gt(uc_fw, type);
 	struct drm_i915_private *i915 = gt->i915;
@@ -490,6 +492,7 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 	GEM_BUG_ON(uc_fw->file_selected.path);
 
 	uc_fw->type = type;
+	uc_fw->needs_ggtt_mapping = needs_ggtt_mapping;
 
 	if (HAS_GT_UC(i915)) {
 		if (!validate_fw_table_type(i915, type)) {
@@ -755,7 +758,7 @@ static int try_firmware_load(struct intel_uc_fw *uc_fw, const struct firmware **
 	if (err)
 		return err;
 
-	if ((*fw)->size > INTEL_UC_RSVD_GGTT_PER_FW) {
+	if (uc_fw->needs_ggtt_mapping && (*fw)->size > INTEL_UC_RSVD_GGTT_PER_FW) {
 		gt_err(gt, "%s firmware %s: size (%zuKB) exceeds max supported size (%uKB)\n",
 		       intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
 		       (*fw)->size / SZ_1K, INTEL_UC_RSVD_GGTT_PER_FW / SZ_1K);
@@ -940,29 +943,32 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
-	struct i915_vma_resource *dummy = &uc_fw->dummy;
+	struct i915_vma_resource *vma_res = &uc_fw->vma_res;
 	u32 pte_flags = 0;
 
-	dummy->start = uc_fw_ggtt_offset(uc_fw);
-	dummy->node_size = obj->base.size;
-	dummy->bi.pages = obj->mm.pages;
+	if (!uc_fw->needs_ggtt_mapping)
+		return;
+
+	vma_res->start = uc_fw_ggtt_offset(uc_fw);
+	vma_res->node_size = obj->base.size;
+	vma_res->bi.pages = obj->mm.pages;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 
 	/* uc_fw->obj cache domains were not controlled across suspend */
 	if (i915_gem_object_has_struct_page(obj))
-		drm_clflush_sg(dummy->bi.pages);
+		drm_clflush_sg(vma_res->bi.pages);
 
 	if (i915_gem_object_is_lmem(obj))
 		pte_flags |= PTE_LM;
 
 	if (ggtt->vm.raw_insert_entries)
-		ggtt->vm.raw_insert_entries(&ggtt->vm, dummy,
+		ggtt->vm.raw_insert_entries(&ggtt->vm, vma_res,
 					    i915_gem_get_pat_index(ggtt->vm.i915,
 								   I915_CACHE_NONE),
 					    pte_flags);
 	else
-		ggtt->vm.insert_entries(&ggtt->vm, dummy,
+		ggtt->vm.insert_entries(&ggtt->vm, vma_res,
 					i915_gem_get_pat_index(ggtt->vm.i915,
 							       I915_CACHE_NONE),
 					pte_flags);
@@ -970,11 +976,13 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 
 static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)
 {
-	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
-	u64 start = uc_fw_ggtt_offset(uc_fw);
+	struct i915_vma_resource *vma_res = &uc_fw->vma_res;
 
-	ggtt->vm.clear_range(&ggtt->vm, start, obj->base.size);
+	if (!vma_res->node_size)
+		return;
+
+	ggtt->vm.clear_range(&ggtt->vm, vma_res->start, vma_res->node_size);
 }
 
 static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
@@ -991,7 +999,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
-	offset = uc_fw_ggtt_offset(uc_fw);
+	offset = uc_fw->vma_res.start;
 	GEM_BUG_ON(upper_32_bits(offset) & 0xFFFF0000);
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset));
@@ -1065,9 +1073,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 		return -ENOEXEC;
 
 	/* Call custom loader */
-	uc_fw_bind_ggtt(uc_fw);
 	err = uc_fw_xfer(uc_fw, dst_offset, dma_flags);
-	uc_fw_unbind_ggtt(uc_fw);
 	if (err)
 		goto fail;
 
@@ -1171,6 +1177,8 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 		goto out_unpin;
 	}
 
+	uc_fw_bind_ggtt(uc_fw);
+
 	return 0;
 
 out_unpin:
@@ -1181,12 +1189,24 @@ out:
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
+	uc_fw_unbind_ggtt(uc_fw);
 	uc_fw_rsa_data_destroy(uc_fw);
 
 	if (i915_gem_object_has_pinned_pages(uc_fw->obj))
 		i915_gem_object_unpin_pages(uc_fw->obj);
 
 	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
+}
+
+void intel_uc_fw_resume_mapping(struct intel_uc_fw *uc_fw)
+{
+	if (!intel_uc_fw_is_available(uc_fw))
+		return;
+
+	if (!i915_gem_object_has_pinned_pages(uc_fw->obj))
+		return;
+
+	uc_fw_bind_ggtt(uc_fw);
 }
 
 /**
