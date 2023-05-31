@@ -98,10 +98,10 @@ nvkm_fanpwm_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 		return -ENODEV;
 
 	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
-	therm->fan = &fan->base;
 	if (!fan)
 		return -ENOMEM;
 
+	therm->fan = &fan->base;
 	fan->base.type = "PWM";
 	fan->base.get = nvkm_fanpwm_get;
 	fan->base.set = nvkm_fanpwm_set;

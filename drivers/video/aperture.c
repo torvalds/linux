@@ -43,7 +43,7 @@
  *		base = mem->start;
  *		size = resource_size(mem);
  *
- *		ret = aperture_remove_conflicting_devices(base, size, false, "example");
+ *		ret = aperture_remove_conflicting_devices(base, size, "example");
  *		if (ret)
  *			return ret;
  *
@@ -274,7 +274,6 @@ static void aperture_detach_devices(resource_size_t base, resource_size_t size)
  * aperture_remove_conflicting_devices - remove devices in the given range
  * @base: the aperture's base address in physical memory
  * @size: aperture size in bytes
- * @primary: also kick vga16fb if present; only relevant for VGA devices
  * @name: a descriptive name of the requesting driver
  *
  * This function removes devices that own apertures within @base and @size.
@@ -283,7 +282,7 @@ static void aperture_detach_devices(resource_size_t base, resource_size_t size)
  * 0 on success, or a negative errno code otherwise
  */
 int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t size,
-					bool primary, const char *name)
+					const char *name)
 {
 	/*
 	 * If a driver asked to unregister a platform device registered by
@@ -298,17 +297,40 @@ int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t si
 
 	aperture_detach_devices(base, size);
 
-	/*
-	 * If this is the primary adapter, there could be a VGA device
-	 * that consumes the VGA framebuffer I/O range. Remove this device
-	 * as well.
-	 */
-	if (primary)
-		aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
-
 	return 0;
 }
 EXPORT_SYMBOL(aperture_remove_conflicting_devices);
+
+/**
+ * __aperture_remove_legacy_vga_devices - remove legacy VGA devices of a PCI devices
+ * @pdev: PCI device
+ *
+ * This function removes VGA devices provided by @pdev, such as a VGA
+ * framebuffer or a console. This is useful if you have a VGA-compatible
+ * PCI graphics device with framebuffers in non-BAR locations. Drivers
+ * should acquire ownership of those memory areas and afterwards call
+ * this helper to release remaining VGA devices.
+ *
+ * If your hardware has its framebuffers accessible via PCI BARS, use
+ * aperture_remove_conflicting_pci_devices() instead. The function will
+ * release any VGA devices automatically.
+ *
+ * WARNING: Apparently we must remove graphics drivers before calling
+ *          this helper. Otherwise the vga fbdev driver falls over if
+ *          we have vgacon configured.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise
+ */
+int __aperture_remove_legacy_vga_devices(struct pci_dev *pdev)
+{
+	/* VGA framebuffer */
+	aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
+
+	/* VGA textmode console */
+	return vga_remove_vgacon(pdev);
+}
+EXPORT_SYMBOL(__aperture_remove_legacy_vga_devices);
 
 /**
  * aperture_remove_conflicting_pci_devices - remove existing framebuffers for PCI devices
@@ -326,11 +348,13 @@ int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *na
 {
 	bool primary = false;
 	resource_size_t base, size;
-	int bar, ret;
+	int bar, ret = 0;
 
-#ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
-#endif
+	if (pdev == vga_default_device())
+		primary = true;
+
+	if (primary)
+		sysfb_disable();
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; ++bar) {
 		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
@@ -338,20 +362,18 @@ int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *na
 
 		base = pci_resource_start(pdev, bar);
 		size = pci_resource_len(pdev, bar);
-		ret = aperture_remove_conflicting_devices(base, size, primary, name);
-		if (ret)
-			return ret;
+		aperture_detach_devices(base, size);
 	}
 
 	/*
-	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
-	 * otherwise the vga fbdev driver falls over.
+	 * If this is the primary adapter, there could be a VGA device
+	 * that consumes the VGA framebuffer I/O range. Remove this
+	 * device as well.
 	 */
-	ret = vga_remove_vgacon(pdev);
-	if (ret)
-		return ret;
+	if (primary)
+		ret = __aperture_remove_legacy_vga_devices(pdev);
 
-	return 0;
+	return ret;
 
 }
 EXPORT_SYMBOL(aperture_remove_conflicting_pci_devices);

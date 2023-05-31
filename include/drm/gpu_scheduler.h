@@ -201,7 +201,7 @@ struct drm_sched_entity {
 	 * by the scheduler thread, can be accessed locklessly from
 	 * drm_sched_job_arm() iff the queue is empty.
 	 */
-	struct dma_fence                *last_scheduled;
+	struct dma_fence __rcu		*last_scheduled;
 
 	/**
 	 * @last_user: last group leader pushing a job into the entity.
@@ -549,7 +549,7 @@ void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
                                    unsigned int num_sched_list);
 
 void drm_sched_job_cleanup(struct drm_sched_job *job);
-void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
+void drm_sched_wakeup_if_can_queue(struct drm_gpu_scheduler *sched);
 void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
@@ -581,6 +581,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job);
 void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 				   enum drm_sched_priority priority);
 bool drm_sched_entity_is_ready(struct drm_sched_entity *entity);
+int drm_sched_entity_error(struct drm_sched_entity *entity);
 
 void drm_sched_fence_set_parent(struct drm_sched_fence *s_fence,
 				struct dma_fence *fence);
@@ -591,7 +592,7 @@ void drm_sched_fence_init(struct drm_sched_fence *fence,
 void drm_sched_fence_free(struct drm_sched_fence *fence);
 
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
-void drm_sched_fence_finished(struct drm_sched_fence *fence);
+void drm_sched_fence_finished(struct drm_sched_fence *fence, int result);
 
 unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
 void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,

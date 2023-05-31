@@ -13,6 +13,30 @@
 #include "intel_guc_ct.h"
 #include "intel_guc_print.h"
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+enum {
+	CT_DEAD_ALIVE = 0,
+	CT_DEAD_SETUP,
+	CT_DEAD_WRITE,
+	CT_DEAD_DEADLOCK,
+	CT_DEAD_H2G_HAS_ROOM,
+	CT_DEAD_READ,
+	CT_DEAD_PROCESS_FAILED,
+};
+
+static void ct_dead_ct_worker_func(struct work_struct *w);
+
+#define CT_DEAD(ct, reason)	\
+	do { \
+		if (!(ct)->dead_ct_reported) { \
+			(ct)->dead_ct_reason |= 1 << CT_DEAD_##reason; \
+			queue_work(system_unbound_wq, &(ct)->dead_ct_worker); \
+		} \
+	} while (0)
+#else
+#define CT_DEAD(ct, reason)	do { } while (0)
+#endif
+
 static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
 {
 	return container_of(ct, struct intel_guc, ct);
@@ -93,6 +117,9 @@ void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 	spin_lock_init(&ct->requests.lock);
 	INIT_LIST_HEAD(&ct->requests.pending);
 	INIT_LIST_HEAD(&ct->requests.incoming);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+	INIT_WORK(&ct->dead_ct_worker, ct_dead_ct_worker_func);
+#endif
 	INIT_WORK(&ct->requests.worker, ct_incoming_request_worker_func);
 	tasklet_setup(&ct->receive_tasklet, ct_receive_tasklet_func);
 	init_waitqueue_head(&ct->wq);
@@ -319,11 +346,16 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 
 	ct->enabled = true;
 	ct->stall_time = KTIME_MAX;
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+	ct->dead_ct_reported = false;
+	ct->dead_ct_reason = CT_DEAD_ALIVE;
+#endif
 
 	return 0;
 
 err_out:
 	CT_PROBE_ERROR(ct, "Failed to enable CTB (%pe)\n", ERR_PTR(err));
+	CT_DEAD(ct, SETUP);
 	return err;
 }
 
@@ -434,6 +466,7 @@ static int ct_write(struct intel_guc_ct *ct,
 corrupted:
 	CT_ERROR(ct, "Corrupted descriptor head=%u tail=%u status=%#x\n",
 		 desc->head, desc->tail, desc->status);
+	CT_DEAD(ct, WRITE);
 	ctb->broken = true;
 	return -EPIPE;
 }
@@ -504,6 +537,7 @@ static inline bool ct_deadlocked(struct intel_guc_ct *ct)
 		CT_ERROR(ct, "Head: %u\n (Dwords)", ct->ctbs.recv.desc->head);
 		CT_ERROR(ct, "Tail: %u\n (Dwords)", ct->ctbs.recv.desc->tail);
 
+		CT_DEAD(ct, DEADLOCK);
 		ct->ctbs.send.broken = true;
 	}
 
@@ -552,6 +586,7 @@ static inline bool h2g_has_room(struct intel_guc_ct *ct, u32 len_dw)
 			 head, ctb->size);
 		desc->status |= GUC_CTB_STATUS_OVERFLOW;
 		ctb->broken = true;
+		CT_DEAD(ct, H2G_HAS_ROOM);
 		return false;
 	}
 
@@ -902,12 +937,19 @@ static int ct_read(struct intel_guc_ct *ct, struct ct_incoming_msg **msg)
 	/* now update descriptor */
 	WRITE_ONCE(desc->head, head);
 
+	/*
+	 * Wa_22016122933: Making sure the head update is
+	 * visible to GuC right away
+	 */
+	intel_guc_write_barrier(ct_to_guc(ct));
+
 	return available - len;
 
 corrupted:
 	CT_ERROR(ct, "Corrupted descriptor head=%u tail=%u status=%#x\n",
 		 desc->head, desc->tail, desc->status);
 	ctb->broken = true;
+	CT_DEAD(ct, READ);
 	return -EPIPE;
 }
 
@@ -1057,6 +1099,7 @@ static bool ct_process_incoming_requests(struct intel_guc_ct *ct)
 	if (unlikely(err)) {
 		CT_ERROR(ct, "Failed to process CT message (%pe) %*ph\n",
 			 ERR_PTR(err), 4 * request->size, request->msg);
+		CT_DEAD(ct, PROCESS_FAILED);
 		ct_free_msg(request);
 	}
 
@@ -1233,3 +1276,19 @@ void intel_guc_ct_print_info(struct intel_guc_ct *ct,
 	drm_printf(p, "Tail: %u\n",
 		   ct->ctbs.recv.desc->tail);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
+static void ct_dead_ct_worker_func(struct work_struct *w)
+{
+	struct intel_guc_ct *ct = container_of(w, struct intel_guc_ct, dead_ct_worker);
+	struct intel_guc *guc = ct_to_guc(ct);
+
+	if (ct->dead_ct_reported)
+		return;
+
+	ct->dead_ct_reported = true;
+
+	guc_info(guc, "CTB is dead - reason=0x%X\n", ct->dead_ct_reason);
+	intel_klog_error_capture(guc_to_gt(guc), (intel_engine_mask_t)~0U);
+}
+#endif

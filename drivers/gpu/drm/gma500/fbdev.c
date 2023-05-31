@@ -231,7 +231,7 @@ static int psb_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 	info->fix.mmio_start = pci_resource_start(pdev, 0);
 	info->fix.mmio_len = pci_resource_len(pdev, 0);
 
-	memset(info->screen_base, 0, info->screen_size);
+	fb_memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 

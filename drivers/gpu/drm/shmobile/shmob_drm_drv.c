@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
@@ -270,6 +271,8 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	ret = drm_dev_register(ddev, 0);
 	if (ret < 0)
 		goto err_irq_uninstall;
+
+	drm_fbdev_generic_setup(ddev, 16);
 
 	return 0;
 

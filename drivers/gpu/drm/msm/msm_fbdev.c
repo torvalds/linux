@@ -121,9 +121,9 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 
-	fbi->screen_base = msm_gem_get_vaddr(bo);
-	if (IS_ERR(fbi->screen_base)) {
-		ret = PTR_ERR(fbi->screen_base);
+	fbi->screen_buffer = msm_gem_get_vaddr(bo);
+	if (IS_ERR(fbi->screen_buffer)) {
+		ret = PTR_ERR(fbi->screen_buffer);
 		goto fail;
 	}
 	fbi->screen_size = bo->size;

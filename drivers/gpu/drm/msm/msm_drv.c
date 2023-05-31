@@ -455,7 +455,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 		goto err_deinit_vram;
 
 	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(false, drv);
+	ret = drm_aperture_remove_framebuffers(drv);
 	if (ret)
 		goto err_msm_uninit;
 

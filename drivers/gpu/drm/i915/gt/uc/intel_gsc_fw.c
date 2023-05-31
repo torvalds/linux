@@ -13,6 +13,7 @@
 #define GSC_FW_STATUS_REG			_MMIO(0x116C40)
 #define GSC_FW_CURRENT_STATE			REG_GENMASK(3, 0)
 #define   GSC_FW_CURRENT_STATE_RESET		0
+#define   GSC_FW_PROXY_STATE_NORMAL		5
 #define GSC_FW_INIT_COMPLETE_BIT		REG_BIT(9)
 
 static bool gsc_is_in_reset(struct intel_uncore *uncore)
@@ -21,6 +22,15 @@ static bool gsc_is_in_reset(struct intel_uncore *uncore)
 
 	return REG_FIELD_GET(GSC_FW_CURRENT_STATE, fw_status) ==
 	       GSC_FW_CURRENT_STATE_RESET;
+}
+
+bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc)
+{
+	struct intel_uncore *uncore = gsc_uc_to_gt(gsc)->uncore;
+	u32 fw_status = intel_uncore_read(uncore, GSC_FW_STATUS_REG);
+
+	return REG_FIELD_GET(GSC_FW_CURRENT_STATE, fw_status) ==
+	       GSC_FW_PROXY_STATE_NORMAL;
 }
 
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc)
@@ -110,6 +120,13 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 	if (obj->base.size < gsc->fw.size)
 		return -ENOSPC;
 
+	/*
+	 * Wa_22016122933: For MTL the shared memory needs to be mapped
+	 * as WC on CPU side and UC (PAT index 2) on GPU side
+	 */
+	if (IS_METEORLAKE(i915))
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+
 	dst = i915_gem_object_pin_map_unlocked(obj,
 					       i915_coherent_map_type(i915, obj, true));
 	if (IS_ERR(dst))
@@ -124,6 +141,12 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 
 	memset(dst, 0, obj->base.size);
 	memcpy(dst, src, gsc->fw.size);
+
+	/*
+	 * Wa_22016122933: Making sure the data in dst is
+	 * visible to GSC right away
+	 */
+	intel_guc_write_barrier(&gt->uc.guc);
 
 	i915_gem_object_unpin_map(gsc->fw.obj);
 	i915_gem_object_unpin_map(obj);

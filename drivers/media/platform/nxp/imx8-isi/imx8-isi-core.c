@@ -378,8 +378,8 @@ static int mxc_isi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mxc_isi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mxc_isi_pm_suspend, mxc_isi_pm_resume)
-	SET_RUNTIME_PM_OPS(mxc_isi_runtime_suspend, mxc_isi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mxc_isi_pm_suspend, mxc_isi_pm_resume)
+	RUNTIME_PM_OPS(mxc_isi_runtime_suspend, mxc_isi_runtime_resume, NULL)
 };
 
 /* -----------------------------------------------------------------------------
@@ -528,7 +528,7 @@ static struct platform_driver mxc_isi_driver = {
 	.driver = {
 		.of_match_table = mxc_isi_of_match,
 		.name		= MXC_ISI_DRIVER_NAME,
-		.pm		= &mxc_isi_pm_ops,
+		.pm		= pm_ptr(&mxc_isi_pm_ops),
 	}
 };
 module_platform_driver(mxc_isi_driver);
