@@ -186,7 +186,7 @@ struct __packed uc_fw_blob {
 	u8 major;
 	u8 minor;
 	u8 patch;
-	bool loaded_via_gsc;
+	bool has_gsc_headers;
 };
 
 #define UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
@@ -197,7 +197,7 @@ struct __packed uc_fw_blob {
 
 #define UC_FW_BLOB_NEW(major_, minor_, patch_, gsc_, path_) \
 	{ UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
-	  .legacy = false, .loaded_via_gsc = gsc_ }
+	  .legacy = false, .has_gsc_headers = gsc_ }
 
 #define UC_FW_BLOB_OLD(major_, minor_, patch_, path_) \
 	{ UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
@@ -310,7 +310,7 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		uc_fw->file_wanted.ver.major = blob->major;
 		uc_fw->file_wanted.ver.minor = blob->minor;
 		uc_fw->file_wanted.ver.patch = blob->patch;
-		uc_fw->loaded_via_gsc = blob->loaded_via_gsc;
+		uc_fw->has_gsc_headers = blob->has_gsc_headers;
 		found = true;
 		break;
 	}
@@ -737,7 +737,7 @@ static int check_fw_header(struct intel_gt *gt,
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
 		return 0;
 
-	if (uc_fw->loaded_via_gsc)
+	if (uc_fw->has_gsc_headers)
 		err = check_gsc_manifest(gt, fw, uc_fw);
 	else
 		err = check_ccs_header(gt, fw, uc_fw);
@@ -999,7 +999,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
-	offset = uc_fw->vma_res.start;
+	offset = uc_fw->vma_res.start + uc_fw->dma_start_offset;
 	GEM_BUG_ON(upper_32_bits(offset) & 0xFFFF0000);
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset));
@@ -1238,7 +1238,7 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
 {
 	struct intel_memory_region *mr = uc_fw->obj->mm.region;
 	u32 size = min_t(u32, uc_fw->rsa_size, max_len);
-	u32 offset = sizeof(struct uc_css_header) + uc_fw->ucode_size;
+	u32 offset = uc_fw->dma_start_offset + sizeof(struct uc_css_header) + uc_fw->ucode_size;
 	struct sgt_iter iter;
 	size_t count = 0;
 	int idx;

@@ -298,31 +298,54 @@ void intel_huc_init_early(struct intel_huc *huc)
 static int check_huc_loading_mode(struct intel_huc *huc)
 {
 	struct intel_gt *gt = huc_to_gt(huc);
-	bool fw_needs_gsc = intel_huc_is_loaded_by_gsc(huc);
-	bool hw_uses_gsc = false;
+	bool gsc_enabled = huc->fw.has_gsc_headers;
 
 	/*
 	 * The fuse for HuC load via GSC is only valid on platforms that have
 	 * GuC deprivilege.
 	 */
 	if (HAS_GUC_DEPRIVILEGE(gt->i915))
-		hw_uses_gsc = intel_uncore_read(gt->uncore, GUC_SHIM_CONTROL2) &
-			      GSC_LOADS_HUC;
+		huc->loaded_via_gsc = intel_uncore_read(gt->uncore, GUC_SHIM_CONTROL2) &
+				      GSC_LOADS_HUC;
 
-	if (fw_needs_gsc != hw_uses_gsc) {
-		huc_err(huc, "mismatch between FW (%s) and HW (%s) load modes\n",
-			HUC_LOAD_MODE_STRING(fw_needs_gsc), HUC_LOAD_MODE_STRING(hw_uses_gsc));
+	if (huc->loaded_via_gsc && !gsc_enabled) {
+		huc_err(huc, "HW requires a GSC-enabled blob, but we found a legacy one\n");
 		return -ENOEXEC;
 	}
 
-	/* make sure we can access the GSC via the mei driver if we need it */
-	if (!(IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC)) &&
-	    fw_needs_gsc) {
-		huc_info(huc, "can't load due to missing MEI modules\n");
-		return -EIO;
+	/*
+	 * On newer platforms we have GSC-enabled binaries but we load the HuC
+	 * via DMA. To do so we need to find the location of the legacy-style
+	 * binary inside the GSC-enabled one, which we do at fetch time. Make
+	 * sure that we were able to do so if the fuse says we need to load via
+	 * DMA and the binary is GSC-enabled.
+	 */
+	if (!huc->loaded_via_gsc && gsc_enabled && !huc->fw.dma_start_offset) {
+		huc_err(huc, "HW in DMA mode, but we have an incompatible GSC-enabled blob\n");
+		return -ENOEXEC;
 	}
 
-	huc_dbg(huc, "loaded by GSC = %s\n", str_yes_no(fw_needs_gsc));
+	/*
+	 * If the HuC is loaded via GSC, we need to be able to access the GSC.
+	 * On DG2 this is done via the mei components, while on newer platforms
+	 * it is done via the GSCCS,
+	 */
+	if (huc->loaded_via_gsc) {
+		if (IS_DG2(gt->i915)) {
+			if (!IS_ENABLED(CONFIG_INTEL_MEI_PXP) ||
+			    !IS_ENABLED(CONFIG_INTEL_MEI_GSC)) {
+				huc_info(huc, "can't load due to missing mei modules\n");
+				return -EIO;
+			}
+		} else {
+			if (!HAS_ENGINE(gt, GSC0)) {
+				huc_info(huc, "can't load due to missing GSCCS\n");
+				return -EIO;
+			}
+		}
+	}
+
+	huc_dbg(huc, "loaded by GSC = %s\n", str_yes_no(huc->loaded_via_gsc));
 
 	return 0;
 }

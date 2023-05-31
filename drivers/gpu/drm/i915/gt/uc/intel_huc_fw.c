@@ -50,7 +50,7 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 	size_t min_size = sizeof(*header);
 	int i;
 
-	if (!huc_fw->loaded_via_gsc) {
+	if (!huc_fw->has_gsc_headers) {
 		huc_err(huc, "Invalid FW type for GSC header parsing!\n");
 		return -EINVAL;
 	}

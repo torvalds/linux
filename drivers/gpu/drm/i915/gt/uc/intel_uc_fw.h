@@ -120,7 +120,7 @@ struct intel_uc_fw {
 
 	u32 dma_start_offset;
 
-	bool loaded_via_gsc;
+	bool has_gsc_headers;
 };
 
 /*
