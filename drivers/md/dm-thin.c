@@ -4098,21 +4098,20 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * They get transferred to the live pool in bind_control_target()
 	 * called from pool_preresume().
 	 */
-	if (!pt->adjusted_pf.discard_enabled) {
+
+	if (pt->adjusted_pf.discard_enabled) {
+		disable_passdown_if_not_supported(pt);
+		/*
+		 * The pool uses the same discard limits as the underlying data
+		 * device.  DM core has already set this up.
+		 */
+	} else {
 		/*
 		 * Must explicitly disallow stacking discard limits otherwise the
 		 * block layer will stack them if pool's data device has support.
 		 */
 		limits->discard_granularity = 0;
-		return;
 	}
-
-	disable_passdown_if_not_supported(pt);
-
-	/*
-	 * The pool uses the same discard limits as the underlying data
-	 * device.  DM core has already set this up.
-	 */
 }
 
 static struct target_type pool_target = {
@@ -4496,11 +4495,10 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	struct thin_c *tc = ti->private;
 	struct pool *pool = tc->pool;
 
-	if (!pool->pf.discard_enabled)
-		return;
-
-	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
-	limits->max_discard_sectors = pool->sectors_per_block * BIO_PRISON_MAX_RANGE;
+	if (pool->pf.discard_enabled) {
+		limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
+		limits->max_discard_sectors = pool->sectors_per_block * BIO_PRISON_MAX_RANGE;
+	}
 }
 
 static struct target_type thin_target = {
