@@ -11,12 +11,12 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/export.h>
 #include <linux/platform_data/usb-omap.h>
 
 #include <linux/usb/musb.h>
 
+#include "usb-tusb6010.h"
 #include "gpmc.h"
 
 static u8		async_cs, sync_cs;
@@ -132,10 +132,6 @@ static struct resource tusb_resources[] = {
 	{ /* Synchronous access */
 		.flags	= IORESOURCE_MEM,
 	},
-	{ /* IRQ */
-		.name	= "mc",
-		.flags	= IORESOURCE_IRQ,
-	},
 };
 
 static u64 tusb_dmamask = ~(u32)0;
@@ -154,9 +150,9 @@ static struct platform_device tusb_device = {
 
 /* this may be called only from board-*.c setup code */
 int __init tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
-		unsigned ps_refclk, unsigned waitpin,
-		unsigned async, unsigned sync,
-		unsigned irq, unsigned dmachan)
+		unsigned int ps_refclk, unsigned int waitpin,
+		unsigned int async, unsigned int sync,
+		unsigned int dmachan)
 {
 	int		status;
 	static char	error[] __initdata =
@@ -191,14 +187,6 @@ int __init tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 	status = gpmc_cs_program_settings(sync_cs, &tusb_sync);
 	if (status < 0)
 		return status;
-
-	/* IRQ */
-	status = gpio_request_one(irq, GPIOF_IN, "TUSB6010 irq");
-	if (status < 0) {
-		printk(error, 3, status);
-		return status;
-	}
-	tusb_resources[2].start = gpio_to_irq(irq);
 
 	/* set up memory timings ... can speed them up later */
 	if (!ps_refclk) {
