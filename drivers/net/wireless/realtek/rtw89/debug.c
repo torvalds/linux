@@ -376,6 +376,7 @@ struct txpwr_map {
 	u8 size;
 	u32 addr_from;
 	u32 addr_to;
+	u32 addr_to_1ss;
 };
 
 #define __GEN_TXPWR_ENT2(_t, _e0, _e1) \
@@ -413,6 +414,7 @@ static const struct txpwr_map __txpwr_map_byr = {
 	.size = ARRAY_SIZE(__txpwr_ent_byr),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
+	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt[] = {
@@ -468,6 +470,7 @@ static const struct txpwr_map __txpwr_map_lmt = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
@@ -495,6 +498,7 @@ static const struct txpwr_map __txpwr_map_lmt_ru = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
 };
 
 static u8 __print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
@@ -527,6 +531,8 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 			     const struct txpwr_map *map)
 {
 	u8 fct = rtwdev->chip->txpwr_factor_mac;
+	u8 path_num = rtwdev->chip->rf_path_num;
+	u32 max_valid_addr;
 	u32 val, addr;
 	s8 *buf, tmp;
 	u8 cur, i;
@@ -536,7 +542,12 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 	if (!buf)
 		return -ENOMEM;
 
-	for (addr = map->addr_from; addr <= map->addr_to; addr += 4) {
+	if (path_num == 1)
+		max_valid_addr = map->addr_to_1ss;
+	else
+		max_valid_addr = map->addr_to;
+
+	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
 		if (ret)
 			val = MASKDWORD;
