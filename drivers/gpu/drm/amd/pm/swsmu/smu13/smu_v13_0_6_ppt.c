@@ -1413,17 +1413,15 @@ static int smu_v13_0_6_system_features_control(struct smu_context *smu,
 					       bool enable)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret;
+	int ret = 0;
 
-	/* On APUs, notify FW that the device is no longer driver managed */
-	if (adev->flags & AMD_IS_APU) {
-		if (!enable)
-			smu_v13_0_6_notify_unload(smu);
-
-		return 0;
+	if (enable) {
+		if (!(adev->flags & AMD_IS_APU))
+			ret = smu_v13_0_system_features_control(smu, enable);
+	} else {
+		/* Notify FW that the device is no longer driver managed */
+		smu_v13_0_6_notify_unload(smu);
 	}
-
-	ret = smu_v13_0_system_features_control(smu, enable);
 
 	return ret;
 }
