@@ -1347,6 +1347,9 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink_port_new_attrs new_attrs = {};
 	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_port *devlink_port;
+	struct sk_buff *msg;
+	int err;
 
 	if (!devlink->ops->port_new)
 		return -EOPNOTSUPP;
@@ -1377,7 +1380,30 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 		new_attrs.sfnum_valid = true;
 	}
 
-	return devlink->ops->port_new(devlink, &new_attrs, extack);
+	err = devlink->ops->port_new(devlink, &new_attrs,
+				     extack, &devlink_port);
+	if (err)
+		return err;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto err_out_port_del;
+	}
+	err = devlink_nl_port_fill(msg, devlink_port, DEVLINK_CMD_NEW,
+				   info->snd_portid, info->snd_seq, 0, NULL);
+	if (WARN_ON_ONCE(err))
+		goto err_out_msg_free;
+	err = genlmsg_reply(msg, info);
+	if (err)
+		goto err_out_port_del;
+	return 0;
+
+err_out_msg_free:
+	nlmsg_free(msg);
+err_out_port_del:
+	devlink_port->ops->port_del(devlink, devlink_port, NULL);
+	return err;
 }
 
 static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,
