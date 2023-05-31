@@ -126,7 +126,7 @@ static __always_inline void __exit_to_user_mode(void)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
-static __always_inline void prepare_exit_to_user_mode(struct pt_regs *regs)
+static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 {
 	unsigned long flags;
 
@@ -135,11 +135,13 @@ static __always_inline void prepare_exit_to_user_mode(struct pt_regs *regs)
 	flags = read_thread_flags();
 	if (unlikely(flags & _TIF_WORK_MASK))
 		do_notify_resume(regs, flags);
+
+	lockdep_sys_exit();
 }
 
 static __always_inline void exit_to_user_mode(struct pt_regs *regs)
 {
-	prepare_exit_to_user_mode(regs);
+	exit_to_user_mode_prepare(regs);
 	mte_check_tfsr_exit();
 	__exit_to_user_mode();
 }
