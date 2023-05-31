@@ -1899,6 +1899,11 @@ void dcn10_pipe_control_lock(
  *
  * TODO: Optimize cursor programming to be once per frame before VUPDATE
  *       to avoid the need for this workaround.
+ *
+ * @dc: Current DC state
+ * @pipe_ctx: Pipe_ctx pointer for delayed cursor update
+ *
+ * Return: void
  */
 static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
