@@ -617,6 +617,8 @@ patternProperties:
     description: Integrated Micro-Electronics Inc.
   "^incircuit,.*":
     description: In-Circuit GmbH
+  "^indiedroid,.*":
+    description: Indiedroid
   "^inet-tek,.*":
     description: Shenzhen iNet Mobile Internet Technology Co., Ltd
   "^infineon,.*":
