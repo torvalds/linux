@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Code for looking up block devices in the early boot code before mounting the
- * root file system.  Unfortunately currently also abused in a few other places.
+ * root file system.
  */
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
@@ -18,7 +18,7 @@ struct uuidcmp {
  *
  * Returns 1 if the device matches, and 0 otherwise.
  */
-static int match_dev_by_uuid(struct device *dev, const void *data)
+static int __init match_dev_by_uuid(struct device *dev, const void *data)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
 	const struct uuidcmp *cmp = data;
@@ -42,7 +42,7 @@ static int match_dev_by_uuid(struct device *dev, const void *data)
  *
  * Returns the matching dev_t on success or 0 on failure.
  */
-static int devt_from_partuuid(const char *uuid_str, dev_t *devt)
+static int __init devt_from_partuuid(const char *uuid_str, dev_t *devt)
 {
 	struct uuidcmp cmp;
 	struct device *dev = NULL;
@@ -98,7 +98,7 @@ out_invalid:
  *
  * Returns 1 if the device matches, and 0 otherwise.
  */
-static int match_dev_by_label(struct device *dev, const void *data)
+static int __init match_dev_by_label(struct device *dev, const void *data)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
 	const char *label = data;
@@ -108,7 +108,7 @@ static int match_dev_by_label(struct device *dev, const void *data)
 	return 1;
 }
 
-static int devt_from_partlabel(const char *label, dev_t *devt)
+static int __init devt_from_partlabel(const char *label, dev_t *devt)
 {
 	struct device *dev;
 
@@ -120,7 +120,7 @@ static int devt_from_partlabel(const char *label, dev_t *devt)
 	return 0;
 }
 
-static dev_t blk_lookup_devt(const char *name, int partno)
+static dev_t __init blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
 	struct class_dev_iter iter;
@@ -149,7 +149,7 @@ static dev_t blk_lookup_devt(const char *name, int partno)
 	return devt;
 }
 
-static int devt_from_devname(const char *name, dev_t *devt)
+static int __init devt_from_devname(const char *name, dev_t *devt)
 {
 	int part;
 	char s[32];
@@ -193,7 +193,7 @@ static int devt_from_devname(const char *name, dev_t *devt)
 	return -EINVAL;
 }
 
-static int devt_from_devnum(const char *name, dev_t *devt)
+static int __init devt_from_devnum(const char *name, dev_t *devt)
 {
 	unsigned maj, min, offset;
 	char *p, dummy;
@@ -240,7 +240,7 @@ static int devt_from_devnum(const char *name, dev_t *devt)
  *	name contains slashes, the device name has them replaced with
  *	bangs.
  */
-int early_lookup_bdev(const char *name, dev_t *devt)
+int __init early_lookup_bdev(const char *name, dev_t *devt)
 {
 	if (strncmp(name, "PARTUUID=", 9) == 0)
 		return devt_from_partuuid(name + 9, devt);
@@ -250,7 +250,6 @@ int early_lookup_bdev(const char *name, dev_t *devt)
 		return devt_from_devname(name + 5, devt);
 	return devt_from_devnum(name, devt);
 }
-EXPORT_SYMBOL_GPL(early_lookup_bdev);
 
 static char __init *bdevt_str(dev_t devt, char *buf)
 {
