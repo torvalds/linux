@@ -1107,16 +1107,15 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	return error;
 }
 
-static int need_sync(struct gfs2_quota_data *qd)
+static bool need_sync(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 	struct gfs2_tune *gt = &sdp->sd_tune;
 	s64 value;
 	unsigned int num, den;
-	int do_sync = 1;
 
 	if (!qd->qd_qb.qb_limit)
-		return 0;
+		return false;
 
 	spin_lock(&qd_lock);
 	value = qd->qd_change;
@@ -1128,19 +1127,19 @@ static int need_sync(struct gfs2_quota_data *qd)
 	spin_unlock(&gt->gt_spin);
 
 	if (value < 0)
-		do_sync = 0;
+		return false;
 	else if ((s64)be64_to_cpu(qd->qd_qb.qb_value) >=
 		 (s64)be64_to_cpu(qd->qd_qb.qb_limit))
-		do_sync = 0;
+		return false;
 	else {
 		value *= gfs2_jindex_size(sdp) * num;
 		value = div_s64(value, den);
 		value += (s64)be64_to_cpu(qd->qd_qb.qb_value);
 		if (value < (s64)be64_to_cpu(qd->qd_qb.qb_limit))
-			do_sync = 0;
+			return false;
 	}
 
-	return do_sync;
+	return true;
 }
 
 void gfs2_quota_unlock(struct gfs2_inode *ip)
@@ -1156,7 +1155,7 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 
 	for (x = 0; x < ip->i_qadata->qa_qd_num; x++) {
 		struct gfs2_quota_data *qd;
-		int sync;
+		bool sync;
 
 		qd = ip->i_qadata->qa_qd[x];
 		sync = need_sync(qd);
