@@ -239,7 +239,7 @@ struct kfd_device_info {
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
 	unsigned int num_reserved_sdma_queues_per_engine;
-	uint64_t reserved_sdma_queues_bitmap;
+	DECLARE_BITMAP(reserved_sdma_queues_bitmap, KFD_MAX_SDMA_QUEUES);
 };
 
 unsigned int kfd_get_num_sdma_engines(struct kfd_node *kdev);
