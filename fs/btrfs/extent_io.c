@@ -268,9 +268,6 @@ static int __process_pages_contig(struct address_space *mapping,
 		ASSERT(processed_end && *processed_end == start);
 	}
 
-	if ((page_ops & PAGE_SET_ERROR) && start_index <= end_index)
-		mapping_set_error(mapping, -EIO);
-
 	folio_batch_init(&fbatch);
 	while (index <= end_index) {
 		int found_folios;
