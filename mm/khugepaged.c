@@ -422,18 +422,16 @@ void __khugepaged_enter(struct mm_struct *mm)
 	struct mm_slot *slot;
 	int wakeup;
 
+	/* __khugepaged_exit() must not run from under us */
+	VM_BUG_ON_MM(hpage_collapse_test_exit(mm), mm);
+	if (unlikely(test_and_set_bit(MMF_VM_HUGEPAGE, &mm->flags)))
+		return;
+
 	mm_slot = mm_slot_alloc(mm_slot_cache);
 	if (!mm_slot)
 		return;
 
 	slot = &mm_slot->slot;
-
-	/* __khugepaged_exit() must not run from under us */
-	VM_BUG_ON_MM(hpage_collapse_test_exit(mm), mm);
-	if (unlikely(test_and_set_bit(MMF_VM_HUGEPAGE, &mm->flags))) {
-		mm_slot_free(mm_slot_cache, mm_slot);
-		return;
-	}
 
 	spin_lock(&khugepaged_mm_lock);
 	mm_slot_insert(mm_slots_hash, mm, slot);
