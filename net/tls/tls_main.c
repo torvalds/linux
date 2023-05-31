@@ -358,6 +358,39 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		tls_ctx_free(sk, ctx);
 }
 
+static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
+			    struct poll_table_struct *wait)
+{
+	struct tls_sw_context_rx *ctx;
+	struct tls_context *tls_ctx;
+	struct sock *sk = sock->sk;
+	struct sk_psock *psock;
+	__poll_t mask = 0;
+	u8 shutdown;
+	int state;
+
+	mask = tcp_poll(file, sock, wait);
+
+	state = inet_sk_state_load(sk);
+	shutdown = READ_ONCE(sk->sk_shutdown);
+	if (unlikely(state != TCP_ESTABLISHED || shutdown & RCV_SHUTDOWN))
+		return mask;
+
+	tls_ctx = tls_get_ctx(sk);
+	ctx = tls_sw_ctx_rx(tls_ctx);
+	psock = sk_psock_get(sk);
+
+	if (skb_queue_empty_lockless(&ctx->rx_list) &&
+	    !tls_strp_msg_ready(ctx) &&
+	    sk_psock_queue_empty(psock))
+		mask &= ~(EPOLLIN | EPOLLRDNORM);
+
+	if (psock)
+		sk_psock_put(sk, psock);
+
+	return mask;
+}
+
 static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 				  int __user *optlen, int tx)
 {
@@ -928,9 +961,11 @@ static void build_proto_ops(struct proto_ops ops[TLS_NUM_CONFIG][TLS_NUM_CONFIG]
 
 	ops[TLS_BASE][TLS_SW  ] = ops[TLS_BASE][TLS_BASE];
 	ops[TLS_BASE][TLS_SW  ].splice_read	= tls_sw_splice_read;
+	ops[TLS_BASE][TLS_SW  ].poll		= tls_sk_poll;
 
 	ops[TLS_SW  ][TLS_SW  ] = ops[TLS_SW  ][TLS_BASE];
 	ops[TLS_SW  ][TLS_SW  ].splice_read	= tls_sw_splice_read;
+	ops[TLS_SW  ][TLS_SW  ].poll		= tls_sk_poll;
 
 #ifdef CONFIG_TLS_DEVICE
 	ops[TLS_HW  ][TLS_BASE] = ops[TLS_BASE][TLS_BASE];
