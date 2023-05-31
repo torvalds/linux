@@ -303,6 +303,60 @@ static void finish_ordered_fn(struct btrfs_work *work)
 	btrfs_finish_ordered_io(ordered_extent);
 }
 
+static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
+				      struct page *page, u64 file_offset,
+				      u64 len, bool uptodate)
+{
+	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+	lockdep_assert_held(&inode->ordered_tree.lock);
+
+	if (page) {
+		ASSERT(page->mapping);
+		ASSERT(page_offset(page) <= file_offset);
+		ASSERT(file_offset + len <= page_offset(page) + PAGE_SIZE);
+
+		/*
+		 * Ordered (Private2) bit indicates whether we still have
+		 * pending io unfinished for the ordered extent.
+		 *
+		 * If there's no such bit, we need to skip to next range.
+		 */
+		if (!btrfs_page_test_ordered(fs_info, page, file_offset, len))
+			return false;
+		btrfs_page_clear_ordered(fs_info, page, file_offset, len);
+	}
+
+	/* Now we're fine to update the accounting. */
+	if (WARN_ON_ONCE(len > ordered->bytes_left)) {
+		btrfs_crit(fs_info,
+"bad ordered extent accounting, root=%llu ino=%llu OE offset=%llu OE len=%llu to_dec=%llu left=%llu",
+			   inode->root->root_key.objectid, btrfs_ino(inode),
+			   ordered->file_offset, ordered->num_bytes,
+			   len, ordered->bytes_left);
+		ordered->bytes_left = 0;
+	} else {
+		ordered->bytes_left -= len;
+	}
+
+	if (!uptodate)
+		set_bit(BTRFS_ORDERED_IOERR, &ordered->flags);
+
+	if (ordered->bytes_left)
+		return false;
+
+	/*
+	 * All the IO of the ordered extent is finished, we need to queue
+	 * the finish_func to be executed.
+	 */
+	set_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags);
+	cond_wake_up(&ordered->wait);
+	refcount_inc(&ordered->refs);
+	trace_btrfs_ordered_extent_mark_finished(inode, ordered);
+	return true;
+}
+
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
@@ -332,10 +386,6 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 		wq = fs_info->endio_freespace_worker;
 	else
 		wq = fs_info->endio_write_workers;
-
-	if (page)
-		ASSERT(page->mapping && page_offset(page) <= file_offset &&
-		       file_offset + num_bytes <= page_offset(page) + PAGE_SIZE);
 
 	spin_lock_irqsave(&tree->lock, flags);
 	while (cur < file_offset + num_bytes) {
@@ -389,47 +439,7 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 		ASSERT(end + 1 - cur < U32_MAX);
 		len = end + 1 - cur;
 
-		if (page) {
-			/*
-			 * Ordered (Private2) bit indicates whether we still
-			 * have pending io unfinished for the ordered extent.
-			 *
-			 * If there's no such bit, we need to skip to next range.
-			 */
-			if (!btrfs_page_test_ordered(fs_info, page, cur, len)) {
-				cur += len;
-				continue;
-			}
-			btrfs_page_clear_ordered(fs_info, page, cur, len);
-		}
-
-		/* Now we're fine to update the accounting */
-		if (unlikely(len > entry->bytes_left)) {
-			WARN_ON(1);
-			btrfs_crit(fs_info,
-"bad ordered extent accounting, root=%llu ino=%llu OE offset=%llu OE len=%llu to_dec=%u left=%llu",
-				   inode->root->root_key.objectid,
-				   btrfs_ino(inode),
-				   entry->file_offset,
-				   entry->num_bytes,
-				   len, entry->bytes_left);
-			entry->bytes_left = 0;
-		} else {
-			entry->bytes_left -= len;
-		}
-
-		if (!uptodate)
-			set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
-
-		/*
-		 * All the IO of the ordered extent is finished, we need to queue
-		 * the finish_func to be executed.
-		 */
-		if (entry->bytes_left == 0) {
-			set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
-			cond_wake_up(&entry->wait);
-			refcount_inc(&entry->refs);
-			trace_btrfs_ordered_extent_mark_finished(inode, entry);
+		if (can_finish_ordered_extent(entry, page, cur, len, uptodate)) {
 			spin_unlock_irqrestore(&tree->lock, flags);
 			btrfs_init_work(&entry->work, finish_ordered_fn, NULL, NULL);
 			btrfs_queue_work(wq, &entry->work);
