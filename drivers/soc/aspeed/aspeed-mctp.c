@@ -431,6 +431,7 @@ static void aspeed_mctp_swap_pcie_vdm_hdr(struct mctp_pcie_packet_data *data)
 static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 {
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
+	u32 reg;
 
 	/*
 	 * Even though rx_buf_addr doesn't change, if we don't do the write
@@ -442,7 +443,23 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 	 * value, the HW behaves in a bizarre way that's hard to explain...
 	 */
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY, 0);
-	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_ADDR, rx->cmd.dma_handle);
+	if (priv->match_data->fifo_auto_surround) {
+		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_ADDR,
+			     rx->cmd.dma_handle);
+	} else {
+		regmap_read(priv->map, ASPEED_MCTP_RX_BUF_ADDR, &reg);
+		if (!reg) {
+			regmap_write(priv->map, ASPEED_MCTP_RX_BUF_ADDR,
+				     rx->cmd.dma_handle);
+		} else if (reg == (rx->cmd.dma_handle & GENMASK(28, 3))) {
+			dev_info(priv->dev,
+				 "Already initialized - skipping rx dma set\n");
+		} else {
+			dev_err(priv->dev,
+				"The memory of rx dma can't be changed after the controller is activated\n");
+			return;
+		}
+	}
 	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, 0);
 
 	/* After re-enabling RX we need to restart WA logic */
@@ -864,6 +881,28 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 		payload = (u32 *)&rx_buf[rx->wr_ptr];
 		rx_cmd = (struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
 		hdr = (u32 *)&((rx_cmd + rx->wr_ptr)->rx_lo);
+
+		if (!*hdr) {
+			u32 tmp_wr_ptr = rx->wr_ptr;
+
+			/*
+			 * HACK: Right after start the RX hardware can put received
+			 * packet into an unexpected offset - in order to locate
+			 * received packet driver has to scan all RX data buffers.
+			 */
+			do {
+				tmp_wr_ptr = (tmp_wr_ptr + 1) % rx->buffer_count;
+
+				hdr = (u32 *)&((rx_cmd + tmp_wr_ptr)->rx_lo);
+			} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
+
+			if (tmp_wr_ptr != rx->wr_ptr) {
+				dev_warn(priv->dev,
+					 "Runaway RX packet found %d -> %d\n",
+					 rx->wr_ptr, tmp_wr_ptr);
+				rx->wr_ptr = tmp_wr_ptr;
+			}
+		}
 
 		while (*hdr != 0) {
 			rx_packet = aspeed_mctp_packet_alloc(GFP_ATOMIC);
