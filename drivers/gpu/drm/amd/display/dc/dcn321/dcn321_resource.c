@@ -727,7 +727,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.fpo_vactive_margin_us = 2000, // 2000us
 	.disable_fpo_vactive = false,
 	.disable_boot_optimizations = false,
-	.disable_subvp_high_refresh = true,
+	.disable_subvp_high_refresh = false,
 	.fpo_vactive_min_active_margin_us = 200,
 	.fpo_vactive_max_blank_us = 1000,
 };
