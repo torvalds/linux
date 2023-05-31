@@ -729,11 +729,11 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change, int qc_type)
 	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
-static int gfs2_write_buf_to_page(struct gfs2_inode *ip, unsigned long index,
+static int gfs2_write_buf_to_page(struct gfs2_sbd *sdp, unsigned long index,
 				  unsigned off, void *buf, unsigned bytes)
 {
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	struct inode *inode = &ip->i_inode;
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 	struct buffer_head *bh;
@@ -801,7 +801,6 @@ unlock_out:
 static int gfs2_write_disk_quota(struct gfs2_sbd *sdp, struct gfs2_quota *qp,
 				 loff_t loc)
 {
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	unsigned long pg_beg;
 	unsigned pg_off, nbytes, overflow = 0;
 	int pg_oflow = 0, error;
@@ -819,11 +818,11 @@ static int gfs2_write_disk_quota(struct gfs2_sbd *sdp, struct gfs2_quota *qp,
 	}
 
 	ptr = qp;
-	error = gfs2_write_buf_to_page(ip, pg_beg, pg_off, ptr,
+	error = gfs2_write_buf_to_page(sdp, pg_beg, pg_off, ptr,
 				       nbytes - overflow);
 	/* If there's an overflow, write the remaining bytes to the next page */
 	if (!error && pg_oflow)
-		error = gfs2_write_buf_to_page(ip, pg_beg + 1, 0,
+		error = gfs2_write_buf_to_page(sdp, pg_beg + 1, 0,
 					       ptr + nbytes - overflow,
 					       overflow);
 	return error;
