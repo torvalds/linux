@@ -277,6 +277,15 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
 		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_BGR565_2X8_LE:
+		s->output_mode = ROCKCHIP_OUT_MODE_S565;
+		s->output_if = VOP_OUTPUT_IF_RGB;
+		break;
+	case MEDIA_BUS_FMT_RGB666_3X6:
+		s->output_mode = ROCKCHIP_OUT_MODE_S666;
+		s->output_if = VOP_OUTPUT_IF_RGB;
+		break;
 	case MEDIA_BUS_FMT_RGB888_3X8:
 	case MEDIA_BUS_FMT_BGR888_3X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_S888;
