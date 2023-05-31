@@ -438,6 +438,9 @@ struct lru_gen_folio {
 	/* per-node lru_gen_folio list for global reclaim */
 	struct hlist_nulls_node list;
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 enum {
@@ -468,6 +471,8 @@ struct lru_gen_mm_state {
 	unsigned long stats[NR_HIST_GENS][NR_MM_STATS];
 	/* the number of concurrent page table walkers */
 	int nr_walkers;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct lru_gen_mm_walk {
@@ -485,6 +490,9 @@ struct lru_gen_mm_walk {
 	int batched;
 	bool can_swap;
 	bool force_scan;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 void lru_gen_init_lruvec(struct lruvec *lruvec);
@@ -542,6 +550,9 @@ struct lru_gen_memcg {
 	struct hlist_nulls_head	fifo[MEMCG_NR_GENS][MEMCG_NR_BINS];
 	/* protects the above */
 	spinlock_t lock;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 void lru_gen_init_pgdat(struct pglist_data *pgdat);
@@ -637,6 +648,8 @@ struct lruvec {
 	struct pglist_data *pgdat;
 #endif
 	ANDROID_VENDOR_DATA(1);
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /* Isolate unmapped pages */
