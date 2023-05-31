@@ -1693,7 +1693,7 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 	 * ->inode could be NULL if async_chunk_start has failed to compress,
 	 * in which case we don't have anything to submit, yet we need to
 	 * always adjust ->async_delalloc_pages as its paired with the init
-	 * happening in cow_file_range_async
+	 * happening in run_delalloc_compressed
 	 */
 	if (async_chunk->inode)
 		submit_compressed_extents(async_chunk);
@@ -1720,11 +1720,11 @@ static noinline void async_cow_free(struct btrfs_work *work)
 		kvfree(async_cow);
 }
 
-static bool cow_file_range_async(struct btrfs_inode *inode,
-				 struct writeback_control *wbc,
-				 struct page *locked_page,
-				 u64 start, u64 end, int *page_started,
-				 unsigned long *nr_written)
+static bool run_delalloc_compressed(struct btrfs_inode *inode,
+				    struct writeback_control *wbc,
+				    struct page *locked_page,
+				    u64 start, u64 end, int *page_started,
+				    unsigned long *nr_written)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct cgroup_subsys_state *blkcg_css = wbc_blkcg_css(wbc);
@@ -2417,8 +2417,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, start, end) &&
-	    cow_file_range_async(inode, wbc, locked_page, start,
-				 end, page_started, nr_written))
+	    run_delalloc_compressed(inode, wbc, locked_page, start,
+				    end, page_started, nr_written))
 		goto out;
 
 	if (zoned)
