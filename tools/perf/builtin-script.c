@@ -801,11 +801,11 @@ static int perf_sample__fprintf_start(struct perf_script *script,
 	}
 
 	if (PRINT_FIELD(PID) && PRINT_FIELD(TID))
-		printed += fprintf(fp, "%5d/%-5d ", sample->pid, sample->tid);
+		printed += fprintf(fp, "%7d/%-7d ", sample->pid, sample->tid);
 	else if (PRINT_FIELD(PID))
-		printed += fprintf(fp, "%5d ", sample->pid);
+		printed += fprintf(fp, "%7d ", sample->pid);
 	else if (PRINT_FIELD(TID))
-		printed += fprintf(fp, "%5d ", sample->tid);
+		printed += fprintf(fp, "%7d ", sample->tid);
 
 	if (PRINT_FIELD(CPU)) {
 		if (latency_format)
