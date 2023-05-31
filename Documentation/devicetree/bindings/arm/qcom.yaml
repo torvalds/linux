@@ -91,6 +91,7 @@ description: |
         ap-al02-c6
         ap-al02-c7
         ap-al02-c8
+        ap-al02-c9
         ap-mi01.2
         ap-mi01.3
         ap-mi01.6
@@ -365,6 +366,7 @@ properties:
               - qcom,ipq9574-ap-al02-c6
               - qcom,ipq9574-ap-al02-c7
               - qcom,ipq9574-ap-al02-c8
+              - qcom,ipq9574-ap-al02-c9
           - const: qcom,ipq9574
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
