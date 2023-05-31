@@ -27,6 +27,12 @@ struct btrfs_failed_bio {
 	atomic_t repair_count;
 };
 
+/* Is this a data path I/O that needs storage layer checksum and repair? */
+static inline bool is_data_bbio(struct btrfs_bio *bbio)
+{
+	return bbio->inode && is_data_inode(&bbio->inode->vfs_inode);
+}
+
 /*
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
  * is already initialized by the block layer.
@@ -312,7 +318,7 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	struct btrfs_bio *bbio = container_of(work, struct btrfs_bio, end_io_work);
 
 	/* Metadata reads are checked and repaired by the submitter. */
-	if (bbio->inode && !(bbio->bio.bi_opf & REQ_META))
+	if (is_data_bbio(bbio))
 		btrfs_check_read_bio(bbio, bbio->bio.bi_private);
 	else
 		btrfs_orig_bbio_end_io(bbio);
@@ -346,8 +352,7 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	if (bio_op(bio) == REQ_OP_READ && bbio->inode &&
-	    !(bbio->bio.bi_opf & REQ_META))
+	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio))
 		btrfs_check_read_bio(bbio, NULL);
 	else
 		btrfs_orig_bbio_end_io(bbio);
@@ -639,7 +644,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 * Save the iter for the end_io handler and preload the checksums for
 	 * data reads.
 	 */
-	if (bio_op(bio) == REQ_OP_READ && inode && !(bio->bi_opf & REQ_META)) {
+	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
 		bbio->saved_iter = bio->bi_iter;
 		ret = btrfs_lookup_bio_sums(bbio);
 		if (ret)
