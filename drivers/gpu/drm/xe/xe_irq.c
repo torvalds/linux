@@ -364,7 +364,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	}
 
 	for_each_gt(gt, xe, id) {
-		if ((master_tile_ctl & DG1_MSTR_TILE(gt->info.vram_id)) == 0)
+		if ((master_tile_ctl & DG1_MSTR_TILE(gt_to_tile(gt)->id)) == 0)
 			continue;
 
 		if (!xe_gt_is_media_type(gt))

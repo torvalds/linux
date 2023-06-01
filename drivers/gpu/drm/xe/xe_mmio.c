@@ -189,7 +189,7 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 
 /**
  * xe_mmio_tile_vram_size() - Collect vram size and offset information
- * @gt: tile to get info for
+ * @tile: tile to get info for
  * @vram_size: available vram (size - device reserved portions)
  * @tile_size: actual vram size
  * @tile_offset: physical start point in the vram address space
@@ -206,8 +206,10 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
  * NOTE: multi-tile bases will include the tile offset.
  *
  */
-int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64 *tile_offset)
+int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size, u64 *tile_size, u64 *tile_offset)
 {
+	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_gt *gt = &tile->primary_gt;
 	u64 offset;
 	int err;
 	u32 reg;
@@ -217,8 +219,8 @@ int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64
 		return err;
 
 	/* actual size */
-	if (unlikely(gt_to_xe(gt)->info.platform == XE_DG1)) {
-		*tile_size = pci_resource_len(to_pci_dev(gt_to_xe(gt)->drm.dev), GEN12_LMEM_BAR);
+	if (unlikely(xe->info.platform == XE_DG1)) {
+		*tile_size = pci_resource_len(to_pci_dev(xe->drm.dev), GEN12_LMEM_BAR);
 		*tile_offset = 0;
 	} else {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE_ADDR_RANGE(gt->info.id));
@@ -227,7 +229,7 @@ int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64
 	}
 
 	/* minus device usage */
-	if (gt_to_xe(gt)->info.has_flat_ccs) {
+	if (xe->info.has_flat_ccs) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
 		offset = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
 	} else {
@@ -242,10 +244,10 @@ int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64
 
 int xe_mmio_probe_vram(struct xe_device *xe)
 {
+	struct xe_tile *tile;
 	resource_size_t io_size;
 	u64 available_size = 0;
 	u64 total_size = 0;
-	struct xe_gt *gt;
 	u64 tile_offset;
 	u64 tile_size;
 	u64 vram_size;
@@ -255,9 +257,9 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	if (!IS_DGFX(xe))
 		return 0;
 
-	/* Get the size of the gt0 vram for later accessibility comparison */
-	gt = xe_device_get_gt(xe, 0);
-	err = xe_mmio_tile_vram_size(gt, &vram_size, &tile_size, &tile_offset);
+	/* Get the size of the root tile's vram for later accessibility comparison */
+	tile = xe_device_get_root_tile(xe);
+	err = xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
 	if (err)
 		return err;
 
@@ -265,7 +267,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	if (err)
 		return err;
 
-	/* small bar issues will only cover gt0 sizes */
+	/* small bar issues will only cover root tile sizes */
 	if (xe->mem.vram.io_size < vram_size)
 		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
 			 vram_size, (u64)xe->mem.vram.io_size);
@@ -275,35 +277,32 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 	io_size = xe->mem.vram.io_size;
 
-	/* gt specific ranges */
-	for_each_gt(gt, xe, id) {
-		if (xe_gt_is_media_type(gt))
-			continue;
-
-		err = xe_mmio_tile_vram_size(gt, &vram_size, &tile_size, &tile_offset);
+	/* tile specific ranges */
+	for_each_tile(tile, xe, id) {
+		err = xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset);
 		if (err)
 			return err;
 
-		gt->mem.vram.io_start = xe->mem.vram.io_start + tile_offset;
-		gt->mem.vram.io_size = min_t(u64, vram_size, io_size);
+		tile->mem.vram.io_start = xe->mem.vram.io_start + tile_offset;
+		tile->mem.vram.io_size = min_t(u64, vram_size, io_size);
 
-		if (!gt->mem.vram.io_size) {
+		if (!tile->mem.vram.io_size) {
 			drm_err(&xe->drm, "Tile without any CPU visible VRAM. Aborting.\n");
 			return -ENODEV;
 		}
 
-		gt->mem.vram.base = tile_offset;
+		tile->mem.vram.base = tile_offset;
 
 		/* small bar can limit the visible size.  size accordingly */
-		gt->mem.vram.size = min_t(u64, vram_size, io_size);
-		gt->mem.vram.mapping = xe->mem.vram.mapping + tile_offset;
+		tile->mem.vram.size = min_t(u64, vram_size, io_size);
+		tile->mem.vram.mapping = xe->mem.vram.mapping + tile_offset;
 
-		drm_info(&xe->drm, "VRAM[%u, %u]: %pa, %pa\n", id, gt->info.vram_id,
-			 &gt->mem.vram.io_start, &gt->mem.vram.size);
+		drm_info(&xe->drm, "VRAM[%u, %u]: %pa, %pa\n", id, tile->id,
+			 &tile->mem.vram.io_start, &tile->mem.vram.size);
 
-		if (gt->mem.vram.io_size < gt->mem.vram.size)
+		if (tile->mem.vram.io_size < tile->mem.vram.size)
 			drm_info(&xe->drm, "VRAM[%u, %u]: CPU access limited to %pa\n", id,
-				 gt->info.vram_id, &gt->mem.vram.io_size);
+				 tile->id, &tile->mem.vram.io_size);
 
 		/* calculate total size using tile size to get the correct HW sizing */
 		total_size += tile_size;
@@ -329,7 +328,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 static void xe_mmio_probe_tiles(struct xe_device *xe)
 {
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct xe_gt *gt = &xe_device_get_root_tile(xe)->primary_gt;
 	u32 mtcfg;
 	u8 adj_tile_count;
 	u8 id;

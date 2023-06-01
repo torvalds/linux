@@ -115,9 +115,9 @@ static void ccs_test_run_gt(struct xe_device *xe, struct xe_gt *gt,
 	int ret;
 
 	/* TODO: Sanity check */
-	vram_bit = XE_BO_CREATE_VRAM0_BIT << gt->info.vram_id;
+	vram_bit = XE_BO_CREATE_VRAM0_BIT << gt_to_tile(gt)->id;
 	kunit_info(test, "Testing gt id %u vram id %u\n", gt->info.id,
-		   gt->info.vram_id);
+		   gt_to_tile(gt)->id);
 
 	bo = xe_bo_create_locked(xe, NULL, NULL, SZ_1M, ttm_bo_type_device,
 				 vram_bit);
@@ -179,7 +179,7 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 	int err, i;
 
 	kunit_info(test, "Testing device %s gt id %u vram id %u\n",
-		   dev_name(xe->drm.dev), gt->info.id, gt->info.vram_id);
+		   dev_name(xe->drm.dev), gt->info.id, gt_to_tile(gt)->id);
 
 	for (i = 0; i < 2; ++i) {
 		xe_vm_lock(vm, &ww, 0, false);

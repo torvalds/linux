@@ -71,25 +71,25 @@ static bool xe_bo_is_user(struct xe_bo *bo)
 	return bo->flags & XE_BO_CREATE_USER_BIT;
 }
 
-static struct xe_gt *
-mem_type_to_gt(struct xe_device *xe, u32 mem_type)
+static struct xe_tile *
+mem_type_to_tile(struct xe_device *xe, u32 mem_type)
 {
 	XE_BUG_ON(mem_type != XE_PL_STOLEN && !mem_type_is_vram(mem_type));
 
-	return xe_device_get_gt(xe, mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0));
+	return &xe->tiles[mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0)];
 }
 
 /**
- * xe_bo_to_gt() - Get a GT from a BO's memory location
+ * xe_bo_to_tile() - Get a tile from a BO's memory location
  * @bo: The buffer object
  *
- * Get a GT from a BO's memory location, should be called on BOs in VRAM only.
+ * Get a tile from a BO's memory location, should be called on BOs in VRAM only.
  *
- * Return: xe_gt object which is closest to the BO
+ * Return: xe_tile object which is closest to the BO
  */
-struct xe_gt *xe_bo_to_gt(struct xe_bo *bo)
+struct xe_tile *xe_bo_to_tile(struct xe_bo *bo)
 {
-	return mem_type_to_gt(xe_bo_device(bo), bo->ttm.resource->mem_type);
+	return mem_type_to_tile(xe_bo_device(bo), bo->ttm.resource->mem_type);
 }
 
 static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
@@ -109,9 +109,9 @@ static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
 static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 		     struct ttm_place *places, u32 bo_flags, u32 mem_type, u32 *c)
 {
-	struct xe_gt *gt = mem_type_to_gt(xe, mem_type);
+	struct xe_tile *tile = mem_type_to_tile(xe, mem_type);
 
-	XE_BUG_ON(!gt->mem.vram.size);
+	XE_BUG_ON(!tile->mem.vram.size);
 
 	places[*c] = (struct ttm_place) {
 		.mem_type = mem_type,
@@ -362,7 +362,7 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 				 struct ttm_resource *mem)
 {
 	struct xe_device *xe = ttm_to_xe_device(bdev);
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 
 	switch (mem->mem_type) {
 	case XE_PL_SYSTEM:
@@ -370,15 +370,15 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 		return 0;
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
-		gt = mem_type_to_gt(xe, mem->mem_type);
+		tile = mem_type_to_tile(xe, mem->mem_type);
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 
-		if (gt->mem.vram.mapping &&
+		if (tile->mem.vram.mapping &&
 		    mem->placement & TTM_PL_FLAG_CONTIGUOUS)
-			mem->bus.addr = (u8 *)gt->mem.vram.mapping +
+			mem->bus.addr = (u8 *)tile->mem.vram.mapping +
 				mem->bus.offset;
 
-		mem->bus.offset += gt->mem.vram.io_start;
+		mem->bus.offset += tile->mem.vram.io_start;
 		mem->bus.is_iomem = true;
 
 #if  !defined(CONFIG_X86)
@@ -638,9 +638,9 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	if (bo->gt)
 		gt = bo->gt;
 	else if (resource_is_vram(new_mem))
-		gt = mem_type_to_gt(xe, new_mem->mem_type);
+		gt = &mem_type_to_tile(xe, new_mem->mem_type)->primary_gt;
 	else if (resource_is_vram(old_mem))
-		gt = mem_type_to_gt(xe, old_mem->mem_type);
+		gt = &mem_type_to_tile(xe, old_mem->mem_type)->primary_gt;
 
 	XE_BUG_ON(!gt);
 	XE_BUG_ON(!gt->migrate);
@@ -664,7 +664,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 			/* Create a new VMAP once kernel BO back in VRAM */
 			if (!ret && resource_is_vram(new_mem)) {
-				void *new_addr = gt->mem.vram.mapping +
+				void *new_addr = gt_to_tile(gt)->mem.vram.mapping +
 					(new_mem->start << PAGE_SHIFT);
 
 				if (XE_WARN_ON(new_mem->start == XE_BO_INVALID_OFFSET)) {
@@ -836,14 +836,14 @@ static unsigned long xe_ttm_io_mem_pfn(struct ttm_buffer_object *ttm_bo,
 {
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
-	struct xe_gt *gt = mem_type_to_gt(xe, ttm_bo->resource->mem_type);
+	struct xe_tile *tile = mem_type_to_tile(xe, ttm_bo->resource->mem_type);
 	struct xe_res_cursor cursor;
 
 	if (ttm_bo->resource->mem_type == XE_PL_STOLEN)
 		return xe_ttm_stolen_io_offset(bo, page_offset << PAGE_SHIFT) >> PAGE_SHIFT;
 
 	xe_res_first(ttm_bo->resource, (u64)page_offset << PAGE_SHIFT, 0, &cursor);
-	return (gt->mem.vram.io_start + cursor.start) >> PAGE_SHIFT;
+	return (tile->mem.vram.io_start + cursor.start) >> PAGE_SHIFT;
 }
 
 static void __xe_bo_vunmap(struct xe_bo *bo);
@@ -1344,12 +1344,12 @@ struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
 uint64_t vram_region_gpu_offset(struct ttm_resource *res)
 {
 	struct xe_device *xe = ttm_to_xe_device(res->bo->bdev);
-	struct xe_gt *gt = mem_type_to_gt(xe, res->mem_type);
+	struct xe_tile *tile = mem_type_to_tile(xe, res->mem_type);
 
 	if (res->mem_type == XE_PL_STOLEN)
 		return xe_ttm_stolen_gpu_offset(xe);
 
-	return xe->mem.vram.base + gt->mem.vram.base;
+	return xe->mem.vram.base + tile->mem.vram.base;
 }
 
 /**

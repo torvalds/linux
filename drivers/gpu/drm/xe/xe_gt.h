@@ -18,7 +18,6 @@
 
 int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt);
 int xe_gt_init_early(struct xe_gt *gt);
-int xe_gt_init_noalloc(struct xe_gt *gt);
 int xe_gt_init(struct xe_gt *gt);
 int xe_gt_record_default_lrcs(struct xe_gt *gt);
 void xe_gt_suspend_prepare(struct xe_gt *gt);

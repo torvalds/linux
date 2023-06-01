@@ -37,7 +37,6 @@
 #include "xe_ring_ops.h"
 #include "xe_sa.h"
 #include "xe_sched_job.h"
-#include "xe_ttm_vram_mgr.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
 #include "xe_vm.h"
@@ -46,54 +45,18 @@
 
 struct xe_gt *xe_find_full_gt(struct xe_gt *gt)
 {
-	struct xe_gt *search;
-	u8 id;
-
-	XE_BUG_ON(!xe_gt_is_media_type(gt));
-
-	for_each_gt(search, gt_to_xe(gt), id) {
-		if (search->info.vram_id == gt->info.vram_id)
-			return search;
-	}
-
-	XE_BUG_ON("NOT POSSIBLE");
-	return NULL;
+	/*
+	 * FIXME: Once the code is prepared for re-enabling, this function will
+	 * be gone. Just return the only possible gt for now.
+	 */
+	return gt;
 }
 
 int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
 {
-	struct drm_device *drm = &xe->drm;
-
 	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
-	if (!xe_gt_is_media_type(gt)) {
-		gt->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*gt->mem.vram_mgr),
-						GFP_KERNEL);
-		if (!gt->mem.vram_mgr)
-			return -ENOMEM;
-
-	} else {
-		struct xe_gt *full_gt = xe_find_full_gt(gt);
-
-		gt->mem.vram_mgr = full_gt->mem.vram_mgr;
-	}
-
 	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq", 0);
-
-	return 0;
-}
-
-static int gt_ttm_mgr_init(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-	int err;
-
-	if (gt->mem.vram.size) {
-		err = xe_ttm_vram_mgr_init(gt, gt->mem.vram_mgr);
-		if (err)
-			return err;
-		xe->info.mem_region_mask |= BIT(gt->info.vram_id) << 1;
-	}
 
 	return 0;
 }
@@ -319,41 +282,6 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_tuning_process_gt(gt);
 
 	return 0;
-}
-
-/**
- * xe_gt_init_noalloc - Init GT up to the point where allocations can happen.
- * @gt: The GT to initialize.
- *
- * This function prepares the GT to allow memory allocations to VRAM, but is not
- * allowed to allocate memory itself. This state is useful for display readout,
- * because the inherited display framebuffer will otherwise be overwritten as it
- * is usually put at the start of VRAM.
- *
- * Returns: 0 on success, negative error code on error.
- */
-int xe_gt_init_noalloc(struct xe_gt *gt)
-{
-	int err, err2;
-
-	if (xe_gt_is_media_type(gt))
-		return 0;
-
-	xe_device_mem_access_get(gt_to_xe(gt));
-	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (err)
-		goto err;
-
-	err = gt_ttm_mgr_init(gt);
-	if (err)
-		goto err_force_wake;
-
-err_force_wake:
-	err2 = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
-	XE_WARN_ON(err2);
-	xe_device_mem_access_put(gt_to_xe(gt));
-err:
-	return err;
 }
 
 static int gt_fw_domain_init(struct xe_gt *gt)

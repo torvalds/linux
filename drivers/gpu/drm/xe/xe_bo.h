@@ -22,7 +22,7 @@
 /* -- */
 #define XE_BO_CREATE_STOLEN_BIT		BIT(4)
 #define XE_BO_CREATE_VRAM_IF_DGFX(gt) \
-	(IS_DGFX(gt_to_xe(gt)) ? XE_BO_CREATE_VRAM0_BIT << gt->info.vram_id : \
+	(IS_DGFX(gt_to_xe(gt)) ? XE_BO_CREATE_VRAM0_BIT << gt_to_tile(gt)->id : \
 	 XE_BO_CREATE_SYSTEM_BIT)
 #define XE_BO_CREATE_GGTT_BIT		BIT(5)
 #define XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT BIT(6)
@@ -108,7 +108,7 @@ struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
 int xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 			      u32 bo_flags);
 
-struct xe_gt *xe_bo_to_gt(struct xe_bo *bo);
+struct xe_tile *xe_bo_to_tile(struct xe_bo *bo);
 
 static inline struct xe_bo *ttm_to_xe_bo(const struct ttm_buffer_object *bo)
 {

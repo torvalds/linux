@@ -353,16 +353,14 @@ int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
 	return drmm_add_action_or_reset(&xe->drm, ttm_vram_mgr_fini, mgr);
 }
 
-int xe_ttm_vram_mgr_init(struct xe_gt *gt, struct xe_ttm_vram_mgr *mgr)
+int xe_ttm_vram_mgr_init(struct xe_tile *tile, struct xe_ttm_vram_mgr *mgr)
 {
-	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_device *xe = tile_to_xe(tile);
 
-	XE_BUG_ON(xe_gt_is_media_type(gt));
+	mgr->tile = tile;
 
-	mgr->gt = gt;
-
-	return __xe_ttm_vram_mgr_init(xe, mgr, XE_PL_VRAM0 + gt->info.vram_id,
-				      gt->mem.vram.size, gt->mem.vram.io_size,
+	return __xe_ttm_vram_mgr_init(xe, mgr, XE_PL_VRAM0 + tile->id,
+				      tile->mem.vram.size, tile->mem.vram.io_size,
 				      PAGE_SIZE);
 }
 
@@ -373,7 +371,7 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 			      enum dma_data_direction dir,
 			      struct sg_table **sgt)
 {
-	struct xe_gt *gt = xe_device_get_gt(xe, res->mem_type - XE_PL_VRAM0);
+	struct xe_tile *tile = &xe->tiles[res->mem_type - XE_PL_VRAM0];
 	struct xe_res_cursor cursor;
 	struct scatterlist *sg;
 	int num_entries = 0;
@@ -406,7 +404,7 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	 */
 	xe_res_first(res, offset, length, &cursor);
 	for_each_sgtable_sg((*sgt), sg, i) {
-		phys_addr_t phys = cursor.start + gt->mem.vram.io_start;
+		phys_addr_t phys = cursor.start + tile->mem.vram.io_start;
 		size_t size = cursor.size;
 		dma_addr_t addr;
 

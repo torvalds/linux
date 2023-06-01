@@ -9,7 +9,7 @@
 #include <drm/drm_buddy.h>
 #include <drm/ttm/ttm_device.h>
 
-struct xe_gt;
+struct xe_tile;
 
 /**
  * struct xe_ttm_vram_mgr - XE TTM VRAM manager
@@ -17,8 +17,8 @@ struct xe_gt;
  * Manages placement of TTM resource in VRAM.
  */
 struct xe_ttm_vram_mgr {
-	/** @gt: Graphics tile which the VRAM belongs to */
-	struct xe_gt *gt;
+	/** @tile: Tile which the VRAM belongs to */
+	struct xe_tile *tile;
 	/** @manager: Base TTM resource manager */
 	struct ttm_resource_manager manager;
 	/** @mm: DRM buddy allocator which manages the VRAM */

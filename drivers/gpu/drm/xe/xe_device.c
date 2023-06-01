@@ -285,10 +285,6 @@ int xe_device_probe(struct xe_device *xe)
 		err = xe_tile_init_noalloc(tile);
 		if (err)
 			goto err_irq_shutdown;
-
-		err = xe_gt_init_noalloc(&tile->primary_gt);
-		if (err)
-			goto err_irq_shutdown;
 	}
 
 	/* Allocate and map stolen after potential VRAM resize */

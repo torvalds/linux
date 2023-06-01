@@ -96,6 +96,36 @@ struct xe_tile {
 
 	/** @mem: memory management info for tile */
 	struct {
+		/**
+		 * @vram: VRAM info for tile.
+		 *
+		 * Although VRAM is associated with a specific tile, it can
+		 * still be accessed by all tiles' GTs.
+		 */
+		struct {
+			/** @io_start: IO start address of this VRAM instance */
+			resource_size_t io_start;
+			/**
+			 * @io_size: IO size of this VRAM instance
+			 *
+			 * This represents how much of this VRAM we can access
+			 * via the CPU through the VRAM BAR. This can be smaller
+			 * than @size, in which case only part of VRAM is CPU
+			 * accessible (typically the first 256M). This
+			 * configuration is known as small-bar.
+			 */
+			resource_size_t io_size;
+			/** @base: offset of VRAM starting base */
+			resource_size_t base;
+			/** @size: size of VRAM. */
+			resource_size_t size;
+			/** @mapping: pointer to VRAM mappable space */
+			void *__iomem mapping;
+		} vram;
+
+		/** @vram_mgr: VRAM TTM manager */
+		struct xe_ttm_vram_mgr *vram_mgr;
+
 		/** @ggtt: Global graphics translation table */
 		struct xe_ggtt *ggtt;
 	} mem;

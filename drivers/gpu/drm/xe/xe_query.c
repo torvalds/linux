@@ -182,7 +182,7 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 	config->num_params = num_params;
 	config->info[XE_QUERY_CONFIG_REV_AND_DEVICE_ID] =
 		xe->info.devid | (xe->info.revid << 16);
-	if (to_gt(xe)->mem.vram.size)
+	if (xe_device_get_root_tile(xe)->mem.vram.size)
 		config->info[XE_QUERY_CONFIG_FLAGS] =
 			XE_QUERY_CONFIG_FLAGS_HAS_VRAM;
 	if (xe->info.enable_guc)
@@ -242,7 +242,7 @@ static int query_gts(struct xe_device *xe, struct drm_xe_device_query *query)
 			gts->gts[id].native_mem_regions = 0x1;
 		else
 			gts->gts[id].native_mem_regions =
-				BIT(gt->info.vram_id) << 1;
+				BIT(gt_to_tile(gt)->id) << 1;
 		gts->gts[id].slow_mem_regions = xe->info.mem_region_mask ^
 			gts->gts[id].native_mem_regions;
 	}

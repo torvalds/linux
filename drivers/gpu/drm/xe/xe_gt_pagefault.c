@@ -107,6 +107,7 @@ static struct xe_vma *lookup_vma(struct xe_vm *vm, u64 page_addr)
 static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_vm *vm;
 	struct xe_vma *vma = NULL;
 	struct xe_bo *bo;
@@ -195,7 +196,7 @@ retry_userptr:
 		}
 
 		/* Migrate to VRAM, move should invalidate the VMA first */
-		ret = xe_bo_migrate(bo, XE_PL_VRAM0 + gt->info.vram_id);
+		ret = xe_bo_migrate(bo, XE_PL_VRAM0 + tile->id);
 		if (ret)
 			goto unlock_dma_resv;
 	} else if (bo) {
@@ -498,6 +499,7 @@ static struct xe_vma *get_acc_vma(struct xe_vm *vm, struct acc *acc)
 static int handle_acc(struct xe_gt *gt, struct acc *acc)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_vm *vm;
 	struct xe_vma *vma;
 	struct xe_bo *bo;
@@ -553,7 +555,7 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 		goto unlock_vm;
 
 	/* Migrate to VRAM, move should invalidate the VMA first */
-	ret = xe_bo_migrate(bo, XE_PL_VRAM0 + gt->info.vram_id);
+	ret = xe_bo_migrate(bo, XE_PL_VRAM0 + tile->id);
 
 	if (only_needs_bo_lock(bo))
 		xe_bo_unlock(bo, &ww);

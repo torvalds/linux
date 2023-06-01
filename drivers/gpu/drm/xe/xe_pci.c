@@ -547,7 +547,6 @@ static int xe_info_init(struct xe_device *xe,
 
 		if (id == 0) {
 			gt->info.type = XE_GT_TYPE_MAIN;
-			gt->info.vram_id = id;
 
 			gt->info.__engine_mask = graphics_desc->hw_engine_mask;
 			if (MEDIA_VER(xe) < 13 && media_desc)
@@ -557,7 +556,6 @@ static int xe_info_init(struct xe_device *xe,
 			gt->mmio.adj_offset = 0;
 		} else {
 			gt->info.type = desc->extra_gts[id - 1].type;
-			gt->info.vram_id = desc->extra_gts[id - 1].vram_id;
 			gt->info.__engine_mask = (gt->info.type == XE_GT_TYPE_MEDIA) ?
 				media_desc->hw_engine_mask :
 				graphics_desc->hw_engine_mask;

@@ -29,6 +29,25 @@ int xe_tile_alloc(struct xe_tile *tile)
 		return -ENOMEM;
 	tile->mem.ggtt->tile = tile;
 
+	tile->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
+	if (!tile->mem.vram_mgr)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int tile_ttm_mgr_init(struct xe_tile *tile)
+{
+	struct xe_device *xe = tile_to_xe(tile);
+	int err;
+
+	if (tile->mem.vram.size) {
+		err = xe_ttm_vram_mgr_init(tile, tile->mem.vram_mgr);
+		if (err)
+			return err;
+		xe->info.mem_region_mask |= BIT(tile->id) << 1;
+	}
+
 	return 0;
 }
 
@@ -48,5 +67,17 @@ int xe_tile_alloc(struct xe_tile *tile)
  */
 int xe_tile_init_noalloc(struct xe_tile *tile)
 {
-	return xe_ggtt_init_noalloc(tile->mem.ggtt);
+	int err;
+
+	xe_device_mem_access_get(tile_to_xe(tile));
+
+	err = tile_ttm_mgr_init(tile);
+	if (err)
+		goto err_mem_access;
+
+	err = xe_ggtt_init_noalloc(tile->mem.ggtt);
+
+err_mem_access:
+	xe_device_mem_access_put(tile_to_xe(tile));
+	return err;
 }

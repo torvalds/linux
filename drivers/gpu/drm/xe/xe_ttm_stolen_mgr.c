@@ -51,29 +51,31 @@ bool xe_ttm_stolen_cpu_access_needs_ggtt(struct xe_device *xe)
 	return GRAPHICS_VERx100(xe) < 1270 && !IS_DGFX(xe);
 }
 
-static s64 detect_bar2_dgfx(struct xe_gt *gt, struct xe_ttm_stolen_mgr *mgr)
+static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 {
-	struct pci_dev *pdev = to_pci_dev(gt_to_xe(gt)->drm.dev);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	struct xe_gt *mmio = &tile->primary_gt;
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	u64 stolen_size;
 	u64 tile_offset;
 	u64 tile_size;
 	u64 vram_size;
 
-	if (xe_mmio_tile_vram_size(gt, &vram_size, &tile_size, &tile_offset)) {
-		drm_err(&gt_to_xe(gt)->drm, "Querying total vram size failed\n");
+	if (xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset)) {
+		drm_err(&xe->drm, "Querying total vram size failed\n");
 		return 0;
 	}
 
 	/* Use DSM base address instead for stolen memory */
-	mgr->stolen_base = (xe_mmio_read64(gt, DSMBASE) & BDSM_MASK) - tile_offset;
-	if (drm_WARN_ON(&gt_to_xe(gt)->drm, tile_size < mgr->stolen_base))
+	mgr->stolen_base = (xe_mmio_read64(mmio, DSMBASE) & BDSM_MASK) - tile_offset;
+	if (drm_WARN_ON(&xe->drm, tile_size < mgr->stolen_base))
 		return 0;
 
 	stolen_size = tile_size - mgr->stolen_base;
 
 	/* Verify usage fits in the actual resource available */
 	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, GEN12_LMEM_BAR))
-		mgr->io_base = gt->mem.vram.io_start + mgr->stolen_base;
+		mgr->io_base = tile->mem.vram.io_start + mgr->stolen_base;
 
 	/*
 	 * There may be few KB of platform dependent reserved memory at the end
@@ -141,7 +143,7 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	int err;
 
 	if (IS_DGFX(xe))
-		stolen_size = detect_bar2_dgfx(to_gt(xe), mgr);
+		stolen_size = detect_bar2_dgfx(xe, mgr);
 	else if (GRAPHICS_VERx100(xe) >= 1270)
 		stolen_size = detect_bar2_integrated(xe, mgr);
 	else

@@ -16,8 +16,6 @@
 struct xe_engine_ops;
 struct xe_migrate;
 struct xe_ring_ops;
-struct xe_ttm_gtt_mgr;
-struct xe_ttm_vram_mgr;
 
 enum xe_gt_type {
 	XE_GT_TYPE_UNINITIALIZED,
@@ -108,8 +106,6 @@ struct xe_gt {
 		enum xe_gt_type type;
 		/** @id: id of GT */
 		u8 id;
-		/** @vram: id of the VRAM for this GT */
-		u8 vram_id;
 		/** @clock_freq: clock frequency */
 		u32 clock_freq;
 		/** @engine_mask: mask of engines present on GT */
@@ -143,39 +139,6 @@ struct xe_gt {
 	 * @reg_sr: table with registers to be restored on GT init/resume/reset
 	 */
 	struct xe_reg_sr reg_sr;
-
-	/**
-	 * @mem: memory management info for GT, multiple GTs can point to same
-	 * objects (virtual split)
-	 */
-	struct {
-		/**
-		 * @vram: VRAM info for GT, multiple GTs can point to same info
-		 * (virtual split), can be subset of global device VRAM
-		 */
-		struct {
-			/** @io_start: IO start address of this VRAM instance */
-			resource_size_t io_start;
-			/**
-			 * @io_size: IO size of this VRAM instance
-			 *
-			 * This represents how much of the VRAM the CPU can access
-			 * via the VRAM BAR.
-			 * This can be smaller than the actual @size, in which
-			 * case only part of VRAM is CPU accessible (typically
-			 * the first 256M). This configuration is known as small-bar.
-			 */
-			resource_size_t io_size;
-			/** @base: offset of VRAM starting base */
-			resource_size_t base;
-			/** @size: size of VRAM. */
-			resource_size_t size;
-			/** @mapping: pointer to VRAM mappable space */
-			void *__iomem mapping;
-		} vram;
-		/** @vram_mgr: VRAM TTM manager */
-		struct xe_ttm_vram_mgr *vram_mgr;
-	} mem;
 
 	/** @reset: state for GT resets */
 	struct {
