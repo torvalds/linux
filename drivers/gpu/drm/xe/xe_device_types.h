@@ -75,6 +75,22 @@ struct xe_tile {
 	struct xe_gt primary_gt;
 
 	/* TODO: Add media GT here */
+
+	/**
+	 * @mmio: MMIO info for a tile.
+	 *
+	 * Each tile has its own 16MB space in BAR0, laid out as:
+	 * * 0-4MB: registers
+	 * * 4MB-8MB: reserved
+	 * * 8MB-16MB: global GTT
+	 */
+	struct {
+		/** @size: size of tile's MMIO space */
+		size_t size;
+
+		/** @regs: pointer to tile's MMIO space (starting with registers) */
+		void *regs;
+	} mmio;
 };
 
 /**

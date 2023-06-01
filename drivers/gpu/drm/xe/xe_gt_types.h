@@ -124,14 +124,11 @@ struct xe_gt {
 	} info;
 
 	/**
-	 * @mmio: mmio info for GT, can be subset of the global device mmio
-	 * space
+	 * @mmio: mmio info for GT.  All GTs within a tile share the same
+	 * register space, but have their own copy of GSI registers at a
+	 * specific offset, as well as their own forcewake handling.
 	 */
 	struct {
-		/** @size: size of MMIO space on GT */
-		size_t size;
-		/** @regs: pointer to MMIO space on GT */
-		void *regs;
 		/** @fw: force wake for GT */
 		struct xe_force_wake fw;
 		/**

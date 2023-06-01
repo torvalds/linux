@@ -346,6 +346,7 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 
 	if (xe->info.tile_count > 1) {
 		const int mmio_bar = 0;
+		struct xe_tile *tile;
 		size_t size;
 		void *regs;
 
@@ -359,11 +360,11 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 		size = xe->mmio.size / adj_tile_count;
 		regs = xe->mmio.regs;
 
-		for_each_gt(gt, xe, id) {
-			if (id && !xe_gt_is_media_type(gt))
-				regs += size;
-			gt->mmio.size = size;
-			gt->mmio.regs = regs;
+		for_each_tile(tile, xe, id) {
+			tile->mmio.size = size;
+			tile->mmio.regs = regs;
+
+			regs += size;
 		}
 	}
 }
@@ -379,15 +380,16 @@ static void mmio_fini(struct drm_device *drm, void *arg)
 
 int xe_mmio_init(struct xe_device *xe)
 {
+	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
 	struct xe_gt *gt = xe_device_get_gt(xe, 0);
 	const int mmio_bar = 0;
 	int err;
 
 	/*
-	 * Map the entire BAR, which includes registers (0-4MB), reserved space
-	 * (4MB-8MB), and GGTT (8MB-16MB). Other parts of the driver (GTs,
-	 * GGTTs) will derive the pointers they need from the mapping in the
-	 * device structure.
+	 * Map the first 16MB of th BAR, which includes the registers (0-4MB),
+	 * reserved space (4MB-8MB), and GGTT (8MB-16MB) for a single tile.
+	 * This will get remapped later if we determine that we're running
+	 * on a multi-tile system.
 	 */
 	xe->mmio.size = SZ_16M;
 	xe->mmio.regs = pci_iomap(to_pci_dev(xe->drm.dev), mmio_bar,
@@ -401,9 +403,9 @@ int xe_mmio_init(struct xe_device *xe)
 	if (err)
 		return err;
 
-	/* 1 GT for now, 1 to 1 mapping, may change on multi-GT devices */
-	gt->mmio.size = xe->mmio.size;
-	gt->mmio.regs = xe->mmio.regs;
+	/* Setup first tile; other tiles (if present) will be setup later. */
+	root_tile->mmio.size = xe->mmio.size;
+	root_tile->mmio.regs = xe->mmio.regs;
 
 	/*
 	 * The boot firmware initializes local memory and assesses its health.
