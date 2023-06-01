@@ -589,6 +589,37 @@ void bd_abort_claiming(struct block_device *bdev, void *holder)
 }
 EXPORT_SYMBOL(bd_abort_claiming);
 
+static void bd_end_claim(struct block_device *bdev)
+{
+	struct block_device *whole = bdev_whole(bdev);
+	bool unblock = false;
+
+	/*
+	 * Release a claim on the device.  The holder fields are protected with
+	 * bdev_lock.  open_mutex is used to synchronize disk_holder unlinking.
+	 */
+	spin_lock(&bdev_lock);
+	WARN_ON_ONCE(--bdev->bd_holders < 0);
+	WARN_ON_ONCE(--whole->bd_holders < 0);
+	if (!bdev->bd_holders) {
+		bdev->bd_holder = NULL;
+		if (bdev->bd_write_holder)
+			unblock = true;
+	}
+	if (!whole->bd_holders)
+		whole->bd_holder = NULL;
+	spin_unlock(&bdev_lock);
+
+	/*
+	 * If this was the last claim, remove holder link and unblock evpoll if
+	 * it was a write holder.
+	 */
+	if (unblock) {
+		disk_unblock_events(bdev->bd_disk);
+		bdev->bd_write_holder = false;
+	}
+}
+
 static void blkdev_flush_mapping(struct block_device *bdev)
 {
 	WARN_ON_ONCE(bdev->bd_holders);
@@ -843,36 +874,8 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 		sync_blockdev(bdev);
 
 	mutex_lock(&disk->open_mutex);
-	if (mode & FMODE_EXCL) {
-		struct block_device *whole = bdev_whole(bdev);
-		bool bdev_free;
-
-		/*
-		 * Release a claim on the device.  The holder fields
-		 * are protected with bdev_lock.  open_mutex is to
-		 * synchronize disk_holder unlinking.
-		 */
-		spin_lock(&bdev_lock);
-
-		WARN_ON_ONCE(--bdev->bd_holders < 0);
-		WARN_ON_ONCE(--whole->bd_holders < 0);
-
-		if ((bdev_free = !bdev->bd_holders))
-			bdev->bd_holder = NULL;
-		if (!whole->bd_holders)
-			whole->bd_holder = NULL;
-
-		spin_unlock(&bdev_lock);
-
-		/*
-		 * If this was the last claim, remove holder link and
-		 * unblock evpoll if it was a write holder.
-		 */
-		if (bdev_free && bdev->bd_write_holder) {
-			disk_unblock_events(disk);
-			bdev->bd_write_holder = false;
-		}
-	}
+	if (mode & FMODE_EXCL)
+		bd_end_claim(bdev);
 
 	/*
 	 * Trigger event checking and tell drivers to flush MEDIA_CHANGE
