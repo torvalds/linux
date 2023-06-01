@@ -306,11 +306,13 @@ void ufshcd_mcq_compl_all_cqes_lock(struct ufs_hba *hba,
 	spin_unlock_irqrestore(&hwq->cq_lock, flags);
 }
 
-static unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
-						struct ufs_hw_queue *hwq)
+unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
+				       struct ufs_hw_queue *hwq)
 {
 	unsigned long completed_reqs = 0;
+	unsigned long flags;
 
+	spin_lock_irqsave(&hwq->cq_lock, flags);
 	ufshcd_mcq_update_cq_tail_slot(hwq);
 	while (!ufshcd_mcq_is_cq_empty(hwq)) {
 		ufshcd_mcq_process_cqe(hba, hwq);
@@ -320,17 +322,6 @@ static unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
 
 	if (completed_reqs)
 		ufshcd_mcq_update_cq_head(hwq);
-
-	return completed_reqs;
-}
-
-unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
-				       struct ufs_hw_queue *hwq)
-{
-	unsigned long completed_reqs, flags;
-
-	spin_lock_irqsave(&hwq->cq_lock, flags);
-	completed_reqs = ufshcd_mcq_poll_cqe_nolock(hba, hwq);
 	spin_unlock_irqrestore(&hwq->cq_lock, flags);
 
 	return completed_reqs;
