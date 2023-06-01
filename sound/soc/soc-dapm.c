@@ -4338,39 +4338,6 @@ static void dapm_connect_dai_routes(struct snd_soc_dapm_context *dapm,
 	snd_soc_dapm_add_path(dapm, src, sink, NULL, NULL);
 }
 
-static int get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream)
-{
-	/*
-	 * [Normal]
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
-	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
-	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
-	 */
-	if (!dai_link->c2c_params)
-		return stream;
-
-	/*
-	 * [Codec2Codec]
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
-	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
-	 *
-	 * Capture
-	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
-	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
-	 */
-	if (stream == SNDRV_PCM_STREAM_CAPTURE)
-		return SNDRV_PCM_STREAM_PLAYBACK;
-
-	return SNDRV_PCM_STREAM_CAPTURE;
-}
-
 static void dapm_connect_dai_pair(struct snd_soc_card *card,
 				  struct snd_soc_pcm_runtime *rtd,
 				  struct snd_soc_dai *codec_dai,
@@ -4388,7 +4355,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	for_each_pcm_streams(stream) {
 		int stream_cpu, stream_codec;
 
-		stream_cpu	= get_stream_cpu(dai_link, stream);
+		stream_cpu	= snd_soc_get_stream_cpu(dai_link, stream);
 		stream_codec	= stream;
 
 		/* connect BE DAI playback if widgets are valid */

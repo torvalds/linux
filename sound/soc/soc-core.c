@@ -3196,6 +3196,40 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_clock_provider_raw);
 
+int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream)
+{
+	/*
+	 * [Normal]
+	 *
+	 * Playback
+	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
+	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
+	 *
+	 * Capture
+	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
+	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
+	 */
+	if (!dai_link->c2c_params)
+		return stream;
+
+	/*
+	 * [Codec2Codec]
+	 *
+	 * Playback
+	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
+	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
+	 *
+	 * Capture
+	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
+	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
+	 */
+	if (stream == SNDRV_PCM_STREAM_CAPTURE)
+		return SNDRV_PCM_STREAM_PLAYBACK;
+
+	return SNDRV_PCM_STREAM_CAPTURE;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_stream_cpu);
+
 int snd_soc_get_dai_id(struct device_node *ep)
 {
 	struct snd_soc_component *component;
