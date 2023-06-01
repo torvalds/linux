@@ -3948,20 +3948,21 @@ void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off,
 
 void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 {
-	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
 	u32 size = xdp->data_end - xdp->data;
+	struct skb_shared_info *sinfo;
 	void *addr = xdp->data;
 	int i;
 
 	if (unlikely(offset > 0xffff || len > 0xffff))
 		return ERR_PTR(-EFAULT);
 
-	if (offset + len > xdp_get_buff_len(xdp))
+	if (unlikely(offset + len > xdp_get_buff_len(xdp)))
 		return ERR_PTR(-EINVAL);
 
-	if (offset < size) /* linear area */
+	if (likely(offset < size)) /* linear area */
 		goto out;
 
+	sinfo = xdp_get_shared_info_from_buff(xdp);
 	offset -= size;
 	for (i = 0; i < sinfo->nr_frags; i++) { /* paged area */
 		u32 frag_size = skb_frag_size(&sinfo->frags[i]);
