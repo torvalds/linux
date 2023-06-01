@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <media/v4l2-event.h>
 
 #include "stfcamss.h"
 
@@ -1133,6 +1134,9 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	struct vin_output *output = &line->output;
 	unsigned long flags;
 	u64 ts = ktime_get_ns();
+	struct v4l2_event event = {
+		.type = V4L2_EVENT_FRAME_SYNC,
+	};
 
 	if (output->state == VIN_OUTPUT_OFF
 		|| output->state == VIN_OUTPUT_RESERVED)
@@ -1141,6 +1145,11 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	spin_lock_irqsave(&line->output_lock, flags);
 
 	while ((ready_buf = vin_buf_get_ready(output))) {
+		if (line->id >= VIN_LINE_ISP && line->id <= VIN_LINE_ISP_SS1) {
+			event.u.frame_sync.frame_sequence = output->sequence;
+			v4l2_event_queue(line->subdev.devnode, &event);
+		}
+
 		ready_buf->vb.vb2_buf.timestamp = ts;
 		ready_buf->vb.sequence = output->sequence++;
 
@@ -1331,8 +1340,23 @@ static int vin_link_setup(struct media_entity *entity,
 	return 0;
 }
 
+static int stf_vin_subscribe_event(struct v4l2_subdev *sd,
+				   struct v4l2_fh *fh,
+				   struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_FRAME_SYNC:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	default:
+		st_debug(ST_VIN, "unsupport subscribe_event\n");
+		return -EINVAL;
+	}
+}
+
 static const struct v4l2_subdev_core_ops vin_core_ops = {
 	.s_power = vin_set_power,
+	.subscribe_event = stf_vin_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops vin_video_ops = {
@@ -1393,7 +1417,7 @@ int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 
 		v4l2_subdev_init(sd, &vin_v4l2_ops);
 		sd->internal_ops = &vin_v4l2_internal_ops;
-		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 		snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d_%s",
 			STF_VIN_NAME, 0, sub_name);
 		v4l2_set_subdevdata(sd, &vin_dev->line[i]);
