@@ -665,6 +665,9 @@ int stmmac_mdio_unregister(struct net_device *ndev)
 	if (priv->hw->xpcs)
 		xpcs_destroy(priv->hw->xpcs);
 
+	if (priv->hw->lynx_pcs)
+		lynx_pcs_destroy(priv->hw->lynx_pcs);
+
 	mdiobus_unregister(priv->mii);
 	priv->mii->priv = NULL;
 	mdiobus_free(priv->mii);
