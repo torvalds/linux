@@ -263,10 +263,19 @@ const struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition(struct block_device *part)
+void drop_partition(struct block_device *part)
 {
 	lockdep_assert_held(&part->bd_disk->open_mutex);
 
+	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
+	kobject_put(part->bd_holder_dir);
+
+	device_del(&part->bd_device);
+	put_device(&part->bd_device);
+}
+
+static void delete_partition(struct block_device *part)
+{
 	/*
 	 * Remove the block device from the inode hash, so that it cannot be
 	 * looked up any more even when openers still hold references.
@@ -276,11 +285,7 @@ static void delete_partition(struct block_device *part)
 	fsync_bdev(part);
 	__invalidate_device(part, true);
 
-	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
-	kobject_put(part->bd_holder_dir);
-	device_del(&part->bd_device);
-
-	put_device(&part->bd_device);
+	drop_partition(part);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -519,7 +524,7 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	return true;
 }
 
-void blk_drop_partitions(struct gendisk *disk)
+static void blk_drop_partitions(struct gendisk *disk)
 {
 	struct block_device *part;
 	unsigned long idx;
