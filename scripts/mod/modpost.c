@@ -1281,6 +1281,7 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 
 	switch (r_typ) {
 	case R_ARM_ABS32:
+	case R_ARM_REL32:
 		inst = TO_NATIVE(*(uint32_t *)loc);
 		r->r_addend = inst + sym->st_value;
 		break;
