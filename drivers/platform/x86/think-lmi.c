@@ -169,11 +169,11 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  */
 #define LENOVO_CERT_THUMBPRINT_GUID "C59119ED-1C0D-4806-A8E9-59AA318176C4"
 
-#define TLMI_POP_PWD (1 << 0)
-#define TLMI_PAP_PWD (1 << 1)
-#define TLMI_HDD_PWD (1 << 2)
+#define TLMI_POP_PWD (1 << 0) /* Supervisor */
+#define TLMI_PAP_PWD (1 << 1) /* Power-on */
+#define TLMI_HDD_PWD (1 << 2) /* HDD/NVME */
 #define TLMI_SMP_PWD (1 << 6) /* System Management */
-#define TLMI_CERT    (1 << 7)
+#define TLMI_CERT    (1 << 7) /* Certificate Based */
 
 #define to_tlmi_pwd_setting(kobj)  container_of(kobj, struct tlmi_pwd_setting, kobj)
 #define to_tlmi_attr_setting(kobj)  container_of(kobj, struct tlmi_attr_setting, kobj)
