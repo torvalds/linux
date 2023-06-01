@@ -20,6 +20,7 @@
 	model = "BeagleBoard.org BeagleBone AI-64";
 
 	aliases {
+		serial0 = &wkup_uart0;
 		serial2 = &main_uart0;
 		mmc0 = &main_sdhci0;
 		mmc1 = &main_sdhci1;
@@ -531,6 +532,13 @@
 		>;
 	};
 
+	wkup_uart0_pins_default: wkup-uart0-pins-default {
+		pinctrl-single,pins = <
+			J721E_WKUP_IOPAD(0xa0, PIN_INPUT, 0) /* (J29) WKUP_UART0_RXD */
+			J721E_WKUP_IOPAD(0xa4, PIN_OUTPUT, 0) /* (J28) WKUP_UART0_TXD */
+		>;
+	};
+
 	mcu_usbss1_pins_default: mcu-usbss1-pins-default {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x3c, PIN_OUTPUT_PULLUP, 5) /* (A23) MCU_OSPI1_LBCLKO.WKUP_GPIO0_30 */
@@ -541,6 +549,8 @@
 &wkup_uart0 {
 	/* Wakeup UART is used by TIFS firmware. */
 	status = "reserved";
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_uart0_pins_default>;
 };
 
 &main_uart0 {
