@@ -308,7 +308,7 @@ EXPORT_SYMBOL(thaw_bdev);
  * pseudo-fs
  */
 
-static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(bdev_lock);
+static  __cacheline_aligned_in_smp DEFINE_MUTEX(bdev_lock);
 static struct kmem_cache * bdev_cachep __read_mostly;
 
 static struct inode *bdev_alloc_inode(struct super_block *sb)
@@ -467,15 +467,14 @@ long nr_blockdev_pages(void)
  *
  * Test whether @bdev can be claimed by @holder.
  *
- * CONTEXT:
- * spin_lock(&bdev_lock).
- *
  * RETURNS:
  * %true if @bdev can be claimed, %false otherwise.
  */
 static bool bd_may_claim(struct block_device *bdev, void *holder)
 {
 	struct block_device *whole = bdev_whole(bdev);
+
+	lockdep_assert_held(&bdev_lock);
 
 	if (bdev->bd_holder) {
 		/*
@@ -515,10 +514,10 @@ int bd_prepare_to_claim(struct block_device *bdev, void *holder)
 	if (WARN_ON_ONCE(!holder))
 		return -EINVAL;
 retry:
-	spin_lock(&bdev_lock);
+	mutex_lock(&bdev_lock);
 	/* if someone else claimed, fail */
 	if (!bd_may_claim(bdev, holder)) {
-		spin_unlock(&bdev_lock);
+		mutex_unlock(&bdev_lock);
 		return -EBUSY;
 	}
 
@@ -528,7 +527,7 @@ retry:
 		DEFINE_WAIT(wait);
 
 		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&bdev_lock);
+		mutex_unlock(&bdev_lock);
 		schedule();
 		finish_wait(wq, &wait);
 		goto retry;
@@ -536,7 +535,7 @@ retry:
 
 	/* yay, all mine */
 	whole->bd_claiming = holder;
-	spin_unlock(&bdev_lock);
+	mutex_unlock(&bdev_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bd_prepare_to_claim); /* only for the loop driver */
@@ -562,7 +561,7 @@ static void bd_finish_claiming(struct block_device *bdev, void *holder)
 {
 	struct block_device *whole = bdev_whole(bdev);
 
-	spin_lock(&bdev_lock);
+	mutex_lock(&bdev_lock);
 	BUG_ON(!bd_may_claim(bdev, holder));
 	/*
 	 * Note that for a whole device bd_holders will be incremented twice,
@@ -573,7 +572,7 @@ static void bd_finish_claiming(struct block_device *bdev, void *holder)
 	bdev->bd_holders++;
 	bdev->bd_holder = holder;
 	bd_clear_claiming(whole, holder);
-	spin_unlock(&bdev_lock);
+	mutex_unlock(&bdev_lock);
 }
 
 /**
@@ -587,9 +586,9 @@ static void bd_finish_claiming(struct block_device *bdev, void *holder)
  */
 void bd_abort_claiming(struct block_device *bdev, void *holder)
 {
-	spin_lock(&bdev_lock);
+	mutex_lock(&bdev_lock);
 	bd_clear_claiming(bdev_whole(bdev), holder);
-	spin_unlock(&bdev_lock);
+	mutex_unlock(&bdev_lock);
 }
 EXPORT_SYMBOL(bd_abort_claiming);
 
@@ -602,7 +601,7 @@ static void bd_end_claim(struct block_device *bdev)
 	 * Release a claim on the device.  The holder fields are protected with
 	 * bdev_lock.  open_mutex is used to synchronize disk_holder unlinking.
 	 */
-	spin_lock(&bdev_lock);
+	mutex_lock(&bdev_lock);
 	WARN_ON_ONCE(--bdev->bd_holders < 0);
 	WARN_ON_ONCE(--whole->bd_holders < 0);
 	if (!bdev->bd_holders) {
@@ -612,7 +611,7 @@ static void bd_end_claim(struct block_device *bdev)
 	}
 	if (!whole->bd_holders)
 		whole->bd_holder = NULL;
-	spin_unlock(&bdev_lock);
+	mutex_unlock(&bdev_lock);
 
 	/*
 	 * If this was the last claim, remove holder link and unblock evpoll if
