@@ -3202,7 +3202,7 @@ static irqreturn_t ice_misc_intr_thread_fn(int __always_unused irq, void *data)
 		ice_ptp_extts_event(pf);
 
 	if (test_and_clear_bit(ICE_MISC_THREAD_TX_TSTAMP, pf->misc_thread)) {
-		while (!ice_ptp_process_ts(pf))
+		while (ice_ptp_process_ts(pf) == ICE_TX_TSTAMP_WORK_PENDING)
 			usleep_range(50, 100);
 	}
 

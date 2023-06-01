@@ -109,6 +109,16 @@ struct ice_tx_tstamp {
 };
 
 /**
+ * enum ice_tx_tstamp_work - Status of Tx timestamp work function
+ * @ICE_TX_TSTAMP_WORK_DONE: Tx timestamp processing is complete
+ * @ICE_TX_TSTAMP_WORK_PENDING: More Tx timestamps are pending
+ */
+enum ice_tx_tstamp_work {
+	ICE_TX_TSTAMP_WORK_DONE = 0,
+	ICE_TX_TSTAMP_WORK_PENDING,
+};
+
+/**
  * struct ice_ptp_tx - Tracking structure for all Tx timestamp requests on a port
  * @lock: lock to prevent concurrent access to fields of this struct
  * @tstamps: array of len to store outstanding requests
@@ -256,7 +266,7 @@ int ice_get_ptp_clock_index(struct ice_pf *pf);
 
 void ice_ptp_extts_event(struct ice_pf *pf);
 s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
-bool ice_ptp_process_ts(struct ice_pf *pf);
+enum ice_tx_tstamp_work ice_ptp_process_ts(struct ice_pf *pf);
 
 void
 ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
