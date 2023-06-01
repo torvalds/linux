@@ -73,7 +73,7 @@ void *typec_mux_get_drvdata(struct typec_mux_dev *mux);
 
 #else
 
-static inline struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode);
+static inline struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
