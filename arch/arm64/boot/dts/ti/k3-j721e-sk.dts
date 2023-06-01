@@ -16,6 +16,15 @@
 	compatible = "ti,j721e-sk", "ti,j721e";
 	model = "Texas Instruments J721E SK";
 
+	aliases {
+		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart0;
+		serial3 = &main_uart1;
+		ethernet0 = &cpsw_port1;
+		mmc1 = &main_sdhci1;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
