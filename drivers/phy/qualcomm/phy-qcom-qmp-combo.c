@@ -2151,6 +2151,7 @@ static void qmp_v4_configure_dp_tx(struct qmp_combo *qmp)
 static int qmp_v456_configure_dp_phy(struct qmp_combo *qmp,
 				     unsigned int com_resetm_ctrl_reg,
 				     unsigned int com_c_ready_status_reg,
+				     unsigned int com_cmn_status_reg,
 				     unsigned int dp_phy_status_reg)
 {
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
@@ -2207,14 +2208,14 @@ static int qmp_v456_configure_dp_phy(struct qmp_combo *qmp,
 			10000))
 		return -ETIMEDOUT;
 
-	if (readl_poll_timeout(qmp->dp_serdes + QSERDES_V4_COM_CMN_STATUS,
+	if (readl_poll_timeout(qmp->dp_serdes + com_cmn_status_reg,
 			status,
 			((status & BIT(0)) > 0),
 			500,
 			10000))
 		return -ETIMEDOUT;
 
-	if (readl_poll_timeout(qmp->dp_serdes + QSERDES_V4_COM_CMN_STATUS,
+	if (readl_poll_timeout(qmp->dp_serdes + com_cmn_status_reg,
 			status,
 			((status & BIT(1)) > 0),
 			500,
@@ -2250,6 +2251,7 @@ static int qmp_v4_configure_dp_phy(struct qmp_combo *qmp)
 
 	ret = qmp_v456_configure_dp_phy(qmp, QSERDES_V4_COM_RESETSM_CNTRL,
 					QSERDES_V4_COM_C_READY_STATUS,
+					QSERDES_V4_COM_CMN_STATUS,
 					QSERDES_V4_DP_PHY_STATUS);
 	if (ret < 0)
 		return ret;
@@ -2314,6 +2316,7 @@ static int qmp_v5_configure_dp_phy(struct qmp_combo *qmp)
 
 	ret = qmp_v456_configure_dp_phy(qmp, QSERDES_V4_COM_RESETSM_CNTRL,
 					QSERDES_V4_COM_C_READY_STATUS,
+					QSERDES_V4_COM_CMN_STATUS,
 					QSERDES_V4_DP_PHY_STATUS);
 	if (ret < 0)
 		return ret;
@@ -2373,6 +2376,7 @@ static int qmp_v6_configure_dp_phy(struct qmp_combo *qmp)
 
 	ret = qmp_v456_configure_dp_phy(qmp, QSERDES_V6_COM_RESETSM_CNTRL,
 					QSERDES_V6_COM_C_READY_STATUS,
+					QSERDES_V6_COM_CMN_STATUS,
 					QSERDES_V6_DP_PHY_STATUS);
 	if (ret < 0)
 		return ret;
