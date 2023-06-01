@@ -190,7 +190,9 @@
 		reg = <0x3c>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
+		AVDD-supply = <&v2v8>;
 		DOVDD-supply = <&v2v8>;
+		DVDD-supply = <&v2v8>;
 		powerdown-gpios = <&stmfx_pinctrl 18 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
 		reset-gpios = <&stmfx_pinctrl 19 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
 		rotation = <180>;
