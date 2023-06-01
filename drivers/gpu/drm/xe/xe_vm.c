@@ -1267,7 +1267,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 			if (!vm->pt_root[id])
 				continue;
 
-			migrate_vm = xe_migrate_get_vm(gt->migrate);
+			migrate_vm = xe_migrate_get_vm(tile->migrate);
 			eng = xe_engine_create_class(xe, gt, migrate_vm,
 						     XE_ENGINE_CLASS_COPY,
 						     ENGINE_FLAG_VM);

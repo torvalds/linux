@@ -8,7 +8,7 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_ggtt.h"
-#include "xe_gt.h"
+#include "xe_tile.h"
 
 /**
  * xe_bo_evict_all - evict all BOs from VRAM
@@ -29,7 +29,7 @@ int xe_bo_evict_all(struct xe_device *xe)
 	struct ttm_device *bdev = &xe->ttm;
 	struct ww_acquire_ctx ww;
 	struct xe_bo *bo;
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	struct list_head still_in_list;
 	u32 mem_type;
 	u8 id;
@@ -83,8 +83,8 @@ int xe_bo_evict_all(struct xe_device *xe)
 	 * Wait for all user BO to be evicted as those evictions depend on the
 	 * memory moved below.
 	 */
-	for_each_gt(gt, xe, id)
-		xe_gt_migrate_wait(gt);
+	for_each_tile(tile, xe, id)
+		xe_tile_migrate_wait(tile);
 
 	spin_lock(&xe->pinned.lock);
 	for (;;) {
@@ -186,7 +186,7 @@ int xe_bo_restore_user(struct xe_device *xe)
 {
 	struct ww_acquire_ctx ww;
 	struct xe_bo *bo;
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	struct list_head still_in_list;
 	u8 id;
 	int ret;
@@ -224,8 +224,8 @@ int xe_bo_restore_user(struct xe_device *xe)
 	spin_unlock(&xe->pinned.lock);
 
 	/* Wait for validate to complete */
-	for_each_gt(gt, xe, id)
-		xe_gt_migrate_wait(gt);
+	for_each_tile(tile, xe, id)
+		xe_tile_migrate_wait(tile);
 
 	return 0;
 }

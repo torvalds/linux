@@ -179,7 +179,7 @@ struct xe_vm {
 #define XE_VM_FLAG_SCRATCH_PAGE		BIT(4)
 #define XE_VM_FLAG_FAULT_MODE		BIT(5)
 #define XE_VM_FLAG_GT_ID(flags)		(((flags) >> 6) & 0x3)
-#define XE_VM_FLAG_SET_GT_ID(gt)	((gt)->info.id << 6)
+#define XE_VM_FLAG_SET_TILE_ID(tile)	((tile)->id << 6)
 	unsigned long flags;
 
 	/** @composite_fence_ctx: context composite fence */

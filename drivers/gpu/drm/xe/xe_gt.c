@@ -43,15 +43,6 @@
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
-struct xe_gt *xe_find_full_gt(struct xe_gt *gt)
-{
-	/*
-	 * FIXME: Once the code is prepared for re-enabling, this function will
-	 * be gone. Just return the only possible gt for now.
-	 */
-	return gt;
-}
-
 int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
 {
 	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
@@ -169,6 +160,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 int xe_gt_record_default_lrcs(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	int err = 0;
@@ -192,7 +184,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		if (!default_lrc)
 			return -ENOMEM;
 
-		vm = xe_migrate_get_vm(gt->migrate);
+		vm = xe_migrate_get_vm(tile->migrate);
 		e = xe_engine_create(xe, vm, BIT(hwe->logical_instance), 1,
 				     hwe, ENGINE_FLAG_WA);
 		if (IS_ERR(e)) {
@@ -383,13 +375,13 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	}
 
 	if (!xe_gt_is_media_type(gt)) {
-		gt->migrate = xe_migrate_init(gt);
-		if (IS_ERR(gt->migrate)) {
-			err = PTR_ERR(gt->migrate);
+		struct xe_tile *tile = gt_to_tile(gt);
+
+		tile->migrate = xe_migrate_init(tile);
+		if (IS_ERR(tile->migrate)) {
+			err = PTR_ERR(tile->migrate);
 			goto err_force_wake;
 		}
-	} else {
-		gt->migrate = xe_find_full_gt(gt)->migrate;
 	}
 
 	err = xe_uc_init_hw(&gt->uc);
@@ -642,11 +634,6 @@ err_msg:
 	xe_gt_err(gt, "resume failed (%pe)\n", ERR_PTR(err));
 
 	return err;
-}
-
-void xe_gt_migrate_wait(struct xe_gt *gt)
-{
-	xe_migrate_wait(gt->migrate);
 }
 
 struct xe_hw_engine *xe_gt_hw_engine(struct xe_gt *gt,

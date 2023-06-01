@@ -208,7 +208,7 @@ retry_userptr:
 
 	/* Bind VMA only to the GT that has faulted */
 	trace_xe_vma_pf_bind(vma);
-	fence = __xe_pt_bind_vma(tile, vma, xe_gt_migrate_engine(gt), NULL, 0,
+	fence = __xe_pt_bind_vma(tile, vma, xe_tile_migrate_engine(tile), NULL, 0,
 				 vma->tile_present & BIT(tile->id));
 	if (IS_ERR(fence)) {
 		ret = PTR_ERR(fence);

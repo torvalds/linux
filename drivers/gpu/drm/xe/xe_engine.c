@@ -560,7 +560,7 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 			if (XE_IOCTL_ERR(xe, !hwe))
 				return -EINVAL;
 
-			migrate_vm = xe_migrate_get_vm(gt->migrate);
+			migrate_vm = xe_migrate_get_vm(gt_to_tile(gt)->migrate);
 			new = xe_engine_create(xe, migrate_vm, logical_mask,
 					       args->width, hwe,
 					       ENGINE_FLAG_PERSISTENT |

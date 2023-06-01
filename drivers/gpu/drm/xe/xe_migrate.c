@@ -36,8 +36,8 @@
 struct xe_migrate {
 	/** @eng: Default engine used for migration */
 	struct xe_engine *eng;
-	/** @gt: Backpointer to the gt this struct xe_migrate belongs to. */
-	struct xe_gt *gt;
+	/** @tile: Backpointer to the tile this struct xe_migrate belongs to. */
+	struct xe_tile *tile;
 	/** @job_mutex: Timeline mutex for @eng. */
 	struct mutex job_mutex;
 	/** @pt_bo: Page-table buffer object. */
@@ -70,17 +70,17 @@ struct xe_migrate {
 #define NUM_PT_PER_BLIT (MAX_PREEMPTDISABLE_TRANSFER / SZ_2M)
 
 /**
- * xe_gt_migrate_engine() - Get this gt's migrate engine.
- * @gt: The gt.
+ * xe_tile_migrate_engine() - Get this tile's migrate engine.
+ * @tile: The tile.
  *
- * Returns the default migrate engine of this gt.
+ * Returns the default migrate engine of this tile.
  * TODO: Perhaps this function is slightly misplaced, and even unneeded?
  *
  * Return: The default migrate engine
  */
-struct xe_engine *xe_gt_migrate_engine(struct xe_gt *gt)
+struct xe_engine *xe_tile_migrate_engine(struct xe_tile *tile)
 {
-	return gt->migrate->eng;
+	return tile->migrate->eng;
 }
 
 static void xe_migrate_fini(struct drm_device *dev, void *arg)
@@ -128,8 +128,7 @@ static u64 xe_migrate_vram_ofs(u64 addr)
  */
 static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 {
-	struct xe_gt *gt = m->gt;
-	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_tile *tile = m->tile;
 	struct xe_device *xe = vm->xe;
 	size_t cleared_size;
 	u64 vram_addr;
@@ -155,14 +154,13 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 	return 0;
 }
 
-static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
+static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 				 struct xe_vm *vm)
 {
-	u8 id = gt->info.id;
+	struct xe_device *xe = tile_to_xe(tile);
+	u8 id = tile->id;
 	u32 num_entries = NUM_PT_SLOTS, num_level = vm->pt_root[id]->level;
 	u32 map_ofs, level, i;
-	struct xe_device *xe = gt_to_xe(m->gt);
-	struct xe_tile *tile = gt_to_tile(m->gt);
 	struct xe_bo *bo, *batch = tile->mem.kernel_bb_pool->bo;
 	u64 entry;
 	int ret;
@@ -231,7 +229,7 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 
 		if (xe->info.supports_usm) {
-			batch = gt->usm.bb_pool->bo;
+			batch = tile->primary_gt.usm.bb_pool->bo;
 			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE,
 						&is_vram);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
@@ -308,34 +306,33 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 
 /**
  * xe_migrate_init() - Initialize a migrate context
- * @gt: Back-pointer to the gt we're initializing for.
+ * @tile: Back-pointer to the tile we're initializing for.
  *
  * Return: Pointer to a migrate context on success. Error pointer on error.
  */
-struct xe_migrate *xe_migrate_init(struct xe_gt *gt)
+struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 {
-	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_gt *primary_gt = &tile->primary_gt;
 	struct xe_migrate *m;
 	struct xe_vm *vm;
 	struct ww_acquire_ctx ww;
 	int err;
 
-	XE_BUG_ON(xe_gt_is_media_type(gt));
-
 	m = drmm_kzalloc(&xe->drm, sizeof(*m), GFP_KERNEL);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
-	m->gt = gt;
+	m->tile = tile;
 
 	/* Special layout, prepared below.. */
 	vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
-			  XE_VM_FLAG_SET_GT_ID(gt));
+			  XE_VM_FLAG_SET_TILE_ID(tile));
 	if (IS_ERR(vm))
 		return ERR_CAST(vm);
 
 	xe_vm_lock(vm, &ww, 0, false);
-	err = xe_migrate_prepare_vm(gt, m, vm);
+	err = xe_migrate_prepare_vm(tile, m, vm);
 	xe_vm_unlock(vm, &ww);
 	if (err) {
 		xe_vm_close_and_put(vm);
@@ -343,9 +340,9 @@ struct xe_migrate *xe_migrate_init(struct xe_gt *gt)
 	}
 
 	if (xe->info.supports_usm) {
-		struct xe_hw_engine *hwe = xe_gt_hw_engine(gt,
+		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
 							   XE_ENGINE_CLASS_COPY,
-							   gt->usm.reserved_bcs_instance,
+							   primary_gt->usm.reserved_bcs_instance,
 							   false);
 		if (!hwe)
 			return ERR_PTR(-EINVAL);
@@ -354,7 +351,7 @@ struct xe_migrate *xe_migrate_init(struct xe_gt *gt)
 					  BIT(hwe->logical_instance), 1,
 					  hwe, ENGINE_FLAG_KERNEL);
 	} else {
-		m->eng = xe_engine_create_class(xe, gt, vm,
+		m->eng = xe_engine_create_class(xe, primary_gt, vm,
 						XE_ENGINE_CLASS_COPY,
 						ENGINE_FLAG_KERNEL);
 	}
@@ -549,7 +546,7 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 			       u64 dst_ofs, bool dst_is_vram, u32 dst_size,
 			       u64 ccs_ofs, bool copy_ccs)
 {
-	struct xe_gt *gt = m->gt;
+	struct xe_gt *gt = &m->tile->primary_gt;
 	u32 flush_flags = 0;
 
 	if (xe_device_has_flat_ccs(gt_to_xe(gt)) && !copy_ccs && dst_is_vram) {
@@ -613,7 +610,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				  struct ttm_resource *src,
 				  struct ttm_resource *dst)
 {
-	struct xe_gt *gt = m->gt;
+	struct xe_gt *gt = &m->tile->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct dma_fence *fence = NULL;
 	u64 size = src_bo->size;
@@ -876,7 +873,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 				   struct ttm_resource *dst)
 {
 	bool clear_vram = mem_type_is_vram(dst->mem_type);
-	struct xe_gt *gt = m->gt;
+	struct xe_gt *gt = &m->tile->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct dma_fence *fence = NULL;
 	u64 size = bo->size;
@@ -1083,7 +1080,7 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 	for (i = 0; i < num_updates; i++) {
 		const struct xe_vm_pgtable_update *update = &updates[i];
 
-		ops->populate(pt_update, gt_to_tile(m->gt), &update->pt_bo->vmap, NULL,
+		ops->populate(pt_update, m->tile, &update->pt_bo->vmap, NULL,
 			      update->ofs, update->qwords, update);
 	}
 
@@ -1150,9 +1147,9 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			   struct xe_migrate_pt_update *pt_update)
 {
 	const struct xe_migrate_pt_update_ops *ops = pt_update->ops;
-	struct xe_gt *gt = m->gt;
-	struct xe_tile *tile = gt_to_tile(m->gt);
-	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = m->tile;
+	struct xe_gt *gt = &tile->primary_gt;
+	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_sched_job *job;
 	struct dma_fence *fence;
 	struct drm_suballoc *sa_bo = NULL;

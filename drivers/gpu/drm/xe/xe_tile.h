@@ -11,4 +11,6 @@ struct xe_tile;
 int xe_tile_alloc(struct xe_tile *tile);
 int xe_tile_init_noalloc(struct xe_tile *tile);
 
+void xe_tile_migrate_wait(struct xe_tile *tile);
+
 #endif

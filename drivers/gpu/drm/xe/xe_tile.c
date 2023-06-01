@@ -7,6 +7,7 @@
 
 #include "xe_device.h"
 #include "xe_ggtt.h"
+#include "xe_migrate.h"
 #include "xe_sa.h"
 #include "xe_tile.h"
 #include "xe_ttm_vram_mgr.h"
@@ -87,4 +88,9 @@ int xe_tile_init_noalloc(struct xe_tile *tile)
 err_mem_access:
 	xe_device_mem_access_put(tile_to_xe(tile));
 	return err;
+}
+
+void xe_tile_migrate_wait(struct xe_tile *tile)
+{
+	xe_migrate_wait(tile->migrate);
 }

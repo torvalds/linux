@@ -101,14 +101,14 @@ static const struct xe_migrate_pt_update_ops sanity_ops = {
 static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 		      struct kunit *test)
 {
-	struct xe_device *xe = gt_to_xe(m->gt);
+	struct xe_device *xe = tile_to_xe(m->tile);
 	u64 retval, expected = 0;
 	bool big = bo->size >= SZ_2M;
 	struct dma_fence *fence;
 	const char *str = big ? "Copying big bo" : "Copying small bo";
 	int err;
 
-	struct xe_bo *sysmem = xe_bo_create_locked(xe, gt_to_tile(m->gt), NULL,
+	struct xe_bo *sysmem = xe_bo_create_locked(xe, m->tile, NULL,
 						   bo->size,
 						   ttm_bo_type_kernel,
 						   XE_BO_CREATE_SYSTEM_BIT);
@@ -189,7 +189,7 @@ out_unlock:
 static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 			   struct kunit *test, bool force_gpu)
 {
-	struct xe_device *xe = gt_to_xe(m->gt);
+	struct xe_device *xe = tile_to_xe(m->tile);
 	struct dma_fence *fence;
 	u64 retval, expected;
 	ktime_t then, now;
@@ -239,16 +239,15 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 
 static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 {
-	struct xe_gt *gt = m->gt;
-	struct xe_tile *tile = gt_to_tile(m->gt);
-	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = m->tile;
+	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_bo *pt, *bo = m->pt_bo, *big, *tiny;
 	struct xe_res_cursor src_it;
 	struct dma_fence *fence;
 	u64 retval, expected;
 	struct xe_bb *bb;
 	int err;
-	u8 id = gt->info.id;
+	u8 id = tile->id;
 
 	err = xe_bo_vmap(bo);
 	if (err) {
@@ -287,7 +286,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_pt;
 	}
 
-	bb = xe_bb_new(gt, 32, xe->info.supports_usm);
+	bb = xe_bb_new(&tile->primary_gt, 32, xe->info.supports_usm);
 	if (IS_ERR(bb)) {
 		KUNIT_FAIL(test, "Failed to create batchbuffer: %li\n",
 			   PTR_ERR(bb));
@@ -324,7 +323,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	xe_map_wr(xe, &pt->vmap, 0, u32, 0xdeaddead);
 	expected = 0;
 
-	emit_clear(m->gt, bb, xe_migrate_vm_addr(NUM_KERNEL_PDE - 1, 0), 4, 4,
+	emit_clear(&tile->primary_gt, bb, xe_migrate_vm_addr(NUM_KERNEL_PDE - 1, 0), 4, 4,
 		   IS_DGFX(xe));
 	run_sanity_job(m, xe, bb, 1, "Writing to our newly mapped pagetable",
 		       test);
@@ -391,14 +390,14 @@ vunmap:
 static int migrate_test_run_device(struct xe_device *xe)
 {
 	struct kunit *test = xe_cur_kunit();
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	int id;
 
-	for_each_gt(gt, xe, id) {
-		struct xe_migrate *m = gt->migrate;
+	for_each_tile(tile, xe, id) {
+		struct xe_migrate *m = tile->migrate;
 		struct ww_acquire_ctx ww;
 
-		kunit_info(test, "Testing gt id %d.\n", id);
+		kunit_info(test, "Testing tile id %d.\n", id);
 		xe_vm_lock(m->eng->vm, &ww, 0, true);
 		xe_device_mem_access_get(xe);
 		xe_migrate_sanity_test(m, test);

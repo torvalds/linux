@@ -71,7 +71,7 @@ struct xe_migrate_pt_update {
 	struct xe_vma *vma;
 };
 
-struct xe_migrate *xe_migrate_init(struct xe_gt *gt);
+struct xe_migrate *xe_migrate_init(struct xe_tile *tile);
 
 struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				  struct xe_bo *src_bo,
@@ -97,5 +97,5 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 void xe_migrate_wait(struct xe_migrate *m);
 
-struct xe_engine *xe_gt_migrate_engine(struct xe_gt *gt);
+struct xe_engine *xe_tile_migrate_engine(struct xe_tile *tile);
 #endif

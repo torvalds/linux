@@ -136,6 +136,9 @@ struct xe_tile {
 		 */
 		struct xe_sa_manager *kernel_bb_pool;
 	} mem;
+
+	/** @migrate: Migration helper for vram blits and clearing */
+	struct xe_migrate *migrate;
 };
 
 /**

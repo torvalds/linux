@@ -1303,7 +1303,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 			return ERR_PTR(-ENOMEM);
 	}
 
-	fence = xe_migrate_update_pgtables(tile->primary_gt.migrate,
+	fence = xe_migrate_update_pgtables(tile->migrate,
 					   vm, vma->bo,
 					   e ? e : vm->eng[tile->id],
 					   entries, num_entries,
@@ -1624,7 +1624,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 	 * clear again here. The eviction may have updated pagetables at a
 	 * lower level, because it needs to be more conservative.
 	 */
-	fence = xe_migrate_update_pgtables(tile->primary_gt.migrate,
+	fence = xe_migrate_update_pgtables(tile->migrate,
 					   vm, NULL, e ? e :
 					   vm->eng[tile->id],
 					   entries, num_entries,

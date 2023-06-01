@@ -643,7 +643,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		tile = mem_type_to_tile(xe, old_mem->mem_type);
 
 	XE_BUG_ON(!tile);
-	XE_BUG_ON(!tile->primary_gt.migrate);
+	XE_BUG_ON(!tile->migrate);
 
 	trace_xe_bo_move(bo);
 	xe_device_mem_access_get(xe);
@@ -681,9 +681,9 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		}
 	} else {
 		if (move_lacks_source)
-			fence = xe_migrate_clear(tile->primary_gt.migrate, bo, new_mem);
+			fence = xe_migrate_clear(tile->migrate, bo, new_mem);
 		else
-			fence = xe_migrate_copy(tile->primary_gt.migrate,
+			fence = xe_migrate_copy(tile->migrate,
 						bo, bo, old_mem, new_mem);
 		if (IS_ERR(fence)) {
 			ret = PTR_ERR(fence);
