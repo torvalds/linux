@@ -1087,6 +1087,7 @@ struct ufs_hba {
  * @cq_tail_slot: current slot to which CQ tail pointer is pointing
  * @cq_head_slot: current slot to which CQ head pointer is pointing
  * @cq_lock: Synchronize between multiple polling instances
+ * @sq_mutex: prevent submission queue concurrent access
  */
 struct ufs_hw_queue {
 	void __iomem *mcq_sq_head;
@@ -1105,6 +1106,8 @@ struct ufs_hw_queue {
 	u32 cq_tail_slot;
 	u32 cq_head_slot;
 	spinlock_t cq_lock;
+	/* prevent concurrent access to submission queue */
+	struct mutex sq_mutex;
 };
 
 static inline bool is_mcq_enabled(struct ufs_hba *hba)
@@ -1240,7 +1243,7 @@ void ufshcd_update_evt_hist(struct ufs_hba *hba, u32 id, u32 val);
 void ufshcd_hba_stop(struct ufs_hba *hba);
 void ufshcd_schedule_eh_work(struct ufs_hba *hba);
 void ufshcd_mcq_write_cqis(struct ufs_hba *hba, u32 val, int i);
-unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
+unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
 					 struct ufs_hw_queue *hwq);
 void ufshcd_mcq_enable_esi(struct ufs_hba *hba);
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg);
