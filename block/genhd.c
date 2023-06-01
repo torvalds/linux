@@ -572,13 +572,22 @@ EXPORT_SYMBOL(device_add_disk);
  */
 void blk_mark_disk_dead(struct gendisk *disk)
 {
+	/*
+	 * Fail any new I/O.
+	 */
 	set_bit(GD_DEAD, &disk->state);
-	blk_queue_start_drain(disk->queue);
+	if (test_bit(GD_OWNS_QUEUE, &disk->state))
+		blk_queue_flag_set(QUEUE_FLAG_DYING, disk->queue);
 
 	/*
 	 * Stop buffered writers from dirtying pages that can't be written out.
 	 */
-	set_capacity_and_notify(disk, 0);
+	set_capacity(disk, 0);
+
+	/*
+	 * Prevent new I/O from crossing bio_queue_enter().
+	 */
+	blk_queue_start_drain(disk->queue);
 }
 EXPORT_SYMBOL_GPL(blk_mark_disk_dead);
 
@@ -620,18 +629,7 @@ void del_gendisk(struct gendisk *disk)
 	fsync_bdev(disk->part0);
 	__invalidate_device(disk->part0, true);
 
-	/*
-	 * Fail any new I/O.
-	 */
-	set_bit(GD_DEAD, &disk->state);
-	if (test_bit(GD_OWNS_QUEUE, &disk->state))
-		blk_queue_flag_set(QUEUE_FLAG_DYING, q);
-	set_capacity(disk, 0);
-
-	/*
-	 * Prevent new I/O from crossing bio_queue_enter().
-	 */
-	blk_queue_start_drain(q);
+	blk_mark_disk_dead(disk);
 
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
