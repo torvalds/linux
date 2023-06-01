@@ -142,7 +142,7 @@ MODULE_DEVICE_TABLE(acpi, qdf2xxx_acpi_ids);
 static struct platform_driver qdf2xxx_pinctrl_driver = {
 	.driver = {
 		.name = "qdf2xxx-pinctrl",
-		.acpi_match_table = ACPI_PTR(qdf2xxx_acpi_ids),
+		.acpi_match_table = qdf2xxx_acpi_ids,
 	},
 	.probe = qdf2xxx_pinctrl_probe,
 	.remove = msm_pinctrl_remove,
