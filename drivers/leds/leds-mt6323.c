@@ -20,6 +20,11 @@
 #define RG_DRV_32K_CK_PDN		BIT(11)
 #define RG_DRV_32K_CK_PDN_MASK		BIT(11)
 
+/* 32K/1M/6M clock common for WLED device */
+#define RG_VWLED_1M_CK_PDN		BIT(0)
+#define RG_VWLED_32K_CK_PDN		BIT(12)
+#define RG_VWLED_6M_CK_PDN		BIT(13)
+
 /*
  * Register field for TOP_CKPDN2 to enable
  * individual clock for LED device.
@@ -71,7 +76,7 @@ struct mt6323_led {
 	int			id;
 	struct mt6323_leds	*parent;
 	struct led_classdev	cdev;
-	enum led_brightness	current_brightness;
+	unsigned int		current_brightness;
 };
 
 /**
@@ -84,6 +89,7 @@ struct mt6323_led {
  * @num_isink_con:	Number of ISINKx_CON registers
  * @isink_max_regs:	Number of ISINK[0..x] registers
  * @isink_en_ctrl:	Offset to ISINK_EN_CTRL register
+ * @iwled_en_ctrl:	Offset to IWLED_EN_CTRL register
  */
 struct mt6323_regs {
 	const u16 *top_ckpdn;
@@ -94,18 +100,21 @@ struct mt6323_regs {
 	u8 num_isink_con;
 	u8 isink_max_regs;
 	u16 isink_en_ctrl;
+	u16 iwled_en_ctrl;
 };
 
 /**
  * struct mt6323_hwspec - hardware specific parameters
  * @max_period:		Maximum period for all LEDs
  * @max_leds:		Maximum number of supported LEDs
+ * @max_wleds:		Maximum number of WLEDs
  * @max_brightness:	Maximum brightness for all LEDs
  * @unit_duty:		Steps of duty per period
  */
 struct mt6323_hwspec {
 	u16 max_period;
 	u8 max_leds;
+	u8 max_wleds;
 	u16 max_brightness;
 	u16 unit_duty;
 };
@@ -377,6 +386,117 @@ out:
 	return ret;
 }
 
+static int mtk_wled_hw_on(struct led_classdev *cdev)
+{
+	struct mt6323_led *led = container_of(cdev, struct mt6323_led, cdev);
+	struct mt6323_leds *leds = led->parent;
+	const struct mt6323_regs *regs = leds->pdata->regs;
+	struct regmap *regmap = leds->hw->regmap;
+	int ret;
+
+	ret = regmap_clear_bits(regmap, regs->top_ckpdn[0], RG_VWLED_32K_CK_PDN);
+	if (ret)
+		return ret;
+
+	ret = regmap_clear_bits(regmap, regs->top_ckpdn[0], RG_VWLED_6M_CK_PDN);
+	if (ret)
+		return ret;
+
+	ret = regmap_clear_bits(regmap, regs->top_ckpdn[0], RG_VWLED_1M_CK_PDN);
+	if (ret)
+		return ret;
+
+	usleep_range(5000, 6000);
+
+	/* Enable WLED channel pair */
+	ret = regmap_set_bits(regmap, regs->iwled_en_ctrl, BIT(led->id));
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(regmap, regs->iwled_en_ctrl, BIT(led->id + 1));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mtk_wled_hw_off(struct led_classdev *cdev)
+{
+	struct mt6323_led *led = container_of(cdev, struct mt6323_led, cdev);
+	struct mt6323_leds *leds = led->parent;
+	const struct mt6323_regs *regs = leds->pdata->regs;
+	struct regmap *regmap = leds->hw->regmap;
+	int ret;
+
+	ret = regmap_clear_bits(regmap, regs->iwled_en_ctrl, BIT(led->id + 1));
+	if (ret)
+		return ret;
+
+	ret = regmap_clear_bits(regmap, regs->iwled_en_ctrl, BIT(led->id));
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(regmap, regs->top_ckpdn[0], RG_VWLED_32K_CK_PDN);
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(regmap, regs->top_ckpdn[0], RG_VWLED_6M_CK_PDN);
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(regmap, regs->top_ckpdn[0], RG_VWLED_1M_CK_PDN);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static unsigned int mt6323_get_wled_brightness(struct led_classdev *cdev)
+{
+	struct mt6323_led *led = container_of(cdev, struct mt6323_led, cdev);
+	struct mt6323_leds *leds = led->parent;
+	const struct mt6323_regs *regs = leds->pdata->regs;
+	struct regmap *regmap = leds->hw->regmap;
+	unsigned int status;
+	int ret;
+
+	ret = regmap_read(regmap, regs->iwled_en_ctrl, &status);
+	if (ret)
+		return 0;
+
+	/* Always two channels per WLED */
+	status &= BIT(led->id) | BIT(led->id + 1);
+
+	return status ? led->current_brightness : 0;
+}
+
+static int mt6323_wled_set_brightness(struct led_classdev *cdev,
+				      unsigned int brightness)
+{
+	struct mt6323_led *led = container_of(cdev, struct mt6323_led, cdev);
+	struct mt6323_leds *leds = led->parent;
+	int ret = 0;
+
+	mutex_lock(&leds->lock);
+
+	if (brightness) {
+		if (!led->current_brightness)
+			ret = mtk_wled_hw_on(cdev);
+		if (ret)
+			goto out;
+	} else {
+		ret = mtk_wled_hw_off(cdev);
+		if (ret)
+			goto out;
+	}
+
+	led->current_brightness = brightness;
+out:
+	mutex_unlock(&leds->lock);
+
+	return ret;
+}
+
 static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 				     struct device_node *np)
 {
@@ -416,6 +536,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 	int ret;
 	unsigned int status;
 	u32 reg;
+	u8 max_leds;
 
 	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
@@ -426,6 +547,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 	leds->pdata = device_get_match_data(dev);
 	regs = leds->pdata->regs;
 	spec = leds->pdata->spec;
+	max_leds = spec->max_leds + spec->max_wleds;
 
 	/*
 	 * leds->hw points to the underlying bus for the register
@@ -445,6 +567,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, child) {
 		struct led_init_data init_data = {};
+		bool is_wled;
 
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
@@ -452,7 +575,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			goto put_child_node;
 		}
 
-		if (reg >= spec->max_leds || reg >= MAX_SUPPORTED_LEDS ||
+		if (reg >= max_leds || reg >= MAX_SUPPORTED_LEDS ||
 		    leds->led[reg]) {
 			dev_err(dev, "Invalid led reg %u\n", reg);
 			ret = -EINVAL;
@@ -465,14 +588,24 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			goto put_child_node;
 		}
 
+		is_wled = of_property_read_bool(child, "mediatek,is-wled");
+
 		leds->led[reg] = led;
 		leds->led[reg]->id = reg;
 		leds->led[reg]->cdev.max_brightness = spec->max_brightness;
-		leds->led[reg]->cdev.brightness_set_blocking =
-					mt6323_led_set_brightness;
-		leds->led[reg]->cdev.blink_set = mt6323_led_set_blink;
-		leds->led[reg]->cdev.brightness_get =
-					mt6323_get_led_hw_brightness;
+
+		if (is_wled) {
+			leds->led[reg]->cdev.brightness_set_blocking =
+						mt6323_wled_set_brightness;
+			leds->led[reg]->cdev.brightness_get =
+						mt6323_get_wled_brightness;
+		} else {
+			leds->led[reg]->cdev.brightness_set_blocking =
+						mt6323_led_set_brightness;
+			leds->led[reg]->cdev.blink_set = mt6323_led_set_blink;
+			leds->led[reg]->cdev.brightness_get =
+						mt6323_get_led_hw_brightness;
+		}
 		leds->led[reg]->parent = leds;
 
 		ret = mt6323_led_set_dt_default(&leds->led[reg]->cdev, child);
@@ -540,11 +673,29 @@ static const struct mt6323_regs mt6331_registers = {
 	.isink_en_ctrl = 0x43a,
 };
 
+static const struct mt6323_regs mt6332_registers = {
+	.top_ckpdn = (const u16[]){ 0x8094, 0x809a, 0x80a0 },
+	.num_top_ckpdn = 3,
+	.top_ckcon = (const u16[]){ 0x80a6, 0x80ac },
+	.num_top_ckcon = 2,
+	.isink_con = (const u16[]){ 0x8cd4 },
+	.num_isink_con = 1,
+	.isink_max_regs = 12, /* IWLED[0..2, 3..9] */
+	.iwled_en_ctrl = 0x8cda,
+};
+
 static const struct mt6323_hwspec mt6323_spec = {
 	.max_period = 10000,
 	.max_leds = 4,
 	.max_brightness = 6,
 	.unit_duty = 3125,
+};
+
+static const struct mt6323_hwspec mt6332_spec = {
+	/* There are no LEDs in MT6332. Only WLEDs are present. */
+	.max_leds = 0,
+	.max_wleds = 1,
+	.max_brightness = 1024,
 };
 
 static const struct mt6323_data mt6323_pdata = {
@@ -557,9 +708,15 @@ static const struct mt6323_data mt6331_pdata = {
 	.spec = &mt6323_spec,
 };
 
+static const struct mt6323_data mt6332_pdata = {
+	.regs = &mt6332_registers,
+	.spec = &mt6332_spec,
+};
+
 static const struct of_device_id mt6323_led_dt_match[] = {
 	{ .compatible = "mediatek,mt6323-led", .data = &mt6323_pdata},
 	{ .compatible = "mediatek,mt6331-led", .data = &mt6331_pdata },
+	{ .compatible = "mediatek,mt6332-led", .data = &mt6332_pdata },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mt6323_led_dt_match);
