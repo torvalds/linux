@@ -544,7 +544,7 @@ static int xe_info_init(struct xe_device *xe,
 
 		gt = &tile->primary_gt;
 		gt->info.id = id;
-		gt->xe = xe;
+		gt->tile = tile;
 
 		if (id == 0) {
 			gt->info.type = XE_GT_TYPE_MAIN;

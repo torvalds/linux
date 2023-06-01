@@ -217,8 +217,8 @@ int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64
 		return err;
 
 	/* actual size */
-	if (unlikely(gt->xe->info.platform == XE_DG1)) {
-		*tile_size = pci_resource_len(to_pci_dev(gt->xe->drm.dev), GEN12_LMEM_BAR);
+	if (unlikely(gt_to_xe(gt)->info.platform == XE_DG1)) {
+		*tile_size = pci_resource_len(to_pci_dev(gt_to_xe(gt)->drm.dev), GEN12_LMEM_BAR);
 		*tile_offset = 0;
 	} else {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE_ADDR_RANGE(gt->info.id));
@@ -227,7 +227,7 @@ int xe_mmio_tile_vram_size(struct xe_gt *gt, u64 *vram_size, u64 *tile_size, u64
 	}
 
 	/* minus device usage */
-	if (gt->xe->info.has_flat_ccs) {
+	if (gt_to_xe(gt)->info.has_flat_ccs) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
 		offset = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
 	} else {

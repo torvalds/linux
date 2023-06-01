@@ -49,11 +49,6 @@ static inline bool xe_gt_is_media_type(struct xe_gt *gt)
 	return gt->info.type == XE_GT_TYPE_MEDIA;
 }
 
-#define gt_to_xe(gt__)								\
-	_Generic(gt__,								\
-		 const struct xe_gt *: (const struct xe_device *)((gt__)->xe),	\
-		 struct xe_gt *: (gt__)->xe)
-
 static inline bool xe_gt_is_usm_hwe(struct xe_gt *gt, struct xe_hw_engine *hwe)
 {
 	struct xe_device *xe = gt_to_xe(gt);

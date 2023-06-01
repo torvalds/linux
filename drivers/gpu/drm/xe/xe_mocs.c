@@ -472,7 +472,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 mocs;
 
-	mocs_dbg(&gt->xe->drm, "entries:%d\n", info->n_entries);
+	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
 	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
 		      "Unused entries index should have been defined\n");
 	for (i = 0;
@@ -480,7 +480,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 	     i++) {
 		struct xe_reg reg = XE_REG(addr + i * 4);
 
-		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, reg.addr, mocs);
+		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, reg.addr, mocs);
 		xe_mmio_write32(gt, reg, mocs);
 	}
 }
@@ -509,13 +509,13 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(&gt->xe->drm, "entries:%d\n", info->n_entries);
+	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
 	for (i = 0;
 	     i < (info->n_entries + 1) / 2 ?
 	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt->xe->drm, "%d 0x%x 0x%x\n", i, LNCFCMOCS(i).addr,
+		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, LNCFCMOCS(i).addr,
 			 l3cc);
 		xe_mmio_write32(gt, LNCFCMOCS(i), l3cc);
 	}
@@ -525,7 +525,7 @@ void xe_mocs_init_early(struct xe_gt *gt)
 {
 	struct xe_mocs_info table;
 
-	get_mocs_settings(gt->xe, &table);
+	get_mocs_settings(gt_to_xe(gt), &table);
 	gt->mocs.uc_index = table.uc_index;
 	gt->mocs.wb_index = table.wb_index;
 }
@@ -538,8 +538,8 @@ void xe_mocs_init(struct xe_gt *gt)
 	/*
 	 * LLC and eDRAM control values are not applicable to dgfx
 	 */
-	flags = get_mocs_settings(gt->xe, &table);
-	mocs_dbg(&gt->xe->drm, "flag:0x%x\n", flags);
+	flags = get_mocs_settings(gt_to_xe(gt), &table);
+	mocs_dbg(&gt_to_xe(gt)->drm, "flag:0x%x\n", flags);
 
 	if (flags & HAS_GLOBAL_MOCS)
 		__init_mocs_table(gt, &table, GLOBAL_MOCS(0).addr);

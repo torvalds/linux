@@ -16,7 +16,7 @@
 
 static int bb_prefetch(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt->xe;
+	struct xe_device *xe = gt_to_xe(gt);
 
 	if (GRAPHICS_VERx100(xe) >= 1250 && !xe_gt_is_media_type(gt))
 		/*

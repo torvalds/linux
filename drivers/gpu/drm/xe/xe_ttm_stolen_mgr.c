@@ -53,20 +53,20 @@ bool xe_ttm_stolen_cpu_access_needs_ggtt(struct xe_device *xe)
 
 static s64 detect_bar2_dgfx(struct xe_gt *gt, struct xe_ttm_stolen_mgr *mgr)
 {
-	struct pci_dev *pdev = to_pci_dev(gt->xe->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(gt_to_xe(gt)->drm.dev);
 	u64 stolen_size;
 	u64 tile_offset;
 	u64 tile_size;
 	u64 vram_size;
 
 	if (xe_mmio_tile_vram_size(gt, &vram_size, &tile_size, &tile_offset)) {
-		drm_err(&gt->xe->drm, "Querying total vram size failed\n");
+		drm_err(&gt_to_xe(gt)->drm, "Querying total vram size failed\n");
 		return 0;
 	}
 
 	/* Use DSM base address instead for stolen memory */
 	mgr->stolen_base = (xe_mmio_read64(gt, DSMBASE) & BDSM_MASK) - tile_offset;
-	if (drm_WARN_ON(&gt->xe->drm, tile_size < mgr->stolen_base))
+	if (drm_WARN_ON(&gt_to_xe(gt)->drm, tile_size < mgr->stolen_base))
 		return 0;
 
 	stolen_size = tile_size - mgr->stolen_base;

@@ -90,7 +90,7 @@ static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
 	}
 
 	/* Check last CCS value, or at least last value in page. */
-	offset = xe_device_ccs_bytes(gt->xe, bo->size);
+	offset = xe_device_ccs_bytes(gt_to_xe(gt), bo->size);
 	offset = min_t(u32, offset, PAGE_SIZE) / sizeof(u64) - 1;
 	if (cpu_map[offset] != get_val) {
 		KUNIT_FAIL(test,

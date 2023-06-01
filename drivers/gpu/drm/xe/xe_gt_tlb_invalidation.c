@@ -248,9 +248,9 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 	XE_BUG_ON(len > MAX_TLB_INVALIDATION_LEN);
 
-	xe_device_mem_access_get(gt->xe);
+	xe_device_mem_access_get(xe);
 	ret = send_tlb_invalidation(&gt->uc.guc, fence, action, len);
-	xe_device_mem_access_put(gt->xe);
+	xe_device_mem_access_put(xe);
 
 	return ret;
 }
@@ -328,8 +328,8 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		TLB_INVALIDATION_SEQNO_MAX;
 	if (!expected_seqno)
 		expected_seqno = 1;
-	if (drm_WARN_ON(&gt->xe->drm, expected_seqno != msg[0])) {
-		drm_err(&gt->xe->drm, "TLB expected_seqno(%d) != msg(%u)\n",
+	if (drm_WARN_ON(&gt_to_xe(gt)->drm, expected_seqno != msg[0])) {
+		drm_err(&gt_to_xe(gt)->drm, "TLB expected_seqno(%d) != msg(%u)\n",
 			expected_seqno, msg[0]);
 	}
 

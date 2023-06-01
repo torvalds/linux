@@ -696,7 +696,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		 * TODO: Suballocate the pt bo to avoid wasting a lot of
 		 * memory.
 		 */
-		if (GRAPHICS_VERx100(xe_walk->gt->xe) >= 1250 && level == 1 &&
+		if (GRAPHICS_VERx100(gt_to_xe(xe_walk->gt)) >= 1250 && level == 1 &&
 		    covers && xe_pt_scan_64K(addr, next, xe_walk)) {
 			walk->shifts = xe_compact_pt_shifts;
 			flags |= XE_PDE_64K;
