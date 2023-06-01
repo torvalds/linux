@@ -664,10 +664,27 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 	unsigned long o_dst;
 	unsigned long o_src;
 	unsigned long p_size = sizeof(struct btrfs_key_ptr);
+	/*
+	 * max_slot tracks the maximum valid slot of the rewind eb at every
+	 * step of the rewind. This is in contrast with 'n' which eventually
+	 * matches the number of items, but can be wrong during moves or if
+	 * removes overlap on already valid slots (which is probably separately
+	 * a bug). We do this to validate the offsets of memmoves for rewinding
+	 * moves and detect invalid memmoves.
+	 *
+	 * Since a rewind eb can start empty, max_slot is a signed integer with
+	 * a special meaning for -1, which is that no slot is valid to move out
+	 * of. Any other negative value is invalid.
+	 */
+	int max_slot;
+	int move_src_end_slot;
+	int move_dst_end_slot;
 
 	n = btrfs_header_nritems(eb);
+	max_slot = n - 1;
 	read_lock(&fs_info->tree_mod_log_lock);
 	while (tm && tm->seq >= time_seq) {
+		ASSERT(max_slot >= -1);
 		/*
 		 * All the operations are recorded with the operator used for
 		 * the modification. As we're going backwards, we do the
@@ -684,6 +701,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			n++;
+			if (tm->slot > max_slot)
+				max_slot = tm->slot;
 			break;
 		case BTRFS_MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
@@ -693,14 +712,37 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 						      tm->generation);
 			break;
 		case BTRFS_MOD_LOG_KEY_ADD:
+			/*
+			 * It is possible we could have already removed keys
+			 * behind the known max slot, so this will be an
+			 * overestimate. In practice, the copy operation
+			 * inserts them in increasing order, and overestimating
+			 * just means we miss some warnings, so it's OK. It
+			 * isn't worth carefully tracking the full array of
+			 * valid slots to check against when moving.
+			 */
+			if (tm->slot == max_slot)
+				max_slot--;
 			/* if a move operation is needed it's in the log */
 			n--;
 			break;
 		case BTRFS_MOD_LOG_MOVE_KEYS:
+			ASSERT(tm->move.nr_items > 0);
+			move_src_end_slot = tm->move.dst_slot + tm->move.nr_items - 1;
+			move_dst_end_slot = tm->slot + tm->move.nr_items - 1;
 			o_dst = btrfs_node_key_ptr_offset(eb, tm->slot);
 			o_src = btrfs_node_key_ptr_offset(eb, tm->move.dst_slot);
+			if (WARN_ON(move_src_end_slot > max_slot ||
+				    tm->move.nr_items <= 0)) {
+				btrfs_warn(fs_info,
+"move from invalid tree mod log slot eb %llu slot %d dst_slot %d nr_items %d seq %llu n %u max_slot %d",
+					   eb->start, tm->slot,
+					   tm->move.dst_slot, tm->move.nr_items,
+					   tm->seq, n, max_slot);
+			}
 			memmove_extent_buffer(eb, o_dst, o_src,
 					      tm->move.nr_items * p_size);
+			max_slot = move_dst_end_slot;
 			break;
 		case BTRFS_MOD_LOG_ROOT_REPLACE:
 			/*
