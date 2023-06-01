@@ -964,7 +964,7 @@ bo_has_vm_references_locked(struct xe_bo *bo, struct xe_vm *vm,
 	struct xe_vma *vma;
 
 	list_for_each_entry(vma, &bo->vmas, bo_link) {
-		if (vma != ignore && vma->vm == vm && !vma->destroyed)
+		if (vma != ignore && vma->vm == vm)
 			return vma;
 	}
 
