@@ -139,11 +139,6 @@ enum iwl_legacy_cmds {
 	REMOVE_STA = 0x19,
 
 	/**
-	 * @FW_GET_ITEM_CMD: uses &struct iwl_fw_get_item_cmd
-	 */
-	FW_GET_ITEM_CMD = 0x1a,
-
-	/**
 	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2 or
 	 *	&struct iwl_tx_cmd_gen3,
 	 *	response in &struct iwl_mvm_tx_resp or
@@ -532,12 +527,6 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_proto_offload_cmd_v3_large
 	 */
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
-
-	/**
-	 * @OFFLOADS_QUERY_CMD:
-	 * No data in command, response in &struct iwl_wowlan_status
-	 */
-	OFFLOADS_QUERY_CMD = 0xd5,
 
 	/**
 	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
