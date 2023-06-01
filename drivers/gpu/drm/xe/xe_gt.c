@@ -309,8 +309,8 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	/* XXX: Fake that we pull the engine mask from hwconfig blob */
 	gt->info.engine_mask = gt->info.__engine_mask;
 
-	/* Enables per hw engine IRQs */
-	xe_gt_irq_postinstall(gt_to_tile(gt));
+	/* Enable per hw engine IRQs */
+	xe_irq_enable_hwe(gt);
 
 	/* Rerun MCR init as we now have hw engine list */
 	xe_gt_mcr_init(gt);

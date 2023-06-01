@@ -121,13 +121,12 @@ static inline void xelp_intr_enable(struct xe_device *xe, bool stall)
 		xe_mmio_read32(mmio, GFX_MSTR_IRQ);
 }
 
-void xe_gt_irq_postinstall(struct xe_tile *tile)
+/* Enable/unmask the HWE interrupts for a specific GT's engines. */
+void xe_irq_enable_hwe(struct xe_gt *gt)
 {
-	struct xe_device *xe = tile_to_xe(tile);
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 ccs_mask, bcs_mask;
 	u32 irqs, dmask, smask;
-	u32 ccs_mask = xe_hw_engine_mask_per_class(tile->primary_gt, XE_ENGINE_CLASS_COMPUTE);
-	u32 bcs_mask = xe_hw_engine_mask_per_class(tile->primary_gt, XE_ENGINE_CLASS_COPY);
 
 	if (xe_device_guc_submission_enabled(xe)) {
 		irqs = GT_RENDER_USER_INTERRUPT |
@@ -139,45 +138,44 @@ void xe_gt_irq_postinstall(struct xe_tile *tile)
 		       GT_WAIT_SEMAPHORE_INTERRUPT;
 	}
 
+	ccs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
+	bcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
+
 	dmask = irqs << 16 | irqs;
 	smask = irqs << 16;
 
-	/* Enable RCS, BCS, VCS and VECS class interrupts. */
-	xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE, dmask);
-	xe_mmio_write32(mmio, VCS_VECS_INTR_ENABLE, dmask);
-	if (ccs_mask)
-		xe_mmio_write32(mmio, CCS_RSVD_INTR_ENABLE, smask);
+	if (!xe_gt_is_media_type(gt)) {
+		/* Enable interrupts for each engine class */
+		xe_mmio_write32(gt, RENDER_COPY_INTR_ENABLE, dmask);
+		if (ccs_mask)
+			xe_mmio_write32(gt, CCS_RSVD_INTR_ENABLE, smask);
 
-	/* Unmask irqs on RCS, BCS, VCS and VECS engines. */
-	xe_mmio_write32(mmio, RCS0_RSVD_INTR_MASK, ~smask);
-	xe_mmio_write32(mmio, BCS_RSVD_INTR_MASK, ~smask);
-	if (bcs_mask & (BIT(1)|BIT(2)))
-		xe_mmio_write32(mmio, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
-	if (bcs_mask & (BIT(3)|BIT(4)))
-		xe_mmio_write32(mmio, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
-	if (bcs_mask & (BIT(5)|BIT(6)))
-		xe_mmio_write32(mmio, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
-	if (bcs_mask & (BIT(7)|BIT(8)))
-		xe_mmio_write32(mmio, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
-	xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, ~dmask);
-	xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, ~dmask);
-	xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, ~dmask);
-	if (ccs_mask & (BIT(0)|BIT(1)))
-		xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, ~dmask);
-	if (ccs_mask & (BIT(2)|BIT(3)))
-		xe_mmio_write32(mmio,  CCS2_CCS3_INTR_MASK, ~dmask);
+		/* Unmask interrupts for each engine instance */
+		xe_mmio_write32(gt, RCS0_RSVD_INTR_MASK, ~smask);
+		xe_mmio_write32(gt, BCS_RSVD_INTR_MASK, ~smask);
+		if (bcs_mask & (BIT(1)|BIT(2)))
+			xe_mmio_write32(gt, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
+		if (bcs_mask & (BIT(3)|BIT(4)))
+			xe_mmio_write32(gt, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
+		if (bcs_mask & (BIT(5)|BIT(6)))
+			xe_mmio_write32(gt, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
+		if (bcs_mask & (BIT(7)|BIT(8)))
+			xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
+		if (ccs_mask & (BIT(0)|BIT(1)))
+			xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK, ~dmask);
+		if (ccs_mask & (BIT(2)|BIT(3)))
+			xe_mmio_write32(gt,  CCS2_CCS3_INTR_MASK, ~dmask);
+	}
 
-	/*
-	 * RPS interrupts will get enabled/disabled on demand when RPS itself
-	 * is enabled/disabled.
-	 */
-	/* TODO: gt->pm_ier, gt->pm_imr */
-	xe_mmio_write32(mmio, GPM_WGBOXPERF_INTR_ENABLE, 0);
-	xe_mmio_write32(mmio, GPM_WGBOXPERF_INTR_MASK,  ~0);
+	if (xe_gt_is_media_type(gt) || MEDIA_VER(xe) < 13) {
+		/* Enable interrupts for each engine class */
+		xe_mmio_write32(gt, VCS_VECS_INTR_ENABLE, dmask);
 
-	/* Same thing for GuC interrupts */
-	xe_mmio_write32(mmio, GUC_SG_INTR_ENABLE, 0);
-	xe_mmio_write32(mmio, GUC_SG_INTR_MASK,  ~0);
+		/* Unmask interrupts for each engine instance */
+		xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK, ~dmask);
+		xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK, ~dmask);
+		xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK, ~dmask);
+	}
 }
 
 static u32
@@ -488,12 +486,6 @@ static void xe_irq_reset(struct xe_device *xe)
 
 static void xe_irq_postinstall(struct xe_device *xe)
 {
-	struct xe_tile *tile;
-	u8 id;
-
-	for_each_tile(tile, xe, id)
-		xe_gt_irq_postinstall(tile);
-
 	/*
 	 * ASLE backlight operations are reported via GUnit GSE interrupts
 	 * on the root tile.
@@ -580,9 +572,16 @@ void xe_irq_suspend(struct xe_device *xe)
 
 void xe_irq_resume(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	int id;
+
 	spin_lock_irq(&xe->irq.lock);
 	xe->irq.enabled = true;
 	xe_irq_reset(xe);
 	xe_irq_postinstall(xe);
+
+	for_each_gt(gt, xe, id)
+		xe_irq_enable_hwe(gt);
+
 	spin_unlock_irq(&xe->irq.lock);
 }
