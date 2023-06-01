@@ -130,6 +130,9 @@ struct fw_cdev_event_response {
  * @length:	Data length, i.e. the response's payload size in bytes
  * @request_tstamp:	The time stamp of isochronous cycle at which the request was sent.
  * @response_tstamp:	The time stamp of isochronous cycle at which the response was sent.
+ * @padding:	Padding to keep the size of structure as multiples of 8 in various architectures
+ *		since 4 byte alignment is used for 8 byte of object type in System V ABI for i386
+ *		architecture.
  * @data:	Payload data, if any
  *
  * This event is sent when the stack receives a response to an outgoing request
@@ -155,10 +158,6 @@ struct fw_cdev_event_response2 {
 	__u32 length;
 	__u32 request_tstamp;
 	__u32 response_tstamp;
-	/*
-	 * Padding to keep the size of structure as multiples of 8 in various architectures since
-	 * 4 byte alignment is used for 8 byte of object type in System V ABI for i386 architecture.
-	 */
 	__u32 padding;
 	__u32 data[];
 };
@@ -231,6 +230,9 @@ struct fw_cdev_event_request2 {
  * @handle:	Reference to the kernel-side pending request
  * @length:	Data length, i.e. the request's payload size in bytes
  * @tstamp:	The time stamp of isochronous cycle at which the request arrived.
+ * @padding:	Padding to keep the size of structure as multiples of 8 in various architectures
+ *		since 4 byte alignment is used for 8 byte of object type in System V ABI for i386
+ *		architecture.
  * @data:	Incoming data, if any
  *
  * This event is sent when the stack receives an incoming request to an address
@@ -284,10 +286,6 @@ struct fw_cdev_event_request3 {
 	__u32 handle;
 	__u32 length;
 	__u32 tstamp;
-	/*
-	 * Padding to keep the size of structure as multiples of 8 in various architectures since
-	 * 4 byte alignment is used for 8 byte of object type in System V ABI for i386 architecture.
-	 */
 	__u32 padding;
 	__u32 data[];
 };
