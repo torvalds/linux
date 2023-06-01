@@ -1126,6 +1126,10 @@ static int rk_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
+	/* Disable BAR0 BAR1 */
+	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + BAR_0 * 4, 0);
+	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + BAR_1 * 4, 0);
+
 	ret = rk_pcie_establish_link(pci);
 
 	if (pp->msi_irq > 0)
