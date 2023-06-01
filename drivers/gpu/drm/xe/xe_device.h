@@ -66,9 +66,18 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 }
 
 /*
- * FIXME: Placeholder until multi-gt lands. Once that lands, kill this function.
+ * Provide a GT structure suitable for performing non-GT MMIO operations against
+ * the primary tile.  Primarily intended for early tile initialization, display
+ * handling, top-most interrupt enable/disable, etc.  Since anything using the
+ * MMIO handle returned by this function doesn't need GSI offset translation,
+ * we'll return the primary GT from the root tile.
+ *
+ * FIXME: Fix the driver design so that 'gt' isn't the target of all MMIO
+ * operations.
+ *
+ * Returns the primary gt of the root tile.
  */
-static inline struct xe_gt *to_gt(struct xe_device *xe)
+static inline struct xe_gt *xe_root_mmio_gt(struct xe_device *xe)
 {
 	return &xe_device_get_root_tile(xe)->primary_gt;
 }

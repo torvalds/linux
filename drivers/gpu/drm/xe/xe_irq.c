@@ -284,7 +284,7 @@ static void gt_irq_handler(struct xe_device *xe, struct xe_gt *gt,
 static irqreturn_t xelp_irq_handler(int irq, void *arg)
 {
 	struct xe_device *xe = arg;
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);	/* Only 1 GT here */
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	u32 master_ctl, gu_misc_iir;
 	long unsigned int intr_dw[2];
 	u32 identity[32];
@@ -306,7 +306,7 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 
 static u32 dg1_intr_disable(struct xe_device *xe)
 {
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	u32 val;
 
 	/* First disable interrupts */
@@ -324,7 +324,7 @@ static u32 dg1_intr_disable(struct xe_device *xe)
 
 static void dg1_intr_enable(struct xe_device *xe, bool stall)
 {
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
 
 	xe_mmio_write32(gt, DG1_MSTR_TILE_INTR, DG1_MSTR_IRQ);
 	if (stall)

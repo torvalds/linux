@@ -355,7 +355,7 @@ static void device_kill_persistent_engines(struct xe_device *xe,
 
 void xe_device_wmb(struct xe_device *xe)
 {
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
 
 	wmb();
 	if (IS_DGFX(xe))
