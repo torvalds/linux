@@ -217,7 +217,7 @@ static int lpi2c_imx_config(struct lpi2c_imx_struct *lpi2c_imx)
 	for (prescale = 0; prescale <= 7; prescale++) {
 		clk_cycle = clk_rate / ((1 << prescale) * lpi2c_imx->bitrate)
 			    - 3 - (filt >> 1);
-		clkhi = (clk_cycle + I2C_CLK_RATIO) / (I2C_CLK_RATIO + 1);
+		clkhi = DIV_ROUND_UP(clk_cycle, I2C_CLK_RATIO + 1);
 		clklo = clk_cycle - clkhi;
 		if (clklo < 64)
 			break;
