@@ -762,8 +762,8 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915 = i915_driver_create(pdev, ent);
 	if (IS_ERR(i915)) {
-		ret = PTR_ERR(i915);
-		goto out_pci_disable;
+		pci_disable_device(pdev);
+		return PTR_ERR(i915);
 	}
 
 	ret = i915_driver_early_probe(i915);
