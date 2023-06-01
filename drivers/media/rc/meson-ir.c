@@ -19,43 +19,34 @@
 
 #define DRIVER_NAME		"meson-ir"
 
-/* valid on all Meson platforms */
 #define IR_DEC_LDR_ACTIVE	0x00
 #define IR_DEC_LDR_IDLE		0x04
 #define IR_DEC_LDR_REPEAT	0x08
 #define IR_DEC_BIT_0		0x0c
 #define IR_DEC_REG0		0x10
+#define REG0_RATE_MASK		GENMASK(11, 0)
 #define IR_DEC_FRAME		0x14
 #define IR_DEC_STATUS		0x18
+#define STATUS_IR_DEC_IN	BIT(8)
 #define IR_DEC_REG1		0x1c
-/* only available on Meson 8b and newer */
+#define REG1_TIME_IV_MASK	GENMASK(28, 16)
+#define REG1_ENABLE		BIT(15)
+#define REG1_MODE_MASK		GENMASK(8, 7)
+#define REG1_MODE_SHIFT		7
+#define REG1_IRQSEL_MASK	GENMASK(3, 2)
+#define REG1_RESET		BIT(0)
+/* The following regs are only available on Meson 8b and newer */
 #define IR_DEC_REG2		0x20
-
-#define REG0_RATE_MASK		GENMASK(11, 0)
+#define REG2_MODE_MASK		GENMASK(3, 0)
+#define REG2_MODE_SHIFT		0
 
 #define DECODE_MODE_NEC		0x0
 #define DECODE_MODE_RAW		0x2
 
-/* Meson 6b uses REG1 to configure the mode */
-#define REG1_MODE_MASK		GENMASK(8, 7)
-#define REG1_MODE_SHIFT		7
-
-/* Meson 8b / GXBB use REG2 to configure the mode */
-#define REG2_MODE_MASK		GENMASK(3, 0)
-#define REG2_MODE_SHIFT		0
-
-#define REG1_TIME_IV_MASK	GENMASK(28, 16)
-
-#define REG1_IRQSEL_MASK	GENMASK(3, 2)
 #define REG1_IRQSEL_NEC_MODE	0
 #define REG1_IRQSEL_RISE_FALL	1
 #define REG1_IRQSEL_FALL	2
 #define REG1_IRQSEL_RISE	3
-
-#define REG1_RESET		BIT(0)
-#define REG1_ENABLE		BIT(15)
-
-#define STATUS_IR_DEC_IN	BIT(8)
 
 #define MESON_TRATE		10	/* us */
 
