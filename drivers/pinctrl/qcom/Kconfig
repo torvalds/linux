@@ -281,7 +281,7 @@ config PINCTRL_QCOM_SSBI_PMIC
 	 devices are pm8058 and pm8921.
 
 config PINCTRL_QDU1000
-	tristate "Qualcomm Tehcnologies Inc QDU1000/QRU1000 pin controller driver"
+	tristate "Qualcomm Technologies Inc QDU1000/QRU1000 pin controller driver"
 	depends on GPIOLIB && OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
