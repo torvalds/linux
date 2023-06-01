@@ -21,8 +21,8 @@
 					 XE_BO_CREATE_VRAM1_BIT)
 /* -- */
 #define XE_BO_CREATE_STOLEN_BIT		BIT(4)
-#define XE_BO_CREATE_VRAM_IF_DGFX(gt) \
-	(IS_DGFX(gt_to_xe(gt)) ? XE_BO_CREATE_VRAM0_BIT << gt_to_tile(gt)->id : \
+#define XE_BO_CREATE_VRAM_IF_DGFX(tile) \
+	(IS_DGFX(tile_to_xe(tile)) ? XE_BO_CREATE_VRAM0_BIT << (tile)->id : \
 	 XE_BO_CREATE_SYSTEM_BIT)
 #define XE_BO_CREATE_GGTT_BIT		BIT(5)
 #define XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT BIT(6)
@@ -81,27 +81,27 @@ struct xe_bo *xe_bo_alloc(void);
 void xe_bo_free(struct xe_bo *bo);
 
 struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
-				    struct xe_gt *gt, struct dma_resv *resv,
+				    struct xe_tile *tile, struct dma_resv *resv,
 				    size_t size, enum ttm_bo_type type,
 				    u32 flags);
 struct xe_bo *
 xe_bo_create_locked_range(struct xe_device *xe,
-			  struct xe_gt *gt, struct xe_vm *vm,
+			  struct xe_tile *tile, struct xe_vm *vm,
 			  size_t size, u64 start, u64 end,
 			  enum ttm_bo_type type, u32 flags);
-struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_tile *tile,
 				  struct xe_vm *vm, size_t size,
 				  enum ttm_bo_type type, u32 flags);
-struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_tile *tile,
 			   struct xe_vm *vm, size_t size,
 			   enum ttm_bo_type type, u32 flags);
-struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 				   struct xe_vm *vm, size_t size,
 				   enum ttm_bo_type type, u32 flags);
-struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_tile *tile,
 				      struct xe_vm *vm, size_t size, u64 offset,
 				      enum ttm_bo_type type, u32 flags);
-struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 				     const void *data, size_t size,
 				     enum ttm_bo_type type, u32 flags);
 

@@ -13,8 +13,8 @@ struct dma_fence;
 struct xe_bo;
 struct xe_device;
 struct xe_engine;
-struct xe_gt;
 struct xe_sync_entry;
+struct xe_tile;
 struct xe_vm;
 struct xe_vma;
 
@@ -23,27 +23,27 @@ struct xe_vma;
 
 unsigned int xe_pt_shift(unsigned int level);
 
-struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_gt *gt,
+struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 			   unsigned int level);
 
-int xe_pt_create_scratch(struct xe_device *xe, struct xe_gt *gt,
+int xe_pt_create_scratch(struct xe_device *xe, struct xe_tile *tile,
 			 struct xe_vm *vm);
 
-void xe_pt_populate_empty(struct xe_gt *gt, struct xe_vm *vm,
+void xe_pt_populate_empty(struct xe_tile *tile, struct xe_vm *vm,
 			  struct xe_pt *pt);
 
 void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred);
 
 struct dma_fence *
-__xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		 struct xe_sync_entry *syncs, u32 num_syncs,
 		 bool rebind);
 
 struct dma_fence *
-__xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		   struct xe_sync_entry *syncs, u32 num_syncs);
 
-bool xe_pt_zap_ptes(struct xe_gt *gt, struct xe_vma *vma);
+bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma);
 
 u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
 		    const enum xe_cache_level level);

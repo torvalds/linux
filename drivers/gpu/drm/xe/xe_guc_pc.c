@@ -888,6 +888,7 @@ static void pc_fini(struct drm_device *drm, void *arg)
 int xe_guc_pc_init(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_bo *bo;
 	u32 size = PAGE_ALIGN(sizeof(struct slpc_shared_data));
@@ -895,9 +896,9 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 
 	mutex_init(&pc->freq_lock);
 
-	bo = xe_bo_create_pin_map(xe, gt, NULL, size,
+	bo = xe_bo_create_pin_map(xe, tile, NULL, size,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_GGTT_BIT);
 
 	if (IS_ERR(bo))

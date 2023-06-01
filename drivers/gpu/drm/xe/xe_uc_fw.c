@@ -322,6 +322,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct device *dev = xe->drm.dev;
 	const struct firmware *fw = NULL;
 	struct uc_css_header *css;
@@ -411,9 +412,9 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
 		guc_read_css_info(uc_fw, css);
 
-	obj = xe_bo_create_from_data(xe, gt, fw->data, fw->size,
+	obj = xe_bo_create_from_data(xe, tile, fw->data, fw->size,
 				     ttm_bo_type_kernel,
-				     XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+				     XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				     XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(obj)) {
 		drm_notice(&xe->drm, "%s firmware %s: failed to create / populate bo",

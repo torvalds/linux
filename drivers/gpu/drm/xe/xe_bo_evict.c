@@ -149,7 +149,7 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 		}
 
 		if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
-			struct xe_tile *tile = gt_to_tile(bo->gt);
+			struct xe_tile *tile = bo->tile;
 
 			mutex_lock(&tile->mem.ggtt->lock);
 			xe_ggtt_map_bo(tile->mem.ggtt, bo);

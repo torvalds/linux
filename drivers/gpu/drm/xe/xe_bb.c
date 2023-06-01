@@ -30,6 +30,7 @@ static int bb_prefetch(struct xe_gt *gt)
 
 struct xe_bb *xe_bb_new(struct xe_gt *gt, u32 dwords, bool usm)
 {
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_bb *bb = kmalloc(sizeof(*bb), GFP_KERNEL);
 	int err;
 
@@ -42,7 +43,7 @@ struct xe_bb *xe_bb_new(struct xe_gt *gt, u32 dwords, bool usm)
 	 * space to accomodate the platform-specific hardware prefetch
 	 * requirements.
 	 */
-	bb->bo = xe_sa_bo_new(!usm ? gt->kernel_bb_pool : gt->usm.bb_pool,
+	bb->bo = xe_sa_bo_new(!usm ? tile->mem.kernel_bb_pool : gt->usm.bb_pool,
 			      4 * (dwords + 1) + bb_prefetch(gt));
 	if (IS_ERR(bb->bo)) {
 		err = PTR_ERR(bb->bo);

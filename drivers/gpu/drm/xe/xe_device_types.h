@@ -128,6 +128,13 @@ struct xe_tile {
 
 		/** @ggtt: Global graphics translation table */
 		struct xe_ggtt *ggtt;
+
+		/**
+		 * @kernel_bb_pool: Pool from which batchbuffers are allocated.
+		 *
+		 * Media GT shares a pool with its primary GT.
+		 */
+		struct xe_sa_manager *kernel_bb_pool;
 	} mem;
 };
 

@@ -465,7 +465,7 @@ int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 		xe_bo_assert_held(vma->bo);
 
 		list_del_init(&vma->notifier.rebind_link);
-		if (vma->gt_present && !vma->destroyed)
+		if (vma->tile_present && !vma->destroyed)
 			list_move_tail(&vma->rebind_link, &vm->rebind_list);
 	}
 	spin_unlock(&vm->notifier.list_lock);
@@ -703,7 +703,7 @@ static bool vma_userptr_invalidate(struct mmu_interval_notifier *mni,
 	 * Tell exec and rebind worker they need to repin and rebind this
 	 * userptr.
 	 */
-	if (!xe_vm_in_fault_mode(vm) && !vma->destroyed && vma->gt_present) {
+	if (!xe_vm_in_fault_mode(vm) && !vma->destroyed && vma->tile_present) {
 		spin_lock(&vm->userptr.invalidated_lock);
 		list_move_tail(&vma->userptr.invalidate_link,
 			       &vm->userptr.invalidated);
@@ -821,7 +821,7 @@ struct dma_fence *xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 
 	xe_vm_assert_held(vm);
 	list_for_each_entry_safe(vma, next, &vm->rebind_list, rebind_link) {
-		XE_WARN_ON(!vma->gt_present);
+		XE_WARN_ON(!vma->tile_present);
 
 		list_del_init(&vma->rebind_link);
 		dma_fence_put(fence);
@@ -842,10 +842,10 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    u64 bo_offset_or_userptr,
 				    u64 start, u64 end,
 				    bool read_only,
-				    u64 gt_mask)
+				    u64 tile_mask)
 {
 	struct xe_vma *vma;
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	u8 id;
 
 	XE_BUG_ON(start >= end);
@@ -870,12 +870,11 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	if (read_only)
 		vma->pte_flags = XE_PTE_READ_ONLY;
 
-	if (gt_mask) {
-		vma->gt_mask = gt_mask;
+	if (tile_mask) {
+		vma->tile_mask = tile_mask;
 	} else {
-		for_each_gt(gt, vm->xe, id)
-			if (!xe_gt_is_media_type(gt))
-				vma->gt_mask |= 0x1 << id;
+		for_each_tile(tile, vm->xe, id)
+			vma->tile_mask |= 0x1 << id;
 	}
 
 	if (vm->xe->info.platform == XE_PVC)
@@ -1162,8 +1161,8 @@ static void vm_destroy_work_func(struct work_struct *w);
 struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 {
 	struct xe_vm *vm;
-	int err, i = 0, number_gts = 0;
-	struct xe_gt *gt;
+	int err, i = 0, number_tiles = 0;
+	struct xe_tile *tile;
 	u8 id;
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
@@ -1215,15 +1214,12 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
 		vm->flags |= XE_VM_FLAGS_64K;
 
-	for_each_gt(gt, xe, id) {
-		if (xe_gt_is_media_type(gt))
-			continue;
-
+	for_each_tile(tile, xe, id) {
 		if (flags & XE_VM_FLAG_MIGRATION &&
-		    gt->info.id != XE_VM_FLAG_GT_ID(flags))
+		    tile->id != XE_VM_FLAG_GT_ID(flags))
 			continue;
 
-		vm->pt_root[id] = xe_pt_create(vm, gt, xe->info.vm_max_level);
+		vm->pt_root[id] = xe_pt_create(vm, tile, xe->info.vm_max_level);
 		if (IS_ERR(vm->pt_root[id])) {
 			err = PTR_ERR(vm->pt_root[id]);
 			vm->pt_root[id] = NULL;
@@ -1232,11 +1228,11 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	}
 
 	if (flags & XE_VM_FLAG_SCRATCH_PAGE) {
-		for_each_gt(gt, xe, id) {
+		for_each_tile(tile, xe, id) {
 			if (!vm->pt_root[id])
 				continue;
 
-			err = xe_pt_create_scratch(xe, gt, vm);
+			err = xe_pt_create_scratch(xe, tile, vm);
 			if (err)
 				goto err_scratch_pt;
 		}
@@ -1253,17 +1249,18 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	}
 
 	/* Fill pt_root after allocating scratch tables */
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (!vm->pt_root[id])
 			continue;
 
-		xe_pt_populate_empty(gt, vm, vm->pt_root[id]);
+		xe_pt_populate_empty(tile, vm, vm->pt_root[id]);
 	}
 	dma_resv_unlock(&vm->resv);
 
 	/* Kernel migration VM shouldn't have a circular loop.. */
 	if (!(flags & XE_VM_FLAG_MIGRATION)) {
-		for_each_gt(gt, xe, id) {
+		for_each_tile(tile, xe, id) {
+			struct xe_gt *gt = &tile->primary_gt;
 			struct xe_vm *migrate_vm;
 			struct xe_engine *eng;
 
@@ -1280,11 +1277,11 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 				return ERR_CAST(eng);
 			}
 			vm->eng[id] = eng;
-			number_gts++;
+			number_tiles++;
 		}
 	}
 
-	if (number_gts > 1)
+	if (number_tiles > 1)
 		vm->composite_fence_ctx = dma_fence_context_alloc(1);
 
 	mutex_lock(&xe->usm.lock);
@@ -1299,7 +1296,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	return vm;
 
 err_scratch_pt:
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (!vm->pt_root[id])
 			continue;
 
@@ -1312,7 +1309,7 @@ err_scratch_pt:
 		xe_bo_put(vm->scratch_bo[id]);
 	}
 err_destroy_root:
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (vm->pt_root[id])
 			xe_pt_destroy(vm->pt_root[id], vm->flags, NULL);
 	}
@@ -1369,7 +1366,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	struct rb_root contested = RB_ROOT;
 	struct ww_acquire_ctx ww;
 	struct xe_device *xe = vm->xe;
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	u8 id;
 
 	XE_BUG_ON(vm->preempt.num_engines);
@@ -1380,7 +1377,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	if (xe_vm_in_compute_mode(vm))
 		flush_work(&vm->preempt.rebind_work);
 
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (vm->eng[id]) {
 			xe_engine_kill(vm->eng[id]);
 			xe_engine_put(vm->eng[id]);
@@ -1417,7 +1414,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	 * install a fence to resv. Hence it's safe to
 	 * destroy the pagetables immediately.
 	 */
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (vm->scratch_bo[id]) {
 			u32 i;
 
@@ -1467,7 +1464,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 		container_of(w, struct xe_vm, destroy_work);
 	struct ww_acquire_ctx ww;
 	struct xe_device *xe = vm->xe;
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	u8 id;
 	void *lookup;
 
@@ -1492,7 +1489,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 	 * can be moved to xe_vm_close_and_put.
 	 */
 	xe_vm_lock(vm, &ww, 0, false);
-	for_each_gt(gt, xe, id) {
+	for_each_tile(tile, xe, id) {
 		if (vm->pt_root[id]) {
 			xe_pt_destroy(vm->pt_root[id], vm->flags, NULL);
 			vm->pt_root[id] = NULL;
@@ -1528,11 +1525,9 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 	return vm;
 }
 
-u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_gt *full_gt)
+u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 {
-	XE_BUG_ON(xe_gt_is_media_type(full_gt));
-
-	return gen8_pde_encode(vm->pt_root[full_gt->info.id]->bo, 0,
+	return gen8_pde_encode(vm->pt_root[tile->id]->bo, 0,
 			       XE_CACHE_WB);
 }
 
@@ -1540,32 +1535,30 @@ static struct dma_fence *
 xe_vm_unbind_vma(struct xe_vma *vma, struct xe_engine *e,
 		 struct xe_sync_entry *syncs, u32 num_syncs)
 {
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	struct dma_fence *fence = NULL;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
 	struct xe_vm *vm = vma->vm;
 	int cur_fence = 0, i;
-	int number_gts = hweight_long(vma->gt_present);
+	int number_tiles = hweight_long(vma->tile_present);
 	int err;
 	u8 id;
 
 	trace_xe_vma_unbind(vma);
 
-	if (number_gts > 1) {
-		fences = kmalloc_array(number_gts, sizeof(*fences),
+	if (number_tiles > 1) {
+		fences = kmalloc_array(number_tiles, sizeof(*fences),
 				       GFP_KERNEL);
 		if (!fences)
 			return ERR_PTR(-ENOMEM);
 	}
 
-	for_each_gt(gt, vm->xe, id) {
-		if (!(vma->gt_present & BIT(id)))
+	for_each_tile(tile, vm->xe, id) {
+		if (!(vma->tile_present & BIT(id)))
 			goto next;
 
-		XE_BUG_ON(xe_gt_is_media_type(gt));
-
-		fence = __xe_pt_unbind_vma(gt, vma, e, syncs, num_syncs);
+		fence = __xe_pt_unbind_vma(tile, vma, e, syncs, num_syncs);
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
 			goto err_fences;
@@ -1580,7 +1573,7 @@ next:
 	}
 
 	if (fences) {
-		cf = dma_fence_array_create(number_gts, fences,
+		cf = dma_fence_array_create(number_tiles, fences,
 					    vm->composite_fence_ctx,
 					    vm->composite_fence_seqno++,
 					    false);
@@ -1612,32 +1605,31 @@ static struct dma_fence *
 xe_vm_bind_vma(struct xe_vma *vma, struct xe_engine *e,
 	       struct xe_sync_entry *syncs, u32 num_syncs)
 {
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	struct dma_fence *fence;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
 	struct xe_vm *vm = vma->vm;
 	int cur_fence = 0, i;
-	int number_gts = hweight_long(vma->gt_mask);
+	int number_tiles = hweight_long(vma->tile_mask);
 	int err;
 	u8 id;
 
 	trace_xe_vma_bind(vma);
 
-	if (number_gts > 1) {
-		fences = kmalloc_array(number_gts, sizeof(*fences),
+	if (number_tiles > 1) {
+		fences = kmalloc_array(number_tiles, sizeof(*fences),
 				       GFP_KERNEL);
 		if (!fences)
 			return ERR_PTR(-ENOMEM);
 	}
 
-	for_each_gt(gt, vm->xe, id) {
-		if (!(vma->gt_mask & BIT(id)))
+	for_each_tile(tile, vm->xe, id) {
+		if (!(vma->tile_mask & BIT(id)))
 			goto next;
 
-		XE_BUG_ON(xe_gt_is_media_type(gt));
-		fence = __xe_pt_bind_vma(gt, vma, e, syncs, num_syncs,
-					 vma->gt_present & BIT(id));
+		fence = __xe_pt_bind_vma(tile, vma, e, syncs, num_syncs,
+					 vma->tile_present & BIT(id));
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
 			goto err_fences;
@@ -1652,7 +1644,7 @@ next:
 	}
 
 	if (fences) {
-		cf = dma_fence_array_create(number_gts, fences,
+		cf = dma_fence_array_create(number_tiles, fences,
 					    vm->composite_fence_ctx,
 					    vm->composite_fence_seqno++,
 					    false);
@@ -2047,7 +2039,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 			return err;
 	}
 
-	if (vma->gt_mask != (vma->gt_present & ~vma->usm.gt_invalidated)) {
+	if (vma->tile_mask != (vma->tile_present & ~vma->usm.tile_invalidated)) {
 		return xe_vm_bind(vm, vma, e, vma->bo, syncs, num_syncs,
 				  afence);
 	} else {
@@ -2649,7 +2641,7 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					  first->start,
 					  lookup->start - 1,
 					  (first->pte_flags & XE_PTE_READ_ONLY),
-					  first->gt_mask);
+					  first->tile_mask);
 		if (first->bo)
 			xe_bo_unlock(first->bo, &ww);
 		if (!new_first) {
@@ -2680,7 +2672,7 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					 last->start + chunk,
 					 last->end,
 					 (last->pte_flags & XE_PTE_READ_ONLY),
-					 last->gt_mask);
+					 last->tile_mask);
 		if (last->bo)
 			xe_bo_unlock(last->bo, &ww);
 		if (!new_last) {
@@ -2816,7 +2808,7 @@ static struct xe_vma *vm_bind_ioctl_lookup_vma(struct xe_vm *vm,
 					       struct xe_bo *bo,
 					       u64 bo_offset_or_userptr,
 					       u64 addr, u64 range, u32 op,
-					       u64 gt_mask, u32 region)
+					       u64 tile_mask, u32 region)
 {
 	struct ww_acquire_ctx ww;
 	struct xe_vma *vma, lookup;
@@ -2837,7 +2829,7 @@ static struct xe_vma *vm_bind_ioctl_lookup_vma(struct xe_vm *vm,
 		vma = xe_vma_create(vm, bo, bo_offset_or_userptr, addr,
 				    addr + range - 1,
 				    op & XE_VM_BIND_FLAG_READONLY,
-				    gt_mask);
+				    tile_mask);
 		xe_bo_unlock(bo, &ww);
 		if (!vma)
 			return ERR_PTR(-ENOMEM);
@@ -2877,7 +2869,7 @@ static struct xe_vma *vm_bind_ioctl_lookup_vma(struct xe_vm *vm,
 		vma = xe_vma_create(vm, NULL, bo_offset_or_userptr, addr,
 				    addr + range - 1,
 				    op & XE_VM_BIND_FLAG_READONLY,
-				    gt_mask);
+				    tile_mask);
 		if (!vma)
 			return ERR_PTR(-ENOMEM);
 
@@ -3114,11 +3106,11 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			goto put_engine;
 		}
 
-		if (bind_ops[i].gt_mask) {
-			u64 valid_gts = BIT(xe->info.tile_count) - 1;
+		if (bind_ops[i].tile_mask) {
+			u64 valid_tiles = BIT(xe->info.tile_count) - 1;
 
-			if (XE_IOCTL_ERR(xe, bind_ops[i].gt_mask &
-					 ~valid_gts)) {
+			if (XE_IOCTL_ERR(xe, bind_ops[i].tile_mask &
+					 ~valid_tiles)) {
 				err = -EINVAL;
 				goto put_engine;
 			}
@@ -3209,11 +3201,11 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u64 addr = bind_ops[i].addr;
 		u32 op = bind_ops[i].op;
 		u64 obj_offset = bind_ops[i].obj_offset;
-		u64 gt_mask = bind_ops[i].gt_mask;
+		u64 tile_mask = bind_ops[i].tile_mask;
 		u32 region = bind_ops[i].region;
 
 		vmas[i] = vm_bind_ioctl_lookup_vma(vm, bos[i], obj_offset,
-						   addr, range, op, gt_mask,
+						   addr, range, op, tile_mask,
 						   region);
 		if (IS_ERR(vmas[i])) {
 			err = PTR_ERR(vmas[i]);
@@ -3387,8 +3379,8 @@ void xe_vm_unlock(struct xe_vm *vm, struct ww_acquire_ctx *ww)
 int xe_vm_invalidate_vma(struct xe_vma *vma)
 {
 	struct xe_device *xe = vma->vm->xe;
-	struct xe_gt *gt;
-	u32 gt_needs_invalidate = 0;
+	struct xe_tile *tile;
+	u32 tile_needs_invalidate = 0;
 	int seqno[XE_MAX_TILES_PER_DEVICE];
 	u8 id;
 	int ret;
@@ -3410,25 +3402,29 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 		}
 	}
 
-	for_each_gt(gt, xe, id) {
-		if (xe_pt_zap_ptes(gt, vma)) {
-			gt_needs_invalidate |= BIT(id);
+	for_each_tile(tile, xe, id) {
+		if (xe_pt_zap_ptes(tile, vma)) {
+			tile_needs_invalidate |= BIT(id);
 			xe_device_wmb(xe);
-			seqno[id] = xe_gt_tlb_invalidation_vma(gt, NULL, vma);
+			/*
+			 * FIXME: We potentially need to invalidate multiple
+			 * GTs within the tile
+			 */
+			seqno[id] = xe_gt_tlb_invalidation_vma(&tile->primary_gt, NULL, vma);
 			if (seqno[id] < 0)
 				return seqno[id];
 		}
 	}
 
-	for_each_gt(gt, xe, id) {
-		if (gt_needs_invalidate & BIT(id)) {
-			ret = xe_gt_tlb_invalidation_wait(gt, seqno[id]);
+	for_each_tile(tile, xe, id) {
+		if (tile_needs_invalidate & BIT(id)) {
+			ret = xe_gt_tlb_invalidation_wait(&tile->primary_gt, seqno[id]);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	vma->usm.gt_invalidated = vma->gt_mask;
+	vma->usm.tile_invalidated = vma->tile_mask;
 
 	return 0;
 }

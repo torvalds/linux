@@ -151,7 +151,6 @@ static void xe_ggtt_initial_clear(struct xe_ggtt *ggtt)
 int xe_ggtt_init(struct xe_ggtt *ggtt)
 {
 	struct xe_device *xe = tile_to_xe(ggtt->tile);
-	struct xe_gt *gt = &ggtt->tile->primary_gt;
 	unsigned int flags;
 	int err;
 
@@ -164,9 +163,9 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 	if (ggtt->flags & XE_GGTT_FLAGS_64K)
 		flags |= XE_BO_CREATE_SYSTEM_BIT;
 	else
-		flags |= XE_BO_CREATE_VRAM_IF_DGFX(gt);
+		flags |= XE_BO_CREATE_VRAM_IF_DGFX(ggtt->tile);
 
-	ggtt->scratch = xe_bo_create_pin_map(xe, gt, NULL, XE_PAGE_SIZE,
+	ggtt->scratch = xe_bo_create_pin_map(xe, ggtt->tile, NULL, XE_PAGE_SIZE,
 					     ttm_bo_type_kernel,
 					     flags);
 

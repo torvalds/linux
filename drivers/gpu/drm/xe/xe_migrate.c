@@ -129,6 +129,7 @@ static u64 xe_migrate_vram_ofs(u64 addr)
 static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 {
 	struct xe_gt *gt = m->gt;
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = vm->xe;
 	size_t cleared_size;
 	u64 vram_addr;
@@ -139,9 +140,9 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 
 	cleared_size = xe_device_ccs_bytes(xe, MAX_PREEMPTDISABLE_TRANSFER);
 	cleared_size = PAGE_ALIGN(cleared_size);
-	m->cleared_bo = xe_bo_create_pin_map(xe, gt, vm, cleared_size,
+	m->cleared_bo = xe_bo_create_pin_map(xe, tile, vm, cleared_size,
 					     ttm_bo_type_kernel,
-					     XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+					     XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 					     XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(m->cleared_bo))
 		return PTR_ERR(m->cleared_bo);
@@ -161,7 +162,8 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	u32 num_entries = NUM_PT_SLOTS, num_level = vm->pt_root[id]->level;
 	u32 map_ofs, level, i;
 	struct xe_device *xe = gt_to_xe(m->gt);
-	struct xe_bo *bo, *batch = gt->kernel_bb_pool->bo;
+	struct xe_tile *tile = gt_to_tile(m->gt);
+	struct xe_bo *bo, *batch = tile->mem.kernel_bb_pool->bo;
 	u64 entry;
 	int ret;
 
@@ -175,10 +177,10 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 	/* Need to be sure everything fits in the first PT, or create more */
 	XE_BUG_ON(m->batch_base_ofs + batch->size >= SZ_2M);
 
-	bo = xe_bo_create_pin_map(vm->xe, m->gt, vm,
+	bo = xe_bo_create_pin_map(vm->xe, tile, vm,
 				  num_entries * XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
@@ -984,7 +986,7 @@ err_sync:
 	return fence;
 }
 
-static void write_pgtable(struct xe_gt *gt, struct xe_bb *bb, u64 ppgtt_ofs,
+static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 			  const struct xe_vm_pgtable_update *update,
 			  struct xe_migrate_pt_update *pt_update)
 {
@@ -1023,7 +1025,7 @@ static void write_pgtable(struct xe_gt *gt, struct xe_bb *bb, u64 ppgtt_ofs,
 			(chunk * 2 + 1);
 		bb->cs[bb->len++] = lower_32_bits(addr);
 		bb->cs[bb->len++] = upper_32_bits(addr);
-		ops->populate(pt_update, gt, NULL, bb->cs + bb->len, ofs, chunk,
+		ops->populate(pt_update, tile, NULL, bb->cs + bb->len, ofs, chunk,
 			      update);
 
 		bb->len += chunk * 2;
@@ -1081,7 +1083,7 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 	for (i = 0; i < num_updates; i++) {
 		const struct xe_vm_pgtable_update *update = &updates[i];
 
-		ops->populate(pt_update, m->gt, &update->pt_bo->vmap, NULL,
+		ops->populate(pt_update, gt_to_tile(m->gt), &update->pt_bo->vmap, NULL,
 			      update->ofs, update->qwords, update);
 	}
 
@@ -1149,6 +1151,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 {
 	const struct xe_migrate_pt_update_ops *ops = pt_update->ops;
 	struct xe_gt *gt = m->gt;
+	struct xe_tile *tile = gt_to_tile(m->gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_sched_job *job;
 	struct dma_fence *fence;
@@ -1243,7 +1246,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		addr = xe_migrate_vm_addr(ppgtt_ofs, 0) +
 			(page_ofs / sizeof(u64)) * XE_PAGE_SIZE;
 		for (i = 0; i < num_updates; i++)
-			write_pgtable(m->gt, bb, addr + i * XE_PAGE_SIZE,
+			write_pgtable(tile, bb, addr + i * XE_PAGE_SIZE,
 				      &updates[i], pt_update);
 	} else {
 		/* phys pages, no preamble required */
@@ -1253,7 +1256,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		/* Preemption is enabled again by the ring ops. */
 		emit_arb_clear(bb);
 		for (i = 0; i < num_updates; i++)
-			write_pgtable(m->gt, bb, 0, &updates[i], pt_update);
+			write_pgtable(tile, bb, 0, &updates[i], pt_update);
 	}
 
 	if (!eng)

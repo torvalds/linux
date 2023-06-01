@@ -63,7 +63,7 @@ static int run_sanity_job(struct xe_migrate *m, struct xe_device *xe,
 
 static void
 sanity_populate_cb(struct xe_migrate_pt_update *pt_update,
-		   struct xe_gt *gt, struct iosys_map *map, void *dst,
+		   struct xe_tile *tile, struct iosys_map *map, void *dst,
 		   u32 qword_ofs, u32 num_qwords,
 		   const struct xe_vm_pgtable_update *update)
 {
@@ -76,7 +76,7 @@ sanity_populate_cb(struct xe_migrate_pt_update *pt_update,
 	for (i = 0; i < num_qwords; i++) {
 		value = (qword_ofs + i - update->ofs) * 0x1111111111111111ULL;
 		if (map)
-			xe_map_wr(gt_to_xe(gt), map, (qword_ofs + i) *
+			xe_map_wr(tile_to_xe(tile), map, (qword_ofs + i) *
 				  sizeof(u64), u64, value);
 		else
 			ptr[i] = value;
@@ -108,7 +108,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	const char *str = big ? "Copying big bo" : "Copying small bo";
 	int err;
 
-	struct xe_bo *sysmem = xe_bo_create_locked(xe, m->gt, NULL,
+	struct xe_bo *sysmem = xe_bo_create_locked(xe, gt_to_tile(m->gt), NULL,
 						   bo->size,
 						   ttm_bo_type_kernel,
 						   XE_BO_CREATE_SYSTEM_BIT);
@@ -240,6 +240,7 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 {
 	struct xe_gt *gt = m->gt;
+	struct xe_tile *tile = gt_to_tile(m->gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_bo *pt, *bo = m->pt_bo, *big, *tiny;
 	struct xe_res_cursor src_it;
@@ -256,18 +257,18 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		return;
 	}
 
-	big = xe_bo_create_pin_map(xe, m->gt, m->eng->vm, SZ_4M,
+	big = xe_bo_create_pin_map(xe, tile, m->eng->vm, SZ_4M,
 				   ttm_bo_type_kernel,
-				   XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
+				   XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				   XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(big)) {
 		KUNIT_FAIL(test, "Failed to allocate bo: %li\n", PTR_ERR(big));
 		goto vunmap;
 	}
 
-	pt = xe_bo_create_pin_map(xe, m->gt, m->eng->vm, XE_PAGE_SIZE,
+	pt = xe_bo_create_pin_map(xe, tile, m->eng->vm, XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(pt)) {
 		KUNIT_FAIL(test, "Failed to allocate fake pt: %li\n",
@@ -275,10 +276,10 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_big;
 	}
 
-	tiny = xe_bo_create_pin_map(xe, m->gt, m->eng->vm,
+	tiny = xe_bo_create_pin_map(xe, tile, m->eng->vm,
 				    2 * SZ_4K,
 				    ttm_bo_type_kernel,
-				    XE_BO_CREATE_VRAM_IF_DGFX(m->gt) |
+				    XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				    XE_BO_CREATE_PINNED_BIT);
 	if (IS_ERR(tiny)) {
 		KUNIT_FAIL(test, "Failed to allocate fake pt: %li\n",
@@ -286,7 +287,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_pt;
 	}
 
-	bb = xe_bb_new(m->gt, 32, xe->info.supports_usm);
+	bb = xe_bb_new(gt, 32, xe->info.supports_usm);
 	if (IS_ERR(bb)) {
 		KUNIT_FAIL(test, "Failed to create batchbuffer: %li\n",
 			   PTR_ERR(bb));

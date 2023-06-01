@@ -54,7 +54,7 @@ xe_vm_find_overlapping_vma(struct xe_vm *vm, const struct xe_vma *vma);
 
 #define xe_vm_assert_held(vm) dma_resv_assert_held(&(vm)->resv)
 
-u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_gt *full_gt);
+u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile);
 
 int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file);

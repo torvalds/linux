@@ -11,7 +11,6 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_gt.h"
 #include "xe_map.h"
 
 static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
@@ -33,14 +32,14 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 	sa_manager->bo = NULL;
 }
 
-struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_gt *gt, u32 size, u32 align)
+struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align)
 {
-	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_device *xe = tile_to_xe(tile);
 	u32 managed_size = size - SZ_4K;
 	struct xe_bo *bo;
 	int ret;
 
-	struct xe_sa_manager *sa_manager = drmm_kzalloc(&gt_to_xe(gt)->drm,
+	struct xe_sa_manager *sa_manager = drmm_kzalloc(&tile_to_xe(tile)->drm,
 							sizeof(*sa_manager),
 							GFP_KERNEL);
 	if (!sa_manager)
@@ -48,8 +47,8 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_gt *gt, u32 size, u32 alig
 
 	sa_manager->bo = NULL;
 
-	bo = xe_bo_create_pin_map(xe, gt, NULL, size, ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+	bo = xe_bo_create_pin_map(xe, tile, NULL, size, ttm_bo_type_kernel,
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo)) {
 		drm_err(&xe->drm, "failed to allocate bo for sa manager: %ld\n",
@@ -90,7 +89,7 @@ struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
 void xe_sa_bo_flush_write(struct drm_suballoc *sa_bo)
 {
 	struct xe_sa_manager *sa_manager = to_xe_sa_manager(sa_bo->manager);
-	struct xe_device *xe = gt_to_xe(sa_manager->bo->gt);
+	struct xe_device *xe = tile_to_xe(sa_manager->bo->tile);
 
 	if (!sa_manager->bo->vmap.is_iomem)
 		return;

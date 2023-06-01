@@ -95,7 +95,7 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	batch_ofs = xe_bo_ggtt_addr(gt->kernel_bb_pool->bo);
+	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
 	job = xe_bb_create_wa_job(e, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
@@ -144,7 +144,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 		}
 	}
 
-	batch_ofs = xe_bo_ggtt_addr(gt->kernel_bb_pool->bo);
+	batch_ofs = xe_bo_ggtt_addr(gt_to_tile(gt)->mem.kernel_bb_pool->bo);
 	job = xe_bb_create_wa_job(e, bb, batch_ofs);
 	if (IS_ERR(job)) {
 		xe_bb_free(bb, NULL);
@@ -370,31 +370,16 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		goto err_force_wake;
 
 	if (!xe_gt_is_media_type(gt)) {
-		gt->kernel_bb_pool = xe_sa_bo_manager_init(gt, SZ_1M, 16);
-		if (IS_ERR(gt->kernel_bb_pool)) {
-			err = PTR_ERR(gt->kernel_bb_pool);
-			goto err_force_wake;
-		}
-
 		/*
 		 * USM has its only SA pool to non-block behind user operations
 		 */
 		if (gt_to_xe(gt)->info.supports_usm) {
-			gt->usm.bb_pool = xe_sa_bo_manager_init(gt, SZ_1M, 16);
+			gt->usm.bb_pool = xe_sa_bo_manager_init(gt_to_tile(gt), SZ_1M, 16);
 			if (IS_ERR(gt->usm.bb_pool)) {
 				err = PTR_ERR(gt->usm.bb_pool);
 				goto err_force_wake;
 			}
 		}
-	} else {
-		struct xe_gt *full_gt = xe_find_full_gt(gt);
-
-		/*
-		 * Media GT's kernel_bb_pool is only used while recording the
-		 * default context during GT init.  The USM pool should never
-		 * be needed on the media GT.
-		 */
-		gt->kernel_bb_pool = full_gt->kernel_bb_pool;
 	}
 
 	if (!xe_gt_is_media_type(gt)) {

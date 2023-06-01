@@ -458,7 +458,7 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 			}
 
 			xe_vm_assert_held(vm);
-			if (list_empty(&vma->rebind_link) && vma->gt_present)
+			if (list_empty(&vma->rebind_link) && vma->tile_present)
 				list_add_tail(&vma->rebind_link, &vm->rebind_list);
 
 			if (vm_resv_locked)
@@ -565,7 +565,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
 	struct ttm_resource *old_mem = ttm_bo->resource;
 	struct ttm_tt *ttm = ttm_bo->ttm;
-	struct xe_gt *gt = NULL;
+	struct xe_tile *tile = NULL;
 	struct dma_fence *fence;
 	bool move_lacks_source;
 	bool needs_clear;
@@ -635,15 +635,15 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		goto out;
 	}
 
-	if (bo->gt)
-		gt = bo->gt;
+	if (bo->tile)
+		tile = bo->tile;
 	else if (resource_is_vram(new_mem))
-		gt = &mem_type_to_tile(xe, new_mem->mem_type)->primary_gt;
+		tile = mem_type_to_tile(xe, new_mem->mem_type);
 	else if (resource_is_vram(old_mem))
-		gt = &mem_type_to_tile(xe, old_mem->mem_type)->primary_gt;
+		tile = mem_type_to_tile(xe, old_mem->mem_type);
 
-	XE_BUG_ON(!gt);
-	XE_BUG_ON(!gt->migrate);
+	XE_BUG_ON(!tile);
+	XE_BUG_ON(!tile->primary_gt.migrate);
 
 	trace_xe_bo_move(bo);
 	xe_device_mem_access_get(xe);
@@ -664,7 +664,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 			/* Create a new VMAP once kernel BO back in VRAM */
 			if (!ret && resource_is_vram(new_mem)) {
-				void *new_addr = gt_to_tile(gt)->mem.vram.mapping +
+				void *new_addr = tile->mem.vram.mapping +
 					(new_mem->start << PAGE_SHIFT);
 
 				if (XE_WARN_ON(new_mem->start == XE_BO_INVALID_OFFSET)) {
@@ -681,9 +681,10 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		}
 	} else {
 		if (move_lacks_source)
-			fence = xe_migrate_clear(gt->migrate, bo, new_mem);
+			fence = xe_migrate_clear(tile->primary_gt.migrate, bo, new_mem);
 		else
-			fence = xe_migrate_copy(gt->migrate, bo, bo, old_mem, new_mem);
+			fence = xe_migrate_copy(tile->primary_gt.migrate,
+						bo, bo, old_mem, new_mem);
 		if (IS_ERR(fence)) {
 			ret = PTR_ERR(fence);
 			xe_device_mem_access_put(xe);
@@ -964,7 +965,7 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 	WARN_ON(!list_empty(&bo->vmas));
 
 	if (bo->ggtt_node.size)
-		xe_ggtt_remove_bo(gt_to_tile(bo->gt)->mem.ggtt, bo);
+		xe_ggtt_remove_bo(bo->tile->mem.ggtt, bo);
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
@@ -1086,7 +1087,7 @@ void xe_bo_free(struct xe_bo *bo)
 }
 
 struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
-				    struct xe_gt *gt, struct dma_resv *resv,
+				    struct xe_tile *tile, struct dma_resv *resv,
 				    size_t size, enum ttm_bo_type type,
 				    u32 flags)
 {
@@ -1099,7 +1100,7 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	int err;
 
 	/* Only kernel objects should set GT */
-	XE_BUG_ON(gt && type != ttm_bo_type_kernel);
+	XE_BUG_ON(tile && type != ttm_bo_type_kernel);
 
 	if (XE_WARN_ON(!size))
 		return ERR_PTR(-EINVAL);
@@ -1120,7 +1121,7 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 		alignment = SZ_4K >> PAGE_SHIFT;
 	}
 
-	bo->gt = gt;
+	bo->tile = tile;
 	bo->size = size;
 	bo->flags = flags;
 	bo->ttm.base.funcs = &xe_gem_object_funcs;
@@ -1202,7 +1203,7 @@ static int __xe_bo_fixed_placement(struct xe_device *xe,
 
 struct xe_bo *
 xe_bo_create_locked_range(struct xe_device *xe,
-			  struct xe_gt *gt, struct xe_vm *vm,
+			  struct xe_tile *tile, struct xe_vm *vm,
 			  size_t size, u64 start, u64 end,
 			  enum ttm_bo_type type, u32 flags)
 {
@@ -1225,7 +1226,7 @@ xe_bo_create_locked_range(struct xe_device *xe,
 		}
 	}
 
-	bo = __xe_bo_create_locked(xe, bo, gt, vm ? &vm->resv : NULL, size,
+	bo = __xe_bo_create_locked(xe, bo, tile, vm ? &vm->resv : NULL, size,
 				   type, flags);
 	if (IS_ERR(bo))
 		return bo;
@@ -1235,16 +1236,16 @@ xe_bo_create_locked_range(struct xe_device *xe,
 	bo->vm = vm;
 
 	if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
-		if (!gt && flags & XE_BO_CREATE_STOLEN_BIT)
-			gt = xe_device_get_gt(xe, 0);
+		if (!tile && flags & XE_BO_CREATE_STOLEN_BIT)
+			tile = xe_device_get_root_tile(xe);
 
-		XE_BUG_ON(!gt);
+		XE_BUG_ON(!tile);
 
 		if (flags & XE_BO_CREATE_STOLEN_BIT &&
 		    flags & XE_BO_FIXED_PLACEMENT_BIT) {
-			err = xe_ggtt_insert_bo_at(gt_to_tile(gt)->mem.ggtt, bo, start);
+			err = xe_ggtt_insert_bo_at(tile->mem.ggtt, bo, start);
 		} else {
-			err = xe_ggtt_insert_bo(gt_to_tile(gt)->mem.ggtt, bo);
+			err = xe_ggtt_insert_bo(tile->mem.ggtt, bo);
 		}
 		if (err)
 			goto err_unlock_put_bo;
@@ -1258,18 +1259,18 @@ err_unlock_put_bo:
 	return ERR_PTR(err);
 }
 
-struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_tile *tile,
 				  struct xe_vm *vm, size_t size,
 				  enum ttm_bo_type type, u32 flags)
 {
-	return xe_bo_create_locked_range(xe, gt, vm, size, 0, ~0ULL, type, flags);
+	return xe_bo_create_locked_range(xe, tile, vm, size, 0, ~0ULL, type, flags);
 }
 
-struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_tile *tile,
 			   struct xe_vm *vm, size_t size,
 			   enum ttm_bo_type type, u32 flags)
 {
-	struct xe_bo *bo = xe_bo_create_locked(xe, gt, vm, size, type, flags);
+	struct xe_bo *bo = xe_bo_create_locked(xe, tile, vm, size, type, flags);
 
 	if (!IS_ERR(bo))
 		xe_bo_unlock_vm_held(bo);
@@ -1277,7 +1278,7 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
 	return bo;
 }
 
-struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_tile *tile,
 				      struct xe_vm *vm,
 				      size_t size, u64 offset,
 				      enum ttm_bo_type type, u32 flags)
@@ -1291,7 +1292,7 @@ struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_gt *gt,
 	    xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		flags |= XE_BO_CREATE_GGTT_BIT;
 
-	bo = xe_bo_create_locked_range(xe, gt, vm, size, start, end, type, flags);
+	bo = xe_bo_create_locked_range(xe, tile, vm, size, start, end, type, flags);
 	if (IS_ERR(bo))
 		return bo;
 
@@ -1315,18 +1316,18 @@ err_put:
 	return ERR_PTR(err);
 }
 
-struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 				   struct xe_vm *vm, size_t size,
 				   enum ttm_bo_type type, u32 flags)
 {
-	return xe_bo_create_pin_map_at(xe, gt, vm, size, ~0ull, type, flags);
+	return xe_bo_create_pin_map_at(xe, tile, vm, size, ~0ull, type, flags);
 }
 
-struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
+struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 				     const void *data, size_t size,
 				     enum ttm_bo_type type, u32 flags)
 {
-	struct xe_bo *bo = xe_bo_create_pin_map(xe, gt, NULL,
+	struct xe_bo *bo = xe_bo_create_pin_map(xe, tile, NULL,
 						ALIGN(size, PAGE_SIZE),
 						type, flags);
 	if (IS_ERR(bo))
@@ -1957,7 +1958,7 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 			   page_size);
 
 	bo = xe_bo_create(xe, NULL, NULL, args->size, ttm_bo_type_device,
-			  XE_BO_CREATE_VRAM_IF_DGFX(to_gt(xe)) |
+			  XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
 			  XE_BO_CREATE_USER_BIT | XE_BO_SCANOUT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);

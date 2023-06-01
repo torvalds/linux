@@ -20,8 +20,8 @@ struct xe_lrc {
 	 */
 	struct xe_bo *bo;
 
-	/** @full_gt: full GT which this LRC belongs to */
-	struct xe_gt *full_gt;
+	/** @tile: tile which this LRC belongs to */
+	struct xe_tile *tile;
 
 	/** @flags: LRC flags */
 	u32 flags;

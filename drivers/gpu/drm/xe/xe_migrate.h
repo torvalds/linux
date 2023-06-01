@@ -19,6 +19,7 @@ struct xe_migrate;
 struct xe_migrate_pt_update;
 struct xe_sync_entry;
 struct xe_pt;
+struct xe_tile;
 struct xe_vm;
 struct xe_vm_pgtable_update;
 struct xe_vma;
@@ -31,7 +32,7 @@ struct xe_migrate_pt_update_ops {
 	/**
 	 * @populate: Populate a command buffer or page-table with ptes.
 	 * @pt_update: Embeddable callback argument.
-	 * @gt: The gt for the current operation.
+	 * @tile: The tile for the current operation.
 	 * @map: struct iosys_map into the memory to be populated.
 	 * @pos: If @map is NULL, map into the memory to be populated.
 	 * @ofs: qword offset into @map, unused if @map is NULL.
@@ -43,7 +44,7 @@ struct xe_migrate_pt_update_ops {
 	 * page-tables with PTEs.
 	 */
 	void (*populate)(struct xe_migrate_pt_update *pt_update,
-			 struct xe_gt *gt, struct iosys_map *map,
+			 struct xe_tile *tile, struct iosys_map *map,
 			 void *pos, u32 ofs, u32 num_qwords,
 			 const struct xe_vm_pgtable_update *update);
 

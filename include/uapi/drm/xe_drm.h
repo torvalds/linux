@@ -407,10 +407,10 @@ struct drm_xe_vm_bind_op {
 	__u64 addr;
 
 	/**
-	 * @gt_mask: Mask for which GTs to create binds for, 0 == All GTs,
+	 * @tile_mask: Mask for which tiles to create binds for, 0 == All tiles,
 	 * only applies to creating new VMAs
 	 */
-	__u64 gt_mask;
+	__u64 tile_mask;
 
 	/** @op: Operation to perform (lower 16 bits) and flags (upper 16 bits) */
 	__u32 op;

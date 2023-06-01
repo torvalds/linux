@@ -165,12 +165,10 @@ u64 gen8_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 	return __gen8_pte_encode(pte, cache, flags, pt_level);
 }
 
-static u64 __xe_pt_empty_pte(struct xe_gt *gt, struct xe_vm *vm,
+static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 			     unsigned int level)
 {
-	u8 id = gt->info.id;
-
-	XE_BUG_ON(xe_gt_is_media_type(gt));
+	u8 id = tile->id;
 
 	if (!vm->scratch_bo[id])
 		return 0;
@@ -189,7 +187,7 @@ static u64 __xe_pt_empty_pte(struct xe_gt *gt, struct xe_vm *vm,
 /**
  * xe_pt_create() - Create a page-table.
  * @vm: The vm to create for.
- * @gt: The gt to create for.
+ * @tile: The tile to create for.
  * @level: The page-table level.
  *
  * Allocate and initialize a single struct xe_pt metadata structure. Also
@@ -201,7 +199,7 @@ static u64 __xe_pt_empty_pte(struct xe_gt *gt, struct xe_vm *vm,
  * Return: A valid struct xe_pt pointer on success, Pointer error code on
  * error.
  */
-struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_gt *gt,
+struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 			   unsigned int level)
 {
 	struct xe_pt *pt;
@@ -215,9 +213,9 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_gt *gt,
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
 
-	bo = xe_bo_create_pin_map(vm->xe, gt, vm, SZ_4K,
+	bo = xe_bo_create_pin_map(vm->xe, tile, vm, SZ_4K,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT |
 				  XE_BO_CREATE_PINNED_BIT |
 				  XE_BO_CREATE_NO_RESV_EVICT);
@@ -241,30 +239,28 @@ err_kfree:
 /**
  * xe_pt_populate_empty() - Populate a page-table bo with scratch- or zero
  * entries.
- * @gt: The gt the scratch pagetable of which to use.
+ * @tile: The tile the scratch pagetable of which to use.
  * @vm: The vm we populate for.
  * @pt: The pagetable the bo of which to initialize.
  *
- * Populate the page-table bo of @pt with entries pointing into the gt's
+ * Populate the page-table bo of @pt with entries pointing into the tile's
  * scratch page-table tree if any. Otherwise populate with zeros.
  */
-void xe_pt_populate_empty(struct xe_gt *gt, struct xe_vm *vm,
+void xe_pt_populate_empty(struct xe_tile *tile, struct xe_vm *vm,
 			  struct xe_pt *pt)
 {
 	struct iosys_map *map = &pt->bo->vmap;
 	u64 empty;
 	int i;
 
-	XE_BUG_ON(xe_gt_is_media_type(gt));
-
-	if (!vm->scratch_bo[gt->info.id]) {
+	if (!vm->scratch_bo[tile->id]) {
 		/*
 		 * FIXME: Some memory is allocated already allocated to zero?
 		 * Find out which memory that is and avoid this memset...
 		 */
 		xe_map_memset(vm->xe, map, 0, 0, SZ_4K);
 	} else {
-		empty = __xe_pt_empty_pte(gt, vm, pt->level);
+		empty = __xe_pt_empty_pte(tile, vm, pt->level);
 		for (i = 0; i < XE_PDES; i++)
 			xe_pt_write(vm->xe, map, i, empty);
 	}
@@ -318,9 +314,9 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 
 /**
  * xe_pt_create_scratch() - Setup a scratch memory pagetable tree for the
- * given gt and vm.
+ * given tile and vm.
  * @xe: xe device.
- * @gt: gt to set up for.
+ * @tile: tile to set up for.
  * @vm: vm to set up for.
  *
  * Sets up a pagetable tree with one page-table per level and a single
@@ -329,10 +325,10 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
  *
  * Return: 0 on success, negative error code on error.
  */
-int xe_pt_create_scratch(struct xe_device *xe, struct xe_gt *gt,
+int xe_pt_create_scratch(struct xe_device *xe, struct xe_tile *tile,
 			 struct xe_vm *vm)
 {
-	u8 id = gt->info.id;
+	u8 id = tile->id;
 	unsigned int flags;
 	int i;
 
@@ -345,9 +341,9 @@ int xe_pt_create_scratch(struct xe_device *xe, struct xe_gt *gt,
 	if (vm->flags & XE_VM_FLAGS_64K)
 		flags |= XE_BO_CREATE_SYSTEM_BIT;
 	else
-		flags |= XE_BO_CREATE_VRAM_IF_DGFX(gt);
+		flags |= XE_BO_CREATE_VRAM_IF_DGFX(tile);
 
-	vm->scratch_bo[id] = xe_bo_create_pin_map(xe, gt, vm, SZ_4K,
+	vm->scratch_bo[id] = xe_bo_create_pin_map(xe, tile, vm, SZ_4K,
 						  ttm_bo_type_kernel,
 						  flags);
 	if (IS_ERR(vm->scratch_bo[id]))
@@ -357,11 +353,11 @@ int xe_pt_create_scratch(struct xe_device *xe, struct xe_gt *gt,
 		      vm->scratch_bo[id]->size);
 
 	for (i = 0; i < vm->pt_root[id]->level; i++) {
-		vm->scratch_pt[id][i] = xe_pt_create(vm, gt, i);
+		vm->scratch_pt[id][i] = xe_pt_create(vm, tile, i);
 		if (IS_ERR(vm->scratch_pt[id][i]))
 			return PTR_ERR(vm->scratch_pt[id][i]);
 
-		xe_pt_populate_empty(gt, vm, vm->scratch_pt[id][i]);
+		xe_pt_populate_empty(tile, vm, vm->scratch_pt[id][i]);
 	}
 
 	return 0;
@@ -410,8 +406,8 @@ struct xe_pt_stage_bind_walk {
 	/* Input parameters for the walk */
 	/** @vm: The vm we're building for. */
 	struct xe_vm *vm;
-	/** @gt: The gt we're building for. */
-	struct xe_gt *gt;
+	/** @tile: The tile we're building for. */
+	struct xe_tile *tile;
 	/** @cache: Desired cache level for the ptes */
 	enum xe_cache_level cache;
 	/** @default_pte: PTE flag only template. No address is associated */
@@ -679,7 +675,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 	if (covers || !*child) {
 		u64 flags = 0;
 
-		xe_child = xe_pt_create(xe_walk->vm, xe_walk->gt, level - 1);
+		xe_child = xe_pt_create(xe_walk->vm, xe_walk->tile, level - 1);
 		if (IS_ERR(xe_child))
 			return PTR_ERR(xe_child);
 
@@ -687,7 +683,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 			       round_down(addr, 1ull << walk->shifts[level]));
 
 		if (!covers)
-			xe_pt_populate_empty(xe_walk->gt, xe_walk->vm, xe_child);
+			xe_pt_populate_empty(xe_walk->tile, xe_walk->vm, xe_child);
 
 		*child = &xe_child->base;
 
@@ -696,7 +692,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		 * TODO: Suballocate the pt bo to avoid wasting a lot of
 		 * memory.
 		 */
-		if (GRAPHICS_VERx100(gt_to_xe(xe_walk->gt)) >= 1250 && level == 1 &&
+		if (GRAPHICS_VERx100(tile_to_xe(xe_walk->tile)) >= 1250 && level == 1 &&
 		    covers && xe_pt_scan_64K(addr, next, xe_walk)) {
 			walk->shifts = xe_compact_pt_shifts;
 			flags |= XE_PDE_64K;
@@ -719,7 +715,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
 /**
  * xe_pt_stage_bind() - Build a disconnected page-table tree for a given address
  * range.
- * @gt: The gt we're building for.
+ * @tile: The tile we're building for.
  * @vma: The vma indicating the address range.
  * @entries: Storage for the update entries used for connecting the tree to
  * the main tree at commit time.
@@ -735,7 +731,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
  * Return 0 on success, negative error code on error.
  */
 static int
-xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
+xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
 {
 	struct xe_bo *bo = vma->bo;
@@ -748,14 +744,14 @@ xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
 		.vm = vma->vm,
-		.gt = gt,
+		.tile = tile,
 		.curs = &curs,
 		.va_curs_start = vma->start,
 		.pte_flags = vma->pte_flags,
 		.wupd.entries = entries,
 		.needs_64K = (vma->vm->flags & XE_VM_FLAGS_64K) && is_vram,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[gt->info.id];
+	struct xe_pt *pt = vma->vm->pt_root[tile->id];
 	int ret;
 
 	if (is_vram) {
@@ -849,8 +845,8 @@ struct xe_pt_zap_ptes_walk {
 	struct xe_pt_walk base;
 
 	/* Input parameters for the walk */
-	/** @gt: The gt we're building for */
-	struct xe_gt *gt;
+	/** @tile: The tile we're building for */
+	struct xe_tile *tile;
 
 	/* Output */
 	/** @needs_invalidate: Whether we need to invalidate TLB*/
@@ -878,7 +874,7 @@ static int xe_pt_zap_ptes_entry(struct xe_ptw *parent, pgoff_t offset,
 	 */
 	if (xe_pt_nonshared_offsets(addr, next, --level, walk, action, &offset,
 				    &end_offset)) {
-		xe_map_memset(gt_to_xe(xe_walk->gt), &xe_child->bo->vmap,
+		xe_map_memset(tile_to_xe(xe_walk->tile), &xe_child->bo->vmap,
 			      offset * sizeof(u64), 0,
 			      (end_offset - offset) * sizeof(u64));
 		xe_walk->needs_invalidate = true;
@@ -893,7 +889,7 @@ static const struct xe_pt_walk_ops xe_pt_zap_ptes_ops = {
 
 /**
  * xe_pt_zap_ptes() - Zap (zero) gpu ptes of an address range
- * @gt: The gt we're zapping for.
+ * @tile: The tile we're zapping for.
  * @vma: GPU VMA detailing address range.
  *
  * Eviction and Userptr invalidation needs to be able to zap the
@@ -907,7 +903,7 @@ static const struct xe_pt_walk_ops xe_pt_zap_ptes_ops = {
  * Return: Whether ptes were actually updated and a TLB invalidation is
  * required.
  */
-bool xe_pt_zap_ptes(struct xe_gt *gt, struct xe_vma *vma)
+bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma)
 {
 	struct xe_pt_zap_ptes_walk xe_walk = {
 		.base = {
@@ -915,11 +911,11 @@ bool xe_pt_zap_ptes(struct xe_gt *gt, struct xe_vma *vma)
 			.shifts = xe_normal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
-		.gt = gt,
+		.tile = tile,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[gt->info.id];
+	struct xe_pt *pt = vma->vm->pt_root[tile->id];
 
-	if (!(vma->gt_present & BIT(gt->info.id)))
+	if (!(vma->tile_present & BIT(tile->id)))
 		return false;
 
 	(void)xe_pt_walk_shared(&pt->base, pt->level, vma->start, vma->end + 1,
@@ -929,7 +925,7 @@ bool xe_pt_zap_ptes(struct xe_gt *gt, struct xe_vma *vma)
 }
 
 static void
-xe_vm_populate_pgtable(struct xe_migrate_pt_update *pt_update, struct xe_gt *gt,
+xe_vm_populate_pgtable(struct xe_migrate_pt_update *pt_update, struct xe_tile *tile,
 		       struct iosys_map *map, void *data,
 		       u32 qword_ofs, u32 num_qwords,
 		       const struct xe_vm_pgtable_update *update)
@@ -938,11 +934,9 @@ xe_vm_populate_pgtable(struct xe_migrate_pt_update *pt_update, struct xe_gt *gt,
 	u64 *ptr = data;
 	u32 i;
 
-	XE_BUG_ON(xe_gt_is_media_type(gt));
-
 	for (i = 0; i < num_qwords; i++) {
 		if (map)
-			xe_map_wr(gt_to_xe(gt), map, (qword_ofs + i) *
+			xe_map_wr(tile_to_xe(tile), map, (qword_ofs + i) *
 				  sizeof(u64), u64, ptes[i].pte);
 		else
 			ptr[i] = ptes[i].pte;
@@ -1016,14 +1010,14 @@ static void xe_pt_commit_bind(struct xe_vma *vma,
 }
 
 static int
-xe_pt_prepare_bind(struct xe_gt *gt, struct xe_vma *vma,
+xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
 		   struct xe_vm_pgtable_update *entries, u32 *num_entries,
 		   bool rebind)
 {
 	int err;
 
 	*num_entries = 0;
-	err = xe_pt_stage_bind(gt, vma, entries, num_entries);
+	err = xe_pt_stage_bind(tile, vma, entries, num_entries);
 	if (!err)
 		BUG_ON(!*num_entries);
 	else /* abort! */
@@ -1250,7 +1244,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 /**
  * __xe_pt_bind_vma() - Build and connect a page-table tree for the vma
  * address range.
- * @gt: The gt to bind for.
+ * @tile: The tile to bind for.
  * @vma: The vma to bind.
  * @e: The engine with which to do pipelined page-table updates.
  * @syncs: Entries to sync on before binding the built tree to the live vm tree.
@@ -1270,7 +1264,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
  * on success, an error pointer on error.
  */
 struct dma_fence *
-__xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		 struct xe_sync_entry *syncs, u32 num_syncs,
 		 bool rebind)
 {
@@ -1291,18 +1285,17 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 	bind_pt_update.locked = false;
 	xe_bo_assert_held(vma->bo);
 	xe_vm_assert_held(vm);
-	XE_BUG_ON(xe_gt_is_media_type(gt));
 
 	vm_dbg(&vma->vm->xe->drm,
 	       "Preparing bind, with range [%llx...%llx) engine %p.\n",
 	       vma->start, vma->end, e);
 
-	err = xe_pt_prepare_bind(gt, vma, entries, &num_entries, rebind);
+	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
 		goto err;
 	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
 
-	xe_vm_dbg_print_entries(gt_to_xe(gt), entries, num_entries);
+	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 
 	if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
@@ -1310,9 +1303,9 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 			return ERR_PTR(-ENOMEM);
 	}
 
-	fence = xe_migrate_update_pgtables(gt->migrate,
+	fence = xe_migrate_update_pgtables(tile->primary_gt.migrate,
 					   vm, vma->bo,
-					   e ? e : vm->eng[gt->info.id],
+					   e ? e : vm->eng[tile->id],
 					   entries, num_entries,
 					   syncs, num_syncs,
 					   &bind_pt_update.base);
@@ -1321,7 +1314,7 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 
 		/* TLB invalidation must be done before signaling rebind */
 		if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
-			int err = invalidation_fence_init(gt, ifence, fence,
+			int err = invalidation_fence_init(&tile->primary_gt, ifence, fence,
 							  vma);
 			if (err) {
 				dma_fence_put(fence);
@@ -1344,7 +1337,7 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 				  bind_pt_update.locked ? &deferred : NULL);
 
 		/* This vma is live (again?) now */
-		vma->gt_present |= BIT(gt->info.id);
+		vma->tile_present |= BIT(tile->id);
 
 		if (bind_pt_update.locked) {
 			vma->userptr.initial_bind = true;
@@ -1373,8 +1366,8 @@ struct xe_pt_stage_unbind_walk {
 	struct xe_pt_walk base;
 
 	/* Input parameters for the walk */
-	/** @gt: The gt we're unbinding from. */
-	struct xe_gt *gt;
+	/** @tile: The tile we're unbinding from. */
+	struct xe_tile *tile;
 
 	/**
 	 * @modified_start: Walk range start, modified to include any
@@ -1479,7 +1472,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_unbind_ops = {
 /**
  * xe_pt_stage_unbind() - Build page-table update structures for an unbind
  * operation
- * @gt: The gt we're unbinding for.
+ * @tile: The tile we're unbinding for.
  * @vma: The vma we're unbinding.
  * @entries: Caller-provided storage for the update structures.
  *
@@ -1490,7 +1483,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_unbind_ops = {
  *
  * Return: The number of entries used.
  */
-static unsigned int xe_pt_stage_unbind(struct xe_gt *gt, struct xe_vma *vma,
+static unsigned int xe_pt_stage_unbind(struct xe_tile *tile, struct xe_vma *vma,
 				       struct xe_vm_pgtable_update *entries)
 {
 	struct xe_pt_stage_unbind_walk xe_walk = {
@@ -1499,12 +1492,12 @@ static unsigned int xe_pt_stage_unbind(struct xe_gt *gt, struct xe_vma *vma,
 			.shifts = xe_normal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
-		.gt = gt,
+		.tile = tile,
 		.modified_start = vma->start,
 		.modified_end = vma->end + 1,
 		.wupd.entries = entries,
 	};
-	struct xe_pt *pt = vma->vm->pt_root[gt->info.id];
+	struct xe_pt *pt = vma->vm->pt_root[tile->id];
 
 	(void)xe_pt_walk_shared(&pt->base, pt->level, vma->start, vma->end + 1,
 				 &xe_walk.base);
@@ -1514,19 +1507,17 @@ static unsigned int xe_pt_stage_unbind(struct xe_gt *gt, struct xe_vma *vma,
 
 static void
 xe_migrate_clear_pgtable_callback(struct xe_migrate_pt_update *pt_update,
-				  struct xe_gt *gt, struct iosys_map *map,
+				  struct xe_tile *tile, struct iosys_map *map,
 				  void *ptr, u32 qword_ofs, u32 num_qwords,
 				  const struct xe_vm_pgtable_update *update)
 {
 	struct xe_vma *vma = pt_update->vma;
-	u64 empty = __xe_pt_empty_pte(gt, vma->vm, update->pt->level);
+	u64 empty = __xe_pt_empty_pte(tile, vma->vm, update->pt->level);
 	int i;
-
-	XE_BUG_ON(xe_gt_is_media_type(gt));
 
 	if (map && map->is_iomem)
 		for (i = 0; i < num_qwords; ++i)
-			xe_map_wr(gt_to_xe(gt), map, (qword_ofs + i) *
+			xe_map_wr(tile_to_xe(tile), map, (qword_ofs + i) *
 				  sizeof(u64), u64, empty);
 	else if (map)
 		memset64(map->vaddr + qword_ofs * sizeof(u64), empty,
@@ -1577,7 +1568,7 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
 /**
  * __xe_pt_unbind_vma() - Disconnect and free a page-table tree for the vma
  * address range.
- * @gt: The gt to unbind for.
+ * @tile: The tile to unbind for.
  * @vma: The vma to unbind.
  * @e: The engine with which to do pipelined page-table updates.
  * @syncs: Entries to sync on before disconnecting the tree to be destroyed.
@@ -1595,7 +1586,7 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
  * on success, an error pointer on error.
  */
 struct dma_fence *
-__xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
+__xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		   struct xe_sync_entry *syncs, u32 num_syncs)
 {
 	struct xe_vm_pgtable_update entries[XE_VM_MAX_LEVEL * 2 + 1];
@@ -1614,16 +1605,15 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 
 	xe_bo_assert_held(vma->bo);
 	xe_vm_assert_held(vm);
-	XE_BUG_ON(xe_gt_is_media_type(gt));
 
 	vm_dbg(&vma->vm->xe->drm,
 	       "Preparing unbind, with range [%llx...%llx) engine %p.\n",
 	       vma->start, vma->end, e);
 
-	num_entries = xe_pt_stage_unbind(gt, vma, entries);
+	num_entries = xe_pt_stage_unbind(tile, vma, entries);
 	XE_BUG_ON(num_entries > ARRAY_SIZE(entries));
 
-	xe_vm_dbg_print_entries(gt_to_xe(gt), entries, num_entries);
+	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 
 	ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 	if (!ifence)
@@ -1634,9 +1624,9 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 	 * clear again here. The eviction may have updated pagetables at a
 	 * lower level, because it needs to be more conservative.
 	 */
-	fence = xe_migrate_update_pgtables(gt->migrate,
+	fence = xe_migrate_update_pgtables(tile->primary_gt.migrate,
 					   vm, NULL, e ? e :
-					   vm->eng[gt->info.id],
+					   vm->eng[tile->id],
 					   entries, num_entries,
 					   syncs, num_syncs,
 					   &unbind_pt_update.base);
@@ -1644,7 +1634,7 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 		int err;
 
 		/* TLB invalidation must be done before signaling unbind */
-		err = invalidation_fence_init(gt, ifence, fence, vma);
+		err = invalidation_fence_init(&tile->primary_gt, ifence, fence, vma);
 		if (err) {
 			dma_fence_put(fence);
 			kfree(ifence);
@@ -1662,18 +1652,18 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_unbind(vma, entries, num_entries,
 				    unbind_pt_update.locked ? &deferred : NULL);
-		vma->gt_present &= ~BIT(gt->info.id);
+		vma->tile_present &= ~BIT(tile->id);
 	} else {
 		kfree(ifence);
 	}
 
-	if (!vma->gt_present)
+	if (!vma->tile_present)
 		list_del_init(&vma->rebind_link);
 
 	if (unbind_pt_update.locked) {
 		XE_WARN_ON(!xe_vma_is_userptr(vma));
 
-		if (!vma->gt_present) {
+		if (!vma->tile_present) {
 			spin_lock(&vm->userptr.invalidated_lock);
 			list_del_init(&vma->userptr.invalidate_link);
 			spin_unlock(&vm->userptr.invalidated_lock);

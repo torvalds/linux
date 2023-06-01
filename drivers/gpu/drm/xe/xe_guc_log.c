@@ -87,13 +87,13 @@ static void guc_log_fini(struct drm_device *drm, void *arg)
 int xe_guc_log_init(struct xe_guc_log *log)
 {
 	struct xe_device *xe = log_to_xe(log);
-	struct xe_gt *gt = log_to_gt(log);
+	struct xe_tile *tile = gt_to_tile(log_to_gt(log));
 	struct xe_bo *bo;
 	int err;
 
-	bo = xe_bo_create_pin_map(xe, gt, NULL, guc_log_size(),
+	bo = xe_bo_create_pin_map(xe, tile, NULL, guc_log_size(),
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(gt) |
+				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);

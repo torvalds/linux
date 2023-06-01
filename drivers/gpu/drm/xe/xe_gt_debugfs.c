@@ -64,11 +64,11 @@ static int force_reset(struct seq_file *m, void *data)
 
 static int sa_info(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt = node_to_gt(m->private);
+	struct xe_tile *tile = gt_to_tile(node_to_gt(m->private));
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_suballoc_dump_debug_info(&gt->kernel_bb_pool->base, &p,
-				     gt->kernel_bb_pool->gpu_addr);
+	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, &p,
+				     tile->mem.kernel_bb_pool->gpu_addr);
 
 	return 0;
 }

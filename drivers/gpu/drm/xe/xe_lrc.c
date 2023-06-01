@@ -592,7 +592,7 @@ static void *empty_lrc_data(struct xe_hw_engine *hwe)
 
 static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 {
-	u64 desc = xe_vm_pdp4_descriptor(vm, lrc->full_gt);
+	u64 desc = xe_vm_pdp4_descriptor(vm, lrc->tile);
 
 	xe_lrc_write_ctx_reg(lrc, CTX_PDP0_UDW, upper_32_bits(desc));
 	xe_lrc_write_ctx_reg(lrc, CTX_PDP0_LDW, lower_32_bits(desc));
@@ -607,6 +607,7 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		struct xe_engine *e, struct xe_vm *vm, u32 ring_size)
 {
 	struct xe_gt *gt = hwe->gt;
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct iosys_map map;
 	void *init_data = NULL;
@@ -619,19 +620,15 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
 	 * via VM bind calls.
 	 */
-	lrc->bo = xe_bo_create_pin_map(xe, hwe->gt, vm,
+	lrc->bo = xe_bo_create_pin_map(xe, tile, vm,
 				      ring_size + xe_lrc_size(xe, hwe->class),
 				      ttm_bo_type_kernel,
-				      XE_BO_CREATE_VRAM_IF_DGFX(hwe->gt) |
+				      XE_BO_CREATE_VRAM_IF_DGFX(tile) |
 				      XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(lrc->bo))
 		return PTR_ERR(lrc->bo);
 
-	if (xe_gt_is_media_type(hwe->gt))
-		lrc->full_gt = xe_find_full_gt(hwe->gt);
-	else
-		lrc->full_gt = hwe->gt;
-
+	lrc->tile = gt_to_tile(hwe->gt);
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
 

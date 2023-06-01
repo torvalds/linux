@@ -37,17 +37,17 @@ struct xe_vma {
 	/** @bo_offset: offset into BO if not a userptr, unused for userptr */
 	u64 bo_offset;
 
-	/** @gt_mask: GT mask of where to create binding for this VMA */
-	u64 gt_mask;
+	/** @tile_mask: Tile mask of where to create binding for this VMA */
+	u64 tile_mask;
 
 	/**
-	 * @gt_present: GT mask of binding are present for this VMA.
+	 * @tile_present: GT mask of binding are present for this VMA.
 	 * protected by vm->lock, vm->resv and for userptrs,
 	 * vm->userptr.notifier_lock for writing. Needs either for reading,
 	 * but if reading is done under the vm->lock only, it needs to be held
 	 * in write mode.
 	 */
-	u64 gt_present;
+	u64 tile_present;
 
 	/**
 	 * @destroyed: VMA is destroyed, in the sense that it shouldn't be
@@ -132,8 +132,8 @@ struct xe_vma {
 
 	/** @usm: unified shared memory state */
 	struct {
-		/** @gt_invalidated: VMA has been invalidated */
-		u64 gt_invalidated;
+		/** @tile_invalidated: VMA has been invalidated */
+		u64 tile_invalidated;
 	} usm;
 
 	struct {
