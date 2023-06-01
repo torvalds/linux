@@ -76,7 +76,12 @@ struct xe_tile {
 	 */
 	struct xe_gt *primary_gt;
 
-	/* TODO: Add media GT here */
+	/**
+	 * @media_gt: Media GT
+	 *
+	 * Only present on devices with media version >= 13.
+	 */
+	struct xe_gt *media_gt;
 
 	/**
 	 * @mmio: MMIO info for a tile.
