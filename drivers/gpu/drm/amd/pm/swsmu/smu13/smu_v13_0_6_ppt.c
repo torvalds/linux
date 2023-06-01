@@ -80,7 +80,10 @@
 /* possible frequency drift (1Mhz) */
 #define EPSILON 1
 
-#define smnPCIE_ESM_CTRL 0x111003D0
+#define smnPCIE_ESM_CTRL 0x193D0
+#define smnPCIE_LC_LINK_WIDTH_CNTL 0x1ab40288
+#define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK 0x00000070L
+#define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT 0x4
 
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
@@ -197,6 +200,7 @@ struct PPTable_t {
 };
 
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ16_TO_UINT(x) ((x) >> 16)
 
 struct smu_v13_0_6_dpm_map {
 	enum smu_clk_type clk_type;
@@ -1935,6 +1939,15 @@ static void smu_v13_0_6_log_thermal_throttling_event(struct smu_context *smu)
 						   smu_v13_0_6_throttler_map));
 }
 
+static int
+smu_v13_0_6_get_current_pcie_link_width_level(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	return REG_GET_FIELD(RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL),
+			     PCIE_LC_LINK_WIDTH_CNTL, LC_LINK_WIDTH_RD);
+}
+
 static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1953,8 +1966,12 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
 		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0, inst0, xcc0;
 	MetricsTable_t *metrics;
-	int i, ret = 0;
+
+	inst0 = adev->sdma.instance[0].aid_id;
+	xcc0 = GET_INST(GC, 0);
 
 	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
 	ret = smu_v13_0_6_get_metrics_table(smu, metrics, true);
@@ -1963,51 +1980,59 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
 
-	/* TODO: Decide on how to fill in zero value fields */
-	gpu_metrics->temperature_edge = 0;
-	gpu_metrics->temperature_hotspot = 0;
-	gpu_metrics->temperature_mem = 0;
-	gpu_metrics->temperature_vrgfx = 0;
-	gpu_metrics->temperature_vrsoc = 0;
-	gpu_metrics->temperature_vrmem = 0;
+	gpu_metrics->temperature_hotspot =
+		SMUQ10_TO_UINT(metrics->MaxSocketTemperature);
+	/* Individual HBM stack temperature is not reported */
+	gpu_metrics->temperature_mem =
+		SMUQ10_TO_UINT(metrics->MaxHbmTemperature);
+	/* Reports max temperature of all voltage rails */
+	gpu_metrics->temperature_vrsoc =
+		SMUQ10_TO_UINT(metrics->MaxVrTemperature);
 
-	gpu_metrics->average_gfx_activity = 0;
-	gpu_metrics->average_umc_activity = 0;
-	gpu_metrics->average_mm_activity = 0;
+	gpu_metrics->average_gfx_activity =
+		SMUQ10_TO_UINT(metrics->SocketGfxBusy);
+	gpu_metrics->average_umc_activity =
+		SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
 
-	gpu_metrics->average_socket_power = 0;
-	gpu_metrics->energy_accumulator = 0;
+	gpu_metrics->average_socket_power =
+		SMUQ10_TO_UINT(metrics->SocketPower);
+	gpu_metrics->energy_accumulator =
+		SMUQ16_TO_UINT(metrics->SocketEnergyAcc);
 
-	gpu_metrics->average_gfxclk_frequency = 0;
-	gpu_metrics->average_socclk_frequency = 0;
-	gpu_metrics->average_uclk_frequency = 0;
-	gpu_metrics->average_vclk0_frequency = 0;
-	gpu_metrics->average_dclk0_frequency = 0;
+	gpu_metrics->current_gfxclk =
+		SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc0]);
+	gpu_metrics->current_socclk =
+		SMUQ10_TO_UINT(metrics->SocclkFrequency[inst0]);
+	gpu_metrics->current_uclk = SMUQ10_TO_UINT(metrics->UclkFrequency);
+	gpu_metrics->current_vclk0 =
+		SMUQ10_TO_UINT(metrics->VclkFrequency[inst0]);
+	gpu_metrics->current_dclk0 =
+		SMUQ10_TO_UINT(metrics->DclkFrequency[inst0]);
 
-	gpu_metrics->current_gfxclk = 0;
-	gpu_metrics->current_socclk = 0;
-	gpu_metrics->current_uclk = 0;
-	gpu_metrics->current_vclk0 = 0;
-	gpu_metrics->current_dclk0 = 0;
+	gpu_metrics->average_gfxclk_frequency = gpu_metrics->current_gfxclk;
+	gpu_metrics->average_socclk_frequency = gpu_metrics->current_socclk;
+	gpu_metrics->average_uclk_frequency = gpu_metrics->current_uclk;
+	gpu_metrics->average_vclk0_frequency = gpu_metrics->current_vclk0;
+	gpu_metrics->average_dclk0_frequency = gpu_metrics->current_dclk0;
 
+	/* Throttle status is not reported through metrics now */
 	gpu_metrics->throttle_status = 0;
-	gpu_metrics->indep_throttle_status = smu_cmn_get_indep_throttler_status(
-		gpu_metrics->throttle_status, smu_v13_0_6_throttler_map);
 
-	gpu_metrics->current_fan_speed = 0;
-
-	gpu_metrics->pcie_link_width = 0;
-	gpu_metrics->pcie_link_speed = smu_v13_0_6_get_current_pcie_link_speed(smu);
+	if (!(adev->flags & AMD_IS_APU)) {
+		gpu_metrics->pcie_link_width =
+			smu_v13_0_6_get_current_pcie_link_width_level(smu);
+		gpu_metrics->pcie_link_speed =
+			smu_v13_0_6_get_current_pcie_link_speed(smu);
+	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
-	gpu_metrics->gfx_activity_acc = 0;
-	gpu_metrics->mem_activity_acc = 0;
+	gpu_metrics->gfx_activity_acc =
+		SMUQ10_TO_UINT(metrics->SocketGfxBusyAcc);
+	gpu_metrics->mem_activity_acc =
+		SMUQ10_TO_UINT(metrics->DramBandwidthUtilizationAcc);
 
-	for (i = 0; i < NUM_HBM_INSTANCES; i++)
-		gpu_metrics->temperature_hbm[i] = 0;
-
-	gpu_metrics->firmware_timestamp = 0;
+	gpu_metrics->firmware_timestamp = metrics->Timestamp;
 
 	*table = (void *)gpu_metrics;
 	kfree(metrics);
