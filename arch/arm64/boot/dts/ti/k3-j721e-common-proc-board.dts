@@ -174,6 +174,36 @@
 };
 
 &main_pmx0 {
+	main_uart0_pins_default: main-uart0-pins-default {
+		pinctrl-single,pins = <
+			J721E_IOPAD(0x1d4, PIN_INPUT, 1) /* (Y3) SPI1_CS0.UART0_CTSn */
+			J721E_IOPAD(0x1c0, PIN_OUTPUT, 1) /* (AA2) SPI0_CS0.UART0_RTSn */
+			J721E_IOPAD(0x1e8, PIN_INPUT, 0) /* (AB2) UART0_RXD */
+			J721E_IOPAD(0x1ec, PIN_OUTPUT, 0) /* (AB3) UART0_TXD */
+		>;
+	};
+
+	main_uart1_pins_default: main-uart1-pins-default {
+		pinctrl-single,pins = <
+			J721E_IOPAD(0x1f8, PIN_INPUT, 0) /* (AA4) UART1_RXD */
+			J721E_IOPAD(0x1fc, PIN_OUTPUT, 0) /* (AB4) UART1_TXD */
+		>;
+	};
+
+	main_uart2_pins_default: main-uart2-pins-default {
+		pinctrl-single,pins = <
+			J721E_IOPAD(0x1dc, PIN_INPUT, 3) /* (Y1) SPI1_CLK.UART2_RXD */
+			J721E_IOPAD(0x1e0, PIN_OUTPUT, 3) /* (Y5) SPI1_D0.UART2_TXD */
+		>;
+	};
+
+	main_uart4_pins_default: main-uart4-pins-default {
+		pinctrl-single,pins = <
+			J721E_IOPAD(0x190, PIN_INPUT, 1) /* (W23) RGMII6_TD3.UART4_RXD */
+			J721E_IOPAD(0x194, PIN_OUTPUT, 1) /* (W28) RGMII6_TD2.UART4_TXD */
+		>;
+	};
+
 	sw10_button_pins_default: sw10-button-pins-default {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x0, PIN_INPUT, 7) /* (AC18) EXTINTn.GPIO0_0 */
@@ -295,6 +325,22 @@
 };
 
 &wkup_pmx0 {
+	wkup_uart0_pins_default: wkup-uart0-pins-default {
+		pinctrl-single,pins = <
+			J721E_WKUP_IOPAD(0xa0, PIN_INPUT, 0) /* (J29) WKUP_UART0_RXD */
+			J721E_WKUP_IOPAD(0xa4, PIN_OUTPUT, 0) /* (J28) WKUP_UART0_TXD */
+		>;
+	};
+
+	mcu_uart0_pins_default: mcu-uart0-pins-default {
+		pinctrl-single,pins = <
+			J721E_WKUP_IOPAD(0xe8, PIN_INPUT, 0) /* (H29) WKUP_GPIO0_14.MCU_UART0_CTSn */
+			J721E_WKUP_IOPAD(0xec, PIN_OUTPUT, 0) /* (J27) WKUP_GPIO0_15.MCU_UART0_RTSn */
+			J721E_WKUP_IOPAD(0xe4, PIN_INPUT, 0) /* (H28) WKUP_GPIO0_13.MCU_UART0_RXD */
+			J721E_WKUP_IOPAD(0xe0, PIN_OUTPUT, 0) /* (G29) WKUP_GPIO0_12.MCU_UART0_TXD */
+		>;
+	};
+
 	sw11_button_pins_default: sw11-button-pins-default {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0xcc, PIN_INPUT, 7) /* (G28) WKUP_GPIO0_7 */
@@ -375,32 +421,40 @@
 &wkup_uart0 {
 	/* Wakeup UART is used by System firmware */
 	status = "reserved";
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_uart0_pins_default>;
 };
 
 &mcu_uart0 {
 	status = "okay";
-	/* Default pinmux */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_uart0_pins_default>;
 };
 
 &main_uart0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart0_pins_default>;
 	/* Shared with ATF on this platform */
 	power-domains = <&k3_pds 146 TI_SCI_PD_SHARED>;
 };
 
 &main_uart1 {
 	status = "okay";
-	/* Default pinmux */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart1_pins_default>;
 };
 
 &main_uart2 {
 	status = "okay";
-	/* Default pinmux */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_pins_default>;
 };
 
 &main_uart4 {
 	status = "okay";
-	/* Default pinmux */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart4_pins_default>;
 };
 
 &main_gpio2 {
