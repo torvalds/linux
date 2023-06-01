@@ -3,6 +3,11 @@
 # Makefile for building the SELinux module as part of the kernel tree.
 #
 
+# NOTE: There are a number of improvements that can be made to this Makefile
+# once the kernel requires make v4.3 or greater; the most important feature
+# lacking in older versions of make is support for grouped targets.  These
+# improvements are noted inline in the Makefile below ...
+
 obj-$(CONFIG_SECURITY_SELINUX) := selinux.o
 
 ccflags-y := -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
@@ -19,11 +24,17 @@ selinux-$(CONFIG_IMA) += ima.o
 
 genhdrs := flask.h av_permissions.h
 
-$(addprefix $(obj)/,$(selinux-y)): $(addprefix $(obj)/,$(genhdrs))
+# see the note above, replace the dependency rule with the one below:
+#  $(addprefix $(obj)/,$(selinux-y)): $(addprefix $(obj)/,$(genhdrs))
+$(addprefix $(obj)/,$(selinux-y)): $(obj)/flask.h
 
 quiet_cmd_genhdrs = GEN     $(addprefix $(obj)/,$(genhdrs))
       cmd_genhdrs = $< $(addprefix $(obj)/,$(genhdrs))
 
-targets += $(genhdrs)
-$(addprefix $(obj)/,$(genhdrs)) &: scripts/selinux/genheaders/genheaders FORCE
+# see the note above, replace the $targets and 'flask.h' rule with the lines
+# below:
+#  targets += $(genhdrs)
+#  $(addprefix $(obj)/,$(genhdrs)) &: scripts/selinux/...
+targets += flask.h
+$(obj)/flask.h: scripts/selinux/genheaders/genheaders FORCE
 	$(call if_changed,genhdrs)
