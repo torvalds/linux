@@ -1206,6 +1206,22 @@ int get_tree_keyed(struct fs_context *fc,
 EXPORT_SYMBOL(get_tree_keyed);
 
 #ifdef CONFIG_BLOCK
+static void fs_mark_dead(struct block_device *bdev)
+{
+	struct super_block *sb;
+
+	sb = get_super(bdev);
+	if (!sb)
+		return;
+
+	if (sb->s_op->shutdown)
+		sb->s_op->shutdown(sb);
+	drop_super(sb);
+}
+
+static const struct blk_holder_ops fs_holder_ops = {
+	.mark_dead		= fs_mark_dead,
+};
 
 static int set_bdev_super(struct super_block *s, void *data)
 {
@@ -1248,7 +1264,8 @@ int get_tree_bdev(struct fs_context *fc,
 	if (!fc->source)
 		return invalf(fc, "No source specified");
 
-	bdev = blkdev_get_by_path(fc->source, mode, fc->fs_type, NULL);
+	bdev = blkdev_get_by_path(fc->source, mode, fc->fs_type,
+				  &fs_holder_ops);
 	if (IS_ERR(bdev)) {
 		errorf(fc, "%s: Can't open blockdev", fc->source);
 		return PTR_ERR(bdev);
@@ -1333,7 +1350,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = blkdev_get_by_path(dev_name, mode, fs_type, NULL);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type, &fs_holder_ops);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
