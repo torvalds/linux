@@ -1192,7 +1192,7 @@ static int rt9467_charger_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, data);
 
 	/* Default pull charge enable gpio to make 'CHG_EN' by SW control only */
-	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_LOW);
+	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ceb_gpio))
 		return dev_err_probe(dev, PTR_ERR(ceb_gpio),
 				     "Failed to config charge enable gpio\n");
