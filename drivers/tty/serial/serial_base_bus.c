@@ -17,6 +17,8 @@
 
 #include "serial_base.h"
 
+static bool serial_base_initialized;
+
 static int serial_base_match(struct device *dev, struct device_driver *drv)
 {
 	int len = strlen(drv->name);
@@ -48,6 +50,11 @@ static int serial_base_device_init(struct uart_port *port,
 				   void (*release)(struct device *dev),
 				   int id)
 {
+	if (!serial_base_initialized) {
+		dev_err(port->dev, "uart_add_one_port() called before arch_initcall()?\n");
+		return -EPROBE_DEFER;
+	}
+
 	device_initialize(dev);
 	dev->type = type;
 	dev->parent = parent_dev;
@@ -175,6 +182,8 @@ static int serial_base_init(void)
 	if (ret)
 		goto err_ctrl_exit;
 
+	serial_base_initialized = true;
+
 	return 0;
 
 err_ctrl_exit:
@@ -185,7 +194,7 @@ err_bus_unregister:
 
 	return ret;
 }
-module_init(serial_base_init);
+arch_initcall(serial_base_init);
 
 static void serial_base_exit(void)
 {
