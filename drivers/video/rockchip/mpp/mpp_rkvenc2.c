@@ -2049,38 +2049,31 @@ static int rkvenc2_wait_result(struct mpp_session *session,
 
 	if (!enc_task->task_split || enc_task->task_split_done) {
 task_done_ret:
-		ret = wait_event_timeout(task->wait,
-					 test_bit(TASK_STATE_DONE, &task->state),
-					 msecs_to_jiffies(RKVENC2_WAIT_TIMEOUT_DELAY));
+		ret = wait_event_interruptible(task->wait, test_bit(TASK_STATE_DONE, &task->state));
+		if (ret == -ERESTARTSYS)
+			mpp_err("wait task break by signal in normal mode\n");
 
-		if (ret > 0)
-			return rkvenc2_task_default_process(mpp, task);
+		return rkvenc2_task_default_process(mpp, task);
 
-		rkvenc2_task_timeout_process(session, task);
-		return ret;
 	}
 
 	/* not slice return just wait all slice length */
 	if (!req) {
 		do {
-			ret = wait_event_timeout(task->wait,
-						 kfifo_out(&enc_task->slice_info, &slice_info, 1),
-						 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
-			if (ret > 0) {
-				mpp_dbg_slice("task %d rd %3d len %d %s\n",
-					      task_id, enc_task->slice_rd_cnt, slice_info.slice_len,
-					      slice_info.last ? "last" : "");
-
-				enc_task->slice_rd_cnt++;
-
-				if (slice_info.last)
-					goto task_done_ret;
-
-				continue;
+			ret = wait_event_interruptible(task->wait, kfifo_out(&enc_task->slice_info,
+									     &slice_info, 1));
+			if (ret == -ERESTARTSYS) {
+				mpp_err("wait task break by signal in slice all mode\n");
+				return 0;
 			}
+			mpp_dbg_slice("task %d rd %3d len %d %s\n",
+					task_id, enc_task->slice_rd_cnt, slice_info.slice_len,
+					slice_info.last ? "last" : "");
 
-			rkvenc2_task_timeout_process(session, task);
-			return ret;
+			enc_task->slice_rd_cnt++;
+
+			if (slice_info.last)
+				goto task_done_ret;
 		} while (1);
 	}
 
@@ -2095,39 +2088,40 @@ task_done_ret:
 
 	/* handle slice mode poll return */
 	do {
-		ret = wait_event_timeout(task->wait,
-					 kfifo_out(&enc_task->slice_info, &slice_info, 1),
-					 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
-		if (ret > 0) {
-			mpp_dbg_slice("core %d task %d rd %3d len %d %s\n", task_id,
-				      mpp->core_id, enc_task->slice_rd_cnt, slice_info.slice_len,
-				      slice_info.last ? "last" : "");
-			enc_task->slice_rd_cnt++;
-			if (cfg.count_ret < cfg.count_max) {
-				struct rkvenc_poll_slice_cfg __user *ucfg =
-					(struct rkvenc_poll_slice_cfg __user *)(req->data);
-				u32 __user *dst = (u32 __user *)(ucfg + 1);
-
-				/* Do NOT return here when put_user error. Just continue */
-				if (put_user(slice_info.val, dst + cfg.count_ret))
-					ret = -EFAULT;
-
-				cfg.count_ret++;
-				if (put_user(cfg.count_ret, &ucfg->count_ret))
-					ret = -EFAULT;
-			}
-
-			if (slice_info.last) {
-				enc_task->task_split_done = 1;
-				goto task_done_ret;
-			}
-
-			if (cfg.count_ret >= cfg.count_max)
-				return 0;
-
-			if (ret < 0)
-				return ret;
+		ret = wait_event_interruptible(task->wait, kfifo_out(&enc_task->slice_info,
+								     &slice_info, 1));
+		if (ret == -ERESTARTSYS) {
+			mpp_err("wait task break by signal in slice one mode\n");
+			return 0;
 		}
+		mpp_dbg_slice("core %d task %d rd %3d len %d %s\n", task_id,
+				mpp->core_id, enc_task->slice_rd_cnt, slice_info.slice_len,
+				slice_info.last ? "last" : "");
+		enc_task->slice_rd_cnt++;
+		if (cfg.count_ret < cfg.count_max) {
+			struct rkvenc_poll_slice_cfg __user *ucfg =
+				(struct rkvenc_poll_slice_cfg __user *)(req->data);
+			u32 __user *dst = (u32 __user *)(ucfg + 1);
+
+			/* Do NOT return here when put_user error. Just continue */
+			if (put_user(slice_info.val, dst + cfg.count_ret))
+				ret = -EFAULT;
+
+			cfg.count_ret++;
+			if (put_user(cfg.count_ret, &ucfg->count_ret))
+				ret = -EFAULT;
+		}
+
+		if (slice_info.last) {
+			enc_task->task_split_done = 1;
+			goto task_done_ret;
+		}
+
+		if (cfg.count_ret >= cfg.count_max)
+			return 0;
+
+		if (ret < 0)
+			return ret;
 	} while (ret > 0);
 
 	rkvenc2_task_timeout_process(session, task);
