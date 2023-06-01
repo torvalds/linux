@@ -271,7 +271,7 @@ static const struct max96712_mode supported_modes_4lane[] = {
 			.denominator = 300000,
 		},
 		.reg_list = max96712_mipi_4lane_1920x1440_30fps,
-		.link_freq_idx = 10,
+		.link_freq_idx = 20,
 		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 		.bpp = 16,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
