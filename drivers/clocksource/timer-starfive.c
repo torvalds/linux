@@ -2,7 +2,9 @@
 /*
  * Starfive Timer driver
  *
- * Copyright 2021 StarFive, Inc. All rights reserved.
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Author: Xingyu Wu <xingyu.wu@starfivetech.com>
+ *         Samin Guo <samin.guo@starfivetech.com>
  */
 
 #include <linux/clk.h>

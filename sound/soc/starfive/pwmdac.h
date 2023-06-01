@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PWMDAC driver for the StarFive JH7110 SoC
  *

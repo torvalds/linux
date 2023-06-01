@@ -2,7 +2,8 @@
 /*
  * StarFive JH7110 Clock Generator Driver
  *
- * Copyright (C) 2022 Xingyu Wu <xingyu.wu@starfivetech.com>
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Author: Xingyu Wu <xingyu.wu@starfivetech.com>
  */
 
 #ifndef _CLK_STARFIVE_JH7110_H_

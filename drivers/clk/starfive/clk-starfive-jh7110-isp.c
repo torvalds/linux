@@ -2,7 +2,8 @@
 /*
  * StarFive JH7110 Isp Clock Driver
  *
- * Copyright (C) 2022 Xingyu Wu <xingyu.wu@starfivetech.com>
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Author: Xingyu Wu <xingyu.wu@starfivetech.com>
  */
 
 #include <linux/bits.h>

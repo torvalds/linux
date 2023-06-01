@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2022 StarFive, Inc <xingyu.wu@starfivetech.com>
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Author: Xingyu Wu <xingyu.wu@starfivetech.com>
  */
 
 #ifndef __DT_BINDINGS_CLOCK_STARFIVE_JH7110_ISP_H__
