@@ -248,6 +248,26 @@ int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
 	return ret;
 }
 
+static struct tree_mod_elem *tree_mod_log_alloc_move(struct extent_buffer *eb,
+						     int dst_slot, int src_slot,
+						     int nr_items)
+{
+	struct tree_mod_elem *tm;
+
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	if (!tm)
+		return ERR_PTR(-ENOMEM);
+
+	tm->logical = eb->start;
+	tm->slot = src_slot;
+	tm->move.dst_slot = dst_slot;
+	tm->move.nr_items = nr_items;
+	tm->op = BTRFS_MOD_LOG_MOVE_KEYS;
+	RB_CLEAR_NODE(&tm->node);
+
+	return tm;
+}
+
 int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 				   int dst_slot, int src_slot,
 				   int nr_items)
@@ -265,17 +285,12 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 	if (!tm_list)
 		return -ENOMEM;
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
-	if (!tm) {
-		ret = -ENOMEM;
+	tm = tree_mod_log_alloc_move(eb, dst_slot, src_slot, nr_items);
+	if (IS_ERR(tm)) {
+		ret = PTR_ERR(tm);
+		tm = NULL;
 		goto free_tms;
 	}
-
-	tm->logical = eb->start;
-	tm->slot = src_slot;
-	tm->move.dst_slot = dst_slot;
-	tm->move.nr_items = nr_items;
-	tm->op = BTRFS_MOD_LOG_MOVE_KEYS;
 
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i + dst_slot,
@@ -489,6 +504,10 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	struct tree_mod_elem **tm_list_add, **tm_list_rem;
 	int i;
 	bool locked = false;
+	struct tree_mod_elem *dst_move_tm = NULL;
+	struct tree_mod_elem *src_move_tm = NULL;
+	u32 dst_move_nr_items = btrfs_header_nritems(dst) - dst_offset;
+	u32 src_move_nr_items = btrfs_header_nritems(src) - (src_offset + nr_items);
 
 	if (!tree_mod_need_log(fs_info, NULL))
 		return 0;
@@ -500,6 +519,26 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 			  GFP_NOFS);
 	if (!tm_list)
 		return -ENOMEM;
+
+	if (dst_move_nr_items) {
+		dst_move_tm = tree_mod_log_alloc_move(dst, dst_offset + nr_items,
+						      dst_offset, dst_move_nr_items);
+		if (IS_ERR(dst_move_tm)) {
+			ret = PTR_ERR(dst_move_tm);
+			dst_move_tm = NULL;
+			goto free_tms;
+		}
+	}
+	if (src_move_nr_items) {
+		src_move_tm = tree_mod_log_alloc_move(src, src_offset,
+						      src_offset + nr_items,
+						      src_move_nr_items);
+		if (IS_ERR(src_move_tm)) {
+			ret = PTR_ERR(src_move_tm);
+			src_move_tm = NULL;
+			goto free_tms;
+		}
+	}
 
 	tm_list_add = tm_list;
 	tm_list_rem = tm_list + nr_items;
@@ -523,11 +562,21 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 		goto free_tms;
 	locked = true;
 
+	if (dst_move_tm) {
+		ret = tree_mod_log_insert(fs_info, dst_move_tm);
+		if (ret)
+			goto free_tms;
+	}
 	for (i = 0; i < nr_items; i++) {
 		ret = tree_mod_log_insert(fs_info, tm_list_rem[i]);
 		if (ret)
 			goto free_tms;
 		ret = tree_mod_log_insert(fs_info, tm_list_add[i]);
+		if (ret)
+			goto free_tms;
+	}
+	if (src_move_tm) {
+		ret = tree_mod_log_insert(fs_info, src_move_tm);
 		if (ret)
 			goto free_tms;
 	}
@@ -538,6 +587,12 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	return 0;
 
 free_tms:
+	if (dst_move_tm && !RB_EMPTY_NODE(&dst_move_tm->node))
+		rb_erase(&dst_move_tm->node, &fs_info->tree_mod_log);
+	kfree(dst_move_tm);
+	if (src_move_tm && !RB_EMPTY_NODE(&src_move_tm->node))
+		rb_erase(&src_move_tm->node, &fs_info->tree_mod_log);
+	kfree(src_move_tm);
 	for (i = 0; i < nr_items * 2; i++) {
 		if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
 			rb_erase(&tm_list[i]->node, &fs_info->tree_mod_log);
