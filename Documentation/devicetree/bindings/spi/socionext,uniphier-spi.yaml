@@ -17,9 +17,6 @@ allOf:
   - $ref: spi-controller.yaml#
 
 properties:
-  "#address-cells": true
-  "#size-cells": true
-
   compatible:
     const: socionext,uniphier-scssi
 
