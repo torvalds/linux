@@ -74,7 +74,7 @@ struct xe_tile {
 	/**
 	 * @primary_gt: Primary GT
 	 */
-	struct xe_gt primary_gt;
+	struct xe_gt *primary_gt;
 
 	/* TODO: Add media GT here */
 

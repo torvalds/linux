@@ -209,7 +209,7 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size, u64 *tile_size, u64 *tile_offset)
 {
 	struct xe_device *xe = tile_to_xe(tile);
-	struct xe_gt *gt = &tile->primary_gt;
+	struct xe_gt *gt = tile->primary_gt;
 	u64 offset;
 	int err;
 	u32 reg;

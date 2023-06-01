@@ -43,13 +43,18 @@
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
-int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
+struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 {
-	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
+	struct xe_gt *gt;
 
+	gt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*gt), GFP_KERNEL);
+	if (!gt)
+		return ERR_PTR(-ENOMEM);
+
+	gt->tile = tile;
 	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq", 0);
 
-	return 0;
+	return gt;
 }
 
 void xe_gt_sanitize(struct xe_gt *gt)

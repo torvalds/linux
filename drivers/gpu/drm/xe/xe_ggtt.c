@@ -196,7 +196,7 @@ void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 	 * TODO: Loop over each GT in tile once media GT support is
 	 * re-added
 	 */
-	struct xe_gt *gt = &ggtt->tile->primary_gt;
+	struct xe_gt *gt = ggtt->tile->primary_gt;
 
 	/* TODO: vfunc for GuC vs. non-GuC */
 

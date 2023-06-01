@@ -249,10 +249,6 @@ int xe_device_probe(struct xe_device *xe)
 		err = xe_tile_alloc(tile);
 		if (err)
 			return err;
-
-		err = xe_gt_alloc(xe, &tile->primary_gt);
-		if (err)
-			return err;
 	}
 
 	err = xe_mmio_init(xe);

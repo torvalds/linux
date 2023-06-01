@@ -237,7 +237,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 {
 	const struct rtp_test_case *param = test->param_value;
 	struct xe_device *xe = test->priv;
-	struct xe_gt *gt = &xe_device_get_root_tile(xe)->primary_gt;
+	struct xe_gt *gt = xe_device_get_root_tile(xe)->primary_gt;
 	struct xe_reg_sr *reg_sr = &gt->reg_sr;
 	const struct xe_reg_sr_entry *sre, *sr_entry = NULL;
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);

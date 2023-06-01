@@ -58,7 +58,11 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 	struct xe_gt *gt;
 
 	XE_BUG_ON(gt_id > XE_MAX_TILES_PER_DEVICE);
-	gt = &xe->tiles[gt_id].primary_gt;
+
+	gt = xe->tiles[gt_id].primary_gt;
+	if (drm_WARN_ON(&xe->drm, !gt))
+		return NULL;
+
 	XE_BUG_ON(gt->info.id != gt_id);
 	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
@@ -79,7 +83,7 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
  */
 static inline struct xe_gt *xe_root_mmio_gt(struct xe_device *xe)
 {
-	return &xe_device_get_root_tile(xe)->primary_gt;
+	return xe_device_get_root_tile(xe)->primary_gt;
 }
 
 static inline bool xe_device_guc_submission_enabled(struct xe_device *xe)
