@@ -397,6 +397,12 @@ static int rockchip_i2s_tdm_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 		return -EINVAL;
 	}
 
+	regmap_update_bits(i2s_tdm->regmap, I2S_CLR, clr, clr);
+	ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
+					      !(val & clr), 10, 100);
+	if (ret == 0)
+		return 0;
+
 	/*
 	 * Workaround for FIFO clear on SLAVE mode:
 	 *
