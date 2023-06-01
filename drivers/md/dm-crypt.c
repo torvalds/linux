@@ -31,10 +31,10 @@
 #include <asm/unaligned.h>
 #include <crypto/hash.h>
 #include <crypto/md5.h>
-#include <crypto/algapi.h>
 #include <crypto/skcipher.h>
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
+#include <crypto/utils.h>
 #include <linux/rtnetlink.h> /* for struct rtattr and RTA macros only */
 #include <linux/key-type.h>
 #include <keys/user-type.h>
@@ -745,16 +745,23 @@ static int crypt_iv_eboiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 			    struct dm_crypt_request *dmreq)
 {
-	u8 buf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(__le64));
+	struct crypto_skcipher *tfm = any_tfm(cc);
 	struct skcipher_request *req;
 	struct scatterlist src, dst;
 	DECLARE_CRYPTO_WAIT(wait);
+	unsigned int reqsize;
 	int err;
+	u8 *buf;
 
-	req = skcipher_request_alloc(any_tfm(cc), GFP_NOIO);
+	reqsize = ALIGN(crypto_skcipher_reqsize(tfm), __alignof__(__le64));
+
+	req = kmalloc(reqsize + cc->iv_size, GFP_NOIO);
 	if (!req)
 		return -ENOMEM;
 
+	skcipher_request_set_tfm(req, tfm);
+
+	buf = (u8 *)req + reqsize;
 	memset(buf, 0, cc->iv_size);
 	*(__le64 *)buf = cpu_to_le64(dmreq->iv_sector * cc->sector_size);
 
@@ -763,7 +770,7 @@ static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 	skcipher_request_set_crypt(req, &src, &dst, cc->iv_size, buf);
 	skcipher_request_set_callback(req, 0, crypto_req_done, &wait);
 	err = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
-	skcipher_request_free(req);
+	kfree_sensitive(req);
 
 	return err;
 }
