@@ -1276,7 +1276,7 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	Elf_Sym *sym = elf->symtab_start + ELF_R_SYM(r->r_info);
 	void *loc = reloc_location(elf, sechdr, r);
-	uint32_t inst, upper, lower;
+	uint32_t inst, upper, lower, sign, j1, j2;
 	int32_t offset;
 
 	switch (r_typ) {
@@ -1309,13 +1309,54 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 				       15);
 		r->r_addend = offset + sym->st_value;
 		break;
+	case R_ARM_THM_JUMP19:
+		/*
+		 * Encoding T3:
+		 * S     = upper[10]
+		 * imm6  = upper[5:0]
+		 * J1    = lower[13]
+		 * J2    = lower[11]
+		 * imm11 = lower[10:0]
+		 * imm32 = SignExtend(S:J2:J1:imm6:imm11:'0')
+		 */
+		upper = TO_NATIVE(*(uint16_t *)loc);
+		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+
+		sign = (upper >> 10) & 1;
+		j1 = (lower >> 13) & 1;
+		j2 = (lower >> 11) & 1;
+		offset = sign_extend32((sign << 20) | (j2 << 19) | (j1 << 18) |
+				       ((upper & 0x03f) << 12) |
+				       ((lower & 0x07ff) << 1),
+				       20);
+		r->r_addend = offset + sym->st_value + 4;
+		break;
 	case R_ARM_THM_CALL:
 	case R_ARM_THM_JUMP24:
-	case R_ARM_THM_JUMP19:
-		/* From ARM ABI: ((S + A) | T) - P */
-		r->r_addend = (int)(long)(elf->hdr +
-			      sechdr->sh_offset +
-			      (r->r_offset - sechdr->sh_addr));
+		/*
+		 * Encoding T4:
+		 * S     = upper[10]
+		 * imm10 = upper[9:0]
+		 * J1    = lower[13]
+		 * J2    = lower[11]
+		 * imm11 = lower[10:0]
+		 * I1    = NOT(J1 XOR S)
+		 * I2    = NOT(J2 XOR S)
+		 * imm32 = SignExtend(S:I1:I2:imm10:imm11:'0')
+		 */
+		upper = TO_NATIVE(*(uint16_t *)loc);
+		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+
+		sign = (upper >> 10) & 1;
+		j1 = (lower >> 13) & 1;
+		j2 = (lower >> 11) & 1;
+		offset = sign_extend32((sign << 24) |
+				       ((~(j1 ^ sign) & 1) << 23) |
+				       ((~(j2 ^ sign) & 1) << 22) |
+				       ((upper & 0x03ff) << 12) |
+				       ((lower & 0x07ff) << 1),
+				       24);
+		r->r_addend = offset + sym->st_value + 4;
 		break;
 	default:
 		return 1;
