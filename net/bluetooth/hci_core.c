@@ -4984,8 +4984,8 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		bt_cb(skb)->sco.pkt_status = flags & 0x03;
 		sco_recv_scodata(conn, skb);
 		return;
-	} else {
-		bt_dev_err(hdev, "SCO packet for unknown connection handle %d",
+	} else {/*too many messages output when call end, so change to BT_DBG*/
+		BT_DBG("SCO packet for unknown connection handle %d",
 			   handle);
 	}
 
