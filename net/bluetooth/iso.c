@@ -1690,7 +1690,7 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 		}
 
 		/* Create CIS if pending */
-		hci_le_create_cis(hcon);
+		hci_le_create_cis_pending(hcon->hdev);
 		return;
 	}
 

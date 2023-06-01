@@ -1990,59 +1990,47 @@ bool hci_iso_setup_path(struct hci_conn *conn)
 	return true;
 }
 
-static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
+int hci_conn_check_create_cis(struct hci_conn *conn)
 {
-	return hci_le_create_cis_sync(hdev, data);
+	if (conn->type != ISO_LINK || !bacmp(&conn->dst, BDADDR_ANY))
+		return -EINVAL;
+
+	if (!conn->parent || conn->parent->state != BT_CONNECTED ||
+	    conn->state != BT_CONNECT || conn->handle == HCI_CONN_HANDLE_UNSET)
+		return 1;
+
+	return 0;
 }
 
-int hci_le_create_cis(struct hci_conn *conn)
+static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 {
-	struct hci_conn *cis;
-	struct hci_link *link, *t;
-	struct hci_dev *hdev = conn->hdev;
-	int err;
+	return hci_le_create_cis_sync(hdev);
+}
 
-	bt_dev_dbg(hdev, "hcon %p", conn);
+int hci_le_create_cis_pending(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	bool pending = false;
 
-	switch (conn->type) {
-	case LE_LINK:
-		if (conn->state != BT_CONNECTED || list_empty(&conn->link_list))
-			return -EINVAL;
+	rcu_read_lock();
 
-		cis = NULL;
-
-		/* hci_conn_link uses list_add_tail_rcu so the list is in
-		 * the same order as the connections are requested.
-		 */
-		list_for_each_entry_safe(link, t, &conn->link_list, list) {
-			if (link->conn->state == BT_BOUND) {
-				err = hci_le_create_cis(link->conn);
-				if (err)
-					return err;
-
-				cis = link->conn;
-			}
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (test_bit(HCI_CONN_CREATE_CIS, &conn->flags)) {
+			rcu_read_unlock();
+			return -EBUSY;
 		}
 
-		return cis ? 0 : -EINVAL;
-	case ISO_LINK:
-		cis = conn;
-		break;
-	default:
-		return -EINVAL;
+		if (!hci_conn_check_create_cis(conn))
+			pending = true;
 	}
 
-	if (cis->state == BT_CONNECT)
+	rcu_read_unlock();
+
+	if (!pending)
 		return 0;
 
 	/* Queue Create CIS */
-	err = hci_cmd_sync_queue(hdev, hci_create_cis_sync, cis, NULL);
-	if (err)
-		return err;
-
-	cis->state = BT_CONNECT;
-
-	return 0;
+	return hci_cmd_sync_queue(hdev, hci_create_cis_sync, NULL, NULL);
 }
 
 static void hci_iso_qos_setup(struct hci_dev *hdev, struct hci_conn *conn,
@@ -2317,11 +2305,9 @@ struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
 		return ERR_PTR(-ENOLINK);
 	}
 
-	/* If LE is already connected and CIS handle is already set proceed to
-	 * Create CIS immediately.
-	 */
-	if (le->state == BT_CONNECTED && cis->handle != HCI_CONN_HANDLE_UNSET)
-		hci_le_create_cis(cis);
+	cis->state = BT_CONNECT;
+
+	hci_le_create_cis_pending(hdev);
 
 	return cis;
 }
