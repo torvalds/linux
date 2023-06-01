@@ -295,7 +295,7 @@ struct iwl_ac_qos {
  * struct iwl_mac_ctx_cmd - command structure to configure MAC contexts
  * ( MAC_CONTEXT_CMD = 0x28 )
  * @id_and_color: ID and color of the MAC
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @mac_type: one of &enum iwl_mac_types
  * @tsf_id: TSF HW timer, one of &enum iwl_tsf_id
  * @node_addr: MAC address

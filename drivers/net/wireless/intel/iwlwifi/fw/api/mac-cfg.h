@@ -193,7 +193,7 @@ struct iwl_cancel_channel_switch_cmd {
  * struct iwl_chan_switch_te_cmd - Channel Switch Time Event command
  *
  * @mac_id: MAC ID for channel switch
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @tsf: beacon tsf
  * @cs_count: channel switch count from CSA/eCSA IE
  * @cs_delayed_bcn_count: if set to N (!= 0) GO/AP can delay N beacon intervals
@@ -296,7 +296,7 @@ enum iwl_mac_config_filter_flags {
  * ( MAC_CONTEXT_CONFIG_CMD = 0x8 )
  *
  * @id_and_color: ID and color of the MAC
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @mac_type: one of &enum iwl_mac_types
  * @local_mld_addr: mld address
  * @reserved_for_local_mld_addr: reserved
@@ -423,7 +423,7 @@ enum iwl_link_ctx_flags {
  *	in MLD API
  * ( LINK_CONFIG_CMD =0x9 )
  *
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @link_id: the id of the link that this cmd configures
  * @mac_id: interface ID. Relevant only if action is FW_CTXT_ACTION_ADD
  * @phy_id: PHY index. Can be changed only if the link was inactive
