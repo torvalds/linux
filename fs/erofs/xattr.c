@@ -81,11 +81,12 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 	}
 
 	it.buf = __EROFS_BUF_INITIALIZER;
+	erofs_init_metabuf(&it.buf, sb);
 	it.blkaddr = erofs_blknr(sb, erofs_iloc(inode) + vi->inode_isize);
 	it.ofs = erofs_blkoff(sb, erofs_iloc(inode) + vi->inode_isize);
 
 	/* read in shared xattr array (non-atomic, see kmalloc below) */
-	it.kaddr = erofs_read_metabuf(&it.buf, sb, it.blkaddr, EROFS_KMAP);
+	it.kaddr = erofs_bread(&it.buf, it.blkaddr, EROFS_KMAP);
 	if (IS_ERR(it.kaddr)) {
 		ret = PTR_ERR(it.kaddr);
 		goto out_unlock;
@@ -109,8 +110,7 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 			/* cannot be unaligned */
 			DBG_BUGON(it.ofs != sb->s_blocksize);
 
-			it.kaddr = erofs_read_metabuf(&it.buf, sb, ++it.blkaddr,
-						      EROFS_KMAP);
+			it.kaddr = erofs_bread(&it.buf, ++it.blkaddr, EROFS_KMAP);
 			if (IS_ERR(it.kaddr)) {
 				kfree(vi->xattr_shared_xattrs);
 				vi->xattr_shared_xattrs = NULL;
@@ -156,8 +156,7 @@ static inline int xattr_iter_fixup(struct xattr_iter *it)
 		return 0;
 
 	it->blkaddr += erofs_blknr(it->sb, it->ofs);
-	it->kaddr = erofs_read_metabuf(&it->buf, it->sb, it->blkaddr,
-				       EROFS_KMAP);
+	it->kaddr = erofs_bread(&it->buf, it->blkaddr, EROFS_KMAP);
 	if (IS_ERR(it->kaddr))
 		return PTR_ERR(it->kaddr);
 	it->ofs = erofs_blkoff(it->sb, it->ofs);
@@ -181,8 +180,7 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 
 	it->blkaddr = erofs_blknr(it->sb, erofs_iloc(inode) + inline_xattr_ofs);
 	it->ofs = erofs_blkoff(it->sb, erofs_iloc(inode) + inline_xattr_ofs);
-	it->kaddr = erofs_read_metabuf(&it->buf, inode->i_sb, it->blkaddr,
-				       EROFS_KMAP);
+	it->kaddr = erofs_bread(&it->buf, it->blkaddr, EROFS_KMAP);
 	if (IS_ERR(it->kaddr))
 		return PTR_ERR(it->kaddr);
 	return vi->xattr_isize - xattr_header_sz;
@@ -403,8 +401,7 @@ static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 		xsid = vi->xattr_shared_xattrs[i];
 		it->it.blkaddr = erofs_xattr_blkaddr(sb, xsid);
 		it->it.ofs = erofs_xattr_blkoff(sb, xsid);
-		it->it.kaddr = erofs_read_metabuf(&it->it.buf, sb,
-						  it->it.blkaddr, EROFS_KMAP);
+		it->it.kaddr = erofs_bread(&it->it.buf, it->it.blkaddr, EROFS_KMAP);
 		if (IS_ERR(it->it.kaddr))
 			return PTR_ERR(it->it.kaddr);
 
@@ -444,13 +441,14 @@ int erofs_getxattr(struct inode *inode, int index,
 	if (it.name.len > EROFS_NAME_LEN)
 		return -ERANGE;
 
+	it.it.sb = inode->i_sb;
 	it.it.buf = __EROFS_BUF_INITIALIZER;
+	erofs_init_metabuf(&it.it.buf, it.it.sb);
 	it.name.name = name;
 
 	it.buffer = buffer;
 	it.buffer_size = buffer_size;
 
-	it.it.sb = inode->i_sb;
 	ret = inline_getxattr(inode, &it);
 	if (ret == -ENOATTR)
 		ret = shared_getxattr(inode, &it);
@@ -608,8 +606,7 @@ static int shared_listxattr(struct listxattr_iter *it)
 		xsid = vi->xattr_shared_xattrs[i];
 		it->it.blkaddr = erofs_xattr_blkaddr(sb, xsid);
 		it->it.ofs = erofs_xattr_blkoff(sb, xsid);
-		it->it.kaddr = erofs_read_metabuf(&it->it.buf, sb,
-						  it->it.blkaddr, EROFS_KMAP);
+		it->it.kaddr = erofs_bread(&it->it.buf, it->it.blkaddr, EROFS_KMAP);
 		if (IS_ERR(it->it.kaddr))
 			return PTR_ERR(it->it.kaddr);
 
@@ -632,13 +629,13 @@ ssize_t erofs_listxattr(struct dentry *dentry,
 	if (ret)
 		return ret;
 
+	it.it.sb = dentry->d_sb;
 	it.it.buf = __EROFS_BUF_INITIALIZER;
+	erofs_init_metabuf(&it.it.buf, it.it.sb);
 	it.dentry = dentry;
 	it.buffer = buffer;
 	it.buffer_size = buffer_size;
 	it.buffer_ofs = 0;
-
-	it.it.sb = dentry->d_sb;
 
 	ret = inline_listxattr(&it);
 	if (ret >= 0 || ret == -ENOATTR)
