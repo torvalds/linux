@@ -19,6 +19,7 @@
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_printk.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_reg_whitelist.h"
@@ -89,7 +90,8 @@ static void reg_sr_inc_error(struct xe_reg_sr *sr)
 }
 
 int xe_reg_sr_add(struct xe_reg_sr *sr,
-		  const struct xe_reg_sr_entry *e)
+		  const struct xe_reg_sr_entry *e,
+		  struct xe_gt *gt)
 {
 	unsigned long idx = e->reg.addr;
 	struct xe_reg_sr_entry *pentry = xa_load(&sr->xa, idx);
@@ -122,7 +124,8 @@ int xe_reg_sr_add(struct xe_reg_sr *sr,
 	return 0;
 
 fail:
-	DRM_ERROR("Discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s, mcr: %s): ret=%d\n",
+	xe_gt_err(gt,
+		  "discarding save-restore reg %04lx (clear: %08x, set: %08x, masked: %s, mcr: %s): ret=%d\n",
 		  idx, e->clr_bits, e->set_bits,
 		  str_yes_no(e->reg.masked),
 		  str_yes_no(e->reg.mcr),

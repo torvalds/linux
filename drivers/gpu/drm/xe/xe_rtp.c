@@ -122,7 +122,7 @@ static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 	};
 
 	sr_entry.reg.addr += mmio_base;
-	xe_reg_sr_add(sr, &sr_entry);
+	xe_reg_sr_add(sr, &sr_entry, gt);
 }
 
 static bool rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,

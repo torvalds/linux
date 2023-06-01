@@ -7,6 +7,7 @@
 
 #include <linux/dma-fence-array.h>
 
+#include <drm/drm_print.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_tt.h>
 #include <drm/xe_drm.h>
@@ -3048,7 +3049,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (XE_IOCTL_ERR(xe, xe_vm_is_closed(vm))) {
-		DRM_ERROR("VM closed while we began looking up?\n");
+		drm_err(dev, "VM closed while we began looking up?\n");
 		err = -ENOENT;
 		goto put_vm;
 	}
