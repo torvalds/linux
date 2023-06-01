@@ -82,6 +82,8 @@ unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
 unsigned int sysctl_sched_heavy_nr;
+unsigned int sysctl_sched_sbt_pause_cpus;
+unsigned int sysctl_sched_sbt_delay_windows;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -138,6 +140,41 @@ static int walt_proc_user_hint_handler(struct ctl_table *table,
 	sched_user_hint_reset_time = jiffies + HZ;
 	walt_irq_work_queue(&walt_migration_irq_work);
 
+unlock:
+	mutex_unlock(&mutex);
+	return ret;
+}
+
+DECLARE_BITMAP(sbt_bitmap, WALT_NR_CPUS);
+
+static int walt_proc_sbt_pause_handler(struct ctl_table *table,
+				       int write, void __user *buffer, size_t *lenp,
+				       loff_t *ppos)
+{
+	int ret = 0;
+	unsigned int old_value;
+	unsigned long bitmask;
+	const unsigned long *bitmaskp = &bitmask;
+	static bool written_once;
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);
+
+	old_value = sysctl_sched_sbt_pause_cpus;
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret || !write || (old_value == sysctl_sched_sbt_pause_cpus))
+		goto unlock;
+
+	if (written_once) {
+		sysctl_sched_sbt_pause_cpus = old_value;
+		goto unlock;
+	}
+
+	bitmask = (unsigned long)sysctl_sched_sbt_pause_cpus;
+	bitmap_copy(sbt_bitmap, bitmaskp, WALT_NR_CPUS);
+	cpumask_copy(&cpus_for_sbt_pause, to_cpumask(sbt_bitmap));
+
+	written_once = true;
 unlock:
 	mutex_unlock(&mutex);
 	return ret;
@@ -1119,6 +1156,24 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &walt_max_cpus,
+	},
+	{
+		.procname	= "sched_sbt_pause_cpus",
+		.data		= &sysctl_sched_sbt_pause_cpus,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= walt_proc_sbt_pause_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_sbt_delay_windows",
+		.data		= &sysctl_sched_sbt_delay_windows,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 	{ }
 };
