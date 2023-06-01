@@ -1450,6 +1450,11 @@ static void ext4_destroy_inode(struct inode *inode)
 			 EXT4_I(inode)->i_reserved_data_blocks);
 }
 
+static void ext4_shutdown(struct super_block *sb)
+{
+       ext4_force_shutdown(sb, EXT4_GOING_FLAGS_NOLOGFLUSH);
+}
+
 static void init_once(void *foo)
 {
 	struct ext4_inode_info *ei = foo;
@@ -1610,6 +1615,7 @@ static const struct super_operations ext4_sops = {
 	.unfreeze_fs	= ext4_unfreeze,
 	.statfs		= ext4_statfs,
 	.show_options	= ext4_show_options,
+	.shutdown	= ext4_shutdown,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext4_quota_read,
 	.quota_write	= ext4_quota_write,
