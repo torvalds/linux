@@ -407,4 +407,7 @@ void dpu_encoder_frame_done_callback(
 		struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *ready_phys, u32 event);
 
+void dpu_encoder_phys_init(struct dpu_encoder_phys *phys,
+			   struct dpu_enc_phys_init_params *p);
+
 #endif /* __dpu_encoder_phys_H__ */
