@@ -1075,79 +1075,56 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 	return !is_mapping_symbol(name);
 }
 
-/**
- * Find symbol based on relocation record info.
- * In some cases the symbol supplied is a valid symbol so
- * return refsym. If is_valid_name() == true, we assume this is a valid symbol.
- * In other cases the symbol needs to be looked up in the symbol table
- * based on section and address.
- *  **/
-static Elf_Sym *find_tosym(struct elf_info *elf, Elf64_Sword addr,
-			   Elf_Sym *relsym)
+/* Look up the nearest symbol based on the section and the address */
+static Elf_Sym *find_nearest_sym(struct elf_info *elf, Elf_Addr addr,
+				 unsigned int secndx, bool allow_negative,
+				 Elf_Addr min_distance)
 {
 	Elf_Sym *sym;
 	Elf_Sym *near = NULL;
-	Elf64_Sword distance = 20;
-	Elf64_Sword d;
-	unsigned int relsym_secindex;
-
-	if (is_valid_name(elf, relsym))
-		return relsym;
-
-	/*
-	 * Strive to find a better symbol name, but the resulting name may not
-	 * match the symbol referenced in the original code.
-	 */
-	relsym_secindex = get_secindex(elf, relsym);
-	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
-		if (get_secindex(elf, sym) != relsym_secindex)
-			continue;
-		if (ELF_ST_TYPE(sym->st_info) == STT_SECTION)
-			continue;
-		if (!is_valid_name(elf, sym))
-			continue;
-		if (sym->st_value == addr)
-			return sym;
-		/* Find a symbol nearby - addr are maybe negative */
-		d = sym->st_value - addr;
-		if (d < 0)
-			d = addr - sym->st_value;
-		if (d < distance) {
-			distance = d;
-			near = sym;
-		}
-	}
-	/* We need a close match */
-	if (distance < 20)
-		return near;
-	else
-		return NULL;
-}
-
-/*
- * Find symbols before or equal addr and after addr - in the section sec.
- * If we find two symbols with equal offset prefer one with a valid name.
- * The ELF format may have a better way to detect what type of symbol
- * it is, but this works for now.
- **/
-static Elf_Sym *find_fromsym(struct elf_info *elf, Elf_Addr addr,
-			     unsigned int secndx)
-{
-	Elf_Sym *sym;
-	Elf_Sym *near = NULL;
-	Elf_Addr distance = ~0;
+	Elf_Addr distance;
 
 	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
 		if (get_secindex(elf, sym) != secndx)
 			continue;
 		if (!is_valid_name(elf, sym))
 			continue;
-		if (sym->st_value <= addr && addr - sym->st_value <= distance) {
+
+		if (addr >= sym->st_value)
 			distance = addr - sym->st_value;
+		else if (allow_negative)
+			distance = sym->st_value - addr;
+		else
+			continue;
+
+		if (distance <= min_distance) {
+			min_distance = distance;
 			near = sym;
 		}
+
+		if (min_distance == 0)
+			break;
 	}
 	return near;
+}
+
+static Elf_Sym *find_fromsym(struct elf_info *elf, Elf_Addr addr,
+			     unsigned int secndx)
+{
+	return find_nearest_sym(elf, addr, secndx, false, ~0);
+}
+
+static Elf_Sym *find_tosym(struct elf_info *elf, Elf_Addr addr, Elf_Sym *sym)
+{
+	/* If the supplied symbol has a valid name, return it */
+	if (is_valid_name(elf, sym))
+		return sym;
+
+	/*
+	 * Strive to find a better symbol name, but the resulting name may not
+	 * match the symbol referenced in the original code.
+	 */
+	return find_nearest_sym(elf, addr, get_secindex(elf, sym), true, 20);
 }
 
 static bool is_executable_section(struct elf_info *elf, unsigned int secndx)
