@@ -50,7 +50,7 @@ static int rockchip_clk_out_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	hw = clk_hw_register_gate(dev, clk_name, parent_name, CLK_SET_RATE_PARENT,
+	hw = clk_hw_register_gate(dev, clk_name, parent_name, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 				  reg, shift, clk_gate_flags, &clk_out_lock);
 	if (IS_ERR(hw)) {
 		ret = -EINVAL;
