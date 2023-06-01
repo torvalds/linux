@@ -2528,13 +2528,23 @@ static u32 intel_cx0_get_pclk_refclk_ack(u8 lane_mask)
 	return val;
 }
 
-/* FIXME: Some Type-C cases need not reset both the lanes. Handle those cases. */
-static void intel_cx0_phy_lane_reset(struct drm_i915_private *i915, enum port port,
+static void intel_cx0_phy_lane_reset(struct drm_i915_private *i915,
+				     struct intel_encoder *encoder,
 				     bool lane_reversal)
 {
+	enum port port = encoder->port;
 	enum phy phy = intel_port_to_phy(i915, port);
+	bool both_lanes =  intel_tc_port_fia_max_lane_count(enc_to_dig_port(encoder)) > 2;
 	u8 lane_mask = lane_reversal ? INTEL_CX0_LANE1 :
 				  INTEL_CX0_LANE0;
+	u32 lane_pipe_reset = both_lanes ?
+			      XELPDP_LANE_PIPE_RESET(0) |
+			      XELPDP_LANE_PIPE_RESET(1) :
+			      XELPDP_LANE_PIPE_RESET(0);
+	u32 lane_phy_current_status = both_lanes ?
+				      XELPDP_LANE_PHY_CURRENT_STATUS(0) |
+				      XELPDP_LANE_PHY_CURRENT_STATUS(1) :
+				      XELPDP_LANE_PHY_CURRENT_STATUS(0);
 
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_BUF_CTL1(port),
 					 XELPDP_PORT_BUF_SOC_PHY_READY,
@@ -2545,23 +2555,24 @@ static void intel_cx0_phy_lane_reset(struct drm_i915_private *i915, enum port po
 
 	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL2(port),
 		     XELPDP_LANE_PIPE_RESET(0) | XELPDP_LANE_PIPE_RESET(1),
-		     XELPDP_LANE_PIPE_RESET(0) | XELPDP_LANE_PIPE_RESET(1));
+		     lane_pipe_reset);
 
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_BUF_CTL2(port),
-					 XELPDP_LANE_PHY_CURRENT_STATUS(0) |
-					 XELPDP_LANE_PHY_CURRENT_STATUS(1),
-					 XELPDP_LANE_PHY_CURRENT_STATUS(0) |
-					 XELPDP_LANE_PHY_CURRENT_STATUS(1),
+					 lane_phy_current_status, lane_phy_current_status,
 					 XELPDP_PORT_RESET_START_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to bring out of Lane reset after %dus.\n",
 			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
 
 	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(port),
-		     intel_cx0_get_pclk_refclk_request(INTEL_CX0_BOTH_LANES),
+		     intel_cx0_get_pclk_refclk_request(both_lanes ?
+						       INTEL_CX0_BOTH_LANES :
+						       INTEL_CX0_LANE0),
 		     intel_cx0_get_pclk_refclk_request(lane_mask));
 
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(port),
-					 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES),
+					 intel_cx0_get_pclk_refclk_ack(both_lanes ?
+								       INTEL_CX0_BOTH_LANES :
+								       INTEL_CX0_LANE0),
 					 intel_cx0_get_pclk_refclk_ack(lane_mask),
 					 XELPDP_REFCLK_ENABLE_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to request refclk after %dus.\n",
@@ -2571,13 +2582,9 @@ static void intel_cx0_phy_lane_reset(struct drm_i915_private *i915, enum port po
 					    CX0_P2_STATE_RESET);
 	intel_cx0_setup_powerdown(i915, port);
 
-	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL2(port),
-		     XELPDP_LANE_PIPE_RESET(0) | XELPDP_LANE_PIPE_RESET(1),
-		     0);
+	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL2(port), lane_pipe_reset, 0);
 
-	if (intel_de_wait_for_clear(i915, XELPDP_PORT_BUF_CTL2(port),
-				    XELPDP_LANE_PHY_CURRENT_STATUS(0) |
-				    XELPDP_LANE_PHY_CURRENT_STATUS(1),
+	if (intel_de_wait_for_clear(i915, XELPDP_PORT_BUF_CTL2(port), lane_phy_current_status,
 				    XELPDP_PORT_RESET_END_TIMEOUT))
 		drm_warn(&i915->drm, "PHY %c failed to bring out of Lane reset after %dms.\n",
 			 phy_name(phy), XELPDP_PORT_RESET_END_TIMEOUT);
@@ -2705,7 +2712,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	intel_program_port_clock_ctl(encoder, crtc_state, lane_reversal);
 
 	/* 2. Bring PHY out of reset. */
-	intel_cx0_phy_lane_reset(i915, encoder->port, lane_reversal);
+	intel_cx0_phy_lane_reset(i915, encoder, lane_reversal);
 
 	/*
 	 * 3. Change Phy power state to Ready.
