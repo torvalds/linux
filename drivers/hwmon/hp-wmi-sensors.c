@@ -1138,8 +1138,6 @@ out_unlock:
 	return ret;
 }
 
-#if CONFIG_DEBUG_FS
-
 static int basic_string_show(struct seq_file *seqf, void *ignored)
 {
 	const char *str = seqf->private;
@@ -1340,16 +1338,6 @@ static void hp_wmi_debugfs_init(struct device *dev, struct hp_wmi_info *info,
 				   &pevents->possible_status);
 	}
 }
-
-#else
-
-static void hp_wmi_debugfs_init(struct device *dev, struct hp_wmi_info *info,
-				struct hp_wmi_platform_events *pevents,
-				u8 icount, u8 pcount, bool is_new)
-{
-}
-
-#endif
 
 static umode_t hp_wmi_hwmon_is_visible(const void *drvdata,
 				       enum hwmon_sensor_types type,
@@ -1959,7 +1947,8 @@ static int hp_wmi_sensors_init(struct hp_wmi_sensors *state)
 	if (err)
 		return err;
 
-	hp_wmi_debugfs_init(dev, info, pevents, icount, pcount, is_new);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		hp_wmi_debugfs_init(dev, info, pevents, icount, pcount, is_new);
 
 	if (!count)
 		return 0;	/* No connected sensors; debugfs only. */
