@@ -245,9 +245,16 @@ __add_event(struct list_head *list, int *idx,
 	if (pmu)
 		perf_pmu__warn_invalid_formats(pmu);
 
-	if (pmu && attr->type == PERF_TYPE_RAW)
-		perf_pmu__warn_invalid_config(pmu, attr->config, name);
-
+	if (pmu && (attr->type == PERF_TYPE_RAW || attr->type >= PERF_TYPE_MAX)) {
+		perf_pmu__warn_invalid_config(pmu, attr->config, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG, "config");
+		perf_pmu__warn_invalid_config(pmu, attr->config1, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG1, "config1");
+		perf_pmu__warn_invalid_config(pmu, attr->config2, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG2, "config2");
+		perf_pmu__warn_invalid_config(pmu, attr->config3, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG3, "config3");
+	}
 	if (init_attr)
 		event_attr_init(attr);
 

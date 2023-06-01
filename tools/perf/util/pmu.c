@@ -1627,37 +1627,53 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 	return pmu->nr_caps;
 }
 
-void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
-				   const char *name)
+static void perf_pmu__compute_config_masks(struct perf_pmu *pmu)
 {
 	struct perf_pmu_format *format;
-	__u64 masks = 0, bits;
-	char buf[100];
-	unsigned int i;
+
+	if (pmu->config_masks_computed)
+		return;
 
 	list_for_each_entry(format, &pmu->format, list)	{
-		if (format->value != PERF_PMU_FORMAT_VALUE_CONFIG)
+		unsigned int i;
+		__u64 *mask;
+
+		if (format->value >= PERF_PMU_FORMAT_VALUE_CONFIG_END)
 			continue;
 
+		pmu->config_masks_present = true;
+		mask = &pmu->config_masks[format->value];
+
 		for_each_set_bit(i, format->bits, PERF_PMU_FORMAT_BITS)
-			masks |= 1ULL << i;
+			*mask |= 1ULL << i;
 	}
+	pmu->config_masks_computed = true;
+}
+
+void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
+				   const char *name, int config_num,
+				   const char *config_name)
+{
+	__u64 bits;
+	char buf[100];
+
+	perf_pmu__compute_config_masks(pmu);
 
 	/*
 	 * Kernel doesn't export any valid format bits.
 	 */
-	if (masks == 0)
+	if (!pmu->config_masks_present)
 		return;
 
-	bits = config & ~masks;
+	bits = config & ~pmu->config_masks[config_num];
 	if (bits == 0)
 		return;
 
 	bitmap_scnprintf((unsigned long *)&bits, sizeof(bits) * 8, buf, sizeof(buf));
 
-	pr_warning("WARNING: event '%s' not valid (bits %s of config "
+	pr_warning("WARNING: event '%s' not valid (bits %s of %s "
 		   "'%llx' not supported by kernel)!\n",
-		   name ?: "N/A", buf, config);
+		   name ?: "N/A", buf, config_name, config);
 }
 
 int perf_pmu__match(char *pattern, char *name, char *tok)

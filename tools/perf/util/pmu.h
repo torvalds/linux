@@ -81,6 +81,10 @@ struct perf_pmu {
 	 * perf_event_attr once.
 	 */
 	bool formats_checked;
+	/** @config_masks_present: Are there config format values? */
+	bool config_masks_present;
+	/** @config_masks_computed: Set when masks are lazily computed. */
+	bool config_masks_computed;
 	/**
 	 * @max_precise: Number of levels of :ppp precision supported by the
 	 * PMU, read from
@@ -124,6 +128,12 @@ struct perf_pmu {
 	struct list_head caps;
 	/** @list: Element on pmus list in pmu.c. */
 	struct list_head list;
+
+	/**
+	 * @config_masks: Derived from the PMU's format data, bits that are
+	 * valid within the config value.
+	 */
+	__u64 config_masks[PERF_PMU_FORMAT_VALUE_CONFIG_END];
 
 	/**
 	 * @missing_features: Features to inhibit when events on this PMU are
@@ -260,7 +270,8 @@ int perf_pmu__convert_scale(const char *scale, char **end, double *sval);
 int perf_pmu__caps_parse(struct perf_pmu *pmu);
 
 void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
-				   const char *name);
+				   const char *name, int config_num,
+				   const char *config_name);
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu);
 
 int perf_pmu__match(char *pattern, char *name, char *tok);
