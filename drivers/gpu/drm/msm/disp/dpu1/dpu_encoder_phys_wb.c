@@ -240,7 +240,7 @@ static int dpu_encoder_phys_wb_atomic_check(
 	const struct drm_display_mode *mode = &crtc_state->mode;
 
 	DPU_DEBUG("[atomic_check:%d, \"%s\",%d,%d]\n",
-			phys_enc->wb_idx, mode->name, mode->hdisplay, mode->vdisplay);
+			phys_enc->hw_wb->idx, mode->name, mode->hdisplay, mode->vdisplay);
 
 	if (!conn_state || !conn_state->connector) {
 		DPU_ERROR("invalid connector state\n");
@@ -561,7 +561,7 @@ static void dpu_encoder_phys_wb_destroy(struct dpu_encoder_phys *phys_enc)
 	if (!phys_enc)
 		return;
 
-	DPU_DEBUG("[wb:%d]\n", phys_enc->wb_idx - WB_0);
+	DPU_DEBUG("[wb:%d]\n", phys_enc->hw_wb->idx - WB_0);
 
 	kfree(phys_enc);
 }
@@ -712,9 +712,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_wb_init(
 
 	wb_enc->wb_done_timeout_cnt = 0;
 
-
-	DPU_DEBUG("Created dpu_encoder_phys for wb %d\n",
-			phys_enc->wb_idx);
+	DPU_DEBUG("Created dpu_encoder_phys for wb %d\n", phys_enc->hw_wb->idx);
 
 	return phys_enc;
 

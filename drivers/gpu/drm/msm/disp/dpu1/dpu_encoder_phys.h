@@ -161,8 +161,6 @@ enum dpu_intr_idx {
  * @enabled:		Whether the encoder has enabled and running a mode
  * @split_role:		Role to play in a split-panel configuration
  * @intf_mode:		Interface mode
- * @intf_idx:		Interface index on dpu hardware
- * @wb_idx:			Writeback index on dpu hardware
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  * @enable_state:	Enable state tracking
  * @vblank_refcount:	Reference count of vblank request
@@ -190,8 +188,6 @@ struct dpu_encoder_phys {
 	struct drm_display_mode cached_mode;
 	enum dpu_enc_split_role split_role;
 	enum dpu_intf_mode intf_mode;
-	enum dpu_intf intf_idx;
-	enum dpu_wb wb_idx;
 	spinlock_t *enc_spinlock;
 	enum dpu_enc_enable_state enable_state;
 	atomic_t vblank_refcount;
@@ -258,16 +254,16 @@ struct dpu_encoder_phys_cmd {
  * @parent:		Pointer to the containing virtual encoder
  * @parent_ops:		Callbacks exposed by the parent to the phys_enc
  * @split_role:		Role to play in a split-panel configuration
- * @intf_idx:		Interface index this phys_enc will control
- * @wb_idx:			Writeback index this phys_enc will control
+ * @hw_intf:		Hardware interface to the intf registers
+ * @hw_wb:		Hardware interface to the wb registers
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  */
 struct dpu_enc_phys_init_params {
 	struct dpu_kms *dpu_kms;
 	struct drm_encoder *parent;
 	enum dpu_enc_split_role split_role;
-	enum dpu_intf intf_idx;
-	enum dpu_wb wb_idx;
+	struct dpu_hw_intf *hw_intf;
+	struct dpu_hw_wb *hw_wb;
 	spinlock_t *enc_spinlock;
 };
 

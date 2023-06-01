@@ -16,12 +16,12 @@
 #define DPU_DEBUG_CMDENC(e, fmt, ...) DPU_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
-		(e) ? (e)->base.intf_idx - INTF_0 : -1, ##__VA_ARGS__)
+		(e) ? (e)->base.hw_intf->idx - INTF_0 : -1, ##__VA_ARGS__)
 
 #define DPU_ERROR_CMDENC(e, fmt, ...) DPU_ERROR("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
-		(e) ? (e)->base.intf_idx - INTF_0 : -1, ##__VA_ARGS__)
+		(e) ? (e)->base.hw_intf->idx - INTF_0 : -1, ##__VA_ARGS__)
 
 #define to_dpu_encoder_phys_cmd(x) \
 	container_of(x, struct dpu_encoder_phys_cmd, base)
@@ -55,7 +55,7 @@ static void _dpu_encoder_phys_cmd_update_intf_cfg(
 	if (!ctl->ops.setup_intf_cfg)
 		return;
 
-	intf_cfg.intf = phys_enc->intf_idx;
+	intf_cfg.intf = phys_enc->hw_intf->idx;
 	intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_CMD;
 	intf_cfg.stream_sel = cmd_enc->stream_sel;
 	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
@@ -440,7 +440,7 @@ static void dpu_encoder_phys_cmd_enable_helper(
 		return;
 	}
 
-	dpu_encoder_helper_split_config(phys_enc, phys_enc->intf_idx);
+	dpu_encoder_helper_split_config(phys_enc, phys_enc->hw_intf->idx);
 
 	_dpu_encoder_phys_cmd_pingpong_config(phys_enc);
 
@@ -448,7 +448,7 @@ static void dpu_encoder_phys_cmd_enable_helper(
 		return;
 
 	ctl = phys_enc->hw_ctl;
-	ctl->ops.update_pending_flush_intf(ctl, phys_enc->intf_idx);
+	ctl->ops.update_pending_flush_intf(ctl, phys_enc->hw_intf->idx);
 }
 
 static void dpu_encoder_phys_cmd_enable(struct dpu_encoder_phys *phys_enc)
@@ -557,7 +557,7 @@ static void dpu_encoder_phys_cmd_disable(struct dpu_encoder_phys *phys_enc)
 				phys_enc->hw_pp->idx);
 
 		ctl = phys_enc->hw_ctl;
-		ctl->ops.update_pending_flush_intf(ctl, phys_enc->intf_idx);
+		ctl->ops.update_pending_flush_intf(ctl, phys_enc->hw_intf->idx);
 	}
 
 	phys_enc->enable_state = DPU_ENC_DISABLED;
@@ -667,7 +667,7 @@ static int dpu_encoder_phys_cmd_wait_for_tx_complete(
 	if (rc) {
 		DRM_ERROR("failed wait_for_idle: id:%u ret:%d intf:%d\n",
 			  DRMID(phys_enc->parent), rc,
-			  phys_enc->intf_idx - INTF_0);
+			  phys_enc->hw_intf->idx - INTF_0);
 	}
 
 	return rc;
@@ -758,7 +758,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	struct dpu_encoder_phys_cmd *cmd_enc = NULL;
 	int ret = 0;
 
-	DPU_DEBUG("intf %d\n", p->intf_idx - INTF_0);
+	DPU_DEBUG("intf\n");
 
 	cmd_enc = kzalloc(sizeof(*cmd_enc), GFP_KERNEL);
 	if (!cmd_enc) {
@@ -775,7 +775,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	cmd_enc->stream_sel = 0;
 
 	phys_enc->has_intf_te = test_bit(DPU_INTF_TE,
-			&phys_enc->dpu_kms->catalog->intf[p->intf_idx - INTF_0].features);
+					 &phys_enc->hw_intf->cap->features);
 
 	atomic_set(&cmd_enc->pending_vblank_cnt, 0);
 	init_waitqueue_head(&cmd_enc->pending_vblank_wq);

@@ -339,7 +339,8 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 	DRM_ERROR("irq timeout id=%u, intf_mode=%s intf=%d wb=%d, pp=%d, intr=%d\n",
 			DRMID(phys_enc->parent),
 			dpu_encoder_helper_get_intf_type(phys_enc->intf_mode),
-			phys_enc->intf_idx - INTF_0, phys_enc->wb_idx - WB_0,
+			phys_enc->hw_intf ? phys_enc->hw_intf->idx - INTF_0 : -1,
+			phys_enc->hw_wb ? phys_enc->hw_wb->idx - WB_0 : -1,
 			phys_enc->hw_pp->idx - PINGPONG_0, intr_idx);
 
 	dpu_encoder_frame_done_callback(phys_enc->parent, phys_enc,
@@ -1419,7 +1420,8 @@ void dpu_encoder_frame_done_callback(
 			 */
 			trace_dpu_enc_frame_done_cb_not_busy(DRMID(drm_enc), event,
 					dpu_encoder_helper_get_intf_type(ready_phys->intf_mode),
-					ready_phys->intf_idx, ready_phys->wb_idx);
+					ready_phys->hw_intf ? ready_phys->hw_intf->idx : -1,
+					ready_phys->hw_wb ? ready_phys->hw_wb->idx : -1);
 			return;
 		}
 
@@ -1499,7 +1501,8 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 
 	trace_dpu_enc_trigger_flush(DRMID(drm_enc),
 			dpu_encoder_helper_get_intf_type(phys->intf_mode),
-			phys->intf_idx, phys->wb_idx,
+			phys->hw_intf ? phys->hw_intf->idx : -1,
+			phys->hw_wb ? phys->hw_wb->idx : -1,
 			pending_kickoff_cnt, ctl->idx,
 			extra_flush_bits, ret);
 }
@@ -2155,7 +2158,8 @@ static int _dpu_encoder_status_show(struct seq_file *s, void *data)
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
 		seq_printf(s, "intf:%d  wb:%d  vsync:%8d     underrun:%8d    ",
-				phys->intf_idx - INTF_0, phys->wb_idx - WB_0,
+				phys->hw_intf ? phys->hw_intf->idx - INTF_0 : -1,
+				phys->hw_wb ? phys->hw_wb->idx - WB_0 : -1,
 				atomic_read(&phys->vsync_cnt),
 				atomic_read(&phys->underrun_cnt));
 
@@ -2319,6 +2323,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 		 * h_tile_instance_ids[2] = {1, 0}; DSI1 = left, DSI0 = right
 		 */
 		u32 controller_id = disp_info->h_tile_instance[i];
+		enum dpu_intf intf_idx;
+		enum dpu_wb wb_idx;
 
 		if (disp_info->num_of_h_tiles > 1) {
 			if (i == 0)
@@ -2332,57 +2338,39 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 		DPU_DEBUG("h_tile_instance %d = %d, split_role %d\n",
 				i, controller_id, phys_params.split_role);
 
-		phys_params.intf_idx = dpu_encoder_get_intf(dpu_kms->catalog,
+		intf_idx = dpu_encoder_get_intf(dpu_kms->catalog,
 							    disp_info->intf_type,
 							    controller_id);
 
-		phys_params.wb_idx = dpu_encoder_get_wb(dpu_kms->catalog,
+		wb_idx = dpu_encoder_get_wb(dpu_kms->catalog,
 				disp_info->intf_type, controller_id);
-		/*
-		 * The phys_params might represent either an INTF or a WB unit, but not
-		 * both of them at the same time.
-		 */
-		if ((phys_params.intf_idx == INTF_MAX) &&
-				(phys_params.wb_idx == WB_MAX)) {
-			DPU_ERROR_ENC(dpu_enc, "could not get intf or wb: type %d, id %d\n",
-						  disp_info->intf_type, controller_id);
-			ret = -EINVAL;
-		}
 
-		if ((phys_params.intf_idx != INTF_MAX) &&
-				(phys_params.wb_idx != WB_MAX)) {
-			DPU_ERROR_ENC(dpu_enc, "both intf and wb present: type %d, id %d\n",
-						  disp_info->intf_type, controller_id);
-			ret = -EINVAL;
-		}
+		if (intf_idx >= INTF_0 && intf_idx < INTF_MAX)
+			phys_params.hw_intf = dpu_rm_get_intf(&dpu_kms->rm, intf_idx);
 
-		if (!ret) {
-			ret = dpu_encoder_virt_add_phys_encs(disp_info,
-					dpu_enc, &phys_params);
-			if (ret)
-				DPU_ERROR_ENC(dpu_enc, "failed to add phys encs\n");
-		}
-	}
+		if (wb_idx >= WB_0 && wb_idx < WB_MAX)
+			phys_params.hw_wb = dpu_rm_get_wb(&dpu_kms->rm, wb_idx);
 
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
-
-		if (phys->intf_idx >= INTF_0 && phys->intf_idx < INTF_MAX)
-			phys->hw_intf = dpu_rm_get_intf(&dpu_kms->rm, phys->intf_idx);
-
-		if (phys->wb_idx >= WB_0 && phys->wb_idx < WB_MAX)
-			phys->hw_wb = dpu_rm_get_wb(&dpu_kms->rm, phys->wb_idx);
-
-		if (!phys->hw_intf && !phys->hw_wb) {
+		if (!phys_params.hw_intf && !phys_params.hw_wb) {
 			DPU_ERROR_ENC(dpu_enc, "no intf or wb block assigned at idx: %d\n", i);
 			ret = -EINVAL;
+			break;
 		}
 
-		if (phys->hw_intf && phys->hw_wb) {
+		if (phys_params.hw_intf && phys_params.hw_wb) {
 			DPU_ERROR_ENC(dpu_enc,
 					"invalid phys both intf and wb block at idx: %d\n", i);
 			ret = -EINVAL;
+			break;
 		}
+
+		ret = dpu_encoder_virt_add_phys_encs(disp_info,
+				dpu_enc, &phys_params);
+		if (ret) {
+			DPU_ERROR_ENC(dpu_enc, "failed to add phys encs\n");
+			break;
+		}
+
 	}
 
 	mutex_unlock(&dpu_enc->enc_lock);
@@ -2574,8 +2562,8 @@ void dpu_encoder_phys_init(struct dpu_encoder_phys *phys_enc,
 	int i;
 
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
-	phys_enc->intf_idx = p->intf_idx;
-	phys_enc->wb_idx = p->wb_idx;
+	phys_enc->hw_intf = p->hw_intf;
+	phys_enc->hw_wb = p->hw_wb;
 	phys_enc->parent = p->parent;
 	phys_enc->dpu_kms = p->dpu_kms;
 	phys_enc->split_role = p->split_role;
