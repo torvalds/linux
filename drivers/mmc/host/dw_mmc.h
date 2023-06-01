@@ -233,6 +233,9 @@ struct dw_mci {
 	bool			need_xfer_timer;
 	struct timer_list       xfer_timer;
 	bool			is_rv1106_sd;
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*normal_state;
+	struct pinctrl_state	*idle_state;
 };
 
 /* DMA ops for Internal/External DMAC interface */
