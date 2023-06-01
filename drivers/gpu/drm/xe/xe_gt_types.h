@@ -14,7 +14,6 @@
 #include "xe_uc_types.h"
 
 struct xe_engine_ops;
-struct xe_ggtt;
 struct xe_migrate;
 struct xe_ring_ops;
 struct xe_ttm_gtt_mgr;
@@ -176,8 +175,6 @@ struct xe_gt {
 		} vram;
 		/** @vram_mgr: VRAM TTM manager */
 		struct xe_ttm_vram_mgr *vram_mgr;
-		/** @ggtt: Global graphics translation table */
-		struct xe_ggtt *ggtt;
 	} mem;
 
 	/** @reset: state for GT resets */

@@ -12,7 +12,7 @@ struct xe_bo;
 struct xe_gt;
 
 struct xe_ggtt {
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 
 	u64 size;
 

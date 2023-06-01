@@ -98,7 +98,7 @@ static int ggtt(struct seq_file *m, void *data)
 	struct xe_gt *gt = node_to_gt(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	return xe_ggtt_dump(gt->mem.ggtt, &p);
+	return xe_ggtt_dump(gt_to_tile(gt)->mem.ggtt, &p);
 }
 
 static int register_save_restore(struct seq_file *m, void *data)

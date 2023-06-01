@@ -964,7 +964,7 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 	WARN_ON(!list_empty(&bo->vmas));
 
 	if (bo->ggtt_node.size)
-		xe_ggtt_remove_bo(bo->gt->mem.ggtt, bo);
+		xe_ggtt_remove_bo(gt_to_tile(bo->gt)->mem.ggtt, bo);
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
@@ -1242,9 +1242,9 @@ xe_bo_create_locked_range(struct xe_device *xe,
 
 		if (flags & XE_BO_CREATE_STOLEN_BIT &&
 		    flags & XE_BO_FIXED_PLACEMENT_BIT) {
-			err = xe_ggtt_insert_bo_at(gt->mem.ggtt, bo, start);
+			err = xe_ggtt_insert_bo_at(gt_to_tile(gt)->mem.ggtt, bo, start);
 		} else {
-			err = xe_ggtt_insert_bo(gt->mem.ggtt, bo);
+			err = xe_ggtt_insert_bo(gt_to_tile(gt)->mem.ggtt, bo);
 		}
 		if (err)
 			goto err_unlock_put_bo;

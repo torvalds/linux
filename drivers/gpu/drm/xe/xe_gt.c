@@ -67,11 +67,6 @@ int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
 	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
 	if (!xe_gt_is_media_type(gt)) {
-		gt->mem.ggtt = drmm_kzalloc(drm, sizeof(*gt->mem.ggtt),
-					    GFP_KERNEL);
-		if (!gt->mem.ggtt)
-			return -ENOMEM;
-
 		gt->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*gt->mem.vram_mgr),
 						GFP_KERNEL);
 		if (!gt->mem.vram_mgr)
@@ -80,7 +75,6 @@ int xe_gt_alloc(struct xe_device *xe, struct xe_gt *gt)
 	} else {
 		struct xe_gt *full_gt = xe_find_full_gt(gt);
 
-		gt->mem.ggtt = full_gt->mem.ggtt;
 		gt->mem.vram_mgr = full_gt->mem.vram_mgr;
 	}
 
@@ -354,8 +348,6 @@ int xe_gt_init_noalloc(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
-	err = xe_ggtt_init_noalloc(gt, gt->mem.ggtt);
-
 err_force_wake:
 	err2 = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	XE_WARN_ON(err2);
@@ -376,7 +368,7 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	xe_pat_init(gt);
 
 	if (!xe_gt_is_media_type(gt)) {
-		err = xe_ggtt_init(gt, gt->mem.ggtt);
+		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
 			goto err_force_wake;
 	}

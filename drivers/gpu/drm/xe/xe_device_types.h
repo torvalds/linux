@@ -17,6 +17,8 @@
 #include "xe_platform_types.h"
 #include "xe_step_types.h"
 
+struct xe_ggtt;
+
 #define XE_BO_INVALID_OFFSET	LONG_MAX
 
 #define GRAPHICS_VER(xe) ((xe)->info.graphics_verx100 / 100)
@@ -91,6 +93,12 @@ struct xe_tile {
 		/** @regs: pointer to tile's MMIO space (starting with registers) */
 		void *regs;
 	} mmio;
+
+	/** @mem: memory management info for tile */
+	struct {
+		/** @ggtt: Global graphics translation table */
+		struct xe_ggtt *ggtt;
+	} mem;
 };
 
 /**
