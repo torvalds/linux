@@ -816,7 +816,6 @@ err_resource_deinit:
 
 err_core_destroy:
 	ath10k_core_destroy(ar);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -844,8 +843,6 @@ static int ath10k_ahb_remove(struct platform_device *pdev)
 	ath10k_ahb_clock_disable(ar);
 	ath10k_ahb_resource_deinit(ar);
 	ath10k_core_destroy(ar);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
