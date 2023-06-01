@@ -123,7 +123,9 @@ struct alpha_pll_config {
 	u32 user_ctl_hi_val;
 	u32 user_ctl_hi1_val;
 	u32 test_ctl_val;
+	u32 test_ctl_mask;
 	u32 test_ctl_hi_val;
+	u32 test_ctl_hi_mask;
 	u32 test_ctl_hi1_val;
 	u32 test_ctl_hi2_val;
 	u32 main_output_mask;
