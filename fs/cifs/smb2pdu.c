@@ -1947,6 +1947,9 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	init_copy_chunk_defaults(tcon);
 	if (server->ops->validate_negotiate)
 		rc = server->ops->validate_negotiate(xid, tcon);
+	if (rc == 0) /* See MS-SMB2 2.2.10 and 3.2.5.5 */
+		if (tcon->share_flags & SMB2_SHAREFLAG_ISOLATED_TRANSPORT)
+			server->nosharesock = true;
 tcon_exit:
 
 	free_rsp_buf(resp_buftype, rsp);

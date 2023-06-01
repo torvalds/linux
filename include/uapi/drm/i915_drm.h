@@ -280,7 +280,16 @@ enum drm_i915_pmu_engine_sample {
 #define I915_PMU_ENGINE_SEMA(class, instance) \
 	__I915_PMU_ENGINE(class, instance, I915_SAMPLE_SEMA)
 
-#define __I915_PMU_OTHER(x) (__I915_PMU_ENGINE(0xff, 0xff, 0xf) + 1 + (x))
+/*
+ * Top 4 bits of every non-engine counter are GT id.
+ */
+#define __I915_PMU_GT_SHIFT (60)
+
+#define ___I915_PMU_OTHER(gt, x) \
+	(((__u64)__I915_PMU_ENGINE(0xff, 0xff, 0xf) + 1 + (x)) | \
+	((__u64)(gt) << __I915_PMU_GT_SHIFT))
+
+#define __I915_PMU_OTHER(x) ___I915_PMU_OTHER(0, x)
 
 #define I915_PMU_ACTUAL_FREQUENCY	__I915_PMU_OTHER(0)
 #define I915_PMU_REQUESTED_FREQUENCY	__I915_PMU_OTHER(1)
@@ -289,6 +298,12 @@ enum drm_i915_pmu_engine_sample {
 #define I915_PMU_SOFTWARE_GT_AWAKE_TIME	__I915_PMU_OTHER(4)
 
 #define I915_PMU_LAST /* Deprecated - do not use */ I915_PMU_RC6_RESIDENCY
+
+#define __I915_PMU_ACTUAL_FREQUENCY(gt)		___I915_PMU_OTHER(gt, 0)
+#define __I915_PMU_REQUESTED_FREQUENCY(gt)	___I915_PMU_OTHER(gt, 1)
+#define __I915_PMU_INTERRUPTS(gt)		___I915_PMU_OTHER(gt, 2)
+#define __I915_PMU_RC6_RESIDENCY(gt)		___I915_PMU_OTHER(gt, 3)
+#define __I915_PMU_SOFTWARE_GT_AWAKE_TIME(gt)	___I915_PMU_OTHER(gt, 4)
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
@@ -770,6 +785,25 @@ typedef struct drm_i915_irq_wait {
  * timestamp frequency, but differs on some platforms.
  */
 #define I915_PARAM_OA_TIMESTAMP_FREQUENCY 57
+
+/*
+ * Query the status of PXP support in i915.
+ *
+ * The query can fail in the following scenarios with the listed error codes:
+ *     -ENODEV = PXP support is not available on the GPU device or in the
+ *               kernel due to missing component drivers or kernel configs.
+ *
+ * If the IOCTL is successful, the returned parameter will be set to one of
+ * the following values:
+ *     1 = PXP feature is supported and is ready for use.
+ *     2 = PXP feature is supported but should be ready soon (pending
+ *         initialization of non-i915 system dependencies).
+ *
+ * NOTE: When param is supported (positive return values), user space should
+ *       still refer to the GEM PXP context-creation UAPI header specs to be
+ *       aware of possible failure due to system state machine at the time.
+ */
+#define I915_PARAM_PXP_STATUS		 58
 
 /* Must be kept compact -- no holes and well documented */
 
@@ -2096,6 +2130,21 @@ struct drm_i915_gem_context_param {
  *
  * -ENODEV: feature not available
  * -EPERM: trying to mark a recoverable or not bannable context as protected
+ * -ENXIO: A dependency such as a component driver or firmware is not yet
+ *         loaded so user space may need to attempt again. Depending on the
+ *         device, this error may be reported if protected context creation is
+ *         attempted very early after kernel start because the internal timeout
+ *         waiting for such dependencies is not guaranteed to be larger than
+ *         required (numbers differ depending on system and kernel config):
+ *            - ADL/RPL: dependencies may take up to 3 seconds from kernel start
+ *                       while context creation internal timeout is 250 milisecs
+ *            - MTL: dependencies may take up to 8 seconds from kernel start
+ *                   while context creation internal timeout is 250 milisecs
+ *         NOTE: such dependencies happen once, so a subsequent call to create a
+ *         protected context after a prior successful call will not experience
+ *         such timeouts and will not return -ENXIO (unless the driver is reloaded,
+ *         or, depending on the device, resumes from a suspended state).
+ * -EIO: The firmware did not succeed in creating the protected context.
  */
 #define I915_CONTEXT_PARAM_PROTECTED_CONTENT    0xd
 /* Must be kept compact -- no holes and well documented */

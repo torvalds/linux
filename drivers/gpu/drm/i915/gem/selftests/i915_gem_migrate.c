@@ -219,7 +219,7 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 			continue;
 
 		err = intel_migrate_clear(&gt->migrate, &ww, deps,
-					  obj->mm.pages->sgl, obj->cache_level,
+					  obj->mm.pages->sgl, obj->pat_index,
 					  i915_gem_object_is_lmem(obj),
 					  0xdeadbeaf, &rq);
 		if (rq) {

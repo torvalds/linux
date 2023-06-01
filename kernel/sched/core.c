@@ -11492,7 +11492,7 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
 
 #ifdef CONFIG_SCHED_MM_CID
 
-/**
+/*
  * @cid_lock: Guarantee forward-progress of cid allocation.
  *
  * Concurrency ID allocation within a bitmap is mostly lock-free. The cid_lock
@@ -11501,7 +11501,7 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  */
 DEFINE_RAW_SPINLOCK(cid_lock);
 
-/**
+/*
  * @use_cid_lock: Select cid allocation behavior: lock-free vs spinlock.
  *
  * When @use_cid_lock is 0, the cid allocation is lock-free. When contention is

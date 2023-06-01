@@ -1281,7 +1281,7 @@ static inline int ublk_check_cmd_op(u32 cmd_op)
 {
 	u32 ioc_type = _IOC_TYPE(cmd_op);
 
-	if (IS_ENABLED(CONFIG_BLKDEV_UBLK_LEGACY_OPCODES) && ioc_type != 'u')
+	if (!IS_ENABLED(CONFIG_BLKDEV_UBLK_LEGACY_OPCODES) && ioc_type != 'u')
 		return -EOPNOTSUPP;
 
 	if (ioc_type != 'u' && ioc_type != 0)

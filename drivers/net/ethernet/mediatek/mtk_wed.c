@@ -654,7 +654,7 @@ __mtk_wed_detach(struct mtk_wed_device *dev)
 					   BIT(hw->index), BIT(hw->index));
 	}
 
-	if (!hw_list[!hw->index]->wed_dev &&
+	if ((!hw_list[!hw->index] || !hw_list[!hw->index]->wed_dev) &&
 	    hw->eth->dma_dev != hw->eth->dev)
 		mtk_eth_set_dma_device(hw->eth, hw->eth->dev);
 

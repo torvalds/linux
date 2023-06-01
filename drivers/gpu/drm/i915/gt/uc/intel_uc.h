@@ -36,6 +36,7 @@ struct intel_uc {
 	struct drm_i915_gem_object *load_err_log;
 
 	bool reset_in_progress;
+	bool fw_table_invalid;
 };
 
 void intel_uc_init_early(struct intel_uc *uc);

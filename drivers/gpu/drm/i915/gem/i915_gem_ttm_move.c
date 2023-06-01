@@ -214,7 +214,8 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
 		ret = intel_context_migrate_clear(to_gt(i915)->migrate.context, deps,
-						  dst_st->sgl, dst_level,
+						  dst_st->sgl,
+						  i915_gem_get_pat_index(i915, dst_level),
 						  i915_ttm_gtt_binds_lmem(dst_mem),
 						  0, &rq);
 	} else {
@@ -228,9 +229,10 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
 		ret = intel_context_migrate_copy(to_gt(i915)->migrate.context,
 						 deps, src_rsgt->table.sgl,
-						 src_level,
+						 i915_gem_get_pat_index(i915, src_level),
 						 i915_ttm_gtt_binds_lmem(bo->resource),
-						 dst_st->sgl, dst_level,
+						 dst_st->sgl,
+						 i915_gem_get_pat_index(i915, dst_level),
 						 i915_ttm_gtt_binds_lmem(dst_mem),
 						 &rq);
 
@@ -576,7 +578,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	struct dma_fence *migration_fence = NULL;
 	struct ttm_tt *ttm = bo->ttm;
 	struct i915_refct_sgt *dst_rsgt;
-	bool clear;
+	bool clear, prealloc_bo;
 	int ret;
 
 	if (GEM_WARN_ON(i915_ttm_is_ghost_object(bo))) {
@@ -632,7 +634,8 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		return PTR_ERR(dst_rsgt);
 
 	clear = !i915_ttm_cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
-	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC))) {
+	prealloc_bo = obj->flags & I915_BO_PREALLOC;
+	if (!(clear && ttm && !((ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) && !prealloc_bo))) {
 		struct i915_deps deps;
 
 		i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);

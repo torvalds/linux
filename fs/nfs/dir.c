@@ -402,7 +402,7 @@ static struct folio *nfs_readdir_folio_get_locked(struct address_space *mapping,
 	struct folio *folio;
 
 	folio = filemap_grab_folio(mapping, index);
-	if (!folio)
+	if (IS_ERR(folio))
 		return NULL;
 	nfs_readdir_folio_init_and_validate(folio, cookie, change_attr);
 	return folio;

@@ -3494,8 +3494,10 @@ xfs_bmap_btalloc_at_eof(
 		if (!caller_pag)
 			args->pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, ap->blkno));
 		error = xfs_alloc_vextent_exact_bno(args, ap->blkno);
-		if (!caller_pag)
+		if (!caller_pag) {
 			xfs_perag_put(args->pag);
+			args->pag = NULL;
+		}
 		if (error)
 			return error;
 
@@ -3505,7 +3507,6 @@ xfs_bmap_btalloc_at_eof(
 		 * Exact allocation failed. Reset to try an aligned allocation
 		 * according to the original allocation specification.
 		 */
-		args->pag = NULL;
 		args->alignment = stripe_align;
 		args->minlen = nextminlen;
 		args->minalignslop = 0;
