@@ -31,6 +31,11 @@
 
 struct amdgpu_device;
 
+enum amdgpu_ras_gpu_health_status {
+	GPU_HEALTH_USABLE = 0,
+	GPU_RETIRED__ECC_REACH_THRESHOLD = 2,
+};
+
 enum amdgpu_ras_eeprom_err_type {
 	AMDGPU_RAS_EEPROM_ERR_NA,
 	AMDGPU_RAS_EEPROM_ERR_RECOVERABLE,

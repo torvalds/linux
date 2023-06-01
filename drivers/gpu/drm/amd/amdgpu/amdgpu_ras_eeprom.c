@@ -406,6 +406,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+	struct amdgpu_ras_eeprom_table_ras_info *rai = &control->tbl_rai;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	u8 csum;
 	int res;
@@ -423,6 +424,14 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 		hdr->first_rec_offset = RAS_RECORD_START_V2_1;
 		hdr->tbl_size = RAS_TABLE_HEADER_SIZE +
 				RAS_TABLE_V2_1_INFO_SIZE;
+		rai->rma_status = GPU_HEALTH_USABLE;
+		/**
+		 * GPU health represented as a percentage.
+		 * 0 means worst health, 100 means fully health.
+		 */
+		rai->health_percent = 100;
+		/* ecc_page_threshold = 0 means disable bad page retirement */
+		rai->ecc_page_threshold = con->bad_page_cnt_threshold;
 	} else {
 		hdr->first_rec_offset = RAS_RECORD_START;
 		hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
@@ -712,6 +721,10 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 			"Saved bad pages %d reaches threshold value %d\n",
 			control->ras_num_recs, ras->bad_page_cnt_threshold);
 		control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
+		if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1) {
+			control->tbl_rai.rma_status = GPU_RETIRED__ECC_REACH_THRESHOLD;
+			control->tbl_rai.health_percent = 0;
+		}
 	}
 
 	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
@@ -748,6 +761,17 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		res = -EIO;
 		goto Out;
 	}
+
+	/**
+	 * bad page records have been stored in eeprom,
+	 * now calculate gpu health percent
+	 */
+	if (amdgpu_bad_page_threshold != 0 &&
+	    control->tbl_hdr.version == RAS_TABLE_VER_V2_1 &&
+	    control->ras_num_recs < ras->bad_page_cnt_threshold)
+		control->tbl_rai.health_percent = ((ras->bad_page_cnt_threshold -
+						   control->ras_num_recs) * 100) /
+						   ras->bad_page_cnt_threshold;
 
 	/* Recalc the checksum.
 	 */
