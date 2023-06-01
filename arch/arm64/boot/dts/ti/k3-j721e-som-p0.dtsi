@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2019-2020 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * Product Link: https://www.ti.com/tool/J721EXSOMXEVM
  */
 
 /dts-v1/;
