@@ -203,15 +203,18 @@ static int regcache_maple_sync(struct regmap *map, unsigned int min,
 
 	mas_for_each(&mas, entry, max) {
 		for (r = max(mas.index, lmin); r <= min(mas.last, lmax); r++) {
+			mas_pause(&mas);
+			rcu_read_unlock();
 			ret = regcache_sync_val(map, r, entry[r - mas.index]);
 			if (ret != 0)
 				goto out;
+			rcu_read_lock();
 		}
 	}
 
-out:
 	rcu_read_unlock();
 
+out:
 	map->cache_bypass = false;
 
 	return ret;

@@ -53,7 +53,7 @@ pl111_mode_valid(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_device *drm = pipe->crtc.dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
-	u32 cpp = priv->variant->fb_bpp / 8;
+	u32 cpp = DIV_ROUND_UP(priv->variant->fb_depth, 8);
 	u64 bw;
 
 	/*

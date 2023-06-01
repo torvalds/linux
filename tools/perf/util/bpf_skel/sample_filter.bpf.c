@@ -25,7 +25,7 @@ struct perf_sample_data___new {
 } __attribute__((preserve_access_index));
 
 /* new kernel perf_mem_data_src definition */
-union perf_mem_data_src__new {
+union perf_mem_data_src___new {
 	__u64 val;
 	struct {
 		__u64   mem_op:5,	/* type of opcode */
@@ -108,7 +108,7 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		if (entry->part == 7)
 			return kctx->data->data_src.mem_blk;
 		if (entry->part == 8) {
-			union perf_mem_data_src__new *data = (void *)&kctx->data->data_src;
+			union perf_mem_data_src___new *data = (void *)&kctx->data->data_src;
 
 			if (bpf_core_field_exists(data->mem_hops))
 				return data->mem_hops;

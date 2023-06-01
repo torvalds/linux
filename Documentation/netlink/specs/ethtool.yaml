@@ -61,22 +61,6 @@ attribute-sets:
         nested-attributes: bitset-bits
 
   -
-    name: u64-array
-    attributes:
-      -
-        name: u64
-        type: nest
-        multi-attr: true
-        nested-attributes: u64
-  -
-    name: s32-array
-    attributes:
-      -
-        name: s32
-        type: nest
-        multi-attr: true
-        nested-attributes: s32
-  -
     name: string
     attributes:
       -
@@ -705,16 +689,16 @@ attribute-sets:
         type: u8
       -
         name: corrected
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
       -
         name: uncorr
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
       -
         name: corr-bits
-        type: nest
-        nested-attributes: u64-array
+        type: binary
+        sub-type: u64
   -
     name: fec
     attributes:
@@ -827,8 +811,8 @@ attribute-sets:
         type: u32
       -
         name: index
-        type: nest
-        nested-attributes: s32-array
+        type: binary
+        sub-type: s32
   -
     name: module
     attributes:

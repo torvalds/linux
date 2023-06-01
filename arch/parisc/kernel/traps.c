@@ -47,6 +47,10 @@
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
 
+#if defined(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK)
+#include <asm/spinlock.h>
+#endif
+
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
 static void parisc_show_stack(struct task_struct *task,
@@ -291,21 +295,27 @@ static void handle_break(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KPROBES
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN && !user_mode(regs))) {
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2 && !user_mode(regs))) {
 		parisc_kprobe_ss_handler(regs);
 		return;
 	}
 #endif
 
 #ifdef CONFIG_KGDB
-	if (unlikely(iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
-		iir == PARISC_KGDB_BREAK_INSN)) {
+	if (unlikely((iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
+		iir == PARISC_KGDB_BREAK_INSN)) && !user_mode(regs)) {
 		kgdb_handle_exception(9, SIGTRAP, 0, regs);
 		return;
+	}
+#endif
+
+#ifdef CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK
+        if ((iir == SPINLOCK_BREAK_INSN) && !user_mode(regs)) {
+		die_if_kernel("Spinlock was trashed", regs, 1);
 	}
 #endif
 

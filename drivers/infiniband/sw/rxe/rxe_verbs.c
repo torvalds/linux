@@ -904,10 +904,10 @@ static int rxe_post_send_kernel(struct rxe_qp *qp,
 	if (!err)
 		rxe_sched_task(&qp->req.task);
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp_state(qp) == IB_QPS_ERR)
 		rxe_sched_task(&qp->comp.task);
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	return err;
 }
@@ -917,22 +917,23 @@ static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 {
 	struct rxe_qp *qp = to_rqp(ibqp);
 	int err;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	/* caller has already called destroy_qp */
 	if (WARN_ON_ONCE(!qp->valid)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		rxe_err_qp(qp, "qp has been destroyed");
 		return -EINVAL;
 	}
 
 	if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		*bad_wr = wr;
 		rxe_err_qp(qp, "qp not ready to send");
 		return -EINVAL;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	if (qp->is_user) {
 		/* Utilize process context to do protocol processing */
@@ -1008,22 +1009,22 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	struct rxe_rq *rq = &qp->rq;
 	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	/* caller has already called destroy_qp */
 	if (WARN_ON_ONCE(!qp->valid)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		rxe_err_qp(qp, "qp has been destroyed");
 		return -EINVAL;
 	}
 
 	/* see C10-97.2.1 */
 	if (unlikely((qp_state(qp) < IB_QPS_INIT))) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		*bad_wr = wr;
 		rxe_dbg_qp(qp, "qp not ready to post recv");
 		return -EINVAL;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	if (unlikely(qp->srq)) {
 		*bad_wr = wr;
@@ -1044,10 +1045,10 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&rq->producer_lock, flags);
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp_state(qp) == IB_QPS_ERR)
 		rxe_sched_task(&qp->resp.task);
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	return err;
 }
