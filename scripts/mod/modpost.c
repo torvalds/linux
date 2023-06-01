@@ -1078,7 +1078,7 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 /**
  * Find symbol based on relocation record info.
  * In some cases the symbol supplied is a valid symbol so
- * return refsym. If st_name != 0 we assume this is a valid symbol.
+ * return refsym. If is_valid_name() == true, we assume this is a valid symbol.
  * In other cases the symbol needs to be looked up in the symbol table
  * based on section and address.
  *  **/
@@ -1091,7 +1091,7 @@ static Elf_Sym *find_tosym(struct elf_info *elf, Elf64_Sword addr,
 	Elf64_Sword d;
 	unsigned int relsym_secindex;
 
-	if (relsym->st_name != 0)
+	if (is_valid_name(elf, relsym))
 		return relsym;
 
 	/*
@@ -1296,6 +1296,13 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 	case R_ARM_ABS32:
 		inst = TO_NATIVE(*(uint32_t *)loc);
 		r->r_addend = inst + sym->st_value;
+		break;
+	case R_ARM_MOVW_ABS_NC:
+	case R_ARM_MOVT_ABS:
+		inst = TO_NATIVE(*(uint32_t *)loc);
+		offset = sign_extend32(((inst & 0xf0000) >> 4) | (inst & 0xfff),
+				       15);
+		r->r_addend = offset + sym->st_value;
 		break;
 	case R_ARM_PC24:
 	case R_ARM_CALL:
