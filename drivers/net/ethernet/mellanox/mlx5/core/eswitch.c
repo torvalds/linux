@@ -1970,6 +1970,12 @@ bool mlx5_eswitch_is_vf_vport(struct mlx5_eswitch *esw, u16 vport_num)
 	return mlx5_esw_check_port_type(esw, vport_num, MLX5_ESW_VPT_VF);
 }
 
+bool mlx5_eswitch_is_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	return vport_num == MLX5_VPORT_PF ||
+		mlx5_eswitch_is_vf_vport(esw, vport_num);
+}
+
 bool mlx5_esw_is_sf_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	return mlx5_esw_check_port_type(esw, vport_num, MLX5_ESW_VPT_SF);

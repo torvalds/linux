@@ -173,8 +173,10 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_
 
 	if (mlx5_esw_is_sf_vport(esw, vport_num))
 		ops = &mlx5_esw_dl_sf_port_ops;
-	else
+	else if (mlx5_eswitch_is_pf_vf_vport(esw, vport_num))
 		ops = &mlx5_esw_pf_vf_dl_port_ops;
+	else
+		ops = NULL;
 
 	devlink = priv_to_devlink(dev);
 	dl_port_index = mlx5_esw_vport_to_devlink_port_index(dev, vport_num);
