@@ -176,6 +176,17 @@ static const struct regmap_config max96712_regmap_config = {
 	.max_register = 0x1F17,
 };
 
+static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 3,
+	.lp_hys_sw = {3, 0, 0, 0},
+	.lp_escclk_pol_sel = {1, 0, 0, 0},
+	.skew_data_cal_clk = {0, 0, 0, 0},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
+};
+
 static const struct regval max96712_mipi_4lane_1920x1440_30fps[] = {
 	// Link A/B/C/D all use GMSL2, and disabled
 	{ 0x29, 0x0006, 0xf0, 0x00 }, // Link A/B/C/D: select GMSL2, Disabled
@@ -1053,6 +1064,7 @@ max96712_set_vicap_rst_inf(struct max96712 *max96712,
 static long max96712_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct max96712 *max96712 = v4l2_get_subdevdata(sd);
+	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 	u32 stream = 0;
 
@@ -1078,6 +1090,18 @@ static long max96712_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
 		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			rk3588_dcphy_param = *dphy_param;
+		dev_dbg(&max96712->client->dev, "sensor set dphy param\n");
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			*dphy_param = rk3588_dcphy_param;
+		dev_dbg(&max96712->client->dev, "sensor get dphy param\n");
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1094,6 +1118,7 @@ static long max96712_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_vicap_reset_info *vicap_rst_inf;
+	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 	int *seq;
 	u32 stream = 0;
@@ -1179,6 +1204,35 @@ static long max96712_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 			ret = max96712_ioctl(sd, cmd, &stream);
 		else
 			ret = -EFAULT;
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = max96712_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = max96712_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
