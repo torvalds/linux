@@ -17,7 +17,7 @@
 	model = "Texas Instruments AM642 EVM";
 
 	chosen {
-		stdout-path = "serial2:115200n8";
+		stdout-path = &main_uart0;
 	};
 
 	aliases {
