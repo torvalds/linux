@@ -3697,6 +3697,10 @@ static void atomisp_get_padding(struct atomisp_device *isp,
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_rect native_rect = input->native_rect;
+	const struct atomisp_in_fmt_conv *fc = NULL;
+	u32 min_pad_w = ISP2400_MIN_PAD_W;
+	u32 min_pad_h = ISP2400_MIN_PAD_H;
+	struct v4l2_mbus_framefmt *sink;
 
 	if (!input->crop_support) {
 		*padding_w = pad_w;
@@ -3715,6 +3719,35 @@ static void atomisp_get_padding(struct atomisp_device *isp,
 
 	*padding_w = min_t(u32, (native_rect.width - width) & ~1, pad_w);
 	*padding_h = min_t(u32, (native_rect.height - height) & ~1, pad_h);
+
+	/* The below minimum padding requirements are for BYT / ISP2400 only */
+	if (IS_ISP2401)
+		return;
+
+	sink = atomisp_subdev_get_ffmt(&isp->asd.subdev, NULL, V4L2_SUBDEV_FORMAT_ACTIVE,
+				       ATOMISP_SUBDEV_PAD_SINK);
+	if (sink)
+		fc = atomisp_find_in_fmt_conv(sink->code);
+	if (!fc) {
+		dev_warn(isp->dev, "%s: Could not get sensor format\n", __func__);
+		goto apply_min_padding;
+	}
+
+	/*
+	 * The ISP only supports GRBG for other bayer-orders additional padding
+	 * is used so that the raw sensor data can be cropped to fix the order.
+	 */
+	if (fc->bayer_order == IA_CSS_BAYER_ORDER_RGGB ||
+	    fc->bayer_order == IA_CSS_BAYER_ORDER_GBRG)
+		min_pad_w += 2;
+
+	if (fc->bayer_order == IA_CSS_BAYER_ORDER_BGGR ||
+	    fc->bayer_order == IA_CSS_BAYER_ORDER_GBRG)
+		min_pad_h += 2;
+
+apply_min_padding:
+	*padding_w = max_t(u32, *padding_w, min_pad_w);
+	*padding_h = max_t(u32, *padding_h, min_pad_h);
 }
 
 static int atomisp_set_crop(struct atomisp_device *isp,
