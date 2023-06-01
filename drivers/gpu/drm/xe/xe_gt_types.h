@@ -77,12 +77,17 @@ enum xe_steering_type {
 };
 
 /**
- * struct xe_gt - Top level struct of a graphics tile
+ * struct xe_gt - A "Graphics Technology" unit of the GPU
  *
- * A graphics tile may be a physical split (duplicate pieces of silicon,
- * different GGTT + VRAM) or a virtual split (shared GGTT + VRAM). Either way
- * this structure encapsulates of everything a GT is (MMIO, VRAM, memory
- * management, microcontrols, and a hardware set of engines).
+ * A GT ("Graphics Technology") is the subset of a GPU primarily responsible
+ * for implementing the graphics, compute, and/or media IP.  It encapsulates
+ * the hardware engines, programmable execution units, and GuC.   Each GT has
+ * its own handling of power management (RC6+forcewake) and multicast register
+ * steering.
+ *
+ * A GPU/tile may have a single GT that supplies all graphics, compute, and
+ * media functionality, or the graphics/compute and media may be split into
+ * separate GTs within a tile.
  */
 struct xe_gt {
 	/** @xe: backpointer to XE device */

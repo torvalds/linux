@@ -13,6 +13,7 @@
 
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_reg_defs.h"
+#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_pci_test.h"
 #include "xe_reg_sr.h"
@@ -236,9 +237,10 @@ static void xe_rtp_process_tests(struct kunit *test)
 {
 	const struct rtp_test_case *param = test->param_value;
 	struct xe_device *xe = test->priv;
-	struct xe_reg_sr *reg_sr = &xe->gt[0].reg_sr;
+	struct xe_gt *gt = &xe_device_get_root_tile(xe)->primary_gt;
+	struct xe_reg_sr *reg_sr = &gt->reg_sr;
 	const struct xe_reg_sr_entry *sre, *sr_entry = NULL;
-	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(&xe->gt[0]);
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 	unsigned long idx, count = 0;
 
 	xe_reg_sr_init(reg_sr, "xe_rtp_tests", xe);

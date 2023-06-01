@@ -438,6 +438,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
+	struct xe_gt *gt = xe_device_get_gt(xe, 0);
 	struct drm_xe_mmio *args = data;
 	unsigned int bits_flag, bytes;
 	struct xe_reg reg;
@@ -480,7 +481,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	 */
 	reg = XE_REG(args->addr);
 
-	xe_force_wake_get(gt_to_fw(&xe->gt[0]), XE_FORCEWAKE_ALL);
+	xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 
 	if (args->flags & DRM_XE_MMIO_WRITE) {
 		switch (bits_flag) {
@@ -489,10 +490,10 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 				ret = -EINVAL;
 				goto exit;
 			}
-			xe_mmio_write32(to_gt(xe), reg, args->value);
+			xe_mmio_write32(gt, reg, args->value);
 			break;
 		case DRM_XE_MMIO_64BIT:
-			xe_mmio_write64(to_gt(xe), reg, args->value);
+			xe_mmio_write64(gt, reg, args->value);
 			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");
@@ -507,10 +508,10 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_MMIO_READ) {
 		switch (bits_flag) {
 		case DRM_XE_MMIO_32BIT:
-			args->value = xe_mmio_read32(to_gt(xe), reg);
+			args->value = xe_mmio_read32(gt, reg);
 			break;
 		case DRM_XE_MMIO_64BIT:
-			args->value = xe_mmio_read64(to_gt(xe), reg);
+			args->value = xe_mmio_read64(gt, reg);
 			break;
 		default:
 			drm_dbg(&xe->drm, "Invalid MMIO bit size");
@@ -522,7 +523,7 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 	}
 
 exit:
-	xe_force_wake_put(gt_to_fw(&xe->gt[0]), XE_FORCEWAKE_ALL);
+	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 
 	return ret;
 }

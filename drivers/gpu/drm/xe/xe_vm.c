@@ -3389,7 +3389,7 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 	struct xe_device *xe = vma->vm->xe;
 	struct xe_gt *gt;
 	u32 gt_needs_invalidate = 0;
-	int seqno[XE_MAX_GT];
+	int seqno[XE_MAX_TILES_PER_DEVICE];
 	u8 id;
 	int ret;
 

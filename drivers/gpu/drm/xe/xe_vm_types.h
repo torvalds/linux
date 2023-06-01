@@ -159,7 +159,7 @@ struct xe_vm {
 	struct kref refcount;
 
 	/* engine used for (un)binding vma's */
-	struct xe_engine *eng[XE_MAX_GT];
+	struct xe_engine *eng[XE_MAX_TILES_PER_DEVICE];
 
 	/** Protects @rebind_list and the page-table structures */
 	struct dma_resv resv;
@@ -167,9 +167,9 @@ struct xe_vm {
 	u64 size;
 	struct rb_root vmas;
 
-	struct xe_pt *pt_root[XE_MAX_GT];
-	struct xe_bo *scratch_bo[XE_MAX_GT];
-	struct xe_pt *scratch_pt[XE_MAX_GT][XE_VM_MAX_LEVEL];
+	struct xe_pt *pt_root[XE_MAX_TILES_PER_DEVICE];
+	struct xe_bo *scratch_bo[XE_MAX_TILES_PER_DEVICE];
+	struct xe_pt *scratch_pt[XE_MAX_TILES_PER_DEVICE][XE_VM_MAX_LEVEL];
 
 	/** @flags: flags for this VM, statically setup a creation time */
 #define XE_VM_FLAGS_64K			BIT(0)

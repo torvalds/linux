@@ -48,12 +48,17 @@ static inline struct xe_file *to_xe_file(const struct drm_file *file)
 	return file->driver_priv;
 }
 
+static inline struct xe_tile *xe_device_get_root_tile(struct xe_device *xe)
+{
+	return &xe->tiles[0];
+}
+
 static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 {
 	struct xe_gt *gt;
 
-	XE_BUG_ON(gt_id > XE_MAX_GT);
-	gt = xe->gt + gt_id;
+	XE_BUG_ON(gt_id > XE_MAX_TILES_PER_DEVICE);
+	gt = &xe->tiles[gt_id].primary_gt;
 	XE_BUG_ON(gt->info.id != gt_id);
 	XE_BUG_ON(gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
@@ -65,7 +70,7 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
  */
 static inline struct xe_gt *to_gt(struct xe_device *xe)
 {
-	return xe->gt;
+	return &xe_device_get_root_tile(xe)->primary_gt;
 }
 
 static inline bool xe_device_guc_submission_enabled(struct xe_device *xe)

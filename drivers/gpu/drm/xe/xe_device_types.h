@@ -29,7 +29,7 @@
 
 #define XE_GT0		0
 #define XE_GT1		1
-#define XE_MAX_GT	(XE_GT1 + 1)
+#define XE_MAX_TILES_PER_DEVICE	(XE_GT1 + 1)
 
 #define XE_MAX_ASID	(BIT(20))
 
@@ -42,6 +42,40 @@
 	 (_xe)->info.subplatform == (sub) &&				\
 	 (_xe)->info.step.graphics >= (min_step) &&			\
 	 (_xe)->info.step.graphics < (max_step))
+
+#define tile_to_xe(tile__)								\
+	_Generic(tile__,								\
+		 const struct xe_tile *: (const struct xe_device *)((tile__)->xe),	\
+		 struct xe_tile *: (tile__)->xe)
+
+/**
+ * struct xe_tile - hardware tile structure
+ *
+ * From a driver perspective, a "tile" is effectively a complete GPU, containing
+ * an SGunit, 1-2 GTs, and (for discrete platforms) VRAM.
+ *
+ * Multi-tile platforms effectively bundle multiple GPUs behind a single PCI
+ * device and designate one "root" tile as being responsible for external PCI
+ * communication.  PCI BAR0 exposes the GGTT and MMIO register space for each
+ * tile in a stacked layout, and PCI BAR2 exposes the local memory associated
+ * with each tile similarly.  Device-wide interrupts can be enabled/disabled
+ * at the root tile, and the MSTR_TILE_INTR register will report which tiles
+ * have interrupts that need servicing.
+ */
+struct xe_tile {
+	/** @xe: Backpointer to tile's PCI device */
+	struct xe_device *xe;
+
+	/** @id: ID of the tile */
+	u8 id;
+
+	/**
+	 * @primary_gt: Primary GT
+	 */
+	struct xe_gt primary_gt;
+
+	/* TODO: Add media GT here */
+};
 
 /**
  * struct xe_device - Top level struct of XE device
@@ -193,8 +227,8 @@ struct xe_device {
 	/** @ordered_wq: used to serialize compute mode resume */
 	struct workqueue_struct *ordered_wq;
 
-	/** @gt: graphics tile */
-	struct xe_gt gt[XE_MAX_GT];
+	/** @tiles: device tiles */
+	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
 
 	/**
 	 * @mem_access: keep track of memory access in the device, possibly
