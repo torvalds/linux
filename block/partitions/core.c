@@ -524,17 +524,6 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	return true;
 }
 
-static void blk_drop_partitions(struct gendisk *disk)
-{
-	struct block_device *part;
-	unsigned long idx;
-
-	lockdep_assert_held(&disk->open_mutex);
-
-	xa_for_each_start(&disk->part_tbl, idx, part, 1)
-		delete_partition(part);
-}
-
 static bool blk_add_partition(struct gendisk *disk,
 		struct parsed_partitions *state, int p)
 {
@@ -651,6 +640,8 @@ out_free_state:
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate)
 {
+	struct block_device *part;
+	unsigned long idx;
 	int ret = 0;
 
 	lockdep_assert_held(&disk->open_mutex);
@@ -663,8 +654,9 @@ rescan:
 		return -EBUSY;
 	sync_blockdev(disk->part0);
 	invalidate_bdev(disk->part0);
-	blk_drop_partitions(disk);
 
+	xa_for_each_start(&disk->part_tbl, idx, part, 1)
+		delete_partition(part);
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*
