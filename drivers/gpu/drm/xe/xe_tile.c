@@ -13,6 +13,63 @@
 #include "xe_ttm_vram_mgr.h"
 
 /**
+ * DOC: Multi-tile Design
+ *
+ * Different vendors use the term "tile" a bit differently, but in the Intel
+ * world, a 'tile' is pretty close to what most people would think of as being
+ * a complete GPU.  When multiple GPUs are placed behind a single PCI device,
+ * that's what is referred to as a "multi-tile device."  In such cases, pretty
+ * much all hardware is replicated per-tile, although certain responsibilities
+ * like PCI communication, reporting of interrupts to the OS, etc. are handled
+ * solely by the "root tile."  A multi-tile platform takes care of tying the
+ * tiles together in a way such that interrupt notifications from remote tiles
+ * are forwarded to the root tile, the per-tile vram is combined into a single
+ * address space, etc.
+ *
+ * In contrast, a "GT" (which officially stands for "Graphics Technology") is
+ * the subset of a GPU/tile that is responsible for implementing graphics
+ * and/or media operations.  The GT is where a lot of the driver implementation
+ * happens since it's where the hardware engines, the execution units, and the
+ * GuC all reside.
+ *
+ * Historically most Intel devices were single-tile devices that contained a
+ * single GT.  PVC is an example of an Intel platform built on a multi-tile
+ * design (i.e., multiple GPUs behind a single PCI device); each PVC tile only
+ * has a single GT.  In contrast, platforms like MTL that have separate chips
+ * for render and media IP are still only a single logical GPU, but the
+ * graphics and media IP blocks are each exposed as a separate GT within that
+ * single GPU.  This is important from a software perspective because multi-GT
+ * platforms like MTL only replicate a subset of the GPU hardware and behave
+ * differently than multi-tile platforms like PVC where nearly everything is
+ * replicated.
+ *
+ * Per-tile functionality (shared by all GTs within the tile):
+ *  - Complete 4MB MMIO space (containing SGunit/SoC registers, GT
+ *    registers, display registers, etc.)
+ *  - Global GTT
+ *  - VRAM (if discrete)
+ *  - Interrupt flows
+ *  - Migration context
+ *  - kernel batchbuffer pool
+ *  - Primary GT
+ *  - Media GT (if media version >= 13)
+ *
+ * Per-GT functionality:
+ *  - GuC
+ *  - Hardware engines
+ *  - Programmable hardware units (subslices, EUs)
+ *  - GSI subset of registers (multiple copies of these registers reside
+ *    within the complete MMIO space provided by the tile, but at different
+ *    offsets --- 0 for render, 0x380000 for media)
+ *  - Multicast register steering
+ *  - TLBs to cache page table translations
+ *  - Reset capability
+ *  - Low-level power management (e.g., C6)
+ *  - Clock frequency
+ *  - MOCS and PAT programming
+ */
+
+/**
  * xe_tile_alloc - Perform per-tile memory allocation
  * @tile: Tile to perform allocations for
  *
