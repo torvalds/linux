@@ -1908,12 +1908,6 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 
 static bool mlx5_esw_check_port_type(struct mlx5_eswitch *esw, u16 vport_num, xa_mark_t mark)
 {
-	struct mlx5_vport *vport;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return false;
-
 	return xa_get_mark(&esw->vports, vport_num, mark);
 }
 
