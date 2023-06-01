@@ -885,6 +885,11 @@ static umode_t auth_attr_is_visible(struct kobject *kobj,
 		return 0;
 	}
 
+	/* Don't display un-needed settings if opcode available */
+	if ((attr == &auth_encoding.attr || attr == &auth_kbdlang.attr) &&
+	    tlmi_priv.opcode_support)
+		return 0;
+
 	return attr->mode;
 }
 
