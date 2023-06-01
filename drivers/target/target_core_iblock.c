@@ -114,7 +114,7 @@ static int iblock_configure_device(struct se_device *dev)
 	else
 		dev->dev_flags |= DF_READ_ONLY;
 
-	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
+	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev, NULL);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		goto out_free_bioset;

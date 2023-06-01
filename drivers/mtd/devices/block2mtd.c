@@ -235,7 +235,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		return NULL;
 
 	/* Get a handle on the device */
-	bdev = blkdev_get_by_path(devname, mode, dev);
+	bdev = blkdev_get_by_path(devname, mode, dev, NULL);
 
 #ifndef MODULE
 	/*
@@ -257,7 +257,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		devt = name_to_dev_t(devname);
 		if (!devt)
 			continue;
-		bdev = blkdev_get_by_dev(devt, mode, dev);
+		bdev = blkdev_get_by_dev(devt, mode, dev, NULL);
 	}
 #endif
 

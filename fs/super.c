@@ -1248,7 +1248,7 @@ int get_tree_bdev(struct fs_context *fc,
 	if (!fc->source)
 		return invalf(fc, "No source specified");
 
-	bdev = blkdev_get_by_path(fc->source, mode, fc->fs_type);
+	bdev = blkdev_get_by_path(fc->source, mode, fc->fs_type, NULL);
 	if (IS_ERR(bdev)) {
 		errorf(fc, "%s: Can't open blockdev", fc->source);
 		return PTR_ERR(bdev);
@@ -1333,7 +1333,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type, NULL);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 

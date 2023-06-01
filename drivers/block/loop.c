@@ -1015,7 +1015,7 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
 	 * here to avoid changing device under exclusive owner.
 	 */
 	if (!(mode & FMODE_EXCL)) {
-		error = bd_prepare_to_claim(bdev, loop_configure);
+		error = bd_prepare_to_claim(bdev, loop_configure, NULL);
 		if (error)
 			goto out_putf;
 	}

@@ -55,6 +55,8 @@ struct block_device {
 	struct super_block *	bd_super;
 	void *			bd_claiming;
 	void *			bd_holder;
+	const struct blk_holder_ops *bd_holder_ops;
+	struct mutex		bd_holder_lock;
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;
 	int			bd_holders;

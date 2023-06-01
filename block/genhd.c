@@ -370,13 +370,15 @@ int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 	 * scanners.
 	 */
 	if (!(mode & FMODE_EXCL)) {
-		ret = bd_prepare_to_claim(disk->part0, disk_scan_partitions);
+		ret = bd_prepare_to_claim(disk->part0, disk_scan_partitions,
+					  NULL);
 		if (ret)
 			return ret;
 	}
 
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	bdev = blkdev_get_by_dev(disk_devt(disk), mode & ~FMODE_EXCL, NULL);
+	bdev = blkdev_get_by_dev(disk_devt(disk), mode & ~FMODE_EXCL, NULL,
+				 NULL);
 	if (IS_ERR(bdev))
 		ret =  PTR_ERR(bdev);
 	else

@@ -4025,7 +4025,7 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 			/* Single zoned block device mount */
 			FDEV(0).bdev =
 				blkdev_get_by_dev(sbi->sb->s_bdev->bd_dev,
-					sbi->sb->s_mode, sbi->sb->s_type);
+					sbi->sb->s_mode, sbi->sb->s_type, NULL);
 		} else {
 			/* Multi-device mount */
 			memcpy(FDEV(i).path, RDEV(i).path, MAX_PATH_LEN);
@@ -4044,7 +4044,7 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 					sbi->log_blocks_per_seg) - 1;
 			}
 			FDEV(i).bdev = blkdev_get_by_path(FDEV(i).path,
-					sbi->sb->s_mode, sbi->sb->s_type);
+					sbi->sb->s_mode, sbi->sb->s_type, NULL);
 		}
 		if (IS_ERR(FDEV(i).bdev))
 			return PTR_ERR(FDEV(i).bdev);

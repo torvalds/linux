@@ -3642,7 +3642,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 
 	rdev->bdev = blkdev_get_by_dev(newdev,
 			FMODE_READ | FMODE_WRITE | FMODE_EXCL,
-			super_format == -2 ? &claim_rdev : rdev);
+			super_format == -2 ? &claim_rdev : rdev, NULL);
 	if (IS_ERR(rdev->bdev)) {
 		pr_warn("md: could not open device unknown-block(%u,%u).\n",
 			MAJOR(newdev), MINOR(newdev));

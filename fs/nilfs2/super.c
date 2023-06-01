@@ -1285,7 +1285,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	sd.bdev = blkdev_get_by_path(dev_name, mode, fs_type);
+	sd.bdev = blkdev_get_by_path(dev_name, mode, fs_type, NULL);
 	if (IS_ERR(sd.bdev))
 		return ERR_CAST(sd.bdev);
 

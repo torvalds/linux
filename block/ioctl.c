@@ -454,7 +454,8 @@ static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
 	if (mode & FMODE_EXCL)
 		return set_blocksize(bdev, n);
 
-	if (IS_ERR(blkdev_get_by_dev(bdev->bd_dev, mode | FMODE_EXCL, &bdev)))
+	if (IS_ERR(blkdev_get_by_dev(bdev->bd_dev, mode | FMODE_EXCL, &bdev,
+			NULL)))
 		return -EBUSY;
 	ret = set_blocksize(bdev, n);
 	blkdev_put(bdev, mode | FMODE_EXCL);

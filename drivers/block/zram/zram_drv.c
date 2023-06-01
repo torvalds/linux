@@ -508,7 +508,7 @@ static ssize_t backing_dev_store(struct device *dev,
 	}
 
 	bdev = blkdev_get_by_dev(inode->i_rdev,
-			FMODE_READ | FMODE_WRITE | FMODE_EXCL, zram);
+			FMODE_READ | FMODE_WRITE | FMODE_EXCL, zram, NULL);
 	if (IS_ERR(bdev)) {
 		err = PTR_ERR(bdev);
 		bdev = NULL;

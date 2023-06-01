@@ -1786,7 +1786,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 		goto out2;
 
 	reg->hr_bdev = blkdev_get_by_dev(f.file->f_mapping->host->i_rdev,
-					 FMODE_WRITE | FMODE_READ, NULL);
+					 FMODE_WRITE | FMODE_READ, NULL, NULL);
 	if (IS_ERR(reg->hr_bdev)) {
 		ret = PTR_ERR(reg->hr_bdev);
 		reg->hr_bdev = NULL;

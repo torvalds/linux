@@ -1470,10 +1470,15 @@ void blkdev_show(struct seq_file *seqf, off_t offset);
 #define BLKDEV_MAJOR_MAX	0
 #endif
 
+struct blk_holder_ops {
+};
+
+struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
+		const struct blk_holder_ops *hops);
 struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
-		void *holder);
-struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder);
-int bd_prepare_to_claim(struct block_device *bdev, void *holder);
+		void *holder, const struct blk_holder_ops *hops);
+int bd_prepare_to_claim(struct block_device *bdev, void *holder,
+		const struct blk_holder_ops *hops);
 void bd_abort_claiming(struct block_device *bdev, void *holder);
 void blkdev_put(struct block_device *bdev, fmode_t mode);
 
