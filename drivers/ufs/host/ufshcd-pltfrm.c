@@ -190,12 +190,6 @@ out:
 	return err;
 }
 
-void ufshcd_pltfrm_shutdown(struct platform_device *pdev)
-{
-	ufshcd_shutdown((struct ufs_hba *)platform_get_drvdata(pdev));
-}
-EXPORT_SYMBOL_GPL(ufshcd_pltfrm_shutdown);
-
 static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;

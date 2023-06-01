@@ -505,15 +505,6 @@ static int ufshcd_pci_restore(struct device *dev)
 #endif
 
 /**
- * ufshcd_pci_shutdown - main function to put the controller in reset state
- * @pdev: pointer to PCI device handle
- */
-static void ufshcd_pci_shutdown(struct pci_dev *pdev)
-{
-	ufshcd_shutdown((struct ufs_hba *)pci_get_drvdata(pdev));
-}
-
-/**
  * ufshcd_pci_remove - de-allocate PCI/SCSI host and host memory space
  *		data structure memory
  * @pdev: pointer to PCI handle
@@ -618,7 +609,6 @@ static struct pci_driver ufshcd_pci_driver = {
 	.id_table = ufshcd_pci_tbl,
 	.probe = ufshcd_pci_probe,
 	.remove = ufshcd_pci_remove,
-	.shutdown = ufshcd_pci_shutdown,
 	.driver = {
 		.pm = &ufshcd_pci_pm_ops
 	},
