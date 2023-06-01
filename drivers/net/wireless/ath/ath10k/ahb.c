@@ -820,7 +820,7 @@ err_core_destroy:
 	return ret;
 }
 
-static int ath10k_ahb_remove(struct platform_device *pdev)
+static void ath10k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
 
@@ -834,8 +834,6 @@ static int ath10k_ahb_remove(struct platform_device *pdev)
 	ath10k_ahb_clock_disable(ar);
 	ath10k_ahb_resource_deinit(ar);
 	ath10k_core_destroy(ar);
-
-	return 0;
 }
 
 static struct platform_driver ath10k_ahb_driver = {
@@ -844,7 +842,7 @@ static struct platform_driver ath10k_ahb_driver = {
 		.of_match_table = ath10k_ahb_of_match,
 	},
 	.probe  = ath10k_ahb_probe,
-	.remove = ath10k_ahb_remove,
+	.remove_new = ath10k_ahb_remove,
 };
 
 int ath10k_ahb_init(void)
