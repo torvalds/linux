@@ -129,6 +129,7 @@ struct max96712 {
 	struct gpio_desc *power_gpio;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *pwdn_gpio;
+	struct gpio_desc *pocen_gpio;
 	struct gpio_desc *lock_gpio;
 	struct regulator_bulk_data supplies[MAX96712_NUM_SUPPLIES];
 
@@ -1334,6 +1335,11 @@ static int __max96712_power_on(struct max96712 *max96712)
 		usleep_range(5000, 10000);
 	}
 
+	if (!IS_ERR(max96712->pocen_gpio)) {
+		gpiod_set_value_cansleep(max96712->pocen_gpio, 1);
+		usleep_range(5000, 10000);
+	}
+
 	if (!IS_ERR_OR_NULL(max96712->pins_default)) {
 		ret = pinctrl_select_state(max96712->pinctrl,
 					   max96712->pins_default);
@@ -1389,6 +1395,9 @@ static void __max96712_power_off(struct max96712 *max96712)
 	}
 
 	regulator_bulk_disable(MAX96712_NUM_SUPPLIES, max96712->supplies);
+
+	if (!IS_ERR(max96712->pocen_gpio))
+		gpiod_set_value_cansleep(max96712->pocen_gpio, 0);
 
 	if (!IS_ERR(max96712->power_gpio))
 		gpiod_set_value_cansleep(max96712->power_gpio, 0);
@@ -1723,6 +1732,10 @@ static int max96712_probe(struct i2c_client *client,
 	max96712->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(max96712->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
+
+	max96712->pocen_gpio = devm_gpiod_get(dev, "pocen", GPIOD_OUT_LOW);
+	if (IS_ERR(max96712->pocen_gpio))
+		dev_warn(dev, "Failed to get pocen-gpios\n");
 
 	max96712->lock_gpio = devm_gpiod_get(dev, "lock", GPIOD_IN);
 	if (IS_ERR(max96712->lock_gpio))
