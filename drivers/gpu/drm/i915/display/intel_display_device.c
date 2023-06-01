@@ -800,6 +800,15 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	u32 val;
 	int i;
 
+	/* The caller expects to ver, rel and step to be initialized
+	 * here, and there's no good way to check when there was a
+	 * failure and no_display was returned.  So initialize all these
+	 * values here zero, to be sure.
+	 */
+	*ver = 0;
+	*rel = 0;
+	*step = 0;
+
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
 		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
