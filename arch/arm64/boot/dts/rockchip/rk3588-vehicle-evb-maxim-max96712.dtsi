@@ -61,6 +61,7 @@
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		power-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pocen-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		//reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		lock-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 		auto-init-deskew-mask = <0x03>;
