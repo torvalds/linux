@@ -575,7 +575,9 @@ void blk_mark_disk_dead(struct gendisk *disk)
 	/*
 	 * Fail any new I/O.
 	 */
-	set_bit(GD_DEAD, &disk->state);
+	if (test_and_set_bit(GD_DEAD, &disk->state))
+		return;
+
 	if (test_bit(GD_OWNS_QUEUE, &disk->state))
 		blk_queue_flag_set(QUEUE_FLAG_DYING, disk->queue);
 
