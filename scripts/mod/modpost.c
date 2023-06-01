@@ -1082,7 +1082,8 @@ static Elf_Sym *find_nearest_sym(struct elf_info *elf, Elf_Addr addr,
 {
 	Elf_Sym *sym;
 	Elf_Sym *near = NULL;
-	Elf_Addr distance;
+	Elf_Addr sym_addr, distance;
+	bool is_arm = (elf->hdr->e_machine == EM_ARM);
 
 	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
 		if (get_secindex(elf, sym) != secndx)
@@ -1090,10 +1091,19 @@ static Elf_Sym *find_nearest_sym(struct elf_info *elf, Elf_Addr addr,
 		if (!is_valid_name(elf, sym))
 			continue;
 
-		if (addr >= sym->st_value)
-			distance = addr - sym->st_value;
+		sym_addr = sym->st_value;
+
+		/*
+		 * For ARM Thumb instruction, the bit 0 of st_value is set
+		 * if the symbol is STT_FUNC type. Mask it to get the address.
+		 */
+		if (is_arm && ELF_ST_TYPE(sym->st_info) == STT_FUNC)
+			 sym_addr &= ~1;
+
+		if (addr >= sym_addr)
+			distance = addr - sym_addr;
 		else if (allow_negative)
-			distance = sym->st_value - addr;
+			distance = sym_addr - addr;
 		else
 			continue;
 
@@ -1266,7 +1276,7 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 	unsigned int r_typ = ELF_R_TYPE(r->r_info);
 	Elf_Sym *sym = elf->symtab_start + ELF_R_SYM(r->r_info);
 	void *loc = reloc_location(elf, sechdr, r);
-	uint32_t inst;
+	uint32_t inst, upper, lower;
 	int32_t offset;
 
 	switch (r_typ) {
@@ -1287,6 +1297,17 @@ static int addend_arm_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 		inst = TO_NATIVE(*(uint32_t *)loc);
 		offset = sign_extend32((inst & 0x00ffffff) << 2, 25);
 		r->r_addend = offset + sym->st_value + 8;
+		break;
+	case R_ARM_THM_MOVW_ABS_NC:
+	case R_ARM_THM_MOVT_ABS:
+		upper = TO_NATIVE(*(uint16_t *)loc);
+		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		offset = sign_extend32(((upper & 0x000f) << 12) |
+				       ((upper & 0x0400) << 1) |
+				       ((lower & 0x7000) >> 4) |
+				       (lower & 0x00ff),
+				       15);
+		r->r_addend = offset + sym->st_value;
 		break;
 	case R_ARM_THM_CALL:
 	case R_ARM_THM_JUMP24:
