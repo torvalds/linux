@@ -502,11 +502,11 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	}
 
 exit:
-	if (chip->runtime_pm)
-		pm_runtime_put(map->dev);
-
 	if (chip->handle_post_irq)
 		chip->handle_post_irq(chip->irq_drv_data);
+
+	if (chip->runtime_pm)
+		pm_runtime_put(map->dev);
 
 	if (handled)
 		return IRQ_HANDLED;
