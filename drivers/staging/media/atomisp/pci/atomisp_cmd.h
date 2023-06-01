@@ -250,6 +250,10 @@ int atomisp_makeup_css_parameters(struct atomisp_sub_device *asd,
 int atomisp_compare_grid(struct atomisp_sub_device *asd,
 			 struct atomisp_grid_info *atomgrid);
 
+/* Get sensor padding values for the non padded width x height resolution */
+void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
+			 u32 *padding_w, u32 *padding_h);
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,

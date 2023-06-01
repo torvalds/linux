@@ -3691,9 +3691,8 @@ static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
 }
 
 /* Get sensor padding values for the non padded width x height resolution */
-static void atomisp_get_padding(struct atomisp_device *isp,
-				u32 width, u32 height,
-				u32 *padding_w, u32 *padding_h)
+void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
+			 u32 *padding_w, u32 *padding_h)
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_rect native_rect = input->native_rect;

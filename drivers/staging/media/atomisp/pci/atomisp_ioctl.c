@@ -703,7 +703,8 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
  */
 static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 					      struct v4l2_frmsizeenum *fsize,
-					      struct v4l2_rect *active,
+					      const struct v4l2_rect *active,
+					      const struct v4l2_rect *native,
 					      int *valid_sizes)
 {
 	static const struct v4l2_frmsize_discrete frame_sizes[] = {
@@ -716,11 +717,15 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 		{  800,  600 },
 		{  640,  480 },
 	};
+	u32 padding_w, padding_h;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(frame_sizes); i++) {
-		if (frame_sizes[i].width > active->width ||
-		    frame_sizes[i].height > active->height)
+		atomisp_get_padding(isp, frame_sizes[i].width, frame_sizes[i].height,
+				    &padding_w, &padding_h);
+
+		if ((frame_sizes[i].width + padding_w) > native->width ||
+		    (frame_sizes[i].height + padding_h) > native->height)
 			continue;
 
 		/*
@@ -748,9 +753,10 @@ static int atomisp_enum_framesizes_crop(struct atomisp_device *isp,
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_rect active = input->active_rect;
+	struct v4l2_rect native = input->native_rect;
 	int ret, valid_sizes = 0;
 
-	ret = atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &valid_sizes);
+	ret = atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &native, &valid_sizes);
 	if (ret == 0)
 		return 0;
 
@@ -759,8 +765,10 @@ static int atomisp_enum_framesizes_crop(struct atomisp_device *isp,
 
 	active.width /= 2;
 	active.height /= 2;
+	native.width /= 2;
+	native.height /= 2;
 
-	return atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &valid_sizes);
+	return atomisp_enum_framesizes_crop_inner(isp, fsize, &active, &native, &valid_sizes);
 }
 
 static int atomisp_enum_framesizes(struct file *file, void *priv,
