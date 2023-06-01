@@ -1511,7 +1511,7 @@ int stf_video_register(struct stfcamss_video *video,
 			V4L2_CAP_VIDEO_CAPTURE;
 		vdev->vfl_dir = VFL_DIR_RX;
 	}
-	vdev->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	vdev->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE | V4L2_CAP_IO_MC;
 	if (video->type == V4L2_CAP_VIDEO_OUTPUT)
 		vdev->ioctl_ops = &stf_vid_ioctl_ops_out;
 	else
