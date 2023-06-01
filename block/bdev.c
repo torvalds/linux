@@ -463,7 +463,6 @@ long nr_blockdev_pages(void)
 /**
  * bd_may_claim - test whether a block device can be claimed
  * @bdev: block device of interest
- * @whole: whole block device containing @bdev, may equal @bdev
  * @holder: holder trying to claim @bdev
  *
  * Test whether @bdev can be claimed by @holder.
@@ -474,22 +473,27 @@ long nr_blockdev_pages(void)
  * RETURNS:
  * %true if @bdev can be claimed, %false otherwise.
  */
-static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
-			 void *holder)
+static bool bd_may_claim(struct block_device *bdev, void *holder)
 {
-	if (bdev->bd_holder == holder)
-		return true;	 /* already a holder */
-	else if (bdev->bd_holder != NULL)
-		return false; 	 /* held by someone else */
-	else if (whole == bdev)
-		return true;  	 /* is a whole device which isn't held */
+	struct block_device *whole = bdev_whole(bdev);
 
-	else if (whole->bd_holder == bd_may_claim)
-		return true; 	 /* is a partition of a device that is being partitioned */
-	else if (whole->bd_holder != NULL)
-		return false;	 /* is a partition of a held device */
-	else
-		return true;	 /* is a partition of an un-held device */
+	if (bdev->bd_holder) {
+		/*
+		 * The same holder can always re-claim.
+		 */
+		if (bdev->bd_holder == holder)
+			return true;
+		return false;
+	}
+
+	/*
+	 * If the whole devices holder is set to bd_may_claim, a partition on
+	 * the device is claimed, but not the whole device.
+	 */
+	if (whole != bdev &&
+	    whole->bd_holder && whole->bd_holder != bd_may_claim)
+		return false;
+	return true;
 }
 
 /**
@@ -513,7 +517,7 @@ int bd_prepare_to_claim(struct block_device *bdev, void *holder)
 retry:
 	spin_lock(&bdev_lock);
 	/* if someone else claimed, fail */
-	if (!bd_may_claim(bdev, whole, holder)) {
+	if (!bd_may_claim(bdev, holder)) {
 		spin_unlock(&bdev_lock);
 		return -EBUSY;
 	}
@@ -559,7 +563,7 @@ static void bd_finish_claiming(struct block_device *bdev, void *holder)
 	struct block_device *whole = bdev_whole(bdev);
 
 	spin_lock(&bdev_lock);
-	BUG_ON(!bd_may_claim(bdev, whole, holder));
+	BUG_ON(!bd_may_claim(bdev, holder));
 	/*
 	 * Note that for a whole device bd_holders will be incremented twice,
 	 * and bd_holder will be set to bd_may_claim before being set to holder
