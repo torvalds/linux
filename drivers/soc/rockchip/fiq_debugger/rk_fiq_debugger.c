@@ -229,23 +229,32 @@ static void debug_flush(struct platform_device *pdev)
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
 #define FIFO_SIZE SZ_64K
-#define LINE_MAX 1024
+#define TTY_FIFO_SIZE SZ_64K
 static DEFINE_KFIFO(fifo, unsigned char, FIFO_SIZE);
-static char console_buf[LINE_MAX]; /* avoid FRAME WARN */
+static DEFINE_KFIFO(tty_fifo, unsigned char, TTY_FIFO_SIZE);
 static bool console_thread_stop; /* write on console_write */
 static bool console_thread_running; /* write on console_thread */
 static unsigned int console_dropped_messages;
 
+static int write_room(struct platform_device *pdev)
+{
+	return (TTY_FIFO_SIZE - kfifo_len(&tty_fifo));
+}
+
 static void console_putc(struct platform_device *pdev, unsigned int c)
 {
 	struct rk_fiq_debugger *t;
-	unsigned int count = 500;
+	unsigned int count = 2;		/* loop 2 times is enough */
+	unsigned long us = 400;		/* the time to send 60 byte for baudrate 1500000 */
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
+	if (t->baudrate == 115200)
+		us = 5160;	/* the time to send 60 byte for baudrate 115200 */
+
 	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL) &&
 	       count--)
-		usleep_range(200, 210);
+		usleep_range(us, us + us / 20);
 
 	rk_fiq_write(t, c, UART_TX);
 }
@@ -253,12 +262,16 @@ static void console_putc(struct platform_device *pdev, unsigned int c)
 static void console_flush(struct platform_device *pdev)
 {
 	struct rk_fiq_debugger *t;
-	unsigned int count = 500;
+	unsigned int count = 2;		/* loop 2 times is enough */
+	unsigned long us = 428;		/* the time to send 64 byte for baudrate 1500000 */
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
+	if (t->baudrate == 115200)
+		us = 5500;	/* the time to send 64 byte for baudrate 115200 */
+
 	while (!(rk_fiq_read_lsr(t) & UART_LSR_TEMT) && count--)
-		usleep_range(200, 210);
+		usleep_range(us, us + us / 20);
 }
 
 static void console_put(struct platform_device *pdev,
@@ -281,17 +294,47 @@ static void debug_put(struct platform_device *pdev,
 	}
 }
 
+static void wake_up_console_thread(struct task_struct *console_task)
+{
+	/*
+	 * Avoid dead lock on console_task->pi_lock and console_lock
+	 * when call printk() in try_to_wake_up().
+	 *
+	 * cpu0 hold console_lock, then try lock pi_lock fail:
+	 *   printk()->vprintk_emit()->console_unlock()->try_to_wake_up()
+	 *   ->lock(pi_lock)->deadlock
+	 *
+	 * cpu1 hold pi_lock, then try lock console_lock fail:
+	 *   console_thread()->console_put()->usleep_range()->run_hrtimer()
+	 *   ->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
+	 *   ->vprintk_emit()->console_trylock_spining()->cpu_relax()->deadlock
+	 *
+	 * if cpu0 does not hold console_lock, cpu1 also deadlock on pi_lock:
+	 *   ...->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
+	 *   ->vprintk_emit()->console_unlock()->try_to_wake_up()
+	 *   ->lock(pi_lock)->deadlock
+	 *
+	 * so when console_task is running on usleep_range(), printk()
+	 * should not wakeup console_task to avoid lock(pi_lock) again,
+	 * as run_hrtimer() will wakeup console_task later.
+	 * console_thread_running==false guarantee that console_task
+	 * is not running on usleep_range().
+	 */
+	if (!READ_ONCE(console_thread_running))
+		wake_up_process(console_task);
+}
+
 static int console_thread(void *data)
 {
 	struct platform_device *pdev = data;
-	char *buf = console_buf;
-	unsigned int len;
+	char buf[64], c = 0;
+	unsigned int len = 0, len_tty = 0;
 
 	while (1) {
 		unsigned int dropped;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_is_empty(&fifo)) {
+		if (kfifo_is_empty(&fifo) && kfifo_is_empty(&tty_fifo)) {
 			smp_store_mb(console_thread_running, false);
 			schedule();
 			smp_store_mb(console_thread_running, true);
@@ -299,18 +342,31 @@ static int console_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		set_current_state(TASK_RUNNING);
-		while (!console_thread_stop) {
-			len = kfifo_out(&fifo, buf, LINE_MAX);
-			if (!len)
-				break;
-			console_put(pdev, buf, len);
+
+		while (!console_thread_stop && (!kfifo_is_empty(&fifo) || !kfifo_is_empty(&tty_fifo))) {
+			while (kfifo_get(&fifo, &c)) {
+				console_put(pdev, &c, 1);
+				if (c == '\n')
+					break;
+			}
+
+			while (kfifo_get(&tty_fifo, &c)) {
+				console_putc(pdev, c);
+				len_tty++;
+				if (c == '\n')
+					break;
+			}
 		}
+
+		if (len_tty > 0)
+			fiq_tty_wake_up(pdev);
+		len_tty = 0;
+
 		dropped = console_dropped_messages;
 		if (dropped && !console_thread_stop) {
 			console_dropped_messages = 0;
 			smp_wmb();
-			len = snprintf(buf, LINE_MAX,
-				       "** %u console messages dropped **\n",
+			len = sprintf(buf, "** %u console messages dropped **\n",
 				       dropped);
 			console_put(pdev, buf, len);
 		}
@@ -346,43 +402,35 @@ static void console_write(struct platform_device *pdev, const char *s, unsigned 
 	} else if (count) {
 		unsigned int ret = 0;
 
-		if (kfifo_len(&fifo) + count < FIFO_SIZE)
+		if (kfifo_len(&fifo) + count <= FIFO_SIZE)
 			ret = kfifo_in(&fifo, s, count);
 		if (!ret) {
 			console_dropped_messages++;
 			smp_wmb();
 		} else {
-			/*
-			 * Avoid dead lock on console_task->pi_lock and console_lock
-			 * when call printk() in try_to_wake_up().
-			 *
-			 * cpu0 hold console_lock, then try lock pi_lock fail:
-			 *   printk()->vprintk_emit()->console_unlock()->try_to_wake_up()
-			 *   ->lock(pi_lock)->deadlock
-			 *
-			 * cpu1 hold pi_lock, then try lock console_lock fail:
-			 *   console_thread()->console_put()->usleep_range()->run_hrtimer()
-			 *   ->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
-			 *   ->vprintk_emit()->console_trylock_spining()->cpu_relax()->deadlock
-			 *
-			 * if cpu0 does not hold console_lock, cpu1 also deadlock on pi_lock:
-			 *   ...->hrtimer_wakeup()->try_to_wake_up()[hold_pi_lock]->printk()
-			 *   ->vprintk_emit()->console_unlock()->try_to_wake_up()
-			 *   ->lock(pi_lock)->deadlock
-			 *
-			 * so when console_task is running on usleep_range(), printk()
-			 * should not wakeup console_task to avoid lock(pi_lock) again,
-			 * as run_hrtimer() will wakeup console_task later.
-			 * console_thread_running==false guarantee that console_task
-			 * is not running on usleep_range().
-			 */
-			if (!READ_ONCE(console_thread_running))
-				wake_up_process(t->console_task);
+			wake_up_console_thread(t->console_task);
 		}
 	}
 }
-#endif
 
+static int tty_write(struct platform_device *pdev, const char *s, int count)
+{
+	unsigned int ret = 0;
+	struct rk_fiq_debugger *t;
+
+	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
+
+	if (count > 0) {
+		if (kfifo_len(&tty_fifo) + count <= TTY_FIFO_SIZE)
+			ret = kfifo_in(&tty_fifo, s, count);
+
+		if (ret <= 0)
+			return 0;
+		wake_up_console_thread(t->console_task);
+	}
+	return count;
+}
+#endif
 
 static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 {
@@ -889,8 +937,11 @@ static void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
 	t->console_task = kthread_run(console_thread, pdev, "kconsole");
-	if (!IS_ERR(t->console_task))
+	if (!IS_ERR(t->console_task)) {
 		t->pdata.console_write = console_write;
+		t->pdata.tty_write = tty_write;
+		t->pdata.write_room = write_room;
+	}
 #endif
 
 	pdev->name = "fiq_debugger";

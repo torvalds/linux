@@ -1202,6 +1202,15 @@ static void fiq_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(tty->port, tty, filp);
 }
 
+void fiq_tty_wake_up(struct platform_device *pdev)
+{
+	struct fiq_debugger_state *state = platform_get_drvdata(pdev);
+
+	if (tty_port_initialized(&state->tty_port))
+		tty_port_tty_wakeup(&state->tty_port);
+}
+EXPORT_SYMBOL_GPL(fiq_tty_wake_up);
+
 static int fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	int i;
@@ -1211,6 +1220,11 @@ static int fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int c
 
 	if (!state->console_enable)
 		return count;
+
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	if (state->pdata->tty_write)
+		return state->pdata->tty_write(state->pdev, buf, count);
+#endif
 
 	fiq_debugger_uart_enable(state);
 #ifndef CONFIG_RK_CONSOLE_THREAD
@@ -1228,7 +1242,15 @@ static int fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int c
 
 static int fiq_tty_write_room(struct tty_struct *tty)
 {
-	return 16;
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	int line = tty->index;
+	struct fiq_debugger_state **states = tty->driver->driver_state;
+	struct fiq_debugger_state *state = states[line];
+
+	if (state->pdata->write_room)
+		return state->pdata->write_room(state->pdev);
+#endif
+	return 2048;
 }
 
 #ifdef CONFIG_CONSOLE_POLL
