@@ -2169,17 +2169,21 @@ static int memblock_debug_show(struct seq_file *m, void *private)
 {
 	struct memblock_type *type = m->private;
 	struct memblock_region *reg;
-	int i, j;
+	int i, j, nid;
 	unsigned int count = ARRAY_SIZE(flagname);
 	phys_addr_t end;
 
 	for (i = 0; i < type->cnt; i++) {
 		reg = &type->regions[i];
 		end = reg->base + reg->size - 1;
+		nid = memblock_get_region_node(reg);
 
 		seq_printf(m, "%4d: ", i);
 		seq_printf(m, "%pa..%pa ", &reg->base, &end);
-		seq_printf(m, "%4d ", memblock_get_region_node(reg));
+		if (nid != MAX_NUMNODES)
+			seq_printf(m, "%4d ", nid);
+		else
+			seq_printf(m, "%4c ", 'x');
 		if (reg->flags) {
 			for (j = 0; j < count; j++) {
 				if (reg->flags & (1U << j)) {
