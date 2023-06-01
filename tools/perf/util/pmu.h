@@ -224,6 +224,11 @@ bool is_pmu_core(const char *name);
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name);
+/**
+ * perf_pmu_is_software - is the PMU a software PMU as in it uses the
+ *                        perf_sw_context in the kernel?
+ */
+bool perf_pmu__is_software(const struct perf_pmu *pmu);
 
 FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
 FILE *perf_pmu__open_file_at(struct perf_pmu *pmu, int dirfd, const char *name);

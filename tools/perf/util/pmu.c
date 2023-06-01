@@ -1438,6 +1438,22 @@ bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name)
 	return false;
 }
 
+bool perf_pmu__is_software(const struct perf_pmu *pmu)
+{
+	if (pmu->is_core || pmu->is_uncore || pmu->auxtrace)
+		return false;
+	switch (pmu->type) {
+	case PERF_TYPE_HARDWARE:	return false;
+	case PERF_TYPE_SOFTWARE:	return true;
+	case PERF_TYPE_TRACEPOINT:	return true;
+	case PERF_TYPE_HW_CACHE:	return false;
+	case PERF_TYPE_RAW:		return false;
+	case PERF_TYPE_BREAKPOINT:	return true;
+	default: break;
+	}
+	return !strcmp(pmu->name, "kprobe") || !strcmp(pmu->name, "uprobe");
+}
+
 FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
 {
 	char path[PATH_MAX];

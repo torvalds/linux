@@ -477,6 +477,11 @@ int perf_pmus__num_core_pmus(void)
 	return count;
 }
 
+bool perf_pmus__supports_extended_type(void)
+{
+	return perf_pmus__num_core_pmus() > 1;
+}
+
 struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 {
 	struct perf_pmu *pmu = evsel->pmu;

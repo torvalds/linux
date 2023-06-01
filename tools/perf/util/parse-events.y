@@ -445,11 +445,11 @@ value_sym '/' event_config '/'
 	int type = $1 >> 16;
 	int config = $1 & 255;
 	int err;
+	bool wildcard = (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE);
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_numeric(_parse_state, list, type, config, $3,
-				       /*wildcard=*/false);
+	err = parse_events_add_numeric(_parse_state, list, type, config, $3, wildcard);
 	parse_events_terms__delete($3);
 	if (err) {
 		free_list_evsel(list);
@@ -463,12 +463,12 @@ value_sym sep_slash_slash_dc
 	struct list_head *list;
 	int type = $1 >> 16;
 	int config = $1 & 255;
+	bool wildcard = (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE);
 
 	list = alloc_list();
 	ABORT_ON(!list);
 	ABORT_ON(parse_events_add_numeric(_parse_state, list, type, config,
-					  /*head_config=*/NULL,
-					  /*wildcard=*/false));
+					  /*head_config=*/NULL, wildcard));
 	$$ = list;
 }
 |
@@ -635,7 +635,7 @@ PE_RAW opt_event_config
 	ABORT_ON(errno);
 	free($1);
 	err = parse_events_add_numeric(_parse_state, list, PERF_TYPE_RAW, num, $2,
-				       /*wildcard=*/true);
+				       /*wildcard=*/false);
 	parse_events_terms__delete($2);
 	if (err) {
 		free(list);

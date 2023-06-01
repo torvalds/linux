@@ -372,7 +372,7 @@ static int config_attr(struct perf_event_attr *attr,
  *                                     contain hyphens and the longest name
  *                                     should always be selected.
  */
-int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config)
+int parse_events__decode_legacy_cache(const char *name, int extended_pmu_type, __u64 *config)
 {
 	int len, cache_type = -1, cache_op = -1, cache_result = -1;
 	const char *name_end = &name[strlen(name) + 1];
@@ -423,8 +423,9 @@ int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *con
 	if (cache_result == -1)
 		cache_result = PERF_COUNT_HW_CACHE_RESULT_ACCESS;
 
-	*config = ((__u64)pmu_type << PERF_PMU_TYPE_SHIFT) |
-		cache_type | (cache_op << 8) | (cache_result << 16);
+	*config = cache_type | (cache_op << 8) | (cache_result << 16);
+	if (perf_pmus__supports_extended_type())
+		*config |= (__u64)extended_pmu_type << PERF_PMU_TYPE_SHIFT;
 	return 0;
 }
 
@@ -1204,11 +1205,17 @@ static int config_term_pmu(struct perf_event_attr *attr,
 		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
 		if (!pmu) {
-			pr_debug("Failed to find PMU for type %d", attr->type);
+			char *err_str;
+
+			if (asprintf(&err_str, "Failed to find PMU for type %d", attr->type) >= 0)
+				parse_events_error__handle(err, term->err_term,
+							   err_str, /*help=*/NULL);
 			return -EINVAL;
 		}
 		attr->type = PERF_TYPE_HARDWARE;
-		attr->config = ((__u64)pmu->type << PERF_PMU_TYPE_SHIFT) | term->val.num;
+		attr->config = term->val.num;
+		if (perf_pmus__supports_extended_type())
+			attr->config |= (__u64)pmu->type << PERF_PMU_TYPE_SHIFT;
 		return 0;
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
@@ -1435,8 +1442,8 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 
 static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 				struct list_head *list,
-				struct perf_pmu *pmu, u32 type, u64 config,
-				struct list_head *head_config)
+				struct perf_pmu *pmu, u32 type, u32 extended_type,
+				u64 config, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
@@ -1446,6 +1453,10 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
 	attr.config = config;
+	if (extended_type && (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE)) {
+		assert(perf_pmus__supports_extended_type());
+		attr.config |= (u64)extended_type << PERF_PMU_TYPE_SHIFT;
+	};
 
 	if (head_config) {
 		if (config_attr(&attr, head_config, parse_state->error,
@@ -1474,24 +1485,26 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 	struct perf_pmu *pmu = NULL;
 	bool found_supported = false;
 
-	if (!wildcard)
-		return __parse_events_add_numeric(parse_state, list, /*pmu=*/NULL,
-						  type, config, head_config);
-
 	/* Wildcards on numeric values are only supported by core PMUs. */
-	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
-		int ret;
+	if (wildcard && perf_pmus__supports_extended_type()) {
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			int ret;
 
-		if (parse_events__filter_pmu(parse_state, pmu))
-			continue;
+			found_supported = true;
+			if (parse_events__filter_pmu(parse_state, pmu))
+				continue;
 
-		found_supported = true;
-		ret = __parse_events_add_numeric(parse_state, list, pmu, pmu->type,
-						 config, head_config);
-		if (ret)
-			return ret;
+			ret = __parse_events_add_numeric(parse_state, list, pmu,
+							 type, pmu->type,
+							 config, head_config);
+			if (ret)
+				return ret;
+		}
+		if (found_supported)
+			return 0;
 	}
-	return found_supported ? 0 : -EINVAL;
+	return __parse_events_add_numeric(parse_state, list, perf_pmus__find_by_type(type),
+					type, /*extended_type=*/0, config, head_config);
 }
 
 int parse_events_add_tool(struct parse_events_state *parse_state,
@@ -1989,8 +2002,22 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 {
 	struct evsel *leader = evsel__leader(evsel);
 	struct evsel *pos;
-	const char *group_pmu_name = evsel->pmu_name ?: "cpu";
+	const char *group_pmu_name;
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 
+	if (!pmu) {
+		/*
+		 * For PERF_TYPE_HARDWARE and PERF_TYPE_HW_CACHE types the PMU
+		 * is a core PMU, but in heterogeneous systems this is
+		 * unknown. For now pick the first core PMU.
+		 */
+		pmu = perf_pmus__scan_core(NULL);
+	}
+	if (!pmu) {
+		pr_debug("No PMU found for '%s'", evsel__name(evsel));
+		return -EINVAL;
+	}
+	group_pmu_name = pmu->name;
 	/*
 	 * Software events may be in a group with other uncore PMU events. Use
 	 * the pmu_name of the first non-software event to avoid breaking the
@@ -1999,24 +2026,41 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 	 * Aux event leaders, like intel_pt, expect a group with events from
 	 * other PMUs, so substitute the AUX event's PMU in this case.
 	 */
-	if (evsel->core.attr.type == PERF_TYPE_SOFTWARE || evsel__is_aux_event(leader)) {
+	if (perf_pmu__is_software(pmu) || evsel__is_aux_event(leader)) {
+		struct perf_pmu *leader_pmu = evsel__find_pmu(leader);
+
+		if (!leader_pmu) {
+			/* As with determining pmu above. */
+			leader_pmu = perf_pmus__scan_core(NULL);
+		}
 		/*
 		 * Starting with the leader, find the first event with a named
-		 * PMU. for_each_group_(member|evsel) isn't used as the list
-		 * isn't yet sorted putting evsel's in the same group together.
+		 * non-software PMU. for_each_group_(member|evsel) isn't used as
+		 * the list isn't yet sorted putting evsel's in the same group
+		 * together.
 		 */
-		if (leader->pmu_name) {
-			group_pmu_name = leader->pmu_name;
+		if (leader_pmu && !perf_pmu__is_software(leader_pmu)) {
+			group_pmu_name = leader_pmu->name;
 		} else if (leader->core.nr_members > 1) {
 			list_for_each_entry(pos, head, core.node) {
-				if (evsel__leader(pos) == leader && pos->pmu_name) {
-					group_pmu_name = pos->pmu_name;
+				struct perf_pmu *pos_pmu;
+
+				if (pos == leader || evsel__leader(pos) != leader)
+					continue;
+				pos_pmu = evsel__find_pmu(pos);
+				if (!pos_pmu) {
+					/* As with determining pmu above. */
+					pos_pmu = perf_pmus__scan_core(NULL);
+				}
+				if (pos_pmu && !perf_pmu__is_software(pos_pmu)) {
+					group_pmu_name = pos_pmu->name;
 					break;
 				}
 			}
 		}
 	}
-	evsel->group_pmu_name = strdup(group_pmu_name);
+	/* Assign the actual name taking care that the fake PMU lacks a name. */
+	evsel->group_pmu_name = strdup(group_pmu_name ?: "fake");
 	return evsel->group_pmu_name ? 0 : -ENOMEM;
 }
 
