@@ -121,7 +121,7 @@ static inline void xelp_intr_enable(struct xe_device *xe, bool stall)
 		xe_mmio_read32(mmio, GFX_MSTR_IRQ);
 }
 
-static void gt_irq_postinstall(struct xe_tile *tile)
+void xe_gt_irq_postinstall(struct xe_tile *tile)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_gt *mmio = tile->primary_gt;
@@ -178,15 +178,6 @@ static void gt_irq_postinstall(struct xe_tile *tile)
 	/* Same thing for GuC interrupts */
 	xe_mmio_write32(mmio, GUC_SG_INTR_ENABLE, 0);
 	xe_mmio_write32(mmio, GUC_SG_INTR_MASK,  ~0);
-}
-
-static void xelp_irq_postinstall(struct xe_device *xe, struct xe_tile *tile)
-{
-	/* TODO: PCH */
-
-	gt_irq_postinstall(tile);
-
-	xelp_intr_enable(xe, true);
 }
 
 static u32
@@ -361,14 +352,6 @@ static void dg1_intr_enable(struct xe_device *xe, bool stall)
 		xe_mmio_read32(mmio, DG1_MSTR_TILE_INTR);
 }
 
-static void dg1_irq_postinstall(struct xe_device *xe, struct xe_tile *tile)
-{
-	gt_irq_postinstall(tile);
-
-	if (tile->id == 0)
-		dg1_intr_enable(xe, true);
-}
-
 /*
  * Top-level interrupt handler for Xe_LP+ and beyond.  These platforms have
  * a "master tile" interrupt register which must be consulted before the
@@ -503,16 +486,6 @@ static void xe_irq_reset(struct xe_device *xe)
 	mask_and_disable(tile, GU_MISC_IRQ_OFFSET);
 }
 
-void xe_gt_irq_postinstall(struct xe_tile *tile)
-{
-	struct xe_device *xe = tile_to_xe(tile);
-
-	if (GRAPHICS_VERx100(xe) >= 1210)
-		dg1_irq_postinstall(xe, tile);
-	else
-		xelp_irq_postinstall(xe, tile);
-}
-
 static void xe_irq_postinstall(struct xe_device *xe)
 {
 	struct xe_tile *tile;
@@ -527,6 +500,12 @@ static void xe_irq_postinstall(struct xe_device *xe)
 	 */
 	unmask_and_enable(xe_device_get_root_tile(xe),
 			  GU_MISC_IRQ_OFFSET, GU_MISC_GSE);
+
+	/* Enable top-level interrupts */
+	if (GRAPHICS_VERx100(xe) >= 1210)
+		dg1_intr_enable(xe, true);
+	else
+		xelp_intr_enable(xe, true);
 }
 
 static irq_handler_t xe_irq_handler(struct xe_device *xe)
@@ -576,6 +555,8 @@ int xe_irq_install(struct xe_device *xe)
 		xe->irq.enabled = false;
 		return err;
 	}
+
+	xe_irq_postinstall(xe);
 
 	err = drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
 	if (err)
