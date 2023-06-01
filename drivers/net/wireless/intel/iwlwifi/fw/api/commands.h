@@ -555,18 +555,22 @@ enum iwl_legacy_cmds {
 	WOWLAN_TKIP_PARAM = 0xe3,
 
 	/**
-	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd
+	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd_v2,
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v3 or
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v4
 	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 
 	/**
-	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
+	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9 or
+	 *	&struct iwl_wowlan_status_v12
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 
 	/**
-	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD:
-	 * No command data, response is &struct iwl_scan_offload_profiles_query
+	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD: No command data, response is
+	 *	&struct iwl_scan_offload_profiles_query_v1
 	 */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
 };
