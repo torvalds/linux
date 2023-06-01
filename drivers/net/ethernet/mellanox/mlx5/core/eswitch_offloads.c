@@ -4309,7 +4309,7 @@ int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 	struct mlx5_vport *vport;
 	void *query_ctx;
 	void *hca_caps;
-	int err = -EOPNOTSUPP;
+	int err;
 
 	esw = mlx5_devlink_eswitch_get(port->devlink);
 	if (IS_ERR(esw))
@@ -4317,7 +4317,7 @@ int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 
 	if (!MLX5_CAP_GEN(esw->dev, migration)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support migration");
-		return err;
+		return -EOPNOTSUPP;
 	}
 
 	vport = mlx5_devlink_port_fn_get_vport(port, esw);
