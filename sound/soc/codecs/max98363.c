@@ -246,7 +246,7 @@ static int max98363_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	stream_config.frame_rate = params_rate(params);
 	stream_config.bps = snd_pcm_format_width(params_format(params));
 	stream_config.direction = direction;
-	stream_config.ch_count = params_channels(params);
+	stream_config.ch_count = 1;
 
 	if (stream_config.ch_count > runtime->hw.channels_max) {
 		stream_config.ch_count = runtime->hw.channels_max;
