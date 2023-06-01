@@ -934,6 +934,11 @@ void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 {
 	struct perf_pmu_format *format;
 
+	if (pmu->formats_checked)
+		return;
+
+	pmu->formats_checked = true;
+
 	/* fake pmu doesn't have format list */
 	if (pmu == &perf_pmu__fake)
 		return;

@@ -77,6 +77,11 @@ struct perf_pmu {
 	 */
 	bool auxtrace;
 	/**
+	 * @formats_checked: Only check PMU's formats are valid for
+	 * perf_event_attr once.
+	 */
+	bool formats_checked;
+	/**
 	 * @max_precise: Number of levels of :ppp precision supported by the
 	 * PMU, read from
 	 * <sysfs>/bus/event_source/devices/<name>/caps/max_precise.
