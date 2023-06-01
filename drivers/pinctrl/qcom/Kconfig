@@ -4,6 +4,8 @@ if (ARCH_QCOM || COMPILE_TEST)
 config PINCTRL_MSM
 	tristate "Qualcomm core pin controller driver"
 	depends on GPIOLIB
+	# OF for pinconf_generic_dt_node_to_map_group() from GENERIC_PINCONF
+	depends on OF
 	select QCOM_SCM
 	select PINMUX
 	select PINCONF
@@ -14,7 +16,6 @@ config PINCTRL_MSM
 
 config PINCTRL_APQ8064
 	tristate "Qualcomm APQ8064 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -23,7 +24,6 @@ config PINCTRL_APQ8064
 
 config PINCTRL_APQ8084
 	tristate "Qualcomm APQ8084 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -32,7 +32,6 @@ config PINCTRL_APQ8084
 
 config PINCTRL_IPQ4019
 	tristate "Qualcomm IPQ4019 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -52,7 +51,6 @@ config PINCTRL_IPQ5018
 
 config PINCTRL_IPQ8064
 	tristate "Qualcomm IPQ8064 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -61,7 +59,6 @@ config PINCTRL_IPQ8064
 
 config PINCTRL_IPQ5332
 	tristate "Qualcomm Technologies Inc IPQ5332 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -71,7 +68,6 @@ config PINCTRL_IPQ5332
 
 config PINCTRL_IPQ8074
 	tristate "Qualcomm Technologies, Inc. IPQ8074 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -82,7 +78,6 @@ config PINCTRL_IPQ8074
 
 config PINCTRL_IPQ6018
 	tristate "Qualcomm Technologies, Inc. IPQ6018 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -93,7 +88,6 @@ config PINCTRL_IPQ6018
 
 config PINCTRL_IPQ9574
 	tristate "Qualcomm Technologies, Inc. IPQ9574 pin controller driver"
-	depends on OF || COMPILE_TEST
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -104,7 +98,6 @@ config PINCTRL_IPQ9574
 
 config PINCTRL_MSM8226
 	tristate "Qualcomm 8226 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -114,7 +107,6 @@ config PINCTRL_MSM8226
 
 config PINCTRL_MSM8660
 	tristate "Qualcomm 8660 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -123,7 +115,6 @@ config PINCTRL_MSM8660
 
 config PINCTRL_MSM8960
 	tristate "Qualcomm 8960 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -132,7 +123,6 @@ config PINCTRL_MSM8960
 
 config PINCTRL_MDM9607
 	tristate "Qualcomm 9607 pin controller driver"
-	depends on OF
 	depends on PINCTRL_MSM
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
@@ -140,7 +130,6 @@ config PINCTRL_MDM9607
 
 config PINCTRL_MDM9615
 	tristate "Qualcomm 9615 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -149,7 +138,6 @@ config PINCTRL_MDM9615
 
 config PINCTRL_MSM8X74
 	tristate "Qualcomm 8x74 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -158,7 +146,6 @@ config PINCTRL_MSM8X74
 
 config PINCTRL_MSM8909
 	tristate "Qualcomm 8909 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -167,7 +154,6 @@ config PINCTRL_MSM8909
 
 config PINCTRL_MSM8916
 	tristate "Qualcomm 8916 pin controller driver"
-	depends on OF
 	depends on PINCTRL_MSM
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
@@ -175,7 +161,6 @@ config PINCTRL_MSM8916
 
 config PINCTRL_MSM8953
 	tristate "Qualcomm 8953 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -186,7 +171,6 @@ config PINCTRL_MSM8953
 
 config PINCTRL_MSM8976
 	tristate "Qualcomm 8976 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -197,7 +181,6 @@ config PINCTRL_MSM8976
 
 config PINCTRL_MSM8994
 	tristate "Qualcomm 8994 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -207,7 +190,6 @@ config PINCTRL_MSM8994
 
 config PINCTRL_MSM8996
 	tristate "Qualcomm MSM8996 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -216,7 +198,6 @@ config PINCTRL_MSM8996
 
 config PINCTRL_MSM8998
 	tristate "Qualcomm MSM8998 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -225,7 +206,6 @@ config PINCTRL_MSM8998
 
 config PINCTRL_QCM2290
 	tristate "Qualcomm QCM2290 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -234,7 +214,6 @@ config PINCTRL_QCM2290
 
 config PINCTRL_QCS404
 	tristate "Qualcomm QCS404 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -282,7 +261,6 @@ config PINCTRL_QCOM_SSBI_PMIC
 
 config PINCTRL_QDU1000
 	tristate "Qualcomm Technologies Inc QDU1000/QRU1000 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -292,7 +270,6 @@ config PINCTRL_QDU1000
 
 config PINCTRL_SA8775P
 	tristate "Qualcomm Technologies Inc SA8775P pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -301,7 +278,6 @@ config PINCTRL_SA8775P
 
 config PINCTRL_SC7180
 	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -311,7 +287,6 @@ config PINCTRL_SC7180
 
 config PINCTRL_SC7280
 	tristate "Qualcomm Technologies Inc SC7280 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -340,7 +315,6 @@ config PINCTRL_SC8180X
 
 config PINCTRL_SC8280XP
 	tristate "Qualcomm Technologies Inc SC8280xp pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -350,7 +324,6 @@ config PINCTRL_SC8280XP
 
 config PINCTRL_SDM660
 	tristate "Qualcomm Technologies Inc SDM660 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -360,7 +333,6 @@ config PINCTRL_SDM660
 
 config PINCTRL_SDM670
 	tristate "Qualcomm Technologies Inc SDM670 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -380,7 +352,6 @@ config PINCTRL_SDM845
 
 config PINCTRL_SDX55
 	tristate "Qualcomm Technologies Inc SDX55 pin controller driver"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -390,7 +361,6 @@ config PINCTRL_SDX55
 
 config PINCTRL_SDX65
         tristate "Qualcomm Technologies Inc SDX65 pin controller driver"
-        depends on OF
         depends on ARM || COMPILE_TEST
         depends on PINCTRL_MSM
         help
@@ -400,7 +370,6 @@ config PINCTRL_SDX65
 
 config PINCTRL_SDX75
         tristate "Qualcomm Technologies Inc SDX75 pin controller driver"
-        depends on OF
         depends on ARM64 || COMPILE_TEST
         depends on PINCTRL_MSM
         help
@@ -410,7 +379,6 @@ config PINCTRL_SDX75
 
 config PINCTRL_SM6115
 	tristate "Qualcomm Technologies Inc SM6115,SM4250 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -420,7 +388,6 @@ config PINCTRL_SM6115
 
 config PINCTRL_SM6125
 	tristate "Qualcomm Technologies Inc SM6125 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -430,7 +397,6 @@ config PINCTRL_SM6125
 
 config PINCTRL_SM6350
 	tristate "Qualcomm Technologies Inc SM6350 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -440,7 +406,6 @@ config PINCTRL_SM6350
 
 config PINCTRL_SM6375
 	tristate "Qualcomm Technologies Inc SM6375 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -450,7 +415,6 @@ config PINCTRL_SM6375
 
 config PINCTRL_SM7150
 	tristate "Qualcomm Technologies Inc SM7150 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -460,7 +424,6 @@ config PINCTRL_SM7150
 
 config PINCTRL_SM8150
 	tristate "Qualcomm Technologies Inc SM8150 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -470,7 +433,6 @@ config PINCTRL_SM8150
 
 config PINCTRL_SM8250
 	tristate "Qualcomm Technologies Inc SM8250 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
@@ -498,7 +460,6 @@ config PINCTRL_SM8350
 
 config PINCTRL_SM8450
 	tristate "Qualcomm Technologies Inc SM8450 pin controller driver"
-	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_MSM
 	help
