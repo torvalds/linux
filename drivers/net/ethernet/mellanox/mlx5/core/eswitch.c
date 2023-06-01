@@ -77,16 +77,29 @@ static int mlx5_eswitch_check(const struct mlx5_core_dev *dev)
 	return 0;
 }
 
-struct mlx5_eswitch *mlx5_devlink_eswitch_get(struct devlink *devlink)
+static struct mlx5_eswitch *__mlx5_devlink_eswitch_get(struct devlink *devlink, bool check)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int err;
 
-	err = mlx5_eswitch_check(dev);
-	if (err)
-		return ERR_PTR(err);
+	if (check) {
+		err = mlx5_eswitch_check(dev);
+		if (err)
+			return ERR_PTR(err);
+	}
 
 	return dev->priv.eswitch;
+}
+
+struct mlx5_eswitch *__must_check
+mlx5_devlink_eswitch_get(struct devlink *devlink)
+{
+	return __mlx5_devlink_eswitch_get(devlink, true);
+}
+
+struct mlx5_eswitch *mlx5_devlink_eswitch_nocheck_get(struct devlink *devlink)
+{
+	return __mlx5_devlink_eswitch_get(devlink, false);
 }
 
 struct mlx5_vport *__must_check
