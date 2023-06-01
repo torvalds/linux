@@ -3769,8 +3769,8 @@ static int atomisp_set_crop(struct atomisp_device *isp,
 		return 0;
 
 	/* Cropping is done before binning, when binning double the crop rect */
-	if (input->binning_support && sel.r.width <= (input->active_rect.width / 2) &&
-				      sel.r.height <= (input->active_rect.height / 2)) {
+	if (input->binning_support && sel.r.width <= (input->native_rect.width / 2) &&
+				      sel.r.height <= (input->native_rect.height / 2)) {
 		sel.r.width *= 2;
 		sel.r.height *= 2;
 	}
