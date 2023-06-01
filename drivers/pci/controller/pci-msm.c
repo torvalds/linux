@@ -3373,6 +3373,8 @@ static int msm_pcie_cesta_get_sm_seq(struct msm_pcie_dev_t *dev)
 	sm_info->sm_seq_len = size / sizeof(u32);
 
 	sm_info->sm_seq = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!sm_info->sm_seq)
+		return -ENOMEM;
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
 			"qcom,pcie-sm-seq", sm_info->sm_seq,
@@ -3401,6 +3403,8 @@ static int msm_pcie_cesta_get_sm_seq(struct msm_pcie_dev_t *dev)
 	sm_info->sm_branch_len = size / sizeof(u32);
 
 	sm_info->branch_seq = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!sm_info->branch_seq)
+		return -ENOMEM;
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
 			"qcom,pcie-sm-branch-seq", sm_info->branch_seq,
@@ -3418,6 +3422,9 @@ static int msm_pcie_cesta_get_sm_seq(struct msm_pcie_dev_t *dev)
 
 	sm_info->reg_dump_len = size / sizeof(u32);
 	sm_info->reg_dump = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!sm_info->reg_dump)
+		return -ENOMEM;
+
 	ret = of_property_read_u32_array(pdev->dev.of_node,
 			"qcom,pcie-sm-debug", sm_info->reg_dump,
 						sm_info->reg_dump_len);
