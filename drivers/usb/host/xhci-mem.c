@@ -1831,13 +1831,15 @@ xhci_free_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir)
 	 * low or high 32 bits of ERSTBA immediately causes the controller to
 	 * dereference the partially cleared 64 bit address, causing IOMMU error.
 	 */
-	tmp = readl(&ir->ir_set->erst_size);
-	tmp &= ERST_SIZE_MASK;
-	writel(tmp, &ir->ir_set->erst_size);
+	if (ir->ir_set) {
+		tmp = readl(&ir->ir_set->erst_size);
+		tmp &= ERST_SIZE_MASK;
+		writel(tmp, &ir->ir_set->erst_size);
 
-	tmp64 = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
-	tmp64 &= (u64) ERST_PTR_MASK;
-	xhci_write_64(xhci, tmp64, &ir->ir_set->erst_dequeue);
+		tmp64 = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
+		tmp64 &= (u64) ERST_PTR_MASK;
+		xhci_write_64(xhci, tmp64, &ir->ir_set->erst_dequeue);
+	}
 
 	/* free interrrupter event ring */
 	if (ir->event_ring)
@@ -2227,43 +2229,50 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 }
 
 static struct xhci_interrupter *
-xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int intr_num, gfp_t flags)
+xhci_alloc_interrupter(struct xhci_hcd *xhci, gfp_t flags)
 {
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 	struct xhci_interrupter *ir;
-	u64 erst_base;
-	u32 erst_size;
 	int ret;
-
-	if (intr_num > xhci->max_interrupters) {
-		xhci_warn(xhci, "Can't allocate interrupter %d, max interrupters %d\n",
-			  intr_num, xhci->max_interrupters);
-		return NULL;
-	}
-
-	if (xhci->interrupter) {
-		xhci_warn(xhci, "Can't allocate already set up interrupter %d\n", intr_num);
-		return NULL;
-	}
 
 	ir = kzalloc_node(sizeof(*ir), flags, dev_to_node(dev));
 	if (!ir)
 		return NULL;
 
-	ir->ir_set = &xhci->run_regs->ir_set[intr_num];
 	ir->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, 1, TYPE_EVENT,
 					0, flags);
 	if (!ir->event_ring) {
-		xhci_warn(xhci, "Failed to allocate interrupter %d event ring\n", intr_num);
-		goto fail_ir;
+		xhci_warn(xhci, "Failed to allocate interrupter event ring\n");
+		kfree(ir);
+		return NULL;
 	}
 
 	ret = xhci_alloc_erst(xhci, ir->event_ring, &ir->erst, flags);
 	if (ret) {
-		xhci_warn(xhci, "Failed to allocate interrupter %d erst\n", intr_num);
-		goto fail_ev;
-
+		xhci_warn(xhci, "Failed to allocate interrupter erst\n");
+		xhci_ring_free(xhci, ir->event_ring);
+		kfree(ir);
+		return NULL;
 	}
+
+	return ir;
+}
+
+static int
+xhci_add_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
+		     unsigned int intr_num)
+{
+	u64 erst_base;
+	u32 erst_size;
+
+	if (intr_num > xhci->max_interrupters) {
+		xhci_warn(xhci, "Can't add interrupter %d, max interrupters %d\n",
+			  intr_num, xhci->max_interrupters);
+		return -EINVAL;
+	}
+
+	ir->ir_set = &xhci->run_regs->ir_set[intr_num];
+
 	/* set ERST count with the number of entries in the segment table */
 	erst_size = readl(&ir->ir_set->erst_size);
 	erst_size &= ERST_SIZE_MASK;
@@ -2278,14 +2287,7 @@ xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int intr_num, gfp_t flags
 	/* Set the event ring dequeue address of this interrupter */
 	xhci_set_hc_event_deq(xhci, ir);
 
-	return ir;
-
-fail_ev:
-	xhci_ring_free(xhci, ir->event_ring);
-fail_ir:
-	kfree(ir);
-
-	return NULL;
+	return 0;
 }
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
@@ -2407,13 +2409,15 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		       "// Doorbell array is located at offset 0x%x from cap regs base addr",
 		       val);
 	xhci->dba = (void __iomem *) xhci->cap_regs + val;
-	/* Set ir_set to interrupt register set 0 */
 
-	/* allocate and set up primary interrupter with an event ring. */
+	/* Allocate and set up primary interrupter 0 with an event ring. */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 		       "Allocating primary event ring");
-	xhci->interrupter = xhci_alloc_interrupter(xhci, 0, flags);
+	xhci->interrupter = xhci_alloc_interrupter(xhci, flags);
 	if (!xhci->interrupter)
+		goto fail;
+
+	if (xhci_add_interrupter(xhci, xhci->interrupter, 0))
 		goto fail;
 
 	xhci->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
