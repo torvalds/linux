@@ -517,6 +517,13 @@ static void mx51_ecspi_disable(struct spi_imx_data *spi_imx)
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 }
 
+static int mx51_ecspi_channel(const struct spi_device *spi)
+{
+	if (!spi_get_csgpiod(spi, 0))
+		return spi_get_chipselect(spi, 0);
+	return spi->controller->unused_native_cs;
+}
+
 static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 				      struct spi_message *msg)
 {
@@ -527,6 +534,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	u32 testreg, delay;
 	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
 	u32 current_cfg = cfg;
+	int channel = mx51_ecspi_channel(spi);
 
 	/* set Master or Slave mode */
 	if (spi_imx->slave_mode)
@@ -541,7 +549,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 		ctrl |= MX51_ECSPI_CTRL_DRCTL(spi_imx->spi_drctl);
 
 	/* set chip select to use */
-	ctrl |= MX51_ECSPI_CTRL_CS(spi_get_chipselect(spi, 0));
+	ctrl |= MX51_ECSPI_CTRL_CS(channel);
 
 	/*
 	 * The ctrl register must be written first, with the EN bit set other
@@ -562,27 +570,27 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * BURST_LENGTH + 1 bits are received
 	 */
 	if (spi_imx->slave_mode && is_imx53_ecspi(spi_imx))
-		cfg &= ~MX51_ECSPI_CONFIG_SBBCTRL(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_SBBCTRL(channel);
 	else
-		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(channel);
 
 	if (spi->mode & SPI_CPOL) {
-		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(spi_get_chipselect(spi, 0));
-		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(channel);
+		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(channel);
 	} else {
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKPOL(spi_get_chipselect(spi, 0));
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKCTL(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPOL(channel);
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKCTL(channel);
 	}
 
 	if (spi->mode & SPI_MOSI_IDLE_LOW)
-		cfg |= MX51_ECSPI_CONFIG_DATACTL(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_DATACTL(channel);
 	else
-		cfg &= ~MX51_ECSPI_CONFIG_DATACTL(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_DATACTL(channel);
 
 	if (spi->mode & SPI_CS_HIGH)
-		cfg |= MX51_ECSPI_CONFIG_SSBPOL(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_SSBPOL(channel);
 	else
-		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(channel);
 
 	if (cfg == current_cfg)
 		return 0;
@@ -627,14 +635,15 @@ static void mx51_configure_cpha(struct spi_imx_data *spi_imx,
 	bool cpha = (spi->mode & SPI_CPHA);
 	bool flip_cpha = (spi->mode & SPI_RX_CPHA_FLIP) && spi_imx->rx_only;
 	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
+	int channel = mx51_ecspi_channel(spi);
 
 	/* Flip cpha logical value iff flip_cpha */
 	cpha ^= flip_cpha;
 
 	if (cpha)
-		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(channel);
 	else
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(channel);
 
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
 }
