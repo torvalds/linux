@@ -580,12 +580,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.quirk_data = &adl_max98360a_amp,
 		.sof_tplg_filename = "sof-adl-max98360a-cs42l42.tplg",
 	},
-	/* place amp-only boards in the end of table */
-	{
-		.id = "CSC3541",
-		.drv_name = "adl_cs35l41",
-		.sof_tplg_filename = "sof-adl-cs35l41.tplg",
-	},
 	{
 		.comp_ids = &essx_83x6,
 		.drv_name = "adl_es83x6_c1_h02",
@@ -600,6 +594,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	/* place amp-only boards in the end of table */
+	{
+		.id = "CSC3541",
+		.drv_name = "adl_cs35l41",
+		.sof_tplg_filename = "sof-adl-cs35l41.tplg",
 	},
 	{
 		.id = "INTC10B0",
