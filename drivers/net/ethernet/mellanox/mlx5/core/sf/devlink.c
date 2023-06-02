@@ -341,6 +341,8 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 
 static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
+	mutex_lock(&table->sf_state_lock);
+
 	mlx5_sf_function_id_erase(table, sf);
 
 	if (sf->hw_state == MLX5_VHCA_STATE_ALLOCATED) {
@@ -358,6 +360,8 @@ static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 		mlx5_sf_hw_table_sf_deferred_free(table->dev, sf->controller, sf->id);
 		kfree(sf);
 	}
+
+	mutex_unlock(&table->sf_state_lock);
 }
 
 int mlx5_devlink_sf_port_del(struct devlink *devlink,
@@ -377,10 +381,7 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 	}
 
 	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
-
-	mutex_lock(&table->sf_state_lock);
 	mlx5_sf_dealloc(table, sf);
-	mutex_unlock(&table->sf_state_lock);
 	mlx5_sf_table_put(table);
 	return 0;
 }
