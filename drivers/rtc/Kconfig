@@ -1687,6 +1687,19 @@ config RTC_DRV_JZ4740
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-jz4740.
 
+config RTC_DRV_LOONGSON
+	tristate "Loongson On-chip RTC"
+	depends on MACH_LOONGSON32 || MACH_LOONGSON64 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a driver for the Loongson on-chip Counter0 (Time-Of-Year
+	  counter) to be used as a RTC.
+	  It can be found on Loongson-1 series cpu, Loongson-2K series cpu
+	  and Loongson LS7A bridge chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-loongson.
+
 config RTC_DRV_LPC24XX
 	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
 	depends on ARCH_LPC18XX || COMPILE_TEST
