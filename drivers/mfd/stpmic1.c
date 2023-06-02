@@ -7,6 +7,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/stpmic1.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -117,6 +118,16 @@ static const struct regmap_irq_chip stpmic1_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(stpmic1_irqs),
 };
 
+static int stpmic1_power_off(struct sys_off_data *data)
+{
+	struct stpmic1 *ddata = data->cb_data;
+
+	regmap_update_bits(ddata->regmap, MAIN_CR,
+			   SOFTWARE_SWITCH_OFF, SOFTWARE_SWITCH_OFF);
+
+	return NOTIFY_DONE;
+}
+
 static int stpmic1_probe(struct i2c_client *i2c)
 {
 	struct stpmic1 *ddata;
@@ -156,6 +167,16 @@ static int stpmic1_probe(struct i2c_client *i2c)
 				       &ddata->irq_data);
 	if (ret) {
 		dev_err(dev, "IRQ Chip registration failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = devm_register_sys_off_handler(ddata->dev,
+					    SYS_OFF_MODE_POWER_OFF,
+					    SYS_OFF_PRIO_DEFAULT,
+					    stpmic1_power_off,
+					    ddata);
+	if (ret) {
+		dev_err(ddata->dev, "failed to register sys-off handler: %d\n", ret);
 		return ret;
 	}
 
