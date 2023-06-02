@@ -3049,7 +3049,8 @@ struct rtw89_txpwr_rule_6ghz {
 		       [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
 		       [RTW89_6G_CH_NUM];
 	const s8 (*lmt_ru)[RTW89_RU_NUM][RTW89_NTX_NUM]
-			  [RTW89_REGD_NUM][RTW89_6G_CH_NUM];
+			  [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
+			  [RTW89_6G_CH_NUM];
 };
 
 struct rtw89_rfe_parms {
