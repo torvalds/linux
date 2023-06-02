@@ -1048,6 +1048,42 @@ config SC_DEBUGCC_SC8180X
 	  Say Y if you want to support the debug clocks such as clock
 	  measurement functionality.
 
+config SM_GCC_HOLI
+	tristate "HOLI Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  HOLI devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
+	  USB, UFS, SD/eMMC etc.
+
+config SM_GPUCC_HOLI
+	tristate "HOLI Graphics Clock Controller"
+	select SM_GCC_HOLI
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies,
+	  Inc. HOLI devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SM_DISPCC_HOLI
+	tristate "HOLI Display Clock Controller"
+	select SM_GCC_HOLI
+	help
+	  Support for the display clock controller on Qualcomm Technologies,
+	  Inc. HOLI devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config SM_DEBUGCC_HOLI
+	tristate "HOLI Debug Clock Controller"
+	depends on SM_GCC_HOLI
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc.
+	  HOLI devices.
+	  Say Y if you want to support the debug clocks such as
+	  clock measurement functionality.
+
 endif
 
 config VIRTIO_CLK
