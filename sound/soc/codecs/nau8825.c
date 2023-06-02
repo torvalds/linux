@@ -178,6 +178,8 @@ static const struct reg_default nau8825_reg_defaults[] = {
 	{ NAU8825_REG_CLASSG_CTRL, 0x0 },
 	{ NAU8825_REG_OPT_EFUSE_CTRL, 0x0 },
 	{ NAU8825_REG_MISC_CTRL, 0x0 },
+	{ NAU8825_REG_FLL2_LOWER, 0x0 },
+	{ NAU8825_REG_FLL2_UPPER, 0x0 },
 	{ NAU8825_REG_BIAS_ADJ, 0x0 },
 	{ NAU8825_REG_TRIM_SETTINGS, 0x0 },
 	{ NAU8825_REG_ANALOG_CONTROL_1, 0x0 },
@@ -199,6 +201,23 @@ static struct reg_default nau8825_xtalk_baktab[] = {
 	{ NAU8825_REG_DACL_CTRL, 0x00cf },
 	{ NAU8825_REG_DACR_CTRL, 0x02cf },
 };
+
+/* The regmap patch for Rev C */
+static const struct reg_sequence nau8825_regmap_patch[] = {
+	{ NAU8825_REG_FLL2, 0x0000 },
+	{ NAU8825_REG_FLL4, 0x8010 },
+	{ NAU8825_REG_FLL_VCO_RSV, 0x0bc0 },
+	{ NAU8825_REG_INTERRUPT_MASK, 0x0800 },
+	{ NAU8825_REG_DACL_CTRL, 0x00cf },
+	{ NAU8825_REG_DACR_CTRL, 0x02cf },
+	{ NAU8825_REG_OPT_EFUSE_CTRL, 0x0400 },
+	{ NAU8825_REG_FLL2_LOWER, 0x26e9 },
+	{ NAU8825_REG_FLL2_UPPER, 0x0031 },
+	{ NAU8825_REG_ANALOG_CONTROL_2, 0x0020 },
+	{ NAU8825_REG_ANALOG_ADC_2, 0x0220 },
+	{ NAU8825_REG_MIC_BIAS, 0x0046 },
+};
+
 
 static const unsigned short logtable[256] = {
 	0x0000, 0x0171, 0x02e0, 0x044e, 0x05ba, 0x0725, 0x088e, 0x09f7,
@@ -855,7 +874,7 @@ static bool nau8825_readable_reg(struct device *dev, unsigned int reg)
 	case NAU8825_REG_IMM_MODE_CTRL ... NAU8825_REG_IMM_RMS_R:
 	case NAU8825_REG_CLASSG_CTRL ... NAU8825_REG_OPT_EFUSE_CTRL:
 	case NAU8825_REG_MISC_CTRL:
-	case NAU8825_REG_I2C_DEVICE_ID ... NAU8825_REG_SARDOUT_RAM_STATUS:
+	case NAU8825_REG_I2C_DEVICE_ID ... NAU8825_REG_FLL2_UPPER:
 	case NAU8825_REG_BIAS_ADJ:
 	case NAU8825_REG_TRIM_SETTINGS ... NAU8825_REG_ANALOG_CONTROL_2:
 	case NAU8825_REG_ANALOG_ADC_1 ... NAU8825_REG_MIC_BIAS:
@@ -881,6 +900,7 @@ static bool nau8825_writeable_reg(struct device *dev, unsigned int reg)
 	case NAU8825_REG_IMM_MODE_CTRL:
 	case NAU8825_REG_CLASSG_CTRL ... NAU8825_REG_OPT_EFUSE_CTRL:
 	case NAU8825_REG_MISC_CTRL:
+	case NAU8825_REG_FLL2_LOWER ... NAU8825_REG_FLL2_UPPER:
 	case NAU8825_REG_BIAS_ADJ:
 	case NAU8825_REG_TRIM_SETTINGS ... NAU8825_REG_ANALOG_CONTROL_2:
 	case NAU8825_REG_ANALOG_ADC_1 ... NAU8825_REG_MIC_BIAS:
@@ -2930,8 +2950,19 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 			ret);
 		return ret;
 	}
-	if ((value & NAU8825_SOFTWARE_ID_MASK) !=
-			NAU8825_SOFTWARE_ID_NAU8825) {
+	nau8825->sw_id = value & NAU8825_SOFTWARE_ID_MASK;
+	switch (nau8825->sw_id) {
+	case NAU8825_SOFTWARE_ID_NAU8825:
+		break;
+	case NAU8825_SOFTWARE_ID_NAU8825C:
+		ret = regmap_register_patch(nau8825->regmap, nau8825_regmap_patch,
+					    ARRAY_SIZE(nau8825_regmap_patch));
+		if (ret) {
+			dev_err(dev, "Failed to register Rev C patch: %d\n", ret);
+			return ret;
+		}
+		break;
+	default:
 		dev_err(dev, "Not a NAU8825 chip\n");
 		return -ENODEV;
 	}
