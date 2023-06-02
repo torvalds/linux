@@ -11,6 +11,7 @@
 #include <subcmd/parse-options.h>
 #include "../builtin.h"
 #include "bench.h"
+#include <linux/compiler.h>
 #include <linux/time64.h>
 
 #include <inttypes.h>
@@ -27,6 +28,7 @@ static int loops = LOOPS_DEFAULT;
 enum bench_uprobe {
         BENCH_UPROBE__BASELINE,
         BENCH_UPROBE__EMPTY,
+        BENCH_UPROBE__TRACE_PRINTK,
 };
 
 static const struct option options[] = {
@@ -42,9 +44,21 @@ static const char * const bench_uprobe_usage[] = {
 #ifdef HAVE_BPF_SKEL
 #include "bpf_skel/bench_uprobe.skel.h"
 
+#define bench_uprobe__attach_uprobe(prog) \
+	skel->links.prog = bpf_program__attach_uprobe_opts(/*prog=*/skel->progs.prog, \
+							   /*pid=*/-1, \
+							   /*binary_path=*/"/lib64/libc.so.6", \
+							   /*func_offset=*/0, \
+							   /*opts=*/&uprobe_opts); \
+	if (!skel->links.prog) { \
+		err = -errno; \
+		fprintf(stderr, "Failed to attach bench uprobe \"%s\": %s\n", #prog, strerror(errno)); \
+		goto cleanup; \
+	}
+
 struct bench_uprobe_bpf *skel;
 
-static int bench_uprobe__setup_bpf_skel(void)
+static int bench_uprobe__setup_bpf_skel(enum bench_uprobe bench)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
 	int err;
@@ -63,14 +77,12 @@ static int bench_uprobe__setup_bpf_skel(void)
 	}
 
 	uprobe_opts.func_name = "usleep";
-	skel->links.empty = bpf_program__attach_uprobe_opts(/*prog=*/skel->progs.empty,
-							    /*pid=*/-1,
-							    /*binary_path=*/"/lib64/libc.so.6",
-							    /*func_offset=*/0,
-							    /*opts=*/&uprobe_opts);
-	if (!skel->links.empty) {
-		err = -errno;
-		fprintf(stderr, "Failed to attach bench uprobe: %s\n", strerror(errno));
+	switch (bench) {
+	case BENCH_UPROBE__BASELINE:							break;
+	case BENCH_UPROBE__EMPTY:	 bench_uprobe__attach_uprobe(empty);		break;
+	case BENCH_UPROBE__TRACE_PRINTK: bench_uprobe__attach_uprobe(trace_printk);	break;
+	default:
+		fprintf(stderr, "Invalid bench: %d\n", bench);
 		goto cleanup;
 	}
 
@@ -88,7 +100,7 @@ static void bench_uprobe__teardown_bpf_skel(void)
 	}
 }
 #else
-static int bench_uprobe__setup_bpf_skel(void) { return 0; }
+static int bench_uprobe__setup_bpf_skel(enum bench_uprobe bench __maybe_unused) { return 0; }
 static void bench_uprobe__teardown_bpf_skel(void) {};
 #endif
 
@@ -135,7 +147,7 @@ static int bench_uprobe(int argc, const char **argv, enum bench_uprobe bench)
 
 	argc = parse_options(argc, argv, options, bench_uprobe_usage, 0);
 
-	if (bench != BENCH_UPROBE__BASELINE && bench_uprobe__setup_bpf_skel() < 0)
+	if (bench != BENCH_UPROBE__BASELINE && bench_uprobe__setup_bpf_skel(bench) < 0)
 		return 0;
 
         clock_gettime(CLOCK_REALTIME, &start);
@@ -178,4 +190,9 @@ int bench_uprobe_baseline(int argc, const char **argv)
 int bench_uprobe_empty(int argc, const char **argv)
 {
 	return bench_uprobe(argc, argv, BENCH_UPROBE__EMPTY);
+}
+
+int bench_uprobe_trace_printk(int argc, const char **argv)
+{
+	return bench_uprobe(argc, argv, BENCH_UPROBE__TRACE_PRINTK);
 }
