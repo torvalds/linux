@@ -89,7 +89,7 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		const struct alloc_context *ac, enum compact_priority prio,
 		struct page **page);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
-extern enum compact_result compaction_suitable(struct zone *zone, int order,
+extern bool compaction_suitable(struct zone *zone, int order,
 					       int highest_zoneidx);
 
 extern void compaction_defer_reset(struct zone *zone, int order,
@@ -107,10 +107,10 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
 {
 }
 
-static inline enum compact_result compaction_suitable(struct zone *zone, int order,
+static inline bool compaction_suitable(struct zone *zone, int order,
 						      int highest_zoneidx)
 {
-	return COMPACT_SKIPPED;
+	return false;
 }
 
 static inline void kcompactd_run(int nid)

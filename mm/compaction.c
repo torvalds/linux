@@ -2193,9 +2193,9 @@ static enum compact_result compact_finished(struct compact_control *cc)
 	return ret;
 }
 
-static enum compact_result __compaction_suitable(struct zone *zone, int order,
-					int highest_zoneidx,
-					unsigned long wmark_target)
+static bool __compaction_suitable(struct zone *zone, int order,
+				  int highest_zoneidx,
+				  unsigned long wmark_target)
 {
 	unsigned long watermark;
 	/*
@@ -2215,27 +2215,20 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
 				low_wmark_pages(zone) : min_wmark_pages(zone);
 	watermark += compact_gap(order);
-	if (!__zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
-						ALLOC_CMA, wmark_target))
-		return COMPACT_SKIPPED;
-
-	return COMPACT_CONTINUE;
+	return __zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
+				   ALLOC_CMA, wmark_target);
 }
 
 /*
  * compaction_suitable: Is this suitable to run compaction on this zone now?
- * Returns
- *   COMPACT_SKIPPED  - If there are too few free pages for compaction
- *   COMPACT_CONTINUE - If compaction should run now
  */
-enum compact_result compaction_suitable(struct zone *zone, int order,
-					int highest_zoneidx)
+bool compaction_suitable(struct zone *zone, int order, int highest_zoneidx)
 {
-	enum compact_result ret;
-	int fragindex;
+	enum compact_result compact_result;
+	bool suitable;
 
-	ret = __compaction_suitable(zone, order, highest_zoneidx,
-				    zone_page_state(zone, NR_FREE_PAGES));
+	suitable = __compaction_suitable(zone, order, highest_zoneidx,
+					 zone_page_state(zone, NR_FREE_PAGES));
 	/*
 	 * fragmentation index determines if allocation failures are due to
 	 * low memory or external fragmentation
@@ -2252,17 +2245,24 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
 	 * excessive compaction for costly orders, but it should not be at the
 	 * expense of system stability.
 	 */
-	if (ret == COMPACT_CONTINUE && (order > PAGE_ALLOC_COSTLY_ORDER)) {
-		fragindex = fragmentation_index(zone, order);
-		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
-			ret = COMPACT_NOT_SUITABLE_ZONE;
+	if (suitable) {
+		compact_result = COMPACT_CONTINUE;
+		if (order > PAGE_ALLOC_COSTLY_ORDER) {
+			int fragindex = fragmentation_index(zone, order);
+
+			if (fragindex >= 0 &&
+			    fragindex <= sysctl_extfrag_threshold) {
+				suitable = false;
+				compact_result = COMPACT_NOT_SUITABLE_ZONE;
+			}
+		}
+	} else {
+		compact_result = COMPACT_SKIPPED;
 	}
 
-	trace_mm_compaction_suitable(zone, order, ret);
-	if (ret == COMPACT_NOT_SUITABLE_ZONE)
-		ret = COMPACT_SKIPPED;
+	trace_mm_compaction_suitable(zone, order, compact_result);
 
-	return ret;
+	return suitable;
 }
 
 bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
@@ -2288,7 +2288,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		available = zone_reclaimable_pages(zone) / order;
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 		if (__compaction_suitable(zone, order, ac->highest_zoneidx,
-					  available) == COMPACT_CONTINUE)
+					  available))
 			return true;
 	}
 
@@ -2329,11 +2329,10 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 				      cc->highest_zoneidx, cc->alloc_flags))
 			return COMPACT_SUCCESS;
 
-		ret = compaction_suitable(cc->zone, cc->order,
-					  cc->highest_zoneidx);
 		/* Compaction is likely to fail */
-		if (ret == COMPACT_SKIPPED)
-			return ret;
+		if (!compaction_suitable(cc->zone, cc->order,
+					 cc->highest_zoneidx))
+			return COMPACT_SKIPPED;
 	}
 
 	/*
@@ -2845,7 +2844,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 			continue;
 
 		if (compaction_suitable(zone, pgdat->kcompactd_max_order,
-					highest_zoneidx) == COMPACT_CONTINUE)
+					highest_zoneidx))
 			return true;
 	}
 
@@ -2887,8 +2886,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 				      min_wmark_pages(zone), zoneid, 0))
 			continue;
 
-		if (compaction_suitable(zone, cc.order,
-					zoneid) != COMPACT_CONTINUE)
+		if (!compaction_suitable(zone, cc.order, zoneid))
 			continue;
 
 		if (kthread_should_stop())
