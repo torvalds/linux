@@ -2374,8 +2374,8 @@ void link_set_dpms_on(
 		}
 	}
 
-		if (dc_is_virtual_signal(pipe_ctx->stream->signal))
-			return;
+	if (dc_is_virtual_signal(pipe_ctx->stream->signal))
+		return;
 
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
