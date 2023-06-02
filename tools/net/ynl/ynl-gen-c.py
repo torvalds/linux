@@ -2103,6 +2103,13 @@ def main():
             cw.nl()
         headers = ['uapi/' + parsed.uapi_header]
     else:
+        cw.p('#include <stdlib.h>')
+        if args.header:
+            cw.p('#include <string.h>')
+            cw.p('#include <linux/types.h>')
+        else:
+            cw.p(f'#include "{parsed.name}-user.h"')
+            cw.p('#include "ynl.h"')
         headers = [parsed.uapi_header]
     for definition in parsed['definitions']:
         if 'header' in definition:
