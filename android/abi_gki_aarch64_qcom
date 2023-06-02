@@ -141,10 +141,10 @@
   bpf_prog_put
   bpf_prog_sub
   bpf_stats_enabled_key
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
-  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -1881,8 +1881,8 @@
   memremap_pages
   memscan
   mem_section
-  memset64
   memset
+  memset64
   __memset_io
   memstart_addr
   memunmap
@@ -1919,8 +1919,8 @@
   mmc_retune_release
   mmc_select_bus_width
   mmc_select_card
-  mmc_select_hs400
   mmc_select_hs
+  mmc_select_hs400
   mmc_select_hs_ddr
   mmc_select_timing
   mmc_send_status
@@ -2050,10 +2050,10 @@
   nla_find
   nla_memcpy
   __nla_parse
-  nla_put_64bit
   nla_put
-  nla_reserve_64bit
+  nla_put_64bit
   nla_reserve
+  nla_reserve_64bit
   nla_strscpy
   __nla_validate
   __nlmsg_put
@@ -2192,6 +2192,8 @@
   page_ext_put
   page_is_ram
   page_mapping
+  page_pinner_inited
+  __page_pinner_put_page
   page_pool_alloc_pages
   page_pool_create
   page_pool_destroy
@@ -3235,6 +3237,7 @@
   topology_update_done
   topology_update_thermal_pressure
   _totalram_pages
+  _trace_android_vh_record_pcpu_rwsem_starttime
   trace_array_put
   __trace_bprintk
   trace_clock_local
