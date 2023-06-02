@@ -242,6 +242,44 @@ struct sof_ipc4_dma_stream_ch_map {
 	struct sof_ipc4_dma_device_stream_ch_map mapping[SOF_IPC4_DMA_DEVICE_MAX_COUNT];
 } __packed;
 
+#define SOF_IPC4_DMA_METHOD_HDA   1
+#define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but not used */
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @dma_method: HDAudio or GPDMA
+ * @pre_allocated_by_host: 1 if host driver allocates DMA channels, 0 otherwise
+ * @dma_channel_id: for HDaudio defined as @stream_id - 1
+ * @stream_id: HDaudio stream tag
+ * @dma_stream_channel_map: array of device/channel mappings
+ * @dma_priv_config_size: currently not used
+ * @dma_priv_config: currently not used
+ */
+struct sof_ipc4_dma_config {
+	uint8_t dma_method;
+	uint8_t pre_allocated_by_host;
+	uint16_t rsvd;
+	uint32_t dma_channel_id;
+	uint32_t stream_id;
+	struct sof_ipc4_dma_stream_ch_map dma_stream_channel_map;
+	uint32_t dma_priv_config_size;
+	uint8_t dma_priv_config[];
+} __packed;
+
+#define SOF_IPC4_GTW_DMA_CONFIG_ID 0x1000
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @type: set to SOF_IPC4_GTW_DMA_CONFIG_ID
+ * @length: sizeof(struct sof_ipc4_dma_config) + dma_config.dma_priv_config_size
+ * @dma_config: actual DMA configuration
+ */
+struct sof_ipc4_dma_config_tlv {
+	uint32_t type;
+	uint32_t length;
+	struct sof_ipc4_dma_config dma_config;
+} __packed;
+
 /** struct sof_ipc4_alh_configuration_blob: ALH blob
  * @gw_attr: Gateway attributes
  * @alh_cfg: ALH configuration data
