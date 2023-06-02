@@ -1600,6 +1600,9 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 	if (tdp_mmu_enabled)
 		flush = kvm_tdp_mmu_unmap_gfn_range(kvm, range, flush);
 
+	if (range->slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT)
+		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+
 	return flush;
 }
 
