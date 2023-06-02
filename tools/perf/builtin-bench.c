@@ -105,7 +105,8 @@ static struct bench breakpoint_benchmarks[] = {
 };
 
 static struct bench uprobe_benchmarks[] = {
-	{ "baseline",	"Baseline libc usleep(1000) call",	bench_uprobe_baseline,	},
+	{ "baseline",	"Baseline libc usleep(1000) call",				bench_uprobe_baseline,	},
+	{ "empty",	"Attach empty BPF prog to uprobe on usleep, system wide",	bench_uprobe_empty,	},
 	{ NULL,	NULL, NULL },
 };
 
