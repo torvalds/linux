@@ -132,7 +132,7 @@ static u32 frequency_enabled_mask(void)
 	unsigned int i;
 	u32 mask = 0;
 
-	for (i = 0; i < I915_PMU_MAX_GTS; i++)
+	for (i = 0; i < I915_PMU_MAX_GT; i++)
 		mask |= config_mask(__I915_PMU_ACTUAL_FREQUENCY(i)) |
 			config_mask(__I915_PMU_REQUESTED_FREQUENCY(i));
 
