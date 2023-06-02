@@ -7,6 +7,7 @@
  * Yes, this is unfortunate.  A better solution is in the works.
  */
 NORETURN(__invalid_creds)
+NORETURN(__kunit_abort)
 NORETURN(__module_put_and_kthread_exit)
 NORETURN(__reiserfs_panic)
 NORETURN(__stack_chk_fail)
