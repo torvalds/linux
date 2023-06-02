@@ -364,13 +364,20 @@ static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 	mutex_unlock(&table->sf_state_lock);
 }
 
+static void mlx5_sf_del(struct mlx5_sf_table *table, struct mlx5_sf *sf)
+{
+	struct mlx5_eswitch *esw = table->dev->priv.eswitch;
+
+	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
+	mlx5_sf_dealloc(table, sf);
+}
+
 int mlx5_devlink_sf_port_del(struct devlink *devlink,
 			     struct devlink_port *dl_port,
 			     struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_sf *sf = mlx5_sf_by_dl_port(dl_port);
-	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5_sf_table *table;
 
 	table = mlx5_sf_table_try_get(dev);
@@ -380,8 +387,7 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 		return -EOPNOTSUPP;
 	}
 
-	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
-	mlx5_sf_dealloc(table, sf);
+	mlx5_sf_del(table, sf);
 	mlx5_sf_table_put(table);
 	return 0;
 }
@@ -439,17 +445,14 @@ static void mlx5_sf_table_enable(struct mlx5_sf_table *table)
 
 static void mlx5_sf_del_all(struct mlx5_sf_table *table)
 {
-	struct mlx5_eswitch *esw = table->dev->priv.eswitch;
 	unsigned long index;
 	struct mlx5_sf *sf;
 
 	/* At this point, no new user commands can start and no vhca event can
 	 * arrive. It is safe to destroy all user created SFs.
 	 */
-	xa_for_each(&table->function_ids, index, sf) {
-		mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
-		mlx5_sf_dealloc(table, sf);
-	}
+	xa_for_each(&table->function_ids, index, sf)
+		mlx5_sf_del(table, sf);
 }
 
 static void mlx5_sf_table_disable(struct mlx5_sf_table *table)
