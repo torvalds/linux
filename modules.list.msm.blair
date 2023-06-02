@@ -24,12 +24,10 @@ icc-debug.ko
 icc-rpm.ko
 qnoc-blair.ko
 qnoc-qos-rpm.ko
-debugcc-blair.ko
 dispcc-blair.ko
 gcc-blair.ko
 clk-dummy.ko
 clk-qcom.ko
-clk-rpmh.ko
 clk-smd-rpm.ko
 clk-spmi-pmic-div.ko
 proxy-consumer.ko
@@ -58,3 +56,5 @@ mem_buf.ko
 socinfo.ko
 qcom_wdt_core.ko
 qcom_soc_wdt.ko
+gdsc-regulator.ko
+qcom-cpufreq-hw.ko
