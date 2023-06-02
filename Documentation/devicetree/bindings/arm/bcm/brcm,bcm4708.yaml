@@ -25,6 +25,8 @@ properties:
           - enum:
               - asus,rt-ac56u
               - asus,rt-ac68u
+              - buffalo,wzr-1166dhp
+              - buffalo,wzr-1166dhp2
               - buffalo,wzr-1750dhp
               - linksys,ea6300-v1
               - linksys,ea6500-v2
