@@ -7699,9 +7699,10 @@ static struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev)
 {
+	int max_rifs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 	int i;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
+	for (i = 0; i < max_rifs; i++)
 		if (mlxsw_sp->router->rifs[i] &&
 		    mlxsw_sp->router->rifs[i]->dev == dev)
 			return mlxsw_sp->router->rifs[i];
@@ -10041,11 +10042,12 @@ err_rifs_table_init:
 
 static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	int max_rifs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int i;
 
 	WARN_ON_ONCE(atomic_read(&mlxsw_sp->router->rifs_count));
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
+	for (i = 0; i < max_rifs; i++)
 		WARN_ON_ONCE(mlxsw_sp->router->rifs[i]);
 
 	devl_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_RIFS);
