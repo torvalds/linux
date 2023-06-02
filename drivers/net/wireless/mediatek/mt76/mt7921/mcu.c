@@ -1305,6 +1305,23 @@ int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 	return 0;
 }
 
+int mt7921_mcu_get_temperature(struct mt7921_phy *phy)
+{
+	struct mt7921_dev *dev = phy->dev;
+	struct {
+		u8 ctrl_id;
+		u8 action;
+		u8 band_idx;
+		u8 rsv[5];
+	} req = {
+		.ctrl_id = THERMAL_SENSOR_TEMP_QUERY,
+		.band_idx = phy->mt76->band_idx,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(THERMAL_CTRL), &req,
+				 sizeof(req), true);
+}
+
 int mt7921_mcu_set_rxfilter(struct mt7921_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map)
 {

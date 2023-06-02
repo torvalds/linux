@@ -2,6 +2,9 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/thermal.h>
 #include <linux/firmware.h>
 #include "mt7921.h"
 #include "../mt76_connac2_mac.h"
@@ -50,6 +53,57 @@ static const struct ieee80211_iface_combination if_comb_chanctx[] = {
 		.beacon_int_infra_match = false,
 	}
 };
+
+static ssize_t mt7921_thermal_temp_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	switch (to_sensor_dev_attr(attr)->index) {
+	case 0: {
+		struct mt7921_phy *phy = dev_get_drvdata(dev);
+		struct mt7921_dev *mdev = phy->dev;
+		int temperature;
+
+		mt7921_mutex_acquire(mdev);
+		temperature = mt7921_mcu_get_temperature(phy);
+		mt7921_mutex_release(mdev);
+
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree Celsius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	}
+	default:
+		return -EINVAL;
+	}
+}
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7921_thermal_temp, 0);
+
+static struct attribute *mt7921_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mt7921_hwmon);
+
+static int mt7921_thermal_init(struct mt7921_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct device *hwmon;
+	const char *name;
+
+	if (!IS_REACHABLE(CONFIG_HWMON))
+		return 0;
+
+	name = devm_kasprintf(&wiphy->dev, GFP_KERNEL, "mt7921_%s",
+			      wiphy_name(wiphy));
+
+	hwmon = devm_hwmon_device_register_with_groups(&wiphy->dev, name, phy,
+						       mt7921_hwmon_groups);
+	if (IS_ERR(hwmon))
+		return PTR_ERR(hwmon);
+
+	return 0;
+}
 
 static void
 mt7921_regd_notifier(struct wiphy *wiphy,
@@ -360,6 +414,12 @@ static void mt7921_init_work(struct work_struct *work)
 	ret = mt7921_init_debugfs(dev);
 	if (ret) {
 		dev_err(dev->mt76.dev, "register debugfs failed\n");
+		return;
+	}
+
+	ret = mt7921_thermal_init(&dev->phy);
+	if (ret) {
+		dev_err(dev->mt76.dev, "thermal init failed\n");
 		return;
 	}
 
