@@ -1933,8 +1933,12 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	 * bpf_refcount type so that it is emitted in vmlinux BTF
 	 */
 	ref = (struct bpf_refcount *)(p__refcounted_kptr + meta->record->refcount_off);
+	if (!refcount_inc_not_zero((refcount_t *)ref))
+		return NULL;
 
-	refcount_inc((refcount_t *)ref);
+	/* Verifier strips KF_RET_NULL if input is owned ref, see is_kfunc_ret_null
+	 * in verifier.c
+	 */
 	return (void *)p__refcounted_kptr;
 }
 
@@ -2406,7 +2410,7 @@ BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
 BTF_ID_FLAGS(func, bpf_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_obj_drop_impl, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_refcount_acquire_impl, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_refcount_acquire_impl, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_push_front_impl)
 BTF_ID_FLAGS(func, bpf_list_push_back_impl)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)

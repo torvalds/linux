@@ -298,16 +298,19 @@ struct bpf_kfunc_call_arg_meta {
 		bool found;
 	} arg_constant;
 
-	/* arg_btf and arg_btf_id are used by kfunc-specific handling,
+	/* arg_{btf,btf_id,owning_ref} are used by kfunc-specific handling,
 	 * generally to pass info about user-defined local kptr types to later
 	 * verification logic
 	 *   bpf_obj_drop
 	 *     Record the local kptr type to be drop'd
 	 *   bpf_refcount_acquire (via KF_ARG_PTR_TO_REFCOUNTED_KPTR arg type)
-	 *     Record the local kptr type to be refcount_incr'd
+	 *     Record the local kptr type to be refcount_incr'd and use
+	 *     arg_owning_ref to determine whether refcount_acquire should be
+	 *     fallible
 	 */
 	struct btf *arg_btf;
 	u32 arg_btf_id;
+	bool arg_owning_ref;
 
 	struct {
 		struct btf_field *field;
@@ -9678,11 +9681,6 @@ static bool is_kfunc_acquire(struct bpf_kfunc_call_arg_meta *meta)
 	return meta->kfunc_flags & KF_ACQUIRE;
 }
 
-static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
-{
-	return meta->kfunc_flags & KF_RET_NULL;
-}
-
 static bool is_kfunc_release(struct bpf_kfunc_call_arg_meta *meta)
 {
 	return meta->kfunc_flags & KF_RELEASE;
@@ -9997,6 +9995,16 @@ BTF_ID(func, bpf_dynptr_from_xdp)
 BTF_ID(func, bpf_dynptr_slice)
 BTF_ID(func, bpf_dynptr_slice_rdwr)
 BTF_ID(func, bpf_dynptr_clone)
+
+static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
+{
+	if (meta->func_id == special_kfunc_list[KF_bpf_refcount_acquire_impl] &&
+	    meta->arg_owning_ref) {
+		return false;
+	}
+
+	return meta->kfunc_flags & KF_RET_NULL;
+}
 
 static bool is_kfunc_bpf_rcu_read_lock(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -10880,10 +10888,12 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			meta->subprogno = reg->subprogno;
 			break;
 		case KF_ARG_PTR_TO_REFCOUNTED_KPTR:
-			if (!type_is_ptr_alloc_obj(reg->type) && !type_is_non_owning_ref(reg->type)) {
+			if (!type_is_ptr_alloc_obj(reg->type)) {
 				verbose(env, "arg#%d is neither owning or non-owning ref\n", i);
 				return -EINVAL;
 			}
+			if (!type_is_non_owning_ref(reg->type))
+				meta->arg_owning_ref = true;
 
 			rec = reg_btf_record(reg);
 			if (!rec) {
