@@ -192,8 +192,6 @@
 			interrupt-parent = <&gic>;
 
 			ehci: usb@21000 {
-				#usb-cells = <0>;
-
 				compatible = "generic-ehci";
 				reg = <0x00021000 0x1000>;
 				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
@@ -214,8 +212,6 @@
 			};
 
 			ohci: usb@22000 {
-				#usb-cells = <0>;
-
 				compatible = "generic-ohci";
 				reg = <0x00022000 0x1000>;
 				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
@@ -245,8 +241,6 @@
 			interrupt-parent = <&gic>;
 
 			xhci: usb@23000 {
-				#usb-cells = <0>;
-
 				compatible = "generic-xhci";
 				reg = <0x00023000 0x1000>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
