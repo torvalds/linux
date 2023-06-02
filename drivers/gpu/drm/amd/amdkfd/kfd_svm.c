@@ -1154,7 +1154,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 	uint64_t pte_flags;
 	bool snoop = (domain != SVM_RANGE_VRAM_DOMAIN);
 	bool coherent = flags & KFD_IOCTL_SVM_FLAG_COHERENT;
-	bool uncached = flags & KFD_IOCTL_SVM_FLAG_UNCACHED;
+	bool uncached = false; /*flags & KFD_IOCTL_SVM_FLAG_UNCACHED;*/
 	unsigned int mtype_local;
 
 	if (domain == SVM_RANGE_VRAM_DOMAIN)
