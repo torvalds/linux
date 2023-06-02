@@ -887,6 +887,12 @@ class Family(SpecFamily):
                     self.hooks[when][op_mode]['set'].add(name)
                     self.hooks[when][op_mode]['list'].append(name)
 
+    def has_notifications(self):
+        for op in self.ops.values():
+            if 'notify' in op or 'event' in op:
+                return True
+        return False
+
 
 class RenderInfo:
     def __init__(self, cw, family, ku_space, op, op_name, op_mode, attr_set=None):
@@ -1587,6 +1593,7 @@ def print_wrapped_type(ri):
     elif ri.op_mode == 'notify' or ri.op_mode == 'event':
         ri.cw.p('__u16 family;')
         ri.cw.p('__u8 cmd;')
+        ri.cw.p('struct ynl_ntf_base_type *next;')
         ri.cw.p(f"void (*free)({type_name(ri, 'reply')} *ntf);")
     ri.cw.p(f"{type_name(ri, 'reply', deref=True)} obj __attribute__ ((aligned (8)));")
     ri.cw.block_end(line=';')
@@ -2109,14 +2116,43 @@ def render_uapi(family, cw):
     cw.p(f'#endif /* {hdr_prot} */')
 
 
+def _render_user_ntf_entry(ri, op):
+    ri.cw.block_start(line=f"[{op.enum_name}] = ")
+    ri.cw.p(f".alloc_sz\t= sizeof({type_name(ri, 'event')}),")
+    ri.cw.p(f".cb\t\t= {op_prefix(ri, 'reply', deref=True)}_parse,")
+    ri.cw.p(f".policy\t\t= &{ri.struct['reply'].render_name}_nest,")
+    ri.cw.p(f".free\t\t= (void *){op_prefix(ri, 'notify')}_free,")
+    ri.cw.block_end(line=',')
+
+
 def render_user_family(family, cw, prototype):
     symbol = f'const struct ynl_family ynl_{family.c_name}_family'
     if prototype:
         cw.p(f'extern {symbol};')
-    else:
-        cw.block_start(f'{symbol} = ')
-        cw.p(f'.name = "{family.name}",')
-        cw.block_end(line=';')
+        return
+
+    ntf = family.has_notifications()
+    if ntf:
+        cw.block_start(line=f"static const struct ynl_ntf_info {family['name']}_ntf_info[] = ")
+        for ntf_op in sorted(family.all_notify.keys()):
+            op = family.ops[ntf_op]
+            ri = RenderInfo(cw, family, "user", op, ntf_op, "notify")
+            for ntf in op['notify']['cmds']:
+                _render_user_ntf_entry(ri, ntf)
+        for op_name, op in family.ops.items():
+            if 'event' not in op:
+                continue
+            ri = RenderInfo(cw, family, "user", op, op_name, "event")
+            _render_user_ntf_entry(ri, op)
+        cw.block_end(line=";")
+        cw.nl()
+
+    cw.block_start(f'{symbol} = ')
+    cw.p(f'.name\t\t= "{family.name}",')
+    if ntf:
+        cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
+        cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")
+    cw.block_end(line=';')
 
 
 def find_kernel_root(full_path):
@@ -2277,7 +2313,6 @@ def main():
             print_kernel_family_struct_src(parsed, cw)
 
     if args.mode == "user":
-        has_ntf = False
         if args.header:
             cw.p('/* Enums */')
             put_op_name_fwd(parsed, cw)
@@ -2322,7 +2357,6 @@ def main():
                 if 'notify' in op:
                     cw.p(f"/* {op.enum_name} - notify */")
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
-                    has_ntf = True
                     if not ri.type_consistent:
                         raise Exception(f'Only notifications with consistent types supported ({op.name})')
                     print_wrapped_type(ri)
@@ -2334,7 +2368,7 @@ def main():
                     cw.nl()
                     print_wrapped_type(ri)
 
-            if has_ntf:
+            if parsed.has_notifications():
                 cw.p('/* --------------- Common notification parsing --------------- */')
                 print_ntf_parse_prototype(parsed, cw)
             cw.nl()
@@ -2390,14 +2424,12 @@ def main():
                 if 'notify' in op:
                     cw.p(f"/* {op.enum_name} - notify */")
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, 'notify')
-                    has_ntf = True
                     if not ri.type_consistent:
                         raise Exception(f'Only notifications with consistent types supported ({op.name})')
                     print_ntf_type_free(ri)
 
                 if 'event' in op:
                     cw.p(f"/* {op.enum_name} - event */")
-                    has_ntf = True
 
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
                     parse_rsp_msg(ri)
@@ -2405,7 +2437,7 @@ def main():
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, "event")
                     print_ntf_type_free(ri)
 
-            if has_ntf:
+            if parsed.has_notifications():
                 cw.p('/* --------------- Common notification parsing --------------- */')
                 print_ntf_type_parse(parsed, cw, args.mode)
 
