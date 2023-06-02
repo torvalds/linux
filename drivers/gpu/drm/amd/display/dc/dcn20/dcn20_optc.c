@@ -38,8 +38,12 @@
 	optc1->tg_shift->field_name, optc1->tg_mask->field_name
 
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc2_enable_crtc() - Enable CRTC - call ASIC Control Object to enable Timing generator.
+ *
+ * @optc: timing_generator instance.
+ *
+ * Return: If CRTC is enabled, return true.
+ *
  */
 bool optc2_enable_crtc(struct timing_generator *optc)
 {
@@ -73,15 +77,18 @@ bool optc2_enable_crtc(struct timing_generator *optc)
 }
 
 /**
- *For the below, I'm not sure how your GSL parameters are stored in your env,
- * so I will assume a gsl_params struct for now
+ * optc2_set_gsl() - Assign OTG to GSL groups,
+ *                   set one of the OTGs to be master & rest are slaves
+ *
+ * @optc: timing_generator instance.
+ * @params: pointer to gsl_params
  */
 void optc2_set_gsl(struct timing_generator *optc,
 		   const struct gsl_params *params)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-/**
+/*
  * There are (MAX_OPTC+1)/2 gsl groups available for use.
  * In each group (assign an OTG to a group by setting OTG_GSLX_EN = 1,
  * set one of the OTGs to be the master (OTG_GSL_MASTER_EN = 1) and the rest are slaves.
