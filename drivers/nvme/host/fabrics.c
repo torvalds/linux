@@ -92,8 +92,10 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn, uuid_t *id)
 	}
 
 	host = nvmf_host_alloc(hostnqn, id);
-	if (!host)
-		return ERR_PTR(-ENOMEM);
+	if (!host) {
+		host = ERR_PTR(-ENOMEM);
+		goto out_unlock;
+	}
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
