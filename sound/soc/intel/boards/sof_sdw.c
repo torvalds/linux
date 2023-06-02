@@ -563,134 +563,231 @@ static const struct snd_soc_ops sdw_ops = {
 static struct sof_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x700,
-		.direction = {true, true},
-		.dai_name = "rt700-aif1",
-		.init = sof_sdw_rt700_init,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt700-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = sof_sdw_rt700_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0x711,
 		.version_id = 3,
-		.direction = {true, true},
-		.dai_name = "rt711-sdca-aif1",
-		.init = sof_sdw_rt711_sdca_init,
-		.exit = sof_sdw_rt711_sdca_exit,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt711-sdca-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = sof_sdw_rt711_sdca_init,
+				.exit = sof_sdw_rt711_sdca_exit,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0x711,
 		.version_id = 2,
-		.direction = {true, true},
-		.dai_name = "rt711-aif1",
-		.init = sof_sdw_rt711_init,
-		.exit = sof_sdw_rt711_exit,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt711-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = sof_sdw_rt711_init,
+				.exit = sof_sdw_rt711_exit,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0x1308,
 		.acpi_id = "10EC1308",
-		.direction = {true, false},
-		.dai_name = "rt1308-aif",
+		.dais = {
+			{
+				.direction = {true, false},
+				.dai_name = "rt1308-aif",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.init = sof_sdw_rt_amp_init,
+				.exit = sof_sdw_rt_amp_exit,
+			},
+		},
+		.dai_num = 1,
 		.ops = &sof_sdw_rt1308_i2s_ops,
-		.init = sof_sdw_rt_amp_init,
-		.exit = sof_sdw_rt_amp_exit,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
 		.part_id = 0x1316,
-		.direction = {true, true},
-		.dai_name = "rt1316-aif",
-		.init = sof_sdw_rt_amp_init,
-		.exit = sof_sdw_rt_amp_exit,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt1316-aif",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.init = sof_sdw_rt_amp_init,
+				.exit = sof_sdw_rt_amp_exit,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
 		.part_id = 0x1318,
-		.direction = {true, true},
-		.dai_name = "rt1318-aif",
-		.init = sof_sdw_rt_amp_init,
-		.exit = sof_sdw_rt_amp_exit,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt1318-aif",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.init = sof_sdw_rt_amp_init,
+				.exit = sof_sdw_rt_amp_exit,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
 		.part_id = 0x714,
 		.version_id = 3,
-		.direction = {false, true},
 		.ignore_pch_dmic = true,
-		.dai_name = "rt715-aif2",
-		.init = sof_sdw_rt715_sdca_init,
+		.dais = {
+			{
+				.direction = {false, true},
+				.dai_name = "rt715-aif2",
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.init = sof_sdw_rt715_sdca_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_MIC,
 	},
 	{
 		.part_id = 0x715,
 		.version_id = 3,
-		.direction = {false, true},
 		.ignore_pch_dmic = true,
-		.dai_name = "rt715-aif2",
-		.init = sof_sdw_rt715_sdca_init,
+		.dais = {
+			{
+				.direction = {false, true},
+				.dai_name = "rt715-aif2",
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.init = sof_sdw_rt715_sdca_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_MIC,
 	},
 	{
 		.part_id = 0x714,
 		.version_id = 2,
-		.direction = {false, true},
 		.ignore_pch_dmic = true,
-		.dai_name = "rt715-aif2",
-		.init = sof_sdw_rt715_init,
+		.dais = {
+			{
+				.direction = {false, true},
+				.dai_name = "rt715-aif2",
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.init = sof_sdw_rt715_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_MIC,
 	},
 	{
 		.part_id = 0x715,
 		.version_id = 2,
-		.direction = {false, true},
 		.ignore_pch_dmic = true,
-		.dai_name = "rt715-aif2",
-		.init = sof_sdw_rt715_init,
+		.dais = {
+			{
+				.direction = {false, true},
+				.dai_name = "rt715-aif2",
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.init = sof_sdw_rt715_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_MIC,
 	},
 	{
 		.part_id = 0x8373,
-		.direction = {true, true},
-		.dai_name = "max98373-aif1",
-		.init = sof_sdw_mx8373_init,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "max98373-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.init = sof_sdw_mx8373_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
 		.part_id = 0x5682,
-		.direction = {true, true},
-		.dai_name = "rt5682-sdw",
-		.init = sof_sdw_rt5682_init,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt5682-sdw",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = sof_sdw_rt5682_init,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0xaaaa, /* generic codec mockup */
 		.version_id = 0,
-		.direction = {true, true},
-		.dai_name = "sdw-mockup-aif1",
-		.init = NULL,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "sdw-mockup-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = NULL,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0xaa55, /* headset codec mockup */
 		.version_id = 0,
-		.direction = {true, true},
-		.dai_name = "sdw-mockup-aif1",
-		.init = NULL,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "sdw-mockup-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.init = NULL,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_JACK,
 	},
 	{
 		.part_id = 0x55aa, /* amplifier mockup */
 		.version_id = 0,
-		.direction = {true, false},
-		.dai_name = "sdw-mockup-aif1",
-		.init = NULL,
+		.dais = {
+			{
+				.direction = {true, false},
+				.dai_name = "sdw-mockup-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.init = NULL,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
 		.part_id = 0x5555,
 		.version_id = 0,
-		.direction = {false, true},
-		.dai_name = "sdw-mockup-aif1",
+		.dais = {
+			{
+				.dai_name = "sdw-mockup-aif1",
+				.direction = {false, true},
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.init = NULL,
+			},
+		},
+		.dai_num = 1,
 		.codec_type = SOF_SDW_CODEC_TYPE_MIC,
 	},
 };
@@ -780,7 +877,7 @@ static int get_sdw_dailink_info(struct device *dev, const struct snd_soc_acpi_li
 
 			/* count DAI number for playback and capture */
 			for_each_pcm_streams(stream) {
-				if (!codec_info_list[codec_index].direction[stream])
+				if (!codec_info_list[codec_index].dais[0].direction[stream])
 					continue;
 
 				(*sdw_cpu_dai_num)++;
@@ -920,7 +1017,7 @@ static int create_codec_dai_name(struct device *dev,
 		_codec_index = codec_index;
 
 		codec[comp_index].dai_name =
-			codec_info_list[codec_index].dai_name;
+			codec_info_list[codec_index].dais[0].dai_name;
 
 		codec_conf[*codec_conf_index].dlc = codec[comp_index];
 		codec_conf[*codec_conf_index].name_prefix = link->adr_d[i].name_prefix;
@@ -957,8 +1054,8 @@ static int set_codec_init_func(struct snd_soc_card *card,
 			/* The group_id is > 0 iff the codec is aggregated */
 			if (link->adr_d[i].endpoints->group_id != group_id)
 				continue;
-			if (codec_info_list[codec_index].init)
-				codec_info_list[codec_index].init(card,
+			if (codec_info_list[codec_index].dais[0].init)
+				codec_info_list[codec_index].dais[0].init(card,
 						link,
 						dai_links,
 						&codec_info_list[codec_index],
@@ -1154,7 +1251,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			"SDW%d-Capture-%s",
 		};
 
-		if (!codec_info_list[codec_index].direction[stream])
+		if (!codec_info_list[codec_index].dais[0].direction[stream])
 			continue;
 
 		/* create stream name according to first link id */
@@ -1458,18 +1555,18 @@ SSP:
 			return -ENOMEM;
 
 		ssp_components->name = codec_name;
-		ssp_components->dai_name = info->dai_name;
+		ssp_components->dai_name = info->dais[0].dai_name;
 		cpus[cpu_id].dai_name = cpu_name;
 
-		playback = info->direction[SNDRV_PCM_STREAM_PLAYBACK];
-		capture = info->direction[SNDRV_PCM_STREAM_CAPTURE];
+		playback = info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
+		capture = info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
 		init_dai_link(dev, links + link_index, be_id, name,
 			      playback, capture,
 			      cpus + cpu_id, 1,
 			      ssp_components, 1,
 			      NULL, info->ops);
 
-		ret = info->init(card, NULL, links + link_index, info, 0);
+		ret = info->dais[0].init(card, NULL, links + link_index, info, 0);
 		if (ret < 0)
 			return ret;
 
@@ -1606,7 +1703,7 @@ static void mc_dailink_exit_loop(struct snd_soc_card *card)
 	int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
-		if (!codec_info_list[i].exit)
+		if (!codec_info_list[i].dais[0].exit)
 			continue;
 		/*
 		 * We don't need to call .exit function if there is no matched
@@ -1614,8 +1711,8 @@ static void mc_dailink_exit_loop(struct snd_soc_card *card)
 		 */
 		for_each_card_prelinks(card, j, link) {
 			if (!strcmp(link->codecs[0].dai_name,
-				    codec_info_list[i].dai_name)) {
-				ret = codec_info_list[i].exit(card, link);
+				    codec_info_list[i].dais[0].dai_name)) {
+				ret = codec_info_list[i].dais[0].exit(card, link);
 				if (ret)
 					dev_warn(card->dev,
 						 "codec exit failed %d\n",

@@ -56,24 +56,37 @@ enum {
 #define SOF_SDW_CODEC_TYPE_AMP		1
 #define SOF_SDW_CODEC_TYPE_MIC		2
 
+#define SOF_SDW_DAI_TYPE_JACK		0
+#define SOF_SDW_DAI_TYPE_AMP		1
+#define SOF_SDW_DAI_TYPE_MIC		2
+
+#define SOF_SDW_MAX_DAI_NUM		3
+
+struct sof_sdw_codec_info;
+
+struct sof_sdw_dai_info {
+	const bool direction[2]; /* playback & capture support */
+	const char *dai_name;
+	const int dai_type;
+	int  (*init)(struct snd_soc_card *card,
+		     const struct snd_soc_acpi_link_adr *link,
+		     struct snd_soc_dai_link *dai_links,
+		     struct sof_sdw_codec_info *info,
+		     bool playback);
+	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
+};
+
 struct sof_sdw_codec_info {
 	const int part_id;
 	const int version_id;
 	const int codec_type;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
-	const bool direction[2]; // playback & capture support
 	const bool ignore_pch_dmic;
-	const char *dai_name;
 	const struct snd_soc_ops *ops;
+	struct sof_sdw_dai_info dais[SOF_SDW_MAX_DAI_NUM];
+	const int dai_num;
 
-	int  (*init)(struct snd_soc_card *card,
-		     const struct snd_soc_acpi_link_adr *link,
-		     struct snd_soc_dai_link *dai_links,
-		     struct sof_sdw_codec_info *info,
-		     bool playback);
-
-	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 };
 
