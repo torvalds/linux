@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <uapi/linux/jtag.h>
 
-#define JTAG_MAX_XFER_DATA_LEN 65535
+#define JTAG_MAX_XFER_DATA_LEN (0xFFFFFFFF) //65535
 
 struct jtag;
 /**
