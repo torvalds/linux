@@ -11,6 +11,7 @@
 #include <asm/unaligned.h>
 
 #include "cdns2-gadget.h"
+#include "cdns2-trace.h"
 
 static struct usb_endpoint_descriptor cdns2_gadget_ep0_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
@@ -60,6 +61,8 @@ static void cdns2_ep0_enqueue(struct cdns2_device *pdev, dma_addr_t dma_addr,
 		ring->trbs[1].control = 0;
 	}
 
+	trace_cdns2_queue_trb(pep, ring->trbs);
+
 	if (!pep->dir)
 		writel(0, &pdev->ep0_regs->rxbc);
 
@@ -67,6 +70,8 @@ static void cdns2_ep0_enqueue(struct cdns2_device *pdev, dma_addr_t dma_addr,
 
 	writel(DMA_EP_STS_TRBERR, &regs->ep_sts);
 	writel(pep->ring.dma, &regs->ep_traddr);
+
+	trace_cdns2_doorbell_ep0(pep, readl(&regs->ep_traddr));
 
 	writel(DMA_EP_CMD_DRDY, &regs->ep_cmd);
 }
@@ -128,6 +133,8 @@ static int cdns2_req_ep0_set_configuration(struct cdns2_device *pdev,
 	if (ret)
 		return ret;
 
+	trace_cdns2_device_state(config ? "configured" : "addressed");
+
 	if (!config)
 		usb_gadget_set_state(&pdev->gadget, USB_STATE_ADDRESS);
 
@@ -157,6 +164,8 @@ static int cdns2_req_ep0_set_address(struct cdns2_device *pdev, u32 addr)
 
 	usb_gadget_set_state(&pdev->gadget,
 			     (addr ? USB_STATE_ADDRESS : USB_STATE_DEFAULT));
+
+	trace_cdns2_device_state(addr ? "addressed" : "default");
 
 	return 0;
 }
@@ -385,8 +394,12 @@ void cdns2_handle_setup_packet(struct cdns2_device *pdev)
 	 * If SETUP packet was modified while reading just simple ignore it.
 	 * The new one will be handled latter.
 	 */
-	if (cdns2_check_new_setup(pdev))
+	if (cdns2_check_new_setup(pdev)) {
+		trace_cdns2_ep0_setup("overridden");
 		return;
+	}
+
+	trace_cdns2_ctrl_req(ctrl);
 
 	if (!pdev->gadget_driver)
 		goto out;
@@ -431,8 +444,10 @@ void cdns2_handle_setup_packet(struct cdns2_device *pdev)
 	else
 		ret = cdns2_ep0_delegate_req(pdev);
 
-	if (ret == USB_GADGET_DELAYED_STATUS)
+	if (ret == USB_GADGET_DELAYED_STATUS) {
+		trace_cdns2_ep0_status_stage("delayed");
 		return;
+	}
 
 out:
 	if (ret < 0)
@@ -448,6 +463,7 @@ static void cdns2_transfer_completed(struct cdns2_device *pdev)
 	if (!list_empty(&pep->pending_list)) {
 		struct cdns2_request *preq;
 
+		trace_cdns2_complete_trb(pep, pep->ring.trbs);
 		preq = cdns2_next_preq(&pep->pending_list);
 
 		preq->request.actual =
@@ -463,6 +479,8 @@ void cdns2_handle_ep0_interrupt(struct cdns2_device *pdev, int dir)
 	u32 ep_sts_reg;
 
 	cdns2_select_ep(pdev, dir);
+
+	trace_cdns2_ep0_irq(pdev);
 
 	ep_sts_reg = readl(&pdev->adma_regs->ep_sts);
 	writel(ep_sts_reg, &pdev->adma_regs->ep_sts);
@@ -530,8 +548,11 @@ static int cdns2_gadget_ep0_queue(struct usb_ep *ep,
 
 	preq = to_cdns2_request(request);
 
+	trace_cdns2_request_enqueue(preq);
+
 	/* Cancel the request if controller receive new SETUP packet. */
 	if (cdns2_check_new_setup(pdev)) {
+		trace_cdns2_ep0_setup("overridden");
 		spin_unlock_irqrestore(&pdev->lock, flags);
 		return -ECONNRESET;
 	}
@@ -556,6 +577,7 @@ static int cdns2_gadget_ep0_queue(struct usb_ep *ep,
 	}
 
 	if (!list_empty(&pep->pending_list)) {
+		trace_cdns2_ep0_setup("pending");
 		dev_err(pdev->dev,
 			"can't handle multiple requests for ep0\n");
 		spin_unlock_irqrestore(&pdev->lock, flags);

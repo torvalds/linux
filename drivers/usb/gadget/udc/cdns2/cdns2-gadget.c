@@ -33,6 +33,7 @@
 #include <linux/iopoll.h>
 
 #include "cdns2-gadget.h"
+#include "cdns2-trace.h"
 
 /**
  * set_reg_bit_32 - set bit in given 32 bits register.
@@ -154,6 +155,8 @@ static void cdns2_ep_stall_flush(struct cdns2_endpoint *pep)
 	struct cdns2_device *pdev = pep->pdev;
 	int val;
 
+	trace_cdns2_ep_halt(pep, 1, 1);
+
 	writel(DMA_EP_CMD_DFLUSH, &pdev->adma_regs->ep_cmd);
 
 	/* Wait for DFLUSH cleared. */
@@ -247,6 +250,8 @@ void cdns2_gadget_giveback(struct cdns2_endpoint *pep,
 	/* All TRBs have finished, clear the counter. */
 	preq->finished_trb = 0;
 
+	trace_cdns2_request_giveback(preq);
+
 	if (request->complete) {
 		spin_unlock(&pdev->lock);
 		usb_gadget_giveback_request(&pep->endpoint, request);
@@ -261,6 +266,8 @@ static void cdns2_wa1_restore_cycle_bit(struct cdns2_endpoint *pep)
 {
 	/* Work around for stale data address in TRB. */
 	if (pep->wa1_set) {
+		trace_cdns2_wa1(pep, "restore cycle bit");
+
 		pep->wa1_set = 0;
 		pep->wa1_trb_index = 0xFFFF;
 		if (pep->wa1_cycle_bit)
@@ -285,6 +292,7 @@ static int cdns2_wa1_update_guard(struct cdns2_endpoint *pep,
 			pep->wa1_set = 1;
 			pep->wa1_trb = trb;
 			pep->wa1_trb_index = pep->ring.enqueue;
+			trace_cdns2_wa1(pep, "set guard");
 			return 0;
 		}
 	}
@@ -317,6 +325,7 @@ static int cdns2_prepare_ring(struct cdns2_device *pdev,
 
 	if (num_trbs > ring->free_trbs) {
 		pep->ep_state |= EP_RING_FULL;
+		trace_cdns2_no_room_on_ring("Ring full\n");
 		return -ENOBUFS;
 	}
 
@@ -360,6 +369,7 @@ static void cdns2_dbg_request_trbs(struct cdns2_endpoint *pep,
 	int i = 0;
 
 	while (i < num_trbs) {
+		trace_cdns2_queue_trb(pep, trb + i);
 		if (trb + i == link_trb) {
 			trb = pep->ring.trbs;
 			num_trbs = num_trbs - i;
@@ -678,6 +688,8 @@ static void cdns2_ep_tx_bulk(struct cdns2_endpoint *pep,
 static void cdns2_set_drdy(struct cdns2_device *pdev,
 			   struct cdns2_endpoint *pep)
 {
+	trace_cdns2_ring(pep);
+
 	/*
 	 * Memory barrier - Cycle Bit must be set before doorbell.
 	 */
@@ -692,6 +704,8 @@ static void cdns2_set_drdy(struct cdns2_device *pdev,
 		writel(DMA_EP_STS_TRBERR, &pdev->adma_regs->ep_sts);
 		writel(DMA_EP_CMD_DRDY, &pdev->adma_regs->ep_cmd);
 	}
+
+	trace_cdns2_doorbell_epx(pep, readl(&pdev->adma_regs->ep_traddr));
 }
 
 static int cdns2_prepare_first_isoc_transfer(struct cdns2_device *pdev,
@@ -927,6 +941,7 @@ static bool cdns2_trb_handled(struct cdns2_endpoint *pep,
 	}
 
 finish:
+	trace_cdns2_request_handled(preq, current_index, handled);
 
 	return handled;
 }
@@ -942,6 +957,7 @@ static void cdns2_skip_isoc_td(struct cdns2_device *pdev,
 
 	for (i = preq->finished_trb ; i < preq->num_of_trb; i++) {
 		preq->finished_trb++;
+		trace_cdns2_complete_trb(pep, trb);
 		cdns2_ep_inc_deq(&pep->ring);
 		trb = cdns2_next_trb(pep, trb);
 	}
@@ -969,6 +985,7 @@ static void cdns2_transfer_completed(struct cdns2_device *pdev,
 		 */
 		while (TRB_FIELD_TO_TYPE(le32_to_cpu(trb->control)) == TRB_LINK &&
 		       le32_to_cpu(trb->length)) {
+			trace_cdns2_complete_trb(pep, trb);
 			cdns2_ep_inc_deq(&pep->ring);
 			trb = pep->ring.trbs + pep->ring.dequeue;
 		}
@@ -986,6 +1003,7 @@ static void cdns2_transfer_completed(struct cdns2_device *pdev,
 				request_handled = true;
 
 			trb = pep->ring.trbs + pep->ring.dequeue;
+			trace_cdns2_complete_trb(pep, trb);
 
 			if (pep->dir && pep->type == USB_ENDPOINT_XFER_ISOC)
 				/*
@@ -1037,12 +1055,17 @@ static void cdns2_rearm_transfer(struct cdns2_endpoint *pep, u8 rearm)
 	cdns2_wa1_restore_cycle_bit(pep);
 
 	if (rearm) {
+		trace_cdns2_ring(pep);
+
 		/* Cycle Bit must be updated before arming DMA. */
 		dma_wmb();
 
 		writel(DMA_EP_CMD_DRDY, &pdev->adma_regs->ep_cmd);
 
 		cdns2_wakeup(pdev);
+
+		trace_cdns2_doorbell_epx(pep,
+					 readl(&pdev->adma_regs->ep_traddr));
 	}
 }
 
@@ -1054,6 +1077,8 @@ static void cdns2_handle_epx_interrupt(struct cdns2_endpoint *pep)
 	u32 val;
 
 	cdns2_select_ep(pdev, pep->endpoint.address);
+
+	trace_cdns2_epx_irq(pdev, pep);
 
 	ep_sts_reg = readl(&pdev->adma_regs->ep_sts);
 	writel(ep_sts_reg, &pdev->adma_regs->ep_sts);
@@ -1196,6 +1221,8 @@ static irqreturn_t cdns2_thread_usb_irq_handler(struct cdns2_device *pdev)
 	if (!ext_irq && !usb_irq)
 		return IRQ_NONE;
 
+	trace_cdns2_usb_irq(usb_irq, ext_irq);
+
 	if (ext_irq & EXTIRQ_WAKEUP) {
 		if (pdev->gadget_driver && pdev->gadget_driver->resume) {
 			spin_unlock(&pdev->lock);
@@ -1273,6 +1300,8 @@ static irqreturn_t cdns2_thread_irq_handler(int irq, void *data)
 	dma_ep_ists = readl(&pdev->adma_regs->ep_ists);
 	if (!dma_ep_ists)
 		goto unlock;
+
+	trace_cdns2_dma_ep_ists(dma_ep_ists);
 
 	/* Handle default endpoint OUT. */
 	if (dma_ep_ists & DMA_EP_ISTS_EP_OUT0)
@@ -1461,6 +1490,8 @@ static int cdns2_ep_config(struct cdns2_endpoint *pep, bool enable)
 	if (enable)
 		writel(DMA_EP_CFG_ENABLE, &pdev->adma_regs->ep_cfg);
 
+	trace_cdns2_epx_hw_cfg(pdev, pep);
+
 	dev_dbg(pdev->dev, "Configure %s: with MPS: %08x, ep con: %02x\n",
 		pep->name, max_packet_size, ep_cfg);
 
@@ -1479,6 +1510,8 @@ struct usb_request *cdns2_gadget_ep_alloc_request(struct usb_ep *ep,
 
 	preq->pep = pep;
 
+	trace_cdns2_alloc_request(preq);
+
 	return &preq->request;
 }
 
@@ -1487,6 +1520,7 @@ void cdns2_gadget_ep_free_request(struct usb_ep *ep,
 {
 	struct cdns2_request *preq = to_cdns2_request(request);
 
+	trace_cdns2_free_request(preq);
 	kfree(preq);
 }
 
@@ -1552,6 +1586,8 @@ static int cdns2_gadget_ep_enable(struct usb_ep *ep,
 		goto exit;
 	}
 
+	trace_cdns2_gadget_ep_enable(pep);
+
 	pep->ep_state &= ~(EP_STALLED | EP_STALL_PENDING);
 	pep->ep_state |= EP_ENABLED;
 	pep->wa1_set = 0;
@@ -1591,6 +1627,8 @@ static int cdns2_gadget_ep_disable(struct usb_ep *ep)
 		return 0;
 
 	spin_lock_irqsave(&pdev->lock, flags);
+
+	trace_cdns2_gadget_ep_disable(pep);
 
 	cdns2_select_ep(pdev, ep->desc->bEndpointAddress);
 
@@ -1640,10 +1678,13 @@ static int cdns2_ep_enqueue(struct cdns2_endpoint *pep,
 	request->status = -EINPROGRESS;
 
 	ret = usb_gadget_map_request_by_dev(pdev->dev, request, pep->dir);
-	if (ret)
+	if (ret) {
+		trace_cdns2_request_enqueue_error(preq);
 		return ret;
+	}
 
 	list_add_tail(&preq->list, &pep->deferred_list);
+	trace_cdns2_request_enqueue(preq);
 
 	if (!(pep->ep_state & EP_STALLED) && !(pep->ep_state & EP_STALL_PENDING))
 		cdns2_start_all_request(pdev, pep);
@@ -1722,6 +1763,7 @@ int cdns2_gadget_ep_dequeue(struct usb_ep *ep,
 	spin_lock_irqsave(&pep->pdev->lock, flags);
 
 	cur_preq = to_cdns2_request(request);
+	trace_cdns2_request_dequeue(cur_preq);
 
 	list_for_each_entry_safe(preq, preq_temp, &pep->pending_list, list) {
 		if (cur_preq == preq) {
@@ -1758,6 +1800,7 @@ found:
 					    & TRB_CYCLE) | TRB_CHAIN |
 					    TRB_TYPE(TRB_LINK));
 
+			trace_cdns2_queue_trb(pep, link_trb);
 			link_trb = cdns2_next_trb(pep, link_trb);
 		}
 
@@ -1807,6 +1850,8 @@ int cdns2_halt_endpoint(struct cdns2_device *pdev,
 			}
 		}
 
+		trace_cdns2_ep_halt(pep, 0, 0);
+
 		/* Resets Sequence Number */
 		writeb(dir | pep->num, &pdev->epx_regs->endprst);
 		writeb(dir | ENDPRST_TOGRST | pep->num,
@@ -1825,6 +1870,7 @@ int cdns2_halt_endpoint(struct cdns2_device *pdev,
 
 		cdns2_start_all_request(pdev, pep);
 	} else {
+		trace_cdns2_ep_halt(pep, 1, 0);
 		set_reg_bit_8(conf, EPX_CON_STALL);
 		writeb(dir | pep->num, &pdev->epx_regs->endprst);
 		writeb(dir | ENDPRST_FIFORST | pep->num,
@@ -1848,6 +1894,7 @@ static int cdns2_gadget_ep_set_halt(struct usb_ep *ep, int value)
 
 	preq = cdns2_next_preq(&pep->pending_list);
 	if (value && preq) {
+		trace_cdns2_ep_busy_try_halt_again(pep);
 		ret = -EAGAIN;
 		goto done;
 	}
@@ -2010,6 +2057,8 @@ static int cdns2_gadget_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct cdns2_device *pdev = gadget_to_cdns2_device(gadget);
 	unsigned long flags;
+
+	trace_cdns2_pullup(is_on);
 
 	/*
 	 * Disable events handling while controller is being
@@ -2336,6 +2385,7 @@ int cdns2_gadget_suspend(struct cdns2_device *pdev)
 	spin_lock_irqsave(&pdev->lock, flags);
 	pdev->gadget.speed = USB_SPEED_UNKNOWN;
 
+	trace_cdns2_device_state("notattached");
 	usb_gadget_set_state(&pdev->gadget, USB_STATE_NOTATTACHED);
 	cdns2_enable_l1(pdev, 0);
 
