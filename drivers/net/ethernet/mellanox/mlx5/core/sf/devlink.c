@@ -437,7 +437,7 @@ static void mlx5_sf_table_enable(struct mlx5_sf_table *table)
 	refcount_set(&table->refcount, 1);
 }
 
-static void mlx5_sf_deactivate_all(struct mlx5_sf_table *table)
+static void mlx5_sf_del_all(struct mlx5_sf_table *table)
 {
 	struct mlx5_eswitch *esw = table->dev->priv.eswitch;
 	unsigned long index;
@@ -463,7 +463,7 @@ static void mlx5_sf_table_disable(struct mlx5_sf_table *table)
 	mlx5_sf_table_put(table);
 	wait_for_completion(&table->disable_complete);
 
-	mlx5_sf_deactivate_all(table);
+	mlx5_sf_del_all(table);
 }
 
 static int mlx5_sf_esw_event(struct notifier_block *nb, unsigned long event, void *data)
