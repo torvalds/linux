@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/sizes.h>
+#include "misc.h"
 
 static const void *get_prop(const void *fdt, const char *node_path,
 			    const char *property, int minlen)
