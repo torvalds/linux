@@ -424,7 +424,8 @@ class TypeNest(Type):
                             f"{self.enum_name}, &{var}->{self.c_name})")
 
     def _attr_get(self, ri, var):
-        get_lines = [f"{self.nested_render_name}_parse(&parg, attr);"]
+        get_lines = [f"if ({self.nested_render_name}_parse(&parg, attr))",
+                     "return MNL_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
         return get_lines, init_lines, None
