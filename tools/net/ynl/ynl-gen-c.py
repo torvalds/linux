@@ -1476,6 +1476,14 @@ def free_arg_name(direction):
     return 'obj'
 
 
+def print_alloc_wrapper(ri, direction):
+    name = op_prefix(ri, direction)
+    ri.cw.write_func_prot(f'static inline struct {name} *', f"{name}_alloc", [f"void"])
+    ri.cw.block_start()
+    ri.cw.p(f'return calloc(1, sizeof(struct {name}));')
+    ri.cw.block_end()
+
+
 def print_free_prototype(ri, direction, suffix=';'):
     name = op_prefix(ri, direction)
     arg = free_arg_name(direction)
@@ -1523,6 +1531,7 @@ def print_type_full(ri, struct):
 
 def print_type_helpers(ri, direction, deref=False):
     print_free_prototype(ri, direction)
+    ri.cw.nl()
 
     if ri.ku_space == 'user' and direction == 'request':
         for _, attr in ri.struct[direction].member_list():
@@ -1531,6 +1540,7 @@ def print_type_helpers(ri, direction, deref=False):
 
 
 def print_req_type_helpers(ri):
+    print_alloc_wrapper(ri, "request")
     print_type_helpers(ri, "request")
 
 
@@ -1552,6 +1562,12 @@ def print_parse_prototype(ri, direction, terminate=True):
 
 def print_req_type(ri):
     print_type(ri, "request")
+
+
+def print_req_free(ri):
+    if 'request' not in ri.op[ri.op_mode]:
+        return
+    _free_type(ri, 'request', ri.struct['request'])
 
 
 def print_rsp_type(ri):
@@ -2344,6 +2360,7 @@ def main():
                 if 'do' in op and 'event' not in op:
                     cw.p(f"/* {op.enum_name} - do */")
                     ri = RenderInfo(cw, parsed, args.mode, op, op_name, "do")
+                    print_req_free(ri)
                     print_rsp_free(ri)
                     parse_rsp_msg(ri)
                     print_req(ri)
