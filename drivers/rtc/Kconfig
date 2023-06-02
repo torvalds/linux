@@ -1728,16 +1728,6 @@ config RTC_DRV_TEGRA
 	  This drive can also be built as a module. If so, the module
 	  will be called rtc-tegra.
 
-config RTC_DRV_LOONGSON1
-	tristate "loongson1 RTC support"
-	depends on MACH_LOONGSON32
-	help
-	  This is a driver for the loongson1 on-chip Counter0 (Time-Of-Year
-	  counter) to be used as a RTC.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-ls1x.
-
 config RTC_DRV_MXC
 	tristate "Freescale MXC Real Time Clock"
 	depends on ARCH_MXC || COMPILE_TEST
