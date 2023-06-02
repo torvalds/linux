@@ -222,6 +222,31 @@ int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hdev;
+	struct sdw_intel_ctx *ctx;
+	struct hdac_bus *bus;
+	u32 slcount;
+
+	bus = sof_to_bus(sdev);
+
+	hdev = sdev->pdata->hw_pdata;
+	ctx = hdev->sdw;
+
+	slcount = hdac_bus_eml_get_count(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
+
+	/* Check HW supported vs property value */
+	if (slcount < ctx->count) {
+		dev_err(sdev->dev,
+			"%s: BIOS master count %d is larger than hardware capabilities %d\n",
+			__func__, ctx->count, slcount);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 {
 	const struct sof_intel_dsp_desc *chip;
