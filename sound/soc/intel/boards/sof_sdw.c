@@ -609,6 +609,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.direction = {true, true},
 		.dai_name = "rt1318-aif",
 		.init = sof_sdw_rt_amp_init,
+		.exit = sof_sdw_rt_amp_exit,
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
