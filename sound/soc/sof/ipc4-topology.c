@@ -1383,6 +1383,8 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dai *dai;
 	struct snd_mask *fmt;
 	int out_sample_valid_bits;
+	u32 gtw_cfg_config_length;
+	u32 dma_config_tlv_size = 0;
 	void **ipc_config_data;
 	int *ipc_config_size;
 	u32 **data;
@@ -1699,7 +1701,27 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	ipc_config_data = &ipc4_copier->ipc_config_data;
 
 	/* config_length is DWORD based */
-	ipc_size = sizeof(*copier_data) + copier_data->gtw_cfg.config_length * 4;
+	gtw_cfg_config_length = copier_data->gtw_cfg.config_length * 4;
+	ipc_size = sizeof(*copier_data) + gtw_cfg_config_length;
+
+	if (ipc4_copier->dma_config_tlv.type == SOF_IPC4_GTW_DMA_CONFIG_ID &&
+	    ipc4_copier->dma_config_tlv.length) {
+		dma_config_tlv_size = sizeof(ipc4_copier->dma_config_tlv) +
+			ipc4_copier->dma_config_tlv.dma_config.dma_priv_config_size;
+
+		/* paranoia check on TLV size/length */
+		if (dma_config_tlv_size != ipc4_copier->dma_config_tlv.length +
+		    sizeof(uint32_t) * 2) {
+			dev_err(sdev->dev, "Invalid configuration, TLV size %d length %d\n",
+				dma_config_tlv_size, ipc4_copier->dma_config_tlv.length);
+			return -EINVAL;
+		}
+
+		ipc_size += dma_config_tlv_size;
+
+		/* we also need to increase the size at the gtw level */
+		copier_data->gtw_cfg.config_length += dma_config_tlv_size / 4;
+	}
 
 	dev_dbg(sdev->dev, "copier %s, IPC size is %d", swidget->widget->name, ipc_size);
 
@@ -1711,9 +1733,15 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 
 	/* copy IPC data */
 	memcpy(*ipc_config_data, (void *)copier_data, sizeof(*copier_data));
-	if (copier_data->gtw_cfg.config_length)
+	if (gtw_cfg_config_length)
 		memcpy(*ipc_config_data + sizeof(*copier_data),
-		       *data, copier_data->gtw_cfg.config_length * 4);
+		       *data, gtw_cfg_config_length);
+
+	/* add DMA Config TLV, if configured */
+	if (dma_config_tlv_size)
+		memcpy(*ipc_config_data + sizeof(*copier_data) +
+		       gtw_cfg_config_length,
+		       &ipc4_copier->dma_config_tlv, dma_config_tlv_size);
 
 	/* update pipeline memory usage */
 	sof_ipc4_update_resource_usage(sdev, swidget, &copier_data->base_config);

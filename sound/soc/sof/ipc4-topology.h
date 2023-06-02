@@ -300,6 +300,7 @@ struct sof_ipc4_alh_configuration_blob {
  * @gtw_attr: Gateway attributes for copier blob
  * @dai_type: DAI type
  * @dai_index: DAI index
+ * @dma_config_tlv: DMA configuration
  */
 struct sof_ipc4_copier {
 	struct sof_ipc4_copier_data data;
@@ -312,6 +313,7 @@ struct sof_ipc4_copier {
 	struct sof_ipc4_gtw_attributes *gtw_attr;
 	u32 dai_type;
 	int dai_index;
+	struct sof_ipc4_dma_config_tlv dma_config_tlv;
 };
 
 /**
