@@ -1151,7 +1151,7 @@ static const struct i2c_device_id sii902x_i2c_ids[] = {
 MODULE_DEVICE_TABLE(i2c, sii902x_i2c_ids);
 
 static struct i2c_driver sii902x_driver = {
-	.probe_new = sii902x_probe,
+	.probe = sii902x_probe,
 	.remove = sii902x_remove,
 	.driver = {
 		.name = "sii902x",

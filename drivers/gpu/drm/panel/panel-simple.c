@@ -759,8 +759,8 @@ static const struct panel_desc ampire_am_480272h3tmqw_t01h = {
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 105,
-		.height = 67,
+		.width = 99,
+		.height = 58,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
@@ -776,6 +776,36 @@ static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
 	.vsync_end = 480 + 2 + 45,
 	.vtotal = 480 + 2 + 45 + 0,
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct display_timing ampire_am_800480l1tmqw_t00h_timing = {
+	.pixelclock = { 29930000, 33260000, 36590000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 1, 40, 168 },
+	.hback_porch = { 88, 88, 88 },
+	.hsync_len = { 1, 128, 128 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 1, 35, 37 },
+	.vback_porch = { 8, 8, 8 },
+	.vsync_len = { 1, 2, 2 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		 DISPLAY_FLAGS_SYNC_POSEDGE,
+};
+
+static const struct panel_desc ampire_am_800480l1tmqw_t00h = {
+	.timings = &ampire_am_800480l1tmqw_t00h_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 111,
+		.height = 67,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
+		     DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
 static const struct panel_desc ampire_am800480r3tmqwa1h = {
@@ -3993,6 +4023,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "ampire,am-480272h3tmqw-t01h",
 		.data = &ampire_am_480272h3tmqw_t01h,
+	}, {
+		.compatible = "ampire,am-800480l1tmqw-t00h",
+		.data = &ampire_am_800480l1tmqw_t00h,
 	}, {
 		.compatible = "ampire,am800480r3tmqwa1h",
 		.data = &ampire_am800480r3tmqwa1h,

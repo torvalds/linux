@@ -33,6 +33,8 @@ properties:
       - ampire,am-1280800n3tzqw-t00h
         # Ampire AM-480272H3TMQW-T01H 4.3" WQVGA TFT LCD panel
       - ampire,am-480272h3tmqw-t01h
+        # Ampire AM-800480L1TMQW-T00H 5" WVGA TFT LCD panel
+      - ampire,am-800480l1tmqw-t00h
         # Ampire AM-800480R3TMQW-A1H 7.0" WVGA TFT LCD panel
       - ampire,am800480r3tmqwa1h
         # Ampire AM-800600P5TMQW-TB8H 8.0" SVGA TFT LCD panel
