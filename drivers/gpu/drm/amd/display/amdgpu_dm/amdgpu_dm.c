@@ -8883,6 +8883,7 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 			      struct drm_connector_state *new_con_state)
 {
 	struct drm_writeback_connector *wb_conn = drm_connector_to_writeback(connector);
+	struct amdgpu_device *adev = dm->adev;
 	struct amdgpu_crtc *acrtc;
 	struct dc_writeback_info *wb_info;
 	struct pipe_ctx *pipe = NULL;
@@ -8958,6 +8959,11 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	}
 
 	wb_info->mcif_buf_params.p_vmid = 1;
+	if (adev->ip_versions[DCE_HWIP][0] >= IP_VERSION(3, 0, 0)) {
+		wb_info->mcif_warmup_params.start_address.quad_part = afb->address;
+		wb_info->mcif_warmup_params.region_size =
+			wb_info->mcif_buf_params.luma_pitch * wb_info->dwb_params.dest_height;
+	}
 	wb_info->mcif_warmup_params.p_vmid = 1;
 	wb_info->writeback_source_plane = pipe->plane_state;
 
