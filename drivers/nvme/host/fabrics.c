@@ -21,48 +21,6 @@ static DEFINE_MUTEX(nvmf_hosts_mutex);
 
 static struct nvmf_host *nvmf_default_host;
 
-/**
- * __nvmf_host_find() - Find a matching to a previously created host
- * @hostnqn: Host NQN to match
- * @id: Host ID to match
- *
- * We have defined a host as how it is perceived by the target.
- * Therefore, we don't allow different Host NQNs with the same Host ID.
- * Similarly, we do not allow the usage of the same Host NQN with different
- * Host IDs. This will maintain unambiguous host identification.
- *
- * Return: Returns host pointer on success, NULL in case of no match or
- *         ERR_PTR(-EINVAL) in case of error match.
- */
-static struct nvmf_host *__nvmf_host_find(const char *hostnqn, uuid_t *id)
-{
-	struct nvmf_host *host;
-
-	lockdep_assert_held(&nvmf_hosts_mutex);
-
-	list_for_each_entry(host, &nvmf_hosts, list) {
-		bool same_hostnqn = !strcmp(host->nqn, hostnqn);
-		bool same_hostid = uuid_equal(&host->id, id);
-
-		if (same_hostnqn && same_hostid)
-			return host;
-
-		if (same_hostnqn) {
-			pr_err("found same hostnqn %s but different hostid %pUb\n",
-			       hostnqn, id);
-			return ERR_PTR(-EINVAL);
-		}
-		if (same_hostid) {
-			pr_err("found same hostid %pUb but different hostnqn %s\n",
-			       id, hostnqn);
-			return ERR_PTR(-EINVAL);
-
-		}
-	}
-
-	return NULL;
-}
-
 static struct nvmf_host *nvmf_host_alloc(const char *hostnqn, uuid_t *id)
 {
 	struct nvmf_host *host;
@@ -83,12 +41,33 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn, uuid_t *id)
 	struct nvmf_host *host;
 
 	mutex_lock(&nvmf_hosts_mutex);
-	host = __nvmf_host_find(hostnqn, id);
-	if (IS_ERR(host)) {
-		goto out_unlock;
-	} else if (host) {
-		kref_get(&host->ref);
-		goto out_unlock;
+
+	/*
+	 * We have defined a host as how it is perceived by the target.
+	 * Therefore, we don't allow different Host NQNs with the same Host ID.
+	 * Similarly, we do not allow the usage of the same Host NQN with
+	 * different Host IDs. This'll maintain unambiguous host identification.
+	 */
+	list_for_each_entry(host, &nvmf_hosts, list) {
+		bool same_hostnqn = !strcmp(host->nqn, hostnqn);
+		bool same_hostid = uuid_equal(&host->id, id);
+
+		if (same_hostnqn && same_hostid) {
+			kref_get(&host->ref);
+			goto out_unlock;
+		}
+		if (same_hostnqn) {
+			pr_err("found same hostnqn %s but different hostid %pUb\n",
+			       hostnqn, id);
+			host = ERR_PTR(-EINVAL);
+			goto out_unlock;
+		}
+		if (same_hostid) {
+			pr_err("found same hostid %pUb but different hostnqn %s\n",
+			       id, hostnqn);
+			host = ERR_PTR(-EINVAL);
+			goto out_unlock;
+		}
 	}
 
 	host = nvmf_host_alloc(hostnqn, id);
