@@ -1,9 +1,13 @@
 [abi_symbol_list]
+  address_space_init_once
   bio_add_page
   bio_associate_blkg
   bio_put
+  __blkdev_issue_discard
+  blk_finish_plug
   blk_rq_map_user
   blk_rq_map_user_iov
+  blk_start_plug
   console_printk
   cpufreq_frequency_table_get_index
   cpufreq_policy_transition_delay_us
@@ -42,10 +46,14 @@
   nf_register_net_hooks
   nf_unregister_net_hooks
   of_css
+  __page_file_index
   __page_mapcount
   pm_get_active_wakeup_sources
   __printk_ratelimit
+  prepare_to_wait_exclusive
   proc_symlink
+  radix_tree_lookup_slot
+  radix_tree_replace_slot
   _raw_write_trylock
   reciprocal_value
   register_tcf_proto_ops
