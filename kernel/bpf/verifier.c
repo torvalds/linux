@@ -10475,6 +10475,8 @@ __process_kf_arg_ptr_to_graph_node(struct bpf_verifier_env *env,
 			node_off, btf_name_by_offset(reg->btf, t->name_off));
 		return -EINVAL;
 	}
+	meta->arg_btf = reg->btf;
+	meta->arg_btf_id = reg->btf_id;
 
 	if (node_off != field->graph_root.node_offset) {
 		verbose(env, "arg#1 offset=%d, but expected %s at offset=%d in struct %s\n",
@@ -11044,6 +11046,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	    meta.func_id == special_kfunc_list[KF_bpf_rbtree_add_impl]) {
 		release_ref_obj_id = regs[BPF_REG_2].ref_obj_id;
 		insn_aux->insert_off = regs[BPF_REG_2].off;
+		insn_aux->kptr_struct_meta = btf_find_struct_meta(meta.arg_btf, meta.arg_btf_id);
 		err = ref_convert_owning_non_owning(env, release_ref_obj_id);
 		if (err) {
 			verbose(env, "kfunc %s#%d conversion of owning ref to non-owning failed\n",
