@@ -15,6 +15,9 @@ description:
   These chips also have a Bluetooth portion described in a separate
   binding.
 
+allOf:
+  - $ref: ieee80211.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -121,7 +124,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
