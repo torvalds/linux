@@ -2499,6 +2499,7 @@ static const struct msm_pinctrl_soc_data pineapple_pinctrl = {
 	.nqup_regs = ARRAY_SIZE(pineapple_qup_regs),
 	.wakeirq_map = pineapple_pdc_map,
 	.nwakeirq_map = ARRAY_SIZE(pineapple_pdc_map),
+	.egpio_func = 10,
 };
 
 static const struct msm_pinctrl_soc_data pineapple_vm_pinctrl = {
