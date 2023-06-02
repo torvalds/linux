@@ -811,6 +811,19 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 	{
+		.part_id = 0x8363,
+		.dais = {
+			{
+				.direction = {true, false},
+				.dai_name = "max98363-aif1",
+				.dai_type = SOF_SDW_DAI_TYPE_AMP,
+				.dailink = {SDW_AMP_OUT_DAI_ID, SDW_UNUSED_DAI_ID},
+				.init = sof_sdw_maxim_init,
+			},
+		},
+		.dai_num = 1,
+	},
+	{
 		.part_id = 0x5682,
 		.dais = {
 			{
