@@ -197,6 +197,7 @@ static int ref_set_non_owning(struct bpf_verifier_env *env,
 			      struct bpf_reg_state *reg);
 static void specialize_kfunc(struct bpf_verifier_env *env,
 			     u32 func_id, u16 offset, unsigned long *addr);
+static bool is_trusted_reg(const struct bpf_reg_state *reg);
 
 static bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
 {
@@ -442,8 +443,11 @@ static bool type_may_be_null(u32 type)
 	return type & PTR_MAYBE_NULL;
 }
 
-static bool reg_type_not_null(enum bpf_reg_type type)
+static bool reg_not_null(const struct bpf_reg_state *reg)
 {
+	enum bpf_reg_type type;
+
+	type = reg->type;
 	if (type_may_be_null(type))
 		return false;
 
@@ -453,6 +457,7 @@ static bool reg_type_not_null(enum bpf_reg_type type)
 		type == PTR_TO_MAP_VALUE ||
 		type == PTR_TO_MAP_KEY ||
 		type == PTR_TO_SOCK_COMMON ||
+		(type == PTR_TO_BTF_ID && is_trusted_reg(reg)) ||
 		type == PTR_TO_MEM;
 }
 
@@ -13170,7 +13175,7 @@ static int is_branch_taken(struct bpf_reg_state *reg, u64 val, u8 opcode,
 			   bool is_jmp32)
 {
 	if (__is_pointer_value(false, reg)) {
-		if (!reg_type_not_null(reg->type))
+		if (!reg_not_null(reg))
 			return -1;
 
 		/* If pointer is valid tests against zero will fail so we can
