@@ -1338,7 +1338,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream,
 			       bool update_params)
 {
 	struct sdw_master_runtime *m_rt;
-	struct sdw_bus *bus = NULL;
+	struct sdw_bus *bus;
 	struct sdw_master_prop *prop;
 	struct sdw_bus_params params;
 	int ret;
@@ -1380,11 +1380,6 @@ program_params:
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			goto restore_params;
 		}
-	}
-
-	if (!bus) {
-		pr_err("Configuration error in %s\n", __func__);
-		return -EINVAL;
 	}
 
 	ret = do_bank_switch(stream);
@@ -1467,7 +1462,7 @@ EXPORT_SYMBOL(sdw_prepare_stream);
 static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
-	struct sdw_bus *bus = NULL;
+	struct sdw_bus *bus;
 	int ret;
 
 	/* Enable Master(s) and Slave(s) port(s) associated with stream */
@@ -1488,11 +1483,6 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 				"Enable port(s) failed ret: %d\n", ret);
 			return ret;
 		}
-	}
-
-	if (!bus) {
-		pr_err("Configuration error in %s\n", __func__);
-		return -EINVAL;
 	}
 
 	ret = do_bank_switch(stream);
