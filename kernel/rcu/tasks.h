@@ -1042,6 +1042,12 @@ void show_rcu_tasks_classic_gp_kthread(void)
 EXPORT_SYMBOL_GPL(show_rcu_tasks_classic_gp_kthread);
 #endif // !defined(CONFIG_TINY_RCU)
 
+struct task_struct *get_rcu_tasks_gp_kthread(void)
+{
+	return rcu_tasks.kthread_ptr;
+}
+EXPORT_SYMBOL_GPL(get_rcu_tasks_gp_kthread);
+
 /*
  * Contribute to protect against tasklist scan blind spot while the
  * task is exiting and may be removed from the tasklist. See

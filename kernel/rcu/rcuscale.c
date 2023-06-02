@@ -298,6 +298,7 @@ static struct rcu_scale_ops tasks_ops = {
 	.gp_barrier	= rcu_barrier_tasks,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
+	.rso_gp_kthread	= get_rcu_tasks_gp_kthread,
 	.name		= "tasks"
 };
 
