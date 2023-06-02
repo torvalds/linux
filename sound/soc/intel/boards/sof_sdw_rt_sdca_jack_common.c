@@ -49,9 +49,13 @@ static const struct snd_soc_dapm_widget rt_sdca_jack_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route rt711_sdca_map[] = {
-	/* Headphones */
 	{ "Headphone", NULL, "rt711 HP" },
 	{ "rt711 MIC2", NULL, "Headset Mic" },
+};
+
+static const struct snd_soc_dapm_route rt712_sdca_map[] = {
+	{ "Headphone", NULL, "rt712 HP" },
+	{ "rt712 MIC2", NULL, "Headset Mic" },
 };
 
 static const struct snd_kcontrol_new rt_sdca_jack_controls[] = {
@@ -102,6 +106,9 @@ static int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (strstr(component->name_prefix, "rt711")) {
 		ret = snd_soc_dapm_add_routes(&card->dapm, rt711_sdca_map,
 					      ARRAY_SIZE(rt711_sdca_map));
+	} else if (strstr(component->name_prefix, "rt712")) {
+		ret = snd_soc_dapm_add_routes(&card->dapm, rt712_sdca_map,
+					      ARRAY_SIZE(rt712_sdca_map));
 	} else {
 		dev_err(card->dev, "%s is not supported\n", component->name_prefix);
 		return -EINVAL;
