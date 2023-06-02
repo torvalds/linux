@@ -182,12 +182,12 @@ int sof_sdw_rt715_sdca_init(struct snd_soc_card *card,
 			    struct sof_sdw_codec_info *info,
 			    bool playback);
 
-/* MAX98373 support */
-int sof_sdw_mx8373_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
-			struct snd_soc_dai_link *dai_links,
-			struct sof_sdw_codec_info *info,
-			bool playback);
+/* MAXIM codec support */
+int sof_sdw_maxim_init(struct snd_soc_card *card,
+		       const struct snd_soc_acpi_link_adr *link,
+		       struct snd_soc_dai_link *dai_links,
+		       struct sof_sdw_codec_info *info,
+		       bool playback);
 
 /* RT5682 support */
 int sof_sdw_rt5682_init(struct snd_soc_card *card,
