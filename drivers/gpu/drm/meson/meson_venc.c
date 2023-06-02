@@ -5,6 +5,7 @@
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/bitfield.h>
 #include <linux/export.h>
 #include <linux/iopoll.h>
 
