@@ -21,6 +21,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
+#include <asm/tcm.h>
 #include <asm/tlb.h>
 #include <asm/highmem.h>
 #include <asm/system_info.h>
@@ -37,7 +38,6 @@
 
 #include "fault.h"
 #include "mm.h"
-#include "tcm.h"
 
 extern unsigned long __atags_pointer;
 
