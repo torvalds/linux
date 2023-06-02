@@ -162,10 +162,9 @@ struct xe_engine *xe_engine_lookup(struct xe_file *xef, u32 id)
 
 	mutex_lock(&xef->engine.lock);
 	e = xa_load(&xef->engine.xa, id);
-	mutex_unlock(&xef->engine.lock);
-
 	if (e)
 		xe_engine_get(e);
+	mutex_unlock(&xef->engine.lock);
 
 	return e;
 }
@@ -644,26 +643,27 @@ int xe_engine_get_property_ioctl(struct drm_device *dev, void *data,
 	struct xe_file *xef = to_xe_file(file);
 	struct drm_xe_engine_get_property *args = data;
 	struct xe_engine *e;
+	int ret;
 
 	if (XE_IOCTL_ERR(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	mutex_lock(&xef->engine.lock);
-	e = xa_load(&xef->engine.xa, args->engine_id);
-	mutex_unlock(&xef->engine.lock);
-
+	e = xe_engine_lookup(xef, args->engine_id);
 	if (XE_IOCTL_ERR(xe, !e))
 		return -ENOENT;
 
 	switch (args->property) {
 	case XE_ENGINE_GET_PROPERTY_BAN:
 		args->value = !!(e->flags & ENGINE_FLAG_BANNED);
+		ret = 0;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	xe_engine_put(e);
+
+	return ret;
 }
 
 static void engine_kill_compute(struct xe_engine *e)
