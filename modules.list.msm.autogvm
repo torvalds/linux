@@ -21,3 +21,6 @@ virtio_clk_sm8150.ko
 virtio_clk.ko
 debug-regulator.ko
 virtio_regulator.ko
+iommu-logger.ko
+qcom_iommu_util.ko
+arm_smmu.ko
