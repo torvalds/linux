@@ -3812,7 +3812,8 @@ static u8 hci_cc_le_set_cig_params(struct hci_dev *hdev, void *data,
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_CIG_PARAMS);
-	if (!cp || rp->num_handles != cp->num_cis || rp->cig_id != cp->cig_id) {
+	if (!rp->status && (!cp || rp->num_handles != cp->num_cis ||
+			    rp->cig_id != cp->cig_id)) {
 		bt_dev_err(hdev, "unexpected Set CIG Parameters response data");
 		status = HCI_ERROR_UNSPECIFIED;
 	}
