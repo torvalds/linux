@@ -328,7 +328,7 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 				GUC_ENABLE_MIA_CACHING;
 
 	if (xe->info.platform == XE_PVC)
-		shim_flags |= PVC_GUC_MOCS_INDEX(PVC_GUC_MOCS_UC_INDEX);
+		shim_flags |= REG_FIELD_PREP(GUC_MOCS_INDEX_MASK, gt->mocs.uc_index);
 
 	/* Must program this register before loading the ucode with DMA */
 	xe_mmio_write32(gt, GUC_SHIM_CONTROL, shim_flags);
