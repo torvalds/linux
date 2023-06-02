@@ -309,7 +309,7 @@ out:
 	if (!suspend || r)
 		return r;
 
-	return amdgpu_device_ip_wait_for_idle(adev, GC_HWIP);
+	return amdgpu_device_ip_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GFX);
 }
 
 static void set_barrier_auto_waitcnt(struct amdgpu_device *adev, bool enable_waitcnt)
