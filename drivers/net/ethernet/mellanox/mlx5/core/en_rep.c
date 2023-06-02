@@ -398,25 +398,64 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 	}
 }
 
+static int mlx5e_sqs2vport_add_peers_rules(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep,
+					   struct mlx5_devcom *devcom,
+					   struct mlx5e_rep_sq *rep_sq, int i)
+{
+	struct mlx5_eswitch *peer_esw = NULL;
+	struct mlx5_flow_handle *flow_rule;
+	int tmp;
+
+	mlx5_devcom_for_each_peer_entry(devcom, MLX5_DEVCOM_ESW_OFFLOADS,
+					peer_esw, tmp) {
+		int peer_rule_idx = mlx5_get_dev_index(peer_esw->dev);
+		struct mlx5e_rep_sq_peer *sq_peer;
+		int err;
+
+		sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
+		if (!sq_peer)
+			return -ENOMEM;
+
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw,
+								rep, rep_sq->sqn);
+		if (IS_ERR(flow_rule)) {
+			kfree(sq_peer);
+			return PTR_ERR(flow_rule);
+		}
+
+		sq_peer->rule = flow_rule;
+		sq_peer->peer = peer_esw;
+		err = xa_insert(&rep_sq->sq_peer, peer_rule_idx, sq_peer, GFP_KERNEL);
+		if (err) {
+			kfree(sq_peer);
+			mlx5_eswitch_del_send_to_vport_rule(flow_rule);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep,
 				 u32 *sqns_array, int sqns_num)
 {
-	struct mlx5_eswitch *peer_esw = NULL;
 	struct mlx5_flow_handle *flow_rule;
-	struct mlx5e_rep_sq_peer *sq_peer;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
+	struct mlx5_devcom *devcom;
+	bool devcom_locked = false;
 	int err;
 	int i;
 
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return 0;
 
+	devcom = esw->dev->priv.devcom;
 	rpriv = mlx5e_rep_to_rep_priv(rep);
-	if (mlx5_devcom_comp_is_ready(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS))
-		peer_esw = mlx5_devcom_get_peer_data(esw->dev->priv.devcom,
-						     MLX5_DEVCOM_ESW_OFFLOADS);
+	if (mlx5_devcom_comp_is_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS) &&
+	    mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+		devcom_locked = true;
 
 	for (i = 0; i < sqns_num; i++) {
 		rep_sq = kzalloc(sizeof(*rep_sq), GFP_KERNEL);
@@ -424,7 +463,6 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 			err = -ENOMEM;
 			goto out_err;
 		}
-		xa_init(&rep_sq->sq_peer);
 
 		/* Add re-inject rule to the PF/representor sqs */
 		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw, esw, rep,
@@ -437,50 +475,30 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		rep_sq->send_to_vport_rule = flow_rule;
 		rep_sq->sqn = sqns_array[i];
 
-		if (peer_esw) {
-			int peer_rule_idx = mlx5_get_dev_index(peer_esw->dev);
-
-			sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
-			if (!sq_peer) {
-				err = -ENOMEM;
-				goto out_sq_peer_err;
+		xa_init(&rep_sq->sq_peer);
+		if (devcom_locked) {
+			err = mlx5e_sqs2vport_add_peers_rules(esw, rep, devcom, rep_sq, i);
+			if (err) {
+				mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
+				xa_destroy(&rep_sq->sq_peer);
+				kfree(rep_sq);
+				goto out_err;
 			}
-
-			flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw,
-									rep, sqns_array[i]);
-			if (IS_ERR(flow_rule)) {
-				err = PTR_ERR(flow_rule);
-				goto out_flow_rule_err;
-			}
-
-			sq_peer->rule = flow_rule;
-			sq_peer->peer = peer_esw;
-			err = xa_insert(&rep_sq->sq_peer, peer_rule_idx, sq_peer, GFP_KERNEL);
-			if (err)
-				goto out_xa_err;
 		}
 
 		list_add(&rep_sq->list, &rpriv->vport_sqs_list);
 	}
 
-	if (peer_esw)
-		mlx5_devcom_release_peer_data(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	if (devcom_locked)
+		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 
 	return 0;
 
-out_xa_err:
-	mlx5_eswitch_del_send_to_vport_rule(flow_rule);
-out_flow_rule_err:
-	kfree(sq_peer);
-out_sq_peer_err:
-	mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
-	xa_destroy(&rep_sq->sq_peer);
-	kfree(rep_sq);
 out_err:
 	mlx5e_sqs2vport_stop(esw, rep);
 
-	if (peer_esw)
-		mlx5_devcom_release_peer_data(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	if (devcom_locked)
+		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 
 	return err;
 }

@@ -39,11 +39,24 @@ void mlx5_devcom_comp_set_ready(struct mlx5_devcom *devcom,
 bool mlx5_devcom_comp_is_ready(struct mlx5_devcom *devcom,
 			       enum mlx5_devcom_components id);
 
-void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
-				enum mlx5_devcom_components id);
-void *mlx5_devcom_get_peer_data_rcu(struct mlx5_devcom *devcom, enum mlx5_devcom_components id);
-void mlx5_devcom_release_peer_data(struct mlx5_devcom *devcom,
+bool mlx5_devcom_for_each_peer_begin(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id);
+void mlx5_devcom_for_each_peer_end(struct mlx5_devcom *devcom,
 				   enum mlx5_devcom_components id);
+void *mlx5_devcom_get_next_peer_data(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id, int *i);
+
+#define mlx5_devcom_for_each_peer_entry(devcom, id, data, i)			\
+	for (i = 0, data = mlx5_devcom_get_next_peer_data(devcom, id, &i);	\
+	     data;								\
+	     data = mlx5_devcom_get_next_peer_data(devcom, id, &i))
+
+void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom *devcom,
+					 enum mlx5_devcom_components id, int *i);
+
+#define mlx5_devcom_for_each_peer_entry_rcu(devcom, id, data, i)		\
+	for (i = 0, data = mlx5_devcom_get_next_peer_data_rcu(devcom, id, &i);	\
+	     data;								\
+	     data = mlx5_devcom_get_next_peer_data_rcu(devcom, id, &i))
 
 #endif
-

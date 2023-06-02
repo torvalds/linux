@@ -1670,6 +1670,7 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 	struct mlx5_eswitch *esw;
 	u16 vhca_id;
 	int err;
+	int i;
 
 	out_priv = netdev_priv(out_dev);
 	esw = out_priv->mdev->priv.eswitch;
@@ -1686,8 +1687,13 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 
 	rcu_read_lock();
 	devcom = out_priv->mdev->priv.devcom;
-	esw = mlx5_devcom_get_peer_data_rcu(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-	err = esw ? mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport) : -ENODEV;
+	err = -ENODEV;
+	mlx5_devcom_for_each_peer_entry_rcu(devcom, MLX5_DEVCOM_ESW_OFFLOADS,
+					    esw, i) {
+		err = mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport);
+		if (!err)
+			break;
+	}
 	rcu_read_unlock();
 
 	return err;
@@ -2025,15 +2031,14 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 {
 	if (mlx5e_is_eswitch_flow(flow)) {
 		struct mlx5_devcom *devcom = flow->priv->mdev->priv.devcom;
-		struct mlx5_eswitch *peer_esw;
 
-		peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-		if (!peer_esw) {
+		if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS)) {
 			mlx5e_tc_del_fdb_flow(priv, flow);
 			return;
 		}
+
 		mlx5e_tc_del_fdb_peers_flow(flow);
-		mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 		mlx5e_tc_del_fdb_flow(priv, flow);
 	} else {
 		mlx5e_tc_del_nic_flow(priv, flow);
@@ -4472,6 +4477,7 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *peer_esw;
 	struct mlx5e_tc_flow *flow;
 	int err;
+	int i;
 
 	flow = __mlx5e_add_fdb_flow(priv, f, flow_flags, filter_dev, in_rep,
 				    in_mdev);
@@ -4483,23 +4489,27 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		return 0;
 	}
 
-	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-	if (!peer_esw) {
+	if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS)) {
 		err = -ENODEV;
 		goto clean_flow;
 	}
 
-	err = mlx5e_tc_add_fdb_peer_flow(f, flow, flow_flags, peer_esw);
-	if (err)
-		goto peer_clean;
-	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	mlx5_devcom_for_each_peer_entry(devcom,
+					MLX5_DEVCOM_ESW_OFFLOADS,
+					peer_esw, i) {
+		err = mlx5e_tc_add_fdb_peer_flow(f, flow, flow_flags, peer_esw);
+		if (err)
+			goto peer_clean;
+	}
+
+	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 
 	*__flow = flow;
-
 	return 0;
 
 peer_clean:
-	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	mlx5e_tc_del_fdb_peers_flow(flow);
+	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 clean_flow:
 	mlx5e_tc_del_fdb_flow(priv, flow);
 	return err;
@@ -4719,7 +4729,6 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 {
 	struct mlx5_devcom *devcom = priv->mdev->priv.devcom;
 	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
-	struct mlx5_eswitch *peer_esw;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
 	u64 lastuse = 0;
@@ -4754,8 +4763,7 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	/* Under multipath it's possible for one rule to be currently
 	 * un-offloaded while the other rule is offloaded.
 	 */
-	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-	if (!peer_esw)
+	if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
 		goto out;
 
 	if (flow_flag_test(flow, DUP)) {
@@ -4786,7 +4794,7 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	}
 
 no_peer_counter:
-	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 out:
 	flow_stats_update(&f->stats, bytes, packets, 0, lastuse,
 			  FLOW_ACTION_HW_STATS_DELAYED);

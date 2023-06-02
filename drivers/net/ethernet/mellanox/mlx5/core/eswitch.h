@@ -585,6 +585,13 @@ mlx5_esw_is_manager_vport(const struct mlx5_eswitch *esw, u16 vport_num)
 	return esw->manager_vport == vport_num;
 }
 
+static inline bool mlx5_esw_is_owner(struct mlx5_eswitch *esw, u16 vport_num,
+				     u16 esw_owner_vhca_id)
+{
+	return esw_owner_vhca_id == MLX5_CAP_GEN(esw->dev, vhca_id) ||
+		(vport_num == MLX5_VPORT_UPLINK && mlx5_lag_is_master(esw->dev));
+}
+
 static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 {
 	return mlx5_core_is_ecpf_esw_manager(dev) ?

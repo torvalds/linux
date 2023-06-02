@@ -239,55 +239,92 @@ bool mlx5_devcom_comp_is_ready(struct mlx5_devcom *devcom,
 	return READ_ONCE(devcom->priv->components[id].ready);
 }
 
-void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
-				enum mlx5_devcom_components id)
+bool mlx5_devcom_for_each_peer_begin(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id)
 {
 	struct mlx5_devcom_component *comp;
-	int i;
 
 	if (IS_ERR_OR_NULL(devcom))
-		return NULL;
+		return false;
 
 	comp = &devcom->priv->components[id];
 	down_read(&comp->sem);
 	if (!READ_ONCE(comp->ready)) {
 		up_read(&comp->sem);
-		return NULL;
+		return false;
 	}
 
-	for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++)
-		if (i != devcom->idx)
-			break;
-
-	return rcu_dereference_protected(comp->device[i].data, lockdep_is_held(&comp->sem));
+	return true;
 }
 
-void *mlx5_devcom_get_peer_data_rcu(struct mlx5_devcom *devcom, enum mlx5_devcom_components id)
-{
-	struct mlx5_devcom_component *comp;
-	int i;
-
-	if (IS_ERR_OR_NULL(devcom))
-		return NULL;
-
-	for (i = 0; i < MLX5_DEVCOM_PORTS_SUPPORTED; i++)
-		if (i != devcom->idx)
-			break;
-
-	comp = &devcom->priv->components[id];
-	/* This can change concurrently, however 'data' pointer will remain
-	 * valid for the duration of RCU read section.
-	 */
-	if (!READ_ONCE(comp->ready))
-		return NULL;
-
-	return rcu_dereference(comp->device[i].data);
-}
-
-void mlx5_devcom_release_peer_data(struct mlx5_devcom *devcom,
+void mlx5_devcom_for_each_peer_end(struct mlx5_devcom *devcom,
 				   enum mlx5_devcom_components id)
 {
 	struct mlx5_devcom_component *comp = &devcom->priv->components[id];
 
 	up_read(&comp->sem);
+}
+
+void *mlx5_devcom_get_next_peer_data(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id,
+				     int *i)
+{
+	struct mlx5_devcom_component *comp;
+	void *ret;
+	int idx;
+
+	comp = &devcom->priv->components[id];
+
+	if (*i == MLX5_DEVCOM_PORTS_SUPPORTED)
+		return NULL;
+	for (idx = *i; idx < MLX5_DEVCOM_PORTS_SUPPORTED; idx++) {
+		if (idx != devcom->idx) {
+			ret = rcu_dereference_protected(comp->device[idx].data,
+							lockdep_is_held(&comp->sem));
+			if (ret)
+				break;
+		}
+	}
+
+	if (idx == MLX5_DEVCOM_PORTS_SUPPORTED) {
+		*i = idx;
+		return NULL;
+	}
+	*i = idx + 1;
+
+	return ret;
+}
+
+void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom *devcom,
+					 enum mlx5_devcom_components id,
+					 int *i)
+{
+	struct mlx5_devcom_component *comp;
+	void *ret;
+	int idx;
+
+	comp = &devcom->priv->components[id];
+
+	if (*i == MLX5_DEVCOM_PORTS_SUPPORTED)
+		return NULL;
+	for (idx = *i; idx < MLX5_DEVCOM_PORTS_SUPPORTED; idx++) {
+		if (idx != devcom->idx) {
+			/* This can change concurrently, however 'data' pointer will remain
+			 * valid for the duration of RCU read section.
+			 */
+			if (!READ_ONCE(comp->ready))
+				return NULL;
+			ret = rcu_dereference(comp->device[idx].data);
+			if (ret)
+				break;
+		}
+	}
+
+	if (idx == MLX5_DEVCOM_PORTS_SUPPORTED) {
+		*i = idx;
+		return NULL;
+	}
+	*i = idx + 1;
+
+	return ret;
 }
