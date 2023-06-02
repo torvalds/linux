@@ -2918,6 +2918,10 @@
 	locktorture.torture_type= [KNL]
 			Specify the locking implementation to test.
 
+	locktorture.writer_fifo= [KNL]
+			Run the write-side locktorture kthreads at
+			sched_set_fifo() real-time priority.
+
 	locktorture.verbose= [KNL]
 			Enable additional printk() statements.
 
