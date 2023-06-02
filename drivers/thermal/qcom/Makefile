@@ -26,3 +26,5 @@ obj-$(CONFIG_QTI_USERSPACE_CDEV) += qti_userspace_cdev.o
 obj-$(CONFIG_QTI_THERMAL_LIMITS_DCVS) += msm_lmh_dcvs.o
 obj-${CONFIG_QTI_SDPM_CLOCK_MONITOR} += sdpm_clk.o
 obj-$(CONFIG_QTI_THERMAL_MINIDUMP) += thermal_minidump.o
+obj-$(CONFIG_THERMAL_TSENS_LEGACY)	+= msm-tsens-driver.o
+msm-tsens-driver-y			+= msm-tsens.o tsens2xxx.o tsens-dbg.o
