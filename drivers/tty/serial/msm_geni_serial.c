@@ -153,7 +153,7 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 
 /* In KHz */
 #define DEFAULT_SE_CLK  19200
-#define UART_CORE2X_VOTE    100000
+#define UART_CORE2X_VOTE    50000
 #define UART_CONSOLE_CORE2X_VOTE    19200
 
 #define DEFAULT_BUS_WIDTH   (4)
@@ -4622,8 +4622,13 @@ static int msm_geni_serial_read_dtsi(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = geni_se_common_resources_init(&dev_port->se, GENI_DEFAULT_BW,
-			GENI_DEFAULT_BW, GENI_DEFAULT_BW);
+	if (!is_console)
+		ret = geni_se_common_resources_init(&dev_port->se, UART_CORE2X_VOTE,
+						    APPS_PROC_TO_QUP_VOTE,
+						    (DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
+	else
+		ret = geni_se_common_resources_init(&dev_port->se, GENI_DEFAULT_BW,
+						    GENI_DEFAULT_BW, GENI_DEFAULT_BW);
 	if (ret) {
 		msm_geni_update_uart_error_code(dev_port, UART_ERROR_SE_RESOURCES_INIT_FAIL);
 		return ret;
