@@ -120,6 +120,7 @@ struct aspeed_adc_data {
 	int			cv;
 	bool			battery_sensing;
 	struct adc_gain		battery_mode_gain;
+	unsigned int		enabled_channels_num;
 };
 
 #define ASPEED_CHAN(_idx, _data_reg_addr) {			\
@@ -625,7 +626,10 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	adc_engine_control_reg_val |= ASPEED_ADC_CTRL_CHANNEL;
 	writel(adc_engine_control_reg_val,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
-
+	adc_engine_control_reg_val =
+		FIELD_GET(ASPEED_ADC_CTRL_CHANNEL,
+			  readl(data->base + ASPEED_REG_ENGINE_CONTROL));
+	data->enabled_channels_num = hweight_long(adc_engine_control_reg_val);
 	indio_dev->name = data->model_data->model_name;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
