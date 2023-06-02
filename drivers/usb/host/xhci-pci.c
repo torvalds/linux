@@ -523,6 +523,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 
 	if (pdev->vendor == PCI_VENDOR_ID_ZHAOXIN) {
 		xhci->quirks |= XHCI_ZHAOXIN_HOST;
+		xhci->quirks |= XHCI_LPM_SUPPORT;
 
 		if (pdev->device == 0x9202) {
 			xhci->quirks |= XHCI_RESET_ON_RESUME;
