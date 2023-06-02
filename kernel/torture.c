@@ -54,6 +54,9 @@ module_param(verbose_sleep_frequency, int, 0444);
 static int verbose_sleep_duration = 1;
 module_param(verbose_sleep_duration, int, 0444);
 
+static int random_shuffle;
+module_param(random_shuffle, int, 0444);
+
 static char *torture_type;
 static int verbose;
 
@@ -518,6 +521,7 @@ static void torture_shuffle_task_unregister_all(void)
  */
 static void torture_shuffle_tasks(void)
 {
+	DEFINE_TORTURE_RANDOM(rand);
 	struct shuffle_task *stp;
 
 	cpumask_setall(shuffle_tmp_mask);
@@ -537,8 +541,10 @@ static void torture_shuffle_tasks(void)
 		cpumask_clear_cpu(shuffle_idle_cpu, shuffle_tmp_mask);
 
 	mutex_lock(&shuffle_task_mutex);
-	list_for_each_entry(stp, &shuffle_task_list, st_l)
-		set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
+	list_for_each_entry(stp, &shuffle_task_list, st_l) {
+		if (!random_shuffle || torture_random(&rand) & 0x1)
+			set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
+	}
 	mutex_unlock(&shuffle_task_mutex);
 
 	cpus_read_unlock();
