@@ -56,10 +56,6 @@ enum {
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
-#define SOF_SDW_CODEC_TYPE_JACK		0
-#define SOF_SDW_CODEC_TYPE_AMP		1
-#define SOF_SDW_CODEC_TYPE_MIC		2
-
 #define SOF_SDW_DAI_TYPE_JACK		0
 #define SOF_SDW_DAI_TYPE_AMP		1
 #define SOF_SDW_DAI_TYPE_MIC		2
@@ -84,7 +80,6 @@ struct sof_sdw_dai_info {
 struct sof_sdw_codec_info {
 	const int part_id;
 	const int version_id;
-	const int codec_type;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool ignore_pch_dmic;
