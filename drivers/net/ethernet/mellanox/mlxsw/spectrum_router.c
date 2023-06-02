@@ -748,10 +748,11 @@ static bool mlxsw_sp_vr_is_used(const struct mlxsw_sp_vr *vr)
 
 static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
 {
+	int max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
+	for (i = 0; i < max_vrs; i++) {
 		vr = &mlxsw_sp->router->vrs[i];
 		if (!mlxsw_sp_vr_is_used(vr))
 			return vr;
@@ -792,12 +793,13 @@ static u32 mlxsw_sp_fix_tb_id(u32 tb_id)
 static struct mlxsw_sp_vr *mlxsw_sp_vr_find(struct mlxsw_sp *mlxsw_sp,
 					    u32 tb_id)
 {
+	int max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
 	struct mlxsw_sp_vr *vr;
 	int i;
 
 	tb_id = mlxsw_sp_fix_tb_id(tb_id);
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
+	for (i = 0; i < max_vrs; i++) {
 		vr = &mlxsw_sp->router->vrs[i];
 		if (mlxsw_sp_vr_is_used(vr) && vr->tb_id == tb_id)
 			return vr;
@@ -959,6 +961,7 @@ static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib,
 					 struct mlxsw_sp_lpm_tree *new_tree)
 {
+	int max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
 	enum mlxsw_sp_l3proto proto = fib->proto;
 	struct mlxsw_sp_lpm_tree *old_tree;
 	u8 old_id, new_id = new_tree->id;
@@ -968,7 +971,7 @@ static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 	old_tree = mlxsw_sp->router->lpm.proto_trees[proto];
 	old_id = old_tree->id;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
+	for (i = 0; i < max_vrs; i++) {
 		vr = &mlxsw_sp->router->vrs[i];
 		if (!mlxsw_sp_vr_lpm_tree_should_replace(vr, proto, old_id))
 			continue;
@@ -7298,9 +7301,10 @@ static void mlxsw_sp_vr_fib_flush(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 {
+	int max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
 	int i, j;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
+	for (i = 0; i < max_vrs; i++) {
 		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
 
 		if (!mlxsw_sp_vr_is_used(vr))
