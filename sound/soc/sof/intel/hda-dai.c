@@ -192,7 +192,8 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 		snd_hdac_ext_bus_link_set_stream_id(hlink, stream_tag);
 
 	/* set the hdac_stream in the codec dai */
-	snd_soc_dai_set_stream(codec_dai, hdac_stream(hext_stream), substream->stream);
+	if (ops->codec_dai_set_stream)
+		ops->codec_dai_set_stream(sdev, substream, hstream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		link_bps = codec_dai->driver->playback.sig_bits;
