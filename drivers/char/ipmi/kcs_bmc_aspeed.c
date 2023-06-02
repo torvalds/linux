@@ -277,13 +277,6 @@ static int aspeed_kcs_set_address(struct kcs_bmc_device *kcs_bmc, u32 addrs[2], 
 	case 7:
 	case 11:
 	case 15:
-		/* Channel 3 only supports inferred status IO address */
-		if (nr_addrs == 2) {
-			dev_err(priv->kcs_bmc.dev,
-				"Channel 3 only supports inferred status IO address\n");
-			return -EINVAL;
-		}
-
 		regmap_write(priv->map, LPC_LADR3H, addrs[0] >> 8);
 		regmap_write(priv->map, LPC_LADR3L, addrs[0] & 0xFF);
 		break;
