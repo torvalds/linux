@@ -21,7 +21,7 @@
 
 		/* remote amp core address */
 		amp_reserved: amp@2e00000 {
-			reg = <0x0 0x2e00000 0x0 0x200000>;
+			reg = <0x0 0x2e00000 0x0 0x1200000>;
 			no-map;
 		};
 	};
