@@ -96,8 +96,8 @@ struct mlxsw_sp_rif_subport {
 struct mlxsw_sp_rif_ipip_lb {
 	struct mlxsw_sp_rif common;
 	struct mlxsw_sp_rif_ipip_lb_config lb_config;
-	u16 ul_vr_id; /* Reserved for Spectrum-2. */
-	u16 ul_rif_id; /* Reserved for Spectrum. */
+	u16 ul_vr_id;	/* Spectrum-1. */
+	u16 ul_rif_id;	/* Spectrum-2+. */
 };
 
 struct mlxsw_sp_rif_params_ipip_lb {
