@@ -272,7 +272,7 @@ static void shared_hyp_mapping(int index)
 
 	for (j = 0; j < dest->num_vmids; j++) {
 		newvm[j].vmid = dest->vmids[j];
-		newvm[j].perm = dest->vmids[j];
+		newvm[j].perm = dest->perms[j];
 	}
 	ret = qcom_scm_assign_mem(mb->phy_addr, mb->size, source_vmlist,
 			      newvm, dest->num_vmids);
