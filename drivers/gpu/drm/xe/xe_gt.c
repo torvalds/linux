@@ -315,8 +315,6 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	/* Rerun MCR init as we now have hw engine list */
 	xe_gt_mcr_init(gt);
 
-	xe_mocs_init_early(gt);
-
 	err = xe_hw_engines_init_early(gt);
 	if (err)
 		goto err_force_wake;
@@ -428,6 +426,8 @@ int xe_gt_init(struct xe_gt *gt)
 	err = xe_gt_pagefault_init(gt);
 	if (err)
 		return err;
+
+	xe_mocs_init_early(gt);
 
 	xe_gt_sysfs_init(gt);
 
