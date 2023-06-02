@@ -621,23 +621,25 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 	struct intel_gt *gt = i915->media_gt;
 	struct drm_i915_gem_object *obj = NULL;
 	struct i915_vma *vma = NULL;
-	void *cmd;
+	void *cmd_in, *cmd_out;
 	int err;
 
-	/* allocate object of one page for HDCP command memory and store it */
-	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
+	/* allocate object of two page for HDCP command memory and store it */
+	obj = i915_gem_object_create_shmem(i915, 2 * PAGE_SIZE);
 
 	if (IS_ERR(obj)) {
 		drm_err(&i915->drm, "Failed to allocate HDCP streaming command!\n");
 		return PTR_ERR(obj);
 	}
 
-	cmd = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
-	if (IS_ERR(cmd)) {
+	cmd_in = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
+	if (IS_ERR(cmd_in)) {
 		drm_err(&i915->drm, "Failed to map gsc message page!\n");
-		err = PTR_ERR(cmd);
+		err = PTR_ERR(cmd_in);
 		goto out_unpin;
 	}
+
+	cmd_out = cmd_in + PAGE_SIZE;
 
 	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -649,9 +651,10 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 	if (err)
 		goto out_unmap;
 
-	memset(cmd, 0, obj->base.size);
+	memset(cmd_in, 0, obj->base.size);
 
-	hdcp_message->hdcp_cmd = cmd;
+	hdcp_message->hdcp_cmd_in = cmd_in;
+	hdcp_message->hdcp_cmd_out = cmd_out;
 	hdcp_message->vma = vma;
 
 	return 0;
@@ -691,6 +694,8 @@ static void intel_hdcp_gsc_free_message(struct drm_i915_private *i915)
 	struct intel_hdcp_gsc_message *hdcp_message =
 					i915->display.hdcp.hdcp_message;
 
+	hdcp_message->hdcp_cmd_in = NULL;
+	hdcp_message->hdcp_cmd_out = NULL;
 	i915_vma_unpin_and_release(&hdcp_message->vma, I915_VMA_RELEASE_MAP);
 	kfree(hdcp_message);
 }
@@ -721,38 +726,42 @@ void intel_hdcp_gsc_fini(struct drm_i915_private *i915)
 }
 
 static int intel_gsc_send_sync(struct drm_i915_private *i915,
-			       struct intel_gsc_mtl_header *header, u64 addr,
+			       struct intel_gsc_mtl_header *header_in,
+			       struct intel_gsc_mtl_header *header_out,
+			       u64 addr_in, u64 addr_out,
 			       size_t msg_out_len)
 {
 	struct intel_gt *gt = i915->media_gt;
 	int ret;
 
-	header->flags = 0;
-	ret = intel_gsc_uc_heci_cmd_submit_packet(&gt->uc.gsc, addr,
-						  header->message_size,
-						  addr,
-						  msg_out_len + sizeof(*header));
+	ret = intel_gsc_uc_heci_cmd_submit_packet(&gt->uc.gsc, addr_in,
+						  header_in->message_size,
+						  addr_out,
+						  msg_out_len + sizeof(*header_out));
 	if (ret) {
 		drm_err(&i915->drm, "failed to send gsc HDCP msg (%d)\n", ret);
 		return ret;
 	}
 
 	/*
-	 * Checking validity marker for memory sanity
+	 * Checking validity marker and header status to see if some error has
+	 * blocked us from sending message to gsc cs
 	 */
-	if (header->validity_marker != GSC_HECI_VALIDITY_MARKER) {
+	if (header_out->validity_marker != GSC_HECI_VALIDITY_MARKER) {
 		drm_err(&i915->drm, "invalid validity marker\n");
 		return -EINVAL;
 	}
 
-	if (header->status != 0) {
+	if (header_out->status != 0) {
 		drm_err(&i915->drm, "header status indicates error %d\n",
-			header->status);
+			header_out->status);
 		return -EINVAL;
 	}
 
-	if (header->flags & GSC_OUTFLAG_MSG_PENDING)
+	if (header_out->flags & GSC_OUTFLAG_MSG_PENDING) {
+		header_in->gsc_message_handle = header_out->gsc_message_handle;
 		return -EAGAIN;
+	}
 
 	return 0;
 }
@@ -769,11 +778,11 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 				size_t msg_out_len)
 {
 	struct intel_gt *gt = i915->media_gt;
-	struct intel_gsc_mtl_header *header;
-	const size_t max_msg_size = PAGE_SIZE - sizeof(*header);
+	struct intel_gsc_mtl_header *header_in, *header_out;
+	const size_t max_msg_size = PAGE_SIZE - sizeof(*header_in);
 	struct intel_hdcp_gsc_message *hdcp_message;
-	u64 addr, host_session_id;
-	u32 reply_size, msg_size;
+	u64 addr_in, addr_out, host_session_id;
+	u32 reply_size, msg_size_in, msg_size_out;
 	int ret, tries = 0;
 
 	if (!intel_uc_uses_gsc_uc(&gt->uc))
@@ -782,16 +791,20 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 	if (msg_in_len > max_msg_size || msg_out_len > max_msg_size)
 		return -ENOSPC;
 
+	msg_size_in = msg_in_len + sizeof(*header_in);
+	msg_size_out = msg_out_len + sizeof(*header_out);
 	hdcp_message = i915->display.hdcp.hdcp_message;
-	header = hdcp_message->hdcp_cmd;
-	addr = i915_ggtt_offset(hdcp_message->vma);
+	header_in = hdcp_message->hdcp_cmd_in;
+	header_out = hdcp_message->hdcp_cmd_out;
+	addr_in = i915_ggtt_offset(hdcp_message->vma);
+	addr_out = addr_in + PAGE_SIZE;
 
-	msg_size = msg_in_len + sizeof(*header);
-	memset(header, 0, msg_size);
+	memset(header_in, 0, msg_size_in);
+	memset(header_out, 0, msg_size_out);
 	get_random_bytes(&host_session_id, sizeof(u64));
-	intel_gsc_uc_heci_cmd_emit_mtl_header(header, HECI_MEADDRESS_HDCP,
-					      msg_size, host_session_id);
-	memcpy(hdcp_message->hdcp_cmd + sizeof(*header), msg_in, msg_in_len);
+	intel_gsc_uc_heci_cmd_emit_mtl_header(header_in, HECI_MEADDRESS_HDCP,
+					      msg_size_in, host_session_id);
+	memcpy(hdcp_message->hdcp_cmd_in + sizeof(*header_in), msg_in, msg_in_len);
 
 	/*
 	 * Keep sending request in case the pending bit is set no need to add
@@ -800,7 +813,8 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 	 * 20 times each message 50 ms apart
 	 */
 	do {
-		ret = intel_gsc_send_sync(i915, header, addr, msg_out_len);
+		ret = intel_gsc_send_sync(i915, header_in, header_out, addr_in,
+					  addr_out, msg_out_len);
 
 		/* Only try again if gsc says so */
 		if (ret != -EAGAIN)
@@ -814,7 +828,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 		goto err;
 
 	/* we use the same mem for the reply, so header is in the same loc */
-	reply_size = header->message_size - sizeof(*header);
+	reply_size = header_out->message_size - sizeof(*header_out);
 	if (reply_size > msg_out_len) {
 		drm_warn(&i915->drm, "caller with insufficient HDCP reply size %u (%d)\n",
 			 reply_size, (u32)msg_out_len);
@@ -824,7 +838,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 			    reply_size, (u32)msg_out_len);
 	}
 
-	memcpy(msg_out, hdcp_message->hdcp_cmd + sizeof(*header), msg_out_len);
+	memcpy(msg_out, hdcp_message->hdcp_cmd_out + sizeof(*header_out), msg_out_len);
 
 err:
 	return ret;
