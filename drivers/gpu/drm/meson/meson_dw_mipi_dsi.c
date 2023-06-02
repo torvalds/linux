@@ -114,7 +114,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 	case MIPI_DSI_FMT_RGB666_PACKED:
 	case MIPI_DSI_FMT_RGB565:
 		return -EINVAL;
-	};
+	}
 
 	/* Configure color format for DPI register */
 	writel_relaxed(FIELD_PREP(MIPI_DSI_TOP_DPI_COLOR_MODE, dpi_data_format) |
@@ -228,7 +228,7 @@ static int meson_dw_mipi_dsi_host_attach(void *priv_data,
 	case MIPI_DSI_FMT_RGB565:
 		dev_err(mipi_dsi->dev, "invalid pixel format %d\n", device->format);
 		return -EINVAL;
-	};
+	}
 
 	ret = phy_init(mipi_dsi->phy);
 	if (ret)
