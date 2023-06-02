@@ -53,6 +53,7 @@ struct nau8825_fll {
 	int mclk_src;
 	int ratio;
 	int fll_frac;
+	int fll_frac_num;
 	int fll_int;
 	int clk_ref_div;
 };
@@ -2360,9 +2361,12 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	/* Calculate the FLL 10-bit integer input and the FLL 16-bit fractional
 	 * input based on FDCO, FREF and FLL ratio.
 	 */
-	fvco = div_u64(fvco_max << 16, fref * fll_param->ratio);
-	fll_param->fll_int = (fvco >> 16) & 0x3FF;
-	fll_param->fll_frac = fvco & 0xFFFF;
+	fvco = div_u64(fvco_max << fll_param->fll_frac_num, fref * fll_param->ratio);
+	fll_param->fll_int = (fvco >> fll_param->fll_frac_num) & 0x3FF;
+	if (fll_param->fll_frac_num == 16)
+		fll_param->fll_frac = fvco & 0xFFFF;
+	else
+		fll_param->fll_frac = fvco & 0xFFFFFF;
 	return 0;
 }
 
@@ -2376,8 +2380,16 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL1,
 		NAU8825_FLL_RATIO_MASK | NAU8825_ICTRL_LATCH_MASK,
 		fll_param->ratio | (0x6 << NAU8825_ICTRL_LATCH_SFT));
-	/* FLL 16-bit fractional input */
-	regmap_write(nau8825->regmap, NAU8825_REG_FLL2, fll_param->fll_frac);
+	/* FLL 16/24 bit fractional input */
+	if (fll_param->fll_frac_num == 16)
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2,
+			     fll_param->fll_frac);
+	else {
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2_LOWER,
+			     fll_param->fll_frac & 0xffff);
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2_UPPER,
+			     (fll_param->fll_frac >> 16) & 0xff);
+	}
 	/* FLL 10-bit integer input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL3,
 			NAU8825_FLL_INTEGER_MASK, fll_param->fll_int);
@@ -2418,6 +2430,11 @@ static int nau8825_set_pll(struct snd_soc_component *component, int pll_id, int 
 	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	struct nau8825_fll fll_param;
 	int ret, fs;
+
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		fll_param.fll_frac_num = 16;
+	else
+		fll_param.fll_frac_num = 24;
 
 	fs = freq_out / 256;
 	ret = nau8825_calc_fll_param(freq_in, fs, &fll_param);
