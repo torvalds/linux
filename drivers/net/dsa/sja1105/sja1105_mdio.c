@@ -417,6 +417,7 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 		}
 
 		xpcs = xpcs_create(mdiodev, priv->phy_mode[port]);
+		mdio_device_put(mdiodev);
 		if (IS_ERR(xpcs)) {
 			rc = PTR_ERR(xpcs);
 			goto out_pcs_free;
@@ -434,7 +435,6 @@ out_pcs_free:
 		if (!priv->xpcs[port])
 			continue;
 
-		mdio_device_free(priv->xpcs[port]->mdiodev);
 		xpcs_destroy(priv->xpcs[port]);
 		priv->xpcs[port] = NULL;
 	}
@@ -457,7 +457,6 @@ static void sja1105_mdiobus_pcs_unregister(struct sja1105_private *priv)
 		if (!priv->xpcs[port])
 			continue;
 
-		mdio_device_free(priv->xpcs[port]->mdiodev);
 		xpcs_destroy(priv->xpcs[port]);
 		priv->xpcs[port] = NULL;
 	}
