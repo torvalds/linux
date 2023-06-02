@@ -104,6 +104,10 @@ static struct cmn2asic_msg_mapping smu_v14_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetHardMinIspxclkByFreq,        PPSMC_MSG_SetHardMinIspxclkByFreq,		1),
 	MSG_MAP(PowerUpVpe,        				PPSMC_MSG_PowerUpVpe,		1),
 	MSG_MAP(PowerDownVpe,        			PPSMC_MSG_PowerDownVpe,		1),
+	MSG_MAP(PowerUpUmsch,        			PPSMC_MSG_PowerUpUmsch,		1),
+	MSG_MAP(PowerDownUmsch,        			PPSMC_MSG_PowerDownUmsch,	1),
+	MSG_MAP(SetSoftMaxVpe,        			PPSMC_MSG_SetSoftMaxVpe,		1),
+	MSG_MAP(SetSoftMinVpe,        			PPSMC_MSG_SetSoftMinVpe,	1),
 };
 
 static struct cmn2asic_mapping smu_v14_0_0_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -1025,6 +1029,14 @@ static int smu_v14_0_0_set_vpe_enable(struct smu_context *smu,
 					       0, NULL);
 }
 
+static int smu_v14_0_0_set_umsch_mm_enable(struct smu_context *smu,
+			      bool enable)
+{
+	return smu_cmn_send_smc_msg_with_param(smu, enable ?
+					       SMU_MSG_PowerUpUmsch : SMU_MSG_PowerDownUmsch,
+					       0, NULL);
+}
+
 static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.check_fw_version = smu_v14_0_check_fw_version,
@@ -1054,6 +1066,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.set_fine_grain_gfx_freq_parameters = smu_v14_0_0_set_fine_grain_gfx_freq_parameters,
 	.set_gfx_power_up_by_imu = smu_v14_0_set_gfx_power_up_by_imu,
 	.dpm_set_vpe_enable = smu_v14_0_0_set_vpe_enable,
+	.dpm_set_umsch_mm_enable = smu_v14_0_0_set_umsch_mm_enable,
 };
 
 static void smu_v14_0_0_set_smu_mailbox_registers(struct smu_context *smu)

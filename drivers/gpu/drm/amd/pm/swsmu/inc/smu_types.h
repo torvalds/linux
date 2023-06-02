@@ -255,7 +255,11 @@
 	__SMU_DUMMY_MAP(McaBankCeDumpDW),	\
 	__SMU_DUMMY_MAP(SelectPLPDMode),	\
 	__SMU_DUMMY_MAP(PowerUpVpe),	\
-	__SMU_DUMMY_MAP(PowerDownVpe),
+	__SMU_DUMMY_MAP(PowerDownVpe), \
+	__SMU_DUMMY_MAP(PowerUpUmsch),	\
+	__SMU_DUMMY_MAP(PowerDownUmsch),	\
+	__SMU_DUMMY_MAP(SetSoftMaxVpe),	\
+	__SMU_DUMMY_MAP(SetSoftMinVpe),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

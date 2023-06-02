@@ -1350,6 +1350,12 @@ struct pptable_funcs {
 	 *                       management.
 	 */
 	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @dpm_set_umsch_mm_enable: Enable/disable UMSCH engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {
