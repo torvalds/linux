@@ -155,6 +155,16 @@
 		#size-cells = <2>;
 		ranges;
 
+		bootloader@4a100000 {
+			reg = <0x0 0x4a100000 0x0 0x400000>;
+			no-map;
+		};
+
+		sbl@4a500000 {
+			reg = <0x0 0x4a500000 0x0 0x100000>;
+			no-map;
+		};
+
 		tz_region: tz@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x400000>;
 			no-map;
@@ -162,7 +172,7 @@
 
 		smem@4aa00000 {
 			compatible = "qcom,smem";
-			reg = <0x0 0x4aa00000 0x0 0x00100000>;
+			reg = <0x0 0x4aa00000 0x0 0x100000>;
 			hwlocks = <&tcsr_mutex 0>;
 			no-map;
 		};
