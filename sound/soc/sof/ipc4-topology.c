@@ -559,7 +559,7 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			    strcmp(w->widget->sname, swidget->widget->sname))
 				continue;
 
-			blob->alh_cfg.count++;
+			blob->alh_cfg.device_count++;
 		}
 
 		ipc4_copier->copier_config = (uint32_t *)blob;
@@ -1225,7 +1225,7 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 			unsigned int group_id;
 
 			blob = (struct sof_ipc4_alh_configuration_blob *)ipc4_copier->copier_config;
-			if (blob->alh_cfg.count > 1) {
+			if (blob->alh_cfg.device_count > 1) {
 				group_id = SOF_IPC4_NODE_INDEX(ipc4_copier->data.gtw_cfg.node_id) -
 					   ALH_MULTI_GTW_BASE;
 				ida_free(&alh_group_ida, group_id);
@@ -1609,7 +1609,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				ch_map >>= 4;
 			}
 
-			step = ch_count / blob->alh_cfg.count;
+			step = ch_count / blob->alh_cfg.device_count;
 			mask =  GENMASK(step - 1, 0);
 			/*
 			 * Set each gtw_cfg.node_id to blob->alh_cfg.mapping[]
@@ -1624,7 +1624,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				dai = w->private;
 				alh_copier = (struct sof_ipc4_copier *)dai->private;
 				alh_data = &alh_copier->data;
-				blob->alh_cfg.mapping[i].alh_id = alh_data->gtw_cfg.node_id;
+				blob->alh_cfg.mapping[i].device = alh_data->gtw_cfg.node_id;
 				/*
 				 * Set the same channel mask for playback as the audio data is
 				 * duplicated for all speakers. For capture, split the channels
@@ -1643,7 +1643,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 
 				i++;
 			}
-			if (blob->alh_cfg.count > 1) {
+			if (blob->alh_cfg.device_count > 1) {
 				int group_id;
 
 				group_id = ida_alloc_max(&alh_group_ida, ALH_MULTI_GTW_COUNT - 1,

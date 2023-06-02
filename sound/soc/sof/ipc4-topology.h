@@ -55,7 +55,7 @@
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
-#define ALH_MAX_NUMBER_OF_GTW   16
+#define SOF_IPC4_DMA_DEVICE_MAX_COUNT 16
 
 #define SOF_IPC4_INVALID_NODE_ID	0xffffffff
 
@@ -220,18 +220,26 @@ struct sof_ipc4_gtw_attributes {
 	uint32_t rsvd : 30;
 };
 
-/** struct sof_ipc4_alh_multi_gtw_cfg: ALH gateway cfg data
- * @count: Number of streams (valid items in mapping array)
- * @alh_id: ALH stream id of a single ALH stream aggregated
- * @channel_mask: Channel mask
- * @mapping: ALH streams
+/**
+ * struct sof_ipc4_dma_device_stream_ch_map: abstract representation of
+ * channel mapping to DMAs
+ * @device: representation of hardware device address or FIFO
+ * @channel_mask: channels handled by @device. Channels are expected to be
+ * contiguous
  */
-struct sof_ipc4_alh_multi_gtw_cfg {
-	uint32_t count;
-	struct {
-		uint32_t alh_id;
-		uint32_t channel_mask;
-	} mapping[ALH_MAX_NUMBER_OF_GTW];
+struct sof_ipc4_dma_device_stream_ch_map {
+	uint32_t device;
+	uint32_t channel_mask;
+};
+
+/**
+ * struct sof_ipc4_dma_stream_ch_map: DMA configuration data
+ * @device_count: Number valid items in mapping array
+ * @mapping: device address and channel mask
+ */
+struct sof_ipc4_dma_stream_ch_map {
+	uint32_t device_count;
+	struct sof_ipc4_dma_device_stream_ch_map mapping[SOF_IPC4_DMA_DEVICE_MAX_COUNT];
 } __packed;
 
 /** struct sof_ipc4_alh_configuration_blob: ALH blob
@@ -240,7 +248,7 @@ struct sof_ipc4_alh_multi_gtw_cfg {
  */
 struct sof_ipc4_alh_configuration_blob {
 	struct sof_ipc4_gtw_attributes gw_attr;
-	struct sof_ipc4_alh_multi_gtw_cfg alh_cfg;
+	struct sof_ipc4_dma_stream_ch_map alh_cfg;
 };
 
 /**
