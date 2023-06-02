@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_misc.h"
 #include "cpumask_common.h"
 
 char _license[] SEC("license") = "GPL";
@@ -424,5 +425,28 @@ int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
 	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
 	bpf_rcu_read_unlock();
 
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__success
+int BPF_PROG(test_refcount_null_tracking, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *mask1, *mask2;
+
+	mask1 = bpf_cpumask_create();
+	mask2 = bpf_cpumask_create();
+
+	if (!mask1 || !mask2)
+		goto free_masks_return;
+
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)mask1);
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)mask2);
+
+free_masks_return:
+	if (mask1)
+		bpf_cpumask_release(mask1);
+	if (mask2)
+		bpf_cpumask_release(mask2);
 	return 0;
 }
