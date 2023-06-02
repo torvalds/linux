@@ -1168,6 +1168,56 @@ def put_typol(cw, struct):
     cw.nl()
 
 
+def put_op_name_fwd(family, cw):
+    cw.write_func_prot('const char *', f'{family.name}_op_str', ['int op'], suffix=';')
+
+
+def put_op_name(family, cw):
+    map_name = f'{family.name}_op_strmap'
+    cw.block_start(line=f"static const char * const {map_name}[] =")
+    for op_name, op in family.msgs.items():
+        cw.p(f'[{op.enum_name}] = "{op_name}",')
+    cw.block_end(line=';')
+    cw.nl()
+
+    cw.write_func_prot('const char *', f'{family.name}_op_str', ['int op'])
+    cw.block_start()
+    cw.p(f'if (op < 0 || op >= (int)MNL_ARRAY_SIZE({map_name}))')
+    cw.p('return NULL;')
+    cw.p(f'return {map_name}[op];')
+    cw.block_end()
+    cw.nl()
+
+
+def put_enum_to_str_fwd(family, cw, enum):
+    args = [f'enum {enum.render_name} value']
+    if 'enum-name' in enum and not enum['enum-name']:
+        args = ['int value']
+    cw.write_func_prot('const char *', f'{enum.render_name}_str', args, suffix=';')
+
+
+def put_enum_to_str(family, cw, enum):
+    map_name = f'{enum.render_name}_strmap'
+    cw.block_start(line=f"static const char * const {map_name}[] =")
+    for entry in enum.entries.values():
+        cw.p(f'[{entry.value}] = "{entry.name}",')
+    cw.block_end(line=';')
+    cw.nl()
+
+    args = [f'enum {enum.render_name} value']
+    if 'enum-name' in enum and not enum['enum-name']:
+        args = ['int value']
+    cw.write_func_prot('const char *', f'{enum.render_name}_str', args)
+    cw.block_start()
+    if enum.type == 'flags':
+        cw.p('value = ffs(value) - 1;')
+    cw.p(f'if (value < 0 || value >= (int)MNL_ARRAY_SIZE({map_name}))')
+    cw.p('return NULL;')
+    cw.p(f'return {map_name}[value];')
+    cw.block_end()
+    cw.nl()
+
+
 def put_req_nested(ri, struct):
     func_args = ['struct nlmsghdr *nlh',
                  'unsigned int attr_type',
@@ -2210,6 +2260,14 @@ def main():
     if args.mode == "user":
         has_ntf = False
         if args.header:
+            cw.p('/* Enums */')
+            put_op_name_fwd(parsed, cw)
+
+            for name, const in parsed.consts.items():
+                if isinstance(const, EnumSet):
+                    put_enum_to_str_fwd(parsed, cw, const)
+            cw.nl()
+
             cw.p('/* Common nested types */')
             for attr_set, struct in sorted(parsed.pure_nested_structs.items()):
                 ri = RenderInfo(cw, parsed, args.mode, "", "", "", attr_set)
@@ -2262,6 +2320,14 @@ def main():
                 print_ntf_parse_prototype(parsed, cw)
             cw.nl()
         else:
+            cw.p('/* Enums */')
+            put_op_name(parsed, cw)
+
+            for name, const in parsed.consts.items():
+                if isinstance(const, EnumSet):
+                    put_enum_to_str(parsed, cw, const)
+            cw.nl()
+
             cw.p('/* Policies */')
             for name, _ in parsed.attr_sets.items():
                 struct = Struct(parsed, name)
