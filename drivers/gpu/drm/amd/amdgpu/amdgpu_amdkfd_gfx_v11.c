@@ -779,8 +779,8 @@ static uint32_t kgd_gfx_v11_set_address_watch(struct amdgpu_device *adev,
 	return watch_address_cntl;
 }
 
-uint32_t kgd_gfx_v11_clear_address_watch(struct amdgpu_device *adev,
-					uint32_t watch_id)
+static uint32_t kgd_gfx_v11_clear_address_watch(struct amdgpu_device *adev,
+						uint32_t watch_id)
 {
 	return 0;
 }
