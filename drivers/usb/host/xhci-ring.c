@@ -299,22 +299,45 @@ static int xhci_num_trbs_to(struct xhci_segment *start_seg, union xhci_trb *star
 /*
  * Check to see if there's room to enqueue num_trbs on the ring and make sure
  * enqueue pointer will not advance into dequeue segment. See rules above.
+ * return number of new segments needed to ensure this.
  */
-static inline int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		unsigned int num_trbs)
-{
-	int num_trbs_in_deq_seg;
 
-	if (ring->num_trbs_free < num_trbs)
+static unsigned int xhci_ring_expansion_needed(struct xhci_hcd *xhci, struct xhci_ring *ring,
+					       unsigned int num_trbs)
+{
+	struct xhci_segment *seg;
+	int trbs_past_seg;
+	int enq_used;
+	int new_segs;
+
+	enq_used = ring->enqueue - ring->enq_seg->trbs;
+
+	/* how many trbs will be queued past the enqueue segment? */
+	trbs_past_seg = enq_used + num_trbs - (TRBS_PER_SEGMENT - 1);
+
+	if (trbs_past_seg <= 0)
 		return 0;
 
-	if (ring->type != TYPE_COMMAND && ring->type != TYPE_EVENT) {
-		num_trbs_in_deq_seg = ring->dequeue - ring->deq_seg->trbs;
-		if (ring->num_trbs_free < num_trbs + num_trbs_in_deq_seg)
-			return 0;
+	/* Empty ring special case, enqueue stuck on link trb while dequeue advanced */
+	if (trb_is_link(ring->enqueue) && ring->enq_seg->next->trbs == ring->dequeue)
+		return 0;
+
+	new_segs = 1 + (trbs_past_seg / (TRBS_PER_SEGMENT - 1));
+	seg = ring->enq_seg;
+
+	while (new_segs > 0) {
+		seg = seg->next;
+		if (seg == ring->deq_seg) {
+			xhci_dbg(xhci, "Ring expansion by %d segments needed\n",
+				 new_segs);
+			xhci_dbg(xhci, "Adding %d trbs moves enq %d trbs into deq seg\n",
+				 num_trbs, trbs_past_seg % TRBS_PER_SEGMENT);
+			return new_segs;
+		}
+		new_segs--;
 	}
 
-	return 1;
+	return 0;
 }
 
 /* Ring the host controller doorbell after placing a command on the ring */
@@ -3165,13 +3188,13 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 
 /*
  * Does various checks on the endpoint ring, and makes it ready to queue num_trbs.
- * FIXME allocate segments if the ring is full.
+ * expand ring if it start to be full.
  */
 static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		u32 ep_state, unsigned int num_trbs, gfp_t mem_flags)
 {
-	unsigned int num_trbs_needed;
 	unsigned int link_trb_count = 0;
+	unsigned int new_segs = 0;
 
 	/* Make sure the endpoint has been added to xHC schedule */
 	switch (ep_state) {
@@ -3202,20 +3225,17 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		return -EINVAL;
 	}
 
-	while (1) {
-		if (room_on_ring(xhci, ep_ring, num_trbs))
-			break;
+	if (ep_ring != xhci->cmd_ring) {
+		new_segs = xhci_ring_expansion_needed(xhci, ep_ring, num_trbs);
+	} else if (ep_ring->num_trbs_free <= num_trbs) {
+		xhci_err(xhci, "Do not support expand command ring\n");
+		return -ENOMEM;
+	}
 
-		if (ep_ring == xhci->cmd_ring) {
-			xhci_err(xhci, "Do not support expand command ring\n");
-			return -ENOMEM;
-		}
-
+	if (new_segs) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
 				"ERROR no room on ep ring, try ring expansion");
-		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
-		if (xhci_ring_expansion(xhci, ep_ring, num_trbs_needed,
-					mem_flags)) {
+		if (xhci_ring_expansion(xhci, ep_ring, new_segs, mem_flags)) {
 			xhci_err(xhci, "Ring expansion failed\n");
 			return -ENOMEM;
 		}

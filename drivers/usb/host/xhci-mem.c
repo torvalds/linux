@@ -422,22 +422,14 @@ void xhci_free_endpoint_ring(struct xhci_hcd *xhci,
  * Allocate a new ring which has same segment numbers and link the two rings.
  */
 int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
-				unsigned int num_trbs, gfp_t flags)
+				unsigned int num_new_segs, gfp_t flags)
 {
 	struct xhci_segment	*first;
 	struct xhci_segment	*last;
-	unsigned int		num_segs;
-	unsigned int		num_segs_needed;
 	int			ret;
 
-	num_segs_needed = (num_trbs + (TRBS_PER_SEGMENT - 1) - 1) /
-				(TRBS_PER_SEGMENT - 1);
-
-	/* Allocate number of segments we needed, or double the ring size */
-	num_segs = max(ring->num_segs, num_segs_needed);
-
 	ret = xhci_alloc_segments_for_ring(xhci, &first, &last,
-			num_segs, ring->cycle_state, ring->type,
+			num_new_segs, ring->cycle_state, ring->type,
 			ring->bounce_buf_len, flags);
 	if (ret)
 		return -ENOMEM;
@@ -457,7 +449,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return ret;
 	}
 
-	xhci_link_rings(xhci, ring, first, last, num_segs);
+	xhci_link_rings(xhci, ring, first, last, num_new_segs);
 	trace_xhci_ring_expansion(ring);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
 			"ring expansion succeed, now has %d segments",
