@@ -1854,7 +1854,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 			  struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
-	bool alloc_master_rt = true;
+	bool alloc_master_rt = false;
 	int ret;
 
 	mutex_lock(&bus->bus_lock);
@@ -1876,10 +1876,8 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	 * it first), if so skip allocation and go to configuration
 	 */
 	m_rt = sdw_master_rt_find(bus, stream);
-	if (m_rt) {
-		alloc_master_rt = false;
+	if (m_rt)
 		goto skip_alloc_master_rt;
-	}
 
 	m_rt = sdw_master_rt_alloc(bus, stream);
 	if (!m_rt) {
@@ -1888,6 +1886,8 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 		ret = -ENOMEM;
 		goto unlock;
 	}
+
+	alloc_master_rt = true;
 skip_alloc_master_rt:
 
 	if (sdw_master_port_allocated(m_rt))
@@ -1980,8 +1980,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 {
 	struct sdw_slave_runtime *s_rt;
 	struct sdw_master_runtime *m_rt;
-	bool alloc_master_rt = true;
-	bool alloc_slave_rt = true;
+	bool alloc_master_rt = false;
+	bool alloc_slave_rt = false;
 
 	int ret;
 
@@ -1992,10 +1992,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	 * and go to configuration
 	 */
 	m_rt = sdw_master_rt_find(slave->bus, stream);
-	if (m_rt) {
-		alloc_master_rt = false;
+	if (m_rt)
 		goto skip_alloc_master_rt;
-	}
 
 	/*
 	 * If this API is invoked by Slave first then m_rt is not valid.
@@ -2009,20 +2007,21 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 		goto unlock;
 	}
 
+	alloc_master_rt = true;
+
 skip_alloc_master_rt:
 	s_rt = sdw_slave_rt_find(slave, stream);
-	if (s_rt) {
-		alloc_slave_rt = false;
+	if (s_rt)
 		goto skip_alloc_slave_rt;
-	}
 
 	s_rt = sdw_slave_rt_alloc(slave, m_rt);
 	if (!s_rt) {
 		dev_err(&slave->dev, "Slave runtime alloc failed for stream:%s\n", stream->name);
-		alloc_slave_rt = false;
 		ret = -ENOMEM;
 		goto alloc_error;
 	}
+
+	alloc_slave_rt = true;
 
 skip_alloc_slave_rt:
 	if (sdw_slave_port_allocated(s_rt))
