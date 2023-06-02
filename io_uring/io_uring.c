@@ -95,6 +95,7 @@
 
 #include "timeout.h"
 #include "poll.h"
+#include "rw.h"
 #include "alloc_cache.h"
 
 #define IORING_MAX_ENTRIES	32768
@@ -1205,7 +1206,9 @@ static unsigned int handle_tw_list(struct llist_node *node,
 			ts->locked = mutex_trylock(&(*ctx)->uring_lock);
 			percpu_ref_get(&(*ctx)->refs);
 		}
-		req->io_task_work.func(req, ts);
+		INDIRECT_CALL_2(req->io_task_work.func,
+				io_poll_task_func, io_req_rw_complete,
+				req, ts);
 		node = next;
 		count++;
 		if (unlikely(need_resched())) {
@@ -1415,7 +1418,9 @@ again:
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
-		req->io_task_work.func(req, ts);
+		INDIRECT_CALL_2(req->io_task_work.func,
+				io_poll_task_func, io_req_rw_complete,
+				req, ts);
 		ret++;
 		node = next;
 	}

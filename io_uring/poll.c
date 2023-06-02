@@ -326,7 +326,7 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 	return IOU_POLL_NO_ACTION;
 }
 
-static void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
+void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	int ret;
 
