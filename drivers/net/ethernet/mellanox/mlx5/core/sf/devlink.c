@@ -28,7 +28,6 @@ struct mlx5_sf_table {
 	struct mutex sf_state_lock; /* Serializes sf state among user cmds & vhca event handler. */
 	struct notifier_block esw_nb;
 	struct notifier_block vhca_nb;
-	u8 ecpu: 1;
 };
 
 static struct mlx5_sf *
