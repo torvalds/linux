@@ -97,6 +97,7 @@ static int qaic_open(struct drm_device *dev, struct drm_file *file)
 
 cleanup_usr:
 	cleanup_srcu_struct(&usr->qddev_lock);
+	ida_free(&qaic_usrs, usr->handle);
 free_usr:
 	kfree(usr);
 dev_unlock:
