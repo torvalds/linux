@@ -120,6 +120,11 @@ static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
 	struct snd_sof_dev *sdev;
 	int stream_tag;
 
+	if (!ops) {
+		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		return -EINVAL;
+	}
+
 	sdev = dai_to_sdev(substream, cpu_dai);
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
@@ -157,6 +162,11 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	unsigned int format_val;
 	unsigned int link_bps;
 	int stream_tag;
+
+	if (!ops) {
+		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		return -EINVAL;
+	}
 
 	sdev = dai_to_sdev(substream, cpu_dai);
 	bus = sof_to_bus(sdev);
@@ -216,7 +226,7 @@ static int __maybe_unused hda_dai_hw_free(struct snd_pcm_substream *substream,
 	struct snd_sof_dev *sdev = dai_to_sdev(substream, cpu_dai);
 
 	if (!ops) {
-		dev_err(sdev->dev, "DAI widget ops not set\n");
+		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
 		return -EINVAL;
 	}
 
@@ -273,6 +283,11 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	struct snd_soc_dai *codec_dai;
 	struct snd_sof_dev *sdev;
 	int ret;
+
+	if (!ops) {
+		dev_err(dai->dev, "DAI widget ops not set\n");
+		return -EINVAL;
+	}
 
 	dev_dbg(dai->dev, "cmd=%d dai %s direction %d\n", cmd,
 		dai->name, substream->stream);
