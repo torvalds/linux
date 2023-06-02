@@ -237,7 +237,7 @@ def define_msm_lxc(
     dtb_list = get_dtb_list(lxc_target)
     dtbo_list = get_dtbo_list(lxc_target)
     dtstree = get_dtstree(lxc_target)
-    vendor_ramdisk_binaries = ["//prebuilts/qcom_boot_artifacts:le-initrd.gz"]
+    vendor_ramdisk_binaries = None
     build_config_fragments = get_build_config_fragments(lxc_target)
 
     _define_build_config(
