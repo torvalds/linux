@@ -19,7 +19,7 @@
 
 static const struct regmap_range stpmic1_readable_ranges[] = {
 	regmap_reg_range(TURN_ON_SR, VERSION_SR),
-	regmap_reg_range(SWOFF_PWRCTRL_CR, LDO6_STDBY_CR),
+	regmap_reg_range(MAIN_CR, LDO6_STDBY_CR),
 	regmap_reg_range(BST_SW_CR, BST_SW_CR),
 	regmap_reg_range(INT_PENDING_R1, INT_PENDING_R4),
 	regmap_reg_range(INT_CLEAR_R1, INT_CLEAR_R4),
@@ -30,7 +30,7 @@ static const struct regmap_range stpmic1_readable_ranges[] = {
 };
 
 static const struct regmap_range stpmic1_writeable_ranges[] = {
-	regmap_reg_range(SWOFF_PWRCTRL_CR, LDO6_STDBY_CR),
+	regmap_reg_range(MAIN_CR, LDO6_STDBY_CR),
 	regmap_reg_range(BST_SW_CR, BST_SW_CR),
 	regmap_reg_range(INT_CLEAR_R1, INT_CLEAR_R4),
 	regmap_reg_range(INT_SET_MASK_R1, INT_SET_MASK_R4),
