@@ -3386,8 +3386,10 @@ static void rtw89_core_clr_supported_band(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 
-	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]->iftype_data);
-	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]->iftype_data);
+	if (hw->wiphy->bands[NL80211_BAND_2GHZ])
+		kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]->iftype_data);
+	if (hw->wiphy->bands[NL80211_BAND_5GHZ])
+		kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]->iftype_data);
 	if (hw->wiphy->bands[NL80211_BAND_6GHZ])
 		kfree(hw->wiphy->bands[NL80211_BAND_6GHZ]->iftype_data);
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
