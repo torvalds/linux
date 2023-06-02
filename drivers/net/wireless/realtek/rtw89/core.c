@@ -2869,6 +2869,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		/* for station mode, assign the mac_id from itself */
 		rtwsta->mac_id = rtwvif->mac_id;
+		/* must do rtw89_reg_6ghz_power_recalc() before rfk channel */
+		rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif, true);
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
@@ -3042,10 +3044,11 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int ret;
 
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
+		rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif, false);
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
-	else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
+	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
 
 		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta,

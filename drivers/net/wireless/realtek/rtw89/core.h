@@ -488,6 +488,15 @@ enum rtw89_regulation_type {
 	RTW89_REGD_NUM,
 };
 
+enum rtw89_reg_6ghz_power {
+	RTW89_REG_6GHZ_POWER_VLP = 0,
+	RTW89_REG_6GHZ_POWER_LPI = 1,
+	RTW89_REG_6GHZ_POWER_STD = 2,
+
+	NUM_OF_RTW89_REG_6GHZ_POWER,
+	RTW89_REG_6GHZ_POWER_DFLT = RTW89_REG_6GHZ_POWER_VLP,
+};
+
 enum rtw89_fw_pkt_ofld_type {
 	RTW89_PKT_OFLD_TYPE_PROBE_RSP = 0,
 	RTW89_PKT_OFLD_TYPE_PS_POLL = 1,
@@ -2682,6 +2691,7 @@ struct rtw89_vif {
 	struct rtw89_dev *rtwdev;
 	struct rtw89_roc roc;
 	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_reg_6ghz_power reg_6ghz_power;
 
 	u8 mac_id;
 	u8 port;
@@ -3807,9 +3817,14 @@ struct rtw89_power_trim_info {
 	u8 pa_bias_trim[RF_PATH_MAX];
 };
 
-struct rtw89_regulatory {
+struct rtw89_regd {
 	char alpha2[3];
 	u8 txpwr_regd[RTW89_BAND_MAX];
+};
+
+struct rtw89_regulatory_info {
+	const struct rtw89_regd *regd;
+	enum rtw89_reg_6ghz_power reg_6ghz_power;
 };
 
 enum rtw89_ifs_clm_application {
@@ -4161,7 +4176,7 @@ struct rtw89_dev {
 	u8 total_sta_assoc;
 	bool scanning;
 
-	const struct rtw89_regulatory *regd;
+	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
 
 	struct rtw89_btc btc;
@@ -4848,7 +4863,9 @@ static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,
 
 static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 {
-	return rtwdev->regd->txpwr_regd[band];
+	const struct rtw89_regd *regd = rtwdev->regulatory.regd;
+
+	return regd->txpwr_regd[band];
 }
 
 static inline void rtw89_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
@@ -5090,5 +5107,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan);
 void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
+void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif, bool active);
 
 #endif

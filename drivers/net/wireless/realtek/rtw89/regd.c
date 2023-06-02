@@ -5,16 +5,17 @@
 #include "acpi.h"
 #include "debug.h"
 #include "ps.h"
+#include "util.h"
 
 #define COUNTRY_REGD(_alpha2, _txpwr_regd...) \
 	{.alpha2 = (_alpha2), \
 	 .txpwr_regd = {_txpwr_regd}, \
 	}
 
-static const struct rtw89_regulatory rtw89_ww_regd =
+static const struct rtw89_regd rtw89_ww_regd =
 	COUNTRY_REGD("00", RTW89_WW, RTW89_WW);
 
-static const struct rtw89_regulatory rtw89_regd_map[] = {
+static const struct rtw89_regd rtw89_regd_map[] = {
 	COUNTRY_REGD("AR", RTW89_MEXICO, RTW89_MEXICO, RTW89_NA),
 	COUNTRY_REGD("BO", RTW89_FCC, RTW89_FCC, RTW89_FCC),
 	COUNTRY_REGD("BR", RTW89_FCC, RTW89_FCC, RTW89_FCC),
@@ -255,7 +256,7 @@ static const struct rtw89_regulatory rtw89_regd_map[] = {
 	COUNTRY_REGD("PS", RTW89_ETSI, RTW89_ETSI, RTW89_NA),
 };
 
-static const struct rtw89_regulatory *rtw89_regd_find_reg_by_name(char *alpha2)
+static const struct rtw89_regd *rtw89_regd_find_reg_by_name(char *alpha2)
 {
 	u32 i;
 
@@ -267,7 +268,7 @@ static const struct rtw89_regulatory *rtw89_regd_find_reg_by_name(char *alpha2)
 	return &rtw89_ww_regd;
 }
 
-static bool rtw89_regd_is_ww(const struct rtw89_regulatory *regd)
+static bool rtw89_regd_is_ww(const struct rtw89_regd *regd)
 {
 	return regd == &rtw89_ww_regd;
 }
@@ -397,21 +398,25 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		    void (*reg_notifier)(struct wiphy *wiphy,
 					 struct regulatory_request *request))
 {
-	const struct rtw89_regulatory *chip_regd;
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *chip_regd;
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
 	int ret;
+
+	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 
 	if (!wiphy)
 		return -EINVAL;
 
 	chip_regd = rtw89_regd_find_reg_by_name(rtwdev->efuse.country_code);
 	if (!rtw89_regd_is_ww(chip_regd)) {
-		rtwdev->regd = chip_regd;
+		rtwdev->regulatory.regd = chip_regd;
 		/* Ignore country ie if there is a country domain programmed in chip */
 		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 
-		ret = regulatory_hint(rtwdev->hw->wiphy, rtwdev->regd->alpha2);
+		ret = regulatory_hint(rtwdev->hw->wiphy,
+				      rtwdev->regulatory.regd->alpha2);
 		if (ret)
 			rtw89_warn(rtwdev, "failed to hint regulatory:%d\n", ret);
 
@@ -419,7 +424,7 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		return 0;
 	}
 
-	rtw89_debug_regd(rtwdev, rtwdev->regd,
+	rtw89_debug_regd(rtwdev, rtwdev->regulatory.regd,
 			 "worldwide roaming chip, follow the setting of stack");
 	return 0;
 }
@@ -428,13 +433,13 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 				      struct wiphy *wiphy,
 				      struct regulatory_request *request)
 {
-	rtwdev->regd = rtw89_regd_find_reg_by_name(request->alpha2);
+	rtwdev->regulatory.regd = rtw89_regd_find_reg_by_name(request->alpha2);
 	/* This notification might be set from the system of distros,
 	 * and it does not expect the regulatory will be modified by
 	 * connecting to an AP (i.e. country ie).
 	 */
 	if (request->initiator == NL80211_REGDOM_SET_BY_USER &&
-	    !rtw89_regd_is_ww(rtwdev->regd))
+	    !rtw89_regd_is_ww(rtwdev->regulatory.regd))
 		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
 	else
 		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
@@ -454,11 +459,75 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 		goto exit;
 	}
 	rtw89_regd_notifier_apply(rtwdev, wiphy, request);
-	rtw89_debug_regd(rtwdev, rtwdev->regd, "get from initiator %d, alpha2",
+	rtw89_debug_regd(rtwdev, rtwdev->regulatory.regd,
+			 "get from initiator %d, alpha2",
 			 request->initiator);
 
 	rtw89_core_set_chip_txpwr(rtwdev);
 
 exit:
 	mutex_unlock(&rtwdev->mutex);
+}
+
+static void __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	enum rtw89_reg_6ghz_power sel;
+	const struct rtw89_chan *chan;
+	struct rtw89_vif *rtwvif;
+	int count = 0;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+		if (chan->band_type != RTW89_BAND_6G)
+			continue;
+
+		if (count != 0 && rtwvif->reg_6ghz_power == sel)
+			continue;
+
+		sel = rtwvif->reg_6ghz_power;
+		count++;
+	}
+
+	if (count != 1)
+		sel = RTW89_REG_6GHZ_POWER_DFLT;
+
+	if (regulatory->reg_6ghz_power == sel)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD,
+		    "recalc 6 GHz reg power type to %d\n", sel);
+
+	regulatory->reg_6ghz_power = sel;
+
+	rtw89_core_set_chip_txpwr(rtwdev);
+}
+
+void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif, bool active)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	if (active) {
+		switch (vif->bss_conf.power_type) {
+		case IEEE80211_REG_VLP_AP:
+			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_VLP;
+			break;
+		case IEEE80211_REG_LPI_AP:
+			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_LPI;
+			break;
+		case IEEE80211_REG_SP_AP:
+			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_STD;
+			break;
+		default:
+			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+			break;
+		}
+	} else {
+		rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+	}
+
+	__rtw89_reg_6ghz_power_recalc(rtwdev);
 }
