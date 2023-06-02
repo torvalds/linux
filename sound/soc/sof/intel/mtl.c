@@ -55,7 +55,7 @@ static void mtl_ipc_dsp_done(struct snd_sof_dev *sdev)
 }
 
 /* Check if an IPC IRQ occurred */
-static bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
+bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
 	u32 irq_status;
 	u32 hfintipptr;
@@ -118,7 +118,7 @@ static int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *ms
 	return 0;
 }
 
-static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
+void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -132,7 +132,7 @@ static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE);
 }
 
-static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
+void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -173,7 +173,7 @@ static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 			enable ? "enable" : "disable");
 }
 
-static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
+int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 {
 	u32 hfintipptr;
 	u32 irqinten;
@@ -394,7 +394,7 @@ static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
 	return ret;
 }
 
-static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
+int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 {
 	u32 dsphfdsscs, cpa;
 	int ret;
@@ -421,7 +421,7 @@ static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 					     HDA_DSP_RESET_TIMEOUT_US);
 }
 
-static int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
+int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
