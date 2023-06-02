@@ -872,6 +872,7 @@ static int get_sdw_dailink_info(struct device *dev, const struct snd_soc_acpi_li
 
 	for (link = links; link->num_adr; link++) {
 		const struct snd_soc_acpi_endpoint *endpoint;
+		struct sof_sdw_codec_info *codec_info;
 		int codec_index;
 		int stream;
 		u64 adr;
@@ -881,12 +882,13 @@ static int get_sdw_dailink_info(struct device *dev, const struct snd_soc_acpi_li
 			codec_index = find_codec_info_part(adr);
 			if (codec_index < 0)
 				return codec_index;
+			codec_info = &codec_info_list[codec_index];
 
 			endpoint = link->adr_d[i].endpoints;
 
 			/* count DAI number for playback and capture */
 			for_each_pcm_streams(stream) {
-				if (!codec_info_list[codec_index].dais[0].direction[stream])
+				if (!codec_info->dais[0].direction[stream])
 					continue;
 
 				(*sdw_cpu_dai_num)++;
@@ -1184,6 +1186,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 {
 	const struct snd_soc_acpi_link_adr *link_next;
 	struct snd_soc_dai_link_component *codecs;
+	struct sof_sdw_codec_info *codec_info;
 	int cpu_dai_id[SDW_MAX_CPU_DAIS];
 	int cpu_dai_num, cpu_dai_index;
 	unsigned int group_id;
@@ -1232,8 +1235,9 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	codec_index = find_codec_info_part(link->adr_d[adr_index].adr);
 	if (codec_index < 0)
 		return codec_index;
+	codec_info = &codec_info_list[codec_index];
 
-	if (codec_info_list[codec_index].ignore_pch_dmic)
+	if (codec_info->ignore_pch_dmic)
 		*ignore_pch_dmic = true;
 
 	cpu_dai_index = *cpu_id;
@@ -1247,10 +1251,10 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			"SDW%d-Capture-%s",
 		};
 
-		if (!codec_info_list[codec_index].dais[0].direction[stream])
+		if (!codec_info->dais[0].direction[stream])
 			continue;
 
-		*link_id = codec_info_list[codec_index].dais[0].dailink[stream];
+		*link_id = codec_info->dais[0].dailink[stream];
 		if (*link_id < 0) {
 			dev_err(dev, "Invalid dailink id %d\n", *link_id);
 			return -EINVAL;
@@ -1260,7 +1264,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		if (append_codec_type) {
 			name = devm_kasprintf(dev, GFP_KERNEL,
 					      sdw_stream_name[stream + 2], cpu_dai_id[0],
-					      type_strings[codec_info_list[codec_index].codec_type]);
+					      type_strings[codec_info->codec_type]);
 		} else {
 			name = devm_kasprintf(dev, GFP_KERNEL,
 					      sdw_stream_name[stream], cpu_dai_id[0]);
