@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/cper.h>
 #include <linux/io.h>
 
 #include "apei-internal.h"
