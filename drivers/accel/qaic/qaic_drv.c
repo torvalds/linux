@@ -225,6 +225,9 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 	struct qaic_user *usr;
 
 	qddev = qdev->qddev;
+	qdev->qddev = NULL;
+	if (!qddev)
+		return;
 
 	/*
 	 * Existing users get unresolvable errors till they close FDs.
