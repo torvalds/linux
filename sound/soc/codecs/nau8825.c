@@ -628,8 +628,13 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 	regmap_update_bits(nau8825->regmap,
 		NAU8825_REG_INTERRUPT_MASK, NAU8825_IRQ_RMS_EN, 0);
 	/* Power up left and right DAC */
-	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+	else
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 }
 
 static void nau8825_xtalk_clean_dac(struct nau8825 *nau8825)
@@ -642,9 +647,14 @@ static void nau8825_xtalk_clean_dac(struct nau8825 *nau8825)
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L,
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
 	/* Power down left and right DAC */
-	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	else
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+
 	/* Enable the TESTDAC and  disable L/R HP impedance */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 		NAU8825_BIAS_HPR_IMP | NAU8825_BIAS_HPL_IMP |
@@ -1017,10 +1027,25 @@ static int nau8825_output_dac_event(struct snd_soc_dapm_widget *w,
 		/* Disables the TESTDAC to let DAC signal pass through. */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 			NAU8825_BIAS_TESTDAC_EN, 0);
+		if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+		else
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 			NAU8825_BIAS_TESTDAC_EN, NAU8825_BIAS_TESTDAC_EN);
+		if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+		else
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+
 		break;
 	default:
 		return -EINVAL;
@@ -1228,11 +1253,12 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 		NAU8825_REG_POWER_UP_CONTROL, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA_S("Output DACL", 7,
-		NAU8825_REG_CHARGE_PUMP, 8, 1, nau8825_output_dac_event,
+		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_S("Output DACR", 7,
-		NAU8825_REG_CHARGE_PUMP, 9, 1, nau8825_output_dac_event,
+		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
 
 	/* HPOL/R are ungrounded by disabling 16 Ohm pull-downs on playback */
 	SND_SOC_DAPM_PGA_S("HPOL Pulldown", 8,
@@ -2227,9 +2253,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	regmap_update_bits(regmap, NAU8825_REG_DAC_CTRL1,
 		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_64);
 	/* Disable DACR/L power */
-	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 	/* Enable TESTDAC. This sets the analog DAC inputs to a '0' input
 	 * signal to avoid any glitches due to power up transients in both
 	 * the analog and digital DAC circuit.
