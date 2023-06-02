@@ -87,13 +87,13 @@ static int jpeg_v4_0_sw_init(void *handle)
 
 	/* JPEG DJPEG POISON EVENT */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
-			VCN_4_0__SRCID_DJPEG0_POISON, &adev->jpeg.inst->irq);
+			VCN_4_0__SRCID_DJPEG0_POISON, &adev->jpeg.inst->ras_poison_irq);
 	if (r)
 		return r;
 
 	/* JPEG EJPEG POISON EVENT */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
-			VCN_4_0__SRCID_EJPEG0_POISON, &adev->jpeg.inst->irq);
+			VCN_4_0__SRCID_EJPEG0_POISON, &adev->jpeg.inst->ras_poison_irq);
 	if (r)
 		return r;
 
@@ -202,7 +202,8 @@ static int jpeg_v4_0_hw_fini(void *handle)
 			RREG32_SOC15(JPEG, 0, regUVD_JRBC_STATUS))
 			jpeg_v4_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
 	}
-	amdgpu_irq_put(adev, &adev->jpeg.inst->irq, 0);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG))
+		amdgpu_irq_put(adev, &adev->jpeg.inst->ras_poison_irq, 0);
 
 	return 0;
 }
@@ -670,6 +671,14 @@ static int jpeg_v4_0_set_interrupt_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int jpeg_v4_0_set_ras_interrupt_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int type,
+					enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
 static int jpeg_v4_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
@@ -679,10 +688,6 @@ static int jpeg_v4_0_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->src_id) {
 	case VCN_4_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(&adev->jpeg.inst->ring_dec);
-		break;
-	case VCN_4_0__SRCID_DJPEG0_POISON:
-	case VCN_4_0__SRCID_EJPEG0_POISON:
-		amdgpu_jpeg_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_DEV_ERROR(adev->dev, "Unhandled interrupt: %d %d\n",
@@ -753,10 +758,18 @@ static const struct amdgpu_irq_src_funcs jpeg_v4_0_irq_funcs = {
 	.process = jpeg_v4_0_process_interrupt,
 };
 
+static const struct amdgpu_irq_src_funcs jpeg_v4_0_ras_irq_funcs = {
+	.set = jpeg_v4_0_set_ras_interrupt_state,
+	.process = amdgpu_jpeg_process_poison_irq,
+};
+
 static void jpeg_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->jpeg.inst->irq.num_types = 1;
 	adev->jpeg.inst->irq.funcs = &jpeg_v4_0_irq_funcs;
+
+	adev->jpeg.inst->ras_poison_irq.num_types = 1;
+	adev->jpeg.inst->ras_poison_irq.funcs = &jpeg_v4_0_ras_irq_funcs;
 }
 
 const struct amdgpu_ip_block_version jpeg_v4_0_ip_block = {
@@ -811,6 +824,7 @@ const struct amdgpu_ras_block_hw_ops jpeg_v4_0_ras_hw_ops = {
 static struct amdgpu_jpeg_ras jpeg_v4_0_ras = {
 	.ras_block = {
 		.hw_ops = &jpeg_v4_0_ras_hw_ops,
+		.ras_late_init = amdgpu_jpeg_ras_late_init,
 	},
 };
 
