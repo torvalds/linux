@@ -220,6 +220,45 @@ static const struct snd_soc_acpi_link_adr mtl_3_in_1_sdca[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_adr_device mx8363_2_adr[] = {
+	{
+		.adr = 0x000230019F836300ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "Left"
+	},
+	{
+		.adr = 0x000231019F836300ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "Right"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs42l42_0_adr[] = {
+	{
+		.adr = 0x00001001FA424200ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "cs42l42"
+	}
+};
+
+static const struct snd_soc_acpi_link_adr cs42l42_link0_max98363_link2[] = {
+	/* Expected order: jack -> amp */
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(cs42l42_0_adr),
+		.adr_d = cs42l42_0_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(mx8363_2_adr),
+		.adr_d = mx8363_2_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -264,6 +303,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.links = rt5682_link2_max98373_link0,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-sdw-rt5682-l2-max98373-l0.tplg",
+	},
+	{
+		.link_mask = BIT(0) | BIT(2),
+		.links = cs42l42_link0_max98363_link2,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-sdw-cs42l42-l0-max98363-l2.tplg",
 	},
 	{},
 };
