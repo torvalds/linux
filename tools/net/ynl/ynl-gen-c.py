@@ -1371,13 +1371,13 @@ def print_req(ri):
     ret_err = '-1'
     direction = "request"
     local_vars = ['struct nlmsghdr *nlh;',
-                  'int len, err;']
+                  'int err;']
 
     if 'reply' in ri.op[ri.op_mode]:
         ret_ok = 'rsp'
         ret_err = 'NULL'
         local_vars += [f'{type_name(ri, rdir(direction))} *rsp;',
-                       'struct ynl_parse_arg yarg = { .ys = ys, };']
+                       'struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };']
 
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
@@ -1387,41 +1387,39 @@ def print_req(ri):
 
     ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
     if 'reply' in ri.op[ri.op_mode]:
-        ri.cw.p(f"yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
+        ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
     for _, attr in ri.struct["request"].member_list():
         attr.attr_put(ri, "req")
     ri.cw.nl()
 
-    ri.cw.p('err = mnl_socket_sendto(ys->sock, nlh, nlh->nlmsg_len);')
-    ri.cw.p('if (err < 0)')
-    ri.cw.p(f"return {ret_err};")
-    ri.cw.nl()
-    ri.cw.p('len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);')
-    ri.cw.p('if (len < 0)')
-    ri.cw.p(f"return {ret_err};")
-    ri.cw.nl()
-
+    parse_arg = "NULL"
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p('rsp = calloc(1, sizeof(*rsp));')
-        ri.cw.p('yarg.data = rsp;')
+        ri.cw.p('yrs.yarg.data = rsp;')
+        ri.cw.p(f"yrs.cb = {op_prefix(ri, 'reply')}_parse;")
+        if ri.op.value is not None:
+            ri.cw.p(f'yrs.rsp_cmd = {ri.op.enum_name};')
+        else:
+            ri.cw.p(f'yrs.rsp_cmd = {ri.op.rsp_value};')
         ri.cw.nl()
-        ri.cw.p(f"err = {ri.nl.parse_cb_run(op_prefix(ri, 'reply') + '_parse', '&yarg', False)};")
-        ri.cw.p('if (err < 0)')
+        parse_arg = '&yrs'
+    ri.cw.p(f"err = ynl_exec(ys, nlh, {parse_arg});")
+    ri.cw.p('if (err < 0)')
+    if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p('goto err_free;')
-        ri.cw.nl()
-
-    ri.cw.p('err = ynl_recv_ack(ys, err);')
-    ri.cw.p('if (err)')
-    ri.cw.p('goto err_free;')
+    else:
+        ri.cw.p('return -1;')
     ri.cw.nl()
+
     ri.cw.p(f"return {ret_ok};")
     ri.cw.nl()
-    ri.cw.p('err_free:')
 
     if 'reply' in ri.op[ri.op_mode]:
+        ri.cw.p('err_free:')
         ri.cw.p(f"{call_free(ri, rdir(direction), 'rsp')}")
-    ri.cw.p(f"return {ret_err};")
+        ri.cw.p(f"return {ret_err};")
+
     ri.cw.block_end()
 
 
@@ -1431,7 +1429,7 @@ def print_dump(ri):
     ri.cw.block_start()
     local_vars = ['struct ynl_dump_state yds = {};',
                   'struct nlmsghdr *nlh;',
-                  'int len, err;']
+                  'int err;']
 
     for var in local_vars:
         ri.cw.p(f'{var}')
@@ -1440,6 +1438,10 @@ def print_dump(ri):
     ri.cw.p('yds.ys = ys;')
     ri.cw.p(f"yds.alloc_sz = sizeof({type_name(ri, rdir(direction))});")
     ri.cw.p(f"yds.cb = {op_prefix(ri, 'reply', deref=True)}_parse;")
+    if ri.op.value is not None:
+        ri.cw.p(f'yds.rsp_cmd = {ri.op.enum_name};')
+    else:
+        ri.cw.p(f'yds.rsp_cmd = {ri.op.rsp_value};')
     ri.cw.p(f"yds.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
     ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
@@ -1451,20 +1453,9 @@ def print_dump(ri):
             attr.attr_put(ri, "req")
     ri.cw.nl()
 
-    ri.cw.p('err = mnl_socket_sendto(ys->sock, nlh, nlh->nlmsg_len);')
-    ri.cw.p('if (err < 0)')
-    ri.cw.p('return NULL;')
-    ri.cw.nl()
-
-    ri.cw.block_start(line='do')
-    ri.cw.p('len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);')
-    ri.cw.p('if (len < 0)')
-    ri.cw.p('goto free_list;')
-    ri.cw.nl()
-    ri.cw.p(f"err = {ri.nl.parse_cb_run('ynl_dump_trampoline', '&yds', False, indent=2)};")
+    ri.cw.p('err = ynl_exec_dump(ys, nlh, &yds);')
     ri.cw.p('if (err < 0)')
     ri.cw.p('goto free_list;')
-    ri.cw.block_end(line='while (err > 0);')
     ri.cw.nl()
 
     ri.cw.p('return yds.first;')
@@ -1631,7 +1622,7 @@ def print_dump_type_free(ri):
     ri.cw.block_start()
     ri.cw.p(f"{sub_type} *next = rsp;")
     ri.cw.nl()
-    ri.cw.block_start(line='while (next)')
+    ri.cw.block_start(line='while ((void *)next != YNL_LIST_END)')
     _free_type_members_iter(ri, ri.struct['reply'])
     ri.cw.p('rsp = next;')
     ri.cw.p('next = rsp->next;')
