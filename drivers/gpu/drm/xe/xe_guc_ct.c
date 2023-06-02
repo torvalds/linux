@@ -396,24 +396,27 @@ static void g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 	spin_unlock_irq(&ct->fast_lock);
 }
 
+#define H2G_CT_HEADERS (GUC_CTB_HDR_LEN + 1) /* one DW CTB header and one DW HxG header */
+
 static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 		     u32 ct_fence_value, bool want_response)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct guc_ctb *h2g = &ct->ctbs.h2g;
-	u32 cmd[GUC_CTB_MSG_MAX_LEN / sizeof(u32)];
-	u32 cmd_len = len + GUC_CTB_HDR_LEN;
-	u32 cmd_idx = 0, i;
+	u32 cmd[H2G_CT_HEADERS];
 	u32 tail = h2g->info.tail;
+	u32 full_len;
 	struct iosys_map map = IOSYS_MAP_INIT_OFFSET(&h2g->cmds,
 							 tail * sizeof(u32));
 
+	full_len = len + GUC_CTB_HDR_LEN;
+
 	lockdep_assert_held(&ct->lock);
-	XE_BUG_ON(len * sizeof(u32) > GUC_CTB_MSG_MAX_LEN);
+	XE_BUG_ON(full_len > (GUC_CTB_MSG_MAX_LEN - GUC_CTB_HDR_LEN));
 	XE_BUG_ON(tail > h2g->info.size);
 
 	/* Command will wrap, zero fill (NOPs), return and check credits again */
-	if (tail + cmd_len > h2g->info.size) {
+	if (tail + full_len > h2g->info.size) {
 		xe_map_memset(xe, &map, 0, 0,
 			      (h2g->info.size - tail) * sizeof(u32));
 		h2g_reserve_space(ct, (h2g->info.size - tail));
@@ -428,30 +431,33 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	 * dw1: HXG header (including action code)
 	 * dw2+: action data
 	 */
-	cmd[cmd_idx++] = FIELD_PREP(GUC_CTB_MSG_0_FORMAT, GUC_CTB_FORMAT_HXG) |
+	cmd[0] = FIELD_PREP(GUC_CTB_MSG_0_FORMAT, GUC_CTB_FORMAT_HXG) |
 		FIELD_PREP(GUC_CTB_MSG_0_NUM_DWORDS, len) |
 		FIELD_PREP(GUC_CTB_MSG_0_FENCE, ct_fence_value);
 	if (want_response) {
-		cmd[cmd_idx++] =
+		cmd[1] =
 			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
 			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
 				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 	} else {
-		cmd[cmd_idx++] =
+		cmd[1] =
 			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_EVENT) |
 			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
 				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 	}
-	for (i = 1; i < len; ++i)
-		cmd[cmd_idx++] = action[i];
+
+	/* H2G header in cmd[1] replaces action[0] so: */
+	--len;
+	++action;
 
 	/* Write H2G ensuring visable before descriptor update */
-	xe_map_memcpy_to(xe, &map, 0, cmd, cmd_len * sizeof(u32));
+	xe_map_memcpy_to(xe, &map, 0, cmd, H2G_CT_HEADERS * sizeof(u32));
+	xe_map_memcpy_to(xe, &map, H2G_CT_HEADERS * sizeof(u32), action, len * sizeof(u32));
 	xe_device_wmb(ct_to_xe(ct));
 
 	/* Update local copies */
-	h2g->info.tail = (tail + cmd_len) % h2g->info.size;
-	h2g_reserve_space(ct, cmd_len);
+	h2g->info.tail = (tail + full_len) % h2g->info.size;
+	h2g_reserve_space(ct, full_len);
 
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
