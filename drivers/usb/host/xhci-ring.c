@@ -174,12 +174,10 @@ void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 
 	/* All other rings have link trbs */
 	if (!trb_is_link(ring->dequeue)) {
-		if (last_trb_on_seg(ring->deq_seg, ring->dequeue)) {
+		if (last_trb_on_seg(ring->deq_seg, ring->dequeue))
 			xhci_warn(xhci, "Missing link TRB at end of segment\n");
-		} else {
+		else
 			ring->dequeue++;
-			ring->num_trbs_free++;
-		}
 	}
 
 	while (trb_is_link(ring->dequeue)) {
@@ -221,9 +219,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	unsigned int link_trb_count = 0;
 
 	chain = le32_to_cpu(ring->enqueue->generic.field[3]) & TRB_CHAIN;
-	/* If this is not event ring, there is one less usable TRB */
-	if (!trb_is_link(ring->enqueue))
-		ring->num_trbs_free--;
 
 	if (last_trb_on_seg(ring->enq_seg, ring->enqueue)) {
 		xhci_err(xhci, "Tried to move enqueue past ring segment\n");
@@ -276,24 +271,40 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trace_xhci_inc_enq(ring);
 }
 
-static int xhci_num_trbs_to(struct xhci_segment *start_seg, union xhci_trb *start,
-			    struct xhci_segment *end_seg, union xhci_trb *end,
-			    unsigned int num_segs)
+/*
+ * Return number of free normal TRBs from enqueue to dequeue pointer on ring.
+ * Not counting an assumed link TRB at end of each TRBS_PER_SEGMENT sized segment.
+ * Only for transfer and command rings where driver is the producer, not for
+ * event rings.
+ */
+static unsigned int xhci_num_trbs_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
+	struct xhci_segment *enq_seg = ring->enq_seg;
+	union xhci_trb *enq = ring->enqueue;
 	union xhci_trb *last_on_seg;
-	int num = 0;
+	unsigned int free = 0;
 	int i = 0;
 
-	do {
-		if (start_seg == end_seg && end >= start)
-			return num + (end - start);
-		last_on_seg = &start_seg->trbs[TRBS_PER_SEGMENT - 1];
-		num += last_on_seg - start;
-		start_seg = start_seg->next;
-		start = start_seg->trbs;
-	} while (i++ <= num_segs);
+	/* Ring might be empty even if enq != deq if enq is left on a link trb */
+	if (trb_is_link(enq)) {
+		enq_seg = enq_seg->next;
+		enq = enq_seg->trbs;
+	}
 
-	return -EINVAL;
+	/* Empty ring, common case, don't walk the segments */
+	if (enq == ring->dequeue)
+		return ring->num_segs * (TRBS_PER_SEGMENT - 1);
+
+	do {
+		if (ring->deq_seg == enq_seg && ring->dequeue >= enq)
+			return free + (ring->dequeue - enq);
+		last_on_seg = &enq_seg->trbs[TRBS_PER_SEGMENT - 1];
+		free += last_on_seg - enq;
+		enq_seg = enq_seg->next;
+		enq = enq_seg->trbs;
+	} while (i++ <= ring->num_segs);
+
+	return free;
 }
 
 /*
@@ -1291,10 +1302,7 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 		unsigned int ep_index)
 {
 	union xhci_trb *dequeue_temp;
-	int num_trbs_free_temp;
-	bool revert = false;
 
-	num_trbs_free_temp = ep_ring->num_trbs_free;
 	dequeue_temp = ep_ring->dequeue;
 
 	/* If we get two back-to-back stalls, and the first stalled transfer
@@ -1310,7 +1318,6 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 
 	while (ep_ring->dequeue != dev->eps[ep_index].queued_deq_ptr) {
 		/* We have more usable TRBs */
-		ep_ring->num_trbs_free++;
 		ep_ring->dequeue++;
 		if (trb_is_link(ep_ring->dequeue)) {
 			if (ep_ring->dequeue ==
@@ -1320,14 +1327,9 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
 			ep_ring->dequeue = ep_ring->deq_seg->trbs;
 		}
 		if (ep_ring->dequeue == dequeue_temp) {
-			revert = true;
+			xhci_dbg(xhci, "Unable to find new dequeue pointer\n");
 			break;
 		}
-	}
-
-	if (revert) {
-		xhci_dbg(xhci, "Unable to find new dequeue pointer\n");
-		ep_ring->num_trbs_free = num_trbs_free_temp;
 	}
 }
 
@@ -2183,7 +2185,6 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		     u32 trb_comp_code)
 {
 	struct xhci_ep_ctx *ep_ctx;
-	int trbs_freed;
 
 	ep_ctx = xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep->ep_index);
 
@@ -2253,13 +2254,6 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 	}
 
 	/* Update ring dequeue pointer */
-	trbs_freed = xhci_num_trbs_to(ep_ring->deq_seg, ep_ring->dequeue,
-				      td->last_trb_seg, td->last_trb,
-				      ep_ring->num_segs);
-	if (trbs_freed < 0)
-		xhci_dbg(xhci, "Failed to count freed trbs at TD finish\n");
-	else
-		ep_ring->num_trbs_free += trbs_freed;
 	ep_ring->dequeue = td->last_trb;
 	ep_ring->deq_seg = td->last_trb_seg;
 	inc_deq(xhci, ep_ring);
@@ -2483,7 +2477,6 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	/* Update ring dequeue pointer */
 	ep->ring->dequeue = td->last_trb;
 	ep->ring->deq_seg = td->last_trb_seg;
-	ep->ring->num_trbs_free += td->num_trbs - 1;
 	inc_deq(xhci, ep->ring);
 
 	return xhci_td_cleanup(xhci, td, ep->ring, status);
@@ -3227,7 +3220,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 
 	if (ep_ring != xhci->cmd_ring) {
 		new_segs = xhci_ring_expansion_needed(xhci, ep_ring, num_trbs);
-	} else if (ep_ring->num_trbs_free <= num_trbs) {
+	} else if (xhci_num_trbs_free(xhci, ep_ring) <= num_trbs) {
 		xhci_err(xhci, "Do not support expand command ring\n");
 		return -ENOMEM;
 	}
@@ -4205,7 +4198,6 @@ cleanup:
 	ep_ring->enqueue = urb_priv->td[0].first_trb;
 	ep_ring->enq_seg = urb_priv->td[0].start_seg;
 	ep_ring->cycle_state = start_cycle;
-	ep_ring->num_trbs_free = ep_ring->num_trbs_free_temp;
 	usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
 	return ret;
 }
@@ -4287,7 +4279,6 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 
 skip_start_over:
-	ep_ring->num_trbs_free_temp = ep_ring->num_trbs_free;
 
 	return xhci_queue_isoc_tx(xhci, mem_flags, urb, slot_id, ep_index);
 }

@@ -143,7 +143,6 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	xhci_link_segments(ring->enq_seg, first, ring->type, chain_links);
 	xhci_link_segments(last, next, ring->type, chain_links);
 	ring->num_segs += num_segs;
-	ring->num_trbs_free += (TRBS_PER_SEGMENT - 1) * num_segs;
 
 	if (ring->type != TYPE_EVENT && ring->enq_seg == ring->last_seg) {
 		ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
