@@ -330,6 +330,55 @@ bottom:
 	sband->n_channels -= 3;
 }
 
+static void rtw89_regd_setup_6ghz(struct rtw89_dev *rtwdev, struct wiphy *wiphy)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool chip_support_6ghz = chip->support_bands & BIT(NL80211_BAND_6GHZ);
+	bool regd_allow_6ghz = chip_support_6ghz;
+	struct ieee80211_supported_band *sband;
+	int ret;
+	u8 val;
+
+	if (!chip_support_6ghz)
+		goto bottom;
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6G_DIS, &val);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval 6ghz: %d\n", ret);
+		goto bottom;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD,
+		    "acpi: eval if disallow 6ghz: %d\n", val);
+
+	switch (val) {
+	case 0:
+		regd_allow_6ghz = true;
+		break;
+	case 1:
+		regd_allow_6ghz = false;
+		break;
+	default:
+		break;
+	}
+
+bottom:
+	rtw89_debug(rtwdev, RTW89_DBG_REGD, "regd: allow 6ghz: %d\n",
+		    regd_allow_6ghz);
+
+	if (regd_allow_6ghz)
+		return;
+
+	sband = wiphy->bands[NL80211_BAND_6GHZ];
+	if (!sband)
+		return;
+
+	wiphy->bands[NL80211_BAND_6GHZ] = NULL;
+	kfree(sband->iftype_data);
+	kfree(sband);
+}
+
 int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 {
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
@@ -338,6 +387,7 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 		return -EINVAL;
 
 	rtw89_regd_setup_unii4(rtwdev, wiphy);
+	rtw89_regd_setup_6ghz(rtwdev, wiphy);
 
 	wiphy->reg_notifier = rtw89_regd_notifier;
 	return 0;
