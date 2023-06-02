@@ -28,4 +28,11 @@ extern void save_atags(const struct tag *tags);
 static inline void save_atags(const struct tag *tags) { }
 #endif
 
+struct machine_desc;
+void init_default_cache_policy(unsigned long);
+void paging_init(const struct machine_desc *desc);
+void early_mm_init(const struct machine_desc *);
+void adjust_lowmem_bounds(void);
+void setup_dma_zone(const struct machine_desc *desc);
+
 #endif
