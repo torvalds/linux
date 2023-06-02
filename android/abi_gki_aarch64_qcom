@@ -2807,6 +2807,7 @@
   sdhci_cqe_disable
   sdhci_cqe_enable
   sdhci_cqe_irq
+  sdhci_dumpregs
   sdhci_enable_clk
   sdhci_get_property
   sdhci_pltfm_free
