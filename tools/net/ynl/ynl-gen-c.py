@@ -2109,6 +2109,16 @@ def render_uapi(family, cw):
     cw.p(f'#endif /* {hdr_prot} */')
 
 
+def render_user_family(family, cw, prototype):
+    symbol = f'const struct ynl_family ynl_{family.c_name}_family'
+    if prototype:
+        cw.p(f'extern {symbol};')
+    else:
+        cw.block_start(f'{symbol} = ')
+        cw.p(f'.name = "{family.name}",')
+        cw.block_end(line=';')
+
+
 def find_kernel_root(full_path):
     sub_path = ''
     while True:
@@ -2204,6 +2214,8 @@ def main():
                 cw.p(f'#include "{one}"')
         else:
             cw.p('struct ynl_sock;')
+            cw.nl()
+            render_user_family(parsed, cw, True)
         cw.nl()
 
     if args.mode == "kernel":
@@ -2396,6 +2408,9 @@ def main():
             if has_ntf:
                 cw.p('/* --------------- Common notification parsing --------------- */')
                 print_ntf_type_parse(parsed, cw, args.mode)
+
+            cw.nl()
+            render_user_family(parsed, cw, False)
 
     if args.header:
         cw.p(f'#endif /* {hdr_prot} */')
