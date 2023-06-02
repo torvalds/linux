@@ -146,6 +146,7 @@
   kernel_cpustat
   kernfs_find_and_get_ns
   kfree
+  __kfree_skb
   kimage_vaddr
   kimage_voffset
   __kmalloc
@@ -266,6 +267,7 @@
   simple_strtol
   single_open
   single_release
+  skb_copy_ubufs
   snd_soc_find_dai
   snd_soc_info_volsw_sx
   snd_soc_put_volsw_sx
@@ -309,6 +311,7 @@
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_ptype_head
   __traceiter_android_vh_rtmutex_wait_finish
   __traceiter_android_vh_rtmutex_wait_start
   __traceiter_android_vh_rwsem_read_wait_finish
@@ -325,6 +328,7 @@
   __traceiter_hrtimer_expire_exit
   __traceiter_irq_handler_entry
   __traceiter_irq_handler_exit
+  __traceiter_kfree_skb
   __traceiter_sched_switch
   __traceiter_workqueue_execute_start
   __tracepoint_android_rvh_arm64_serror_panic
@@ -340,6 +344,7 @@
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_ptype_head
   __tracepoint_android_vh_rtmutex_wait_finish
   __tracepoint_android_vh_rtmutex_wait_start
   __tracepoint_android_vh_rwsem_read_wait_finish
@@ -356,6 +361,7 @@
   __tracepoint_hrtimer_expire_exit
   __tracepoint_irq_handler_entry
   __tracepoint_irq_handler_exit
+  __tracepoint_kfree_skb
   tracepoint_probe_register
   tracepoint_probe_unregister
   __tracepoint_sched_switch
@@ -366,6 +372,7 @@
   unregister_restart_handler
   unregister_syscore_ops
   up_write
+  usb_alloc_dev
   usb_gstrings_attach
   usbnet_get_endpoints
   usbnet_link_change
