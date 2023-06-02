@@ -5,6 +5,7 @@
 
 #include "xe_ring_ops.h"
 
+#include "generated/xe_wa_oob.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
@@ -16,6 +17,7 @@
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
 #include "xe_vm.h"
+#include "xe_wa.h"
 
 /*
  * 3D-related flags that can't be set on _engines_ that lack access to the 3D
@@ -148,6 +150,37 @@ static int emit_store_imm_ppgtt_posted(u64 addr, u64 value,
 	dw[i++] = upper_32_bits(addr);
 	dw[i++] = lower_32_bits(value);
 	dw[i++] = upper_32_bits(value);
+
+	return i;
+}
+
+static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
+{
+	struct xe_gt *gt = job->engine->gt;
+	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
+	u32 flags;
+
+	flags = (PIPE_CONTROL_CS_STALL |
+		 PIPE_CONTROL_TILE_CACHE_FLUSH |
+		 PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+		 PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		 PIPE_CONTROL_DC_FLUSH_ENABLE |
+		 PIPE_CONTROL_FLUSH_ENABLE);
+
+	if (XE_WA(gt, 1409600907))
+		flags |= PIPE_CONTROL_DEPTH_STALL;
+
+	if (lacks_render)
+		flags &= ~PIPE_CONTROL_3D_ARCH_FLAGS;
+	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
+		flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
+
+	dw[i++] = GFX_OP_PIPE_CONTROL(6) | PIPE_CONTROL0_HDC_PIPELINE_FLUSH;
+	dw[i++] = flags;
+	dw[i++] = 0;
+	dw[i++] = 0;
+	dw[i++] = 0;
+	dw[i++] = 0;
 
 	return i;
 }
@@ -294,6 +327,8 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 				seqno, dw, i);
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
+
+	i = emit_render_cache_flush(job, dw, i);
 
 	if (job->user_fence.used)
 		i = emit_store_imm_ppgtt_posted(job->user_fence.addr,
