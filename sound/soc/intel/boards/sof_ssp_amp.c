@@ -487,7 +487,7 @@ static struct platform_driver sof_ssp_amp_driver = {
 module_platform_driver(sof_ssp_amp_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF Amplifier Machine driver");
-MODULE_AUTHOR("balamurugan.c <balamurugan.c@intel.com>");
+MODULE_AUTHOR("Balamurugan C <balamurugan.c@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
