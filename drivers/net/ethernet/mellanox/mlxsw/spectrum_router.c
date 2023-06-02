@@ -9724,7 +9724,7 @@ mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif,
 	struct mlxsw_sp_vr *ul_vr;
 	int err;
 
-	ul_vr = mlxsw_sp_vr_get(mlxsw_sp, ul_tb_id, NULL);
+	ul_vr = mlxsw_sp_vr_get(mlxsw_sp, ul_tb_id, extack);
 	if (IS_ERR(ul_vr))
 		return PTR_ERR(ul_vr);
 
@@ -9923,7 +9923,7 @@ mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif,
 	struct mlxsw_sp_rif *ul_rif;
 	int err;
 
-	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL);
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, extack);
 	if (IS_ERR(ul_rif))
 		return PTR_ERR(ul_rif);
 
