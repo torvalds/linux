@@ -24,9 +24,9 @@ MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
 {
-	if (SOF_RT711_JDSRC(sof_sdw_quirk))
+	if (SOF_JACK_JDSRC(sof_sdw_quirk))
 		dev_dbg(dev, "quirk realtek,jack-detect-source %ld\n",
-			SOF_RT711_JDSRC(sof_sdw_quirk));
+			SOF_JACK_JDSRC(sof_sdw_quirk));
 	if (sof_sdw_quirk & SOF_SDW_FOUR_SPK)
 		dev_dbg(dev, "quirk SOF_SDW_FOUR_SPK enabled\n");
 	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)

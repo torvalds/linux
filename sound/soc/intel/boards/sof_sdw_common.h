@@ -41,7 +41,7 @@ enum {
 	SOF_I2S_SSP5 = BIT(5),
 };
 
-#define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
+#define SOF_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_SDW_FOUR_SPK		BIT(4)
 #define SOF_SDW_TGL_HDMI		BIT(5)
 #define SOF_SDW_PCH_DMIC		BIT(6)
