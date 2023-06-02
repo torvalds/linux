@@ -159,8 +159,6 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_link *hlink;
 	struct snd_sof_dev *sdev;
 	struct hdac_bus *bus;
-	unsigned int format_val;
-	unsigned int link_bps;
 	int stream_tag;
 
 	if (!ops) {
@@ -195,22 +193,14 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	if (ops->codec_dai_set_stream)
 		ops->codec_dai_set_stream(sdev, substream, hstream);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		link_bps = codec_dai->driver->playback.sig_bits;
-	else
-		link_bps = codec_dai->driver->capture.sig_bits;
-
 	if (ops->reset_hext_stream)
 		ops->reset_hext_stream(sdev, hext_stream);
 
-	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
-						 params_format(params), link_bps, 0);
+	if (ops->calc_stream_format && ops->setup_hext_stream) {
+		unsigned int format_val = ops->calc_stream_format(sdev, substream, params);
 
-	dev_dbg(bus->dev, "format_val=%#x, rate=%d, ch=%d, format=%d\n", format_val,
-		params_rate(params), params_channels(params), params_format(params));
-
-	if (ops->setup_hext_stream)
 		ops->setup_hext_stream(sdev, hext_stream, format_val);
+	}
 
 	hext_stream->link_prepared = 1;
 

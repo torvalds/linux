@@ -920,6 +920,8 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
  * @trigger: Function pointer for DAI DMA trigger actions
  * @post_trigger: Function pointer for DAI DMA post-trigger actions
  * @codec_dai_set_stream: Function pointer to set codec-side stream information
+ * @calc_stream_format: Function pointer to determine stream format from hw_params and
+ * for HDaudio codec DAI from the .sig bits
  */
 struct hda_dai_widget_dma_ops {
 	struct hdac_ext_stream *(*get_hext_stream)(struct snd_sof_dev *sdev,
@@ -942,6 +944,9 @@ struct hda_dai_widget_dma_ops {
 	void (*codec_dai_set_stream)(struct snd_sof_dev *sdev,
 				     struct snd_pcm_substream *substream,
 				     struct hdac_stream *hstream);
+	unsigned int (*calc_stream_format)(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream,
+					   struct snd_pcm_hw_params *params);
 };
 
 const struct hda_dai_widget_dma_ops *
