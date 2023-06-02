@@ -170,6 +170,7 @@ class Type(SpecAttr):
         for line in lines:
             ri.cw.p(line)
         ri.cw.block_end()
+        return True
 
     def _setter_lines(self, ri, member, presence):
         raise Exception(f"Setter not implemented for class type {self.type}")
@@ -197,6 +198,12 @@ class TypeUnused(Type):
     def presence_type(self):
         return ''
 
+    def arg_member(self, ri):
+        return []
+
+    def _attr_get(self, ri, var):
+        return ['return MNL_CB_ERROR;'], None, None
+
     def _attr_typol(self):
         return '.type = YNL_PT_REJECT, '
 
@@ -208,8 +215,14 @@ class TypePad(Type):
     def presence_type(self):
         return ''
 
+    def arg_member(self, ri):
+        return []
+
     def _attr_typol(self):
-        return '.type = YNL_PT_REJECT, '
+        return '.type = YNL_PT_IGNORE, '
+
+    def attr_get(self, ri, var, first):
+        pass
 
     def attr_policy(self, cw):
         pass
@@ -1211,8 +1224,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
 
     first = True
     for _, arg in struct.member_list():
-        arg.attr_get(ri, 'dst', first=first)
-        first = False
+        good = arg.attr_get(ri, 'dst', first=first)
+        # First may be 'unused' or 'pad', ignore those
+        first &= not good
 
     ri.cw.block_end()
     ri.cw.nl()
