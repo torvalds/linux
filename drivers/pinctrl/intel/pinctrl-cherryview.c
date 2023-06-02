@@ -75,7 +75,7 @@ struct intel_pad_context {
 	u32 padctrl1;
 };
 
-#define CHV_INVALID_HWIRQ	((unsigned int)INVALID_HWIRQ)
+#define CHV_INVALID_HWIRQ	(~0U)
 
 /**
  * struct intel_community_context - community context for Cherryview
