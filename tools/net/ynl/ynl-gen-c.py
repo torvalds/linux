@@ -825,7 +825,8 @@ class Family(SpecFamily):
                     inherit = set()
                     nested = spec['nested-attributes']
                     if nested not in self.root_sets:
-                        self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
+                        if nested not in self.pure_nested_structs:
+                            self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
                     if attr in rs_members['request']:
                         self.pure_nested_structs[nested].request = True
                     if attr in rs_members['reply']:
