@@ -562,6 +562,29 @@ void hwss_build_fast_sequence(struct dc *dc,
 				(*num_steps)++;
 			}
 
+			if (current_mpc_pipe->stream->update_flags.bits.out_csc) {
+				block_sequence[*num_steps].params.power_on_mpc_mem_pwr_params.mpc = dc->res_pool->mpc;
+				block_sequence[*num_steps].params.power_on_mpc_mem_pwr_params.mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
+				block_sequence[*num_steps].params.power_on_mpc_mem_pwr_params.power_on = true;
+				block_sequence[*num_steps].func = MPC_POWER_ON_MPC_MEM_PWR;
+				(*num_steps)++;
+
+				if (current_mpc_pipe->stream->csc_color_matrix.enable_adjustment == true) {
+					block_sequence[*num_steps].params.set_output_csc_params.mpc = dc->res_pool->mpc;
+					block_sequence[*num_steps].params.set_output_csc_params.opp_id = current_mpc_pipe->stream_res.opp->inst;
+					block_sequence[*num_steps].params.set_output_csc_params.regval = current_mpc_pipe->stream->csc_color_matrix.matrix;
+					block_sequence[*num_steps].params.set_output_csc_params.ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+					block_sequence[*num_steps].func = MPC_SET_OUTPUT_CSC;
+					(*num_steps)++;
+				} else {
+					block_sequence[*num_steps].params.set_ocsc_default_params.mpc = dc->res_pool->mpc;
+					block_sequence[*num_steps].params.set_ocsc_default_params.opp_id = current_mpc_pipe->stream_res.opp->inst;
+					block_sequence[*num_steps].params.set_ocsc_default_params.color_space = current_mpc_pipe->stream->output_color_space;
+					block_sequence[*num_steps].params.set_ocsc_default_params.ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+					block_sequence[*num_steps].func = MPC_SET_OCSC_DEFAULT;
+					(*num_steps)++;
+				}
+			}
 			current_mpc_pipe = current_mpc_pipe->bottom_pipe;
 		}
 		current_pipe = current_pipe->next_odm_pipe;
@@ -661,6 +684,15 @@ void hwss_execute_sequence(struct dc *dc,
 					params->update_visual_confirm_params.pipe_ctx,
 					params->update_visual_confirm_params.mpcc_id);
 			break;
+		case MPC_POWER_ON_MPC_MEM_PWR:
+			hwss_power_on_mpc_mem_pwr(params);
+			break;
+		case MPC_SET_OUTPUT_CSC:
+			hwss_set_output_csc(params);
+			break;
+		case MPC_SET_OCSC_DEFAULT:
+			hwss_set_ocsc_default(params);
+			break;
 		case DMUB_SEND_DMCUB_CMD:
 			hwss_send_dmcub_cmd(params);
 			break;
@@ -716,6 +748,44 @@ void hwss_program_bias_and_scale(union block_sequence_params *params)
 	build_prescale_params(&bns_params, plane_state);
 	if (dpp->funcs->dpp_program_bias_and_scale)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
+}
+
+void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params)
+{
+	struct mpc *mpc = params->power_on_mpc_mem_pwr_params.mpc;
+	int mpcc_id = params->power_on_mpc_mem_pwr_params.mpcc_id;
+	bool power_on = params->power_on_mpc_mem_pwr_params.power_on;
+
+	if (mpc->funcs->power_on_mpc_mem_pwr)
+		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, power_on);
+}
+
+void hwss_set_output_csc(union block_sequence_params *params)
+{
+	struct mpc *mpc = params->set_output_csc_params.mpc;
+	int opp_id = params->set_output_csc_params.opp_id;
+	const uint16_t *matrix = params->set_output_csc_params.regval;
+	enum mpc_output_csc_mode ocsc_mode = params->set_output_csc_params.ocsc_mode;
+
+	if (mpc->funcs->set_output_csc != NULL)
+		mpc->funcs->set_output_csc(mpc,
+				opp_id,
+				matrix,
+				ocsc_mode);
+}
+
+void hwss_set_ocsc_default(union block_sequence_params *params)
+{
+	struct mpc *mpc = params->set_ocsc_default_params.mpc;
+	int opp_id = params->set_ocsc_default_params.opp_id;
+	enum dc_color_space colorspace = params->set_ocsc_default_params.color_space;
+	enum mpc_output_csc_mode ocsc_mode = params->set_ocsc_default_params.ocsc_mode;
+
+	if (mpc->funcs->set_ocsc_default != NULL)
+		mpc->funcs->set_ocsc_default(mpc,
+				opp_id,
+				colorspace,
+				ocsc_mode);
 }
 
 void get_mclk_switch_visual_confirm_color(
