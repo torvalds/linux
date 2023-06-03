@@ -174,7 +174,7 @@ static int expect_eq(uint64_t expr, int llen, uint64_t val)
 {
 	int ret = !(expr == val);
 
-	llen += printf(" = %lld ", expr);
+	llen += printf(" = %lld ", (long long)expr);
 	pad_spc(llen, 64, ret ? "[FAIL]\n" : " [OK]\n");
 	return ret;
 }
