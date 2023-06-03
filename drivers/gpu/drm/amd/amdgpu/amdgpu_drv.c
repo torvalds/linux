@@ -194,6 +194,7 @@ int amdgpu_use_xgmi_p2p = 1;
 int amdgpu_vcnfw_log;
 int amdgpu_sg_display = -1; /* auto */
 int amdgpu_user_partt_mode = AMDGPU_AUTO_COMPUTE_PARTITION_MODE;
+int amdgpu_umsch_mm;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -906,6 +907,15 @@ module_param_named(vcnfw_log, amdgpu_vcnfw_log, int, 0444);
  */
 MODULE_PARM_DESC(sg_display, "S/G Display (-1 = auto (default), 0 = disable)");
 module_param_named(sg_display, amdgpu_sg_display, int, 0444);
+
+/**
+ * DOC: umsch_mm (int)
+ * Enable Multi Media User Mode Scheduler. This is a HW scheduling engine for VCN and VPE.
+ * (0 = disabled (default), 1 = enabled)
+ */
+MODULE_PARM_DESC(umsch_mm,
+	"Enable Multi Media User Mode Scheduler (0 = disabled (default), 1 = enabled)");
+module_param_named(umsch_mm, amdgpu_umsch_mm, int, 0444);
 
 /**
  * DOC: smu_pptable_id (int)
