@@ -22,7 +22,7 @@ static inline void adf_dbgfs_rm(struct adf_accel_dev *accel_dev)
 {
 }
 
-static inline void adf_dbgfs_cleanup(struct adf_accel_dev *accel_dev)
+static inline void adf_dbgfs_exit(struct adf_accel_dev *accel_dev)
 {
 }
 #endif
