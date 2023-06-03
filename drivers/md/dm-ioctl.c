@@ -1397,6 +1397,22 @@ static int next_target(struct dm_target_spec *last, uint32_t next, void *end,
 	static_assert(__alignof__(struct dm_target_spec) <= 8,
 		"struct dm_target_spec must not require more than 8-byte alignment");
 
+	/*
+	 * Number of bytes remaining, starting with last. This is always
+	 * sizeof(struct dm_target_spec) or more, as otherwise *last was
+	 * out of bounds already.
+	 */
+	size_t remaining = (char *)end - (char *)last;
+
+	/*
+	 * There must be room for both the next target spec and the
+	 * NUL-terminator of the target itself.
+	 */
+	if (remaining - sizeof(struct dm_target_spec) <= next) {
+		DMERR("Target spec extends beyond end of parameters");
+		return -EINVAL;
+	}
+
 	if (next % __alignof__(struct dm_target_spec)) {
 		DMERR("Next dm_target_spec (offset %u) is not %zu-byte aligned",
 		      next, __alignof__(struct dm_target_spec));
