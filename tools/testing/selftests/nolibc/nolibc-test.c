@@ -2,9 +2,6 @@
 
 #define _GNU_SOURCE
 
-/* platform-specific include files coming from the compiler */
-#include <limits.h>
-
 /* libc-specific include files
  * The program may be built in 3 ways:
  *   $(CC) -nostdlib -include /path/to/nolibc.h => NOLIBC already defined
@@ -39,6 +36,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <limits.h>
 #endif
 #endif
 
