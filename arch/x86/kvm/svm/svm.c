@@ -5036,6 +5036,10 @@ static __init void svm_set_cpu_caps(void)
 							  kvm_pmu_cap.num_counters_gp);
 		else
 			kvm_cpu_cap_check_and_set(X86_FEATURE_PERFCTR_CORE);
+
+		if (kvm_pmu_cap.version != 2 ||
+		    !kvm_cpu_cap_has(X86_FEATURE_PERFCTR_CORE))
+			kvm_cpu_cap_clear(X86_FEATURE_PERFMON_V2);
 	}
 
 	/* CPUID 0x8000001F (SME/SEV features) */
