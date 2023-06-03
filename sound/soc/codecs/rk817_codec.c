@@ -510,11 +510,6 @@ static const char * const rk817_playback_path_mode[] = {
 static const char * const rk817_capture_path_mode[] = {
 	"MIC OFF", "Main Mic", "Hands Free Mic", "BT Sco Mic"};
 
-static const char * const rk817_call_path_mode[] = {
-	"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT"}; /* 0-5 */
-
-static const char * const rk817_modem_input_mode[] = {"OFF", "ON"};
-
 static const char * const rk817_binary_mode[] = {"OFF", "ON"};
 
 static SOC_ENUM_SINGLE_DECL(rk817_playback_path_type,
@@ -522,12 +517,6 @@ static SOC_ENUM_SINGLE_DECL(rk817_playback_path_type,
 
 static SOC_ENUM_SINGLE_DECL(rk817_capture_path_type,
 	0, 0, rk817_capture_path_mode);
-
-static SOC_ENUM_SINGLE_DECL(rk817_call_path_type,
-	0, 0, rk817_call_path_mode);
-
-static SOC_ENUM_SINGLE_DECL(rk817_modem_input_type,
-	0, 0, rk817_modem_input_mode);
 
 static SOC_ENUM_SINGLE_DECL(rk817_resume_path_type,
 	0, 0, rk817_binary_mode);
