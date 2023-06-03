@@ -89,6 +89,7 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 		hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 		ctxt_sys_reg(hctxt, PMUSERENR_EL0) = read_sysreg(pmuserenr_el0);
 		write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
+		vcpu_set_flag(vcpu, PMUSERENR_ON_CPU);
 	}
 
 	vcpu->arch.mdcr_el2_host = read_sysreg(mdcr_el2);
@@ -116,6 +117,7 @@ static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
 
 		hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 		write_sysreg(ctxt_sys_reg(hctxt, PMUSERENR_EL0), pmuserenr_el0);
+		vcpu_clear_flag(vcpu, PMUSERENR_ON_CPU);
 	}
 
 	if (cpus_have_final_cap(ARM64_SME)) {
