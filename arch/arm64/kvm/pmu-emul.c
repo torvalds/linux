@@ -694,45 +694,23 @@ out_unlock:
 
 static struct arm_pmu *kvm_pmu_probe_armpmu(void)
 {
-	struct perf_event_attr attr = { };
-	struct perf_event *event;
-	struct arm_pmu *pmu = NULL;
+	struct arm_pmu *tmp, *pmu = NULL;
+	struct arm_pmu_entry *entry;
+	int cpu;
 
-	/*
-	 * Create a dummy event that only counts user cycles. As we'll never
-	 * leave this function with the event being live, it will never
-	 * count anything. But it allows us to probe some of the PMU
-	 * details. Yes, this is terrible.
-	 */
-	attr.type = PERF_TYPE_RAW;
-	attr.size = sizeof(attr);
-	attr.pinned = 1;
-	attr.disabled = 0;
-	attr.exclude_user = 0;
-	attr.exclude_kernel = 1;
-	attr.exclude_hv = 1;
-	attr.exclude_host = 1;
-	attr.config = ARMV8_PMUV3_PERFCTR_CPU_CYCLES;
-	attr.sample_period = GENMASK(63, 0);
+	mutex_lock(&arm_pmus_lock);
 
-	event = perf_event_create_kernel_counter(&attr, -1, current,
-						 kvm_pmu_perf_overflow, &attr);
+	cpu = smp_processor_id();
+	list_for_each_entry(entry, &arm_pmus, entry) {
+		tmp = entry->arm_pmu;
 
-	if (IS_ERR(event)) {
-		pr_err_once("kvm: pmu event creation failed %ld\n",
-			    PTR_ERR(event));
-		return NULL;
+		if (cpumask_test_cpu(cpu, &tmp->supported_cpus)) {
+			pmu = tmp;
+			break;
+		}
 	}
 
-	if (event->pmu) {
-		pmu = to_arm_pmu(event->pmu);
-		if (pmu->pmuver == ID_AA64DFR0_EL1_PMUVer_NI ||
-		    pmu->pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
-			pmu = NULL;
-	}
-
-	perf_event_disable(event);
-	perf_event_release_kernel(event);
+	mutex_unlock(&arm_pmus_lock);
 
 	return pmu;
 }
@@ -912,7 +890,17 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		return -EBUSY;
 
 	if (!kvm->arch.arm_pmu) {
-		/* No PMU set, get the default one */
+		/*
+		 * No PMU set, get the default one.
+		 *
+		 * The observant among you will notice that the supported_cpus
+		 * mask does not get updated for the default PMU even though it
+		 * is quite possible the selected instance supports only a
+		 * subset of cores in the system. This is intentional, and
+		 * upholds the preexisting behavior on heterogeneous systems
+		 * where vCPUs can be scheduled on any core but the guest
+		 * counters could stop working.
+		 */
 		kvm->arch.arm_pmu = kvm_pmu_probe_armpmu();
 		if (!kvm->arch.arm_pmu)
 			return -ENODEV;
