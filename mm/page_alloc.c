@@ -26,7 +26,6 @@
 #include <linux/kmsan.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
-#include <linux/pagevec.h>
 #include <linux/ratelimit.h>
 #include <linux/oom.h>
 #include <linux/topology.h>
@@ -36,8 +35,6 @@
 #include <linux/memory_hotplug.h>
 #include <linux/nodemask.h>
 #include <linux/vmstat.h>
-#include <linux/sort.h>
-#include <linux/pfn.h>
 #include <linux/fault-inject.h>
 #include <linux/compaction.h>
 #include <trace/events/kmem.h>
@@ -52,7 +49,6 @@
 #include <linux/memcontrol.h>
 #include <linux/ftrace.h>
 #include <linux/lockdep.h>
-#include <linux/nmi.h>
 #include <linux/psi.h>
 #include <linux/khugepaged.h>
 #include <linux/delayacct.h>
