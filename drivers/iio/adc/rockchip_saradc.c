@@ -4,6 +4,7 @@
  * Copyright (C) 2014 ROCKCHIP, Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -37,6 +38,22 @@
 
 #define SARADC_TIMEOUT			msecs_to_jiffies(100)
 #define SARADC_MAX_CHANNELS		8
+
+/* v2 registers */
+#define SARADC2_CONV_CON		0x000
+#define SARADC_T_PD_SOC			0x004
+#define SARADC_T_DAS_SOC		0x00c
+#define SARADC2_END_INT_EN		0x104
+#define SARADC2_ST_CON			0x108
+#define SARADC2_STATUS			0x10c
+#define SARADC2_END_INT_ST		0x110
+#define SARADC2_DATA_BASE		0x120
+
+#define SARADC2_EN_END_INT		BIT(0)
+#define SARADC2_START			BIT(4)
+#define SARADC2_SINGLE_MODE		BIT(5)
+
+#define SARADC2_CONV_CHANNELS GENMASK(15, 0)
 
 struct rockchip_saradc;
 
@@ -76,6 +93,25 @@ static void rockchip_saradc_start_v1(struct rockchip_saradc *info, int chn)
 	       SARADC_CTRL_IRQ_ENABLE, info->regs + SARADC_CTRL);
 }
 
+static void rockchip_saradc_start_v2(struct rockchip_saradc *info, int chn)
+{
+	int val;
+
+	if (info->reset)
+		rockchip_saradc_reset_controller(info->reset);
+
+	writel_relaxed(0xc, info->regs + SARADC_T_DAS_SOC);
+	writel_relaxed(0x20, info->regs + SARADC_T_PD_SOC);
+	val = FIELD_PREP(SARADC2_EN_END_INT, 1);
+	val |= val << 16;
+	writel_relaxed(val, info->regs + SARADC2_END_INT_EN);
+	val = FIELD_PREP(SARADC2_START, 1) |
+	      FIELD_PREP(SARADC2_SINGLE_MODE, 1) |
+	      FIELD_PREP(SARADC2_CONV_CHANNELS, chn);
+	val |= val << 16;
+	writel(val, info->regs + SARADC2_CONV_CON);
+}
+
 static void rockchip_saradc_start(struct rockchip_saradc *info, int chn)
 {
 	info->data->start(info, chn);
@@ -84,6 +120,18 @@ static void rockchip_saradc_start(struct rockchip_saradc *info, int chn)
 static int rockchip_saradc_read_v1(struct rockchip_saradc *info)
 {
 	return readl_relaxed(info->regs + SARADC_DATA);
+}
+
+static int rockchip_saradc_read_v2(struct rockchip_saradc *info)
+{
+	int offset;
+
+	/* Clear irq */
+	writel_relaxed(0x1, info->regs + SARADC2_END_INT_ST);
+
+	offset = SARADC2_DATA_BASE + info->last_chan->channel * 0x4;
+
+	return readl_relaxed(info->regs + offset);
 }
 
 static int rockchip_saradc_read(struct rockchip_saradc *info)
@@ -248,6 +296,25 @@ static const struct rockchip_saradc_data rk3568_saradc_data = {
 	.power_down = rockchip_saradc_power_down_v1,
 };
 
+static const struct iio_chan_spec rockchip_rk3588_saradc_iio_channels[] = {
+	SARADC_CHANNEL(0, "adc0", 12),
+	SARADC_CHANNEL(1, "adc1", 12),
+	SARADC_CHANNEL(2, "adc2", 12),
+	SARADC_CHANNEL(3, "adc3", 12),
+	SARADC_CHANNEL(4, "adc4", 12),
+	SARADC_CHANNEL(5, "adc5", 12),
+	SARADC_CHANNEL(6, "adc6", 12),
+	SARADC_CHANNEL(7, "adc7", 12),
+};
+
+static const struct rockchip_saradc_data rk3588_saradc_data = {
+	.channels = rockchip_rk3588_saradc_iio_channels,
+	.num_channels = ARRAY_SIZE(rockchip_rk3588_saradc_iio_channels),
+	.clk_rate = 1000000,
+	.start = rockchip_saradc_start_v2,
+	.read = rockchip_saradc_read_v2,
+};
+
 static const struct of_device_id rockchip_saradc_match[] = {
 	{
 		.compatible = "rockchip,saradc",
@@ -261,6 +328,9 @@ static const struct of_device_id rockchip_saradc_match[] = {
 	}, {
 		.compatible = "rockchip,rk3568-saradc",
 		.data = &rk3568_saradc_data,
+	}, {
+		.compatible = "rockchip,rk3588-saradc",
+		.data = &rk3588_saradc_data,
 	},
 	{},
 };
