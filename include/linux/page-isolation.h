@@ -45,7 +45,4 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			int isol_flags);
-
-struct page *alloc_migrate_target(struct page *page, unsigned long private);
-
 #endif
