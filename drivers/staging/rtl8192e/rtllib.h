@@ -38,6 +38,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
+#include <net/cfg80211.h>
 #include <net/lib80211.h>
 
 #define MAX_PRECMD_CNT 16
