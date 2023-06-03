@@ -9,7 +9,6 @@ struct dev_dax;
 struct resource;
 struct dax_device;
 struct dax_region;
-void dax_region_put(struct dax_region *dax_region);
 
 /* dax bus specific ioresource flags */
 #define IORESOURCE_DAX_STATIC BIT(0)

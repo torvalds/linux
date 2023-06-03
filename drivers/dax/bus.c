@@ -454,11 +454,10 @@ static void dax_region_free(struct kref *kref)
 	kfree(dax_region);
 }
 
-void dax_region_put(struct dax_region *dax_region)
+static void dax_region_put(struct dax_region *dax_region)
 {
 	kref_put(&dax_region->kref, dax_region_free);
 }
-EXPORT_SYMBOL_GPL(dax_region_put);
 
 /* a return value >= 0 indicates this invocation invalidated the id */
 static int __free_dev_dax_id(struct dev_dax *dev_dax)
@@ -641,7 +640,6 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		return NULL;
 	}
 
-	kref_get(&dax_region->kref);
 	if (devm_add_action_or_reset(parent, dax_region_unregister, dax_region))
 		return NULL;
 	return dax_region;
