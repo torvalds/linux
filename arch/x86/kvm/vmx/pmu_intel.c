@@ -402,6 +402,9 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated)
 			return 1; /* RO MSR */
 
+		if (data & pmu->global_status_mask)
+			return 1;
+
 		pmu->global_status = data;
 		break;
 	case MSR_CORE_PERF_GLOBAL_CTRL:
