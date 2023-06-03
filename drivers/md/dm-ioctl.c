@@ -1394,6 +1394,15 @@ static inline blk_mode_t get_mode(struct dm_ioctl *param)
 static int next_target(struct dm_target_spec *last, uint32_t next, void *end,
 		       struct dm_target_spec **spec, char **target_params)
 {
+	static_assert(__alignof__(struct dm_target_spec) <= 8,
+		"struct dm_target_spec must not require more than 8-byte alignment");
+
+	if (next % __alignof__(struct dm_target_spec)) {
+		DMERR("Next dm_target_spec (offset %u) is not %zu-byte aligned",
+		      next, __alignof__(struct dm_target_spec));
+		return -EINVAL;
+	}
+
 	*spec = (struct dm_target_spec *) ((unsigned char *) last + next);
 	*target_params = (char *) (*spec + 1);
 
