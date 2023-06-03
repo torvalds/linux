@@ -657,8 +657,7 @@ static void unregister_dax_mapping(void *data)
 	dev_dax->ranges[mapping->range_id].mapping = NULL;
 	mapping->range_id = -1;
 
-	device_del(dev);
-	put_device(dev);
+	device_unregister(dev);
 }
 
 static struct dev_dax_range *get_dax_range(struct device *dev)
