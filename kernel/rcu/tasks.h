@@ -1194,6 +1194,13 @@ void show_rcu_tasks_rude_gp_kthread(void)
 }
 EXPORT_SYMBOL_GPL(show_rcu_tasks_rude_gp_kthread);
 #endif // !defined(CONFIG_TINY_RCU)
+
+struct task_struct *get_rcu_tasks_rude_gp_kthread(void)
+{
+	return rcu_tasks_rude.kthread_ptr;
+}
+EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
+
 #endif /* #ifdef CONFIG_TASKS_RUDE_RCU */
 
 ////////////////////////////////////////////////////////////////////////

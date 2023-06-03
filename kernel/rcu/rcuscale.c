@@ -310,6 +310,35 @@ static struct rcu_scale_ops tasks_ops = {
 
 #endif // #else // #ifdef CONFIG_TASKS_RCU
 
+#ifdef CONFIG_TASKS_RUDE_RCU
+
+/*
+ * Definitions for RCU-tasks-rude scalability testing.
+ */
+
+static struct rcu_scale_ops tasks_rude_ops = {
+	.ptype		= RCU_TASKS_RUDE_FLAVOR,
+	.init		= rcu_sync_scale_init,
+	.readlock	= tasks_scale_read_lock,
+	.readunlock	= tasks_scale_read_unlock,
+	.get_gp_seq	= rcu_no_completed,
+	.gp_diff	= rcu_seq_diff,
+	.async		= call_rcu_tasks_rude,
+	.gp_barrier	= rcu_barrier_tasks_rude,
+	.sync		= synchronize_rcu_tasks_rude,
+	.exp_sync	= synchronize_rcu_tasks_rude,
+	.rso_gp_kthread	= get_rcu_tasks_rude_gp_kthread,
+	.name		= "tasks-rude"
+};
+
+#define TASKS_RUDE_OPS &tasks_rude_ops,
+
+#else // #ifdef CONFIG_TASKS_RUDE_RCU
+
+#define TASKS_RUDE_OPS
+
+#endif // #else // #ifdef CONFIG_TASKS_RUDE_RCU
+
 #ifdef CONFIG_TASKS_TRACE_RCU
 
 /*
@@ -913,7 +942,7 @@ rcu_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcud_ops, TASKS_OPS TASKS_TRACING_OPS
+		&rcu_ops, &srcu_ops, &srcud_ops, TASKS_OPS TASKS_RUDE_OPS TASKS_TRACING_OPS
 	};
 
 	if (!torture_init_begin(scale_type, verbose))
