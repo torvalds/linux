@@ -2343,6 +2343,21 @@ static int ublk_ctrl_end_recovery(struct ublk_device *ub,
 	return ret;
 }
 
+static int ublk_ctrl_get_features(struct io_uring_cmd *cmd)
+{
+	const struct ublksrv_ctrl_cmd *header = io_uring_sqe_cmd(cmd->sqe);
+	void __user *argp = (void __user *)(unsigned long)header->addr;
+	u64 features = UBLK_F_ALL & ~UBLK_F_SUPPORT_ZERO_COPY;
+
+	if (header->len != UBLK_FEATURES_LEN || !header->addr)
+		return -EINVAL;
+
+	if (copy_to_user(argp, &features, UBLK_FEATURES_LEN))
+		return -EFAULT;
+
+	return 0;
+}
+
 /*
  * All control commands are sent via /dev/ublk-control, so we have to check
  * the destination device's permission
@@ -2423,6 +2438,7 @@ static int ublk_ctrl_uring_cmd_permission(struct ublk_device *ub,
 	case UBLK_CMD_GET_DEV_INFO2:
 	case UBLK_CMD_GET_QUEUE_AFFINITY:
 	case UBLK_CMD_GET_PARAMS:
+	case (_IOC_NR(UBLK_U_CMD_GET_FEATURES)):
 		mask = MAY_READ;
 		break;
 	case UBLK_CMD_START_DEV:
@@ -2471,6 +2487,11 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	ret = ublk_check_cmd_op(cmd_op);
 	if (ret)
 		goto out;
+
+	if (cmd_op == UBLK_U_CMD_GET_FEATURES) {
+		ret = ublk_ctrl_get_features(cmd);
+		goto out;
+	}
 
 	if (_IOC_NR(cmd_op) != UBLK_CMD_ADD_DEV) {
 		ret = -ENODEV;
