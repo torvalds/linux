@@ -562,6 +562,14 @@ void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		return kvm_pmu_has_perf_global_ctrl(vcpu_to_pmu(vcpu));
+	default:
+		break;
+	}
 	return static_call(kvm_x86_pmu_msr_idx_to_pmc)(vcpu, msr) ||
 		static_call(kvm_x86_pmu_is_valid_msr)(vcpu, msr);
 }
@@ -577,13 +585,70 @@ static void kvm_pmu_mark_pmc_in_use(struct kvm_vcpu *vcpu, u32 msr)
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	return static_call(kvm_x86_pmu_get_msr)(vcpu, msr_info);
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	u32 msr = msr_info->index;
+
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+		msr_info->data = pmu->global_status;
+		break;
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		msr_info->data = pmu->global_ctrl;
+		break;
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		msr_info->data = 0;
+		break;
+	default:
+		return static_call(kvm_x86_pmu_get_msr)(vcpu, msr_info);
+	}
+
+	return 0;
 }
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	kvm_pmu_mark_pmc_in_use(vcpu, msr_info->index);
-	return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	u32 msr = msr_info->index;
+	u64 data = msr_info->data;
+	u64 diff;
+
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+		if (!msr_info->host_initiated)
+			return 1; /* RO MSR */
+
+		if (data & pmu->global_status_mask)
+			return 1;
+
+		pmu->global_status = data;
+		break;
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		if (!kvm_valid_perf_global_ctrl(pmu, data))
+			return 1;
+
+		if (pmu->global_ctrl != data) {
+			diff = pmu->global_ctrl ^ data;
+			pmu->global_ctrl = data;
+			reprogram_counters(pmu, diff);
+		}
+		break;
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		/*
+		 * GLOBAL_OVF_CTRL, a.k.a. GLOBAL STATUS_RESET, clears bits in
+		 * GLOBAL_STATUS, and so the set of reserved bits is the same.
+		 */
+		if (data & pmu->global_status_mask)
+			return 1;
+
+		if (!msr_info->host_initiated)
+			pmu->global_status &= ~data;
+		break;
+	default:
+		kvm_pmu_mark_pmc_in_use(vcpu, msr_info->index);
+		return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
+	}
+
+	return 0;
 }
 
 /* refresh PMU settings. This function generally is called when underlying

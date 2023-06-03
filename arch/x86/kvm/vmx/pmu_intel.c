@@ -100,7 +100,7 @@ static bool intel_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
-	if (!intel_pmu_has_perf_global_ctrl(pmu))
+	if (!kvm_pmu_has_perf_global_ctrl(pmu))
 		return true;
 
 	return test_bit(pmc->idx, (unsigned long *)&pmu->global_ctrl);
@@ -186,11 +186,7 @@ static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 
 	switch (msr) {
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
-	case MSR_CORE_PERF_GLOBAL_STATUS:
-	case MSR_CORE_PERF_GLOBAL_CTRL:
-	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
-		return intel_pmu_has_perf_global_ctrl(pmu);
-		break;
+		return kvm_pmu_has_perf_global_ctrl(pmu);
 	case MSR_IA32_PEBS_ENABLE:
 		ret = vcpu_get_perf_capabilities(vcpu) & PERF_CAP_PEBS_FORMAT;
 		break;
@@ -340,15 +336,6 @@ static int intel_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
 		msr_info->data = pmu->fixed_ctr_ctrl;
 		break;
-	case MSR_CORE_PERF_GLOBAL_STATUS:
-		msr_info->data = pmu->global_status;
-		break;
-	case MSR_CORE_PERF_GLOBAL_CTRL:
-		msr_info->data = pmu->global_ctrl;
-		break;
-	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
-		msr_info->data = 0;
-		break;
 	case MSR_IA32_PEBS_ENABLE:
 		msr_info->data = pmu->pebs_enable;
 		break;
@@ -397,36 +384,6 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		if (pmu->fixed_ctr_ctrl != data)
 			reprogram_fixed_counters(pmu, data);
-		break;
-	case MSR_CORE_PERF_GLOBAL_STATUS:
-		if (!msr_info->host_initiated)
-			return 1; /* RO MSR */
-
-		if (data & pmu->global_status_mask)
-			return 1;
-
-		pmu->global_status = data;
-		break;
-	case MSR_CORE_PERF_GLOBAL_CTRL:
-		if (!kvm_valid_perf_global_ctrl(pmu, data))
-			return 1;
-
-		if (pmu->global_ctrl != data) {
-			diff = pmu->global_ctrl ^ data;
-			pmu->global_ctrl = data;
-			reprogram_counters(pmu, diff);
-		}
-		break;
-	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
-		/*
-		 * GLOBAL_OVF_CTRL, a.k.a. GLOBAL STATUS_RESET, clears bits in
-		 * GLOBAL_STATUS, and so the set of reserved bits is the same.
-		 */
-		if (data & pmu->global_status_mask)
-			return 1;
-
-		if (!msr_info->host_initiated)
-			pmu->global_status &= ~data;
 		break;
 	case MSR_IA32_PEBS_ENABLE:
 		if (data & pmu->pebs_enable_mask)
