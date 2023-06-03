@@ -125,6 +125,7 @@ void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
 	hbp = mode->htotal - mode->hsync_end;
 
 	mode->clock *= 2;
+	mode->crtc_clock *= 2;
 	mode->hdisplay = hactive * 2;
 	mode->hsync_start = mode->hdisplay + hfp * 2;
 	mode->hsync_end = mode->hsync_start + hsync * 2;
@@ -143,6 +144,7 @@ void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode)
 	hbp = mode->htotal - mode->hsync_end;
 
 	mode->clock /= 2;
+	mode->crtc_clock /= 2;
 	mode->hdisplay = hactive / 2;
 	mode->hsync_start = mode->hdisplay + hfp / 2;
 	mode->hsync_end = mode->hsync_start + hsync / 2;
