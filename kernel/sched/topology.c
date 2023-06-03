@@ -1681,7 +1681,7 @@ static struct sched_domain_topology_level *sched_domain_topology_saved;
 #define for_each_sd_topology(tl)			\
 	for (tl = sched_domain_topology; tl->mask; tl++)
 
-void set_sched_topology(struct sched_domain_topology_level *tl)
+void __init set_sched_topology(struct sched_domain_topology_level *tl)
 {
 	if (WARN_ON_ONCE(sched_smp_initialized))
 		return;
