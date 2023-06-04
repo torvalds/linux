@@ -12,23 +12,6 @@
 
 static struct workqueue_struct *fsverity_read_workqueue;
 
-static inline int cmp_hashes(const struct fsverity_info *vi,
-			     const u8 *want_hash, const u8 *real_hash,
-			     u64 data_pos, int level)
-{
-	const unsigned int hsize = vi->tree_params.digest_size;
-
-	if (memcmp(want_hash, real_hash, hsize) == 0)
-		return 0;
-
-	fsverity_err(vi->inode,
-		     "FILE CORRUPTED! pos=%llu, level=%d, want_hash=%s:%*phN, real_hash=%s:%*phN",
-		     data_pos, level,
-		     vi->tree_params.hash_alg->name, hsize, want_hash,
-		     vi->tree_params.hash_alg->name, hsize, real_hash);
-	return -EBADMSG;
-}
-
 /*
  * Returns true if the hash block with index @hblock_idx in the tree, located in
  * @hpage, has already been verified.
@@ -131,7 +114,6 @@ verify_data_block(struct inode *inode, struct fsverity_info *vi,
 	 * index of that block's hash within the current level.
 	 */
 	u64 hidx = data_pos >> params->log_blocksize;
-	int err;
 
 	/* Up to 1 + FS_VERITY_MAX_LEVELS pages may be mapped at once */
 	BUILD_BUG_ON(1 + FS_VERITY_MAX_LEVELS > KM_MAX_IDX);
@@ -191,11 +173,10 @@ verify_data_block(struct inode *inode, struct fsverity_info *vi,
 				hpage_idx, level == 0 ? min(max_ra_pages,
 					params->tree_pages - hpage_idx) : 0);
 		if (IS_ERR(hpage)) {
-			err = PTR_ERR(hpage);
 			fsverity_err(inode,
-				     "Error %d reading Merkle tree page %lu",
-				     err, hpage_idx);
-			goto out;
+				     "Error %ld reading Merkle tree page %lu",
+				     PTR_ERR(hpage), hpage_idx);
+			goto error;
 		}
 		haddr = kmap_local_page(hpage) + hblock_offset_in_page;
 		if (is_hash_block_verified(vi, hpage, hblock_idx)) {
@@ -221,12 +202,10 @@ descend:
 		unsigned long hblock_idx = hblocks[level - 1].index;
 		unsigned int hoffset = hblocks[level - 1].hoffset;
 
-		err = fsverity_hash_block(params, inode, haddr, real_hash);
-		if (err)
-			goto out;
-		err = cmp_hashes(vi, want_hash, real_hash, data_pos, level - 1);
-		if (err)
-			goto out;
+		if (fsverity_hash_block(params, inode, haddr, real_hash) != 0)
+			goto error;
+		if (memcmp(want_hash, real_hash, hsize) != 0)
+			goto corrupted;
 		/*
 		 * Mark the hash block as verified.  This must be atomic and
 		 * idempotent, as the same hash block might be verified by
@@ -243,16 +222,24 @@ descend:
 	}
 
 	/* Finally, verify the data block. */
-	err = fsverity_hash_block(params, inode, data, real_hash);
-	if (err)
-		goto out;
-	err = cmp_hashes(vi, want_hash, real_hash, data_pos, -1);
-out:
+	if (fsverity_hash_block(params, inode, data, real_hash) != 0)
+		goto error;
+	if (memcmp(want_hash, real_hash, hsize) != 0)
+		goto corrupted;
+	return true;
+
+corrupted:
+	fsverity_err(inode,
+		     "FILE CORRUPTED! pos=%llu, level=%d, want_hash=%s:%*phN, real_hash=%s:%*phN",
+		     data_pos, level - 1,
+		     params->hash_alg->name, hsize, want_hash,
+		     params->hash_alg->name, hsize, real_hash);
+error:
 	for (; level > 0; level--) {
 		kunmap_local(hblocks[level - 1].addr);
 		put_page(hblocks[level - 1].page);
 	}
-	return err == 0;
+	return false;
 }
 
 static bool
