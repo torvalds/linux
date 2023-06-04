@@ -3666,7 +3666,11 @@ static int pci_probe(struct pci_dev *dev,
 	ohci->ir_context_mask = ohci->ir_context_support;
 	ohci->n_ir = hweight32(ohci->ir_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_ir;
-	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
+	ohci->ir_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
+	if (!ohci->ir_context_list) {
+		err = -ENOMEM;
+		goto fail_atresp_ctx;
+	}
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
@@ -3679,11 +3683,10 @@ static int pci_probe(struct pci_dev *dev,
 	ohci->it_context_mask = ohci->it_context_support;
 	ohci->n_it = hweight32(ohci->it_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_it;
-	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
-
-	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
+	ohci->it_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
+	if (!ohci->it_context_list) {
 		err = -ENOMEM;
-		goto fail_contexts;
+		goto fail_atresp_ctx;
 	}
 
 	ohci->self_id     = ohci->misc_buffer     + PAGE_SIZE/2;
@@ -3721,9 +3724,7 @@ static int pci_probe(struct pci_dev *dev,
 
  fail_msi:
 	pci_disable_msi(dev);
- fail_contexts:
-	kfree(ohci->ir_context_list);
-	kfree(ohci->it_context_list);
+ fail_atresp_ctx:
 	context_release(&ohci->at_response_ctx);
  fail_atreq_ctx:
 	context_release(&ohci->at_request_ctx);
@@ -3767,8 +3768,6 @@ static void pci_remove(struct pci_dev *dev)
 	ar_context_release(&ohci->ar_response_ctx);
 	context_release(&ohci->at_request_ctx);
 	context_release(&ohci->at_response_ctx);
-	kfree(ohci->it_context_list);
-	kfree(ohci->ir_context_list);
 	pci_disable_msi(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
