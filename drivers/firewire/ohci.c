@@ -3608,18 +3608,12 @@ static int pci_probe(struct pci_dev *dev,
 		return -ENXIO;
 	}
 
-	err = pci_request_region(dev, 0, ohci_driver_name);
+	err = pcim_iomap_regions(dev, 1 << 0, ohci_driver_name);
 	if (err) {
-		ohci_err(ohci, "MMIO resource unavailable\n");
-		return err;
+		ohci_err(ohci, "request and map MMIO resource unavailable\n");
+		return -ENXIO;
 	}
-
-	ohci->registers = pci_iomap(dev, 0, OHCI1394_REGISTER_SIZE);
-	if (ohci->registers == NULL) {
-		ohci_err(ohci, "failed to remap registers\n");
-		err = -ENXIO;
-		goto fail_iomem;
-	}
+	ohci->registers = pcim_iomap_table(dev)[0];
 
 	for (i = 0; i < ARRAY_SIZE(ohci_quirks); i++)
 		if ((ohci_quirks[i].vendor == dev->vendor) &&
@@ -3644,10 +3638,8 @@ static int pci_probe(struct pci_dev *dev,
 					       PAGE_SIZE,
 					       &ohci->misc_buffer_bus,
 					       GFP_KERNEL);
-	if (!ohci->misc_buffer) {
-		err = -ENOMEM;
-		goto fail_iounmap;
-	}
+	if (!ohci->misc_buffer)
+		return -ENOMEM;
 
 	err = ar_context_init(&ohci->ar_request_ctx, ohci, 0,
 			      OHCI1394_AsReqRcvContextControlSet);
@@ -3747,10 +3739,6 @@ static int pci_probe(struct pci_dev *dev,
  fail_misc_buf:
 	dma_free_coherent(ohci->card.device, PAGE_SIZE,
 			  ohci->misc_buffer, ohci->misc_buffer_bus);
- fail_iounmap:
-	pci_iounmap(dev, ohci->registers);
- fail_iomem:
-	pci_release_region(dev, 0);
 
 	return err;
 }
@@ -3793,8 +3781,6 @@ static void pci_remove(struct pci_dev *dev)
 	kfree(ohci->it_context_list);
 	kfree(ohci->ir_context_list);
 	pci_disable_msi(dev);
-	pci_iounmap(dev, ohci->registers);
-	pci_release_region(dev, 0);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
