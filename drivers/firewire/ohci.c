@@ -2052,8 +2052,7 @@ static void bus_reset_work(struct work_struct *work)
 	spin_unlock_irq(&ohci->lock);
 
 	if (free_rom)
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  free_rom, free_rom_bus);
+		dmam_free_coherent(ohci->card.device, CONFIG_ROM_SIZE, free_rom, free_rom_bus);
 
 	log_selfids(ohci, generation, self_id_count);
 
@@ -2385,10 +2384,8 @@ static int ohci_enable(struct fw_card *card,
 	 */
 
 	if (config_rom) {
-		ohci->next_config_rom =
-			dma_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-					   &ohci->next_config_rom_bus,
-					   GFP_KERNEL);
+		ohci->next_config_rom = dmam_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+							    &ohci->next_config_rom_bus, GFP_KERNEL);
 		if (ohci->next_config_rom == NULL)
 			return -ENOMEM;
 
@@ -2480,9 +2477,8 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * ohci->next_config_rom to NULL (see bus_reset_work).
 	 */
 
-	next_config_rom =
-		dma_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				   &next_config_rom_bus, GFP_KERNEL);
+	next_config_rom = dmam_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+					      &next_config_rom_bus, GFP_KERNEL);
 	if (next_config_rom == NULL)
 		return -ENOMEM;
 
@@ -2515,9 +2511,10 @@ static int ohci_set_config_rom(struct fw_card *card,
 	spin_unlock_irq(&ohci->lock);
 
 	/* If we didn't use the DMA allocation, delete it. */
-	if (next_config_rom != NULL)
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  next_config_rom, next_config_rom_bus);
+	if (next_config_rom != NULL) {
+		dmam_free_coherent(ohci->card.device, CONFIG_ROM_SIZE, next_config_rom,
+				   next_config_rom_bus);
+	}
 
 	/*
 	 * Now initiate a bus reset to have the changes take
@@ -3753,12 +3750,6 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 
-	if (ohci->next_config_rom && ohci->next_config_rom != ohci->config_rom)
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  ohci->next_config_rom, ohci->next_config_rom_bus);
-	if (ohci->config_rom)
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  ohci->config_rom, ohci->config_rom_bus);
 	ar_context_release(&ohci->ar_request_ctx);
 	ar_context_release(&ohci->ar_response_ctx);
 	pci_disable_msi(dev);
