@@ -89,12 +89,16 @@
   __spi_alloc_controller
   __stack_chk_fail
   strcmp
+  __traceiter_android_rvh_psci_cpu_suspend
+  __traceiter_android_rvh_psci_tos_resident_on
   __traceiter_android_vh_get_thermal_zone_device
   __traceiter_android_vh_modify_thermal_request_freq
   __traceiter_android_vh_modify_thermal_target_freq
   __traceiter_android_vh_thermal_power_cap
   __traceiter_android_vh_thermal_register
   __traceiter_android_vh_thermal_unregister
+  __tracepoint_android_rvh_psci_cpu_suspend
+  __tracepoint_android_rvh_psci_tos_resident_on
   __tracepoint_android_vh_get_thermal_zone_device
   __tracepoint_android_vh_modify_thermal_request_freq
   __tracepoint_android_vh_modify_thermal_target_freq

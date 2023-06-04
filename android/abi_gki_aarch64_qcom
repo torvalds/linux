@@ -694,6 +694,7 @@
   dev_pm_opp_of_register_em
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
+  dev_pm_opp_remove
   dev_pm_opp_remove_all_dynamic
   dev_pm_opp_set_config
   dev_pm_opp_set_opp
@@ -1892,12 +1893,37 @@
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
+  __mmc_claim_host
   mmc_cqe_request_done
+  mmc_execute_tuning
+  mmc_get_card
+  mmc_get_ext_csd
+  mmc_hs200_tuning
+  mmc_issue_type
   mmc_of_parse
+  __mmc_poll_for_busy
+  mmc_prepare_busy_cmd
+  mmc_put_card
   mmc_regulator_get_supply
   mmc_regulator_set_ocr
   mmc_regulator_set_vqmmc
+  mmc_release_host
+  mmc_retune_hold
+  mmc_retune_release
+  mmc_select_bus_width
+  mmc_select_card
+  mmc_select_hs400
+  mmc_select_hs
+  mmc_select_hs_ddr
+  mmc_select_timing
+  mmc_send_status
   mmc_send_tuning
+  mmc_set_bus_mode
+  mmc_set_bus_width
+  mmc_set_clock
+  mmc_set_initial_state
+  mmc_set_timing
+  mmc_wait_for_cmd
   mmput
   mod_delayed_work_on
   mod_node_page_state
@@ -3246,6 +3272,8 @@
   __traceiter_android_rvh_iommu_setup_dma_ops
   __traceiter_android_rvh_is_cpu_allowed
   __traceiter_android_rvh_migrate_queued_task
+  __traceiter_android_rvh_mmc_resume
+  __traceiter_android_rvh_mmc_suspend
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_pick_next_entity
   __traceiter_android_rvh_place_entity
@@ -3378,6 +3406,8 @@
   __tracepoint_android_rvh_iommu_setup_dma_ops
   __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
+  __tracepoint_android_rvh_mmc_resume
+  __tracepoint_android_rvh_mmc_suspend
   __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
