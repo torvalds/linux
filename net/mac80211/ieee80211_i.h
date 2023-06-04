@@ -1394,6 +1394,9 @@ struct ieee80211_local {
 	/* device is during a HW reconfig */
 	bool in_reconfig;
 
+	/* reconfiguration failed ... suppress some warnings etc. */
+	bool reconfig_failure;
+
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
 
