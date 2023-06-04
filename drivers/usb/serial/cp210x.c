@@ -1437,7 +1437,13 @@ static int cp210x_tiocmget(struct tty_struct *tty)
 static int cp210x_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
 	u16 state;
+
+	if (priv->partnum == CP210X_PARTNUM_CP2105) {
+		if (cp210x_interface_num(port->serial) == 1)
+			return -ENOTTY;
+	}
 
 	if (break_state == 0)
 		state = BREAK_OFF;
