@@ -66,6 +66,11 @@ static const char *const omen_thermal_profile_force_v0_boards[] = {
 	"8607", "8746", "8747", "8749", "874A", "8748"
 };
 
+/* DMI Board names of Victus laptops */
+static const char * const victus_thermal_profile_boards[] = {
+	"8A25"
+};
+
 enum hp_wmi_radio {
 	HPWMI_WIFI	= 0x0,
 	HPWMI_BLUETOOTH	= 0x1,
@@ -175,6 +180,12 @@ enum hp_thermal_profile_omen_v1 {
 	HP_OMEN_V1_THERMAL_PROFILE_DEFAULT	= 0x30,
 	HP_OMEN_V1_THERMAL_PROFILE_PERFORMANCE	= 0x31,
 	HP_OMEN_V1_THERMAL_PROFILE_COOL		= 0x50,
+};
+
+enum hp_thermal_profile_victus {
+	HP_VICTUS_THERMAL_PROFILE_DEFAULT		= 0x00,
+	HP_VICTUS_THERMAL_PROFILE_PERFORMANCE		= 0x01,
+	HP_VICTUS_THERMAL_PROFILE_QUIET			= 0x03,
 };
 
 enum hp_thermal_profile {
@@ -1299,6 +1310,70 @@ static int hp_wmi_platform_profile_set(struct platform_profile_handler *pprof,
 	return 0;
 }
 
+static bool is_victus_thermal_profile(void)
+{
+	const char *board_name = dmi_get_system_info(DMI_BOARD_NAME);
+
+	if (!board_name)
+		return false;
+
+	return match_string(victus_thermal_profile_boards,
+			    ARRAY_SIZE(victus_thermal_profile_boards),
+			    board_name) >= 0;
+}
+
+static int platform_profile_victus_get(struct platform_profile_handler *pprof,
+				     enum platform_profile_option *profile)
+{
+	int tp;
+
+	tp = omen_thermal_profile_get();
+	if (tp < 0)
+		return tp;
+
+	switch (tp) {
+	case HP_VICTUS_THERMAL_PROFILE_PERFORMANCE:
+		*profile = PLATFORM_PROFILE_PERFORMANCE;
+		break;
+	case HP_VICTUS_THERMAL_PROFILE_DEFAULT:
+		*profile = PLATFORM_PROFILE_BALANCED;
+		break;
+	case HP_VICTUS_THERMAL_PROFILE_QUIET:
+		*profile = PLATFORM_PROFILE_QUIET;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int platform_profile_victus_set(struct platform_profile_handler *pprof,
+				     enum platform_profile_option profile)
+{
+	int err, tp;
+
+	switch (profile) {
+	case PLATFORM_PROFILE_PERFORMANCE:
+		tp = HP_VICTUS_THERMAL_PROFILE_PERFORMANCE;
+		break;
+	case PLATFORM_PROFILE_BALANCED:
+		tp = HP_VICTUS_THERMAL_PROFILE_DEFAULT;
+		break;
+	case PLATFORM_PROFILE_QUIET:
+		tp = HP_VICTUS_THERMAL_PROFILE_QUIET;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	err = omen_thermal_profile_set(tp);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static int thermal_profile_setup(void)
 {
 	int err, tp;
@@ -1319,6 +1394,25 @@ static int thermal_profile_setup(void)
 
 		platform_profile_handler.profile_get = platform_profile_omen_get;
 		platform_profile_handler.profile_set = platform_profile_omen_set;
+
+		set_bit(PLATFORM_PROFILE_COOL, platform_profile_handler.choices);
+	} else if (is_victus_thermal_profile()) {
+		tp = omen_thermal_profile_get();
+		if (tp < 0)
+			return tp;
+
+		/*
+		 * call thermal profile write command to ensure that the
+		 * firmware correctly sets the OEM variables
+		 */
+		err = omen_thermal_profile_set(tp);
+		if (err < 0)
+			return err;
+
+		platform_profile_handler.profile_get = platform_profile_victus_get;
+		platform_profile_handler.profile_set = platform_profile_victus_set;
+
+		set_bit(PLATFORM_PROFILE_QUIET, platform_profile_handler.choices);
 	} else {
 		tp = thermal_profile_get();
 
@@ -1337,9 +1431,9 @@ static int thermal_profile_setup(void)
 		platform_profile_handler.profile_set = hp_wmi_platform_profile_set;
 
 		set_bit(PLATFORM_PROFILE_QUIET, platform_profile_handler.choices);
+		set_bit(PLATFORM_PROFILE_COOL, platform_profile_handler.choices);
 	}
 
-	set_bit(PLATFORM_PROFILE_COOL, platform_profile_handler.choices);
 	set_bit(PLATFORM_PROFILE_BALANCED, platform_profile_handler.choices);
 	set_bit(PLATFORM_PROFILE_PERFORMANCE, platform_profile_handler.choices);
 
