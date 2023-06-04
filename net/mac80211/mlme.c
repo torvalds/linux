@@ -4856,9 +4856,12 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		/* data + 1 / datalen - 1 since it's an extended element */
 		if (eht_ml_elem &&
 		    ieee80211_mle_size_ok(eht_ml_elem->data + 1,
-					  eht_ml_elem->datalen - 1))
+					  eht_ml_elem->datalen - 1)) {
 			sdata->vif.cfg.eml_cap =
 				ieee80211_mle_get_eml_cap(eht_ml_elem->data + 1);
+			sdata->vif.cfg.eml_med_sync_delay =
+				ieee80211_mle_get_eml_med_sync_delay(eht_ml_elem->data + 1);
+		}
 	}
 
 	/* Allow VHT if at least one channel on the sband supports 80 MHz */
