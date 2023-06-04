@@ -398,6 +398,24 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 	button->lid_state_initialized = true;
 }
 
+static void acpi_lid_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct acpi_device *device = data;
+	struct acpi_button *button;
+
+	if (event != ACPI_BUTTON_NOTIFY_STATUS) {
+		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
+				  event);
+		return;
+	}
+
+	button = acpi_driver_data(device);
+	if (!button->lid_state_initialized)
+		return;
+
+	acpi_lid_update_state(device, true);
+}
+
 static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
@@ -411,17 +429,9 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	button = acpi_driver_data(device);
-
-	if (button->type == ACPI_BUTTON_TYPE_LID) {
-		if (button->lid_state_initialized)
-			acpi_lid_update_state(device, true);
-
-		return;
-	}
-
 	acpi_pm_wakeup_event(&device->dev);
 
+	button = acpi_driver_data(device);
 	if (button->suspended)
 		return;
 
@@ -488,6 +498,7 @@ static int acpi_lid_input_open(struct input_dev *input)
 
 static int acpi_button_add(struct acpi_device *device)
 {
+	acpi_notify_handler handler;
 	struct acpi_button *button;
 	struct input_dev *input;
 	const char *hid = acpi_device_hid(device);
@@ -517,17 +528,20 @@ static int acpi_button_add(struct acpi_device *device)
 	if (!strcmp(hid, ACPI_BUTTON_HID_POWER) ||
 	    !strcmp(hid, ACPI_BUTTON_HID_POWERF)) {
 		button->type = ACPI_BUTTON_TYPE_POWER;
+		handler = acpi_button_notify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_POWER);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_POWER);
 	} else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEP) ||
 		   !strcmp(hid, ACPI_BUTTON_HID_SLEEPF)) {
 		button->type = ACPI_BUTTON_TYPE_SLEEP;
+		handler = acpi_button_notify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_SLEEP);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_SLEEP);
 	} else if (!strcmp(hid, ACPI_BUTTON_HID_LID)) {
 		button->type = ACPI_BUTTON_TYPE_LID;
+		handler = acpi_lid_notify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_LID);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
@@ -585,8 +599,7 @@ static int acpi_button_add(struct acpi_device *device)
 		break;
 	default:
 		status = acpi_install_notify_handler(device->handle,
-						     ACPI_DEVICE_NOTIFY,
-						     acpi_button_notify,
+						     ACPI_DEVICE_NOTIFY, handler,
 						     device);
 		break;
 	}
@@ -631,7 +644,9 @@ static void acpi_button_remove(struct acpi_device *device)
 		break;
 	default:
 		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-					   acpi_button_notify);
+					   button->type == ACPI_BUTTON_TYPE_LID ?
+						acpi_lid_notify :
+						acpi_button_notify);
 		break;
 	}
 	acpi_os_wait_events_complete();
