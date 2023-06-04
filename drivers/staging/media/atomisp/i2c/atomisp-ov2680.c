@@ -175,6 +175,10 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 	int ret;
 
 	ret = ov_write_reg8(client, OV2680_SW_RESET, 0x01);
+
+	/* Wait for sensor reset */
+	usleep_range(1000, 2000);
+
 	ret |= ov2680_write_reg_array(client, ov2680_global_setting);
 
 	return ret;
