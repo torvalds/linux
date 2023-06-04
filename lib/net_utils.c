@@ -2,7 +2,8 @@
 #include <linux/string.h>
 #include <linux/if_ether.h>
 #include <linux/ctype.h>
-#include <linux/kernel.h>
+#include <linux/export.h>
+#include <linux/hex.h>
 
 bool mac_pton(const char *s, u8 *mac)
 {
