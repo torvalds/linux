@@ -17,6 +17,7 @@
 #include <linux/types.h>
 
 #include <asm/bootinfo.h>
+#include <asm/io.h>
 #include <asm/machine.h>
 #include <asm/reboot.h>
 
@@ -60,6 +61,50 @@ static __init char *ingenic_get_system_type(unsigned long machtype)
 	}
 }
 
+#define INGENIC_CGU_BASE	0x10000000
+#define JZ4750_CGU_CPCCR_ECS	BIT(30)
+#define JZ4760_CGU_CPCCR_ECS	BIT(31)
+
+static __init void ingenic_force_12M_ext(const void *fdt, unsigned int mask)
+{
+	const __be32 *prop;
+	unsigned int cpccr;
+	void __iomem *cgu;
+	bool use_div;
+	int offset;
+
+	offset = fdt_path_offset(fdt, "/ext");
+	if (offset < 0)
+		return;
+
+	prop = fdt_getprop(fdt, offset, "clock-frequency", NULL);
+	if (!prop)
+		return;
+
+	/*
+	 * If the external oscillator is 24 MHz, enable the /2 divider to
+	 * drive it down to 12 MHz, since this is what the hardware can work
+	 * with.
+	 * The 16 MHz cutoff value is arbitrary; setting it to 12 MHz would not
+	 * work as the crystal frequency (as reported in the Device Tree) might
+	 * be slightly above this value.
+	 */
+	use_div = be32_to_cpup(prop) >= 16000000;
+
+	cgu = ioremap(INGENIC_CGU_BASE, 0x4);
+	if (!cgu)
+		return;
+
+	cpccr = ioread32(cgu);
+	if (use_div)
+		cpccr |= mask;
+	else
+		cpccr &= ~mask;
+	iowrite32(cpccr, cgu);
+
+	iounmap(cgu);
+}
+
 static __init const void *ingenic_fixup_fdt(const void *fdt, const void *match_data)
 {
 	/*
@@ -72,6 +117,18 @@ static __init const void *ingenic_fixup_fdt(const void *fdt, const void *match_d
 
 	mips_machtype = (unsigned long)match_data;
 	system_type = ingenic_get_system_type(mips_machtype);
+
+	switch (mips_machtype) {
+	case MACH_INGENIC_JZ4750:
+	case MACH_INGENIC_JZ4755:
+		ingenic_force_12M_ext(fdt, JZ4750_CGU_CPCCR_ECS);
+		break;
+	case MACH_INGENIC_JZ4760:
+		ingenic_force_12M_ext(fdt, JZ4760_CGU_CPCCR_ECS);
+		break;
+	default:
+		break;
+	}
 
 	return fdt;
 }
