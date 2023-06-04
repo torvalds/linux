@@ -97,10 +97,15 @@
 		gpios = <&gpe 3 GPIO_ACTIVE_LOW>;
 	};
 
-	wlan0_power: fixedregulator-1 {
+	bt_power: fixedregulator-1 {
 		compatible = "regulator-fixed";
 
-		regulator-name = "wlan0_power";
+		regulator-name = "bt_power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-settling-time-us = <1400>;
+
+		vin-supply = <&vcc_50>;
 
 		gpio = <&gpb 19 0>;
 		enable-active-high;
@@ -115,6 +120,40 @@
 
 		gpio = <&gpf 15 0>;
 		enable-active-high;
+	};
+
+	wifi_power: fixedregulator-4 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wifi_power";
+
+		/*
+		 * Technically it's 5V, the WiFi chip has its own internal
+		 * regulators; but the MMC/SD subsystem won't accept such a
+		 * value.
+		 */
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-settling-time-us = <150000>;
+
+		vin-supply = <&bt_power>;
+	};
+
+	vcc_33v: fixedregulator-5 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vcc_33v";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	wifi_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+
+		clocks = <&rtc_dev>;
+		clock-names = "ext_clock";
 	};
 };
 
@@ -161,24 +200,33 @@
 	pinctrl-0 = <&pins_mmc0>;
 
 	cd-gpios = <&gpf 20 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&vcc_33v>;
+	vqmmc-supply = <&vcc_33v>;
 };
 
 &mmc1 {
 	status = "okay";
 
 	bus-width = <4>;
-	max-frequency = <50000000>;
+	max-frequency = <25000000>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	vmmc-supply = <&wifi_power>;
+	vqmmc-supply = <&wifi_io>;
 	non-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc1>;
 
-	brcmf: wifi@1 {
-/*		reg = <4>;*/
-		compatible = "brcm,bcm4330-fmac";
-		vcc-supply = <&wlan0_power>;
-		device-wakeup-gpios = <&gpd 9 GPIO_ACTIVE_HIGH>;
-		shutdown-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {
+		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
+
+		interrupt-parent = <&gpd>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wake";
 	};
 };
 
@@ -205,11 +253,20 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4330-bt";
-		reset-gpios = <&gpf 8 GPIO_ACTIVE_HIGH>;
-		vcc-supply = <&wlan0_power>;
+
+		vbat-supply = <&bt_power>;
+		vddio-supply = <&wifi_io>;
+
+		interrupt-parent = <&gpf>;
+		interrupts = <6 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "host-wakeup";
+
+		clocks = <&rtc_dev>;
+		clock-names = "lpo";
+
+		reset-gpios = <&gpf 8 GPIO_ACTIVE_LOW>;
 		device-wakeup-gpios = <&gpf 5 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gpf 6 GPIO_ACTIVE_HIGH>;
-		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_LOW>;
+		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -270,8 +327,9 @@
 				regulator-always-on;
 			};
 			wifi_io: LDO6 {
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-settling-time-us = <150000>;
 				inl-supply = <&vcc_33v>;
 			};
 			cim_io_28: LDO7 {
