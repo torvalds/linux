@@ -3557,6 +3557,15 @@ static inline void pmac_ohci_on(struct pci_dev *dev) {}
 static inline void pmac_ohci_off(struct pci_dev *dev) {}
 #endif /* CONFIG_PPC_PMAC */
 
+static void release_ohci(struct device *dev, void *data)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	pmac_ohci_off(pdev);
+
+	dev_notice(dev, "removed fw-ohci device\n");
+}
+
 static int pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
@@ -3571,25 +3580,22 @@ static int pci_probe(struct pci_dev *dev,
 		return -ENOSYS;
 	}
 
-	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
-	if (ohci == NULL) {
-		err = -ENOMEM;
-		goto fail;
-	}
-
+	ohci = devres_alloc(release_ohci, sizeof(*ohci), GFP_KERNEL);
+	if (ohci == NULL)
+		return -ENOMEM;
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
-
+	pci_set_drvdata(dev, ohci);
 	pmac_ohci_on(dev);
+	devres_add(&dev->dev, ohci);
 
 	err = pci_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "failed to enable OHCI hardware\n");
-		goto fail_free;
+		return err;
 	}
 
 	pci_set_master(dev);
 	pci_write_config_dword(dev, OHCI1394_PCI_HCI_Control, 0);
-	pci_set_drvdata(dev, ohci);
 
 	spin_lock_init(&ohci->lock);
 	mutex_init(&ohci->phy_reg_mutex);
@@ -3748,10 +3754,7 @@ static int pci_probe(struct pci_dev *dev,
 	pci_release_region(dev, 0);
  fail_disable:
 	pci_disable_device(dev);
- fail_free:
-	kfree(ohci);
-	pmac_ohci_off(dev);
- fail:
+
 	return err;
 }
 
@@ -3796,10 +3799,8 @@ static void pci_remove(struct pci_dev *dev)
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
-	kfree(ohci);
-	pmac_ohci_off(dev);
 
-	dev_notice(&dev->dev, "removed fw-ohci device\n");
+	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
 
 #ifdef CONFIG_PM
