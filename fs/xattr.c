@@ -985,9 +985,16 @@ int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
 	return 0;
 }
 
-/*
+/**
+ * generic_listxattr - run through a dentry's xattr list() operations
+ * @dentry: dentry to list the xattrs
+ * @buffer: result buffer
+ * @buffer_size: size of @buffer
+ *
  * Combine the results of the list() operation from every xattr_handler in the
- * list.
+ * xattr_handler stack.
+ *
+ * Note that this will not include the entries for POSIX ACLs.
  */
 ssize_t
 generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
@@ -995,10 +1002,6 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 	const struct xattr_handler *handler, **handlers = dentry->d_sb->s_xattr;
 	ssize_t remaining_size = buffer_size;
 	int err = 0;
-
-	err = posix_acl_listxattr(d_inode(dentry), &buffer, &remaining_size);
-	if (err)
-		return err;
 
 	for_each_xattr_handler(handlers, handler) {
 		if (!handler->name || (handler->list && !handler->list(dentry)))

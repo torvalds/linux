@@ -526,6 +526,11 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		rcu_read_lock();
 
 		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id]);
+		if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
+			rcu_read_unlock();
+			return PTR_ERR_OR_ZERO(sta);
+		}
+
 		if (sta->mfp && (peer->ftm.trigger_based || peer->ftm.non_trigger_based))
 			FTM_PUT_FLAG(PMF);
 

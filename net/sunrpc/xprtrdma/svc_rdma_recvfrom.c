@@ -239,21 +239,20 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 }
 
 /**
- * svc_rdma_release_rqst - Release transport-specific per-rqst resources
- * @rqstp: svc_rqst being released
+ * svc_rdma_release_ctxt - Release transport-specific per-rqst resources
+ * @xprt: the transport which owned the context
+ * @vctxt: the context from rqstp->rq_xprt_ctxt or dr->xprt_ctxt
  *
  * Ensure that the recv_ctxt is released whether or not a Reply
  * was sent. For example, the client could close the connection,
  * or svc_process could drop an RPC, before the Reply is sent.
  */
-void svc_rdma_release_rqst(struct svc_rqst *rqstp)
+void svc_rdma_release_ctxt(struct svc_xprt *xprt, void *vctxt)
 {
-	struct svc_rdma_recv_ctxt *ctxt = rqstp->rq_xprt_ctxt;
-	struct svc_xprt *xprt = rqstp->rq_xprt;
+	struct svc_rdma_recv_ctxt *ctxt = vctxt;
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 
-	rqstp->rq_xprt_ctxt = NULL;
 	if (ctxt)
 		svc_rdma_recv_ctxt_put(rdma, ctxt);
 }

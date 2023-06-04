@@ -265,6 +265,7 @@ config CPM2
 config FSL_ULI1575
 	bool "ULI1575 PCIe south bridge support"
 	depends on FSL_SOC_BOOKE || PPC_86xx
+	depends on PCI
 	select FSL_PCI
 	select GENERIC_ISA_DMA
 	help

@@ -518,7 +518,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		/* Convert entry to a dma_addr_t */
 		entry += tbl->it_offset;
 		dma_addr = entry << tbl->it_page_shift;
-		dma_addr |= (s->offset & ~IOMMU_PAGE_MASK(tbl));
+		dma_addr |= (vaddr & ~IOMMU_PAGE_MASK(tbl));
 
 		DBG("  - %lu pages, entry: %lx, dma_addr: %lx\n",
 			    npages, entry, dma_addr);
@@ -905,6 +905,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	unsigned int order;
 	unsigned int nio_pages, io_order;
 	struct page *page;
+	int tcesize = (1 << tbl->it_page_shift);
 
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
@@ -931,7 +932,8 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	memset(ret, 0, size);
 
 	/* Set up tces to cover the allocated range */
-	nio_pages = size >> tbl->it_page_shift;
+	nio_pages = IOMMU_PAGE_ALIGN(size, tbl) >> tbl->it_page_shift;
+
 	io_order = get_iommu_order(size, tbl);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
 			      mask >> tbl->it_page_shift, io_order, 0);
@@ -939,7 +941,8 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 		free_pages((unsigned long)ret, order);
 		return NULL;
 	}
-	*dma_handle = mapping;
+
+	*dma_handle = mapping | ((u64)ret & (tcesize - 1));
 	return ret;
 }
 
@@ -950,7 +953,7 @@ void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 		unsigned int nio_pages;
 
 		size = PAGE_ALIGN(size);
-		nio_pages = size >> tbl->it_page_shift;
+		nio_pages = IOMMU_PAGE_ALIGN(size, tbl) >> tbl->it_page_shift;
 		iommu_free(tbl, dma_handle, nio_pages);
 		size = PAGE_ALIGN(size);
 		free_pages((unsigned long)vaddr, get_order(size));
@@ -1167,23 +1170,6 @@ int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 	return iommu_probe_device(dev);
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
-
-void iommu_del_device(struct device *dev)
-{
-	/*
-	 * Some devices might not have IOMMU table and group
-	 * and we needn't detach them from the associated
-	 * IOMMU groups
-	 */
-	if (!device_iommu_mapped(dev)) {
-		pr_debug("iommu_tce: skipping device %s with no tbl\n",
-			 dev_name(dev));
-		return;
-	}
-
-	iommu_group_remove_device(dev);
-}
-EXPORT_SYMBOL_GPL(iommu_del_device);
 
 /*
  * A simple iommu_table_group_ops which only allows reusing the existing

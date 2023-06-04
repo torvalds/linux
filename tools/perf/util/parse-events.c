@@ -2140,25 +2140,32 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 	int *leader_idx = state;
 	int lhs_leader_idx = *leader_idx, rhs_leader_idx = *leader_idx, ret;
 	const char *lhs_pmu_name, *rhs_pmu_name;
+	bool lhs_has_group = false, rhs_has_group = false;
 
 	/*
 	 * First sort by grouping/leader. Read the leader idx only if the evsel
 	 * is part of a group, as -1 indicates no group.
 	 */
-	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1)
+	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1) {
+		lhs_has_group = true;
 		lhs_leader_idx = lhs_core->leader->idx;
-	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1)
+	}
+	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1) {
+		rhs_has_group = true;
 		rhs_leader_idx = rhs_core->leader->idx;
+	}
 
 	if (lhs_leader_idx != rhs_leader_idx)
 		return lhs_leader_idx - rhs_leader_idx;
 
-	/* Group by PMU. Groups can't span PMUs. */
-	lhs_pmu_name = evsel__group_pmu_name(lhs);
-	rhs_pmu_name = evsel__group_pmu_name(rhs);
-	ret = strcmp(lhs_pmu_name, rhs_pmu_name);
-	if (ret)
-		return ret;
+	/* Group by PMU if there is a group. Groups can't span PMUs. */
+	if (lhs_has_group && rhs_has_group) {
+		lhs_pmu_name = evsel__group_pmu_name(lhs);
+		rhs_pmu_name = evsel__group_pmu_name(rhs);
+		ret = strcmp(lhs_pmu_name, rhs_pmu_name);
+		if (ret)
+			return ret;
+	}
 
 	/* Architecture specific sorting. */
 	return arch_evlist__cmp(lhs, rhs);

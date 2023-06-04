@@ -112,7 +112,7 @@ struct compat_statfs64 {
 	u32		f_namelen;
 	u32		f_frsize;
 	u32		f_flags;
-	u32		f_spare[4];
+	u32		f_spare[5];
 };
 
 /*
