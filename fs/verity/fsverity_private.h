@@ -33,7 +33,7 @@ struct fsverity_hash_alg {
 
 /* Merkle tree parameters: hash algorithm, initial hash state, and topology */
 struct merkle_tree_params {
-	struct fsverity_hash_alg *hash_alg; /* the hash algorithm */
+	const struct fsverity_hash_alg *hash_alg; /* the hash algorithm */
 	const u8 *hashstate;		/* initial hash state or NULL */
 	unsigned int digest_size;	/* same as hash_alg->digest_size */
 	unsigned int block_size;	/* size of data and tree blocks */
@@ -79,13 +79,13 @@ struct fsverity_info {
 
 extern struct fsverity_hash_alg fsverity_hash_algs[];
 
-struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
-						unsigned int num);
-const u8 *fsverity_prepare_hash_state(struct fsverity_hash_alg *alg,
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+						      unsigned int num);
+const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 				      const u8 *salt, size_t salt_size);
 int fsverity_hash_block(const struct merkle_tree_params *params,
 			const struct inode *inode, const void *data, u8 *out);
-int fsverity_hash_buffer(struct fsverity_hash_alg *alg,
+int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out);
 void __init fsverity_check_hash_algs(void);
 
