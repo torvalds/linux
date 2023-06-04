@@ -3634,17 +3634,15 @@ static int pci_probe(struct pci_dev *dev,
 	 */
 	BUILD_BUG_ON(AR_BUFFERS * sizeof(struct descriptor) > PAGE_SIZE/4);
 	BUILD_BUG_ON(SELF_ID_BUF_SIZE > PAGE_SIZE/2);
-	ohci->misc_buffer = dma_alloc_coherent(ohci->card.device,
-					       PAGE_SIZE,
-					       &ohci->misc_buffer_bus,
-					       GFP_KERNEL);
+	ohci->misc_buffer = dmam_alloc_coherent(&dev->dev, PAGE_SIZE, &ohci->misc_buffer_bus,
+						GFP_KERNEL);
 	if (!ohci->misc_buffer)
 		return -ENOMEM;
 
 	err = ar_context_init(&ohci->ar_request_ctx, ohci, 0,
 			      OHCI1394_AsReqRcvContextControlSet);
 	if (err < 0)
-		goto fail_misc_buf;
+		return err;
 
 	err = ar_context_init(&ohci->ar_response_ctx, ohci, PAGE_SIZE/4,
 			      OHCI1394_AsRspRcvContextControlSet);
@@ -3736,9 +3734,6 @@ static int pci_probe(struct pci_dev *dev,
 	ar_context_release(&ohci->ar_response_ctx);
  fail_arreq_ctx:
 	ar_context_release(&ohci->ar_request_ctx);
- fail_misc_buf:
-	dma_free_coherent(ohci->card.device, PAGE_SIZE,
-			  ohci->misc_buffer, ohci->misc_buffer_bus);
 
 	return err;
 }
@@ -3774,8 +3769,6 @@ static void pci_remove(struct pci_dev *dev)
 				  ohci->config_rom, ohci->config_rom_bus);
 	ar_context_release(&ohci->ar_request_ctx);
 	ar_context_release(&ohci->ar_response_ctx);
-	dma_free_coherent(ohci->card.device, PAGE_SIZE,
-			  ohci->misc_buffer, ohci->misc_buffer_bus);
 	context_release(&ohci->at_request_ctx);
 	context_release(&ohci->at_response_ctx);
 	kfree(ohci->it_context_list);
