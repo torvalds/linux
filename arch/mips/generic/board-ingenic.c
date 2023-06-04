@@ -117,14 +117,14 @@ static void ingenic_halt(void)
 		ingenic_wait_instr();
 }
 
-static int __maybe_unused ingenic_pm_enter(suspend_state_t state)
+static int ingenic_pm_enter(suspend_state_t state)
 {
 	ingenic_wait_instr();
 
 	return 0;
 }
 
-static const struct platform_suspend_ops ingenic_pm_ops __maybe_unused = {
+static const struct platform_suspend_ops ingenic_pm_ops = {
 	.valid = suspend_valid_only_mem,
 	.enter = ingenic_pm_enter,
 };
