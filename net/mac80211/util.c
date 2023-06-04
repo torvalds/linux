@@ -2477,7 +2477,7 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
 
 static void ieee80211_reconfig_ap_links(struct ieee80211_local *local,
 					struct ieee80211_sub_if_data *sdata,
-					u32 changed)
+					u64 changed)
 {
 	int link_id;
 
@@ -2654,7 +2654,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		/* common change flags for all interface types - link only */
-		u32 changed = BSS_CHANGED_ERP_CTS_PROT |
+		u64 changed = BSS_CHANGED_ERP_CTS_PROT |
 			      BSS_CHANGED_ERP_PREAMBLE |
 			      BSS_CHANGED_ERP_SLOT |
 			      BSS_CHANGED_HT |
