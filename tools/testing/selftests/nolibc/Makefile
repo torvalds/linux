@@ -130,7 +130,10 @@ libc-test: nolibc-test.c
 # qemu user-land test
 run-user: nolibc-test
 	$(Q)qemu-$(QEMU_ARCH) ./nolibc-test > "$(CURDIR)/run.out" || :
-	$(Q)grep -w FAIL "$(CURDIR)/run.out" && echo "See all results in $(CURDIR)/run.out" || echo "$$(grep -c ^[0-9].*OK $(CURDIR)/run.out) test(s) passed."
+	$(Q)awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{f++} /\[SKIPPED\][\r]*$$/{s++} \
+	         END{ printf("%d test(s) passed, %d skipped, %d failed.", p, s, f); \
+	         if (s+f > 0) printf(" See all results in %s\n", ARGV[1]); else print; }' \
+	         $(CURDIR)/run.out
 
 initramfs: nolibc-test
 	$(QUIET_MKDIR)mkdir -p initramfs
@@ -146,12 +149,18 @@ kernel: initramfs
 # run the tests after building the kernel
 run: kernel
 	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
-	$(Q)grep -w FAIL "$(CURDIR)/run.out" && echo "See all results in $(CURDIR)/run.out" || echo "$$(grep -c ^[0-9].*OK $(CURDIR)/run.out) test(s) passed."
+	$(Q)awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{f++} /\[SKIPPED\][\r]*$$/{s++} \
+	         END{ printf("%d test(s) passed, %d skipped, %d failed.", p, s, f); \
+	         if (s+f > 0) printf(" See all results in %s\n", ARGV[1]); else print; }' \
+	         $(CURDIR)/run.out
 
 # re-run the tests from an existing kernel
 rerun:
 	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
-	$(Q)grep -w FAIL "$(CURDIR)/run.out" && echo "See all results in $(CURDIR)/run.out" || echo "$$(grep -c ^[0-9].*OK $(CURDIR)/run.out) test(s) passed."
+	$(Q)awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{f++} /\[SKIPPED\][\r]*$$/{s++} \
+	         END{ printf("%d test(s) passed, %d skipped, %d failed.", p, s, f); \
+	         if (s+f > 0) printf(" See all results in %s\n", ARGV[1]); else print; }' \
+	         $(CURDIR)/run.out
 
 clean:
 	$(call QUIET_CLEAN, sysroot)
