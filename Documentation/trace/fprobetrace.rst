@@ -38,7 +38,7 @@ Synopsis of fprobe-events
                   with a digit character, "_TRACEPOINT" is used.
  MAXACTIVE      : Maximum number of instances of the specified function that
                   can be probed simultaneously, or 0 for the default value
-                  as defined in Documentation/trace/fprobes.rst
+                  as defined in Documentation/trace/fprobe.rst
 
  FETCHARGS      : Arguments. Each probe can have up to 128 args.
   ARG           : Fetch "ARG" function argument using BTF (only for function
