@@ -129,10 +129,11 @@
 	 */
 	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>,
 			  <&cgu JZ4780_CLK_SSIPLL>, <&cgu JZ4780_CLK_SSI>,
-			  <&cgu JZ4780_CLK_HDMI>;
+			  <&cgu JZ4780_CLK_HDMI>, <&cgu JZ4780_CLK_MSCMUX>;
 	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>,
 				 <&cgu JZ4780_CLK_MPLL>,
-				 <&cgu JZ4780_CLK_SSIPLL>;
+				 <&cgu JZ4780_CLK_SSIPLL>,
+				 <0>, <&cgu JZ4780_CLK_MPLL>;
 	assigned-clock-rates = <48000000>, <0>, <54000000>, <0>, <27000000>;
 };
 
