@@ -154,7 +154,7 @@ static void dpu_hw_wb_setup_cdp(struct dpu_hw_wb *ctx,
 
 static void dpu_hw_wb_bind_pingpong_blk(
 		struct dpu_hw_wb *ctx,
-		bool enable, const enum dpu_pingpong pp)
+		const enum dpu_pingpong pp)
 {
 	struct dpu_hw_blk_reg_map *c;
 	int mux_cfg;
@@ -167,7 +167,7 @@ static void dpu_hw_wb_bind_pingpong_blk(
 	mux_cfg = DPU_REG_READ(c, WB_MUX);
 	mux_cfg &= ~0xf;
 
-	if (enable)
+	if (pp)
 		mux_cfg |= (pp - PINGPONG_0) & 0x7;
 	else
 		mux_cfg |= 0xf;

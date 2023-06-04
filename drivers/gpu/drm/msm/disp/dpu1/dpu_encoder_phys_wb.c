@@ -210,7 +210,7 @@ static void dpu_encoder_phys_wb_setup_cdp(struct dpu_encoder_phys *phys_enc)
 
 		/* setup which pp blk will connect to this wb */
 		if (hw_pp && phys_enc->hw_wb->ops.bind_pingpong_blk)
-			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, true,
+			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb,
 					phys_enc->hw_pp->idx);
 
 		phys_enc->hw_ctl->ops.setup_intf_cfg(phys_enc->hw_ctl, &intf_cfg);

@@ -49,7 +49,7 @@ struct dpu_hw_wb_ops {
 			  bool enable);
 
 	void (*bind_pingpong_blk)(struct dpu_hw_wb *ctx,
-			bool enable, const enum dpu_pingpong pp);
+				  const enum dpu_pingpong pp);
 };
 
 /**

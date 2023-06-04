@@ -2080,8 +2080,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	if (phys_enc->hw_wb) {
 		/* disable the PP block */
 		if (phys_enc->hw_wb->ops.bind_pingpong_blk)
-			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, false,
-					phys_enc->hw_pp->idx);
+			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, PINGPONG_NONE);
 
 		/* mark WB flush as pending */
 		if (phys_enc->hw_ctl->ops.update_pending_flush_wb)
