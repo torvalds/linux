@@ -356,7 +356,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ingenic,bch-controller = <&bch>;
+		ecc-engine = <&bch>;
 
 		ingenic,nemc-tAS = <10>;
 		ingenic,nemc-tAH = <5>;
@@ -422,8 +422,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pins_nemc_cs6>;
 
-		reg = <6 0 1   /* addr */
-		       6 2 1>; /* data */
+		reg = <6 0 1>, /* addr */
+		      <6 2 1>; /* data */
 
 		ingenic,nemc-tAS = <15>;
 		ingenic,nemc-tAH = <10>;
@@ -435,7 +435,7 @@
 		vcc-supply = <&eth0_power>;
 
 		interrupt-parent = <&gpe>;
-		interrupts = <19 4>;
+		interrupts = <19 IRQ_TYPE_EDGE_RISING>;
 
 		nvmem-cells = <&eth0_addr>;
 		nvmem-cell-names = "mac-address";
