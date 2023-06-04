@@ -2743,7 +2743,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
 		struct lkd_fw_binning_info *binning_info;
 
-		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader, 0);
+		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader,
+							sizeof(struct lkd_msg_comms));
 		if (rc)
 			goto protocol_err;
 
