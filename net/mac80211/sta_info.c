@@ -1274,8 +1274,9 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	return 0;
 }
 
-int sta_info_move_state(struct sta_info *sta,
-			enum ieee80211_sta_state new_state)
+static int _sta_info_move_state(struct sta_info *sta,
+				enum ieee80211_sta_state new_state,
+				bool recalc)
 {
 	might_sleep();
 
@@ -1333,18 +1334,22 @@ int sta_info_move_state(struct sta_info *sta,
 			set_bit(WLAN_STA_AUTH, &sta->_flags);
 		} else if (sta->sta_state == IEEE80211_STA_ASSOC) {
 			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
-			ieee80211_recalc_min_chandef(sta->sdata, -1);
-			if (!sta->sta.support_p2p_ps)
-				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			if (recalc) {
+				ieee80211_recalc_min_chandef(sta->sdata, -1);
+				if (!sta->sta.support_p2p_ps)
+					ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			}
 		}
 		break;
 	case IEEE80211_STA_ASSOC:
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
 			sta->assoc_at = ktime_get_boottime_ns();
-			ieee80211_recalc_min_chandef(sta->sdata, -1);
-			if (!sta->sta.support_p2p_ps)
-				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			if (recalc) {
+				ieee80211_recalc_min_chandef(sta->sdata, -1);
+				if (!sta->sta.support_p2p_ps)
+					ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			}
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 			ieee80211_vif_dec_num_mcast(sta->sdata);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
@@ -1373,7 +1378,13 @@ int sta_info_move_state(struct sta_info *sta,
 	return 0;
 }
 
-static void __sta_info_destroy_part2(struct sta_info *sta)
+int sta_info_move_state(struct sta_info *sta,
+			enum ieee80211_sta_state new_state)
+{
+	return _sta_info_move_state(sta, new_state, true);
+}
+
+static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -1389,7 +1400,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	lockdep_assert_held(&local->sta_mtx);
 
 	if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-		ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+		ret = _sta_info_move_state(sta, IEEE80211_STA_ASSOC, recalc);
 		WARN_ON_ONCE(ret);
 	}
 
@@ -1417,7 +1428,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	local->sta_generation++;
 
 	while (sta->sta_state > IEEE80211_STA_NONE) {
-		ret = sta_info_move_state(sta, sta->sta_state - 1);
+		ret = _sta_info_move_state(sta, sta->sta_state - 1, recalc);
 		if (ret) {
 			WARN_ON_ONCE(1);
 			break;
@@ -1454,7 +1465,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	synchronize_net();
 
-	__sta_info_destroy_part2(sta);
+	__sta_info_destroy_part2(sta, true);
 
 	return 0;
 }
@@ -1561,9 +1572,18 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans)
 	}
 
 	if (!list_empty(&free_list)) {
+		bool support_p2p_ps = true;
+
 		synchronize_net();
-		list_for_each_entry_safe(sta, tmp, &free_list, free_list)
-			__sta_info_destroy_part2(sta);
+		list_for_each_entry_safe(sta, tmp, &free_list, free_list) {
+			if (!sta->sta.support_p2p_ps)
+				support_p2p_ps = false;
+			__sta_info_destroy_part2(sta, false);
+		}
+
+		ieee80211_recalc_min_chandef(sdata, -1);
+		if (!support_p2p_ps)
+			ieee80211_recalc_p2p_go_ps_allowed(sdata);
 	}
 	mutex_unlock(&local->sta_mtx);
 
