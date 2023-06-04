@@ -67,14 +67,14 @@
 		};
 	};
 
-	eth0_power: fixedregulator@0 {
+	eth0_power: fixedregulator-0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "eth0_power";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		gpio = <&gpb 25 0>;
 		enable-active-high;
 	};
 
@@ -97,23 +97,23 @@
 		gpios = <&gpe 3 GPIO_ACTIVE_LOW>;
 	};
 
-	wlan0_power: fixedregulator@1 {
+	wlan0_power: fixedregulator-1 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "wlan0_power";
 
-		gpio = <&gpb 19 GPIO_ACTIVE_LOW>;
+		gpio = <&gpb 19 0>;
 		enable-active-high;
 	};
 
-	otg_power: fixedregulator@2 {
+	otg_power: fixedregulator-2 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "otg_power";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
-		gpio = <&gpf 15 GPIO_ACTIVE_LOW>;
+		gpio = <&gpf 15 0>;
 		enable-active-high;
 	};
 };
