@@ -129,12 +129,6 @@ struct acpi_thermal_trips {
 	struct acpi_thermal_active active[ACPI_THERMAL_MAX_ACTIVE];
 };
 
-struct acpi_thermal_flags {
-	u8 cooling_mode:1;	/* _SCP */
-	u8 devices:1;		/* _TZD */
-	u8 reserved:6;
-};
-
 struct acpi_thermal {
 	struct acpi_device *device;
 	acpi_bus_id name;
@@ -142,7 +136,6 @@ struct acpi_thermal {
 	unsigned long last_temperature;
 	unsigned long polling_frequency;
 	volatile u8 zombie;
-	struct acpi_thermal_flags flags;
 	struct acpi_thermal_trips trips;
 	struct acpi_handle_list devices;
 	struct thermal_zone_device *thermal_zone;
@@ -193,18 +186,6 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 	tz->polling_frequency = tmp;
 	acpi_handle_debug(tz->device->handle, "Polling frequency is %lu dS\n",
 			  tz->polling_frequency);
-
-	return 0;
-}
-
-static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
-{
-	if (!tz)
-		return -EINVAL;
-
-	if (ACPI_FAILURE(acpi_execute_simple_method(tz->device->handle,
-						    "_SCP", mode)))
-		return -ENODEV;
 
 	return 0;
 }
@@ -926,9 +907,8 @@ static int acpi_thermal_get_info(struct acpi_thermal *tz)
 		return result;
 
 	/* Set the cooling mode [_SCP] to active cooling (default) */
-	result = acpi_thermal_set_cooling_mode(tz, ACPI_THERMAL_MODE_ACTIVE);
-	if (!result)
-		tz->flags.cooling_mode = 1;
+	acpi_execute_simple_method(tz->device->handle, "_SCP",
+				   ACPI_THERMAL_MODE_ACTIVE);
 
 	/* Get default polling frequency [_TZP] (optional) */
 	if (tzp)
