@@ -27,7 +27,7 @@
 		stdout-path = &uart0;
 	};
 
-	vcc: regulator@0 {
+	vcc: regulator-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc";
 
@@ -36,7 +36,7 @@
 		regulator-always-on;
 	};
 
-	mmc_power: regulator@1 {
+	mmc_power: regulator-1 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc_vcc";
 		gpio = <&gpd 2 0>;
@@ -45,7 +45,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	amp_supply: regulator@2 {
+	amp_supply: regulator-2 {
 		compatible = "regulator-fixed";
 		regulator-name = "amp_supply";
 		gpio = <&gpd 4 0>;
