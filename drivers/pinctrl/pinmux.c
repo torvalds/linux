@@ -677,7 +677,6 @@ void pinmux_show_setting(struct seq_file *s,
 DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
-#define PINMUX_SELECT_MAX 128
 static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 				   size_t len, loff_t *ppos)
 {
@@ -688,9 +687,6 @@ static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 	char *buf, *gname, *fname;
 	unsigned int num_groups;
 	int fsel, gsel, ret;
-
-	if (len > PINMUX_SELECT_MAX)
-		return -ENOMEM;
 
 	buf = memdup_user_nul(user_buf, len);
 	if (IS_ERR(buf))
