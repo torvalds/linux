@@ -272,19 +272,16 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
 				inl-supply = <&vcc_33v>;
-				regulator-always-on;
 			};
 			cim_io_28: LDO7 {
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 				inl-supply = <&vcc_33v>;
-				regulator-always-on;
 			};
 			cim_io_15: LDO8 {
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
 				inl-supply = <&vcc_33v>;
-				regulator-always-on;
 			};
 			vrtc_18: LDO_REG9 {
 				/* Despite the datasheet stating 3.3V
