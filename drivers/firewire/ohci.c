@@ -3588,7 +3588,7 @@ static int pci_probe(struct pci_dev *dev,
 	pmac_ohci_on(dev);
 	devres_add(&dev->dev, ohci);
 
-	err = pci_enable_device(dev);
+	err = pcim_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "failed to enable OHCI hardware\n");
 		return err;
@@ -3605,14 +3605,13 @@ static int pci_probe(struct pci_dev *dev,
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM) ||
 	    pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE) {
 		ohci_err(ohci, "invalid MMIO resource\n");
-		err = -ENXIO;
-		goto fail_disable;
+		return -ENXIO;
 	}
 
 	err = pci_request_region(dev, 0, ohci_driver_name);
 	if (err) {
 		ohci_err(ohci, "MMIO resource unavailable\n");
-		goto fail_disable;
+		return err;
 	}
 
 	ohci->registers = pci_iomap(dev, 0, OHCI1394_REGISTER_SIZE);
@@ -3752,8 +3751,6 @@ static int pci_probe(struct pci_dev *dev,
 	pci_iounmap(dev, ohci->registers);
  fail_iomem:
 	pci_release_region(dev, 0);
- fail_disable:
-	pci_disable_device(dev);
 
 	return err;
 }
@@ -3798,7 +3795,6 @@ static void pci_remove(struct pci_dev *dev)
 	pci_disable_msi(dev);
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
-	pci_disable_device(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
