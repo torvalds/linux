@@ -7,7 +7,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2022 Intel Corporation
+ * Copyright (C) 2018 - 2023 Intel Corporation
  */
 
 #ifndef MAC80211_H
@@ -6864,6 +6864,48 @@ static inline enum nl80211_iftype
 ieee80211_vif_type_p2p(struct ieee80211_vif *vif)
 {
 	return ieee80211_iftype_p2p(vif->type, vif->p2p);
+}
+
+/**
+ * ieee80211_get_he_iftype_cap_vif - return HE capabilities for sband/vif
+ * @sband: the sband to search for the iftype on
+ * @vif: the vif to get the iftype from
+ *
+ * Return: pointer to the struct ieee80211_sta_he_cap, or %NULL is none found
+ */
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_iftype_cap_vif(const struct ieee80211_supported_band *sband,
+				struct ieee80211_vif *vif)
+{
+	return ieee80211_get_he_iftype_cap(sband, ieee80211_vif_type_p2p(vif));
+}
+
+/**
+ * ieee80211_get_he_6ghz_capa_vif - return HE 6 GHz capabilities
+ * @sband: the sband to search for the STA on
+ * @vif: the vif to get the iftype from
+ *
+ * Return: the 6GHz capabilities
+ */
+static inline __le16
+ieee80211_get_he_6ghz_capa_vif(const struct ieee80211_supported_band *sband,
+			       struct ieee80211_vif *vif)
+{
+	return ieee80211_get_he_6ghz_capa(sband, ieee80211_vif_type_p2p(vif));
+}
+
+/**
+ * ieee80211_get_eht_iftype_cap_vif - return ETH capabilities for sband/vif
+ * @sband: the sband to search for the iftype on
+ * @vif: the vif to get the iftype from
+ *
+ * Return: pointer to the struct ieee80211_sta_eht_cap, or %NULL is none found
+ */
+static inline const struct ieee80211_sta_eht_cap *
+ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *sband,
+				 struct ieee80211_vif *vif)
+{
+	return ieee80211_get_eht_iftype_cap(sband, ieee80211_vif_type_p2p(vif));
 }
 
 /**

@@ -511,16 +511,14 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 
 	/* don't check HE if we associated as non-HE station */
 	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE ||
-	    !ieee80211_get_he_iftype_cap(sband,
-					 ieee80211_vif_type_p2p(&sdata->vif))) {
+	    !ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif)) {
 		he_oper = NULL;
 		eht_oper = NULL;
 	}
 
 	/* don't check EHT if we associated as non-EHT station */
 	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT ||
-	    !ieee80211_get_eht_iftype_cap(sband,
-					 ieee80211_vif_type_p2p(&sdata->vif)))
+	    !ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif))
 		eht_oper = NULL;
 
 	/*
@@ -776,8 +774,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_sta_he_cap *he_cap;
 	u8 he_cap_size;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(&sdata->vif));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (WARN_ON(!he_cap))
 		return;
 
@@ -806,10 +803,8 @@ static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_sta_eht_cap *eht_cap;
 	u8 eht_cap_size;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(&sdata->vif));
-	eht_cap = ieee80211_get_eht_iftype_cap(sband,
-					       ieee80211_vif_type_p2p(&sdata->vif));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 
 	/*
 	 * EHT capabilities element is only added if the HE capabilities element
@@ -3945,8 +3940,7 @@ static bool ieee80211_twt_req_supported(struct ieee80211_sub_if_data *sdata,
 					const struct ieee802_11_elems *elems)
 {
 	const struct ieee80211_sta_he_cap *own_he_cap =
-		ieee80211_get_he_iftype_cap(sband,
-					    ieee80211_vif_type_p2p(&sdata->vif));
+		ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 
 	if (elems->ext_capab_len < 10)
 		return false;
@@ -3982,8 +3976,7 @@ static bool ieee80211_twt_bcast_support(struct ieee80211_sub_if_data *sdata,
 					struct link_sta_info *link_sta)
 {
 	const struct ieee80211_sta_he_cap *own_he_cap =
-		ieee80211_get_he_iftype_cap(sband,
-					    ieee80211_vif_type_p2p(&sdata->vif));
+		ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 
 	return bss_conf->he_support &&
 		(link_sta->pub->he_cap.he_cap_elem.mac_cap_info[2] &
@@ -4620,8 +4613,7 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_he_operation *he_op)
 {
 	const struct ieee80211_sta_he_cap *sta_he_cap =
-		ieee80211_get_he_iftype_cap(sband,
-					    ieee80211_vif_type_p2p(&sdata->vif));
+		ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	u16 ap_min_req_set;
 	int i;
 
@@ -4755,15 +4747,13 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
-	if (!ieee80211_get_he_iftype_cap(sband,
-					 ieee80211_vif_type_p2p(&sdata->vif))) {
+	if (!ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif)) {
 		mlme_dbg(sdata, "HE not supported, disabling HE and EHT\n");
 		*conn_flags |= IEEE80211_CONN_DISABLE_HE;
 		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
-	if (!ieee80211_get_eht_iftype_cap(sband,
-					  ieee80211_vif_type_p2p(&sdata->vif))) {
+	if (!ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif)) {
 		mlme_dbg(sdata, "EHT not supported, disabling EHT\n");
 		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}

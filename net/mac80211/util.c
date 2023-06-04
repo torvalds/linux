@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  *
  * utilities for mac80211
  */
@@ -2121,8 +2121,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(&sdata->vif));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (he_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE)) {
@@ -2131,8 +2130,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 	}
 
-	eht_cap = ieee80211_get_eht_iftype_cap(sband,
-					       ieee80211_vif_type_p2p(&sdata->vif));
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 
 	if (eht_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
@@ -2150,8 +2148,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_supported_band *sband6;
 
 		sband6 = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
-		he_cap = ieee80211_get_he_iftype_cap(sband6,
-				ieee80211_vif_type_p2p(&sdata->vif));
+		he_cap = ieee80211_get_he_iftype_cap_vif(sband6, &sdata->vif);
 
 		if (he_cap) {
 			enum nl80211_iftype iftype =

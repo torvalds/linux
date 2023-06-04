@@ -2269,8 +2269,7 @@ bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * so take it from one of them.
 	 */
 	sband = mvm->hw->wiphy->bands[NL80211_BAND_2GHZ];
-	own_he_cap = ieee80211_get_he_iftype_cap(sband,
-						 ieee80211_vif_type_p2p(vif));
+	own_he_cap = ieee80211_get_he_iftype_cap_vif(sband, vif);
 
 	return (own_he_cap && (own_he_cap->he_cap_elem.mac_cap_info[2] &
 			       IEEE80211_HE_MAC_CAP2_ACK_EN));
@@ -3452,8 +3451,7 @@ static void iwl_mvm_reset_cca_40mhz_workaround(struct iwl_mvm *mvm,
 
 	sband->ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(vif));
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, vif);
 
 	if (he_cap) {
 		/* we know that ours is writable */
