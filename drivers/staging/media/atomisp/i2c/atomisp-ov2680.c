@@ -248,22 +248,22 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 static int ov2680_set_mode(struct ov2680_dev *sensor)
 {
 	struct i2c_client *client = sensor->client;
-	u8 unknown, inc, fmt1, fmt2;
+	u8 sensor_ctrl_0a, inc, fmt1, fmt2;
 	int ret;
 
 	if (sensor->mode.binning) {
-		unknown = 0x23;
+		sensor_ctrl_0a = 0x23;
 		inc = 0x31;
 		fmt1 = 0xc2;
 		fmt2 = 0x01;
 	} else {
-		unknown = 0x21;
+		sensor_ctrl_0a = 0x21;
 		inc = 0x11;
 		fmt1 = 0xc0;
 		fmt2 = 0x00;
 	}
 
-	ret = ov_write_reg8(client, 0x370a, unknown);
+	ret = ov_write_reg8(client, OV2680_REG_SENSOR_CTRL_0A, sensor_ctrl_0a);
 	if (ret)
 		return ret;
 
