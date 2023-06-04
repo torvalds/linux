@@ -40,8 +40,35 @@
 #define ACPI_THERMAL_NOTIFY_HOT		0xF1
 #define ACPI_THERMAL_MODE_ACTIVE	0x00
 
-#define ACPI_THERMAL_MAX_ACTIVE	10
-#define ACPI_THERMAL_MAX_LIMIT_STR_LEN 65
+#define ACPI_THERMAL_MAX_ACTIVE		10
+#define ACPI_THERMAL_MAX_LIMIT_STR_LEN	65
+
+#define ACPI_TRIPS_CRITICAL	BIT(0)
+#define ACPI_TRIPS_HOT		BIT(1)
+#define ACPI_TRIPS_PASSIVE	BIT(2)
+#define ACPI_TRIPS_ACTIVE	BIT(3)
+#define ACPI_TRIPS_DEVICES	BIT(4)
+
+#define ACPI_TRIPS_THRESHOLDS	(ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE)
+
+#define ACPI_TRIPS_INIT		(ACPI_TRIPS_CRITICAL | ACPI_TRIPS_HOT | \
+				 ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE | \
+				 ACPI_TRIPS_DEVICES)
+
+/*
+ * This exception is thrown out in two cases:
+ * 1.An invalid trip point becomes invalid or a valid trip point becomes invalid
+ *   when re-evaluating the AML code.
+ * 2.TODO: Devices listed in _PSL, _ALx, _TZD may change.
+ *   We need to re-bind the cooling devices of a thermal zone when this occurs.
+ */
+#define ACPI_THERMAL_TRIPS_EXCEPTION(flags, tz, str) \
+do { \
+	if (flags != ACPI_TRIPS_INIT) \
+		acpi_handle_info(tz->device->handle, \
+			"ACPI thermal trip point %s changed\n" \
+			"Please report to linux-acpi@vger.kernel.org\n", str); \
+} while (0)
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
@@ -231,33 +258,6 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 
 	return 0;
 }
-
-#define ACPI_TRIPS_CRITICAL	BIT(0)
-#define ACPI_TRIPS_HOT		BIT(1)
-#define ACPI_TRIPS_PASSIVE	BIT(2)
-#define ACPI_TRIPS_ACTIVE	BIT(3)
-#define ACPI_TRIPS_DEVICES	BIT(4)
-
-#define ACPI_TRIPS_THRESHOLDS	(ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE)
-
-#define ACPI_TRIPS_INIT		(ACPI_TRIPS_CRITICAL | ACPI_TRIPS_HOT | \
-				 ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE | \
-				 ACPI_TRIPS_DEVICES)
-
-/*
- * This exception is thrown out in two cases:
- * 1.An invalid trip point becomes invalid or a valid trip point becomes invalid
- *   when re-evaluating the AML code.
- * 2.TODO: Devices listed in _PSL, _ALx, _TZD may change.
- *   We need to re-bind the cooling devices of a thermal zone when this occurs.
- */
-#define ACPI_THERMAL_TRIPS_EXCEPTION(flags, tz, str)	\
-do {	\
-	if (flags != ACPI_TRIPS_INIT)	\
-		acpi_handle_info(tz->device->handle,	\
-		"ACPI thermal trip point %s changed\n"	\
-		"Please report to linux-acpi@vger.kernel.org\n", str); \
-} while (0)
 
 static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 {
