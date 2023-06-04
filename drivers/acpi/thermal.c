@@ -70,10 +70,6 @@ do { \
 			"Please report to linux-acpi@vger.kernel.org\n", str); \
 } while (0)
 
-MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
-MODULE_LICENSE("GPL");
-
 static int act;
 module_param(act, int, 0644);
 MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.");
@@ -99,37 +95,6 @@ module_param(psv, int, 0644);
 MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 
 static struct workqueue_struct *acpi_thermal_pm_queue;
-
-static int acpi_thermal_add(struct acpi_device *device);
-static void acpi_thermal_remove(struct acpi_device *device);
-static void acpi_thermal_notify(struct acpi_device *device, u32 event);
-
-static const struct acpi_device_id  thermal_device_ids[] = {
-	{ACPI_THERMAL_HID, 0},
-	{"", 0},
-};
-MODULE_DEVICE_TABLE(acpi, thermal_device_ids);
-
-#ifdef CONFIG_PM_SLEEP
-static int acpi_thermal_suspend(struct device *dev);
-static int acpi_thermal_resume(struct device *dev);
-#else
-#define acpi_thermal_suspend NULL
-#define acpi_thermal_resume NULL
-#endif
-static SIMPLE_DEV_PM_OPS(acpi_thermal_pm, acpi_thermal_suspend, acpi_thermal_resume);
-
-static struct acpi_driver acpi_thermal_driver = {
-	.name = "thermal",
-	.class = ACPI_THERMAL_CLASS,
-	.ids = thermal_device_ids,
-	.ops = {
-		.add = acpi_thermal_add,
-		.remove = acpi_thermal_remove,
-		.notify = acpi_thermal_notify,
-		},
-	.drv.pm = &acpi_thermal_pm,
-};
 
 struct acpi_thermal_state {
 	u8 critical:1;
@@ -1129,7 +1094,29 @@ static int acpi_thermal_resume(struct device *dev)
 
 	return AE_OK;
 }
+#else
+#define acpi_thermal_suspend	NULL
+#define acpi_thermal_resume	NULL
 #endif
+static SIMPLE_DEV_PM_OPS(acpi_thermal_pm, acpi_thermal_suspend, acpi_thermal_resume);
+
+static const struct acpi_device_id  thermal_device_ids[] = {
+	{ACPI_THERMAL_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, thermal_device_ids);
+
+static struct acpi_driver acpi_thermal_driver = {
+	.name = "thermal",
+	.class = ACPI_THERMAL_CLASS,
+	.ids = thermal_device_ids,
+	.ops = {
+		.add = acpi_thermal_add,
+		.remove = acpi_thermal_remove,
+		.notify = acpi_thermal_notify,
+		},
+	.drv.pm = &acpi_thermal_pm,
+};
 
 static int thermal_act(const struct dmi_system_id *d) {
 	if (act == 0) {
@@ -1235,3 +1222,7 @@ static void __exit acpi_thermal_exit(void)
 
 module_init(acpi_thermal_init);
 module_exit(acpi_thermal_exit);
+
+MODULE_AUTHOR("Paul Diefenbaugh");
+MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
+MODULE_LICENSE("GPL");
