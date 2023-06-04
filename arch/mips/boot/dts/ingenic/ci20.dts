@@ -237,59 +237,49 @@
 	act8600: act8600@5a {
 		compatible = "active-semi,act8600";
 		reg = <0x5a>;
-		status = "okay";
 
 		regulators {
-			vddcore: SUDCDC1 {
-				regulator-name = "DCDC_REG1";
+			vddcore: DCDC1 {
 				regulator-min-microvolt = <1100000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 			};
-			vddmem: SUDCDC2 {
-				regulator-name = "DCDC_REG2";
+			vddmem: DCDC2 {
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
-			vcc_33: SUDCDC3 {
-				regulator-name = "DCDC_REG3";
+			vcc_33: DCDC3 {
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
-			vcc_50: SUDCDC4 {
-				regulator-name = "SUDCDC_REG4";
+			vcc_50: SUDCDC_REG4 {
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5000000>;
 				regulator-always-on;
 			};
-			vcc_25: LDO_REG5 {
-				regulator-name = "LDO_REG5";
+			vcc_25: LDO5 {
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
 				regulator-always-on;
 			};
-			wifi_io: LDO_REG6 {
-				regulator-name = "LDO_REG6";
+			wifi_io: LDO6 {
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
 				regulator-always-on;
 			};
-			vcc_28: LDO_REG7 {
-				regulator-name = "LDO_REG7";
+			cim_io_28: LDO7 {
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 				regulator-always-on;
 			};
-			vcc_15: LDO_REG8 {
-				regulator-name = "LDO_REG8";
+			cim_io_15: LDO8 {
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
 			vrtc_18: LDO_REG9 {
-				regulator-name = "LDO_REG9";
 				/* Despite the datasheet stating 3.3V
 				 * for REG9 and the driver expecting that,
 				 * REG9 outputs 1.8V.
@@ -303,7 +293,6 @@
 				regulator-always-on;
 			};
 			vcc_11: LDO_REG10 {
-				regulator-name = "LDO_REG10";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
