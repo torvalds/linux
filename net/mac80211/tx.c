@@ -581,24 +581,8 @@ ieee80211_select_link_key(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-	enum {
-		USE_NONE,
-		USE_MGMT_KEY,
-		USE_MCAST_KEY,
-	} which_key = USE_NONE;
 	struct ieee80211_link_data *link;
 	unsigned int link_id;
-
-	if (ieee80211_is_group_privacy_action(tx->skb))
-		which_key = USE_MCAST_KEY;
-	else if (ieee80211_is_mgmt(hdr->frame_control) &&
-		 is_multicast_ether_addr(hdr->addr1) &&
-		 ieee80211_is_robust_mgmt_frame(tx->skb))
-		which_key = USE_MGMT_KEY;
-	else if (is_multicast_ether_addr(hdr->addr1))
-		which_key = USE_MCAST_KEY;
-	else
-		return NULL;
 
 	link_id = u32_get_bits(info->control.flags, IEEE80211_TX_CTRL_MLO_LINK);
 	if (link_id == IEEE80211_LINK_UNSPECIFIED) {
@@ -609,14 +593,14 @@ ieee80211_select_link_key(struct ieee80211_tx_data *tx)
 			return NULL;
 	}
 
-	switch (which_key) {
-	case USE_NONE:
-		break;
-	case USE_MGMT_KEY:
-		return rcu_dereference(link->default_mgmt_key);
-	case USE_MCAST_KEY:
+	if (ieee80211_is_group_privacy_action(tx->skb))
 		return rcu_dereference(link->default_multicast_key);
-	}
+	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 is_multicast_ether_addr(hdr->addr1) &&
+		 ieee80211_is_robust_mgmt_frame(tx->skb))
+		return rcu_dereference(link->default_mgmt_key);
+	else if (is_multicast_ether_addr(hdr->addr1))
+		return rcu_dereference(link->default_multicast_key);
 
 	return NULL;
 }
