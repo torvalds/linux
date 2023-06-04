@@ -256,9 +256,10 @@ out:
 }
 
 static bool
-verify_data_blocks(struct inode *inode, struct folio *data_folio,
-		   size_t len, size_t offset, unsigned long max_ra_pages)
+verify_data_blocks(struct folio *data_folio, size_t len, size_t offset,
+		   unsigned long max_ra_pages)
 {
+	struct inode *inode = data_folio->mapping->host;
 	struct fsverity_info *vi = inode->i_verity_info;
 	const unsigned int block_size = vi->tree_params.block_size;
 	u64 pos = (u64)data_folio->index << PAGE_SHIFT;
@@ -298,7 +299,7 @@ verify_data_blocks(struct inode *inode, struct folio *data_folio,
  */
 bool fsverity_verify_blocks(struct folio *folio, size_t len, size_t offset)
 {
-	return verify_data_blocks(folio->mapping->host, folio, len, offset, 0);
+	return verify_data_blocks(folio, len, offset, 0);
 }
 EXPORT_SYMBOL_GPL(fsverity_verify_blocks);
 
@@ -319,7 +320,6 @@ EXPORT_SYMBOL_GPL(fsverity_verify_blocks);
  */
 void fsverity_verify_bio(struct bio *bio)
 {
-	struct inode *inode = bio_first_page_all(bio)->mapping->host;
 	struct folio_iter fi;
 	unsigned long max_ra_pages = 0;
 
@@ -337,7 +337,7 @@ void fsverity_verify_bio(struct bio *bio)
 	}
 
 	bio_for_each_folio_all(fi, bio) {
-		if (!verify_data_blocks(inode, fi.folio, fi.length, fi.offset,
+		if (!verify_data_blocks(fi.folio, fi.length, fi.offset,
 					max_ra_pages)) {
 			bio->bi_status = BLK_STS_IOERR;
 			break;
