@@ -238,12 +238,11 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 #define ACPI_TRIPS_ACTIVE	BIT(3)
 #define ACPI_TRIPS_DEVICES	BIT(4)
 
-#define ACPI_TRIPS_REFRESH_THRESHOLDS	(ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE)
-#define ACPI_TRIPS_REFRESH_DEVICES	ACPI_TRIPS_DEVICES
+#define ACPI_TRIPS_THRESHOLDS	(ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE)
 
-#define ACPI_TRIPS_INIT      (ACPI_TRIPS_CRITICAL | ACPI_TRIPS_HOT |	\
-			      ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE |	\
-			      ACPI_TRIPS_DEVICES)
+#define ACPI_TRIPS_INIT		(ACPI_TRIPS_CRITICAL | ACPI_TRIPS_HOT | \
+				 ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE | \
+				 ACPI_TRIPS_DEVICES)
 
 /*
  * This exception is thrown out in two cases:
@@ -906,13 +905,13 @@ static void acpi_thermal_notify(struct acpi_device *device, u32 event)
 		acpi_queue_thermal_check(tz);
 		break;
 	case ACPI_THERMAL_NOTIFY_THRESHOLDS:
-		acpi_thermal_trips_update(tz, ACPI_TRIPS_REFRESH_THRESHOLDS);
+		acpi_thermal_trips_update(tz, ACPI_TRIPS_THRESHOLDS);
 		acpi_queue_thermal_check(tz);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						dev_name(&device->dev), event, 0);
 		break;
 	case ACPI_THERMAL_NOTIFY_DEVICES:
-		acpi_thermal_trips_update(tz, ACPI_TRIPS_REFRESH_DEVICES);
+		acpi_thermal_trips_update(tz, ACPI_TRIPS_DEVICES);
 		acpi_queue_thermal_check(tz);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						dev_name(&device->dev), event, 0);
