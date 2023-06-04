@@ -85,12 +85,13 @@ enum ask_yn bch2_fsck_ask_yn(void)
 	bool ret;
 
 	while (true) {
-		fputs(" (y,n,Y,N) ", stdout);
+		fputs(" (y,n, or Y,N for all errors of this type) ", stdout);
 		fflush(stdout);
 
 		if (getline(&buf, &buflen, stdin) < 0)
 			die("error reading from standard input");
 
+		strim(buf);
 		if (strlen(buf) != 1)
 			continue;
 
