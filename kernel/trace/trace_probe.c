@@ -1273,7 +1273,8 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 			trace_probe_log_err(0, NOSUP_BTFARG);
 			return (const char **)params;
 		}
-		return 0;
+		*new_argc = argc;
+		return NULL;
 	}
 	ctx->params = params;
 	ctx->nr_params = nr_params;
