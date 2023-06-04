@@ -677,6 +677,9 @@ static void ar_context_release(struct ar_context *ctx)
 	struct device *dev = ctx->ohci->card.device;
 	unsigned int i;
 
+	if (!ctx->buffer)
+		return;
+
 	vunmap(ctx->buffer);
 
 	for (i = 0; i < AR_BUFFERS; i++) {
@@ -3556,8 +3559,12 @@ static inline void pmac_ohci_off(struct pci_dev *dev) {}
 static void release_ohci(struct device *dev, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct fw_ohci *ohci = pci_get_drvdata(pdev);
 
 	pmac_ohci_off(pdev);
+
+	ar_context_release(&ohci->ar_response_ctx);
+	ar_context_release(&ohci->ar_request_ctx);
 
 	dev_notice(dev, "removed fw-ohci device\n");
 }
@@ -3643,17 +3650,17 @@ static int pci_probe(struct pci_dev *dev,
 	err = ar_context_init(&ohci->ar_response_ctx, ohci, PAGE_SIZE/4,
 			      OHCI1394_AsRspRcvContextControlSet);
 	if (err < 0)
-		goto fail_arreq_ctx;
+		return err;
 
 	err = context_init(&ohci->at_request_ctx, ohci,
 			   OHCI1394_AsReqTrContextControlSet, handle_at_packet);
 	if (err < 0)
-		goto fail_arrsp_ctx;
+		return err;
 
 	err = context_init(&ohci->at_response_ctx, ohci,
 			   OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 	if (err < 0)
-		goto fail_arrsp_ctx;
+		return err;
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
@@ -3663,10 +3670,8 @@ static int pci_probe(struct pci_dev *dev,
 	ohci->n_ir = hweight32(ohci->ir_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_ir;
 	ohci->ir_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
-	if (!ohci->ir_context_list) {
-		err = -ENOMEM;
-		goto fail_arrsp_ctx;
-	}
+	if (!ohci->ir_context_list)
+		return -ENOMEM;
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
@@ -3680,10 +3685,8 @@ static int pci_probe(struct pci_dev *dev,
 	ohci->n_it = hweight32(ohci->it_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_it;
 	ohci->it_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
-	if (!ohci->it_context_list) {
-		err = -ENOMEM;
-		goto fail_arrsp_ctx;
-	}
+	if (!ohci->it_context_list)
+		return -ENOMEM;
 
 	ohci->self_id     = ohci->misc_buffer     + PAGE_SIZE/2;
 	ohci->self_id_bus = ohci->misc_buffer_bus + PAGE_SIZE/2;
@@ -3720,10 +3723,6 @@ static int pci_probe(struct pci_dev *dev,
 
  fail_msi:
 	pci_disable_msi(dev);
- fail_arrsp_ctx:
-	ar_context_release(&ohci->ar_response_ctx);
- fail_arreq_ctx:
-	ar_context_release(&ohci->ar_request_ctx);
 
 	return err;
 }
@@ -3750,8 +3749,6 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 
-	ar_context_release(&ohci->ar_request_ctx);
-	ar_context_release(&ohci->ar_response_ctx);
 	pci_disable_msi(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
