@@ -541,7 +541,7 @@ static int serial_break(struct tty_struct *tty, int break_state)
 	if (port->serial->type->break_ctl)
 		return port->serial->type->break_ctl(tty, break_state);
 
-	return 0;
+	return -ENOTTY;
 }
 
 static int serial_proc_show(struct seq_file *m, void *v)
