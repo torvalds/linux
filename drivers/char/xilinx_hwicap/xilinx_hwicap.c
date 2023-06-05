@@ -804,7 +804,7 @@ static int hwicap_drv_probe(struct platform_device *pdev)
 			&buffer_icap_config, regs);
 }
 
-static int hwicap_drv_remove(struct platform_device *pdev)
+static void hwicap_drv_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hwicap_drvdata *drvdata;
@@ -820,8 +820,6 @@ static int hwicap_drv_remove(struct platform_device *pdev)
 	mutex_lock(&icap_sem);
 	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;
 	mutex_unlock(&icap_sem);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -838,7 +836,7 @@ MODULE_DEVICE_TABLE(of, hwicap_of_match);
 
 static struct platform_driver hwicap_platform_driver = {
 	.probe = hwicap_drv_probe,
-	.remove = hwicap_drv_remove,
+	.remove_new = hwicap_drv_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = hwicap_of_match,
