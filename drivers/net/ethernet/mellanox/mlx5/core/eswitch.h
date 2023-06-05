@@ -123,8 +123,14 @@ struct vport_ingress {
 	} offloads;
 };
 
+enum vport_egress_acl_type {
+	VPORT_EGRESS_ACL_TYPE_DEFAULT,
+	VPORT_EGRESS_ACL_TYPE_SHARED_FDB,
+};
+
 struct vport_egress {
 	struct mlx5_flow_table *acl;
+	enum vport_egress_acl_type type;
 	struct mlx5_flow_handle  *allowed_vlan;
 	struct mlx5_flow_group *vlan_grp;
 	union {
@@ -136,7 +142,7 @@ struct vport_egress {
 		struct {
 			struct mlx5_flow_group *fwd_grp;
 			struct mlx5_flow_handle *fwd_rule;
-			struct mlx5_flow_handle *bounce_rule;
+			struct xarray bounce_rules;
 			struct mlx5_flow_group *bounce_grp;
 		} offloads;
 	};
@@ -218,7 +224,7 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *send_to_vport_meta_grp;
 			struct mlx5_flow_group *peer_miss_grp;
-			struct mlx5_flow_handle **peer_miss_rules;
+			struct mlx5_flow_handle **peer_miss_rules[MLX5_MAX_PORTS];
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_handle **send_to_vport_meta_rules;
 			struct mlx5_flow_handle *miss_rule_uni;
@@ -249,7 +255,7 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_group *vport_rx_drop_group;
 	struct mlx5_flow_handle *vport_rx_drop_rule;
 	struct xarray vport_reps;
-	struct list_head peer_flows;
+	struct list_head peer_flows[MLX5_MAX_PORTS];
 	struct mutex peer_mutex;
 	struct mutex encap_tbl_lock; /* protects encap_tbl */
 	DECLARE_HASHTABLE(encap_tbl, 8);
@@ -337,6 +343,7 @@ struct mlx5_eswitch {
 	int                     mode;
 	u16                     manager_vport;
 	u16                     first_host_vport;
+	u8			num_peers;
 	struct mlx5_esw_functions esw_funcs;
 	struct {
 		u32             large_group_num;
@@ -578,6 +585,13 @@ mlx5_esw_is_manager_vport(const struct mlx5_eswitch *esw, u16 vport_num)
 	return esw->manager_vport == vport_num;
 }
 
+static inline bool mlx5_esw_is_owner(struct mlx5_eswitch *esw, u16 vport_num,
+				     u16 esw_owner_vhca_id)
+{
+	return esw_owner_vhca_id == MLX5_CAP_GEN(esw->dev, vhca_id) ||
+		(vport_num == MLX5_VPORT_UPLINK && mlx5_lag_is_master(esw->dev));
+}
+
 static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 {
 	return mlx5_core_is_ecpf_esw_manager(dev) ?
@@ -748,9 +762,9 @@ void esw_vport_change_handle_locked(struct mlx5_vport *vport);
 
 bool mlx5_esw_offloads_controller_valid(const struct mlx5_eswitch *esw, u32 controller);
 
-int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
-					    struct mlx5_eswitch *slave_esw);
-void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+int mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
+					     struct mlx5_eswitch *slave_esw, int max_slaves);
+void mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw);
 int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 
@@ -802,14 +816,14 @@ mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
 }
 
 static inline int
-mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
-					struct mlx5_eswitch *slave_esw)
+mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
+					 struct mlx5_eswitch *slave_esw, int max_slaves)
 {
 	return 0;
 }
 
 static inline void
-mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					 struct mlx5_eswitch *slave_esw) {}
 
 static inline int

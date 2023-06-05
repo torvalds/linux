@@ -550,6 +550,29 @@ char *mlx5_get_str_port_sel_mode(enum mlx5_lag_mode mode, unsigned long flags)
 	}
 }
 
+static int mlx5_lag_create_single_fdb(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_eswitch *master_esw = dev0->priv.eswitch;
+	int err;
+	int i;
+
+	for (i = MLX5_LAG_P1 + 1; i < ldev->ports; i++) {
+		struct mlx5_eswitch *slave_esw = ldev->pf[i].dev->priv.eswitch;
+
+		err = mlx5_eswitch_offloads_single_fdb_add_one(master_esw,
+							       slave_esw, ldev->ports);
+		if (err)
+			goto err;
+	}
+	return 0;
+err:
+	for (; i > MLX5_LAG_P1; i--)
+		mlx5_eswitch_offloads_single_fdb_del_one(master_esw,
+							 ldev->pf[i].dev->priv.eswitch);
+	return err;
+}
+
 static int mlx5_create_lag(struct mlx5_lag *ldev,
 			   struct lag_tracker *tracker,
 			   enum mlx5_lag_mode mode,
@@ -557,7 +580,6 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 {
 	bool shared_fdb = test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &flags);
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
-	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
 	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	int err;
 
@@ -575,8 +597,7 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	}
 
 	if (shared_fdb) {
-		err = mlx5_eswitch_offloads_config_single_fdb(dev0->priv.eswitch,
-							      dev1->priv.eswitch);
+		err = mlx5_lag_create_single_fdb(ldev);
 		if (err)
 			mlx5_core_err(dev0, "Can't enable single FDB mode\n");
 		else
@@ -647,19 +668,21 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
-	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	struct mlx5_eswitch *master_esw = dev0->priv.eswitch;
 	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	bool roce_lag = __mlx5_lag_is_roce(ldev);
 	unsigned long flags = ldev->mode_flags;
 	int err;
+	int i;
 
 	ldev->mode = MLX5_LAG_MODE_NONE;
 	ldev->mode_flags = 0;
 	mlx5_lag_mp_reset(ldev);
 
 	if (test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &flags)) {
-		mlx5_eswitch_offloads_destroy_single_fdb(dev0->priv.eswitch,
-							 dev1->priv.eswitch);
+		for (i = MLX5_LAG_P1 + 1; i < ldev->ports; i++)
+			mlx5_eswitch_offloads_single_fdb_del_one(master_esw,
+								 ldev->pf[i].dev->priv.eswitch);
 		clear_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &flags);
 	}
 
@@ -801,8 +824,8 @@ bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev)
 	    is_mdev_switchdev_mode(dev1) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev0->priv.eswitch) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev1->priv.eswitch) &&
-	    mlx5_devcom_is_paired(dev0->priv.devcom,
-				  MLX5_DEVCOM_ESW_OFFLOADS) &&
+	    mlx5_devcom_comp_is_ready(dev0->priv.devcom,
+				      MLX5_DEVCOM_ESW_OFFLOADS) &&
 	    MLX5_CAP_GEN(dev1, lag_native_fdb_selection) &&
 	    MLX5_CAP_ESW(dev1, root_ft_on_other_esw) &&
 	    MLX5_CAP_ESW(dev0, esw_shared_ingress_acl))

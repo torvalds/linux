@@ -935,7 +935,7 @@ struct mlx5dr_domain_info {
 };
 
 struct mlx5dr_domain {
-	struct mlx5dr_domain *peer_dmn;
+	struct mlx5dr_domain *peer_dmn[MLX5_MAX_PORTS];
 	struct mlx5_core_dev *mdev;
 	u32 pdn;
 	struct mlx5_uars_page *uar;

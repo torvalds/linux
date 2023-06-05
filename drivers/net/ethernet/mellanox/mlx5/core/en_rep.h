@@ -225,9 +225,14 @@ struct mlx5e_encap_entry {
 	struct rcu_head rcu;
 };
 
+struct mlx5e_rep_sq_peer {
+	struct mlx5_flow_handle *rule;
+	void *peer;
+};
+
 struct mlx5e_rep_sq {
 	struct mlx5_flow_handle	*send_to_vport_rule;
-	struct mlx5_flow_handle *send_to_vport_rule_peer;
+	struct xarray sq_peer;
 	u32 sqn;
 	struct list_head	 list;
 };
