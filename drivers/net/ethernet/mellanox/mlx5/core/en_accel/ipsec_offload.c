@@ -606,7 +606,8 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	do {
 		ret = mlx5_aso_poll_cq(aso->aso, false);
 		if (ret)
-			usleep_range(2, 10);
+			/* We are in atomic context */
+			udelay(10);
 	} while (ret && time_is_after_jiffies(expires));
 	spin_unlock_bh(&aso->lock);
 	return ret;
