@@ -135,7 +135,6 @@ struct svc_rdma_recv_ctxt {
 	struct ib_sge		rc_recv_sge;
 	void			*rc_recv_buf;
 	struct xdr_stream	rc_stream;
-	bool			rc_temp;
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
 	u32			rc_inv_rkey;
