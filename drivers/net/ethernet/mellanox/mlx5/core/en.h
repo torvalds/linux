@@ -327,6 +327,7 @@ struct mlx5e_params {
 	unsigned int sw_mtu;
 	int hard_mtu;
 	bool ptp_rx;
+	__be32 terminate_lkey_be;
 };
 
 static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
