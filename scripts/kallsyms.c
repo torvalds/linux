@@ -806,7 +806,7 @@ static void record_relative_base(void)
 int main(int argc, char **argv)
 {
 	while (1) {
-		static struct option long_options[] = {
+		static const struct option long_options[] = {
 			{"all-symbols",     no_argument, &all_symbols,     1},
 			{"absolute-percpu", no_argument, &absolute_percpu, 1},
 			{"base-relative",   no_argument, &base_relative,   1},
