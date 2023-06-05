@@ -165,8 +165,7 @@ Most GPIO controllers can be accessed with memory read/write instructions.
 Those don't need to sleep, and can safely be done from inside hard
 (nonthreaded) IRQ handlers and similar contexts.
 
-Use the following calls to access such GPIOs,
-for which gpio_cansleep() will always return false (see below)::
+Use the following calls to access such GPIOs::
 
 	/* GPIO INPUT:  return zero or nonzero */
 	int gpio_get_value(unsigned gpio);
@@ -200,13 +199,6 @@ Some GPIO controllers must be accessed using message based busses like I2C
 or SPI.  Commands to read or write those GPIO values require waiting to
 get to the head of a queue to transmit a command and get its response.
 This requires sleeping, which can't be done from inside IRQ handlers.
-
-Platforms that support this type of GPIO distinguish them from other GPIOs
-by returning nonzero from this call (which requires a valid GPIO number,
-which should have been previously allocated with gpio_request)::
-
-	int gpio_cansleep(unsigned gpio);
-
 To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO INPUT:  return zero or nonzero, might sleep */
@@ -214,7 +206,6 @@ To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO OUTPUT, might sleep */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 Accessing such GPIOs requires a context which may sleep,  for example
 a threaded IRQ handler, and those accessors must be used instead of
@@ -537,7 +528,6 @@ code, which always dispatches through the gpio_chip::
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 Fancier implementations could instead define those as inline functions with
 logic optimizing access to specific SOC-based GPIOs.  For example, if the

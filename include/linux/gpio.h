@@ -108,11 +108,6 @@ static inline void gpio_set_value(unsigned gpio, int value)
 	return gpiod_set_raw_value(gpio_to_desc(gpio), value);
 }
 
-static inline int gpio_cansleep(unsigned gpio)
-{
-	return gpiod_cansleep(gpio_to_desc(gpio));
-}
-
 static inline int gpio_to_irq(unsigned gpio)
 {
 	return gpiod_to_irq(gpio_to_desc(gpio));
@@ -193,13 +188,6 @@ static inline void gpio_set_value(unsigned gpio, int value)
 {
 	/* GPIO can never have been requested or set as output */
 	WARN_ON(1);
-}
-
-static inline int gpio_cansleep(unsigned gpio)
-{
-	/* GPIO can never have been requested or set as {in,out}put */
-	WARN_ON(1);
-	return 0;
 }
 
 static inline int gpio_get_value_cansleep(unsigned gpio)

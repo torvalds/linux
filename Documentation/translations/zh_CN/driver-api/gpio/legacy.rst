@@ -153,8 +153,7 @@ get/set(获取/设置)函数调用没法返回错误,且有可能是配置错误
 大多数 GPIO 控制器可以通过内存读/写指令来访问。这些指令不会休眠,可以
 安全地在硬(非线程)中断例程和类似的上下文中完成。
 
-对于那些用 gpio_cansleep()测试总是返回失败的 GPIO(见下文)，使用
-以下的函数访问::
+对于那些 GPIO，使用以下的函数访问::
 
 	/* GPIO 输入:返回零或非零 */
 	int gpio_get_value(unsigned gpio);
@@ -186,11 +185,6 @@ GPIO值是布尔值，零表示低电平，非零表示高电平。当读取一�
 GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其反馈。期间需要
 休眠，这不能在 IRQ 例程(中断上下文)中执行。
 
-支持此类 GPIO 的平台通过以下函数返回非零值来区分出这种 GPIO。(此函数需要
-一个之前通过 gpio_request 分配到的有效 GPIO 编号)::
-
-	int gpio_cansleep(unsigned gpio);
-
 为了访问这种 GPIO,内核定义了一套不同的函数::
 
 	/* GPIO 输入:返回零或非零 ,可能会休眠 */
@@ -198,7 +192,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
 
 	/* GPIO 输出,可能会休眠 */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 访问这样的 GPIO 需要一个允许休眠的上下文，例如线程 IRQ 处理例程，并用以上的
 访问函数替换那些没有 cansleep()后缀的自旋锁安全访问函数。
@@ -483,8 +476,8 @@ GPIO 实现者的框架（可选）
 
 为了支持这个框架，一个平台的 Kconfig 文件将会 "select"(选择)
 ARCH_REQUIRE_GPIOLIB 或 ARCH_WANT_OPTIONAL_GPIOLIB，并让它的
-<asm/gpio.h> 包含 <asm-generic/gpio.h>，同时定义三个方法:
-gpio_get_value()、gpio_set_value()和 gpio_cansleep()。
+<asm/gpio.h> 包含 <asm-generic/gpio.h>，同时定义两个方法:
+gpio_get_value()、gpio_set_value()。
 
 它也应提供一个 ARCH_NR_GPIOS 的定义值，这样可以更好地反映该平台 GPIO
 的实际数量,节省静态表的空间。(这个定义值应该包含片上系统内建 GPIO 和
@@ -502,7 +495,6 @@ ARCH_WANT_OPTIONAL_GPIOLIB 意味着 gpiolib 核心默认关闭,且用户可以
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 这些定义可以用更理想的实现方法替代，那就是使用经过逻辑优化的内联函数来访问
 基于特定片上系统的 GPIO。例如,若引用的 GPIO (寄存器位偏移)是常量“12”，

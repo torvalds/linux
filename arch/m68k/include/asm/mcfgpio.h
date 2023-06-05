@@ -34,14 +34,6 @@ static inline void __gpio_set_value(unsigned gpio, int value)
 		__mcfgpio_set_value(gpio, value);
 }
 
-static inline int __gpio_cansleep(unsigned gpio)
-{
-	if (gpio < MCFGPIO_PIN_MAX)
-		return 0;
-	else
-		return -EINVAL;
-}
-
 static inline int __gpio_to_irq(unsigned gpio)
 {
 	return -EINVAL;
