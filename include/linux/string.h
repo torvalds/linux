@@ -169,7 +169,7 @@ static inline void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 #endif
 
 void *memchr_inv(const void *s, int c, size_t n);
-char *strreplace(char *s, char old, char new);
+char *strreplace(char *str, char old, char new);
 
 extern void kfree_const(const void *x);
 
