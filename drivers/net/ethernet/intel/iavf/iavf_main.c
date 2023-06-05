@@ -1702,10 +1702,10 @@ static int iavf_set_interrupt_capability(struct iavf_adapter *adapter)
 		adapter->msix_entries[vector].entry = vector;
 
 	err = iavf_acquire_msix_vectors(adapter, v_budget);
+	if (!err)
+		iavf_schedule_finish_config(adapter);
 
 out:
-	netif_set_real_num_rx_queues(adapter->netdev, pairs);
-	netif_set_real_num_tx_queues(adapter->netdev, pairs);
 	return err;
 }
 
@@ -1925,9 +1925,7 @@ static int iavf_init_interrupt_scheme(struct iavf_adapter *adapter)
 		goto err_alloc_queues;
 	}
 
-	rtnl_lock();
 	err = iavf_set_interrupt_capability(adapter);
-	rtnl_unlock();
 	if (err) {
 		dev_err(&adapter->pdev->dev,
 			"Unable to setup interrupt capabilities\n");
@@ -2011,6 +2009,78 @@ static int iavf_reinit_interrupt_scheme(struct iavf_adapter *adapter, bool runni
 	iavf_map_rings_to_vectors(adapter);
 err:
 	return err;
+}
+
+/**
+ * iavf_finish_config - do all netdev work that needs RTNL
+ * @work: our work_struct
+ *
+ * Do work that needs both RTNL and crit_lock.
+ **/
+static void iavf_finish_config(struct work_struct *work)
+{
+	struct iavf_adapter *adapter;
+	int pairs, err;
+
+	adapter = container_of(work, struct iavf_adapter, finish_config);
+
+	/* Always take RTNL first to prevent circular lock dependency */
+	rtnl_lock();
+	mutex_lock(&adapter->crit_lock);
+
+	if ((adapter->flags & IAVF_FLAG_SETUP_NETDEV_FEATURES) &&
+	    adapter->netdev_registered &&
+	    !test_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section)) {
+		netdev_update_features(adapter->netdev);
+		adapter->flags &= ~IAVF_FLAG_SETUP_NETDEV_FEATURES;
+	}
+
+	switch (adapter->state) {
+	case __IAVF_DOWN:
+		if (!adapter->netdev_registered) {
+			err = register_netdevice(adapter->netdev);
+			if (err) {
+				dev_err(&adapter->pdev->dev, "Unable to register netdev (%d)\n",
+					err);
+
+				/* go back and try again.*/
+				iavf_free_rss(adapter);
+				iavf_free_misc_irq(adapter);
+				iavf_reset_interrupt_capability(adapter);
+				iavf_change_state(adapter,
+						  __IAVF_INIT_CONFIG_ADAPTER);
+				goto out;
+			}
+			adapter->netdev_registered = true;
+		}
+
+		/* Set the real number of queues when reset occurs while
+		 * state == __IAVF_DOWN
+		 */
+		fallthrough;
+	case __IAVF_RUNNING:
+		pairs = adapter->num_active_queues;
+		netif_set_real_num_rx_queues(adapter->netdev, pairs);
+		netif_set_real_num_tx_queues(adapter->netdev, pairs);
+		break;
+
+	default:
+		break;
+	}
+
+out:
+	mutex_unlock(&adapter->crit_lock);
+	rtnl_unlock();
+}
+
+/**
+ * iavf_schedule_finish_config - Set the flags and schedule a reset event
+ * @adapter: board private structure
+ **/
+void iavf_schedule_finish_config(struct iavf_adapter *adapter)
+{
+	if (!test_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section))
+		queue_work(adapter->wq, &adapter->finish_config);
 }
 
 /**
@@ -2650,22 +2720,8 @@ static void iavf_init_config_adapter(struct iavf_adapter *adapter)
 
 	netif_carrier_off(netdev);
 	adapter->link_up = false;
-
-	/* set the semaphore to prevent any callbacks after device registration
-	 * up to time when state of driver will be set to __IAVF_DOWN
-	 */
-	rtnl_lock();
-	if (!adapter->netdev_registered) {
-		err = register_netdevice(netdev);
-		if (err) {
-			rtnl_unlock();
-			goto err_register;
-		}
-	}
-
-	adapter->netdev_registered = true;
-
 	netif_tx_stop_all_queues(netdev);
+
 	if (CLIENT_ALLOWED(adapter)) {
 		err = iavf_lan_add_device(adapter);
 		if (err)
@@ -2678,7 +2734,6 @@ static void iavf_init_config_adapter(struct iavf_adapter *adapter)
 
 	iavf_change_state(adapter, __IAVF_DOWN);
 	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
-	rtnl_unlock();
 
 	iavf_misc_irq_enable(adapter);
 	wake_up(&adapter->down_waitqueue);
@@ -2698,10 +2753,11 @@ static void iavf_init_config_adapter(struct iavf_adapter *adapter)
 		/* request initial VLAN offload settings */
 		iavf_set_vlan_offload_features(adapter, 0, netdev->features);
 
+	iavf_schedule_finish_config(adapter);
 	return;
+
 err_mem:
 	iavf_free_rss(adapter);
-err_register:
 	iavf_free_misc_irq(adapter);
 err_sw_init:
 	iavf_reset_interrupt_capability(adapter);
@@ -2726,15 +2782,6 @@ static void iavf_watchdog_task(struct work_struct *work)
 			return;
 
 		goto restart_watchdog;
-	}
-
-	if ((adapter->flags & IAVF_FLAG_SETUP_NETDEV_FEATURES) &&
-	    adapter->netdev_registered &&
-	    !test_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section) &&
-	    rtnl_trylock()) {
-		netdev_update_features(adapter->netdev);
-		rtnl_unlock();
-		adapter->flags &= ~IAVF_FLAG_SETUP_NETDEV_FEATURES;
 	}
 
 	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED)
@@ -4980,6 +5027,7 @@ static int iavf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_WORK(&adapter->reset_task, iavf_reset_task);
 	INIT_WORK(&adapter->adminq_task, iavf_adminq_task);
+	INIT_WORK(&adapter->finish_config, iavf_finish_config);
 	INIT_DELAYED_WORK(&adapter->watchdog_task, iavf_watchdog_task);
 	INIT_DELAYED_WORK(&adapter->client_task, iavf_client_task);
 	queue_delayed_work(adapter->wq, &adapter->watchdog_task,
@@ -5123,13 +5171,15 @@ static void iavf_remove(struct pci_dev *pdev)
 		usleep_range(500, 1000);
 	}
 	cancel_delayed_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->finish_config);
 
+	rtnl_lock();
 	if (adapter->netdev_registered) {
-		rtnl_lock();
 		unregister_netdevice(netdev);
 		adapter->netdev_registered = false;
-		rtnl_unlock();
 	}
+	rtnl_unlock();
+
 	if (CLIENT_ALLOWED(adapter)) {
 		err = iavf_lan_del_device(adapter);
 		if (err)
