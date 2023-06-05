@@ -53,8 +53,7 @@ enum {
 };
 
 struct mtk_dai_adda_priv {
-	unsigned int dl_rate;
-	unsigned int ul_rate;
+	bool hires_required;
 };
 
 static unsigned int afe_adda_dl_rate_transform(struct mtk_base_afe *afe,
@@ -241,42 +240,35 @@ static int mtk_adda_ul_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int mtk_afe_adc_hires_connect(struct snd_soc_dapm_widget *source,
-				     struct snd_soc_dapm_widget *sink)
+static struct mtk_dai_adda_priv *get_adda_priv_by_name(struct mtk_base_afe *afe,
+						       const char *name)
 {
-	struct snd_soc_dapm_widget *w = source;
-	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_adda_priv *adda_priv;
 
-	adda_priv = afe_priv->dai_priv[MT8188_AFE_IO_ADDA];
-
-	if (!adda_priv) {
-		dev_err(afe->dev, "%s adda_priv == NULL", __func__);
-		return 0;
-	}
-
-	return !!(adda_priv->ul_rate > ADDA_HIRES_THRES);
+	if (strstr(name, "aud_adc_hires"))
+		return afe_priv->dai_priv[MT8188_AFE_IO_UL_SRC];
+	else if (strstr(name, "aud_dac_hires"))
+		return afe_priv->dai_priv[MT8188_AFE_IO_DL_SRC];
+	else
+		return NULL;
 }
 
-static int mtk_afe_dac_hires_connect(struct snd_soc_dapm_widget *source,
-				     struct snd_soc_dapm_widget *sink)
+static int mtk_afe_adda_hires_connect(struct snd_soc_dapm_widget *source,
+				      struct snd_soc_dapm_widget *sink)
 {
 	struct snd_soc_dapm_widget *w = source;
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
-	struct mt8188_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_dai_adda_priv *adda_priv;
 
-	adda_priv = afe_priv->dai_priv[MT8188_AFE_IO_ADDA];
+	adda_priv = get_adda_priv_by_name(afe, w->name);
 
 	if (!adda_priv) {
-		dev_err(afe->dev, "%s adda_priv == NULL", __func__);
+		dev_dbg(afe->dev, "adda_priv == NULL");
 		return 0;
 	}
 
-	return !!(adda_priv->dl_rate > ADDA_HIRES_THRES);
+	return (adda_priv->hires_required) ? 1 : 0;
 }
 
 static const struct snd_kcontrol_new mtk_dai_adda_o176_mix[] = {
@@ -361,7 +353,7 @@ static const struct snd_soc_dapm_route mtk_dai_adda_routes[] = {
 	{"ADDA Capture", NULL, "ADDA Capture Enable"},
 	{"ADDA Capture", NULL, "ADDA_MTKAIF_CFG"},
 	{"ADDA Capture", NULL, "aud_adc"},
-	{"ADDA Capture", NULL, "aud_adc_hires", mtk_afe_adc_hires_connect},
+	{"ADDA Capture", NULL, "aud_adc_hires", mtk_afe_adda_hires_connect},
 
 	{"I168", NULL, "ADDA Capture"},
 	{"I169", NULL, "ADDA Capture"},
@@ -369,7 +361,7 @@ static const struct snd_soc_dapm_route mtk_dai_adda_routes[] = {
 	{"ADDA Playback", NULL, "ADDA Enable"},
 	{"ADDA Playback", NULL, "ADDA Playback Enable"},
 	{"ADDA Playback", NULL, "aud_dac"},
-	{"ADDA Playback", NULL, "aud_dac_hires", mtk_afe_dac_hires_connect},
+	{"ADDA Playback", NULL, "aud_dac_hires", mtk_afe_adda_hires_connect},
 
 	{"DL_GAIN", NULL, "O176"},
 	{"DL_GAIN", NULL, "O177"},
@@ -503,13 +495,12 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %u\n",
 		__func__, id, substream->stream, rate);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		adda_priv->dl_rate = rate;
+	adda_priv->hires_required = (rate > ADDA_HIRES_THRES);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = mtk_dai_da_configure(afe, rate, id);
-	} else {
-		adda_priv->ul_rate = rate;
+	else
 		ret = mtk_dai_ad_configure(afe, rate, id);
-	}
 
 	return ret;
 }
@@ -536,8 +527,8 @@ static const struct snd_soc_dai_ops mtk_dai_adda_ops = {
 
 static struct snd_soc_dai_driver mtk_dai_adda_driver[] = {
 	{
-		.name = "ADDA",
-		.id = MT8188_AFE_IO_ADDA,
+		.name = "DL_SRC",
+		.id = MT8188_AFE_IO_DL_SRC,
 		.playback = {
 			.stream_name = "ADDA Playback",
 			.channels_min = 1,
@@ -545,6 +536,11 @@ static struct snd_soc_dai_driver mtk_dai_adda_driver[] = {
 			.rates = MTK_ADDA_PLAYBACK_RATES,
 			.formats = MTK_ADDA_FORMATS,
 		},
+		.ops = &mtk_dai_adda_ops,
+	},
+	{
+		.name = "UL_SRC",
+		.id = MT8188_AFE_IO_UL_SRC,
 		.capture = {
 			.stream_name = "ADDA Capture",
 			.channels_min = 1,
@@ -560,13 +556,18 @@ static int init_adda_priv_data(struct mtk_base_afe *afe)
 {
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_dai_adda_priv *adda_priv;
+	int adda_dai_list[] = {MT8188_AFE_IO_DL_SRC, MT8188_AFE_IO_UL_SRC};
+	int i;
 
-	adda_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_adda_priv),
-				 GFP_KERNEL);
-	if (!adda_priv)
-		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(adda_dai_list); i++) {
+		adda_priv = devm_kzalloc(afe->dev,
+					 sizeof(struct mtk_dai_adda_priv),
+					 GFP_KERNEL);
+		if (!adda_priv)
+			return -ENOMEM;
 
-	afe_priv->dai_priv[MT8188_AFE_IO_ADDA] = adda_priv;
+		afe_priv->dai_priv[adda_dai_list[i]] = adda_priv;
+	}
 
 	return 0;
 }

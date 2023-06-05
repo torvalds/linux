@@ -225,6 +225,10 @@ config SND_SOC_MT8188_MT6359
 	depends on SND_SOC_MT8188 && MTK_PMIC_WRAP
 	select SND_SOC_MT6359
 	select SND_SOC_HDMI_CODEC
+	select SND_SOC_DMIC
+	select SND_SOC_MAX98390
+	select SND_SOC_NAU8315
+	select SND_SOC_NAU8825
 	help
 	  This adds support for ASoC machine driver for MediaTek MT8188
 	  boards with the MT6359 and other I2S audio codecs.

@@ -2216,6 +2216,16 @@ static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
 			    &dapm_widget_power_fops);
 }
 
+static void dapm_debugfs_free_widget(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+
+	if (!dapm->debugfs_dapm || !w->name)
+		return;
+
+	debugfs_lookup_and_remove(w->name, dapm->debugfs_dapm);
+}
+
 static void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
 {
 	debugfs_remove_recursive(dapm->debugfs_dapm);
@@ -2229,6 +2239,10 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 }
 
 static inline void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+{
+}
+
+static inline void dapm_debugfs_free_widget(struct snd_soc_dapm_widget *w)
 {
 }
 
@@ -2494,6 +2508,8 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 		snd_soc_dapm_widget_for_each_path_safe(w, dir, p, next_p)
 			dapm_free_path(p);
 	}
+
+	dapm_debugfs_free_widget(w);
 
 	kfree(w->kcontrols);
 	kfree_const(w->name);
