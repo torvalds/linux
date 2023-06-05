@@ -35,11 +35,13 @@ static int __init apmt_init_resources(struct resource *res,
 
 	num_res++;
 
-	res[num_res].start = node->base_address1;
-	res[num_res].end = node->base_address1 + SZ_4K - 1;
-	res[num_res].flags = IORESOURCE_MEM;
+	if (node->flags & ACPI_APMT_FLAGS_DUAL_PAGE) {
+		res[num_res].start = node->base_address1;
+		res[num_res].end = node->base_address1 + SZ_4K - 1;
+		res[num_res].flags = IORESOURCE_MEM;
 
-	num_res++;
+		num_res++;
+	}
 
 	if (node->ovflw_irq != 0) {
 		trigger = (node->ovflw_irq_flags & ACPI_APMT_OVFLW_IRQ_FLAGS_MODE);
