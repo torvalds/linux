@@ -724,8 +724,7 @@ static const struct iio_event_spec fxls8962af_event[] = {
 		.sign = 's', \
 		.realbits = 12, \
 		.storagebits = 16, \
-		.shift = 4, \
-		.endianness = IIO_BE, \
+		.endianness = IIO_LE, \
 	}, \
 	.event_spec = fxls8962af_event, \
 	.num_event_specs = ARRAY_SIZE(fxls8962af_event), \
