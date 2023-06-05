@@ -47,9 +47,9 @@ gen_proto_order_variant()
 
 cat <<EOF
 static __always_inline ${ret}
-arch_atomic_long_${name}(${params})
+raw_atomic_long_${name}(${params})
 {
-	${retstmt}arch_${atomic}_${name}(${argscast});
+	${retstmt}raw_${atomic}_${name}(${argscast});
 }
 
 EOF
