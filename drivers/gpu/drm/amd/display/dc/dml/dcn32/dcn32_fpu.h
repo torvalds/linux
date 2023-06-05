@@ -39,10 +39,6 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 uint8_t dcn32_predict_pipe_split(struct dc_state *context,
 				  display_e2e_pipe_params_st *pipe_e2e);
 
-void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
-				    unsigned int *num_entries,
-				    struct _vcs_dpi_voltage_scaling_st *entry);
-
 void dcn32_set_phantom_stream_timing(struct dc *dc,
 				     struct dc_state *context,
 				     struct pipe_ctx *ref_pipe,
