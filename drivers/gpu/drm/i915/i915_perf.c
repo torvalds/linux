@@ -565,7 +565,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	partial_report_size %= report_size;
 
 	/* Subtract partial amount off the tail */
-	hw_tail = gtt_offset + OA_TAKEN(hw_tail, partial_report_size);
+	hw_tail = OA_TAKEN(hw_tail, partial_report_size);
 
 	/* NB: The head we observe here might effectively be a little
 	 * out of date. If a read() is in progress, the head could be
@@ -574,7 +574,6 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	head = stream->oa_buffer.head - gtt_offset;
 	read_tail = stream->oa_buffer.tail - gtt_offset;
 
-	hw_tail -= gtt_offset;
 	tail = hw_tail;
 
 	/* Walk the stream backward until we find a report with report
