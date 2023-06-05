@@ -141,7 +141,7 @@ choice
 
 		This hash table is on a per outer ethernet interface.
 
-config PPPOE_HASH_BITS_2
+config PPPOE_HASH_BITS_1
 	bool "1 bit (2 buckets)"
 
 config PPPOE_HASH_BITS_2
