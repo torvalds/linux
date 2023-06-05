@@ -287,7 +287,6 @@ int mt7996_set_channel(struct mt7996_phy *phy)
 	if (ret)
 		goto out;
 
-	mt7996_mac_set_timing(phy);
 	ret = mt7996_dfs_init_radar_detector(phy);
 	mt7996_mac_cca_stats_reset(phy);
 
@@ -584,7 +583,7 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (slottime != phy->slottime) {
 			phy->slottime = slottime;
-			mt7996_mac_set_timing(phy);
+			mt7996_mcu_set_timing(phy, vif);
 		}
 	}
 
@@ -927,7 +926,7 @@ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 
 	mutex_lock(&dev->mt76.mutex);
 	phy->coverage_class = max_t(s16, coverage_class, 0);
-	mt7996_mac_set_timing(phy);
+	mt7996_mac_set_coverage_class(phy);
 	mutex_unlock(&dev->mt76.mutex);
 }
 

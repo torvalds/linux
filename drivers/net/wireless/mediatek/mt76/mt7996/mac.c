@@ -1615,20 +1615,19 @@ void mt7996_mac_reset_counters(struct mt7996_phy *phy)
 	mt7996_mcu_get_chan_mib_info(phy, true);
 }
 
-void mt7996_mac_set_timing(struct mt7996_phy *phy)
+void mt7996_mac_set_coverage_class(struct mt7996_phy *phy)
 {
 	s16 coverage_class = phy->coverage_class;
 	struct mt7996_dev *dev = phy->dev;
 	struct mt7996_phy *phy2 = mt7996_phy2(dev);
 	struct mt7996_phy *phy3 = mt7996_phy3(dev);
-	u32 val, reg_offset;
+	u32 reg_offset;
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
 	u8 band_idx = phy->mt76->band_idx;
 	int offset;
-	bool a_band = !(phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ);
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
@@ -1641,34 +1640,12 @@ void mt7996_mac_set_timing(struct mt7996_phy *phy)
 		coverage_class = max_t(s16, coverage_class,
 				       phy3->coverage_class);
 
-	mt76_set(dev, MT_ARB_SCR(band_idx),
-		 MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
-	udelay(1);
-
 	offset = 3 * coverage_class;
 	reg_offset = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, offset) |
 		     FIELD_PREP(MT_TIMEOUT_VAL_CCA, offset);
 
 	mt76_wr(dev, MT_TMAC_CDTR(band_idx), cck + reg_offset);
 	mt76_wr(dev, MT_TMAC_ODTR(band_idx), ofdm + reg_offset);
-	mt76_wr(dev, MT_TMAC_ICR0(band_idx),
-		FIELD_PREP(MT_IFS_EIFS_OFDM, a_band ? 84 : 78) |
-		FIELD_PREP(MT_IFS_RIFS, 2) |
-		FIELD_PREP(MT_IFS_SIFS, 10) |
-		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
-
-	if (!a_band)
-		mt76_wr(dev, MT_TMAC_ICR1(band_idx),
-			FIELD_PREP(MT_IFS_EIFS_CCK, 314));
-
-	if (phy->slottime < 20 || a_band)
-		val = MT7996_CFEND_RATE_DEFAULT;
-	else
-		val = MT7996_CFEND_RATE_11B;
-
-	mt76_rmw_field(dev, MT_RATE_HRCR0(band_idx), MT_RATE_HRCR0_CFEND_RATE, val);
-	mt76_clear(dev, MT_ARB_SCR(band_idx),
-		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
 }
 
 void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band)
