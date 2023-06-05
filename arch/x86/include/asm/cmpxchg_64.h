@@ -45,11 +45,13 @@ static __always_inline u128 arch_cmpxchg128(volatile u128 *ptr, u128 old, u128 n
 {
 	return __arch_cmpxchg128(ptr, old, new, LOCK_PREFIX);
 }
+#define arch_cmpxchg128 arch_cmpxchg128
 
 static __always_inline u128 arch_cmpxchg128_local(volatile u128 *ptr, u128 old, u128 new)
 {
 	return __arch_cmpxchg128(ptr, old, new,);
 }
+#define arch_cmpxchg128_local arch_cmpxchg128_local
 
 #define __arch_try_cmpxchg128(_ptr, _oldp, _new, _lock)			\
 ({									\
@@ -75,11 +77,13 @@ static __always_inline bool arch_try_cmpxchg128(volatile u128 *ptr, u128 *oldp, 
 {
 	return __arch_try_cmpxchg128(ptr, oldp, new, LOCK_PREFIX);
 }
+#define arch_try_cmpxchg128 arch_try_cmpxchg128
 
 static __always_inline bool arch_try_cmpxchg128_local(volatile u128 *ptr, u128 *oldp, u128 new)
 {
 	return __arch_try_cmpxchg128(ptr, oldp, new,);
 }
+#define arch_try_cmpxchg128_local arch_try_cmpxchg128_local
 
 #define system_has_cmpxchg128()		boot_cpu_has(X86_FEATURE_CX16)
 
