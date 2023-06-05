@@ -810,8 +810,6 @@ static int hwicap_drv_remove(struct platform_device *pdev)
 	struct hwicap_drvdata *drvdata;
 
 	drvdata = dev_get_drvdata(dev);
-	if (!drvdata)
-		return 0;
 
 	device_destroy(icap_class, drvdata->devt);
 	cdev_del(&drvdata->cdev);
