@@ -1440,6 +1440,16 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 
 /* 0x600 and 0x700 no used */
 
+
+/* ------------------- CONSTANTS -------------------- */
+
+extern const char * const snd_emu10k1_fxbus[32];
+extern const char * const snd_emu10k1_sblive_ins[16];
+extern const char * const snd_emu10k1_audigy_ins[16];
+extern const char * const snd_emu10k1_sblive_outs[32];
+extern const char * const snd_emu10k1_audigy_outs[32];
+extern const s8 snd_emu10k1_sblive51_fxbus2_map[16];
+
 /* ------------------- STRUCTURES -------------------- */
 
 enum {
@@ -1812,6 +1822,7 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value);
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src);
+u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);
