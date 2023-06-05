@@ -140,7 +140,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	struct walt_lb_rotate_work *wr = NULL;
 	struct walt_task_struct *wts;
 
-	if (!is_min_cluster_cpu(src_cpu))
+	if (!is_min_possible_cluster_cpu(src_cpu))
 		return;
 
 	/*
@@ -153,7 +153,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
 
-		if (!is_min_cluster_cpu(i))
+		if (!is_min_possible_cluster_cpu(i))
 			break;
 
 		if (is_reserved(i))
@@ -176,7 +176,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
 
-		if (is_min_cluster_cpu(i))
+		if (is_min_possible_cluster_cpu(i))
 			continue;
 
 		if (is_reserved(i))
@@ -284,7 +284,7 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 	if (!wts->misfit)
 		return false;
 
-	if (!is_min_cluster_cpu(src_cpu) && !task_fits_max(p, dst_cpu))
+	if (!is_min_possible_cluster_cpu(src_cpu) && !task_fits_max(p, dst_cpu))
 		return false;
 
 	if (task_reject_partialhalt_cpu(p, dst_cpu))
@@ -705,7 +705,7 @@ void walt_lb_tick(struct rq *rq)
 	if (!available_idle_cpu(new_cpu) || !check_for_higher_capacity(new_cpu, prev_cpu))
 		goto out_unlock;
 
-	if (!is_min_cluster_cpu(prev_cpu) && !task_fits_max(p, new_cpu))
+	if (!is_min_possible_cluster_cpu(prev_cpu) && !task_fits_max(p, new_cpu))
 		goto out_unlock;
 
 	raw_spin_lock(&rq->__lock);
@@ -812,7 +812,7 @@ static bool should_help_min_cap(int this_cpu)
 {
 	int cpu;
 
-	if (!sysctl_sched_force_lb_enable || is_min_cluster_cpu(this_cpu))
+	if (!sysctl_sched_force_lb_enable || is_min_possible_cluster_cpu(this_cpu))
 		return false;
 
 	for_each_cpu(cpu, &cpu_array[0][0]) {

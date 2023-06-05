@@ -3856,7 +3856,7 @@ void rearrange_heavy(u64 window_start)
 			/* we could have run out of the assignable cpus. skip unassigned tasks */
 			continue;
 
-		if (is_max_cluster_cpu(wts->pipeline_cpu)) {
+		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
 			/* assumes just one prime */
 			prime_wts = wts;
 		} else {
@@ -3931,13 +3931,13 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 		 */
 		if (wts->pipeline_cpu == -1) {
 			/* avoid min cpus */
-			if (is_min_cluster_cpu(assign_cpu))
+			if (is_min_possible_cluster_cpu(assign_cpu))
 				assign_cpu = cpumask_last(
 					&sched_cluster[num_sched_clusters - 2]->cpus);
 			wts->pipeline_cpu = assign_cpu--;
 		}
 
-		if (is_max_cluster_cpu(wts->pipeline_cpu)) {
+		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
 			/* assumes just one prime */
 			prime_wts = wts;
 		} else {
@@ -3951,7 +3951,7 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 	if (pipeline_nr <= 2) {
 		/* pipeline task reduced, demote the prime one if its around */
 		if (prime_wts) {
-			if (is_min_cluster_cpu(assign_cpu))
+			if (is_min_possible_cluster_cpu(assign_cpu))
 				assign_cpu = cpumask_last(
 					&sched_cluster[num_sched_clusters - 2]->cpus);
 			prime_wts->pipeline_cpu = assign_cpu--;
