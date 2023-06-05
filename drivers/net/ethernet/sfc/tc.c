@@ -624,13 +624,12 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	if (!found) { /* We don't care. */
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring foreign filter that doesn't egdev us\n");
-		rc = -EOPNOTSUPP;
-		goto release;
+		return -EOPNOTSUPP;
 	}
 
 	rc = efx_mae_match_check_caps(efx, &match.mask, NULL);
 	if (rc)
-		goto release;
+		return rc;
 
 	if (efx_tc_match_is_encap(&match.mask)) {
 		enum efx_encap_type type;
@@ -639,8 +638,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		if (type == EFX_ENCAP_TYPE_NONE) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Egress encap match on unsupported tunnel device");
-			rc = -EOPNOTSUPP;
-			goto release;
+			return -EOPNOTSUPP;
 		}
 
 		rc = efx_mae_check_encap_type_supported(efx, type);
@@ -648,25 +646,24 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "Firmware reports no support for %s encap match",
 					       efx_tc_encap_type_name(type));
-			goto release;
+			return rc;
 		}
 
 		rc = efx_tc_flower_record_encap_match(efx, &match, type,
 						      extack);
 		if (rc)
-			goto release;
+			return rc;
 	} else {
 		/* This is not a tunnel decap rule, ignore it */
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring foreign filter without encap match\n");
-		rc = -EOPNOTSUPP;
-		goto release;
+		return -EOPNOTSUPP;
 	}
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
 		rc = -ENOMEM;
-		goto release;
+		goto out_free;
 	}
 	INIT_LIST_HEAD(&rule->acts.list);
 	rule->cookie = tc->cookie;
@@ -678,7 +675,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 			  "Ignoring already-offloaded rule (cookie %lx)\n",
 			  tc->cookie);
 		rc = -EEXIST;
-		goto release;
+		goto out_free;
 	}
 
 	act = kzalloc(sizeof(*act), GFP_USER);
@@ -843,6 +840,7 @@ release:
 				       efx_tc_match_action_ht_params);
 		efx_tc_free_action_set_list(efx, &rule->acts, false);
 	}
+out_free:
 	kfree(rule);
 	if (match.encap)
 		efx_tc_flower_release_encap_match(efx, match.encap);
@@ -899,8 +897,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		return rc;
 	if (efx_tc_match_is_encap(&match.mask)) {
 		NL_SET_ERR_MSG_MOD(extack, "Ingress enc_key matches not supported");
-		rc = -EOPNOTSUPP;
-		goto release;
+		return -EOPNOTSUPP;
 	}
 
 	if (tc->common.chain_index) {
@@ -924,9 +921,9 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded rule (cookie %lx)\n", tc->cookie);
-		rc = -EEXIST;
 		NL_SET_ERR_MSG_MOD(extack, "Rule already offloaded");
-		goto release;
+		kfree(rule);
+		return -EEXIST;
 	}
 
 	/* Parse actions */

@@ -314,6 +314,7 @@ static int hidpp_send_message_sync(struct hidpp_device *hidpp,
 			dbg_hid("%s:timeout waiting for response\n", __func__);
 			memset(response, 0, sizeof(struct hidpp_report));
 			ret = -ETIMEDOUT;
+			goto exit;
 		}
 
 		if (response->report_id == REPORT_ID_HIDPP_SHORT &&

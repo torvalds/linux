@@ -353,7 +353,6 @@ static int video_get_subdev_format(struct camss_video *video,
 	if (subdev == NULL)
 		return -EPIPE;
 
-	memset(&fmt, 0, sizeof(fmt));
 	fmt.pad = pad;
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
