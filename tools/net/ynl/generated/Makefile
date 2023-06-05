@@ -9,7 +9,7 @@ endif
 
 TOOL:=../ynl-gen-c.py
 
-GENS:=
+GENS:=fou netdev
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
