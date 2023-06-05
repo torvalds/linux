@@ -47,7 +47,7 @@ mask_err:
 	return err;
 }
 
-static int
+static void
 _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -61,18 +61,17 @@ _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 	if (ret) {
 		drm_info(&xe->drm, "Failed to resize BAR%d to %dM (%pe). Consider enabling 'Resizable BAR' support in your BIOS\n",
 			 resno, 1 << bar_size, ERR_PTR(ret));
-		return ret;
+		return;
 	}
 
 	drm_info(&xe->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
-	return ret;
 }
 
 /*
  * if force_vram_bar_size is set, attempt to set to the requested size
  * else set to maximum possible size
  */
-static int xe_resize_vram_bar(struct xe_device *xe)
+static void xe_resize_vram_bar(struct xe_device *xe)
 {
 	u64 force_vram_bar_size = xe_force_vram_bar_size;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -83,14 +82,13 @@ static int xe_resize_vram_bar(struct xe_device *xe)
 	u32 bar_size_mask;
 	u32 pci_cmd;
 	int i;
-	int ret;
 
 	/* gather some relevant info */
 	current_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 	bar_size_mask = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
 
 	if (!bar_size_mask)
-		return 0;
+		return;
 
 	/* set to a specific size? */
 	if (force_vram_bar_size) {
@@ -104,22 +102,22 @@ static int xe_resize_vram_bar(struct xe_device *xe)
 			drm_info(&xe->drm,
 				 "Requested size: %lluMiB is not supported by rebar sizes: 0x%x. Leaving default: %lluMiB\n",
 				 (u64)rebar_size >> 20, bar_size_mask, (u64)current_size >> 20);
-			return 0;
+			return;
 		}
 
 		rebar_size = 1ULL << (__fls(bar_size_bit) + BAR_SIZE_SHIFT);
 
 		if (rebar_size == current_size)
-			return 0;
+			return;
 	} else {
 		rebar_size = 1ULL << (__fls(bar_size_mask) + BAR_SIZE_SHIFT);
 
 		/* only resize if larger than current */
 		if (rebar_size <= current_size)
-			return 0;
+			return;
 	}
 
-	drm_info(&xe->drm, "Resizing bar from %lluMiB -> %lluMiB\n",
+	drm_info(&xe->drm, "Attempting to resize bar from %lluMiB -> %lluMiB\n",
 		 (u64)current_size >> 20, (u64)rebar_size >> 20);
 
 	while (root->parent)
@@ -133,17 +131,16 @@ static int xe_resize_vram_bar(struct xe_device *xe)
 
 	if (!root_res) {
 		drm_info(&xe->drm, "Can't resize VRAM BAR - platform support is missing. Consider enabling 'Resizable BAR' support in your BIOS\n");
-		return -1;
+		return;
 	}
 
 	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd & ~PCI_COMMAND_MEMORY);
 
-	ret = _resize_bar(xe, GEN12_LMEM_BAR, rebar_size);
+	_resize_bar(xe, GEN12_LMEM_BAR, rebar_size);
 
 	pci_assign_unassigned_bus_resources(pdev->bus);
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
-	return ret;
 }
 
 static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
@@ -163,16 +160,13 @@ static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
 static int xe_determine_lmem_bar_size(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	int err;
 
 	if (!xe_pci_resource_valid(pdev, GEN12_LMEM_BAR)) {
 		drm_err(&xe->drm, "pci resource is not valid\n");
 		return -ENXIO;
 	}
 
-	err = xe_resize_vram_bar(xe);
-	if (err)
-		return err;
+	xe_resize_vram_bar(xe);
 
 	xe->mem.vram.io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
 	xe->mem.vram.io_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
