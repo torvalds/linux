@@ -593,10 +593,8 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 
 		ret = commit_do(&trans, NULL, NULL, 0,
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k.k_i, 0));
-		if (ret) {
-			bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_exit(&trans);
@@ -629,10 +627,8 @@ static int rand_insert_multi(struct bch_fs *c, u64 nr)
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[5].k_i, 0) ?:
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[6].k_i, 0) ?:
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[7].k_i, 0));
-		if (ret) {
-			bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_exit(&trans);
@@ -656,10 +652,8 @@ static int rand_lookup(struct bch_fs *c, u64 nr)
 
 		lockrestart_do(&trans, bkey_err(k = bch2_btree_iter_peek(&iter)));
 		ret = bkey_err(k);
-		if (ret) {
-			bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_iter_exit(&trans, &iter);
@@ -709,10 +703,8 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 		rand = test_rand();
 		ret = commit_do(&trans, NULL, NULL, 0,
 			rand_mixed_trans(&trans, &iter, &cookie, i, rand));
-		if (ret) {
-			bch_err(c, "%s(): update error: %s", __func__, bch2_err_str(ret));
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_iter_exit(&trans, &iter);
@@ -728,7 +720,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, pos,
 			     BTREE_ITER_INTENT);
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek(&iter)));
+	k = bch2_btree_iter_peek(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -755,10 +747,8 @@ static int rand_delete(struct bch_fs *c, u64 nr)
 
 		ret = commit_do(&trans, NULL, NULL, 0,
 			__do_delete(&trans, pos));
-		if (ret) {
-			bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_exit(&trans);
@@ -767,90 +757,59 @@ static int rand_delete(struct bch_fs *c, u64 nr)
 
 static int seq_insert(struct bch_fs *c, u64 nr)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_i_cookie insert;
-	int ret = 0;
 
 	bkey_cookie_init(&insert.k_i);
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_xattrs,
+	return bch2_trans_run(c,
+		for_each_btree_key_commit(&trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX),
 					BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k,
-					NULL, NULL, 0,
-		({
+					NULL, NULL, 0, ({
 			if (iter.pos.offset >= nr)
 				break;
 			insert.k.p = iter.pos;
 			bch2_trans_update(&trans, &iter, &insert.k_i, 0);
-		}));
-	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
-
-	bch2_trans_exit(&trans);
-	return ret;
+		})));
 }
 
 static int seq_lookup(struct bch_fs *c, u64 nr)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = for_each_btree_key2_upto(&trans, iter, BTREE_ID_xattrs,
+	return bch2_trans_run(c,
+		for_each_btree_key2_upto(&trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k,
-		0);
-	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
-
-	bch2_trans_exit(&trans);
-	return ret;
+		0));
 }
 
 static int seq_overwrite(struct bch_fs *c, u64 nr)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_xattrs,
+	return bch2_trans_run(c,
+		for_each_btree_key_commit(&trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX),
 					BTREE_ITER_INTENT, k,
-					NULL, NULL, 0,
-		({
+					NULL, NULL, 0, ({
 			struct bkey_i_cookie u;
 
 			bkey_reassemble(&u.k_i, k);
 			bch2_trans_update(&trans, &iter, &u.k_i, 0);
-		}));
-	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
-
-	bch2_trans_exit(&trans);
-	return ret;
+		})));
 }
 
 static int seq_delete(struct bch_fs *c, u64 nr)
 {
-	int ret;
-
-	ret = bch2_btree_delete_range(c, BTREE_ID_xattrs,
+	return bch2_btree_delete_range(c, BTREE_ID_xattrs,
 				      SPOS(0, 0, U32_MAX),
 				      POS(0, U64_MAX),
 				      0, NULL);
-	if (ret)
-		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
-	return ret;
 }
 
 typedef int (*perf_test_fn)(struct bch_fs *, u64);
