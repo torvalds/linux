@@ -32,6 +32,20 @@ gen_template_fallback()
 	fi
 }
 
+#gen_order_fallback(meta, pfx, name, sfx, order, atomic, int, args...)
+gen_order_fallback()
+{
+	local meta="$1"; shift
+	local pfx="$1"; shift
+	local name="$1"; shift
+	local sfx="$1"; shift
+	local order="$1"; shift
+
+	local tmpl_order=${order#_}
+	local tmpl="${ATOMICDIR}/fallbacks/${tmpl_order:-fence}"
+	gen_template_fallback "${tmpl}" "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "$@"
+}
+
 #gen_proto_fallback(meta, pfx, name, sfx, order, atomic, int, args...)
 gen_proto_fallback()
 {
@@ -54,20 +68,6 @@ cat << EOF
 #define ${basename}_release ${basename}
 #define ${basename}_relaxed ${basename}
 EOF
-}
-
-gen_proto_order_variant()
-{
-	local meta="$1"; shift
-	local pfx="$1"; shift
-	local name="$1"; shift
-	local sfx="$1"; shift
-	local order="$1"; shift
-	local atomic="$1"
-
-	local basename="arch_${atomic}_${pfx}${name}${sfx}"
-
-	printf "#define ${basename}${order} ${basename}${order}\n"
 }
 
 #gen_proto_order_variants(meta, pfx, name, sfx, atomic, int, args...)
@@ -117,9 +117,9 @@ gen_proto_order_variants()
 
 	printf "#else /* ${basename}_relaxed */\n\n"
 
-	gen_template_fallback "${ATOMICDIR}/fallbacks/acquire"  "${meta}" "${pfx}" "${name}" "${sfx}" "_acquire" "$@"
-	gen_template_fallback "${ATOMICDIR}/fallbacks/release"  "${meta}" "${pfx}" "${name}" "${sfx}" "_release" "$@"
-	gen_template_fallback "${ATOMICDIR}/fallbacks/fence"  "${meta}" "${pfx}" "${name}" "${sfx}" "" "$@"
+	gen_order_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "_acquire" "$@"
+	gen_order_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "_release" "$@"
+	gen_order_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "" "$@"
 
 	printf "#endif /* ${basename}_relaxed */\n\n"
 }
