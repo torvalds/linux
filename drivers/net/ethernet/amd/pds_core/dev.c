@@ -68,9 +68,15 @@ bool pdsc_is_fw_running(struct pdsc *pdsc)
 
 bool pdsc_is_fw_good(struct pdsc *pdsc)
 {
-	u8 gen = pdsc->fw_status & PDS_CORE_FW_STS_F_GENERATION;
+	bool fw_running = pdsc_is_fw_running(pdsc);
+	u8 gen;
 
-	return pdsc_is_fw_running(pdsc) && gen == pdsc->fw_generation;
+	/* Make sure to update the cached fw_status by calling
+	 * pdsc_is_fw_running() before getting the generation
+	 */
+	gen = pdsc->fw_status & PDS_CORE_FW_STS_F_GENERATION;
+
+	return fw_running && gen == pdsc->fw_generation;
 }
 
 static u8 pdsc_devcmd_status(struct pdsc *pdsc)
