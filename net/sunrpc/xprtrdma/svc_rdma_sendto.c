@@ -123,18 +123,17 @@ static void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
 static struct svc_rdma_send_ctxt *
 svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
+	int node = ibdev_to_node(rdma->sc_cm_id->device);
 	struct svc_rdma_send_ctxt *ctxt;
 	dma_addr_t addr;
 	void *buffer;
-	size_t size;
 	int i;
 
-	size = sizeof(*ctxt);
-	size += rdma->sc_max_send_sges * sizeof(struct ib_sge);
-	ctxt = kmalloc(size, GFP_KERNEL);
+	ctxt = kmalloc_node(struct_size(ctxt, sc_sges, rdma->sc_max_send_sges),
+			    GFP_KERNEL, node);
 	if (!ctxt)
 		goto fail0;
-	buffer = kmalloc(rdma->sc_max_req_size, GFP_KERNEL);
+	buffer = kmalloc_node(rdma->sc_max_req_size, GFP_KERNEL, node);
 	if (!buffer)
 		goto fail1;
 	addr = ib_dma_map_single(rdma->sc_pd->device, buffer,
