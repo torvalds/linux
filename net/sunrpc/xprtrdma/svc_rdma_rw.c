@@ -62,8 +62,8 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 	if (node) {
 		ctxt = llist_entry(node, struct svc_rdma_rw_ctxt, rw_node);
 	} else {
-		ctxt = kmalloc(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
-			       GFP_KERNEL);
+		ctxt = kmalloc_node(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
+				    GFP_KERNEL, ibdev_to_node(rdma->sc_cm_id->device));
 		if (!ctxt)
 			goto out_noctx;
 
@@ -234,7 +234,8 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma,
 {
 	struct svc_rdma_write_info *info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc_node(sizeof(*info), GFP_KERNEL,
+			    ibdev_to_node(rdma->sc_cm_id->device));
 	if (!info)
 		return info;
 
@@ -304,7 +305,8 @@ svc_rdma_read_info_alloc(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_read_info *info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc_node(sizeof(*info), GFP_KERNEL,
+			    ibdev_to_node(rdma->sc_cm_id->device));
 	if (!info)
 		return info;
 
