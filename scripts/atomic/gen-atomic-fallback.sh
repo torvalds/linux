@@ -81,7 +81,7 @@ gen_proto_order_variants()
 
 	local basename="arch_${atomic}_${pfx}${name}${sfx}"
 
-	local template="$(find_fallback_template "${pfx}" "${name}" "${sfx}" "${order}")"
+	local template="$(find_fallback_template "${pfx}" "${name}" "${sfx}" "")"
 
 	# If we don't have relaxed atomics, then we don't bother with ordering fallbacks
 	# read_acquire and set_release need to be templated, though
