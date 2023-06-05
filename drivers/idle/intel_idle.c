@@ -1849,7 +1849,10 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IBRS);
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
 		state->enter = intel_idle_xstate;
-	} else if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
+		return;
+	}
+
+	if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
 			   state->flags & CPUIDLE_FLAG_IBRS) {
 		/*
 		 * IBRS mitigation requires that C-states are entered
@@ -1857,9 +1860,15 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 		 */
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
 		state->enter = intel_idle_ibrs;
-	} else if (state->flags & CPUIDLE_FLAG_IRQ_ENABLE) {
+		return;
+	}
+
+	if (state->flags & CPUIDLE_FLAG_IRQ_ENABLE) {
 		state->enter = intel_idle_irq;
-	} else if (force_irq_on) {
+		return;
+	}
+
+	if (force_irq_on) {
 		pr_info("forced intel_idle_irq for state %d\n", cstate);
 		state->enter = intel_idle_irq;
 	}
