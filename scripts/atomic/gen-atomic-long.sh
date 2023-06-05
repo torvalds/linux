@@ -36,9 +36,14 @@ gen_args_cast()
 gen_proto_order_variant()
 {
 	local meta="$1"; shift
-	local name="$1$2$3$4"; shift; shift; shift; shift
+	local pfx="$1"; shift
+	local name="$1"; shift
+	local sfx="$1"; shift
+	local order="$1"; shift
 	local atomic="$1"; shift
 	local int="$1"; shift
+
+	local atomicname="${pfx}${name}${sfx}${order}"
 
 	local ret="$(gen_ret_type "${meta}" "long")"
 	local params="$(gen_params "long" "atomic_long" "$@")"
@@ -47,9 +52,9 @@ gen_proto_order_variant()
 
 cat <<EOF
 static __always_inline ${ret}
-raw_atomic_long_${name}(${params})
+raw_atomic_long_${atomicname}(${params})
 {
-	${retstmt}raw_${atomic}_${name}(${argscast});
+	${retstmt}raw_${atomic}_${atomicname}(${argscast});
 }
 
 EOF
