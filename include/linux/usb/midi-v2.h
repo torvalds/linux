@@ -73,7 +73,7 @@ struct usb_ms20_gr_trm_block_header_descriptor {
 	__u8  bLength;			/* 5 */
 	__u8  bDescriptorType;		/* USB_DT_CS_GR_TRM_BLOCK */
 	__u8  bDescriptorSubtype;	/* USB_MS_GR_TRM_BLOCK_HEADER */
-	__u16 wTotalLength;		/* Total number of bytes */
+	__le16 wTotalLength;		/* Total number of bytes */
 } __packed;
 
 /* 5.4.2.1 Group Terminal Block Descriptor */
@@ -87,8 +87,8 @@ struct usb_ms20_gr_trm_block_descriptor {
 	__u8  nNumGroupTrm;		/* Number of member Group Terminals spanned */
 	__u8  iBlockItem;		/* String ID of Block item */
 	__u8  bMIDIProtocol;		/* Default MIDI protocol */
-	__u16 wMaxInputBandwidth;	/* Max input bandwidth capability in 4kB/s */
-	__u16 wMaxOutputBandwidth;	/* Max output bandwidth capability in 4kB/s */
+	__le16 wMaxInputBandwidth;	/* Max input bandwidth capability in 4kB/s */
+	__le16 wMaxOutputBandwidth;	/* Max output bandwidth capability in 4kB/s */
 } __packed;
 
 #endif /* __LINUX_USB_MIDI_V2_H */
