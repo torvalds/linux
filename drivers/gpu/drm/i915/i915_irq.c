@@ -37,10 +37,12 @@
 #include "display/intel_de.h"
 #include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
+#include "display/intel_fdi_regs.h"
 #include "display/intel_fifo_underrun.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_lpe_audio.h"
 #include "display/intel_psr.h"
+#include "display/intel_psr_regs.h"
 
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_gt.h"
@@ -52,7 +54,6 @@
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "intel_pm.h"
 
 /**
  * DOC: interrupt handling
@@ -81,8 +82,7 @@ static inline void pmu_irq_stats(struct drm_i915_private *i915,
 }
 
 typedef bool (*long_pulse_detect_func)(enum hpd_pin pin, u32 val);
-typedef u32 (*hotplug_enables_func)(struct drm_i915_private *i915,
-				    enum hpd_pin pin);
+typedef u32 (*hotplug_enables_func)(struct intel_encoder *encoder);
 
 static const u32 hpd_ilk[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
@@ -199,6 +199,8 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 		hpd->hpd = hpd_gen11;
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		hpd->hpd = hpd_bxt;
+	else if (DISPLAY_VER(dev_priv) == 9)
+		hpd->hpd = NULL; /* no north HPD on SKL */
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		hpd->hpd = hpd_bdw;
 	else if (DISPLAY_VER(dev_priv) >= 7)
@@ -884,7 +886,7 @@ static u32 intel_hpd_hotplug_enables(struct drm_i915_private *i915,
 	u32 hotplug = 0;
 
 	for_each_intel_encoder(&i915->drm, encoder)
-		hotplug |= hotplug_enables(i915, encoder->hpd_pin);
+		hotplug |= hotplug_enables(encoder);
 
 	return hotplug;
 }
@@ -2835,10 +2837,11 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-static u32 ibx_hotplug_enables(struct drm_i915_private *i915,
-			       enum hpd_pin pin)
+static u32 ibx_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 		/*
 		 * When CPU and PCH are on the same package, port A
@@ -2890,31 +2893,29 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_detection_setup(dev_priv);
 }
 
-static u32 icp_ddi_hotplug_enables(struct drm_i915_private *i915,
-				   enum hpd_pin pin)
+static u32 icp_ddi_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 	case HPD_PORT_B:
 	case HPD_PORT_C:
 	case HPD_PORT_D:
-		return SHOTPLUG_CTL_DDI_HPD_ENABLE(pin);
+		return SHOTPLUG_CTL_DDI_HPD_ENABLE(encoder->hpd_pin);
 	default:
 		return 0;
 	}
 }
 
-static u32 icp_tc_hotplug_enables(struct drm_i915_private *i915,
-				  enum hpd_pin pin)
+static u32 icp_tc_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_TC1:
 	case HPD_PORT_TC2:
 	case HPD_PORT_TC3:
 	case HPD_PORT_TC4:
 	case HPD_PORT_TC5:
 	case HPD_PORT_TC6:
-		return ICP_TC_HPD_ENABLE(pin);
+		return ICP_TC_HPD_ENABLE(encoder->hpd_pin);
 	default:
 		return 0;
 	}
@@ -2958,17 +2959,16 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	icp_tc_hpd_detection_setup(dev_priv);
 }
 
-static u32 gen11_hotplug_enables(struct drm_i915_private *i915,
-				 enum hpd_pin pin)
+static u32 gen11_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_TC1:
 	case HPD_PORT_TC2:
 	case HPD_PORT_TC3:
 	case HPD_PORT_TC4:
 	case HPD_PORT_TC5:
 	case HPD_PORT_TC6:
-		return GEN11_HOTPLUG_CTL_ENABLE(pin);
+		return GEN11_HOTPLUG_CTL_ENABLE(encoder->hpd_pin);
 	default:
 		return 0;
 	}
@@ -3031,10 +3031,9 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		icp_hpd_irq_setup(dev_priv);
 }
 
-static u32 spt_hotplug_enables(struct drm_i915_private *i915,
-			       enum hpd_pin pin)
+static u32 spt_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 		return PORTA_HOTPLUG_ENABLE;
 	case HPD_PORT_B:
@@ -3048,10 +3047,9 @@ static u32 spt_hotplug_enables(struct drm_i915_private *i915,
 	}
 }
 
-static u32 spt_hotplug2_enables(struct drm_i915_private *i915,
-				enum hpd_pin pin)
+static u32 spt_hotplug2_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_E:
 		return PORTE_HOTPLUG_ENABLE;
 	default:
@@ -3094,10 +3092,9 @@ static void spt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	spt_hpd_detection_setup(dev_priv);
 }
 
-static u32 ilk_hotplug_enables(struct drm_i915_private *i915,
-			       enum hpd_pin pin)
+static u32 ilk_hotplug_enables(struct intel_encoder *encoder)
 {
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 		return DIGITAL_PORTA_HOTPLUG_ENABLE |
 			DIGITAL_PORTA_PULSE_DURATION_2ms;
@@ -3135,25 +3132,24 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_irq_setup(dev_priv);
 }
 
-static u32 bxt_hotplug_enables(struct drm_i915_private *i915,
-			       enum hpd_pin pin)
+static u32 bxt_hotplug_enables(struct intel_encoder *encoder)
 {
 	u32 hotplug;
 
-	switch (pin) {
+	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 		hotplug = PORTA_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_A))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIA_HPD_INVERT;
 		return hotplug;
 	case HPD_PORT_B:
 		hotplug = PORTB_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_B))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIB_HPD_INVERT;
 		return hotplug;
 	case HPD_PORT_C:
 		hotplug = PORTC_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_C))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIC_HPD_INVERT;
 		return hotplug;
 	default:
@@ -3471,15 +3467,33 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 	dev_priv->irq_mask = ~0u;
 }
 
+static u32 i9xx_error_mask(struct drm_i915_private *i915)
+{
+	/*
+	 * On gen2/3 FBC generates (seemingly spurious)
+	 * display INVALID_GTT/INVALID_GTT_PTE table errors.
+	 *
+	 * Also gen3 bspec has this to say:
+	 * "DISPA_INVALID_GTT_PTE
+	 "  [DevNapa] : Reserved. This bit does not reflect the page
+	 "              table error for the display plane A."
+	 *
+	 * Unfortunately we can't mask off individual PGTBL_ER bits,
+	 * so we just have to mask off all page table errors via EMR.
+	 */
+	if (HAS_FBC(i915))
+		return ~I915_ERROR_MEMORY_REFRESH;
+	else
+		return ~(I915_ERROR_PAGE_TABLE |
+			 I915_ERROR_MEMORY_REFRESH);
+}
+
 static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u16 enable_mask;
 
-	intel_uncore_write16(uncore,
-			     EMR,
-			     ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH));
+	intel_uncore_write16(uncore, EMR, i9xx_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
@@ -3510,9 +3524,7 @@ static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 	u16 emr;
 
 	*eir = intel_uncore_read16(uncore, EIR);
-
-	if (*eir)
-		intel_uncore_write16(uncore, EIR, *eir);
+	intel_uncore_write16(uncore, EIR, *eir);
 
 	*eir_stuck = intel_uncore_read16(uncore, EIR);
 	if (*eir_stuck == 0)
@@ -3541,6 +3553,9 @@ static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%04x, masked\n",
 			eir_stuck);
+
+	drm_dbg(&dev_priv->drm, "PGTBL_ER: 0x%08x\n",
+		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
 static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
@@ -3548,7 +3563,8 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 {
 	u32 emr;
 
-	*eir = intel_uncore_rmw(&dev_priv->uncore, EIR, 0, 0);
+	*eir = intel_uncore_read(&dev_priv->uncore, EIR);
+	intel_uncore_write(&dev_priv->uncore, EIR, *eir);
 
 	*eir_stuck = intel_uncore_read(&dev_priv->uncore, EIR);
 	if (*eir_stuck == 0)
@@ -3564,7 +3580,8 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 	 * (or by a GPU reset) so we mask any bit that
 	 * remains set.
 	 */
-	emr = intel_uncore_rmw(&dev_priv->uncore, EMR, ~0, 0xffffffff);
+	emr = intel_uncore_read(&dev_priv->uncore, EMR);
+	intel_uncore_write(&dev_priv->uncore, EMR, 0xffffffff);
 	intel_uncore_write(&dev_priv->uncore, EMR, emr | *eir_stuck);
 }
 
@@ -3576,6 +3593,9 @@ static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%08x, masked\n",
 			eir_stuck);
+
+	drm_dbg(&dev_priv->drm, "PGTBL_ER: 0x%08x\n",
+		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
@@ -3645,8 +3665,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 enable_mask;
 
-	intel_uncore_write(uncore, EMR, ~(I915_ERROR_PAGE_TABLE |
-					  I915_ERROR_MEMORY_REFRESH));
+	intel_uncore_write(uncore, EMR, i9xx_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
@@ -3749,26 +3768,31 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 	dev_priv->irq_mask = ~0u;
 }
 
+static u32 i965_error_mask(struct drm_i915_private *i915)
+{
+	/*
+	 * Enable some error detection, note the instruction error mask
+	 * bit is reserved, so we leave it masked.
+	 *
+	 * i965 FBC no longer generates spurious GTT errors,
+	 * so we can always enable the page table errors.
+	 */
+	if (IS_G4X(i915))
+		return ~(GM45_ERROR_PAGE_TABLE |
+			 GM45_ERROR_MEM_PRIV |
+			 GM45_ERROR_CP_PRIV |
+			 I915_ERROR_MEMORY_REFRESH);
+	else
+		return ~(I915_ERROR_PAGE_TABLE |
+			 I915_ERROR_MEMORY_REFRESH);
+}
+
 static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 enable_mask;
-	u32 error_mask;
 
-	/*
-	 * Enable some error detection, note the instruction error mask
-	 * bit is reserved, so we leave it masked.
-	 */
-	if (IS_G4X(dev_priv)) {
-		error_mask = ~(GM45_ERROR_PAGE_TABLE |
-			       GM45_ERROR_MEM_PRIV |
-			       GM45_ERROR_CP_PRIV |
-			       I915_ERROR_MEMORY_REFRESH);
-	} else {
-		error_mask = ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH);
-	}
-	intel_uncore_write(uncore, EMR, error_mask);
+	intel_uncore_write(uncore, EMR, i965_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =

@@ -39,6 +39,7 @@ struct section {
 	char *name;
 	int idx;
 	bool changed, text, rodata, noinstr, init, truncate;
+	struct reloc *reloc_data;
 };
 
 struct symbol {
@@ -49,12 +50,11 @@ struct symbol {
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
-	unsigned int idx;
-	unsigned char bind, type;
+	unsigned int idx, len;
 	unsigned long offset;
-	unsigned int len;
 	unsigned long __subtree_last;
 	struct symbol *pfunc, *cfunc, *alias;
+	unsigned char bind, type;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;
 	u8 retpoline_thunk   : 1;
@@ -104,6 +104,9 @@ struct elf {
 	struct hlist_head *section_hash;
 	struct hlist_head *section_name_hash;
 	struct hlist_head *reloc_hash;
+
+	struct section *section_data;
+	struct symbol *symbol_data;
 };
 
 #define OFFSET_STRIDE_BITS	4
@@ -184,5 +187,14 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
+
+#define sec_for_each_sym(sec, sym)					\
+	list_for_each_entry(sym, &sec->symbol_list, list)
+
+#define for_each_sym(file, sym)						\
+	for (struct section *__sec, *__fake = (struct section *)1;	\
+	     __fake; __fake = NULL)					\
+		for_each_sec(file, __sec)				\
+			sec_for_each_sym(__sec, sym)
 
 #endif /* _OBJTOOL_ELF_H */

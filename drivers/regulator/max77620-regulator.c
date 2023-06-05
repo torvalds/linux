@@ -916,6 +916,7 @@ static struct platform_driver max77620_regulator_driver = {
 	.id_table = max77620_regulator_devtype,
 	.driver = {
 		.name = "max77620-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = &max77620_regulator_pm_ops,
 	},
 };

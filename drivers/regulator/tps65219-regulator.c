@@ -380,6 +380,7 @@ MODULE_DEVICE_TABLE(platform, tps65219_regulator_id_table);
 static struct platform_driver tps65219_regulator_driver = {
 	.driver = {
 		.name = "tps65219-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps65219_regulator_probe,
 	.id_table = tps65219_regulator_id_table,

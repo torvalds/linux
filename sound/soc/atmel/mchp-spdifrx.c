@@ -1183,20 +1183,18 @@ pm_runtime_disable:
 	return err;
 }
 
-static int mchp_spdifrx_remove(struct platform_device *pdev)
+static void mchp_spdifrx_remove(struct platform_device *pdev)
 {
 	struct mchp_spdifrx_dev *dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(dev->dev);
 	if (!pm_runtime_status_suspended(dev->dev))
 		mchp_spdifrx_runtime_suspend(dev->dev);
-
-	return 0;
 }
 
 static struct platform_driver mchp_spdifrx_driver = {
 	.probe	= mchp_spdifrx_probe,
-	.remove = mchp_spdifrx_remove,
+	.remove_new = mchp_spdifrx_remove,
 	.driver	= {
 		.name	= "mchp_spdifrx",
 		.of_match_table = of_match_ptr(mchp_spdifrx_dt_ids),

@@ -29,6 +29,9 @@ static int timer(struct timer *timer_skel)
 	/* check that timer_cb2() was executed twice */
 	ASSERT_EQ(timer_skel->bss->bss_data, 10, "bss_data");
 
+	/* check that timer_cb3() was executed twice */
+	ASSERT_EQ(timer_skel->bss->abs_data, 12, "abs_data");
+
 	/* check that there were no errors in timer execution */
 	ASSERT_EQ(timer_skel->bss->err, 0, "err");
 

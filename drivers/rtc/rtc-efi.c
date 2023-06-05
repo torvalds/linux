@@ -164,7 +164,7 @@ static int efi_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (status != EFI_SUCCESS) {
 		/* should never happen */
-		dev_err(dev, "can't read time\n");
+		dev_err_once(dev, "can't read time\n");
 		return -EINVAL;
 	}
 

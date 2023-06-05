@@ -37,9 +37,10 @@
 #define ST_LSM6DSV16X_DEV_NAME	"lsm6dsv16x"
 #define ST_LSM6DSO16IS_DEV_NAME	"lsm6dso16is"
 #define ST_ISM330IS_DEV_NAME	"ism330is"
+#define ST_ASM330LHB_DEV_NAME	"asm330lhb"
 
 enum st_lsm6dsx_hw_id {
-	ST_LSM6DS3_ID,
+	ST_LSM6DS3_ID = 1,
 	ST_LSM6DS3H_ID,
 	ST_LSM6DSL_ID,
 	ST_LSM6DSM_ID,
@@ -61,6 +62,7 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DSV16X_ID,
 	ST_LSM6DSO16IS_ID,
 	ST_ISM330IS_ID,
+	ST_ASM330LHB_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -93,7 +95,7 @@ enum st_lsm6dsx_hw_id {
 		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &st_lsm6dsx_event,				\
-	.ext_info = st_lsm6dsx_accel_ext_info,				\
+	.ext_info = st_lsm6dsx_ext_info,				\
 	.num_event_specs = 1,						\
 }
 
@@ -113,6 +115,7 @@ enum st_lsm6dsx_hw_id {
 		.storagebits = 16,					\
 		.endianness = IIO_LE,					\
 	},								\
+	.ext_info = st_lsm6dsx_ext_info,				\
 }
 
 struct st_lsm6dsx_reg {
@@ -134,6 +137,13 @@ struct st_lsm6dsx_odr_table_entry {
 
 	struct st_lsm6dsx_odr odr_avl[ST_LSM6DSX_ODR_LIST_SIZE];
 	int odr_len;
+};
+
+struct st_lsm6dsx_samples_to_discard {
+	struct {
+		u32 milli_hz;
+		u16 samples;
+	} val[ST_LSM6DSX_ODR_LIST_SIZE];
 };
 
 struct st_lsm6dsx_fs {
@@ -290,6 +300,7 @@ struct st_lsm6dsx_ext_dev_settings {
  * @irq_config: interrupts related registers.
  * @drdy_mask: register info for data-ready mask (addr + mask).
  * @odr_table: Hw sensors odr table (Hz + val).
+ * @samples_to_discard: Number of samples to discard for filters settling time.
  * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
@@ -322,6 +333,7 @@ struct st_lsm6dsx_settings {
 	} irq_config;
 	struct st_lsm6dsx_reg drdy_mask;
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
+	struct st_lsm6dsx_samples_to_discard samples_to_discard[2];
 	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
@@ -352,6 +364,7 @@ enum st_lsm6dsx_fifo_mode {
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
+ * @samples_to_discard: Number of samples to discard for filters settling time.
  * @watermark: Sensor watermark level.
  * @decimator: Sensor decimation factor.
  * @sip: Number of samples in a given pattern.
@@ -366,6 +379,7 @@ struct st_lsm6dsx_sensor {
 	u32 gain;
 	u32 odr;
 
+	u16 samples_to_discard;
 	u16 watermark;
 	u8 decimator;
 	u8 sip;
@@ -528,7 +542,7 @@ st_lsm6dsx_device_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable)
 }
 
 static const
-struct iio_chan_spec_ext_info __maybe_unused st_lsm6dsx_accel_ext_info[] = {
+struct iio_chan_spec_ext_info __maybe_unused st_lsm6dsx_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, st_lsm6dsx_get_mount_matrix),
 	{ }
 };

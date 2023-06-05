@@ -132,7 +132,7 @@ static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
 
 }
 
-static struct scsi_host_template pcmcia_sht = {
+static const struct scsi_host_template pcmcia_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <linux/stop_machine.h>
+#include <asm/patch.h>
 #include "bpf_jit.h"
 
 #define RV_REG_TCC RV_REG_A6
@@ -1750,4 +1751,9 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx)
 void bpf_jit_build_epilogue(struct rv_jit_context *ctx)
 {
 	__build_epilogue(false, ctx);
+}
+
+bool bpf_jit_supports_kfunc_call(void)
+{
+	return true;
 }

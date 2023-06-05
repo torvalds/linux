@@ -22,7 +22,7 @@ properties:
       - items:
           - const: microchip,mpfs-qspi
           - const: microchip,coreqspi-rtl-v2
-      - const: microchip,coreqspi-rtl-v2 #FPGA QSPI
+      - const: microchip,coreqspi-rtl-v2 # FPGA QSPI
       - const: microchip,mpfs-spi
 
   reg:

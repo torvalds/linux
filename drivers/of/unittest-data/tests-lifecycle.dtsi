@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	testcase-data {
+		refcount-node {
+		};
+	};
+};

@@ -33,6 +33,9 @@ properties:
       - description:
           For implementations of the EC connected through RPMSG.
         const: google,cros-ec-rpmsg
+      - description:
+          For implementations of the EC connected through UART.
+        const: google,cros-ec-uart
 
   controller-data: true
 
@@ -62,7 +65,7 @@ properties:
       ARM Cortex M4 Co-processor. Contains the name of the rpmsg
       device. Used to match the subnode to the rpmsg device announced by
       the SCP.
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
 
   spi-max-frequency: true
 
@@ -91,23 +94,23 @@ properties:
     const: 0
 
   typec:
-    $ref: "/schemas/chrome/google,cros-ec-typec.yaml#"
+    $ref: /schemas/chrome/google,cros-ec-typec.yaml#
 
   ec-pwm:
-    $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
     deprecated: true
 
   pwm:
-    $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
 
   kbd-led-backlight:
-    $ref: "/schemas/chrome/google,cros-kbd-led-backlight.yaml#"
+    $ref: /schemas/chrome/google,cros-kbd-led-backlight.yaml#
 
   keyboard-controller:
-    $ref: "/schemas/input/google,cros-ec-keyb.yaml#"
+    $ref: /schemas/input/google,cros-ec-keyb.yaml#
 
   proximity:
-    $ref: "/schemas/iio/proximity/google,cros-ec-mkbp-proximity.yaml#"
+    $ref: /schemas/iio/proximity/google,cros-ec-mkbp-proximity.yaml#
 
   codecs:
     type: object
@@ -123,7 +126,7 @@ properties:
     patternProperties:
       "^ec-codec@[a-f0-9]+$":
         type: object
-        $ref: "/schemas/sound/google,cros-ec-codec.yaml#"
+        $ref: /schemas/sound/google,cros-ec-codec.yaml#
 
     required:
       - "#address-cells"
@@ -148,15 +151,15 @@ properties:
 patternProperties:
   "^i2c-tunnel[0-9]*$":
     type: object
-    $ref: "/schemas/i2c/google,cros-ec-i2c-tunnel.yaml#"
+    $ref: /schemas/i2c/google,cros-ec-i2c-tunnel.yaml#
 
   "^regulator@[0-9]+$":
     type: object
-    $ref: "/schemas/regulator/google,cros-ec-regulator.yaml#"
+    $ref: /schemas/regulator/google,cros-ec-regulator.yaml#
 
   "^extcon[0-9]*$":
     type: object
-    $ref: "/schemas/extcon/extcon-usbc-cros-ec.yaml#"
+    $ref: /schemas/extcon/extcon-usbc-cros-ec.yaml#
 
 required:
   - compatible
@@ -187,6 +190,15 @@ allOf:
       properties:
         mediatek,rpmsg-name: false
 
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - google,cros-ec-rpmsg
+                - google,cros-ec-uart
+    then:
       required:
         - reg
         - interrupts
@@ -234,7 +246,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -251,7 +263,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -284,7 +296,7 @@ examples:
 
   # Example for FPMCU
   - |
-    spi0 {
+    spi {
       #address-cells = <0x1>;
       #size-cells = <0x0>;
 
@@ -298,5 +310,13 @@ examples:
         boot0-gpios = <&gpio_controller 10 GPIO_ACTIVE_HIGH>;
         vdd-supply = <&pp3300_fp_mcu>;
       };
+    };
+
+  # Example for UART
+  - |
+    serial {
+        cros-ec {
+            compatible = "google,cros-ec-uart";
+        };
     };
 ...

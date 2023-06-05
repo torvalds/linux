@@ -48,12 +48,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7996_implicit_txbf_get,
 
 /* test knob of system error recovery */
 static ssize_t
-mt7996_fw_ser_set(struct file *file, const char __user *user_buf,
-		  size_t count, loff_t *ppos)
+mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
+			size_t count, loff_t *ppos)
 {
 	struct mt7996_phy *phy = file->private_data;
 	struct mt7996_dev *dev = phy->dev;
-	u8 band_idx = phy->mt76->band_idx;
+	bool band = phy->mt76->band_idx;
 	char buf[16];
 	int ret = 0;
 	u16 val;
@@ -73,17 +73,47 @@ mt7996_fw_ser_set(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	switch (val) {
-	case SER_SET_RECOVER_L1:
-	case SER_SET_RECOVER_L2:
-	case SER_SET_RECOVER_L3_RX_ABORT:
-	case SER_SET_RECOVER_L3_TX_ABORT:
-	case SER_SET_RECOVER_L3_TX_DISABLE:
-	case SER_SET_RECOVER_L3_BF:
-		ret = mt7996_mcu_set_ser(dev, SER_ENABLE, BIT(val), band_idx);
+	/*
+	 * 0: grab firmware current SER state.
+	 * 1: trigger & enable system error L1 recovery.
+	 * 2: trigger & enable system error L2 recovery.
+	 * 3: trigger & enable system error L3 rx abort.
+	 * 4: trigger & enable system error L3 tx abort
+	 * 5: trigger & enable system error L3 tx disable.
+	 * 6: trigger & enable system error L3 bf recovery.
+	 * 7: trigger & enable system error L4 mdp recovery.
+	 * 8: trigger & enable system error full recovery.
+	 * 9: trigger firmware crash.
+	 */
+	case UNI_CMD_SER_QUERY:
+		ret = mt7996_mcu_set_ser(dev, UNI_CMD_SER_QUERY, 0, band);
+		break;
+	case UNI_CMD_SER_SET_RECOVER_L1:
+	case UNI_CMD_SER_SET_RECOVER_L2:
+	case UNI_CMD_SER_SET_RECOVER_L3_RX_ABORT:
+	case UNI_CMD_SER_SET_RECOVER_L3_TX_ABORT:
+	case UNI_CMD_SER_SET_RECOVER_L3_TX_DISABLE:
+	case UNI_CMD_SER_SET_RECOVER_L3_BF:
+	case UNI_CMD_SER_SET_RECOVER_L4_MDP:
+		ret = mt7996_mcu_set_ser(dev, UNI_CMD_SER_SET, BIT(val), band);
 		if (ret)
 			return ret;
 
-		ret = mt7996_mcu_set_ser(dev, SER_RECOVER, val, band_idx);
+		ret = mt7996_mcu_set_ser(dev, UNI_CMD_SER_TRIGGER, val, band);
+		break;
+
+	/* enable full chip reset */
+	case UNI_CMD_SER_SET_RECOVER_FULL:
+		mt76_set(dev, MT_WFDMA0_MCU_HOST_INT_ENA, MT_MCU_CMD_WDT_MASK);
+		dev->recovery.state |= MT_MCU_CMD_WDT_MASK;
+		mt7996_reset(dev);
+		break;
+
+	/* WARNING: trigger firmware crash */
+	case UNI_CMD_SER_SET_SYSTEM_ASSERT:
+		ret = mt7996_mcu_trigger_assert(dev);
+		if (ret)
+			return ret;
 		break;
 	default:
 		break;
@@ -92,9 +122,97 @@ mt7996_fw_ser_set(struct file *file, const char __user *user_buf,
 	return ret ? ret : count;
 }
 
-static const struct file_operations mt7996_fw_ser_ops = {
-	.write = mt7996_fw_ser_set,
-	/* TODO: ser read */
+static ssize_t
+mt7996_sys_recovery_get(struct file *file, char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct mt7996_phy *phy = file->private_data;
+	struct mt7996_dev *dev = phy->dev;
+	char *buff;
+	int desc = 0;
+	ssize_t ret;
+	static const size_t bufsz = 1024;
+
+	buff = kmalloc(bufsz, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	/* HELP */
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "Please echo the correct value ...\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "0: grab firmware transient SER state\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "1: trigger system error L1 recovery\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "2: trigger system error L2 recovery\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "3: trigger system error L3 rx abort\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "4: trigger system error L3 tx abort\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "5: trigger system error L3 tx disable\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "6: trigger system error L3 bf recovery\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "7: trigger system error L4 mdp recovery\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "8: trigger system error full recovery\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "9: trigger firmware crash\n");
+
+	/* SER statistics */
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "\nlet's dump firmware SER statistics...\n");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_STATUS        = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_SER_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR       = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR_1     = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PLE_ERR_AMSDU = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PLE_AMSDU_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PSE_ERR       = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PSE_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_PSE_ERR_1     = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_PSE1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR6_B0 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN0_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR6_B1 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR6_B2 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN2_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR7_B0 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN0_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR7_B1 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN1_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "::E  R , SER_LMAC_WISR7_B2 = 0x%08x\n",
+			  mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN2_STATS));
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "\nSYS_RESET_COUNT: WM %d, WA %d\n",
+			  dev->recovery.wm_reset_count,
+			  dev->recovery.wa_reset_count);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
+	return ret;
+}
+
+static const struct file_operations mt7996_sys_recovery_ops = {
+	.write = mt7996_sys_recovery_set,
+	.read = mt7996_sys_recovery_get,
 	.open = simple_open,
 	.llseek = default_llseek,
 };
@@ -674,6 +792,8 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
 	debugfs_create_file("xmit-queues", 0400, dir, phy,
 			    &mt7996_xmit_queues_fops);
 	debugfs_create_file("tx_stats", 0400, dir, phy, &mt7996_tx_stats_fops);
+	debugfs_create_file("sys_recovery", 0600, dir, phy,
+			    &mt7996_sys_recovery_ops);
 	debugfs_create_file("fw_debug_wm", 0600, dir, dev, &fops_fw_debug_wm);
 	debugfs_create_file("fw_debug_wa", 0600, dir, dev, &fops_fw_debug_wa);
 	debugfs_create_file("fw_debug_bin", 0600, dir, dev, &fops_fw_debug_bin);
@@ -684,7 +804,6 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
 			    &fops_implicit_txbf);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
 				    mt7996_twt_stats);
-	debugfs_create_file("fw_ser", 0600, dir, phy, &mt7996_fw_ser_ops);
 	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 
 	if (phy->mt76->cap.has_5ghz) {

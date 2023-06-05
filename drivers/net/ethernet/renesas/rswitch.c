@@ -702,13 +702,14 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 	u16 pkt_len;
 	u32 get_ts;
 
+	if (*quota <= 0)
+		return true;
+
 	boguscnt = min_t(int, gq->ring_size, *quota);
 	limit = boguscnt;
 
 	desc = &gq->rx_ring[gq->cur];
 	while ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY) {
-		if (--boguscnt < 0)
-			break;
 		dma_rmb();
 		pkt_len = le16_to_cpu(desc->desc.info_ds) & RX_DS;
 		skb = gq->skbs[gq->cur];
@@ -734,6 +735,9 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 
 		gq->cur = rswitch_next_queue_index(gq, true, 1);
 		desc = &gq->rx_ring[gq->cur];
+
+		if (--boguscnt <= 0)
+			break;
 	}
 
 	num = rswitch_get_num_cur_queues(gq);
@@ -745,7 +749,7 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 		goto err;
 	gq->dirty = rswitch_next_queue_index(gq, false, num);
 
-	*quota -= limit - (++boguscnt);
+	*quota -= limit - boguscnt;
 
 	return boguscnt <= 0;
 
@@ -1320,10 +1324,8 @@ out:
 
 static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
 {
-	if (rdev->ndev->phydev) {
+	if (rdev->ndev->phydev)
 		phy_disconnect(rdev->ndev->phydev);
-		rdev->ndev->phydev = NULL;
-	}
 }
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)
@@ -1437,7 +1439,10 @@ static int rswitch_open(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, true);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, true);
 
-	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+	if (bitmap_empty(rdev->priv->opened_ports, RSWITCH_NUM_PORTS))
+		iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+
+	bitmap_set(rdev->priv->opened_ports, rdev->port, 1);
 
 	return 0;
 };
@@ -1448,8 +1453,10 @@ static int rswitch_stop(struct net_device *ndev)
 	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
 
 	netif_tx_stop_all_queues(ndev);
+	bitmap_clear(rdev->priv->opened_ports, rdev->port, 1);
 
-	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
+	if (bitmap_empty(rdev->priv->opened_ports, RSWITCH_NUM_PORTS))
+		iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
 
 	list_for_each_entry_safe(ts_info, ts_info2, &rdev->priv->gwca.ts_info_list, list) {
 		if (ts_info->port != rdev->port)

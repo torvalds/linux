@@ -618,14 +618,14 @@ static int stack_map_get_next_key(struct bpf_map *map, void *key,
 	return 0;
 }
 
-static int stack_map_update_elem(struct bpf_map *map, void *key, void *value,
-				 u64 map_flags)
+static long stack_map_update_elem(struct bpf_map *map, void *key, void *value,
+				  u64 map_flags)
 {
 	return -EINVAL;
 }
 
 /* Called from syscall or from eBPF program */
-static int stack_map_delete_elem(struct bpf_map *map, void *key)
+static long stack_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
 	struct stack_map_bucket *old_bucket;
@@ -654,6 +654,19 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
+static u64 stack_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
+	u64 value_size = map->value_size;
+	u64 n_buckets = smap->n_buckets;
+	u64 enties = map->max_entries;
+	u64 usage = sizeof(*smap);
+
+	usage += n_buckets * sizeof(struct stack_map_bucket *);
+	usage += enties * (sizeof(struct stack_map_bucket) + value_size);
+	return usage;
+}
+
 BTF_ID_LIST_SINGLE(stack_trace_map_btf_ids, struct, bpf_stack_map)
 const struct bpf_map_ops stack_trace_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
@@ -664,5 +677,6 @@ const struct bpf_map_ops stack_trace_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_mem_usage = stack_map_mem_usage,
 	.map_btf_id = &stack_trace_map_btf_ids[0],
 };

@@ -8,6 +8,7 @@ config DRM_RADEON
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HELPER
         select DRM_KMS_HELPER
+	select DRM_SUBALLOC_HELPER
         select DRM_TTM
 	select DRM_TTM_HELPER
 	select SND_HDA_COMPONENT if SND_HDA_CORE

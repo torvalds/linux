@@ -194,11 +194,13 @@ static const struct attribute_group p2pmem_group = {
 static void p2pdma_page_free(struct page *page)
 {
 	struct pci_p2pdma_pagemap *pgmap = to_p2p_pgmap(page->pgmap);
+	/* safe to dereference while a reference is held to the percpu ref */
+	struct pci_p2pdma *p2pdma =
+		rcu_dereference_protected(pgmap->provider->p2pdma, 1);
 	struct percpu_ref *ref;
 
-	gen_pool_free_owner(pgmap->provider->p2pdma->pool,
-			    (uintptr_t)page_to_virt(page), PAGE_SIZE,
-			    (void **)&ref);
+	gen_pool_free_owner(p2pdma->pool, (uintptr_t)page_to_virt(page),
+			    PAGE_SIZE, (void **)&ref);
 	percpu_ref_put(ref);
 }
 
@@ -744,8 +746,7 @@ EXPORT_SYMBOL_GPL(pci_has_p2pmem);
 
 /**
  * pci_p2pmem_find_many - find a peer-to-peer DMA memory device compatible with
- *	the specified list of clients and shortest distance (as determined
- *	by pci_p2pmem_dma())
+ *	the specified list of clients and shortest distance
  * @clients: array of devices to check (NULL-terminated)
  * @num_clients: number of client devices in the list
  *

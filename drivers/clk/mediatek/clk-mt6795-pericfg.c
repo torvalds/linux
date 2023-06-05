@@ -89,6 +89,7 @@ static const struct of_device_id of_match_clk_mt6795_pericfg[] = {
 	{ .compatible = "mediatek,mt6795-pericfg" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_pericfg);
 
 static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 {
@@ -109,11 +110,13 @@ static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_gates(node, peri_gates, ARRAY_SIZE(peri_gates), clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, peri_gates,
+				     ARRAY_SIZE(peri_gates), clk_data);
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_composites(peri_clks, ARRAY_SIZE(peri_clks), base,
+	ret = mtk_clk_register_composites(&pdev->dev, peri_clks,
+					  ARRAY_SIZE(peri_clks), base,
 					  &mt6795_peri_clk_lock, clk_data);
 	if (ret)
 		goto unregister_gates;

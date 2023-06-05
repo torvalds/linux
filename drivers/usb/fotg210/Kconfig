@@ -29,7 +29,7 @@ config USB_FOTG210_UDC
 	bool "Faraday FOTG210 USB Peripheral Controller support"
 	help
 	   Faraday USB2.0 OTG controller which can be configured as
-	   high speed or full speed USB device. This driver suppports
+	   high speed or full speed USB device. This driver supports
 	   Bulk Transfer so far.
 
 	   Say "y" to link the driver statically, or "m" to build a

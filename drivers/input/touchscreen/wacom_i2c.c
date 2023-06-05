@@ -232,7 +232,7 @@ static int wacom_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused wacom_i2c_suspend(struct device *dev)
+static int wacom_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -241,7 +241,7 @@ static int __maybe_unused wacom_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wacom_i2c_resume(struct device *dev)
+static int wacom_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -250,7 +250,7 @@ static int __maybe_unused wacom_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(wacom_i2c_pm, wacom_i2c_suspend, wacom_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(wacom_i2c_pm, wacom_i2c_suspend, wacom_i2c_resume);
 
 static const struct i2c_device_id wacom_i2c_id[] = {
 	{ "WAC_I2C_EMR", 0 },
@@ -261,7 +261,7 @@ MODULE_DEVICE_TABLE(i2c, wacom_i2c_id);
 static struct i2c_driver wacom_i2c_driver = {
 	.driver	= {
 		.name	= "wacom_i2c",
-		.pm	= &wacom_i2c_pm,
+		.pm	= pm_sleep_ptr(&wacom_i2c_pm),
 	},
 
 	.probe_new	= wacom_i2c_probe,

@@ -173,24 +173,6 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 		.default_value = 1,
 	},
 	{
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Horizontal binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Vertical binning factor",
-		.minimum = 0,
-		.maximum = 10,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
 		.id = V4L2_CID_2A_STATUS,
 		.type = V4L2_CTRL_TYPE_BITMASK,
 		.name = "AE and AWB status",
@@ -636,21 +618,15 @@ static int atomisp_enum_input(struct file *file, void *fh,
 static unsigned int
 atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 {
-	return asd->video_out_preview.vb_queue.start_streaming_called
-	       + asd->video_out_capture.vb_queue.start_streaming_called
-	       + asd->video_out_video_capture.vb_queue.start_streaming_called
-	       + asd->video_out_vf.vb_queue.start_streaming_called;
+	return vb2_start_streaming_called(&asd->video_out_preview.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_video_capture.vb_queue) +
+	       vb2_start_streaming_called(&asd->video_out_vf.vb_queue);
 }
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 {
-	unsigned int i, sum;
-
-	for (i = 0, sum = 0; i < isp->num_of_streams; i++)
-		sum += isp->asd[i].streaming ==
-		       ATOMISP_DEVICE_STREAMING_ENABLED;
-
-	return sum;
+	return isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED;
 }
 
 /*
@@ -695,18 +671,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		return -EINVAL;
 	}
 
-	/*
-	 * check whether the request camera:
-	 * 1: already in use
-	 * 2: if in use, whether it is used by other streams
-	 */
-	if (isp->inputs[input].asd && isp->inputs[input].asd != asd) {
-		dev_err(isp->dev,
-			"%s, camera is already used by stream: %d\n", __func__,
-			isp->inputs[input].asd->index);
-		return -EBUSY;
-	}
-
 	camera = isp->inputs[input].camera;
 	if (!camera) {
 		dev_err(isp->dev, "%s, no camera\n", __func__);
@@ -718,7 +682,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	    asd->input_curr != input) {
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_power, 0);
-		if (ret)
+		if (ret && ret != -ENOIOCTLCMD)
 			dev_warn(isp->dev,
 				 "Failed to power-off sensor\n");
 		/* clear the asd field to show this camera is not used */
@@ -727,7 +691,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 
 	/* powe on the new sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, 1);
-	if (ret) {
+	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
@@ -1067,13 +1031,23 @@ error:
 	return -ENOMEM;
 }
 
+/*
+ * FIXME the abuse of buf->reserved2 in the qbuf and dqbuf wrappers comes from
+ * the original atomisp buffer handling and should be replaced with proper V4L2
+ * per frame parameters use.
+ *
+ * Once this is fixed these wrappers can be removed, replacing them with direct
+ * calls to vb2_ioctl_[d]qbuf().
+ */
 static int atomisp_qbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
-	/* FIXME this abuse of buf->reserved2 comes from the original atomisp buffer handling */
+	if (buf->index >= vdev->queue->num_buffers)
+		return -EINVAL;
+
 	if (!atomisp_is_vf_pipe(pipe) &&
 	    (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING)) {
 		/* this buffer will have a per-frame parameter */
@@ -1106,7 +1080,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	vb = pipe->vb_queue.bufs[buf->index];
 	frame = vb_to_frame(vb);
 
-	/* FIXME this abuse of buf->reserved* comes from the original atomisp buffer handling */
 	buf->reserved = asd->frame_status[buf->index];
 
 	/*
@@ -1121,24 +1094,13 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	buf->reserved2 = pipe->frame_config_id[buf->index];
 
 	dev_dbg(isp->dev,
-		"dqbuf buffer %d (%s) for asd%d with exp_id %d, isp_config_id %d\n",
-		buf->index, vdev->name, asd->index, buf->reserved >> 16,
-		buf->reserved2);
+		"dqbuf buffer %d (%s) with exp_id %d, isp_config_id %d\n",
+		buf->index, vdev->name, buf->reserved >> 16, buf->reserved2);
 	return 0;
 }
 
 enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 {
-	if (ATOMISP_USE_YUVPP(asd))
-		return IA_CSS_PIPE_ID_YUVPP;
-
-	if (asd->continuous_mode->val) {
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-			return IA_CSS_PIPE_ID_VIDEO;
-		else
-			return IA_CSS_PIPE_ID_PREVIEW;
-	}
-
 	/*
 	 * Disable vf_pp and run CSS in video mode. This allows using ISP
 	 * scaling but it has one frame delay due to CSS internal buffering.
@@ -1173,58 +1135,10 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 
 	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
 	    (asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE &&
-	     !atomisp_is_mbuscode_raw(
-		 asd->fmt[
-		  asd->capture_pad].fmt.code) &&
-	     !asd->continuous_mode->val))
+	     !atomisp_is_mbuscode_raw(asd->fmt[asd->capture_pad].fmt.code)))
 		return 2;
 	else
 		return 1;
-}
-
-int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
-	bool isp_timeout)
-{
-	unsigned int master, slave, delay_slave = 0;
-	int ret;
-
-	master = ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR;
-	slave = ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR;
-	dev_warn(isp->dev,
-		 "depth mode use default master=%s.slave=%s.\n",
-		 isp->inputs[master].camera->name,
-		 isp->inputs[slave].camera->name);
-
-	ret = v4l2_subdev_call(isp->inputs[master].camera, core,
-			       ioctl, ATOMISP_IOC_G_DEPTH_SYNC_COMP,
-			       &delay_slave);
-	if (ret)
-		dev_warn(isp->dev,
-			 "get depth sensor %s compensation delay failed.\n",
-			 isp->inputs[master].camera->name);
-
-	ret = v4l2_subdev_call(isp->inputs[master].camera,
-			       video, s_stream, 1);
-	if (ret) {
-		dev_err(isp->dev, "depth mode master sensor %s stream-on failed.\n",
-			isp->inputs[master].camera->name);
-		return -EINVAL;
-	}
-
-	if (delay_slave != 0)
-		udelay(delay_slave);
-
-	ret = v4l2_subdev_call(isp->inputs[slave].camera,
-			       video, s_stream, 1);
-	if (ret) {
-		dev_err(isp->dev, "depth mode slave sensor %s stream-on failed.\n",
-			isp->inputs[slave].camera->name);
-		v4l2_subdev_call(isp->inputs[master].camera, video, s_stream, 0);
-
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 /* Input system HW workaround */
@@ -1259,8 +1173,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	mutex_lock(&isp->mutex);
 
-	dev_dbg(isp->dev, "Start stream on pad %d for asd%d\n",
-		atomisp_subdev_source_pad(vdev), asd->index);
+	dev_dbg(isp->dev, "Start stream on pad %d\n", atomisp_subdev_source_pad(vdev));
 
 	ret = atomisp_pipe_check(pipe, false);
 	if (ret)
@@ -1275,57 +1188,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 */
 	sensor_start_stream = atomisp_sensor_start_stream(asd);
 
-	/* Reset pending capture request count. */
-	asd->pending_capture_request = 0;
-
 	if (atomisp_subdev_streaming_count(asd) > sensor_start_stream) {
-		/* trigger still capture */
-		if (asd->continuous_mode->val &&
-		    atomisp_subdev_source_pad(vdev)
-		    == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
-			if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-				dev_dbg(isp->dev, "SDV last video raw buffer id: %u\n",
-					asd->latest_preview_exp_id);
-			else
-				dev_dbg(isp->dev, "ZSL last preview raw buffer id: %u\n",
-					asd->latest_preview_exp_id);
-
-			if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
-				flush_work(&asd->delayed_init_work);
-				mutex_unlock(&isp->mutex);
-				ret = wait_for_completion_interruptible(&asd->init_done);
-				mutex_lock(&isp->mutex);
-				if (ret) {
-					ret = -ERESTARTSYS;
-					goto out_unlock;
-				}
-			}
-
-			/* handle per_frame_setting parameter and buffers */
-			atomisp_handle_parameter_and_buffer(pipe);
-
-			/*
-			 * only ZSL/SDV capture request will be here, raise
-			 * the ISP freq to the highest possible to minimize
-			 * the S2S latency.
-			 */
-			atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, false);
-			/*
-			 * When asd->enable_raw_buffer_lock->val is true,
-			 * An extra IOCTL is needed to call
-			 * atomisp_css_exp_id_capture and trigger real capture
-			 */
-			if (!asd->enable_raw_buffer_lock->val) {
-				ret = atomisp_css_offline_capture_configure(asd,
-					asd->params.offline_parm.num_captures,
-					asd->params.offline_parm.skip_frames,
-					asd->params.offline_parm.offset);
-				if (ret) {
-					ret = -EINVAL;
-					goto out_unlock;
-				}
-			}
-		}
 		atomisp_qbuffers_to_css(asd);
 		ret = 0;
 		goto out_unlock;
@@ -1354,7 +1217,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = atomisp_css_start(asd, css_pipe_id, false);
 	if (ret) {
-		atomisp_flush_video_pipe(pipe, true);
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
 	}
 
@@ -1405,19 +1268,6 @@ start_sensor:
 			dev_dbg(isp->dev, "DFS auto mode failed!\n");
 	}
 
-	if (asd->depth_mode->val && atomisp_streaming_count(isp) ==
-	    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT) {
-		ret = atomisp_stream_on_master_slave_sensor(isp, false);
-		if (ret) {
-			dev_err(isp->dev, "master slave sensor stream on failed!\n");
-			goto out_unlock;
-		}
-		goto start_delay_wq;
-	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
-					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-		goto start_delay_wq;
-	}
-
 	/* Enable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
 					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
@@ -1436,19 +1286,6 @@ start_sensor:
 		goto out_unlock;
 	}
 
-start_delay_wq:
-	if (asd->continuous_mode->val) {
-		atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-				        V4L2_SUBDEV_FORMAT_ACTIVE,
-				        ATOMISP_SUBDEV_PAD_SINK);
-
-		reinit_completion(&asd->init_done);
-		asd->delayed_init = ATOMISP_DELAYED_INIT_QUEUED;
-		queue_work(asd->delayed_init_workq, &asd->delayed_init_work);
-	} else {
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
-	}
-
 out_unlock:
 	mutex_unlock(&isp->mutex);
 	return ret;
@@ -1461,16 +1298,15 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	struct video_device *vdev = &pipe->vdev;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	bool recreate_streams[MAX_STREAM_NUM] = {0};
 	enum ia_css_pipe_id css_pipe_id;
+	bool recreate_stream = false;
 	bool first_streamoff = false;
 	unsigned long flags;
-	int i, ret;
+	int ret;
 
 	mutex_lock(&isp->mutex);
 
-	dev_dbg(isp->dev, "Stop stream on pad %d for asd%d\n",
-		atomisp_subdev_source_pad(vdev), asd->index);
+	dev_dbg(isp->dev, "Stop stream on pad %d\n", atomisp_subdev_source_pad(vdev));
 
 	/*
 	 * There is no guarantee that the buffers queued to / owned by the ISP
@@ -1488,24 +1324,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	if (ret == 0)
 		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
 
-	/*
-	 * do only videobuf_streamoff for capture & vf pipes in
-	 * case of continuous capture
-	 */
-	if (asd->continuous_mode->val &&
-	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
-		if (atomisp_subdev_source_pad(vdev) == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
-			/* stop continuous still capture if needed */
-			if (asd->params.offline_parm.num_captures == -1)
-				atomisp_css_offline_capture_configure(asd,
-								      0, 0, 0);
-			atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, false);
-		}
-
-		goto out_unlock;
-	}
-
 	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
 		first_streamoff = true;
 
@@ -1522,15 +1340,10 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	atomisp_clear_css_buffer_counters(asd);
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
-		cancel_work_sync(&asd->delayed_init_work);
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
-	}
-
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 	atomisp_css_stop(asd, css_pipe_id, false);
 
-	atomisp_flush_video_pipe(pipe, true);
+	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
 
 	atomisp_subdev_cleanup_pending_events(asd);
 stopsensor:
@@ -1575,11 +1388,9 @@ stopsensor:
 	 *
 	 * So force stream destroy here.
 	 */
-	for (i = 0; i < isp->num_of_streams; i++) {
-		if (isp->asd[i].stream_prepared) {
-			atomisp_destroy_pipes_stream_force(&isp->asd[i]);
-			recreate_streams[i] = true;
-		}
+	if (isp->asd.stream_prepared) {
+		atomisp_destroy_pipes_stream_force(&isp->asd);
+		recreate_stream = true;
 	}
 
 	/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
@@ -1587,19 +1398,18 @@ stopsensor:
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 	dev_err(isp->dev, "atomisp_reset");
 	atomisp_reset(isp);
-	for (i = 0; i < isp->num_of_streams; i++) {
-		if (recreate_streams[i]) {
-			int ret2;
 
-			ret2 = atomisp_create_pipes_stream(&isp->asd[i]);
-			if (ret2) {
-				dev_err(isp->dev, "%s error re-creating streams: %d\n",
-					__func__, ret2);
-				if (!ret)
-					ret = ret2;
-			}
+	if (recreate_stream) {
+		int ret2;
+
+		ret2 = atomisp_create_pipes_stream(&isp->asd);
+		if (ret2) {
+			dev_err(isp->dev, "%s error re-creating streams: %d\n", __func__, ret2);
+			if (!ret)
+				ret = ret2;
 		}
 	}
+
 	isp->isp_timeout = false;
 out_unlock:
 	mutex_unlock(&isp->mutex);
@@ -1631,7 +1441,6 @@ static int atomisp_g_ctrl(struct file *file, void *fh,
 	switch (control->id) {
 	case V4L2_CID_IRIS_ABSOLUTE:
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
-	case V4L2_CID_FNUMBER_ABSOLUTE:
 	case V4L2_CID_2A_STATUS:
 	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
 	case V4L2_CID_EXPOSURE:
@@ -1828,9 +1637,6 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_ABSOLUTE:
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
-		case V4L2_CID_BIN_FACTOR_HORZ:
-		case V4L2_CID_BIN_FACTOR_VERT:
 		case V4L2_CID_3A_LOCK:
 		case V4L2_CID_TEST_PATTERN:
 		case V4L2_CID_TEST_PATTERN_COLOR_R:
@@ -1940,7 +1746,6 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_AUTO:
 		case V4L2_CID_EXPOSURE_METERING:
 		case V4L2_CID_IRIS_ABSOLUTE:
-		case V4L2_CID_FNUMBER_ABSOLUTE:
 		case V4L2_CID_VCM_TIMING:
 		case V4L2_CID_VCM_SLEW:
 		case V4L2_CID_3A_LOCK:
@@ -2276,14 +2081,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_fixed_pattern_table(asd, arg);
 		break;
 
-	case ATOMISP_IOC_ISP_MAKERNOTE:
-		err = atomisp_exif_makernote(asd, arg);
-		break;
-
-	case ATOMISP_IOC_G_SENSOR_MODE_DATA:
-		err = atomisp_get_sensor_mode_data(asd, arg);
-		break;
-
 	case ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA:
 		if (motor)
 			err = v4l2_subdev_call(motor, core, ioctl, cmd, arg);
@@ -2326,9 +2123,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_set_parameters(vdev, arg);
 		break;
 
-	case ATOMISP_IOC_S_CONT_CAPTURE_CONFIG:
-		err = atomisp_offline_capture_configure(asd, arg);
-		break;
 	case ATOMISP_IOC_G_METADATA:
 		err = atomisp_get_metadata(asd, 0, arg);
 		break;

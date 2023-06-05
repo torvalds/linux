@@ -493,7 +493,7 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	bool found = false;
 	int rc, index;
 
-	if (of_find_property(parent, "ibm,drc-info", NULL))
+	if (of_property_present(parent, "ibm,drc-info"))
 		return drc_info_valid_index(parent, drc_index);
 
 	/* Note that the format of the ibm,drc-indexes array is
@@ -855,8 +855,8 @@ static int __init pseries_cpu_hotplug_init(void)
 	ppc_md.cpu_release = dlpar_cpu_release;
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
-	rtas_stop_self_token = rtas_token("stop-self");
-	qcss_tok = rtas_token("query-cpu-stopped-state");
+	rtas_stop_self_token = rtas_function_token(RTAS_FN_STOP_SELF);
+	qcss_tok = rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE);
 
 	if (rtas_stop_self_token == RTAS_UNKNOWN_SERVICE ||
 			qcss_tok == RTAS_UNKNOWN_SERVICE) {

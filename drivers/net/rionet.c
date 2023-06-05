@@ -662,8 +662,7 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-static void rionet_remove_mport(struct device *dev,
-				struct class_interface *class_intf)
+static void rionet_remove_mport(struct device *dev)
 {
 	struct rio_mport *mport = to_rio_mport(dev);
 	struct net_device *ndev;

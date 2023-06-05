@@ -1666,9 +1666,8 @@ static void handle_control_message(struct virtio_device *vdev,
 				"Not enough space to store port name\n");
 			break;
 		}
-		strncpy(port->name, buf->buf + buf->offset + sizeof(*cpkt),
-			name_size - 1);
-		port->name[name_size - 1] = 0;
+		strscpy(port->name, buf->buf + buf->offset + sizeof(*cpkt),
+			name_size);
 
 		/*
 		 * Since we only have one sysfs attribute, 'name',
@@ -2245,7 +2244,7 @@ static int __init virtio_console_init(void)
 {
 	int err;
 
-	pdrvdata.class = class_create(THIS_MODULE, "virtio-ports");
+	pdrvdata.class = class_create("virtio-ports");
 	if (IS_ERR(pdrvdata.class)) {
 		err = PTR_ERR(pdrvdata.class);
 		pr_err("Error %d creating virtio-ports class\n", err);

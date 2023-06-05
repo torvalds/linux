@@ -53,7 +53,6 @@ config USB_XHCI_PCI_RENESAS
 
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
-	select USB_XHCI_RCAR if ARCH_RENESAS
 	help
 	  Adds an xHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -91,9 +90,19 @@ config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
 	depends on USB_XHCI_PLATFORM
 	depends on ARCH_RENESAS || COMPILE_TEST
+	default ARCH_RENESAS
 	help
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
+
+config USB_XHCI_RZV2M
+	bool "xHCI support for Renesas RZ/V2M SoC"
+	depends on USB_XHCI_RCAR
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	depends on USB_RZV2M_USB3DRD=y || (USB_RZV2M_USB3DRD=USB_XHCI_RCAR)
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Renesas RZ/V2M SoC.
 
 config USB_XHCI_TEGRA
 	tristate "xHCI support for NVIDIA Tegra SoCs"
@@ -535,17 +544,6 @@ config USB_OHCI_HCD_SSB
 
 	  If unsure, say N.
 
-config USB_OHCI_SH
-	bool "OHCI support for SuperH USB controller (DEPRECATED)"
-	depends on SUPERH || COMPILE_TEST
-	select USB_OHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enables support for the on-chip OHCI controller on the SuperH.
-	  If you use the PCI OHCI controller, this option is not necessary.
-
 config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
@@ -623,33 +621,6 @@ config FHCI_DEBUG
 	help
 	  Say "y" to see some FHCI debug information and statistics
 	  through debugfs.
-
-config USB_U132_HCD
-	tristate "Elan U132 Adapter Host Controller"
-	depends on USB_FTDI_ELAN
-	help
-	  The U132 adapter is a USB to CardBus adapter specifically designed
-	  for PC cards that contain an OHCI host controller. Typical PC cards
-	  are the Orange Mobile 3G Option GlobeTrotter Fusion card. The U132
-	  adapter will *NOT* work with PC cards that do not contain an OHCI
-	  controller.
-
-	  For those PC cards that contain multiple OHCI controllers only the
-	  first one is used.
-
-	  The driver consists of two modules, the "ftdi-elan" module is a
-	  USB client driver that interfaces to the FTDI chip within ELAN's
-	  USB-to-PCMCIA adapter, and this "u132-hcd" module is a USB host
-	  controller driver that talks to the OHCI controller within the
-	  CardBus cards that are inserted in the U132 adapter.
-
-	  This driver has been tested with a CardBus OHCI USB adapter, and
-	  worked with a USB PEN Drive inserted into the first USB port of
-	  the PCCARD. A rather pointless thing to do, but useful for testing.
-
-	  It is safe to say M here.
-
-	  See also <http://www.elandigitalsystems.com/support/ufaq/u132linux.php>
 
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"

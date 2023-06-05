@@ -7,7 +7,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 
-ENTRY(early_pgm_check_handler)
+SYM_CODE_START(early_pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD+__PT_SIZE)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
@@ -20,4 +20,4 @@ ENTRY(early_pgm_check_handler)
 	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	lpswe	__LC_RETURN_PSW
-ENDPROC(early_pgm_check_handler)
+SYM_CODE_END(early_pgm_check_handler)

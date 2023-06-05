@@ -1224,10 +1224,9 @@ static int dss_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dss_remove(struct platform_device *pdev)
+static void dss_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &dss_component_ops);
-	return 0;
 }
 
 static int dss_runtime_suspend(struct device *dev)
@@ -1279,7 +1278,7 @@ MODULE_DEVICE_TABLE(of, dss_of_match);
 
 static struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
-	.remove		= dss_remove,
+	.remove_new	= dss_remove,
 	.driver         = {
 		.name   = "omapdss_dss",
 		.pm	= &dss_pm_ops,

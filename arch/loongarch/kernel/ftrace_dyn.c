@@ -6,6 +6,7 @@
  */
 
 #include <linux/ftrace.h>
+#include <linux/kprobes.h>
 #include <linux/uaccess.h>
 
 #include <asm/inst.h>
@@ -29,19 +30,12 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new, bool validate)
 	return 0;
 }
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-
 #ifdef CONFIG_MODULES
-static inline int __get_mod(struct module **mod, unsigned long addr)
+static bool reachable_by_bl(unsigned long addr, unsigned long pc)
 {
-	preempt_disable();
-	*mod = __module_text_address(addr);
-	preempt_enable();
+	long offset = (long)addr - (long)pc;
 
-	if (WARN_ON(!(*mod)))
-		return -EINVAL;
-
-	return 0;
+	return offset >= -SZ_128M && offset < SZ_128M;
 }
 
 static struct plt_entry *get_ftrace_plt(struct module *mod, unsigned long addr)
@@ -57,51 +51,88 @@ static struct plt_entry *get_ftrace_plt(struct module *mod, unsigned long addr)
 	return NULL;
 }
 
-static unsigned long get_plt_addr(struct module *mod, unsigned long addr)
+/*
+ * Find the address the callsite must branch to in order to reach '*addr'.
+ *
+ * Due to the limited range of 'bl' instruction, modules may be placed too far
+ * away to branch directly and we must use a PLT.
+ *
+ * Returns true when '*addr' contains a reachable target address, or has been
+ * modified to contain a PLT address. Returns false otherwise.
+ */
+static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod, unsigned long *addr)
 {
+	unsigned long pc = rec->ip + LOONGARCH_INSN_SIZE;
 	struct plt_entry *plt;
 
-	plt = get_ftrace_plt(mod, addr);
-	if (!plt) {
-		pr_err("ftrace: no module PLT for %ps\n", (void *)addr);
-		return -EINVAL;
+	/*
+	 * If a custom trampoline is unreachable, rely on the ftrace_regs_caller
+	 * trampoline which knows how to indirectly reach that trampoline through
+	 * ops->direct_call.
+	 */
+	if (*addr != FTRACE_ADDR && *addr != FTRACE_REGS_ADDR && !reachable_by_bl(*addr, pc))
+		*addr = FTRACE_REGS_ADDR;
+
+	/*
+	 * When the target is within range of the 'bl' instruction, use 'addr'
+	 * as-is and branch to that directly.
+	 */
+	if (reachable_by_bl(*addr, pc))
+		return true;
+
+	/*
+	 * 'mod' is only set at module load time, but if we end up
+	 * dealing with an out-of-range condition, we can assume it
+	 * is due to a module being loaded far away from the kernel.
+	 *
+	 * NOTE: __module_text_address() must be called with preemption
+	 * disabled, but we can rely on ftrace_lock to ensure that 'mod'
+	 * retains its validity throughout the remainder of this code.
+	 */
+	if (!mod) {
+		preempt_disable();
+		mod = __module_text_address(pc);
+		preempt_enable();
 	}
 
-	return (unsigned long)plt;
+	if (WARN_ON(!mod))
+		return false;
+
+	plt = get_ftrace_plt(mod, *addr);
+	if (!plt) {
+		pr_err("ftrace: no module PLT for %ps\n", (void *)*addr);
+		return false;
+	}
+
+	*addr = (unsigned long)plt;
+	return true;
+}
+#else /* !CONFIG_MODULES */
+static bool ftrace_find_callable_addr(struct dyn_ftrace *rec, struct module *mod, unsigned long *addr)
+{
+	return true;
 }
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr, unsigned long addr)
 {
 	u32 old, new;
 	unsigned long pc;
-	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
 
-#ifdef CONFIG_MODULES
-	offset = (long)pc - (long)addr;
+	if (!ftrace_find_callable_addr(rec, NULL, &addr))
+		return -EINVAL;
 
-	if (offset < -SZ_128M || offset >= SZ_128M) {
-		int ret;
-		struct module *mod;
-
-		ret = __get_mod(&mod, pc);
-		if (ret)
-			return ret;
-
-		addr = get_plt_addr(mod, addr);
-
-		old_addr = get_plt_addr(mod, old_addr);
-	}
-#endif
+	if (!ftrace_find_callable_addr(rec, NULL, &old_addr))
+		return -EINVAL;
 
 	new = larch_insn_gen_bl(pc, addr);
 	old = larch_insn_gen_bl(pc, old_addr);
 
 	return ftrace_modify_code(pc, old, new, true);
 }
-
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
@@ -152,24 +183,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	u32 old, new;
 	unsigned long pc;
-	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
 
-#ifdef CONFIG_MODULES
-	offset = (long)pc - (long)addr;
-
-	if (offset < -SZ_128M || offset >= SZ_128M) {
-		int ret;
-		struct module *mod;
-
-		ret = __get_mod(&mod, pc);
-		if (ret)
-			return ret;
-
-		addr = get_plt_addr(mod, addr);
-	}
-#endif
+	if (!ftrace_find_callable_addr(rec, NULL, &addr))
+		return -EINVAL;
 
 	old = larch_insn_gen_nop();
 	new = larch_insn_gen_bl(pc, addr);
@@ -181,24 +199,11 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long ad
 {
 	u32 old, new;
 	unsigned long pc;
-	long offset __maybe_unused;
 
 	pc = rec->ip + LOONGARCH_INSN_SIZE;
 
-#ifdef CONFIG_MODULES
-	offset = (long)pc - (long)addr;
-
-	if (offset < -SZ_128M || offset >= SZ_128M) {
-		int ret;
-		struct module *mod;
-
-		ret = __get_mod(&mod, pc);
-		if (ret)
-			return ret;
-
-		addr = get_plt_addr(mod, addr);
-	}
-#endif
+	if (!ftrace_find_callable_addr(rec, NULL, &addr))
+		return -EINVAL;
 
 	new = larch_insn_gen_nop();
 	old = larch_insn_gen_bl(pc, addr);
@@ -271,3 +276,66 @@ int ftrace_disable_ftrace_graph_caller(void)
 }
 #endif /* CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_KPROBES_ON_FTRACE
+/* Ftrace callback handler for kprobes -- called under preepmt disabled */
+void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
+			   struct ftrace_ops *ops, struct ftrace_regs *fregs)
+{
+	int bit;
+	struct pt_regs *regs;
+	struct kprobe *p;
+	struct kprobe_ctlblk *kcb;
+
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
+		return;
+
+	p = get_kprobe((kprobe_opcode_t *)ip);
+	if (unlikely(!p) || kprobe_disabled(p))
+		goto out;
+
+	regs = ftrace_get_regs(fregs);
+	if (!regs)
+		goto out;
+
+	kcb = get_kprobe_ctlblk();
+	if (kprobe_running()) {
+		kprobes_inc_nmissed_count(p);
+	} else {
+		unsigned long orig_ip = instruction_pointer(regs);
+
+		instruction_pointer_set(regs, ip);
+
+		__this_cpu_write(current_kprobe, p);
+		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+		if (!p->pre_handler || !p->pre_handler(p, regs)) {
+			/*
+			 * Emulate singlestep (and also recover regs->csr_era)
+			 * as if there is a nop
+			 */
+			instruction_pointer_set(regs, (unsigned long)p->addr + MCOUNT_INSN_SIZE);
+			if (unlikely(p->post_handler)) {
+				kcb->kprobe_status = KPROBE_HIT_SSDONE;
+				p->post_handler(p, regs, 0);
+			}
+			instruction_pointer_set(regs, orig_ip);
+		}
+
+		/*
+		 * If pre_handler returns !0, it changes regs->csr_era. We have to
+		 * skip emulating post_handler.
+		 */
+		__this_cpu_write(current_kprobe, NULL);
+	}
+out:
+	ftrace_test_recursion_unlock(bit);
+}
+NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+
+int arch_prepare_kprobe_ftrace(struct kprobe *p)
+{
+	p->ainsn.insn = NULL;
+	return 0;
+}
+#endif /* CONFIG_KPROBES_ON_FTRACE */

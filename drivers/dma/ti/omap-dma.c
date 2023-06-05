@@ -1658,7 +1658,6 @@ static int omap_dma_probe(struct platform_device *pdev)
 {
 	const struct omap_dma_config *conf;
 	struct omap_dmadev *od;
-	struct resource *res;
 	int rc, i, irq;
 	u32 val;
 
@@ -1666,8 +1665,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	if (!od)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	od->base = devm_ioremap_resource(&pdev->dev, res);
+	od->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(od->base))
 		return PTR_ERR(od->base);
 

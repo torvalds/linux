@@ -98,7 +98,7 @@ associate these values with real security attributes.
 LSM hooks are maintained in lists. A list is maintained for each
 hook, and the hooks are called in the order specified by CONFIG_LSM.
 Detailed documentation for each hook is
-included in the `include/linux/lsm_hooks.h` header file.
+included in the `security/security.c` source file.
 
 The LSM framework provides for a close approximation of
 general security module stacking. It defines

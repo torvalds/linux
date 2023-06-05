@@ -304,7 +304,7 @@ static struct attribute *dmi_sysfs_sel_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dmi_sysfs_sel);
 
-static struct kobj_type dmi_system_event_log_ktype = {
+static const struct kobj_type dmi_system_event_log_ktype = {
 	.release = dmi_entry_free,
 	.sysfs_ops = &dmi_sysfs_specialize_attr_ops,
 	.default_groups = dmi_sysfs_sel_groups,
@@ -418,10 +418,10 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 		return dmi_sel_raw_read_phys32(entry, &sel, state->buf,
 					       state->pos, state->count);
 	case DMI_SEL_ACCESS_METHOD_GPNV:
-		pr_info("dmi-sysfs: GPNV support missing.\n");
+		pr_info_ratelimited("dmi-sysfs: GPNV support missing.\n");
 		return -EIO;
 	default:
-		pr_info("dmi-sysfs: Unknown access method %02x\n",
+		pr_info_ratelimited("dmi-sysfs: Unknown access method %02x\n",
 			sel.access_method);
 		return -EIO;
 	}
@@ -563,7 +563,7 @@ static void dmi_sysfs_entry_release(struct kobject *kobj)
 	kfree(entry);
 }
 
-static struct kobj_type dmi_sysfs_entry_ktype = {
+static const struct kobj_type dmi_sysfs_entry_ktype = {
 	.release = dmi_sysfs_entry_release,
 	.sysfs_ops = &dmi_sysfs_attr_ops,
 	.default_groups = dmi_sysfs_entry_groups,
@@ -603,15 +603,15 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 	*ret = kobject_init_and_add(&entry->kobj, &dmi_sysfs_entry_ktype, NULL,
 				    "%d-%d", dh->type, entry->instance);
 
-	if (*ret) {
-		kobject_put(&entry->kobj);
-		return;
-	}
-
 	/* Thread on the global list for cleanup */
 	spin_lock(&entry_list_lock);
 	list_add_tail(&entry->list, &entry_list);
 	spin_unlock(&entry_list_lock);
+
+	if (*ret) {
+		kobject_put(&entry->kobj);
+		return;
+	}
 
 	/* Handle specializations by type */
 	switch (dh->type) {

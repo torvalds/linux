@@ -287,6 +287,7 @@ static void mt6315_regulator_shutdown(struct spmi_device *pdev)
 static struct spmi_driver mt6315_regulator_driver = {
 	.driver		= {
 		.name	= "mt6315-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = mt6315_of_match,
 	},
 	.probe = mt6315_regulator_probe,

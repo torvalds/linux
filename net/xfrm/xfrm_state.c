@@ -1272,6 +1272,7 @@ found:
 			xso->dir = xdo->dir;
 			xso->dev = xdo->dev;
 			xso->real_dev = xdo->real_dev;
+			xso->flags = XFRM_DEV_OFFLOAD_FLAG_ACQ;
 			netdev_tracker_alloc(xso->dev, &xso->dev_tracker,
 					     GFP_ATOMIC);
 			error = xso->dev->xfrmdev_ops->xdo_dev_state_add(x, NULL);
@@ -2812,11 +2813,6 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 		inner_mode = xfrm_get_mode(x->props.mode, x->props.family);
 		if (inner_mode == NULL) {
 			NL_SET_ERR_MSG(extack, "Requested mode not found");
-			goto error;
-		}
-
-		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL)) {
-			NL_SET_ERR_MSG(extack, "Only tunnel modes can accommodate an AF_UNSPEC selector");
 			goto error;
 		}
 

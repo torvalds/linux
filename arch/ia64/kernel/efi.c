@@ -525,7 +525,7 @@ efi_init (void)
 	 */
 	if (efi_systab == NULL)
 		panic("Whoa! Can't find EFI system table.\n");
-	if (efi_systab_check_header(&efi_systab->hdr, 1))
+	if (efi_systab_check_header(&efi_systab->hdr))
 		panic("Whoa! EFI system table signature incorrect\n");
 
 	efi_systab_report_header(&efi_systab->hdr, efi_systab->fw_vendor);
@@ -853,7 +853,7 @@ valid_phys_addr_range (phys_addr_t phys_addr, unsigned long size)
 	 * /dev/mem reads and writes use copy_to_user(), which implicitly
 	 * uses a granule-sized kernel identity mapping.  It's really
 	 * only safe to do this for regions in kern_memmap.  For more
-	 * details, see Documentation/ia64/aliasing.rst.
+	 * details, see Documentation/arch/ia64/aliasing.rst.
 	 */
 	attr = kern_mem_attribute(phys_addr, size);
 	if (attr & EFI_MEMORY_WB || attr & EFI_MEMORY_UC)

@@ -45,7 +45,7 @@ static int pata_platform_set_mode(struct ata_link *link, struct ata_device **unu
 	return 0;
 }
 
-static struct scsi_host_template pata_platform_sht = {
+static const struct scsi_host_template pata_platform_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -97,7 +97,7 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
 int __pata_platform_probe(struct device *dev, struct resource *io_res,
 			  struct resource *ctl_res, struct resource *irq_res,
 			  unsigned int ioport_shift, int __pio_mask,
-			  struct scsi_host_template *sht, bool use16bit)
+			  const struct scsi_host_template *sht, bool use16bit)
 {
 	struct ata_host *host;
 	struct ata_port *ap;

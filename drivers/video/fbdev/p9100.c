@@ -327,7 +327,7 @@ out_err:
 	return err;
 }
 
-static int p9100_remove(struct platform_device *op)
+static void p9100_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct p9100_par *par = info->par;
@@ -339,8 +339,6 @@ static int p9100_remove(struct platform_device *op)
 	of_iounmap(&op->resource[2], info->screen_base, info->fix.smem_len);
 
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static const struct of_device_id p9100_match[] = {
@@ -357,7 +355,7 @@ static struct platform_driver p9100_driver = {
 		.of_match_table = p9100_match,
 	},
 	.probe		= p9100_probe,
-	.remove		= p9100_remove,
+	.remove_new	= p9100_remove,
 };
 
 static int __init p9100_init(void)

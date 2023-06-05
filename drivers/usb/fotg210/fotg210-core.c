@@ -6,6 +6,7 @@
  * driver.
  */
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -16,6 +17,11 @@
 #include <linux/usb/otg.h>
 
 #include "fotg210.h"
+
+/* Role Register 0x80 */
+#define FOTG210_RR			0x80
+#define FOTG210_RR_ID			BIT(21) /* 1 = B-device, 0 = A-device */
+#define FOTG210_RR_CROLE		BIT(20) /* 1 = device, 0 = host */
 
 /*
  * Gemini-specific initialization function, only executed on the
@@ -33,9 +39,10 @@
 #define GEMINI_MISC_USB0_MINI_B		BIT(29)
 #define GEMINI_MISC_USB1_MINI_B		BIT(30)
 
-static int fotg210_gemini_init(struct device *dev, struct resource *res,
+static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
 			       enum usb_dr_mode mode)
 {
+	struct device *dev = fotg->dev;
 	struct device_node *np = dev->of_node;
 	struct regmap *map;
 	bool wakeup;
@@ -43,10 +50,9 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 	int ret;
 
 	map = syscon_regmap_lookup_by_phandle(np, "syscon");
-	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon\n");
-		return PTR_ERR(map);
-	}
+	if (IS_ERR(map))
+		return dev_err_probe(dev, PTR_ERR(map), "no syscon\n");
+	fotg->map = map;
 	wakeup = of_property_read_bool(np, "wakeup-source");
 
 	/*
@@ -55,6 +61,7 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 	 */
 	mask = 0;
 	if (res->start == 0x69000000) {
+		fotg->port = GEMINI_PORT_1;
 		mask = GEMINI_MISC_USB1_VBUS_ON | GEMINI_MISC_USB1_MINI_B |
 			GEMINI_MISC_USB1_WAKEUP;
 		if (mode == USB_DR_MODE_HOST)
@@ -64,6 +71,7 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 		if (wakeup)
 			val |= GEMINI_MISC_USB1_WAKEUP;
 	} else {
+		fotg->port = GEMINI_PORT_0;
 		mask = GEMINI_MISC_USB0_VBUS_ON | GEMINI_MISC_USB0_MINI_B |
 			GEMINI_MISC_USB0_WAKEUP;
 		if (mode == USB_DR_MODE_HOST)
@@ -85,27 +93,74 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 	return 0;
 }
 
+/**
+ * fotg210_vbus() - Called by gadget driver to enable/disable VBUS
+ * @enable: true to enable VBUS, false to disable VBUS
+ */
+void fotg210_vbus(struct fotg210 *fotg, bool enable)
+{
+	u32 mask;
+	u32 val;
+	int ret;
+
+	switch (fotg->port) {
+	case GEMINI_PORT_0:
+		mask = GEMINI_MISC_USB0_VBUS_ON;
+		val = enable ? GEMINI_MISC_USB0_VBUS_ON : 0;
+		break;
+	case GEMINI_PORT_1:
+		mask = GEMINI_MISC_USB1_VBUS_ON;
+		val = enable ? GEMINI_MISC_USB1_VBUS_ON : 0;
+		break;
+	default:
+		return;
+	}
+	ret = regmap_update_bits(fotg->map, GEMINI_GLOBAL_MISC_CTRL, mask, val);
+	if (ret)
+		dev_err(fotg->dev, "failed to %s VBUS\n",
+			enable ? "enable" : "disable");
+	dev_info(fotg->dev, "%s: %s VBUS\n", __func__, enable ? "enable" : "disable");
+}
+
 static int fotg210_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	enum usb_dr_mode mode;
+	struct fotg210 *fotg;
+	u32 val;
 	int ret;
+
+	fotg = devm_kzalloc(dev, sizeof(*fotg), GFP_KERNEL);
+	if (!fotg)
+		return -ENOMEM;
+	fotg->dev = dev;
+
+	fotg->base = devm_platform_get_and_ioremap_resource(pdev, 0, &fotg->res);
+	if (IS_ERR(fotg->base))
+		return PTR_ERR(fotg->base);
+
+	fotg->pclk = devm_clk_get_optional_enabled(dev, "PCLK");
+	if (IS_ERR(fotg->pclk))
+		return PTR_ERR(fotg->pclk);
 
 	mode = usb_get_dr_mode(dev);
 
 	if (of_device_is_compatible(dev->of_node, "cortina,gemini-usb")) {
-		struct resource *res;
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		ret = fotg210_gemini_init(dev, res, mode);
+		ret = fotg210_gemini_init(fotg, fotg->res, mode);
 		if (ret)
 			return ret;
 	}
 
-	if (mode == USB_DR_MODE_PERIPHERAL)
-		ret = fotg210_udc_probe(pdev);
-	else
-		ret = fotg210_hcd_probe(pdev);
+	val = readl(fotg->base + FOTG210_RR);
+	if (mode == USB_DR_MODE_PERIPHERAL) {
+		if (!(val & FOTG210_RR_CROLE))
+			dev_err(dev, "block not in device role\n");
+		ret = fotg210_udc_probe(pdev, fotg);
+	} else {
+		if (val & FOTG210_RR_CROLE)
+			dev_err(dev, "block not in host role\n");
+		ret = fotg210_hcd_probe(pdev, fotg);
+	}
 
 	return ret;
 }
@@ -127,7 +182,9 @@ static int fotg210_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id fotg210_of_match[] = {
+	{ .compatible = "faraday,fotg200" },
 	{ .compatible = "faraday,fotg210" },
+	/* TODO: can we also handle FUSB220? */
 	{},
 };
 MODULE_DEVICE_TABLE(of, fotg210_of_match);

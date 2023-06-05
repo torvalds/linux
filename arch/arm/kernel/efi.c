@@ -23,7 +23,8 @@ static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 }
 
 int __init efi_set_mapping_permissions(struct mm_struct *mm,
-				       efi_memory_desc_t *md)
+				       efi_memory_desc_t *md,
+				       bool ignored)
 {
 	unsigned long base, size;
 
@@ -71,7 +72,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	 * If stricter permissions were specified, apply them now.
 	 */
 	if (md->attribute & (EFI_MEMORY_RO | EFI_MEMORY_XP))
-		return efi_set_mapping_permissions(mm, md);
+		return efi_set_mapping_permissions(mm, md, false);
 	return 0;
 }
 

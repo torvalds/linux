@@ -111,7 +111,7 @@ patternProperties:
           pins it needs, and how they should be configured, with regard to
           muxer configuration, bias, input enable/disable, input schmitt
           trigger enable/disable, slew-rate and drive strength.
-        $ref: "/schemas/pinctrl/pincfg-node.yaml"
+        $ref: /schemas/pinctrl/pincfg-node.yaml
 
         properties:
           pins:
@@ -120,14 +120,14 @@ patternProperties:
               This should be set using either the PAD_GPIO or PAD_FUNC_SHARE
               macros.
               Either this or "pinmux" has to be specified, but not both.
-            $ref: "/schemas/pinctrl/pinmux-node.yaml#/properties/pins"
+            $ref: /schemas/pinctrl/pinmux-node.yaml#/properties/pins
 
           pinmux:
             description: |
               The list of GPIOs and their mux settings that properties in the
               node apply to. This should be set using the GPIOMUX macro.
               Either this or "pins" has to be specified, but not both.
-            $ref: "/schemas/pinctrl/pinmux-node.yaml#/properties/pinmux"
+            $ref: /schemas/pinctrl/pinmux-node.yaml#/properties/pinmux
 
           bias-disable: true
 
@@ -293,7 +293,7 @@ examples:
             pinctrl-names = "default";
         };
 
-        i2c0 {
+        i2c {
             pinctrl-0 = <&i2c0_pins_default>;
             pinctrl-names = "default";
         };

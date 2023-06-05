@@ -113,7 +113,6 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.override_adr = sdw_dmi_override_adr,
 	.xfer_msg = cdns_xfer_msg,
 	.xfer_msg_defer = cdns_xfer_msg_defer,
-	.reset_page_addr = cdns_reset_page_addr,
 	.set_bus_conf = cdns_bus_conf,
 	.pre_bank_switch = generic_pre_bank_switch,
 	.post_bank_switch = generic_post_bank_switch,
@@ -359,10 +358,12 @@ static int intel_resume_child_device(struct device *dev, void *data)
 	}
 
 	ret = pm_request_resume(dev);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int __maybe_unused intel_pm_prepare(struct device *dev)

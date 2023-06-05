@@ -233,18 +233,18 @@ static inline int fsverity_ioctl_read_metadata(struct file *filp,
 static inline bool fsverity_verify_blocks(struct folio *folio, size_t len,
 					  size_t offset)
 {
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 	return false;
 }
 
 static inline void fsverity_verify_bio(struct bio *bio)
 {
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 }
 
 static inline void fsverity_enqueue_verify_work(struct work_struct *work)
 {
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 }
 
 #endif	/* !CONFIG_FS_VERITY */

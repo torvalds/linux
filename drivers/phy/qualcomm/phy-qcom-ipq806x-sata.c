@@ -170,13 +170,11 @@ static int qcom_ipq806x_sata_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_ipq806x_sata_phy_remove(struct platform_device *pdev)
+static void qcom_ipq806x_sata_phy_remove(struct platform_device *pdev)
 {
 	struct qcom_ipq806x_sata_phy *phy = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(phy->cfg_clk);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_ipq806x_sata_phy_of_match[] = {
@@ -187,7 +185,7 @@ MODULE_DEVICE_TABLE(of, qcom_ipq806x_sata_phy_of_match);
 
 static struct platform_driver qcom_ipq806x_sata_phy_driver = {
 	.probe	= qcom_ipq806x_sata_phy_probe,
-	.remove	= qcom_ipq806x_sata_phy_remove,
+	.remove_new = qcom_ipq806x_sata_phy_remove,
 	.driver = {
 		.name	= "qcom-ipq806x-sata-phy",
 		.of_match_table	= qcom_ipq806x_sata_phy_of_match,

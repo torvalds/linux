@@ -1103,7 +1103,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTV1_FN, PTV1_OUT, 0, PTV1_IN,
 		PTV0_FN, PTV0_OUT, 0, PTV0_IN ))
 	},
-	{}
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -1179,7 +1179,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		0, 0, 0, PTV4_DATA,
 		PTV3_DATA, PTV2_DATA, PTV1_DATA, PTV0_DATA ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info sh7720_pinmux_info = {

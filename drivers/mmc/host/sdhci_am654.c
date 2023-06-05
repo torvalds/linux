@@ -85,6 +85,7 @@
 #define DRIVER_STRENGTH_40_OHM	0x4
 
 #define CLOCK_TOO_SLOW_HZ	50000000
+#define SDHCI_AM654_AUTOSUSPEND_DELAY	-1
 
 /* Command Queue Host Controller Interface Base address */
 #define SDHCI_AM654_CQE_BASE_ADDR 0x200
@@ -351,8 +352,6 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 		 */
 		case MMC_TIMING_SD_HS:
 		case MMC_TIMING_MMC_HS:
-		case MMC_TIMING_UHS_SDR12:
-		case MMC_TIMING_UHS_SDR25:
 			val &= ~SDHCI_CTRL_HISPD;
 		}
 	}
@@ -369,7 +368,7 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 					MAX_POWER_ON_TIMEOUT, false, host, val,
 					reg);
 		if (ret)
-			dev_warn(mmc_dev(host->mmc), "Power on failed\n");
+			dev_info(mmc_dev(host->mmc), "Power on failed\n");
 	}
 }
 
@@ -810,16 +809,10 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	pltfm_host->clk = clk_xin;
 
-	/* Clocks are enabled using pm_runtime */
-	pm_runtime_enable(dev);
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret)
-		goto pm_runtime_disable;
-
 	base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
-		goto pm_runtime_put;
+		goto err_pltfm_free;
 	}
 
 	sdhci_am654->base = devm_regmap_init_mmio(dev, base,
@@ -827,31 +820,47 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 	if (IS_ERR(sdhci_am654->base)) {
 		dev_err(dev, "Failed to initialize regmap\n");
 		ret = PTR_ERR(sdhci_am654->base);
-		goto pm_runtime_put;
+		goto err_pltfm_free;
 	}
 
 	ret = sdhci_am654_get_of_property(pdev, sdhci_am654);
 	if (ret)
-		goto pm_runtime_put;
+		goto err_pltfm_free;
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
 		dev_err_probe(dev, ret, "parsing dt failed\n");
-		goto pm_runtime_put;
+		goto err_pltfm_free;
 	}
 
 	host->mmc_host_ops.execute_tuning = sdhci_am654_execute_tuning;
 
+	pm_runtime_get_noresume(dev);
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		goto pm_put;
+	pm_runtime_enable(dev);
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		goto pm_disable;
+
 	ret = sdhci_am654_init(host);
 	if (ret)
-		goto pm_runtime_put;
+		goto clk_disable;
 
+	/* Setting up autosuspend */
+	pm_runtime_set_autosuspend_delay(dev, SDHCI_AM654_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 	return 0;
 
-pm_runtime_put:
-	pm_runtime_put_sync(dev);
-pm_runtime_disable:
+clk_disable:
+	clk_disable_unprepare(pltfm_host->clk);
+pm_disable:
 	pm_runtime_disable(dev);
+pm_put:
+	pm_runtime_put_noidle(dev);
 err_pltfm_free:
 	sdhci_pltfm_free(pdev);
 	return ret;
@@ -860,23 +869,127 @@ err_pltfm_free:
 static int sdhci_am654_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int ret;
 
-	sdhci_remove_host(host, true);
-	ret = pm_runtime_put_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		return ret;
 
+	sdhci_remove_host(host, true);
+	clk_disable_unprepare(pltfm_host->clk);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 	sdhci_pltfm_free(pdev);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int sdhci_am654_restore(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
+	u32 ctl_cfg_2 = 0;
+	u32 val;
+	int ret;
+
+	if (sdhci_am654->flags & DLL_CALIB) {
+		regmap_read(sdhci_am654->base, PHY_STAT1, &val);
+		if (~val & CALDONE_MASK) {
+			/* Calibrate IO lines */
+			regmap_update_bits(sdhci_am654->base, PHY_CTRL1,
+					   PDB_MASK, PDB_MASK);
+			ret = regmap_read_poll_timeout(sdhci_am654->base,
+						       PHY_STAT1, val,
+						       val & CALDONE_MASK,
+						       1, 20);
+			if (ret)
+				return ret;
+		}
+	}
+
+	/* Enable pins by setting IO mux to 0 */
+	if (sdhci_am654->flags & IOMUX_PRESENT)
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL1,
+				   IOMUX_ENABLE_MASK, 0);
+
+	/* Set slot type based on SD or eMMC */
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+		ctl_cfg_2 = SLOTTYPE_EMBEDDED;
+
+	regmap_update_bits(sdhci_am654->base, CTL_CFG_2, SLOTTYPE_MASK,
+			   ctl_cfg_2);
+
+	regmap_read(sdhci_am654->base, CTL_CFG_3, &val);
+	if (~val & TUNINGFORSDR50_MASK)
+		/* Enable tuning for SDR50 */
+		regmap_update_bits(sdhci_am654->base, CTL_CFG_3, TUNINGFORSDR50_MASK,
+				   TUNINGFORSDR50_MASK);
 
 	return 0;
 }
+
+static int sdhci_am654_runtime_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
+	ret = cqhci_suspend(host->mmc);
+	if (ret)
+		return ret;
+
+	ret = sdhci_runtime_suspend_host(host);
+	if (ret)
+		return ret;
+
+	/* disable the clock */
+	clk_disable_unprepare(pltfm_host->clk);
+	return 0;
+}
+
+static int sdhci_am654_runtime_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	/* Enable the clock */
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	ret = sdhci_am654_restore(host);
+	if (ret)
+		return ret;
+
+	ret = sdhci_runtime_resume_host(host, 0);
+	if (ret)
+		return ret;
+
+	ret = cqhci_resume(host->mmc);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops sdhci_am654_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(sdhci_am654_runtime_suspend,
+			   sdhci_am654_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
 
 static struct platform_driver sdhci_am654_driver = {
 	.driver = {
 		.name = "sdhci-am654",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.pm = &sdhci_am654_dev_pm_ops,
 		.of_match_table = sdhci_am654_of_match,
 	},
 	.probe = sdhci_am654_probe,

@@ -1328,7 +1328,7 @@ static int elan_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused elan_suspend(struct device *dev)
+static int elan_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
@@ -1365,7 +1365,7 @@ err:
 	return ret;
 }
 
-static int __maybe_unused elan_resume(struct device *dev)
+static int elan_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
@@ -1394,7 +1394,7 @@ err:
 	return error;
 }
 
-static SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);
 
 static const struct i2c_device_id elan_id[] = {
 	{ DRIVER_NAME, 0 },
@@ -1418,7 +1418,7 @@ MODULE_DEVICE_TABLE(of, elan_of_match);
 static struct i2c_driver elan_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.pm	= &elan_pm_ops,
+		.pm	= pm_sleep_ptr(&elan_pm_ops),
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

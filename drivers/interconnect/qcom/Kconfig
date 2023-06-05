@@ -83,7 +83,7 @@ config INTERCONNECT_QCOM_RPMH_POSSIBLE
 	default INTERCONNECT_QCOM
 	depends on QCOM_RPMH || (COMPILE_TEST && !QCOM_RPMH)
 	depends on QCOM_COMMAND_DB || (COMPILE_TEST && !QCOM_COMMAND_DB)
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Compile-testing RPMH drivers is possible on other platforms,
 	  but in order to avoid link failures, drivers must not be built-in
@@ -91,6 +91,15 @@ config INTERCONNECT_QCOM_RPMH_POSSIBLE
 
 config INTERCONNECT_QCOM_RPMH
 	tristate
+
+config INTERCONNECT_QCOM_SA8775P
+	tristate "Qualcomm SA8775P interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sa8775p-based
+	  platforms.
 
 config INTERCONNECT_QCOM_SC7180
 	tristate "Qualcomm SC7180 interconnect driver"
@@ -135,6 +144,15 @@ config INTERCONNECT_QCOM_SDM660
 	select INTERCONNECT_QCOM_SMD_RPM
 	help
 	  This is a driver for the Qualcomm Network-on-Chip on sdm660-based
+	  platforms.
+
+config INTERCONNECT_QCOM_SDM670
+	tristate "Qualcomm SDM670 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sdm670-based
 	  platforms.
 
 config INTERCONNECT_QCOM_SDM845

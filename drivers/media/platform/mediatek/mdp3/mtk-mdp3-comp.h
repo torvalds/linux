@@ -134,6 +134,24 @@ enum {
 	MDP_GCE_EVENT_MAX,
 };
 
+struct mdp_comp_match {
+	enum mdp_comp_type type;
+	u32 alias_id;
+	s32 inner_id;
+};
+
+/* Used to describe the item order in MDP property */
+struct mdp_comp_info {
+	u32 clk_num;
+	u32 clk_ofst;
+	u32 dts_reg_ofst;
+};
+
+struct mdp_comp_data {
+	struct mdp_comp_match match;
+	struct mdp_comp_info info;
+};
+
 struct mdp_comp_ops;
 
 struct mdp_comp {
@@ -141,10 +159,12 @@ struct mdp_comp {
 	void __iomem			*regs;
 	phys_addr_t			reg_base;
 	u8				subsys_id;
-	struct clk			*clks[6];
+	u8				clk_num;
+	struct clk			**clks;
 	struct device			*comp_dev;
 	enum mdp_comp_type		type;
-	enum mtk_mdp_comp_id		id;
+	enum mtk_mdp_comp_id		public_id;
+	s32				inner_id;
 	u32				alias_id;
 	s32				gce_event[MDP_GCE_EVENT_MAX];
 	const struct mdp_comp_ops	*ops;

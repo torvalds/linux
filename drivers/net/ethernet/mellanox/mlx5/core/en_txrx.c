@@ -51,7 +51,7 @@ static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
 	struct mlx5e_sq_stats *stats = sq->stats;
 	struct dim_sample dim_sample = {};
 
-	if (unlikely(!test_bit(MLX5E_SQ_STATE_AM, &sq->state)))
+	if (unlikely(!test_bit(MLX5E_SQ_STATE_DIM, &sq->state)))
 		return;
 
 	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
@@ -63,7 +63,7 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 	struct mlx5e_rq_stats *stats = rq->stats;
 	struct dim_sample dim_sample = {};
 
-	if (unlikely(!test_bit(MLX5E_RQ_STATE_AM, &rq->state)))
+	if (unlikely(!test_bit(MLX5E_RQ_STATE_DIM, &rq->state)))
 		return;
 
 	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);

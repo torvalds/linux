@@ -517,6 +517,9 @@ static void mmhub_v3_0_init(struct amdgpu_device *adev)
 	hub->vm_l2_bank_select_reserved_cid2 =
 		SOC15_REG_OFFSET(MMHUB, 0, regMMVM_L2_BANK_SELECT_RESERVED_CID2);
 
+	hub->vm_contexts_disable =
+		SOC15_REG_OFFSET(MMHUB, 0, regMMVM_CONTEXTS_DISABLE);
+
 	hub->vmhub_funcs = &mmhub_v3_0_vmhub_funcs;
 }
 

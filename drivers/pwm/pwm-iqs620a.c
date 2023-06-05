@@ -55,8 +55,8 @@ static int iqs620_pwm_init(struct iqs620_pwm_private *iqs620_pwm,
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
-				  IQS620_PWR_SETTINGS_PWM_OUT, 0xff);
+	return regmap_set_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
+			       IQS620_PWR_SETTINGS_PWM_OUT);
 }
 
 static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -126,6 +126,7 @@ static int iqs620_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	mutex_unlock(&iqs620_pwm->lock);
 
 	state->period = IQS620_PWM_PERIOD_NS;
+	state->polarity = PWM_POLARITY_NORMAL;
 
 	return 0;
 }

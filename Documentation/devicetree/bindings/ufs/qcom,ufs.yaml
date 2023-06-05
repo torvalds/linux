@@ -74,6 +74,9 @@ properties:
     minItems: 1
     maxItems: 2
 
+  required-opps:
+    maxItems: 1
+
   resets:
     maxItems: 1
 

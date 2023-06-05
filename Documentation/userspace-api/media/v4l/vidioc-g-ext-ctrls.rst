@@ -185,6 +185,16 @@ still cause this situation.
       - ``p_u32``
       - A pointer to a matrix control of unsigned 32-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U32``.
+    * - __u32 *
+      - ``p_s32``
+      - A pointer to a matrix control of signed 32-bit values. Valid if
+        this control is of type ``V4L2_CTRL_TYPE_INTEGER`` and
+        ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set.
+    * - __u32 *
+      - ``p_s64``
+      - A pointer to a matrix control of signed 64-bit values. Valid if
+        this control is of type ``V4L2_CTRL_TYPE_INTEGER64`` and
+        ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set.
     * - struct :c:type:`v4l2_area` *
       - ``p_area``
       - A pointer to a struct :c:type:`v4l2_area`. Valid if this control is

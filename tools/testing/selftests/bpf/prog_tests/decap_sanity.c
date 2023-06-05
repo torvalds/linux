@@ -10,14 +10,6 @@
 #include "network_helpers.h"
 #include "decap_sanity.skel.h"
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
 #define NS_TEST "decap_sanity_ns"
 #define IPV6_IFACE_ADDR "face::1"
 #define UDP_TEST_PORT 7777
@@ -37,9 +29,9 @@ void test_decap_sanity(void)
 	if (!ASSERT_OK_PTR(skel, "skel open_and_load"))
 		return;
 
-	SYS("ip netns add %s", NS_TEST);
-	SYS("ip -net %s -6 addr add %s/128 dev lo nodad", NS_TEST, IPV6_IFACE_ADDR);
-	SYS("ip -net %s link set dev lo up", NS_TEST);
+	SYS(fail, "ip netns add %s", NS_TEST);
+	SYS(fail, "ip -net %s -6 addr add %s/128 dev lo nodad", NS_TEST, IPV6_IFACE_ADDR);
+	SYS(fail, "ip -net %s link set dev lo up", NS_TEST);
 
 	nstoken = open_netns(NS_TEST);
 	if (!ASSERT_OK_PTR(nstoken, "open_netns"))
@@ -80,6 +72,6 @@ fail:
 		bpf_tc_hook_destroy(&qdisc_hook);
 		close_netns(nstoken);
 	}
-	system("ip netns del " NS_TEST " &> /dev/null");
+	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
 	decap_sanity__destroy(skel);
 }

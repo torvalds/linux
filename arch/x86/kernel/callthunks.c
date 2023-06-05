@@ -330,8 +330,8 @@ void noinline callthunks_patch_module_calls(struct callthunk_sites *cs,
 					    struct module *mod)
 {
 	struct core_text ct = {
-		.base = (unsigned long)mod->core_layout.base,
-		.end  = (unsigned long)mod->core_layout.base + mod->core_layout.size,
+		.base = (unsigned long)mod->mem[MOD_TEXT].base,
+		.end  = (unsigned long)mod->mem[MOD_TEXT].base + mod->mem[MOD_TEXT].size,
 		.name = mod->name,
 	};
 

@@ -211,7 +211,7 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 static void au0828_media_graph_notify(struct media_entity *new,
 				      void *notify_data)
 {
-	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
+	struct au0828_dev *dev = notify_data;
 	int ret;
 	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
@@ -627,14 +627,9 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	/* register entity_notify callback */
 	dev->entity_notify.notify_data = (void *) dev;
 	dev->entity_notify.notify = (void *) au0828_media_graph_notify;
-	ret = media_device_register_entity_notify(dev->media_dev,
+	media_device_register_entity_notify(dev->media_dev,
 						  &dev->entity_notify);
-	if (ret) {
-		dev_err(&udev->dev,
-			"Media Device register entity_notify Error: %d\n",
-			ret);
-		return ret;
-	}
+
 	/* set enable_source */
 	mutex_lock(&dev->media_dev->graph_mutex);
 	dev->media_dev->source_priv = (void *) dev;

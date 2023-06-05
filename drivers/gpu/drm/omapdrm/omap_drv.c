@@ -6,6 +6,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/sort.h>
 #include <linux/sys_soc.h>
 
@@ -14,7 +15,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_panel.h>
@@ -24,6 +24,7 @@
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
+#include "omap_fbdev.h"
 
 #define DRIVER_NAME		MODULE_NAME
 #define DRIVER_DESC		"OMAP DRM"
@@ -219,7 +220,6 @@ static const struct drm_mode_config_helper_funcs omap_mode_config_helper_funcs =
 
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = omap_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -652,7 +652,6 @@ static const struct drm_driver omap_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM  |
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,
-	.lastclose = drm_fb_helper_lastclose,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 #endif
@@ -741,8 +740,6 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 		goto err_cleanup_modeset;
 	}
 
-	omap_fbdev_init(ddev);
-
 	drm_kms_helper_poll_init(ddev);
 
 	/*
@@ -753,12 +750,12 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	if (ret)
 		goto err_cleanup_helpers;
 
+	omap_fbdev_setup(ddev);
+
 	return 0;
 
 err_cleanup_helpers:
 	drm_kms_helper_poll_fini(ddev);
-
-	omap_fbdev_fini(ddev);
 err_cleanup_modeset:
 	omap_modeset_fini(ddev);
 err_free_overlays:
@@ -783,8 +780,6 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	drm_dev_unregister(ddev);
 
 	drm_kms_helper_poll_fini(ddev);
-
-	omap_fbdev_fini(ddev);
 
 	drm_atomic_helper_shutdown(ddev);
 

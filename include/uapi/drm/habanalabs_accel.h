@@ -708,7 +708,8 @@ enum hl_server_type {
 	HL_SERVER_GAUDI_HLS1H = 2,
 	HL_SERVER_GAUDI_TYPE1 = 3,
 	HL_SERVER_GAUDI_TYPE2 = 4,
-	HL_SERVER_GAUDI2_HLS2 = 5
+	HL_SERVER_GAUDI2_HLS2 = 5,
+	HL_SERVER_GAUDI2_TYPE1 = 7
 };
 
 /*
@@ -723,6 +724,10 @@ enum hl_server_type {
  * HL_NOTIFIER_EVENT_GENERAL_HW_ERR     - Indicates device HW error
  * HL_NOTIFIER_EVENT_RAZWI              - Indicates razwi happened
  * HL_NOTIFIER_EVENT_PAGE_FAULT         - Indicates page fault happened
+ * HL_NOTIFIER_EVENT_CRITICAL_HW_ERR    - Indicates a HW error that requires SW abort and
+ *                                        HW reset
+ * HL_NOTIFIER_EVENT_CRITICAL_FW_ERR    - Indicates a FW error that requires SW abort and
+ *                                        HW reset
  */
 #define HL_NOTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
 #define HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
@@ -733,6 +738,8 @@ enum hl_server_type {
 #define HL_NOTIFIER_EVENT_GENERAL_HW_ERR	(1ULL << 6)
 #define HL_NOTIFIER_EVENT_RAZWI			(1ULL << 7)
 #define HL_NOTIFIER_EVENT_PAGE_FAULT		(1ULL << 8)
+#define HL_NOTIFIER_EVENT_CRITICL_HW_ERR	(1ULL << 9)
+#define HL_NOTIFIER_EVENT_CRITICL_FW_ERR	(1ULL << 10)
 
 /* Opcode for management ioctl
  *
@@ -790,6 +797,8 @@ enum hl_server_type {
  * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
  * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
  * HL_INFO_FW_GENERIC_REQ - Send generic request to FW.
+ * HL_INFO_HW_ERR_EVENT   - Retrieve information on the reported HW error.
+ * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -824,6 +833,8 @@ enum hl_server_type {
 #define HL_INFO_PAGE_FAULT_EVENT		33
 #define HL_INFO_USER_MAPPINGS			34
 #define HL_INFO_FW_GENERIC_REQ			35
+#define HL_INFO_HW_ERR_EVENT			36
+#define HL_INFO_FW_ERR_EVENT			37
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -875,6 +886,12 @@ enum hl_server_type {
  *                             application to use. Relevant for Gaudi2 and later.
  * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
  * @revision_id: PCI revision ID of the ASIC.
+ * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
+ * @rotator_enabled_mask: Bit-mask that represents which rotators are enabled.
+ *                        Relevant for Gaudi3 and later.
+ * @engine_core_interrupt_reg_addr: interrupt register address for engine core to use
+ *                                  in order to raise events toward FW.
+ * @reserved_dram_size: DRAM size reserved for driver and firmware.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -902,15 +919,20 @@ struct hl_info_hw_ip_info {
 	__u64 dram_page_size;
 	__u32 edma_enabled_mask;
 	__u16 number_of_user_interrupts;
-	__u16 pad2;
-	__u64 reserved4;
+	__u8 reserved1;
+	__u8 reserved2;
+	__u64 reserved3;
 	__u64 device_mem_alloc_default_page_size;
+	__u64 reserved4;
 	__u64 reserved5;
-	__u64 reserved6;
-	__u32 reserved7;
-	__u8 reserved8;
+	__u32 reserved6;
+	__u8 reserved7;
 	__u8 revision_id;
-	__u8 pad[2];
+	__u16 tpc_interrupt_id;
+	__u32 rotator_enabled_mask;
+	__u32 reserved9;
+	__u64 engine_core_interrupt_reg_addr;
+	__u64 reserved_dram_size;
 };
 
 struct hl_info_dram_usage {
@@ -1159,6 +1181,39 @@ struct hl_info_undefined_opcode_event {
 	__u32 cb_addr_streams_len;
 	__u32 engine_id;
 	__u32 stream_id;
+};
+
+/**
+ * struct hl_info_hw_err_event - info about HW error
+ * @timestamp: timestamp of error occurrence
+ * @event_id: The async event ID (specific to each device type).
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_hw_err_event {
+	__s64 timestamp;
+	__u16 event_id;
+	__u16 pad[3];
+};
+
+/* FW error definition for event_type in struct hl_info_fw_err_event */
+enum hl_info_fw_err_type {
+	HL_INFO_FW_HEARTBEAT_ERR,
+	HL_INFO_FW_REPORTED_ERR,
+};
+
+/**
+ * struct hl_info_fw_err_event - info about FW error
+ * @timestamp: time-stamp of error occurrence
+ * @err_type: The type of event as defined in hl_info_fw_err_type.
+ * @event_id: The async event ID (specific to each device type, applicable only when event type is
+ *             HL_INFO_FW_REPORTED_ERR).
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_fw_err_event {
+	__s64 timestamp;
+	__u16 err_type;
+	__u16 event_id;
+	__u32 pad;
 };
 
 /**
@@ -1486,17 +1541,31 @@ struct hl_cs_chunk {
  */
 #define HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES	0x8000
 
+/*
+ * The engines CS is merged into the existing CS ioctls.
+ * Use it to control engines modes.
+ */
+#define HL_CS_FLAGS_ENGINES_COMMAND		0x10000
+
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
 
-/* HL_ENGINE_CORE_ values
+/*
+ * enum hl_engine_command - engine command
  *
- * HL_ENGINE_CORE_HALT: engine core halt
- * HL_ENGINE_CORE_RUN:  engine core run
+ * @HL_ENGINE_CORE_HALT: engine core halt
+ * @HL_ENGINE_CORE_RUN: engine core run
+ * @HL_ENGINE_STALL: user engine/s stall
+ * @HL_ENGINE_RESUME: user engine/s resume
  */
-#define HL_ENGINE_CORE_HALT	(1 << 0)
-#define HL_ENGINE_CORE_RUN	(1 << 1)
+enum hl_engine_command {
+	HL_ENGINE_CORE_HALT = 1,
+	HL_ENGINE_CORE_RUN = 2,
+	HL_ENGINE_STALL = 3,
+	HL_ENGINE_RESUME = 4,
+	HL_ENGINE_COMMAND_MAX
+};
 
 struct hl_cs_in {
 
@@ -1519,6 +1588,18 @@ struct hl_cs_in {
 
 			/* the core command to be sent towards engine cores */
 			__u32 core_command;
+		};
+
+		/* Valid only when HL_CS_FLAGS_ENGINES_COMMAND is set */
+		struct {
+			/* this holds address of array of uint32 for engines */
+			__u64 engines;
+
+			/* number of engines in engines array */
+			__u32 num_engines;
+
+			/* the engine command to be sent towards engines */
+			__u32 engine_command;
 		};
 	};
 

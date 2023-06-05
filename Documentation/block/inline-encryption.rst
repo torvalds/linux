@@ -270,8 +270,7 @@ Request queue based layered devices like dm-rq that wish to support inline
 encryption need to create their own blk_crypto_profile for their request_queue,
 and expose whatever functionality they choose. When a layered device wants to
 pass a clone of that request to another request_queue, blk-crypto will
-initialize and prepare the clone as necessary; see
-``blk_crypto_insert_cloned_request()``.
+initialize and prepare the clone as necessary.
 
 Interaction between inline encryption and blk integrity
 =======================================================

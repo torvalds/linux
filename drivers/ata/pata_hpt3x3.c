@@ -136,7 +136,7 @@ static int hpt3x3_atapi_dma(struct ata_queued_cmd *qc)
 
 #endif /* CONFIG_PATA_HPT3X3_DMA */
 
-static struct scsi_host_template hpt3x3_sht = {
+static const struct scsi_host_template hpt3x3_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

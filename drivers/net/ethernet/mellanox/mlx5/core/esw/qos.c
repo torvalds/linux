@@ -744,7 +744,7 @@ static int esw_qos_devlink_rate_to_mbps(struct mlx5_core_dev *mdev, const char *
 	u64 value;
 	int err;
 
-	err = mlx5e_port_max_linkspeed(mdev, &link_speed_max);
+	err = mlx5_port_max_linkspeed(mdev, &link_speed_max);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to get link maximum speed");
 		return err;

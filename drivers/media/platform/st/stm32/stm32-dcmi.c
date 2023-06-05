@@ -2084,6 +2084,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
+	q->allow_cache_hints = 1;
 	q->dev = &pdev->dev;
 
 	ret = vb2_queue_init(q);
@@ -2134,7 +2135,7 @@ err_media_device_cleanup:
 	return ret;
 }
 
-static int dcmi_remove(struct platform_device *pdev)
+static void dcmi_remove(struct platform_device *pdev)
 {
 	struct stm32_dcmi *dcmi = platform_get_drvdata(pdev);
 
@@ -2147,8 +2148,6 @@ static int dcmi_remove(struct platform_device *pdev)
 	media_device_cleanup(&dcmi->mdev);
 
 	dma_release_channel(dcmi->dma_chan);
-
-	return 0;
 }
 
 static __maybe_unused int dcmi_runtime_suspend(struct device *dev)
@@ -2202,7 +2201,7 @@ static const struct dev_pm_ops dcmi_pm_ops = {
 
 static struct platform_driver stm32_dcmi_driver = {
 	.probe		= dcmi_probe,
-	.remove		= dcmi_remove,
+	.remove_new	= dcmi_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(stm32_dcmi_of_match),

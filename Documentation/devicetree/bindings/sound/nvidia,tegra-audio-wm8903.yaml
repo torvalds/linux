@@ -35,10 +35,10 @@ properties:
     items:
       enum:
         # Board Connectors
-        - "Headphone Jack"
-        - "Int Spk"
-        - "Mic Jack"
-        - "Int Mic"
+        - Headphone Jack
+        - Int Spk
+        - Mic Jack
+        - Int Mic
 
         # CODEC Pins
         - IN1L

@@ -1223,8 +1223,7 @@ static void ddebug_attach_module_classes(struct ddebug_table *dt,
  * Allocate a new ddebug_table for the given module
  * and add it to the global list.
  */
-static int __ddebug_add_module(struct _ddebug_info *di, unsigned int base,
-			       const char *modname)
+static int ddebug_add_module(struct _ddebug_info *di, const char *modname)
 {
 	struct ddebug_table *dt;
 
@@ -1261,11 +1260,6 @@ static int __ddebug_add_module(struct _ddebug_info *di, unsigned int base,
 
 	vpr_info("%3u debug prints in module %s\n", di->num_descs, modname);
 	return 0;
-}
-
-int ddebug_add_module(struct _ddebug_info *di, const char *modname)
-{
-	return __ddebug_add_module(di, 0, modname);
 }
 
 /* helper for ddebug_dyndbg_(boot|module)_param_cb */
@@ -1314,11 +1308,13 @@ static void ddebug_table_free(struct ddebug_table *dt)
 	kfree(dt);
 }
 
+#ifdef CONFIG_MODULES
+
 /*
  * Called in response to a module being unloaded.  Removes
  * any ddebug_table's which point at the module.
  */
-int ddebug_remove_module(const char *mod_name)
+static int ddebug_remove_module(const char *mod_name)
 {
 	struct ddebug_table *dt, *nextdt;
 	int ret = -ENOENT;
@@ -1336,6 +1332,33 @@ int ddebug_remove_module(const char *mod_name)
 		v2pr_info("removed module \"%s\"\n", mod_name);
 	return ret;
 }
+
+static int ddebug_module_notify(struct notifier_block *self, unsigned long val,
+				void *data)
+{
+	struct module *mod = data;
+	int ret = 0;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		ret = ddebug_add_module(&mod->dyndbg_info, mod->name);
+		if (ret)
+			WARN(1, "Failed to allocate memory: dyndbg may not work properly.\n");
+		break;
+	case MODULE_STATE_GOING:
+		ddebug_remove_module(mod->name);
+		break;
+	}
+
+	return notifier_from_errno(ret);
+}
+
+static struct notifier_block ddebug_module_nb = {
+	.notifier_call = ddebug_module_notify,
+	.priority = 0, /* dynamic debug depends on jump label */
+};
+
+#endif /* CONFIG_MODULES */
 
 static void ddebug_remove_all_tables(void)
 {
@@ -1388,6 +1411,14 @@ static int __init dynamic_debug_init(void)
 		.num_classes = __stop___dyndbg_classes - __start___dyndbg_classes,
 	};
 
+#ifdef CONFIG_MODULES
+	ret = register_module_notifier(&ddebug_module_nb);
+	if (ret) {
+		pr_warn("Failed to register dynamic debug module notifier\n");
+		return ret;
+	}
+#endif /* CONFIG_MODULES */
+
 	if (&__start___dyndbg == &__stop___dyndbg) {
 		if (IS_ENABLED(CONFIG_DYNAMIC_DEBUG)) {
 			pr_warn("_ddebug table is empty in a CONFIG_DYNAMIC_DEBUG build\n");
@@ -1408,7 +1439,7 @@ static int __init dynamic_debug_init(void)
 			mod_ct++;
 			di.num_descs = mod_sites;
 			di.descs = iter_mod_start;
-			ret = __ddebug_add_module(&di, i - mod_sites, modname);
+			ret = ddebug_add_module(&di, modname);
 			if (ret)
 				goto out_err;
 
@@ -1419,7 +1450,7 @@ static int __init dynamic_debug_init(void)
 	}
 	di.num_descs = mod_sites;
 	di.descs = iter_mod_start;
-	ret = __ddebug_add_module(&di, i - mod_sites, modname);
+	ret = ddebug_add_module(&di, modname);
 	if (ret)
 		goto out_err;
 

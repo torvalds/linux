@@ -186,14 +186,6 @@ static void __noreturn mvme5100_restart(char *cmd)
 		;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mvme5100_probe(void)
-{
-	return of_machine_is_compatible("MVME5100");
-}
-
 static int __init probe_of_platform_devices(void)
 {
 
@@ -205,13 +197,12 @@ machine_device_initcall(mvme5100, probe_of_platform_devices);
 
 define_machine(mvme5100) {
 	.name			= "MVME5100",
-	.probe			= mvme5100_probe,
+	.compatible		= "MVME5100",
 	.setup_arch		= mvme5100_setup_arch,
 	.discover_phbs		= mvme5100_setup_pci,
 	.init_IRQ		= mvme5100_pic_init,
 	.show_cpuinfo		= mvme5100_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= mvme5100_restart,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

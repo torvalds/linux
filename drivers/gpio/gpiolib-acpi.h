@@ -9,7 +9,6 @@
 #define GPIOLIB_ACPI_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
 #include <linux/types.h>
 
 #include <linux/gpio/consumer.h>

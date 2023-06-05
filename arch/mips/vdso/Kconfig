@@ -1,18 +1,6 @@
-# For the pre-R6 code in arch/mips/vdso/vdso.h for locating
-# the base address of VDSO, the linker will emit a R_MIPS_PC32
-# relocation in binutils > 2.25 but it will fail with older versions
-# because that relocation is not supported for that symbol. As a result
-# of which we are forced to disable the VDSO symbols when building
-# with < 2.25 binutils on pre-R6 kernels. For more references on why we
-# can't use other methods to get the base address of VDSO please refer to
-# the comments on that file.
-#
 # GCC (at least up to version 9.2) appears to emit function calls that make use
 # of the GOT when targeting microMIPS, which we can't use in the VDSO due to
 # the lack of relocations. As such, we disable the VDSO for microMIPS builds.
 
-config MIPS_LD_CAN_LINK_VDSO
-	def_bool LD_VERSION >= 22500 || LD_IS_LLD
-
 config MIPS_DISABLE_VDSO
-	def_bool CPU_MICROMIPS || (!CPU_MIPSR6 && !MIPS_LD_CAN_LINK_VDSO)
+	def_bool CPU_MICROMIPS

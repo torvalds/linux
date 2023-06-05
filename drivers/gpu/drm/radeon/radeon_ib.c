@@ -61,7 +61,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 {
 	int r;
 
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256);
+	r = radeon_sa_bo_new(&rdev->ring_tmp_bo, &ib->sa_bo, size, 256);
 	if (r) {
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
 		return r;
@@ -77,7 +77,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		/* ib pool is bound at RADEON_VA_IB_OFFSET in virtual address
 		 * space and soffset is the offset inside the pool bo
 		 */
-		ib->gpu_addr = ib->sa_bo->soffset + RADEON_VA_IB_OFFSET;
+		ib->gpu_addr = drm_suballoc_soffset(ib->sa_bo) + RADEON_VA_IB_OFFSET;
 	} else {
 		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	}
@@ -97,7 +97,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	radeon_sync_free(rdev, &ib->sync, ib->fence);
-	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
+	radeon_sa_bo_free(&ib->sa_bo, ib->fence);
 	radeon_fence_unref(&ib->fence);
 }
 
@@ -201,8 +201,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 
 	if (rdev->family >= CHIP_BONAIRE) {
 		r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
-					      RADEON_IB_POOL_SIZE*64*1024,
-					      RADEON_GPU_PAGE_SIZE,
+					      RADEON_IB_POOL_SIZE*64*1024, 256,
 					      RADEON_GEM_DOMAIN_GTT,
 					      RADEON_GEM_GTT_WC);
 	} else {
@@ -210,8 +209,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		 * to the command stream checking
 		 */
 		r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
-					      RADEON_IB_POOL_SIZE*64*1024,
-					      RADEON_GPU_PAGE_SIZE,
+					      RADEON_IB_POOL_SIZE*64*1024, 256,
 					      RADEON_GEM_DOMAIN_GTT, 0);
 	}
 	if (r) {

@@ -36,7 +36,7 @@ GNU C                  5.1                gcc --version
 Clang/LLVM (optional)  11.0.0             clang --version
 GNU make               3.81               make --version
 bash                   4.2                bash --version
-binutils               2.23               ld -v
+binutils               2.25               ld -v
 flex                   2.5.35             flex --version
 bison                  2.0                bison --version
 pahole                 1.16               pahole --version
@@ -97,7 +97,7 @@ Questo richiede bash 4.2 o successivo.
 Binutils
 --------
 
-Per generare il kernel è necessario avere Binutils 2.23 o superiore.
+Per generare il kernel è necessario avere Binutils 2.25 o superiore.
 
 pkg-config
 ----------

@@ -1466,7 +1466,6 @@ static void lan743x_phy_close(struct lan743x_adapter *adapter)
 
 	phy_stop(netdev->phydev);
 	phy_disconnect(netdev->phydev);
-	netdev->phydev = NULL;
 }
 
 static void lan743x_phy_interface_select(struct lan743x_adapter *adapter)

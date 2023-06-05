@@ -560,14 +560,14 @@ nmi_restart:
 	}
 }
 
-#if defined(CONFIG_X86_64) && IS_ENABLED(CONFIG_KVM_INTEL)
-DEFINE_IDTENTRY_RAW(exc_nmi_noist)
+#if IS_ENABLED(CONFIG_KVM_INTEL)
+DEFINE_IDTENTRY_RAW(exc_nmi_kvm_vmx)
 {
 	exc_nmi(regs);
 }
-#endif
 #if IS_MODULE(CONFIG_KVM_INTEL)
-EXPORT_SYMBOL_GPL(asm_exc_nmi_noist);
+EXPORT_SYMBOL_GPL(asm_exc_nmi_kvm_vmx);
+#endif
 #endif
 
 #ifdef CONFIG_NMI_CHECK_CPU

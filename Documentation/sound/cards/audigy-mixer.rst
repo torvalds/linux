@@ -19,9 +19,9 @@ Digital mixer controls
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default built-in code in the ALSA driver is described
 here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
-(set to maximal or minimal value without checking of overflow).
+neutral position leaving the signal unchanged. Note that if the same destination
+is mentioned in multiple controls, the signal is accumulated and can be clipped
+(set to maximal or minimal value without checking for overflow).
 
 
 Explanation of used abbreviations:
@@ -32,17 +32,17 @@ ADC
 	analog to digital converter
 I2S
 	one-way three wire serial bus for digital sound by Philips Semiconductors
-        (this standard is used for connecting standalone DAC and ADC converters)
+	(this standard is used for connecting standalone D/A and A/D converters)
 LFE
-	low frequency effects (subwoofer signal)
+	low frequency effects (used as subwoofer signal)
 AC97
-	a chip containing an analog mixer, DAC and ADC converters
+	a chip containing an analog mixer, D/A and A/D converters
 IEC958
 	S/PDIF
 FX-bus
 	the EMU10K2 chip has an effect bus containing 64 accumulators.
-        Each of the synthesizer voices can feed its output to these accumulators
-        and the DSP microcontroller can operate with the resulting sum.
+	Each of the synthesizer voices can feed its output to these accumulators
+	and the DSP microcontroller can operate with the resulting sum.
 
 name='PCM Front Playback Volume',index=0
 ----------------------------------------
@@ -218,8 +218,8 @@ LFE outputs.
 name='IEC958 Optical Raw Playback Switch',index=0
 -------------------------------------------------
 If this switch is on, then the samples for the IEC958 (S/PDIF) digital
-output are taken only from the raw FX8010 PCM, otherwise standard front
-PCM samples are taken.
+output are taken only from the raw iec958 ALSA PCM device (which uses
+accumulators 20 and 21 for left and right PCM by default).
 
 
 PCM stream related controls
@@ -237,8 +237,8 @@ as follows:
 
 name='EMU10K1 PCM Send Routing',index 0-31
 ------------------------------------------
-This control specifies the destination - FX-bus accumulators. There 24
-values with this mapping:
+This control specifies the destination - FX-bus accumulators. There are 24
+values in this mapping:
 
 * 0 -  mono, A destination (FX-bus 0-63), default 0
 * 1 -  mono, B destination (FX-bus 0-63), default 1
@@ -305,6 +305,9 @@ MANUALS/PATENTS
 
 ftp://opensource.creative.com/pub/doc
 -------------------------------------
+
+Note that the site is defunct, but the documents are available
+from various other locations.
 
 LM4545.pdf
 	AC97 Codec

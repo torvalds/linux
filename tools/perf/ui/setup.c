@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dlfcn.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <subcmd/pager.h>
@@ -119,4 +120,22 @@ void exit_browser(bool wait_for_ok)
 		break;
 	}
 	mutex_destroy(&ui__lock);
+}
+
+void pthread__block_sigwinch(void)
+{
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGWINCH);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
+
+void pthread__unblock_sigwinch(void)
+{
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGWINCH);
+	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }

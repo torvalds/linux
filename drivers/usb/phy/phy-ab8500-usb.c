@@ -965,7 +965,7 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_usb_remove(struct platform_device *pdev)
+static void ab8500_usb_remove(struct platform_device *pdev)
 {
 	struct ab8500_usb *ab = platform_get_drvdata(pdev);
 
@@ -977,8 +977,6 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 		ab8500_usb_host_phy_dis(ab);
 	else if (ab->mode == USB_PERIPHERAL)
 		ab8500_usb_peri_phy_dis(ab);
-
-	return 0;
 }
 
 static const struct platform_device_id ab8500_usb_devtype[] = {
@@ -989,7 +987,7 @@ MODULE_DEVICE_TABLE(platform, ab8500_usb_devtype);
 
 static struct platform_driver ab8500_usb_driver = {
 	.probe		= ab8500_usb_probe,
-	.remove		= ab8500_usb_remove,
+	.remove_new	= ab8500_usb_remove,
 	.id_table	= ab8500_usb_devtype,
 	.driver		= {
 		.name	= "abx5x0-usb",

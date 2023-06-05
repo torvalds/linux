@@ -26,7 +26,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/i2c/s5c73m3.h>
 #include <media/v4l2-fwnode.h>
 
 #include "s5c73m3.h"
@@ -436,7 +435,7 @@ static int __s5c73m3_s_stream(struct s5c73m3 *state, struct v4l2_subdev *sd,
 	state->streaming = !!on;
 
 	if (!on)
-		return ret;
+		return 0;
 
 	if (state->apply_fiv) {
 		ret = s5c73m3_set_frame_rate(state);
@@ -1522,25 +1521,16 @@ static const struct v4l2_subdev_ops oif_subdev_ops = {
 	.video	= &s5c73m3_oif_video_ops,
 };
 
-static int s5c73m3_get_platform_data(struct s5c73m3 *state)
+static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 {
-	struct i2c_client *c = state->i2c_client;
-	struct device *dev = &c->dev;
-	const struct s5c73m3_platform_data *pdata = dev->platform_data;
+	struct device *dev = &state->i2c_client->dev;
 	struct device_node *node = dev->of_node;
 	struct device_node *node_ep;
 	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int ret;
 
-	if (!node) {
-		if (!pdata) {
-			dev_err(dev, "Platform data not specified\n");
-			return -EINVAL;
-		}
-
-		state->mclk_frequency = pdata->mclk_frequency;
-		return 0;
-	}
+	if (!node)
+		return -EINVAL;
 
 	state->clock = devm_clk_get(dev, S5C73M3_CLK_NAME);
 	if (IS_ERR(state->clock))
@@ -1603,7 +1593,7 @@ static int s5c73m3_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	state->i2c_client = client;
-	ret = s5c73m3_get_platform_data(state);
+	ret = s5c73m3_get_dt_data(state);
 	if (ret < 0)
 		return ret;
 

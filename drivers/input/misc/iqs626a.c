@@ -458,18 +458,15 @@ struct iqs626_private {
 
 static noinline_for_stack int
 iqs626_parse_events(struct iqs626_private *iqs626,
-		    const struct fwnode_handle *ch_node,
-		    enum iqs626_ch_id ch_id)
+		    struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	const struct fwnode_handle *ev_node;
+	struct fwnode_handle *ev_node;
 	const char *ev_name;
 	u8 *thresh, *hyst;
-	unsigned int thresh_tp[IQS626_NUM_CH_TP_3];
 	unsigned int val;
-	int num_ch = iqs626_channels[ch_id].num_ch;
-	int error, i, j;
+	int i;
 
 	switch (ch_id) {
 	case IQS626_CH_ULP_0:
@@ -509,7 +506,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 			 * Trackpad touch events are simply described under the
 			 * trackpad child node.
 			 */
-			ev_node = ch_node;
+			ev_node = fwnode_handle_get(ch_node);
 		} else {
 			ev_name = iqs626_events[i].name;
 			ev_node = fwnode_get_named_child_node(ch_node, ev_name);
@@ -533,6 +530,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 					dev_err(&client->dev,
 						"Invalid input type: %u\n",
 						val);
+					fwnode_handle_put(ev_node);
 					return -EINVAL;
 				}
 
@@ -547,6 +545,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s channel hysteresis: %u\n",
 					fwnode_get_name(ch_node), val);
+				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -567,6 +566,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s channel threshold: %u\n",
 					fwnode_get_name(ch_node), val);
+				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -574,32 +574,9 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				*thresh = val;
 			else
 				*(thresh + iqs626_events[i].th_offs) = val;
-
-			continue;
 		}
 
-		if (!fwnode_property_present(ev_node, "azoteq,thresh"))
-			continue;
-
-		error = fwnode_property_read_u32_array(ev_node, "azoteq,thresh",
-						       thresh_tp, num_ch);
-		if (error) {
-			dev_err(&client->dev,
-				"Failed to read %s channel thresholds: %d\n",
-				fwnode_get_name(ch_node), error);
-			return error;
-		}
-
-		for (j = 0; j < num_ch; j++) {
-			if (thresh_tp[j] > IQS626_CHx_THRESH_MAX) {
-				dev_err(&client->dev,
-					"Invalid %s channel threshold: %u\n",
-					fwnode_get_name(ch_node), thresh_tp[j]);
-				return -EINVAL;
-			}
-
-			sys_reg->tp_grp_reg.ch_reg_tp[j].thresh = thresh_tp[j];
-		}
+		fwnode_handle_put(ev_node);
 	}
 
 	return 0;
@@ -607,16 +584,13 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 
 static noinline_for_stack int
 iqs626_parse_ati_target(struct iqs626_private *iqs626,
-			const struct fwnode_handle *ch_node,
-			enum iqs626_ch_id ch_id)
+			struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	unsigned int ati_base[IQS626_NUM_CH_TP_3];
 	unsigned int val;
 	u8 *ati_target;
-	int num_ch = iqs626_channels[ch_id].num_ch;
-	int error, i;
+	int i;
 
 	switch (ch_id) {
 	case IQS626_CH_ULP_0:
@@ -683,40 +657,13 @@ iqs626_parse_ati_target(struct iqs626_private *iqs626,
 
 		*ati_target &= ~IQS626_CHx_ATI_BASE_MASK;
 		*ati_target |= val;
-
-		return 0;
-	}
-
-	if (!fwnode_property_present(ch_node, "azoteq,ati-base"))
-		return 0;
-
-	error = fwnode_property_read_u32_array(ch_node, "azoteq,ati-base",
-					       ati_base, num_ch);
-	if (error) {
-		dev_err(&client->dev,
-			"Failed to read %s channel ATI bases: %d\n",
-			fwnode_get_name(ch_node), error);
-		return error;
-	}
-
-	for (i = 0; i < num_ch; i++) {
-		if (ati_base[i] < IQS626_TPx_ATI_BASE_MIN ||
-		    ati_base[i] > IQS626_TPx_ATI_BASE_MAX) {
-			dev_err(&client->dev,
-				"Invalid %s channel ATI base: %u\n",
-				fwnode_get_name(ch_node), ati_base[i]);
-			return -EINVAL;
-		}
-
-		ati_base[i] -= IQS626_TPx_ATI_BASE_MIN;
-		sys_reg->tp_grp_reg.ch_reg_tp[i].ati_base = ati_base[i];
 	}
 
 	return 0;
 }
 
 static int iqs626_parse_pins(struct iqs626_private *iqs626,
-			     const struct fwnode_handle *ch_node,
+			     struct fwnode_handle *ch_node,
 			     const char *propname, u8 *enable)
 {
 	struct i2c_client *client = iqs626->client;
@@ -764,13 +711,14 @@ static int iqs626_parse_pins(struct iqs626_private *iqs626,
 }
 
 static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
-				 const struct fwnode_handle *ch_node)
+				 struct fwnode_handle *ch_node,
+				 enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
 	u8 *hyst = &sys_reg->tp_grp_reg.hyst;
+	int error, count, i;
 	unsigned int val;
-	int error, count;
 
 	if (!fwnode_property_read_u32(ch_node, "azoteq,lta-update", &val)) {
 		if (val > IQS626_MISC_A_TPx_LTA_UPDATE_MAX) {
@@ -821,6 +769,48 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 
 		*hyst &= ~IQS626_FILT_STR_LP_TPx_MASK;
 		*hyst |= (val << IQS626_FILT_STR_LP_TPx_SHIFT);
+	}
+
+	for (i = 0; i < iqs626_channels[ch_id].num_ch; i++) {
+		u8 *ati_base = &sys_reg->tp_grp_reg.ch_reg_tp[i].ati_base;
+		u8 *thresh = &sys_reg->tp_grp_reg.ch_reg_tp[i].thresh;
+		struct fwnode_handle *tc_node;
+		char tc_name[10];
+
+		snprintf(tc_name, sizeof(tc_name), "channel-%d", i);
+
+		tc_node = fwnode_get_named_child_node(ch_node, tc_name);
+		if (!tc_node)
+			continue;
+
+		if (!fwnode_property_read_u32(tc_node, "azoteq,ati-base",
+					      &val)) {
+			if (val < IQS626_TPx_ATI_BASE_MIN ||
+			    val > IQS626_TPx_ATI_BASE_MAX) {
+				dev_err(&client->dev,
+					"Invalid %s %s ATI base: %u\n",
+					fwnode_get_name(ch_node), tc_name, val);
+				fwnode_handle_put(tc_node);
+				return -EINVAL;
+			}
+
+			*ati_base = val - IQS626_TPx_ATI_BASE_MIN;
+		}
+
+		if (!fwnode_property_read_u32(tc_node, "azoteq,thresh",
+					      &val)) {
+			if (val > IQS626_CHx_THRESH_MAX) {
+				dev_err(&client->dev,
+					"Invalid %s %s threshold: %u\n",
+					fwnode_get_name(ch_node), tc_name, val);
+				fwnode_handle_put(tc_node);
+				return -EINVAL;
+			}
+
+			*thresh = val;
+		}
+
+		fwnode_handle_put(tc_node);
 	}
 
 	if (!fwnode_property_present(ch_node, "linux,keycodes"))
@@ -889,8 +879,7 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 
 static noinline_for_stack int
 iqs626_parse_channel(struct iqs626_private *iqs626,
-		     const struct fwnode_handle *ch_node,
-		     enum iqs626_ch_id ch_id)
+		     struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
@@ -923,6 +912,20 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 	default:
 		return -EINVAL;
 	}
+
+	error = iqs626_parse_ati_target(iqs626, ch_node, ch_id);
+	if (error)
+		return error;
+
+	error = iqs626_parse_events(iqs626, ch_node, ch_id);
+	if (error)
+		return error;
+
+	if (!fwnode_property_present(ch_node, "azoteq,ati-exclude"))
+		sys_reg->redo_ati |= iqs626_channels[ch_id].active;
+
+	if (!fwnode_property_present(ch_node, "azoteq,reseed-disable"))
+		sys_reg->reseed |= iqs626_channels[ch_id].active;
 
 	*engine |= IQS626_CHx_ENG_0_MEAS_CAP_SIZE;
 	if (fwnode_property_present(ch_node, "azoteq,meas-cap-decrease"))
@@ -1057,7 +1060,7 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*(engine + 1) |= IQS626_CHx_ENG_1_ATI_BAND_TIGHTEN;
 
 	if (ch_id == IQS626_CH_TP_2 || ch_id == IQS626_CH_TP_3)
-		return iqs626_parse_trackpad(iqs626, ch_node);
+		return iqs626_parse_trackpad(iqs626, ch_node, ch_id);
 
 	if (ch_id == IQS626_CH_ULP_0) {
 		sys_reg->ch_reg_ulp.hyst &= ~IQS626_ULP_PROJ_ENABLE;
@@ -1378,22 +1381,9 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 			continue;
 
 		error = iqs626_parse_channel(iqs626, ch_node, i);
+		fwnode_handle_put(ch_node);
 		if (error)
 			return error;
-
-		error = iqs626_parse_ati_target(iqs626, ch_node, i);
-		if (error)
-			return error;
-
-		error = iqs626_parse_events(iqs626, ch_node, i);
-		if (error)
-			return error;
-
-		if (!fwnode_property_present(ch_node, "azoteq,ati-exclude"))
-			sys_reg->redo_ati |= iqs626_channels[i].active;
-
-		if (!fwnode_property_present(ch_node, "azoteq,reseed-disable"))
-			sys_reg->reseed |= iqs626_channels[i].active;
 
 		sys_reg->active |= iqs626_channels[i].active;
 	}
@@ -1712,7 +1702,7 @@ static int iqs626_probe(struct i2c_client *client)
 	return error;
 }
 
-static int __maybe_unused iqs626_suspend(struct device *dev)
+static int iqs626_suspend(struct device *dev)
 {
 	struct iqs626_private *iqs626 = dev_get_drvdata(dev);
 	struct i2c_client *client = iqs626->client;
@@ -1771,7 +1761,7 @@ err_irq:
 	return error;
 }
 
-static int __maybe_unused iqs626_resume(struct device *dev)
+static int iqs626_resume(struct device *dev)
 {
 	struct iqs626_private *iqs626 = dev_get_drvdata(dev);
 	struct i2c_client *client = iqs626->client;
@@ -1818,7 +1808,7 @@ err_irq:
 	return error;
 }
 
-static SIMPLE_DEV_PM_OPS(iqs626_pm, iqs626_suspend, iqs626_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(iqs626_pm, iqs626_suspend, iqs626_resume);
 
 static const struct of_device_id iqs626_of_match[] = {
 	{ .compatible = "azoteq,iqs626a" },
@@ -1830,7 +1820,7 @@ static struct i2c_driver iqs626_i2c_driver = {
 	.driver = {
 		.name = "iqs626a",
 		.of_match_table = iqs626_of_match,
-		.pm = &iqs626_pm,
+		.pm = pm_sleep_ptr(&iqs626_pm),
 	},
 	.probe_new = iqs626_probe,
 };

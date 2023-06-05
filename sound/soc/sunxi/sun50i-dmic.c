@@ -373,13 +373,11 @@ err_disable_runtime_pm:
 	return ret;
 }
 
-static int sun50i_dmic_remove(struct platform_device *pdev)
+static void sun50i_dmic_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		sun50i_dmic_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops sun50i_dmic_pm = {
@@ -394,7 +392,7 @@ static struct platform_driver sun50i_dmic_driver = {
 		.pm     = &sun50i_dmic_pm,
 	},
 	.probe          = sun50i_dmic_probe,
-	.remove         = sun50i_dmic_remove,
+	.remove_new     = sun50i_dmic_remove,
 };
 
 module_platform_driver(sun50i_dmic_driver);

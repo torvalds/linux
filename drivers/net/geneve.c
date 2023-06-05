@@ -365,13 +365,6 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(geneveh->ver != GENEVE_VER))
 		goto drop;
 
-	inner_proto = geneveh->proto_type;
-
-	if (unlikely((inner_proto != htons(ETH_P_TEB) &&
-		      inner_proto != htons(ETH_P_IP) &&
-		      inner_proto != htons(ETH_P_IPV6))))
-		goto drop;
-
 	gs = rcu_dereference_sk_user_data(sk);
 	if (!gs)
 		goto drop;
@@ -379,6 +372,8 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	geneve = geneve_lookup_skb(gs, skb);
 	if (!geneve)
 		goto drop;
+
+	inner_proto = geneveh->proto_type;
 
 	if (unlikely((!geneve->cfg.inner_proto_inherit &&
 		      inner_proto != htons(ETH_P_TEB)))) {
@@ -1426,7 +1421,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 		dev->type = ARPHRD_NONE;
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
-		dev->flags = IFF_NOARP;
+		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	}
 
 	err = register_netdevice(dev);

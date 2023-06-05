@@ -19,8 +19,6 @@ properties:
       - microcrystal,rv8564
       - nxp,pca8565
       - nxp,pcf8563
-      - nxp,pcf85263
-      - nxp,pcf85363
 
   reg:
     maxItems: 1

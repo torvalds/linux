@@ -21,7 +21,7 @@
 	clocks {
 		div1_mclk: divclk1 {
 			compatible = "gpio-gate-clock";
-			pinctrl-0 = <&audio_mclk_pin>;
+			pinctrl-0 = <&div_clk1>;
 			pinctrl-names = "default";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
 			#clock-cells = <0>;
@@ -46,7 +46,7 @@
 		enable-active-high;
 		gpio = <&tlmm 21 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cam0_vdig_default>;
+		pinctrl-0 = <&main_cam_pwr_en>;
 	};
 
 	cam1_vdig_vreg: cam1-vdig {
@@ -56,7 +56,7 @@
 		enable-active-high;
 		gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cam1_vdig_default>;
+		pinctrl-0 = <&chat_cam_pwr_en>;
 		vin-supply = <&vreg_s3a_1p35>;
 	};
 
@@ -67,7 +67,7 @@
 		enable-active-high;
 		gpio = <&pmi8998_gpios 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cam_vio_default>;
+		pinctrl-0 = <&main_cam_pwr_io_en>;
 		vin-supply = <&vreg_lvs1a_1p8>;
 	};
 
@@ -92,21 +92,20 @@
 		id-gpio = <&tlmm 38 GPIO_ACTIVE_HIGH>;
 		vbus-gpio = <&tlmm 128 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&usb_extcon_active &usb_vbus_active>;
+		pinctrl-0 = <&cc_dir_default &usb_detect_en>;
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "Side buttons";
 		pinctrl-names = "default";
-		pinctrl-0 = <&vol_down_pin_a>, <&cam_focus_pin_a>,
-			    <&cam_snapshot_pin_a>;
+		pinctrl-0 = <&vol_down_n &focus_n &snapshot_n>;
 		button-vol-down {
 			label = "Volume Down";
 			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEDOWN>;
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <15>;
 		};
 
@@ -131,14 +130,14 @@
 		compatible = "gpio-keys";
 		label = "Hall sensors";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hall_sensor0_default>;
+		pinctrl-0 = <&acc_cover_open>;
 
 		event-hall-sensor0 {
 			label = "Cover Hall Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <30>;
 		};
 	};
@@ -189,7 +188,7 @@
 		compatible = "gpio-vibrator";
 		enable-gpios = <&pmi8998_gpios 5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vib_default>;
+		pinctrl-0 = <&vib_ldo_en>;
 	};
 };
 
@@ -263,7 +262,7 @@
 		vdd-supply = <&cam_vio_vreg>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&tof_int &tof_reset>;
+		pinctrl-0 = <&tof_int_n &tof_reset>;
 	};
 };
 
@@ -292,6 +291,13 @@
 	regulator-soft-start;
 };
 
+&pm8005_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "SLB",
+			  "OPTION_1_PM8005";
+};
+
 &pm8005_regulators {
 	/* VDD_GFX supply */
 	pm8005_s1: s1 {
@@ -304,7 +310,34 @@
 };
 
 &pm8998_gpios {
-	vol_down_pin_a: vol-down-active-state {
+	gpio-line-names = "UIM_BATT_ALARM", /* GPIO_1 */
+			  "NC",
+			  "WLAN_SW_CTRL (DISALLOWED)",
+			  "SSC_PWR_EN",
+			  "VOL_DOWN_N",
+			  "VOL_UP_N",
+			  "SNAPSHOT_N",
+			  "FOCUS_N",
+			  "FLASH_THERM",
+			  "", /* GPIO_10 */
+			  "",
+			  "",
+			  "DIV_CLK1",
+			  "NC",
+			  "NC (DISALLOWED)",
+			  "DIV_CLK3",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC (DISALLOWED)", /* GPIO_20 */
+			  "NFC_CLK_REQ",
+			  "NC (DISALLOWED)",
+			  "WCSS_PWR_REQ",
+			  "OPTION_1 (DISALLOWED)",
+			  "OPTION_2 (DISALLOWED)",
+			  "PM_SLB (DISALLOWED)";
+
+	vol_down_n: vol-down-n-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -312,7 +345,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_focus_pin_a: cam-focus-btn-active-state {
+	focus_n: focus-n-state {
 		pins = "gpio7";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -320,7 +353,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_snapshot_pin_a: cam-snapshot-btn-active-state {
+	snapshot_n: snapshot-n-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -328,7 +361,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	audio_mclk_pin: audio-mclk-pin-active-state {
+	div_clk1: div-clk1-state {
 		pins = "gpio13";
 		function = "func2";
 		power-source = <0>;
@@ -336,7 +369,22 @@
 };
 
 &pmi8998_gpios {
-	cam_vio_default: cam-vio-active-state {
+	gpio-line-names = "MAIN_CAM_PWR_IO_EN", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "TYPEC_UUSB_SEL",
+			  "VIB_LDO_EN",
+			  "NC",
+			  "DISPLAY_TYPE_SEL",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "NC",
+			  "DIV_CLK3",
+			  "SPMI_I2C_SEL",
+			  "NC";
+
+	main_cam_pwr_io_en: main-cam-pwr-io-en-state {
 		pins = "gpio1";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;
@@ -346,7 +394,7 @@
 		power-source = <1>;
 	};
 
-	vib_default: vib-en-state {
+	vib_ldo_en: vib-ldo-en-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;
@@ -590,8 +638,158 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
+	gpio-line-names = "", /* GPIO_0 */
+			  "",
+			  "",
+			  "",
+			  "DEBUG_UART_TX",
+			  "DEBUG_UART_RX",
+			  "CAMSENSOR_I2C_SDA",
+			  "CAMSENSOR_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "MDP_VSYNC_P", /* GPIO_10 */
+			  "RGBC_IR_INT",
+			  "NFC_VEN",
+			  "CAM_MCLK0",
+			  "CAM_MCLK1",
+			  "NC",
+			  "NC",
+			  "CCI_I2C_SDA0",
+			  "CCI_I2C_SCL0",
+			  "CCI_I2C_SDA1",
+			  "CCI_I2C_SCL1", /* GPIO_20 */
+			  "MAIN_CAM_PWR_EN",
+			  "TOF_INT_N",
+			  "NC",
+			  "NC",
+			  "CHAT_CAM_PWR_EN",
+			  "NC",
+			  "TOF_RESET_N",
+			  "CAM2_RSTN",
+			  "NC",
+			  "CAM1_RSTN", /* GPIO_30 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "CC_DIR",
+			  "UIM2_DETECT_EN",
+			  "FP_RESET_N", /* GPIO_40 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "BT_HCI_UART_TXD",
+			  "BT_HCI_UART_RXD",
+			  "BT_HCI_UART_CTS_N",
+			  "BT_HCI_UART_RFR_N",
+			  "NC",
+			  "NC", /* GPIO_50 */
+			  "NC",
+			  "NC",
+			  "CODEC_INT2_N",
+			  "CODEC_INT1_N",
+			  "APPS_I2C_SDA",
+			  "APPS_I2C_SCL",
+			  "FORCED_USB_BOOT",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_60 */
+			  "NC",
+			  "NC",
+			  "TRAY2_DET_DS",
+			  "CODEC_RST_N",
+			  "WSA_L_EN",
+			  "WSA_R_EN",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "LPASS_SLIMBUS_CLK", /* GPIO_70 */
+			  "LPASS_SLIMBUS_DATA0",
+			  "LPASS_SLIMBUS_DATA1",
+			  "BT_FM_SLIMBUS_DATA",
+			  "BT_FM_SLIMBUS_CLK",
+			  "NC",
+			  "RF_LCD_ID_EN",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_80 */
+			  "SW_SERVICE",
+			  "TX_GTR_THRES_IN",
+			  "HW_ID0",
+			  "HW_ID1",
+			  "NC",
+			  "NC",
+			  "TS_I2C_SDA",
+			  "TS_I2C_SCL",
+			  "TS_RESET_N",
+			  "NC", /* GPIO_90 */
+			  "NC",
+			  "NFC_IRQ",
+			  "NFC_DWLD_EN",
+			  "DISP_RESET_N",
+			  "TRAY2_DET",
+			  "CAM_SOF",
+			  "RFFE6_CLK",
+			  "RFFE6_DATA",
+			  "DEBUG_GPIO0",
+			  "DEBUG_GPIO1", /* GPIO_100 */
+			  "GRFC4",
+			  "NC",
+			  "NC",
+			  "RSVD",
+			  "UIM2_DATA",
+			  "UIM2_CLK",
+			  "UIM2_RESET",
+			  "UIM2_PRESENT",
+			  "UIM1_DATA",
+			  "UIM1_CLK", /* GPIO_110 */
+			  "UIM1_RST",
+			  "UIM1_PRESENT",
+			  "UIM_BATT_ALARM",
+			  "RSVD",
+			  "NC",
+			  "NC",
+			  "ACCEL_INT",
+			  "GYRO_INT",
+			  "COMPASS_INT",
+			  "ALS_PROX_INT_N", /* GPIO_120 */
+			  "FP_INT_N",
+			  "NC",
+			  "BAROMETER_INT",
+			  "ACC_COVER_OPEN",
+			  "TS_INT_N",
+			  "NC",
+			  "NC",
+			  "USB_DETECT_EN",
+			  "NC",
+			  "QLINK_REQUEST", /* GPIO_130 */
+			  "QLINK_ENABLE",
+			  "NC",
+			  "NC",
+			  "WMSS_RESET_N",
+			  "PA_INDICATOR_OR",
+			  "NC",
+			  "RFFE3_DATA",
+			  "RFFE3_CLK",
+			  "RFFE4_DATA",
+			  "RFFE4_CLK", /* GPIO_140 */
+			  "RFFE5_DATA",
+			  "RFFE5_CLK",
+			  "GNSS_EN",
+			  "MSS_LTE_COXM_TXD",
+			  "MSS_LTE_COXM_RXD",
+			  "RFFE2_DATA",
+			  "RFFE2_CLK",
+			  "RFFE1_DATA",
+			  "RFFE1_CLK";
 
-	mdp_vsync_n: mdp-vsync-n-state {
+	mdp_vsync_p: mdp-vsync-p-state {
 		pins = "gpio10";
 		function = "mdp_vsync_a";
 		drive-strength = <2>;
@@ -606,14 +804,14 @@
 		output-low;
 	};
 
-	msm_mclk0_default: msm-mclk0-active-state {
+	cam_mclk0_active: cam-mclk0-active-state {
 		pins = "gpio13";
 		function = "cam_mclk";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	msm_mclk1_default: msm-mclk1-active-state {
+	cam_mclk1_active: cam-mclk1-active-state {
 		pins = "gpio14";
 		function = "cam_mclk";
 		drive-strength = <2>;
@@ -634,33 +832,25 @@
 		drive-strength = <2>;
 	};
 
-	cam0_vdig_default: cam0-vdig-default-state {
+	main_cam_pwr_en: main-cam-pwr-en-default-state {
 		pins = "gpio21";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	tof_int: tof-int-state {
+	tof_int_n: tof-int-n-state {
 		pins = "gpio22";
 		function = "gpio";
 		bias-pull-up;
 		drive-strength = <2>;
-		input-enable;
 	};
 
-	cam1_vdig_default: cam1-vdig-default-state {
+	chat_cam_pwr_en: chat-cam-pwr-en-default-state {
 		pins = "gpio25";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-	};
-
-	usb_extcon_active: usb-extcon-active-state {
-		pins = "gpio38";
-		function = "gpio";
-		bias-disable;
-		drive-strength = <16>;
 	};
 
 	tof_reset: tof-reset-state {
@@ -670,12 +860,18 @@
 		drive-strength = <2>;
 	};
 
-	hall_sensor0_default: acc-cover-open-state {
+	cc_dir_default: cc-dir-active-state {
+		pins = "gpio38";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <16>;
+	};
+
+	acc_cover_open: acc-cover-open-state {
 		pins = "gpio124";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		input-enable;
 	};
 
 	ts_int_n: ts-int-n-state {
@@ -685,7 +881,7 @@
 		bias-pull-up;
 	};
 
-	usb_vbus_active: usb-vbus-active-state {
+	usb_detect_en: usb-detect-en-active-state {
 		pins = "gpio128";
 		function = "gpio";
 		bias-disable;

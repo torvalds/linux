@@ -494,7 +494,7 @@ ath12k_pull_mac_phy_cap_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 
 	/* tx/rx chainmask reported from fw depends on the actual hw chains used,
 	 * For example, for 4x4 capable macphys, first 4 chains can be used for first
-	 * mac and the remaing 4 chains can be used for the second mac or vice-versa.
+	 * mac and the remaining 4 chains can be used for the second mac or vice-versa.
 	 * In this case, tx/rx chainmask 0xf will be advertised for first mac and 0xf0
 	 * will be advertised for second mac or vice-versa. Compute the shift value
 	 * for tx/rx chainmask which will be used to advertise supported ht/vht rates to
@@ -1743,7 +1743,7 @@ int ath12k_wmi_vdev_install_key(struct ath12k *ar,
 	int ret, len, key_len_aligned;
 
 	/* WMI_TAG_ARRAY_BYTE needs to be aligned with 4, the actual key
-	 * length is specifed in cmd->key_len.
+	 * length is specified in cmd->key_len.
 	 */
 	key_len_aligned = roundup(arg->key_len, 4);
 
@@ -2437,6 +2437,9 @@ int ath12k_wmi_send_scan_chan_list_cmd(struct ath12k *ar,
 
 			if (channel_arg->psc_channel)
 				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_PSC);
+
+			if (channel_arg->dfs_set)
+				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_DFS);
 
 			chan_info->info |= le32_encode_bits(channel_arg->phy_mode,
 							    WMI_CHAN_INFO_MODE);
@@ -4934,6 +4937,9 @@ static int freq_to_idx(struct ath12k *ar, int freq)
 	int band, ch, idx = 0;
 
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
+		if (!ar->mac.sbands[band].channels)
+			continue;
+
 		sband = ar->hw->wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -5995,7 +6001,7 @@ static void ath12k_service_available_event(struct ath12k_base *ab, struct sk_buf
 	}
 
 	/* TODO: Use wmi_service_segment_offset information to get the service
-	 * especially when more services are advertised in multiple sevice
+	 * especially when more services are advertised in multiple service
 	 * available events.
 	 */
 	for (i = 0, j = WMI_MAX_SERVICE;

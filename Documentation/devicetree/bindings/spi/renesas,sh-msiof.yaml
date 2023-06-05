@@ -149,23 +149,38 @@ required:
   - compatible
   - reg
   - interrupts
+  - clocks
+  - power-domains
   - '#address-cells'
   - '#size-cells'
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          const: renesas,sh-mobile-msiof
+then:
+  required:
+    - resets
 
 unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/r8a7791-clock.h>
-    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7791-sysc.h>
 
     msiof0: spi@e6e20000 {
         compatible = "renesas,msiof-r8a7791", "renesas,rcar-gen2-msiof";
         reg = <0xe6e20000 0x0064>;
-        interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&mstp0_clks R8A7791_CLK_MSIOF0>;
+        interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 000>;
         dmas = <&dmac0 0x51>, <&dmac0 0x52>;
         dma-names = "tx", "rx";
+        power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+        resets = <&cpg 0>;
         #address-cells = <1>;
         #size-cells = <0>;
     };

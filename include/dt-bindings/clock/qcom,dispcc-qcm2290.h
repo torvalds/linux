@@ -29,6 +29,10 @@
 #define DISP_CC_XO_CLK				19
 #define DISP_CC_XO_CLK_SRC			20
 
+/* GDSCs */
 #define MDSS_GDSC				0
+
+/* Resets */
+#define DISP_CC_MDSS_CORE_BCR			0
 
 #endif

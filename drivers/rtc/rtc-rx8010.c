@@ -394,10 +394,14 @@ static int rx8010_probe(struct i2c_client *client)
 		return PTR_ERR(rx8010->rtc);
 
 	if (client->irq > 0) {
-		dev_info(dev, "IRQ %d supplied\n", client->irq);
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		err = devm_request_threaded_irq(dev, client->irq, NULL,
 						rx8010_irq_1_handler,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						irqflags | IRQF_ONESHOT,
 						"rx8010", client);
 		if (err) {
 			dev_err(dev, "unable to request IRQ\n");

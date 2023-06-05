@@ -160,7 +160,7 @@ directory name found in the arch/ directory.
 But some architectures such as x86 and sparc have aliases.
 
 - x86: i386 for 32 bit, x86_64 for 64 bit
-- sh: sh for 32 bit, sh64 for 64 bit
+- parisc: parisc64 for 64 bit
 - sparc: sparc32 for 32 bit, sparc64 for 64 bit
 
 CROSS_COMPILE
@@ -277,6 +277,13 @@ to be included in the databases, separated by blank space. E.g.::
 To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
+
+IGNORE_DIRS
+-----------
+For tags/TAGS/cscope targets, you can choose which directories won't
+be included in the databases, separated by blank space. E.g.::
+
+    $ make IGNORE_DIRS="drivers/gpu/drm/radeon tools" cscope
 
 KBUILD_BUILD_TIMESTAMP
 ----------------------

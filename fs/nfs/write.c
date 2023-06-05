@@ -688,15 +688,14 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	return ret;
 }
 
-static int nfs_writepages_callback(struct page *page,
+static int nfs_writepages_callback(struct folio *folio,
 				   struct writeback_control *wbc, void *data)
 {
-	struct folio *folio = page_folio(page);
 	int ret;
 
 	ret = nfs_do_writepage(folio, wbc, data);
 	if (ret != AOP_WRITEPAGE_ACTIVATE)
-		unlock_page(page);
+		folio_unlock(folio);
 	return ret;
 }
 

@@ -693,15 +693,8 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-static struct wmi_block *dev_to_wblock(struct device *dev)
-{
-	return container_of(dev, struct wmi_block, dev.dev);
-}
-
-static struct wmi_device *dev_to_wdev(struct device *dev)
-{
-	return container_of(dev, struct wmi_device, dev);
-}
+#define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
+#define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
 static inline struct wmi_driver *drv_to_wdrv(struct device_driver *drv)
 {
@@ -804,9 +797,9 @@ static struct attribute *wmi_method_attrs[] = {
 };
 ATTRIBUTE_GROUPS(wmi_method);
 
-static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int wmi_dev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct wmi_block *wblock = dev_to_wblock(dev);
+	const struct wmi_block *wblock = dev_to_wblock(dev);
 
 	if (add_uevent_var(env, "MODALIAS=wmi:%pUL", &wblock->gblock.guid))
 		return -ENOMEM;
@@ -1376,7 +1369,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		event, 0);
 }
 
-static int acpi_wmi_remove(struct platform_device *device)
+static void acpi_wmi_remove(struct platform_device *device)
 {
 	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
 
@@ -1386,8 +1379,6 @@ static int acpi_wmi_remove(struct platform_device *device)
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 	wmi_free_devices(acpi_device);
 	device_unregister(dev_get_drvdata(&device->dev));
-
-	return 0;
 }
 
 static int acpi_wmi_probe(struct platform_device *device)
@@ -1475,7 +1466,7 @@ static struct platform_driver acpi_wmi_driver = {
 		.acpi_match_table = wmi_device_ids,
 	},
 	.probe = acpi_wmi_probe,
-	.remove = acpi_wmi_remove,
+	.remove_new = acpi_wmi_remove,
 };
 
 static int __init acpi_wmi_init(void)

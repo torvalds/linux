@@ -256,7 +256,7 @@ static unsigned long clk_pll14xx_recalc_rate(struct clk_hw *hw,
 
 	if (pll->type == PLL_1443X) {
 		pll_div_ctl1 = readl_relaxed(pll->base + DIV_CTL1);
-		kdiv = FIELD_GET(KDIV_MASK, pll_div_ctl1);
+		kdiv = (s16)FIELD_GET(KDIV_MASK, pll_div_ctl1);
 	} else {
 		kdiv = 0;
 	}

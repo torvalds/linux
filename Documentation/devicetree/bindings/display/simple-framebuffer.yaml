@@ -26,6 +26,11 @@ description: |+
   over control to a driver for the real hardware. The bindings for the
   hw nodes must specify which node is considered the primary node.
 
+  If a panel node is given, then the driver uses this to configure the
+  physical width and height of the display. If no panel node is given,
+  then the driver uses the width and height properties of the simplefb
+  node to estimate it.
+
   It is advised to add display# aliases to help the OS determine how
   to number things. If display# aliases are used, then if the simplefb
   node contains a display property then the /aliases/display# path
@@ -116,6 +121,10 @@ properties:
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Primary display hardware node
+
+  panel:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Display panel node
 
   allwinner,pipeline:
     description: Pipeline used by the framebuffer on Allwinner SoCs

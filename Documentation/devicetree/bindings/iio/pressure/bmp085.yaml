@@ -17,6 +17,7 @@ description: |
     https://www.bosch-sensortec.com/bst/products/all_products/bmp280
     https://www.bosch-sensortec.com/bst/products/all_products/bme280
     https://www.bosch-sensortec.com/bst/products/all_products/bmp380
+    https://www.bosch-sensortec.com/bst/products/all_products/bmp580
 
 properties:
   compatible:
@@ -26,6 +27,7 @@ properties:
       - bosch,bmp280
       - bosch,bme280
       - bosch,bmp380
+      - bosch,bmp580
 
   reg:
     maxItems: 1
@@ -60,16 +62,16 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      pressure@77 {
-          compatible = "bosch,bmp085";
-          reg = <0x77>;
-          interrupt-parent = <&gpio0>;
-          interrupts = <25 IRQ_TYPE_EDGE_RISING>;
-          reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
-          vddd-supply = <&foo>;
-          vdda-supply = <&bar>;
-      };
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pressure@77 {
+            compatible = "bosch,bmp085";
+            reg = <0x77>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+            reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+            vddd-supply = <&foo>;
+            vdda-supply = <&bar>;
+        };
     };

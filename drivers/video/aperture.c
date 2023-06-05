@@ -20,7 +20,7 @@
  * driver can be active at any given time. Many systems load a generic
  * graphics drivers, such as EFI-GOP or VESA, early during the boot process.
  * During later boot stages, they replace the generic driver with a dedicated,
- * hardware-specific driver. To take over the device the dedicated driver
+ * hardware-specific driver. To take over the device, the dedicated driver
  * first has to remove the generic driver. Aperture functions manage
  * ownership of framebuffer memory and hand-over between drivers.
  *
@@ -76,7 +76,7 @@
  * generic EFI or VESA drivers, have to register themselves as owners of their
  * framebuffer apertures. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_for_platform_device(). If successful, the
- * driveris the owner of the framebuffer range. The function fails if the
+ * driver is the owner of the framebuffer range. The function fails if the
  * framebuffer is already owned by another driver. See below for an example.
  *
  * .. code-block:: c
@@ -126,7 +126,7 @@
  * et al for the registered framebuffer range, the aperture helpers call
  * platform_device_unregister() and the generic driver unloads itself. The
  * generic driver also has to provide a remove function to make this work.
- * Once hot unplugged fro mhardware, it may not access the device's
+ * Once hot unplugged from hardware, it may not access the device's
  * registers, framebuffer memory, ROM, etc afterwards.
  */
 
@@ -203,7 +203,7 @@ static void aperture_detach_platform_device(struct device *dev)
 
 	/*
 	 * Remove the device from the device hierarchy. This is the right thing
-	 * to do for firmware-based DRM drivers, such as EFI, VESA or VGA. After
+	 * to do for firmware-based fb drivers, such as EFI, VESA or VGA. After
 	 * the new driver takes over the hardware, the firmware device's state
 	 * will be lost.
 	 *

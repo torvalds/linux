@@ -181,7 +181,7 @@ b) ORC (Oops Rewind Capability) unwind table generation
    band.  So it doesn't affect runtime performance and it can be
    reliable even when interrupts or exceptions are involved.
 
-   For more details, see Documentation/x86/orc-unwinder.rst.
+   For more details, see Documentation/arch/x86/orc-unwinder.rst.
 
 c) Higher live patching compatibility rate
 
@@ -409,6 +409,14 @@ the objtool maintainers.
    is not at the beginning of a function. If this is a legit call, you
    can remove this warning by putting the ANNOTATE_INTRA_FUNCTION_CALL
    directive right before the call.
+
+12. file.o: warning: func(): not an indirect call target
+
+   This means that objtool is running with --ibt and a function expected
+   to be an indirect call target is not. In particular, this happens for
+   init_module() or cleanup_module() if a module relies on these special
+   names and does not use module_init() / module_exit() macros to create
+   them.
 
 
 If the error doesn't seem to make sense, it could be a bug in objtool.

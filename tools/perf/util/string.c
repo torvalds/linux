@@ -35,7 +35,7 @@ s64 perf_atoll(const char *str)
 			if (*p)
 				goto out_err;
 
-			__fallthrough;
+			fallthrough;
 		case '\0':
 			return length;
 		default:

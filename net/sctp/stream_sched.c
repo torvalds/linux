@@ -124,6 +124,8 @@ void sctp_sched_ops_init(void)
 	sctp_sched_ops_fcfs_init();
 	sctp_sched_ops_prio_init();
 	sctp_sched_ops_rr_init();
+	sctp_sched_ops_fc_init();
+	sctp_sched_ops_wfq_init();
 }
 
 static void sctp_sched_free_sched(struct sctp_stream *stream)

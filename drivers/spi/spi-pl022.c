@@ -1587,9 +1587,9 @@ static int pl022_transfer_one_message(struct spi_master *master,
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(msg->spi);
-	pl022->cur_cs = msg->spi->chip_select;
+	pl022->cur_cs = spi_get_chipselect(msg->spi, 0);
 	/* This is always available but may be set to -ENOENT */
-	pl022->cur_gpiod = msg->spi->cs_gpiod;
+	pl022->cur_gpiod = spi_get_csgpiod(msg->spi, 0);
 
 	restore_state(pl022);
 	flush(pl022);

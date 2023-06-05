@@ -17,6 +17,8 @@ properties:
     items:
       - enum:
           - chongzhou,cz101b4001
+          - radxa,display-10hd-ad001
+          - radxa,display-8hd-ad002
       - const: jadard,jd9365da-h3
 
   reg: true

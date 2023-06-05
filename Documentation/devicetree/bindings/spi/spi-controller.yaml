@@ -94,6 +94,7 @@ patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
     $ref: spi-peripheral-props.yaml
+    additionalProperties: true
 
     properties:
       spi-3wire:

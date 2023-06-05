@@ -49,10 +49,10 @@ void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 }
 
 struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
-			    struct gve_rx_slot_page_info *page_info, u16 len,
-			    u16 padding)
+			    struct gve_rx_slot_page_info *page_info, u16 len)
 {
-	void *va = page_info->page_address + padding + page_info->page_offset;
+	void *va = page_info->page_address + page_info->page_offset +
+		page_info->pad;
 	struct sk_buff *skb;
 
 	skb = napi_alloc_skb(napi, len);

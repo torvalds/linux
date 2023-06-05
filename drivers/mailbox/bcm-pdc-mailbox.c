@@ -1635,7 +1635,7 @@ static struct platform_driver pdc_mbox_driver = {
 	.remove = pdc_remove,
 	.driver = {
 		   .name = "brcm-iproc-pdc-mbox",
-		   .of_match_table = of_match_ptr(pdc_mbox_of_match),
+		   .of_match_table = pdc_mbox_of_match,
 		   },
 };
 module_platform_driver(pdc_mbox_driver);

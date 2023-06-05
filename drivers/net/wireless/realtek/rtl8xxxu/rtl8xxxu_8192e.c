@@ -601,43 +601,9 @@ rtl8192e_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	}
 }
 
-static void rtl8192eu_log_next_device_info(struct rtl8xxxu_priv *priv,
-					   char *record_name,
-					   char *device_info,
-					   unsigned int *record_offset)
-{
-	char *record = device_info + *record_offset;
-
-	/* A record is [ total length | 0x03 | value ] */
-	unsigned char l = record[0];
-
-	/*
-	 * The whole device info section seems to be 80 characters, make sure
-	 * we don't read further.
-	 */
-	if (*record_offset + l > 80) {
-		dev_warn(&priv->udev->dev,
-			 "invalid record length %d while parsing \"%s\" at offset %u.\n",
-			 l, record_name, *record_offset);
-		return;
-	}
-
-	if (l >= 2) {
-		char value[80];
-
-		memcpy(value, &record[2], l - 2);
-		value[l - 2] = '\0';
-		dev_info(&priv->udev->dev, "%s: %s\n", record_name, value);
-		*record_offset = *record_offset + l;
-	} else {
-		dev_info(&priv->udev->dev, "%s not available.\n", record_name);
-	}
-}
-
 static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8192eu_efuse *efuse = &priv->efuse_wifi.efuse8192eu;
-	unsigned int record_offset;
 	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
@@ -683,26 +649,6 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	}
 
 	priv->default_crystal_cap = priv->efuse_wifi.efuse8192eu.xtal_k & 0x3f;
-
-	/*
-	 * device_info section seems to be laid out as records
-	 * [ total length | 0x03 | value ] so:
-	 * - vendor length + 2
-	 * - 0x03
-	 * - vendor string (not null terminated)
-	 * - product length + 2
-	 * - 0x03
-	 * - product string (not null terminated)
-	 * Then there is one or 2 0x00 on all the 4 devices I own or found
-	 * dumped online.
-	 * As previous version of the code handled an optional serial
-	 * string, I now assume there may be a third record if the
-	 * length is not 0.
-	 */
-	record_offset = 0;
-	rtl8192eu_log_next_device_info(priv, "Vendor", efuse->device_info, &record_offset);
-	rtl8192eu_log_next_device_info(priv, "Product", efuse->device_info, &record_offset);
-	rtl8192eu_log_next_device_info(priv, "Serial", efuse->device_info, &record_offset);
 
 	return 0;
 }
@@ -1742,11 +1688,12 @@ static void rtl8192e_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
-static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, struct rtl8723au_phy_stats *phy_stats)
 {
 	static const s8 lna_gain_table_0[8] = {15, 9, -10, -21, -23, -27, -43, -44};
 	static const s8 lna_gain_table_1[8] = {24, 18, 13, -4, -11, -18, -31, -36};
 
+	u8 cck_agc_rpt = phy_stats->cck_agc_rpt_ofdm_cfosho_a;
 	s8 rx_pwr_all = 0x00;
 	u8 vga_idx, lna_idx;
 	s8 lna_gain = 0;
@@ -1793,6 +1740,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.load_firmware = rtl8192eu_load_firmware,
 	.power_on = rtl8192eu_power_on,
 	.power_off = rtl8192eu_power_off,
+	.read_efuse = rtl8xxxu_read_efuse,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.llt_init = rtl8xxxu_auto_llt_table,
 	.init_phy_bb = rtl8192eu_init_phy_bb,
@@ -1801,6 +1749,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.phy_iq_calibrate = rtl8192eu_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen2_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
+	.parse_phystats = rtl8723au_rx_parse_phystats,
 	.enable_rf = rtl8192e_enable_rf,
 	.disable_rf = rtl8xxxu_gen2_disable_rf,
 	.usb_quirks = rtl8xxxu_gen2_usb_quirks,
@@ -1817,6 +1766,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
 	.has_s0s1 = 0,
 	.gen2_thermal_meter = 1,
+	.needs_full_init = 1,
 	.adda_1t_init = 0x0fc01616,
 	.adda_1t_path_on = 0x0fc01616,
 	.adda_2t_path_on_a = 0x0fc01616,

@@ -1616,7 +1616,7 @@ eremap:
 	return ret;
 }
 
-static int mx3fb_remove(struct platform_device *dev)
+static void mx3fb_remove(struct platform_device *dev)
 {
 	struct mx3fb_data *mx3fb = platform_get_drvdata(dev);
 	struct fb_info *fbi = mx3fb->fbi;
@@ -1632,7 +1632,6 @@ static int mx3fb_remove(struct platform_device *dev)
 	dmaengine_put();
 
 	iounmap(mx3fb->reg_base);
-	return 0;
 }
 
 static struct platform_driver mx3fb_driver = {
@@ -1640,7 +1639,7 @@ static struct platform_driver mx3fb_driver = {
 		.name = MX3FB_NAME,
 	},
 	.probe = mx3fb_probe,
-	.remove = mx3fb_remove,
+	.remove_new = mx3fb_remove,
 	.suspend = mx3fb_suspend,
 	.resume = mx3fb_resume,
 };

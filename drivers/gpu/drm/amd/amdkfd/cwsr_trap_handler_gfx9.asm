@@ -33,15 +33,20 @@
  * aldebaran:
  *   cpp -DASIC_FAMILY=CHIP_ALDEBARAN cwsr_trap_handler_gfx9.asm -P -o aldebaran.sp3
  *   sp3 aldebaran.sp3 -hex aldebaran.hex
+ *
+ * gc_9_4_3:
+ *   cpp -DASIC_FAMILY=GC_9_4_3 cwsr_trap_handler_gfx9.asm -P -o gc_9_4_3.sp3
+ *   sp3 gc_9_4_3.sp3 -hex gc_9_4_3.hex
  */
 
 #define CHIP_VEGAM 18
 #define CHIP_ARCTURUS 23
 #define CHIP_ALDEBARAN 25
+#define CHIP_GC_9_4_3 26
 
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
-var SINGLE_STEP_MISSED_WORKAROUND   =	1		    //workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
+var SINGLE_STEP_MISSED_WORKAROUND   =	(ASIC_FAMILY <= CHIP_ALDEBARAN)	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
 /**************************************************************************/
 /*			variables					  */
@@ -77,6 +82,10 @@ var SQ_WAVE_TRAPSTS_ADDR_WATCH_MASK =	0x80
 var SQ_WAVE_TRAPSTS_ADDR_WATCH_SHIFT =	7
 var SQ_WAVE_TRAPSTS_MEM_VIOL_MASK   =	0x100
 var SQ_WAVE_TRAPSTS_MEM_VIOL_SHIFT  =	8
+var SQ_WAVE_TRAPSTS_HOST_TRAP_MASK  =	0x400000
+var SQ_WAVE_TRAPSTS_WAVE_BEGIN_MASK =	0x800000
+var SQ_WAVE_TRAPSTS_WAVE_END_MASK   =	0x1000000
+var SQ_WAVE_TRAPSTS_TRAP_AFTER_INST_MASK =  0x2000000
 var SQ_WAVE_TRAPSTS_PRE_SAVECTX_MASK	=   0x3FF
 var SQ_WAVE_TRAPSTS_PRE_SAVECTX_SHIFT	=   0x0
 var SQ_WAVE_TRAPSTS_PRE_SAVECTX_SIZE	=   10
@@ -95,10 +104,10 @@ var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK	= 0x1F8000
 
 var SQ_WAVE_MODE_DEBUG_EN_MASK		=   0x800
 
-var TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT	=   26			// bits [31:26] unused by SPI debug data
-var TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK	=   0xFC000000
-var TTMP11_DEBUG_TRAP_ENABLED_SHIFT	=   23
-var TTMP11_DEBUG_TRAP_ENABLED_MASK	=   0x800000
+var TTMP_SAVE_RCNT_FIRST_REPLAY_SHIFT	=   26			// bits [31:26] unused by SPI debug data
+var TTMP_SAVE_RCNT_FIRST_REPLAY_MASK	=   0xFC000000
+var TTMP_DEBUG_TRAP_ENABLED_SHIFT	=   23
+var TTMP_DEBUG_TRAP_ENABLED_MASK	=   0x800000
 
 /*	Save	    */
 var S_SAVE_BUF_RSRC_WORD1_STRIDE	=   0x00040000		//stride is 4 bytes
@@ -129,6 +138,11 @@ var s_save_alloc_size	    =	s_save_trapsts		//conflict
 var s_save_m0		    =	ttmp5
 var s_save_ttmps_lo	    =	s_save_tmp		//no conflict
 var s_save_ttmps_hi	    =	s_save_trapsts		//no conflict
+#if ASIC_FAMILY >= CHIP_GC_9_4_3
+var s_save_ib_sts       =	ttmp13
+#else
+var s_save_ib_sts       =	ttmp11
+#endif
 
 /*	Restore	    */
 var S_RESTORE_BUF_RSRC_WORD1_STRIDE	    =	S_SAVE_BUF_RSRC_WORD1_STRIDE
@@ -215,9 +229,15 @@ L_NOT_HALTED:
     // Any concurrent SAVECTX will be handled upon re-entry once halted.
 
     // Check non-maskable exceptions. memory_violation, illegal_instruction
-    // and xnack_error exceptions always cause the wave to enter the trap
-    // handler.
-    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK|SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
+    // and debugger (host trap, wave start/end, trap after instruction)
+    // exceptions always cause the wave to enter the trap handler.
+    s_and_b32       ttmp2, s_save_trapsts,      \
+        SQ_WAVE_TRAPSTS_MEM_VIOL_MASK         | \
+        SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK     | \
+        SQ_WAVE_TRAPSTS_HOST_TRAP_MASK        | \
+        SQ_WAVE_TRAPSTS_WAVE_BEGIN_MASK       | \
+        SQ_WAVE_TRAPSTS_WAVE_END_MASK         | \
+        SQ_WAVE_TRAPSTS_TRAP_AFTER_INST_MASK
     s_cbranch_scc1  L_FETCH_2ND_TRAP
 
     // Check for maskable exceptions in trapsts.excp and trapsts.excp_hi.
@@ -265,9 +285,9 @@ L_FETCH_2ND_TRAP:
 
     s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1 // debug trap enabled flag
     s_waitcnt       lgkmcnt(0)
-    s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
-    s_andn2_b32     ttmp11, ttmp11, TTMP11_DEBUG_TRAP_ENABLED_MASK
-    s_or_b32        ttmp11, ttmp11, ttmp2
+    s_lshl_b32      ttmp2, ttmp2, TTMP_DEBUG_TRAP_ENABLED_SHIFT
+    s_andn2_b32     s_save_ib_sts, s_save_ib_sts, TTMP_DEBUG_TRAP_ENABLED_MASK
+    s_or_b32        s_save_ib_sts, s_save_ib_sts, ttmp2
 
     s_load_dwordx2  [ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 glc:1 // second-level TBA
     s_waitcnt       lgkmcnt(0)
@@ -1058,17 +1078,17 @@ function set_status_without_spi_prio(status, tmp)
 end
 
 function save_and_clear_ib_sts(tmp)
-    // Save IB_STS.FIRST_REPLAY[15] and IB_STS.RCNT[20:16] into unused space ttmp11[31:26].
+    // Save IB_STS.FIRST_REPLAY[15] and IB_STS.RCNT[20:16] into unused space s_save_ib_sts[31:26].
     s_getreg_b32    tmp, hwreg(HW_REG_IB_STS)
     s_and_b32       tmp, tmp, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
-    s_lshl_b32      tmp, tmp, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
-    s_andn2_b32     ttmp11, ttmp11, TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK
-    s_or_b32        ttmp11, ttmp11, tmp
+    s_lshl_b32      tmp, tmp, (TTMP_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
+    s_andn2_b32     s_save_ib_sts, s_save_ib_sts, TTMP_SAVE_RCNT_FIRST_REPLAY_MASK
+    s_or_b32        s_save_ib_sts, s_save_ib_sts, tmp
     s_setreg_imm32_b32 hwreg(HW_REG_IB_STS), 0x0
 end
 
 function restore_ib_sts(tmp)
-    s_lshr_b32      tmp, ttmp11, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
+    s_lshr_b32      tmp, s_save_ib_sts, (TTMP_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
     s_and_b32       tmp, tmp, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
     s_setreg_b32    hwreg(HW_REG_IB_STS), tmp
 end

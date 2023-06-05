@@ -1,0 +1,26 @@
+What:		/sys/fs/selinux/checkreqprot
+Date:		April 2005 (predates git)
+KernelVersion:	2.6.12-rc2 (predates git)
+Contact:	selinux@vger.kernel.org
+Description:
+
+	REMOVAL UPDATE: The SELinux checkreqprot functionality was removed in
+	March 2023, the original deprecation notice is shown below.
+
+	The selinuxfs "checkreqprot" node allows SELinux to be configured
+	to check the protection requested by userspace for mmap/mprotect
+	calls instead of the actual protection applied by the kernel.
+	This was a compatibility mechanism for legacy userspace and
+	for the READ_IMPLIES_EXEC personality flag.  However, if set to
+	1, it weakens security by allowing mappings to be made executable
+	without authorization by policy.  The default value of checkreqprot
+	at boot was changed starting in Linux v4.4 to 0 (i.e. check the
+	actual protection), and Android and Linux distributions have been
+	explicitly writing a "0" to /sys/fs/selinux/checkreqprot during
+	initialization for some time.  Support for setting checkreqprot to 1
+	will be	removed no sooner than June 2021, at which point the kernel
+	will always cease using checkreqprot internally and will always
+	check the actual protections being applied upon mmap/mprotect calls.
+	The checkreqprot selinuxfs node will remain for backward compatibility
+	but will discard writes of the "0" value and will reject writes of the
+	"1" value when this mechanism is removed.

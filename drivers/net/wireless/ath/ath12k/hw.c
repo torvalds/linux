@@ -944,7 +944,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.interface_modes = BIT(NL80211_IFTYPE_STATION),
 		.supports_monitor = false,
 
-		.idle_ps = false,
+		.idle_ps = true,
 		.download_calib = false,
 		.supports_suspend = false,
 		.tcl_ring_retry = false,

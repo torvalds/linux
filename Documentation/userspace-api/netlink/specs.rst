@@ -24,6 +24,10 @@ YAML specifications can be found under ``Documentation/netlink/specs/``
 This document describes details of the schema.
 See :doc:`intro-specs` for a practical starting guide.
 
+All specs must be licensed under
+``((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)``
+to allow for easy adoption in user space code.
+
 Compatibility levels
 ====================
 
@@ -197,9 +201,15 @@ value
 Numerical attribute ID, used in serialized Netlink messages.
 The ``value`` property can be skipped, in which case the attribute ID
 will be the value of the previous attribute plus one (recursively)
-and ``0`` for the first attribute in the attribute set.
+and ``1`` for the first attribute in the attribute set.
 
-Note that the ``value`` of an attribute is defined only in its main set.
+Attributes (and operations) use ``1`` as the default value for the first
+entry (unlike enums in definitions which start from ``0``) because
+entry ``0`` is almost always reserved as undefined. Spec can explicitly
+set value to ``0`` if needed.
+
+Note that the ``value`` of an attribute is defined only in its main set
+(not in subsets).
 
 enum
 ~~~~
@@ -243,6 +253,16 @@ rather than depend on what is specified in the spec file.
 
 The validation policy in the kernel is formed by combining the type
 definition (``type`` and ``nested-attributes``) and the ``checks``.
+
+sub-type
+~~~~~~~~
+
+Legacy families have special ways of expressing arrays. ``sub-type`` can be
+used to define the type of array members in case array members are not
+fully defined as attributes (in a bona fide attribute space). For instance
+a C array of u32 values can be specified with ``type: binary`` and
+``sub-type: u32``. Binary types and legacy array formats are described in
+more detail in :doc:`genetlink-legacy`.
 
 operations
 ----------

@@ -125,7 +125,6 @@ static int keyscan_probe(struct platform_device *pdev)
 {
 	struct st_keyscan *keypad_data;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int error;
 
 	if (!pdev->dev.of_node) {
@@ -169,8 +168,7 @@ static int keyscan_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input_dev, keypad_data);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	keypad_data->base = devm_ioremap_resource(&pdev->dev, res);
+	keypad_data->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(keypad_data->base))
 		return PTR_ERR(keypad_data->base);
 
@@ -261,7 +259,7 @@ static struct platform_driver keyscan_device_driver = {
 	.driver		= {
 		.name	= "st-keyscan",
 		.pm	= pm_sleep_ptr(&keyscan_dev_pm_ops),
-		.of_match_table = of_match_ptr(keyscan_of_match),
+		.of_match_table = keyscan_of_match,
 	}
 };
 

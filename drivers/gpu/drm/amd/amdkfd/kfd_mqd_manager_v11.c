@@ -143,6 +143,13 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
 
+	/*
+	 * GFX11 RS64 CPFW version >= 509 supports PCIe atomics support
+	 * acknowledgment.
+	 */
+	if (amdgpu_amdkfd_have_atomics_support(mm->dev->adev))
+		m->cp_hqd_hq_status0 |= 1 << 29;
+
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
@@ -308,11 +315,16 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct queue_properties *q)
 {
 	struct v11_sdma_mqd *m;
+	int size;
 
 	m = (struct v11_sdma_mqd *) mqd_mem_obj->cpu_ptr;
 
-	memset(m, 0, sizeof(struct v11_sdma_mqd));
+	if (mm->dev->shared_resources.enable_mes)
+		size = PAGE_SIZE;
+	else
+		size = sizeof(struct v11_sdma_mqd);
 
+	memset(m, 0, size);
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
@@ -344,6 +356,10 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdmax_rlcx_rb_wptr_poll_addr_hi = upper_32_bits((uint64_t)q->write_ptr);
 	m->sdmax_rlcx_doorbell_offset =
 		q->doorbell_off << SDMA0_QUEUE0_DOORBELL_OFFSET__OFFSET__SHIFT;
+
+	m->sdmax_rlcx_sched_cntl = (amdgpu_sdma_phase_quantum
+		<< SDMA0_QUEUE0_SCHEDULE_CNTL__CONTEXT_QUANTUM__SHIFT)
+		 & SDMA0_QUEUE0_SCHEDULE_CNTL__CONTEXT_QUANTUM_MASK;
 
 	m->sdma_engine_id = q->sdma_engine_id;
 	m->sdma_queue_id = q->sdma_queue_id;
@@ -443,6 +459,14 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif
+		/*
+		 * To allocate SDMA MQDs by generic functions
+		 * when MES is enabled.
+		 */
+		if (dev->shared_resources.enable_mes) {
+			mqd->allocate_mqd = allocate_mqd;
+			mqd->free_mqd = kfd_free_mqd_cp;
+		}
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		break;
 	default:

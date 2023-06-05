@@ -204,6 +204,18 @@ enum xfs_ag_resv_type {
 	XFS_AG_RESV_RMAPBT,
 };
 
+/* Results of scanning a btree keyspace to check occupancy. */
+enum xbtree_recpacking {
+	/* None of the keyspace maps to records. */
+	XBTREE_RECPACKING_EMPTY = 0,
+
+	/* Some, but not all, of the keyspace maps to records. */
+	XBTREE_RECPACKING_SPARSE,
+
+	/* The entire keyspace maps to records. */
+	XBTREE_RECPACKING_FULL,
+};
+
 /*
  * Type verifier functions
  */

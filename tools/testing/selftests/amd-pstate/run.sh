@@ -244,7 +244,7 @@ prerequisite()
 		if [ "$scaling_driver" != "$CURRENT_TEST" ]; then
 			echo "$0 # Skipped: Test can only run on $CURRENT_TEST driver or run comparative test."
 			echo "$0 # Please set X86_AMD_PSTATE enabled or run comparative test."
-			echo "$0 # Current cpufreq scaling drvier is $scaling_driver."
+			echo "$0 # Current cpufreq scaling driver is $scaling_driver."
 			exit $ksft_skip
 		fi
 	else
@@ -252,7 +252,7 @@ prerequisite()
 			"tbench" | "gitsource")
 				if [ "$scaling_driver" != "$COMPARATIVE_TEST" ]; then
 					echo "$0 # Skipped: Comparison test can only run on $COMPARISON_TEST driver."
-					echo "$0 # Current cpufreq scaling drvier is $scaling_driver."
+					echo "$0 # Current cpufreq scaling driver is $scaling_driver."
 					exit $ksft_skip
 				fi
 				;;

@@ -1940,7 +1940,7 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args *args)
 struct vidtv_psi_table_eit_event
 *vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id)
 {
-	const u8 DURATION[] = {0x23, 0x59, 0x59}; /* BCD encoded */
+	static const u8 DURATION[] = {0x23, 0x59, 0x59}; /* BCD encoded */
 	struct vidtv_psi_table_eit_event *e;
 	struct timespec64 ts;
 	struct tm time;

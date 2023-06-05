@@ -409,6 +409,30 @@
 				status = "disabled";
 			};
 
+			gpt1: timer@302d0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302d0000 0x10000>;
+				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT1_ROOT>, <&clk IMX8MP_CLK_GPT1>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt2: timer@302e0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302e0000 0x10000>;
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT2_ROOT>, <&clk IMX8MP_CLK_GPT2>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt3: timer@302f0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x302f0000 0x10000>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT3_ROOT>, <&clk IMX8MP_CLK_GPT3>;
+				clock-names = "ipg", "per";
+			};
+
 			iomuxc: pinctrl@30330000 {
 				compatible = "fsl,imx8mp-iomuxc";
 				reg = <0x30330000 0x10000>;
@@ -721,6 +745,30 @@
 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&osc_24m>;
 				clock-names = "per";
+			};
+
+			gpt6: timer@306e0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x306e0000 0x10000>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT6_ROOT>, <&clk IMX8MP_CLK_GPT6>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt5: timer@306f0000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x306f0000 0x10000>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT5_ROOT>, <&clk IMX8MP_CLK_GPT5>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt4: timer@30700000 {
+				compatible = "fsl,imx8mp-gpt", "fsl,imx6dl-gpt";
+				reg = <0x30700000 0x10000>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_GPT4_ROOT>, <&clk IMX8MP_CLK_GPT4>;
+				clock-names = "ipg", "per";
 			};
 		};
 
@@ -1126,13 +1174,68 @@
 			#size-cells = <1>;
 			ranges;
 
+			mipi_dsi: dsi@32e60000 {
+				compatible = "fsl,imx8mp-mipi-dsim";
+				reg = <0x32e60000 0x400>;
+				clocks = <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>;
+				clock-names = "bus_clk", "sclk_mipi";
+				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_APB>,
+						  <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+							 <&clk IMX8MP_CLK_24M>;
+				assigned-clock-rates = <200000000>, <24000000>;
+				samsung,pll-clock-frequency = <24000000>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_DSI_1>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dsim_from_lcdif1: endpoint {
+							remote-endpoint = <&lcdif1_to_dsim>;
+						};
+					};
+				};
+			};
+
+			lcdif1: display-controller@32e80000 {
+				compatible = "fsl,imx8mp-lcdif";
+				reg = <0x32e80000 0x10000>;
+				clocks = <&clk IMX8MP_CLK_MEDIA_DISP1_PIX_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
+				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_DISP1_PIX_ROOT>,
+						  <&clk IMX8MP_CLK_MEDIA_AXI>,
+						  <&clk IMX8MP_CLK_MEDIA_APB>;
+				assigned-clock-parents = <&clk IMX8MP_CLK_MEDIA_DISP1_PIX>,
+							 <&clk IMX8MP_SYS_PLL2_1000M>,
+							 <&clk IMX8MP_SYS_PLL1_800M>;
+				assigned-clock-rates = <594000000>, <500000000>, <200000000>;
+				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_LCDIF_1>;
+				status = "disabled";
+
+				port {
+					lcdif1_to_dsim: endpoint {
+						remote-endpoint = <&dsim_from_lcdif1>;
+					};
+				};
+			};
+
 			lcdif2: display-controller@32e90000 {
 				compatible = "fsl,imx8mp-lcdif";
-				reg = <0x32e90000 0x238>;
+				reg = <0x32e90000 0x10000>;
 				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>;
 				clock-names = "pix", "axi", "disp_axi";
 				assigned-clocks = <&clk IMX8MP_CLK_MEDIA_DISP2_PIX>,
 						  <&clk IMX8MP_VIDEO_PLL1>;
@@ -1151,7 +1254,7 @@
 
 			media_blk_ctrl: blk-ctrl@32ec0000 {
 				compatible = "fsl,imx8mp-media-blk-ctrl",
-					     "simple-bus", "syscon";
+					     "syscon";
 				reg = <0x32ec0000 0x10000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -1202,10 +1305,10 @@
 
 				lvds_bridge: bridge@5c {
 					compatible = "fsl,imx8mp-ldb";
-					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
-					clock-names = "ldb";
 					reg = <0x5c 0x4>, <0x128 0x4>;
 					reg-names = "ldb", "lvds";
+					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					clock-names = "ldb";
 					assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
 					assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
 					status = "disabled";
@@ -1306,6 +1409,32 @@
 			reset-names = "apps", "turnoff";
 			phys = <&pcie_phy>;
 			phy-names = "pcie-phy";
+			status = "disabled";
+		};
+
+		pcie_ep: pcie-ep@33800000 {
+			compatible = "fsl,imx8mp-pcie-ep";
+			reg = <0x33800000 0x000400000>, <0x18000000 0x08000000>;
+			reg-names = "dbi", "addr_space";
+			clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+				 <&clk IMX8MP_CLK_HSIO_AXI>,
+				 <&clk IMX8MP_CLK_PCIE_ROOT>;
+			clock-names = "pcie", "pcie_bus", "pcie_aux";
+			assigned-clocks = <&clk IMX8MP_CLK_PCIE_AUX>;
+			assigned-clock-rates = <10000000>;
+			assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_50M>;
+			num-lanes = <1>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>; /* eDMA */
+			interrupt-names = "dma";
+			fsl,max-link-speed = <3>;
+			power-domains = <&hsio_blk_ctrl IMX8MP_HSIOBLK_PD_PCIE>;
+			resets = <&src IMX8MP_RESET_PCIE_CTRL_APPS_EN>,
+				 <&src IMX8MP_RESET_PCIE_CTRL_APPS_TURNOFF>;
+			reset-names = "apps", "turnoff";
+			phys = <&pcie_phy>;
+			phy-names = "pcie-phy";
+			num-ib-windows = <4>;
+			num-ob-windows = <4>;
 			status = "disabled";
 		};
 

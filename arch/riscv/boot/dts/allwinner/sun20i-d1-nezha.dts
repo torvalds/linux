@@ -1,6 +1,25 @@
 // SPDX-License-Identifier: (GPL-2.0+ or MIT)
 // Copyright (C) 2021-2022 Samuel Holland <samuel@sholland.org>
 
+/*
+ * gpio line names
+ *
+ * The Nezha-D1 has a 40-pin IO header. Some of these pins are routed
+ * directly to pads on the SoC, others come from an 8-bit pcf857x IO
+ * expander. Therefore, these line names are specified in two places:
+ * one set for the pcf857x, and one set for the pio controller.
+ *
+ * Lines which are routed to the 40-pin header are named as follows:
+ *	<pin#> [<pin name>]
+ * where:
+ *	<pin#>		is the actual pin number of the 40-pin header
+ *	<pin name>	is the name of the pin by function/gpio#
+ *
+ * For details regarding pin numbers and names see the schematics (under
+ * "IO EXPAND"):
+ * http://dl.linux-sunxi.org/D1/D1_Nezha_development_board_schematic_diagram_20210224.pdf
+ */
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
@@ -90,6 +109,15 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		#interrupt-cells = <2>;
+		gpio-line-names =
+			"pin13 [gpio8]",
+			"pin16 [gpio10]",
+			"pin18 [gpio11]",
+			"pin26 [gpio17]",
+			"pin22 [gpio14]",
+			"pin28 [gpio19]",
+			"pin37 [gpio23]",
+			"pin11 [gpio6]";
 	};
 };
 
@@ -163,4 +191,48 @@
 	usb0_vbus-supply = <&reg_usbvbus>;
 	usb1_vbus-supply = <&reg_vcc>;
 	status = "okay";
+};
+
+&pio {
+	gpio-line-names =
+		/* Port A */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* Port B */
+		"pin5 [gpio2/twi2-sck]",
+		"pin3 [gpio1/twi2-sda]",
+		"",
+		"pin38 [gpio24/i2s2-din]",
+		"pin40 [gpio25/i2s2-dout]",
+		"pin12 [gpio7/i2s-clk]",
+		"pin35 [gpio22/i2s2-lrck]",
+		"",
+		"pin8 [gpio4/uart0-txd]",
+		"pin10 [gpio5/uart0-rxd]",
+		"",
+		"",
+		"pin15 [gpio9]",
+		"", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* Port C */
+		"",
+		"pin31 [gpio21]",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* Port D */
+		"", "", "", "", "", "", "", "",
+		"", "",
+		"pin24 [gpio16/spi1-ce0]",
+		"pin23 [gpio15/spi1-clk]",
+		"pin19 [gpio12/spi1-mosi]",
+		"pin21 [gpio13/spi1-miso]",
+		"pin27 [gpio18/spi1-hold]",
+		"pin29 [gpio20/spi1-wp]",
+		"", "", "", "", "", "",
+		"pin7 [gpio3/pwm]";
 };

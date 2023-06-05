@@ -49,14 +49,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 	free(list_evsel);
 }
 
-static void inc_group_count(struct list_head *list,
-		       struct parse_events_state *parse_state)
-{
-	/* Count groups only have more than 1 members */
-	if (!list_is_last(list->next, list))
-		parse_state->nr_groups++;
-}
-
 %}
 
 %token PE_START_EVENTS PE_START_TERMS
@@ -201,9 +193,8 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $3;
 
-	inc_group_count(list, _parse_state);
-	parse_events__set_leader($1, list, _parse_state);
-	free($1);
+	/* Takes ownership of $1. */
+	parse_events__set_leader($1, list);
 	$$ = list;
 }
 |
@@ -211,8 +202,7 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $2;
 
-	inc_group_count(list, _parse_state);
-	parse_events__set_leader(NULL, list, _parse_state);
+	parse_events__set_leader(NULL, list);
 	$$ = list;
 }
 
@@ -313,7 +303,7 @@ event_pmu_name opt_pmu_config
 	list = alloc_list();
 	if (!list)
 		CLEANUP_YYABORT;
-	if (parse_events_add_pmu(_parse_state, list, $1, $2, false, false)) {
+	if (parse_events_add_pmu(_parse_state, list, $1, $2, /*auto_merge_stats=*/false)) {
 		struct perf_pmu *pmu = NULL;
 		int ok = 0;
 
@@ -330,8 +320,11 @@ event_pmu_name opt_pmu_config
 			    !perf_pmu__match(pattern, pmu->alias_name, $1)) {
 				if (parse_events_copy_term_list(orig_terms, &terms))
 					CLEANUP_YYABORT;
-				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms, true, false))
+				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms,
+							  /*auto_merge_stats=*/true)) {
 					ok++;
+					parse_state->wild_card_pmus = true;
+				}
 				parse_events_terms__delete(terms);
 			}
 		}
@@ -407,7 +400,8 @@ PE_PMU_EVENT_FAKE sep_dc
 	if (!list)
 		YYABORT;
 
-	err = parse_events_add_pmu(_parse_state, list, $1, NULL, false, false);
+	err = parse_events_add_pmu(_parse_state, list, $1, /*head_config=*/NULL,
+				   /*auto_merge_stats=*/false);
 	free($1);
 	if (err < 0) {
 		free(list);
@@ -425,7 +419,7 @@ PE_PMU_EVENT_FAKE opt_pmu_config
 	if (!list)
 		YYABORT;
 
-	err = parse_events_add_pmu(_parse_state, list, $1, $2, false, false);
+	err = parse_events_add_pmu(_parse_state, list, $1, $2, /*auto_merge_stats=*/false);
 	free($1);
 	parse_events_terms__delete($2);
 	if (err < 0) {

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
 #include <linux/smp.h>
@@ -12,7 +13,110 @@
 
 #define CC KVM_NESTED_VMENTER_CONSISTENCY_CHECK
 
-DEFINE_STATIC_KEY_FALSE(enable_evmcs);
+/*
+ * Enlightened VMCSv1 doesn't support these:
+ *
+ *	POSTED_INTR_NV                  = 0x00000002,
+ *	GUEST_INTR_STATUS               = 0x00000810,
+ *	APIC_ACCESS_ADDR		= 0x00002014,
+ *	POSTED_INTR_DESC_ADDR           = 0x00002016,
+ *	EOI_EXIT_BITMAP0                = 0x0000201c,
+ *	EOI_EXIT_BITMAP1                = 0x0000201e,
+ *	EOI_EXIT_BITMAP2                = 0x00002020,
+ *	EOI_EXIT_BITMAP3                = 0x00002022,
+ *	GUEST_PML_INDEX			= 0x00000812,
+ *	PML_ADDRESS			= 0x0000200e,
+ *	VM_FUNCTION_CONTROL             = 0x00002018,
+ *	EPTP_LIST_ADDRESS               = 0x00002024,
+ *	VMREAD_BITMAP                   = 0x00002026,
+ *	VMWRITE_BITMAP                  = 0x00002028,
+ *
+ *	TSC_MULTIPLIER                  = 0x00002032,
+ *	PLE_GAP                         = 0x00004020,
+ *	PLE_WINDOW                      = 0x00004022,
+ *	VMX_PREEMPTION_TIMER_VALUE      = 0x0000482E,
+ *
+ * Currently unsupported in KVM:
+ *	GUEST_IA32_RTIT_CTL		= 0x00002814,
+ */
+#define EVMCS1_SUPPORTED_PINCTRL					\
+	(PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |				\
+	 PIN_BASED_EXT_INTR_MASK |					\
+	 PIN_BASED_NMI_EXITING |					\
+	 PIN_BASED_VIRTUAL_NMIS)
+
+#define EVMCS1_SUPPORTED_EXEC_CTRL					\
+	(CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR |				\
+	 CPU_BASED_HLT_EXITING |					\
+	 CPU_BASED_CR3_LOAD_EXITING |					\
+	 CPU_BASED_CR3_STORE_EXITING |					\
+	 CPU_BASED_UNCOND_IO_EXITING |					\
+	 CPU_BASED_MOV_DR_EXITING |					\
+	 CPU_BASED_USE_TSC_OFFSETTING |					\
+	 CPU_BASED_MWAIT_EXITING |					\
+	 CPU_BASED_MONITOR_EXITING |					\
+	 CPU_BASED_INVLPG_EXITING |					\
+	 CPU_BASED_RDPMC_EXITING |					\
+	 CPU_BASED_INTR_WINDOW_EXITING |				\
+	 CPU_BASED_CR8_LOAD_EXITING |					\
+	 CPU_BASED_CR8_STORE_EXITING |					\
+	 CPU_BASED_RDTSC_EXITING |					\
+	 CPU_BASED_TPR_SHADOW |						\
+	 CPU_BASED_USE_IO_BITMAPS |					\
+	 CPU_BASED_MONITOR_TRAP_FLAG |					\
+	 CPU_BASED_USE_MSR_BITMAPS |					\
+	 CPU_BASED_NMI_WINDOW_EXITING |					\
+	 CPU_BASED_PAUSE_EXITING |					\
+	 CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
+
+#define EVMCS1_SUPPORTED_2NDEXEC					\
+	(SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |			\
+	 SECONDARY_EXEC_WBINVD_EXITING |				\
+	 SECONDARY_EXEC_ENABLE_VPID |					\
+	 SECONDARY_EXEC_ENABLE_EPT |					\
+	 SECONDARY_EXEC_UNRESTRICTED_GUEST |				\
+	 SECONDARY_EXEC_DESC |						\
+	 SECONDARY_EXEC_ENABLE_RDTSCP |					\
+	 SECONDARY_EXEC_ENABLE_INVPCID |				\
+	 SECONDARY_EXEC_XSAVES |					\
+	 SECONDARY_EXEC_RDSEED_EXITING |				\
+	 SECONDARY_EXEC_RDRAND_EXITING |				\
+	 SECONDARY_EXEC_TSC_SCALING |					\
+	 SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE |				\
+	 SECONDARY_EXEC_PT_USE_GPA |					\
+	 SECONDARY_EXEC_PT_CONCEAL_VMX |				\
+	 SECONDARY_EXEC_BUS_LOCK_DETECTION |				\
+	 SECONDARY_EXEC_NOTIFY_VM_EXITING |				\
+	 SECONDARY_EXEC_ENCLS_EXITING)
+
+#define EVMCS1_SUPPORTED_3RDEXEC (0ULL)
+
+#define EVMCS1_SUPPORTED_VMEXIT_CTRL					\
+	(VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR |				\
+	 VM_EXIT_SAVE_DEBUG_CONTROLS |					\
+	 VM_EXIT_ACK_INTR_ON_EXIT |					\
+	 VM_EXIT_HOST_ADDR_SPACE_SIZE |					\
+	 VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL |				\
+	 VM_EXIT_SAVE_IA32_PAT |					\
+	 VM_EXIT_LOAD_IA32_PAT |					\
+	 VM_EXIT_SAVE_IA32_EFER |					\
+	 VM_EXIT_LOAD_IA32_EFER |					\
+	 VM_EXIT_CLEAR_BNDCFGS |					\
+	 VM_EXIT_PT_CONCEAL_PIP |					\
+	 VM_EXIT_CLEAR_IA32_RTIT_CTL)
+
+#define EVMCS1_SUPPORTED_VMENTRY_CTRL					\
+	(VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR |				\
+	 VM_ENTRY_LOAD_DEBUG_CONTROLS |					\
+	 VM_ENTRY_IA32E_MODE |						\
+	 VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL |				\
+	 VM_ENTRY_LOAD_IA32_PAT |					\
+	 VM_ENTRY_LOAD_IA32_EFER |					\
+	 VM_ENTRY_LOAD_BNDCFGS |					\
+	 VM_ENTRY_PT_CONCEAL_PIP |					\
+	 VM_ENTRY_LOAD_IA32_RTIT_CTL)
+
+#define EVMCS1_SUPPORTED_VMFUNC (0)
 
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
 #define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
@@ -361,35 +465,43 @@ enum evmcs_revision {
 enum evmcs_ctrl_type {
 	EVMCS_EXIT_CTRLS,
 	EVMCS_ENTRY_CTRLS,
+	EVMCS_EXEC_CTRL,
 	EVMCS_2NDEXEC,
+	EVMCS_3RDEXEC,
 	EVMCS_PINCTRL,
 	EVMCS_VMFUNC,
 	NR_EVMCS_CTRLS,
 };
 
-static const u32 evmcs_unsupported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
+static const u32 evmcs_supported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
 	[EVMCS_EXIT_CTRLS] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMEXIT_CTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMEXIT_CTRL,
 	},
 	[EVMCS_ENTRY_CTRLS] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMENTRY_CTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMENTRY_CTRL,
+	},
+	[EVMCS_EXEC_CTRL] = {
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_EXEC_CTRL,
 	},
 	[EVMCS_2NDEXEC] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_2NDEXEC,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_2NDEXEC & ~SECONDARY_EXEC_TSC_SCALING,
+	},
+	[EVMCS_3RDEXEC] = {
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_3RDEXEC,
 	},
 	[EVMCS_PINCTRL] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_PINCTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_PINCTRL,
 	},
 	[EVMCS_VMFUNC] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMFUNC,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMFUNC,
 	},
 };
 
-static u32 evmcs_get_unsupported_ctls(enum evmcs_ctrl_type ctrl_type)
+static u32 evmcs_get_supported_ctls(enum evmcs_ctrl_type ctrl_type)
 {
 	enum evmcs_revision evmcs_rev = EVMCSv1_LEGACY;
 
-	return evmcs_unsupported_ctrls[ctrl_type][evmcs_rev];
+	return evmcs_supported_ctrls[ctrl_type][evmcs_rev];
 }
 
 static bool evmcs_has_perf_global_ctrl(struct kvm_vcpu *vcpu)
@@ -413,7 +525,7 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 {
 	u32 ctl_low = (u32)*pdata;
 	u32 ctl_high = (u32)(*pdata >> 32);
-	u32 unsupported_ctrls;
+	u32 supported_ctrls;
 
 	/*
 	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
@@ -422,27 +534,31 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
+		supported_ctrls = evmcs_get_supported_ctls(EVMCS_EXIT_CTRLS);
 		if (!evmcs_has_perf_global_ctrl(vcpu))
-			unsupported_ctrls |= VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
-		ctl_high &= ~unsupported_ctrls;
+			supported_ctrls &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= supported_ctrls;
 		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
+		supported_ctrls = evmcs_get_supported_ctls(EVMCS_ENTRY_CTRLS);
 		if (!evmcs_has_perf_global_ctrl(vcpu))
-			unsupported_ctrls |= VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
-		ctl_high &= ~unsupported_ctrls;
+			supported_ctrls &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= supported_ctrls;
+		break;
+	case MSR_IA32_VMX_PROCBASED_CTLS:
+	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_EXEC_CTRL);
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_2NDEXEC);
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_PINCTRL);
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_PINCTRL);
 		break;
 	case MSR_IA32_VMX_VMFUNC:
-		ctl_low &= ~evmcs_get_unsupported_ctls(EVMCS_VMFUNC);
+		ctl_low &= evmcs_get_supported_ctls(EVMCS_VMFUNC);
 		break;
 	}
 
@@ -452,13 +568,17 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 static bool nested_evmcs_is_valid_controls(enum evmcs_ctrl_type ctrl_type,
 					   u32 val)
 {
-	return !(val & evmcs_get_unsupported_ctls(ctrl_type));
+	return !(val & ~evmcs_get_supported_ctls(ctrl_type));
 }
 
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 {
 	if (CC(!nested_evmcs_is_valid_controls(EVMCS_PINCTRL,
 					       vmcs12->pin_based_vm_exec_control)))
+		return -EINVAL;
+
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_EXEC_CTRL,
+					       vmcs12->cpu_based_vm_exec_control)))
 		return -EINVAL;
 
 	if (CC(!nested_evmcs_is_valid_controls(EVMCS_2NDEXEC,
@@ -487,6 +607,40 @@ int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_HYPERV)
+DEFINE_STATIC_KEY_FALSE(__kvm_is_using_evmcs);
+
+/*
+ * KVM on Hyper-V always uses the latest known eVMCSv1 revision, the assumption
+ * is: in case a feature has corresponding fields in eVMCS described and it was
+ * exposed in VMX feature MSRs, KVM is free to use it. Warn if KVM meets a
+ * feature which has no corresponding eVMCS field, this likely means that KVM
+ * needs to be updated.
+ */
+#define evmcs_check_vmcs_conf(field, ctrl)					\
+	do {									\
+		typeof(vmcs_conf->field) unsupported;				\
+										\
+		unsupported = vmcs_conf->field & ~EVMCS1_SUPPORTED_ ## ctrl;	\
+		if (unsupported) {						\
+			pr_warn_once(#field " unsupported with eVMCS: 0x%llx\n",\
+				     (u64)unsupported);				\
+			vmcs_conf->field &= EVMCS1_SUPPORTED_ ## ctrl;		\
+		}								\
+	}									\
+	while (0)
+
+void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
+{
+	evmcs_check_vmcs_conf(cpu_based_exec_ctrl, EXEC_CTRL);
+	evmcs_check_vmcs_conf(pin_based_exec_ctrl, PINCTRL);
+	evmcs_check_vmcs_conf(cpu_based_2nd_exec_ctrl, 2NDEXEC);
+	evmcs_check_vmcs_conf(cpu_based_3rd_exec_ctrl, 3RDEXEC);
+	evmcs_check_vmcs_conf(vmentry_ctrl, VMENTRY_CTRL);
+	evmcs_check_vmcs_conf(vmexit_ctrl, VMEXIT_CTRL);
+}
+#endif
 
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 			uint16_t *vmcs_version)

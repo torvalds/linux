@@ -416,7 +416,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 					  &sof_audio_card_pcm512x);
 }
 
-static int sof_pcm512x_remove(struct platform_device *pdev)
+static void sof_pcm512x_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct snd_soc_component *component;
@@ -427,13 +427,11 @@ static int sof_pcm512x_remove(struct platform_device *pdev)
 			break;
 		}
 	}
-
-	return 0;
 }
 
 static struct platform_driver sof_audio = {
 	.probe = sof_audio_probe,
-	.remove = sof_pcm512x_remove,
+	.remove_new = sof_pcm512x_remove,
 	.driver = {
 		.name = "sof_pcm512x",
 		.pm = &snd_soc_pm_ops,

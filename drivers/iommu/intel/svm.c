@@ -9,7 +9,6 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
-#include <linux/intel-svm.h>
 #include <linux/rculist.h>
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
@@ -17,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/mm_types.h>
 #include <linux/xarray.h>
-#include <linux/ioasid.h>
 #include <asm/page.h>
 #include <asm/fpu/api.h>
 
@@ -79,7 +77,7 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	}
 	iommu->prq = page_address(pages);
 
-	irq = dmar_alloc_hwirq(DMAR_UNITS_SUPPORTED + iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(IOMMU_IRQ_ID_OFFSET_PRQ + iommu->seq_id, iommu->node, iommu);
 	if (irq <= 0) {
 		pr_err("IOMMU: %s: Failed to create IRQ vector for page request queue\n",
 		       iommu->name);
@@ -274,7 +272,7 @@ static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
 	if (WARN_ON(!mutex_is_locked(&pasid_mutex)))
 		return -EINVAL;
 
-	if (pasid == INVALID_IOASID || pasid >= PASID_MAX)
+	if (pasid == IOMMU_PASID_INVALID || pasid >= PASID_MAX)
 		return -EINVAL;
 
 	svm = pasid_private_find(pasid);
@@ -299,9 +297,8 @@ out:
 	return 0;
 }
 
-static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
-					   struct device *dev,
-					   struct mm_struct *mm)
+static int intel_svm_bind_mm(struct intel_iommu *iommu, struct device *dev,
+			     struct mm_struct *mm)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_svm_dev *sdev;
@@ -313,7 +310,7 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	if (!svm) {
 		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
 		if (!svm)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
 		svm->pasid = mm->pasid;
 		svm->mm = mm;
@@ -323,22 +320,15 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 		ret = mmu_notifier_register(&svm->notifier, mm);
 		if (ret) {
 			kfree(svm);
-			return ERR_PTR(ret);
+			return ret;
 		}
 
 		ret = pasid_private_add(svm->pasid, svm);
 		if (ret) {
 			mmu_notifier_unregister(&svm->notifier, mm);
 			kfree(svm);
-			return ERR_PTR(ret);
+			return ret;
 		}
-	}
-
-	/* Find the matching device in svm list */
-	sdev = svm_lookup_device_by_dev(svm, dev);
-	if (sdev) {
-		sdev->users++;
-		goto success;
 	}
 
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
@@ -351,12 +341,8 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	sdev->iommu = iommu;
 	sdev->did = FLPT_DEFAULT_DID;
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
-	sdev->users = 1;
-	sdev->pasid = svm->pasid;
-	sdev->sva.dev = dev;
 	init_rcu_head(&sdev->rcu);
 	if (info->ats_enabled) {
-		sdev->dev_iotlb = 1;
 		sdev->qdep = info->ats_qdep;
 		if (sdev->qdep >= QI_DEV_EIOTLB_MAX_INVS)
 			sdev->qdep = 0;
@@ -370,8 +356,8 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 		goto free_sdev;
 
 	list_add_rcu(&sdev->list, &svm->devs);
-success:
-	return &sdev->sva;
+
+	return 0;
 
 free_sdev:
 	kfree(sdev);
@@ -382,7 +368,7 @@ free_svm:
 		kfree(svm);
 	}
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /* Caller must hold pasid_mutex */
@@ -404,32 +390,32 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 	mm = svm->mm;
 
 	if (sdev) {
-		sdev->users--;
-		if (!sdev->users) {
-			list_del_rcu(&sdev->list);
-			/* Flush the PASID cache and IOTLB for this device.
-			 * Note that we do depend on the hardware *not* using
-			 * the PASID any more. Just as we depend on other
-			 * devices never using PASIDs that they have no right
-			 * to use. We have a *shared* PASID table, because it's
-			 * large and has to be physically contiguous. So it's
-			 * hard to be as defensive as we might like. */
-			intel_pasid_tear_down_entry(iommu, dev,
-						    svm->pasid, false);
-			intel_svm_drain_prq(dev, svm->pasid);
-			kfree_rcu(sdev, rcu);
+		list_del_rcu(&sdev->list);
+		/*
+		 * Flush the PASID cache and IOTLB for this device.
+		 * Note that we do depend on the hardware *not* using
+		 * the PASID any more. Just as we depend on other
+		 * devices never using PASIDs that they have no right
+		 * to use. We have a *shared* PASID table, because it's
+		 * large and has to be physically contiguous. So it's
+		 * hard to be as defensive as we might like.
+		 */
+		intel_pasid_tear_down_entry(iommu, dev, svm->pasid, false);
+		intel_svm_drain_prq(dev, svm->pasid);
+		kfree_rcu(sdev, rcu);
 
-			if (list_empty(&svm->devs)) {
-				if (svm->notifier.ops)
-					mmu_notifier_unregister(&svm->notifier, mm);
-				pasid_private_remove(svm->pasid);
-				/* We mandate that no page faults may be outstanding
-				 * for the PASID when intel_svm_unbind_mm() is called.
-				 * If that is not obeyed, subtle errors will happen.
-				 * Let's make them less subtle... */
-				memset(svm, 0x6b, sizeof(*svm));
-				kfree(svm);
-			}
+		if (list_empty(&svm->devs)) {
+			if (svm->notifier.ops)
+				mmu_notifier_unregister(&svm->notifier, mm);
+			pasid_private_remove(svm->pasid);
+			/*
+			 * We mandate that no page faults may be outstanding
+			 * for the PASID when intel_svm_unbind_mm() is called.
+			 * If that is not obeyed, subtle errors will happen.
+			 * Let's make them less subtle...
+			 */
+			memset(svm, 0x6b, sizeof(*svm));
+			kfree(svm);
 		}
 	}
 out:
@@ -854,13 +840,10 @@ static int intel_svm_set_dev_pasid(struct iommu_domain *domain,
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 	struct mm_struct *mm = domain->mm;
-	struct iommu_sva *sva;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&pasid_mutex);
-	sva = intel_svm_bind_mm(iommu, dev, mm);
-	if (IS_ERR(sva))
-		ret = PTR_ERR(sva);
+	ret = intel_svm_bind_mm(iommu, dev, mm);
 	mutex_unlock(&pasid_mutex);
 
 	return ret;

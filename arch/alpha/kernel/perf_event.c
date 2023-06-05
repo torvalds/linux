@@ -689,8 +689,6 @@ static int __hw_perf_event_init(struct perf_event *event)
  */
 static int alpha_pmu_event_init(struct perf_event *event)
 {
-	int err;
-
 	/* does not support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
@@ -709,9 +707,7 @@ static int alpha_pmu_event_init(struct perf_event *event)
 		return -ENODEV;
 
 	/* Do the real initialisation work. */
-	err = __hw_perf_event_init(event);
-
-	return err;
+	return __hw_perf_event_init(event);
 }
 
 /*

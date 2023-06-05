@@ -512,9 +512,6 @@ static void __init pnv_setup_machdep_opal(void)
 
 static int __init pnv_probe(void)
 {
-	if (!of_machine_is_compatible("ibm,powernv"))
-		return 0;
-
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
 
@@ -578,6 +575,7 @@ static long pnv_machine_check_early(struct pt_regs *regs)
 
 define_machine(powernv) {
 	.name			= "PowerNV",
+	.compatible		= "ibm,powernv",
 	.probe			= pnv_probe,
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
@@ -587,7 +585,6 @@ define_machine(powernv) {
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,
-	.calibrate_decr		= generic_calibrate_decr,
 	.machine_check_early	= pnv_machine_check_early,
 #ifdef CONFIG_KEXEC_CORE
 	.kexec_cpu_down		= pnv_kexec_cpu_down,

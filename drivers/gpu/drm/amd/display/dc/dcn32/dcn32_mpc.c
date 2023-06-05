@@ -42,7 +42,7 @@
 	mpc30->mpc_shift->field_name, mpc30->mpc_mask->field_name
 
 
-static void mpc32_mpc_init(struct mpc *mpc)
+void mpc32_mpc_init(struct mpc *mpc)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 	int mpcc_id;
@@ -254,7 +254,7 @@ static void mpc32_program_post1dlut_pwl(
 	}
 }
 
-static bool mpc32_program_post1dlut(
+bool mpc32_program_post1dlut(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -701,7 +701,7 @@ static void mpc32_power_on_shaper_3dlut(
 }
 
 
-static bool mpc32_program_shaper(
+bool mpc32_program_shaper(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -897,7 +897,7 @@ static void mpc32_set_3dlut_mode(
 }
 
 
-static bool mpc32_program_3dlut(
+bool mpc32_program_3dlut(
 		struct mpc *mpc,
 		const struct tetrahedral_params *params,
 		int mpcc_id)

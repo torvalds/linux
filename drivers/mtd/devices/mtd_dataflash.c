@@ -96,13 +96,6 @@ struct dataflash {
 	struct mtd_info		mtd;
 };
 
-static const struct spi_device_id dataflash_dev_ids[] = {
-	{ "at45" },
-	{ "dataflash" },
-	{ },
-};
-MODULE_DEVICE_TABLE(spi, dataflash_dev_ids);
-
 #ifdef CONFIG_OF
 static const struct of_device_id dataflash_dt_ids[] = {
 	{ .compatible = "atmel,at45", },
@@ -646,7 +639,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 
 	/* name must be usable with cmdlinepart */
 	sprintf(priv->name, "spi%d.%d-%s",
-			spi->master->bus_num, spi->chip_select,
+			spi->master->bus_num, spi_get_chipselect(spi, 0),
 			name);
 
 	device = &priv->mtd;
@@ -939,8 +932,6 @@ static struct spi_driver dataflash_driver = {
 		.name		= "mtd_dataflash",
 		.of_match_table = of_match_ptr(dataflash_dt_ids),
 	},
-	.id_table = dataflash_dev_ids,
-
 	.probe		= dataflash_probe,
 	.remove		= dataflash_remove,
 	.id_table	= dataflash_spi_ids,

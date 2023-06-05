@@ -178,21 +178,11 @@ static int rn5t618_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	return watchdog_register_device(&wdt->wdt_dev);
-}
-
-static int rn5t618_wdt_remove(struct platform_device *pdev)
-{
-	struct rn5t618_wdt *wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&wdt->wdt_dev);
-
-	return 0;
+	return devm_watchdog_register_device(dev, &wdt->wdt_dev);
 }
 
 static struct platform_driver rn5t618_wdt_driver = {
 	.probe = rn5t618_wdt_probe,
-	.remove = rn5t618_wdt_remove,
 	.driver = {
 		.name	= DRIVER_NAME,
 	},

@@ -124,9 +124,9 @@ out:
 /*
  * fsl_mc_bus_uevent - callback invoked when a device is added
  */
-static int fsl_mc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int fsl_mc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	const struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
 	if (add_uevent_var(env, "MODALIAS=fsl-mc:v%08Xd%s",
 			   mc_dev->obj_desc.vendor,
@@ -231,7 +231,7 @@ exit:
 	return 0;
 }
 
-static ssize_t rescan_store(struct bus_type *bus,
+static ssize_t rescan_store(const struct bus_type *bus,
 			    const char *buf, size_t count)
 {
 	unsigned long val;
@@ -284,7 +284,7 @@ exit:
 	return 0;
 }
 
-static ssize_t autorescan_store(struct bus_type *bus,
+static ssize_t autorescan_store(const struct bus_type *bus,
 				const char *buf, size_t count)
 {
 	bus_for_each_dev(bus, NULL, (void *)buf, fsl_mc_bus_set_autorescan);
@@ -292,7 +292,7 @@ static ssize_t autorescan_store(struct bus_type *bus,
 	return count;
 }
 
-static ssize_t autorescan_show(struct bus_type *bus, char *buf)
+static ssize_t autorescan_show(const struct bus_type *bus, char *buf)
 {
 	bus_for_each_dev(bus, NULL, (void *)buf, fsl_mc_bus_get_autorescan);
 	return strlen(buf);

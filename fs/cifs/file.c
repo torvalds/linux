@@ -52,6 +52,8 @@ static void cifs_undirty_folios(struct inode *inode, loff_t start, unsigned int 
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each_marked(&xas, folio, end, PAGECACHE_TAG_DIRTY) {
+		if (xas_retry(&xas, folio))
+			continue;
 		xas_pause(&xas);
 		rcu_read_unlock();
 		folio_lock(folio);
@@ -81,6 +83,8 @@ void cifs_pages_written_back(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
@@ -112,6 +116,8 @@ void cifs_pages_write_failed(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
@@ -168,13 +174,13 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	struct list_head *tmp1;
 
 	/* only send once per connect */
-	spin_lock(&tcon->ses->ses_lock);
-	if ((tcon->ses->ses_status != SES_GOOD) || (tcon->status != TID_NEED_RECON)) {
-		spin_unlock(&tcon->ses->ses_lock);
+	spin_lock(&tcon->tc_lock);
+	if (tcon->status != TID_NEED_RECON) {
+		spin_unlock(&tcon->tc_lock);
 		return;
 	}
 	tcon->status = TID_IN_FILES_INVALIDATE;
-	spin_unlock(&tcon->ses->ses_lock);
+	spin_unlock(&tcon->tc_lock);
 
 	/* list all files open on tree connection and mark them invalid */
 	spin_lock(&tcon->open_file_lock);
@@ -2839,6 +2845,7 @@ err_xid:
 	free_xid(xid);
 	if (rc == 0) {
 		wbc->nr_to_write = count;
+		rc = len;
 	} else if (is_retryable_error(rc)) {
 		cifs_pages_write_redirty(inode, start, len);
 	} else {
@@ -2857,78 +2864,93 @@ static int cifs_writepages_region(struct address_space *mapping,
 				  struct writeback_control *wbc,
 				  loff_t start, loff_t end, loff_t *_next)
 {
-	struct folio *folio;
-	struct page *head_page;
-	ssize_t ret;
-	int n, skips = 0;
+	struct folio_batch fbatch;
+	int skips = 0;
 
+	folio_batch_init(&fbatch);
 	do {
+		int nr;
 		pgoff_t index = start / PAGE_SIZE;
 
-		n = find_get_pages_range_tag(mapping, &index, end / PAGE_SIZE,
-					     PAGECACHE_TAG_DIRTY, 1, &head_page);
-		if (!n)
+		nr = filemap_get_folios_tag(mapping, &index, end / PAGE_SIZE,
+					    PAGECACHE_TAG_DIRTY, &fbatch);
+		if (!nr)
 			break;
 
-		folio = page_folio(head_page);
-		start = folio_pos(folio); /* May regress with THPs */
+		for (int i = 0; i < nr; i++) {
+			ssize_t ret;
+			struct folio *folio = fbatch.folios[i];
 
-		/* At this point we hold neither the i_pages lock nor the
-		 * page lock: the page may be truncated or invalidated
-		 * (changing page->mapping to NULL), or even swizzled
-		 * back from swapper_space to tmpfs file mapping
-		 */
-		if (wbc->sync_mode != WB_SYNC_NONE) {
-			ret = folio_lock_killable(folio);
-			if (ret < 0) {
-				folio_put(folio);
-				return ret;
-			}
-		} else {
-			if (!folio_trylock(folio)) {
-				folio_put(folio);
-				return 0;
-			}
-		}
+redo_folio:
+			start = folio_pos(folio); /* May regress with THPs */
 
-		if (folio_mapping(folio) != mapping ||
-		    !folio_test_dirty(folio)) {
-			start += folio_size(folio);
-			folio_unlock(folio);
-			folio_put(folio);
-			continue;
-		}
-
-		if (folio_test_writeback(folio) ||
-		    folio_test_fscache(folio)) {
-			folio_unlock(folio);
+			/* At this point we hold neither the i_pages lock nor the
+			 * page lock: the page may be truncated or invalidated
+			 * (changing page->mapping to NULL), or even swizzled
+			 * back from swapper_space to tmpfs file mapping
+			 */
 			if (wbc->sync_mode != WB_SYNC_NONE) {
+				ret = folio_lock_killable(folio);
+				if (ret < 0)
+					goto write_error;
+			} else {
+				if (!folio_trylock(folio))
+					goto skip_write;
+			}
+
+			if (folio_mapping(folio) != mapping ||
+			    !folio_test_dirty(folio)) {
+				start += folio_size(folio);
+				folio_unlock(folio);
+				continue;
+			}
+
+			if (folio_test_writeback(folio) ||
+			    folio_test_fscache(folio)) {
+				folio_unlock(folio);
+				if (wbc->sync_mode == WB_SYNC_NONE)
+					goto skip_write;
+
 				folio_wait_writeback(folio);
 #ifdef CONFIG_CIFS_FSCACHE
 				folio_wait_fscache(folio);
 #endif
-			} else {
-				start += folio_size(folio);
+				goto redo_folio;
 			}
-			folio_put(folio);
-			if (wbc->sync_mode == WB_SYNC_NONE) {
-				if (skips >= 5 || need_resched())
-					break;
-				skips++;
+
+			if (!folio_clear_dirty_for_io(folio))
+				/* We hold the page lock - it should've been dirty. */
+				WARN_ON(1);
+
+			ret = cifs_write_back_from_locked_folio(mapping, wbc, folio, start, end);
+			if (ret < 0)
+				goto write_error;
+
+			start += ret;
+			continue;
+
+write_error:
+			folio_batch_release(&fbatch);
+			*_next = start;
+			return ret;
+
+skip_write:
+			/*
+			 * Too many skipped writes, or need to reschedule?
+			 * Treat it as a write error without an error code.
+			 */
+			if (skips >= 5 || need_resched()) {
+				ret = 0;
+				goto write_error;
 			}
+
+			/* Otherwise, just skip that folio and go on to the next */
+			skips++;
+			start += folio_size(folio);
 			continue;
 		}
 
-		if (!folio_clear_dirty_for_io(folio))
-			/* We hold the page lock - it should've been dirty. */
-			WARN_ON(1);
-
-		ret = cifs_write_back_from_locked_folio(mapping, wbc, folio, start, end);
-		folio_put(folio);
-		if (ret < 0)
-			return ret;
-
-		start += ret;
+		folio_batch_release(&fbatch);		
 		cond_resched();
 	} while (wbc->nr_to_write > 0);
 
@@ -3590,7 +3612,7 @@ static ssize_t __cifs_writev(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(from);
 	} else if ((iov_iter_is_bvec(from) || iov_iter_is_kvec(from)) &&
 		   !is_sync_kiocb(iocb)) {
 		/*
@@ -3988,7 +4010,6 @@ static void
 collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 {
 	struct cifs_readdata *rdata, *tmp;
-	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	int rc;
 
@@ -4053,9 +4074,6 @@ again:
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
-
-	if (!ctx->direct_io)
-		ctx->total_len = ctx->len - iov_iter_count(to);
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
@@ -4126,7 +4144,7 @@ static ssize_t __cifs_readv(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(to);
 		ctx->should_dirty = true;
 	} else if ((iov_iter_is_bvec(to) || iov_iter_is_kvec(to)) &&
 		   !is_sync_kiocb(iocb)) {
@@ -4864,6 +4882,8 @@ void cifs_oplock_break(struct work_struct *work)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	int rc = 0;
 	bool purge_cache = false;
+	struct cifs_deferred_close *dclose;
+	bool is_deferred = false;
 
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
@@ -4899,6 +4919,20 @@ void cifs_oplock_break(struct work_struct *work)
 		cifs_dbg(VFS, "Push locks rc = %d\n", rc);
 
 oplock_break_ack:
+	/*
+	 * When oplock break is received and there are no active
+	 * file handles but cached, then schedule deferred close immediately.
+	 * So, new open will not use cached handle.
+	 */
+	spin_lock(&CIFS_I(inode)->deferred_lock);
+	is_deferred = cifs_is_deferred_close(cfile, &dclose);
+	spin_unlock(&CIFS_I(inode)->deferred_lock);
+
+	if (!CIFS_CACHE_HANDLE(cinode) && is_deferred &&
+			cfile->deferred_close_scheduled && delayed_work_pending(&cfile->deferred)) {
+		cifs_close_deferred_file(cinode);
+	}
+
 	/*
 	 * releasing stale oplock after recent reconnect of smb session using
 	 * a now incorrect file handle is not a data integrity issue but do

@@ -218,7 +218,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	enter_vmx_ops
+	bl	CFUNC(enter_vmx_ops)
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STK_REG(R31)(r1)
@@ -433,7 +433,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	b	exit_vmx_ops		/* tail call optimise */
+	b	CFUNC(exit_vmx_ops)		/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -637,5 +637,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	b	exit_vmx_ops		/* tail call optimise */
+	b	CFUNC(exit_vmx_ops)		/* tail call optimise */
 #endif /* CONFIG_ALTIVEC */

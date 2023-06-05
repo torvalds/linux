@@ -92,6 +92,11 @@
 #define SE_IDX_QUEUE			0  /* 0-79 : Queue scheduler elements */
 #define SE_IDX_PORT			80 /* 80-89 : Port schedular elements */
 
+#define LAN966X_VCAP_CID_IS1_L0 VCAP_CID_INGRESS_L0 /* IS1 lookup 0 */
+#define LAN966X_VCAP_CID_IS1_L1 VCAP_CID_INGRESS_L1 /* IS1 lookup 1 */
+#define LAN966X_VCAP_CID_IS1_L2 VCAP_CID_INGRESS_L2 /* IS1 lookup 2 */
+#define LAN966X_VCAP_CID_IS1_MAX (VCAP_CID_INGRESS_L3 - 1) /* IS1 Max */
+
 #define LAN966X_VCAP_CID_IS2_L0 VCAP_CID_INGRESS_STAGE2_L0 /* IS2 lookup 0 */
 #define LAN966X_VCAP_CID_IS2_L1 VCAP_CID_INGRESS_STAGE2_L1 /* IS2 lookup 1 */
 #define LAN966X_VCAP_CID_IS2_MAX (VCAP_CID_INGRESS_STAGE2_L2 - 1) /* IS2 Max */
@@ -137,6 +142,39 @@ enum vcap_is2_port_sel_ipv6 {
 	VCAP_IS2_PS_IPV6_STD,
 	VCAP_IS2_PS_IPV6_IP4_TCPUDP_IP4_OTHER,
 	VCAP_IS2_PS_IPV6_MAC_ETYPE,
+};
+
+enum vcap_is1_port_sel_other {
+	VCAP_IS1_PS_OTHER_NORMAL,
+	VCAP_IS1_PS_OTHER_7TUPLE,
+	VCAP_IS1_PS_OTHER_DBL_VID,
+	VCAP_IS1_PS_OTHER_DMAC_VID,
+};
+
+enum vcap_is1_port_sel_ipv4 {
+	VCAP_IS1_PS_IPV4_NORMAL,
+	VCAP_IS1_PS_IPV4_7TUPLE,
+	VCAP_IS1_PS_IPV4_5TUPLE_IP4,
+	VCAP_IS1_PS_IPV4_DBL_VID,
+	VCAP_IS1_PS_IPV4_DMAC_VID,
+};
+
+enum vcap_is1_port_sel_ipv6 {
+	VCAP_IS1_PS_IPV6_NORMAL,
+	VCAP_IS1_PS_IPV6_7TUPLE,
+	VCAP_IS1_PS_IPV6_5TUPLE_IP4,
+	VCAP_IS1_PS_IPV6_NORMAL_IP6,
+	VCAP_IS1_PS_IPV6_5TUPLE_IP6,
+	VCAP_IS1_PS_IPV6_DBL_VID,
+	VCAP_IS1_PS_IPV6_DMAC_VID,
+};
+
+enum vcap_is1_port_sel_rt {
+	VCAP_IS1_PS_RT_NORMAL,
+	VCAP_IS1_PS_RT_7TUPLE,
+	VCAP_IS1_PS_RT_DBL_VID,
+	VCAP_IS1_PS_RT_DMAC_VID,
+	VCAP_IS1_PS_RT_FOLLOW_OTHER = 7,
 };
 
 struct lan966x_port;
@@ -205,6 +243,7 @@ struct lan966x_tx_dcb_buf {
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
+		struct page *page;
 	} data;
 	u32 len;
 	u32 used : 1;
@@ -369,7 +408,8 @@ struct lan966x_port {
 	struct phy *serdes;
 	struct fwnode_handle *fwnode;
 
-	u8 ptp_cmd;
+	u8 ptp_tx_cmd;
+	bool ptp_rx_cmd;
 	u16 ts_id;
 	struct sk_buff_head tx_skbs;
 
@@ -489,7 +529,7 @@ void lan966x_ptp_deinit(struct lan966x *lan966x);
 int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
 int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
 void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
-			  u64 timestamp);
+			  u64 src_port, u64 timestamp);
 int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
 				 struct sk_buff *skb);
 void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
@@ -502,10 +542,7 @@ int lan966x_ptp_setup_traps(struct lan966x_port *port, struct ifreq *ifr);
 int lan966x_ptp_del_traps(struct lan966x_port *port);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);
-int lan966x_fdma_xmit_xdpf(struct lan966x_port *port,
-			   struct xdp_frame *frame,
-			   struct page *page,
-			   bool dma_map);
+int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len);
 int lan966x_fdma_change_mtu(struct lan966x *lan966x);
 void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev);
 void lan966x_fdma_netdev_deinit(struct lan966x *lan966x, struct net_device *dev);

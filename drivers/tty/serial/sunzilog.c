@@ -1403,7 +1403,7 @@ static int zs_probe(struct platform_device *op)
 	int keyboard_mouse = 0;
 	int err;
 
-	if (of_find_property(op->dev.of_node, "keyboard", NULL))
+	if (of_property_present(op->dev.of_node, "keyboard"))
 		keyboard_mouse = 1;
 
 	/* uarts must come before keyboards/mice */
@@ -1553,7 +1553,7 @@ static int __init sunzilog_init(void)
 
 	for_each_node_by_name(dp, "zs") {
 		num_sunzilog++;
-		if (of_find_property(dp, "keyboard", NULL))
+		if (of_property_present(dp, "keyboard"))
 			num_keybms++;
 	}
 

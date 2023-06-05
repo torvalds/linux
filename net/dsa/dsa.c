@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
+#include <net/dsa_stubs.h>
 #include <net/sch_generic.h>
 
 #include "devlink.h"
@@ -1702,6 +1703,20 @@ bool dsa_mdb_present_in_other_db(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL_GPL(dsa_mdb_present_in_other_db);
 
+static const struct dsa_stubs __dsa_stubs = {
+	.master_hwtstamp_validate = __dsa_master_hwtstamp_validate,
+};
+
+static void dsa_register_stubs(void)
+{
+	dsa_stubs = &__dsa_stubs;
+}
+
+static void dsa_unregister_stubs(void)
+{
+	dsa_stubs = NULL;
+}
+
 static int __init dsa_init_module(void)
 {
 	int rc;
@@ -1721,6 +1736,8 @@ static int __init dsa_init_module(void)
 	if (rc)
 		goto netlink_register_fail;
 
+	dsa_register_stubs();
+
 	return 0;
 
 netlink_register_fail:
@@ -1735,6 +1752,8 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	dsa_unregister_stubs();
+
 	rtnl_link_unregister(&dsa_link_ops);
 
 	dsa_slave_unregister_notifier();

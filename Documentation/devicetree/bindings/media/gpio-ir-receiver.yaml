@@ -23,6 +23,9 @@ properties:
     description: autosuspend delay time in milliseconds
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  wakeup-source:
+    description: IR receiver can wake-up the system.
+
 required:
   - compatible
   - gpios

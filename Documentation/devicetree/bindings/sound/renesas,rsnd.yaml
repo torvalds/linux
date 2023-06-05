@@ -101,17 +101,7 @@ properties:
 
   clock-names:
     description: List of necessary clock names.
-    minItems: 1
-    maxItems: 31
-    items:
-      oneOf:
-        - const: ssi-all
-        - pattern: '^ssi\.[0-9]$'
-        - pattern: '^src\.[0-9]$'
-        - pattern: '^mix\.[0-1]$'
-        - pattern: '^ctu\.[0-1]$'
-        - pattern: '^dvc\.[0-1]$'
-        - pattern: '^clk_(a|b|c|i)$'
+    # details are defined below
 
   ports:
     $ref: audio-graph-port.yaml#/definitions/port-base
@@ -155,7 +145,7 @@ properties:
           dmas:
             maxItems: 1
           dma-names:
-            const: "tx"
+            const: tx
         required:
           - dmas
           - dma-names
@@ -288,6 +278,11 @@ required:
 
 allOf:
   - $ref: dai-common.yaml#
+
+  # --------------------
+  # reg/reg-names
+  # --------------------
+  # for Gen1
   - if:
       properties:
         compatible:
@@ -303,7 +298,15 @@ allOf:
               - scu
               - ssi
               - adg
-    else:
+  # for Gen2/Gen3
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar_sound-gen2
+              - renesas,rcar_sound-gen3
+    then:
       properties:
         reg:
           minItems: 5
@@ -315,35 +318,87 @@ allOf:
               - ssiu
               - ssi
               - audmapp
+  # for Gen4
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rcar_sound-gen4
+    then:
+      properties:
+        reg:
+          maxItems: 4
+        reg-names:
+          items:
+            enum:
+              - adg
+              - ssiu
+              - ssi
+              - sdmc
+
+  # --------------------
+  # clock-names
+  # --------------------
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rcar_sound-gen4
+    then:
+      properties:
+        clock-names:
+          maxItems: 3
+          items:
+            enum:
+              - ssi.0
+              - ssiu.0
+              - clkin
+    else:
+      properties:
+        clock-names:
+          minItems: 1
+          maxItems: 31
+          items:
+            oneOf:
+              - const: ssi-all
+              - pattern: '^ssi\.[0-9]$'
+              - pattern: '^src\.[0-9]$'
+              - pattern: '^mix\.[0-1]$'
+              - pattern: '^ctu\.[0-1]$'
+              - pattern: '^dvc\.[0-1]$'
+              - pattern: '^clk_(a|b|c|i)$'
 
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
     rcar_sound: sound@ec500000 {
         #sound-dai-cells = <1>;
         compatible = "renesas,rcar_sound-r8a7790", "renesas,rcar_sound-gen2";
         reg = <0xec500000 0x1000>, /* SCU  */
               <0xec5a0000 0x100>,  /* ADG  */
               <0xec540000 0x1000>, /* SSIU */
-              <0xec541000 0x1280>, /* SSI  */
+              <0xec541000 0x280>,  /* SSI  */
               <0xec740000 0x200>;  /* Audio DMAC peri peri*/
         reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
 
-        clocks = <&mstp10_clks 1005>,                      /* SSI-ALL    */
-                 <&mstp10_clks 1006>, <&mstp10_clks 1007>, /* SSI9, SSI8 */
-                 <&mstp10_clks 1008>, <&mstp10_clks 1009>, /* SSI7, SSI6 */
-                 <&mstp10_clks 1010>, <&mstp10_clks 1011>, /* SSI5, SSI4 */
-                 <&mstp10_clks 1012>, <&mstp10_clks 1013>, /* SSI3, SSI2 */
-                 <&mstp10_clks 1014>, <&mstp10_clks 1015>, /* SSI1, SSI0 */
-                 <&mstp10_clks 1022>, <&mstp10_clks 1023>, /* SRC9, SRC8 */
-                 <&mstp10_clks 1024>, <&mstp10_clks 1025>, /* SRC7, SRC6 */
-                 <&mstp10_clks 1026>, <&mstp10_clks 1027>, /* SRC5, SRC4 */
-                 <&mstp10_clks 1028>, <&mstp10_clks 1029>, /* SRC3, SRC2 */
-                 <&mstp10_clks 1030>, <&mstp10_clks 1031>, /* SRC1, SRC0 */
-                 <&mstp10_clks 1020>, <&mstp10_clks 1021>, /* MIX1, MIX0 */
-                 <&mstp10_clks 1020>, <&mstp10_clks 1021>, /* CTU1, CTU0 */
-                 <&mstp10_clks 1019>, <&mstp10_clks 1018>, /* DVC0, DVC1 */
+        clocks = <&cpg CPG_MOD 1005>,                      /* SSI-ALL    */
+                 <&cpg CPG_MOD 1006>, <&cpg CPG_MOD 1007>, /* SSI9, SSI8 */
+                 <&cpg CPG_MOD 1008>, <&cpg CPG_MOD 1009>, /* SSI7, SSI6 */
+                 <&cpg CPG_MOD 1010>, <&cpg CPG_MOD 1011>, /* SSI5, SSI4 */
+                 <&cpg CPG_MOD 1012>, <&cpg CPG_MOD 1013>, /* SSI3, SSI2 */
+                 <&cpg CPG_MOD 1014>, <&cpg CPG_MOD 1015>, /* SSI1, SSI0 */
+                 <&cpg CPG_MOD 1022>, <&cpg CPG_MOD 1023>, /* SRC9, SRC8 */
+                 <&cpg CPG_MOD 1024>, <&cpg CPG_MOD 1025>, /* SRC7, SRC6 */
+                 <&cpg CPG_MOD 1026>, <&cpg CPG_MOD 1027>, /* SRC5, SRC4 */
+                 <&cpg CPG_MOD 1028>, <&cpg CPG_MOD 1029>, /* SRC3, SRC2 */
+                 <&cpg CPG_MOD 1030>, <&cpg CPG_MOD 1031>, /* SRC1, SRC0 */
+                 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>, /* MIX1, MIX0 */
+                 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>, /* CTU1, CTU0 */
+                 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>, /* DVC0, DVC1 */
                  <&audio_clk_a>, <&audio_clk_b>,           /* CLKA, CLKB */
                  <&audio_clk_c>, <&audio_clk_i>;           /* CLKC, CLKI */
 
@@ -363,6 +418,17 @@ examples:
                       "dvc.0", "dvc.1",
                       "clk_a", "clk_b",
                       "clk_c", "clk_i";
+
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+
+        resets = <&cpg 1005>,
+                 <&cpg 1006>, <&cpg 1007>, <&cpg 1008>, <&cpg 1009>,
+                 <&cpg 1010>, <&cpg 1011>, <&cpg 1012>, <&cpg 1013>,
+                 <&cpg 1014>, <&cpg 1015>;
+        reset-names = "ssi-all",
+                      "ssi.9", "ssi.8", "ssi.7", "ssi.6",
+                      "ssi.5", "ssi.4", "ssi.3", "ssi.2",
+                      "ssi.1", "ssi.0";
 
         rcar_sound,dvc {
                dvc0: dvc-0 {
@@ -396,7 +462,7 @@ examples:
                 status = "disabled";
             };
             src1: src-1 {
-                interrupts = <0 353 0>;
+                interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
                 dmas = <&audma0 0x87>, <&audma1 0x9c>;
                 dma-names = "rx", "tx";
             };
@@ -417,12 +483,12 @@ examples:
 
         rcar_sound,ssi {
             ssi0: ssi-0 {
-                interrupts = <0 370 1>;
+                interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
                 dmas = <&audma0 0x01>, <&audma1 0x02>;
                 dma-names = "rx", "tx";
             };
             ssi1: ssi-1 {
-                interrupts = <0 371 1>;
+                interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
                 dmas = <&audma0 0x03>, <&audma1 0x04>;
                 dma-names = "rx", "tx";
             };
@@ -463,7 +529,6 @@ examples:
             };
         };
     };
-
 
     /* assume audio-graph */
     codec {

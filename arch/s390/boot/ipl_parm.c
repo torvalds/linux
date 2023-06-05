@@ -24,11 +24,11 @@ int __bootdata(noexec_disabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
 struct ipl_parameter_block __bootdata_preserved(ipl_block);
 int __bootdata_preserved(ipl_block_valid);
+int __bootdata_preserved(__kaslr_enabled);
 
 unsigned long vmalloc_size = VMALLOC_DEFAULT_SIZE;
 unsigned long memory_limit;
 int vmalloc_size_set;
-int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
@@ -264,7 +264,7 @@ void parse_boot_command_line(void)
 	char *args;
 	int rc;
 
-	kaslr_enabled = IS_ENABLED(CONFIG_RANDOMIZE_BASE);
+	__kaslr_enabled = IS_ENABLED(CONFIG_RANDOMIZE_BASE);
 	args = strcpy(command_line_buf, early_command_line);
 	while (*args) {
 		args = next_arg(args, &param, &val);
@@ -300,7 +300,7 @@ void parse_boot_command_line(void)
 			modify_fac_list(val);
 
 		if (!strcmp(param, "nokaslr"))
-			kaslr_enabled = 0;
+			__kaslr_enabled = 0;
 
 #if IS_ENABLED(CONFIG_KVM)
 		if (!strcmp(param, "prot_virt")) {

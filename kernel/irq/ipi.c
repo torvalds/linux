@@ -188,15 +188,19 @@ EXPORT_SYMBOL_GPL(ipi_get_hwirq);
 static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
 			   const struct cpumask *dest, unsigned int cpu)
 {
-	const struct cpumask *ipimask = irq_data_get_affinity_mask(data);
+	const struct cpumask *ipimask;
 
-	if (!chip || !ipimask)
+	if (!chip || !data)
 		return -EINVAL;
 
 	if (!chip->ipi_send_single && !chip->ipi_send_mask)
 		return -EINVAL;
 
 	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+
+	ipimask = irq_data_get_affinity_mask(data);
+	if (!ipimask)
 		return -EINVAL;
 
 	if (dest) {

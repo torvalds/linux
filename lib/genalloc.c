@@ -40,32 +40,30 @@ static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
 	return chunk->end_addr - chunk->start_addr + 1;
 }
 
-static int set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
+static inline int
+set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
 {
-	unsigned long val, nval;
+	unsigned long val = READ_ONCE(*addr);
 
-	nval = *addr;
 	do {
-		val = nval;
 		if (val & mask_to_set)
 			return -EBUSY;
 		cpu_relax();
-	} while ((nval = cmpxchg(addr, val, val | mask_to_set)) != val);
+	} while (!try_cmpxchg(addr, &val, val | mask_to_set));
 
 	return 0;
 }
 
-static int clear_bits_ll(unsigned long *addr, unsigned long mask_to_clear)
+static inline int
+clear_bits_ll(unsigned long *addr, unsigned long mask_to_clear)
 {
-	unsigned long val, nval;
+	unsigned long val = READ_ONCE(*addr);
 
-	nval = *addr;
 	do {
-		val = nval;
 		if ((val & mask_to_clear) != mask_to_clear)
 			return -EBUSY;
 		cpu_relax();
-	} while ((nval = cmpxchg(addr, val, val & ~mask_to_clear)) != val);
+	} while (!try_cmpxchg(addr, &val, val & ~mask_to_clear));
 
 	return 0;
 }

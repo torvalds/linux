@@ -46,6 +46,9 @@ properties:
       - items:
           - const: st,ism330is
           - const: st,lsm6dso16is
+      - items:
+          - const: st,asm330lhb
+          - const: st,asm330lhh
 
   reg:
     maxItems: 1
@@ -63,7 +66,7 @@ properties:
     description: if defined provides VDD IO power to the sensor.
 
   st,drdy-int-pin:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The pin on the package that will be used to signal data ready
     enum:

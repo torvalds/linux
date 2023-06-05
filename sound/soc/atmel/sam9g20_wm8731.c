@@ -98,6 +98,9 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.init = at91sam9g20ek_wm8731_init,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBP_CFP,
+#ifndef ENABLE_MIC_INPUT
+	.playback_only = true,
+#endif
 	SND_SOC_DAILINK_REG(pcm),
 };
 
@@ -183,14 +186,12 @@ err:
 	return ret;
 }
 
-static int at91sam9g20ek_audio_remove(struct platform_device *pdev)
+static void at91sam9g20ek_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	snd_soc_unregister_card(card);
 	atmel_ssc_put_audio(0);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -207,7 +208,7 @@ static struct platform_driver at91sam9g20ek_audio_driver = {
 		.of_match_table = of_match_ptr(at91sam9g20ek_wm8731_dt_ids),
 	},
 	.probe	= at91sam9g20ek_audio_probe,
-	.remove	= at91sam9g20ek_audio_remove,
+	.remove_new = at91sam9g20ek_audio_remove,
 };
 
 module_platform_driver(at91sam9g20ek_audio_driver);

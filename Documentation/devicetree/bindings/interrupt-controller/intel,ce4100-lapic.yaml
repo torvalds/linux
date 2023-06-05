@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/interrupt-controller/intel,ce4100-lapic.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/interrupt-controller/intel,ce4100-lapic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Intel Local Advanced Programmable Interrupt Controller (LAPIC)
 

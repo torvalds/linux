@@ -80,7 +80,7 @@ ccw_bus_match (struct device * dev, struct device_driver * drv)
  * specified size. Return length of resulting string (excluding trailing '\0')
  * even if string doesn't fit buffer (snprintf semantics). */
 static int snprint_alias(char *buf, size_t size,
-			 struct ccw_device_id *id, const char *suffix)
+			 const struct ccw_device_id *id, const char *suffix)
 {
 	int len;
 
@@ -101,10 +101,10 @@ static int snprint_alias(char *buf, size_t size,
 
 /* Set up environment variables for ccw device uevent. Return 0 on success,
  * non-zero otherwise. */
-static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ccw_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct ccw_device *cdev = to_ccwdev(dev);
-	struct ccw_device_id *id = &(cdev->id);
+	const struct ccw_device *cdev = to_ccwdev(dev);
+	const struct ccw_device_id *id = &(cdev->id);
 	int ret;
 	char modalias_buf[30];
 

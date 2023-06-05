@@ -897,10 +897,10 @@ static const struct attribute_group *cfam_attr_groups[] = {
 	NULL,
 };
 
-static char *cfam_devnode(struct device *dev, umode_t *mode,
+static char *cfam_devnode(const struct device *dev, umode_t *mode,
 			  kuid_t *uid, kgid_t *gid)
 {
-	struct fsi_slave *slave = to_fsi_slave(dev);
+	const struct fsi_slave *slave = to_fsi_slave(dev);
 
 #ifdef CONFIG_FSI_NEW_DEV_NODE
 	return kasprintf(GFP_KERNEL, "fsi/cfam%d", slave->cdev_idx);
@@ -915,7 +915,7 @@ static const struct device_type cfam_type = {
 	.groups = cfam_attr_groups
 };
 
-static char *fsi_cdev_devnode(struct device *dev, umode_t *mode,
+static char *fsi_cdev_devnode(const struct device *dev, umode_t *mode,
 			      kuid_t *uid, kgid_t *gid)
 {
 #ifdef CONFIG_FSI_NEW_DEV_NODE

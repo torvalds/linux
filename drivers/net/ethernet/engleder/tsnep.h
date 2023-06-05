@@ -18,6 +18,7 @@
 #define TSNEP "tsnep"
 
 #define TSNEP_RING_SIZE 256
+#define TSNEP_RING_MASK (TSNEP_RING_SIZE - 1)
 #define TSNEP_RING_RX_REFILL 16
 #define TSNEP_RING_RX_REUSE (TSNEP_RING_SIZE - TSNEP_RING_SIZE / 4)
 #define TSNEP_RING_ENTRIES_PER_PAGE (PAGE_SIZE / TSNEP_DESC_SIZE)
@@ -69,6 +70,7 @@ struct tsnep_tx_entry {
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
+		bool zc;
 	};
 	size_t len;
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -87,6 +89,7 @@ struct tsnep_tx {
 	int read;
 	u32 owner_counter;
 	int increment_owner_counter;
+	struct xsk_buff_pool *xsk_pool;
 
 	u32 packets;
 	u32 bytes;
@@ -100,7 +103,10 @@ struct tsnep_rx_entry {
 
 	u32 properties;
 
-	struct page *page;
+	union {
+		struct page *page;
+		struct xdp_buff *xdp;
+	};
 	size_t len;
 	dma_addr_t dma;
 };
@@ -120,6 +126,9 @@ struct tsnep_rx {
 	u32 owner_counter;
 	int increment_owner_counter;
 	struct page_pool *page_pool;
+	struct page **page_buffer;
+	struct xsk_buff_pool *xsk_pool;
+	struct xdp_buff **xdp_batch;
 
 	u32 packets;
 	u32 bytes;
@@ -128,6 +137,7 @@ struct tsnep_rx {
 	u32 alloc_failed;
 
 	struct xdp_rxq_info xdp_rxq;
+	struct xdp_rxq_info xdp_rxq_zc;
 };
 
 struct tsnep_queue {
@@ -213,6 +223,8 @@ int tsnep_rxnfc_del_rule(struct tsnep_adapter *adapter,
 
 int tsnep_xdp_setup_prog(struct tsnep_adapter *adapter, struct bpf_prog *prog,
 			 struct netlink_ext_ack *extack);
+int tsnep_xdp_setup_pool(struct tsnep_adapter *adapter,
+			 struct xsk_buff_pool *pool, u16 queue_id);
 
 #if IS_ENABLED(CONFIG_TSNEP_SELFTESTS)
 int tsnep_ethtool_get_test_count(void);
@@ -241,5 +253,7 @@ static inline void tsnep_ethtool_self_test(struct net_device *dev,
 void tsnep_get_system_time(struct tsnep_adapter *adapter, u64 *time);
 int tsnep_set_irq_coalesce(struct tsnep_queue *queue, u32 usecs);
 u32 tsnep_get_irq_coalesce(struct tsnep_queue *queue);
+int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool);
+void tsnep_disable_xsk(struct tsnep_queue *queue);
 
 #endif /* _TSNEP_H */

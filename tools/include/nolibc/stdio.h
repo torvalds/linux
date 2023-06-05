@@ -273,6 +273,12 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 	return written;
 }
 
+static __attribute__((unused))
+int vprintf(const char *fmt, va_list args)
+{
+	return vfprintf(stdout, fmt, args);
+}
+
 static __attribute__((unused, format(printf, 2, 3)))
 int fprintf(FILE *stream, const char *fmt, ...)
 {

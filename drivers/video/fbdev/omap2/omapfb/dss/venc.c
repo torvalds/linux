@@ -880,10 +880,9 @@ static int venc_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &venc_component_ops);
 }
 
-static int venc_remove(struct platform_device *pdev)
+static void venc_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &venc_component_ops);
-	return 0;
 }
 
 static int venc_runtime_suspend(struct device *dev)
@@ -922,7 +921,7 @@ static const struct of_device_id venc_of_match[] = {
 
 static struct platform_driver omap_venchw_driver = {
 	.probe		= venc_probe,
-	.remove		= venc_remove,
+	.remove_new	= venc_remove,
 	.driver         = {
 		.name   = "omapdss_venc",
 		.pm	= &venc_pm_ops,

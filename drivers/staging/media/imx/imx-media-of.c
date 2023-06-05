@@ -16,8 +16,8 @@
 #include <video/imx-ipu-v3.h>
 #include "imx-media.h"
 
-int imx_media_of_add_csi(struct imx_media_dev *imxmd,
-			 struct device_node *csi_np)
+static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
+				struct device_node *csi_np)
 {
 	struct v4l2_async_subdev *asd;
 	int ret = 0;
@@ -41,7 +41,6 @@ int imx_media_of_add_csi(struct imx_media_dev *imxmd,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(imx_media_of_add_csi);
 
 int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 			     struct device_node *np)

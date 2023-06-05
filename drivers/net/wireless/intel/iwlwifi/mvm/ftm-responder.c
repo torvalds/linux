@@ -119,7 +119,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
 				    IWL_TOF_RESPONDER_CMD_VALID_BSSID |
 				    IWL_TOF_RESPONDER_CMD_VALID_STA_ID),
-		.sta_id = mvmvif->bcast_sta.sta_id,
+		.sta_id = mvmvif->deflink.bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 6);
 	int err;
@@ -317,6 +317,8 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		.addr = addr,
 		.hltk = hltk,
 	};
+	struct iwl_mvm_pasn_hltk_data *hltk_data_ptr = NULL;
+
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					   WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 					   2);
@@ -328,10 +330,19 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		return -ENOTSUPP;
 	}
 
-	hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
-	if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
-		IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+	if ((!hltk || !hltk_len) && (!tk || !tk_len)) {
+		IWL_ERR(mvm, "TK and HLTK not set\n");
 		return -EINVAL;
+	}
+
+	if (hltk && hltk_len) {
+		hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
+		if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
+			IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+			return -EINVAL;
+		}
+
+		hltk_data_ptr = &hltk_data;
 	}
 
 	if (tk && tk_len) {
@@ -350,7 +361,7 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		list_add_tail(&sta->list, &mvm->resp_pasn_list);
 	}
 
-	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
+	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, hltk_data_ptr);
 	if (ret && sta)
 		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
 

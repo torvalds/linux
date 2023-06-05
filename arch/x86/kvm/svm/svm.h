@@ -35,14 +35,8 @@ extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
 extern int vgif;
 extern bool intercept_smi;
-
-enum avic_modes {
-	AVIC_MODE_NONE = 0,
-	AVIC_MODE_X1,
-	AVIC_MODE_X2,
-};
-
-extern enum avic_modes avic_mode;
+extern bool x2avic_enabled;
+extern bool vnmi;
 
 /*
  * Clean bits in VMCB.
@@ -237,8 +231,26 @@ struct vcpu_svm {
 
 	struct svm_nested_state nested;
 
+	/* NMI mask value, used when vNMI is not enabled */
+	bool nmi_masked;
+
+	/*
+	 * True when NMIs are still masked but guest IRET was just intercepted
+	 * and KVM is waiting for RIP to change, which will signal that the
+	 * intercepted IRET was retired and thus NMI can be unmasked.
+	 */
+	bool awaiting_iret_completion;
+
+	/*
+	 * Set when KVM is awaiting IRET completion and needs to inject NMIs as
+	 * soon as the IRET completes (e.g. NMI is pending injection).  KVM
+	 * temporarily steals RFLAGS.TF to single-step the guest in this case
+	 * in order to regain control as soon as the NMI-blocking condition
+	 * goes away.
+	 */
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
+
 	bool nmi_l1_to_l2;
 
 	unsigned long soft_int_csbase;
@@ -254,6 +266,7 @@ struct vcpu_svm {
 	bool pause_filter_enabled         : 1;
 	bool pause_threshold_enabled      : 1;
 	bool vgif_enabled                 : 1;
+	bool vnmi_enabled                 : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -280,6 +293,9 @@ struct vcpu_svm {
 	bool guest_state_loaded;
 
 	bool x2avic_msrs_intercepted;
+
+	/* Guest GIF value, used when vGIF is not enabled */
+	bool guest_gif;
 };
 
 struct svm_cpu_data {
@@ -497,7 +513,7 @@ static inline void enable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl |= V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags |= HF_GIF_MASK;
+		svm->guest_gif = true;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
@@ -507,7 +523,7 @@ static inline void disable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl &= ~V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+		svm->guest_gif = false;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
@@ -517,12 +533,18 @@ static inline bool gif_set(struct vcpu_svm *svm)
 	if (vmcb)
 		return !!(vmcb->control.int_ctl & V_GIF_MASK);
 	else
-		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
+		return svm->guest_gif;
 }
 
 static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 {
 	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
+}
+
+static inline bool nested_vnmi_enabled(struct vcpu_svm *svm)
+{
+	return svm->vnmi_enabled &&
+	       (svm->nested.ctl.int_ctl & V_NMI_ENABLE_MASK);
 }
 
 static inline bool is_x2apic_msrpm_offset(u32 offset)
@@ -532,6 +554,27 @@ static inline bool is_x2apic_msrpm_offset(u32 offset)
 
 	return (msr >= APIC_BASE_MSR) &&
 	       (msr < (APIC_BASE_MSR + 0x100));
+}
+
+static inline struct vmcb *get_vnmi_vmcb_l1(struct vcpu_svm *svm)
+{
+	if (!vnmi)
+		return NULL;
+
+	if (is_guest_mode(&svm->vcpu))
+		return NULL;
+	else
+		return svm->vmcb01.ptr;
+}
+
+static inline bool is_vnmi_enabled(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = get_vnmi_vmcb_l1(svm);
+
+	if (vmcb)
+		return !!(vmcb->control.int_ctl & V_NMI_ENABLE_MASK);
+	else
+		return false;
 }
 
 /* svm.c */
@@ -628,8 +671,23 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb);
 extern struct kvm_x86_nested_ops svm_nested_ops;
 
 /* avic.c */
+#define AVIC_REQUIRED_APICV_INHIBITS			\
+(							\
+	BIT(APICV_INHIBIT_REASON_DISABLE) |		\
+	BIT(APICV_INHIBIT_REASON_ABSENT) |		\
+	BIT(APICV_INHIBIT_REASON_HYPERV) |		\
+	BIT(APICV_INHIBIT_REASON_NESTED) |		\
+	BIT(APICV_INHIBIT_REASON_IRQWIN) |		\
+	BIT(APICV_INHIBIT_REASON_PIT_REINJ) |		\
+	BIT(APICV_INHIBIT_REASON_BLOCKIRQ) |		\
+	BIT(APICV_INHIBIT_REASON_SEV)      |		\
+	BIT(APICV_INHIBIT_REASON_PHYSICAL_ID_ALIASED) |	\
+	BIT(APICV_INHIBIT_REASON_APIC_ID_MODIFIED) |	\
+	BIT(APICV_INHIBIT_REASON_APIC_BASE_MODIFIED) |	\
+	BIT(APICV_INHIBIT_REASON_LOGICAL_ID_ALIASED)	\
+)
 
-bool avic_hardware_setup(struct kvm_x86_ops *ops);
+bool avic_hardware_setup(void);
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
@@ -641,14 +699,13 @@ void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void avic_vcpu_put(struct kvm_vcpu *vcpu);
 void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
 void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
-bool avic_check_apicv_inhibit_reasons(enum kvm_apicv_inhibit reason);
 int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 			uint32_t guest_irq, bool set);
 void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
 void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 void avic_ring_doorbell(struct kvm_vcpu *vcpu);
 unsigned long avic_vcpu_get_apicv_inhibit_reasons(struct kvm_vcpu *vcpu);
-void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+void avic_refresh_virtual_apic_mode(struct kvm_vcpu *vcpu);
 
 
 /* sev.c */

@@ -49,7 +49,7 @@ struct iommu_test_cmd {
 			__aligned_u64 length;
 		} add_reserved;
 		struct {
-			__u32 out_device_id;
+			__u32 out_stdev_id;
 			__u32 out_hwpt_id;
 		} mock_domain;
 		struct {

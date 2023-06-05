@@ -48,7 +48,7 @@ config SCSI_UFS_CDNS_PLATFORM
 
 config SCSI_UFS_DWC_TC_PLATFORM
 	tristate "DesignWare platform support using a G210 Test Chip"
-	depends on SCSI_UFSHCD_PLATFORM
+	depends on OF && SCSI_UFSHCD_PLATFORM
 	help
 	  Synopsys Test Chip is a PHY for prototyping purposes.
 

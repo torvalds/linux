@@ -197,16 +197,10 @@ static const struct watchdog_ops lpc18xx_wdt_ops = {
 	.restart        = lpc18xx_wdt_restart,
 };
 
-static void lpc18xx_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int lpc18xx_wdt_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt;
 	struct device *dev = &pdev->dev;
-	int ret;
 
 	lpc18xx_wdt = devm_kzalloc(dev, sizeof(*lpc18xx_wdt), GFP_KERNEL);
 	if (!lpc18xx_wdt)
@@ -216,37 +210,17 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(lpc18xx_wdt->base))
 		return PTR_ERR(lpc18xx_wdt->base);
 
-	lpc18xx_wdt->reg_clk = devm_clk_get(dev, "reg");
+	lpc18xx_wdt->reg_clk = devm_clk_get_enabled(dev, "reg");
 	if (IS_ERR(lpc18xx_wdt->reg_clk)) {
 		dev_err(dev, "failed to get the reg clock\n");
 		return PTR_ERR(lpc18xx_wdt->reg_clk);
 	}
 
-	lpc18xx_wdt->wdt_clk = devm_clk_get(dev, "wdtclk");
+	lpc18xx_wdt->wdt_clk = devm_clk_get_enabled(dev, "wdtclk");
 	if (IS_ERR(lpc18xx_wdt->wdt_clk)) {
 		dev_err(dev, "failed to get the wdt clock\n");
 		return PTR_ERR(lpc18xx_wdt->wdt_clk);
 	}
-
-	ret = clk_prepare_enable(lpc18xx_wdt->reg_clk);
-	if (ret) {
-		dev_err(dev, "could not prepare or enable sys clock\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, lpc18xx_clk_disable_unprepare,
-				       lpc18xx_wdt->reg_clk);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(lpc18xx_wdt->wdt_clk);
-	if (ret) {
-		dev_err(dev, "could not prepare or enable wdt clock\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, lpc18xx_clk_disable_unprepare,
-				       lpc18xx_wdt->wdt_clk);
-	if (ret)
-		return ret;
 
 	/* We use the clock rate to calculate timeouts */
 	lpc18xx_wdt->clk_rate = clk_get_rate(lpc18xx_wdt->wdt_clk);
@@ -287,14 +261,12 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &lpc18xx_wdt->wdt_dev);
 }
 
-static int lpc18xx_wdt_remove(struct platform_device *pdev)
+static void lpc18xx_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt = platform_get_drvdata(pdev);
 
 	dev_warn(&pdev->dev, "I quit now, hardware will probably reboot!\n");
 	del_timer_sync(&lpc18xx_wdt->timer);
-
-	return 0;
 }
 
 static const struct of_device_id lpc18xx_wdt_match[] = {
@@ -309,7 +281,7 @@ static struct platform_driver lpc18xx_wdt_driver = {
 		.of_match_table	= lpc18xx_wdt_match,
 	},
 	.probe = lpc18xx_wdt_probe,
-	.remove = lpc18xx_wdt_remove,
+	.remove_new = lpc18xx_wdt_remove,
 };
 module_platform_driver(lpc18xx_wdt_driver);
 

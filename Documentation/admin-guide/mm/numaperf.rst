@@ -1,4 +1,7 @@
-=============
+=======================
+NUMA Memory Performance
+=======================
+
 NUMA Locality
 =============
 
@@ -59,7 +62,6 @@ that are CPUs and hence suitable for generic task scheduling, and
 IO initiators such as GPUs and NICs.  Unlike access class 0, only
 nodes containing CPUs are considered.
 
-================
 NUMA Performance
 ================
 
@@ -94,7 +96,6 @@ for the platform.
 Access class 1 takes the same form but only includes values for CPU to
 memory activity.
 
-==========
 NUMA Cache
 ==========
 
@@ -168,7 +169,6 @@ The "size" is the number of bytes provided by this cache level.
 The "write_policy" will be 0 for write-back, and non-zero for
 write-through caching.
 
-========
 See Also
 ========
 

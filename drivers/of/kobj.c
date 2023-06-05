@@ -24,7 +24,7 @@ static void of_node_release(struct kobject *kobj)
 }
 #endif /* CONFIG_OF_DYNAMIC */
 
-struct kobj_type of_node_ktype = {
+const struct kobj_type of_node_ktype = {
 	.release = of_node_release,
 };
 

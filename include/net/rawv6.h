@@ -6,7 +6,7 @@
 #include <net/raw.h>
 
 extern struct raw_hashinfo raw_v6_hashinfo;
-bool raw_v6_match(struct net *net, struct sock *sk, unsigned short num,
+bool raw_v6_match(struct net *net, const struct sock *sk, unsigned short num,
 		  const struct in6_addr *loc_addr,
 		  const struct in6_addr *rmt_addr, int dif, int sdif);
 

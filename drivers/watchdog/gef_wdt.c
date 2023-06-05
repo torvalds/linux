@@ -283,15 +283,13 @@ static int gef_wdt_probe(struct platform_device *dev)
 	return misc_register(&gef_wdt_miscdev);
 }
 
-static int gef_wdt_remove(struct platform_device *dev)
+static void gef_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&gef_wdt_miscdev);
 
 	gef_wdt_handler_disable();
 
 	iounmap(gef_wdt_regs);
-
-	return 0;
 }
 
 static const struct of_device_id gef_wdt_ids[] = {
@@ -308,7 +306,7 @@ static struct platform_driver gef_wdt_driver = {
 		.of_match_table = gef_wdt_ids,
 	},
 	.probe		= gef_wdt_probe,
-	.remove		= gef_wdt_remove,
+	.remove_new	= gef_wdt_remove,
 };
 
 static int __init gef_wdt_init(void)

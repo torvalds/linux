@@ -142,7 +142,10 @@
 };
 
 &internal_display {
-	status = "disabled";
+	compatible = "elida,kd50t048a", "sitronix,st7701";
+	reset-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+	IOVCC-supply = <&vcc_lcd>;
+	VCC-supply = <&vcc_lcd>;
 };
 
 &rk817_charger {

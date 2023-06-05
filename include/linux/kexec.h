@@ -190,7 +190,6 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 				   void *buf, unsigned int size,
 				   bool get_value);
 void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name);
-void *kexec_image_load_default(struct kimage *image);
 
 #ifndef arch_kexec_kernel_image_probe
 static inline int
@@ -204,13 +203,6 @@ arch_kexec_kernel_image_probe(struct kimage *image, void *buf, unsigned long buf
 static inline int arch_kimage_file_post_load_cleanup(struct kimage *image)
 {
 	return kexec_image_post_load_cleanup_default(image);
-}
-#endif
-
-#ifndef arch_kexec_kernel_image_load
-static inline void *arch_kexec_kernel_image_load(struct kimage *image)
-{
-	return kexec_image_load_default(image);
 }
 #endif
 
@@ -403,7 +395,8 @@ extern int kimage_crash_copy_vmcoreinfo(struct kimage *image);
 
 extern struct kimage *kexec_image;
 extern struct kimage *kexec_crash_image;
-extern int kexec_load_disabled;
+
+bool kexec_load_permitted(int kexec_image_type);
 
 #ifndef kexec_flush_icache_page
 #define kexec_flush_icache_page(page)

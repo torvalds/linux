@@ -64,8 +64,8 @@ Required properties if child node exists:
 Properties for children:
 
 The OMAP HS USB Host subsystem contains EHCI and OHCI controllers.
-See Documentation/devicetree/bindings/usb/ehci-omap.txt and
-Documentation/devicetree/bindings/usb/ohci-omap3.txt.
+See Documentation/devicetree/bindings/usb/generic-ehci.yaml and
+Documentation/devicetree/bindings/usb/generic-ohci.yaml.
 
 Example for OMAP4:
 
@@ -78,14 +78,14 @@ usbhshost: usbhshost@4a064000 {
 	ranges;
 
 	usbhsohci: ohci@4a064800 {
-		compatible = "ti,ohci-omap3", "usb-ohci";
+		compatible = "ti,ohci-omap3";
 		reg = <0x4a064800 0x400>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 76 0x4>;
 	};
 
 	usbhsehci: ehci@4a064c00 {
-		compatible = "ti,ehci-omap", "usb-ehci";
+		compatible = "ti,ehci-omap";
 		reg = <0x4a064c00 0x400>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 77 0x4>;

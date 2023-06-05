@@ -341,7 +341,5 @@ struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 		return ERR_PTR(ret);
 	}
 
-	clk_hw_set_rate_range(hw, PS_PLL_VCO_MIN, PS_PLL_VCO_MAX);
-
 	return hw;
 }

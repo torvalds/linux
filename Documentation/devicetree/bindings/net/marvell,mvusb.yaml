@@ -20,7 +20,7 @@ description: |+
   definition.
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
 properties:
   compatible:

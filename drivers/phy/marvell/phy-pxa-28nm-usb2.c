@@ -331,7 +331,7 @@ static struct platform_driver mv_usb2_phy_driver = {
 	.probe	= mv_usb2_phy_probe,
 	.driver = {
 		.name   = "mv-usb2-phy",
-		.of_match_table = of_match_ptr(mv_usbphy_dt_match),
+		.of_match_table = mv_usbphy_dt_match,
 	},
 };
 module_platform_driver(mv_usb2_phy_driver);

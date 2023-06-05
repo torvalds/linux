@@ -32,7 +32,7 @@ properties:
     maxItems: 1
 
   clock-names:
-    const: "mclk"
+    const: mclk
 
   powerdown-gpios:
     description: GPIO used for hardware power-down.

@@ -357,7 +357,7 @@ free_child:
 	return ret;
 }
 
-static int imx8qxp_pc_bridge_remove(struct platform_device *pdev)
+static void imx8qxp_pc_bridge_remove(struct platform_device *pdev)
 {
 	struct imx8qxp_pc *pc = platform_get_drvdata(pdev);
 	struct imx8qxp_pc_channel *ch;
@@ -374,8 +374,6 @@ static int imx8qxp_pc_bridge_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused imx8qxp_pc_runtime_suspend(struct device *dev)
@@ -435,7 +433,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_pc_dt_ids);
 
 static struct platform_driver imx8qxp_pc_bridge_driver = {
 	.probe	= imx8qxp_pc_bridge_probe,
-	.remove = imx8qxp_pc_bridge_remove,
+	.remove_new = imx8qxp_pc_bridge_remove,
 	.driver	= {
 		.pm = &imx8qxp_pc_pm_ops,
 		.name = DRIVER_NAME,

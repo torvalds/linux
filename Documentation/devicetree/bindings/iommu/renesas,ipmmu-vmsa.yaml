@@ -49,6 +49,7 @@ properties:
           - enum:
               - renesas,ipmmu-r8a779a0           # R-Car V3U
               - renesas,ipmmu-r8a779f0           # R-Car S4-8
+              - renesas,ipmmu-r8a779g0           # R-Car V4H
           - const: renesas,rcar-gen4-ipmmu-vmsa  # R-Car Gen4
 
   reg:
@@ -73,16 +74,16 @@ properties:
   renesas,ipmmu-main:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - items:
+      - minItems: 1
+        items:
           - description: phandle to main IPMMU
-          - description: the interrupt bit number associated with the particular
-              cache IPMMU device. The interrupt bit number needs to match the main
-              IPMMU IMSSTR register. Only used by cache IPMMU instances.
+          - description:
+              The interrupt bit number associated with the particular cache
+              IPMMU device. If present, the interrupt bit number needs to match
+              the main IPMMU IMSSTR register. Only used by cache IPMMU
+              instances.
     description:
-      Reference to the main IPMMU phandle plus 1 cell. The cell is
-      the interrupt bit number associated with the particular cache IPMMU
-      device. The interrupt bit number needs to match the main IPMMU IMSSTR
-      register. Only used by cache IPMMU instances.
+      Reference to the main IPMMU.
 
 required:
   - compatible
@@ -107,6 +108,22 @@ allOf:
     then:
       required:
         - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rcar-gen4-ipmmu-vmsa
+    then:
+      properties:
+        renesas,ipmmu-main:
+          items:
+            - maxItems: 1
+    else:
+      properties:
+        renesas,ipmmu-main:
+          items:
+            - minItems: 2
 
 examples:
   - |

@@ -34,6 +34,11 @@ static u32 gve_get_msglevel(struct net_device *netdev)
 	return priv->msg_enable;
 }
 
+/* For the following stats column string names, make sure the order
+ * matches how it is filled in the code. For xdp_aborted, xdp_drop,
+ * xdp_pass, xdp_tx, xdp_redirect, make sure it also matches the order
+ * as declared in enum xdp_action inside file uapi/linux/bpf.h .
+ */
 static const char gve_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "tx_packets", "rx_bytes", "tx_bytes",
 	"rx_dropped", "tx_dropped", "tx_timeouts",
@@ -49,12 +54,16 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
 	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
 	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
+	"rx_xdp_aborted[%u]", "rx_xdp_drop[%u]", "rx_xdp_pass[%u]",
+	"rx_xdp_tx[%u]", "rx_xdp_redirect[%u]",
+	"rx_xdp_tx_errors[%u]", "rx_xdp_redirect_errors[%u]", "rx_xdp_alloc_fails[%u]",
 };
 
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
 	"tx_posted_desc[%u]", "tx_completed_desc[%u]", "tx_consumed_desc[%u]", "tx_bytes[%u]",
 	"tx_wake[%u]", "tx_stop[%u]", "tx_event_counter[%u]",
-	"tx_dma_mapping_error[%u]",
+	"tx_dma_mapping_error[%u]", "tx_xsk_wakeup[%u]",
+	"tx_xsk_done[%u]", "tx_xsk_sent[%u]", "tx_xdp_xmit[%u]", "tx_xdp_xmit_errors[%u]"
 };
 
 static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
@@ -81,8 +90,10 @@ static void gve_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 	char *s = (char *)data;
+	int num_tx_queues;
 	int i, j;
 
+	num_tx_queues = gve_num_tx_queues(priv);
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(s, *gve_gstrings_main_stats,
@@ -97,7 +108,7 @@ static void gve_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			}
 		}
 
-		for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+		for (i = 0; i < num_tx_queues; i++) {
 			for (j = 0; j < NUM_GVE_TX_CNTS; j++) {
 				snprintf(s, ETH_GSTRING_LEN,
 					 gve_gstrings_tx_stats[j], i);
@@ -124,12 +135,14 @@ static void gve_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 static int gve_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
+	int num_tx_queues;
 
+	num_tx_queues = gve_num_tx_queues(priv);
 	switch (sset) {
 	case ETH_SS_STATS:
 		return GVE_MAIN_STATS_LEN + GVE_ADMINQ_STATS_LEN +
 		       (priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS) +
-		       (priv->tx_cfg.num_queues * NUM_GVE_TX_CNTS);
+		       (num_tx_queues * NUM_GVE_TX_CNTS);
 	case ETH_SS_PRIV_FLAGS:
 		return GVE_PRIV_FLAGS_STR_LEN;
 	default:
@@ -153,18 +166,20 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	struct gve_priv *priv;
 	bool skip_nic_stats;
 	unsigned int start;
+	int num_tx_queues;
 	int ring;
 	int i, j;
 
 	ASSERT_RTNL();
 
 	priv = netdev_priv(netdev);
+	num_tx_queues = gve_num_tx_queues(priv);
 	report_stats = priv->stats_report->stats;
 	rx_qid_to_stats_idx = kmalloc_array(priv->rx_cfg.num_queues,
 					    sizeof(int), GFP_KERNEL);
 	if (!rx_qid_to_stats_idx)
 		return;
-	tx_qid_to_stats_idx = kmalloc_array(priv->tx_cfg.num_queues,
+	tx_qid_to_stats_idx = kmalloc_array(num_tx_queues,
 					    sizeof(int), GFP_KERNEL);
 	if (!tx_qid_to_stats_idx) {
 		kfree(rx_qid_to_stats_idx);
@@ -195,7 +210,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		}
 	}
 	for (tx_pkts = 0, tx_bytes = 0, tx_dropped = 0, ring = 0;
-	     ring < priv->tx_cfg.num_queues; ring++) {
+	     ring < num_tx_queues; ring++) {
 		if (priv->tx) {
 			do {
 				start =
@@ -232,7 +247,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	i = GVE_MAIN_STATS_LEN;
 
 	/* For rx cross-reporting stats, start from nic rx stats in report */
-	base_stats_idx = GVE_TX_STATS_REPORT_NUM * priv->tx_cfg.num_queues +
+	base_stats_idx = GVE_TX_STATS_REPORT_NUM * num_tx_queues +
 		GVE_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues;
 	max_stats_idx = NIC_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues +
 		base_stats_idx;
@@ -283,14 +298,26 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			if (skip_nic_stats) {
 				/* skip NIC rx stats */
 				i += NIC_RX_STATS_REPORT_NUM;
-				continue;
-			}
-			for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
-				u64 value =
-				be64_to_cpu(report_stats[rx_qid_to_stats_idx[ring] + j].value);
+			} else {
+				stats_idx = rx_qid_to_stats_idx[ring];
+				for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
+					u64 value =
+						be64_to_cpu(report_stats[stats_idx + j].value);
 
-				data[i++] = value;
+					data[i++] = value;
+				}
 			}
+			/* XDP rx counters */
+			do {
+				start =	u64_stats_fetch_begin(&priv->rx[ring].statss);
+				for (j = 0; j < GVE_XDP_ACTIONS; j++)
+					data[i + j] = rx->xdp_actions[j];
+				data[i + j++] = rx->xdp_tx_errors;
+				data[i + j++] = rx->xdp_redirect_errors;
+				data[i + j++] = rx->xdp_alloc_fails;
+			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
+						       start));
+			i += GVE_XDP_ACTIONS + 3; /* XDP rx counters */
 		}
 	} else {
 		i += priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS;
@@ -298,7 +325,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 
 	/* For tx cross-reporting stats, start from nic tx stats in report */
 	base_stats_idx = max_stats_idx;
-	max_stats_idx = NIC_TX_STATS_REPORT_NUM * priv->tx_cfg.num_queues +
+	max_stats_idx = NIC_TX_STATS_REPORT_NUM * num_tx_queues +
 		max_stats_idx;
 	/* Preprocess the stats report for tx, map queue id to start index */
 	skip_nic_stats = false;
@@ -316,7 +343,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	}
 	/* walk TX rings */
 	if (priv->tx) {
-		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
+		for (ring = 0; ring < num_tx_queues; ring++) {
 			struct gve_tx_ring *tx = &priv->tx[ring];
 
 			if (gve_is_gqi(priv)) {
@@ -346,16 +373,28 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			if (skip_nic_stats) {
 				/* skip NIC tx stats */
 				i += NIC_TX_STATS_REPORT_NUM;
-				continue;
+			} else {
+				stats_idx = tx_qid_to_stats_idx[ring];
+				for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
+					u64 value =
+						be64_to_cpu(report_stats[stats_idx + j].value);
+					data[i++] = value;
+				}
 			}
-			for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
-				u64 value =
-				be64_to_cpu(report_stats[tx_qid_to_stats_idx[ring] + j].value);
-				data[i++] = value;
-			}
+			/* XDP xsk counters */
+			data[i++] = tx->xdp_xsk_wakeup;
+			data[i++] = tx->xdp_xsk_done;
+			do {
+				start = u64_stats_fetch_begin(&priv->tx[ring].statss);
+				data[i] = tx->xdp_xsk_sent;
+				data[i + 1] = tx->xdp_xmit;
+				data[i + 2] = tx->xdp_xmit_errors;
+			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
+						       start));
+			i += 3; /* XDP tx counters */
 		}
 	} else {
-		i += priv->tx_cfg.num_queues * NUM_GVE_TX_CNTS;
+		i += num_tx_queues * NUM_GVE_TX_CNTS;
 	}
 
 	kfree(rx_qid_to_stats_idx);
@@ -411,6 +450,12 @@ static int gve_set_channels(struct net_device *netdev,
 
 	if (!new_rx || !new_tx)
 		return -EINVAL;
+
+	if (priv->num_xdp_queues &&
+	    (new_tx != new_rx || (2 * new_tx > priv->tx_cfg.max_queues))) {
+		dev_err(&priv->pdev->dev, "XDP load failed: The number of configured RX queues should be equal to the number of configured TX queues and the number of configured RX/TX queues should be less than or equal to half the maximum number of RX/TX queues");
+		return -EINVAL;
+	}
 
 	if (!netif_carrier_ok(netdev)) {
 		priv->tx_cfg.num_queues = new_tx;
@@ -502,7 +547,9 @@ static int gve_set_priv_flags(struct net_device *netdev, u32 flags)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 	u64 ori_flags, new_flags;
+	int num_tx_queues;
 
+	num_tx_queues = gve_num_tx_queues(priv);
 	ori_flags = READ_ONCE(priv->ethtool_flags);
 	new_flags = ori_flags;
 
@@ -522,7 +569,7 @@ static int gve_set_priv_flags(struct net_device *netdev, u32 flags)
 	/* delete report stats timer. */
 	if (!(flags & BIT(0)) && (ori_flags & BIT(0))) {
 		int tx_stats_num = GVE_TX_STATS_REPORT_NUM *
-			priv->tx_cfg.num_queues;
+			num_tx_queues;
 		int rx_stats_num = GVE_RX_STATS_REPORT_NUM *
 			priv->rx_cfg.num_queues;
 
@@ -537,7 +584,10 @@ static int gve_get_link_ksettings(struct net_device *netdev,
 				  struct ethtool_link_ksettings *cmd)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
-	int err = gve_adminq_report_link_speed(priv);
+	int err = 0;
+
+	if (priv->link_speed == 0)
+		err = gve_adminq_report_link_speed(priv);
 
 	cmd->base.speed = priv->link_speed;
 	return err;

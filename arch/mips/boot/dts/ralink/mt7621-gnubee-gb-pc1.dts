@@ -33,13 +33,13 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-power {
 			label = "green:power";
 			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		system {
+		led-system {
 			label = "green:system";
 			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "disk-activity";
@@ -91,22 +91,16 @@
 	status = "okay";
 };
 
-&gmac1 {
-	status = "okay";
-	phy-handle = <&ethphy4>;
-};
-
-&mdio {
-	ethphy4: ethernet-phy@4 {
-		reg = <4>;
-	};
-};
-
 &switch0 {
 	ports {
 		port@0 {
 			status = "okay";
 			label = "ethblack";
+		};
+
+		port@4 {
+			status = "okay";
+			label = "ethblue";
 		};
 	};
 };

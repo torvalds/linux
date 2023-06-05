@@ -185,16 +185,17 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_adinicb_writepage(struct page *page,
+static int udf_adinicb_writepage(struct folio *folio,
 				 struct writeback_control *wbc, void *data)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	BUG_ON(!PageLocked(page));
-	memcpy_to_page(page, 0, iinfo->i_data + iinfo->i_lenEAttr,
+	BUG_ON(!folio_test_locked(folio));
+	BUG_ON(folio->index != 0);
+	memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio, 0,
 		       i_size_read(inode));
-	unlock_page(page);
+	folio_unlock(folio);
 	mark_inode_dirty(inode);
 
 	return 0;
@@ -240,6 +241,15 @@ static int udf_read_folio(struct file *file, struct folio *folio)
 
 static void udf_readahead(struct readahead_control *rac)
 {
+	struct udf_inode_info *iinfo = UDF_I(rac->mapping->host);
+
+	/*
+	 * No readahead needed for in-ICB files and udf_get_block() would get
+	 * confused for such file anyway.
+	 */
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return;
+
 	mpage_readahead(rac, udf_get_block);
 }
 
@@ -405,6 +415,9 @@ static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 {
 	int err;
 	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	if (WARN_ON_ONCE(iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB))
+		return -EFSCORRUPTED;
 
 	map->oflags = 0;
 	if (!(map->iflags & UDF_MAP_CREATE)) {

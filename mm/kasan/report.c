@@ -72,16 +72,48 @@ static int __init kasan_set_multi_shot(char *str)
 __setup("kasan_multi_shot", kasan_set_multi_shot);
 
 /*
- * Used to suppress reports within kasan_disable/enable_current() critical
- * sections, which are used for marking accesses to slab metadata.
+ * This function is used to check whether KASAN reports are suppressed for
+ * software KASAN modes via kasan_disable/enable_current() critical sections.
+ *
+ * This is done to avoid:
+ * 1. False-positive reports when accessing slab metadata,
+ * 2. Deadlocking when poisoned memory is accessed by the reporting code.
+ *
+ * Hardware Tag-Based KASAN instead relies on:
+ * For #1: Resetting tags via kasan_reset_tag().
+ * For #2: Suppression of tag checks via CPU, see report_suppress_start/end().
  */
-static bool report_suppressed(void)
+static bool report_suppressed_sw(void)
 {
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	if (current->kasan_depth)
 		return true;
 #endif
 	return false;
+}
+
+static void report_suppress_start(void)
+{
+#ifdef CONFIG_KASAN_HW_TAGS
+	/*
+	 * Disable preemption for the duration of printing a KASAN report, as
+	 * hw_suppress_tag_checks_start() disables checks on the current CPU.
+	 */
+	preempt_disable();
+	hw_suppress_tag_checks_start();
+#else
+	kasan_disable_current();
+#endif
+}
+
+static void report_suppress_stop(void)
+{
+#ifdef CONFIG_KASAN_HW_TAGS
+	hw_suppress_tag_checks_stop();
+	preempt_enable();
+#else
+	kasan_enable_current();
+#endif
 }
 
 /*
@@ -174,7 +206,7 @@ static void start_report(unsigned long *flags, bool sync)
 	/* Do not allow LOCKDEP mangling KASAN reports. */
 	lockdep_off();
 	/* Make sure we don't end up in loop. */
-	kasan_disable_current();
+	report_suppress_start();
 	spin_lock_irqsave(&report_lock, *flags);
 	pr_err("==================================================================\n");
 }
@@ -192,7 +224,7 @@ static void end_report(unsigned long *flags, void *addr)
 		panic("kasan.fault=panic set ...\n");
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	lockdep_on();
-	kasan_enable_current();
+	report_suppress_stop();
 }
 
 static void print_error_description(struct kasan_report_info *info)
@@ -231,33 +263,46 @@ static inline struct page *addr_to_page(const void *addr)
 	return NULL;
 }
 
-static void describe_object_addr(const void *addr, struct kmem_cache *cache,
-				 void *object)
+static void describe_object_addr(const void *addr, struct kasan_report_info *info)
 {
 	unsigned long access_addr = (unsigned long)addr;
-	unsigned long object_addr = (unsigned long)object;
-	const char *rel_type;
+	unsigned long object_addr = (unsigned long)info->object;
+	const char *rel_type, *region_state = "";
 	int rel_bytes;
 
 	pr_err("The buggy address belongs to the object at %px\n"
 	       " which belongs to the cache %s of size %d\n",
-		object, cache->name, cache->object_size);
+		info->object, info->cache->name, info->cache->object_size);
 
 	if (access_addr < object_addr) {
 		rel_type = "to the left";
 		rel_bytes = object_addr - access_addr;
-	} else if (access_addr >= object_addr + cache->object_size) {
+	} else if (access_addr >= object_addr + info->alloc_size) {
 		rel_type = "to the right";
-		rel_bytes = access_addr - (object_addr + cache->object_size);
+		rel_bytes = access_addr - (object_addr + info->alloc_size);
 	} else {
 		rel_type = "inside";
 		rel_bytes = access_addr - object_addr;
 	}
 
+	/*
+	 * Tag-Based modes use the stack ring to infer the bug type, but the
+	 * memory region state description is generated based on the metadata.
+	 * Thus, defining the region state as below can contradict the metadata.
+	 * Fixing this requires further improvements, so only infer the state
+	 * for the Generic mode.
+	 */
+	if (IS_ENABLED(CONFIG_KASAN_GENERIC)) {
+		if (strcmp(info->bug_type, "slab-out-of-bounds") == 0)
+			region_state = "allocated ";
+		else if (strcmp(info->bug_type, "slab-use-after-free") == 0)
+			region_state = "freed ";
+	}
+
 	pr_err("The buggy address is located %d bytes %s of\n"
-	       " %d-byte region [%px, %px)\n",
-		rel_bytes, rel_type, cache->object_size, (void *)object_addr,
-		(void *)(object_addr + cache->object_size));
+	       " %s%zu-byte region [%px, %px)\n",
+	       rel_bytes, rel_type, region_state, info->alloc_size,
+	       (void *)object_addr, (void *)(object_addr + info->alloc_size));
 }
 
 static void describe_object_stacks(struct kasan_report_info *info)
@@ -279,7 +324,7 @@ static void describe_object(const void *addr, struct kasan_report_info *info)
 {
 	if (kasan_stack_collection_enabled())
 		describe_object_stacks(info);
-	describe_object_addr(addr, info->cache, info->object);
+	describe_object_addr(addr, info);
 }
 
 static inline bool kernel_or_module_addr(const void *addr)
@@ -436,6 +481,12 @@ static void complete_report_info(struct kasan_report_info *info)
 	if (slab) {
 		info->cache = slab->slab_cache;
 		info->object = nearest_obj(info->cache, slab, addr);
+
+		/* Try to determine allocation size based on the metadata. */
+		info->alloc_size = kasan_get_alloc_size(info->object, info->cache);
+		/* Fallback to the object size if failed. */
+		if (!info->alloc_size)
+			info->alloc_size = info->cache->object_size;
 	} else
 		info->cache = info->object = NULL;
 
@@ -461,9 +512,13 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_ty
 	struct kasan_report_info info;
 
 	/*
-	 * Do not check report_suppressed(), as an invalid-free cannot be
-	 * caused by accessing slab metadata and thus should not be
-	 * suppressed by kasan_disable/enable_current() critical sections.
+	 * Do not check report_suppressed_sw(), as an invalid-free cannot be
+	 * caused by accessing poisoned memory and thus should not be suppressed
+	 * by kasan_disable/enable_current() critical sections.
+	 *
+	 * Note that for Hardware Tag-Based KASAN, kasan_report_invalid_free()
+	 * is triggered by explicit tag checks and not by the ones performed by
+	 * the CPU. Thus, reporting invalid-free is not suppressed as well.
 	 */
 	if (unlikely(!report_enabled()))
 		return;
@@ -498,7 +553,7 @@ bool kasan_report(unsigned long addr, size_t size, bool is_write,
 	unsigned long irq_flags;
 	struct kasan_report_info info;
 
-	if (unlikely(report_suppressed()) || unlikely(!report_enabled())) {
+	if (unlikely(report_suppressed_sw()) || unlikely(!report_enabled())) {
 		ret = false;
 		goto out;
 	}
@@ -530,8 +585,9 @@ void kasan_report_async(void)
 	unsigned long flags;
 
 	/*
-	 * Do not check report_suppressed(), as kasan_disable/enable_current()
-	 * critical sections do not affect Hardware Tag-Based KASAN.
+	 * Do not check report_suppressed_sw(), as
+	 * kasan_disable/enable_current() critical sections do not affect
+	 * Hardware Tag-Based KASAN.
 	 */
 	if (unlikely(!report_enabled()))
 		return;

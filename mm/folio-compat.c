@@ -6,6 +6,7 @@
 
 #include <linux/migrate.h>
 #include <linux/pagemap.h>
+#include <linux/rmap.h>
 #include <linux/swap.h>
 #include "internal.h"
 
@@ -96,8 +97,8 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 	struct folio *folio;
 
 	folio = __filemap_get_folio(mapping, index, fgp_flags, gfp);
-	if (!folio || xa_is_value(folio))
-		return &folio->page;
+	if (IS_ERR(folio))
+		return NULL;
 	return folio_file_page(folio, index);
 }
 EXPORT_SYMBOL(pagecache_get_page);
@@ -105,17 +106,15 @@ EXPORT_SYMBOL(pagecache_get_page);
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
 					pgoff_t index)
 {
-	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
-
-	return pagecache_get_page(mapping, index, fgp_flags,
+	return pagecache_get_page(mapping, index, FGP_WRITEBEGIN,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);
 
-int isolate_lru_page(struct page *page)
+bool isolate_lru_page(struct page *page)
 {
 	if (WARN_RATELIMIT(PageTail(page), "trying to isolate tail page"))
-		return -EBUSY;
+		return false;
 	return folio_isolate_lru((struct folio *)page);
 }
 
@@ -123,3 +122,13 @@ void putback_lru_page(struct page *page)
 {
 	folio_putback_lru(page_folio(page));
 }
+
+#ifdef CONFIG_MMU
+void page_add_new_anon_rmap(struct page *page, struct vm_area_struct *vma,
+		unsigned long address)
+{
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
+	return folio_add_new_anon_rmap((struct folio *)page, vma, address);
+}
+#endif

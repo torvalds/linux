@@ -272,13 +272,13 @@ int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr)
 
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_ON:
-		port->ptp_cmd = IFH_REW_OP_TWO_STEP_PTP;
+		port->ptp_tx_cmd = IFH_REW_OP_TWO_STEP_PTP;
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		port->ptp_cmd = IFH_REW_OP_ONE_STEP_PTP;
+		port->ptp_tx_cmd = IFH_REW_OP_ONE_STEP_PTP;
 		break;
 	case HWTSTAMP_TX_OFF:
-		port->ptp_cmd = IFH_REW_OP_NOOP;
+		port->ptp_tx_cmd = IFH_REW_OP_NOOP;
 		break;
 	default:
 		return -ERANGE;
@@ -286,6 +286,7 @@ int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr)
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
+		port->ptp_rx_cmd = false;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -301,6 +302,7 @@ int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
+		port->ptp_rx_cmd = true;
 		cfg.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -332,7 +334,7 @@ static int lan966x_ptp_classify(struct lan966x_port *port, struct sk_buff *skb)
 	u8 msgtype;
 	int type;
 
-	if (port->ptp_cmd == IFH_REW_OP_NOOP)
+	if (port->ptp_tx_cmd == IFH_REW_OP_NOOP)
 		return IFH_REW_OP_NOOP;
 
 	type = ptp_classify_raw(skb);
@@ -343,7 +345,7 @@ static int lan966x_ptp_classify(struct lan966x_port *port, struct sk_buff *skb)
 	if (!header)
 		return IFH_REW_OP_NOOP;
 
-	if (port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
+	if (port->ptp_tx_cmd == IFH_REW_OP_TWO_STEP_PTP)
 		return IFH_REW_OP_TWO_STEP_PTP;
 
 	/* If it is sync and run 1 step then set the correct operation,
@@ -1009,9 +1011,6 @@ static int lan966x_ptp_phc_init(struct lan966x *lan966x,
 	phc->index = index;
 	phc->lan966x = lan966x;
 
-	/* PTP Rx stamping is always enabled.  */
-	phc->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-
 	return 0;
 }
 
@@ -1088,14 +1087,15 @@ void lan966x_ptp_deinit(struct lan966x *lan966x)
 }
 
 void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
-			  u64 timestamp)
+			  u64 src_port, u64 timestamp)
 {
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct lan966x_phc *phc;
 	struct timespec64 ts;
 	u64 full_ts_in_ns;
 
-	if (!lan966x->ptp)
+	if (!lan966x->ptp ||
+	    !lan966x->ports[src_port]->ptp_rx_cmd)
 		return;
 
 	phc = &lan966x->phc[LAN966X_PHC_PORT];

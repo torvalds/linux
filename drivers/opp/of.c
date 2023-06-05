@@ -13,7 +13,7 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/device.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -196,6 +196,8 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	/* Let's do the linking later on */
 	if (lazy)
 		list_add(&opp_table->lazy, &lazy_opp_tables);
+	else
+		_update_set_required_opps(opp_table);
 
 	goto put_np;
 
@@ -224,7 +226,7 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	of_property_read_u32(np, "voltage-tolerance",
 			     &opp_table->voltage_tolerance_v1);
 
-	if (of_find_property(np, "#power-domain-cells", NULL))
+	if (of_property_present(np, "#power-domain-cells"))
 		opp_table->is_genpd = true;
 
 	/* Get OPP table node */
@@ -411,6 +413,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 
 		/* All required opp-tables found, remove from lazy list */
 		if (!lazy) {
+			_update_set_required_opps(opp_table);
 			list_del_init(&opp_table->lazy);
 
 			list_for_each_entry(opp, &opp_table->opp_list, node)
@@ -536,7 +539,7 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 		 * an OPP then the OPP should not be enabled as there is
 		 * no way to see if the hardware supports it.
 		 */
-		if (of_find_property(np, "opp-supported-hw", NULL))
+		if (of_property_present(np, "opp-supported-hw"))
 			return false;
 		else
 			return true;

@@ -18,42 +18,12 @@
 
 #include <soc/mscc/ocelot.h>
 #include <soc/mscc/ocelot_vcap.h>
-#include <soc/mscc/ocelot_hsio.h>
 #include <soc/mscc/vsc7514_regs.h>
 #include "ocelot_fdma.h"
 #include "ocelot.h"
 
 #define VSC7514_VCAP_POLICER_BASE			128
 #define VSC7514_VCAP_POLICER_MAX			191
-
-static void ocelot_pll5_init(struct ocelot *ocelot)
-{
-	/* Configure PLL5. This will need a proper CCF driver
-	 * The values are coming from the VTSS API for Ocelot
-	 */
-	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG4,
-		     HSIO_PLL5G_CFG4_IB_CTRL(0x7600) |
-		     HSIO_PLL5G_CFG4_IB_BIAS_CTRL(0x8));
-	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG0,
-		     HSIO_PLL5G_CFG0_CORE_CLK_DIV(0x11) |
-		     HSIO_PLL5G_CFG0_CPU_CLK_DIV(2) |
-		     HSIO_PLL5G_CFG0_ENA_BIAS |
-		     HSIO_PLL5G_CFG0_ENA_VCO_BUF |
-		     HSIO_PLL5G_CFG0_ENA_CP1 |
-		     HSIO_PLL5G_CFG0_SELCPI(2) |
-		     HSIO_PLL5G_CFG0_LOOP_BW_RES(0xe) |
-		     HSIO_PLL5G_CFG0_SELBGV820(4) |
-		     HSIO_PLL5G_CFG0_DIV4 |
-		     HSIO_PLL5G_CFG0_ENA_CLKTREE |
-		     HSIO_PLL5G_CFG0_ENA_LANE);
-	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG2,
-		     HSIO_PLL5G_CFG2_EN_RESET_FRQ_DET |
-		     HSIO_PLL5G_CFG2_EN_RESET_OVERRUN |
-		     HSIO_PLL5G_CFG2_GAIN_TEST(0x8) |
-		     HSIO_PLL5G_CFG2_ENA_AMPCTRL |
-		     HSIO_PLL5G_CFG2_PWD_AMPCTRL_N |
-		     HSIO_PLL5G_CFG2_AMPC_SEL(0x10));
-}
 
 static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 {

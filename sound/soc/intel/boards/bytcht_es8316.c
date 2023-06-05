@@ -628,7 +628,7 @@ err_put_codec:
 	return ret;
 }
 
-static int snd_byt_cht_es8316_mc_remove(struct platform_device *pdev)
+static void snd_byt_cht_es8316_mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
@@ -636,7 +636,6 @@ static int snd_byt_cht_es8316_mc_remove(struct platform_device *pdev)
 	gpiod_put(priv->speaker_en_gpio);
 	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
-	return 0;
 }
 
 static struct platform_driver snd_byt_cht_es8316_mc_driver = {
@@ -644,7 +643,7 @@ static struct platform_driver snd_byt_cht_es8316_mc_driver = {
 		.name = "bytcht_es8316",
 	},
 	.probe = snd_byt_cht_es8316_mc_probe,
-	.remove = snd_byt_cht_es8316_mc_remove,
+	.remove_new = snd_byt_cht_es8316_mc_remove,
 };
 
 module_platform_driver(snd_byt_cht_es8316_mc_driver);

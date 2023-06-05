@@ -200,6 +200,7 @@ static struct platform_driver hi6421v530_regulator_driver = {
 	.id_table = hi6421v530_regulator_table,
 	.driver = {
 		.name	= "hi6421v530-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= hi6421v530_regulator_probe,
 };

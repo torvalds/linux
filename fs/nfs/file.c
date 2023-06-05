@@ -306,15 +306,6 @@ static bool nfs_want_read_modify_write(struct file *file, struct folio *folio,
 	return false;
 }
 
-static struct folio *
-nfs_folio_grab_cache_write_begin(struct address_space *mapping, pgoff_t index)
-{
-	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
-
-	return __filemap_get_folio(mapping, index, fgp_flags,
-				   mapping_gfp_mask(mapping));
-}
-
 /*
  * This does the "real" work of the write. We must allocate and lock the
  * page to be sent back to the generic routine, which then copies the
@@ -335,9 +326,10 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 		file, mapping->host->i_ino, len, (long long) pos);
 
 start:
-	folio = nfs_folio_grab_cache_write_begin(mapping, pos >> PAGE_SHIFT);
-	if (!folio)
-		return -ENOMEM;
+	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+				    mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 	*pagep = &folio->page;
 
 	ret = nfs_flush_incompatible(file, folio);

@@ -1233,7 +1233,7 @@ out_release_framebuffer:
 	return ret;
 }
 
-static int gbefb_remove(struct platform_device* p_dev)
+static void gbefb_remove(struct platform_device* p_dev)
 {
 	struct fb_info *info = platform_get_drvdata(p_dev);
 	struct gbefb_par *par = info->par;
@@ -1243,13 +1243,11 @@ static int gbefb_remove(struct platform_device* p_dev)
 	arch_phys_wc_del(par->wc_cookie);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static struct platform_driver gbefb_driver = {
 	.probe = gbefb_probe,
-	.remove = gbefb_remove,
+	.remove_new = gbefb_remove,
 	.driver	= {
 		.name = "gbefb",
 		.dev_groups	= gbefb_groups,

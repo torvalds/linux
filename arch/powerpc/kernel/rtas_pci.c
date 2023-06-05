@@ -191,10 +191,10 @@ static void python_countermeasures(struct device_node *dev)
 
 void __init init_pci_config_tokens(void)
 {
-	read_pci_config = rtas_token("read-pci-config");
-	write_pci_config = rtas_token("write-pci-config");
-	ibm_read_pci_config = rtas_token("ibm,read-pci-config");
-	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
+	read_pci_config = rtas_function_token(RTAS_FN_READ_PCI_CONFIG);
+	write_pci_config = rtas_function_token(RTAS_FN_WRITE_PCI_CONFIG);
+	ibm_read_pci_config = rtas_function_token(RTAS_FN_IBM_READ_PCI_CONFIG);
+	ibm_write_pci_config = rtas_function_token(RTAS_FN_IBM_WRITE_PCI_CONFIG);
 }
 
 unsigned long get_phb_buid(struct device_node *phb)

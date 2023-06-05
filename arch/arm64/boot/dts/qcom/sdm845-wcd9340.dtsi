@@ -80,7 +80,6 @@
 		pins = "gpio54";
 		function = "gpio";
 
-		input-enable;
 		bias-pull-down;
 		drive-strength = <2>;
 	};

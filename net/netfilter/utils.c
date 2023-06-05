@@ -215,3 +215,55 @@ int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
 	}
 	return ret;
 }
+
+/* Only get and check the lengths, not do any hop-by-hop stuff. */
+int nf_ip6_check_hbh_len(struct sk_buff *skb, u32 *plen)
+{
+	int len, off = sizeof(struct ipv6hdr);
+	unsigned char *nh;
+
+	if (!pskb_may_pull(skb, off + 8))
+		return -ENOMEM;
+	nh = (unsigned char *)(ipv6_hdr(skb) + 1);
+	len = (nh[1] + 1) << 3;
+
+	if (!pskb_may_pull(skb, off + len))
+		return -ENOMEM;
+	nh = skb_network_header(skb);
+
+	off += 2;
+	len -= 2;
+	while (len > 0) {
+		int optlen;
+
+		if (nh[off] == IPV6_TLV_PAD1) {
+			off++;
+			len--;
+			continue;
+		}
+		if (len < 2)
+			return -EBADMSG;
+		optlen = nh[off + 1] + 2;
+		if (optlen > len)
+			return -EBADMSG;
+
+		if (nh[off] == IPV6_TLV_JUMBO) {
+			u32 pkt_len;
+
+			if (nh[off + 1] != 4 || (off & 3) != 2)
+				return -EBADMSG;
+			pkt_len = ntohl(*(__be32 *)(nh + off + 2));
+			if (pkt_len <= IPV6_MAXPLEN ||
+			    ipv6_hdr(skb)->payload_len)
+				return -EBADMSG;
+			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
+				return -EBADMSG;
+			*plen = pkt_len;
+		}
+		off += optlen;
+		len -= optlen;
+	}
+
+	return len ? -EBADMSG : 0;
+}
+EXPORT_SYMBOL_GPL(nf_ip6_check_hbh_len);

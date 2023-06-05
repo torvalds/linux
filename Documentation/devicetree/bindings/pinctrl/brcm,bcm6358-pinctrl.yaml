@@ -35,7 +35,7 @@ patternProperties:
                 led_grp, spi_cs_grp, utopia_grp, pwm_syn_clk, sys_irq_grp ]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

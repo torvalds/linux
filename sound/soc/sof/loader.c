@@ -123,7 +123,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 					       "fw_version", 0444);
 		/* errors are only due to memory allocation, not debugfs */
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: snd_sof_debugfs_buf_item failed\n");
+			dev_err(sdev->dev, "snd_sof_debugfs_buf_item failed\n");
 			return ret;
 		}
 	}
@@ -131,7 +131,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	/* perform pre fw run operations */
 	ret = snd_sof_dsp_pre_fw_run(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed pre fw run op\n");
+		dev_err(sdev->dev, "failed pre fw run op\n");
 		return ret;
 	}
 

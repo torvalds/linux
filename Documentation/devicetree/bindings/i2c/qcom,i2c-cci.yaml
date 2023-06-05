@@ -12,14 +12,24 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - qcom,msm8226-cci
-      - qcom,msm8916-cci
-      - qcom,msm8974-cci
-      - qcom,msm8996-cci
-      - qcom,sdm845-cci
-      - qcom,sm8250-cci
-      - qcom,sm8450-cci
+    oneOf:
+      - enum:
+          - qcom,msm8226-cci
+          - qcom,msm8974-cci
+          - qcom,msm8996-cci
+
+      - items:
+          - enum:
+              - qcom,msm8916-cci
+          - const: qcom,msm8226-cci # CCI v1
+
+      - items:
+          - enum:
+              - qcom,sdm845-cci
+              - qcom,sm6350-cci
+              - qcom,sm8250-cci
+              - qcom,sm8450-cci
+          - const: qcom,msm8996-cci # CCI v2
 
   "#address-cells":
     const: 1
@@ -88,10 +98,12 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - qcom,msm8226-cci
-              - qcom,msm8974-cci
+          oneOf:
+            - contains:
+                enum:
+                  - qcom,msm8974-cci
+
+            - const: qcom,msm8226-cci
     then:
       properties:
         clocks:
@@ -105,10 +117,12 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - qcom,msm8916-cci
-              - qcom,msm8996-cci
+          oneOf:
+            - contains:
+                enum:
+                  - qcom,msm8916-cci
+
+            - const: qcom,msm8996-cci
     then:
       properties:
         clocks:
@@ -126,6 +140,7 @@ allOf:
           contains:
             enum:
               - qcom,sdm845-cci
+              - qcom,sm6350-cci
     then:
       properties:
         clocks:
@@ -169,7 +184,7 @@ examples:
 
     cci@ac4a000 {
         reg = <0x0ac4a000 0x4000>;
-        compatible = "qcom,sdm845-cci";
+        compatible = "qcom,sdm845-cci", "qcom,msm8996-cci";
         #address-cells = <1>;
         #size-cells = <0>;
 

@@ -6,6 +6,11 @@
 # Rewritten to use lists instead of if-statements.
 #
 
+# Some driver Makefiles miss $(srctree)/ for include directive.
+ifdef building_out_of_srctree
+MAKEFLAGS += --include-dir=$(srctree)
+endif
+
 obj-y				+= irqchip/
 obj-y				+= bus/
 
@@ -71,7 +76,7 @@ obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-y				+= base/ block/ misc/ mfd/ nfc/
 obj-$(CONFIG_LIBNVDIMM)		+= nvdimm/
-obj-$(CONFIG_DAX)		+= dax/
+obj-y				+= dax/
 obj-$(CONFIG_DMA_SHARED_BUFFER) += dma-buf/
 obj-$(CONFIG_NUBUS)		+= nubus/
 obj-y				+= cxl/
@@ -189,3 +194,4 @@ obj-$(CONFIG_MOST)		+= most/
 obj-$(CONFIG_PECI)		+= peci/
 obj-$(CONFIG_HTE)		+= hte/
 obj-$(CONFIG_DRM_ACCEL)		+= accel/
+obj-$(CONFIG_CDX_BUS)		+= cdx/

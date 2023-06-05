@@ -1278,7 +1278,7 @@ err_disable_pclk:
 	return ret;
 }
 
-static int cdns_dsi_drm_remove(struct platform_device *pdev)
+static void cdns_dsi_drm_remove(struct platform_device *pdev)
 {
 	struct cdns_dsi *dsi = platform_get_drvdata(pdev);
 
@@ -1288,8 +1288,6 @@ static int cdns_dsi_drm_remove(struct platform_device *pdev)
 		dsi->platform_ops->deinit(dsi);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id cdns_dsi_of_match[] = {
@@ -1303,7 +1301,7 @@ MODULE_DEVICE_TABLE(of, cdns_dsi_of_match);
 
 static struct platform_driver cdns_dsi_platform_driver = {
 	.probe  = cdns_dsi_drm_probe,
-	.remove = cdns_dsi_drm_remove,
+	.remove_new = cdns_dsi_drm_remove,
 	.driver = {
 		.name   = "cdns-dsi",
 		.of_match_table = cdns_dsi_of_match,

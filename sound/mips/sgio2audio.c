@@ -908,17 +908,16 @@ static int snd_sgio2audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snd_sgio2audio_remove(struct platform_device *pdev)
+static void snd_sgio2audio_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
 	snd_card_free(card);
-	return 0;
 }
 
 static struct platform_driver sgio2audio_driver = {
 	.probe	= snd_sgio2audio_probe,
-	.remove	= snd_sgio2audio_remove,
+	.remove_new = snd_sgio2audio_remove,
 	.driver = {
 		.name	= "sgio2audio",
 	}

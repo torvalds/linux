@@ -9,8 +9,11 @@
 
 int err;
 
+#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+private(MASK) static struct bpf_cpumask __kptr * global_mask;
+
 struct __cpumask_map_value {
-	struct bpf_cpumask __kptr_ref * cpumask;
+	struct bpf_cpumask __kptr * cpumask;
 };
 
 struct array_map {
@@ -23,7 +26,6 @@ struct array_map {
 struct bpf_cpumask *bpf_cpumask_create(void) __ksym;
 void bpf_cpumask_release(struct bpf_cpumask *cpumask) __ksym;
 struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask) __ksym;
-struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumask) __ksym;
 u32 bpf_cpumask_first(const struct cpumask *cpumask) __ksym;
 u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
 void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
@@ -50,6 +52,9 @@ bool bpf_cpumask_full(const struct cpumask *cpumask) __ksym;
 void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src) __ksym;
 u32 bpf_cpumask_any(const struct cpumask *src) __ksym;
 u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2) __ksym;
+
+void bpf_rcu_read_lock(void) __ksym;
+void bpf_rcu_read_unlock(void) __ksym;
 
 static inline const struct cpumask *cast(struct bpf_cpumask *cpumask)
 {

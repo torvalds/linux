@@ -301,7 +301,7 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
  */
 static struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status;
 	int retries = 5;
 
@@ -384,7 +384,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
 						 struct kvm_vcpu *vcpu)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
 	struct page *h_page;
@@ -599,9 +599,9 @@ out_unlock:
 static void vfio_ap_matrix_init(struct ap_config_info *info,
 				struct ap_matrix *matrix)
 {
-	matrix->apm_max = info->apxa ? info->Na : 63;
-	matrix->aqm_max = info->apxa ? info->Nd : 15;
-	matrix->adm_max = info->apxa ? info->Nd : 15;
+	matrix->apm_max = info->apxa ? info->na : 63;
+	matrix->aqm_max = info->apxa ? info->nd : 15;
+	matrix->adm_max = info->apxa ? info->nd : 15;
 }
 
 static void vfio_ap_mdev_update_guest_apcb(struct ap_matrix_mdev *matrix_mdev)
@@ -1657,7 +1657,7 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 	if (!q)
 		return 0;
 retry_zapq:
-	status = ap_zapq(q->apqn);
+	status = ap_zapq(q->apqn, 0);
 	q->reset_rc = status.response_code;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
@@ -2115,8 +2115,8 @@ static void vfio_ap_filter_apid_by_qtype(unsigned long *apm, unsigned long *aqm)
 {
 	bool apid_cleared;
 	struct ap_queue_status status;
-	unsigned long apid, apqi, info;
-	int qtype, qtype_mask = 0xff000000;
+	unsigned long apid, apqi;
+	struct ap_tapq_gr2 info;
 
 	for_each_set_bit_inv(apid, apm, AP_DEVICES) {
 		apid_cleared = false;
@@ -2133,15 +2133,13 @@ static void vfio_ap_filter_apid_by_qtype(unsigned long *apm, unsigned long *aqm)
 			case AP_RESPONSE_DECONFIGURED:
 			case AP_RESPONSE_CHECKSTOPPED:
 			case AP_RESPONSE_BUSY:
-				qtype = info & qtype_mask;
-
 				/*
 				 * The vfio_ap device driver only
 				 * supports CEX4 and newer adapters, so
 				 * remove the APID if the adapter is
 				 * older than a CEX4.
 				 */
-				if (qtype < AP_DEVICE_TYPE_CEX4) {
+				if (info.at < AP_DEVICE_TYPE_CEX4) {
 					clear_bit_inv(apid, apm);
 					apid_cleared = true;
 				}

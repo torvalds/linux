@@ -61,9 +61,15 @@ struct std_timing {
 	u8 vfreq_aspect;
 } __attribute__((packed));
 
-#define DRM_EDID_PT_HSYNC_POSITIVE (1 << 1)
-#define DRM_EDID_PT_VSYNC_POSITIVE (1 << 2)
-#define DRM_EDID_PT_SEPARATE_SYNC  (3 << 3)
+#define DRM_EDID_PT_SYNC_MASK              (3 << 3)
+# define DRM_EDID_PT_ANALOG_CSYNC          (0 << 3)
+# define DRM_EDID_PT_BIPOLAR_ANALOG_CSYNC  (1 << 3)
+# define DRM_EDID_PT_DIGITAL_CSYNC         (2 << 3)
+#  define DRM_EDID_PT_CSYNC_ON_RGB         (1 << 1) /* analog csync only */
+#  define DRM_EDID_PT_CSYNC_SERRATE        (1 << 2)
+# define DRM_EDID_PT_DIGITAL_SEPARATE_SYNC (3 << 3)
+#  define DRM_EDID_PT_HSYNC_POSITIVE       (1 << 1) /* also digital csync */
+#  define DRM_EDID_PT_VSYNC_POSITIVE       (1 << 2)
 #define DRM_EDID_PT_STEREO         (1 << 5)
 #define DRM_EDID_PT_INTERLACED     (1 << 7)
 

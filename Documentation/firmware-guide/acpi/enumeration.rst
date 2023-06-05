@@ -19,7 +19,7 @@ possible we decided to do following:
     platform devices.
 
   - Devices behind real busses where there is a connector resource
-    are represented as struct spi_device or struct i2c_device. Note
+    are represented as struct spi_device or struct i2c_client. Note
     that standard UARTs are not busses so there is no struct uart_device,
     although some of them may be represented by struct serdev_device.
 

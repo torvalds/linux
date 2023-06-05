@@ -13,8 +13,13 @@
 # If you really need to reference something from prom_init.o add
 # it to the list below:
 
-grep "^CONFIG_KASAN=y$" ${KCONFIG_CONFIG} >/dev/null
-if [ $? -eq 0 ]
+has_renamed_memintrinsics()
+{
+	grep -q "^CONFIG_KASAN=y$" ${KCONFIG_CONFIG} && \
+		! grep -q "^CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX=y" ${KCONFIG_CONFIG}
+}
+
+if has_renamed_memintrinsics
 then
 	MEM_FUNCS="__memcpy __memset"
 else
@@ -51,11 +56,10 @@ do
 	# a leading . on the name, so strip it off here.
 	UNDEF="${UNDEF#.}"
 
-	if [ $KBUILD_VERBOSE ]; then
-		if [ $KBUILD_VERBOSE -ne 0 ]; then
-			echo "Checking prom_init.o symbol '$UNDEF'"
-		fi
-	fi
+	case "$KBUILD_VERBOSE" in
+	*1*)
+		echo "Checking prom_init.o symbol '$UNDEF'" ;;
+	esac
 
 	OK=0
 	for WHITE in $WHITELIST

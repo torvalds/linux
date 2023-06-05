@@ -28,10 +28,18 @@ typedef hive_uedge *hive_wide;
 /* Copied from SDK: sim_semantics.c */
 
 /* subword bits move like this:         MSB[____xxxx____]LSB -> MSB[00000000xxxx]LSB */
-#define SUBWORD(w, start, end)     (((w) & (((1ULL << ((end) - 1)) - 1) << 1 | 1)) >> (start))
+static inline hive_uedge
+subword(hive_uedge w, unsigned int start, unsigned int end)
+{
+	return (w & (((1ULL << (end - 1)) - 1) << 1 | 1)) >> start;
+}
 
 /* inverse subword bits move like this: MSB[xxxx____xxxx]LSB -> MSB[xxxx0000xxxx]LSB */
-#define INV_SUBWORD(w, start, end) ((w) & (~(((1ULL << ((end) - 1)) - 1) << 1 | 1) | ((1ULL << (start)) - 1)))
+static inline hive_uedge
+inv_subword(hive_uedge w, unsigned int start, unsigned int end)
+{
+	return w & (~(((1ULL << (end - 1)) - 1) << 1 | 1) | ((1ULL << start) - 1));
+}
 
 #define uedge_bits (8 * sizeof(hive_uedge))
 #define move_lower_bits(target, target_bit, src, src_bit) move_subword(target, target_bit, src, 0, src_bit)
@@ -50,18 +58,18 @@ move_subword(
 	unsigned int start_bit  = target_bit % uedge_bits;
 	unsigned int subword_width = src_end - src_start;
 
-	hive_uedge src_subword = SUBWORD(src, src_start, src_end);
+	hive_uedge src_subword = subword(src, src_start, src_end);
 
 	if (subword_width + start_bit > uedge_bits) { /* overlap */
 		hive_uedge old_val1;
-		hive_uedge old_val0 = INV_SUBWORD(target[start_elem], start_bit, uedge_bits);
+		hive_uedge old_val0 = inv_subword(target[start_elem], start_bit, uedge_bits);
 
 		target[start_elem] = old_val0 | (src_subword << start_bit);
-		old_val1 = INV_SUBWORD(target[start_elem + 1], 0,
+		old_val1 = inv_subword(target[start_elem + 1], 0,
 				       subword_width + start_bit - uedge_bits);
 		target[start_elem + 1] = old_val1 | (src_subword >> (uedge_bits - start_bit));
 	} else {
-		hive_uedge old_val = INV_SUBWORD(target[start_elem], start_bit,
+		hive_uedge old_val = inv_subword(target[start_elem], start_bit,
 						 start_bit + subword_width);
 
 		target[start_elem] = old_val | (src_subword << start_bit);

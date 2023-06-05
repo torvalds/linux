@@ -99,6 +99,23 @@ path_to_dentry(struct cifs_sb_info *cifs_sb, const char *path)
 	return dentry;
 }
 
+static const char *path_no_prefix(struct cifs_sb_info *cifs_sb,
+				  const char *path)
+{
+	size_t len = 0;
+
+	if (!*path)
+		return path;
+
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
+	    cifs_sb->prepath) {
+		len = strlen(cifs_sb->prepath) + 1;
+		if (unlikely(len > strlen(path)))
+			return ERR_PTR(-EINVAL);
+	}
+	return path + len;
+}
+
 /*
  * Open the and cache a directory handle.
  * If error then *cfid is not initialized.
@@ -125,6 +142,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct dentry *dentry = NULL;
 	struct cached_fid *cfid;
 	struct cached_fids *cfids;
+	const char *npath;
 
 	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
 	    is_smb1_server(tcon->ses->server))
@@ -161,6 +179,20 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	/*
+	 * Skip any prefix paths in @path as lookup_positive_unlocked() ends up
+	 * calling ->lookup() which already adds those through
+	 * build_path_from_dentry().  Also, do it earlier as we might reconnect
+	 * below when trying to send compounded request and then potentially
+	 * having a different prefix path (e.g. after DFS failover).
+	 */
+	npath = path_no_prefix(cifs_sb, path);
+	if (IS_ERR(npath)) {
+		rc = PTR_ERR(npath);
+		kfree(utf16_path);
+		return rc;
+	}
+
+	/*
 	 * We do not hold the lock for the open because in case
 	 * SMB2_open needs to reconnect.
 	 * This is safe because no other thread will be able to get a ref
@@ -184,6 +216,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
+		.path = path,
 		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE),
 		.desired_access = FILE_READ_ATTRIBUTES,
 		.disposition = FILE_OPEN,
@@ -251,10 +284,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 				(char *)&cfid->file_all_info))
 		cfid->file_all_info_is_valid = true;
 
-	if (!path[0])
+	if (!npath[0])
 		dentry = dget(cifs_sb->root);
 	else {
-		dentry = path_to_dentry(cifs_sb, path);
+		dentry = path_to_dentry(cifs_sb, npath);
 		if (IS_ERR(dentry)) {
 			rc = -ENOENT;
 			goto oshr_free;

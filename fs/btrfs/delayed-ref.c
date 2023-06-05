@@ -53,24 +53,6 @@ bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info)
 	return ret;
 }
 
-int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
-{
-	u64 num_entries =
-		atomic_read(&trans->transaction->delayed_refs.num_entries);
-	u64 avg_runtime;
-	u64 val;
-
-	smp_mb();
-	avg_runtime = trans->fs_info->avg_delayed_ref_runtime;
-	val = num_entries * avg_runtime;
-	if (val >= NSEC_PER_SEC)
-		return 1;
-	if (val >= NSEC_PER_SEC / 2)
-		return 2;
-
-	return btrfs_check_space_for_delayed_refs(trans->fs_info);
-}
-
 /*
  * Release a ref head's reservation.
  *
@@ -83,19 +65,8 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
 void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	u64 num_bytes = btrfs_calc_insert_metadata_size(fs_info, nr);
+	const u64 num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, nr);
 	u64 released = 0;
-
-	/*
-	 * We have to check the mount option here because we could be enabling
-	 * the free space tree for the first time and don't have the compat_ro
-	 * option set yet.
-	 *
-	 * We need extra reservations if we have the free space tree because
-	 * we'll have to modify that tree as well.
-	 */
-	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
-		num_bytes *= 2;
 
 	released = btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
 	if (released)
@@ -118,18 +89,8 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 	if (!trans->delayed_ref_updates)
 		return;
 
-	num_bytes = btrfs_calc_insert_metadata_size(fs_info,
-						    trans->delayed_ref_updates);
-	/*
-	 * We have to check the mount option here because we could be enabling
-	 * the free space tree for the first time and don't have the compat_ro
-	 * option set yet.
-	 *
-	 * We need extra reservations if we have the free space tree because
-	 * we'll have to modify that tree as well.
-	 */
-	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
-		num_bytes *= 2;
+	num_bytes = btrfs_calc_delayed_ref_bytes(fs_info,
+						 trans->delayed_ref_updates);
 
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
@@ -200,7 +161,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 				  enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	u64 limit = btrfs_calc_insert_metadata_size(fs_info, 1);
+	u64 limit = btrfs_calc_delayed_ref_bytes(fs_info, 1);
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
 
@@ -217,7 +178,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
 	if (ret)
 		return ret;
-	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, 0);
+	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, false);
 	trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
 				      0, num_bytes, 1);
 	return 0;

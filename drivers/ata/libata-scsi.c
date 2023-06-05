@@ -4186,7 +4186,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	scsi_done(cmd);
 }
 
-int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
+int ata_scsi_add_hosts(struct ata_host *host, const struct scsi_host_template *sht)
 {
 	int i, rc;
 

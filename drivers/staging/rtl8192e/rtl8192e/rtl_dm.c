@@ -46,7 +46,7 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 	0x5e4332
 };
 
-const u32 dm_tx_bb_gain[TxBBGainTableLength] = {
+const u32 dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN] = {
 	0x7f8001fe, /* 12 dB */
 	0x788001e2, /* 11 dB */
 	0x71c001c7,
@@ -86,7 +86,7 @@ const u32 dm_tx_bb_gain[TxBBGainTableLength] = {
 	0x10000040, /* -24 dB */
 };
 
-const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8] = {
+const u8 dm_cck_tx_bb_gain[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04},
 	{0x33, 0x32, 0x2b, 0x23, 0x1a, 0x11, 0x08, 0x04},
 	{0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03},
@@ -112,7 +112,7 @@ const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8] = {
 	{0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01}
 };
 
-const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8] = {
+const u8 dm_cck_tx_bb_gain_ch14[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00},
 	{0x33, 0x32, 0x2b, 0x19, 0x00, 0x00, 0x00, 0x00},
 	{0x30, 0x2f, 0x29, 0x18, 0x00, 0x00, 0x00, 0x00},
@@ -144,7 +144,7 @@ const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8] = {
 /*------------------------Define global variable-----------------------------*/
 struct dig_t dm_digtable;
 
-struct drx_path_sel DM_RxPathSelTable;
+struct drx_path_sel dm_rx_path_sel_table;
 /*------------------------Define global variable-----------------------------*/
 
 
@@ -173,7 +173,6 @@ static void _rtl92e_dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
 static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
-static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
@@ -185,7 +184,6 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev);
 static void _rtl92e_dm_deinit_fsync(struct net_device *dev);
 
 static	void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev);
-static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
 static void _rtl92e_dm_check_fsync(struct net_device *dev);
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data);
 static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t);
@@ -203,8 +201,6 @@ void rtl92e_dm_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->DM_Type = DM_Type_ByDriver;
-
 	priv->undecorated_smoothed_pwdb = -1;
 
 	_rtl92e_dm_init_dynamic_tx_power(dev);
@@ -217,11 +213,8 @@ void rtl92e_dm_init(struct net_device *dev)
 	_rtl92e_dm_init_fsync(dev);
 	_rtl92e_dm_init_rx_path_selection(dev);
 	_rtl92e_dm_init_cts_to_self(dev);
-	if (IS_HARDWARE_TYPE_8192SE(dev))
-		_rtl92e_dm_init_wa_broadcom_iot(dev);
 
-	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq,
-			      (void *)_rtl92e_dm_check_rf_ctrl_gpio, dev);
+	INIT_DELAYED_WORK(&priv->gpio_change_rf_wq, (void *)_rtl92e_dm_check_rf_ctrl_gpio);
 }
 
 void rtl92e_dm_deinit(struct net_device *dev)
@@ -237,8 +230,6 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 	if (priv->being_init_adapter)
 		return;
-
-	_rtl92e_dm_check_ac_dc_power(dev);
 
 	_rtl92e_dm_check_txrateandretrycount(dev);
 	_rtl92e_dm_check_edca_turbo(dev);
@@ -257,26 +248,6 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_cts_to_self(dev);
 }
 
-static void _rtl92e_dm_check_ac_dc_power(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	static const char ac_dc_script[] = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
-	char *argv[] = {(char *)ac_dc_script, DRV_NAME, NULL};
-	static char *envp[] = {"HOME=/",
-			"TERM=linux",
-			"PATH=/usr/bin:/bin",
-			 NULL};
-
-	if (priv->rst_progress == RESET_TYPE_SILENT)
-		return;
-	if (priv->rtllib->state != RTLLIB_LINKED)
-		return;
-	call_usermodehelper(ac_dc_script, argv, envp, UMH_WAIT_PROC);
-
-	return;
-};
-
-
 void rtl92e_init_adaptive_rate(struct net_device *dev)
 {
 
@@ -284,39 +255,27 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 	struct rate_adaptive *pra = &priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
-	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
-	pra->low2high_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M+5;
-	pra->low2high_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M+5;
+	pra->high2low_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH;
+	pra->low2high_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M + 5;
+	pra->low2high_rssi_thresh_for_ra40M = RATE_ADAPTIVE_TH_LOW_40M + 5;
 
-	pra->high_rssi_thresh_for_ra = RateAdaptiveTH_High+5;
-	pra->low_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M;
-	pra->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
+	pra->high_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH + 5;
+	pra->low_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M;
+	pra->low_rssi_thresh_for_ra40M = RATE_ADAPTIVE_TH_LOW_40M;
 
-	if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819X_NETCORE)
 		pra->ping_rssi_enable = 1;
 	else
 		pra->ping_rssi_enable = 0;
 	pra->ping_rssi_thresh_for_ra = 15;
 
-
-	if (priv->rf_type == RF_2T4R) {
-		pra->upper_rssi_threshold_ratr		=	0x8f0f0000;
-		pra->middle_rssi_threshold_ratr		=	0x8f0ff000;
-		pra->low_rssi_threshold_ratr		=	0x8f0ff001;
-		pra->low_rssi_threshold_ratr_40M	=	0x8f0ff005;
-		pra->low_rssi_threshold_ratr_20M	=	0x8f0ff001;
-		pra->ping_rssi_ratr	=	0x0000000d;
-	} else if (priv->rf_type == RF_1T2R) {
-		pra->upper_rssi_threshold_ratr		=	0x000fc000;
-		pra->middle_rssi_threshold_ratr		=	0x000ff000;
-		pra->low_rssi_threshold_ratr		=	0x000ff001;
-		pra->low_rssi_threshold_ratr_40M	=	0x000ff005;
-		pra->low_rssi_threshold_ratr_20M	=	0x000ff001;
-		pra->ping_rssi_ratr	=	0x0000000d;
-	}
-
+	pra->upper_rssi_threshold_ratr		=	0x000fc000;
+	pra->middle_rssi_threshold_ratr		=	0x000ff000;
+	pra->low_rssi_threshold_ratr		=	0x000ff001;
+	pra->low_rssi_threshold_ratr_40M	=	0x000ff005;
+	pra->low_rssi_threshold_ratr_20M	=	0x000ff001;
+	pra->ping_rssi_ratr	=	0x0000000d;
 }
-
 
 static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 {
@@ -334,8 +293,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	if (pra->rate_adaptive_disabled)
 		return;
 
-	if (!(priv->rtllib->mode == WIRELESS_MODE_N_24G ||
-	    priv->rtllib->mode == WIRELESS_MODE_N_5G))
+	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
@@ -353,7 +311,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 				(pra->middle_rssi_threshold_ratr & (~BIT31)) |
 				((bshort_gi_enabled) ? BIT31 : 0);
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
 				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) |
 				((bshort_gi_enabled) ? BIT31 : 0);
@@ -368,15 +326,15 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 		if (pra->ratr_state == DM_RATR_STA_HIGH) {
 			HighRSSIThreshForRA = pra->high2low_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		} else if (pra->ratr_state == DM_RATR_STA_LOW) {
 			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low2high_rssi_thresh_for_ra40M) : (pra->low2high_rssi_thresh_for_ra20M);
 		} else {
 			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		}
 
@@ -416,8 +374,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 			u32 ratr_value;
 
 			ratr_value = targetRATR;
-			if (priv->rf_type == RF_1T2R)
-				ratr_value &= ~(RATE_ALL_OFDM_2SS);
+			ratr_value &= ~(RATE_ALL_OFDM_2SS);
 			rtl92e_writel(dev, RATR0, ratr_value);
 			rtl92e_writeb(dev, UFWP, 1);
 
@@ -443,8 +400,8 @@ static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ||
-	   !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
+	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20 ||
+	    !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
 		return;
 	if (!priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz) {
 		if (priv->undecorated_smoothed_pwdb <=
@@ -457,7 +414,7 @@ static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 	}
 }
 
-static u32 OFDMSwingTable[OFDM_Table_Length] = {
+static u32 OFDMSwingTable[OFDM_TABLE_LEN] = {
 	0x7f8001fe,
 	0x71c001c7,
 	0x65400195,
@@ -479,7 +436,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x10000040
 };
 
-static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
+static u8	CCKSwingTable_Ch1_Ch13[CCK_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04},
 	{0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03},
 	{0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03},
@@ -494,7 +451,7 @@ static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
 	{0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01}
 };
 
-static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
+static u8	CCKSwingTable_Ch14[CCK_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00},
 	{0x30, 0x2f, 0x29, 0x18, 0x00, 0x00, 0x00, 0x00},
 	{0x2b, 0x2a, 0x25, 0x15, 0x00, 0x00, 0x00, 0x00},
@@ -515,93 +472,39 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 #define		Tssi_Report_Value2			0x13e
 #define		FW_Busy_Flag				0x13f
 
-static void _rtl92e_dm_tx_update_tssi_weak_signal(struct net_device *dev,
-						  u8 RF_Type)
+static void _rtl92e_dm_tx_update_tssi_weak_signal(struct net_device *dev)
 {
 	struct r8192_priv *p = rtllib_priv(dev);
 
-	if (RF_Type == RF_2T4R) {
-		if ((p->rfa_txpowertrackingindex > 0) &&
-		    (p->rfc_txpowertrackingindex > 0)) {
-			p->rfa_txpowertrackingindex--;
-			if (p->rfa_txpowertrackingindex_real > 4) {
-				p->rfa_txpowertrackingindex_real--;
-				rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-						  bMaskDWord,
-						  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
-			}
-
-			p->rfc_txpowertrackingindex--;
-			if (p->rfc_txpowertrackingindex_real > 4) {
-				p->rfc_txpowertrackingindex_real--;
-				rtl92e_set_bb_reg(dev,
-						  rOFDM0_XCTxIQImbalance,
-						  bMaskDWord,
-						  dm_tx_bb_gain[p->rfc_txpowertrackingindex_real]);
-			}
-		} else {
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[4]);
+	if (p->rfa_txpowertrackingindex > 0) {
+		p->rfa_txpowertrackingindex--;
+		if (p->rfa_txpowertrackingindex_real > 4) {
+			p->rfa_txpowertrackingindex_real--;
 			rtl92e_set_bb_reg(dev,
-					  rOFDM0_XCTxIQImbalance,
-					  bMaskDWord, dm_tx_bb_gain[4]);
+					  rOFDM0_XATxIQImbalance,
+					  bMaskDWord,
+					  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
 		}
 	} else {
-		if (p->rfa_txpowertrackingindex > 0) {
-			p->rfa_txpowertrackingindex--;
-			if (p->rfa_txpowertrackingindex_real > 4) {
-				p->rfa_txpowertrackingindex_real--;
-				rtl92e_set_bb_reg(dev,
-						  rOFDM0_XATxIQImbalance,
-						  bMaskDWord,
-						  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
-			}
-		} else {
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord, dm_tx_bb_gain[4]);
-		}
+		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
+				  bMaskDWord, dm_tx_bb_gain[4]);
 	}
 }
 
-static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
-						    u8 RF_Type)
+static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev)
 {
 	struct r8192_priv *p = rtllib_priv(dev);
 
-	if (RF_Type == RF_2T4R) {
-		if ((p->rfa_txpowertrackingindex < TxBBGainTableLength - 1) &&
-		    (p->rfc_txpowertrackingindex < TxBBGainTableLength - 1)) {
-			p->rfa_txpowertrackingindex++;
-			p->rfa_txpowertrackingindex_real++;
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
-			p->rfc_txpowertrackingindex++;
-			p->rfc_txpowertrackingindex_real++;
-			rtl92e_set_bb_reg(dev, rOFDM0_XCTxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[p->rfc_txpowertrackingindex_real]);
-		} else {
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
-			rtl92e_set_bb_reg(dev, rOFDM0_XCTxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
-		}
+	if (p->rfa_txpowertrackingindex < (TX_BB_GAIN_TABLE_LEN - 1)) {
+		p->rfa_txpowertrackingindex++;
+		p->rfa_txpowertrackingindex_real++;
+		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
+				  bMaskDWord,
+				  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
 	} else {
-		if (p->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
-			p->rfa_txpowertrackingindex++;
-			p->rfa_txpowertrackingindex_real++;
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
-		} else {
-			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
-					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
-		}
+		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
+				  bMaskDWord,
+				  dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN - 1]);
 	}
 }
 
@@ -610,27 +513,21 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	viviflag = false;
 	struct dcmd_txcmd tx_cmd;
-	u8	powerlevelOFDM24G;
 	int	i = 0, j = 0, k = 0;
-	u8	RF_Type, tmp_report[5] = {0, 0, 0, 0, 0};
-	u32	Value;
+	u8	tmp_report[5] = {0, 0, 0, 0, 0};
 	u8	Pwr_Flag;
-	u16	Avg_TSSI_Meas, TSSI_13dBm, Avg_TSSI_Meas_from_driver = 0;
+	u16	Avg_TSSI_Meas, tssi_13dBm, Avg_TSSI_Meas_from_driver = 0;
 	u32	delta = 0;
 
 	rtl92e_writeb(dev, Pw_Track_Flag, 0);
 	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
 
-	powerlevelOFDM24G = priv->Pwr_Track >> 24;
-	RF_Type = priv->rf_type;
-	Value = (RF_Type<<8) | powerlevelOFDM24G;
-
 	for (j = 0; j <= 30; j++) {
 
 		tx_cmd.op	= TXCMD_SET_TX_PWR_TRACKING;
 		tx_cmd.length	= 4;
-		tx_cmd.value	= Value;
+		tx_cmd.value	= priv->pwr_track >> 24;
 		rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_NORMAL, (u8 *)&tx_cmd,
 				    sizeof(struct dcmd_txcmd));
 		mdelay(1);
@@ -640,7 +537,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 			if (Pwr_Flag == 0) {
 				mdelay(1);
 
-				if (priv->bResetInProgress) {
+				if (priv->reset_in_progress) {
 					rtl92e_writeb(dev, Pw_Track_Flag, 0);
 					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
@@ -688,12 +585,12 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				Avg_TSSI_Meas_from_driver += tmp_report[k];
 
 			Avg_TSSI_Meas_from_driver *= 100 / 5;
-			TSSI_13dBm = priv->TSSI_13dBm;
+			tssi_13dBm = priv->tssi_13dBm;
 
-			if (Avg_TSSI_Meas_from_driver > TSSI_13dBm)
-				delta = Avg_TSSI_Meas_from_driver - TSSI_13dBm;
+			if (Avg_TSSI_Meas_from_driver > tssi_13dBm)
+				delta = Avg_TSSI_Meas_from_driver - tssi_13dBm;
 			else
-				delta = TSSI_13dBm - Avg_TSSI_Meas_from_driver;
+				delta = tssi_13dBm - Avg_TSSI_Meas_from_driver;
 
 			if (delta <= E_FOR_TX_POWER_TRACK) {
 				priv->rtllib->bdynamic_txpower_enable = true;
@@ -701,36 +598,30 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				rtl92e_writeb(dev, FW_Busy_Flag, 0);
 				return;
 			}
-			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
-				_rtl92e_dm_tx_update_tssi_weak_signal(dev,
-								      RF_Type);
+			if (Avg_TSSI_Meas_from_driver < tssi_13dBm - E_FOR_TX_POWER_TRACK)
+				_rtl92e_dm_tx_update_tssi_weak_signal(dev);
 			else
-				_rtl92e_dm_tx_update_tssi_strong_signal(dev, RF_Type);
+				_rtl92e_dm_tx_update_tssi_strong_signal(dev);
 
-			if (RF_Type == RF_2T4R) {
-				priv->CCKPresentAttentuation_difference
-					= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
-			} else {
-				priv->CCKPresentAttentuation_difference
-					= priv->rfa_txpowertrackingindex_real - priv->rfa_txpowertracking_default;
-			}
+			priv->cck_present_attn_diff
+				= priv->rfa_txpowertrackingindex_real - priv->rfa_txpowertracking_default;
 
-			if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20)
 				priv->cck_present_attn =
-					 priv->CCKPresentAttentuation_20Mdefault +
-					 priv->CCKPresentAttentuation_difference;
+					 priv->cck_present_attn_20m_def +
+					 priv->cck_present_attn_diff;
 			else
 				priv->cck_present_attn =
-					 priv->CCKPresentAttentuation_40Mdefault +
-					 priv->CCKPresentAttentuation_difference;
+					 priv->cck_present_attn_40m_def +
+					 priv->cck_present_attn_diff;
 
-			if (priv->cck_present_attn > (CCKTxBBGainTableLength-1))
-				priv->cck_present_attn = CCKTxBBGainTableLength-1;
+			if (priv->cck_present_attn > (CCK_TX_BB_GAIN_TABLE_LEN - 1))
+				priv->cck_present_attn = CCK_TX_BB_GAIN_TABLE_LEN - 1;
 			if (priv->cck_present_attn < 0)
 				priv->cck_present_attn = 0;
 
 			if (priv->cck_present_attn > -1 &&
-			    priv->cck_present_attn < CCKTxBBGainTableLength) {
+			    priv->cck_present_attn < CCK_TX_BB_GAIN_TABLE_LEN) {
 				if (priv->rtllib->current_network.channel == 14 &&
 				    !priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = true;
@@ -742,8 +633,8 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 					rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 			}
 
-			if (priv->CCKPresentAttentuation_difference <= -12 ||
-			    priv->CCKPresentAttentuation_difference >= 24) {
+			if (priv->cck_present_attn_diff <= -12 ||
+			    priv->cck_present_attn_diff >= 24) {
 				priv->rtllib->bdynamic_txpower_enable = true;
 				rtl92e_writeb(dev, Pw_Track_Flag, 0);
 				rtl92e_writeb(dev, FW_Busy_Flag, 0);
@@ -770,22 +661,22 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	u8 tmpOFDMindex, tmpCCKindex, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
 	int i = 0, CCKSwingNeedUpdate = 0;
 
-	if (!priv->btxpower_trackingInit) {
+	if (!priv->tx_pwr_tracking_init) {
 		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					    bMaskDWord);
-		for (i = 0; i < OFDM_Table_Length; i++) {
+		for (i = 0; i < OFDM_TABLE_LEN; i++) {
 			if (tmpRegA == OFDMSwingTable[i])
-				priv->OFDM_index[0] = i;
+				priv->ofdm_index[0] = i;
 		}
 
 		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
-		for (i = 0; i < CCK_Table_length; i++) {
+		for (i = 0; i < CCK_TABLE_LEN; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
-				priv->CCK_index = i;
+				priv->cck_index = i;
 				break;
 			}
 		}
-		priv->btxpower_trackingInit = true;
+		priv->tx_pwr_tracking_init = true;
 		return;
 	}
 
@@ -794,21 +685,21 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		return;
 	if (tmpRegA >= 12)
 		tmpRegA = 12;
-	priv->ThermalMeter[0] = ThermalMeterVal;
-	priv->ThermalMeter[1] = ThermalMeterVal;
+	priv->thermal_meter[0] = ThermalMeterVal;
+	priv->thermal_meter[1] = ThermalMeterVal;
 
-	if (priv->ThermalMeter[0] >= (u8)tmpRegA) {
-		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->ThermalMeter[0] -
+	if (priv->thermal_meter[0] >= (u8)tmpRegA) {
+		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
 			      (u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
-		if (tmpOFDMindex >= OFDM_Table_Length)
-			tmpOFDMindex = OFDM_Table_Length-1;
-		if (tmpCCK20Mindex >= CCK_Table_length)
-			tmpCCK20Mindex = CCK_Table_length-1;
-		if (tmpCCK40Mindex >= CCK_Table_length)
-			tmpCCK40Mindex = CCK_Table_length-1;
+		if (tmpOFDMindex >= OFDM_TABLE_LEN)
+			tmpOFDMindex = OFDM_TABLE_LEN - 1;
+		if (tmpCCK20Mindex >= CCK_TABLE_LEN)
+			tmpCCK20Mindex = CCK_TABLE_LEN - 1;
+		if (tmpCCK40Mindex >= CCK_TABLE_LEN)
+			tmpCCK40Mindex = CCK_TABLE_LEN - 1;
 	} else {
-		tmpval = (u8)tmpRegA - priv->ThermalMeter[0];
+		tmpval = (u8)tmpRegA - priv->thermal_meter[0];
 		if (tmpval >= 6) {
 			tmpOFDMindex = 0;
 			tmpCCK20Mindex = 0;
@@ -818,13 +709,13 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		}
 		tmpCCK40Mindex = 0;
 	}
-	if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+	if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 		tmpCCKindex = tmpCCK40Mindex;
 	else
 		tmpCCKindex = tmpCCK20Mindex;
 
-	priv->Record_CCK_20Mindex = tmpCCK20Mindex;
-	priv->Record_CCK_40Mindex = tmpCCK40Mindex;
+	priv->rec_cck_20m_idx = tmpCCK20Mindex;
+	priv->rec_cck_40m_idx = tmpCCK40Mindex;
 
 	if (priv->rtllib->current_network.channel == 14 &&
 	    !priv->bcck_in_ch14) {
@@ -836,17 +727,17 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		CCKSwingNeedUpdate = 1;
 	}
 
-	if (priv->CCK_index != tmpCCKindex) {
-		priv->CCK_index = tmpCCKindex;
+	if (priv->cck_index != tmpCCKindex) {
+		priv->cck_index = tmpCCKindex;
 		CCKSwingNeedUpdate = 1;
 	}
 
 	if (CCKSwingNeedUpdate)
 		rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-	if (priv->OFDM_index[0] != tmpOFDMindex) {
-		priv->OFDM_index[0] = tmpOFDMindex;
+	if (priv->ofdm_index[0] != tmpOFDMindex) {
+		priv->ofdm_index[0] = tmpOFDMindex;
 		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance, bMaskDWord,
-				  OFDMSwingTable[priv->OFDM_index[0]]);
+				  OFDMSwingTable[priv->ofdm_index[0]]);
 	}
 	priv->txpower_count = 0;
 }
@@ -857,7 +748,7 @@ void rtl92e_dm_txpower_tracking_wq(void *data)
 				  struct r8192_priv, txpower_tracking_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_tx_power_tracking_callback_tssi(dev);
 	else
 		_rtl92e_dm_tx_power_tracking_cb_thermal(dev);
@@ -870,7 +761,7 @@ static void _rtl92e_dm_initialize_tx_power_tracking_tssi(struct net_device *dev)
 
 	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = false;
+	priv->tx_pwr_tracking_init = false;
 
 }
 
@@ -884,14 +775,14 @@ static void _rtl92e_dm_init_tx_power_tracking_thermal(struct net_device *dev)
 	else
 		priv->btxpower_tracking = false;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = false;
+	priv->tx_pwr_tracking_init = false;
 }
 
 void rtl92e_dm_init_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_initialize_tx_power_tracking_tssi(dev);
 	else
 		_rtl92e_dm_init_tx_power_tracking_thermal(dev);
@@ -922,10 +813,7 @@ static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
 	static u8	TM_Trigger;
 	u8		TxPowerCheckCnt = 0;
 
-	if (IS_HARDWARE_TYPE_8192SE(dev))
-		TxPowerCheckCnt = 5;
-	else
-		TxPowerCheckCnt = 2;
+	TxPowerCheckCnt = 2;
 	if (!priv->btxpower_tracking)
 		return;
 
@@ -952,7 +840,7 @@ static void _rtl92e_dm_check_tx_power_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_check_tx_power_tracking_tssi(dev);
 	else
 		_rtl92e_dm_check_tx_power_tracking_thermal(dev);
@@ -1005,30 +893,30 @@ static void _rtl92e_dm_cck_tx_power_adjust_thermal_meter(struct net_device *dev,
 
 	TempVal = 0;
 	if (!bInCH14) {
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][1] << 8);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][0] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][1] << 8);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][3] << 8) +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][4] << 16)+
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][5] << 24);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][2] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][3] << 8) +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][4] << 16)+
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][5] << 24);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][7] << 8);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][6] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][7] << 8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	} else {
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][0] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][1] << 8);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][0] +
+			  (CCKSwingTable_Ch14[priv->cck_index][1] << 8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][2] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][3] << 8) +
-			  (CCKSwingTable_Ch14[priv->CCK_index][4] << 16)+
-			  (CCKSwingTable_Ch14[priv->CCK_index][5] << 24);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][2] +
+			  (CCKSwingTable_Ch14[priv->cck_index][3] << 8) +
+			  (CCKSwingTable_Ch14[priv->cck_index][4] << 16)+
+			  (CCKSwingTable_Ch14[priv->cck_index][5] << 24);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][6] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][6] +
+			  (CCKSwingTable_Ch14[priv->cck_index][7]<<8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	}
@@ -1038,7 +926,7 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_cck_tx_power_adjust_tssi(dev, binch14);
 	else
 		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);
@@ -1067,15 +955,13 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 
 	if (priv->rate_adaptive.rate_adaptive_disabled)
 		return;
-	if (!(priv->rtllib->mode == WIRELESS_MODE_N_24G ||
-	      priv->rtllib->mode == WIRELESS_MODE_N_5G))
+	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 	ratr_value = reg_ratr;
-	if (priv->rf_type == RF_1T2R)
-		ratr_value &= ~(RATE_ALL_OFDM_2SS);
+	ratr_value &= ~(RATE_ALL_OFDM_2SS);
 	rtl92e_writel(dev, RATR0, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
-	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
+	if (priv->tx_pwr_tracking_init && priv->btxpower_tracking)
 		_rtl92e_dm_tx_power_reset_recovery(dev);
 
 	_rtl92e_dm_bb_initialgain_restore(dev);
@@ -1112,7 +998,6 @@ void rtl92e_dm_backup_state(struct net_device *dev)
 	u32 bit_mask = bMaskByte0;
 
 	priv->bswitch_fsync  = false;
-	priv->bfsync_processing = false;
 
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		return;
@@ -1150,7 +1035,7 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 	dm_digtable.rssi_val = 50;
 	dm_digtable.backoff_val = DM_DIG_BACKOFF;
 	dm_digtable.rx_gain_range_max = DM_DIG_MAX;
-	if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819X_NETCORE)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_Netcore;
 	else
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
@@ -1260,7 +1145,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x17);
 		rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x17);
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
@@ -1297,7 +1182,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x20);
 		}
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
@@ -1328,7 +1213,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 			return;
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
@@ -1342,7 +1227,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		     dm_digtable.rssi_high_power_lowthresh) &&
 		    (priv->undecorated_smoothed_pwdb >=
 		    dm_digtable.rssi_high_thresh)) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
@@ -1378,12 +1263,12 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 			dm_digtable.cur_ig_value = gain_range;
 		} else {
 			if (dm_digtable.cur_ig_value == 0)
-				dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
+				dm_digtable.cur_ig_value = priv->def_initial_gain[0];
 			else
 				dm_digtable.cur_ig_value = dm_digtable.pre_ig_value;
 		}
 	} else {
-		dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
+		dm_digtable.cur_ig_value = priv->def_initial_gain[0];
 		dm_digtable.pre_ig_value = 0;
 	}
 
@@ -1453,18 +1338,18 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 	if ((dm_digtable.prepd_thstate != dm_digtable.curpd_thstate) ||
 	    (initialized <= 3) || force_write) {
 		if (dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
 		} else if (dm_digtable.curpd_thstate ==
 			   DIG_PD_AT_NORMAL_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 		} else if (dm_digtable.curpd_thstate == DIG_PD_AT_HIGH_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
@@ -1644,16 +1529,6 @@ static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 	}
 }
 
-
-static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
-
-	ht_info->bWAIotBroadcom = false;
-	ht_info->WAIotTH = WAIotTHVal;
-}
-
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
@@ -1662,20 +1537,12 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 	u8 tmp1byte;
 	enum rt_rf_power_state rf_power_state_to_set;
 	bool bActuallySet = false;
-	char *argv[3];
-	static const char RadioPowerPath[] = "/etc/acpi/events/RadioPower.sh";
-	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin",
-			       NULL};
-
-	bActuallySet = false;
 
 	if ((priv->up_first_time == 1) || (priv->being_init_adapter))
 		return;
 
-	if (priv->bfirst_after_down) {
-		priv->bfirst_after_down = true;
+	if (priv->bfirst_after_down)
 		return;
-	}
 
 	tmp1byte = rtl92e_readb(dev, GPI);
 
@@ -1695,14 +1562,6 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 		mdelay(1000);
 		priv->hw_rf_off_action = 1;
 		rtl92e_set_rf_state(dev, rf_power_state_to_set, RF_CHANGE_BY_HW);
-		if (priv->hw_radio_off)
-			argv[1] = "RFOFF";
-		else
-			argv[1] = "RFON";
-
-		argv[0] = (char *)RadioPowerPath;
-		argv[2] = NULL;
-		call_usermodehelper(RadioPowerPath, argv, envp, UMH_WAIT_PROC);
 	}
 }
 
@@ -1722,7 +1581,7 @@ void rtl92e_dm_rf_pathcheck_wq(void *data)
 		else
 			priv->brfpath_rxenable[i] = false;
 	}
-	if (!DM_RxPathSelTable.Enable)
+	if (!dm_rx_path_sel_table.enable)
 		return;
 
 	_rtl92e_dm_rx_path_sel_byrssi(dev);
@@ -1733,18 +1592,18 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 	u8 i;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	DM_RxPathSelTable.Enable = 1;
-	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
-	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
-	if (priv->CustomerID == RT_CID_819x_Netcore)
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
+	dm_rx_path_sel_table.enable = 1;
+	dm_rx_path_sel_table.ss_th_low = RX_PATH_SEL_SS_TH_LOW;
+	dm_rx_path_sel_table.diff_th = RX_PATH_SEL_DIFF_TH;
+	if (priv->customer_id == RT_CID_819X_NETCORE)
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_2;
 	else
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;
-	DM_RxPathSelTable.disabledRF = 0;
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_1;
+	dm_rx_path_sel_table.disabled_rf = 0;
 	for (i = 0; i < 4; i++) {
-		DM_RxPathSelTable.rf_rssi[i] = 50;
-		DM_RxPathSelTable.cck_pwdb_sta[i] = -64;
-		DM_RxPathSelTable.rf_enable_rssi_th[i] = 100;
+		dm_rx_path_sel_table.rf_rssi[i] = 50;
+		dm_rx_path_sel_table.cck_pwdb_sta[i] = -64;
+		dm_rx_path_sel_table.rf_enable_rssi_th[i] = 100;
 	}
 }
 
@@ -1767,26 +1626,23 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	static u8 disabled_rf_cnt, cck_Rx_Path_initialized;
 	u8 update_cck_rx_path;
 
-	if (priv->rf_type != RF_2T4R)
-		return;
-
 	if (!cck_Rx_Path_initialized) {
-		DM_RxPathSelTable.cck_Rx_path = (rtl92e_readb(dev, 0xa07)&0xf);
+		dm_rx_path_sel_table.cck_rx_path = (rtl92e_readb(dev, 0xa07)&0xf);
 		cck_Rx_Path_initialized = 1;
 	}
 
-	DM_RxPathSelTable.disabledRF = 0xf;
-	DM_RxPathSelTable.disabledRF &= ~(rtl92e_readb(dev, 0xc04));
+	dm_rx_path_sel_table.disabled_rf = 0xf;
+	dm_rx_path_sel_table.disabled_rf &= ~(rtl92e_readb(dev, 0xc04));
 
 	if (priv->rtllib->mode == WIRELESS_MODE_B)
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_2;
 
 	for (i = 0; i < RF90_PATH_MAX; i++) {
-		DM_RxPathSelTable.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
+		dm_rx_path_sel_table.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
 
 		if (priv->brfpath_rxenable[i]) {
 			rf_num++;
-			cur_rf_rssi = DM_RxPathSelTable.rf_rssi[i];
+			cur_rf_rssi = dm_rx_path_sel_table.rf_rssi[i];
 
 			if (rf_num == 1) {
 				max_rssi_index = min_rssi_index = sec_rssi_index = i;
@@ -1834,12 +1690,12 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	rf_num = 0;
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_2) {
 		for (i = 0; i < RF90_PATH_MAX; i++) {
 			if (priv->brfpath_rxenable[i]) {
 				rf_num++;
 				cur_cck_pwdb =
-					 DM_RxPathSelTable.cck_pwdb_sta[i];
+					 dm_rx_path_sel_table.cck_pwdb_sta[i];
 
 				if (rf_num == 1) {
 					cck_rx_ver2_max_index = i;
@@ -1896,17 +1752,17 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	update_cck_rx_path = 0;
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_2) {
 		cck_default_Rx = cck_rx_ver2_max_index;
 		cck_optional_Rx = cck_rx_ver2_sec_index;
 		if (tmp_cck_max_pwdb != -64)
 			update_cck_rx_path = 1;
 	}
 
-	if (tmp_min_rssi < DM_RxPathSelTable.SS_TH_low && disabled_rf_cnt < 2) {
+	if (tmp_min_rssi < dm_rx_path_sel_table.ss_th_low && disabled_rf_cnt < 2) {
 		if ((tmp_max_rssi - tmp_min_rssi) >=
-		     DM_RxPathSelTable.diff_TH) {
-			DM_RxPathSelTable.rf_enable_rssi_th[min_rssi_index] =
+		     dm_rx_path_sel_table.diff_th) {
+			dm_rx_path_sel_table.rf_enable_rssi_th[min_rssi_index] =
 				 tmp_max_rssi+5;
 			rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
 					  0x1<<min_rssi_index, 0x0);
@@ -1914,7 +1770,7 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 					  0x1<<min_rssi_index, 0x0);
 			disabled_rf_cnt++;
 		}
-		if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_1) {
+		if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_1) {
 			cck_default_Rx = max_rssi_index;
 			cck_optional_Rx = sec_rssi_index;
 			if (tmp_max_rssi)
@@ -1923,24 +1779,24 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	if (update_cck_rx_path) {
-		DM_RxPathSelTable.cck_Rx_path = (cck_default_Rx<<2) |
+		dm_rx_path_sel_table.cck_rx_path = (cck_default_Rx<<2) |
 						(cck_optional_Rx);
 		rtl92e_set_bb_reg(dev, rCCK0_AFESetting, 0x0f000000,
-				  DM_RxPathSelTable.cck_Rx_path);
+				  dm_rx_path_sel_table.cck_rx_path);
 	}
 
-	if (DM_RxPathSelTable.disabledRF) {
+	if (dm_rx_path_sel_table.disabled_rf) {
 		for (i = 0; i < 4; i++) {
-			if ((DM_RxPathSelTable.disabledRF>>i) & 0x1) {
+			if ((dm_rx_path_sel_table.disabled_rf >> i) & 0x1) {
 				if (tmp_max_rssi >=
-				    DM_RxPathSelTable.rf_enable_rssi_th[i]) {
+				    dm_rx_path_sel_table.rf_enable_rssi_th[i]) {
 					rtl92e_set_bb_reg(dev,
 							  rOFDM0_TRxPathEnable,
 							  0x1 << i, 0x1);
 					rtl92e_set_bb_reg(dev,
 							  rOFDM1_TRxPathEnable,
 							  0x1 << i, 0x1);
-					DM_RxPathSelTable.rf_enable_rssi_th[i]
+					dm_rx_path_sel_table.rf_enable_rssi_th[i]
 						 = 100;
 					disabled_rf_cnt--;
 				}
@@ -1969,7 +1825,6 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_firstdiff_ratethreshold = 100;
 	priv->rtllib->fsync_seconddiff_ratethreshold = 200;
 	priv->rtllib->fsync_state = Default_Fsync;
-	priv->framesyncMonitor = 1;
 
 	timer_setup(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback, 0);
 }
@@ -2008,31 +1863,31 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 					  priv->rate_record;
 		else
 			rate_count_diff = rate_count - priv->rate_record;
-		if (rate_count_diff < priv->rateCountDiffRecord) {
+		if (rate_count_diff < priv->rate_count_diff_rec) {
 
-			u32 DiffNum = priv->rateCountDiffRecord -
+			u32 DiffNum = priv->rate_count_diff_rec -
 				      rate_count_diff;
 			if (DiffNum >=
 			    priv->rtllib->fsync_seconddiff_ratethreshold)
-				priv->ContinueDiffCount++;
+				priv->continue_diff_count++;
 			else
-				priv->ContinueDiffCount = 0;
+				priv->continue_diff_count = 0;
 
-			if (priv->ContinueDiffCount >= 2) {
+			if (priv->continue_diff_count >= 2) {
 				bSwitchFromCountDiff = true;
-				priv->ContinueDiffCount = 0;
+				priv->continue_diff_count = 0;
 			}
 		} else {
-			priv->ContinueDiffCount = 0;
+			priv->continue_diff_count = 0;
 		}
 
 		if (rate_count_diff <=
 		    priv->rtllib->fsync_firstdiff_ratethreshold) {
 			bSwitchFromCountDiff = true;
-			priv->ContinueDiffCount = 0;
+			priv->continue_diff_count = 0;
 		}
 		priv->rate_record = rate_count;
-		priv->rateCountDiffRecord = rate_count_diff;
+		priv->rate_count_diff_rec = rate_count_diff;
 		if (priv->undecorated_smoothed_pwdb >
 		    priv->rtllib->fsync_rssi_threshold &&
 		    bSwitchFromCountDiff) {
@@ -2073,7 +1928,7 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 			rtl92e_writeb(dev, 0xC36, 0x5c);
 			rtl92e_writeb(dev, 0xC3e, 0x96);
 		}
-		priv->ContinueDiffCount = 0;
+		priv->continue_diff_count = 0;
 		rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
 }
@@ -2114,7 +1969,7 @@ static void _rtl92e_dm_end_sw_fsync(struct net_device *dev)
 		rtl92e_writeb(dev, 0xC3e, 0x96);
 	}
 
-	priv->ContinueDiffCount = 0;
+	priv->continue_diff_count = 0;
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 }
 
@@ -2125,8 +1980,8 @@ static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 	u32 rate_bitmap;
 
 	priv->rate_record = 0;
-	priv->ContinueDiffCount = 0;
-	priv->rateCountDiffRecord = 0;
+	priv->continue_diff_count = 0;
+	priv->rate_count_diff_rec = 0;
 	priv->bswitch_fsync  = false;
 
 	if (priv->rtllib->mode == WIRELESS_MODE_N_24G) {
@@ -2196,12 +2051,10 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 
 			}
 		}
-		if (priv->framesyncMonitor) {
-			if (reg_c38_State != RegC38_Fsync_AP_BCM) {
-				rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
+		if (reg_c38_State != RegC38_Fsync_AP_BCM) {
+			rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
 
-				reg_c38_State = RegC38_Fsync_AP_BCM;
-			}
+			reg_c38_State = RegC38_Fsync_AP_BCM;
 		}
 	} else {
 		switch (priv->rtllib->fsync_state) {
@@ -2218,50 +2071,40 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			break;
 		}
 
-		if (priv->framesyncMonitor) {
-			if (priv->rtllib->state == RTLLIB_LINKED) {
-				if (priv->undecorated_smoothed_pwdb <=
-				    RegC38_TH) {
-					if (reg_c38_State !=
-					    RegC38_NonFsync_Other_AP) {
-						rtl92e_writeb(dev,
-							      rOFDM0_RxDetector3,
-							      0x90);
+		if (priv->rtllib->state == RTLLIB_LINKED) {
+			if (priv->undecorated_smoothed_pwdb <=
+			    RegC38_TH) {
+				if (reg_c38_State !=
+				    RegC38_NonFsync_Other_AP) {
+					rtl92e_writeb(dev,
+						      rOFDM0_RxDetector3,
+						      0x90);
 
-						reg_c38_State =
-						     RegC38_NonFsync_Other_AP;
-					}
-				} else if (priv->undecorated_smoothed_pwdb >=
-					   (RegC38_TH+5)) {
-					if (reg_c38_State) {
-						rtl92e_writeb(dev,
-							rOFDM0_RxDetector3,
-							priv->framesync);
-						reg_c38_State = RegC38_Default;
-					}
+					reg_c38_State =
+					     RegC38_NonFsync_Other_AP;
 				}
-			} else {
+			} else if (priv->undecorated_smoothed_pwdb >=
+				   (RegC38_TH+5)) {
 				if (reg_c38_State) {
-					rtl92e_writeb(dev, rOFDM0_RxDetector3,
-						      priv->framesync);
+					rtl92e_writeb(dev,
+						rOFDM0_RxDetector3,
+						priv->framesync);
 					reg_c38_State = RegC38_Default;
 				}
 			}
+		} else {
+			if (reg_c38_State) {
+				rtl92e_writeb(dev, rOFDM0_RxDetector3,
+					      priv->framesync);
+				reg_c38_State = RegC38_Default;
+			}
 		}
 	}
-	if (priv->framesyncMonitor) {
-		if (priv->reset_count != reset_cnt) {
-			rtl92e_writeb(dev, rOFDM0_RxDetector3,
-				       priv->framesync);
-			reg_c38_State = RegC38_Default;
-			reset_cnt = priv->reset_count;
-		}
-	} else {
-		if (reg_c38_State) {
-			rtl92e_writeb(dev, rOFDM0_RxDetector3,
-				       priv->framesync);
-			reg_c38_State = RegC38_Default;
-		}
+	if (priv->reset_count != reset_cnt) {
+		rtl92e_writeb(dev, rOFDM0_RxDetector3,
+			       priv->framesync);
+		reg_c38_State = RegC38_Default;
+		reset_cnt = priv->reset_count;
 	}
 }
 
@@ -2271,10 +2114,10 @@ static void _rtl92e_dm_init_dynamic_tx_power(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->rtllib->bdynamic_txpower_enable = true;
-	priv->bLastDTPFlag_High = false;
-	priv->bLastDTPFlag_Low = false;
-	priv->bDynamicTxHighPower = false;
-	priv->bDynamicTxLowPower = false;
+	priv->last_dtp_flag_high = false;
+	priv->last_dtp_flag_low = false;
+	priv->dynamic_tx_high_pwr = false;
+	priv->dynamic_tx_low_pwr = false;
 }
 
 static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
@@ -2284,8 +2127,8 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 	unsigned int txlowpower_threshold = 0;
 
 	if (!priv->rtllib->bdynamic_txpower_enable) {
-		priv->bDynamicTxHighPower = false;
-		priv->bDynamicTxLowPower = false;
+		priv->dynamic_tx_high_pwr = false;
+		priv->dynamic_tx_low_pwr = false;
 		return;
 	}
 	if ((priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) &&
@@ -2299,28 +2142,28 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
 		if (priv->undecorated_smoothed_pwdb >= txhipower_threshold) {
-			priv->bDynamicTxHighPower = true;
-			priv->bDynamicTxLowPower = false;
+			priv->dynamic_tx_high_pwr = true;
+			priv->dynamic_tx_low_pwr = false;
 		} else {
 			if (priv->undecorated_smoothed_pwdb <
-			    txlowpower_threshold && priv->bDynamicTxHighPower)
-				priv->bDynamicTxHighPower = false;
+			    txlowpower_threshold && priv->dynamic_tx_high_pwr)
+				priv->dynamic_tx_high_pwr = false;
 			if (priv->undecorated_smoothed_pwdb < 35)
-				priv->bDynamicTxLowPower = true;
+				priv->dynamic_tx_low_pwr = true;
 			else if (priv->undecorated_smoothed_pwdb >= 40)
-				priv->bDynamicTxLowPower = false;
+				priv->dynamic_tx_low_pwr = false;
 		}
 	} else {
-		priv->bDynamicTxHighPower = false;
-		priv->bDynamicTxLowPower = false;
+		priv->dynamic_tx_high_pwr = false;
+		priv->dynamic_tx_low_pwr = false;
 	}
 
-	if ((priv->bDynamicTxHighPower != priv->bLastDTPFlag_High) ||
-	    (priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low)) {
+	if ((priv->dynamic_tx_high_pwr != priv->last_dtp_flag_high) ||
+	    (priv->dynamic_tx_low_pwr != priv->last_dtp_flag_low)) {
 		rtl92e_set_tx_power(dev, priv->rtllib->current_network.channel);
 	}
-	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
-	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;
+	priv->last_dtp_flag_high = priv->dynamic_tx_high_pwr;
+	priv->last_dtp_flag_low = priv->dynamic_tx_low_pwr;
 
 }
 

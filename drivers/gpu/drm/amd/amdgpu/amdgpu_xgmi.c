@@ -308,7 +308,7 @@ static const struct sysfs_ops amdgpu_xgmi_hive_ops = {
 	.show = amdgpu_xgmi_show_attrs,
 };
 
-struct kobj_type amdgpu_xgmi_hive_type = {
+static const struct kobj_type amdgpu_xgmi_hive_type = {
 	.release = amdgpu_xgmi_hive_release,
 	.sysfs_ops = &amdgpu_xgmi_hive_ops,
 	.default_groups = amdgpu_xgmi_hive_groups,
@@ -1048,12 +1048,30 @@ struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
 
 struct amdgpu_xgmi_ras xgmi_ras = {
 	.ras_block = {
-		.ras_comm = {
-			.name = "xgmi_wafl",
-			.block = AMDGPU_RAS_BLOCK__XGMI_WAFL,
-			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
 	},
 };
+
+int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_xgmi_ras *ras;
+
+	if (!adev->gmc.xgmi.ras)
+		return 0;
+
+	ras = adev->gmc.xgmi.ras;
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register xgmi_wafl_pcs ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "xgmi_wafl");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->gmc.xgmi.ras_if = &ras->ras_block.ras_comm;
+
+	return 0;
+}

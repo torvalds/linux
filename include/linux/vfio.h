@@ -46,7 +46,6 @@ struct vfio_device {
 	struct vfio_device_set *dev_set;
 	struct list_head dev_set_list;
 	unsigned int migration_flags;
-	/* Driver must reference the kvm during open_device or never touch it */
 	struct kvm *kvm;
 
 	/* Members below here are private, not for driver use */
@@ -58,9 +57,9 @@ struct vfio_device {
 	struct list_head group_next;
 	struct list_head iommu_entry;
 	struct iommufd_access *iommufd_access;
+	void (*put_kvm)(struct kvm *kvm);
 #if IS_ENABLED(CONFIG_IOMMUFD)
 	struct iommufd_device *iommufd_device;
-	struct iommufd_ctx *iommufd_ictx;
 	bool iommufd_attached;
 #endif
 };
@@ -68,8 +67,13 @@ struct vfio_device {
 /**
  * struct vfio_device_ops - VFIO bus driver device callbacks
  *
+ * @name: Name of the device driver.
  * @init: initialize private fields in device structure
  * @release: Reclaim private fields in device structure
+ * @bind_iommufd: Called when binding the device to an iommufd
+ * @unbind_iommufd: Opposite of bind_iommufd
+ * @attach_ioas: Called when attaching device to an IOAS/HWPT managed by the
+ *		 bound iommufd. Undo in unbind_iommufd.
  * @open_device: Called when the first file descriptor is opened for this device
  * @close_device: Opposite of open_device
  * @read: Perform read(2) on device file descriptor
@@ -136,6 +140,8 @@ int vfio_iommufd_emulated_attach_ioas(struct vfio_device *vdev, u32 *pt_id);
 #endif
 
 /**
+ * struct vfio_migration_ops - VFIO bus device driver migration callbacks
+ *
  * @migration_set_state: Optional callback to change the migration state for
  *         devices that support migration. It's mandatory for
  *         VFIO_DEVICE_FEATURE_MIGRATION migration support.
@@ -161,6 +167,8 @@ struct vfio_migration_ops {
 };
 
 /**
+ * struct vfio_log_ops - VFIO bus device driver logging callbacks
+ *
  * @log_start: Optional callback to ask the device start DMA logging.
  * @log_stop: Optional callback to ask the device stop DMA logging.
  * @log_read_and_clear: Optional callback to ask the device read

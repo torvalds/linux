@@ -284,13 +284,13 @@ static int read_sections(struct elf *elf)
 	    !elf_alloc_hash(section_name, sections_nr))
 		return -1;
 
+	elf->section_data = calloc(sections_nr, sizeof(*sec));
+	if (!elf->section_data) {
+		perror("calloc");
+		return -1;
+	}
 	for (i = 0; i < sections_nr; i++) {
-		sec = malloc(sizeof(*sec));
-		if (!sec) {
-			perror("malloc");
-			return -1;
-		}
-		memset(sec, 0, sizeof(*sec));
+		sec = &elf->section_data[i];
 
 		INIT_LIST_HEAD(&sec->symbol_list);
 		INIT_LIST_HEAD(&sec->reloc_list);
@@ -422,13 +422,13 @@ static int read_symbols(struct elf *elf)
 	    !elf_alloc_hash(symbol_name, symbols_nr))
 		return -1;
 
+	elf->symbol_data = calloc(symbols_nr, sizeof(*sym));
+	if (!elf->symbol_data) {
+		perror("calloc");
+		return -1;
+	}
 	for (i = 0; i < symbols_nr; i++) {
-		sym = malloc(sizeof(*sym));
-		if (!sym) {
-			perror("malloc");
-			return -1;
-		}
-		memset(sym, 0, sizeof(*sym));
+		sym = &elf->symbol_data[i];
 
 		sym->idx = i;
 
@@ -474,7 +474,7 @@ static int read_symbols(struct elf *elf)
 
 	/* Create parent/child links for any cold subfunctions */
 	list_for_each_entry(sec, &elf->sections, list) {
-		list_for_each_entry(sym, &sec->symbol_list, list) {
+		sec_for_each_sym(sec, sym) {
 			char pname[MAX_NAME_LEN + 1];
 			size_t pnamelen;
 			if (sym->type != STT_FUNC)
@@ -918,13 +918,13 @@ static int read_relocs(struct elf *elf)
 		sec->base->reloc = sec;
 
 		nr_reloc = 0;
+		sec->reloc_data = calloc(sec->sh.sh_size / sec->sh.sh_entsize, sizeof(*reloc));
+		if (!sec->reloc_data) {
+			perror("calloc");
+			return -1;
+		}
 		for (i = 0; i < sec->sh.sh_size / sec->sh.sh_entsize; i++) {
-			reloc = malloc(sizeof(*reloc));
-			if (!reloc) {
-				perror("malloc");
-				return -1;
-			}
-			memset(reloc, 0, sizeof(*reloc));
+			reloc = &sec->reloc_data[i];
 			switch (sec->sh.sh_type) {
 			case SHT_REL:
 				if (read_rel_reloc(sec, i, reloc, &symndx))
@@ -1453,16 +1453,16 @@ void elf_close(struct elf *elf)
 		list_for_each_entry_safe(sym, tmpsym, &sec->symbol_list, list) {
 			list_del(&sym->list);
 			hash_del(&sym->hash);
-			free(sym);
 		}
 		list_for_each_entry_safe(reloc, tmpreloc, &sec->reloc_list, list) {
 			list_del(&reloc->list);
 			hash_del(&reloc->hash);
-			free(reloc);
 		}
 		list_del(&sec->list);
-		free(sec);
+		free(sec->reloc_data);
 	}
 
+	free(elf->symbol_data);
+	free(elf->section_data);
 	free(elf);
 }

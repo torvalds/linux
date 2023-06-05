@@ -78,9 +78,17 @@ static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 static int vcn_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		adev->vcn.harvest_config = VCN_HARVEST_MMSCH;
+		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
+				adev->vcn.harvest_config |= 1 << i;
+				dev_info(adev->dev, "VCN%d is disabled by hypervisor\n", i);
+			}
+		}
+	}
 
 	/* re-use enc ring as unified ring */
 	adev->vcn.num_enc_rings = 1;
@@ -141,7 +149,7 @@ static int vcn_v4_0_sw_init(void *handle)
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i * (adev->vcn.num_enc_rings + 1) + 1;
 		else
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + 8 * i;
-
+		ring->vm_hub = AMDGPU_MMHUB_0;
 		sprintf(ring->name, "vcn_unified_%d", i);
 
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
@@ -172,6 +180,10 @@ static int vcn_v4_0_sw_init(void *handle)
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		adev->vcn.pause_dpg_mode = vcn_v4_0_pause_dpg_mode;
+
+	r = amdgpu_vcn_ras_sw_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -238,16 +250,11 @@ static int vcn_v4_0_hw_init(void *handle)
 				continue;
 
 			ring = &adev->vcn.inst[i].ring_enc[0];
-			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
-				ring->sched.ready = false;
-				ring->no_scheduler = true;
-				dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
-			} else {
-				ring->wptr = 0;
-				ring->wptr_old = 0;
-				vcn_v4_0_unified_ring_set_wptr(ring);
-				ring->sched.ready = true;
-			}
+			ring->wptr = 0;
+			ring->wptr_old = 0;
+			vcn_v4_0_unified_ring_set_wptr(ring);
+			ring->sched.ready = true;
+
 		}
 	} else {
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -1791,7 +1798,6 @@ static const struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
 	.nop = VCN_ENC_CMD_NO_OP,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = vcn_v4_0_unified_ring_get_rptr,
 	.get_wptr = vcn_v4_0_unified_ring_get_wptr,
 	.set_wptr = vcn_v4_0_unified_ring_set_wptr,
@@ -2120,6 +2126,4 @@ static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-
-	amdgpu_vcn_set_ras_funcs(adev);
 }

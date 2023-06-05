@@ -48,7 +48,6 @@
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
-#include "intel_pm.h"
 
 struct execute_cb {
 	struct irq_work work;

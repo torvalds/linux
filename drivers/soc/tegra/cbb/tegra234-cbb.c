@@ -24,7 +24,6 @@
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/version.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/tegra-cbb.h>
 
@@ -1174,11 +1173,6 @@ static int tegra234_cbb_probe(struct platform_device *pdev)
 	return tegra_cbb_register(&cbb->base);
 }
 
-static int tegra234_cbb_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static int __maybe_unused tegra234_cbb_resume_noirq(struct device *dev)
 {
 	struct tegra234_cbb *cbb = dev_get_drvdata(dev);
@@ -1196,7 +1190,6 @@ static const struct dev_pm_ops tegra234_cbb_pm = {
 
 static struct platform_driver tegra234_cbb_driver = {
 	.probe = tegra234_cbb_probe,
-	.remove = tegra234_cbb_remove,
 	.driver = {
 		.name = "tegra234-cbb",
 		.of_match_table = tegra234_cbb_dt_ids,
@@ -1218,4 +1211,3 @@ static void __exit tegra234_cbb_exit(void)
 module_exit(tegra234_cbb_exit);
 
 MODULE_DESCRIPTION("Control Backbone 2.0 error handling driver for Tegra234");
-MODULE_LICENSE("GPL");

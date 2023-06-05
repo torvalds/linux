@@ -126,7 +126,7 @@ struct rxrpc_ackpacket {
 	uint8_t		nAcks;		/* number of ACKs */
 #define RXRPC_MAXACKS	255
 
-	uint8_t		acks[0];	/* list of ACK/NAKs */
+	uint8_t		acks[];		/* list of ACK/NAKs */
 #define RXRPC_ACK_TYPE_NACK		0
 #define RXRPC_ACK_TYPE_ACK		1
 

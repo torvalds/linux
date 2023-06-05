@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 
@@ -1261,7 +1262,7 @@ static void wx_set_rx_buffer_len(struct wx *wx)
 	struct net_device *netdev = wx->netdev;
 	u32 mhadd, max_frame;
 
-	max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	/* adjust max frame to be at least the size of a standard frame */
 	if (max_frame < (ETH_FRAME_LEN + ETH_FCS_LEN))
 		max_frame = (ETH_FRAME_LEN + ETH_FCS_LEN);
@@ -1270,6 +1271,24 @@ static void wx_set_rx_buffer_len(struct wx *wx)
 	if (max_frame != mhadd)
 		wr32(wx, WX_PSR_MAX_SZ, max_frame);
 }
+
+/**
+ * wx_change_mtu - Change the Maximum Transfer Unit
+ * @netdev: network interface device structure
+ * @new_mtu: new value for maximum frame size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int wx_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	netdev->mtu = new_mtu;
+	wx_set_rx_buffer_len(wx);
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_change_mtu);
 
 /* Disable the specified rx queue */
 void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring)

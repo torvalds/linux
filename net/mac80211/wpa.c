@@ -550,7 +550,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 		if (res < 0 ||
 		    (!res && !(status->flag & RX_FLAG_ALLOW_SAME_PN))) {
 			key->u.ccmp.replays++;
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_REPLAY;
 		}
 
 		if (!(status->flag & RX_FLAG_DECRYPTED)) {
@@ -564,7 +564,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 				    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
 				    data_len,
 				    skb->data + skb->len - mic_len))
-				return RX_DROP_UNUSABLE;
+				return RX_DROP_U_MIC_FAIL;
 		}
 
 		memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
@@ -746,7 +746,7 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 		if (res < 0 ||
 		    (!res && !(status->flag & RX_FLAG_ALLOW_SAME_PN))) {
 			key->u.gcmp.replays++;
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_REPLAY;
 		}
 
 		if (!(status->flag & RX_FLAG_DECRYPTED)) {
@@ -761,7 +761,7 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 				    data_len,
 				    skb->data + skb->len -
 				    IEEE80211_GCMP_MIC_LEN))
-				return RX_DROP_UNUSABLE;
+				return RX_DROP_U_MIC_FAIL;
 		}
 
 		memcpy(key->u.gcmp.rx_pn[queue], pn, IEEE80211_GCMP_PN_LEN);
@@ -930,13 +930,13 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 		(skb->data + skb->len - sizeof(*mmie));
 	if (mmie->element_id != WLAN_EID_MMIE ||
 	    mmie->length != sizeof(*mmie) - 2)
-		return RX_DROP_UNUSABLE; /* Invalid MMIE */
+		return RX_DROP_U_BAD_MMIE; /* Invalid MMIE */
 
 	bip_ipn_swap(ipn, mmie->sequence_number);
 
 	if (memcmp(ipn, key->u.aes_cmac.rx_pn, 6) <= 0) {
 		key->u.aes_cmac.replays++;
-		return RX_DROP_UNUSABLE;
+		return RX_DROP_U_REPLAY;
 	}
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
@@ -946,7 +946,7 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 				   skb->data + 24, skb->len - 24, mic);
 		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
 			key->u.aes_cmac.icverrors++;
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_MIC_FAIL;
 		}
 	}
 
@@ -986,7 +986,7 @@ ieee80211_crypto_aes_cmac_256_decrypt(struct ieee80211_rx_data *rx)
 
 	if (memcmp(ipn, key->u.aes_cmac.rx_pn, 6) <= 0) {
 		key->u.aes_cmac.replays++;
-		return RX_DROP_UNUSABLE;
+		return RX_DROP_U_REPLAY;
 	}
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
@@ -996,7 +996,7 @@ ieee80211_crypto_aes_cmac_256_decrypt(struct ieee80211_rx_data *rx)
 				       skb->data + 24, skb->len - 24, mic);
 		if (crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
 			key->u.aes_cmac.icverrors++;
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_MIC_FAIL;
 		}
 	}
 
@@ -1079,13 +1079,13 @@ ieee80211_crypto_aes_gmac_decrypt(struct ieee80211_rx_data *rx)
 		(skb->data + skb->len - sizeof(*mmie));
 	if (mmie->element_id != WLAN_EID_MMIE ||
 	    mmie->length != sizeof(*mmie) - 2)
-		return RX_DROP_UNUSABLE; /* Invalid MMIE */
+		return RX_DROP_U_BAD_MMIE; /* Invalid MMIE */
 
 	bip_ipn_swap(ipn, mmie->sequence_number);
 
 	if (memcmp(ipn, key->u.aes_gmac.rx_pn, 6) <= 0) {
 		key->u.aes_gmac.replays++;
-		return RX_DROP_UNUSABLE;
+		return RX_DROP_U_REPLAY;
 	}
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
@@ -1104,7 +1104,7 @@ ieee80211_crypto_aes_gmac_decrypt(struct ieee80211_rx_data *rx)
 		    crypto_memneq(mic, mmie->mic, sizeof(mmie->mic))) {
 			key->u.aes_gmac.icverrors++;
 			kfree(mic);
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_MIC_FAIL;
 		}
 		kfree(mic);
 	}

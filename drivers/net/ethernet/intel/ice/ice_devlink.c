@@ -1254,7 +1254,6 @@ static const struct devlink_ops ice_devlink_ops = {
 	.supported_flash_update_params = DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 			  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
-	/* The ice driver currently does not support driver reinit */
 	.reload_down = ice_devlink_reload_down,
 	.reload_up = ice_devlink_reload_up,
 	.port_split = ice_devlink_port_split,

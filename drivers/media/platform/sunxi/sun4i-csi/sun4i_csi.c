@@ -260,18 +260,17 @@ err_clean_pad:
 	return ret;
 }
 
-static int sun4i_csi_remove(struct platform_device *pdev)
+static void sun4i_csi_remove(struct platform_device *pdev)
 {
 	struct sun4i_csi *csi = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
 	vb2_video_unregister_device(&csi->vdev);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);
 	media_device_cleanup(&csi->mdev);
-
-	return 0;
 }
 
 static const struct sun4i_csi_traits sun4i_a10_csi1_traits = {
@@ -329,7 +328,7 @@ static const struct dev_pm_ops sun4i_csi_pm_ops = {
 
 static struct platform_driver sun4i_csi_driver = {
 	.probe	= sun4i_csi_probe,
-	.remove	= sun4i_csi_remove,
+	.remove_new = sun4i_csi_remove,
 	.driver	= {
 		.name		= "sun4i-csi",
 		.of_match_table	= sun4i_csi_of_match,

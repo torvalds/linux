@@ -7,6 +7,7 @@
  * Author : Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */
 
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -15,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/clk.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/phy.h>
 
@@ -28,6 +28,14 @@
 static const char udc_name[] = "fotg210_udc";
 static const char * const fotg210_ep_name[] = {
 	"ep0", "ep1", "ep2", "ep3", "ep4"};
+
+static void fotg210_ack_int(struct fotg210_udc *fotg210, u32 offset, u32 mask)
+{
+	u32 value = ioread32(fotg210->reg + offset);
+
+	value &= ~mask;
+	iowrite32(value, fotg210->reg + offset);
+}
 
 static void fotg210_disable_fifo_int(struct fotg210_ep *ep)
 {
@@ -304,8 +312,7 @@ static void fotg210_wait_dma_done(struct fotg210_ep *ep)
 			goto dma_reset;
 	} while (!(value & DISGR2_DMA_CMPLT));
 
-	value &= ~DISGR2_DMA_CMPLT;
-	iowrite32(value, ep->fotg210->reg + FOTG210_DISGR2);
+	fotg210_ack_int(ep->fotg210, FOTG210_DISGR2, DISGR2_DMA_CMPLT);
 	return;
 
 dma_reset:
@@ -710,6 +717,20 @@ static int fotg210_is_epnstall(struct fotg210_ep *ep)
 	return value & INOUTEPMPSR_STL_EP ? 1 : 0;
 }
 
+/* For EP0 requests triggered by this driver (currently GET_STATUS response) */
+static void fotg210_ep0_complete(struct usb_ep *_ep, struct usb_request *req)
+{
+	struct fotg210_ep *ep;
+	struct fotg210_udc *fotg210;
+
+	ep = container_of(_ep, struct fotg210_ep, ep);
+	fotg210 = ep->fotg210;
+
+	if (req->status || req->actual != req->length) {
+		dev_warn(&fotg210->gadget.dev, "EP0 request failed: %d\n", req->status);
+	}
+}
+
 static void fotg210_get_status(struct fotg210_udc *fotg210,
 				struct usb_ctrlrequest *ctrl)
 {
@@ -831,14 +852,6 @@ static void fotg210_ep0in(struct fotg210_udc *fotg210)
 	}
 }
 
-static void fotg210_clear_comabt_int(struct fotg210_udc *fotg210)
-{
-	u32 value = ioread32(fotg210->reg + FOTG210_DISGR0);
-
-	value &= ~DISGR0_CX_COMABT_INT;
-	iowrite32(value, fotg210->reg + FOTG210_DISGR0);
-}
-
 static void fotg210_in_fifo_handler(struct fotg210_ep *ep)
 {
 	struct fotg210_request *req = list_entry(ep->queue.next,
@@ -880,60 +893,43 @@ static irqreturn_t fotg210_irq(int irq, void *_fotg210)
 		void __iomem *reg = fotg210->reg + FOTG210_DISGR2;
 		u32 int_grp2 = ioread32(reg);
 		u32 int_msk2 = ioread32(fotg210->reg + FOTG210_DMISGR2);
-		u32 value;
 
 		int_grp2 &= ~int_msk2;
 
 		if (int_grp2 & DISGR2_USBRST_INT) {
 			usb_gadget_udc_reset(&fotg210->gadget,
 					     fotg210->driver);
-			value = ioread32(reg);
-			value &= ~DISGR2_USBRST_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_USBRST_INT);
 			pr_info("fotg210 udc reset\n");
 		}
 		if (int_grp2 & DISGR2_SUSP_INT) {
-			value = ioread32(reg);
-			value &= ~DISGR2_SUSP_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_SUSP_INT);
 			pr_info("fotg210 udc suspend\n");
 		}
 		if (int_grp2 & DISGR2_RESM_INT) {
-			value = ioread32(reg);
-			value &= ~DISGR2_RESM_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_RESM_INT);
 			pr_info("fotg210 udc resume\n");
 		}
 		if (int_grp2 & DISGR2_ISO_SEQ_ERR_INT) {
-			value = ioread32(reg);
-			value &= ~DISGR2_ISO_SEQ_ERR_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_ISO_SEQ_ERR_INT);
 			pr_info("fotg210 iso sequence error\n");
 		}
 		if (int_grp2 & DISGR2_ISO_SEQ_ABORT_INT) {
-			value = ioread32(reg);
-			value &= ~DISGR2_ISO_SEQ_ABORT_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_ISO_SEQ_ABORT_INT);
 			pr_info("fotg210 iso sequence abort\n");
 		}
 		if (int_grp2 & DISGR2_TX0BYTE_INT) {
 			fotg210_clear_tx0byte(fotg210);
-			value = ioread32(reg);
-			value &= ~DISGR2_TX0BYTE_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_TX0BYTE_INT);
 			pr_info("fotg210 transferred 0 byte\n");
 		}
 		if (int_grp2 & DISGR2_RX0BYTE_INT) {
 			fotg210_clear_rx0byte(fotg210);
-			value = ioread32(reg);
-			value &= ~DISGR2_RX0BYTE_INT;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_RX0BYTE_INT);
 			pr_info("fotg210 received 0 byte\n");
 		}
 		if (int_grp2 & DISGR2_DMA_ERROR) {
-			value = ioread32(reg);
-			value &= ~DISGR2_DMA_ERROR;
-			iowrite32(value, reg);
+			fotg210_ack_int(fotg210, FOTG210_DISGR2, DISGR2_DMA_ERROR);
 		}
 	}
 
@@ -947,7 +943,7 @@ static irqreturn_t fotg210_irq(int irq, void *_fotg210)
 
 		/* the highest priority in this source register */
 		if (int_grp0 & DISGR0_CX_COMABT_INT) {
-			fotg210_clear_comabt_int(fotg210);
+			fotg210_ack_int(fotg210, FOTG210_DISGR0, DISGR0_CX_COMABT_INT);
 			pr_info("fotg210 CX command abort\n");
 		}
 
@@ -1015,6 +1011,10 @@ static int fotg210_udc_start(struct usb_gadget *g,
 
 	/* hook up the driver */
 	fotg210->driver = driver;
+	fotg210->gadget.dev.of_node = fotg210->dev->of_node;
+	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
+
+	dev_info(fotg210->dev, "bound driver %s\n", driver->driver.name);
 
 	if (!IS_ERR_OR_NULL(fotg210->phy)) {
 		ret = otg_set_peripheral(fotg210->phy->otg,
@@ -1022,6 +1022,11 @@ static int fotg210_udc_start(struct usb_gadget *g,
 		if (ret)
 			dev_err(fotg210->dev, "can't bind to phy\n");
 	}
+
+	/* chip enable */
+	value = ioread32(fotg210->reg + FOTG210_DMCR);
+	value |= DMCR_CHIP_EN;
+	iowrite32(value, fotg210->reg + FOTG210_DMCR);
 
 	/* enable device global interrupt */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
@@ -1038,6 +1043,15 @@ static void fotg210_init(struct fotg210_udc *fotg210)
 	/* disable global interrupt and set int polarity to active high */
 	iowrite32(GMIR_MHC_INT | GMIR_MOTG_INT | GMIR_INT_POLARITY,
 		  fotg210->reg + FOTG210_GMIR);
+
+	/* mask interrupts for groups other than 0-2 */
+	iowrite32(~(DMIGR_MINT_G0 | DMIGR_MINT_G1 | DMIGR_MINT_G2),
+		  fotg210->reg + FOTG210_DMIGR);
+
+	/* udc software reset */
+	iowrite32(DMCR_SFRST, fotg210->reg + FOTG210_DMCR);
+	/* Better wait a bit, but without a datasheet, no idea how long. */
+	usleep_range(100, 200);
 
 	/* disable device global interrupt */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
@@ -1071,15 +1085,33 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 
 	fotg210_init(fotg210);
 	fotg210->driver = NULL;
+	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
 
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 
 	return 0;
 }
 
+/**
+ * fotg210_vbus_session - Called by external transceiver to enable/disable udc
+ * @_gadget: usb gadget
+ * @is_active: 0 if should disable UDC VBUS, 1 if should enable
+ *
+ * Returns 0
+ */
+static int fotg210_vbus_session(struct usb_gadget *g, int is_active)
+{
+	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
+
+	/* Call down to core integration layer to drive or disable VBUS */
+	fotg210_vbus(fotg210->fotg, is_active);
+	return 0;
+}
+
 static const struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_start		= fotg210_udc_start,
 	.udc_stop		= fotg210_udc_stop,
+	.vbus_session		= fotg210_vbus_session,
 };
 
 /**
@@ -1133,34 +1165,22 @@ int fotg210_udc_remove(struct platform_device *pdev)
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
 
-	if (!IS_ERR(fotg210->pclk))
-		clk_disable_unprepare(fotg210->pclk);
-
 	kfree(fotg210);
 
 	return 0;
 }
 
-int fotg210_udc_probe(struct platform_device *pdev)
+int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 {
-	struct resource *res;
 	struct fotg210_udc *fotg210 = NULL;
 	struct device *dev = &pdev->dev;
 	int irq;
 	int ret = 0;
 	int i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_err("platform_get_resource error.\n");
-		return -ENODEV;
-	}
-
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		pr_err("could not get irq\n");
-		return -ENODEV;
-	}
+	if (irq < 0)
+		return irq;
 
 	/* initialize udc */
 	fotg210 = kzalloc(sizeof(struct fotg210_udc), GFP_KERNEL);
@@ -1168,35 +1188,19 @@ int fotg210_udc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fotg210->dev = dev;
-
-	/* It's OK not to supply this clock */
-	fotg210->pclk = devm_clk_get(dev, "PCLK");
-	if (!IS_ERR(fotg210->pclk)) {
-		ret = clk_prepare_enable(fotg210->pclk);
-		if (ret) {
-			dev_err(dev, "failed to enable PCLK\n");
-			goto err;
-		}
-	} else if (PTR_ERR(fotg210->pclk) == -EPROBE_DEFER) {
-		/*
-		 * Percolate deferrals, for anything else,
-		 * just live without the clocking.
-		 */
-		ret = -EPROBE_DEFER;
-		goto err;
-	}
+	fotg210->fotg = fotg;
 
 	fotg210->phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 	if (IS_ERR(fotg210->phy)) {
 		ret = PTR_ERR(fotg210->phy);
 		if (ret == -EPROBE_DEFER)
-			goto err_pclk;
+			goto err_free;
 		dev_info(dev, "no PHY found\n");
 		fotg210->phy = NULL;
 	} else {
 		ret = usb_phy_init(fotg210->phy);
 		if (ret)
-			goto err_pclk;
+			goto err_free;
 		dev_info(dev, "found and initialized PHY\n");
 	}
 
@@ -1208,11 +1212,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 			goto err_alloc;
 	}
 
-	fotg210->reg = ioremap(res->start, resource_size(res));
-	if (fotg210->reg == NULL) {
-		dev_err(dev, "ioremap error\n");
-		goto err_alloc;
-	}
+	fotg210->reg = fotg->base;
 
 	spin_lock_init(&fotg210->lock);
 
@@ -1261,6 +1261,8 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	if (fotg210->ep0_req == NULL)
 		goto err_map;
 
+	fotg210->ep0_req->complete = fotg210_ep0_complete;
+
 	fotg210_init(fotg210);
 
 	fotg210_disable_unplug(fotg210);
@@ -1268,7 +1270,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	ret = request_irq(irq, fotg210_irq, IRQF_SHARED,
 			  udc_name, fotg210);
 	if (ret < 0) {
-		dev_err(dev, "request_irq error (%d)\n", ret);
+		dev_err_probe(dev, ret, "request_irq error\n");
 		goto err_req;
 	}
 
@@ -1297,11 +1299,8 @@ err_map:
 err_alloc:
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
-err_pclk:
-	if (!IS_ERR(fotg210->pclk))
-		clk_disable_unprepare(fotg210->pclk);
 
-err:
+err_free:
 	kfree(fotg210);
 	return ret;
 }

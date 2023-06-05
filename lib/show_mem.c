@@ -10,26 +10,19 @@
 
 void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
 {
-	pg_data_t *pgdat;
 	unsigned long total = 0, reserved = 0, highmem = 0;
+	struct zone *zone;
 
 	printk("Mem-Info:\n");
 	__show_free_areas(filter, nodemask, max_zone_idx);
 
-	for_each_online_pgdat(pgdat) {
-		int zoneid;
+	for_each_populated_zone(zone) {
 
-		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-			struct zone *zone = &pgdat->node_zones[zoneid];
-			if (!populated_zone(zone))
-				continue;
+		total += zone->present_pages;
+		reserved += zone->present_pages - zone_managed_pages(zone);
 
-			total += zone->present_pages;
-			reserved += zone->present_pages - zone_managed_pages(zone);
-
-			if (is_highmem_idx(zoneid))
-				highmem += zone->present_pages;
-		}
+		if (is_highmem(zone))
+			highmem += zone->present_pages;
 	}
 
 	printk("%lu pages RAM\n", total);

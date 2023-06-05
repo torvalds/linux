@@ -60,10 +60,10 @@ struct cs_etm_decoder_params {
 	int operation;
 	void (*packet_printer)(const char *msg);
 	cs_etm_mem_cb_type mem_acc_cb;
-	u8 formatted;
-	u8 fsyncs;
-	u8 hsyncs;
-	u8 frame_aligned;
+	bool formatted;
+	bool fsyncs;
+	bool hsyncs;
+	bool frame_aligned;
 	void *data;
 };
 

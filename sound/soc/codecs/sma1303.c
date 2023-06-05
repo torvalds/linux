@@ -569,7 +569,7 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
 					SMA1303_LR_DATA_SW_MASK,
-					SMA1303_LR_DATA_SW_NORMAL,
+					SMA1303_LR_DATA_SW_SWAP,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -1591,7 +1591,7 @@ static const struct snd_soc_component_driver sma1303_component = {
 	.num_dapm_routes = ARRAY_SIZE(sma1303_audio_map),
 };
 
-const struct regmap_config sma_i2c_regmap = {
+static const struct regmap_config sma_i2c_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

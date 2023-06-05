@@ -2290,7 +2290,7 @@ static irqreturn_t octeon_irq_cib_handler(int my_irq, void *data)
 static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 				      struct device_node *parent)
 {
-	const __be32 *addr;
+	struct resource res;
 	u32 val;
 	struct octeon_irq_cib_host_data *host_data;
 	int parent_irq;
@@ -2309,21 +2309,19 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 		return -ENOMEM;
 	raw_spin_lock_init(&host_data->lock);
 
-	addr = of_get_address(ciu_node, 0, NULL, NULL);
-	if (!addr) {
+	r = of_address_to_resource(ciu_node, 0, &res);
+	if (r) {
 		pr_err("ERROR: Couldn't acquire reg(0) %pOFn\n", ciu_node);
-		return -EINVAL;
+		return r;
 	}
-	host_data->raw_reg = (u64)phys_to_virt(
-		of_translate_address(ciu_node, addr));
+	host_data->raw_reg = (u64)phys_to_virt(res.start);
 
-	addr = of_get_address(ciu_node, 1, NULL, NULL);
-	if (!addr) {
+	r = of_address_to_resource(ciu_node, 1, &res);
+	if (r) {
 		pr_err("ERROR: Couldn't acquire reg(1) %pOFn\n", ciu_node);
-		return -EINVAL;
+		return r;
 	}
-	host_data->en_reg = (u64)phys_to_virt(
-		of_translate_address(ciu_node, addr));
+	host_data->en_reg = (u64)phys_to_virt(res.start);
 
 	r = of_property_read_u32(ciu_node, "cavium,max-bits", &val);
 	if (r) {
@@ -2874,11 +2872,11 @@ static struct irq_chip octeon_irq_chip_ciu3_mbox = {
 static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 				       struct device_node *parent)
 {
-	int i;
+	int i, ret;
 	int node;
 	struct irq_domain *domain;
 	struct octeon_ciu3_info *ciu3_info;
-	const __be32 *zero_addr;
+	struct resource res;
 	u64 base_addr;
 	union cvmx_ciu3_const consts;
 
@@ -2888,14 +2886,11 @@ static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 	if (!ciu3_info)
 		return -ENOMEM;
 
-	zero_addr = of_get_address(ciu_node, 0, NULL, NULL);
-	if (WARN_ON(!zero_addr))
-		return -EINVAL;
+	ret = of_address_to_resource(ciu_node, 0, &res);
+	if (WARN_ON(ret))
+		return ret;
 
-	base_addr = of_translate_address(ciu_node, zero_addr);
-	base_addr = (u64)phys_to_virt(base_addr);
-
-	ciu3_info->ciu3_addr = base_addr;
+	ciu3_info->ciu3_addr = base_addr = (u64)phys_to_virt(res.start);
 	ciu3_info->node = node;
 
 	consts.u64 = cvmx_read_csr(base_addr + CIU3_CONST);

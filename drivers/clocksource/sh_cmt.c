@@ -1174,4 +1174,3 @@ module_exit(sh_cmt_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH CMT Timer Driver");
-MODULE_LICENSE("GPL v2");

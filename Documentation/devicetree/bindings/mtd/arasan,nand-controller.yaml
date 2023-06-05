@@ -7,10 +7,10 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Arasan NAND Flash Controller with ONFI 3.1 support
 
 allOf:
-  - $ref: "nand-controller.yaml"
+  - $ref: nand-controller.yaml
 
 maintainers:
-  - Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 properties:
   compatible:

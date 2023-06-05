@@ -135,6 +135,8 @@
 #define mmIH_RB_WPTR_ADDR_LO_BASE_IDX                                                                  0
 #define mmIH_DOORBELL_RPTR                                                                             0x0087
 #define mmIH_DOORBELL_RPTR_BASE_IDX                                                                    0
+#define mmIH_DOORBELL_RETRY_CAM                                                                        0x0088
+#define mmIH_DOORBELL_RETRY_CAM_BASE_IDX                                                               0
 #define mmIH_RB_CNTL_RING1                                                                             0x008c
 #define mmIH_RB_CNTL_RING1_BASE_IDX                                                                    0
 #define mmIH_RB_BASE_RING1                                                                             0x008d
@@ -159,6 +161,8 @@
 #define mmIH_RB_WPTR_RING2_BASE_IDX                                                                    0
 #define mmIH_DOORBELL_RPTR_RING2                                                                       0x009f
 #define mmIH_DOORBELL_RPTR_RING2_BASE_IDX                                                              0
+#define mmIH_RETRY_CAM_ACK                                                                             0x00a4
+#define mmIH_RETRY_CAM_ACK_BASE_IDX                                                                    0
 #define mmIH_VERSION                                                                                   0x00a5
 #define mmIH_VERSION_BASE_IDX                                                                          0
 #define mmIH_CNTL                                                                                      0x00c0
@@ -235,6 +239,8 @@
 #define mmIH_MMHUB_ERROR_BASE_IDX                                                                      0
 #define mmIH_MEM_POWER_CTRL                                                                            0x00e8
 #define mmIH_MEM_POWER_CTRL_BASE_IDX                                                                   0
+#define mmIH_RETRY_INT_CAM_CNTL                                                                        0x00e9
+#define mmIH_RETRY_INT_CAM_CNTL_BASE_IDX                                                               0
 #define mmIH_REGISTER_LAST_PART2                                                                       0x00ff
 #define mmIH_REGISTER_LAST_PART2_BASE_IDX                                                              0
 #define mmSEM_CLK_CTRL                                                                                 0x0100

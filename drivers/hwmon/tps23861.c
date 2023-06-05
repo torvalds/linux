@@ -341,7 +341,7 @@ static int tps23861_read_string(struct device *dev,
 	return 0;
 }
 
-static const struct hwmon_channel_info *tps23861_info[] = {
+static const struct hwmon_channel_info * const tps23861_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,

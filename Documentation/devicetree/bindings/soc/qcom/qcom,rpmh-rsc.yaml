@@ -112,8 +112,9 @@ properties:
     $ref: /schemas/power/qcom,rpmpd.yaml#
 
 patternProperties:
-  '-regulators$':
+  '^regulators(-[0-9])?$':
     $ref: /schemas/regulator/qcom,rpmh-regulator.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible

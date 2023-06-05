@@ -93,63 +93,32 @@ static_assert(sizeof(struct dfltcc_param_v0) == 1536);
 struct dfltcc_state {
     struct dfltcc_param_v0 param;      /* Parameter block */
     struct dfltcc_qaf_param af;        /* Available functions */
+    char msg[64];                      /* Buffer for strm->msg */
+};
+
+/*
+ *  Extension of inflate_state and deflate_state for DFLTCC.
+ */
+struct dfltcc_deflate_state {
+    struct dfltcc_state common;        /* Parameter block */
     uLong level_mask;                  /* Levels on which to use DFLTCC */
     uLong block_size;                  /* New block each X bytes */
     uLong block_threshold;             /* New block after total_in > X */
     uLong dht_threshold;               /* New block only if avail_in >= X */
-    char msg[64];                      /* Buffer for strm->msg */
 };
 
+#define ALIGN_UP(p, size) (__typeof__(p))(((uintptr_t)(p) + ((size) - 1)) & ~((size) - 1))
 /* Resides right after inflate_state or deflate_state */
-#define GET_DFLTCC_STATE(state) ((struct dfltcc_state *)((state) + 1))
+#define GET_DFLTCC_STATE(state) ((struct dfltcc_state *)((char *)(state) + ALIGN_UP(sizeof(*state), 8)))
 
-/* External functions */
-int dfltcc_can_deflate(z_streamp strm);
-int dfltcc_deflate(z_streamp strm,
-                   int flush,
-                   block_state *result);
-void dfltcc_reset(z_streamp strm, uInt size);
-int dfltcc_can_inflate(z_streamp strm);
-typedef enum {
-    DFLTCC_INFLATE_CONTINUE,
-    DFLTCC_INFLATE_BREAK,
-    DFLTCC_INFLATE_SOFTWARE,
-} dfltcc_inflate_action;
-dfltcc_inflate_action dfltcc_inflate(z_streamp strm,
-                                     int flush, int *ret);
+void dfltcc_reset_state(struct dfltcc_state *dfltcc_state);
+
 static inline int is_dfltcc_enabled(void)
 {
 return (zlib_dfltcc_support != ZLIB_DFLTCC_DISABLED &&
         test_facility(DFLTCC_FACILITY));
 }
 
-#define DEFLATE_RESET_HOOK(strm) \
-    dfltcc_reset((strm), sizeof(deflate_state))
-
-#define DEFLATE_HOOK dfltcc_deflate
-
-#define DEFLATE_NEED_CHECKSUM(strm) (!dfltcc_can_deflate((strm)))
-
 #define DEFLATE_DFLTCC_ENABLED() is_dfltcc_enabled()
-
-#define INFLATE_RESET_HOOK(strm) \
-    dfltcc_reset((strm), sizeof(struct inflate_state))
-
-#define INFLATE_TYPEDO_HOOK(strm, flush) \
-    if (dfltcc_can_inflate((strm))) { \
-        dfltcc_inflate_action action; \
-\
-        RESTORE(); \
-        action = dfltcc_inflate((strm), (flush), &ret); \
-        LOAD(); \
-        if (action == DFLTCC_INFLATE_CONTINUE) \
-            break; \
-        else if (action == DFLTCC_INFLATE_BREAK) \
-            goto inf_leave; \
-    }
-
-#define INFLATE_NEED_CHECKSUM(strm) (!dfltcc_can_inflate((strm)))
-
-#define INFLATE_NEED_UPDATEWINDOW(strm) (!dfltcc_can_inflate((strm)))
 
 #endif /* DFLTCC_H */

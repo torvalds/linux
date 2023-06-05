@@ -210,28 +210,10 @@ static struct ctl_table xfs_table[] = {
 	{}
 };
 
-static struct ctl_table xfs_dir_table[] = {
-	{
-		.procname	= "xfs",
-		.mode		= 0555,
-		.child		= xfs_table
-	},
-	{}
-};
-
-static struct ctl_table xfs_root_table[] = {
-	{
-		.procname	= "fs",
-		.mode		= 0555,
-		.child		= xfs_dir_table
-	},
-	{}
-};
-
 int
 xfs_sysctl_register(void)
 {
-	xfs_table_header = register_sysctl_table(xfs_root_table);
+	xfs_table_header = register_sysctl("fs/xfs", xfs_table);
 	if (!xfs_table_header)
 		return -ENOMEM;
 	return 0;

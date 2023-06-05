@@ -117,6 +117,7 @@ OPTIONS
 	- addr: (Full) virtual address of the sampled instruction
 	- retire_lat: On X86, this reports pipeline stall of this instruction compared
 	  to the previous instruction in cycles. And currently supported only on X86
+	- simd: Flags describing a SIMD operation. "e" for empty Arm SVE predicate. "p" for partial Arm SVE predicate
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -379,6 +380,9 @@ OPTIONS
 	Add the addresses of sampled taken branches to the callstack.
 	This allows to examine the path the program took to each sample.
 	The data collection must have used -b (or -j) and -g.
+
+--addr2line=<path>::
+        Path to addr2line binary.
 
 --objdump=<path>::
         Path to objdump binary.

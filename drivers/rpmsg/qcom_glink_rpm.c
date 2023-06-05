@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/rpmsg.h>
@@ -53,6 +54,18 @@ struct glink_rpm_pipe {
 	void __iomem *fifo;
 };
 
+struct glink_rpm {
+	struct qcom_glink *glink;
+
+	int irq;
+
+	struct mbox_client mbox_client;
+	struct mbox_chan *mbox_chan;
+
+	struct glink_rpm_pipe rx_pipe;
+	struct glink_rpm_pipe tx_pipe;
+};
+
 static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 {
 	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
@@ -68,7 +81,7 @@ static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 		return head - tail;
 }
 
-static void glink_rpm_rx_peak(struct qcom_glink_pipe *glink_pipe,
+static void glink_rpm_rx_peek(struct qcom_glink_pipe *glink_pipe,
 			      void *data, unsigned int offset, size_t count)
 {
 	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
@@ -179,6 +192,24 @@ static void glink_rpm_tx_write(struct qcom_glink_pipe *glink_pipe,
 	writel(head, pipe->head);
 }
 
+static void glink_rpm_tx_kick(struct qcom_glink_pipe *glink_pipe)
+{
+	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
+	struct glink_rpm *rpm = container_of(pipe, struct glink_rpm, tx_pipe);
+
+	mbox_send_message(rpm->mbox_chan, NULL);
+	mbox_client_txdone(rpm->mbox_chan, 0);
+}
+
+static irqreturn_t qcom_glink_rpm_intr(int irq, void *data)
+{
+	struct glink_rpm *rpm = data;
+
+	qcom_glink_native_rx(rpm->glink);
+
+	return IRQ_HANDLED;
+}
+
 static int glink_rpm_parse_toc(struct device *dev,
 			       void __iomem *msg_ram,
 			       size_t msg_ram_size,
@@ -257,8 +288,7 @@ err_inval:
 static int glink_rpm_probe(struct platform_device *pdev)
 {
 	struct qcom_glink *glink;
-	struct glink_rpm_pipe *rx_pipe;
-	struct glink_rpm_pipe *tx_pipe;
+	struct glink_rpm *rpm;
 	struct device_node *np;
 	void __iomem *msg_ram;
 	size_t msg_ram_size;
@@ -266,9 +296,8 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	struct resource r;
 	int ret;
 
-	rx_pipe = devm_kzalloc(&pdev->dev, sizeof(*rx_pipe), GFP_KERNEL);
-	tx_pipe = devm_kzalloc(&pdev->dev, sizeof(*tx_pipe), GFP_KERNEL);
-	if (!rx_pipe || !tx_pipe)
+	rpm = devm_kzalloc(&pdev->dev, sizeof(*rpm), GFP_KERNEL);
+	if (!rpm)
 		return -ENOMEM;
 
 	np = of_parse_phandle(dev->of_node, "qcom,rpm-msg-ram", 0);
@@ -283,40 +312,65 @@ static int glink_rpm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = glink_rpm_parse_toc(dev, msg_ram, msg_ram_size,
-				  rx_pipe, tx_pipe);
+				  &rpm->rx_pipe, &rpm->tx_pipe);
 	if (ret)
 		return ret;
 
+	rpm->irq = of_irq_get(dev->of_node, 0);
+	ret = devm_request_irq(dev, rpm->irq, qcom_glink_rpm_intr,
+			       IRQF_NO_SUSPEND | IRQF_NO_AUTOEN,
+			       "glink-rpm", rpm);
+	if (ret) {
+		dev_err(dev, "failed to request IRQ\n");
+		return ret;
+	}
+
+	rpm->mbox_client.dev = dev;
+	rpm->mbox_client.knows_txdone = true;
+	rpm->mbox_chan = mbox_request_channel(&rpm->mbox_client, 0);
+	if (IS_ERR(rpm->mbox_chan))
+		return dev_err_probe(dev, PTR_ERR(rpm->mbox_chan), "failed to acquire IPC channel\n");
+
 	/* Pipe specific accessors */
-	rx_pipe->native.avail = glink_rpm_rx_avail;
-	rx_pipe->native.peak = glink_rpm_rx_peak;
-	rx_pipe->native.advance = glink_rpm_rx_advance;
-	tx_pipe->native.avail = glink_rpm_tx_avail;
-	tx_pipe->native.write = glink_rpm_tx_write;
+	rpm->rx_pipe.native.avail = glink_rpm_rx_avail;
+	rpm->rx_pipe.native.peek = glink_rpm_rx_peek;
+	rpm->rx_pipe.native.advance = glink_rpm_rx_advance;
+	rpm->tx_pipe.native.avail = glink_rpm_tx_avail;
+	rpm->tx_pipe.native.write = glink_rpm_tx_write;
+	rpm->tx_pipe.native.kick = glink_rpm_tx_kick;
 
-	writel(0, tx_pipe->head);
-	writel(0, rx_pipe->tail);
+	writel(0, rpm->tx_pipe.head);
+	writel(0, rpm->rx_pipe.tail);
 
-	glink = qcom_glink_native_probe(&pdev->dev,
+	glink = qcom_glink_native_probe(dev,
 					0,
-					&rx_pipe->native,
-					&tx_pipe->native,
+					&rpm->rx_pipe.native,
+					&rpm->tx_pipe.native,
 					true);
-	if (IS_ERR(glink))
+	if (IS_ERR(glink)) {
+		mbox_free_channel(rpm->mbox_chan);
 		return PTR_ERR(glink);
+	}
 
-	platform_set_drvdata(pdev, glink);
+	rpm->glink = glink;
+
+	platform_set_drvdata(pdev, rpm);
+
+	enable_irq(rpm->irq);
 
 	return 0;
 }
 
-static int glink_rpm_remove(struct platform_device *pdev)
+static void glink_rpm_remove(struct platform_device *pdev)
 {
-	struct qcom_glink *glink = platform_get_drvdata(pdev);
+	struct glink_rpm *rpm = platform_get_drvdata(pdev);
+	struct qcom_glink *glink = rpm->glink;
+
+	disable_irq(rpm->irq);
 
 	qcom_glink_native_remove(glink);
 
-	return 0;
+	mbox_free_channel(rpm->mbox_chan);
 }
 
 static const struct of_device_id glink_rpm_of_match[] = {
@@ -327,7 +381,7 @@ MODULE_DEVICE_TABLE(of, glink_rpm_of_match);
 
 static struct platform_driver glink_rpm_driver = {
 	.probe = glink_rpm_probe,
-	.remove = glink_rpm_remove,
+	.remove_new = glink_rpm_remove,
 	.driver = {
 		.name = "qcom_glink_rpm",
 		.of_match_table = glink_rpm_of_match,

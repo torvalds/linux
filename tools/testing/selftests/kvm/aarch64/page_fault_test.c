@@ -1112,8 +1112,6 @@ int main(int argc, char *argv[])
 	enum vm_mem_backing_src_type src_type;
 	int opt;
 
-	setbuf(stdout, NULL);
-
 	src_type = DEFAULT_VM_MEM_SRC;
 
 	while ((opt = getopt(argc, argv, "hm:s:")) != -1) {

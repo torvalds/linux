@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 import functools
 import os
@@ -67,7 +67,20 @@ class Netlink:
     NLMSGERR_ATTR_MISS_NEST = 6
 
 
+class NlError(Exception):
+  def __init__(self, nl_msg):
+    self.nl_msg = nl_msg
+
+  def __str__(self):
+    return f"Netlink error: {os.strerror(-self.nl_msg.error)}\n{self.nl_msg}"
+
+
 class NlAttr:
+    type_formats = { 'u8' : ('B', 1), 's8' : ('b', 1),
+                     'u16': ('H', 2), 's16': ('h', 2),
+                     'u32': ('I', 4), 's32': ('i', 4),
+                     'u64': ('Q', 8), 's64': ('q', 8) }
+
     def __init__(self, raw, offset):
         self._len, self._type = struct.unpack("HH", raw[offset:offset + 4])
         self.type = self._type & ~Netlink.NLA_TYPE_MASK
@@ -75,23 +88,46 @@ class NlAttr:
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
 
+    def format_byte_order(byte_order):
+        if byte_order:
+            return ">" if byte_order == "big-endian" else "<"
+        return ""
+
     def as_u8(self):
         return struct.unpack("B", self.raw)[0]
 
-    def as_u16(self):
-        return struct.unpack("H", self.raw)[0]
+    def as_u16(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}H", self.raw)[0]
 
-    def as_u32(self):
-        return struct.unpack("I", self.raw)[0]
+    def as_u32(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}I", self.raw)[0]
 
-    def as_u64(self):
-        return struct.unpack("Q", self.raw)[0]
+    def as_u64(self, byte_order=None):
+        endian = NlAttr.format_byte_order(byte_order)
+        return struct.unpack(f"{endian}Q", self.raw)[0]
 
     def as_strz(self):
         return self.raw.decode('ascii')[:-1]
 
     def as_bin(self):
         return self.raw
+
+    def as_c_array(self, type):
+        format, _ = self.type_formats[type]
+        return list({ x[0] for x in struct.iter_unpack(format, self.raw) })
+
+    def as_struct(self, members):
+        value = dict()
+        offset = 0
+        for m in members:
+            # TODO: handle non-scalar members
+            format, size = self.type_formats[m.type]
+            decoded = struct.unpack_from(format, self.raw, offset)
+            offset += size
+            value[m.name] = decoded[0]
+        return value
 
     def __repr__(self):
         return f"[type:{self.type} len:{self._len}] {self.raw}"
@@ -200,7 +236,7 @@ def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
     if seq is None:
         seq = random.randint(1, 1024)
     nlmsg = struct.pack("HHII", nl_type, nl_flags, seq, 0)
-    genlmsg = struct.pack("bbH", genl_cmd, genl_version, 0)
+    genlmsg = struct.pack("BBH", genl_cmd, genl_version, 0)
     return nlmsg + genlmsg
 
 
@@ -258,14 +294,22 @@ def _genl_load_families():
 
 
 class GenlMsg:
-    def __init__(self, nl_msg):
+    def __init__(self, nl_msg, fixed_header_members=[]):
         self.nl = nl_msg
 
         self.hdr = nl_msg.raw[0:4]
-        self.raw = nl_msg.raw[4:]
+        offset = 4
 
-        self.genl_cmd, self.genl_version, _ = struct.unpack("bbH", self.hdr)
+        self.genl_cmd, self.genl_version, _ = struct.unpack("BBH", self.hdr)
 
+        self.fixed_header_attrs = dict()
+        for m in fixed_header_members:
+            format, size = NlAttr.type_formats[m.type]
+            decoded = struct.unpack_from(format, nl_msg.raw, offset)
+            offset += size
+            self.fixed_header_attrs[m.name] = decoded[0]
+
+        self.raw = nl_msg.raw[offset:]
         self.raw_attrs = NlAttrs(self.raw)
 
     def __repr__(self):
@@ -303,11 +347,6 @@ class YnlFamily(SpecFamily):
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_EXT_ACK, 1)
 
-        self._types = dict()
-
-        for elem in self.yaml.get('definitions', []):
-            self._types[elem['name']] = elem
-
         self.async_msg_ids = set()
         self.async_msg_queue = []
 
@@ -319,7 +358,10 @@ class YnlFamily(SpecFamily):
             bound_f = functools.partial(self._op, op_name)
             setattr(self, op.ident_name, bound_f)
 
-        self.family = GenlFamily(self.yaml['name'])
+        try:
+            self.family = GenlFamily(self.yaml['name'])
+        except KeyError:
+            raise Exception(f"Family '{self.yaml['name']}' not supported by the kernel")
 
     def ntf_subscribe(self, mcast_name):
         if mcast_name not in self.family.genl_family['mcast']:
@@ -339,8 +381,17 @@ class YnlFamily(SpecFamily):
                 attr_payload += self._add_attr(attr['nested-attributes'], subname, subvalue)
         elif attr["type"] == 'flag':
             attr_payload = b''
+        elif attr["type"] == 'u8':
+            attr_payload = struct.pack("B", int(value))
+        elif attr["type"] == 'u16':
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}H", int(value))
         elif attr["type"] == 'u32':
-            attr_payload = struct.pack("I", int(value))
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}I", int(value))
+        elif attr["type"] == 'u64':
+            endian = NlAttr.format_byte_order(attr.byte_order)
+            attr_payload = struct.pack(f"{endian}Q", int(value))
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
@@ -353,18 +404,27 @@ class YnlFamily(SpecFamily):
 
     def _decode_enum(self, rsp, attr_spec):
         raw = rsp[attr_spec['name']]
-        enum = self._types[attr_spec['enum']]
+        enum = self.consts[attr_spec['enum']]
         i = attr_spec.get('value-start', 0)
         if 'enum-as-flags' in attr_spec and attr_spec['enum-as-flags']:
             value = set()
             while raw:
                 if raw & 1:
-                    value.add(enum['entries'][i])
+                    value.add(enum.entries_by_val[i].name)
                 raw >>= 1
                 i += 1
         else:
-            value = enum['entries'][raw - i]
+            value = enum.entries_by_val[raw - i].name
         rsp[attr_spec['name']] = value
+
+    def _decode_binary(self, attr, attr_spec):
+        if attr_spec.struct_name:
+            decoded = attr.as_struct(self.consts[attr_spec.struct_name])
+        elif attr_spec.sub_type:
+            decoded = attr.as_c_array(attr_spec.sub_type)
+        else:
+            decoded = attr.as_bin()
+        return decoded
 
     def _decode(self, attrs, space):
         attr_space = self.attr_sets[space]
@@ -376,14 +436,16 @@ class YnlFamily(SpecFamily):
                 decoded = subdict
             elif attr_spec['type'] == 'u8':
                 decoded = attr.as_u8()
+            elif attr_spec['type'] == 'u16':
+                decoded = attr.as_u16(attr_spec.byte_order)
             elif attr_spec['type'] == 'u32':
-                decoded = attr.as_u32()
+                decoded = attr.as_u32(attr_spec.byte_order)
             elif attr_spec['type'] == 'u64':
-                decoded = attr.as_u64()
+                decoded = attr.as_u64(attr_spec.byte_order)
             elif attr_spec["type"] == 'string':
                 decoded = attr.as_strz()
             elif attr_spec["type"] == 'binary':
-                decoded = attr.as_bin()
+                decoded = self._decode_binary(attr, attr_spec)
             elif attr_spec["type"] == 'flag':
                 decoded = True
             else:
@@ -468,6 +530,17 @@ class YnlFamily(SpecFamily):
 
                 self.handle_ntf(nl_msg, gm)
 
+    def operation_do_attributes(self, name):
+      """
+      For a given operation name, find and return a supported
+      set of attributes (as a dict).
+      """
+      op = self.find_operation(name)
+      if not op:
+        return None
+
+      return op['do']['request']['attributes'].copy()
+
     def _op(self, method, vals, dump=False):
         op = self.ops[method]
 
@@ -477,6 +550,13 @@ class YnlFamily(SpecFamily):
 
         req_seq = random.randint(1024, 65535)
         msg = _genl_msg(self.family.family_id, nl_flags, op.req_value, 1, req_seq)
+        fixed_header_members = []
+        if op.fixed_header:
+            fixed_header_members = self.consts[op.fixed_header].members
+            for m in fixed_header_members:
+                value = vals.pop(m.name)
+                format, _ = NlAttr.type_formats[m.type]
+                msg += struct.pack(format, value)
         for name, value in vals.items():
             msg += self._add_attr(op.attr_set.name, name, value)
         msg = _genl_msg_finalize(msg)
@@ -493,9 +573,7 @@ class YnlFamily(SpecFamily):
                     self._decode_extack(msg, op.attr_set, nl_msg.extack)
 
                 if nl_msg.error:
-                    print("Netlink error:", os.strerror(-nl_msg.error))
-                    print(nl_msg)
-                    return
+                    raise NlError(nl_msg)
                 if nl_msg.done:
                     if nl_msg.extack:
                         print("Netlink warning:")
@@ -503,7 +581,7 @@ class YnlFamily(SpecFamily):
                     done = True
                     break
 
-                gm = GenlMsg(nl_msg)
+                gm = GenlMsg(nl_msg, fixed_header_members)
                 # Check if this is a reply to our request
                 if nl_msg.nl_seq != req_seq or gm.genl_cmd != op.rsp_value:
                     if gm.genl_cmd in self.async_msg_ids:
@@ -513,7 +591,8 @@ class YnlFamily(SpecFamily):
                         print('Unexpected message: ' + repr(gm))
                         continue
 
-                rsp.append(self._decode(gm.raw_attrs, op.attr_set.name))
+                rsp.append(self._decode(gm.raw_attrs, op.attr_set.name)
+                           | gm.fixed_header_attrs)
 
         if not rsp:
             return None

@@ -20,7 +20,9 @@
 #include <linux/context_tracking.h>
 #include <linux/elf.h>
 #include <linux/errno.h>
+#include <linux/hw_breakpoint.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
@@ -29,6 +31,7 @@
 #include <linux/smp.h>
 #include <linux/stddef.h>
 #include <linux/seccomp.h>
+#include <linux/thread_info.h>
 #include <linux/uaccess.h>
 
 #include <asm/byteorder.h>
@@ -39,6 +42,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/syscall.h>
 
@@ -246,6 +250,391 @@ static int cfg_set(struct task_struct *target,
 	return 0;
 }
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+
+/*
+ * Handle hitting a HW-breakpoint.
+ */
+static void ptrace_hbptriggered(struct perf_event *bp,
+				struct perf_sample_data *data,
+				struct pt_regs *regs)
+{
+	int i;
+	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
+
+	for (i = 0; i < LOONGARCH_MAX_BRP; ++i)
+		if (current->thread.hbp_break[i] == bp)
+			break;
+
+	for (i = 0; i < LOONGARCH_MAX_WRP; ++i)
+		if (current->thread.hbp_watch[i] == bp)
+			break;
+
+	force_sig_ptrace_errno_trap(i, (void __user *)bkpt->address);
+}
+
+static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
+					       struct task_struct *tsk,
+					       unsigned long idx)
+{
+	struct perf_event *bp;
+
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		if (idx >= LOONGARCH_MAX_BRP)
+			return ERR_PTR(-EINVAL);
+		idx = array_index_nospec(idx, LOONGARCH_MAX_BRP);
+		bp = tsk->thread.hbp_break[idx];
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		if (idx >= LOONGARCH_MAX_WRP)
+			return ERR_PTR(-EINVAL);
+		idx = array_index_nospec(idx, LOONGARCH_MAX_WRP);
+		bp = tsk->thread.hbp_watch[idx];
+		break;
+	}
+
+	return bp;
+}
+
+static int ptrace_hbp_set_event(unsigned int note_type,
+				struct task_struct *tsk,
+				unsigned long idx,
+				struct perf_event *bp)
+{
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		if (idx >= LOONGARCH_MAX_BRP)
+			return -EINVAL;
+		idx = array_index_nospec(idx, LOONGARCH_MAX_BRP);
+		tsk->thread.hbp_break[idx] = bp;
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		if (idx >= LOONGARCH_MAX_WRP)
+			return -EINVAL;
+		idx = array_index_nospec(idx, LOONGARCH_MAX_WRP);
+		tsk->thread.hbp_watch[idx] = bp;
+		break;
+	}
+
+	return 0;
+}
+
+static struct perf_event *ptrace_hbp_create(unsigned int note_type,
+					    struct task_struct *tsk,
+					    unsigned long idx)
+{
+	int err, type;
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		type = HW_BREAKPOINT_X;
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		type = HW_BREAKPOINT_RW;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	ptrace_breakpoint_init(&attr);
+
+	/*
+	 * Initialise fields to sane defaults
+	 * (i.e. values that will pass validation).
+	 */
+	attr.bp_addr	= 0;
+	attr.bp_len	= HW_BREAKPOINT_LEN_4;
+	attr.bp_type	= type;
+	attr.disabled	= 1;
+
+	bp = register_user_hw_breakpoint(&attr, ptrace_hbptriggered, NULL, tsk);
+	if (IS_ERR(bp))
+		return bp;
+
+	err = ptrace_hbp_set_event(note_type, tsk, idx, bp);
+	if (err)
+		return ERR_PTR(err);
+
+	return bp;
+}
+
+static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
+				     struct arch_hw_breakpoint_ctrl ctrl,
+				     struct perf_event_attr *attr)
+{
+	int err, len, type, offset;
+
+	err = arch_bp_generic_fields(ctrl, &len, &type, &offset);
+	if (err)
+		return err;
+
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		if ((type & HW_BREAKPOINT_X) != type)
+			return -EINVAL;
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		if ((type & HW_BREAKPOINT_RW) != type)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	attr->bp_len	= len;
+	attr->bp_type	= type;
+	attr->bp_addr	+= offset;
+
+	return 0;
+}
+
+static int ptrace_hbp_get_resource_info(unsigned int note_type, u64 *info)
+{
+	u8 num;
+	u64 reg = 0;
+
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		num = hw_breakpoint_slots(TYPE_INST);
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		num = hw_breakpoint_slots(TYPE_DATA);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*info = reg | num;
+
+	return 0;
+}
+
+static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int note_type,
+							struct task_struct *tsk,
+							unsigned long idx)
+{
+	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+
+	if (!bp)
+		bp = ptrace_hbp_create(note_type, tsk, idx);
+
+	return bp;
+}
+
+static int ptrace_hbp_get_ctrl(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u32 *ctrl)
+{
+	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	*ctrl = bp ? encode_ctrl_reg(counter_arch_bp(bp)->ctrl) : 0;
+
+	return 0;
+}
+
+static int ptrace_hbp_get_mask(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u64 *mask)
+{
+	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	*mask = bp ? counter_arch_bp(bp)->mask : 0;
+
+	return 0;
+}
+
+static int ptrace_hbp_get_addr(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u64 *addr)
+{
+	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	*addr = bp ? counter_arch_bp(bp)->address : 0;
+
+	return 0;
+}
+
+static int ptrace_hbp_set_ctrl(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u32 uctrl)
+{
+	int err;
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+	struct arch_hw_breakpoint_ctrl ctrl;
+
+	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	attr = bp->attr;
+	decode_ctrl_reg(uctrl, &ctrl);
+	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+	if (err)
+		return err;
+
+	return modify_user_hw_breakpoint(bp, &attr);
+}
+
+static int ptrace_hbp_set_mask(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u64 mask)
+{
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+	struct arch_hw_breakpoint *info;
+
+	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	attr = bp->attr;
+	info = counter_arch_bp(bp);
+	info->mask = mask;
+
+	return modify_user_hw_breakpoint(bp, &attr);
+}
+
+static int ptrace_hbp_set_addr(unsigned int note_type,
+			       struct task_struct *tsk,
+			       unsigned long idx, u64 addr)
+{
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+
+	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	attr = bp->attr;
+	attr.bp_addr = addr;
+
+	return modify_user_hw_breakpoint(bp, &attr);
+}
+
+#define PTRACE_HBP_ADDR_SZ	sizeof(u64)
+#define PTRACE_HBP_MASK_SZ	sizeof(u64)
+#define PTRACE_HBP_CTRL_SZ	sizeof(u32)
+#define PTRACE_HBP_PAD_SZ	sizeof(u32)
+
+static int hw_break_get(struct task_struct *target,
+			const struct user_regset *regset,
+			struct membuf to)
+{
+	u64 info;
+	u32 ctrl;
+	u64 addr, mask;
+	int ret, idx = 0;
+	unsigned int note_type = regset->core_note_type;
+
+	/* Resource info */
+	ret = ptrace_hbp_get_resource_info(note_type, &info);
+	if (ret)
+		return ret;
+
+	membuf_write(&to, &info, sizeof(info));
+
+	/* (address, mask, ctrl) registers */
+	while (to.left) {
+		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
+		if (ret)
+			return ret;
+
+		ret = ptrace_hbp_get_mask(note_type, target, idx, &mask);
+		if (ret)
+			return ret;
+
+		ret = ptrace_hbp_get_ctrl(note_type, target, idx, &ctrl);
+		if (ret)
+			return ret;
+
+		membuf_store(&to, addr);
+		membuf_store(&to, mask);
+		membuf_store(&to, ctrl);
+		membuf_zero(&to, sizeof(u32));
+		idx++;
+	}
+
+	return 0;
+}
+
+static int hw_break_set(struct task_struct *target,
+			const struct user_regset *regset,
+			unsigned int pos, unsigned int count,
+			const void *kbuf, const void __user *ubuf)
+{
+	u32 ctrl;
+	u64 addr, mask;
+	int ret, idx = 0, offset, limit;
+	unsigned int note_type = regset->core_note_type;
+
+	/* Resource info */
+	offset = offsetof(struct user_watch_state, dbg_regs);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
+
+	/* (address, mask, ctrl) registers */
+	limit = regset->n * regset->size;
+	while (count && offset < limit) {
+		if (count < PTRACE_HBP_ADDR_SZ)
+			return -EINVAL;
+
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &addr,
+					 offset, offset + PTRACE_HBP_ADDR_SZ);
+		if (ret)
+			return ret;
+
+		ret = ptrace_hbp_set_addr(note_type, target, idx, addr);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_ADDR_SZ;
+
+		if (!count)
+			break;
+
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &mask,
+					 offset, offset + PTRACE_HBP_MASK_SZ);
+		if (ret)
+			return ret;
+
+		ret = ptrace_hbp_set_mask(note_type, target, idx, mask);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_MASK_SZ;
+
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl,
+					 offset, offset + PTRACE_HBP_CTRL_SZ);
+		if (ret)
+			return ret;
+
+		ret = ptrace_hbp_set_ctrl(note_type, target, idx, ctrl);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_CTRL_SZ;
+
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  offset, offset + PTRACE_HBP_PAD_SZ);
+		offset += PTRACE_HBP_PAD_SZ;
+
+		idx++;
+	}
+
+	return 0;
+}
+
+#endif
+
 struct pt_regs_offset {
 	const char *name;
 	int offset;
@@ -319,6 +708,10 @@ enum loongarch_regset {
 	REGSET_GPR,
 	REGSET_FPR,
 	REGSET_CPUCFG,
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	REGSET_HW_BREAK,
+	REGSET_HW_WATCH,
+#endif
 };
 
 static const struct user_regset loongarch64_regsets[] = {
@@ -346,6 +739,24 @@ static const struct user_regset loongarch64_regsets[] = {
 		.regset_get	= cfg_get,
 		.set		= cfg_set,
 	},
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	[REGSET_HW_BREAK] = {
+		.core_note_type = NT_LOONGARCH_HW_BREAK,
+		.n = sizeof(struct user_watch_state) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+		.regset_get = hw_break_get,
+		.set = hw_break_set,
+	},
+	[REGSET_HW_WATCH] = {
+		.core_note_type = NT_LOONGARCH_HW_WATCH,
+		.n = sizeof(struct user_watch_state) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+		.regset_get = hw_break_get,
+		.set = hw_break_set,
+	},
+#endif
 };
 
 static const struct user_regset_view user_loongarch64_view = {
@@ -431,3 +842,71 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	return ret;
 }
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+static void ptrace_triggered(struct perf_event *bp,
+		      struct perf_sample_data *data, struct pt_regs *regs)
+{
+	struct perf_event_attr attr;
+
+	attr = bp->attr;
+	attr.disabled = true;
+	modify_user_hw_breakpoint(bp, &attr);
+}
+
+static int set_single_step(struct task_struct *tsk, unsigned long addr)
+{
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+	struct arch_hw_breakpoint *info;
+	struct thread_struct *thread = &tsk->thread;
+
+	bp = thread->hbp_break[0];
+	if (!bp) {
+		ptrace_breakpoint_init(&attr);
+
+		attr.bp_addr = addr;
+		attr.bp_len = HW_BREAKPOINT_LEN_8;
+		attr.bp_type = HW_BREAKPOINT_X;
+
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered,
+						 NULL, tsk);
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		thread->hbp_break[0] = bp;
+	} else {
+		int err;
+
+		attr = bp->attr;
+		attr.bp_addr = addr;
+
+		/* Reenable breakpoint */
+		attr.disabled = false;
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (unlikely(err))
+			return err;
+
+		csr_write64(attr.bp_addr, LOONGARCH_CSR_IB0ADDR);
+	}
+	info = counter_arch_bp(bp);
+	info->mask = TASK_SIZE - 1;
+
+	return 0;
+}
+
+/* ptrace API */
+void user_enable_single_step(struct task_struct *task)
+{
+	struct thread_info *ti = task_thread_info(task);
+
+	set_single_step(task, task_pt_regs(task)->csr_era);
+	task->thread.single_step = task_pt_regs(task)->csr_era;
+	set_ti_thread_flag(ti, TIF_SINGLESTEP);
+}
+
+void user_disable_single_step(struct task_struct *task)
+{
+	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
+}
+#endif

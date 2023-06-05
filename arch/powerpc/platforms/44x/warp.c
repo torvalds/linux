@@ -41,22 +41,13 @@ static int __init warp_device_probe(void)
 }
 machine_device_initcall(warp, warp_device_probe);
 
-static int __init warp_probe(void)
-{
-	if (!of_machine_is_compatible("pika,warp"))
-		return 0;
-
-	return 1;
-}
-
 define_machine(warp) {
 	.name		= "Warp",
-	.probe 		= warp_probe,
+	.compatible	= "pika,warp",
 	.progress 	= udbg_progress,
 	.init_IRQ 	= uic_init_tree,
 	.get_irq 	= uic_get_irq,
 	.restart	= ppc4xx_reset_system,
-	.calibrate_decr = generic_calibrate_decr,
 };
 
 

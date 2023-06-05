@@ -19,6 +19,10 @@
 		reg = <0x40000000 0x7ea00000>;
 	};
 
+	aliases {
+		mmc2 = &mmc_2;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};

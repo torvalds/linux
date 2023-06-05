@@ -601,7 +601,7 @@ int ocxl_file_init(void)
 		return rc;
 	}
 
-	ocxl_class = class_create(THIS_MODULE, "ocxl");
+	ocxl_class = class_create("ocxl");
 	if (IS_ERR(ocxl_class)) {
 		pr_err("Unable to create ocxl class\n");
 		unregister_chrdev_region(ocxl_dev, OCXL_NUM_MINORS);

@@ -29,9 +29,7 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-#include "hdcp_types.h"
-#endif
+#include "hdcp_msg_types.h"
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
@@ -47,7 +45,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.223"
+#define DC_VER "3.2.230"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -84,8 +82,6 @@ enum det_size {
 
 struct dc_plane_cap {
 	enum dc_plane_type type;
-	uint32_t blends_with_above : 1;
-	uint32_t blends_with_below : 1;
 	uint32_t per_pixel_alpha : 1;
 	struct {
 		uint32_t argb8888 : 1;
@@ -409,6 +405,7 @@ struct dc_config {
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
 	int sdpif_request_limit_words_per_umc;
+	bool use_old_fixed_vs_sequence;
 	bool disable_subvp_drr;
 };
 
@@ -716,6 +713,7 @@ struct dc_bounding_box_overrides {
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
+struct link_service;
 
 /**
  * struct dc_debug_options - DC debug struct
@@ -795,6 +793,7 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int seamless_boot_odm_combine;
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
+	int minimum_z8_residency_time;
 	bool disable_z9_mpc;
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
@@ -874,6 +873,12 @@ struct dc_debug_options {
 	bool disable_unbounded_requesting;
 	bool dig_fifo_off_in_blank;
 	bool temp_mst_deallocation_sequence;
+	bool override_dispclk_programming;
+	bool disable_fpo_optimizations;
+	bool support_eDP1_5;
+	uint32_t fpo_vactive_margin_us;
+	bool disable_fpo_vactive;
+	bool disable_boot_optimizations;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -890,6 +895,7 @@ struct dc {
 
 	uint8_t link_count;
 	struct dc_link *links[MAX_PIPES * 2];
+	struct link_service *link_srv;
 
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
@@ -991,11 +997,7 @@ struct dc_init_data {
 };
 
 struct dc_callback_init {
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
-#else
-	uint8_t reserved;
-#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
@@ -1362,10 +1364,6 @@ enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
 				 uint8_t stream_count);
 
-/* TODO: When the transition to the new commit sequence is done, remove this
- * function in favor of dc_commit_streams. */
-bool dc_commit_state(struct dc *dc, struct dc_state *context);
-
 struct dc_state *dc_create_state(struct dc *dc);
 struct dc_state *dc_copy_state(struct dc_state *src_ctx);
 void dc_retain_state(struct dc_state *context);
@@ -1378,9 +1376,164 @@ struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
+/* The function returns minimum bandwidth required to drive a given timing
+ * return - minimum required timing bandwidth in kbps.
+ */
+uint32_t dc_bandwidth_in_kbps_from_timing(const struct dc_crtc_timing *timing);
+
 /* Link Interfaces */
-/* TODO: remove this after resolving external dependencies */
-#include "dc_link.h"
+/*
+ * A link contains one or more sinks and their connected status.
+ * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
+ */
+struct dc_link {
+	struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
+	unsigned int sink_count;
+	struct dc_sink *local_sink;
+	unsigned int link_index;
+	enum dc_connection_type type;
+	enum signal_type connector_signal;
+	enum dc_irq_source irq_source_hpd;
+	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
+
+	bool is_hpd_filter_disabled;
+	bool dp_ss_off;
+
+	/**
+	 * @link_state_valid:
+	 *
+	 * If there is no link and local sink, this variable should be set to
+	 * false. Otherwise, it should be set to true; usually, the function
+	 * core_link_enable_stream sets this field to true.
+	 */
+	bool link_state_valid;
+	bool aux_access_disabled;
+	bool sync_lt_in_progress;
+	bool skip_stream_reenable;
+	bool is_internal_display;
+	/** @todo Rename. Flag an endpoint as having a programmable mapping to a DIG encoder. */
+	bool is_dig_mapping_flexible;
+	bool hpd_status; /* HPD status of link without physical HPD pin. */
+	bool is_hpd_pending; /* Indicates a new received hpd */
+	bool is_automated; /* Indicates automated testing */
+
+	bool edp_sink_present;
+
+	struct dp_trace dp_trace;
+
+	/* caps is the same as reported_link_cap. link_traing use
+	 * reported_link_cap. Will clean up.  TODO
+	 */
+	struct dc_link_settings reported_link_cap;
+	struct dc_link_settings verified_link_cap;
+	struct dc_link_settings cur_link_settings;
+	struct dc_lane_settings cur_lane_setting[LANE_COUNT_DP_MAX];
+	struct dc_link_settings preferred_link_setting;
+	/* preferred_training_settings are override values that
+	 * come from DM. DM is responsible for the memory
+	 * management of the override pointers.
+	 */
+	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
+
+	uint8_t ddc_hw_inst;
+
+	uint8_t hpd_src;
+
+	uint8_t link_enc_hw_inst;
+	/* DIG link encoder ID. Used as index in link encoder resource pool.
+	 * For links with fixed mapping to DIG, this is not changed after dc_link
+	 * object creation.
+	 */
+	enum engine_id eng_id;
+
+	bool test_pattern_enabled;
+	union compliance_test_state compliance_test_state;
+
+	void *priv;
+
+	struct ddc_service *ddc;
+
+	enum dp_panel_mode panel_mode;
+	bool aux_mode;
+
+	/* Private to DC core */
+
+	const struct dc *dc;
+
+	struct dc_context *ctx;
+
+	struct panel_cntl *panel_cntl;
+	struct link_encoder *link_enc;
+	struct graphics_object_id link_id;
+	/* Endpoint type distinguishes display endpoints which do not have entries
+	 * in the BIOS connector table from those that do. Helps when tracking link
+	 * encoder to display endpoint assignments.
+	 */
+	enum display_endpoint_type ep_type;
+	union ddi_channel_mapping ddi_channel_mapping;
+	struct connector_device_tag_info device_tag;
+	struct dpcd_caps dpcd_caps;
+	uint32_t dongle_max_pix_clk;
+	unsigned short chip_caps;
+	unsigned int dpcd_sink_count;
+	struct hdcp_caps hdcp_caps;
+	enum edp_revision edp_revision;
+	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
+
+	struct psr_settings psr_settings;
+
+	/* Drive settings read from integrated info table */
+	struct dc_lane_settings bios_forced_drive_settings;
+
+	/* Vendor specific LTTPR workaround variables */
+	uint8_t vendor_specific_lttpr_link_rate_wa;
+	bool apply_vendor_specific_lttpr_link_rate_wa;
+
+	/* MST record stream using this link */
+	struct link_flags {
+		bool dp_keep_receiver_powered;
+		bool dp_skip_DID2;
+		bool dp_skip_reset_segment;
+		bool dp_skip_fs_144hz;
+		bool dp_mot_reset_segment;
+		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
+		bool dpia_mst_dsc_always_on;
+		/* Forced DPIA into TBT3 compatibility mode. */
+		bool dpia_forced_tbt3_mode;
+		bool dongle_mode_timing_override;
+	} wa_flags;
+	struct link_mst_stream_allocation_table mst_stream_alloc_table;
+
+	struct dc_link_status link_status;
+	struct dprx_states dprx_states;
+
+	struct gpio *hpd_gpio;
+	enum dc_link_fec_state fec_state;
+	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
+
+	struct dc_panel_config panel_config;
+	struct phy_state phy_state;
+	// BW ALLOCATON USB4 ONLY
+	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
+};
+
+/* Return an enumerated dc_link.
+ * dc_link order is constant and determined at
+ * boot time.  They cannot be created or destroyed.
+ * Use dc_get_caps() to get number of links.
+ */
+struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index);
+
+/* Return instance id of the edp link. Inst 0 is primary edp link. */
+bool dc_get_edp_link_panel_inst(const struct dc *dc,
+		const struct dc_link *link,
+		unsigned int *inst_out);
+
+/* Return an array of link pointers to edp links. */
+void dc_get_edp_links(const struct dc *dc,
+		struct dc_link **edp_links,
+		int *edp_num);
 
 /* The function initiates detection handshake over the given link. It first
  * determines if there are display connections over the link. If so it initiates
@@ -1404,6 +1557,38 @@ uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
  */
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason);
 
+struct dc_sink_init_data;
+
+/* When link connection type is dc_connection_mst_branch, remote sink can be
+ * added to the link. The interface creates a remote sink and associates it with
+ * current link. The sink will be retained by link until remove remote sink is
+ * called.
+ *
+ * @dc_link - link the remote sink will be added to.
+ * @edid - byte array of EDID raw data.
+ * @len - size of the edid in byte
+ * @init_data -
+ */
+struct dc_sink *dc_link_add_remote_sink(
+		struct dc_link *dc_link,
+		const uint8_t *edid,
+		int len,
+		struct dc_sink_init_data *init_data);
+
+/* Remove remote sink from a link with dc_connection_mst_branch connection type.
+ * @link - link the sink should be removed from
+ * @sink - sink to be removed.
+ */
+void dc_link_remove_remote_sink(
+	struct dc_link *link,
+	struct dc_sink *sink);
+
+/* Enable HPD interrupt handler for a given link */
+void dc_link_enable_hpd(const struct dc_link *link);
+
+/* Disable HPD interrupt handler for a given link */
+void dc_link_disable_hpd(const struct dc_link *link);
+
 /* determine if there is a sink connected to the link
  *
  * @type - dc_connection_single if connected, dc_connection_none otherwise.
@@ -1417,14 +1602,115 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason);
 bool dc_link_detect_connection_type(struct dc_link *link,
 		enum dc_connection_type *type);
 
+/* query current hpd pin value
+ * return - true HPD is asserted (HPD high), false otherwise (HPD low)
+ *
+ */
+bool dc_link_get_hpd_state(struct dc_link *link);
+
 /* Getter for cached link status from given link */
 const struct dc_link_status *dc_link_get_status(const struct dc_link *link);
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
+/* enable/disable hardware HPD filter.
+ *
+ * @link - The link the HPD pin is associated with.
+ * @enable = true - enable hardware HPD filter. HPD event will only queued to irq
+ * handler once after no HPD change has been detected within dc default HPD
+ * filtering interval since last HPD event. i.e if display keeps toggling hpd
+ * pulses within default HPD interval, no HPD event will be received until HPD
+ * toggles have stopped. Then HPD event will be queued to irq handler once after
+ * dc default HPD filtering interval since last HPD event.
+ *
+ * @enable = false - disable hardware HPD filter. HPD event will be queued
+ * immediately to irq handler after no HPD change has been detected within
+ * IRQ_HPD (aka HPD short pulse) interval (i.e 2ms).
+ */
+void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
+
+/* submit i2c read/write payloads through ddc channel
+ * @link_index - index to a link with ddc in i2c mode
+ * @cmd - i2c command structure
+ * return - true if success, false otherwise.
+ */
+bool dc_submit_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		struct i2c_command *cmd);
+
+/* submit i2c read/write payloads through oem channel
+ * @link_index - index to a link with ddc in i2c mode
+ * @cmd - i2c command structure
+ * return - true if success, false otherwise.
+ */
+bool dc_submit_i2c_oem(
+		struct dc *dc,
+		struct i2c_command *cmd);
+
+enum aux_return_code_type;
+/* Attempt to transfer the given aux payload. This function does not perform
+ * retries or handle error states. The reply is returned in the payload->reply
+ * and the result through operation_result. Returns the number of bytes
+ * transferred,or -1 on a failure.
+ */
+int dc_link_aux_transfer_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result);
+
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address
+);
+
 /* return true if the connected receiver supports the hdcp version */
 bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
 bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
-#endif
+
+/* Notify DC about DP RX Interrupt (aka DP IRQ_HPD).
+ *
+ * TODO - When defer_handling is true the function will have a different purpose.
+ * It no longer does complete hpd rx irq handling. We should create a separate
+ * interface specifically for this case.
+ *
+ * Return:
+ * true - Downstream port status changed. DM should call DC to do the
+ * detection.
+ * false - no change in Downstream port status. No further action required
+ * from DM.
+ */
+bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
+		union hpd_irq_data *hpd_irq_dpcd_data, bool *out_link_loss,
+		bool defer_handling, bool *has_left_work);
+/* handle DP specs define test automation sequence*/
+void dc_link_dp_handle_automated_test(struct dc_link *link);
+
+/* handle DP Link loss sequence and try to recover RX link loss with best
+ * effort
+ */
+void dc_link_dp_handle_link_loss(struct dc_link *link);
+
+/* Determine if hpd rx irq should be handled or ignored
+ * return true - hpd rx irq should be handled.
+ * return false - it is safe to ignore hpd rx irq event
+ */
+bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
+
+/* Determine if link loss is indicated with a given hpd_irq_dpcd_data.
+ * @link - link the hpd irq data associated with
+ * @hpd_irq_dpcd_data - input hpd irq data
+ * return - true if hpd irq data indicates a link lost
+ */
+bool dc_link_check_link_loss_status(struct dc_link *link,
+		union hpd_irq_data *hpd_irq_dpcd_data);
+
+/* Read hpd rx irq data from a given link
+ * @link - link where the hpd irq data should be read from
+ * @irq_data - output hpd irq data
+ * return - DC_OK if hpd irq data is read successfully, otherwise hpd irq data
+ * read has failed.
+ */
+enum dc_status dc_link_dp_read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data);
 
 /* The function clears recorded DP RX states in the link. DM should call this
  * function when it is resuming from S3 power state to previously connected links.
@@ -1449,12 +1735,6 @@ bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
-
-/* The function returns minimum bandwidth required to drive a given timing
- * return - minimum required timing bandwidth in kbps.
- */
-uint32_t dc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing);
 
 /* The function takes a snapshot of current link resource allocation state
  * @dc: pointer to dc of the dm calling this
@@ -1493,6 +1773,281 @@ void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
  * interface i.e stream_update->dsc_config
  */
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
+
+/* translate a raw link rate data to bandwidth in kbps */
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(const struct dc *dc, uint8_t bw);
+
+/* determine the optimal bandwidth given link and required bw.
+ * @link - current detected link
+ * @req_bw - requested bandwidth in kbps
+ * @link_settings - returned most optimal link settings that can fit the
+ * requested bandwidth
+ * return - false if link can't support requested bandwidth, true if link
+ * settings is found.
+ */
+bool dc_link_decide_edp_link_settings(struct dc_link *link,
+		struct dc_link_settings *link_settings,
+		uint32_t req_bw);
+
+/* return the max dp link settings can be driven by the link without considering
+ * connected RX device and its capability
+ */
+bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link,
+		struct dc_link_settings *max_link_enc_cap);
+
+/* determine when the link is driving MST mode, what DP link channel coding
+ * format will be used. The decision will remain unchanged until next HPD event.
+ *
+ * @link -  a link with DP RX connection
+ * return - if stream is committed to this link with MST signal type, type of
+ * channel coding format dc will choose.
+ */
+enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(
+		const struct dc_link *link);
+
+/* get max dp link settings the link can enable with all things considered. (i.e
+ * TX/RX/Cable capabilities and dp override policies.
+ *
+ * @link - a link with DP RX connection
+ * return - max dp link settings the link can enable.
+ *
+ */
+const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link);
+
+/* Check if a RX (ex. DP sink, MST hub, passive or active dongle) is connected
+ * to a link with dp connector signal type.
+ * @link - a link with dp connector signal type
+ * return - true if connected, false otherwise
+ */
+bool dc_link_is_dp_sink_present(struct dc_link *link);
+
+/* Force DP lane settings update to main-link video signal and notify the change
+ * to DP RX via DPCD. This is a debug interface used for video signal integrity
+ * tuning purpose. The interface assumes link has already been enabled with DP
+ * signal.
+ *
+ * @lt_settings - a container structure with desired hw_lane_settings
+ */
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				struct dc_link *link);
+
+/* Enable a test pattern in Link or PHY layer in an active link for compliance
+ * test or debugging purpose. The test pattern will remain until next un-plug.
+ *
+ * @link - active link with DP signal output enabled.
+ * @test_pattern - desired test pattern to output.
+ * NOTE: set to DP_TEST_PATTERN_VIDEO_MODE to disable previous test pattern.
+ * @test_pattern_color_space - for video test pattern choose a desired color
+ * space.
+ * @p_link_settings - For PHY pattern choose a desired link settings
+ * @p_custom_pattern - some test pattern will require a custom input to
+ * customize some pattern details. Otherwise keep it to NULL.
+ * @cust_pattern_size - size of the custom pattern input.
+ *
+ */
+bool dc_link_dp_set_test_pattern(
+	struct dc_link *link,
+	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
+	const struct link_training_settings *p_link_settings,
+	const unsigned char *p_custom_pattern,
+	unsigned int cust_pattern_size);
+
+/* Force DP link settings to always use a specific value until reboot to a
+ * specific link. If link has already been enabled, the interface will also
+ * switch to desired link settings immediately. This is a debug interface to
+ * generic dp issue trouble shooting.
+ */
+void dc_link_set_preferred_link_settings(struct dc *dc,
+		struct dc_link_settings *link_setting,
+		struct dc_link *link);
+
+/* Force DP link to customize a specific link training behavior by overriding to
+ * standard DP specs defined protocol. This is a debug interface to trouble shoot
+ * display specific link training issues or apply some display specific
+ * workaround in link training.
+ *
+ * @link_settings - if not NULL, force preferred link settings to the link.
+ * @lt_override - a set of override pointers. If any pointer is none NULL, dc
+ * will apply this particular override in future link training. If NULL is
+ * passed in, dc resets previous overrides.
+ * NOTE: DM must keep the memory from override pointers until DM resets preferred
+ * training settings.
+ */
+void dc_link_set_preferred_training_settings(struct dc *dc,
+		struct dc_link_settings *link_setting,
+		struct dc_link_training_overrides *lt_overrides,
+		struct dc_link *link,
+		bool skip_immediate_retrain);
+
+/* return - true if FEC is supported with connected DP RX, false otherwise */
+bool dc_link_is_fec_supported(const struct dc_link *link);
+
+/* query FEC enablement policy to determine if FEC will be enabled by dc during
+ * link enablement.
+ * return - true if FEC should be enabled, false otherwise.
+ */
+bool dc_link_should_enable_fec(const struct dc_link *link);
+
+/* determine lttpr mode the current link should be enabled with a specific link
+ * settings.
+ */
+enum lttpr_mode dc_link_decide_lttpr_mode(struct dc_link *link,
+		struct dc_link_settings *link_setting);
+
+/* Force DP RX to update its power state.
+ * NOTE: this interface doesn't update dp main-link. Calling this function will
+ * cause DP TX main-link and DP RX power states out of sync. DM has to restore
+ * RX power state back upon finish DM specific execution requiring DP RX in a
+ * specific power state.
+ * @on - true to set DP RX in D0 power state, false to set DP RX in D3 power
+ * state.
+ */
+void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on);
+
+/* Force link to read base dp receiver caps from dpcd 000h - 00Fh and overwrite
+ * current value read from extended receiver cap from 02200h - 0220Fh.
+ * Some DP RX has problems of providing accurate DP receiver caps from extended
+ * field, this interface is a workaround to revert link back to use base caps.
+ */
+void dc_link_overwrite_extended_receiver_cap(
+		struct dc_link *link);
+
+void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
+		bool wait_for_hpd);
+
+/* Set backlight level of an embedded panel (eDP, LVDS).
+ * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
+ * and 16 bit fractional, where 1.0 is max backlight value.
+ */
+bool dc_link_set_backlight_level(const struct dc_link *dc_link,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp);
+
+/* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
+bool dc_link_set_backlight_level_nits(struct dc_link *link,
+		bool isHDR,
+		uint32_t backlight_millinits,
+		uint32_t transition_time_in_ms);
+
+bool dc_link_get_backlight_level_nits(struct dc_link *link,
+		uint32_t *backlight_millinits,
+		uint32_t *backlight_millinits_peak);
+
+int dc_link_get_backlight_level(const struct dc_link *dc_link);
+
+int dc_link_get_target_backlight_pwm(const struct dc_link *link);
+
+bool dc_link_set_psr_allow_active(struct dc_link *dc_link, const bool *enable,
+		bool wait, bool force_static, const unsigned int *power_opts);
+
+bool dc_link_get_psr_state(const struct dc_link *dc_link, enum dc_psr_state *state);
+
+bool dc_link_setup_psr(struct dc_link *dc_link,
+		const struct dc_stream_state *stream, struct psr_config *psr_config,
+		struct psr_context *psr_context);
+
+/* On eDP links this function call will stall until T12 has elapsed.
+ * If the panel is not in power off state, this function will return
+ * immediately.
+ */
+bool dc_link_wait_for_t12(struct dc_link *link);
+
+/* Determine if dp trace has been initialized to reflect upto date result *
+ * return - true if trace is initialized and has valid data. False dp trace
+ * doesn't have valid result.
+ */
+bool dc_dp_trace_is_initialized(struct dc_link *link);
+
+/* Query a dp trace flag to indicate if the current dp trace data has been
+ * logged before
+ */
+bool dc_dp_trace_is_logged(struct dc_link *link,
+		bool in_detection);
+
+/* Set dp trace flag to indicate whether DM has already logged the current dp
+ * trace data. DM can set is_logged to true upon logging and check
+ * dc_dp_trace_is_logged before logging to avoid logging the same result twice.
+ */
+void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
+		bool in_detection,
+		bool is_logged);
+
+/* Obtain driver time stamp for last dp link training end. The time stamp is
+ * formatted based on dm_get_timestamp DM function.
+ * @in_detection - true to get link training end time stamp of last link
+ * training in detection sequence. false to get link training end time stamp
+ * of last link training in commit (dpms) sequence
+ */
+unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
+		bool in_detection);
+
+/* Get how many link training attempts dc has done with latest sequence.
+ * @in_detection - true to get link training count of last link
+ * training in detection sequence. false to get link training count of last link
+ * training in commit (dpms) sequence
+ */
+const struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+		bool in_detection);
+
+/* Get how many link loss has happened since last link training attempts */
+unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
+
+/*
+ *  USB4 DPIA BW ALLOCATION PUBLIC FUNCTIONS
+ */
+/*
+ * Send a request from DP-Tx requesting to allocate BW remotely after
+ * allocating it locally. This will get processed by CM and a CB function
+ * will be called.
+ *
+ * @link: pointer to the dc_link struct instance
+ * @req_bw: The requested bw in Kbyte to allocated
+ *
+ * return: none
+ */
+void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
+
+/*
+ * Handle function for when the status of the Request above is complete.
+ * We will find out the result of allocating on CM and update structs.
+ *
+ * @link: pointer to the dc_link struct instance
+ * @bw: Allocated or Estimated BW depending on the result
+ * @result: Response type
+ *
+ * return: none
+ */
+void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
+		uint8_t bw, uint8_t result);
+
+/*
+ * Handle the USB4 BW Allocation related functionality here:
+ * Plug => Try to allocate max bw from timing parameters supported by the sink
+ * Unplug => de-allocate bw
+ *
+ * @link: pointer to the dc_link struct instance
+ * @peak_bw: Peak bw used by the link/sink
+ *
+ * return: allocated bw else return 0
+ */
+int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
+		struct dc_link *link, int peak_bw);
+
+/*
+ * Validate the BW of all the valid DPIA links to make sure it doesn't exceed
+ * available BW for each host router
+ *
+ * @dc: pointer to dc struct
+ * @stream: pointer to all possible streams
+ * @num_streams: number of valid DPIA streams
+ *
+ * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ */
+bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams,
+		const unsigned int count);
+
 /* Sink Interfaces - A sink corresponds to a display output device */
 
 struct dc_container_id {
@@ -1511,7 +2066,7 @@ struct dc_sink_dsc_caps {
 	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
 	// 'false' if they are sink's DSC caps
 	bool is_virtual_dpcd_dsc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	// 'true' if MST topology supports DSC passthrough for sink
 	// 'false' if MST topology does not support DSC passthrough
 	bool is_dsc_passthrough_supported;
@@ -1603,7 +2158,6 @@ void dc_resume(struct dc *dc);
 
 void dc_power_down_on_boot(struct dc *dc);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 /*
  * HDCP Interfaces
  */
@@ -1611,7 +2165,6 @@ enum hdcp_message_status dc_process_hdcp_msg(
 		enum signal_type signal,
 		struct dc_link *link,
 		struct hdcp_protection_message *message_info);
-#endif
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);

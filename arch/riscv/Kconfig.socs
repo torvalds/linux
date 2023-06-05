@@ -43,7 +43,7 @@ config ARCH_SUNXI
 
 config ARCH_VIRT
 	def_bool SOC_VIRT
-	
+
 config SOC_VIRT
 	bool "QEMU Virt Machine"
 	select CLINT_TIMER if RISCV_M_MODE
@@ -88,7 +88,8 @@ config SOC_CANAAN_K210_DTB_BUILTIN
 	  If unsure, say Y.
 
 config ARCH_CANAAN_K210_DTB_SOURCE
-	def_bool SOC_CANAAN_K210_DTB_SOURCE
+	string
+	default SOC_CANAAN_K210_DTB_SOURCE
 
 config SOC_CANAAN_K210_DTB_SOURCE
 	string "Source file for the Canaan Kendryte K210 builtin DTB"

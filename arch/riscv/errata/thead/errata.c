@@ -5,12 +5,15 @@
 
 #include <linux/bug.h>
 #include <linux/kernel.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
 #include <asm/errata_list.h>
+#include <asm/hwprobe.h>
 #include <asm/patch.h>
 #include <asm/vendorid_list.h>
 
@@ -80,31 +83,45 @@ static u32 thead_errata_probe(unsigned int stage,
 	return cpu_req_errata;
 }
 
-void __init_or_module thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
-					      unsigned long archid, unsigned long impid,
-					      unsigned int stage)
+void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
+			     unsigned long archid, unsigned long impid,
+			     unsigned int stage)
 {
 	struct alt_entry *alt;
 	u32 cpu_req_errata = thead_errata_probe(stage, archid, impid);
 	u32 tmp;
+	void *oldptr, *altptr;
 
 	for (alt = begin; alt < end; alt++) {
 		if (alt->vendor_id != THEAD_VENDOR_ID)
 			continue;
-		if (alt->errata_id >= ERRATA_THEAD_NUMBER)
+		if (alt->patch_id >= ERRATA_THEAD_NUMBER)
 			continue;
 
-		tmp = (1U << alt->errata_id);
+		tmp = (1U << alt->patch_id);
 		if (cpu_req_errata & tmp) {
+			oldptr = ALT_OLD_PTR(alt);
+			altptr = ALT_ALT_PTR(alt);
+
 			/* On vm-alternatives, the mmu isn't running yet */
-			if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-				memcpy((void *)__pa_symbol(alt->old_ptr),
-				       (void *)__pa_symbol(alt->alt_ptr), alt->alt_len);
-			else
-				patch_text_nosync(alt->old_ptr, alt->alt_ptr, alt->alt_len);
+			if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+				memcpy(oldptr, altptr, alt->alt_len);
+			} else {
+				mutex_lock(&text_mutex);
+				patch_text_nosync(oldptr, altptr, alt->alt_len);
+				mutex_unlock(&text_mutex);
+			}
 		}
 	}
 
 	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
 		local_flush_icache_all();
+}
+
+void thead_feature_probe_func(unsigned int cpu,
+			      unsigned long archid,
+			      unsigned long impid)
+{
+	if ((archid == 0) && (impid == 0))
+		per_cpu(misaligned_access_speed, cpu) = RISCV_HWPROBE_MISALIGNED_FAST;
 }

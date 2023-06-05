@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 /*
- * resolve_btfids scans Elf object for .BTF_ids section and resolves
+ * resolve_btfids scans ELF object for .BTF_ids section and resolves
  * its symbols with BTF ID values.
  *
  * Each symbol points to 4 bytes data and is expected to have

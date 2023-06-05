@@ -18,7 +18,6 @@
 #include <linux/ipv6.h>
 #include <linux/inetdevice.h>
 #include <linux/sysfs.h>
-#include <linux/aer.h>
 
 MODULE_DESCRIPTION("QLogic/NetXen (1/10) GbE Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -1464,9 +1463,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((err = pci_request_regions(pdev, netxen_nic_driver_name)))
 		goto err_out_disable_pdev;
 
-	if (NX_IS_REVISION_P3(pdev->revision))
-		pci_enable_pcie_error_reporting(pdev);
-
 	pci_set_master(pdev);
 
 	netdev = alloc_etherdev(sizeof(struct netxen_adapter));
@@ -1603,8 +1599,6 @@ err_out_free_netdev:
 	free_netdev(netdev);
 
 err_out_free_res:
-	if (NX_IS_REVISION_P3(pdev->revision))
-		pci_disable_pcie_error_reporting(pdev);
 	pci_release_regions(pdev);
 
 err_out_disable_pdev:
@@ -1659,10 +1653,8 @@ static void netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_release_firmware(adapter);
 
-	if (NX_IS_REVISION_P3(pdev->revision)) {
+	if (NX_IS_REVISION_P3(pdev->revision))
 		netxen_cleanup_minidump(adapter);
-		pci_disable_pcie_error_reporting(pdev);
-	}
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -1862,7 +1854,7 @@ netxen_tso_check(struct net_device *netdev,
 
 	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
 
-		vh = (struct vlan_ethhdr *)skb->data;
+		vh = skb_vlan_eth_hdr(skb);
 		protocol = vh->h_vlan_encapsulated_proto;
 		flags = FLAGS_VLAN_TAGGED;
 

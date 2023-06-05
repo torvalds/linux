@@ -10,7 +10,7 @@ maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 allOf:
-  - $ref: "nand-chip.yaml#"
+  - $ref: nand-chip.yaml#
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:

@@ -60,8 +60,9 @@ struct consw {
 	int	(*con_switch)(struct vc_data *vc);
 	int	(*con_blank)(struct vc_data *vc, int blank, int mode_switch);
 	int	(*con_font_set)(struct vc_data *vc, struct console_font *font,
-			unsigned int flags);
-	int	(*con_font_get)(struct vc_data *vc, struct console_font *font);
+			unsigned int vpitch, unsigned int flags);
+	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,
+			unsigned int vpitch);
 	int	(*con_font_default)(struct vc_data *vc,
 			struct console_font *font, char *name);
 	int     (*con_resize)(struct vc_data *vc, unsigned int width,

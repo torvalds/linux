@@ -10,11 +10,14 @@
 
 #include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
-#include <linux/irqdomain.h>
 #include <linux/resource_ext.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
+
+struct irq_domain;
+struct irq_domain_ops;
 
 #ifndef _LINUX
 #define _LINUX
@@ -24,7 +27,6 @@
 #ifdef	CONFIG_ACPI
 
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -723,7 +725,7 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 const void *acpi_device_get_match_data(const struct device *dev);
 extern bool acpi_driver_match_device(struct device *dev,
 				     const struct device_driver *drv);
-int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
+int acpi_device_uevent_modalias(const struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *,
@@ -973,7 +975,7 @@ static inline union acpi_object *acpi_evaluate_dsm_typed(acpi_handle handle,
 	return NULL;
 }
 
-static inline int acpi_device_uevent_modalias(struct device *dev,
+static inline int acpi_device_uevent_modalias(const struct device *dev,
 				struct kobj_uevent_env *env)
 {
 	return -ENODEV;
@@ -1073,6 +1075,11 @@ static inline u32 acpi_osc_ctx_get_pci_control(struct acpi_osc_context *context)
 static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
 {
 	return 0;
+}
+
+static inline bool acpi_sleep_state_supported(u8 sleep_state)
+{
+	return false;
 }
 
 #endif	/* !CONFIG_ACPI */

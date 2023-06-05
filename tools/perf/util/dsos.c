@@ -91,8 +91,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		} else if (errno == ENOENT && pos->nsinfo) {
-			char *new_name = filename_with_chroot(pos->nsinfo->pid,
-							      pos->long_name);
+			char *new_name = dso__filename_with_chroot(pos, pos->long_name);
 
 			if (new_name && filename__read_build_id(new_name,
 								&pos->bid) > 0) {

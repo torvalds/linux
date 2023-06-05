@@ -425,7 +425,7 @@ int gru_get_cb_exception_detail(void *cb,
 static char *gru_get_cb_exception_detail_str(int ret, void *cb,
 					     char *buf, int size)
 {
-	struct gru_control_block_status *gen = (void *)cb;
+	struct gru_control_block_status *gen = cb;
 	struct control_block_extended_exc_detail excdet;
 
 	if (ret > 0 && gen->istatus == CBS_EXCEPTION) {
@@ -452,7 +452,7 @@ static int gru_wait_idle_or_exception(struct gru_control_block_status *gen)
 
 static int gru_retry_exception(void *cb)
 {
-	struct gru_control_block_status *gen = (void *)cb;
+	struct gru_control_block_status *gen = cb;
 	struct control_block_extended_exc_detail excdet;
 	int retry = EXCEPTION_RETRY_LIMIT;
 
@@ -475,7 +475,7 @@ static int gru_retry_exception(void *cb)
 
 int gru_check_status_proc(void *cb)
 {
-	struct gru_control_block_status *gen = (void *)cb;
+	struct gru_control_block_status *gen = cb;
 	int ret;
 
 	ret = gen->istatus;
@@ -488,7 +488,7 @@ int gru_check_status_proc(void *cb)
 
 int gru_wait_proc(void *cb)
 {
-	struct gru_control_block_status *gen = (void *)cb;
+	struct gru_control_block_status *gen = cb;
 	int ret;
 
 	ret = gru_wait_idle_or_exception(gen);

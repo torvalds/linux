@@ -706,6 +706,7 @@ mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		q->entry[i].urb = NULL;
 	}
 	page_pool_destroy(q->page_pool);
+	q->page_pool = NULL;
 }
 
 static void mt76u_free_rx(struct mt76_dev *dev)

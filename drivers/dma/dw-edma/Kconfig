@@ -9,11 +9,14 @@ config DW_EDMA
 	  Support the Synopsys DesignWare eDMA controller, normally
 	  implemented on endpoints SoCs.
 
+if DW_EDMA
+
 config DW_EDMA_PCIE
 	tristate "Synopsys DesignWare eDMA PCIe driver"
 	depends on PCI && PCI_MSI
-	select DW_EDMA
 	help
 	  Provides a glue-logic between the Synopsys DesignWare
 	  eDMA controller and an endpoint PCIe device. This also serves
 	  as a reference design to whom desires to use this IP.
+
+endif # DW_EDMA

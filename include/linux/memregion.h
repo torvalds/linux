@@ -3,10 +3,12 @@
 #define _MEMREGION_H_
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/range.h>
 #include <linux/bug.h>
 
 struct memregion_info {
 	int target_node;
+	struct range range;
 };
 
 #ifdef CONFIG_MEMREGION

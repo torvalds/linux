@@ -22,9 +22,9 @@ description: |
   not be disabled by driver at startup. If BUCK5 is disabled at startup the
   voltage monitoring for LDO5/LDO6 can cause PMIC to reset.
 
-#The valid names for BD71847 regulator nodes are:
-#BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6
-#LDO1, LDO2, LDO3, LDO4, LDO5, LDO6
+# The valid names for BD71847 regulator nodes are:
+# BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6
+# LDO1, LDO2, LDO3, LDO4, LDO5, LDO6
 
 patternProperties:
   "^LDO[1-6]$":
@@ -54,7 +54,7 @@ patternProperties:
           should be "buck1", ..., "buck6"
 
       rohm,dvs-run-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:
@@ -62,7 +62,7 @@ patternProperties:
           bucks which support this. 0 means disabled.
 
       rohm,dvs-idle-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:
@@ -70,7 +70,7 @@ patternProperties:
           bucks which support this. 0 means disabled.
 
       rohm,dvs-suspend-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:

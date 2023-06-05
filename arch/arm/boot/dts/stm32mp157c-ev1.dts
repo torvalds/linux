@@ -14,14 +14,13 @@
 	model = "STMicroelectronics STM32MP157C eval daughter on eval mother";
 	compatible = "st,stm32mp157c-ev1", "st,stm32mp157c-ed1", "st,stm32mp157";
 
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
 	aliases {
-		serial0 = &uart4;
 		serial1 = &usart3;
 		ethernet0 = &ethernet0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	clocks {

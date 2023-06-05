@@ -33,7 +33,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/clk.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -862,7 +861,7 @@ static inline void remove_debug_files(struct fotg210_hcd *fotg210)
 {
 	struct usb_bus *bus = &fotg210_to_hcd(fotg210)->self;
 
-	debugfs_remove(debugfs_lookup(bus->bus_name, fotg210_debug_root));
+	debugfs_lookup_and_remove(bus->bus_name, fotg210_debug_root);
 }
 
 /* handshake - spin reading hc until handshake completes or fails
@@ -4687,13 +4686,10 @@ static ssize_t uframe_periodic_max_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct fotg210_hcd *fotg210;
-	int n;
 
 	fotg210 = hcd_to_fotg210(bus_to_hcd(dev_get_drvdata(dev)));
-	n = scnprintf(buf, PAGE_SIZE, "%d\n", fotg210->uframe_periodic_max);
-	return n;
+	return sysfs_emit(buf, "%d\n", fotg210->uframe_periodic_max);
 }
-
 
 static ssize_t uframe_periodic_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -4706,8 +4702,10 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 	ssize_t ret;
 
 	fotg210 = hcd_to_fotg210(bus_to_hcd(dev_get_drvdata(dev)));
-	if (kstrtouint(buf, 0, &uframe_periodic_max) < 0)
-		return -EINVAL;
+
+	ret = kstrtouint(buf, 0, &uframe_periodic_max);
+	if (ret)
+		return ret;
 
 	if (uframe_periodic_max < 100 || uframe_periodic_max >= 125) {
 		fotg210_info(fotg210, "rejecting invalid request for uframe_periodic_max=%u\n",
@@ -5557,11 +5555,10 @@ static void fotg210_init(struct fotg210_hcd *fotg210)
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-int fotg210_hcd_probe(struct platform_device *pdev)
+int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg)
 {
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd;
-	struct resource *res;
 	int irq;
 	int retval;
 	struct fotg210_hcd *fotg210;
@@ -5578,70 +5575,42 @@ int fotg210_hcd_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&fotg210_fotg210_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
-		dev_err(dev, "failed to create hcd\n");
-		retval = -ENOMEM;
+		retval = dev_err_probe(dev, -ENOMEM, "failed to create hcd\n");
 		goto fail_create_hcd;
 	}
 
 	hcd->has_tt = 1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hcd->regs)) {
-		retval = PTR_ERR(hcd->regs);
-		goto failed_put_hcd;
-	}
+	hcd->regs = fotg->base;
 
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
+	hcd->rsrc_start = fotg->res->start;
+	hcd->rsrc_len = resource_size(fotg->res);
 
 	fotg210 = hcd_to_fotg210(hcd);
 
+	fotg210->fotg = fotg;
 	fotg210->caps = hcd->regs;
-
-	/* It's OK not to supply this clock */
-	fotg210->pclk = clk_get(dev, "PCLK");
-	if (!IS_ERR(fotg210->pclk)) {
-		retval = clk_prepare_enable(fotg210->pclk);
-		if (retval) {
-			dev_err(dev, "failed to enable PCLK\n");
-			goto failed_put_hcd;
-		}
-	} else if (PTR_ERR(fotg210->pclk) == -EPROBE_DEFER) {
-		/*
-		 * Percolate deferrals, for anything else,
-		 * just live without the clocking.
-		 */
-		retval = PTR_ERR(fotg210->pclk);
-		goto failed_dis_clk;
-	}
 
 	retval = fotg210_setup(hcd);
 	if (retval)
-		goto failed_dis_clk;
+		goto failed_put_hcd;
 
 	fotg210_init(fotg210);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval) {
-		dev_err(dev, "failed to add hcd with err %d\n", retval);
-		goto failed_dis_clk;
+		dev_err_probe(dev, retval, "failed to add hcd\n");
+		goto failed_put_hcd;
 	}
 	device_wakeup_enable(hcd->self.controller);
 	platform_set_drvdata(pdev, hcd);
 
 	return retval;
 
-failed_dis_clk:
-	if (!IS_ERR(fotg210->pclk)) {
-		clk_disable_unprepare(fotg210->pclk);
-		clk_put(fotg210->pclk);
-	}
 failed_put_hcd:
 	usb_put_hcd(hcd);
 fail_create_hcd:
-	dev_err(dev, "init %s fail, %d\n", dev_name(dev), retval);
-	return retval;
+	return dev_err_probe(dev, retval, "init %s fail\n", dev_name(dev));
 }
 
 /*
@@ -5652,12 +5621,6 @@ fail_create_hcd:
 int fotg210_hcd_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
-
-	if (!IS_ERR(fotg210->pclk)) {
-		clk_disable_unprepare(fotg210->pclk);
-		clk_put(fotg210->pclk);
-	}
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);

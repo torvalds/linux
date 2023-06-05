@@ -801,25 +801,27 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	}
 
 	while (1) {
-		if (!thread__find_map(thread, cpumode, *ip, &al) || !al.map->dso) {
+		struct dso *dso;
+
+		if (!thread__find_map(thread, cpumode, *ip, &al) || !map__dso(al.map)) {
 			if (al.map)
 				intel_pt_log("ERROR: thread has no dso for %#" PRIx64 "\n", *ip);
 			else
 				intel_pt_log("ERROR: thread has no map for %#" PRIx64 "\n", *ip);
 			return -EINVAL;
 		}
+		dso = map__dso(al.map);
 
-		if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&
-		    dso__data_status_seen(al.map->dso,
-					  DSO_DATA_STATUS_SEEN_ITRACE))
+		if (dso->data.status == DSO_DATA_STATUS_ERROR &&
+		    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE))
 			return -ENOENT;
 
-		offset = al.map->map_ip(al.map, *ip);
+		offset = map__map_ip(al.map, *ip);
 
 		if (!to_ip && one_map) {
 			struct intel_pt_cache_entry *e;
 
-			e = intel_pt_cache_lookup(al.map->dso, machine, offset);
+			e = intel_pt_cache_lookup(dso, machine, offset);
 			if (e &&
 			    (!max_insn_cnt || e->insn_cnt <= max_insn_cnt)) {
 				*insn_cnt_ptr = e->insn_cnt;
@@ -829,8 +831,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				intel_pt_insn->emulated_ptwrite = e->emulated_ptwrite;
 				intel_pt_insn->length = e->length;
 				intel_pt_insn->rel = e->rel;
-				memcpy(intel_pt_insn->buf, e->insn,
-				       INTEL_PT_INSN_BUF_SZ);
+				memcpy(intel_pt_insn->buf, e->insn, INTEL_PT_INSN_BUF_SZ);
 				intel_pt_log_insn_no_data(intel_pt_insn, *ip);
 				return 0;
 			}
@@ -842,17 +843,17 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		/* Load maps to ensure dso->is_64_bit has been updated */
 		map__load(al.map);
 
-		x86_64 = al.map->dso->is_64_bit;
+		x86_64 = dso->is_64_bit;
 
 		while (1) {
-			len = dso__data_read_offset(al.map->dso, machine,
+			len = dso__data_read_offset(dso, machine,
 						    offset, buf,
 						    INTEL_PT_INSN_BUF_SZ);
 			if (len <= 0) {
 				intel_pt_log("ERROR: failed to read at offset %#" PRIx64 " ",
 					     offset);
 				if (intel_pt_enable_logging)
-					dso__fprintf(al.map->dso, intel_pt_log_fp());
+					dso__fprintf(dso, intel_pt_log_fp());
 				return -EINVAL;
 			}
 
@@ -871,7 +872,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 					goto out;
 				/* Check for emulated ptwrite */
 				offs = offset + intel_pt_insn->length;
-				eptw = intel_pt_emulated_ptwrite(al.map->dso, machine, offs);
+				eptw = intel_pt_emulated_ptwrite(dso, machine, offs);
 				intel_pt_insn->emulated_ptwrite = eptw;
 				goto out;
 			}
@@ -886,7 +887,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				goto out_no_cache;
 			}
 
-			if (*ip >= al.map->end)
+			if (*ip >= map__end(al.map))
 				break;
 
 			offset += intel_pt_insn->length;
@@ -906,13 +907,13 @@ out:
 	if (to_ip) {
 		struct intel_pt_cache_entry *e;
 
-		e = intel_pt_cache_lookup(al.map->dso, machine, start_offset);
+		e = intel_pt_cache_lookup(map__dso(al.map), machine, start_offset);
 		if (e)
 			return 0;
 	}
 
 	/* Ignore cache errors */
-	intel_pt_cache_add(al.map->dso, machine, start_offset, insn_cnt,
+	intel_pt_cache_add(map__dso(al.map), machine, start_offset, insn_cnt,
 			   *ip - start_ip, intel_pt_insn);
 
 	return 0;
@@ -983,13 +984,12 @@ static int __intel_pt_pgd_ip(uint64_t ip, void *data)
 	if (!thread)
 		return -EINVAL;
 
-	if (!thread__find_map(thread, cpumode, ip, &al) || !al.map->dso)
+	if (!thread__find_map(thread, cpumode, ip, &al) || !map__dso(al.map))
 		return -EINVAL;
 
-	offset = al.map->map_ip(al.map, ip);
+	offset = map__map_ip(al.map, ip);
 
-	return intel_pt_match_pgd_ip(ptq->pt, ip, offset,
-				     al.map->dso->long_name);
+	return intel_pt_match_pgd_ip(ptq->pt, ip, offset, map__dso(al.map)->long_name);
 }
 
 static bool intel_pt_pgd_ip(uint64_t ip, void *data)
@@ -2744,13 +2744,13 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	if (map__load(map))
 		return 0;
 
-	start = dso__first_symbol(map->dso);
+	start = dso__first_symbol(map__dso(map));
 
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
 		if (sym->binding == STB_GLOBAL &&
 		    !strcmp(sym->name, "__switch_to")) {
-			ip = map->unmap_ip(map, sym->start);
-			if (ip >= map->start && ip < map->end) {
+			ip = map__unmap_ip(map, sym->start);
+			if (ip >= map__start(map) && ip < map__end(map)) {
 				switch_ip = ip;
 				break;
 			}
@@ -2767,8 +2767,8 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
 		if (!strcmp(sym->name, ptss)) {
-			ip = map->unmap_ip(map, sym->start);
-			if (ip >= map->start && ip < map->end) {
+			ip = map__unmap_ip(map, sym->start);
+			if (ip >= map__start(map) && ip < map__end(map)) {
 				*ptss_ip = ip;
 				break;
 			}
@@ -3356,7 +3356,7 @@ static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 static int intel_pt_find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	if (!al->map || addr < al->map->start || addr >= al->map->end) {
+	if (!al->map || addr < map__start(al->map) || addr >= map__end(al->map)) {
 		if (!thread__find_map(thread, cpumode, addr, al))
 			return -1;
 	}
@@ -3381,18 +3381,21 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 		return 0;
 
 	for (; cnt; cnt--, addr--) {
+		struct dso *dso;
+
 		if (intel_pt_find_map(thread, cpumode, addr, &al)) {
 			if (addr < event->text_poke.addr)
 				return 0;
 			continue;
 		}
 
-		if (!al.map->dso || !al.map->dso->auxtrace_cache)
+		dso = map__dso(al.map);
+		if (!dso || !dso->auxtrace_cache)
 			continue;
 
-		offset = al.map->map_ip(al.map, addr);
+		offset = map__map_ip(al.map, addr);
 
-		e = intel_pt_cache_lookup(al.map->dso, machine, offset);
+		e = intel_pt_cache_lookup(dso, machine, offset);
 		if (!e)
 			continue;
 
@@ -3405,9 +3408,9 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 			if (e->branch != INTEL_PT_BR_NO_BRANCH)
 				return 0;
 		} else {
-			intel_pt_cache_invalidate(al.map->dso, machine, offset);
+			intel_pt_cache_invalidate(dso, machine, offset);
 			intel_pt_log("Invalidated instruction cache for %s at %#"PRIx64"\n",
-				     al.map->dso->long_name, addr);
+				     dso->long_name, addr);
 		}
 	}
 

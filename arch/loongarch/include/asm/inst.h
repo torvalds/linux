@@ -7,6 +7,7 @@
 
 #include <linux/types.h>
 #include <asm/asm.h>
+#include <asm/ptrace.h>
 
 #define INSN_NOP		0x03400000
 #define INSN_BREAK		0x002a0000
@@ -23,6 +24,10 @@
 
 #define ADDR_IMM(addr, INSN)	((addr & ADDR_IMMMASK_##INSN) >> ADDR_IMMSHIFT_##INSN)
 
+enum reg0i15_op {
+	break_op	= 0x54,
+};
+
 enum reg0i26_op {
 	b_op		= 0x14,
 	bl_op		= 0x15,
@@ -32,6 +37,7 @@ enum reg1i20_op {
 	lu12iw_op	= 0x0a,
 	lu32id_op	= 0x0b,
 	pcaddi_op	= 0x0c,
+	pcalau12i_op	= 0x0d,
 	pcaddu12i_op	= 0x0e,
 	pcaddu18i_op	= 0x0f,
 };
@@ -115,6 +121,8 @@ enum reg2bstrd_op {
 };
 
 enum reg3_op {
+	asrtle_op	= 0x02,
+	asrtgt_op	= 0x03,
 	addw_op		= 0x20,
 	addd_op		= 0x21,
 	subw_op		= 0x22,
@@ -170,12 +178,41 @@ enum reg3_op {
 	amord_op	= 0x70c7,
 	amxorw_op	= 0x70c8,
 	amxord_op	= 0x70c9,
+	fldgts_op	= 0x70e8,
+	fldgtd_op	= 0x70e9,
+	fldles_op	= 0x70ea,
+	fldled_op	= 0x70eb,
+	fstgts_op	= 0x70ec,
+	fstgtd_op	= 0x70ed,
+	fstles_op	= 0x70ee,
+	fstled_op	= 0x70ef,
+	ldgtb_op	= 0x70f0,
+	ldgth_op	= 0x70f1,
+	ldgtw_op	= 0x70f2,
+	ldgtd_op	= 0x70f3,
+	ldleb_op	= 0x70f4,
+	ldleh_op	= 0x70f5,
+	ldlew_op	= 0x70f6,
+	ldled_op	= 0x70f7,
+	stgtb_op	= 0x70f8,
+	stgth_op	= 0x70f9,
+	stgtw_op	= 0x70fa,
+	stgtd_op	= 0x70fb,
+	stleb_op	= 0x70fc,
+	stleh_op	= 0x70fd,
+	stlew_op	= 0x70fe,
+	stled_op	= 0x70ff,
 };
 
 enum reg3sa2_op {
 	alslw_op	= 0x02,
 	alslwu_op	= 0x03,
 	alsld_op	= 0x16,
+};
+
+struct reg0i15_format {
+	unsigned int immediate : 15;
+	unsigned int opcode : 17;
 };
 
 struct reg0i26_format {
@@ -263,6 +300,7 @@ struct reg3sa2_format {
 
 union loongarch_instruction {
 	unsigned int word;
+	struct reg0i15_format	reg0i15_format;
 	struct reg0i26_format	reg0i26_format;
 	struct reg1i20_format	reg1i20_format;
 	struct reg1i21_format	reg1i21_format;
@@ -321,6 +359,11 @@ static inline bool is_imm_negative(unsigned long val, unsigned int bit)
 	return val & (1UL << (bit - 1));
 }
 
+static inline bool is_break_ins(union loongarch_instruction *ip)
+{
+	return ip->reg0i15_format.opcode == break_op;
+}
+
 static inline bool is_pc_ins(union loongarch_instruction *ip)
 {
 	return ip->reg1i20_format.opcode >= pcaddi_op &&
@@ -350,6 +393,47 @@ static inline bool is_stack_alloc_ins(union loongarch_instruction *ip)
 		ip->reg2i12_format.rd == LOONGARCH_GPR_SP &&
 		is_imm12_negative(ip->reg2i12_format.immediate);
 }
+
+static inline bool is_self_loop_ins(union loongarch_instruction *ip, struct pt_regs *regs)
+{
+	switch (ip->reg0i26_format.opcode) {
+	case b_op:
+	case bl_op:
+		if (ip->reg0i26_format.immediate_l == 0
+		    && ip->reg0i26_format.immediate_h == 0)
+			return true;
+	}
+
+	switch (ip->reg1i21_format.opcode) {
+	case beqz_op:
+	case bnez_op:
+	case bceqz_op:
+		if (ip->reg1i21_format.immediate_l == 0
+		    && ip->reg1i21_format.immediate_h == 0)
+			return true;
+	}
+
+	switch (ip->reg2i16_format.opcode) {
+	case beq_op:
+	case bne_op:
+	case blt_op:
+	case bge_op:
+	case bltu_op:
+	case bgeu_op:
+		if (ip->reg2i16_format.immediate == 0)
+			return true;
+		break;
+	case jirl_op:
+		if (regs->regs[ip->reg2i16_format.rj] +
+		    ((unsigned long)ip->reg2i16_format.immediate << 2) == (unsigned long)ip)
+			return true;
+	}
+
+	return false;
+}
+
+void simu_pc(struct pt_regs *regs, union loongarch_instruction insn);
+void simu_branch(struct pt_regs *regs, union loongarch_instruction insn);
 
 int larch_insn_read(void *addr, u32 *insnp);
 int larch_insn_write(void *addr, u32 insn);

@@ -9,6 +9,8 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#include <asm/xen/hypervisor.h>
+
 #ifdef CONFIG_KVM_XEN
 #include <linux/jump_label_ratelimit.h>
 
@@ -32,6 +34,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe,
 int kvm_xen_setup_evtchn(struct kvm *kvm,
 			 struct kvm_kernel_irq_routing_entry *e,
 			 const struct kvm_irq_routing_entry *ue);
+void kvm_xen_update_tsc_info(struct kvm_vcpu *vcpu);
 
 static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
 {
@@ -134,6 +137,10 @@ static inline void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu)
 static inline bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu)
 {
 	return false;
+}
+
+static inline void kvm_xen_update_tsc_info(struct kvm_vcpu *vcpu)
+{
 }
 #endif
 

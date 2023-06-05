@@ -12,6 +12,12 @@ config TYPEC_MUX_FSA4480
 	  common USB Type-C connector.
 	  If compiled as a module, the module will be named fsa4480.
 
+config TYPEC_MUX_GPIO_SBU
+	tristate "Generic GPIO based SBU mux for USB Type-C applications"
+	help
+	  Say Y or M if your system uses a GPIO based mux for managing the
+	  connected state and the swapping of the SBU lines in a Type-C port.
+
 config TYPEC_MUX_PI3USB30532
 	tristate "Pericom PI3USB30532 Type-C cross switch driver"
 	depends on I2C

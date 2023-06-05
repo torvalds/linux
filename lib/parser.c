@@ -133,7 +133,7 @@ EXPORT_SYMBOL(match_token);
  * as a number in that base.
  *
  * Return: On success, sets @result to the integer represented by the
- * string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * string and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 static int match_number(substring_t *s, int *result, int base)
 {
@@ -165,7 +165,7 @@ static int match_number(substring_t *s, int *result, int base)
  * as a number in that base.
  *
  * Return: On success, sets @result to the integer represented by the
- * string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * string and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 static int match_u64int(substring_t *s, u64 *result, int base)
 {
@@ -189,7 +189,7 @@ static int match_u64int(substring_t *s, u64 *result, int base)
  * Description: Attempts to parse the &substring_t @s as a decimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_int(substring_t *s, int *result)
 {
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(match_int);
  * Description: Attempts to parse the &substring_t @s as a decimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_uint(substring_t *s, unsigned int *result)
 {
@@ -228,7 +228,7 @@ EXPORT_SYMBOL(match_uint);
  * integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_u64(substring_t *s, u64 *result)
 {
@@ -244,7 +244,7 @@ EXPORT_SYMBOL(match_u64);
  * Description: Attempts to parse the &substring_t @s as an octal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_octal(substring_t *s, int *result)
 {
@@ -260,7 +260,7 @@ EXPORT_SYMBOL(match_octal);
  * Description: Attempts to parse the &substring_t @s as a hexadecimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_hex(substring_t *s, int *result)
 {

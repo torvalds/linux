@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+# Set up CROSS_COMPILE if not defined yet
+if [ "${CROSS_COMPILE+set}" != "set" -a "${DEB_HOST_ARCH}" != "${DEB_BUILD_ARCH}" ]; then
+	echo CROSS_COMPILE=${DEB_HOST_GNU_TYPE}-
+fi
+
+version=$(dpkg-parsechangelog -S Version)
+debian_revision="${version##*-}"
+
+if [ "${version}" != "${debian_revision}" ]; then
+	echo KBUILD_BUILD_VERSION=${debian_revision}
+fi

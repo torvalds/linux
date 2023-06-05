@@ -1021,8 +1021,8 @@ static __poll_t s5p_mfc_poll(struct file *file,
 	 * means either in driver already or waiting for driver to claim it
 	 * and start processing.
 	 */
-	if ((!src_q->streaming || list_empty(&src_q->queued_list))
-		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
+	if ((!vb2_is_streaming(src_q) || list_empty(&src_q->queued_list)) &&
+	    (!vb2_is_streaming(dst_q) || list_empty(&dst_q->queued_list))) {
 		rc = EPOLLERR;
 		goto end;
 	}
@@ -1431,7 +1431,7 @@ err_dma:
 }
 
 /* Remove the driver */
-static int s5p_mfc_remove(struct platform_device *pdev)
+static void s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
 	struct s5p_mfc_ctx *ctx;
@@ -1463,7 +1463,6 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	s5p_mfc_unconfigure_dma_memory(dev);
 
 	s5p_mfc_final_pm(dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1690,7 +1689,7 @@ MODULE_DEVICE_TABLE(of, exynos_mfc_match);
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove		= s5p_mfc_remove,
+	.remove_new	= s5p_mfc_remove,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.pm	= &s5p_mfc_pm_ops,

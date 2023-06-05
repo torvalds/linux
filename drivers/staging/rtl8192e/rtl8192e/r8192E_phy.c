@@ -12,25 +12,7 @@
 #include "r8192E_phy.h"
 #include "rtl_dm.h"
 
-#include "r8192E_hwimg.h"
-
-static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
-	0,
-	0x085c,
-	0x08dc,
-	0x095c,
-	0x09dc,
-	0x0a5c,
-	0x0adc,
-	0x0b5c,
-	0x0bdc,
-	0x0c5c,
-	0x0cdc,
-	0x0d5c,
-	0x0ddc,
-	0x0e5c,
-	0x0f72,
-};
+#include "table.h"
 
 /*************************Define local function prototype**********************/
 
@@ -45,22 +27,6 @@ static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 	if (!dwBitMask)
 		return 32;
 	return ffs(dwBitMask) - 1;
-}
-
-u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath)
-{
-	u8 ret = 1;
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (priv->rf_type == RF_2T4R)
-		ret = 0;
-	else if (priv->rf_type == RF_1T2R) {
-		if (eRFPath == RF90_PATH_A || eRFPath == RF90_PATH_B)
-			ret = 1;
-		else if (eRFPath == RF90_PATH_C || eRFPath == RF90_PATH_D)
-			ret = 0;
-	}
-	return ret;
 }
 
 void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
@@ -94,28 +60,24 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret = 0;
 	u32 NewOffset = 0;
-	struct bb_reg_definition *pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition *pPhyReg = &priv->phy_reg_def[eRFPath];
 
 	Offset &= 0x3f;
 
-	if (priv->rf_chip == RF_8256) {
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
-		if (Offset >= 31) {
-			priv->RfReg0Value[eRFPath] |= 0x140;
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath]<<16));
-			NewOffset = Offset - 30;
-		} else if (Offset >= 16) {
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath]<<16));
-
-			NewOffset = Offset - 15;
-		} else
-			NewOffset = Offset;
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
+	if (Offset >= 31) {
+		priv->rf_reg_0value[eRFPath] |= 0x140;
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 30;
+	} else if (Offset >= 16) {
+		priv->rf_reg_0value[eRFPath] |= 0x100;
+		priv->rf_reg_0value[eRFPath] &= (~0x40);
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 15;
 	} else {
 		NewOffset = Offset;
 	}
@@ -129,15 +91,12 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 	ret = rtl92e_get_bb_reg(dev, pPhyReg->rfLSSIReadBack,
 				bLSSIReadBackData);
 
-	if (priv->rf_chip == RF_8256) {
-		priv->RfReg0Value[eRFPath] &= 0xebf;
+	priv->rf_reg_0value[eRFPath] &= 0xebf;
 
-		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset, bMaskDWord,
-				  (priv->RfReg0Value[eRFPath] << 16));
+	rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset, bMaskDWord,
+			  (priv->rf_reg_0value[eRFPath] << 16));
 
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
-	}
-
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 
 	return ret;
 
@@ -149,27 +108,25 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 DataAndAddr = 0, NewOffset = 0;
-	struct bb_reg_definition *pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition *pPhyReg = &priv->phy_reg_def[eRFPath];
 
 	Offset &= 0x3f;
-	if (priv->rf_chip == RF_8256) {
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
 
-		if (Offset >= 31) {
-			priv->RfReg0Value[eRFPath] |= 0x140;
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
-			NewOffset = Offset - 30;
-		} else if (Offset >= 16) {
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
-			NewOffset = Offset - 15;
-		} else
-			NewOffset = Offset;
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);
+
+	if (Offset >= 31) {
+		priv->rf_reg_0value[eRFPath] |= 0x140;
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 30;
+	} else if (Offset >= 16) {
+		priv->rf_reg_0value[eRFPath] |= 0x100;
+		priv->rf_reg_0value[eRFPath] &= (~0x40);
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
+		NewOffset = Offset - 15;
 	} else {
 		NewOffset = Offset;
 	}
@@ -179,17 +136,15 @@ static void _rtl92e_phy_rf_write(struct net_device *dev,
 	rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
 
 	if (Offset == 0x0)
-		priv->RfReg0Value[eRFPath] = Data;
+		priv->rf_reg_0value[eRFPath] = Data;
 
-	if (priv->rf_chip == RF_8256) {
-		if (Offset != 0) {
-			priv->RfReg0Value[eRFPath] &= 0xebf;
-			rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
-					  bMaskDWord,
-					  (priv->RfReg0Value[eRFPath] << 16));
-		}
-		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
+	if (Offset != 0) {
+		priv->rf_reg_0value[eRFPath] &= 0xebf;
+		rtl92e_set_bb_reg(dev, pPhyReg->rf3wireOffset,
+				  bMaskDWord,
+				  (priv->rf_reg_0value[eRFPath] << 16));
 	}
+	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);
 }
 
 void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
@@ -198,12 +153,10 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 Original_Value, BitShift, New_Value;
 
-	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-		return;
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return;
 
-	if (priv->Rf_Mode == RF_OP_By_FW) {
+	if (priv->rf_mode == RF_OP_By_FW) {
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath,
 								RegAddr);
@@ -235,12 +188,10 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-		return 0;
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return	0;
 	mutex_lock(&priv->rf_mutex);
-	if (priv->Rf_Mode == RF_OP_By_FW) {
+	if (priv->rf_mode == RF_OP_By_FW) {
 		Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath, RegAddr);
 		udelay(200);
 	} else {
@@ -306,13 +257,13 @@ void rtl92e_config_mac(struct net_device *dev)
 	u32 *pdwArray = NULL;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bTXPowerDataReadFromEEPORM) {
-		dwArrayLen = MACPHY_Array_PGLength;
-		pdwArray = Rtl819XMACPHY_Array_PG;
+	if (priv->tx_pwr_data_read_from_eeprom) {
+		dwArrayLen = RTL8192E_MACPHY_ARR_PG_LEN;
+		pdwArray = RTL8192E_MACPHY_ARR_PG;
 
 	} else {
-		dwArrayLen = MACPHY_ArrayLength;
-		pdwArray = Rtl819XMACPHY_Array;
+		dwArrayLen = RTL8192E_MACPHY_ARR_LEN;
+		pdwArray = RTL8192E_MACPHY_ARR;
 	}
 	for (i = 0; i < dwArrayLen; i += 3) {
 		if (pdwArray[i] == 0x318)
@@ -330,25 +281,19 @@ static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 	u32 *Rtl819XPHY_REGArray_Table = NULL;
 	u32 *Rtl819XAGCTAB_Array_Table = NULL;
 	u16 AGCTAB_ArrayLen, PHY_REGArrayLen = 0;
-	struct r8192_priv *priv = rtllib_priv(dev);
 
-	AGCTAB_ArrayLen = AGCTAB_ArrayLength;
-	Rtl819XAGCTAB_Array_Table = Rtl819XAGCTAB_Array;
-	if (priv->rf_type == RF_2T4R) {
-		PHY_REGArrayLen = PHY_REGArrayLength;
-		Rtl819XPHY_REGArray_Table = Rtl819XPHY_REGArray;
-	} else if (priv->rf_type == RF_1T2R) {
-		PHY_REGArrayLen = PHY_REG_1T2RArrayLength;
-		Rtl819XPHY_REGArray_Table = Rtl819XPHY_REG_1T2RArray;
-	}
+	AGCTAB_ArrayLen = RTL8192E_AGCTAB_ARR_LEN;
+	Rtl819XAGCTAB_Array_Table = RTL8192E_AGCTAB_ARR;
+	PHY_REGArrayLen = RTL8192E_PHY_REG_1T2R_ARR_LEN;
+	Rtl819XPHY_REGArray_Table = RTL8192E_PHY_REG_1T2R_ARR;
 
-	if (ConfigType == BaseBand_Config_PHY_REG) {
+	if (ConfigType == BB_CONFIG_PHY_REG) {
 		for (i = 0; i < PHY_REGArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XPHY_REGArray_Table[i],
 					  bMaskDWord,
 					  Rtl819XPHY_REGArray_Table[i+1]);
 		}
-	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
+	} else if (ConfigType == BB_CONFIG_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLen; i += 2) {
 			rtl92e_set_bb_reg(dev, Rtl819XAGCTAB_Array_Table[i],
 					  bMaskDWord,
@@ -361,91 +306,23 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->PHYRegDef[RF90_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW;
-	priv->PHYRegDef[RF90_PATH_B].rfintfs = rFPGA0_XAB_RFInterfaceSW;
-	priv->PHYRegDef[RF90_PATH_C].rfintfs = rFPGA0_XCD_RFInterfaceSW;
-	priv->PHYRegDef[RF90_PATH_D].rfintfs = rFPGA0_XCD_RFInterfaceSW;
+	priv->phy_reg_def[RF90_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW;
+	priv->phy_reg_def[RF90_PATH_B].rfintfs = rFPGA0_XAB_RFInterfaceSW;
 
-	priv->PHYRegDef[RF90_PATH_A].rfintfi = rFPGA0_XAB_RFInterfaceRB;
-	priv->PHYRegDef[RF90_PATH_B].rfintfi = rFPGA0_XAB_RFInterfaceRB;
-	priv->PHYRegDef[RF90_PATH_C].rfintfi = rFPGA0_XCD_RFInterfaceRB;
-	priv->PHYRegDef[RF90_PATH_D].rfintfi = rFPGA0_XCD_RFInterfaceRB;
+	priv->phy_reg_def[RF90_PATH_A].rfintfo = rFPGA0_XA_RFInterfaceOE;
+	priv->phy_reg_def[RF90_PATH_B].rfintfo = rFPGA0_XB_RFInterfaceOE;
 
-	priv->PHYRegDef[RF90_PATH_A].rfintfo = rFPGA0_XA_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_B].rfintfo = rFPGA0_XB_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_C].rfintfo = rFPGA0_XC_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_D].rfintfo = rFPGA0_XD_RFInterfaceOE;
+	priv->phy_reg_def[RF90_PATH_A].rfintfe = rFPGA0_XA_RFInterfaceOE;
+	priv->phy_reg_def[RF90_PATH_B].rfintfe = rFPGA0_XB_RFInterfaceOE;
 
-	priv->PHYRegDef[RF90_PATH_A].rfintfe = rFPGA0_XA_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_B].rfintfe = rFPGA0_XB_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_C].rfintfe = rFPGA0_XC_RFInterfaceOE;
-	priv->PHYRegDef[RF90_PATH_D].rfintfe = rFPGA0_XD_RFInterfaceOE;
+	priv->phy_reg_def[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter;
+	priv->phy_reg_def[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
 
-	priv->PHYRegDef[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter;
-	priv->PHYRegDef[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
-	priv->PHYRegDef[RF90_PATH_C].rf3wireOffset = rFPGA0_XC_LSSIParameter;
-	priv->PHYRegDef[RF90_PATH_D].rf3wireOffset = rFPGA0_XD_LSSIParameter;
+	priv->phy_reg_def[RF90_PATH_A].rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;
+	priv->phy_reg_def[RF90_PATH_B].rfHSSIPara2 = rFPGA0_XB_HSSIParameter2;
 
-	priv->PHYRegDef[RF90_PATH_A].rfLSSI_Select = rFPGA0_XAB_RFParameter;
-	priv->PHYRegDef[RF90_PATH_B].rfLSSI_Select = rFPGA0_XAB_RFParameter;
-	priv->PHYRegDef[RF90_PATH_C].rfLSSI_Select = rFPGA0_XCD_RFParameter;
-	priv->PHYRegDef[RF90_PATH_D].rfLSSI_Select = rFPGA0_XCD_RFParameter;
-
-	priv->PHYRegDef[RF90_PATH_A].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->PHYRegDef[RF90_PATH_B].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->PHYRegDef[RF90_PATH_C].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->PHYRegDef[RF90_PATH_D].rfTxGainStage = rFPGA0_TxGainStage;
-
-	priv->PHYRegDef[RF90_PATH_A].rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;
-	priv->PHYRegDef[RF90_PATH_B].rfHSSIPara1 = rFPGA0_XB_HSSIParameter1;
-	priv->PHYRegDef[RF90_PATH_C].rfHSSIPara1 = rFPGA0_XC_HSSIParameter1;
-	priv->PHYRegDef[RF90_PATH_D].rfHSSIPara1 = rFPGA0_XD_HSSIParameter1;
-
-	priv->PHYRegDef[RF90_PATH_A].rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;
-	priv->PHYRegDef[RF90_PATH_B].rfHSSIPara2 = rFPGA0_XB_HSSIParameter2;
-	priv->PHYRegDef[RF90_PATH_C].rfHSSIPara2 = rFPGA0_XC_HSSIParameter2;
-	priv->PHYRegDef[RF90_PATH_D].rfHSSIPara2 = rFPGA0_XD_HSSIParameter2;
-
-	priv->PHYRegDef[RF90_PATH_A].rfSwitchControl = rFPGA0_XAB_SwitchControl;
-	priv->PHYRegDef[RF90_PATH_B].rfSwitchControl = rFPGA0_XAB_SwitchControl;
-	priv->PHYRegDef[RF90_PATH_C].rfSwitchControl = rFPGA0_XCD_SwitchControl;
-	priv->PHYRegDef[RF90_PATH_D].rfSwitchControl = rFPGA0_XCD_SwitchControl;
-
-	priv->PHYRegDef[RF90_PATH_A].rfAGCControl1 = rOFDM0_XAAGCCore1;
-	priv->PHYRegDef[RF90_PATH_B].rfAGCControl1 = rOFDM0_XBAGCCore1;
-	priv->PHYRegDef[RF90_PATH_C].rfAGCControl1 = rOFDM0_XCAGCCore1;
-	priv->PHYRegDef[RF90_PATH_D].rfAGCControl1 = rOFDM0_XDAGCCore1;
-
-	priv->PHYRegDef[RF90_PATH_A].rfAGCControl2 = rOFDM0_XAAGCCore2;
-	priv->PHYRegDef[RF90_PATH_B].rfAGCControl2 = rOFDM0_XBAGCCore2;
-	priv->PHYRegDef[RF90_PATH_C].rfAGCControl2 = rOFDM0_XCAGCCore2;
-	priv->PHYRegDef[RF90_PATH_D].rfAGCControl2 = rOFDM0_XDAGCCore2;
-
-	priv->PHYRegDef[RF90_PATH_A].rfRxIQImbalance = rOFDM0_XARxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_B].rfRxIQImbalance = rOFDM0_XBRxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_C].rfRxIQImbalance = rOFDM0_XCRxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_D].rfRxIQImbalance = rOFDM0_XDRxIQImbalance;
-
-	priv->PHYRegDef[RF90_PATH_A].rfRxAFE = rOFDM0_XARxAFE;
-	priv->PHYRegDef[RF90_PATH_B].rfRxAFE = rOFDM0_XBRxAFE;
-	priv->PHYRegDef[RF90_PATH_C].rfRxAFE = rOFDM0_XCRxAFE;
-	priv->PHYRegDef[RF90_PATH_D].rfRxAFE = rOFDM0_XDRxAFE;
-
-	priv->PHYRegDef[RF90_PATH_A].rfTxIQImbalance = rOFDM0_XATxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_B].rfTxIQImbalance = rOFDM0_XBTxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_C].rfTxIQImbalance = rOFDM0_XCTxIQImbalance;
-	priv->PHYRegDef[RF90_PATH_D].rfTxIQImbalance = rOFDM0_XDTxIQImbalance;
-
-	priv->PHYRegDef[RF90_PATH_A].rfTxAFE = rOFDM0_XATxAFE;
-	priv->PHYRegDef[RF90_PATH_B].rfTxAFE = rOFDM0_XBTxAFE;
-	priv->PHYRegDef[RF90_PATH_C].rfTxAFE = rOFDM0_XCTxAFE;
-	priv->PHYRegDef[RF90_PATH_D].rfTxAFE = rOFDM0_XDTxAFE;
-
-	priv->PHYRegDef[RF90_PATH_A].rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
-	priv->PHYRegDef[RF90_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
-	priv->PHYRegDef[RF90_PATH_C].rfLSSIReadBack = rFPGA0_XC_LSSIReadBack;
-	priv->PHYRegDef[RF90_PATH_D].rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
-
+	priv->phy_reg_def[RF90_PATH_A].rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
+	priv->phy_reg_def[RF90_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
 }
 
 bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
@@ -526,25 +403,20 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 			return rtStatus;
 	}
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
-	_rtl92e_phy_config_bb(dev, BaseBand_Config_PHY_REG);
+	_rtl92e_phy_config_bb(dev, BB_CONFIG_PHY_REG);
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
 	rtl92e_writel(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
-	_rtl92e_phy_config_bb(dev, BaseBand_Config_AGC_TAB);
+	_rtl92e_phy_config_bb(dev, BB_CONFIG_AGC_TAB);
 
-	if (priv->IC_Cut  > VERSION_8190_BD) {
-		if (priv->rf_type == RF_2T4R)
-			dwRegValue = priv->AntennaTxPwDiff[2]<<8 |
-				      priv->AntennaTxPwDiff[1]<<4 |
-				      priv->AntennaTxPwDiff[0];
-		else
-			dwRegValue = 0x0;
+	if (priv->ic_cut  > VERSION_8190_BD) {
+		dwRegValue = 0x0;
 		rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
 				  (bXBTxAGC|bXCTxAGC|bXDTxAGC), dwRegValue);
 
 
-		dwRegValue = priv->CrystalCap;
+		dwRegValue = priv->crystal_cap;
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, bXtalCap92x,
 				  dwRegValue);
 	}
@@ -561,104 +433,39 @@ void rtl92e_get_tx_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->MCSTxPowerLevelOriginalOffset[0] =
+	priv->mcs_tx_pwr_level_org_offset[0] =
 		rtl92e_readl(dev, rTxAGC_Rate18_06);
-	priv->MCSTxPowerLevelOriginalOffset[1] =
+	priv->mcs_tx_pwr_level_org_offset[1] =
 		rtl92e_readl(dev, rTxAGC_Rate54_24);
-	priv->MCSTxPowerLevelOriginalOffset[2] =
+	priv->mcs_tx_pwr_level_org_offset[2] =
 		rtl92e_readl(dev, rTxAGC_Mcs03_Mcs00);
-	priv->MCSTxPowerLevelOriginalOffset[3] =
+	priv->mcs_tx_pwr_level_org_offset[3] =
 		rtl92e_readl(dev, rTxAGC_Mcs07_Mcs04);
-	priv->MCSTxPowerLevelOriginalOffset[4] =
+	priv->mcs_tx_pwr_level_org_offset[4] =
 		rtl92e_readl(dev, rTxAGC_Mcs11_Mcs08);
-	priv->MCSTxPowerLevelOriginalOffset[5] =
+	priv->mcs_tx_pwr_level_org_offset[5] =
 		rtl92e_readl(dev, rTxAGC_Mcs15_Mcs12);
 
-	priv->DefaultInitialGain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
-	priv->DefaultInitialGain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
-	priv->DefaultInitialGain[2] = rtl92e_readb(dev, rOFDM0_XCAGCCore1);
-	priv->DefaultInitialGain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
+	priv->def_initial_gain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
+	priv->def_initial_gain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
+	priv->def_initial_gain[2] = rtl92e_readb(dev, rOFDM0_XCAGCCore1);
+	priv->def_initial_gain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
 
 	priv->framesync = rtl92e_readb(dev, rOFDM0_RxDetector3);
-	priv->framesyncC34 = rtl92e_readl(dev, rOFDM0_RxDetector2);
-	priv->SifsTime = rtl92e_readw(dev, SIFS);
 }
 
 void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	powerlevel = 0, powerlevelOFDM24G = 0;
-	s8	ant_pwr_diff;
-	u32	u4RegValue;
 
 	if (priv->epromtype == EEPROM_93C46) {
-		powerlevel = priv->TxPowerLevelCCK[channel-1];
-		powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[channel-1];
-	} else if (priv->epromtype == EEPROM_93C56) {
-		if (priv->rf_type == RF_1T2R) {
-			powerlevel = priv->TxPowerLevelCCK_C[channel-1];
-			powerlevelOFDM24G = priv->TxPowerLevelOFDM24G_C[channel-1];
-		} else if (priv->rf_type == RF_2T4R) {
-			powerlevel = priv->TxPowerLevelCCK_A[channel-1];
-			powerlevelOFDM24G = priv->TxPowerLevelOFDM24G_A[channel-1];
-
-			ant_pwr_diff = priv->TxPowerLevelOFDM24G_C[channel-1]
-				       - priv->TxPowerLevelOFDM24G_A[channel-1];
-
-			priv->RF_C_TxPwDiff = ant_pwr_diff;
-
-			ant_pwr_diff &= 0xf;
-
-			priv->AntennaTxPwDiff[2] = 0;
-			priv->AntennaTxPwDiff[1] = (u8)(ant_pwr_diff);
-			priv->AntennaTxPwDiff[0] = 0;
-
-			u4RegValue = priv->AntennaTxPwDiff[2]<<8 |
-				      priv->AntennaTxPwDiff[1]<<4 |
-				      priv->AntennaTxPwDiff[0];
-
-			rtl92e_set_bb_reg(dev, rFPGA0_TxGainStage,
-					  (bXBTxAGC|bXCTxAGC|bXDTxAGC),
-					  u4RegValue);
-		}
+		powerlevel = priv->tx_pwr_level_cck[channel - 1];
+		powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g[channel - 1];
 	}
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-	case RF_8256:
-		rtl92e_set_cck_tx_power(dev, powerlevel);
-		rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
-		break;
-	case RF_8258:
-		break;
-	default:
-		netdev_err(dev, "Invalid RF Chip ID.\n");
-		break;
-	}
-}
 
-bool rtl92e_config_phy(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	bool rtStatus = true;
-
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-	case RF_8256:
-		rtStatus = rtl92e_config_rf(dev);
-		break;
-
-	case RF_8258:
-		break;
-	case RF_PSEUDO_11N:
-		break;
-
-	default:
-		netdev_err(dev, "Invalid RF Chip ID.\n");
-		break;
-	}
-	return rtStatus;
+	rtl92e_set_cck_tx_power(dev, powerlevel);
+	rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
 }
 
 u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
@@ -668,50 +475,26 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
-		for (i = 0; i < RadioA_ArrayLength; i += 2) {
-			if (Rtl819XRadioA_Array[i] == 0xfe) {
+		for (i = 0; i < RTL8192E_RADIO_A_ARR_LEN; i += 2) {
+			if (RTL8192E_RADIO_A_ARR[i] == 0xfe) {
 				msleep(100);
 				continue;
 			}
-			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioA_Array[i],
+			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_A_ARR[i],
 					  bMask12Bits,
-					  Rtl819XRadioA_Array[i+1]);
+					  RTL8192E_RADIO_A_ARR[i + 1]);
 
 		}
 		break;
 	case RF90_PATH_B:
-		for (i = 0; i < RadioB_ArrayLength; i += 2) {
-			if (Rtl819XRadioB_Array[i] == 0xfe) {
+		for (i = 0; i < RTL8192E_RADIO_B_ARR_LEN; i += 2) {
+			if (RTL8192E_RADIO_B_ARR[i] == 0xfe) {
 				msleep(100);
 				continue;
 			}
-			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioB_Array[i],
+			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_B_ARR[i],
 					  bMask12Bits,
-					  Rtl819XRadioB_Array[i+1]);
-
-		}
-		break;
-	case RF90_PATH_C:
-		for (i = 0; i < RadioC_ArrayLength; i += 2) {
-			if (Rtl819XRadioC_Array[i] == 0xfe) {
-				msleep(100);
-				continue;
-			}
-			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioC_Array[i],
-					  bMask12Bits,
-					  Rtl819XRadioC_Array[i+1]);
-
-		}
-		break;
-	case RF90_PATH_D:
-		for (i = 0; i < RadioD_ArrayLength; i += 2) {
-			if (Rtl819XRadioD_Array[i] == 0xfe) {
-				msleep(100);
-				continue;
-			}
-			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioD_Array[i],
-					  bMask12Bits,
-					  Rtl819XRadioD_Array[i+1]);
+					  RTL8192E_RADIO_B_ARR[i + 1]);
 
 		}
 		break;
@@ -726,24 +509,11 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
-	u8	powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[channel-1];
+	u8	powerlevel = priv->tx_pwr_level_cck[channel - 1];
+	u8	powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g[channel - 1];
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-
-	case RF_8256:
-		rtl92e_set_cck_tx_power(dev, powerlevel);
-		rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
-		break;
-
-	case RF_8258:
-		break;
-	default:
-		netdev_warn(dev, "%s(): Invalid RF Chip ID\n", __func__);
-		break;
-	}
+	rtl92e_set_cck_tx_power(dev, powerlevel);
+	rtl92e_set_ofdm_tx_power(dev, powerlevelOFDM24G);
 }
 
 static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
@@ -808,58 +578,25 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 						  0, 0, 0);
 
 		RfDependCmdCnt = 0;
-		switch (priv->rf_chip) {
-		case RF_8225:
-			if (!(channel >= 1 && channel <= 14)) {
-				netdev_err(dev,
-					   "Invalid channel requested for 8225: %d\n",
-					   channel);
-				return false;
-			}
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_RF_WriteReg,
-							  rZebra1_Channel,
-							  RF_CHANNEL_TABLE_ZEBRA[channel],
-							  10);
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_End, 0, 0, 0);
-			break;
 
-		case RF_8256:
-			if (!(channel >= 1 && channel <= 14)) {
-				netdev_err(dev,
-					   "Invalid channel requested for 8256: %d\n",
-					   channel);
-				return false;
-			}
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_RF_WriteReg,
-							  rZebra1_Channel,
-							  channel, 10);
-			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
-							  ieee->RfDependCmd,
-							  RfDependCmdCnt++,
-							  MAX_RFDEPENDCMD_CNT,
-							  CmdID_End, 0, 0, 0);
-			break;
-
-		case RF_8258:
-			break;
-
-		default:
-			netdev_warn(dev, "Unknown RF Chip ID\n");
+		if (!(channel >= 1 && channel <= 14)) {
+			netdev_err(dev,
+				   "Invalid channel requested for 8256: %d\n",
+				   channel);
 			return false;
 		}
-
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+						  ieee->RfDependCmd,
+						  RfDependCmdCnt++,
+						  MAX_RFDEPENDCMD_CNT,
+						  CmdID_RF_WriteReg,
+						  rZebra1_Channel,
+						  channel, 10);
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+						  ieee->RfDependCmd,
+						  RfDependCmdCnt++,
+						  MAX_RFDEPENDCMD_CNT,
+						  CmdID_End, 0, 0, 0);
 
 		do {
 			switch (*stage) {
@@ -886,7 +623,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				continue;
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
-				if (priv->IC_Cut > VERSION_8190_BD)
+				if (priv->ic_cut > VERSION_8190_BD)
 					_rtl92e_set_tx_power_level(dev,
 								   channel);
 				break;
@@ -904,7 +641,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
-				     priv->NumTotalRFPath; eRFPath++)
+				     priv->num_total_rf_path; eRFPath++)
 					rtl92e_set_rf_reg(dev,
 						 (enum rf90_radio_path)eRFPath,
 						 CurrentCmd->Para1, bMask12Bits,
@@ -929,8 +666,8 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 	u32 delay = 0;
 
 	while (!_rtl92e_phy_switch_channel_step(dev, channel,
-						&priv->SwChnlStage,
-						&priv->SwChnlStep, &delay)) {
+						&priv->sw_chnl_stage,
+						&priv->sw_chnl_step, &delay)) {
 		if (delay > 0)
 			msleep(delay);
 		if (!priv->up)
@@ -954,20 +691,11 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return false;
 	}
-	if (priv->SwChnlInProgress)
+	if (priv->sw_chnl_in_progress)
 		return false;
 
 
 	switch (priv->rtllib->mode) {
-	case WIRELESS_MODE_A:
-	case WIRELESS_MODE_N_5G:
-		if (channel <= 14) {
-			netdev_warn(dev,
-				    "Channel %d not available in 802.11a.\n",
-				    channel);
-			return false;
-		}
-		break;
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
 			netdev_warn(dev,
@@ -987,18 +715,18 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 		break;
 	}
 
-	priv->SwChnlInProgress = true;
+	priv->sw_chnl_in_progress = true;
 	if (channel == 0)
 		channel = 1;
 
 	priv->chan = channel;
 
-	priv->SwChnlStage = 0;
-	priv->SwChnlStep = 0;
+	priv->sw_chnl_stage = 0;
+	priv->sw_chnl_step = 0;
 
 	if (priv->up)
 		_rtl92e_phy_switch_channel_work_item(dev);
-	priv->SwChnlInProgress = false;
+	priv->sw_chnl_in_progress = false;
 	return true;
 }
 
@@ -1006,16 +734,16 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	switch (priv->CurrentChannelBW) {
+	switch (priv->current_chnl_bw) {
 	case HT_CHANNEL_WIDTH_20:
 		priv->cck_present_attn =
-			priv->CCKPresentAttentuation_20Mdefault +
-			    priv->CCKPresentAttentuation_difference;
+			priv->cck_present_attn_20m_def +
+			    priv->cck_present_attn_diff;
 
 		if (priv->cck_present_attn >
-		    (CCKTxBBGainTableLength-1))
+		    (CCK_TX_BB_GAIN_TABLE_LEN - 1))
 			priv->cck_present_attn =
-					 CCKTxBBGainTableLength-1;
+					 CCK_TX_BB_GAIN_TABLE_LEN - 1;
 		if (priv->cck_present_attn < 0)
 			priv->cck_present_attn = 0;
 
@@ -1034,13 +762,13 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 
 	case HT_CHANNEL_WIDTH_20_40:
 		priv->cck_present_attn =
-			priv->CCKPresentAttentuation_40Mdefault +
-			priv->CCKPresentAttentuation_difference;
+			priv->cck_present_attn_40m_def +
+			priv->cck_present_attn_diff;
 
 		if (priv->cck_present_attn >
-		    (CCKTxBBGainTableLength - 1))
+		    (CCK_TX_BB_GAIN_TABLE_LEN - 1))
 			priv->cck_present_attn =
-					 CCKTxBBGainTableLength-1;
+					 CCK_TX_BB_GAIN_TABLE_LEN - 1;
 		if (priv->cck_present_attn < 0)
 			priv->cck_present_attn = 0;
 
@@ -1070,15 +798,15 @@ static void _rtl92e_cck_tx_power_track_bw_switch_thermal(struct net_device *dev)
 		 priv->bcck_in_ch14)
 		priv->bcck_in_ch14 = false;
 
-	switch (priv->CurrentChannelBW) {
+	switch (priv->current_chnl_bw) {
 	case HT_CHANNEL_WIDTH_20:
-		if (priv->Record_CCK_20Mindex == 0)
-			priv->Record_CCK_20Mindex = 6;
-		priv->CCK_index = priv->Record_CCK_20Mindex;
+		if (priv->rec_cck_20m_idx == 0)
+			priv->rec_cck_20m_idx = 6;
+		priv->cck_index = priv->rec_cck_20m_idx;
 	break;
 
 	case HT_CHANNEL_WIDTH_20_40:
-		priv->CCK_index = priv->Record_CCK_40Mindex;
+		priv->cck_index = priv->rec_cck_40m_idx;
 	break;
 	}
 	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
@@ -1088,7 +816,7 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_cck_tx_power_track_bw_switch_tssi(dev);
 	else
 		_rtl92e_cck_tx_power_track_bw_switch_thermal(dev);
@@ -1100,17 +828,13 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 regBwOpMode;
 
-	if (priv->rf_chip == RF_PSEUDO_11N) {
-		priv->SetBWModeInProgress = false;
-		return;
-	}
 	if (!priv->up) {
 		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return;
 	}
 	regBwOpMode = rtl92e_readb(dev, BW_OPMODE);
 
-	switch (priv->CurrentChannelBW) {
+	switch (priv->current_chnl_bw) {
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
 		rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
@@ -1123,11 +847,11 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 
 	default:
 		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
-			   priv->CurrentChannelBW);
+			   priv->current_chnl_bw);
 		break;
 	}
 
-	switch (priv->CurrentChannelBW) {
+	switch (priv->current_chnl_bw) {
 	case HT_CHANNEL_WIDTH_20:
 		rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
 		rtl92e_set_bb_reg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
@@ -1156,41 +880,23 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		}
 
 		rtl92e_set_bb_reg(dev, rCCK0_System, bCCKSideBand,
-				  (priv->nCur40MhzPrimeSC>>1));
+				  (priv->n_cur_40mhz_prime_sc>>1));
 		rtl92e_set_bb_reg(dev, rOFDM1_LSTF, 0xC00,
-				  priv->nCur40MhzPrimeSC);
+				  priv->n_cur_40mhz_prime_sc);
 
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		break;
 	default:
 		netdev_err(dev, "%s(): unknown Bandwidth: %#X\n", __func__,
-			   priv->CurrentChannelBW);
+			   priv->current_chnl_bw);
 		break;
 
 	}
 
-	switch (priv->rf_chip) {
-	case RF_8225:
-		break;
-
-	case RF_8256:
-		rtl92e_set_bandwidth(dev, priv->CurrentChannelBW);
-		break;
-
-	case RF_8258:
-		break;
-
-	case RF_PSEUDO_11N:
-		break;
-
-	default:
-		netdev_info(dev, "%s(): Unknown RFChipID: %d\n", __func__,
-			    priv->rf_chip);
-		break;
-	}
+	rtl92e_set_bandwidth(dev, priv->current_chnl_bw);
 
 	atomic_dec(&(priv->rtllib->atm_swbw));
-	priv->SetBWModeInProgress = false;
+	priv->set_bw_mode_in_progress = false;
 }
 
 void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
@@ -1199,20 +905,20 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 
-	if (priv->SetBWModeInProgress)
+	if (priv->set_bw_mode_in_progress)
 		return;
 
 	atomic_inc(&(priv->rtllib->atm_swbw));
-	priv->SetBWModeInProgress = true;
+	priv->set_bw_mode_in_progress = true;
 
-	priv->CurrentChannelBW = bandwidth;
+	priv->current_chnl_bw = bandwidth;
 
 	if (Offset == HT_EXTCHNL_OFFSET_LOWER)
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_UPPER;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_UPPER;
 	else if (Offset == HT_EXTCHNL_OFFSET_UPPER)
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_LOWER;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_LOWER;
 	else
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	_rtl92e_set_bw_mode_work_item(dev);
 
@@ -1295,7 +1001,7 @@ void rtl92e_set_rf_off(struct net_device *dev)
 	rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable, 0xf, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
-	rtl92e_writeb(dev, ANAPAR_FOR_8192PciE, 0x07);
+	rtl92e_writeb(dev, ANAPAR_FOR_8192PCIE, 0x07);
 
 }
 
@@ -1309,136 +1015,95 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;
 
-	if (priv->SetRFPowerStateInProgress)
+	if (priv->set_rf_pwr_state_in_progress)
 		return false;
-	priv->SetRFPowerStateInProgress = true;
+	priv->set_rf_pwr_state_in_progress = true;
 
-	switch (priv->rf_chip) {
-	case RF_8256:
-		switch (rf_power_state) {
-		case rf_on:
-			if ((priv->rtllib->rf_power_state == rf_off) &&
-			     RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
-				bool rtstatus;
-				u32 InitilizeCount = 3;
+	switch (rf_power_state) {
+	case rf_on:
+		if ((priv->rtllib->rf_power_state == rf_off) &&
+		     RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
+			bool rtstatus;
+			u32 InitilizeCount = 3;
 
-				do {
-					InitilizeCount--;
-					rtstatus = rtl92e_enable_nic(dev);
-				} while (!rtstatus && (InitilizeCount > 0));
-
-				if (!rtstatus) {
-					netdev_err(dev,
-						   "%s(): Failed to initialize Adapter.\n",
-						   __func__);
-					priv->SetRFPowerStateInProgress = false;
-					return false;
-				}
-
-				RT_CLEAR_PS_LEVEL(psc,
-						  RT_RF_OFF_LEVL_HALT_NIC);
-			} else {
-				rtl92e_writeb(dev, ANAPAR, 0x37);
-				mdelay(1);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						 0x4, 0x1);
-				priv->hw_rf_off_action = 0;
-
-				rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
-						  BIT4, 0x1);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
-						  0x300, 0x3);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						  0x18, 0x3);
-				rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
-						  0x3, 0x3);
-				rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable,
-						  0x3, 0x3);
-				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
-						  0x60, 0x3);
-
+			do {
+				InitilizeCount--;
+				rtstatus = rtl92e_enable_nic(dev);
+			} while (!rtstatus && (InitilizeCount > 0));
+			if (!rtstatus) {
+				netdev_err(dev,
+					   "%s(): Failed to initialize Adapter.\n",
+					   __func__);
+				priv->set_rf_pwr_state_in_progress = false;
+				return false;
 			}
-
-			break;
-
-		case rf_sleep:
-			if (priv->rtllib->rf_power_state == rf_off)
-				break;
-
-
-			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
-				ring = &priv->tx_ring[QueueID];
-
-				if (skb_queue_len(&ring->queue) == 0) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_9x)
-					break;
-			}
-			rtl92e_set_rf_off(dev);
-			break;
-
-		case rf_off:
-			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
-				ring = &priv->tx_ring[QueueID];
-
-				if (skb_queue_len(&ring->queue) == 0) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_9x)
-					break;
-			}
-
-			if (psc->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
-			    !RT_IN_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC)) {
-				rtl92e_disable_nic(dev);
-				RT_SET_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
-			} else if (!(psc->RegRfPsLevel &
-				   RT_RF_OFF_LEVL_HALT_NIC)) {
-				rtl92e_set_rf_off(dev);
-			}
-
-			break;
-
-		default:
-			bResult = false;
-			netdev_warn(dev,
-				    "%s(): Unknown state requested: 0x%X.\n",
-				    __func__, rf_power_state);
-			break;
+			RT_CLEAR_PS_LEVEL(psc,
+					  RT_RF_OFF_LEVL_HALT_NIC);
+		} else {
+			rtl92e_writeb(dev, ANAPAR, 0x37);
+			mdelay(1);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					 0x4, 0x1);
+			priv->hw_rf_off_action = 0;
+			rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
+					  BIT4, 0x1);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
+					  0x300, 0x3);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					  0x18, 0x3);
+			rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
+					  0x3, 0x3);
+			rtl92e_set_bb_reg(dev, rOFDM1_TRxPathEnable,
+					  0x3, 0x3);
+			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
+					  0x60, 0x3);
 		}
-
 		break;
-
+	case rf_sleep:
+		if (priv->rtllib->rf_power_state == rf_off)
+			break;
+		for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
+			ring = &priv->tx_ring[QueueID];
+			if (skb_queue_len(&ring->queue) == 0) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+			if (i >= MAX_DOZE_WAITING_TIMES_9x)
+				break;
+		}
+		rtl92e_set_rf_off(dev);
+		break;
+	case rf_off:
+		for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
+			ring = &priv->tx_ring[QueueID];
+			if (skb_queue_len(&ring->queue) == 0) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+			if (i >= MAX_DOZE_WAITING_TIMES_9x)
+				break;
+		}
+		rtl92e_set_rf_off(dev);
+		break;
 	default:
-		netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
+		bResult = false;
+		netdev_warn(dev,
+			    "%s(): Unknown state requested: 0x%X.\n",
+			    __func__, rf_power_state);
 		break;
 	}
 
 	if (bResult) {
 		priv->rtllib->rf_power_state = rf_power_state;
-
-		switch (priv->rf_chip) {
-		case RF_8256:
-			break;
-
-		default:
-			netdev_warn(dev, "%s(): Unknown RF type\n", __func__);
-			break;
-		}
 	}
 
-	priv->SetRFPowerStateInProgress = false;
+	priv->set_rf_pwr_state_in_progress = false;
 	return bResult;
 }
 

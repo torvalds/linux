@@ -35,19 +35,15 @@
  */
 
 /**
- *****************************************************************************
- *  Function: dc_stat_get_dmub_notification
+ *  dc_stat_get_dmub_notification
  *
- *  @brief
- *		Calls dmub layer to retrieve dmub notification
+ * Calls dmub layer to retrieve dmub notification
  *
- *  @param
- *		[in] dc: dc structure
- *		[in] notify: dmub notification structure
+ * @dc: dc structure
+ * @notify: dmub notification structure
  *
- *  @return
+ * Returns
  *     None
- *****************************************************************************
  */
 void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification *notify)
 {
@@ -73,19 +69,15 @@ void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification
 }
 
 /**
- *****************************************************************************
- *  Function: dc_stat_get_dmub_dataout
+ * dc_stat_get_dmub_dataout
  *
- *  @brief
- *		Calls dmub layer to retrieve dmub gpint dataout
+ * Calls dmub layer to retrieve dmub gpint dataout
  *
- *  @param
- *		[in] dc: dc structure
- *		[in] dataout: dmub gpint dataout
+ * @dc: dc structure
+ * @dataout: dmub gpint dataout
  *
- *  @return
+ * Returns
  *     None
- *****************************************************************************
  */
 void dc_stat_get_dmub_dataout(const struct dc *dc, uint32_t *dataout)
 {

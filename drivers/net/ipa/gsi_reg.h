@@ -10,6 +10,10 @@
 
 #include <linux/bits.h>
 
+struct platform_device;
+
+struct gsi;
+
 /**
  * DOC: GSI Registers
  *
@@ -351,6 +355,7 @@ extern const struct regs gsi_regs_v4_0;
 extern const struct regs gsi_regs_v4_5;
 extern const struct regs gsi_regs_v4_9;
 extern const struct regs gsi_regs_v4_11;
+extern const struct regs gsi_regs_v5_0;
 
 /**
  * gsi_reg() - Return the structure describing a GSI register

@@ -151,21 +151,12 @@ static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 
 machine_arch_initcall(mpc85xx_ads, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc85xx_ads_probe(void)
-{
-	return of_machine_is_compatible("MPC85xxADS");
-}
-
 define_machine(mpc85xx_ads) {
 	.name			= "MPC85xx ADS",
-	.probe			= mpc85xx_ads_probe,
+	.compatible		= "MPC85xxADS",
 	.setup_arch		= mpc85xx_ads_setup_arch,
 	.init_IRQ		= mpc85xx_ads_pic_init,
 	.show_cpuinfo		= mpc85xx_ads_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

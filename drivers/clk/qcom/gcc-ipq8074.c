@@ -934,7 +934,7 @@ static struct clk_rcg2 usb0_mock_utmi_clk_src = {
 };
 
 static const struct clk_parent_data gcc_usb3phy_0_cc_pipe_clk_xo[] = {
-	{ .name = "usb3phy_0_cc_pipe_clk" },
+	{ .fw_name = "usb3phy_0_cc_pipe_clk", .name = "usb3phy_0_cc_pipe_clk" },
 	{ .fw_name = "xo", .name = "xo" },
 };
 
@@ -1002,7 +1002,7 @@ static struct clk_rcg2 usb1_mock_utmi_clk_src = {
 };
 
 static const struct clk_parent_data gcc_usb3phy_1_cc_pipe_clk_xo[] = {
-	{ .name = "usb3phy_1_cc_pipe_clk" },
+	{ .fw_name = "usb3phy_1_cc_pipe_clk", .name = "usb3phy_1_cc_pipe_clk" },
 	{ .fw_name = "xo", .name = "xo" },
 };
 

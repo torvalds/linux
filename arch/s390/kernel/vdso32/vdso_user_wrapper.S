@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include <linux/linkage.h>
 #include <asm/unistd.h>
 #include <asm/dwarf.h>
 
 .macro vdso_syscall func,syscall
 	.globl __kernel_compat_\func
 	.type  __kernel_compat_\func,@function
-	.align 8
+	__ALIGN
 __kernel_compat_\func:
 	CFI_STARTPROC
 	svc	\syscall

@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <asm/papr-sysparm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -312,16 +313,6 @@ static void parse_mpp_x_data(struct seq_file *m)
 }
 
 /*
- * PAPR defines, in section "7.3.16 System Parameters Option", the token 55 to
- * read the LPAR name, and the largest output data to 4000 + 2 bytes length.
- */
-#define SPLPAR_LPAR_NAME_TOKEN	55
-#define GET_SYS_PARM_BUF_SIZE	4002
-#if GET_SYS_PARM_BUF_SIZE > RTAS_DATA_BUF_SIZE
-#error "GET_SYS_PARM_BUF_SIZE is larger than RTAS_DATA_BUF_SIZE"
-#endif
-
-/*
  * Read the lpar name using the RTAS ibm,get-system-parameter call.
  *
  * The name read through this call is updated if changes are made by the end
@@ -332,46 +323,19 @@ static void parse_mpp_x_data(struct seq_file *m)
  */
 static int read_rtas_lpar_name(struct seq_file *m)
 {
-	int rc, len, token;
-	union {
-		char raw_buffer[GET_SYS_PARM_BUF_SIZE];
-		struct {
-			__be16 len;
-			char name[GET_SYS_PARM_BUF_SIZE-2];
-		};
-	} *local_buffer;
+	struct papr_sysparm_buf *buf;
+	int err;
 
-	token = rtas_token("ibm,get-system-parameter");
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -EINVAL;
-
-	local_buffer = kmalloc(sizeof(*local_buffer), GFP_KERNEL);
-	if (!local_buffer)
+	buf = papr_sysparm_buf_alloc();
+	if (!buf)
 		return -ENOMEM;
 
-	do {
-		spin_lock(&rtas_data_buf_lock);
-		memset(rtas_data_buf, 0, sizeof(*local_buffer));
-		rc = rtas_call(token, 3, 1, NULL, SPLPAR_LPAR_NAME_TOKEN,
-			       __pa(rtas_data_buf), sizeof(*local_buffer));
-		if (!rc)
-			memcpy(local_buffer->raw_buffer, rtas_data_buf,
-			       sizeof(local_buffer->raw_buffer));
-		spin_unlock(&rtas_data_buf_lock);
-	} while (rtas_busy_delay(rc));
+	err = papr_sysparm_get(PAPR_SYSPARM_LPAR_NAME, buf);
+	if (!err)
+		seq_printf(m, "partition_name=%s\n", buf->val);
 
-	if (!rc) {
-		/* Force end of string */
-		len = min((int) be16_to_cpu(local_buffer->len),
-			  (int) sizeof(local_buffer->name)-1);
-		local_buffer->name[len] = '\0';
-
-		seq_printf(m, "partition_name=%s\n", local_buffer->name);
-	} else
-		rc = -ENODATA;
-
-	kfree(local_buffer);
-	return rc;
+	papr_sysparm_buf_free(buf);
+	return err;
 }
 
 /*
@@ -397,7 +361,6 @@ static void read_lpar_name(struct seq_file *m)
 		pr_err_once("Error can't get the LPAR name");
 }
 
-#define SPLPAR_CHARACTERISTICS_TOKEN 20
 #define SPLPAR_MAXLENGTH 1026*(sizeof(char))
 
 /*
@@ -408,45 +371,25 @@ static void read_lpar_name(struct seq_file *m)
  */
 static void parse_system_parameter_string(struct seq_file *m)
 {
-	int call_status;
+	struct papr_sysparm_buf *buf;
 
-	unsigned char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
-	if (!local_buffer) {
-		printk(KERN_ERR "%s %s kmalloc failure at line %d\n",
-		       __FILE__, __func__, __LINE__);
+	buf = papr_sysparm_buf_alloc();
+	if (!buf)
 		return;
-	}
 
-	spin_lock(&rtas_data_buf_lock);
-	memset(rtas_data_buf, 0, SPLPAR_MAXLENGTH);
-	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
-				NULL,
-				SPLPAR_CHARACTERISTICS_TOKEN,
-				__pa(rtas_data_buf),
-				RTAS_DATA_BUF_SIZE);
-	memcpy(local_buffer, rtas_data_buf, SPLPAR_MAXLENGTH);
-	local_buffer[SPLPAR_MAXLENGTH - 1] = '\0';
-	spin_unlock(&rtas_data_buf_lock);
-
-	if (call_status != 0) {
-		printk(KERN_INFO
-		       "%s %s Error calling get-system-parameter (0x%x)\n",
-		       __FILE__, __func__, call_status);
+	if (papr_sysparm_get(PAPR_SYSPARM_SHARED_PROC_LPAR_ATTRS, buf)) {
+		goto out_free;
 	} else {
+		const char *local_buffer;
 		int splpar_strlen;
 		int idx, w_idx;
 		char *workbuffer = kzalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
-		if (!workbuffer) {
-			printk(KERN_ERR "%s %s kmalloc failure at line %d\n",
-			       __FILE__, __func__, __LINE__);
-			kfree(local_buffer);
-			return;
-		}
-#ifdef LPARCFG_DEBUG
-		printk(KERN_INFO "success calling get-system-parameter\n");
-#endif
-		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
-		local_buffer += 2;	/* step over strlen value */
+
+		if (!workbuffer)
+			goto out_free;
+
+		splpar_strlen = be16_to_cpu(buf->len);
+		local_buffer = buf->val;
 
 		w_idx = 0;
 		idx = 0;
@@ -480,7 +423,8 @@ static void parse_system_parameter_string(struct seq_file *m)
 		kfree(workbuffer);
 		local_buffer -= 2;	/* back up over strlen value */
 	}
-	kfree(local_buffer);
+out_free:
+	papr_sysparm_buf_free(buf);
 }
 
 /* Return the number of processors in the system.

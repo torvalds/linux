@@ -162,10 +162,10 @@ config AD5696_I2C
 	depends on I2C
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5311R, AD5338R,
-	  AD5671R, AD5673R, AD5675R, AD5677R, AD5691R, AD5692R, AD5693, AD5693R,
-	  AD5694, AD5694R, AD5695R, AD5696, and AD5696R Digital to Analog
-	  converters.
+	  Say yes here to build support for Analog Devices AD5311R, AD5337,
+	  AD5338R, AD5671R, AD5673R, AD5675R, AD5677R, AD5691R, AD5692R, AD5693,
+	  AD5693R, AD5694, AD5694R, AD5695R, AD5696, and AD5696R Digital to
+	  Analog converters.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad5696.
@@ -277,6 +277,7 @@ config CIO_DAC
 	tristate "Measurement Computing CIO-DAC IIO driver"
 	depends on X86 && (ISA_BUS || PC104)
 	select ISA_BUS_API
+	select REGMAP_MMIO
 	help
 	  Say yes here to build support for the Measurement Computing CIO-DAC
 	  analog output device family (CIO-DAC16, CIO-DAC08, PC104-DAC06). The
@@ -356,6 +357,19 @@ config MAX517
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
+
+config MAX5522
+	tristate "Maxim MAX5522 DAC driver"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to build a driver for the Maxim MAX5522.
+
+	  MAX5522 is a dual, ultra-low-power, 10-Bit, voltage-output
+	  digital to analog converter (DAC) offering rail-to-rail buffered
+	  voltage outputs.
+
+	  If compiled as a module, it will be called max5522.
 
 config MAX5821
 	tristate "Maxim MAX5821 DAC driver"

@@ -937,6 +937,38 @@ static int dp_link_process_phy_test_pattern_request(
 	return 0;
 }
 
+static bool dp_link_read_psr_error_status(struct dp_link_private *link)
+{
+	u8 status;
+
+	drm_dp_dpcd_read(link->aux, DP_PSR_ERROR_STATUS, &status, 1);
+
+	if (status & DP_PSR_LINK_CRC_ERROR)
+		DRM_ERROR("PSR LINK CRC ERROR\n");
+	else if (status & DP_PSR_RFB_STORAGE_ERROR)
+		DRM_ERROR("PSR RFB STORAGE ERROR\n");
+	else if (status & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+		DRM_ERROR("PSR VSC SDP UNCORRECTABLE ERROR\n");
+	else
+		return false;
+
+	return true;
+}
+
+static bool dp_link_psr_capability_changed(struct dp_link_private *link)
+{
+	u8 status;
+
+	drm_dp_dpcd_read(link->aux, DP_PSR_ESI, &status, 1);
+
+	if (status & DP_PSR_CAPS_CHANGE) {
+		drm_dbg_dp(link->drm_dev, "PSR Capability Change\n");
+		return true;
+	}
+
+	return false;
+}
+
 static u8 get_link_status(const u8 link_status[DP_LINK_STATUS_SIZE], int r)
 {
 	return link_status[r - DP_LANE0_1_STATUS];
@@ -1055,6 +1087,10 @@ int dp_link_process_request(struct dp_link *dp_link)
 		dp_link->sink_request |= DP_TEST_LINK_TRAINING;
 	} else if (!dp_link_process_phy_test_pattern_request(link)) {
 		dp_link->sink_request |= DP_TEST_LINK_PHY_TEST_PATTERN;
+	} else if (dp_link_read_psr_error_status(link)) {
+		DRM_ERROR("PSR IRQ_HPD received\n");
+	} else if (dp_link_psr_capability_changed(link)) {
+		drm_dbg_dp(link->drm_dev, "PSR Capability changed");
 	} else {
 		ret = dp_link_process_link_status_update(link);
 		if (!ret) {

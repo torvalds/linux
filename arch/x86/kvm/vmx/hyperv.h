@@ -16,54 +16,9 @@
 
 struct vmcs_config;
 
-DECLARE_STATIC_KEY_FALSE(enable_evmcs);
-
 #define current_evmcs ((struct hv_enlightened_vmcs *)this_cpu_read(current_vmcs))
 
 #define KVM_EVMCS_VERSION 1
-
-/*
- * Enlightened VMCSv1 doesn't support these:
- *
- *	POSTED_INTR_NV                  = 0x00000002,
- *	GUEST_INTR_STATUS               = 0x00000810,
- *	APIC_ACCESS_ADDR		= 0x00002014,
- *	POSTED_INTR_DESC_ADDR           = 0x00002016,
- *	EOI_EXIT_BITMAP0                = 0x0000201c,
- *	EOI_EXIT_BITMAP1                = 0x0000201e,
- *	EOI_EXIT_BITMAP2                = 0x00002020,
- *	EOI_EXIT_BITMAP3                = 0x00002022,
- *	GUEST_PML_INDEX			= 0x00000812,
- *	PML_ADDRESS			= 0x0000200e,
- *	VM_FUNCTION_CONTROL             = 0x00002018,
- *	EPTP_LIST_ADDRESS               = 0x00002024,
- *	VMREAD_BITMAP                   = 0x00002026,
- *	VMWRITE_BITMAP                  = 0x00002028,
- *
- *	TSC_MULTIPLIER                  = 0x00002032,
- *	PLE_GAP                         = 0x00004020,
- *	PLE_WINDOW                      = 0x00004022,
- *	VMX_PREEMPTION_TIMER_VALUE      = 0x0000482E,
- *
- * Currently unsupported in KVM:
- *	GUEST_IA32_RTIT_CTL		= 0x00002814,
- */
-#define EVMCS1_UNSUPPORTED_PINCTRL (PIN_BASED_POSTED_INTR | \
-				    PIN_BASED_VMX_PREEMPTION_TIMER)
-#define EVMCS1_UNSUPPORTED_EXEC_CTRL (CPU_BASED_ACTIVATE_TERTIARY_CONTROLS)
-#define EVMCS1_UNSUPPORTED_2NDEXEC					\
-	(SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |				\
-	 SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |			\
-	 SECONDARY_EXEC_APIC_REGISTER_VIRT |				\
-	 SECONDARY_EXEC_ENABLE_PML |					\
-	 SECONDARY_EXEC_ENABLE_VMFUNC |					\
-	 SECONDARY_EXEC_SHADOW_VMCS |					\
-	 SECONDARY_EXEC_TSC_SCALING |					\
-	 SECONDARY_EXEC_PAUSE_LOOP_EXITING)
-#define EVMCS1_UNSUPPORTED_VMEXIT_CTRL					\
-	(VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
-#define EVMCS1_UNSUPPORTED_VMENTRY_CTRL (0)
-#define EVMCS1_UNSUPPORTED_VMFUNC (VMX_VMFUNC_EPTP_SWITCHING)
 
 struct evmcs_field {
 	u16 offset;
@@ -112,14 +67,19 @@ static inline u64 evmcs_read_any(struct hv_enlightened_vmcs *evmcs,
 
 #if IS_ENABLED(CONFIG_HYPERV)
 
+DECLARE_STATIC_KEY_FALSE(__kvm_is_using_evmcs);
+
+static __always_inline bool kvm_is_using_evmcs(void)
+{
+	return static_branch_unlikely(&__kvm_is_using_evmcs);
+}
+
 static __always_inline int get_evmcs_offset(unsigned long field,
 					    u16 *clean_field)
 {
 	int offset = evmcs_field_offset(field, clean_field);
 
-	WARN_ONCE(offset < 0, "KVM: accessing unsupported EVMCS field %lx\n",
-		  field);
-
+	WARN_ONCE(offset < 0, "accessing unsupported EVMCS field %lx\n", field);
 	return offset;
 }
 
@@ -136,7 +96,7 @@ static __always_inline void evmcs_write64(unsigned long field, u64 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline void evmcs_write32(unsigned long field, u32 value)
+static __always_inline void evmcs_write32(unsigned long field, u32 value)
 {
 	u16 clean_field;
 	int offset = get_evmcs_offset(field, &clean_field);
@@ -148,7 +108,7 @@ static inline void evmcs_write32(unsigned long field, u32 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline void evmcs_write16(unsigned long field, u16 value)
+static __always_inline void evmcs_write16(unsigned long field, u16 value)
 {
 	u16 clean_field;
 	int offset = get_evmcs_offset(field, &clean_field);
@@ -160,7 +120,7 @@ static inline void evmcs_write16(unsigned long field, u16 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline u64 evmcs_read64(unsigned long field)
+static __always_inline u64 evmcs_read64(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -170,7 +130,7 @@ static inline u64 evmcs_read64(unsigned long field)
 	return *(u64 *)((char *)current_evmcs + offset);
 }
 
-static inline u32 evmcs_read32(unsigned long field)
+static __always_inline u32 evmcs_read32(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -180,7 +140,7 @@ static inline u32 evmcs_read32(unsigned long field)
 	return *(u32 *)((char *)current_evmcs + offset);
 }
 
-static inline u16 evmcs_read16(unsigned long field)
+static __always_inline u16 evmcs_read16(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -188,16 +148,6 @@ static inline u16 evmcs_read16(unsigned long field)
 		return 0;
 
 	return *(u16 *)((char *)current_evmcs + offset);
-}
-
-static inline void evmcs_touch_msr_bitmap(void)
-{
-	if (unlikely(!current_evmcs))
-		return;
-
-	if (current_evmcs->hv_enlightenments_control.msr_bitmap)
-		current_evmcs->hv_clean_fields &=
-			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
 }
 
 static inline void evmcs_load(u64 phys_addr)
@@ -211,15 +161,16 @@ static inline void evmcs_load(u64 phys_addr)
 	vp_ap->enlighten_vmentry = 1;
 }
 
+void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf);
 #else /* !IS_ENABLED(CONFIG_HYPERV) */
+static __always_inline bool kvm_is_using_evmcs(void) { return false; }
 static __always_inline void evmcs_write64(unsigned long field, u64 value) {}
-static inline void evmcs_write32(unsigned long field, u32 value) {}
-static inline void evmcs_write16(unsigned long field, u16 value) {}
-static inline u64 evmcs_read64(unsigned long field) { return 0; }
-static inline u32 evmcs_read32(unsigned long field) { return 0; }
-static inline u16 evmcs_read16(unsigned long field) { return 0; }
+static __always_inline void evmcs_write32(unsigned long field, u32 value) {}
+static __always_inline void evmcs_write16(unsigned long field, u16 value) {}
+static __always_inline u64 evmcs_read64(unsigned long field) { return 0; }
+static __always_inline u32 evmcs_read32(unsigned long field) { return 0; }
+static __always_inline u16 evmcs_read16(unsigned long field) { return 0; }
 static inline void evmcs_load(u64 phys_addr) {}
-static inline void evmcs_touch_msr_bitmap(void) {}
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
 #define EVMPTR_INVALID (-1ULL)

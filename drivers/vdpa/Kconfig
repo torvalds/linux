@@ -71,6 +71,18 @@ config MLX5_VDPA_NET
 	  be executed by the hardware. It also supports a variety of stateless
 	  offloads depending on the actual device used and firmware version.
 
+config MLX5_VDPA_STEERING_DEBUG
+	bool "expose steering counters on debugfs"
+	select MLX5_VDPA
+	help
+	  Expose RX steering counters in debugfs to aid in debugging. For each VLAN
+	  or non VLAN interface, two hardware counters are added to the RX flow
+	  table: one for unicast and one for multicast.
+	  The counters counts the number of packets and bytes and exposes them in
+	  debugfs. Once can read the counters using, e.g.:
+	  cat /sys/kernel/debug/mlx5/mlx5_core.sf.1/vdpa-0/rx/untagged/ucast/packets
+	  cat /sys/kernel/debug/mlx5/mlx5_core.sf.1/vdpa-0/rx/untagged/mcast/bytes
+
 config VP_VDPA
 	tristate "Virtio PCI bridge vDPA driver"
 	select VIRTIO_PCI_LIB
@@ -85,5 +97,23 @@ config ALIBABA_ENI_VDPA
 	help
 	  VDPA driver for Alibaba ENI (Elastic Network Interface) which is built upon
 	  virtio 0.9.5 specification.
+
+ config SNET_VDPA
+	tristate "SolidRun's vDPA driver for SolidNET"
+	depends on PCI_MSI && PCI_IOV && (HWMON || HWMON=n)
+
+	# This driver MAY create a HWMON device.
+	# Depending on (HWMON || HWMON=n) ensures that:
+	# If HWMON=n the driver can be compiled either as a module or built-in.
+	# If HWMON=y the driver can be compiled either as a module or built-in.
+	# If HWMON=m the driver is forced to be compiled as a module.
+	# By doing so, IS_ENABLED can be used instead of IS_REACHABLE
+
+	help
+	  vDPA driver for SolidNET DPU.
+	  With this driver, the VirtIO dataplane can be
+	  offloaded to a SolidNET DPU.
+	  This driver includes a HW monitor device that
+	  reads health values from the DPU.
 
 endif # VDPA

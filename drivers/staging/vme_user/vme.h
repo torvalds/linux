@@ -2,6 +2,8 @@
 #ifndef _VME_H_
 #define _VME_H_
 
+#include <linux/bitops.h>
+
 /* Resource Type */
 enum vme_resource_type {
 	VME_MASTER,
@@ -54,20 +56,20 @@ enum vme_resource_type {
 #define VME_R_ROBIN_MODE	0x1
 #define VME_PRIORITY_MODE	0x2
 
-#define VME_DMA_PATTERN			(1<<0)
-#define VME_DMA_PCI			(1<<1)
-#define VME_DMA_VME			(1<<2)
+#define VME_DMA_PATTERN		BIT(0)
+#define VME_DMA_PCI			BIT(1)
+#define VME_DMA_VME			BIT(2)
 
-#define VME_DMA_PATTERN_BYTE		(1<<0)
-#define VME_DMA_PATTERN_WORD		(1<<1)
-#define VME_DMA_PATTERN_INCREMENT	(1<<2)
+#define VME_DMA_PATTERN_BYTE		BIT(0)
+#define VME_DMA_PATTERN_WORD		BIT(1)
+#define VME_DMA_PATTERN_INCREMENT	BIT(2)
 
-#define VME_DMA_VME_TO_MEM		(1<<0)
-#define VME_DMA_MEM_TO_VME		(1<<1)
-#define VME_DMA_VME_TO_VME		(1<<2)
-#define VME_DMA_MEM_TO_MEM		(1<<3)
-#define VME_DMA_PATTERN_TO_VME		(1<<4)
-#define VME_DMA_PATTERN_TO_MEM		(1<<5)
+#define VME_DMA_VME_TO_MEM		BIT(0)
+#define VME_DMA_MEM_TO_VME		BIT(1)
+#define VME_DMA_VME_TO_VME		BIT(2)
+#define VME_DMA_MEM_TO_MEM		BIT(3)
+#define VME_DMA_PATTERN_TO_VME		BIT(4)
+#define VME_DMA_PATTERN_TO_MEM		BIT(5)
 
 struct vme_dma_attr {
 	u32 type;

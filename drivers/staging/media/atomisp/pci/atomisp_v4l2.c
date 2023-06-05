@@ -19,6 +19,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/timer.h>
@@ -57,22 +58,16 @@ static uint skip_fwload;
 module_param(skip_fwload, uint, 0644);
 MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 
-/* memory optimization: deferred firmware loading */
-bool defer_fw_load;
-module_param(defer_fw_load, bool, 0644);
-MODULE_PARM_DESC(defer_fw_load,
-		 "Defer FW loading until device is opened (default:disable)");
-
 /* cross componnet debug message flag */
 int dbg_level;
 module_param(dbg_level, int, 0644);
 MODULE_PARM_DESC(dbg_level, "debug message level (default:0)");
 
 /* log function switch */
-int dbg_func = 2;
+int dbg_func = 1;
 module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
-		 "log function switch non/trace_printk/printk (default:printk)");
+		 "log function switch non/printk (default:printk)");
 
 int mipicsi_flag;
 module_param(mipicsi_flag, int, 0644);
@@ -524,7 +519,7 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 	return 0;
 }
 
-static int __maybe_unused atomisp_restore_iunit_reg(struct atomisp_device *isp)
+static int atomisp_restore_iunit_reg(struct atomisp_device *isp)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 
@@ -637,31 +632,21 @@ done:
 */
 static void punit_ddr_dvfs_enable(bool enable)
 {
-	int door_bell = 1 << 8;
-	int max_wait = 30;
 	int reg;
 
 	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
 	if (enable) {
 		reg &= ~(MRFLD_BIT0 | MRFLD_BIT1);
 	} else {
-		reg |= (MRFLD_BIT1 | door_bell);
+		reg |= MRFLD_BIT1;
 		reg &= ~(MRFLD_BIT0);
 	}
 	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSDVFS, reg);
-
-	/* Check Req_ACK to see freq status, wait until door_bell is cleared */
-	while ((reg & door_bell) && max_wait--) {
-		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
-		usleep_range(100, 500);
-	}
-
-	if (max_wait == -1)
-		pr_info("DDR DVFS, door bell is not cleared within 3ms\n");
 }
 
 static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 {
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	unsigned long timeout;
 	u32 val = enable ? MRFLD_ISPSSPM0_IUNIT_POWER_ON :
 			   MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
@@ -669,16 +654,10 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
 	/* WA for P-Unit, if DVFS enabled, ISP timeout observed */
-	if (IS_CHT && enable)
+	if (IS_CHT && enable) {
 		punit_ddr_dvfs_enable(false);
-
-	/*
-	 * FIXME:WA for ECS28A, with this sleep, CTS
-	 * android.hardware.camera2.cts.CameraDeviceTest#testCameraDeviceAbort
-	 * PASS, no impact on other platforms
-	 */
-	if (IS_BYT && enable)
-		msleep(10);
+		msleep(20);
+	}
 
 	/* Write to ISPSSPM0 bit[1:0] to power on/off the IUNIT */
 	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0,
@@ -703,6 +682,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 		tmp = (tmp >> MRFLD_ISPSSPM0_ISPSSS_OFFSET) & MRFLD_ISPSSPM0_ISPSSC_MASK;
 		if (tmp == val) {
 			trace_ipu_cstate(enable);
+			pdev->current_state = enable ? PCI_D0 : PCI_D3cold;
 			return 0;
 		}
 
@@ -743,6 +723,7 @@ int atomisp_power_off(struct device *dev)
 	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
 
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	pci_save_state(pdev);
 	return atomisp_mrfld_power(isp, false);
 }
 
@@ -756,6 +737,7 @@ int atomisp_power_on(struct device *dev)
 	if (ret)
 		return ret;
 
+	pci_restore_state(to_pci_dev(dev));
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
 
 	/*restore register values for iUnit and iUnitPHY registers*/
@@ -767,12 +749,10 @@ int atomisp_power_on(struct device *dev)
 	return atomisp_css_init(isp);
 }
 
-static int __maybe_unused atomisp_suspend(struct device *dev)
+static int atomisp_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
-	/* FIXME: only has one isp_subdev at present */
-	struct atomisp_sub_device *asd = &isp->asd[0];
 	unsigned long flags;
 
 	/*
@@ -783,17 +763,19 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 		return -EBUSY;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
+	if (isp->asd.streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		dev_err(isp->dev, "atomisp cannot suspend at this time.\n");
 		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&isp->lock, flags);
 
+	pm_runtime_resume(dev);
+
 	return atomisp_power_off(dev);
 }
 
-static int __maybe_unused atomisp_resume(struct device *dev)
+static int atomisp_resume(struct device *dev)
 {
 	return atomisp_power_on(dev);
 }
@@ -858,8 +840,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	for (i = 0; i < isp->input_cnt; i++) {
 		struct camera_mipi_info *mipi_info;
 
-		if (isp->inputs[i].type != RAW_CAMERA &&
-		    isp->inputs[i].type != SOC_CAMERA)
+		if (isp->inputs[i].type != RAW_CAMERA)
 			continue;
 
 		mipi_info = atomisp_to_sensor_mipi_info(isp->inputs[i].camera);
@@ -939,8 +920,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		int camera_count = 0;
 
 		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-			if (subdevs->type == RAW_CAMERA ||
-			    subdevs->type == SOC_CAMERA)
+			if (subdevs->type == RAW_CAMERA)
 				camera_count++;
 		}
 		if (camera_count)
@@ -953,53 +933,14 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	/* FIXME: should, instead, use I2C probe */
 
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-		struct v4l2_subdev *subdev;
-		struct i2c_board_info *board_info =
-			    &subdevs->v4l2_subdev.board_info;
-		struct i2c_adapter *adapter =
-		    i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
-
-		dev_info(isp->dev, "Probing Subdev %s\n", board_info->type);
-
-		if (!adapter) {
-			dev_err(isp->dev,
-				"Failed to find i2c adapter for subdev %s\n",
-				board_info->type);
-			break;
-		}
-
-		/* In G-Min, the sensor devices will already be probed
-		 * (via ACPI) and registered, do not create new
-		 * ones */
-		subdev = atomisp_gmin_find_subdev(adapter, board_info);
-		if (!subdev) {
-			dev_warn(isp->dev, "Subdev %s not found\n",
-				 board_info->type);
+		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
+		if (ret)
 			continue;
-		}
-		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdev);
-		if (ret) {
-			dev_warn(isp->dev, "Subdev %s detection fail\n",
-				 board_info->type);
-			continue;
-		}
-
-		if (!subdev) {
-			dev_warn(isp->dev, "Subdev %s detection fail\n",
-				 board_info->type);
-			continue;
-		}
-
-		dev_info(isp->dev, "Subdev %s successfully register\n",
-			 board_info->type);
 
 		switch (subdevs->type) {
 		case RAW_CAMERA:
 			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
 			raw_index = isp->input_cnt;
-			fallthrough;
-		case SOC_CAMERA:
-			dev_dbg(isp->dev, "SOC_INDEX: %d\n", isp->input_cnt);
 			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
 				dev_warn(isp->dev,
 					 "too many atomisp inputs, ignored\n");
@@ -1008,7 +949,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 
 			isp->inputs[isp->input_cnt].type = subdevs->type;
 			isp->inputs[isp->input_cnt].port = subdevs->port;
-			isp->inputs[isp->input_cnt].camera = subdev;
+			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
 			isp->inputs[isp->input_cnt].sensor_index = 0;
 			/*
 			 * initialize the subdev frame size, then next we can
@@ -1020,22 +961,17 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
-				dev_warn(isp->dev,
-					 "too many atomisp motors, ignored %s\n",
-					 board_info->type);
+				dev_warn(isp->dev, "too many atomisp motors\n");
 				continue;
 			}
-			isp->motor = subdev;
+			isp->motor = subdevs->subdev;
 			break;
 		case LED_FLASH:
-		case XENON_FLASH:
 			if (isp->flash) {
-				dev_warn(isp->dev,
-					 "too many atomisp flash devices, ignored %s\n",
-					 board_info->type);
+				dev_warn(isp->dev, "too many atomisp flash devices\n");
 				continue;
 			}
-			isp->flash = subdev;
+			isp->flash = subdevs->subdev;
 			break;
 		default:
 			dev_dbg(isp->dev, "unknown subdev probed\n");
@@ -1066,8 +1002,7 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 	unsigned int i;
 	struct v4l2_subdev *sd, *next;
 
-	for (i = 0; i < isp->num_of_streams; i++)
-		atomisp_subdev_unregister_entities(&isp->asd[i]);
+	atomisp_subdev_unregister_entities(&isp->asd);
 	atomisp_tpg_unregister_entities(&isp->tpg);
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
@@ -1126,38 +1061,10 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto tpg_register_failed;
 	}
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		ret = atomisp_subdev_register_subdev(asd, &isp->v4l2_dev);
-		if (ret < 0) {
-			dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
-			for (; i > 0; i--)
-				atomisp_subdev_unregister_entities(
-				    &isp->asd[i - 1]);
-			goto subdev_register_failed;
-		}
-	}
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		init_completion(&asd->init_done);
-
-		asd->delayed_init_workq =
-		    alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
-				    1);
-		if (!asd->delayed_init_workq) {
-			dev_err(isp->dev,
-				"Failed to initialize delayed init workq\n");
-			ret = -ENOMEM;
-
-			for (; i > 0; i--)
-				destroy_workqueue(isp->asd[i - 1].
-						  delayed_init_workq);
-			goto wq_alloc_failed;
-		}
-		INIT_WORK(&asd->delayed_init_work, atomisp_delayed_init_work);
+	ret = atomisp_subdev_register_subdev(&isp->asd, &isp->v4l2_dev);
+	if (ret < 0) {
+		dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
+		goto subdev_register_failed;
 	}
 
 	for (i = 0; i < isp->input_cnt; i++) {
@@ -1182,13 +1089,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	return 0;
 
 link_failed:
-	for (i = 0; i < isp->num_of_streams; i++)
-		destroy_workqueue(isp->asd[i].
-				  delayed_init_workq);
-wq_alloc_failed:
-	for (i = 0; i < isp->num_of_streams; i++)
-		atomisp_subdev_unregister_entities(
-		    &isp->asd[i]);
+	atomisp_subdev_unregister_entities(&isp->asd);
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:
@@ -1204,13 +1105,11 @@ v4l2_device_failed:
 
 static int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
-	int i, err;
+	int err;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		err = atomisp_subdev_register_video_nodes(&isp->asd[i], &isp->v4l2_dev);
-		if (err)
-			return err;
-	}
+	err = atomisp_subdev_register_video_nodes(&isp->asd, &isp->v4l2_dev);
+	if (err)
+		return err;
 
 	err = atomisp_create_pads_links(isp);
 	if (err)
@@ -1524,21 +1423,17 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->max_isr_latency = ATOMISP_MAX_ISR_LATENCY;
 
 	/* Load isp firmware from user space */
-	if (!defer_fw_load) {
-		isp->firmware = atomisp_load_firmware(isp);
-		if (!isp->firmware) {
-			err = -ENOENT;
-			dev_dbg(&pdev->dev, "Firmware load failed\n");
-			goto load_fw_fail;
-		}
+	isp->firmware = atomisp_load_firmware(isp);
+	if (!isp->firmware) {
+		err = -ENOENT;
+		dev_dbg(&pdev->dev, "Firmware load failed\n");
+		goto load_fw_fail;
+	}
 
-		err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
-		if (err) {
-			dev_dbg(&pdev->dev, "Firmware version check failed\n");
-			goto fw_validation_fail;
-		}
-	} else {
-		dev_info(&pdev->dev, "Firmware load will be deferred\n");
+	err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
+	if (err) {
+		dev_dbg(&pdev->dev, "Firmware version check failed\n");
+		goto fw_validation_fail;
 	}
 
 	pci_set_master(pdev);
@@ -1603,6 +1498,26 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	/* save the iunit context only once after all the values are init'ed. */
 	atomisp_save_iunit_reg(isp);
 
+	/*
+	 * The atomisp does not use standard PCI power-management through the
+	 * PCI config space. Instead this driver directly tells the P-Unit to
+	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
+	 * try to access the config space before (resume) / after (suspend) this
+	 * driver has turned the ISP on / off, resulting in the following errors:
+	 *
+	 * "Unable to change power state from D0 to D3hot, device inaccessible"
+	 * "Unable to change power state from D3cold to D0, device inaccessible"
+	 *
+	 * To avoid these errors override the pm_domain so that all the PCI
+	 * subsys suspend / resume handling is skipped.
+	 */
+	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
+	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
+	isp->pm_domain.ops.suspend = atomisp_suspend;
+	isp->pm_domain.ops.resume = atomisp_resume;
+
+	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
+
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
@@ -1618,14 +1533,10 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	}
 
 	/* Load firmware into ISP memory */
-	if (!defer_fw_load) {
-		err = atomisp_css_load_firmware(isp);
-		if (err) {
-			dev_err(&pdev->dev, "Failed to init css.\n");
-			goto css_init_fail;
-		}
-	} else {
-		dev_dbg(&pdev->dev, "Skip css init.\n");
+	err = atomisp_css_load_firmware(isp);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init css.\n");
+		goto css_init_fail;
 	}
 	/* Clear FW image from memory */
 	release_firmware(isp->firmware);
@@ -1645,6 +1556,7 @@ css_init_fail:
 request_irq_fail:
 	hmm_cleanup();
 	pm_runtime_get_noresume(&pdev->dev);
+	dev_pm_domain_set(&pdev->dev, NULL);
 	atomisp_unregister_entities(isp);
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
@@ -1697,6 +1609,7 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
+	dev_pm_domain_set(&pdev->dev, NULL);
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 
 	atomisp_msi_irq_uninit(isp);
@@ -1721,17 +1634,8 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
-static const struct dev_pm_ops atomisp_pm_ops = {
-	.runtime_suspend = atomisp_power_off,
-	.runtime_resume = atomisp_power_on,
-	.suspend = atomisp_suspend,
-	.resume = atomisp_resume,
-};
 
 static struct pci_driver atomisp_pci_driver = {
-	.driver = {
-		.pm = &atomisp_pm_ops,
-	},
 	.name = "atomisp-isp2",
 	.id_table = atomisp_pci_tbl,
 	.probe = atomisp_pci_probe,

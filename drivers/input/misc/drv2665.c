@@ -222,7 +222,7 @@ static int drv2665_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused drv2665_suspend(struct device *dev)
+static int drv2665_suspend(struct device *dev)
 {
 	struct drv2665_data *haptics = dev_get_drvdata(dev);
 	int ret = 0;
@@ -251,7 +251,7 @@ out:
 	return ret;
 }
 
-static int __maybe_unused drv2665_resume(struct device *dev)
+static int drv2665_resume(struct device *dev)
 {
 	struct drv2665_data *haptics = dev_get_drvdata(dev);
 	int ret = 0;
@@ -280,7 +280,7 @@ out:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(drv2665_pm_ops, drv2665_suspend, drv2665_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(drv2665_pm_ops, drv2665_suspend, drv2665_resume);
 
 static const struct i2c_device_id drv2665_id[] = {
 	{ "drv2665", 0 },
@@ -301,7 +301,7 @@ static struct i2c_driver drv2665_driver = {
 	.driver		= {
 		.name	= "drv2665-haptics",
 		.of_match_table = of_match_ptr(drv2665_of_match),
-		.pm	= &drv2665_pm_ops,
+		.pm	= pm_sleep_ptr(&drv2665_pm_ops),
 	},
 	.id_table = drv2665_id,
 };

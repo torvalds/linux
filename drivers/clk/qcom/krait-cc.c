@@ -376,8 +376,8 @@ static int krait_cc_probe(struct platform_device *pdev)
 
 	for_each_possible_cpu(cpu) {
 		mux = krait_add_clks(dev, cpu, id->data);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		if (IS_ERR(mux))
+			return PTR_ERR(mux);
 		clks[cpu] = mux->clk;
 	}
 

@@ -583,6 +583,10 @@ static int bt1_pcie_add_port(struct bt1_pcie *btpci)
 	struct device *dev = &btpci->pdev->dev;
 	int ret;
 
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (ret)
+		return ret;
+
 	btpci->dw.version = DW_PCIE_VER_460A;
 	btpci->dw.dev = dev;
 	btpci->dw.ops = &bt1_pcie_ops;

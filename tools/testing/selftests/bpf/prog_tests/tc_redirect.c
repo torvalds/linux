@@ -137,24 +137,16 @@ static int get_ifaddr(const char *name, char *ifaddr)
 	return 0;
 }
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
 static int netns_setup_links_and_routes(struct netns_setup_result *result)
 {
 	struct nstoken *nstoken = NULL;
 	char veth_src_fwd_addr[IFADDR_STR_LEN+1] = {};
 
-	SYS("ip link add veth_src type veth peer name veth_src_fwd");
-	SYS("ip link add veth_dst type veth peer name veth_dst_fwd");
+	SYS(fail, "ip link add veth_src type veth peer name veth_src_fwd");
+	SYS(fail, "ip link add veth_dst type veth peer name veth_dst_fwd");
 
-	SYS("ip link set veth_dst_fwd address " MAC_DST_FWD);
-	SYS("ip link set veth_dst address " MAC_DST);
+	SYS(fail, "ip link set veth_dst_fwd address " MAC_DST_FWD);
+	SYS(fail, "ip link set veth_dst address " MAC_DST);
 
 	if (get_ifaddr("veth_src_fwd", veth_src_fwd_addr))
 		goto fail;
@@ -175,27 +167,27 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	if (!ASSERT_GT(result->ifindex_veth_dst_fwd, 0, "ifindex_veth_dst_fwd"))
 		goto fail;
 
-	SYS("ip link set veth_src netns " NS_SRC);
-	SYS("ip link set veth_src_fwd netns " NS_FWD);
-	SYS("ip link set veth_dst_fwd netns " NS_FWD);
-	SYS("ip link set veth_dst netns " NS_DST);
+	SYS(fail, "ip link set veth_src netns " NS_SRC);
+	SYS(fail, "ip link set veth_src_fwd netns " NS_FWD);
+	SYS(fail, "ip link set veth_dst_fwd netns " NS_FWD);
+	SYS(fail, "ip link set veth_dst netns " NS_DST);
 
 	/** setup in 'src' namespace */
 	nstoken = open_netns(NS_SRC);
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto fail;
 
-	SYS("ip addr add " IP4_SRC "/32 dev veth_src");
-	SYS("ip addr add " IP6_SRC "/128 dev veth_src nodad");
-	SYS("ip link set dev veth_src up");
+	SYS(fail, "ip addr add " IP4_SRC "/32 dev veth_src");
+	SYS(fail, "ip addr add " IP6_SRC "/128 dev veth_src nodad");
+	SYS(fail, "ip link set dev veth_src up");
 
-	SYS("ip route add " IP4_DST "/32 dev veth_src scope global");
-	SYS("ip route add " IP4_NET "/16 dev veth_src scope global");
-	SYS("ip route add " IP6_DST "/128 dev veth_src scope global");
+	SYS(fail, "ip route add " IP4_DST "/32 dev veth_src scope global");
+	SYS(fail, "ip route add " IP4_NET "/16 dev veth_src scope global");
+	SYS(fail, "ip route add " IP6_DST "/128 dev veth_src scope global");
 
-	SYS("ip neigh add " IP4_DST " dev veth_src lladdr %s",
+	SYS(fail, "ip neigh add " IP4_DST " dev veth_src lladdr %s",
 	    veth_src_fwd_addr);
-	SYS("ip neigh add " IP6_DST " dev veth_src lladdr %s",
+	SYS(fail, "ip neigh add " IP6_DST " dev veth_src lladdr %s",
 	    veth_src_fwd_addr);
 
 	close_netns(nstoken);
@@ -209,15 +201,15 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	 * needs v4 one in order to start ARP probing. IP4_NET route is added
 	 * to the endpoints so that the ARP processing will reply.
 	 */
-	SYS("ip addr add " IP4_SLL "/32 dev veth_src_fwd");
-	SYS("ip addr add " IP4_DLL "/32 dev veth_dst_fwd");
-	SYS("ip link set dev veth_src_fwd up");
-	SYS("ip link set dev veth_dst_fwd up");
+	SYS(fail, "ip addr add " IP4_SLL "/32 dev veth_src_fwd");
+	SYS(fail, "ip addr add " IP4_DLL "/32 dev veth_dst_fwd");
+	SYS(fail, "ip link set dev veth_src_fwd up");
+	SYS(fail, "ip link set dev veth_dst_fwd up");
 
-	SYS("ip route add " IP4_SRC "/32 dev veth_src_fwd scope global");
-	SYS("ip route add " IP6_SRC "/128 dev veth_src_fwd scope global");
-	SYS("ip route add " IP4_DST "/32 dev veth_dst_fwd scope global");
-	SYS("ip route add " IP6_DST "/128 dev veth_dst_fwd scope global");
+	SYS(fail, "ip route add " IP4_SRC "/32 dev veth_src_fwd scope global");
+	SYS(fail, "ip route add " IP6_SRC "/128 dev veth_src_fwd scope global");
+	SYS(fail, "ip route add " IP4_DST "/32 dev veth_dst_fwd scope global");
+	SYS(fail, "ip route add " IP6_DST "/128 dev veth_dst_fwd scope global");
 
 	close_netns(nstoken);
 
@@ -226,16 +218,16 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	if (!ASSERT_OK_PTR(nstoken, "setns dst"))
 		goto fail;
 
-	SYS("ip addr add " IP4_DST "/32 dev veth_dst");
-	SYS("ip addr add " IP6_DST "/128 dev veth_dst nodad");
-	SYS("ip link set dev veth_dst up");
+	SYS(fail, "ip addr add " IP4_DST "/32 dev veth_dst");
+	SYS(fail, "ip addr add " IP6_DST "/128 dev veth_dst nodad");
+	SYS(fail, "ip link set dev veth_dst up");
 
-	SYS("ip route add " IP4_SRC "/32 dev veth_dst scope global");
-	SYS("ip route add " IP4_NET "/16 dev veth_dst scope global");
-	SYS("ip route add " IP6_SRC "/128 dev veth_dst scope global");
+	SYS(fail, "ip route add " IP4_SRC "/32 dev veth_dst scope global");
+	SYS(fail, "ip route add " IP4_NET "/16 dev veth_dst scope global");
+	SYS(fail, "ip route add " IP6_SRC "/128 dev veth_dst scope global");
 
-	SYS("ip neigh add " IP4_SRC " dev veth_dst lladdr " MAC_DST_FWD);
-	SYS("ip neigh add " IP6_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip neigh add " IP4_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip neigh add " IP6_SRC " dev veth_dst lladdr " MAC_DST_FWD);
 
 	close_netns(nstoken);
 
@@ -375,7 +367,7 @@ done:
 
 static int test_ping(int family, const char *addr)
 {
-	SYS("ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping_command(family), addr);
+	SYS(fail, "ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping_command(family), addr);
 	return 0;
 fail:
 	return -1;
@@ -953,7 +945,7 @@ static int tun_open(char *name)
 	if (!ASSERT_OK(err, "ioctl TUNSETIFF"))
 		goto fail;
 
-	SYS("ip link set dev %s up", name);
+	SYS(fail, "ip link set dev %s up", name);
 
 	return fd;
 fail:
@@ -1076,23 +1068,23 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS, skel->progs.tc_chk, 0);
 
 	/* Setup route and neigh tables */
-	SYS("ip -netns " NS_SRC " addr add dev tun_src " IP4_TUN_SRC "/24");
-	SYS("ip -netns " NS_FWD " addr add dev tun_fwd " IP4_TUN_FWD "/24");
+	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP4_TUN_SRC "/24");
+	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP4_TUN_FWD "/24");
 
-	SYS("ip -netns " NS_SRC " addr add dev tun_src " IP6_TUN_SRC "/64 nodad");
-	SYS("ip -netns " NS_FWD " addr add dev tun_fwd " IP6_TUN_FWD "/64 nodad");
+	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP6_TUN_SRC "/64 nodad");
+	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP6_TUN_FWD "/64 nodad");
 
-	SYS("ip -netns " NS_SRC " route del " IP4_DST "/32 dev veth_src scope global");
-	SYS("ip -netns " NS_SRC " route add " IP4_DST "/32 via " IP4_TUN_FWD
+	SYS(fail, "ip -netns " NS_SRC " route del " IP4_DST "/32 dev veth_src scope global");
+	SYS(fail, "ip -netns " NS_SRC " route add " IP4_DST "/32 via " IP4_TUN_FWD
 	    " dev tun_src scope global");
-	SYS("ip -netns " NS_DST " route add " IP4_TUN_SRC "/32 dev veth_dst scope global");
-	SYS("ip -netns " NS_SRC " route del " IP6_DST "/128 dev veth_src scope global");
-	SYS("ip -netns " NS_SRC " route add " IP6_DST "/128 via " IP6_TUN_FWD
+	SYS(fail, "ip -netns " NS_DST " route add " IP4_TUN_SRC "/32 dev veth_dst scope global");
+	SYS(fail, "ip -netns " NS_SRC " route del " IP6_DST "/128 dev veth_src scope global");
+	SYS(fail, "ip -netns " NS_SRC " route add " IP6_DST "/128 via " IP6_TUN_FWD
 	    " dev tun_src scope global");
-	SYS("ip -netns " NS_DST " route add " IP6_TUN_SRC "/128 dev veth_dst scope global");
+	SYS(fail, "ip -netns " NS_DST " route add " IP6_TUN_SRC "/128 dev veth_dst scope global");
 
-	SYS("ip -netns " NS_DST " neigh add " IP4_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
-	SYS("ip -netns " NS_DST " neigh add " IP6_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip -netns " NS_DST " neigh add " IP4_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip -netns " NS_DST " neigh add " IP6_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
 
 	if (!ASSERT_OK(set_forwarding(false), "disable forwarding"))
 		goto fail;

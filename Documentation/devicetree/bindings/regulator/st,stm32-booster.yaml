@@ -14,7 +14,7 @@ description: |
   to supply ADC analog input switches.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:
@@ -23,7 +23,7 @@ properties:
       - st,stm32mp1-booster
 
   st,syscfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle to system configuration controller.
 
   vdda-supply:

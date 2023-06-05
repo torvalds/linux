@@ -10,7 +10,7 @@
 
 #include <linux/io-64-nonatomic-lo-hi.h>
 
-extern struct hl_device *hdev;
+struct hl_device;
 
 /* special blocks */
 #define HL_MAX_NUM_OF_GLBL_ERR_CAUSE		10

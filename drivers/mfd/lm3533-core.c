@@ -286,7 +286,7 @@ static ssize_t show_output(struct device *dev,
 
 	val = (val & mask) >> shift;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_output(struct device *dev,

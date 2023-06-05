@@ -296,10 +296,10 @@ static void ibmvnic_set_affinity(struct ibmvnic_adapter *adapter)
 
 		rc = __netif_set_xps_queue(adapter->netdev,
 					   cpumask_bits(queue->affinity_mask),
-					   i, XPS_CPUS);
+					   i_txqs - 1, XPS_CPUS);
 		if (rc)
 			netdev_warn(adapter->netdev, "%s: Set XPS on queue %d failed, rc = %d.\n",
-				    __func__, i, rc);
+				    __func__, i_txqs - 1, rc);
 	}
 
 out:

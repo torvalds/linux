@@ -443,7 +443,7 @@ static int via_port_start(struct ata_port *ap)
 	return 0;
 }
 
-static struct scsi_host_template via_sht = {
+static const struct scsi_host_template via_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

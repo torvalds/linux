@@ -47,6 +47,12 @@
 #define WARN_PMPRO_INFO_LO	0xAC
 #define WARN_PMPRO_INFO_HI	0xAD
 
+/* Boot Stage Register */
+#define BOOTSTAGE		0xB0
+#define DIMM_SYNDROME_SEL	0xB4
+#define DIMM_SYNDROME_ERR	0xB5
+#define DIMM_SYNDROME_STAGE	4
+
 /* PCIE Error Registers */
 #define PCIE_CE_ERR_CNT		0xC0
 #define PCIE_CE_ERR_LEN		0xC1
@@ -67,6 +73,7 @@
 #define VRD_WARN_FAULT_EVENT_DATA	0x78
 #define VRD_HOT_EVENT_DATA		0x79
 #define DIMM_HOT_EVENT_DATA		0x7A
+#define DIMM_2X_REFRESH_EVENT_DATA	0x96
 
 #define MAX_READ_BLOCK_LENGTH	48
 
@@ -190,6 +197,7 @@ enum EVENT_TYPES {
 	VRD_WARN_FAULT_EVENT,
 	VRD_HOT_EVENT,
 	DIMM_HOT_EVENT,
+	DIMM_2X_REFRESH_EVENT,
 	NUM_EVENTS_TYPE,
 };
 
@@ -198,6 +206,7 @@ static u8 smpro_event_table[NUM_EVENTS_TYPE] = {
 	VRD_WARN_FAULT_EVENT_DATA,
 	VRD_HOT_EVENT_DATA,
 	DIMM_HOT_EVENT_DATA,
+	DIMM_2X_REFRESH_EVENT_DATA,
 };
 
 static ssize_t smpro_event_data_read(struct device *dev,
@@ -463,6 +472,62 @@ static DEVICE_ATTR_RO(warn_pmpro);
 EVENT_RO(vrd_warn_fault, VRD_WARN_FAULT_EVENT);
 EVENT_RO(vrd_hot, VRD_HOT_EVENT);
 EVENT_RO(dimm_hot, DIMM_HOT_EVENT);
+EVENT_RO(dimm_2x_refresh, DIMM_2X_REFRESH_EVENT);
+
+static ssize_t smpro_dimm_syndrome_read(struct device *dev, struct device_attribute *da,
+					char *buf, unsigned int slot)
+{
+	struct smpro_errmon *errmon = dev_get_drvdata(dev);
+	unsigned int data;
+	int ret;
+
+	ret = regmap_read(errmon->regmap, BOOTSTAGE, &data);
+	if (ret)
+		return ret;
+
+	/* check for valid stage */
+	data = (data >> 8) & 0xff;
+	if (data != DIMM_SYNDROME_STAGE)
+		return ret;
+
+	/* Write the slot ID to retrieve Error Syndrome */
+	ret = regmap_write(errmon->regmap, DIMM_SYNDROME_SEL, slot);
+	if (ret)
+		return ret;
+
+	/* Read the Syndrome error */
+	ret = regmap_read(errmon->regmap, DIMM_SYNDROME_ERR, &data);
+	if (ret || !data)
+		return ret;
+
+	return sysfs_emit(buf, "%04x\n", data);
+}
+
+#define EVENT_DIMM_SYNDROME(_slot) \
+	static ssize_t event_dimm##_slot##_syndrome_show(struct device *dev,          \
+							 struct device_attribute *da, \
+							 char *buf)                   \
+	{                                                                             \
+		return smpro_dimm_syndrome_read(dev, da, buf, _slot);                 \
+	}                                                                             \
+	static DEVICE_ATTR_RO(event_dimm##_slot##_syndrome)
+
+EVENT_DIMM_SYNDROME(0);
+EVENT_DIMM_SYNDROME(1);
+EVENT_DIMM_SYNDROME(2);
+EVENT_DIMM_SYNDROME(3);
+EVENT_DIMM_SYNDROME(4);
+EVENT_DIMM_SYNDROME(5);
+EVENT_DIMM_SYNDROME(6);
+EVENT_DIMM_SYNDROME(7);
+EVENT_DIMM_SYNDROME(8);
+EVENT_DIMM_SYNDROME(9);
+EVENT_DIMM_SYNDROME(10);
+EVENT_DIMM_SYNDROME(11);
+EVENT_DIMM_SYNDROME(12);
+EVENT_DIMM_SYNDROME(13);
+EVENT_DIMM_SYNDROME(14);
+EVENT_DIMM_SYNDROME(15);
 
 static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_overflow_core_ce.attr,
@@ -488,6 +553,23 @@ static struct attribute *smpro_errmon_attrs[] = {
 	&dev_attr_event_vrd_warn_fault.attr,
 	&dev_attr_event_vrd_hot.attr,
 	&dev_attr_event_dimm_hot.attr,
+	&dev_attr_event_dimm_2x_refresh.attr,
+	&dev_attr_event_dimm0_syndrome.attr,
+	&dev_attr_event_dimm1_syndrome.attr,
+	&dev_attr_event_dimm2_syndrome.attr,
+	&dev_attr_event_dimm3_syndrome.attr,
+	&dev_attr_event_dimm4_syndrome.attr,
+	&dev_attr_event_dimm5_syndrome.attr,
+	&dev_attr_event_dimm6_syndrome.attr,
+	&dev_attr_event_dimm7_syndrome.attr,
+	&dev_attr_event_dimm8_syndrome.attr,
+	&dev_attr_event_dimm9_syndrome.attr,
+	&dev_attr_event_dimm10_syndrome.attr,
+	&dev_attr_event_dimm11_syndrome.attr,
+	&dev_attr_event_dimm12_syndrome.attr,
+	&dev_attr_event_dimm13_syndrome.attr,
+	&dev_attr_event_dimm14_syndrome.attr,
+	&dev_attr_event_dimm15_syndrome.attr,
 	NULL
 };
 

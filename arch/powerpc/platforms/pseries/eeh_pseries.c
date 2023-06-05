@@ -699,7 +699,7 @@ static int pseries_eeh_write_config(struct eeh_dev *edev, int where, int size, u
 static int pseries_send_allow_unfreeze(struct pci_dn *pdn, u16 *vf_pe_array, int cur_vfs)
 {
 	int rc;
-	int ibm_allow_unfreeze = rtas_token("ibm,open-sriov-allow-unfreeze");
+	int ibm_allow_unfreeze = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE);
 	unsigned long buid, addr;
 
 	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
@@ -774,7 +774,7 @@ static int pseries_notify_resume(struct eeh_dev *edev)
 	if (!edev)
 		return -EEXIST;
 
-	if (rtas_token("ibm,open-sriov-allow-unfreeze") == RTAS_UNKNOWN_SERVICE)
+	if (rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE) == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
@@ -815,14 +815,14 @@ static int __init eeh_pseries_init(void)
 	int ret, config_addr;
 
 	/* figure out EEH RTAS function call tokens */
-	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
-	ibm_set_slot_reset		= rtas_token("ibm,set-slot-reset");
-	ibm_read_slot_reset_state2	= rtas_token("ibm,read-slot-reset-state2");
-	ibm_read_slot_reset_state	= rtas_token("ibm,read-slot-reset-state");
-	ibm_slot_error_detail		= rtas_token("ibm,slot-error-detail");
-	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
-	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
-	ibm_configure_pe		= rtas_token("ibm,configure-pe");
+	ibm_set_eeh_option		= rtas_function_token(RTAS_FN_IBM_SET_EEH_OPTION);
+	ibm_set_slot_reset		= rtas_function_token(RTAS_FN_IBM_SET_SLOT_RESET);
+	ibm_read_slot_reset_state2	= rtas_function_token(RTAS_FN_IBM_READ_SLOT_RESET_STATE2);
+	ibm_read_slot_reset_state	= rtas_function_token(RTAS_FN_IBM_READ_SLOT_RESET_STATE);
+	ibm_slot_error_detail		= rtas_function_token(RTAS_FN_IBM_SLOT_ERROR_DETAIL);
+	ibm_get_config_addr_info2	= rtas_function_token(RTAS_FN_IBM_GET_CONFIG_ADDR_INFO2);
+	ibm_get_config_addr_info	= rtas_function_token(RTAS_FN_IBM_GET_CONFIG_ADDR_INFO);
+	ibm_configure_pe		= rtas_function_token(RTAS_FN_IBM_CONFIGURE_PE);
 
 	/*
 	 * ibm,configure-pe and ibm,configure-bridge have the same semantics,
@@ -830,7 +830,7 @@ static int __init eeh_pseries_init(void)
 	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
 	 */
 	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
-		ibm_configure_pe	= rtas_token("ibm,configure-bridge");
+		ibm_configure_pe	= rtas_function_token(RTAS_FN_IBM_CONFIGURE_BRIDGE);
 
 	/*
 	 * Necessary sanity check. We needn't check "get-config-addr-info"

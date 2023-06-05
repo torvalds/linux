@@ -34,11 +34,6 @@ properties:
       Three input clocks referring to left input reference clock, refclk and right input reference
       clock.
 
-  assigned-clocks:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-  assigned-clock-parents:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-
   '#phy-cells':
     const: 2
     description:

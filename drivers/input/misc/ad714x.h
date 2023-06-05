@@ -8,6 +8,7 @@
 #ifndef _AD714X_H_
 #define _AD714X_H_
 
+#include <linux/pm.h>
 #include <linux/types.h>
 
 #define STAGE_NUM              12
@@ -45,8 +46,7 @@ struct ad714x_chip {
 
 };
 
-int ad714x_disable(struct ad714x_chip *ad714x);
-int ad714x_enable(struct ad714x_chip *ad714x);
+extern const struct dev_pm_ops ad714x_pm;
 struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 				 ad714x_read_t read, ad714x_write_t write);
 

@@ -473,23 +473,32 @@ static const struct device_attribute alarm_attr = {
    -------------------------------------------------------------------------- */
 static int acpi_battery_read(struct acpi_battery *battery)
 {
-	int result = 0, saved_present = battery->present;
+	int result, saved_present = battery->present;
 	u16 state;
 
 	if (battery->sbs->manager_present) {
 		result = acpi_smbus_read(battery->sbs->hc, SMBUS_READ_WORD,
 				ACPI_SBS_MANAGER, 0x01, (u8 *)&state);
-		if (!result)
-			battery->present = state & (1 << battery->id);
-		state &= 0x0fff;
+		if (result)
+			return result;
+
+		battery->present = state & (1 << battery->id);
+		if (!battery->present)
+			return 0;
+
+		/* Masking necessary for Smart Battery Selectors */
+		state = 0x0fff;
 		state |= 1 << (battery->id + 12);
 		acpi_smbus_write(battery->sbs->hc, SMBUS_WRITE_WORD,
 				  ACPI_SBS_MANAGER, 0x01, (u8 *)&state, 2);
-	} else if (battery->id == 0)
-		battery->present = 1;
-
-	if (result || !battery->present)
-		return result;
+	} else {
+		if (battery->id == 0) {
+			battery->present = 1;
+		} else {
+			if (!battery->present)
+				return 0;
+		}
+	}
 
 	if (saved_present != battery->present) {
 		battery->update_time = 0;

@@ -36,9 +36,9 @@ let RU = try RU with emptyset
 (* Treat RL as a kind of LF: a read with no ordering properties *)
 let LF = LF | RL
 
-(* There should be no ordinary R or W accesses to spinlocks *)
-let ALL-LOCKS = LKR | LKW | UL | LF | RU
-flag ~empty [M \ IW] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
+(* There should be no ordinary R or W accesses to spinlocks or SRCU structs *)
+let ALL-LOCKS = LKR | LKW | UL | LF | RU | Srcu-lock | Srcu-unlock | Sync-srcu
+flag ~empty [M \ IW \ ALL-LOCKS] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
 
 (* Link Lock-Reads to their RMW-partner Lock-Writes *)
 let lk-rmw = ([LKR] ; po-loc ; [LKW]) \ (po ; po)
