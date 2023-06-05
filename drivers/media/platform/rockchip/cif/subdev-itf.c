@@ -172,23 +172,29 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-			if (is_uncompact) {
-				cif_dev->stream[0].is_compact = false;
-				cif_dev->stream[0].is_high_align = true;
-			} else {
-				cif_dev->stream[0].is_compact = true;
+			if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE &&
+			    priv->toisp_inf.link_mode == TOISP_UNITE) {
+				if (is_uncompact) {
+					cif_dev->stream[0].is_compact = false;
+					cif_dev->stream[0].is_high_align = true;
+				} else {
+					cif_dev->stream[0].is_compact = true;
+				}
 			}
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 			rkcif_set_fmt(&cif_dev->stream[1], &pixm, false);
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-			if (is_uncompact) {
-				cif_dev->stream[0].is_compact = false;
-				cif_dev->stream[0].is_high_align = true;
-				cif_dev->stream[1].is_compact = false;
-				cif_dev->stream[1].is_high_align = true;
-			} else {
-				cif_dev->stream[0].is_compact = true;
-				cif_dev->stream[1].is_compact = true;
+			if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE &&
+			    priv->toisp_inf.link_mode == TOISP_UNITE) {
+				if (is_uncompact) {
+					cif_dev->stream[0].is_compact = false;
+					cif_dev->stream[0].is_high_align = true;
+					cif_dev->stream[1].is_compact = false;
+					cif_dev->stream[1].is_high_align = true;
+				} else {
+					cif_dev->stream[0].is_compact = true;
+					cif_dev->stream[1].is_compact = true;
+				}
 			}
 			rkcif_set_fmt(&cif_dev->stream[0], &pixm, false);
 			rkcif_set_fmt(&cif_dev->stream[1], &pixm, false);
