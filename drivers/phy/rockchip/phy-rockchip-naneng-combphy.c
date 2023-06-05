@@ -483,6 +483,12 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		val |= 0x01 << 17;
 		writel(val, priv->mmio + 0x200);
 
+		/* Set Rx squelch input filler bandwidth */
+		val = readl(priv->mmio + 0x20c);
+		val &= ~GENMASK(2, 0);
+		val |= 0x06;
+		writel(val, priv->mmio + 0x20c);
+
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
