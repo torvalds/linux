@@ -1237,11 +1237,13 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 			if (err)
 				goto err_scratch_pt;
 		}
+		vm->batch_invalidate_tlb = true;
 	}
 
 	if (flags & DRM_XE_VM_CREATE_COMPUTE_MODE) {
 		INIT_WORK(&vm->preempt.rebind_work, preempt_rebind_work_func);
 		vm->flags |= XE_VM_FLAG_COMPUTE_MODE;
+		vm->batch_invalidate_tlb = false;
 	}
 
 	if (flags & DRM_XE_VM_CREATE_ASYNC_BIND_OPS) {

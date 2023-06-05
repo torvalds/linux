@@ -1297,7 +1297,20 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 
-	if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
+	/*
+	 * If rebind, we have to invalidate TLB on !LR vms to invalidate
+	 * cached PTEs point to freed memory. on LR vms this is done
+	 * automatically when the context is re-enabled by the rebind worker,
+	 * or in fault mode it was invalidated on PTE zapping.
+	 *
+	 * If !rebind, and scratch enabled VMs, there is a chance the scratch
+	 * PTE is already cached in the TLB so it needs to be invalidated.
+	 * on !LR VMs this is done in the ring ops preceding a batch, but on
+	 * non-faulting LR, in particular on user-space batch buffer chaining,
+	 * it needs to be done here.
+	 */
+	if ((rebind && !xe_vm_no_dma_fences(vm) && !vm->batch_invalidate_tlb) ||
+	    (!rebind && vm->scratch_bo[tile->id] && xe_vm_in_compute_mode(vm))) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 		if (!ifence)
 			return ERR_PTR(-ENOMEM);
@@ -1313,7 +1326,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		LLIST_HEAD(deferred);
 
 		/* TLB invalidation must be done before signaling rebind */
-		if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
+		if (ifence) {
 			int err = invalidation_fence_init(tile->primary_gt, ifence, fence,
 							  vma);
 			if (err) {

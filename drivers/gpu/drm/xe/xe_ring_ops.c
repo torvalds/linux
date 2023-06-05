@@ -15,6 +15,7 @@
 #include "xe_macros.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
+#include "xe_vm.h"
 
 /*
  * 3D-related flags that can't be set on _engines_ that lack access to the 3D
@@ -74,9 +75,11 @@ static int emit_store_imm_ggtt(u32 addr, u32 value, u32 *dw, int i)
 	return i;
 }
 
-static int emit_flush_imm_ggtt(u32 addr, u32 value, u32 *dw, int i)
+static int emit_flush_imm_ggtt(u32 addr, u32 value, bool invalidate_tlb,
+			       u32 *dw, int i)
 {
-	dw[i++] = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW;
+	dw[i++] = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW |
+		(invalidate_tlb ? MI_INVALIDATE_TLB : 0);
 	dw[i++] = addr | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
 	dw[i++] = value;
@@ -107,7 +110,8 @@ static int emit_flush_invalidate(u32 flag, u32 *dw, int i)
 	return i;
 }
 
-static int emit_pipe_invalidate(u32 mask_flags, u32 *dw, int i)
+static int emit_pipe_invalidate(u32 mask_flags, bool invalidate_tlb, u32 *dw,
+				int i)
 {
 	u32 flags = PIPE_CONTROL_CS_STALL |
 		PIPE_CONTROL_COMMAND_CACHE_INVALIDATE |
@@ -118,6 +122,9 @@ static int emit_pipe_invalidate(u32 mask_flags, u32 *dw, int i)
 		PIPE_CONTROL_STATE_CACHE_INVALIDATE |
 		PIPE_CONTROL_QW_WRITE |
 		PIPE_CONTROL_STORE_DATA_INDEX;
+
+	if (invalidate_tlb)
+		flags |= PIPE_CONTROL_TLB_INVALIDATE;
 
 	flags &= ~mask_flags;
 
@@ -170,9 +177,17 @@ static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
+	struct xe_vm *vm = job->engine->vm;
 
-	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-				seqno, dw, i);
+	if (vm->batch_invalidate_tlb) {
+		dw[i++] = preparser_disable(true);
+		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
+					seqno, true, dw, i);
+		dw[i++] = preparser_disable(false);
+	} else {
+		i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
+					seqno, dw, i);
+	}
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
@@ -181,7 +196,7 @@ static void __emit_job_gen12_copy(struct xe_sched_job *job, struct xe_lrc *lrc,
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -210,6 +225,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	struct xe_gt *gt = job->engine->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	bool decode = job->engine->class == XE_ENGINE_CLASS_VIDEO_DECODE;
+	struct xe_vm *vm = job->engine->vm;
 
 	dw[i++] = preparser_disable(true);
 
@@ -220,10 +236,16 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 		else
 			i = emit_aux_table_inv(gt, VE0_AUX_INV, dw, i);
 	}
+
+	if (vm->batch_invalidate_tlb)
+		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
+					seqno, true, dw, i);
+
 	dw[i++] = preparser_disable(false);
 
-	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-				seqno, dw, i);
+	if (!vm->batch_invalidate_tlb)
+		i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
+					seqno, dw, i);
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
@@ -232,7 +254,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -250,6 +272,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	struct xe_gt *gt = job->engine->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
+	struct xe_vm *vm = job->engine->vm;
 	u32 mask_flags = 0;
 
 	dw[i++] = preparser_disable(true);
@@ -257,7 +280,9 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 		mask_flags = PIPE_CONTROL_3D_ARCH_FLAGS;
 	else if (job->engine->class == XE_ENGINE_CLASS_COMPUTE)
 		mask_flags = PIPE_CONTROL_3D_ENGINE_FLAGS;
-	i = emit_pipe_invalidate(mask_flags, dw, i);
+
+	/* See __xe_pt_bind_vma() for a discussion on TLB invalidations. */
+	i = emit_pipe_invalidate(mask_flags, vm->batch_invalidate_tlb, dw, i);
 
 	/* hsdes: 1809175790 */
 	if (has_aux_ccs(xe))

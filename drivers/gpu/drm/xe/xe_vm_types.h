@@ -337,6 +337,9 @@ struct xe_vm {
 		/** @capture_once: capture only one error per VM */
 		bool capture_once;
 	} error_capture;
+
+	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
+	bool batch_invalidate_tlb;
 };
 
 #endif
