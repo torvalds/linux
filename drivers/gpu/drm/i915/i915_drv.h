@@ -347,8 +347,6 @@ struct drm_i915_private {
 
 	struct i915_pmu pmu;
 
-	struct i915_drm_clients clients;
-
 	/* The TTM device structure. */
 	struct ttm_device bdev;
 
