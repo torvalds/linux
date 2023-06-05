@@ -2124,6 +2124,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				   file, blocks, le32_to_cpu(blk->len),
 				   type, le32_to_cpu(blk->id));
 
+			region_name = cs_dsp_mem_region_name(type);
 			mem = cs_dsp_find_region(dsp, type);
 			if (!mem) {
 				cs_dsp_err(dsp, "No base for region %x\n", type);
@@ -2147,8 +2148,8 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				reg = dsp->ops->region_to_reg(mem, reg);
 				reg += offset;
 			} else {
-				cs_dsp_err(dsp, "No %x for algorithm %x\n",
-					   type, le32_to_cpu(blk->id));
+				cs_dsp_err(dsp, "No %s for algorithm %x\n",
+					   region_name, le32_to_cpu(blk->id));
 			}
 			break;
 
