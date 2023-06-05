@@ -555,6 +555,24 @@
 		};
 	};
 
+	ov4689: ov4689@36 {
+		compatible = "ovti,ov4689";
+		reg = <0x36>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		//reset-gpio = <&gpio 18 0>;
+		rotation = <180>;
+
+		port {
+			/* Parallel bus endpoint */
+			ov4689_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_ov4689>;
+				bus-type = <4>;		/* MIPI CSI-2 D-PHY */
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &sdio0 {
@@ -613,6 +631,15 @@
 				clock-lanes = <4>;
 				data-lanes = <0 1>;
 				lane-polarities = <0 0 0>;
+				status = "okay";
+			};
+
+			csi2rx0_from_ov4689: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov4689_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
 				status = "okay";
 			};
 		};
