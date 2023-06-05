@@ -182,6 +182,10 @@
 			reg = <0x00013000 0x1000>;
 		};
 
+		pcie2: pcie@14000 {
+			reg = <0x00014000 0x1000>;
+		};
+
 		usb2: usb2@21000 {
 			reg = <0x00021000 0x1000>;
 
@@ -274,6 +278,14 @@
 		};
 	};
 
+	pwm: pwm@18002000 {
+		compatible = "brcm,iproc-pwm";
+		reg = <0x18002000 0x28>;
+		clocks = <&osc>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
@@ -297,6 +309,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+	};
+
+	uart2: serial@18008000 {
+		compatible = "ns16550a";
+		reg = <0x18008000 0x20>;
+		clocks = <&iprocslow>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		status = "disabled";
 	};
 
 	dmu-bus@1800c000 {
