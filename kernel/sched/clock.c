@@ -287,7 +287,7 @@ again:
 	clock = wrap_max(clock, min_clock);
 	clock = wrap_min(clock, max_clock);
 
-	if (!arch_try_cmpxchg64(&scd->clock, &old_clock, clock))
+	if (!raw_try_cmpxchg64(&scd->clock, &old_clock, clock))
 		goto again;
 
 	return clock;
