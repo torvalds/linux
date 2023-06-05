@@ -184,12 +184,13 @@ static void vgic_v4_disable_vsgis(struct kvm_vcpu *vcpu)
 	}
 }
 
-/* Must be called with the kvm lock held */
 void vgic_v4_configure_vsgis(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	unsigned long i;
+
+	lockdep_assert_held(&kvm->arch.config_lock);
 
 	kvm_arm_halt_guest(kvm);
 

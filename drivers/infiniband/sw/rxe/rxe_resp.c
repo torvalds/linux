@@ -1047,6 +1047,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 	struct ib_uverbs_wc *uwc = &cqe.uibwc;
 	struct rxe_recv_wqe *wqe = qp->resp.wqe;
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	unsigned long flags;
 
 	if (!wqe)
 		goto finish;
@@ -1137,12 +1138,12 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		return RESPST_ERR_CQ_OVERFLOW;
 
 finish:
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		return RESPST_CHK_RESOURCE;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	if (unlikely(!pkt))
 		return RESPST_DONE;
@@ -1468,18 +1469,19 @@ int rxe_responder(struct rxe_qp *qp)
 	enum resp_states state;
 	struct rxe_pkt_info *pkt = NULL;
 	int ret;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
 		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_req_pkts(qp);
 		flush_recv_queue(qp, notify);
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
