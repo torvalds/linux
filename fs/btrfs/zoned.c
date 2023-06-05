@@ -1282,6 +1282,12 @@ out:
 	return ret;
 }
 
+struct zone_info {
+	u64 physical;
+	u64 capacity;
+	u64 alloc_offset;
+};
+
 int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
@@ -1291,12 +1297,10 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	struct btrfs_device *device;
 	u64 logical = cache->start;
 	u64 length = cache->length;
+	struct zone_info *zone_info = NULL;
 	int ret;
 	int i;
 	unsigned int nofs_flag;
-	u64 *alloc_offsets = NULL;
-	u64 *caps = NULL;
-	u64 *physical = NULL;
 	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
@@ -1328,20 +1332,8 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		goto out;
 	}
 
-	alloc_offsets = kcalloc(map->num_stripes, sizeof(*alloc_offsets), GFP_NOFS);
-	if (!alloc_offsets) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	caps = kcalloc(map->num_stripes, sizeof(*caps), GFP_NOFS);
-	if (!caps) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	physical = kcalloc(map->num_stripes, sizeof(*physical), GFP_NOFS);
-	if (!physical) {
+	zone_info = kcalloc(map->num_stripes, sizeof(*zone_info), GFP_NOFS);
+	if (!zone_info) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1353,20 +1345,21 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	}
 
 	for (i = 0; i < map->num_stripes; i++) {
+		struct zone_info *info = &zone_info[i];
 		bool is_sequential;
 		struct blk_zone zone;
 		struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 		int dev_replace_is_ongoing = 0;
 
 		device = map->stripes[i].dev;
-		physical[i] = map->stripes[i].physical;
+		info->physical = map->stripes[i].physical;
 
 		if (device->bdev == NULL) {
-			alloc_offsets[i] = WP_MISSING_DEV;
+			info->alloc_offset = WP_MISSING_DEV;
 			continue;
 		}
 
-		is_sequential = btrfs_dev_is_sequential(device, physical[i]);
+		is_sequential = btrfs_dev_is_sequential(device, info->physical);
 		if (is_sequential)
 			num_sequential++;
 		else
@@ -1380,7 +1373,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			__set_bit(i, active);
 
 		if (!is_sequential) {
-			alloc_offsets[i] = WP_CONVENTIONAL;
+			info->alloc_offset = WP_CONVENTIONAL;
 			continue;
 		}
 
@@ -1388,25 +1381,25 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		 * This zone will be used for allocation, so mark this zone
 		 * non-empty.
 		 */
-		btrfs_dev_clear_zone_empty(device, physical[i]);
+		btrfs_dev_clear_zone_empty(device, info->physical);
 
 		down_read(&dev_replace->rwsem);
 		dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
 		if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL)
-			btrfs_dev_clear_zone_empty(dev_replace->tgtdev, physical[i]);
+			btrfs_dev_clear_zone_empty(dev_replace->tgtdev, info->physical);
 		up_read(&dev_replace->rwsem);
 
 		/*
 		 * The group is mapped to a sequential zone. Get the zone write
 		 * pointer to determine the allocation offset within the zone.
 		 */
-		WARN_ON(!IS_ALIGNED(physical[i], fs_info->zone_size));
+		WARN_ON(!IS_ALIGNED(info->physical, fs_info->zone_size));
 		nofs_flag = memalloc_nofs_save();
-		ret = btrfs_get_dev_zone(device, physical[i], &zone);
+		ret = btrfs_get_dev_zone(device, info->physical, &zone);
 		memalloc_nofs_restore(nofs_flag);
 		if (ret == -EIO || ret == -EOPNOTSUPP) {
 			ret = 0;
-			alloc_offsets[i] = WP_MISSING_DEV;
+			info->alloc_offset = WP_MISSING_DEV;
 			continue;
 		} else if (ret) {
 			goto out;
@@ -1421,27 +1414,26 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			goto out;
 		}
 
-		caps[i] = (zone.capacity << SECTOR_SHIFT);
+		info->capacity = (zone.capacity << SECTOR_SHIFT);
 
 		switch (zone.cond) {
 		case BLK_ZONE_COND_OFFLINE:
 		case BLK_ZONE_COND_READONLY:
 			btrfs_err(fs_info,
 		"zoned: offline/readonly zone %llu on device %s (devid %llu)",
-				  physical[i] >> device->zone_info->zone_size_shift,
+				  info->physical >> device->zone_info->zone_size_shift,
 				  rcu_str_deref(device->name), device->devid);
-			alloc_offsets[i] = WP_MISSING_DEV;
+			info->alloc_offset = WP_MISSING_DEV;
 			break;
 		case BLK_ZONE_COND_EMPTY:
-			alloc_offsets[i] = 0;
+			info->alloc_offset = 0;
 			break;
 		case BLK_ZONE_COND_FULL:
-			alloc_offsets[i] = caps[i];
+			info->alloc_offset = info->capacity;
 			break;
 		default:
 			/* Partially used zone */
-			alloc_offsets[i] =
-					((zone.wp - zone.start) << SECTOR_SHIFT);
+			info->alloc_offset = ((zone.wp - zone.start) << SECTOR_SHIFT);
 			__set_bit(i, active);
 			break;
 		}
@@ -1468,15 +1460,15 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 
 	switch (map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
 	case 0: /* single */
-		if (alloc_offsets[0] == WP_MISSING_DEV) {
+		if (zone_info[0].alloc_offset == WP_MISSING_DEV) {
 			btrfs_err(fs_info,
 			"zoned: cannot recover write pointer for zone %llu",
-				physical[0]);
+				zone_info[0].physical);
 			ret = -EIO;
 			goto out;
 		}
-		cache->alloc_offset = alloc_offsets[0];
-		cache->zone_capacity = caps[0];
+		cache->alloc_offset = zone_info[0].alloc_offset;
+		cache->zone_capacity = zone_info[0].capacity;
 		if (test_bit(0, active))
 			set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &cache->runtime_flags);
 		break;
@@ -1486,21 +1478,21 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			ret = -EINVAL;
 			goto out;
 		}
-		if (alloc_offsets[0] == WP_MISSING_DEV) {
+		if (zone_info[0].alloc_offset == WP_MISSING_DEV) {
 			btrfs_err(fs_info,
 			"zoned: cannot recover write pointer for zone %llu",
-				physical[0]);
+				zone_info[0].physical);
 			ret = -EIO;
 			goto out;
 		}
-		if (alloc_offsets[1] == WP_MISSING_DEV) {
+		if (zone_info[1].alloc_offset == WP_MISSING_DEV) {
 			btrfs_err(fs_info,
 			"zoned: cannot recover write pointer for zone %llu",
-				physical[1]);
+				zone_info[1].physical);
 			ret = -EIO;
 			goto out;
 		}
-		if (alloc_offsets[0] != alloc_offsets[1]) {
+		if (zone_info[0].alloc_offset != zone_info[1].alloc_offset) {
 			btrfs_err(fs_info,
 			"zoned: write pointer offset mismatch of zones in DUP profile");
 			ret = -EIO;
@@ -1516,8 +1508,8 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 				set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE,
 					&cache->runtime_flags);
 		}
-		cache->alloc_offset = alloc_offsets[0];
-		cache->zone_capacity = min(caps[0], caps[1]);
+		cache->alloc_offset = zone_info[0].alloc_offset;
+		cache->zone_capacity = min(zone_info[0].capacity, zone_info[1].capacity);
 		break;
 	case BTRFS_BLOCK_GROUP_RAID1:
 	case BTRFS_BLOCK_GROUP_RAID0:
@@ -1570,9 +1562,7 @@ out:
 		cache->physical_map = NULL;
 	}
 	bitmap_free(active);
-	kfree(physical);
-	kfree(caps);
-	kfree(alloc_offsets);
+	kfree(zone_info);
 	free_extent_map(em);
 
 	return ret;
