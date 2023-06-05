@@ -207,29 +207,32 @@
 	dsa,member = <0 0>;
 
 	ports {
+		sw0_p0: port@0 {
+			label = "extsw";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
 		port@1 {
-			reg = <1>;
 			label = "lan7";
 		};
 
 		port@2 {
-			reg = <2>;
 			label = "lan4";
 		};
 
 		port@3 {
-			reg = <3>;
 			label = "lan8";
 		};
 
 		port@4 {
-			reg = <4>;
 			label = "wan";
 		};
 
 		port@5 {
-			reg = <5>;
-			ethernet = <&gmac0>;
 			label = "cpu";
 			status = "disabled";
 
@@ -240,8 +243,6 @@
 		};
 
 		port@7 {
-			reg = <7>;
-			ethernet = <&gmac1>;
 			label = "cpu";
 			status = "disabled";
 
@@ -252,24 +253,7 @@
 		};
 
 		port@8 {
-			reg = <8>;
-			ethernet = <&gmac2>;
 			label = "cpu";
-
-			fixed-link {
-				speed = <1000>;
-				full-duplex;
-			};
-		};
-
-		sw0_p0: port@0 {
-			reg = <0>;
-			label = "extsw";
-
-			fixed-link {
-				speed = <1000>;
-				full-duplex;
-			};
 		};
 	};
 };

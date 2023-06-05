@@ -181,32 +181,28 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
 			label = "lan4";
 		};
 
 		port@1 {
-			reg = <1>;
 			label = "lan3";
 		};
 
 		port@2 {
-			reg = <2>;
 			label = "lan2";
 		};
 
 		port@3 {
-			reg = <3>;
 			label = "lan1";
 		};
 
 		port@4 {
-			reg = <4>;
 			label = "wan";
 		};
 
 		sw0_p5: port@5 {
-			reg = <5>;
+			/delete-property/ethernet;
+
 			label = "extsw";
 			phy-mode = "rgmii";
 
@@ -218,8 +214,6 @@
 		};
 
 		port@7 {
-			reg = <7>;
-			ethernet = <&gmac1>;
 			label = "cpu";
 
 			fixed-link {
@@ -229,14 +223,7 @@
 		};
 
 		port@8 {
-			reg = <8>;
-			ethernet = <&gmac2>;
 			label = "cpu";
-
-			fixed-link {
-				speed = <1000>;
-				full-duplex;
-			};
 		};
 	};
 };
