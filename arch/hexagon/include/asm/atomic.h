@@ -36,49 +36,11 @@ static inline void arch_atomic_set(atomic_t *v, int new)
  */
 #define arch_atomic_read(v)		READ_ONCE((v)->counter)
 
-/**
- * arch_atomic_xchg - atomic
- * @v: pointer to memory to change
- * @new: new value (technically passed in a register -- see xchg)
- */
-#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), (new)))
+#define arch_atomic_xchg(v, new)					\
+	(arch_xchg(&((v)->counter), (new)))
 
-
-/**
- * arch_atomic_cmpxchg - atomic compare-and-exchange values
- * @v: pointer to value to change
- * @old:  desired old value to match
- * @new:  new value to put in
- *
- * Parameters are then pointer, value-in-register, value-in-register,
- * and the output is the old value.
- *
- * Apparently this is complicated for archs that don't support
- * the memw_locked like we do (or it's broken or whatever).
- *
- * Kind of the lynchpin of the rest of the generically defined routines.
- * Remember V2 had that bug with dotnew predicate set by memw_locked.
- *
- * "old" is "expected" old val, __oldval is actual old value
- */
-static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
-{
-	int __oldval;
-
-	asm volatile(
-		"1:	%0 = memw_locked(%1);\n"
-		"	{ P0 = cmp.eq(%0,%2);\n"
-		"	  if (!P0.new) jump:nt 2f; }\n"
-		"	memw_locked(%1,P0) = %3;\n"
-		"	if (!P0) jump 1b;\n"
-		"2:\n"
-		: "=&r" (__oldval)
-		: "r" (&v->counter), "r" (old), "r" (new)
-		: "memory", "p0"
-	);
-
-	return __oldval;
-}
+#define arch_atomic_cmpxchg(v, old, new)				\
+	(arch_cmpxchg(&((v)->counter), (old), (new)))
 
 #define ATOMIC_OP(op)							\
 static inline void arch_atomic_##op(int i, atomic_t *v)			\
