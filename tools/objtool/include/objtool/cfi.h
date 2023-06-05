@@ -36,6 +36,7 @@ struct cfi_state {
 	bool drap;
 	bool signal;
 	bool end;
+	bool force_undefined;
 };
 
 #endif /* _OBJTOOL_CFI_H */
