@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #undef TRACE_SYSTEM
@@ -14,26 +14,29 @@
 TRACE_EVENT(dcvsh_freq,
 
 	TP_PROTO(unsigned long cpu, unsigned long req_freq,
-		 unsigned long throttled_freq),
+		 unsigned long throttled_freq, unsigned long thermal_pressure),
 
-	TP_ARGS(cpu, req_freq, throttled_freq),
+	TP_ARGS(cpu, req_freq, throttled_freq, thermal_pressure),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, cpu)
 		__field(unsigned long, req_freq)
 		__field(unsigned long, throttled_freq)
+		__field(unsigned long, thermal_pressure)
 	),
 
 	TP_fast_assign(
 		__entry->cpu = cpu;
 		__entry->req_freq = req_freq;
 		__entry->throttled_freq = throttled_freq;
+		__entry->thermal_pressure = thermal_pressure;
 	),
 
-	TP_printk("cpu:%lu requested_freq:%lu throttled_freq:%lu",
+	TP_printk("cpu:%lu requested_freq:%lu throttled_freq:%lu thermal_pressure_freq:%lu",
 		__entry->cpu,
 		__entry->req_freq,
-		__entry->throttled_freq)
+		__entry->throttled_freq,
+		__entry->thermal_pressure)
 );
 
 TRACE_EVENT(dcvsh_throttle,
