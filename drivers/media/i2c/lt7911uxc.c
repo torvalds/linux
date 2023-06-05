@@ -13,6 +13,11 @@
  * V0.0X01.0X04 add 5K60 support for CPHY.
  * V0.0X01.0X05 add CSI BGR888 fmt.
  * V0.0X01.0X06 fix dcphy params and add more fmt.
+ * V0.0X01.0X07
+ *	1.fix driver probe sequence.
+ *	2.set default timing
+ *	3.fix dcphy params
+ *	4.fix hotplug event report
  *
  */
 
@@ -40,7 +45,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -180,11 +185,11 @@ struct lt7911uxc_mode {
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
 	.lp_vol_ref = 3,
-	.lp_hys_sw = {3, 3, 3, 0},
-	.lp_escclk_pol_sel = {1, 0, 0, 0},
-	.skew_data_cal_clk = {0, 0, 0, 3},
-	.clk_hs_term_sel = 2,
-	.data_hs_term_sel = {2, 2, 2, 2},
+	.lp_hys_sw = {3, 0, 3, 0},
+	.lp_escclk_pol_sel = {1, 1, 0, 0},
+	.skew_data_cal_clk = {0, 0, 0, 0},
+	.clk_hs_term_sel = 0,
+	.data_hs_term_sel = {0, 0, 0, 0},
 	.reserved = {0},
 };
 
@@ -573,7 +578,7 @@ static int lt7911uxc_get_detected_timings(struct v4l2_subdev *sd,
 	u32 pixel_clock, fps, halt_pix_clk;
 	u8 clk_h, clk_m, clk_l;
 	u8 val_h, val_l;
-	u32 byte_clk, mipi_clk, mipi_data_rate;
+	u64 byte_clk, mipi_clk, mipi_data_rate;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
@@ -623,7 +628,7 @@ static int lt7911uxc_get_detected_timings(struct v4l2_subdev *sd,
 
 	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
 			hact, vact, htotal, vtotal, pixel_clock, fps);
-	v4l2_info(sd, "byte_clk:%d, mipi_clk:%d, mipi_data_rate:%d\n",
+	v4l2_info(sd, "byte_clk:%u, mipi_clk:%u, mipi_data_rate:%u\n",
 			byte_clk, mipi_clk, mipi_data_rate);
 	v4l2_info(sd, "inerlaced:%d\n", bt->interlaced);
 
@@ -640,6 +645,18 @@ static void lt7911uxc_delayed_work_hotplug(struct work_struct *work)
 	lt7911uxc_s_ctrl_detect_tx_5v(sd);
 }
 
+static void lt7911uxc_s_ctrl_detect_event(struct v4l2_subdev *sd)
+{
+	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
+	u8 val;
+
+	val = i2c_rd8(sd, 0xe084);
+	if (val == 0x01)
+		v4l2_ctrl_s_ctrl(lt7911uxc->detect_tx_5v_ctrl, 1);
+	else if (val == 0x00)
+		v4l2_ctrl_s_ctrl(lt7911uxc->detect_tx_5v_ctrl, 0);
+}
+
 static void lt7911uxc_delayed_work_res_change(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -647,6 +664,7 @@ static void lt7911uxc_delayed_work_res_change(struct work_struct *work)
 			struct lt7911uxc, delayed_work_res_change);
 	struct v4l2_subdev *sd = &lt7911uxc->sd;
 
+	lt7911uxc_s_ctrl_detect_event(sd);
 	lt7911uxc_format_change(sd);
 }
 
@@ -731,13 +749,55 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 			__func__, enable ? "en" : "dis");
 }
 
+static int lt7911uxc_get_reso_dist(const struct lt7911uxc_mode *mode,
+				struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 cur_fps, dist_fps;
+
+	cur_fps = fps_calc(bt);
+	dist_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+
+	return abs(mode->width - bt->width) +
+		abs(mode->height - bt->height) + abs(dist_fps - cur_fps);
+}
+
+static const struct lt7911uxc_mode *
+lt7911uxc_find_best_fit(struct lt7911uxc *lt7911uxc)
+{
+	int dist;
+	int cur_best_fit = 0;
+	int cur_best_fit_dist = -1;
+	unsigned int i;
+
+	for (i = 0; i < lt7911uxc->cfg_num; i++) {
+		dist = lt7911uxc_get_reso_dist(&lt7911uxc->support_modes[i], &lt7911uxc->timings);
+		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+			cur_best_fit_dist = dist;
+			cur_best_fit = i;
+		}
+	}
+	dev_dbg(&lt7911uxc->i2c_client->dev,
+		"find current mode: support_mode[%d], %dx%d@%dfps\n",
+		cur_best_fit, lt7911uxc->support_modes[cur_best_fit].width,
+		lt7911uxc->support_modes[cur_best_fit].height,
+		DIV_ROUND_CLOSEST(lt7911uxc->support_modes[cur_best_fit].max_fps.denominator,
+		lt7911uxc->support_modes[cur_best_fit].max_fps.numerator));
+
+	return &lt7911uxc->support_modes[cur_best_fit];
+}
+
 static void lt7911uxc_print_dv_timings(struct v4l2_subdev *sd, const char *prefix)
 {
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
+	struct device *dev = &lt7911uxc->i2c_client->dev;
 	const struct v4l2_bt_timings *bt = &lt7911uxc->timings.bt;
+	const struct lt7911uxc_mode *mode;
 	u32 htot, vtot;
 	u32 fps;
 
+	mode = lt7911uxc_find_best_fit(lt7911uxc);
+	lt7911uxc->cur_mode = mode;
 	htot = lt7911uxc->cur_mode->hts_def;
 	vtot = lt7911uxc->cur_mode->vts_def;
 	if (bt->interlaced)
@@ -749,7 +809,7 @@ static void lt7911uxc_print_dv_timings(struct v4l2_subdev *sd, const char *prefi
 	if (prefix == NULL)
 		prefix = "";
 
-	v4l2_info(sd, "%s: %s%ux%u%s%u.%02u (%ux%u)\n", sd->name, prefix,
+	dev_info(dev, "%s: %s%ux%u%s%u.%02u (%ux%u)\n", sd->name, prefix,
 		bt->width, bt->height, bt->interlaced ? "i" : "p",
 		fps / 100, fps % 100, htot, vtot);
 }
@@ -992,33 +1052,6 @@ static int lt7911uxc_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int lt7911uxc_get_reso_dist(const struct lt7911uxc_mode *mode,
-				struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-		abs(mode->height - framefmt->height);
-}
-
-static const struct lt7911uxc_mode *
-lt7911uxc_find_best_fit(struct lt7911uxc *lt7911uxc, struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-	int dist;
-	int cur_best_fit = 0;
-	int cur_best_fit_dist = -1;
-	unsigned int i;
-
-	for (i = 0; i < lt7911uxc->cfg_num; i++) {
-		dist = lt7911uxc_get_reso_dist(&lt7911uxc->support_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-
-	return &lt7911uxc->support_modes[cur_best_fit];
-}
-
 static int lt7911uxc_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *format)
@@ -1036,7 +1069,7 @@ static int lt7911uxc_get_fmt(struct v4l2_subdev *sd,
 	format->format.colorspace = V4L2_COLORSPACE_SRGB;
 	mutex_unlock(&lt7911uxc->confctl_mutex);
 
-	mode = lt7911uxc_find_best_fit(lt7911uxc, format);
+	mode = lt7911uxc_find_best_fit(lt7911uxc);
 	lt7911uxc->cur_mode = mode;
 
 	__v4l2_ctrl_s_ctrl_int64(lt7911uxc->pixel_rate,
@@ -1100,7 +1133,7 @@ static int lt7911uxc_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 
 	lt7911uxc->mbus_fmt_code = format->format.code;
-	mode = lt7911uxc_find_best_fit(lt7911uxc, format);
+	mode = lt7911uxc_find_best_fit(lt7911uxc);
 	lt7911uxc->cur_mode = mode;
 
 	enable_stream(sd, false);
@@ -1480,11 +1513,6 @@ static int lt7911uxc_probe_of(struct lt7911uxc *lt7911uxc)
 
 	lt7911uxc->enable_hdcp = false;
 
-	gpiod_set_value(lt7911uxc->power_gpio, 1);
-	//delay 2~3ms before reset
-	usleep_range(2000, 3000);
-	gpiod_set_value(lt7911uxc->reset_gpio, 0);
-
 	ret = 0;
 
 put_node:
@@ -1497,6 +1525,61 @@ static inline int lt7911uxc_probe_of(struct lt7911uxc *state)
 	return -ENODEV;
 }
 #endif
+
+static int __lt7911uxc_power_on(struct lt7911uxc *lt7911uxc)
+{
+	struct device *dev = &lt7911uxc->i2c_client->dev;
+
+	dev_info(dev, "lt7911uxc power on\n");
+	gpiod_set_value(lt7911uxc->reset_gpio, 1);
+	usleep_range(20000, 25000);
+	gpiod_set_value(lt7911uxc->power_gpio, 1);
+	//delay 20ms before reset
+	usleep_range(25000, 30000);
+	gpiod_set_value(lt7911uxc->reset_gpio, 0);
+	usleep_range(25000, 30000);
+
+	return 0;
+}
+
+static void __lt7911uxc_power_off(struct lt7911uxc *lt7911uxc)
+{
+	struct device *dev = &lt7911uxc->i2c_client->dev;
+
+	dev_info(dev, "lt7911uxc power off\n");
+
+	if (!IS_ERR(lt7911uxc->reset_gpio))
+		gpiod_set_value(lt7911uxc->reset_gpio, 1);
+
+	if (!IS_ERR(lt7911uxc->power_gpio))
+		gpiod_set_value(lt7911uxc->power_gpio, 0);
+}
+
+static int lt7911uxc_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
+
+	return __lt7911uxc_power_on(lt7911uxc);
+}
+
+static int lt7911uxc_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
+
+	__lt7911uxc_power_off(lt7911uxc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops lt7911uxc_pm_ops = {
+	.suspend = lt7911uxc_suspend,
+	.resume = lt7911uxc_resume,
+};
+
 static int lt7911uxc_check_chip_id(struct lt7911uxc *lt7911uxc)
 {
 	struct device *dev = &lt7911uxc->i2c_client->dev;
@@ -1524,6 +1607,8 @@ static int lt7911uxc_check_chip_id(struct lt7911uxc *lt7911uxc)
 static int lt7911uxc_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 	struct lt7911uxc *lt7911uxc;
 	struct v4l2_subdev *sd;
 	struct device *dev = &client->dev;
@@ -1549,46 +1634,13 @@ static int lt7911uxc_probe(struct i2c_client *client,
 		return err;
 	}
 
+	lt7911uxc->timings = default_timing;
 	lt7911uxc->cur_mode = &lt7911uxc->support_modes[0];
+
+	__lt7911uxc_power_on(lt7911uxc);
 	err = lt7911uxc_check_chip_id(lt7911uxc);
 	if (err < 0)
 		return err;
-
-	mutex_init(&lt7911uxc->confctl_mutex);
-	err = lt7911uxc_init_v4l2_ctrls(lt7911uxc);
-	if (err)
-		goto err_free_hdl;
-
-	client->flags |= I2C_CLIENT_SCCB;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	v4l2_i2c_subdev_init(sd, client, &lt7911uxc_ops);
-	sd->internal_ops = &lt7911uxc_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
-#endif
-
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	lt7911uxc->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	err = media_entity_pads_init(&sd->entity, 1, &lt7911uxc->pad);
-	if (err < 0) {
-		v4l2_err(sd, "media entity init failed! err:%d\n", err);
-		goto err_free_hdl;
-	}
-#endif
-	memset(facing, 0, sizeof(facing));
-	if (strcmp(lt7911uxc->module_facing, "back") == 0)
-		facing[0] = 'b';
-	else
-		facing[0] = 'f';
-
-	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 lt7911uxc->module_index, facing,
-		 LT7911UXC_NAME, dev_name(sd->dev));
-	err = v4l2_async_register_subdev_sensor_common(sd);
-	if (err < 0) {
-		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
-		goto err_clean_entity;
-	}
 
 	INIT_DELAYED_WORK(&lt7911uxc->delayed_work_hotplug,
 			lt7911uxc_delayed_work_hotplug);
@@ -1626,23 +1678,56 @@ static int lt7911uxc_probe(struct i2c_client *client,
 	if (err)
 		dev_err(dev, "failed to register plugin det irq (%d), maybe no use\n", err);
 
+	mutex_init(&lt7911uxc->confctl_mutex);
+	err = lt7911uxc_init_v4l2_ctrls(lt7911uxc);
+	if (err)
+		goto err_free_hdl;
+
+	client->flags |= I2C_CLIENT_SCCB;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	v4l2_i2c_subdev_init(sd, client, &lt7911uxc_ops);
+	sd->internal_ops = &lt7911uxc_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+#endif
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	lt7911uxc->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	err = media_entity_pads_init(&sd->entity, 1, &lt7911uxc->pad);
+	if (err < 0) {
+		v4l2_err(sd, "media entity init failed! err:%d\n", err);
+		goto err_free_hdl;
+	}
+#endif
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(lt7911uxc->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 lt7911uxc->module_index, facing,
+		 LT7911UXC_NAME, dev_name(sd->dev));
+	err = v4l2_async_register_subdev_sensor_common(sd);
+	if (err < 0) {
+		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
+		goto err_clean_entity;
+	}
+
 	err = v4l2_ctrl_handler_setup(sd->ctrl_handler);
 	if (err) {
 		v4l2_err(sd, "v4l2 ctrl handler setup failed! err:%d\n", err);
-		goto err_work_queues;
+		goto err_clean_entity;
 	}
-	lt7911uxc_format_change(sd);
 
+	schedule_delayed_work(&lt7911uxc->delayed_work_res_change, 100);
+
+	enable_stream(sd, false);
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 
 	return 0;
 
-err_work_queues:
-	if (!lt7911uxc->i2c_client->irq)
-		flush_work(&lt7911uxc->work_i2c_poll);
-	cancel_delayed_work(&lt7911uxc->delayed_work_hotplug);
-	cancel_delayed_work(&lt7911uxc->delayed_work_res_change);
 err_clean_entity:
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
@@ -1650,6 +1735,12 @@ err_clean_entity:
 err_free_hdl:
 	v4l2_ctrl_handler_free(&lt7911uxc->hdl);
 	mutex_destroy(&lt7911uxc->confctl_mutex);
+err_work_queues:
+	if (!lt7911uxc->i2c_client->irq)
+		flush_work(&lt7911uxc->work_i2c_poll);
+	cancel_delayed_work(&lt7911uxc->delayed_work_hotplug);
+	cancel_delayed_work(&lt7911uxc->delayed_work_res_change);
+
 	return err;
 }
 
@@ -1687,6 +1778,7 @@ MODULE_DEVICE_TABLE(of, lt7911uxc_of_match);
 static struct i2c_driver lt7911uxc_driver = {
 	.driver = {
 		.name = LT7911UXC_NAME,
+		.pm = &lt7911uxc_pm_ops,
 		.of_match_table = of_match_ptr(lt7911uxc_of_match),
 	},
 	.probe = lt7911uxc_probe,
