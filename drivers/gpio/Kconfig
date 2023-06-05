@@ -1735,6 +1735,7 @@ config GPIO_AGGREGATOR
 
 config GPIO_DELAY
 	tristate "GPIO delay"
+	depends on OF_GPIO
 	help
 	  Say yes here to enable the GPIO delay, which provides a way to
 	  configure platform specific delays for GPIO ramp-up or ramp-down
