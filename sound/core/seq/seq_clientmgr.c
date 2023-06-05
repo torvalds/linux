@@ -451,7 +451,7 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
 	err = 0;
 	snd_seq_fifo_lock(fifo);
 
-	if (client->midi_version > 0)
+	if (IS_ENABLED(CONFIG_SND_SEQ_UMP) && client->midi_version > 0)
 		aligned_size = sizeof(struct snd_seq_ump_event);
 	else
 		aligned_size = sizeof(struct snd_seq_event);
