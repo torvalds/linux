@@ -1040,11 +1040,17 @@ err_fs:
 	return err;
 }
 
-static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
+static void mlx5e_xfrm_del_policy(struct xfrm_policy *x)
 {
 	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
 
 	mlx5e_accel_ipsec_fs_del_pol(pol_entry);
+}
+
+static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)
+{
+	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
+
 	kfree(pol_entry);
 }
 
@@ -1065,6 +1071,7 @@ static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
 
 	.xdo_dev_state_update_curlft = mlx5e_xfrm_update_curlft,
 	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
+	.xdo_dev_policy_delete = mlx5e_xfrm_del_policy,
 	.xdo_dev_policy_free = mlx5e_xfrm_free_policy,
 };
 
