@@ -330,6 +330,7 @@ static int mlx5_ib_query_q_counters_vport(struct mlx5_ib_dev *dev,
 {
 	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
+	struct mlx5_core_dev *mdev;
 	__be32 val;
 	int ret, i;
 
@@ -337,12 +338,16 @@ static int mlx5_ib_query_q_counters_vport(struct mlx5_ib_dev *dev,
 	    dev->port[port_num].rep->vport == MLX5_VPORT_UPLINK)
 		return 0;
 
+	mdev = mlx5_eswitch_get_core_dev(dev->port[port_num].rep->esw);
+	if (!mdev)
+		return -EOPNOTSUPP;
+
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 	MLX5_SET(query_q_counter_in, in, other_vport, 1);
 	MLX5_SET(query_q_counter_in, in, vport_number,
 		 dev->port[port_num].rep->vport);
 	MLX5_SET(query_q_counter_in, in, aggregate, 1);
-	ret = mlx5_cmd_exec_inout(dev->mdev, query_q_counter, in, out);
+	ret = mlx5_cmd_exec_inout(mdev, query_q_counter, in, out);
 	if (ret)
 		return ret;
 
