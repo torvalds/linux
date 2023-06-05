@@ -1030,6 +1030,8 @@
 			reg-names = "cpts";
 			clocks = <&k3_clks 226 5>;
 			clock-names = "cpts";
+			assigned-clocks = <&k3_clks 226 5>; /* NAVSS0_CPTS_0_RCLK */
+			assigned-clock-parents = <&k3_clks 226 7>; /* MAIN_0_HSDIVOUT6_CLK */
 			interrupts-extended = <&main_navss_intr 391>;
 			interrupt-names = "cpts";
 			ti,cpts-periodic-outputs = <6>;
