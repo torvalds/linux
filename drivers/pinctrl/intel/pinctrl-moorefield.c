@@ -504,7 +504,7 @@ static void mofld_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	}
 
 	mode = (value & BUFCFG_PINMODE_MASK) >> BUFCFG_PINMODE_SHIFT;
-	if (!mode)
+	if (mode == BUFCFG_PINMODE_GPIO)
 		seq_puts(s, "GPIO ");
 	else
 		seq_printf(s, "mode %d ", mode);
