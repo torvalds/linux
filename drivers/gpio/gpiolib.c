@@ -2117,8 +2117,6 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 
 	might_sleep();
 
-	gpiod_unexport(desc);
-
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	gc = desc->gdev->chip;
