@@ -138,6 +138,13 @@ static const struct dmi_system_id tpm_tis_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L490"),
 		},
 	},
+	{
+		.callback = tpm_tis_disable_irq,
+		.ident = "UPX-TGL",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+		},
+	},
 	{}
 };
 

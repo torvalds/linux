@@ -29,7 +29,7 @@
 #include "mgmt/user_config.h"
 #include "crypto_ctx.h"
 #include "transport_ipc.h"
-#include "../smbfs_common/arc4.h"
+#include "../common/arc4.h"
 
 /*
  * Fixed format data defining GSS header and fixed string

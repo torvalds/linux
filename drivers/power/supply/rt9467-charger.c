@@ -1023,7 +1023,7 @@ static int rt9467_request_interrupt(struct rt9467_chg_data *data)
 	for (i = 0; i < num_chg_irqs; i++) {
 		virq = regmap_irq_get_virq(data->irq_chip_data, chg_irqs[i].hwirq);
 		if (virq <= 0)
-			return dev_err_probe(dev, virq, "Failed to get (%s) irq\n",
+			return dev_err_probe(dev, -EINVAL, "Failed to get (%s) irq\n",
 					     chg_irqs[i].name);
 
 		ret = devm_request_threaded_irq(dev, virq, NULL, chg_irqs[i].handler,

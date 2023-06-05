@@ -64,7 +64,7 @@ $code=<<___;
 
 .text
 
-.globl	.gcm_init_p8
+.globl	.gcm_init_p10
 	lis		r0,0xfff0
 	li		r8,0x10
 	mfspr		$vrsave,256
@@ -110,7 +110,7 @@ $code=<<___;
 	.long		0
 	.byte		0,12,0x14,0,0,0,2,0
 	.long		0
-.size	.gcm_init_p8,.-.gcm_init_p8
+.size	.gcm_init_p10,.-.gcm_init_p10
 
 .globl	.gcm_init_htable
 	lis		r0,0xfff0
@@ -237,7 +237,7 @@ $code=<<___;
 	.long		0
 .size	.gcm_init_htable,.-.gcm_init_htable
 
-.globl	.gcm_gmult_p8
+.globl	.gcm_gmult_p10
 	lis		r0,0xfff8
 	li		r8,0x10
 	mfspr		$vrsave,256
@@ -283,9 +283,9 @@ $code=<<___;
 	.long		0
 	.byte		0,12,0x14,0,0,0,2,0
 	.long		0
-.size	.gcm_gmult_p8,.-.gcm_gmult_p8
+.size	.gcm_gmult_p10,.-.gcm_gmult_p10
 
-.globl	.gcm_ghash_p8
+.globl	.gcm_ghash_p10
 	lis		r0,0xfff8
 	li		r8,0x10
 	mfspr		$vrsave,256
@@ -350,7 +350,7 @@ Loop:
 	.long		0
 	.byte		0,12,0x14,0,0,0,4,0
 	.long		0
-.size	.gcm_ghash_p8,.-.gcm_ghash_p8
+.size	.gcm_ghash_p10,.-.gcm_ghash_p10
 
 .asciz  "GHASH for PowerISA 2.07, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2

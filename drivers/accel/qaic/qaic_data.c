@@ -591,7 +591,7 @@ static int qaic_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struc
 	struct qaic_bo *bo = to_qaic_bo(obj);
 	unsigned long offset = 0;
 	struct scatterlist *sg;
-	int ret;
+	int ret = 0;
 
 	if (obj->import_attach)
 		return -EINVAL;
@@ -663,6 +663,10 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	if (args->pad)
 		return -EINVAL;
 
+	size = PAGE_ALIGN(args->size);
+	if (size == 0)
+		return -EINVAL;
+
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
@@ -674,12 +678,6 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->in_reset) {
 		ret = -ENODEV;
-		goto unlock_dev_srcu;
-	}
-
-	size = PAGE_ALIGN(args->size);
-	if (size == 0) {
-		ret = -EINVAL;
 		goto unlock_dev_srcu;
 	}
 
@@ -926,8 +924,8 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 {
 	struct qaic_attach_slice_entry *slice_ent;
 	struct qaic_attach_slice *args = data;
+	int rcu_id, usr_rcu_id, qdev_rcu_id;
 	struct dma_bridge_chan	*dbc;
-	int usr_rcu_id, qdev_rcu_id;
 	struct drm_gem_object *obj;
 	struct qaic_device *qdev;
 	unsigned long arg_size;
@@ -935,6 +933,22 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	u8 __user *user_data;
 	struct qaic_bo *bo;
 	int ret;
+
+	if (args->hdr.count == 0)
+		return -EINVAL;
+
+	arg_size = args->hdr.count * sizeof(*slice_ent);
+	if (arg_size / args->hdr.count != sizeof(*slice_ent))
+		return -EINVAL;
+
+	if (args->hdr.size == 0)
+		return -EINVAL;
+
+	if (!(args->hdr.dir == DMA_TO_DEVICE || args->hdr.dir == DMA_FROM_DEVICE))
+		return -EINVAL;
+
+	if (args->data == 0)
+		return -EINVAL;
 
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
@@ -950,39 +964,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto unlock_dev_srcu;
 	}
 
-	if (args->hdr.count == 0) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
-	arg_size = args->hdr.count * sizeof(*slice_ent);
-	if (arg_size / args->hdr.count != sizeof(*slice_ent)) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
 	if (args->hdr.dbc_id >= qdev->num_dbc) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
-	if (args->hdr.size == 0) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
-	if (!(args->hdr.dir == DMA_TO_DEVICE  || args->hdr.dir == DMA_FROM_DEVICE)) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
-	dbc = &qdev->dbc[args->hdr.dbc_id];
-	if (dbc->usr != usr) {
-		ret = -EINVAL;
-		goto unlock_dev_srcu;
-	}
-
-	if (args->data == 0) {
 		ret = -EINVAL;
 		goto unlock_dev_srcu;
 	}
@@ -1013,9 +995,21 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	bo = to_qaic_bo(obj);
 
+	if (bo->sliced) {
+		ret = -EINVAL;
+		goto put_bo;
+	}
+
+	dbc = &qdev->dbc[args->hdr.dbc_id];
+	rcu_id = srcu_read_lock(&dbc->ch_lock);
+	if (dbc->usr != usr) {
+		ret = -EINVAL;
+		goto unlock_ch_srcu;
+	}
+
 	ret = qaic_prepare_bo(qdev, bo, &args->hdr);
 	if (ret)
-		goto put_bo;
+		goto unlock_ch_srcu;
 
 	ret = qaic_attach_slicing_bo(qdev, bo, &args->hdr, slice_ent);
 	if (ret)
@@ -1025,6 +1019,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, args->hdr.dir);
 
 	bo->dbc = dbc;
+	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	drm_gem_object_put(obj);
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 	srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
@@ -1033,6 +1028,8 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 unprepare_bo:
 	qaic_unprepare_bo(qdev, bo);
+unlock_ch_srcu:
+	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 put_bo:
 	drm_gem_object_put(obj);
 free_slice_ent:
@@ -1316,7 +1313,6 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 	received_ts = ktime_get_ns();
 
 	size = is_partial ? sizeof(*pexec) : sizeof(*exec);
-
 	n = (unsigned long)size * args->hdr.count;
 	if (args->hdr.count == 0 || n / args->hdr.count != size)
 		return -EINVAL;
@@ -1665,6 +1661,9 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	int rcu_id;
 	int ret;
 
+	if (args->pad != 0)
+		return -EINVAL;
+
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
@@ -1676,11 +1675,6 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->in_reset) {
 		ret = -ENODEV;
-		goto unlock_dev_srcu;
-	}
-
-	if (args->pad != 0) {
-		ret = -EINVAL;
 		goto unlock_dev_srcu;
 	}
 
@@ -1855,6 +1849,11 @@ void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id)
 	dbc->usr = NULL;
 	empty_xfer_list(qdev, dbc);
 	synchronize_srcu(&dbc->ch_lock);
+	/*
+	 * Threads holding channel lock, may add more elements in the xfer_list.
+	 * Flush out these elements from xfer_list.
+	 */
+	empty_xfer_list(qdev, dbc);
 }
 
 void release_dbc(struct qaic_device *qdev, u32 dbc_id)

@@ -1069,13 +1069,6 @@
 					 <&clk IMX8MN_CLK_DISP_APB_ROOT>,
 					 <&clk IMX8MN_CLK_DISP_AXI_ROOT>;
 				clock-names = "pix", "axi", "disp_axi";
-				assigned-clocks = <&clk IMX8MN_CLK_DISP_PIXEL_ROOT>,
-						  <&clk IMX8MN_CLK_DISP_AXI>,
-						  <&clk IMX8MN_CLK_DISP_APB>;
-				assigned-clock-parents = <&clk IMX8MN_CLK_DISP_PIXEL>,
-							 <&clk IMX8MN_SYS_PLL2_1000M>,
-							 <&clk IMX8MN_SYS_PLL1_800M>;
-				assigned-clock-rates = <594000000>, <500000000>, <200000000>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&disp_blk_ctrl IMX8MN_DISPBLK_PD_LCDIF>;
 				status = "disabled";
@@ -1093,12 +1086,6 @@
 				clocks = <&clk IMX8MN_CLK_DSI_CORE>,
 					 <&clk IMX8MN_CLK_DSI_PHY_REF>;
 				clock-names = "bus_clk", "sclk_mipi";
-				assigned-clocks = <&clk IMX8MN_CLK_DSI_CORE>,
-						  <&clk IMX8MN_CLK_DSI_PHY_REF>;
-				assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_266M>,
-							 <&clk IMX8MN_CLK_24M>;
-				assigned-clock-rates = <266000000>, <24000000>;
-				samsung,pll-clock-frequency = <24000000>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&disp_blk_ctrl IMX8MN_DISPBLK_PD_MIPI_DSI>;
 				status = "disabled";
@@ -1142,6 +1129,21 @@
 					      "lcdif-axi", "lcdif-apb", "lcdif-pix",
 					      "dsi-pclk", "dsi-ref",
 					      "csi-aclk", "csi-pclk";
+				assigned-clocks = <&clk IMX8MN_CLK_DSI_CORE>,
+						  <&clk IMX8MN_CLK_DSI_PHY_REF>,
+						  <&clk IMX8MN_CLK_DISP_PIXEL>,
+						  <&clk IMX8MN_CLK_DISP_AXI>,
+						  <&clk IMX8MN_CLK_DISP_APB>;
+				assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_266M>,
+							 <&clk IMX8MN_CLK_24M>,
+							 <&clk IMX8MN_VIDEO_PLL1_OUT>,
+							 <&clk IMX8MN_SYS_PLL2_1000M>,
+							 <&clk IMX8MN_SYS_PLL1_800M>;
+				assigned-clock-rates = <266000000>,
+						       <24000000>,
+						       <594000000>,
+						       <500000000>,
+						       <200000000>;
 				#power-domain-cells = <1>;
 			};
 

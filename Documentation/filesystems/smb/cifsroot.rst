@@ -59,7 +59,7 @@ the root file system via SMB protocol.
 Enables the kernel to mount the root file system via SMB that are
 located in the <server-ip> and <share> specified in this option.
 
-The default mount options are set in fs/cifs/cifsroot.c.
+The default mount options are set in fs/smb/client/cifsroot.c.
 
 server-ip
 	IPv4 address of the server.

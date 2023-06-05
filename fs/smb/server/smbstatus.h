@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1+ */
 /*
- *   fs/cifs/smb2status.h
+ *   fs/server/smb2status.h
  *
  *   SMB2 Status code (network error) definitions
  *   Definitions are from MS-ERREF
