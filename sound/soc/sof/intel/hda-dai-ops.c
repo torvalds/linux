@@ -175,6 +175,50 @@ static void hda_reset_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stre
 	snd_hdac_ext_stream_reset(hext_stream);
 }
 
+static void hda_codec_dai_set_stream(struct snd_sof_dev *sdev,
+				     struct snd_pcm_substream *substream,
+				     struct hdac_stream *hstream)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+
+	/* set the hdac_stream in the codec dai */
+	snd_soc_dai_set_stream(codec_dai, hstream, substream->stream);
+}
+
+static unsigned int hda_calc_stream_format(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream,
+					   struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	unsigned int link_bps;
+	unsigned int format_val;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		link_bps = codec_dai->driver->playback.sig_bits;
+	else
+		link_bps = codec_dai->driver->capture.sig_bits;
+
+	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
+						 params_format(params), link_bps, 0);
+
+	dev_dbg(sdev->dev, "format_val=%#x, rate=%d, ch=%d, format=%d\n", format_val,
+		params_rate(params), params_channels(params), params_format(params));
+
+	return format_val;
+}
+
+static struct hdac_ext_link *hda_get_hlink(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	return snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
+}
+
 static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				struct snd_pcm_substream *substream, int cmd)
 {
@@ -307,7 +351,10 @@ static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
 	.reset_hext_stream = hda_reset_hext_stream,
 	.pre_trigger = hda_ipc4_pre_trigger,
 	.trigger = hda_trigger,
-	.post_trigger = hda_ipc4_post_trigger
+	.post_trigger = hda_ipc4_post_trigger,
+	.codec_dai_set_stream = hda_codec_dai_set_stream,
+	.calc_stream_format = hda_calc_stream_format,
+	.get_hlink = hda_get_hlink,
 };
 
 static const struct hda_dai_widget_dma_ops hda_ipc4_chain_dma_ops = {
@@ -317,6 +364,9 @@ static const struct hda_dai_widget_dma_ops hda_ipc4_chain_dma_ops = {
 	.setup_hext_stream = hda_setup_hext_stream,
 	.reset_hext_stream = hda_reset_hext_stream,
 	.trigger = hda_trigger,
+	.codec_dai_set_stream = hda_codec_dai_set_stream,
+	.calc_stream_format = hda_calc_stream_format,
+	.get_hlink = hda_get_hlink,
 };
 
 static int hda_ipc3_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
@@ -350,6 +400,9 @@ static const struct hda_dai_widget_dma_ops hda_ipc3_dma_ops = {
 	.reset_hext_stream = hda_reset_hext_stream,
 	.trigger = hda_trigger,
 	.post_trigger = hda_ipc3_post_trigger,
+	.codec_dai_set_stream = hda_codec_dai_set_stream,
+	.calc_stream_format = hda_calc_stream_format,
+	.get_hlink = hda_get_hlink,
 };
 
 static struct hdac_ext_stream *
@@ -376,6 +429,9 @@ static void hda_dspless_setup_hext_stream(struct snd_sof_dev *sdev,
 static const struct hda_dai_widget_dma_ops hda_dspless_dma_ops = {
 	.get_hext_stream = hda_dspless_get_hext_stream,
 	.setup_hext_stream = hda_dspless_setup_hext_stream,
+	.codec_dai_set_stream = hda_codec_dai_set_stream,
+	.calc_stream_format = hda_calc_stream_format,
+	.get_hlink = hda_get_hlink,
 };
 
 #endif
