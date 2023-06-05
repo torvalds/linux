@@ -2257,6 +2257,11 @@ static const struct amba_id etm4_ids[] = {
 	CS_AMBA_UCI_ID(0x000cc0af, uci_id_etm4),/* Marvell ThunderX2 */
 	CS_AMBA_UCI_ID(0x000b6d01, uci_id_etm4),/* HiSilicon-Hip08 */
 	CS_AMBA_UCI_ID(0x000b6d02, uci_id_etm4),/* HiSilicon-Hip09 */
+	/*
+	 * Match all PIDs with ETM4 DEVARCH. No need for adding any of the new
+	 * CPUs to the list here.
+	 */
+	CS_AMBA_MATCH_ALL_UCI(uci_id_etm4),
 	{},
 };
 
