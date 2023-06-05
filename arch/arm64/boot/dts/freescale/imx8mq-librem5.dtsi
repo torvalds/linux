@@ -1376,7 +1376,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
 	vmmc-supply = <&reg_vdd_3v3>;
-	power-supply = <&reg_vdd_1v8>;
+	vqmmc-supply = <&reg_vdd_1v8>;
 	non-removable;
 	status = "okay";
 };
