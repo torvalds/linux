@@ -118,6 +118,11 @@ static __inline__ int arch_atomic_fetch_##op(int i, atomic_t *v)	\
 ATOMIC_OPS(add, +=)
 ATOMIC_OPS(sub, -=)
 
+#define arch_atomic_add_return	arch_atomic_add_return
+#define arch_atomic_sub_return	arch_atomic_sub_return
+#define arch_atomic_fetch_add	arch_atomic_fetch_add
+#define arch_atomic_fetch_sub	arch_atomic_fetch_sub
+
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op)						\
 	ATOMIC_OP(op, c_op)						\
@@ -126,6 +131,10 @@ ATOMIC_OPS(sub, -=)
 ATOMIC_OPS(and, &=)
 ATOMIC_OPS(or, |=)
 ATOMIC_OPS(xor, ^=)
+
+#define arch_atomic_fetch_and	arch_atomic_fetch_and
+#define arch_atomic_fetch_or	arch_atomic_fetch_or
+#define arch_atomic_fetch_xor	arch_atomic_fetch_xor
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -181,6 +190,11 @@ static __inline__ s64 arch_atomic64_fetch_##op(s64 i, atomic64_t *v)	\
 ATOMIC64_OPS(add, +=)
 ATOMIC64_OPS(sub, -=)
 
+#define arch_atomic64_add_return	arch_atomic64_add_return
+#define arch_atomic64_sub_return	arch_atomic64_sub_return
+#define arch_atomic64_fetch_add		arch_atomic64_fetch_add
+#define arch_atomic64_fetch_sub		arch_atomic64_fetch_sub
+
 #undef ATOMIC64_OPS
 #define ATOMIC64_OPS(op, c_op)						\
 	ATOMIC64_OP(op, c_op)						\
@@ -189,6 +203,10 @@ ATOMIC64_OPS(sub, -=)
 ATOMIC64_OPS(and, &=)
 ATOMIC64_OPS(or, |=)
 ATOMIC64_OPS(xor, ^=)
+
+#define arch_atomic64_fetch_and		arch_atomic64_fetch_and
+#define arch_atomic64_fetch_or		arch_atomic64_fetch_or
+#define arch_atomic64_fetch_xor		arch_atomic64_fetch_xor
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP
