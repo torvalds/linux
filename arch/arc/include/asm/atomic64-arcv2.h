@@ -182,14 +182,6 @@ static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 }
 #define arch_atomic64_xchg arch_atomic64_xchg
 
-/**
- * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic64_t
- *
- * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
- */
-
 static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {
 	s64 val;
@@ -214,15 +206,6 @@ static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 }
 #define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 
-/**
- * arch_atomic64_fetch_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, if it was not @u.
- * Returns the old value of @v
- */
 static inline s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
 	s64 old, temp;

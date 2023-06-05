@@ -28,12 +28,6 @@ static inline void arch_atomic_set(atomic_t *v, int new)
 
 #define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
 
-/**
- * arch_atomic_read - reads a word, atomically
- * @v: pointer to atomic value
- *
- * Assumes all word reads on our architecture are atomic.
- */
 #define arch_atomic_read(v)		READ_ONCE((v)->counter)
 
 #define ATOMIC_OP(op)							\
@@ -111,16 +105,6 @@ ATOMIC_OPS(xor)
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-/**
- * arch_atomic_fetch_add_unless - add unless the number is a given value
- * @v: pointer to value
- * @a: amount to add
- * @u: unless value is equal to u
- *
- * Returns old value.
- *
- */
 
 static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
