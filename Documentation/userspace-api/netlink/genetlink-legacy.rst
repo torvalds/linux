@@ -162,9 +162,91 @@ Other quirks (todo)
 Structures
 ----------
 
-Legacy families can define C structures both to be used as the contents
-of an attribute and as a fixed message header. The plan is to define
-the structs in ``definitions`` and link the appropriate attrs.
+Legacy families can define C structures both to be used as the contents of
+an attribute and as a fixed message header. Structures are defined in
+``definitions``  and referenced in operations or attributes. Note that
+structures defined in YAML are implicitly packed according to C
+conventions. For example, the following struct is 4 bytes, not 6 bytes:
+
+.. code-block:: c
+
+  struct {
+          u8 a;
+          u16 b;
+          u8 c;
+  }
+
+Any padding must be explicitly added and C-like languages should infer the
+need for explicit padding from whether the members are naturally aligned.
+
+Here is the struct definition from above, declared in YAML:
+
+.. code-block:: yaml
+
+  definitions:
+    -
+      name: message-header
+      type: struct
+      members:
+        -
+          name: a
+          type: u8
+        -
+          name: b
+          type: u16
+        -
+          name: c
+          type: u8
+
+Fixed Headers
+~~~~~~~~~~~~~
+
+Fixed message headers can be added to operations using ``fixed-header``.
+The default ``fixed-header`` can be set in ``operations`` and it can be set
+or overridden for each operation.
+
+.. code-block:: yaml
+
+  operations:
+    fixed-header: message-header
+    list:
+      -
+        name: get
+        fixed-header: custom-header
+        attribute-set: message-attrs
+
+Attributes
+~~~~~~~~~~
+
+A ``binary`` attribute can be interpreted as a C structure using a
+``struct`` property with the name of the structure definition. The
+``struct`` property implies ``sub-type: struct`` so it is not necessary to
+specify a sub-type.
+
+.. code-block:: yaml
+
+  attribute-sets:
+    -
+      name: stats-attrs
+      attributes:
+        -
+          name: stats
+          type: binary
+          struct: vport-stats
+
+C Arrays
+--------
+
+Legacy families also use ``binary`` attributes to encapsulate C arrays. The
+``sub-type`` is used to identify the type of scalar to extract.
+
+.. code-block:: yaml
+
+  attributes:
+    -
+      name: ports
+      type: binary
+      sub-type: u32
 
 Multi-message DO
 ----------------

@@ -1440,6 +1440,10 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (!fmd)
 		return -ENOMEM;
 
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret < 0)
+		return -ENOMEM;
+
 	spin_lock_init(&fmd->slock);
 	INIT_LIST_HEAD(&fmd->pipelines);
 	fmd->pdev = pdev;
@@ -1470,10 +1474,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 		goto err_v4l2dev;
 
 	pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR(pinctrl)) {
-		ret = dev_err_probe(dev, PTR_ERR(pinctrl), "Failed to get pinctrl\n");
-		goto err_clk;
-	}
+	if (IS_ERR(pinctrl))
+		dev_dbg(dev, "Failed to get pinctrl: %pe\n", pinctrl);
 
 	platform_set_drvdata(pdev, fmd);
 
@@ -1530,12 +1532,12 @@ err_md:
 	return ret;
 }
 
-static int fimc_md_remove(struct platform_device *pdev)
+static void fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
 	if (!fmd)
-		return 0;
+		return;
 
 	fimc_md_unregister_clk_provider(fmd);
 	v4l2_async_nf_unregister(&fmd->subdev_notifier);
@@ -1548,8 +1550,6 @@ static int fimc_md_remove(struct platform_device *pdev)
 	media_device_unregister(&fmd->media_dev);
 	media_device_cleanup(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
-
-	return 0;
 }
 
 static const struct platform_device_id fimc_driver_ids[] __always_unused = {
@@ -1566,7 +1566,7 @@ MODULE_DEVICE_TABLE(of, fimc_md_of_match);
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= fimc_md_remove,
+	.remove_new	= fimc_md_remove,
 	.driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",

@@ -13,81 +13,6 @@
 	model = "Crystalfontz CFA-10056 Board";
 	compatible = "crystalfontz,cfa10056", "crystalfontz,cfa10037", "crystalfontz,cfa10036", "fsl,imx28";
 
-	apb@80000000 {
-		apbh@80000000 {
-			pinctrl@80018000 {
-				spi2_pins_cfa10056: spi2-cfa10056@0 {
-					reg = <0>;
-					fsl,pinmux-ids = <
-						MX28_PAD_SSP2_SCK__GPIO_2_16
-						MX28_PAD_SSP2_MOSI__GPIO_2_17
-						MX28_PAD_SSP2_MISO__GPIO_2_18
-						MX28_PAD_AUART1_TX__GPIO_3_5
-					>;
-					fsl,drive-strength = <MXS_DRIVE_8mA>;
-					fsl,voltage = <MXS_VOLTAGE_HIGH>;
-					fsl,pull-up = <MXS_PULL_ENABLE>;
-				};
-
-				lcdif_pins_cfa10056: lcdif-10056@0 {
-					reg = <0>;
-					fsl,pinmux-ids = <
-						MX28_PAD_LCD_RD_E__LCD_VSYNC
-						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
-						MX28_PAD_LCD_RS__LCD_DOTCLK
-						MX28_PAD_LCD_CS__LCD_ENABLE
-					>;
-					fsl,drive-strength = <MXS_DRIVE_4mA>;
-					fsl,voltage = <MXS_VOLTAGE_HIGH>;
-					fsl,pull-up = <MXS_PULL_DISABLE>;
-				};
-
-				lcdif_pins_cfa10056_pullup: lcdif-10056-pullup@0 {
-					reg = <0>;
-					fsl,pinmux-ids = <
-						MX28_PAD_LCD_RESET__GPIO_3_30
-					>;
-					fsl,drive-strength = <MXS_DRIVE_4mA>;
-					fsl,voltage = <MXS_VOLTAGE_HIGH>;
-					fsl,pull-up = <MXS_PULL_ENABLE>;
-				};
-			};
-
-			lcdif@80030000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&lcdif_24bit_pins_a
-						&lcdif_pins_cfa10056
-						&lcdif_pins_cfa10056_pullup >;
-				display = <&display0>;
-				status = "okay";
-
-				display0: display0 {
-					bits-per-pixel = <32>;
-					bus-width = <24>;
-
-					display-timings {
-						native-mode = <&timing0>;
-						timing0: timing0 {
-							clock-frequency = <32000000>;
-							hactive = <480>;
-							vactive = <800>;
-							hback-porch = <2>;
-							hfront-porch = <2>;
-							vback-porch = <2>;
-							vfront-porch = <2>;
-							hsync-len = <5>;
-							vsync-len = <5>;
-							hsync-active = <0>;
-							vsync-active = <0>;
-							de-active = <1>;
-							pixelclk-active = <1>;
-						};
-					};
-				};
-			};
-		};
-	};
-
 	spi-2 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
@@ -108,6 +33,77 @@
 			spi-cpol;
 			spi-cpha;
 			gpios-reset = <&gpio3 30 0>;
+		};
+	};
+};
+
+&pinctrl {
+	spi2_pins_cfa10056: spi2-cfa10056@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP2_SCK__GPIO_2_16
+			MX28_PAD_SSP2_MOSI__GPIO_2_17
+			MX28_PAD_SSP2_MISO__GPIO_2_18
+			MX28_PAD_AUART1_TX__GPIO_3_5
+		>;
+		fsl,drive-strength = <MXS_DRIVE_8mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+
+	lcdif_pins_cfa10056: lcdif-10056@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_RD_E__LCD_VSYNC
+			MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+			MX28_PAD_LCD_RS__LCD_DOTCLK
+			MX28_PAD_LCD_CS__LCD_ENABLE
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	lcdif_pins_cfa10056_pullup: lcdif-10056-pullup@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_RESET__GPIO_3_30
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdif_24bit_pins_a
+			&lcdif_pins_cfa10056
+			&lcdif_pins_cfa10056_pullup >;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display0 {
+		bits-per-pixel = <32>;
+		bus-width = <24>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <32000000>;
+				hactive = <480>;
+				vactive = <800>;
+				hback-porch = <2>;
+				hfront-porch = <2>;
+				vback-porch = <2>;
+				vfront-porch = <2>;
+				hsync-len = <5>;
+				vsync-len = <5>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
 		};
 	};
 };

@@ -306,42 +306,6 @@ temperature) and throttle appropriate devices.
 
     ::
 
-	struct thermal_bind_params
-
-    This structure defines the following parameters that are used to bind
-    a zone with a cooling device for a particular trip point.
-
-    .cdev:
-	     The cooling device pointer
-    .weight:
-	     The 'influence' of a particular cooling device on this
-	     zone. This is relative to the rest of the cooling
-	     devices. For example, if all cooling devices have a
-	     weight of 1, then they all contribute the same. You can
-	     use percentages if you want, but it's not mandatory. A
-	     weight of 0 means that this cooling device doesn't
-	     contribute to the cooling of this zone unless all cooling
-	     devices have a weight of 0. If all weights are 0, then
-	     they all contribute the same.
-    .trip_mask:
-	       This is a bit mask that gives the binding relation between
-	       this thermal zone and cdev, for a particular trip point.
-	       If nth bit is set, then the cdev and thermal zone are bound
-	       for trip point n.
-    .binding_limits:
-		     This is an array of cooling state limits. Must have
-		     exactly 2 * thermal_zone.number_of_trip_points. It is an
-		     array consisting of tuples <lower-state upper-state> of
-		     state limits. Each trip will be associated with one state
-		     limit tuple when binding. A NULL pointer means
-		     <THERMAL_NO_LIMITS THERMAL_NO_LIMITS> on all trips.
-		     These limits are used when binding a cdev to a trip point.
-    .match:
-	    This call back returns success(0) if the 'tz and cdev' need to
-	    be bound, as per platform data.
-
-    ::
-
 	struct thermal_zone_params
 
     This structure defines the platform level parameters for a thermal zone.
@@ -357,10 +321,6 @@ temperature) and throttle appropriate devices.
 	       will be created. when no_hwmon == true, nothing will be done.
 	       In case the thermal_zone_params is NULL, the hwmon interface
 	       will be created (for backward compatibility).
-    .num_tbps:
-	       Number of thermal_bind_params entries for this zone
-    .tbp:
-	       thermal_bind_params entries
 
 2. sysfs attributes structure
 =============================

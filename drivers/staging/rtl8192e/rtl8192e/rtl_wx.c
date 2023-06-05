@@ -432,15 +432,11 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 		if (priv->rtllib->rf_power_state != rf_off) {
 			priv->rtllib->actscanning = true;
 
-			if (ieee->ScanOperationBackupHandler)
-				ieee->ScanOperationBackupHandler(ieee->dev,
-							 SCAN_OPT_BACKUP);
+			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
 			rtllib_start_scan_syncro(priv->rtllib, 0);
 
-			if (ieee->ScanOperationBackupHandler)
-				ieee->ScanOperationBackupHandler(ieee->dev,
-							 SCAN_OPT_RESTORE);
+			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 		}
 		ret = 0;
 	} else {

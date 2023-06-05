@@ -35,6 +35,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/memcontrol.h>
 #include <linux/trace_events.h>
+#include <net/netfilter/nf_bpf_link.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
 			  (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
@@ -105,6 +106,7 @@ const struct bpf_map_ops bpf_map_offload_ops = {
 	.map_alloc = bpf_map_offload_map_alloc,
 	.map_free = bpf_map_offload_map_free,
 	.map_check_btf = map_check_no_btf,
+	.map_mem_usage = bpf_map_offload_map_mem_usage,
 };
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
@@ -128,6 +130,8 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	}
 	if (attr->map_ifindex)
 		ops = &bpf_map_offload_ops;
+	if (!ops->map_mem_usage)
+		return ERR_PTR(-EINVAL);
 	map = ops->map_alloc(attr);
 	if (IS_ERR(map))
 		return map;
@@ -517,14 +521,14 @@ static int btf_field_cmp(const void *a, const void *b)
 }
 
 struct btf_field *btf_record_find(const struct btf_record *rec, u32 offset,
-				  enum btf_field_type type)
+				  u32 field_mask)
 {
 	struct btf_field *field;
 
-	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & type))
+	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & field_mask))
 		return NULL;
 	field = bsearch(&offset, rec->fields, rec->cnt, sizeof(rec->fields[0]), btf_field_cmp);
-	if (!field || !(field->type & type))
+	if (!field || !(field->type & field_mask))
 		return NULL;
 	return field;
 }
@@ -549,6 +553,7 @@ void btf_record_free(struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to release */
 			break;
 		default:
@@ -596,6 +601,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 		case BPF_RB_NODE:
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
+		case BPF_REFCOUNT:
 			/* Nothing to acquire */
 			break;
 		default:
@@ -647,6 +653,8 @@ void bpf_obj_free_timer(const struct btf_record *rec, void *obj)
 	bpf_timer_cancel_and_free(obj + rec->timer_off);
 }
 
+extern void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
+
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 {
 	const struct btf_field *fields;
@@ -656,8 +664,10 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 		return;
 	fields = rec->fields;
 	for (i = 0; i < rec->cnt; i++) {
+		struct btf_struct_meta *pointee_struct_meta;
 		const struct btf_field *field = &fields[i];
 		void *field_ptr = obj + field->offset;
+		void *xchgd_field;
 
 		switch (fields[i].type) {
 		case BPF_SPIN_LOCK:
@@ -669,7 +679,22 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			WRITE_ONCE(*(u64 *)field_ptr, 0);
 			break;
 		case BPF_KPTR_REF:
-			field->kptr.dtor((void *)xchg((unsigned long *)field_ptr, 0));
+			xchgd_field = (void *)xchg((unsigned long *)field_ptr, 0);
+			if (!xchgd_field)
+				break;
+
+			if (!btf_is_kernel(field->kptr.btf)) {
+				pointee_struct_meta = btf_find_struct_meta(field->kptr.btf,
+									   field->kptr.btf_id);
+				WARN_ON_ONCE(!pointee_struct_meta);
+				migrate_disable();
+				__bpf_obj_drop_impl(xchgd_field, pointee_struct_meta ?
+								 pointee_struct_meta->record :
+								 NULL);
+				migrate_enable();
+			} else {
+				field->kptr.dtor(xchgd_field);
+			}
 			break;
 		case BPF_LIST_HEAD:
 			if (WARN_ON_ONCE(rec->spin_lock_off < 0))
@@ -683,6 +708,7 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			break;
 		case BPF_LIST_NODE:
 		case BPF_RB_NODE:
+		case BPF_REFCOUNT:
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -695,14 +721,13 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
-	struct btf_field_offs *foffs = map->field_offs;
 	struct btf_record *rec = map->record;
 
 	security_bpf_map_free(map);
 	bpf_map_release_memcg(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
-	/* Delay freeing of field_offs and btf_record for maps, as map_free
+	/* Delay freeing of btf_record for maps, as map_free
 	 * callback usually needs access to them. It is better to do it here
 	 * than require each callback to do the free itself manually.
 	 *
@@ -711,7 +736,6 @@ static void bpf_map_free_deferred(struct work_struct *work)
 	 * eventually calls bpf_map_free_meta, since inner_map_meta is only a
 	 * template bpf_map struct used during verification.
 	 */
-	kfree(foffs);
 	btf_record_free(rec);
 }
 
@@ -771,17 +795,10 @@ static fmode_t map_get_sys_perms(struct bpf_map *map, struct fd f)
 }
 
 #ifdef CONFIG_PROC_FS
-/* Provides an approximation of the map's memory footprint.
- * Used only to provide a backward compatibility and display
- * a reasonable "memlock" info.
- */
-static unsigned long bpf_map_memory_footprint(const struct bpf_map *map)
+/* Show the memory usage of a bpf map */
+static u64 bpf_map_memory_usage(const struct bpf_map *map)
 {
-	unsigned long size;
-
-	size = round_up(map->key_size + bpf_map_value_size(map), 8);
-
-	return round_up(map->max_entries * size, PAGE_SIZE);
+	return map->ops->map_mem_usage(map);
 }
 
 static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
@@ -803,7 +820,7 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "max_entries:\t%u\n"
 		   "map_flags:\t%#x\n"
 		   "map_extra:\t%#llx\n"
-		   "memlock:\t%lu\n"
+		   "memlock:\t%llu\n"
 		   "map_id:\t%u\n"
 		   "frozen:\t%u\n",
 		   map->map_type,
@@ -812,7 +829,7 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   map->max_entries,
 		   map->map_flags,
 		   (unsigned long long)map->map_extra,
-		   bpf_map_memory_footprint(map),
+		   bpf_map_memory_usage(map),
 		   map->id,
 		   READ_ONCE(map->frozen));
 	if (type) {
@@ -1019,7 +1036,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 
 	map->record = btf_parse_fields(btf, value_type,
 				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD |
-				       BPF_RB_ROOT,
+				       BPF_RB_ROOT | BPF_REFCOUNT,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -1058,10 +1075,17 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				break;
 			case BPF_KPTR_UNREF:
 			case BPF_KPTR_REF:
+			case BPF_REFCOUNT:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
+				    map->map_type != BPF_MAP_TYPE_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
+				    map->map_type != BPF_MAP_TYPE_LRU_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY &&
-				    map->map_type != BPF_MAP_TYPE_PERCPU_ARRAY) {
+				    map->map_type != BPF_MAP_TYPE_PERCPU_ARRAY &&
+				    map->map_type != BPF_MAP_TYPE_SK_STORAGE &&
+				    map->map_type != BPF_MAP_TYPE_INODE_STORAGE &&
+				    map->map_type != BPF_MAP_TYPE_TASK_STORAGE &&
+				    map->map_type != BPF_MAP_TYPE_CGRP_STORAGE) {
 					ret = -EOPNOTSUPP;
 					goto free_map_tab;
 				}
@@ -1104,7 +1128,6 @@ free_map_tab:
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
-	struct btf_field_offs *foffs;
 	struct bpf_map *map;
 	int f_flags;
 	int err;
@@ -1184,17 +1207,9 @@ static int map_create(union bpf_attr *attr)
 			attr->btf_vmlinux_value_type_id;
 	}
 
-
-	foffs = btf_parse_field_offs(map->record);
-	if (IS_ERR(foffs)) {
-		err = PTR_ERR(foffs);
-		goto free_map;
-	}
-	map->field_offs = foffs;
-
 	err = security_bpf_map_alloc(map);
 	if (err)
-		goto free_map_field_offs;
+		goto free_map;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
@@ -1218,8 +1233,6 @@ static int map_create(union bpf_attr *attr)
 
 free_map_sec:
 	security_bpf_map_free(map);
-free_map_field_offs:
-	kfree(map->field_offs);
 free_map:
 	btf_put(map->btf);
 	map->ops->map_free(map);
@@ -1285,8 +1298,10 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	return map;
 }
 
-/* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+/* map_idr_lock should have been held or the map should have been
+ * protected by rcu read lock.
+ */
+struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
@@ -2049,6 +2064,7 @@ static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
 {
 	bpf_prog_kallsyms_del_all(prog);
 	btf_put(prog->aux->btf);
+	module_put(prog->aux->mod);
 	kvfree(prog->aux->jited_linfo);
 	kvfree(prog->aux->linfo);
 	kfree(prog->aux->kfunc_tab);
@@ -2439,7 +2455,6 @@ static bool is_net_admin_prog_type(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_SK_MSG:
-	case BPF_PROG_TYPE_LIRC_MODE2:
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
@@ -2448,6 +2463,7 @@ static bool is_net_admin_prog_type(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_EXT: /* extends any prog */
+	case BPF_PROG_TYPE_NETFILTER:
 		return true;
 	case BPF_PROG_TYPE_CGROUP_SKB:
 		/* always unpriv */
@@ -2477,9 +2493,9 @@ static bool is_perfmon_prog_type(enum bpf_prog_type prog_type)
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD core_relo_rec_size
+#define	BPF_PROG_LOAD_LAST_FIELD log_true_size
 
-static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
+static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 {
 	enum bpf_prog_type type = attr->prog_type;
 	struct bpf_prog *prog, *dst_prog = NULL;
@@ -2629,7 +2645,7 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
 		goto free_prog_sec;
 
 	/* run eBPF verifier */
-	err = bpf_check(&prog, attr, uattr);
+	err = bpf_check(&prog, attr, uattr, uattr_size);
 	if (err < 0)
 		goto free_used_maps;
 
@@ -2804,16 +2820,19 @@ static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 	const struct bpf_prog *prog = link->prog;
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
 
-	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "link_type:\t%s\n"
-		   "link_id:\t%u\n"
-		   "prog_tag:\t%s\n"
-		   "prog_id:\t%u\n",
+		   "link_id:\t%u\n",
 		   bpf_link_type_strs[link->type],
-		   link->id,
-		   prog_tag,
-		   prog->aux->id);
+		   link->id);
+	if (prog) {
+		bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
+		seq_printf(m,
+			   "prog_tag:\t%s\n"
+			   "prog_id:\t%u\n",
+			   prog_tag,
+			   prog->aux->id);
+	}
 	if (link->ops->show_fdinfo)
 		link->ops->show_fdinfo(link, m);
 }
@@ -3094,6 +3113,11 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 					      &tgt_info);
 		if (err)
 			goto out_unlock;
+
+		if (tgt_info.tgt_mod) {
+			module_put(prog->aux->mod);
+			prog->aux->mod = tgt_info.tgt_mod;
+		}
 
 		tr = bpf_trampoline_get(key, &tgt_info);
 		if (!tr) {
@@ -4288,7 +4312,8 @@ static int bpf_link_get_info_by_fd(struct file *file,
 
 	info.type = link->type;
 	info.id = link->id;
-	info.prog_id = link->prog->aux->id;
+	if (link->prog)
+		info.prog_id = link->prog->aux->id;
 
 	if (link->ops->fill_link_info) {
 		err = link->ops->fill_link_info(link, &info);
@@ -4338,9 +4363,9 @@ static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
 	return err;
 }
 
-#define BPF_BTF_LOAD_LAST_FIELD btf_log_level
+#define BPF_BTF_LOAD_LAST_FIELD btf_log_true_size
 
-static int bpf_btf_load(const union bpf_attr *attr, bpfptr_t uattr)
+static int bpf_btf_load(const union bpf_attr *attr, bpfptr_t uattr, __u32 uattr_size)
 {
 	if (CHECK_ATTR(BPF_BTF_LOAD))
 		return -EINVAL;
@@ -4348,7 +4373,7 @@ static int bpf_btf_load(const union bpf_attr *attr, bpfptr_t uattr)
 	if (!bpf_capable())
 		return -EPERM;
 
-	return btf_new_fd(attr, uattr);
+	return btf_new_fd(attr, uattr, uattr_size);
 }
 
 #define BPF_BTF_GET_FD_BY_ID_LAST_FIELD btf_id
@@ -4551,6 +4576,9 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	if (CHECK_ATTR(BPF_LINK_CREATE))
 		return -EINVAL;
 
+	if (attr->link_create.attach_type == BPF_STRUCT_OPS)
+		return bpf_struct_ops_link_create(attr);
+
 	prog = bpf_prog_get(attr->link_create.prog_fd);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
@@ -4562,6 +4590,7 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_EXT:
+	case BPF_PROG_TYPE_NETFILTER:
 		break;
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:
@@ -4628,6 +4657,9 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_XDP:
 		ret = bpf_xdp_link_attach(attr, prog);
 		break;
+	case BPF_PROG_TYPE_NETFILTER:
+		ret = bpf_nf_link_attach(attr, prog);
+		break;
 #endif
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:
@@ -4646,6 +4678,35 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 out:
 	if (ret < 0)
 		bpf_prog_put(prog);
+	return ret;
+}
+
+static int link_update_map(struct bpf_link *link, union bpf_attr *attr)
+{
+	struct bpf_map *new_map, *old_map = NULL;
+	int ret;
+
+	new_map = bpf_map_get(attr->link_update.new_map_fd);
+	if (IS_ERR(new_map))
+		return PTR_ERR(new_map);
+
+	if (attr->link_update.flags & BPF_F_REPLACE) {
+		old_map = bpf_map_get(attr->link_update.old_map_fd);
+		if (IS_ERR(old_map)) {
+			ret = PTR_ERR(old_map);
+			goto out_put;
+		}
+	} else if (attr->link_update.old_map_fd) {
+		ret = -EINVAL;
+		goto out_put;
+	}
+
+	ret = link->ops->update_map(link, new_map, old_map);
+
+	if (old_map)
+		bpf_map_put(old_map);
+out_put:
+	bpf_map_put(new_map);
 	return ret;
 }
 
@@ -4668,6 +4729,11 @@ static int link_update(union bpf_attr *attr)
 	link = bpf_link_get_from_fd(attr->link_update.link_fd);
 	if (IS_ERR(link))
 		return PTR_ERR(link);
+
+	if (link->ops->update_map) {
+		ret = link_update_map(link, attr);
+		goto out_put_link;
+	}
 
 	new_prog = bpf_prog_get(attr->link_update.new_prog_fd);
 	if (IS_ERR(new_prog)) {
@@ -4989,7 +5055,7 @@ static int __sys_bpf(int cmd, bpfptr_t uattr, unsigned int size)
 		err = map_freeze(&attr);
 		break;
 	case BPF_PROG_LOAD:
-		err = bpf_prog_load(&attr, uattr);
+		err = bpf_prog_load(&attr, uattr, size);
 		break;
 	case BPF_OBJ_PIN:
 		err = bpf_obj_pin(&attr);
@@ -5034,7 +5100,7 @@ static int __sys_bpf(int cmd, bpfptr_t uattr, unsigned int size)
 		err = bpf_raw_tracepoint_open(&attr);
 		break;
 	case BPF_BTF_LOAD:
-		err = bpf_btf_load(&attr, uattr);
+		err = bpf_btf_load(&attr, uattr, size);
 		break;
 	case BPF_BTF_GET_FD_BY_ID:
 		err = bpf_btf_get_fd_by_id(&attr);

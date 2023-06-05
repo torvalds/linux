@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/units.h>
 
 #include "sb_regs.h"
 #include "tb.h"
@@ -851,7 +852,7 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	 */
 	if (ret == -EOPNOTSUPP)
 		return true;
-	else if (ret)
+	if (ret)
 		return false;
 
 	return !status;
@@ -877,7 +878,7 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EBUSY : 0;
@@ -900,7 +901,7 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EIO : 0;
@@ -1302,6 +1303,20 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 	return 0;
 }
 
+static int usb4_port_sb_opcode_err_to_errno(u32 val)
+{
+	switch (val) {
+	case 0:
+		return 0;
+	case USB4_SB_OPCODE_ERR:
+		return -EAGAIN;
+	case USB4_SB_OPCODE_ONS:
+		return -EOPNOTSUPP;
+	default:
+		return -EIO;
+	}
+}
+
 static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 			   u8 index, enum usb4_sb_opcode opcode, int timeout_msec)
 {
@@ -1324,21 +1339,8 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 		if (ret)
 			return ret;
 
-		switch (val) {
-		case 0:
-			return 0;
-
-		case USB4_SB_OPCODE_ERR:
-			return -EAGAIN;
-
-		case USB4_SB_OPCODE_ONS:
-			return -EOPNOTSUPP;
-
-		default:
-			if (val != opcode)
-				return -EIO;
-			break;
-		}
+		if (val != opcode)
+			return usb4_port_sb_opcode_err_to_errno(val);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1813,12 +1815,13 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	if (ret)
 		return ret;
 
-	switch (val) {
+	ret = usb4_port_sb_opcode_err_to_errno(val);
+	switch (ret) {
 	case 0:
 		*status = 0;
 		return 0;
 
-	case USB4_SB_OPCODE_ERR:
+	case -EAGAIN:
 		ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA,
 					     &metadata, sizeof(metadata));
 		if (ret)
@@ -1827,11 +1830,8 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 		*status = metadata & USB4_SB_METADATA_NVM_AUTH_WRITE_MASK;
 		return 0;
 
-	case USB4_SB_OPCODE_ONS:
-		return -EOPNOTSUPP;
-
 	default:
-		return -EIO;
+		return ret;
 	}
 }
 
@@ -1995,7 +1995,7 @@ static unsigned int usb3_bw_to_mbps(u32 bw, u8 scale)
 	unsigned long uframes;
 
 	uframes = bw * 512UL << scale;
-	return DIV_ROUND_CLOSEST(uframes * 8000, 1000 * 1000);
+	return DIV_ROUND_CLOSEST(uframes * 8000, MEGA);
 }
 
 static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
@@ -2003,7 +2003,7 @@ static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
 	unsigned long uframes;
 
 	/* 1 uframe is 1/8 ms (125 us) -> 1 / 8000 s */
-	uframes = ((unsigned long)mbps * 1000 *  1000) / 8000;
+	uframes = ((unsigned long)mbps * MEGA) / 8000;
 	return DIV_ROUND_UP(uframes, 512UL << scale);
 }
 

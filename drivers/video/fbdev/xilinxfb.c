@@ -474,11 +474,9 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	return xilinxfb_assign(pdev, drvdata, &pdata);
 }
 
-static int xilinxfb_of_remove(struct platform_device *op)
+static void xilinxfb_of_remove(struct platform_device *op)
 {
 	xilinxfb_release(&op->dev);
-
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -494,7 +492,7 @@ MODULE_DEVICE_TABLE(of, xilinxfb_of_match);
 
 static struct platform_driver xilinxfb_of_driver = {
 	.probe = xilinxfb_of_probe,
-	.remove = xilinxfb_of_remove,
+	.remove_new = xilinxfb_of_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = xilinxfb_of_match,

@@ -168,7 +168,7 @@ static void kvmppc_core_vcpu_put_e500mc(struct kvm_vcpu *vcpu)
 	kvmppc_booke_vcpu_put(vcpu);
 }
 
-int kvmppc_e500mc_check_processor_compat(void)
+static int kvmppc_e500mc_check_processor_compat(void)
 {
 	int r;
 

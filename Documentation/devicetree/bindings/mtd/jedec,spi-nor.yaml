@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: "mtd.yaml#"
+  - $ref: mtd.yaml#
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
@@ -75,6 +75,13 @@ properties:
       A GPIO line connected to the RESET (active low) signal of the device.
       If "broken-flash-reset" is present then having this property does not
       make any difference.
+
+  spi-cpol: true
+  spi-cpha: true
+
+dependencies:
+  spi-cpol: [ spi-cpha ]
+  spi-cpha: [ spi-cpol ]
 
 unevaluatedProperties: false
 

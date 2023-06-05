@@ -437,7 +437,7 @@ static void sock_map_delete_from_link(struct bpf_map *map, struct sock *sk,
 	__sock_map_delete(stab, sk, link_raw);
 }
 
-static int sock_map_delete_elem(struct bpf_map *map, void *key)
+static long sock_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	u32 i = *(u32 *)key;
@@ -587,8 +587,8 @@ out:
 	return ret;
 }
 
-static int sock_map_update_elem(struct bpf_map *map, void *key,
-				void *value, u64 flags)
+static long sock_map_update_elem(struct bpf_map *map, void *key,
+				 void *value, u64 flags)
 {
 	struct sock *sk = (struct sock *)value;
 	int ret;
@@ -797,6 +797,14 @@ static void sock_map_fini_seq_private(void *priv_data)
 	bpf_map_put_with_uref(info->map);
 }
 
+static u64 sock_map_mem_usage(const struct bpf_map *map)
+{
+	u64 usage = sizeof(struct bpf_stab);
+
+	usage += (u64)map->max_entries * sizeof(struct sock *);
+	return usage;
+}
+
 static const struct bpf_iter_seq_info sock_map_iter_seq_info = {
 	.seq_ops		= &sock_map_seq_ops,
 	.init_seq_private	= sock_map_init_seq_private,
@@ -816,6 +824,7 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_lookup_elem	= sock_map_lookup,
 	.map_release_uref	= sock_map_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_mem_usage		= sock_map_mem_usage,
 	.map_btf_id		= &sock_map_btf_ids[0],
 	.iter_seq_info		= &sock_map_iter_seq_info,
 };
@@ -916,7 +925,7 @@ static void sock_hash_delete_from_link(struct bpf_map *map, struct sock *sk,
 	raw_spin_unlock_bh(&bucket->lock);
 }
 
-static int sock_hash_delete_elem(struct bpf_map *map, void *key)
+static long sock_hash_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_shtab *htab = container_of(map, struct bpf_shtab, map);
 	u32 hash, key_size = map->key_size;
@@ -1397,6 +1406,16 @@ static void sock_hash_fini_seq_private(void *priv_data)
 	bpf_map_put_with_uref(info->map);
 }
 
+static u64 sock_hash_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_shtab *htab = container_of(map, struct bpf_shtab, map);
+	u64 usage = sizeof(*htab);
+
+	usage += htab->buckets_num * sizeof(struct bpf_shtab_bucket);
+	usage += atomic_read(&htab->count) * (u64)htab->elem_size;
+	return usage;
+}
+
 static const struct bpf_iter_seq_info sock_hash_iter_seq_info = {
 	.seq_ops		= &sock_hash_seq_ops,
 	.init_seq_private	= sock_hash_init_seq_private,
@@ -1416,6 +1435,7 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_lookup_elem_sys_only = sock_hash_lookup_sys,
 	.map_release_uref	= sock_hash_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_mem_usage		= sock_hash_mem_usage,
 	.map_btf_id		= &sock_hash_map_btf_ids[0],
 	.iter_seq_info		= &sock_hash_iter_seq_info,
 };

@@ -17,12 +17,14 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/kexec.h>
+#include <linux/entry-common.h>
 
 #include <asm/asm-prototypes.h>
 #include <asm/bug.h>
 #include <asm/csr.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
+#include <asm/syscall.h>
 #include <asm/thread_info.h>
 
 int show_unhandled_signals = 1;
@@ -119,14 +121,22 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 }
 
 #if defined(CONFIG_XIP_KERNEL) && defined(CONFIG_RISCV_ALTERNATIVE)
-#define __trap_section		__section(".xip.traps")
+#define __trap_section __noinstr_section(".xip.traps")
 #else
-#define __trap_section
+#define __trap_section noinstr
 #endif
-#define DO_ERROR_INFO(name, signo, code, str)				\
-asmlinkage __visible __trap_section void name(struct pt_regs *regs)	\
-{									\
-	do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+#define DO_ERROR_INFO(name, signo, code, str)					\
+asmlinkage __visible __trap_section void name(struct pt_regs *regs)		\
+{										\
+	if (user_mode(regs)) {							\
+		irqentry_enter_from_user_mode(regs);				\
+		do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+		irqentry_exit_to_user_mode(regs);				\
+	} else {								\
+		irqentry_state_t state = irqentry_nmi_enter(regs);		\
+		do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+		irqentry_nmi_exit(regs, state);					\
+	}									\
 }
 
 DO_ERROR_INFO(do_trap_unknown,
@@ -148,26 +158,50 @@ DO_ERROR_INFO(do_trap_store_misaligned,
 int handle_misaligned_load(struct pt_regs *regs);
 int handle_misaligned_store(struct pt_regs *regs);
 
-asmlinkage void __trap_section do_trap_load_misaligned(struct pt_regs *regs)
+asmlinkage __visible __trap_section void do_trap_load_misaligned(struct pt_regs *regs)
 {
-	if (!handle_misaligned_load(regs))
-		return;
-	do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
-		      "Oops - load address misaligned");
+	if (user_mode(regs)) {
+		irqentry_enter_from_user_mode(regs);
+
+		if (handle_misaligned_load(regs))
+			do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
+			      "Oops - load address misaligned");
+
+		irqentry_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		if (handle_misaligned_load(regs))
+			do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
+			      "Oops - load address misaligned");
+
+		irqentry_nmi_exit(regs, state);
+	}
 }
 
-asmlinkage void __trap_section do_trap_store_misaligned(struct pt_regs *regs)
+asmlinkage __visible __trap_section void do_trap_store_misaligned(struct pt_regs *regs)
 {
-	if (!handle_misaligned_store(regs))
-		return;
-	do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
-		      "Oops - store (or AMO) address misaligned");
+	if (user_mode(regs)) {
+		irqentry_enter_from_user_mode(regs);
+
+		if (handle_misaligned_store(regs))
+			do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
+				"Oops - store (or AMO) address misaligned");
+
+		irqentry_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		if (handle_misaligned_store(regs))
+			do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
+				"Oops - store (or AMO) address misaligned");
+
+		irqentry_nmi_exit(regs, state);
+	}
 }
 #endif
 DO_ERROR_INFO(do_trap_store_fault,
 	SIGSEGV, SEGV_ACCERR, "store (or AMO) access fault");
-DO_ERROR_INFO(do_trap_ecall_u,
-	SIGILL, ILL_ILLTRP, "environment call from U-mode");
 DO_ERROR_INFO(do_trap_ecall_s,
 	SIGILL, ILL_ILLTRP, "environment call from S-mode");
 DO_ERROR_INFO(do_trap_ecall_m,
@@ -183,7 +217,7 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 	return GET_INSN_LENGTH(insn);
 }
 
-asmlinkage __visible __trap_section void do_trap_break(struct pt_regs *regs)
+void handle_break(struct pt_regs *regs)
 {
 #ifdef CONFIG_KPROBES
 	if (kprobe_single_step_handler(regs))
@@ -213,7 +247,77 @@ asmlinkage __visible __trap_section void do_trap_break(struct pt_regs *regs)
 	else
 		die(regs, "Kernel BUG");
 }
-NOKPROBE_SYMBOL(do_trap_break);
+
+asmlinkage __visible __trap_section void do_trap_break(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		irqentry_enter_from_user_mode(regs);
+
+		handle_break(regs);
+
+		irqentry_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		handle_break(regs);
+
+		irqentry_nmi_exit(regs, state);
+	}
+}
+
+asmlinkage __visible __trap_section void do_trap_ecall_u(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		ulong syscall = regs->a7;
+
+		regs->epc += 4;
+		regs->orig_a0 = regs->a0;
+
+		syscall = syscall_enter_from_user_mode(regs, syscall);
+
+		if (syscall < NR_syscalls)
+			syscall_handler(regs, syscall);
+		else
+			regs->a0 = -ENOSYS;
+
+		syscall_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		do_trap_error(regs, SIGILL, ILL_ILLTRP, regs->epc,
+			"Oops - environment call from U-mode");
+
+		irqentry_nmi_exit(regs, state);
+	}
+
+}
+
+#ifdef CONFIG_MMU
+asmlinkage __visible noinstr void do_page_fault(struct pt_regs *regs)
+{
+	irqentry_state_t state = irqentry_enter(regs);
+
+	handle_page_fault(regs);
+
+	local_irq_disable();
+
+	irqentry_exit(regs, state);
+}
+#endif
+
+asmlinkage __visible noinstr void do_irq(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	irqentry_state_t state = irqentry_enter(regs);
+
+	irq_enter_rcu();
+	old_regs = set_irq_regs(regs);
+	handle_arch_irq(regs);
+	set_irq_regs(old_regs);
+	irq_exit_rcu();
+
+	irqentry_exit(regs, state);
+}
 
 #ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long pc)

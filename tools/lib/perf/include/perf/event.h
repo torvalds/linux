@@ -70,6 +70,8 @@ struct perf_record_lost {
 	__u64			 lost;
 };
 
+#define PERF_RECORD_MISC_LOST_SAMPLES_BPF (1 << 15)
+
 struct perf_record_lost_samples {
 	struct perf_event_header header;
 	__u64			 lost;

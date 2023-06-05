@@ -2179,7 +2179,7 @@ free_dev:
 	return ret;
 }
 
-static int vicodec_remove(struct platform_device *pdev)
+static void vicodec_remove(struct platform_device *pdev)
 {
 	struct vicodec_dev *dev = platform_get_drvdata(pdev);
 
@@ -2196,13 +2196,11 @@ static int vicodec_remove(struct platform_device *pdev)
 	video_unregister_device(&dev->stateful_dec.vfd);
 	video_unregister_device(&dev->stateless_dec.vfd);
 	v4l2_device_put(&dev->v4l2_dev);
-
-	return 0;
 }
 
 static struct platform_driver vicodec_pdrv = {
 	.probe		= vicodec_probe,
-	.remove		= vicodec_remove,
+	.remove_new	= vicodec_remove,
 	.driver		= {
 		.name	= VICODEC_NAME,
 	},

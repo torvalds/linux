@@ -96,7 +96,7 @@ struct mtk_mmsys_driver_data {
 };
 
 /*
- * Routes in mt8173, mt2701, mt2712 are different. That means
+ * Routes in mt2701 and mt2712 are different. That means
  * in the same register address, it controls different input/output
  * selection for each SoC. But, right now, they use the same table as
  * default routes meet their requirements. But we don't have the complete

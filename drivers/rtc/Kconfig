@@ -1970,7 +1970,7 @@ config RTC_DRV_MSC313
 
 config RTC_DRV_POLARFIRE_SOC
 	tristate "Microchip PolarFire SoC built-in RTC"
-	depends on SOC_MICROCHIP_POLARFIRE
+	depends on ARCH_MICROCHIP_POLARFIRE
 	help
 	  If you say yes here you will get support for the
 	  built-in RTC on Polarfire SoC.

@@ -313,13 +313,10 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 				    struct media_pad *sink, u32 flags)
 {
 	struct fwnode_handle *endpoint;
-	struct v4l2_subdev *sink_sd;
 
 	if (!(sink->flags & MEDIA_PAD_FL_SINK) ||
 	    !is_media_entity_v4l2_subdev(sink->entity))
 		return -EINVAL;
-
-	sink_sd = media_entity_to_v4l2_subdev(sink->entity);
 
 	fwnode_graph_for_each_endpoint(dev_fwnode(src_sd->dev), endpoint) {
 		struct fwnode_handle *remote_ep;
@@ -340,7 +337,7 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		 * ask the sink to verify it owns the remote endpoint,
 		 * and translate to a sink pad.
 		 */
-		sink_idx = media_entity_get_fwnode_pad(&sink_sd->entity,
+		sink_idx = media_entity_get_fwnode_pad(sink->entity,
 						       remote_ep,
 						       MEDIA_PAD_FL_SINK);
 		fwnode_handle_put(remote_ep);
@@ -362,17 +359,17 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		if (media_entity_find_link(src, sink))
 			continue;
 
-		dev_dbg(sink_sd->dev, "creating link %s:%d -> %s:%d\n",
+		dev_dbg(src_sd->dev, "creating link %s:%d -> %s:%d\n",
 			src_sd->entity.name, src_idx,
-			sink_sd->entity.name, sink_idx);
+			sink->entity->name, sink_idx);
 
 		ret = media_create_pad_link(&src_sd->entity, src_idx,
-					    &sink_sd->entity, sink_idx, flags);
+					    sink->entity, sink_idx, flags);
 		if (ret) {
-			dev_err(sink_sd->dev,
+			dev_err(src_sd->dev,
 				"link %s:%d -> %s:%d failed with %d\n",
 				src_sd->entity.name, src_idx,
-				sink_sd->entity.name, sink_idx, ret);
+				sink->entity->name, sink_idx, ret);
 
 			fwnode_handle_put(endpoint);
 			return ret;

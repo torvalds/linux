@@ -1673,11 +1673,6 @@ static int sbp_check_true(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int sbp_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
 static char *sbp_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
@@ -1692,22 +1687,12 @@ static u16 sbp_get_tag(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32 sbp_tpg_get_inst_index(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static void sbp_release_cmd(struct se_cmd *se_cmd)
 {
 	struct sbp_target_request *req = container_of(se_cmd,
 			struct sbp_target_request, se_cmd);
 
 	sbp_free_request(req);
-}
-
-static u32 sbp_sess_get_index(struct se_session *se_sess)
-{
-	return 0;
 }
 
 static int sbp_write_pending(struct se_cmd *se_cmd)
@@ -1730,16 +1715,6 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 	}
 
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static void sbp_set_default_node_attrs(struct se_node_acl *nacl)
-{
-	return;
-}
-
-static int sbp_get_cmd_state(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -2281,14 +2256,8 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.tpg_get_tag			= sbp_get_tag,
 	.tpg_check_demo_mode		= sbp_check_true,
 	.tpg_check_demo_mode_cache	= sbp_check_true,
-	.tpg_check_demo_mode_write_protect = sbp_check_false,
-	.tpg_check_prod_mode_write_protect = sbp_check_false,
-	.tpg_get_inst_index		= sbp_tpg_get_inst_index,
 	.release_cmd			= sbp_release_cmd,
-	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
-	.set_default_node_attributes	= sbp_set_default_node_attrs,
-	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
 	.queue_tm_rsp			= sbp_queue_tm_rsp,

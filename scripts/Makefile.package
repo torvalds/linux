@@ -5,7 +5,6 @@ include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.lib
 
 KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
-KBUILD_PKG_ROOTCMD ?="fakeroot -u"
 # Include only those top-level files that are needed by make, plus the GPL copy
 TAR_CONTENT := Documentation LICENSES arch block certs crypto drivers fs \
                include init io_uring ipc kernel lib mm net rust \
@@ -27,21 +26,6 @@ fi ; \
 tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
 	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
 
-# tarball compression
-# ---------------------------------------------------------------------------
-
-%.tar.gz: %.tar
-	$(call cmd,gzip)
-
-%.tar.bz2: %.tar
-	$(call cmd,bzip2)
-
-%.tar.xz: %.tar
-	$(call cmd,xzmisc)
-
-%.tar.zst: %.tar
-	$(call cmd,zstd)
-
 # Git
 # ---------------------------------------------------------------------------
 
@@ -57,16 +41,30 @@ check-git:
 		false; \
 	fi
 
+git-config-tar.gz   = -c tar.tar.gz.command="$(KGZIP)"
+git-config-tar.bz2  = -c tar.tar.bz2.command="$(KBZIP2)"
+git-config-tar.lzma = -c tar.tar.lzma.command="$(LZMA)"
+git-config-tar.xz   = -c tar.tar.xz.command="$(XZ)"
+git-config-tar.zst  = -c tar.tar.zst.command="$(ZSTD)"
+
+quiet_cmd_archive = ARCHIVE $@
+      cmd_archive = git -C $(srctree) $(git-config-tar$(suffix $@)) archive \
+                    --output=$$(realpath $@) $(archive-args)
+
+suffix-gzip  := .gz
+suffix-bzip2 := .bz2
+suffix-lzma  := .lzma
+suffix-xz    := .xz
+
 # Linux source tarball
 # ---------------------------------------------------------------------------
 
-quiet_cmd_archive_linux = ARCHIVE $@
-      cmd_archive_linux = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ $$(cat $<)
+linux-tarballs := $(addprefix linux, .tar.gz .tar.bz2 .tar.lzma .tar.xz)
 
-targets += linux.tar
-linux.tar: .tmp_HEAD FORCE
-	$(call if_changed,archive_linux)
+targets += $(linux-tarballs)
+$(linux-tarballs): archive-args = --prefix=linux/ $$(cat $<)
+$(linux-tarballs): .tmp_HEAD FORCE
+	$(call if_changed,archive)
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -93,8 +91,24 @@ binrpm-pkg:
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
 
+# deb-pkg srcdeb-pkg bindeb-pkg
+# ---------------------------------------------------------------------------
+
+KDEB_SOURCE_COMPRESS ?= gzip
+
+supported-deb-source-compress := gzip bzip2 lzma xz
+
+PHONY += linux.tar.unsupported-deb-src-compress
+linux.tar.unsupported-deb-src-compress:
+	@echo "error: KDEB_SOURCE_COMPRESS=$(KDEB_SOURCE_COMPRESS) is not supported. The supported values are: $(supported-deb-source-compress)" >&2
+	@false
+
+debian-orig-suffix := \
+    $(strip $(if $(filter $(supported-deb-source-compress), $(KDEB_SOURCE_COMPRESS)), \
+    $(suffix-$(KDEB_SOURCE_COMPRESS)),.unsupported-deb-src-compress))
+
 quiet_cmd_debianize = GEN     $@
-      cmd_debianize = $(srctree)/scripts/package/mkdebian
+      cmd_debianize = $(srctree)/scripts/package/mkdebian $(mkdebian-opts)
 
 debian: FORCE
 	$(call cmd,debianize)
@@ -102,22 +116,34 @@ debian: FORCE
 PHONY += debian-orig
 debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
-debian-orig: private orig-name = $(source)_$(version).orig.tar.gz
-debian-orig: linux.tar.gz debian
+debian-orig: private orig-name = $(source)_$(version).orig.tar$(debian-orig-suffix)
+debian-orig: mkdebian-opts = --need-source
+debian-orig: linux.tar$(debian-orig-suffix) debian
 	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
 	else \
 		cp $< ../$(orig-name); \
 	fi
 
-PHONY += deb-pkg
-deb-pkg: debian-orig
-	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) \
-		--build=source,binary -nc -us -uc
+KBUILD_PKG_ROOTCMD ?= 'fakeroot -u'
 
-PHONY += bindeb-pkg
+PHONY += deb-pkg srcdeb-pkg bindeb-pkg
+
+deb-pkg:    private build-type := source,binary
+srcdeb-pkg: private build-type := source
+bindeb-pkg: private build-type := binary
+
+deb-pkg srcdeb-pkg: debian-orig
 bindeb-pkg: debian
-	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -b -nc -uc
+deb-pkg srcdeb-pkg bindeb-pkg:
+	+$(strip dpkg-buildpackage \
+	--build=$(build-type) --no-pre-clean --unsigned-changes \
+	$(if $(findstring source, $(build-type)), \
+		--unsigned-source --compression=$(KDEB_SOURCE_COMPRESS)) \
+	$(if $(findstring binary, $(build-type)), \
+		-r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
+		--no-check-builddeps) \
+	$(DPKG_FLAGS))
 
 PHONY += intdeb-pkg
 intdeb-pkg:
@@ -145,10 +171,17 @@ tar-install: FORCE
 	$(Q)$(MAKE) -f $(srctree)/Makefile
 	+$(Q)$(srctree)/scripts/package/buildtar $@
 
-quiet_cmd_tar = TAR     $@
-      cmd_tar = cd $<; tar cf ../$@ --owner=root --group=root --sort=name *
+compress-tar.gz  = -I "$(KGZIP)"
+compress-tar.bz2 = -I "$(KBZIP2)"
+compress-tar.xz  = -I "$(XZ)"
+compress-tar.zst = -I "$(ZSTD)"
 
-linux-$(KERNELRELEASE)-$(ARCH).tar: tar-install
+quiet_cmd_tar = TAR     $@
+      cmd_tar = cd $<; tar cf ../$@ $(compress-tar$(suffix $@)) --owner=root --group=root --sort=name *
+
+dir-tarballs := $(addprefix linux-$(KERNELRELEASE)-$(ARCH), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+$(dir-tarballs): tar-install
 	$(call cmd,tar)
 
 PHONY += dir-pkg
@@ -180,16 +213,17 @@ quiet_cmd_perf_version_file = GEN     $@
 .tmp_perf/PERF-VERSION-FILE: .tmp_HEAD $(srctree)/tools/perf/util/PERF-VERSION-GEN | .tmp_perf
 	$(call cmd,perf_version_file)
 
-quiet_cmd_archive_perf = ARCHIVE $@
-      cmd_archive_perf = \
-	git -C $(srctree) archive --output=$$(realpath $@) --prefix=$(basename $@)/ \
-	--add-file=$$(realpath $(word 2, $^)) \
+perf-archive-args = --add-file=$$(realpath $(word 2, $^)) \
 	--add-file=$$(realpath $(word 3, $^)) \
 	$$(cat $(word 2, $^))^{tree} $$(cat $<)
 
-targets += perf-$(KERNELVERSION).tar
-perf-$(KERNELVERSION).tar: tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
-	$(call if_changed,archive_perf)
+
+perf-tarballs := $(addprefix perf-$(KERNELVERSION), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+
+targets += $(perf-tarballs)
+$(perf-tarballs): archive-args = --prefix=perf-$(KERNELVERSION)/ $(perf-archive-args)
+$(perf-tarballs): tools/perf/MANIFEST .tmp_perf/HEAD .tmp_perf/PERF-VERSION-FILE FORCE
+	$(call if_changed,archive)
 
 PHONY += perf-tar-src-pkg
 perf-tar-src-pkg: perf-$(KERNELVERSION).tar
@@ -206,6 +240,7 @@ help:
 	@echo '  srcrpm-pkg          - Build only the source kernel RPM package'
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
+	@echo '  srcdeb-pkg          - Build only the source kernel deb package'
 	@echo '  bindeb-pkg          - Build only the binary kernel deb package'
 	@echo '  snap-pkg            - Build only the binary kernel snap package'
 	@echo '                        (will connect to external hosts)'

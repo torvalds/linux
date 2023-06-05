@@ -422,7 +422,7 @@
 				clocks = <&gate_clk 3>;
 				clock-names = "sata";
 				#phy-cells = <0>;
-				status = "ok";
+				status = "okay";
 			};
 
 			audio0: audio-controller@b0000 {

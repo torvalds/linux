@@ -1181,6 +1181,22 @@ void phy_stop_machine(struct phy_device *phydev)
 	mutex_unlock(&phydev->lock);
 }
 
+static void phy_process_error(struct phy_device *phydev)
+{
+	mutex_lock(&phydev->lock);
+	phydev->state = PHY_HALTED;
+	mutex_unlock(&phydev->lock);
+
+	phy_trigger_machine(phydev);
+}
+
+static void phy_error_precise(struct phy_device *phydev,
+			      const void *func, int err)
+{
+	WARN(1, "%pS: returned: %d\n", func, err);
+	phy_process_error(phydev);
+}
+
 /**
  * phy_error - enter HALTED state for this PHY device
  * @phydev: target phy_device struct
@@ -1193,12 +1209,7 @@ void phy_stop_machine(struct phy_device *phydev)
 void phy_error(struct phy_device *phydev)
 {
 	WARN_ON(1);
-
-	mutex_lock(&phydev->lock);
-	phydev->state = PHY_HALTED;
-	mutex_unlock(&phydev->lock);
-
-	phy_trigger_machine(phydev);
+	phy_process_error(phydev);
 }
 EXPORT_SYMBOL(phy_error);
 
@@ -1393,6 +1404,7 @@ void phy_state_machine(struct work_struct *work)
 	struct net_device *dev = phydev->attached_dev;
 	bool needs_aneg = false, do_suspend = false;
 	enum phy_state old_state;
+	const void *func = NULL;
 	bool finished = false;
 	int err = 0;
 
@@ -1411,6 +1423,7 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_NOLINK:
 	case PHY_RUNNING:
 		err = phy_check_link_status(phydev);
+		func = &phy_check_link_status;
 		break;
 	case PHY_CABLETEST:
 		err = phydev->drv->cable_test_get_status(phydev, &finished);
@@ -1440,16 +1453,18 @@ void phy_state_machine(struct work_struct *work)
 
 	mutex_unlock(&phydev->lock);
 
-	if (needs_aneg)
+	if (needs_aneg) {
 		err = phy_start_aneg(phydev);
-	else if (do_suspend)
+		func = &phy_start_aneg;
+	} else if (do_suspend) {
 		phy_suspend(phydev);
+	}
 
 	if (err == -ENODEV)
 		return;
 
 	if (err < 0)
-		phy_error(phydev);
+		phy_error_precise(phydev, func, err);
 
 	phy_process_state_change(phydev, old_state);
 

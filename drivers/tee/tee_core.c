@@ -1226,7 +1226,7 @@ static int __init tee_init(void)
 {
 	int rc;
 
-	tee_class = class_create(THIS_MODULE, "tee");
+	tee_class = class_create("tee");
 	if (IS_ERR(tee_class)) {
 		pr_err("couldn't create class\n");
 		return PTR_ERR(tee_class);

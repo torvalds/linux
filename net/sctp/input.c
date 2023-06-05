@@ -585,7 +585,7 @@ static void sctp_v4_err_handle(struct sctp_transport *t, struct sk_buff *skb,
 		sk->sk_err = err;
 		sk_error_report(sk);
 	} else {  /* Only an error on timeout */
-		sk->sk_err_soft = err;
+		WRITE_ONCE(sk->sk_err_soft, err);
 	}
 }
 
@@ -1150,7 +1150,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	init = (struct sctp_init_chunk *)skb->data;
 
 	/* Walk the parameters looking for embedded addresses. */
-	sctp_walk_params(params, init, init_hdr.params) {
+	sctp_walk_params(params, init) {
 
 		/* Note: Ignoring hostname addresses. */
 		af = sctp_get_af_specific(param_type2af(params.p->type));

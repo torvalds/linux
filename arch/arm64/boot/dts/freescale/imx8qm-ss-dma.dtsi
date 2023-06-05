@@ -16,6 +16,50 @@
 				     "uart4_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_4>;
 	};
+
+	can1_lpcg: clock-controller@5ace0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5ace0000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_CAN_1 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>, <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>;
+		clock-output-names = "can1_lpcg_pe_clk",
+				     "can1_lpcg_ipg_clk",
+				     "can1_lpcg_chi_clk";
+		power-domains = <&pd IMX_SC_R_CAN_1>;
+	};
+
+	can2_lpcg: clock-controller@5acf0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5acf0000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_CAN_2 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>, <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>;
+		clock-output-names = "can2_lpcg_pe_clk",
+				     "can2_lpcg_ipg_clk",
+				     "can2_lpcg_chi_clk";
+		power-domains = <&pd IMX_SC_R_CAN_2>;
+	};
+};
+
+&flexcan1 {
+	fsl,clk-source = /bits/ 8 <1>;
+};
+
+&flexcan2 {
+	clocks = <&can1_lpcg 1>,
+		 <&can1_lpcg 0>;
+	assigned-clocks = <&clk IMX_SC_R_CAN_1 IMX_SC_PM_CLK_PER>;
+	fsl,clk-source = /bits/ 8 <1>;
+};
+
+&flexcan3 {
+	clocks = <&can2_lpcg 1>,
+		 <&can2_lpcg 0>;
+	assigned-clocks = <&clk IMX_SC_R_CAN_2 IMX_SC_PM_CLK_PER>;
+	fsl,clk-source = /bits/ 8 <1>;
 };
 
 &lpuart0 {

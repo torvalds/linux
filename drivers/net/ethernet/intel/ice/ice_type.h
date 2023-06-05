@@ -784,14 +784,15 @@ struct ice_mbx_snap_buffer_data {
 	u16 max_num_msgs_mbx;
 };
 
-/* Structure to track messages sent by VFs on mailbox:
- * 1. vf_cntr: a counter array of VFs to track the number of
- * asynchronous messages sent by each VF
- * 2. vfcntr_len: number of entries in VF counter array
+/* Structure used to track a single VF's messages on the mailbox:
+ * 1. list_entry: linked list entry node
+ * 2. msg_count: the number of asynchronous messages sent by this VF
+ * 3. malicious: whether this VF has been detected as malicious before
  */
-struct ice_mbx_vf_counter {
-	u32 *vf_cntr;
-	u32 vfcntr_len;
+struct ice_mbx_vf_info {
+	struct list_head list_entry;
+	u32 msg_count;
+	u8 malicious : 1;
 };
 
 /* Structure to hold data relevant to the captured static snapshot
@@ -799,7 +800,7 @@ struct ice_mbx_vf_counter {
  */
 struct ice_mbx_snapshot {
 	struct ice_mbx_snap_buffer_data mbx_buf;
-	struct ice_mbx_vf_counter mbx_vf;
+	struct list_head mbx_vf;
 };
 
 /* Structure to hold data to be used for capturing or updating a

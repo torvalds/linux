@@ -24,6 +24,7 @@
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
+#include "xfs_ag.h"
 
 struct kmem_cache	*xfs_bui_cache;
 struct kmem_cache	*xfs_bud_cache;
@@ -363,6 +364,34 @@ xfs_bmap_update_create_done(
 	return &xfs_trans_get_bud(tp, BUI_ITEM(intent))->bud_item;
 }
 
+/* Take a passive ref to the AG containing the space we're mapping. */
+void
+xfs_bmap_update_get_group(
+	struct xfs_mount	*mp,
+	struct xfs_bmap_intent	*bi)
+{
+	xfs_agnumber_t		agno;
+
+	agno = XFS_FSB_TO_AGNO(mp, bi->bi_bmap.br_startblock);
+
+	/*
+	 * Bump the intent count on behalf of the deferred rmap and refcount
+	 * intent items that that we can queue when we finish this bmap work.
+	 * This new intent item will bump the intent count before the bmap
+	 * intent drops the intent count, ensuring that the intent count
+	 * remains nonzero across the transaction roll.
+	 */
+	bi->bi_pag = xfs_perag_intent_get(mp, agno);
+}
+
+/* Release a passive AG ref after finishing mapping work. */
+static inline void
+xfs_bmap_update_put_group(
+	struct xfs_bmap_intent	*bi)
+{
+	xfs_perag_intent_put(bi->bi_pag);
+}
+
 /* Process a deferred rmap update. */
 STATIC int
 xfs_bmap_update_finish_item(
@@ -381,6 +410,8 @@ xfs_bmap_update_finish_item(
 		ASSERT(bi->bi_type == XFS_BMAP_UNMAP);
 		return -EAGAIN;
 	}
+
+	xfs_bmap_update_put_group(bi);
 	kmem_cache_free(xfs_bmap_intent_cache, bi);
 	return error;
 }
@@ -393,7 +424,7 @@ xfs_bmap_update_abort_intent(
 	xfs_bui_release(BUI_ITEM(intent));
 }
 
-/* Cancel a deferred rmap update. */
+/* Cancel a deferred bmap update. */
 STATIC void
 xfs_bmap_update_cancel_item(
 	struct list_head		*item)
@@ -401,6 +432,8 @@ xfs_bmap_update_cancel_item(
 	struct xfs_bmap_intent		*bi;
 
 	bi = container_of(item, struct xfs_bmap_intent, bi_list);
+
+	xfs_bmap_update_put_group(bi);
 	kmem_cache_free(xfs_bmap_intent_cache, bi);
 }
 
@@ -509,10 +542,12 @@ xfs_bui_item_recover(
 	fake.bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
 
+	xfs_bmap_update_get_group(mp, &fake);
 	error = xfs_trans_log_finish_bmap_update(tp, budp, &fake);
 	if (error == -EFSCORRUPTED)
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, map,
 				sizeof(*map));
+	xfs_bmap_update_put_group(&fake);
 	if (error)
 		goto err_cancel;
 

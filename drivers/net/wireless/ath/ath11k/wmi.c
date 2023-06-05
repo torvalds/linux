@@ -82,6 +82,12 @@ struct wmi_tlv_fw_stats_parse {
 	bool chain_rssi_done;
 };
 
+struct wmi_tlv_mgmt_rx_parse {
+	const struct wmi_mgmt_rx_hdr *fixed;
+	const u8 *frame_buf;
+	bool frame_buf_done;
+};
+
 static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 	[WMI_TAG_ARRAY_BYTE]
 		= { .min_len = 0 },
@@ -105,6 +111,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_vdev_stopped_event) },
 	[WMI_TAG_REG_CHAN_LIST_CC_EVENT]
 		= { .min_len = sizeof(struct wmi_reg_chan_list_cc_event) },
+	[WMI_TAG_REG_CHAN_LIST_CC_EXT_EVENT]
+		= { .min_len = sizeof(struct wmi_reg_chan_list_cc_ext_event) },
 	[WMI_TAG_MGMT_RX_HDR]
 		= { .min_len = sizeof(struct wmi_mgmt_rx_hdr) },
 	[WMI_TAG_MGMT_TX_COMPL_EVENT]
@@ -863,7 +871,8 @@ static void ath11k_wmi_put_wmi_channel(struct wmi_channel *chan,
 
 		chan->band_center_freq2 = arg->channel.band_center_freq1;
 
-	} else if (arg->channel.mode == MODE_11AC_VHT80_80) {
+	} else if ((arg->channel.mode == MODE_11AC_VHT80_80) ||
+		   (arg->channel.mode == MODE_11AX_HE80_80)) {
 		chan->band_center_freq2 = arg->channel.band_center_freq2;
 	} else {
 		chan->band_center_freq2 = 0;
@@ -2068,6 +2077,12 @@ void ath11k_wmi_start_scan_init(struct ath11k *ar,
 				  WMI_SCAN_EVENT_FOREIGN_CHAN |
 				  WMI_SCAN_EVENT_DEQUEUED;
 	arg->scan_flags |= WMI_SCAN_CHAN_STAT_EVENT;
+
+	if (test_bit(WMI_TLV_SERVICE_PASSIVE_SCAN_START_TIME_ENHANCE,
+		     ar->ab->wmi_ab.svc_map))
+		arg->scan_ctrl_flags_ext |=
+			WMI_SCAN_FLAG_EXT_PASSIVE_SCAN_START_TIME_ENHANCE;
+
 	arg->num_bssid = 1;
 
 	/* fill bssid_list[0] with 0xff, otherwise bssid and RA will be
@@ -2149,6 +2164,8 @@ ath11k_wmi_copy_scan_event_cntrl_flags(struct wmi_start_scan_cmd *cmd,
 	/* for adaptive scan mode using 3 bits (21 - 23 bits) */
 	WMI_SCAN_SET_DWELL_MODE(cmd->scan_ctrl_flags,
 				param->adaptive_dwell_time_mode);
+
+	cmd->scan_ctrl_flags_ext = param->scan_ctrl_flags_ext;
 }
 
 int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
@@ -3966,6 +3983,10 @@ ath11k_wmi_copy_resource_config(struct wmi_resource_config *wmi_cfg,
 	wmi_cfg->sched_params = tg_cfg->sched_params;
 	wmi_cfg->twt_ap_pdev_count = tg_cfg->twt_ap_pdev_count;
 	wmi_cfg->twt_ap_sta_count = tg_cfg->twt_ap_sta_count;
+	wmi_cfg->host_service_flags &=
+		~(1 << WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT);
+	wmi_cfg->host_service_flags |= (tg_cfg->is_reg_cc_ext_event_supported <<
+					WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT);
 }
 
 static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
@@ -4183,6 +4204,10 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	memset(&config, 0, sizeof(config));
 
 	ab->hw_params.hw_ops->wmi_init_config(ab, &config);
+
+	if (test_bit(WMI_TLV_SERVICE_REG_CC_EXT_EVENT_SUPPORT,
+		     ab->wmi_ab.svc_map))
+		config.is_reg_cc_ext_event_supported = 1;
 
 	memcpy(&wmi_sc->wlan_resource_config, &config, sizeof(config));
 
@@ -4907,6 +4932,26 @@ static int ath11k_pull_vdev_start_resp_tlv(struct ath11k_base *ab, struct sk_buf
 	return 0;
 }
 
+static void ath11k_print_reg_rule(struct ath11k_base *ab, const char *band,
+				  u32 num_reg_rules,
+				  struct cur_reg_rule *reg_rule_ptr)
+{
+	struct cur_reg_rule *reg_rule = reg_rule_ptr;
+	u32 count;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "number of reg rules in %s band: %d\n",
+		   band, num_reg_rules);
+
+	for (count = 0; count < num_reg_rules; count++) {
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "reg rule %d: (%d - %d @ %d) (%d, %d) (FLAGS %d)\n",
+			   count + 1, reg_rule->start_freq, reg_rule->end_freq,
+			   reg_rule->max_bw, reg_rule->ant_gain,
+			   reg_rule->reg_power, reg_rule->flags);
+		reg_rule++;
+	}
+}
+
 static struct cur_reg_rule
 *create_reg_rules_from_wmi(u32 num_reg_rules,
 			   struct wmi_regulatory_rule_struct *wmi_reg_rule)
@@ -4951,7 +4996,7 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 	const void **tb;
 	const struct wmi_reg_chan_list_cc_event *chan_list_event_hdr;
 	struct wmi_regulatory_rule_struct *wmi_reg_rule;
-	u32 num_2g_reg_rules, num_5g_reg_rules;
+	u32 num_2ghz_reg_rules, num_5ghz_reg_rules;
 	int ret;
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI, "processing regulatory channel list\n");
@@ -4970,10 +5015,10 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 		return -EPROTO;
 	}
 
-	reg_info->num_2g_reg_rules = chan_list_event_hdr->num_2g_reg_rules;
-	reg_info->num_5g_reg_rules = chan_list_event_hdr->num_5g_reg_rules;
+	reg_info->num_2ghz_reg_rules = chan_list_event_hdr->num_2ghz_reg_rules;
+	reg_info->num_5ghz_reg_rules = chan_list_event_hdr->num_5ghz_reg_rules;
 
-	if (!(reg_info->num_2g_reg_rules + reg_info->num_5g_reg_rules)) {
+	if (!(reg_info->num_2ghz_reg_rules + reg_info->num_5ghz_reg_rules)) {
 		ath11k_warn(ab, "No regulatory rules available in the event info\n");
 		kfree(tb);
 		return -EINVAL;
@@ -4987,64 +5032,494 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 	reg_info->phy_id = chan_list_event_hdr->phy_id;
 	reg_info->ctry_code = chan_list_event_hdr->country_id;
 	reg_info->reg_dmn_pair = chan_list_event_hdr->domain_code;
-	if (chan_list_event_hdr->status_code == WMI_REG_SET_CC_STATUS_PASS)
-		reg_info->status_code = REG_SET_CC_STATUS_PASS;
-	else if (chan_list_event_hdr->status_code == WMI_REG_CURRENT_ALPHA2_NOT_FOUND)
-		reg_info->status_code = REG_CURRENT_ALPHA2_NOT_FOUND;
-	else if (chan_list_event_hdr->status_code == WMI_REG_INIT_ALPHA2_NOT_FOUND)
-		reg_info->status_code = REG_INIT_ALPHA2_NOT_FOUND;
-	else if (chan_list_event_hdr->status_code == WMI_REG_SET_CC_CHANGE_NOT_ALLOWED)
-		reg_info->status_code = REG_SET_CC_CHANGE_NOT_ALLOWED;
-	else if (chan_list_event_hdr->status_code == WMI_REG_SET_CC_STATUS_NO_MEMORY)
-		reg_info->status_code = REG_SET_CC_STATUS_NO_MEMORY;
-	else if (chan_list_event_hdr->status_code == WMI_REG_SET_CC_STATUS_FAIL)
-		reg_info->status_code = REG_SET_CC_STATUS_FAIL;
-
-	reg_info->min_bw_2g = chan_list_event_hdr->min_bw_2g;
-	reg_info->max_bw_2g = chan_list_event_hdr->max_bw_2g;
-	reg_info->min_bw_5g = chan_list_event_hdr->min_bw_5g;
-	reg_info->max_bw_5g = chan_list_event_hdr->max_bw_5g;
-
-	num_2g_reg_rules = reg_info->num_2g_reg_rules;
-	num_5g_reg_rules = reg_info->num_5g_reg_rules;
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "%s:cc %s dsf %d BW: min_2g %d max_2g %d min_5g %d max_5g %d",
-		   __func__, reg_info->alpha2, reg_info->dfs_region,
-		   reg_info->min_bw_2g, reg_info->max_bw_2g,
-		   reg_info->min_bw_5g, reg_info->max_bw_5g);
+		   "status_code %s",
+		   ath11k_cc_status_to_str(reg_info->status_code));
+
+	reg_info->status_code =
+		ath11k_wmi_cc_setting_code_to_reg(chan_list_event_hdr->status_code);
+
+	reg_info->is_ext_reg_event = false;
+
+	reg_info->min_bw_2ghz = chan_list_event_hdr->min_bw_2ghz;
+	reg_info->max_bw_2ghz = chan_list_event_hdr->max_bw_2ghz;
+	reg_info->min_bw_5ghz = chan_list_event_hdr->min_bw_5ghz;
+	reg_info->max_bw_5ghz = chan_list_event_hdr->max_bw_5ghz;
+
+	num_2ghz_reg_rules = reg_info->num_2ghz_reg_rules;
+	num_5ghz_reg_rules = reg_info->num_5ghz_reg_rules;
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "%s: num_2g_reg_rules %d num_5g_reg_rules %d", __func__,
-		   num_2g_reg_rules, num_5g_reg_rules);
+		   "cc %s dsf %d BW: min_2ghz %d max_2ghz %d min_5ghz %d max_5ghz %d",
+		   reg_info->alpha2, reg_info->dfs_region,
+		   reg_info->min_bw_2ghz, reg_info->max_bw_2ghz,
+		   reg_info->min_bw_5ghz, reg_info->max_bw_5ghz);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "num_2ghz_reg_rules %d num_5ghz_reg_rules %d",
+		   num_2ghz_reg_rules, num_5ghz_reg_rules);
 
 	wmi_reg_rule =
 		(struct wmi_regulatory_rule_struct *)((u8 *)chan_list_event_hdr
 						+ sizeof(*chan_list_event_hdr)
 						+ sizeof(struct wmi_tlv));
 
-	if (num_2g_reg_rules) {
-		reg_info->reg_rules_2g_ptr = create_reg_rules_from_wmi(num_2g_reg_rules,
-								       wmi_reg_rule);
-		if (!reg_info->reg_rules_2g_ptr) {
+	if (num_2ghz_reg_rules) {
+		reg_info->reg_rules_2ghz_ptr =
+				create_reg_rules_from_wmi(num_2ghz_reg_rules,
+							  wmi_reg_rule);
+		if (!reg_info->reg_rules_2ghz_ptr) {
 			kfree(tb);
-			ath11k_warn(ab, "Unable to Allocate memory for 2g rules\n");
+			ath11k_warn(ab, "Unable to Allocate memory for 2 GHz rules\n");
 			return -ENOMEM;
 		}
+
+		ath11k_print_reg_rule(ab, "2 GHz",
+				      num_2ghz_reg_rules,
+				      reg_info->reg_rules_2ghz_ptr);
 	}
 
-	if (num_5g_reg_rules) {
-		wmi_reg_rule += num_2g_reg_rules;
-		reg_info->reg_rules_5g_ptr = create_reg_rules_from_wmi(num_5g_reg_rules,
-								       wmi_reg_rule);
-		if (!reg_info->reg_rules_5g_ptr) {
+	if (num_5ghz_reg_rules) {
+		wmi_reg_rule += num_2ghz_reg_rules;
+		reg_info->reg_rules_5ghz_ptr =
+				create_reg_rules_from_wmi(num_5ghz_reg_rules,
+							  wmi_reg_rule);
+		if (!reg_info->reg_rules_5ghz_ptr) {
 			kfree(tb);
-			ath11k_warn(ab, "Unable to Allocate memory for 5g rules\n");
+			ath11k_warn(ab, "Unable to Allocate memory for 5 GHz rules\n");
 			return -ENOMEM;
 		}
+
+		ath11k_print_reg_rule(ab, "5 GHz",
+				      num_5ghz_reg_rules,
+				      reg_info->reg_rules_5ghz_ptr);
 	}
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI, "processed regulatory channel list\n");
+
+	kfree(tb);
+	return 0;
+}
+
+static struct cur_reg_rule
+*create_ext_reg_rules_from_wmi(u32 num_reg_rules,
+			       struct wmi_regulatory_ext_rule *wmi_reg_rule)
+{
+	struct cur_reg_rule *reg_rule_ptr;
+	u32 count;
+
+	reg_rule_ptr =  kcalloc(num_reg_rules, sizeof(*reg_rule_ptr), GFP_ATOMIC);
+
+	if (!reg_rule_ptr)
+		return NULL;
+
+	for (count = 0; count < num_reg_rules; count++) {
+		reg_rule_ptr[count].start_freq =
+			u32_get_bits(wmi_reg_rule[count].freq_info,
+				     REG_RULE_START_FREQ);
+		reg_rule_ptr[count].end_freq =
+			u32_get_bits(wmi_reg_rule[count].freq_info,
+				     REG_RULE_END_FREQ);
+		reg_rule_ptr[count].max_bw =
+			u32_get_bits(wmi_reg_rule[count].bw_pwr_info,
+				     REG_RULE_MAX_BW);
+		reg_rule_ptr[count].reg_power =
+			u32_get_bits(wmi_reg_rule[count].bw_pwr_info,
+				     REG_RULE_REG_PWR);
+		reg_rule_ptr[count].ant_gain =
+			u32_get_bits(wmi_reg_rule[count].bw_pwr_info,
+				     REG_RULE_ANT_GAIN);
+		reg_rule_ptr[count].flags =
+			u32_get_bits(wmi_reg_rule[count].flag_info,
+				     REG_RULE_FLAGS);
+		reg_rule_ptr[count].psd_flag =
+			u32_get_bits(wmi_reg_rule[count].psd_power_info,
+				     REG_RULE_PSD_INFO);
+		reg_rule_ptr[count].psd_eirp =
+			u32_get_bits(wmi_reg_rule[count].psd_power_info,
+				     REG_RULE_PSD_EIRP);
+	}
+
+	return reg_rule_ptr;
+}
+
+static u8
+ath11k_invalid_5ghz_reg_ext_rules_from_wmi(u32 num_reg_rules,
+					   const struct wmi_regulatory_ext_rule *rule)
+{
+	u8 num_invalid_5ghz_rules = 0;
+	u32 count, start_freq;
+
+	for (count = 0; count < num_reg_rules; count++) {
+		start_freq = u32_get_bits(rule[count].freq_info,
+					  REG_RULE_START_FREQ);
+
+		if (start_freq >= ATH11K_MIN_6G_FREQ)
+			num_invalid_5ghz_rules++;
+	}
+
+	return num_invalid_5ghz_rules;
+}
+
+static int ath11k_pull_reg_chan_list_ext_update_ev(struct ath11k_base *ab,
+						   struct sk_buff *skb,
+						   struct cur_regulatory_info *reg_info)
+{
+	const void **tb;
+	const struct wmi_reg_chan_list_cc_ext_event *ev;
+	struct wmi_regulatory_ext_rule *ext_wmi_reg_rule;
+	u32 num_2ghz_reg_rules, num_5ghz_reg_rules;
+	u32 num_6ghz_reg_rules_ap[WMI_REG_CURRENT_MAX_AP_TYPE];
+	u32 num_6ghz_client[WMI_REG_CURRENT_MAX_AP_TYPE][WMI_REG_MAX_CLIENT_TYPE];
+	u32 total_reg_rules = 0;
+	int ret, i, j, num_invalid_5ghz_ext_rules = 0;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "processing regulatory ext channel list\n");
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TAG_REG_CHAN_LIST_CC_EXT_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch reg chan list ext update ev\n");
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	reg_info->num_2ghz_reg_rules = ev->num_2ghz_reg_rules;
+	reg_info->num_5ghz_reg_rules = ev->num_5ghz_reg_rules;
+	reg_info->num_6ghz_rules_ap[WMI_REG_INDOOR_AP] =
+			ev->num_6ghz_reg_rules_ap_lpi;
+	reg_info->num_6ghz_rules_ap[WMI_REG_STANDARD_POWER_AP] =
+			ev->num_6ghz_reg_rules_ap_sp;
+	reg_info->num_6ghz_rules_ap[WMI_REG_VERY_LOW_POWER_AP] =
+			ev->num_6ghz_reg_rules_ap_vlp;
+
+	for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++) {
+		reg_info->num_6ghz_rules_client[WMI_REG_INDOOR_AP][i] =
+			ev->num_6ghz_reg_rules_client_lpi[i];
+		reg_info->num_6ghz_rules_client[WMI_REG_STANDARD_POWER_AP][i] =
+			ev->num_6ghz_reg_rules_client_sp[i];
+		reg_info->num_6ghz_rules_client[WMI_REG_VERY_LOW_POWER_AP][i] =
+			ev->num_6ghz_reg_rules_client_vlp[i];
+	}
+
+	num_2ghz_reg_rules = reg_info->num_2ghz_reg_rules;
+	num_5ghz_reg_rules = reg_info->num_5ghz_reg_rules;
+
+	total_reg_rules += num_2ghz_reg_rules;
+	total_reg_rules += num_5ghz_reg_rules;
+
+	if ((num_2ghz_reg_rules > MAX_REG_RULES) ||
+	    (num_5ghz_reg_rules > MAX_REG_RULES)) {
+		ath11k_warn(ab, "Num reg rules for 2.4 GHz/5 GHz exceeds max limit (num_2ghz_reg_rules: %d num_5ghz_reg_rules: %d max_rules: %d)\n",
+			    num_2ghz_reg_rules, num_5ghz_reg_rules, MAX_REG_RULES);
+		kfree(tb);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++) {
+		num_6ghz_reg_rules_ap[i] = reg_info->num_6ghz_rules_ap[i];
+
+		if (num_6ghz_reg_rules_ap[i] > MAX_6GHZ_REG_RULES) {
+			ath11k_warn(ab, "Num 6 GHz reg rules for AP mode(%d) exceeds max limit (num_6ghz_reg_rules_ap: %d, max_rules: %d)\n",
+				    i, num_6ghz_reg_rules_ap[i], MAX_6GHZ_REG_RULES);
+			kfree(tb);
+			return -EINVAL;
+		}
+
+		total_reg_rules += num_6ghz_reg_rules_ap[i];
+	}
+
+	for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++) {
+		num_6ghz_client[WMI_REG_INDOOR_AP][i] =
+			reg_info->num_6ghz_rules_client[WMI_REG_INDOOR_AP][i];
+		total_reg_rules += num_6ghz_client[WMI_REG_INDOOR_AP][i];
+
+		num_6ghz_client[WMI_REG_STANDARD_POWER_AP][i] =
+			reg_info->num_6ghz_rules_client[WMI_REG_STANDARD_POWER_AP][i];
+		total_reg_rules += num_6ghz_client[WMI_REG_STANDARD_POWER_AP][i];
+
+		num_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i] =
+			reg_info->num_6ghz_rules_client[WMI_REG_VERY_LOW_POWER_AP][i];
+		total_reg_rules += num_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i];
+
+		if ((num_6ghz_client[WMI_REG_INDOOR_AP][i] > MAX_6GHZ_REG_RULES) ||
+		    (num_6ghz_client[WMI_REG_STANDARD_POWER_AP][i] >
+							     MAX_6GHZ_REG_RULES) ||
+		    (num_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i] >
+							     MAX_6GHZ_REG_RULES)) {
+			ath11k_warn(ab,
+				    "Num 6 GHz client reg rules exceeds max limit, for client(type: %d)\n",
+				    i);
+			kfree(tb);
+			return -EINVAL;
+		}
+	}
+
+	if (!total_reg_rules) {
+		ath11k_warn(ab, "No reg rules available\n");
+		kfree(tb);
+		return -EINVAL;
+	}
+
+	memcpy(reg_info->alpha2, &ev->alpha2, REG_ALPHA2_LEN);
+
+	reg_info->dfs_region = ev->dfs_region;
+	reg_info->phybitmap = ev->phybitmap;
+	reg_info->num_phy = ev->num_phy;
+	reg_info->phy_id = ev->phy_id;
+	reg_info->ctry_code = ev->country_id;
+	reg_info->reg_dmn_pair = ev->domain_code;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "status_code %s",
+		   ath11k_cc_status_to_str(reg_info->status_code));
+
+	reg_info->status_code =
+		ath11k_wmi_cc_setting_code_to_reg(ev->status_code);
+
+	reg_info->is_ext_reg_event = true;
+
+	reg_info->min_bw_2ghz = ev->min_bw_2ghz;
+	reg_info->max_bw_2ghz = ev->max_bw_2ghz;
+	reg_info->min_bw_5ghz = ev->min_bw_5ghz;
+	reg_info->max_bw_5ghz = ev->max_bw_5ghz;
+
+	reg_info->min_bw_6ghz_ap[WMI_REG_INDOOR_AP] =
+			ev->min_bw_6ghz_ap_lpi;
+	reg_info->max_bw_6ghz_ap[WMI_REG_INDOOR_AP] =
+			ev->max_bw_6ghz_ap_lpi;
+	reg_info->min_bw_6ghz_ap[WMI_REG_STANDARD_POWER_AP] =
+			ev->min_bw_6ghz_ap_sp;
+	reg_info->max_bw_6ghz_ap[WMI_REG_STANDARD_POWER_AP] =
+			ev->max_bw_6ghz_ap_sp;
+	reg_info->min_bw_6ghz_ap[WMI_REG_VERY_LOW_POWER_AP] =
+			ev->min_bw_6ghz_ap_vlp;
+	reg_info->max_bw_6ghz_ap[WMI_REG_VERY_LOW_POWER_AP] =
+			ev->max_bw_6ghz_ap_vlp;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "6 GHz AP BW: LPI (%d - %d), SP (%d - %d), VLP (%d - %d)\n",
+		   reg_info->min_bw_6ghz_ap[WMI_REG_INDOOR_AP],
+		   reg_info->max_bw_6ghz_ap[WMI_REG_INDOOR_AP],
+		   reg_info->min_bw_6ghz_ap[WMI_REG_STANDARD_POWER_AP],
+		   reg_info->max_bw_6ghz_ap[WMI_REG_STANDARD_POWER_AP],
+		   reg_info->min_bw_6ghz_ap[WMI_REG_VERY_LOW_POWER_AP],
+		   reg_info->max_bw_6ghz_ap[WMI_REG_VERY_LOW_POWER_AP]);
+
+	for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++) {
+		reg_info->min_bw_6ghz_client[WMI_REG_INDOOR_AP][i] =
+				ev->min_bw_6ghz_client_lpi[i];
+		reg_info->max_bw_6ghz_client[WMI_REG_INDOOR_AP][i] =
+				ev->max_bw_6ghz_client_lpi[i];
+		reg_info->min_bw_6ghz_client[WMI_REG_STANDARD_POWER_AP][i] =
+				ev->min_bw_6ghz_client_sp[i];
+		reg_info->max_bw_6ghz_client[WMI_REG_STANDARD_POWER_AP][i] =
+				ev->max_bw_6ghz_client_sp[i];
+		reg_info->min_bw_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i] =
+				ev->min_bw_6ghz_client_vlp[i];
+		reg_info->max_bw_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i] =
+				ev->max_bw_6ghz_client_vlp[i];
+
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "6 GHz %s BW: LPI (%d - %d), SP (%d - %d), VLP (%d - %d)\n",
+			   ath11k_6ghz_client_type_to_str(i),
+			   reg_info->min_bw_6ghz_client[WMI_REG_INDOOR_AP][i],
+			   reg_info->max_bw_6ghz_client[WMI_REG_INDOOR_AP][i],
+			   reg_info->min_bw_6ghz_client[WMI_REG_STANDARD_POWER_AP][i],
+			   reg_info->max_bw_6ghz_client[WMI_REG_STANDARD_POWER_AP][i],
+			   reg_info->min_bw_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i],
+			   reg_info->max_bw_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i]);
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "cc_ext %s dsf %d BW: min_2ghz %d max_2ghz %d min_5ghz %d max_5ghz %d",
+		   reg_info->alpha2, reg_info->dfs_region,
+		   reg_info->min_bw_2ghz, reg_info->max_bw_2ghz,
+		   reg_info->min_bw_5ghz, reg_info->max_bw_5ghz);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "num_2ghz_reg_rules %d num_5ghz_reg_rules %d",
+		   num_2ghz_reg_rules, num_5ghz_reg_rules);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "num_6ghz_reg_rules_ap_lpi: %d num_6ghz_reg_rules_ap_sp: %d num_6ghz_reg_rules_ap_vlp: %d",
+		   num_6ghz_reg_rules_ap[WMI_REG_INDOOR_AP],
+		   num_6ghz_reg_rules_ap[WMI_REG_STANDARD_POWER_AP],
+		   num_6ghz_reg_rules_ap[WMI_REG_VERY_LOW_POWER_AP]);
+
+	j = WMI_REG_DEFAULT_CLIENT;
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "6 GHz Regular client: num_6ghz_reg_rules_lpi: %d num_6ghz_reg_rules_sp: %d num_6ghz_reg_rules_vlp: %d",
+		   num_6ghz_client[WMI_REG_INDOOR_AP][j],
+		   num_6ghz_client[WMI_REG_STANDARD_POWER_AP][j],
+		   num_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][j]);
+
+	j = WMI_REG_SUBORDINATE_CLIENT;
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "6 GHz Subordinate client: num_6ghz_reg_rules_lpi: %d num_6ghz_reg_rules_sp: %d num_6ghz_reg_rules_vlp: %d",
+		   num_6ghz_client[WMI_REG_INDOOR_AP][j],
+		   num_6ghz_client[WMI_REG_STANDARD_POWER_AP][j],
+		   num_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][j]);
+
+	ext_wmi_reg_rule =
+		(struct wmi_regulatory_ext_rule *)((u8 *)ev + sizeof(*ev) +
+						   sizeof(struct wmi_tlv));
+	if (num_2ghz_reg_rules) {
+		reg_info->reg_rules_2ghz_ptr =
+			create_ext_reg_rules_from_wmi(num_2ghz_reg_rules,
+						      ext_wmi_reg_rule);
+
+		if (!reg_info->reg_rules_2ghz_ptr) {
+			kfree(tb);
+			ath11k_warn(ab, "Unable to Allocate memory for 2 GHz rules\n");
+			return -ENOMEM;
+		}
+
+		ath11k_print_reg_rule(ab, "2 GHz",
+				      num_2ghz_reg_rules,
+				      reg_info->reg_rules_2ghz_ptr);
+	}
+
+	ext_wmi_reg_rule += num_2ghz_reg_rules;
+
+	/* Firmware might include 6 GHz reg rule in 5 GHz rule list
+	 * for few countries along with separate 6 GHz rule.
+	 * Having same 6 GHz reg rule in 5 GHz and 6 GHz rules list
+	 * causes intersect check to be true, and same rules will be
+	 * shown multiple times in iw cmd.
+	 * Hence, avoid parsing 6 GHz rule from 5 GHz reg rule list
+	 */
+	num_invalid_5ghz_ext_rules =
+		ath11k_invalid_5ghz_reg_ext_rules_from_wmi(num_5ghz_reg_rules,
+							   ext_wmi_reg_rule);
+
+	if (num_invalid_5ghz_ext_rules) {
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "CC: %s 5 GHz reg rules number %d from fw, %d number of invalid 5 GHz rules",
+			   reg_info->alpha2, reg_info->num_5ghz_reg_rules,
+			   num_invalid_5ghz_ext_rules);
+
+		num_5ghz_reg_rules = num_5ghz_reg_rules - num_invalid_5ghz_ext_rules;
+		reg_info->num_5ghz_reg_rules = num_5ghz_reg_rules;
+	}
+
+	if (num_5ghz_reg_rules) {
+		reg_info->reg_rules_5ghz_ptr =
+			create_ext_reg_rules_from_wmi(num_5ghz_reg_rules,
+						      ext_wmi_reg_rule);
+
+		if (!reg_info->reg_rules_5ghz_ptr) {
+			kfree(tb);
+			ath11k_warn(ab, "Unable to Allocate memory for 5 GHz rules\n");
+			return -ENOMEM;
+		}
+
+		ath11k_print_reg_rule(ab, "5 GHz",
+				      num_5ghz_reg_rules,
+				      reg_info->reg_rules_5ghz_ptr);
+	}
+
+	/* We have adjusted the number of 5 GHz reg rules above. But still those
+	 * many rules needs to be adjusted in ext_wmi_reg_rule.
+	 *
+	 * NOTE: num_invalid_5ghz_ext_rules will be 0 for rest other cases.
+	 */
+	ext_wmi_reg_rule += (num_5ghz_reg_rules + num_invalid_5ghz_ext_rules);
+
+	for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++) {
+		reg_info->reg_rules_6ghz_ap_ptr[i] =
+			create_ext_reg_rules_from_wmi(num_6ghz_reg_rules_ap[i],
+						      ext_wmi_reg_rule);
+
+		if (!reg_info->reg_rules_6ghz_ap_ptr[i]) {
+			kfree(tb);
+			ath11k_warn(ab, "Unable to Allocate memory for 6 GHz AP rules\n");
+			return -ENOMEM;
+		}
+
+		ath11k_print_reg_rule(ab, ath11k_6ghz_ap_type_to_str(i),
+				      num_6ghz_reg_rules_ap[i],
+				      reg_info->reg_rules_6ghz_ap_ptr[i]);
+
+		ext_wmi_reg_rule += num_6ghz_reg_rules_ap[i];
+	}
+
+	for (j = 0; j < WMI_REG_CURRENT_MAX_AP_TYPE; j++) {
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "6 GHz AP type %s", ath11k_6ghz_ap_type_to_str(j));
+
+		for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++) {
+			reg_info->reg_rules_6ghz_client_ptr[j][i] =
+				create_ext_reg_rules_from_wmi(num_6ghz_client[j][i],
+							      ext_wmi_reg_rule);
+
+			if (!reg_info->reg_rules_6ghz_client_ptr[j][i]) {
+				kfree(tb);
+				ath11k_warn(ab, "Unable to Allocate memory for 6 GHz client rules\n");
+				return -ENOMEM;
+			}
+
+			ath11k_print_reg_rule(ab,
+					      ath11k_6ghz_client_type_to_str(i),
+					      num_6ghz_client[j][i],
+					      reg_info->reg_rules_6ghz_client_ptr[j][i]);
+
+			ext_wmi_reg_rule += num_6ghz_client[j][i];
+		}
+	}
+
+	reg_info->client_type = ev->client_type;
+	reg_info->rnr_tpe_usable = ev->rnr_tpe_usable;
+	reg_info->unspecified_ap_usable =
+			ev->unspecified_ap_usable;
+	reg_info->domain_code_6ghz_ap[WMI_REG_INDOOR_AP] =
+			ev->domain_code_6ghz_ap_lpi;
+	reg_info->domain_code_6ghz_ap[WMI_REG_STANDARD_POWER_AP] =
+			ev->domain_code_6ghz_ap_sp;
+	reg_info->domain_code_6ghz_ap[WMI_REG_VERY_LOW_POWER_AP] =
+			ev->domain_code_6ghz_ap_vlp;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "6 GHz reg info client type %s rnr_tpe_usable %d unspecified_ap_usable %d AP sub domain: lpi %s, sp %s, vlp %s\n",
+		   ath11k_6ghz_client_type_to_str(reg_info->client_type),
+		   reg_info->rnr_tpe_usable,
+		   reg_info->unspecified_ap_usable,
+		   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_ap_lpi),
+		   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_ap_sp),
+		   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_ap_vlp));
+
+	for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++) {
+		reg_info->domain_code_6ghz_client[WMI_REG_INDOOR_AP][i] =
+				ev->domain_code_6ghz_client_lpi[i];
+		reg_info->domain_code_6ghz_client[WMI_REG_STANDARD_POWER_AP][i] =
+				ev->domain_code_6ghz_client_sp[i];
+		reg_info->domain_code_6ghz_client[WMI_REG_VERY_LOW_POWER_AP][i] =
+				ev->domain_code_6ghz_client_vlp[i];
+
+		ath11k_dbg(ab, ATH11K_DBG_WMI,
+			   "6 GHz client type %s client sub domain: lpi %s, sp %s, vlp %s\n",
+			   ath11k_6ghz_client_type_to_str(i),
+			   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_client_lpi[i]),
+			   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_client_sp[i]),
+			   ath11k_sub_reg_6ghz_to_str(ev->domain_code_6ghz_client_vlp[i])
+			  );
+	}
+
+	reg_info->domain_code_6ghz_super_id = ev->domain_code_6ghz_super_id;
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "6 GHz client_type %s 6 GHz super domain %s",
+		   ath11k_6ghz_client_type_to_str(reg_info->client_type),
+		   ath11k_super_reg_6ghz_to_str(reg_info->domain_code_6ghz_super_id));
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "processed regulatory ext channel list\n");
 
 	kfree(tb);
 	return 0;
@@ -5165,28 +5640,49 @@ static int ath11k_pull_vdev_stopped_param_tlv(struct ath11k_base *ab, struct sk_
 	return 0;
 }
 
+static int ath11k_wmi_tlv_mgmt_rx_parse(struct ath11k_base *ab,
+					u16 tag, u16 len,
+					const void *ptr, void *data)
+{
+	struct wmi_tlv_mgmt_rx_parse *parse = data;
+
+	switch (tag) {
+	case WMI_TAG_MGMT_RX_HDR:
+		parse->fixed = ptr;
+		break;
+	case WMI_TAG_ARRAY_BYTE:
+		if (!parse->frame_buf_done) {
+			parse->frame_buf = ptr;
+			parse->frame_buf_done = true;
+		}
+		break;
+	}
+	return 0;
+}
+
 static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 					  struct sk_buff *skb,
 					  struct mgmt_rx_event_params *hdr)
 {
-	const void **tb;
+	struct wmi_tlv_mgmt_rx_parse parse = { };
 	const struct wmi_mgmt_rx_hdr *ev;
 	const u8 *frame;
 	int ret;
 
-	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
-	if (IS_ERR(tb)) {
-		ret = PTR_ERR(tb);
-		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+	ret = ath11k_wmi_tlv_iter(ab, skb->data, skb->len,
+				  ath11k_wmi_tlv_mgmt_rx_parse,
+				  &parse);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse mgmt rx tlv %d\n",
+			    ret);
 		return ret;
 	}
 
-	ev = tb[WMI_TAG_MGMT_RX_HDR];
-	frame = tb[WMI_TAG_ARRAY_BYTE];
+	ev = parse.fixed;
+	frame = parse.frame_buf;
 
 	if (!ev || !frame) {
 		ath11k_warn(ab, "failed to fetch mgmt rx hdr");
-		kfree(tb);
 		return -EPROTO;
 	}
 
@@ -5205,7 +5701,6 @@ static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 
 	if (skb->len < (frame - skb->data) + hdr->buf_len) {
 		ath11k_warn(ab, "invalid length in mgmt rx hdr ev");
-		kfree(tb);
 		return -EPROTO;
 	}
 
@@ -5217,12 +5712,11 @@ static int ath11k_pull_mgmt_rx_params_tlv(struct ath11k_base *ab,
 
 	ath11k_ce_byte_swap(skb->data, hdr->buf_len);
 
-	kfree(tb);
 	return 0;
 }
 
-static int wmi_process_mgmt_tx_comp(struct ath11k *ar, u32 desc_id,
-				    u32 status)
+static int wmi_process_mgmt_tx_comp(struct ath11k *ar,
+				    struct wmi_mgmt_tx_compl_event *tx_compl_param)
 {
 	struct sk_buff *msdu;
 	struct ieee80211_tx_info *info;
@@ -5230,24 +5724,29 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar, u32 desc_id,
 	int num_mgmt;
 
 	spin_lock_bh(&ar->txmgmt_idr_lock);
-	msdu = idr_find(&ar->txmgmt_idr, desc_id);
+	msdu = idr_find(&ar->txmgmt_idr, tx_compl_param->desc_id);
 
 	if (!msdu) {
 		ath11k_warn(ar->ab, "received mgmt tx compl for invalid msdu_id: %d\n",
-			    desc_id);
+			    tx_compl_param->desc_id);
 		spin_unlock_bh(&ar->txmgmt_idr_lock);
 		return -ENOENT;
 	}
 
-	idr_remove(&ar->txmgmt_idr, desc_id);
+	idr_remove(&ar->txmgmt_idr, tx_compl_param->desc_id);
 	spin_unlock_bh(&ar->txmgmt_idr_lock);
 
 	skb_cb = ATH11K_SKB_CB(msdu);
 	dma_unmap_single(ar->ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 
 	info = IEEE80211_SKB_CB(msdu);
-	if ((!(info->flags & IEEE80211_TX_CTL_NO_ACK)) && !status)
+	if ((!(info->flags & IEEE80211_TX_CTL_NO_ACK)) &&
+	    !tx_compl_param->status) {
 		info->flags |= IEEE80211_TX_STAT_ACK;
+		if (test_bit(WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI,
+			     ar->ab->wmi_ab.svc_map))
+			info->status.ack_signal = tx_compl_param->ack_rssi;
+	}
 
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
 
@@ -5259,7 +5758,7 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar, u32 desc_id,
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
 		   "wmi mgmt tx comp pending %d desc id %d\n",
-		   num_mgmt, desc_id);
+		   num_mgmt, tx_compl_param->desc_id);
 
 	if (!num_mgmt)
 		wake_up(&ar->txmgmt_empty_waitq);
@@ -5292,6 +5791,7 @@ static int ath11k_pull_mgmt_tx_compl_param_tlv(struct ath11k_base *ab,
 	param->pdev_id = ev->pdev_id;
 	param->desc_id = ev->desc_id;
 	param->status = ev->status;
+	param->ack_rssi = ev->ack_rssi;
 
 	kfree(tb);
 	return 0;
@@ -6491,12 +6991,14 @@ static bool ath11k_reg_is_world_alpha(char *alpha)
 	return false;
 }
 
-static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *skb)
+static int ath11k_reg_chan_list_event(struct ath11k_base *ab,
+				      struct sk_buff *skb,
+				      enum wmi_reg_chan_list_cmd_type id)
 {
 	struct cur_regulatory_info *reg_info = NULL;
 	struct ieee80211_regdomain *regd = NULL;
 	bool intersect = false;
-	int ret = 0, pdev_idx;
+	int ret = 0, pdev_idx, i, j;
 	struct ath11k *ar;
 
 	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
@@ -6505,7 +7007,11 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 		goto fallback;
 	}
 
-	ret = ath11k_pull_reg_chan_list_update_ev(ab, skb, reg_info);
+	if (id == WMI_REG_CHAN_LIST_CC_ID)
+		ret = ath11k_pull_reg_chan_list_update_ev(ab, skb, reg_info);
+	else
+		ret = ath11k_pull_reg_chan_list_ext_update_ev(ab, skb, reg_info);
+
 	if (ret) {
 		ath11k_warn(ab, "failed to extract regulatory info from received event\n");
 		goto fallback;
@@ -6605,8 +7111,16 @@ fallback:
 	WARN_ON(1);
 mem_free:
 	if (reg_info) {
-		kfree(reg_info->reg_rules_2g_ptr);
-		kfree(reg_info->reg_rules_5g_ptr);
+		kfree(reg_info->reg_rules_2ghz_ptr);
+		kfree(reg_info->reg_rules_5ghz_ptr);
+		if (reg_info->is_ext_reg_event) {
+			for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++)
+				kfree(reg_info->reg_rules_6ghz_ap_ptr[i]);
+
+			for (j = 0; j < WMI_REG_CURRENT_MAX_AP_TYPE; j++)
+				for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++)
+					kfree(reg_info->reg_rules_6ghz_client_ptr[j][i]);
+		}
 		kfree(reg_info);
 	}
 	return ret;
@@ -7062,13 +7576,12 @@ static void ath11k_mgmt_tx_compl_event(struct ath11k_base *ab, struct sk_buff *s
 		goto exit;
 	}
 
-	wmi_process_mgmt_tx_comp(ar, tx_compl_param.desc_id,
-				 tx_compl_param.status);
+	wmi_process_mgmt_tx_comp(ar, &tx_compl_param);
 
 	ath11k_dbg(ab, ATH11K_DBG_MGMT,
-		   "mgmt tx compl ev pdev_id %d, desc_id %d, status %d",
+		   "mgmt tx compl ev pdev_id %d, desc_id %d, status %d ack_rssi %d",
 		   tx_compl_param.pdev_id, tx_compl_param.desc_id,
-		   tx_compl_param.status);
+		   tx_compl_param.status, tx_compl_param.ack_rssi);
 
 exit:
 	rcu_read_unlock();
@@ -8039,7 +8552,10 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		ath11k_service_ready_ext2_event(ab, skb);
 		break;
 	case WMI_REG_CHAN_LIST_CC_EVENTID:
-		ath11k_reg_chan_list_event(ab, skb);
+		ath11k_reg_chan_list_event(ab, skb, WMI_REG_CHAN_LIST_CC_ID);
+		break;
+	case WMI_REG_CHAN_LIST_CC_EXT_EVENTID:
+		ath11k_reg_chan_list_event(ab, skb, WMI_REG_CHAN_LIST_CC_EXT_ID);
 		break;
 	case WMI_READY_EVENTID:
 		ath11k_ready_event(ab, skb);

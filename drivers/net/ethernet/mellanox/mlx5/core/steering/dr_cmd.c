@@ -132,6 +132,17 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 
 	caps->isolate_vl_tc = MLX5_CAP_GEN(mdev, isolate_vl_tc_new);
 
+	caps->support_modify_argument =
+		MLX5_CAP_GEN_64(mdev, general_obj_types) &
+		MLX5_GENERAL_OBJ_TYPES_CAP_HEADER_MODIFY_ARGUMENT;
+
+	if (caps->support_modify_argument) {
+		caps->log_header_modify_argument_granularity =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_granularity);
+		caps->log_header_modify_argument_max_alloc =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_max_alloc);
+	}
+
 	/* geneve_tlv_option_0_exist is the indication of
 	 * STE support for lookup type flex_parser_ok
 	 */
@@ -199,6 +210,12 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->log_icm_size = MLX5_CAP_DEV_MEM(mdev, log_steering_sw_icm_size);
 	caps->hdr_modify_icm_addr =
 		MLX5_CAP64_DEV_MEM(mdev, header_modify_sw_icm_start_address);
+
+	caps->log_modify_pattern_icm_size =
+		MLX5_CAP_DEV_MEM(mdev, log_header_modify_pattern_sw_icm_size);
+
+	caps->hdr_modify_pattern_icm_addr =
+		MLX5_CAP64_DEV_MEM(mdev, header_modify_pattern_sw_icm_start_address);
 
 	caps->roce_min_src_udp = MLX5_CAP_ROCE(mdev, r_roce_min_src_udp_port);
 
@@ -674,6 +691,49 @@ int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 		attr->roce_ver = MLX5_ROCE_VERSION_1;
 
 	return 0;
+}
+
+int mlx5dr_cmd_create_modify_header_arg(struct mlx5_core_dev *dev,
+					u16 log_obj_range, u32 pd,
+					u32 *obj_id)
+{
+	u32 in[MLX5_ST_SZ_DW(create_modify_header_arg_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	void *attr;
+	int ret;
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr,
+		 op_param.create.log_obj_range, log_obj_range);
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, arg);
+	MLX5_SET(modify_header_arg, attr, access_pd, pd);
+
+	ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (ret)
+		return ret;
+
+	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+	return 0;
+}
+
+void mlx5dr_cmd_destroy_modify_header_arg(struct mlx5_core_dev *dev,
+					  u32 obj_id)
+{
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
+		 MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, obj_id);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,

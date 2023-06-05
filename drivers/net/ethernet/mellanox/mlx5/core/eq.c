@@ -18,6 +18,7 @@
 #include "lib/clock.h"
 #include "diag/fw_tracer.h"
 #include "mlx5_irq.h"
+#include "pci_irq.h"
 #include "devlink.h"
 #include "en_accel/ipsec.h"
 
@@ -61,9 +62,7 @@ struct mlx5_eq_table {
 	struct mlx5_irq_table	*irq_table;
 	struct mlx5_irq         **comp_irqs;
 	struct mlx5_irq         *ctrl_irq;
-#ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap		*rmap;
-#endif
 };
 
 #define MLX5_ASYNC_EVENT_MASK ((1ull << MLX5_EVENT_TYPE_PATH_MIG)	    | \
@@ -637,6 +636,7 @@ static u16 async_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
 	mlx5_core_dbg(dev, "Failed to get param. using default. err = %d\n", err);
 	return MLX5_NUM_ASYNC_EQE;
 }
+
 static int create_async_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
@@ -803,44 +803,28 @@ void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm)
 }
 EXPORT_SYMBOL(mlx5_eq_update_ci);
 
-static void comp_irqs_release(struct mlx5_core_dev *dev)
+static void comp_irqs_release_pci(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 
-	if (mlx5_core_is_sf(dev))
-		mlx5_irq_affinity_irqs_release(dev, table->comp_irqs, table->num_comp_eqs);
-	else
-		mlx5_irqs_release_vectors(table->comp_irqs, table->num_comp_eqs);
-	kfree(table->comp_irqs);
+	mlx5_irqs_release_vectors(table->comp_irqs, table->num_comp_eqs);
 }
 
-static int comp_irqs_request(struct mlx5_core_dev *dev)
+static int comp_irqs_request_pci(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	const struct cpumask *prev = cpu_none_mask;
 	const struct cpumask *mask;
-	int ncomp_eqs = table->num_comp_eqs;
+	int ncomp_eqs;
 	u16 *cpus;
 	int ret;
 	int cpu;
 	int i;
 
 	ncomp_eqs = table->num_comp_eqs;
-	table->comp_irqs = kcalloc(ncomp_eqs, sizeof(*table->comp_irqs), GFP_KERNEL);
-	if (!table->comp_irqs)
-		return -ENOMEM;
-	if (mlx5_core_is_sf(dev)) {
-		ret = mlx5_irq_affinity_irqs_request_auto(dev, ncomp_eqs, table->comp_irqs);
-		if (ret < 0)
-			goto free_irqs;
-		return ret;
-	}
-
 	cpus = kcalloc(ncomp_eqs, sizeof(*cpus), GFP_KERNEL);
-	if (!cpus) {
+	if (!cpus)
 		ret = -ENOMEM;
-		goto free_irqs;
-	}
 
 	i = 0;
 	rcu_read_lock();
@@ -854,16 +838,88 @@ static int comp_irqs_request(struct mlx5_core_dev *dev)
 	}
 spread_done:
 	rcu_read_unlock();
-	ret = mlx5_irqs_request_vectors(dev, cpus, ncomp_eqs, table->comp_irqs);
+	ret = mlx5_irqs_request_vectors(dev, cpus, ncomp_eqs, table->comp_irqs, &table->rmap);
 	kfree(cpus);
-	if (ret < 0)
-		goto free_irqs;
-	return ret;
-
-free_irqs:
-	kfree(table->comp_irqs);
 	return ret;
 }
+
+static void comp_irqs_release_sf(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+
+	mlx5_irq_affinity_irqs_release(dev, table->comp_irqs, table->num_comp_eqs);
+}
+
+static int comp_irqs_request_sf(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+	int ncomp_eqs = table->num_comp_eqs;
+
+	return mlx5_irq_affinity_irqs_request_auto(dev, ncomp_eqs, table->comp_irqs);
+}
+
+static void comp_irqs_release(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+
+	mlx5_core_is_sf(dev) ? comp_irqs_release_sf(dev) :
+			       comp_irqs_release_pci(dev);
+
+	kfree(table->comp_irqs);
+}
+
+static int comp_irqs_request(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+	int ncomp_eqs;
+	int ret;
+
+	ncomp_eqs = table->num_comp_eqs;
+	table->comp_irqs = kcalloc(ncomp_eqs, sizeof(*table->comp_irqs), GFP_KERNEL);
+	if (!table->comp_irqs)
+		return -ENOMEM;
+
+	ret = mlx5_core_is_sf(dev) ? comp_irqs_request_sf(dev) :
+				     comp_irqs_request_pci(dev);
+	if (ret < 0)
+		kfree(table->comp_irqs);
+
+	return ret;
+}
+
+#ifdef CONFIG_RFS_ACCEL
+static int alloc_rmap(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eq_table *eq_table = mdev->priv.eq_table;
+
+	/* rmap is a mapping between irq number and queue number.
+	 * Each irq can be assigned only to a single rmap.
+	 * Since SFs share IRQs, rmap mapping cannot function correctly
+	 * for irqs that are shared between different core/netdev RX rings.
+	 * Hence we don't allow netdev rmap for SFs.
+	 */
+	if (mlx5_core_is_sf(mdev))
+		return 0;
+
+	eq_table->rmap = alloc_irq_cpu_rmap(eq_table->num_comp_eqs);
+	if (!eq_table->rmap)
+		return -ENOMEM;
+	return 0;
+}
+
+static void free_rmap(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eq_table *eq_table = mdev->priv.eq_table;
+
+	if (eq_table->rmap) {
+		free_irq_cpu_rmap(eq_table->rmap);
+		eq_table->rmap = NULL;
+	}
+}
+#else
+static int alloc_rmap(struct mlx5_core_dev *mdev) { return 0; }
+static void free_rmap(struct mlx5_core_dev *mdev) {}
+#endif
 
 static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 {
@@ -880,6 +936,7 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 		kfree(eq);
 	}
 	comp_irqs_release(dev);
+	free_rmap(dev);
 }
 
 static u16 comp_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
@@ -906,9 +963,16 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	int err;
 	int i;
 
+	err = alloc_rmap(dev);
+	if (err)
+		return err;
+
 	ncomp_eqs = comp_irqs_request(dev);
-	if (ncomp_eqs < 0)
-		return ncomp_eqs;
+	if (ncomp_eqs < 0) {
+		err = ncomp_eqs;
+		goto err_irqs_req;
+	}
+
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	nent = comp_eq_depth_devlink_param_get(dev);
 
@@ -953,6 +1017,8 @@ clean_eq:
 	kfree(eq);
 clean:
 	destroy_comp_eqs(dev);
+err_irqs_req:
+	free_rmap(dev);
 	return err;
 }
 
@@ -1004,10 +1070,11 @@ mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 
 	list_for_each_entry(eq, &table->comp_eqs_list, list) {
 		if (i++ == vector)
-			break;
+			return mlx5_irq_get_affinity_mask(eq->core.irq);
 	}
 
-	return mlx5_irq_get_affinity_mask(eq->core.irq);
+	WARN_ON_ONCE(1);
+	return NULL;
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
@@ -1031,55 +1098,12 @@ struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn)
 	return ERR_PTR(-ENOENT);
 }
 
-static void clear_rmap(struct mlx5_core_dev *dev)
-{
-#ifdef CONFIG_RFS_ACCEL
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-
-	free_irq_cpu_rmap(eq_table->rmap);
-#endif
-}
-
-static int set_rmap(struct mlx5_core_dev *mdev)
-{
-	int err = 0;
-#ifdef CONFIG_RFS_ACCEL
-	struct mlx5_eq_table *eq_table = mdev->priv.eq_table;
-	int vecidx;
-
-	eq_table->rmap = alloc_irq_cpu_rmap(eq_table->num_comp_eqs);
-	if (!eq_table->rmap) {
-		err = -ENOMEM;
-		mlx5_core_err(mdev, "Failed to allocate cpu_rmap. err %d", err);
-		goto err_out;
-	}
-
-	for (vecidx = 0; vecidx < eq_table->num_comp_eqs; vecidx++) {
-		err = irq_cpu_rmap_add(eq_table->rmap,
-				       pci_irq_vector(mdev->pdev, vecidx));
-		if (err) {
-			mlx5_core_err(mdev, "irq_cpu_rmap_add failed. err %d",
-				      err);
-			goto err_irq_cpu_rmap_add;
-		}
-	}
-	return 0;
-
-err_irq_cpu_rmap_add:
-	clear_rmap(mdev);
-err_out:
-#endif
-	return err;
-}
-
 /* This function should only be called after mlx5_cmd_force_teardown_hca */
 void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 
 	mutex_lock(&table->lock); /* sync with create/destroy_async_eq */
-	if (!mlx5_core_is_sf(dev))
-		clear_rmap(dev);
 	mlx5_irq_table_destroy(dev);
 	mutex_unlock(&table->lock);
 }
@@ -1090,42 +1114,45 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 #define MLX5_MAX_ASYNC_EQS 3
 #endif
 
-int mlx5_eq_table_create(struct mlx5_core_dev *dev)
+static int get_num_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
+	int max_dev_eqs;
+	int max_eqs_sf;
+	int num_eqs;
+
+	/* If ethernet is disabled we use just a single completion vector to
+	 * have the other vectors available for other drivers using mlx5_core. For
+	 * example, mlx5_vdpa
+	 */
+	if (!mlx5_core_is_eth_enabled(dev) && mlx5_eth_supported(dev))
+		return 1;
+
+	max_dev_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 		      MLX5_CAP_GEN(dev, max_num_eqs) :
 		      1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int max_eqs_sf;
-	int err;
 
-	eq_table->num_comp_eqs =
-		min_t(int,
-		      mlx5_irq_table_get_num_comp(eq_table->irq_table),
-		      num_eqs - MLX5_MAX_ASYNC_EQS);
+	num_eqs = min_t(int, mlx5_irq_table_get_num_comp(eq_table->irq_table),
+			max_dev_eqs - MLX5_MAX_ASYNC_EQS);
 	if (mlx5_core_is_sf(dev)) {
 		max_eqs_sf = min_t(int, MLX5_COMP_EQS_PER_SF,
 				   mlx5_irq_table_get_sfs_vec(eq_table->irq_table));
-		eq_table->num_comp_eqs = min_t(int, eq_table->num_comp_eqs,
-					       max_eqs_sf);
+		num_eqs = min_t(int, num_eqs, max_eqs_sf);
 	}
 
+	return num_eqs;
+}
+
+int mlx5_eq_table_create(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+	int err;
+
+	eq_table->num_comp_eqs = get_num_eqs(dev);
 	err = create_async_eqs(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to create async EQs\n");
 		goto err_async_eqs;
-	}
-
-	if (!mlx5_core_is_sf(dev)) {
-		/* rmap is a mapping between irq number and queue number.
-		 * each irq can be assign only to a single rmap.
-		 * since SFs share IRQs, rmap mapping cannot function correctly
-		 * for irqs that are shared for different core/netdev RX rings.
-		 * Hence we don't allow netdev rmap for SFs
-		 */
-		err = set_rmap(dev);
-		if (err)
-			goto err_rmap;
 	}
 
 	err = create_comp_eqs(dev);
@@ -1135,10 +1162,8 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 	}
 
 	return 0;
+
 err_comp_eqs:
-	if (!mlx5_core_is_sf(dev))
-		clear_rmap(dev);
-err_rmap:
 	destroy_async_eqs(dev);
 err_async_eqs:
 	return err;
@@ -1146,8 +1171,6 @@ err_async_eqs:
 
 void mlx5_eq_table_destroy(struct mlx5_core_dev *dev)
 {
-	if (!mlx5_core_is_sf(dev))
-		clear_rmap(dev);
 	destroy_comp_eqs(dev);
 	destroy_async_eqs(dev);
 }

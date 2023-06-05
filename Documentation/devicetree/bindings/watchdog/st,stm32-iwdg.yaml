@@ -11,7 +11,7 @@ maintainers:
   - Christophe Roullier <christophe.roullier@foss.st.com>
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:
@@ -48,11 +48,11 @@ examples:
   - |
     #include <dt-bindings/clock/stm32mp1-clks.h>
     watchdog@5a002000 {
-      compatible = "st,stm32mp1-iwdg";
-      reg = <0x5a002000 0x400>;
-      clocks = <&rcc IWDG2>, <&rcc CK_LSI>;
-      clock-names = "pclk", "lsi";
-      timeout-sec = <32>;
+        compatible = "st,stm32mp1-iwdg";
+        reg = <0x5a002000 0x400>;
+        clocks = <&rcc IWDG2>, <&rcc CK_LSI>;
+        clock-names = "pclk", "lsi";
+        timeout-sec = <32>;
     };
 
 ...

@@ -21,30 +21,6 @@
 #include "vivid-kthread-cap.h"
 #include "vivid-vid-cap.h"
 
-static const struct vivid_fmt formats_ovl[] = {
-	{
-		.fourcc   = V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
-		.vdownsampling = { 1 },
-		.bit_depth = { 16 },
-		.planes   = 1,
-		.buffers = 1,
-	},
-	{
-		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb arrrrrgg */
-		.vdownsampling = { 1 },
-		.bit_depth = { 16 },
-		.planes   = 1,
-		.buffers = 1,
-	},
-	{
-		.fourcc   = V4L2_PIX_FMT_ARGB555, /* gggbbbbb arrrrrgg */
-		.vdownsampling = { 1 },
-		.bit_depth = { 16 },
-		.planes   = 1,
-		.buffers = 1,
-	},
-};
-
 /* The number of discrete webcam framesizes */
 #define VIVID_WEBCAM_SIZES 6
 /* The number of discrete webcam frameintervals */
@@ -447,18 +423,10 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		tpg_s_rgb_range(&dev->tpg, v4l2_ctrl_g_ctrl(dev->rgb_range_cap));
 		break;
 	}
-	vfree(dev->bitmap_cap);
-	dev->bitmap_cap = NULL;
 	vivid_update_quality(dev);
 	tpg_reset_source(&dev->tpg, dev->src_rect.width, dev->src_rect.height, dev->field_cap);
 	dev->crop_cap = dev->src_rect;
 	dev->crop_bounds_cap = dev->src_rect;
-	if (dev->bitmap_cap &&
-	    (dev->compose_cap.width != dev->crop_cap.width ||
-	     dev->compose_cap.height != dev->crop_cap.height)) {
-		vfree(dev->bitmap_cap);
-		dev->bitmap_cap = NULL;
-	}
 	dev->compose_cap = dev->crop_cap;
 	if (V4L2_FIELD_HAS_T_OR_B(dev->field_cap))
 		dev->compose_cap.height /= 2;
@@ -701,11 +669,6 @@ int vivid_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	if (dev->overlay_cap_owner && dev->fb_cap.fmt.pixelformat != mp->pixelformat) {
-		dprintk(dev, 1, "overlay is active, can't change pixelformat\n");
-		return -EBUSY;
-	}
-
 	dev->fmt_cap = vivid_get_format(dev, mp->pixelformat);
 	if (V4L2_FIELD_HAS_T_OR_B(mp->field))
 		factor = 2;
@@ -927,8 +890,6 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_rect *crop = &dev->crop_cap;
 	struct v4l2_rect *compose = &dev->compose_cap;
-	unsigned orig_compose_w = compose->width;
-	unsigned orig_compose_h = compose->height;
 	unsigned factor = V4L2_FIELD_HAS_T_OR_B(dev->field_cap) ? 2 : 1;
 	int ret;
 
@@ -1052,11 +1013,6 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 		return -EINVAL;
 	}
 
-	if (dev->bitmap_cap && (compose->width != orig_compose_w ||
-				compose->height != orig_compose_h)) {
-		vfree(dev->bitmap_cap);
-		dev->bitmap_cap = NULL;
-	}
 	tpg_s_crop_compose(&dev->tpg, crop, compose);
 	return 0;
 }
@@ -1081,234 +1037,6 @@ int vivid_vid_cap_g_pixelaspect(struct file *file, void *priv,
 	default:
 		break;
 	}
-	return 0;
-}
-
-int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	const struct vivid_fmt *fmt;
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	if (f->index >= ARRAY_SIZE(formats_ovl))
-		return -EINVAL;
-
-	fmt = &formats_ovl[f->index];
-
-	f->pixelformat = fmt->fourcc;
-	return 0;
-}
-
-int vidioc_g_fmt_vid_overlay(struct file *file, void *priv,
-					struct v4l2_format *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	const struct v4l2_rect *compose = &dev->compose_cap;
-	struct v4l2_window *win = &f->fmt.win;
-	unsigned clipcount = win->clipcount;
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	win->w.top = dev->overlay_cap_top;
-	win->w.left = dev->overlay_cap_left;
-	win->w.width = compose->width;
-	win->w.height = compose->height;
-	win->field = dev->overlay_cap_field;
-	win->clipcount = dev->clipcount_cap;
-	if (clipcount > dev->clipcount_cap)
-		clipcount = dev->clipcount_cap;
-	if (dev->bitmap_cap == NULL)
-		win->bitmap = NULL;
-	else if (win->bitmap) {
-		if (copy_to_user(win->bitmap, dev->bitmap_cap,
-		    ((compose->width + 7) / 8) * compose->height))
-			return -EFAULT;
-	}
-	if (clipcount && win->clips)
-		memcpy(win->clips, dev->clips_cap,
-		       clipcount * sizeof(dev->clips_cap[0]));
-	return 0;
-}
-
-int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
-					struct v4l2_format *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	const struct v4l2_rect *compose = &dev->compose_cap;
-	struct v4l2_window *win = &f->fmt.win;
-	int i, j;
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	win->w.left = clamp_t(int, win->w.left,
-			      -dev->fb_cap.fmt.width, dev->fb_cap.fmt.width);
-	win->w.top = clamp_t(int, win->w.top,
-			     -dev->fb_cap.fmt.height, dev->fb_cap.fmt.height);
-	win->w.width = compose->width;
-	win->w.height = compose->height;
-	if (win->field != V4L2_FIELD_BOTTOM && win->field != V4L2_FIELD_TOP)
-		win->field = V4L2_FIELD_ANY;
-	win->chromakey = 0;
-	win->global_alpha = 0;
-	if (win->clipcount && !win->clips)
-		win->clipcount = 0;
-	if (win->clipcount > MAX_CLIPS)
-		win->clipcount = MAX_CLIPS;
-	if (win->clipcount) {
-		memcpy(dev->try_clips_cap, win->clips,
-		       win->clipcount * sizeof(dev->clips_cap[0]));
-		for (i = 0; i < win->clipcount; i++) {
-			struct v4l2_rect *r = &dev->try_clips_cap[i].c;
-
-			r->top = clamp_t(s32, r->top, 0, dev->fb_cap.fmt.height - 1);
-			r->height = clamp_t(s32, r->height, 1, dev->fb_cap.fmt.height - r->top);
-			r->left = clamp_t(u32, r->left, 0, dev->fb_cap.fmt.width - 1);
-			r->width = clamp_t(u32, r->width, 1, dev->fb_cap.fmt.width - r->left);
-		}
-		/*
-		 * Yeah, so sue me, it's an O(n^2) algorithm. But n is a small
-		 * number and it's typically a one-time deal.
-		 */
-		for (i = 0; i < win->clipcount - 1; i++) {
-			struct v4l2_rect *r1 = &dev->try_clips_cap[i].c;
-
-			for (j = i + 1; j < win->clipcount; j++) {
-				struct v4l2_rect *r2 = &dev->try_clips_cap[j].c;
-
-				if (v4l2_rect_overlap(r1, r2))
-					return -EINVAL;
-			}
-		}
-		memcpy(win->clips, dev->try_clips_cap,
-		       win->clipcount * sizeof(dev->clips_cap[0]));
-	}
-	return 0;
-}
-
-int vidioc_s_fmt_vid_overlay(struct file *file, void *priv,
-					struct v4l2_format *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	const struct v4l2_rect *compose = &dev->compose_cap;
-	struct v4l2_window *win = &f->fmt.win;
-	int ret = vidioc_try_fmt_vid_overlay(file, priv, f);
-	unsigned bitmap_size = ((compose->width + 7) / 8) * compose->height;
-	unsigned clips_size = win->clipcount * sizeof(dev->clips_cap[0]);
-	void *new_bitmap = NULL;
-
-	if (ret)
-		return ret;
-
-	if (win->bitmap) {
-		new_bitmap = vzalloc(bitmap_size);
-
-		if (new_bitmap == NULL)
-			return -ENOMEM;
-		if (copy_from_user(new_bitmap, win->bitmap, bitmap_size)) {
-			vfree(new_bitmap);
-			return -EFAULT;
-		}
-	}
-
-	dev->overlay_cap_top = win->w.top;
-	dev->overlay_cap_left = win->w.left;
-	dev->overlay_cap_field = win->field;
-	vfree(dev->bitmap_cap);
-	dev->bitmap_cap = new_bitmap;
-	dev->clipcount_cap = win->clipcount;
-	if (dev->clipcount_cap)
-		memcpy(dev->clips_cap, dev->try_clips_cap, clips_size);
-	return 0;
-}
-
-int vivid_vid_cap_overlay(struct file *file, void *fh, unsigned i)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	if (i && dev->fb_vbase_cap == NULL)
-		return -EINVAL;
-
-	if (i && dev->fb_cap.fmt.pixelformat != dev->fmt_cap->fourcc) {
-		dprintk(dev, 1, "mismatch between overlay and video capture pixelformats\n");
-		return -EINVAL;
-	}
-
-	if (dev->overlay_cap_owner && dev->overlay_cap_owner != fh)
-		return -EBUSY;
-	dev->overlay_cap_owner = i ? fh : NULL;
-	return 0;
-}
-
-int vivid_vid_cap_g_fbuf(struct file *file, void *fh,
-				struct v4l2_framebuffer *a)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	*a = dev->fb_cap;
-	a->capability = V4L2_FBUF_CAP_BITMAP_CLIPPING |
-			V4L2_FBUF_CAP_LIST_CLIPPING;
-	a->flags = V4L2_FBUF_FLAG_PRIMARY;
-	a->fmt.field = V4L2_FIELD_NONE;
-	a->fmt.colorspace = V4L2_COLORSPACE_SRGB;
-	a->fmt.priv = 0;
-	return 0;
-}
-
-int vivid_vid_cap_s_fbuf(struct file *file, void *fh,
-				const struct v4l2_framebuffer *a)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-	const struct vivid_fmt *fmt;
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-
-	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
-		return -EPERM;
-
-	if (dev->overlay_cap_owner)
-		return -EBUSY;
-
-	if (a->base == NULL) {
-		dev->fb_cap.base = NULL;
-		dev->fb_vbase_cap = NULL;
-		return 0;
-	}
-
-	if (a->fmt.width < 48 || a->fmt.height < 32)
-		return -EINVAL;
-	fmt = vivid_get_format(dev, a->fmt.pixelformat);
-	if (!fmt || !fmt->can_do_overlay)
-		return -EINVAL;
-	if (a->fmt.bytesperline < (a->fmt.width * fmt->bit_depth[0]) / 8)
-		return -EINVAL;
-	if (a->fmt.bytesperline > a->fmt.sizeimage / a->fmt.height)
-		return -EINVAL;
-
-	/*
-	 * Only support the framebuffer of one of the vivid instances.
-	 * Anything else is rejected.
-	 */
-	if (!vivid_validate_fb(a))
-		return -EINVAL;
-
-	dev->fb_vbase_cap = phys_to_virt((unsigned long)a->base);
-	dev->fb_cap = *a;
-	dev->overlay_cap_left = clamp_t(int, dev->overlay_cap_left,
-				    -dev->fb_cap.fmt.width, dev->fb_cap.fmt.width);
-	dev->overlay_cap_top = clamp_t(int, dev->overlay_cap_top,
-				   -dev->fb_cap.fmt.height, dev->fb_cap.fmt.height);
 	return 0;
 }
 

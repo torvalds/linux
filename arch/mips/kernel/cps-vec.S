@@ -116,6 +116,8 @@ not_nmi:
 	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
+	/* We don't know how to do coherence setup on earlier ISA */
+#if MIPS_ISA_REV > 0
 	/* Skip cache & coherence setup if we're already coherent */
 	lw	s7, GCR_CL_COHERENCE_OFS(s1)
 	bnez	s7, 1f
@@ -129,6 +131,7 @@ not_nmi:
 	li	t0, 0xff
 	sw	t0, GCR_CL_COHERENCE_OFS(s1)
 	ehb
+#endif /* MIPS_ISA_REV > 0 */
 
 	/* Set Kseg0 CCA to that in s0 */
 1:	mfc0	t0, CP0_CONFIG
@@ -515,6 +518,7 @@ LEAF(mips_cps_boot_vpes)
 	 nop
 	END(mips_cps_boot_vpes)
 
+#if MIPS_ISA_REV > 0
 LEAF(mips_cps_cache_init)
 	/*
 	 * Clear the bits used to index the caches. Note that the architecture
@@ -588,6 +592,7 @@ dcache_done:
 	jr	ra
 	 nop
 	END(mips_cps_cache_init)
+#endif /* MIPS_ISA_REV > 0 */
 
 #if defined(CONFIG_MIPS_CPS_PM) && defined(CONFIG_CPU_PM)
 

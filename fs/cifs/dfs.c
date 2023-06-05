@@ -99,7 +99,7 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	return rc;
 }
 
-static int get_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
+static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_root_ses *root_ses;
@@ -127,7 +127,7 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct dfs_info3_param ref = {};
-	bool is_refsrv = false;
+	bool is_refsrv;
 	int rc, rc2;
 
 	rc = dfs_cache_get_tgt_referral(ref_path + 1, tit, &ref);
@@ -157,8 +157,10 @@ static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, co
 		rc = cifs_is_path_remote(mnt_ctx);
 	}
 
+	dfs_cache_noreq_update_tgthint(ref_path + 1, tit);
+
 	if (rc == -EREMOTE && is_refsrv) {
-		rc2 = get_root_smb_session(mnt_ctx);
+		rc2 = add_root_smb_session(mnt_ctx);
 		if (rc2)
 			rc = rc2;
 	}
@@ -248,16 +250,19 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 		tcon = mnt_ctx->tcon;
 
 		mutex_lock(&server->refpath_lock);
+		spin_lock(&server->srv_lock);
 		if (!server->origin_fullpath) {
 			server->origin_fullpath = origin_fullpath;
-			server->current_fullpath = server->leaf_fullpath;
 			origin_fullpath = NULL;
 		}
+		spin_unlock(&server->srv_lock);
 		mutex_unlock(&server->refpath_lock);
 
 		if (list_empty(&tcon->dfs_ses_list)) {
 			list_replace_init(&mnt_ctx->dfs_ses_list,
 					  &tcon->dfs_ses_list);
+			queue_delayed_work(dfscache_wq, &tcon->dfs_cache_work,
+					   dfs_cache_get_ttl() * HZ);
 		} else {
 			dfs_put_root_smb_sessions(&mnt_ctx->dfs_ses_list);
 		}
@@ -272,15 +277,21 @@ out:
 
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 {
-	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct cifs_ses *ses;
+	char *source = ctx->source;
+	bool nodfs = ctx->nodfs;
 	int rc;
 
 	*isdfs = false;
-
+	/* Temporarily set @ctx->source to NULL as we're not matching DFS
+	 * superblocks yet.  See cifs_match_super() and match_server().
+	 */
+	ctx->source = NULL;
 	rc = get_session(mnt_ctx, NULL);
 	if (rc)
-		return rc;
+		goto out;
+
 	ctx->dfs_root_ses = mnt_ctx->ses;
 	/*
 	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
@@ -289,23 +300,41 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	 * Skip prefix path to provide support for DFS referrals from w2k8 servers which don't seem
 	 * to respond with PATH_NOT_COVERED to requests that include the prefix.
 	 */
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
-	    dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL)) {
+	if (!nodfs) {
+		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL);
+		if (rc) {
+			if (rc != -ENOENT && rc != -EOPNOTSUPP)
+				goto out;
+			nodfs = true;
+		}
+	}
+	if (nodfs) {
 		rc = cifs_mount_get_tcon(mnt_ctx);
-		if (rc)
-			return rc;
-
-		rc = cifs_is_path_remote(mnt_ctx);
-		if (!rc || rc != -EREMOTE)
-			return rc;
+		if (!rc)
+			rc = cifs_is_path_remote(mnt_ctx);
+		goto out;
 	}
 
 	*isdfs = true;
-	rc = get_root_smb_session(mnt_ctx);
-	if (rc)
-		return rc;
-
-	return __dfs_mount_share(mnt_ctx);
+	/*
+	 * Prevent DFS root session of being put in the first call to
+	 * cifs_mount_put_conns().  If another DFS root server was not found
+	 * while chasing the referrals (@ctx->dfs_root_ses == @ses), then we
+	 * can safely put extra refcount of @ses.
+	 */
+	ses = mnt_ctx->ses;
+	mnt_ctx->ses = NULL;
+	mnt_ctx->server = NULL;
+	rc = __dfs_mount_share(mnt_ctx);
+	if (ses == ctx->dfs_root_ses)
+		cifs_put_smb_ses(ses);
+out:
+	/*
+	 * Restore previous value of @ctx->source so DFS superblock can be
+	 * matched in cifs_match_super().
+	 */
+	ctx->source = source;
+	return rc;
 }
 
 /* Update dfs referral path of superblock */
@@ -342,10 +371,11 @@ static int update_server_fullpath(struct TCP_Server_Info *server, struct cifs_sb
 		rc = PTR_ERR(npath);
 	} else {
 		mutex_lock(&server->refpath_lock);
+		spin_lock(&server->srv_lock);
 		kfree(server->leaf_fullpath);
 		server->leaf_fullpath = npath;
+		spin_unlock(&server->srv_lock);
 		mutex_unlock(&server->refpath_lock);
-		server->current_fullpath = server->leaf_fullpath;
 	}
 	return rc;
 }
@@ -374,6 +404,54 @@ static int target_share_matches_server(struct TCP_Server_Info *server, char *sha
 	return rc;
 }
 
+static void __tree_connect_ipc(const unsigned int xid, char *tree,
+			       struct cifs_sb_info *cifs_sb,
+			       struct cifs_ses *ses)
+{
+	struct TCP_Server_Info *server = ses->server;
+	struct cifs_tcon *tcon = ses->tcon_ipc;
+	int rc;
+
+	spin_lock(&ses->ses_lock);
+	spin_lock(&ses->chan_lock);
+	if (cifs_chan_needs_reconnect(ses, server) ||
+	    ses->ses_status != SES_GOOD) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+		cifs_server_dbg(FYI, "%s: skipping ipc reconnect due to disconnected ses\n",
+				__func__);
+		return;
+	}
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&ses->ses_lock);
+
+	cifs_server_lock(server);
+	scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
+	cifs_server_unlock(server);
+
+	rc = server->ops->tree_connect(xid, ses, tree, tcon,
+				       cifs_sb->local_nls);
+	cifs_server_dbg(FYI, "%s: tree_reconnect %s: %d\n", __func__, tree, rc);
+	spin_lock(&tcon->tc_lock);
+	if (rc) {
+		tcon->status = TID_NEED_TCON;
+	} else {
+		tcon->status = TID_GOOD;
+		tcon->need_reconnect = false;
+	}
+	spin_unlock(&tcon->tc_lock);
+}
+
+static void tree_connect_ipc(const unsigned int xid, char *tree,
+			     struct cifs_sb_info *cifs_sb,
+			     struct cifs_tcon *tcon)
+{
+	struct cifs_ses *ses = tcon->ses;
+
+	__tree_connect_ipc(xid, tree, cifs_sb, ses);
+	__tree_connect_ipc(xid, tree, cifs_sb, CIFS_DFS_ROOT_SES(ses));
+}
+
 static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tcon,
 				     struct cifs_sb_info *cifs_sb, char *tree, bool islink,
 				     struct dfs_cache_tgt_list *tl)
@@ -382,7 +460,6 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
 	struct cifs_ses *root_ses = CIFS_DFS_ROOT_SES(tcon->ses);
-	struct cifs_tcon *ipc = root_ses->tcon_ipc;
 	char *share = NULL, *prefix = NULL;
 	struct dfs_cache_tgt_iterator *tit;
 	bool target_match;
@@ -403,7 +480,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		share = prefix = NULL;
 
 		/* Check if share matches with tcp ses */
-		rc = dfs_cache_get_tgt_share(server->current_fullpath + 1, tit, &share, &prefix);
+		rc = dfs_cache_get_tgt_share(server->leaf_fullpath + 1, tit, &share, &prefix);
 		if (rc) {
 			cifs_dbg(VFS, "%s: failed to parse target share: %d\n", __func__, rc);
 			break;
@@ -417,19 +494,15 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 			continue;
 		}
 
-		dfs_cache_noreq_update_tgthint(server->current_fullpath + 1, tit);
-
-		if (ipc->need_reconnect) {
-			scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
-			rc = ops->tree_connect(xid, ipc->ses, tree, ipc, cifs_sb->local_nls);
-			cifs_dbg(FYI, "%s: reconnect ipc: %d\n", __func__, rc);
-		}
+		dfs_cache_noreq_update_tgthint(server->leaf_fullpath + 1, tit);
+		tree_connect_ipc(xid, tree, cifs_sb, tcon);
 
 		scnprintf(tree, MAX_TREE_SIZE, "\\%s", share);
 		if (!islink) {
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, cifs_sb->local_nls);
 			break;
 		}
+
 		/*
 		 * If no dfs referrals were returned from link target, then just do a TREE_CONNECT
 		 * to it.  Otherwise, cache the dfs referral and then mark current tcp ses for
@@ -539,8 +612,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	cifs_sb = CIFS_SB(sb);
 
 	/* If it is not dfs or there was no cached dfs referral, then reconnect to same share */
-	if (!server->current_fullpath ||
-	    dfs_cache_noreq_find(server->current_fullpath + 1, &ref, &tl)) {
+	if (!server->leaf_fullpath ||
+	    dfs_cache_noreq_find(server->leaf_fullpath + 1, &ref, &tl)) {
 		rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon, cifs_sb->local_nls);
 		goto out;
 	}

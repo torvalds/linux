@@ -25,14 +25,17 @@
 #include <linux/err.h>
 #include <linux/fips.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
-#include <linux/module.h>
-#include <linux/scatterlist.h>
-#include <linux/string.h>
-#include <linux/moduleparam.h>
-#include <linux/jiffies.h>
-#include <linux/timex.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/timex.h>
+
+#include "internal.h"
 #include "tcrypt.h"
 
 /*

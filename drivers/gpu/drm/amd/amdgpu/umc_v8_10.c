@@ -76,10 +76,13 @@ static inline uint32_t get_umc_v8_10_reg_offset(struct amdgpu_device *adev,
 		UMC_8_NODE_DIST * node_inst;
 }
 
-static void umc_v8_10_clear_error_count_per_channel(struct amdgpu_device *adev,
-					uint32_t umc_reg_offset)
+static int umc_v8_10_clear_error_count_per_channel(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
 {
 	uint32_t ecc_err_cnt_addr;
+	uint32_t umc_reg_offset =
+		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
 
 	ecc_err_cnt_addr =
 		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccErrCnt);
@@ -87,24 +90,14 @@ static void umc_v8_10_clear_error_count_per_channel(struct amdgpu_device *adev,
 	/* clear error count */
 	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4,
 			UMC_V8_10_CE_CNT_INIT);
+
+	return 0;
 }
 
 static void umc_v8_10_clear_error_count(struct amdgpu_device *adev)
 {
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-	uint32_t umc_reg_offset  = 0;
-
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v8_10_reg_offset(adev,
-						node_inst,
-						umc_inst,
-						ch_inst);
-
-		umc_v8_10_clear_error_count_per_channel(adev,
-						umc_reg_offset);
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_clear_error_count_per_channel, NULL);
 }
 
 static void umc_v8_10_query_correctable_error_count(struct amdgpu_device *adev,
@@ -147,29 +140,29 @@ static void umc_v8_10_query_uncorrectable_error_count(struct amdgpu_device *adev
 		*error_count += 1;
 }
 
+static int umc_v8_10_query_ecc_error_count(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)data;
+	uint32_t umc_reg_offset =
+		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
+
+	umc_v8_10_query_correctable_error_count(adev,
+					umc_reg_offset,
+					&(err_data->ce_count));
+	umc_v8_10_query_uncorrectable_error_count(adev,
+					umc_reg_offset,
+					&(err_data->ue_count));
+
+	return 0;
+}
+
 static void umc_v8_10_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-	uint32_t umc_reg_offset  = 0;
-
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v8_10_reg_offset(adev,
-						node_inst,
-						umc_inst,
-						ch_inst);
-
-		umc_v8_10_query_correctable_error_count(adev,
-						umc_reg_offset,
-						&(err_data->ce_count));
-		umc_v8_10_query_uncorrectable_error_count(adev,
-						umc_reg_offset,
-						&(err_data->ue_count));
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_query_ecc_error_count, ras_error_status);
 
 	umc_v8_10_clear_error_count(adev);
 }
@@ -248,28 +241,28 @@ static void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
 	}
 }
 
-static void umc_v8_10_query_error_address(struct amdgpu_device *adev,
-					 struct ras_err_data *err_data,
-					 uint32_t umc_reg_offset,
-					 uint32_t node_inst,
-					 uint32_t ch_inst,
-					 uint32_t umc_inst)
+static int umc_v8_10_query_error_address(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
 {
 	uint64_t mc_umc_status_addr;
 	uint64_t mc_umc_status, err_addr;
 	uint64_t mc_umc_addrt0;
+	struct ras_err_data *err_data = (struct ras_err_data *)data;
+	uint32_t umc_reg_offset =
+		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
 
 	mc_umc_status_addr =
 		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_STATUST0);
 	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
 
 	if (mc_umc_status == 0)
-		return;
+		return 0;
 
 	if (!err_data->err_addr) {
 		/* clear umc status */
 		WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
-		return;
+		return 0;
 	}
 
 	/* calculate error address if ue error is detected */
@@ -287,37 +280,25 @@ static void umc_v8_10_query_error_address(struct amdgpu_device *adev,
 
 	/* clear umc status */
 	WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
+
+	return 0;
 }
 
 static void umc_v8_10_query_ras_error_address(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-	uint32_t umc_reg_offset  = 0;
-
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v8_10_reg_offset(adev,
-						node_inst,
-						umc_inst,
-						ch_inst);
-
-		umc_v8_10_query_error_address(adev,
-					err_data,
-					umc_reg_offset,
-					node_inst,
-					ch_inst,
-					umc_inst);
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_query_error_address, ras_error_status);
 }
 
-static void umc_v8_10_err_cnt_init_per_channel(struct amdgpu_device *adev,
-					      uint32_t umc_reg_offset)
+static int umc_v8_10_err_cnt_init_per_channel(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
 {
 	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
 	uint32_t ecc_err_cnt_addr;
+	uint32_t umc_reg_offset =
+		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
 
 	ecc_err_cnt_sel_addr =
 		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccErrCntSel);
@@ -332,23 +313,14 @@ static void umc_v8_10_err_cnt_init_per_channel(struct amdgpu_device *adev,
 	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4, ecc_err_cnt_sel);
 	/* set error count to initial value */
 	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4, UMC_V8_10_CE_CNT_INIT);
+
+	return 0;
 }
 
 static void umc_v8_10_err_cnt_init(struct amdgpu_device *adev)
 {
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-	uint32_t umc_reg_offset  = 0;
-
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v8_10_reg_offset(adev,
-						node_inst,
-						umc_inst,
-						ch_inst);
-
-		umc_v8_10_err_cnt_init_per_channel(adev, umc_reg_offset);
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_err_cnt_init_per_channel, NULL);
 }
 
 static bool umc_v8_10_query_ras_poison_mode(struct amdgpu_device *adev)
@@ -406,37 +378,35 @@ static void umc_v8_10_ecc_info_query_uncorrectable_error_count(struct amdgpu_dev
 	}
 }
 
+static int umc_v8_10_ecc_info_query_ecc_error_count(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)data;
+
+	umc_v8_10_ecc_info_query_correctable_error_count(adev,
+					node_inst, umc_inst, ch_inst,
+					&(err_data->ce_count));
+	umc_v8_10_ecc_info_query_uncorrectable_error_count(adev,
+					node_inst, umc_inst, ch_inst,
+					&(err_data->ue_count));
+	return 0;
+}
+
 static void umc_v8_10_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-
-	/* TODO: driver needs to toggle DF Cstate to ensure
-	 * safe access of UMC registers. Will add the protection
-	 */
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_v8_10_ecc_info_query_correctable_error_count(adev,
-							node_inst, umc_inst, ch_inst,
-							&(err_data->ce_count));
-		umc_v8_10_ecc_info_query_uncorrectable_error_count(adev,
-							node_inst, umc_inst, ch_inst,
-							&(err_data->ue_count));
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_ecc_info_query_ecc_error_count, ras_error_status);
 }
 
-static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
-					struct ras_err_data *err_data,
-					uint32_t ch_inst,
-					uint32_t umc_inst,
-					uint32_t node_inst)
+static int umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
+					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t ch_inst, void *data)
 {
 	uint32_t eccinfo_table_idx;
 	uint64_t mc_umc_status, err_addr;
-
+	struct ras_err_data *err_data = (struct ras_err_data *)data;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
@@ -447,10 +417,10 @@ static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
 
 	if (mc_umc_status == 0)
-		return;
+		return 0;
 
 	if (!err_data->err_addr)
-		return;
+		return 0;
 
 	/* calculate error address if ue error is detected */
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
@@ -463,28 +433,15 @@ static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 		umc_v8_10_convert_error_address(adev, err_data, err_addr,
 					ch_inst, umc_inst, node_inst, mc_umc_status);
 	}
+
+	return 0;
 }
 
 static void umc_v8_10_ecc_info_query_ras_error_address(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-
-	uint32_t node_inst       = 0;
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
-
-	/* TODO: driver needs to toggle DF Cstate to ensure
-	 * safe access of UMC resgisters. Will add the protection
-	 * when firmware interface is ready
-	 */
-	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-		umc_v8_10_ecc_info_query_error_address(adev,
-						err_data,
-						ch_inst,
-						umc_inst,
-						node_inst);
-	}
+	amdgpu_umc_loop_channels(adev,
+		umc_v8_10_ecc_info_query_error_address, ras_error_status);
 }
 
 const struct amdgpu_ras_block_hw_ops umc_v8_10_ras_hw_ops = {

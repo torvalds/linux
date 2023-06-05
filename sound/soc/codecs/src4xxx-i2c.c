@@ -24,7 +24,7 @@ static const struct i2c_device_id src4xxx_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, src4xxx_i2c_ids);
 
-static const struct of_device_id src4xxx_of_match[] = {
+static const struct of_device_id src4xxx_of_match[] __maybe_unused = {
 	{ .compatible = "ti,src4392", },
 	{ }
 };

@@ -71,7 +71,7 @@ struct vmw_view {
 	unsigned view_id;              /* Immutable */
 	u32 cmd_size;                  /* Immutable */
 	bool committed;                /* Protected by binding_mutex */
-	u32 cmd[1];                    /* Immutable */
+	u32 cmd[];		       /* Immutable */
 };
 
 static int vmw_view_create(struct vmw_resource *res);

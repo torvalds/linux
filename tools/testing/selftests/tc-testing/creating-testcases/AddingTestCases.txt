@@ -38,6 +38,8 @@ skip:         A completely optional key, if the corresponding value is "yes"
               this test case will still appear in the results output but
               marked as skipped. This key can be placed anywhere inside the
               test case at the top level.
+dependsOn:    Same as 'skip', but the value is executed as a command. The test
+              is skipped when the command returns non-zero.
 category:     A list of single-word descriptions covering what the command
               under test is testing. Example: filter, actions, u32, gact, etc.
 setup:        The list of commands required to ensure the command under test

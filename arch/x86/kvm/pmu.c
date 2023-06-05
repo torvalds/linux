@@ -93,7 +93,7 @@ void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops)
 #undef __KVM_X86_PMU_OP
 }
 
-static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
+static inline bool pmc_is_globally_enabled(struct kvm_pmc *pmc)
 {
 	return static_call(kvm_x86_pmu_pmc_is_enabled)(pmc);
 }
@@ -400,6 +400,12 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 	return is_fixed_event_allowed(filter, pmc->idx);
 }
 
+static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
+{
+	return pmc_is_globally_enabled(pmc) && pmc_speculative_in_use(pmc) &&
+	       check_pmu_event_filter(pmc);
+}
+
 static void reprogram_counter(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -409,10 +415,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 
 	pmc_pause_counter(pmc);
 
-	if (!pmc_speculative_in_use(pmc) || !pmc_is_enabled(pmc))
-		goto reprogram_complete;
-
-	if (!check_pmu_event_filter(pmc))
+	if (!pmc_event_is_allowed(pmc))
 		goto reprogram_complete;
 
 	if (pmc->counter < pmc->prev_counter)
@@ -540,9 +543,9 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 	if (!pmc)
 		return 1;
 
-	if (!(kvm_read_cr4(vcpu) & X86_CR4_PCE) &&
+	if (!kvm_is_cr4_bit_set(vcpu, X86_CR4_PCE) &&
 	    (static_call(kvm_x86_get_cpl)(vcpu) != 0) &&
-	    (kvm_read_cr0(vcpu) & X86_CR0_PE))
+	    kvm_is_cr0_bit_set(vcpu, X86_CR0_PE))
 		return 1;
 
 	*data = pmc_read_counter(pmc) & mask;
@@ -589,6 +592,10 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
  */
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
+	if (KVM_BUG_ON(kvm_vcpu_has_run(vcpu), vcpu->kvm))
+		return;
+
+	bitmap_zero(vcpu_to_pmu(vcpu)->all_valid_pmc_idx, X86_PMC_IDX_MAX);
 	static_call(kvm_x86_pmu_refresh)(vcpu);
 }
 
@@ -646,7 +653,7 @@ static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 {
 	pmc->prev_counter = pmc->counter;
 	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
-	kvm_pmu_request_counter_reprogam(pmc);
+	kvm_pmu_request_counter_reprogram(pmc);
 }
 
 static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
@@ -684,7 +691,7 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
 		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
 
-		if (!pmc || !pmc_is_enabled(pmc) || !pmc_speculative_in_use(pmc))
+		if (!pmc || !pmc_event_is_allowed(pmc))
 			continue;
 
 		/* Ignore checks for edge detect, pin control, invert and CMASK bits */

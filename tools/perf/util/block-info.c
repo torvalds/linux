@@ -317,9 +317,9 @@ static int block_dso_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	struct block_fmt *block_fmt = container_of(fmt, struct block_fmt, fmt);
 	struct map *map = he->ms.map;
 
-	if (map && map->dso) {
+	if (map && map__dso(map)) {
 		return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,
-				 map->dso->short_name);
+				 map__dso(map)->short_name);
 	}
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,

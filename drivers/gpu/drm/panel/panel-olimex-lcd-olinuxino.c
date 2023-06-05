@@ -308,7 +308,7 @@ static struct i2c_driver lcd_olinuxino_driver = {
 		.name = "lcd_olinuxino",
 		.of_match_table = lcd_olinuxino_of_ids,
 	},
-	.probe_new = lcd_olinuxino_probe,
+	.probe = lcd_olinuxino_probe,
 	.remove = lcd_olinuxino_remove,
 };
 

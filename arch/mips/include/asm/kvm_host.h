@@ -757,7 +757,7 @@ struct kvm_mips_callbacks {
 	int (*vcpu_run)(struct kvm_vcpu *vcpu);
 	void (*vcpu_reenter)(struct kvm_vcpu *vcpu);
 };
-extern struct kvm_mips_callbacks *kvm_mips_callbacks;
+extern const struct kvm_mips_callbacks * const kvm_mips_callbacks;
 int kvm_mips_emulation_init(void);
 
 /* Debug: dump vcpu state */

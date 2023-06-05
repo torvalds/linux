@@ -75,7 +75,7 @@ SEC("tc")
 long rbtree_add_and_remove(void *ctx)
 {
 	struct bpf_rb_node *res = NULL;
-	struct node_data *n, *m;
+	struct node_data *n, *m = NULL;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
@@ -93,9 +93,11 @@ long rbtree_add_and_remove(void *ctx)
 	res = bpf_rbtree_remove(&groot, &n->node);
 	bpf_spin_unlock(&glock);
 
+	if (!res)
+		return 1;
+
 	n = container_of(res, struct node_data, node);
 	removed_key = n->key;
-
 	bpf_obj_drop(n);
 
 	return 0;
@@ -148,9 +150,11 @@ long rbtree_first_and_remove(void *ctx)
 	res = bpf_rbtree_remove(&groot, &o->node);
 	bpf_spin_unlock(&glock);
 
+	if (!res)
+		return 5;
+
 	o = container_of(res, struct node_data, node);
 	removed_key = o->key;
-
 	bpf_obj_drop(o);
 
 	bpf_spin_lock(&glock);
@@ -170,6 +174,72 @@ err_out:
 		bpf_obj_drop(n);
 	if (m)
 		bpf_obj_drop(m);
+	return 1;
+}
+
+SEC("tc")
+long rbtree_api_release_aliasing(void *ctx)
+{
+	struct node_data *n, *m, *o;
+	struct bpf_rb_node *res, *res2;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 1;
+	n->key = 41;
+	n->data = 42;
+
+	bpf_spin_lock(&glock);
+	bpf_rbtree_add(&groot, &n->node, less);
+	bpf_spin_unlock(&glock);
+
+	bpf_spin_lock(&glock);
+
+	/* m and o point to the same node,
+	 * but verifier doesn't know this
+	 */
+	res = bpf_rbtree_first(&groot);
+	if (!res)
+		goto err_out;
+	o = container_of(res, struct node_data, node);
+
+	res = bpf_rbtree_first(&groot);
+	if (!res)
+		goto err_out;
+	m = container_of(res, struct node_data, node);
+
+	res = bpf_rbtree_remove(&groot, &m->node);
+	/* Retval of previous remove returns an owning reference to m,
+	 * which is the same node non-owning ref o is pointing at.
+	 * We can safely try to remove o as the second rbtree_remove will
+	 * return NULL since the node isn't in a tree.
+	 *
+	 * Previously we relied on the verifier type system + rbtree_remove
+	 * invalidating non-owning refs to ensure that rbtree_remove couldn't
+	 * fail, but now rbtree_remove does runtime checking so we no longer
+	 * invalidate non-owning refs after remove.
+	 */
+	res2 = bpf_rbtree_remove(&groot, &o->node);
+
+	bpf_spin_unlock(&glock);
+
+	if (res) {
+		o = container_of(res, struct node_data, node);
+		first_data[0] = o->data;
+		bpf_obj_drop(o);
+	}
+	if (res2) {
+		/* The second remove fails, so res2 is null and this doesn't
+		 * execute
+		 */
+		m = container_of(res2, struct node_data, node);
+		first_data[1] = m->data;
+		bpf_obj_drop(m);
+	}
+	return 0;
+
+err_out:
+	bpf_spin_unlock(&glock);
 	return 1;
 }
 

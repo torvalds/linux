@@ -676,9 +676,7 @@
 			reg = <0x0 0x03100000 0x0 0x10000>;
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_UARTA>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA234_RESET_UARTA>;
-			reset-names = "serial";
 			status = "disabled";
 		};
 
@@ -1154,6 +1152,14 @@
 			reg = <0x0 0x03810000 0x0 0x10000>;
 			clocks = <&bpmp TEGRA234_CLK_FUSE>;
 			clock-names = "fuse";
+		};
+
+		hte_lic: hardware-timestamp@3aa0000 {
+			compatible = "nvidia,tegra234-gte-lic";
+			reg = <0x0 0x3aa0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			#timestamp-cells = <1>;
 		};
 
 		hsp_top0: hsp@3c00000 {
@@ -1671,6 +1677,15 @@
 			 */
 			interrupt-names = "shared1", "shared2", "shared3", "shared4";
 			#mbox-cells = <2>;
+		};
+
+		hte_aon: hardware-timestamp@c1e0000 {
+			compatible = "nvidia,tegra234-gte-aon";
+			reg = <0x0 0xc1e0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,gpio-controller = <&gpio_aon>;
+			#timestamp-cells = <1>;
 		};
 
 		gen2_i2c: i2c@c240000 {
@@ -3400,6 +3415,24 @@
 			cache-sets = <2048>;
 			cache-level = <3>;
 		};
+	};
+
+	dsu-pmu0 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 547 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu0_0>, <&cpu0_1>, <&cpu0_2>, <&cpu0_3>;
+	};
+
+	dsu-pmu1 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 548 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu1_0>, <&cpu1_1>, <&cpu1_2>, <&cpu1_3>;
+	};
+
+	dsu-pmu2 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 549 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu2_0>, <&cpu2_1>, <&cpu2_2>, <&cpu2_3>;
 	};
 
 	pmu {

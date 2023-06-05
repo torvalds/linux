@@ -70,7 +70,7 @@ static int sc18is602_txrx(struct sc18is602 *hw, struct spi_message *msg,
 
 	if (hw->tlen == 0) {
 		/* First byte (I2C command) is chip select */
-		hw->buffer[0] = 1 << msg->spi->chip_select;
+		hw->buffer[0] = 1 << spi_get_chipselect(msg->spi, 0);
 		hw->tlen = 1;
 		hw->rindex = 0;
 	}
@@ -229,7 +229,7 @@ static int sc18is602_setup(struct spi_device *spi)
 	struct sc18is602 *hw = spi_master_get_devdata(spi->master);
 
 	/* SC18IS602 does not support CS2 */
-	if (hw->id == sc18is602 && spi->chip_select == 2)
+	if (hw->id == sc18is602 && (spi_get_chipselect(spi, 0) == 2))
 		return -ENXIO;
 
 	return 0;
@@ -315,7 +315,7 @@ static const struct i2c_device_id sc18is602_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sc18is602_id);
 
-static const struct of_device_id sc18is602_of_match[] = {
+static const struct of_device_id sc18is602_of_match[] __maybe_unused = {
 	{
 		.compatible = "nxp,sc18is602",
 		.data = (void *)sc18is602

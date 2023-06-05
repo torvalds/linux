@@ -567,7 +567,7 @@ ret_destroy_bufio:
 
 static struct pstore *get_info(struct dm_exception_store *store)
 {
-	return (struct pstore *) store->context;
+	return store->context;
 }
 
 static void persistent_usage(struct dm_exception_store *store,

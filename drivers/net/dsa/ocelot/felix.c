@@ -1056,6 +1056,17 @@ static void felix_phylink_get_caps(struct dsa_switch *ds, int port,
 		  config->supported_interfaces);
 }
 
+static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
+				     unsigned int mode,
+				     const struct phylink_link_state *state)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->info->phylink_mac_config)
+		felix->info->phylink_mac_config(ocelot, port, mode, state);
+}
+
 static struct phylink_pcs *felix_phylink_mac_select_pcs(struct dsa_switch *ds,
 							int port,
 							phy_interface_t iface)
@@ -1539,11 +1550,6 @@ static int felix_connect_tag_protocol(struct dsa_switch *ds,
 	}
 }
 
-/* Hardware initialization done here so that we can allocate structures with
- * devm without fear of dsa_register_switch returning -EPROBE_DEFER and causing
- * us to allocate structures twice (leak memory) and map PCI memory twice
- * (which will not work).
- */
 static int felix_setup(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
@@ -1554,6 +1560,9 @@ static int felix_setup(struct dsa_switch *ds)
 	err = felix_init_structs(felix, ds->num_ports);
 	if (err)
 		return err;
+
+	if (ocelot->targets[HSIO])
+		ocelot_pll5_init(ocelot);
 
 	err = ocelot_init(ocelot);
 	if (err)
@@ -1570,6 +1579,10 @@ static int felix_setup(struct dsa_switch *ds)
 
 	dsa_switch_for_each_available_port(dp, ds) {
 		ocelot_init_port(ocelot, dp->index);
+
+		if (felix->info->configure_serdes)
+			felix->info->configure_serdes(ocelot, dp->index,
+						      dp->dn);
 
 		/* Set the default QoS Classification based on PCP and DEI
 		 * bits of vlan tag.
@@ -2085,6 +2098,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.get_sset_count			= felix_get_sset_count,
 	.get_ts_info			= felix_get_ts_info,
 	.phylink_get_caps		= felix_phylink_get_caps,
+	.phylink_mac_config		= felix_phylink_mac_config,
 	.phylink_mac_select_pcs		= felix_phylink_mac_select_pcs,
 	.phylink_mac_link_down		= felix_phylink_mac_link_down,
 	.phylink_mac_link_up		= felix_phylink_mac_link_up,

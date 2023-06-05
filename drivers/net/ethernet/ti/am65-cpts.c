@@ -175,6 +175,7 @@ struct am65_cpts {
 	u64 timestamp;
 	u32 genf_enable;
 	u32 hw_ts_enable;
+	u32 estf_enable;
 	struct sk_buff_head txq;
 	bool pps_enabled;
 	bool pps_present;
@@ -405,13 +406,13 @@ static irqreturn_t am65_cpts_interrupt(int irq, void *dev_id)
 static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct am65_cpts *cpts = container_of(ptp, struct am65_cpts, ptp_info);
-	u32 pps_ctrl_val = 0, pps_ppm_hi = 0, pps_ppm_low = 0;
+	u32 estf_ctrl_val = 0, estf_ppm_hi = 0, estf_ppm_low = 0;
 	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	int pps_index = cpts->pps_genf_idx;
 	u64 adj_period, pps_adj_period;
 	u32 ctrl_val, ppm_hi, ppm_low;
 	unsigned long flags;
-	int neg_adj = 0;
+	int neg_adj = 0, i;
 
 	if (ppb < 0) {
 		neg_adj = 1;
@@ -441,19 +442,19 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	ppm_low = lower_32_bits(adj_period);
 
 	if (cpts->pps_enabled) {
-		pps_ctrl_val = am65_cpts_read32(cpts, genf[pps_index].control);
+		estf_ctrl_val = am65_cpts_read32(cpts, genf[pps_index].control);
 		if (neg_adj)
-			pps_ctrl_val &= ~BIT(1);
+			estf_ctrl_val &= ~BIT(1);
 		else
-			pps_ctrl_val |= BIT(1);
+			estf_ctrl_val |= BIT(1);
 
 		/* GenF PPM will do correction using cpts refclk tick which is
 		 * (cpts->ts_add_val + 1) ns, so GenF length PPM adj period
 		 * need to be corrected.
 		 */
 		pps_adj_period = adj_period * (cpts->ts_add_val + 1);
-		pps_ppm_hi = upper_32_bits(pps_adj_period) & 0x3FF;
-		pps_ppm_low = lower_32_bits(pps_adj_period);
+		estf_ppm_hi = upper_32_bits(pps_adj_period) & 0x3FF;
+		estf_ppm_low = lower_32_bits(pps_adj_period);
 	}
 
 	spin_lock_irqsave(&cpts->lock, flags);
@@ -471,11 +472,18 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	am65_cpts_write32(cpts, ppm_low, ts_ppm_low);
 
 	if (cpts->pps_enabled) {
-		am65_cpts_write32(cpts, pps_ctrl_val, genf[pps_index].control);
-		am65_cpts_write32(cpts, pps_ppm_hi, genf[pps_index].ppm_hi);
-		am65_cpts_write32(cpts, pps_ppm_low, genf[pps_index].ppm_low);
+		am65_cpts_write32(cpts, estf_ctrl_val, genf[pps_index].control);
+		am65_cpts_write32(cpts, estf_ppm_hi, genf[pps_index].ppm_hi);
+		am65_cpts_write32(cpts, estf_ppm_low, genf[pps_index].ppm_low);
 	}
 
+	for (i = 0; i < AM65_CPTS_ESTF_MAX_NUM; i++) {
+		if (cpts->estf_enable & BIT(i)) {
+			am65_cpts_write32(cpts, estf_ctrl_val, estf[i].control);
+			am65_cpts_write32(cpts, estf_ppm_hi, estf[i].ppm_hi);
+			am65_cpts_write32(cpts, estf_ppm_low, estf[i].ppm_low);
+		}
+	}
 	/* All GenF/EstF can be updated here the same way */
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
@@ -596,6 +604,11 @@ int am65_cpts_estf_enable(struct am65_cpts *cpts, int idx,
 	am65_cpts_write32(cpts, val, estf[idx].comp_lo);
 	val = lower_32_bits(cycles);
 	am65_cpts_write32(cpts, val, estf[idx].length);
+	am65_cpts_write32(cpts, 0, estf[idx].control);
+	am65_cpts_write32(cpts, 0, estf[idx].ppm_hi);
+	am65_cpts_write32(cpts, 0, estf[idx].ppm_low);
+
+	cpts->estf_enable |= BIT(idx);
 
 	dev_dbg(cpts->dev, "%s: ESTF:%u enabled\n", __func__, idx);
 
@@ -606,6 +619,7 @@ EXPORT_SYMBOL_GPL(am65_cpts_estf_enable);
 void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx)
 {
 	am65_cpts_write32(cpts, 0, estf[idx].length);
+	cpts->estf_enable &= ~BIT(idx);
 
 	dev_dbg(cpts->dev, "%s: ESTF:%u disabled\n", __func__, idx);
 }

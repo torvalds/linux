@@ -59,8 +59,8 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 {
 	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
 	snd_emu10k1_ptr_write(emu, IP, ch, 0);
-	snd_emu10k1_ptr_write(emu, VTFT, ch, 0xffff);
-	snd_emu10k1_ptr_write(emu, CVCF, ch, 0xffff);
+	snd_emu10k1_ptr_write(emu, VTFT, ch, VTFT_FILTERTARGET_MASK);
+	snd_emu10k1_ptr_write(emu, CVCF, ch, CVCF_CURRENTFILTER_MASK);
 	snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
 	snd_emu10k1_ptr_write(emu, CPF, ch, 0);
 	snd_emu10k1_ptr_write(emu, CCR, ch, 0);
@@ -74,7 +74,7 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 
 	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
 	snd_emu10k1_ptr_write(emu, DCYSUSM, ch, 0);
-	snd_emu10k1_ptr_write(emu, IFATN, ch, 0xffff);
+	snd_emu10k1_ptr_write(emu, IFATN, ch, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK);
 	snd_emu10k1_ptr_write(emu, PEFE, ch, 0);
 	snd_emu10k1_ptr_write(emu, FMMOD, ch, 0);
 	snd_emu10k1_ptr_write(emu, TREMFRQ, ch, 24);	/* 1 Hz */
@@ -90,10 +90,10 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 
 	/* Audigy extra stuffs */
 	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, 0x4c, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4d, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4e, ch, 0); /* ?? */
-		snd_emu10k1_ptr_write(emu, 0x4f, ch, 0); /* ?? */
+		snd_emu10k1_ptr_write(emu, A_CSBA, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSDC, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSFE, ch, 0);
+		snd_emu10k1_ptr_write(emu, A_CSHG, ch, 0);
 		snd_emu10k1_ptr_write(emu, A_FXRT1, ch, 0x03020100);
 		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x3f3f3f3f);
 		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, ch, 0);
@@ -140,7 +140,7 @@ static const unsigned int i2c_adc_init[][2] = {
 	{ 0x15, ADC_MUX_2 },  /* ADC Mixer control. Mic for A2ZS Notebook */
 };
 
-static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
+static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 {
 	unsigned int silent_page;
 	int ch;
@@ -162,6 +162,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	outl(0, emu->port + INTE);
 	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
 	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
+
+	/* disable stop on loop end */
 	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
 	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
 
@@ -181,13 +183,11 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	snd_emu10k1_ptr_write(emu, SPCS1, 0, emu->spdif_bits[1]);
 	snd_emu10k1_ptr_write(emu, SPCS2, 0, emu->spdif_bits[2]);
 
-	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
+	if (emu->card_capabilities->emu_model) {
+	} else if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		/* Setup SRCMulti_I2S SamplingRate */
-		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
-		tmp &= 0xfffff1ff;
-		tmp |= (0x2<<9);
-		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
+		snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, 0, A_I2S_CAPTURE_96000);
 
 		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
 		snd_emu10k1_ptr20_write(emu, SRCSel, 0, 0x14);
@@ -199,32 +199,26 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		outl(0x0201, emu->port + HCFG2);
 		/* Set playback routing. */
 		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, 0x78e4);
-	}
-	if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
+	} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		dev_info(emu->card->dev, "Audigy2 value: Special config.\n");
 		/* Setup SRCMulti_I2S SamplingRate */
-		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
-		tmp &= 0xfffff1ff;
-		tmp |= (0x2<<9);
-		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
+		snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, 0, A_I2S_CAPTURE_96000);
 
 		/* Setup SRCSel (Enable Spdif,I2S SRCMulti) */
-		outl(0x600000, emu->port + 0x20);
-		outl(0x14, emu->port + 0x24);
+		snd_emu10k1_ptr20_write(emu, P17V_SRCSel, 0, 0x14);
 
 		/* Setup SRCMulti Input Audio Enable */
-		outl(0x7b0000, emu->port + 0x20);
-		outl(0xFF000000, emu->port + 0x24);
+		snd_emu10k1_ptr20_write(emu, P17V_MIXER_I2S_ENABLE, 0, 0xFF000000);
 
 		/* Setup SPDIF Out Audio Enable */
 		/* The Audigy 2 Value has a separate SPDIF out,
 		 * so no need for a mixer switch
 		 */
-		outl(0x7a0000, emu->port + 0x20);
-		outl(0xFF000000, emu->port + 0x24);
-		tmp = inl(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
-		outl(tmp, emu->port + A_IOCFG);
+		snd_emu10k1_ptr20_write(emu, P17V_MIXER_SPDIF_ENABLE, 0, 0xFF000000);
+
+		tmp = inw(emu->port + A_IOCFG) & ~0x8; /* Clear bit 3 */
+		outw(tmp, emu->port + A_IOCFG);
 	}
 	if (emu->card_capabilities->spi_dac) { /* Audigy 2 ZS Notebook with DAC Wolfson WM8768/WM8568 */
 		int size, n;
@@ -244,15 +238,15 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		 * GPIO6: Unknown
 		 * GPIO7: Unknown
 		 */
-		outl(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
+		outw(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
 	}
 	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Notebook with ADC Wolfson WM8775 */
 		int size, n;
 
 		snd_emu10k1_ptr20_write(emu, P17V_I2S_SRC_SEL, 0, 0x2020205f);
-		tmp = inl(emu->port + A_IOCFG);
-		outl(tmp | 0x4, emu->port + A_IOCFG);  /* Set bit 2 for mic input */
-		tmp = inl(emu->port + A_IOCFG);
+		tmp = inw(emu->port + A_IOCFG);
+		outw(tmp | 0x4, emu->port + A_IOCFG);  /* Set bit 2 for mic input */
+		tmp = inw(emu->port + A_IOCFG);
 		size = ARRAY_SIZE(i2c_adc_init);
 		for (n = 0; n < size; n++)
 			snd_emu10k1_i2c_write(emu, i2c_adc_init[n][0], i2c_adc_init[n][1]);
@@ -265,7 +259,7 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 
 	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
-	snd_emu10k1_ptr_write(emu, TCBS, 0, 4);	/* taken from original driver */
+	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_256K);	/* taken from original driver */
 
 	silent_page = (emu->silent_page.addr << emu->address_mode) | (emu->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 	for (ch = 0; ch < NUM_G; ch++) {
@@ -308,12 +302,12 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		} else if (emu->card_capabilities->i2c_adc) {
 			;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 		} else if (emu->audigy) {
-			unsigned int reg = inl(emu->port + A_IOCFG);
-			outl(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
+			u16 reg = inw(emu->port + A_IOCFG);
+			outw(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
 			udelay(500);
-			outl(reg | A_IOCFG_GPOUT1 | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
+			outw(reg | A_IOCFG_GPOUT1 | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
 			udelay(100);
-			outl(reg, emu->port + A_IOCFG);
+			outw(reg, emu->port + A_IOCFG);
 		} else {
 			unsigned int reg = inl(emu->port + HCFG);
 			outl(reg | HCFG_GPOUT2, emu->port + HCFG);
@@ -329,8 +323,8 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 	} else if (emu->card_capabilities->i2c_adc) {
 		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {	/* enable analog output */
-		unsigned int reg = inl(emu->port + A_IOCFG);
-		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
+		u16 reg = inw(emu->port + A_IOCFG);
+		outw(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
 	}
 
 	if (emu->address_mode == 0) {
@@ -354,19 +348,19 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	} else if (emu->card_capabilities->i2c_adc) {
 		;  /* Disable A_IOCFG for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
-		outl(inl(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
+		outw(inw(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
 
 		if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 			/* Unmute Analog now.  Set GPO6 to 1 for Apollo.
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
-			outl(inl(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
 		} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 value */
 			/* Unmute Analog now. */
-			outl(inl(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
 		} else {
 			/* Disable routing from AC97 line out to Front speakers */
-			outl(inl(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
+			outw(inw(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
 		}
 	}
 
@@ -651,26 +645,27 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
-	int reg;
-	int value;
-	__always_unused unsigned int write_post;
+	u16 reg;
+	u8 value;
+	__always_unused u16 write_post;
 	unsigned long flags;
 
 	if (!fw_entry)
 		return -EIO;
 
 	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
+	/* On E-MU 0404b it is a Xilinx Spartan III XC3S50 */
 	/* GPIO7 -> FPGA PGMN
 	 * GPIO6 -> FPGA CCLK
 	 * GPIO5 -> FPGA DIN
 	 * FPGA CONFIG OFF -> FPGA PGMN
 	 */
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	outl(0x00, emu->port + A_IOCFG); /* Set PGMN low for 1uS. */
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 100uS. */
+	write_post = inw(emu->port + A_GPIO);
 	udelay(100);
-	outl(0x80, emu->port + A_IOCFG); /* Leave bit 7 set during netlist setup. */
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x80, emu->port + A_GPIO); /* Leave bit 7 set during netlist setup. */
+	write_post = inw(emu->port + A_GPIO);
 	udelay(100); /* Allow FPGA memory to clean */
 	for (n = 0; n < fw_entry->size; n++) {
 		value = fw_entry->data[n];
@@ -679,15 +674,15 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 			if (value & 0x1)
 				reg = reg | 0x20;
 			value = value >> 1;
-			outl(reg, emu->port + A_IOCFG);
-			write_post = inl(emu->port + A_IOCFG);
-			outl(reg | 0x40, emu->port + A_IOCFG);
-			write_post = inl(emu->port + A_IOCFG);
+			outw(reg, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
+			outw(reg | 0x40, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
 		}
 	}
 	/* After programming, set GPIO bit 4 high again. */
-	outl(0x10, emu->port + A_IOCFG);
-	write_post = inl(emu->port + A_IOCFG);
+	outw(0x10, emu->port + A_GPIO);
+	write_post = inw(emu->port + A_GPIO);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 	return 0;
@@ -782,7 +777,7 @@ static void emu1010_firmware_work(struct work_struct *work)
 	} else if (!reg && emu->emu1010.last_reg) {
 		/* Audio Dock removed */
 		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
-		/* Unmute all */
+		/* The hardware auto-mutes all, so we unmute again */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 	}
 
@@ -794,29 +789,6 @@ static void emu1010_firmware_work(struct work_struct *work)
 }
 
 /*
- * EMU-1010 - details found out from this driver, official MS Win drivers,
- * testing the card:
- *
- * Audigy2 (aka Alice2):
- * ---------------------
- * 	* communication over PCI
- * 	* conversion of 32-bit data coming over EMU32 links from HANA FPGA
- *	  to 2 x 16-bit, using internal DSP instructions
- * 	* slave mode, clock supplied by HANA
- * 	* linked to HANA using:
- * 		32 x 32-bit serial EMU32 output channels
- * 		16 x EMU32 input channels
- * 		(?) x I2S I/O channels (?)
- *
- * FPGA (aka HANA):
- * ---------------
- * 	* provides all (?) physical inputs and outputs of the card
- * 		(ADC, DAC, SPDIF I/O, ADAT I/O, etc.)
- * 	* provides clock signal for the card and Alice2
- * 	* two crystals - for 44.1kHz and 48kHz multiples
- * 	* provides internal routing of signal sources to signal destinations
- * 	* inputs/outputs to Alice2 - see above
- *
  * Current status of the driver:
  * ----------------------------
  * 	* only 44.1/48kHz supported (the MS Win driver supports up to 192 kHz)
@@ -831,24 +803,10 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	int err;
 
 	dev_info(emu->card->dev, "emu1010: Special config.\n");
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a00c, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a004, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a000, emu->port + HCFG);
-	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
-	 * Mute all codecs.
-	 */
-	outl(0x0005a000, emu->port + HCFG);
+
+	/* Mute, and disable audio and lock cache, just in case.
+	 * Proper init follows in snd_emu10k1_init(). */
+	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
 
 	/* Disable 48Volt power to Audio Dock */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
@@ -860,7 +818,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		/* FPGA netlist already present so clear it */
 		/* Return to programming mode */
 
-		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0x02);
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_HANA);
 	}
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
 	dev_dbg(emu->card->dev, "reg2 = 0x%x\n", reg);
@@ -897,54 +855,39 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
-	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTICAL_TYPE, &tmp);
 	/* Optical -> ADAT I/O  */
-	/* 0 : SPDIF
-	 * 1 : ADAT
-	 */
 	emu->emu1010.optical_in = 1; /* IN_ADAT */
-	emu->emu1010.optical_out = 1; /* IN_ADAT */
-	tmp = 0;
-	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+	emu->emu1010.optical_out = 1; /* OUT_ADAT */
+	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
-	snd_emu1010_fpga_read(emu, EMU_HANA_ADC_PADS, &tmp);
 	/* Set no attenuation on Audio Dock pads. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, 0x00);
 	emu->emu1010.adc_pads = 0x00;
-	snd_emu1010_fpga_read(emu, EMU_HANA_DOCK_MISC, &tmp);
+	snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, emu->emu1010.adc_pads);
 	/* Unmute Audio dock DACs, Headphone source DAC-4. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, 0x30);
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12);
-	snd_emu1010_fpga_read(emu, EMU_HANA_DAC_PADS, &tmp);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, EMU_HANA_DOCK_PHONES_192_DAC4);
 	/* DAC PADs. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, 0x0f);
-	emu->emu1010.dac_pads = 0x0f;
-	snd_emu1010_fpga_read(emu, EMU_HANA_DOCK_MISC, &tmp);
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_MISC, 0x30);
-	snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &tmp);
+	emu->emu1010.dac_pads = EMU_HANA_DOCK_DAC_PAD1 | EMU_HANA_DOCK_DAC_PAD2 |
+				EMU_HANA_DOCK_DAC_PAD3 | EMU_HANA_DOCK_DAC_PAD4;
+	snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, emu->emu1010.dac_pads);
 	/* SPDIF Format. Set Consumer mode, 24bit, copy enable */
-	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, EMU_HANA_SPDIF_MODE_RX_INVALID);
 	/* MIDI routing */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19);
-	/* Unknown. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c);
+	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, EMU_HANA_MIDI_INA_FROM_HAMOA | EMU_HANA_MIDI_INB_FROM_DOCK2);
+	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, EMU_HANA_MIDI_OUT_DOCK2 | EMU_HANA_MIDI_OUT_SYNC2);
 	/* IRQ Enable: All on */
-	/* snd_emu1010_fpga_write(emu, 0x09, 0x0f ); */
+	/* snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x0f); */
 	/* IRQ Enable: All off */
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
-	dev_info(emu->card->dev, "emu1010: Card options3 = 0x%x\n", reg);
+	emu->emu1010.internal_clock = 1; /* 48000 */
 	/* Default WCLK set to 48kHz. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x00);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K);
 	/* Word Clock source, Internal 48kHz x1 */
 	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K);
 	/* snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X); */
 	/* Audio Dock LEDs. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_LOCK | EMU_HANA_DOCK_LEDS_2_48K);
 
 #if 0
 	/* For 96kHz */
@@ -1071,30 +1014,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		EMU_DST_ALICE_I2S2_LEFT, EMU_SRC_DOCK_ADC3_LEFT1);
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_ALICE_I2S2_RIGHT, EMU_SRC_DOCK_ADC3_RIGHT1);
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x01); /* Unmute all */
-
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &tmp);
-
-	/* AC97 1.03, Any 32Meg of 2Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Mute all codecs.
-	 */
-	outl(0x0000a000, emu->port + HCFG);
-	/* AC97 1.03, Any 32Meg of 2Gig address, Auto-Mute, EMU32 Slave,
-	 * Lock Sound Memory Cache, Lock Tank Memory Cache,
-	 * Un-Mute all codecs.
-	 */
-	outl(0x0000a001, emu->port + HCFG);
-
-	/* Initial boot complete. Now patches */
-
-	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &tmp);
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c); /* Unknown */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, 0x19); /* MIDI Route */
-	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, 0x0c); /* Unknown */
-	snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &tmp);
-	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10); /* SPDIF Format spdif  (or 0x11 for aes/ebu) */
+	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,
@@ -1215,21 +1135,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 			EMU_DST_HANA_ADAT + 7, EMU_SRC_ALICE_EMU32A + 7);
 		emu->emu1010.output_source[23] = 28;
 	}
-	/* TEMP: Select SPDIF in/out */
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x0); */ /* Output spdif */
-
-	/* TEMP: Select 48kHz SPDIF out */
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x0); /* Mute all */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, 0x0); /* Default fallback clock 48kHz */
-	/* Word Clock source, Internal 48kHz x1 */
-	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K);
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X); */
-	emu->emu1010.internal_clock = 1; /* 48000 */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12); /* Set LEDs on Audio Dock */
-	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x1); /* Unmute all */
-	/* snd_emu1010_fpga_write(emu, 0x7, 0x0); */ /* Mute all */
-	/* snd_emu1010_fpga_write(emu, 0x7, 0x1); */ /* Unmute all */
-	/* snd_emu1010_fpga_write(emu, 0xe, 0x12); */ /* Set LEDs on Audio Dock */
 
 	return 0;
 }
@@ -1343,6 +1248,15 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * AC97: STAC9750
 	 * CA0151: None
 	 */
+	/*
+	 * A_IOCFG Input (GPIO)
+	 * 0x400  = Front analog jack plugged in. (Green socket)
+	 * 0x1000 = Rear analog jack plugged in. (Black socket)
+	 * 0x2000 = Center/LFE analog jack plugged in. (Orange socket)
+	 * A_IOCFG Output (GPIO)
+	 * 0x60 = Sound out of front Left.
+	 * Win sets it to 0xXX61
+	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [SB0400]",
 	 .id = "Audigy2",
@@ -1391,6 +1305,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spi_dac = 1,
 	 .i2c_adc = 1,
 	 .spk71 = 1} ,
+	/* This is MAEM8950 "Mana" */
+	/* Attach MicroDock[M] to make it an E-MU 1616[m]. */
+	/* Does NOT support sync daughter card (obviously). */
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]",
@@ -1401,7 +1318,10 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1 ,
 	 .emu_model = EMU_MODEL_EMU1616},
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
-	/* This is MAEM8960, 0202 is MAEM 8980 */
+	/* This is MAEM8960 "Hana3", 0202 is MAEM8980 */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
+	 * MicroDock[M] to make it an E-MU 1616[m]. */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM8960]",
 	 .id = "EMU1010",
@@ -1411,6 +1331,11 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 new revision */
 	/* Tested by Maxim Kachur <mcdebugger@duganet.ru> 17th Oct 2012. */
 	/* This is MAEM8986, 0202 is MAEM8980 */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR a
+	 * MicroDockM to make it an E-MU 1616m. The non-m
+	 * version was never sold with this card, but should
+	 * still work. */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
 	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
 	 .id = "EMU1010",
@@ -1419,7 +1344,10 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 PCIe */
 	/* Tested by James@superbug.co.uk 8th July 2005. */
-	/* This is MAEM8810, 0202 is MAEM8820 */
+	/* This is MAEM8810 "Hana", 0202 is MAEM8820 "Hamoa" */
+	/* Attach 0202 daughter card to make it an E-MU 1212m, OR an
+	 * AudioDock[M] to make it an E-MU 1820[m]. */
+	/* Supports sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 [MAEM8810]",
 	 .id = "EMU1010",
@@ -1427,7 +1355,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010}, /* EMU 1010 old revision */
-	/* EMU0404b */
+	/* This is MAEM8852 "HanaLiteLite" */
+	/* Supports sync daughter card. */
+	/* Tested by oswald.buddenhagen@gmx.de Mar 2023. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40021102,
 	 .driver = "Audigy2", .name = "E-mu 0404b PCI [MAEM8852]",
 	 .id = "EMU0404",
@@ -1435,6 +1365,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
+	/* This is MAEM8850 "HanaLite" */
+	/* Supports sync daughter card. */
 	/* Tested by James@superbug.co.uk 20-3-2007. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40021102,
 	 .driver = "Audigy2", .name = "E-mu 0404 [MAEM8850]",
@@ -1444,6 +1376,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
 	/* EMU0404 PCIe */
+	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
 	 .driver = "Audigy2", .name = "E-mu 0404 PCIe [MAEM8984]",
 	 .id = "EMU0404",
@@ -1451,7 +1384,6 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
-	/* Note that all E-mu cards require kernel 2.6 or newer. */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
 	 .id = "Audigy2",
@@ -1532,6 +1464,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spdif_bug = 1,
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
+	/* Audigy 2 Platinum EX */
+	/* Win driver sets A_IOCFG output to 0x1c00 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
 	 .driver = "Audigy2", .name = "Audigy 2 Platinum EX [SB0280]",
 	 .id = "Audigy2",
@@ -1552,6 +1486,8 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .spdif_bug = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
+	/* Audigy 2 Platinum */
+	/* Win driver sets A_IOCFG output to 0xa00 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Platinum [SB0240P]",
 	 .id = "Audigy2",
@@ -1657,6 +1593,9 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
+	/* SB Live! Platinum */
+	/* Win driver sets A_IOCFG output to 0 */
+	/* Tested by Jonathan Dowland <jon@dow.land> Apr 2023. */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80401102,
 	 .driver = "EMU10K1", .name = "SB Live! Platinum [CT4760P]",
 	 .id = "Live",
@@ -1901,11 +1840,12 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	pci_set_master(pci);
 
-	emu->fx8010.fxbus_mask = 0x303f;
+	// The masks are not used for Audigy.
+	// FIXME: these should come from the card_capabilites table.
 	if (extin_mask == 0)
-		extin_mask = 0x3fcf;
+		extin_mask = 0x3fcf;  // EXTIN_*
 	if (extout_mask == 0)
-		extout_mask = 0x7fff;
+		extout_mask = 0x7fff;  // EXTOUT_*
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
 	emu->enable_ir = enable_ir;
@@ -1970,12 +1910,10 @@ int snd_emu10k1_create(struct snd_card *card,
 		pgtbl[idx] = cpu_to_le32(silent_page | idx);
 
 	/* set up voice indices */
-	for (idx = 0; idx < NUM_G; idx++) {
-		emu->voices[idx].emu = emu;
+	for (idx = 0; idx < NUM_G; idx++)
 		emu->voices[idx].number = idx;
-	}
 
-	err = snd_emu10k1_init(emu, enable_ir, 0);
+	err = snd_emu10k1_init(emu, enable_ir);
 	if (err < 0)
 		return err;
 #ifdef CONFIG_PM_SLEEP
@@ -2007,7 +1945,7 @@ static const unsigned char saved_regs[] = {
 	0xff /* end */
 };
 static const unsigned char saved_regs_audigy[] = {
-	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_SAMPLE_RATE,
+	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_EHC,
 	A_FXRT2, A_SENDAMOUNTS, A_FXRT1,
 	0xff /* end */
 };
@@ -2054,7 +1992,7 @@ void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu)
 				*val = snd_emu10k1_ptr_read(emu, *reg, i);
 	}
 	if (emu->audigy)
-		emu->saved_a_iocfg = inl(emu->port + A_IOCFG);
+		emu->saved_a_iocfg = inw(emu->port + A_IOCFG);
 	emu->saved_hcfg = inl(emu->port + HCFG);
 }
 
@@ -2068,7 +2006,7 @@ void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
 		snd_emu10k1_emu1010_init(emu);
 	else
 		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE);
-	snd_emu10k1_init(emu, emu->enable_ir, 1);
+	snd_emu10k1_init(emu, emu->enable_ir);
 }
 
 void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
@@ -2081,7 +2019,7 @@ void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
 
 	/* resore for spdif */
 	if (emu->audigy)
-		outl(emu->saved_a_iocfg, emu->port + A_IOCFG);
+		outw(emu->saved_a_iocfg, emu->port + A_IOCFG);
 	outl(emu->saved_hcfg, emu->port + HCFG);
 
 	val = emu->saved_ptr;

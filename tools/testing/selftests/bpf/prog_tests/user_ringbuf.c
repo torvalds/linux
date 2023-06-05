@@ -590,7 +590,7 @@ static void *kick_kernel_cb(void *arg)
 	/* Kick the kernel, causing it to drain the ring buffer and then wake
 	 * up the test thread waiting on epoll.
 	 */
-	syscall(__NR_getrlimit);
+	syscall(__NR_prlimit64);
 
 	return NULL;
 }

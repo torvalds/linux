@@ -53,7 +53,7 @@ struct w1_f1C_data {
 	u32	validcrc;
 };
 
-/**
+/*
  * Check the file size bounds and adjusts count as needed.
  * This would not be needed if the file size didn't reset to 0 after a write.
  */
@@ -146,16 +146,17 @@ out_up:
 }
 
 /**
- * Writes to the scratchpad and reads it back for verification.
+ * w1_f1C_write() - Writes to the scratchpad and reads it back for verification.
+ * @sl:		The slave structure
+ * @addr:	Address for the write
+ * @len:	length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
+ * @data:	The data to write
+ *
  * Then copies the scratchpad to EEPROM.
  * The data must be on one page.
  * The master must be locked.
  *
- * @param sl	The slave structure
- * @param addr	Address for the write
- * @param len   length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
- * @param data	The data to write
- * @return	0=Success -1=failure
+ * Return:	0=Success, -1=failure
  */
 static int w1_f1C_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 {
@@ -197,8 +198,10 @@ static int w1_f1C_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 	wrbuf[3] = es;
 
 	for (i = 0; i < sizeof(wrbuf); ++i) {
-		/* issue 10ms strong pullup (or delay) on the last byte
-		   for writing the data from the scratchpad to EEPROM */
+		/*
+		 * issue 10ms strong pullup (or delay) on the last byte
+		 * for writing the data from the scratchpad to EEPROM
+		 */
 		if (w1_strong_pullup && i == sizeof(wrbuf)-1)
 			w1_next_pullup(sl->master, tm);
 

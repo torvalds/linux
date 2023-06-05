@@ -270,7 +270,7 @@ static struct platform_driver sifive_gpio_driver = {
 	.probe		= sifive_gpio_probe,
 	.driver = {
 		.name	= "sifive_gpio",
-		.of_match_table = of_match_ptr(sifive_gpio_match),
+		.of_match_table = sifive_gpio_match,
 	},
 };
 builtin_platform_driver(sifive_gpio_driver)

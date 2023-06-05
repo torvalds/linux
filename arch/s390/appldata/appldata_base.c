@@ -66,16 +66,6 @@ static struct ctl_table appldata_table[] = {
 	{ },
 };
 
-static struct ctl_table appldata_dir_table[] = {
-	{
-		.procname	= appldata_proc_name,
-		.maxlen		= 0,
-		.mode		= S_IRUGO | S_IXUGO,
-		.child		= appldata_table,
-	},
-	{ },
-};
-
 /*
  * Timer
  */
@@ -291,7 +281,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	mutex_lock(&appldata_ops_mutex);
 	list_for_each(lh, &appldata_ops_list) {
 		tmp_ops = list_entry(lh, struct appldata_ops, list);
-		if (&tmp_ops->ctl_table[2] == ctl) {
+		if (&tmp_ops->ctl_table[0] == ctl) {
 			found = 1;
 		}
 	}
@@ -361,7 +351,8 @@ int appldata_register_ops(struct appldata_ops *ops)
 	if (ops->size > APPLDATA_MAX_REC_SIZE)
 		return -EINVAL;
 
-	ops->ctl_table = kcalloc(4, sizeof(struct ctl_table), GFP_KERNEL);
+	/* The last entry must be an empty one */
+	ops->ctl_table = kcalloc(2, sizeof(struct ctl_table), GFP_KERNEL);
 	if (!ops->ctl_table)
 		return -ENOMEM;
 
@@ -369,17 +360,12 @@ int appldata_register_ops(struct appldata_ops *ops)
 	list_add(&ops->list, &appldata_ops_list);
 	mutex_unlock(&appldata_ops_mutex);
 
-	ops->ctl_table[0].procname = appldata_proc_name;
-	ops->ctl_table[0].maxlen   = 0;
-	ops->ctl_table[0].mode     = S_IRUGO | S_IXUGO;
-	ops->ctl_table[0].child    = &ops->ctl_table[2];
+	ops->ctl_table[0].procname = ops->name;
+	ops->ctl_table[0].mode = S_IRUGO | S_IWUSR;
+	ops->ctl_table[0].proc_handler = appldata_generic_handler;
+	ops->ctl_table[0].data = ops;
 
-	ops->ctl_table[2].procname = ops->name;
-	ops->ctl_table[2].mode     = S_IRUGO | S_IWUSR;
-	ops->ctl_table[2].proc_handler = appldata_generic_handler;
-	ops->ctl_table[2].data = ops;
-
-	ops->sysctl_header = register_sysctl_table(ops->ctl_table);
+	ops->sysctl_header = register_sysctl(appldata_proc_name, ops->ctl_table);
 	if (!ops->sysctl_header)
 		goto out;
 	return 0;
@@ -422,7 +408,7 @@ static int __init appldata_init(void)
 	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq)
 		return -ENOMEM;
-	appldata_sysctl_header = register_sysctl_table(appldata_dir_table);
+	appldata_sysctl_header = register_sysctl(appldata_proc_name, appldata_table);
 	return 0;
 }
 

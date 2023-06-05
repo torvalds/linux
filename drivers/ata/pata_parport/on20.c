@@ -6,14 +6,6 @@
         Onspec 90c20 parallel to IDE adapter. 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-
-*/
-
-#define	ON20_VERSION	"1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -21,8 +13,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define op(f)	w2(4);w0(f);w2(5);w2(0xd);w2(5);w2(0xd);w2(5);w2(4);
 #define vl(v)	w2(4);w0(v);w2(5);w2(7);w2(5);w2(4);
@@ -33,7 +24,7 @@
    cont = 1 - access the IDE command set 
 */
 
-static int on20_read_regr( PIA *pi, int cont, int regr )
+static int on20_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int h,l, r ;
 
@@ -56,7 +47,7 @@ static int on20_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }	
 
-static void on20_write_regr( PIA *pi, int cont, int regr, int val )
+static void on20_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -67,7 +58,7 @@ static void on20_write_regr( PIA *pi, int cont, int regr, int val )
 	op(0); vl(val);
 }
 
-static void on20_connect ( PIA *pi)
+static void on20_connect(struct pi_adapter *pi)
 
 {	pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -77,14 +68,14 @@ static void on20_connect ( PIA *pi)
 	       else   { op(2); vl(0); op(2); vl(8); }
 }
 
-static void on20_disconnect ( PIA *pi )
+static void on20_disconnect(struct pi_adapter *pi)
 
 {	w2(4);w0(7);w2(4);w2(0xc);w2(4);
         w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void on20_read_block( PIA *pi, char * buf, int count )
+static void on20_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int     k, l, h; 
 
@@ -101,7 +92,7 @@ static void on20_read_block( PIA *pi, char * buf, int count )
 	w2(4);
 }
 
-static void on20_write_block(  PIA *pi, char * buf, int count )
+static void on20_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int	k;
 
@@ -111,15 +102,12 @@ static void on20_write_block(  PIA *pi, char * buf, int count )
 	w2(4);
 }
 
-static void on20_log_adapter( PIA *pi, char * scratch, int verbose )
+static void on20_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 
-        printk("%s: on20 %s, OnSpec 90c20 at 0x%x, ",
-                pi->device,ON20_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "OnSpec 90c20 at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol on20 = {
@@ -138,16 +126,5 @@ static struct pi_protocol on20 = {
 	.log_adapter	= on20_log_adapter,
 };
 
-static int __init on20_init(void)
-{
-	return paride_register(&on20);
-}
-
-static void __exit on20_exit(void)
-{
-	paride_unregister(&on20);
-}
-
 MODULE_LICENSE("GPL");
-module_init(on20_init)
-module_exit(on20_exit)
+module_pata_parport_driver(on20);

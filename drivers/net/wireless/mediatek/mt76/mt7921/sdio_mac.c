@@ -4,7 +4,7 @@
 #include <linux/iopoll.h>
 #include <linux/mmc/sdio_func.h>
 #include "mt7921.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 #include "../sdio.h"
 
 static void mt7921s_enable_irq(struct mt76_dev *dev)

@@ -364,6 +364,7 @@ static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info, u8 
 }
 
 static inline void ufshcd_inc_sq_tail(struct ufs_hw_queue *q)
+	__must_hold(&q->sq_lock)
 {
 	u32 mask = q->max_entries - 1;
 	u32 val;

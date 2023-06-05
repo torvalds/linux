@@ -80,6 +80,10 @@ SYM_INNER_LABEL(loongarch_wakeup_start, SYM_L_GLOBAL)
 
 	JUMP_VIRT_ADDR	t0, t1
 
+	/* Enable PG */
+	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
+	csrwr		t0, LOONGARCH_CSR_CRMD
+
 	la.pcrel	t0, acpi_saved_sp
 	ld.d		sp, t0, 0
 	SETUP_WAKEUP

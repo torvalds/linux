@@ -101,6 +101,8 @@ typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
  * be used for libbpf warnings and informational messages.
  * @param fn The log print function. If NULL, libbpf won't print anything.
  * @return Pointer to old print function.
+ *
+ * This function is thread-safe.
  */
 LIBBPF_API libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn);
 
@@ -447,12 +449,15 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach(const struct bpf_program *prog);
 
 struct bpf_perf_event_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
+	/* don't use BPF link when attach BPF program */
+	bool force_ioctl_attach;
+	size_t :0;
 };
-#define bpf_perf_event_opts__last_field bpf_cookie
+#define bpf_perf_event_opts__last_field force_ioctl_attach
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach_perf_event(const struct bpf_program *prog, int pfd);
@@ -461,8 +466,25 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_perf_event_opts(const struct bpf_program *prog, int pfd,
 				    const struct bpf_perf_event_opts *opts);
 
+/**
+ * enum probe_attach_mode - the mode to attach kprobe/uprobe
+ *
+ * force libbpf to attach kprobe/uprobe in specific mode, -ENOTSUP will
+ * be returned if it is not supported by the kernel.
+ */
+enum probe_attach_mode {
+	/* attach probe in latest supported mode by kernel */
+	PROBE_ATTACH_MODE_DEFAULT = 0,
+	/* attach probe in legacy mode, using debugfs/tracefs */
+	PROBE_ATTACH_MODE_LEGACY,
+	/* create perf event with perf_event_open() syscall */
+	PROBE_ATTACH_MODE_PERF,
+	/* attach probe with BPF link */
+	PROBE_ATTACH_MODE_LINK,
+};
+
 struct bpf_kprobe_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
@@ -470,9 +492,11 @@ struct bpf_kprobe_opts {
 	size_t offset;
 	/* kprobe is return probe */
 	bool retprobe;
+	/* kprobe attach mode */
+	enum probe_attach_mode attach_mode;
 	size_t :0;
 };
-#define bpf_kprobe_opts__last_field retprobe
+#define bpf_kprobe_opts__last_field attach_mode
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe(const struct bpf_program *prog, bool retprobe,
@@ -506,7 +530,7 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const struct bpf_kprobe_multi_opts *opts);
 
 struct bpf_ksyscall_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
@@ -552,7 +576,7 @@ bpf_program__attach_ksyscall(const struct bpf_program *prog,
 			     const struct bpf_ksyscall_opts *opts);
 
 struct bpf_uprobe_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* offset of kernel reference counted USDT semaphore, added in
 	 * a6ca88b241d5 ("trace_uprobe: support reference counter in fd-based uprobe")
@@ -570,9 +594,11 @@ struct bpf_uprobe_opts {
 	 * binary_path.
 	 */
 	const char *func_name;
+	/* uprobe attach mode */
+	enum probe_attach_mode attach_mode;
 	size_t :0;
 };
-#define bpf_uprobe_opts__last_field func_name
+#define bpf_uprobe_opts__last_field attach_mode
 
 /**
  * @brief **bpf_program__attach_uprobe()** attaches a BPF program
@@ -646,7 +672,7 @@ bpf_program__attach_usdt(const struct bpf_program *prog,
 			 const struct bpf_usdt_opts *opts);
 
 struct bpf_tracepoint_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
@@ -695,6 +721,7 @@ bpf_program__attach_freplace(const struct bpf_program *prog,
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map);
+LIBBPF_API int bpf_link__update_map(struct bpf_link *link, const struct bpf_map *map);
 
 struct bpf_iter_attach_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
@@ -1110,7 +1137,7 @@ struct user_ring_buffer;
 typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
 
 struct ring_buffer_opts {
-	size_t sz; /* size of this struct, for forward/backward compatiblity */
+	size_t sz; /* size of this struct, for forward/backward compatibility */
 };
 
 #define ring_buffer_opts__last_field sz
@@ -1475,7 +1502,7 @@ LIBBPF_API void
 bpf_object__destroy_subskeleton(struct bpf_object_subskeleton *s);
 
 struct gen_loader_opts {
-	size_t sz; /* size of this struct, for forward/backward compatiblity */
+	size_t sz; /* size of this struct, for forward/backward compatibility */
 	const char *data;
 	const char *insns;
 	__u32 data_sz;
@@ -1493,13 +1520,13 @@ enum libbpf_tristate {
 };
 
 struct bpf_linker_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 };
 #define bpf_linker_opts__last_field sz
 
 struct bpf_linker_file_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 };
 #define bpf_linker_file_opts__last_field sz
@@ -1542,7 +1569,7 @@ typedef int (*libbpf_prog_attach_fn_t)(const struct bpf_program *prog, long cook
 				       struct bpf_link **link);
 
 struct libbpf_prog_handler_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* User-provided value that is passed to prog_setup_fn,
 	 * prog_prepare_load_fn, and prog_attach_fn callbacks. Allows user to

@@ -1440,4 +1440,3 @@ static int __init rzg2l_cpg_init(void)
 subsys_initcall(rzg2l_cpg_init);
 
 MODULE_DESCRIPTION("Renesas RZ/G2L CPG Driver");
-MODULE_LICENSE("GPL v2");

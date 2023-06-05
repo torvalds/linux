@@ -581,7 +581,7 @@ err_release_dma:
 	return r;
 }
 
-static int omap2_onenand_remove(struct platform_device *pdev)
+static void omap2_onenand_remove(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
 
@@ -589,8 +589,6 @@ static int omap2_onenand_remove(struct platform_device *pdev)
 	if (c->dma_chan)
 		dma_release_channel(c->dma_chan);
 	omap2_onenand_shutdown(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id omap2_onenand_id_table[] = {
@@ -601,7 +599,7 @@ MODULE_DEVICE_TABLE(of, omap2_onenand_id_table);
 
 static struct platform_driver omap2_onenand_driver = {
 	.probe		= omap2_onenand_probe,
-	.remove		= omap2_onenand_remove,
+	.remove_new	= omap2_onenand_remove,
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

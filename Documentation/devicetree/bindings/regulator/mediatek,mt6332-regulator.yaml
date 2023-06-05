@@ -18,7 +18,7 @@ description: |
 patternProperties:
   "^buck-v(dram|dvfs2|pa|rf18a|rf18b|sbst)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -28,7 +28,7 @@ patternProperties:
 
   "^ldo-v(bif28|dig18|sram|usb33)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:

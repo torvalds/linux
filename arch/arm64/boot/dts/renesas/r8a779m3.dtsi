@@ -12,6 +12,9 @@
 };
 
 &cluster0_opp {
+	opp-1800000000 {
+		/delete-property/ turbo-mode;
+	};
 	opp-2000000000 {
 		opp-hz = /bits/ 64 <2000000000>;
 		opp-microvolt = <960000>;

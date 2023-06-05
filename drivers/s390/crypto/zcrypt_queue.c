@@ -44,7 +44,7 @@ static ssize_t online_show(struct device *dev,
 	struct ap_queue *aq = to_ap_queue(dev);
 	int online = aq->config && zq->online ? 1 : 0;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
+	return sysfs_emit(buf, "%d\n", online);
 }
 
 static ssize_t online_store(struct device *dev,
@@ -84,7 +84,7 @@ static ssize_t load_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
+	return sysfs_emit(buf, "%d\n", atomic_read(&zq->load));
 }
 
 static DEVICE_ATTR_RO(load);

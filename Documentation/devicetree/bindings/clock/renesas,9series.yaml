@@ -16,6 +16,11 @@ description: |
   - 9FGV0241:
     0 -- DIF0
     1 -- DIF1
+  - 9FGV0441:
+    0 -- DIF0
+    1 -- DIF1
+    2 -- DIF2
+    3 -- DIF3
 
 maintainers:
   - Marek Vasut <marex@denx.de>
@@ -24,6 +29,7 @@ properties:
   compatible:
     enum:
       - renesas,9fgv0241
+      - renesas,9fgv0441
 
   reg:
     description: I2C device address

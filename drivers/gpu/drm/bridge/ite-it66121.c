@@ -1640,7 +1640,7 @@ static struct i2c_driver it66121_driver = {
 		.name	= "it66121",
 		.of_match_table = it66121_dt_match,
 	},
-	.probe_new = it66121_probe,
+	.probe = it66121_probe,
 	.remove = it66121_remove,
 	.id_table = it66121_id,
 };

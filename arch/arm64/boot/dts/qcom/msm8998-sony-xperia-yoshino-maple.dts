@@ -22,7 +22,7 @@
 		enable-active-high;
 		gpio = <&pmi8998_gpios 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&disp_dvdd_en>;
+		pinctrl-0 = <&four_k_disp_dcdc_en>;
 	};
 };
 
@@ -37,8 +37,30 @@
 	qcom,soft-start-us = <200>;
 };
 
+&pm8005_gpios {
+	gpio-line-names = "EAR_EN", /* GPIO_1 */
+			  "NC",
+			  "SLB",
+			  "OPTION_1_PM8005";
+};
+
 &pmi8998_gpios {
-	disp_dvdd_en: disp-dvdd-en-active-state {
+	gpio-line-names = "MAIN_CAM_PWR_IO_EN", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "TYPEC_UUSB_SEL",
+			  "VIB_LDO_EN",
+			  "NC",
+			  "DISPLAY_TYPE_SEL",
+			  "USB_SWITCH_SEL",
+			  "NC",
+			  "4K_DISP_DCDC_EN", /* GPIO_10 */
+			  "NC",
+			  "DIV_CLK3",
+			  "SPMI_I2C_SEL",
+			  "NC";
+
+	four_k_disp_dcdc_en: 4k-disp-dcdc-en-state {
 		pins = "gpio10";
 		function = "normal";
 		bias-disable;
@@ -47,6 +69,159 @@
 		power-source = <0>;
 		qcom,drive-strength = <1>;
 	};
+};
+
+&tlmm {
+	gpio-line-names = "", /* GPIO_0 */
+			  "",
+			  "",
+			  "",
+			  "DEBUG_UART_TX",
+			  "DEBUG_UART_RX",
+			  "CAMSENSOR_I2C_SDA",
+			  "CAMSENSOR_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "MDP_VSYNC_P", /* GPIO_10 */
+			  "RGBC_IR_INT",
+			  "NFC_VEN",
+			  "CAM_MCLK0",
+			  "CAM_MCLK1",
+			  "NC",
+			  "NC",
+			  "CCI_I2C_SDA0",
+			  "CCI_I2C_SCL0",
+			  "CCI_I2C_SDA1",
+			  "CCI_I2C_SCL1", /* GPIO_20 */
+			  "MAIN_CAM_PWR_EN",
+			  "TOF_INT_N",
+			  "NC",
+			  "NC",
+			  "CHAT_CAM_PWR_EN",
+			  "NC",
+			  "TOF_RESET_N",
+			  "CAM2_RSTN",
+			  "NC",
+			  "CAM1_RSTN", /* GPIO_30 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "CC_DIR",
+			  "UIM2_DETECT_EN",
+			  "FP_RESET_N", /* GPIO_40 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "BT_HCI_UART_TXD",
+			  "BT_HCI_UART_RXD",
+			  "BT_HCI_UART_CTS_N",
+			  "BT_HCI_UART_RFR_N",
+			  "NC",
+			  "NC", /* GPIO_50 */
+			  "NC",
+			  "NC",
+			  "CODEC_INT2_N",
+			  "CODEC_INT1_N",
+			  "APPS_I2C_SDA",
+			  "APPS_I2C_SCL",
+			  "FORCED_USB_BOOT",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_60 */
+			  "NC",
+			  "NC",
+			  "TRAY2_DET_DS",
+			  "CODEC_RST_N",
+			  "WSA_L_EN",
+			  "WSA_R_EN",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "LPASS_SLIMBUS_CLK", /* GPIO_70 */
+			  "LPASS_SLIMBUS_DATA0",
+			  "LPASS_SLIMBUS_DATA1",
+			  "BT_FM_SLIMBUS_DATA",
+			  "BT_FM_SLIMBUS_CLK",
+			  "NC",
+			  "RF_LCD_ID_EN",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_80 */
+			  "SW_SERVICE",
+			  "TX_GTR_THRES_IN",
+			  "HW_ID0",
+			  "HW_ID1",
+			  "NC",
+			  "NC",
+			  "TS_I2C_SDA",
+			  "TS_I2C_SCL",
+			  "TS_RESET_N",
+			  "NC", /* GPIO_90 */
+			  "NC",
+			  "NFC_IRQ",
+			  "NFC_DWLD_EN",
+			  "DISP_RESET_N",
+			  "TRAY2_DET",
+			  "CAM_SOF",
+			  "RFFE6_CLK",
+			  "RFFE6_DATA",
+			  "DEBUG_GPIO0",
+			  "DEBUG_GPIO1", /* GPIO_100 */
+			  "GRFC4",
+			  "NC",
+			  "NC",
+			  "RSVD",
+			  "UIM2_DATA",
+			  "UIM2_CLK",
+			  "UIM2_RESET",
+			  "UIM2_PRESENT",
+			  "UIM1_DATA",
+			  "UIM1_CLK", /* GPIO_110 */
+			  "UIM1_RST",
+			  "UIM1_PRESENT",
+			  "UIM_BATT_ALARM",
+			  "RSVD",
+			  "NC",
+			  "NC",
+			  "ACCEL_INT",
+			  "GYRO_INT",
+			  "COMPASS_INT",
+			  "ALS_PROX_INT_N", /* GPIO_120 */
+			  "FP_INT_N",
+			  "NC",
+			  "BAROMETER_INT",
+			  "ACC_COVER_OPEN",
+			  "TS_INT_N",
+			  "NC",
+			  "NC",
+			  "USB_DETECT_EN",
+			  "NC",
+			  "QLINK_REQUEST", /* GPIO_130 */
+			  "QLINK_ENABLE",
+			  "NC",
+			  "TS_VDDIO_EN",
+			  "WMSS_RESET_N",
+			  "PA_INDICATOR_OR",
+			  "NC",
+			  "RFFE3_DATA",
+			  "RFFE3_CLK",
+			  "RFFE4_DATA",
+			  "RFFE4_CLK", /* GPIO_140 */
+			  "RFFE5_DATA",
+			  "RFFE5_CLK",
+			  "GNSS_EN",
+			  "MSS_LTE_COXM_TXD",
+			  "MSS_LTE_COXM_RXD",
+			  "RFFE2_DATA",
+			  "RFFE2_CLK",
+			  "RFFE1_DATA",
+			  "RFFE1_CLK";
 };
 
 &vreg_l22a_2p85 {

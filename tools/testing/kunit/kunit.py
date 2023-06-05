@@ -123,7 +123,7 @@ def _suites_from_test_list(tests: List[str]) -> List[str]:
 		parts = t.split('.', maxsplit=2)
 		if len(parts) != 2:
 			raise ValueError(f'internal KUnit error, test name should be of the form "<suite>.<test>", got "{t}"')
-		suite, case = parts
+		suite, _ = parts
 		if not suites or suites[-1] != suite:
 			suites.append(suite)
 	return suites
@@ -269,7 +269,7 @@ def massage_argv(argv: Sequence[str]) -> Sequence[str]:
 def get_default_jobs() -> int:
 	return len(os.sched_getaffinity(0))
 
-def add_common_opts(parser) -> None:
+def add_common_opts(parser: argparse.ArgumentParser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
 			    'directory.',
@@ -320,13 +320,13 @@ def add_common_opts(parser) -> None:
 			    help='Additional QEMU arguments, e.g. "-smp 8"',
 			    action='append', metavar='')
 
-def add_build_opts(parser) -> None:
+def add_build_opts(parser: argparse.ArgumentParser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
 			    'jobs (commands) to run simultaneously."',
 			    type=int, default=get_default_jobs(), metavar='N')
 
-def add_exec_opts(parser) -> None:
+def add_exec_opts(parser: argparse.ArgumentParser) -> None:
 	parser.add_argument('--timeout',
 			    help='maximum number of seconds to allow for all tests '
 			    'to run. This does not include time taken to build the '
@@ -351,7 +351,7 @@ def add_exec_opts(parser) -> None:
 			    type=str,
 			    choices=['suite', 'test'])
 
-def add_parse_opts(parser) -> None:
+def add_parse_opts(parser: argparse.ArgumentParser) -> None:
 	parser.add_argument('--raw_output', help='If set don\'t parse output from kernel. '
 			    'By default, filters to just KUnit output. Use '
 			    '--raw_output=all to show everything',
@@ -386,7 +386,7 @@ def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree
 			extra_qemu_args=qemu_args)
 
 
-def run_handler(cli_args):
+def run_handler(cli_args: argparse.Namespace) -> None:
 	if not os.path.exists(cli_args.build_dir):
 		os.mkdir(cli_args.build_dir)
 
@@ -405,7 +405,7 @@ def run_handler(cli_args):
 		sys.exit(1)
 
 
-def config_handler(cli_args):
+def config_handler(cli_args: argparse.Namespace) -> None:
 	if cli_args.build_dir and (
 			not os.path.exists(cli_args.build_dir)):
 		os.mkdir(cli_args.build_dir)
@@ -421,7 +421,7 @@ def config_handler(cli_args):
 		sys.exit(1)
 
 
-def build_handler(cli_args):
+def build_handler(cli_args: argparse.Namespace) -> None:
 	linux = tree_from_args(cli_args)
 	request = KunitBuildRequest(build_dir=cli_args.build_dir,
 					make_options=cli_args.make_options,
@@ -434,7 +434,7 @@ def build_handler(cli_args):
 		sys.exit(1)
 
 
-def exec_handler(cli_args):
+def exec_handler(cli_args: argparse.Namespace) -> None:
 	linux = tree_from_args(cli_args)
 	exec_request = KunitExecRequest(raw_output=cli_args.raw_output,
 					build_dir=cli_args.build_dir,
@@ -450,10 +450,10 @@ def exec_handler(cli_args):
 		sys.exit(1)
 
 
-def parse_handler(cli_args):
+def parse_handler(cli_args: argparse.Namespace) -> None:
 	if cli_args.file is None:
-		sys.stdin.reconfigure(errors='backslashreplace')  # pytype: disable=attribute-error
-		kunit_output = sys.stdin
+		sys.stdin.reconfigure(errors='backslashreplace')  # type: ignore
+		kunit_output = sys.stdin  # type: Iterable[str]
 	else:
 		with open(cli_args.file, 'r', errors='backslashreplace') as f:
 			kunit_output = f.read().splitlines()
@@ -475,7 +475,7 @@ subcommand_handlers_map = {
 }
 
 
-def main(argv):
+def main(argv: Sequence[str]) -> None:
 	parser = argparse.ArgumentParser(
 			description='Helps writing and running KUnit tests.')
 	subparser = parser.add_subparsers(dest='subcommand')

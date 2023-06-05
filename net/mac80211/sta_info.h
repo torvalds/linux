@@ -622,8 +622,13 @@ struct link_sta_info {
  *	taken from HT/VHT capabilities or VHT operating mode notification
  * @cparams: CoDel parameters for this station.
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
- * @amsdu_mesh_control: track the mesh A-MSDU format used by the peer
- *	(-1: not yet known, 0: non-standard [without mesh header], 1: standard)
+ * @amsdu_mesh_control: track the mesh A-MSDU format used by the peer:
+ *
+ *	  * -1: not yet known
+ *	  * 0: non-mesh A-MSDU length field
+ *	  * 1: big-endian mesh A-MSDU length field
+ *	  * 2: little-endian mesh A-MSDU length field
+ *
  * @fast_tx: TX fastpath information
  * @fast_rx: RX fastpath information
  * @tdls_chandef: a TDLS peer can have a wider chandef that is compatible to

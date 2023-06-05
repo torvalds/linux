@@ -277,7 +277,7 @@
 };
 
 &thermal_zones {
-	pmic-thermal0 {
+	pmic-thermal {
 		polling-delay-passive = <250>;
 		polling-delay = <2000>;
 		thermal-sensors = <&tsens IMX_SC_R_PMIC_0>;

@@ -846,7 +846,7 @@ err_no_rtc_ck:
 	return ret;
 }
 
-static int stm32_rtc_remove(struct platform_device *pdev)
+static void stm32_rtc_remove(struct platform_device *pdev)
 {
 	struct stm32_rtc *rtc = platform_get_drvdata(pdev);
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
@@ -869,8 +869,6 @@ static int stm32_rtc_remove(struct platform_device *pdev)
 
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -917,7 +915,7 @@ static SIMPLE_DEV_PM_OPS(stm32_rtc_pm_ops,
 
 static struct platform_driver stm32_rtc_driver = {
 	.probe		= stm32_rtc_probe,
-	.remove		= stm32_rtc_remove,
+	.remove_new	= stm32_rtc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &stm32_rtc_pm_ops,

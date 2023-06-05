@@ -1948,14 +1948,32 @@ static int atmel_sha_hmac_digest2(struct atmel_sha_dev *dd)
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct atmel_sha_hmac_ctx *hmac = crypto_ahash_ctx(tfm);
+	struct scatterlist *sgbuf;
 	size_t hs = ctx->hash_size;
 	size_t i, num_words = hs / sizeof(u32);
 	bool use_dma = false;
 	u32 mr;
 
 	/* Special case for empty message. */
-	if (!req->nbytes)
-		return atmel_sha_complete(dd, -EINVAL); // TODO:
+	if (!req->nbytes) {
+		req->nbytes = 0;
+		ctx->bufcnt = 0;
+		ctx->digcnt[0] = 0;
+		ctx->digcnt[1] = 0;
+		switch (ctx->flags & SHA_FLAGS_ALGO_MASK) {
+		case SHA_FLAGS_SHA1:
+		case SHA_FLAGS_SHA224:
+		case SHA_FLAGS_SHA256:
+			atmel_sha_fill_padding(ctx, 64);
+			break;
+
+		case SHA_FLAGS_SHA384:
+		case SHA_FLAGS_SHA512:
+			atmel_sha_fill_padding(ctx, 128);
+			break;
+		}
+		sg_init_one(&dd->tmp, ctx->buffer, ctx->bufcnt);
+	}
 
 	/* Check DMA threshold and alignment. */
 	if (req->nbytes > ATMEL_SHA_DMA_THRESHOLD &&
@@ -1985,12 +2003,20 @@ static int atmel_sha_hmac_digest2(struct atmel_sha_dev *dd)
 
 	atmel_sha_write(dd, SHA_CR, SHA_CR_FIRST);
 
+	/* Special case for empty message. */
+	if (!req->nbytes) {
+		sgbuf = &dd->tmp;
+		req->nbytes = ctx->bufcnt;
+	} else {
+		sgbuf = req->src;
+	}
+
 	/* Process data. */
 	if (use_dma)
-		return atmel_sha_dma_start(dd, req->src, req->nbytes,
+		return atmel_sha_dma_start(dd, sgbuf, req->nbytes,
 					   atmel_sha_hmac_final_done);
 
-	return atmel_sha_cpu_start(dd, req->src, req->nbytes, false, true,
+	return atmel_sha_cpu_start(dd, sgbuf, req->nbytes, false, true,
 				   atmel_sha_hmac_final_done);
 }
 

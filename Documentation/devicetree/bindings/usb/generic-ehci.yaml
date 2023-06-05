@@ -10,7 +10,7 @@ maintainers:
   - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 allOf:
-  - $ref: "usb-hcd.yaml"
+  - $ref: usb-hcd.yaml
   - if:
       properties:
         compatible:

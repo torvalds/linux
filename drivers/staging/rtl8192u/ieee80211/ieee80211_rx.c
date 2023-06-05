@@ -1958,43 +1958,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 	return 0;
 }
 
-static inline u8 ieee80211_SignalStrengthTranslate(
-	u8  CurrSS
-	)
-{
-	u8 RetSS;
-
-	// Step 1. Scale mapping.
-	if (CurrSS >= 71 && CurrSS <= 100) {
-		RetSS = 90 + ((CurrSS - 70) / 3);
-	} else if (CurrSS >= 41 && CurrSS <= 70) {
-		RetSS = 78 + ((CurrSS - 40) / 3);
-	} else if (CurrSS >= 31 && CurrSS <= 40) {
-		RetSS = 66 + (CurrSS - 30);
-	} else if (CurrSS >= 21 && CurrSS <= 30) {
-		RetSS = 54 + (CurrSS - 20);
-	} else if (CurrSS >= 5 && CurrSS <= 20) {
-		RetSS = 42 + (((CurrSS - 5) * 2) / 3);
-	} else if (CurrSS == 4) {
-		RetSS = 36;
-	} else if (CurrSS == 3) {
-		RetSS = 27;
-	} else if (CurrSS == 2) {
-		RetSS = 18;
-	} else if (CurrSS == 1) {
-		RetSS = 9;
-	} else {
-		RetSS = CurrSS;
-	}
-	//RT_TRACE(COMP_DBG, DBG_LOUD, ("##### After Mapping:  LastSS: %d, CurrSS: %d, RetSS: %d\n", LastSS, CurrSS, RetSS));
-
-	// Step 2. Smoothing.
-
-	//RT_TRACE(COMP_DBG, DBG_LOUD, ("$$$$$ After Smoothing:  LastSS: %d, CurrSS: %d, RetSS: %d\n", LastSS, CurrSS, RetSS));
-
-	return RetSS;
-}
-
 /* 0-100 index */
 static long ieee80211_translate_todbm(u8 signal_strength_index)
 {
@@ -2095,7 +2058,6 @@ static inline int ieee80211_network_init(
 		network->flags |= NETWORK_EMPTY_ESSID;
 
 	stats->signal = 30 + (stats->SignalStrength * 70) / 100;
-	//stats->signal = ieee80211_SignalStrengthTranslate(stats->signal);
 	stats->noise = ieee80211_translate_todbm((u8)(100 - stats->signal)) - 25;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));

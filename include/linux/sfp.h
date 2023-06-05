@@ -557,7 +557,7 @@ int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
 void sfp_bus_put(struct sfp_bus *bus);
-struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode);
+struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode);
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 			 const struct sfp_upstream_ops *ops);
 void sfp_bus_del_upstream(struct sfp_bus *bus);
@@ -619,7 +619,8 @@ static inline void sfp_bus_put(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
+static inline struct sfp_bus *
+sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }

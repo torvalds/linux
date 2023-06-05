@@ -58,7 +58,7 @@ Because the buffers are potentially shared between Hyper-Threads cross
 Hyper-Thread attacks are possible.
 
 Deeper technical information is available in the MDS specific x86
-architecture section: :ref:`Documentation/x86/mds.rst <mds>`.
+architecture section: :ref:`Documentation/arch/x86/mds.rst <mds>`.
 
 
 Attack scenarios

@@ -210,19 +210,6 @@ int  xdp_prognum2(struct xdp_md *ctx)
 }
 
 static __always_inline
-void shift_mac_4bytes_16bit(void *data)
-{
-	__u16 *p = data;
-
-	p[7] = p[5]; /* delete p[7] was vlan_hdr->h_vlan_TCI */
-	p[6] = p[4]; /* delete p[6] was ethhdr->h_proto */
-	p[5] = p[3];
-	p[4] = p[2];
-	p[3] = p[1];
-	p[2] = p[0];
-}
-
-static __always_inline
 void shift_mac_4bytes_32bit(void *data)
 {
 	__u32 *p = data;

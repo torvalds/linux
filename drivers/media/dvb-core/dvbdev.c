@@ -1063,7 +1063,7 @@ static int __init init_dvbdev(void)
 		goto error;
 	}
 
-	dvb_class = class_create(THIS_MODULE, "dvb");
+	dvb_class = class_create("dvb");
 	if (IS_ERR(dvb_class)) {
 		retval = PTR_ERR(dvb_class);
 		goto error;

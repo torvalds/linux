@@ -12,10 +12,16 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx6q-tempmon
-      - fsl,imx6sx-tempmon
-      - fsl,imx7d-tempmon
+    oneOf:
+      - enum:
+          - fsl,imx6q-tempmon
+          - fsl,imx6sx-tempmon
+          - fsl,imx7d-tempmon
+      - items:
+          - enum:
+              - fsl,imx6sll-tempmon
+              - fsl,imx6ul-tempmon
+          - const: fsl,imx6sx-tempmon
 
   interrupts:
     description: |
@@ -40,11 +46,11 @@ properties:
       - const: temp_grade
 
   fsl,tempmon:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle to anatop system controller node.
 
   fsl,tempmon-data:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Deprecated property, phandle pointer to fuse controller that contains
       TEMPMON calibration data, e.g. OCOTP on imx6q. The details about

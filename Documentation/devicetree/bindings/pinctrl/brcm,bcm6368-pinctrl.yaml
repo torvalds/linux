@@ -43,7 +43,7 @@ patternProperties:
                 gpio31, uart1_grp ]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

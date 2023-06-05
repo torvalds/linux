@@ -210,7 +210,7 @@ static const struct hwmon_channel_info aqr_hwmon_temp = {
 	.config = aqr_hwmon_temp_config,
 };
 
-static const struct hwmon_channel_info *aqr_hwmon_info[] = {
+static const struct hwmon_channel_info * const aqr_hwmon_info[] = {
 	&aqr_hwmon_chip,
 	&aqr_hwmon_temp,
 	NULL,

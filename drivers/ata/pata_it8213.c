@@ -228,7 +228,7 @@ static void it8213_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_byte(dev, 0x48, udma_enable);
 }
 
-static struct scsi_host_template it8213_sht = {
+static const struct scsi_host_template it8213_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

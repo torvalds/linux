@@ -36,6 +36,8 @@ static const char *ipa_version_string(struct ipa *ipa)
 		return "4.9";
 	case IPA_VERSION_4_11:
 		return "4.11";
+	case IPA_VERSION_5_0:
+		return "5.0";
 	default:
 		return "0.0";	/* Won't happen (checked at probe time) */
 	}

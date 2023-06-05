@@ -2244,7 +2244,7 @@ static int __init virtio_console_init(void)
 {
 	int err;
 
-	pdrvdata.class = class_create(THIS_MODULE, "virtio-ports");
+	pdrvdata.class = class_create("virtio-ports");
 	if (IS_ERR(pdrvdata.class)) {
 		err = PTR_ERR(pdrvdata.class);
 		pr_err("Error %d creating virtio-ports class\n", err);

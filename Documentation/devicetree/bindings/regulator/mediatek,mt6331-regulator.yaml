@@ -18,7 +18,7 @@ description: |
 patternProperties:
   "^buck-v(core2|io18|dvfs11|dvfs12|dvfs13|dvfs14)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -28,7 +28,7 @@ patternProperties:
 
   "^ldo-v(avdd32aud|auxa32)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -38,7 +38,7 @@ patternProperties:
 
   "^ldo-v(dig18|emc33|ibr|mc|mch|mipi|rtc|sram|usb10)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -48,7 +48,7 @@ patternProperties:
 
   "^ldo-vcam(a|af|d|io)$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -58,7 +58,7 @@ patternProperties:
 
   "^ldo-vtcxo[12]$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:
@@ -71,7 +71,7 @@ patternProperties:
 
   "^ldo-vgp[1234]$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
 
     properties:
       regulator-name:

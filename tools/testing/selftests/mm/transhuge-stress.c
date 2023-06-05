@@ -15,7 +15,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "util.h"
+#include "vm_util.h"
 
 int backing_fd = -1;
 int mmap_flags = MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE;
@@ -34,10 +34,10 @@ int main(int argc, char **argv)
 	int pagemap_fd;
 
 	ram = sysconf(_SC_PHYS_PAGES);
-	if (ram > SIZE_MAX / sysconf(_SC_PAGESIZE) / 4)
+	if (ram > SIZE_MAX / psize() / 4)
 		ram = SIZE_MAX / 4;
 	else
-		ram *= sysconf(_SC_PAGESIZE);
+		ram *= psize();
 	len = ram;
 
 	while (++i < argc) {
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 
 	warnx("allocate %zd transhuge pages, using %zd MiB virtual memory"
 	      " and %zd MiB of ram", len >> HPAGE_SHIFT, len >> 20,
-	      ram >> (20 + HPAGE_SHIFT - PAGE_SHIFT - 1));
+	      ram >> (20 + HPAGE_SHIFT - pshift() - 1));
 
 	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0)
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 			if (pfn < 0) {
 				nr_failed++;
 			} else {
-				size_t idx = pfn >> (HPAGE_SHIFT - PAGE_SHIFT);
+				size_t idx = pfn >> (HPAGE_SHIFT - pshift());
 
 				nr_succeed++;
 				if (idx >= map_len) {
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 			}
 
 			/* split transhuge page, keep last page */
-			if (madvise(p, HPAGE_SIZE - PAGE_SIZE, MADV_DONTNEED))
+			if (madvise(p, HPAGE_SIZE - psize(), MADV_DONTNEED))
 				err(2, "MADV_DONTNEED");
 		}
 		clock_gettime(CLOCK_MONOTONIC, &b);

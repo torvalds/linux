@@ -375,7 +375,7 @@ MODULE_DEVICE_TABLE(of, stdp4028_ge_b850v3_fw_match);
 
 static struct i2c_driver stdp4028_ge_b850v3_fw_driver = {
 	.id_table	= stdp4028_ge_b850v3_fw_i2c_table,
-	.probe_new	= stdp4028_ge_b850v3_fw_probe,
+	.probe		= stdp4028_ge_b850v3_fw_probe,
 	.remove		= stdp4028_ge_b850v3_fw_remove,
 	.driver		= {
 		.name		= "stdp4028-ge-b850v3-fw",
@@ -422,7 +422,7 @@ MODULE_DEVICE_TABLE(of, stdp2690_ge_b850v3_fw_match);
 
 static struct i2c_driver stdp2690_ge_b850v3_fw_driver = {
 	.id_table	= stdp2690_ge_b850v3_fw_i2c_table,
-	.probe_new	= stdp2690_ge_b850v3_fw_probe,
+	.probe		= stdp2690_ge_b850v3_fw_probe,
 	.remove		= stdp2690_ge_b850v3_fw_remove,
 	.driver		= {
 		.name		= "stdp2690-ge-b850v3-fw",

@@ -55,7 +55,7 @@ enum {
 
 #define APPLE_RTKIT_BUFFER_REQUEST	1
 #define APPLE_RTKIT_BUFFER_REQUEST_SIZE GENMASK_ULL(51, 44)
-#define APPLE_RTKIT_BUFFER_REQUEST_IOVA GENMASK_ULL(41, 0)
+#define APPLE_RTKIT_BUFFER_REQUEST_IOVA GENMASK_ULL(43, 0)
 
 #define APPLE_RTKIT_SYSLOG_TYPE GENMASK_ULL(59, 52)
 
@@ -409,11 +409,17 @@ static void apple_rtkit_syslog_rx_init(struct apple_rtkit *rtk, u64 msg)
 		rtk->syslog_n_entries, rtk->syslog_msg_size);
 }
 
+static bool should_crop_syslog_char(char c)
+{
+	return c == '\n' || c == '\r' || c == ' ' || c == '\0';
+}
+
 static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 {
 	u8 idx = msg & 0xff;
 	char log_context[24];
 	size_t entry_size = 0x20 + rtk->syslog_msg_size;
+	int msglen;
 
 	if (!rtk->syslog_msg_buffer) {
 		dev_warn(
@@ -446,7 +452,13 @@ static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 			   rtk->syslog_msg_size);
 
 	log_context[sizeof(log_context) - 1] = 0;
-	rtk->syslog_msg_buffer[rtk->syslog_msg_size - 1] = 0;
+
+	msglen = rtk->syslog_msg_size - 1;
+	while (msglen > 0 &&
+		   should_crop_syslog_char(rtk->syslog_msg_buffer[msglen - 1]))
+		msglen--;
+
+	rtk->syslog_msg_buffer[msglen] = 0;
 	dev_info(rtk->dev, "RTKit: syslog message: %s: %s\n", log_context,
 		 rtk->syslog_msg_buffer);
 

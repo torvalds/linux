@@ -90,6 +90,13 @@ static void xlp_gpio_set_reg(void __iomem *addr, unsigned gpio, int state)
 	writel(value, addr + regset);
 }
 
+static void xlp_gpio_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *gc  = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+}
+
 static void xlp_gpio_irq_disable(struct irq_data *d)
 {
 	struct gpio_chip *gc  = irq_data_get_irq_chip_data(d);
@@ -100,6 +107,7 @@ static void xlp_gpio_irq_disable(struct irq_data *d)
 	xlp_gpio_set_reg(priv->gpio_intr_en, d->hwirq, 0x0);
 	__clear_bit(d->hwirq, priv->gpio_enabled_mask);
 	spin_unlock_irqrestore(&priv->lock, flags);
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
 }
 
 static void xlp_gpio_irq_mask_ack(struct irq_data *d)
@@ -163,10 +171,12 @@ static int xlp_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 static struct irq_chip xlp_gpio_irq_chip = {
 	.name		= "XLP-GPIO",
 	.irq_mask_ack	= xlp_gpio_irq_mask_ack,
+	.irq_enable	= xlp_gpio_irq_enable,
 	.irq_disable	= xlp_gpio_irq_disable,
 	.irq_set_type	= xlp_gpio_set_irq_type,
 	.irq_unmask	= xlp_gpio_irq_unmask,
-	.flags		= IRQCHIP_ONESHOT_SAFE,
+	.flags		= IRQCHIP_ONESHOT_SAFE | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void xlp_gpio_generic_handler(struct irq_desc *desc)
@@ -272,7 +282,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 
 	girq = &gc->irq;
-	girq->chip = &xlp_gpio_irq_chip;
+	gpio_irq_chip_set_chip(girq, &xlp_gpio_irq_chip);
 	girq->parent_handler = xlp_gpio_generic_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(&pdev->dev, 1,

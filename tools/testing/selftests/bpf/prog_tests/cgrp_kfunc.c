@@ -84,6 +84,7 @@ static const char * const success_tests[] = {
 	"test_cgrp_xchg_release",
 	"test_cgrp_get_release",
 	"test_cgrp_get_ancestors",
+	"test_cgrp_from_id",
 };
 
 void test_cgrp_kfunc(void)

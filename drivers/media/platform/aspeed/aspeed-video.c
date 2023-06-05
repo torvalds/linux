@@ -2206,7 +2206,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aspeed_video_remove(struct platform_device *pdev)
+static void aspeed_video_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
@@ -2228,8 +2228,6 @@ static int aspeed_video_remove(struct platform_device *pdev)
 	aspeed_video_free_buf(video, &video->jpeg);
 
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static struct platform_driver aspeed_video_driver = {
@@ -2238,7 +2236,7 @@ static struct platform_driver aspeed_video_driver = {
 		.of_match_table = aspeed_video_of_match,
 	},
 	.probe = aspeed_video_probe,
-	.remove = aspeed_video_remove,
+	.remove_new = aspeed_video_remove,
 };
 
 module_platform_driver(aspeed_video_driver);

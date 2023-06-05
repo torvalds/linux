@@ -17,9 +17,10 @@ ap.add_argument('--per-thread', action='store_true')
 ap.add_argument('--per-die', action='store_true')
 ap.add_argument('--per-node', action='store_true')
 ap.add_argument('--per-socket', action='store_true')
+ap.add_argument('--file', type=argparse.FileType('r'), default=sys.stdin)
 args = ap.parse_args()
 
-Lines = sys.stdin.readlines()
+Lines = args.file.readlines()
 
 def isfloat(num):
   try:

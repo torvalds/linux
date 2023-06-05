@@ -440,6 +440,7 @@ MODULE_DEVICE_TABLE(i2c, lp8755_id);
 static struct i2c_driver lp8755_i2c_driver = {
 	.driver = {
 		   .name = LP8755_NAME,
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
 	.probe_new = lp8755_probe,
 	.remove = lp8755_remove,

@@ -560,7 +560,7 @@ static void emit_find_attach_target(struct bpf_gen *gen)
 }
 
 void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
-			    bool is_typeless, int kind, int insn_idx)
+			    bool is_typeless, bool is_ld64, int kind, int insn_idx)
 {
 	struct ksym_relo_desc *relo;
 
@@ -574,6 +574,7 @@ void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
 	relo->name = name;
 	relo->is_weak = is_weak;
 	relo->is_typeless = is_typeless;
+	relo->is_ld64 = is_ld64;
 	relo->kind = kind;
 	relo->insn_idx = insn_idx;
 	gen->relo_cnt++;
@@ -586,9 +587,11 @@ static struct ksym_desc *get_ksym_desc(struct bpf_gen *gen, struct ksym_relo_des
 	int i;
 
 	for (i = 0; i < gen->nr_ksyms; i++) {
-		if (!strcmp(gen->ksyms[i].name, relo->name)) {
-			gen->ksyms[i].ref++;
-			return &gen->ksyms[i];
+		kdesc = &gen->ksyms[i];
+		if (kdesc->kind == relo->kind && kdesc->is_ld64 == relo->is_ld64 &&
+		    !strcmp(kdesc->name, relo->name)) {
+			kdesc->ref++;
+			return kdesc;
 		}
 	}
 	kdesc = libbpf_reallocarray(gen->ksyms, gen->nr_ksyms + 1, sizeof(*kdesc));
@@ -603,6 +606,7 @@ static struct ksym_desc *get_ksym_desc(struct bpf_gen *gen, struct ksym_relo_des
 	kdesc->ref = 1;
 	kdesc->off = 0;
 	kdesc->insn = 0;
+	kdesc->is_ld64 = relo->is_ld64;
 	return kdesc;
 }
 
@@ -804,11 +808,13 @@ static void emit_relo_ksym_btf(struct bpf_gen *gen, struct ksym_relo_desc *relo,
 		return;
 	/* try to copy from existing ldimm64 insn */
 	if (kdesc->ref > 1) {
-		move_blob2blob(gen, insn + offsetof(struct bpf_insn, imm), 4,
-			       kdesc->insn + offsetof(struct bpf_insn, imm));
 		move_blob2blob(gen, insn + sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm), 4,
 			       kdesc->insn + sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm));
-		/* jump over src_reg adjustment if imm is not 0, reuse BPF_REG_0 from move_blob2blob */
+		move_blob2blob(gen, insn + offsetof(struct bpf_insn, imm), 4,
+			       kdesc->insn + offsetof(struct bpf_insn, imm));
+		/* jump over src_reg adjustment if imm (btf_id) is not 0, reuse BPF_REG_0 from move_blob2blob
+		 * If btf_id is zero, clear BPF_PSEUDO_BTF_ID flag in src_reg of ld_imm64 insn
+		 */
 		emit(gen, BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 3));
 		goto clear_src_reg;
 	}
@@ -831,7 +837,7 @@ static void emit_relo_ksym_btf(struct bpf_gen *gen, struct ksym_relo_desc *relo,
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_8, BPF_REG_7,
 			      sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm)));
 	/* skip src_reg adjustment */
-	emit(gen, BPF_JMP_IMM(BPF_JSGE, BPF_REG_7, 0, 3));
+	emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 3));
 clear_src_reg:
 	/* clear bpf_object__relocate_data's src_reg assignment, otherwise we get a verifier failure */
 	reg_mask = src_reg_mask();
@@ -862,23 +868,17 @@ static void emit_relo(struct bpf_gen *gen, struct ksym_relo_desc *relo, int insn
 {
 	int insn;
 
-	pr_debug("gen: emit_relo (%d): %s at %d\n", relo->kind, relo->name, relo->insn_idx);
+	pr_debug("gen: emit_relo (%d): %s at %d %s\n",
+		 relo->kind, relo->name, relo->insn_idx, relo->is_ld64 ? "ld64" : "call");
 	insn = insns + sizeof(struct bpf_insn) * relo->insn_idx;
 	emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_8, BPF_PSEUDO_MAP_IDX_VALUE, 0, 0, 0, insn));
-	switch (relo->kind) {
-	case BTF_KIND_VAR:
+	if (relo->is_ld64) {
 		if (relo->is_typeless)
 			emit_relo_ksym_typeless(gen, relo, insn);
 		else
 			emit_relo_ksym_btf(gen, relo, insn);
-		break;
-	case BTF_KIND_FUNC:
+	} else {
 		emit_relo_kfunc_btf(gen, relo, insn);
-		break;
-	default:
-		pr_warn("Unknown relocation kind '%d'\n", relo->kind);
-		gen->error = -EDOM;
-		return;
 	}
 }
 
@@ -901,18 +901,20 @@ static void cleanup_core_relo(struct bpf_gen *gen)
 
 static void cleanup_relos(struct bpf_gen *gen, int insns)
 {
+	struct ksym_desc *kdesc;
 	int i, insn;
 
 	for (i = 0; i < gen->nr_ksyms; i++) {
+		kdesc = &gen->ksyms[i];
 		/* only close fds for typed ksyms and kfuncs */
-		if (gen->ksyms[i].kind == BTF_KIND_VAR && !gen->ksyms[i].typeless) {
+		if (kdesc->is_ld64 && !kdesc->typeless) {
 			/* close fd recorded in insn[insn_idx + 1].imm */
-			insn = gen->ksyms[i].insn;
+			insn = kdesc->insn;
 			insn += sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm);
 			emit_sys_close_blob(gen, insn);
-		} else if (gen->ksyms[i].kind == BTF_KIND_FUNC) {
-			emit_sys_close_blob(gen, blob_fd_array_off(gen, gen->ksyms[i].off));
-			if (gen->ksyms[i].off < MAX_FD_ARRAY_SZ)
+		} else if (!kdesc->is_ld64) {
+			emit_sys_close_blob(gen, blob_fd_array_off(gen, kdesc->off));
+			if (kdesc->off < MAX_FD_ARRAY_SZ)
 				gen->nr_fd_array--;
 		}
 	}

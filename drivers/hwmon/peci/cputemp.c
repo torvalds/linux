@@ -447,7 +447,7 @@ static const struct hwmon_ops peci_cputemp_ops = {
 	.read = cputemp_read,
 };
 
-static const struct hwmon_channel_info *peci_cputemp_info[] = {
+static const struct hwmon_channel_info * const peci_cputemp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   /* Die temperature */
 			   HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX |

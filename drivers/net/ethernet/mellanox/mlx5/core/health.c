@@ -42,6 +42,7 @@
 #include "lib/pci_vsc.h"
 #include "lib/tout.h"
 #include "diag/fw_tracer.h"
+#include "diag/reporter_vnic.h"
 
 enum {
 	MAX_MISSES			= 3,
@@ -325,6 +326,10 @@ int mlx5_health_wait_pci_up(struct mlx5_core_dev *dev)
 	while (sensor_pci_not_working(dev)) {
 		if (time_after(jiffies, end))
 			return -ETIMEDOUT;
+		if (test_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state)) {
+			mlx5_core_warn(dev, "device is being removed, stop waiting for PCI\n");
+			return -ENODEV;
+		}
 		msleep(100);
 	}
 	return 0;
@@ -894,6 +899,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 
 	cancel_delayed_work_sync(&health->update_fw_log_ts_work);
 	destroy_workqueue(health->wq);
+	mlx5_reporter_vnic_destroy(dev);
 	mlx5_fw_reporters_destroy(dev);
 }
 
@@ -903,6 +909,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	char *name;
 
 	mlx5_fw_reporters_create(dev);
+	mlx5_reporter_vnic_create(dev);
 
 	health = &dev->priv.health;
 	name = kmalloc(64, GFP_KERNEL);
@@ -922,6 +929,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	return 0;
 
 out_err:
+	mlx5_reporter_vnic_destroy(dev);
 	mlx5_fw_reporters_destroy(dev);
 	return -ENOMEM;
 }

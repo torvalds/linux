@@ -84,7 +84,66 @@ set_debarch() {
 	fi
 }
 
+# Create debian/source/ if it is a source package build
+gen_source ()
+{
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	{
+		echo "diff-ignore"
+		echo "extend-diff-ignore = .*"
+	} > debian/source/local-options
+
+	# Add .config as a patch
+	mkdir -p debian/patches
+	{
+		echo "Subject: Add .config"
+		echo "Author: ${maintainer}"
+		echo
+		echo "--- /dev/null"
+		echo "+++ linux/.config"
+		diff -u /dev/null "${KCONFIG_CONFIG}" | tail -n +3
+	} > debian/patches/config.patch
+	echo config.patch > debian/patches/series
+
+	"${srctree}/scripts/package/gen-diff-patch" debian/patches/diff.patch
+	if [ -s debian/patches/diff.patch ]; then
+		sed -i "
+			1iSubject: Add local diff
+			1iAuthor: ${maintainer}
+			1i
+		" debian/patches/diff.patch
+
+		echo diff.patch >> debian/patches/series
+	else
+		rm -f debian/patches/diff.patch
+	fi
+}
+
 rm -rf debian
+mkdir debian
+
+email=${DEBEMAIL-$EMAIL}
+
+# use email string directly if it contains <email>
+if echo "${email}" | grep -q '<.*>'; then
+	maintainer=${email}
+else
+	# or construct the maintainer string
+	user=${KBUILD_BUILD_USER-$(id -nu)}
+	name=${DEBFULLNAME-${user}}
+	if [ -z "${email}" ]; then
+		buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
+		email="${user}@${buildhost}"
+	fi
+	maintainer="${name} <${email}>"
+fi
+
+if [ "$1" = --need-source ]; then
+	gen_source
+fi
 
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
@@ -104,22 +163,6 @@ fi
 debarch=
 set_debarch
 
-email=${DEBEMAIL-$EMAIL}
-
-# use email string directly if it contains <email>
-if echo $email | grep -q '<.*>'; then
-	maintainer=$email
-else
-	# or construct the maintainer string
-	user=${KBUILD_BUILD_USER-$(id -nu)}
-	name=${DEBFULLNAME-$user}
-	if [ -z "$email" ]; then
-		buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
-		email="$user@$buildhost"
-	fi
-	maintainer="$name <$email>"
-fi
-
 # Try to determine distribution
 if [ -n "$KDEB_CHANGELOG_DIST" ]; then
         distribution=$KDEB_CHANGELOG_DIST
@@ -130,34 +173,6 @@ else
         distribution="unstable"
         echo >&2 "Using default distribution of 'unstable' in the changelog"
         echo >&2 "Install lsb-release or set \$KDEB_CHANGELOG_DIST explicitly"
-fi
-
-mkdir -p debian/source/
-echo "3.0 (quilt)" > debian/source/format
-
-{
-	echo "diff-ignore"
-	echo "extend-diff-ignore = .*"
-} > debian/source/local-options
-
-# Add .config as a patch
-mkdir -p debian/patches
-{
-	echo "Subject: Add .config"
-	echo "Author: ${maintainer}"
-	echo
-	echo "--- /dev/null"
-	echo "+++ linux/.config"
-	diff -u /dev/null "${KCONFIG_CONFIG}" | tail -n +3
-} > debian/patches/config
-echo config > debian/patches/series
-
-$(dirname $0)/gen-diff-patch debian/patches/diff.patch debian/patches/untracked.patch
-if [ -f debian/patches/diff.patch ]; then
-	echo diff.patch >> debian/patches/series
-fi
-if [ -f debian/patches/untracked.patch ]; then
-	echo untracked.patch >> debian/patches/series
 fi
 
 echo $debarch > debian/arch
@@ -175,7 +190,7 @@ EOF
 
 # Generate copyright file
 cat <<EOF > debian/copyright
-This is a packacked upstream version of the Linux kernel.
+This is a packaged upstream version of the Linux kernel.
 
 The sources may be found at most Linux archive sites, including:
 https://www.kernel.org/pub/linux/kernel
@@ -253,6 +268,8 @@ cat <<EOF > debian/rules
 
 srctree ?= .
 KERNELRELEASE = ${KERNELRELEASE}
+
+.PHONY: clean build build-arch build-indep binary binary-arch binary-indep
 
 build-indep:
 build-arch:

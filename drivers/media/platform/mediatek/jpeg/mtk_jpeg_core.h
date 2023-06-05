@@ -60,6 +60,8 @@ enum mtk_jpeg_ctx_state {
  * @ioctl_ops:			the callback of jpeg v4l2_ioctl_ops
  * @out_q_default_fourcc:	output queue default fourcc
  * @cap_q_default_fourcc:	capture queue default fourcc
+ * @multi_core:		mark jpeg hw is multi_core or not
+ * @jpeg_worker:		jpeg dec or enc worker
  */
 struct mtk_jpeg_variant {
 	struct clk_bulk_data *clks;
@@ -74,6 +76,8 @@ struct mtk_jpeg_variant {
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	u32 out_q_default_fourcc;
 	u32 cap_q_default_fourcc;
+	bool multi_core;
+	void (*jpeg_worker)(struct work_struct *work);
 };
 
 struct mtk_jpeg_src_buf {
@@ -199,16 +203,12 @@ struct mtk_jpegdec_comp_dev {
  * @job_timeout_work:	IRQ timeout structure
  * @variant:		driver variant to be used
  * @reg_encbase:	jpg encode register base addr
- * @enc_hw_dev:		jpg encode hardware device
- * @is_jpgenc_multihw:	the flag of multi-hw core
- * @enc_hw_wq:		jpg encode wait queue
- * @enchw_rdy:		jpg encode hw ready flag
+ * @enc_hw_dev:	jpg encode hardware device
+ * @hw_wq:		jpg wait queue
+ * @hw_rdy:		jpg hw ready flag
  * @reg_decbase:	jpg decode register base addr
- * @dec_hw_dev:		jpg decode hardware device
- * @is_jpgdec_multihw:	the flag of dec multi-hw core
- * @dec_hw_wq:		jpg decode wait queue
- * @dec_workqueue:	jpg decode work queue
- * @dechw_rdy:		jpg decode hw ready flag
+ * @dec_hw_dev:	jpg decode hardware device
+ * @hw_index:		jpg hw index
  */
 struct mtk_jpeg_dev {
 	struct mutex		lock;
@@ -225,16 +225,12 @@ struct mtk_jpeg_dev {
 
 	void __iomem *reg_encbase[MTK_JPEGENC_HW_MAX];
 	struct mtk_jpegenc_comp_dev *enc_hw_dev[MTK_JPEGENC_HW_MAX];
-	bool is_jpgenc_multihw;
-	wait_queue_head_t enc_hw_wq;
-	atomic_t enchw_rdy;
+	wait_queue_head_t hw_wq;
+	atomic_t hw_rdy;
 
 	void __iomem *reg_decbase[MTK_JPEGDEC_HW_MAX];
 	struct mtk_jpegdec_comp_dev *dec_hw_dev[MTK_JPEGDEC_HW_MAX];
-	bool is_jpgdec_multihw;
-	wait_queue_head_t dec_hw_wq;
-	struct workqueue_struct	*dec_workqueue;
-	atomic_t dechw_rdy;
+	atomic_t hw_index;
 };
 
 /**

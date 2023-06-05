@@ -9,7 +9,7 @@ a kernel test module based on a litmus test, please see
 tools/memory-model/README.
 
 
-atomic (/atomic derectory)
+atomic (/atomic directory)
 --------------------------
 
 Atomic-RMW+mb__after_atomic-is-stronger-than-acquire.litmus

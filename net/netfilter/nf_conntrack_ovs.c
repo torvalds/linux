@@ -6,6 +6,7 @@
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/ipv6_frag.h>
 #include <net/ip.h>
+#include <linux/netfilter_ipv6.h>
 
 /* 'skb' should already be pulled to nh_ofs. */
 int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
@@ -120,8 +121,14 @@ int nf_ct_skb_network_trim(struct sk_buff *skb, int family)
 		len = skb_ip_totlen(skb);
 		break;
 	case NFPROTO_IPV6:
-		len = sizeof(struct ipv6hdr)
-			+ ntohs(ipv6_hdr(skb)->payload_len);
+		len = ntohs(ipv6_hdr(skb)->payload_len);
+		if (ipv6_hdr(skb)->nexthdr == NEXTHDR_HOP) {
+			int err = nf_ip6_check_hbh_len(skb, &len);
+
+			if (err)
+				return err;
+		}
+		len += sizeof(struct ipv6hdr);
 		break;
 	default:
 		len = skb->len;

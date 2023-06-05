@@ -8,7 +8,7 @@
 /* For counting bound interfaces */
 struct iwl_mvm_active_iface_iterator_data {
 	struct ieee80211_vif *ignore_vif;
-	u8 sta_vif_ap_sta_id;
+	struct ieee80211_sta *sta_vif_ap_sta;
 	enum iwl_sf_state sta_vif_state;
 	u32 num_active_macs;
 };
@@ -23,14 +23,14 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_active_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif || !mvmvif->phy_ctxt ||
+	if (vif == data->ignore_vif || !mvmvif->deflink.phy_ctxt ||
 	    vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return;
 
 	data->num_active_macs++;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		data->sta_vif_ap_sta_id = mvmvif->ap_sta_id;
+		data->sta_vif_ap_sta = mvmvif->ap_sta;
 		if (vif->cfg.assoc)
 			data->sta_vif_state = SF_FULL_ON;
 		else
@@ -98,6 +98,10 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 				    struct ieee80211_sta *sta)
 {
 	int i, j, watermark;
+	u8 max_rx_nss = 0;
+	bool is_legacy = true;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	sf_cmd->watermark[SF_LONG_DELAY_ON] = cpu_to_le32(SF_W_MARK_SCAN);
 
@@ -106,10 +110,25 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	 * capabilities of the AP station, and choose the watermark accordingly.
 	 */
 	if (sta) {
-		if (sta->deflink.ht_cap.ht_supported ||
-		    sta->deflink.vht_cap.vht_supported ||
-		    sta->deflink.he_cap.has_he) {
-			switch (sta->deflink.rx_nss) {
+		/* find the maximal NSS number among all links (if relevant) */
+		rcu_read_lock();
+		for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+			link_sta = rcu_dereference(sta->link[link_id]);
+			if (!link_sta)
+				continue;
+
+			if (link_sta->ht_cap.ht_supported ||
+			    link_sta->vht_cap.vht_supported ||
+			    link_sta->eht_cap.has_eht ||
+			    link_sta->he_cap.has_he) {
+				is_legacy = false;
+				max_rx_nss = max(max_rx_nss, link_sta->rx_nss);
+			}
+		}
+		rcu_read_unlock();
+
+		if (!is_legacy) {
+			switch (max_rx_nss) {
 			case 1:
 				watermark = SF_W_MARK_SISO;
 				break;
@@ -151,16 +170,14 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout_def,
 		       sizeof(sf_full_timeout_def));
 	}
-
 }
 
-static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
+static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     enum iwl_sf_state new_state)
 {
 	struct iwl_sf_cfg_cmd sf_cmd = {
 		.state = cpu_to_le32(new_state),
 	};
-	struct ieee80211_sta *sta;
 	int ret = 0;
 
 	if (mvm->cfg->disable_dummy_notification)
@@ -178,20 +195,12 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	case SF_FULL_ON:
-		if (sta_id == IWL_MVM_INVALID_STA) {
+		if (!sta) {
 			IWL_ERR(mvm,
 				"No station: Cannot switch SF to FULL_ON\n");
 			return -EINVAL;
 		}
-		rcu_read_lock();
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-		if (IS_ERR_OR_NULL(sta)) {
-			IWL_ERR(mvm, "Invalid station id\n");
-			rcu_read_unlock();
-			return -EINVAL;
-		}
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, sta);
-		rcu_read_unlock();
 		break;
 	case SF_INIT_OFF:
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
@@ -219,13 +228,12 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		      bool remove_vif)
 {
 	enum iwl_sf_state new_state;
-	u8 sta_id = IWL_MVM_INVALID_STA;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_active_iface_iterator_data data = {
 		.ignore_vif = changed_vif,
 		.sta_vif_state = SF_UNINIT,
-		.sta_vif_ap_sta_id = IWL_MVM_INVALID_STA,
 	};
+	struct ieee80211_sta *sta = NULL;
 
 	/*
 	 * Ignore the call if we are in HW Restart flow, or if the handled
@@ -255,7 +263,7 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 			 * and we filled the relevant data during iteration
 			 */
 			new_state = data.sta_vif_state;
-			sta_id = data.sta_vif_ap_sta_id;
+			sta = data.sta_vif_ap_sta;
 		} else {
 			if (WARN_ON(!changed_vif))
 				return -EINVAL;
@@ -264,7 +272,7 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 			} else if (changed_vif->cfg.assoc &&
 				   changed_vif->bss_conf.dtim_period) {
 				mvmvif = iwl_mvm_vif_from_mac80211(changed_vif);
-				sta_id = mvmvif->ap_sta_id;
+				sta = mvmvif->ap_sta;
 				new_state = SF_FULL_ON;
 			} else {
 				new_state = SF_INIT_OFF;
@@ -275,5 +283,6 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		/* If there are multiple active macs - change to SF_UNINIT */
 		new_state = SF_UNINIT;
 	}
-	return iwl_mvm_sf_config(mvm, sta_id, new_state);
+
+	return iwl_mvm_sf_config(mvm, sta, new_state);
 }

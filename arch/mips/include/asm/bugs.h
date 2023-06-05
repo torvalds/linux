@@ -24,13 +24,7 @@ extern void check_bugs64_early(void);
 extern void check_bugs32(void);
 extern void check_bugs64(void);
 
-static inline void check_bugs_early(void)
-{
-	if (IS_ENABLED(CONFIG_CPU_R4X00_BUGS64))
-		check_bugs64_early();
-}
-
-static inline void check_bugs(void)
+static inline void __init check_bugs(void)
 {
 	unsigned int cpu = smp_processor_id();
 

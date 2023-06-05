@@ -170,6 +170,12 @@ usb_find_last_int_out_endpoint(struct usb_host_interface *alt,
 	return usb_find_common_endpoints_reverse(alt, NULL, NULL, NULL, int_out);
 }
 
+enum usb_wireless_status {
+	USB_WIRELESS_STATUS_NA = 0,
+	USB_WIRELESS_STATUS_DISCONNECTED,
+	USB_WIRELESS_STATUS_CONNECTED,
+};
+
 /**
  * struct usb_interface - what usb device drivers talk to
  * @altsetting: array of interface structures, one for each alternate
@@ -197,6 +203,10 @@ usb_find_last_int_out_endpoint(struct usb_host_interface *alt,
  *	following a reset or suspend operation it doesn't support.
  * @authorized: This allows to (de)authorize individual interfaces instead
  *	a whole device in contrast to the device authorization.
+ * @wireless_status: if the USB device uses a receiver/emitter combo, whether
+ *	the emitter is connected.
+ * @wireless_status_work: Used for scheduling wireless status changes
+ *	from atomic context.
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
@@ -253,6 +263,8 @@ struct usb_interface {
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
 	unsigned authorized:1;		/* used for interface authorization */
+	enum usb_wireless_status wireless_status;
+	struct work_struct wireless_status_work;
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
@@ -290,6 +302,11 @@ void usb_put_intf(struct usb_interface *intf);
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)
+
+bool usb_check_bulk_endpoints(
+		const struct usb_interface *intf, const u8 *ep_addrs);
+bool usb_check_int_endpoints(
+		const struct usb_interface *intf, const u8 *ep_addrs);
 
 /*
  * USB Resume Timer: Every Host controller driver should drive the resume
@@ -704,13 +721,12 @@ struct usb_device {
 
 	unsigned long active_duration;
 
-#ifdef CONFIG_PM
 	unsigned long connect_time;
 
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
 	unsigned port_is_suspended:1;
-#endif
+
 	struct wusb_dev *wusb_dev;
 	int slot_id;
 	struct usb2_lpm_parameters l1_params;
@@ -887,6 +903,10 @@ static inline int usb_interface_claimed(struct usb_interface *iface)
 
 extern void usb_driver_release_interface(struct usb_driver *driver,
 			struct usb_interface *iface);
+
+int usb_set_wireless_status(struct usb_interface *iface,
+			enum usb_wireless_status status);
+
 const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 					 const struct usb_device_id *id);
 extern int usb_match_one_id(struct usb_interface *interface,

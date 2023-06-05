@@ -27,14 +27,13 @@ void debug_user_asce(int exit)
 	      "kernel: %016llx user: %016llx\n",
 	      exit ? "exit" : "entry", cr1, cr7,
 	      S390_lowcore.kernel_asce, S390_lowcore.user_asce);
-
 }
 #endif /*CONFIG_DEBUG_ENTRY */
 
 static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 					    unsigned long size, unsigned long key)
 {
-	unsigned long tmp1, tmp2;
+	unsigned long rem;
 	union oac spec = {
 		.oac2.key = key,
 		.oac2.as = PSW_BITS_AS_SECONDARY,
@@ -42,28 +41,30 @@ static unsigned long raw_copy_from_user_key(void *to, const void __user *from,
 		.oac2.a = 1,
 	};
 
-	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%2),0(%1),%0\n"
-		"6: jz    4f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j     0b\n"
-		"2: la    %4,4095(%1)\n"/* %4 = ptr + 4095 */
-		"   nr    %4,%3\n"	/* %4 = (ptr + 4095) & -4096 */
-		"   slgr  %4,%1\n"
-		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   5f\n"
-		"3: mvcos 0(%2),0(%1),%4\n"
-		"7: slgr  %0,%4\n"
-		"   j     5f\n"
-		"4: slgr  %0,%0\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
-		: "+a" (size), "+a" (from), "+a" (to), "+a" (tmp1), "=a" (tmp2)
-		: [spec] "d" (spec.val)
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
+		"1:	jz	5f\n"
+		"	algr	%[size],%[val]\n"
+		"	slgr	%[from],%[val]\n"
+		"	slgr	%[to],%[val]\n"
+		"	j	0b\n"
+		"2:	la	%[rem],4095(%[from])\n"	/* rem = from + 4095 */
+		"	nr	%[rem],%[val]\n"	/* rem = (from + 4095) & -4096 */
+		"	slgr	%[rem],%[from]\n"
+		"	clgr	%[size],%[rem]\n"	/* copy crosses next page boundary? */
+		"	jnh	6f\n"
+		"3:	mvcos	0(%[to]),0(%[from]),%[rem]\n"
+		"4:	slgr	%[size],%[rem]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(4b, 6b)
+		: [size] "+&a" (size), [from] "+&a" (from), [to] "+&a" (to), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -94,7 +95,7 @@ EXPORT_SYMBOL(_copy_from_user_key);
 static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 					  unsigned long size, unsigned long key)
 {
-	unsigned long tmp1, tmp2;
+	unsigned long rem;
 	union oac spec = {
 		.oac1.key = key,
 		.oac1.as = PSW_BITS_AS_SECONDARY,
@@ -102,28 +103,30 @@ static unsigned long raw_copy_to_user_key(void __user *to, const void *from,
 		.oac1.a = 1,
 	};
 
-	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%1),0(%2),%0\n"
-		"6: jz    4f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j     0b\n"
-		"2: la    %4,4095(%1)\n"/* %4 = ptr + 4095 */
-		"   nr    %4,%3\n"	/* %4 = (ptr + 4095) & -4096 */
-		"   slgr  %4,%1\n"
-		"   clgr  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   5f\n"
-		"3: mvcos 0(%1),0(%2),%4\n"
-		"7: slgr  %0,%4\n"
-		"   j     5f\n"
-		"4: slgr  %0,%0\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
-		: "+a" (size), "+a" (to), "+a" (from), "+a" (tmp1), "=a" (tmp2)
-		: [spec] "d" (spec.val)
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[from]),%[size]\n"
+		"1:	jz	5f\n"
+		"	algr	%[size],%[val]\n"
+		"	slgr	%[to],%[val]\n"
+		"	slgr	%[from],%[val]\n"
+		"	j	0b\n"
+		"2:	la	%[rem],4095(%[to])\n"	/* rem = to + 4095 */
+		"	nr	%[rem],%[val]\n"	/* rem = (to + 4095) & -4096 */
+		"	slgr	%[rem],%[to]\n"
+		"	clgr	%[size],%[rem]\n"	/* copy crosses next page boundary? */
+		"	jnh	6f\n"
+		"3:	mvcos	0(%[to]),0(%[from]),%[rem]\n"
+		"4:	slgr	%[size],%[rem]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(4b, 6b)
+		: [size] "+&a" (size), [to] "+&a" (to), [from] "+&a" (from), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }
@@ -147,33 +150,35 @@ EXPORT_SYMBOL(_copy_to_user_key);
 
 unsigned long __clear_user(void __user *to, unsigned long size)
 {
-	unsigned long tmp1, tmp2;
+	unsigned long rem;
 	union oac spec = {
 		.oac1.as = PSW_BITS_AS_SECONDARY,
 		.oac1.a = 1,
 	};
 
-	tmp1 = -4096UL;
 	asm volatile(
-		"   lr	  0,%[spec]\n"
-		"0: mvcos 0(%1),0(%4),%0\n"
-		"6: jz	  4f\n"
-		"1: algr  %0,%2\n"
-		"   slgr  %1,%2\n"
-		"   j	  0b\n"
-		"2: la	  %3,4095(%1)\n"/* %4 = to + 4095 */
-		"   nr	  %3,%2\n"	/* %4 = (to + 4095) & -4096 */
-		"   slgr  %3,%1\n"
-		"   clgr  %0,%3\n"	/* copy crosses next page boundary? */
-		"   jnh	  5f\n"
-		"3: mvcos 0(%1),0(%4),%3\n"
-		"7: slgr  %0,%3\n"
-		"   j	  5f\n"
-		"4: slgr  %0,%0\n"
-		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(6b,2b) EX_TABLE(3b,5b) EX_TABLE(7b,5b)
-		: "+a" (size), "+a" (to), "+a" (tmp1), "=a" (tmp2)
-		: "a" (empty_zero_page), [spec] "d" (spec.val)
+		"	lr	0,%[spec]\n"
+		"0:	mvcos	0(%[to]),0(%[zeropg]),%[size]\n"
+		"1:	jz	5f\n"
+		"	algr	%[size],%[val]\n"
+		"	slgr	%[to],%[val]\n"
+		"	j	0b\n"
+		"2:	la	%[rem],4095(%[to])\n"	/* rem = to + 4095 */
+		"	nr	%[rem],%[val]\n"	/* rem = (to + 4095) & -4096 */
+		"	slgr	%[rem],%[to]\n"
+		"	clgr	%[size],%[rem]\n"	/* copy crosses next page boundary? */
+		"	jnh	6f\n"
+		"3:	mvcos	0(%[to]),0(%[zeropg]),%[rem]\n"
+		"4:	slgr	%[size],%[rem]\n"
+		"	j	6f\n"
+		"5:	slgr	%[size],%[size]\n"
+		"6:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		EX_TABLE(3b, 6b)
+		EX_TABLE(4b, 6b)
+		: [size] "+&a" (size), [to] "+&a" (to), [rem] "=&a" (rem)
+		: [val] "a" (-4096UL), [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
 		: "cc", "memory", "0");
 	return size;
 }

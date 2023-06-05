@@ -127,7 +127,11 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
 		assert(LHS.ids == NULL);				\
 		assert(RHS.ids == NULL);				\
-		RESULT.val = (long)LHS.val OP (long)RHS.val;		\
+		if (isnan(LHS.val) || isnan(RHS.val)) {			\
+			RESULT.val = NAN;				\
+		} else {						\
+			RESULT.val = (long)LHS.val OP (long)RHS.val;	\
+		}							\
 		RESULT.ids = NULL;					\
 	} else {							\
 	        RESULT = union_expr(LHS, RHS);				\
@@ -137,7 +141,11 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
 		assert(LHS.ids == NULL);				\
 		assert(RHS.ids == NULL);				\
-		RESULT.val = LHS.val OP RHS.val;			\
+		if (isnan(LHS.val) || isnan(RHS.val)) {			\
+			RESULT.val = NAN;				\
+		} else {						\
+			RESULT.val = LHS.val OP RHS.val;		\
+		}							\
 		RESULT.ids = NULL;					\
 	} else {							\
 	        RESULT = union_expr(LHS, RHS);				\

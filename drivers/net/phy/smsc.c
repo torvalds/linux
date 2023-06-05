@@ -33,6 +33,10 @@
 #define SPECIAL_CTRL_STS_AMDIX_ENABLE_	0x4000
 #define SPECIAL_CTRL_STS_AMDIX_STATE_	0x2000
 
+#define EDPD_MAX_WAIT_DFLT_MS		640
+/* interval between phylib state machine runs in ms */
+#define PHY_STATE_MACH_MS		1000
+
 struct smsc_hw_stat {
 	const char *string;
 	u8 reg;
@@ -44,7 +48,9 @@ static struct smsc_hw_stat smsc_hw_stats[] = {
 };
 
 struct smsc_phy_priv {
-	bool energy_enable;
+	unsigned int edpd_enable:1;
+	unsigned int edpd_mode_set_by_user:1;
+	unsigned int edpd_max_wait_ms;
 };
 
 static int smsc_phy_ack_interrupt(struct phy_device *phydev)
@@ -54,7 +60,7 @@ static int smsc_phy_ack_interrupt(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
-static int smsc_phy_config_intr(struct phy_device *phydev)
+int smsc_phy_config_intr(struct phy_device *phydev)
 {
 	int rc;
 
@@ -75,8 +81,21 @@ static int smsc_phy_config_intr(struct phy_device *phydev)
 
 	return rc < 0 ? rc : 0;
 }
+EXPORT_SYMBOL_GPL(smsc_phy_config_intr);
 
-static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
+static int smsc_phy_config_edpd(struct phy_device *phydev)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (priv->edpd_enable)
+		return phy_set_bits(phydev, MII_LAN83C185_CTRL_STATUS,
+				    MII_LAN83C185_EDPWRDOWN);
+	else
+		return phy_clear_bits(phydev, MII_LAN83C185_CTRL_STATUS,
+				      MII_LAN83C185_EDPWRDOWN);
+}
+
+irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
 
@@ -95,25 +114,22 @@ static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(smsc_phy_handle_interrupt);
 
-static int smsc_phy_config_init(struct phy_device *phydev)
+int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
-	int rc;
 
-	if (!priv->energy_enable || phydev->irq != PHY_POLL)
+	if (!priv)
 		return 0;
 
-	rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
+	/* don't use EDPD in irq mode except overridden by user */
+	if (!priv->edpd_mode_set_by_user && phydev->irq != PHY_POLL)
+		priv->edpd_enable = false;
 
-	if (rc < 0)
-		return rc;
-
-	/* Enable energy detect mode for this SMSC Transceivers */
-	rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
-		       rc | MII_LAN83C185_EDPWRDOWN);
-	return rc;
+	return smsc_phy_config_edpd(phydev);
 }
+EXPORT_SYMBOL_GPL(smsc_phy_config_init);
 
 static int smsc_phy_reset(struct phy_device *phydev)
 {
@@ -170,18 +186,15 @@ static int lan87xx_config_aneg(struct phy_device *phydev)
 
 static int lan95xx_config_aneg_ext(struct phy_device *phydev)
 {
-	int rc;
+	if (phydev->phy_id == 0x0007c0f0) { /* LAN9500A or LAN9505A */
+		/* Extend Manual AutoMDIX timer */
+		int rc = phy_set_bits(phydev, PHY_EDPD_CONFIG,
+				      PHY_EDPD_CONFIG_EXT_CROSSOVER_);
 
-	if (phydev->phy_id != 0x0007c0f0) /* not (LAN9500A or LAN9505A) */
-		return lan87xx_config_aneg(phydev);
+		if (rc < 0)
+			return rc;
+	}
 
-	/* Extend Manual AutoMDIX timer */
-	rc = phy_read(phydev, PHY_EDPD_CONFIG);
-	if (rc < 0)
-		return rc;
-
-	rc |= PHY_EDPD_CONFIG_EXT_CROSSOVER_;
-	phy_write(phydev, PHY_EDPD_CONFIG, rc);
 	return lan87xx_config_aneg(phydev);
 }
 
@@ -196,7 +209,7 @@ static int lan95xx_config_aneg_ext(struct phy_device *phydev)
  * The workaround is only applicable to poll mode. Energy Detect Power-Down may
  * not be used in interrupt mode lest link change detection becomes unreliable.
  */
-static int lan87xx_read_status(struct phy_device *phydev)
+int lan87xx_read_status(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
 	int err;
@@ -205,9 +218,13 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!phydev->link && priv->energy_enable && phydev->irq == PHY_POLL) {
+	if (!phydev->link && priv && priv->edpd_enable &&
+	    priv->edpd_max_wait_ms) {
+		unsigned int max_wait = priv->edpd_max_wait_ms * 1000;
+		int rc;
+
 		/* Disable EDPD to wake up PHY */
-		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
+		rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
 			return rc;
 
@@ -221,7 +238,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 		 */
 		read_poll_timeout(phy_read, rc,
 				  rc & MII_LAN83C185_ENERGYON || rc < 0,
-				  10000, 640000, true, phydev,
+				  10000, max_wait, true, phydev,
 				  MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
 			return rc;
@@ -239,6 +256,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(lan87xx_read_status);
 
 static int smsc_get_sset_count(struct phy_device *phydev)
 {
@@ -279,10 +297,82 @@ static void smsc_get_stats(struct phy_device *phydev,
 		data[i] = smsc_get_stat(phydev, i);
 }
 
-static int smsc_phy_probe(struct phy_device *phydev)
+static int smsc_phy_get_edpd(struct phy_device *phydev, u16 *edpd)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return -EOPNOTSUPP;
+
+	if (!priv->edpd_enable)
+		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
+	else if (!priv->edpd_max_wait_ms)
+		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+	else
+		*edpd = PHY_STATE_MACH_MS + priv->edpd_max_wait_ms;
+
+	return 0;
+}
+
+static int smsc_phy_set_edpd(struct phy_device *phydev, u16 edpd)
+{
+	struct smsc_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return -EOPNOTSUPP;
+
+	switch (edpd) {
+	case ETHTOOL_PHY_EDPD_DISABLE:
+		priv->edpd_enable = false;
+		break;
+	case ETHTOOL_PHY_EDPD_NO_TX:
+		priv->edpd_enable = true;
+		priv->edpd_max_wait_ms = 0;
+		break;
+	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
+		edpd = PHY_STATE_MACH_MS + EDPD_MAX_WAIT_DFLT_MS;
+		fallthrough;
+	default:
+		if (phydev->irq != PHY_POLL)
+			return -EOPNOTSUPP;
+		if (edpd < PHY_STATE_MACH_MS || edpd > PHY_STATE_MACH_MS + 1000)
+			return -EINVAL;
+		priv->edpd_enable = true;
+		priv->edpd_max_wait_ms = edpd - PHY_STATE_MACH_MS;
+	}
+
+	priv->edpd_mode_set_by_user = true;
+
+	return smsc_phy_config_edpd(phydev);
+}
+
+int smsc_phy_get_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return smsc_phy_get_edpd(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(smsc_phy_get_tunable);
+
+int smsc_phy_set_tunable(struct phy_device *phydev,
+			 struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return smsc_phy_set_edpd(phydev, *(u16 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(smsc_phy_set_tunable);
+
+int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
 	struct smsc_phy_priv *priv;
 	struct clk *refclk;
 
@@ -290,10 +380,11 @@ static int smsc_phy_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->energy_enable = true;
+	priv->edpd_enable = true;
+	priv->edpd_max_wait_ms = EDPD_MAX_WAIT_DFLT_MS;
 
-	if (of_property_read_bool(of_node, "smsc,disable-energy-detect"))
-		priv->energy_enable = false;
+	if (device_property_present(dev, "smsc,disable-energy-detect"))
+		priv->edpd_enable = false;
 
 	phydev->priv = priv;
 
@@ -305,6 +396,7 @@ static int smsc_phy_probe(struct phy_device *phydev)
 
 	return clk_set_rate(refclk, 50 * 1000 * 1000);
 }
+EXPORT_SYMBOL_GPL(smsc_phy_probe);
 
 static struct phy_driver smsc_phy_driver[] = {
 {
@@ -377,6 +469,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
 
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -421,6 +516,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
 
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -446,6 +544,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_sset_count = smsc_get_sset_count,
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
+
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -476,6 +577,9 @@ static struct phy_driver smsc_phy_driver[] = {
 	.get_sset_count = smsc_get_sset_count,
 	.get_strings	= smsc_get_strings,
 	.get_stats	= smsc_get_stats,
+
+	.get_tunable	= smsc_phy_get_tunable,
+	.set_tunable	= smsc_phy_set_tunable,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,

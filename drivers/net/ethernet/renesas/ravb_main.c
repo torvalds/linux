@@ -28,7 +28,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/sys_soc.h>
 #include <linux/reset.h>
 #include <linux/math64.h>
 
@@ -1390,11 +1389,6 @@ static void ravb_adjust_link(struct net_device *ndev)
 		phy_print_status(phydev);
 }
 
-static const struct soc_device_attribute r8a7795es10[] = {
-	{ .soc_id = "r8a7795", .revision = "ES1.0", },
-	{ /* sentinel */ }
-};
-
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
@@ -1432,15 +1426,6 @@ static int ravb_phy_init(struct net_device *ndev)
 		netdev_err(ndev, "failed to connect PHY\n");
 		err = -ENOENT;
 		goto err_deregister_fixed_link;
-	}
-
-	/* This driver only support 10/100Mbit speeds on R-Car H3 ES1.0
-	 * at this time.
-	 */
-	if (soc_device_match(r8a7795es10)) {
-		phy_set_max_speed(phydev, SPEED_100);
-
-		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
 	}
 
 	if (!info->half_duplex) {

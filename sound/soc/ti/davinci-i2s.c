@@ -739,7 +739,7 @@ err_put_clk:
 	return ret;
 }
 
-static int davinci_i2s_remove(struct platform_device *pdev)
+static void davinci_i2s_remove(struct platform_device *pdev)
 {
 	struct davinci_mcbsp_dev *dev = dev_get_drvdata(&pdev->dev);
 
@@ -748,8 +748,6 @@ static int davinci_i2s_remove(struct platform_device *pdev)
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id davinci_i2s_match[] __maybe_unused = {
@@ -760,7 +758,7 @@ MODULE_DEVICE_TABLE(of, davinci_i2s_match);
 
 static struct platform_driver davinci_mcbsp_driver = {
 	.probe		= davinci_i2s_probe,
-	.remove		= davinci_i2s_remove,
+	.remove_new	= davinci_i2s_remove,
 	.driver		= {
 		.name	= "davinci-mcbsp",
 		.of_match_table = of_match_ptr(davinci_i2s_match),

@@ -331,10 +331,11 @@
         "UMask": "0x7"
     },
     {
-        "BriefDescription": "XQ.FULL_CYCLES",
+        "BriefDescription": "Cycles the uncore cannot take further requests",
         "CounterMask": "1",
         "EventCode": "0x2d",
         "EventName": "XQ.FULL_CYCLES",
+        "PublicDescription": "number of cycles when the thread is active and the uncore cannot take any further requests (for example prefetches, loads or stores initiated by the Core that miss the L2 cache).",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     }

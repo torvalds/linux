@@ -190,7 +190,7 @@ static int gsc_notifier(struct notifier_block *nb, unsigned long action, void *d
 	return 0;
 }
 
-void intel_huc_register_gsc_notifier(struct intel_huc *huc, struct bus_type *bus)
+void intel_huc_register_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
 {
 	int ret;
 
@@ -206,7 +206,7 @@ void intel_huc_register_gsc_notifier(struct intel_huc *huc, struct bus_type *bus
 	}
 }
 
-void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, struct bus_type *bus)
+void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
 {
 	if (!huc->delayed_load.nb.notifier_call)
 		return;

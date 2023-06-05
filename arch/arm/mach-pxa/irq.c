@@ -257,8 +257,7 @@ void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int))
 	}
 	pxa_irq_base = io_p2v(res.start);
 
-	if (of_find_property(node, "marvell,intc-priority", NULL))
-		cpu_has_ipr = 1;
+	cpu_has_ipr = of_property_read_bool(node, "marvell,intc-priority");
 
 	ret = irq_alloc_descs(-1, 0, pxa_internal_irq_nr, 0);
 	if (ret < 0) {

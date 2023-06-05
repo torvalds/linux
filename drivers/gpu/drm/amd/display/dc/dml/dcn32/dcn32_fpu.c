@@ -109,7 +109,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 		{
 			.state = 0,
 			.dcfclk_mhz = 1564.0,
-			.fabricclk_mhz = 400.0,
+			.fabricclk_mhz = 2500.0,
 			.dispclk_mhz = 2150.0,
 			.dppclk_mhz = 2150.0,
 			.phyclk_mhz = 810.0,
@@ -117,7 +117,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 			.phyclk_d32_mhz = 625.0,
 			.socclk_mhz = 1200.0,
 			.dscclk_mhz = 716.667,
-			.dram_speed_mts = 16000.0,
+			.dram_speed_mts = 18000.0,
 			.dtbclk_mhz = 1564.0,
 		},
 	},
@@ -148,7 +148,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 	.max_avg_fabric_bw_use_normal_percent = 60.0,
 	.max_avg_dram_bw_use_normal_strobe_percent = 50.0,
 	.max_avg_dram_bw_use_normal_percent = 15.0,
-	.num_chans = 8,
+	.num_chans = 24,
 	.dram_channel_width_bytes = 2,
 	.fabric_datapath_to_dcn_data_return_bytes = 64,
 	.return_bus_width_bytes = 64,
@@ -1331,6 +1331,11 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
 					!= dm_dram_clock_change_unsupported;
 
+	/* Pstate change might not be supported by hardware, but it might be
+	 * possible with firmware driven vertical blank stretching.
+	 */
+	context->bw_ctx.bw.dcn.clk.p_state_change_support |= context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
+
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
 	context->bw_ctx.bw.dcn.clk.ref_dtbclk_khz = context->bw_ctx.dml.vba.DTBCLKPerState[vlevel] * 1000;
@@ -1927,6 +1932,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	unsigned int min_dram_speed_mts_margin;
 	bool need_fclk_lat_as_dummy = false;
 	bool is_subvp_p_drr = false;
+	struct dc_stream_state *fpo_candidate_stream = NULL;
 
 	dc_assert_fp_enabled();
 
@@ -1968,8 +1974,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	if (!pstate_en || (!dc->debug.disable_fpo_optimizations &&
 			pstate_en && vlevel != 0)) {
 		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
-		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
-			dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
+		fpo_candidate_stream = dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
+		if (fpo_candidate_stream) {
+			fpo_candidate_stream->fpo_in_use = true;
+			context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = true;
+		}
 
 		if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
 			dummy_latency_index = dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(dc,
@@ -2002,6 +2011,10 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				 * voltage level)
 				 */
 				context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+				for (i = 0; i < context->stream_count; i++) {
+					if (context->streams[i])
+						context->streams[i]->fpo_in_use = false;
+				}
 				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
 				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
 			}
@@ -2157,7 +2170,13 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		 * DCFCLK: Min, as reported by PM FW, when available
 		 * UCLK: Min, as reported by PM FW, when available
 		 */
-		dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
+
+		/* For set A set the correct latency values (i.e. non-dummy values) unconditionally
+		 */
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
+		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
+		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
+
 		context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
@@ -2791,4 +2810,75 @@ double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *conte
 		}
 	}
 	return max_vratio_pre;
+}
+
+/**
+ * dcn32_assign_fpo_vactive_candidate - Assign the FPO stream candidate for FPO + VActive case
+ *
+ * This function chooses the FPO candidate stream for FPO + VActive cases (2 stream config).
+ * For FPO + VAtive cases, the assumption is that one display has ActiveMargin > 0, and the
+ * other display has ActiveMargin <= 0. This function will choose the pipe/stream that has
+ * ActiveMargin <= 0 to be the FPO stream candidate if found.
+ *
+ *
+ * @param [in]: dc - current dc state
+ * @param [in]: context - new dc state
+ * @param [out]: fpo_candidate_stream - pointer to FPO stream candidate if one is found
+ *
+ * Return: void
+ */
+void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *context, struct dc_stream_state **fpo_candidate_stream)
+{
+	unsigned int i, pipe_idx;
+	const struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		const struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
+			*fpo_candidate_stream = pipe->stream;
+			break;
+		}
+		pipe_idx++;
+	}
+}
+
+/**
+ * dcn32_find_vactive_pipe - Determines if the config has a pipe that can switch in VACTIVE
+ *
+ * @param [in]: dc - current dc state
+ * @param [in]: context - new dc state
+ * @param [in]: vactive_margin_req_us - The vactive marign required for a vactive pipe to be
+ *                                      considered "found"
+ *
+ * Return: True if VACTIVE display is found, false otherwise
+ */
+bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint32_t vactive_margin_req_us)
+{
+	unsigned int i, pipe_idx;
+	const struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+	bool vactive_found = false;
+
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		const struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] >= vactive_margin_req_us) {
+			vactive_found = true;
+			break;
+		}
+		pipe_idx++;
+	}
+	return vactive_found;
+}
+
+void dcn32_set_clock_limits(const struct _vcs_dpi_soc_bounding_box_st *soc_bb)
+{
+	dc_assert_fp_enabled();
+	dcn3_2_soc.clock_limits[0].dcfclk_mhz = 1200.0;
 }

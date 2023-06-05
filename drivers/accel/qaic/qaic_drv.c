@@ -25,7 +25,6 @@
 #include <uapi/drm/qaic_accel.h>
 
 #include "mhi_controller.h"
-#include "mhi_qaic_ctrl.h"
 #include "qaic.h"
 
 MODULE_IMPORT_NS(DMA_BUF);
@@ -601,16 +600,8 @@ static int __init qaic_init(void)
 		goto free_mhi;
 	}
 
-	ret = mhi_qaic_ctrl_init();
-	if (ret) {
-		pr_debug("qaic: mhi_qaic_ctrl_init failed %d\n", ret);
-		goto free_pci;
-	}
-
 	return 0;
 
-free_pci:
-	pci_unregister_driver(&qaic_pci_driver);
 free_mhi:
 	mhi_driver_unregister(&qaic_mhi_driver);
 	return ret;
@@ -634,7 +625,6 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
-	mhi_qaic_ctrl_deinit();
 	pci_unregister_driver(&qaic_pci_driver);
 	mhi_driver_unregister(&qaic_mhi_driver);
 }

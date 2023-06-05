@@ -93,7 +93,7 @@ required:
 unevaluatedProperties: false
 
 allOf:
-  - $ref: "nand-controller.yaml"
+  - $ref: nand-controller.yaml
 
   - if:
       properties:

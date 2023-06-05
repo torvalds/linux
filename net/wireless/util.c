@@ -776,7 +776,24 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 	return frame;
 }
 
-bool ieee80211_is_valid_amsdu(struct sk_buff *skb, bool mesh_hdr)
+static u16
+ieee80211_amsdu_subframe_length(void *field, u8 mesh_flags, u8 hdr_type)
+{
+	__le16 *field_le = field;
+	__be16 *field_be = field;
+	u16 len;
+
+	if (hdr_type >= 2)
+		len = le16_to_cpu(*field_le);
+	else
+		len = be16_to_cpu(*field_be);
+	if (hdr_type)
+		len += __ieee80211_get_mesh_hdrlen(mesh_flags);
+
+	return len;
+}
+
+bool ieee80211_is_valid_amsdu(struct sk_buff *skb, u8 mesh_hdr)
 {
 	int offset = 0, remaining, subframe_len, padding;
 
@@ -790,12 +807,8 @@ bool ieee80211_is_valid_amsdu(struct sk_buff *skb, bool mesh_hdr)
 		if (skb_copy_bits(skb, offset + 2 * ETH_ALEN, &hdr, sizeof(hdr)) < 0)
 			return false;
 
-		if (mesh_hdr)
-			len = le16_to_cpu(*(__le16 *)&hdr.len) +
-			      __ieee80211_get_mesh_hdrlen(hdr.mesh_flags);
-		else
-			len = ntohs(hdr.len);
-
+		len = ieee80211_amsdu_subframe_length(&hdr.len, hdr.mesh_flags,
+						      mesh_hdr);
 		subframe_len = sizeof(struct ethhdr) + len;
 		padding = (4 - subframe_len) & 0x3;
 		remaining = skb->len - offset;
@@ -812,7 +825,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
 			      const u8 *check_da, const u8 *check_sa,
-			      bool mesh_control)
+			      u8 mesh_control)
 {
 	unsigned int hlen = ALIGN(extra_headroom, 4);
 	struct sk_buff *frame = NULL;
@@ -837,11 +850,8 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		skb_copy_bits(skb, offset, &hdr, copy_len);
 		if (iftype == NL80211_IFTYPE_MESH_POINT)
 			mesh_len = __ieee80211_get_mesh_hdrlen(hdr.flags);
-		if (mesh_control)
-			len = le16_to_cpu(*(__le16 *)&hdr.eth.h_proto) + mesh_len;
-		else
-			len = ntohs(hdr.eth.h_proto);
-
+		len = ieee80211_amsdu_subframe_length(&hdr.eth.h_proto, hdr.flags,
+						      mesh_control);
 		subframe_len = sizeof(struct ethhdr) + len;
 		padding = (4 - subframe_len) & 0x3;
 

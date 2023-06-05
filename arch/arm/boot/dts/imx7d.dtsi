@@ -165,6 +165,15 @@
 		  reg = <0x306d0000 0x10000>;
 		  status = "disabled";
 	};
+
+	pxp: pxp@30700000 {
+		compatible = "fsl,imx7d-pxp";
+		reg = <0x30700000 0x10000>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX7D_PXP_CLK>;
+		clock-names = "axi";
+	};
 };
 
 &aips3 {

@@ -112,7 +112,7 @@ static int khadas_mcu_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	if (of_find_property(dev->of_node, "#cooling-cells", NULL))
+	if (of_property_present(dev->of_node, "#cooling-cells"))
 		return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
 					    khadas_mcu_fan_cells,
 					    ARRAY_SIZE(khadas_mcu_fan_cells),

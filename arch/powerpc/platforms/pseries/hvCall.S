@@ -44,7 +44,7 @@ hcall_tracepoint_refcount:
 	std	r0,16(r1);					\
 	addi	r4,r1,STK_PARAM(FIRST_REG);			\
 	stdu	r1,-STACK_FRAME_MIN_SIZE(r1);			\
-	bl	__trace_hcall_entry;				\
+	bl	CFUNC(__trace_hcall_entry);			\
 	ld	r3,STACK_FRAME_MIN_SIZE+STK_PARAM(R3)(r1);	\
 	ld	r4,STACK_FRAME_MIN_SIZE+STK_PARAM(R4)(r1);	\
 	ld	r5,STACK_FRAME_MIN_SIZE+STK_PARAM(R5)(r1);	\
@@ -63,7 +63,7 @@ hcall_tracepoint_refcount:
 	std	r3,STACK_FRAME_MIN_SIZE+STK_PARAM(R3)(r1);	\
 	mr	r4,r3;						\
 	mr	r3,r0;						\
-	bl	__trace_hcall_exit;				\
+	bl	CFUNC(__trace_hcall_exit);			\
 	ld	r0,STACK_FRAME_MIN_SIZE+16(r1);			\
 	addi	r1,r1,STACK_FRAME_MIN_SIZE;			\
 	ld	r3,STK_PARAM(R3)(r1);				\

@@ -277,6 +277,7 @@ config CIO_DAC
 	tristate "Measurement Computing CIO-DAC IIO driver"
 	depends on X86 && (ISA_BUS || PC104)
 	select ISA_BUS_API
+	select REGMAP_MMIO
 	help
 	  Say yes here to build support for the Measurement Computing CIO-DAC
 	  analog output device family (CIO-DAC16, CIO-DAC08, PC104-DAC06). The

@@ -680,7 +680,7 @@ static long rxrpc_read(const struct key *key,
 			return -ENOPKG;
 		}
 
-		if (WARN_ON((unsigned long)xdr - (unsigned long)oldxdr ==
+		if (WARN_ON((unsigned long)xdr - (unsigned long)oldxdr !=
 			    toksize))
 			return -EIO;
 	}

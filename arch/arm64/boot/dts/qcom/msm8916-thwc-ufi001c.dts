@@ -44,18 +44,21 @@
 	sim_ctrl_default: sim-ctrl-default-state {
 		esim-sel-pins {
 			pins = "gpio0", "gpio3";
+			function = "gpio";
 			bias-disable;
 			output-low;
 		};
 
 		sim-en-pins {
 			pins = "gpio1";
+			function = "gpio";
 			bias-disable;
 			output-low;
 		};
 
 		sim-sel-pins {
 			pins = "gpio2";
+			function = "gpio";
 			bias-disable;
 			output-high;
 		};

@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/ioasid.h>
 #include <uapi/linux/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
@@ -192,6 +191,7 @@ enum iommu_dev_features {
 };
 
 #define IOMMU_PASID_INVALID	(-1U)
+typedef unsigned int ioasid_t;
 
 #ifdef CONFIG_IOMMU_API
 
@@ -455,12 +455,11 @@ static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
 	return dev->iommu->iommu_dev->ops;
 }
 
-extern int bus_iommu_probe(struct bus_type *bus);
-extern bool iommu_present(struct bus_type *bus);
+extern int bus_iommu_probe(const struct bus_type *bus);
+extern bool iommu_present(const struct bus_type *bus);
 extern bool device_iommu_capable(struct device *dev, enum iommu_cap cap);
 extern bool iommu_group_has_isolated_msi(struct iommu_group *group);
-extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
-extern struct iommu_group *iommu_group_get_by_id(int id);
+extern struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus);
 extern void iommu_domain_free(struct iommu_domain *domain);
 extern int iommu_attach_device(struct iommu_domain *domain,
 			       struct device *dev);
@@ -699,7 +698,6 @@ static inline void dev_iommu_priv_set(struct device *dev, void *priv)
 }
 
 int iommu_probe_device(struct device *dev);
-void iommu_release_device(struct device *dev);
 
 int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features f);
 int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features f);
@@ -732,7 +730,7 @@ struct iommu_device {};
 struct iommu_fault_param {};
 struct iommu_iotlb_gather {};
 
-static inline bool iommu_present(struct bus_type *bus)
+static inline bool iommu_present(const struct bus_type *bus)
 {
 	return false;
 }
@@ -742,12 +740,7 @@ static inline bool device_iommu_capable(struct device *dev, enum iommu_cap cap)
 	return false;
 }
 
-static inline struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
-{
-	return NULL;
-}
-
-static inline struct iommu_group *iommu_group_get_by_id(int id)
+static inline struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
 {
 	return NULL;
 }
@@ -1173,6 +1166,15 @@ static inline bool tegra_dev_iommu_get_stream_id(struct device *dev, u32 *stream
 }
 
 #ifdef CONFIG_IOMMU_SVA
+static inline void mm_pasid_init(struct mm_struct *mm)
+{
+	mm->pasid = IOMMU_PASID_INVALID;
+}
+static inline bool mm_valid_pasid(struct mm_struct *mm)
+{
+	return mm->pasid != IOMMU_PASID_INVALID;
+}
+void mm_pasid_drop(struct mm_struct *mm);
 struct iommu_sva *iommu_sva_bind_device(struct device *dev,
 					struct mm_struct *mm);
 void iommu_sva_unbind_device(struct iommu_sva *handle);
@@ -1192,6 +1194,9 @@ static inline u32 iommu_sva_get_pasid(struct iommu_sva *handle)
 {
 	return IOMMU_PASID_INVALID;
 }
+static inline void mm_pasid_init(struct mm_struct *mm) {}
+static inline bool mm_valid_pasid(struct mm_struct *mm) { return false; }
+static inline void mm_pasid_drop(struct mm_struct *mm) {}
 #endif /* CONFIG_IOMMU_SVA */
 
 #endif /* __LINUX_IOMMU_H */

@@ -582,6 +582,5 @@ define_machine(chrp) {
 	.time_init		= chrp_time_init,
 	.set_rtc_time		= chrp_set_rtc_time,
 	.get_rtc_time		= chrp_get_rtc_time,
-	.calibrate_decr		= generic_calibrate_decr,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
 };

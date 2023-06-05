@@ -23,10 +23,6 @@ struct  sdw_mockup_priv {
 	struct sdw_slave *slave;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 static int sdw_mockup_component_probe(struct snd_soc_component *component)
 {
 	return 0;
@@ -45,19 +41,7 @@ static const struct snd_soc_component_driver snd_soc_sdw_mockup_component = {
 static int sdw_mockup_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 				     int direction)
 {
-	struct sdw_stream_data *stream;
-
-	if (!sdw_stream)
-		return 0;
-
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
-	if (!stream)
-		return -ENOMEM;
-
-	stream->sdw_stream = sdw_stream;
-
-	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
-	snd_soc_dai_dma_data_set(dai, direction, stream);
+	snd_soc_dai_dma_data_set(dai, direction, sdw_stream);
 
 	return 0;
 }
@@ -65,11 +49,7 @@ static int sdw_mockup_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 static void sdw_mockup_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct sdw_stream_data *stream;
-
-	stream = snd_soc_dai_get_dma_data(dai, substream);
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
-	kfree(stream);
 }
 
 static int sdw_mockup_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -80,11 +60,10 @@ static int sdw_mockup_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_mockup_priv *sdw_mockup = snd_soc_component_get_drvdata(component);
 	struct sdw_stream_config stream_config = {0};
 	struct sdw_port_config port_config = {0};
-	struct sdw_stream_data *stream;
+	struct sdw_stream_runtime *sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 	int ret;
 
-	stream = snd_soc_dai_get_dma_data(dai, substream);
-	if (!stream)
+	if (!sdw_stream)
 		return -EINVAL;
 
 	if (!sdw_mockup->slave)
@@ -99,7 +78,7 @@ static int sdw_mockup_pcm_hw_params(struct snd_pcm_substream *substream,
 		port_config.num = 8;
 
 	ret = sdw_stream_add_slave(sdw_mockup->slave, &stream_config,
-				   &port_config, 1, stream->sdw_stream);
+				   &port_config, 1, sdw_stream);
 	if (ret)
 		dev_err(dai->dev, "Unable to configure port\n");
 
@@ -111,13 +90,12 @@ static int sdw_mockup_pcm_hw_free(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct sdw_mockup_priv *sdw_mockup = snd_soc_component_get_drvdata(component);
-	struct sdw_stream_data *stream =
-		snd_soc_dai_get_dma_data(dai, substream);
+	struct sdw_stream_runtime *sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 
 	if (!sdw_mockup->slave)
 		return -EINVAL;
 
-	sdw_stream_remove_slave(sdw_mockup->slave, stream->sdw_stream);
+	sdw_stream_remove_slave(sdw_mockup->slave, sdw_stream);
 	return 0;
 }
 

@@ -40,8 +40,8 @@ Here are the main features of EROFS:
  - Support multiple devices to refer to external blobs, which can be used
    for container images;
 
- - 4KiB block size and 32-bit block addresses for each device, therefore
-   16TiB address space at most for now;
+ - 32-bit block addresses for each device, therefore 16TiB address space at
+   most with 4KiB block size for now;
 
  - Two inode layouts for different requirements:
 

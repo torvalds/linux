@@ -54,11 +54,12 @@ properties:
 
   compatible:
     enum:
+      - ti,am642-cpsw-nuss
       - ti,am654-cpsw-nuss
       - ti,j7200-cpswxg-nuss
       - ti,j721e-cpsw-nuss
       - ti,j721e-cpswxg-nuss
-      - ti,am642-cpsw-nuss
+      - ti,j784s4-cpswxg-nuss
 
   reg:
     maxItems: 1
@@ -126,8 +127,18 @@ properties:
             description: CPSW port number
 
           phys:
-            maxItems: 1
-            description: phandle on phy-gmii-sel PHY
+            minItems: 1
+            items:
+              - description: CPSW MAC's PHY.
+              - description: Serdes PHY. Serdes PHY is required only if
+                             the Serdes has to be configured in the
+                             Single-Link configuration.
+
+          phy-names:
+            minItems: 1
+            items:
+              - const: mac
+              - const: serdes
 
           label:
             description: label associated with this port
@@ -187,7 +198,9 @@ allOf:
         properties:
           compatible:
             contains:
-              const: ti,j721e-cpswxg-nuss
+              enum:
+                - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
     then:
       properties:
         ethernet-ports:
@@ -205,8 +218,9 @@ allOf:
           compatible:
             contains:
               enum:
-                - ti,j721e-cpswxg-nuss
                 - ti,j7200-cpswxg-nuss
+                - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
     then:
       properties:
         ethernet-ports:
@@ -222,7 +236,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/pinctrl/k3.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
     #include <dt-bindings/net/ti-dp83867.h>
     #include <dt-bindings/interrupt-controller/irq.h>

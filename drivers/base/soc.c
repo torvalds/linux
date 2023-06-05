@@ -7,6 +7,7 @@
 
 #include <linux/sysfs.h>
 #include <linux/init.h>
+#include <linux/of.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -110,6 +111,18 @@ static void soc_release(struct device *dev)
 	kfree(soc_dev);
 }
 
+static void soc_device_get_machine(struct soc_device_attribute *soc_dev_attr)
+{
+	struct device_node *np;
+
+	if (soc_dev_attr->machine)
+		return;
+
+	np = of_find_node_by_path("/");
+	of_property_read_string(np, "model", &soc_dev_attr->machine);
+	of_node_put(np);
+}
+
 static struct soc_device_attribute *early_soc_dev_attr;
 
 struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr)
@@ -117,6 +130,8 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 	struct soc_device *soc_dev;
 	const struct attribute_group **soc_attr_groups;
 	int ret;
+
+	soc_device_get_machine(soc_dev_attr);
 
 	if (!soc_bus_registered) {
 		if (early_soc_dev_attr)

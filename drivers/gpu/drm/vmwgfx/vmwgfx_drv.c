@@ -45,6 +45,9 @@
 #include <drm/ttm/ttm_placement.h>
 #include <generated/utsrelease.h>
 
+#ifdef CONFIG_X86
+#include <asm/hypervisor.h>
+#endif
 #include <linux/cc_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -897,6 +900,16 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 				 cap2_names, ARRAY_SIZE(cap2_names));
 	}
 
+	if (!vmwgfx_supported(dev_priv)) {
+		vmw_disable_backdoor();
+		drm_err_once(&dev_priv->drm,
+			     "vmwgfx seems to be running on an unsupported hypervisor.");
+		drm_err_once(&dev_priv->drm,
+			     "This configuration is likely broken.");
+		drm_err_once(&dev_priv->drm,
+			     "Please switch to a supported graphics device to avoid problems.");
+	}
+
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
 		drm_info(&dev_priv->drm,
@@ -1318,6 +1331,22 @@ static void vmw_master_drop(struct drm_device *dev,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
 	vmw_kms_legacy_hotspot_clear(dev_priv);
+}
+
+bool vmwgfx_supported(struct vmw_private *vmw)
+{
+#if defined(CONFIG_X86)
+	return hypervisor_is_type(X86_HYPER_VMWARE);
+#elif defined(CONFIG_ARM64)
+	/*
+	 * On aarch64 only svga3 is supported
+	 */
+	return vmw->pci_id == VMWGFX_PCI_ID_SVGA3;
+#else
+	drm_warn_once(&vmw->drm,
+		      "vmwgfx is running on an unknown architecture.");
+	return false;
+#endif
 }
 
 /**

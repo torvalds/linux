@@ -33,10 +33,10 @@ properties:
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink, genetlink-c ]
-  # Start genetlink-c
   uapi-header:
     description: Path to the uAPI header, default is linux/${family-name}.h
     type: string
+  # Start genetlink-c
   c-family-name:
     description: Name of the define for the family name.
     type: string

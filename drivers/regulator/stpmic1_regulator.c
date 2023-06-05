@@ -576,7 +576,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 	}
 
 	/* set mask reset */
-	if (of_get_property(config.of_node, "st,mask-reset", NULL) &&
+	if (of_property_read_bool(config.of_node, "st,mask-reset") &&
 	    cfg->mask_reset_reg != 0) {
 		ret = regmap_update_bits(pmic_dev->regmap,
 					 cfg->mask_reset_reg,
@@ -638,6 +638,7 @@ MODULE_DEVICE_TABLE(of, of_pmic_regulator_match);
 static struct platform_driver stpmic1_regulator_driver = {
 	.driver = {
 		.name = "stpmic1-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(of_pmic_regulator_match),
 	},
 	.probe = stpmic1_regulator_probe,

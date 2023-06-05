@@ -42,7 +42,6 @@ int change_tcp_cc(struct bpf_iter__tcp *ctx)
 	char cur_cc[TCP_CA_NAME_MAX];
 	struct tcp_sock *tp;
 	struct sock *sk;
-	int ret;
 
 	if (!bpf_tcp_sk(ctx->sk_common))
 		return 0;

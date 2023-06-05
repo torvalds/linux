@@ -35,6 +35,9 @@ struct cpu_aggr_map {
 	struct aggr_cpu_id map[];
 };
 
+#define cpu_aggr_map__for_each_idx(idx, aggr_map)				\
+	for ((idx) = 0; (idx) < aggr_map->nr; (idx)++)
+
 struct perf_record_cpu_map_data;
 
 bool perf_record_cpu_map_data__test_bit(int i, const struct perf_record_cpu_map_data *data);

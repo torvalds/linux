@@ -14,6 +14,11 @@
 
 struct btrtl_device_info;
 
+struct rtl_chip_type_evt {
+	__u8 status;
+	__u8 type;
+} __packed;
+
 struct rtl_download_cmd {
 	__u8 index;
 	__u8 data[RTL_FRAG_LEN];
@@ -44,7 +49,58 @@ struct rtl_vendor_config_entry {
 struct rtl_vendor_config {
 	__le32 signature;
 	__le16 total_len;
-	struct rtl_vendor_config_entry entry[];
+	__u8 entry[];
+} __packed;
+
+struct rtl_epatch_header_v2 {
+	__u8   signature[8];
+	__u8   fw_version[8];
+	__le32 num_sections;
+} __packed;
+
+struct rtl_section {
+	__le32 opcode;
+	__le32 len;
+	u8     data[];
+} __packed;
+
+struct rtl_section_hdr {
+	__le16 num;
+	__le16 reserved;
+} __packed;
+
+struct rtl_common_subsec {
+	__u8   eco;
+	__u8   prio;
+	__u8   cb[2];
+	__le32 len;
+	__u8   data[];
+};
+
+struct rtl_sec_hdr {
+	__u8   eco;
+	__u8   prio;
+	__u8   key_id;
+	__u8   reserved;
+	__le32 len;
+	__u8   data[];
+} __packed;
+
+struct rtl_subsection {
+	struct list_head list;
+	u32 opcode;
+	u32 len;
+	u8 prio;
+	u8 *data;
+};
+
+struct rtl_iovec {
+	u8  *data;
+	u32 len;
+};
+
+struct rtl_vendor_cmd {
+	__u8 param[5];
 } __packed;
 
 enum {

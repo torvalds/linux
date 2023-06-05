@@ -1092,7 +1092,7 @@ static int fimc_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int fimc_remove(struct platform_device *pdev)
+static void fimc_remove(struct platform_device *pdev)
 {
 	struct fimc_dev *fimc = platform_get_drvdata(pdev);
 
@@ -1108,7 +1108,6 @@ static int fimc_remove(struct platform_device *pdev)
 	fimc_clk_put(fimc);
 
 	dev_info(&pdev->dev, "driver unloaded\n");
-	return 0;
 }
 
 /* S5PV210, S5PC110 */
@@ -1160,7 +1159,7 @@ static const struct dev_pm_ops fimc_pm_ops = {
 
 static struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
-	.remove		= fimc_remove,
+	.remove_new	= fimc_remove,
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,

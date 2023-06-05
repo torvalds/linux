@@ -53,6 +53,9 @@ struct pt_regs {
 	unsigned long orig_a0;
 };
 
+#define PTRACE_SYSEMU			0x1f
+#define PTRACE_SYSEMU_SINGLESTEP	0x20
+
 #ifdef CONFIG_64BIT
 #define REG_FMT "%016lx"
 #else
@@ -121,8 +124,6 @@ extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 			   unsigned long frame_pointer);
-int do_syscall_trace_enter(struct pt_regs *regs);
-void do_syscall_trace_exit(struct pt_regs *regs);
 
 /**
  * regs_get_register() - get register value from its offset
@@ -170,6 +171,11 @@ static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,
 	if (n < nr_reg_arguments)
 		return regs_get_register(regs, argument_offs[n]);
 	return 0;
+}
+
+static inline int regs_irqs_disabled(struct pt_regs *regs)
+{
+	return !(regs->status & SR_PIE);
 }
 
 #endif /* __ASSEMBLY__ */

@@ -469,7 +469,8 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 }
 
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
-						unsigned long address)
+						unsigned long address,
+						pte_t *ptep)
 {
 }
 

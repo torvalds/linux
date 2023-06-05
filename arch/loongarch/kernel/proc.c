@@ -76,6 +76,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_fpu)	seq_printf(m, " fpu");
 	if (cpu_has_lsx)	seq_printf(m, " lsx");
 	if (cpu_has_lasx)	seq_printf(m, " lasx");
+	if (cpu_has_crc32)	seq_printf(m, " crc32");
 	if (cpu_has_complex)	seq_printf(m, " complex");
 	if (cpu_has_crypto)	seq_printf(m, " crypto");
 	if (cpu_has_lvz)	seq_printf(m, " lvz");

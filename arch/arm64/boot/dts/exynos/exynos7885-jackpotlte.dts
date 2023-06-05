@@ -18,6 +18,7 @@
 	chassis-type = "handset";
 
 	aliases {
+		mmc0 = &mmc_0;
 		serial0 = &serial_0;
 		serial1 = &serial_1;
 		serial2 = &serial_2;

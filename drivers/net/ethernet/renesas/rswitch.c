@@ -1324,10 +1324,8 @@ out:
 
 static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
 {
-	if (rdev->ndev->phydev) {
+	if (rdev->ndev->phydev)
 		phy_disconnect(rdev->ndev->phydev);
-		rdev->ndev->phydev = NULL;
-	}
 }
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)

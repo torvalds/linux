@@ -3069,18 +3069,13 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_cpuio_ctrl ctrl_para = {0};
 	u16 pkt_id;
+	int ret;
 
 	rtw89_leave_ps_mode(rtwdev);
 
-	pkt_id = rtw89_mac_dle_buf_req(rtwdev, 0x20, true);
-	switch (pkt_id) {
-	case 0xffff:
-		return -ETIMEDOUT;
-	case 0xfff:
-		return -ENOMEM;
-	default:
-		break;
-	}
+	ret = rtw89_mac_dle_buf_req(rtwdev, 0x20, true, &pkt_id);
+	if (ret)
+		return ret;
 
 	/* intentionally, enqueue two pkt, but has only one pkt id */
 	ctrl_para.cmd_type = CPUIO_OP_CMD_ENQ_TO_HEAD;

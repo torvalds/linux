@@ -166,7 +166,7 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 	switch (value) {
 	case BITBANG_CS_INACTIVE:
 		if (hw->pdata->deactivate_cs)
-			hw->pdata->deactivate_cs(hw->pdata, spi->chip_select,
+			hw->pdata->deactivate_cs(hw->pdata, spi_get_chipselect(spi, 0),
 					cspol);
 		break;
 
@@ -211,7 +211,7 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 		} while ((stat & PSC_SPISTAT_DR) == 0);
 
 		if (hw->pdata->activate_cs)
-			hw->pdata->activate_cs(hw->pdata, spi->chip_select,
+			hw->pdata->activate_cs(hw->pdata, spi_get_chipselect(spi, 0),
 					cspol);
 		break;
 	}
@@ -923,7 +923,7 @@ err_nomem:
 	return err;
 }
 
-static int au1550_spi_remove(struct platform_device *pdev)
+static void au1550_spi_remove(struct platform_device *pdev)
 {
 	struct au1550_spi *hw = platform_get_drvdata(pdev);
 
@@ -942,7 +942,6 @@ static int au1550_spi_remove(struct platform_device *pdev)
 	}
 
 	spi_master_put(hw->master);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -950,7 +949,7 @@ MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
 	.probe = au1550_spi_probe,
-	.remove = au1550_spi_remove,
+	.remove_new = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
 	},

@@ -81,6 +81,7 @@ static const struct of_device_id of_match_clk_mt6795_infracfg[] = {
 	{ .compatible = "mediatek,mt6795-infracfg" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_infracfg);
 
 static int clk_mt6795_infracfg_probe(struct platform_device *pdev)
 {

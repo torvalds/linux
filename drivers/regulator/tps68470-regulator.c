@@ -175,6 +175,7 @@ static int tps68470_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps68470_regulator_driver = {
 	.driver = {
 		.name = "tps68470-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps68470_regulator_probe,
 };

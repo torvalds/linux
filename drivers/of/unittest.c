@@ -1008,6 +1008,153 @@ static void __init of_unittest_pci_dma_ranges(void)
 	of_node_put(np);
 }
 
+static void __init of_unittest_bus_ranges(void)
+{
+	struct device_node *np;
+	struct of_range range;
+	struct of_range_parser parser;
+	struct resource res;
+	int ret, count, i = 0;
+
+	np = of_find_node_by_path("/testcase-data/address-tests");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	if (of_range_parser_init(&parser, np)) {
+		pr_err("missing ranges property\n");
+		return;
+	}
+
+	ret = of_range_to_resource(np, 1, &res);
+	unittest(!ret, "of_range_to_resource returned error (%d) node %pOF\n",
+		ret, np);
+	unittest(resource_type(&res) == IORESOURCE_MEM,
+		"of_range_to_resource wrong resource type on node %pOF res=%pR\n",
+		np, &res);
+	unittest(res.start == 0xd0000000,
+		"of_range_to_resource wrong resource start address on node %pOF res=%pR\n",
+		np, &res);
+	unittest(resource_size(&res) == 0x20000000,
+		"of_range_to_resource wrong resource start address on node %pOF res=%pR\n",
+		np, &res);
+
+	count = of_range_count(&parser);
+	unittest(count == 2,
+		"of_range_count wrong size on node %pOF count=%d\n",
+		np, count);
+
+	/*
+	 * Get the "ranges" from the device tree
+	 */
+	for_each_of_range(&parser, &range) {
+		unittest(range.flags == IORESOURCE_MEM,
+			"for_each_of_range wrong flags on node %pOF flags=%x (expected %x)\n",
+			np, range.flags, IORESOURCE_MEM);
+		if (!i) {
+			unittest(range.size == 0x50000000,
+				 "for_each_of_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0x70000000,
+				 "for_each_of_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.bus_addr == 0x70000000,
+				 "for_each_of_range wrong bus addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		} else {
+			unittest(range.size == 0x20000000,
+				 "for_each_of_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0xd0000000,
+				 "for_each_of_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.bus_addr == 0x00000000,
+				 "for_each_of_range wrong bus addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		}
+		i++;
+	}
+
+	of_node_put(np);
+}
+
+static void __init of_unittest_bus_3cell_ranges(void)
+{
+	struct device_node *np;
+	struct of_range range;
+	struct of_range_parser parser;
+	int i = 0;
+
+	np = of_find_node_by_path("/testcase-data/address-tests/bus@a0000000");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	if (of_range_parser_init(&parser, np)) {
+		pr_err("missing ranges property\n");
+		return;
+	}
+
+	/*
+	 * Get the "ranges" from the device tree
+	 */
+	for_each_of_range(&parser, &range) {
+		if (!i) {
+			unittest(range.flags == 0xf00baa,
+				 "for_each_of_range wrong flags on node %pOF flags=%x\n",
+				 np, range.flags);
+			unittest(range.size == 0x100000,
+				 "for_each_of_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0xa0000000,
+				 "for_each_of_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.bus_addr == 0x0,
+				 "for_each_of_range wrong bus addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		} else {
+			unittest(range.flags == 0xf00bee,
+				 "for_each_of_range wrong flags on node %pOF flags=%x\n",
+				 np, range.flags);
+			unittest(range.size == 0x200000,
+				 "for_each_of_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0xb0000000,
+				 "for_each_of_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.bus_addr == 0x100000000,
+				 "for_each_of_range wrong bus addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		}
+		i++;
+	}
+
+	of_node_put(np);
+}
+
+static void __init of_unittest_reg(void)
+{
+	struct device_node *np;
+	int ret;
+	u64 addr, size;
+
+	np = of_find_node_by_path("/testcase-data/address-tests/bus@80000000/device@1000");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	ret = of_property_read_reg(np, 0, &addr, &size);
+	unittest(!ret, "of_property_read_reg(%pOF) returned error %d\n",
+		np, ret);
+	unittest(addr == 0x1000, "of_property_read_reg(%pOF) untranslated address (%llx) incorrect\n",
+		np, addr);
+
+	of_node_put(np);
+}
+
 static void __init of_unittest_parse_interrupts(void)
 {
 	struct device_node *np;
@@ -1529,13 +1676,12 @@ static int unittest_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int unittest_remove(struct platform_device *pdev)
+static void unittest_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
-	return 0;
 }
 
 static const struct of_device_id unittest_match[] = {
@@ -1545,7 +1691,7 @@ static const struct of_device_id unittest_match[] = {
 
 static struct platform_driver unittest_driver = {
 	.probe			= unittest_probe,
-	.remove			= unittest_remove,
+	.remove_new		= unittest_remove,
 	.driver = {
 		.name		= "unittest",
 		.of_match_table	= of_match_ptr(unittest_match),
@@ -1626,23 +1772,17 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int unittest_gpio_remove(struct platform_device *pdev)
+static void unittest_gpio_remove(struct platform_device *pdev)
 {
 	struct unittest_gpio_dev *devptr = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	dev_dbg(dev, "%s for node @%pfw\n", __func__, devptr->chip.fwnode);
 
-	if (!devptr)
-		return -EINVAL;
-
 	if (devptr->chip.base != -1)
 		gpiochip_remove(&devptr->chip);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(devptr);
-
-	return 0;
 }
 
 static const struct of_device_id unittest_gpio_id[] = {
@@ -1652,7 +1792,7 @@ static const struct of_device_id unittest_gpio_id[] = {
 
 static struct platform_driver unittest_gpio_driver = {
 	.probe	= unittest_gpio_probe,
-	.remove	= unittest_gpio_remove,
+	.remove_new = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
 		.of_match_table	= of_match_ptr(unittest_gpio_id),
@@ -2490,7 +2630,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int unittest_i2c_bus_remove(struct platform_device *pdev)
+static void unittest_i2c_bus_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -2498,8 +2638,6 @@ static int unittest_i2c_bus_remove(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_del_adapter(&std->adap);
-
-	return 0;
 }
 
 static const struct of_device_id unittest_i2c_bus_match[] = {
@@ -2509,7 +2647,7 @@ static const struct of_device_id unittest_i2c_bus_match[] = {
 
 static struct platform_driver unittest_i2c_bus_driver = {
 	.probe			= unittest_i2c_bus_probe,
-	.remove			= unittest_i2c_bus_remove,
+	.remove_new		= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
 		.of_match_table	= of_match_ptr(unittest_i2c_bus_match),
@@ -3644,6 +3782,9 @@ static int __init of_unittest(void)
 	of_unittest_dma_get_max_cpu_address();
 	of_unittest_parse_dma_ranges();
 	of_unittest_pci_dma_ranges();
+	of_unittest_bus_ranges();
+	of_unittest_bus_3cell_ranges();
+	of_unittest_reg();
 	of_unittest_match_node();
 	of_unittest_platform_populate();
 	of_unittest_overlay();

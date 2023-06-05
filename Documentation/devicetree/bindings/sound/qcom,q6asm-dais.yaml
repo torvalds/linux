@@ -56,7 +56,7 @@ patternProperties:
           Compress offload dai.
 
     dependencies:
-      is-compress-dai: ["direction"]
+      is-compress-dai: [ direction ]
 
     required:
       - reg

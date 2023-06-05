@@ -625,7 +625,6 @@ void kmem_dump_obj(void *object)
 EXPORT_SYMBOL_GPL(kmem_dump_obj);
 #endif
 
-#ifndef CONFIG_SLOB
 /* Create a cache during boot when no slab services are available yet */
 void __init create_boot_cache(struct kmem_cache *s, const char *name,
 		unsigned int size, slab_flags_t flags,
@@ -990,12 +989,9 @@ EXPORT_SYMBOL(__kmalloc_node_track_caller);
 
 /**
  * kfree - free previously allocated memory
- * @object: pointer returned by kmalloc.
+ * @object: pointer returned by kmalloc() or kmem_cache_alloc()
  *
  * If @object is NULL, no operation is performed.
- *
- * Don't free memory not originally allocated by kmalloc()
- * or you will run into trouble.
  */
 void kfree(const void *object)
 {
@@ -1079,7 +1075,6 @@ void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags,
 	return ret;
 }
 EXPORT_SYMBOL(kmalloc_node_trace);
-#endif /* !CONFIG_SLOB */
 
 gfp_t kmalloc_fix_flags(gfp_t flags)
 {

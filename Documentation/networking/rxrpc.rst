@@ -848,14 +848,21 @@ The kernel interface functions are as follows:
      returned.  The caller now holds a reference on this and it must be
      properly ended.
 
- (#) End a client call::
+ (#) Shut down a client call::
 
-	void rxrpc_kernel_end_call(struct socket *sock,
+	void rxrpc_kernel_shutdown_call(struct socket *sock,
+					struct rxrpc_call *call);
+
+     This is used to shut down a previously begun call.  The user_call_ID is
+     expunged from AF_RXRPC's knowledge and will not be seen again in
+     association with the specified call.
+
+ (#) Release the ref on a client call::
+
+	void rxrpc_kernel_put_call(struct socket *sock,
 				   struct rxrpc_call *call);
 
-     This is used to end a previously begun call.  The user_call_ID is expunged
-     from AF_RXRPC's knowledge and will not be seen again in association with
-     the specified call.
+     This is used to release the caller's ref on an rxrpc call.
 
  (#) Send data through a call::
 

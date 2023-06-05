@@ -56,4 +56,7 @@ bool kernel_page_present(struct page *page);
 #define SECTION_ALIGN L1_CACHE_BYTES
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
+#define PECOFF_SECTION_ALIGNMENT        0x1000
+#define PECOFF_FILE_ALIGNMENT           0x200
+
 #endif /* _ASM_RISCV_SET_MEMORY_H */

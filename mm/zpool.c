@@ -395,6 +395,5 @@ bool zpool_can_sleep_mapped(struct zpool *zpool)
 	return zpool->driver->sleep_mapped;
 }
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("Common API for compressed memory storage");

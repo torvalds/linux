@@ -169,12 +169,18 @@ SECTIONS
 	}
 
 #else /* CONFIG_PPC32 */
+#ifndef CONFIG_PPC_KERNEL_PCREL
 	.toc1 : AT(ADDR(.toc1) - LOAD_OFFSET) {
 		*(.toc1)
 	}
+#endif
 
 	.got : AT(ADDR(.got) - LOAD_OFFSET) ALIGN(256) {
+#ifdef CONFIG_PPC_KERNEL_PCREL
+		*(.got)
+#else
 		*(.got .toc)
+#endif
 	}
 
 	SOFT_MASK_TABLE(8)

@@ -646,7 +646,7 @@ int rnbd_clt_create_sysfs_files(void)
 {
 	int err;
 
-	rnbd_dev_class = class_create(THIS_MODULE, "rnbd-client");
+	rnbd_dev_class = class_create("rnbd-client");
 	if (IS_ERR(rnbd_dev_class))
 		return PTR_ERR(rnbd_dev_class);
 

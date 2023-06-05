@@ -623,6 +623,7 @@ config TEGRA186_GPC_DMA
 	depends on (ARCH_TEGRA || COMPILE_TEST) && ARCH_DMA_ADDR_T_64BIT
 	depends on IOMMU_API
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support for the NVIDIA Tegra General Purpose Central DMA controller.
 	  The DMA controller has multiple DMA channels which can be configured

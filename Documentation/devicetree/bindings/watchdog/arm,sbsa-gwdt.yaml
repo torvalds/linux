@@ -40,7 +40,6 @@ unevaluatedProperties: false
 
 examples:
   - |
-
     watchdog@2a440000 {
         compatible = "arm,sbsa-gwdt";
         reg = <0x2a440000 0x1000>,

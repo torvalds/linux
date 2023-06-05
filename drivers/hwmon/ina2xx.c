@@ -656,6 +656,10 @@ static int ina2xx_probe(struct i2c_client *client)
 		return PTR_ERR(data->regmap);
 	}
 
+	ret = devm_regulator_get_enable(dev, "vs");
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable vs regulator\n");
+
 	ret = ina2xx_init(data);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);

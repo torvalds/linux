@@ -261,3 +261,10 @@ const struct inode_operations reiserfs_file_inode_operations = {
 	.fileattr_get = reiserfs_fileattr_get,
 	.fileattr_set = reiserfs_fileattr_set,
 };
+
+const struct inode_operations reiserfs_priv_file_inode_operations = {
+	.setattr = reiserfs_setattr,
+	.permission = reiserfs_permission,
+	.fileattr_get = reiserfs_fileattr_get,
+	.fileattr_set = reiserfs_fileattr_set,
+};

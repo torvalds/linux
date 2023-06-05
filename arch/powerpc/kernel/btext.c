@@ -235,7 +235,7 @@ int __init btext_find_display(int allow_nonstdout)
 		return rc;
 
 	for_each_node_by_type(np, "display") {
-		if (of_get_property(np, "linux,opened", NULL)) {
+		if (of_property_read_bool(np, "linux,opened")) {
 			printk("trying %pOF ...\n", np);
 			rc = btext_initialize(np);
 			printk("result: %d\n", rc);

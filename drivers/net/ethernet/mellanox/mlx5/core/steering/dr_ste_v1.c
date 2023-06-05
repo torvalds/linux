@@ -495,19 +495,64 @@ static void dr_ste_v1_set_rx_decap(u8 *hw_ste_p, u8 *s_action)
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
-					  u8 *s_action,
-					  u16 num_of_actions,
-					  u32 re_write_index)
+static void dr_ste_v1_set_accelerated_rewrite_actions(u8 *hw_ste_p,
+						      u8 *d_action,
+						      u16 num_of_actions,
+						      u32 rewrite_pattern,
+						      u32 rewrite_args,
+						      u8 *action_data)
+{
+	if (action_data) {
+		memcpy(d_action, action_data, DR_MODIFY_ACTION_SIZE);
+	} else {
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 action_id, DR_STE_V1_ACTION_ID_ACCELERATED_LIST);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 modify_actions_pattern_pointer, rewrite_pattern);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 number_of_modify_actions, num_of_actions);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 modify_actions_argument_pointer, rewrite_args);
+	}
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_basic_rewrite_actions(u8 *hw_ste_p,
+						u8 *s_action,
+						u16 num_of_actions,
+						u32 rewrite_index)
 {
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, action_id,
 		 DR_STE_V1_ACTION_ID_MODIFY_LIST);
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, num_of_modify_actions,
 		 num_of_actions);
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, modify_actions_ptr,
-		 re_write_index);
+		 rewrite_index);
 
 	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
+					  u8 *action,
+					  u16 num_of_actions,
+					  u32 rewrite_pattern,
+					  u32 rewrite_args,
+					  u8 *action_data)
+{
+	if (rewrite_pattern != MLX5DR_INVALID_PATTERN_INDEX)
+		return dr_ste_v1_set_accelerated_rewrite_actions(hw_ste_p,
+								 action,
+								 num_of_actions,
+								 rewrite_pattern,
+								 rewrite_args,
+								 action_data);
+
+	/* fall back to the code that doesn't support accelerated modify header */
+	return dr_ste_v1_set_basic_rewrite_actions(hw_ste_p,
+						   action,
+						   num_of_actions,
+						   rewrite_args);
 }
 
 static void dr_ste_v1_set_aso_flow_meter(u8 *d_action,
@@ -604,9 +649,6 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 			allow_modify_hdr = false;
 	}
 
-	if (action_type_set[DR_ACTION_TYP_CTR])
-		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
-
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
 		if (!allow_modify_hdr || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
 			dr_ste_v1_arr_init_next_match(&last_ste, added_stes,
@@ -617,7 +659,9 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		}
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
-					      attr->modify_index);
+					      attr->modify_pat_idx,
+					      attr->modify_index,
+					      attr->single_modify_action);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_encap = false;
@@ -724,6 +768,10 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 						  attr->range.max);
 	}
 
+	/* set counter ID on the last STE to adhere to DMFS behavior */
+	if (action_type_set[DR_ACTION_TYP_CTR])
+		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
+
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
 	dr_ste_v1_set_hit_addr(last_ste, attr->final_icm_addr, 1);
 }
@@ -743,7 +791,9 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 	if (action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2]) {
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->decap_actions,
-					      attr->decap_index);
+					      attr->decap_pat_idx,
+					      attr->decap_index,
+					      NULL);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_modify_hdr = false;
@@ -798,7 +848,9 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		}
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
-					      attr->modify_index);
+					      attr->modify_pat_idx,
+					      attr->modify_index,
+					      attr->single_modify_action);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 	}
@@ -2175,6 +2227,49 @@ dr_ste_v1_build_tnl_gtpu_flex_parser_1_init(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_v1_build_tnl_gtpu_flex_parser_1_tag;
 }
 
+int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
+{
+	struct mlx5dr_ptrn_mgr *ptrn_mgr;
+	int ret;
+
+	ptrn_mgr = action->rewrite->dmn->ptrn_mgr;
+	if (!ptrn_mgr)
+		return -EOPNOTSUPP;
+
+	action->rewrite->arg = mlx5dr_arg_get_obj(action->rewrite->dmn->arg_mgr,
+						  action->rewrite->num_of_actions,
+						  action->rewrite->data);
+	if (!action->rewrite->arg) {
+		mlx5dr_err(action->rewrite->dmn, "Failed allocating args for modify header\n");
+		return -EAGAIN;
+	}
+
+	action->rewrite->ptrn =
+		mlx5dr_ptrn_cache_get_pattern(ptrn_mgr,
+					      action->rewrite->num_of_actions,
+					      action->rewrite->data);
+	if (!action->rewrite->ptrn) {
+		mlx5dr_err(action->rewrite->dmn, "Failed to get pattern\n");
+		ret = -EAGAIN;
+		goto put_arg;
+	}
+
+	return 0;
+
+put_arg:
+	mlx5dr_arg_put_obj(action->rewrite->dmn->arg_mgr,
+			   action->rewrite->arg);
+	return ret;
+}
+
+void dr_ste_v1_free_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
+{
+	mlx5dr_ptrn_cache_put_pattern(action->rewrite->dmn->ptrn_mgr,
+				      action->rewrite->ptrn);
+	mlx5dr_arg_put_obj(action->rewrite->dmn->arg_mgr,
+			   action->rewrite->arg);
+}
+
 static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	/* Builders */
 	.build_eth_l2_src_dst_init	= &dr_ste_v1_build_eth_l2_src_dst_init,
@@ -2231,6 +2326,9 @@ static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	.set_action_add			= &dr_ste_v1_set_action_add,
 	.set_action_copy		= &dr_ste_v1_set_action_copy,
 	.set_action_decap_l3_list	= &dr_ste_v1_set_action_decap_l3_list,
+	.alloc_modify_hdr_chunk		= &dr_ste_v1_alloc_modify_hdr_ptrn_arg,
+	.dealloc_modify_hdr_chunk	= &dr_ste_v1_free_modify_hdr_ptrn_arg,
+
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };

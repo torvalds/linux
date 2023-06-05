@@ -28,11 +28,16 @@
 #include <linux/iopoll.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
+#include <net/xdp_sock_drv.h>
 
 #define TSNEP_RX_OFFSET (max(NET_SKB_PAD, XDP_PACKET_HEADROOM) + NET_IP_ALIGN)
 #define TSNEP_HEADROOM ALIGN(TSNEP_RX_OFFSET, 4)
 #define TSNEP_MAX_RX_BUF_SIZE (PAGE_SIZE - TSNEP_HEADROOM - \
 			       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+/* XSK buffer shall store at least Q-in-Q frame */
+#define TSNEP_XSK_RX_BUF_SIZE (ALIGN(TSNEP_RX_INLINE_METADATA_SIZE + \
+				     ETH_FRAME_LEN + ETH_FCS_LEN + \
+				     VLAN_HLEN * 2, 4))
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 #define DMA_ADDR_HIGH(dma_addr) ((u32)(((dma_addr) >> 32) & 0xFFFFFFFF))
@@ -49,6 +54,8 @@
 #define TSNEP_TX_TYPE_SKB_FRAG	BIT(1)
 #define TSNEP_TX_TYPE_XDP_TX	BIT(2)
 #define TSNEP_TX_TYPE_XDP_NDO	BIT(3)
+#define TSNEP_TX_TYPE_XDP	(TSNEP_TX_TYPE_XDP_TX | TSNEP_TX_TYPE_XDP_NDO)
+#define TSNEP_TX_TYPE_XSK	BIT(4)
 
 #define TSNEP_XDP_TX		BIT(0)
 #define TSNEP_XDP_REDIRECT	BIT(1)
@@ -246,7 +253,6 @@ static void tsnep_phy_close(struct tsnep_adapter *adapter)
 {
 	phy_stop(adapter->netdev->phydev);
 	phy_disconnect(adapter->netdev->phydev);
-	adapter->netdev->phydev = NULL;
 }
 
 static void tsnep_tx_ring_cleanup(struct tsnep_tx *tx)
@@ -266,7 +272,7 @@ static void tsnep_tx_ring_cleanup(struct tsnep_tx *tx)
 	}
 }
 
-static int tsnep_tx_ring_init(struct tsnep_tx *tx)
+static int tsnep_tx_ring_create(struct tsnep_tx *tx)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
@@ -289,11 +295,12 @@ static int tsnep_tx_ring_init(struct tsnep_tx *tx)
 			entry->desc = (struct tsnep_tx_desc *)
 				(((u8 *)entry->desc_wb) + TSNEP_DESC_OFFSET);
 			entry->desc_dma = tx->page_dma[i] + TSNEP_DESC_SIZE * j;
+			entry->owner_user_flag = false;
 		}
 	}
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
 		entry = &tx->entry[i];
-		next_entry = &tx->entry[(i + 1) % TSNEP_RING_SIZE];
+		next_entry = &tx->entry[(i + 1) & TSNEP_RING_MASK];
 		entry->desc->next = __cpu_to_le64(next_entry->desc_dma);
 	}
 
@@ -304,13 +311,60 @@ alloc_failed:
 	return retval;
 }
 
+static void tsnep_tx_init(struct tsnep_tx *tx)
+{
+	dma_addr_t dma;
+
+	dma = tx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
+	iowrite32(DMA_ADDR_LOW(dma), tx->addr + TSNEP_TX_DESC_ADDR_LOW);
+	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
+	tx->write = 0;
+	tx->read = 0;
+	tx->owner_counter = 1;
+	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+}
+
+static void tsnep_tx_enable(struct tsnep_tx *tx)
+{
+	struct netdev_queue *nq;
+
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
+
+	__netif_tx_lock_bh(nq);
+	netif_tx_wake_queue(nq);
+	__netif_tx_unlock_bh(nq);
+}
+
+static void tsnep_tx_disable(struct tsnep_tx *tx, struct napi_struct *napi)
+{
+	struct netdev_queue *nq;
+	u32 val;
+
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
+
+	__netif_tx_lock_bh(nq);
+	netif_tx_stop_queue(nq);
+	__netif_tx_unlock_bh(nq);
+
+	/* wait until TX is done in hardware */
+	readx_poll_timeout(ioread32, tx->addr + TSNEP_CONTROL, val,
+			   ((val & TSNEP_CONTROL_TX_ENABLE) == 0), 10000,
+			   1000000);
+
+	/* wait until TX is also done in software */
+	while (READ_ONCE(tx->read) != tx->write) {
+		napi_schedule(napi);
+		napi_synchronize(napi);
+	}
+}
+
 static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
 			      bool last)
 {
 	struct tsnep_tx_entry *entry = &tx->entry[index];
 
 	entry->properties = 0;
-	/* xdpf is union with skb */
+	/* xdpf and zc are union with skb */
 	if (entry->skb) {
 		entry->properties = length & TSNEP_DESC_LENGTH_MASK;
 		entry->properties |= TSNEP_DESC_INTERRUPT_FLAG;
@@ -382,7 +436,7 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(tx->write + i) & TSNEP_RING_MASK];
 
 		if (!i) {
 			len = skb_headlen(skb);
@@ -420,7 +474,7 @@ static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(index + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(index + i) & TSNEP_RING_MASK];
 
 		if (entry->len) {
 			if (entry->type & TSNEP_TX_TYPE_SKB)
@@ -482,9 +536,9 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
+		tsnep_tx_activate(tx, (tx->write + i) & TSNEP_RING_MASK, length,
 				  i == count - 1);
-	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
+	tx->write = (tx->write + count) & TSNEP_RING_MASK;
 
 	skb_tx_timestamp(skb);
 
@@ -517,7 +571,7 @@ static int tsnep_xdp_tx_map(struct xdp_frame *xdpf, struct tsnep_tx *tx,
 	frag = NULL;
 	len = xdpf->len;
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(tx->write + i) & TSNEP_RING_MASK];
 		if (type & TSNEP_TX_TYPE_XDP_NDO) {
 			data = unlikely(frag) ? skb_frag_address(frag) :
 						xdpf->data;
@@ -590,9 +644,9 @@ static bool tsnep_xdp_xmit_frame_ring(struct xdp_frame *xdpf,
 	length = retval;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
+		tsnep_tx_activate(tx, (tx->write + i) & TSNEP_RING_MASK, length,
 				  i == count - 1);
-	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
+	tx->write = (tx->write + count) & TSNEP_RING_MASK;
 
 	/* descriptor properties shall be valid before hardware is notified */
 	dma_wmb();
@@ -628,10 +682,69 @@ static bool tsnep_xdp_xmit_back(struct tsnep_adapter *adapter,
 	return xmit;
 }
 
+static int tsnep_xdp_tx_map_zc(struct xdp_desc *xdpd, struct tsnep_tx *tx)
+{
+	struct tsnep_tx_entry *entry;
+	dma_addr_t dma;
+
+	entry = &tx->entry[tx->write];
+	entry->zc = true;
+
+	dma = xsk_buff_raw_get_dma(tx->xsk_pool, xdpd->addr);
+	xsk_buff_raw_dma_sync_for_device(tx->xsk_pool, dma, xdpd->len);
+
+	entry->type = TSNEP_TX_TYPE_XSK;
+	entry->len = xdpd->len;
+
+	entry->desc->tx = __cpu_to_le64(dma);
+
+	return xdpd->len;
+}
+
+static void tsnep_xdp_xmit_frame_ring_zc(struct xdp_desc *xdpd,
+					 struct tsnep_tx *tx)
+{
+	int length;
+
+	length = tsnep_xdp_tx_map_zc(xdpd, tx);
+
+	tsnep_tx_activate(tx, tx->write, length, true);
+	tx->write = (tx->write + 1) & TSNEP_RING_MASK;
+}
+
+static void tsnep_xdp_xmit_zc(struct tsnep_tx *tx)
+{
+	int desc_available = tsnep_tx_desc_available(tx);
+	struct xdp_desc *descs = tx->xsk_pool->tx_descs;
+	int batch, i;
+
+	/* ensure that TX ring is not filled up by XDP, always MAX_SKB_FRAGS
+	 * will be available for normal TX path and queue is stopped there if
+	 * necessary
+	 */
+	if (desc_available <= (MAX_SKB_FRAGS + 1))
+		return;
+	desc_available -= MAX_SKB_FRAGS + 1;
+
+	batch = xsk_tx_peek_release_desc_batch(tx->xsk_pool, desc_available);
+	for (i = 0; i < batch; i++)
+		tsnep_xdp_xmit_frame_ring_zc(&descs[i], tx);
+
+	if (batch) {
+		/* descriptor properties shall be valid before hardware is
+		 * notified
+		 */
+		dma_wmb();
+
+		tsnep_xdp_xmit_flush(tx);
+	}
+}
+
 static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 {
 	struct tsnep_tx_entry *entry;
 	struct netdev_queue *nq;
+	int xsk_frames = 0;
 	int budget = 128;
 	int length;
 	int count;
@@ -658,7 +771,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		if ((entry->type & TSNEP_TX_TYPE_SKB) &&
 		    skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
-		else if (!(entry->type & TSNEP_TX_TYPE_SKB) &&
+		else if ((entry->type & TSNEP_TX_TYPE_XDP) &&
 			 xdp_frame_has_frags(entry->xdpf))
 			count += xdp_get_shared_info_from_frame(entry->xdpf)->nr_frags;
 
@@ -687,18 +800,28 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 
 		if (entry->type & TSNEP_TX_TYPE_SKB)
 			napi_consume_skb(entry->skb, napi_budget);
-		else
+		else if (entry->type & TSNEP_TX_TYPE_XDP)
 			xdp_return_frame_rx_napi(entry->xdpf);
-		/* xdpf is union with skb */
+		else
+			xsk_frames++;
+		/* xdpf and zc are union with skb */
 		entry->skb = NULL;
 
-		tx->read = (tx->read + count) % TSNEP_RING_SIZE;
+		tx->read = (tx->read + count) & TSNEP_RING_MASK;
 
 		tx->packets++;
 		tx->bytes += length + ETH_FCS_LEN;
 
 		budget--;
 	} while (likely(budget));
+
+	if (tx->xsk_pool) {
+		if (xsk_frames)
+			xsk_tx_completed(tx->xsk_pool, xsk_frames);
+		if (xsk_uses_need_wakeup(tx->xsk_pool))
+			xsk_set_tx_need_wakeup(tx->xsk_pool);
+		tsnep_xdp_xmit_zc(tx);
+	}
 
 	if ((tsnep_tx_desc_available(tx) >= ((MAX_SKB_FRAGS + 1) * 2)) &&
 	    netif_tx_queue_stopped(nq)) {
@@ -732,38 +855,21 @@ static bool tsnep_tx_pending(struct tsnep_tx *tx)
 	return pending;
 }
 
-static int tsnep_tx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 int queue_index, struct tsnep_tx *tx)
+static int tsnep_tx_open(struct tsnep_tx *tx)
 {
-	dma_addr_t dma;
 	int retval;
 
-	memset(tx, 0, sizeof(*tx));
-	tx->adapter = adapter;
-	tx->addr = addr;
-	tx->queue_index = queue_index;
-
-	retval = tsnep_tx_ring_init(tx);
+	retval = tsnep_tx_ring_create(tx);
 	if (retval)
 		return retval;
 
-	dma = tx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
-	iowrite32(DMA_ADDR_LOW(dma), tx->addr + TSNEP_TX_DESC_ADDR_LOW);
-	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
-	tx->owner_counter = 1;
-	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+	tsnep_tx_init(tx);
 
 	return 0;
 }
 
 static void tsnep_tx_close(struct tsnep_tx *tx)
 {
-	u32 val;
-
-	readx_poll_timeout(ioread32, tx->addr + TSNEP_CONTROL, val,
-			   ((val & TSNEP_CONTROL_TX_ENABLE) == 0), 10000,
-			   1000000);
-
 	tsnep_tx_ring_cleanup(tx);
 }
 
@@ -775,9 +881,12 @@ static void tsnep_rx_ring_cleanup(struct tsnep_rx *rx)
 
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
 		entry = &rx->entry[i];
-		if (entry->page)
+		if (!rx->xsk_pool && entry->page)
 			page_pool_put_full_page(rx->page_pool, entry->page,
 						false);
+		if (rx->xsk_pool && entry->xdp)
+			xsk_buff_free(entry->xdp);
+		/* xdp is union with page */
 		entry->page = NULL;
 	}
 
@@ -796,7 +905,7 @@ static void tsnep_rx_ring_cleanup(struct tsnep_rx *rx)
 	}
 }
 
-static int tsnep_rx_ring_init(struct tsnep_rx *rx)
+static int tsnep_rx_ring_create(struct tsnep_rx *rx)
 {
 	struct device *dmadev = rx->adapter->dmadev;
 	struct tsnep_rx_entry *entry;
@@ -840,7 +949,7 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 
 	for (i = 0; i < TSNEP_RING_SIZE; i++) {
 		entry = &rx->entry[i];
-		next_entry = &rx->entry[(i + 1) % TSNEP_RING_SIZE];
+		next_entry = &rx->entry[(i + 1) & TSNEP_RING_MASK];
 		entry->desc->next = __cpu_to_le64(next_entry->desc_dma);
 	}
 
@@ -851,12 +960,77 @@ failed:
 	return retval;
 }
 
+static void tsnep_rx_init(struct tsnep_rx *rx)
+{
+	dma_addr_t dma;
+
+	dma = rx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
+	iowrite32(DMA_ADDR_LOW(dma), rx->addr + TSNEP_RX_DESC_ADDR_LOW);
+	iowrite32(DMA_ADDR_HIGH(dma), rx->addr + TSNEP_RX_DESC_ADDR_HIGH);
+	rx->write = 0;
+	rx->read = 0;
+	rx->owner_counter = 1;
+	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+}
+
+static void tsnep_rx_enable(struct tsnep_rx *rx)
+{
+	/* descriptor properties shall be valid before hardware is notified */
+	dma_wmb();
+
+	iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
+}
+
+static void tsnep_rx_disable(struct tsnep_rx *rx)
+{
+	u32 val;
+
+	iowrite32(TSNEP_CONTROL_RX_DISABLE, rx->addr + TSNEP_CONTROL);
+	readx_poll_timeout(ioread32, rx->addr + TSNEP_CONTROL, val,
+			   ((val & TSNEP_CONTROL_RX_ENABLE) == 0), 10000,
+			   1000000);
+}
+
 static int tsnep_rx_desc_available(struct tsnep_rx *rx)
 {
 	if (rx->read <= rx->write)
 		return TSNEP_RING_SIZE - rx->write + rx->read - 1;
 	else
 		return rx->read - rx->write - 1;
+}
+
+static void tsnep_rx_free_page_buffer(struct tsnep_rx *rx)
+{
+	struct page **page;
+
+	/* last entry of page_buffer is always zero, because ring cannot be
+	 * filled completely
+	 */
+	page = rx->page_buffer;
+	while (*page) {
+		page_pool_put_full_page(rx->page_pool, *page, false);
+		*page = NULL;
+		page++;
+	}
+}
+
+static int tsnep_rx_alloc_page_buffer(struct tsnep_rx *rx)
+{
+	int i;
+
+	/* alloc for all ring entries except the last one, because ring cannot
+	 * be filled completely
+	 */
+	for (i = 0; i < TSNEP_RING_SIZE - 1; i++) {
+		rx->page_buffer[i] = page_pool_dev_alloc_pages(rx->page_pool);
+		if (!rx->page_buffer[i]) {
+			tsnep_rx_free_page_buffer(rx);
+
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
 }
 
 static void tsnep_rx_set_page(struct tsnep_rx *rx, struct tsnep_rx_entry *entry,
@@ -894,7 +1068,7 @@ static void tsnep_rx_activate(struct tsnep_rx *rx, int index)
 {
 	struct tsnep_rx_entry *entry = &rx->entry[index];
 
-	/* TSNEP_MAX_RX_BUF_SIZE is a multiple of 4 */
+	/* TSNEP_MAX_RX_BUF_SIZE and TSNEP_XSK_RX_BUF_SIZE are multiple of 4 */
 	entry->properties = entry->len & TSNEP_DESC_LENGTH_MASK;
 	entry->properties |= TSNEP_DESC_INTERRUPT_FLAG;
 	if (index == rx->increment_owner_counter) {
@@ -917,19 +1091,15 @@ static void tsnep_rx_activate(struct tsnep_rx *rx, int index)
 	entry->desc->properties = __cpu_to_le32(entry->properties);
 }
 
-static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
+static int tsnep_rx_alloc(struct tsnep_rx *rx, int count, bool reuse)
 {
-	int index;
 	bool alloc_failed = false;
-	bool enable = false;
-	int i;
-	int retval;
+	int i, index;
 
 	for (i = 0; i < count && !alloc_failed; i++) {
-		index = (rx->write + i) % TSNEP_RING_SIZE;
+		index = (rx->write + i) & TSNEP_RING_MASK;
 
-		retval = tsnep_rx_alloc_buffer(rx, index);
-		if (unlikely(retval)) {
+		if (unlikely(tsnep_rx_alloc_buffer(rx, index))) {
 			rx->alloc_failed++;
 			alloc_failed = true;
 
@@ -941,22 +1111,93 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 		}
 
 		tsnep_rx_activate(rx, index);
-
-		enable = true;
 	}
 
-	if (enable) {
-		rx->write = (rx->write + i) % TSNEP_RING_SIZE;
-
-		/* descriptor properties shall be valid before hardware is
-		 * notified
-		 */
-		dma_wmb();
-
-		iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
-	}
+	if (i)
+		rx->write = (rx->write + i) & TSNEP_RING_MASK;
 
 	return i;
+}
+
+static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
+{
+	int desc_refilled;
+
+	desc_refilled = tsnep_rx_alloc(rx, count, reuse);
+	if (desc_refilled)
+		tsnep_rx_enable(rx);
+
+	return desc_refilled;
+}
+
+static void tsnep_rx_set_xdp(struct tsnep_rx *rx, struct tsnep_rx_entry *entry,
+			     struct xdp_buff *xdp)
+{
+	entry->xdp = xdp;
+	entry->len = TSNEP_XSK_RX_BUF_SIZE;
+	entry->dma = xsk_buff_xdp_get_dma(entry->xdp);
+	entry->desc->rx = __cpu_to_le64(entry->dma);
+}
+
+static void tsnep_rx_reuse_buffer_zc(struct tsnep_rx *rx, int index)
+{
+	struct tsnep_rx_entry *entry = &rx->entry[index];
+	struct tsnep_rx_entry *read = &rx->entry[rx->read];
+
+	tsnep_rx_set_xdp(rx, entry, read->xdp);
+	read->xdp = NULL;
+}
+
+static int tsnep_rx_alloc_zc(struct tsnep_rx *rx, int count, bool reuse)
+{
+	u32 allocated;
+	int i;
+
+	allocated = xsk_buff_alloc_batch(rx->xsk_pool, rx->xdp_batch, count);
+	for (i = 0; i < allocated; i++) {
+		int index = (rx->write + i) & TSNEP_RING_MASK;
+		struct tsnep_rx_entry *entry = &rx->entry[index];
+
+		tsnep_rx_set_xdp(rx, entry, rx->xdp_batch[i]);
+		tsnep_rx_activate(rx, index);
+	}
+	if (i == 0) {
+		rx->alloc_failed++;
+
+		if (reuse) {
+			tsnep_rx_reuse_buffer_zc(rx, rx->write);
+			tsnep_rx_activate(rx, rx->write);
+		}
+	}
+
+	if (i)
+		rx->write = (rx->write + i) & TSNEP_RING_MASK;
+
+	return i;
+}
+
+static void tsnep_rx_free_zc(struct tsnep_rx *rx)
+{
+	int i;
+
+	for (i = 0; i < TSNEP_RING_SIZE; i++) {
+		struct tsnep_rx_entry *entry = &rx->entry[i];
+
+		if (entry->xdp)
+			xsk_buff_free(entry->xdp);
+		entry->xdp = NULL;
+	}
+}
+
+static int tsnep_rx_refill_zc(struct tsnep_rx *rx, int count, bool reuse)
+{
+	int desc_refilled;
+
+	desc_refilled = tsnep_rx_alloc_zc(rx, count, reuse);
+	if (desc_refilled)
+		tsnep_rx_enable(rx);
+
+	return desc_refilled;
 }
 
 static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
@@ -970,11 +1211,6 @@ static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
 	length = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
 
 	act = bpf_prog_run_xdp(prog, xdp);
-
-	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
-	sync = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
-	sync = max(sync, length);
-
 	switch (act) {
 	case XDP_PASS:
 		return false;
@@ -996,8 +1232,52 @@ out_failure:
 		trace_xdp_exception(rx->adapter->netdev, prog, act);
 		fallthrough;
 	case XDP_DROP:
+		/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU
+		 * touch
+		 */
+		sync = xdp->data_end - xdp->data_hard_start -
+		       XDP_PACKET_HEADROOM;
+		sync = max(sync, length);
 		page_pool_put_page(rx->page_pool, virt_to_head_page(xdp->data),
 				   sync, true);
+		return true;
+	}
+}
+
+static bool tsnep_xdp_run_prog_zc(struct tsnep_rx *rx, struct bpf_prog *prog,
+				  struct xdp_buff *xdp, int *status,
+				  struct netdev_queue *tx_nq,
+				  struct tsnep_tx *tx)
+{
+	u32 act;
+
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* XDP_REDIRECT is the main action for zero-copy */
+	if (likely(act == XDP_REDIRECT)) {
+		if (xdp_do_redirect(rx->adapter->netdev, xdp, prog) < 0)
+			goto out_failure;
+		*status |= TSNEP_XDP_REDIRECT;
+		return true;
+	}
+
+	switch (act) {
+	case XDP_PASS:
+		return false;
+	case XDP_TX:
+		if (!tsnep_xdp_xmit_back(rx->adapter, xdp, tx_nq, tx))
+			goto out_failure;
+		*status |= TSNEP_XDP_TX;
+		return true;
+	default:
+		bpf_warn_invalid_xdp_action(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_ABORTED:
+out_failure:
+		trace_xdp_exception(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		xsk_buff_free(xdp);
 		return true;
 	}
 }
@@ -1046,6 +1326,28 @@ static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 	return skb;
 }
 
+static void tsnep_rx_page(struct tsnep_rx *rx, struct napi_struct *napi,
+			  struct page *page, int length)
+{
+	struct sk_buff *skb;
+
+	skb = tsnep_build_skb(rx, page, length);
+	if (skb) {
+		page_pool_release_page(rx->page_pool, page);
+
+		rx->packets++;
+		rx->bytes += length;
+		if (skb->pkt_type == PACKET_MULTICAST)
+			rx->multicast++;
+
+		napi_gro_receive(napi, skb);
+	} else {
+		page_pool_recycle_direct(rx->page_pool, page);
+
+		rx->dropped++;
+	}
+}
+
 static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 int budget)
 {
@@ -1055,7 +1357,6 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 	struct netdev_queue *tx_nq;
 	struct bpf_prog *prog;
 	struct xdp_buff xdp;
-	struct sk_buff *skb;
 	struct tsnep_tx *tx;
 	int desc_available;
 	int xdp_status = 0;
@@ -1091,7 +1392,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 				 * empty RX ring, thus buffer cannot be used for
 				 * RX processing
 				 */
-				rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+				rx->read = (rx->read + 1) & TSNEP_RING_MASK;
 				desc_available++;
 
 				rx->dropped++;
@@ -1118,7 +1419,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		 */
 		length -= TSNEP_RX_INLINE_METADATA_SIZE;
 
-		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
+		rx->read = (rx->read + 1) & TSNEP_RING_MASK;
 		desc_available++;
 
 		if (prog) {
@@ -1140,21 +1441,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			}
 		}
 
-		skb = tsnep_build_skb(rx, entry->page, length);
-		if (skb) {
-			page_pool_release_page(rx->page_pool, entry->page);
-
-			rx->packets++;
-			rx->bytes += length;
-			if (skb->pkt_type == PACKET_MULTICAST)
-				rx->multicast++;
-
-			napi_gro_receive(napi, skb);
-		} else {
-			page_pool_recycle_direct(rx->page_pool, entry->page);
-
-			rx->dropped++;
-		}
+		tsnep_rx_page(rx, napi, entry->page, length);
 		entry->page = NULL;
 	}
 
@@ -1165,6 +1452,124 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		tsnep_rx_refill(rx, desc_available, false);
 
 	return done;
+}
+
+static int tsnep_rx_poll_zc(struct tsnep_rx *rx, struct napi_struct *napi,
+			    int budget)
+{
+	struct tsnep_rx_entry *entry;
+	struct netdev_queue *tx_nq;
+	struct bpf_prog *prog;
+	struct tsnep_tx *tx;
+	int desc_available;
+	int xdp_status = 0;
+	struct page *page;
+	int done = 0;
+	int length;
+
+	desc_available = tsnep_rx_desc_available(rx);
+	prog = READ_ONCE(rx->adapter->xdp_prog);
+	if (prog) {
+		tx_nq = netdev_get_tx_queue(rx->adapter->netdev,
+					    rx->tx_queue_index);
+		tx = &rx->adapter->tx[rx->tx_queue_index];
+	}
+
+	while (likely(done < budget) && (rx->read != rx->write)) {
+		entry = &rx->entry[rx->read];
+		if ((__le32_to_cpu(entry->desc_wb->properties) &
+		     TSNEP_DESC_OWNER_COUNTER_MASK) !=
+		    (entry->properties & TSNEP_DESC_OWNER_COUNTER_MASK))
+			break;
+		done++;
+
+		if (desc_available >= TSNEP_RING_RX_REFILL) {
+			bool reuse = desc_available >= TSNEP_RING_RX_REUSE;
+
+			desc_available -= tsnep_rx_refill_zc(rx, desc_available,
+							     reuse);
+			if (!entry->xdp) {
+				/* buffer has been reused for refill to prevent
+				 * empty RX ring, thus buffer cannot be used for
+				 * RX processing
+				 */
+				rx->read = (rx->read + 1) & TSNEP_RING_MASK;
+				desc_available++;
+
+				rx->dropped++;
+
+				continue;
+			}
+		}
+
+		/* descriptor properties shall be read first, because valid data
+		 * is signaled there
+		 */
+		dma_rmb();
+
+		prefetch(entry->xdp->data);
+		length = __le32_to_cpu(entry->desc_wb->properties) &
+			 TSNEP_DESC_LENGTH_MASK;
+		xsk_buff_set_size(entry->xdp, length);
+		xsk_buff_dma_sync_for_cpu(entry->xdp, rx->xsk_pool);
+
+		/* RX metadata with timestamps is in front of actual data,
+		 * subtract metadata size to get length of actual data and
+		 * consider metadata size as offset of actual data during RX
+		 * processing
+		 */
+		length -= TSNEP_RX_INLINE_METADATA_SIZE;
+
+		rx->read = (rx->read + 1) & TSNEP_RING_MASK;
+		desc_available++;
+
+		if (prog) {
+			bool consume;
+
+			entry->xdp->data += TSNEP_RX_INLINE_METADATA_SIZE;
+			entry->xdp->data_meta += TSNEP_RX_INLINE_METADATA_SIZE;
+
+			consume = tsnep_xdp_run_prog_zc(rx, prog, entry->xdp,
+							&xdp_status, tx_nq, tx);
+			if (consume) {
+				rx->packets++;
+				rx->bytes += length;
+
+				entry->xdp = NULL;
+
+				continue;
+			}
+		}
+
+		page = page_pool_dev_alloc_pages(rx->page_pool);
+		if (page) {
+			memcpy(page_address(page) + TSNEP_RX_OFFSET,
+			       entry->xdp->data - TSNEP_RX_INLINE_METADATA_SIZE,
+			       length + TSNEP_RX_INLINE_METADATA_SIZE);
+			tsnep_rx_page(rx, napi, page, length);
+		} else {
+			rx->dropped++;
+		}
+		xsk_buff_free(entry->xdp);
+		entry->xdp = NULL;
+	}
+
+	if (xdp_status)
+		tsnep_finalize_xdp(rx->adapter, xdp_status, tx_nq, tx);
+
+	if (desc_available)
+		desc_available -= tsnep_rx_refill_zc(rx, desc_available, false);
+
+	if (xsk_uses_need_wakeup(rx->xsk_pool)) {
+		if (desc_available)
+			xsk_set_rx_need_wakeup(rx->xsk_pool);
+		else
+			xsk_clear_rx_need_wakeup(rx->xsk_pool);
+
+		return done;
+	}
+
+	return desc_available ? budget : done;
 }
 
 static bool tsnep_rx_pending(struct tsnep_rx *rx)
@@ -1182,42 +1587,123 @@ static bool tsnep_rx_pending(struct tsnep_rx *rx)
 	return false;
 }
 
-static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 int queue_index, struct tsnep_rx *rx)
+static int tsnep_rx_open(struct tsnep_rx *rx)
 {
-	dma_addr_t dma;
+	int desc_available;
 	int retval;
 
-	memset(rx, 0, sizeof(*rx));
-	rx->adapter = adapter;
-	rx->addr = addr;
-	rx->queue_index = queue_index;
-
-	retval = tsnep_rx_ring_init(rx);
+	retval = tsnep_rx_ring_create(rx);
 	if (retval)
 		return retval;
 
-	dma = rx->entry[0].desc_dma | TSNEP_RESET_OWNER_COUNTER;
-	iowrite32(DMA_ADDR_LOW(dma), rx->addr + TSNEP_RX_DESC_ADDR_LOW);
-	iowrite32(DMA_ADDR_HIGH(dma), rx->addr + TSNEP_RX_DESC_ADDR_HIGH);
-	rx->owner_counter = 1;
-	rx->increment_owner_counter = TSNEP_RING_SIZE - 1;
+	tsnep_rx_init(rx);
 
-	tsnep_rx_refill(rx, tsnep_rx_desc_available(rx), false);
+	desc_available = tsnep_rx_desc_available(rx);
+	if (rx->xsk_pool)
+		retval = tsnep_rx_alloc_zc(rx, desc_available, false);
+	else
+		retval = tsnep_rx_alloc(rx, desc_available, false);
+	if (retval != desc_available) {
+		retval = -ENOMEM;
+
+		goto alloc_failed;
+	}
+
+	/* prealloc pages to prevent allocation failures when XSK pool is
+	 * disabled at runtime
+	 */
+	if (rx->xsk_pool) {
+		retval = tsnep_rx_alloc_page_buffer(rx);
+		if (retval)
+			goto alloc_failed;
+	}
 
 	return 0;
+
+alloc_failed:
+	tsnep_rx_ring_cleanup(rx);
+	return retval;
 }
 
 static void tsnep_rx_close(struct tsnep_rx *rx)
 {
-	u32 val;
-
-	iowrite32(TSNEP_CONTROL_RX_DISABLE, rx->addr + TSNEP_CONTROL);
-	readx_poll_timeout(ioread32, rx->addr + TSNEP_CONTROL, val,
-			   ((val & TSNEP_CONTROL_RX_ENABLE) == 0), 10000,
-			   1000000);
+	if (rx->xsk_pool)
+		tsnep_rx_free_page_buffer(rx);
 
 	tsnep_rx_ring_cleanup(rx);
+}
+
+static void tsnep_rx_reopen(struct tsnep_rx *rx)
+{
+	struct page **page = rx->page_buffer;
+	int i;
+
+	tsnep_rx_init(rx);
+
+	for (i = 0; i < TSNEP_RING_SIZE; i++) {
+		struct tsnep_rx_entry *entry = &rx->entry[i];
+
+		/* defined initial values for properties are required for
+		 * correct owner counter checking
+		 */
+		entry->desc->properties = 0;
+		entry->desc_wb->properties = 0;
+
+		/* prevent allocation failures by reusing kept pages */
+		if (*page) {
+			tsnep_rx_set_page(rx, entry, *page);
+			tsnep_rx_activate(rx, rx->write);
+			rx->write++;
+
+			*page = NULL;
+			page++;
+		}
+	}
+}
+
+static void tsnep_rx_reopen_xsk(struct tsnep_rx *rx)
+{
+	struct page **page = rx->page_buffer;
+	u32 allocated;
+	int i;
+
+	tsnep_rx_init(rx);
+
+	/* alloc all ring entries except the last one, because ring cannot be
+	 * filled completely, as many buffers as possible is enough as wakeup is
+	 * done if new buffers are available
+	 */
+	allocated = xsk_buff_alloc_batch(rx->xsk_pool, rx->xdp_batch,
+					 TSNEP_RING_SIZE - 1);
+
+	for (i = 0; i < TSNEP_RING_SIZE; i++) {
+		struct tsnep_rx_entry *entry = &rx->entry[i];
+
+		/* keep pages to prevent allocation failures when xsk is
+		 * disabled
+		 */
+		if (entry->page) {
+			*page = entry->page;
+			entry->page = NULL;
+
+			page++;
+		}
+
+		/* defined initial values for properties are required for
+		 * correct owner counter checking
+		 */
+		entry->desc->properties = 0;
+		entry->desc_wb->properties = 0;
+
+		if (allocated) {
+			tsnep_rx_set_xdp(rx, entry,
+					 rx->xdp_batch[allocated - 1]);
+			tsnep_rx_activate(rx, rx->write);
+			rx->write++;
+
+			allocated--;
+		}
+	}
 }
 
 static bool tsnep_pending(struct tsnep_queue *queue)
@@ -1242,7 +1728,9 @@ static int tsnep_poll(struct napi_struct *napi, int budget)
 		complete = tsnep_tx_poll(queue->tx, budget);
 
 	if (queue->rx) {
-		done = tsnep_rx_poll(queue->rx, napi, budget);
+		done = queue->rx->xsk_pool ?
+		       tsnep_rx_poll_zc(queue->rx, napi, budget) :
+		       tsnep_rx_poll(queue->rx, napi, budget);
 		if (done >= budget)
 			complete = false;
 	}
@@ -1323,8 +1811,12 @@ static void tsnep_queue_close(struct tsnep_queue *queue, bool first)
 
 	tsnep_free_irq(queue, first);
 
-	if (rx && xdp_rxq_info_is_reg(&rx->xdp_rxq))
-		xdp_rxq_info_unreg(&rx->xdp_rxq);
+	if (rx) {
+		if (xdp_rxq_info_is_reg(&rx->xdp_rxq))
+			xdp_rxq_info_unreg(&rx->xdp_rxq);
+		if (xdp_rxq_info_is_reg(&rx->xdp_rxq_zc))
+			xdp_rxq_info_unreg(&rx->xdp_rxq_zc);
+	}
 
 	netif_napi_del(&queue->napi);
 }
@@ -1335,8 +1827,6 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 	struct tsnep_rx *rx = queue->rx;
 	struct tsnep_tx *tx = queue->tx;
 	int retval;
-
-	queue->adapter = adapter;
 
 	netif_napi_add(adapter->netdev, &queue->napi, tsnep_poll);
 
@@ -1349,6 +1839,10 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 		else
 			rx->tx_queue_index = 0;
 
+		/* prepare both memory models to eliminate possible registration
+		 * errors when memory model is switched between page pool and
+		 * XSK pool during runtime
+		 */
 		retval = xdp_rxq_info_reg(&rx->xdp_rxq, adapter->netdev,
 					  rx->queue_index, queue->napi.napi_id);
 		if (retval)
@@ -1358,6 +1852,17 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 						    rx->page_pool);
 		if (retval)
 			goto failed;
+		retval = xdp_rxq_info_reg(&rx->xdp_rxq_zc, adapter->netdev,
+					  rx->queue_index, queue->napi.napi_id);
+		if (retval)
+			goto failed;
+		retval = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq_zc,
+						    MEM_TYPE_XSK_BUFF_POOL,
+						    NULL);
+		if (retval)
+			goto failed;
+		if (rx->xsk_pool)
+			xsk_pool_set_rxq_info(rx->xsk_pool, &rx->xdp_rxq_zc);
 	}
 
 	retval = tsnep_request_irq(queue, first);
@@ -1375,30 +1880,48 @@ failed:
 	return retval;
 }
 
+static void tsnep_queue_enable(struct tsnep_queue *queue)
+{
+	napi_enable(&queue->napi);
+	tsnep_enable_irq(queue->adapter, queue->irq_mask);
+
+	if (queue->tx)
+		tsnep_tx_enable(queue->tx);
+
+	if (queue->rx)
+		tsnep_rx_enable(queue->rx);
+}
+
+static void tsnep_queue_disable(struct tsnep_queue *queue)
+{
+	if (queue->tx)
+		tsnep_tx_disable(queue->tx, &queue->napi);
+
+	napi_disable(&queue->napi);
+	tsnep_disable_irq(queue->adapter, queue->irq_mask);
+
+	/* disable RX after NAPI polling has been disabled, because RX can be
+	 * enabled during NAPI polling
+	 */
+	if (queue->rx)
+		tsnep_rx_disable(queue->rx);
+}
+
 static int tsnep_netdev_open(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
-	int tx_queue_index = 0;
-	int rx_queue_index = 0;
-	void __iomem *addr;
 	int i, retval;
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		if (adapter->queue[i].tx) {
-			addr = adapter->addr + TSNEP_QUEUE(tx_queue_index);
-			retval = tsnep_tx_open(adapter, addr, tx_queue_index,
-					       adapter->queue[i].tx);
+			retval = tsnep_tx_open(adapter->queue[i].tx);
 			if (retval)
 				goto failed;
-			tx_queue_index++;
 		}
 		if (adapter->queue[i].rx) {
-			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
-			retval = tsnep_rx_open(adapter, addr, rx_queue_index,
-					       adapter->queue[i].rx);
+			retval = tsnep_rx_open(adapter->queue[i].rx);
 			if (retval)
 				goto failed;
-			rx_queue_index++;
 		}
 
 		retval = tsnep_queue_open(adapter, &adapter->queue[i], i == 0);
@@ -1420,11 +1943,8 @@ static int tsnep_netdev_open(struct net_device *netdev)
 	if (retval)
 		goto phy_failed;
 
-	for (i = 0; i < adapter->num_queues; i++) {
-		napi_enable(&adapter->queue[i].napi);
-
-		tsnep_enable_irq(adapter, adapter->queue[i].irq_mask);
-	}
+	for (i = 0; i < adapter->num_queues; i++)
+		tsnep_queue_enable(&adapter->queue[i]);
 
 	return 0;
 
@@ -1451,9 +1971,7 @@ static int tsnep_netdev_close(struct net_device *netdev)
 	tsnep_phy_close(adapter);
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		tsnep_disable_irq(adapter, adapter->queue[i].irq_mask);
-
-		napi_disable(&adapter->queue[i].napi);
+		tsnep_queue_disable(&adapter->queue[i]);
 
 		tsnep_queue_close(&adapter->queue[i], i == 0);
 
@@ -1464,6 +1982,69 @@ static int tsnep_netdev_close(struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool)
+{
+	bool running = netif_running(queue->adapter->netdev);
+	u32 frame_size;
+
+	frame_size = xsk_pool_get_rx_frame_size(pool);
+	if (frame_size < TSNEP_XSK_RX_BUF_SIZE)
+		return -EOPNOTSUPP;
+
+	queue->rx->page_buffer = kcalloc(TSNEP_RING_SIZE,
+					 sizeof(*queue->rx->page_buffer),
+					 GFP_KERNEL);
+	if (!queue->rx->page_buffer)
+		return -ENOMEM;
+	queue->rx->xdp_batch = kcalloc(TSNEP_RING_SIZE,
+				       sizeof(*queue->rx->xdp_batch),
+				       GFP_KERNEL);
+	if (!queue->rx->xdp_batch) {
+		kfree(queue->rx->page_buffer);
+		queue->rx->page_buffer = NULL;
+
+		return -ENOMEM;
+	}
+
+	xsk_pool_set_rxq_info(pool, &queue->rx->xdp_rxq_zc);
+
+	if (running)
+		tsnep_queue_disable(queue);
+
+	queue->tx->xsk_pool = pool;
+	queue->rx->xsk_pool = pool;
+
+	if (running) {
+		tsnep_rx_reopen_xsk(queue->rx);
+		tsnep_queue_enable(queue);
+	}
+
+	return 0;
+}
+
+void tsnep_disable_xsk(struct tsnep_queue *queue)
+{
+	bool running = netif_running(queue->adapter->netdev);
+
+	if (running)
+		tsnep_queue_disable(queue);
+
+	tsnep_rx_free_zc(queue->rx);
+
+	queue->rx->xsk_pool = NULL;
+	queue->tx->xsk_pool = NULL;
+
+	if (running) {
+		tsnep_rx_reopen(queue->rx);
+		tsnep_queue_enable(queue);
+	}
+
+	kfree(queue->rx->xdp_batch);
+	queue->rx->xdp_batch = NULL;
+	kfree(queue->rx->page_buffer);
+	queue->rx->page_buffer = NULL;
 }
 
 static netdev_tx_t tsnep_netdev_xmit_frame(struct sk_buff *skb,
@@ -1615,6 +2196,9 @@ static int tsnep_netdev_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
 		return tsnep_xdp_setup_prog(adapter, bpf->prog, bpf->extack);
+	case XDP_SETUP_XSK_POOL:
+		return tsnep_xdp_setup_pool(adapter, bpf->xsk.pool,
+					    bpf->xsk.queue_id);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1669,6 +2253,24 @@ static int tsnep_netdev_xdp_xmit(struct net_device *dev, int n,
 	return nxmit;
 }
 
+static int tsnep_netdev_xsk_wakeup(struct net_device *dev, u32 queue_id,
+				   u32 flags)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_queue *queue;
+
+	if (queue_id >= adapter->num_rx_queues ||
+	    queue_id >= adapter->num_tx_queues)
+		return -EINVAL;
+
+	queue = &adapter->queue[queue_id];
+
+	if (!napi_if_scheduled_mark_missed(&queue->napi))
+		napi_schedule(&queue->napi);
+
+	return 0;
+}
+
 static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_open = tsnep_netdev_open,
 	.ndo_stop = tsnep_netdev_close,
@@ -1682,6 +2284,7 @@ static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_setup_tc = tsnep_tc_setup,
 	.ndo_bpf = tsnep_netdev_bpf,
 	.ndo_xdp_xmit = tsnep_netdev_xdp_xmit,
+	.ndo_xsk_wakeup = tsnep_netdev_xsk_wakeup,
 };
 
 static int tsnep_mac_init(struct tsnep_adapter *adapter)
@@ -1797,9 +2400,16 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 	adapter->num_tx_queues = 1;
 	adapter->num_rx_queues = 1;
 	adapter->num_queues = 1;
+	adapter->queue[0].adapter = adapter;
 	adapter->queue[0].irq = retval;
 	adapter->queue[0].tx = &adapter->tx[0];
+	adapter->queue[0].tx->adapter = adapter;
+	adapter->queue[0].tx->addr = adapter->addr + TSNEP_QUEUE(0);
+	adapter->queue[0].tx->queue_index = 0;
 	adapter->queue[0].rx = &adapter->rx[0];
+	adapter->queue[0].rx->adapter = adapter;
+	adapter->queue[0].rx->addr = adapter->addr + TSNEP_QUEUE(0);
+	adapter->queue[0].rx->queue_index = 0;
 	adapter->queue[0].irq_mask = irq_mask;
 	adapter->queue[0].irq_delay_addr = adapter->addr + ECM_INT_DELAY;
 	retval = tsnep_set_irq_coalesce(&adapter->queue[0],
@@ -1821,9 +2431,16 @@ static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
 		adapter->num_tx_queues++;
 		adapter->num_rx_queues++;
 		adapter->num_queues++;
+		adapter->queue[i].adapter = adapter;
 		adapter->queue[i].irq = retval;
 		adapter->queue[i].tx = &adapter->tx[i];
+		adapter->queue[i].tx->adapter = adapter;
+		adapter->queue[i].tx->addr = adapter->addr + TSNEP_QUEUE(i);
+		adapter->queue[i].tx->queue_index = i;
 		adapter->queue[i].rx = &adapter->rx[i];
+		adapter->queue[i].rx->adapter = adapter;
+		adapter->queue[i].rx->addr = adapter->addr + TSNEP_QUEUE(i);
+		adapter->queue[i].rx->queue_index = i;
 		adapter->queue[i].irq_mask =
 			irq_mask << (ECM_INT_TXRX_SHIFT * i);
 		adapter->queue[i].irq_delay_addr =
@@ -1928,7 +2545,8 @@ static int tsnep_probe(struct platform_device *pdev)
 
 	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 			       NETDEV_XDP_ACT_NDO_XMIT |
-			       NETDEV_XDP_ACT_NDO_XMIT_SG;
+			       NETDEV_XDP_ACT_NDO_XMIT_SG |
+			       NETDEV_XDP_ACT_XSK_ZEROCOPY;
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);

@@ -46,13 +46,3 @@ config PHY_INTEL_LGM_EMMC
 	select GENERIC_PHY
 	help
 	  Enable this to support the Intel EMMC PHY
-
-config PHY_INTEL_THUNDERBAY_EMMC
-        tristate "Intel Thunder Bay eMMC PHY driver"
-        depends on OF && (ARCH_THUNDERBAY || COMPILE_TEST)
-        select GENERIC_PHY
-        help
-	  This option enables support for Intel Thunder Bay SoC eMMC PHY.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called phy-intel-thunderbay-emmc.ko.

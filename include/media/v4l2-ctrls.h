@@ -1343,7 +1343,7 @@ void v4l2_ctrl_request_complete(struct media_request *req,
  * @parent: The parent control handler ('priv' in media_request_object_find())
  *
  * This function finds the control handler in the request. It may return
- * NULL if not found. When done, you must call v4l2_ctrl_request_put_hdl()
+ * NULL if not found. When done, you must call v4l2_ctrl_request_hdl_put()
  * with the returned handler pointer.
  *
  * If the request is not in state VALIDATING or QUEUED, then this function

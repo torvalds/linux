@@ -25,8 +25,8 @@
 #include <linux/miscdevice.h>
 #include <linux/capability.h>
 
+#define SEV_CMDRESP_CMD			GENMASK(26, 16)
 #define SEV_CMD_COMPLETE		BIT(1)
-#define SEV_CMDRESP_CMD_SHIFT		16
 #define SEV_CMDRESP_IOC			BIT(0)
 
 struct sev_misc_dev {

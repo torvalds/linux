@@ -160,11 +160,10 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
  * Look for any handler that deals with the specified namespace.
  */
 int
-xattr_supported_namespace(struct inode *inode, const char *prefix)
+xattr_supports_user_prefix(struct inode *inode)
 {
 	const struct xattr_handler **handlers = inode->i_sb->s_xattr;
 	const struct xattr_handler *handler;
-	size_t preflen;
 
 	if (!(inode->i_opflags & IOP_XATTR)) {
 		if (unlikely(is_bad_inode(inode)))
@@ -172,16 +171,15 @@ xattr_supported_namespace(struct inode *inode, const char *prefix)
 		return -EOPNOTSUPP;
 	}
 
-	preflen = strlen(prefix);
-
 	for_each_xattr_handler(handlers, handler) {
-		if (!strncmp(xattr_prefix(handler), prefix, preflen))
+		if (!strncmp(xattr_prefix(handler), XATTR_USER_PREFIX,
+			     XATTR_USER_PREFIX_LEN))
 			return 0;
 	}
 
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(xattr_supported_namespace);
+EXPORT_SYMBOL(xattr_supports_user_prefix);
 
 int
 __vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
@@ -460,6 +458,28 @@ nolsm:
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
+/**
+ * vfs_listxattr - retrieve \0 separated list of xattr names
+ * @dentry: the dentry from whose inode the xattr names are retrieved
+ * @list: buffer to store xattr names into
+ * @size: size of the buffer
+ *
+ * This function returns the names of all xattrs associated with the
+ * inode of @dentry.
+ *
+ * Note, for legacy reasons the vfs_listxattr() function lists POSIX
+ * ACLs as well. Since POSIX ACLs are decoupled from IOP_XATTR the
+ * vfs_listxattr() function doesn't check for this flag since a
+ * filesystem could implement POSIX ACLs without implementing any other
+ * xattrs.
+ *
+ * However, since all codepaths that remove IOP_XATTR also assign of
+ * inode operations that either don't implement or implement a stub
+ * ->listxattr() operation.
+ *
+ * Return: On success, the size of the buffer that was used. On error a
+ *         negative error code.
+ */
 ssize_t
 vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 {
@@ -469,7 +489,8 @@ vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 	error = security_inode_listxattr(dentry);
 	if (error)
 		return error;
-	if (inode->i_op->listxattr && (inode->i_opflags & IOP_XATTR)) {
+
+	if (inode->i_op->listxattr) {
 		error = inode->i_op->listxattr(dentry, list, size);
 	} else {
 		error = security_inode_listsecurity(inode, list, size);
@@ -949,6 +970,21 @@ SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 	return error;
 }
 
+int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
+{
+	size_t len;
+
+	len = strlen(name) + 1;
+	if (*buffer) {
+		if (*remaining_size < len)
+			return -ERANGE;
+		memcpy(*buffer, name, len);
+		*buffer += len;
+	}
+	*remaining_size -= len;
+	return 0;
+}
+
 /*
  * Combine the results of the list() operation from every xattr_handler in the
  * list.
@@ -957,33 +993,22 @@ ssize_t
 generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	const struct xattr_handler *handler, **handlers = dentry->d_sb->s_xattr;
-	unsigned int size = 0;
+	ssize_t remaining_size = buffer_size;
+	int err = 0;
 
-	if (!buffer) {
-		for_each_xattr_handler(handlers, handler) {
-			if (!handler->name ||
-			    (handler->list && !handler->list(dentry)))
-				continue;
-			size += strlen(handler->name) + 1;
-		}
-	} else {
-		char *buf = buffer;
-		size_t len;
+	err = posix_acl_listxattr(d_inode(dentry), &buffer, &remaining_size);
+	if (err)
+		return err;
 
-		for_each_xattr_handler(handlers, handler) {
-			if (!handler->name ||
-			    (handler->list && !handler->list(dentry)))
-				continue;
-			len = strlen(handler->name);
-			if (len + 1 > buffer_size)
-				return -ERANGE;
-			memcpy(buf, handler->name, len + 1);
-			buf += len + 1;
-			buffer_size -= len + 1;
-		}
-		size = buf - buffer;
+	for_each_xattr_handler(handlers, handler) {
+		if (!handler->name || (handler->list && !handler->list(dentry)))
+			continue;
+		err = xattr_list_one(&buffer, &remaining_size, handler->name);
+		if (err)
+			return err;
 	}
-	return size;
+
+	return err ? err : buffer_size - remaining_size;
 }
 EXPORT_SYMBOL(generic_listxattr);
 
@@ -1245,20 +1270,6 @@ static bool xattr_is_trusted(const char *name)
 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
 }
 
-static int xattr_list_one(char **buffer, ssize_t *remaining_size,
-			  const char *name)
-{
-	size_t len = strlen(name) + 1;
-	if (*buffer) {
-		if (*remaining_size < len)
-			return -ERANGE;
-		memcpy(*buffer, name, len);
-		*buffer += len;
-	}
-	*remaining_size -= len;
-	return 0;
-}
-
 /**
  * simple_xattr_list - list all xattr objects
  * @inode: inode from which to get the xattrs
@@ -1287,22 +1298,9 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 	ssize_t remaining_size = size;
 	int err = 0;
 
-#ifdef CONFIG_FS_POSIX_ACL
-	if (IS_POSIXACL(inode)) {
-		if (inode->i_acl) {
-			err = xattr_list_one(&buffer, &remaining_size,
-					     XATTR_NAME_POSIX_ACL_ACCESS);
-			if (err)
-				return err;
-		}
-		if (inode->i_default_acl) {
-			err = xattr_list_one(&buffer, &remaining_size,
-					     XATTR_NAME_POSIX_ACL_DEFAULT);
-			if (err)
-				return err;
-		}
-	}
-#endif
+	err = posix_acl_listxattr(inode, &buffer, &remaining_size);
+	if (err)
+		return err;
 
 	read_lock(&xattrs->lock);
 	for (rbp = rb_first(&xattrs->rb_root); rbp; rbp = rb_next(rbp)) {

@@ -7,6 +7,7 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
+#include <asm/amd_nb.h>
 #include <asm/hpet.h>
 #include <asm/pci_x86.h>
 
@@ -824,3 +825,82 @@ static void rs690_fix_64bit_dma(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x7910, rs690_fix_64bit_dma);
 
 #endif
+
+#ifdef CONFIG_AMD_NB
+
+#define AMD_15B8_RCC_DEV2_EPF0_STRAP2                                  0x10136008
+#define AMD_15B8_RCC_DEV2_EPF0_STRAP2_NO_SOFT_RESET_DEV2_F0_MASK       0x00000080L
+
+static void quirk_clear_strap_no_soft_reset_dev2_f0(struct pci_dev *dev)
+{
+	u32 data;
+
+	if (!amd_smn_read(0, AMD_15B8_RCC_DEV2_EPF0_STRAP2, &data)) {
+		data &= ~AMD_15B8_RCC_DEV2_EPF0_STRAP2_NO_SOFT_RESET_DEV2_F0_MASK;
+		if (amd_smn_write(0, AMD_15B8_RCC_DEV2_EPF0_STRAP2, data))
+			pci_err(dev, "Failed to write data 0x%x\n", data);
+	} else {
+		pci_err(dev, "Failed to read data\n");
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x15b8, quirk_clear_strap_no_soft_reset_dev2_f0);
+#endif
+
+/*
+ * When returning from D3cold to D0, firmware on some Google Coral and Reef
+ * family Chromebooks with Intel Apollo Lake SoC clobbers the headers of
+ * both the L1 PM Substates capability and the previous capability for the
+ * "Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port B #1".
+ *
+ * Save those values at enumeration-time and restore them at resume.
+ */
+
+static u16 prev_cap, l1ss_cap;
+static u32 prev_header, l1ss_header;
+
+static void chromeos_save_apl_pci_l1ss_capability(struct pci_dev *dev)
+{
+	int pos = PCI_CFG_SPACE_SIZE, prev = 0;
+	u32 header, pheader = 0;
+
+	while (pos) {
+		pci_read_config_dword(dev, pos, &header);
+		if (PCI_EXT_CAP_ID(header) == PCI_EXT_CAP_ID_L1SS) {
+			prev_cap = prev;
+			prev_header = pheader;
+			l1ss_cap = pos;
+			l1ss_header = header;
+			return;
+		}
+
+		prev = pos;
+		pheader = header;
+		pos = PCI_EXT_CAP_NEXT(header);
+	}
+}
+
+static void chromeos_fixup_apl_pci_l1ss_capability(struct pci_dev *dev)
+{
+	u32 header;
+
+	if (!prev_cap || !prev_header || !l1ss_cap || !l1ss_header)
+		return;
+
+	/* Fixup the header of L1SS Capability if missing */
+	pci_read_config_dword(dev, l1ss_cap, &header);
+	if (header != l1ss_header) {
+		pci_write_config_dword(dev, l1ss_cap, l1ss_header);
+		pci_info(dev, "restore L1SS Capability header (was %#010x now %#010x)\n",
+			 header, l1ss_header);
+	}
+
+	/* Fixup the link to L1SS Capability if missing */
+	pci_read_config_dword(dev, prev_cap, &header);
+	if (header != prev_header) {
+		pci_write_config_dword(dev, prev_cap, prev_header);
+		pci_info(dev, "restore previous Capability header (was %#010x now %#010x)\n",
+			 header, prev_header);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x5ad6, chromeos_save_apl_pci_l1ss_capability);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL, 0x5ad6, chromeos_fixup_apl_pci_l1ss_capability);

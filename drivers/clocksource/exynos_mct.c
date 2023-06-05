@@ -682,7 +682,7 @@ static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 	 * processor cannot use the global comparator.
 	 */
 	if (frc_shared)
-		return ret;
+		return 0;
 
 	return exynos4_clockevent_init();
 }

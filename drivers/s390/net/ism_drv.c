@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/processor.h>
@@ -676,7 +675,6 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_resource:
-	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 err_disable:
 	pci_disable_device(pdev);
@@ -739,7 +737,6 @@ static void ism_remove(struct pci_dev *pdev)
 	ism_dev_exit(ism);
 	mutex_unlock(&ism_dev_list.mutex);
 
-	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
 	device_del(&ism->dev);
@@ -842,6 +839,12 @@ static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 	return ism_move(smcd->priv, dmb_tok, idx, sf, offset, data, size);
 }
 
+static int smcd_supports_v2(void)
+{
+	return SYSTEM_EID.serial_number[0] != '0' ||
+		SYSTEM_EID.type[0] != '0';
+}
+
 static u64 smcd_get_local_gid(struct smcd_dev *smcd)
 {
 	return ism_get_local_gid(smcd->priv);
@@ -869,6 +872,7 @@ static const struct smcd_ops ism_ops = {
 	.reset_vlan_required = smcd_reset_vlan_required,
 	.signal_event = smcd_signal_ieq,
 	.move_data = smcd_move,
+	.supports_v2 = smcd_supports_v2,
 	.get_system_eid = ism_get_seid,
 	.get_local_gid = smcd_get_local_gid,
 	.get_chid = smcd_get_chid,

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -18,6 +18,7 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
+#include "scrub/readdir.h"
 
 /* Set us up to scrub directories. */
 int
@@ -31,168 +32,114 @@ xchk_setup_directory(
 
 /* Scrub a directory entry. */
 
-struct xchk_dir_ctx {
-	/* VFS fill-directory iterator */
-	struct dir_context	dir_iter;
-
-	struct xfs_scrub	*sc;
-};
-
-/* Check that an inode's mode matches a given DT_ type. */
-STATIC int
+/* Check that an inode's mode matches a given XFS_DIR3_FT_* type. */
+STATIC void
 xchk_dir_check_ftype(
-	struct xchk_dir_ctx	*sdc,
+	struct xfs_scrub	*sc,
 	xfs_fileoff_t		offset,
-	xfs_ino_t		inum,
-	int			dtype)
+	struct xfs_inode	*ip,
+	int			ftype)
 {
-	struct xfs_mount	*mp = sdc->sc->mp;
-	struct xfs_inode	*ip;
-	int			ino_dtype;
-	int			error = 0;
+	struct xfs_mount	*mp = sc->mp;
 
 	if (!xfs_has_ftype(mp)) {
-		if (dtype != DT_UNKNOWN && dtype != DT_DIR)
-			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
-					offset);
+		if (ftype != XFS_DIR3_FT_UNKNOWN && ftype != XFS_DIR3_FT_DIR)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return;
+	}
+
+	if (xfs_mode_to_ftype(VFS_I(ip)->i_mode) != ftype)
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+}
+
+/*
+ * Scrub a single directory entry.
+ *
+ * Check the inode number to make sure it's sane, then we check that we can
+ * look up this filename.  Finally, we check the ftype.
+ */
+STATIC int
+xchk_dir_actor(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*dp,
+	xfs_dir2_dataptr_t	dapos,
+	const struct xfs_name	*name,
+	xfs_ino_t		ino,
+	void			*priv)
+{
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_inode	*ip;
+	xfs_ino_t		lookup_ino;
+	xfs_dablk_t		offset;
+	int			error = 0;
+
+	offset = xfs_dir2_db_to_da(mp->m_dir_geo,
+			xfs_dir2_dataptr_to_db(mp->m_dir_geo, dapos));
+
+	if (xchk_should_terminate(sc, &error))
+		return error;
+
+	/* Does this inode number make sense? */
+	if (!xfs_verify_dir_ino(mp, ino)) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return -ECANCELED;
+	}
+
+	/* Does this name make sense? */
+	if (!xfs_dir2_namecheck(name->name, name->len)) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return -ECANCELED;
+	}
+
+	if (!strncmp(".", name->name, name->len)) {
+		/* If this is "." then check that the inum matches the dir. */
+		if (ino != dp->i_ino)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	} else if (!strncmp("..", name->name, name->len)) {
+		/*
+		 * If this is ".." in the root inode, check that the inum
+		 * matches this dir.
+		 */
+		if (dp->i_ino == mp->m_sb.sb_rootino && ino != dp->i_ino)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	}
+
+	/* Verify that we can look up this name by hash. */
+	error = xchk_dir_lookup(sc, dp, name, &lookup_ino);
+	/* ENOENT means the hash lookup failed and the dir is corrupt */
+	if (error == -ENOENT)
+		error = -EFSCORRUPTED;
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, offset, &error))
 		goto out;
+	if (lookup_ino != ino) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return -ECANCELED;
 	}
 
 	/*
-	 * Grab the inode pointed to by the dirent.  We release the
-	 * inode before we cancel the scrub transaction.  Since we're
-	 * don't know a priori that releasing the inode won't trigger
-	 * eofblocks cleanup (which allocates what would be a nested
-	 * transaction), we can't use DONTCACHE here because DONTCACHE
-	 * inodes can trigger immediate inactive cleanup of the inode.
+	 * Grab the inode pointed to by the dirent.  We release the inode
+	 * before we cancel the scrub transaction.
 	 *
 	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
 	 * garbage and the directory is corrupt.  If the _iget returns
 	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
 	 *  cross referencing error.  Any other error is an operational error.
 	 */
-	error = xfs_iget(mp, sdc->sc->tp, inum, 0, 0, &ip);
+	error = xchk_iget(sc, ino, &ip);
 	if (error == -EINVAL || error == -ENOENT) {
 		error = -EFSCORRUPTED;
-		xchk_fblock_process_error(sdc->sc, XFS_DATA_FORK, 0, &error);
+		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
 		goto out;
 	}
-	if (!xchk_fblock_xref_process_error(sdc->sc, XFS_DATA_FORK, offset,
-			&error))
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, offset, &error))
 		goto out;
 
-	/* Convert mode to the DT_* values that dir_emit uses. */
-	ino_dtype = xfs_dir3_get_dtype(mp,
-			xfs_mode_to_ftype(VFS_I(ip)->i_mode));
-	if (ino_dtype != dtype)
-		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
-	xfs_irele(ip);
+	xchk_dir_check_ftype(sc, offset, ip, name->type);
+	xchk_irele(sc, ip);
 out:
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return -ECANCELED;
 	return error;
-}
-
-/*
- * Scrub a single directory entry.
- *
- * We use the VFS directory iterator (i.e. readdir) to call this
- * function for every directory entry in a directory.  Once we're here,
- * we check the inode number to make sure it's sane, then we check that
- * we can look up this filename.  Finally, we check the ftype.
- */
-STATIC bool
-xchk_dir_actor(
-	struct dir_context	*dir_iter,
-	const char		*name,
-	int			namelen,
-	loff_t			pos,
-	u64			ino,
-	unsigned		type)
-{
-	struct xfs_mount	*mp;
-	struct xfs_inode	*ip;
-	struct xchk_dir_ctx	*sdc;
-	struct xfs_name		xname;
-	xfs_ino_t		lookup_ino;
-	xfs_dablk_t		offset;
-	bool			checked_ftype = false;
-	int			error = 0;
-
-	sdc = container_of(dir_iter, struct xchk_dir_ctx, dir_iter);
-	ip = sdc->sc->ip;
-	mp = ip->i_mount;
-	offset = xfs_dir2_db_to_da(mp->m_dir_geo,
-			xfs_dir2_dataptr_to_db(mp->m_dir_geo, pos));
-
-	if (xchk_should_terminate(sdc->sc, &error))
-		return !error;
-
-	/* Does this inode number make sense? */
-	if (!xfs_verify_dir_ino(mp, ino)) {
-		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
-		goto out;
-	}
-
-	/* Does this name make sense? */
-	if (!xfs_dir2_namecheck(name, namelen)) {
-		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
-		goto out;
-	}
-
-	if (!strncmp(".", name, namelen)) {
-		/* If this is "." then check that the inum matches the dir. */
-		if (xfs_has_ftype(mp) && type != DT_DIR)
-			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
-					offset);
-		checked_ftype = true;
-		if (ino != ip->i_ino)
-			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
-					offset);
-	} else if (!strncmp("..", name, namelen)) {
-		/*
-		 * If this is ".." in the root inode, check that the inum
-		 * matches this dir.
-		 */
-		if (xfs_has_ftype(mp) && type != DT_DIR)
-			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
-					offset);
-		checked_ftype = true;
-		if (ip->i_ino == mp->m_sb.sb_rootino && ino != ip->i_ino)
-			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
-					offset);
-	}
-
-	/* Verify that we can look up this name by hash. */
-	xname.name = name;
-	xname.len = namelen;
-	xname.type = XFS_DIR3_FT_UNKNOWN;
-
-	error = xfs_dir_lookup(sdc->sc->tp, ip, &xname, &lookup_ino, NULL);
-	/* ENOENT means the hash lookup failed and the dir is corrupt */
-	if (error == -ENOENT)
-		error = -EFSCORRUPTED;
-	if (!xchk_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
-			&error))
-		goto out;
-	if (lookup_ino != ino) {
-		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
-		goto out;
-	}
-
-	/* Verify the file type.  This function absorbs error codes. */
-	if (!checked_ftype) {
-		error = xchk_dir_check_ftype(sdc, offset, lookup_ino, type);
-		if (error)
-			goto out;
-	}
-out:
-	/*
-	 * A negative error code returned here is supposed to cause the
-	 * dir_emit caller (xfs_readdir) to abort the directory iteration
-	 * and return zero to xchk_directory.
-	 */
-	if (error == 0 && sdc->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return false;
-	return !error;
 }
 
 /* Scrub a directory btree record. */
@@ -201,6 +148,7 @@ xchk_dir_rec(
 	struct xchk_da_btree		*ds,
 	int				level)
 {
+	struct xfs_name			dname = { };
 	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_mount		*mp = ds->state->mp;
 	struct xfs_inode		*dp = ds->dargs.dp;
@@ -297,7 +245,11 @@ xchk_dir_rec(
 		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
 	}
-	calc_hash = xfs_da_hashname(dent->name, dent->namelen);
+
+	/* Does the directory hash match? */
+	dname.name = dent->name;
+	dname.len = dent->namelen;
+	calc_hash = xfs_dir2_hashname(mp, &dname);
 	if (calc_hash != hash)
 		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 
@@ -803,14 +755,7 @@ int
 xchk_directory(
 	struct xfs_scrub	*sc)
 {
-	struct xchk_dir_ctx	sdc = {
-		.dir_iter.actor = xchk_dir_actor,
-		.dir_iter.pos = 0,
-		.sc = sc,
-	};
-	size_t			bufsize;
-	loff_t			oldpos;
-	int			error = 0;
+	int			error;
 
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;
@@ -818,7 +763,7 @@ xchk_directory(
 	/* Plausible size? */
 	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
-		goto out;
+		return 0;
 	}
 
 	/* Check directory tree structure */
@@ -827,7 +772,7 @@ xchk_directory(
 		return error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return error;
+		return 0;
 
 	/* Check the freespace. */
 	error = xchk_directory_blocks(sc);
@@ -835,44 +780,11 @@ xchk_directory(
 		return error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return error;
+		return 0;
 
-	/*
-	 * Check that every dirent we see can also be looked up by hash.
-	 * Userspace usually asks for a 32k buffer, so we will too.
-	 */
-	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE,
-			sc->ip->i_disk_size);
-
-	/*
-	 * Look up every name in this directory by hash.
-	 *
-	 * Use the xfs_readdir function to call xchk_dir_actor on
-	 * every directory entry in this directory.  In _actor, we check
-	 * the name, inode number, and ftype (if applicable) of the
-	 * entry.  xfs_readdir uses the VFS filldir functions to provide
-	 * iteration context.
-	 *
-	 * The VFS grabs a read or write lock via i_rwsem before it reads
-	 * or writes to a directory.  If we've gotten this far we've
-	 * already obtained IOLOCK_EXCL, which (since 4.10) is the same as
-	 * getting a write lock on i_rwsem.  Therefore, it is safe for us
-	 * to drop the ILOCK here in order to reuse the _readdir and
-	 * _dir_lookup routines, which do their own ILOCK locking.
-	 */
-	oldpos = 0;
-	sc->ilock_flags &= ~XFS_ILOCK_EXCL;
-	xfs_iunlock(sc->ip, XFS_ILOCK_EXCL);
-	while (true) {
-		error = xfs_readdir(sc->tp, sc->ip, &sdc.dir_iter, bufsize);
-		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0,
-				&error))
-			goto out;
-		if (oldpos == sdc.dir_iter.pos)
-			break;
-		oldpos = sdc.dir_iter.pos;
-	}
-
-out:
+	/* Look up every name in this directory by hash. */
+	error = xchk_dir_walk(sc, sc->ip, xchk_dir_actor, NULL);
+	if (error == -ECANCELED)
+		error = 0;
 	return error;
 }

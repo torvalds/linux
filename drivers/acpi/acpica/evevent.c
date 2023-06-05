@@ -3,7 +3,7 @@
  *
  * Module Name: evevent - Fixed Event handling and dispatch
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -142,9 +142,6 @@ static acpi_status acpi_ev_fixed_event_initialize(void)
 			status =
 			    acpi_write_bit_register(acpi_gbl_fixed_event_info
 						    [i].enable_register_id,
-						    (i ==
-						     ACPI_EVENT_PCIE_WAKE) ?
-						    ACPI_ENABLE_EVENT :
 						    ACPI_DISABLE_EVENT);
 			if (ACPI_FAILURE(status)) {
 				return (status);
@@ -187,11 +184,6 @@ u32 acpi_ev_fixed_event_detect(void)
 	if (ACPI_FAILURE(status)) {
 		return (int_status);
 	}
-
-	if (fixed_enable & ACPI_BITMASK_PCIEXP_WAKE_DISABLE)
-		fixed_enable &= ~ACPI_BITMASK_PCIEXP_WAKE_DISABLE;
-	else
-		fixed_enable |= ACPI_BITMASK_PCIEXP_WAKE_DISABLE;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
 			  "Fixed Event Block: Enable %08X Status %08X\n",
@@ -258,9 +250,6 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 	if (!acpi_gbl_fixed_event_handlers[event].handler) {
 		(void)acpi_write_bit_register(acpi_gbl_fixed_event_info[event].
 					      enable_register_id,
-					      (event ==
-					       ACPI_EVENT_PCIE_WAKE) ?
-					      ACPI_ENABLE_EVENT :
 					      ACPI_DISABLE_EVENT);
 
 		ACPI_ERROR((AE_INFO,

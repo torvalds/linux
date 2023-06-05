@@ -2815,22 +2815,16 @@ static int __init dm_snapshot_init(void)
 	}
 
 	r = dm_register_target(&snapshot_target);
-	if (r < 0) {
-		DMERR("snapshot target register failed %d", r);
+	if (r < 0)
 		goto bad_register_snapshot_target;
-	}
 
 	r = dm_register_target(&origin_target);
-	if (r < 0) {
-		DMERR("Origin target register failed %d", r);
+	if (r < 0)
 		goto bad_register_origin_target;
-	}
 
 	r = dm_register_target(&merge_target);
-	if (r < 0) {
-		DMERR("Merge target register failed %d", r);
+	if (r < 0)
 		goto bad_register_merge_target;
-	}
 
 	return 0;
 

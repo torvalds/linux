@@ -687,10 +687,6 @@
 	status = "disabled";
 };
 
-&main_r5fss0_core0{
-	firmware-name = "pdk-ipc/ipc_echo_test_mcu2_0_release_strip.xer5f";
-};
-
 &usb_serdes_mux {
 	idle-states = <1>, <1>; /* USB0 to SERDES3, USB1 to SERDES2 */
 };

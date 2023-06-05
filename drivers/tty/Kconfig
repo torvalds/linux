@@ -160,7 +160,7 @@ config LEGACY_TIOCSTI
 	  a dangerous legacy operation, and can be disabled on most
 	  systems.
 
-	  Say 'Y here only if you have confirmed that your system's
+	  Say Y here only if you have confirmed that your system's
 	  userspace depends on this functionality to continue operating
 	  normally.
 
@@ -300,6 +300,15 @@ config GOLDFISH_TTY_EARLY_CONSOLE
 	bool
 	default y if GOLDFISH_TTY=y
 	select SERIAL_EARLYCON
+
+config IPWIRELESS
+	tristate "IPWireless 3G UMTS PCMCIA card support"
+	depends on PCMCIA && NETDEVICES
+	select PPP
+	help
+	  This is a driver for 3G UMTS PCMCIA card from IPWireless company. In
+	  some countries (for example Czech Republic, T-Mobile ISP) this card
+	  is shipped for service called UMTS 4G.
 
 config N_GSM
 	tristate "GSM MUX line discipline support (EXPERIMENTAL)"

@@ -5,6 +5,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include "bpf_kfuncs.h"
 #include "errno.h"
 
 char _license[] SEC("license") = "GPL";
@@ -30,11 +31,11 @@ struct {
 	__type(value, __u32);
 } array_map SEC(".maps");
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int test_read_write(void *ctx)
 {
 	char write_data[64] = "hello there, world!!";
-	char read_data[64] = {}, buf[64] = {};
+	char read_data[64] = {};
 	struct bpf_dynptr ptr;
 	int i;
 
@@ -61,8 +62,8 @@ int test_read_write(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
-int test_data_slice(void *ctx)
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_data(void *ctx)
 {
 	__u32 key = 0, val = 235, *map_val;
 	struct bpf_dynptr ptr;
@@ -131,7 +132,7 @@ static int ringbuf_callback(__u32 index, void *data)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int test_ringbuf(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -162,4 +163,47 @@ int test_ringbuf(void *ctx)
 done:
 	bpf_ringbuf_discard_dynptr(&ptr, 0);
 	return 0;
+}
+
+SEC("?cgroup_skb/egress")
+int test_skb_readonly(struct __sk_buff *skb)
+{
+	__u8 write_data[2] = {1, 2};
+	struct bpf_dynptr ptr;
+	int ret;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
+		err = 1;
+		return 1;
+	}
+
+	/* since cgroup skbs are read only, writes should fail */
+	ret = bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data), 0);
+	if (ret != -EINVAL) {
+		err = 2;
+		return 1;
+	}
+
+	return 1;
+}
+
+SEC("?cgroup_skb/egress")
+int test_dynptr_skb_data(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	__u64 *data;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
+		err = 1;
+		return 1;
+	}
+
+	/* This should return NULL. Must use bpf_dynptr_slice API */
+	data = bpf_dynptr_data(&ptr, 0, 1);
+	if (data) {
+		err = 2;
+		return 1;
+	}
+
+	return 1;
 }

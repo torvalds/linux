@@ -273,7 +273,7 @@ static void au0828_stop_transport(struct au0828_dev *dev, int full_stop)
 static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct au0828_dev *dev = (struct au0828_dev *) demux->priv;
+	struct au0828_dev *dev = demux->priv;
 	struct au0828_dvb *dvb = &dev->dvb;
 	int ret = 0;
 
@@ -305,7 +305,7 @@ static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct au0828_dev *dev = (struct au0828_dev *) demux->priv;
+	struct au0828_dev *dev = demux->priv;
 	struct au0828_dvb *dvb = &dev->dvb;
 	int ret = 0;
 

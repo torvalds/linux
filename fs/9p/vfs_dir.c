@@ -13,7 +13,6 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
 #include <linux/fscache.h>
@@ -197,9 +196,9 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 
 /**
- * v9fs_dir_release - called on a close of a file or directory
- * @inode: inode of the directory
- * @filp: file pointer to a directory
+ * v9fs_dir_release - close a directory or a file
+ * @inode: inode of the directory or file
+ * @filp: file pointer to a directory or file
  *
  */
 
@@ -214,7 +213,11 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	fid = filp->private_data;
 	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
 		 inode, filp, fid ? fid->fid : -1);
+
 	if (fid) {
+		if ((S_ISREG(inode->i_mode)) && (filp->f_mode & FMODE_WRITE))
+			retval = filemap_fdatawrite(inode->i_mapping);
+
 		spin_lock(&inode->i_lock);
 		hlist_del(&fid->ilist);
 		spin_unlock(&inode->i_lock);

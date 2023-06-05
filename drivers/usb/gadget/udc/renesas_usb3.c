@@ -22,7 +22,6 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/sys_soc.h>
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -2661,6 +2660,7 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(usb3->dentry);
 	device_remove_file(&pdev->dev, &dev_attr_role);
 
+	cancel_work_sync(&usb3->role_work);
 	usb_role_switch_unregister(usb3->role_sw);
 
 	usb_del_gadget_udc(&usb3->gadget);
@@ -2781,13 +2781,6 @@ static void renesas_usb3_init_ram(struct renesas_usb3 *usb3, struct device *dev,
 	}
 }
 
-static const struct renesas_usb3_priv renesas_usb3_priv_r8a7795_es1 = {
-	.ramsize_per_ramif = SZ_16K,
-	.num_ramif = 2,
-	.ramsize_per_pipe = SZ_4K,
-	.workaround_for_vbus = true,
-};
-
 static const struct renesas_usb3_priv renesas_usb3_priv_gen3 = {
 	.ramsize_per_ramif = SZ_16K,
 	.num_ramif = 4,
@@ -2829,14 +2822,6 @@ static const struct of_device_id usb3_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, usb3_of_match);
 
-static const struct soc_device_attribute renesas_usb3_quirks_match[] = {
-	{
-		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = &renesas_usb3_priv_r8a7795_es1,
-	},
-	{ /* sentinel */ }
-};
-
 static const unsigned int renesas_usb3_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
@@ -2854,13 +2839,8 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	struct renesas_usb3 *usb3;
 	int irq, ret;
 	const struct renesas_usb3_priv *priv;
-	const struct soc_device_attribute *attr;
 
-	attr = soc_device_match(renesas_usb3_quirks_match);
-	if (attr)
-		priv = attr->data;
-	else
-		priv = of_device_get_match_data(&pdev->dev);
+	priv = of_device_get_match_data(&pdev->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -3039,7 +3019,7 @@ static struct platform_driver renesas_usb3_driver = {
 	.driver		= {
 		.name =	udc_name,
 		.pm		= &renesas_usb3_pm_ops,
-		.of_match_table = of_match_ptr(usb3_of_match),
+		.of_match_table = usb3_of_match,
 	},
 };
 module_platform_driver(renesas_usb3_driver);

@@ -3,7 +3,7 @@
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -53,6 +53,8 @@ extern const char *acpi_gbl_sb_decode[];
 extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
 extern const char *acpi_gbl_ptyp_decode[];
+extern const char *acpi_gbl_clock_input_mode[];
+extern const char *acpi_gbl_clock_input_scale[];
 #endif
 
 /*

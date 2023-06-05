@@ -394,11 +394,6 @@ struct ufs_clk_gating {
 	struct workqueue_struct *clk_gating_workq;
 };
 
-struct ufs_saved_pwr_info {
-	struct ufs_pa_layer_attr info;
-	bool is_valid;
-};
-
 /**
  * struct ufs_clk_scaling - UFS clock scaling related data
  * @active_reqs: number of requests that are pending. If this is zero when
@@ -428,7 +423,7 @@ struct ufs_clk_scaling {
 	ktime_t window_start_t;
 	ktime_t busy_start_t;
 	struct device_attribute enable_attr;
-	struct ufs_saved_pwr_info saved_pwr_info;
+	struct ufs_pa_layer_attr saved_pwr_info;
 	struct workqueue_struct *workq;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
@@ -979,7 +974,6 @@ struct ufs_hba {
 	struct completion *uic_async_done;
 
 	enum ufshcd_state ufshcd_state;
-	bool logical_unit_scan_finished;
 	u32 eh_flags;
 	u32 intr_mask;
 	u16 ee_ctrl_mask;
@@ -1100,7 +1094,7 @@ struct ufs_hw_queue {
 	void __iomem *mcq_cq_head;
 	void __iomem *mcq_cq_tail;
 
-	void *sqe_base_addr;
+	struct utp_transfer_req_desc *sqe_base_addr;
 	dma_addr_t sqe_dma_addr;
 	struct cq_entry *cqe_base_addr;
 	dma_addr_t cqe_dma_addr;

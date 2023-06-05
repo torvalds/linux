@@ -12,6 +12,7 @@
 #include <linux/syscalls.h>
 #include <linux/resume_user_mode.h>
 #include <linux/linkage.h>
+#include <linux/entry-common.h>
 
 #include <asm/ucontext.h>
 #include <asm/vdso.h>
@@ -19,6 +20,7 @@
 #include <asm/signal32.h>
 #include <asm/switch_to.h>
 #include <asm/csr.h>
+#include <asm/cacheflush.h>
 
 extern u32 __user_rt_sigreturn[2];
 
@@ -181,6 +183,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 {
 	struct rt_sigframe __user *frame;
 	long err = 0;
+	unsigned long __maybe_unused addr;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(frame, sizeof(*frame)))
@@ -209,7 +212,12 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
 			 sizeof(frame->sigreturn_code)))
 		return -EFAULT;
-	regs->ra = (unsigned long)&frame->sigreturn_code;
+
+	addr = (unsigned long)&frame->sigreturn_code;
+	/* Make sure the two instructions are pushed to icache. */
+	flush_icache_range(addr, addr + sizeof(frame->sigreturn_code));
+
+	regs->ra = addr;
 #endif /* CONFIG_MMU */
 
 	/*
@@ -274,7 +282,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	signal_setup_done(ret, ksig, 0);
 }
 
-static void do_signal(struct pt_regs *regs)
+void arch_do_signal_or_restart(struct pt_regs *regs)
 {
 	struct ksignal ksig;
 
@@ -310,30 +318,4 @@ static void do_signal(struct pt_regs *regs)
 	 * sigmask back.
 	 */
 	restore_saved_sigmask();
-}
-
-/*
- * Handle any pending work on the resume-to-userspace path, as indicated by
- * _TIF_WORK_MASK. Entered from assembly with IRQs off.
- */
-asmlinkage __visible void do_work_pending(struct pt_regs *regs,
-					  unsigned long thread_info_flags)
-{
-	do {
-		if (thread_info_flags & _TIF_NEED_RESCHED) {
-			schedule();
-		} else {
-			local_irq_enable();
-			if (thread_info_flags & _TIF_UPROBE)
-				uprobe_notify_resume(regs);
-			/* Handle pending signal delivery */
-			if (thread_info_flags & (_TIF_SIGPENDING |
-						 _TIF_NOTIFY_SIGNAL))
-				do_signal(regs);
-			if (thread_info_flags & _TIF_NOTIFY_RESUME)
-				resume_user_mode_work(regs);
-		}
-		local_irq_disable();
-		thread_info_flags = read_thread_flags();
-	} while (thread_info_flags & _TIF_WORK_MASK);
 }

@@ -18,9 +18,7 @@
 
 struct meson_rng_data {
 	void __iomem *base;
-	struct platform_device *pdev;
 	struct hwrng rng;
-	struct clk *core_clk;
 };
 
 static int meson_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
@@ -33,46 +31,27 @@ static int meson_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	return sizeof(u32);
 }
 
-static void meson_rng_clk_disable(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int meson_rng_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_rng_data *data;
-	int ret;
+	struct clk *core_clk;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->pdev = pdev;
-
 	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	data->core_clk = devm_clk_get_optional(dev, "core");
-	if (IS_ERR(data->core_clk))
-		return dev_err_probe(dev, PTR_ERR(data->core_clk),
+	core_clk = devm_clk_get_optional_enabled(dev, "core");
+	if (IS_ERR(core_clk))
+		return dev_err_probe(dev, PTR_ERR(core_clk),
 				     "Failed to get core clock\n");
-
-	if (data->core_clk) {
-		ret = clk_prepare_enable(data->core_clk);
-		if (ret)
-			return ret;
-		ret = devm_add_action_or_reset(dev, meson_rng_clk_disable,
-					       data->core_clk);
-		if (ret)
-			return ret;
-	}
 
 	data->rng.name = pdev->name;
 	data->rng.read = meson_rng_read;
-
-	platform_set_drvdata(pdev, data);
 
 	return devm_hwrng_register(dev, &data->rng);
 }

@@ -4,14 +4,38 @@ menu "Microsoft Hyper-V guest support"
 
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
-	depends on ACPI && ((X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
-		|| (ARM64 && !CPU_BIG_ENDIAN))
+	depends on (X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
+		|| (ACPI && ARM64 && !CPU_BIG_ENDIAN)
 	select PARAVIRT
 	select X86_HV_CALLBACK_VECTOR if X86
-	select VMAP_PFN
+	select OF_EARLY_FLATTREE if OF
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.
+
+config HYPERV_VTL_MODE
+	bool "Enable Linux to boot in VTL context"
+	depends on X86_64 && HYPERV
+	default n
+	help
+	  Virtual Secure Mode (VSM) is a set of hypervisor capabilities and
+	  enlightenments offered to host and guest partitions which enables
+	  the creation and management of new security boundaries within
+	  operating system software.
+
+	  VSM achieves and maintains isolation through Virtual Trust Levels
+	  (VTLs). Virtual Trust Levels are hierarchical, with higher levels
+	  being more privileged than lower levels. VTL0 is the least privileged
+	  level, and currently only other level supported is VTL2.
+
+	  Select this option to build a Linux kernel to run at a VTL other than
+	  the normal VTL0, which currently is only VTL2.  This option
+	  initializes the x86 platform for VTL2, and adds the ability to boot
+	  secondary CPUs directly into 64-bit context as required for VTLs other
+	  than 0.  A kernel built with this option must run at VTL2, and will
+	  not run as a normal guest.
+
+	  If unsure, say N
 
 config HYPERV_TIMER
 	def_bool HYPERV && X86

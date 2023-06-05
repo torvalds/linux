@@ -60,6 +60,7 @@ libs-y                 += arch/sparc/prom/
 libs-y                 += arch/sparc/lib/
 
 drivers-$(CONFIG_PM) += arch/sparc/power/
+drivers-$(CONFIG_FB) += arch/sparc/video/
 
 boot := arch/sparc/boot
 
@@ -83,18 +84,11 @@ vdso_install:
 KBUILD_IMAGE := $(boot)/zImage
 
 # Don't use tabs in echo arguments.
-ifeq ($(ARCH),sparc)
 define archhelp
-  echo  '* image        - kernel image ($(boot)/image)'
-  echo  '* zImage       - stripped kernel image ($(boot)/zImage)'
+  echo  '* vmlinux      - standard SPARC kernel'
+  echo  '  image        - kernel image ($(boot)/image)'
+  echo  '* zImage       - stripped/compressed kernel image ($(boot)/zImage)'
   echo  '  uImage       - U-Boot SPARC32 Image (only for LEON)'
+  echo  '  vmlinux.aout - a.out kernel for SPARC64'
   echo  '  tftpboot.img - image prepared for tftp'
 endef
-else
-define archhelp
-  echo  '* vmlinux      - standard sparc64 kernel'
-  echo  '* zImage       - stripped and compressed sparc64 kernel ($(boot)/zImage)'
-  echo  '  vmlinux.aout - a.out kernel for sparc64'
-  echo  '  tftpboot.img - image prepared for tftp'
-endef
-endif

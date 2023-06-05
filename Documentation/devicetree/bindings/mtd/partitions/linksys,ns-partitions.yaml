@@ -32,7 +32,7 @@ properties:
 
 patternProperties:
   "^partition@[0-9a-f]+$":
-    $ref: "partition.yaml#"
+    $ref: partition.yaml#
     properties:
       compatible:
         items:

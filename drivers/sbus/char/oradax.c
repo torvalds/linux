@@ -18,7 +18,7 @@
  * the recommended way for applications to use the coprocessor, and
  * the driver interface is not intended for general use.
  *
- * See Documentation/sparc/oradax/oracle-dax.rst for more details.
+ * See Documentation/arch/sparc/oradax/oracle-dax.rst for more details.
  */
 
 #include <linux/uaccess.h>
@@ -323,7 +323,7 @@ static int __init dax_attach(void)
 		goto done;
 	}
 
-	cl = class_create(THIS_MODULE, DAX_NAME);
+	cl = class_create(DAX_NAME);
 	if (IS_ERR(cl)) {
 		dax_err("class_create failed");
 		ret = PTR_ERR(cl);

@@ -21,6 +21,7 @@
 #include <linux/sh_intc.h>
 #include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
+#include <cpu/gpio.h>
 #include <cpu/sh7720.h>
 
 /* Dummy supplies, where voltage doesn't matter */

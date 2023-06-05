@@ -226,7 +226,7 @@ static void unset_migratetype_isolate(struct page *page, int migratetype)
 	 */
 	if (PageBuddy(page)) {
 		order = buddy_order(page);
-		if (order >= pageblock_order && order < MAX_ORDER - 1) {
+		if (order >= pageblock_order && order < MAX_ORDER) {
 			buddy = find_buddy_page_pfn(page, page_to_pfn(page),
 						    order, NULL);
 			if (buddy && !is_migrate_isolate_page(buddy)) {
@@ -290,11 +290,11 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  *			isolate_single_pageblock()
  * @migratetype:	migrate type to set in error recovery.
  *
- * Free and in-use pages can be as big as MAX_ORDER-1 and contain more than one
+ * Free and in-use pages can be as big as MAX_ORDER and contain more than one
  * pageblock. When not all pageblocks within a page are isolated at the same
  * time, free page accounting can go wrong. For example, in the case of
- * MAX_ORDER-1 = pageblock_order + 1, a MAX_ORDER-1 page has two pagelbocks.
- * [         MAX_ORDER-1         ]
+ * MAX_ORDER = pageblock_order + 1, a MAX_ORDER page has two pagelbocks.
+ * [         MAX_ORDER           ]
  * [  pageblock0  |  pageblock1  ]
  * When either pageblock is isolated, if it is a free page, the page is not
  * split into separate migratetype lists, which is supposed to; if it is an
@@ -451,7 +451,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 				 * the free page to the right migratetype list.
 				 *
 				 * head_pfn is not used here as a hugetlb page order
-				 * can be bigger than MAX_ORDER-1, but after it is
+				 * can be bigger than MAX_ORDER, but after it is
 				 * freed, the free page order is not. Use pfn within
 				 * the range to find the head of the free page.
 				 */
@@ -459,7 +459,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 				outer_pfn = pfn;
 				while (!PageBuddy(pfn_to_page(outer_pfn))) {
 					/* stop if we cannot find the free page */
-					if (++order >= MAX_ORDER)
+					if (++order > MAX_ORDER)
 						goto failed;
 					outer_pfn &= ~0UL << order;
 				}

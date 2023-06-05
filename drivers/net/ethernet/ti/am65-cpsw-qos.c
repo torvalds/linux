@@ -19,6 +19,7 @@
 #define AM65_CPSW_PN_REG_CTL			0x004
 #define AM65_CPSW_PN_REG_FIFO_STATUS		0x050
 #define AM65_CPSW_PN_REG_EST_CTL		0x060
+#define AM65_CPSW_PN_REG_PRI_CIR(pri)		(0x140 + 4 * (pri))
 
 /* AM65_CPSW_REG_CTL register fields */
 #define AM65_CPSW_CTL_EST_EN			BIT(18)
@@ -818,4 +819,116 @@ void am65_cpsw_qos_link_down(struct net_device *ndev)
 		port->qos.link_down_time = ktime_get();
 
 	port->qos.link_speed = SPEED_UNKNOWN;
+}
+
+static u32
+am65_cpsw_qos_tx_rate_calc(u32 rate_mbps, unsigned long bus_freq)
+{
+	u32 ir;
+
+	bus_freq /= 1000000;
+	ir = DIV_ROUND_UP(((u64)rate_mbps * 32768),  bus_freq);
+	return ir;
+}
+
+static void
+am65_cpsw_qos_tx_p0_rate_apply(struct am65_cpsw_common *common,
+			       int tx_ch, u32 rate_mbps)
+{
+	struct am65_cpsw_host *host = am65_common_get_host(common);
+	u32 ch_cir;
+	int i;
+
+	ch_cir = am65_cpsw_qos_tx_rate_calc(rate_mbps, common->bus_freq);
+	writel(ch_cir, host->port_base + AM65_CPSW_PN_REG_PRI_CIR(tx_ch));
+
+	/* update rates for every port tx queues */
+	for (i = 0; i < common->port_num; i++) {
+		struct net_device *ndev = common->ports[i].ndev;
+
+		if (!ndev)
+			continue;
+		netdev_get_tx_queue(ndev, tx_ch)->tx_maxrate = rate_mbps;
+	}
+}
+
+int am65_cpsw_qos_ndo_tx_p0_set_maxrate(struct net_device *ndev,
+					int queue, u32 rate_mbps)
+{
+	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
+	struct am65_cpsw_common *common = port->common;
+	struct am65_cpsw_tx_chn *tx_chn;
+	u32 ch_rate, tx_ch_rate_msk_new;
+	u32 ch_msk = 0;
+	int ret;
+
+	dev_dbg(common->dev, "apply TX%d rate limiting %uMbps tx_rate_msk%x\n",
+		queue, rate_mbps, common->tx_ch_rate_msk);
+
+	if (common->pf_p0_rx_ptype_rrobin) {
+		dev_err(common->dev, "TX Rate Limiting failed - rrobin mode\n");
+		return -EINVAL;
+	}
+
+	ch_rate = netdev_get_tx_queue(ndev, queue)->tx_maxrate;
+	if (ch_rate == rate_mbps)
+		return 0;
+
+	ret = pm_runtime_get_sync(common->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(common->dev);
+		return ret;
+	}
+	ret = 0;
+
+	tx_ch_rate_msk_new = common->tx_ch_rate_msk;
+	if (rate_mbps && !(tx_ch_rate_msk_new & BIT(queue))) {
+		tx_ch_rate_msk_new |= BIT(queue);
+		ch_msk = GENMASK(common->tx_ch_num - 1, queue);
+		ch_msk = tx_ch_rate_msk_new ^ ch_msk;
+	} else if (!rate_mbps) {
+		tx_ch_rate_msk_new &= ~BIT(queue);
+		ch_msk = queue ? GENMASK(queue - 1, 0) : 0;
+		ch_msk = tx_ch_rate_msk_new & ch_msk;
+	}
+
+	if (ch_msk) {
+		dev_err(common->dev, "TX rate limiting has to be enabled sequentially hi->lo tx_rate_msk:%x tx_rate_msk_new:%x\n",
+			common->tx_ch_rate_msk, tx_ch_rate_msk_new);
+		ret = -EINVAL;
+		goto exit_put;
+	}
+
+	tx_chn = &common->tx_chns[queue];
+	tx_chn->rate_mbps = rate_mbps;
+	common->tx_ch_rate_msk = tx_ch_rate_msk_new;
+
+	if (!common->usage_count)
+		/* will be applied on next netif up */
+		goto exit_put;
+
+	am65_cpsw_qos_tx_p0_rate_apply(common, queue, rate_mbps);
+
+exit_put:
+	pm_runtime_put(common->dev);
+	return ret;
+}
+
+void am65_cpsw_qos_tx_p0_rate_init(struct am65_cpsw_common *common)
+{
+	struct am65_cpsw_host *host = am65_common_get_host(common);
+	int tx_ch;
+
+	for (tx_ch = 0; tx_ch < common->tx_ch_num; tx_ch++) {
+		struct am65_cpsw_tx_chn *tx_chn = &common->tx_chns[tx_ch];
+		u32 ch_cir;
+
+		if (!tx_chn->rate_mbps)
+			continue;
+
+		ch_cir = am65_cpsw_qos_tx_rate_calc(tx_chn->rate_mbps,
+						    common->bus_freq);
+		writel(ch_cir,
+		       host->port_base + AM65_CPSW_PN_REG_PRI_CIR(tx_ch));
+	}
 }

@@ -362,7 +362,7 @@ union dmub_fw_boot_status {
 		uint32_t defer_load : 1; /**< 1 if VBIOS data is deferred programmed */
 		uint32_t reserved : 1;
 		uint32_t detection_required: 1; /**<  if detection need to be triggered by driver */
-
+		uint32_t hw_power_init_done: 1; /**< 1 if hw power init is completed */
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -377,6 +377,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
 	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
 	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
+	DMUB_FW_BOOT_STATUS_BIT_HW_POWER_INIT_DONE = (1 << 7), /**< 1 if hw power init is completed */
 };
 
 /* Register bit definition for SCRATCH5 */
@@ -1104,7 +1105,12 @@ enum dmub_cmd_idle_opt_type {
 	/**
 	 * DCN hardware save.
 	 */
-	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1
+	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1,
+
+	/**
+	 * DCN hardware notify idle.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE = 2
 };
 
 /**
@@ -1112,6 +1118,24 @@ enum dmub_cmd_idle_opt_type {
  */
 struct dmub_rb_cmd_idle_opt_dcn_restore {
 	struct dmub_cmd_header header; /**< header */
+};
+
+/**
+ * struct dmub_dcn_notify_idle_cntl_data - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+ */
+struct dmub_dcn_notify_idle_cntl_data {
+	uint8_t driver_idle;
+	uint8_t d3_entry;
+	uint8_t trigger;
+	uint8_t pad[1];
+};
+
+/**
+ * struct dmub_rb_cmd_idle_opt_dcn_notify_idle - Data passed to FW in a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
+ */
+struct dmub_rb_cmd_idle_opt_dcn_notify_idle {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_dcn_notify_idle_cntl_data cntl_data;
 };
 
 /**

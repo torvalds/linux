@@ -461,7 +461,7 @@ static int get_pmc_irq(void)
 	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
 
 	if (d)
-		return irq_create_mapping(d, EXCCODE_PMC - EXCCODE_INT_START);
+		return irq_create_mapping(d, INT_PCOV);
 
 	return -EINVAL;
 }

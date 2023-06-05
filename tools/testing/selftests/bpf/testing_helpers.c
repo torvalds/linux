@@ -195,7 +195,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		goto err_out;
 	}
 
-	if (type != BPF_PROG_TYPE_UNSPEC)
+	if (type != BPF_PROG_TYPE_UNSPEC && bpf_program__type(prog) != type)
 		bpf_program__set_type(prog, type);
 
 	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
@@ -228,4 +228,24 @@ int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	);
 
 	return bpf_prog_load(type, NULL, license, insns, insns_cnt, &opts);
+}
+
+__u64 read_perf_max_sample_freq(void)
+{
+	__u64 sample_freq = 5000; /* fallback to 5000 on error */
+	FILE *f;
+
+	f = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
+	if (f == NULL) {
+		printf("Failed to open /proc/sys/kernel/perf_event_max_sample_rate: err %d\n"
+		       "return default value: 5000\n", -errno);
+		return sample_freq;
+	}
+	if (fscanf(f, "%llu", &sample_freq) != 1) {
+		printf("Failed to parse /proc/sys/kernel/perf_event_max_sample_rate: err %d\n"
+		       "return default value: 5000\n", -errno);
+	}
+
+	fclose(f);
+	return sample_freq;
 }

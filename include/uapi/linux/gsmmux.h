@@ -43,10 +43,25 @@ struct gsm_config_ext {
 	__u32 keep_alive;	/* Control channel keep-alive in 1/100th of a
 				 * second (0 to disable)
 				 */
-	__u32 reserved[7];	/* For future use, must be initialized to zero */
+	__u32 wait_config;	/* Wait for DLCI config before opening virtual link? */
+	__u32 reserved[6];	/* For future use, must be initialized to zero */
 };
 
 #define GSMIOC_GETCONF_EXT	_IOR('G', 5, struct gsm_config_ext)
 #define GSMIOC_SETCONF_EXT	_IOW('G', 6, struct gsm_config_ext)
+
+/* Set channel accordingly before calling GSMIOC_GETCONF_DLCI. */
+struct gsm_dlci_config {
+	__u32 channel;		/* DLCI (0 for the associated DLCI) */
+	__u32 adaption;		/* Convergence layer type */
+	__u32 mtu;		/* Maximum transfer unit */
+	__u32 priority;		/* Priority (0 for default value) */
+	__u32 i;		/* Frame type (1 = UIH, 2 = UI) */
+	__u32 k;		/* Window size (0 for default value) */
+	__u32 reserved[8];	/* For future use, must be initialized to zero */
+};
+
+#define GSMIOC_GETCONF_DLCI	_IOWR('G', 7, struct gsm_dlci_config)
+#define GSMIOC_SETCONF_DLCI	_IOW('G', 8, struct gsm_dlci_config)
 
 #endif

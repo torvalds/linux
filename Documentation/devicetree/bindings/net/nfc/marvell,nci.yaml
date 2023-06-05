@@ -28,7 +28,7 @@ properties:
     maxItems: 1
 
   reset-n-io:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
     description: |
       Output GPIO pin used to reset the chip (active low)

@@ -5402,6 +5402,13 @@ flags_complete:
 		return -EOPNOTSUPP;
 	}
 
+	if ((changed_flags & I40E_FLAG_LEGACY_RX) &&
+	    I40E_2K_TOO_SMALL_WITH_PADDING) {
+		dev_warn(&pf->pdev->dev,
+			 "2k Rx buffer is too small to fit standard MTU and skb_shared_info\n");
+		return -EOPNOTSUPP;
+	}
+
 	if ((changed_flags & new_flags &
 	     I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
 	    (new_flags & I40E_FLAG_MFP_ENABLED))

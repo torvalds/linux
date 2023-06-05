@@ -1431,5 +1431,4 @@ static int __init mt8192_pinctrl_init(void)
 }
 arch_initcall(mt8192_pinctrl_init);
 
-MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MediaTek MT8192 Pinctrl Driver");

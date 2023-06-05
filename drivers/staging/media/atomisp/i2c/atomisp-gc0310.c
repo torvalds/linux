@@ -3,6 +3,7 @@
  * Support for GalaxyCore GC0310 VGA camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -26,234 +27,59 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/moduleparam.h>
+#include <linux/pm_runtime.h>
 #include <media/v4l2-device.h>
 #include <linux/io.h>
 #include "../include/linux/atomisp_gmin_platform.h"
 
 #include "gc0310.h"
 
-/* i2c read/write stuff */
-static int gc0310_read_reg(struct i2c_client *client,
-			   u16 data_length, u8 reg, u8 *val)
-{
-	int err;
-	struct i2c_msg msg[2];
-	unsigned char data[1];
-
-	if (!client->adapter) {
-		dev_err(&client->dev, "%s error, no client->adapter\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	if (data_length != GC0310_8BIT) {
-		dev_err(&client->dev, "%s error, invalid data length\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	memset(msg, 0, sizeof(msg));
-
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = I2C_MSG_LENGTH;
-	msg[0].buf = data;
-
-	/* high byte goes out first */
-	data[0] = (u8)(reg & 0xff);
-
-	msg[1].addr = client->addr;
-	msg[1].len = data_length;
-	msg[1].flags = I2C_M_RD;
-	msg[1].buf = data;
-
-	err = i2c_transfer(client->adapter, msg, 2);
-	if (err != 2) {
-		if (err >= 0)
-			err = -EIO;
-		dev_err(&client->dev,
-			"read from offset 0x%x error %d", reg, err);
-		return err;
-	}
-
-	*val = 0;
-	/* high byte comes first */
-	if (data_length == GC0310_8BIT)
-		*val = (u8)data[0];
-
-	return 0;
-}
-
-static int gc0310_i2c_write(struct i2c_client *client, u16 len, u8 *data)
-{
-	struct i2c_msg msg;
-	const int num_msg = 1;
-	int ret;
-
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = len;
-	msg.buf = data;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-
-	return ret == num_msg ? 0 : -EIO;
-}
-
-static int gc0310_write_reg(struct i2c_client *client, u16 data_length,
-			    u8 reg, u8 val)
-{
-	int ret;
-	unsigned char data[2] = {0};
-	u8 *wreg = (u8 *)data;
-	const u16 len = data_length + sizeof(u8); /* 8-bit address + data */
-
-	if (data_length != GC0310_8BIT) {
-		dev_err(&client->dev,
-			"%s error, invalid data_length\n", __func__);
-		return -EINVAL;
-	}
-
-	/* high byte goes out first */
-	*wreg = (u8)(reg & 0xff);
-
-	if (data_length == GC0310_8BIT)
-		data[1] = (u8)(val);
-
-	ret = gc0310_i2c_write(client, len, data);
-	if (ret)
-		dev_err(&client->dev,
-			"write error: wrote 0x%x to offset 0x%x error %d",
-			val, reg, ret);
-
-	return ret;
-}
-
 /*
  * gc0310_write_reg_array - Initializes a list of GC0310 registers
  * @client: i2c driver client structure
  * @reglist: list of registers to be written
- *
- * This function initializes a list of registers. When consecutive addresses
- * are found in a row on the list, this function creates a buffer and sends
- * consecutive data in a single i2c_transfer().
- *
- * __gc0310_flush_reg_array, __gc0310_buf_reg_array() and
- * __gc0310_write_reg_is_consecutive() are internal functions to
- * gc0310_write_reg_array_fast() and should be not used anywhere else.
- *
+ * @count: number of register, value pairs in the list
  */
-
-static int __gc0310_flush_reg_array(struct i2c_client *client,
-				    struct gc0310_write_ctrl *ctrl)
+static int gc0310_write_reg_array(struct i2c_client *client,
+				  const struct gc0310_reg *reglist, int count)
 {
-	u16 size;
+	int i, err;
 
-	if (ctrl->index == 0)
-		return 0;
-
-	size = sizeof(u8) + ctrl->index; /* 8-bit address + data */
-	ctrl->buffer.addr = (u8)(ctrl->buffer.addr);
-	ctrl->index = 0;
-
-	return gc0310_i2c_write(client, size, (u8 *)&ctrl->buffer);
-}
-
-static int __gc0310_buf_reg_array(struct i2c_client *client,
-				  struct gc0310_write_ctrl *ctrl,
-				  const struct gc0310_reg *next)
-{
-	int size;
-
-	switch (next->type) {
-	case GC0310_8BIT:
-		size = 1;
-		ctrl->buffer.data[ctrl->index] = (u8)next->val;
-		break;
-	default:
-		return -EINVAL;
+	for (i = 0; i < count; i++) {
+		err = i2c_smbus_write_byte_data(client, reglist[i].reg, reglist[i].val);
+		if (err) {
+			dev_err(&client->dev, "write error: wrote 0x%x to offset 0x%x error %d",
+				reglist[i].val, reglist[i].reg, err);
+			return err;
+		}
 	}
-
-	/* When first item is added, we need to store its starting address */
-	if (ctrl->index == 0)
-		ctrl->buffer.addr = next->reg;
-
-	ctrl->index += size;
-
-	/*
-	 * Buffer cannot guarantee free space for u32? Better flush it to avoid
-	 * possible lack of memory for next item.
-	 */
-	if (ctrl->index + sizeof(u8) >= GC0310_MAX_WRITE_BUF_SIZE)
-		return __gc0310_flush_reg_array(client, ctrl);
 
 	return 0;
 }
 
-static int __gc0310_write_reg_is_consecutive(struct i2c_client *client,
-					     struct gc0310_write_ctrl *ctrl,
-					     const struct gc0310_reg *next)
+static int gc0310_exposure_set(struct gc0310_device *dev, u32 exp)
 {
-	if (ctrl->index == 0)
-		return 1;
+	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
 
-	return ctrl->buffer.addr + ctrl->index == next->reg;
+	return i2c_smbus_write_word_swapped(client, GC0310_AEC_PK_EXPO_H, exp);
 }
 
-static int gc0310_write_reg_array(struct i2c_client *client,
-				  const struct gc0310_reg *reglist)
+static int gc0310_gain_set(struct gc0310_device *dev, u32 gain)
 {
-	const struct gc0310_reg *next = reglist;
-	struct gc0310_write_ctrl ctrl;
-	int err;
-
-	ctrl.index = 0;
-	for (; next->type != GC0310_TOK_TERM; next++) {
-		switch (next->type & GC0310_TOK_MASK) {
-		case GC0310_TOK_DELAY:
-			err = __gc0310_flush_reg_array(client, &ctrl);
-			if (err)
-				return err;
-			msleep(next->val);
-			break;
-		default:
-			/*
-			 * If next address is not consecutive, data needs to be
-			 * flushed before proceed.
-			 */
-			if (!__gc0310_write_reg_is_consecutive(client, &ctrl,
-							       next)) {
-				err = __gc0310_flush_reg_array(client, &ctrl);
-				if (err)
-					return err;
-			}
-			err = __gc0310_buf_reg_array(client, &ctrl, next);
-			if (err) {
-				dev_err(&client->dev, "%s: write error, aborted\n",
-					__func__);
-				return err;
-			}
-			break;
-		}
-	}
-
-	return __gc0310_flush_reg_array(client, &ctrl);
-}
-
-static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
-
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
 	u8 again, dgain;
+	int ret;
 
-	if (gain < 0x20)
-		gain = 0x20;
-	if (gain > 0x80)
-		gain = 0x80;
+	/* Taken from original driver, this never sets dgain lower then 32? */
 
-	if (gain >= 0x20 && gain < 0x40) {
+	/* Change 0 - 95 to 32 - 127 */
+	gain += 32;
+
+	if (gain < 64) {
 		again = 0x0; /* sqrt(2) */
 		dgain = gain;
 	} else {
@@ -261,507 +87,109 @@ static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
 		dgain = gain / 2;
 	}
 
-	dev_dbg(&client->dev, "gain=0x%x again=0x%x dgain=0x%x\n", gain, again, dgain);
-
-	/* set analog gain */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AGC_ADJ, again);
+	ret = i2c_smbus_write_byte_data(client, GC0310_AGC_ADJ, again);
 	if (ret)
 		return ret;
 
-	/* set digital gain */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_DGC_ADJ, dgain);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int __gc0310_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
-				 int gain, int digitgain)
-
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	dev_dbg(&client->dev, "coarse_itg=%d gain=%d digitgain=%d\n", coarse_itg, gain, digitgain);
-
-	/* set exposure */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AEC_PK_EXPO_L,
-			       coarse_itg & 0xff);
-	if (ret)
-		return ret;
-
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AEC_PK_EXPO_H,
-			       (coarse_itg >> 8) & 0x0f);
-	if (ret)
-		return ret;
-
-	ret = gc0310_set_gain(sd, gain);
-	if (ret)
-		return ret;
-
-	return ret;
-}
-
-static int gc0310_set_exposure(struct v4l2_subdev *sd, int exposure,
-			       int gain, int digitgain)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	int ret;
-
-	mutex_lock(&dev->input_lock);
-	ret = __gc0310_set_exposure(sd, exposure, gain, digitgain);
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
-}
-
-static long gc0310_s_exposure(struct v4l2_subdev *sd,
-			      struct atomisp_exposure *exposure)
-{
-	int exp = exposure->integration_time[0];
-	int gain = exposure->gain[0];
-	int digitgain = exposure->gain[1];
-
-	/* we should not accept the invalid value below. */
-	if (gain == 0) {
-		struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-		v4l2_err(client, "%s: invalid value\n", __func__);
-		return -EINVAL;
-	}
-
-	return gc0310_set_exposure(sd, exp, gain, digitgain);
-}
-
-/* TO DO */
-static int gc0310_v_flip(struct v4l2_subdev *sd, s32 value)
-{
-	return 0;
-}
-
-/* TO DO */
-static int gc0310_h_flip(struct v4l2_subdev *sd, s32 value)
-{
-	return 0;
-}
-
-static long gc0310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
-{
-	switch (cmd) {
-	case ATOMISP_IOC_S_EXPOSURE:
-		return gc0310_s_exposure(sd, arg);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/* This returns the exposure time being used. This should only be used
- * for filling in EXIF data, not for actual image processing.
- */
-static int gc0310_q_exposure(struct v4l2_subdev *sd, s32 *value)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 reg_v;
-	int ret;
-
-	/* get exposure */
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_AEC_PK_EXPO_L,
-			      &reg_v);
-	if (ret)
-		goto err;
-
-	*value = reg_v;
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_AEC_PK_EXPO_H,
-			      &reg_v);
-	if (ret)
-		goto err;
-
-	*value = *value + (reg_v << 8);
-err:
-	return ret;
+	return i2c_smbus_write_byte_data(client, GC0310_DGC_ADJ, dgain);
 }
 
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc0310_device *dev =
-	    container_of(ctrl->handler, struct gc0310_device, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
-	int ret = 0;
+		container_of(ctrl->handler, struct gc0310_device, ctrls.handler);
+	int ret;
+
+	/* Only apply changes to the controls if the device is powered up */
+	if (!pm_runtime_get_if_in_use(dev->sd.dev))
+		return 0;
 
 	switch (ctrl->id) {
-	case V4L2_CID_VFLIP:
-		dev_dbg(&client->dev, "%s: CID_VFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = gc0310_v_flip(&dev->sd, ctrl->val);
+	case V4L2_CID_EXPOSURE:
+		ret = gc0310_exposure_set(dev, ctrl->val);
 		break;
-	case V4L2_CID_HFLIP:
-		dev_dbg(&client->dev, "%s: CID_HFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = gc0310_h_flip(&dev->sd, ctrl->val);
+	case V4L2_CID_GAIN:
+		ret = gc0310_gain_set(dev, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
-	}
-	return ret;
-}
-
-static int gc0310_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct gc0310_device *dev =
-	    container_of(ctrl->handler, struct gc0310_device, ctrl_handler);
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_EXPOSURE_ABSOLUTE:
-		ret = gc0310_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	default:
-		ret = -EINVAL;
 	}
 
+	pm_runtime_put(dev->sd.dev);
 	return ret;
 }
 
 static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
-	.g_volatile_ctrl = gc0310_g_volatile_ctrl
 };
 
-static const struct v4l2_ctrl_config gc0310_controls[] = {
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "exposure",
-		.min = 0x0,
-		.max = 0xffff,
-		.step = 0x01,
-		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_VFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Flip",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_HFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Mirror",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
-	},
-};
-
-static int gc0310_init(struct v4l2_subdev *sd)
+static struct v4l2_mbus_framefmt *
+gc0310_get_pad_format(struct gc0310_device *dev,
+		      struct v4l2_subdev_state *state,
+		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
-	int ret;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&dev->sd, state, pad);
 
-	mutex_lock(&dev->input_lock);
-
-	/* set initial registers */
-	ret  = gc0310_write_reg_array(client, gc0310_reset_register);
-
-	/* restore settings */
-	gc0310_res = gc0310_res_preview;
-	N_RES = N_RES_PREVIEW;
-
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
+	return &dev->mode.fmt;
 }
 
-static int power_ctrl(struct v4l2_subdev *sd, bool flag)
+/* The GC0310 currently only supports 1 fixed fmt */
+static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
 {
-	int ret = 0;
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	if (flag) {
-		/* The upstream module driver (written to Crystal
-		 * Cove) had this logic to pulse the rails low first.
-		 * This appears to break things on the MRD7 with the
-		 * X-Powers PMIC...
-		 *
-		 *     ret = dev->platform_data->v1p8_ctrl(sd, 0);
-		 *     ret |= dev->platform_data->v2p8_ctrl(sd, 0);
-		 *     mdelay(50);
-		 */
-		ret |= dev->platform_data->v1p8_ctrl(sd, 1);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-	}
-
-	if (!flag || ret) {
-		ret |= dev->platform_data->v1p8_ctrl(sd, 0);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret;
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	/* GPIO0 == "reset" (active low), GPIO1 == "power down" */
-	if (flag) {
-		/* Pulse reset, then release power down */
-		ret = dev->platform_data->gpio0_ctrl(sd, 0);
-		usleep_range(5000, 10000);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-		ret |= dev->platform_data->gpio1_ctrl(sd, 0);
-		usleep_range(10000, 15000);
-	} else {
-		ret = dev->platform_data->gpio1_ctrl(sd, 1);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int power_up(struct v4l2_subdev *sd)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	if (dev->power_on)
-		return 0; /* Already on */
-
-	/* power control */
-	ret = power_ctrl(sd, 1);
-	if (ret)
-		goto fail_power;
-
-	/* flis clock control */
-	ret = dev->platform_data->flisclk_ctrl(sd, 1);
-	if (ret)
-		goto fail_clk;
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 1);
-	if (ret) {
-		ret = gpio_ctrl(sd, 1);
-		if (ret)
-			goto fail_gpio;
-	}
-
-	msleep(100);
-
-	dev->power_on = true;
-	return 0;
-
-fail_gpio:
-	dev->platform_data->flisclk_ctrl(sd, 0);
-fail_clk:
-	power_ctrl(sd, 0);
-fail_power:
-	dev_err(&client->dev, "sensor power-up failed\n");
-
-	return ret;
-}
-
-static int power_down(struct v4l2_subdev *sd)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	if (!dev->power_on)
-		return 0; /* Already off */
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 0);
-	if (ret) {
-		ret = gpio_ctrl(sd, 0);
-		if (ret)
-			dev_err(&client->dev, "gpio failed 2\n");
-	}
-
-	ret = dev->platform_data->flisclk_ctrl(sd, 0);
-	if (ret)
-		dev_err(&client->dev, "flisclk failed\n");
-
-	/* power control */
-	ret = power_ctrl(sd, 0);
-	if (ret)
-		dev_err(&client->dev, "vprog failed.\n");
-
-	dev->power_on = false;
-	return ret;
-}
-
-static int gc0310_s_power(struct v4l2_subdev *sd, int on)
-{
-	int ret;
-
-	if (on == 0)
-		return power_down(sd);
-
-	ret = power_up(sd);
-	if (ret)
-		return ret;
-
-	return gc0310_init(sd);
-}
-
-/* TODO: remove it. */
-static int startup(struct v4l2_subdev *sd)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	ret = gc0310_write_reg_array(client, dev->res->regs);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 write register err.\n");
-		return ret;
-	}
-
-	return ret;
+	memset(fmt, 0, sizeof(*fmt));
+	fmt->width = GC0310_NATIVE_WIDTH;
+	fmt->height = GC0310_NATIVE_HEIGHT;
+	fmt->field = V4L2_FIELD_NONE;
+	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 }
 
 static int gc0310_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *gc0310_info = NULL;
-	struct gc0310_resolution *res;
-	int ret = 0;
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (format->pad)
-		return -EINVAL;
+	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
+	gc0310_fill_format(fmt);
 
-	if (!fmt)
-		return -EINVAL;
-
-	gc0310_info = v4l2_get_subdev_hostdata(sd);
-	if (!gc0310_info)
-		return -EINVAL;
-
-	mutex_lock(&dev->input_lock);
-
-	res = v4l2_find_nearest_size(gc0310_res_preview,
-				     ARRAY_SIZE(gc0310_res_preview), width,
-				     height, fmt->width, fmt->height);
-	if (!res)
-		res = &gc0310_res_preview[N_RES - 1];
-
-	fmt->width = res->width;
-	fmt->height = res->height;
-	dev->res = res;
-
-	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
-		mutex_unlock(&dev->input_lock);
-		return 0;
-	}
-
-	/* s_power has not been called yet for std v4l2 clients (camorama) */
-	power_up(sd);
-
-	dev_dbg(&client->dev, "%s: before gc0310_write_reg_array %s\n",
-		__func__, dev->res->desc);
-	ret = startup(sd);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 startup err\n");
-		goto err;
-	}
-
-err:
-	mutex_unlock(&dev->input_lock);
-	return ret;
+	format->format = *fmt;
+	return 0;
 }
 
 static int gc0310_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (format->pad)
-		return -EINVAL;
-
-	if (!fmt)
-		return -EINVAL;
-
-	fmt->width = dev->res->width;
-	fmt->height = dev->res->height;
-	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-
+	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
+	format->format = *fmt;
 	return 0;
 }
 
 static int gc0310_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u8 high, low;
 	int ret;
-	u16 id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_SC_CMMN_CHIP_ID_H, &high);
-	if (ret) {
-		dev_err(&client->dev, "read sensor_id_high failed\n");
+	ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
+	if (ret < 0) {
+		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
 	}
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_SC_CMMN_CHIP_ID_L, &low);
-	if (ret) {
-		dev_err(&client->dev, "read sensor_id_low failed\n");
-		return -ENODEV;
-	}
-	id = ((((u16)high) << 8) | (u16)low);
-	dev_dbg(&client->dev, "sensor ID = 0x%x\n", id);
 
-	if (id != GC0310_ID) {
-		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n", id,
-			GC0310_ID);
+	dev_dbg(&client->dev, "sensor ID = 0x%x\n", ret);
+
+	if (ret != GC0310_ID) {
+		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n",
+			ret, GC0310_ID);
 		return -ENODEV;
 	}
 
@@ -774,116 +202,90 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = 0;
 
 	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
 	mutex_lock(&dev->input_lock);
 
+	if (dev->is_streaming == enable) {
+		dev_warn(&client->dev, "stream already %s\n", enable ? "started" : "stopped");
+		goto error_unlock;
+	}
+
 	if (enable) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0)
+			goto error_power_down;
+
+		msleep(100);
+
+		ret = gc0310_write_reg_array(client, gc0310_reset_register,
+					     ARRAY_SIZE(gc0310_reset_register));
+		if (ret)
+			goto error_power_down;
+
+		ret = gc0310_write_reg_array(client, gc0310_VGA_30fps,
+					     ARRAY_SIZE(gc0310_VGA_30fps));
+		if (ret)
+			goto error_power_down;
+
+		/* restore value of all ctrls */
+		ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
+		if (ret)
+			goto error_power_down;
+
 		/* enable per frame MIPI and sensor ctrl reset  */
-		ret = gc0310_write_reg(client, GC0310_8BIT,
-				       0xFE, 0x30);
-		if (ret) {
-			mutex_unlock(&dev->input_lock);
-			return ret;
-		}
+		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
+		if (ret)
+			goto error_power_down;
 	}
 
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
+	if (ret)
+		goto error_power_down;
 
-	ret = gc0310_write_reg(client, GC0310_8BIT, GC0310_SW_STREAM,
-			       enable ? GC0310_START_STREAMING :
-			       GC0310_STOP_STREAMING);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
+					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
+	if (ret)
+		goto error_power_down;
 
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
+	if (ret)
+		goto error_power_down;
 
+	if (!enable)
+		pm_runtime_put(&client->dev);
+
+	dev->is_streaming = enable;
+	mutex_unlock(&dev->input_lock);
+	return 0;
+
+error_power_down:
+	pm_runtime_put(&client->dev);
+	dev->is_streaming = false;
+error_unlock:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
-static int gc0310_s_config(struct v4l2_subdev *sd,
-			   int irq, void *platform_data)
+static int gc0310_s_config(struct v4l2_subdev *sd)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
+	int ret;
 
-	if (!platform_data)
-		return -ENODEV;
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret >= 0)
+		ret = gc0310_detect(client);
 
-	dev->platform_data =
-	    (struct camera_sensor_platform_data *)platform_data;
-
-	mutex_lock(&dev->input_lock);
-	/* power off the module, then power on it in future
-	 * as first power on by board may not fulfill the
-	 * power on sequqence needed by the module
-	 */
-	dev->power_on = true; /* force power_down() to run */
-	ret = power_down(sd);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 power-off err.\n");
-		goto fail_power_off;
-	}
-
-	ret = power_up(sd);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 power-up err.\n");
-		goto fail_power_on;
-	}
-
-	ret = dev->platform_data->csi_cfg(sd, 1);
-	if (ret)
-		goto fail_csi_cfg;
-
-	/* config & detect sensor */
-	ret = gc0310_detect(client);
-	if (ret) {
-		dev_err(&client->dev, "gc0310_detect err s_config.\n");
-		goto fail_csi_cfg;
-	}
-
-	/* turn off sensor, after probed */
-	ret = power_down(sd);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 power-off err.\n");
-		goto fail_csi_cfg;
-	}
-	mutex_unlock(&dev->input_lock);
-
-	return 0;
-
-fail_csi_cfg:
-	dev->platform_data->csi_cfg(sd, 0);
-fail_power_on:
-	power_down(sd);
-	dev_err(&client->dev, "sensor power-gating failed\n");
-fail_power_off:
-	mutex_unlock(&dev->input_lock);
+	pm_runtime_put(&client->dev);
 	return ret;
 }
 
 static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
 	interval->interval.numerator = 1;
-	interval->interval.denominator = dev->res->fps;
+	interval->interval.denominator = GC0310_FPS;
 
 	return 0;
 }
@@ -892,7 +294,8 @@ static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= MAX_FMTS)
+	/* We support only a single format */
+	if (code->index)
 		return -EINVAL;
 
 	code->code = MEDIA_BUS_FMT_SGRBG8_1X8;
@@ -903,27 +306,21 @@ static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	int index = fse->index;
-
-	if (index >= N_RES)
+	/* We support only a single resolution */
+	if (fse->index)
 		return -EINVAL;
 
-	fse->min_width = gc0310_res[index].width;
-	fse->min_height = gc0310_res[index].height;
-	fse->max_width = gc0310_res[index].width;
-	fse->max_height = gc0310_res[index].height;
+	fse->min_width = GC0310_NATIVE_WIDTH;
+	fse->max_width = GC0310_NATIVE_WIDTH;
+	fse->min_height = GC0310_NATIVE_HEIGHT;
+	fse->max_height = GC0310_NATIVE_HEIGHT;
 
 	return 0;
 }
 
 static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	mutex_lock(&dev->input_lock);
-	*frames = dev->res->skip_frames;
-	mutex_unlock(&dev->input_lock);
-
+	*frames = GC0310_SKIP_FRAMES;
 	return 0;
 }
 
@@ -936,11 +333,6 @@ static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 	.g_frame_interval = gc0310_g_frame_interval,
 };
 
-static const struct v4l2_subdev_core_ops gc0310_core_ops = {
-	.s_power = gc0310_s_power,
-	.ioctl = gc0310_ioctl,
-};
-
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_mbus_code = gc0310_enum_mbus_code,
 	.enum_frame_size = gc0310_enum_frame_size,
@@ -949,11 +341,30 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops gc0310_ops = {
-	.core = &gc0310_core_ops,
 	.video = &gc0310_video_ops,
 	.pad = &gc0310_pad_ops,
 	.sensor = &gc0310_sensor_ops,
 };
+
+static int gc0310_init_controls(struct gc0310_device *dev)
+{
+	struct v4l2_ctrl_handler *hdl = &dev->ctrls.handler;
+
+	v4l2_ctrl_handler_init(hdl, 2);
+
+	/* Use the same lock for controls as for everything else */
+	hdl->lock = &dev->input_lock;
+	dev->sd.ctrl_handler = hdl;
+
+	dev->ctrls.exposure =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0, 4095, 1, 1023);
+
+	/* 32 steps at base gain 1 + 64 half steps at base gain 2 */
+	dev->ctrls.gain =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_GAIN, 0, 95, 1, 31);
+
+	return hdl->error;
+}
 
 static void gc0310_remove(struct i2c_client *client)
 {
@@ -962,11 +373,11 @@ static void gc0310_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "gc0310_remove...\n");
 
-	dev->platform_data->csi_cfg(sd, 0);
-
+	atomisp_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
-	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_ctrl_handler_free(&dev->ctrls.handler);
+	pm_runtime_disable(&client->dev);
 	kfree(dev);
 }
 
@@ -974,69 +385,90 @@ static int gc0310_probe(struct i2c_client *client)
 {
 	struct gc0310_device *dev;
 	int ret;
-	void *pdata;
-	unsigned int i;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
+	ret = v4l2_get_acpi_sensor_info(&client->dev, NULL);
+	if (ret)
+		return ret;
+
+	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(dev->reset))
+		return dev_err_probe(&client->dev, PTR_ERR(dev->reset),
+				     "getting reset GPIO\n");
+
+	dev->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(dev->powerdown))
+		return dev_err_probe(&client->dev, PTR_ERR(dev->powerdown),
+				     "getting powerdown GPIO\n");
+
 	mutex_init(&dev->input_lock);
-
-	dev->res = &gc0310_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
+	gc0310_fill_format(&dev->mode.fmt);
 
-	pdata = gmin_camera_platform_data(&dev->sd,
-					  ATOMISP_INPUT_FORMAT_RAW_8,
-					  atomisp_bayer_order_grbg);
-	if (!pdata) {
-		ret = -EINVAL;
-		goto out_free;
-	}
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = gc0310_s_config(&dev->sd, client->irq, pdata);
-	if (ret)
-		goto out_free;
-
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
-	if (ret)
-		goto out_free;
-
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
-	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret =
-	    v4l2_ctrl_handler_init(&dev->ctrl_handler,
-				   ARRAY_SIZE(gc0310_controls));
+	ret = gc0310_s_config(&dev->sd);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(gc0310_controls); i++)
-		v4l2_ctrl_new_custom(&dev->ctrl_handler, &gc0310_controls[i],
-				     NULL);
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
+	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
-	if (dev->ctrl_handler.error) {
+	ret = gc0310_init_controls(dev);
+	if (ret) {
 		gc0310_remove(client);
-		return dev->ctrl_handler.error;
+		return ret;
 	}
 
-	/* Use same lock for controls as for everything else. */
-	dev->ctrl_handler.lock = &dev->input_lock;
-	dev->sd.ctrl_handler = &dev->ctrl_handler;
-
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
-	if (ret)
+	if (ret) {
 		gc0310_remove(client);
+		return ret;
+	}
 
-	return ret;
-out_free:
-	v4l2_device_unregister_subdev(&dev->sd);
-	kfree(dev);
-	return ret;
+	ret = atomisp_register_sensor_no_gmin(&dev->sd, 1, ATOMISP_INPUT_FORMAT_RAW_8,
+					      atomisp_bayer_order_grbg);
+	if (ret) {
+		gc0310_remove(client);
+		return ret;
+	}
+
+	return 0;
 }
+
+static int gc0310_suspend(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
+
+	gpiod_set_value_cansleep(gc0310_dev->powerdown, 1);
+	gpiod_set_value_cansleep(gc0310_dev->reset, 1);
+	return 0;
+}
+
+static int gc0310_resume(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
+
+	usleep_range(10000, 15000);
+	gpiod_set_value_cansleep(gc0310_dev->reset, 0);
+	usleep_range(10000, 15000);
+	gpiod_set_value_cansleep(gc0310_dev->powerdown, 0);
+
+	return 0;
+}
+
+static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops, gc0310_suspend, gc0310_resume, NULL);
 
 static const struct acpi_device_id gc0310_acpi_match[] = {
 	{"XXGC0310"},
@@ -1048,6 +480,7 @@ MODULE_DEVICE_TABLE(acpi, gc0310_acpi_match);
 static struct i2c_driver gc0310_driver = {
 	.driver = {
 		.name = "gc0310",
+		.pm = pm_sleep_ptr(&gc0310_pm_ops),
 		.acpi_match_table = gc0310_acpi_match,
 	},
 	.probe_new = gc0310_probe,

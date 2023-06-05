@@ -43,11 +43,13 @@
 #ifndef __KSELFTEST_H
 #define __KSELFTEST_H
 
+#ifndef NOLIBC
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
+#endif
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

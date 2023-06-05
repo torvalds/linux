@@ -29,12 +29,8 @@
 
 static inline int aprp_cpu_index(void)
 {
-#ifdef CONFIG_MIPS_CMP
-	return setup_max_cpus;
-#else
 	extern int tclimit;
 	return tclimit;
-#endif
 }
 
 enum vpe_state {

@@ -51,7 +51,7 @@ For example:
 .. code-block:: c
 
         struct cpumask_map_value {
-                struct bpf_cpumask __kptr_ref * cpumask;
+                struct bpf_cpumask __kptr * cpumask;
         };
 
         struct array_map {
@@ -117,18 +117,13 @@ For example:
 As mentioned and illustrated above, these ``struct bpf_cpumask *`` objects can
 also be stored in a map and used as kptrs. If a ``struct bpf_cpumask *`` is in
 a map, the reference can be removed from the map with bpf_kptr_xchg(), or
-opportunistically acquired with bpf_cpumask_kptr_get():
-
-.. kernel-doc:: kernel/bpf/cpumask.c
-  :identifiers: bpf_cpumask_kptr_get
-
-Here is an example of a ``struct bpf_cpumask *`` being retrieved from a map:
+opportunistically acquired using RCU:
 
 .. code-block:: c
 
 	/* struct containing the struct bpf_cpumask kptr which is stored in the map. */
 	struct cpumasks_kfunc_map_value {
-		struct bpf_cpumask __kptr_ref * bpf_cpumask;
+		struct bpf_cpumask __kptr * bpf_cpumask;
 	};
 
 	/* The map containing struct cpumasks_kfunc_map_value entries. */
@@ -144,7 +139,7 @@ Here is an example of a ``struct bpf_cpumask *`` being retrieved from a map:
 	/**
 	 * A simple example tracepoint program showing how a
 	 * struct bpf_cpumask * kptr that is stored in a map can
-	 * be acquired using the bpf_cpumask_kptr_get() kfunc.
+	 * be passed to kfuncs using RCU protection.
 	 */
 	SEC("tp_btf/cgroup_mkdir")
 	int BPF_PROG(cgrp_ancestor_example, struct cgroup *cgrp, const char *path)
@@ -158,26 +153,21 @@ Here is an example of a ``struct bpf_cpumask *`` being retrieved from a map:
 		if (!v)
 			return -ENOENT;
 
+		bpf_rcu_read_lock();
 		/* Acquire a reference to the bpf_cpumask * kptr that's already stored in the map. */
-		kptr = bpf_cpumask_kptr_get(&v->cpumask);
-		if (!kptr)
+		kptr = v->cpumask;
+		if (!kptr) {
 			/* If no bpf_cpumask was present in the map, it's because
 			 * we're racing with another CPU that removed it with
 			 * bpf_kptr_xchg() between the bpf_map_lookup_elem()
-			 * above, and our call to bpf_cpumask_kptr_get().
-			 * bpf_cpumask_kptr_get() internally safely handles this
-			 * race, and will return NULL if the cpumask is no longer
-			 * present in the map by the time we invoke the kfunc.
+			 * above, and our load of the pointer from the map.
 			 */
+			bpf_rcu_read_unlock();
 			return -EBUSY;
+		}
 
-		/* Free the reference we just took above. Note that the
-		 * original struct bpf_cpumask * kptr is still in the map. It will
-		 * be freed either at a later time if another context deletes
-		 * it from the map, or automatically by the BPF subsystem if
-		 * it's still present when the map is destroyed.
-		 */
-		bpf_cpumask_release(kptr);
+		bpf_cpumask_setall(kptr);
+		bpf_rcu_read_unlock();
 
 		return 0;
 	}

@@ -7,7 +7,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
-/* from /sys/kernel/debug/tracing/events/task/task_rename/format */
+/* from /sys/kernel/tracing/events/task/task_rename/format */
 struct task_rename {
 	__u64 pad;
 	__u32 pid;
@@ -21,7 +21,7 @@ int prog(struct task_rename *ctx)
 	return 0;
 }
 
-/* from /sys/kernel/debug/tracing/events/fib/fib_table_lookup/format */
+/* from /sys/kernel/tracing/events/fib/fib_table_lookup/format */
 struct fib_table_lookup {
 	__u64 pad;
 	__u32 tb_id;
