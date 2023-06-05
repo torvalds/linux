@@ -1491,7 +1491,6 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 {
 	journal_t *journal;
 	sector_t blocknr;
-	char *p;
 	int err = 0;
 
 	blocknr = 0;
@@ -1515,9 +1514,8 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 
 	journal->j_inode = inode;
 	snprintf(journal->j_devname, sizeof(journal->j_devname),
-		 "%pg", journal->j_dev);
-	p = strreplace(journal->j_devname, '/', '!');
-	sprintf(p, "-%lu", journal->j_inode->i_ino);
+		 "%pg-%lu", journal->j_dev, journal->j_inode->i_ino);
+	strreplace(journal->j_devname, '/', '!');
 	jbd2_stats_proc_init(journal);
 
 	return journal;
