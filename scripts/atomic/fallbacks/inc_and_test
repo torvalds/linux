@@ -1,7 +1,7 @@
 cat <<EOF
 static __always_inline bool
-arch_${atomic}_inc_and_test(${atomic}_t *v)
+raw_${atomic}_inc_and_test(${atomic}_t *v)
 {
-	return arch_${atomic}_inc_return(v) == 0;
+	return raw_${atomic}_inc_return(v) == 0;
 }
 EOF

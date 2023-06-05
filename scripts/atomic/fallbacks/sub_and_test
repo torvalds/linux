@@ -1,7 +1,7 @@
 cat <<EOF
 static __always_inline bool
-arch_${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
+raw_${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
 {
-	return arch_${atomic}_sub_return(i, v) == 0;
+	return raw_${atomic}_sub_return(i, v) == 0;
 }
 EOF

@@ -1,7 +1,7 @@
 cat << EOF
 static __always_inline bool
-arch_${atomic}_add_unless(${atomic}_t *v, ${int} a, ${int} u)
+raw_${atomic}_add_unless(${atomic}_t *v, ${int} a, ${int} u)
 {
-	return arch_${atomic}_fetch_add_unless(v, a, u) != u;
+	return raw_${atomic}_fetch_add_unless(v, a, u) != u;
 }
 EOF

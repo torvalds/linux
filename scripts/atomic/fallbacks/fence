@@ -1,6 +1,6 @@
 cat <<EOF
 static __always_inline ${ret}
-arch_${atomic}_${pfx}${name}${sfx}(${params})
+raw_${atomic}_${pfx}${name}${sfx}(${params})
 {
 	${ret} ret;
 	__atomic_pre_full_fence();

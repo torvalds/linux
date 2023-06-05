@@ -1,7 +1,7 @@
 cat <<EOF
 static __always_inline ${int}
-arch_${atomic}_cmpxchg${order}(${atomic}_t *v, ${int} old, ${int} new)
+raw_${atomic}_cmpxchg${order}(${atomic}_t *v, ${int} old, ${int} new)
 {
-	return arch_cmpxchg${order}(&v->counter, old, new);
+	return raw_cmpxchg${order}(&v->counter, old, new);
 }
 EOF
