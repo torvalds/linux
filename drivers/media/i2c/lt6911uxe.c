@@ -1777,6 +1777,8 @@ static int lt6911uxe_check_chip_id(struct lt6911uxe *lt6911uxe)
 static int lt6911uxe_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 	struct lt6911uxe *lt6911uxe;
 	struct v4l2_subdev *sd;
 	struct device *dev = &client->dev;
@@ -1802,6 +1804,7 @@ static int lt6911uxe_probe(struct i2c_client *client,
 		return err;
 	}
 
+	lt6911uxe->timings = default_timing;
 	lt6911uxe->cur_mode = &lt6911uxe->support_modes[0];
 	err = lt6911uxe_check_chip_id(lt6911uxe);
 	if (err < 0)
