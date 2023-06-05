@@ -49,6 +49,8 @@ gen_proto_order_variant()
 	local argscast_64="$(gen_args_cast "s64" "atomic64" "$@")"
 	local retstmt="$(gen_ret_stmt "${meta}")"
 
+	gen_kerneldoc "raw_" "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "atomic_long" "long" "$@"
+
 cat <<EOF
 static __always_inline ${ret}
 raw_atomic_long_${atomicname}(${params})

@@ -73,6 +73,8 @@ gen_proto_order_variant()
 	local params="$(gen_params "${int}" "${atomic}" "$@")"
 	local args="$(gen_args "$@")"
 
+	gen_kerneldoc "raw_" "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "${atomic}" "${int}" "$@"
+
 	printf "static __always_inline ${ret}\n"
 	printf "raw_${atomicname}(${params})\n"
 	printf "{\n"

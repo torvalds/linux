@@ -428,12 +428,32 @@ extern void raw_cmpxchg128_relaxed_not_implemented(void);
 
 #define raw_sync_cmpxchg arch_sync_cmpxchg
 
+/**
+ * raw_atomic_read() - atomic load with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically loads the value of @v with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_read() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline int
 raw_atomic_read(const atomic_t *v)
 {
 	return arch_atomic_read(v);
 }
 
+/**
+ * raw_atomic_read_acquire() - atomic load with acquire ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically loads the value of @v with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_read_acquire() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline int
 raw_atomic_read_acquire(const atomic_t *v)
 {
@@ -455,12 +475,34 @@ raw_atomic_read_acquire(const atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_set() - atomic set with relaxed ordering
+ * @v: pointer to atomic_t
+ * @i: int value to assign
+ *
+ * Atomically sets @v to @i with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_set() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_set(atomic_t *v, int i)
 {
 	arch_atomic_set(v, i);
 }
 
+/**
+ * raw_atomic_set_release() - atomic set with release ordering
+ * @v: pointer to atomic_t
+ * @i: int value to assign
+ *
+ * Atomically sets @v to @i with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_set_release() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_set_release(atomic_t *v, int i)
 {
@@ -478,12 +520,34 @@ raw_atomic_set_release(atomic_t *v, int i)
 #endif
 }
 
+/**
+ * raw_atomic_add() - atomic add with relaxed ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_add(int i, atomic_t *v)
 {
 	arch_atomic_add(i, v);
 }
 
+/**
+ * raw_atomic_add_return() - atomic add with full ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_add_return(int i, atomic_t *v)
 {
@@ -500,6 +564,17 @@ raw_atomic_add_return(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_return_acquire() - atomic add with acquire ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_add_return_acquire(int i, atomic_t *v)
 {
@@ -516,6 +591,17 @@ raw_atomic_add_return_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_return_release() - atomic add with release ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_add_return_release(int i, atomic_t *v)
 {
@@ -531,6 +617,17 @@ raw_atomic_add_return_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_return_relaxed() - atomic add with relaxed ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_add_return_relaxed(int i, atomic_t *v)
 {
@@ -543,6 +640,17 @@ raw_atomic_add_return_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_add() - atomic add with full ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_add() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_add(int i, atomic_t *v)
 {
@@ -559,6 +667,17 @@ raw_atomic_fetch_add(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_add_acquire() - atomic add with acquire ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_add_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_add_acquire(int i, atomic_t *v)
 {
@@ -575,6 +694,17 @@ raw_atomic_fetch_add_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_add_release() - atomic add with release ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_add_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_add_release(int i, atomic_t *v)
 {
@@ -590,6 +720,17 @@ raw_atomic_fetch_add_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_add_relaxed() - atomic add with relaxed ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_add_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_add_relaxed(int i, atomic_t *v)
 {
@@ -602,12 +743,34 @@ raw_atomic_fetch_add_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_sub() - atomic subtract with relaxed ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_sub(int i, atomic_t *v)
 {
 	arch_atomic_sub(i, v);
 }
 
+/**
+ * raw_atomic_sub_return() - atomic subtract with full ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_sub_return(int i, atomic_t *v)
 {
@@ -624,6 +787,17 @@ raw_atomic_sub_return(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_sub_return_acquire() - atomic subtract with acquire ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_sub_return_acquire(int i, atomic_t *v)
 {
@@ -640,6 +814,17 @@ raw_atomic_sub_return_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_sub_return_release() - atomic subtract with release ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_sub_return_release(int i, atomic_t *v)
 {
@@ -655,6 +840,17 @@ raw_atomic_sub_return_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_sub_return_relaxed() - atomic subtract with relaxed ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_sub_return_relaxed(int i, atomic_t *v)
 {
@@ -667,6 +863,17 @@ raw_atomic_sub_return_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_sub() - atomic subtract with full ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_sub() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_sub(int i, atomic_t *v)
 {
@@ -683,6 +890,17 @@ raw_atomic_fetch_sub(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_sub_acquire() - atomic subtract with acquire ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_sub_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_sub_acquire(int i, atomic_t *v)
 {
@@ -699,6 +917,17 @@ raw_atomic_fetch_sub_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_sub_release() - atomic subtract with release ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_sub_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_sub_release(int i, atomic_t *v)
 {
@@ -714,6 +943,17 @@ raw_atomic_fetch_sub_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_sub_relaxed() - atomic subtract with relaxed ordering
+ * @i: int value to subtract
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_sub_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_sub_relaxed(int i, atomic_t *v)
 {
@@ -726,6 +966,16 @@ raw_atomic_fetch_sub_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_inc(atomic_t *v)
 {
@@ -736,6 +986,16 @@ raw_atomic_inc(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_return() - atomic increment with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_inc_return(atomic_t *v)
 {
@@ -752,6 +1012,16 @@ raw_atomic_inc_return(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_return_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_inc_return_acquire(atomic_t *v)
 {
@@ -768,6 +1038,16 @@ raw_atomic_inc_return_acquire(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_return_release() - atomic increment with release ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_inc_return_release(atomic_t *v)
 {
@@ -783,6 +1063,16 @@ raw_atomic_inc_return_release(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_return_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_inc_return_relaxed(atomic_t *v)
 {
@@ -795,6 +1085,16 @@ raw_atomic_inc_return_relaxed(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_inc() - atomic increment with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_inc() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_inc(atomic_t *v)
 {
@@ -811,6 +1111,16 @@ raw_atomic_fetch_inc(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_inc_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_inc_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_inc_acquire(atomic_t *v)
 {
@@ -827,6 +1137,16 @@ raw_atomic_fetch_inc_acquire(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_inc_release() - atomic increment with release ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_inc_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_inc_release(atomic_t *v)
 {
@@ -842,6 +1162,16 @@ raw_atomic_fetch_inc_release(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_inc_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_inc_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_inc_relaxed(atomic_t *v)
 {
@@ -854,6 +1184,16 @@ raw_atomic_fetch_inc_relaxed(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_dec(atomic_t *v)
 {
@@ -864,6 +1204,16 @@ raw_atomic_dec(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_return() - atomic decrement with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_dec_return(atomic_t *v)
 {
@@ -880,6 +1230,16 @@ raw_atomic_dec_return(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_return_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_dec_return_acquire(atomic_t *v)
 {
@@ -896,6 +1256,16 @@ raw_atomic_dec_return_acquire(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_return_release() - atomic decrement with release ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_dec_return_release(atomic_t *v)
 {
@@ -911,6 +1281,16 @@ raw_atomic_dec_return_release(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_return_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline int
 raw_atomic_dec_return_relaxed(atomic_t *v)
 {
@@ -923,6 +1303,16 @@ raw_atomic_dec_return_relaxed(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_dec() - atomic decrement with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_dec() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_dec(atomic_t *v)
 {
@@ -939,6 +1329,16 @@ raw_atomic_fetch_dec(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_dec_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_dec_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_dec_acquire(atomic_t *v)
 {
@@ -955,6 +1355,16 @@ raw_atomic_fetch_dec_acquire(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_dec_release() - atomic decrement with release ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_dec_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_dec_release(atomic_t *v)
 {
@@ -970,6 +1380,16 @@ raw_atomic_fetch_dec_release(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_dec_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_dec_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_dec_relaxed(atomic_t *v)
 {
@@ -982,12 +1402,34 @@ raw_atomic_fetch_dec_relaxed(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_and() - atomic bitwise AND with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_and() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_and(int i, atomic_t *v)
 {
 	arch_atomic_and(i, v);
 }
 
+/**
+ * raw_atomic_fetch_and() - atomic bitwise AND with full ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_and() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_and(int i, atomic_t *v)
 {
@@ -1004,6 +1446,17 @@ raw_atomic_fetch_and(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_and_acquire() - atomic bitwise AND with acquire ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_and_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_and_acquire(int i, atomic_t *v)
 {
@@ -1020,6 +1473,17 @@ raw_atomic_fetch_and_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_and_release() - atomic bitwise AND with release ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_and_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_and_release(int i, atomic_t *v)
 {
@@ -1035,6 +1499,17 @@ raw_atomic_fetch_and_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_and_relaxed() - atomic bitwise AND with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_and_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_and_relaxed(int i, atomic_t *v)
 {
@@ -1047,6 +1522,17 @@ raw_atomic_fetch_and_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_andnot() - atomic bitwise AND NOT with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_andnot() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_andnot(int i, atomic_t *v)
 {
@@ -1057,6 +1543,17 @@ raw_atomic_andnot(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_andnot() - atomic bitwise AND NOT with full ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & ~@i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_andnot() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_andnot(int i, atomic_t *v)
 {
@@ -1073,6 +1570,17 @@ raw_atomic_fetch_andnot(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & ~@i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_andnot_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_andnot_acquire(int i, atomic_t *v)
 {
@@ -1089,6 +1597,17 @@ raw_atomic_fetch_andnot_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & ~@i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_andnot_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_andnot_release(int i, atomic_t *v)
 {
@@ -1104,6 +1623,17 @@ raw_atomic_fetch_andnot_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_andnot_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_andnot_relaxed(int i, atomic_t *v)
 {
@@ -1116,12 +1646,34 @@ raw_atomic_fetch_andnot_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_or() - atomic bitwise OR with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_or() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_or(int i, atomic_t *v)
 {
 	arch_atomic_or(i, v);
 }
 
+/**
+ * raw_atomic_fetch_or() - atomic bitwise OR with full ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v | @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_or() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_or(int i, atomic_t *v)
 {
@@ -1138,6 +1690,17 @@ raw_atomic_fetch_or(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_or_acquire() - atomic bitwise OR with acquire ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v | @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_or_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_or_acquire(int i, atomic_t *v)
 {
@@ -1154,6 +1717,17 @@ raw_atomic_fetch_or_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_or_release() - atomic bitwise OR with release ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v | @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_or_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_or_release(int i, atomic_t *v)
 {
@@ -1169,6 +1743,17 @@ raw_atomic_fetch_or_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_or_relaxed() - atomic bitwise OR with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_or_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_or_relaxed(int i, atomic_t *v)
 {
@@ -1181,12 +1766,34 @@ raw_atomic_fetch_or_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_xor() - atomic bitwise XOR with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_xor() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_xor(int i, atomic_t *v)
 {
 	arch_atomic_xor(i, v);
 }
 
+/**
+ * raw_atomic_fetch_xor() - atomic bitwise XOR with full ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v ^ @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_xor() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_xor(int i, atomic_t *v)
 {
@@ -1203,6 +1810,17 @@ raw_atomic_fetch_xor(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_xor_acquire() - atomic bitwise XOR with acquire ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v ^ @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_xor_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_xor_acquire(int i, atomic_t *v)
 {
@@ -1219,6 +1837,17 @@ raw_atomic_fetch_xor_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_xor_release() - atomic bitwise XOR with release ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v ^ @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_xor_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_xor_release(int i, atomic_t *v)
 {
@@ -1234,6 +1863,17 @@ raw_atomic_fetch_xor_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_xor_relaxed() - atomic bitwise XOR with relaxed ordering
+ * @i: int value
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_xor_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_xor_relaxed(int i, atomic_t *v)
 {
@@ -1246,6 +1886,17 @@ raw_atomic_fetch_xor_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_xchg() - atomic exchange with full ordering
+ * @v: pointer to atomic_t
+ * @new: int value to assign
+ *
+ * Atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_xchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_xchg(atomic_t *v, int new)
 {
@@ -1262,6 +1913,17 @@ raw_atomic_xchg(atomic_t *v, int new)
 #endif
 }
 
+/**
+ * raw_atomic_xchg_acquire() - atomic exchange with acquire ordering
+ * @v: pointer to atomic_t
+ * @new: int value to assign
+ *
+ * Atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_xchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_xchg_acquire(atomic_t *v, int new)
 {
@@ -1278,6 +1940,17 @@ raw_atomic_xchg_acquire(atomic_t *v, int new)
 #endif
 }
 
+/**
+ * raw_atomic_xchg_release() - atomic exchange with release ordering
+ * @v: pointer to atomic_t
+ * @new: int value to assign
+ *
+ * Atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_xchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_xchg_release(atomic_t *v, int new)
 {
@@ -1293,6 +1966,17 @@ raw_atomic_xchg_release(atomic_t *v, int new)
 #endif
 }
 
+/**
+ * raw_atomic_xchg_relaxed() - atomic exchange with relaxed ordering
+ * @v: pointer to atomic_t
+ * @new: int value to assign
+ *
+ * Atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_xchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_xchg_relaxed(atomic_t *v, int new)
 {
@@ -1305,6 +1989,18 @@ raw_atomic_xchg_relaxed(atomic_t *v, int new)
 #endif
 }
 
+/**
+ * raw_atomic_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic_t
+ * @old: int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_cmpxchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
@@ -1321,6 +2017,18 @@ raw_atomic_cmpxchg(atomic_t *v, int old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic_t
+ * @old: int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_cmpxchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_cmpxchg_acquire(atomic_t *v, int old, int new)
 {
@@ -1337,6 +2045,18 @@ raw_atomic_cmpxchg_acquire(atomic_t *v, int old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic_t
+ * @old: int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_cmpxchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_cmpxchg_release(atomic_t *v, int old, int new)
 {
@@ -1352,6 +2072,18 @@ raw_atomic_cmpxchg_release(atomic_t *v, int old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic_t
+ * @old: int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
 {
@@ -1364,6 +2096,19 @@ raw_atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_try_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic_t
+ * @old: pointer to int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_try_cmpxchg() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_try_cmpxchg(atomic_t *v, int *old, int new)
 {
@@ -1384,6 +2129,19 @@ raw_atomic_try_cmpxchg(atomic_t *v, int *old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic_t
+ * @old: pointer to int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_try_cmpxchg_acquire() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_try_cmpxchg_acquire(atomic_t *v, int *old, int new)
 {
@@ -1404,6 +2162,19 @@ raw_atomic_try_cmpxchg_acquire(atomic_t *v, int *old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic_t
+ * @old: pointer to int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_try_cmpxchg_release() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_try_cmpxchg_release(atomic_t *v, int *old, int new)
 {
@@ -1423,6 +2194,19 @@ raw_atomic_try_cmpxchg_release(atomic_t *v, int *old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic_t
+ * @old: pointer to int value to compare with
+ * @new: int value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_try_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_try_cmpxchg_relaxed(atomic_t *v, int *old, int new)
 {
@@ -1439,6 +2223,17 @@ raw_atomic_try_cmpxchg_relaxed(atomic_t *v, int *old, int new)
 #endif
 }
 
+/**
+ * raw_atomic_sub_and_test() - atomic subtract and test if zero with full ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_sub_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_sub_and_test(int i, atomic_t *v)
 {
@@ -1449,6 +2244,16 @@ raw_atomic_sub_and_test(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_and_test() - atomic decrement and test if zero with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_dec_and_test(atomic_t *v)
 {
@@ -1459,6 +2264,16 @@ raw_atomic_dec_and_test(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_and_test() - atomic increment and test if zero with full ordering
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_inc_and_test(atomic_t *v)
 {
@@ -1469,6 +2284,17 @@ raw_atomic_inc_and_test(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_negative() - atomic add and test if negative with full ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_negative() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_add_negative(int i, atomic_t *v)
 {
@@ -1485,6 +2311,17 @@ raw_atomic_add_negative(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_negative_acquire() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_add_negative_acquire(int i, atomic_t *v)
 {
@@ -1501,6 +2338,17 @@ raw_atomic_add_negative_acquire(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_negative_release() - atomic add and test if negative with release ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_negative_release() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_add_negative_release(int i, atomic_t *v)
 {
@@ -1516,6 +2364,17 @@ raw_atomic_add_negative_release(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * @i: int value to add
+ * @v: pointer to atomic_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_negative_relaxed() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_add_negative_relaxed(int i, atomic_t *v)
 {
@@ -1528,6 +2387,18 @@ raw_atomic_add_negative_relaxed(int i, atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_fetch_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic_t
+ * @a: int value to add
+ * @u: int value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_fetch_add_unless() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline int
 raw_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
@@ -1545,6 +2416,18 @@ raw_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 #endif
 }
 
+/**
+ * raw_atomic_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic_t
+ * @a: int value to add
+ * @u: int value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_add_unless() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_add_unless(atomic_t *v, int a, int u)
 {
@@ -1555,6 +2438,16 @@ raw_atomic_add_unless(atomic_t *v, int a, int u)
 #endif
 }
 
+/**
+ * raw_atomic_inc_not_zero() - atomic increment unless zero with full ordering
+ * @v: pointer to atomic_t
+ *
+ * If (@v != 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_not_zero() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_inc_not_zero(atomic_t *v)
 {
@@ -1565,6 +2458,16 @@ raw_atomic_inc_not_zero(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_inc_unless_negative() - atomic increment unless negative with full ordering
+ * @v: pointer to atomic_t
+ *
+ * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_inc_unless_negative() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_inc_unless_negative(atomic_t *v)
 {
@@ -1582,6 +2485,16 @@ raw_atomic_inc_unless_negative(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * @v: pointer to atomic_t
+ *
+ * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_unless_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_dec_unless_positive(atomic_t *v)
 {
@@ -1599,6 +2512,16 @@ raw_atomic_dec_unless_positive(atomic_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_dec_if_positive() - atomic decrement if positive with full ordering
+ * @v: pointer to atomic_t
+ *
+ * If (@v > 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_dec_if_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline int
 raw_atomic_dec_if_positive(atomic_t *v)
 {
@@ -1621,12 +2544,32 @@ raw_atomic_dec_if_positive(atomic_t *v)
 #include <asm-generic/atomic64.h>
 #endif
 
+/**
+ * raw_atomic64_read() - atomic load with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically loads the value of @v with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_read() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline s64
 raw_atomic64_read(const atomic64_t *v)
 {
 	return arch_atomic64_read(v);
 }
 
+/**
+ * raw_atomic64_read_acquire() - atomic load with acquire ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically loads the value of @v with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_read_acquire() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline s64
 raw_atomic64_read_acquire(const atomic64_t *v)
 {
@@ -1648,12 +2591,34 @@ raw_atomic64_read_acquire(const atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_set() - atomic set with relaxed ordering
+ * @v: pointer to atomic64_t
+ * @i: s64 value to assign
+ *
+ * Atomically sets @v to @i with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_set() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_set(atomic64_t *v, s64 i)
 {
 	arch_atomic64_set(v, i);
 }
 
+/**
+ * raw_atomic64_set_release() - atomic set with release ordering
+ * @v: pointer to atomic64_t
+ * @i: s64 value to assign
+ *
+ * Atomically sets @v to @i with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_set_release() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_set_release(atomic64_t *v, s64 i)
 {
@@ -1671,12 +2636,34 @@ raw_atomic64_set_release(atomic64_t *v, s64 i)
 #endif
 }
 
+/**
+ * raw_atomic64_add() - atomic add with relaxed ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_add(s64 i, atomic64_t *v)
 {
 	arch_atomic64_add(i, v);
 }
 
+/**
+ * raw_atomic64_add_return() - atomic add with full ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_add_return(s64 i, atomic64_t *v)
 {
@@ -1693,6 +2680,17 @@ raw_atomic64_add_return(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_return_acquire() - atomic add with acquire ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_add_return_acquire(s64 i, atomic64_t *v)
 {
@@ -1709,6 +2707,17 @@ raw_atomic64_add_return_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_return_release() - atomic add with release ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_add_return_release(s64 i, atomic64_t *v)
 {
@@ -1724,6 +2733,17 @@ raw_atomic64_add_return_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_return_relaxed() - atomic add with relaxed ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_add_return_relaxed(s64 i, atomic64_t *v)
 {
@@ -1736,6 +2756,17 @@ raw_atomic64_add_return_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_add() - atomic add with full ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_add() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_add(s64 i, atomic64_t *v)
 {
@@ -1752,6 +2783,17 @@ raw_atomic64_fetch_add(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_add_acquire() - atomic add with acquire ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_add_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_add_acquire(s64 i, atomic64_t *v)
 {
@@ -1768,6 +2810,17 @@ raw_atomic64_fetch_add_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_add_release() - atomic add with release ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_add_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_add_release(s64 i, atomic64_t *v)
 {
@@ -1783,6 +2836,17 @@ raw_atomic64_fetch_add_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_add_relaxed() - atomic add with relaxed ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_add_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_add_relaxed(s64 i, atomic64_t *v)
 {
@@ -1795,12 +2859,34 @@ raw_atomic64_fetch_add_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_sub() - atomic subtract with relaxed ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_sub(s64 i, atomic64_t *v)
 {
 	arch_atomic64_sub(i, v);
 }
 
+/**
+ * raw_atomic64_sub_return() - atomic subtract with full ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_sub_return(s64 i, atomic64_t *v)
 {
@@ -1817,6 +2903,17 @@ raw_atomic64_sub_return(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_sub_return_acquire() - atomic subtract with acquire ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_sub_return_acquire(s64 i, atomic64_t *v)
 {
@@ -1833,6 +2930,17 @@ raw_atomic64_sub_return_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_sub_return_release() - atomic subtract with release ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_sub_return_release(s64 i, atomic64_t *v)
 {
@@ -1848,6 +2956,17 @@ raw_atomic64_sub_return_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_sub_return_relaxed() - atomic subtract with relaxed ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_sub_return_relaxed(s64 i, atomic64_t *v)
 {
@@ -1860,6 +2979,17 @@ raw_atomic64_sub_return_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_sub() - atomic subtract with full ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_sub() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_sub(s64 i, atomic64_t *v)
 {
@@ -1876,6 +3006,17 @@ raw_atomic64_fetch_sub(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_sub_acquire() - atomic subtract with acquire ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_sub_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_sub_acquire(s64 i, atomic64_t *v)
 {
@@ -1892,6 +3033,17 @@ raw_atomic64_fetch_sub_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_sub_release() - atomic subtract with release ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_sub_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_sub_release(s64 i, atomic64_t *v)
 {
@@ -1907,6 +3059,17 @@ raw_atomic64_fetch_sub_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_sub_relaxed() - atomic subtract with relaxed ordering
+ * @i: s64 value to subtract
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_sub_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v)
 {
@@ -1919,6 +3082,16 @@ raw_atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc() - atomic increment with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_inc(atomic64_t *v)
 {
@@ -1929,6 +3102,16 @@ raw_atomic64_inc(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_return() - atomic increment with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_inc_return(atomic64_t *v)
 {
@@ -1945,6 +3128,16 @@ raw_atomic64_inc_return(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_return_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_inc_return_acquire(atomic64_t *v)
 {
@@ -1961,6 +3154,16 @@ raw_atomic64_inc_return_acquire(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_return_release() - atomic increment with release ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_inc_return_release(atomic64_t *v)
 {
@@ -1976,6 +3179,16 @@ raw_atomic64_inc_return_release(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_return_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_inc_return_relaxed(atomic64_t *v)
 {
@@ -1988,6 +3201,16 @@ raw_atomic64_inc_return_relaxed(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_inc() - atomic increment with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_inc() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_inc(atomic64_t *v)
 {
@@ -2004,6 +3227,16 @@ raw_atomic64_fetch_inc(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_inc_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_inc_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_inc_acquire(atomic64_t *v)
 {
@@ -2020,6 +3253,16 @@ raw_atomic64_fetch_inc_acquire(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_inc_release() - atomic increment with release ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_inc_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_inc_release(atomic64_t *v)
 {
@@ -2035,6 +3278,16 @@ raw_atomic64_fetch_inc_release(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_inc_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_inc_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_inc_relaxed(atomic64_t *v)
 {
@@ -2047,6 +3300,16 @@ raw_atomic64_fetch_inc_relaxed(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_dec(atomic64_t *v)
 {
@@ -2057,6 +3320,16 @@ raw_atomic64_dec(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_return() - atomic decrement with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_dec_return(atomic64_t *v)
 {
@@ -2073,6 +3346,16 @@ raw_atomic64_dec_return(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_return_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_dec_return_acquire(atomic64_t *v)
 {
@@ -2089,6 +3372,16 @@ raw_atomic64_dec_return_acquire(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_return_release() - atomic decrement with release ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_dec_return_release(atomic64_t *v)
 {
@@ -2104,6 +3397,16 @@ raw_atomic64_dec_return_release(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_return_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline s64
 raw_atomic64_dec_return_relaxed(atomic64_t *v)
 {
@@ -2116,6 +3419,16 @@ raw_atomic64_dec_return_relaxed(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_dec() - atomic decrement with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_dec() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_dec(atomic64_t *v)
 {
@@ -2132,6 +3445,16 @@ raw_atomic64_fetch_dec(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_dec_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_dec_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_dec_acquire(atomic64_t *v)
 {
@@ -2148,6 +3471,16 @@ raw_atomic64_fetch_dec_acquire(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_dec_release() - atomic decrement with release ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_dec_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_dec_release(atomic64_t *v)
 {
@@ -2163,6 +3496,16 @@ raw_atomic64_fetch_dec_release(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_dec_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_dec_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_dec_relaxed(atomic64_t *v)
 {
@@ -2175,12 +3518,34 @@ raw_atomic64_fetch_dec_relaxed(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_and() - atomic bitwise AND with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_and() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_and(s64 i, atomic64_t *v)
 {
 	arch_atomic64_and(i, v);
 }
 
+/**
+ * raw_atomic64_fetch_and() - atomic bitwise AND with full ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_and() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_and(s64 i, atomic64_t *v)
 {
@@ -2197,6 +3562,17 @@ raw_atomic64_fetch_and(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_and_acquire() - atomic bitwise AND with acquire ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_and_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_and_acquire(s64 i, atomic64_t *v)
 {
@@ -2213,6 +3589,17 @@ raw_atomic64_fetch_and_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_and_release() - atomic bitwise AND with release ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_and_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_and_release(s64 i, atomic64_t *v)
 {
@@ -2228,6 +3615,17 @@ raw_atomic64_fetch_and_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_and_relaxed() - atomic bitwise AND with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_and_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_and_relaxed(s64 i, atomic64_t *v)
 {
@@ -2240,6 +3638,17 @@ raw_atomic64_fetch_and_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_andnot() - atomic bitwise AND NOT with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_andnot() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_andnot(s64 i, atomic64_t *v)
 {
@@ -2250,6 +3659,17 @@ raw_atomic64_andnot(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_andnot() - atomic bitwise AND NOT with full ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & ~@i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_andnot() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_andnot(s64 i, atomic64_t *v)
 {
@@ -2266,6 +3686,17 @@ raw_atomic64_fetch_andnot(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & ~@i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_andnot_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
 {
@@ -2282,6 +3713,17 @@ raw_atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & ~@i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_andnot_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
 {
@@ -2297,6 +3739,17 @@ raw_atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_andnot_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
 {
@@ -2309,12 +3762,34 @@ raw_atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_or() - atomic bitwise OR with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_or() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_or(s64 i, atomic64_t *v)
 {
 	arch_atomic64_or(i, v);
 }
 
+/**
+ * raw_atomic64_fetch_or() - atomic bitwise OR with full ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v | @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_or() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_or(s64 i, atomic64_t *v)
 {
@@ -2331,6 +3806,17 @@ raw_atomic64_fetch_or(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_or_acquire() - atomic bitwise OR with acquire ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v | @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_or_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_or_acquire(s64 i, atomic64_t *v)
 {
@@ -2347,6 +3833,17 @@ raw_atomic64_fetch_or_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_or_release() - atomic bitwise OR with release ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v | @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_or_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_or_release(s64 i, atomic64_t *v)
 {
@@ -2362,6 +3859,17 @@ raw_atomic64_fetch_or_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_or_relaxed() - atomic bitwise OR with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_or_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_or_relaxed(s64 i, atomic64_t *v)
 {
@@ -2374,12 +3882,34 @@ raw_atomic64_fetch_or_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_xor() - atomic bitwise XOR with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_xor() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic64_xor(s64 i, atomic64_t *v)
 {
 	arch_atomic64_xor(i, v);
 }
 
+/**
+ * raw_atomic64_fetch_xor() - atomic bitwise XOR with full ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v ^ @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_xor() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_xor(s64 i, atomic64_t *v)
 {
@@ -2396,6 +3926,17 @@ raw_atomic64_fetch_xor(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_xor_acquire() - atomic bitwise XOR with acquire ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v ^ @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_xor_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_xor_acquire(s64 i, atomic64_t *v)
 {
@@ -2412,6 +3953,17 @@ raw_atomic64_fetch_xor_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_xor_release() - atomic bitwise XOR with release ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v ^ @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_xor_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_xor_release(s64 i, atomic64_t *v)
 {
@@ -2427,6 +3979,17 @@ raw_atomic64_fetch_xor_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_xor_relaxed() - atomic bitwise XOR with relaxed ordering
+ * @i: s64 value
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_xor_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v)
 {
@@ -2439,6 +4002,17 @@ raw_atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_xchg() - atomic exchange with full ordering
+ * @v: pointer to atomic64_t
+ * @new: s64 value to assign
+ *
+ * Atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_xchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_xchg(atomic64_t *v, s64 new)
 {
@@ -2455,6 +4029,17 @@ raw_atomic64_xchg(atomic64_t *v, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_xchg_acquire() - atomic exchange with acquire ordering
+ * @v: pointer to atomic64_t
+ * @new: s64 value to assign
+ *
+ * Atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_xchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_xchg_acquire(atomic64_t *v, s64 new)
 {
@@ -2471,6 +4056,17 @@ raw_atomic64_xchg_acquire(atomic64_t *v, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_xchg_release() - atomic exchange with release ordering
+ * @v: pointer to atomic64_t
+ * @new: s64 value to assign
+ *
+ * Atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_xchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_xchg_release(atomic64_t *v, s64 new)
 {
@@ -2486,6 +4082,17 @@ raw_atomic64_xchg_release(atomic64_t *v, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_xchg_relaxed() - atomic exchange with relaxed ordering
+ * @v: pointer to atomic64_t
+ * @new: s64 value to assign
+ *
+ * Atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_xchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_xchg_relaxed(atomic64_t *v, s64 new)
 {
@@ -2498,6 +4105,18 @@ raw_atomic64_xchg_relaxed(atomic64_t *v, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic64_t
+ * @old: s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_cmpxchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
@@ -2514,6 +4133,18 @@ raw_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic64_t
+ * @old: s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_cmpxchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_cmpxchg_acquire(atomic64_t *v, s64 old, s64 new)
 {
@@ -2530,6 +4161,18 @@ raw_atomic64_cmpxchg_acquire(atomic64_t *v, s64 old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic64_t
+ * @old: s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_cmpxchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_cmpxchg_release(atomic64_t *v, s64 old, s64 new)
 {
@@ -2545,6 +4188,18 @@ raw_atomic64_cmpxchg_release(atomic64_t *v, s64 old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic64_t
+ * @old: s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
 {
@@ -2557,6 +4212,19 @@ raw_atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_try_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic64_t
+ * @old: pointer to s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic64_try_cmpxchg() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
 {
@@ -2577,6 +4245,19 @@ raw_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic64_t
+ * @old: pointer to s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic64_try_cmpxchg_acquire() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_try_cmpxchg_acquire(atomic64_t *v, s64 *old, s64 new)
 {
@@ -2597,6 +4278,19 @@ raw_atomic64_try_cmpxchg_acquire(atomic64_t *v, s64 *old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic64_t
+ * @old: pointer to s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic64_try_cmpxchg_release() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_try_cmpxchg_release(atomic64_t *v, s64 *old, s64 new)
 {
@@ -2616,6 +4310,19 @@ raw_atomic64_try_cmpxchg_release(atomic64_t *v, s64 *old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic64_t
+ * @old: pointer to s64 value to compare with
+ * @new: s64 value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic64_try_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_try_cmpxchg_relaxed(atomic64_t *v, s64 *old, s64 new)
 {
@@ -2632,6 +4339,17 @@ raw_atomic64_try_cmpxchg_relaxed(atomic64_t *v, s64 *old, s64 new)
 #endif
 }
 
+/**
+ * raw_atomic64_sub_and_test() - atomic subtract and test if zero with full ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_sub_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_sub_and_test(s64 i, atomic64_t *v)
 {
@@ -2642,6 +4360,16 @@ raw_atomic64_sub_and_test(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_and_test() - atomic decrement and test if zero with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_dec_and_test(atomic64_t *v)
 {
@@ -2652,6 +4380,16 @@ raw_atomic64_dec_and_test(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_and_test() - atomic increment and test if zero with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_inc_and_test(atomic64_t *v)
 {
@@ -2662,6 +4400,17 @@ raw_atomic64_inc_and_test(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_negative() - atomic add and test if negative with full ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_negative() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_add_negative(s64 i, atomic64_t *v)
 {
@@ -2678,6 +4427,17 @@ raw_atomic64_add_negative(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_negative_acquire() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_add_negative_acquire(s64 i, atomic64_t *v)
 {
@@ -2694,6 +4454,17 @@ raw_atomic64_add_negative_acquire(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_negative_release() - atomic add and test if negative with release ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_negative_release() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_add_negative_release(s64 i, atomic64_t *v)
 {
@@ -2709,6 +4480,17 @@ raw_atomic64_add_negative_release(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * @i: s64 value to add
+ * @v: pointer to atomic64_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_negative_relaxed() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_add_negative_relaxed(s64 i, atomic64_t *v)
 {
@@ -2721,6 +4503,18 @@ raw_atomic64_add_negative_relaxed(s64 i, atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_fetch_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic64_t
+ * @a: s64 value to add
+ * @u: s64 value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_fetch_add_unless() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline s64
 raw_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
@@ -2738,6 +4532,18 @@ raw_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 #endif
 }
 
+/**
+ * raw_atomic64_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic64_t
+ * @a: s64 value to add
+ * @u: s64 value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_add_unless() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 {
@@ -2748,6 +4554,16 @@ raw_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_not_zero() - atomic increment unless zero with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * If (@v != 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_not_zero() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_inc_not_zero(atomic64_t *v)
 {
@@ -2758,6 +4574,16 @@ raw_atomic64_inc_not_zero(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_inc_unless_negative() - atomic increment unless negative with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_inc_unless_negative() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_inc_unless_negative(atomic64_t *v)
 {
@@ -2775,6 +4601,16 @@ raw_atomic64_inc_unless_negative(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_unless_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic64_dec_unless_positive(atomic64_t *v)
 {
@@ -2792,6 +4628,16 @@ raw_atomic64_dec_unless_positive(atomic64_t *v)
 #endif
 }
 
+/**
+ * raw_atomic64_dec_if_positive() - atomic decrement if positive with full ordering
+ * @v: pointer to atomic64_t
+ *
+ * If (@v > 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic64_dec_if_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline s64
 raw_atomic64_dec_if_positive(atomic64_t *v)
 {
@@ -2811,4 +4657,4 @@ raw_atomic64_dec_if_positive(atomic64_t *v)
 }
 
 #endif /* _LINUX_ATOMIC_FALLBACK_H */
-// 205e090382132f1fc85e48b46e722865f9c81309
+// 3916f02c038baa3f5190d275f68b9211667fcc9d

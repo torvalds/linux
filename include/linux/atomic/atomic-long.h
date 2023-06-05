@@ -21,6 +21,16 @@ typedef atomic_t atomic_long_t;
 #define atomic_long_cond_read_relaxed	atomic_cond_read_relaxed
 #endif
 
+/**
+ * raw_atomic_long_read() - atomic load with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically loads the value of @v with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_read() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline long
 raw_atomic_long_read(const atomic_long_t *v)
 {
@@ -31,6 +41,16 @@ raw_atomic_long_read(const atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_read_acquire() - atomic load with acquire ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically loads the value of @v with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_read_acquire() elsewhere.
+ *
+ * Return: The value loaded from @v.
+ */
 static __always_inline long
 raw_atomic_long_read_acquire(const atomic_long_t *v)
 {
@@ -41,6 +61,17 @@ raw_atomic_long_read_acquire(const atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_set() - atomic set with relaxed ordering
+ * @v: pointer to atomic_long_t
+ * @i: long value to assign
+ *
+ * Atomically sets @v to @i with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_set() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_set(atomic_long_t *v, long i)
 {
@@ -51,6 +82,17 @@ raw_atomic_long_set(atomic_long_t *v, long i)
 #endif
 }
 
+/**
+ * raw_atomic_long_set_release() - atomic set with release ordering
+ * @v: pointer to atomic_long_t
+ * @i: long value to assign
+ *
+ * Atomically sets @v to @i with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_set_release() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_set_release(atomic_long_t *v, long i)
 {
@@ -61,6 +103,17 @@ raw_atomic_long_set_release(atomic_long_t *v, long i)
 #endif
 }
 
+/**
+ * raw_atomic_long_add() - atomic add with relaxed ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_add(long i, atomic_long_t *v)
 {
@@ -71,6 +124,17 @@ raw_atomic_long_add(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_return() - atomic add with full ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_add_return(long i, atomic_long_t *v)
 {
@@ -81,6 +145,17 @@ raw_atomic_long_add_return(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_return_acquire() - atomic add with acquire ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
 {
@@ -91,6 +166,17 @@ raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_return_release() - atomic add with release ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_add_return_release(long i, atomic_long_t *v)
 {
@@ -101,6 +187,17 @@ raw_atomic_long_add_return_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_return_relaxed() - atomic add with relaxed ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
 {
@@ -111,6 +208,17 @@ raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_add() - atomic add with full ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_add(long i, atomic_long_t *v)
 {
@@ -121,6 +229,17 @@ raw_atomic_long_fetch_add(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_add_acquire() - atomic add with acquire ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
 {
@@ -131,6 +250,17 @@ raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_add_release() - atomic add with release ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
 {
@@ -141,6 +271,17 @@ raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_add_relaxed() - atomic add with relaxed ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
 {
@@ -151,6 +292,17 @@ raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub() - atomic subtract with relaxed ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_sub(long i, atomic_long_t *v)
 {
@@ -161,6 +313,17 @@ raw_atomic_long_sub(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub_return() - atomic subtract with full ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_sub_return(long i, atomic_long_t *v)
 {
@@ -171,6 +334,17 @@ raw_atomic_long_sub_return(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub_return_acquire() - atomic subtract with acquire ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
 {
@@ -181,6 +355,17 @@ raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub_return_release() - atomic subtract with release ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
 {
@@ -191,6 +376,17 @@ raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub_return_relaxed() - atomic subtract with relaxed ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
 {
@@ -201,6 +397,17 @@ raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_sub() - atomic subtract with full ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
 {
@@ -211,6 +418,17 @@ raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_sub_acquire() - atomic subtract with acquire ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
 {
@@ -221,6 +439,17 @@ raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_sub_release() - atomic subtract with release ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
 {
@@ -231,6 +460,17 @@ raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_sub_relaxed() - atomic subtract with relaxed ordering
+ * @i: long value to subtract
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
 {
@@ -241,6 +481,16 @@ raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_inc(atomic_long_t *v)
 {
@@ -251,6 +501,16 @@ raw_atomic_long_inc(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_return() - atomic increment with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_inc_return(atomic_long_t *v)
 {
@@ -261,6 +521,16 @@ raw_atomic_long_inc_return(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_return_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_inc_return_acquire(atomic_long_t *v)
 {
@@ -271,6 +541,16 @@ raw_atomic_long_inc_return_acquire(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_return_release() - atomic increment with release ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_inc_return_release(atomic_long_t *v)
 {
@@ -281,6 +561,16 @@ raw_atomic_long_inc_return_release(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_return_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
 {
@@ -291,6 +581,16 @@ raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_inc() - atomic increment with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_inc(atomic_long_t *v)
 {
@@ -301,6 +601,16 @@ raw_atomic_long_fetch_inc(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_inc_acquire() - atomic increment with acquire ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
 {
@@ -311,6 +621,16 @@ raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_inc_release() - atomic increment with release ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_inc_release(atomic_long_t *v)
 {
@@ -321,6 +641,16 @@ raw_atomic_long_fetch_inc_release(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_inc_relaxed() - atomic increment with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
 {
@@ -331,6 +661,16 @@ raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_dec(atomic_long_t *v)
 {
@@ -341,6 +681,16 @@ raw_atomic_long_dec(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_return() - atomic decrement with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_return() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_dec_return(atomic_long_t *v)
 {
@@ -351,6 +701,16 @@ raw_atomic_long_dec_return(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_return_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_acquire() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_dec_return_acquire(atomic_long_t *v)
 {
@@ -361,6 +721,16 @@ raw_atomic_long_dec_return_acquire(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_return_release() - atomic decrement with release ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_release() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_dec_return_release(atomic_long_t *v)
 {
@@ -371,6 +741,16 @@ raw_atomic_long_dec_return_release(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_return_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_relaxed() elsewhere.
+ *
+ * Return: The updated value of @v.
+ */
 static __always_inline long
 raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
 {
@@ -381,6 +761,16 @@ raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_dec() - atomic decrement with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_dec(atomic_long_t *v)
 {
@@ -391,6 +781,16 @@ raw_atomic_long_fetch_dec(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_dec_acquire() - atomic decrement with acquire ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
 {
@@ -401,6 +801,16 @@ raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_dec_release() - atomic decrement with release ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_dec_release(atomic_long_t *v)
 {
@@ -411,6 +821,16 @@ raw_atomic_long_fetch_dec_release(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_dec_relaxed() - atomic decrement with relaxed ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
 {
@@ -421,6 +841,17 @@ raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_and() - atomic bitwise AND with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_and() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_and(long i, atomic_long_t *v)
 {
@@ -431,6 +862,17 @@ raw_atomic_long_and(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_and() - atomic bitwise AND with full ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_and(long i, atomic_long_t *v)
 {
@@ -441,6 +883,17 @@ raw_atomic_long_fetch_and(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_and_acquire() - atomic bitwise AND with acquire ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
 {
@@ -451,6 +904,17 @@ raw_atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_and_release() - atomic bitwise AND with release ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_and_release(long i, atomic_long_t *v)
 {
@@ -461,6 +925,17 @@ raw_atomic_long_fetch_and_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_and_relaxed() - atomic bitwise AND with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
 {
@@ -471,6 +946,17 @@ raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_andnot() - atomic bitwise AND NOT with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_andnot() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_andnot(long i, atomic_long_t *v)
 {
@@ -481,6 +967,17 @@ raw_atomic_long_andnot(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_andnot() - atomic bitwise AND NOT with full ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & ~@i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_andnot(long i, atomic_long_t *v)
 {
@@ -491,6 +988,17 @@ raw_atomic_long_fetch_andnot(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & ~@i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
 {
@@ -501,6 +1009,17 @@ raw_atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & ~@i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
 {
@@ -511,6 +1030,17 @@ raw_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v & ~@i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
 {
@@ -521,6 +1051,17 @@ raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_or() - atomic bitwise OR with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_or() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_or(long i, atomic_long_t *v)
 {
@@ -531,6 +1072,17 @@ raw_atomic_long_or(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_or() - atomic bitwise OR with full ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v | @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_or() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_or(long i, atomic_long_t *v)
 {
@@ -541,6 +1093,17 @@ raw_atomic_long_fetch_or(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_or_acquire() - atomic bitwise OR with acquire ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v | @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_or_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
 {
@@ -551,6 +1114,17 @@ raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_or_release() - atomic bitwise OR with release ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v | @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_or_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
 {
@@ -561,6 +1135,17 @@ raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_or_relaxed() - atomic bitwise OR with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v | @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_or_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
 {
@@ -571,6 +1156,17 @@ raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_xor() - atomic bitwise XOR with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_xor() elsewhere.
+ *
+ * Return: Nothing.
+ */
 static __always_inline void
 raw_atomic_long_xor(long i, atomic_long_t *v)
 {
@@ -581,6 +1177,17 @@ raw_atomic_long_xor(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_xor() - atomic bitwise XOR with full ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v ^ @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_xor(long i, atomic_long_t *v)
 {
@@ -591,6 +1198,17 @@ raw_atomic_long_fetch_xor(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_xor_acquire() - atomic bitwise XOR with acquire ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v ^ @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
 {
@@ -601,6 +1219,17 @@ raw_atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_xor_release() - atomic bitwise XOR with release ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v ^ @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_xor_release(long i, atomic_long_t *v)
 {
@@ -611,6 +1240,17 @@ raw_atomic_long_fetch_xor_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_xor_relaxed() - atomic bitwise XOR with relaxed ordering
+ * @i: long value
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v ^ @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
 {
@@ -621,6 +1261,17 @@ raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_xchg() - atomic exchange with full ordering
+ * @v: pointer to atomic_long_t
+ * @new: long value to assign
+ *
+ * Atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_xchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_xchg(atomic_long_t *v, long new)
 {
@@ -631,6 +1282,17 @@ raw_atomic_long_xchg(atomic_long_t *v, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_xchg_acquire() - atomic exchange with acquire ordering
+ * @v: pointer to atomic_long_t
+ * @new: long value to assign
+ *
+ * Atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_xchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_xchg_acquire(atomic_long_t *v, long new)
 {
@@ -641,6 +1303,17 @@ raw_atomic_long_xchg_acquire(atomic_long_t *v, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_xchg_release() - atomic exchange with release ordering
+ * @v: pointer to atomic_long_t
+ * @new: long value to assign
+ *
+ * Atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_xchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_xchg_release(atomic_long_t *v, long new)
 {
@@ -651,6 +1324,17 @@ raw_atomic_long_xchg_release(atomic_long_t *v, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_xchg_relaxed() - atomic exchange with relaxed ordering
+ * @v: pointer to atomic_long_t
+ * @new: long value to assign
+ *
+ * Atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_xchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_xchg_relaxed(atomic_long_t *v, long new)
 {
@@ -661,6 +1345,18 @@ raw_atomic_long_xchg_relaxed(atomic_long_t *v, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic_long_t
+ * @old: long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_cmpxchg() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
 {
@@ -671,6 +1367,18 @@ raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic_long_t
+ * @old: long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_cmpxchg_acquire() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
 {
@@ -681,6 +1389,18 @@ raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic_long_t
+ * @old: long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_cmpxchg_release() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
 {
@@ -691,6 +1411,18 @@ raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic_long_t
+ * @old: long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
 {
@@ -701,6 +1433,19 @@ raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_try_cmpxchg() - atomic compare and exchange with full ordering
+ * @v: pointer to atomic_long_t
+ * @old: pointer to long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with full ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
 {
@@ -711,6 +1456,19 @@ raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * @v: pointer to atomic_long_t
+ * @old: pointer to long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with acquire ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_acquire() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
 {
@@ -721,6 +1479,19 @@ raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * @v: pointer to atomic_long_t
+ * @old: pointer to long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with release ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_release() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
 {
@@ -731,6 +1502,19 @@ raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * @v: pointer to atomic_long_t
+ * @old: pointer to long value to compare with
+ * @new: long value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with relaxed ordering.
+ * Otherwise, updates @old to the current value of @v.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_relaxed() elsewhere.
+ *
+ * Return: @true if the exchange occured, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
 {
@@ -741,6 +1525,17 @@ raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
 #endif
 }
 
+/**
+ * raw_atomic_long_sub_and_test() - atomic subtract and test if zero with full ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_sub_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
 {
@@ -751,6 +1546,16 @@ raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_and_test() - atomic decrement and test if zero with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_dec_and_test(atomic_long_t *v)
 {
@@ -761,6 +1566,16 @@ raw_atomic_long_dec_and_test(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_and_test() - atomic increment and test if zero with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_and_test() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is zero, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_inc_and_test(atomic_long_t *v)
 {
@@ -771,6 +1586,17 @@ raw_atomic_long_inc_and_test(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_negative() - atomic add and test if negative with full ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_negative() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_add_negative(long i, atomic_long_t *v)
 {
@@ -781,6 +1607,17 @@ raw_atomic_long_add_negative(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with acquire ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_acquire() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
 {
@@ -791,6 +1628,17 @@ raw_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_negative_release() - atomic add and test if negative with release ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with release ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_release() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_add_negative_release(long i, atomic_long_t *v)
 {
@@ -801,6 +1649,17 @@ raw_atomic_long_add_negative_release(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * @i: long value to add
+ * @v: pointer to atomic_long_t
+ *
+ * Atomically updates @v to (@v + @i) with relaxed ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_relaxed() elsewhere.
+ *
+ * Return: @true if the resulting value of @v is negative, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
 {
@@ -811,6 +1670,18 @@ raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_fetch_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic_long_t
+ * @a: long value to add
+ * @u: long value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_unless() elsewhere.
+ *
+ * Return: The original value of @v.
+ */
 static __always_inline long
 raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
 {
@@ -821,6 +1692,18 @@ raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
 #endif
 }
 
+/**
+ * raw_atomic_long_add_unless() - atomic add unless value with full ordering
+ * @v: pointer to atomic_long_t
+ * @a: long value to add
+ * @u: long value to compare with
+ *
+ * If (@v != @u), atomically updates @v to (@v + @a) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_add_unless() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {
@@ -831,6 +1714,16 @@ raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_not_zero() - atomic increment unless zero with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * If (@v != 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_not_zero() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_inc_not_zero(atomic_long_t *v)
 {
@@ -841,6 +1734,16 @@ raw_atomic_long_inc_not_zero(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_inc_unless_negative() - atomic increment unless negative with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_inc_unless_negative() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_inc_unless_negative(atomic_long_t *v)
 {
@@ -851,6 +1754,16 @@ raw_atomic_long_inc_unless_negative(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_unless_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline bool
 raw_atomic_long_dec_unless_positive(atomic_long_t *v)
 {
@@ -861,6 +1774,16 @@ raw_atomic_long_dec_unless_positive(atomic_long_t *v)
 #endif
 }
 
+/**
+ * raw_atomic_long_dec_if_positive() - atomic decrement if positive with full ordering
+ * @v: pointer to atomic_long_t
+ *
+ * If (@v > 0), atomically updates @v to (@v - 1) with full ordering.
+ *
+ * Safe to use in noinstr code; prefer atomic_long_dec_if_positive() elsewhere.
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
 static __always_inline long
 raw_atomic_long_dec_if_positive(atomic_long_t *v)
 {
@@ -872,4 +1795,4 @@ raw_atomic_long_dec_if_positive(atomic_long_t *v)
 }
 
 #endif /* _LINUX_ATOMIC_LONG_H */
-// e785d25cc3f220b7d473d36aac9da85dd7eb13a8
+// 029d2e3a493086671e874a4c2e0e42084be42403
