@@ -312,7 +312,7 @@ struct ast2600_i2c_bus {
 	/* Slave structure */
 	int				slave_xfer_len;
 	int				slave_xfer_cnt;
-#ifdef CONFIG_I2C_SLAVE
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
 	unsigned char			*slave_dma_buf;
 	dma_addr_t			slave_dma_addr;
 	struct i2c_client		*slave;
@@ -627,6 +627,7 @@ static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u
 		cmd = SLAVE_TRIGGER_CMD;
 		slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
 						       AST2600_I2CC_BUFF_CTRL));
+
 		for (i = 0; i < slave_rx_len; i++) {
 			value = readb(i2c_bus->buf_base + 0x10 + i);
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &value);
@@ -682,8 +683,14 @@ static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u
 				i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
 		cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_TX_BUFF_EN;
 		break;
+
+	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_WAIT_TX_DMA | AST2600_I2CS_RX_DONE:
 	case AST2600_I2CS_WAIT_TX_DMA | AST2600_I2CS_RX_DONE:
 	case AST2600_I2CS_WAIT_TX_DMA:
+		/* it should be repeat start read */
+		if (sts & AST2600_I2CS_SLAVE_MATCH)
+			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+
 		if (sts & AST2600_I2CS_RX_DONE) {
 			slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
 							AST2600_I2CC_BUFF_CTRL));
