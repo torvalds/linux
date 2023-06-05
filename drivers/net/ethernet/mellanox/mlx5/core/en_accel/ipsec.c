@@ -61,16 +61,19 @@ static void mlx5e_ipsec_handle_tx_limit(struct work_struct *_work)
 	struct mlx5e_ipsec_sa_entry *sa_entry = dwork->sa_entry;
 	struct xfrm_state *x = sa_entry->x;
 
-	spin_lock(&x->lock);
+	if (sa_entry->attrs.drop)
+		return;
+
+	spin_lock_bh(&x->lock);
 	xfrm_state_check_expire(x);
 	if (x->km.state == XFRM_STATE_EXPIRED) {
 		sa_entry->attrs.drop = true;
-		mlx5e_accel_ipsec_fs_modify(sa_entry);
-	}
-	spin_unlock(&x->lock);
+		spin_unlock_bh(&x->lock);
 
-	if (sa_entry->attrs.drop)
+		mlx5e_accel_ipsec_fs_modify(sa_entry);
 		return;
+	}
+	spin_unlock_bh(&x->lock);
 
 	queue_delayed_work(sa_entry->ipsec->wq, &dwork->dwork,
 			   MLX5_IPSEC_RESCHED);
