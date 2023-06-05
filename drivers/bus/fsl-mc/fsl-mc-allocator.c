@@ -103,14 +103,15 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
+	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
+	mc_bus = to_fsl_mc_bus(mc_bus_dev);
+
 	resource = mc_dev->resource;
 	if (!resource || resource->data != mc_dev) {
 		dev_err(&mc_bus_dev->dev, "resource mismatch\n");
 		goto out;
 	}
 
-	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
-	mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	res_pool = resource->parent_pool;
 	if (res_pool != &mc_bus->resource_pools[resource->type]) {
 		dev_err(&mc_bus_dev->dev, "pool mismatch\n");
