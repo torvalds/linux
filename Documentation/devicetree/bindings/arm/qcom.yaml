@@ -94,6 +94,7 @@ description: |
         ap-mi01.2
         ap-mi01.3
         ap-mi01.6
+        ap-mi01.9
         cdp
         cp01-c1
         dragonboard
@@ -341,6 +342,7 @@ properties:
               - qcom,ipq5332-ap-mi01.2
               - qcom,ipq5332-ap-mi01.3
               - qcom,ipq5332-ap-mi01.6
+              - qcom,ipq5332-ap-mi01.9
           - const: qcom,ipq5332
 
       - items:
