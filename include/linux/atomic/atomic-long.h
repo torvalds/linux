@@ -21,1030 +21,855 @@ typedef atomic_t atomic_long_t;
 #define atomic_long_cond_read_relaxed	atomic_cond_read_relaxed
 #endif
 
+static __always_inline long
+raw_atomic_long_read(const atomic_long_t *v)
+{
 #ifdef CONFIG_64BIT
-
-static __always_inline long
-raw_atomic_long_read(const atomic_long_t *v)
-{
 	return raw_atomic64_read(v);
-}
-
-static __always_inline long
-raw_atomic_long_read_acquire(const atomic_long_t *v)
-{
-	return raw_atomic64_read_acquire(v);
-}
-
-static __always_inline void
-raw_atomic_long_set(atomic_long_t *v, long i)
-{
-	raw_atomic64_set(v, i);
-}
-
-static __always_inline void
-raw_atomic_long_set_release(atomic_long_t *v, long i)
-{
-	raw_atomic64_set_release(v, i);
-}
-
-static __always_inline void
-raw_atomic_long_add(long i, atomic_long_t *v)
-{
-	raw_atomic64_add(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_add_return(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_return(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_return_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_add_return_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_return_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_return_relaxed(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_add(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_add(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_add_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_add_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_add_relaxed(i, v);
-}
-
-static __always_inline void
-raw_atomic_long_sub(long i, atomic_long_t *v)
-{
-	raw_atomic64_sub(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_sub_return(long i, atomic_long_t *v)
-{
-	return raw_atomic64_sub_return(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_sub_return_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_sub_return_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_sub_return_relaxed(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_sub(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_sub_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_sub_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_sub_relaxed(i, v);
-}
-
-static __always_inline void
-raw_atomic_long_inc(atomic_long_t *v)
-{
-	raw_atomic64_inc(v);
-}
-
-static __always_inline long
-raw_atomic_long_inc_return(atomic_long_t *v)
-{
-	return raw_atomic64_inc_return(v);
-}
-
-static __always_inline long
-raw_atomic_long_inc_return_acquire(atomic_long_t *v)
-{
-	return raw_atomic64_inc_return_acquire(v);
-}
-
-static __always_inline long
-raw_atomic_long_inc_return_release(atomic_long_t *v)
-{
-	return raw_atomic64_inc_return_release(v);
-}
-
-static __always_inline long
-raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
-{
-	return raw_atomic64_inc_return_relaxed(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_inc(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_inc(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_inc_acquire(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_inc_release(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_inc_release(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_inc_relaxed(v);
-}
-
-static __always_inline void
-raw_atomic_long_dec(atomic_long_t *v)
-{
-	raw_atomic64_dec(v);
-}
-
-static __always_inline long
-raw_atomic_long_dec_return(atomic_long_t *v)
-{
-	return raw_atomic64_dec_return(v);
-}
-
-static __always_inline long
-raw_atomic_long_dec_return_acquire(atomic_long_t *v)
-{
-	return raw_atomic64_dec_return_acquire(v);
-}
-
-static __always_inline long
-raw_atomic_long_dec_return_release(atomic_long_t *v)
-{
-	return raw_atomic64_dec_return_release(v);
-}
-
-static __always_inline long
-raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
-{
-	return raw_atomic64_dec_return_relaxed(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_dec(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_dec(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_dec_acquire(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_dec_release(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_dec_release(v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
-{
-	return raw_atomic64_fetch_dec_relaxed(v);
-}
-
-static __always_inline void
-raw_atomic_long_and(long i, atomic_long_t *v)
-{
-	raw_atomic64_and(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_and(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_and(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_and_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_and_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_and_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_and_relaxed(i, v);
-}
-
-static __always_inline void
-raw_atomic_long_andnot(long i, atomic_long_t *v)
-{
-	raw_atomic64_andnot(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_andnot(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_andnot(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_andnot_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_andnot_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_andnot_relaxed(i, v);
-}
-
-static __always_inline void
-raw_atomic_long_or(long i, atomic_long_t *v)
-{
-	raw_atomic64_or(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_or(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_or(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_or_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_or_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_or_relaxed(i, v);
-}
-
-static __always_inline void
-raw_atomic_long_xor(long i, atomic_long_t *v)
-{
-	raw_atomic64_xor(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_xor(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_xor(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_xor_acquire(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_xor_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_xor_release(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_fetch_xor_relaxed(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_xchg(atomic_long_t *v, long i)
-{
-	return raw_atomic64_xchg(v, i);
-}
-
-static __always_inline long
-raw_atomic_long_xchg_acquire(atomic_long_t *v, long i)
-{
-	return raw_atomic64_xchg_acquire(v, i);
-}
-
-static __always_inline long
-raw_atomic_long_xchg_release(atomic_long_t *v, long i)
-{
-	return raw_atomic64_xchg_release(v, i);
-}
-
-static __always_inline long
-raw_atomic_long_xchg_relaxed(atomic_long_t *v, long i)
-{
-	return raw_atomic64_xchg_relaxed(v, i);
-}
-
-static __always_inline long
-raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
-{
-	return raw_atomic64_cmpxchg(v, old, new);
-}
-
-static __always_inline long
-raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
-{
-	return raw_atomic64_cmpxchg_acquire(v, old, new);
-}
-
-static __always_inline long
-raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
-{
-	return raw_atomic64_cmpxchg_release(v, old, new);
-}
-
-static __always_inline long
-raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
-{
-	return raw_atomic64_cmpxchg_relaxed(v, old, new);
-}
-
-static __always_inline bool
-raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
-{
-	return raw_atomic64_try_cmpxchg(v, (s64 *)old, new);
-}
-
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
-{
-	return raw_atomic64_try_cmpxchg_acquire(v, (s64 *)old, new);
-}
-
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
-{
-	return raw_atomic64_try_cmpxchg_release(v, (s64 *)old, new);
-}
-
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
-{
-	return raw_atomic64_try_cmpxchg_relaxed(v, (s64 *)old, new);
-}
-
-static __always_inline bool
-raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
-{
-	return raw_atomic64_sub_and_test(i, v);
-}
-
-static __always_inline bool
-raw_atomic_long_dec_and_test(atomic_long_t *v)
-{
-	return raw_atomic64_dec_and_test(v);
-}
-
-static __always_inline bool
-raw_atomic_long_inc_and_test(atomic_long_t *v)
-{
-	return raw_atomic64_inc_and_test(v);
-}
-
-static __always_inline bool
-raw_atomic_long_add_negative(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_negative(i, v);
-}
-
-static __always_inline bool
-raw_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_negative_acquire(i, v);
-}
-
-static __always_inline bool
-raw_atomic_long_add_negative_release(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_negative_release(i, v);
-}
-
-static __always_inline bool
-raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
-{
-	return raw_atomic64_add_negative_relaxed(i, v);
-}
-
-static __always_inline long
-raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
-{
-	return raw_atomic64_fetch_add_unless(v, a, u);
-}
-
-static __always_inline bool
-raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
-{
-	return raw_atomic64_add_unless(v, a, u);
-}
-
-static __always_inline bool
-raw_atomic_long_inc_not_zero(atomic_long_t *v)
-{
-	return raw_atomic64_inc_not_zero(v);
-}
-
-static __always_inline bool
-raw_atomic_long_inc_unless_negative(atomic_long_t *v)
-{
-	return raw_atomic64_inc_unless_negative(v);
-}
-
-static __always_inline bool
-raw_atomic_long_dec_unless_positive(atomic_long_t *v)
-{
-	return raw_atomic64_dec_unless_positive(v);
-}
-
-static __always_inline long
-raw_atomic_long_dec_if_positive(atomic_long_t *v)
-{
-	return raw_atomic64_dec_if_positive(v);
-}
-
-#else /* CONFIG_64BIT */
-
-static __always_inline long
-raw_atomic_long_read(const atomic_long_t *v)
-{
+#else
 	return raw_atomic_read(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_read_acquire(const atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_read_acquire(v);
+#else
 	return raw_atomic_read_acquire(v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_set(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_set(v, i);
+#else
 	raw_atomic_set(v, i);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_set_release(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_set_release(v, i);
+#else
 	raw_atomic_set_release(v, i);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_add(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_add(i, v);
+#else
 	raw_atomic_add(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_add_return(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_return(i, v);
+#else
 	return raw_atomic_add_return(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_return_acquire(i, v);
+#else
 	return raw_atomic_add_return_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_add_return_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_return_release(i, v);
+#else
 	return raw_atomic_add_return_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_return_relaxed(i, v);
+#else
 	return raw_atomic_add_return_relaxed(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_add(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_add(i, v);
+#else
 	return raw_atomic_fetch_add(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_add_acquire(i, v);
+#else
 	return raw_atomic_fetch_add_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_add_release(i, v);
+#else
 	return raw_atomic_fetch_add_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_add_relaxed(i, v);
+#else
 	return raw_atomic_fetch_add_relaxed(i, v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_sub(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_sub(i, v);
+#else
 	raw_atomic_sub(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_sub_return(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_sub_return(i, v);
+#else
 	return raw_atomic_sub_return(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_sub_return_acquire(i, v);
+#else
 	return raw_atomic_sub_return_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_sub_return_release(i, v);
+#else
 	return raw_atomic_sub_return_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_sub_return_relaxed(i, v);
+#else
 	return raw_atomic_sub_return_relaxed(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_sub(i, v);
+#else
 	return raw_atomic_fetch_sub(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_sub_acquire(i, v);
+#else
 	return raw_atomic_fetch_sub_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_sub_release(i, v);
+#else
 	return raw_atomic_fetch_sub_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_sub_relaxed(i, v);
+#else
 	return raw_atomic_fetch_sub_relaxed(i, v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_inc(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_inc(v);
+#else
 	raw_atomic_inc(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_inc_return(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_return(v);
+#else
 	return raw_atomic_inc_return(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_inc_return_acquire(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_return_acquire(v);
+#else
 	return raw_atomic_inc_return_acquire(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_inc_return_release(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_return_release(v);
+#else
 	return raw_atomic_inc_return_release(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_return_relaxed(v);
+#else
 	return raw_atomic_inc_return_relaxed(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_inc(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_inc(v);
+#else
 	return raw_atomic_fetch_inc(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_inc_acquire(v);
+#else
 	return raw_atomic_fetch_inc_acquire(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_inc_release(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_inc_release(v);
+#else
 	return raw_atomic_fetch_inc_release(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_inc_relaxed(v);
+#else
 	return raw_atomic_fetch_inc_relaxed(v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_dec(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_dec(v);
+#else
 	raw_atomic_dec(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_dec_return(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_return(v);
+#else
 	return raw_atomic_dec_return(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_dec_return_acquire(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_return_acquire(v);
+#else
 	return raw_atomic_dec_return_acquire(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_dec_return_release(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_return_release(v);
+#else
 	return raw_atomic_dec_return_release(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_return_relaxed(v);
+#else
 	return raw_atomic_dec_return_relaxed(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_dec(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_dec(v);
+#else
 	return raw_atomic_fetch_dec(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_dec_acquire(v);
+#else
 	return raw_atomic_fetch_dec_acquire(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_dec_release(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_dec_release(v);
+#else
 	return raw_atomic_fetch_dec_release(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_dec_relaxed(v);
+#else
 	return raw_atomic_fetch_dec_relaxed(v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_and(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_and(i, v);
+#else
 	raw_atomic_and(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_and(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_and(i, v);
+#else
 	return raw_atomic_fetch_and(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_and_acquire(i, v);
+#else
 	return raw_atomic_fetch_and_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_and_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_and_release(i, v);
+#else
 	return raw_atomic_fetch_and_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_and_relaxed(i, v);
+#else
 	return raw_atomic_fetch_and_relaxed(i, v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_andnot(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_andnot(i, v);
+#else
 	raw_atomic_andnot(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_andnot(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_andnot(i, v);
+#else
 	return raw_atomic_fetch_andnot(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_andnot_acquire(i, v);
+#else
 	return raw_atomic_fetch_andnot_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_andnot_release(i, v);
+#else
 	return raw_atomic_fetch_andnot_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_andnot_relaxed(i, v);
+#else
 	return raw_atomic_fetch_andnot_relaxed(i, v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_or(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_or(i, v);
+#else
 	raw_atomic_or(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_or(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_or(i, v);
+#else
 	return raw_atomic_fetch_or(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_or_acquire(i, v);
+#else
 	return raw_atomic_fetch_or_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_or_release(i, v);
+#else
 	return raw_atomic_fetch_or_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_or_relaxed(i, v);
+#else
 	return raw_atomic_fetch_or_relaxed(i, v);
+#endif
 }
 
 static __always_inline void
 raw_atomic_long_xor(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	raw_atomic64_xor(i, v);
+#else
 	raw_atomic_xor(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_xor(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_xor(i, v);
+#else
 	return raw_atomic_fetch_xor(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_xor_acquire(i, v);
+#else
 	return raw_atomic_fetch_xor_acquire(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_xor_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_xor_release(i, v);
+#else
 	return raw_atomic_fetch_xor_release(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_xor_relaxed(i, v);
+#else
 	return raw_atomic_fetch_xor_relaxed(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_xchg(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_xchg(v, i);
+#else
 	return raw_atomic_xchg(v, i);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_xchg_acquire(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_xchg_acquire(v, i);
+#else
 	return raw_atomic_xchg_acquire(v, i);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_xchg_release(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_xchg_release(v, i);
+#else
 	return raw_atomic_xchg_release(v, i);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_xchg_relaxed(atomic_long_t *v, long i)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_xchg_relaxed(v, i);
+#else
 	return raw_atomic_xchg_relaxed(v, i);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_cmpxchg(v, old, new);
+#else
 	return raw_atomic_cmpxchg(v, old, new);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_cmpxchg_acquire(v, old, new);
+#else
 	return raw_atomic_cmpxchg_acquire(v, old, new);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_cmpxchg_release(v, old, new);
+#else
 	return raw_atomic_cmpxchg_release(v, old, new);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_cmpxchg_relaxed(v, old, new);
+#else
 	return raw_atomic_cmpxchg_relaxed(v, old, new);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_try_cmpxchg(v, (s64 *)old, new);
+#else
 	return raw_atomic_try_cmpxchg(v, (int *)old, new);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_try_cmpxchg_acquire(v, (s64 *)old, new);
+#else
 	return raw_atomic_try_cmpxchg_acquire(v, (int *)old, new);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_try_cmpxchg_release(v, (s64 *)old, new);
+#else
 	return raw_atomic_try_cmpxchg_release(v, (int *)old, new);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_try_cmpxchg_relaxed(v, (s64 *)old, new);
+#else
 	return raw_atomic_try_cmpxchg_relaxed(v, (int *)old, new);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_sub_and_test(i, v);
+#else
 	return raw_atomic_sub_and_test(i, v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_dec_and_test(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_and_test(v);
+#else
 	return raw_atomic_dec_and_test(v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_inc_and_test(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_and_test(v);
+#else
 	return raw_atomic_inc_and_test(v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_add_negative(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_negative(i, v);
+#else
 	return raw_atomic_add_negative(i, v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_negative_acquire(i, v);
+#else
 	return raw_atomic_add_negative_acquire(i, v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_add_negative_release(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_negative_release(i, v);
+#else
 	return raw_atomic_add_negative_release(i, v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_negative_relaxed(i, v);
+#else
 	return raw_atomic_add_negative_relaxed(i, v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_fetch_add_unless(v, a, u);
+#else
 	return raw_atomic_fetch_add_unless(v, a, u);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_add_unless(v, a, u);
+#else
 	return raw_atomic_add_unless(v, a, u);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_inc_not_zero(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_not_zero(v);
+#else
 	return raw_atomic_inc_not_zero(v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_inc_unless_negative(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_inc_unless_negative(v);
+#else
 	return raw_atomic_inc_unless_negative(v);
+#endif
 }
 
 static __always_inline bool
 raw_atomic_long_dec_unless_positive(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_unless_positive(v);
+#else
 	return raw_atomic_dec_unless_positive(v);
+#endif
 }
 
 static __always_inline long
 raw_atomic_long_dec_if_positive(atomic_long_t *v)
 {
+#ifdef CONFIG_64BIT
+	return raw_atomic64_dec_if_positive(v);
+#else
 	return raw_atomic_dec_if_positive(v);
+#endif
 }
 
-#endif /* CONFIG_64BIT */
 #endif /* _LINUX_ATOMIC_LONG_H */
-// 108784846d3bbbb201b8dabe621c5dc30b216206
+// ad09f849db0db5b30c82e497eeb9056a394c5f22

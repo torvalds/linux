@@ -32,7 +32,7 @@ gen_args_cast()
 	done
 }
 
-#gen_proto_order_variant(meta, pfx, name, sfx, order, atomic, int, arg...)
+#gen_proto_order_variant(meta, pfx, name, sfx, order, arg...)
 gen_proto_order_variant()
 {
 	local meta="$1"; shift
@@ -40,21 +40,24 @@ gen_proto_order_variant()
 	local name="$1"; shift
 	local sfx="$1"; shift
 	local order="$1"; shift
-	local atomic="$1"; shift
-	local int="$1"; shift
 
 	local atomicname="${pfx}${name}${sfx}${order}"
 
 	local ret="$(gen_ret_type "${meta}" "long")"
 	local params="$(gen_params "long" "atomic_long" "$@")"
-	local argscast="$(gen_args_cast "${int}" "${atomic}" "$@")"
+	local argscast_32="$(gen_args_cast "int" "atomic" "$@")"
+	local argscast_64="$(gen_args_cast "s64" "atomic64" "$@")"
 	local retstmt="$(gen_ret_stmt "${meta}")"
 
 cat <<EOF
 static __always_inline ${ret}
 raw_atomic_long_${atomicname}(${params})
 {
-	${retstmt}raw_${atomic}_${atomicname}(${argscast});
+#ifdef CONFIG_64BIT
+	${retstmt}raw_atomic64_${atomicname}(${argscast_64});
+#else
+	${retstmt}raw_atomic_${atomicname}(${argscast_32});
+#endif
 }
 
 EOF
@@ -84,24 +87,12 @@ typedef atomic_t atomic_long_t;
 #define atomic_long_cond_read_relaxed	atomic_cond_read_relaxed
 #endif
 
-#ifdef CONFIG_64BIT
-
 EOF
 
 grep '^[a-z]' "$1" | while read name meta args; do
-	gen_proto "${meta}" "${name}" "atomic64" "s64" ${args}
+	gen_proto "${meta}" "${name}" ${args}
 done
 
 cat <<EOF
-#else /* CONFIG_64BIT */
-
-EOF
-
-grep '^[a-z]' "$1" | while read name meta args; do
-	gen_proto "${meta}" "${name}" "atomic" "int" ${args}
-done
-
-cat <<EOF
-#endif /* CONFIG_64BIT */
 #endif /* _LINUX_ATOMIC_LONG_H */
 EOF
