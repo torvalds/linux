@@ -75,6 +75,8 @@
 #define NAU8825_REG_MISC_CTRL		0x55
 #define NAU8825_REG_I2C_DEVICE_ID		0x58
 #define NAU8825_REG_SARDOUT_RAM_STATUS		0x59
+#define NAU8825_REG_FLL2_LOWER		0x5a
+#define NAU8825_REG_FLL2_UPPER		0x5b
 #define NAU8825_REG_BIAS_ADJ		0x66
 #define NAU8825_REG_TRIM_SETTINGS		0x68
 #define NAU8825_REG_ANALOG_CONTROL_1		0x69
@@ -386,6 +388,7 @@
 #define NAU8825_GPIO2JD1	(1 << 7)
 #define NAU8825_SOFTWARE_ID_MASK	0x3
 #define NAU8825_SOFTWARE_ID_NAU8825	0x0
+#define NAU8825_SOFTWARE_ID_NAU8825C	0x1
 
 /* BIAS_ADJ (0x66) */
 #define NAU8825_BIAS_HPR_IMP		(1 << 15)
@@ -497,6 +500,7 @@ struct nau8825 {
 	struct clk *mclk;
 	struct work_struct xtalk_work;
 	struct semaphore xtalk_sem;
+	int sw_id;
 	int irq;
 	int mclk_freq; /* 0 - mclk is disabled */
 	int button_pressed;
