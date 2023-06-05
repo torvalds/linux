@@ -200,16 +200,6 @@ ATOMIC_OPS(xor, xor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define arch_atomic64_cmpxchg(v, old, new) \
-	(arch_cmpxchg(&((v)->counter), old, new))
-#define arch_atomic64_xchg(v, new) \
-	(arch_xchg(&((v)->counter), new))
-
-#define arch_atomic_cmpxchg(v, old, new) \
-	(arch_cmpxchg(&((v)->counter), old, new))
-#define arch_atomic_xchg(v, new) \
-	(arch_xchg(&((v)->counter), new))
-
 /**
  * arch_atomic_fetch_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t

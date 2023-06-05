@@ -36,12 +36,6 @@ static inline void arch_atomic_set(atomic_t *v, int new)
  */
 #define arch_atomic_read(v)		READ_ONCE((v)->counter)
 
-#define arch_atomic_xchg(v, new)					\
-	(arch_xchg(&((v)->counter), (new)))
-
-#define arch_atomic_cmpxchg(v, old, new)				\
-	(arch_cmpxchg(&((v)->counter), (old), (new)))
-
 #define ATOMIC_OP(op)							\
 static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\

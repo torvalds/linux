@@ -73,10 +73,6 @@ static __inline__ int arch_atomic_read(const atomic_t *v)
 	return READ_ONCE((v)->counter);
 }
 
-/* exported interface */
-#define arch_atomic_cmpxchg(v, o, n)	(arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
-
 #define ATOMIC_OP(op, c_op)						\
 static __inline__ void arch_atomic_##op(int i, atomic_t *v)		\
 {									\
@@ -217,11 +213,6 @@ arch_atomic64_read(const atomic64_t *v)
 {
 	return READ_ONCE((v)->counter);
 }
-
-/* exported interface */
-#define arch_atomic64_cmpxchg(v, o, n) \
-	((__typeof__((v)->counter))arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #endif /* !CONFIG_64BIT */
 

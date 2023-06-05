@@ -210,6 +210,7 @@ static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 
 	return ret;
 }
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
 #define arch_atomic_fetch_andnot		arch_atomic_fetch_andnot
 
@@ -239,8 +240,6 @@ ATOMIC_OPS(xor, ^=, eor)
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #ifndef CONFIG_GENERIC_ATOMIC64
 typedef struct {

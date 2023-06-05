@@ -24,7 +24,9 @@ int arch_atomic_fetch_and(int, atomic_t *);
 int arch_atomic_fetch_or(int, atomic_t *);
 int arch_atomic_fetch_xor(int, atomic_t *);
 int arch_atomic_cmpxchg(atomic_t *, int, int);
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 int arch_atomic_xchg(atomic_t *, int);
+#define arch_atomic_xchg arch_atomic_xchg
 int arch_atomic_fetch_add_unless(atomic_t *, int, int);
 void arch_atomic_set(atomic_t *, int);
 

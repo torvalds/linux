@@ -158,12 +158,7 @@ static inline int arch_atomic_inc_and_test(atomic_t *v)
 }
 #define arch_atomic_inc_and_test arch_atomic_inc_and_test
 
-#ifdef CONFIG_RMW_INSNS
-
-#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
-#else /* !CONFIG_RMW_INSNS */
+#ifndef CONFIG_RMW_INSNS
 
 static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
@@ -177,6 +172,7 @@ static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 	local_irq_restore(flags);
 	return prev;
 }
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
 static inline int arch_atomic_xchg(atomic_t *v, int new)
 {
@@ -189,6 +185,7 @@ static inline int arch_atomic_xchg(atomic_t *v, int new)
 	local_irq_restore(flags);
 	return prev;
 }
+#define arch_atomic_xchg arch_atomic_xchg
 
 #endif /* !CONFIG_RMW_INSNS */
 

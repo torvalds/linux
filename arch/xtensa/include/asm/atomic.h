@@ -257,7 +257,4 @@ ATOMIC_OPS(xor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
 #endif /* _XTENSA_ATOMIC_H */

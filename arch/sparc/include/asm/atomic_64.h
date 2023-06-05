@@ -49,17 +49,6 @@ ATOMIC_OPS(xor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define arch_atomic_cmpxchg(v, o, n) (arch_cmpxchg(&((v)->counter), (o), (n)))
-
-static inline int arch_atomic_xchg(atomic_t *v, int new)
-{
-	return arch_xchg(&v->counter, new);
-}
-
-#define arch_atomic64_cmpxchg(v, o, n) \
-	((__typeof__((v)->counter))arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
 s64 arch_atomic64_dec_if_positive(atomic64_t *v);
 #define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 

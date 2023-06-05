@@ -159,6 +159,7 @@ arch_atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
 
 	return prev;
 }
+#define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
 
 static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 {
@@ -179,6 +180,7 @@ static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 
 	return prev;
 }
+#define arch_atomic64_xchg arch_atomic64_xchg
 
 /**
  * arch_atomic64_dec_if_positive - decrement by 1 if old value positive

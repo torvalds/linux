@@ -1091,9 +1091,48 @@ arch_atomic_fetch_xor(int i, atomic_t *v)
 #endif /* arch_atomic_fetch_xor_relaxed */
 
 #ifndef arch_atomic_xchg_relaxed
+#ifdef arch_atomic_xchg
 #define arch_atomic_xchg_acquire arch_atomic_xchg
 #define arch_atomic_xchg_release arch_atomic_xchg
 #define arch_atomic_xchg_relaxed arch_atomic_xchg
+#endif /* arch_atomic_xchg */
+
+#ifndef arch_atomic_xchg
+static __always_inline int
+arch_atomic_xchg(atomic_t *v, int new)
+{
+	return arch_xchg(&v->counter, new);
+}
+#define arch_atomic_xchg arch_atomic_xchg
+#endif
+
+#ifndef arch_atomic_xchg_acquire
+static __always_inline int
+arch_atomic_xchg_acquire(atomic_t *v, int new)
+{
+	return arch_xchg_acquire(&v->counter, new);
+}
+#define arch_atomic_xchg_acquire arch_atomic_xchg_acquire
+#endif
+
+#ifndef arch_atomic_xchg_release
+static __always_inline int
+arch_atomic_xchg_release(atomic_t *v, int new)
+{
+	return arch_xchg_release(&v->counter, new);
+}
+#define arch_atomic_xchg_release arch_atomic_xchg_release
+#endif
+
+#ifndef arch_atomic_xchg_relaxed
+static __always_inline int
+arch_atomic_xchg_relaxed(atomic_t *v, int new)
+{
+	return arch_xchg_relaxed(&v->counter, new);
+}
+#define arch_atomic_xchg_relaxed arch_atomic_xchg_relaxed
+#endif
+
 #else /* arch_atomic_xchg_relaxed */
 
 #ifndef arch_atomic_xchg_acquire
@@ -1133,9 +1172,48 @@ arch_atomic_xchg(atomic_t *v, int i)
 #endif /* arch_atomic_xchg_relaxed */
 
 #ifndef arch_atomic_cmpxchg_relaxed
+#ifdef arch_atomic_cmpxchg
 #define arch_atomic_cmpxchg_acquire arch_atomic_cmpxchg
 #define arch_atomic_cmpxchg_release arch_atomic_cmpxchg
 #define arch_atomic_cmpxchg_relaxed arch_atomic_cmpxchg
+#endif /* arch_atomic_cmpxchg */
+
+#ifndef arch_atomic_cmpxchg
+static __always_inline int
+arch_atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	return arch_cmpxchg(&v->counter, old, new);
+}
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
+#endif
+
+#ifndef arch_atomic_cmpxchg_acquire
+static __always_inline int
+arch_atomic_cmpxchg_acquire(atomic_t *v, int old, int new)
+{
+	return arch_cmpxchg_acquire(&v->counter, old, new);
+}
+#define arch_atomic_cmpxchg_acquire arch_atomic_cmpxchg_acquire
+#endif
+
+#ifndef arch_atomic_cmpxchg_release
+static __always_inline int
+arch_atomic_cmpxchg_release(atomic_t *v, int old, int new)
+{
+	return arch_cmpxchg_release(&v->counter, old, new);
+}
+#define arch_atomic_cmpxchg_release arch_atomic_cmpxchg_release
+#endif
+
+#ifndef arch_atomic_cmpxchg_relaxed
+static __always_inline int
+arch_atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
+{
+	return arch_cmpxchg_relaxed(&v->counter, old, new);
+}
+#define arch_atomic_cmpxchg_relaxed arch_atomic_cmpxchg_relaxed
+#endif
+
 #else /* arch_atomic_cmpxchg_relaxed */
 
 #ifndef arch_atomic_cmpxchg_acquire
@@ -2225,9 +2303,48 @@ arch_atomic64_fetch_xor(s64 i, atomic64_t *v)
 #endif /* arch_atomic64_fetch_xor_relaxed */
 
 #ifndef arch_atomic64_xchg_relaxed
+#ifdef arch_atomic64_xchg
 #define arch_atomic64_xchg_acquire arch_atomic64_xchg
 #define arch_atomic64_xchg_release arch_atomic64_xchg
 #define arch_atomic64_xchg_relaxed arch_atomic64_xchg
+#endif /* arch_atomic64_xchg */
+
+#ifndef arch_atomic64_xchg
+static __always_inline s64
+arch_atomic64_xchg(atomic64_t *v, s64 new)
+{
+	return arch_xchg(&v->counter, new);
+}
+#define arch_atomic64_xchg arch_atomic64_xchg
+#endif
+
+#ifndef arch_atomic64_xchg_acquire
+static __always_inline s64
+arch_atomic64_xchg_acquire(atomic64_t *v, s64 new)
+{
+	return arch_xchg_acquire(&v->counter, new);
+}
+#define arch_atomic64_xchg_acquire arch_atomic64_xchg_acquire
+#endif
+
+#ifndef arch_atomic64_xchg_release
+static __always_inline s64
+arch_atomic64_xchg_release(atomic64_t *v, s64 new)
+{
+	return arch_xchg_release(&v->counter, new);
+}
+#define arch_atomic64_xchg_release arch_atomic64_xchg_release
+#endif
+
+#ifndef arch_atomic64_xchg_relaxed
+static __always_inline s64
+arch_atomic64_xchg_relaxed(atomic64_t *v, s64 new)
+{
+	return arch_xchg_relaxed(&v->counter, new);
+}
+#define arch_atomic64_xchg_relaxed arch_atomic64_xchg_relaxed
+#endif
+
 #else /* arch_atomic64_xchg_relaxed */
 
 #ifndef arch_atomic64_xchg_acquire
@@ -2267,9 +2384,48 @@ arch_atomic64_xchg(atomic64_t *v, s64 i)
 #endif /* arch_atomic64_xchg_relaxed */
 
 #ifndef arch_atomic64_cmpxchg_relaxed
+#ifdef arch_atomic64_cmpxchg
 #define arch_atomic64_cmpxchg_acquire arch_atomic64_cmpxchg
 #define arch_atomic64_cmpxchg_release arch_atomic64_cmpxchg
 #define arch_atomic64_cmpxchg_relaxed arch_atomic64_cmpxchg
+#endif /* arch_atomic64_cmpxchg */
+
+#ifndef arch_atomic64_cmpxchg
+static __always_inline s64
+arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
+{
+	return arch_cmpxchg(&v->counter, old, new);
+}
+#define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
+#endif
+
+#ifndef arch_atomic64_cmpxchg_acquire
+static __always_inline s64
+arch_atomic64_cmpxchg_acquire(atomic64_t *v, s64 old, s64 new)
+{
+	return arch_cmpxchg_acquire(&v->counter, old, new);
+}
+#define arch_atomic64_cmpxchg_acquire arch_atomic64_cmpxchg_acquire
+#endif
+
+#ifndef arch_atomic64_cmpxchg_release
+static __always_inline s64
+arch_atomic64_cmpxchg_release(atomic64_t *v, s64 old, s64 new)
+{
+	return arch_cmpxchg_release(&v->counter, old, new);
+}
+#define arch_atomic64_cmpxchg_release arch_atomic64_cmpxchg_release
+#endif
+
+#ifndef arch_atomic64_cmpxchg_relaxed
+static __always_inline s64
+arch_atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
+{
+	return arch_cmpxchg_relaxed(&v->counter, old, new);
+}
+#define arch_atomic64_cmpxchg_relaxed arch_atomic64_cmpxchg_relaxed
+#endif
+
 #else /* arch_atomic64_cmpxchg_relaxed */
 
 #ifndef arch_atomic64_cmpxchg_acquire
@@ -2597,4 +2753,4 @@ arch_atomic64_dec_if_positive(atomic64_t *v)
 #endif
 
 #endif /* _LINUX_ATOMIC_FALLBACK_H */
-// 9f0fd6ed53267c6ec64e36cd18e6fd8df57ea277
+// e1cee558cc61cae887890db30fcdf93baca9f498
