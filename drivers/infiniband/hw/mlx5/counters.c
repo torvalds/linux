@@ -209,7 +209,8 @@ static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
 	     !vport_qcounters_supported(dev)) || !port_num)
 		return &dev->port[0].cnts;
 
-	return &dev->port[port_num - 1].cnts;
+	return is_mdev_switchdev_mode(dev->mdev) ?
+	       &dev->port[1].cnts : &dev->port[port_num - 1].cnts;
 }
 
 /**
@@ -262,7 +263,7 @@ static struct rdma_hw_stats *
 mlx5_ib_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	const struct mlx5_ib_counters *cnts = &dev->port[port_num - 1].cnts;
+	const struct mlx5_ib_counters *cnts = get_counters(dev, port_num);
 
 	return do_alloc_stats(cnts);
 }
@@ -725,11 +726,11 @@ err:
 static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
-	int num_cnt_ports;
+	int num_cnt_ports = dev->num_ports;
 	int i, j;
 
-	num_cnt_ports = (!is_mdev_switchdev_mode(dev->mdev) ||
-			 vport_qcounters_supported(dev)) ? dev->num_ports : 1;
+	if (is_mdev_switchdev_mode(dev->mdev))
+		num_cnt_ports = min(2, num_cnt_ports);
 
 	MLX5_SET(dealloc_q_counter_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
@@ -761,15 +762,22 @@ static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 {
 	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
-	int num_cnt_ports;
+	int num_cnt_ports = dev->num_ports;
 	int err = 0;
 	int i;
 	bool is_shared;
 
 	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
 	is_shared = MLX5_CAP_GEN(dev->mdev, log_max_uctx) != 0;
-	num_cnt_ports = (!is_mdev_switchdev_mode(dev->mdev) ||
-			 vport_qcounters_supported(dev)) ? dev->num_ports : 1;
+
+	/*
+	 * In switchdev we need to allocate two ports, one that is used for
+	 * the device Q_counters and it is essentially the real Q_counters of
+	 * this device, while the other is used as a helper for PF to be able to
+	 * query all other vports.
+	 */
+	if (is_mdev_switchdev_mode(dev->mdev))
+		num_cnt_ports = min(2, num_cnt_ports);
 
 	for (i = 0; i < num_cnt_ports; i++) {
 		err = __mlx5_ib_alloc_counters(dev, &dev->port[i].cnts, i);
