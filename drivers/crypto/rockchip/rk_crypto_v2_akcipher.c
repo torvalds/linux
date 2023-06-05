@@ -160,7 +160,7 @@ static int rk_rsa_calc(struct akcipher_request *req, bool encypt)
 		goto exit;
 
 	out = rk_bn_alloc(key_byte_size);
-	if (!in)
+	if (!out)
 		goto exit;
 
 	tmp_buf = kzalloc(key_byte_size, GFP_KERNEL);
