@@ -1,7 +1,3 @@
 cat <<EOF
-static __always_inline bool
-raw_${atomic}_add_negative${order}(${int} i, ${atomic}_t *v)
-{
 	return raw_${atomic}_add_return${order}(i, v) < 0;
-}
 EOF

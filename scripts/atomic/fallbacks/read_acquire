@@ -1,7 +1,4 @@
 cat <<EOF
-static __always_inline ${ret}
-raw_${atomic}_read_acquire(const ${atomic}_t *v)
-{
 	${int} ret;
 
 	if (__native_word(${atomic}_t)) {
@@ -12,5 +9,4 @@ raw_${atomic}_read_acquire(const ${atomic}_t *v)
 	}
 
 	return ret;
-}
 EOF

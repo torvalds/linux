@@ -1,7 +1,4 @@
 cat << EOF
-static __always_inline ${int}
-raw_${atomic}_fetch_add_unless(${atomic}_t *v, ${int} a, ${int} u)
-{
 	${int} c = raw_${atomic}_read(v);
 
 	do {
@@ -10,5 +7,4 @@ raw_${atomic}_fetch_add_unless(${atomic}_t *v, ${int} a, ${int} u)
 	} while (!raw_${atomic}_try_cmpxchg(v, &c, c + a));
 
 	return c;
-}
 EOF

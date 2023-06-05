@@ -60,12 +60,22 @@ gen_proto_order_variant()
 	local name="$1"; shift
 	local sfx="$1"; shift
 	local order="$1"; shift
-	local atomic="$1"
+	local atomic="$1"; shift
+	local int="$1"; shift
 
 	local atomicname="${atomic}_${pfx}${name}${sfx}${order}"
 	local basename="${atomic}_${pfx}${name}${sfx}"
 
 	local template="$(find_fallback_template "${pfx}" "${name}" "${sfx}" "${order}")"
+
+	local ret="$(gen_ret_type "${meta}" "${int}")"
+	local retstmt="$(gen_ret_stmt "${meta}")"
+	local params="$(gen_params "${int}" "${atomic}" "$@")"
+	local args="$(gen_args "$@")"
+
+	printf "static __always_inline ${ret}\n"
+	printf "raw_${atomicname}(${params})\n"
+	printf "{\n"
 
 	# Where there is no possible fallback, this order variant is mandatory
 	# and must be provided by arch code. Add a comment to the header to
@@ -75,33 +85,35 @@ gen_proto_order_variant()
 	# define this order variant as a C function without a preprocessor
 	# symbol.
 	if [ -z ${template} ] && [ -z "${order}" ] && ! meta_has_relaxed "${meta}"; then
-		printf "#define raw_${atomicname} arch_${atomicname}\n\n"
+		printf "\t${retstmt}arch_${atomicname}(${args});\n"
+		printf "}\n\n"
 		return
 	fi
 
 	printf "#if defined(arch_${atomicname})\n"
-	printf "#define raw_${atomicname} arch_${atomicname}\n"
+	printf "\t${retstmt}arch_${atomicname}(${args});\n"
 
 	# Allow FULL/ACQUIRE/RELEASE ops to be defined in terms of RELAXED ops
 	if [ "${order}" != "_relaxed" ] && meta_has_relaxed "${meta}"; then
 		printf "#elif defined(arch_${basename}_relaxed)\n"
-		gen_order_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "$@"
+		gen_order_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "${atomic}" "${int}" "$@"
 	fi
 
 	# Allow ACQUIRE/RELEASE/RELAXED ops to be defined in terms of FULL ops
 	if [ ! -z "${order}" ]; then
 		printf "#elif defined(arch_${basename})\n"
-		printf "#define raw_${atomicname} arch_${basename}\n"
+		printf "\t${retstmt}arch_${basename}(${args});\n"
 	fi
 
 	printf "#else\n"
 	if [ ! -z "${template}" ]; then
-		gen_proto_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "$@"
+		gen_proto_fallback "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "${atomic}" "${int}" "$@"
 	else
 		printf "#error \"Unable to define raw_${atomicname}\"\n"
 	fi
 
-	printf "#endif\n\n"
+	printf "#endif\n"
+	printf "}\n\n"
 }
 
 

@@ -622,42 +622,42 @@ raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
 }
 
 static __always_inline long
-raw_atomic_long_xchg(atomic_long_t *v, long i)
+raw_atomic_long_xchg(atomic_long_t *v, long new)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg(v, i);
+	return raw_atomic64_xchg(v, new);
 #else
-	return raw_atomic_xchg(v, i);
+	return raw_atomic_xchg(v, new);
 #endif
 }
 
 static __always_inline long
-raw_atomic_long_xchg_acquire(atomic_long_t *v, long i)
+raw_atomic_long_xchg_acquire(atomic_long_t *v, long new)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_acquire(v, i);
+	return raw_atomic64_xchg_acquire(v, new);
 #else
-	return raw_atomic_xchg_acquire(v, i);
+	return raw_atomic_xchg_acquire(v, new);
 #endif
 }
 
 static __always_inline long
-raw_atomic_long_xchg_release(atomic_long_t *v, long i)
+raw_atomic_long_xchg_release(atomic_long_t *v, long new)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_release(v, i);
+	return raw_atomic64_xchg_release(v, new);
 #else
-	return raw_atomic_xchg_release(v, i);
+	return raw_atomic_xchg_release(v, new);
 #endif
 }
 
 static __always_inline long
-raw_atomic_long_xchg_relaxed(atomic_long_t *v, long i)
+raw_atomic_long_xchg_relaxed(atomic_long_t *v, long new)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_relaxed(v, i);
+	return raw_atomic64_xchg_relaxed(v, new);
 #else
-	return raw_atomic_xchg_relaxed(v, i);
+	return raw_atomic_xchg_relaxed(v, new);
 #endif
 }
 
@@ -872,4 +872,4 @@ raw_atomic_long_dec_if_positive(atomic_long_t *v)
 }
 
 #endif /* _LINUX_ATOMIC_LONG_H */
-// ad09f849db0db5b30c82e497eeb9056a394c5f22
+// e785d25cc3f220b7d473d36aac9da85dd7eb13a8

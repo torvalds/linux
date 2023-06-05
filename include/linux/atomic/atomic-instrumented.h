@@ -462,33 +462,33 @@ atomic_fetch_xor_relaxed(int i, atomic_t *v)
 }
 
 static __always_inline int
-atomic_xchg(atomic_t *v, int i)
+atomic_xchg(atomic_t *v, int new)
 {
 	kcsan_mb();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg(v, i);
+	return raw_atomic_xchg(v, new);
 }
 
 static __always_inline int
-atomic_xchg_acquire(atomic_t *v, int i)
+atomic_xchg_acquire(atomic_t *v, int new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_acquire(v, i);
+	return raw_atomic_xchg_acquire(v, new);
 }
 
 static __always_inline int
-atomic_xchg_release(atomic_t *v, int i)
+atomic_xchg_release(atomic_t *v, int new)
 {
 	kcsan_release();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_release(v, i);
+	return raw_atomic_xchg_release(v, new);
 }
 
 static __always_inline int
-atomic_xchg_relaxed(atomic_t *v, int i)
+atomic_xchg_relaxed(atomic_t *v, int new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_relaxed(v, i);
+	return raw_atomic_xchg_relaxed(v, new);
 }
 
 static __always_inline int
@@ -1103,33 +1103,33 @@ atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v)
 }
 
 static __always_inline s64
-atomic64_xchg(atomic64_t *v, s64 i)
+atomic64_xchg(atomic64_t *v, s64 new)
 {
 	kcsan_mb();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg(v, i);
+	return raw_atomic64_xchg(v, new);
 }
 
 static __always_inline s64
-atomic64_xchg_acquire(atomic64_t *v, s64 i)
+atomic64_xchg_acquire(atomic64_t *v, s64 new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_acquire(v, i);
+	return raw_atomic64_xchg_acquire(v, new);
 }
 
 static __always_inline s64
-atomic64_xchg_release(atomic64_t *v, s64 i)
+atomic64_xchg_release(atomic64_t *v, s64 new)
 {
 	kcsan_release();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_release(v, i);
+	return raw_atomic64_xchg_release(v, new);
 }
 
 static __always_inline s64
-atomic64_xchg_relaxed(atomic64_t *v, s64 i)
+atomic64_xchg_relaxed(atomic64_t *v, s64 new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_relaxed(v, i);
+	return raw_atomic64_xchg_relaxed(v, new);
 }
 
 static __always_inline s64
@@ -1744,33 +1744,33 @@ atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
 }
 
 static __always_inline long
-atomic_long_xchg(atomic_long_t *v, long i)
+atomic_long_xchg(atomic_long_t *v, long new)
 {
 	kcsan_mb();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg(v, i);
+	return raw_atomic_long_xchg(v, new);
 }
 
 static __always_inline long
-atomic_long_xchg_acquire(atomic_long_t *v, long i)
+atomic_long_xchg_acquire(atomic_long_t *v, long new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_acquire(v, i);
+	return raw_atomic_long_xchg_acquire(v, new);
 }
 
 static __always_inline long
-atomic_long_xchg_release(atomic_long_t *v, long i)
+atomic_long_xchg_release(atomic_long_t *v, long new)
 {
 	kcsan_release();
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_release(v, i);
+	return raw_atomic_long_xchg_release(v, new);
 }
 
 static __always_inline long
-atomic_long_xchg_relaxed(atomic_long_t *v, long i)
+atomic_long_xchg_relaxed(atomic_long_t *v, long new)
 {
 	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_relaxed(v, i);
+	return raw_atomic_long_xchg_relaxed(v, new);
 }
 
 static __always_inline long
@@ -2231,4 +2231,4 @@ atomic_long_dec_if_positive(atomic_long_t *v)
 
 
 #endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
-// f6502977180430e61c1a7c4e5e665f04f501fb8d
+// a4c3d2b229f907654cc53cb5d40e80f7fed1ec9c

@@ -1,7 +1,4 @@
 cat <<EOF
-static __always_inline ${ret}
-raw_${atomic}_dec_if_positive(${atomic}_t *v)
-{
 	${int} dec, c = raw_${atomic}_read(v);
 
 	do {
@@ -11,5 +8,4 @@ raw_${atomic}_dec_if_positive(${atomic}_t *v)
 	} while (!raw_${atomic}_try_cmpxchg(v, &c, dec));
 
 	return dec;
-}
 EOF
