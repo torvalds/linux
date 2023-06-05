@@ -10,6 +10,7 @@ struct mlx5_ib_dev;
 
 struct mlx5_qp_table {
 	struct notifier_block nb;
+	struct xarray dct_xa;
 
 	/* protect radix tree
 	 */
