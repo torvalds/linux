@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include "lib/mlx5.h"
+#include "lib/events.h"
 #include "en.h"
 #include "en_accel/ktls.h"
 #include "en_accel/en_accel.h"

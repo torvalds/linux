@@ -7,7 +7,7 @@
 #include "lag/mp.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
-#include "lib/mlx5.h"
+#include "lib/events.h"
 
 static bool __mlx5_lag_is_multipath(struct mlx5_lag *ldev)
 {

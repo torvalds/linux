@@ -6,7 +6,7 @@
 #include "lag/lag.h"
 #include "eswitch.h"
 #include "esw/acl/ofld.h"
-#include "lib/mlx5.h"
+#include "lib/events.h"
 
 static void mlx5_mpesw_metadata_cleanup(struct mlx5_lag *ldev)
 {
