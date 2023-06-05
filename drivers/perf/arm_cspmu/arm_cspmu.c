@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
-#include <acpi/processor.h>
 
 #include "arm_cspmu.h"
 #include "nvidia_cspmu.h"
@@ -1075,6 +1074,9 @@ static int arm_cspmu_request_irq(struct arm_cspmu *cspmu)
 	return 0;
 }
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_ARM64)
+#include <acpi/processor.h>
+
 static inline int arm_cspmu_find_cpu_container(int cpu, u32 container_uid)
 {
 	u32 acpi_uid;
@@ -1099,7 +1101,7 @@ static inline int arm_cspmu_find_cpu_container(int cpu, u32 container_uid)
 	return -ENODEV;
 }
 
-static int arm_cspmu_get_cpus(struct arm_cspmu *cspmu)
+static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 {
 	struct device *dev;
 	struct acpi_apmt_node *apmt_node;
@@ -1134,6 +1136,17 @@ static int arm_cspmu_get_cpus(struct arm_cspmu *cspmu)
 	}
 
 	return 0;
+}
+#else
+static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
+{
+	return -ENODEV;
+}
+#endif
+
+static int arm_cspmu_get_cpus(struct arm_cspmu *cspmu)
+{
+	return arm_cspmu_acpi_get_cpus(cspmu);
 }
 
 static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
