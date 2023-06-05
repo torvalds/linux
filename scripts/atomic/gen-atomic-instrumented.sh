@@ -73,7 +73,7 @@ static __always_inline ${ret}
 ${atomicname}(${params})
 {
 ${checks}
-	${retstmt}arch_${atomicname}(${args});
+	${retstmt}raw_${atomicname}(${args});
 }
 EOF
 
@@ -105,7 +105,7 @@ EOF
 cat <<EOF
 	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \\
 	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \\
-	arch_${xchg}${order}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
+	raw_${xchg}${order}(__ai_ptr, __ai_oldp, __VA_ARGS__); \\
 })
 EOF
 
@@ -119,7 +119,7 @@ EOF
 [ -n "$kcsan_barrier" ] && printf "\t${kcsan_barrier}; \\\\\n"
 cat <<EOF
 	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \\
-	arch_${xchg}${order}(__ai_ptr, __VA_ARGS__); \\
+	raw_${xchg}${order}(__ai_ptr, __VA_ARGS__); \\
 })
 EOF
 
@@ -133,15 +133,10 @@ cat << EOF
 // DO NOT MODIFY THIS FILE DIRECTLY
 
 /*
- * This file provides wrappers with KASAN instrumentation for atomic operations.
- * To use this functionality an arch's atomic.h file needs to define all
- * atomic operations with arch_ prefix (e.g. arch_atomic_read()) and include
- * this file at the end. This file provides atomic_read() that forwards to
- * arch_atomic_read() for actual atomic operation.
- * Note: if an arch atomic operation is implemented by means of other atomic
- * operations (e.g. atomic_read()/atomic_cmpxchg() loop), then it needs to use
- * arch_ variants (i.e. arch_atomic_read()/arch_atomic_cmpxchg()) to avoid
- * double instrumentation.
+ * This file provoides atomic operations with explicit instrumentation (e.g.
+ * KASAN, KCSAN), which should be used unless it is necessary to avoid
+ * instrumentation. Where it is necessary to aovid instrumenation, the
+ * raw_atomic*() operations should be used.
  */
 #ifndef _LINUX_ATOMIC_INSTRUMENTED_H
 #define _LINUX_ATOMIC_INSTRUMENTED_H
