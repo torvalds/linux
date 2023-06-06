@@ -457,7 +457,7 @@ static int txgbe_close(struct net_device *netdev)
 	return 0;
 }
 
-static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
+static void txgbe_dev_shutdown(struct pci_dev *pdev)
 {
 	struct wx *wx = pci_get_drvdata(pdev);
 	struct net_device *netdev;
@@ -477,12 +477,10 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 static void txgbe_shutdown(struct pci_dev *pdev)
 {
-	bool wake;
-
-	txgbe_dev_shutdown(pdev, &wake);
+	txgbe_dev_shutdown(pdev);
 
 	if (system_state == SYSTEM_POWER_OFF) {
-		pci_wake_from_d3(pdev, wake);
+		pci_wake_from_d3(pdev, false);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 }
