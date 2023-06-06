@@ -1188,6 +1188,60 @@ alloc_normal_db:
 	ctx->sdb = dev->func_bar_addr + (ctx->sdb_page_idx << PAGE_SHIFT);
 }
 
+static int alloc_ext_db_resources(struct erdma_dev *dev,
+				  struct erdma_ucontext *ctx)
+{
+	struct erdma_cmdq_ext_db_req req = {};
+	u64 val0, val1;
+	int ret;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_ALLOC_DB);
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_EXT_DB_CQ_EN_MASK, 1) |
+		  FIELD_PREP(ERDMA_CMD_EXT_DB_RQ_EN_MASK, 1) |
+		  FIELD_PREP(ERDMA_CMD_EXT_DB_SQ_EN_MASK, 1);
+
+	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &val0, &val1);
+	if (ret)
+		return ret;
+
+	ctx->ext_db.enable = true;
+	ctx->ext_db.sdb_off = ERDMA_GET(val0, ALLOC_DB_RESP_SDB);
+	ctx->ext_db.rdb_off = ERDMA_GET(val0, ALLOC_DB_RESP_RDB);
+	ctx->ext_db.cdb_off = ERDMA_GET(val0, ALLOC_DB_RESP_CDB);
+
+	ctx->sdb_type = ERDMA_SDB_PAGE;
+	ctx->sdb = dev->func_bar_addr + (ctx->ext_db.sdb_off << PAGE_SHIFT);
+	ctx->cdb = dev->func_bar_addr + (ctx->ext_db.rdb_off << PAGE_SHIFT);
+	ctx->rdb = dev->func_bar_addr + (ctx->ext_db.cdb_off << PAGE_SHIFT);
+
+	return 0;
+}
+
+static void free_ext_db_resources(struct erdma_dev *dev,
+				  struct erdma_ucontext *ctx)
+{
+	struct erdma_cmdq_ext_db_req req = {};
+	int ret;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_FREE_DB);
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_EXT_DB_CQ_EN_MASK, 1) |
+		  FIELD_PREP(ERDMA_CMD_EXT_DB_RQ_EN_MASK, 1) |
+		  FIELD_PREP(ERDMA_CMD_EXT_DB_SQ_EN_MASK, 1);
+
+	req.sdb_off = ctx->ext_db.sdb_off;
+	req.rdb_off = ctx->ext_db.rdb_off;
+	req.cdb_off = ctx->ext_db.cdb_off;
+
+	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	if (ret)
+		ibdev_err_ratelimited(&dev->ibdev,
+				      "free db resources failed %d", ret);
+}
+
 static void erdma_uctx_user_mmap_entries_remove(struct erdma_ucontext *uctx)
 {
 	rdma_user_mmap_entry_remove(uctx->sq_db_mmap_entry);
@@ -1201,44 +1255,60 @@ int erdma_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 	struct erdma_dev *dev = to_edev(ibctx->device);
 	int ret;
 	struct erdma_uresp_alloc_ctx uresp = {};
+	bool ext_db_en;
 
 	if (atomic_inc_return(&dev->num_ctx) > ERDMA_MAX_CONTEXT) {
 		ret = -ENOMEM;
 		goto err_out;
 	}
 
-	INIT_LIST_HEAD(&ctx->dbrecords_page_list);
-	mutex_init(&ctx->dbrecords_page_mutex);
-
-	alloc_db_resources(dev, ctx);
-
-	ctx->rdb = dev->func_bar_addr + ERDMA_BAR_RQDB_SPACE_OFFSET;
-	ctx->cdb = dev->func_bar_addr + ERDMA_BAR_CQDB_SPACE_OFFSET;
-
 	if (udata->outlen < sizeof(uresp)) {
 		ret = -EINVAL;
 		goto err_out;
+	}
+
+	INIT_LIST_HEAD(&ctx->dbrecords_page_list);
+	mutex_init(&ctx->dbrecords_page_mutex);
+
+	/*
+	 * CAP_SYS_RAWIO is required if hardware does not support extend
+	 * doorbell mechanism.
+	 */
+	ext_db_en = !!(dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_EXTEND_DB);
+	if (!ext_db_en && !capable(CAP_SYS_RAWIO)) {
+		ret = -EPERM;
+		goto err_out;
+	}
+
+	if (ext_db_en) {
+		ret = alloc_ext_db_resources(dev, ctx);
+		if (ret)
+			goto err_out;
+	} else {
+		alloc_db_resources(dev, ctx);
+		ctx->rdb = dev->func_bar_addr + ERDMA_BAR_RQDB_SPACE_OFFSET;
+		ctx->cdb = dev->func_bar_addr + ERDMA_BAR_CQDB_SPACE_OFFSET;
 	}
 
 	ctx->sq_db_mmap_entry = erdma_user_mmap_entry_insert(
 		ctx, (void *)ctx->sdb, PAGE_SIZE, ERDMA_MMAP_IO_NC, &uresp.sdb);
 	if (!ctx->sq_db_mmap_entry) {
 		ret = -ENOMEM;
-		goto err_out;
+		goto err_free_ext_db;
 	}
 
 	ctx->rq_db_mmap_entry = erdma_user_mmap_entry_insert(
 		ctx, (void *)ctx->rdb, PAGE_SIZE, ERDMA_MMAP_IO_NC, &uresp.rdb);
 	if (!ctx->rq_db_mmap_entry) {
 		ret = -EINVAL;
-		goto err_out;
+		goto err_put_mmap_entries;
 	}
 
 	ctx->cq_db_mmap_entry = erdma_user_mmap_entry_insert(
 		ctx, (void *)ctx->cdb, PAGE_SIZE, ERDMA_MMAP_IO_NC, &uresp.cdb);
 	if (!ctx->cq_db_mmap_entry) {
 		ret = -EINVAL;
-		goto err_out;
+		goto err_put_mmap_entries;
 	}
 
 	uresp.dev_id = dev->pdev->device;
@@ -1247,12 +1317,18 @@ int erdma_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 
 	ret = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (ret)
-		goto err_out;
+		goto err_put_mmap_entries;
 
 	return 0;
 
-err_out:
+err_put_mmap_entries:
 	erdma_uctx_user_mmap_entries_remove(ctx);
+
+err_free_ext_db:
+	if (ext_db_en)
+		free_ext_db_resources(dev, ctx);
+
+err_out:
 	atomic_dec(&dev->num_ctx);
 	return ret;
 }
@@ -1262,15 +1338,18 @@ void erdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 	struct erdma_ucontext *ctx = to_ectx(ibctx);
 	struct erdma_dev *dev = to_edev(ibctx->device);
 
-	spin_lock(&dev->db_bitmap_lock);
-	if (ctx->sdb_type == ERDMA_SDB_PAGE)
-		clear_bit(ctx->sdb_idx, dev->sdb_page);
-	else if (ctx->sdb_type == ERDMA_SDB_ENTRY)
-		clear_bit(ctx->sdb_idx, dev->sdb_entry);
-
 	erdma_uctx_user_mmap_entries_remove(ctx);
 
-	spin_unlock(&dev->db_bitmap_lock);
+	if (ctx->ext_db.enable) {
+		free_ext_db_resources(dev, ctx);
+	} else {
+		spin_lock(&dev->db_bitmap_lock);
+		if (ctx->sdb_type == ERDMA_SDB_PAGE)
+			clear_bit(ctx->sdb_idx, dev->sdb_page);
+		else if (ctx->sdb_type == ERDMA_SDB_ENTRY)
+			clear_bit(ctx->sdb_idx, dev->sdb_entry);
+		spin_unlock(&dev->db_bitmap_lock);
+	}
 
 	atomic_dec(&dev->num_ctx);
 }

@@ -268,6 +268,8 @@ static inline u32 erdma_reg_read32_filed(struct erdma_dev *dev, u32 reg,
 	return FIELD_GET(filed_mask, val);
 }
 
+#define ERDMA_GET(val, name) FIELD_GET(ERDMA_CMD_##name##_MASK, val)
+
 int erdma_cmdq_init(struct erdma_dev *dev);
 void erdma_finish_cmdq_init(struct erdma_dev *dev);
 void erdma_cmdq_destroy(struct erdma_dev *dev);

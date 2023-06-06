@@ -160,6 +160,8 @@ enum CMDQ_COMMON_OPCODE {
 	CMDQ_OPCODE_QUERY_FW_INFO = 2,
 	CMDQ_OPCODE_CONF_MTU = 3,
 	CMDQ_OPCODE_CONF_DEVICE = 5,
+	CMDQ_OPCODE_ALLOC_DB = 8,
+	CMDQ_OPCODE_FREE_DB = 9,
 };
 
 /* cmdq-SQE HDR */
@@ -211,6 +213,26 @@ struct erdma_cmdq_config_mtu_req {
 	u64 hdr;
 	u32 mtu;
 };
+
+/* ext db requests(alloc and free) cfg */
+#define ERDMA_CMD_EXT_DB_CQ_EN_MASK BIT(2)
+#define ERDMA_CMD_EXT_DB_RQ_EN_MASK BIT(1)
+#define ERDMA_CMD_EXT_DB_SQ_EN_MASK BIT(0)
+
+struct erdma_cmdq_ext_db_req {
+	u64 hdr;
+	u32 cfg;
+	u16 rdb_off;
+	u16 sdb_off;
+	u16 rsvd0;
+	u16 cdb_off;
+	u32 rsvd1[3];
+};
+
+/* alloc db response qword 0 definition */
+#define ERDMA_CMD_ALLOC_DB_RESP_RDB_MASK GENMASK_ULL(63, 48)
+#define ERDMA_CMD_ALLOC_DB_RESP_CDB_MASK GENMASK_ULL(47, 32)
+#define ERDMA_CMD_ALLOC_DB_RESP_SDB_MASK GENMASK_ULL(15, 0)
 
 /* create_cq cfg0 */
 #define ERDMA_CMD_CREATE_CQ_DEPTH_MASK GENMASK(31, 24)
