@@ -574,10 +574,8 @@ static void __iommu_group_remove_device(struct device *dev)
 			iommu_deinit_device(dev);
 		else
 			dev->iommu_group = NULL;
-		goto out;
+		break;
 	}
-	WARN(true, "Corrupted iommu_group device_list");
-out:
 	mutex_unlock(&group->mutex);
 
 	/* Pairs with the get in iommu_group_add_device() */
@@ -588,10 +586,12 @@ static void iommu_release_device(struct device *dev)
 {
 	struct iommu_group *group = dev->iommu_group;
 
-	if (!dev->iommu || !group)
-		return;
+	if (group)
+		__iommu_group_remove_device(dev);
 
-	__iommu_group_remove_device(dev);
+	/* Free any fwspec if no iommu_driver was ever attached */
+	if (dev->iommu)
+		dev_iommu_free(dev);
 }
 
 static int __init iommu_set_def_domain_type(char *str)
