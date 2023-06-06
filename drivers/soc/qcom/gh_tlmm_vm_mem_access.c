@@ -119,7 +119,6 @@ static int __maybe_unused gh_guest_memshare_nb_handler(struct notifier_block *th
 {
 	struct gh_tlmm_vm_info *vm_info;
 	struct gh_rm_notif_vm_status_payload *vm_status_payload = data;
-	u8 vm_status = vm_status_payload->vm_status;
 	gh_vmid_t peer_vmid;
 
 	vm_info = container_of(this, struct gh_tlmm_vm_info, guest_memshare_nb);
@@ -136,7 +135,7 @@ static int __maybe_unused gh_guest_memshare_nb_handler(struct notifier_block *th
 	 * Listen to STATUS_READY notification from RM.
 	 * These notifications come from RM after PIL loading the VM images.
 	 */
-	if (vm_status == GH_RM_VM_STATUS_READY)
+	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_READY)
 		gh_tlmm_vm_mem_share(&gh_tlmm_vm_info_data);
 
 	return NOTIFY_DONE;
