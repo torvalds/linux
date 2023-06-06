@@ -371,9 +371,11 @@ static const char *type_from_btf_id(struct btf *btf, s32 id)
 	return NULL;
 }
 
-static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr)
+static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr,
+						   bool tracepoint)
 {
 	struct btf *btf = traceprobe_get_btf();
+	const struct btf_param *param;
 	const struct btf_type *t;
 	s32 id;
 
@@ -395,9 +397,16 @@ static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr
 		return ERR_PTR(-ENOENT);
 
 	*nr = btf_type_vlen(t);
+	param = (const struct btf_param *)(t + 1);
 
-	if (*nr)
-		return (const struct btf_param *)(t + 1);
+	/* Hide the first 'data' argument of tracepoint */
+	if (tracepoint) {
+		(*nr)--;
+		param++;
+	}
+
+	if (*nr > 0)
+		return param;
 	else
 		return NULL;
 }
@@ -418,7 +427,8 @@ static int parse_btf_arg(const char *varname, struct fetch_insn *code,
 		return -EINVAL;
 
 	if (!ctx->params) {
-		params = find_btf_func_param(ctx->funcname, &ctx->nr_params);
+		params = find_btf_func_param(ctx->funcname, &ctx->nr_params,
+					     ctx->flags & TPARG_FL_TPOINT);
 		if (IS_ERR(params)) {
 			trace_probe_log_err(ctx->offset, NO_BTF_ENTRY);
 			return PTR_ERR(params);
@@ -451,10 +461,17 @@ static const struct fetch_type *parse_btf_arg_type(int arg_idx,
 
 	return find_fetch_type(typestr, ctx->flags);
 }
+
 #else
 static struct btf *traceprobe_get_btf(void)
 {
 	return NULL;
+}
+
+static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr,
+						   bool tracepoint)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 static int parse_btf_arg(const char *varname, struct fetch_insn *code,
@@ -1112,6 +1129,150 @@ void traceprobe_free_probe_arg(struct probe_arg *arg)
 	kfree(arg->name);
 	kfree(arg->comm);
 	kfree(arg->fmt);
+}
+
+static int argv_has_var_arg(int argc, const char *argv[], int *args_idx,
+			    struct traceprobe_parse_context *ctx)
+{
+	int i, found = 0;
+
+	for (i = 0; i < argc; i++)
+		if (str_has_prefix(argv[i], "$arg")) {
+			trace_probe_log_set_index(i + 2);
+
+			if (!tparg_is_function_entry(ctx->flags)) {
+				trace_probe_log_err(0, NOFENTRY_ARGS);
+				return -EINVAL;
+			}
+
+			if (isdigit(argv[i][4])) {
+				found = 1;
+				continue;
+			}
+
+			if (argv[i][4] != '*') {
+				trace_probe_log_err(0, BAD_VAR);
+				return -EINVAL;
+			}
+
+			if (*args_idx >= 0 && *args_idx < argc) {
+				trace_probe_log_err(0, DOUBLE_ARGS);
+				return -EINVAL;
+			}
+			found = 1;
+			*args_idx = i;
+		}
+
+	return found;
+}
+
+static int sprint_nth_btf_arg(int idx, const char *type,
+			      char *buf, int bufsize,
+			      struct traceprobe_parse_context *ctx)
+{
+	struct btf *btf = traceprobe_get_btf();
+	const char *name;
+	int ret;
+
+	if (idx >= ctx->nr_params) {
+		trace_probe_log_err(0, NO_BTFARG);
+		return -ENOENT;
+	}
+	name = btf_name_by_offset(btf, ctx->params[idx].name_off);
+	if (!name) {
+		trace_probe_log_err(0, NO_BTF_ENTRY);
+		return -ENOENT;
+	}
+	ret = snprintf(buf, bufsize, "%s%s", name, type);
+	if (ret >= bufsize) {
+		trace_probe_log_err(0, ARGS_2LONG);
+		return -E2BIG;
+	}
+	return ret;
+}
+
+/* Return new_argv which must be freed after use */
+const char **traceprobe_expand_meta_args(int argc, const char *argv[],
+					 int *new_argc, char *buf, int bufsize,
+					 struct traceprobe_parse_context *ctx)
+{
+	const struct btf_param *params = NULL;
+	int i, j, n, used, ret, args_idx = -1;
+	const char **new_argv = NULL;
+	int nr_params;
+
+	ret = argv_has_var_arg(argc, argv, &args_idx, ctx);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	if (!ret) {
+		*new_argc = argc;
+		return NULL;
+	}
+
+	params = find_btf_func_param(ctx->funcname, &nr_params,
+				     ctx->flags & TPARG_FL_TPOINT);
+	if (IS_ERR(params)) {
+		if (args_idx != -1) {
+			/* $arg* requires BTF info */
+			trace_probe_log_err(0, NOSUP_BTFARG);
+			return (const char **)params;
+		}
+		return 0;
+	}
+	ctx->params = params;
+	ctx->nr_params = nr_params;
+
+	if (args_idx >= 0)
+		*new_argc = argc + ctx->nr_params - 1;
+	else
+		*new_argc = argc;
+
+	new_argv = kcalloc(*new_argc, sizeof(char *), GFP_KERNEL);
+	if (!new_argv)
+		return ERR_PTR(-ENOMEM);
+
+	used = 0;
+	for (i = 0, j = 0; i < argc; i++) {
+		trace_probe_log_set_index(i + 2);
+		if (i == args_idx) {
+			for (n = 0; n < nr_params; n++) {
+				ret = sprint_nth_btf_arg(n, "", buf + used,
+							 bufsize - used, ctx);
+				if (ret < 0)
+					goto error;
+
+				new_argv[j++] = buf + used;
+				used += ret + 1;
+			}
+			continue;
+		}
+
+		if (str_has_prefix(argv[i], "$arg")) {
+			char *type = NULL;
+
+			n = simple_strtoul(argv[i] + 4, &type, 10);
+			if (type && !(*type == ':' || *type == '\0')) {
+				trace_probe_log_err(0, BAD_VAR);
+				ret = -ENOENT;
+				goto error;
+			}
+			/* Note: $argN starts from $arg1 */
+			ret = sprint_nth_btf_arg(n - 1, type, buf + used,
+						 bufsize - used, ctx);
+			if (ret < 0)
+				goto error;
+			new_argv[j++] = buf + used;
+			used += ret + 1;
+		} else
+			new_argv[j++] = argv[i];
+	}
+
+	return new_argv;
+
+error:
+	kfree(new_argv);
+	return ERR_PTR(ret);
 }
 
 int traceprobe_update_arg(struct probe_arg *arg)
