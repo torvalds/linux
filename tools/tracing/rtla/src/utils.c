@@ -89,69 +89,6 @@ void get_duration(time_t start_time, char *output, int output_size)
 }
 
 /*
- * parse_cpu_list - parse a cpu_list filling a char vector with cpus set
- *
- * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set the char
- * in the monitored_cpus.
- *
- * XXX: convert to a bitmask.
- */
-int parse_cpu_list(char *cpu_list, char **monitored_cpus)
-{
-	char *mon_cpus;
-	const char *p;
-	int end_cpu;
-	int nr_cpus;
-	int cpu;
-	int i;
-
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-
-	mon_cpus = calloc(nr_cpus, sizeof(char));
-	if (!mon_cpus)
-		goto err;
-
-	for (p = cpu_list; *p; ) {
-		cpu = atoi(p);
-		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
-			goto err;
-
-		while (isdigit(*p))
-			p++;
-		if (*p == '-') {
-			p++;
-			end_cpu = atoi(p);
-			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
-				goto err;
-			while (isdigit(*p))
-				p++;
-		} else
-			end_cpu = cpu;
-
-		if (cpu == end_cpu) {
-			debug_msg("cpu_list: adding cpu %d\n", cpu);
-			mon_cpus[cpu] = 1;
-		} else {
-			for (i = cpu; i <= end_cpu; i++) {
-				debug_msg("cpu_list: adding cpu %d\n", i);
-				mon_cpus[i] = 1;
-			}
-		}
-
-		if (*p == ',')
-			p++;
-	}
-
-	*monitored_cpus = mon_cpus;
-
-	return 0;
-
-err:
-	debug_msg("Error parsing the cpu list %s", cpu_list);
-	return 1;
-}
-
-/*
  * parse_cpu_set - parse a cpu_list filling cpu_set_t argument
  *
  * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
