@@ -356,12 +356,16 @@ static int iommu_init_device(struct device *dev, const struct iommu_ops *ops)
 		goto err_module_put;
 	}
 
+	ret = iommu_device_link(iommu_dev, dev);
+	if (ret)
+		goto err_release;
+
 	group = ops->device_group(dev);
 	if (WARN_ON_ONCE(group == NULL))
 		group = ERR_PTR(-EINVAL);
 	if (IS_ERR(group)) {
 		ret = PTR_ERR(group);
-		goto err_release;
+		goto err_unlink;
 	}
 	dev->iommu_group = group;
 
@@ -371,6 +375,8 @@ static int iommu_init_device(struct device *dev, const struct iommu_ops *ops)
 		dev->iommu->attach_deferred = ops->is_attach_deferred(dev);
 	return 0;
 
+err_unlink:
+	iommu_device_unlink(iommu_dev, dev);
 err_release:
 	if (ops->release_device)
 		ops->release_device(dev);
@@ -387,6 +393,8 @@ static void iommu_deinit_device(struct device *dev)
 	const struct iommu_ops *ops = dev_iommu_ops(dev);
 
 	lockdep_assert_held(&group->mutex);
+
+	iommu_device_unlink(dev->iommu->iommu_dev, dev);
 
 	/*
 	 * release_device() must stop using any attached domain on the device.
@@ -462,7 +470,6 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 	iommu_group_put(group);
 
 	mutex_unlock(&iommu_probe_device_lock);
-	iommu_device_link(dev->iommu->iommu_dev, dev);
 
 	return 0;
 
@@ -583,8 +590,6 @@ static void iommu_release_device(struct device *dev)
 
 	if (!dev->iommu || !group)
 		return;
-
-	iommu_device_unlink(dev->iommu->iommu_dev, dev);
 
 	__iommu_group_remove_device(dev);
 }
