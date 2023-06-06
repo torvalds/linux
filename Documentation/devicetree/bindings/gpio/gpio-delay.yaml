@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This binding describes an electrical setup where setting an GPIO output
-  is delayed by some external setup, e.g. RC curcuit.
+  is delayed by some external setup, e.g. RC circuit.
 
   +----------+                    +-----------+
   |          |             VCC_B  |           |
@@ -30,7 +30,7 @@ description: |
                            GND
 
   If the input on the consumer is controlled by an open-drain signal
-  attached to an RC curcuit the ramp-up delay is not under control
+  attached to an RC circuit the ramp-up delay is not under control
   of the GPIO controller.
 
 properties:
