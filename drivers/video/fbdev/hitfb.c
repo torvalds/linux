@@ -167,7 +167,7 @@ static int hitfb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-int hitfb_blank(int blank_mode, struct fb_info *info)
+static int hitfb_blank(int blank_mode, struct fb_info *info)
 {
 	unsigned short v;
 
