@@ -340,6 +340,10 @@ enum vcpu_sysreg {
 	TFSR_EL1,	/* Tag Fault Status Register (EL1) */
 	TFSRE0_EL1,	/* Tag Fault Status Register (EL0) */
 
+	/* Permission Indirection Extension registers */
+	PIR_EL1,       /* Permission Indirection Register 1 (EL1) */
+	PIRE0_EL1,     /*  Permission Indirection Register 0 (EL1) */
+
 	/* 32bit specific registers. */
 	DACR32_EL2,	/* Domain Access Control Register */
 	IFSR32_EL2,	/* Instruction Fault Status Register */
