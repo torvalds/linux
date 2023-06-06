@@ -6757,6 +6757,9 @@ static void cs35l41_generic_fixup(struct hda_codec *cdc, int action, const char 
 		else
 			spec->gen.pcm_playback_hook = comp_generic_playback_hook;
 		break;
+	case HDA_FIXUP_ACT_FREE:
+		component_master_del(dev, &comp_master_ops);
+		break;
 	}
 }
 
