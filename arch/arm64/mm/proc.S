@@ -199,7 +199,7 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 
-#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS)
+#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
 
 	.pushsection ".idmap.text", "a"
 
@@ -290,7 +290,7 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 	isb
 
 	mov	temp_pte, x5
-	mov	pte_flags, #KPTI_NG_PTE_FLAGS
+	mov_q	pte_flags, KPTI_NG_PTE_FLAGS
 
 	/* Everybody is enjoying the idmap, so we can rewrite swapper. */
 	/* PGD */

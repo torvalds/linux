@@ -382,7 +382,7 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	adrp	x0, init_idmap_pg_dir
 	adrp	x3, _text
 	adrp	x6, _end + MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
-	mov	x7, SWAPPER_RX_MMUFLAGS
+	mov_q	x7, SWAPPER_RX_MMUFLAGS
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
 
@@ -391,7 +391,7 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	adrp	x2, init_pg_dir
 	adrp	x3, init_pg_end
 	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
-	mov	x5, SWAPPER_RW_MMUFLAGS
+	mov_q	x5, SWAPPER_RW_MMUFLAGS
 	mov	x6, #SWAPPER_BLOCK_SHIFT
 	bl	remap_region
 
@@ -402,7 +402,7 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	bfi	x22, x21, #0, #SWAPPER_BLOCK_SHIFT		// remapped FDT address
 	add	x3, x2, #MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
 	bic	x4, x21, #SWAPPER_BLOCK_SIZE - 1
-	mov	x5, SWAPPER_RW_MMUFLAGS
+	mov_q	x5, SWAPPER_RW_MMUFLAGS
 	mov	x6, #SWAPPER_BLOCK_SHIFT
 	bl	remap_region
 
@@ -430,7 +430,7 @@ SYM_FUNC_START_LOCAL(create_kernel_mapping)
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
 	add	x6, x6, x5			// runtime __va(_end)
-	mov	x7, SWAPPER_RW_MMUFLAGS
+	mov_q	x7, SWAPPER_RW_MMUFLAGS
 
 	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
 
