@@ -41,6 +41,9 @@ config TXGBE
 	tristate "Wangxun(R) 10GbE PCI Express adapters support"
 	depends on PCI
 	depends on COMMON_CLK
+	select REGMAP
+	select I2C
+	select I2C_DESIGNWARE_PLATFORM
 	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of
