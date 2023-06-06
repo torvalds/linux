@@ -29,6 +29,7 @@ perf-y += parse-events.o
 perf-y += print-events.o
 perf-y += tracepoint.o
 perf-y += perf_regs.o
+perf-y += perf-regs-arch/
 perf-y += path.o
 perf-y += print_binary.o
 perf-y += rlimit.o

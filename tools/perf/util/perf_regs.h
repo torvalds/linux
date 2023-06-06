@@ -36,6 +36,15 @@ extern const struct sample_reg sample_reg_masks[];
 
 const char *perf_reg_name(int id, const char *arch);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
+const char *__perf_reg_name_arm64(int id);
+const char *__perf_reg_name_arm(int id);
+const char *__perf_reg_name_csky(int id);
+const char *__perf_reg_name_loongarch(int id);
+const char *__perf_reg_name_mips(int id);
+const char *__perf_reg_name_powerpc(int id);
+const char *__perf_reg_name_riscv(int id);
+const char *__perf_reg_name_s390(int id);
+const char *__perf_reg_name_x86(int id);
 
 #else
 #define PERF_REGS_MASK	0
