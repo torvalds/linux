@@ -65,6 +65,9 @@ struct socinfo {
 	__le32  nnum_partname_mapping;
 	/* Version 17 */
 	__le32 oem_variant;
+	/* Version 18 */
+	__le32 num_kvps;
+	__le32 kvps_offset;
 };
 
 #endif
