@@ -3353,18 +3353,15 @@ static void ieee80211_report_disconnect(struct ieee80211_sub_if_data *sdata,
 	drv_event_callback(sdata->local, sdata, &event);
 }
 
-static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
+static void ___ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	bool tx;
 
-	sdata_lock(sdata);
-	if (!ifmgd->associated) {
-		sdata_unlock(sdata);
+	if (!ifmgd->associated)
 		return;
-	}
 
 	/* in MLO assume we have a link where we can TX the frame */
 	tx = ieee80211_vif_is_mld(&sdata->vif) ||
@@ -3413,7 +3410,12 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 				    WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
 				    ifmgd->reconnect);
 	ifmgd->reconnect = false;
+}
 
+static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
+{
+	sdata_lock(sdata);
+	___ieee80211_disconnect(sdata);
 	sdata_unlock(sdata);
 }
 
