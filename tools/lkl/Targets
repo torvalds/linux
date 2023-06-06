@@ -26,6 +26,10 @@ progs-y += tests/disk
 progs-y += tests/disk-vfio-pci
 progs-y += tests/net-test
 progs-y += tests/config
+ifneq ($(LKL_HOST_CONFIG_BSD),y)
+progs-y += tests/test-dlmopen
+LDLIBS_tests/test-dlmopen-$(LKL_HOST_CONFIG_POSIX) += -ldl
+endif
 
 # LKL fuzzers
 fuzzers-y += fuzzers/hid/hid-fuzzer
