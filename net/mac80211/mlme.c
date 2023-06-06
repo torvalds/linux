@@ -6538,7 +6538,8 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 	sdata_unlock(sdata);
 }
 
-static void ieee80211_request_smps_mgd_work(struct work_struct *work)
+static void ieee80211_request_smps_mgd_work(struct wiphy *wiphy,
+					    struct wiphy_work *work)
 {
 	struct ieee80211_link_data *link =
 		container_of(work, struct ieee80211_link_data,
@@ -6588,8 +6589,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	link->u.mgd.conn_flags = 0;
 	link->conf->bssid = link->u.mgd.bssid;
 
-	INIT_WORK(&link->u.mgd.request_smps_work,
-		  ieee80211_request_smps_mgd_work);
+	wiphy_work_init(&link->u.mgd.request_smps_work,
+			ieee80211_request_smps_mgd_work);
 	if (local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
 		link->u.mgd.req_smps = IEEE80211_SMPS_AUTOMATIC;
 	else
@@ -7552,7 +7553,8 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_mgd_stop_link(struct ieee80211_link_data *link)
 {
-	cancel_work_sync(&link->u.mgd.request_smps_work);
+	wiphy_work_cancel(link->sdata->local->hw.wiphy,
+			  &link->u.mgd.request_smps_work);
 	cancel_work_sync(&link->u.mgd.chswitch_work);
 }
 

@@ -1431,8 +1431,8 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (ret == 0)
-		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->deflink.u.mgd.request_smps_work);
+		wiphy_work_queue(sdata->local->hw.wiphy,
+				 &sdata->deflink.u.mgd.request_smps_work);
 
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);

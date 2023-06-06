@@ -921,7 +921,7 @@ struct ieee80211_link_data_managed {
 	struct timer_list chswitch_timer;
 	struct work_struct chswitch_work;
 
-	struct work_struct request_smps_work;
+	struct wiphy_work request_smps_work;
 	bool beacon_crc_valid;
 	u32 beacon_crc;
 	struct ewma_beacon_signal ave_beacon_signal;
