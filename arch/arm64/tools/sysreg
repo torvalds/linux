@@ -1538,6 +1538,78 @@ UnsignedEnum	3:0	CnP
 EndEnum
 EndSysreg
 
+Sysreg	ID_AA64MMFR3_EL1	3	0	0	7	3
+UnsignedEnum	63:60	Spec_FPACC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	ADERR
+	0b0000	NI
+	0b0001	DEV_ASYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+UnsignedEnum	55:52	SDERR
+	0b0000	NI
+	0b0001	DEV_SYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+Res0	51:48
+UnsignedEnum	47:44	ANERR
+	0b0000	NI
+	0b0001	ASYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	43:40	SNERR
+	0b0000	NI
+	0b0001	SYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	39:36	D128_2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	D128
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	31:28	MEC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	AIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	S2POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	S1POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	S2PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	S1PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	SCTLRX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	TCRX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	SCTLR_EL1	3	0	1	0	0
 Field	63	TIDCP
 Field	62	SPINTMASK
