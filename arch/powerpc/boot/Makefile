@@ -32,11 +32,13 @@ else
     BOOTAR := $(AR)
 endif
 
+BOOTCPPFLAGS	:= -nostdinc $(LINUXINCLUDE)
+BOOTCPPFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
+
 BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		 -fno-strict-aliasing -O2 -msoft-float -mno-altivec -mno-vsx \
 		 $(call cc-option,-mno-spe) $(call cc-option,-mspe=no) \
-		 -pipe -fomit-frame-pointer -fno-builtin -fPIC -nostdinc \
-		 $(LINUXINCLUDE)
+		 -pipe -fomit-frame-pointer -fno-builtin -fPIC
 
 ifdef CONFIG_PPC64_BOOT_WRAPPER
 BOOTTARGETFLAGS	+= -m64
@@ -68,15 +70,13 @@ $(obj)/treeboot-iss4xx.o: BOOTTARGETFLAGS += -mcpu=405
 $(obj)/treeboot-currituck.o: BOOTTARGETFLAGS += -mcpu=405
 $(obj)/treeboot-akebono.o: BOOTTARGETFLAGS += -mcpu=405
 
-BOOTCFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
-
 ifdef CONFIG_CPU_BIG_ENDIAN
 BOOTTARGETFLAGS	+= -mbig-endian
 else
 BOOTTARGETFLAGS	+= -mlittle-endian
 endif
 
-BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTTARGETFLAGS) $(BOOTCFLAGS) -nostdinc
+BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTTARGETFLAGS) $(BOOTCFLAGS)
 
 BOOTARFLAGS	:= -crD
 
@@ -227,10 +227,10 @@ clean-files := $(zlib-) $(zlibheader-) $(zliblinuxheader-) \
 		empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
-      cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
+      cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCPPFLAGS) $(BOOTCFLAGS) -c -o $@ $<
 
 quiet_cmd_bootas = BOOTAS  $@
-      cmd_bootas = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
+      cmd_bootas = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCPPFLAGS) $(BOOTAFLAGS) -c -o $@ $<
 
 quiet_cmd_bootar = BOOTAR  $@
       cmd_bootar = $(BOOTAR) $(BOOTARFLAGS) $@.$$$$ $(real-prereqs); mv $@.$$$$ $@
