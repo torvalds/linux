@@ -316,6 +316,14 @@ config ARCH_BLAIR
 	  BLAIR chipset. If you do not wish to build a kernel that
 	  runs on this chipset or if you are unsure, say 'N' here.
 
+config ARCH_HOLI
+	bool "Enable Support for Qualcomm Technologies, Inc. HOLI"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  HOLI chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
 config QTI_QUIN_GVM
 	bool "Enable Support for Qualcomm Technologies, Inc. Auto GVMs on QUIN"
 	depends on ARCH_QCOM
