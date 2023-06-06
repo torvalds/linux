@@ -129,6 +129,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	int result;
 
 	ASSERT_RTNL();
+	lockdep_assert_wiphy(&rdev->wiphy);
 
 	/* Ignore nop renames */
 	if (strcmp(newname, wiphy_name(&rdev->wiphy)) == 0)
@@ -195,6 +196,8 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			continue;
 		nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 	}
+
+	wiphy_lock(&rdev->wiphy);
 	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
 
 	wiphy_net_set(&rdev->wiphy, net);
@@ -203,6 +206,8 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	WARN_ON(err);
 
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	wiphy_unlock(&rdev->wiphy);
+
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
@@ -941,8 +946,10 @@ int wiphy_register(struct wiphy *wiphy)
 	rdev->wiphy.features |= NL80211_FEATURE_SCAN_FLUSH;
 
 	rtnl_lock();
+	wiphy_lock(&rdev->wiphy);
 	res = device_add(&rdev->wiphy.dev);
 	if (res) {
+		wiphy_unlock(&rdev->wiphy);
 		rtnl_unlock();
 		return res;
 	}
@@ -956,6 +963,7 @@ int wiphy_register(struct wiphy *wiphy)
 
 	cfg80211_debugfs_rdev_add(rdev);
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	wiphy_unlock(&rdev->wiphy);
 
 	/* set up regulatory info */
 	wiphy_regulatory_register(wiphy);

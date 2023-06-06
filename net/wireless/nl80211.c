@@ -3081,6 +3081,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 		if (state->filter_wiphy != -1 &&
 		    state->filter_wiphy != rdev->wiphy_idx)
 			continue;
+		wiphy_lock(&rdev->wiphy);
 		/* attempt to fit multiple wiphy data chunks into the skb */
 		do {
 			ret = nl80211_send_wiphy(rdev, NL80211_CMD_NEW_WIPHY,
@@ -3107,6 +3108,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 				    cb->min_dump_alloc < 4096) {
 					cb->min_dump_alloc = 4096;
 					state->split_start = 0;
+					wiphy_unlock(&rdev->wiphy);
 					rtnl_unlock();
 					return 1;
 				}
@@ -3114,6 +3116,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 				break;
 			}
 		} while (state->split_start > 0);
+		wiphy_unlock(&rdev->wiphy);
 		break;
 	}
 	rtnl_unlock();
