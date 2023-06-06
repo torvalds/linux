@@ -592,7 +592,7 @@ static void aspeed_jtag_set_tap_state_sw(struct aspeed_jtag *aspeed_jtag,
 	int i;
 
 	/* SW mode from curent tap state -> to end_state */
-	if (tapstate->reset) {
+	if (tapstate->reset || tapstate->endstate == JTAG_STATE_TLRESET) {
 		for (i = 0; i < ASPEED_JTAG_RESET_CNTR; i++)
 			aspeed_jtag_tck_cycle(aspeed_jtag, 1, 0);
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
