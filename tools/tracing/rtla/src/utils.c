@@ -709,3 +709,53 @@ out_cg:
 	close(cg_fd);
 	return 0;
 }
+
+/**
+ * auto_house_keeping - Automatically move rtla out of measurement threads
+ *
+ * Try to move rtla away from the tracer, if possible.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int auto_house_keeping(cpu_set_t *monitored_cpus)
+{
+	cpu_set_t rtla_cpus, house_keeping_cpus;
+	int retval;
+
+	/* first get the CPUs in which rtla can actually run. */
+	retval = sched_getaffinity(getpid(), sizeof(rtla_cpus), &rtla_cpus);
+	if (retval == -1) {
+		debug_msg("Could not get rtla affinity, rtla might run with the threads!\n");
+		return 0;
+	}
+
+	/* then check if the existing setup is already good. */
+	CPU_AND(&house_keeping_cpus, &rtla_cpus, monitored_cpus);
+	if (!CPU_COUNT(&house_keeping_cpus)) {
+		debug_msg("rtla and the monitored CPUs do not share CPUs.");
+		debug_msg("Skipping auto house-keeping\n");
+		return 1;
+	}
+
+	/* remove the intersection */
+	CPU_XOR(&house_keeping_cpus, &rtla_cpus, monitored_cpus);
+
+	/* get only those that rtla can run */
+	CPU_AND(&house_keeping_cpus, &house_keeping_cpus, &rtla_cpus);
+
+	/* is there any cpu left? */
+	if (!CPU_COUNT(&house_keeping_cpus)) {
+		debug_msg("Could not find any CPU for auto house-keeping\n");
+		return 0;
+	}
+
+	retval = sched_setaffinity(getpid(), sizeof(house_keeping_cpus), &house_keeping_cpus);
+	if (retval == -1) {
+		debug_msg("Could not set affinity for auto house-keeping\n");
+		return 0;
+	}
+
+	debug_msg("rtla automatically moved to an auto house-keeping cpu set\n");
+
+	return 1;
+}

@@ -753,6 +753,15 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 			err_msg("Failed to set rtla to the house keeping CPUs\n");
 			goto out_err;
 		}
+	} else if (params->cpus) {
+		/*
+		 * Even if the user do not set a house-keeping CPU, try to
+		 * move rtla to a CPU set different to the one where the user
+		 * set the workload to run.
+		 *
+		 * No need to check results as this is an automatic attempt.
+		 */
+		auto_house_keeping(&params->monitored_cpus);
 	}
 
 	return 0;
