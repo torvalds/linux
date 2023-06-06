@@ -66,20 +66,18 @@
 
 &main_gpio0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&main_m2_pcie_mux_control
-		&arduino_io_d4_to_d9_pins_default
-	>;
+	pinctrl-0 =
+		<&main_m2_pcie_mux_control>,
+		<&arduino_io_d4_to_d9_pins_default>;
 };
 
 &main_gpio1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&main_m2_enable_pins_default
-		&main_pmx0_m2_config_pins_default
-		&main_pmx1_m2_config_pins_default
-		&cp2102n_reset_pin_default
-	>;
+	pinctrl-0 =
+		<&main_m2_enable_pins_default>,
+		<&main_pmx0_m2_config_pins_default>,
+		<&main_pmx1_m2_config_pins_default>,
+		<&cp2102n_reset_pin_default>;
 };
 
 /*

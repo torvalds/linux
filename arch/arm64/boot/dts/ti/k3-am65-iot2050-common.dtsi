@@ -384,13 +384,12 @@
 
 &wkup_gpio0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&arduino_io_d2_to_d3_pins_default
-		&arduino_i2c_aio_switch_pins_default
-		&arduino_io_oe_pins_default
-		&push_button_pins_default
-		&db9_com_mode_pins_default
-	>;
+	pinctrl-0 =
+		<&arduino_io_d2_to_d3_pins_default>,
+		<&arduino_i2c_aio_switch_pins_default>,
+		<&arduino_io_oe_pins_default>,
+		<&push_button_pins_default>,
+		<&db9_com_mode_pins_default>;
 	gpio-line-names =
 		/* 0..9 */
 		"wkup_gpio0-base", "", "", "", "UART0-mode1", "UART0-mode0",
@@ -711,11 +710,11 @@
 &mcu_r5fss0_core0 {
 	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
 			<&mcu_r5fss0_core0_memory_region>;
-	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core0>;
+	mboxes = <&mailbox0_cluster0>, <&mbox_mcu_r5fss0_core0>;
 };
 
 &mcu_r5fss0_core1 {
 	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
 			<&mcu_r5fss0_core1_memory_region>;
-	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
+	mboxes = <&mailbox0_cluster1>, <&mbox_mcu_r5fss0_core1>;
 };
