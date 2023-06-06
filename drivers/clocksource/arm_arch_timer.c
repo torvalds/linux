@@ -776,9 +776,9 @@ static noinstr u64 arch_counter_get_cnt_mem(struct arch_timer *t, int offset_lo)
 	u32 cnt_lo, cnt_hi, tmp_hi;
 
 	do {
-		cnt_hi = __raw_readl(t->base + offset_lo + 4);
-		cnt_lo = __raw_readl(t->base + offset_lo);
-		tmp_hi = __raw_readl(t->base + offset_lo + 4);
+		cnt_hi = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo + 4));
+		cnt_lo = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo));
+		tmp_hi = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo + 4));
 	} while (cnt_hi != tmp_hi);
 
 	return ((u64) cnt_hi << 32) | cnt_lo;
