@@ -243,13 +243,7 @@ _GLOBAL(_switch)
 	stw	r10,_CCR(r1)
 	stw	r1,KSP(r3)	/* Set old stack pointer */
 
-#ifdef CONFIG_SMP
-	/* We need a sync somewhere here to make sure that if the
-	 * previous task gets rescheduled on another CPU, it sees all
-	 * stores it has performed on this one.
-	 */
-	sync
-#endif /* CONFIG_SMP */
+	/* The sync for SMP migration is taken care of, see entry_64.S */
 
 	tophys(r0,r4)
 	mtspr	SPRN_SPRG_THREAD,r0	/* Update current THREAD phys addr */
