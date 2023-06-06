@@ -418,6 +418,24 @@
 						};
 					};
 				};
+				/*
+				 * Charging is not working on the HREF unless an actual battery is
+				 * mounted, most HREFs have a DC cable in to the "battery power"
+				 * which means this will only be cofusing. So do not enable charging
+				 * of the HREFs.
+				 */
+				ab8500_fg {
+					status = "disabled";
+				};
+				ab8500_btemp {
+					status = "disabled";
+				};
+				ab8500_charger {
+					status = "disabled";
+				};
+				ab8500_chargalg {
+					status = "disabled";
+				};
 			};
 		};
 	};

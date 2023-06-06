@@ -99,17 +99,16 @@
 			pinctrl-names = "default";
 			reg = <0x1d>;
 		};
-		stmpe0: stmpe2401@43 {
+		stmpe0: port-expander@43 {
 			compatible = "st,stmpe2401";
 			reg = <0x43>;
 			reset-gpios = <&gpio2 13 GPIO_ACTIVE_LOW>; // GPIO77
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>; // GPIO76
 			interrupt-parent = <&gpio2>;
-			interrupt-controller;
 			wakeup-source;
 			pinctrl-names = "default";
 			pinctrl-0 = <&stmpe2401_1_nhk_mode>;
-			stmpe_gpio43: stmpe_gpio {
+			stmpe_gpio43: gpio {
 				compatible = "st,stmpe-gpio";
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -118,7 +117,7 @@
 				/* Some pins in alternate functions */
 				st,norequest-mask = <0xf0f002>;
 			};
-			stmpe_keypad {
+			keyboard-controller {
 				compatible = "st,stmpe-keypad";
 				debounce-interval = <64>;
 				st,scan-count = <8>;
@@ -140,22 +139,21 @@
 						0x03020067 // Up
 						0x0303006c>; // Down
 			};
-			stmpe0_pwm: stmpe_pwm {
+			stmpe0_pwm: pwm {
 				compatible = "st,stmpe-pwm";
 				#pwm-cells = <2>;
 			};
 		};
-		stmpe1: stmpe2401@44 {
+		stmpe1: port-expander@44 {
 			compatible = "st,stmpe2401";
 			reg = <0x44>;
 			reset-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>; // GPIO79
 			interrupts = <14 IRQ_TYPE_EDGE_FALLING>; // GPIO78
 			interrupt-parent = <&gpio2>;
-			interrupt-controller;
 			wakeup-source;
 			pinctrl-names = "default";
 			pinctrl-0 = <&stmpe2401_2_nhk_mode>;
-			stmpe_gpio44: stmpe_gpio {
+			stmpe_gpio44: gpio {
 				compatible = "st,stmpe-gpio";
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -165,7 +163,7 @@
 				 * This will turn off SATA so that MMC/SD
 				 * can thrive
 				 */
-				mmcsd-gpio {
+				mmcsd-hog {
 					gpio-hog;
 					gpios = <2 0x0>;
 					output-low;

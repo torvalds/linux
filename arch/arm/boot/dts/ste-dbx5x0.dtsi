@@ -110,6 +110,74 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		/*
+		 * 640KB ESRAM (embedded static random access memory), divided
+		 * into 5 banks of 128 KB each. This is a fast memory usually
+		 * used by different accelerators. We group these according to
+		 * their power domains: ESRAM0 (always on) ESRAM 1+2 and
+		 * ESRAM 3+4.
+		 */
+		sram@40000000 {
+			/* The first (always on) ESRAM 0, 128 KB */
+			compatible = "mmio-sram";
+			reg = <0x40000000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x40000000 0x20000>;
+
+			sram@0 {
+				compatible = "stericsson,u8500-esram";
+				reg = <0x0 0x10000>;
+				pool;
+			};
+			lcpa: sram@10000 {
+				/*
+				 * This eSRAM is used by the DMA40 DMA controller
+				 * for Logical Channel Paramers (LCP), the address
+				 * where these parameters are stored is called "LCPA".
+				 * This is addressed directly by the driver so no
+				 * pool is used.
+				 */
+				compatible = "stericsson,u8500-esram";
+				label = "DMA40-LCPA";
+				reg = <0x10000 0x800>;
+			};
+			sram@10800 {
+				compatible = "stericsson,u8500-esram";
+				reg = <0x10800 0xf800>;
+				pool;
+			};
+		};
+		sram@40020000 {
+			/* ESRAM 1+2, 256 KB */
+			compatible = "mmio-sram";
+			reg = <0x40020000 0x40000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x40020000 0x40000>;
+		};
+		sram@40060000 {
+			/* ESRAM 3+4, 256 KB */
+			compatible = "mmio-sram";
+			reg = <0x40060000 0x40000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x40060000 0x40000>;
+
+			lcla: sram@20000 {
+				/*
+				 * This eSRAM is used by the DMA40 DMA controller
+				 * for Logical Channel Logical Addresses (LCLA), the address
+				 * where these parameters are stored is called "LCLA".
+				 * This is addressed directly by the driver so no
+				 * pool is used.
+				 */
+				compatible = "stericsson,u8500-esram";
+				label = "DMA40-LCLA";
+				reg = <0x20000 0x2000>;
+			};
+		};
+
 		ptm@801ae000 {
 			compatible = "arm,coresight-etm3x", "arm,primecell";
 			reg = <0x801ae000 0x1000>;
@@ -536,9 +604,10 @@
 
 		dma: dma-controller@801C0000 {
 			compatible = "stericsson,db8500-dma40", "stericsson,dma40";
-			reg = <0x801C0000 0x1000 0x40010000 0x800>;
-			reg-names = "base", "lcpa";
+			reg = <0x801C0000 0x1000>;
+			reg-names = "base";
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			sram = <&lcpa>, <&lcla>;
 
 			#dma-cells = <3>;
 			memcpy-channels = <56 57 58 59 60>;
