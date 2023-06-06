@@ -145,7 +145,7 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	if (dsb->free_pos == 0)
 		return false;
 
-	prev_opcode = buf[dsb->ins_start_offset + 1] >> DSB_OPCODE_SHIFT;
+	prev_opcode = buf[dsb->ins_start_offset + 1] & ~DSB_REG_VALUE_MASK;
 	prev_reg = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
 
 	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
@@ -153,12 +153,18 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 
 static bool intel_dsb_prev_ins_is_mmio_write(struct intel_dsb *dsb, i915_reg_t reg)
 {
-	return intel_dsb_prev_ins_is_write(dsb, DSB_OPCODE_MMIO_WRITE, reg);
+	/* only full byte-enables can be converted to indexed writes */
+	return intel_dsb_prev_ins_is_write(dsb,
+					   DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT |
+					   DSB_BYTE_EN << DSB_BYTE_EN_SHIFT,
+					   reg);
 }
 
 static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
 {
-	return intel_dsb_prev_ins_is_write(dsb, DSB_OPCODE_INDEXED_WRITE, reg);
+	return intel_dsb_prev_ins_is_write(dsb,
+					   DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT,
+					   reg);
 }
 
 /**
