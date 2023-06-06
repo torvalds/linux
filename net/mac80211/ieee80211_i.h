@@ -553,7 +553,7 @@ struct ieee80211_if_managed {
 
 struct ieee80211_if_ibss {
 	struct timer_list timer;
-	struct work_struct csa_connection_drop_work;
+	struct wiphy_work csa_connection_drop_work;
 
 	unsigned long last_scan_completed;
 
