@@ -1313,7 +1313,7 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 
 	header.version = MMSCH_VERSION;
 	header.total_size = sizeof(struct mmsch_v3_0_init_header) >> 2;
-	for (i = 0; i < AMDGPU_MAX_VCN_INSTANCES; i++) {
+	for (i = 0; i < MMSCH_V3_0_VCN_INSTANCES; i++) {
 		header.inst[i].init_status = 0;
 		header.inst[i].table_offset = 0;
 		header.inst[i].table_size = 0;
