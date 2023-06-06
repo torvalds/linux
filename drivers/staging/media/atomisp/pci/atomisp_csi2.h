@@ -31,6 +31,7 @@
 #define CSI2_PADS_NUM		2
 
 #define CSI2_MAX_LANES		4
+#define CSI2_MAX_LINK_FREQS	3
 
 #define CSI2_MAX_ACPI_GPIOS	2u
 
@@ -64,10 +65,12 @@ enum atomisp_csi2_sensor_swnodes {
 };
 
 struct atomisp_csi2_property_names {
+	char clock_frequency[16];
 	char rotation[9];
 	char bus_type[9];
 	char data_lanes[11];
 	char remote_endpoint[16];
+	char link_frequencies[17];
 };
 
 struct atomisp_csi2_node_names {
@@ -79,6 +82,8 @@ struct atomisp_csi2_node_names {
 struct atomisp_csi2_sensor_config {
 	const char *hid;
 	int lanes;
+	int nr_link_freqs;
+	u64 link_freqs[CSI2_MAX_LINK_FREQS];
 };
 
 struct atomisp_csi2_sensor {
@@ -93,10 +98,10 @@ struct atomisp_csi2_sensor {
 	struct software_node swnodes[SWNODE_COUNT];
 	struct atomisp_csi2_node_names node_names;
 	struct atomisp_csi2_property_names prop_names;
-	/* "rotation" + terminating entry */
-	struct property_entry dev_properties[2];
-	/* "bus-type", "data-lanes", "remote-endpoint" + terminating entry */
-	struct property_entry ep_properties[4];
+	/* "clock-frequency", "rotation" + terminating entry */
+	struct property_entry dev_properties[3];
+	/* "bus-type", "data-lanes", "remote-endpoint" + "link-freq" + terminating entry */
+	struct property_entry ep_properties[5];
 	/* "data-lanes", "remote-endpoint" + terminating entry */
 	struct property_entry csi2_properties[3];
 	struct software_node_ref_args local_ref[1];

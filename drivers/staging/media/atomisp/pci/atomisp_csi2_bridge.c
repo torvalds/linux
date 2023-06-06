@@ -85,7 +85,7 @@ static const guid_t atomisp_dsm_guid =
 
 /*
  * Extend this array with ACPI Hardware IDs of sensors known to be working
- * plus the number of links expected by their drivers.
+ * plus the default number of links + link-frequencies.
  *
  * Do not add an entry for a sensor that is not actually supported,
  * or which have not yet been converted to work without atomisp_gmin
@@ -492,10 +492,12 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 }
 
 static const struct atomisp_csi2_property_names prop_names = {
+	.clock_frequency = "clock-frequency",
 	.rotation = "rotation",
 	.bus_type = "bus-type",
 	.data_lanes = "data-lanes",
 	.remote_endpoint = "remote-endpoint",
+	.link_frequencies = "link-frequencies",
 };
 
 static void atomisp_csi2_create_fwnode_properties(struct atomisp_csi2_sensor *sensor,
@@ -507,7 +509,9 @@ static void atomisp_csi2_create_fwnode_properties(struct atomisp_csi2_sensor *se
 	sensor->local_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_CSI2_ENDPOINT]);
 	sensor->remote_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_SENSOR_ENDPOINT]);
 
-	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.rotation, 0);
+	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.clock_frequency,
+						       PMC_CLK_RATE_19_2MHZ);
+	sensor->dev_properties[1] = PROPERTY_ENTRY_U32(sensor->prop_names.rotation, 0);
 
 	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.bus_type,
 						      V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
@@ -516,6 +520,10 @@ static void atomisp_csi2_create_fwnode_properties(struct atomisp_csi2_sensor *se
 								sensor->lanes);
 	sensor->ep_properties[2] = PROPERTY_ENTRY_REF_ARRAY(sensor->prop_names.remote_endpoint,
 							    sensor->local_ref);
+	if (cfg->nr_link_freqs > 0)
+		sensor->ep_properties[3] =
+			PROPERTY_ENTRY_U64_ARRAY_LEN(sensor->prop_names.link_frequencies,
+						     cfg->link_freqs, cfg->nr_link_freqs);
 
 	sensor->csi2_properties[0] = PROPERTY_ENTRY_U32_ARRAY_LEN(sensor->prop_names.data_lanes,
 								  bridge->data_lanes,
