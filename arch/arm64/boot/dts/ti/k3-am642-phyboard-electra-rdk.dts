@@ -76,7 +76,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins_default &user_leds_pins_default>;
+		pinctrl-0 = <&leds_pins_default>, <&user_leds_pins_default>;
 
 		led-1 {
 			color = <LED_COLOR_ID_RED>;
