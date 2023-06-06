@@ -408,8 +408,6 @@ static void hpriv_release(struct kref *ref)
 
 	hdev->asic_funcs->send_device_activity(hdev, false);
 
-	put_pid(hpriv->taskpid);
-
 	hl_debugfs_remove_file(hpriv);
 
 	mutex_destroy(&hpriv->ctx_lock);
@@ -447,6 +445,8 @@ static void hpriv_release(struct kref *ref)
 	mutex_lock(&hdev->fpriv_list_lock);
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_list_lock);
+
+	put_pid(hpriv->taskpid);
 
 	if (reset_device) {
 		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
