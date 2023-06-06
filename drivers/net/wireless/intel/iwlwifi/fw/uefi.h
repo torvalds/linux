@@ -10,16 +10,7 @@
 #define IWL_UEFI_SGOM_NAME		L"UefiCnvWlanSarGeoOffsetMapping"
 #define IWL_UEFI_STEP_NAME		L"UefiCnvCommonSTEP"
 
-/*
- * TODO: we have these hardcoded values that the caller must pass,
- * because reading from the UEFI is not working.  To implement this
- * properly, we have to change iwl_pnvm_get_from_uefi() to call
- * efivar_entry_size() and return the value to the caller instead.
- */
-#define IWL_HARDCODED_PNVM_SIZE		4096
-#define IWL_HARDCODED_REDUCE_POWER_SIZE	32768
-#define IWL_HARDCODED_SGOM_SIZE		339
-#define IWL_HARDCODED_STEP_SIZE		6
+#define IWL_SGOM_MAP_SIZE		339
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -31,7 +22,7 @@ struct pnvm_sku_package {
 
 struct uefi_cnv_wlan_sgom_data {
 	u8 revision;
-	u8 offset_map[IWL_HARDCODED_SGOM_SIZE - 1];
+	u8 offset_map[IWL_SGOM_MAP_SIZE - 1];
 } __packed;
 
 struct uefi_cnv_common_step_data {
