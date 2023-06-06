@@ -98,7 +98,7 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 				      serial_base_ctrl_release,
 				      port->ctrl_id);
 	if (err)
-		goto err_free_ctrl_dev;
+		goto err_put_device;
 
 	err = device_add(&ctrl_dev->dev);
 	if (err)
@@ -108,8 +108,6 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 
 err_put_device:
 	put_device(&ctrl_dev->dev);
-err_free_ctrl_dev:
-	kfree(ctrl_dev);
 
 	return ERR_PTR(err);
 }
@@ -140,7 +138,7 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 				      serial_base_port_release,
 				      port->line);
 	if (err)
-		goto err_free_port_dev;
+		goto err_put_device;
 
 	port_dev->port = port;
 
@@ -152,8 +150,6 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 
 err_put_device:
 	put_device(&port_dev->dev);
-err_free_port_dev:
-	kfree(port_dev);
 
 	return ERR_PTR(err);
 }
