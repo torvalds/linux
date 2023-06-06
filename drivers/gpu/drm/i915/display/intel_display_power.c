@@ -20,6 +20,7 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_pcode.h"
+#include "intel_pmdemand.h"
 #include "intel_pps_regs.h"
 #include "intel_snps_phy.h"
 #include "skl_watermark.h"
@@ -1082,20 +1083,29 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
+	u8 slices_mask;
+
 	dev_priv->display.dbuf.enabled_slices =
 		intel_enabled_dbuf_slices_mask(dev_priv);
+
+	slices_mask = BIT(DBUF_S1) | dev_priv->display.dbuf.enabled_slices;
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		intel_pmdemand_program_dbuf(dev_priv, slices_mask);
 
 	/*
 	 * Just power up at least 1 slice, we will
 	 * figure out later which slices we have and what we need.
 	 */
-	gen9_dbuf_slices_update(dev_priv, BIT(DBUF_S1) |
-				dev_priv->display.dbuf.enabled_slices);
+	gen9_dbuf_slices_update(dev_priv, slices_mask);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
 	gen9_dbuf_slices_update(dev_priv, 0);
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		intel_pmdemand_program_dbuf(dev_priv, 0);
 }
 
 static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)

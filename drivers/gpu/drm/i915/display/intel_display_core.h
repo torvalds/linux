@@ -346,6 +346,15 @@ struct intel_display {
 	} dbuf;
 
 	struct {
+		wait_queue_head_t waitqueue;
+
+		/* mutex to protect pmdemand programming sequence */
+		struct mutex lock;
+
+		struct intel_global_obj obj;
+	} pmdemand;
+
+	struct {
 		/*
 		 * dkl.phy_lock protects against concurrent access of the
 		 * Dekel TypeC PHYs.

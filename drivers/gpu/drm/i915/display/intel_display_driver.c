@@ -47,6 +47,7 @@
 #include "intel_opregion.h"
 #include "intel_overlay.h"
 #include "intel_plane_initial.h"
+#include "intel_pmdemand.h"
 #include "intel_pps.h"
 #include "intel_quirks.h"
 #include "intel_vga.h"
@@ -211,6 +212,8 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (ret < 0)
 		goto cleanup_vga;
 
+	intel_pmdemand_init_early(i915);
+
 	intel_power_domains_init_hw(i915, false);
 
 	if (!HAS_DISPLAY(i915))
@@ -237,6 +240,10 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 		goto cleanup_vga_client_pw_domain_dmc;
 
 	ret = intel_bw_init(i915);
+	if (ret)
+		goto cleanup_vga_client_pw_domain_dmc;
+
+	ret = intel_pmdemand_init(i915);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
