@@ -236,14 +236,12 @@ static struct kmem_cache *create_cache(const char *name,
 
 	s->refcount = 1;
 	list_add(&s->list, &slab_caches);
-out:
-	if (err)
-		return ERR_PTR(err);
 	return s;
 
 out_free_cache:
 	kmem_cache_free(kmem_cache, s);
-	goto out;
+out:
+	return ERR_PTR(err);
 }
 
 /**
