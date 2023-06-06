@@ -1535,7 +1535,7 @@ static int smu_v13_0_0_od_edit_dpm_table(struct smu_context *smu,
 		 * settings. Thus we do not cache it.
 		 */
 		offset_of_featurectrlmask = offsetof(OverDriveTable_t, FeatureCtrlMask);
-		if (memcmp(od_table + offset_of_featurectrlmask,
+		if (memcmp((u8 *)od_table + offset_of_featurectrlmask,
 			   table_context->user_overdrive_table + offset_of_featurectrlmask,
 			   sizeof(OverDriveTableExternal_t) - offset_of_featurectrlmask)) {
 			smu_v13_0_0_dump_od_table(smu, od_table);
@@ -1548,7 +1548,7 @@ static int smu_v13_0_0_od_edit_dpm_table(struct smu_context *smu,
 
 			od_table->OverDriveTable.FeatureCtrlMask = 0;
 			memcpy(table_context->user_overdrive_table + offset_of_featurectrlmask,
-			       od_table + offset_of_featurectrlmask,
+			       (u8 *)od_table + offset_of_featurectrlmask,
 			       sizeof(OverDriveTableExternal_t) - offset_of_featurectrlmask);
 
 			if (!memcmp(table_context->user_overdrive_table,
