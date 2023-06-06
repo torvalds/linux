@@ -36,10 +36,8 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 	const struct iwl_ucode_tlv *tlv;
 	u32 sha1 = 0;
 	u16 mac_type = 0, rf_id = 0;
-	u8 *pnvm_data = NULL, *tmp;
+	struct iwl_pnvm_image pnvm_data = {};
 	bool hw_match = false;
-	u32 size = 0;
-	int ret;
 
 	IWL_DEBUG_FW(trans, "Handling PNVM section\n");
 
@@ -55,8 +53,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 		if (len < tlv_len) {
 			IWL_ERR(trans, "invalid TLV len: %zd/%u\n",
 				len, tlv_len);
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
 		data += sizeof(*tlv);
@@ -112,23 +109,18 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 				break;
 			}
 
+			if (pnvm_data.n_chunks == IPC_DRAM_MAP_ENTRY_NUM_MAX) {
+				IWL_DEBUG_FW(trans,
+					     "too many payloads to allocate in DRAM.\n");
+				return -EINVAL;
+			}
+
 			IWL_DEBUG_FW(trans, "Adding data (size %d)\n",
 				     data_len);
 
-			tmp = krealloc(pnvm_data, size + data_len, GFP_KERNEL);
-			if (!tmp) {
-				IWL_DEBUG_FW(trans,
-					     "Couldn't allocate (more) pnvm_data\n");
-
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			pnvm_data = tmp;
-
-			memcpy(pnvm_data + size, section->data, data_len);
-
-			size += data_len;
+			pnvm_data.chunks[pnvm_data.n_chunks].data = section->data;
+			pnvm_data.chunks[pnvm_data.n_chunks].len = data_len;
+			pnvm_data.n_chunks++;
 
 			break;
 		}
@@ -152,22 +144,17 @@ done:
 			     "HW mismatch, skipping PNVM section (need mac_type 0x%x rf_id 0x%x)\n",
 			     CSR_HW_REV_TYPE(trans->hw_rev),
 			     CSR_HW_RFID_TYPE(trans->hw_rf_id));
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
-	if (!size) {
+	if (!pnvm_data.n_chunks) {
 		IWL_DEBUG_FW(trans, "Empty PNVM, skipping.\n");
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
 	IWL_INFO(trans, "loaded PNVM version %08x\n", sha1);
 
-	ret = iwl_trans_set_pnvm(trans, pnvm_data, size);
-out:
-	kfree(pnvm_data);
-	return ret;
+	return iwl_trans_set_pnvm(trans, &pnvm_data);
 }
 
 static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
@@ -275,7 +262,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	 * need to set it again.
 	 */
 	if (trans->pnvm_loaded) {
-		ret = iwl_trans_set_pnvm(trans, NULL, 0);
+		ret = iwl_trans_set_pnvm(trans, NULL);
 		if (ret)
 			return ret;
 		goto skip_parse;

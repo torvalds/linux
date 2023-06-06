@@ -13,6 +13,8 @@
 #define CSR_IML_SIZE_ADDR               0x128
 #define CSR_IML_RESP_ADDR               0x12c
 
+#define UNFRAGMENTED_PNVM_PAYLOADS_NUMBER 2
+
 /* Set bit for enabling automatic function boot */
 #define CSR_AUTO_FUNC_BOOT_ENA          BIT(1)
 /* Set bit for initiating function boot */
@@ -278,7 +280,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 
 int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
-					  const void *data, u32 len);
+					  const struct iwl_pnvm_image *pnvm_payloads);
 int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 						  const void *data, u32 len);
 int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
