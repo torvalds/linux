@@ -309,6 +309,8 @@ enum iwl_pcie_imr_status {
  * @kw: keep warm address
  * @pnvm_dram: array of several DRAM areas that contains the PNVM data
  * @n_pnvm_regions: number of DRAM regions that were allocated for the pnvm
+ * @pnvm_regions_desc_array: array of PNVM payloads addresses.
+ *	allocated in DRAM and sent to FW.
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
@@ -385,6 +387,7 @@ struct iwl_trans_pcie {
 	/* pnvm data */
 	struct iwl_dram_data pnvm_dram[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 	u8 n_pnvm_regions;
+	struct iwl_dram_data pnvm_regions_desc_array;
 	struct iwl_dram_data reduce_power_dram;
 
 	struct iwl_txq *txq_memory;

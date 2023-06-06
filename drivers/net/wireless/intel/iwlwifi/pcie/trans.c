@@ -1999,6 +1999,7 @@ void iwl_trans_pcie_free_pnvm_dram(struct iwl_trans_pcie *trans_pcie,
 				   struct device *dev)
 {
 	u8 i;
+	struct iwl_dram_data *desc_dram = &trans_pcie->pnvm_regions_desc_array;
 
 	for (i = 0; i < trans_pcie->n_pnvm_regions; i++) {
 		dma_free_coherent(dev, trans_pcie->pnvm_dram[i].size,
@@ -2006,6 +2007,13 @@ void iwl_trans_pcie_free_pnvm_dram(struct iwl_trans_pcie *trans_pcie,
 				  trans_pcie->pnvm_dram[i].physical);
 	}
 	trans_pcie->n_pnvm_regions = 0;
+
+	if (desc_dram->block) {
+		dma_free_coherent(dev, desc_dram->size,
+				  desc_dram->block,
+				  desc_dram->physical);
+	}
+	desc_dram->block = NULL;
 }
 
 void iwl_trans_pcie_free(struct iwl_trans *trans)

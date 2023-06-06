@@ -315,11 +315,58 @@ static int iwl_pcie_load_payloads_continuously(struct iwl_trans *trans,
 	return 0;
 }
 
-/* FIXME: An implementation will be added with the next several commits. */
-static int iwl_pcie_load_payloads_segments(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads)
+static int iwl_pcie_load_payloads_segments
+				(struct iwl_trans *trans,
+				 const struct iwl_pnvm_image *pnvm_data)
 {
-	return -ENOMEM;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_dram_data *cur_pnvm_dram = &trans_pcie->pnvm_dram[0],
+			     *desc_dram = &trans_pcie->pnvm_regions_desc_array;
+	struct iwl_prph_scrath_mem_desc_addr_array *addresses;
+	const void *data;
+	u32 len;
+	int i;
+
+	/* allocate and init DRAM descriptors array */
+	len = sizeof(struct iwl_prph_scrath_mem_desc_addr_array);
+	desc_dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent
+						(trans,
+						 len,
+						 &desc_dram->physical);
+	if (!desc_dram->block) {
+		IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA.\n");
+		return -ENOMEM;
+	}
+	desc_dram->size = len;
+	memset(desc_dram->block, 0, len);
+
+	/* allocate DRAM region for each payload */
+	trans_pcie->n_pnvm_regions = 0;
+	for (i = 0; i < pnvm_data->n_chunks; i++) {
+		len = pnvm_data->chunks[i].len;
+		data = pnvm_data->chunks[i].data;
+
+		if (iwl_pcie_ctxt_info_alloc_dma(trans, data, len,
+						 cur_pnvm_dram)) {
+			iwl_trans_pcie_free_pnvm_dram(trans_pcie, trans->dev);
+			return -ENOMEM;
+		}
+
+		trans_pcie->n_pnvm_regions++;
+		cur_pnvm_dram++;
+	}
+
+	/* fill desc with the DRAM payloads addresses */
+	addresses = desc_dram->block;
+
+	for (i = 0; i < pnvm_data->n_chunks; i++) {
+		addresses->mem_descs[i] =
+			cpu_to_le64(trans_pcie->pnvm_dram[i].physical);
+	}
+
+	trans->pnvm_loaded = true;
+	return 0;
+
 }
 
 int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
@@ -342,9 +389,16 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return 0;
 
+	if (!pnvm_payloads->n_chunks) {
+		IWL_DEBUG_FW(trans, "no payloads\n");
+		return -EINVAL;
+	}
+
+	/* allocate several DRAM sections */
 	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
 		return iwl_pcie_load_payloads_segments(trans, pnvm_payloads);
 
+	/* allocate one DRAM section */
 	ret = iwl_pcie_load_payloads_continuously(trans, pnvm_payloads, dram);
 	if (!ret) {
 		trans_pcie->n_pnvm_regions = 1;
@@ -354,8 +408,15 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	return ret;
 }
 
-/* FIXME: An implementation will be added with the next several commits. */
-static void iwl_pcie_set_pnvm_segments(struct iwl_trans *trans) {}
+static void iwl_pcie_set_pnvm_segments(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
+		&trans_pcie->prph_scratch->ctrl_cfg;
+
+	prph_sc_ctrl->pnvm_cfg.pnvm_base_addr =
+		cpu_to_le64(trans_pcie->pnvm_regions_desc_array.physical);
+}
 
 static void iwl_pcie_set_continuous_pnvm(struct iwl_trans *trans)
 {
