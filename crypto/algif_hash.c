@@ -63,78 +63,102 @@ static void hash_free_result(struct sock *sk, struct hash_ctx *ctx)
 static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 			size_t ignored)
 {
-	int limit = ALG_MAX_PAGES * PAGE_SIZE;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
-	long copied = 0;
+	ssize_t copied = 0;
+	size_t len, max_pages, npages;
+	bool continuing = ctx->more, need_init = false;
 	int err;
 
-	if (limit > sk->sk_sndbuf)
-		limit = sk->sk_sndbuf;
+	max_pages = min_t(size_t, ALG_MAX_PAGES,
+			  DIV_ROUND_UP(sk->sk_sndbuf, PAGE_SIZE));
 
 	lock_sock(sk);
-	if (!ctx->more) {
+	if (!continuing) {
 		if ((msg->msg_flags & MSG_MORE))
 			hash_free_result(sk, ctx);
-
-		err = crypto_wait_req(crypto_ahash_init(&ctx->req), &ctx->wait);
-		if (err)
-			goto unlock;
+		need_init = true;
 	}
 
 	ctx->more = false;
 
 	while (msg_data_left(msg)) {
-		int len = msg_data_left(msg);
-
-		if (len > limit)
-			len = limit;
-
 		ctx->sgl.sgt.sgl = ctx->sgl.sgl;
 		ctx->sgl.sgt.nents = 0;
 		ctx->sgl.sgt.orig_nents = 0;
 
-		len = extract_iter_to_sg(&msg->msg_iter, len, &ctx->sgl.sgt,
-					 ALG_MAX_PAGES, 0);
-		if (len < 0) {
-			err = copied ? 0 : len;
-			goto unlock;
+		err = -EIO;
+		npages = iov_iter_npages(&msg->msg_iter, max_pages);
+		if (npages == 0)
+			goto unlock_free;
+
+		if (npages > ARRAY_SIZE(ctx->sgl.sgl)) {
+			err = -ENOMEM;
+			ctx->sgl.sgt.sgl =
+				kvmalloc(array_size(npages,
+						    sizeof(*ctx->sgl.sgt.sgl)),
+					 GFP_KERNEL);
+			if (!ctx->sgl.sgt.sgl)
+				goto unlock_free;
 		}
-		sg_mark_end(ctx->sgl.sgt.sgl + ctx->sgl.sgt.nents);
+		sg_init_table(ctx->sgl.sgl, npages);
 
 		ctx->sgl.need_unpin = iov_iter_extract_will_pin(&msg->msg_iter);
 
-		ahash_request_set_crypt(&ctx->req, ctx->sgl.sgt.sgl, NULL, len);
+		err = extract_iter_to_sg(&msg->msg_iter, LONG_MAX,
+					 &ctx->sgl.sgt, npages, 0);
+		if (err < 0)
+			goto unlock_free;
+		len = err;
+		sg_mark_end(ctx->sgl.sgt.sgl + ctx->sgl.sgt.nents - 1);
 
-		err = crypto_wait_req(crypto_ahash_update(&ctx->req),
-				      &ctx->wait);
-		af_alg_free_sg(&ctx->sgl);
-		if (err) {
-			iov_iter_revert(&msg->msg_iter, len);
-			goto unlock;
+		if (!msg_data_left(msg)) {
+			err = hash_alloc_result(sk, ctx);
+			if (err)
+				goto unlock_free;
 		}
 
-		copied += len;
-	}
+		ahash_request_set_crypt(&ctx->req, ctx->sgl.sgt.sgl,
+					ctx->result, len);
 
-	err = 0;
+		if (!msg_data_left(msg) && !continuing &&
+		    !(msg->msg_flags & MSG_MORE)) {
+			err = crypto_ahash_digest(&ctx->req);
+		} else {
+			if (need_init) {
+				err = crypto_wait_req(
+					crypto_ahash_init(&ctx->req),
+					&ctx->wait);
+				if (err)
+					goto unlock_free;
+				need_init = false;
+			}
+
+			if (msg_data_left(msg) || (msg->msg_flags & MSG_MORE))
+				err = crypto_ahash_update(&ctx->req);
+			else
+				err = crypto_ahash_finup(&ctx->req);
+			continuing = true;
+		}
+
+		err = crypto_wait_req(err, &ctx->wait);
+		if (err)
+			goto unlock_free;
+
+		copied += len;
+		af_alg_free_sg(&ctx->sgl);
+	}
 
 	ctx->more = msg->msg_flags & MSG_MORE;
-	if (!ctx->more) {
-		err = hash_alloc_result(sk, ctx);
-		if (err)
-			goto unlock;
-
-		ahash_request_set_crypt(&ctx->req, NULL, ctx->result, 0);
-		err = crypto_wait_req(crypto_ahash_final(&ctx->req),
-				      &ctx->wait);
-	}
-
+	err = 0;
 unlock:
 	release_sock(sk);
+	return copied ?: err;
 
-	return err ?: copied;
+unlock_free:
+	af_alg_free_sg(&ctx->sgl);
+	goto unlock;
 }
 
 static ssize_t hash_sendpage(struct socket *sock, struct page *page,

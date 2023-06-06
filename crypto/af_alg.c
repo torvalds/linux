@@ -542,9 +542,14 @@ void af_alg_free_sg(struct af_alg_sgl *sgl)
 {
 	int i;
 
-	if (sgl->need_unpin)
-		for (i = 0; i < sgl->sgt.nents; i++)
-			unpin_user_page(sg_page(&sgl->sgt.sgl[i]));
+	if (sgl->sgt.sgl) {
+		if (sgl->need_unpin)
+			for (i = 0; i < sgl->sgt.nents; i++)
+				unpin_user_page(sg_page(&sgl->sgt.sgl[i]));
+		if (sgl->sgt.sgl != sgl->sgl)
+			kvfree(sgl->sgt.sgl);
+		sgl->sgt.sgl = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(af_alg_free_sg);
 
