@@ -48,6 +48,16 @@ struct reg_sublist {
 	__u64 rejects_set_n;
 };
 
+struct feature_id_reg {
+	__u64 reg;
+	__u64 id_reg;
+	__u64 feat_shift;
+	__u64 feat_min;
+};
+
+static struct feature_id_reg feat_id_regs[] = {
+};
+
 struct vcpu_config {
 	char *name;
 	struct reg_sublist sublists[];
@@ -68,7 +78,8 @@ static int vcpu_configs_n;
 
 #define for_each_missing_reg(i)							\
 	for ((i) = 0; (i) < blessed_n; ++(i))					\
-		if (!find_reg(reg_list->reg, reg_list->n, blessed_reg[i]))
+		if (!find_reg(reg_list->reg, reg_list->n, blessed_reg[i]))	\
+			if (check_supported_feat_reg(vcpu, blessed_reg[i]))
 
 #define for_each_new_reg(i)							\
 	for_each_reg_filtered(i)						\
@@ -130,6 +141,25 @@ static bool find_reg(__u64 regs[], __u64 nr_regs, __u64 reg)
 		if (reg == regs[i])
 			return true;
 	return false;
+}
+
+static bool check_supported_feat_reg(struct kvm_vcpu *vcpu, __u64 reg)
+{
+	int i, ret;
+	__u64 data, feat_val;
+
+	for (i = 0; i < ARRAY_SIZE(feat_id_regs); i++) {
+		if (feat_id_regs[i].reg == reg) {
+			ret = __vcpu_get_reg(vcpu, feat_id_regs[i].id_reg, &data);
+			if (ret < 0)
+				return false;
+
+			feat_val = ((data >> feat_id_regs[i].feat_shift) & 0xf);
+			return feat_val >= feat_id_regs[i].feat_min;
+		}
+	}
+
+	return true;
 }
 
 static const char *str_with_index(const char *template, __u64 index)
