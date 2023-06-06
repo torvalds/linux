@@ -428,7 +428,7 @@ static int hitfb_suspend(struct device *dev)
 {
 	u16 v;
 
-	hitfb_blank(1,0);
+	hitfb_blank(1, NULL);
 	v = fb_readw(HD64461_STBCR);
 	v |= HD64461_STBCR_SLCKE_IST;
 	fb_writew(v, HD64461_STBCR);
@@ -446,7 +446,7 @@ static int hitfb_resume(struct device *dev)
 	v = fb_readw(HD64461_STBCR);
 	v &= ~HD64461_STBCR_SLCKE_IST;
 	fb_writew(v, HD64461_STBCR);
-	hitfb_blank(0,0);
+	hitfb_blank(0, NULL);
 
 	return 0;
 }
