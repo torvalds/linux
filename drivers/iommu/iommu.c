@@ -500,7 +500,7 @@ static void __iommu_group_release_device(struct iommu_group *group,
 	kfree(grp_dev->name);
 	kfree(grp_dev);
 	dev->iommu_group = NULL;
-	kobject_put(group->devices_kobj);
+	iommu_group_put(group);
 }
 
 static void iommu_release_device(struct device *dev)
@@ -1067,8 +1067,7 @@ rename:
 		goto err_free_name;
 	}
 
-	kobject_get(group->devices_kobj);
-
+	iommu_group_ref_get(group);
 	dev->iommu_group = group;
 
 	mutex_lock(&group->mutex);
