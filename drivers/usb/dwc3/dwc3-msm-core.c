@@ -6424,6 +6424,64 @@ static int dwc3_msm_host_ss_powerup(struct dwc3_msm *mdwc)
 	return 0;
 }
 
+static int usb_audio_pre_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int usb_audio_post_reset(struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+
+	dev_info(&udev->dev, "USB bus reset recovery triggered\n");
+	/* Only notify to recover on devices connected to RH */
+	if (!udev->parent->parent)
+		kobject_uevent(&intf->dev.kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
+static void dwc3_msm_override_audio_drv_ops(struct device *dev)
+{
+	struct usb_driver *usb_drv;
+
+	if (!dev->driver) {
+		dev_err(dev, "can't override USB audio OPs\n");
+		return;
+	}
+
+	usb_drv = to_usb_driver(dev->driver);
+	usb_drv->pre_reset = usb_audio_pre_reset;
+	usb_drv->post_reset = usb_audio_post_reset;
+}
+
+/*
+ * dwc3_msm_update_interfaces - override USB SND driver
+ *
+ * Intention of this is to add the pre and post USB bus reset callbacks
+ * to the generic USB SND driver.  This allows for the DWC3 MSM to
+ * generate a kernel uevent to the USB HAL for it to trigger a recovery
+ * for USB audio use cases.
+ *
+ * One use case is that the USB HAL utilizes the roothub's authorized
+ * sysfs to trigger a device disconnect/connect.  This allows for the
+ * userspace entities to detect an audio device removal, so it can stop
+ * the current session.
+ */
+static void dwc3_msm_update_interfaces(struct usb_device *udev)
+{
+	int i;
+
+	for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf = udev->actconfig->interface[i];
+		struct usb_interface_descriptor *desc = NULL;
+
+		desc = &intf->altsetting->desc;
+		if (desc->bInterfaceClass == USB_CLASS_AUDIO)
+			dwc3_msm_override_audio_drv_ops(&intf->dev);
+	}
+}
+
 static int dwc3_msm_host_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
@@ -6468,6 +6526,7 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 				if (mdwc->wcd_usbss)
 					wcd_usbss_dpdm_switch_update(true,
 							udev->speed == USB_SPEED_HIGH);
+				dwc3_msm_update_interfaces(udev);
 			} else {
 				if (mdwc->max_rh_port_speed < USB_SPEED_SUPER)
 					dwc3_msm_host_ss_powerup(mdwc);
