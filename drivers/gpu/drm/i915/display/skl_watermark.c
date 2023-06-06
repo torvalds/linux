@@ -3721,3 +3721,17 @@ void skl_watermark_debugfs_register(struct drm_i915_private *i915)
 		debugfs_create_file("i915_sagv_status", 0444, minor->debugfs_root, i915,
 				    &intel_sagv_status_fops);
 }
+
+unsigned int skl_watermark_max_latency(struct drm_i915_private *i915)
+{
+	int level;
+
+	for (level = i915->display.wm.num_levels - 1; level >= 0; level--) {
+		unsigned int latency = skl_wm_latency(i915, level, NULL);
+
+		if (latency)
+			return latency;
+	}
+
+	return 0;
+}
