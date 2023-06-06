@@ -1177,8 +1177,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	master = spi_alloc_master(&pdev->dev,
-				sizeof(struct s3c64xx_spi_driver_data));
+	master = devm_spi_alloc_master(&pdev->dev, sizeof(*sdd));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate SPI Master\n");
 		return -ENOMEM;
@@ -1197,7 +1196,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
 				ret);
-			goto err_deref_master;
+			return ret;
 		}
 		sdd->port_id = ret;
 	} else {
@@ -1232,23 +1231,19 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		master->can_dma = s3c64xx_spi_can_dma;
 
 	sdd->regs = devm_ioremap_resource(&pdev->dev, mem_res);
-	if (IS_ERR(sdd->regs)) {
-		ret = PTR_ERR(sdd->regs);
-		goto err_deref_master;
-	}
+	if (IS_ERR(sdd->regs))
+		return PTR_ERR(sdd->regs);
 
 	if (sci->cfg_gpio && sci->cfg_gpio()) {
 		dev_err(&pdev->dev, "Unable to config gpio\n");
-		ret = -EBUSY;
-		goto err_deref_master;
+		return -EBUSY;
 	}
 
 	/* Setup clocks */
 	sdd->clk = devm_clk_get_enabled(&pdev->dev, "spi");
 	if (IS_ERR(sdd->clk)) {
 		dev_err(&pdev->dev, "Unable to acquire clock 'spi'\n");
-		ret = PTR_ERR(sdd->clk);
-		goto err_deref_master;
+		return PTR_ERR(sdd->clk);
 	}
 
 	sprintf(clk_name, "spi_busclk%d", sci->src_clk_nr);
@@ -1256,16 +1251,14 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(sdd->src_clk)) {
 		dev_err(&pdev->dev,
 			"Unable to acquire clock '%s'\n", clk_name);
-		ret = PTR_ERR(sdd->src_clk);
-		goto err_deref_master;
+		return PTR_ERR(sdd->src_clk);
 	}
 
 	if (sdd->port_conf->clk_ioclk) {
 		sdd->ioclk = devm_clk_get_enabled(&pdev->dev, "spi_ioclk");
 		if (IS_ERR(sdd->ioclk)) {
 			dev_err(&pdev->dev, "Unable to acquire 'ioclk'\n");
-			ret = PTR_ERR(sdd->ioclk);
-			goto err_deref_master;
+			return PTR_ERR(sdd->ioclk);
 		}
 	}
 
@@ -1313,9 +1306,6 @@ err_pm_put:
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-err_deref_master:
-	spi_master_put(master);
 
 	return ret;
 }
