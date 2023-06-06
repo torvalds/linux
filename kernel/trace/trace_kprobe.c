@@ -825,7 +825,7 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 		if (is_return)
 			flags |= TPARG_FL_RETURN;
 		ret = kprobe_on_func_entry(NULL, symbol, offset);
-		if (ret == 0)
+		if (ret == 0 && !is_return)
 			flags |= TPARG_FL_FENTRY;
 		/* Defer the ENOENT case until register kprobe */
 		if (ret == -EINVAL && is_return) {

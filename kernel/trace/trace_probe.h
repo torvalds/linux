@@ -357,6 +357,11 @@ int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_a
 #define trace_probe_for_each_link_rcu(pos, tp)	\
 	list_for_each_entry_rcu(pos, &(tp)->event->files, list)
 
+/*
+ * The flags used for parsing trace_probe arguments.
+ * TPARG_FL_RETURN, TPARG_FL_FENTRY and TPARG_FL_TPOINT are mutually exclusive.
+ * TPARG_FL_KERNEL and TPARG_FL_USER are also mutually exclusive.
+ */
 #define TPARG_FL_RETURN BIT(0)
 #define TPARG_FL_KERNEL BIT(1)
 #define TPARG_FL_FENTRY BIT(2)
