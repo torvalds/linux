@@ -463,6 +463,15 @@ static const struct platform_device_id board_ids[] = {
 					SOF_SSP_BT_OFFLOAD_PRESENT |
 					SOF_CS35L41_SPEAKER_AMP_PRESENT),
 	},
+	{
+		.name = "adl_lt6911_hdmi_ssp",
+		.driver_data = (kernel_ulong_t)(SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_HDMI_CAPTURE_1_SSP(0) |
+					SOF_HDMI_CAPTURE_2_SSP(2) |
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_HDMI_PLAYBACK_PRESENT),
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, board_ids);
@@ -478,7 +487,7 @@ static struct platform_driver sof_ssp_amp_driver = {
 module_platform_driver(sof_ssp_amp_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF Amplifier Machine driver");
-MODULE_AUTHOR("balamurugan.c <balamurugan.c@intel.com>");
+MODULE_AUTHOR("Balamurugan C <balamurugan.c@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
