@@ -10,41 +10,17 @@
  *    Copyright (C) 1996 Paul Mackerras.
  *  MPC8xx modifications Copyright (C) 1997 Dan Malek (dmalek@jlc.net).
  *
- *  This file contains the system call entry code, context switch
- *  code, and exception/interrupt return code for PowerPC.
+ *  This file contains the 64-bit prom entry code.
  */
-
-#include <linux/errno.h>
-#include <linux/err.h>
-#include <asm/cache.h>
-#include <asm/unistd.h>
-#include <asm/processor.h>
-#include <asm/page.h>
-#include <asm/mmu.h>
-#include <asm/thread_info.h>
-#include <asm/code-patching-asm.h>
-#include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/cputable.h>
-#include <asm/firmware.h>
-#include <asm/bug.h>
-#include <asm/ptrace.h>
-#include <asm/irqflags.h>
-#include <asm/hw_irq.h>
-#include <asm/context_tracking.h>
-#include <asm/ppc-opcode.h>
-#include <asm/barrier.h>
-#include <asm/export.h>
-#include <asm/asm-compat.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/exception-64s.h>
 #else
 #include <asm/exception-64e.h>
 #endif
-#include <asm/feature-fixups.h>
-#include <asm/kup.h>
+#include <asm/ppc_asm.h>
 
-	.section	".text"
+.section ".text","ax",@progbits
 
 _GLOBAL(enter_prom)
 	mflr	r0
