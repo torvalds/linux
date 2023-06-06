@@ -144,8 +144,9 @@ config RESET_NPCM
 	  BMC SoCs.
 
 config RESET_NUVOTON_MA35D1
-	bool "Nuvton MA35D1 Reset Driver"
-	default ARCH_MA35 || COMPILE_TEST
+	bool "Nuvoton MA35D1 Reset Driver"
+	depends on ARCH_MA35 || COMPILE_TEST
+	default ARCH_MA35
 	help
 	  This enables the reset controller driver for Nuvoton MA35D1 SoC.
 
