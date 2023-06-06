@@ -1304,18 +1304,18 @@ disable_device:
 static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool control_dev)
 {
 	struct task_struct *task = NULL;
-	struct list_head *fd_list;
-	struct hl_fpriv	*hpriv;
-	struct mutex *fd_lock;
+	struct list_head *hpriv_list;
+	struct hl_fpriv *hpriv;
+	struct mutex *hpriv_lock;
 	u32 pending_cnt;
 
-	fd_lock = control_dev ? &hdev->fpriv_ctrl_list_lock : &hdev->fpriv_list_lock;
-	fd_list = control_dev ? &hdev->fpriv_ctrl_list : &hdev->fpriv_list;
+	hpriv_lock = control_dev ? &hdev->fpriv_ctrl_list_lock : &hdev->fpriv_list_lock;
+	hpriv_list = control_dev ? &hdev->fpriv_ctrl_list : &hdev->fpriv_list;
 
 	/* Giving time for user to close FD, and for processes that are inside
 	 * hl_device_open to finish
 	 */
-	if (!list_empty(fd_list))
+	if (!list_empty(hpriv_list))
 		ssleep(1);
 
 	if (timeout) {
@@ -1331,12 +1331,12 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool 
 		}
 	}
 
-	mutex_lock(fd_lock);
+	mutex_lock(hpriv_lock);
 
 	/* This section must be protected because we are dereferencing
 	 * pointers that are freed if the process exits
 	 */
-	list_for_each_entry(hpriv, fd_list, dev_node) {
+	list_for_each_entry(hpriv, hpriv_list, dev_node) {
 		task = get_pid_task(hpriv->taskpid, PIDTYPE_PID);
 		if (task) {
 			dev_info(hdev->dev, "Killing user process pid=%d\n",
@@ -1346,18 +1346,13 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool 
 
 			put_task_struct(task);
 		} else {
-			/*
-			 * If we got here, it means that process was killed from outside the driver
-			 * right after it started looping on fd_list and before get_pid_task, thus
-			 * we don't need to kill it.
-			 */
 			dev_dbg(hdev->dev,
-				"Can't get task struct for user process %d, assuming process was killed from outside the driver\n",
+				"Can't get task struct for user process %d, process was killed from outside the driver\n",
 				pid_nr(hpriv->taskpid));
 		}
 	}
 
-	mutex_unlock(fd_lock);
+	mutex_unlock(hpriv_lock);
 
 	/*
 	 * We killed the open users, but that doesn't mean they are closed.
@@ -1369,7 +1364,7 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool 
 	 */
 
 wait_for_processes:
-	while ((!list_empty(fd_list)) && (pending_cnt)) {
+	while ((!list_empty(hpriv_list)) && (pending_cnt)) {
 		dev_dbg(hdev->dev,
 			"Waiting for all unmap operations to finish before hard reset\n");
 
@@ -1379,7 +1374,7 @@ wait_for_processes:
 	}
 
 	/* All processes exited successfully */
-	if (list_empty(fd_list))
+	if (list_empty(hpriv_list))
 		return 0;
 
 	/* Give up waiting for processes to exit */
@@ -1393,17 +1388,17 @@ wait_for_processes:
 
 static void device_disable_open_processes(struct hl_device *hdev, bool control_dev)
 {
-	struct list_head *fd_list;
+	struct list_head *hpriv_list;
 	struct hl_fpriv *hpriv;
-	struct mutex *fd_lock;
+	struct mutex *hpriv_lock;
 
-	fd_lock = control_dev ? &hdev->fpriv_ctrl_list_lock : &hdev->fpriv_list_lock;
-	fd_list = control_dev ? &hdev->fpriv_ctrl_list : &hdev->fpriv_list;
+	hpriv_lock = control_dev ? &hdev->fpriv_ctrl_list_lock : &hdev->fpriv_list_lock;
+	hpriv_list = control_dev ? &hdev->fpriv_ctrl_list : &hdev->fpriv_list;
 
-	mutex_lock(fd_lock);
-	list_for_each_entry(hpriv, fd_list, dev_node)
+	mutex_lock(hpriv_lock);
+	list_for_each_entry(hpriv, hpriv_list, dev_node)
 		hpriv->hdev = NULL;
-	mutex_unlock(fd_lock);
+	mutex_unlock(hpriv_lock);
 }
 
 static void send_disable_pci_access(struct hl_device *hdev, u32 flags)
