@@ -41,6 +41,8 @@ static bool allow_missing_ns_imports;
 
 static bool error_occurred;
 
+static bool extra_warn;
+
 /*
  * Cut off the warnings when there are too many. This typically occurs when
  * vmlinux is missing. ('make modules' without building vmlinux.)
@@ -2290,7 +2292,7 @@ int main(int argc, char **argv)
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
-	while ((opt = getopt(argc, argv, "ei:mnT:o:awENd:")) != -1) {
+	while ((opt = getopt(argc, argv, "ei:mnT:o:aWwENd:")) != -1) {
 		switch (opt) {
 		case 'e':
 			external_module = true;
@@ -2314,6 +2316,9 @@ int main(int argc, char **argv)
 			break;
 		case 'T':
 			files_source = optarg;
+			break;
+		case 'W':
+			extra_warn = true;
 			break;
 		case 'w':
 			warn_unresolved = true;
