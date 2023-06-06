@@ -40,6 +40,7 @@
 #define DCN3_2_DCFCLK_DS_INIT_KHZ 10000 // Choose 10Mhz for init DCFCLK DS freq
 #define SUBVP_HIGH_REFRESH_LIST_LEN 3
 #define DCN3_2_MAX_SUBVP_PIXEL_RATE_MHZ 1800
+#define DCN3_2_VMIN_DISPCLK_HZ 717000000
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
