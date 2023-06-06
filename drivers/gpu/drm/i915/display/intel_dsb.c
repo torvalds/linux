@@ -234,6 +234,24 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	}
 }
 
+static u32 intel_dsb_mask_to_byte_en(u32 mask)
+{
+	return (!!(mask & 0xff000000) << 3 |
+		!!(mask & 0x00ff0000) << 2 |
+		!!(mask & 0x0000ff00) << 1 |
+		!!(mask & 0x000000ff) << 0);
+}
+
+/* Note: mask implemented via byte enables! */
+void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
+				i915_reg_t reg, u32 mask, u32 val)
+{
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
+		       (intel_dsb_mask_to_byte_en(mask) << DSB_BYTE_EN_SHIFT) |
+		       i915_mmio_reg_offset(reg));
+}
+
 void intel_dsb_noop(struct intel_dsb *dsb, int count)
 {
 	int i;
