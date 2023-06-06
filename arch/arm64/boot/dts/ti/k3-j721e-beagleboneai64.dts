@@ -593,7 +593,7 @@
 &main_i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_i2c1_pins_default &csi1_gpio_pins_default>;
+	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 };
 
@@ -623,7 +623,7 @@
 &main_i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_i2c5_pins_default &csi0_gpio_pins_default>;
+	pinctrl-0 = <&main_i2c5_pins_default>;
 	clock-frequency = <400000>;
 };
 
@@ -686,6 +686,11 @@
 &wkup_gpio1 {
 	/* Unused */
 	status = "disabled";
+};
+
+&main_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&csi1_gpio_pins_default>, <&csi0_gpio_pins_default>;
 };
 
 &usb_serdes_mux {
