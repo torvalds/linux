@@ -44,6 +44,9 @@ config TXGBE
 	select REGMAP
 	select I2C
 	select I2C_DESIGNWARE_PLATFORM
+	select PHYLINK
+	select HWMON if TXGBE=y
+	select SFP
 	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of
