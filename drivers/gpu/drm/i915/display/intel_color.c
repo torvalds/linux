@@ -1741,12 +1741,6 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		MISSING_CASE(crtc_state->gamma_mode);
 		break;
 	}
-
-	if (crtc_state->dsb) {
-		intel_dsb_finish(crtc_state->dsb);
-		intel_dsb_commit(crtc_state->dsb, false);
-		intel_dsb_wait(crtc_state->dsb);
-	}
 }
 
 static void vlv_load_luts(const struct intel_crtc_state *crtc_state)
@@ -1853,6 +1847,9 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
+	if (crtc_state->dsb)
+		return;
+
 	i915->display.funcs.color->load_luts(crtc_state);
 }
 
@@ -1869,6 +1866,9 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	i915->display.funcs.color->color_commit_arm(crtc_state);
+
+	if (crtc_state->dsb)
+		intel_dsb_commit(crtc_state->dsb, true);
 }
 
 void intel_color_post_update(const struct intel_crtc_state *crtc_state)
@@ -1882,6 +1882,7 @@ void intel_color_post_update(const struct intel_crtc_state *crtc_state)
 void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/* FIXME DSB has issues loading LUTs, disable it for now */
 	return;
@@ -1894,6 +1895,12 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 		return;
 
 	crtc_state->dsb = intel_dsb_prepare(crtc, 1024);
+	if (!crtc_state->dsb)
+		return;
+
+	i915->display.funcs.color->load_luts(crtc_state);
+
+	intel_dsb_finish(crtc_state->dsb);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
@@ -1903,6 +1910,17 @@ void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
 
 	intel_dsb_cleanup(crtc_state->dsb);
 	crtc_state->dsb = NULL;
+}
+
+void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->dsb)
+		intel_dsb_wait(crtc_state->dsb);
+}
+
+bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->dsb;
 }
 
 static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
