@@ -557,6 +557,7 @@ struct iwl_pnvm_image {
  *	Note that the transport must fill in the proper file headers.
  * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
  *	of the trans debugfs
+ * @load_pnvm: save the pnvm data in DRAM
  * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
  *	context info.
  * @interrupts: disable/enable interrupts to transport
@@ -630,8 +631,9 @@ struct iwl_trans_ops {
 						 void *sanitize_ctx);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
-	int (*set_pnvm)(struct iwl_trans *trans,
-			const struct iwl_pnvm_image *pnvm_data);
+	int (*load_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_pnvm_image *pnvm_payloads);
+	void (*set_pnvm)(struct iwl_trans *trans);
 	int (*set_reduce_power)(struct iwl_trans *trans,
 				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
@@ -1532,19 +1534,16 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 				  u32 sw_err_bit);
 
-static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
-				     const struct iwl_pnvm_image *pnvm_data)
+static inline int iwl_trans_load_pnvm(struct iwl_trans *trans,
+				      const struct iwl_pnvm_image *pnvm_data)
 {
-	if (trans->ops->set_pnvm) {
-		int ret = trans->ops->set_pnvm(trans, pnvm_data);
+	return trans->ops->load_pnvm(trans, pnvm_data);
+}
 
-		if (ret)
-			return ret;
-	}
-
-	trans->pnvm_loaded = true;
-
-	return 0;
+static inline void iwl_trans_set_pnvm(struct iwl_trans *trans)
+{
+	if (trans->ops->set_pnvm)
+		trans->ops->set_pnvm(trans);
 }
 
 static inline int iwl_trans_set_reduce_power(struct iwl_trans *trans,

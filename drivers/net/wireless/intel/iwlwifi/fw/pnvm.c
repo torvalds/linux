@@ -38,6 +38,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 	u16 mac_type = 0, rf_id = 0;
 	struct iwl_pnvm_image pnvm_data = {};
 	bool hw_match = false;
+	int ret;
 
 	IWL_DEBUG_FW(trans, "Handling PNVM section\n");
 
@@ -152,9 +153,14 @@ done:
 		return -ENOENT;
 	}
 
+	ret = iwl_trans_load_pnvm(trans, &pnvm_data);
+	if (ret)
+		return ret;
+
 	IWL_INFO(trans, "loaded PNVM version %08x\n", sha1);
 
-	return iwl_trans_set_pnvm(trans, &pnvm_data);
+	iwl_trans_set_pnvm(trans);
+	return 0;
 }
 
 static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
@@ -262,9 +268,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	 * need to set it again.
 	 */
 	if (trans->pnvm_loaded) {
-		ret = iwl_trans_set_pnvm(trans, NULL);
-		if (ret)
-			return ret;
+		iwl_trans_set_pnvm(trans);
 		goto skip_parse;
 	}
 
