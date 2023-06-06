@@ -156,9 +156,6 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 		timerlat_top_update(top, cpu, thread, latency);
 	}
 
-	if (!params->no_aa)
-		timerlat_aa_handler(s, record, event, context);
-
 	return 0;
 }
 
@@ -644,7 +641,6 @@ static struct osnoise_tool
 {
 	struct osnoise_tool *top;
 	int nr_cpus;
-	int retval;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
@@ -660,16 +656,6 @@ static struct osnoise_tool
 
 	tep_register_event_handler(top->trace.tep, -1, "ftrace", "timerlat",
 				   timerlat_top_handler, top);
-
-	/*
-	 * If no auto analysis, we are ready.
-	 */
-	if (params->no_aa)
-		return top;
-
-	retval = timerlat_aa_init(top, nr_cpus, params->dump_tasks);
-	if (retval)
-		goto out_err;
 
 	return top;
 
@@ -702,6 +688,7 @@ int timerlat_top_main(int argc, char *argv[])
 	struct timerlat_top_params *params;
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *top = NULL;
+	struct osnoise_tool *aa = NULL;
 	struct trace_instance *trace;
 	int dma_latency_fd = -1;
 	int return_value = 1;
@@ -774,6 +761,35 @@ int timerlat_top_main(int argc, char *argv[])
 		trace_instance_start(&record->trace);
 	}
 
+	if (!params->no_aa) {
+		if (params->aa_only) {
+			/* as top is not used for display, use it for aa */
+			aa = top;
+		} else  {
+			/* otherwise, a new instance is needed */
+			aa = osnoise_init_tool("timerlat_aa");
+			if (!aa)
+				goto out_top;
+		}
+
+		retval = timerlat_aa_init(aa, params->dump_tasks);
+		if (retval) {
+			err_msg("Failed to enable the auto analysis instance\n");
+			goto out_top;
+		}
+
+		/* if it is re-using the main instance, there is no need to start it */
+		if (aa != top) {
+			retval = enable_timerlat(&aa->trace);
+			if (retval) {
+				err_msg("Failed to enable timerlat tracer\n");
+				goto out_top;
+			}
+
+			trace_instance_start(&aa->trace);
+		}
+	}
+
 	top->start_time = time(NULL);
 	timerlat_top_set_signals(params);
 
@@ -829,13 +845,15 @@ int timerlat_top_main(int argc, char *argv[])
 	}
 
 out_top:
+	timerlat_aa_destroy();
 	if (dma_latency_fd >= 0)
 		close(dma_latency_fd);
 	trace_events_destroy(&record->trace, params->events);
 	params->events = NULL;
 out_free:
 	timerlat_free_top(top->data);
-	timerlat_aa_destroy();
+	if (aa && aa != top)
+		osnoise_destroy_tool(aa);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);
 	free(params);
