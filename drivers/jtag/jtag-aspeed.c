@@ -455,6 +455,8 @@ static char aspeed_jtag_tck_cycle(struct aspeed_jtag *aspeed_jtag, u8 tms,
 	else
 		aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
 
+	ndelay(aspeed_jtag->tck_period >> 1);
+
 	/* TCK = 1 */
 	aspeed_jtag_write(aspeed_jtag,
 			  ASPEED_JTAG_SW_MODE_EN | ASPEED_JTAG_SW_MODE_TCK |
@@ -465,6 +467,8 @@ static char aspeed_jtag_tck_cycle(struct aspeed_jtag *aspeed_jtag, u8 tms,
 	/* Wait until JTAG Master controller finishes the operation */
 	if (aspeed_jtag->llops->xfer_sw_delay)
 		aspeed_jtag->llops->xfer_sw_delay(aspeed_jtag);
+
+	ndelay(aspeed_jtag->tck_period >> 1);
 
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) &
 	    ASPEED_JTAG_SW_MODE_TDIO)
