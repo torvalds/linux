@@ -11,6 +11,8 @@
  */
 #define pr_fmt(fmt)	"trace_probe: " fmt
 
+#include <linux/bpf.h>
+
 #include "trace_probe.h"
 
 #undef C
@@ -300,6 +302,171 @@ static int parse_trace_event_arg(char *arg, struct fetch_insn *code,
 	return -ENOENT;
 }
 
+#ifdef CONFIG_PROBE_EVENTS_BTF_ARGS
+
+static struct btf *traceprobe_get_btf(void)
+{
+	struct btf *btf = bpf_get_btf_vmlinux();
+
+	if (IS_ERR_OR_NULL(btf))
+		return NULL;
+
+	return btf;
+}
+
+static u32 btf_type_int(const struct btf_type *t)
+{
+	return *(u32 *)(t + 1);
+}
+
+static const char *type_from_btf_id(struct btf *btf, s32 id)
+{
+	const struct btf_type *t;
+	u32 intdata;
+	s32 tid;
+
+	/* TODO: const char * could be converted as a string */
+	t = btf_type_skip_modifiers(btf, id, &tid);
+
+	switch (BTF_INFO_KIND(t->info)) {
+	case BTF_KIND_ENUM:
+		/* enum is "int", so convert to "s32" */
+		return "s32";
+	case BTF_KIND_ENUM64:
+		return "s64";
+	case BTF_KIND_PTR:
+		/* pointer will be converted to "x??" */
+		if (IS_ENABLED(CONFIG_64BIT))
+			return "x64";
+		else
+			return "x32";
+	case BTF_KIND_INT:
+		intdata = btf_type_int(t);
+		if (BTF_INT_ENCODING(intdata) & BTF_INT_SIGNED) {
+			switch (BTF_INT_BITS(intdata)) {
+			case 8:
+				return "s8";
+			case 16:
+				return "s16";
+			case 32:
+				return "s32";
+			case 64:
+				return "s64";
+			}
+		} else {	/* unsigned */
+			switch (BTF_INT_BITS(intdata)) {
+			case 8:
+				return "u8";
+			case 16:
+				return "u16";
+			case 32:
+				return "u32";
+			case 64:
+				return "u64";
+			}
+		}
+	}
+	/* TODO: support other types */
+
+	return NULL;
+}
+
+static const struct btf_param *find_btf_func_param(const char *funcname, s32 *nr)
+{
+	struct btf *btf = traceprobe_get_btf();
+	const struct btf_type *t;
+	s32 id;
+
+	if (!btf || !funcname || !nr)
+		return ERR_PTR(-EINVAL);
+
+	id = btf_find_by_name_kind(btf, funcname, BTF_KIND_FUNC);
+	if (id <= 0)
+		return ERR_PTR(-ENOENT);
+
+	/* Get BTF_KIND_FUNC type */
+	t = btf_type_by_id(btf, id);
+	if (!btf_type_is_func(t))
+		return ERR_PTR(-ENOENT);
+
+	/* The type of BTF_KIND_FUNC is BTF_KIND_FUNC_PROTO */
+	t = btf_type_by_id(btf, t->type);
+	if (!btf_type_is_func_proto(t))
+		return ERR_PTR(-ENOENT);
+
+	*nr = btf_type_vlen(t);
+
+	if (*nr)
+		return (const struct btf_param *)(t + 1);
+	else
+		return NULL;
+}
+
+static int parse_btf_arg(const char *varname, struct fetch_insn *code,
+			 struct traceprobe_parse_context *ctx)
+{
+	struct btf *btf = traceprobe_get_btf();
+	const struct btf_param *params;
+	int i;
+
+	if (!btf) {
+		trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
+		return -EOPNOTSUPP;
+	}
+
+	if (WARN_ON_ONCE(!ctx->funcname))
+		return -EINVAL;
+
+	if (!ctx->params) {
+		params = find_btf_func_param(ctx->funcname, &ctx->nr_params);
+		if (IS_ERR(params)) {
+			trace_probe_log_err(ctx->offset, NO_BTF_ENTRY);
+			return PTR_ERR(params);
+		}
+		ctx->params = params;
+	} else
+		params = ctx->params;
+
+	for (i = 0; i < ctx->nr_params; i++) {
+		const char *name = btf_name_by_offset(btf, params[i].name_off);
+
+		if (name && !strcmp(name, varname)) {
+			code->op = FETCH_OP_ARG;
+			code->param = i;
+			return 0;
+		}
+	}
+	trace_probe_log_err(ctx->offset, NO_BTFARG);
+	return -ENOENT;
+}
+
+static const struct fetch_type *parse_btf_arg_type(int arg_idx,
+					struct traceprobe_parse_context *ctx)
+{
+	struct btf *btf = traceprobe_get_btf();
+	const char *typestr = NULL;
+
+	if (btf && ctx->params)
+		typestr = type_from_btf_id(btf, ctx->params[arg_idx].type);
+
+	return find_fetch_type(typestr, ctx->flags);
+}
+#else
+static struct btf *traceprobe_get_btf(void)
+{
+	return NULL;
+}
+
+static int parse_btf_arg(const char *varname, struct fetch_insn *code,
+			 struct traceprobe_parse_context *ctx)
+{
+	trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
+	return -EOPNOTSUPP;
+}
+#define parse_btf_arg_type(idx, ctx)		\
+	find_fetch_type(NULL, ctx->flags)
+#endif
+
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 static int parse_probe_vars(char *arg, const struct fetch_type *t,
@@ -570,6 +737,15 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 				code->op = FETCH_OP_IMM;
 		}
 		break;
+	default:
+		if (isalpha(arg[0]) || arg[0] == '_') {	/* BTF variable */
+			if (!tparg_is_function_entry(ctx->flags)) {
+				trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
+				return -EINVAL;
+			}
+			ret = parse_btf_arg(arg, code, ctx);
+			break;
+		}
 	}
 	if (!ret && code->op == FETCH_OP_NOP) {
 		/* Parsed, but do not find fetch method */
@@ -718,6 +894,11 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	if (ret)
 		goto fail;
 
+	/* Update storing type if BTF is available */
+	if (IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS) &&
+	    !t && code->op == FETCH_OP_ARG)
+		parg->type = parse_btf_arg_type(code->param, ctx);
+
 	ret = -EINVAL;
 	/* Store operation */
 	if (parg->type->is_string) {
@@ -850,6 +1031,33 @@ static int traceprobe_conflict_field_name(const char *name,
 	return 0;
 }
 
+static char *generate_probe_arg_name(const char *arg, int idx)
+{
+	char *name = NULL;
+	const char *end;
+
+	/*
+	 * If argument name is omitted, try arg as a name (BTF variable)
+	 * or "argN".
+	 */
+	if (IS_ENABLED(CONFIG_PROBE_EVENTS_BTF_ARGS)) {
+		end = strchr(arg, ':');
+		if (!end)
+			end = arg + strlen(arg);
+
+		name = kmemdup_nul(arg, end - arg, GFP_KERNEL);
+		if (!name || !is_good_name(name)) {
+			kfree(name);
+			name = NULL;
+		}
+	}
+
+	if (!name)
+		name = kasprintf(GFP_KERNEL, "arg%d", idx + 1);
+
+	return name;
+}
+
 int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, const char *arg,
 			       struct traceprobe_parse_context *ctx)
 {
@@ -871,8 +1079,7 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, const char *arg,
 		parg->name = kmemdup_nul(arg, body - arg, GFP_KERNEL);
 		body++;
 	} else {
-		/* If argument name is omitted, set "argN" */
-		parg->name = kasprintf(GFP_KERNEL, "arg%d", i + 1);
+		parg->name = generate_probe_arg_name(arg, i);
 		body = arg;
 	}
 	if (!parg->name)

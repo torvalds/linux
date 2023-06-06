@@ -366,6 +366,7 @@ static void free_trace_fprobe(struct trace_fprobe *tf)
 static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 					       const char *event,
 					       const char *symbol,
+					       struct tracepoint *tpoint,
 					       int maxactive,
 					       int nargs, bool is_return)
 {
@@ -385,6 +386,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 	else
 		tf->fp.entry_handler = fentry_dispatcher;
 
+	tf->tpoint = tpoint;
 	tf->fp.nr_maxactive = maxactive;
 
 	ret = trace_probe_init(&tf->tp, event, group, false);
@@ -930,8 +932,12 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 	int maxactive = 0;
 	char buf[MAX_EVENT_NAME_LEN];
 	char gbuf[MAX_EVENT_NAME_LEN];
-	unsigned int flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE;
+	char sbuf[KSYM_NAME_LEN];
 	bool is_tracepoint = false;
+	struct tracepoint *tpoint = NULL;
+	struct traceprobe_parse_context ctx = {
+		.flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE,
+	};
 
 	if ((argv[0][0] != 'f' && argv[0][0] != 't') || argc < 2)
 		return -ECANCELED;
@@ -995,14 +1001,6 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		goto parse_error;
 	}
 
-	if (is_return)
-		flags |= TPARG_FL_RETURN;
-	else
-		flags |= TPARG_FL_FENTRY;
-
-	if (is_tracepoint)
-		flags |= TPARG_FL_TPOINT;
-
 	trace_probe_log_set_index(0);
 	if (event) {
 		ret = traceprobe_parse_event_name(&event, &group, gbuf,
@@ -1014,7 +1012,8 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 	if (!event) {
 		/* Make a new event name */
 		if (is_tracepoint)
-			strscpy(buf, symbol, MAX_EVENT_NAME_LEN);
+			snprintf(buf, MAX_EVENT_NAME_LEN, "%s%s",
+				 isdigit(*symbol) ? "_" : "", symbol);
 		else
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%s__%s", symbol,
 				 is_return ? "exit" : "entry");
@@ -1022,8 +1021,27 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		event = buf;
 	}
 
+	if (is_return)
+		ctx.flags |= TPARG_FL_RETURN;
+	else
+		ctx.flags |= TPARG_FL_FENTRY;
+
+	if (is_tracepoint) {
+		ctx.flags |= TPARG_FL_TPOINT;
+		tpoint = find_tracepoint(symbol);
+		if (!tpoint) {
+			trace_probe_log_set_index(1);
+			trace_probe_log_err(0, NO_TRACEPOINT);
+			goto parse_error;
+		}
+		ctx.funcname = kallsyms_lookup(
+				(unsigned long)tpoint->probestub,
+				NULL, NULL, NULL, sbuf);
+	} else
+		ctx.funcname = symbol;
+
 	/* setup a probe */
-	tf = alloc_trace_fprobe(group, event, symbol, maxactive,
+	tf = alloc_trace_fprobe(group, event, symbol, tpoint, maxactive,
 				argc - 2, is_return);
 	if (IS_ERR(tf)) {
 		ret = PTR_ERR(tf);
@@ -1032,24 +1050,15 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		goto out;	/* We know tf is not allocated */
 	}
 
-	if (is_tracepoint) {
-		tf->tpoint = find_tracepoint(tf->symbol);
-		if (!tf->tpoint) {
-			trace_probe_log_set_index(1);
-			trace_probe_log_err(0, NO_TRACEPOINT);
-			goto parse_error;
-		}
+	if (is_tracepoint)
 		tf->mod = __module_text_address(
 				(unsigned long)tf->tpoint->probestub);
-	}
 
 	argc -= 2; argv += 2;
-
 	/* parse arguments */
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
-		struct traceprobe_parse_context ctx = { .flags = flags };
-
 		trace_probe_log_set_index(i + 2);
+		ctx.offset = 0;
 		ret = traceprobe_parse_probe_arg(&tf->tp, i, argv[i], &ctx);
 		if (ret)
 			goto error;	/* This can be -ENOMEM */
