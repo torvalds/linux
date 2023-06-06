@@ -6,7 +6,7 @@
  *
  * Samsung's S3C64xx SoC series device nodes are listed in this file.
  * Particular SoCs from S3C64xx series can include this file and provide
- * values for SoCs specfic bindings.
+ * values for SoCs specific bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
  * S3C64xx SoCs. As device tree coverage for S3C64xx increases, additional

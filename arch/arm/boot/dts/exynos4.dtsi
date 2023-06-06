@@ -9,7 +9,7 @@
  *
  * Samsung's Exynos4 SoC series device nodes are listed in this file.  Particular
  * SoCs from Exynos4 series can include this file and provide values for SoCs
- * specfic bindings.
+ * specific bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
  * Exynos4 SoCs. As device tree coverage for Exynos4 increases, additional
@@ -201,8 +201,8 @@
 			#size-cells = <0>;
 		};
 
-		camera: camera {
-			compatible = "samsung,fimc", "simple-bus";
+		camera: camera@11800000 {
+			compatible = "samsung,fimc";
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <1>;

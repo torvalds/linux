@@ -6,7 +6,7 @@
  *		http://www.samsung.com
  *
  * Samsung's Exynos5260 SoC pin-mux and pin-config options are listed as device
- * tree nodes are listed in this file.
+ * tree nodes in this file.
  */
 
 #include "exynos-pinctrl.h"

@@ -1,25 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's S5PV210 SoC device tree source
+ * Samsung's S5PV210 SoC device tree source - pin control-related
+ * definitions
  *
  * Copyright (c) 2013-2014 Samsung Electronics, Co. Ltd.
  *
  * Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
  * Tomasz Figa <t.figa@samsung.com>
  *
- * Samsung's S5PV210 SoC device nodes are listed in this file. S5PV210
- * based board files can include this file and provide values for board specfic
- * bindings.
- *
- * Note: This file does not include device nodes for all the controllers in
- * S5PV210 SoC. As device tree coverage for S5PV210 increases, additional
- * nodes can be added to this file.
+ * Samsung's S5PV210 SoC pin banks, pin-mux and pin-config options are
+ * listed as device tree nodes in this file.
  */
 
 #include "s5pv210-pinctrl.h"
 
 #define PIN_SLP(_pin, _mode, _pull)					\
-	_pin {								\
+	pin- ## _pin {							\
 		samsung,pins = #_pin;					\
 		samsung,pin-con-pdn = <S5PV210_PIN_PDN_ ##_mode>;	\
 		samsung,pin-pud-pdn = <S5PV210_PIN_PULL_ ##_pull>;	\

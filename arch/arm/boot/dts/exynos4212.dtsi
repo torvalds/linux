@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4412 SoC device tree source
+ * Samsung's Exynos4212 SoC device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung's Exynos4412 SoC device nodes are listed in this file. Exynos4412
+ * Samsung's Exynos4212 SoC device nodes are listed in this file. Exynos4212
  * based board files can include this file and provide values for board specific
  * bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
- * Exynos4412 SoC. As device tree coverage for Exynos4412 increases, additional
+ * Exynos4212 SoC. As device tree coverage for Exynos4212 increases, additional
  * nodes can be added to this file.
  */
 
 #include "exynos4x12.dtsi"
 
 / {
-	compatible = "samsung,exynos4412", "samsung,exynos4";
+	compatible = "samsung,exynos4212", "samsung,exynos4";
 
 	cpus {
 		#address-cells = <1>;
@@ -30,12 +30,6 @@
 				};
 				core1 {
 					cpu = <&cpu1>;
-				};
-				core2 {
-					cpu = <&cpu2>;
-				};
-				core3 {
-					cpu = <&cpu3>;
 				};
 			};
 		};
@@ -54,26 +48,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xa01>;
-			clocks = <&clock CLK_ARM_CLK>;
-			clock-names = "cpu";
-			operating-points-v2 = <&cpu0_opp_table>;
-			#cooling-cells = <2>; /* min followed by max */
-		};
-
-		cpu2: cpu@a02 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a9";
-			reg = <0xa02>;
-			clocks = <&clock CLK_ARM_CLK>;
-			clock-names = "cpu";
-			operating-points-v2 = <&cpu0_opp_table>;
-			#cooling-cells = <2>; /* min followed by max */
-		};
-
-		cpu3: cpu@a03 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a9";
-			reg = <0xa03>;
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
@@ -161,23 +135,23 @@
 };
 
 &clock {
-	compatible = "samsung,exynos4412-clock";
+	compatible = "samsung,exynos4212-clock";
 };
 
 &combiner {
-	samsung,combiner-nr = <20>;
+	samsung,combiner-nr = <18>;
 };
 
 &gic {
-	cpu-offset = <0x4000>;
+	cpu-offset = <0x8000>;
 };
 
 &pmu {
-	interrupts = <2 2>, <3 2>, <18 2>, <19 2>;
-	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	interrupts = <2 2>, <3 2>;
+	interrupt-affinity = <&cpu0>, <&cpu1>;
 	status = "okay";
 };
 
 &pmu_system_controller {
-	compatible = "samsung,exynos4412-pmu", "simple-mfd", "syscon";
+	compatible = "samsung,exynos4212-pmu", "simple-mfd", "syscon";
 };

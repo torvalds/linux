@@ -5,8 +5,8 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung's Exynos5250 SoC pin-mux and pin-config optiosn are listed as device
- * tree nodes are listed in this file.
+ * Samsung's Exynos5250 SoC pin-mux and pin-config options are listed as device
+ * tree nodes in this file.
  */
 
 #include "exynos-pinctrl.h"
