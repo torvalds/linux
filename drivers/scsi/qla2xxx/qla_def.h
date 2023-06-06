@@ -3174,12 +3174,12 @@ struct ct_sns_gpnft_rsp {
 		uint8_t vendor_unique;
 	};
 	/* Assume the largest number of targets for the union */
-	struct ct_sns_gpn_ft_data {
+	DECLARE_FLEX_ARRAY(struct ct_sns_gpn_ft_data {
 		u8 control_byte;
 		u8 port_id[3];
 		u32 reserved;
 		u8 port_name[8];
-	} entries[1];
+	}, entries);
 };
 
 /* CT command response */
