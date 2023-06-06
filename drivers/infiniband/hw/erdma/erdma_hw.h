@@ -159,6 +159,7 @@ enum CMDQ_COMMON_OPCODE {
 	CMDQ_OPCODE_DESTROY_EQ = 1,
 	CMDQ_OPCODE_QUERY_FW_INFO = 2,
 	CMDQ_OPCODE_CONF_MTU = 3,
+	CMDQ_OPCODE_CONF_DEVICE = 5,
 };
 
 /* cmdq-SQE HDR */
@@ -194,6 +195,16 @@ struct erdma_cmdq_destroy_eq_req {
 	u8 eqn;
 	u8 rsvd1;
 	u8 qtype;
+};
+
+/* config device cfg */
+#define ERDMA_CMD_CONFIG_DEVICE_PS_EN_MASK BIT(31)
+#define ERDMA_CMD_CONFIG_DEVICE_PGSHIFT_MASK GENMASK(4, 0)
+
+struct erdma_cmdq_config_device_req {
+	u64 hdr;
+	u32 cfg;
+	u32 rsvd[5];
 };
 
 struct erdma_cmdq_config_mtu_req {
@@ -329,6 +340,7 @@ struct erdma_cmdq_reflush_req {
 
 enum {
 	ERDMA_DEV_CAP_FLAGS_ATOMIC = 1 << 7,
+	ERDMA_DEV_CAP_FLAGS_EXTEND_DB = 1 << 3,
 };
 
 #define ERDMA_CMD_INFO0_FW_VER_MASK GENMASK_ULL(31, 0)

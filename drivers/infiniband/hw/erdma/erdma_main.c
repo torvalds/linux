@@ -426,6 +426,22 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 	return err;
 }
 
+static int erdma_device_config(struct erdma_dev *dev)
+{
+	struct erdma_cmdq_config_device_req req = {};
+
+	if (!(dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_EXTEND_DB))
+		return 0;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_CONF_DEVICE);
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PGSHIFT_MASK, PAGE_SHIFT) |
+		  FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PS_EN_MASK, 1);
+
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
 static int erdma_res_cb_init(struct erdma_dev *dev)
 {
 	int i, j;
@@ -509,6 +525,10 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	int ret;
 
 	ret = erdma_dev_attrs_init(dev);
+	if (ret)
+		return ret;
+
+	ret = erdma_device_config(dev);
 	if (ret)
 		return ret;
 
