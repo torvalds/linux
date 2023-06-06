@@ -127,6 +127,11 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 
 			break;
 		}
+		case IWL_UCODE_TLV_MEM_DESC:
+			if (iwl_uefi_handle_tlv_mem_desc(trans, data, tlv_len,
+							 pnvm_data))
+				return -EINVAL;
+			break;
 		case IWL_UCODE_TLV_PNVM_SKU:
 			IWL_DEBUG_FW(trans,
 				     "New PNVM section started, stop parsing.\n");

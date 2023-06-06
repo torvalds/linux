@@ -17,6 +17,12 @@
 				  0xb2, 0xec, 0xf5, 0xa3,	\
 				  0x59, 0x4f, 0x4a, 0xea)
 
+struct iwl_uefi_pnvm_mem_desc {
+	__le32 addr;
+	__le32 size;
+	const u8 data[];
+} __packed;
+
 static void *iwl_uefi_get_variable(efi_char16_t *name, efi_guid_t *guid,
 				   unsigned long *data_size)
 {
@@ -70,6 +76,42 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	return data;
 }
 
+int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
+				 u32 tlv_len, struct iwl_pnvm_image *pnvm_data)
+{
+	const struct iwl_uefi_pnvm_mem_desc *desc = (const void *)data;
+	u32 data_len;
+
+	if (tlv_len < sizeof(*desc)) {
+		IWL_DEBUG_FW(trans, "TLV len (%d) is too small\n", tlv_len);
+		return -EINVAL;
+	}
+
+	data_len = tlv_len - sizeof(*desc);
+
+	IWL_DEBUG_FW(trans,
+		     "Handle IWL_UCODE_TLV_MEM_DESC, len %d data_len %d\n",
+		     tlv_len, data_len);
+
+	if (le32_to_cpu(desc->size) != data_len) {
+		IWL_DEBUG_FW(trans, "invalid mem desc size %d\n", desc->size);
+		return -EINVAL;
+	}
+
+	if (pnvm_data->n_chunks == IPC_DRAM_MAP_ENTRY_NUM_MAX) {
+		IWL_DEBUG_FW(trans, "too many payloads to allocate in DRAM.\n");
+		return -EINVAL;
+	}
+
+	IWL_DEBUG_FW(trans, "Adding data (size %d)\n", data_len);
+
+	pnvm_data->chunks[pnvm_data->n_chunks].data = desc->data;
+	pnvm_data->chunks[pnvm_data->n_chunks].len = data_len;
+	pnvm_data->n_chunks++;
+
+	return 0;
+}
+
 static int iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 					 const u8 *data, size_t len,
 					 struct iwl_pnvm_image *pnvm_data)
@@ -97,25 +139,11 @@ static int iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 		data += sizeof(*tlv);
 
 		switch (tlv_type) {
-		case IWL_UCODE_TLV_MEM_DESC: {
-			IWL_DEBUG_FW(trans,
-				     "Got IWL_UCODE_TLV_MEM_DESC len %d\n",
-				     tlv_len);
-
-			if (pnvm_data->n_chunks == IPC_DRAM_MAP_ENTRY_NUM_MAX) {
-				IWL_DEBUG_FW(trans,
-				"too many payloads to allocate in DRAM.\n");
+		case IWL_UCODE_TLV_MEM_DESC:
+			if (iwl_uefi_handle_tlv_mem_desc(trans, data, tlv_len,
+							 pnvm_data))
 				return -EINVAL;
-			}
-
-			IWL_DEBUG_FW(trans, "Adding data (size %d)\n", tlv_len);
-
-			pnvm_data->chunks[pnvm_data->n_chunks].data = data;
-			pnvm_data->chunks[pnvm_data->n_chunks].len = tlv_len;
-			pnvm_data->n_chunks++;
-
 			break;
-		}
 		case IWL_UCODE_TLV_PNVM_SKU:
 			IWL_DEBUG_FW(trans,
 				     "New REDUCE_POWER section started, stop parsing.\n");

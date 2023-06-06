@@ -46,6 +46,8 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 				const u8 *data, size_t len,
 				struct iwl_pnvm_image *pnvm_data);
 void iwl_uefi_get_step_table(struct iwl_trans *trans);
+int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
+				 u32 tlv_len, struct iwl_pnvm_image *pnvm_data);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -68,6 +70,13 @@ iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 
 static inline void iwl_uefi_get_step_table(struct iwl_trans *trans)
 {
+}
+
+static inline int
+iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
+			     u32 tlv_len, struct iwl_pnvm_image *pnvm_data)
+{
+	return 0;
 }
 #endif /* CONFIG_EFI */
 
