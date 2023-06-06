@@ -1329,9 +1329,20 @@ static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 
 	lut = blob->data;
 
+	/*
+	 * DSB fails to correctly load the legacy LUT
+	 * unless we either write each entry twice,
+	 * or use non-posted writes
+	 */
+	if (crtc_state->dsb)
+		intel_dsb_nonpost_start(crtc_state->dsb);
+
 	for (i = 0; i < 256; i++)
 		ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 			      i9xx_lut_8(&lut[i]));
+
+	if (crtc_state->dsb)
+		intel_dsb_nonpost_end(crtc_state->dsb);
 }
 
 static void ilk_load_lut_10(const struct intel_crtc_state *crtc_state,
