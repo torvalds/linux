@@ -236,12 +236,12 @@ _GLOBAL(_switch)
 	stwu	r1,-SWITCH_FRAME_SIZE(r1)
 	mflr	r0
 	stw	r0,SWITCH_FRAME_SIZE+4(r1)
+	stw	r1,KSP(r3)	/* Set old stack pointer */
 	/* r3-r12 are caller saved -- Cort */
 	SAVE_NVGPRS(r1)
 	stw	r0,_NIP(r1)	/* Return to switch caller */
-	mfcr	r10
-	stw	r10,_CCR(r1)
-	stw	r1,KSP(r3)	/* Set old stack pointer */
+	mfcr	r0
+	stw	r0,_CCR(r1)
 
 	/* The sync for SMP migration is taken care of, see entry_64.S */
 
@@ -258,8 +258,8 @@ _GLOBAL(_switch)
 	/* r3-r12 are destroyed -- Cort */
 	REST_NVGPRS(r1)
 
-	lwz	r4,_NIP(r1)	/* Return to _switch caller in new task */
-	mtlr	r4
+	lwz	r0,_NIP(r1)	/* Return to _switch caller in new task */
+	mtlr	r0
 	addi	r1,r1,SWITCH_FRAME_SIZE
 	blr
 
