@@ -131,6 +131,8 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 				      const char *buf, size_t count);
 static struct group_device *iommu_group_alloc_device(struct iommu_group *group,
 						     struct device *dev);
+static void __iommu_group_free_device(struct iommu_group *group,
+				      struct group_device *grp_dev);
 
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
 struct iommu_group_attribute iommu_group_attr_##_name =		\
@@ -469,14 +471,39 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 		goto err_put_group;
 	}
 
+	/*
+	 * The gdev must be in the list before calling
+	 * iommu_setup_default_domain()
+	 */
 	list_add_tail(&gdev->list, &group->devices);
-	if (group_list && !group->default_domain && list_empty(&group->entry))
-		list_add_tail(&group->entry, group_list);
+	WARN_ON(group->default_domain && !group->domain);
+	if (group->default_domain)
+		iommu_create_device_direct_mappings(group->default_domain, dev);
+	if (group->domain) {
+		ret = __iommu_device_set_domain(group, dev, group->domain, 0);
+		if (ret)
+			goto err_remove_gdev;
+	} else if (!group->default_domain && !group_list) {
+		ret = iommu_setup_default_domain(group, 0);
+		if (ret)
+			goto err_remove_gdev;
+	} else if (!group->default_domain) {
+		/*
+		 * With a group_list argument we defer the default_domain setup
+		 * to the caller by providing a de-duplicated list of groups
+		 * that need further setup.
+		 */
+		if (list_empty(&group->entry))
+			list_add_tail(&group->entry, group_list);
+	}
 	mutex_unlock(&group->mutex);
 	mutex_unlock(&iommu_probe_device_lock);
 
 	return 0;
 
+err_remove_gdev:
+	list_del(&gdev->list);
+	__iommu_group_free_device(group, gdev);
 err_put_group:
 	iommu_deinit_device(dev);
 	mutex_unlock(&group->mutex);
@@ -490,52 +517,17 @@ out_unlock:
 int iommu_probe_device(struct device *dev)
 {
 	const struct iommu_ops *ops;
-	struct iommu_group *group;
 	int ret;
 
 	ret = __iommu_probe_device(dev, NULL);
 	if (ret)
-		goto err_out;
-
-	group = iommu_group_get(dev);
-	if (!group) {
-		ret = -ENODEV;
-		goto err_release;
-	}
-
-	mutex_lock(&group->mutex);
-
-	if (group->default_domain)
-		iommu_create_device_direct_mappings(group->default_domain, dev);
-
-	if (group->domain) {
-		ret = __iommu_device_set_domain(group, dev, group->domain, 0);
-		if (ret)
-			goto err_unlock;
-	} else if (!group->default_domain) {
-		ret = iommu_setup_default_domain(group, 0);
-		if (ret)
-			goto err_unlock;
-	}
-
-	mutex_unlock(&group->mutex);
-	iommu_group_put(group);
+		return ret;
 
 	ops = dev_iommu_ops(dev);
 	if (ops->probe_finalize)
 		ops->probe_finalize(dev);
 
 	return 0;
-
-err_unlock:
-	mutex_unlock(&group->mutex);
-	iommu_group_put(group);
-err_release:
-	iommu_release_device(dev);
-
-err_out:
-	return ret;
-
 }
 
 static void __iommu_group_free_device(struct iommu_group *group,
@@ -1815,11 +1807,6 @@ int bus_iommu_probe(const struct bus_type *bus)
 	LIST_HEAD(group_list);
 	int ret;
 
-	/*
-	 * This code-path does not allocate the default domain when
-	 * creating the iommu group, so do it after the groups are
-	 * created.
-	 */
 	ret = bus_for_each_dev(bus, NULL, &group_list, probe_iommu_group);
 	if (ret)
 		return ret;
@@ -1832,6 +1819,11 @@ int bus_iommu_probe(const struct bus_type *bus)
 		/* Remove item from the list */
 		list_del_init(&group->entry);
 
+		/*
+		 * We go to the trouble of deferred default domain creation so
+		 * that the cross-group default domain type and the setup of the
+		 * IOMMU_RESV_DIRECT will work correctly in non-hotpug scenarios.
+		 */
 		ret = iommu_setup_default_domain(group, 0);
 		if (ret) {
 			mutex_unlock(&group->mutex);
