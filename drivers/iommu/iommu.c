@@ -127,7 +127,6 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 				      int target_type);
 static int iommu_create_device_direct_mappings(struct iommu_domain *domain,
 					       struct device *dev);
-static struct iommu_group *iommu_group_get_for_dev(struct device *dev);
 static ssize_t iommu_group_store_type(struct iommu_group *group,
 				      const char *buf, size_t count);
 
@@ -379,11 +378,17 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 	if (ops->is_attach_deferred)
 		dev->iommu->attach_deferred = ops->is_attach_deferred(dev);
 
-	group = iommu_group_get_for_dev(dev);
+	group = ops->device_group(dev);
+	if (WARN_ON_ONCE(group == NULL))
+		group = ERR_PTR(-EINVAL);
 	if (IS_ERR(group)) {
 		ret = PTR_ERR(group);
 		goto out_release;
 	}
+
+	ret = iommu_group_add_device(group, dev);
+	if (ret)
+		goto err_put_group;
 
 	mutex_lock(&group->mutex);
 	if (group_list && !group->default_domain && list_empty(&group->entry))
@@ -396,6 +401,8 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 
 	return 0;
 
+err_put_group:
+	iommu_group_put(group);
 out_release:
 	if (ops->release_device)
 		ops->release_device(dev);
@@ -1668,45 +1675,6 @@ iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 	pr_warn("Failed to allocate default IOMMU domain of type %u for group %s - Falling back to IOMMU_DOMAIN_DMA",
 		iommu_def_domain_type, group->name);
 	return dom;
-}
-
-/**
- * iommu_group_get_for_dev - Find or create the IOMMU group for a device
- * @dev: target device
- *
- * This function is intended to be called by IOMMU drivers and extended to
- * support common, bus-defined algorithms when determining or creating the
- * IOMMU group for a device.  On success, the caller will hold a reference
- * to the returned IOMMU group, which will already include the provided
- * device.  The reference should be released with iommu_group_put().
- */
-static struct iommu_group *iommu_group_get_for_dev(struct device *dev)
-{
-	const struct iommu_ops *ops = dev_iommu_ops(dev);
-	struct iommu_group *group;
-	int ret;
-
-	group = iommu_group_get(dev);
-	if (group)
-		return group;
-
-	group = ops->device_group(dev);
-	if (WARN_ON_ONCE(group == NULL))
-		return ERR_PTR(-EINVAL);
-
-	if (IS_ERR(group))
-		return group;
-
-	ret = iommu_group_add_device(group, dev);
-	if (ret)
-		goto out_put_group;
-
-	return group;
-
-out_put_group:
-	iommu_group_put(group);
-
-	return ERR_PTR(ret);
 }
 
 struct iommu_domain *iommu_group_default_domain(struct iommu_group *group)
