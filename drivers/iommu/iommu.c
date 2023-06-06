@@ -470,32 +470,8 @@ err_out:
 
 }
 
-/*
- * Remove a device from a group's device list and return the group device
- * if successful.
- */
-static struct group_device *
-__iommu_group_remove_device(struct iommu_group *group, struct device *dev)
-{
-	struct group_device *device;
-
-	lockdep_assert_held(&group->mutex);
-	for_each_group_device(group, device) {
-		if (device->dev == dev) {
-			list_del(&device->list);
-			return device;
-		}
-	}
-
-	return NULL;
-}
-
-/*
- * Release a device from its group and decrements the iommu group reference
- * count.
- */
-static void __iommu_group_release_device(struct iommu_group *group,
-					 struct group_device *grp_dev)
+static void __iommu_group_free_device(struct iommu_group *group,
+				      struct group_device *grp_dev)
 {
 	struct device *dev = grp_dev->dev;
 
@@ -504,16 +480,45 @@ static void __iommu_group_release_device(struct iommu_group *group,
 
 	trace_remove_device_from_group(group->id, dev);
 
+	/*
+	 * If the group has become empty then ownership must have been
+	 * released, and the current domain must be set back to NULL or
+	 * the default domain.
+	 */
+	if (list_empty(&group->devices))
+		WARN_ON(group->owner_cnt ||
+			group->domain != group->default_domain);
+
 	kfree(grp_dev->name);
 	kfree(grp_dev);
 	dev->iommu_group = NULL;
-	iommu_group_put(group);
+}
+
+/*
+ * Remove the iommu_group from the struct device. The attached group must be put
+ * by the caller after releaseing the group->mutex.
+ */
+static void __iommu_group_remove_device(struct device *dev)
+{
+	struct iommu_group *group = dev->iommu_group;
+	struct group_device *device;
+
+	lockdep_assert_held(&group->mutex);
+	for_each_group_device(group, device) {
+		if (device->dev != dev)
+			continue;
+
+		list_del(&device->list);
+		__iommu_group_free_device(group, device);
+		/* Caller must put iommu_group */
+		return;
+	}
+	WARN(true, "Corrupted iommu_group device_list");
 }
 
 static void iommu_release_device(struct device *dev)
 {
 	struct iommu_group *group = dev->iommu_group;
-	struct group_device *device;
 	const struct iommu_ops *ops;
 
 	if (!dev->iommu || !group)
@@ -522,16 +527,7 @@ static void iommu_release_device(struct device *dev)
 	iommu_device_unlink(dev->iommu->iommu_dev, dev);
 
 	mutex_lock(&group->mutex);
-	device = __iommu_group_remove_device(group, dev);
-
-	/*
-	 * If the group has become empty then ownership must have been released,
-	 * and the current domain must be set back to NULL or the default
-	 * domain.
-	 */
-	if (list_empty(&group->devices))
-		WARN_ON(group->owner_cnt ||
-			group->domain != group->default_domain);
+	__iommu_group_remove_device(dev);
 
 	/*
 	 * release_device() must stop using any attached domain on the device.
@@ -547,8 +543,8 @@ static void iommu_release_device(struct device *dev)
 		ops->release_device(dev);
 	mutex_unlock(&group->mutex);
 
-	if (device)
-		__iommu_group_release_device(group, device);
+	/* Pairs with the get in iommu_group_add_device() */
+	iommu_group_put(group);
 
 	module_put(ops->owner);
 	dev_iommu_free(dev);
@@ -1107,7 +1103,6 @@ EXPORT_SYMBOL_GPL(iommu_group_add_device);
 void iommu_group_remove_device(struct device *dev)
 {
 	struct iommu_group *group = dev->iommu_group;
-	struct group_device *device;
 
 	if (!group)
 		return;
@@ -1115,11 +1110,11 @@ void iommu_group_remove_device(struct device *dev)
 	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
 	mutex_lock(&group->mutex);
-	device = __iommu_group_remove_device(group, dev);
+	__iommu_group_remove_device(dev);
 	mutex_unlock(&group->mutex);
 
-	if (device)
-		__iommu_group_release_device(group, device);
+	/* Pairs with the get in iommu_group_add_device() */
+	iommu_group_put(group);
 }
 EXPORT_SYMBOL_GPL(iommu_group_remove_device);
 
