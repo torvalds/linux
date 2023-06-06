@@ -284,7 +284,7 @@
 				clock-names = "dma_clk";
 			};
 
-			pmc: pmc@f0014000 {
+			pmc: clock-controller@f0014000 {
 				compatible = "atmel,sama5d2-pmc", "syscon";
 				reg = <0xf0014000 0x160>;
 				interrupts = <74 IRQ_TYPE_LEVEL_HIGH 7>;
@@ -704,10 +704,9 @@
 				status = "disabled";
 			};
 
-			clk32k: sckc@f8048050 {
+			clk32k: clock-controller@f8048050 {
 				compatible = "atmel,sama5d4-sckc";
 				reg = <0xf8048050 0x4>;
-
 				clocks = <&slow_xtal>;
 				#clock-cells = <0>;
 			};

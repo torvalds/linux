@@ -30,7 +30,7 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
+			pmc: clock-controller@fffffc00 {
 			};
 
 			macb1: ethernet@f802c000 {

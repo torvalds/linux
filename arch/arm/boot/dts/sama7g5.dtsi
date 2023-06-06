@@ -241,7 +241,7 @@
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 11>;
 		};
 
-		pmc: pmc@e0018000 {
+		pmc: clock-controller@e0018000 {
 			compatible = "microchip,sama7g5-pmc", "syscon";
 			reg = <0xe0018000 0x200>;
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;

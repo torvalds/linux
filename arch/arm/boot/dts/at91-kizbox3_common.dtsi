@@ -211,7 +211,7 @@
 		pinmux = <PIN_PD12__FLEXCOM4_IO0>, //DATA
 		<PIN_PD13__FLEXCOM4_IO1>; //CLK
 		bias-disable;
-		drive-open-drain = <1>;
+		drive-open-drain;
 	};
 
 	pinctrl_pwm0 {
