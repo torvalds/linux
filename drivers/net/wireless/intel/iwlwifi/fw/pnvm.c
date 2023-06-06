@@ -329,14 +329,17 @@ reduce_tables:
 			 */
 			trans->reduce_power_loaded = true;
 		} else {
-			ret = iwl_trans_set_reduce_power(trans, data, length);
-			if (ret)
+			ret = iwl_trans_load_reduce_power(trans, data, length);
+			if (ret) {
 				IWL_DEBUG_FW(trans,
-					     "Failed to set reduce power table %d\n",
+					     "Failed to load reduce power table %d\n",
 					     ret);
+				trans->reduce_power_loaded = true;
+			}
 			kfree(data);
 		}
 	}
+	iwl_trans_set_reduce_power(trans);
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
