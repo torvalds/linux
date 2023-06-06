@@ -14,7 +14,7 @@ done
 
 KDIR=$(dirname $(dirname $(dirname $(dirname $(realpath $0)))))
 
-files=$(git grep --files-with-matches '^/\* YNL-GEN \(kernel\|uapi\)')
+files=$(git grep --files-with-matches '^/\* YNL-GEN \(kernel\|uapi\|user\)')
 for f in $files; do
     # params:     0       1      2     3
     #         $YAML YNL-GEN kernel $mode
