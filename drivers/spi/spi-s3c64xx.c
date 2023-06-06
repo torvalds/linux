@@ -1160,28 +1160,23 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 			return PTR_ERR(sci);
 	}
 
-	if (!sci) {
-		dev_err(&pdev->dev, "platform_data missing!\n");
-		return -ENODEV;
-	}
+	if (!sci)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "Platform_data missing!\n");
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res == NULL) {
-		dev_err(&pdev->dev, "Unable to get SPI MEM resource\n");
-		return -ENXIO;
-	}
+	if (!mem_res)
+		return dev_err_probe(&pdev->dev, -ENXIO,
+				     "Unable to get SPI MEM resource\n");
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_warn(&pdev->dev, "Failed to get IRQ: %d\n", irq);
-		return irq;
-	}
+	if (irq < 0)
+		return dev_err_probe(&pdev->dev, irq, "Failed to get IRQ\n");
 
 	master = devm_spi_alloc_master(&pdev->dev, sizeof(*sdd));
-	if (master == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate SPI Master\n");
-		return -ENOMEM;
-	}
+	if (!master)
+		return dev_err_probe(&pdev->dev, -ENOMEM,
+				     "Unable to allocate SPI Master\n");
 
 	platform_set_drvdata(pdev, master);
 
@@ -1193,11 +1188,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->sfr_start = mem_res->start;
 	if (pdev->dev.of_node) {
 		ret = of_alias_get_id(pdev->dev.of_node, "spi");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
-				ret);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(&pdev->dev, ret,
+					     "Failed to get alias id\n");
 		sdd->port_id = ret;
 	} else {
 		sdd->port_id = pdev->id;
@@ -1234,32 +1227,28 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(sdd->regs))
 		return PTR_ERR(sdd->regs);
 
-	if (sci->cfg_gpio && sci->cfg_gpio()) {
-		dev_err(&pdev->dev, "Unable to config gpio\n");
-		return -EBUSY;
-	}
+	if (sci->cfg_gpio && sci->cfg_gpio())
+		return dev_err_probe(&pdev->dev, -EBUSY,
+				     "Unable to config gpio\n");
 
 	/* Setup clocks */
 	sdd->clk = devm_clk_get_enabled(&pdev->dev, "spi");
-	if (IS_ERR(sdd->clk)) {
-		dev_err(&pdev->dev, "Unable to acquire clock 'spi'\n");
-		return PTR_ERR(sdd->clk);
-	}
+	if (IS_ERR(sdd->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sdd->clk),
+				     "Unable to acquire clock 'spi'\n");
 
 	sprintf(clk_name, "spi_busclk%d", sci->src_clk_nr);
 	sdd->src_clk = devm_clk_get_enabled(&pdev->dev, clk_name);
-	if (IS_ERR(sdd->src_clk)) {
-		dev_err(&pdev->dev,
-			"Unable to acquire clock '%s'\n", clk_name);
-		return PTR_ERR(sdd->src_clk);
-	}
+	if (IS_ERR(sdd->src_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sdd->src_clk),
+				     "Unable to acquire clock '%s'\n",
+				     clk_name);
 
 	if (sdd->port_conf->clk_ioclk) {
 		sdd->ioclk = devm_clk_get_enabled(&pdev->dev, "spi_ioclk");
-		if (IS_ERR(sdd->ioclk)) {
-			dev_err(&pdev->dev, "Unable to acquire 'ioclk'\n");
-			return PTR_ERR(sdd->ioclk);
-		}
+		if (IS_ERR(sdd->ioclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(sdd->ioclk),
+					     "Unable to acquire 'ioclk'\n");
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
