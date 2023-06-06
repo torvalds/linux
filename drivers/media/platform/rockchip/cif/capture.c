@@ -6398,12 +6398,42 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 					 struct v4l2_fmtdesc *f)
 {
 	const struct cif_output_fmt *fmt = NULL;
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	const struct cif_input_fmt *cif_fmt_in = NULL;
+	struct v4l2_rect input_rect;
+	int i = 0;
+	int ret = 0;
+	int fource_idx = 0;
 
 	if (f->index >= ARRAY_SIZE(out_fmts))
 		return -EINVAL;
 
-	fmt = &out_fmts[f->index];
-	f->pixelformat = fmt->fourcc;
+	if (dev->terminal_sensor.sd) {
+		cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
+					   &input_rect, stream->id,
+					   &dev->channels[stream->id]);
+		stream->cif_fmt_in = cif_fmt_in;
+	} else {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "terminal subdev does not exist\n");
+		return -EINVAL;
+	}
+
+	if (f->index != 0)
+		fource_idx = stream->new_fource_idx;
+
+	for (i = fource_idx; i < ARRAY_SIZE(out_fmts); i++) {
+		fmt = &out_fmts[i];
+		ret = rkcif_output_fmt_check(stream, fmt);
+		if (!ret) {
+			f->pixelformat = fmt->fourcc;
+			stream->new_fource_idx = i + 1;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(out_fmts))
+		return -EINVAL;
 
 	switch (f->pixelformat) {
 	case V4l2_PIX_FMT_EBD8:

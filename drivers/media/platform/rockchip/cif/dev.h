@@ -535,6 +535,7 @@ struct rkcif_stream {
 	struct list_head		vb_done_list;
 	int				last_rx_buf_idx;
 	int				last_frame_idx;
+	int				new_fource_idx;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
