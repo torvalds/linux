@@ -179,9 +179,9 @@ void ioc_clear_queue(struct request_queue *q)
 		 * Other context won't hold ioc lock to wait for queue_lock, see
 		 * details in ioc_release_fn().
 		 */
-		spin_lock_irq(&icq->ioc->lock);
+		spin_lock(&icq->ioc->lock);
 		ioc_destroy_icq(icq);
-		spin_unlock_irq(&icq->ioc->lock);
+		spin_unlock(&icq->ioc->lock);
 	}
 	spin_unlock_irq(&q->queue_lock);
 }
