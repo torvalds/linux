@@ -779,6 +779,13 @@ static inline int mlx5_eswitch_num_vfs(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+static inline int mlx5_eswitch_get_npeers(struct mlx5_eswitch *esw)
+{
+	if (mlx5_esw_allowed(esw))
+		return esw->num_peers;
+	return 0;
+}
+
 static inline struct mlx5_flow_table *
 mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 {
@@ -825,6 +832,8 @@ mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
 static inline void
 mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					 struct mlx5_eswitch *slave_esw) {}
+
+static inline int mlx5_eswitch_get_npeers(struct mlx5_eswitch *esw) { return 0; }
 
 static inline int
 mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
