@@ -2269,8 +2269,6 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	(or re-association) response frame if this is given
  * @from_ap: frame is received from an AP (currently used only
  *	for EHT capabilities parsing)
- * @scratch_len: if non zero, specifies the requested length of the scratch
- *      buffer; otherwise, 'len' is used.
  */
 struct ieee80211_elems_parse_params {
 	const u8 *start;
@@ -2281,7 +2279,6 @@ struct ieee80211_elems_parse_params {
 	struct cfg80211_bss *bss;
 	int link_id;
 	bool from_ap;
-	size_t scratch_len;
 };
 
 struct ieee802_11_elems *
