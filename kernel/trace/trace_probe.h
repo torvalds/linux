@@ -367,6 +367,7 @@ int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_a
 #define TPARG_FL_FENTRY BIT(2)
 #define TPARG_FL_TPOINT BIT(3)
 #define TPARG_FL_USER   BIT(4)
+#define TPARG_FL_FPROBE BIT(5)
 #define TPARG_FL_MASK	GENMASK(4, 0)
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
@@ -409,7 +410,7 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"), \
 	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
 	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
-	C(MAXACT_NO_KPROBE,	"Maxactive is not for kprobe"),		\
+	C(BAD_MAXACT_TYPE,	"Maxactive is only for function exit"),	\
 	C(BAD_MAXACT,		"Invalid maxactive number"),		\
 	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
 	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\

@@ -8,7 +8,7 @@ check_error() { # command-with-error-pos-by-^
 }
 
 if grep -q 'r\[maxactive\]' README; then
-check_error 'p^100 vfs_read'		# MAXACT_NO_KPROBE
+check_error 'p^100 vfs_read'		# BAD_MAXACT_TYPE
 check_error 'r^1a111 vfs_read'		# BAD_MAXACT
 check_error 'r^100000 vfs_read'		# MAXACT_TOO_BIG
 fi

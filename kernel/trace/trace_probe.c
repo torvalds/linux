@@ -393,8 +393,8 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 
 	case '%':	/* named register */
-		if (flags & TPARG_FL_TPOINT) {
-			/* eprobes do not handle registers */
+		if (flags & (TPARG_FL_TPOINT | TPARG_FL_FPROBE)) {
+			/* eprobe and fprobe do not handle registers */
 			trace_probe_log_err(offs, BAD_VAR);
 			break;
 		}
