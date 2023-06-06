@@ -279,8 +279,10 @@ static int s32_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = s32_dt_group_node_to_map(pctldev, np, map,
 					       &reserved_maps, num_maps,
 					       np_config->name);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			break;
+		}
 	}
 
 	if (ret)
@@ -812,8 +814,10 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 		groups[i] = child->name;
 		grp = &info->groups[info->grp_index++];
 		ret = s32_pinctrl_parse_groups(child, grp, info);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 		i++;
 	}
 
@@ -896,8 +900,10 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 	i = 0;
 	for_each_child_of_node(np, child) {
 		ret = s32_pinctrl_parse_functions(child, info, i++);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;
