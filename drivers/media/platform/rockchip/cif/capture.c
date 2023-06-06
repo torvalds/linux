@@ -345,8 +345,35 @@ static const struct cif_output_fmt out_fmts[] = {
 		.raw_bpp = 10,
 		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
 		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 16,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 16,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 16,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 16,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}
-
 	/* TODO: We can support NV12M/NV21M/NV16M/NV61M too */
 };
 
@@ -523,6 +550,136 @@ static const struct cif_input_fmt in_fmts[] = {
 		.field		= V4L2_FIELD_NONE,
 	}
 };
+
+static int rkcif_output_fmt_check(struct rkcif_stream *stream,
+				  const struct cif_output_fmt *output_fmt)
+{
+	const struct cif_input_fmt *input_fmt = stream->cif_fmt_in;
+	struct csi_channel_info *channel = &stream->cifdev->channels[stream->id];
+	int ret = -EINVAL;
+
+	switch (input_fmt->mbus_code) {
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_NV16 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_NV61 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_NV12 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_NV21 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_YUYV ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_YVYU ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_UYVY ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_VYUY)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB8 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGRBG8 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGBRG8 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SBGGR8 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_GREY)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_Y10_1X10:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB10 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGRBG10 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGBRG10 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SBGGR10 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_Y10)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
+	case MEDIA_BUS_FMT_Y12_1X12:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB12 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGRBG12 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SGBRG12 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_SBGGR12 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_Y12)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_RGB24 ||
+		    output_fmt->fourcc == V4L2_PIX_FMT_BGR24)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_RGB565_1X16:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_RGB565)
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_EBD_1X8:
+		if (output_fmt->fourcc == V4l2_PIX_FMT_EBD8 ||
+		    (channel->data_bit == 8 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR8)) ||
+		    (channel->data_bit == 10 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR10)) ||
+		    (channel->data_bit == 12 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR12)) ||
+		    (channel->data_bit == 16 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR16)))
+			ret = 0;
+		break;
+	case MEDIA_BUS_FMT_SPD_2X8:
+		if (output_fmt->fourcc == V4l2_PIX_FMT_SPD16 ||
+		    (channel->data_bit == 8 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG8 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR8)) ||
+		    (channel->data_bit == 10 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG10 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR10)) ||
+		    (channel->data_bit == 12 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG12 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR12)) ||
+		    (channel->data_bit == 16 &&
+		     (output_fmt->fourcc == V4L2_PIX_FMT_SRGGB16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGRBG16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SGBRG16 ||
+		      output_fmt->fourcc == V4L2_PIX_FMT_SBGGR16)))
+			ret = 0;
+		break;
+	default:
+		break;
+	}
+	if (ret)
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "input mbus_code 0x%x, can't transform to %c%c%c%c\n",
+			 input_fmt->mbus_code,
+			 output_fmt->fourcc & 0xff,
+			 (output_fmt->fourcc >> 8) & 0xff,
+			 (output_fmt->fourcc >> 16) & 0xff,
+			 (output_fmt->fourcc >> 24) & 0xff);
+	return ret;
+}
 
 static int rkcif_stop_dma_capture(struct rkcif_stream *stream);
 
@@ -5814,6 +5971,10 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 			 "terminal subdev does not exist\n");
 		return -EINVAL;
 	}
+
+	ret = rkcif_output_fmt_check(stream, fmt);
+	if (ret)
+		return -EINVAL;
 
 	if (dev->terminal_sensor.sd) {
 		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
