@@ -359,16 +359,24 @@ int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_a
 
 /*
  * The flags used for parsing trace_probe arguments.
- * TPARG_FL_RETURN, TPARG_FL_FENTRY and TPARG_FL_TPOINT are mutually exclusive.
+ * TPARG_FL_RETURN, TPARG_FL_FENTRY and TPARG_FL_TEVENT are mutually exclusive.
  * TPARG_FL_KERNEL and TPARG_FL_USER are also mutually exclusive.
+ * TPARG_FL_FPROBE and TPARG_FL_TPOINT are optional but it should be with
+ * TPARG_FL_KERNEL.
  */
 #define TPARG_FL_RETURN BIT(0)
 #define TPARG_FL_KERNEL BIT(1)
 #define TPARG_FL_FENTRY BIT(2)
-#define TPARG_FL_TPOINT BIT(3)
+#define TPARG_FL_TEVENT BIT(3)
 #define TPARG_FL_USER   BIT(4)
 #define TPARG_FL_FPROBE BIT(5)
-#define TPARG_FL_MASK	GENMASK(4, 0)
+#define TPARG_FL_TPOINT BIT(6)
+#define TPARG_FL_LOC_MASK	GENMASK(4, 0)
+
+static inline bool tparg_is_function_entry(unsigned int flags)
+{
+	return (flags & TPARG_FL_LOC_MASK) == (TPARG_FL_KERNEL | TPARG_FL_FENTRY);
+}
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
 				const char *argv, unsigned int flags);
@@ -415,6 +423,7 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
 	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
 	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
+	C(NO_TRACEPOINT,	"Tracepoint is not found"),		\
 	C(BAD_ADDR_SUFFIX,	"Invalid probed address suffix"), \
 	C(NO_GROUP_NAME,	"Group name is not specified"),		\
 	C(GROUP_TOO_LONG,	"Group name is too long"),		\

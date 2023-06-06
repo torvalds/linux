@@ -5681,6 +5681,7 @@ static const char readme_msg[] =
 #endif
 #ifdef CONFIG_FPROBE_EVENTS
 	"\t           f[:[<group>/][<event>]] <func-name>[%return] [<args>]\n"
+	"\t           t[:[<group>/][<event>]] <tracepoint> [<args>]\n"
 #endif
 #ifdef CONFIG_HIST_TRIGGERS
 	"\t           s:[synthetic/]<event> <field> [<field>]\n"

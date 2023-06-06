@@ -292,7 +292,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 	int ret = 0;
 	int len;
 
-	if (flags & TPARG_FL_TPOINT) {
+	if (flags & TPARG_FL_TEVENT) {
 		if (code->data)
 			return -EFAULT;
 		code->data = kstrdup(arg, GFP_KERNEL);
@@ -326,8 +326,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 	} else if (strcmp(arg, "comm") == 0 || strcmp(arg, "COMM") == 0) {
 		code->op = FETCH_OP_COMM;
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
-	} else if (((flags & TPARG_FL_MASK) ==
-		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
+	} else if (tparg_is_function_entry(flags) &&
 		   (len = str_has_prefix(arg, "arg"))) {
 		ret = kstrtoul(arg + len, 10, &param);
 		if (ret) {
@@ -338,6 +337,12 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 		}
 		code->op = FETCH_OP_ARG;
 		code->param = (unsigned int)param - 1;
+		/*
+		 * The tracepoint probe will probe a stub function, and the
+		 * first parameter of the stub is a dummy and should be ignored.
+		 */
+		if (flags & TPARG_FL_TPOINT)
+			code->param++;
 #endif
 	} else
 		goto inval_var;
@@ -393,7 +398,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 
 	case '%':	/* named register */
-		if (flags & (TPARG_FL_TPOINT | TPARG_FL_FPROBE)) {
+		if (flags & (TPARG_FL_TEVENT | TPARG_FL_FPROBE)) {
 			/* eprobe and fprobe do not handle registers */
 			trace_probe_log_err(offs, BAD_VAR);
 			break;
@@ -633,7 +638,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	 * Since $comm and immediate string can not be dereferenced,
 	 * we can find those by strcmp. But ignore for eprobes.
 	 */
-	if (!(flags & TPARG_FL_TPOINT) &&
+	if (!(flags & TPARG_FL_TEVENT) &&
 	    (strcmp(arg, "$comm") == 0 || strcmp(arg, "$COMM") == 0 ||
 	     strncmp(arg, "\\\"", 2) == 0)) {
 		/* The type of $comm must be "string", and not an array. */

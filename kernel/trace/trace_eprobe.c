@@ -817,7 +817,7 @@ find_and_get_event(const char *system, const char *event_name)
 
 static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[], int i)
 {
-	unsigned int flags = TPARG_FL_KERNEL | TPARG_FL_TPOINT;
+	unsigned int flags = TPARG_FL_KERNEL | TPARG_FL_TEVENT;
 	int ret;
 
 	ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], flags);
