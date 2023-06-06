@@ -639,12 +639,14 @@
 &wkup_i2c0 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&wkup_i2c0_pins_default &eeprom_wp_pins_default>;
+	pinctrl-0 = <&wkup_i2c0_pins_default>;
 	clock-frequency = <400000>;
 
 	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&eeprom_wp_pins_default>;
 	};
 };
 
