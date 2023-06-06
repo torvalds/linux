@@ -308,19 +308,24 @@ EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
 /**
  * fscrypt_initialize() - allocate major buffers for fs encryption.
- * @cop_flags:  fscrypt operations flags
+ * @sb: the filesystem superblock
  *
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
  * Return: 0 on success; -errno on failure
  */
-int fscrypt_initialize(unsigned int cop_flags)
+int fscrypt_initialize(struct super_block *sb)
 {
 	int err = 0;
+	mempool_t *pool;
+
+	/* pairs with smp_store_release() below */
+	if (likely(smp_load_acquire(&fscrypt_bounce_page_pool)))
+		return 0;
 
 	/* No need to allocate a bounce page pool if this FS won't use it. */
-	if (cop_flags & FS_CFLG_OWN_PAGES)
+	if (sb->s_cop->flags & FS_CFLG_OWN_PAGES)
 		return 0;
 
 	mutex_lock(&fscrypt_init_mutex);
@@ -328,11 +333,11 @@ int fscrypt_initialize(unsigned int cop_flags)
 		goto out_unlock;
 
 	err = -ENOMEM;
-	fscrypt_bounce_page_pool =
-		mempool_create_page_pool(num_prealloc_crypto_pages, 0);
-	if (!fscrypt_bounce_page_pool)
+	pool = mempool_create_page_pool(num_prealloc_crypto_pages, 0);
+	if (!pool)
 		goto out_unlock;
-
+	/* pairs with smp_load_acquire() above */
+	smp_store_release(&fscrypt_bounce_page_pool, pool);
 	err = 0;
 out_unlock:
 	mutex_unlock(&fscrypt_init_mutex);

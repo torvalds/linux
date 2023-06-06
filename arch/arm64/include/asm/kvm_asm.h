@@ -159,6 +159,19 @@ extern void *__nvhe_undefined_symbol;
 #define this_cpu_ptr_hyp_sym(sym)	(&__nvhe_undefined_symbol)
 #define per_cpu_ptr_hyp_sym(sym, cpu)	(&__nvhe_undefined_symbol)
 
+/*
+ * pKVM uses the module_ops struct to expose services to modules but
+ * doesn't allow fine-grained definition of the license for each export,
+ * and doesn't have a way to check the license of the loaded module.
+ * Given that said module may be proprietary, let's seek GPL compliance
+ * by preventing the accidental export of GPL symbols to hyp modules via
+ * pKVM's module_ops struct.
+ */
+#ifdef EXPORT_SYMBOL_GPL
+#undef EXPORT_SYMBOL_GPL
+#endif
+#define EXPORT_SYMBOL_GPL(sym) BUILD_BUG()
+
 #elif defined(__KVM_VHE_HYPERVISOR__)
 
 #define CHOOSE_VHE_SYM(sym)	sym
@@ -208,6 +221,7 @@ struct kvm_nvhe_init_params {
 	unsigned long stack_pa;
 	phys_addr_t pgd_pa;
 	unsigned long hcr_el2;
+	unsigned long hfgwtr_el2;
 	unsigned long vttbr;
 	unsigned long vtcr;
 };

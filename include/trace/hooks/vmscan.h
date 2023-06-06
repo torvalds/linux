@@ -15,6 +15,15 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_balance_anon_file_reclaim,
 DECLARE_HOOK(android_vh_kswapd_per_node,
 	TP_PROTO(int nid, bool *skip, bool run),
 	TP_ARGS(nid, skip, run));
+DECLARE_HOOK(android_vh_shrink_slab_bypass,
+	TP_PROTO(gfp_t gfp_mask, int nid, struct mem_cgroup *memcg, int priority, bool *bypass),
+	TP_ARGS(gfp_mask, nid, memcg, priority, bypass));
+DECLARE_HOOK(android_vh_do_shrink_slab,
+	TP_PROTO(struct shrinker *shrinker, long *freeable),
+	TP_ARGS(shrinker, freeable));
+DECLARE_HOOK(android_vh_shrink_node_memcgs,
+	TP_PROTO(struct mem_cgroup *memcg, bool *skip),
+	TP_ARGS(memcg, skip));
 #endif /* _TRACE_HOOK_VMSCAN_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

@@ -758,14 +758,10 @@ static const struct attribute_group wireless_group = {
 
 static bool wireless_group_needed(struct net_device *ndev)
 {
-#if IS_ENABLED(CONFIG_CFG80211)
 	if (ndev->ieee80211_ptr)
 		return true;
-#endif
-#if IS_ENABLED(CONFIG_WIRELESS_EXT)
 	if (ndev->wireless_handlers)
 		return true;
-#endif
 	return false;
 }
 

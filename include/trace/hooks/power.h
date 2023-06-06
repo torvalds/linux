@@ -16,6 +16,23 @@ DECLARE_HOOK(android_vh_try_to_freeze_todo_unfrozen,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p));
 
+enum freq_qos_req_type;
+struct freq_qos_request;
+struct freq_constraints;
+
+DECLARE_HOOK(android_vh_freq_qos_add_request,
+	TP_PROTO(struct freq_constraints *qos, struct freq_qos_request *req,
+		enum freq_qos_req_type type, int value, int ret),
+	TP_ARGS(qos, req, type, value, ret));
+
+DECLARE_HOOK(android_vh_freq_qos_update_request,
+		TP_PROTO(struct freq_qos_request *req, int value),
+		TP_ARGS(req, value));
+
+DECLARE_HOOK(android_vh_freq_qos_remove_request,
+		TP_PROTO(struct freq_qos_request *req),
+		TP_ARGS(req));
+
 #endif /* _TRACE_HOOK_POWER_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

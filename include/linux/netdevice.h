@@ -2085,7 +2085,11 @@ struct net_device {
 	atomic_t		carrier_up_count;
 	atomic_t		carrier_down_count;
 
-#ifdef CONFIG_WIRELESS_EXT
+	/* Android KMI hack to allow vendors to have their own wifi changes in modules */
+#ifdef __GENKSYMS__
+	void			*wireless_handlers;
+	void			*wireless_data;
+#else
 	const struct iw_handler_def *wireless_handlers;
 	struct iw_public_data	*wireless_data;
 #endif
@@ -2165,9 +2169,13 @@ struct net_device {
 #if IS_ENABLED(CONFIG_AX25)
 	void			*ax25_ptr;
 #endif
-#if IS_ENABLED(CONFIG_CFG80211)
+	/* Android KMI hack to allow vendors to have their own wifi changes in modules */
+#ifdef __GENKSYMS__
+	void			*ieee80211_ptr;
+#else
 	struct wireless_dev	*ieee80211_ptr;
 #endif
+
 #if IS_ENABLED(CONFIG_IEEE802154) || IS_ENABLED(CONFIG_6LOWPAN)
 	struct wpan_dev		*ieee802154_ptr;
 #endif

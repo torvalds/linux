@@ -31,10 +31,6 @@
   __blk_mq_alloc_disk
   __blk_mq_end_request
   __blk_rq_map_sg
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  __cfg80211_radar_event
-  __cfg80211_send_event_skb
   __check_object_size
   __class_create
   __class_register
@@ -139,7 +135,6 @@
   __hwspin_unlock
   __i2c_smbus_xfer
   __i2c_transfer
-  __ieee80211_schedule_txq
   __inet6_lookup_established
   __inet_lookup_established
   __init_rwsem
@@ -400,6 +395,7 @@
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
   __traceiter_android_vh_printk_hotplug
@@ -420,6 +416,7 @@
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
+  __traceiter_android_vh_try_to_unmap_one
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_clock_scaling
   __traceiter_android_vh_ufs_compl_command
@@ -566,6 +563,7 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_mmap_region
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
   __tracepoint_android_vh_printk_hotplug
@@ -584,6 +582,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_to_unmap_one
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_ufs_check_int_errors
@@ -872,7 +871,6 @@
   bpf_trace_run8
   bpf_trace_run9
   bpf_warn_invalid_xdp_action
-  bridge_tunnel_header
   bsg_job_done
   bsg_remove_queue
   bsg_setup_queue
@@ -974,100 +972,6 @@
   cec_s_phys_addr
   cec_transmit_attempt_done_ts
   cec_unregister_adapter
-  cfg80211_any_usable_channels
-  cfg80211_assoc_comeback
-  cfg80211_assoc_failure
-  cfg80211_auth_timeout
-  cfg80211_background_cac_abort
-  cfg80211_bss_color_notify
-  cfg80211_bss_flush
-  cfg80211_bss_iter
-  cfg80211_cac_event
-  cfg80211_calculate_bitrate
-  cfg80211_ch_switch_notify
-  cfg80211_ch_switch_started_notify
-  cfg80211_chandef_compatible
-  cfg80211_chandef_create
-  cfg80211_chandef_dfs_required
-  cfg80211_chandef_usable
-  cfg80211_chandef_valid
-  cfg80211_check_combinations
-  cfg80211_check_station_change
-  cfg80211_classify8021d
-  cfg80211_conn_failed
-  cfg80211_connect_done
-  cfg80211_control_port_tx_status
-  cfg80211_cqm_beacon_loss_notify
-  cfg80211_cqm_pktloss_notify
-  cfg80211_cqm_rssi_notify
-  cfg80211_cqm_txe_notify
-  cfg80211_crit_proto_stopped
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_find_elem_match
-  cfg80211_find_vendor_elem
-  cfg80211_free_nan_func
-  cfg80211_ft_event
-  cfg80211_get_bss
-  cfg80211_get_drvinfo
-  cfg80211_get_ies_channel_number
-  cfg80211_get_iftype_ext_capa
-  cfg80211_get_p2p_attr
-  cfg80211_get_station
-  cfg80211_gtk_rekey_notify
-  cfg80211_ibss_joined
-  cfg80211_iftype_allowed
-  cfg80211_inform_bss_data
-  cfg80211_inform_bss_frame_data
-  cfg80211_is_element_inherited
-  cfg80211_iter_combinations
-  cfg80211_merge_profile
-  cfg80211_mgmt_tx_status_ext
-  cfg80211_michael_mic_failure
-  cfg80211_nan_func_terminated
-  cfg80211_nan_match
-  cfg80211_new_sta
-  cfg80211_notify_new_peer_candidate
-  cfg80211_pmksa_candidate_notify
-  cfg80211_pmsr_complete
-  cfg80211_pmsr_report
-  cfg80211_port_authorized
-  cfg80211_probe_status
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_ref_bss
-  cfg80211_reg_can_beacon
-  cfg80211_reg_can_beacon_relax
-  cfg80211_register_netdevice
-  cfg80211_remain_on_channel_expired
-  cfg80211_report_obss_beacon_khz
-  cfg80211_report_wowlan_wakeup
-  cfg80211_roamed
-  cfg80211_rx_assoc_resp
-  cfg80211_rx_control_port
-  cfg80211_rx_mgmt_ext
-  cfg80211_rx_mlme_mgmt
-  cfg80211_rx_spurious_frame
-  cfg80211_rx_unexpected_4addr_frame
-  cfg80211_rx_unprot_mlme_mgmt
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  cfg80211_sched_scan_stopped
-  cfg80211_sched_scan_stopped_locked
-  cfg80211_send_layer2_update
-  cfg80211_shutdown_all_interfaces
-  cfg80211_sinfo_alloc_tid_stats
-  cfg80211_sta_opmode_change_notify
-  cfg80211_stop_iface
-  cfg80211_tdls_oper_request
-  cfg80211_tx_mgmt_expired
-  cfg80211_tx_mlme_mgmt
-  cfg80211_unlink_bss
-  cfg80211_unregister_wdev
-  cfg80211_update_owe_info_event
-  cfg80211_vendor_cmd_get_sender
-  cfg80211_vendor_cmd_reply
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
@@ -2169,7 +2073,6 @@
   freq_qos_remove_notifier
   freq_qos_remove_request
   freq_qos_update_request
-  freq_reg_info
   fs_bio_set
   fsync_bdev
   ftrace_dump
@@ -2275,7 +2178,6 @@
   get_user_pages
   get_user_pages_fast
   get_vaddr_frames
-  get_wiphy_regdom
   get_zeroed_page
   getboottime64
   gh_rm_call
@@ -2502,151 +2404,6 @@
   idr_preload
   idr_remove
   idr_replace
-  ieee80211_alloc_hw_nm
-  ieee80211_amsdu_to_8023s
-  ieee80211_ap_probereq_get
-  ieee80211_ave_rssi
-  ieee80211_beacon_cntdwn_is_complete
-  ieee80211_beacon_get_template
-  ieee80211_beacon_get_tim
-  ieee80211_beacon_loss
-  ieee80211_beacon_set_cntdwn
-  ieee80211_beacon_update_cntdwn
-  ieee80211_bss_get_elem
-  ieee80211_calc_rx_airtime
-  ieee80211_calc_tx_airtime
-  ieee80211_chandef_to_operating_class
-  ieee80211_channel_switch_disconnect
-  ieee80211_channel_to_freq_khz
-  ieee80211_chswitch_done
-  ieee80211_color_change_finish
-  ieee80211_connection_loss
-  ieee80211_cqm_beacon_loss_notify
-  ieee80211_cqm_rssi_notify
-  ieee80211_csa_finish
-  ieee80211_ctstoself_duration
-  ieee80211_ctstoself_get
-  ieee80211_data_to_8023_exthdr
-  ieee80211_disable_rssi_reports
-  ieee80211_disconnect
-  ieee80211_enable_rssi_reports
-  ieee80211_find_sta
-  ieee80211_find_sta_by_ifaddr
-  ieee80211_find_sta_by_link_addrs
-  ieee80211_free_hw
-  ieee80211_free_txskb
-  ieee80211_freq_khz_to_channel
-  ieee80211_generic_frame_duration
-  ieee80211_get_bssid
-  ieee80211_get_buffered_bc
-  ieee80211_get_channel_khz
-  ieee80211_get_fils_discovery_tmpl
-  ieee80211_get_hdrlen_from_skb
-  ieee80211_get_key_rx_seq
-  ieee80211_get_mesh_hdrlen
-  ieee80211_get_num_supported_channels
-  ieee80211_get_response_rate
-  ieee80211_get_tkip_p1k_iv
-  ieee80211_get_tkip_p2k
-  ieee80211_get_tkip_rx_p1k
-  ieee80211_get_tx_rates
-  ieee80211_get_unsol_bcast_probe_resp_tmpl
-  ieee80211_get_vht_max_nss
-  ieee80211_gtk_rekey_add
-  ieee80211_gtk_rekey_notify
-  ieee80211_hdrlen
-  ieee80211_hw_restart_disconnect
-  ieee80211_ie_split_ric
-  ieee80211_iter_chan_contexts_atomic
-  ieee80211_iter_keys
-  ieee80211_iter_keys_rcu
-  ieee80211_iterate_active_interfaces_atomic
-  ieee80211_iterate_active_interfaces_mtx
-  ieee80211_iterate_interfaces
-  ieee80211_iterate_stations
-  ieee80211_iterate_stations_atomic
-  ieee80211_key_mic_failure
-  ieee80211_key_replay
-  ieee80211_manage_rx_ba_offl
-  ieee80211_mandatory_rates
-  ieee80211_mark_rx_ba_filtered_frames
-  ieee80211_nan_func_match
-  ieee80211_nan_func_terminated
-  ieee80211_next_txq
-  ieee80211_nullfunc_get
-  ieee80211_operating_class_to_band
-  ieee80211_parse_p2p_noa
-  ieee80211_probereq_get
-  ieee80211_proberesp_get
-  ieee80211_pspoll_get
-  ieee80211_queue_delayed_work
-  ieee80211_queue_stopped
-  ieee80211_queue_work
-  ieee80211_radar_detected
-  ieee80211_radiotap_iterator_init
-  ieee80211_radiotap_iterator_next
-  ieee80211_rate_control_register
-  ieee80211_rate_control_unregister
-  ieee80211_ready_on_channel
-  ieee80211_register_hw
-  ieee80211_remain_on_channel_expired
-  ieee80211_remove_key
-  ieee80211_report_low_ack
-  ieee80211_report_wowlan_wakeup
-  ieee80211_request_smps
-  ieee80211_reserve_tid
-  ieee80211_restart_hw
-  ieee80211_resume_disconnect
-  ieee80211_rts_duration
-  ieee80211_rts_get
-  ieee80211_rx_ba_timer_expired
-  ieee80211_rx_irqsafe
-  ieee80211_rx_list
-  ieee80211_rx_napi
-  ieee80211_s1g_channel_width
-  ieee80211_scan_completed
-  ieee80211_sched_scan_results
-  ieee80211_sched_scan_stopped
-  ieee80211_send_bar
-  ieee80211_send_eosp_nullfunc
-  ieee80211_set_active_links
-  ieee80211_set_active_links_async
-  ieee80211_set_key_rx_seq
-  ieee80211_sta_block_awake
-  ieee80211_sta_eosp
-  ieee80211_sta_ps_transition
-  ieee80211_sta_pspoll
-  ieee80211_sta_recalc_aggregates
-  ieee80211_sta_register_airtime
-  ieee80211_sta_set_buffered
-  ieee80211_sta_uapsd_trigger
-  ieee80211_start_tx_ba_cb_irqsafe
-  ieee80211_start_tx_ba_session
-  ieee80211_stop_queue
-  ieee80211_stop_queues
-  ieee80211_stop_rx_ba_session
-  ieee80211_stop_tx_ba_cb_irqsafe
-  ieee80211_stop_tx_ba_session
-  ieee80211_tdls_oper_request
-  ieee80211_tkip_add_iv
-  ieee80211_tx_dequeue
-  ieee80211_tx_prepare_skb
-  ieee80211_tx_rate_update
-  ieee80211_tx_status
-  ieee80211_tx_status_8023
-  ieee80211_tx_status_ext
-  ieee80211_tx_status_irqsafe
-  ieee80211_txq_airtime_check
-  ieee80211_txq_get_depth
-  ieee80211_txq_may_transmit
-  ieee80211_txq_schedule_start
-  ieee80211_unregister_hw
-  ieee80211_unreserve_tid
-  ieee80211_update_mu_groups
-  ieee80211_update_p2p_noa
-  ieee80211_vif_to_wdev
-  ieee80211_wake_queue
-  ieee80211_wake_queues
   ieee802154_alloc_hw
   ieee802154_configure_durations
   ieee802154_free_hw
@@ -2663,7 +2420,6 @@
   ieee802154_xmit_complete
   ieee802154_xmit_error
   ieee802154_xmit_hw_error
-  ieeee80211_obss_color_collision_notify
   iio_buffer_enabled
   iio_buffer_init
   iio_buffer_put
@@ -3807,7 +3563,6 @@
   radix_tree_lookup
   radix_tree_next_chunk
   radix_tree_tagged
-  rate_control_set_rates
   rational_best_approximation
   raw_notifier_call_chain
   raw_notifier_chain_register
@@ -3861,8 +3616,6 @@
   refcount_dec_if_one
   refcount_dec_not_one
   refcount_warn_saturate
-  reg_initiator_name
-  reg_query_regdb_wmm
   regcache_cache_bypass
   regcache_cache_only
   regcache_drop_region
@@ -3937,6 +3690,7 @@
   regulator_force_disable
   regulator_get
   regulator_get_current_limit_regmap
+  regulator_get_drvdata
   regulator_get_linear_step
   regulator_get_mode
   regulator_get_optional
@@ -3963,10 +3717,6 @@
   regulator_set_voltage_sel_regmap
   regulator_unregister
   regulator_unregister_notifier
-  regulatory_hint
-  regulatory_pre_cac_allowed
-  regulatory_set_wiphy_regd
-  regulatory_set_wiphy_regd_sync
   release_firmware
   release_sock
   remap_pfn_range
@@ -3995,7 +3745,6 @@
   reset_control_release
   reset_control_reset
   return_address
-  rfc1042_header
   rfkill_alloc
   rfkill_blocked
   rfkill_destroy
@@ -4780,6 +4529,7 @@
   ucsi_destroy
   ucsi_get_drvdata
   ucsi_register
+  ucsi_send_command
   ucsi_set_drvdata
   ucsi_unregister
   udp4_hwcsum
@@ -5287,17 +5037,6 @@
   watchdog_register_device
   watchdog_set_restart_priority
   watchdog_unregister_device
-  wdev_chandef
-  wdev_to_ieee80211_vif
-  wiphy_apply_custom_regulatory
-  wiphy_free
-  wiphy_new_nm
-  wiphy_read_of_freq_limits
-  wiphy_register
-  wiphy_rfkill_set_hw_state_reason
-  wiphy_rfkill_start_polling
-  wiphy_to_ieee80211_hw
-  wiphy_unregister
   wireless_nlevent_flush
   wireless_send_event
   woken_wake_function

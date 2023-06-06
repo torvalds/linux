@@ -360,7 +360,6 @@ fpga_bridge_register(struct device *parent, const char *name,
 	bridge->dev.parent = parent;
 	bridge->dev.of_node = parent->of_node;
 	bridge->dev.id = id;
-	of_platform_populate(bridge->dev.of_node, NULL, NULL, &bridge->dev);
 
 	ret = dev_set_name(&bridge->dev, "br%d", id);
 	if (ret)
@@ -371,6 +370,8 @@ fpga_bridge_register(struct device *parent, const char *name,
 		put_device(&bridge->dev);
 		return ERR_PTR(ret);
 	}
+
+	of_platform_populate(bridge->dev.of_node, NULL, NULL, &bridge->dev);
 
 	return bridge;
 

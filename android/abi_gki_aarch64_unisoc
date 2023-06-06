@@ -1,0 +1,305 @@
+[abi_symbol_list]
+# commonly used symbols
+  alt_cb_patch_nops
+  arm64_use_ng_mappings
+  clk_disable
+  clk_enable
+  clk_get_rate
+  clk_prepare
+  clk_unprepare
+  __const_udelay
+  debugfs_create_dir
+  debugfs_create_file
+  debugfs_remove
+  _dev_err
+  dev_err_probe
+  dev_get_regmap
+  _dev_info
+  devm_clk_get
+  devm_gpiochip_add_data_with_key
+  devm_ioremap_resource
+  devm_kmalloc
+  devm_platform_ioremap_resource
+  devm_regulator_register
+  devm_request_threaded_irq
+  devm_spi_register_controller
+  _dev_warn
+  gpiochip_disable_irq
+  gpiochip_enable_irq
+  gpiochip_get_data
+  gpiochip_irq_relres
+  gpiochip_irq_reqres
+  handle_bad_irq
+  handle_edge_irq
+  handle_level_irq
+  irq_get_irq_data
+  __irq_resolve_mapping
+  kfree
+  __kmalloc
+  kmalloc_caches
+  kmalloc_trace
+  ktime_get
+  ktime_get_mono_fast_ns
+  __list_add_valid
+  __list_del_entry_valid
+  log_post_read_mmio
+  log_post_write_mmio
+  log_read_mmio
+  log_write_mmio
+  memcpy
+  memstart_addr
+  module_layout
+  __mutex_init
+  mutex_lock
+  mutex_unlock
+  of_alias_get_id
+  of_device_get_match_data
+  of_property_read_variable_u32_array
+  __platform_driver_register
+  platform_driver_unregister
+  platform_get_irq
+  platform_get_resource
+  __pm_runtime_disable
+  pm_runtime_enable
+  pm_runtime_set_autosuspend_delay
+  __pm_runtime_set_status
+  __pm_runtime_suspend
+  __pm_runtime_use_autosuspend
+  _printk
+  put_device
+  __put_task_struct
+  _raw_spin_lock_irqsave
+  _raw_spin_unlock_irqrestore
+  regmap_read
+  regmap_update_bits_base
+  regmap_write
+  regulator_disable_regmap
+  regulator_enable_regmap
+  regulator_get_voltage_sel_regmap
+  regulator_is_enabled_regmap
+  regulator_list_voltage_linear
+  regulator_set_voltage_sel_regmap
+  seq_lseek
+  seq_printf
+  seq_puts
+  seq_read
+  sg_next
+  single_open
+  single_release
+  __spi_alloc_controller
+  __stack_chk_fail
+  strcmp
+  __traceiter_android_rvh_psci_cpu_suspend
+  __traceiter_android_rvh_psci_tos_resident_on
+  __traceiter_android_vh_get_thermal_zone_device
+  __traceiter_android_vh_modify_thermal_request_freq
+  __traceiter_android_vh_modify_thermal_target_freq
+  __traceiter_android_vh_thermal_power_cap
+  __traceiter_android_vh_thermal_register
+  __traceiter_android_vh_thermal_unregister
+  __tracepoint_android_rvh_psci_cpu_suspend
+  __tracepoint_android_rvh_psci_tos_resident_on
+  __tracepoint_android_vh_get_thermal_zone_device
+  __tracepoint_android_vh_modify_thermal_request_freq
+  __tracepoint_android_vh_modify_thermal_target_freq
+  __tracepoint_android_vh_thermal_power_cap
+  __tracepoint_android_vh_thermal_register
+  __tracepoint_android_vh_thermal_unregister
+  usleep_range_state
+
+# required by clk-sprd.ko
+  clk_hw_get_num_parents
+  clk_hw_get_parent
+  clk_hw_is_enabled
+  __clk_mux_determine_rate
+  device_node_to_regmap
+  devm_clk_hw_register
+  devm_of_clk_add_hw_provider
+  __devm_regmap_init_mmio_clk
+  divider_get_val
+  divider_recalc_rate
+  divider_round_rate_parent
+  of_clk_hw_onecell_get
+  of_device_is_compatible
+  of_find_property
+  of_get_parent
+  syscon_regmap_lookup_by_phandle
+  __udelay
+
+# required by gpio-eic-sprd.ko
+  generic_handle_irq
+  gpiochip_find
+
+# required by gpio-pmic-eic-sprd.ko
+  _find_next_bit
+  handle_nested_irq
+
+# required by gpio-sprd.ko
+  generic_handle_domain_irq
+  __platform_driver_probe
+
+# required by mmc_hsq.ko
+  finish_wait
+  init_wait_entry
+  __init_waitqueue_head
+  mmc_cqe_request_done
+  prepare_to_wait_event
+  queue_work_on
+  _raw_spin_lock_irq
+  _raw_spin_unlock_irq
+  schedule
+  schedule_timeout
+  system_wq
+  __wake_up
+
+# required by pwm-sprd.ko
+  clk_bulk_disable
+  clk_bulk_enable
+  clk_bulk_prepare
+  clk_bulk_unprepare
+  devm_clk_bulk_get
+  of_property_read_string_helper
+  pwmchip_add
+  pwmchip_remove
+
+# required by sc2730-regulator.ko
+  generic_file_llseek
+  regulator_map_voltage_linear
+  simple_attr_open
+  simple_attr_read
+  simple_attr_release
+  simple_attr_write
+
+# required by sdhci-sprd.ko
+  clk_round_rate
+  devm_pinctrl_get
+  mmc_of_parse
+  mmc_regulator_set_vqmmc
+  mmc_request_done
+  pinctrl_lookup_state
+  pinctrl_select_state
+  pm_runtime_force_resume
+  pm_runtime_force_suspend
+  __sdhci_add_host
+  sdhci_cleanup_host
+  sdhci_enable_clk
+  sdhci_enable_v4_mode
+  sdhci_pltfm_free
+  sdhci_pltfm_init
+  sdhci_remove_host
+  sdhci_request
+  sdhci_request_atomic
+  sdhci_reset
+  sdhci_runtime_resume_host
+  sdhci_runtime_suspend_host
+  sdhci_set_bus_width
+  sdhci_setup_host
+
+# required by spi-sprd-adi.ko
+  _dev_emerg
+  devm_hwspin_lock_request_specific
+  __hwspin_lock_timeout
+  __hwspin_unlock
+  of_get_next_child
+  of_get_property
+  of_hwspin_lock_get_id
+  register_restart_handler
+  strncmp
+  unregister_restart_handler
+
+# required by spi-sprd.ko
+  clk_set_parent
+  complete
+  dma_release_channel
+  dma_request_chan
+  __init_swait_queue_head
+  __pm_runtime_resume
+  spi_controller_suspend
+  spi_finalize_current_transfer
+  wait_for_completion
+
+# required by sprd-sc27xx-spi.ko
+  device_set_wakeup_capable
+  device_wakeup_enable
+  devm_of_platform_populate
+  devm_regmap_add_irq_chip
+  __devm_regmap_init
+  driver_unregister
+  irq_set_irq_wake
+  __spi_register_driver
+  spi_sync
+
+# required by sprd_hwspinlock.ko
+  devm_add_action
+  devm_hwspin_lock_register
+
+# required by sprd_power_manager.ko
+  del_timer
+  fortify_panic
+  init_timer_key
+  jiffies
+  jiffies_to_msecs
+  mod_timer
+  __msecs_to_jiffies
+  __pm_relax
+  __pm_stay_awake
+  register_pm_notifier
+  register_reboot_notifier
+  snprintf
+  strnlen
+  unregister_pm_notifier
+  unregister_reboot_notifier
+  wakeup_source_add
+  wakeup_source_create
+
+# required by system_heap.ko
+  __alloc_pages
+  dma_buf_export
+  dma_heap_add
+  dma_heap_get_dev
+  dma_heap_get_name
+  dma_map_sgtable
+  dma_set_coherent_mask
+  dma_set_mask
+  dma_sync_sg_for_cpu
+  dma_sync_sg_for_device
+  dma_unmap_sg_attrs
+  __free_pages
+  remap_pfn_range
+  sg_alloc_table
+  sg_free_table
+  __sg_page_iter_next
+  __sg_page_iter_start
+  vfree
+  vmalloc
+  vmap
+  vunmap
+
+# required by ums512-clk.ko
+  clk_fixed_factor_ops
+  device_get_match_data
+  devm_reset_controller_register
+
+# required by unisoc-iommu.ko
+  blocking_notifier_call_chain
+  blocking_notifier_chain_register
+  dma_alloc_attrs
+  dma_free_attrs
+  gen_pool_add_owner
+  gen_pool_alloc_algo_owner
+  gen_pool_avail
+  gen_pool_create
+  gen_pool_destroy
+  gen_pool_free_owner
+  __get_free_pages
+  ioremap_prot
+  iounmap
+  kimage_voffset
+  kmalloc_large
+  memset32
+  memset
+  of_address_to_resource
+  of_count_phandle_with_args
+  of_match_node
+  __of_parse_phandle_with_args
+  of_property_read_string

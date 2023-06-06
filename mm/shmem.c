@@ -83,6 +83,7 @@ static struct vfsmount *shm_mnt;
 #include <linux/userfaultfd_k.h>
 #include <linux/rmap.h>
 #include <linux/uuid.h>
+#include <linux/android_vendor.h>
 
 #include <linux/uaccess.h>
 
@@ -2352,6 +2353,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
 		inode->i_generation = get_random_u32();
 		info = SHMEM_I(inode);
 		memset(info, 0, (char *)inode - (char *)info);
+		android_init_vendor_data(info, 1);
 		spin_lock_init(&info->lock);
 		atomic_set(&info->stop_eviction, 0);
 		info->seals = F_SEAL_SEAL;

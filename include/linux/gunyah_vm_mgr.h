@@ -27,6 +27,7 @@ struct gh_vm_function {
 	struct module *mod;
 	long (*bind)(struct gh_vm_function_instance *f);
 	void (*unbind)(struct gh_vm_function_instance *f);
+	bool (*compare)(const struct gh_vm_function_instance *f, const void *arg, size_t size);
 };
 
 /**
@@ -53,31 +54,44 @@ struct gh_vm_function_instance {
 int gh_vm_function_register(struct gh_vm_function *f);
 void gh_vm_function_unregister(struct gh_vm_function *f);
 
-#define DECLARE_GH_VM_FUNCTION(_name, _type, _bind, _unbind)	\
-	static struct gh_vm_function _name = {		\
+/* Since the function identifiers were setup in a uapi header as an
+ * enum and we do no want to change that, the user must supply the expanded
+ * constant as well and the compiler checks they are the same.
+ * See also MODULE_ALIAS_RDMA_NETLINK.
+ */
+#define MODULE_ALIAS_GH_VM_FUNCTION(_type, _idx)			\
+	static inline void __maybe_unused __chk##_idx(void)		\
+	{								\
+		BUILD_BUG_ON(_type != _idx);				\
+	}								\
+	MODULE_ALIAS("ghfunc:" __stringify(_idx))
+
+#define DECLARE_GH_VM_FUNCTION(_name, _type, _bind, _unbind, _compare)	\
+	static struct gh_vm_function _name = {				\
 		.type = _type,						\
 		.name = __stringify(_name),				\
 		.mod = THIS_MODULE,					\
 		.bind = _bind,						\
 		.unbind = _unbind,					\
-	};								\
-	MODULE_ALIAS("ghfunc:"__stringify(_type))
+		.compare = _compare,					\
+	}
 
 #define module_gh_vm_function(__gf)					\
 	module_driver(__gf, gh_vm_function_register, gh_vm_function_unregister)
 
-#define DECLARE_GH_VM_FUNCTION_INIT(_name, _type, _bind, _unbind)	\
-	DECLARE_GH_VM_FUNCTION(_name, _type, _bind, _unbind);	\
-	module_gh_vm_function(_name)
+#define DECLARE_GH_VM_FUNCTION_INIT(_name, _type, _idx, _bind, _unbind, _compare)	\
+	DECLARE_GH_VM_FUNCTION(_name, _type, _bind, _unbind, _compare);			\
+	module_gh_vm_function(_name);							\
+	MODULE_ALIAS_GH_VM_FUNCTION(_type, _idx)
 
 struct gh_vm_resource_ticket {
-	struct list_head list; /* for gh_vm's resources list */
-	struct list_head resources; /* for gh_resources's list */
+	struct list_head vm_list; /* for gh_vm's resource tickets list */
+	struct list_head resources; /* resources associated with this ticket */
 	enum gh_resource_type resource_type;
 	u32 label;
 
 	struct module *owner;
-	int (*populate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
+	bool (*populate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
 	void (*unpopulate)(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc);
 };
 

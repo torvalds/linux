@@ -125,7 +125,7 @@ fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
 		pr_info("fscrypt: %s using implementation \"%s\"\n",
 			mode->friendly_name, crypto_skcipher_driver_name(tfm));
 	}
-	if (WARN_ON(crypto_skcipher_ivsize(tfm) != mode->ivsize)) {
+	if (WARN_ON_ONCE(crypto_skcipher_ivsize(tfm) != mode->ivsize)) {
 		err = -EINVAL;
 		goto err_free_tfm;
 	}
@@ -202,7 +202,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	bool use_hw_wrapped_key = false;
 	int err;
 
-	if (WARN_ON(mode_num > FSCRYPT_MODE_MAX))
+	if (WARN_ON_ONCE(mode_num > FSCRYPT_MODE_MAX))
 		return -EINVAL;
 
 	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
@@ -309,8 +309,8 @@ int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 void fscrypt_hash_inode_number(struct fscrypt_info *ci,
 			       const struct fscrypt_master_key *mk)
 {
-	WARN_ON(ci->ci_inode->i_ino == 0);
-	WARN_ON(!mk->mk_ino_hash_key_initialized);
+	WARN_ON_ONCE(ci->ci_inode->i_ino == 0);
+	WARN_ON_ONCE(!mk->mk_ino_hash_key_initialized);
 
 	ci->ci_hashed_ino = (u32)siphash_1u64(ci->ci_inode->i_ino,
 					      &mk->mk_ino_hash_key);
@@ -550,7 +550,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		err = fscrypt_setup_v2_file_key(ci, mk, need_dirhash_key);
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		err = -EINVAL;
 		break;
 	}
@@ -607,7 +607,7 @@ fscrypt_setup_encryption_info(struct inode *inode,
 	struct fscrypt_master_key *mk = NULL;
 	int res;
 
-	res = fscrypt_initialize(inode->i_sb->s_cop->flags);
+	res = fscrypt_initialize(inode->i_sb);
 	if (res)
 		return res;
 
@@ -624,7 +624,7 @@ fscrypt_setup_encryption_info(struct inode *inode,
 		res = PTR_ERR(mode);
 		goto out;
 	}
-	WARN_ON(mode->ivsize > FSCRYPT_MAX_IV_SIZE);
+	WARN_ON_ONCE(mode->ivsize > FSCRYPT_MAX_IV_SIZE);
 	crypt_info->ci_mode = mode;
 
 	res = setup_file_encryption_key(crypt_info, need_dirhash_key, &mk);

@@ -50,8 +50,16 @@ generate_header() {
 
 	# If symbol_file exist preprocess it and find maximum name length
 	if [  -s "${symbol_file}" ]; then
-		# Remove White Spaces, empty lines and symbol list markers if any
-		sed -i '/^[[:space:]]*$/d; /^#/d; /\[abi_symbol_list\]/d' "${symbol_file}"
+		# Remove any trailing CR, leading / trailing whitespace,
+		# line comments, empty lines and symbol list markers.
+		sed -i '
+			s/\r$//
+			s/^[[:space:]]*//
+			s/[[:space:]]*$//
+			/^#/d
+			/^$/d
+			/^\[abi_symbol_list\]$/d
+		' "${symbol_file}"
 
 		# Sort in byte order for kernel binary search at runtime
 		LC_ALL=C sort -u -o "${symbol_file}" "${symbol_file}"

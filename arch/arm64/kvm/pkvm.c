@@ -870,11 +870,11 @@ int __pkvm_load_el2_module(struct module *this, unsigned long *token)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__pkvm_load_el2_module);
+EXPORT_SYMBOL(__pkvm_load_el2_module);
 
 int __pkvm_register_el2_call(unsigned long hfn_hyp_va)
 {
 	return kvm_call_hyp_nvhe(__pkvm_register_hcall, hfn_hyp_va);
 }
-EXPORT_SYMBOL_GPL(__pkvm_register_el2_call);
+EXPORT_SYMBOL(__pkvm_register_el2_call);
 #endif /* CONFIG_MODULES */

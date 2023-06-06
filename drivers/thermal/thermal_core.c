@@ -23,6 +23,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/thermal.h>
 
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
@@ -481,6 +483,8 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 		handle_thermal_trip(tz, count);
 
 	monitor_thermal_zone(tz);
+
+	trace_android_vh_get_thermal_zone_device(tz);
 out:
 	mutex_unlock(&tz->lock);
 }

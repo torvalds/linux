@@ -28,14 +28,11 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#define UID_HASH_BITS	10
-#define UID_HASH_NUMS	(1 << UID_HASH_BITS)
-DECLARE_HASHTABLE(hash_table, UID_HASH_BITS);
-/*
- * uid_lock[bkt] ensure consistency of hash_table[bkt]
- */
-struct rt_mutex uid_lock[UID_HASH_NUMS];
 
+#define UID_HASH_BITS	10
+DECLARE_HASHTABLE(hash_table, UID_HASH_BITS);
+
+static DEFINE_RT_MUTEX(uid_lock);
 static struct proc_dir_entry *cpu_parent;
 static struct proc_dir_entry *io_parent;
 static struct proc_dir_entry *proc_parent;
@@ -79,32 +76,6 @@ struct uid_entry {
 	DECLARE_HASHTABLE(task_entries, UID_HASH_BITS);
 #endif
 };
-
-static inline void lock_uid(uid_t uid)
-{
-	rt_mutex_lock(&uid_lock[hash_min(uid, HASH_BITS(hash_table))]);
-}
-
-static inline void unlock_uid(uid_t uid)
-{
-	rt_mutex_unlock(&uid_lock[hash_min(uid, HASH_BITS(hash_table))]);
-}
-
-static inline int trylock_uid(uid_t uid)
-{
-	return rt_mutex_trylock(
-		&uid_lock[hash_min(uid, HASH_BITS(hash_table))]);
-}
-
-static inline void lock_uid_by_bkt(u32 bkt)
-{
-	rt_mutex_lock(&uid_lock[bkt]);
-}
-
-static inline void unlock_uid_by_bkt(u32 bkt)
-{
-	rt_mutex_unlock(&uid_lock[bkt]);
-}
 
 static u64 compute_write_bytes(struct task_io_accounting *ioac)
 {
@@ -361,29 +332,24 @@ static int uid_cputime_show(struct seq_file *m, void *v)
 	struct user_namespace *user_ns = current_user_ns();
 	u64 utime;
 	u64 stime;
-	u32 bkt;
+	unsigned long bkt;
 	uid_t uid;
 
-	for (bkt = 0, uid_entry = NULL; uid_entry == NULL &&
-		bkt < HASH_SIZE(hash_table); bkt++) {
-		lock_uid_by_bkt(bkt);
-		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
-			uid_entry->active_stime = 0;
-			uid_entry->active_utime = 0;
-		}
-		unlock_uid_by_bkt(bkt);
+	rt_mutex_lock(&uid_lock);
+
+	hash_for_each(hash_table, bkt, uid_entry, hash) {
+		uid_entry->active_stime = 0;
+		uid_entry->active_utime = 0;
 	}
 
 	rcu_read_lock();
 	do_each_thread(temp, task) {
 		uid = from_kuid_munged(user_ns, task_uid(task));
-		lock_uid(uid);
-
 		if (!uid_entry || uid_entry->uid != uid)
 			uid_entry = find_or_register_uid(uid);
 		if (!uid_entry) {
 			rcu_read_unlock();
-			unlock_uid(uid);
+			rt_mutex_unlock(&uid_lock);
 			pr_err("%s: failed to find the uid_entry for uid %d\n",
 				__func__, uid);
 			return -ENOMEM;
@@ -394,24 +360,19 @@ static int uid_cputime_show(struct seq_file *m, void *v)
 			uid_entry->active_utime += utime;
 			uid_entry->active_stime += stime;
 		}
-		unlock_uid(uid);
 	} while_each_thread(temp, task);
 	rcu_read_unlock();
 
-	for (bkt = 0, uid_entry = NULL; uid_entry == NULL &&
-		bkt < HASH_SIZE(hash_table); bkt++) {
-		lock_uid_by_bkt(bkt);
-		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
-			u64 total_utime = uid_entry->utime +
-						uid_entry->active_utime;
-			u64 total_stime = uid_entry->stime +
-						uid_entry->active_stime;
-			seq_printf(m, "%d: %llu %llu\n", uid_entry->uid,
-				ktime_to_us(total_utime), ktime_to_us(total_stime));
-		}
-		unlock_uid_by_bkt(bkt);
+	hash_for_each(hash_table, bkt, uid_entry, hash) {
+		u64 total_utime = uid_entry->utime +
+							uid_entry->active_utime;
+		u64 total_stime = uid_entry->stime +
+							uid_entry->active_stime;
+		seq_printf(m, "%d: %llu %llu\n", uid_entry->uid,
+			ktime_to_us(total_utime), ktime_to_us(total_stime));
 	}
 
+	rt_mutex_unlock(&uid_lock);
 	return 0;
 }
 
@@ -459,8 +420,9 @@ static ssize_t uid_remove_write(struct file *file,
 		return -EINVAL;
 	}
 
+	rt_mutex_lock(&uid_lock);
+
 	for (; uid_start <= uid_end; uid_start++) {
-		lock_uid(uid_start);
 		hash_for_each_possible_safe(hash_table, uid_entry, tmp,
 							hash, (uid_t)uid_start) {
 			if (uid_start == uid_entry->uid) {
@@ -469,9 +431,9 @@ static ssize_t uid_remove_write(struct file *file,
 				kfree(uid_entry);
 			}
 		}
-		unlock_uid(uid_start);
 	}
 
+	rt_mutex_unlock(&uid_lock);
 	return count;
 }
 
@@ -509,51 +471,37 @@ static void add_uid_io_stats(struct uid_entry *uid_entry,
 	__add_uid_io_stats(uid_entry, &task->ioac, slot);
 }
 
-static void update_io_stats_all(void)
+static void update_io_stats_all_locked(void)
 {
 	struct uid_entry *uid_entry = NULL;
 	struct task_struct *task, *temp;
 	struct user_namespace *user_ns = current_user_ns();
-	u32 bkt;
+	unsigned long bkt;
 	uid_t uid;
 
-	for (bkt = 0, uid_entry = NULL; uid_entry == NULL && bkt < HASH_SIZE(hash_table);
-		bkt++) {
-		lock_uid_by_bkt(bkt);
-		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
-			memset(&uid_entry->io[UID_STATE_TOTAL_CURR], 0,
-				sizeof(struct io_stats));
-			set_io_uid_tasks_zero(uid_entry);
-		}
-		unlock_uid_by_bkt(bkt);
+	hash_for_each(hash_table, bkt, uid_entry, hash) {
+		memset(&uid_entry->io[UID_STATE_TOTAL_CURR], 0,
+			sizeof(struct io_stats));
+		set_io_uid_tasks_zero(uid_entry);
 	}
 
 	rcu_read_lock();
 	do_each_thread(temp, task) {
 		uid = from_kuid_munged(user_ns, task_uid(task));
-		lock_uid(uid);
 		if (!uid_entry || uid_entry->uid != uid)
 			uid_entry = find_or_register_uid(uid);
-		if (!uid_entry) {
-			unlock_uid(uid);
+		if (!uid_entry)
 			continue;
-		}
 		add_uid_io_stats(uid_entry, task, UID_STATE_TOTAL_CURR);
-		unlock_uid(uid);
 	} while_each_thread(temp, task);
 	rcu_read_unlock();
 
-	for (bkt = 0, uid_entry = NULL; uid_entry == NULL && bkt < HASH_SIZE(hash_table);
-			bkt++) {
-		lock_uid_by_bkt(bkt);
-		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
-			compute_io_bucket_stats(&uid_entry->io[uid_entry->state],
-						&uid_entry->io[UID_STATE_TOTAL_CURR],
-						&uid_entry->io[UID_STATE_TOTAL_LAST],
-						&uid_entry->io[UID_STATE_DEAD_TASKS]);
-			compute_io_uid_tasks(uid_entry);
-		}
-		unlock_uid_by_bkt(bkt);
+	hash_for_each(hash_table, bkt, uid_entry, hash) {
+		compute_io_bucket_stats(&uid_entry->io[uid_entry->state],
+					&uid_entry->io[UID_STATE_TOTAL_CURR],
+					&uid_entry->io[UID_STATE_TOTAL_LAST],
+					&uid_entry->io[UID_STATE_DEAD_TASKS]);
+		compute_io_uid_tasks(uid_entry);
 	}
 }
 
@@ -585,15 +533,14 @@ static void update_io_stats_uid_locked(struct uid_entry *uid_entry)
 static int uid_io_show(struct seq_file *m, void *v)
 {
 	struct uid_entry *uid_entry;
-	u32 bkt;
+	unsigned long bkt;
 
-	update_io_stats_all();
-	for (bkt = 0, uid_entry = NULL; uid_entry == NULL && bkt < HASH_SIZE(hash_table);
-			bkt++) {
+	rt_mutex_lock(&uid_lock);
 
-		lock_uid_by_bkt(bkt);
-		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
-			seq_printf(m, "%d %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+	update_io_stats_all_locked();
+
+	hash_for_each(hash_table, bkt, uid_entry, hash) {
+		seq_printf(m, "%d %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
 				uid_entry->uid,
 				uid_entry->io[UID_STATE_FOREGROUND].rchar,
 				uid_entry->io[UID_STATE_FOREGROUND].wchar,
@@ -606,11 +553,10 @@ static int uid_io_show(struct seq_file *m, void *v)
 				uid_entry->io[UID_STATE_FOREGROUND].fsync,
 				uid_entry->io[UID_STATE_BACKGROUND].fsync);
 
-			show_io_uid_tasks(m, uid_entry);
-		}
-		unlock_uid_by_bkt(bkt);
+		show_io_uid_tasks(m, uid_entry);
 	}
 
+	rt_mutex_unlock(&uid_lock);
 	return 0;
 }
 
@@ -654,15 +600,16 @@ static ssize_t uid_procstat_write(struct file *file,
 	if (state != UID_STATE_BACKGROUND && state != UID_STATE_FOREGROUND)
 		return -EINVAL;
 
-	lock_uid(uid);
+	rt_mutex_lock(&uid_lock);
+
 	uid_entry = find_or_register_uid(uid);
 	if (!uid_entry) {
-		unlock_uid(uid);
+		rt_mutex_unlock(&uid_lock);
 		return -EINVAL;
 	}
 
 	if (uid_entry->state == state) {
-		unlock_uid(uid);
+		rt_mutex_unlock(&uid_lock);
 		return count;
 	}
 
@@ -670,7 +617,7 @@ static ssize_t uid_procstat_write(struct file *file,
 
 	uid_entry->state = state;
 
-	unlock_uid(uid);
+	rt_mutex_unlock(&uid_lock);
 
 	return count;
 }
@@ -699,7 +646,7 @@ static void update_stats_workfn(struct work_struct *work)
 	struct uid_entry *uid_entry;
 	struct task_entry *task_entry __maybe_unused;
 
-	lock_uid(usw->uid);
+	rt_mutex_lock(&uid_lock);
 	uid_entry = find_uid_entry(usw->uid);
 	if (!uid_entry)
 		goto exit;
@@ -716,7 +663,7 @@ static void update_stats_workfn(struct work_struct *work)
 #endif
 	__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
 exit:
-	unlock_uid(usw->uid);
+	rt_mutex_unlock(&uid_lock);
 #ifdef CONFIG_UID_SYS_STATS_DEBUG
 	put_task_struct(usw->task);
 #endif
@@ -735,7 +682,7 @@ static int process_notifier(struct notifier_block *self,
 		return NOTIFY_OK;
 
 	uid = from_kuid_munged(current_user_ns(), task_uid(task));
-	if (!trylock_uid(uid)) {
+	if (!rt_mutex_trylock(&uid_lock)) {
 		struct update_stats_work *usw;
 
 		usw = kmalloc(sizeof(struct update_stats_work), GFP_KERNEL);
@@ -769,7 +716,7 @@ static int process_notifier(struct notifier_block *self,
 	add_uid_io_stats(uid_entry, task, UID_STATE_DEAD_TASKS);
 
 exit:
-	unlock_uid(uid);
+	rt_mutex_unlock(&uid_lock);
 	return NOTIFY_OK;
 }
 
@@ -777,18 +724,9 @@ static struct notifier_block process_notifier_block = {
 	.notifier_call	= process_notifier,
 };
 
-static void init_hash_table_and_lock(void)
-{
-	int i;
-
-	hash_init(hash_table);
-	for (i = 0; i < UID_HASH_NUMS; i++)
-		rt_mutex_init(&uid_lock[i]);
-}
-
 static int __init proc_uid_sys_stats_init(void)
 {
-	init_hash_table_and_lock();
+	hash_init(hash_table);
 
 	cpu_parent = proc_mkdir("uid_cputime", NULL);
 	if (!cpu_parent) {

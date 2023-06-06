@@ -17,6 +17,26 @@ static void __kvm_flush_dcache_to_poc(void *addr, size_t size)
 	kvm_flush_dcache_to_poc((unsigned long)addr, (unsigned long)size);
 }
 
+static void __update_hcr_el2(unsigned long set_mask, unsigned long clear_mask)
+{
+	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
+
+	params->hcr_el2 |= set_mask;
+	params->hcr_el2 &= ~clear_mask;
+	__kvm_flush_dcache_to_poc(params, sizeof(*params));
+	write_sysreg(params->hcr_el2, hcr_el2);
+}
+
+static void __update_hfgwtr_el2(unsigned long set_mask, unsigned long clear_mask)
+{
+	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
+
+	params->hfgwtr_el2 |= set_mask;
+	params->hfgwtr_el2 &= ~clear_mask;
+	__kvm_flush_dcache_to_poc(params, sizeof(*params));
+	write_sysreg_s(params->hfgwtr_el2, SYS_HFGWTR_EL2);
+}
+
 static atomic_t early_lm_pages;
 static void *__pkvm_linear_map_early(phys_addr_t phys, size_t size, enum kvm_pgtable_prot prot)
 {
@@ -78,6 +98,8 @@ const struct pkvm_module_ops module_ops = {
 	.linear_map_early = __pkvm_linear_map_early,
 	.linear_unmap_early = __pkvm_linear_unmap_early,
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
+	.update_hcr_el2 = __update_hcr_el2,
+	.update_hfgwtr_el2 = __update_hfgwtr_el2,
 	.register_host_perm_fault_handler = hyp_register_host_perm_fault_handler,
 	.host_stage2_mod_prot = module_change_host_page_prot,
 	.host_stage2_get_leaf = host_stage2_get_leaf,

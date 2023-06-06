@@ -41,7 +41,7 @@ static void init_irq_scs(void)
 {
 	int cpu;
 
-	if (!IS_ENABLED(CONFIG_SHADOW_CALL_STACK))
+	if (!scs_is_enabled())
 		return;
 
 	for_each_possible_cpu(cpu)

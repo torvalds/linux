@@ -123,6 +123,7 @@
 #define MAX_THREADS FUTEX_TID_MASK
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(task_newtask);
+EXPORT_TRACEPOINT_SYMBOL_GPL(task_rename);
 
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
@@ -1064,6 +1065,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	android_init_vendor_data(tsk, 1);
 	android_init_oem_data(tsk, 1);
 
+	trace_android_vh_dup_task_struct(tsk, orig);
 	return tsk;
 
 free_stack:

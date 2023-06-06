@@ -30,7 +30,8 @@ static irqreturn_t gh_msgq_rx_irq_handler(int irq, void *data)
 				dev_warn(msgq->mbox.dev, "Failed to receive data: %d\n", gh_error);
 			break;
 		}
-		mbox_chan_received_data(gh_msgq_chan(msgq), &rx_data);
+		if (likely(gh_msgq_chan(msgq)->cl))
+			mbox_chan_received_data(gh_msgq_chan(msgq), &rx_data);
 	}
 
 	return IRQ_HANDLED;
@@ -62,6 +63,9 @@ static int gh_msgq_send_data(struct mbox_chan *chan, void *data)
 	enum gh_error gh_error;
 	bool ready;
 
+	if (!msgq->tx_ghrsc)
+		return -EOPNOTSUPP;
+
 	if (msgq_data->push)
 		tx_flags |= GH_HYPERCALL_MSGQ_TX_FLAGS_PUSH;
 
@@ -80,7 +84,7 @@ static int gh_msgq_send_data(struct mbox_chan *chan, void *data)
 	 * framework, then no other messages can be sent and nobody will know
 	 * to retry this message.
 	 */
-	msgq->last_ret = gh_remap_error(gh_error);
+	msgq->last_ret = gh_error_remap(gh_error);
 
 	/**
 	 * This message was successfully sent, but message queue isn't ready to
@@ -112,7 +116,7 @@ static struct mbox_chan_ops gh_msgq_ops = {
 
 /**
  * gh_msgq_init() - Initialize a Gunyah message queue with an mbox_client
- * @parent: optional, device parent used for the mailbox controller
+ * @parent: device parent used for the mailbox controller
  * @msgq: Pointer to the gh_msgq to initialize
  * @cl: A mailbox client to bind to the mailbox channel that the message queue creates
  * @tx_ghrsc: optional, the transmission side of the message queue
@@ -139,66 +143,72 @@ int gh_msgq_init(struct device *parent, struct gh_msgq *msgq, struct mbox_client
 	    (rx_ghrsc && rx_ghrsc->type != GH_RESOURCE_TYPE_MSGQ_RX))
 		return -EINVAL;
 
-	msgq->tx_ghrsc = tx_ghrsc;
-	msgq->rx_ghrsc = rx_ghrsc;
-
 	msgq->mbox.dev = parent;
 	msgq->mbox.ops = &gh_msgq_ops;
 	msgq->mbox.num_chans = 1;
 	msgq->mbox.txdone_irq = true;
 	msgq->mbox.chans = &msgq->mbox_chan;
 
-	if (msgq->tx_ghrsc) {
-		ret = request_irq(msgq->tx_ghrsc->irq, gh_msgq_tx_irq_handler, 0, "gh_msgq_tx",
-				msgq);
-		if (ret)
-			goto err_chans;
-	}
-
-	if (msgq->rx_ghrsc) {
-		ret = request_threaded_irq(msgq->rx_ghrsc->irq, NULL, gh_msgq_rx_irq_handler,
-						IRQF_ONESHOT, "gh_msgq_rx", msgq);
-		if (ret)
-			goto err_tx_irq;
-	}
-
-	tasklet_setup(&msgq->txdone_tasklet, gh_msgq_txdone_tasklet);
-
 	ret = mbox_controller_register(&msgq->mbox);
 	if (ret)
-		goto err_rx_irq;
+		return ret;
 
 	ret = mbox_bind_client(gh_msgq_chan(msgq), cl);
 	if (ret)
 		goto err_mbox;
 
+	if (tx_ghrsc) {
+		msgq->tx_ghrsc = tx_ghrsc;
+
+		ret = request_irq(msgq->tx_ghrsc->irq, gh_msgq_tx_irq_handler, 0, "gh_msgq_tx",
+				msgq);
+		if (ret)
+			goto err_tx_ghrsc;
+
+		enable_irq_wake(msgq->tx_ghrsc->irq);
+
+		tasklet_setup(&msgq->txdone_tasklet, gh_msgq_txdone_tasklet);
+	}
+
+	if (rx_ghrsc) {
+		msgq->rx_ghrsc = rx_ghrsc;
+
+		ret = request_threaded_irq(msgq->rx_ghrsc->irq, NULL, gh_msgq_rx_irq_handler,
+						IRQF_ONESHOT, "gh_msgq_rx", msgq);
+		if (ret)
+			goto err_tx_irq;
+
+		enable_irq_wake(msgq->rx_ghrsc->irq);
+	}
+
 	return 0;
-err_mbox:
-	mbox_controller_unregister(&msgq->mbox);
-err_rx_irq:
-	if (msgq->rx_ghrsc)
-		free_irq(msgq->rx_ghrsc->irq, msgq);
 err_tx_irq:
 	if (msgq->tx_ghrsc)
 		free_irq(msgq->tx_ghrsc->irq, msgq);
-err_chans:
-	kfree(msgq->mbox.chans);
+
+	msgq->rx_ghrsc = NULL;
+err_tx_ghrsc:
+	msgq->tx_ghrsc = NULL;
+err_mbox:
+	mbox_controller_unregister(&msgq->mbox);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gh_msgq_init);
 
 void gh_msgq_remove(struct gh_msgq *msgq)
 {
-	tasklet_kill(&msgq->txdone_tasklet);
-	mbox_controller_unregister(&msgq->mbox);
-
 	if (msgq->rx_ghrsc)
 		free_irq(msgq->rx_ghrsc->irq, msgq);
 
-	if (msgq->tx_ghrsc)
+	if (msgq->tx_ghrsc) {
+		tasklet_kill(&msgq->txdone_tasklet);
 		free_irq(msgq->tx_ghrsc->irq, msgq);
+	}
 
-	kfree(msgq->mbox.chans);
+	mbox_controller_unregister(&msgq->mbox);
+
+	msgq->rx_ghrsc = NULL;
+	msgq->tx_ghrsc = NULL;
 }
 EXPORT_SYMBOL_GPL(gh_msgq_remove);
 

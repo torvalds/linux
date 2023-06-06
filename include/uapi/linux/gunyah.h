@@ -3,8 +3,8 @@
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#ifndef _UAPI_LINUX_GUNYAH
-#define _UAPI_LINUX_GUNYAH
+#ifndef _UAPI_LINUX_GUNYAH_H
+#define _UAPI_LINUX_GUNYAH_H
 
 /*
  * Userspace interface for /dev/gunyah - gunyah based virtual machine
@@ -24,14 +24,22 @@
  * ioctls for VM fds
  */
 
-#define GH_MEM_ALLOW_READ	(1UL << 0)
-#define GH_MEM_ALLOW_WRITE	(1UL << 1)
-#define GH_MEM_ALLOW_EXEC	(1UL << 2)
+/**
+ * enum gh_mem_flags - Possible flags on &struct gh_userspace_memory_region
+ * @GH_MEM_ALLOW_READ: Allow guest to read the memory
+ * @GH_MEM_ALLOW_WRITE: Allow guest to write to the memory
+ * @GH_MEM_ALLOW_EXEC: Allow guest to execute instructions in the memory
+ */
+enum gh_mem_flags {
+	GH_MEM_ALLOW_READ	= 1UL << 0,
+	GH_MEM_ALLOW_WRITE	= 1UL << 1,
+	GH_MEM_ALLOW_EXEC	= 1UL << 2,
+};
 
 /**
  * struct gh_userspace_memory_region - Userspace memory descripion for GH_VM_SET_USER_MEM_REGION
- * @label: Unique identifer to the region.
- * @flags: Flags for memory parcel behavior
+ * @label: Identifer to the region which is unique to the VM.
+ * @flags: Flags for memory parcel behavior. See &enum gh_mem_flags.
  * @guest_phys_addr: Location of the memory region in guest's memory space (page-aligned)
  * @memory_size: Size of the region (page-aligned)
  * @userspace_addr: Location of the memory region in caller (userspace)'s memory
@@ -52,7 +60,9 @@ struct gh_userspace_memory_region {
 /**
  * struct gh_vm_dtb_config - Set the location of the VM's devicetree blob
  * @guest_phys_addr: Address of the VM's devicetree in guest memory.
- * @size: Maximum size of the devicetree.
+ * @size: Maximum size of the devicetree including space for overlays.
+ *        Resource manager applies an overlay to the DTB and dtb_size should
+ *        include room for the overlay. A page of memory is typicaly plenty.
  */
 struct gh_vm_dtb_config {
 	__u64 guest_phys_addr;
@@ -63,67 +73,61 @@ struct gh_vm_dtb_config {
 #define GH_VM_START		_IO(GH_IOCTL_TYPE, 0x3)
 
 /**
- * GH_FN_VCPU - create a vCPU instance to control a vCPU
+ * enum gh_fn_type - Valid types of Gunyah VM functions
+ * @GH_FN_VCPU: create a vCPU instance to control a vCPU
+ *              &struct gh_fn_desc.arg is a pointer to &struct gh_fn_vcpu_arg
+ *              Return: file descriptor to manipulate the vcpu.
+ * @GH_FN_IRQFD: register eventfd to assert a Gunyah doorbell
+ *               &struct gh_fn_desc.arg is a pointer to &struct gh_fn_irqfd_arg
+ * @GH_FN_IOEVENTFD: register ioeventfd to trigger when VM faults on parameter
+ *                   &struct gh_fn_desc.arg is a pointer to &struct gh_fn_ioeventfd_arg
+ */
+enum gh_fn_type {
+	GH_FN_VCPU = 1,
+	GH_FN_IRQFD,
+	GH_FN_IOEVENTFD,
+};
+
+#define GH_FN_MAX_ARG_SIZE		256
+
+/**
+ * struct gh_fn_vcpu_arg - Arguments to create a vCPU.
+ * @id: vcpu id
  *
- * gh_fn_desc is filled with &struct gh_fn_vcpu_arg
+ * Create this function with &GH_VM_ADD_FUNCTION using type &GH_FN_VCPU.
  *
  * The vcpu type will register with the VM Manager to expect to control
  * vCPU number `vcpu_id`. It returns a file descriptor allowing interaction with
  * the vCPU. See the Gunyah vCPU API description sections for interacting with
  * the Gunyah vCPU file descriptors.
- *
- * Return: file descriptor to manipulate the vcpu. See GH_VCPU_* ioctls
- */
-#define GH_FN_VCPU 		1
-
-/**
- * GH_FN_IRQFD - register eventfd to assert a Gunyah doorbell
- *
- * gh_fn_desc is filled with gh_fn_irqfd_arg
- *
- * Allows setting an eventfd to directly trigger a guest interrupt.
- * irqfd.fd specifies the file descriptor to use as the eventfd.
- * irqfd.label corresponds to the doorbell label used in the guest VM's devicetree.
- *
- * Return: 0
- */
-#define GH_FN_IRQFD 		2
-
-/**
- * GH_FN_IOEVENTFD - register ioeventfd to trigger when VM faults on parameter
- *
- * gh_fn_desc is filled with gh_fn_ioeventfd_arg
- *
- * Attaches an ioeventfd to a legal mmio address within the guest. A guest write
- * in the registered address will signal the provided event instead of triggering
- * an exit on the GH_VCPU_RUN ioctl.
- *
- * If GH_IOEVENTFD_DATAMATCH flag is set, the event will be signaled only if the
- * written value to the registered address is equal to datamatch in
- * struct gh_fn_ioeventfd_arg.
- *
- * Return: 0
- */
-#define GH_FN_IOEVENTFD 	3
-
-#define GH_FN_MAX_ARG_SIZE		256
-
-/**
- * struct gh_fn_vcpu_arg - Arguments to create a vCPU
- * @id: vcpu id
  */
 struct gh_fn_vcpu_arg {
 	__u32 id;
 };
 
-#define GH_IRQFD_LEVEL			(1UL << 0)
+/**
+ * enum gh_irqfd_flags - flags for use in gh_fn_irqfd_arg
+ * @GH_IRQFD_FLAGS_LEVEL: make the interrupt operate like a level triggered
+ *                        interrupt on guest side. Triggering IRQFD before
+ *                        guest handles the interrupt causes interrupt to
+ *                        stay asserted.
+ */
+enum gh_irqfd_flags {
+	GH_IRQFD_FLAGS_LEVEL		= 1UL << 0,
+};
 
 /**
- * struct gh_fn_irqfd_arg - Arguments to create an irqfd function
+ * struct gh_fn_irqfd_arg - Arguments to create an irqfd function.
+ *
+ * Create this function with &GH_VM_ADD_FUNCTION using type &GH_FN_IRQFD.
+ *
+ * Allows setting an eventfd to directly trigger a guest interrupt.
+ * irqfd.fd specifies the file descriptor to use as the eventfd.
+ * irqfd.label corresponds to the doorbell label used in the guest VM's devicetree.
+ *
  * @fd: an eventfd which when written to will raise a doorbell
  * @label: Label of the doorbell created on the guest VM
- * @flags: GH_IRQFD_LEVEL configures the corresponding doorbell to behave
- *         like a level triggered interrupt.
+ * @flags: see &enum gh_irqfd_flags
  * @padding: padding bytes
  */
 struct gh_fn_irqfd_arg {
@@ -133,7 +137,15 @@ struct gh_fn_irqfd_arg {
 	__u32 padding;
 };
 
-#define GH_IOEVENTFD_DATAMATCH		(1UL << 0)
+/**
+ * enum gh_ioeventfd_flags - flags for use in gh_fn_ioeventfd_arg
+ * @GH_IOEVENTFD_FLAGS_DATAMATCH: the event will be signaled only if the
+ *                                written value to the registered address is
+ *                                equal to &struct gh_fn_ioeventfd_arg.datamatch
+ */
+enum gh_ioeventfd_flags {
+	GH_IOEVENTFD_FLAGS_DATAMATCH	= 1UL << 0,
+};
 
 /**
  * struct gh_fn_ioeventfd_arg - Arguments to create an ioeventfd function
@@ -141,10 +153,14 @@ struct gh_fn_irqfd_arg {
  * @addr: Address in guest memory
  * @len: Length of access
  * @fd: When ioeventfd is matched, this eventfd is written
- * @flags: If GH_IOEVENTFD_DATAMATCH flag is set, the event will be signaled
- *         only if the written value to the registered address is equal to
- *         @datamatch
+ * @flags: See &enum gh_ioeventfd_flags
  * @padding: padding bytes
+ *
+ * Create this function with &GH_VM_ADD_FUNCTION using type &GH_FN_IOEVENTFD.
+ *
+ * Attaches an ioeventfd to a legal mmio address within the guest. A guest write
+ * in the registered address will signal the provided event instead of triggering
+ * an exit on the GH_VCPU_RUN ioctl.
  */
 struct gh_fn_ioeventfd_arg {
 	__u64 datamatch;
@@ -157,9 +173,10 @@ struct gh_fn_ioeventfd_arg {
 
 /**
  * struct gh_fn_desc - Arguments to create a VM function
- * @type: Type of the function. See GH_FN_* macro for supported types
+ * @type: Type of the function. See &enum gh_fn_type.
  * @arg_size: Size of argument to pass to the function. arg_size <= GH_FN_MAX_ARG_SIZE
- * @arg: Value or pointer to argument given to the function
+ * @arg: Pointer to argument given to the function. See &enum gh_fn_type for expected
+ *       arguments for a function type.
  */
 struct gh_fn_desc {
 	__u32 type;
@@ -170,13 +187,21 @@ struct gh_fn_desc {
 #define GH_VM_ADD_FUNCTION	_IOW(GH_IOCTL_TYPE, 0x4, struct gh_fn_desc)
 #define GH_VM_REMOVE_FUNCTION	_IOW(GH_IOCTL_TYPE, 0x7, struct gh_fn_desc)
 
+/*
+ * ioctls for vCPU fds
+ */
+
+/**
+ * enum gh_vm_status - Stores status reason why VM is not runnable (exited).
+ * @GH_VM_STATUS_LOAD_FAILED: VM didn't start because it couldn't be loaded.
+ * @GH_VM_STATUS_EXITED: VM requested shutdown/reboot.
+ *                       Use &struct gh_vm_exit_info.reason for further details.
+ * @GH_VM_STATUS_CRASHED: VM state is unknown and has crashed.
+ */
 enum gh_vm_status {
 	GH_VM_STATUS_LOAD_FAILED	= 1,
-#define GH_VM_STATUS_LOAD_FAILED	GH_VM_STATUS_LOAD_FAILED
 	GH_VM_STATUS_EXITED		= 2,
-#define GH_VM_STATUS_EXITED		GH_VM_STATUS_EXITED
 	GH_VM_STATUS_CRASHED		= 3,
-#define GH_VM_STATUS_CRASHED		GH_VM_STATUS_CRASHED
 };
 
 /*
@@ -203,9 +228,20 @@ struct gh_vm_exit_info {
 	__u8 reason[GH_VM_MAX_EXIT_REASON_SIZE];
 };
 
-#define GH_VCPU_EXIT_UNKNOWN            0
-#define GH_VCPU_EXIT_MMIO               1
-#define GH_VCPU_EXIT_STATUS             2
+/**
+ * enum gh_vcpu_exit - Stores reason why &GH_VCPU_RUN ioctl recently exited with status 0
+ * @GH_VCPU_EXIT_UNKNOWN: Not used, status != 0
+ * @GH_VCPU_EXIT_MMIO: vCPU performed a read or write that could not be handled
+ *                     by hypervisor or Linux. Use @struct gh_vcpu_run.mmio for
+ *                     details of the read/write.
+ * @GH_VCPU_EXIT_STATUS: vCPU not able to run because the VM has exited.
+ *                       Use @struct gh_vcpu_run.status for why VM has exited.
+ */
+enum gh_vcpu_exit {
+	GH_VCPU_EXIT_UNKNOWN,
+	GH_VCPU_EXIT_MMIO,
+	GH_VCPU_EXIT_STATUS,
+};
 
 /**
  * struct gh_vcpu_run - Application code obtains a pointer to the gh_vcpu_run
@@ -213,19 +249,19 @@ struct gh_vm_exit_info {
  * @immediate_exit: polled when scheduling the vcpu. If set, immediately returns -EINTR.
  * @padding: padding bytes
  * @exit_reason: Set when GH_VCPU_RUN returns successfully and gives reason why
- *               GH_VCPU_RUN has stopped running the vCPU.
+ *               GH_VCPU_RUN has stopped running the vCPU. See &enum gh_vcpu_exit.
  * @mmio: Used when exit_reason == GH_VCPU_EXIT_MMIO
  *        The guest has faulted on an memory-mapped I/O instruction that
  *        couldn't be satisfied by gunyah.
  * @mmio.phys_addr: Address guest tried to access
  * @mmio.data: the value that was written if `is_write == 1`. Filled by
- *        user for reads (`is_wite == 0`).
+ *        user for reads (`is_write == 0`).
  * @mmio.len: Length of write. Only the first `len` bytes of `data`
  *       are considered by Gunyah.
  * @mmio.is_write: 1 if VM tried to perform a write, 0 for a read
  * @status: Used when exit_reason == GH_VCPU_EXIT_STATUS.
  *          The guest VM is no longer runnable. This struct informs why.
- * @status.status: See `enum gh_vm_status` for possible values
+ * @status.status: See &enum gh_vm_status for possible values
  * @status.exit_info: Used when status == GH_VM_STATUS_EXITED
  */
 struct gh_vcpu_run {

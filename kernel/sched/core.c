@@ -115,6 +115,13 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_util_est_cfs_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_util_est_se_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_update_nr_running_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_switch);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_waking);
+#ifdef CONFIG_SCHEDSTATS
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_sleep);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_wait);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_iowait);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_blocked);
+#endif
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 EXPORT_SYMBOL_GPL(runqueues);
@@ -2595,6 +2602,7 @@ void set_cpus_allowed_common(struct task_struct *p, const struct cpumask *new_ma
 
 	cpumask_copy(&p->cpus_mask, new_mask);
 	p->nr_cpus_allowed = cpumask_weight(new_mask);
+	trace_android_rvh_set_cpus_allowed_comm(p, new_mask);
 }
 
 static void
@@ -7366,8 +7374,13 @@ unsigned long effective_cpu_util(int cpu, unsigned long util_cfs,
 {
 	unsigned long dl_util, util, irq, max;
 	struct rq *rq = cpu_rq(cpu);
+	unsigned long new_util = ULONG_MAX;
 
 	max = arch_scale_cpu_capacity(cpu);
+
+	trace_android_rvh_effective_cpu_util(cpu, util_cfs, max, type, p, &new_util);
+	if (new_util != ULONG_MAX)
+		return new_util;
 
 	if (!uclamp_is_used() &&
 	    type == FREQUENCY_UTIL && rt_rq_is_runnable(&rq->rt)) {
@@ -8284,7 +8297,8 @@ out_free_cpus_allowed:
 long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 {
 	struct task_struct *p;
-	int retval;
+	int retval = 0;
+	bool skip = false;
 
 	rcu_read_lock();
 
@@ -8313,6 +8327,9 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 		rcu_read_unlock();
 	}
 
+	trace_android_vh_sched_setaffinity_early(p, in_mask, &skip);
+	if (skip)
+		goto out_put_task;
 	retval = security_task_setscheduler(p);
 	if (retval)
 		goto out_put_task;

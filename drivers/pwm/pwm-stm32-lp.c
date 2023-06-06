@@ -157,9 +157,9 @@ err:
 	return ret;
 }
 
-static void stm32_pwm_lp_get_state(struct pwm_chip *chip,
-				   struct pwm_device *pwm,
-				   struct pwm_state *state)
+static int stm32_pwm_lp_get_state(struct pwm_chip *chip,
+				  struct pwm_device *pwm,
+				  struct pwm_state *state)
 {
 	struct stm32_pwm_lp *priv = to_stm32_pwm_lp(chip);
 	unsigned long rate = clk_get_rate(priv->clk);
@@ -185,6 +185,8 @@ static void stm32_pwm_lp_get_state(struct pwm_chip *chip,
 	tmp = prd - val;
 	tmp = (tmp << presc) * NSEC_PER_SEC;
 	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, rate);
+
+	return 0;
 }
 
 static const struct pwm_ops stm32_pwm_lp_ops = {

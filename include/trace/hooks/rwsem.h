@@ -25,6 +25,9 @@ DECLARE_HOOK(android_vh_alter_rwsem_list_add,
 		 struct rw_semaphore *sem,
 		 bool *already_on_list),
 	TP_ARGS(waiter, sem, already_on_list));
+DECLARE_HOOK(android_vh_rwsem_wake_finish,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
 #endif /* _TRACE_HOOK_RWSEM_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

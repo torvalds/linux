@@ -1,4 +1,5 @@
 BRANCH=android14-6.1
-CLANG_VERSION=r487747
+CLANG_VERSION=r487747c
 AARCH64_NDK_TRIPLE=aarch64-linux-android31
 X86_64_NDK_TRIPLE=x86_64-linux-android31
+ARM_NDK_TRIPLE=arm-linux-androideabi31

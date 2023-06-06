@@ -86,8 +86,8 @@ static int lgm_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return lgm_pwm_enable(chip, 1);
 }
 
-static void lgm_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-			      struct pwm_state *state)
+static int lgm_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			     struct pwm_state *state)
 {
 	struct lgm_pwm_chip *pc = to_lgm_pwm_chip(chip);
 	u32 duty, val;
@@ -100,6 +100,8 @@ static void lgm_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	regmap_read(pc->regmap, LGM_PWM_FAN_CON0, &val);
 	duty = FIELD_GET(LGM_PWM_FAN_DC_MSK, val);
 	state->duty_cycle = DIV_ROUND_UP(duty * pc->period, LGM_PWM_MAX_DUTY_CYCLE);
+
+	return 0;
 }
 
 static const struct pwm_ops lgm_pwm_ops = {

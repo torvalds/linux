@@ -35,11 +35,15 @@ static struct gh_vm_io_handler_ops io_ops = {
 static long gh_ioeventfd_bind(struct gh_vm_function_instance *f)
 {
 	const struct gh_fn_ioeventfd_arg *args = f->argp;
-	struct eventfd_ctx *ctx = NULL;
 	struct gh_ioeventfd *iofd;
+	struct eventfd_ctx *ctx;
 	int ret;
 
 	if (f->arg_size != sizeof(*args))
+		return -EINVAL;
+
+	/* All other flag bits are reserved for future use */
+	if (args->flags & ~GH_IOEVENTFD_FLAGS_DATAMATCH)
 		return -EINVAL;
 
 	/* must be natural-word sized, or 0 to ignore length */
@@ -55,15 +59,11 @@ static long gh_ioeventfd_bind(struct gh_vm_function_instance *f)
 	}
 
 	/* check for range overflow */
-	if (args->addr + args->len < args->addr)
+	if (overflows_type(args->addr + args->len, u64))
 		return -EINVAL;
 
 	/* ioeventfd with no length can't be combined with DATAMATCH */
-	if (!args->len && (args->flags & GH_IOEVENTFD_DATAMATCH))
-		return -EINVAL;
-
-	/* All other flag bits are reserved for future use */
-	if (args->flags & ~GH_IOEVENTFD_DATAMATCH)
+	if (!args->len && (args->flags & GH_IOEVENTFD_FLAGS_DATAMATCH))
 		return -EINVAL;
 
 	ctx = eventfd_ctx_fdget(args->fd);
@@ -81,7 +81,7 @@ static long gh_ioeventfd_bind(struct gh_vm_function_instance *f)
 
 	iofd->ctx = ctx;
 
-	if (args->flags & GH_IOEVENTFD_DATAMATCH) {
+	if (args->flags & GH_IOEVENTFD_FLAGS_DATAMATCH) {
 		iofd->io_handler.datamatch = true;
 		iofd->io_handler.len = args->len;
 		iofd->io_handler.data = args->datamatch;
@@ -111,7 +111,20 @@ static void gh_ioevent_unbind(struct gh_vm_function_instance *f)
 	kfree(iofd);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(ioeventfd, GH_FN_IOEVENTFD,
-				gh_ioeventfd_bind, gh_ioevent_unbind);
-MODULE_DESCRIPTION("Gunyah ioeventfds");
+static bool gh_ioevent_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_ioeventfd_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->addr == other->addr;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(ioeventfd, GH_FN_IOEVENTFD, 3,
+				gh_ioeventfd_bind, gh_ioevent_unbind,
+				gh_ioevent_compare);
+MODULE_DESCRIPTION("Gunyah ioeventfd VM Function");
 MODULE_LICENSE("GPL");

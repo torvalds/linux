@@ -16,7 +16,7 @@ int pkvm_iommu_driver_init(u64 drv, void *data, size_t size)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_driver_init, drv, data, size);
 }
-EXPORT_SYMBOL_GPL(pkvm_iommu_driver_init);
+EXPORT_SYMBOL(pkvm_iommu_driver_init);
 
 int pkvm_iommu_register(struct device *dev, u64 drv, phys_addr_t pa,
 			size_t size, struct device *parent, u8 flags)
@@ -41,24 +41,24 @@ int pkvm_iommu_register(struct device *dev, u64 drv, phys_addr_t pa,
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pkvm_iommu_register);
+EXPORT_SYMBOL(pkvm_iommu_register);
 
 int pkvm_iommu_suspend(struct device *dev)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_pm_notify, dev_to_id(dev),
 				 PKVM_IOMMU_PM_SUSPEND);
 }
-EXPORT_SYMBOL_GPL(pkvm_iommu_suspend);
+EXPORT_SYMBOL(pkvm_iommu_suspend);
 
 int pkvm_iommu_resume(struct device *dev)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_pm_notify, dev_to_id(dev),
 				 PKVM_IOMMU_PM_RESUME);
 }
-EXPORT_SYMBOL_GPL(pkvm_iommu_resume);
+EXPORT_SYMBOL(pkvm_iommu_resume);
 
 int pkvm_iommu_finalize(int err)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_finalize, err);
 }
-EXPORT_SYMBOL_GPL(pkvm_iommu_finalize);
+EXPORT_SYMBOL(pkvm_iommu_finalize);

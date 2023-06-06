@@ -651,6 +651,13 @@ config SHADOW_CALL_STACK
 	  reading and writing arbitrary memory may be able to locate them
 	  and hijack control flow by modifying the stacks.
 
+config DYNAMIC_SCS
+	bool
+	help
+	  Set by the arch code if it relies on code patching to insert the
+	  shadow call stack push and pop instructions rather than on the
+	  compiler.
+
 config LTO
 	bool
 	help

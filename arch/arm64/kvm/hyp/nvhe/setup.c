@@ -318,7 +318,9 @@ static int unmap_protected_regions(void)
 		reg = &pkvm_moveable_regs[i];
 		if (reg->type != PKVM_MREG_PROTECTED_RANGE)
 			continue;
-		ret = host_stage2_protect_pages_locked(reg->start, reg->size);
+
+		ret = host_stage2_set_owner_locked(reg->start, reg->size,
+						   PKVM_ID_PROTECTED);
 		if (ret)
 			return ret;
 	}

@@ -30,13 +30,11 @@ static int irqfd_wakeup(wait_queue_entry_t *wait, unsigned int mode, int sync, v
 {
 	struct gh_irqfd *irqfd = container_of(wait, struct gh_irqfd, wait);
 	__poll_t flags = key_to_poll(key);
-	u64 enable_mask = GH_BELL_NONBLOCK;
-	u64 old_flags;
 	int ret = 0;
 
 	if (flags & EPOLLIN) {
 		if (irqfd->ghrsc) {
-			ret = gh_hypercall_bell_send(irqfd->ghrsc->capid, enable_mask, &old_flags);
+			ret = gh_hypercall_bell_send(irqfd->ghrsc->capid, 1, NULL);
 			if (ret)
 				pr_err_ratelimited("Failed to inject interrupt %d: %d\n",
 						irqfd->ticket.label, ret);
@@ -54,28 +52,33 @@ static void irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh, p
 	add_wait_queue(wqh, &irq_ctx->wait);
 }
 
-static int gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
+static bool gh_irqfd_populate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
 {
 	struct gh_irqfd *irqfd = container_of(ticket, struct gh_irqfd, ticket);
-	u64 enable_mask = GH_BELL_NONBLOCK;
-	u64 ack_mask = ~0;
-	int ret = 0;
+	int ret;
 
 	if (irqfd->ghrsc) {
 		pr_warn("irqfd%d already got a Gunyah resource. Check if multiple resources with same label were configured.\n",
 			irqfd->ticket.label);
-		return -1;
+		return false;
 	}
 
 	irqfd->ghrsc = ghrsc;
 	if (irqfd->level) {
-		ret = gh_hypercall_bell_set_mask(irqfd->ghrsc->capid, enable_mask, ack_mask);
+		/* Configure the bell to trigger when bit 0 is asserted (see
+		 * irq_wakeup) and for bell to automatically clear bit 0 once
+		 * received by the VM (ack_mask).  need to make sure bit 0 is cleared right away,
+		 * otherwise the line will never be deasserted. Emulating edge
+		 * trigger interrupt does not need to set either mask
+		 * because irq is listed only once per gh_hypercall_bell_send
+		 */
+		ret = gh_hypercall_bell_set_mask(irqfd->ghrsc->capid, 1, 1);
 		if (ret)
 			pr_warn("irq %d couldn't be set as level triggered. Might cause IRQ storm if asserted\n",
 				irqfd->ticket.label);
 	}
 
-	return 0;
+	return true;
 }
 
 static void gh_irqfd_unpopulate(struct gh_vm_resource_ticket *ticket, struct gh_resource *ghrsc)
@@ -98,7 +101,7 @@ static long gh_irqfd_bind(struct gh_vm_function_instance *f)
 		return -EINVAL;
 
 	/* All other flag bits are reserved for future use */
-	if (args->flags & ~GH_IRQFD_LEVEL)
+	if (args->flags & ~GH_IRQFD_FLAGS_LEVEL)
 		return -EINVAL;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
@@ -120,7 +123,7 @@ static long gh_irqfd_bind(struct gh_vm_function_instance *f)
 		goto err_fdput;
 	}
 
-	if (args->flags & GH_IRQFD_LEVEL)
+	if (args->flags & GH_IRQFD_FLAGS_LEVEL)
 		irqfd->level = true;
 
 	init_waitqueue_func_entry(&irqfd->wait, irqfd_wakeup);
@@ -159,6 +162,19 @@ static void gh_irqfd_unbind(struct gh_vm_function_instance *f)
 	kfree(irqfd);
 }
 
-DECLARE_GH_VM_FUNCTION_INIT(irqfd, GH_FN_IRQFD, gh_irqfd_bind, gh_irqfd_unbind);
-MODULE_DESCRIPTION("Gunyah irqfds");
+static bool gh_irqfd_compare(const struct gh_vm_function_instance *f,
+				const void *arg, size_t size)
+{
+	const struct gh_fn_irqfd_arg *instance = f->argp,
+					 *other = arg;
+
+	if (sizeof(*other) != size)
+		return false;
+
+	return instance->label == other->label;
+}
+
+DECLARE_GH_VM_FUNCTION_INIT(irqfd, GH_FN_IRQFD, 2, gh_irqfd_bind, gh_irqfd_unbind,
+				gh_irqfd_compare);
+MODULE_DESCRIPTION("Gunyah irqfd VM Function");
 MODULE_LICENSE("GPL");
