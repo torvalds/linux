@@ -70,12 +70,10 @@ static inline uint64_t DWARF_MINIMAL_REGS(const char *arch)
 }
 
 #else
-#define PERF_REGS_MASK	0
-#define PERF_REGS_MAX	0
 
 static inline uint64_t DWARF_MINIMAL_REGS(const char *arch __maybe_unused)
 {
-	return PERF_REGS_MASK;
+	return 0;
 }
 
 static inline const char *perf_reg_name(int id __maybe_unused, const char *arch __maybe_unused)

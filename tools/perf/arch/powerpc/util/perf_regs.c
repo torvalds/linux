@@ -226,3 +226,8 @@ uint64_t arch__intr_reg_mask(void)
 	}
 	return mask;
 }
+
+uint64_t arch__user_reg_mask(void)
+{
+	return PERF_REGS_MASK;
+}

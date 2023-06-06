@@ -879,7 +879,7 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 			evsel__set_sample_bit(evsel, REGS_USER);
 			evsel__set_sample_bit(evsel, STACK_USER);
 			if (opts->sample_user_regs &&
-			    DWARF_MINIMAL_REGS(arch) != PERF_REGS_MASK) {
+			    DWARF_MINIMAL_REGS(arch) != arch__user_reg_mask()) {
 				attr->sample_regs_user |= DWARF_MINIMAL_REGS(arch);
 				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
 					   "specifying a subset with --user-regs may render DWARF unwinding unreliable, "
