@@ -19,6 +19,7 @@ struct timerlat_hist_params {
 	char			*cpus;
 	char			*monitored_cpus;
 	char			*trace_output;
+	char			*cgroup_name;
 	unsigned long long	runtime;
 	long long		stop_us;
 	long long		stop_total_us;
@@ -29,9 +30,9 @@ struct timerlat_hist_params {
 	int			duration;
 	int			set_sched;
 	int			dma_latency;
+	int			cgroup;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
-
 	char			no_irq;
 	char			no_thread;
 	char			no_header;
@@ -433,7 +434,7 @@ static void timerlat_hist_usage(char *usage)
 		"  usage: [rtla] timerlat hist [-h] [-q] [-d s] [-D] [-n] [-a us] [-p us] [-i us] [-T us] [-s us] \\",
 		"         [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] \\",
 		"	  [-P priority] [-E N] [-b N] [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros] [--dma-latency us]",
+		"	  [--no-index] [--with-zeros] [--dma-latency us] [-C[=cgroup_name]]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
@@ -442,6 +443,7 @@ static void timerlat_hist_usage(char *usage)
 		"	  -T/--thread us: stop trace if the thread latency is higher than the argument in us",
 		"	  -s/--stack us: save the stack trace at the IRQ if a thread latency is higher than the argument in us",
 		"	  -c/--cpus cpus: run the tracer only on the given cpus",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
@@ -506,6 +508,7 @@ static struct timerlat_hist_params
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
+			{"cgroup",		optional_argument,	0, 'C'},
 			{"bucket-size",		required_argument,	0, 'b'},
 			{"debug",		no_argument,		0, 'D'},
 			{"entries",		required_argument,	0, 'E'},
@@ -534,7 +537,7 @@ static struct timerlat_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:b:d:e:E:Dhi:np:P:s:t::T:0123456:7:8:",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:Dhi:np:P:s:t::T:0123456:7:8:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -560,6 +563,16 @@ static struct timerlat_hist_params
 			if (retval)
 				timerlat_hist_usage("\nInvalid -c cpu list\n");
 			params->cpus = optarg;
+			break;
+		case 'C':
+			params->cgroup = 1;
+			if (!optarg) {
+				/* will inherit this cgroup */
+				params->cgroup_name = NULL;
+			} else if (*optarg == '=') {
+				/* skip the = */
+				params->cgroup_name = ++optarg;
+			}
 			break;
 		case 'b':
 			params->bucket_size = get_llong_from_str(optarg);
@@ -836,6 +849,14 @@ int timerlat_hist_main(int argc, char *argv[])
 		retval = set_comm_sched_attr("timerlat/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
+			goto out_free;
+		}
+	}
+
+	if (params->cgroup) {
+		retval = set_comm_cgroup("timerlat/", params->cgroup_name);
+		if (!retval) {
+			err_msg("Failed to move threads to cgroup\n");
 			goto out_free;
 		}
 	}

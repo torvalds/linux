@@ -21,6 +21,7 @@ struct timerlat_top_params {
 	char			*cpus;
 	char			*monitored_cpus;
 	char			*trace_output;
+	char			*cgroup_name;
 	unsigned long long	runtime;
 	long long		stop_us;
 	long long		stop_total_us;
@@ -35,6 +36,7 @@ struct timerlat_top_params {
 	int			no_aa;
 	int			aa_only;
 	int			dump_tasks;
+	int			cgroup;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 };
@@ -285,7 +287,7 @@ static void timerlat_top_usage(char *usage)
 		"",
 		"  usage: rtla timerlat [top] [-h] [-q] [-a us] [-d s] [-D] [-n] [-p us] [-i us] [-T us] [-s us] \\",
 		"	  [[-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] \\",
-		"	  [-P priority] [--dma-latency us] [--aa-only us]",
+		"	  [-P priority] [--dma-latency us] [--aa-only us] [-C[=cgroup_name]]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
@@ -295,6 +297,7 @@ static void timerlat_top_usage(char *usage)
 		"	  -T/--thread us: stop trace if the thread latency is higher than the argument in us",
 		"	  -s/--stack us: save the stack trace at the IRQ if a thread latency is higher than the argument in us",
 		"	  -c/--cpus cpus: run the tracer only on the given cpus",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
 		"	  -D/--debug: print debug info",
 		"	     --dump-tasks: prints the task running on all CPUs if stop conditions are met (depends on !--no-aa)",
@@ -352,6 +355,7 @@ static struct timerlat_top_params
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
+			{"cgroup",		optional_argument,	0, 'C'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
 			{"event",		required_argument,	0, 'e'},
@@ -376,7 +380,7 @@ static struct timerlat_top_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:d:De:hi:np:P:qs:t::T:0:1:2:345:",
+		c = getopt_long(argc, argv, "a:c:C::d:De:hi:np:P:qs:t::T:0:1:2:345:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -416,6 +420,16 @@ static struct timerlat_top_params
 			if (retval)
 				timerlat_top_usage("\nInvalid -c cpu list\n");
 			params->cpus = optarg;
+			break;
+		case 'C':
+			params->cgroup = 1;
+			if (!optarg) {
+				/* will inherit this cgroup */
+				params->cgroup_name = NULL;
+			} else if (*optarg == '=') {
+				/* skip the = */
+				params->cgroup_name = ++optarg;
+			}
 			break;
 		case 'D':
 			config_debug = 1;
@@ -690,6 +704,14 @@ int timerlat_top_main(int argc, char *argv[])
 		retval = set_comm_sched_attr("timerlat/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
+			goto out_free;
+		}
+	}
+
+	if (params->cgroup) {
+		retval = set_comm_cgroup("timerlat/", params->cgroup_name);
+		if (!retval) {
+			err_msg("Failed to move threads to cgroup\n");
 			goto out_free;
 		}
 	}

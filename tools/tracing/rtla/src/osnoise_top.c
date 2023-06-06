@@ -26,6 +26,7 @@ struct osnoise_top_params {
 	char			*cpus;
 	char			*monitored_cpus;
 	char			*trace_output;
+	char			*cgroup_name;
 	unsigned long long	runtime;
 	unsigned long long	period;
 	long long		threshold;
@@ -35,6 +36,7 @@ struct osnoise_top_params {
 	int			duration;
 	int			quiet;
 	int			set_sched;
+	int			cgroup;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 	enum osnoise_mode	mode;
@@ -276,7 +278,7 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 	static const char * const msg[] = {
 		" [-h] [-q] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
 		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
-		"	  [-c cpu-list] [-P priority]",
+		"	  [-c cpu-list] [-P priority] [-C[=cgroup_name]]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -286,6 +288,7 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
 		"	  -T/--threshold us: the minimum delta to be considered a noise",
 		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
@@ -347,6 +350,7 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
+			{"cgroup",		optional_argument,	0, 'C'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
 			{"event",		required_argument,	0, 'e'},
@@ -367,7 +371,7 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:d:De:hp:P:qr:s:S:t::T:0:1:",
+		c = getopt_long(argc, argv, "a:c:C::d:De:hp:P:qr:s:S:t::T:0:1:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -391,6 +395,16 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			if (retval)
 				osnoise_top_usage(params, "\nInvalid -c cpu list\n");
 			params->cpus = optarg;
+			break;
+		case 'C':
+			params->cgroup = 1;
+			if (!optarg) {
+				/* will inherit this cgroup */
+				params->cgroup_name = NULL;
+			} else if (*optarg == '=') {
+				/* skip the = */
+				params->cgroup_name = ++optarg;
+			}
 			break;
 		case 'D':
 			config_debug = 1;
@@ -639,6 +653,14 @@ int osnoise_top_main(int argc, char **argv)
 		retval = set_comm_sched_attr("osnoise/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
+			goto out_free;
+		}
+	}
+
+	if (params->cgroup) {
+		retval = set_comm_cgroup("osnoise/", params->cgroup_name);
+		if (!retval) {
+			err_msg("Failed to move threads to cgroup\n");
 			goto out_free;
 		}
 	}

@@ -529,3 +529,188 @@ int set_cpu_dma_latency(int32_t latency)
 
 	return fd;
 }
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
+/*
+ * find_mount - find a the mount point of a given fs
+ *
+ * Returns 0 if mount is not found, otherwise return 1 and fill mp
+ * with the mount point.
+ */
+static const int find_mount(const char *fs, char *mp, int sizeof_mp)
+{
+	char mount_point[MAX_PATH];
+	char type[100];
+	int found;
+	FILE *fp;
+
+	fp = fopen("/proc/mounts", "r");
+	if (!fp)
+		return 0;
+
+	while (fscanf(fp, "%*s %" STR(MAX_PATH) "s %99s %*s %*d %*d\n",	mount_point, type) == 2) {
+		if (strcmp(type, fs) == 0) {
+			found = 1;
+			break;
+		}
+	}
+	fclose(fp);
+
+	if (!found)
+		return 0;
+
+	memset(mp, 0, sizeof_mp);
+	strncpy(mp, mount_point, sizeof_mp - 1);
+
+	debug_msg("Fs %s found at %s\n", fs, mp);
+	return 1;
+}
+
+/*
+ * get_self_cgroup - get the current thread cgroup path
+ *
+ * Parse /proc/$$/cgroup file to get the thread's cgroup. As an example of line to parse:
+ *
+ * 0::/user.slice/user-0.slice/session-3.scope'\n'
+ *
+ * This function is interested in the content after the second : and before the '\n'.
+ *
+ * Returns 1 if a string was found, 0 otherwise.
+ */
+static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
+{
+	char path[MAX_PATH], *start;
+	int fd, retval;
+
+	snprintf(path, MAX_PATH, "/proc/%d/cgroup", getpid());
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	retval = read(fd, path, MAX_PATH);
+
+	close(fd);
+
+	if (retval <= 0)
+		return 0;
+
+	start = path;
+
+	start = strstr(start, ":");
+	if (!start)
+		return 0;
+
+	/* skip ":" */
+	start++;
+
+	start = strstr(start, ":");
+	if (!start)
+		return 0;
+
+	/* skip ":" */
+	start++;
+
+	if (strlen(start) >= sizeof_self_cg)
+		return 0;
+
+	snprintf(self_cg, sizeof_self_cg, "%s", start);
+
+	/* Swap '\n' with '\0' */
+	start = strstr(self_cg, "\n");
+
+	/* there must be '\n' */
+	if (!start)
+		return 0;
+
+	/* ok, it found a string after the second : and before the \n */
+	*start = '\0';
+
+	return 1;
+}
+
+/**
+ * set_comm_cgroup - Set cgroup to threads starting with char *comm_prefix
+ *
+ * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ *
+ * Supports cgroup v2.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
+{
+	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
+	char cgroup_procs[MAX_PATH];
+	struct dirent *proc_entry;
+	DIR *procfs;
+	int retval;
+	int cg_fd;
+
+	if (strlen(comm_prefix) >= MAX_PATH) {
+		err_msg("Command prefix is too long: %d < strlen(%s)\n",
+			MAX_PATH, comm_prefix);
+		return 0;
+	}
+
+	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
+	if (!retval) {
+		err_msg("Did not find cgroupv2 mount point\n");
+		return 0;
+	}
+
+	if (!cgroup) {
+		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path));
+		if (!retval) {
+			err_msg("Did not find self cgroup\n");
+			return 0;
+		}
+	} else {
+		snprintf(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
+	}
+
+	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
+
+	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
+
+	cg_fd = open(cgroup_procs, O_RDWR);
+	if (cg_fd < 0)
+		return 0;
+
+	procfs = opendir("/proc");
+	if (!procfs) {
+		err_msg("Could not open procfs\n");
+		goto out_cg;
+	}
+
+	while ((proc_entry = readdir(procfs))) {
+
+		retval = procfs_is_workload_pid(comm_prefix, proc_entry);
+		if (!retval)
+			continue;
+
+		retval = write(cg_fd, proc_entry->d_name, strlen(proc_entry->d_name));
+		if (retval < 0) {
+			err_msg("Error setting cgroup attributes for pid:%s - %s\n",
+				proc_entry->d_name, strerror(errno));
+			goto out_procfs;
+		}
+
+		debug_msg("Set cgroup attributes for pid:%s\n", proc_entry->d_name);
+	}
+
+	closedir(procfs);
+	close(cg_fd);
+	return 1;
+
+out_procfs:
+	closedir(procfs);
+out_cg:
+	close(cg_fd);
+	return 0;
+}
