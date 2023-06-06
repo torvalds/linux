@@ -16,6 +16,7 @@
 #include "utils.h"
 #include "osnoise.h"
 #include "timerlat.h"
+#include "timerlat_aa.h"
 
 struct timerlat_hist_params {
 	char			*cpus;
@@ -34,6 +35,8 @@ struct timerlat_hist_params {
 	int			dma_latency;
 	int			cgroup;
 	int			hk_cpus;
+	int			no_aa;
+	int			dump_tasks;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
@@ -438,7 +441,7 @@ static void timerlat_hist_usage(char *usage)
 		"  usage: [rtla] timerlat hist [-h] [-q] [-d s] [-D] [-n] [-a us] [-p us] [-i us] [-T us] [-s us] \\",
 		"         [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] [-H cpu-list]\\",
 		"	  [-P priority] [-E N] [-b N] [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros] [--dma-latency us] [-C[=cgroup_name]]",
+		"	  [--no-index] [--with-zeros] [--dma-latency us] [-C[=cgroup_name]] [--no-aa] [--dump-task]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
@@ -450,12 +453,14 @@ static void timerlat_hist_usage(char *usage)
 		"	  -H/--house-keeping cpus: run rtla control threads only on the given cpus",
 		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
+		"	     --dump-tasks: prints the task running on all CPUs if stop conditions are met (depends on !--no-aa)",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <filter>: enable a trace event filter to the previous -e event",
 		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
 		"	  -n/--nano: display data in nanoseconds",
+		"	     --no-aa: disable auto-analysis, reducing rtla timerlat cpu usage",
 		"	  -b/--bucket-size N: set the histogram bucket size (default 1)",
 		"	  -E/--entries N: set the number of entries of the histogram (default 256)",
 		"	     --no-irq: ignore IRQ latencies",
@@ -537,13 +542,15 @@ static struct timerlat_hist_params
 			{"trigger",		required_argument,	0, '6'},
 			{"filter",		required_argument,	0, '7'},
 			{"dma-latency",		required_argument,	0, '8'},
+			{"no-aa",		no_argument,		0, '9'},
+			{"dump-task",		no_argument,		0, '\1'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:0123456:7:8:",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:0123456:7:8:9\1",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -556,6 +563,7 @@ static struct timerlat_hist_params
 
 			/* set thread stop to auto_thresh */
 			params->stop_total_us = auto_thresh;
+			params->stop_us = auto_thresh;
 
 			/* get stack trace */
 			params->print_stack = auto_thresh;
@@ -699,6 +707,12 @@ static struct timerlat_hist_params
 				exit(EXIT_FAILURE);
 			}
 			break;
+		case '9':
+			params->no_aa = 1;
+			break;
+		case '\1':
+			params->dump_tasks = 1;
+			break;
 		default:
 			timerlat_hist_usage("Invalid option");
 		}
@@ -714,6 +728,12 @@ static struct timerlat_hist_params
 
 	if (params->no_index && !params->with_zeros)
 		timerlat_hist_usage("no-index set with with-zeros is not set - it does not make sense");
+
+	/*
+	 * Auto analysis only happens if stop tracing, thus:
+	 */
+	if (!params->stop_us && !params->stop_total_us)
+		params->no_aa = 1;
 
 	return params;
 }
@@ -848,6 +868,7 @@ int timerlat_hist_main(int argc, char *argv[])
 	struct timerlat_hist_params *params;
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *tool = NULL;
+	struct osnoise_tool *aa = NULL;
 	struct trace_instance *trace;
 	int dma_latency_fd = -1;
 	int return_value = 1;
@@ -919,6 +940,26 @@ int timerlat_hist_main(int argc, char *argv[])
 		trace_instance_start(&record->trace);
 	}
 
+	if (!params->no_aa) {
+		aa = osnoise_init_tool("timerlat_aa");
+		if (!aa)
+			goto out_hist;
+
+		retval = timerlat_aa_init(aa, params->dump_tasks);
+		if (retval) {
+			err_msg("Failed to enable the auto analysis instance\n");
+			goto out_hist;
+		}
+
+		retval = enable_timerlat(&aa->trace);
+		if (retval) {
+			err_msg("Failed to enable timerlat tracer\n");
+			goto out_hist;
+		}
+
+		trace_instance_start(&aa->trace);
+	}
+
 	tool->start_time = time(NULL);
 	timerlat_hist_set_signals(params);
 
@@ -946,6 +987,10 @@ int timerlat_hist_main(int argc, char *argv[])
 
 	if (trace_is_off(&tool->trace, &record->trace)) {
 		printf("rtla timerlat hit stop tracing\n");
+
+		if (!params->no_aa)
+			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
+
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
 			save_trace_to_file(record->trace.inst, params->trace_output);
@@ -953,12 +998,14 @@ int timerlat_hist_main(int argc, char *argv[])
 	}
 
 out_hist:
+	timerlat_aa_destroy();
 	if (dma_latency_fd >= 0)
 		close(dma_latency_fd);
 	trace_events_destroy(&record->trace, params->events);
 	params->events = NULL;
 out_free:
 	timerlat_free_histogram(tool->data);
+	osnoise_destroy_tool(aa);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
 	free(params);
