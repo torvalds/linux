@@ -364,7 +364,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 			 * The exception is ieee80211_chswitch_done.
 			 * Then we can have a race...
 			 */
-			cancel_work_sync(&sdata->u.mgd.csa_connection_drop_work);
+			wiphy_work_cancel(local->hw.wiphy,
+					  &sdata->u.mgd.csa_connection_drop_work);
 			if (sdata->vif.bss_conf.csa_active) {
 				sdata_lock(sdata);
 				ieee80211_sta_connection_lost(sdata,

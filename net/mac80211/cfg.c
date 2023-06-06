@@ -3590,7 +3590,7 @@ void ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif, bool block_t
 
 	sdata->deflink.csa_block_tx = block_tx;
 	sdata_info(sdata, "channel switch failed, disconnecting\n");
-	ieee80211_queue_work(&local->hw, &ifmgd->csa_connection_drop_work);
+	wiphy_work_queue(local->hw.wiphy, &ifmgd->csa_connection_drop_work);
 }
 EXPORT_SYMBOL(ieee80211_channel_switch_disconnect);
 
