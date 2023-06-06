@@ -516,8 +516,11 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 	 * M/N and TRANS_VTOTAL are double buffered on the transcoder's
 	 * undelayed vblank, so with seamless M/N and LRR we must evade
 	 * both vblanks.
+	 *
+	 * DSB execution waits for the transcoder's undelayed vblank,
+	 * hence we must kick off the commit before that.
 	 */
-	if (new_crtc_state->update_m_n || new_crtc_state->update_lrr)
+	if (new_crtc_state->dsb || new_crtc_state->update_m_n || new_crtc_state->update_lrr)
 		*min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 
