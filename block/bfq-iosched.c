@@ -129,7 +129,6 @@
 #include "elevator.h"
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-tag.h"
 #include "blk-mq-sched.h"
 #include "bfq-iosched.h"
 #include "blk-wbt.h"
@@ -649,6 +648,8 @@ retry:
 					sched_data->service_tree[i].wsum;
 			}
 		}
+		if (!wsum)
+			continue;
 		limit = DIV_ROUND_CLOSEST(limit * entity->weight, wsum);
 		if (entity->allocated >= limit) {
 			bfq_log_bfqq(bfqq->bfqd, bfqq,
@@ -6232,7 +6233,7 @@ static inline void bfq_update_insert_stats(struct request_queue *q,
 static struct bfq_queue *bfq_init_rq(struct request *rq);
 
 static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
-			       bool at_head)
+			       blk_insert_t flags)
 {
 	struct request_queue *q = hctx->queue;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
@@ -6255,11 +6256,10 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	trace_block_rq_insert(rq);
 
-	if (!bfqq || at_head) {
-		if (at_head)
-			list_add(&rq->queuelist, &bfqd->dispatch);
-		else
-			list_add_tail(&rq->queuelist, &bfqd->dispatch);
+	if (flags & BLK_MQ_INSERT_AT_HEAD) {
+		list_add(&rq->queuelist, &bfqd->dispatch);
+	} else if (!bfqq) {
+		list_add_tail(&rq->queuelist, &bfqd->dispatch);
 	} else {
 		idle_timer_disabled = __bfq_insert_request(bfqd, rq);
 		/*
@@ -6289,14 +6289,15 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 }
 
 static void bfq_insert_requests(struct blk_mq_hw_ctx *hctx,
-				struct list_head *list, bool at_head)
+				struct list_head *list,
+				blk_insert_t flags)
 {
 	while (!list_empty(list)) {
 		struct request *rq;
 
 		rq = list_first_entry(list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		bfq_insert_request(hctx, rq, at_head);
+		bfq_insert_request(hctx, rq, flags);
 	}
 }
 

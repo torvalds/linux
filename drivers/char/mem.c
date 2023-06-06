@@ -762,7 +762,7 @@ static int __init chr_dev_init(void)
 	if (register_chrdev(MEM_MAJOR, "mem", &memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
-	mem_class = class_create(THIS_MODULE, "mem");
+	mem_class = class_create("mem");
 	if (IS_ERR(mem_class))
 		return PTR_ERR(mem_class);
 

@@ -890,7 +890,7 @@ static int __init kone_init(void)
 	int retval;
 
 	/* class name has to be same as driver name */
-	kone_class = class_create(THIS_MODULE, "kone");
+	kone_class = class_create("kone");
 	if (IS_ERR(kone_class))
 		return PTR_ERR(kone_class);
 	kone_class->dev_groups = kone_groups;

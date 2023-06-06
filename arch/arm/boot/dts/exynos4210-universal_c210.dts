@@ -24,6 +24,12 @@
 			0x50000000 0x10000000>;
 	};
 
+	aliases {
+		mmc0 = &sdhci_0;
+		mmc1 = &sdhci_2;
+		mmc2 = &sdhci_3;
+	};
+
 	chosen {
 		bootargs = "root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
 		stdout-path = "serial2:115200n8";
@@ -516,7 +522,7 @@
 };
 
 &mct {
-	compatible = "none";
+	status = "disabled";
 };
 
 &mdma1 {

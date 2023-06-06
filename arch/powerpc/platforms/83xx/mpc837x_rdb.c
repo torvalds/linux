@@ -78,6 +78,5 @@ define_machine(mpc837x_rdb) {
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

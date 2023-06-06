@@ -125,14 +125,6 @@
 	status = "okay";
 };
 
-&pronto {
-	status = "okay";
-
-	iris {
-		compatible = "qcom,wcn3660b";
-	};
-};
-
 &sdhc_1 {
 	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
 	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
@@ -160,6 +152,14 @@
 
 &usb_hs_phy {
 	extcon = <&pm8916_usbin>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3660b";
 };
 
 &smd_rpm_regulators {

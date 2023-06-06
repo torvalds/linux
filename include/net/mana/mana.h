@@ -36,10 +36,8 @@ enum TRI_STATE {
 
 #define COMP_ENTRY_SIZE 64
 
-#define ADAPTER_MTU_SIZE 1500
-#define MAX_FRAME_SIZE (ADAPTER_MTU_SIZE + 14)
-
 #define RX_BUFFERS_PER_QUEUE 512
+#define MANA_RX_DATA_ALIGN 64
 
 #define MAX_SEND_BUFFERS_PER_QUEUE 256
 
@@ -282,7 +280,6 @@ struct mana_recv_buf_oob {
 	struct gdma_wqe_request wqe_req;
 
 	void *buf_va;
-	dma_addr_t buf_dma_addr;
 
 	/* SGL of the buffer going to be sent has part of the work request. */
 	u32 num_sge;
@@ -295,6 +292,11 @@ struct mana_recv_buf_oob {
 	struct gdma_posted_wqe_info wqe_inf;
 };
 
+#define MANA_RXBUF_PAD (SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) \
+			+ ETH_HLEN)
+
+#define MANA_XDP_MTU_MAX (PAGE_SIZE - MANA_RXBUF_PAD - XDP_PACKET_HEADROOM)
+
 struct mana_rxq {
 	struct gdma_queue *gdma_rq;
 	/* Cache the gdma receive queue id */
@@ -304,6 +306,8 @@ struct mana_rxq {
 	u32 rxq_idx;
 
 	u32 datasize;
+	u32 alloc_size;
+	u32 headroom;
 
 	mana_handle_t rxobj;
 
@@ -322,7 +326,7 @@ struct mana_rxq {
 
 	struct bpf_prog __rcu *bpf_prog;
 	struct xdp_rxq_info xdp_rxq;
-	struct page *xdp_save_page;
+	void *xdp_save_va; /* for reusing */
 	bool xdp_flush;
 	int xdp_rc; /* XDP redirect return code */
 
@@ -386,6 +390,14 @@ struct mana_port_context {
 
 	/* This points to an array of num_queues of RQ pointers. */
 	struct mana_rxq **rxqs;
+
+	/* pre-allocated rx buffer array */
+	void **rxbufs_pre;
+	dma_addr_t *das_pre;
+	int rxbpre_total;
+	u32 rxbpre_datasize;
+	u32 rxbpre_alloc_size;
+	u32 rxbpre_headroom;
 
 	struct bpf_prog *bpf_prog;
 
@@ -486,6 +498,11 @@ struct mana_query_device_cfg_resp {
 	u16 max_num_vports;
 	u16 reserved;
 	u32 max_num_eqs;
+
+	/* response v2: */
+	u16 adapter_mtu;
+	u16 reserved2;
+	u32 reserved3;
 }; /* HW DATA */
 
 /* Query vPort Configuration */

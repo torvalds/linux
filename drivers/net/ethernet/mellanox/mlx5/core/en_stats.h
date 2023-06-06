@@ -193,11 +193,6 @@ struct mlx5e_sw_stats {
 	u64 rx_buff_alloc_err;
 	u64 rx_cqe_compress_blks;
 	u64 rx_cqe_compress_pkts;
-	u64 rx_cache_reuse;
-	u64 rx_cache_full;
-	u64 rx_cache_empty;
-	u64 rx_cache_busy;
-	u64 rx_cache_waive;
 	u64 rx_congst_umr;
 	u64 rx_arfs_err;
 	u64 rx_recover;
@@ -362,11 +357,6 @@ struct mlx5e_rq_stats {
 	u64 buff_alloc_err;
 	u64 cqe_compress_blks;
 	u64 cqe_compress_pkts;
-	u64 cache_reuse;
-	u64 cache_full;
-	u64 cache_empty;
-	u64 cache_busy;
-	u64 cache_waive;
 	u64 congst_umr;
 	u64 arfs_err;
 	u64 recover;

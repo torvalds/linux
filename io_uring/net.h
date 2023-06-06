@@ -5,8 +5,8 @@
 
 #include "alloc_cache.h"
 
-#if defined(CONFIG_NET)
 struct io_async_msghdr {
+#if defined(CONFIG_NET)
 	union {
 		struct iovec		fast_iov[UIO_FASTIOV];
 		struct {
@@ -22,7 +22,10 @@ struct io_async_msghdr {
 	struct sockaddr __user		*uaddr;
 	struct msghdr			msg;
 	struct sockaddr_storage		addr;
+#endif
 };
+
+#if defined(CONFIG_NET)
 
 struct io_async_connect {
 	struct sockaddr_storage		address;

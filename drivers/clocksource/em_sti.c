@@ -363,4 +363,3 @@ module_exit(em_sti_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Renesas Emma Mobile STI Timer Driver");
-MODULE_LICENSE("GPL v2");

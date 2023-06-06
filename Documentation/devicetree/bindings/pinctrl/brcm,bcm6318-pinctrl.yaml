@@ -38,7 +38,7 @@ patternProperties:
                 gpio8, gpio9, gpio10, gpio11, gpio12, gpio13, gpio40 ]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

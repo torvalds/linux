@@ -303,7 +303,7 @@ static int stm_disable_irq(struct stm_thermal_sensor *sensor)
 
 static int stm_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct stm_thermal_sensor *sensor = tz->devdata;
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	u32 itr1, th;
 	int ret;
 
@@ -351,7 +351,7 @@ static int stm_thermal_set_trips(struct thermal_zone_device *tz, int low, int hi
 /* Callback to get temperature from HW */
 static int stm_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct stm_thermal_sensor *sensor = tz->devdata;
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	u32 periods;
 	int freqM, ret;
 
@@ -558,7 +558,6 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	 * Thermal_zone doesn't enable hwmon as default,
 	 * enable it here
 	 */
-	sensor->th_dev->tzp->no_hwmon = false;
 	ret = thermal_add_hwmon_sysfs(sensor->th_dev);
 	if (ret)
 		goto err_tz;

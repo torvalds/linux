@@ -99,19 +99,9 @@ struct nsm_handle {
 /*
  * Rigorous type checking on sockaddr type conversions
  */
-static inline struct sockaddr_in *nlm_addr_in(const struct nlm_host *host)
-{
-	return (struct sockaddr_in *)&host->h_addr;
-}
-
 static inline struct sockaddr *nlm_addr(const struct nlm_host *host)
 {
 	return (struct sockaddr *)&host->h_addr;
-}
-
-static inline struct sockaddr_in *nlm_srcaddr_in(const struct nlm_host *host)
-{
-	return (struct sockaddr_in *)&host->h_srcaddr;
 }
 
 static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
@@ -131,7 +121,16 @@ struct nlm_lockowner {
 	uint32_t pid;
 };
 
-struct nlm_wait;
+/*
+ * This is the representation of a blocked client lock.
+ */
+struct nlm_wait {
+	struct list_head	b_list;		/* linked list */
+	wait_queue_head_t	b_wait;		/* where to wait on */
+	struct nlm_host		*b_host;
+	struct file_lock	*b_lock;	/* local file lock */
+	__be32			b_status;	/* grant callback status */
+};
 
 /*
  * Memory chunk for NLM client RPC request.
@@ -212,9 +211,11 @@ struct nlm_rqst * nlm_alloc_call(struct nlm_host *host);
 int		  nlm_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 void		  nlmclnt_release_call(struct nlm_rqst *);
-struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
-void		  nlmclnt_finish_block(struct nlm_wait *block);
-int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
+void		  nlmclnt_prepare_block(struct nlm_wait *block, struct nlm_host *host,
+					struct file_lock *fl);
+void		  nlmclnt_queue_block(struct nlm_wait *block);
+__be32		  nlmclnt_dequeue_block(struct nlm_wait *block);
+int		  nlmclnt_wait(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
 __be32		  nlmclnt_grant(const struct sockaddr *addr,
 				const struct nlm_lock *lock);
 void		  nlmclnt_recovery(struct nlm_host *);

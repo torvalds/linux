@@ -89,6 +89,9 @@
 #define IP6VXLAN_TUNL_DEV0 "ip6vxlan00"
 #define IP6VXLAN_TUNL_DEV1 "ip6vxlan11"
 
+#define IPIP_TUNL_DEV0 "ipip00"
+#define IPIP_TUNL_DEV1 "ipip11"
+
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
 static int config_device(void)
@@ -186,6 +189,79 @@ static void delete_ip6vxlan_tunnel(void)
 	SYS_NOFAIL("ip netns exec at_ns0 ip link delete dev %s",
 		   IP6VXLAN_TUNL_DEV0);
 	SYS_NOFAIL("ip link delete dev %s", IP6VXLAN_TUNL_DEV1);
+}
+
+enum ipip_encap {
+	NONE	= 0,
+	FOU	= 1,
+	GUE	= 2,
+};
+
+static int set_ipip_encap(const char *ipproto, const char *type)
+{
+	SYS(fail, "ip -n at_ns0 fou add port 5555 %s", ipproto);
+	SYS(fail, "ip -n at_ns0 link set dev %s type ipip encap %s",
+	    IPIP_TUNL_DEV0, type);
+	SYS(fail, "ip -n at_ns0 link set dev %s type ipip encap-dport 5555",
+	    IPIP_TUNL_DEV0);
+
+	return 0;
+fail:
+	return -1;
+}
+
+static int add_ipip_tunnel(enum ipip_encap encap)
+{
+	int err;
+	const char *ipproto, *type;
+
+	switch (encap) {
+	case FOU:
+		ipproto = "ipproto 4";
+		type = "fou";
+		break;
+	case GUE:
+		ipproto = "gue";
+		type = ipproto;
+		break;
+	default:
+		ipproto = NULL;
+		type = ipproto;
+	}
+
+	/* at_ns0 namespace */
+	SYS(fail, "ip -n at_ns0 link add dev %s type ipip local %s remote %s",
+	    IPIP_TUNL_DEV0, IP4_ADDR_VETH0, IP4_ADDR1_VETH1);
+
+	if (type && ipproto) {
+		err = set_ipip_encap(ipproto, type);
+		if (!ASSERT_OK(err, "set_ipip_encap"))
+			goto fail;
+	}
+
+	SYS(fail, "ip -n at_ns0 link set dev %s up", IPIP_TUNL_DEV0);
+	SYS(fail, "ip -n at_ns0 addr add dev %s %s/24",
+	    IPIP_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
+
+	/* root namespace */
+	if (type && ipproto)
+		SYS(fail, "ip fou add port 5555 %s", ipproto);
+	SYS(fail, "ip link add dev %s type ipip external", IPIP_TUNL_DEV1);
+	SYS(fail, "ip link set dev %s up", IPIP_TUNL_DEV1);
+	SYS(fail, "ip addr add dev %s %s/24", IPIP_TUNL_DEV1,
+	    IP4_ADDR_TUNL_DEV1);
+
+	return 0;
+fail:
+	return -1;
+}
+
+static void delete_ipip_tunnel(void)
+{
+	SYS_NOFAIL("ip -n at_ns0 link delete dev %s", IPIP_TUNL_DEV0);
+	SYS_NOFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
+	SYS_NOFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
+	SYS_NOFAIL("ip fou del port 5555 2> /dev/null");
 }
 
 static int test_ping(int family, const char *addr)
@@ -386,10 +462,80 @@ done:
 		test_tunnel_kern__destroy(skel);
 }
 
-#define RUN_TEST(name)							\
+static void test_ipip_tunnel(enum ipip_encap encap)
+{
+	struct test_tunnel_kern *skel = NULL;
+	struct nstoken *nstoken;
+	int set_src_prog_fd, get_src_prog_fd;
+	int ifindex = -1;
+	int err;
+	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
+			    .attach_point = BPF_TC_INGRESS);
+
+	/* add ipip tunnel */
+	err = add_ipip_tunnel(encap);
+	if (!ASSERT_OK(err, "add_ipip_tunnel"))
+		goto done;
+
+	/* load and attach bpf prog to tunnel dev tc hook point */
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		goto done;
+	ifindex = if_nametoindex(IPIP_TUNL_DEV1);
+	if (!ASSERT_NEQ(ifindex, 0, "ipip11 ifindex"))
+		goto done;
+	tc_hook.ifindex = ifindex;
+
+	switch (encap) {
+	case FOU:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_encap_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_fou_set_tunnel);
+		break;
+	case GUE:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_encap_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_gue_set_tunnel);
+		break;
+	default:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_set_tunnel);
+	}
+
+	if (!ASSERT_GE(set_src_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	if (!ASSERT_GE(get_src_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	if (attach_tc_prog(&tc_hook, get_src_prog_fd, set_src_prog_fd))
+		goto done;
+
+	/* ping from root namespace test */
+	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
+	if (!ASSERT_OK(err, "test_ping"))
+		goto done;
+
+	/* ping from at_ns0 namespace test */
+	nstoken = open_netns("at_ns0");
+	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
+	if (!ASSERT_OK(err, "test_ping"))
+		goto done;
+	close_netns(nstoken);
+
+done:
+	/* delete ipip tunnel */
+	delete_ipip_tunnel();
+	if (skel)
+		test_tunnel_kern__destroy(skel);
+}
+
+#define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
-			test_ ## name();				\
+			test_ ## name(__VA_ARGS__);			\
 		}							\
 	})
 
@@ -400,6 +546,9 @@ static void *test_tunnel_run_tests(void *arg)
 
 	RUN_TEST(vxlan_tunnel);
 	RUN_TEST(ip6vxlan_tunnel);
+	RUN_TEST(ipip_tunnel, NONE);
+	RUN_TEST(ipip_tunnel, FOU);
+	RUN_TEST(ipip_tunnel, GUE);
 
 	cleanup();
 

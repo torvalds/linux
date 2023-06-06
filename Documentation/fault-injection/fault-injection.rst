@@ -52,6 +52,14 @@ Available fault injection capabilities
   status code is NVME_SC_INVALID_OPCODE with no retry. The status code and
   retry flag can be set via the debugfs.
 
+- Null test block driver fault injection
+
+  inject IO timeouts by setting config items under
+  /sys/kernel/config/nullb/<disk>/timeout_inject,
+  inject requeue requests by setting config items under
+  /sys/kernel/config/nullb/<disk>/requeue_inject, and
+  inject init_hctx() errors by setting config items under
+  /sys/kernel/config/nullb/<disk>/init_hctx_fault_inject.
 
 Configure fault-injection capabilities behavior
 -----------------------------------------------

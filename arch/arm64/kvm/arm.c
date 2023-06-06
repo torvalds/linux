@@ -16,7 +16,6 @@
 #include <linux/fs.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
-#include <linux/kmemleak.h>
 #include <linux/kvm.h>
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
@@ -46,7 +45,6 @@
 #include <kvm/arm_psci.h>
 
 static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
-DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
 DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 
@@ -128,6 +126,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int ret;
 
+	mutex_init(&kvm->arch.config_lock);
+
+#ifdef CONFIG_LOCKDEP
+	/* Clue in lockdep that the config_lock must be taken inside kvm->lock */
+	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->lock);
+#endif
+
 	ret = kvm_share_hyp(kvm, kvm + 1);
 	if (ret)
 		return ret;
@@ -147,6 +155,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto err_free_cpumask;
 
 	kvm_vgic_early_init(kvm);
+
+	kvm_timer_init_vm(kvm);
 
 	/* The maximum number of VCPUs is limited by the host's GIC model */
 	kvm->max_vcpus = kvm_arm_default_max_vcpus();
@@ -192,6 +202,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_destroy_vcpus(kvm);
 
 	kvm_unshare_hyp(kvm, kvm + 1);
+
+	kvm_arm_teardown_hypercalls(kvm);
 }
 
 int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
@@ -220,6 +232,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_VCPU_ATTRIBUTES:
 	case KVM_CAP_PTP_KVM:
 	case KVM_CAP_ARM_SYSTEM_SUSPEND:
+	case KVM_CAP_IRQFD_RESAMPLE:
+	case KVM_CAP_COUNTER_OFFSET:
 		r = 1;
 		break;
 	case KVM_CAP_SET_GUEST_DEBUG2:
@@ -325,6 +339,16 @@ int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	int err;
+
+	spin_lock_init(&vcpu->arch.mp_state_lock);
+
+#ifdef CONFIG_LOCKDEP
+	/* Inform lockdep that the config_lock is acquired after vcpu->mutex */
+	mutex_lock(&vcpu->mutex);
+	mutex_lock(&vcpu->kvm->arch.config_lock);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
+	mutex_unlock(&vcpu->mutex);
+#endif
 
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu->arch.target = -1;
@@ -443,34 +467,41 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	vcpu->cpu = -1;
 }
 
-void kvm_arm_vcpu_power_off(struct kvm_vcpu *vcpu)
+static void __kvm_arm_vcpu_power_off(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.mp_state.mp_state = KVM_MP_STATE_STOPPED;
+	WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_STOPPED);
 	kvm_make_request(KVM_REQ_SLEEP, vcpu);
 	kvm_vcpu_kick(vcpu);
 }
 
+void kvm_arm_vcpu_power_off(struct kvm_vcpu *vcpu)
+{
+	spin_lock(&vcpu->arch.mp_state_lock);
+	__kvm_arm_vcpu_power_off(vcpu);
+	spin_unlock(&vcpu->arch.mp_state_lock);
+}
+
 bool kvm_arm_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.mp_state.mp_state == KVM_MP_STATE_STOPPED;
+	return READ_ONCE(vcpu->arch.mp_state.mp_state) == KVM_MP_STATE_STOPPED;
 }
 
 static void kvm_arm_vcpu_suspend(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.mp_state.mp_state = KVM_MP_STATE_SUSPENDED;
+	WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_SUSPENDED);
 	kvm_make_request(KVM_REQ_SUSPEND, vcpu);
 	kvm_vcpu_kick(vcpu);
 }
 
 static bool kvm_arm_vcpu_suspended(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.mp_state.mp_state == KVM_MP_STATE_SUSPENDED;
+	return READ_ONCE(vcpu->arch.mp_state.mp_state) == KVM_MP_STATE_SUSPENDED;
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	*mp_state = vcpu->arch.mp_state;
+	*mp_state = READ_ONCE(vcpu->arch.mp_state);
 
 	return 0;
 }
@@ -480,12 +511,14 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 {
 	int ret = 0;
 
+	spin_lock(&vcpu->arch.mp_state_lock);
+
 	switch (mp_state->mp_state) {
 	case KVM_MP_STATE_RUNNABLE:
-		vcpu->arch.mp_state = *mp_state;
+		WRITE_ONCE(vcpu->arch.mp_state, *mp_state);
 		break;
 	case KVM_MP_STATE_STOPPED:
-		kvm_arm_vcpu_power_off(vcpu);
+		__kvm_arm_vcpu_power_off(vcpu);
 		break;
 	case KVM_MP_STATE_SUSPENDED:
 		kvm_arm_vcpu_suspend(vcpu);
@@ -493,6 +526,8 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	default:
 		ret = -EINVAL;
 	}
+
+	spin_unlock(&vcpu->arch.mp_state_lock);
 
 	return ret;
 }
@@ -593,9 +628,9 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 	if (kvm_vm_is_protected(kvm))
 		kvm_call_hyp_nvhe(__pkvm_vcpu_init_traps, vcpu);
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.config_lock);
 	set_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags);
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.config_lock);
 
 	return ret;
 }
@@ -1210,10 +1245,14 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	/*
 	 * Handle the "start in power-off" case.
 	 */
+	spin_lock(&vcpu->arch.mp_state_lock);
+
 	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
-		kvm_arm_vcpu_power_off(vcpu);
+		__kvm_arm_vcpu_power_off(vcpu);
 	else
-		vcpu->arch.mp_state.mp_state = KVM_MP_STATE_RUNNABLE;
+		WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_RUNNABLE);
+
+	spin_unlock(&vcpu->arch.mp_state_lock);
 
 	return 0;
 }
@@ -1439,11 +1478,31 @@ static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
 	}
 }
 
-long kvm_arch_vm_ioctl(struct file *filp,
-		       unsigned int ioctl, unsigned long arg)
+static int kvm_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_ARM_VM_SMCCC_CTRL:
+		return kvm_vm_smccc_has_attr(kvm, attr);
+	default:
+		return -ENXIO;
+	}
+}
+
+static int kvm_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_ARM_VM_SMCCC_CTRL:
+		return kvm_vm_smccc_set_attr(kvm, attr);
+	default:
+		return -ENXIO;
+	}
+}
+
+int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
+	struct kvm_device_attr attr;
 
 	switch (ioctl) {
 	case KVM_CREATE_IRQCHIP: {
@@ -1479,9 +1538,71 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			return -EFAULT;
 		return kvm_vm_ioctl_mte_copy_tags(kvm, &copy_tags);
 	}
+	case KVM_ARM_SET_COUNTER_OFFSET: {
+		struct kvm_arm_counter_offset offset;
+
+		if (copy_from_user(&offset, argp, sizeof(offset)))
+			return -EFAULT;
+		return kvm_vm_ioctl_set_counter_offset(kvm, &offset);
+	}
+	case KVM_HAS_DEVICE_ATTR: {
+		if (copy_from_user(&attr, argp, sizeof(attr)))
+			return -EFAULT;
+
+		return kvm_vm_has_attr(kvm, &attr);
+	}
+	case KVM_SET_DEVICE_ATTR: {
+		if (copy_from_user(&attr, argp, sizeof(attr)))
+			return -EFAULT;
+
+		return kvm_vm_set_attr(kvm, &attr);
+	}
 	default:
 		return -EINVAL;
 	}
+}
+
+/* unlocks vcpus from @vcpu_lock_idx and smaller */
+static void unlock_vcpus(struct kvm *kvm, int vcpu_lock_idx)
+{
+	struct kvm_vcpu *tmp_vcpu;
+
+	for (; vcpu_lock_idx >= 0; vcpu_lock_idx--) {
+		tmp_vcpu = kvm_get_vcpu(kvm, vcpu_lock_idx);
+		mutex_unlock(&tmp_vcpu->mutex);
+	}
+}
+
+void unlock_all_vcpus(struct kvm *kvm)
+{
+	lockdep_assert_held(&kvm->lock);
+
+	unlock_vcpus(kvm, atomic_read(&kvm->online_vcpus) - 1);
+}
+
+/* Returns true if all vcpus were locked, false otherwise */
+bool lock_all_vcpus(struct kvm *kvm)
+{
+	struct kvm_vcpu *tmp_vcpu;
+	unsigned long c;
+
+	lockdep_assert_held(&kvm->lock);
+
+	/*
+	 * Any time a vcpu is in an ioctl (including running), the
+	 * core KVM code tries to grab the vcpu->mutex.
+	 *
+	 * By grabbing the vcpu->mutex of all VCPUs we ensure that no
+	 * other VCPUs can fiddle with the state while we access it.
+	 */
+	kvm_for_each_vcpu(c, tmp_vcpu, kvm) {
+		if (!mutex_trylock(&tmp_vcpu->mutex)) {
+			unlock_vcpus(kvm, c - 1);
+			return false;
+		}
+	}
+
+	return true;
 }
 
 static unsigned long nvhe_percpu_size(void)
@@ -1889,9 +2010,33 @@ static int __init do_pkvm_init(u32 hyp_va_bits)
 	return ret;
 }
 
+static u64 get_hyp_id_aa64pfr0_el1(void)
+{
+	/*
+	 * Track whether the system isn't affected by spectre/meltdown in the
+	 * hypervisor's view of id_aa64pfr0_el1, used for protected VMs.
+	 * Although this is per-CPU, we make it global for simplicity, e.g., not
+	 * to have to worry about vcpu migration.
+	 *
+	 * Unlike for non-protected VMs, userspace cannot override this for
+	 * protected VMs.
+	 */
+	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
+
+	val &= ~(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2) |
+		 ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3));
+
+	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2),
+			  arm64_get_spectre_v2_state() == SPECTRE_UNAFFECTED);
+	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3),
+			  arm64_get_meltdown_state() == SPECTRE_UNAFFECTED);
+
+	return val;
+}
+
 static void kvm_hyp_init_symbols(void)
 {
-	kvm_nvhe_sym(id_aa64pfr0_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
+	kvm_nvhe_sym(id_aa64pfr0_el1_sys_val) = get_hyp_id_aa64pfr0_el1();
 	kvm_nvhe_sym(id_aa64pfr1_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1);
 	kvm_nvhe_sym(id_aa64isar0_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64ISAR0_EL1);
 	kvm_nvhe_sym(id_aa64isar1_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64ISAR1_EL1);
@@ -2105,41 +2250,6 @@ out_err:
 	return err;
 }
 
-static void __init _kvm_host_prot_finalize(void *arg)
-{
-	int *err = arg;
-
-	if (WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize)))
-		WRITE_ONCE(*err, -EINVAL);
-}
-
-static int __init pkvm_drop_host_privileges(void)
-{
-	int ret = 0;
-
-	/*
-	 * Flip the static key upfront as that may no longer be possible
-	 * once the host stage 2 is installed.
-	 */
-	static_branch_enable(&kvm_protected_mode_initialized);
-	on_each_cpu(_kvm_host_prot_finalize, &ret, 1);
-	return ret;
-}
-
-static int __init finalize_hyp_mode(void)
-{
-	if (!is_protected_kvm_enabled())
-		return 0;
-
-	/*
-	 * Exclude HYP sections from kmemleak so that they don't get peeked
-	 * at, which would end badly once inaccessible.
-	 */
-	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
-	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
-	return pkvm_drop_host_privileges();
-}
-
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
 {
 	struct kvm_vcpu *vcpu;
@@ -2256,14 +2366,6 @@ static __init int kvm_arm_init(void)
 	err = init_subsystems();
 	if (err)
 		goto out_hyp;
-
-	if (!in_hyp_mode) {
-		err = finalize_hyp_mode();
-		if (err) {
-			kvm_err("Failed to finalize Hyp protection\n");
-			goto out_subs;
-		}
-	}
 
 	if (is_protected_kvm_enabled()) {
 		kvm_info("Protected nVHE mode initialized successfully\n");

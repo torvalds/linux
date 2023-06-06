@@ -20,6 +20,7 @@
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
 #include <linux/cookie.h>
+#include <linux/proc_fs.h>
 
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -676,21 +677,19 @@ EXPORT_SYMBOL_GPL(get_net_ns);
 
 struct net *get_net_ns_by_fd(int fd)
 {
-	struct file *file;
-	struct ns_common *ns;
-	struct net *net;
+	struct fd f = fdget(fd);
+	struct net *net = ERR_PTR(-EINVAL);
 
-	file = proc_ns_fget(fd);
-	if (IS_ERR(file))
-		return ERR_CAST(file);
+	if (!f.file)
+		return ERR_PTR(-EBADF);
 
-	ns = get_proc_ns(file_inode(file));
-	if (ns->ops == &netns_operations)
-		net = get_net(container_of(ns, struct net, ns));
-	else
-		net = ERR_PTR(-EINVAL);
+	if (proc_ns_file(f.file)) {
+		struct ns_common *ns = get_proc_ns(file_inode(f.file));
+		if (ns->ops == &netns_operations)
+			net = get_net(container_of(ns, struct net, ns));
+	}
+	fdput(f);
 
-	fput(file);
 	return net;
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_fd);

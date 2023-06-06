@@ -76,6 +76,13 @@
  *   2. The kernel is entered at __start
  */
 
+/*
+ * boot_from_prom and prom_init run at the physical address. Everything
+ * after prom and kexec entry run at the virtual address (PAGE_OFFSET).
+ * Secondaries run at the virtual address from generic_secondary_common_init
+ * onward.
+ */
+
 OPEN_FIXED_SECTION(first_256B, 0x0, 0x100)
 USE_FIXED_SECTION(first_256B)
 	/*
@@ -303,13 +310,11 @@ _GLOBAL(fsl_secondary_thread_init)
 	/* turn on 64-bit mode */
 	bl	enable_64b_mode
 
-	/* get a valid TOC pointer, wherever we're mapped at */
-	bl	relative_toc
-	tovirt(r2,r2)
-
 	/* Book3E initialization */
 	mr	r3,r24
 	bl	book3e_secondary_thread_init
+	bl	relative_toc
+
 	b	generic_secondary_common_init
 
 #endif /* CONFIG_PPC_BOOK3E_64 */
@@ -325,22 +330,24 @@ _GLOBAL(fsl_secondary_thread_init)
  */
 _GLOBAL(generic_secondary_smp_init)
 	FIXUP_ENDIAN
+
+	li	r13,0
+
+	/* Poison TOC */
+	li	r2,-1
+
 	mr	r24,r3
 	mr	r25,r4
 
 	/* turn on 64-bit mode */
 	bl	enable_64b_mode
 
-	/* get a valid TOC pointer, wherever we're mapped at */
-	bl	relative_toc
-	tovirt(r2,r2)
-
 #ifdef CONFIG_PPC_BOOK3E_64
 	/* Book3E initialization */
 	mr	r3,r24
 	mr	r4,r25
 	bl	book3e_secondary_core_init
-
+	/* Now NIA and r2 are relocated to PAGE_OFFSET if not already */
 /*
  * After common core init has finished, check if the current thread is the
  * one we wanted to boot. If not, start the specified thread and stop the
@@ -378,6 +385,16 @@ _GLOBAL(generic_secondary_smp_init)
 10:
 	b	10b
 20:
+#else
+	/* Now the MMU is off, can branch to our PAGE_OFFSET address */
+	bcl	20,31,$+4
+1:	mflr	r11
+	addi	r11,r11,(2f - 1b)
+	tovirt(r11, r11)
+	mtctr	r11
+	bctr
+2:
+	bl	relative_toc
 #endif
 
 generic_secondary_common_init:
@@ -492,6 +509,8 @@ SYM_FUNC_START_LOCAL(start_initialization_book3s)
 	/* Switch off MMU if not already off */
 	bl	__mmu_off
 
+	/* Now the MMU is off, can return to our PAGE_OFFSET address */
+	tovirt(r25,r25)
 	mtlr	r25
 	blr
 SYM_FUNC_END(start_initialization_book3s)
@@ -515,14 +534,8 @@ __start_initialization_multiplatform:
 	/* Zero r13 (paca) so early program check / mce don't use it */
 	li	r13,0
 
-	/* Get TOC pointer (current runtime address) */
-	bl	relative_toc
-
-	/* find out where we are now */
-	bcl	20,31,$+4
-0:	mflr	r26			/* r26 = runtime addr here */
-	addis	r26,r26,(_stext - 0b)@ha
-	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+	/* Poison TOC */
+	li	r2,-1
 
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
@@ -540,16 +553,41 @@ __start_initialization_multiplatform:
 	mr	r29,r9
 #endif
 
+	/* Get TOC pointer (current runtime address) */
+	bl	relative_toc
+
+	/* These functions return to the virtual (PAGE_OFFSET) address */
 #ifdef CONFIG_PPC_BOOK3E_64
 	bl	start_initialization_book3e
 #else
 	bl	start_initialization_book3s
 #endif /* CONFIG_PPC_BOOK3E_64 */
+
+	/* Get TOC pointer, virtual */
+	bl	relative_toc
+
+	/* find out where we are now */
+
+	/* OPAL doesn't pass base address in r4, have to derive it. */
+	bcl	20,31,$+4
+0:	mflr	r26			/* r26 = runtime addr here */
+	addis	r26,r26,(_stext - 0b)@ha
+	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+
 	b	__after_prom_start
 
 __REF
 __boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
+	/* Get TOC pointer, non-virtual */
+	bl	relative_toc
+
+	/* find out where we are now */
+	bcl	20,31,$+4
+0:	mflr	r26			/* r26 = runtime addr here */
+	addis	r26,r26,(_stext - 0b)@ha
+	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+
 	/* Save parameters */
 	mr	r31,r3
 	mr	r30,r4
@@ -579,7 +617,7 @@ __boot_from_prom:
 
 	/* Do all of the interaction with OF client interface */
 	mr	r8,r26
-	bl	prom_init
+	bl	CFUNC(prom_init)
 #endif /* #CONFIG_PPC_OF_BOOT_TRAMPOLINE */
 
 	/* We never return. We also hit that trap if trying to boot
@@ -590,18 +628,11 @@ __boot_from_prom:
 __after_prom_start:
 #ifdef CONFIG_RELOCATABLE
 	/* process relocations for the final address of the kernel */
-	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
-	sldi	r25,r25,32
-#if defined(CONFIG_PPC_BOOK3E_64)
-	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
-#endif
 	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
-#if defined(CONFIG_PPC_BOOK3E_64)
-	tophys(r26,r26)
-#endif
 	cmplwi	cr0,r7,1	/* flagged to stay where we are ? */
-	bne	1f
-	add	r25,r25,r26
+	mr	r25,r26		/* then use current kernel base */
+	beq	1f
+	LOAD_REG_IMMEDIATE(r25, PAGE_OFFSET) /* else use static kernel base */
 1:	mr	r3,r25
 	bl	relocate
 #if defined(CONFIG_PPC_BOOK3E_64)
@@ -617,14 +648,8 @@ __after_prom_start:
  *
  * Note: This process overwrites the OF exception vectors.
  */
-	li	r3,0			/* target addr */
-#ifdef CONFIG_PPC_BOOK3E_64
-	tovirt(r3,r3)		/* on booke, we already run at PAGE_OFFSET */
-#endif
+	LOAD_REG_IMMEDIATE(r3, PAGE_OFFSET)
 	mr.	r4,r26			/* In some cases the loader may  */
-#if defined(CONFIG_PPC_BOOK3E_64)
-	tovirt(r4,r4)
-#endif
 	beq	9f			/* have already put us at zero */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
@@ -635,9 +660,6 @@ __after_prom_start:
  * variable __run_at_load, if it is set the kernel is treated as relocatable
  * kernel, otherwise it will be moved to PHYSICAL_START
  */
-#if defined(CONFIG_PPC_BOOK3E_64)
-	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
-#endif
 	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
 	cmplwi	cr0,r7,1
 	bne	3f
@@ -756,9 +778,15 @@ _GLOBAL(pmac_secondary_start)
 	sync
 	slbia
 
-	/* get TOC pointer (real address) */
+	/* Branch to our PAGE_OFFSET address */
+	bcl	20,31,$+4
+1:	mflr	r11
+	addi	r11,r11,(2f - 1b)
+	tovirt(r11, r11)
+	mtctr	r11
+	bctr
+2:
 	bl	relative_toc
-	tovirt(r2,r2)
 
 	/* Copy some CPU settings from CPU 0 */
 	bl	__restore_cpu_ppc970
@@ -817,7 +845,7 @@ __secondary_start:
 	 * can turn it on below. This is a call to C, which is OK, we're still
 	 * running on the emergency stack.
 	 */
-	bl	early_setup_secondary
+	bl	CFUNC(early_setup_secondary)
 
 	/*
 	 * The primary has initialized our kernel stack for us in the paca, grab
@@ -856,7 +884,7 @@ start_secondary_prolog:
 	LOAD_PACA_TOC()
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
-	bl	start_secondary
+	bl	CFUNC(start_secondary)
 	b	.
 /*
  * Reset stack pointer and call start_secondary
@@ -867,7 +895,7 @@ _GLOBAL(start_secondary_resume)
 	ld	r1,PACAKSAVE(r13)	/* Reload kernel stack pointer */
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
-	bl	start_secondary
+	bl	CFUNC(start_secondary)
 	b	.
 #endif
 
@@ -897,10 +925,15 @@ SYM_FUNC_END(enable_64b_mode)
  * TOC in -mcmodel=medium mode. After we relocate to 0 but before
  * the MMU is on we need our TOC to be a virtual address otherwise
  * these pointers will be real addresses which may get stored and
- * accessed later with the MMU on. We use tovirt() at the call
- * sites to handle this.
+ * accessed later with the MMU on. We branch to the virtual address
+ * while still in real mode then call relative_toc again to handle
+ * this.
  */
 _GLOBAL(relative_toc)
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	tdnei	r2,-1
+	blr
+#else
 	mflr	r0
 	bcl	20,31,$+4
 0:	mflr	r11
@@ -911,15 +944,15 @@ _GLOBAL(relative_toc)
 
 .balign 8
 p_toc:	.8byte	.TOC. - 0b
+#endif
 
 /*
  * This is where the main kernel code starts.
  */
 __REF
 start_here_multiplatform:
-	/* set up the TOC */
-	bl      relative_toc
-	tovirt(r2,r2)
+	/* Adjust TOC for moved kernel. Could adjust when moving it instead. */
+	bl	relative_toc
 
 	/* Clear out the BSS. It may have been done in prom_init,
 	 * already but that's irrelevant since prom_init will soon
@@ -972,7 +1005,7 @@ start_here_multiplatform:
 	 */
 
 #ifdef CONFIG_KASAN
-	bl	kasan_early_init
+	bl	CFUNC(kasan_early_init)
 #endif
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
@@ -1005,7 +1038,7 @@ start_here_common:
 	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* Generic kernel entry */
-	bl	start_kernel
+	bl	CFUNC(start_kernel)
 
 	/* Not reached */
 0:	trap

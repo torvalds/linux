@@ -266,6 +266,17 @@ struct mt7921_phy {
 	bool roc_grant;
 };
 
+enum mt7921_eeprom_field {
+	MT_EE_CHIP_ID =		0x000,
+	MT_EE_VERSION =		0x002,
+	MT_EE_MAC_ADDR =	0x004,
+	MT_EE_WIFI_CONF =	0x07c,
+	MT_EE_HW_TYPE =		0x55b,
+	__MT_EE_MAX =		0x9ff
+};
+
+#define MT_EE_HW_TYPE_ENCAP			BIT(0)
+
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
 #define mt7921_dev_reset(dev)		((dev)->hif_ops->reset(dev))
 #define mt7921_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
@@ -287,7 +298,6 @@ struct mt7921_dev {
 
 	const struct mt76_bus_ops *bus_ops;
 	struct mt7921_phy phy;
-	struct tasklet_struct irq_tasklet;
 
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
@@ -391,13 +401,6 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
 int mt7921_mcu_set_rxfilter(struct mt7921_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
 
-static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
-{
-	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
-
-	tasklet_schedule(&dev->irq_tasklet);
-}
-
 static inline u32
 mt7921_reg_map_l1(struct mt7921_dev *dev, u32 addr)
 {
@@ -478,7 +481,6 @@ void mt7921_tx_token_put(struct mt7921_dev *dev);
 bool mt7921_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
-void mt7921_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 void mt7921_stats_work(struct work_struct *work);
 void mt7921_set_stream_he_caps(struct mt7921_phy *phy);
 void mt7921_update_channel(struct mt76_phy *mphy);
@@ -593,5 +595,6 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 		       enum mt7921_roc_req type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 			 u8 token_id);
-u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm);
+struct ieee80211_ops *mt7921_get_mac80211_ops(struct device *dev,
+					      void *drv_data, u8 *fw_features);
 #endif

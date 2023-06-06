@@ -174,7 +174,6 @@ struct meson_host {
 
 	int irq;
 
-	bool vqmmc_enabled;
 	bool needs_pre_post_req;
 
 	spinlock_t lock;
@@ -604,32 +603,18 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
-		if (!IS_ERR(mmc->supply.vmmc))
-			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
-
-		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled) {
-			regulator_disable(mmc->supply.vqmmc);
-			host->vqmmc_enabled = false;
-		}
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+		mmc_regulator_disable_vqmmc(mmc);
 
 		break;
 
 	case MMC_POWER_UP:
-		if (!IS_ERR(mmc->supply.vmmc))
-			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
+		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
 
 		break;
 
 	case MMC_POWER_ON:
-		if (!IS_ERR(mmc->supply.vqmmc) && !host->vqmmc_enabled) {
-			int ret = regulator_enable(mmc->supply.vqmmc);
-
-			if (ret < 0)
-				dev_err(host->dev,
-					"failed to enable vqmmc regulator\n");
-			else
-				host->vqmmc_enabled = true;
-		}
+		mmc_regulator_enable_vqmmc(mmc);
 
 		break;
 	}
@@ -1181,7 +1166,6 @@ static int meson_mmc_probe(struct platform_device *pdev)
 					"amlogic,dram-access-quirk");
 
 	/* Get regulators and the supported OCR mask */
-	host->vqmmc_enabled = false;
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
 		return ret;

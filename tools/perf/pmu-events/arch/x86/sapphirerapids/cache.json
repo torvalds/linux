@@ -97,18 +97,18 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_RQSTS.REFERENCES]",
+        "BriefDescription": "All accesses to L2 cache [This event is alias to L2_RQSTS.REFERENCES]",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.ALL",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.REFERENCES]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.REFERENCES]",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
     {
-        "BriefDescription": "Read requests with true-miss in L2 cache.[This event is alias to L2_RQSTS.MISS]",
+        "BriefDescription": "Read requests with true-miss in L2 cache. [This event is alias to L2_RQSTS.MISS]",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.MISS]",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
     },
@@ -199,18 +199,18 @@
         "UMask": "0x30"
     },
     {
-        "BriefDescription": "Read requests with true-miss in L2 cache.[This event is alias to L2_REQUEST.MISS]",
+        "BriefDescription": "Read requests with true-miss in L2 cache. [This event is alias to L2_REQUEST.MISS]",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.MISS]",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
     },
     {
-        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_REQUEST.ALL]",
+        "BriefDescription": "All accesses to L2 cache [This event is alias to L2_REQUEST.ALL]",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.ALL]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.ALL]",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -862,6 +862,14 @@
         "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "EventCode": "0x2c",
+        "EventName": "SQ_MISC.BUS_LOCK",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
     },
     {
         "BriefDescription": "Number of PREFETCHNTA instructions executed.",

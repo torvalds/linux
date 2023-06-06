@@ -224,7 +224,6 @@ struct ath11k_hw_params {
 	u32 tx_ring_size;
 	bool smp2p_wow_exit;
 	bool support_fw_mac_sequence;
-	bool ftm_responder;
 };
 
 struct ath11k_hw_ops {
@@ -264,7 +263,7 @@ struct ath11k_hw_ops {
 	struct rx_attention *(*rx_desc_get_attention)(struct hal_rx_desc *desc);
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
 	void (*reo_setup)(struct ath11k_base *ab);
-	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
+	u16 (*mpdu_info_get_peerid)(struct hal_rx_mpdu_info *mpdu_info);
 	bool (*rx_desc_mac_addr2_valid)(struct hal_rx_desc *desc);
 	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
 	u32 (*get_ring_selector)(struct sk_buff *skb);

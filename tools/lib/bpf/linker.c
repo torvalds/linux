@@ -1115,7 +1115,19 @@ static int extend_sec(struct bpf_linker *linker, struct dst_sec *dst, struct src
 
 	if (src->shdr->sh_type != SHT_NOBITS) {
 		tmp = realloc(dst->raw_data, dst_final_sz);
-		if (!tmp)
+		/* If dst_align_sz == 0, realloc() behaves in a special way:
+		 * 1. When dst->raw_data is NULL it returns:
+		 *    "either NULL or a pointer suitable to be passed to free()" [1].
+		 * 2. When dst->raw_data is not-NULL it frees dst->raw_data and returns NULL,
+		 *    thus invalidating any "pointer suitable to be passed to free()" obtained
+		 *    at step (1).
+		 *
+		 * The dst_align_sz > 0 check avoids error exit after (2), otherwise
+		 * dst->raw_data would be freed again in bpf_linker__free().
+		 *
+		 * [1] man 3 realloc
+		 */
+		if (!tmp && dst_align_sz > 0)
 			return -ENOMEM;
 		dst->raw_data = tmp;
 

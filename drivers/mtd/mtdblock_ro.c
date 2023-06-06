@@ -16,8 +16,10 @@ static int mtdblock_readsect(struct mtd_blktrans_dev *dev,
 			      unsigned long block, char *buf)
 {
 	size_t retlen;
+	int err;
 
-	if (mtd_read(dev->mtd, (block * 512), 512, &retlen, buf))
+	err = mtd_read(dev->mtd, (block * 512), 512, &retlen, buf);
+	if (err && !mtd_is_bitflip(err))
 		return 1;
 	return 0;
 }

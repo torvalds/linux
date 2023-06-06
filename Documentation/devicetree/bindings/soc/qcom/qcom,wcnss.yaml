@@ -20,7 +20,7 @@ properties:
 
   firmware-name:
     $ref: /schemas/types.yaml#/definitions/string
-    default: "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+    default: wlan/prima/WCNSS_qcom_wlan_nv.bin
     description:
       Relative firmware image path for the WLAN NV blob.
 

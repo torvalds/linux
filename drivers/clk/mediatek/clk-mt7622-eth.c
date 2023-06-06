@@ -16,14 +16,8 @@
 
 #include <dt-bindings/clock/mt7622-clk.h>
 
-#define GATE_ETH(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &eth_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_ETH(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate_regs eth_cg_regs = {
 	.set_ofs = 0x30,
@@ -45,14 +39,8 @@ static const struct mtk_gate_regs sgmii_cg_regs = {
 	.sta_ofs = 0xE4,
 };
 
-#define GATE_SGMII(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &sgmii_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_SGMII(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &sgmii_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate sgmii_clks[] = {
 	GATE_SGMII(CLK_SGMII_TX250M_EN, "sgmii_tx250m_en",
@@ -89,6 +77,7 @@ static const struct of_device_id of_match_clk_mt7622_eth[] = {
 	{ .compatible = "mediatek,mt7622-sgmiisys", .data = &sgmii_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_eth);
 
 static struct platform_driver clk_mt7622_eth_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -98,5 +87,5 @@ static struct platform_driver clk_mt7622_eth_drv = {
 		.of_match_table = of_match_clk_mt7622_eth,
 	},
 };
-
-builtin_platform_driver(clk_mt7622_eth_drv);
+module_platform_driver(clk_mt7622_eth_drv);
+MODULE_LICENSE("GPL");

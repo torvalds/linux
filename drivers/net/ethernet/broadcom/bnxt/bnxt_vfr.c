@@ -356,10 +356,15 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 	/* un-publish cfa_code_map so that RX path can't see it anymore */
 	kfree(bp->cfa_code_map);
 	bp->cfa_code_map = NULL;
-	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 
-	if (closed)
+	if (closed) {
+		/* Temporarily set legacy mode to avoid re-opening
+		 * representors and restore switchdev mode after that.
+		 */
+		bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 		bnxt_open_nic(bp, false, false);
+		bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
+	}
 	rtnl_unlock();
 
 	/* Need to call vf_reps_destroy() outside of rntl_lock
@@ -482,7 +487,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	dev->min_mtu = ETH_ZLEN;
 }
 
-static int bnxt_vf_reps_create(struct bnxt *bp)
+int bnxt_vf_reps_create(struct bnxt *bp)
 {
 	u16 *cfa_code_map = NULL, num_vfs = pci_num_vf(bp->pdev);
 	struct bnxt_vf_rep *vf_rep;
@@ -535,7 +540,6 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 
 	/* publish cfa_code_map only after all VF-reps have been initialized */
 	bp->cfa_code_map = cfa_code_map;
-	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
 	netif_keep_dst(bp->dev);
 	return 0;
 
@@ -559,6 +563,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
+	int ret = 0;
 
 	if (bp->eswitch_mode == mode) {
 		netdev_info(bp->dev, "already in %s eswitch mode\n",
@@ -570,7 +575,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	switch (mode) {
 	case DEVLINK_ESWITCH_MODE_LEGACY:
 		bnxt_vf_reps_destroy(bp);
-		return 0;
+		break;
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (bp->hwrm_spec_code < 0x10803) {
@@ -578,15 +583,19 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 			return -ENOTSUPP;
 		}
 
-		if (pci_num_vf(bp->pdev) == 0) {
-			netdev_info(bp->dev, "Enable VFs before setting switchdev mode\n");
-			return -EPERM;
-		}
-		return bnxt_vf_reps_create(bp);
+		/* Create representors for existing VFs */
+		if (pci_num_vf(bp->pdev) > 0)
+			ret = bnxt_vf_reps_create(bp);
+		break;
 
 	default:
 		return -EINVAL;
 	}
+
+	if (!ret)
+		bp->eswitch_mode = mode;
+
+	return ret;
 }
 
 #endif

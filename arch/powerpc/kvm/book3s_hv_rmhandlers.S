@@ -381,7 +381,7 @@ kvm_secondary_got_guest:
 	bne	kvm_no_guest
 
 	li	r3,0			/* NULL argument */
-	bl	hmi_exception_realmode
+	bl	CFUNC(hmi_exception_realmode)
 /*
  * At this point we have finished executing in the guest.
  * We need to wait for hwthread_req to become zero, since
@@ -458,7 +458,7 @@ kvm_unsplit_nap:
 	cmpwi	r12, BOOK3S_INTERRUPT_HMI
 	bne	55f
 	li	r3, 0			/* NULL argument */
-	bl	hmi_exception_realmode
+	bl	CFUNC(hmi_exception_realmode)
 55:
 	/*
 	 * Ensure that secondary doesn't nap when it has
@@ -502,8 +502,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *                                                                            *
  *****************************************************************************/
 
-.global kvmppc_hv_entry
-kvmppc_hv_entry:
+SYM_CODE_START_LOCAL(kvmppc_hv_entry)
 
 	/* Required state:
 	 *
@@ -859,7 +858,7 @@ deliver_guest_interrupt:	/* r4 = vcpu, r13 = paca */
 	cmpdi	r0, 0
 	beq	71f
 	mr	r3, r4
-	bl	kvmppc_guest_entry_inject_int
+	bl	CFUNC(kvmppc_guest_entry_inject_int)
 	ld	r4, HSTATE_KVM_VCPU(r13)
 71:
 	ld	r6, VCPU_SRR0(r4)
@@ -940,6 +939,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r4, VCPU_GPR(R4)(r4)
 	HRFI_TO_GUEST
 	b	.
+SYM_CODE_END(kvmppc_hv_entry)
 
 secondary_too_late:
 	li	r12, 0
@@ -1071,11 +1071,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	/* Save HEIR (HV emulation assist reg) in emul_inst
 	   if this is an HEI (HV emulation interrupt, e40) */
 	li	r3,KVM_INST_FETCH_FAILED
-	stw	r3,VCPU_LAST_INST(r9)
+	std	r3,VCPU_LAST_INST(r9)
 	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
 	bne	11f
 	mfspr	r3,SPRN_HEIR
-11:	stw	r3,VCPU_HEIR(r9)
+11:	std	r3,VCPU_HEIR(r9)
 
 	/* these are volatile across C function calls */
 	mfctr	r3
@@ -1544,7 +1544,7 @@ kvmppc_guest_external:
 	/* External interrupt, first check for host_ipi. If this is
 	 * set, we know the host wants us out so let's do it now
 	 */
-	bl	kvmppc_read_intr
+	bl	CFUNC(kvmppc_read_intr)
 
 	/*
 	 * Restore the active volatile registers after returning from
@@ -1626,7 +1626,7 @@ kvmppc_hdsi:
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
 	li	r7, 1			/* data fault */
-	bl	kvmppc_hpte_hv_fault
+	bl	CFUNC(kvmppc_hpte_hv_fault)
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_PC(r9)
 	ld	r11, VCPU_MSR(r9)
@@ -1676,7 +1676,7 @@ fast_interrupt_c_return:
 	mtmsrd	r3
 
 	/* Store the result */
-	stw	r8, VCPU_LAST_INST(r9)
+	std	r8, VCPU_LAST_INST(r9)
 
 	/* Unset guest mode. */
 	li	r0, KVM_GUEST_MODE_HOST_HV
@@ -1702,7 +1702,7 @@ kvmppc_hisi:
 	mr	r4, r10
 	mr	r6, r11
 	li	r7, 0			/* instruction fault */
-	bl	kvmppc_hpte_hv_fault
+	bl	CFUNC(kvmppc_hpte_hv_fault)
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_PC(r9)
 	ld	r11, VCPU_MSR(r9)
@@ -2342,7 +2342,7 @@ hmi_realmode:
 	lbz	r0, HSTATE_PTID(r13)
 	cmpwi	r0, 0
 	bne	guest_exit_cont
-	bl	kvmppc_realmode_hmi_handler
+	bl	CFUNC(kvmppc_realmode_hmi_handler)
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_HMI
 	b	guest_exit_cont
@@ -2413,7 +2413,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 7:	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -PPC_MIN_STKFRM(r1)
-	bl	kvmppc_read_intr
+	bl	CFUNC(kvmppc_read_intr)
 	nop
 	li	r12, BOOK3S_INTERRUPT_EXTERNAL
 	cmpdi	r3, 1

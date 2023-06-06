@@ -53,6 +53,7 @@ int test_ringbuf_mem_map_key(void *ctx)
 	/* test using 'sample' (PTR_TO_MEM | MEM_ALLOC) as map key arg
 	 */
 	lookup_val = (int *)bpf_map_lookup_elem(&hash_map, sample);
+	__sink(lookup_val);
 
 	/* workaround - memcpy is necessary so that verifier doesn't
 	 * complain with:

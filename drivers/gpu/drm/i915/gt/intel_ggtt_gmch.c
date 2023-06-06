@@ -102,6 +102,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.insert_page = gmch_ggtt_insert_page;
 	ggtt->vm.insert_entries = gmch_ggtt_insert_entries;
 	ggtt->vm.clear_range = gmch_ggtt_clear_range;
+	ggtt->vm.scratch_range = gmch_ggtt_clear_range;
 	ggtt->vm.cleanup = gmch_ggtt_remove;
 
 	ggtt->invalidate = gmch_ggtt_invalidate;

@@ -85,7 +85,7 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 	 */
 	if (sdata->hw_irq_trigger &&
 	    st_sensors_new_samples_available(indio_dev, sdata)) {
-		iio_trigger_poll_chained(p);
+		iio_trigger_poll_nested(p);
 	} else {
 		dev_dbg(indio_dev->dev.parent, "spurious IRQ\n");
 		return IRQ_NONE;
@@ -110,7 +110,7 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 		dev_dbg(indio_dev->dev.parent,
 			"more samples came in during polling\n");
 		sdata->hw_timestamp = iio_get_time_ns(indio_dev);
-		iio_trigger_poll_chained(p);
+		iio_trigger_poll_nested(p);
 	}
 
 	return IRQ_HANDLED;

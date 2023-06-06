@@ -1134,7 +1134,7 @@ static void cmpc_exit(void)
 module_init(cmpc_init);
 module_exit(cmpc_exit);
 
-static const struct acpi_device_id cmpc_device_ids[] = {
+static const struct acpi_device_id cmpc_device_ids[] __maybe_unused = {
 	{CMPC_ACCEL_HID, 0},
 	{CMPC_ACCEL_HID_V4, 0},
 	{CMPC_TABLET_HID, 0},

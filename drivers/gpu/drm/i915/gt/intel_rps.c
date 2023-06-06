@@ -1677,7 +1677,6 @@ static void vlv_init_gpll_ref_freq(struct intel_rps *rps)
 static void vlv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	u32 val;
 
 	vlv_iosf_sb_get(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1685,21 +1684,6 @@ static void vlv_rps_init(struct intel_rps *rps)
 			BIT(VLV_IOSF_SB_CCK));
 
 	vlv_init_gpll_ref_freq(rps);
-
-	val = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
-	switch ((val >> 6) & 3) {
-	case 0:
-	case 1:
-		i915->mem_freq = 800;
-		break;
-	case 2:
-		i915->mem_freq = 1066;
-		break;
-	case 3:
-		i915->mem_freq = 1333;
-		break;
-	}
-	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = vlv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -1727,7 +1711,6 @@ static void vlv_rps_init(struct intel_rps *rps)
 static void chv_rps_init(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	u32 val;
 
 	vlv_iosf_sb_get(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1735,18 +1718,6 @@ static void chv_rps_init(struct intel_rps *rps)
 			BIT(VLV_IOSF_SB_CCK));
 
 	vlv_init_gpll_ref_freq(rps);
-
-	val = vlv_cck_read(i915, CCK_FUSE_REG);
-
-	switch ((val >> 2) & 0x7) {
-	case 3:
-		i915->mem_freq = 2000;
-		break;
-	default:
-		i915->mem_freq = 1600;
-		break;
-	}
-	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = chv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
@@ -2075,16 +2046,6 @@ void intel_rps_sanitize(struct intel_rps *rps)
 		rps_disable_interrupts(rps);
 }
 
-u32 intel_rps_read_rpstat_fw(struct intel_rps *rps)
-{
-	struct drm_i915_private *i915 = rps_to_i915(rps);
-	i915_reg_t rpstat;
-
-	rpstat = (GRAPHICS_VER(i915) >= 12) ? GEN12_RPSTAT1 : GEN6_RPSTAT1;
-
-	return intel_uncore_read_fw(rps_to_gt(rps)->uncore, rpstat);
-}
-
 u32 intel_rps_read_rpstat(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
@@ -2095,7 +2056,7 @@ u32 intel_rps_read_rpstat(struct intel_rps *rps)
 	return intel_uncore_read(rps_to_gt(rps)->uncore, rpstat);
 }
 
-u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
+static u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	u32 cagf;
@@ -2118,10 +2079,11 @@ u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
 	return cagf;
 }
 
-static u32 read_cagf(struct intel_rps *rps)
+static u32 __read_cagf(struct intel_rps *rps, bool take_fw)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
+	i915_reg_t r = INVALID_MMIO_REG;
 	u32 freq;
 
 	/*
@@ -2129,20 +2091,28 @@ static u32 read_cagf(struct intel_rps *rps)
 	 * registers will return 0 freq when GT is in RC6
 	 */
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70)) {
-		freq = intel_uncore_read(uncore, MTL_MIRROR_TARGET_WP1);
+		r = MTL_MIRROR_TARGET_WP1;
 	} else if (GRAPHICS_VER(i915) >= 12) {
-		freq = intel_uncore_read(uncore, GEN12_RPSTAT1);
+		r = GEN12_RPSTAT1;
 	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
 		vlv_punit_get(i915);
 		freq = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
 		vlv_punit_put(i915);
 	} else if (GRAPHICS_VER(i915) >= 6) {
-		freq = intel_uncore_read(uncore, GEN6_RPSTAT1);
+		r = GEN6_RPSTAT1;
 	} else {
-		freq = intel_uncore_read(uncore, MEMSTAT_ILK);
+		r = MEMSTAT_ILK;
 	}
 
+	if (i915_mmio_reg_valid(r))
+		freq = take_fw ? intel_uncore_read(uncore, r) : intel_uncore_read_fw(uncore, r);
+
 	return intel_rps_get_cagf(rps, freq);
+}
+
+static u32 read_cagf(struct intel_rps *rps)
+{
+	return __read_cagf(rps, true);
 }
 
 u32 intel_rps_read_actual_frequency(struct intel_rps *rps)
@@ -2157,7 +2127,12 @@ u32 intel_rps_read_actual_frequency(struct intel_rps *rps)
 	return freq;
 }
 
-u32 intel_rps_read_punit_req(struct intel_rps *rps)
+u32 intel_rps_read_actual_frequency_fw(struct intel_rps *rps)
+{
+	return intel_gpu_freq(rps, __read_cagf(rps, false));
+}
+
+static u32 intel_rps_read_punit_req(struct intel_rps *rps)
 {
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	struct intel_runtime_pm *rpm = rps_to_uncore(rps)->rpm;
@@ -2671,7 +2646,7 @@ bool rps_read_mask_mmio(struct intel_rps *rps,
 
 static struct drm_i915_private __rcu *ips_mchdev;
 
-/**
+/*
  * Tells the intel_ips driver that the i915 driver is now loaded, if
  * IPS got loaded first.
  *

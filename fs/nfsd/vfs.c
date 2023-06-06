@@ -930,6 +930,9 @@ nfsd_open_verified(struct svc_rqst *rqstp, struct svc_fh *fhp, int may_flags,
  * Grab and keep cached pages associated with a file in the svc_rqst
  * so that they can be passed to the network sendmsg/sendpage routines
  * directly. They will be released after the sending has completed.
+ *
+ * Return values: Number of bytes consumed, or -EIO if there are no
+ * remaining pages in rqstp->rq_pages.
  */
 static int
 nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
@@ -941,8 +944,16 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct page *last_page;
 
 	last_page = page + (offset + sd->len - 1) / PAGE_SIZE;
-	for (page += offset / PAGE_SIZE; page <= last_page; page++)
-		svc_rqst_replace_page(rqstp, page);
+	for (page += offset / PAGE_SIZE; page <= last_page; page++) {
+		/*
+		 * Skip page replacement when extending the contents
+		 * of the current page.
+		 */
+		if (page == *(rqstp->rq_next_page - 1))
+			continue;
+		if (unlikely(!svc_rqst_replace_page(rqstp, page)))
+			return -EIO;
+	}
 	if (rqstp->rq_res.page_len == 0)	// first call
 		rqstp->rq_res.page_base = offset % PAGE_SIZE;
 	rqstp->rq_res.page_len += sd->len;
@@ -2157,7 +2168,7 @@ nfsd_getxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name,
 		goto out;
 	}
 
-	buf = kvmalloc(len, GFP_KERNEL | GFP_NOFS);
+	buf = kvmalloc(len, GFP_KERNEL);
 	if (buf == NULL) {
 		err = nfserr_jukebox;
 		goto out;
@@ -2220,10 +2231,7 @@ nfsd_listxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char **bufp,
 		goto out;
 	}
 
-	/*
-	 * We're holding i_rwsem - use GFP_NOFS.
-	 */
-	buf = kvmalloc(len, GFP_KERNEL | GFP_NOFS);
+	buf = kvmalloc(len, GFP_KERNEL);
 	if (buf == NULL) {
 		err = nfserr_jukebox;
 		goto out;

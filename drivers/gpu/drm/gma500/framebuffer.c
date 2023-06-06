@@ -5,156 +5,16 @@
  *
  **************************************************************************/
 
-#include <linux/console.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/pfn_t.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/tty.h>
-
-#include <drm/drm.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
 
 #include "framebuffer.h"
-#include "gem.h"
 #include "psb_drv.h"
-#include "psb_intel_drv.h"
-#include "psb_intel_reg.h"
 
 static const struct drm_framebuffer_funcs psb_fb_funcs = {
 	.destroy = drm_gem_fb_destroy,
 	.create_handle = drm_gem_fb_create_handle,
-};
-
-#define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
-
-static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-			   unsigned blue, unsigned transp,
-			   struct fb_info *info)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-	uint32_t v;
-
-	if (!fb)
-		return -ENOMEM;
-
-	if (regno > 255)
-		return 1;
-
-	red = CMAP_TOHW(red, info->var.red.length);
-	blue = CMAP_TOHW(blue, info->var.blue.length);
-	green = CMAP_TOHW(green, info->var.green.length);
-	transp = CMAP_TOHW(transp, info->var.transp.length);
-
-	v = (red << info->var.red.offset) |
-	    (green << info->var.green.offset) |
-	    (blue << info->var.blue.offset) |
-	    (transp << info->var.transp.offset);
-
-	if (regno < 16) {
-		switch (fb->format->cpp[0] * 8) {
-		case 16:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
-			break;
-		case 24:
-		case 32:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
-			break;
-		}
-	}
-
-	return 0;
-}
-
-static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct drm_framebuffer *fb = vma->vm_private_data;
-	struct drm_device *dev = fb->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct psb_gem_object *pobj = to_psb_gem_object(fb->obj[0]);
-	int page_num;
-	int i;
-	unsigned long address;
-	vm_fault_t ret = VM_FAULT_SIGBUS;
-	unsigned long pfn;
-	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base + pobj->offset;
-
-	page_num = vma_pages(vma);
-	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	for (i = 0; i < page_num; i++) {
-		pfn = (phys_addr >> PAGE_SHIFT);
-
-		ret = vmf_insert_mixed(vma, address,
-				__pfn_to_pfn_t(pfn, PFN_DEV));
-		if (unlikely(ret & VM_FAULT_ERROR))
-			break;
-		address += PAGE_SIZE;
-		phys_addr += PAGE_SIZE;
-	}
-	return ret;
-}
-
-static void psbfb_vm_open(struct vm_area_struct *vma)
-{
-}
-
-static void psbfb_vm_close(struct vm_area_struct *vma)
-{
-}
-
-static const struct vm_operations_struct psbfb_vm_ops = {
-	.fault	= psbfb_vm_fault,
-	.open	= psbfb_vm_open,
-	.close	= psbfb_vm_close
-};
-
-static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-
-	if (vma->vm_pgoff != 0)
-		return -EINVAL;
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-
-	/*
-	 * If this is a GEM object then info->screen_base is the virtual
-	 * kernel remapping of the object. FIXME: Review if this is
-	 * suitable for our mmap work
-	 */
-	vma->vm_ops = &psbfb_vm_ops;
-	vma->vm_private_data = (void *)fb;
-	vm_flags_set(vma, VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP);
-	return 0;
-}
-
-static const struct fb_ops psbfb_unaccel_ops = {
-	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_setcolreg = psbfb_setcolreg,
-	.fb_read = drm_fb_helper_cfb_read,
-	.fb_write = drm_fb_helper_cfb_write,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = drm_fb_helper_cfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_mmap = psbfb_mmap,
 };
 
 /**
@@ -207,11 +67,9 @@ static int psb_framebuffer_init(struct drm_device *dev,
  *
  *	TODO: review object references
  */
-
-static struct drm_framebuffer *psb_framebuffer_create
-			(struct drm_device *dev,
-			 const struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct drm_gem_object *obj)
+struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
+					       const struct drm_mode_fb_cmd2 *mode_cmd,
+					       struct drm_gem_object *obj)
 {
 	struct drm_framebuffer *fb;
 	int ret;
@@ -226,93 +84,6 @@ static struct drm_framebuffer *psb_framebuffer_create
 		return ERR_PTR(ret);
 	}
 	return fb;
-}
-
-/**
- *	psbfb_create		-	create a framebuffer
- *	@fb_helper: the framebuffer helper
- *	@sizes: specification of the layout
- *
- *	Create a framebuffer to the specifications provided
- */
-static int psbfb_create(struct drm_fb_helper *fb_helper,
-				struct drm_fb_helper_surface_size *sizes)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct fb_info *info;
-	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd;
-	int size;
-	int ret;
-	struct psb_gem_object *backing;
-	struct drm_gem_object *obj;
-	u32 bpp, depth;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-	bpp = sizes->surface_bpp;
-	depth = sizes->surface_depth;
-
-	/* No 24bit packed */
-	if (bpp == 24)
-		bpp = 32;
-
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * DIV_ROUND_UP(bpp, 8), 64);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
-
-	/* Allocate the framebuffer in the GTT with stolen page backing */
-	backing = psb_gem_create(dev, size, "fb", true, PAGE_SIZE);
-	if (IS_ERR(backing))
-		return PTR_ERR(backing);
-	obj = &backing->base;
-
-	memset(dev_priv->vram_addr + backing->offset, 0, size);
-
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_drm_gem_object_put;
-	}
-
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
-
-	fb = psb_framebuffer_create(dev, &mode_cmd, obj);
-	if (IS_ERR(fb)) {
-		ret = PTR_ERR(fb);
-		goto err_drm_gem_object_put;
-	}
-
-	fb_helper->fb = fb;
-
-	info->fbops = &psbfb_unaccel_ops;
-
-	info->fix.smem_start = dev_priv->fb_base;
-	info->fix.smem_len = size;
-	info->fix.ywrapstep = 0;
-	info->fix.ypanstep = 0;
-
-	/* Accessed stolen memory directly */
-	info->screen_base = dev_priv->vram_addr + backing->offset;
-	info->screen_size = size;
-
-	drm_fb_helper_fill_info(info, fb_helper, sizes);
-
-	info->fix.mmio_start = pci_resource_start(pdev, 0);
-	info->fix.mmio_len = pci_resource_len(pdev, 0);
-
-	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
-
-	dev_dbg(dev->dev, "allocated %dx%d fb\n", fb->width, fb->height);
-
-	return 0;
-
-err_drm_gem_object_put:
-	drm_gem_object_put(obj);
-	return ret;
 }
 
 /**
@@ -346,108 +117,8 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	return fb;
 }
 
-static int psbfb_probe(struct drm_fb_helper *fb_helper,
-				struct drm_fb_helper_surface_size *sizes)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	unsigned int fb_size;
-	int bytespp;
-
-	bytespp = sizes->surface_bpp / 8;
-	if (bytespp == 3)	/* no 24bit packed */
-		bytespp = 4;
-
-	/* If the mode will not fit in 32bit then switch to 16bit to get
-	   a console on full resolution. The X mode setting server will
-	   allocate its own 32bit GEM framebuffer */
-	fb_size = ALIGN(sizes->surface_width * bytespp, 64) *
-		  sizes->surface_height;
-	fb_size = ALIGN(fb_size, PAGE_SIZE);
-
-	if (fb_size > dev_priv->vram_stolen_size) {
-                sizes->surface_bpp = 16;
-                sizes->surface_depth = 16;
-        }
-
-	return psbfb_create(fb_helper, sizes);
-}
-
-static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
-	.fb_probe = psbfb_probe,
-};
-
-static int psb_fbdev_destroy(struct drm_device *dev,
-			     struct drm_fb_helper *fb_helper)
-{
-	struct drm_framebuffer *fb = fb_helper->fb;
-
-	drm_fb_helper_unregister_info(fb_helper);
-
-	drm_fb_helper_fini(fb_helper);
-	drm_framebuffer_unregister_private(fb);
-	drm_framebuffer_cleanup(fb);
-
-	if (fb->obj[0])
-		drm_gem_object_put(fb->obj[0]);
-	kfree(fb);
-
-	return 0;
-}
-
-int psb_fbdev_init(struct drm_device *dev)
-{
-	struct drm_fb_helper *fb_helper;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-
-	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
-	if (!fb_helper) {
-		dev_err(dev->dev, "no memory\n");
-		return -ENOMEM;
-	}
-
-	dev_priv->fb_helper = fb_helper;
-
-	drm_fb_helper_prepare(dev, fb_helper, 32, &psb_fb_helper_funcs);
-
-	ret = drm_fb_helper_init(dev, fb_helper);
-	if (ret)
-		goto free;
-
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
-
-	ret = drm_fb_helper_initial_config(fb_helper);
-	if (ret)
-		goto fini;
-
-	return 0;
-
-fini:
-	drm_fb_helper_fini(fb_helper);
-free:
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
-	return ret;
-}
-
-static void psb_fbdev_fini(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-
-	if (!dev_priv->fb_helper)
-		return;
-
-	psb_fbdev_destroy(dev, dev_priv->fb_helper);
-	drm_fb_helper_unprepare(dev_priv->fb_helper);
-	kfree(dev_priv->fb_helper);
-	dev_priv->fb_helper = NULL;
-}
-
 static const struct drm_mode_config_funcs psb_mode_funcs = {
 	.fb_create = psb_user_framebuffer_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 static void psb_setup_outputs(struct drm_device *dev)
@@ -515,7 +186,6 @@ void psb_modeset_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int i;
 
 	if (drmm_mode_config_init(dev))
@@ -525,10 +195,6 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = &psb_mode_funcs;
-
-	/* set memory base */
-	/* Oaktrail and Poulsbo should use BAR 2*/
-	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev_priv->fb_base));
 
 	/* num pipes is 2 for PSB but 1 for Mrst */
 	for (i = 0; i < dev_priv->num_pipe; i++)
@@ -550,6 +216,5 @@ void psb_modeset_cleanup(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	if (dev_priv->modeset) {
 		drm_kms_helper_poll_fini(dev);
-		psb_fbdev_fini(dev);
 	}
 }

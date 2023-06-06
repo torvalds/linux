@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2021 VMware, Inc.
+ * Copyright 2021-2023 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -24,31 +24,17 @@
  *
  */
 
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 
 #include "drm/drm_prime.h"
 #include "drm/drm_gem_ttm_helper.h"
 
-/**
- * vmw_buffer_object - Convert a struct ttm_buffer_object to a struct
- * vmw_buffer_object.
- *
- * @bo: Pointer to the TTM buffer object.
- * Return: Pointer to the struct vmw_buffer_object embedding the
- * TTM buffer object.
- */
-static struct vmw_buffer_object *
-vmw_buffer_object(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct vmw_buffer_object, base);
-}
-
 static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gobj);
-	if (bo) {
+	if (bo)
 		ttm_bo_put(bo);
-	}
 }
 
 static int vmw_gem_object_open(struct drm_gem_object *obj,
@@ -65,7 +51,7 @@ static void vmw_gem_object_close(struct drm_gem_object *obj,
 static int vmw_gem_pin_private(struct drm_gem_object *obj, bool do_pin)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(obj);
-	struct vmw_buffer_object *vbo = vmw_buffer_object(bo);
+	struct vmw_bo *vbo = to_vmw_bo(obj);
 	int ret;
 
 	ret = ttm_bo_reserve(bo, false, false, NULL);
@@ -103,6 +89,13 @@ static struct sg_table *vmw_gem_object_get_sg_table(struct drm_gem_object *obj)
 	return drm_prime_pages_to_sg(obj->dev, vmw_tt->dma_ttm.pages, vmw_tt->dma_ttm.num_pages);
 }
 
+static const struct vm_operations_struct vmw_vm_ops = {
+	.pfn_mkwrite = vmw_bo_vm_mkwrite,
+	.page_mkwrite = vmw_bo_vm_mkwrite,
+	.fault = vmw_bo_vm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+};
 
 static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.free = vmw_gem_object_free,
@@ -115,43 +108,31 @@ static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.vmap = drm_gem_ttm_vmap,
 	.vunmap = drm_gem_ttm_vunmap,
 	.mmap = drm_gem_ttm_mmap,
+	.vm_ops = &vmw_vm_ops,
 };
-
-/**
- * vmw_gem_destroy - vmw buffer object destructor
- *
- * @bo: Pointer to the embedded struct ttm_buffer_object
- */
-void vmw_gem_destroy(struct ttm_buffer_object *bo)
-{
-	struct vmw_buffer_object *vbo = vmw_buffer_object(bo);
-
-	WARN_ON(vbo->dirty);
-	WARN_ON(!RB_EMPTY_ROOT(&vbo->res_tree));
-	vmw_bo_unmap(vbo);
-	drm_gem_object_release(&vbo->base.base);
-	kfree(vbo);
-}
 
 int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
 				      uint32_t size,
 				      uint32_t *handle,
-				      struct vmw_buffer_object **p_vbo)
+				      struct vmw_bo **p_vbo)
 {
 	int ret;
+	struct vmw_bo_params params = {
+		.domain = (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
+		.bo_type = ttm_bo_type_device,
+		.size = size,
+		.pin = false
+	};
 
-	ret = vmw_bo_create(dev_priv, size,
-			    (dev_priv->has_mob) ?
-				    &vmw_sys_placement :
-				    &vmw_vram_sys_placement,
-			    true, false, &vmw_gem_destroy, p_vbo);
+	ret = vmw_bo_create(dev_priv, &params, p_vbo);
 	if (ret != 0)
 		goto out_no_bo;
 
-	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
+	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
 
-	ret = drm_gem_handle_create(filp, &(*p_vbo)->base.base, handle);
+	ret = drm_gem_handle_create(filp, &(*p_vbo)->tbo.base, handle);
 out_no_bo:
 	return ret;
 }
@@ -165,7 +146,7 @@ int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 	    (union drm_vmw_alloc_dmabuf_arg *)data;
 	struct drm_vmw_alloc_dmabuf_req *req = &arg->req;
 	struct drm_vmw_dmabuf_rep *rep = &arg->rep;
-	struct vmw_buffer_object *vbo;
+	struct vmw_bo *vbo;
 	uint32_t handle;
 	int ret;
 
@@ -175,23 +156,23 @@ int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 		goto out_no_bo;
 
 	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.base.vma_node);
+	rep->map_handle = drm_vma_node_offset_addr(&vbo->tbo.base.vma_node);
 	rep->cur_gmr_id = handle;
 	rep->cur_gmr_offset = 0;
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put(&vbo->base.base);
+	drm_gem_object_put(&vbo->tbo.base);
 out_no_bo:
 	return ret;
 }
 
 #if defined(CONFIG_DEBUG_FS)
 
-static void vmw_bo_print_info(int id, struct vmw_buffer_object *bo, struct seq_file *m)
+static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 {
 	const char *placement;
 	const char *type;
 
-	switch (bo->base.resource->mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_SYSTEM:
 		placement = " CPU";
 		break;
@@ -212,7 +193,7 @@ static void vmw_bo_print_info(int id, struct vmw_buffer_object *bo, struct seq_f
 		break;
 	}
 
-	switch (bo->base.type) {
+	switch (bo->tbo.type) {
 	case ttm_bo_type_device:
 		type = "device";
 		break;
@@ -228,12 +209,12 @@ static void vmw_bo_print_info(int id, struct vmw_buffer_object *bo, struct seq_f
 	}
 
 	seq_printf(m, "\t\t0x%08x: %12zu bytes %s, type = %s",
-		   id, bo->base.base.size, placement, type);
+		   id, bo->tbo.base.size, placement, type);
 	seq_printf(m, ", priority = %u, pin_count = %u, GEM refs = %d, TTM refs = %d",
-		   bo->base.priority,
-		   bo->base.pin_count,
-		   kref_read(&bo->base.base.refcount),
-		   kref_read(&bo->base.kref));
+		   bo->tbo.priority,
+		   bo->tbo.pin_count,
+		   kref_read(&bo->tbo.base.refcount),
+		   kref_read(&bo->tbo.kref));
 	seq_puts(m, "\n");
 }
 
@@ -260,14 +241,14 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_PID);
+		task = pid_task(file->pid, PIDTYPE_TGID);
 		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
 			   task ? task->comm : "<unknown>");
 		rcu_read_unlock();
 
 		spin_lock(&file->table_lock);
 		idr_for_each_entry(&file->object_idr, gobj, id) {
-			struct vmw_buffer_object *bo = gem_to_vmw_bo(gobj);
+			struct vmw_bo *bo = to_vmw_bo(gobj);
 
 			vmw_bo_print_info(id, bo, m);
 		}

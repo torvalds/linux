@@ -21,19 +21,19 @@ properties:
   wlf,ldoena:
     description:
       GPIO specifier for the GPIO controlling LDOENA.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
 
   ldo1:
     description:
       Initial data for the LDO1 regulator.
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     type: object
 
   micvdd:
     description:
       Initial data for the MICVDD regulator.
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     type: object
 
 additionalProperties: true

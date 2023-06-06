@@ -531,12 +531,10 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_offline_cpu);
 
-void hisi_pmu_init(struct hisi_pmu *hisi_pmu, const char *name,
-		   struct module *module)
+void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 {
 	struct pmu *pmu = &hisi_pmu->pmu;
 
-	pmu->name               = name;
 	pmu->module             = module;
 	pmu->task_ctx_nr        = perf_invalid_context;
 	pmu->event_init         = hisi_uncore_pmu_event_init;

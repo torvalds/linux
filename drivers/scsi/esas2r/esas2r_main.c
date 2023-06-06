@@ -231,7 +231,7 @@ struct bin_attribute bin_attr_default_nvram = {
 	.write	= NULL
 };
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module				= THIS_MODULE,
 	.show_info			= esas2r_show_info,
 	.name				= ESAS2R_LONGNAME,

@@ -2087,10 +2087,8 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	 * Mark it private if we're creating the privroot
 	 * or something under it.
 	 */
-	if (IS_PRIVATE(dir) || dentry == REISERFS_SB(sb)->priv_root) {
-		inode->i_flags |= S_PRIVATE;
-		inode->i_opflags &= ~IOP_XATTR;
-	}
+	if (IS_PRIVATE(dir) || dentry == REISERFS_SB(sb)->priv_root)
+		reiserfs_init_priv_inode(inode);
 
 	if (reiserfs_posixacl(inode->i_sb)) {
 		reiserfs_write_unlock(inode->i_sb);

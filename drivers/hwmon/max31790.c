@@ -445,7 +445,7 @@ static umode_t max31790_is_visible(const void *data,
 	}
 }
 
-static const struct hwmon_channel_info *max31790_info[] = {
+static const struct hwmon_channel_info * const max31790_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT | HWMON_F_ENABLE,
 			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT | HWMON_F_ENABLE,

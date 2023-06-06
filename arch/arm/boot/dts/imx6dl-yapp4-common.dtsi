@@ -98,7 +98,6 @@
 		regulator-max-microvolt = <5000000>;
 		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		status = "okay";
 	};
 };
 
@@ -106,8 +105,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii-id";
-	phy-reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <20>;
 	phy-supply = <&sw2_reg>;
 	status = "okay";
 
@@ -131,6 +128,7 @@
 		switch@10 {
 			compatible = "qca,qca8334";
 			reg = <10>;
+			reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
 
 			switch_ports: ports {
 				#address-cells = <1>;
@@ -270,9 +268,9 @@
 		compatible = "ti,lp5562";
 		reg = <0x30>;
 		clock-mode = /bits/ 8 <1>;
-		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
 
 		led@0 {
 			chan-name = "R";
@@ -303,7 +301,6 @@
 		compatible = "atmel,24c128";
 		reg = <0x57>;
 		pagesize = <64>;
-		status = "okay";
 	};
 
 	touchscreen: touchscreen@5c {
@@ -313,7 +310,7 @@
 		interrupt-parent = <&gpio4>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		attb-gpio = <&gpio4 5 GPIO_ACTIVE_HIGH>;
-		reset-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <480>;
 		status = "disabled";

@@ -87,7 +87,6 @@ int xdp_ingress_v6(struct xdp_md *xdp)
 	__u8 tcp_hdr_opt_len = 0;
 	struct tcphdr *tcp_hdr;
 	__u64 tcp_offset = 0;
-	__u32 off;
 	int err;
 
 	tcp_offset = sizeof(struct ethhdr) + sizeof(struct ipv6hdr);

@@ -1894,8 +1894,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 }
 
 static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
-				    struct btrfs_delayed_ref_head *locked_ref,
-				    unsigned long *run_refs)
+					   struct btrfs_delayed_ref_head *locked_ref)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -1917,7 +1916,6 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 			return -EAGAIN;
 		}
 
-		(*run_refs)++;
 		ref->in_tree = 0;
 		rb_erase_cached(&ref->ref_node, &locked_ref->ref_tree);
 		RB_CLEAR_NODE(&ref->ref_node);
@@ -1981,10 +1979,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_head *locked_ref = NULL;
-	ktime_t start = ktime_get();
 	int ret;
 	unsigned long count = 0;
-	unsigned long actual_count = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	do {
@@ -2014,8 +2010,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		spin_lock(&locked_ref->lock);
 		btrfs_merge_delayed_refs(fs_info, delayed_refs, locked_ref);
 
-		ret = btrfs_run_delayed_refs_for_head(trans, locked_ref,
-						      &actual_count);
+		ret = btrfs_run_delayed_refs_for_head(trans, locked_ref);
 		if (ret < 0 && ret != -EAGAIN) {
 			/*
 			 * Error, btrfs_run_delayed_refs_for_head already
@@ -2046,24 +2041,6 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		cond_resched();
 	} while ((nr != -1 && count < nr) || locked_ref);
 
-	/*
-	 * We don't want to include ref heads since we can have empty ref heads
-	 * and those will drastically skew our runtime down since we just do
-	 * accounting, no actual extent tree updates.
-	 */
-	if (actual_count > 0) {
-		u64 runtime = ktime_to_ns(ktime_sub(ktime_get(), start));
-		u64 avg;
-
-		/*
-		 * We weigh the current average higher than our current runtime
-		 * to avoid large swings in the average.
-		 */
-		spin_lock(&delayed_refs->lock);
-		avg = fs_info->avg_delayed_ref_runtime * 3 + runtime;
-		fs_info->avg_delayed_ref_runtime = avg >> 2;	/* div by 4 */
-		spin_unlock(&delayed_refs->lock);
-	}
 	return 0;
 }
 
@@ -5509,11 +5486,11 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 {
 	int level = wc->level;
 	int lookup_info = 1;
-	int ret;
+	int ret = 0;
 
 	while (level >= 0) {
 		ret = walk_down_proc(trans, root, path, wc, lookup_info);
-		if (ret > 0)
+		if (ret)
 			break;
 
 		if (level == 0)
@@ -5528,10 +5505,10 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 			path->slots[level]++;
 			continue;
 		} else if (ret < 0)
-			return ret;
+			break;
 		level = wc->level;
 	}
-	return 0;
+	return (ret == 1) ? 0 : ret;
 }
 
 static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
@@ -5708,12 +5685,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 
 		ret = walk_down_tree(trans, root, path, wc);
 		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			break;
 		}
 
 		ret = walk_up_tree(trans, root, path, wc, BTRFS_MAX_LEVEL);
 		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			break;
 		}

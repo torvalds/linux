@@ -15,7 +15,7 @@ struct switchdev_obj_port_mdb;
 struct switchdev_vlan_msti;
 struct phy_device;
 
-bool dsa_port_supports_hwtstamp(struct dsa_port *dp, struct ifreq *ifr);
+bool dsa_port_supports_hwtstamp(struct dsa_port *dp);
 void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 			       const struct dsa_device_ops *tag_ops);
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age);

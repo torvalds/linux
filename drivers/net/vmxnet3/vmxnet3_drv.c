@@ -1504,7 +1504,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				goto rcd_done;
 			}
 
-			if (rxDataRingUsed) {
+			if (rxDataRingUsed && adapter->rxdataring_enabled) {
 				size_t sz;
 
 				BUG_ON(rcd->len > rq->data_ring.desc_size);
@@ -1688,7 +1688,9 @@ not_lro:
 			if (unlikely(rcd->ts))
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rcd->tci);
 
-			if (adapter->netdev->features & NETIF_F_LRO)
+			/* Use GRO callback if UPT is enabled */
+			if ((adapter->netdev->features & NETIF_F_LRO) &&
+			    !rq->shared->updateRxProd)
 				netif_receive_skb(skb);
 			else
 				napi_gro_receive(&rq->napi, skb);

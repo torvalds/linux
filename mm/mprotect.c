@@ -223,8 +223,6 @@ static long change_pte_range(struct mmu_gather *tlb,
 				newpte = swp_entry_to_pte(entry);
 				if (pte_swp_soft_dirty(oldpte))
 					newpte = pte_swp_mksoft_dirty(newpte);
-				if (pte_swp_uffd_wp(oldpte))
-					newpte = pte_swp_mkuffd_wp(newpte);
 			} else if (is_writable_device_private_entry(entry)) {
 				/*
 				 * We do not preserve soft-dirtiness. See
@@ -276,7 +274,15 @@ static long change_pte_range(struct mmu_gather *tlb,
 		} else {
 			/* It must be an none page, or what else?.. */
 			WARN_ON_ONCE(!pte_none(oldpte));
-			if (unlikely(uffd_wp && !vma_is_anonymous(vma))) {
+
+			/*
+			 * Nobody plays with any none ptes besides
+			 * userfaultfd when applying the protections.
+			 */
+			if (likely(!uffd_wp))
+				continue;
+
+			if (userfaultfd_wp_use_markers(vma)) {
 				/*
 				 * For file-backed mem, we need to be able to
 				 * wr-protect a none pte, because even if the
@@ -320,23 +326,46 @@ static inline int pmd_none_or_clear_bad_unless_trans_huge(pmd_t *pmd)
 	return 0;
 }
 
-/* Return true if we're uffd wr-protecting file-backed memory, or false */
+/*
+ * Return true if we want to split THPs into PTE mappings in change
+ * protection procedure, false otherwise.
+ */
 static inline bool
-uffd_wp_protect_file(struct vm_area_struct *vma, unsigned long cp_flags)
+pgtable_split_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 {
+	/*
+	 * pte markers only resides in pte level, if we need pte markers,
+	 * we need to split.  We cannot wr-protect shmem thp because file
+	 * thp is handled differently when split by erasing the pmd so far.
+	 */
 	return (cp_flags & MM_CP_UFFD_WP) && !vma_is_anonymous(vma);
 }
 
 /*
- * If wr-protecting the range for file-backed, populate pgtable for the case
- * when pgtable is empty but page cache exists.  When {pte|pmd|...}_alloc()
- * failed we treat it the same way as pgtable allocation failures during
- * page faults by kicking OOM and returning error.
+ * Return true if we want to populate pgtables in change protection
+ * procedure, false otherwise
+ */
+static inline bool
+pgtable_populate_needed(struct vm_area_struct *vma, unsigned long cp_flags)
+{
+	/* If not within ioctl(UFFDIO_WRITEPROTECT), then don't bother */
+	if (!(cp_flags & MM_CP_UFFD_WP))
+		return false;
+
+	/* Populate if the userfaultfd mode requires pte markers */
+	return userfaultfd_wp_use_markers(vma);
+}
+
+/*
+ * Populate the pgtable underneath for whatever reason if requested.
+ * When {pte|pmd|...}_alloc() failed we treat it the same way as pgtable
+ * allocation failures during page faults by kicking OOM and returning
+ * error.
  */
 #define  change_pmd_prepare(vma, pmd, cp_flags)				\
 	({								\
 		long err = 0;						\
-		if (unlikely(uffd_wp_protect_file(vma, cp_flags))) {	\
+		if (unlikely(pgtable_populate_needed(vma, cp_flags))) {	\
 			if (pte_alloc(vma->vm_mm, pmd))			\
 				err = -ENOMEM;				\
 		}							\
@@ -351,7 +380,7 @@ uffd_wp_protect_file(struct vm_area_struct *vma, unsigned long cp_flags)
 #define  change_prepare(vma, high, low, addr, cp_flags)			\
 	  ({								\
 		long err = 0;						\
-		if (unlikely(uffd_wp_protect_file(vma, cp_flags))) {	\
+		if (unlikely(pgtable_populate_needed(vma, cp_flags))) {	\
 			low##_t *p = low##_alloc(vma->vm_mm, high, addr); \
 			if (p == NULL)					\
 				err = -ENOMEM;				\
@@ -404,7 +433,7 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 
 		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
 			if ((next - addr != HPAGE_PMD_SIZE) ||
-			    uffd_wp_protect_file(vma, cp_flags)) {
+			    pgtable_split_needed(vma, cp_flags)) {
 				__split_huge_pmd(vma, pmd, addr, false, NULL);
 				/*
 				 * For file-backed, the pmd could have been
@@ -805,7 +834,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 
 		if (map_deny_write_exec(vma, newflags)) {
 			error = -EACCES;
-			goto out;
+			break;
 		}
 
 		/* Allow architectures to sanity-check the new flags */
@@ -838,7 +867,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	}
 	tlb_finish_mmu(&tlb);
 
-	if (vma_iter_end(&vmi) < end)
+	if (!error && vma_iter_end(&vmi) < end)
 		error = -ENOMEM;
 
 out:

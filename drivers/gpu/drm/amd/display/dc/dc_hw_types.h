@@ -829,7 +829,7 @@ struct dc_dsc_config {
 	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
 	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
 	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	bool is_frl; /* indicate if DSC is applied based on HDMI FRL sink's capability */
 #endif
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
@@ -1083,6 +1083,20 @@ struct tg_color {
 	uint16_t color_r_cr;
 	uint16_t color_g_y;
 	uint16_t color_b_cb;
+};
+
+enum symclk_state {
+	SYMCLK_OFF_TX_OFF,
+	SYMCLK_ON_TX_ON,
+	SYMCLK_ON_TX_OFF,
+};
+
+struct phy_state {
+	struct {
+		uint8_t otg		: 1;
+		uint8_t reserved	: 7;
+	} symclk_ref_cnts;
+	enum symclk_state symclk_state;
 };
 
 #endif /* DC_HW_TYPES_H */

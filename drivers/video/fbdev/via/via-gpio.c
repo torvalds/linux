@@ -262,7 +262,7 @@ static int viafb_gpio_probe(struct platform_device *platdev)
 }
 
 
-static int viafb_gpio_remove(struct platform_device *platdev)
+static void viafb_gpio_remove(struct platform_device *platdev)
 {
 	unsigned long flags;
 	int i;
@@ -285,7 +285,6 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 		viafb_gpio_disable(viafb_gpio_config.active_gpios[i]);
 	viafb_gpio_config.gpio_chip.ngpio = 0;
 	spin_unlock_irqrestore(&viafb_gpio_config.vdev->reg_lock, flags);
-	return 0;
 }
 
 static struct platform_driver via_gpio_driver = {
@@ -293,7 +292,7 @@ static struct platform_driver via_gpio_driver = {
 		.name = "viafb-gpio",
 	},
 	.probe = viafb_gpio_probe,
-	.remove = viafb_gpio_remove,
+	.remove_new = viafb_gpio_remove,
 };
 
 int viafb_gpio_init(void)

@@ -313,7 +313,7 @@ imx8qxp_pixel_link_find_next_bridge(struct imx8qxp_pixel_link *pl)
 		}
 
 		/* specially select the next bridge with companion PXL2DPI */
-		if (of_find_property(remote, "fsl,companion-pxl2dpi", NULL))
+		if (of_property_present(remote, "fsl,companion-pxl2dpi"))
 			bridge_sel = ep_cnt;
 
 		ep_cnt++;
@@ -398,13 +398,11 @@ static int imx8qxp_pixel_link_bridge_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int imx8qxp_pixel_link_bridge_remove(struct platform_device *pdev)
+static void imx8qxp_pixel_link_bridge_remove(struct platform_device *pdev)
 {
 	struct imx8qxp_pixel_link *pl = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&pl->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id imx8qxp_pixel_link_dt_ids[] = {
@@ -416,7 +414,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_pixel_link_dt_ids);
 
 static struct platform_driver imx8qxp_pixel_link_bridge_driver = {
 	.probe	= imx8qxp_pixel_link_bridge_probe,
-	.remove = imx8qxp_pixel_link_bridge_remove,
+	.remove_new = imx8qxp_pixel_link_bridge_remove,
 	.driver	= {
 		.of_match_table = imx8qxp_pixel_link_dt_ids,
 		.name = DRIVER_NAME,

@@ -68,7 +68,8 @@ static inline int posix_acl_type(const char *name)
 	return -1;
 }
 
-extern const struct xattr_handler posix_acl_access_xattr_handler;
-extern const struct xattr_handler posix_acl_default_xattr_handler;
+/* These are legacy handlers. Don't use them for new code. */
+extern const struct xattr_handler nop_posix_acl_access;
+extern const struct xattr_handler nop_posix_acl_default;
 
 #endif	/* _POSIX_ACL_XATTR_H */

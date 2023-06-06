@@ -293,7 +293,7 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 	return catpt_probe_components(cdev);
 }
 
-static int catpt_acpi_remove(struct platform_device *pdev)
+static void catpt_acpi_remove(struct platform_device *pdev)
 {
 	struct catpt_dev *cdev = platform_get_drvdata(pdev);
 
@@ -305,8 +305,6 @@ static int catpt_acpi_remove(struct platform_device *pdev)
 
 	catpt_sram_free(&cdev->iram);
 	catpt_sram_free(&cdev->dram);
-
-	return 0;
 }
 
 static struct snd_soc_acpi_mach lpt_machines[] = {
@@ -376,7 +374,7 @@ MODULE_DEVICE_TABLE(acpi, catpt_ids);
 
 static struct platform_driver catpt_acpi_driver = {
 	.probe = catpt_acpi_probe,
-	.remove = catpt_acpi_remove,
+	.remove_new = catpt_acpi_remove,
 	.driver = {
 		.name = "intel_catpt",
 		.acpi_match_table = catpt_ids,

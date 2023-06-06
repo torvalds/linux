@@ -118,6 +118,7 @@ struct packet_sock {
 	struct mutex		pg_vec_lock;
 	unsigned long		flags;
 	int			ifindex;	/* bound device		*/
+	u8			vnet_hdr_sz;
 	__be16			num;
 	struct packet_rollover	*rollover;
 	struct packet_mclist	*mclist;
@@ -139,7 +140,6 @@ enum packet_sock_flags {
 	PACKET_SOCK_AUXDATA,
 	PACKET_SOCK_TX_HAS_OFF,
 	PACKET_SOCK_TP_LOSS,
-	PACKET_SOCK_HAS_VNET_HDR,
 	PACKET_SOCK_RUNNING,
 	PACKET_SOCK_PRESSURE,
 	PACKET_SOCK_QDISC_BYPASS,

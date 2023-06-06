@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/units.h>
 
 #include "sb_regs.h"
 #include "tb.h"
@@ -851,7 +852,7 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	 */
 	if (ret == -EOPNOTSUPP)
 		return true;
-	else if (ret)
+	if (ret)
 		return false;
 
 	return !status;
@@ -877,7 +878,7 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EBUSY : 0;
@@ -900,7 +901,7 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EIO : 0;
@@ -1302,6 +1303,20 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 	return 0;
 }
 
+static int usb4_port_sb_opcode_err_to_errno(u32 val)
+{
+	switch (val) {
+	case 0:
+		return 0;
+	case USB4_SB_OPCODE_ERR:
+		return -EAGAIN;
+	case USB4_SB_OPCODE_ONS:
+		return -EOPNOTSUPP;
+	default:
+		return -EIO;
+	}
+}
+
 static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 			   u8 index, enum usb4_sb_opcode opcode, int timeout_msec)
 {
@@ -1324,21 +1339,8 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 		if (ret)
 			return ret;
 
-		switch (val) {
-		case 0:
-			return 0;
-
-		case USB4_SB_OPCODE_ERR:
-			return -EAGAIN;
-
-		case USB4_SB_OPCODE_ONS:
-			return -EOPNOTSUPP;
-
-		default:
-			if (val != opcode)
-				return -EIO;
-			break;
-		}
+		if (val != opcode)
+			return usb4_port_sb_opcode_err_to_errno(val);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1579,6 +1581,20 @@ int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
 }
 
 /**
+ * usb4_port_retimer_unset_inbound_sbtx() - Disable sideband channel transactions
+ * @port: USB4 port
+ * @index: Retimer index
+ *
+ * Disables sideband channel transations on SBTX. The reverse of
+ * usb4_port_retimer_set_inbound_sbtx().
+ */
+int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index)
+{
+	return usb4_port_retimer_op(port, index,
+				    USB4_SB_OPCODE_UNSET_INBOUND_SBTX, 500);
+}
+
+/**
  * usb4_port_retimer_read() - Read from retimer sideband registers
  * @port: USB4 port
  * @index: Retimer index
@@ -1799,12 +1815,13 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	if (ret)
 		return ret;
 
-	switch (val) {
+	ret = usb4_port_sb_opcode_err_to_errno(val);
+	switch (ret) {
 	case 0:
 		*status = 0;
 		return 0;
 
-	case USB4_SB_OPCODE_ERR:
+	case -EAGAIN:
 		ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA,
 					     &metadata, sizeof(metadata));
 		if (ret)
@@ -1813,11 +1830,8 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 		*status = metadata & USB4_SB_METADATA_NVM_AUTH_WRITE_MASK;
 		return 0;
 
-	case USB4_SB_OPCODE_ONS:
-		return -EOPNOTSUPP;
-
 	default:
-		return -EIO;
+		return ret;
 	}
 }
 
@@ -1868,6 +1882,15 @@ int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
 				usb4_port_retimer_nvm_read_block, &info);
 }
 
+static inline unsigned int
+usb4_usb3_port_max_bandwidth(const struct tb_port *port, unsigned int bw)
+{
+	/* Take the possible bandwidth limitation into account */
+	if (port->max_bw)
+		return min(bw, port->max_bw);
+	return bw;
+}
+
 /**
  * usb4_usb3_port_max_link_rate() - Maximum support USB3 link rate
  * @port: USB3 adapter port
@@ -1889,7 +1912,9 @@ int usb4_usb3_port_max_link_rate(struct tb_port *port)
 		return ret;
 
 	lr = (val & ADP_USB3_CS_4_MSLR_MASK) >> ADP_USB3_CS_4_MSLR_SHIFT;
-	return lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
+	ret = lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
+
+	return usb4_usb3_port_max_bandwidth(port, ret);
 }
 
 /**
@@ -1916,7 +1941,9 @@ int usb4_usb3_port_actual_link_rate(struct tb_port *port)
 		return 0;
 
 	lr = val & ADP_USB3_CS_4_ALR_MASK;
-	return lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
+	ret = lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
+
+	return usb4_usb3_port_max_bandwidth(port, ret);
 }
 
 static int usb4_usb3_port_cm_request(struct tb_port *port, bool request)
@@ -1968,7 +1995,7 @@ static unsigned int usb3_bw_to_mbps(u32 bw, u8 scale)
 	unsigned long uframes;
 
 	uframes = bw * 512UL << scale;
-	return DIV_ROUND_CLOSEST(uframes * 8000, 1000 * 1000);
+	return DIV_ROUND_CLOSEST(uframes * 8000, MEGA);
 }
 
 static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
@@ -1976,7 +2003,7 @@ static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
 	unsigned long uframes;
 
 	/* 1 uframe is 1/8 ms (125 us) -> 1 / 8000 s */
-	uframes = ((unsigned long)mbps * 1000 *  1000) / 8000;
+	uframes = ((unsigned long)mbps * MEGA) / 8000;
 	return DIV_ROUND_UP(uframes, 512UL << scale);
 }
 
@@ -2067,17 +2094,29 @@ static int usb4_usb3_port_write_allocated_bandwidth(struct tb_port *port,
 						    int downstream_bw)
 {
 	u32 val, ubw, dbw, scale;
-	int ret;
+	int ret, max_bw;
 
-	/* Read the used scale, hardware default is 0 */
-	ret = tb_port_read(port, &scale, TB_CFG_PORT,
-			   port->cap_adap + ADP_USB3_CS_3, 1);
+	/* Figure out suitable scale */
+	scale = 0;
+	max_bw = max(upstream_bw, downstream_bw);
+	while (scale < 64) {
+		if (mbps_to_usb3_bw(max_bw, scale) < 4096)
+			break;
+		scale++;
+	}
+
+	if (WARN_ON(scale >= 64))
+		return -EINVAL;
+
+	ret = tb_port_write(port, &scale, TB_CFG_PORT,
+			    port->cap_adap + ADP_USB3_CS_3, 1);
 	if (ret)
 		return ret;
 
-	scale &= ADP_USB3_CS_3_SCALE_MASK;
 	ubw = mbps_to_usb3_bw(upstream_bw, scale);
 	dbw = mbps_to_usb3_bw(downstream_bw, scale);
+
+	tb_port_dbg(port, "scaled bandwidth %u/%u, scale %u\n", ubw, dbw, scale);
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_USB3_CS_2, 1);

@@ -310,14 +310,10 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		win = &p->fmt.win;
-		/* Note: we can't print the clip list here since the clips
-		 * pointer is a userspace pointer, not a kernelspace
-		 * pointer. */
-		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, clipcount=%u, clips=%p, bitmap=%p, global_alpha=0x%02x\n",
+		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, global_alpha=0x%02x\n",
 			win->w.width, win->w.height, win->w.left, win->w.top,
 			prt_names(win->field, v4l2_field_names),
-			win->chromakey, win->clipcount, win->clips,
-			win->bitmap, win->global_alpha);
+			win->chromakey, win->global_alpha);
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
@@ -1302,11 +1298,14 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_RGBX1010102:	descr = "32-bit RGBX 10-10-10-2"; break;
 	case V4L2_PIX_FMT_RGBA1010102:	descr = "32-bit RGBA 10-10-10-2"; break;
 	case V4L2_PIX_FMT_ARGB2101010:	descr = "32-bit ARGB 2-10-10-10"; break;
+	case V4L2_PIX_FMT_BGR48_12:	descr = "12-bit Depth BGR"; break;
+	case V4L2_PIX_FMT_ABGR64_12:	descr = "12-bit Depth BGRA"; break;
 	case V4L2_PIX_FMT_GREY:		descr = "8-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y4:		descr = "4-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y6:		descr = "6-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y10:		descr = "10-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y12:		descr = "12-bit Greyscale"; break;
+	case V4L2_PIX_FMT_Y012:		descr = "12-bit Greyscale (bits 15-4)"; break;
 	case V4L2_PIX_FMT_Y14:		descr = "14-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y16:		descr = "16-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y16_BE:	descr = "16-bit Greyscale BE"; break;
@@ -1345,6 +1344,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_YUV420:	descr = "Planar YUV 4:2:0"; break;
 	case V4L2_PIX_FMT_HI240:	descr = "8-bit Dithered RGB (BTTV)"; break;
 	case V4L2_PIX_FMT_M420:		descr = "YUV 4:2:0 (M420)"; break;
+	case V4L2_PIX_FMT_YUV48_12:	descr = "12-bit YUV 4:4:4 Packed"; break;
 	case V4L2_PIX_FMT_NV12:		descr = "Y/UV 4:2:0"; break;
 	case V4L2_PIX_FMT_NV21:		descr = "Y/VU 4:2:0"; break;
 	case V4L2_PIX_FMT_NV16:		descr = "Y/UV 4:2:2"; break;
@@ -1352,6 +1352,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_NV24:		descr = "Y/UV 4:4:4"; break;
 	case V4L2_PIX_FMT_NV42:		descr = "Y/VU 4:4:4"; break;
 	case V4L2_PIX_FMT_P010:		descr = "10-bit Y/UV 4:2:0"; break;
+	case V4L2_PIX_FMT_P012:		descr = "12-bit Y/UV 4:2:0"; break;
 	case V4L2_PIX_FMT_NV12_4L4:	descr = "Y/UV 4:2:0 (4x4 Linear)"; break;
 	case V4L2_PIX_FMT_NV12_16L16:	descr = "Y/UV 4:2:0 (16x16 Linear)"; break;
 	case V4L2_PIX_FMT_NV12_32L32:   descr = "Y/UV 4:2:0 (32x32 Linear)"; break;
@@ -1362,6 +1363,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_NV61M:	descr = "Y/VU 4:2:2 (N-C)"; break;
 	case V4L2_PIX_FMT_NV12MT:	descr = "Y/UV 4:2:0 (64x32 MB, N-C)"; break;
 	case V4L2_PIX_FMT_NV12MT_16X16:	descr = "Y/UV 4:2:0 (16x16 MB, N-C)"; break;
+	case V4L2_PIX_FMT_P012M:	descr = "12-bit Y/UV 4:2:0 (N-C)"; break;
 	case V4L2_PIX_FMT_YUV420M:	descr = "Planar YUV 4:2:0 (N-C)"; break;
 	case V4L2_PIX_FMT_YVU420M:	descr = "Planar YVU 4:2:0 (N-C)"; break;
 	case V4L2_PIX_FMT_YUV422M:	descr = "Planar YUV 4:2:2 (N-C)"; break;
@@ -1479,6 +1481,9 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_HEVC_SLICE:	descr = "HEVC Parsed Slice Data"; break;
 		case V4L2_PIX_FMT_FWHT:		descr = "FWHT"; break; /* used in vicodec */
 		case V4L2_PIX_FMT_FWHT_STATELESS:	descr = "FWHT Stateless"; break; /* used in vicodec */
+		case V4L2_PIX_FMT_SPK:		descr = "Sorenson Spark"; break;
+		case V4L2_PIX_FMT_RV30:		descr = "RealVideo 8"; break;
+		case V4L2_PIX_FMT_RV40:		descr = "RealVideo 9 & 10"; break;
 		case V4L2_PIX_FMT_CPIA1:	descr = "GSPCA CPiA YUV"; break;
 		case V4L2_PIX_FMT_WNVA:		descr = "WNVA"; break;
 		case V4L2_PIX_FMT_SN9C10X:	descr = "GSPCA SN9C10X"; break;
@@ -1618,29 +1623,7 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 
-	/*
-	 * fmt can't be cleared for these overlay types due to the 'clips'
-	 * 'clipcount' and 'bitmap' pointers in struct v4l2_window.
-	 * Those are provided by the user. So handle these two overlay types
-	 * first, and then just do a simple memset for the other types.
-	 */
-	switch (p->type) {
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
-		struct v4l2_clip *clips = p->fmt.win.clips;
-		u32 clipcount = p->fmt.win.clipcount;
-		void __user *bitmap = p->fmt.win.bitmap;
-
-		memset(&p->fmt, 0, sizeof(p->fmt));
-		p->fmt.win.clips = clips;
-		p->fmt.win.clipcount = clipcount;
-		p->fmt.win.bitmap = bitmap;
-		break;
-	}
-	default:
-		memset(&p->fmt, 0, sizeof(p->fmt));
-		break;
-	}
+	memset(&p->fmt, 0, sizeof(p->fmt));
 
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -1728,6 +1711,9 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_s_fmt_vid_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		if (unlikely(!ops->vidioc_s_fmt_vbi_cap))
@@ -1759,6 +1745,9 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_out_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_s_fmt_vid_out_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		if (unlikely(!ops->vidioc_s_fmt_vbi_out))
@@ -1830,6 +1819,9 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_try_fmt_vid_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		if (unlikely(!ops->vidioc_try_fmt_vbi_cap))
@@ -1861,6 +1853,9 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_out_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_try_fmt_vid_out_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		if (unlikely(!ops->vidioc_try_fmt_vbi_out))
@@ -2072,6 +2067,15 @@ static int v4l_s_hw_freq_seek(const struct v4l2_ioctl_ops *ops,
 	if (p->type != type)
 		return -EINVAL;
 	return ops->vidioc_s_hw_freq_seek(file, fh, p);
+}
+
+static int v4l_s_fbuf(const struct v4l2_ioctl_ops *ops,
+		      struct file *file, void *fh, void *arg)
+{
+	struct v4l2_framebuffer *p = arg;
+
+	p->base = NULL;
+	return ops->vidioc_s_fbuf(file, fh, p);
 }
 
 static int v4l_overlay(const struct v4l2_ioctl_ops *ops,
@@ -2793,7 +2797,6 @@ struct v4l2_ioctl_info {
 	}
 
 DEFINE_V4L_STUB_FUNC(g_fbuf)
-DEFINE_V4L_STUB_FUNC(s_fbuf)
 DEFINE_V4L_STUB_FUNC(expbuf)
 DEFINE_V4L_STUB_FUNC(g_std)
 DEFINE_V4L_STUB_FUNC(g_audio)
@@ -2827,7 +2830,7 @@ static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_REQBUFS, v4l_reqbufs, v4l_print_requestbuffers, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO(VIDIOC_QUERYBUF, v4l_querybuf, v4l_print_buffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_buffer, length)),
 	IOCTL_INFO(VIDIOC_G_FBUF, v4l_stub_g_fbuf, v4l_print_framebuffer, 0),
-	IOCTL_INFO(VIDIOC_S_FBUF, v4l_stub_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
+	IOCTL_INFO(VIDIOC_S_FBUF, v4l_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_OVERLAY, v4l_overlay, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_QBUF, v4l_qbuf, v4l_print_buffer, INFO_FL_QUEUE),
 	IOCTL_INFO(VIDIOC_EXPBUF, v4l_stub_expbuf, v4l_print_exportbuffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_exportbuffer, flags)),
@@ -3132,27 +3135,6 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 				    * ctrls->count;
 			ret = 1;
 		}
-		break;
-	}
-	case VIDIOC_G_FMT:
-	case VIDIOC_S_FMT:
-	case VIDIOC_TRY_FMT: {
-		struct v4l2_format *fmt = parg;
-
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_OVERLAY &&
-		    fmt->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY)
-			break;
-		if (fmt->fmt.win.clipcount > 2048)
-			return -EINVAL;
-		if (!fmt->fmt.win.clipcount)
-			break;
-
-		*user_ptr = (void __user *)fmt->fmt.win.clips;
-		*kernel_ptr = (void **)&fmt->fmt.win.clips;
-		*array_size = sizeof(struct v4l2_clip)
-				* fmt->fmt.win.clipcount;
-
-		ret = 1;
 		break;
 	}
 

@@ -285,7 +285,7 @@ static const struct hwmon_ops max127_hwmon_ops = {
 	.write = max127_write,
 };
 
-static const struct hwmon_channel_info *max127_info[] = {
+static const struct hwmon_channel_info * const max127_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX,
 			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX,

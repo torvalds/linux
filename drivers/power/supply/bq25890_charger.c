@@ -750,7 +750,7 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 	if (bq->chip_version != BQ25892)
 		return;
 
-	ret = power_supply_get_property_from_supplier(bq->charger,
+	ret = power_supply_get_property_from_supplier(psy,
 						      POWER_SUPPLY_PROP_USB_TYPE,
 						      &val);
 	if (ret)
@@ -775,6 +775,7 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 	}
 
 	bq25890_field_write(bq, F_IINLIM, input_current_limit);
+	power_supply_changed(psy);
 }
 
 static int bq25890_get_chip_state(struct bq25890_device *bq,
@@ -1105,6 +1106,8 @@ static void bq25890_pump_express_work(struct work_struct *data)
 
 	dev_info(bq->dev, "Hi-voltage charging requested, input voltage is %d mV\n",
 		 voltage);
+
+	power_supply_changed(bq->charger);
 
 	return;
 error_print:
@@ -1622,7 +1625,7 @@ static const struct i2c_device_id bq25890_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
 
-static const struct of_device_id bq25890_of_match[] = {
+static const struct of_device_id bq25890_of_match[] __maybe_unused = {
 	{ .compatible = "ti,bq25890", },
 	{ .compatible = "ti,bq25892", },
 	{ .compatible = "ti,bq25895", },

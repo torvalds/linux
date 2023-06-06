@@ -69,7 +69,12 @@ enum {
 
 struct nullb_device {
 	struct nullb *nullb;
-	struct config_item item;
+	struct config_group group;
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+	struct fault_config timeout_config;
+	struct fault_config requeue_config;
+	struct fault_config init_hctx_fault_config;
+#endif
 	struct radix_tree_root data; /* data stored in the disk */
 	struct radix_tree_root cache; /* disk cache data */
 	unsigned long flags; /* device flags */

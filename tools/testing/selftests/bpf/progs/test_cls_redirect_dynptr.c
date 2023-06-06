@@ -455,7 +455,6 @@ static ret_t forward_to_next_hop(struct __sk_buff *skb, struct bpf_dynptr *dynpt
 
 static ret_t skip_next_hops(__u64 *offset, int n)
 {
-	__u32 res;
 	switch (n) {
 	case 1:
 		*offset += sizeof(struct in_addr);

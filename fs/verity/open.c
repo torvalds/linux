@@ -83,7 +83,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	params->log_blocks_per_page = PAGE_SHIFT - log_blocksize;
 	params->blocks_per_page = 1 << params->log_blocks_per_page;
 
-	if (WARN_ON(!is_power_of_2(params->digest_size))) {
+	if (WARN_ON_ONCE(!is_power_of_2(params->digest_size))) {
 		err = -EINVAL;
 		goto out_err;
 	}

@@ -439,6 +439,7 @@ struct mlx5_core_health {
 	struct work_struct		report_work;
 	struct devlink_health_reporter *fw_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
+	struct devlink_health_reporter *vnic_reporter;
 	struct delayed_work		update_fw_log_ts_work;
 };
 
@@ -751,6 +752,7 @@ enum {
 struct mlx5_profile {
 	u64	mask;
 	u8	log_max_qp;
+	u8	num_cmd_caches;
 	struct {
 		int	size;
 		int	limit;
@@ -1214,11 +1216,6 @@ static inline bool mlx5_core_is_vf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_VF;
 }
 
-static inline bool mlx5_core_is_management_pf(const struct mlx5_core_dev *dev)
-{
-	return MLX5_CAP_GEN(dev, num_ports) == 1 && !MLX5_CAP_GEN(dev, native_port_num);
-}
-
 static inline bool mlx5_core_is_ecpf(const struct mlx5_core_dev *dev)
 {
 	return dev->caps.embedded_cpu;
@@ -1310,5 +1307,11 @@ static inline bool mlx5_get_roce_state(struct mlx5_core_dev *dev)
 enum {
 	MLX5_OCTWORD = 16,
 };
+
+struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
+			       irqreturn_t (*handler)(int, void *),
+			       const struct irq_affinity_desc *affdesc,
+			       const char *name);
+void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map);
 
 #endif /* MLX5_DRIVER_H */

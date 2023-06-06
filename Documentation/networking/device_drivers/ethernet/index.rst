@@ -14,6 +14,7 @@ Contents:
    3com/vortex
    amazon/ena
    altera/altera_tse
+   amd/pds_core
    aquantia/atlantic
    chelsio/cxgb
    cirrus/cs89x0

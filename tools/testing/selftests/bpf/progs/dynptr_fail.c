@@ -271,7 +271,7 @@ SEC("?raw_tp")
 __failure __msg("value is outside of the allowed memory range")
 int data_slice_out_of_bounds_map_value(void *ctx)
 {
-	__u32 key = 0, map_val;
+	__u32 map_val;
 	struct bpf_dynptr ptr;
 	void *data;
 
@@ -388,7 +388,6 @@ int data_slice_missing_null_check2(void *ctx)
 		/* this should fail */
 		*data2 = 3;
 
-done:
 	bpf_ringbuf_discard_dynptr(&ptr, 0);
 	return 0;
 }
@@ -440,6 +439,7 @@ int invalid_write1(void *ctx)
 
 	/* this should fail */
 	data = bpf_dynptr_data(&ptr, 0, 1);
+	__sink(data);
 
 	return 0;
 }
@@ -1374,6 +1374,7 @@ int invalid_slice_rdwr_rdonly(struct __sk_buff *skb)
 	 * changing packet data
 	 */
 	hdr = bpf_dynptr_slice_rdwr(&ptr, 0, buffer, sizeof(buffer));
+	__sink(hdr);
 
 	return 0;
 }

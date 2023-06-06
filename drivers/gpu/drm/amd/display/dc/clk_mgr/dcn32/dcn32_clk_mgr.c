@@ -255,27 +255,60 @@ static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, s
 	}
 }
 
+void dcn32_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context, bool safe_to_lower)
+{
+	int i;
+
+	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.dppclk_khz;
+	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+		int dpp_inst, dppclk_khz, prev_dppclk_khz;
+
+		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+		if (context->res_ctx.pipe_ctx[i].plane_res.dpp)
+			dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+		else if (!context->res_ctx.pipe_ctx[i].plane_res.dpp && dppclk_khz == 0) {
+			/* dpp == NULL && dppclk_khz == 0 is valid because of pipe harvesting.
+			 * In this case just continue in loop
+			 */
+			continue;
+		} else if (!context->res_ctx.pipe_ctx[i].plane_res.dpp && dppclk_khz > 0) {
+			/* The software state is not valid if dpp resource is NULL and
+			 * dppclk_khz > 0.
+			 */
+			ASSERT(false);
+			continue;
+		}
+
+		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[i];
+
+		if (safe_to_lower || prev_dppclk_khz < dppclk_khz)
+			clk_mgr->dccg->funcs->update_dpp_dto(
+							clk_mgr->dccg, dpp_inst, dppclk_khz);
+	}
+}
+
 static void dcn32_update_clocks_update_dentist(
 		struct clk_mgr_internal *clk_mgr,
-		struct dc_state *context,
-		uint32_t old_dispclk_khz)
+		struct dc_state *context)
 {
 	uint32_t new_disp_divider = 0;
-	uint32_t old_disp_divider = 0;
 	uint32_t new_dispclk_wdivider = 0;
 	uint32_t old_dispclk_wdivider = 0;
 	uint32_t i;
+	uint32_t dentist_dispclk_wdivider_readback = 0;
+	struct dc *dc = clk_mgr->base.ctx->dc;
 
-	if (old_dispclk_khz == 0 || clk_mgr->base.clks.dispclk_khz == 0)
+	if (clk_mgr->base.clks.dispclk_khz == 0)
 		return;
 
 	new_disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
-	old_disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz / old_dispclk_khz;
 
 	new_dispclk_wdivider = dentist_get_did_from_divider(new_disp_divider);
-	old_dispclk_wdivider = dentist_get_did_from_divider(old_disp_divider);
+	REG_GET(DENTIST_DISPCLK_CNTL,
+			DENTIST_DISPCLK_WDIVIDER, &old_dispclk_wdivider);
 
 	/* When changing divider to or from 127, some extra programming is required to prevent corruption */
 	if (old_dispclk_wdivider == 127 && new_dispclk_wdivider != 127) {
@@ -314,6 +347,17 @@ static void dcn32_update_clocks_update_dentist(
 		if (clk_mgr->smu_present)
 			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(temp_dispclk_khz));
 
+		if (dc->debug.override_dispclk_programming) {
+			REG_GET(DENTIST_DISPCLK_CNTL,
+					DENTIST_DISPCLK_WDIVIDER, &dentist_dispclk_wdivider_readback);
+
+			if (dentist_dispclk_wdivider_readback != 126) {
+				REG_UPDATE(DENTIST_DISPCLK_CNTL,
+						DENTIST_DISPCLK_WDIVIDER, 126);
+				REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 50, 2000);
+			}
+		}
+
 		for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 			struct dccg *dccg = clk_mgr->base.ctx->dc->res_pool->dccg;
@@ -341,7 +385,36 @@ static void dcn32_update_clocks_update_dentist(
 	/* do requested DISPCLK updates*/
 	if (clk_mgr->smu_present)
 		dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr->base.clks.dispclk_khz));
+
+	if (dc->debug.override_dispclk_programming) {
+		REG_GET(DENTIST_DISPCLK_CNTL,
+				DENTIST_DISPCLK_WDIVIDER, &dentist_dispclk_wdivider_readback);
+
+		if (dentist_dispclk_wdivider_readback > new_dispclk_wdivider) {
+			REG_UPDATE(DENTIST_DISPCLK_CNTL,
+					DENTIST_DISPCLK_WDIVIDER, new_dispclk_wdivider);
+			REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 50, 2000);
+		}
+	}
+
 }
+
+static int dcn32_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t dispclk_wdivider;
+	int disp_divider;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
+	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+
+	/* Return DISPCLK freq in Khz */
+	if (disp_divider)
+		return (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+
+	return 0;
+}
+
 
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
@@ -361,7 +434,6 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool p_state_change_support;
 	bool fclk_p_state_change_support;
 	int total_plane_count;
-	int old_dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -503,19 +575,19 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			/* if clock is being lowered, increase DTO before lowering refclk */
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
-			dcn32_update_clocks_update_dentist(clk_mgr, context, old_dispclk_khz);
+			dcn32_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			dcn32_update_clocks_update_dentist(clk_mgr, context);
 			if (clk_mgr->smu_present)
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
 		} else {
 			/* if clock is being raised, increase refclk before lowering DTO */
 			if (update_dppclk || update_dispclk)
-				dcn32_update_clocks_update_dentist(clk_mgr, context, old_dispclk_khz);
+				dcn32_update_clocks_update_dentist(clk_mgr, context);
 			/* There is a check inside dcn20_update_clocks_update_dpp_dto which ensures
 			 * that we do not lower dto when it is not safe to lower. We do not need to
 			 * compare the current and new dppclk before calling this function.
 			 */
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			dcn32_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		}
 	}
 
@@ -797,6 +869,7 @@ static struct clk_mgr_funcs dcn32_funcs = {
 		.are_clock_states_equal = dcn32_are_clock_states_equal,
 		.enable_pme_wa = dcn32_enable_pme_wa,
 		.is_smu_present = dcn32_is_smu_present,
+		.get_dispclk_from_dentist = dcn32_get_dispclk_from_dentist,
 };
 
 void dcn32_clk_mgr_construct(
@@ -805,6 +878,8 @@ void dcn32_clk_mgr_construct(
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg)
 {
+	struct clk_log_info log_info = {0};
+
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->base.funcs = &dcn32_funcs;
 	if (ASICREV_IS_GC_11_0_2(clk_mgr->base.ctx->asic_id.hw_internal_rev)) {
@@ -838,12 +913,15 @@ void dcn32_clk_mgr_construct(
 			clk_mgr->base.clks.ref_dtbclk_khz = 268750;
 	}
 
+
 	/* integer part is now VCO frequency in kHz */
 	clk_mgr->base.dentist_vco_freq_khz = dcn32_get_vco_frequency_from_reg(clk_mgr);
 
 	/* in case we don't get a value from the register, use default */
 	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 4300000; /* Updated as per HW docs */
+
+	dcn32_dump_clk_registers(&clk_mgr->base.boot_snapshot, &clk_mgr->base, &log_info);
 
 	if (ctx->dc->debug.disable_dtb_ref_clk_switch &&
 			clk_mgr->base.clks.ref_dtbclk_khz != clk_mgr->base.boot_snapshot.dtbclk) {

@@ -2540,6 +2540,7 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.txff_size = 262144,
 	.rxff_size = 24576,
 	.fw_rxff_size = 12288,
+	.rsvd_drv_pg_num = 8,
 	.txgi_factor = 1,
 	.is_pwr_by_rate_dec = true,
 	.max_power_index = 0x3f,

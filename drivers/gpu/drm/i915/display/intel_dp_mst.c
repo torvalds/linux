@@ -45,6 +45,27 @@
 #include "intel_hotplug.h"
 #include "skl_scaler.h"
 
+static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp,
+					  const struct drm_display_mode *adjusted_mode,
+					  struct intel_crtc_state *crtc_state,
+					  bool dsc)
+{
+	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) <= 13 && dsc) {
+		int output_bpp = bpp;
+		/* DisplayPort 2 128b/132b, bits per lane is always 32 */
+		int symbol_clock = crtc_state->port_clock / 32;
+
+		if (output_bpp * adjusted_mode->crtc_clock >=
+		    symbol_clock * 72) {
+			drm_dbg_kms(&i915->drm, "UHBR check failed(required bw %d available %d)\n",
+				    output_bpp * adjusted_mode->crtc_clock, symbol_clock * 72);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						struct intel_crtc_state *crtc_state,
 						int max_bpp,
@@ -81,11 +102,15 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	}
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
+		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
+
+		ret = intel_dp_mst_check_constraints(i915, bpp, adjusted_mode, crtc_state, dsc);
+		if (ret)
+			continue;
+
 		crtc_state->pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock,
 						       dsc ? bpp << 4 : bpp,
 						       dsc);
-
-		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
@@ -104,8 +129,8 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		}
 	}
 
-	/* Despite slots are non-zero, we still failed the atomic check */
-	if (ret && slots >= 0)
+	/* We failed to find a proper bpp/timeslots, return error */
+	if (ret)
 		slots = ret;
 
 	if (slots < 0) {
@@ -232,7 +257,7 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 			return slots;
 	}
 
-	intel_link_compute_m_n(crtc_state->pipe_bpp,
+	intel_link_compute_m_n(crtc_state->dsc.compressed_bpp,
 			       crtc_state->lane_count,
 			       adjusted_mode->crtc_clock,
 			       crtc_state->port_clock,
@@ -611,7 +636,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 	 * no clock to the transcoder"
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 || !last_mst_stream)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 
 	intel_mst->connector = NULL;
@@ -621,6 +646,20 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
+}
+
+static void intel_mst_post_pll_disable_dp(struct intel_atomic_state *state,
+					  struct intel_encoder *encoder,
+					  const struct intel_crtc_state *old_crtc_state,
+					  const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_digital_port *dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &dig_port->dp;
+
+	if (intel_dp->active_mst_links == 0 &&
+	    dig_port->base.post_pll_disable)
+		dig_port->base.post_pll_disable(state, encoder, old_crtc_state, old_conn_state);
 }
 
 static void intel_mst_pre_pll_enable_dp(struct intel_atomic_state *state,
@@ -635,6 +674,13 @@ static void intel_mst_pre_pll_enable_dp(struct intel_atomic_state *state,
 	if (intel_dp->active_mst_links == 0)
 		dig_port->base.pre_pll_enable(state, &dig_port->base,
 						    pipe_config, NULL);
+	else
+		/*
+		 * The port PLL state needs to get updated for secondary
+		 * streams as for the primary stream.
+		 */
+		intel_ddi_update_active_dpll(state, &dig_port->base,
+					     to_intel_crtc(pipe_config->uapi.crtc));
 }
 
 static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
@@ -691,7 +737,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	 * here for the following ones.
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 || !first_mst_stream)
-		intel_ddi_enable_pipe_clock(encoder, pipe_config);
+		intel_ddi_enable_transcoder_clock(encoder, pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 }
@@ -1146,6 +1192,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	intel_encoder->compute_config_late = intel_dp_mst_compute_config_late;
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
+	intel_encoder->post_pll_disable = intel_mst_post_pll_disable_dp;
 	intel_encoder->update_pipe = intel_ddi_update_pipe;
 	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
 	intel_encoder->pre_enable = intel_mst_pre_enable_dp;

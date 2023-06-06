@@ -66,6 +66,7 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/pgtable.h>
+#include <asm/x86_init.h>
 
 #define	for_each_ioapic(idx)		\
 	for ((idx) = 0; (idx) < nr_ioapics; (idx)++)
@@ -2477,17 +2478,21 @@ static int io_apic_get_redir_entries(int ioapic)
 
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
+	unsigned int ret;
+
 	/*
 	 * dmar_alloc_hwirq() may be called before setup_IO_APIC(), so use
 	 * gsi_top if ioapic_dynirq_base hasn't been initialized yet.
 	 */
-	if (!ioapic_initialized)
-		return gsi_top;
+	ret = ioapic_dynirq_base ? : gsi_top;
+
 	/*
-	 * For DT enabled machines ioapic_dynirq_base is irrelevant and not
-	 * updated. So simply return @from if ioapic_dynirq_base == 0.
+	 * For DT enabled machines ioapic_dynirq_base is irrelevant and
+	 * always 0. gsi_top can be 0 if there is no IO/APIC registered.
+	 * 0 is an invalid interrupt number for dynamic allocations. Return
+	 * @from instead.
 	 */
-	return ioapic_dynirq_base ? : from;
+	return ret ? : from;
 }
 
 #ifdef CONFIG_X86_32
@@ -2680,10 +2685,15 @@ static void io_apic_set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 	pgprot_t flags = FIXMAP_PAGE_NOCACHE;
 
 	/*
-	 * Ensure fixmaps for IOAPIC MMIO respect memory encryption pgprot
+	 * Ensure fixmaps for IO-APIC MMIO respect memory encryption pgprot
 	 * bits, just like normal ioremap():
 	 */
-	flags = pgprot_decrypted(flags);
+	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
+		if (x86_platform.hyper.is_private_mmio(phys))
+			flags = pgprot_encrypted(flags);
+		else
+			flags = pgprot_decrypted(flags);
+	}
 
 	__set_fixmap(idx, phys, flags);
 }

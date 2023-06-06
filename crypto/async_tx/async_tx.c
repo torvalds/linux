@@ -124,7 +124,7 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 
 
 /**
- * submit_disposition - flags for routing an incoming operation
+ * enum submit_disposition - flags for routing an incoming operation
  * @ASYNC_TX_SUBMITTED: we were able to append the new operation under the lock
  * @ASYNC_TX_CHANNEL_SWITCH: when the lock is dropped schedule a channel switch
  * @ASYNC_TX_DIRECT_SUBMIT: when the lock is dropped submit directly
@@ -258,7 +258,7 @@ EXPORT_SYMBOL_GPL(async_trigger_callback);
 
 /**
  * async_tx_quiesce - ensure tx is complete and freeable upon return
- * @tx - transaction to quiesce
+ * @tx: transaction to quiesce
  */
 void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 {

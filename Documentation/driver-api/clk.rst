@@ -258,6 +258,11 @@ clocks properly but rely on them being on from the bootloader, bypassing
 the disabling means that the driver will remain functional while the issues
 are sorted out.
 
+You can see which clocks have been disabled by booting your kernel with these
+parameters::
+
+ tp_printk trace_event=clk:clk_disable
+
 To bypass this disabling, include "clk_ignore_unused" in the bootargs to the
 kernel.
 

@@ -45,10 +45,6 @@ Clang)
 	version=$2.$3.$4
 	min_version=$($min_tool_version llvm)
 	;;
-ICC)
-	version=$(($2 / 100)).$(($2 % 100)).$3
-	min_version=$($min_tool_version icc)
-	;;
 *)
 	echo "$orig_args: unknown C compiler" >&2
 	exit 1

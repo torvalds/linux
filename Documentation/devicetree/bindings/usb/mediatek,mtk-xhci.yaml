@@ -11,7 +11,7 @@ maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
 
 allOf:
-  - $ref: "usb-xhci.yaml"
+  - $ref: usb-xhci.yaml
 
 description: |
   There are two scenarios:
@@ -77,6 +77,7 @@ properties:
       - description: Mcu bus clock for register access
       - description: DMA bus clock for data transfer
       - description: controller clock
+      - description: frame count clock
 
   clock-names:
     minItems: 1
@@ -86,14 +87,7 @@ properties:
       - const: mcu_ck
       - const: dma_ck
       - const: xhci_ck
-
-  assigned-clocks:
-    minItems: 1
-    maxItems: 5
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 5
+      - const: frmcnt_ck
 
   phys:
     description:

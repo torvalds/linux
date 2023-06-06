@@ -11,7 +11,8 @@ Documentation conventions
 =========================
 
 For brevity, this document uses the type notion "u64", "u32", etc.
-to mean an unsigned integer whose width is the specified number of bits.
+to mean an unsigned integer whose width is the specified number of bits,
+and "s32", etc. to mean a signed integer of the specified number of bits.
 
 Registers and calling convention
 ================================
@@ -242,28 +243,58 @@ Jump instructions
 otherwise identical operations.
 The 'code' field encodes the operation as below:
 
-========  =====  =========================  ============
-code      value  description                notes
-========  =====  =========================  ============
-BPF_JA    0x00   PC += off                  BPF_JMP only
-BPF_JEQ   0x10   PC += off if dst == src
-BPF_JGT   0x20   PC += off if dst > src     unsigned
-BPF_JGE   0x30   PC += off if dst >= src    unsigned
-BPF_JSET  0x40   PC += off if dst & src
-BPF_JNE   0x50   PC += off if dst != src
-BPF_JSGT  0x60   PC += off if dst > src     signed
-BPF_JSGE  0x70   PC += off if dst >= src    signed
-BPF_CALL  0x80   function call
-BPF_EXIT  0x90   function / program return  BPF_JMP only
-BPF_JLT   0xa0   PC += off if dst < src     unsigned
-BPF_JLE   0xb0   PC += off if dst <= src    unsigned
-BPF_JSLT  0xc0   PC += off if dst < src     signed
-BPF_JSLE  0xd0   PC += off if dst <= src    signed
-========  =====  =========================  ============
+========  =====  ===  ===========================================  =========================================
+code      value  src  description                                  notes
+========  =====  ===  ===========================================  =========================================
+BPF_JA    0x0    0x0  PC += offset                                 BPF_JMP only
+BPF_JEQ   0x1    any  PC += offset if dst == src
+BPF_JGT   0x2    any  PC += offset if dst > src                    unsigned
+BPF_JGE   0x3    any  PC += offset if dst >= src                   unsigned
+BPF_JSET  0x4    any  PC += offset if dst & src
+BPF_JNE   0x5    any  PC += offset if dst != src
+BPF_JSGT  0x6    any  PC += offset if dst > src                    signed
+BPF_JSGE  0x7    any  PC += offset if dst >= src                   signed
+BPF_CALL  0x8    0x0  call helper function by address              see `Helper functions`_
+BPF_CALL  0x8    0x1  call PC += offset                            see `Program-local functions`_
+BPF_CALL  0x8    0x2  call helper function by BTF ID               see `Helper functions`_
+BPF_EXIT  0x9    0x0  return                                       BPF_JMP only
+BPF_JLT   0xa    any  PC += offset if dst < src                    unsigned
+BPF_JLE   0xb    any  PC += offset if dst <= src                   unsigned
+BPF_JSLT  0xc    any  PC += offset if dst < src                    signed
+BPF_JSLE  0xd    any  PC += offset if dst <= src                   signed
+========  =====  ===  ===========================================  =========================================
 
 The eBPF program needs to store the return value into register R0 before doing a
-BPF_EXIT.
+``BPF_EXIT``.
 
+Example:
+
+``BPF_JSGE | BPF_X | BPF_JMP32`` (0x7e) means::
+
+  if (s32)dst s>= (s32)src goto +offset
+
+where 's>=' indicates a signed '>=' comparison.
+
+Helper functions
+~~~~~~~~~~~~~~~~
+
+Helper functions are a concept whereby BPF programs can call into a
+set of function calls exposed by the underlying platform.
+
+Historically, each helper function was identified by an address
+encoded in the imm field.  The available helper functions may differ
+for each program type, but address values are unique across all program types.
+
+Platforms that support the BPF Type Format (BTF) support identifying
+a helper function by a BTF ID encoded in the imm field, where the BTF ID
+identifies the helper name and type.
+
+Program-local functions
+~~~~~~~~~~~~~~~~~~~~~~~
+Program-local functions are functions exposed by the same BPF program as the
+caller, and are referenced by offset from the call instruction, similar to
+``BPF_JA``.  A ``BPF_EXIT`` within the program-local function will return to
+the caller.
 
 Load and store instructions
 ===========================
@@ -385,14 +416,56 @@ and loaded back to ``R0``.
 -----------------------------
 
 Instructions with the ``BPF_IMM`` 'mode' modifier use the wide instruction
-encoding for an extra imm64 value.
+encoding defined in `Instruction encoding`_, and use the 'src' field of the
+basic instruction to hold an opcode subtype.
 
-There is currently only one such instruction.
+The following table defines a set of ``BPF_IMM | BPF_DW | BPF_LD`` instructions
+with opcode subtypes in the 'src' field, using new terms such as "map"
+defined further below:
 
-``BPF_LD | BPF_DW | BPF_IMM`` means::
+=========================  ======  ===  =========================================  ===========  ==============
+opcode construction        opcode  src  pseudocode                                 imm type     dst type
+=========================  ======  ===  =========================================  ===========  ==============
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x0  dst = imm64                                integer      integer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x1  dst = map_by_fd(imm)                       map fd       map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x2  dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x3  dst = var_addr(imm)                        variable id  data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x4  dst = code_addr(imm)                       integer      code pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x5  dst = map_by_idx(imm)                      map index    map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x6  dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
+=========================  ======  ===  =========================================  ===========  ==============
 
-  dst = imm64
+where
 
+* map_by_fd(imm) means to convert a 32-bit file descriptor into an address of a map (see `Maps`_)
+* map_by_idx(imm) means to convert a 32-bit index into an address of a map
+* map_val(map) gets the address of the first value in a given map
+* var_addr(imm) gets the address of a platform variable (see `Platform Variables`_) with a given id
+* code_addr(imm) gets the address of the instruction at a specified relative offset in number of (64-bit) instructions
+* the 'imm type' can be used by disassemblers for display
+* the 'dst type' can be used for verification and JIT compilation purposes
+
+Maps
+~~~~
+
+Maps are shared memory regions accessible by eBPF programs on some platforms.
+A map can have various semantics as defined in a separate document, and may or
+may not have a single contiguous memory region, but the 'map_val(map)' is
+currently only defined for maps that do have a single contiguous memory region.
+
+Each map can have a file descriptor (fd) if supported by the platform, where
+'map_by_fd(imm)' means to get the map with the specified file descriptor. Each
+BPF program can also be defined to use a set of maps associated with the
+program at load time, and 'map_by_idx(imm)' means to get the map with the given
+index in the set associated with the BPF program containing the instruction.
+
+Platform Variables
+~~~~~~~~~~~~~~~~~~
+
+Platform variables are memory regions, identified by integer ids, exposed by
+the runtime and accessible by BPF programs on some platforms.  The
+'var_addr(imm)' operation means to get the address of the memory region
+identified by the given id.
 
 Legacy BPF Packet access instructions
 -------------------------------------

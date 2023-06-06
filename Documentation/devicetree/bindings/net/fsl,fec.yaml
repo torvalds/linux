@@ -144,6 +144,9 @@ properties:
     description:
       Regulator that powers the Ethernet PHY.
 
+  power-domains:
+    maxItems: 1
+
   fsl,num-tx-queues:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:

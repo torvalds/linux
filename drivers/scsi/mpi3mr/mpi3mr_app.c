@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -922,6 +922,7 @@ err_out:
 /**
  * mpi3mr_bsg_process_mpt_cmds - MPI Pass through BSG handler
  * @job: BSG job reference
+ * @reply_payload_rcv_len: length of payload recvd
  *
  * This function is the top level handler for MPI Pass through
  * command, this does basic validation of the input data buffers,
@@ -1471,6 +1472,7 @@ static int mpi3mr_bsg_request(struct bsg_job *job)
 
 /**
  * mpi3mr_bsg_exit - de-registration from bsg layer
+ * @mrioc: Adapter instance reference
  *
  * This will be called during driver unload and all
  * bsg resources allocated during load will be freed.
@@ -1505,6 +1507,7 @@ static void mpi3mr_bsg_node_release(struct device *dev)
 
 /**
  * mpi3mr_bsg_init -  registration with bsg layer
+ * @mrioc: Adapter instance reference
  *
  * This will be called during driver load and it will
  * register driver with bsg layer

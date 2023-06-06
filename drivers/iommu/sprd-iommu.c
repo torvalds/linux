@@ -62,6 +62,7 @@ enum sprd_iommu_version {
  * @eb: gate clock which controls IOMMU access
  */
 struct sprd_iommu_device {
+	struct sprd_iommu_domain	*dom;
 	enum sprd_iommu_version	ver;
 	u32			*prot_page_va;
 	dma_addr_t		prot_page_pa;
@@ -151,13 +152,6 @@ static struct iommu_domain *sprd_iommu_domain_alloc(unsigned int domain_type)
 	return &dom->domain;
 }
 
-static void sprd_iommu_domain_free(struct iommu_domain *domain)
-{
-	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
-
-	kfree(dom);
-}
-
 static void sprd_iommu_first_vpn(struct sprd_iommu_domain *dom)
 {
 	struct sprd_iommu_device *sdev = dom->sdev;
@@ -230,6 +224,28 @@ static void sprd_iommu_hw_en(struct sprd_iommu_device *sdev, bool en)
 	sprd_iommu_update_bits(sdev, reg_cfg, mask, 0, val);
 }
 
+static void sprd_iommu_cleanup(struct sprd_iommu_domain *dom)
+{
+	size_t pgt_size;
+
+	/* Nothing need to do if the domain hasn't been attached */
+	if (!dom->sdev)
+		return;
+
+	pgt_size = sprd_iommu_pgt_size(&dom->domain);
+	dma_free_coherent(dom->sdev->dev, pgt_size, dom->pgt_va, dom->pgt_pa);
+	dom->sdev = NULL;
+	sprd_iommu_hw_en(dom->sdev, false);
+}
+
+static void sprd_iommu_domain_free(struct iommu_domain *domain)
+{
+	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
+
+	sprd_iommu_cleanup(dom);
+	kfree(dom);
+}
+
 static int sprd_iommu_attach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
@@ -237,15 +253,27 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
 	size_t pgt_size = sprd_iommu_pgt_size(domain);
 
-	if (dom->sdev)
-		return -EINVAL;
+	/* The device is attached to this domain */
+	if (sdev->dom == dom)
+		return 0;
 
-	dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
-	if (!dom->pgt_va)
-		return -ENOMEM;
+	/* The first time that domain is attaching to a device */
+	if (!dom->pgt_va) {
+		dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
+		if (!dom->pgt_va)
+			return -ENOMEM;
 
-	dom->sdev = sdev;
+		dom->sdev = sdev;
+	}
 
+	sdev->dom = dom;
+
+	/*
+	 * One sprd IOMMU serves one client device only, disabled it before
+	 * configure mapping table to avoid access conflict in case other
+	 * mapping table is stored in.
+	 */
+	sprd_iommu_hw_en(sdev, false);
 	sprd_iommu_first_ppn(dom);
 	sprd_iommu_first_vpn(dom);
 	sprd_iommu_vpn_range(dom);
@@ -507,7 +535,7 @@ free_page:
 	return ret;
 }
 
-static int sprd_iommu_remove(struct platform_device *pdev)
+static void sprd_iommu_remove(struct platform_device *pdev)
 {
 	struct sprd_iommu_device *sdev = platform_get_drvdata(pdev);
 
@@ -519,8 +547,6 @@ static int sprd_iommu_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_sysfs_remove(&sdev->iommu);
 	iommu_device_unregister(&sdev->iommu);
-
-	return 0;
 }
 
 static struct platform_driver sprd_iommu_driver = {
@@ -530,7 +556,7 @@ static struct platform_driver sprd_iommu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= sprd_iommu_probe,
-	.remove	= sprd_iommu_remove,
+	.remove_new = sprd_iommu_remove,
 };
 module_platform_driver(sprd_iommu_driver);
 

@@ -1334,7 +1334,6 @@ static int vgxy61_init_cfg(struct v4l2_subdev *sd,
 	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
 	struct v4l2_subdev_format fmt = { 0 };
 
-	sensor->current_mode = sensor->default_mode;
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &fmt.format,
 			     VGXY61_MEDIA_BUS_FMT_DEF);
 
@@ -1549,7 +1548,7 @@ static int vgxy61_tx_from_ep(struct vgxy61_dev *sensor,
 	sensor->nb_of_lane = l_nb;
 
 	dev_dbg(&client->dev, "tx uses %d lanes", l_nb);
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < VGXY61_NB_POLARITIES; i++) {
 		dev_dbg(&client->dev, "log2phy[%d] = %d\n", i, log2phy[i]);
 		dev_dbg(&client->dev, "phy2log[%d] = %d\n", i, phy2log[i]);
 		dev_dbg(&client->dev, "polarity[%d] = %d\n", i, polarities[i]);
@@ -1735,6 +1734,12 @@ static int vgxy61_power_on(struct device *dev)
 		}
 	}
 
+	ret = vgxy61_detect(sensor);
+	if (ret) {
+		dev_err(&client->dev, "sensor detect failed %d\n", ret);
+		goto disable_clock;
+	}
+
 	ret = vgxy61_patch(sensor);
 	if (ret) {
 		dev_err(&client->dev, "sensor patch failed %d\n", ret);
@@ -1861,21 +1866,15 @@ static int vgxy61_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = vgxy61_detect(sensor);
-	if (ret) {
-		dev_err(&client->dev, "sensor detect failed %d\n", ret);
-		return ret;
-	}
-
 	vgxy61_fill_sensor_param(sensor);
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &sensor->fmt,
 			     VGXY61_MEDIA_BUS_FMT_DEF);
 
+	mutex_init(&sensor->lock);
+
 	ret = vgxy61_update_hdr(sensor, sensor->hdr);
 	if (ret)
-		return ret;
-
-	mutex_init(&sensor->lock);
+		goto error_power_off;
 
 	ret = vgxy61_init_controls(sensor);
 	if (ret) {
@@ -1914,8 +1913,8 @@ error_pm_runtime:
 	media_entity_cleanup(&sensor->sd.entity);
 error_handler_free:
 	v4l2_ctrl_handler_free(sensor->sd.ctrl_handler);
-	mutex_destroy(&sensor->lock);
 error_power_off:
+	mutex_destroy(&sensor->lock);
 	vgxy61_power_off(dev);
 
 	return ret;

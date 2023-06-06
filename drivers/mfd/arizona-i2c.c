@@ -112,6 +112,7 @@ static const struct of_device_id arizona_i2c_of_match[] = {
 	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, arizona_i2c_of_match);
 #endif
 
 static struct i2c_driver arizona_i2c_driver = {

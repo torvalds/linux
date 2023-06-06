@@ -261,9 +261,6 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	else
 		ret = rockchip_drm_gem_object_mmap_dma(obj, vma);
 
-	if (ret)
-		drm_gem_vm_close(vma);
-
 	return ret;
 }
 
@@ -518,8 +515,14 @@ int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
 	if (rk_obj->pages) {
-		void *vaddr = vmap(rk_obj->pages, rk_obj->num_pages, VM_MAP,
-				  pgprot_writecombine(PAGE_KERNEL));
+		void *vaddr;
+
+		if (rk_obj->kvaddr)
+			vaddr = rk_obj->kvaddr;
+		else
+			vaddr = vmap(rk_obj->pages, rk_obj->num_pages, VM_MAP,
+				     pgprot_writecombine(PAGE_KERNEL));
+
 		if (!vaddr)
 			return -ENOMEM;
 		iosys_map_set_vaddr(map, vaddr);
@@ -539,7 +542,8 @@ void rockchip_gem_prime_vunmap(struct drm_gem_object *obj,
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
 	if (rk_obj->pages) {
-		vunmap(map->vaddr);
+		if (map->vaddr != rk_obj->kvaddr)
+			vunmap(map->vaddr);
 		return;
 	}
 

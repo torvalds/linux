@@ -722,6 +722,18 @@ struct pptable_funcs {
 			   void *data, uint32_t *size);
 
 	/**
+	 * @get_apu_thermal_limit: get apu core limit from smu
+	 * &limit: current limit temperature in millidegrees Celsius
+	 */
+	int (*get_apu_thermal_limit)(struct smu_context *smu, uint32_t *limit);
+
+	/**
+	 * @set_apu_thermal_limit: update all controllers with new limit
+	 * &limit: limit temperature to be setted, in millidegrees Celsius
+	 */
+	int (*set_apu_thermal_limit)(struct smu_context *smu, uint32_t limit);
+
+	/**
 	 * @pre_display_config_changed: Prepare GPU for a display configuration
 	 *                              change.
 	 *

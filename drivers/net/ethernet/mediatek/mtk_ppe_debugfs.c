@@ -47,7 +47,7 @@ static const char *mtk_foe_pkt_type_str(int type)
 static void
 mtk_print_addr(struct seq_file *m, u32 *addr, bool ipv6)
 {
-	u32 n_addr[4];
+	__be32 n_addr[4];
 	int i;
 
 	if (!ipv6) {

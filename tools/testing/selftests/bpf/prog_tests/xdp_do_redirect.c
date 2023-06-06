@@ -87,12 +87,12 @@ static void test_max_pkt_size(int fd)
 void test_xdp_do_redirect(void)
 {
 	int err, xdp_prog_fd, tc_prog_fd, ifindex_src, ifindex_dst;
-	char data[sizeof(pkt_udp) + sizeof(__u32)];
+	char data[sizeof(pkt_udp) + sizeof(__u64)];
 	struct test_xdp_do_redirect *skel = NULL;
 	struct nstoken *nstoken = NULL;
 	struct bpf_link *link;
 	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
-	struct xdp_md ctx_in = { .data = sizeof(__u32),
+	struct xdp_md ctx_in = { .data = sizeof(__u64),
 				 .data_end = sizeof(data) };
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
 			    .data_in = &data,
@@ -106,8 +106,9 @@ void test_xdp_do_redirect(void)
 	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
 			    .attach_point = BPF_TC_INGRESS);
 
-	memcpy(&data[sizeof(__u32)], &pkt_udp, sizeof(pkt_udp));
+	memcpy(&data[sizeof(__u64)], &pkt_udp, sizeof(pkt_udp));
 	*((__u32 *)data) = 0x42; /* metadata test value */
+	*((__u32 *)data + 4) = 0;
 
 	skel = test_xdp_do_redirect__open();
 	if (!ASSERT_OK_PTR(skel, "skel"))
@@ -159,8 +160,7 @@ void test_xdp_do_redirect(void)
 
 	if (!ASSERT_EQ(query_opts.feature_flags,
 		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
-		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       NETDEV_XDP_ACT_RX_SG,
 		       "veth_src query_opts.feature_flags"))
 		goto out;
 
@@ -170,9 +170,34 @@ void test_xdp_do_redirect(void)
 
 	if (!ASSERT_EQ(query_opts.feature_flags,
 		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG,
+		       "veth_dst query_opts.feature_flags"))
+		goto out;
+
+	/* Enable GRO */
+	SYS(out, "ethtool -K veth_src gro on");
+	SYS(out, "ethtool -K veth_dst gro on");
+
+	err = bpf_xdp_query(ifindex_src, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "veth_src bpf_xdp_query gro on"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
 		       NETDEV_XDP_ACT_NDO_XMIT_SG,
-		       "veth_dst query_opts.feature_flags"))
+		       "veth_src query_opts.feature_flags gro on"))
+		goto out;
+
+	err = bpf_xdp_query(ifindex_dst, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "veth_dst bpf_xdp_query gro on"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
+		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       "veth_dst query_opts.feature_flags gro on"))
 		goto out;
 
 	memcpy(skel->rodata->expect_dst, &pkt_udp.eth.h_dest, ETH_ALEN);

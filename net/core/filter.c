@@ -2122,6 +2122,7 @@ static inline int __bpf_tx_skb(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	skb->dev = dev;
+	skb_set_redirected_noclear(skb, skb_at_tc_ingress(skb));
 	skb_clear_tstamp(skb);
 
 	dev_xmit_recursion_inc();
@@ -5002,7 +5003,7 @@ const struct bpf_func_proto bpf_get_socket_ptr_cookie_proto = {
 	.func		= bpf_get_socket_ptr_cookie,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
+	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON | PTR_MAYBE_NULL,
 };
 
 BPF_CALL_1(bpf_get_socket_cookie_sock_ops, struct bpf_sock_ops_kern *, ctx)
@@ -8746,23 +8747,18 @@ EXPORT_SYMBOL_GPL(nf_conn_btf_access_lock);
 
 int (*nfct_btf_struct_access)(struct bpf_verifier_log *log,
 			      const struct bpf_reg_state *reg,
-			      int off, int size, enum bpf_access_type atype,
-			      u32 *next_btf_id, enum bpf_type_flag *flag);
+			      int off, int size);
 EXPORT_SYMBOL_GPL(nfct_btf_struct_access);
 
 static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
 					const struct bpf_reg_state *reg,
-					int off, int size, enum bpf_access_type atype,
-					u32 *next_btf_id, enum bpf_type_flag *flag)
+					int off, int size)
 {
 	int ret = -EACCES;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
-		ret = nfct_btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
+		ret = nfct_btf_struct_access(log, reg, off, size);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
@@ -8829,17 +8825,13 @@ EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
 static int xdp_btf_struct_access(struct bpf_verifier_log *log,
 				 const struct bpf_reg_state *reg,
-				 int off, int size, enum bpf_access_type atype,
-				 u32 *next_btf_id, enum bpf_type_flag *flag)
+				 int off, int size)
 {
 	int ret = -EACCES;
 
-	if (atype == BPF_READ)
-		return btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
-
 	mutex_lock(&nf_conn_btf_access_lock);
 	if (nfct_btf_struct_access)
-		ret = nfct_btf_struct_access(log, reg, off, size, atype, next_btf_id, flag);
+		ret = nfct_btf_struct_access(log, reg, off, size);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
@@ -9189,7 +9181,7 @@ static struct bpf_insn *bpf_convert_tstamp_type_read(const struct bpf_insn *si,
 	__u8 tmp_reg = BPF_REG_AX;
 
 	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-			      PKT_VLAN_PRESENT_OFFSET);
+			      SKB_BF_MONO_TC_OFFSET);
 	*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg,
 				SKB_MONO_DELIVERY_TIME_MASK, 2);
 	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_TSTAMP_UNSPEC);
@@ -9236,7 +9228,7 @@ static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_prog *prog,
 		/* AX is needed because src_reg and dst_reg could be the same */
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, SKB_BF_MONO_TC_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
 					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK);
 		*insn++ = BPF_JMP32_IMM(BPF_JNE, tmp_reg,
@@ -9271,14 +9263,14 @@ static struct bpf_insn *bpf_convert_tstamp_write(const struct bpf_prog *prog,
 	if (!prog->tstamp_type_access) {
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, SKB_BF_MONO_TC_OFFSET);
 		/* Writing __sk_buff->tstamp as ingress, goto <clear> */
 		*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg, TC_AT_INGRESS_MASK, 1);
 		/* goto <store> */
 		*insn++ = BPF_JMP_A(2);
 		/* <clear>: mono_delivery_time */
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, ~SKB_MONO_DELIVERY_TIME_MASK);
-		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg, SKB_BF_MONO_TC_OFFSET);
 	}
 #endif
 
@@ -11725,6 +11717,7 @@ static int __init bpf_kfunc_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_LWT_IN, &bpf_kfunc_set_skb);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_LWT_XMIT, &bpf_kfunc_set_skb);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_LWT_SEG6LOCAL, &bpf_kfunc_set_skb);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_NETFILTER, &bpf_kfunc_set_skb);
 	return ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &bpf_kfunc_set_xdp);
 }
 late_initcall(bpf_kfunc_init);

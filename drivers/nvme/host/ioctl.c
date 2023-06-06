@@ -464,7 +464,8 @@ static inline struct nvme_uring_cmd_pdu *nvme_uring_cmd_pdu(
 	return (struct nvme_uring_cmd_pdu *)&ioucmd->pdu;
 }
 
-static void nvme_uring_task_meta_cb(struct io_uring_cmd *ioucmd)
+static void nvme_uring_task_meta_cb(struct io_uring_cmd *ioucmd,
+				    unsigned issue_flags)
 {
 	struct nvme_uring_cmd_pdu *pdu = nvme_uring_cmd_pdu(ioucmd);
 	struct request *req = pdu->req;
@@ -485,17 +486,18 @@ static void nvme_uring_task_meta_cb(struct io_uring_cmd *ioucmd)
 		blk_rq_unmap_user(req->bio);
 	blk_mq_free_request(req);
 
-	io_uring_cmd_done(ioucmd, status, result);
+	io_uring_cmd_done(ioucmd, status, result, issue_flags);
 }
 
-static void nvme_uring_task_cb(struct io_uring_cmd *ioucmd)
+static void nvme_uring_task_cb(struct io_uring_cmd *ioucmd,
+			       unsigned issue_flags)
 {
 	struct nvme_uring_cmd_pdu *pdu = nvme_uring_cmd_pdu(ioucmd);
 
 	if (pdu->bio)
 		blk_rq_unmap_user(pdu->bio);
 
-	io_uring_cmd_done(ioucmd, pdu->nvme_status, pdu->u.result);
+	io_uring_cmd_done(ioucmd, pdu->nvme_status, pdu->u.result, issue_flags);
 }
 
 static enum rq_end_io_ret nvme_uring_cmd_end_io(struct request *req,
@@ -517,7 +519,7 @@ static enum rq_end_io_ret nvme_uring_cmd_end_io(struct request *req,
 	 * Otherwise, move the completion to task work.
 	 */
 	if (cookie != NULL && blk_rq_is_poll(req))
-		nvme_uring_task_cb(ioucmd);
+		nvme_uring_task_cb(ioucmd, IO_URING_F_UNLOCKED);
 	else
 		io_uring_cmd_complete_in_task(ioucmd, nvme_uring_task_cb);
 
@@ -539,7 +541,7 @@ static enum rq_end_io_ret nvme_uring_cmd_end_io_meta(struct request *req,
 	 * Otherwise, move the completion to task work.
 	 */
 	if (cookie != NULL && blk_rq_is_poll(req))
-		nvme_uring_task_meta_cb(ioucmd);
+		nvme_uring_task_meta_cb(ioucmd, IO_URING_F_UNLOCKED);
 	else
 		io_uring_cmd_complete_in_task(ioucmd, nvme_uring_task_meta_cb);
 
@@ -550,7 +552,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 		struct io_uring_cmd *ioucmd, unsigned int issue_flags, bool vec)
 {
 	struct nvme_uring_cmd_pdu *pdu = nvme_uring_cmd_pdu(ioucmd);
-	const struct nvme_uring_cmd *cmd = ioucmd->cmd;
+	const struct nvme_uring_cmd *cmd = io_uring_sqe_cmd(ioucmd->sqe);
 	struct request_queue *q = ns ? ns->queue : ctrl->admin_q;
 	struct nvme_uring_data d;
 	struct nvme_command c;

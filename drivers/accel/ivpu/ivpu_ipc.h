@@ -21,7 +21,7 @@ struct ivpu_bo;
 #define IVPU_IPC_ALIGNMENT	   64
 
 #define IVPU_IPC_HDR_FREE	   0
-#define IVPU_IPC_HDR_ALLOCATED	   0
+#define IVPU_IPC_HDR_ALLOCATED	   1
 
 /**
  * struct ivpu_ipc_hdr - The IPC message header structure, exchanged

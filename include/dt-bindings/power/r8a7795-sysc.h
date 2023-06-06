@@ -30,7 +30,6 @@
 #define R8A7795_PD_CA53_SCU		21
 #define R8A7795_PD_3DG_E		22
 #define R8A7795_PD_A3IR			24
-#define R8A7795_PD_A2VC0		25	/* ES1.x only */
 #define R8A7795_PD_A2VC1		26
 
 /* Always-on power area */

@@ -69,7 +69,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	if (size) {
 		r = amdgpu_sa_bo_new(&adev->ib_pools[pool_type],
-				      &ib->sa_bo, size, 256);
+				     &ib->sa_bo, size);
 		if (r) {
 			dev_err(adev->dev, "failed to get a new IB (%d)\n", r);
 			return r;
@@ -267,7 +267,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vmid)
-			amdgpu_vmid_reset(adev, ring->funcs->vmhub, job->vmid);
+			amdgpu_vmid_reset(adev, ring->vm_hub, job->vmid);
 		amdgpu_ring_undo(ring);
 		return r;
 	}
@@ -309,8 +309,7 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++) {
 		r = amdgpu_sa_bo_manager_init(adev, &adev->ib_pools[i],
-					      AMDGPU_IB_POOL_SIZE,
-					      AMDGPU_GPU_PAGE_SIZE,
+					      AMDGPU_IB_POOL_SIZE, 256,
 					      AMDGPU_GEM_DOMAIN_GTT);
 		if (r)
 			goto error;

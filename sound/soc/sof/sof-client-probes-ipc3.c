@@ -65,7 +65,6 @@ static int ipc3_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 {
 	struct sof_ipc_probe_dma_add_params *msg;
 	size_t size = struct_size(msg, dma, 1);
-	struct sof_ipc_reply reply;
 	int ret;
 
 	msg = kmalloc(size, GFP_KERNEL);
@@ -77,7 +76,7 @@ static int ipc3_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 	msg->dma[0].stream_tag = stream_tag;
 	msg->dma[0].dma_buffer_size = buffer_size;
 
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
+	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }
@@ -93,12 +92,11 @@ static int ipc3_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 static int ipc3_probes_deinit(struct sof_client_dev *cdev)
 {
 	struct sof_ipc_cmd_hdr msg;
-	struct sof_ipc_reply reply;
 
 	msg.size = sizeof(msg);
 	msg.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_DEINIT;
 
-	return sof_client_ipc_tx_message(cdev, &msg, &reply, sizeof(reply));
+	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
 }
 
 static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
@@ -180,7 +178,6 @@ static int ipc3_probes_points_add(struct sof_client_dev *cdev,
 {
 	struct sof_ipc_probe_point_add_params *msg;
 	size_t size = struct_size(msg, desc, num_desc);
-	struct sof_ipc_reply reply;
 	int ret;
 
 	msg = kmalloc(size, GFP_KERNEL);
@@ -191,7 +188,7 @@ static int ipc3_probes_points_add(struct sof_client_dev *cdev,
 	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_ADD;
 	memcpy(&msg->desc[0], desc, size - sizeof(*msg));
 
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
+	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }
@@ -211,7 +208,6 @@ static int ipc3_probes_points_remove(struct sof_client_dev *cdev,
 {
 	struct sof_ipc_probe_point_remove_params *msg;
 	size_t size = struct_size(msg, buffer_id, num_buffer_id);
-	struct sof_ipc_reply reply;
 	int ret;
 
 	msg = kmalloc(size, GFP_KERNEL);
@@ -222,7 +218,7 @@ static int ipc3_probes_points_remove(struct sof_client_dev *cdev,
 	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_REMOVE;
 	memcpy(&msg->buffer_id[0], buffer_id, size - sizeof(*msg));
 
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
+	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }

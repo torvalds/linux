@@ -363,7 +363,7 @@ static int __maybe_unused ti_sn65dsi86_resume(struct device *dev)
 	/* td2: min 100 us after regulators before enabling the GPIO */
 	usleep_range(100, 110);
 
-	gpiod_set_value(pdata->enable_gpio, 1);
+	gpiod_set_value_cansleep(pdata->enable_gpio, 1);
 
 	/*
 	 * If we have a reference clock we can enable communication w/ the
@@ -386,7 +386,7 @@ static int __maybe_unused ti_sn65dsi86_suspend(struct device *dev)
 	if (pdata->refclk)
 		ti_sn65dsi86_disable_comms(pdata);
 
-	gpiod_set_value(pdata->enable_gpio, 0);
+	gpiod_set_value_cansleep(pdata->enable_gpio, 0);
 
 	ret = regulator_bulk_disable(SN_REGULATOR_SUPPLY_NUM, pdata->supplies);
 	if (ret)

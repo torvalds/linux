@@ -154,7 +154,7 @@ static int __init cpuid_init(void)
 		       CPUID_MAJOR);
 		return -EBUSY;
 	}
-	cpuid_class = class_create(THIS_MODULE, "cpuid");
+	cpuid_class = class_create("cpuid");
 	if (IS_ERR(cpuid_class)) {
 		err = PTR_ERR(cpuid_class);
 		goto out_chrdev;

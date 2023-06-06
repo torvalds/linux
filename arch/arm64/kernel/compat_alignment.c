@@ -314,35 +314,31 @@ int do_compat_alignment_fixup(unsigned long addr, struct pt_regs *regs)
 	int (*handler)(unsigned long addr, u32 instr, struct pt_regs *regs);
 	unsigned int type;
 	u32 instr = 0;
-	u16 tinstr = 0;
 	int isize = 4;
 	int thumb2_32b = 0;
-	int fault;
 
 	instrptr = instruction_pointer(regs);
 
 	if (compat_thumb_mode(regs)) {
 		__le16 __user *ptr = (__le16 __user *)(instrptr & ~1);
+		u16 tinstr, tinst2;
 
-		fault = alignment_get_thumb(regs, ptr, &tinstr);
-		if (!fault) {
-			if (IS_T32(tinstr)) {
-				/* Thumb-2 32-bit */
-				u16 tinst2;
-				fault = alignment_get_thumb(regs, ptr + 1, &tinst2);
-				instr = ((u32)tinstr << 16) | tinst2;
-				thumb2_32b = 1;
-			} else {
-				isize = 2;
-				instr = thumb2arm(tinstr);
-			}
+		if (alignment_get_thumb(regs, ptr, &tinstr))
+			return 1;
+
+		if (IS_T32(tinstr)) { /* Thumb-2 32-bit */
+			if (alignment_get_thumb(regs, ptr + 1, &tinst2))
+				return 1;
+			instr = ((u32)tinstr << 16) | tinst2;
+			thumb2_32b = 1;
+		} else {
+			isize = 2;
+			instr = thumb2arm(tinstr);
 		}
 	} else {
-		fault = alignment_get_arm(regs, (__le32 __user *)instrptr, &instr);
+		if (alignment_get_arm(regs, (__le32 __user *)instrptr, &instr))
+			return 1;
 	}
-
-	if (fault)
-		return 1;
 
 	switch (CODING_BITS(instr)) {
 	case 0x00000000:	/* 3.13.4 load/store instruction extensions */

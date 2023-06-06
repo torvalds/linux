@@ -847,7 +847,7 @@ static u64 do_work(u8 *__data, long bytes, int nr, int nr_max, int loop, u64 val
 
 	if (g->p.data_rand_walk) {
 		u32 lfsr = nr + loop + val;
-		int j;
+		long j;
 
 		for (i = 0; i < words/1024; i++) {
 			long start, end;

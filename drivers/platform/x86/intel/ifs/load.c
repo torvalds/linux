@@ -192,7 +192,7 @@ static int scan_chunks_sanity_check(struct device *dev)
 	struct ifs_work local_work;
 	int curr_pkg, cpu, ret;
 
-	memset(ifsd->pkg_auth, 0, (topology_max_packages() * sizeof(bool)));
+	memset(ifs_pkg_auth, 0, (topology_max_packages() * sizeof(bool)));
 	ret = validate_ifs_metadata(dev);
 	if (ret)
 		return ret;
@@ -204,18 +204,18 @@ static int scan_chunks_sanity_check(struct device *dev)
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		curr_pkg = topology_physical_package_id(cpu);
-		if (ifsd->pkg_auth[curr_pkg])
+		if (ifs_pkg_auth[curr_pkg])
 			continue;
 		reinit_completion(&ifs_done);
 		local_work.dev = dev;
-		INIT_WORK(&local_work.w, copy_hashes_authenticate_chunks);
+		INIT_WORK_ONSTACK(&local_work.w, copy_hashes_authenticate_chunks);
 		schedule_work_on(cpu, &local_work.w);
 		wait_for_completion(&ifs_done);
 		if (ifsd->loading_error) {
 			ret = -EIO;
 			goto out;
 		}
-		ifsd->pkg_auth[curr_pkg] = 1;
+		ifs_pkg_auth[curr_pkg] = 1;
 	}
 	ret = 0;
 out:
@@ -257,13 +257,14 @@ static int image_sanity_check(struct device *dev, const struct microcode_header_
  */
 int ifs_load_firmware(struct device *dev)
 {
+	const struct ifs_test_caps *test = ifs_get_test_caps(dev);
 	struct ifs_data *ifsd = ifs_get_data(dev);
 	const struct firmware *fw;
 	char scan_path[64];
 	int ret = -EINVAL;
 
 	snprintf(scan_path, sizeof(scan_path), "intel/ifs_%d/%02x-%02x-%02x-%02x.scan",
-		 ifsd->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,
+		 test->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,
 		 boot_cpu_data.x86_stepping, ifsd->cur_batch);
 
 	ret = request_firmware_direct(&fw, scan_path, dev);

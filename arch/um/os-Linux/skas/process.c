@@ -262,7 +262,7 @@ static int userspace_tramp(void *stack)
 	if (stack != NULL) {
 		fd = phys_mapping(uml_to_phys(stack), &offset);
 		addr = mmap((void *) STUB_DATA,
-			    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
+			    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 			    MAP_FIXED | MAP_SHARED, fd, offset);
 		if (addr == MAP_FAILED) {
 			printk(UM_KERN_ERR "mapping segfault stack at 0x%lx failed, errno = %d\n",
@@ -277,7 +277,7 @@ static int userspace_tramp(void *stack)
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) __syscall_stub_start;
 
-		set_sigstack((void *) STUB_DATA, UM_KERN_PAGE_SIZE);
+		set_sigstack((void *) STUB_DATA, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
 		sa.sa_sigaction = (void *) v;
@@ -515,7 +515,7 @@ static int __init init_thread_regs(void)
 	thread_regs[REGS_IP_INDEX] = STUB_CODE +
 				(unsigned long) stub_clone_handler -
 				(unsigned long) __syscall_stub_start;
-	thread_regs[REGS_SP_INDEX] = STUB_DATA + UM_KERN_PAGE_SIZE -
+	thread_regs[REGS_SP_INDEX] = STUB_DATA + STUB_DATA_PAGES * UM_KERN_PAGE_SIZE -
 		sizeof(void *);
 #ifdef __SIGNAL_FRAMESIZE
 	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;

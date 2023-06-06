@@ -14,6 +14,43 @@
 
 /*
  * Grace-period counter management.
+ *
+ * The two least significant bits contain the control flags.
+ * The most significant bits contain the grace-period sequence counter.
+ *
+ * When both control flags are zero, no grace period is in progress.
+ * When either bit is non-zero, a grace period has started and is in
+ * progress. When the grace period completes, the control flags are reset
+ * to 0 and the grace-period sequence counter is incremented.
+ *
+ * However some specific RCU usages make use of custom values.
+ *
+ * SRCU special control values:
+ *
+ *	SRCU_SNP_INIT_SEQ	:	Invalid/init value set when SRCU node
+ *					is initialized.
+ *
+ *	SRCU_STATE_IDLE		:	No SRCU gp is in progress
+ *
+ *	SRCU_STATE_SCAN1	:	State set by rcu_seq_start(). Indicates
+ *					we are scanning the readers on the slot
+ *					defined as inactive (there might well
+ *					be pending readers that will use that
+ *					index, but their number is bounded).
+ *
+ *	SRCU_STATE_SCAN2	:	State set manually via rcu_seq_set_state()
+ *					Indicates we are flipping the readers
+ *					index and then scanning the readers on the
+ *					slot newly designated as inactive (again,
+ *					the number of pending readers that will use
+ *					this inactive index is bounded).
+ *
+ * RCU polled GP special control value:
+ *
+ *	RCU_GET_STATE_COMPLETED :	State value indicating an already-completed
+ *					polled GP has completed.  This value covers
+ *					both the state and the counter of the
+ *					grace-period sequence number.
  */
 
 #define RCU_SEQ_CTR_SHIFT	2
@@ -341,11 +378,13 @@ extern void rcu_init_geometry(void);
  * specified state structure (for SRCU) or the only rcu_state structure
  * (for RCU).
  */
-#define srcu_for_each_node_breadth_first(sp, rnp) \
+#define _rcu_for_each_node_breadth_first(sp, rnp) \
 	for ((rnp) = &(sp)->node[0]; \
 	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
 #define rcu_for_each_node_breadth_first(rnp) \
-	srcu_for_each_node_breadth_first(&rcu_state, rnp)
+	_rcu_for_each_node_breadth_first(&rcu_state, rnp)
+#define srcu_for_each_node_breadth_first(ssp, rnp) \
+	_rcu_for_each_node_breadth_first(ssp->srcu_sup, rnp)
 
 /*
  * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.

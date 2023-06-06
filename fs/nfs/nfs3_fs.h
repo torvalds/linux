@@ -17,7 +17,6 @@ extern int nfs3_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 extern int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		struct posix_acl *dfacl);
 extern ssize_t nfs3_listxattr(struct dentry *, char *, size_t);
-extern const struct xattr_handler *nfs3_xattr_handlers[];
 #else
 static inline int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		struct posix_acl *dfacl)

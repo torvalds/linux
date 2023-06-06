@@ -957,6 +957,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__sock_recv_timestamp);
 
+#ifdef CONFIG_WIRELESS
 void __sock_recv_wifi_status(struct msghdr *msg, struct sock *sk,
 	struct sk_buff *skb)
 {
@@ -972,6 +973,7 @@ void __sock_recv_wifi_status(struct msghdr *msg, struct sock *sk,
 	put_cmsg(msg, SOL_SOCKET, SCM_WIFI_STATUS, sizeof(ack), &ack);
 }
 EXPORT_SYMBOL_GPL(__sock_recv_wifi_status);
+#endif
 
 static inline void sock_recv_drops(struct msghdr *msg, struct sock *sk,
 				   struct sk_buff *skb)
@@ -2909,7 +2911,7 @@ static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,
 		 * error to return on the next call or if the
 		 * app asks about it using getsockopt(SO_ERROR).
 		 */
-		sock->sk->sk_err = -err;
+		WRITE_ONCE(sock->sk->sk_err, -err);
 	}
 out_put:
 	fput_light(sock->file, fput_needed);

@@ -11,7 +11,7 @@
  */
 
 #include <linux/mm.h>
-#include <linux/swap.h> /* struct reclaim_state */
+#include <linux/swap.h> /* mm_account_reclaimed_pages() */
 #include <linux/module.h>
 #include <linux/bit_spinlock.h>
 #include <linux/interrupt.h>
@@ -2063,8 +2063,7 @@ static void __free_slab(struct kmem_cache *s, struct slab *slab)
 	/* Make the mapping reset visible before clearing the flag */
 	smp_wmb();
 	__folio_clear_slab(folio);
-	if (current->reclaim_state)
-		current->reclaim_state->reclaimed_slab += pages;
+	mm_account_reclaimed_pages(pages);
 	unaccount_slab(slab, order, s);
 	__free_pages(&folio->page, order);
 }
@@ -4172,7 +4171,7 @@ static inline int calculate_order(unsigned int size)
 	 * Doh this slab cannot be placed using slub_max_order.
 	 */
 	order = calc_slab_order(size, 1, MAX_ORDER, 1);
-	if (order < MAX_ORDER)
+	if (order <= MAX_ORDER)
 		return order;
 	return -ENOSYS;
 }
@@ -4697,7 +4696,7 @@ __setup("slub_min_order=", setup_slub_min_order);
 static int __init setup_slub_max_order(char *str)
 {
 	get_option(&str, (int *)&slub_max_order);
-	slub_max_order = min(slub_max_order, (unsigned int)MAX_ORDER - 1);
+	slub_max_order = min_t(unsigned int, slub_max_order, MAX_ORDER);
 
 	return 1;
 }
@@ -6059,7 +6058,7 @@ static const struct sysfs_ops slab_sysfs_ops = {
 	.store = slab_attr_store,
 };
 
-static struct kobj_type slab_ktype = {
+static const struct kobj_type slab_ktype = {
 	.sysfs_ops = &slab_sysfs_ops,
 	.release = kmem_cache_release,
 };

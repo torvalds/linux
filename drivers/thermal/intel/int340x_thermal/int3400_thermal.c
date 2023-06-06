@@ -131,7 +131,7 @@ static ssize_t available_uuids_show(struct device *dev,
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
 		if (priv->uuid_bitmap & (1 << i))
-			length += sysfs_emit_at(buf, length, int3400_thermal_uuids[i]);
+			length += sysfs_emit_at(buf, length, "%s\n", int3400_thermal_uuids[i]);
 	}
 
 	return length;
@@ -149,7 +149,7 @@ static ssize_t current_uuid_show(struct device *dev,
 
 	for (i = 0; i <= INT3400_THERMAL_CRITICAL; i++) {
 		if (priv->os_uuid_mask & BIT(i))
-			length += sysfs_emit_at(buf, length, int3400_thermal_uuids[i]);
+			length += sysfs_emit_at(buf, length, "%s\n", int3400_thermal_uuids[i]);
 	}
 
 	if (length)
@@ -497,7 +497,7 @@ static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
 static int int3400_thermal_change_mode(struct thermal_zone_device *thermal,
 				       enum thermal_device_mode mode)
 {
-	struct int3400_thermal_priv *priv = thermal->devdata;
+	struct int3400_thermal_priv *priv = thermal_zone_device_priv(thermal);
 	int result = 0;
 
 	if (!priv)

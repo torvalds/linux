@@ -48,7 +48,7 @@ static bool is_dig_link_enc_stream(struct dc_stream_state *stream)
 					/* DIGs do not support DP2.0 streams with 128b/132b encoding. */
 					struct dc_link_settings link_settings = {0};
 
-					link_decide_link_settings(stream, &link_settings);
+					stream->ctx->dc->link_srv->dp_decide_link_settings(stream, &link_settings);
 					if ((link_settings.link_rate >= LINK_RATE_LOW) &&
 							link_settings.link_rate <= LINK_RATE_HIGH3) {
 						is_dig_stream = true;
@@ -622,7 +622,6 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 	int i, j;
 	uint8_t valid_count = 0;
 	uint8_t dig_stream_count = 0;
-	int matching_stream_ptrs = 0;
 	int eng_ids_per_ep_id[MAX_PIPES] = {0};
 	int ep_ids_per_eng_id[MAX_PIPES] = {0};
 	int valid_bitmap = 0;
@@ -645,9 +644,7 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 		struct link_enc_assignment assignment = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
 
 		if (assignment.valid) {
-			if (assignment.stream == state->streams[i])
-				matching_stream_ptrs++;
-			else
+			if (assignment.stream != state->streams[i])
 				valid_stream_ptrs = false;
 		}
 	}

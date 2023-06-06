@@ -1044,15 +1044,13 @@ static int sof_ipc3_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool 
 		.hdr.size = sizeof(core_cfg),
 		.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
 	};
-	struct sof_ipc_reply reply;
 
 	if (on)
 		core_cfg.enable_mask = sdev->enabled_cores_mask | BIT(core_idx);
 	else
 		core_cfg.enable_mask = sdev->enabled_cores_mask & ~BIT(core_idx);
 
-	return sof_ipc3_tx_msg(sdev, &core_cfg, sizeof(core_cfg),
-			       &reply, sizeof(reply), false);
+	return sof_ipc3_tx_msg(sdev, &core_cfg, sizeof(core_cfg), NULL, 0, false);
 }
 
 static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
@@ -1061,11 +1059,9 @@ static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 		.hdr.size = sizeof(pm_ctx),
 		.hdr.cmd = SOF_IPC_GLB_PM_MSG | cmd,
 	};
-	struct sof_ipc_reply reply;
 
 	/* send ctx save ipc to dsp */
-	return sof_ipc3_tx_msg(sdev, &pm_ctx, sizeof(pm_ctx),
-			       &reply, sizeof(reply), false);
+	return sof_ipc3_tx_msg(sdev, &pm_ctx, sizeof(pm_ctx), NULL, 0, false);
 }
 
 static int sof_ipc3_ctx_save(struct snd_sof_dev *sdev)
@@ -1081,7 +1077,6 @@ static int sof_ipc3_ctx_restore(struct snd_sof_dev *sdev)
 static int sof_ipc3_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
 {
 	struct sof_ipc_pm_gate pm_gate;
-	struct sof_ipc_reply reply;
 
 	memset(&pm_gate, 0, sizeof(pm_gate));
 
@@ -1091,8 +1086,7 @@ static int sof_ipc3_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
 	pm_gate.flags = flags;
 
 	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message_no_pm(sdev->ipc, &pm_gate, sizeof(pm_gate),
-					&reply, sizeof(reply));
+	return sof_ipc_tx_message_no_pm_no_reply(sdev->ipc, &pm_gate, sizeof(pm_gate));
 }
 
 static const struct sof_ipc_pm_ops ipc3_pm_ops = {

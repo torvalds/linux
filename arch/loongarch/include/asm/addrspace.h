@@ -71,9 +71,9 @@ extern unsigned long vm_map_base;
 #define _ATYPE32_	int
 #define _ATYPE64_	__s64
 #ifdef CONFIG_64BIT
-#define _CONST64_(x)	x ## L
+#define _CONST64_(x)	x ## UL
 #else
-#define _CONST64_(x)	x ## LL
+#define _CONST64_(x)	x ## ULL
 #endif
 #endif
 

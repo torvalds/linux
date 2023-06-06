@@ -35,7 +35,7 @@ SEC("?tp/syscalls/sys_enter_nanosleep")
 int test_read_write(void *ctx)
 {
 	char write_data[64] = "hello there, world!!";
-	char read_data[64] = {}, buf[64] = {};
+	char read_data[64] = {};
 	struct bpf_dynptr ptr;
 	int i;
 
@@ -170,7 +170,6 @@ int test_skb_readonly(struct __sk_buff *skb)
 {
 	__u8 write_data[2] = {1, 2};
 	struct bpf_dynptr ptr;
-	__u64 *data;
 	int ret;
 
 	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
@@ -191,10 +190,8 @@ int test_skb_readonly(struct __sk_buff *skb)
 SEC("?cgroup_skb/egress")
 int test_dynptr_skb_data(struct __sk_buff *skb)
 {
-	__u8 write_data[2] = {1, 2};
 	struct bpf_dynptr ptr;
 	__u64 *data;
-	int ret;
 
 	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
 		err = 1;

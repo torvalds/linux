@@ -41,6 +41,9 @@ config BLK_RQ_ALLOC_TIME
 config BLK_CGROUP_RWSTAT
 	bool
 
+config BLK_CGROUP_PUNT_BIO
+	bool
+
 config BLK_DEV_BSG_COMMON
 	tristate
 
@@ -210,11 +213,6 @@ config BLK_MQ_PCI
 config BLK_MQ_VIRTIO
 	bool
 	depends on VIRTIO
-	default y
-
-config BLK_MQ_RDMA
-	bool
-	depends on INFINIBAND
 	default y
 
 config BLK_PM

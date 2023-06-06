@@ -1694,11 +1694,9 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 
 	link->cpus	= &dlc[0];
 	link->codecs	= &dlc[1];
-	link->platforms	= &dlc[2];
 
 	link->num_cpus	 = 1;
 	link->num_codecs = 1;
-	link->num_platforms = 1;
 
 	link->dobj.index = tplg->index;
 	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
@@ -1726,7 +1724,13 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->codecs->name = "snd-soc-dummy";
 	link->codecs->dai_name = "snd-soc-dummy-dai";
 
+	/*
+	 * Many topology is assuming link has Platform.
+	 * This might be overwritten at soc_tplg_dai_link_load().
+	 */
+	link->platforms	= &dlc[2];
 	link->platforms->name = "snd-soc-dummy";
+	link->num_platforms = 1;
 
 	/* enable DPCM */
 	link->dynamic = 1;
@@ -1745,7 +1749,7 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 		goto err;
 	}
 
-	ret = snd_soc_add_pcm_runtime(tplg->comp->card, link);
+	ret = snd_soc_add_pcm_runtimes(tplg->comp->card, link, 1);
 	if (ret < 0) {
 		dev_err(tplg->dev, "ASoC: adding FE link failed\n");
 		goto err;

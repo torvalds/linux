@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
-- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
-- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2023-03-10 18:32:52)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2022-07-23 20:21:46)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a2xx.xml                (  91929 bytes, from 2023-02-28 23:52:27)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  15434 bytes, from 2023-03-10 18:32:53)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  74995 bytes, from 2023-03-20 18:06:23)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113474 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149590 bytes, from 2023-02-14 19:37:12)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 198949 bytes, from 2023-03-20 18:06:23)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11404 bytes, from 2023-03-10 18:32:53)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2022-08-02 16:38:43)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   9055 bytes, from 2023-03-10 18:32:52)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2976 bytes, from 2023-03-10 18:32:52)
 
-Copyright (C) 2013-2022 by the following authors:
+Copyright (C) 2013-2023 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -4218,6 +4218,7 @@ static inline uint32_t A5XX_SP_CS_CONFIG_SHADEROBJOFFSET(uint32_t val)
 #define REG_A5XX_SP_FS_CONFIG_MAX_CONST				0x0000e58b
 
 #define REG_A5XX_SP_VS_CTRL_REG0				0x0000e590
+#define A5XX_SP_VS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_VS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_VS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_VS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4316,6 +4317,7 @@ static inline uint32_t A5XX_SP_VS_VPC_DST_REG_OUTLOC3(uint32_t val)
 #define REG_A5XX_SP_VS_OBJ_START_HI				0x0000e5ad
 
 #define REG_A5XX_SP_FS_CTRL_REG0				0x0000e5c0
+#define A5XX_SP_FS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_FS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_FS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_FS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4406,6 +4408,7 @@ static inline uint32_t A5XX_SP_FS_MRT_REG_COLOR_FORMAT(enum a5xx_color_fmt val)
 #define REG_A5XX_UNKNOWN_E5DB					0x0000e5db
 
 #define REG_A5XX_SP_CS_CTRL_REG0				0x0000e5f0
+#define A5XX_SP_CS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_CS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_CS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_CS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4440,6 +4443,7 @@ static inline uint32_t A5XX_SP_CS_CTRL_REG0_BRANCHSTACK(uint32_t val)
 #define REG_A5XX_SP_CS_OBJ_START_HI				0x0000e5f4
 
 #define REG_A5XX_SP_HS_CTRL_REG0				0x0000e600
+#define A5XX_SP_HS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_HS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_HS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_HS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4474,6 +4478,7 @@ static inline uint32_t A5XX_SP_HS_CTRL_REG0_BRANCHSTACK(uint32_t val)
 #define REG_A5XX_SP_HS_OBJ_START_HI				0x0000e604
 
 #define REG_A5XX_SP_DS_CTRL_REG0				0x0000e610
+#define A5XX_SP_DS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_DS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_DS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_DS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4508,6 +4513,7 @@ static inline uint32_t A5XX_SP_DS_CTRL_REG0_BRANCHSTACK(uint32_t val)
 #define REG_A5XX_SP_DS_OBJ_START_HI				0x0000e62d
 
 #define REG_A5XX_SP_GS_CTRL_REG0				0x0000e640
+#define A5XX_SP_GS_CTRL_REG0_BUFFER				0x00000004
 #define A5XX_SP_GS_CTRL_REG0_THREADSIZE__MASK			0x00000008
 #define A5XX_SP_GS_CTRL_REG0_THREADSIZE__SHIFT			3
 static inline uint32_t A5XX_SP_GS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
@@ -4665,11 +4671,11 @@ static inline uint32_t A5XX_HLSQ_CONTROL_2_REG_SAMPLEMASK(uint32_t val)
 {
 	return ((val) << A5XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__SHIFT) & A5XX_HLSQ_CONTROL_2_REG_SAMPLEMASK__MASK;
 }
-#define A5XX_HLSQ_CONTROL_2_REG_SIZE__MASK			0xff000000
-#define A5XX_HLSQ_CONTROL_2_REG_SIZE__SHIFT			24
-static inline uint32_t A5XX_HLSQ_CONTROL_2_REG_SIZE(uint32_t val)
+#define A5XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK			0xff000000
+#define A5XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT		24
+static inline uint32_t A5XX_HLSQ_CONTROL_2_REG_CENTERRHW(uint32_t val)
 {
-	return ((val) << A5XX_HLSQ_CONTROL_2_REG_SIZE__SHIFT) & A5XX_HLSQ_CONTROL_2_REG_SIZE__MASK;
+	return ((val) << A5XX_HLSQ_CONTROL_2_REG_CENTERRHW__SHIFT) & A5XX_HLSQ_CONTROL_2_REG_CENTERRHW__MASK;
 }
 
 #define REG_A5XX_HLSQ_CONTROL_3_REG				0x0000e787

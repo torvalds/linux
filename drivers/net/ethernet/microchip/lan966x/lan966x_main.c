@@ -605,7 +605,7 @@ static u64 lan966x_ifh_get(u8 *ifh, size_t pos, size_t length)
 			v = ifh[IFH_LEN_BYTES - (j / 8) - 1];
 
 		if (v & (1 << k))
-			val |= (1 << i);
+			val |= (1ULL << i);
 	}
 
 	return val;
@@ -1038,6 +1038,16 @@ static int lan966x_reset_switch(struct lan966x *lan966x)
 				     "Could not obtain switch reset");
 
 	reset_control_reset(switch_reset);
+
+	/* Don't reinitialize the switch core, if it is already initialized. In
+	 * case it is initialized twice, some pointers inside the queue system
+	 * in HW will get corrupted and then after a while the queue system gets
+	 * full and no traffic is passing through the switch. The issue is seen
+	 * when loading and unloading the driver and sending traffic through the
+	 * switch.
+	 */
+	if (lan_rd(lan966x, SYS_RESET_CFG) & SYS_RESET_CFG_CORE_ENA)
+		return 0;
 
 	lan_wr(SYS_RESET_CFG_CORE_ENA_SET(0), lan966x, SYS_RESET_CFG);
 	lan_wr(SYS_RAM_INIT_RAM_INIT_SET(1), lan966x, SYS_RAM_INIT);

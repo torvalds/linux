@@ -620,7 +620,7 @@ static int __init uacce_init(void)
 {
 	int ret;
 
-	uacce_class = class_create(THIS_MODULE, UACCE_NAME);
+	uacce_class = class_create(UACCE_NAME);
 	if (IS_ERR(uacce_class))
 		return PTR_ERR(uacce_class);
 

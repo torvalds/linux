@@ -6,8 +6,6 @@
 #ifndef __ASM_ALTERNATIVE_H
 #define __ASM_ALTERNATIVE_H
 
-#define ERRATA_STRING_LENGTH_MAX 32
-
 #include <asm/alternative-macros.h>
 
 #ifndef __ASSEMBLY__
@@ -15,9 +13,13 @@
 #ifdef CONFIG_RISCV_ALTERNATIVE
 
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <asm/hwcap.h>
+
+#define PATCH_ID_CPUFEATURE_ID(p)		lower_16_bits(p)
+#define PATCH_ID_CPUFEATURE_VALUE(p)		upper_16_bits(p)
 
 #define RISCV_ALTERNATIVES_BOOT		0 /* alternatives applied during regular boot */
 #define RISCV_ALTERNATIVES_MODULE	1 /* alternatives applied during module-init */
@@ -28,6 +30,7 @@
 #define ALT_OLD_PTR(a)			__ALT_PTR(a, old_offset)
 #define ALT_ALT_PTR(a)			__ALT_PTR(a, alt_offset)
 
+void probe_vendor_features(unsigned int cpu);
 void __init apply_boot_alternatives(void);
 void __init apply_early_boot_alternatives(void);
 void apply_module_alternatives(void *start, size_t length);
@@ -38,14 +41,9 @@ void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
 struct alt_entry {
 	s32 old_offset;		/* offset relative to original instruction or data  */
 	s32 alt_offset;		/* offset relative to replacement instruction or data */
-	u16 vendor_id;		/* cpu vendor id */
+	u16 vendor_id;		/* CPU vendor ID */
 	u16 alt_len;		/* The replacement size */
-	u32 errata_id;		/* The errata id */
-};
-
-struct errata_checkfunc_id {
-	unsigned long vendor_id;
-	bool (*func)(struct alt_entry *alt);
+	u32 patch_id;		/* The patch ID (erratum ID or cpufeature ID) */
 };
 
 void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
@@ -55,11 +53,15 @@ void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 			     unsigned long archid, unsigned long impid,
 			     unsigned int stage);
 
+void thead_feature_probe_func(unsigned int cpu, unsigned long archid,
+			      unsigned long impid);
+
 void riscv_cpufeature_patch_func(struct alt_entry *begin, struct alt_entry *end,
 				 unsigned int stage);
 
 #else /* CONFIG_RISCV_ALTERNATIVE */
 
+static inline void probe_vendor_features(unsigned int cpu) { }
 static inline void apply_boot_alternatives(void) { }
 static inline void apply_early_boot_alternatives(void) { }
 static inline void apply_module_alternatives(void *start, size_t length) { }

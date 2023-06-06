@@ -67,17 +67,14 @@ static int check_all_cpu_dscr_defaults(unsigned long val)
 int dscr_sysfs(void)
 {
 	unsigned long orig_dscr_default;
-	int i, j;
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
 
 	orig_dscr_default = get_default_dscr();
-	for (i = 0; i < COUNT; i++) {
-		for (j = 0; j < DSCR_MAX; j++) {
-			set_default_dscr(j);
-			if (check_all_cpu_dscr_defaults(j))
-				goto fail;
-		}
+	for (int i = 0; i < DSCR_MAX; i++) {
+		set_default_dscr(i);
+		if (check_all_cpu_dscr_defaults(i))
+			goto fail;
 	}
 	set_default_dscr(orig_dscr_default);
 	return 0;

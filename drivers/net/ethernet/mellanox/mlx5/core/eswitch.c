@@ -36,7 +36,6 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/mpfs.h>
-#include <linux/debugfs.h>
 #include "esw/acl/lgcy.h"
 #include "esw/legacy.h"
 #include "esw/qos.h"
@@ -959,6 +958,7 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, u16 vport_num)
 	 */
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
+	esw_apply_vport_rx_mode(esw, vport, false, false);
 	esw_vport_cleanup(esw, vport);
 	esw->enabled_vports--;
 
@@ -1055,7 +1055,6 @@ int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
 	if (err)
 		return err;
 
-	mlx5_esw_vport_debugfs_create(esw, vport_num, false, 0);
 	err = esw_offloads_load_rep(esw, vport_num);
 	if (err)
 		goto err_rep;
@@ -1063,7 +1062,6 @@ int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
 	return err;
 
 err_rep:
-	mlx5_esw_vport_debugfs_destroy(esw, vport_num);
 	mlx5_esw_vport_disable(esw, vport_num);
 	return err;
 }
@@ -1071,7 +1069,6 @@ err_rep:
 void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	esw_offloads_unload_rep(esw, vport_num);
-	mlx5_esw_vport_debugfs_destroy(esw, vport_num);
 	mlx5_esw_vport_disable(esw, vport_num);
 }
 
@@ -1487,7 +1484,7 @@ int mlx5_esw_sf_max_hpf_functions(struct mlx5_core_dev *dev, u16 *max_sfs, u16 *
 	void *hca_caps;
 	int err;
 
-	if (!mlx5_core_is_ecpf(dev) || mlx5_core_is_management_pf(dev)) {
+	if (!mlx5_core_is_ecpf(dev)) {
 		*max_sfs = 0;
 		return 0;
 	}
@@ -1509,7 +1506,7 @@ out_free:
 	return err;
 }
 
-static int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw, struct mlx5_core_dev *dev,
+static int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw,
 				int index, u16 vport_num)
 {
 	struct mlx5_vport *vport;
@@ -1563,7 +1560,7 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 
 	xa_init(&esw->vports);
 
-	err = mlx5_esw_vport_alloc(esw, dev, idx, MLX5_VPORT_PF);
+	err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_PF);
 	if (err)
 		goto err;
 	if (esw->first_host_vport == MLX5_VPORT_PF)
@@ -1571,7 +1568,7 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 	idx++;
 
 	for (i = 0; i < mlx5_core_max_vfs(dev); i++) {
-		err = mlx5_esw_vport_alloc(esw, dev, idx, idx);
+		err = mlx5_esw_vport_alloc(esw, idx, idx);
 		if (err)
 			goto err;
 		xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_VF);
@@ -1580,7 +1577,7 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 	}
 	base_sf_num = mlx5_sf_start_function_id(dev);
 	for (i = 0; i < mlx5_sf_max_functions(dev); i++) {
-		err = mlx5_esw_vport_alloc(esw, dev, idx, base_sf_num + i);
+		err = mlx5_esw_vport_alloc(esw, idx, base_sf_num + i);
 		if (err)
 			goto err;
 		xa_set_mark(&esw->vports, base_sf_num + i, MLX5_ESW_VPT_SF);
@@ -1591,7 +1588,7 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto err;
 	for (i = 0; i < max_host_pf_sfs; i++) {
-		err = mlx5_esw_vport_alloc(esw, dev, idx, base_sf_num + i);
+		err = mlx5_esw_vport_alloc(esw, idx, base_sf_num + i);
 		if (err)
 			goto err;
 		xa_set_mark(&esw->vports, base_sf_num + i, MLX5_ESW_VPT_SF);
@@ -1599,12 +1596,12 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 	}
 
 	if (mlx5_ecpf_vport_exists(dev)) {
-		err = mlx5_esw_vport_alloc(esw, dev, idx, MLX5_VPORT_ECPF);
+		err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_ECPF);
 		if (err)
 			goto err;
 		idx++;
 	}
-	err = mlx5_esw_vport_alloc(esw, dev, idx, MLX5_VPORT_UPLINK);
+	err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_UPLINK);
 	if (err)
 		goto err;
 	return 0;
@@ -1671,7 +1668,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	dev->priv.eswitch = esw;
 	BLOCKING_INIT_NOTIFIER_HEAD(&esw->n_head);
 
-	esw->dbgfs = debugfs_create_dir("esw", mlx5_debugfs_get_dev_root(esw->dev));
 	esw_info(dev,
 		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
 		 esw->total_vports,
@@ -1695,7 +1691,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	esw_info(esw->dev, "cleanup\n");
 
-	debugfs_remove_recursive(esw->dbgfs);
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	WARN_ON(refcount_read(&esw->qos.refcnt));

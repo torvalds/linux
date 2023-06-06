@@ -364,7 +364,7 @@ static int bcm54140_hwmon_write(struct device *dev,
 	}
 }
 
-static const struct hwmon_channel_info *bcm54140_hwmon_info[] = {
+static const struct hwmon_channel_info * const bcm54140_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
 			   HWMON_T_ALARM),

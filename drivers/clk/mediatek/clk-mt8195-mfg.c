@@ -38,6 +38,7 @@ static const struct of_device_id of_match_clk_mt8195_mfg[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_mfg);
 
 static struct platform_driver clk_mt8195_mfg_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -47,4 +48,5 @@ static struct platform_driver clk_mt8195_mfg_drv = {
 		.of_match_table = of_match_clk_mt8195_mfg,
 	},
 };
-builtin_platform_driver(clk_mt8195_mfg_drv);
+module_platform_driver(clk_mt8195_mfg_drv);
+MODULE_LICENSE("GPL");

@@ -135,7 +135,7 @@ static const struct regmap_config tlc591xx_regmap = {
 	.max_register = 0x1e,
 };
 
-static const struct of_device_id of_tlc591xx_leds_match[] = {
+static const struct of_device_id of_tlc591xx_leds_match[] __maybe_unused = {
 	{ .compatible = "ti,tlc59116",
 	  .data = &tlc59116 },
 	{ .compatible = "ti,tlc59108",

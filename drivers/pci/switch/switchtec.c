@@ -1804,7 +1804,7 @@ static int __init switchtec_init(void)
 	if (rc)
 		return rc;
 
-	switchtec_class = class_create(THIS_MODULE, "switchtec");
+	switchtec_class = class_create("switchtec");
 	if (IS_ERR(switchtec_class)) {
 		rc = PTR_ERR(switchtec_class);
 		goto err_create_class;

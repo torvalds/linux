@@ -255,4 +255,3 @@ char *bcm47xx_nvram_get_contents(size_t *nvram_size)
 }
 EXPORT_SYMBOL(bcm47xx_nvram_get_contents);
 
-MODULE_LICENSE("GPL v2");

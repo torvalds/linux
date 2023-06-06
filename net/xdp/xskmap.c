@@ -162,8 +162,8 @@ static void *xsk_map_lookup_elem_sys_only(struct bpf_map *map, void *key)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
-			       u64 map_flags)
+static long xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
+				u64 map_flags)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 	struct xdp_sock __rcu **map_entry;
@@ -223,7 +223,7 @@ out:
 	return err;
 }
 
-static int xsk_map_delete_elem(struct bpf_map *map, void *key)
+static long xsk_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 	struct xdp_sock __rcu **map_entry;
@@ -243,7 +243,7 @@ static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 	return 0;
 }
 
-static int xsk_map_redirect(struct bpf_map *map, u64 index, u64 flags)
+static long xsk_map_redirect(struct bpf_map *map, u64 index, u64 flags)
 {
 	return __bpf_xdp_redirect_map(map, index, flags, 0,
 				      __xsk_map_lookup_elem);

@@ -59,7 +59,7 @@ static void *reuseport_array_lookup_elem(struct bpf_map *map, void *key)
 }
 
 /* Called from syscall only */
-static int reuseport_array_delete_elem(struct bpf_map *map, void *key)
+static long reuseport_array_delete_elem(struct bpf_map *map, void *key)
 {
 	struct reuseport_array *array = reuseport_array(map);
 	u32 index = *(u32 *)key;

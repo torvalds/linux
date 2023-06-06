@@ -13,7 +13,7 @@ maintainers:
 properties:
   regulator-name:
     description: A string used as a descriptive name for regulator outputs
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
 
   regulator-min-microvolt:
     description: smallest voltage consumers may set
@@ -23,7 +23,7 @@ properties:
 
   regulator-microvolt-offset:
     description: Offset applied to voltages to compensate for voltage drops
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   regulator-min-microamp:
     description: smallest current consumers may set
@@ -59,7 +59,7 @@ properties:
     description: ramp delay for regulator(in uV/us) For hardware which supports
       disabling ramp rate, it should be explicitly initialised to zero (regulator-ramp-delay
       = <0>) for disabling ramp delay.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   regulator-enable-ramp-delay:
     description: The time taken, in microseconds, for the supply rail to
@@ -68,7 +68,7 @@ properties:
       required due to the combination of internal ramping of the regulator
       itself, and board design issues such as trace capacitance and load
       on the supply.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   regulator-settling-time-us:
     description: Settling time, in microseconds, for voltage change if regulator
@@ -95,7 +95,7 @@ properties:
     description: initial operating mode. The set of possible operating modes
       depends on the capabilities of every hardware so each device binding
       documentation explains which values the regulator supports.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   regulator-allowed-modes:
     description: list of operating modes that software is allowed to configure
@@ -103,12 +103,12 @@ properties:
       The set of possible operating modes depends on the capabilities of
       every hardware so each device binding document explains which values
       the regulator supports.
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   regulator-system-load:
     description: Load in uA present on regulator that is not captured by
       any consumer request.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   regulator-pull-down:
     description: Enable pull down resistor when the regulator is disabled.
@@ -206,14 +206,14 @@ properties:
       0: Disable active discharge.
       1: Enable active discharge.
       Absence of this property will leave configuration to default.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   regulator-coupled-with:
     description: Regulators with which the regulator is coupled. The linkage
       is 2-way - all coupled regulators should be linked with each other.
       A regulator should not be coupled with its supplier.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
 
@@ -221,7 +221,7 @@ properties:
     description: Array of maximum spread between voltages of coupled regulators
       in microvolts, each value in the array relates to the corresponding
       couple specified by the regulator-coupled-with property.
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   regulator-max-step-microvolt:
     description: Maximum difference between current and target voltages
@@ -269,7 +269,7 @@ patternProperties:
           of possible operating modes depends on the capabilities of every
           hardware so the valid modes are documented on each regulator device
           tree binding document.
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
 
     additionalProperties: false
 

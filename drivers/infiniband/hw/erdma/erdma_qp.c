@@ -405,7 +405,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 			FIELD_PREP(ERDMA_SQE_MR_MTT_CNT_MASK,
 				   mr->mem.mtt_nents);
 
-		if (mr->mem.mtt_nents < ERDMA_MAX_INLINE_MTT_ENTRIES) {
+		if (mr->mem.mtt_nents <= ERDMA_MAX_INLINE_MTT_ENTRIES) {
 			attrs |= FIELD_PREP(ERDMA_SQE_MR_MTT_TYPE_MASK, 0);
 			/* Copy SGLs to SQE content to accelerate */
 			memcpy(get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
@@ -439,7 +439,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 				cpu_to_le64(atomic_wr(send_wr)->compare_add);
 		} else {
 			wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK,
-					      ERDMA_OP_ATOMIC_FAD);
+					      ERDMA_OP_ATOMIC_FAA);
 			atomic_sqe->fetchadd_swap_data =
 				cpu_to_le64(atomic_wr(send_wr)->compare_add);
 		}

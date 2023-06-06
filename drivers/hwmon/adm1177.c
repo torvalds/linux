@@ -168,7 +168,7 @@ static umode_t adm1177_is_visible(const void *data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *adm1177_info[] = {
+static const struct hwmon_channel_info * const adm1177_info[] = {
 	HWMON_CHANNEL_INFO(curr,
 			   HWMON_C_INPUT | HWMON_C_MAX_ALARM),
 	HWMON_CHANNEL_INFO(in,

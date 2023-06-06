@@ -298,7 +298,7 @@ error_dma_unregister:
 	return ret;
 }
 
-static int rzg2l_cru_remove(struct platform_device *pdev)
+static void rzg2l_cru_remove(struct platform_device *pdev)
 {
 	struct rzg2l_cru_dev *cru = platform_get_drvdata(pdev);
 
@@ -312,8 +312,6 @@ static int rzg2l_cru_remove(struct platform_device *pdev)
 	mutex_destroy(&cru->mdev_lock);
 
 	rzg2l_cru_dma_unregister(cru);
-
-	return 0;
 }
 
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
@@ -328,7 +326,7 @@ static struct platform_driver rzg2l_cru_driver = {
 		.of_match_table = rzg2l_cru_of_id_table,
 	},
 	.probe = rzg2l_cru_probe,
-	.remove = rzg2l_cru_remove,
+	.remove_new = rzg2l_cru_remove,
 };
 
 module_platform_driver(rzg2l_cru_driver);

@@ -168,7 +168,7 @@ an ``atomic_add_return()`` of zero) to detect idle CPUs.
 +-----------------------------------------------------------------------+
 
 The approach must be extended to handle one final case, that of waking a
-task blocked in ``synchronize_rcu()``. This task might be affinitied to
+task blocked in ``synchronize_rcu()``. This task might be affined to
 a CPU that is not yet aware that the grace period has ended, and thus
 might not yet be subject to the grace period's memory ordering.
 Therefore, there is an ``smp_mb()`` after the return from

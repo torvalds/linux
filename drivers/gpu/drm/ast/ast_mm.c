@@ -33,7 +33,7 @@
 
 #include "ast_drv.h"
 
-static u32 ast_get_vram_size(struct ast_private *ast)
+static u32 ast_get_vram_size(struct ast_device *ast)
 {
 	u8 jreg;
 	u32 vram_size;
@@ -73,7 +73,7 @@ static u32 ast_get_vram_size(struct ast_private *ast)
 	return vram_size;
 }
 
-int ast_mm_init(struct ast_private *ast)
+int ast_mm_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);

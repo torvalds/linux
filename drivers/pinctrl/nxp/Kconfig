@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_S32CC
+	bool
+	depends on ARCH_S32 && OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+
+config PINCTRL_S32G2
+	depends on ARCH_S32 && OF
+	bool "NXP S32G2 pinctrl driver"
+	select PINCTRL_S32CC
+	help
+	  Say Y here to enable the pinctrl driver for NXP S32G2 family SoCs

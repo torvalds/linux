@@ -741,7 +741,7 @@ void dce110_edp_wait_for_hpd_ready(
 
 	/* obtain HPD */
 	/* TODO what to do with this? */
-	hpd = link_get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
+	hpd = ctx->dc->link_srv->get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
 
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();
@@ -809,19 +809,19 @@ void dce110_edp_power_control(
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 		unsigned long long time_since_edp_poweron_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link_dp_trace_get_edp_poweron_timestamp(link)), 1000000);
+						ctx->dc->link_srv->dp_trace_get_edp_poweron_timestamp(link)), 1000000);
 		DC_LOG_HW_RESUME_S3(
 				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
 				__func__,
 				power_up,
 				current_ts,
-				link_dp_trace_get_edp_poweroff_timestamp(link),
-				link_dp_trace_get_edp_poweron_timestamp(link),
+				ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link),
+				ctx->dc->link_srv->dp_trace_get_edp_poweron_timestamp(link),
 				time_since_edp_poweroff_ms,
 				time_since_edp_poweron_ms);
 
@@ -836,7 +836,7 @@ void dce110_edp_power_control(
 					link->panel_config.pps.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
-			if (link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			if (ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
 					remaining_min_edp_poweroff_time_ms =
 						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
@@ -896,13 +896,13 @@ void dce110_edp_power_control(
 				__func__, (power_up ? "On":"Off"),
 				bp_result);
 
-		link_dp_trace_set_edp_power_timestamp(link, power_up);
+		ctx->dc->link_srv->dp_trace_set_edp_power_timestamp(link, power_up);
 
 		DC_LOG_HW_RESUME_S3(
 				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
 				__func__,
-				link_dp_trace_get_edp_poweroff_timestamp(link),
-				link_dp_trace_get_edp_poweron_timestamp(link));
+				ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link),
+				ctx->dc->link_srv->dp_trace_get_edp_poweron_timestamp(link));
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
@@ -930,14 +930,14 @@ void dce110_edp_wait_for_T12(
 		return;
 
 	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
-			link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 		unsigned int t12_duration = 500; // Default T12 as per spec
 		unsigned long long current_ts = dm_get_timestamp(ctx);
 		unsigned long long time_since_edp_poweroff_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
 		t12_duration += link->panel_config.pps.extra_t12_ms; // Add extra T12
 
@@ -1018,7 +1018,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T7-ready.
 		 */
-			link_edp_receiver_ready_T7(link);
+			ctx->dc->link_srv->edp_receiver_ready_T7(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
@@ -1049,7 +1049,7 @@ void dce110_edp_backlight_control(
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
-		link_backlight_enable_aux(link, enable);
+		ctx->dc->link_srv->edp_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
@@ -1061,7 +1061,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T9-ready.
 		 */
-			link_edp_add_delay_for_T9(link);
+			ctx->dc->link_srv->edp_add_delay_for_T9(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
@@ -1161,7 +1161,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc);
 	}
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->stop_dp_info_packets(
 					pipe_ctx->stream_res.hpo_dp_stream_enc);
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1172,7 +1172,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		dto_params.otg_inst = tg->inst;
 		dto_params.timing = &pipe_ctx->stream->timing;
 		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
@@ -1181,7 +1181,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
 	}
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		/* TODO: This looks like a bug to me as we are disabling HPO IO when
 		 * we are just disabling a single HPO stream. Shouldn't we disable HPO
 		 * HW control only when HPOs for all streams are disabled?
@@ -1223,7 +1223,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_blank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc);
@@ -1245,7 +1245,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 				 * we shouldn't be doing power-sequencing, hence we can skip
 				 * waiting for T9-ready.
 				 */
-				link_edp_receiver_ready_T9(link);
+				link->dc->link_srv->edp_receiver_ready_T9(link);
 			}
 		}
 	}
@@ -1428,7 +1428,7 @@ static enum dc_status dce110_enable_stream_timing(
 		if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 				pipe_ctx->clock_source,
 				&pipe_ctx->stream_res.pix_clk_params,
-				link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+				dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 				&pipe_ctx->pll_settings)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
@@ -1532,7 +1532,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (!(hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)))
+	if (!(hws->wa.dp_hpo_and_otg_sequence && dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)))
 		/*  */
 		/* Do not touch stream timing on seamless boot optimization. */
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
@@ -1564,17 +1564,17 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.tg->inst);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
+		dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
 
 	if (!stream->dpms_off)
-		link_set_dpms_on(context, pipe_ctx);
+		dc->link_srv->set_dpms_on(context, pipe_ctx);
 
 	/* DCN3.1 FPGA Workaround
 	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)) {
+	if (hws->wa.dp_hpo_and_otg_sequence && dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 	}
@@ -1600,7 +1600,7 @@ static void power_down_encoders(struct dc *dc)
 	for (i = 0; i < dc->link_count; i++) {
 		enum signal_type signal = dc->links[i]->connector_signal;
 
-		link_blank_dp_stream(dc->links[i], false);
+		dc->link_srv->blank_dp_stream(dc->links[i], false);
 
 		if (signal != SIGNAL_TYPE_EDP)
 			signal = SIGNAL_TYPE_NONE;
@@ -1739,7 +1739,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 
 	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 
 	if (hws->funcs.init_pipes)
 		hws->funcs.init_pipes(dc, context);
@@ -2083,7 +2083,7 @@ static void dce110_reset_hw_ctx_wrap(
 			 * disabled already, no need to disable again.
 			 */
 			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
-				link_set_dpms_off(pipe_ctx_old);
+				dc->link_srv->set_dpms_off(pipe_ctx_old);
 
 				/* free acquired resources*/
 				if (pipe_ctx_old->stream_res.audio) {
@@ -3031,10 +3031,12 @@ void dce110_enable_dp_link_output(
 	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 	unsigned int i;
 
-
+	/*
+	 * Add the logic to extract BOTH power up and power down sequences
+	 * from enable/disable link output and only call edp panel control
+	 * in enable_link_dp and disable_link_dp once.
+	 */
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		if (!link->dc->config.edp_no_power_sequencing)
-			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
@@ -3054,13 +3056,13 @@ void dce110_enable_dp_link_output(
 				pipes[i].clock_source->funcs->program_pix_clk(
 						pipes[i].clock_source,
 						&pipes[i].stream_res.pix_clk_params,
-						link_dp_get_encoding_format(link_settings),
+						dc->link_srv->dp_get_encoding_format(link_settings),
 						&pipes[i].pll_settings);
 			}
 		}
 	}
 
-	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+	if (dc->link_srv->dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
 		if (dc->clk_mgr->funcs->notify_link_rate_change)
 			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 	}
@@ -3077,7 +3079,7 @@ void dce110_enable_dp_link_output(
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
+	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 }
 
 void dce110_disable_link_output(struct dc_link *link,
@@ -3096,13 +3098,14 @@ void dce110_disable_link_output(struct dc_link *link,
 
 	link_hwss->disable_link_output(link, link_res, signal);
 	link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
-
-	if (signal == SIGNAL_TYPE_EDP &&
-			link->dc->hwss.edp_backlight_control)
-		link->dc->hwss.edp_power_control(link, false);
-	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+	/*
+	 * Add the logic to extract BOTH power up and power down sequences
+	 * from enable/disable link output and only call edp panel control
+	 * in enable_link_dp and disable_link_dp once.
+	 */
+	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
 static const struct hw_sequencer_funcs dce110_funcs = {

@@ -1951,7 +1951,7 @@ static struct spi_driver max3421_driver = {
 	.remove		= max3421_remove,
 	.driver		= {
 		.name	= "max3421-hcd",
-		.of_match_table = of_match_ptr(max3421_of_match_table),
+		.of_match_table = max3421_of_match_table,
 	},
 };
 

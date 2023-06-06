@@ -420,7 +420,6 @@ int hl_pci_init(struct hl_device *hdev)
 unmap_pci_bars:
 	hl_pci_bars_unmap(hdev);
 disable_device:
-	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 
 	return rc;
@@ -436,6 +435,5 @@ void hl_pci_fini(struct hl_device *hdev)
 {
 	hl_pci_bars_unmap(hdev);
 
-	pci_clear_master(hdev->pdev);
 	pci_disable_device(hdev->pdev);
 }

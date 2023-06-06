@@ -4,6 +4,35 @@
 #
 comment "USB Miscellaneous drivers"
 
+config USB_USS720
+	tristate "USS720 parport driver"
+	depends on PARPORT
+	select PARPORT_NOT_PC
+	help
+	  This driver is for USB parallel port adapters that use the Lucent
+	  Technologies USS-720 chip. These cables are plugged into your USB
+	  port and provide USB compatibility to peripherals designed with
+	  parallel port interfaces.
+
+	  The chip has two modes: automatic mode and manual mode. In automatic
+	  mode, it looks to the computer like a standard USB printer. Only
+	  printers may be connected to the USS-720 in this mode. The generic
+	  USB printer driver ("USB Printer support", above) may be used in
+	  that mode, and you can say N here if you want to use the chip only
+	  in this mode.
+
+	  Manual mode is not limited to printers, any parallel port
+	  device should work. This driver utilizes manual mode.
+	  Note however that some operations are three orders of magnitude
+	  slower than on a PCI/ISA Parallel Port, so timing critical
+	  applications might not work.
+
+	  Say Y here if you own an USS-720 USB->Parport cable and intend to
+	  connect anything other than a printer to it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uss720.
+
 config USB_EMI62
 	tristate "EMI 6|2m USB Audio interface support"
 	help
@@ -107,28 +136,6 @@ config USB_IDMOUSE
 	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
 
 	  See also <https://www.fs.tum.de/~echtler/idmouse/>.
-
-config USB_FTDI_ELAN
-	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	help
-	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
-	  Currently only the U132 adapter is available.
-
-	  The U132 is specifically designed for CardBus PC cards that contain
-	  an OHCI host controller. Typical PC cards are the Orange Mobile 3G
-	  Option GlobeTrotter Fusion card. The U132 adapter will *NOT* work
-	  with PC cards that do not contain an OHCI controller. To use a U132
-	  adapter you will need this "ftdi-elan" module as well as the "u132-hcd"
-	  module which is a USB host controller driver that talks to the OHCI
-	  controller within CardBus card that are inserted in the U132 adapter.
-
-	  This driver has been tested with a CardBus OHCI USB adapter, and
-	  worked with a USB PEN Drive inserted into the first USB port of
-	  the PCCARD. A rather pointless thing to do, but useful for testing.
-
-	  See also the USB_U132_HCD entry "Elan U132 Adapter Host Controller"
-
-	  It is safe to say M here.
 
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"

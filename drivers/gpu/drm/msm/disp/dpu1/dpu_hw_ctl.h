@@ -152,9 +152,11 @@ struct dpu_hw_ctl_ops {
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : DSPP block index
+	 * @dspp_sub_blk : DSPP sub-block index
 	 */
 	void (*update_pending_flush_dspp)(struct dpu_hw_ctl *ctx,
-		enum dpu_dspp blk);
+		enum dpu_dspp blk, u32 dspp_sub_blk);
+
 	/**
 	 * Write the value of the pending_flush_mask to hardware
 	 * @ctx       : ctl path ctx pointer
@@ -242,6 +244,7 @@ struct dpu_hw_ctl {
 	u32 pending_intf_flush_mask;
 	u32 pending_wb_flush_mask;
 	u32 pending_merge_3d_flush_mask;
+	u32 pending_dspp_flush_mask[DSPP_MAX - DSPP_0];
 
 	/* ops */
 	struct dpu_hw_ctl_ops ops;

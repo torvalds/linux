@@ -394,6 +394,7 @@
 #define MI_LOAD_URB_MEM         MI_INSTR(0x2C, 0)
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
 #define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
+#define  MI_DO_COMPARE		REG_BIT(21)
 
 #define STATE_BASE_ADDRESS \
 	((0x3 << 29) | (0x0 << 27) | (0x1 << 24) | (0x1 << 16))
@@ -438,6 +439,8 @@
 
 #define GSC_FW_LOAD GSC_INSTR(1, 0, 2)
 #define   HECI1_FW_LIMIT_VALID (1 << 31)
+
+#define GSC_HECI_CMD_PKT GSC_INSTR(0, 0, 6)
 
 /*
  * Used to convert any address to canonical form.

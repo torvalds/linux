@@ -23,7 +23,7 @@ properties:
         i2c address of the bridge, 0x68 or 0x0f, depending on bootstrap pins
 
   clock-names:
-    const: "ref"
+    const: ref
 
   clocks:
     maxItems: 1

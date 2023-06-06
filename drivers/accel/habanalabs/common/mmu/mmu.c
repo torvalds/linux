@@ -540,8 +540,8 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		u32 page_off;
 
 		/*
-		 * Bit arithmetics cannot be used for non power of two page
-		 * sizes. In addition, since bit arithmetics is not used,
+		 * Bit arithmetic cannot be used for non power of two page
+		 * sizes. In addition, since bit arithmetic is not used,
 		 * we cannot ignore dram base. All that shall be considered.
 		 */
 
@@ -679,7 +679,9 @@ int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
 
 	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 	if (rc)
-		dev_err_ratelimited(hdev->dev, "MMU cache invalidation failed\n");
+		dev_err_ratelimited(hdev->dev,
+				"%s cache invalidation failed, rc=%d\n",
+				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", rc);
 
 	return rc;
 }
@@ -692,7 +694,9 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, is_hard, flags,
 								asid, va, size);
 	if (rc)
-		dev_err_ratelimited(hdev->dev, "MMU cache range invalidation failed\n");
+		dev_err_ratelimited(hdev->dev,
+				"%s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
+				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", va, size, rc);
 
 	return rc;
 }
@@ -757,7 +761,7 @@ u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
  * @mmu_prop: MMU properties.
  * @hop_idx: HOP index.
  * @hop_addr: HOP address.
- * @virt_addr: virtual address fro the translation.
+ * @virt_addr: virtual address for the translation.
  *
  * @return the matching PTE value on success, otherwise U64_MAX.
  */

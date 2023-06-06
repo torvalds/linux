@@ -48,8 +48,6 @@
 	(((isp)->media_dev.hw_revision & ATOMISP_HW_REVISION_MASK) == \
 	 ((rev) << ATOMISP_HW_REVISION_SHIFT))
 
-#define MAX_STREAM_NUM	2
-
 #define ATOMISP_PCI_DEVICE_SOC_MASK	0xfff8
 /* MRFLD with 0x1178: ISP freq can burst to 457MHz */
 #define ATOMISP_PCI_DEVICE_SOC_MRFLD	0x1178
@@ -76,9 +74,6 @@
 #define ATOM_RESOLUTION_SUBQCIF_WIDTH	128
 #define ATOM_RESOLUTION_SUBQCIF_HEIGHT	96
 
-#define ATOM_ISP_MAX_WIDTH_TMP	1280
-#define ATOM_ISP_MAX_HEIGHT_TMP	720
-
 #define ATOM_ISP_I2C_BUS_1	4
 #define ATOM_ISP_I2C_BUS_2	5
 
@@ -101,10 +96,6 @@
 #define ATOMISP_METADATA_QUEUE_DEPTH_FOR_HAL	8
 #define ATOMISP_S3A_BUF_QUEUE_DEPTH_FOR_HAL	8
 
-#define ATOMISP_DELAYED_INIT_NOT_QUEUED	0
-#define ATOMISP_DELAYED_INIT_QUEUED	1
-#define ATOMISP_DELAYED_INIT_DONE	2
-
 /*
  * Define how fast CPU should be able to serve ISP interrupts.
  * The bigger the value, the higher risk that the ISP is not
@@ -120,23 +111,6 @@
 
 #define ATOMISP_CSS_OUTPUT_SECOND_INDEX     1
 #define ATOMISP_CSS_OUTPUT_DEFAULT_INDEX    0
-
-/*
- * ATOMISP_SOC_CAMERA
- * This is to differentiate between ext-isp and soc camera in
- * Moorefield/Baytrail platform.
- */
-#define ATOMISP_SOC_CAMERA(asd)  \
-	(asd->isp->inputs[asd->input_curr].type == SOC_CAMERA)
-
-#define ATOMISP_USE_YUVPP(asd)  \
-	(ATOMISP_SOC_CAMERA(asd) && ATOMISP_CSS_SUPPORT_YUVPP && \
-	!asd->copy_mode)
-
-#define ATOMISP_DEPTH_SENSOR_STREAMON_COUNT 2
-
-#define ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR 0
-#define ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR 1
 
 /* ISP2401 */
 #define ATOMISP_ION_DEVICE_FD_OFFSET   16
@@ -205,6 +179,7 @@ struct atomisp_device {
 	struct device *dev;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct atomisp_sub_device asd;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
@@ -213,18 +188,6 @@ struct atomisp_device {
 	struct dev_pm_domain pm_domain;
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
-
-	/*
-	 * ISP modules
-	 * Multiple streams are represents by multiple
-	 * atomisp_sub_device instances
-	 */
-	struct atomisp_sub_device *asd;
-	/*
-	 * this will be assigned dyanamically.
-	 * For Merr/BTY(ISP2400), 2 streams are supported.
-	 */
-	unsigned int num_of_streams;
 
 	struct atomisp_mipi_csi2_device csi2_port[ATOMISP_CAMERA_NR_PORTS];
 	struct atomisp_tpg_device tpg;
@@ -246,7 +209,7 @@ struct atomisp_device {
 	bool isp_fatal_error;
 	struct work_struct assert_recovery_work;
 
-	spinlock_t lock; /* Protects asd[i].streaming */
+	spinlock_t lock; /* Protects asd.streaming */
 
 	bool need_gfx_throttle;
 

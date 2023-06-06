@@ -336,18 +336,11 @@ What:		/sys/block/<disk>/queue/io_poll_delay
 Date:		November 2016
 Contact:	linux-block@vger.kernel.org
 Description:
-		[RW] If polling is enabled, this controls what kind of polling
-		will be performed. It defaults to -1, which is classic polling.
+		[RW] This was used to control what kind of polling will be
+		performed.  It is now fixed to -1, which is classic polling.
 		In this mode, the CPU will repeatedly ask for completions
-		without giving up any time.  If set to 0, a hybrid polling mode
-		is used, where the kernel will attempt to make an educated guess
-		at when the IO will complete. Based on this guess, the kernel
-		will put the process issuing IO to sleep for an amount of time,
-		before entering a classic poll loop. This mode might be a little
-		slower than pure classic polling, but it will be more efficient.
-		If set to a value larger than 0, the kernel will put the process
-		issuing IO to sleep for this amount of microseconds before
-		entering classic polling.
+		without giving up any time.
+		<deprecated>
 
 
 What:		/sys/block/<disk>/queue/io_timeout

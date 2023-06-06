@@ -108,31 +108,30 @@ struct tiled_blits {
 	u32 height;
 };
 
-static bool supports_x_tiling(const struct drm_i915_private *i915)
+static bool fastblit_supports_x_tiling(const struct drm_i915_private *i915)
 {
 	int gen = GRAPHICS_VER(i915);
+
+	/* XY_FAST_COPY_BLT does not exist on pre-gen9 platforms */
+	drm_WARN_ON(&i915->drm, gen < 9);
 
 	if (gen < 12)
 		return true;
 
-	if (!HAS_LMEM(i915) || IS_DG1(i915))
+	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
 		return false;
 
-	return true;
+	return HAS_DISPLAY(i915);
 }
 
 static bool fast_blit_ok(const struct blit_buffer *buf)
 {
-	int gen = GRAPHICS_VER(buf->vma->vm->i915);
-
-	if (gen < 9)
+	/* XY_FAST_COPY_BLT does not exist on pre-gen9 platforms */
+	if (GRAPHICS_VER(buf->vma->vm->i915) < 9)
 		return false;
 
-	if (gen < 12)
-		return true;
-
 	/* filter out platforms with unsupported X-tile support in fastblit */
-	if (buf->tiling == CLIENT_TILING_X && !supports_x_tiling(buf->vma->vm->i915))
+	if (buf->tiling == CLIENT_TILING_X && !fastblit_supports_x_tiling(buf->vma->vm->i915))
 		return false;
 
 	return true;

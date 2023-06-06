@@ -270,7 +270,7 @@ static int aht10_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *aht10_info[] = {
+static const struct hwmon_channel_info * const aht10_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	HWMON_CHANNEL_INFO(humidity, HWMON_H_INPUT),

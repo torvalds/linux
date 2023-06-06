@@ -1,0 +1,55 @@
+config PCMCIA_RAYCS
+	tristate "Aviator/Raytheon 2.4GHz wireless support"
+	depends on PCMCIA
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	help
+	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
+	  (PC-card) wireless Ethernet networking card to your computer.
+	  Please read the file
+	  <file:Documentation/networking/device_drivers/wifi/ray_cs.rst> for
+	  details.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ray_cs.  If unsure, say N.
+
+config PCMCIA_WL3501
+	tristate "Planet WL3501 PCMCIA cards"
+	depends on CFG80211 && PCMCIA
+	select WIRELESS_EXT
+	select WEXT_SPY
+	help
+	  A driver for WL3501 PCMCIA 802.11 wireless cards made by Planet.
+	  It has basic support for Linux wireless extensions and initial
+	  micro support for ethtool.
+
+config USB_NET_RNDIS_WLAN
+	tristate "Wireless RNDIS USB support"
+	depends on USB
+	depends on CFG80211
+	select USB_NET_DRIVERS
+	select USB_USBNET
+	select USB_NET_CDCETHER
+	select USB_NET_RNDIS_HOST
+	help
+	  This is a driver for wireless RNDIS devices.
+	  These are USB based adapters found in devices such as:
+
+	  Buffalo WLI-U2-KG125S
+	  U.S. Robotics USR5421
+	  Belkin F5D7051
+	  Linksys WUSB54GSv2
+	  Linksys WUSB54GSC
+	  Asus WL169gE
+	  Eminent EM4045
+	  BT Voyager 1055
+	  Linksys WUSB54GSv1
+	  U.S. Robotics USR5420
+	  BUFFALO WLI-USB-G54
+
+	  All of these devices are based on Broadcom 4320 chip which is the
+	  only wireless RNDIS chip known to date.
+
+	  If you choose to build a module, it'll be called rndis_wlan.
+

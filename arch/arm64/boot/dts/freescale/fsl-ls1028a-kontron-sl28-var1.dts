@@ -55,7 +55,5 @@
 &enetc_port1 {
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	nvmem-cells = <&base_mac_address 0>;
-	nvmem-cell-names = "mac-address";
 	status = "okay";
 };

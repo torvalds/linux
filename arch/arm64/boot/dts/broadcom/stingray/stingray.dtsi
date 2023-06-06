@@ -178,7 +178,7 @@
 			      <0x02e00000 0x600000>; /* GICR */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-			gic_its: gic-its@63c20000 {
+			gic_its: msi-controller@63c20000 {
 				compatible = "arm,gic-v3-its";
 				msi-controller;
 				#msi-cells = <1>;

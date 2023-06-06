@@ -12,7 +12,7 @@ maintainers:
 
 allOf:
   - $ref: panel-common.yaml#
-  - $ref: /schemas/display/lvds.yaml/#
+  - $ref: /schemas/display/lvds.yaml#
 
 select:
   properties:

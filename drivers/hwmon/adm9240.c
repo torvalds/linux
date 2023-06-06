@@ -731,7 +731,7 @@ static const struct hwmon_ops adm9240_hwmon_ops = {
 	.write = adm9240_write,
 };
 
-static const struct hwmon_channel_info *adm9240_info[] = {
+static const struct hwmon_channel_info * const adm9240_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS),
 	HWMON_CHANNEL_INFO(intrusion, HWMON_INTRUSION_ALARM),
 	HWMON_CHANNEL_INFO(temp,

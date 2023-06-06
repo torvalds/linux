@@ -636,14 +636,8 @@ static const struct mtk_gate_regs top_aud_cg_regs = {
 	.sta_ofs = 0x012C,
 };
 
-#define GATE_TOP_AUD(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &top_aud_cg_regs,		\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
-	}
+#define GATE_TOP_AUD(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &top_aud_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
 
 static const struct mtk_gate top_clks[] = {
 	GATE_TOP_AUD(CLK_TOP_AUD_48K_TIMING, "a1sys_hp_ck", "aud_mux1_div",
@@ -687,7 +681,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 				    ARRAY_SIZE(top_muxes), base,
 				    &mt2701_clk_lock, clk_data);
 
-	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs),
+	mtk_clk_register_dividers(&pdev->dev, top_adj_divs, ARRAY_SIZE(top_adj_divs),
 				base, &mt2701_clk_lock, clk_data);
 
 	mtk_clk_register_gates(&pdev->dev, node, top_clks,
@@ -702,14 +696,8 @@ static const struct mtk_gate_regs infra_cg_regs = {
 	.sta_ofs = 0x0048,
 };
 
-#define GATE_ICG(_id, _name, _parent, _shift) {		\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &infra_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr,	\
-	}
+#define GATE_ICG(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate infra_clks[] = {
 	GATE_ICG(CLK_INFRA_DBG, "dbgclk", "axi_sel", 0),
@@ -823,23 +811,11 @@ static const struct mtk_gate_regs peri1_cg_regs = {
 	.sta_ofs = 0x001c,
 };
 
-#define GATE_PERI0(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &peri0_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr,	\
-	}
+#define GATE_PERI0(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &peri0_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_PERI1(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &peri1_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr,	\
-	}
+#define GATE_PERI1(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &peri1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate peri_clks[] = {
 	GATE_PERI0(CLK_PERI_USB0_MCU, "usb0_mcu_ck", "axi_sel", 31),
@@ -1023,6 +999,7 @@ static const struct of_device_id of_match_clk_mt2701[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2701);
 
 static int clk_mt2701_probe(struct platform_device *pdev)
 {
@@ -1056,3 +1033,4 @@ static int __init clk_mt2701_init(void)
 }
 
 arch_initcall(clk_mt2701_init);
+MODULE_LICENSE("GPL");

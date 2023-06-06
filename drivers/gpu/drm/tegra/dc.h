@@ -169,7 +169,7 @@ void tegra_crtc_atomic_post_commit(struct drm_crtc *crtc,
 
 /* from rgb.c */
 int tegra_dc_rgb_probe(struct tegra_dc *dc);
-int tegra_dc_rgb_remove(struct tegra_dc *dc);
+void tegra_dc_rgb_remove(struct tegra_dc *dc);
 int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc);
 int tegra_dc_rgb_exit(struct tegra_dc *dc);
 

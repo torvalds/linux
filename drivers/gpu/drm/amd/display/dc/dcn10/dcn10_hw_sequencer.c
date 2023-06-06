@@ -726,11 +726,15 @@ void dcn10_hubp_pg_control(
 	}
 }
 
-static void power_on_plane(
+static void power_on_plane_resources(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
 	DC_LOGGER_INIT(hws->ctx->logger);
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, plane_id, true);
+
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
@@ -919,7 +923,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			dc->link_srv->dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1017,7 +1021,7 @@ static void dcn10_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			link_set_dpms_off(pipe_ctx);
+			dc->link_srv->set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -1237,11 +1241,15 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
 
 		dpp->funcs->dpp_reset(dpp);
+
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
 				"Power gated front end %d\n", hubp->inst);
 	}
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
 }
 
 /* disable HW used by plane.
@@ -1564,7 +1572,7 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* we want to turn off all dp displays before doing detection */
-	link_blank_all_dp_displays(dc);
+	dc->link_srv->blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -1638,7 +1646,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 	int edp_num;
 	int i = 0;
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num)
 		edp_link = edp_links[0];
 
@@ -2462,7 +2470,7 @@ static void dcn10_enable_plane(
 
 	undo_DEGVIDCN10_253_wa(dc);
 
-	power_on_plane(dc->hwseq,
+	power_on_plane_resources(dc->hwseq,
 		pipe_ctx->plane_res.hubp->inst);
 
 	/* enable DCFCLK current DCHUB */
@@ -3385,7 +3393,9 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
 	     test_pipe = test_pipe->top_pipe) {
 		// Skip invisible layer and pipe-split plane on same layer
-		if (!test_pipe->plane_state->visible || test_pipe->plane_state->layer_index == cur_layer)
+		if (!test_pipe->plane_state ||
+		    !test_pipe->plane_state->visible ||
+		    test_pipe->plane_state->layer_index == cur_layer)
 			continue;
 
 		r2 = test_pipe->plane_res.scl_data.recout;

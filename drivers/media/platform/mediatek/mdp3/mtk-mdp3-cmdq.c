@@ -10,6 +10,7 @@
 #include "mtk-mdp3-comp.h"
 #include "mtk-mdp3-core.h"
 #include "mtk-mdp3-m2m.h"
+#include "mtk-img-ipi.h"
 
 #define MDP_PATH_MAX_COMPS	IMG_MAX_COMPONENTS
 
@@ -28,50 +29,62 @@ struct mdp_path {
  #define call_op(ctx, op, ...) \
 	(has_op(ctx, op) ? (ctx)->comp->ops->op(ctx, ##__VA_ARGS__) : 0)
 
-static bool is_output_disabled(const struct img_compparam *param, u32 count)
+static bool is_output_disabled(int p_id, const struct img_compparam *param, u32 count)
 {
-	return (count < param->num_subfrms) ?
-		(param->frame.output_disable ||
-		param->subfrms[count].tile_disable) :
-		true;
+	u32 num = 0;
+	bool dis_output = false;
+	bool dis_tile = false;
+
+	if (CFG_CHECK(MT8183, p_id)) {
+		num = CFG_COMP(MT8183, param, num_subfrms);
+		dis_output = CFG_COMP(MT8183, param, frame.output_disable);
+		dis_tile = CFG_COMP(MT8183, param, frame.output_disable);
+	}
+
+	return (count < num) ? (dis_output || dis_tile) : true;
 }
 
 static int mdp_path_subfrm_require(const struct mdp_path *path,
 				   struct mdp_cmdq_cmd *cmd,
 				   s32 *mutex_id, u32 count)
 {
-	const struct img_config *config = path->config;
+	const int p_id = path->mdp_dev->mdp_data->mdp_plat_id;
 	const struct mdp_comp_ctx *ctx;
 	const struct mtk_mdp_driver_data *data = path->mdp_dev->mdp_data;
 	struct device *dev = &path->mdp_dev->pdev->dev;
 	struct mtk_mutex **mutex = path->mdp_dev->mdp_mutex;
 	int id, index;
+	u32 num_comp = 0;
+
+	if (CFG_CHECK(MT8183, p_id))
+		num_comp = CFG_GET(MT8183, path->config, num_components);
 
 	/* Decide which mutex to use based on the current pipeline */
-	switch (path->comps[0].comp->id) {
+	switch (path->comps[0].comp->public_id) {
 	case MDP_COMP_RDMA0:
-		*mutex_id = MDP_PIPE_RDMA0;
+		index = MDP_PIPE_RDMA0;
 		break;
 	case MDP_COMP_ISP_IMGI:
-		*mutex_id = MDP_PIPE_IMGI;
+		index = MDP_PIPE_IMGI;
 		break;
 	case MDP_COMP_WPEI:
-		*mutex_id = MDP_PIPE_WPEI;
+		index = MDP_PIPE_WPEI;
 		break;
 	case MDP_COMP_WPEI2:
-		*mutex_id = MDP_PIPE_WPEI2;
+		index = MDP_PIPE_WPEI2;
 		break;
 	default:
 		dev_err(dev, "Unknown pipeline and no mutex is assigned");
 		return -EINVAL;
 	}
+	*mutex_id = data->pipe_info[index].mutex_id;
 
 	/* Set mutex mod */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
-		if (is_output_disabled(ctx->param, count))
+		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
-		id = ctx->comp->id;
+		id = ctx->comp->public_id;
 		mtk_mutex_write_mod(mutex[*mutex_id],
 				    data->mdp_mutex_table_idx[id], false);
 	}
@@ -86,11 +99,12 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 			       struct mdp_cmdq_cmd *cmd,
 			       s32 *mutex_id, u32 count)
 {
-	const struct img_config *config = path->config;
+	const int p_id = path->mdp_dev->mdp_data->mdp_plat_id;
 	const struct mdp_comp_ctx *ctx;
 	struct device *dev = &path->mdp_dev->pdev->dev;
 	struct mtk_mutex **mutex = path->mdp_dev->mdp_mutex;
 	int index;
+	u32 num_comp = 0;
 	s32 event;
 
 	if (-1 == *mutex_id) {
@@ -98,11 +112,14 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 		return -EINVAL;
 	}
 
+	if (CFG_CHECK(MT8183, p_id))
+		num_comp = CFG_GET(MT8183, path->config, num_components);
+
 	/* Wait WROT SRAM shared to DISP RDMA */
 	/* Clear SOF event for each engine */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
-		if (is_output_disabled(ctx->param, count))
+		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		event = ctx->comp->gce_event[MDP_GCE_EVENT_SOF];
 		if (event != MDP_GCE_NO_EVENT)
@@ -113,9 +130,9 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 	mtk_mutex_enable_by_cmdq(mutex[*mutex_id], (void *)&cmd->pkt);
 
 	/* Wait SOF events and clear mutex modules (optional) */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
-		if (is_output_disabled(ctx->param, count))
+		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		event = ctx->comp->gce_event[MDP_GCE_EVENT_SOF];
 		if (event != MDP_GCE_NO_EVENT)
@@ -127,16 +144,22 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 
 static int mdp_path_ctx_init(struct mdp_dev *mdp, struct mdp_path *path)
 {
-	const struct img_config *config = path->config;
+	const int p_id = mdp->mdp_data->mdp_plat_id;
+	void *param = NULL;
 	int index, ret;
+	u32 num_comp = 0;
 
-	if (config->num_components < 1)
+	if (CFG_CHECK(MT8183, p_id))
+		num_comp = CFG_GET(MT8183, path->config, num_components);
+
+	if (num_comp < 1)
 		return -EINVAL;
 
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
+		if (CFG_CHECK(MT8183, p_id))
+			param = (void *)CFG_ADDR(MT8183, path->config, components[index]);
 		ret = mdp_comp_ctx_config(mdp, &path->comps[index],
-					  &config->components[index],
-					  path->param);
+					  param, path->param);
 		if (ret)
 			return ret;
 	}
@@ -147,12 +170,19 @@ static int mdp_path_ctx_init(struct mdp_dev *mdp, struct mdp_path *path)
 static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 				  struct mdp_path *path, u32 count)
 {
-	const struct img_config *config = path->config;
-	const struct img_mmsys_ctrl *ctrl = &config->ctrls[count];
+	const int p_id = path->mdp_dev->mdp_data->mdp_plat_id;
+	const struct img_mmsys_ctrl *ctrl = NULL;
 	const struct img_mux *set;
 	struct mdp_comp_ctx *ctx;
 	s32 mutex_id;
 	int index, ret;
+	u32 num_comp = 0;
+
+	if (CFG_CHECK(MT8183, p_id))
+		num_comp = CFG_GET(MT8183, path->config, num_components);
+
+	if (CFG_CHECK(MT8183, p_id))
+		ctrl = CFG_ADDR(MT8183, path->config, ctrls[count]);
 
 	/* Acquire components */
 	ret = mdp_path_subfrm_require(path, cmd, &mutex_id, count);
@@ -165,9 +195,9 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 				    set->value, 0xFFFFFFFF);
 	}
 	/* Config sub-frame information */
-	for (index = (config->num_components - 1); index >= 0; index--) {
+	for (index = (num_comp - 1); index >= 0; index--) {
 		ctx = &path->comps[index];
-		if (is_output_disabled(ctx->param, count))
+		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		ret = call_op(ctx, config_subfrm, cmd, count);
 		if (ret)
@@ -178,16 +208,16 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 	if (ret)
 		return ret;
 	/* Wait components done */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
-		if (is_output_disabled(ctx->param, count))
+		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		ret = call_op(ctx, wait_comp_event, cmd);
 		if (ret)
 			return ret;
 	}
 	/* Advance to the next sub-frame */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
 		ret = call_op(ctx, advance_subfrm, cmd, count);
 		if (ret)
@@ -206,23 +236,35 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 static int mdp_path_config(struct mdp_dev *mdp, struct mdp_cmdq_cmd *cmd,
 			   struct mdp_path *path)
 {
-	const struct img_config *config = path->config;
+	const int p_id = mdp->mdp_data->mdp_plat_id;
 	struct mdp_comp_ctx *ctx;
 	int index, count, ret;
+	u32 num_comp = 0;
+	u32 num_sub = 0;
+
+	if (CFG_CHECK(MT8183, p_id))
+		num_comp = CFG_GET(MT8183, path->config, num_components);
+
+	if (CFG_CHECK(MT8183, p_id))
+		num_sub = CFG_GET(MT8183, path->config, num_subfrms);
 
 	/* Config path frame */
 	/* Reset components */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
 		ret = call_op(ctx, init_comp, cmd);
 		if (ret)
 			return ret;
 	}
 	/* Config frame mode */
-	for (index = 0; index < config->num_components; index++) {
-		const struct v4l2_rect *compose =
-			path->composes[ctx->param->outputs[0]];
+	for (index = 0; index < num_comp; index++) {
+		const struct v4l2_rect *compose;
+		u32 out = 0;
 
+		if (CFG_CHECK(MT8183, p_id))
+			out = CFG_COMP(MT8183, ctx->param, outputs[0]);
+
+		compose = path->composes[out];
 		ctx = &path->comps[index];
 		ret = call_op(ctx, config_frame, cmd, compose);
 		if (ret)
@@ -230,13 +272,13 @@ static int mdp_path_config(struct mdp_dev *mdp, struct mdp_cmdq_cmd *cmd,
 	}
 
 	/* Config path sub-frames */
-	for (count = 0; count < config->num_subfrms; count++) {
+	for (count = 0; count < num_sub; count++) {
 		ret = mdp_path_config_subfrm(cmd, path, count);
 		if (ret)
 			return ret;
 	}
 	/* Post processing information */
-	for (index = 0; index < config->num_components; index++) {
+	for (index = 0; index < num_comp; index++) {
 		ctx = &path->comps[index];
 		ret = call_op(ctx, post_process, cmd);
 		if (ret)
@@ -286,11 +328,13 @@ static void mdp_auto_release_work(struct work_struct *work)
 {
 	struct mdp_cmdq_cmd *cmd;
 	struct mdp_dev *mdp;
+	int id;
 
 	cmd = container_of(work, struct mdp_cmdq_cmd, auto_release_work);
 	mdp = cmd->mdp;
 
-	mtk_mutex_unprepare(mdp->mdp_mutex[MDP_PIPE_RDMA0]);
+	id = mdp->mdp_data->pipe_info[MDP_PIPE_RDMA0].mutex_id;
+	mtk_mutex_unprepare(mdp->mdp_mutex[id]);
 	mdp_comp_clocks_off(&mdp->pdev->dev, cmd->comps,
 			    cmd->num_comps);
 
@@ -310,6 +354,7 @@ static void mdp_handle_cmdq_callback(struct mbox_client *cl, void *mssg)
 	struct cmdq_cb_data *data;
 	struct mdp_dev *mdp;
 	struct device *dev;
+	int id;
 
 	if (!mssg) {
 		pr_info("%s:no callback data\n", __func__);
@@ -335,7 +380,8 @@ static void mdp_handle_cmdq_callback(struct mbox_client *cl, void *mssg)
 	INIT_WORK(&cmd->auto_release_work, mdp_auto_release_work);
 	if (!queue_work(mdp->clock_wq, &cmd->auto_release_work)) {
 		dev_err(dev, "%s:queue_work fail!\n", __func__);
-		mtk_mutex_unprepare(mdp->mdp_mutex[MDP_PIPE_RDMA0]);
+		id = mdp->mdp_data->pipe_info[MDP_PIPE_RDMA0].mutex_id;
+		mtk_mutex_unprepare(mdp->mdp_mutex[id]);
 		mdp_comp_clocks_off(&mdp->pdev->dev, cmd->comps,
 				    cmd->num_comps);
 
@@ -356,7 +402,9 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 	struct mdp_cmdq_cmd *cmd = NULL;
 	struct mdp_comp *comps = NULL;
 	struct device *dev = &mdp->pdev->dev;
+	const int p_id = mdp->mdp_data->mdp_plat_id;
 	int i, ret;
+	u32 num_comp = 0;
 
 	atomic_inc(&mdp->job_count);
 	if (atomic_read(&mdp->suspended)) {
@@ -374,8 +422,13 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 	if (ret)
 		goto err_free_cmd;
 
-	comps = kcalloc(param->config->num_components, sizeof(*comps),
-			GFP_KERNEL);
+	if (CFG_CHECK(MT8183, p_id)) {
+		num_comp = CFG_GET(MT8183, param->config, num_components);
+	} else {
+		ret = -EINVAL;
+		goto err_destroy_pkt;
+	}
+	comps = kcalloc(num_comp, sizeof(*comps), GFP_KERNEL);
 	if (!comps) {
 		ret = -ENOMEM;
 		goto err_destroy_pkt;
@@ -387,7 +440,8 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 		goto err_free_comps;
 	}
 
-	ret = mtk_mutex_prepare(mdp->mdp_mutex[MDP_PIPE_RDMA0]);
+	i = mdp->mdp_data->pipe_info[MDP_PIPE_RDMA0].mutex_id;
+	ret = mtk_mutex_prepare(mdp->mdp_mutex[i]);
 	if (ret) {
 		dev_err(dev, "Fail to enable mutex clk\n");
 		goto err_free_path;
@@ -406,7 +460,6 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 		path->composes[i] = param->composes[i] ?
 			param->composes[i] : &path->bounds[i];
 	}
-
 	ret = mdp_path_ctx_init(mdp, path);
 	if (ret) {
 		dev_err(dev, "mdp_path_ctx_init error\n");
@@ -420,7 +473,7 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 	}
 	cmdq_pkt_finalize(&cmd->pkt);
 
-	for (i = 0; i < param->config->num_components; i++)
+	for (i = 0; i < num_comp; i++)
 		memcpy(&comps[i], path->comps[i].comp,
 		       sizeof(struct mdp_comp));
 
@@ -429,7 +482,7 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 	cmd->user_cmdq_cb = param->cmdq_cb;
 	cmd->user_cb_data = param->cb_data;
 	cmd->comps = comps;
-	cmd->num_comps = param->config->num_components;
+	cmd->num_comps = num_comp;
 	cmd->mdp_ctx = param->mdp_ctx;
 
 	ret = mdp_comp_clocks_on(&mdp->pdev->dev, cmd->comps, cmd->num_comps);
@@ -453,7 +506,8 @@ err_clock_off:
 	mdp_comp_clocks_off(&mdp->pdev->dev, cmd->comps,
 			    cmd->num_comps);
 err_free_path:
-	mtk_mutex_unprepare(mdp->mdp_mutex[MDP_PIPE_RDMA0]);
+	i = mdp->mdp_data->pipe_info[MDP_PIPE_RDMA0].mutex_id;
+	mtk_mutex_unprepare(mdp->mdp_mutex[i]);
 	kfree(path);
 err_free_comps:
 	kfree(comps);

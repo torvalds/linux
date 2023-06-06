@@ -33,16 +33,16 @@ static struct cpuidle_state *cpuidle_state_table __read_mostly;
 static u64 snooze_timeout __read_mostly;
 static bool snooze_timeout_en __read_mostly;
 
-static int snooze_loop(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv,
-			int index)
+static __cpuidle
+int snooze_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+		int index)
 {
 	u64 snooze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	pseries_idle_prolog();
-	local_irq_enable();
+	raw_local_irq_enable();
 	snooze_exit_time = get_tb() + snooze_timeout;
 	dev->poll_time_limit = false;
 
@@ -65,14 +65,14 @@ static int snooze_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 
-	local_irq_disable();
+	raw_local_irq_disable();
 
 	pseries_idle_epilog();
 
 	return index;
 }
 
-static void check_and_cede_processor(void)
+static __cpuidle void check_and_cede_processor(void)
 {
 	/*
 	 * Ensure our interrupt state is properly tracked,
@@ -216,9 +216,9 @@ static int __init parse_cede_parameters(void)
 #define NR_DEDICATED_STATES	2 /* snooze, CEDE */
 static u8 cede_latency_hint[NR_DEDICATED_STATES];
 
-static int dedicated_cede_loop(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-				int index)
+static __cpuidle
+int dedicated_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+			int index)
 {
 	u8 old_latency_hint;
 
@@ -230,7 +230,7 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	check_and_cede_processor();
 
-	local_irq_disable();
+	raw_local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
 	get_lppaca()->cede_latency_hint = old_latency_hint;
 
@@ -239,9 +239,9 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	return index;
 }
 
-static int shared_cede_loop(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv,
-			int index)
+static __cpuidle
+int shared_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+		     int index)
 {
 
 	pseries_idle_prolog();
@@ -255,7 +255,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
-	local_irq_disable();
+	raw_local_irq_disable();
 	pseries_idle_epilog();
 
 	return index;

@@ -172,6 +172,15 @@ config SND_MPC52xx_DMA
 config SND_SOC_POWERPC_DMA
 	tristate
 
+config SND_SOC_POWERPC_QMC_AUDIO
+	tristate "QMC ALSA SoC support"
+	depends on CPM_QMC
+	help
+	  ALSA SoC Audio support using the Freescale QUICC Multichannel
+	  Controller (QMC).
+	  Say Y or M if you want to add support for SoC audio using Freescale
+	  QMC.
+
 comment "SoC Audio support for Freescale PPC boards:"
 
 config SND_SOC_MPC8610_HPCD

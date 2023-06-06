@@ -285,6 +285,7 @@ static struct platform_driver stm32_vrefbuf_driver = {
 	.remove = stm32_vrefbuf_remove,
 	.driver = {
 		.name  = "stm32-vrefbuf",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(stm32_vrefbuf_of_match),
 		.pm = &stm32_vrefbuf_pm_ops,
 	},

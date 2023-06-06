@@ -13,6 +13,11 @@
 #include "rtw8852c_table.h"
 #include "util.h"
 
+#define RTW8852C_FW_FORMAT_MAX 0
+#define RTW8852C_FW_BASENAME "rtw89/rtw8852c_fw"
+#define RTW8852C_MODULE_FIRMWARE \
+	RTW8852C_FW_BASENAME ".bin"
+
 static const struct rtw89_hfc_ch_cfg rtw8852c_hfc_chcfg_pcie[] = {
 	{13, 1614, grp_0}, /* ACH 0 */
 	{13, 1614, grp_0}, /* ACH 1 */
@@ -1375,18 +1380,19 @@ static void rtw8852c_5m_mask(struct rtw89_dev *rtwdev,
 			     const struct rtw89_chan *chan,
 			     enum rtw89_phy_idx phy_idx)
 {
-	u8 pri_ch = chan->primary_channel;
+	u8 pri_ch = chan->pri_ch_idx;
 	bool mask_5m_low;
 	bool mask_5m_en;
 
 	switch (chan->band_width) {
 	case RTW89_CHANNEL_WIDTH_40:
 		mask_5m_en = true;
-		mask_5m_low = pri_ch == 2;
+		mask_5m_low = pri_ch == RTW89_SC_20_LOWER;
 		break;
 	case RTW89_CHANNEL_WIDTH_80:
-		mask_5m_en = ((pri_ch == 3) || (pri_ch == 4));
-		mask_5m_low = pri_ch == 4;
+		mask_5m_en = pri_ch == RTW89_SC_20_UPMOST ||
+			     pri_ch == RTW89_SC_20_LOWEST;
+		mask_5m_low = pri_ch == RTW89_SC_20_LOWEST;
 		break;
 	default:
 		mask_5m_en = false;
@@ -2527,7 +2533,8 @@ do {								\
 static
 s8 rtw8852c_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
 {
-	return clamp_t(s8, val, -100, 0) + 100;
+	/* +6 for compensate offset */
+	return clamp_t(s8, val + 6, -100, 0) + 100;
 }
 
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8852c_rf_ul[] = {
@@ -2536,7 +2543,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8852c_rf_ul[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
 	{6, 1, 0, 7},
 	{13, 1, 0, 7},
 	{13, 1, 0, 7}
@@ -2548,7 +2555,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8852c_rf_dl[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
 	{255, 1, 0, 7},
 	{255, 1, 0, 7},
 	{255, 1, 0, 7}
@@ -2570,6 +2577,9 @@ static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852c_mon_reg[] = {
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd200),
 	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xd220),
 	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x980),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4aa4),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x4778),
+	RTW89_DEF_FBTC_MREG(REG_BB, 4, 0x476c),
 };
 
 static
@@ -2633,20 +2643,25 @@ static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 
 static void rtw8852c_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
+	struct rtw89_btc *btc = &rtwdev->btc;
+
 	switch (level) {
 	case 0: /* original */
+	default:
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852c_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 1: /* for FDD free-run */
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, true);
-		rtw8852c_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 2: /* for BTG Co-Rx*/
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852c_set_wl_lna2(rtwdev, 1);
+		btc->dm.wl_lna2 = 1;
 		break;
 	}
+
+	rtw8852c_set_wl_lna2(rtwdev, btc->dm.wl_lna2);
 }
 
 static void rtw8852c_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
@@ -2786,7 +2801,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 const struct rtw89_chip_info rtw8852c_chip_info = {
 	.chip_id		= RTL8852C,
 	.ops			= &rtw8852c_chip_ops,
-	.fw_name		= "rtw89/rtw8852c_fw.bin",
+	.fw_basename		= RTW8852C_FW_BASENAME,
+	.fw_format_max		= RTW8852C_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
 	.fifo_size		= 458752,
 	.dle_scc_rsvd_size	= 0,
@@ -2806,12 +2822,8 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				   &rtw89_8852c_phy_radioa_table,},
 	.nctl_table		= &rtw89_8852c_phy_nctl_table,
 	.byr_table		= &rtw89_8852c_byr_table,
-	.txpwr_lmt_2g		= &rtw89_8852c_txpwr_lmt_2g,
-	.txpwr_lmt_5g		= &rtw89_8852c_txpwr_lmt_5g,
-	.txpwr_lmt_6g		= &rtw89_8852c_txpwr_lmt_6g,
-	.txpwr_lmt_ru_2g	= &rtw89_8852c_txpwr_lmt_ru_2g,
-	.txpwr_lmt_ru_5g	= &rtw89_8852c_txpwr_lmt_ru_5g,
-	.txpwr_lmt_ru_6g	= &rtw89_8852c_txpwr_lmt_ru_6g,
+	.dflt_parms		= &rtw89_8852c_dflt_parms,
+	.rfe_parms_conf		= NULL,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,
@@ -2867,24 +2879,28 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.h2c_desc_size		= sizeof(struct rtw89_rxdesc_short),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body_v1),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL_V1,
+	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8852c_h2c_regs,
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL_V1,
+	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.c2h_regs		= rtw8852c_c2h_regs,
 	.page_regs		= &rtw8852c_page_regs,
 	.cfo_src_fd		= false,
+	.cfo_hw_comp            = false,
 	.dcfo_comp		= &rtw8852c_dcfo_comp,
-	.dcfo_comp_sft		= 5,
+	.dcfo_comp_sft		= 12,
 	.imr_info		= &rtw8852c_imr_info,
 	.rrsr_cfgs		= &rtw8852c_rrsr_cfgs,
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
+	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852c,
 #endif
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 
-MODULE_FIRMWARE("rtw89/rtw8852c_fw.bin");
+MODULE_FIRMWARE(RTW8852C_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless 8852C driver");
 MODULE_LICENSE("Dual BSD/GPL");

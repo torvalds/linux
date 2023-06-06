@@ -891,9 +891,16 @@
 /*
  * Discard .note.GNU-stack, which is emitted as PROGBITS by the compiler.
  * Otherwise, the type of .notes section would become PROGBITS instead of NOTES.
+ *
+ * Also, discard .note.gnu.property, otherwise it forces the notes section to
+ * be 8-byte aligned which causes alignment mismatches with the kernel's custom
+ * 4-byte aligned notes.
  */
 #define NOTES								\
-	/DISCARD/ : { *(.note.GNU-stack) }				\
+	/DISCARD/ : {							\
+		*(.note.GNU-stack)					\
+		*(.note.gnu.property)					\
+	}								\
 	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
 		BOUNDED_SECTION_BY(.note.*, _notes)			\
 	} NOTES_HEADERS							\

@@ -118,25 +118,27 @@ enum lock_space {
 	PHYSICAL
 };
 
-static void build_key(struct dm_thin_device *td, enum lock_space ls,
+static bool build_key(struct dm_thin_device *td, enum lock_space ls,
 		      dm_block_t b, dm_block_t e, struct dm_cell_key *key)
 {
 	key->virtual = (ls == VIRTUAL);
 	key->dev = dm_thin_dev_id(td);
 	key->block_begin = b;
 	key->block_end = e;
+
+	return dm_cell_key_has_valid_range(key);
 }
 
 static void build_data_key(struct dm_thin_device *td, dm_block_t b,
 			   struct dm_cell_key *key)
 {
-	build_key(td, PHYSICAL, b, b + 1llu, key);
+	(void) build_key(td, PHYSICAL, b, b + 1llu, key);
 }
 
 static void build_virtual_key(struct dm_thin_device *td, dm_block_t b,
 			      struct dm_cell_key *key)
 {
-	build_key(td, VIRTUAL, b, b + 1llu, key);
+	(void) build_key(td, VIRTUAL, b, b + 1llu, key);
 }
 
 /*----------------------------------------------------------------*/
@@ -883,15 +885,17 @@ static void cell_defer_no_holder(struct thin_c *tc, struct dm_bio_prison_cell *c
 {
 	struct pool *pool = tc->pool;
 	unsigned long flags;
-	int has_work;
+	struct bio_list bios;
 
-	spin_lock_irqsave(&tc->lock, flags);
-	cell_release_no_holder(pool, cell, &tc->deferred_bio_list);
-	has_work = !bio_list_empty(&tc->deferred_bio_list);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	bio_list_init(&bios);
+	cell_release_no_holder(pool, cell, &bios);
 
-	if (has_work)
+	if (!bio_list_empty(&bios)) {
+		spin_lock_irqsave(&tc->lock, flags);
+		bio_list_merge(&tc->deferred_bio_list, &bios);
+		spin_unlock_irqrestore(&tc->lock, flags);
 		wake_worker(pool);
+	}
 }
 
 static void thin_defer_bio(struct thin_c *tc, struct bio *bio);
@@ -1672,54 +1676,70 @@ static void break_up_discard_bio(struct thin_c *tc, dm_block_t begin, dm_block_t
 	struct dm_cell_key data_key;
 	struct dm_bio_prison_cell *data_cell;
 	struct dm_thin_new_mapping *m;
-	dm_block_t virt_begin, virt_end, data_begin;
+	dm_block_t virt_begin, virt_end, data_begin, data_end;
+	dm_block_t len, next_boundary;
 
 	while (begin != end) {
-		r = ensure_next_mapping(pool);
-		if (r)
-			/* we did our best */
-			return;
-
 		r = dm_thin_find_mapped_range(tc->td, begin, end, &virt_begin, &virt_end,
 					      &data_begin, &maybe_shared);
-		if (r)
+		if (r) {
 			/*
 			 * Silently fail, letting any mappings we've
 			 * created complete.
 			 */
 			break;
-
-		build_key(tc->td, PHYSICAL, data_begin, data_begin + (virt_end - virt_begin), &data_key);
-		if (bio_detain(tc->pool, &data_key, NULL, &data_cell)) {
-			/* contention, we'll give up with this range */
-			begin = virt_end;
-			continue;
 		}
 
-		/*
-		 * IO may still be going to the destination block.  We must
-		 * quiesce before we can do the removal.
-		 */
-		m = get_next_mapping(pool);
-		m->tc = tc;
-		m->maybe_shared = maybe_shared;
-		m->virt_begin = virt_begin;
-		m->virt_end = virt_end;
-		m->data_block = data_begin;
-		m->cell = data_cell;
-		m->bio = bio;
+		data_end = data_begin + (virt_end - virt_begin);
 
 		/*
-		 * The parent bio must not complete before sub discard bios are
-		 * chained to it (see end_discard's bio_chain)!
-		 *
-		 * This per-mapping bi_remaining increment is paired with
-		 * the implicit decrement that occurs via bio_endio() in
-		 * end_discard().
+		 * Make sure the data region obeys the bio prison restrictions.
 		 */
-		bio_inc_remaining(bio);
-		if (!dm_deferred_set_add_work(pool->all_io_ds, &m->list))
-			pool->process_prepared_discard(m);
+		while (data_begin < data_end) {
+			r = ensure_next_mapping(pool);
+			if (r)
+				return; /* we did our best */
+
+			next_boundary = ((data_begin >> BIO_PRISON_MAX_RANGE_SHIFT) + 1)
+				<< BIO_PRISON_MAX_RANGE_SHIFT;
+			len = min_t(sector_t, data_end - data_begin, next_boundary - data_begin);
+
+			/* This key is certainly within range given the above splitting */
+			(void) build_key(tc->td, PHYSICAL, data_begin, data_begin + len, &data_key);
+			if (bio_detain(tc->pool, &data_key, NULL, &data_cell)) {
+				/* contention, we'll give up with this range */
+				data_begin += len;
+				continue;
+			}
+
+			/*
+			 * IO may still be going to the destination block.  We must
+			 * quiesce before we can do the removal.
+			 */
+			m = get_next_mapping(pool);
+			m->tc = tc;
+			m->maybe_shared = maybe_shared;
+			m->virt_begin = virt_begin;
+			m->virt_end = virt_begin + len;
+			m->data_block = data_begin;
+			m->cell = data_cell;
+			m->bio = bio;
+
+			/*
+			 * The parent bio must not complete before sub discard bios are
+			 * chained to it (see end_discard's bio_chain)!
+			 *
+			 * This per-mapping bi_remaining increment is paired with
+			 * the implicit decrement that occurs via bio_endio() in
+			 * end_discard().
+			 */
+			bio_inc_remaining(bio);
+			if (!dm_deferred_set_add_work(pool->all_io_ds, &m->list))
+				pool->process_prepared_discard(m);
+
+			virt_begin += len;
+			data_begin += len;
+		}
 
 		begin = virt_end;
 	}
@@ -1761,8 +1781,13 @@ static void process_discard_bio(struct thin_c *tc, struct bio *bio)
 		return;
 	}
 
-	build_key(tc->td, VIRTUAL, begin, end, &virt_key);
-	if (bio_detain(tc->pool, &virt_key, bio, &virt_cell))
+	if (unlikely(!build_key(tc->td, VIRTUAL, begin, end, &virt_key))) {
+		DMERR_LIMIT("Discard doesn't respect bio prison limits");
+		bio_endio(bio);
+		return;
+	}
+
+	if (bio_detain(tc->pool, &virt_key, bio, &virt_cell)) {
 		/*
 		 * Potential starvation issue: We're relying on the
 		 * fs/application being well behaved, and not trying to
@@ -1771,6 +1796,7 @@ static void process_discard_bio(struct thin_c *tc, struct bio *bio)
 		 * cell will never be granted.
 		 */
 		return;
+	}
 
 	tc->pool->process_discard_cell(tc, virt_cell);
 }
@@ -3369,6 +3395,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	pt->low_water_blocks = low_water_blocks;
 	pt->adjusted_pf = pt->requested_pf = pf;
 	ti->num_flush_bios = 1;
+	ti->limit_swap_bios = true;
 
 	/*
 	 * Only need to enable discards if the pool should pass
@@ -3377,13 +3404,13 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 */
 	if (pf.discard_enabled && pf.discard_passdown) {
 		ti->num_discard_bios = 1;
-
 		/*
 		 * Setting 'discards_supported' circumvents the normal
 		 * stacking of discard limits (this keeps the pool and
 		 * thin devices' discard limits consistent).
 		 */
 		ti->discards_supported = true;
+		ti->max_discard_granularity = true;
 	}
 	ti->private = pt;
 
@@ -4093,7 +4120,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 22, 0},
+	.version = {1, 23, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4249,6 +4276,7 @@ static int thin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 
 	ti->num_flush_bios = 1;
+	ti->limit_swap_bios = true;
 	ti->flush_supported = true;
 	ti->accounts_remapped_io = true;
 	ti->per_io_data_size = sizeof(struct dm_thin_endio_hook);
@@ -4257,6 +4285,7 @@ static int thin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (tc->pool->pf.discard_enabled) {
 		ti->discards_supported = true;
 		ti->num_discard_bios = 1;
+		ti->max_discard_granularity = true;
 	}
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
@@ -4472,12 +4501,12 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		return;
 
 	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
-	limits->max_discard_sectors = 2048 * 1024 * 16; /* 16G */
+	limits->max_discard_sectors = pool->sectors_per_block * BIO_PRISON_MAX_RANGE;
 }
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 22, 0},
+	.version = {1, 23, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

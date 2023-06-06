@@ -9,8 +9,11 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
+struct intel_crtc;
 enum pipe;
 
+void intel_init_fifo_underrun_reporting(struct drm_i915_private *i915,
+					struct intel_crtc *crtc, bool enable);
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum pipe pipe, bool enable);
 bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,

@@ -474,7 +474,7 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 
 	ret = sec->ops->rsu_status(sec);
 	if (ret < 0)
-		return ret;
+		return FW_UPLOAD_ERR_HW_ERROR;
 	status = ret;
 
 	if (!rsu_status_ok(status)) {

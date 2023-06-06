@@ -70,7 +70,5 @@ Possible arch problems I found (and either tried to fix or didn't):
 
 ia64 - is safe_halt call racy vs interrupts? (does it sleep?) (See #4a)
 
-sh64 - Is sleeping racy vs interrupts? (See #4a)
-
 sparc - IRQs on at this point(?), change local_irq_save to _disable.
       - TODO: needs secondary CPUs to disable preempt (See #1)

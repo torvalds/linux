@@ -5358,6 +5358,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.txff_size = 262144,
 	.rxff_size = 24576,
 	.fw_rxff_size = 12288,
+	.rsvd_drv_pg_num = 16,
 	.txgi_factor = 2,
 	.is_pwr_by_rate_dec = false,
 	.max_power_index = 0x7f,

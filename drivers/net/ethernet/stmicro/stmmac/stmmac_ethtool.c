@@ -393,18 +393,9 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
 	    priv->hw->pcs & STMMAC_PCS_SGMII) {
-		u32 mask = ADVERTISED_Autoneg | ADVERTISED_Pause;
-
 		/* Only support ANE */
 		if (cmd->base.autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
-
-		mask &= (ADVERTISED_1000baseT_Half |
-			ADVERTISED_1000baseT_Full |
-			ADVERTISED_100baseT_Half |
-			ADVERTISED_100baseT_Full |
-			ADVERTISED_10baseT_Half |
-			ADVERTISED_10baseT_Full);
 
 		mutex_lock(&priv->lock);
 		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, priv->hw->ps, 0);

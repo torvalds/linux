@@ -336,13 +336,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
 
-int drm_gem_dumb_destroy(struct drm_file *file,
-			 struct drm_device *dev,
-			 u32 handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 /**
  * drm_gem_handle_create_tail - internal functions to create a handle
  * @file_priv: drm file-private structure to register the handle for
@@ -1344,7 +1337,15 @@ drm_gem_lru_remove(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_lru_remove);
 
-static void
+/**
+ * drm_gem_lru_move_tail_locked - move the object to the tail of the LRU
+ *
+ * Like &drm_gem_lru_move_tail but lru lock must be held
+ *
+ * @lru: The LRU to move the object into.
+ * @obj: The GEM object to move into this LRU
+ */
+void
 drm_gem_lru_move_tail_locked(struct drm_gem_lru *lru, struct drm_gem_object *obj)
 {
 	lockdep_assert_held_once(lru->lock);
@@ -1356,6 +1357,7 @@ drm_gem_lru_move_tail_locked(struct drm_gem_lru *lru, struct drm_gem_object *obj
 	list_add_tail(&obj->lru_node, &lru->list);
 	obj->lru = lru;
 }
+EXPORT_SYMBOL(drm_gem_lru_move_tail_locked);
 
 /**
  * drm_gem_lru_move_tail - move the object to the tail of the LRU
@@ -1471,3 +1473,21 @@ tail:
 	return freed;
 }
 EXPORT_SYMBOL(drm_gem_lru_scan);
+
+/**
+ * drm_gem_evict - helper to evict backing pages for a GEM object
+ * @obj: obj in question
+ */
+int drm_gem_evict(struct drm_gem_object *obj)
+{
+	dma_resv_assert_held(obj->resv);
+
+	if (!dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ))
+		return -EBUSY;
+
+	if (obj->funcs->evict)
+		return obj->funcs->evict(obj);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_evict);

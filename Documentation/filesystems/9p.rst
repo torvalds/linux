@@ -78,19 +78,39 @@ Options
   		offering several exported file systems.
 
   cache=mode	specifies a caching policy.  By default, no caches are used.
+		The mode can be specified as a bitmask or by using one of the
+		prexisting common 'shortcuts'.
+		The bitmask is described below: (unspecified bits are reserved)
 
-                        none
-				default no cache policy, metadata and data
-                                alike are synchronous.
-			loose
-				no attempts are made at consistency,
-                                intended for exclusive, read-only mounts
-                        fscache
-				use FS-Cache for a persistent, read-only
-				cache backend.
-                        mmap
-				minimal cache that is only used for read-write
-                                mmap.  Northing else is cached, like cache=none
+			==========  ====================================================
+			0b00000000  all caches disabled, mmap disabled
+			0b00000001  file caches enabled
+			0b00000010  meta-data caches enabled
+			0b00000100  writeback behavior (as opposed to writethrough)
+			0b00001000  loose caches (no explicit consistency with server)
+			0b10000000  fscache enabled for persistent caching
+			==========  ====================================================
+
+		The current shortcuts and their associated bitmask are:
+
+			=========   ====================================================
+			none        0b00000000 (no caching)
+			readahead   0b00000001 (only read-ahead file caching)
+			mmap        0b00000101 (read-ahead + writeback file cache)
+			loose       0b00001111 (non-coherent file and meta-data caches)
+			fscache     0b10001111 (persistent loose cache)
+			=========   ====================================================
+
+		NOTE: only these shortcuts are tested modes of operation at the
+		moment, so using other combinations of bit-patterns is not
+		known to work.  Work on better cache support is in progress.
+
+		IMPORTANT: loose caches (and by extension at the moment fscache)
+		do not necessarily validate cached values on the server.  In other
+		words changes on the server are not guaranteed to be reflected
+		on the client system.  Only use this mode of operation if you
+		have an exclusive mount and the server will modify the filesystem
+		underneath you.
 
   debug=n	specifies debug level.  The debug level is a bitmask.
 
@@ -136,6 +156,12 @@ Options
   nodevmap	do not map special files - represent them as normal files.
   		This can be used to share devices/named pipes/sockets between
 		hosts.  This functionality will be expanded in later versions.
+
+  directio	bypass page cache on all read/write operations
+
+  ignoreqv	ignore qid.version==0 as a marker to ignore cache
+
+  noxattr	do not offer xattr functions on this mount.
 
   access	there are four access modes.
 			user

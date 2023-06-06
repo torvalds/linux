@@ -77,9 +77,9 @@ static struct perf_cpu_map *cpu_map__from_entries(const struct perf_record_cpu_m
 			 * otherwise it would become 65535.
 			 */
 			if (data->cpus_data.cpu[i] == (u16) -1)
-				map->map[i].cpu = -1;
+				RC_CHK_ACCESS(map)->map[i].cpu = -1;
 			else
-				map->map[i].cpu = (int) data->cpus_data.cpu[i];
+				RC_CHK_ACCESS(map)->map[i].cpu = (int) data->cpus_data.cpu[i];
 		}
 	}
 
@@ -107,7 +107,7 @@ static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_
 
 		perf_record_cpu_map_data__read_one_mask(data, i, local_copy);
 		for_each_set_bit(cpu, local_copy, 64)
-			map->map[j++].cpu = cpu + cpus_per_i;
+			RC_CHK_ACCESS(map)->map[j++].cpu = cpu + cpus_per_i;
 	}
 	return map;
 
@@ -124,11 +124,11 @@ static struct perf_cpu_map *cpu_map__from_range(const struct perf_record_cpu_map
 		return NULL;
 
 	if (data->range_cpu_data.any_cpu)
-		map->map[i++].cpu = -1;
+		RC_CHK_ACCESS(map)->map[i++].cpu = -1;
 
 	for (int cpu = data->range_cpu_data.start_cpu; cpu <= data->range_cpu_data.end_cpu;
 	     i++, cpu++)
-		map->map[i].cpu = cpu;
+		RC_CHK_ACCESS(map)->map[i].cpu = cpu;
 
 	return map;
 }
@@ -160,16 +160,11 @@ size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 {
-	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+	struct perf_cpu_map *cpus = perf_cpu_map__alloc(nr);
 
 	if (cpus != NULL) {
-		int i;
-
-		cpus->nr = nr;
-		for (i = 0; i < nr; i++)
-			cpus->map[i].cpu = -1;
-
-		refcount_set(&cpus->refcnt, 1);
+		for (int i = 0; i < nr; i++)
+			RC_CHK_ACCESS(cpus)->map[i].cpu = -1;
 	}
 
 	return cpus;
@@ -239,7 +234,7 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 {
 	int idx;
 	struct perf_cpu cpu;
-	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(cpus->nr);
+	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(perf_cpu_map__nr(cpus));
 
 	if (!c)
 		return NULL;
@@ -263,7 +258,7 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 		}
 	}
 	/* Trim. */
-	if (c->nr != cpus->nr) {
+	if (c->nr != perf_cpu_map__nr(cpus)) {
 		struct cpu_aggr_map *trimmed_c =
 			realloc(c,
 				sizeof(struct cpu_aggr_map) + sizeof(struct aggr_cpu_id) * c->nr);
@@ -582,31 +577,31 @@ size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 
 #define COMMA first ? "" : ","
 
-	for (i = 0; i < map->nr + 1; i++) {
+	for (i = 0; i < perf_cpu_map__nr(map) + 1; i++) {
 		struct perf_cpu cpu = { .cpu = INT_MAX };
-		bool last = i == map->nr;
+		bool last = i == perf_cpu_map__nr(map);
 
 		if (!last)
-			cpu = map->map[i];
+			cpu = perf_cpu_map__cpu(map, i);
 
 		if (start == -1) {
 			start = i;
 			if (last) {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d", COMMA,
-						map->map[i].cpu);
+						perf_cpu_map__cpu(map, i).cpu);
 			}
-		} else if (((i - start) != (cpu.cpu - map->map[start].cpu)) || last) {
+		} else if (((i - start) != (cpu.cpu - perf_cpu_map__cpu(map, start).cpu)) || last) {
 			int end = i - 1;
 
 			if (start == end) {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d", COMMA,
-						map->map[start].cpu);
+						perf_cpu_map__cpu(map, start).cpu);
 			} else {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d-%d", COMMA,
-						map->map[start].cpu, map->map[end].cpu);
+						perf_cpu_map__cpu(map, start).cpu, perf_cpu_map__cpu(map, end).cpu);
 			}
 			first = false;
 			start = i;
@@ -633,7 +628,7 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 	int i, cpu;
 	char *ptr = buf;
 	unsigned char *bitmap;
-	struct perf_cpu last_cpu = perf_cpu_map__cpu(map, map->nr - 1);
+	struct perf_cpu last_cpu = perf_cpu_map__cpu(map, perf_cpu_map__nr(map) - 1);
 
 	if (buf == NULL)
 		return 0;
@@ -644,7 +639,7 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 		return 0;
 	}
 
-	for (i = 0; i < map->nr; i++) {
+	for (i = 0; i < perf_cpu_map__nr(map); i++) {
 		cpu = perf_cpu_map__cpu(map, i).cpu;
 		bitmap[cpu / 8] |= 1 << (cpu % 8);
 	}

@@ -1393,7 +1393,7 @@ static int __init capi_init(void)
 		kcapi_exit();
 		return major_ret;
 	}
-	capi_class = class_create(THIS_MODULE, "capi");
+	capi_class = class_create("capi");
 	if (IS_ERR(capi_class)) {
 		unregister_chrdev(capi_major, "capi20");
 		kcapi_exit();

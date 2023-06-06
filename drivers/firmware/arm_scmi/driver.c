@@ -2221,8 +2221,8 @@ static int __scmi_xfer_info_init(struct scmi_info *sinfo,
 	hash_init(info->pending_xfers);
 
 	/* Allocate a bitmask sized to hold MSG_TOKEN_MAX tokens */
-	info->xfer_alloc_table = devm_kcalloc(dev, BITS_TO_LONGS(MSG_TOKEN_MAX),
-					      sizeof(long), GFP_KERNEL);
+	info->xfer_alloc_table = devm_bitmap_zalloc(dev, MSG_TOKEN_MAX,
+						    GFP_KERNEL);
 	if (!info->xfer_alloc_table)
 		return -ENOMEM;
 
@@ -2289,7 +2289,7 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 		return ret;
 
 	ret = __scmi_xfer_info_init(sinfo, &sinfo->tx_minfo);
-	if (!ret && idr_find(&sinfo->rx_idr, SCMI_PROTOCOL_BASE))
+	if (!ret && !idr_is_empty(&sinfo->rx_idr))
 		ret = __scmi_xfer_info_init(sinfo, &sinfo->rx_minfo);
 
 	return ret;
@@ -2657,6 +2657,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct scmi_handle *handle;
 	const struct scmi_desc *desc;
 	struct scmi_info *info;
+	bool coex = IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node;
 
@@ -2731,16 +2732,13 @@ static int scmi_probe(struct platform_device *pdev)
 			dev_warn(dev, "Failed to setup SCMI debugfs.\n");
 
 		if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
-			bool coex =
-			      IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
-
 			ret = scmi_debugfs_raw_mode_setup(info);
 			if (!coex) {
 				if (ret)
 					goto clear_dev_req_notifier;
 
-				/* Bail out anyway when coex enabled */
-				return ret;
+				/* Bail out anyway when coex disabled. */
+				return 0;
 			}
 
 			/* Coex enabled, carry on in any case. */
@@ -2764,6 +2762,8 @@ static int scmi_probe(struct platform_device *pdev)
 	ret = scmi_protocol_acquire(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
 		dev_err(dev, "unable to communicate with SCMI\n");
+		if (coex)
+			return 0;
 		goto notification_exit;
 	}
 

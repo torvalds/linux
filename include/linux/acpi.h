@@ -10,11 +10,14 @@
 
 #include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
-#include <linux/irqdomain.h>
 #include <linux/resource_ext.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
+
+struct irq_domain;
+struct irq_domain_ops;
 
 #ifndef _LINUX
 #define _LINUX
@@ -24,7 +27,6 @@
 #ifdef	CONFIG_ACPI
 
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -1073,6 +1075,11 @@ static inline u32 acpi_osc_ctx_get_pci_control(struct acpi_osc_context *context)
 static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
 {
 	return 0;
+}
+
+static inline bool acpi_sleep_state_supported(u8 sleep_state)
+{
+	return false;
 }
 
 #endif	/* !CONFIG_ACPI */

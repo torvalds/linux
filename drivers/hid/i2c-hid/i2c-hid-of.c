@@ -21,6 +21,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hid.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -35,8 +36,10 @@ struct i2c_hid_of {
 	struct i2chid_ops ops;
 
 	struct i2c_client *client;
+	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[2];
 	int post_power_delay_ms;
+	int post_reset_delay_ms;
 };
 
 static int i2c_hid_of_power_up(struct i2chid_ops *ops)
@@ -55,6 +58,10 @@ static int i2c_hid_of_power_up(struct i2chid_ops *ops)
 	if (ihid_of->post_power_delay_ms)
 		msleep(ihid_of->post_power_delay_ms);
 
+	gpiod_set_value_cansleep(ihid_of->reset_gpio, 0);
+	if (ihid_of->post_reset_delay_ms)
+		msleep(ihid_of->post_reset_delay_ms);
+
 	return 0;
 }
 
@@ -62,6 +69,7 @@ static void i2c_hid_of_power_down(struct i2chid_ops *ops)
 {
 	struct i2c_hid_of *ihid_of = container_of(ops, struct i2c_hid_of, ops);
 
+	gpiod_set_value_cansleep(ihid_of->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ihid_of->supplies),
 			       ihid_of->supplies);
 }
@@ -75,33 +83,43 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 	int ret;
 	u32 val;
 
-	ihid_of = devm_kzalloc(&client->dev, sizeof(*ihid_of), GFP_KERNEL);
+	ihid_of = devm_kzalloc(dev, sizeof(*ihid_of), GFP_KERNEL);
 	if (!ihid_of)
 		return -ENOMEM;
 
 	ihid_of->ops.power_up = i2c_hid_of_power_up;
 	ihid_of->ops.power_down = i2c_hid_of_power_down;
 
-	ret = of_property_read_u32(dev->of_node, "hid-descr-addr", &val);
+	ret = device_property_read_u32(dev, "hid-descr-addr", &val);
 	if (ret) {
-		dev_err(&client->dev, "HID register address not provided\n");
+		dev_err(dev, "HID register address not provided\n");
 		return -ENODEV;
 	}
 	if (val >> 16) {
-		dev_err(&client->dev, "Bad HID register address: 0x%08x\n",
-			val);
+		dev_err(dev, "Bad HID register address: 0x%08x\n", val);
 		return -EINVAL;
 	}
 	hid_descriptor_address = val;
 
-	if (!device_property_read_u32(&client->dev, "post-power-on-delay-ms",
-				      &val))
+	if (!device_property_read_u32(dev, "post-power-on-delay-ms", &val))
 		ihid_of->post_power_delay_ms = val;
+
+	/*
+	 * Note this is a kernel internal device-property set by x86 platform code,
+	 * this MUST not be used in devicetree files without first adding it to
+	 * the DT bindings.
+	 */
+	if (!device_property_read_u32(dev, "post-reset-deassert-delay-ms", &val))
+		ihid_of->post_reset_delay_ms = val;
+
+	/* Start out with reset asserted */
+	ihid_of->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ihid_of->reset_gpio))
+		return PTR_ERR(ihid_of->reset_gpio);
 
 	ihid_of->supplies[0].supply = "vdd";
 	ihid_of->supplies[1].supply = "vddl";
-	ret = devm_regulator_bulk_get(&client->dev,
-				      ARRAY_SIZE(ihid_of->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ihid_of->supplies),
 				      ihid_of->supplies);
 	if (ret)
 		return ret;
@@ -116,11 +134,13 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 				  hid_descriptor_address, quirks);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id i2c_hid_of_match[] = {
 	{ .compatible = "hid-over-i2c" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, i2c_hid_of_match);
+#endif
 
 static const struct i2c_device_id i2c_hid_of_id_table[] = {
 	{ "hid", 0 },

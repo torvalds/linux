@@ -14,9 +14,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fujitsu,mb86s70-sdhci-3.0
-      - socionext,f-sdh30-e51-mmc
+    oneOf:
+      - items:
+          - const: socionext,synquacer-sdhci
+          - const: fujitsu,mb86s70-sdhci-3.0
+      - enum:
+          - fujitsu,mb86s70-sdhci-3.0
+          - socionext,f-sdh30-e51-mmc
 
   reg:
     maxItems: 1
@@ -28,6 +32,11 @@ properties:
     items:
       - const: iface
       - const: core
+
+  dma-coherent: true
+
+  interrupts:
+    maxItems: 2
 
   resets:
     maxItems: 1

@@ -191,6 +191,7 @@ void arch_uprobe_abort_xol(struct arch_uprobe *aup,
 {
 	struct uprobe_task *utask = current->utask;
 
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	instruction_pointer_set(regs, utask->vaddr);
 }
 
@@ -205,24 +206,6 @@ unsigned long arch_uretprobe_hijack_return_addr(
 	regs->regs[31] = trampoline_vaddr;
 
 	return ra;
-}
-
-/**
- * set_swbp - store breakpoint at a given address.
- * @auprobe: arch specific probepoint information.
- * @mm: the probed process address space.
- * @vaddr: the virtual address to insert the opcode.
- *
- * For mm @mm, store the breakpoint instruction at @vaddr.
- * Return 0 (success) or a negative errno.
- *
- * This version overrides the weak version in kernel/events/uprobes.c.
- * It is required to handle MIPS16 and microMIPS.
- */
-int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm,
-	unsigned long vaddr)
-{
-	return uprobe_write_opcode(auprobe, mm, vaddr, UPROBE_SWBP_INSN);
 }
 
 void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,

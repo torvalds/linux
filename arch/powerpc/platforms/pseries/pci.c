@@ -240,7 +240,7 @@ void __init pSeries_final_fixup(void)
  */
 static void fixup_winbond_82c105(struct pci_dev* dev)
 {
-	int i;
+	struct resource *r;
 	unsigned int reg;
 
 	if (!machine_is(pseries))
@@ -251,14 +251,14 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	/* Enable LEGIRQ to use INTC instead of ISA interrupts */
 	pci_write_config_dword(dev, 0x40, reg | (1<<11));
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; ++i) {
+	pci_dev_for_each_resource(dev, r) {
 		/* zap the 2nd function of the winbond chip */
-		if (dev->resource[i].flags & IORESOURCE_IO
-		    && dev->bus->number == 0 && dev->devfn == 0x81)
-			dev->resource[i].flags &= ~IORESOURCE_IO;
-		if (dev->resource[i].start == 0 && dev->resource[i].end) {
-			dev->resource[i].flags = 0;
-			dev->resource[i].end = 0;
+		if (dev->bus->number == 0 && dev->devfn == 0x81 &&
+		    r->flags & IORESOURCE_IO)
+			r->flags &= ~IORESOURCE_IO;
+		if (r->start == 0 && r->end) {
+			r->flags = 0;
+			r->end = 0;
 		}
 	}
 }

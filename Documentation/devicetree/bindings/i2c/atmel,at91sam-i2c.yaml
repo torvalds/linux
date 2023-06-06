@@ -75,7 +75,7 @@ required:
   - clocks
 
 allOf:
-  - $ref: "i2c-controller.yaml"
+  - $ref: i2c-controller.yaml
   - if:
       properties:
         compatible:

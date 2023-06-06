@@ -144,7 +144,7 @@ static int rcar_fcp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_fcp_remove(struct platform_device *pdev)
+static void rcar_fcp_remove(struct platform_device *pdev)
 {
 	struct rcar_fcp_device *fcp = platform_get_drvdata(pdev);
 
@@ -153,8 +153,6 @@ static int rcar_fcp_remove(struct platform_device *pdev)
 	mutex_unlock(&fcp_lock);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rcar_fcp_of_match[] = {
@@ -166,7 +164,7 @@ MODULE_DEVICE_TABLE(of, rcar_fcp_of_match);
 
 static struct platform_driver rcar_fcp_platform_driver = {
 	.probe		= rcar_fcp_probe,
-	.remove		= rcar_fcp_remove,
+	.remove_new	= rcar_fcp_remove,
 	.driver		= {
 		.name	= "rcar-fcp",
 		.of_match_table = rcar_fcp_of_match,

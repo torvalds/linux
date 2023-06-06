@@ -70,7 +70,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 
 	/* make various checks */
 	order = get_order(newsize);
-	if (unlikely(order >= MAX_ORDER))
+	if (unlikely(order > MAX_ORDER))
 		return -EFBIG;
 
 	ret = inode_newsize_ok(inode, newsize);

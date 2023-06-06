@@ -364,3 +364,28 @@ un editor esterno.
 
 Un altro problema è che Gmail usa la codifica base64 per tutti quei messaggi
 che contengono caratteri non ASCII. Questo include cose tipo i nomi europei.
+
+Proton Mail
+***********
+
+Il servizio Proton Mail ha una funzionalità che cripta tutti i messaggi verso
+ogni destinatario per cui è possibile trovare una chiave usando il *Web Key
+Directory* (WKD). Il servizio kernel.org pubblica il WKD per ogni sviluppatore
+in possesso di un conto kernel.org. Di conseguenza, tutti i messaggi inviati
+usando Proton Mail verso indirizzi kernel.org verranno criptati.
+
+Proton Mail non fornisce alcun meccanismo per disabilitare questa funzionalità
+perché verrebbe considerato un problema per la riservatezza. Questa funzionalità
+è attiva anche quando si inviano messaggi usando il Proton Mail Bridge. Dunque
+tutta la posta in uscita verrà criptata, incluse le patch inviate con ``git
+send-email``.
+
+I messaggi criptati sono una fonte di problemi; altri sviluppatori potrebbero
+non aver configurato i loro programmi, o strumenti, per gestire messaggi
+criptati; inoltre, alcuni programmi di posta elettronica potrebbero criptare le
+risposte a messaggi criptati per tutti i partecipanti alla discussione, inclusa
+la lista di discussione stessa.
+
+A meno che non venga introdotta una maniera per disabilitare questa
+funzionalità, non è consigliato usare Proton Mail per contribuire allo sviluppo
+del kernel.

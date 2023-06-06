@@ -16,7 +16,6 @@
 #include <linux/bits.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 /* defines only for the constants which don't work well as enums */
 #define ATA_DMA_BOUNDARY	0xffffUL
@@ -1015,76 +1014,6 @@ static inline int atapi_command_packet_set(const u16 *dev_id)
 static inline bool atapi_id_dmadir(const u16 *dev_id)
 {
 	return ata_id_major_version(dev_id) >= 7 && (dev_id[62] & 0x8000);
-}
-
-/*
- * ata_id_is_lba_capacity_ok() performs a sanity check on
- * the claimed LBA capacity value for the device.
- *
- * Returns 1 if LBA capacity looks sensible, 0 otherwise.
- *
- * It is called only once for each device.
- */
-static inline bool ata_id_is_lba_capacity_ok(u16 *id)
-{
-	unsigned long lba_sects, chs_sects, head, tail;
-
-	/* No non-LBA info .. so valid! */
-	if (id[ATA_ID_CYLS] == 0)
-		return true;
-
-	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-
-	/*
-	 * The ATA spec tells large drives to return
-	 * C/H/S = 16383/16/63 independent of their size.
-	 * Some drives can be jumpered to use 15 heads instead of 16.
-	 * Some drives can be jumpered to use 4092 cyls instead of 16383.
-	 */
-	if ((id[ATA_ID_CYLS] == 16383 ||
-	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
-	    id[ATA_ID_SECTORS] == 63 &&
-	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
-	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
-		return true;
-
-	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
-
-	/* perform a rough sanity check on lba_sects: within 10% is OK */
-	if (lba_sects - chs_sects < chs_sects/10)
-		return true;
-
-	/* some drives have the word order reversed */
-	head = (lba_sects >> 16) & 0xffff;
-	tail = lba_sects & 0xffff;
-	lba_sects = head | (tail << 16);
-
-	if (lba_sects - chs_sects < chs_sects/10) {
-		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
-		return true;	/* LBA capacity is (now) good */
-	}
-
-	return false;	/* LBA capacity value may be bad */
-}
-
-static inline void ata_id_to_hd_driveid(u16 *id)
-{
-#ifdef __BIG_ENDIAN
-	/* accessed in struct hd_driveid as 8-bit values */
-	id[ATA_ID_MAX_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MAX_MULTSECT]);
-	id[ATA_ID_CAPABILITY]	 = __cpu_to_le16(id[ATA_ID_CAPABILITY]);
-	id[ATA_ID_OLD_PIO_MODES] = __cpu_to_le16(id[ATA_ID_OLD_PIO_MODES]);
-	id[ATA_ID_OLD_DMA_MODES] = __cpu_to_le16(id[ATA_ID_OLD_DMA_MODES]);
-	id[ATA_ID_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MULTSECT]);
-
-	/* as 32-bit values */
-	*(u32 *)&id[ATA_ID_LBA_CAPACITY] = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-	*(u32 *)&id[ATA_ID_SPG]		 = ata_id_u32(id, ATA_ID_SPG);
-
-	/* as 64-bit value */
-	*(u64 *)&id[ATA_ID_LBA_CAPACITY_2] =
-		ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
-#endif
 }
 
 static inline bool ata_ok(u8 status)

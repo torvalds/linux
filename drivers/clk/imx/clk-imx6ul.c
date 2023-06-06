@@ -95,14 +95,16 @@ static const struct clk_div_table video_div_table[] = {
 	{ }
 };
 
-static const char * enet1_ref_sels[] = { "enet1_ref_125m", "enet1_ref_pad", };
+static const char * enet1_ref_sels[] = { "enet1_ref_125m", "enet1_ref_pad", "dummy", "dummy"};
 static const u32 enet1_ref_sels_table[] = { IMX6UL_GPR1_ENET1_TX_CLK_DIR,
-					    IMX6UL_GPR1_ENET1_CLK_SEL };
+					    IMX6UL_GPR1_ENET1_CLK_SEL, 0,
+					    IMX6UL_GPR1_ENET1_TX_CLK_DIR | IMX6UL_GPR1_ENET1_CLK_SEL };
 static const u32 enet1_ref_sels_table_mask = IMX6UL_GPR1_ENET1_TX_CLK_DIR |
 					     IMX6UL_GPR1_ENET1_CLK_SEL;
-static const char * enet2_ref_sels[] = { "enet2_ref_125m", "enet2_ref_pad", };
+static const char * enet2_ref_sels[] = { "enet2_ref_125m", "enet2_ref_pad", "dummy", "dummy"};
 static const u32 enet2_ref_sels_table[] = { IMX6UL_GPR1_ENET2_TX_CLK_DIR,
-					    IMX6UL_GPR1_ENET2_CLK_SEL };
+					    IMX6UL_GPR1_ENET2_CLK_SEL, 0,
+					    IMX6UL_GPR1_ENET2_TX_CLK_DIR | IMX6UL_GPR1_ENET2_CLK_SEL };
 static const u32 enet2_ref_sels_table_mask = IMX6UL_GPR1_ENET2_TX_CLK_DIR |
 					     IMX6UL_GPR1_ENET2_CLK_SEL;
 

@@ -9,17 +9,17 @@ DECLARE_PER_CPU(u64, idle_spurr_cycles);
 DECLARE_PER_CPU(u64, idle_entry_purr_snap);
 DECLARE_PER_CPU(u64, idle_entry_spurr_snap);
 
-static inline void snapshot_purr_idle_entry(void)
+static __always_inline void snapshot_purr_idle_entry(void)
 {
 	*this_cpu_ptr(&idle_entry_purr_snap) = mfspr(SPRN_PURR);
 }
 
-static inline void snapshot_spurr_idle_entry(void)
+static __always_inline void snapshot_spurr_idle_entry(void)
 {
 	*this_cpu_ptr(&idle_entry_spurr_snap) = mfspr(SPRN_SPURR);
 }
 
-static inline void update_idle_purr_accounting(void)
+static __always_inline void update_idle_purr_accounting(void)
 {
 	u64 wait_cycles;
 	u64 in_purr = *this_cpu_ptr(&idle_entry_purr_snap);
@@ -29,7 +29,7 @@ static inline void update_idle_purr_accounting(void)
 	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 }
 
-static inline void update_idle_spurr_accounting(void)
+static __always_inline void update_idle_spurr_accounting(void)
 {
 	u64 *idle_spurr_cycles_ptr = this_cpu_ptr(&idle_spurr_cycles);
 	u64 in_spurr = *this_cpu_ptr(&idle_entry_spurr_snap);
@@ -37,7 +37,7 @@ static inline void update_idle_spurr_accounting(void)
 	*idle_spurr_cycles_ptr += mfspr(SPRN_SPURR) - in_spurr;
 }
 
-static inline void pseries_idle_prolog(void)
+static __always_inline void pseries_idle_prolog(void)
 {
 	ppc64_runlatch_off();
 	snapshot_purr_idle_entry();
@@ -49,7 +49,7 @@ static inline void pseries_idle_prolog(void)
 	get_lppaca()->idle = 1;
 }
 
-static inline void pseries_idle_epilog(void)
+static __always_inline void pseries_idle_epilog(void)
 {
 	update_idle_purr_accounting();
 	update_idle_spurr_accounting();

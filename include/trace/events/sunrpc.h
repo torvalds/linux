@@ -1790,6 +1790,31 @@ DEFINE_EVENT(svc_rqst_status, svc_send,
 	TP_PROTO(const struct svc_rqst *rqst, int status),
 	TP_ARGS(rqst, status));
 
+TRACE_EVENT(svc_replace_page_err,
+	TP_PROTO(const struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+	TP_STRUCT__entry(
+		SVC_RQST_ENDPOINT_FIELDS(rqst)
+
+		__field(const void *, begin)
+		__field(const void *, respages)
+		__field(const void *, nextpage)
+	),
+
+	TP_fast_assign(
+		SVC_RQST_ENDPOINT_ASSIGNMENTS(rqst);
+
+		__entry->begin = rqst->rq_pages;
+		__entry->respages = rqst->rq_respages;
+		__entry->nextpage = rqst->rq_next_page;
+	),
+
+	TP_printk(SVC_RQST_ENDPOINT_FORMAT " begin=%p respages=%p nextpage=%p",
+		SVC_RQST_ENDPOINT_VARARGS,
+		__entry->begin, __entry->respages, __entry->nextpage)
+);
+
 TRACE_EVENT(svc_stats_latency,
 	TP_PROTO(
 		const struct svc_rqst *rqst
@@ -1832,7 +1857,10 @@ TRACE_EVENT(svc_stats_latency,
 		{ BIT(XPT_CACHE_AUTH),		"CACHE_AUTH" },		\
 		{ BIT(XPT_LOCAL),		"LOCAL" },		\
 		{ BIT(XPT_KILL_TEMP),		"KILL_TEMP" },		\
-		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" })
+		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" },		\
+		{ BIT(XPT_HANDSHAKE),		"HANDSHAKE" },		\
+		{ BIT(XPT_TLS_SESSION),		"TLS_SESSION" },	\
+		{ BIT(XPT_PEER_AUTH),		"PEER_AUTH" })
 
 TRACE_EVENT(svc_xprt_create_err,
 	TP_PROTO(
@@ -1964,6 +1992,17 @@ DEFINE_SVC_XPRT_EVENT(no_write_space);
 DEFINE_SVC_XPRT_EVENT(close);
 DEFINE_SVC_XPRT_EVENT(detach);
 DEFINE_SVC_XPRT_EVENT(free);
+
+#define DEFINE_SVC_TLS_EVENT(name) \
+	DEFINE_EVENT(svc_xprt_event, svc_tls_##name, \
+		TP_PROTO(const struct svc_xprt *xprt), \
+		TP_ARGS(xprt))
+
+DEFINE_SVC_TLS_EVENT(start);
+DEFINE_SVC_TLS_EVENT(upcall);
+DEFINE_SVC_TLS_EVENT(unavailable);
+DEFINE_SVC_TLS_EVENT(not_started);
+DEFINE_SVC_TLS_EVENT(timed_out);
 
 TRACE_EVENT(svc_xprt_accept,
 	TP_PROTO(

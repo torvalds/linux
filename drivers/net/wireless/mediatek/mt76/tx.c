@@ -77,7 +77,9 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
 		}
 
 		hw = mt76_tx_status_get_hw(dev, skb);
+		spin_lock_bh(&dev->rx_lock);
 		ieee80211_tx_status_ext(hw, &status);
+		spin_unlock_bh(&dev->rx_lock);
 	}
 	rcu_read_unlock();
 }
@@ -263,7 +265,9 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
 	if (cb->pktid < MT_PACKET_ID_FIRST) {
 		hw = mt76_tx_status_get_hw(dev, skb);
 		status.sta = wcid_to_sta(wcid);
+		spin_lock_bh(&dev->rx_lock);
 		ieee80211_tx_status_ext(hw, &status);
+		spin_unlock_bh(&dev->rx_lock);
 		goto out;
 	}
 
@@ -330,7 +334,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 	if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
 	    !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    !ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control)) {
+	    !ieee80211_is_bufferable_mmpdu(skb)) {
 		qid = MT_TXQ_PSD;
 	}
 

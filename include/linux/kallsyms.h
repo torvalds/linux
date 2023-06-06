@@ -67,8 +67,7 @@ static inline void *dereference_symbol_descriptor(void *ptr)
 
 #ifdef CONFIG_KALLSYMS
 unsigned long kallsyms_sym_address(int idx);
-int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
-				      unsigned long),
+int kallsyms_on_each_symbol(int (*fn)(void *, const char *, unsigned long),
 			    void *data);
 int kallsyms_on_each_match_symbol(int (*fn)(void *, unsigned long),
 				  const char *name, void *data);
@@ -166,8 +165,8 @@ static inline bool kallsyms_show_value(const struct cred *cred)
 	return false;
 }
 
-static inline int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
-					  unsigned long), void *data)
+static inline int kallsyms_on_each_symbol(int (*fn)(void *, const char *, unsigned long),
+					  void *data)
 {
 	return -EOPNOTSUPP;
 }

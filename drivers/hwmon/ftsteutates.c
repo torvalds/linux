@@ -520,7 +520,7 @@ static const struct hwmon_ops fts_ops = {
 	.write = fts_write,
 };
 
-static const struct hwmon_channel_info *fts_info[] = {
+static const struct hwmon_channel_info * const fts_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_ALARM | HWMON_T_FAULT,

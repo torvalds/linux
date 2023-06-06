@@ -35,6 +35,7 @@ properties:
 
   adc:
     type: object
+    additionalProperties: false
     description: |
       Provides 9 channels for system monitoring, including VBUSDIV5 (lower
       accuracy, higher measure range), VBUSDIV2 (higher accuracy, lower
@@ -73,6 +74,7 @@ properties:
 
   regulators:
     type: object
+    additionalProperties: false
     description: |
       List all supported regulators, which support the control for DisplayBias
       voltages and one general purpose LDO which commonly used to drive the

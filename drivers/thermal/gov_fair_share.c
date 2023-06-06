@@ -11,7 +11,7 @@
  */
 
 #include <linux/thermal.h>
-#include <trace/events/thermal.h>
+#include "thermal_trace.h"
 
 #include "thermal_core.h"
 

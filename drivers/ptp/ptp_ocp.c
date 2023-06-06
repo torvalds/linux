@@ -34,7 +34,6 @@
 #define PCI_DEVICE_ID_OROLIA_ARTCARD		0xa000
 
 static struct class timecard_class = {
-	.owner		= THIS_MODULE,
 	.name		= "timecard",
 };
 

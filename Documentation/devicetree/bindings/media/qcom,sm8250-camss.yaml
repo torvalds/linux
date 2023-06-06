@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/qcom,sm8250-camss.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/qcom,sm8250-camss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Qualcomm CAMSS ISP
 

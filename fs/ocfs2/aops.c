@@ -2463,7 +2463,7 @@ static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 	return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
 				    iter, get_block,
-				    ocfs2_dio_end_io, NULL, 0);
+				    ocfs2_dio_end_io, 0);
 }
 
 const struct address_space_operations ocfs2_aops = {

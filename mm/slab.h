@@ -4,6 +4,7 @@
 /*
  * Internal slab definitions
  */
+void __init kmem_cache_init(void);
 
 /* Reuses the bits in struct page */
 struct slab {
@@ -51,14 +52,6 @@ struct slab {
 	};
 	unsigned int __unused;
 
-#elif defined(CONFIG_SLOB)
-
-	struct list_head slab_list;
-	void *__unused_1;
-	void *freelist;		/* first free block */
-	long units;
-	unsigned int __unused_2;
-
 #else
 #error "Unexpected slab allocator configured"
 #endif
@@ -72,11 +65,7 @@ struct slab {
 #define SLAB_MATCH(pg, sl)						\
 	static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
 SLAB_MATCH(flags, __page_flags);
-#ifndef CONFIG_SLOB
 SLAB_MATCH(compound_head, slab_cache);	/* Ensure bit 0 is clear */
-#else
-SLAB_MATCH(compound_head, slab_list);	/* Ensure bit 0 is clear */
-#endif
 SLAB_MATCH(_refcount, __page_refcount);
 #ifdef CONFIG_MEMCG
 SLAB_MATCH(memcg_data, memcg_data);
@@ -200,31 +189,6 @@ static inline size_t slab_size(const struct slab *slab)
 	return PAGE_SIZE << slab_order(slab);
 }
 
-#ifdef CONFIG_SLOB
-/*
- * Common fields provided in kmem_cache by all slab allocators
- * This struct is either used directly by the allocator (SLOB)
- * or the allocator must include definitions for all fields
- * provided in kmem_cache_common in their definition of kmem_cache.
- *
- * Once we can do anonymous structs (C11 standard) we could put a
- * anonymous struct definition in these allocators so that the
- * separate allocations in the kmem_cache structure of SLAB and
- * SLUB is no longer needed.
- */
-struct kmem_cache {
-	unsigned int object_size;/* The original size of the object */
-	unsigned int size;	/* The aligned/padded/added on size  */
-	unsigned int align;	/* Alignment as calculated */
-	slab_flags_t flags;	/* Active flags on the slab */
-	const char *name;	/* Slab name for sysfs */
-	int refcount;		/* Use counter */
-	void (*ctor)(void *);	/* Called on object slot creation */
-	struct list_head list;	/* List of all slab caches on the system */
-};
-
-#endif /* CONFIG_SLOB */
-
 #ifdef CONFIG_SLAB
 #include <linux/slab_def.h>
 #endif
@@ -274,7 +238,6 @@ extern const struct kmalloc_info_struct {
 	unsigned int size;
 } kmalloc_info[];
 
-#ifndef CONFIG_SLOB
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);
 void create_kmalloc_caches(slab_flags_t);
@@ -286,7 +249,6 @@ void *__kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
 			      int node, size_t orig_size,
 			      unsigned long caller);
 void __kmem_cache_free(struct kmem_cache *s, void *x, unsigned long caller);
-#endif
 
 gfp_t kmalloc_fix_flags(gfp_t flags);
 
@@ -303,33 +265,16 @@ extern void create_boot_cache(struct kmem_cache *, const char *name,
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(unsigned size, unsigned align,
 		slab_flags_t flags, const char *name, void (*ctor)(void *));
-#ifndef CONFIG_SLOB
 struct kmem_cache *
 __kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		   slab_flags_t flags, void (*ctor)(void *));
 
 slab_flags_t kmem_cache_flags(unsigned int object_size,
 	slab_flags_t flags, const char *name);
-#else
-static inline struct kmem_cache *
-__kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
-		   slab_flags_t flags, void (*ctor)(void *))
-{ return NULL; }
-
-static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name)
-{
-	return flags;
-}
-#endif
 
 static inline bool is_kmalloc_cache(struct kmem_cache *s)
 {
-#ifndef CONFIG_SLOB
 	return (s->flags & SLAB_KMALLOC);
-#else
-	return false;
-#endif
 }
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
@@ -634,7 +579,6 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
-#ifndef CONFIG_SLOB
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
 	struct slab *slab;
@@ -683,8 +627,6 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 }
 
 void free_large_kmalloc(struct folio *folio, void *object);
-
-#endif /* CONFIG_SLOB */
 
 size_t __ksize(const void *objp);
 
@@ -777,7 +719,6 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
 	memcg_slab_post_alloc_hook(s, objcg, flags, size, p);
 }
 
-#ifndef CONFIG_SLOB
 /*
  * The slab lists for all objects.
  */
@@ -824,7 +765,6 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 	for (__node = 0; __node < nr_node_ids; __node++) \
 		 if ((__n = get_node(__s, __node)))
 
-#endif
 
 #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
 void dump_unreclaimable_slab(void);

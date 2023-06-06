@@ -126,11 +126,9 @@ error:
 	return error;
 }
 
-static int rcar_gen3_phy_pcie_remove(struct platform_device *pdev)
+static void rcar_gen3_phy_pcie_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 };
 
 static struct platform_driver rcar_gen3_phy_driver = {
@@ -139,7 +137,7 @@ static struct platform_driver rcar_gen3_phy_driver = {
 		.of_match_table	= rcar_gen3_phy_pcie_match_table,
 	},
 	.probe	= rcar_gen3_phy_pcie_probe,
-	.remove = rcar_gen3_phy_pcie_remove,
+	.remove_new = rcar_gen3_phy_pcie_remove,
 };
 
 module_platform_driver(rcar_gen3_phy_driver);

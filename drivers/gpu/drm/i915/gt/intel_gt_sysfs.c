@@ -72,7 +72,7 @@ static void kobj_gt_release(struct kobject *kobj)
 {
 }
 
-static struct kobj_type kobj_gt_type = {
+static const struct kobj_type kobj_gt_type = {
 	.release = kobj_gt_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = id_groups,

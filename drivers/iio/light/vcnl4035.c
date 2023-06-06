@@ -89,7 +89,7 @@ static irqreturn_t vcnl4035_drdy_irq_thread(int irq, void *private)
 							IIO_EV_TYPE_THRESH,
 							IIO_EV_DIR_EITHER),
 				iio_get_time_ns(indio_dev));
-		iio_trigger_poll_chained(data->drdy_trigger0);
+		iio_trigger_poll_nested(data->drdy_trigger0);
 		return IRQ_HANDLED;
 	}
 

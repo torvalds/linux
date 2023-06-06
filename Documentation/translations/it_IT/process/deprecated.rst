@@ -332,7 +332,7 @@ zero come risultato::
 
 Il valore di ``size`` nell'ultima riga sarà ``zero``, quando uno
 invece si aspetterebbe che il suo valore sia la dimensione totale in
-byte dell'allocazione dynamica che abbiamo appena fatto per l'array
+byte dell'allocazione dinamica che abbiamo appena fatto per l'array
 ``items``. Qui un paio di esempi reali del problema: `collegamento 1
 <https://git.kernel.org/linus/f2cd32a443da694ac4e28fbf4ac6f9d5cc63a539>`_,
 `collegamento 2
@@ -381,4 +381,29 @@ combinazione con struct_size() e flex_array_size()::
         instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
         instance->count = count;
 
-	memcpy(instance->items, source, flex_array_size(instance, items, instance->count));
+        memcpy(instance->items, source, flex_array_size(instance, items, instance->count));
+
+Ci sono due casi speciali dove è necessario usare la macro DECLARE_FLEX_ARRAY()
+(da notare che la stessa macro è chiamata __DECLARE_FLEX_ARRAY() nei file di
+intestazione UAPI). Uno è quando l'array flessibile è l'unico elemento di una
+struttura, e l'altro quando è parte di un unione. Per motivi non tecnici, entrambi
+i casi d'uso non sono permessi dalla specifica C99. Per esempio, per
+convertire il seguente codice::
+
+    struct something {
+        ...
+        union {
+            struct type1 one[0];
+            struct type2 two[0];
+        };
+    };
+
+La macro di supporto dev'essere usata::
+
+    struct something {
+        ...
+        union {
+            DECLARE_FLEX_ARRAY(struct type1, one);
+            DECLARE_FLEX_ARRAY(struct type2, two);
+        };
+    };

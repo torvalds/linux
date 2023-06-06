@@ -293,7 +293,7 @@ static int __init bsr_init(void)
 	if (!np)
 		goto out_err;
 
-	bsr_class = class_create(THIS_MODULE, "bsr");
+	bsr_class = class_create("bsr");
 	if (IS_ERR(bsr_class)) {
 		printk(KERN_ERR "class_create() failed for bsr_class\n");
 		ret = PTR_ERR(bsr_class);

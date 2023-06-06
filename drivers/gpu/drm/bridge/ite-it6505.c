@@ -258,12 +258,12 @@
 #define REG_AUD_INFOFRAM_SUM 0xFB
 
 /* the following six registers are in bank1 */
-#define REG_DRV_0_DB_800_MV 0x7E
-#define REG_PRE_0_DB_800_MV 0x7F
-#define REG_PRE_3P5_DB_800_MV 0x81
-#define REG_SSC_CTRL0 0x88
-#define REG_SSC_CTRL1 0x89
-#define REG_SSC_CTRL2 0x8A
+#define REG_DRV_0_DB_800_MV 0x17E
+#define REG_PRE_0_DB_800_MV 0x17F
+#define REG_PRE_3P5_DB_800_MV 0x181
+#define REG_SSC_CTRL0 0x188
+#define REG_SSC_CTRL1 0x189
+#define REG_SSC_CTRL2 0x18A
 
 #define RBR DP_LINK_BW_1_62
 #define HBR DP_LINK_BW_2_7
@@ -489,7 +489,7 @@ static const struct it6505_audio_sample_rate_map audio_sample_rate_map[] = {
 };
 
 static const struct regmap_range it6505_bridge_volatile_ranges[] = {
-	{ .range_min = 0, .range_max = 0xFF },
+	{ .range_min = 0, .range_max = 0x1FF },
 };
 
 static const struct regmap_access_table it6505_bridge_volatile_table = {
@@ -497,11 +497,27 @@ static const struct regmap_access_table it6505_bridge_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(it6505_bridge_volatile_ranges),
 };
 
+static const struct regmap_range_cfg it6505_regmap_banks[] = {
+	{
+		.name = "it6505",
+		.range_min = 0x00,
+		.range_max = 0x1FF,
+		.selector_reg = REG_BANK_SEL,
+		.selector_mask = 0x1,
+		.selector_shift = 0,
+		.window_start = 0x00,
+		.window_len = 0x100,
+	},
+};
+
 static const struct regmap_config it6505_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_table = &it6505_bridge_volatile_table,
 	.cache_type = REGCACHE_NONE,
+	.ranges = it6505_regmap_banks,
+	.num_ranges = ARRAY_SIZE(it6505_regmap_banks),
+	.max_register = 0x1FF,
 };
 
 static int it6505_read(struct it6505 *it6505, unsigned int reg_addr)
@@ -1267,7 +1283,6 @@ static void it6505_init(struct it6505 *it6505)
 	it6505_write(it6505, REG_TIME_STMP_CTRL,
 		     EN_SSC_GAT | EN_ENHANCE_VID_STMP | EN_ENHANCE_AUD_STMP);
 	it6505_write(it6505, REG_INFOFRAME_CTRL, 0x00);
-	it6505_write(it6505, REG_BANK_SEL, 0x01);
 	it6505_write(it6505, REG_DRV_0_DB_800_MV,
 		     afe_setting_table[it6505->afe_setting][0]);
 	it6505_write(it6505, REG_PRE_0_DB_800_MV,
@@ -1277,7 +1292,6 @@ static void it6505_init(struct it6505 *it6505)
 	it6505_write(it6505, REG_SSC_CTRL0, 0x9E);
 	it6505_write(it6505, REG_SSC_CTRL1, 0x1C);
 	it6505_write(it6505, REG_SSC_CTRL2, 0x42);
-	it6505_write(it6505, REG_BANK_SEL, 0x00);
 }
 
 static void it6505_video_disable(struct it6505 *it6505)
@@ -1506,11 +1520,9 @@ static void it6505_setup_ssc(struct it6505 *it6505)
 	it6505_set_bits(it6505, REG_TRAIN_CTRL0, SPREAD_AMP_5,
 			it6505->enable_ssc ? SPREAD_AMP_5 : 0x00);
 	if (it6505->enable_ssc) {
-		it6505_write(it6505, REG_BANK_SEL, 0x01);
 		it6505_write(it6505, REG_SSC_CTRL0, 0x9E);
 		it6505_write(it6505, REG_SSC_CTRL1, 0x1C);
 		it6505_write(it6505, REG_SSC_CTRL2, 0x42);
-		it6505_write(it6505, REG_BANK_SEL, 0x00);
 		it6505_write(it6505, REG_SP_CTRL0, 0x07);
 		it6505_write(it6505, REG_IP_CTRL1, 0x29);
 		it6505_write(it6505, REG_IP_CTRL2, 0x03);

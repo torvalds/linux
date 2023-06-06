@@ -2915,6 +2915,72 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 }
 
 /**
+ * i40e_vc_ether_addr_type - get type of virtchnl_ether_addr
+ * @vc_ether_addr: used to extract the type
+ **/
+static u8
+i40e_vc_ether_addr_type(struct virtchnl_ether_addr *vc_ether_addr)
+{
+	return vc_ether_addr->type & VIRTCHNL_ETHER_ADDR_TYPE_MASK;
+}
+
+/**
+ * i40e_is_vc_addr_legacy
+ * @vc_ether_addr: VIRTCHNL structure that contains MAC and type
+ *
+ * check if the MAC address is from an older VF
+ **/
+static bool
+i40e_is_vc_addr_legacy(struct virtchnl_ether_addr *vc_ether_addr)
+{
+	return i40e_vc_ether_addr_type(vc_ether_addr) ==
+		VIRTCHNL_ETHER_ADDR_LEGACY;
+}
+
+/**
+ * i40e_is_vc_addr_primary
+ * @vc_ether_addr: VIRTCHNL structure that contains MAC and type
+ *
+ * check if the MAC address is the VF's primary MAC
+ * This function should only be called when the MAC address in
+ * virtchnl_ether_addr is a valid unicast MAC
+ **/
+static bool
+i40e_is_vc_addr_primary(struct virtchnl_ether_addr *vc_ether_addr)
+{
+	return i40e_vc_ether_addr_type(vc_ether_addr) ==
+		VIRTCHNL_ETHER_ADDR_PRIMARY;
+}
+
+/**
+ * i40e_update_vf_mac_addr
+ * @vf: VF to update
+ * @vc_ether_addr: structure from VIRTCHNL with MAC to add
+ *
+ * update the VF's cached hardware MAC if allowed
+ **/
+static void
+i40e_update_vf_mac_addr(struct i40e_vf *vf,
+			struct virtchnl_ether_addr *vc_ether_addr)
+{
+	u8 *mac_addr = vc_ether_addr->addr;
+
+	if (!is_valid_ether_addr(mac_addr))
+		return;
+
+	/* If request to add MAC filter is a primary request update its default
+	 * MAC address with the requested one. If it is a legacy request then
+	 * check if current default is empty if so update the default MAC
+	 */
+	if (i40e_is_vc_addr_primary(vc_ether_addr)) {
+		ether_addr_copy(vf->default_lan_addr.addr, mac_addr);
+	} else if (i40e_is_vc_addr_legacy(vc_ether_addr)) {
+		if (is_zero_ether_addr(vf->default_lan_addr.addr))
+			ether_addr_copy(vf->default_lan_addr.addr, mac_addr);
+	}
+}
+
+/**
  * i40e_vc_add_mac_addr_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -2965,11 +3031,8 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 				spin_unlock_bh(&vsi->mac_filter_hash_lock);
 				goto error_param;
 			}
-			if (is_valid_ether_addr(al->list[i].addr) &&
-			    is_zero_ether_addr(vf->default_lan_addr.addr))
-				ether_addr_copy(vf->default_lan_addr.addr,
-						al->list[i].addr);
 		}
+		i40e_update_vf_mac_addr(vf, &al->list[i]);
 	}
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
@@ -3031,6 +3094,9 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 		}
 
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+
+	if (was_unimac_deleted)
+		eth_zero_addr(vf->default_lan_addr.addr);
 
 	/* program the updated filter list */
 	ret = i40e_sync_vsi_filters(vsi);

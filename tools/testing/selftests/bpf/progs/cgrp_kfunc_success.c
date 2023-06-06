@@ -38,7 +38,10 @@ int BPF_PROG(test_cgrp_acquire_release_argument, struct cgroup *cgrp, const char
 		return 0;
 
 	acquired = bpf_cgroup_acquire(cgrp);
-	bpf_cgroup_release(acquired);
+	if (!acquired)
+		err = 1;
+	else
+		bpf_cgroup_release(acquired);
 
 	return 0;
 }
@@ -123,13 +126,11 @@ int BPF_PROG(test_cgrp_get_release, struct cgroup *cgrp, const char *path)
 		return 0;
 	}
 
-	kptr = bpf_cgroup_kptr_get(&v->cgrp);
-	if (!kptr) {
+	bpf_rcu_read_lock();
+	kptr = v->cgrp;
+	if (!kptr)
 		err = 3;
-		return 0;
-	}
-
-	bpf_cgroup_release(kptr);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }

@@ -288,7 +288,7 @@ EXPORT_SYMBOL(restore_processor_state);
 #endif
 
 #if defined(CONFIG_HIBERNATION) && defined(CONFIG_HOTPLUG_CPU)
-static void resume_play_dead(void)
+static void __noreturn resume_play_dead(void)
 {
 	play_dead_common();
 	tboot_shutdown(TB_SHUTDOWN_WFS);

@@ -29,18 +29,22 @@ choice
 		select MIPS_AUTO_PFN_OFFSET
 		select MIPS_L1_CACHE_SHIFT_4
 		select HAVE_PCI
+		select SOC_BUS
 
 	config SOC_RT305X
 		bool "RT305x"
+		select SOC_BUS
 
 	config SOC_RT3883
 		bool "RT3883"
 		select HAVE_PCI
+		select SOC_BUS
 
 	config SOC_MT7620
 		bool "MT7620/8"
 		select CPU_MIPSR2_IRQ_VI
 		select HAVE_PCI
+		select SOC_BUS
 
 	config SOC_MT7621
 		bool "MT7621"

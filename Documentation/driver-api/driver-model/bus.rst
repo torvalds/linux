@@ -125,8 +125,8 @@ Exporting Attributes
 
   struct bus_attribute {
 	struct attribute	attr;
-	ssize_t (*show)(struct bus_type *, char * buf);
-	ssize_t (*store)(struct bus_type *, const char * buf, size_t count);
+	ssize_t (*show)(const struct bus_type *, char * buf);
+	ssize_t (*store)(const struct bus_type *, const char * buf, size_t count);
   };
 
 Bus drivers can export attributes using the BUS_ATTR_RW macro that works

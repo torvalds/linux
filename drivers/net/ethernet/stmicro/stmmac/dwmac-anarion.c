@@ -20,18 +20,18 @@
 #define  GMAC_CONFIG_INTF_RGMII		(0x1 << 0)
 
 struct anarion_gmac {
-	uintptr_t ctl_block;
+	void __iomem *ctl_block;
 	uint32_t phy_intf_sel;
 };
 
 static uint32_t gmac_read_reg(struct anarion_gmac *gmac, uint8_t reg)
 {
-	return readl((void *)(gmac->ctl_block + reg));
+	return readl(gmac->ctl_block + reg);
 };
 
 static void gmac_write_reg(struct anarion_gmac *gmac, uint8_t reg, uint32_t val)
 {
-	writel(val, (void *)(gmac->ctl_block + reg));
+	writel(val, gmac->ctl_block + reg);
 }
 
 static int anarion_gmac_init(struct platform_device *pdev, void *priv)
@@ -68,16 +68,16 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 
 	ctl_block = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ctl_block)) {
-		dev_err(&pdev->dev, "Cannot get reset region (%ld)!\n",
-			PTR_ERR(ctl_block));
-		return ctl_block;
+		err = PTR_ERR(ctl_block);
+		dev_err(&pdev->dev, "Cannot get reset region (%d)!\n", err);
+		return ERR_PTR(err);
 	}
 
 	gmac = devm_kzalloc(&pdev->dev, sizeof(*gmac), GFP_KERNEL);
 	if (!gmac)
 		return ERR_PTR(-ENOMEM);
 
-	gmac->ctl_block = (uintptr_t)ctl_block;
+	gmac->ctl_block = ctl_block;
 
 	err = of_get_phy_mode(pdev->dev.of_node, &phy_mode);
 	if (err)

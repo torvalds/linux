@@ -825,33 +825,15 @@ static void test_exit(struct kunit *test)
 	test_cache_destroy();
 }
 
-static void register_tracepoints(struct tracepoint *tp, void *ignore)
-{
-	check_trace_callback_type_console(probe_console);
-	if (!strcmp(tp->name, "console"))
-		WARN_ON(tracepoint_probe_register(tp, probe_console, NULL));
-}
-
-static void unregister_tracepoints(struct tracepoint *tp, void *ignore)
-{
-	if (!strcmp(tp->name, "console"))
-		tracepoint_probe_unregister(tp, probe_console, NULL);
-}
-
 static int kfence_suite_init(struct kunit_suite *suite)
 {
-	/*
-	 * Because we want to be able to build the test as a module, we need to
-	 * iterate through all known tracepoints, since the static registration
-	 * won't work here.
-	 */
-	for_each_kernel_tracepoint(register_tracepoints, NULL);
+	register_trace_console(probe_console, NULL);
 	return 0;
 }
 
 static void kfence_suite_exit(struct kunit_suite *suite)
 {
-	for_each_kernel_tracepoint(unregister_tracepoints, NULL);
+	unregister_trace_console(probe_console, NULL);
 	tracepoint_synchronize_unregister();
 }
 

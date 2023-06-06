@@ -593,5 +593,5 @@ module_init(amd8111_edac_init);
 module_exit(amd8111_edac_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Cao Qingtao <qingtao.cao@windriver.com>\n");
+MODULE_AUTHOR("Cao Qingtao <qingtao.cao@windriver.com>");
 MODULE_DESCRIPTION("AMD8111 HyperTransport I/O Hub EDAC kernel module");

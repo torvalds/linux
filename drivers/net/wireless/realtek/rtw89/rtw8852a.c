@@ -12,6 +12,11 @@
 #include "rtw8852a_table.h"
 #include "txrx.h"
 
+#define RTW8852A_FW_FORMAT_MAX 0
+#define RTW8852A_FW_BASENAME "rtw89/rtw8852a_fw"
+#define RTW8852A_MODULE_FIRMWARE \
+	RTW8852A_FW_BASENAME ".bin"
+
 static const struct rtw89_hfc_ch_cfg rtw8852a_hfc_chcfg_pcie[] = {
 	{128, 1896, grp_0}, /* ACH 0 */
 	{128, 1896, grp_0}, /* ACH 1 */
@@ -1827,7 +1832,8 @@ rtw8852a_btc_set_wl_txpwr_ctrl(struct rtw89_dev *rtwdev, u32 txpwr_val)
 static
 s8 rtw8852a_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
 {
-	return clamp_t(s8, val, -100, 0) + 100;
+	/* +6 for compensate offset */
+	return clamp_t(s8, val + 6, -100, 0) + 100;
 }
 
 static struct rtw89_btc_rf_trx_para rtw89_btc_8852a_rf_ul[] = {
@@ -1947,20 +1953,25 @@ static void rtw8852a_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 
 static void rtw8852a_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
+	struct rtw89_btc *btc = &rtwdev->btc;
+
 	switch (level) {
 	case 0: /* original */
+	default:
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852a_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 1: /* for FDD free-run */
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, true);
-		rtw8852a_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 2: /* for BTG Co-Rx*/
 		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852a_set_wl_lna2(rtwdev, 1);
+		btc->dm.wl_lna2 = 1;
 		break;
 	}
+
+	rtw8852a_set_wl_lna2(rtwdev, btc->dm.wl_lna2);
 }
 
 static void rtw8852a_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
@@ -2054,7 +2065,8 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 const struct rtw89_chip_info rtw8852a_chip_info = {
 	.chip_id		= RTL8852A,
 	.ops			= &rtw8852a_chip_ops,
-	.fw_name		= "rtw89/rtw8852a_fw.bin",
+	.fw_basename		= RTW8852A_FW_BASENAME,
+	.fw_format_max		= RTW8852A_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
 	.fifo_size		= 458752,
 	.dle_scc_rsvd_size	= 0,
@@ -2074,10 +2086,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 				   &rtw89_8852a_phy_radiob_table,},
 	.nctl_table		= &rtw89_8852a_phy_nctl_table,
 	.byr_table		= &rtw89_8852a_byr_table,
-	.txpwr_lmt_2g		= &rtw89_8852a_txpwr_lmt_2g,
-	.txpwr_lmt_5g		= &rtw89_8852a_txpwr_lmt_5g,
-	.txpwr_lmt_ru_2g	= &rtw89_8852a_txpwr_lmt_ru_2g,
-	.txpwr_lmt_ru_5g	= &rtw89_8852a_txpwr_lmt_ru_5g,
+	.dflt_parms		= &rtw89_8852a_dflt_parms,
+	.rfe_parms_conf		= NULL,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= &rtw89_8852a_phy_dig_table,
@@ -2131,24 +2141,28 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.h2c_desc_size		= sizeof(struct rtw89_txwd_body),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
+	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8852a_h2c_regs,
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
 	.c2h_regs		= rtw8852a_c2h_regs,
+	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.page_regs		= &rtw8852a_page_regs,
 	.cfo_src_fd		= false,
+	.cfo_hw_comp            = false,
 	.dcfo_comp		= &rtw8852a_dcfo_comp,
-	.dcfo_comp_sft		= 3,
+	.dcfo_comp_sft		= 10,
 	.imr_info		= &rtw8852a_imr_info,
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
+	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 
-MODULE_FIRMWARE("rtw89/rtw8852a_fw.bin");
+MODULE_FIRMWARE(RTW8852A_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless 8852A driver");
 MODULE_LICENSE("Dual BSD/GPL");

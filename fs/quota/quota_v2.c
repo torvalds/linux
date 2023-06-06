@@ -212,7 +212,7 @@ static int v2_write_file_info(struct super_block *sb, int type)
 	up_write(&dqopt->dqio_sem);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
 		quota_error(sb, "Can't write info structure");
-		return -1;
+		return size < 0 ? size : -EIO;
 	}
 	return 0;
 }

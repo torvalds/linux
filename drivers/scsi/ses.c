@@ -509,9 +509,6 @@ static int ses_enclosure_find_by_addr(struct enclosure_device *edev,
 	int i;
 	struct ses_component *scomp;
 
-	if (!edev->component[0].scratch)
-		return 0;
-
 	for (i = 0; i < edev->components; i++) {
 		scomp = edev->component[i].scratch;
 		if (scomp->addr != efd->addr)
@@ -602,8 +599,10 @@ static void ses_enclosure_data_process(struct enclosure_device *edev,
 						components++,
 						type_ptr[0],
 						name);
-				else
+				else if (components < edev->components)
 					ecomp = &edev->component[components++];
+				else
+					ecomp = ERR_PTR(-EINVAL);
 
 				if (!IS_ERR(ecomp)) {
 					if (addl_desc_ptr) {
@@ -663,8 +662,7 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 	}
 }
 
-static int ses_intf_add(struct device *cdev,
-			struct class_interface *intf)
+static int ses_intf_add(struct device *cdev)
 {
 	struct scsi_device *sdev = to_scsi_device(cdev->parent);
 	struct scsi_device *tmp_sdev;
@@ -734,11 +732,6 @@ static int ses_intf_add(struct device *cdev,
 			components += type_ptr[1];
 	}
 
-	if (components == 0) {
-		sdev_printk(KERN_WARNING, sdev, "enclosure has no enumerated components\n");
-		goto err_free;
-	}
-
 	ses_dev->page1 = buf;
 	ses_dev->page1_len = len;
 	buf = NULL;
@@ -780,9 +773,11 @@ static int ses_intf_add(struct device *cdev,
 		buf = NULL;
 	}
 page2_not_supported:
-	scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
-	if (!scomp)
-		goto err_free;
+	if (components > 0) {
+		scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
+		if (!scomp)
+			goto err_free;
+	}
 
 	edev = enclosure_register(cdev->parent, dev_name(&sdev->sdev_gendev),
 				  components, &ses_enclosure_callbacks);
@@ -869,8 +864,7 @@ static void ses_intf_remove_enclosure(struct scsi_device *sdev)
 	enclosure_unregister(edev);
 }
 
-static void ses_intf_remove(struct device *cdev,
-			    struct class_interface *intf)
+static void ses_intf_remove(struct device *cdev)
 {
 	struct scsi_device *sdev = to_scsi_device(cdev->parent);
 

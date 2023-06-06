@@ -451,7 +451,7 @@ static u32 intel_spi_chip_addr(const struct intel_spi *ispi,
 	/* Pick up the correct start address */
 	if (!mem)
 		return 0;
-	return mem->spi->chip_select == 1 ? ispi->chip0_size : 0;
+	return (spi_get_chipselect(mem->spi, 0) == 1) ? ispi->chip0_size : 0;
 }
 
 static int intel_spi_read_reg(struct intel_spi *ispi, const struct spi_mem *mem,

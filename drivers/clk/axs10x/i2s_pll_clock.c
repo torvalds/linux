@@ -198,10 +198,9 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	return of_clk_add_provider(node, of_clk_src_simple_get, clk);
 }
 
-static int i2s_pll_clk_remove(struct platform_device *pdev)
+static void i2s_pll_clk_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
 }
 
 static const struct of_device_id i2s_pll_clk_id[] = {
@@ -216,7 +215,7 @@ static struct platform_driver i2s_pll_clk_driver = {
 		.of_match_table = i2s_pll_clk_id,
 	},
 	.probe = i2s_pll_clk_probe,
-	.remove = i2s_pll_clk_remove,
+	.remove_new = i2s_pll_clk_remove,
 };
 module_platform_driver(i2s_pll_clk_driver);
 

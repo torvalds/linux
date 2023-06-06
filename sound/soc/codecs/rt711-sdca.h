@@ -36,10 +36,6 @@ struct  rt711_sdca_priv {
 	bool fu1e_dapm_mute, fu1e_mixer_l_mute, fu1e_mixer_r_mute;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 /* NID */
 #define RT711_AUDIO_FUNCTION_GROUP			0x01
 #define RT711_DAC_OUT2					0x03

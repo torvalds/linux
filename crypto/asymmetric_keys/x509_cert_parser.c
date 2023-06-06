@@ -579,10 +579,60 @@ int x509_process_extension(void *context, size_t hdrlen,
 		return 0;
 	}
 
+	if (ctx->last_oid == OID_keyUsage) {
+		/*
+		 * Get hold of the keyUsage bit string
+		 * v[1] is the encoding size
+		 *       (Expect either 0x02 or 0x03, making it 1 or 2 bytes)
+		 * v[2] is the number of unused bits in the bit string
+		 *       (If >= 3 keyCertSign is missing when v[1] = 0x02)
+		 * v[3] and possibly v[4] contain the bit string
+		 *
+		 * From RFC 5280 4.2.1.3:
+		 *   0x04 is where keyCertSign lands in this bit string
+		 *   0x80 is where digitalSignature lands in this bit string
+		 */
+		if (v[0] != ASN1_BTS)
+			return -EBADMSG;
+		if (vlen < 4)
+			return -EBADMSG;
+		if (v[2] >= 8)
+			return -EBADMSG;
+		if (v[3] & 0x80)
+			ctx->cert->pub->key_eflags |= 1 << KEY_EFLAG_DIGITALSIG;
+		if (v[1] == 0x02 && v[2] <= 2 && (v[3] & 0x04))
+			ctx->cert->pub->key_eflags |= 1 << KEY_EFLAG_KEYCERTSIGN;
+		else if (vlen > 4 && v[1] == 0x03 && (v[3] & 0x04))
+			ctx->cert->pub->key_eflags |= 1 << KEY_EFLAG_KEYCERTSIGN;
+		return 0;
+	}
+
 	if (ctx->last_oid == OID_authorityKeyIdentifier) {
 		/* Get hold of the CA key fingerprint */
 		ctx->raw_akid = v;
 		ctx->raw_akid_size = vlen;
+		return 0;
+	}
+
+	if (ctx->last_oid == OID_basicConstraints) {
+		/*
+		 * Get hold of the basicConstraints
+		 * v[1] is the encoding size
+		 *	(Expect 0x2 or greater, making it 1 or more bytes)
+		 * v[2] is the encoding type
+		 *	(Expect an ASN1_BOOL for the CA)
+		 * v[3] is the contents of the ASN1_BOOL
+		 *      (Expect 1 if the CA is TRUE)
+		 * vlen should match the entire extension size
+		 */
+		if (v[0] != (ASN1_CONS_BIT | ASN1_SEQ))
+			return -EBADMSG;
+		if (vlen < 2)
+			return -EBADMSG;
+		if (v[1] != vlen - 2)
+			return -EBADMSG;
+		if (vlen >= 4 && v[1] != 0 && v[2] == ASN1_BOOL && v[3] == 1)
+			ctx->cert->pub->key_eflags |= 1 << KEY_EFLAG_CA;
 		return 0;
 	}
 

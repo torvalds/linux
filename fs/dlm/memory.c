@@ -118,7 +118,7 @@ struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls)
 
 void dlm_free_lkb(struct dlm_lkb *lkb)
 {
-	if (lkb->lkb_flags & DLM_IFL_USER) {
+	if (test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		struct dlm_user_args *ua;
 		ua = lkb->lkb_ua;
 		if (ua) {

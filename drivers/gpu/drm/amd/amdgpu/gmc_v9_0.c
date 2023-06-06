@@ -49,8 +49,10 @@
 #include "mmhub_v1_0.h"
 #include "athub_v1_0.h"
 #include "gfxhub_v1_1.h"
+#include "gfxhub_v1_2.h"
 #include "mmhub_v9_4.h"
 #include "mmhub_v1_7.h"
+#include "mmhub_v1_8.h"
 #include "umc_v6_1.h"
 #include "umc_v6_0.h"
 #include "umc_v6_7.h"
@@ -553,32 +555,49 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	const char *mmhub_cid;
 	const char *hub_name;
 	u64 addr;
+	uint32_t cam_index = 0;
+	int ret;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
 	if (retry_fault) {
-		/* Returning 1 here also prevents sending the IV to the KFD */
+		if (adev->irq.retry_cam_enabled) {
+			/* Delegate it to a different ring if the hardware hasn't
+			 * already done it.
+			 */
+			if (entry->ih == &adev->irq.ih) {
+				amdgpu_irq_delegate(adev, entry, 8);
+				return 1;
+			}
 
-		/* Process it onyl if it's the first fault for this address */
-		if (entry->ih != &adev->irq.ih_soft &&
-		    amdgpu_gmc_filter_faults(adev, entry->ih, addr, entry->pasid,
+			cam_index = entry->src_data[2] & 0x3ff;
+
+			ret = amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault);
+			WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
+			if (ret)
+				return 1;
+		} else {
+			/* Process it onyl if it's the first fault for this address */
+			if (entry->ih != &adev->irq.ih_soft &&
+			    amdgpu_gmc_filter_faults(adev, entry->ih, addr, entry->pasid,
 					     entry->timestamp))
-			return 1;
+				return 1;
 
-		/* Delegate it to a different ring if the hardware hasn't
-		 * already done it.
-		 */
-		if (entry->ih == &adev->irq.ih) {
-			amdgpu_irq_delegate(adev, entry, 8);
-			return 1;
+			/* Delegate it to a different ring if the hardware hasn't
+			 * already done it.
+			 */
+			if (entry->ih == &adev->irq.ih) {
+				amdgpu_irq_delegate(adev, entry, 8);
+				return 1;
+			}
+
+			/* Try to handle the recoverable page faults by filling page
+			 * tables
+			 */
+			if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
+				return 1;
 		}
-
-		/* Try to handle the recoverable page faults by filling page
-		 * tables
-		 */
-		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
-			return 1;
 	}
 
 	if (!printk_ratelimit())
@@ -657,6 +676,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		case IP_VERSION(2, 4, 0):
 			mmhub_cid = mmhub_client_ids_renoir[cid][rw];
 			break;
+		case IP_VERSION(1, 8, 0):
 		case IP_VERSION(9, 4, 2):
 			mmhub_cid = mmhub_client_ids_aldebaran[cid][rw];
 			break;
@@ -735,7 +755,8 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
 static bool gmc_v9_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 				       uint32_t vmhub)
 {
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
 		return false;
 
 	return ((vmhub == AMDGPU_MMHUB_0 ||
@@ -986,9 +1007,9 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 					    unsigned vmid, uint64_t pd_addr)
 {
-	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(ring->adev, ring->funcs->vmhub);
+	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(ring->adev, ring->vm_hub);
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_vmhub *hub = &adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &adev->vmhub[ring->vm_hub];
 	uint32_t req = gmc_v9_0_get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
 
@@ -1039,10 +1060,10 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	uint32_t reg;
 
 	/* Do nothing because there's no lut register for mmhub1. */
-	if (ring->funcs->vmhub == AMDGPU_MMHUB_1)
+	if (ring->vm_hub == AMDGPU_MMHUB_1)
 		return;
 
-	if (ring->funcs->vmhub == AMDGPU_GFXHUB_0)
+	if (ring->vm_hub == AMDGPU_GFXHUB_0)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -1144,6 +1165,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		if (is_vram) {
 			if (bo_adev == adev) {
 				if (uncached)
@@ -1155,8 +1177,8 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 				/* FIXME: is this still needed? Or does
 				 * amdgpu_ttm_tt_pde_flags already handle this?
 				 */
-				if (adev->ip_versions[GC_HWIP][0] ==
-					IP_VERSION(9, 4, 2) &&
+				if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+				     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) &&
 				    adev->gmc.xgmi.connected_to_cpu)
 					snoop = true;
 			} else {
@@ -1318,23 +1340,6 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-
-	if (adev->umc.ras) {
-		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
-
-		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
-		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
-		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
-
-		/* If don't define special ras_late_init function, use default ras_late_init */
-		if (!adev->umc.ras->ras_block.ras_late_init)
-				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
-
-		/* If not defined special ras_cb function, use default ras_cb */
-		if (!adev->umc.ras->ras_block.ras_cb)
-			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
-	}
 }
 
 static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
@@ -1345,6 +1350,9 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(9, 4, 2):
 		adev->mmhub.funcs = &mmhub_v1_7_funcs;
+		break;
+	case IP_VERSION(1, 8, 0):
+		adev->mmhub.funcs = &mmhub_v1_8_funcs;
 		break;
 	default:
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
@@ -1368,45 +1376,47 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 		/* mmhub ras is not available */
 		break;
 	}
-
-	if (adev->mmhub.ras) {
-		amdgpu_ras_register_ras_block(adev, &adev->mmhub.ras->ras_block);
-
-		strcpy(adev->mmhub.ras->ras_block.ras_comm.name, "mmhub");
-		adev->mmhub.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MMHUB;
-		adev->mmhub.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->mmhub.ras_if = &adev->mmhub.ras->ras_block.ras_comm;
-	}
 }
 
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		adev->gfxhub.funcs = &gfxhub_v1_2_funcs;
+	else
+		adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
 }
 
 static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
 {
 	adev->hdp.ras = &hdp_v4_0_ras;
-	amdgpu_ras_register_ras_block(adev, &adev->hdp.ras->ras_block);
-	adev->hdp.ras_if = &adev->hdp.ras->ras_block.ras_comm;
 }
 
-static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)
+static void gmc_v9_0_set_mca_ras_funcs(struct amdgpu_device *adev)
 {
+	struct amdgpu_mca *mca = &adev->mca;
+
 	/* is UMC the right IP to check for MCA?  Maybe DF? */
 	switch (adev->ip_versions[UMC_HWIP][0]) {
 	case IP_VERSION(6, 7, 0):
-		if (!adev->gmc.xgmi.connected_to_cpu)
-			adev->mca.funcs = &mca_v3_0_funcs;
+		if (!adev->gmc.xgmi.connected_to_cpu) {
+			mca->mp0.ras = &mca_v3_0_mp0_ras;
+			mca->mp1.ras = &mca_v3_0_mp1_ras;
+			mca->mpio.ras = &mca_v3_0_mpio_ras;
+		}
 		break;
 	default:
 		break;
 	}
 }
 
+static void gmc_v9_0_set_xgmi_ras_funcs(struct amdgpu_device *adev)
+{
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		adev->gmc.xgmi.ras = &xgmi_ras;
+}
+
 static int gmc_v9_0_early_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* ARCT and VEGA20 don't have XGMI defined in their IP discovery tables */
@@ -1427,7 +1437,8 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_mmhub_ras_funcs(adev);
 	gmc_v9_0_set_gfxhub_funcs(adev);
 	gmc_v9_0_set_hdp_ras_funcs(adev);
-	gmc_v9_0_set_mca_funcs(adev);
+	gmc_v9_0_set_mca_ras_funcs(adev);
+	gmc_v9_0_set_xgmi_ras_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -1435,10 +1446,6 @@ static int gmc_v9_0_early_init(void *handle)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
-
-	r = amdgpu_gmc_ras_early_init(adev);
-	if (r)
-		return r;
 
 	return 0;
 }
@@ -1565,6 +1572,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		case IP_VERSION(9, 4, 0):
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(9, 4, 3):
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -1644,8 +1652,6 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->gfxhub.funcs->init(adev);
 
 	adev->mmhub.funcs->init(adev);
-	if (adev->mca.funcs)
-		adev->mca.funcs->init(adev);
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
@@ -1696,6 +1702,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 3, 0):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		adev->num_vmhubs = 2;
 
 
@@ -1792,11 +1799,16 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->vm_manager.first_kfd_vmid =
 		(adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1) ||
-		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2)) ? 3 : 8;
+		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) ? 3 : 8;
 
 	amdgpu_vm_manager_init(adev);
 
 	gmc_v9_0_save_registers(adev);
+
+	r = amdgpu_gmc_ras_sw_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -1987,7 +1999,6 @@ static int gmc_v9_0_hw_fini(void *handle)
 	if (adev->mmhub.funcs->update_power_gating)
 		adev->mmhub.funcs->update_power_gating(adev, false);
 
-	amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 
 	return 0;

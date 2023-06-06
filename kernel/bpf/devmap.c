@@ -809,7 +809,7 @@ static void __dev_map_entry_free(struct rcu_head *rcu)
 	kfree(dev);
 }
 
-static int dev_map_delete_elem(struct bpf_map *map, void *key)
+static long dev_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
 	struct bpf_dtab_netdev *old_dev;
@@ -826,7 +826,7 @@ static int dev_map_delete_elem(struct bpf_map *map, void *key)
 	return 0;
 }
 
-static int dev_map_hash_delete_elem(struct bpf_map *map, void *key)
+static long dev_map_hash_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
 	struct bpf_dtab_netdev *old_dev;
@@ -897,8 +897,8 @@ err_out:
 	return ERR_PTR(-EINVAL);
 }
 
-static int __dev_map_update_elem(struct net *net, struct bpf_map *map,
-				 void *key, void *value, u64 map_flags)
+static long __dev_map_update_elem(struct net *net, struct bpf_map *map,
+				  void *key, void *value, u64 map_flags)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
 	struct bpf_dtab_netdev *dev, *old_dev;
@@ -939,15 +939,15 @@ static int __dev_map_update_elem(struct net *net, struct bpf_map *map,
 	return 0;
 }
 
-static int dev_map_update_elem(struct bpf_map *map, void *key, void *value,
-			       u64 map_flags)
+static long dev_map_update_elem(struct bpf_map *map, void *key, void *value,
+				u64 map_flags)
 {
 	return __dev_map_update_elem(current->nsproxy->net_ns,
 				     map, key, value, map_flags);
 }
 
-static int __dev_map_hash_update_elem(struct net *net, struct bpf_map *map,
-				     void *key, void *value, u64 map_flags)
+static long __dev_map_hash_update_elem(struct net *net, struct bpf_map *map,
+				       void *key, void *value, u64 map_flags)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
 	struct bpf_dtab_netdev *dev, *old_dev;
@@ -999,21 +999,21 @@ out_err:
 	return err;
 }
 
-static int dev_map_hash_update_elem(struct bpf_map *map, void *key, void *value,
-				   u64 map_flags)
+static long dev_map_hash_update_elem(struct bpf_map *map, void *key, void *value,
+				     u64 map_flags)
 {
 	return __dev_map_hash_update_elem(current->nsproxy->net_ns,
 					 map, key, value, map_flags);
 }
 
-static int dev_map_redirect(struct bpf_map *map, u64 ifindex, u64 flags)
+static long dev_map_redirect(struct bpf_map *map, u64 ifindex, u64 flags)
 {
 	return __bpf_xdp_redirect_map(map, ifindex, flags,
 				      BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS,
 				      __dev_map_lookup_elem);
 }
 
-static int dev_hash_map_redirect(struct bpf_map *map, u64 ifindex, u64 flags)
+static long dev_hash_map_redirect(struct bpf_map *map, u64 ifindex, u64 flags)
 {
 	return __bpf_xdp_redirect_map(map, ifindex, flags,
 				      BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS,

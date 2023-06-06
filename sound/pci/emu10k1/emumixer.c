@@ -346,7 +346,7 @@ static const unsigned int emu1616_output_dst[] = {
 };
 
 /*
- * Data destinations - HANA outputs going to Alice2 (audigy) for
+ * Data destinations - FPGA outputs going to Alice2 (Audigy) for
  *   capture (EMU32 + I2S links)
  * Each destination has an enum mixer control to choose a data source
  */
@@ -367,6 +367,7 @@ static const unsigned int emu1010_input_dst[] = {
 	EMU_DST_ALICE2_EMU32_D,
 	EMU_DST_ALICE2_EMU32_E,
 	EMU_DST_ALICE2_EMU32_F,
+	/* These exist only on rev1 EMU1010 cards. */
 	EMU_DST_ALICE_I2S0_LEFT,
 	EMU_DST_ALICE_I2S0_RIGHT,
 	EMU_DST_ALICE_I2S1_LEFT,
@@ -708,7 +709,7 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			/* 44100 */
 			/* Mute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
-			/* Default fallback clock 48kHz */
+			/* Default fallback clock 44.1kHz */
 			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_44_1K );
 			/* Word Clock source, Internal 44.1kHz x1 */
 			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
@@ -826,8 +827,8 @@ static int snd_emu1010_optical_out_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.optical_out != val);
 	if (change) {
 		emu->emu1010.optical_out = val;
-		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
@@ -877,8 +878,8 @@ static int snd_emu1010_optical_in_put(struct snd_kcontrol *kcontrol,
 	change = (emu->emu1010.optical_in != val);
 	if (change) {
 		emu->emu1010.optical_in = val;
-		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
-			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
 	}
 	return change;
@@ -924,7 +925,7 @@ static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int source_id;
 	unsigned int ngain, ogain;
-	u32 gpio;
+	u16 gpio;
 	int change = 0;
 	unsigned long flags;
 	u32 source;
@@ -941,11 +942,11 @@ static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	if (change) {
 		snd_emu10k1_i2c_write(emu, ADC_MUX, 0); /* Mute input */
 		spin_lock_irqsave(&emu->emu_lock, flags);
-		gpio = inl(emu->port + A_IOCFG);
+		gpio = inw(emu->port + A_IOCFG);
 		if (source_id==0)
-			outl(gpio | 0x4, emu->port + A_IOCFG);
+			outw(gpio | 0x4, emu->port + A_IOCFG);
 		else
-			outl(gpio & ~0x4, emu->port + A_IOCFG);
+			outw(gpio & ~0x4, emu->port + A_IOCFG);
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 		ngain = emu->i2c_capture_volume[source_id][0]; /* Left */
@@ -1005,7 +1006,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int ogain;
-	unsigned int ngain;
+	unsigned int ngain0, ngain1;
 	unsigned int source_id;
 	int change = 0;
 
@@ -1014,24 +1015,24 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
         /*        capture_source: uinfo->value.enumerated.items = 2 */
 	if (source_id >= 2)
 		return -EINVAL;
+	ngain0 = ucontrol->value.integer.value[0];
+	ngain1 = ucontrol->value.integer.value[1];
+	if (ngain0 > 0xff)
+		return -EINVAL;
+	if (ngain1 > 0xff)
+		return -EINVAL;
 	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
-	ngain = ucontrol->value.integer.value[0];
-	if (ngain > 0xff)
-		return 0;
-	if (ogain != ngain) {
+	if (ogain != ngain0) {
 		if (emu->i2c_capture_source == source_id)
-			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
-		emu->i2c_capture_volume[source_id][0] = ngain;
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ngain0);
+		emu->i2c_capture_volume[source_id][0] = ngain0;
 		change = 1;
 	}
 	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
-	ngain = ucontrol->value.integer.value[1];
-	if (ngain > 0xff)
-		return 0;
-	if (ogain != ngain) {
+	if (ogain != ngain1) {
 		if (emu->i2c_capture_source == source_id)
-			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
-		emu->i2c_capture_volume[source_id][1] = ngain;
+			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ngain1);
+		emu->i2c_capture_volume[source_id][1] = ngain1;
 		change = 1;
 	}
 
@@ -1632,7 +1633,7 @@ static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
 	if (emu->audigy)
-		ucontrol->value.integer.value[0] = inl(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
+		ucontrol->value.integer.value[0] = inw(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
 	else
 		ucontrol->value.integer.value[0] = inl(emu->port + HCFG) & HCFG_GPOUT0 ? 1 : 0;
 	if (emu->card_capabilities->invert_shared_spdif)
@@ -1657,13 +1658,13 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	if ( emu->card_capabilities->i2c_adc) {
 		/* Do nothing for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
-		reg = inl(emu->port + A_IOCFG);
+		reg = inw(emu->port + A_IOCFG);
 		val = sw ? A_IOCFG_GPOUT0 : 0;
 		change = (reg & A_IOCFG_GPOUT0) != val;
 		if (change) {
 			reg &= ~A_IOCFG_GPOUT0;
 			reg |= val;
-			outl(reg | val, emu->port + A_IOCFG);
+			outw(reg | val, emu->port + A_IOCFG);
 		}
 	}
 	reg = inl(emu->port + HCFG);

@@ -369,7 +369,7 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 		goto out;
 	}
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	cmd.peer_sta_id = cpu_to_le32(mvmsta->sta_id);
+	cmd.peer_sta_id = cpu_to_le32(mvmsta->deflink.sta_id);
 
 	if (!chandef) {
 		if (mvm->tdls_cs.state == IWL_MVM_TDLS_SW_REQ_SENT &&
@@ -414,7 +414,7 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	}
 
 	iwl_mvm_set_tx_cmd(mvm, skb, &tail->frame.tx_cmd, info,
-			   mvmsta->sta_id);
+			   mvmsta->deflink.sta_id);
 
 	iwl_mvm_set_tx_cmd_rate(mvm, &tail->frame.tx_cmd, info, sta,
 				hdr->frame_control);
@@ -431,7 +431,7 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 
 	/* channel switch has started, update state */
 	if (type != TDLS_MOVE_CH) {
-		mvm->tdls_cs.cur_sta_id = mvmsta->sta_id;
+		mvm->tdls_cs.cur_sta_id = mvmsta->deflink.sta_id;
 		iwl_mvm_tdls_update_cs_state(mvm,
 					     type == TDLS_SEND_CHAN_SW_REQ ?
 					     IWL_MVM_TDLS_SW_REQ_SENT :
@@ -541,7 +541,7 @@ iwl_mvm_tdls_channel_switch(struct ieee80211_hw *hw,
 	}
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	mvm->tdls_cs.peer.sta_id = mvmsta->sta_id;
+	mvm->tdls_cs.peer.sta_id = mvmsta->deflink.sta_id;
 	mvm->tdls_cs.peer.chandef = *chandef;
 	mvm->tdls_cs.peer.initiator = sta->tdls_initiator;
 	mvm->tdls_cs.peer.op_class = oper_class;

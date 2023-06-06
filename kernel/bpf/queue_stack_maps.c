@@ -95,7 +95,7 @@ static void queue_stack_map_free(struct bpf_map *map)
 	bpf_map_area_free(qs);
 }
 
-static int __queue_map_get(struct bpf_map *map, void *value, bool delete)
+static long __queue_map_get(struct bpf_map *map, void *value, bool delete)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);
 	unsigned long flags;
@@ -124,7 +124,7 @@ out:
 }
 
 
-static int __stack_map_get(struct bpf_map *map, void *value, bool delete)
+static long __stack_map_get(struct bpf_map *map, void *value, bool delete)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);
 	unsigned long flags;
@@ -156,32 +156,32 @@ out:
 }
 
 /* Called from syscall or from eBPF program */
-static int queue_map_peek_elem(struct bpf_map *map, void *value)
+static long queue_map_peek_elem(struct bpf_map *map, void *value)
 {
 	return __queue_map_get(map, value, false);
 }
 
 /* Called from syscall or from eBPF program */
-static int stack_map_peek_elem(struct bpf_map *map, void *value)
+static long stack_map_peek_elem(struct bpf_map *map, void *value)
 {
 	return __stack_map_get(map, value, false);
 }
 
 /* Called from syscall or from eBPF program */
-static int queue_map_pop_elem(struct bpf_map *map, void *value)
+static long queue_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return __queue_map_get(map, value, true);
 }
 
 /* Called from syscall or from eBPF program */
-static int stack_map_pop_elem(struct bpf_map *map, void *value)
+static long stack_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return __stack_map_get(map, value, true);
 }
 
 /* Called from syscall or from eBPF program */
-static int queue_stack_map_push_elem(struct bpf_map *map, void *value,
-				     u64 flags)
+static long queue_stack_map_push_elem(struct bpf_map *map, void *value,
+				      u64 flags)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);
 	unsigned long irq_flags;
@@ -227,14 +227,14 @@ static void *queue_stack_map_lookup_elem(struct bpf_map *map, void *key)
 }
 
 /* Called from syscall or from eBPF program */
-static int queue_stack_map_update_elem(struct bpf_map *map, void *key,
-				       void *value, u64 flags)
+static long queue_stack_map_update_elem(struct bpf_map *map, void *key,
+					void *value, u64 flags)
 {
 	return -EINVAL;
 }
 
 /* Called from syscall or from eBPF program */
-static int queue_stack_map_delete_elem(struct bpf_map *map, void *key)
+static long queue_stack_map_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
 }

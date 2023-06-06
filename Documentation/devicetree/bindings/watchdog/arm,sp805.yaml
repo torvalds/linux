@@ -43,7 +43,6 @@ properties:
       Clocks driving the watchdog timer hardware. The first clock is used
       for the actual watchdog counter. The second clock drives the register
       interface.
-    minItems: 2
     maxItems: 2
 
   clock-names:

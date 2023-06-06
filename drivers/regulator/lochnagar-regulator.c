@@ -272,6 +272,7 @@ static int lochnagar_regulator_probe(struct platform_device *pdev)
 static struct platform_driver lochnagar_regulator_driver = {
 	.driver = {
 		.name = "lochnagar-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(lochnagar_of_match),
 	},
 

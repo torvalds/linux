@@ -104,7 +104,10 @@ def generate_crates(srctree, objtree, sysroot_src):
             name = path.name.replace(".rs", "")
 
             # Skip those that are not crate roots.
-            if f"{name}.o" not in open(path.parent / "Makefile").read():
+            try:
+                if f"{name}.o" not in open(path.parent / "Makefile").read():
+                    continue
+            except FileNotFoundError:
                 continue
 
             logging.info("Adding %s", name)

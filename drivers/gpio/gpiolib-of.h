@@ -4,7 +4,6 @@
 #define GPIOLIB_OF_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
 #include <linux/types.h>
 
 #include <linux/notifier.h>

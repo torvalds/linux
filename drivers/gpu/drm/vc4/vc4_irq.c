@@ -57,8 +57,6 @@
 			 V3D_INT_FLDONE | \
 			 V3D_INT_FRDONE)
 
-DECLARE_WAIT_QUEUE_HEAD(render_wait);
-
 static void
 vc4_overflow_mem_work(struct work_struct *work)
 {

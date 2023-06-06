@@ -499,6 +499,16 @@ struct mlx5_stride_block_ctrl_seg {
 	__be16		num_entries;
 };
 
+struct mlx5_wqe_flow_update_ctrl_seg {
+	__be32		flow_idx_update;
+	__be32		dest_handle;
+	u8		reserved0[40];
+};
+
+struct mlx5_wqe_header_modify_argument_update_seg {
+	u8		argument_list[64];
+};
+
 struct mlx5_core_qp {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	void (*event)		(struct mlx5_core_qp *, int);

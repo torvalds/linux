@@ -5,6 +5,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "mt6795.dtsi"
 
 / {
@@ -48,7 +49,172 @@
 	};
 };
 
+&fhctl {
+	clocks = <&apmixedsys CLK_APMIXED_MAINPLL>, <&apmixedsys CLK_APMIXED_MPLL>,
+		 <&apmixedsys CLK_APMIXED_MSDCPLL>;
+	mediatek,hopping-ssc-percent = <8>, <5>, <8>;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	status = "okay";
+
+	accelerometer@10 {
+		compatible = "bosch,bma255";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_pins>;
+	};
+
+	magnetometer@12 {
+		compatible = "bosch,bmm150";
+		reg = <0x12>;
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	status = "okay";
+
+	touchscreen@20 {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts-extended = <&pio 6 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_pins>;
+		syna,startup-delay-ms = <160>;
+		syna,reset-delay-ms = <90>;
+
+		rmi4-f01@1 {
+			reg = <0x1>;
+			syna,nosleep-mode = <1>;
+		};
+
+		rmi4-f12@12 {
+			reg = <0x12>;
+			syna,sensor-type = <1>;
+		};
+	};
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	status = "okay";
+
+	pn547: nfc@28 {
+		compatible = "nxp,pn544-i2c";
+		reg = <0x28>;
+		interrupts-extended = <&pio 3 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_pins>;
+		enable-gpios = <&pio 149 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&pio 94 GPIO_ACTIVE_HIGH>;
+	};
+
+	proximity@48 {
+		compatible = "sensortek,stk3310";
+		reg = <0x48>;
+		interrupts-extended = <&pio 8 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&proximity_pins>;
+	};
+};
+
 &pio {
+	nfc_pins: nfc-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO3__FUNC_GPIO3>;
+			bias-pull-down;
+			input-enable;
+		};
+
+		pins-fw-ven {
+			pinmux = <PINMUX_GPIO94__FUNC_GPIO94>,
+				 <PINMUX_GPIO149__FUNC_GPIO149>;
+		};
+	};
+
+	ts_pins: touchscreen-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO6__FUNC_GPIO6>;
+			bias-pull-up;
+			input-enable;
+		};
+
+		pins-rst {
+			pinmux = <PINMUX_GPIO102__FUNC_GPIO102>;
+			output-high;
+		};
+	};
+
+	proximity_pins: proximity-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO8__FUNC_GPIO8>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	accel_pins: accelerometer-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO12__FUNC_GPIO12>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	i2c0_pins: i2c0-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO45__FUNC_SDA0>,
+				 <PINMUX_GPIO46__FUNC_SCL0>;
+			input-enable;
+		};
+	};
+
+	i2c1_pins: i2c1-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO125__FUNC_SDA1>,
+				 <PINMUX_GPIO126__FUNC_SCL1>;
+			bias-disable;
+		};
+	};
+
+	i2c2_pins: i2c2-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO43__FUNC_SDA2>,
+				 <PINMUX_GPIO44__FUNC_SCL2>;
+			bias-disable;
+		};
+	};
+
+	i2c3_pins: i2c3-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO136__FUNC_SDA3>,
+				 <PINMUX_GPIO137__FUNC_SCL3>;
+			bias-disable;
+		};
+	};
+
+	i2c4_pins: i2c4-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO100__FUNC_SDA4>,
+				 <PINMUX_GPIO101__FUNC_SCL4>;
+			bias-disable;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		pins-rx {
 			pinmux = <PINMUX_GPIO113__FUNC_URXD0>;

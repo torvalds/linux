@@ -242,13 +242,13 @@ static void *ringbuf_map_lookup_elem(struct bpf_map *map, void *key)
 	return ERR_PTR(-ENOTSUPP);
 }
 
-static int ringbuf_map_update_elem(struct bpf_map *map, void *key, void *value,
-				   u64 flags)
+static long ringbuf_map_update_elem(struct bpf_map *map, void *key, void *value,
+				    u64 flags)
 {
 	return -ENOTSUPP;
 }
 
-static int ringbuf_map_delete_elem(struct bpf_map *map, void *key)
+static long ringbuf_map_delete_elem(struct bpf_map *map, void *key)
 {
 	return -ENOTSUPP;
 }

@@ -271,6 +271,5 @@ static struct i2c_driver crystal_cove_i2c_driver = {
 module_i2c_driver(crystal_cove_i2c_driver);
 
 MODULE_DESCRIPTION("I2C driver for Intel SoC PMIC");
-MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yang, Bin <bin.yang@intel.com>");
 MODULE_AUTHOR("Zhu, Lejun <lejun.zhu@linux.intel.com>");

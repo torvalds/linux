@@ -16,7 +16,6 @@
 #include <linux/in.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
-#include <linux/aer.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

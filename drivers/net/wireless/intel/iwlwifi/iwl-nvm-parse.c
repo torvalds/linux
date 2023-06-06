@@ -81,7 +81,7 @@ static const u16 iwl_nvm_channels[] = {
 	/* 2.4 GHz */
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 	/* 5 GHz */
-	36, 40, 44 , 48, 52, 56, 60, 64,
+	36, 40, 44, 48, 52, 56, 60, 64,
 	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
 	149, 153, 157, 161, 165
 };
@@ -860,7 +860,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	/* Advertise an A-MPDU exponent extension based on
 	 * operating band
 	 */
-	if (sband->band != NL80211_BAND_2GHZ)
+	if (sband->band == NL80211_BAND_6GHZ && iftype_data->eht_cap.has_eht)
+		iftype_data->he_cap.he_cap_elem.mac_cap_info[3] |=
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2;
+	else if (sband->band != NL80211_BAND_2GHZ)
 		iftype_data->he_cap.he_cap_elem.mac_cap_info[3] |=
 			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1;
 	else
@@ -876,16 +879,13 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 				       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
 		break;
 	case NL80211_BAND_6GHZ:
-		if (!is_ap || iwlwifi_mod_params.nvm_file)
-			iftype_data->eht_cap.eht_cap_elem.phy_cap_info[0] |=
-				IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
+		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[0] |=
+			IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
 		fallthrough;
 	case NL80211_BAND_5GHZ:
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[0] |=
-			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G;
-		if (!is_ap || iwlwifi_mod_params.nvm_file)
-			iftype_data->he_cap.he_cap_elem.phy_cap_info[0] |=
-				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
 		break;
 	default:
 		WARN_ON(1);
@@ -937,6 +937,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 				IEEE80211_HE_PHY_CAP7_MAX_NC_1;
 		}
 	}
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 && !is_ap)
+		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] |=
+			IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
 
 	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_GF:
@@ -999,14 +1003,17 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 
 	BUILD_BUG_ON(sizeof(data->iftd.low) != sizeof(iwl_he_eht_capa));
 	BUILD_BUG_ON(sizeof(data->iftd.high) != sizeof(iwl_he_eht_capa));
+	BUILD_BUG_ON(sizeof(data->iftd.uhb) != sizeof(iwl_he_eht_capa));
 
 	switch (sband->band) {
 	case NL80211_BAND_2GHZ:
 		iftype_data = data->iftd.low;
 		break;
 	case NL80211_BAND_5GHZ:
-	case NL80211_BAND_6GHZ:
 		iftype_data = data->iftd.high;
+		break;
+	case NL80211_BAND_6GHZ:
+		iftype_data = data->iftd.uhb;
 		break;
 	default:
 		WARN_ON(1);

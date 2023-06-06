@@ -53,7 +53,7 @@ properties:
       '^ldo[0-9]+$':
         type: object
 
-        $ref: "/schemas/regulator/regulator.yaml#"
+        $ref: /schemas/regulator/regulator.yaml#
 
         unevaluatedProperties: false
 

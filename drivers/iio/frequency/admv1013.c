@@ -490,11 +490,6 @@ static int admv1013_init(struct admv1013_state *st)
 					  st->input_mode);
 }
 
-static void admv1013_clk_disable(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static void admv1013_reg_disable(void *data)
 {
 	regulator_disable(data);
@@ -559,11 +554,6 @@ static int admv1013_properties_parse(struct admv1013_state *st)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->reg),
 				     "failed to get the common-mode voltage\n");
 
-	st->clkin = devm_clk_get(&spi->dev, "lo_in");
-	if (IS_ERR(st->clkin))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->clkin),
-				     "failed to get the LO input clock\n");
-
 	return 0;
 }
 
@@ -601,13 +591,10 @@ static int admv1013_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(st->clkin);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(&spi->dev, admv1013_clk_disable, st->clkin);
-	if (ret)
-		return ret;
+	st->clkin = devm_clk_get_enabled(&spi->dev, "lo_in");
+	if (IS_ERR(st->clkin))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->clkin),
+				     "failed to get the LO input clock\n");
 
 	st->nb.notifier_call = admv1013_freq_change;
 	ret = devm_clk_notifier_register(&spi->dev, st->clkin, &st->nb);

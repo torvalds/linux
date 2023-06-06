@@ -91,7 +91,6 @@ properties:
 
 dependencies:
   "riscv,event-to-mhpmevent": [ "riscv,event-to-mhpmcounters" ]
-  "riscv,event-to-mhpmcounters": [ "riscv,event-to-mhpmevent" ]
 
 required:
   - compatible

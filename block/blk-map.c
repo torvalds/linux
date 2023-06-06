@@ -29,10 +29,11 @@ static struct bio_map_data *bio_alloc_map_data(struct iov_iter *data,
 	bmd = kmalloc(struct_size(bmd, iov, data->nr_segs), gfp_mask);
 	if (!bmd)
 		return NULL;
-	memcpy(bmd->iov, data->iov, sizeof(struct iovec) * data->nr_segs);
 	bmd->iter = *data;
-	if (iter_is_iovec(data))
-		bmd->iter.iov = bmd->iov;
+	if (iter_is_iovec(data)) {
+		memcpy(bmd->iov, iter_iov(data), sizeof(struct iovec) * data->nr_segs);
+		bmd->iter.__iov = bmd->iov;
+	}
 	return bmd;
 }
 
@@ -247,7 +248,7 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 {
 	struct bio *bio;
 
-	if (rq->cmd_flags & REQ_ALLOC_CACHE) {
+	if (rq->cmd_flags & REQ_ALLOC_CACHE && (nr_vecs <= BIO_INLINE_VECS)) {
 		bio = bio_alloc_bioset(NULL, nr_vecs, rq->cmd_flags, gfp_mask,
 					&fs_bio_set);
 		if (!bio)

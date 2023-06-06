@@ -263,7 +263,7 @@ static int spi_ingenic_prepare_message(struct spi_controller *ctlr,
 {
 	struct ingenic_spi *priv = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
-	unsigned int cs = REG_SSICR1_FRMHL << spi->chip_select;
+	unsigned int cs = REG_SSICR1_FRMHL << spi_get_chipselect(spi, 0);
 	unsigned int ssicr0_mask = REG_SSICR0_LOOP | REG_SSICR0_FSEL;
 	unsigned int ssicr1_mask = REG_SSICR1_PHA | REG_SSICR1_POL | cs;
 	unsigned int ssicr0 = 0, ssicr1 = 0;
@@ -282,7 +282,7 @@ static int spi_ingenic_prepare_message(struct spi_controller *ctlr,
 
 	if (spi->mode & SPI_LOOP)
 		ssicr0 |= REG_SSICR0_LOOP;
-	if (spi->chip_select)
+	if (spi_get_chipselect(spi, 0))
 		ssicr0 |= REG_SSICR0_FSEL;
 
 	if (spi->mode & SPI_CPHA)

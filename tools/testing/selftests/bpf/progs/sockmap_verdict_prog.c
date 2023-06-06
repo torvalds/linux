@@ -1,6 +1,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include "bpf_misc.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
@@ -39,6 +40,9 @@ int bpf_prog2(struct __sk_buff *skb)
 	__u32 rport = skb->remote_port;
 	__u8 *d = data;
 	__u8 sk, map;
+
+	__sink(lport);
+	__sink(rport);
 
 	if (data + 8 > data_end)
 		return SK_DROP;

@@ -17,8 +17,10 @@
 #include <linux/wait.h>
 #include <uapi/drm/i915_drm.h>
 
+#include "gt/intel_engine_types.h"
 #include "gt/intel_sseu.h"
 #include "i915_reg_defs.h"
+#include "intel_uncore.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -30,9 +32,41 @@ struct i915_vma;
 struct intel_context;
 struct intel_engine_cs;
 
+enum {
+	PERF_GROUP_OAG = 0,
+	PERF_GROUP_OAM_SAMEDIA_0 = 0,
+
+	PERF_GROUP_MAX,
+	PERF_GROUP_INVALID = U32_MAX,
+};
+
+enum report_header {
+	HDR_32_BIT = 0,
+	HDR_64_BIT,
+};
+
+struct i915_perf_regs {
+	u32 base;
+	i915_reg_t oa_head_ptr;
+	i915_reg_t oa_tail_ptr;
+	i915_reg_t oa_buffer;
+	i915_reg_t oa_ctx_ctrl;
+	i915_reg_t oa_ctrl;
+	i915_reg_t oa_debug;
+	i915_reg_t oa_status;
+	u32 oa_ctrl_counter_format_shift;
+};
+
+enum oa_type {
+	TYPE_OAG,
+	TYPE_OAM,
+};
+
 struct i915_oa_format {
 	u32 format;
 	int size;
+	int type;
+	enum report_header header;
 };
 
 struct i915_oa_reg {
@@ -316,6 +350,12 @@ struct i915_perf_stream {
 	 * buffer should be checked for available data.
 	 */
 	u64 poll_oa_period;
+
+	/**
+	 * @override_gucrc: GuC RC has been overridden for the perf stream,
+	 * and we need to restore the default configuration on release.
+	 */
+	bool override_gucrc;
 };
 
 /**
@@ -384,6 +424,30 @@ struct i915_oa_ops {
 	u32 (*oa_hw_tail_read)(struct i915_perf_stream *stream);
 };
 
+struct i915_perf_group {
+	/*
+	 * @exclusive_stream: The stream currently using the OA unit. This is
+	 * sometimes accessed outside a syscall associated to its file
+	 * descriptor.
+	 */
+	struct i915_perf_stream *exclusive_stream;
+
+	/*
+	 * @num_engines: The number of engines using this OA unit.
+	 */
+	u32 num_engines;
+
+	/*
+	 * @regs: OA buffer register group for programming the OA unit.
+	 */
+	struct i915_perf_regs regs;
+
+	/*
+	 * @type: Type of OA unit - OAM, OAG etc.
+	 */
+	enum oa_type type;
+};
+
 struct i915_perf_gt {
 	/*
 	 * Lock associated with anything below within this structure.
@@ -396,12 +460,15 @@ struct i915_perf_gt {
 	 */
 	struct intel_sseu sseu;
 
-	/*
-	 * @exclusive_stream: The stream currently using the OA unit. This is
-	 * sometimes accessed outside a syscall associated to its file
-	 * descriptor.
+	/**
+	 * @num_perf_groups: number of perf groups per gt.
 	 */
-	struct i915_perf_stream *exclusive_stream;
+	u32 num_perf_groups;
+
+	/*
+	 * @group: list of OA groups - one for each OA buffer.
+	 */
+	struct i915_perf_group *group;
 };
 
 struct i915_perf {

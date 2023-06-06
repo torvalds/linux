@@ -97,8 +97,8 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 	struct folio *folio;
 
 	folio = __filemap_get_folio(mapping, index, fgp_flags, gfp);
-	if (!folio || xa_is_value(folio))
-		return &folio->page;
+	if (IS_ERR(folio))
+		return NULL;
 	return folio_file_page(folio, index);
 }
 EXPORT_SYMBOL(pagecache_get_page);
@@ -106,9 +106,7 @@ EXPORT_SYMBOL(pagecache_get_page);
 struct page *grab_cache_page_write_begin(struct address_space *mapping,
 					pgoff_t index)
 {
-	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
-
-	return pagecache_get_page(mapping, index, fgp_flags,
+	return pagecache_get_page(mapping, index, FGP_WRITEBEGIN,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);

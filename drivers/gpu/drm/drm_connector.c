@@ -33,8 +33,10 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_utils.h>
 
-#include <linux/fb.h>
+#include <linux/property.h>
 #include <linux/uaccess.h>
+
+#include <video/cmdline.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -154,9 +156,10 @@ EXPORT_SYMBOL(drm_get_connector_type_name);
 static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 {
 	struct drm_cmdline_mode *mode = &connector->cmdline_mode;
-	char *option = NULL;
+	const char *option;
 
-	if (fb_get_options(connector->name, &option))
+	option = video_get_options(connector->name);
+	if (!option)
 		return;
 
 	if (!drm_mode_parse_command_line_for_connector(option,
@@ -1446,6 +1449,20 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *	a firmware handled hotkey. Therefor userspace must not include the
  *	privacy-screen sw-state in an atomic commit unless it wants to change
  *	its value.
+ *
+ * left margin, right margin, top margin, bottom margin:
+ *	Add margins to the connector's viewport. This is typically used to
+ *	mitigate overscan on TVs.
+ *
+ *	The value is the size in pixels of the black border which will be
+ *	added. The attached CRTC's content will be scaled to fill the whole
+ *	area inside the margin.
+ *
+ *	The margins configuration might be sent to the sink, e.g. via HDMI AVI
+ *	InfoFrames.
+ *
+ *	Drivers can set up these properties by calling
+ *	drm_mode_create_tv_margin_properties().
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -1590,10 +1607,6 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
 
 /*
  * TODO: Document the properties:
- *   - left margin
- *   - right margin
- *   - top margin
- *   - bottom margin
  *   - brightness
  *   - contrast
  *   - flicker reduction
@@ -1602,7 +1615,6 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *   - overscan
  *   - saturation
  *   - select subconnector
- *   - subconnector
  */
 /**
  * DOC: Analog TV Connector Properties

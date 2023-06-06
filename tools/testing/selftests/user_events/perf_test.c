@@ -18,10 +18,9 @@
 
 #include "../kselftest_harness.h"
 
-const char *data_file = "/sys/kernel/debug/tracing/user_events_data";
-const char *status_file = "/sys/kernel/debug/tracing/user_events_status";
-const char *id_file = "/sys/kernel/debug/tracing/events/user_events/__test_event/id";
-const char *fmt_file = "/sys/kernel/debug/tracing/events/user_events/__test_event/format";
+const char *data_file = "/sys/kernel/tracing/user_events_data";
+const char *id_file = "/sys/kernel/tracing/events/user_events/__test_event/id";
+const char *fmt_file = "/sys/kernel/tracing/events/user_events/__test_event/format";
 
 struct event {
 	__u32 index;
@@ -33,11 +32,6 @@ static long perf_event_open(struct perf_event_attr *pe, pid_t pid,
 			    int cpu, int group_fd, unsigned long flags)
 {
 	return syscall(__NR_perf_event_open, pe, pid, cpu, group_fd, flags);
-}
-
-static inline int status_check(char *status_page, int status_bit)
-{
-	return status_page[status_bit >> 3] & (1 << (status_bit & 7));
 }
 
 static int get_id(void)
@@ -88,45 +82,38 @@ static int get_offset(void)
 }
 
 FIXTURE(user) {
-	int status_fd;
 	int data_fd;
+	int check;
 };
 
 FIXTURE_SETUP(user) {
-	self->status_fd = open(status_file, O_RDONLY);
-	ASSERT_NE(-1, self->status_fd);
-
 	self->data_fd = open(data_file, O_RDWR);
 	ASSERT_NE(-1, self->data_fd);
 }
 
 FIXTURE_TEARDOWN(user) {
-	close(self->status_fd);
 	close(self->data_fd);
 }
 
 TEST_F(user, perf_write) {
 	struct perf_event_attr pe = {0};
 	struct user_reg reg = {0};
-	int page_size = sysconf(_SC_PAGESIZE);
-	char *status_page;
 	struct event event;
 	struct perf_event_mmap_page *perf_page;
+	int page_size = sysconf(_SC_PAGESIZE);
 	int id, fd, offset;
 	__u32 *val;
 
 	reg.size = sizeof(reg);
 	reg.name_args = (__u64)"__test_event u32 field1; u32 field2";
-
-	status_page = mmap(NULL, page_size, PROT_READ, MAP_SHARED,
-			   self->status_fd, 0);
-	ASSERT_NE(MAP_FAILED, status_page);
+	reg.enable_bit = 31;
+	reg.enable_addr = (__u64)&self->check;
+	reg.enable_size = sizeof(self->check);
 
 	/* Register should work */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
-	ASSERT_NE(0, reg.status_bit);
-	ASSERT_EQ(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(0, self->check);
 
 	/* Id should be there */
 	id = get_id();
@@ -149,7 +136,7 @@ TEST_F(user, perf_write) {
 	ASSERT_NE(MAP_FAILED, perf_page);
 
 	/* Status should be updated */
-	ASSERT_NE(0, status_check(status_page, reg.status_bit));
+	ASSERT_EQ(1 << reg.enable_bit, self->check);
 
 	event.index = reg.write_index;
 	event.field1 = 0xc001;
@@ -165,6 +152,12 @@ TEST_F(user, perf_write) {
 	/* Ensure correct */
 	ASSERT_EQ(event.field1, *val++);
 	ASSERT_EQ(event.field2, *val++);
+
+	munmap(perf_page, page_size * 2);
+	close(fd);
+
+	/* Status should be updated */
+	ASSERT_EQ(0, self->check);
 }
 
 int main(int argc, char **argv)

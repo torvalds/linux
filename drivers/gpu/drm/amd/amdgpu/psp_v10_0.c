@@ -57,7 +57,13 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 	if (err)
 		return err;
 
-	return psp_init_ta_microcode(psp, ucode_prefix);
+	err = psp_init_ta_microcode(psp, ucode_prefix);
+	if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 1, 0)) &&
+		(adev->pdev->revision == 0xa1) &&
+		(psp->securedisplay_context.context.bin_desc.fw_version >= 0x27000008)) {
+		adev->psp.securedisplay_context.context.bin_desc.size_bytes = 0;
+	}
+	return err;
 }
 
 static int psp_v10_0_ring_create(struct psp_context *psp,

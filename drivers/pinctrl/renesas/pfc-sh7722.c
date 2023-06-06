@@ -1585,7 +1585,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MSELB8_RGB, MSELB8_SYS,
 		/* RESERVED [8] */ ))
 	},
-	{}
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -1681,7 +1681,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		0, 0, PTZ5_DATA, PTZ4_DATA,
 		PTZ3_DATA, PTZ2_DATA, PTZ1_DATA, PTZ0_DATA ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info sh7722_pinmux_info = {

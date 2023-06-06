@@ -1896,10 +1896,10 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 				     "failed to create dsi device\n");
 
 	tc->dsi = dsi;
-
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {

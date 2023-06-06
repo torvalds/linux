@@ -176,11 +176,11 @@ static bool reipl_fcp_clear;
 static bool reipl_ccw_clear;
 static bool reipl_eckd_clear;
 
-static inline int __diag308(unsigned long subcode, void *addr)
+static inline int __diag308(unsigned long subcode, unsigned long addr)
 {
 	union register_pair r1;
 
-	r1.even = (unsigned long) addr;
+	r1.even = addr;
 	r1.odd	= 0;
 	asm volatile(
 		"	diag	%[r1],%[subcode],0x308\n"
@@ -195,7 +195,7 @@ static inline int __diag308(unsigned long subcode, void *addr)
 int diag308(unsigned long subcode, void *addr)
 {
 	diag_stat_inc(DIAG_STAT_X308);
-	return __diag308(subcode, addr);
+	return __diag308(subcode, addr ? virt_to_phys(addr) : 0);
 }
 EXPORT_SYMBOL_GPL(diag308);
 
@@ -649,7 +649,6 @@ static struct kset *ipl_kset;
 
 static void __ipl_run(void *unused)
 {
-	__bpon();
 	diag308(DIAG308_LOAD_CLEAR, NULL);
 }
 
@@ -1936,14 +1935,13 @@ static struct shutdown_action __refdata dump_action = {
 
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
-	unsigned long ipib = (unsigned long) reipl_block_actual;
 	struct lowcore *abs_lc;
 	unsigned int csum;
 
 	csum = (__force unsigned int)
 	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
 	abs_lc = get_abs_lowcore();
-	abs_lc->ipib = ipib;
+	abs_lc->ipib = __pa(reipl_block_actual);
 	abs_lc->ipib_checksum = csum;
 	put_abs_lowcore(abs_lc);
 	dump_run(trigger);

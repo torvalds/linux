@@ -536,6 +536,16 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
 		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
+	/* XRGB2101010 and ARGB2101010 purposely have the same color
+	* ordering.  The hardware only supports ARGB2101010 UBWC
+	* natively.
+	*/
+	INTERLEAVED_RGB_FMT_TILED(ARGB2101010,
+		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
+		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+
 	PSEUDO_YUV_FMT_TILED(NV12,
 		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
 		C1_B_Cb, C2_R_Cr,
@@ -591,6 +601,7 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 		{DRM_FORMAT_XBGR8888, COLOR_FMT_RGBA8888_UBWC},
 		{DRM_FORMAT_XRGB8888, COLOR_FMT_RGBA8888_UBWC},
 		{DRM_FORMAT_ABGR2101010, COLOR_FMT_RGBA1010102_UBWC},
+		{DRM_FORMAT_ARGB2101010, COLOR_FMT_RGBA1010102_UBWC},
 		{DRM_FORMAT_XRGB2101010, COLOR_FMT_RGBA1010102_UBWC},
 		{DRM_FORMAT_XBGR2101010, COLOR_FMT_RGBA1010102_UBWC},
 		{DRM_FORMAT_BGR565, COLOR_FMT_RGB565_UBWC},
@@ -918,8 +929,7 @@ int dpu_format_populate_layout(
 		struct drm_framebuffer *fb,
 		struct dpu_hw_fmt_layout *layout)
 {
-	uint32_t plane_addr[DPU_MAX_PLANES];
-	int i, ret;
+	int ret;
 
 	if (!fb || !layout) {
 		DRM_ERROR("invalid arguments\n");
@@ -940,19 +950,12 @@ int dpu_format_populate_layout(
 	if (ret)
 		return ret;
 
-	for (i = 0; i < DPU_MAX_PLANES; ++i)
-		plane_addr[i] = layout->plane_addr[i];
-
 	/* Populate the addresses given the fb */
 	if (DPU_FORMAT_IS_UBWC(layout->format) ||
 			DPU_FORMAT_IS_TILE(layout->format))
 		ret = _dpu_format_populate_addrs_ubwc(aspace, fb, layout);
 	else
 		ret = _dpu_format_populate_addrs_linear(aspace, fb, layout);
-
-	/* check if anything changed */
-	if (!ret && !memcmp(plane_addr, layout->plane_addr, sizeof(plane_addr)))
-		ret = -EAGAIN;
 
 	return ret;
 }

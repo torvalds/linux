@@ -1181,19 +1181,28 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_vcn_set_ras_funcs(struct amdgpu_device *adev)
+int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev)
 {
+	int err;
+	struct amdgpu_vcn_ras *ras;
+
 	if (!adev->vcn.ras)
-		return;
+		return 0;
 
-	amdgpu_ras_register_ras_block(adev, &adev->vcn.ras->ras_block);
+	ras = adev->vcn.ras;
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register vcn ras block!\n");
+		return err;
+	}
 
-	strcpy(adev->vcn.ras->ras_block.ras_comm.name, "vcn");
-	adev->vcn.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__VCN;
-	adev->vcn.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
-	adev->vcn.ras_if = &adev->vcn.ras->ras_block.ras_comm;
+	strcpy(ras->ras_block.ras_comm.name, "vcn");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__VCN;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
+	adev->vcn.ras_if = &ras->ras_block.ras_comm;
 
-	/* If don't define special ras_late_init function, use default ras_late_init */
-	if (!adev->vcn.ras->ras_block.ras_late_init)
-		adev->vcn.ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+
+	return 0;
 }

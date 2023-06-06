@@ -10,7 +10,7 @@
 
 #include "mt7921.h"
 #include "mcu.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 
 static u32 mt7921u_uhw_rr(struct mt76_dev *dev, u32 addr)
 {

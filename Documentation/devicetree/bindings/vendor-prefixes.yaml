@@ -37,6 +37,8 @@ patternProperties:
     description: Abracon Corporation
   "^abt,.*":
     description: ShenZhen Asia Better Technology Ltd.
+  "^acbel,.*":
+    description: Acbel Polytech Inc.
   "^acer,.*":
     description: Acer Inc.
   "^acme,.*":
@@ -240,6 +242,8 @@ patternProperties:
     description: CellWise Microelectronics Co., Ltd
   "^ceva,.*":
     description: Ceva, Inc.
+  "^chargebyte,.*":
+    description: chargebyte GmbH
   "^checkpoint,.*":
     description: Check Point Software Technologies Ltd.
   "^chefree,.*":
@@ -516,6 +520,8 @@ patternProperties:
     description: GlobalTop Technology, Inc.
   "^gmt,.*":
     description: Global Mixed-mode Technology, Inc.
+  "^goldelico,.*":
+    description: Golden Delicious Computers GmbH & Co. KG
   "^goodix,.*":
     description: Shenzhen Huiding Technology Co., Ltd.
   "^google,.*":
@@ -721,6 +727,8 @@ patternProperties:
     description: Lantiq Semiconductor
   "^lattice,.*":
     description: Lattice Semiconductor
+  "^lctech,.*":
+    description: Shenzen LC Technology Co., Ltd.
   "^leadtek,.*":
     description: Shenzhen Leadtek Technology Co., Ltd.
   "^leez,.*":
@@ -769,6 +777,8 @@ patternProperties:
     description: Lontium Semiconductor Corporation
   "^loongson,.*":
     description: Loongson Technology Corporation Limited
+  "^loongmasses,.*":
+    description: Nanjing Loongmasses Ltd.
   "^lsi,.*":
     description: LSI Corp. (LSI Logic)
   "^lwn,.*":
@@ -933,6 +943,8 @@ patternProperties:
     description: Nokia
   "^nordic,.*":
     description: Nordic Semiconductor
+  "^novatek,.*":
+    description: Novatek
   "^novtech,.*":
     description: NovTech, Inc.
   "^nutsboard,.*":
@@ -977,6 +989,8 @@ patternProperties:
     description: OpenCores.org
   "^openembed,.*":
     description: OpenEmbed
+  "^openpandora,.*":
+    description: OpenPandora GmbH
   "^openrisc,.*":
     description: OpenRISC.io
   "^option,.*":
@@ -1243,6 +1257,8 @@ patternProperties:
     description: Solomon Systech Limited
   "^sony,.*":
     description: Sony Corporation
+  "^sourceparts,.*":
+    description: Source Parts Inc.
   "^spansion,.*":
     description: Spansion Inc.
   "^sparkfun,.*":
@@ -1528,6 +1544,8 @@ patternProperties:
     description: Yes Optoelectronics Co.,Ltd.
   "^yic,.*":
     description: YIC System Co., Ltd.
+  "^yiming,.*":
+    description: Henan Yiming Technology Co., Ltd.
   "^ylm,.*":
     description: Shenzhen Yangliming Electronic Technology Co., Ltd.
   "^yna,.*":

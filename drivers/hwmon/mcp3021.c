@@ -102,7 +102,7 @@ static umode_t mcp3021_is_visible(const void *_data,
 	return 0444;
 }
 
-static const struct hwmon_channel_info *mcp3021_info[] = {
+static const struct hwmon_channel_info * const mcp3021_info[] = {
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
 	NULL
 };

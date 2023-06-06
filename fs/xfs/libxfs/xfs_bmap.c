@@ -1083,6 +1083,34 @@ struct xfs_iread_state {
 	xfs_extnum_t		loaded;
 };
 
+int
+xfs_bmap_complain_bad_rec(
+	struct xfs_inode		*ip,
+	int				whichfork,
+	xfs_failaddr_t			fa,
+	const struct xfs_bmbt_irec	*irec)
+{
+	struct xfs_mount		*mp = ip->i_mount;
+	const char			*forkname;
+
+	switch (whichfork) {
+	case XFS_DATA_FORK:	forkname = "data"; break;
+	case XFS_ATTR_FORK:	forkname = "attr"; break;
+	case XFS_COW_FORK:	forkname = "CoW"; break;
+	default:		forkname = "???"; break;
+	}
+
+	xfs_warn(mp,
+ "Bmap BTree record corruption in inode 0x%llx %s fork detected at %pS!",
+				ip->i_ino, forkname, fa);
+	xfs_warn(mp,
+		"Offset 0x%llx, start block 0x%llx, block count 0x%llx state 0x%x",
+		irec->br_startoff, irec->br_startblock, irec->br_blockcount,
+		irec->br_state);
+
+	return -EFSCORRUPTED;
+}
+
 /* Stuff every bmbt record from this block into the incore extent map. */
 static int
 xfs_iread_bmbt_block(
@@ -1125,7 +1153,8 @@ xfs_iread_bmbt_block(
 			xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 					"xfs_iread_extents(2)", frp,
 					sizeof(*frp), fa);
-			return -EFSCORRUPTED;
+			return xfs_bmap_complain_bad_rec(ip, whichfork, fa,
+					&new);
 		}
 		xfs_iext_insert(ip, &ir->icur, &new,
 				xfs_bmap_fork_to_state(whichfork));
@@ -1171,6 +1200,12 @@ xfs_iread_extents(
 		goto out;
 	}
 	ASSERT(ir.loaded == xfs_iext_count(ifp));
+	/*
+	 * Use release semantics so that we can use acquire semantics in
+	 * xfs_need_iread_extents and be guaranteed to see a valid mapping tree
+	 * after that load.
+	 */
+	smp_store_release(&ifp->if_needextents, 0);
 	return 0;
 out:
 	xfs_iext_destroy(ifp);
@@ -3459,8 +3494,10 @@ xfs_bmap_btalloc_at_eof(
 		if (!caller_pag)
 			args->pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, ap->blkno));
 		error = xfs_alloc_vextent_exact_bno(args, ap->blkno);
-		if (!caller_pag)
+		if (!caller_pag) {
 			xfs_perag_put(args->pag);
+			args->pag = NULL;
+		}
 		if (error)
 			return error;
 
@@ -3470,7 +3507,6 @@ xfs_bmap_btalloc_at_eof(
 		 * Exact allocation failed. Reset to try an aligned allocation
 		 * according to the original allocation specification.
 		 */
-		args->pag = NULL;
 		args->alignment = stripe_align;
 		args->minlen = nextminlen;
 		args->minalignslop = 0;
@@ -3505,7 +3541,6 @@ xfs_bmap_btalloc_at_eof(
 	 * original non-aligned state so the caller can proceed on allocation
 	 * failure as if this function was never called.
 	 */
-	args->fsbno = ap->blkno;
 	args->alignment = 1;
 	return 0;
 }
@@ -6075,6 +6110,7 @@ __xfs_bmap_add(
 	bi->bi_whichfork = whichfork;
 	bi->bi_bmap = *bmap;
 
+	xfs_bmap_update_get_group(tp->t_mountp, bi);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_BMAP, &bi->bi_list);
 	return 0;
 }

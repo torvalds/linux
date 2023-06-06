@@ -63,7 +63,6 @@ SEC("?tp_btf/sys_enter")
 int BPF_PROG(untrusted_ptr, struct pt_regs *regs, long id)
 {
 	struct task_struct *task, *task_dup;
-	long *ptr;
 
 	task = bpf_get_current_task_btf();
 	task_dup = bpf_rdonly_cast(task, bpf_core_type_id_kernel(struct task_struct));

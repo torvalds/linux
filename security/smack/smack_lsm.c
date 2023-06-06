@@ -550,23 +550,22 @@ static int smack_sb_alloc_security(struct super_block *sb)
 }
 
 struct smack_mnt_opts {
-	const char *fsdefault, *fsfloor, *fshat, *fsroot, *fstransmute;
+	const char *fsdefault;
+	const char *fsfloor;
+	const char *fshat;
+	const char *fsroot;
+	const char *fstransmute;
 };
 
 static void smack_free_mnt_opts(void *mnt_opts)
 {
-	struct smack_mnt_opts *opts = mnt_opts;
-	kfree(opts->fsdefault);
-	kfree(opts->fsfloor);
-	kfree(opts->fshat);
-	kfree(opts->fsroot);
-	kfree(opts->fstransmute);
-	kfree(opts);
+	kfree(mnt_opts);
 }
 
 static int smack_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct smack_mnt_opts *opts = *mnt_opts;
+	struct smack_known *skp;
 
 	if (!opts) {
 		opts = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
@@ -577,31 +576,35 @@ static int smack_add_opt(int token, const char *s, void **mnt_opts)
 	if (!s)
 		return -ENOMEM;
 
+	skp = smk_import_entry(s, 0);
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
+
 	switch (token) {
 	case Opt_fsdefault:
 		if (opts->fsdefault)
 			goto out_opt_err;
-		opts->fsdefault = s;
+		opts->fsdefault = skp->smk_known;
 		break;
 	case Opt_fsfloor:
 		if (opts->fsfloor)
 			goto out_opt_err;
-		opts->fsfloor = s;
+		opts->fsfloor = skp->smk_known;
 		break;
 	case Opt_fshat:
 		if (opts->fshat)
 			goto out_opt_err;
-		opts->fshat = s;
+		opts->fshat = skp->smk_known;
 		break;
 	case Opt_fsroot:
 		if (opts->fsroot)
 			goto out_opt_err;
-		opts->fsroot = s;
+		opts->fsroot = skp->smk_known;
 		break;
 	case Opt_fstransmute:
 		if (opts->fstransmute)
 			goto out_opt_err;
-		opts->fstransmute = s;
+		opts->fstransmute = skp->smk_known;
 		break;
 	}
 	return 0;
@@ -629,33 +632,14 @@ static int smack_fs_context_dup(struct fs_context *fc,
 	fc->security = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
 	if (!fc->security)
 		return -ENOMEM;
-	dst = fc->security;
 
-	if (src->fsdefault) {
-		dst->fsdefault = kstrdup(src->fsdefault, GFP_KERNEL);
-		if (!dst->fsdefault)
-			return -ENOMEM;
-	}
-	if (src->fsfloor) {
-		dst->fsfloor = kstrdup(src->fsfloor, GFP_KERNEL);
-		if (!dst->fsfloor)
-			return -ENOMEM;
-	}
-	if (src->fshat) {
-		dst->fshat = kstrdup(src->fshat, GFP_KERNEL);
-		if (!dst->fshat)
-			return -ENOMEM;
-	}
-	if (src->fsroot) {
-		dst->fsroot = kstrdup(src->fsroot, GFP_KERNEL);
-		if (!dst->fsroot)
-			return -ENOMEM;
-	}
-	if (src->fstransmute) {
-		dst->fstransmute = kstrdup(src->fstransmute, GFP_KERNEL);
-		if (!dst->fstransmute)
-			return -ENOMEM;
-	}
+	dst = fc->security;
+	dst->fsdefault = src->fsdefault;
+	dst->fsfloor = src->fsfloor;
+	dst->fshat = src->fshat;
+	dst->fsroot = src->fsroot;
+	dst->fstransmute = src->fstransmute;
+
 	return 0;
 }
 
@@ -712,8 +696,8 @@ static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
 		if (token != Opt_error) {
 			arg = kmemdup_nul(arg, from + len - arg, GFP_KERNEL);
 			rc = smack_add_opt(token, arg, mnt_opts);
+			kfree(arg);
 			if (unlikely(rc)) {
-				kfree(arg);
 				if (*mnt_opts)
 					smack_free_mnt_opts(*mnt_opts);
 				*mnt_opts = NULL;
@@ -1477,7 +1461,7 @@ static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 	struct socket_smack *ssp;
 	struct socket *sock;
 	struct super_block *sbp;
-	struct inode *ip = (struct inode *)inode;
+	struct inode *ip = inode;
 	struct smack_known *isp;
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0)
@@ -4847,7 +4831,7 @@ static int smack_uring_cmd(struct io_uring_cmd *ioucmd)
 
 #endif /* CONFIG_IO_URING */
 
-struct lsm_blob_sizes smack_blob_sizes __lsm_ro_after_init = {
+struct lsm_blob_sizes smack_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct task_smack),
 	.lbs_file = sizeof(struct smack_known *),
 	.lbs_inode = sizeof(struct inode_smack),
@@ -4856,7 +4840,7 @@ struct lsm_blob_sizes smack_blob_sizes __lsm_ro_after_init = {
 	.lbs_superblock = sizeof(struct superblock_smack),
 };
 
-static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, smack_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
 	LSM_HOOK_INIT(syslog, smack_syslog),

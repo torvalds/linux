@@ -612,20 +612,19 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra124_dfll_fcpu_remove(struct platform_device *pdev)
+static void tegra124_dfll_fcpu_remove(struct platform_device *pdev)
 {
 	struct tegra_dfll_soc_data *soc;
 
+	/*
+	 * Note that exiting early here is dangerous as after this function
+	 * returns *soc is freed.
+	 */
 	soc = tegra_dfll_unregister(pdev);
-	if (IS_ERR(soc)) {
-		dev_err(&pdev->dev, "failed to unregister DFLL: %ld\n",
-			PTR_ERR(soc));
-		return PTR_ERR(soc);
-	}
+	if (IS_ERR(soc))
+		return;
 
 	tegra_cvb_remove_opp_table(soc->dev, soc->cvb, soc->max_freq);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra124_dfll_pm_ops = {
@@ -636,7 +635,7 @@ static const struct dev_pm_ops tegra124_dfll_pm_ops = {
 
 static struct platform_driver tegra124_dfll_fcpu_driver = {
 	.probe = tegra124_dfll_fcpu_probe,
-	.remove = tegra124_dfll_fcpu_remove,
+	.remove_new = tegra124_dfll_fcpu_remove,
 	.driver = {
 		.name = "tegra124-dfll",
 		.of_match_table = tegra124_dfll_fcpu_of_match,

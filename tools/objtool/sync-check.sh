@@ -6,7 +6,7 @@ if [ -z "$SRCARCH" ]; then
 	exit 1
 fi
 
-FILES="include/linux/objtool.h"
+FILES="include/linux/objtool_types.h"
 
 if [ "$SRCARCH" = "x86" ]; then
 FILES="$FILES

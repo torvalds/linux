@@ -13,7 +13,9 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_pps.h"
+#include "intel_pps_regs.h"
 #include "intel_quirks.h"
 
 static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
@@ -1534,17 +1536,13 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	/*
 	 * Compute the divisor for the pp clock, simply match the Bspec formula.
 	 */
-	if (i915_mmio_reg_valid(regs.pp_div)) {
+	if (i915_mmio_reg_valid(regs.pp_div))
 		intel_de_write(dev_priv, regs.pp_div,
 			       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, (100 * div) / 2 - 1) | REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000)));
-	} else {
-		u32 pp_ctl;
-
-		pp_ctl = intel_de_read(dev_priv, regs.pp_ctrl);
-		pp_ctl &= ~BXT_POWER_CYCLE_DELAY_MASK;
-		pp_ctl |= REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000));
-		intel_de_write(dev_priv, regs.pp_ctrl, pp_ctl);
-	}
+	else
+		intel_de_rmw(dev_priv, regs.pp_ctrl, BXT_POWER_CYCLE_DELAY_MASK,
+			     REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK,
+					    DIV_ROUND_UP(seq->t11_t12, 1000)));
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",

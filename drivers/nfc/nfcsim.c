@@ -367,11 +367,6 @@ static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
 	}
 
 	dev_dir = debugfs_create_dir(devname, nfcsim_debugfs_root);
-	if (!dev_dir) {
-		NFCSIM_ERR(dev, "Could not create debugfs entries for nfc%d\n",
-			   idx);
-		return;
-	}
 
 	debugfs_create_u8("dropframe", 0664, dev_dir, &dev->dropframe);
 }

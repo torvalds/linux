@@ -22,6 +22,7 @@ Hardware Monitoring Kernel Drivers
 
    abituguru
    abituguru3
+   acbel-fsg032
    acpi_power_meter
    ad7314
    adc128d818
@@ -184,6 +185,7 @@ Hardware Monitoring Kernel Drivers
    sch5627
    sch5636
    scpi-hwmon
+   sfctemp
    sht15
    sht21
    sht3x

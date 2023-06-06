@@ -176,7 +176,7 @@ config MAILBOX_TEST
 config POLARFIRE_SOC_MAILBOX
 	tristate "PolarFire SoC (MPFS) Mailbox"
 	depends on HAS_IOMEM
-	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
 	help
 	  This driver adds support for the PolarFire SoC (MPFS) mailbox controller.
 
@@ -259,7 +259,7 @@ config MTK_CMDQ_MBOX
 	  during the vblank.
 
 config ZYNQMP_IPI_MBOX
-	bool "Xilinx ZynqMP IPI Mailbox"
+	tristate "Xilinx ZynqMP IPI Mailbox"
 	depends on ARCH_ZYNQMP && OF
 	help
 	  Say yes here to add support for Xilinx IPI mailbox driver.

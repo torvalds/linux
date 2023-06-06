@@ -1722,7 +1722,7 @@ static const struct i2c_device_id rt9455_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt9455_i2c_id_table);
 
-static const struct of_device_id rt9455_of_match[] = {
+static const struct of_device_id rt9455_of_match[] __maybe_unused = {
 	{ .compatible = "richtek,rt9455", },
 	{ },
 };

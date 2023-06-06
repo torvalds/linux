@@ -16,6 +16,10 @@
 #include "libbpf_internal.h"
 #include "zip.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /* Specification of ZIP file format can be found here:
  * https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
  * For a high level overview of the structure of a ZIP file see
@@ -118,6 +122,8 @@ struct local_file_header {
 	__u16 file_name_length;
 	__u16 extra_field_length;
 } __attribute__((packed));
+
+#pragma GCC diagnostic pop
 
 struct zip_archive {
 	void *data;

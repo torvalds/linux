@@ -243,6 +243,7 @@ struct lan966x_tx_dcb_buf {
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
+		struct page *page;
 	} data;
 	u32 len;
 	u32 used : 1;
@@ -541,10 +542,7 @@ int lan966x_ptp_setup_traps(struct lan966x_port *port, struct ifreq *ifr);
 int lan966x_ptp_del_traps(struct lan966x_port *port);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);
-int lan966x_fdma_xmit_xdpf(struct lan966x_port *port,
-			   struct xdp_frame *frame,
-			   struct page *page,
-			   bool dma_map);
+int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len);
 int lan966x_fdma_change_mtu(struct lan966x *lan966x);
 void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev);
 void lan966x_fdma_netdev_deinit(struct lan966x *lan966x, struct net_device *dev);

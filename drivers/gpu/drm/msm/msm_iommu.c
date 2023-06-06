@@ -234,15 +234,13 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 	/* Get the pagetable configuration from the domain */
 	if (adreno_smmu->cookie)
 		ttbr1_cfg = adreno_smmu->get_ttbr1_cfg(adreno_smmu->cookie);
-	if (!ttbr1_cfg)
-		return ERR_PTR(-ENODEV);
 
 	/*
-	 * Defer setting the fault handler until we have a valid adreno_smmu
-	 * to avoid accidentially installing a GPU specific fault handler for
-	 * the display's iommu
+	 * If you hit this WARN_ONCE() you are probably missing an entry in
+	 * qcom_smmu_impl_of_match[] in arm-smmu-qcom.c
 	 */
-	iommu_set_fault_handler(iommu->domain, msm_fault_handler, iommu);
+	if (WARN_ONCE(!ttbr1_cfg, "No per-process page tables"))
+		return ERR_PTR(-ENODEV);
 
 	pagetable = kzalloc(sizeof(*pagetable), GFP_KERNEL);
 	if (!pagetable)
@@ -271,9 +269,6 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 	 * the arm-smmu driver as a trigger to set up TTBR0
 	 */
 	if (atomic_inc_return(&iommu->pagetables) == 1) {
-		/* Enable stall on iommu fault: */
-		adreno_smmu->set_stall(adreno_smmu->cookie, true);
-
 		ret = adreno_smmu->set_ttbr0_cfg(adreno_smmu->cookie, &ttbr0_cfg);
 		if (ret) {
 			free_io_pgtable_ops(pagetable->pgtbl_ops);
@@ -302,6 +297,7 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 		unsigned long iova, int flags, void *arg)
 {
 	struct msm_iommu *iommu = arg;
+	struct msm_mmu *mmu = &iommu->base;
 	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(iommu->base.dev);
 	struct adreno_smmu_fault_info info, *ptr = NULL;
 
@@ -314,6 +310,10 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 		return iommu->base.handler(iommu->base.arg, iova, flags, ptr);
 
 	pr_warn_ratelimited("*** fault: iova=%16lx, flags=%d\n", iova, flags);
+
+	if (mmu->funcs->resume_translation)
+		mmu->funcs->resume_translation(mmu);
+
 	return 0;
 }
 
@@ -321,7 +321,8 @@ static void msm_iommu_resume_translation(struct msm_mmu *mmu)
 {
 	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(mmu->dev);
 
-	adreno_smmu->resume_translation(adreno_smmu->cookie, true);
+	if (adreno_smmu->resume_translation)
+		adreno_smmu->resume_translation(adreno_smmu->cookie, true);
 }
 
 static void msm_iommu_detach(struct msm_mmu *mmu)
@@ -405,4 +406,24 @@ struct msm_mmu *msm_iommu_new(struct device *dev, unsigned long quirks)
 	}
 
 	return &iommu->base;
+}
+
+struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsigned long quirks)
+{
+	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(dev);
+	struct msm_iommu *iommu;
+	struct msm_mmu *mmu;
+
+	mmu = msm_iommu_new(dev, quirks);
+	if (IS_ERR_OR_NULL(mmu))
+		return mmu;
+
+	iommu = to_msm_iommu(mmu);
+	iommu_set_fault_handler(iommu->domain, msm_fault_handler, iommu);
+
+	/* Enable stall on iommu fault: */
+	if (adreno_smmu->set_stall)
+		adreno_smmu->set_stall(adreno_smmu->cookie, true);
+
+	return mmu;
 }

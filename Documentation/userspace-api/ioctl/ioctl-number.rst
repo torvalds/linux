@@ -222,7 +222,6 @@ Code  Seq#    Include File                                           Comments
 'b'   00-FF                                                          conflict! bit3 vme host bridge
                                                                      <mailto:natalia@nikhefk.nikhef.nl>
 'b'   00-0F  linux/dma-buf.h                                         conflict!
-'c'   all    linux/cm4000_cs.h                                       conflict!
 'c'   00-7F  linux/comstats.h                                        conflict!
 'c'   00-7F  linux/coda.h                                            conflict!
 'c'   00-1F  linux/chio.h                                            conflict!
@@ -364,7 +363,7 @@ Code  Seq#    Include File                                           Comments
 0xCC  00-0F  drivers/misc/ibmvmc.h                                   pseries VMC driver
 0xCD  01     linux/reiserfs_fs.h
 0xCE  01-02  uapi/linux/cxl_mem.h                                    Compute Express Link Memory Devices
-0xCF  02     fs/cifs/ioctl.c
+0xCF  02     fs/smb/client/cifs_ioctl.h
 0xDB  00-0F  drivers/char/mwave/mwavepub.h
 0xDD  00-3F                                                          ZFCP device driver see drivers/s390/scsi/
                                                                      <mailto:aherrman@de.ibm.com>

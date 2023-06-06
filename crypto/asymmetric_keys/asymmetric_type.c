@@ -17,7 +17,6 @@
 #include <keys/user-type.h>
 #include "asymmetric_keys.h"
 
-MODULE_LICENSE("GPL");
 
 const char *const key_being_used_for[NR__KEY_BEING_USED_FOR] = {
 	[VERIFYING_MODULE_SIGNATURE]		= "mod sig",

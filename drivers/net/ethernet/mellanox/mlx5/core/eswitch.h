@@ -195,7 +195,6 @@ struct mlx5_vport {
 	enum mlx5_eswitch_vport_event enabled_events;
 	int index;
 	struct devlink_port *dl_port;
-	struct dentry *dbgfs;
 };
 
 struct mlx5_esw_indir_table;
@@ -263,6 +262,7 @@ struct mlx5_esw_offload {
 	const struct mlx5_eswitch_rep_ops *rep_ops[NUM_REP_TYPES];
 	u8 inline_mode;
 	atomic64_t num_flows;
+	u64 num_block_encap;
 	enum devlink_eswitch_encap_mode encap;
 	struct ida vport_metadata_ida;
 	unsigned int host_number; /* ECPF supports one external host */
@@ -342,7 +342,7 @@ struct mlx5_eswitch {
 		u32             large_group_num;
 	}  params;
 	struct blocking_notifier_head n_head;
-	struct dentry *dbgfs;
+	bool paired[MLX5_MAX_PORTS];
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -355,7 +355,6 @@ mlx5_eswitch_add_send_to_vport_meta_rule(struct mlx5_eswitch *esw, u16 vport_num
 void mlx5_eswitch_del_send_to_vport_meta_rule(struct mlx5_flow_handle *rule);
 
 bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw);
-int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable);
 u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw);
 void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata);
 
@@ -371,6 +370,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf);
 void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw);
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw);
+void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw);
+void mlx5_esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       u16 vport, const u8 *mac);
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
@@ -674,7 +675,7 @@ struct mlx5_vport_tbl_attr {
 	u32 chain;
 	u16 prio;
 	u16 vport;
-	const struct esw_vport_tbl_namespace *vport_ns;
+	struct esw_vport_tbl_namespace *vport_ns;
 };
 
 struct mlx5_flow_table *
@@ -702,9 +703,6 @@ void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs);
 int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, u16 vport_num);
 void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, u16 vport_num);
 struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u16 vport_num);
-
-void mlx5_esw_vport_debugfs_create(struct mlx5_eswitch *esw, u16 vport_num, bool is_sf, u16 sf_num);
-void mlx5_esw_vport_debugfs_destroy(struct mlx5_eswitch *esw, u16 vport_num);
 
 int mlx5_esw_devlink_sf_port_register(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 controller, u32 sfnum);
@@ -748,6 +746,9 @@ void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw);
 int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 
+bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
+
 static inline int mlx5_eswitch_num_vfs(struct mlx5_eswitch *esw)
 {
 	if (mlx5_esw_allowed(esw))
@@ -761,6 +762,7 @@ mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 {
 	return esw->fdb_table.offloads.slow_fdb;
 }
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -768,6 +770,8 @@ static inline void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw) {}
 static inline int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs) { return 0; }
 static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf) {}
 static inline void mlx5_eswitch_disable(struct mlx5_eswitch *esw) {}
+static inline void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw) {}
+static inline void mlx5_esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw) {}
 static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev) { return false; }
 static inline
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw, u16 vport, int link_state) { return 0; }
@@ -804,6 +808,15 @@ static inline int
 mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
 {
 	return 0;
+}
+
+static inline bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev)
+{
+	return true;
+}
+
+static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
+{
 }
 #endif /* CONFIG_MLX5_ESWITCH */
 

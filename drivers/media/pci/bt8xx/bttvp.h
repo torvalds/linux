@@ -50,7 +50,6 @@
 #define RISC_SLOT_E_FIELD     12
 #define RISC_SLOT_LOOP        14
 
-#define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO_STREAM  2
 #define RESOURCE_VBI           4
 #define RESOURCE_VIDEO_READ    8
@@ -165,15 +164,6 @@ struct bttv_buffer_set {
 	unsigned int           frame_irq;
 };
 
-struct bttv_overlay {
-	unsigned int           tvnorm;
-	struct v4l2_rect       w;
-	enum v4l2_field        field;
-	struct v4l2_clip       *clips;
-	int                    nclips;
-	int                    setup_ok;
-};
-
 struct bttv_vbi_fmt {
 	struct v4l2_vbi_format fmt;
 
@@ -216,10 +206,6 @@ struct bttv_fh {
 	int                      width;
 	int                      height;
 
-	/* video overlay */
-	const struct bttv_format *ovfmt;
-	struct bttv_overlay      ov;
-
 	/* Application called VIDIOC_S_SELECTION. */
 	int                      do_crop;
 
@@ -256,12 +242,6 @@ int bttv_buffer_activate_vbi(struct bttv *btv,
 void bttv_dma_free(struct videobuf_queue *q, struct bttv *btv,
 		   struct bttv_buffer *buf);
 
-/* overlay handling */
-int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
-		      const struct bttv_format *fmt,
-		      struct bttv_buffer *buf);
-
-
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
 
@@ -277,11 +257,6 @@ extern const struct videobuf_queue_ops bttv_vbi_qops;
 extern struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
-
-/* ---------------------------------------------------------- */
-/* bttv-cards.c                                               */
-
-extern int no_overlay;
 
 /* ---------------------------------------------------------- */
 /* bttv-input.c                                               */
@@ -454,7 +429,6 @@ struct bttv {
 	   - must acquire s_lock before changing these
 	   - only the irq handler is supported to touch top + bottom + vcurr */
 	struct btcx_riscmem     main;
-	struct bttv_buffer      *screen;    /* overlay             */
 	struct list_head        capture;    /* video capture queue */
 	struct list_head        vcapture;   /* vbi capture queue   */
 	struct bttv_buffer_set  curr;       /* active buffers      */
@@ -479,7 +453,7 @@ struct bttv {
 	/* used to make dvb-bt8xx autoloadable */
 	struct work_struct request_module_wk;
 
-	/* Default (0) and current (1) video capturing and overlay
+	/* Default (0) and current (1) video capturing
 	   cropping parameters in bttv_tvnorm.cropcap units. Protected
 	   by bttv.lock. */
 	struct bttv_crop crop[2];

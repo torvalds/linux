@@ -121,6 +121,8 @@ enum reg2bstrd_op {
 };
 
 enum reg3_op {
+	asrtle_op	= 0x02,
+	asrtgt_op	= 0x03,
 	addw_op		= 0x20,
 	addd_op		= 0x21,
 	subw_op		= 0x22,
@@ -176,6 +178,30 @@ enum reg3_op {
 	amord_op	= 0x70c7,
 	amxorw_op	= 0x70c8,
 	amxord_op	= 0x70c9,
+	fldgts_op	= 0x70e8,
+	fldgtd_op	= 0x70e9,
+	fldles_op	= 0x70ea,
+	fldled_op	= 0x70eb,
+	fstgts_op	= 0x70ec,
+	fstgtd_op	= 0x70ed,
+	fstles_op	= 0x70ee,
+	fstled_op	= 0x70ef,
+	ldgtb_op	= 0x70f0,
+	ldgth_op	= 0x70f1,
+	ldgtw_op	= 0x70f2,
+	ldgtd_op	= 0x70f3,
+	ldleb_op	= 0x70f4,
+	ldleh_op	= 0x70f5,
+	ldlew_op	= 0x70f6,
+	ldled_op	= 0x70f7,
+	stgtb_op	= 0x70f8,
+	stgth_op	= 0x70f9,
+	stgtw_op	= 0x70fa,
+	stgtd_op	= 0x70fb,
+	stleb_op	= 0x70fc,
+	stleh_op	= 0x70fd,
+	stlew_op	= 0x70fe,
+	stled_op	= 0x70ff,
 };
 
 enum reg3sa2_op {

@@ -608,7 +608,7 @@ unprepare_hclk:
 	return ret;
 }
 
-static int microchip_isc_remove(struct platform_device *pdev)
+static void microchip_isc_remove(struct platform_device *pdev)
 {
 	struct isc_device *isc = platform_get_drvdata(pdev);
 
@@ -624,8 +624,6 @@ static int microchip_isc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(isc->hclock);
 
 	microchip_isc_clk_cleanup(isc);
-
-	return 0;
 }
 
 static int __maybe_unused isc_runtime_suspend(struct device *dev)
@@ -668,7 +666,7 @@ MODULE_DEVICE_TABLE(of, microchip_isc_of_match);
 
 static struct platform_driver microchip_isc_driver = {
 	.probe	= microchip_isc_probe,
-	.remove	= microchip_isc_remove,
+	.remove_new = microchip_isc_remove,
 	.driver	= {
 		.name		= "microchip-sama5d2-isc",
 		.pm		= &microchip_isc_dev_pm_ops,

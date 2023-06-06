@@ -352,6 +352,70 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	return 0;
 }
 
+void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
+{
+	struct mt76_phy *phy2 = dev->mt76.phys[MT_BAND1];
+	struct mt76_phy *phy3 = dev->mt76.phys[MT_BAND2];
+	u32 hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+	int i;
+
+	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
+		   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+		   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+	if (dev->hif2)
+		mt76_clear(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+			   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+	usleep_range(1000, 2000);
+
+	for (i = 0; i < __MT_TXQ_MAX; i++) {
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], true);
+		if (phy2)
+			mt76_queue_tx_cleanup(dev, phy2->q_tx[i], true);
+		if (phy3)
+			mt76_queue_tx_cleanup(dev, phy3->q_tx[i], true);
+	}
+
+	for (i = 0; i < __MT_MCUQ_MAX; i++)
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[i], true);
+
+	mt76_for_each_q_rx(&dev->mt76, i)
+		mt76_queue_rx_cleanup(dev, &dev->mt76.q_rx[i]);
+
+	mt76_tx_status_check(&dev->mt76, true);
+
+	/* reset wfsys */
+	if (force)
+		mt7996_wfsys_reset(dev);
+
+	mt7996_dma_disable(dev, force);
+
+	/* reset hw queues */
+	for (i = 0; i < __MT_TXQ_MAX; i++) {
+		mt76_queue_reset(dev, dev->mphy.q_tx[i]);
+		if (phy2)
+			mt76_queue_reset(dev, phy2->q_tx[i]);
+		if (phy3)
+			mt76_queue_reset(dev, phy3->q_tx[i]);
+	}
+
+	for (i = 0; i < __MT_MCUQ_MAX; i++)
+		mt76_queue_reset(dev, dev->mt76.q_mcu[i]);
+
+	mt76_for_each_q_rx(&dev->mt76, i) {
+		mt76_queue_reset(dev, &dev->mt76.q_rx[i]);
+	}
+
+	mt76_tx_status_check(&dev->mt76, true);
+
+	mt76_for_each_q_rx(&dev->mt76, i)
+		mt76_queue_rx_reset(dev, i);
+
+	mt7996_dma_enable(dev);
+}
+
 void mt7996_dma_cleanup(struct mt7996_dev *dev)
 {
 	mt7996_dma_disable(dev, true);

@@ -9,8 +9,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
-#include "util.h"
+#include "vm_util.h"
 
 #include "../kselftest.h"
 
@@ -32,7 +31,7 @@ static int alloc_noexit(unsigned long nr_pages, int pipefd)
 	unsigned long i;
 	char *buf;
 
-	buf = (char *)mmap(NULL, nr_pages * PAGE_SIZE, PROT_READ | PROT_WRITE,
+	buf = (char *)mmap(NULL, nr_pages * psize(), PROT_READ | PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANON, 0, 0);
 	if (buf == MAP_FAILED) {
 		perror("mmap failed, halting the test");
@@ -40,7 +39,7 @@ static int alloc_noexit(unsigned long nr_pages, int pipefd)
 	}
 
 	for (i = 0; i < nr_pages; i++)
-		*((unsigned long *)(buf + (i * PAGE_SIZE))) = i;
+		*((unsigned long *)(buf + (i * psize()))) = i;
 
 	/* Signal the parent that the child is ready */
 	if (write(pipefd, "", 1) < 0) {
@@ -54,7 +53,7 @@ static int alloc_noexit(unsigned long nr_pages, int pipefd)
 		timeout--;
 	}
 
-	munmap(buf, nr_pages * PAGE_SIZE);
+	munmap(buf, nr_pages * psize());
 
 	return (timeout > 0) ? KSFT_PASS : KSFT_FAIL;
 }
@@ -87,7 +86,7 @@ static int child_main(int pipefd[], size_t size)
 
 	/* Allocate and fault-in memory and wait to be killed */
 	close(pipefd[0]);
-	res = alloc_noexit(MB(size) / PAGE_SIZE, pipefd[1]);
+	res = alloc_noexit(MB(size) / psize(), pipefd[1]);
 	close(pipefd[1]);
 	return res;
 }

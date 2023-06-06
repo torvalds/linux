@@ -145,7 +145,7 @@ static inline int xfs_bmapi_whichfork(uint32_t bmapi_flags)
 	{ BMAP_COWFORK,		"COW" }
 
 /* Return true if the extent is an allocated extent, written or not. */
-static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
+static inline bool xfs_bmap_is_real_extent(const struct xfs_bmbt_irec *irec)
 {
 	return irec->br_startblock != HOLESTARTBLOCK &&
 		irec->br_startblock != DELAYSTARTBLOCK &&
@@ -238,8 +238,12 @@ struct xfs_bmap_intent {
 	enum xfs_bmap_intent_type		bi_type;
 	int					bi_whichfork;
 	struct xfs_inode			*bi_owner;
+	struct xfs_perag			*bi_pag;
 	struct xfs_bmbt_irec			bi_bmap;
 };
+
+void xfs_bmap_update_get_group(struct xfs_mount *mp,
+		struct xfs_bmap_intent *bi);
 
 int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_bmap_intent *bi);
 void	xfs_bmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
@@ -261,6 +265,8 @@ static inline uint32_t xfs_bmap_fork_to_state(int whichfork)
 
 xfs_failaddr_t xfs_bmap_validate_extent(struct xfs_inode *ip, int whichfork,
 		struct xfs_bmbt_irec *irec);
+int xfs_bmap_complain_bad_rec(struct xfs_inode *ip, int whichfork,
+		xfs_failaddr_t fa, const struct xfs_bmbt_irec *irec);
 
 int	xfs_bmapi_remap(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t bno, xfs_filblks_t len, xfs_fsblock_t startblock,

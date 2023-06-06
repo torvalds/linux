@@ -7,7 +7,10 @@
 # and produce insane amounts of uninteresting coverage.
 KCOV_INSTRUMENT_module.o := n
 
-obj-y += main.o strict_rwx.o
+obj-y += main.o
+obj-y += strict_rwx.o
+obj-y += kmod.o
+obj-$(CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS) += dups.o
 obj-$(CONFIG_MODULE_DECOMPRESS) += decompress.o
 obj-$(CONFIG_MODULE_SIG) += signing.o
 obj-$(CONFIG_LIVEPATCH) += livepatch.o
@@ -19,3 +22,4 @@ obj-$(CONFIG_SYSFS) += sysfs.o
 obj-$(CONFIG_KGDB_KDB) += kdb.o
 obj-$(CONFIG_MODVERSIONS) += version.o
 obj-$(CONFIG_MODULE_UNLOAD_TAINT_TRACKING) += tracking.o
+obj-$(CONFIG_MODULE_STATS) += stats.o

@@ -364,7 +364,7 @@ static int set_proto_ctx_vm(struct drm_i915_file_private *fpriv,
 			    struct i915_gem_proto_context *pc,
 			    const struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_private *i915 = fpriv->dev_priv;
+	struct drm_i915_private *i915 = fpriv->i915;
 	struct i915_address_space *vm;
 
 	if (args->size)
@@ -733,7 +733,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 			         struct i915_gem_proto_context *pc,
 			         const struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_private *i915 = fpriv->dev_priv;
+	struct drm_i915_private *i915 = fpriv->i915;
 	struct set_proto_ctx_engines set = { .i915 = i915 };
 	struct i915_context_param_engines __user *user =
 		u64_to_user_ptr(args->value);
@@ -813,7 +813,7 @@ static int set_proto_ctx_sseu(struct drm_i915_file_private *fpriv,
 			      struct i915_gem_proto_context *pc,
 			      struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_private *i915 = fpriv->dev_priv;
+	struct drm_i915_private *i915 = fpriv->i915;
 	struct drm_i915_gem_context_param_sseu user_sseu;
 	struct intel_sseu *sseu;
 	int ret;
@@ -913,7 +913,7 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
-		ret = validate_priority(fpriv->dev_priv, args);
+		ret = validate_priority(fpriv->i915, args);
 		if (!ret)
 			pc->sched.priority = args->value;
 		break;
@@ -934,12 +934,12 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 		if (args->size)
 			ret = -EINVAL;
 		else
-			ret = proto_context_set_persistence(fpriv->dev_priv, pc,
+			ret = proto_context_set_persistence(fpriv->i915, pc,
 							    args->value);
 		break;
 
 	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
-		ret = proto_context_set_protected(fpriv->dev_priv, pc,
+		ret = proto_context_set_protected(fpriv->i915, pc,
 						  args->value);
 		break;
 
@@ -1770,7 +1770,7 @@ void i915_gem_context_close(struct drm_file *file)
 	unsigned long idx;
 
 	xa_for_each(&file_priv->proto_context_xa, idx, pc)
-		proto_context_close(file_priv->dev_priv, pc);
+		proto_context_close(file_priv->i915, pc);
 	xa_destroy(&file_priv->proto_context_xa);
 	mutex_destroy(&file_priv->proto_context_lock);
 
@@ -2206,7 +2206,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 
 	lockdep_assert_held(&file_priv->proto_context_lock);
 
-	ctx = i915_gem_create_context(file_priv->dev_priv, pc);
+	ctx = i915_gem_create_context(file_priv->i915, pc);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -2223,7 +2223,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 
 	old = xa_erase(&file_priv->proto_context_xa, id);
 	GEM_BUG_ON(old != pc);
-	proto_context_close(file_priv->dev_priv, pc);
+	proto_context_close(file_priv->i915, pc);
 
 	return ctx;
 }
@@ -2352,7 +2352,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	GEM_WARN_ON(ctx && pc);
 
 	if (pc)
-		proto_context_close(file_priv->dev_priv, pc);
+		proto_context_close(file_priv->i915, pc);
 
 	if (ctx)
 		context_close(ctx);
@@ -2505,7 +2505,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			 * GEM_CONTEXT_CREATE starting with graphics
 			 * version 13.
 			 */
-			WARN_ON(GRAPHICS_VER(file_priv->dev_priv) > 12);
+			WARN_ON(GRAPHICS_VER(file_priv->i915) > 12);
 			ret = set_proto_ctx_param(file_priv, pc, args);
 		} else {
 			ret = -ENOENT;

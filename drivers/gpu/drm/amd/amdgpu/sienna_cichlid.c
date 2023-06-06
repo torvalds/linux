@@ -40,7 +40,7 @@ static bool sienna_cichlid_is_mode2_default(struct amdgpu_reset_control *reset_c
 	    adev->pm.fw_version >= 0x3a5500 && !amdgpu_sriov_vf(adev))
 		return true;
 #endif
-	return false;
+	return amdgpu_reset_method == AMD_RESET_METHOD_MODE2;
 }
 
 static struct amdgpu_reset_handler *

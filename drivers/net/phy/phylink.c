@@ -1583,6 +1583,25 @@ void phylink_destroy(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_destroy);
 
+/**
+ * phylink_expects_phy() - Determine if phylink expects a phy to be attached
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * When using fixed-link mode, or in-band mode with 1000base-X or 2500base-X,
+ * no PHY is needed.
+ *
+ * Returns true if phylink will be expecting a PHY.
+ */
+bool phylink_expects_phy(struct phylink *pl)
+{
+	if (pl->cfg_link_an_mode == MLO_AN_FIXED ||
+	    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
+	     phy_interface_mode_is_8023z(pl->link_config.interface)))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_GPL(phylink_expects_phy);
+
 static void phylink_phy_change(struct phy_device *phydev, bool up)
 {
 	struct phylink *pl = phydev->phylink;
@@ -2206,6 +2225,10 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 
 	ASSERT_RTNL();
 
+	/* Mask out unsupported advertisements */
+	linkmode_and(config.advertising, kset->link_modes.advertising,
+		     pl->supported);
+
 	if (pl->phydev) {
 		/* We can rely on phylib for this update; we also do not need
 		 * to update the pl->link_config settings:
@@ -2229,10 +2252,6 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	}
 
 	config = pl->link_config;
-
-	/* Mask out unsupported advertisements */
-	linkmode_and(config.advertising, kset->link_modes.advertising,
-		     pl->supported);
 
 	/* FIXME: should we reject autoneg if phy/mac does not support it? */
 	switch (kset->base.autoneg) {

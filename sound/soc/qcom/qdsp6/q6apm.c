@@ -676,7 +676,7 @@ static int apm_probe(gpr_device_t *gdev)
 
 	ret = devm_snd_soc_register_component(dev, &q6apm_audio_component, NULL, 0);
 	if (ret < 0) {
-		dev_err(dev, "failed to get register q6apm: %d\n", ret);
+		dev_err(dev, "failed to register q6apm: %d\n", ret);
 		return ret;
 	}
 

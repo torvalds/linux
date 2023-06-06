@@ -358,7 +358,7 @@ retry:
 	dev_dbg(dev, "%s: %ssending cmd(%02x)\n", __func__,
 		retry_cnt ? "re" : "", scsi_cmd[0]);
 
-	/* Drop the ioctl read semahpore across lengthy call */
+	/* Drop the ioctl read semaphore across lengthy call */
 	up_read(&cfg->ioctl_rwsem);
 	result = scsi_execute_cmd(sdev, scsi_cmd, REQ_OP_DRV_IN, cmd_buf,
 				  CMD_BUFSIZE, to, CMD_RETRIES, &exec_args);

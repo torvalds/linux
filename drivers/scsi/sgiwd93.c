@@ -204,7 +204,7 @@ static inline void init_hpc_chain(struct ip22_hostdata *hdata)
  * arguments not with pointers.  So this is going to blow up beautyfully
  * on 64-bit systems with memory outside the compat address spaces.
  */
-static struct scsi_host_template sgiwd93_template = {
+static const struct scsi_host_template sgiwd93_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "SGIWD93",
 	.name			= "SGI WD93",

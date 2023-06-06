@@ -67,7 +67,7 @@
 			__entry->min_freq_offset = (c)->chan ? (c)->chan->freq_offset : 0;	\
 			__entry->min_chan_width = (c)->width;				\
 			__entry->min_center_freq1 = (c)->center_freq1;			\
-			__entry->freq1_offset = (c)->freq1_offset;			\
+			__entry->min_freq1_offset = (c)->freq1_offset;			\
 			__entry->min_center_freq2 = (c)->center_freq2;
 #define MIN_CHANDEF_PR_FMT	" min_control:%d.%03d MHz min_width:%d min_center: %d.%03d/%d MHz"
 #define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_freq_offset,	\
@@ -1175,6 +1175,13 @@ TRACE_EVENT(drv_flush,
 		LOCAL_PR_FMT " queues:0x%x drop:%d",
 		LOCAL_PR_ARG, __entry->queues, __entry->drop
 	)
+);
+
+DEFINE_EVENT(sta_event, drv_flush_sta,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
 );
 
 TRACE_EVENT(drv_channel_switch,
@@ -2476,6 +2483,31 @@ DEFINE_EVENT(sta_event, drv_net_fill_forward_path,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta),
 	TP_ARGS(local, sdata, sta)
+);
+
+TRACE_EVENT(drv_net_setup_tc,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u8 type),
+
+	TP_ARGS(local, sdata, type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->type = type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " type:%d\n",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->type
+	)
 );
 
 TRACE_EVENT(drv_change_vif_links,

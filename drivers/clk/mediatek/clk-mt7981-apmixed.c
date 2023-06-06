@@ -66,6 +66,7 @@ static const struct of_device_id of_match_clk_mt7981_apmixed[] = {
 	{ .compatible = "mediatek,mt7981-apmixedsys", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7981_apmixed);
 
 static int clk_mt7981_apmixed_probe(struct platform_device *pdev)
 {
@@ -100,3 +101,4 @@ static struct platform_driver clk_mt7981_apmixed_drv = {
 	},
 };
 builtin_platform_driver(clk_mt7981_apmixed_drv);
+MODULE_LICENSE("GPL");

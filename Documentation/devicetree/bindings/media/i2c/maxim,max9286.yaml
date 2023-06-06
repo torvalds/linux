@@ -86,7 +86,7 @@ properties:
       is 100000 micro volts
 
   maxim,gpio-poc:
-    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2
     description: |
@@ -156,6 +156,7 @@ properties:
     patternProperties:
       "^i2c@[0-3]$":
         type: object
+        additionalProperties: false
         description: |
           Child node of the i2c bus multiplexer which represents a GMSL link.
           Each serializer device on the GMSL link remote end is represented with
@@ -166,6 +167,12 @@ properties:
           reg:
             description: The index of the GMSL channel.
             maxItems: 1
+
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
 
         patternProperties:
           "^camera@[a-f0-9]+$":

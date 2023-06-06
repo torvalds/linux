@@ -46,6 +46,7 @@
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "intel_gmbus_regs.h"
+#include "intel_pps_regs.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
@@ -760,17 +761,6 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 	if (seq_id == MIPI_SEQ_BACKLIGHT_OFF && intel_dsi->gpio_backlight)
 		gpiod_set_value_cansleep(intel_dsi->gpio_backlight, 0);
-}
-
-void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
-{
-	struct intel_connector *connector = intel_dsi->attached_connector;
-
-	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
-	if (is_vid_mode(intel_dsi) && connector->panel.vbt.dsi.seq_version >= 3)
-		return;
-
-	msleep(msec);
 }
 
 void intel_dsi_log_params(struct intel_dsi *intel_dsi)

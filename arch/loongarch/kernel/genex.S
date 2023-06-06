@@ -82,6 +82,7 @@ SYM_FUNC_END(except_vec_cex)
 
 	BUILD_HANDLER ade ade badv
 	BUILD_HANDLER ale ale badv
+	BUILD_HANDLER bce bce none
 	BUILD_HANDLER bp bp none
 	BUILD_HANDLER fpe fpe fcsr
 	BUILD_HANDLER fpu fpu none

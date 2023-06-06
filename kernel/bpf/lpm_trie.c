@@ -300,8 +300,8 @@ static struct lpm_trie_node *lpm_trie_node_alloc(const struct lpm_trie *trie,
 }
 
 /* Called from syscall or from eBPF program */
-static int trie_update_elem(struct bpf_map *map,
-			    void *_key, void *value, u64 flags)
+static long trie_update_elem(struct bpf_map *map,
+			     void *_key, void *value, u64 flags)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct lpm_trie_node *node, *im_node = NULL, *new_node = NULL;
@@ -431,7 +431,7 @@ out:
 }
 
 /* Called from syscall or from eBPF program */
-static int trie_delete_elem(struct bpf_map *map, void *_key)
+static long trie_delete_elem(struct bpf_map *map, void *_key)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct bpf_lpm_trie_key *key = _key;

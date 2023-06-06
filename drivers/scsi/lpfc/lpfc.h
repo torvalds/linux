@@ -1036,7 +1036,6 @@ struct lpfc_hba {
 #define FCF_TS_INPROG           0x200 /* FCF table scan in progress */
 #define FCF_RR_INPROG           0x400 /* FCF roundrobin flogi in progress */
 #define HBA_FIP_SUPPORT		0x800 /* FIP support in HBA */
-#define HBA_AER_ENABLED		0x1000 /* AER enabled with HBA */
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_IOQ_FLUSH		0x8000 /* FCP/NVME I/O queues being flushed */
@@ -1190,7 +1189,6 @@ struct lpfc_hba {
 #define LPFC_MAX_ENBL_FC4_TYPE LPFC_ENABLE_FCP
 #define LPFC_DEF_ENBL_FC4_TYPE LPFC_ENABLE_FCP
 #endif
-	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
 	uint32_t cfg_suppress_link_up;

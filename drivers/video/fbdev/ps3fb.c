@@ -936,6 +936,7 @@ static irqreturn_t ps3fb_vsync_interrupt(int irq, void *ptr)
 
 
 static const struct fb_ops ps3fb_ops = {
+	.owner		= THIS_MODULE,
 	.fb_open	= ps3fb_open,
 	.fb_release	= ps3fb_release,
 	.fb_read        = fb_sys_read,

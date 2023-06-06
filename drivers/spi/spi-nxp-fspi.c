@@ -214,9 +214,15 @@
 
 #define FSPI_DLLACR			0xC0
 #define FSPI_DLLACR_OVRDEN		BIT(8)
+#define FSPI_DLLACR_SLVDLY(x)		((x) << 3)
+#define FSPI_DLLACR_DLLRESET		BIT(1)
+#define FSPI_DLLACR_DLLEN		BIT(0)
 
 #define FSPI_DLLBCR			0xC4
 #define FSPI_DLLBCR_OVRDEN		BIT(8)
+#define FSPI_DLLBCR_SLVDLY(x)		((x) << 3)
+#define FSPI_DLLBCR_DLLRESET		BIT(1)
+#define FSPI_DLLBCR_DLLEN		BIT(0)
 
 #define FSPI_STS0			0xE0
 #define FSPI_STS0_DLPHB(x)		((x) << 8)
@@ -230,6 +236,16 @@
 #define FSPI_STS1_IP_ERRID(x)		((x) << 16)
 #define FSPI_STS1_AHB_ERRCD(x)		((x) << 8)
 #define FSPI_STS1_AHB_ERRID(x)		(x)
+
+#define FSPI_STS2			0xE8
+#define FSPI_STS2_BREFLOCK		BIT(17)
+#define FSPI_STS2_BSLVLOCK		BIT(16)
+#define FSPI_STS2_AREFLOCK		BIT(1)
+#define FSPI_STS2_ASLVLOCK		BIT(0)
+#define FSPI_STS2_AB_LOCK		(FSPI_STS2_BREFLOCK | \
+					 FSPI_STS2_BSLVLOCK | \
+					 FSPI_STS2_AREFLOCK | \
+					 FSPI_STS2_ASLVLOCK)
 
 #define FSPI_AHBSPNST			0xEC
 #define FSPI_AHBSPNST_DATLFT(x)		((x) << 16)
@@ -615,6 +631,35 @@ static int nxp_fspi_clk_disable_unprep(struct nxp_fspi *f)
 	return 0;
 }
 
+static void nxp_fspi_dll_calibration(struct nxp_fspi *f)
+{
+	int ret;
+
+	/* Reset the DLL, set the DLLRESET to 1 and then set to 0 */
+	fspi_writel(f, FSPI_DLLACR_DLLRESET, f->iobase + FSPI_DLLACR);
+	fspi_writel(f, FSPI_DLLBCR_DLLRESET, f->iobase + FSPI_DLLBCR);
+	fspi_writel(f, 0, f->iobase + FSPI_DLLACR);
+	fspi_writel(f, 0, f->iobase + FSPI_DLLBCR);
+
+	/*
+	 * Enable the DLL calibration mode.
+	 * The delay target for slave delay line is:
+	 *   ((SLVDLYTARGET+1) * 1/32 * clock cycle of reference clock.
+	 * When clock rate > 100MHz, recommend SLVDLYTARGET is 0xF, which
+	 * means half of clock cycle of reference clock.
+	 */
+	fspi_writel(f, FSPI_DLLACR_DLLEN | FSPI_DLLACR_SLVDLY(0xF),
+		    f->iobase + FSPI_DLLACR);
+	fspi_writel(f, FSPI_DLLBCR_DLLEN | FSPI_DLLBCR_SLVDLY(0xF),
+		    f->iobase + FSPI_DLLBCR);
+
+	/* Wait to get REF/SLV lock */
+	ret = fspi_readl_poll_tout(f, f->iobase + FSPI_STS2, FSPI_STS2_AB_LOCK,
+				   0, POLL_TOUT, true);
+	if (ret)
+		dev_warn(f->dev, "DLL lock failed, please fix it!\n");
+}
+
 /*
  * In FlexSPI controller, flash access is based on value of FSPI_FLSHXXCR0
  * register and start base address of the slave device.
@@ -663,7 +708,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi)
 	 * Return, if previously selected slave device is same as current
 	 * requested slave device.
 	 */
-	if (f->selected == spi->chip_select)
+	if (f->selected == spi_get_chipselect(spi, 0))
 		return;
 
 	/* Reset FLSHxxCR0 registers */
@@ -676,9 +721,9 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi)
 	size_kb = FSPI_FLSHXCR0_SZ(f->memmap_phy_size);
 
 	fspi_writel(f, size_kb, f->iobase + FSPI_FLSHA1CR0 +
-		    4 * spi->chip_select);
+		    4 * spi_get_chipselect(spi, 0));
 
-	dev_dbg(f->dev, "Slave device [CS:%x] selected\n", spi->chip_select);
+	dev_dbg(f->dev, "Slave device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	nxp_fspi_clk_disable_unprep(f);
 
@@ -690,7 +735,14 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi)
 	if (ret)
 		return;
 
-	f->selected = spi->chip_select;
+	/*
+	 * If clock rate > 100MHz, then switch from DLL override mode to
+	 * DLL calibration mode.
+	 */
+	if (rate > 100000000)
+		nxp_fspi_dll_calibration(f);
+
+	f->selected = spi_get_chipselect(spi, 0);
 }
 
 static int nxp_fspi_read_ahb(struct nxp_fspi *f, const struct spi_mem_op *op)
@@ -997,7 +1049,11 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	/* Disable the module */
 	fspi_writel(f, FSPI_MCR0_MDIS, base + FSPI_MCR0);
 
-	/* Reset the DLL register to default value */
+	/*
+	 * Config the DLL register to default value, enable the slave clock delay
+	 * line delay cell override mode, and use 1 fixed delay cell in DLL delay
+	 * chain, this is the suggested setting when clock rate < 100MHz.
+	 */
 	fspi_writel(f, FSPI_DLLACR_OVRDEN, base + FSPI_DLLACR);
 	fspi_writel(f, FSPI_DLLBCR_OVRDEN, base + FSPI_DLLBCR);
 
@@ -1055,7 +1111,7 @@ static const char *nxp_fspi_get_name(struct spi_mem *mem)
 
 	name = devm_kasprintf(dev, GFP_KERNEL,
 			      "%s-%d", dev_name(f->dev),
-			      mem->spi->chip_select);
+			      spi_get_chipselect(mem->spi, 0));
 
 	if (!name) {
 		dev_err(dev, "failed to get memory for custom flash name\n");
@@ -1195,7 +1251,7 @@ err_put_ctrl:
 	return ret;
 }
 
-static int nxp_fspi_remove(struct platform_device *pdev)
+static void nxp_fspi_remove(struct platform_device *pdev)
 {
 	struct nxp_fspi *f = platform_get_drvdata(pdev);
 
@@ -1208,8 +1264,6 @@ static int nxp_fspi_remove(struct platform_device *pdev)
 
 	if (f->ahb_addr)
 		iounmap(f->ahb_addr);
-
-	return 0;
 }
 
 static int nxp_fspi_suspend(struct device *dev)
@@ -1257,7 +1311,7 @@ static struct platform_driver nxp_fspi_driver = {
 		.pm =   &nxp_fspi_pm_ops,
 	},
 	.probe          = nxp_fspi_probe,
-	.remove		= nxp_fspi_remove,
+	.remove_new	= nxp_fspi_remove,
 };
 module_platform_driver(nxp_fspi_driver);
 

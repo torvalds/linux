@@ -33,7 +33,7 @@
 
 	.align RETPOLINE_THUNK_SIZE
 SYM_INNER_LABEL(__x86_indirect_thunk_\reg, SYM_L_GLOBAL)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_UNDEFINED
 	ANNOTATE_NOENDBR
 
 	ALTERNATIVE_2 __stringify(RETPOLINE \reg), \
@@ -75,7 +75,7 @@ SYM_CODE_END(__x86_indirect_thunk_array)
 	.align RETPOLINE_THUNK_SIZE
 
 SYM_INNER_LABEL(__x86_indirect_call_thunk_\reg, SYM_L_GLOBAL)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_UNDEFINED
 	ANNOTATE_NOENDBR
 
 	CALL_DEPTH_ACCOUNT
@@ -103,7 +103,7 @@ SYM_CODE_END(__x86_indirect_call_thunk_array)
 	.align RETPOLINE_THUNK_SIZE
 
 SYM_INNER_LABEL(__x86_indirect_jump_thunk_\reg, SYM_L_GLOBAL)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_UNDEFINED
 	ANNOTATE_NOENDBR
 	POLINE \reg
 	ANNOTATE_UNRET_SAFE
@@ -144,8 +144,8 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
  */
 	.align 64
 	.skip 63, 0xcc
-SYM_FUNC_START_NOALIGN(zen_untrain_ret);
-
+SYM_START(zen_untrain_ret, SYM_L_GLOBAL, SYM_A_NONE)
+	ANNOTATE_NOENDBR
 	/*
 	 * As executed from zen_untrain_ret, this is:
 	 *

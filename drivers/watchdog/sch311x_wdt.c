@@ -425,7 +425,7 @@ exit:
 	return err;
 }
 
-static int sch311x_wdt_remove(struct platform_device *pdev)
+static void sch311x_wdt_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -436,7 +436,6 @@ static int sch311x_wdt_remove(struct platform_device *pdev)
 	release_region(sch311x_wdt_data.runtime_reg + WDT_TIME_OUT, 4);
 	release_region(sch311x_wdt_data.runtime_reg + GP60, 1);
 	sch311x_wdt_data.runtime_reg = 0;
-	return 0;
 }
 
 static void sch311x_wdt_shutdown(struct platform_device *dev)
@@ -447,7 +446,7 @@ static void sch311x_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver sch311x_wdt_driver = {
 	.probe		= sch311x_wdt_probe,
-	.remove		= sch311x_wdt_remove,
+	.remove_new	= sch311x_wdt_remove,
 	.shutdown	= sch311x_wdt_shutdown,
 	.driver		= {
 		.name = DRV_NAME,

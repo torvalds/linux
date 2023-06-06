@@ -60,7 +60,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/aspeed-clock.h>
-    i2c0: i2c-bus@40 {
+    i2c@40 {
       #address-cells = <1>;
       #size-cells = <0>;
       compatible = "aspeed,ast2500-i2c-bus";

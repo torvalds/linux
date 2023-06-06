@@ -82,7 +82,6 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp, struct bpf_dynptr *xd
 	struct iptnl_info *tnl;
 	struct ethhdr *new_eth;
 	struct ethhdr *old_eth;
-	__u32 transport_hdr_sz;
 	struct iphdr *iph;
 	__u16 *next_iph;
 	__u16 payload_len;
@@ -165,7 +164,6 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp, struct bpf_dynptr *xd
 	struct iptnl_info *tnl;
 	struct ethhdr *new_eth;
 	struct ethhdr *old_eth;
-	__u32 transport_hdr_sz;
 	struct ipv6hdr *ip6h;
 	__u16 payload_len;
 	struct vip vip = {};

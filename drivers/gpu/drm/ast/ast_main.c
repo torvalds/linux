@@ -35,7 +35,7 @@
 
 #include "ast_drv.h"
 
-void ast_set_index_reg_mask(struct ast_private *ast,
+void ast_set_index_reg_mask(struct ast_device *ast,
 			    uint32_t base, uint8_t index,
 			    uint8_t mask, uint8_t val)
 {
@@ -45,7 +45,7 @@ void ast_set_index_reg_mask(struct ast_private *ast,
 	ast_set_index_reg(ast, base, index, tmp);
 }
 
-uint8_t ast_get_index_reg(struct ast_private *ast,
+uint8_t ast_get_index_reg(struct ast_device *ast,
 			  uint32_t base, uint8_t index)
 {
 	uint8_t ret;
@@ -54,7 +54,7 @@ uint8_t ast_get_index_reg(struct ast_private *ast,
 	return ret;
 }
 
-uint8_t ast_get_index_reg_mask(struct ast_private *ast,
+uint8_t ast_get_index_reg_mask(struct ast_device *ast,
 			       uint32_t base, uint8_t index, uint8_t mask)
 {
 	uint8_t ret;
@@ -66,7 +66,7 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
 	struct device_node *np = dev->dev->of_node;
-	struct ast_private *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t data, jregd0, jregd1;
 
@@ -122,7 +122,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 
 static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 {
-	struct ast_private *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t jreg, scu_rev;
 
@@ -271,7 +271,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 static int ast_get_dram_info(struct drm_device *dev)
 {
 	struct device_node *np = dev->dev->of_node;
-	struct ast_private *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
 
@@ -394,22 +394,22 @@ static int ast_get_dram_info(struct drm_device *dev)
  */
 static void ast_device_release(void *data)
 {
-	struct ast_private *ast = data;
+	struct ast_device *ast = data;
 
 	/* enable standard VGA decode */
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 }
 
-struct ast_private *ast_device_create(const struct drm_driver *drv,
-				      struct pci_dev *pdev,
-				      unsigned long flags)
+struct ast_device *ast_device_create(const struct drm_driver *drv,
+				     struct pci_dev *pdev,
+				     unsigned long flags)
 {
 	struct drm_device *dev;
-	struct ast_private *ast;
+	struct ast_device *ast;
 	bool need_post;
 	int ret = 0;
 
-	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_private, base);
+	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
 	if (IS_ERR(ast))
 		return ast;
 	dev = &ast->base;
@@ -425,11 +425,12 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 		return ERR_PTR(-EIO);
 
 	/*
-	 * If we don't have IO space at all, use MMIO now and
-	 * assume the chip has MMIO enabled by default (rev 0x20
-	 * and higher).
+	 * After AST2500, MMIO is enabled by default, and it should be adopted
+	 * to be compatible with Arm.
 	 */
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
+	if (pdev->revision >= 0x40) {
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+	} else if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
 		drm_info(dev, "platform has no IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}

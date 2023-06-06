@@ -11,12 +11,13 @@
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/ioctl.h>
-#include <linux/fb.h>
 #include <linux/slab.h>
 
 #include <asm/firmware.h>
 #include <asm/ps3av.h>
 #include <asm/ps3.h>
+
+#include <video/cmdline.h>
 
 #include "vuart.h"
 
@@ -921,6 +922,7 @@ EXPORT_SYMBOL_GPL(ps3av_audio_mute);
 
 static int ps3av_probe(struct ps3_system_bus_device *dev)
 {
+	const char *mode_option;
 	int res;
 	int id;
 
@@ -968,10 +970,9 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 
 	ps3av_get_hw_conf(ps3av);
 
-#ifdef CONFIG_FB
-	if (fb_mode_option && !strcmp(fb_mode_option, "safe"))
+	mode_option = video_get_options(NULL);
+	if (mode_option && !strcmp(mode_option, "safe"))
 		safe_mode = 1;
-#endif /* CONFIG_FB */
 	id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 	if (id < 0) {
 		printk(KERN_ERR "%s: invalid id :%d\n", __func__, id);

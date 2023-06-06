@@ -42,7 +42,7 @@ patternProperties:
                 gpio22, gpio23, gpio24, gpio25, gpio26, gpio27, nand_grp ]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

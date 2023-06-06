@@ -11,7 +11,7 @@ maintainers:
   - Vincent Shih <vincent.sunplus@gmail.com>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

@@ -4223,7 +4223,8 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp, bool bump_id,
 		  ipv6_accept_ra(ifp->idev) &&
 		  ifp->idev->cnf.rtr_solicits != 0 &&
 		  (dev->flags & IFF_LOOPBACK) == 0 &&
-		  (dev->type != ARPHRD_TUNNEL);
+		  (dev->type != ARPHRD_TUNNEL) &&
+		  !netif_is_team_port(dev);
 	read_unlock_bh(&ifp->idev->lock);
 
 	/* While dad is in progress mld report's source address is in6_addrany.

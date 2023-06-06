@@ -6,7 +6,7 @@
  */
 
 #include <asm/unaligned.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 #include <linux/module.h>
 
 /*

@@ -351,8 +351,8 @@ static inline int gve_skb_fifo_bytes_required(struct gve_tx_ring *tx,
 	int bytes;
 	int hlen;
 
-	hlen = skb_is_gso(skb) ? skb_checksum_start_offset(skb) +
-				 tcp_hdrlen(skb) : skb_headlen(skb);
+	hlen = skb_is_gso(skb) ? skb_checksum_start_offset(skb) + tcp_hdrlen(skb) :
+				 min_t(int, GVE_GQ_TX_MIN_PKT_DESC_BYTES, skb->len);
 
 	pad_bytes = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo,
 						   hlen);
@@ -522,13 +522,11 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 	pkt_desc = &tx->desc[idx];
 
 	l4_hdr_offset = skb_checksum_start_offset(skb);
-	/* If the skb is gso, then we want the tcp header in the first segment
-	 * otherwise we want the linear portion of the skb (which will contain
-	 * the checksum because skb->csum_start and skb->csum_offset are given
-	 * relative to skb->head) in the first segment.
+	/* If the skb is gso, then we want the tcp header alone in the first segment
+	 * otherwise we want the minimum required by the gVNIC spec.
 	 */
 	hlen = is_gso ? l4_hdr_offset + tcp_hdrlen(skb) :
-			skb_headlen(skb);
+			min_t(int, GVE_GQ_TX_MIN_PKT_DESC_BYTES, skb->len);
 
 	info->skb =  skb;
 	/* We don't want to split the header, so if necessary, pad to the end
@@ -732,7 +730,7 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	u32 reqi = tx->req;
 
 	pad = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo, len);
-	if (pad >= GVE_TX_MAX_HEADER_SIZE)
+	if (pad >= GVE_GQ_TX_MIN_PKT_DESC_BYTES)
 		pad = 0;
 	info = &tx->info[reqi & tx->mask];
 	info->xdp_frame = frame_p;
@@ -812,7 +810,7 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 {
 	int nsegs;
 
-	if (!gve_can_tx(tx, len + GVE_TX_MAX_HEADER_SIZE - 1))
+	if (!gve_can_tx(tx, len + GVE_GQ_TX_MIN_PKT_DESC_BYTES - 1))
 		return -EBUSY;
 
 	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p, false);

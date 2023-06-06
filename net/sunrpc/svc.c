@@ -649,6 +649,8 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp)
 		return rqstp;
 
+	pagevec_init(&rqstp->rq_pvec);
+
 	__set_bit(RQ_BUSY, &rqstp->rq_flags);
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
@@ -842,9 +844,21 @@ EXPORT_SYMBOL_GPL(svc_set_num_threads);
  *
  * When replacing a page in rq_pages, batch the release of the
  * replaced pages to avoid hammering the page allocator.
+ *
+ * Return values:
+ *   %true: page replaced
+ *   %false: array bounds checking failed
  */
-void svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
+bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 {
+	struct page **begin = rqstp->rq_pages;
+	struct page **end = &rqstp->rq_pages[RPCSVC_MAXPAGES];
+
+	if (unlikely(rqstp->rq_next_page < begin || rqstp->rq_next_page > end)) {
+		trace_svc_replace_page_err(rqstp);
+		return false;
+	}
+
 	if (*rqstp->rq_next_page) {
 		if (!pagevec_space(&rqstp->rq_pvec))
 			__pagevec_release(&rqstp->rq_pvec);
@@ -853,8 +867,27 @@ void svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 
 	get_page(page);
 	*(rqstp->rq_next_page++) = page;
+	return true;
 }
 EXPORT_SYMBOL_GPL(svc_rqst_replace_page);
+
+/**
+ * svc_rqst_release_pages - Release Reply buffer pages
+ * @rqstp: RPC transaction context
+ *
+ * Release response pages that might still be in flight after
+ * svc_send, and any spliced filesystem-owned pages.
+ */
+void svc_rqst_release_pages(struct svc_rqst *rqstp)
+{
+	int i, count = rqstp->rq_next_page - rqstp->rq_respages;
+
+	if (count) {
+		release_pages(rqstp->rq_respages, count);
+		for (i = 0; i < count; i++)
+			rqstp->rq_respages[i] = NULL;
+	}
+}
 
 /*
  * Called from a server thread as it's exiting. Caller must hold the "service
@@ -863,6 +896,7 @@ EXPORT_SYMBOL_GPL(svc_rqst_replace_page);
 void
 svc_rqst_free(struct svc_rqst *rqstp)
 {
+	pagevec_release(&rqstp->rq_pvec);
 	svc_release_buffer(rqstp);
 	if (rqstp->rq_scratch_page)
 		put_page(rqstp->rq_scratch_page);
@@ -1018,7 +1052,7 @@ static int __svc_register(struct net *net, const char *progname,
 #endif
 	}
 
-	trace_svc_register(progname, version, protocol, port, family, error);
+	trace_svc_register(progname, version, family, protocol, port, error);
 	return error;
 }
 
@@ -1382,7 +1416,7 @@ err_bad_rpc:
 	/* Only RPCv2 supported */
 	xdr_stream_encode_u32(xdr, RPC_VERSION);
 	xdr_stream_encode_u32(xdr, RPC_VERSION);
-	goto sendit;
+	return 1;	/* don't wrap */
 
 err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n",
@@ -1398,7 +1432,7 @@ err_bad_auth:
 err_bad_prog:
 	dprintk("svc: unknown program %d\n", rqstp->rq_prog);
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROG_UNAVAIL);
+	*rqstp->rq_accept_statp = rpc_prog_unavail;
 	goto sendit;
 
 err_bad_vers:
@@ -1406,7 +1440,12 @@ err_bad_vers:
 		       rqstp->rq_vers, rqstp->rq_prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROG_MISMATCH);
+	*rqstp->rq_accept_statp = rpc_prog_mismatch;
+
+	/*
+	 * svc_authenticate() has already added the verifier and
+	 * advanced the stream just past rq_accept_statp.
+	 */
 	xdr_stream_encode_u32(xdr, process.mismatch.lovers);
 	xdr_stream_encode_u32(xdr, process.mismatch.hivers);
 	goto sendit;
@@ -1415,27 +1454,28 @@ err_bad_proc:
 	svc_printk(rqstp, "unknown procedure (%d)\n", rqstp->rq_proc);
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_PROC_UNAVAIL);
+	*rqstp->rq_accept_statp = rpc_proc_unavail;
 	goto sendit;
 
 err_garbage_args:
 	svc_printk(rqstp, "failed to decode RPC header\n");
 
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_GARBAGE_ARGS);
+	*rqstp->rq_accept_statp = rpc_garbage_args;
 	goto sendit;
 
 err_system_err:
 	serv->sv_stats->rpcbadfmt++;
-	xdr_stream_encode_u32(xdr, RPC_SYSTEM_ERR);
+	*rqstp->rq_accept_statp = rpc_system_err;
 	goto sendit;
 }
 
-/*
- * Process the RPC request.
+/**
+ * svc_process - Execute one RPC transaction
+ * @rqstp: RPC transaction context
+ *
  */
-int
-svc_process(struct svc_rqst *rqstp)
+void svc_process(struct svc_rqst *rqstp)
 {
 	struct kvec		*resv = &rqstp->rq_res.head[0];
 	__be32 *p;
@@ -1471,7 +1511,8 @@ svc_process(struct svc_rqst *rqstp)
 
 	if (!svc_process_common(rqstp))
 		goto out_drop;
-	return svc_send(rqstp);
+	svc_send(rqstp);
+	return;
 
 out_baddir:
 	svc_printk(rqstp, "bad direction 0x%08x, dropping request\n",
@@ -1479,7 +1520,6 @@ out_baddir:
 	rqstp->rq_server->sv_stats->rpcbadfmt++;
 out_drop:
 	svc_drop(rqstp);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(svc_process);
 

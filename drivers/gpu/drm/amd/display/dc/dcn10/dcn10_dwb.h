@@ -24,8 +24,6 @@
 #ifndef __DC_DWBC_DCN10_H__
 #define __DC_DWBC_DCN10_H__
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
 /* DCN */
 #define BASE_INNER(seg) \
 	DCE_BASE__INST0_SEG ## seg
@@ -265,7 +263,5 @@ void dcn10_dwbc_construct(struct dcn10_dwbc *dwbc10,
 		const struct dcn10_dwbc_shift *dwbc_shift,
 		const struct dcn10_dwbc_mask *dwbc_mask,
 		int inst);
-
-#endif
 
 #endif

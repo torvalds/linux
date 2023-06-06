@@ -59,8 +59,11 @@
 #define EARLY_KASLR	(0)
 #endif
 
+#define SPAN_NR_ENTRIES(vstart, vend, shift) \
+	((((vend) - 1) >> (shift)) - ((vstart) >> (shift)) + 1)
+
 #define EARLY_ENTRIES(vstart, vend, shift, add) \
-	((((vend) - 1) >> (shift)) - ((vstart) >> (shift)) + 1 + add)
+	(SPAN_NR_ENTRIES(vstart, vend, shift) + (add))
 
 #define EARLY_PGDS(vstart, vend, add) (EARLY_ENTRIES(vstart, vend, PGDIR_SHIFT, add))
 

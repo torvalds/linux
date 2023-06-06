@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
 allOf:
-  - $ref: mmc-controller.yaml
+  - $ref: sdhci-common.yaml#
 
 description: |
   The Enhanced Secure Digital Host Controller on Freescale i.MX family

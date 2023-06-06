@@ -101,7 +101,7 @@ static void mpc52xx_spi_chipsel(struct mpc52xx_spi *ms, int value)
 	int cs;
 
 	if (ms->gpio_cs_count > 0) {
-		cs = ms->message->spi->chip_select;
+		cs = spi_get_chipselect(ms->message->spi, 0);
 		gpiod_set_value(ms->gpio_cs[cs], value);
 	} else {
 		out_8(ms->regs + SPI_PORTDATA, value ? 0 : 0x08);
@@ -513,7 +513,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	return rc;
 }
 
-static int mpc52xx_spi_remove(struct platform_device *op)
+static void mpc52xx_spi_remove(struct platform_device *op)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
 	struct mpc52xx_spi *ms = spi_master_get_devdata(master);
@@ -529,8 +529,6 @@ static int mpc52xx_spi_remove(struct platform_device *op)
 	spi_unregister_master(master);
 	iounmap(ms->regs);
 	spi_master_put(master);
-
-	return 0;
 }
 
 static const struct of_device_id mpc52xx_spi_match[] = {
@@ -545,6 +543,6 @@ static struct platform_driver mpc52xx_spi_of_driver = {
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,
-	.remove = mpc52xx_spi_remove,
+	.remove_new = mpc52xx_spi_remove,
 };
 module_platform_driver(mpc52xx_spi_of_driver);

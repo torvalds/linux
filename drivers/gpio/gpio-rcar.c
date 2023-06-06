@@ -663,7 +663,7 @@ static struct platform_driver gpio_rcar_device_driver = {
 	.driver		= {
 		.name	= "gpio_rcar",
 		.pm     = &gpio_rcar_pm_ops,
-		.of_match_table = of_match_ptr(gpio_rcar_of_table),
+		.of_match_table = gpio_rcar_of_table,
 	}
 };
 

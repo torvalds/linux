@@ -1003,8 +1003,7 @@ static void complete_signal(int sig, struct task_struct *p, enum pid_type type)
 	/*
 	 * Now find a thread we can wake up to take the signal off the queue.
 	 *
-	 * If the main thread wants the signal, it gets first crack.
-	 * Probably the least surprising to the average bear.
+	 * Try the suggested task first (may or may not be the main thread).
 	 */
 	if (wants_signal(sig, p))
 		t = p;
@@ -1970,8 +1969,24 @@ int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
 
 	ret = -1;
 	rcu_read_lock();
+
+	/*
+	 * This function is used by POSIX timers to deliver a timer signal.
+	 * Where type is PIDTYPE_PID (such as for timers with SIGEV_THREAD_ID
+	 * set), the signal must be delivered to the specific thread (queues
+	 * into t->pending).
+	 *
+	 * Where type is not PIDTYPE_PID, signals must be delivered to the
+	 * process. In this case, prefer to deliver to current if it is in
+	 * the same thread group as the target process, which avoids
+	 * unnecessarily waking up a potentially idle task.
+	 */
 	t = pid_task(pid, type);
-	if (!t || !likely(lock_task_sighand(t, &flags)))
+	if (!t)
+		goto ret;
+	if (type != PIDTYPE_PID && same_thread_group(t, current))
+		t = current;
+	if (!likely(lock_task_sighand(t, &flags)))
 		goto ret;
 
 	ret = 1; /* the signal is ignored */

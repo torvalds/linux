@@ -139,7 +139,11 @@ struct displayid_vesa_vendor_specific_block {
 	u8 mso;
 } __packed;
 
-/* DisplayID iteration */
+/*
+ * DisplayID iteration.
+ *
+ * Do not access directly, this is private.
+ */
 struct displayid_iter {
 	const struct drm_edid *drm_edid;
 
@@ -147,6 +151,9 @@ struct displayid_iter {
 	int length;
 	int idx;
 	int ext_index;
+
+	u8 version;
+	u8 primary_use;
 };
 
 void displayid_iter_edid_begin(const struct drm_edid *drm_edid,
@@ -156,5 +163,8 @@ __displayid_iter_next(struct displayid_iter *iter);
 #define displayid_iter_for_each(__block, __iter) \
 	while (((__block) = __displayid_iter_next(__iter)))
 void displayid_iter_end(struct displayid_iter *iter);
+
+u8 displayid_version(const struct displayid_iter *iter);
+u8 displayid_primary_use(const struct displayid_iter *iter);
 
 #endif

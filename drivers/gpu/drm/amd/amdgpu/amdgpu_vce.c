@@ -585,6 +585,7 @@ err:
 /**
  * amdgpu_vce_validate_bo - make sure not to cross 4GB boundary
  *
+ * @p: cs parser
  * @ib: indirect buffer to use
  * @lo: address of lower dword
  * @hi: address of higher dword

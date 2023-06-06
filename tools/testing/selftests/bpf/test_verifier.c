@@ -33,13 +33,8 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#ifdef HAVE_GENHDR
-# include "autoconf.h"
-#else
-# if defined(__i386) || defined(__x86_64) || defined(__s390x__) || defined(__aarch64__)
-#  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
-# endif
-#endif
+#include "autoconf_helper.h"
+#include "unpriv_helpers.h"
 #include "cap_helpers.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
@@ -1084,7 +1079,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 	if (*fixup_map_ringbuf) {
 		map_fds[20] = create_map(BPF_MAP_TYPE_RINGBUF, 0,
-					   0, 4096);
+					 0, getpagesize());
 		do {
 			prog[*fixup_map_ringbuf].imm = map_fds[20];
 			fixup_map_ringbuf++;
@@ -1663,22 +1658,6 @@ static bool is_admin(void)
 	}
 
 	return (caps & ADMIN_CAPS) == ADMIN_CAPS;
-}
-
-static void get_unpriv_disabled()
-{
-	char buf[2];
-	FILE *fd;
-
-	fd = fopen("/proc/sys/"UNPRIV_SYSCTL, "r");
-	if (!fd) {
-		perror("fopen /proc/sys/"UNPRIV_SYSCTL);
-		unpriv_disabled = true;
-		return;
-	}
-	if (fgets(buf, 2, fd) == buf && atoi(buf))
-		unpriv_disabled = true;
-	fclose(fd);
 }
 
 static bool test_as_unpriv(struct bpf_test *test)

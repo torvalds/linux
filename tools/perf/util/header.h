@@ -115,6 +115,8 @@ struct perf_session;
 struct perf_tool;
 union perf_event;
 
+extern const char perf_version_string[];
+
 int perf_session__read_header(struct perf_session *session, int repipe_fd);
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,

@@ -221,6 +221,8 @@ static struct mlx5dr_ste_ctx ste_ctx_v2 = {
 	.set_action_add			= &dr_ste_v1_set_action_add,
 	.set_action_copy		= &dr_ste_v1_set_action_copy,
 	.set_action_decap_l3_list	= &dr_ste_v1_set_action_decap_l3_list,
+	.alloc_modify_hdr_chunk		= &dr_ste_v1_alloc_modify_hdr_ptrn_arg,
+	.dealloc_modify_hdr_chunk	= &dr_ste_v1_free_modify_hdr_ptrn_arg,
 
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,

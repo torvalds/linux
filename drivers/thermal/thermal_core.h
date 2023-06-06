@@ -101,6 +101,7 @@ struct thermal_instance {
 	struct list_head tz_node; /* node in tz->thermal_instances */
 	struct list_head cdev_node; /* node in cdev->thermal_instances */
 	unsigned int weight; /* The weight of the cooling device */
+	bool upper_no_limit;
 };
 
 #define to_thermal_zone(_dev) \
@@ -127,6 +128,7 @@ int thermal_zone_create_device_groups(struct thermal_zone_device *, int);
 void thermal_zone_destroy_device_groups(struct thermal_zone_device *);
 void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
 void thermal_cooling_device_destroy_sysfs(struct thermal_cooling_device *cdev);
+void thermal_cooling_device_stats_reinit(struct thermal_cooling_device *cdev);
 /* used only at binding time */
 ssize_t trip_point_show(struct device *, struct device_attribute *, char *);
 ssize_t weight_show(struct device *, struct device_attribute *, char *);

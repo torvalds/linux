@@ -1512,7 +1512,7 @@ static int gprinter_setup(int count)
 	int status;
 	dev_t devt;
 
-	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
+	usb_gadget_class = class_create("usb_printer_gadget");
 	if (IS_ERR(usb_gadget_class)) {
 		status = PTR_ERR(usb_gadget_class);
 		usb_gadget_class = NULL;

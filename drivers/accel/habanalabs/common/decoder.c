@@ -43,36 +43,44 @@ static void dec_print_abnrm_intr_source(struct hl_device *hdev, u32 irq_status)
 		intr_source[2], intr_source[3], intr_source[4], intr_source[5]);
 }
 
-static void dec_error_intr_work(struct hl_device *hdev, u32 base_addr, u32 core_id)
+static void dec_abnrm_intr_work(struct work_struct *work)
 {
+	struct hl_dec *dec = container_of(work, struct hl_dec, abnrm_intr_work);
+	struct hl_device *hdev = dec->hdev;
+	u32 irq_status, event_mask = 0;
 	bool reset_required = false;
-	u32 irq_status;
 
-	irq_status = RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
+	irq_status = RREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET);
 
-	dev_err(hdev->dev, "Decoder abnormal interrupt %#x, core %d\n", irq_status, core_id);
+	dev_err(hdev->dev, "Decoder abnormal interrupt %#x, core %d\n", irq_status, dec->core_id);
 
 	dec_print_abnrm_intr_source(hdev, irq_status);
 
-	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK)
-		reset_required = true;
-
 	/* Clear the interrupt */
-	WREG32(base_addr + VCMD_IRQ_STATUS_OFFSET, irq_status);
+	WREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET, irq_status);
 
 	/* Flush the interrupt clear */
-	RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
+	RREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET);
 
-	if (reset_required)
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
-}
+	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK) {
+		reset_required = true;
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+	}
 
-static void dec_completion_abnrm(struct work_struct *work)
-{
-	struct hl_dec *dec = container_of(work, struct hl_dec, completion_abnrm_work);
-	struct hl_device *hdev = dec->hdev;
+	if (irq_status & VCMD_IRQ_STATUS_CMDERR_MASK)
+		event_mask |= HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
 
-	dec_error_intr_work(hdev, dec->base_addr, dec->core_id);
+	if (irq_status & (VCMD_IRQ_STATUS_ENDCMD_MASK |
+				VCMD_IRQ_STATUS_BUSERR_MASK |
+				VCMD_IRQ_STATUS_ABORT_MASK))
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+
+	if (reset_required) {
+		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+		hl_device_cond_reset(hdev, 0, event_mask);
+	} else if (event_mask) {
+		hl_notifier_event_send_all(hdev, event_mask);
+	}
 }
 
 void hl_dec_fini(struct hl_device *hdev)
@@ -98,7 +106,7 @@ int hl_dec_init(struct hl_device *hdev)
 		dec = hdev->dec + j;
 
 		dec->hdev = hdev;
-		INIT_WORK(&dec->completion_abnrm_work, dec_completion_abnrm);
+		INIT_WORK(&dec->abnrm_intr_work, dec_abnrm_intr_work);
 		dec->core_id = j;
 		dec->base_addr = hdev->asic_funcs->get_dec_base_addr(hdev, j);
 		if (!dec->base_addr) {

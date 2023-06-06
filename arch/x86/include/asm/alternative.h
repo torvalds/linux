@@ -8,7 +8,7 @@
 
 #define ALT_FLAGS_SHIFT		16
 
-#define ALT_FLAG_NOT		BIT(0)
+#define ALT_FLAG_NOT		(1 << 0)
 #define ALT_NOT(feature)	((ALT_FLAG_NOT << ALT_FLAGS_SHIFT) | (feature))
 
 #ifndef __ASSEMBLY__

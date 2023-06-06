@@ -12,7 +12,6 @@
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
@@ -64,7 +63,8 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_magic = V9FS_MAGIC;
 	if (v9fs_proto_dotl(v9ses)) {
 		sb->s_op = &v9fs_super_ops_dotl;
-		sb->s_xattr = v9fs_xattr_handlers;
+		if (!(v9ses->flags & V9FS_NO_XATTR))
+			sb->s_xattr = v9fs_xattr_handlers;
 	} else {
 		sb->s_op = &v9fs_super_ops;
 		sb->s_time_max = U32_MAX;
@@ -84,9 +84,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 		sb->s_bdi->io_pages = v9ses->maxdata >> PAGE_SHIFT;
 	}
 
-	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
-	if (!v9ses->cache)
-		sb->s_flags |= SB_SYNCHRONOUS;
+	sb->s_flags |= SB_ACTIVE;
 
 #ifdef CONFIG_9P_FS_POSIX_ACL
 	if ((v9ses->flags & V9FS_ACL_MASK) == V9FS_POSIX_ACL)
@@ -137,7 +135,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	if (retval)
 		goto release_sb;
 
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
 		sb->s_d_op = &v9fs_cached_dentry_operations;
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
@@ -278,7 +276,7 @@ static int v9fs_drop_inode(struct inode *inode)
 	struct v9fs_session_info *v9ses;
 
 	v9ses = v9fs_inode2v9ses(inode);
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
 		return generic_drop_inode(inode);
 	/*
 	 * in case of non cached mode always drop the
@@ -291,49 +289,30 @@ static int v9fs_drop_inode(struct inode *inode)
 static int v9fs_write_inode(struct inode *inode,
 			    struct writeback_control *wbc)
 {
-	int ret;
-	struct p9_wstat wstat;
 	struct v9fs_inode *v9inode;
+
 	/*
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
 	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
-	v9inode = V9FS_I(inode);
-	if (!v9inode->writeback_fid)
-		return 0;
-	v9fs_blank_wstat(&wstat);
 
-	ret = p9_client_wstat(v9inode->writeback_fid, &wstat);
-	if (ret < 0) {
-		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-		return ret;
-	}
+	v9inode = V9FS_I(inode);
 	fscache_unpin_writeback(wbc, v9fs_inode_cookie(v9inode));
+
 	return 0;
 }
 
 static int v9fs_write_inode_dotl(struct inode *inode,
 				 struct writeback_control *wbc)
 {
-	int ret;
 	struct v9fs_inode *v9inode;
-	/*
-	 * send an fsync request to server irrespective of
-	 * wbc->sync_mode.
-	 */
-	v9inode = V9FS_I(inode);
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p, writeback_fid %p\n",
-		 __func__, inode, v9inode->writeback_fid);
-	if (!v9inode->writeback_fid)
-		return 0;
 
-	ret = p9_client_fsync(v9inode->writeback_fid, 0);
-	if (ret < 0) {
-		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-		return ret;
-	}
+	v9inode = V9FS_I(inode);
+	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+
 	fscache_unpin_writeback(wbc, v9fs_inode_cookie(v9inode));
+
 	return 0;
 }
 

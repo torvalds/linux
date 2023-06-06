@@ -75,58 +75,6 @@ struct encoder_feature_support {
 	bool fec_supported;
 };
 
-union dpcd_psr_configuration {
-	struct {
-		unsigned char ENABLE                    : 1;
-		unsigned char TRANSMITTER_ACTIVE_IN_PSR : 1;
-		unsigned char CRC_VERIFICATION          : 1;
-		unsigned char FRAME_CAPTURE_INDICATION  : 1;
-		/* For eDP 1.4, PSR v2*/
-		unsigned char LINE_CAPTURE_INDICATION   : 1;
-		/* For eDP 1.4, PSR v2*/
-		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
-		unsigned char ENABLE_PSR2               : 1;
-		/* For eDP 1.5, PSR v2 w/ early transport */
-		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
-	} bits;
-	unsigned char raw;
-};
-
-union dpcd_alpm_configuration {
-	struct {
-		unsigned char ENABLE                    : 1;
-		unsigned char IRQ_HPD_ENABLE            : 1;
-		unsigned char RESERVED                  : 6;
-	} bits;
-	unsigned char raw;
-};
-
-union dpcd_sink_active_vtotal_control_mode {
-	struct {
-		unsigned char ENABLE                    : 1;
-		unsigned char RESERVED                  : 7;
-	} bits;
-	unsigned char raw;
-};
-
-union psr_error_status {
-	struct {
-		unsigned char LINK_CRC_ERROR        :1;
-		unsigned char RFB_STORAGE_ERROR     :1;
-		unsigned char VSC_SDP_ERROR         :1;
-		unsigned char RESERVED              :5;
-	} bits;
-	unsigned char raw;
-};
-
-union psr_sink_psr_status {
-	struct {
-	unsigned char SINK_SELF_REFRESH_STATUS  :3;
-	unsigned char RESERVED                  :5;
-	} bits;
-	unsigned char raw;
-};
-
 struct link_encoder {
 	const struct link_encoder_funcs *funcs;
 	int32_t aux_channel_offset;

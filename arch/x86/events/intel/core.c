@@ -4074,7 +4074,7 @@ static struct perf_guest_switch_msr *intel_guest_get_msrs(int *nr, void *data)
 	if (x86_pmu.intel_cap.pebs_baseline) {
 		arr[(*nr)++] = (struct perf_guest_switch_msr){
 			.msr = MSR_PEBS_DATA_CFG,
-			.host = cpuc->pebs_data_cfg,
+			.host = cpuc->active_pebs_data_cfg,
 			.guest = kvm_pmu->pebs_data_cfg,
 		};
 	}
@@ -5470,6 +5470,15 @@ pebs_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 }
 
 static umode_t
+mem_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	if (attr == &event_attr_mem_ld_aux.attr.attr)
+		return x86_pmu.flags & PMU_FL_MEM_LOADS_AUX ? attr->mode : 0;
+
+	return pebs_is_visible(kobj, attr, i);
+}
+
+static umode_t
 lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return x86_pmu.lbr_nr ? attr->mode : 0;
@@ -5496,7 +5505,7 @@ static struct attribute_group group_events_td  = {
 
 static struct attribute_group group_events_mem = {
 	.name       = "events",
-	.is_visible = pebs_is_visible,
+	.is_visible = mem_is_visible,
 };
 
 static struct attribute_group group_events_tsx = {
@@ -6486,6 +6495,10 @@ __init int intel_pmu_init(void)
 
 	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 	case INTEL_FAM6_EMERALDRAPIDS_X:
+		x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
+		fallthrough;
+	case INTEL_FAM6_GRANITERAPIDS_X:
+	case INTEL_FAM6_GRANITERAPIDS_D:
 		pmem = true;
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, spr_hw_cache_event_ids, sizeof(hw_cache_event_ids));
@@ -6502,7 +6515,6 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 		x86_pmu.flags |= PMU_FL_INSTR_LATENCY;
-		x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = spr_get_event_constraints;

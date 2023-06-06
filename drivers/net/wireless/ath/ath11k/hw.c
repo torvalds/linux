@@ -201,6 +201,7 @@ static void ath11k_init_wmi_config_ipq8074(struct ath11k_base *ab,
 	config->twt_ap_pdev_count = ab->num_radios;
 	config->twt_ap_sta_count = 1000;
 	config->flag1 |= WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64;
+	config->flag1 |= WMI_RSRC_CFG_FLAG1_ACK_RSSI;
 }
 
 static int ath11k_hw_mac_id_to_pdev_id_ipq8074(struct ath11k_hw_params *hw,
@@ -834,26 +835,35 @@ static void ath11k_hw_ipq5018_reo_setup(struct ath11k_base *ab)
 			   ring_hash_map);
 }
 
-static u16 ath11k_hw_ipq8074_mpdu_info_get_peerid(u8 *tlv_data)
+static u16
+ath11k_hw_ipq8074_mpdu_info_get_peerid(struct hal_rx_mpdu_info *mpdu_info)
 {
 	u16 peer_id = 0;
-	struct hal_rx_mpdu_info *mpdu_info =
-		(struct hal_rx_mpdu_info *)tlv_data;
 
 	peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID,
-			    __le32_to_cpu(mpdu_info->info0));
+			    __le32_to_cpu(mpdu_info->u.ipq8074.info0));
 
 	return peer_id;
 }
 
-static u16 ath11k_hw_wcn6855_mpdu_info_get_peerid(u8 *tlv_data)
+static u16
+ath11k_hw_qcn9074_mpdu_info_get_peerid(struct hal_rx_mpdu_info *mpdu_info)
 {
 	u16 peer_id = 0;
-	struct hal_rx_mpdu_info_wcn6855 *mpdu_info =
-		(struct hal_rx_mpdu_info_wcn6855 *)tlv_data;
+
+	peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID,
+			    __le32_to_cpu(mpdu_info->u.qcn9074.info0));
+
+	return peer_id;
+}
+
+static u16
+ath11k_hw_wcn6855_mpdu_info_get_peerid(struct hal_rx_mpdu_info *mpdu_info)
+{
+	u16 peer_id = 0;
 
 	peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID_WCN6855,
-			    __le32_to_cpu(mpdu_info->info0));
+			    __le32_to_cpu(mpdu_info->u.wcn6855.info0));
 	return peer_id;
 }
 
@@ -1041,7 +1051,7 @@ const struct ath11k_hw_ops qcn9074_ops = {
 	.rx_desc_get_attention = ath11k_hw_qcn9074_rx_desc_get_attention,
 	.rx_desc_get_msdu_payload = ath11k_hw_qcn9074_rx_desc_get_msdu_payload,
 	.reo_setup = ath11k_hw_ipq8074_reo_setup,
-	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
+	.mpdu_info_get_peerid = ath11k_hw_qcn9074_mpdu_info_get_peerid,
 	.rx_desc_mac_addr2_valid = ath11k_hw_ipq9074_rx_desc_mac_addr2_valid,
 	.rx_desc_mpdu_start_addr2 = ath11k_hw_ipq9074_rx_desc_mpdu_start_addr2,
 	.get_ring_selector = ath11k_hw_ipq8074_get_tcl_ring_selector,
@@ -1223,6 +1233,7 @@ const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074 = {
 		ATH11K_RX_WBM_REL_RING_MASK_0,
 	},
 	.reo_status = {
+		0, 0, 0,
 		ATH11K_REO_STATUS_RING_MASK_0,
 	},
 	.rxdma2host = {

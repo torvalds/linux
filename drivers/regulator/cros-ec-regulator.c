@@ -215,6 +215,7 @@ static struct platform_driver cros_ec_regulator_driver = {
 	.probe		= cros_ec_regulator_probe,
 	.driver		= {
 		.name		= "cros-ec-regulator",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = regulator_cros_ec_of_match,
 	},
 };

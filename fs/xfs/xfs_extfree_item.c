@@ -351,8 +351,6 @@ xfs_trans_free_extent(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent		*extp;
 	uint				next_extent;
-	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp,
-							xefi->xefi_startblock);
 	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
 							xefi->xefi_startblock);
 	int				error;
@@ -363,12 +361,13 @@ xfs_trans_free_extent(
 	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
 		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
 
-	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno,
-			xefi->xefi_blockcount);
+	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
+			agbno, xefi->xefi_blockcount);
 
-	error = __xfs_free_extent(tp, xefi->xefi_startblock,
+	error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
 			xefi->xefi_blockcount, &oinfo, XFS_AG_RESV_NONE,
 			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
+
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
 	 * transaction is aborted, which:
@@ -396,14 +395,13 @@ xfs_extent_free_diff_items(
 	const struct list_head		*a,
 	const struct list_head		*b)
 {
-	struct xfs_mount		*mp = priv;
 	struct xfs_extent_free_item	*ra;
 	struct xfs_extent_free_item	*rb;
 
 	ra = container_of(a, struct xfs_extent_free_item, xefi_list);
 	rb = container_of(b, struct xfs_extent_free_item, xefi_list);
-	return  XFS_FSB_TO_AGNO(mp, ra->xefi_startblock) -
-		XFS_FSB_TO_AGNO(mp, rb->xefi_startblock);
+
+	return ra->xefi_pag->pag_agno - rb->xefi_pag->pag_agno;
 }
 
 /* Log a free extent to the intent item. */
@@ -462,6 +460,26 @@ xfs_extent_free_create_done(
 	return &xfs_trans_get_efd(tp, EFI_ITEM(intent), count)->efd_item;
 }
 
+/* Take a passive ref to the AG containing the space we're freeing. */
+void
+xfs_extent_free_get_group(
+	struct xfs_mount		*mp,
+	struct xfs_extent_free_item	*xefi)
+{
+	xfs_agnumber_t			agno;
+
+	agno = XFS_FSB_TO_AGNO(mp, xefi->xefi_startblock);
+	xefi->xefi_pag = xfs_perag_intent_get(mp, agno);
+}
+
+/* Release a passive AG ref after some freeing work. */
+static inline void
+xfs_extent_free_put_group(
+	struct xfs_extent_free_item	*xefi)
+{
+	xfs_perag_intent_put(xefi->xefi_pag);
+}
+
 /* Process a free extent. */
 STATIC int
 xfs_extent_free_finish_item(
@@ -476,6 +494,8 @@ xfs_extent_free_finish_item(
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 
 	error = xfs_trans_free_extent(tp, EFD_ITEM(done), xefi);
+
+	xfs_extent_free_put_group(xefi);
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
 	return error;
 }
@@ -496,6 +516,8 @@ xfs_extent_free_cancel_item(
 	struct xfs_extent_free_item	*xefi;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
+
+	xfs_extent_free_put_group(xefi);
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
@@ -526,24 +548,21 @@ xfs_agfl_free_finish_item(
 	struct xfs_extent		*extp;
 	struct xfs_buf			*agbp;
 	int				error;
-	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	uint				next_extent;
-	struct xfs_perag		*pag;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(xefi->xefi_blockcount == 1);
-	agno = XFS_FSB_TO_AGNO(mp, xefi->xefi_startblock);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 	oinfo.oi_owner = xefi->xefi_owner;
 
-	trace_xfs_agfl_free_deferred(mp, agno, 0, agbno, xefi->xefi_blockcount);
+	trace_xfs_agfl_free_deferred(mp, xefi->xefi_pag->pag_agno, 0, agbno,
+			xefi->xefi_blockcount);
 
-	pag = xfs_perag_get(mp, agno);
-	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
+	error = xfs_alloc_read_agf(xefi->xefi_pag, tp, 0, &agbp);
 	if (!error)
-		error = xfs_free_agfl_block(tp, agno, agbno, agbp, &oinfo);
-	xfs_perag_put(pag);
+		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_agno,
+				agbno, agbp, &oinfo);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -562,6 +581,7 @@ xfs_agfl_free_finish_item(
 	extp->ext_len = xefi->xefi_blockcount;
 	efdp->efd_next_extent++;
 
+	xfs_extent_free_put_group(xefi);
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
 	return error;
 }
@@ -632,7 +652,9 @@ xfs_efi_item_recover(
 		fake.xefi_startblock = extp->ext_start;
 		fake.xefi_blockcount = extp->ext_len;
 
+		xfs_extent_free_get_group(mp, &fake);
 		error = xfs_trans_free_extent(tp, efdp, &fake);
+		xfs_extent_free_put_group(&fake);
 		if (error == -EFSCORRUPTED)
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 					extp, sizeof(*extp));

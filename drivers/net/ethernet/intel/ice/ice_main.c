@@ -4649,6 +4649,12 @@ static int ice_start_eth(struct ice_vsi *vsi)
 	return err;
 }
 
+static void ice_stop_eth(struct ice_vsi *vsi)
+{
+	ice_fltr_remove_all(vsi);
+	ice_vsi_close(vsi);
+}
+
 static int ice_init_eth(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
@@ -5137,7 +5143,7 @@ void ice_unload(struct ice_pf *pf)
 {
 	ice_deinit_features(pf);
 	ice_deinit_rdma(pf);
-	ice_vsi_close(ice_get_main_vsi(pf));
+	ice_stop_eth(ice_get_main_vsi(pf));
 	ice_vsi_decfg(ice_get_main_vsi(pf));
 	ice_deinit_dev(pf);
 }

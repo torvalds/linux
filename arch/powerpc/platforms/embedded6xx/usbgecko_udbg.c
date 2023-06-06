@@ -193,24 +193,6 @@ static int ug_udbg_getc_poll(void)
 }
 
 /*
- * Retrieves and prepares the virtual address needed to access the hardware.
- */
-static void __iomem *__init ug_udbg_setup_exi_io_base(struct device_node *np)
-{
-	void __iomem *exi_io_base = NULL;
-	phys_addr_t paddr;
-	const unsigned int *reg;
-
-	reg = of_get_property(np, "reg", NULL);
-	if (reg) {
-		paddr = of_translate_address(np, reg);
-		if (paddr)
-			exi_io_base = ioremap(paddr, reg[1]);
-	}
-	return exi_io_base;
-}
-
-/*
  * Checks if a USB Gecko adapter is inserted in any memory card slot.
  */
 static void __iomem *__init ug_udbg_probe(void __iomem *exi_io_base)
@@ -246,7 +228,7 @@ void __init ug_udbg_init(void)
 		goto out;
 	}
 
-	exi_io_base = ug_udbg_setup_exi_io_base(np);
+	exi_io_base = of_iomap(np, 0);
 	if (!exi_io_base) {
 		udbg_printf("%s: failed to setup EXI io base\n", __func__);
 		goto done;

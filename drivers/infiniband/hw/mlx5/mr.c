@@ -67,11 +67,14 @@ static void set_mkc_access_pd_addr_fields(void *mkc, int acc, u64 start_addr,
 	MLX5_SET(mkc, mkc, lw, !!(acc & IB_ACCESS_LOCAL_WRITE));
 	MLX5_SET(mkc, mkc, lr, 1);
 
-	if ((acc & IB_ACCESS_RELAXED_ORDERING) &&
-	    pcie_relaxed_ordering_enabled(dev->mdev->pdev)) {
+	if (acc & IB_ACCESS_RELAXED_ORDERING) {
 		if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write))
 			MLX5_SET(mkc, mkc, relaxed_ordering_write, 1);
-		if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read))
+
+		if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) ||
+		    (MLX5_CAP_GEN(dev->mdev,
+				  relaxed_ordering_read_pci_enabled) &&
+		     pcie_relaxed_ordering_enabled(dev->mdev->pdev)))
 			MLX5_SET(mkc, mkc, relaxed_ordering_read, 1);
 	}
 
@@ -791,7 +794,8 @@ static int get_unchangeable_access_flags(struct mlx5_ib_dev *dev,
 		ret |= IB_ACCESS_RELAXED_ORDERING;
 
 	if ((access_flags & IB_ACCESS_RELAXED_ORDERING) &&
-	    MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) &&
+	    (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) ||
+	     MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_pci_enabled)) &&
 	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr))
 		ret |= IB_ACCESS_RELAXED_ORDERING;
 

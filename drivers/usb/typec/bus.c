@@ -431,7 +431,7 @@ static void typec_remove(struct device *dev)
 	adev->ops = NULL;
 }
 
-struct bus_type typec_bus = {
+const struct bus_type typec_bus = {
 	.name = "typec",
 	.dev_groups = typec_groups,
 	.match = typec_match,

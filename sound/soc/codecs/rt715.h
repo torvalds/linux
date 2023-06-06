@@ -27,10 +27,6 @@ struct rt715_priv {
 	unsigned int kctl_8ch_vol_ori[8];
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 /* NID */
 #define RT715_AUDIO_FUNCTION_GROUP			0x01
 #define RT715_MIC_ADC					0x07

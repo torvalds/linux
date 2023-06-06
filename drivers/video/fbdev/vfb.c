@@ -79,6 +79,7 @@ static int vfb_mmap(struct fb_info *info,
 		    struct vm_area_struct *vma);
 
 static const struct fb_ops vfb_ops = {
+	.owner		= THIS_MODULE,
 	.fb_read        = fb_sys_read,
 	.fb_write       = fb_sys_write,
 	.fb_check_var	= vfb_check_var,
@@ -110,7 +111,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
      *  First part, xxxfb_check_var, must not write anything
      *  to hardware, it should only verify and adjust var.
      *  This means it doesn't alter par but it does use hardware
-     *  data from it to check this var. 
+     *  data from it to check this var.
      */
 
 static int vfb_check_var(struct fb_var_screeninfo *var,
@@ -168,7 +169,7 @@ static int vfb_check_var(struct fb_var_screeninfo *var,
 
 	/*
 	 * Now that we checked it we alter var. The reason being is that the video
-	 * mode passed in might not work but slight changes to it might make it 
+	 * mode passed in might not work but slight changes to it might make it
 	 * work. This way we let the user know what is acceptable.
 	 */
 	switch (var->bits_per_pixel) {
@@ -234,8 +235,8 @@ static int vfb_check_var(struct fb_var_screeninfo *var,
 }
 
 /* This routine actually sets the video mode. It's in here where we
- * the hardware state info->par and fix which can be affected by the 
- * change in par. For this driver it doesn't do much. 
+ * the hardware state info->par and fix which can be affected by the
+ * change in par. For this driver it doesn't do much.
  */
 static int vfb_set_par(struct fb_info *info)
 {
@@ -378,7 +379,7 @@ static int vfb_pan_display(struct fb_var_screeninfo *var,
 }
 
     /*
-     *  Most drivers don't need their own mmap function 
+     *  Most drivers don't need their own mmap function
      */
 
 static int vfb_mmap(struct fb_info *info,
@@ -479,7 +480,7 @@ err:
 	return retval;
 }
 
-static int vfb_remove(struct platform_device *dev)
+static void vfb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -489,12 +490,11 @@ static int vfb_remove(struct platform_device *dev)
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
-	return 0;
 }
 
 static struct platform_driver vfb_driver = {
 	.probe	= vfb_probe,
-	.remove = vfb_remove,
+	.remove_new = vfb_remove,
 	.driver = {
 		.name	= "vfb",
 	},

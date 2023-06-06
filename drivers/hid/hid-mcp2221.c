@@ -79,8 +79,8 @@ struct mcp_get_gpio {
 	u8 cmd;
 	u8 dummy;
 	struct {
-		u8 direction;
 		u8 value;
+		u8 direction;
 	} gpio[MCP_NGPIO];
 } __packed;
 
@@ -594,7 +594,7 @@ static int mcp_gpio_get(struct gpio_chip *gc,
 
 	mcp->txbuf[0] = MCP2221_GPIO_GET;
 
-	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset].value);
+	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset]);
 
 	mutex_lock(&mcp->lock);
 	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
@@ -675,7 +675,7 @@ static int mcp_gpio_get_direction(struct gpio_chip *gc,
 
 	mcp->txbuf[0] = MCP2221_GPIO_GET;
 
-	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset].direction);
+	mcp->gp_idx = offsetof(struct mcp_get_gpio, gpio[offset]);
 
 	mutex_lock(&mcp->lock);
 	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);

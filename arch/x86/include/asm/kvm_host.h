@@ -420,6 +420,10 @@ struct kvm_mmu_root_info {
 
 #define KVM_MMU_NUM_PREV_ROOTS 3
 
+#define KVM_MMU_ROOT_CURRENT		BIT(0)
+#define KVM_MMU_ROOT_PREVIOUS(i)	BIT(1+i)
+#define KVM_MMU_ROOTS_ALL		(BIT(1 + KVM_MMU_NUM_PREV_ROOTS) - 1)
+
 #define KVM_HAVE_MMU_RWLOCK
 
 struct kvm_mmu_page;
@@ -439,9 +443,8 @@ struct kvm_mmu {
 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			    gpa_t gva_or_gpa, u64 access,
 			    struct x86_exception *exception);
-	int (*sync_page)(struct kvm_vcpu *vcpu,
-			 struct kvm_mmu_page *sp);
-	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
+	int (*sync_spte)(struct kvm_vcpu *vcpu,
+			 struct kvm_mmu_page *sp, int i);
 	struct kvm_mmu_root_info root;
 	union kvm_cpu_role cpu_role;
 	union kvm_mmu_page_role root_role;
@@ -479,11 +482,6 @@ struct kvm_mmu {
 	u64 pdptrs[4]; /* pae */
 };
 
-struct kvm_tlb_range {
-	u64 start_gfn;
-	u64 pages;
-};
-
 enum pmc_type {
 	KVM_PMC_GP = 0,
 	KVM_PMC_FIXED,
@@ -515,6 +513,7 @@ struct kvm_pmc {
 #define MSR_ARCH_PERFMON_FIXED_CTR_MAX	(MSR_ARCH_PERFMON_FIXED_CTR0 + KVM_PMC_MAX_FIXED - 1)
 #define KVM_AMD_PMC_MAX_GENERIC	6
 struct kvm_pmu {
+	u8 version;
 	unsigned nr_arch_gp_counters;
 	unsigned nr_arch_fixed_counters;
 	unsigned available_event_types;
@@ -527,7 +526,6 @@ struct kvm_pmu {
 	u64 global_ovf_ctrl_mask;
 	u64 reserved_bits;
 	u64 raw_event_mask;
-	u8 version;
 	struct kvm_pmc gp_counters[KVM_INTEL_PMC_MAX_GENERIC];
 	struct kvm_pmc fixed_counters[KVM_PMC_MAX_FIXED];
 	struct irq_work irq_work;
@@ -876,7 +874,8 @@ struct kvm_vcpu_arch {
 	u64 tsc_scaling_ratio; /* current scaling ratio */
 
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
-	unsigned nmi_pending; /* NMI queued after currently running handler */
+	/* Number of NMIs pending injection, not including hardware vNMIs. */
+	unsigned int nmi_pending;
 	bool nmi_injected;    /* Trying to inject an NMI this entry */
 	bool smi_pending;    /* SMI queued after currently running handler */
 	u8 handling_intr_from_guest;
@@ -946,23 +945,6 @@ struct kvm_vcpu_arch {
 	} pv_eoi;
 
 	u64 msr_kvm_poll_control;
-
-	/*
-	 * Indicates the guest is trying to write a gfn that contains one or
-	 * more of the PTEs used to translate the write itself, i.e. the access
-	 * is changing its own translation in the guest page tables.  KVM exits
-	 * to userspace if emulation of the faulting instruction fails and this
-	 * flag is set, as KVM cannot make forward progress.
-	 *
-	 * If emulation fails for a write to guest page tables, KVM unprotects
-	 * (zaps) the shadow page for the target gfn and resumes the guest to
-	 * retry the non-emulatable instruction (on hardware).  Unprotecting the
-	 * gfn doesn't allow forward progress for a self-changing access because
-	 * doing so also zaps the translation for the gfn, i.e. retrying the
-	 * instruction will hit a !PRESENT fault, which results in a new shadow
-	 * page and sends KVM back to square one.
-	 */
-	bool write_fault_to_shadow_pgtable;
 
 	/* set at EPT violation at this point */
 	unsigned long exit_qualification;
@@ -1602,9 +1584,9 @@ struct kvm_x86_ops {
 
 	void (*flush_tlb_all)(struct kvm_vcpu *vcpu);
 	void (*flush_tlb_current)(struct kvm_vcpu *vcpu);
-	int  (*tlb_remote_flush)(struct kvm *kvm);
-	int  (*tlb_remote_flush_with_range)(struct kvm *kvm,
-			struct kvm_tlb_range *range);
+	int  (*flush_remote_tlbs)(struct kvm *kvm);
+	int  (*flush_remote_tlbs_range)(struct kvm *kvm, gfn_t gfn,
+					gfn_t nr_pages);
 
 	/*
 	 * Flush any TLB entries associated with the given GVA.
@@ -1638,6 +1620,13 @@ struct kvm_x86_ops {
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
 	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
 	void (*set_nmi_mask)(struct kvm_vcpu *vcpu, bool masked);
+	/* Whether or not a virtual NMI is pending in hardware. */
+	bool (*is_vnmi_pending)(struct kvm_vcpu *vcpu);
+	/*
+	 * Attempt to pend a virtual NMI in harware.  Returns %true on success
+	 * to allow using static_call_ret0 as the fallback.
+	 */
+	bool (*set_vnmi_pending)(struct kvm_vcpu *vcpu);
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
 	void (*enable_irq_window)(struct kvm_vcpu *vcpu);
 	void (*update_cr8_intercept)(struct kvm_vcpu *vcpu, int tpr, int irr);
@@ -1808,8 +1797,8 @@ void kvm_arch_free_vm(struct kvm *kvm);
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
 static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 {
-	if (kvm_x86_ops.tlb_remote_flush &&
-	    !static_call(kvm_x86_tlb_remote_flush)(kvm))
+	if (kvm_x86_ops.flush_remote_tlbs &&
+	    !static_call(kvm_x86_flush_remote_tlbs)(kvm))
 		return 0;
 	else
 		return -ENOTSUPP;
@@ -1907,6 +1896,25 @@ u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
  * EMULTYPE_COMPLETE_USER_EXIT - Set when the emulator should update interruptibility
  *				 state and inject single-step #DBs after skipping
  *				 an instruction (after completing userspace I/O).
+ *
+ * EMULTYPE_WRITE_PF_TO_SP - Set when emulating an intercepted page fault that
+ *			     is attempting to write a gfn that contains one or
+ *			     more of the PTEs used to translate the write itself,
+ *			     and the owning page table is being shadowed by KVM.
+ *			     If emulation of the faulting instruction fails and
+ *			     this flag is set, KVM will exit to userspace instead
+ *			     of retrying emulation as KVM cannot make forward
+ *			     progress.
+ *
+ *			     If emulation fails for a write to guest page tables,
+ *			     KVM unprotects (zaps) the shadow page for the target
+ *			     gfn and resumes the guest to retry the non-emulatable
+ *			     instruction (on hardware).  Unprotecting the gfn
+ *			     doesn't allow forward progress for a self-changing
+ *			     access because doing so also zaps the translation for
+ *			     the gfn, i.e. retrying the instruction will hit a
+ *			     !PRESENT fault, which results in a new shadow page
+ *			     and sends KVM back to square one.
  */
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
@@ -1916,6 +1924,7 @@ u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
 #define EMULTYPE_VMWARE_GP	    (1 << 5)
 #define EMULTYPE_PF		    (1 << 6)
 #define EMULTYPE_COMPLETE_USER_EXIT (1 << 7)
+#define EMULTYPE_WRITE_PF_TO_SP	    (1 << 8)
 
 int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type);
 int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
@@ -1994,14 +2003,11 @@ static inline int __kvm_irq_line_state(unsigned long *irq_state,
 	return !!(*irq_state);
 }
 
-#define KVM_MMU_ROOT_CURRENT		BIT(0)
-#define KVM_MMU_ROOT_PREVIOUS(i)	BIT(1+i)
-#define KVM_MMU_ROOTS_ALL		(~0UL)
-
 int kvm_pic_set_irq(struct kvm_pic *pic, int irq, int irq_source_id, int level);
 void kvm_pic_clear_all(struct kvm_pic *pic, int irq_source_id);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
+int kvm_get_nr_pending_nmis(struct kvm_vcpu *vcpu);
 
 void kvm_update_dr7(struct kvm_vcpu *vcpu);
 
@@ -2041,8 +2047,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 		       void *insn, int insn_len);
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva);
-void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-			    gva_t gva, hpa_t root_hpa);
+void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			     u64 addr, unsigned long roots);
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid);
 void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd);
 
@@ -2203,5 +2209,12 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT |	\
 	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN |	\
 	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS)
+
+/*
+ * KVM previously used a u32 field in kvm_run to indicate the hypercall was
+ * initiated from long mode. KVM now sets bit 0 to indicate long mode, but the
+ * remaining 31 lower bits must be 0 to preserve ABI.
+ */
+#define KVM_EXIT_HYPERCALL_MBZ		GENMASK_ULL(31, 1)
 
 #endif /* _ASM_X86_KVM_HOST_H */

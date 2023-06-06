@@ -2544,6 +2544,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	INIT_DELAYED_WORK(&hdev->cmd_timer, hci_cmd_timeout);
 	INIT_DELAYED_WORK(&hdev->ncmd_timer, hci_ncmd_timeout);
 
+	hci_devcd_setup(hdev);
 	hci_request_setup(hdev);
 
 	hci_init_sysfs(hdev);
@@ -2802,6 +2803,9 @@ int hci_suspend_dev(struct hci_dev *hdev)
 	if (mgmt_powering_down(hdev))
 		return 0;
 
+	/* Cancel potentially blocking sync operation before suspend */
+	__hci_cmd_sync_cancel(hdev, -EHOSTDOWN);
+
 	hci_req_sync_lock(hdev);
 	ret = hci_suspend_sync(hdev);
 	hci_req_sync_unlock(hdev);
@@ -2871,10 +2875,25 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		return -ENXIO;
 	}
 
-	if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
-	    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-	    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
-	    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT) {
+	switch (hci_skb_pkt_type(skb)) {
+	case HCI_EVENT_PKT:
+		break;
+	case HCI_ACLDATA_PKT:
+		/* Detect if ISO packet has been sent as ACL */
+		if (hci_conn_num(hdev, ISO_LINK)) {
+			__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
+			__u8 type;
+
+			type = hci_conn_lookup_type(hdev, hci_handle(handle));
+			if (type == ISO_LINK)
+				hci_skb_pkt_type(skb) = HCI_ISODATA_PKT;
+		}
+		break;
+	case HCI_SCODATA_PKT:
+		break;
+	case HCI_ISODATA_PKT:
+		break;
+	default:
 		kfree_skb(skb);
 		return -EINVAL;
 	}

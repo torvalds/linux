@@ -11,6 +11,8 @@
 #include <linux/regmap.h>
 #include <net/dsa.h>
 
+struct tc_mqprio_qopt_offload;
+
 /* Port Group IDs (PGID) are masks of destination ports.
  *
  * For L2 forwarding, the switch performs 3 lookups in the PGID table for each
@@ -744,9 +746,11 @@ struct ocelot_mirror {
 };
 
 struct ocelot_mm_state {
-	struct mutex lock;
 	enum ethtool_mm_verify_status verify_status;
+	bool tx_enabled;
 	bool tx_active;
+	u8 preemptible_tcs;
+	u8 active_preemptible_tcs;
 };
 
 struct ocelot_port;
@@ -940,15 +944,17 @@ struct ocelot_policer {
 	__ocelot_target_write_ix(ocelot, target, val, reg, 0)
 
 /* I/O */
-u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
-void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);
-void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask, u32 reg);
-int __ocelot_bulk_read_ix(struct ocelot *ocelot, u32 reg, u32 offset, void *buf,
-			  int count);
-u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset);
-void __ocelot_write_ix(struct ocelot *ocelot, u32 val, u32 reg, u32 offset);
-void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask, u32 reg,
-		     u32 offset);
+u32 ocelot_port_readl(struct ocelot_port *port, enum ocelot_reg reg);
+void ocelot_port_writel(struct ocelot_port *port, u32 val, enum ocelot_reg reg);
+void ocelot_port_rmwl(struct ocelot_port *port, u32 val, u32 mask,
+		      enum ocelot_reg reg);
+int __ocelot_bulk_read_ix(struct ocelot *ocelot, enum ocelot_reg reg,
+			  u32 offset, void *buf, int count);
+u32 __ocelot_read_ix(struct ocelot *ocelot, enum ocelot_reg reg, u32 offset);
+void __ocelot_write_ix(struct ocelot *ocelot, u32 val, enum ocelot_reg reg,
+		       u32 offset);
+void __ocelot_rmw_ix(struct ocelot *ocelot, u32 val, u32 mask,
+		     enum ocelot_reg reg, u32 offset);
 u32 __ocelot_target_read_ix(struct ocelot *ocelot, enum ocelot_target target,
 			    u32 reg, u32 offset);
 void __ocelot_target_write_ix(struct ocelot *ocelot, enum ocelot_target target,
@@ -1146,12 +1152,15 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);
 int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
 
-void ocelot_port_mm_irq(struct ocelot *ocelot, int port);
+void ocelot_mm_irq(struct ocelot *ocelot);
 int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_cfg *cfg,
 		       struct netlink_ext_ack *extack);
 int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_state *state);
+int ocelot_port_mqprio(struct ocelot *ocelot, int port,
+		       struct tc_mqprio_qopt_offload *mqprio);
+void ocelot_port_update_preemptible_tcs(struct ocelot *ocelot, int port);
 
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
 int ocelot_mrp_add(struct ocelot *ocelot, int port,

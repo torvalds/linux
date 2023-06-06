@@ -1302,19 +1302,23 @@ do_test_address_proto()
 
 	count=$(address_count)
 	check_err $?
-	(( count == 3 )) # $addr, $addr2 and $addr3
+	(( count >= 3 )) # $addr, $addr2 and $addr3 plus any kernel addresses
+	check_err $?
 
 	count=$(address_count proto 0)
 	check_err $?
-	(( count == 1 )) # just $addr2
+	(( count == 1 )) # just $addr3
+	check_err $?
 
 	count=$(address_count proto 0x11)
 	check_err $?
-	(( count == 2 )) # $addr and $addr2
+	(( count == 2 )) # $addr and $addr3
+	check_err $?
 
 	count=$(address_count proto 0xab)
 	check_err $?
-	(( count == 1 )) # just $addr2
+	(( count == 1 )) # just $addr3
+	check_err $?
 
 	ip address del dev "$devdummy" "$addr"
 	ip address del dev "$devdummy" "$addr2"

@@ -40,57 +40,6 @@
 
 #define MAX_CORNER_RPMPD_STATE	6
 
-#define DEFINE_RPMPD_PAIR(_platform, _name, _active, r_type, r_key,	\
-			  r_id)						\
-	static struct rpmpd _platform##_##_active;			\
-	static struct rpmpd _platform##_##_name = {			\
-		.pd = {	.name = #_name,	},				\
-		.peer = &_platform##_##_active,				\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_##r_key,					\
-	};								\
-	static struct rpmpd _platform##_##_active = {			\
-		.pd = { .name = #_active, },				\
-		.peer = &_platform##_##_name,				\
-		.active_only = true,					\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_##r_key,					\
-	}
-
-#define DEFINE_RPMPD_CORNER(_platform, _name, r_type, r_id)		\
-	static struct rpmpd _platform##_##_name = {			\
-		.pd = { .name = #_name, },				\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_CORNER,					\
-	}
-
-#define DEFINE_RPMPD_LEVEL(_platform, _name, r_type, r_id)		\
-	static struct rpmpd _platform##_##_name = {			\
-		.pd = { .name = #_name, },				\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_LEVEL,					\
-	}
-
-#define DEFINE_RPMPD_VFC(_platform, _name, r_type, r_id)		\
-	static struct rpmpd _platform##_##_name = {			\
-		.pd = { .name = #_name, },				\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_FLOOR_CORNER,				\
-	}
-
-#define DEFINE_RPMPD_VFL(_platform, _name, r_type, r_id)		\
-	static struct rpmpd _platform##_##_name = {			\
-		.pd = { .name = #_name, },				\
-		.res_type = RPMPD_##r_type,				\
-		.res_id = r_id,						\
-		.key = KEY_FLOOR_LEVEL,					\
-	}
-
 struct rpmpd_req {
 	__le32 key;
 	__le32 nbytes;
@@ -99,6 +48,7 @@ struct rpmpd_req {
 
 struct rpmpd {
 	struct generic_pm_domain pd;
+	struct generic_pm_domain *parent;
 	struct rpmpd *peer;
 	const bool active_only;
 	unsigned int corner;
@@ -118,19 +68,459 @@ struct rpmpd_desc {
 
 static DEFINE_MUTEX(rpmpd_lock);
 
-/* mdm9607 RPM Power Domains */
-DEFINE_RPMPD_PAIR(mdm9607, vddcx, vddcx_ao, SMPA, LEVEL, 3);
-DEFINE_RPMPD_VFL(mdm9607, vddcx_vfl, SMPA, 3);
+/* CX */
+static struct rpmpd cx_rwcx0_lvl_ao;
+static struct rpmpd cx_rwcx0_lvl = {
+	.pd = { .name = "cx", },
+	.peer = &cx_rwcx0_lvl_ao,
+	.res_type = RPMPD_RWCX,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
 
-DEFINE_RPMPD_PAIR(mdm9607, vddmx, vddmx_ao, LDOA, LEVEL, 12);
-DEFINE_RPMPD_VFL(mdm9607, vddmx_vfl, LDOA, 12);
+static struct rpmpd cx_rwcx0_lvl_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_rwcx0_lvl,
+	.active_only = true,
+	.res_type = RPMPD_RWCX,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_s1a_corner_ao;
+static struct rpmpd cx_s1a_corner = {
+	.pd = { .name = "cx", },
+	.peer = &cx_s1a_corner_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd cx_s1a_corner_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_s1a_corner,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd cx_s2a_corner_ao;
+static struct rpmpd cx_s2a_corner = {
+	.pd = { .name = "cx", },
+	.peer = &cx_s2a_corner_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd cx_s2a_corner_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_s2a_corner,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd cx_s2a_lvl_ao;
+static struct rpmpd cx_s2a_lvl = {
+	.pd = { .name = "cx", },
+	.peer = &cx_s2a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_s2a_lvl_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_s2a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_s3a_lvl_ao;
+static struct rpmpd cx_s3a_lvl = {
+	.pd = { .name = "cx", },
+	.peer = &cx_s3a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 3,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_s3a_lvl_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_s3a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 3,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_rwcx0_vfl = {
+	.pd = { .name = "cx_vfl", },
+	.res_type = RPMPD_RWCX,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd cx_rwsc2_vfl = {
+	.pd = { .name = "cx_vfl", },
+	.res_type = RPMPD_RWSC,
+	.res_id = 2,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd cx_s1a_vfc = {
+	.pd = { .name = "cx_vfc", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_FLOOR_CORNER,
+};
+
+static struct rpmpd cx_s2a_vfc = {
+	.pd = { .name = "cx_vfc", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_FLOOR_CORNER,
+};
+
+static struct rpmpd cx_s2a_vfl = {
+	.pd = { .name = "cx_vfl", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd cx_s3a_vfl = {
+	.pd = { .name = "cx_vfl", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 3,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+/* G(F)X */
+static struct rpmpd gfx_s2b_corner = {
+	.pd = { .name = "gfx", },
+	.res_type = RPMPD_SMPB,
+	.res_id = 2,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd gfx_s2b_vfc = {
+	.pd = { .name = "gfx_vfc", },
+	.res_type = RPMPD_SMPB,
+	.res_id = 2,
+	.key = KEY_FLOOR_CORNER,
+};
+
+static struct rpmpd mx_rwmx0_lvl;
+static struct rpmpd gx_rwgx0_lvl_ao;
+static struct rpmpd gx_rwgx0_lvl = {
+	.pd = { .name = "gx", },
+	.peer = &gx_rwgx0_lvl_ao,
+	.res_type = RPMPD_RWGX,
+	.parent = &mx_rwmx0_lvl.pd,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_rwmx0_lvl_ao;
+static struct rpmpd gx_rwgx0_lvl_ao = {
+	.pd = { .name = "gx_ao", },
+	.peer = &gx_rwgx0_lvl,
+	.parent = &mx_rwmx0_lvl_ao.pd,
+	.active_only = true,
+	.res_type = RPMPD_RWGX,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+/* MX */
+static struct rpmpd mx_l3a_corner_ao;
+static struct rpmpd mx_l3a_corner = {
+	.pd = { .name = "mx", },
+	.peer = &mx_l3a_corner_ao,
+	.res_type = RPMPD_LDOA,
+	.res_id = 3,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd mx_l3a_corner_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_l3a_corner,
+	.active_only = true,
+	.res_type = RPMPD_LDOA,
+	.res_id = 3,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd mx_l12a_lvl_ao;
+static struct rpmpd mx_l12a_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_l12a_lvl_ao,
+	.res_type = RPMPD_LDOA,
+	.res_id = 12,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_l12a_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_l12a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_LDOA,
+	.res_id = 12,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_s2a_corner_ao;
+static struct rpmpd mx_s2a_corner = {
+	.pd = { .name = "mx", },
+	.peer = &mx_s2a_corner_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd mx_s2a_corner_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_s2a_corner,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 2,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd mx_rwmx0_lvl_ao;
+static struct rpmpd mx_rwmx0_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_rwmx0_lvl_ao,
+	.res_type = RPMPD_RWMX,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_rwmx0_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_rwmx0_lvl,
+	.active_only = true,
+	.res_type = RPMPD_RWMX,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_s6a_lvl_ao;
+static struct rpmpd mx_s6a_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_s6a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 6,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_s6a_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_s6a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 6,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_s7a_lvl_ao;
+static struct rpmpd mx_s7a_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_s7a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 7,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_s7a_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_s7a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 7,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_l12a_vfl = {
+	.pd = { .name = "mx_vfl", },
+	.res_type = RPMPD_LDOA,
+	.res_id = 12,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd mx_rwmx0_vfl = {
+	.pd = { .name = "mx_vfl", },
+	.res_type = RPMPD_RWMX,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd mx_rwsm6_vfl = {
+	.pd = { .name = "mx_vfl", },
+	.res_type = RPMPD_RWSM,
+	.res_id = 6,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+/* MD */
+static struct rpmpd md_s1a_corner_ao;
+static struct rpmpd md_s1a_corner = {
+	.pd = { .name = "md", },
+	.peer = &md_s1a_corner_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd md_s1a_corner_ao = {
+	.pd = { .name = "md_ao", },
+	.peer = &md_s1a_corner,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd md_s1a_lvl_ao;
+static struct rpmpd md_s1a_lvl = {
+	.pd = { .name = "md", },
+	.peer = &md_s1a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd md_s1a_lvl_ao = {
+	.pd = { .name = "md_ao", },
+	.peer = &md_s1a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd md_s1a_vfc = {
+	.pd = { .name = "md_vfc", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_FLOOR_CORNER,
+};
+
+/* LPI_CX */
+static struct rpmpd lpi_cx_rwlc0_lvl = {
+	.pd = { .name = "lpi_cx", },
+	.res_type = RPMPD_RWLC,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd lpi_cx_rwlc0_vfl = {
+	.pd = { .name = "lpi_cx_vfl", },
+	.res_type = RPMPD_RWLC,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+/* LPI_MX */
+static struct rpmpd lpi_mx_rwlm0_lvl = {
+	.pd = { .name = "lpi_mx", },
+	.res_type = RPMPD_RWLM,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd lpi_mx_rwlm0_vfl = {
+	.pd = { .name = "lpi_mx_vfl", },
+	.res_type = RPMPD_RWLM,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+/* SSC_CX */
+static struct rpmpd ssc_cx_l26a_corner = {
+	.pd = { .name = "ssc_cx", },
+	.res_type = RPMPD_LDOA,
+	.res_id = 26,
+	.key = KEY_CORNER,
+};
+
+static struct rpmpd ssc_cx_rwlc0_lvl = {
+	.pd = { .name = "ssc_cx", },
+	.res_type = RPMPD_RWLC,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd ssc_cx_rwsc0_lvl = {
+	.pd = { .name = "ssc_cx", },
+	.res_type = RPMPD_RWSC,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd ssc_cx_l26a_vfc = {
+	.pd = { .name = "ssc_cx_vfc", },
+	.res_type = RPMPD_LDOA,
+	.res_id = 26,
+	.key = KEY_FLOOR_CORNER,
+};
+
+static struct rpmpd ssc_cx_rwlc0_vfl = {
+	.pd = { .name = "ssc_cx_vfl", },
+	.res_type = RPMPD_RWLC,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd ssc_cx_rwsc0_vfl = {
+	.pd = { .name = "ssc_cx_vfl", },
+	.res_type = RPMPD_RWSC,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+/* SSC_MX */
+static struct rpmpd ssc_mx_rwlm0_lvl = {
+	.pd = { .name = "ssc_mx", },
+	.res_type = RPMPD_RWLM,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd ssc_mx_rwsm0_lvl = {
+	.pd = { .name = "ssc_mx", },
+	.res_type = RPMPD_RWSM,
+	.res_id = 0,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd ssc_mx_rwlm0_vfl = {
+	.pd = { .name = "ssc_mx_vfl", },
+	.res_type = RPMPD_RWLM,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
+static struct rpmpd ssc_mx_rwsm0_vfl = {
+	.pd = { .name = "ssc_mx_vfl", },
+	.res_type = RPMPD_RWSM,
+	.res_id = 0,
+	.key = KEY_FLOOR_LEVEL,
+};
+
 static struct rpmpd *mdm9607_rpmpds[] = {
-	[MDM9607_VDDCX] =	&mdm9607_vddcx,
-	[MDM9607_VDDCX_AO] =	&mdm9607_vddcx_ao,
-	[MDM9607_VDDCX_VFL] =	&mdm9607_vddcx_vfl,
-	[MDM9607_VDDMX] =	&mdm9607_vddmx,
-	[MDM9607_VDDMX_AO] =	&mdm9607_vddmx_ao,
-	[MDM9607_VDDMX_VFL] =	&mdm9607_vddmx_vfl,
+	[MDM9607_VDDCX] =	&cx_s3a_lvl,
+	[MDM9607_VDDCX_AO] =	&cx_s3a_lvl_ao,
+	[MDM9607_VDDCX_VFL] =	&cx_s3a_vfl,
+	[MDM9607_VDDMX] =	&mx_l12a_lvl,
+	[MDM9607_VDDMX_AO] =	&mx_l12a_lvl_ao,
+	[MDM9607_VDDMX_VFL] =	&mx_l12a_vfl,
 };
 
 static const struct rpmpd_desc mdm9607_desc = {
@@ -139,14 +529,10 @@ static const struct rpmpd_desc mdm9607_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO,
 };
 
-/* msm8226 RPM Power Domains */
-DEFINE_RPMPD_PAIR(msm8226, vddcx, vddcx_ao, SMPA, CORNER, 1);
-DEFINE_RPMPD_VFC(msm8226, vddcx_vfc, SMPA, 1);
-
 static struct rpmpd *msm8226_rpmpds[] = {
-	[MSM8226_VDDCX] =	&msm8226_vddcx,
-	[MSM8226_VDDCX_AO] =	&msm8226_vddcx_ao,
-	[MSM8226_VDDCX_VFC] =	&msm8226_vddcx_vfc,
+	[MSM8226_VDDCX] =	&cx_s1a_corner,
+	[MSM8226_VDDCX_AO] =	&cx_s1a_corner_ao,
+	[MSM8226_VDDCX_VFC] =	&cx_s1a_vfc,
 };
 
 static const struct rpmpd_desc msm8226_desc = {
@@ -155,24 +541,15 @@ static const struct rpmpd_desc msm8226_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
-/* msm8939 RPM Power Domains */
-DEFINE_RPMPD_PAIR(msm8939, vddmd, vddmd_ao, SMPA, CORNER, 1);
-DEFINE_RPMPD_VFC(msm8939, vddmd_vfc, SMPA, 1);
-
-DEFINE_RPMPD_PAIR(msm8939, vddcx, vddcx_ao, SMPA, CORNER, 2);
-DEFINE_RPMPD_VFC(msm8939, vddcx_vfc, SMPA, 2);
-
-DEFINE_RPMPD_PAIR(msm8939, vddmx, vddmx_ao, LDOA, CORNER, 3);
-
 static struct rpmpd *msm8939_rpmpds[] = {
-	[MSM8939_VDDMDCX] =	&msm8939_vddmd,
-	[MSM8939_VDDMDCX_AO] =	&msm8939_vddmd_ao,
-	[MSM8939_VDDMDCX_VFC] =	&msm8939_vddmd_vfc,
-	[MSM8939_VDDCX] =	&msm8939_vddcx,
-	[MSM8939_VDDCX_AO] =	&msm8939_vddcx_ao,
-	[MSM8939_VDDCX_VFC] =	&msm8939_vddcx_vfc,
-	[MSM8939_VDDMX] =	&msm8939_vddmx,
-	[MSM8939_VDDMX_AO] =	&msm8939_vddmx_ao,
+	[MSM8939_VDDMDCX] =	&md_s1a_corner,
+	[MSM8939_VDDMDCX_AO] =	&md_s1a_corner_ao,
+	[MSM8939_VDDMDCX_VFC] =	&md_s1a_vfc,
+	[MSM8939_VDDCX] =	&cx_s2a_corner,
+	[MSM8939_VDDCX_AO] =	&cx_s2a_corner_ao,
+	[MSM8939_VDDCX_VFC] =	&cx_s2a_vfc,
+	[MSM8939_VDDMX] =	&mx_l3a_corner,
+	[MSM8939_VDDMX_AO] =	&mx_l3a_corner_ao,
 };
 
 static const struct rpmpd_desc msm8939_desc = {
@@ -181,18 +558,12 @@ static const struct rpmpd_desc msm8939_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
-/* msm8916 RPM Power Domains */
-DEFINE_RPMPD_PAIR(msm8916, vddcx, vddcx_ao, SMPA, CORNER, 1);
-DEFINE_RPMPD_PAIR(msm8916, vddmx, vddmx_ao, LDOA, CORNER, 3);
-
-DEFINE_RPMPD_VFC(msm8916, vddcx_vfc, SMPA, 1);
-
 static struct rpmpd *msm8916_rpmpds[] = {
-	[MSM8916_VDDCX] =	&msm8916_vddcx,
-	[MSM8916_VDDCX_AO] =	&msm8916_vddcx_ao,
-	[MSM8916_VDDCX_VFC] =	&msm8916_vddcx_vfc,
-	[MSM8916_VDDMX] =	&msm8916_vddmx,
-	[MSM8916_VDDMX_AO] =	&msm8916_vddmx_ao,
+	[MSM8916_VDDCX] =	&cx_s1a_corner,
+	[MSM8916_VDDCX_AO] =	&cx_s1a_corner_ao,
+	[MSM8916_VDDCX_VFC] =	&cx_s1a_vfc,
+	[MSM8916_VDDMX] =	&mx_l3a_corner,
+	[MSM8916_VDDMX_AO] =	&mx_l3a_corner_ao,
 };
 
 static const struct rpmpd_desc msm8916_desc = {
@@ -201,21 +572,14 @@ static const struct rpmpd_desc msm8916_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
-/* msm8953 RPM Power Domains */
-DEFINE_RPMPD_PAIR(msm8953, vddmd, vddmd_ao, SMPA, LEVEL, 1);
-DEFINE_RPMPD_PAIR(msm8953, vddcx, vddcx_ao, SMPA, LEVEL, 2);
-DEFINE_RPMPD_PAIR(msm8953, vddmx, vddmx_ao, SMPA, LEVEL, 7);
-
-DEFINE_RPMPD_VFL(msm8953, vddcx_vfl, SMPA, 2);
-
 static struct rpmpd *msm8953_rpmpds[] = {
-	[MSM8953_VDDMD] =	&msm8953_vddmd,
-	[MSM8953_VDDMD_AO] =	&msm8953_vddmd_ao,
-	[MSM8953_VDDCX] =	&msm8953_vddcx,
-	[MSM8953_VDDCX_AO] =	&msm8953_vddcx_ao,
-	[MSM8953_VDDCX_VFL] =	&msm8953_vddcx_vfl,
-	[MSM8953_VDDMX] =	&msm8953_vddmx,
-	[MSM8953_VDDMX_AO] =	&msm8953_vddmx_ao,
+	[MSM8953_VDDMD] =	&md_s1a_lvl,
+	[MSM8953_VDDMD_AO] =	&md_s1a_lvl_ao,
+	[MSM8953_VDDCX] =	&cx_s2a_lvl,
+	[MSM8953_VDDCX_AO] =	&cx_s2a_lvl_ao,
+	[MSM8953_VDDCX_VFL] =	&cx_s2a_vfl,
+	[MSM8953_VDDMX] =	&mx_s7a_lvl,
+	[MSM8953_VDDMX_AO] =	&mx_s7a_lvl_ao,
 };
 
 static const struct rpmpd_desc msm8953_desc = {
@@ -224,20 +588,13 @@ static const struct rpmpd_desc msm8953_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO,
 };
 
-/* msm8976 RPM Power Domains */
-DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
-DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
-
-DEFINE_RPMPD_VFL(msm8976, vddcx_vfl, RWSC, 2);
-DEFINE_RPMPD_VFL(msm8976, vddmx_vfl, RWSM, 6);
-
 static struct rpmpd *msm8976_rpmpds[] = {
-	[MSM8976_VDDCX] =	&msm8976_vddcx,
-	[MSM8976_VDDCX_AO] =	&msm8976_vddcx_ao,
-	[MSM8976_VDDCX_VFL] =	&msm8976_vddcx_vfl,
-	[MSM8976_VDDMX] =	&msm8976_vddmx,
-	[MSM8976_VDDMX_AO] =	&msm8976_vddmx_ao,
-	[MSM8976_VDDMX_VFL] =	&msm8976_vddmx_vfl,
+	[MSM8976_VDDCX] =	&cx_s2a_lvl,
+	[MSM8976_VDDCX_AO] =	&cx_s2a_lvl_ao,
+	[MSM8976_VDDCX_VFL] =	&cx_rwsc2_vfl,
+	[MSM8976_VDDMX] =	&mx_s6a_lvl,
+	[MSM8976_VDDMX_AO] =	&mx_s6a_lvl_ao,
+	[MSM8976_VDDMX_VFL] =	&mx_rwsm6_vfl,
 };
 
 static const struct rpmpd_desc msm8976_desc = {
@@ -246,23 +603,16 @@ static const struct rpmpd_desc msm8976_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO_HIGH,
 };
 
-/* msm8994 RPM Power domains */
-DEFINE_RPMPD_PAIR(msm8994, vddcx, vddcx_ao, SMPA, CORNER, 1);
-DEFINE_RPMPD_PAIR(msm8994, vddmx, vddmx_ao, SMPA, CORNER, 2);
-/* Attention! *Some* 8994 boards with pm8004 may use SMPC here! */
-DEFINE_RPMPD_CORNER(msm8994, vddgfx, SMPB, 2);
-
-DEFINE_RPMPD_VFC(msm8994, vddcx_vfc, SMPA, 1);
-DEFINE_RPMPD_VFC(msm8994, vddgfx_vfc, SMPB, 2);
-
 static struct rpmpd *msm8994_rpmpds[] = {
-	[MSM8994_VDDCX] =	&msm8994_vddcx,
-	[MSM8994_VDDCX_AO] =	&msm8994_vddcx_ao,
-	[MSM8994_VDDCX_VFC] =	&msm8994_vddcx_vfc,
-	[MSM8994_VDDMX] =	&msm8994_vddmx,
-	[MSM8994_VDDMX_AO] =	&msm8994_vddmx_ao,
-	[MSM8994_VDDGFX] =	&msm8994_vddgfx,
-	[MSM8994_VDDGFX_VFC] =	&msm8994_vddgfx_vfc,
+	[MSM8994_VDDCX] =	&cx_s1a_corner,
+	[MSM8994_VDDCX_AO] =	&cx_s1a_corner_ao,
+	[MSM8994_VDDCX_VFC] =	&cx_s1a_vfc,
+	[MSM8994_VDDMX] =	&mx_s2a_corner,
+	[MSM8994_VDDMX_AO] =	&mx_s2a_corner_ao,
+
+	/* Attention! *Some* 8994 boards with pm8004 may use SMPC here! */
+	[MSM8994_VDDGFX] =	&gfx_s2b_corner,
+	[MSM8994_VDDGFX_VFC] =	&gfx_s2b_vfc,
 };
 
 static const struct rpmpd_desc msm8994_desc = {
@@ -271,22 +621,14 @@ static const struct rpmpd_desc msm8994_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
-/* msm8996 RPM Power domains */
-DEFINE_RPMPD_PAIR(msm8996, vddcx, vddcx_ao, SMPA, CORNER, 1);
-DEFINE_RPMPD_PAIR(msm8996, vddmx, vddmx_ao, SMPA, CORNER, 2);
-DEFINE_RPMPD_CORNER(msm8996, vddsscx, LDOA, 26);
-
-DEFINE_RPMPD_VFC(msm8996, vddcx_vfc, SMPA, 1);
-DEFINE_RPMPD_VFC(msm8996, vddsscx_vfc, LDOA, 26);
-
 static struct rpmpd *msm8996_rpmpds[] = {
-	[MSM8996_VDDCX] =	&msm8996_vddcx,
-	[MSM8996_VDDCX_AO] =	&msm8996_vddcx_ao,
-	[MSM8996_VDDCX_VFC] =	&msm8996_vddcx_vfc,
-	[MSM8996_VDDMX] =	&msm8996_vddmx,
-	[MSM8996_VDDMX_AO] =	&msm8996_vddmx_ao,
-	[MSM8996_VDDSSCX] =	&msm8996_vddsscx,
-	[MSM8996_VDDSSCX_VFC] =	&msm8996_vddsscx_vfc,
+	[MSM8996_VDDCX] =	&cx_s1a_corner,
+	[MSM8996_VDDCX_AO] =	&cx_s1a_corner_ao,
+	[MSM8996_VDDCX_VFC] =	&cx_s1a_vfc,
+	[MSM8996_VDDMX] =	&mx_s2a_corner,
+	[MSM8996_VDDMX_AO] =	&mx_s2a_corner_ao,
+	[MSM8996_VDDSSCX] =	&ssc_cx_l26a_corner,
+	[MSM8996_VDDSSCX_VFC] =	&ssc_cx_l26a_vfc,
 };
 
 static const struct rpmpd_desc msm8996_desc = {
@@ -295,30 +637,17 @@ static const struct rpmpd_desc msm8996_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
-/* msm8998 RPM Power domains */
-DEFINE_RPMPD_PAIR(msm8998, vddcx, vddcx_ao, RWCX, LEVEL, 0);
-DEFINE_RPMPD_VFL(msm8998, vddcx_vfl, RWCX, 0);
-
-DEFINE_RPMPD_PAIR(msm8998, vddmx, vddmx_ao, RWMX, LEVEL, 0);
-DEFINE_RPMPD_VFL(msm8998, vddmx_vfl, RWMX, 0);
-
-DEFINE_RPMPD_LEVEL(msm8998, vdd_ssccx, RWSC, 0);
-DEFINE_RPMPD_VFL(msm8998, vdd_ssccx_vfl, RWSC, 0);
-
-DEFINE_RPMPD_LEVEL(msm8998, vdd_sscmx, RWSM, 0);
-DEFINE_RPMPD_VFL(msm8998, vdd_sscmx_vfl, RWSM, 0);
-
 static struct rpmpd *msm8998_rpmpds[] = {
-	[MSM8998_VDDCX] =		&msm8998_vddcx,
-	[MSM8998_VDDCX_AO] =		&msm8998_vddcx_ao,
-	[MSM8998_VDDCX_VFL] =		&msm8998_vddcx_vfl,
-	[MSM8998_VDDMX] =		&msm8998_vddmx,
-	[MSM8998_VDDMX_AO] =		&msm8998_vddmx_ao,
-	[MSM8998_VDDMX_VFL] =		&msm8998_vddmx_vfl,
-	[MSM8998_SSCCX] =		&msm8998_vdd_ssccx,
-	[MSM8998_SSCCX_VFL] =		&msm8998_vdd_ssccx_vfl,
-	[MSM8998_SSCMX] =		&msm8998_vdd_sscmx,
-	[MSM8998_SSCMX_VFL] =		&msm8998_vdd_sscmx_vfl,
+	[MSM8998_VDDCX] =	&cx_rwcx0_lvl,
+	[MSM8998_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[MSM8998_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[MSM8998_VDDMX] =	&mx_rwmx0_lvl,
+	[MSM8998_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[MSM8998_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[MSM8998_SSCCX] =	&ssc_cx_rwsc0_lvl,
+	[MSM8998_SSCCX_VFL] =	&ssc_cx_rwsc0_vfl,
+	[MSM8998_SSCMX] =	&ssc_mx_rwsm0_lvl,
+	[MSM8998_SSCMX_VFL] =	&ssc_mx_rwsm0_vfl,
 };
 
 static const struct rpmpd_desc msm8998_desc = {
@@ -327,24 +656,14 @@ static const struct rpmpd_desc msm8998_desc = {
 	.max_state = RPM_SMD_LEVEL_BINNING,
 };
 
-/* qcs404 RPM Power domains */
-DEFINE_RPMPD_PAIR(qcs404, vddmx, vddmx_ao, RWMX, LEVEL, 0);
-DEFINE_RPMPD_VFL(qcs404, vddmx_vfl, RWMX, 0);
-
-DEFINE_RPMPD_LEVEL(qcs404, vdd_lpicx, RWLC, 0);
-DEFINE_RPMPD_VFL(qcs404, vdd_lpicx_vfl, RWLC, 0);
-
-DEFINE_RPMPD_LEVEL(qcs404, vdd_lpimx, RWLM, 0);
-DEFINE_RPMPD_VFL(qcs404, vdd_lpimx_vfl, RWLM, 0);
-
 static struct rpmpd *qcs404_rpmpds[] = {
-	[QCS404_VDDMX] = &qcs404_vddmx,
-	[QCS404_VDDMX_AO] = &qcs404_vddmx_ao,
-	[QCS404_VDDMX_VFL] = &qcs404_vddmx_vfl,
-	[QCS404_LPICX] = &qcs404_vdd_lpicx,
-	[QCS404_LPICX_VFL] = &qcs404_vdd_lpicx_vfl,
-	[QCS404_LPIMX] = &qcs404_vdd_lpimx,
-	[QCS404_LPIMX_VFL] = &qcs404_vdd_lpimx_vfl,
+	[QCS404_VDDMX] =	&mx_rwmx0_lvl,
+	[QCS404_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[QCS404_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[QCS404_LPICX] =	&lpi_cx_rwlc0_lvl,
+	[QCS404_LPICX_VFL] =	&lpi_cx_rwlc0_vfl,
+	[QCS404_LPIMX] =	&lpi_mx_rwlm0_lvl,
+	[QCS404_LPIMX_VFL] =	&lpi_mx_rwlm0_vfl,
 };
 
 static const struct rpmpd_desc qcs404_desc = {
@@ -353,30 +672,17 @@ static const struct rpmpd_desc qcs404_desc = {
 	.max_state = RPM_SMD_LEVEL_BINNING,
 };
 
-/* sdm660 RPM Power domains */
-DEFINE_RPMPD_PAIR(sdm660, vddcx, vddcx_ao, RWCX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sdm660, vddcx_vfl, RWCX, 0);
-
-DEFINE_RPMPD_PAIR(sdm660, vddmx, vddmx_ao, RWMX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sdm660, vddmx_vfl, RWMX, 0);
-
-DEFINE_RPMPD_LEVEL(sdm660, vdd_ssccx, RWLC, 0);
-DEFINE_RPMPD_VFL(sdm660, vdd_ssccx_vfl, RWLC, 0);
-
-DEFINE_RPMPD_LEVEL(sdm660, vdd_sscmx, RWLM, 0);
-DEFINE_RPMPD_VFL(sdm660, vdd_sscmx_vfl, RWLM, 0);
-
 static struct rpmpd *sdm660_rpmpds[] = {
-	[SDM660_VDDCX] =		&sdm660_vddcx,
-	[SDM660_VDDCX_AO] =		&sdm660_vddcx_ao,
-	[SDM660_VDDCX_VFL] =		&sdm660_vddcx_vfl,
-	[SDM660_VDDMX] =		&sdm660_vddmx,
-	[SDM660_VDDMX_AO] =		&sdm660_vddmx_ao,
-	[SDM660_VDDMX_VFL] =		&sdm660_vddmx_vfl,
-	[SDM660_SSCCX] =		&sdm660_vdd_ssccx,
-	[SDM660_SSCCX_VFL] =		&sdm660_vdd_ssccx_vfl,
-	[SDM660_SSCMX] =		&sdm660_vdd_sscmx,
-	[SDM660_SSCMX_VFL] =		&sdm660_vdd_sscmx_vfl,
+	[SDM660_VDDCX] =	&cx_rwcx0_lvl,
+	[SDM660_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SDM660_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SDM660_VDDMX] =	&mx_rwmx0_lvl,
+	[SDM660_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SDM660_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SDM660_SSCCX] =	&ssc_cx_rwlc0_lvl,
+	[SDM660_SSCCX_VFL] =	&ssc_cx_rwlc0_vfl,
+	[SDM660_SSCMX] =	&ssc_mx_rwlm0_lvl,
+	[SDM660_SSCMX_VFL] =	&ssc_mx_rwlm0_vfl,
 };
 
 static const struct rpmpd_desc sdm660_desc = {
@@ -385,25 +691,15 @@ static const struct rpmpd_desc sdm660_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO,
 };
 
-/* sm4250/6115 RPM Power domains */
-DEFINE_RPMPD_PAIR(sm6115, vddcx, vddcx_ao, RWCX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sm6115, vddcx_vfl, RWCX, 0);
-
-DEFINE_RPMPD_PAIR(sm6115, vddmx, vddmx_ao, RWMX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sm6115, vddmx_vfl, RWMX, 0);
-
-DEFINE_RPMPD_LEVEL(sm6115, vdd_lpi_cx, RWLC, 0);
-DEFINE_RPMPD_LEVEL(sm6115, vdd_lpi_mx, RWLM, 0);
-
 static struct rpmpd *sm6115_rpmpds[] = {
-	[SM6115_VDDCX] =		&sm6115_vddcx,
-	[SM6115_VDDCX_AO] =		&sm6115_vddcx_ao,
-	[SM6115_VDDCX_VFL] =		&sm6115_vddcx_vfl,
-	[SM6115_VDDMX] =		&sm6115_vddmx,
-	[SM6115_VDDMX_AO] =		&sm6115_vddmx_ao,
-	[SM6115_VDDMX_VFL] =		&sm6115_vddmx_vfl,
-	[SM6115_VDD_LPI_CX] =		&sm6115_vdd_lpi_cx,
-	[SM6115_VDD_LPI_MX] =		&sm6115_vdd_lpi_mx,
+	[SM6115_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6115_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6115_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6115_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6115_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6115_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SM6115_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[SM6115_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc sm6115_desc = {
@@ -412,20 +708,13 @@ static const struct rpmpd_desc sm6115_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
 };
 
-/* sm6125 RPM Power domains */
-DEFINE_RPMPD_PAIR(sm6125, vddcx, vddcx_ao, RWCX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sm6125, vddcx_vfl, RWCX, 0);
-
-DEFINE_RPMPD_PAIR(sm6125, vddmx, vddmx_ao, RWMX, LEVEL, 0);
-DEFINE_RPMPD_VFL(sm6125, vddmx_vfl, RWMX, 0);
-
 static struct rpmpd *sm6125_rpmpds[] = {
-	[SM6125_VDDCX] =		&sm6125_vddcx,
-	[SM6125_VDDCX_AO] =		&sm6125_vddcx_ao,
-	[SM6125_VDDCX_VFL] =		&sm6125_vddcx_vfl,
-	[SM6125_VDDMX] =		&sm6125_vddmx,
-	[SM6125_VDDMX_AO] =		&sm6125_vddmx_ao,
-	[SM6125_VDDMX_VFL] =		&sm6125_vddmx_vfl,
+	[SM6125_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6125_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6125_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6125_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6125_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6125_VDDMX_VFL] =	&mx_rwmx0_vfl,
 };
 
 static const struct rpmpd_desc sm6125_desc = {
@@ -434,18 +723,17 @@ static const struct rpmpd_desc sm6125_desc = {
 	.max_state = RPM_SMD_LEVEL_BINNING,
 };
 
-DEFINE_RPMPD_PAIR(sm6375, vddgx, vddgx_ao, RWGX, LEVEL, 0);
 static struct rpmpd *sm6375_rpmpds[] = {
-	[SM6375_VDDCX] = &sm6125_vddcx,
-	[SM6375_VDDCX_AO] = &sm6125_vddcx_ao,
-	[SM6375_VDDCX_VFL] = &sm6125_vddcx_vfl,
-	[SM6375_VDDMX] = &sm6125_vddmx,
-	[SM6375_VDDMX_AO] = &sm6125_vddmx_ao,
-	[SM6375_VDDMX_VFL] = &sm6125_vddmx_vfl,
-	[SM6375_VDDGX] = &sm6375_vddgx,
-	[SM6375_VDDGX_AO] = &sm6375_vddgx_ao,
-	[SM6375_VDD_LPI_CX] = &sm6115_vdd_lpi_cx,
-	[SM6375_VDD_LPI_MX] = &sm6115_vdd_lpi_mx,
+	[SM6375_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6375_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6375_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6375_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6375_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6375_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SM6375_VDDGX] =	&gx_rwgx0_lvl,
+	[SM6375_VDDGX_AO] =	&gx_rwgx0_lvl_ao,
+	[SM6375_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[SM6375_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc sm6375_desc = {
@@ -455,14 +743,14 @@ static const struct rpmpd_desc sm6375_desc = {
 };
 
 static struct rpmpd *qcm2290_rpmpds[] = {
-	[QCM2290_VDDCX] = &sm6115_vddcx,
-	[QCM2290_VDDCX_AO] = &sm6115_vddcx_ao,
-	[QCM2290_VDDCX_VFL] = &sm6115_vddcx_vfl,
-	[QCM2290_VDDMX] = &sm6115_vddmx,
-	[QCM2290_VDDMX_AO] = &sm6115_vddmx_ao,
-	[QCM2290_VDDMX_VFL] = &sm6115_vddmx_vfl,
-	[QCM2290_VDD_LPI_CX] = &sm6115_vdd_lpi_cx,
-	[QCM2290_VDD_LPI_MX] = &sm6115_vdd_lpi_mx,
+	[QCM2290_VDDCX] =	&cx_rwcx0_lvl,
+	[QCM2290_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[QCM2290_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[QCM2290_VDDMX] =	&mx_rwmx0_lvl,
+	[QCM2290_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[QCM2290_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[QCM2290_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[QCM2290_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc qcm2290_desc = {
@@ -671,6 +959,15 @@ static int rpmpd_probe(struct platform_device *pdev)
 		pm_genpd_init(&rpmpds[i]->pd, NULL, true);
 
 		data->domains[i] = &rpmpds[i]->pd;
+	}
+
+	/* Add subdomains */
+	for (i = 0; i < num; i++) {
+		if (!rpmpds[i])
+			continue;
+
+		if (rpmpds[i]->parent)
+			pm_genpd_add_subdomain(rpmpds[i]->parent, &rpmpds[i]->pd);
 	}
 
 	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);

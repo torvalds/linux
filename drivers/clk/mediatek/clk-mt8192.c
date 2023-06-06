@@ -15,7 +15,6 @@
 #include "clk-gate.h"
 #include "clk-mtk.h"
 #include "clk-mux.h"
-#include "clk-pll.h"
 
 #include <dt-bindings/clock/mt8192-clk.h>
 #include <dt-bindings/reset/mt8192-resets.h>
@@ -712,19 +711,6 @@ static struct mtk_composite top_muxes[] = {
 	DIV_GATE(CLK_TOP_APLL12_DIV9, "apll12_div9", "apll_i2s9_m_sel", 0x320, 10, 0x338, 8, 16),
 };
 
-static const struct mtk_gate_regs apmixed_cg_regs = {
-	.set_ofs = 0x14,
-	.clr_ofs = 0x14,
-	.sta_ofs = 0x14,
-};
-
-#define GATE_APMIXED(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
-
-static const struct mtk_gate apmixed_clks[] = {
-	GATE_APMIXED(CLK_APMIXED_MIPID26M, "mipid26m", "clk26m", 16),
-};
-
 static const struct mtk_gate_regs infra0_cg_regs = {
 	.set_ofs = 0x80,
 	.clr_ofs = 0x84,
@@ -978,70 +964,6 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_idx_map_nr = ARRAY_SIZE(infra_ao_idx_map),
 };
 
-#define MT8192_PLL_FMAX		(3800UL * MHZ)
-#define MT8192_PLL_FMIN		(1500UL * MHZ)
-#define MT8192_INTEGER_BITS	8
-
-#define PLL(_id, _name, _reg, _pwr_reg, _en_mask, _flags,		\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift, _pcw_chg_reg,		\
-			_en_reg, _pll_en_bit) {				\
-		.id = _id,						\
-		.name = _name,						\
-		.reg = _reg,						\
-		.pwr_reg = _pwr_reg,					\
-		.en_mask = _en_mask,					\
-		.flags = _flags,					\
-		.rst_bar_mask = _rst_bar_mask,				\
-		.fmax = MT8192_PLL_FMAX,				\
-		.fmin = MT8192_PLL_FMIN,				\
-		.pcwbits = _pcwbits,					\
-		.pcwibits = MT8192_INTEGER_BITS,			\
-		.pd_reg = _pd_reg,					\
-		.pd_shift = _pd_shift,					\
-		.tuner_reg = _tuner_reg,				\
-		.tuner_en_reg = _tuner_en_reg,				\
-		.tuner_en_bit = _tuner_en_bit,				\
-		.pcw_reg = _pcw_reg,					\
-		.pcw_shift = _pcw_shift,				\
-		.pcw_chg_reg = _pcw_chg_reg,				\
-		.en_reg = _en_reg,					\
-		.pll_en_bit = _pll_en_bit,				\
-	}
-
-#define PLL_B(_id, _name, _reg, _pwr_reg, _en_mask, _flags,		\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift)				\
-		PLL(_id, _name, _reg, _pwr_reg, _en_mask, _flags,	\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift, 0, 0, 0)
-
-static const struct mtk_pll_data plls[] = {
-	PLL_B(CLK_APMIXED_MAINPLL, "mainpll", 0x0340, 0x034c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0344, 24, 0, 0, 0, 0x0344, 0),
-	PLL_B(CLK_APMIXED_UNIVPLL, "univpll", 0x0308, 0x0314, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x030c, 24, 0, 0, 0, 0x030c, 0),
-	PLL(CLK_APMIXED_USBPLL, "usbpll", 0x03c4, 0x03cc, 0x00000000,
-	    0, 0, 22, 0x03c4, 24, 0, 0, 0, 0x03c4, 0, 0x03c4, 0x03cc, 2),
-	PLL_B(CLK_APMIXED_MSDCPLL, "msdcpll", 0x0350, 0x035c, 0x00000000,
-	      0, 0, 22, 0x0354, 24, 0, 0, 0, 0x0354, 0),
-	PLL_B(CLK_APMIXED_MMPLL, "mmpll", 0x0360, 0x036c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0364, 24, 0, 0, 0, 0x0364, 0),
-	PLL_B(CLK_APMIXED_ADSPPLL, "adsppll", 0x0370, 0x037c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0374, 24, 0, 0, 0, 0x0374, 0),
-	PLL_B(CLK_APMIXED_MFGPLL, "mfgpll", 0x0268, 0x0274, 0x00000000,
-	      0, 0, 22, 0x026c, 24, 0, 0, 0, 0x026c, 0),
-	PLL_B(CLK_APMIXED_TVDPLL, "tvdpll", 0x0380, 0x038c, 0x00000000,
-	      0, 0, 22, 0x0384, 24, 0, 0, 0, 0x0384, 0),
-	PLL_B(CLK_APMIXED_APLL1, "apll1", 0x0318, 0x0328, 0x00000000,
-	      0, 0, 32, 0x031c, 24, 0x0040, 0x000c, 0, 0x0320, 0),
-	PLL_B(CLK_APMIXED_APLL2, "apll2", 0x032c, 0x033c, 0x00000000,
-	      0, 0, 32, 0x0330, 24, 0, 0, 0, 0x0334, 0),
-};
-
 /* Register mux notifier for MFG mux */
 static int clk_mt8192_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 {
@@ -1062,60 +984,6 @@ static int clk_mt8192_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 	mfg_mux_nb->bypass_index = 0; /* Bypass to 26M crystal */
 
 	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
-}
-
-static int clk_mt8192_apmixed_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
-	r = mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
-				   ARRAY_SIZE(apmixed_clks), clk_data);
-	if (r)
-		goto free_clk_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto unregister_gates;
-
-	return r;
-
-unregister_gates:
-	mtk_clk_unregister_gates(apmixed_clks, ARRAY_SIZE(apmixed_clks), clk_data);
-free_clk_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static const struct of_device_id of_match_clk_mt8192[] = {
-	{
-		.compatible = "mediatek,mt8192-apmixedsys",
-		.data = clk_mt8192_apmixed_probe,
-	}, {
-		/* sentinel */
-	}
-};
-
-static int clk_mt8192_probe(struct platform_device *pdev)
-{
-	int (*clk_probe)(struct platform_device *pdev);
-	int r;
-
-	clk_probe = of_device_get_match_data(&pdev->dev);
-	if (!clk_probe)
-		return -EINVAL;
-
-	r = clk_probe(pdev);
-	if (r)
-		dev_err(&pdev->dev, "could not register clock provider: %s: %d\n", pdev->name, r);
-
-	return r;
 }
 
 static const struct mtk_clk_desc infra_desc = {
@@ -1145,37 +1013,21 @@ static const struct mtk_clk_desc topck_desc = {
 	.mfg_clk_idx = CLK_TOP_MFG_PLL_SEL,
 };
 
-static const struct of_device_id of_match_clk_mt8192_simple[] = {
+static const struct of_device_id of_match_clk_mt8192[] = {
 	{ .compatible = "mediatek,mt8192-infracfg", .data = &infra_desc },
 	{ .compatible = "mediatek,mt8192-pericfg", .data = &peri_desc },
 	{ .compatible = "mediatek,mt8192-topckgen", .data = &topck_desc },
 	{ /* sentinel */ }
 };
-
-static struct platform_driver clk_mt8192_simple_drv = {
-	.probe = mtk_clk_simple_probe,
-	.remove = mtk_clk_simple_remove,
-	.driver = {
-		.name = "clk-mt8192-simple",
-		.of_match_table = of_match_clk_mt8192_simple,
-	},
-};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8192);
 
 static struct platform_driver clk_mt8192_drv = {
-	.probe = clk_mt8192_probe,
 	.driver = {
 		.name = "clk-mt8192",
 		.of_match_table = of_match_clk_mt8192,
 	},
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
 };
-
-static int __init clk_mt8192_init(void)
-{
-	int ret = platform_driver_register(&clk_mt8192_drv);
-
-	if (ret)
-		return ret;
-	return platform_driver_register(&clk_mt8192_simple_drv);
-}
-
-arch_initcall(clk_mt8192_init);
+module_platform_driver(clk_mt8192_drv);
+MODULE_LICENSE("GPL");

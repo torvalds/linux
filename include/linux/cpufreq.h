@@ -15,7 +15,6 @@
 #include <linux/kobject.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
@@ -237,6 +236,7 @@ bool cpufreq_supports_freq_invariance(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
 void cpufreq_disable_fast_switch(struct cpufreq_policy *policy);
+bool has_target_index(void);
 #else
 static inline unsigned int cpufreq_get(unsigned int cpu)
 {

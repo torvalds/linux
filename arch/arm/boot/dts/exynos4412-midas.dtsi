@@ -25,6 +25,9 @@
 	aliases {
 		i2c11 = &i2c_max77693;
 		i2c12 = &i2c_max77693_fuel;
+		mmc0 = &mshc_0;
+		mmc2 = &sdhci_2;
+		mmc3 = &sdhci_3;
 	};
 
 	chosen {
@@ -497,8 +500,7 @@
 	pinctrl-0 = <&fimc_is_uart>;
 	pinctrl-names = "default";
 	status = "okay";
-
-	};
+};
 
 &fimc_lite_0 {
 	status = "okay";
@@ -592,7 +594,6 @@
 		/* CAM_B_CLKOUT */
 		clocks = <&camera 1>;
 		clock-names = "extclk";
-		samsung,camclk-out = <1>;
 		gpios = <&gpm1 6 GPIO_ACTIVE_LOW>;
 
 		port {
@@ -979,6 +980,7 @@
 	samsung,dw-mshc-ciu-div = <0>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
+	mmc-ddr-1_8v;
 	pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 	pinctrl-names = "default";
 	status = "okay";

@@ -877,7 +877,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	sdc2_card_det_active: sd-card-det-active-state {

@@ -93,7 +93,7 @@ int kfd_chardev_init(void)
 	if (err < 0)
 		goto err_register_chrdev;
 
-	kfd_class = class_create(THIS_MODULE, kfd_dev_name);
+	kfd_class = class_create(kfd_dev_name);
 	err = PTR_ERR(kfd_class);
 	if (IS_ERR(kfd_class))
 		goto err_class_create;
@@ -1590,6 +1590,58 @@ err_unlock:
 	return r;
 }
 
+static int kfd_ioctl_export_dmabuf(struct file *filep,
+				   struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_export_dmabuf_args *args = data;
+	struct kfd_process_device *pdd;
+	struct dma_buf *dmabuf;
+	struct kfd_dev *dev;
+	void *mem;
+	int ret = 0;
+
+	dev = kfd_device_by_id(GET_GPU_ID(args->handle));
+	if (!dev)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	mem = kfd_process_device_translate_handle(pdd,
+						GET_IDR_HANDLE(args->handle));
+	if (!mem) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	ret = amdgpu_amdkfd_gpuvm_export_dmabuf(mem, &dmabuf);
+	mutex_unlock(&p->mutex);
+	if (ret)
+		goto err_out;
+
+	ret = dma_buf_fd(dmabuf, args->flags);
+	if (ret < 0) {
+		dma_buf_put(dmabuf);
+		goto err_out;
+	}
+	/* dma_buf_fd assigns the reference count to the fd, no need to
+	 * put the reference here.
+	 */
+	args->dmabuf_fd = ret;
+
+	return 0;
+
+err_unlock:
+	mutex_unlock(&p->mutex);
+err_out:
+	return ret;
+}
+
 /* Handle requests for watching SMI events */
 static int kfd_ioctl_smi_events(struct file *filep,
 				struct kfd_process *p, void *data)
@@ -2772,6 +2824,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_AVAILABLE_MEMORY,
 			kfd_ioctl_get_available_memory, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_EXPORT_DMABUF,
+				kfd_ioctl_export_dmabuf, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)

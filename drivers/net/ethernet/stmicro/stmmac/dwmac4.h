@@ -181,6 +181,7 @@ enum power_event {
 #define GMAC4_LPI_CTRL_STATUS	0xd0
 #define GMAC4_LPI_TIMER_CTRL	0xd4
 #define GMAC4_LPI_ENTRY_TIMER	0xd8
+#define GMAC4_MAC_ONEUS_TIC_COUNTER	0xdc
 
 /* LPI control and status defines */
 #define GMAC4_LPI_CTRL_STATUS_LPITCSE	BIT(21)	/* LPI Tx Clock Stop Enable */
@@ -336,14 +337,25 @@ enum power_event {
 
 #define MTL_CHAN_BASE_ADDR		0x00000d00
 #define MTL_CHAN_BASE_OFFSET		0x40
-#define MTL_CHANX_BASE_ADDR(x)		(MTL_CHAN_BASE_ADDR + \
-					(x * MTL_CHAN_BASE_OFFSET))
 
-#define MTL_CHAN_TX_OP_MODE(x)		MTL_CHANX_BASE_ADDR(x)
-#define MTL_CHAN_TX_DEBUG(x)		(MTL_CHANX_BASE_ADDR(x) + 0x8)
-#define MTL_CHAN_INT_CTRL(x)		(MTL_CHANX_BASE_ADDR(x) + 0x2c)
-#define MTL_CHAN_RX_OP_MODE(x)		(MTL_CHANX_BASE_ADDR(x) + 0x30)
-#define MTL_CHAN_RX_DEBUG(x)		(MTL_CHANX_BASE_ADDR(x) + 0x38)
+static inline u32 mtl_chanx_base_addr(const struct dwmac4_addrs *addrs,
+				      const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_chan + (x * addrs->mtl_chan_offset);
+	else
+		addr = MTL_CHAN_BASE_ADDR + (x * MTL_CHAN_BASE_OFFSET);
+
+	return addr;
+}
+
+#define MTL_CHAN_TX_OP_MODE(addrs, x)	mtl_chanx_base_addr(addrs, x)
+#define MTL_CHAN_TX_DEBUG(addrs, x)	(mtl_chanx_base_addr(addrs, x) + 0x8)
+#define MTL_CHAN_INT_CTRL(addrs, x)	(mtl_chanx_base_addr(addrs, x) + 0x2c)
+#define MTL_CHAN_RX_OP_MODE(addrs, x)	(mtl_chanx_base_addr(addrs, x) + 0x30)
+#define MTL_CHAN_RX_DEBUG(addrs, x)	(mtl_chanx_base_addr(addrs, x) + 0x38)
 
 #define MTL_OP_MODE_RSF			BIT(5)
 #define MTL_OP_MODE_TXQEN_MASK		GENMASK(3, 2)
@@ -388,8 +400,19 @@ enum power_event {
 /* MTL ETS Control register */
 #define MTL_ETS_CTRL_BASE_ADDR		0x00000d10
 #define MTL_ETS_CTRL_BASE_OFFSET	0x40
-#define MTL_ETSX_CTRL_BASE_ADDR(x)	(MTL_ETS_CTRL_BASE_ADDR + \
-					((x) * MTL_ETS_CTRL_BASE_OFFSET))
+
+static inline u32 mtl_etsx_ctrl_base_addr(const struct dwmac4_addrs *addrs,
+					  const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_ets_ctrl + (x * addrs->mtl_ets_ctrl_offset);
+	else
+		addr = MTL_ETS_CTRL_BASE_ADDR + (x * MTL_ETS_CTRL_BASE_OFFSET);
+
+	return addr;
+}
 
 #define MTL_ETS_CTRL_CC			BIT(3)
 #define MTL_ETS_CTRL_AVALG		BIT(2)
@@ -397,31 +420,76 @@ enum power_event {
 /* MTL Queue Quantum Weight */
 #define MTL_TXQ_WEIGHT_BASE_ADDR	0x00000d18
 #define MTL_TXQ_WEIGHT_BASE_OFFSET	0x40
-#define MTL_TXQX_WEIGHT_BASE_ADDR(x)	(MTL_TXQ_WEIGHT_BASE_ADDR + \
-					((x) * MTL_TXQ_WEIGHT_BASE_OFFSET))
+
+static inline u32 mtl_txqx_weight_base_addr(const struct dwmac4_addrs *addrs,
+					    const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_txq_weight + (x * addrs->mtl_txq_weight_offset);
+	else
+		addr = MTL_TXQ_WEIGHT_BASE_ADDR + (x * MTL_TXQ_WEIGHT_BASE_OFFSET);
+
+	return addr;
+}
+
 #define MTL_TXQ_WEIGHT_ISCQW_MASK	GENMASK(20, 0)
 
 /* MTL sendSlopeCredit register */
 #define MTL_SEND_SLP_CRED_BASE_ADDR	0x00000d1c
 #define MTL_SEND_SLP_CRED_OFFSET	0x40
-#define MTL_SEND_SLP_CREDX_BASE_ADDR(x)	(MTL_SEND_SLP_CRED_BASE_ADDR + \
-					((x) * MTL_SEND_SLP_CRED_OFFSET))
+
+static inline u32 mtl_send_slp_credx_base_addr(const struct dwmac4_addrs *addrs,
+					       const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_send_slp_cred + (x * addrs->mtl_send_slp_cred_offset);
+	else
+		addr = MTL_SEND_SLP_CRED_BASE_ADDR + (x * MTL_SEND_SLP_CRED_OFFSET);
+
+	return addr;
+}
 
 #define MTL_SEND_SLP_CRED_SSC_MASK	GENMASK(13, 0)
 
 /* MTL hiCredit register */
 #define MTL_HIGH_CRED_BASE_ADDR		0x00000d20
 #define MTL_HIGH_CRED_OFFSET		0x40
-#define MTL_HIGH_CREDX_BASE_ADDR(x)	(MTL_HIGH_CRED_BASE_ADDR + \
-					((x) * MTL_HIGH_CRED_OFFSET))
+
+static inline u32 mtl_high_credx_base_addr(const struct dwmac4_addrs *addrs,
+					   const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_high_cred + (x * addrs->mtl_high_cred_offset);
+	else
+		addr = MTL_HIGH_CRED_BASE_ADDR + (x * MTL_HIGH_CRED_OFFSET);
+
+	return addr;
+}
 
 #define MTL_HIGH_CRED_HC_MASK		GENMASK(28, 0)
 
 /* MTL loCredit register */
 #define MTL_LOW_CRED_BASE_ADDR		0x00000d24
 #define MTL_LOW_CRED_OFFSET		0x40
-#define MTL_LOW_CREDX_BASE_ADDR(x)	(MTL_LOW_CRED_BASE_ADDR + \
-					((x) * MTL_LOW_CRED_OFFSET))
+
+static inline u32 mtl_low_credx_base_addr(const struct dwmac4_addrs *addrs,
+					  const u32 x)
+{
+	u32 addr;
+
+	if (addrs)
+		addr = addrs->mtl_low_cred + (x * addrs->mtl_low_cred_offset);
+	else
+		addr = MTL_LOW_CRED_BASE_ADDR + (x * MTL_LOW_CRED_OFFSET);
+
+	return addr;
+}
 
 #define MTL_HIGH_CRED_LC_MASK		GENMASK(28, 0)
 

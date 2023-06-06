@@ -162,8 +162,6 @@ SEC("fentry/" SYS_PREFIX "sys_prctl")
 int test_user_ringbuf_protocol(void *ctx)
 {
 	long status = 0;
-	struct sample *sample = NULL;
-	struct bpf_dynptr ptr;
 
 	if (!is_test_process())
 		return 0;
@@ -183,10 +181,6 @@ int test_user_ringbuf_protocol(void *ctx)
 SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int test_user_ringbuf(void *ctx)
 {
-	int status = 0;
-	struct sample *sample = NULL;
-	struct bpf_dynptr ptr;
-
 	if (!is_test_process())
 		return 0;
 

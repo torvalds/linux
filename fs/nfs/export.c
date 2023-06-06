@@ -149,7 +149,10 @@ const struct export_operations nfs_export_ops = {
 	.encode_fh = nfs_encode_fh,
 	.fh_to_dentry = nfs_fh_to_dentry,
 	.get_parent = nfs_get_parent,
-	.flags = EXPORT_OP_NOWCC|EXPORT_OP_NOSUBTREECHK|
-		EXPORT_OP_CLOSE_BEFORE_UNLINK|EXPORT_OP_REMOTE_FS|
-		EXPORT_OP_NOATOMIC_ATTR,
+	.flags = EXPORT_OP_NOWCC		|
+		 EXPORT_OP_NOSUBTREECHK		|
+		 EXPORT_OP_CLOSE_BEFORE_UNLINK	|
+		 EXPORT_OP_REMOTE_FS		|
+		 EXPORT_OP_NOATOMIC_ATTR	|
+		 EXPORT_OP_FLUSH_ON_CLOSE,
 };

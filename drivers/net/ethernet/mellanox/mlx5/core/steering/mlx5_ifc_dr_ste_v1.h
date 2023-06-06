@@ -100,7 +100,7 @@ struct mlx5_ifc_ste_double_action_insert_with_ptr_v1_bits {
 	u8         pointer[0x20];
 };
 
-struct mlx5_ifc_ste_double_action_modify_action_list_v1_bits {
+struct mlx5_ifc_ste_double_action_accelerated_modify_action_list_v1_bits {
 	u8         action_id[0x8];
 	u8         modify_actions_pattern_pointer[0x18];
 

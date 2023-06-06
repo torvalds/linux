@@ -197,7 +197,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int pasemi_nand_remove(struct platform_device *ofdev)
+static void pasemi_nand_remove(struct platform_device *ofdev)
 {
 	struct pasemi_ddata *ddata = platform_get_drvdata(ofdev);
 	struct mtd_info *pasemi_nand_mtd;
@@ -218,8 +218,6 @@ static int pasemi_nand_remove(struct platform_device *ofdev)
 
 	/* Free the MTD device structure */
 	kfree(ddata);
-
-	return 0;
 }
 
 static const struct of_device_id pasemi_nand_match[] =
@@ -239,7 +237,7 @@ static struct platform_driver pasemi_nand_driver =
 		.of_match_table = pasemi_nand_match,
 	},
 	.probe		= pasemi_nand_probe,
-	.remove		= pasemi_nand_remove,
+	.remove_new	= pasemi_nand_remove,
 };
 
 module_platform_driver(pasemi_nand_driver);

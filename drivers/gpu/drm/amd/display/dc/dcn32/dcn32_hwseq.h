@@ -54,6 +54,9 @@ bool dcn32_set_input_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
 
+bool dcn32_set_mpc_shaper_3dlut(
+	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream);
+
 bool dcn32_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream);
@@ -64,7 +67,7 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context);
 
 void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context);
 
-void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context);
+void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context);
 
 void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
 
@@ -103,5 +106,9 @@ void dcn32_update_dsc_pg(struct dc *dc,
 		bool safe_to_disable);
 
 void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context);
+
+void dcn32_init_blank(
+		struct dc *dc,
+		struct timing_generator *tg);
 
 #endif /* __DC_HWSS_DCN32_H__ */

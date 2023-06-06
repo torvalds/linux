@@ -228,7 +228,7 @@ static struct sdhci_pxa_platdata *pxav2_get_mmc_pdata(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	if (of_find_property(np, "non-removable", NULL))
+	if (of_property_read_bool(np, "non-removable"))
 		pdata->flags |= PXA_FLAG_CARD_PERMANENT;
 
 	of_property_read_u32(np, "bus-width", &bus_width);

@@ -23,7 +23,7 @@ struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
 void bpf_key_put(struct bpf_key *key) __ksym;
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
-struct task_struct *bpf_task_acquire_not_zero(struct task_struct *p) __ksym;
+struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym;
 void bpf_task_release(struct task_struct *p) __ksym;
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
@@ -159,13 +159,8 @@ int task_acquire(void *ctx)
 		goto out;
 
 	/* acquire a reference which can be used outside rcu read lock region */
-	gparent = bpf_task_acquire_not_zero(gparent);
+	gparent = bpf_task_acquire(gparent);
 	if (!gparent)
-		/* Until we resolve the issues with using task->rcu_users, we
-		 * expect bpf_task_acquire_not_zero() to return a NULL task.
-		 * See the comment at the definition of
-		 * bpf_task_acquire_not_zero() for more details.
-		 */
 		goto out;
 
 	(void)bpf_task_storage_get(&map_a, gparent, 0, 0);
@@ -179,8 +174,6 @@ SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int miss_lock(void *ctx)
 {
 	struct task_struct *task;
-	struct css_set *cgroups;
-	struct cgroup *dfl_cgrp;
 
 	/* missing bpf_rcu_read_lock() */
 	task = bpf_get_current_task_btf();
@@ -195,8 +188,6 @@ SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int miss_unlock(void *ctx)
 {
 	struct task_struct *task;
-	struct css_set *cgroups;
-	struct cgroup *dfl_cgrp;
 
 	/* missing bpf_rcu_read_unlock() */
 	task = bpf_get_current_task_btf();

@@ -139,13 +139,18 @@ void recalc_intercepts(struct vcpu_svm *svm)
 
 	if (g->int_ctl & V_INTR_MASKING_MASK) {
 		/*
-		 * Once running L2 with HF_VINTR_MASK, EFLAGS.IF and CR8
-		 * does not affect any interrupt we may want to inject;
-		 * therefore, writes to CR8 are irrelevant to L0, as are
-		 * interrupt window vmexits.
+		 * If L2 is active and V_INTR_MASKING is enabled in vmcb12,
+		 * disable intercept of CR8 writes as L2's CR8 does not affect
+		 * any interrupt KVM may want to inject.
+		 *
+		 * Similarly, disable intercept of virtual interrupts (used to
+		 * detect interrupt windows) if the saved RFLAGS.IF is '0', as
+		 * the effective RFLAGS.IF for L1 interrupts will never be set
+		 * while L2 is running (L2's RFLAGS.IF doesn't affect L1 IRQs).
 		 */
 		vmcb_clr_intercept(c, INTERCEPT_CR8_WRITE);
-		vmcb_clr_intercept(c, INTERCEPT_VINTR);
+		if (!(svm->vmcb01.ptr->save.rflags & X86_EFLAGS_IF))
+			vmcb_clr_intercept(c, INTERCEPT_VINTR);
 	}
 
 	/*
@@ -275,6 +280,11 @@ static bool __nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
 
 	if (CC(!nested_svm_check_tlb_ctl(vcpu, control->tlb_ctl)))
 		return false;
+
+	if (CC((control->int_ctl & V_NMI_ENABLE_MASK) &&
+	       !vmcb12_is_intercept(control, INTERCEPT_NMI))) {
+		return false;
+	}
 
 	return true;
 }
@@ -416,21 +426,23 @@ void nested_sync_control_from_vmcb02(struct vcpu_svm *svm)
 
 	/* Only a few fields of int_ctl are written by the processor.  */
 	mask = V_IRQ_MASK | V_TPR_MASK;
-	if (!(svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK) &&
-	    svm_is_intercept(svm, INTERCEPT_VINTR)) {
-		/*
-		 * In order to request an interrupt window, L0 is usurping
-		 * svm->vmcb->control.int_ctl and possibly setting V_IRQ
-		 * even if it was clear in L1's VMCB.  Restoring it would be
-		 * wrong.  However, in this case V_IRQ will remain true until
-		 * interrupt_window_interception calls svm_clear_vintr and
-		 * restores int_ctl.  We can just leave it aside.
-		 */
+	/*
+	 * Don't sync vmcb02 V_IRQ back to vmcb12 if KVM (L0) is intercepting
+	 * virtual interrupts in order to request an interrupt window, as KVM
+	 * has usurped vmcb02's int_ctl.  If an interrupt window opens before
+	 * the next VM-Exit, svm_clear_vintr() will restore vmcb12's int_ctl.
+	 * If no window opens, V_IRQ will be correctly preserved in vmcb12's
+	 * int_ctl (because it was never recognized while L2 was running).
+	 */
+	if (svm_is_intercept(svm, INTERCEPT_VINTR) &&
+	    !test_bit(INTERCEPT_VINTR, (unsigned long *)svm->nested.ctl.intercepts))
 		mask &= ~V_IRQ_MASK;
-	}
 
 	if (nested_vgif_enabled(svm))
 		mask |= V_GIF_MASK;
+
+	if (nested_vnmi_enabled(svm))
+		mask |= V_NMI_BLOCKING_MASK | V_NMI_PENDING_MASK;
 
 	svm->nested.ctl.int_ctl        &= ~mask;
 	svm->nested.ctl.int_ctl        |= svm->vmcb->control.int_ctl & mask;
@@ -650,6 +662,17 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 		int_ctl_vmcb12_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
 	else
 		int_ctl_vmcb01_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
+
+	if (vnmi) {
+		if (vmcb01->control.int_ctl & V_NMI_PENDING_MASK) {
+			svm->vcpu.arch.nmi_pending++;
+			kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+		}
+		if (nested_vnmi_enabled(svm))
+			int_ctl_vmcb12_bits |= (V_NMI_PENDING_MASK |
+						V_NMI_ENABLE_MASK |
+						V_NMI_BLOCKING_MASK);
+	}
 
 	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
 	vmcb02->control.nested_ctl = vmcb01->control.nested_ctl;
@@ -1021,12 +1044,48 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
 
+	/*
+	 * Rules for synchronizing int_ctl bits from vmcb02 to vmcb01:
+	 *
+	 * V_IRQ, V_IRQ_VECTOR, V_INTR_PRIO_MASK, V_IGN_TPR:  If L1 doesn't
+	 * intercept interrupts, then KVM will use vmcb02's V_IRQ (and related
+	 * flags) to detect interrupt windows for L1 IRQs (even if L1 uses
+	 * virtual interrupt masking).  Raise KVM_REQ_EVENT to ensure that
+	 * KVM re-requests an interrupt window if necessary, which implicitly
+	 * copies this bits from vmcb02 to vmcb01.
+	 *
+	 * V_TPR: If L1 doesn't use virtual interrupt masking, then L1's vTPR
+	 * is stored in vmcb02, but its value doesn't need to be copied from/to
+	 * vmcb01 because it is copied from/to the virtual APIC's TPR register
+	 * on each VM entry/exit.
+	 *
+	 * V_GIF: If nested vGIF is not used, KVM uses vmcb02's V_GIF for L1's
+	 * V_GIF.  However, GIF is architecturally clear on each VM exit, thus
+	 * there is no need to copy V_GIF from vmcb02 to vmcb01.
+	 */
+	if (!nested_exit_on_intr(svm))
+		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+
 	if (unlikely(svm->lbrv_enabled && (svm->nested.ctl.virt_ext & LBR_CTL_ENABLE_MASK))) {
 		svm_copy_lbrs(vmcb12, vmcb02);
 		svm_update_lbrv(vcpu);
 	} else if (unlikely(vmcb01->control.virt_ext & LBR_CTL_ENABLE_MASK)) {
 		svm_copy_lbrs(vmcb01, vmcb02);
 		svm_update_lbrv(vcpu);
+	}
+
+	if (vnmi) {
+		if (vmcb02->control.int_ctl & V_NMI_BLOCKING_MASK)
+			vmcb01->control.int_ctl |= V_NMI_BLOCKING_MASK;
+		else
+			vmcb01->control.int_ctl &= ~V_NMI_BLOCKING_MASK;
+
+		if (vcpu->arch.nmi_pending) {
+			vcpu->arch.nmi_pending--;
+			vmcb01->control.int_ctl |= V_NMI_PENDING_MASK;
+		} else {
+			vmcb01->control.int_ctl &= ~V_NMI_PENDING_MASK;
+		}
 	}
 
 	/*

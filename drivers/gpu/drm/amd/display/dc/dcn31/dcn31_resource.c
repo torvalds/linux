@@ -827,8 +827,6 @@ static const struct resource_caps res_cap_dcn31 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -1966,6 +1964,8 @@ static bool dcn31_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->config.use_old_fixed_vs_sequence = true;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;

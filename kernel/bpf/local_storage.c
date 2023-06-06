@@ -141,8 +141,8 @@ static void *cgroup_storage_lookup_elem(struct bpf_map *_map, void *key)
 	return &READ_ONCE(storage->buf)->data[0];
 }
 
-static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
-				      void *value, u64 flags)
+static long cgroup_storage_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 flags)
 {
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
@@ -333,14 +333,14 @@ static void cgroup_storage_map_free(struct bpf_map *_map)
 	struct list_head *storages = &map->list;
 	struct bpf_cgroup_storage *storage, *stmp;
 
-	mutex_lock(&cgroup_mutex);
+	cgroup_lock();
 
 	list_for_each_entry_safe(storage, stmp, storages, list_map) {
 		bpf_cgroup_storage_unlink(storage);
 		bpf_cgroup_storage_free(storage);
 	}
 
-	mutex_unlock(&cgroup_mutex);
+	cgroup_unlock();
 
 	WARN_ON(!RB_EMPTY_ROOT(&map->root));
 	WARN_ON(!list_empty(&map->list));
@@ -348,7 +348,7 @@ static void cgroup_storage_map_free(struct bpf_map *_map)
 	bpf_map_area_free(map);
 }
 
-static int cgroup_storage_delete_elem(struct bpf_map *map, void *key)
+static long cgroup_storage_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
 }

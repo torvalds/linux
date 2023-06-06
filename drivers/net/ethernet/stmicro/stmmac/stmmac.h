@@ -92,6 +92,13 @@ struct stmmac_rx_buffer {
 	dma_addr_t sec_addr;
 };
 
+struct stmmac_xdp_buff {
+	struct xdp_buff xdp;
+	struct stmmac_priv *priv;
+	struct dma_desc *desc;
+	struct dma_desc *ndesc;
+};
+
 struct stmmac_rx_queue {
 	u32 rx_count_frames;
 	u32 queue_index;

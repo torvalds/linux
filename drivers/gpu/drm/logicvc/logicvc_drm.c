@@ -17,7 +17,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_print.h>
 
@@ -449,7 +449,7 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 		preferred_bpp = 32;
 		break;
 	}
-	drm_fbdev_generic_setup(drm_dev, preferred_bpp);
+	drm_fbdev_dma_setup(drm_dev, preferred_bpp);
 
 	return 0;
 

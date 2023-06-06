@@ -6,6 +6,7 @@
 #include <linux/string_helpers.h>
 
 #include "i915_drv.h"
+#include "i915_perf_types.h"
 #include "intel_engine_regs.h"
 #include "intel_gt_regs.h"
 #include "intel_sseu.h"
@@ -677,7 +678,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * If i915/perf is active, we want a stable powergating configuration
 	 * on the system. Use the configuration pinned by i915/perf.
 	 */
-	if (gt->perf.exclusive_stream)
+	if (gt->perf.group && gt->perf.group[PERF_GROUP_OAG].exclusive_stream)
 		req_sseu = &gt->perf.sseu;
 
 	slices = hweight8(req_sseu->slice_mask);

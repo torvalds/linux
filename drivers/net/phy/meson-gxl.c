@@ -210,6 +210,10 @@ static struct phy_driver meson_gxl_phy[] = {
 		.read_status	= lan87xx_read_status,
 		.config_intr	= smsc_phy_config_intr,
 		.handle_interrupt = smsc_phy_handle_interrupt,
+
+		.get_tunable	= smsc_phy_get_tunable,
+		.set_tunable	= smsc_phy_set_tunable,
+
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 		.read_mmd	= genphy_read_mmd_unsupported,

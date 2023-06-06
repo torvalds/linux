@@ -519,7 +519,7 @@ static int run_complete_job(struct kcopyd_job *job)
 
 static void complete_io(unsigned long error, void *context)
 {
-	struct kcopyd_job *job = (struct kcopyd_job *) context;
+	struct kcopyd_job *job = context;
 	struct dm_kcopyd_client *kc = job->kc;
 
 	io_job_finish(kc->throttle);
@@ -696,7 +696,7 @@ static void segment_complete(int read_err, unsigned long write_err,
 	/* FIXME: tidy this function */
 	sector_t progress = 0;
 	sector_t count = 0;
-	struct kcopyd_job *sub_job = (struct kcopyd_job *) context;
+	struct kcopyd_job *sub_job = context;
 	struct kcopyd_job *job = sub_job->master_job;
 	struct dm_kcopyd_client *kc = job->kc;
 

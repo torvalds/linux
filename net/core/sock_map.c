@@ -437,7 +437,7 @@ static void sock_map_delete_from_link(struct bpf_map *map, struct sock *sk,
 	__sock_map_delete(stab, sk, link_raw);
 }
 
-static int sock_map_delete_elem(struct bpf_map *map, void *key)
+static long sock_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	u32 i = *(u32 *)key;
@@ -587,8 +587,8 @@ out:
 	return ret;
 }
 
-static int sock_map_update_elem(struct bpf_map *map, void *key,
-				void *value, u64 flags)
+static long sock_map_update_elem(struct bpf_map *map, void *key,
+				 void *value, u64 flags)
 {
 	struct sock *sk = (struct sock *)value;
 	int ret;
@@ -925,7 +925,7 @@ static void sock_hash_delete_from_link(struct bpf_map *map, struct sock *sk,
 	raw_spin_unlock_bh(&bucket->lock);
 }
 
-static int sock_hash_delete_elem(struct bpf_map *map, void *key)
+static long sock_hash_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_shtab *htab = container_of(map, struct bpf_shtab, map);
 	u32 hash, key_size = map->key_size;
@@ -1644,9 +1644,10 @@ void sock_map_close(struct sock *sk, long timeout)
 		rcu_read_unlock();
 		sk_psock_stop(psock);
 		release_sock(sk);
-		cancel_work_sync(&psock->work);
+		cancel_delayed_work_sync(&psock->work);
 		sk_psock_put(sk, psock);
 	}
+
 	/* Make sure we do not recurse. This is a bug.
 	 * Leak the socket instead of crashing on a stack overflow.
 	 */

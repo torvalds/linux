@@ -1823,7 +1823,7 @@ error:
 	return ret;
 }
 
-static int fsl_diu_remove(struct platform_device *pdev)
+static void fsl_diu_remove(struct platform_device *pdev)
 {
 	struct fsl_diu_data *data;
 	int i;
@@ -1837,8 +1837,6 @@ static int fsl_diu_remove(struct platform_device *pdev)
 		uninstall_fb(&data->fsl_diu_info[i]);
 
 	iounmap(data->diu_reg);
-
-	return 0;
 }
 
 #ifndef MODULE
@@ -1885,7 +1883,7 @@ static struct platform_driver fsl_diu_driver = {
 		.of_match_table = fsl_diu_match,
 	},
 	.probe  	= fsl_diu_probe,
-	.remove 	= fsl_diu_remove,
+	.remove_new 	= fsl_diu_remove,
 	.suspend	= fsl_diu_suspend,
 	.resume		= fsl_diu_resume,
 };

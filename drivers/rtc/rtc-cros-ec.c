@@ -371,7 +371,7 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cros_ec_rtc_remove(struct platform_device *pdev)
+static void cros_ec_rtc_remove(struct platform_device *pdev)
 {
 	struct cros_ec_rtc *cros_ec_rtc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -382,13 +382,11 @@ static int cros_ec_rtc_remove(struct platform_device *pdev)
 				&cros_ec_rtc->notifier);
 	if (ret)
 		dev_err(dev, "failed to unregister notifier\n");
-
-	return 0;
 }
 
 static struct platform_driver cros_ec_rtc_driver = {
 	.probe = cros_ec_rtc_probe,
-	.remove = cros_ec_rtc_remove,
+	.remove_new = cros_ec_rtc_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_rtc_pm_ops,

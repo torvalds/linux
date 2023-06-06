@@ -2000,8 +2000,10 @@ static int smc_listen_rdma_init(struct smc_sock *new_smc,
 		return rc;
 
 	/* create send buffer and rmb */
-	if (smc_buf_create(new_smc, false))
+	if (smc_buf_create(new_smc, false)) {
+		smc_conn_abort(new_smc, ini->first_contact_local);
 		return SMC_CLC_DECL_MEM;
+	}
 
 	return 0;
 }
@@ -2217,8 +2219,11 @@ static void smc_find_rdma_v2_device_serv(struct smc_sock *new_smc,
 	smcr_version = ini->smcr_version;
 	ini->smcr_version = SMC_V2;
 	rc = smc_listen_rdma_init(new_smc, ini);
-	if (!rc)
+	if (!rc) {
 		rc = smc_listen_rdma_reg(new_smc, ini->first_contact_local);
+		if (rc)
+			smc_conn_abort(new_smc, ini->first_contact_local);
+	}
 	if (!rc)
 		return;
 	ini->smcr_version = smcr_version;
@@ -3270,6 +3275,17 @@ static int __smc_create(struct net *net, struct socket *sock, int protocol,
 			sk_common_release(sk);
 			goto out;
 		}
+
+		/* smc_clcsock_release() does not wait smc->clcsock->sk's
+		 * destruction;  its sk_state might not be TCP_CLOSE after
+		 * smc->sk is close()d, and TCP timers can be fired later,
+		 * which need net ref.
+		 */
+		sk = smc->clcsock->sk;
+		__netns_tracker_free(net, &sk->ns_tracker, false);
+		sk->sk_net_refcnt = 1;
+		get_net_track(net, &sk->ns_tracker, GFP_KERNEL);
+		sock_inuse_add(net, 1);
 	} else {
 		smc->clcsock = clcsock;
 	}

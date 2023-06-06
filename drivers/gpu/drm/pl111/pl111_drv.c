@@ -48,7 +48,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -308,7 +308,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	if (ret < 0)
 		goto dev_put;
 
-	drm_fbdev_generic_setup(drm, priv->variant->fb_bpp);
+	drm_fbdev_dma_setup(drm, priv->variant->fb_depth);
 
 	return 0;
 
@@ -351,7 +351,7 @@ static const struct pl111_variant_data pl110_variant = {
 	.is_pl110 = true,
 	.formats = pl110_pixel_formats,
 	.nformats = ARRAY_SIZE(pl110_pixel_formats),
-	.fb_bpp = 16,
+	.fb_depth = 16,
 };
 
 /* RealView, Versatile Express etc use this modern variant */
@@ -376,7 +376,7 @@ static const struct pl111_variant_data pl111_variant = {
 	.name = "PL111",
 	.formats = pl111_pixel_formats,
 	.nformats = ARRAY_SIZE(pl111_pixel_formats),
-	.fb_bpp = 32,
+	.fb_depth = 32,
 };
 
 static const u32 pl110_nomadik_pixel_formats[] = {
@@ -405,7 +405,7 @@ static const struct pl111_variant_data pl110_nomadik_variant = {
 	.is_lcdc = true,
 	.st_bitmux_control = true,
 	.broken_vblank = true,
-	.fb_bpp = 16,
+	.fb_depth = 16,
 };
 
 static const struct amba_id pl111_id_table[] = {

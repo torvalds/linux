@@ -127,7 +127,7 @@ void udf_discard_prealloc(struct inode *inode)
 	uint64_t lbcount = 0;
 	int8_t etype = -1;
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	int bsize = 1 << inode->i_blkbits;
+	int bsize = i_blocksize(inode);
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB ||
 	    ALIGN(inode->i_size, bsize) == ALIGN(iinfo->i_lenExtents, bsize))
@@ -149,7 +149,7 @@ void udf_discard_prealloc(struct inode *inode)
 		lbcount -= elen;
 		udf_delete_aext(inode, prev_epos);
 		udf_free_blocks(inode->i_sb, inode, &eloc, 0,
-				DIV_ROUND_UP(elen, 1 << inode->i_blkbits));
+				DIV_ROUND_UP(elen, bsize));
 	}
 	/* This inode entry is in-memory only and thus we don't have to mark
 	 * the inode dirty */

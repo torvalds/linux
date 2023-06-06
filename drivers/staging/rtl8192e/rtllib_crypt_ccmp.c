@@ -34,9 +34,9 @@ struct rtllib_ccmp_data {
 	u8 tx_pn[CCMP_PN_LEN];
 	u8 rx_pn[CCMP_PN_LEN];
 
-	u32 dot11RSNAStatsCCMPFormatErrors;
-	u32 dot11RSNAStatsCCMPReplays;
-	u32 dot11RSNAStatsCCMPDecryptErrors;
+	u32 dot11rsna_stats_ccmp_format_errors;
+	u32 dot11rsna_stats_ccmp_replays;
+	u32 dot11rsna_stats_ccmp_decrypt_errors;
 
 	int key_idx;
 
@@ -74,7 +74,6 @@ fail:
 	return NULL;
 }
 
-
 static void rtllib_ccmp_deinit(void *priv)
 {
 	struct rtllib_ccmp_data *_priv = priv;
@@ -83,7 +82,6 @@ static void rtllib_ccmp_deinit(void *priv)
 		crypto_free_aead(_priv->tfm);
 	kfree(priv);
 }
-
 
 static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 				u8 *pn, u8 *iv, u8 *aad)
@@ -149,8 +147,6 @@ static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 
 	return aad_len;
 }
-
-
 
 static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
@@ -220,7 +216,6 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-
 static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct rtllib_ccmp_data *key = priv;
@@ -231,7 +226,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 pn[6];
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
-		key->dot11RSNAStatsCCMPFormatErrors++;
+		key->dot11rsna_stats_ccmp_format_errors++;
 		return -1;
 	}
 
@@ -243,7 +238,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			pr_debug("CCMP: received packet without ExtIV flag from %pM\n",
 				 hdr->addr2);
 		}
-		key->dot11RSNAStatsCCMPFormatErrors++;
+		key->dot11rsna_stats_ccmp_format_errors++;
 		return -2;
 	}
 	keyidx >>= 6;
@@ -268,7 +263,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pn[5] = pos[0];
 	pos += 8;
 	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
-		key->dot11RSNAStatsCCMPReplays++;
+		key->dot11rsna_stats_ccmp_replays++;
 		return -4;
 	}
 	if (!tcb_desc->bHwSec) {
@@ -301,7 +296,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				pr_debug("CCMP: decrypt failed: STA= %pM\n",
 					 hdr->addr2);
 			}
-			key->dot11RSNAStatsCCMPDecryptErrors++;
+			key->dot11rsna_stats_ccmp_decrypt_errors++;
 			return -5;
 		}
 
@@ -314,7 +309,6 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	return keyidx;
 }
-
 
 static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 {
@@ -338,7 +332,7 @@ static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[5] = seq[0];
 		}
 		if (crypto_aead_setauthsize(data->tfm, CCMP_MIC_LEN) ||
-			crypto_aead_setkey(data->tfm, data->key, CCMP_TK_LEN))
+		    crypto_aead_setkey(data->tfm, data->key, CCMP_TK_LEN))
 			return -1;
 	} else if (len == 0) {
 		data->key_set = 0;
@@ -348,7 +342,6 @@ static int rtllib_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 
 	return 0;
 }
-
 
 static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 {
@@ -373,7 +366,6 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 	return CCMP_TK_LEN;
 }
 
-
 static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 {
 	struct rtllib_ccmp_data *ccmp = priv;
@@ -382,9 +374,9 @@ static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 		   "key[%d] alg=CCMP key_set=%d tx_pn=%pM rx_pn=%pM format_errors=%d replays=%d decrypt_errors=%d\n",
 		   ccmp->key_idx, ccmp->key_set,
 		   ccmp->tx_pn, ccmp->rx_pn,
-		   ccmp->dot11RSNAStatsCCMPFormatErrors,
-		   ccmp->dot11RSNAStatsCCMPReplays,
-		   ccmp->dot11RSNAStatsCCMPDecryptErrors);
+		   ccmp->dot11rsna_stats_ccmp_format_errors,
+		   ccmp->dot11rsna_stats_ccmp_replays,
+		   ccmp->dot11rsna_stats_ccmp_decrypt_errors);
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
@@ -403,12 +395,10 @@ static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
 	.owner			= THIS_MODULE,
 };
 
-
 static int __init rtllib_crypto_ccmp_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_ccmp);
 }
-
 
 static void __exit rtllib_crypto_ccmp_exit(void)
 {

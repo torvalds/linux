@@ -89,6 +89,7 @@ static const struct of_device_id of_match_clk_mt6795_pericfg[] = {
 	{ .compatible = "mediatek,mt6795-pericfg" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_pericfg);
 
 static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 {

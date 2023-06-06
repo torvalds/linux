@@ -116,7 +116,8 @@ void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj)
 }
 
 /**
- * Moves a single object to the WC read, and possibly write domain.
+ * i915_gem_object_set_to_wc_domain - Moves a single object to the WC read, and
+ *                                    possibly write domain.
  * @obj: object to act on
  * @write: ask for write access or read only
  *
@@ -177,7 +178,8 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Moves a single object to the GTT read, and possibly write domain.
+ * i915_gem_object_set_to_gtt_domain - Moves a single object to the GTT read,
+ *                                     and possibly write domain.
  * @obj: object to act on
  * @write: ask for write access or read only
  *
@@ -246,7 +248,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Changes the cache-level of an object across all VMA.
+ * i915_gem_object_set_cache_level - Changes the cache-level of an object across all VMA.
  * @obj: object to act on
  * @cache_level: new cache level to set for the object
  *
@@ -467,7 +469,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 }
 
 /**
- * Moves a single object to the CPU read, and possibly write domain.
+ * i915_gem_object_set_to_cpu_domain - Moves a single object to the CPU read,
+ *                                     and possibly write domain.
  * @obj: object to act on
  * @write: requesting write or read-only access
  *
@@ -511,7 +514,8 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 }
 
 /**
- * Called when user space prepares to use an object with the CPU, either
+ * i915_gem_set_domain_ioctl - Called when user space prepares to use an
+ *                             object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
  * @dev: drm device
  * @data: ioctl data blob

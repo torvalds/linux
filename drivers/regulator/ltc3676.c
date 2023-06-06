@@ -371,6 +371,7 @@ MODULE_DEVICE_TABLE(of, ltc3676_of_match);
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
 	.probe_new = ltc3676_regulator_probe,

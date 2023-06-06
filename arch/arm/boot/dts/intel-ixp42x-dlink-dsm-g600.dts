@@ -122,7 +122,7 @@
 		};
 
 		pci@c0000000 {
-			status = "ok";
+			status = "okay";
 
 			/*
 			 * Taken from DSM-G600 PCI boardfile (dsmg600-pci.c)

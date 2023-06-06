@@ -45,7 +45,7 @@ properties:
     maxItems: 1
 
   allwinner,direction:
-    $ref: '/schemas/types.yaml#/definitions/string'
+    $ref: /schemas/types.yaml#/definitions/string
     description: |
       Direction of the D-PHY:
       - "rx" for receiving (e.g. when used with MIPI CSI-2);

@@ -32,6 +32,9 @@ struct intel_pxp {
 	 * which are protected by &tee_mutex.
 	 */
 	struct i915_pxp_component *pxp_component;
+
+	/* @dev_link: Enforce module relationship for power management ordering. */
+	struct device_link *dev_link;
 	/**
 	 * @pxp_component_added: track if the pxp component has been added.
 	 * Set and cleared in tee init and fini functions respectively.

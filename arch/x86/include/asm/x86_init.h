@@ -259,11 +259,15 @@ struct x86_legacy_features {
  *				VMMCALL under SEV-ES.  Needs to return 'false'
  *				if the checks fail.  Called from the #VC
  *				exception handler.
+ * @is_private_mmio:		For CoCo VMs, must map MMIO address as private.
+ *				Used when device is emulated by a paravisor
+ *				layer in the VM context.
  */
 struct x86_hyper_runtime {
 	void (*pin_vcpu)(int cpu);
 	void (*sev_es_hcall_prepare)(struct ghcb *ghcb, struct pt_regs *regs);
 	bool (*sev_es_hcall_finish)(struct ghcb *ghcb, struct pt_regs *regs);
+	bool (*is_private_mmio)(u64 addr);
 };
 
 /**
@@ -326,5 +330,7 @@ extern void x86_init_uint_noop(unsigned int unused);
 extern bool bool_x86_init_noop(void);
 extern void x86_op_int_noop(int cpu);
 extern bool x86_pnpbios_disabled(void);
+extern int set_rtc_noop(const struct timespec64 *now);
+extern void get_rtc_noop(struct timespec64 *now);
 
 #endif

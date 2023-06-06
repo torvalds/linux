@@ -306,14 +306,12 @@ static void omap_wdt_shutdown(struct platform_device *pdev)
 	mutex_unlock(&wdev->lock);
 }
 
-static int omap_wdt_remove(struct platform_device *pdev)
+static void omap_wdt_remove(struct platform_device *pdev)
 {
 	struct omap_wdt_dev *wdev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(wdev->dev);
 	watchdog_unregister_device(&wdev->wdog);
-
-	return 0;
 }
 
 /* REVISIT ... not clear this is the best way to handle system suspend; and
@@ -359,7 +357,7 @@ MODULE_DEVICE_TABLE(of, omap_wdt_of_match);
 
 static struct platform_driver omap_wdt_driver = {
 	.probe		= omap_wdt_probe,
-	.remove		= omap_wdt_remove,
+	.remove_new	= omap_wdt_remove,
 	.shutdown	= omap_wdt_shutdown,
 	.suspend	= pm_ptr(omap_wdt_suspend),
 	.resume		= pm_ptr(omap_wdt_resume),

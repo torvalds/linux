@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2019 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2019-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -130,6 +130,13 @@ xchk_setup_fscounters(
 	struct xchk_fscounters	*fsc;
 	int			error;
 
+	/*
+	 * If the AGF doesn't track btreeblks, we have to lock the AGF to count
+	 * btree block usage by walking the actual btrees.
+	 */
+	if (!xfs_has_lazysbcount(sc->mp))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
@@ -142,13 +149,6 @@ xchk_setup_fscounters(
 	error = xchk_fscount_warmup(sc);
 	if (error)
 		return error;
-
-	/*
-	 * Pause background reclaim while we're scrubbing to reduce the
-	 * likelihood of background perturbations to the counters throwing off
-	 * our calculations.
-	 */
-	xchk_stop_reaping(sc);
 
 	return xchk_trans_alloc(sc, 0);
 }
@@ -445,6 +445,12 @@ xchk_fscounters(
 	/* See if frextents is obviously wrong. */
 	if (frextents > mp->m_sb.sb_rextents)
 		xchk_set_corrupt(sc);
+
+	/*
+	 * XXX: We can't quiesce percpu counter updates, so exit early.
+	 * This can be re-enabled when we gain exclusive freeze functionality.
+	 */
+	return 0;
 
 	/*
 	 * If ifree exceeds icount by more than the minimum variance then

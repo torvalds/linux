@@ -541,8 +541,6 @@ void dcn201_pipe_control_lock(
 	bool lock)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct hubp *hubp = NULL;
-	hubp = dc->res_pool->hubps[pipe->pipe_idx];
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */

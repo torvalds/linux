@@ -19,9 +19,8 @@
 #include <linux/string.h>
 #include <linux/sysfs.h>
 
-#include <trace/events/thermal.h>
-
 #include "thermal_core.h"
+#include "thermal_trace.h"
 
 int get_tz_trend(struct thermal_zone_device *tz, int trip)
 {
@@ -106,6 +105,9 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 		if (!ret && *temp < crit_temp)
 			*temp = tz->emul_temperature;
 	}
+
+	if (ret)
+		dev_dbg(&tz->device, "Failed to get temperature: %d\n", ret);
 
 	return ret;
 }

@@ -1140,7 +1140,6 @@ struct ip_vs_conn *ip_vs_new_conn_out(struct ip_vs_service *svc,
 	__be16 vport;
 	unsigned int flags;
 
-	EnterFunction(12);
 	vaddr = &svc->addr;
 	vport = svc->port;
 	daddr = &iph->saddr;
@@ -1208,7 +1207,6 @@ struct ip_vs_conn *ip_vs_new_conn_out(struct ip_vs_service *svc,
 		      IP_VS_DBG_ADDR(cp->af, &cp->vaddr), ntohs(cp->vport),
 		      IP_VS_DBG_ADDR(cp->af, &cp->daddr), ntohs(cp->dport),
 		      cp->flags, refcount_read(&cp->refcnt));
-	LeaveFunction(12);
 	return cp;
 }
 
@@ -1316,13 +1314,11 @@ after_nat:
 		ip_vs_update_conntrack(skb, cp, 0);
 	ip_vs_conn_put(cp);
 
-	LeaveFunction(11);
 	return NF_ACCEPT;
 
 drop:
 	ip_vs_conn_put(cp);
 	kfree_skb(skb);
-	LeaveFunction(11);
 	return NF_STOLEN;
 }
 
@@ -1340,8 +1336,6 @@ ip_vs_out_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *stat
 	struct ip_vs_conn *cp;
 	int af = state->pf;
 	struct sock *sk;
-
-	EnterFunction(11);
 
 	/* Already marked as IPVS request or reply? */
 	if (skb->ipvs_property)
@@ -2365,7 +2359,6 @@ static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
 	struct netns_ipvs *ipvs;
 	struct net *net;
 
-	EnterFunction(2);
 	list_for_each_entry(net, net_list, exit_list) {
 		ipvs = net_ipvs(net);
 		ip_vs_unregister_hooks(ipvs, AF_INET);
@@ -2374,7 +2367,6 @@ static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
 		smp_wmb();
 		ip_vs_sync_net_cleanup(ipvs);
 	}
-	LeaveFunction(2);
 }
 
 static struct pernet_operations ipvs_core_ops = {

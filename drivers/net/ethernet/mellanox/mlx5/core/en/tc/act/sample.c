@@ -6,25 +6,6 @@
 #include "en/tc_priv.h"
 #include "en/tc/act/sample.h"
 
-static bool
-tc_act_can_offload_sample(struct mlx5e_tc_act_parse_state *parse_state,
-			  const struct flow_action_entry *act,
-			  int act_index,
-			  struct mlx5_flow_attr *attr)
-{
-	struct netlink_ext_ack *extack = parse_state->extack;
-	bool ct_nat;
-
-	ct_nat = attr->ct_attr.ct_action & TCA_CT_ACT_NAT;
-
-	if (flow_flag_test(parse_state->flow, CT) && ct_nat) {
-		NL_SET_ERR_MSG_MOD(extack, "Sample action with CT NAT is not supported");
-		return false;
-	}
-
-	return true;
-}
-
 static int
 tc_act_parse_sample(struct mlx5e_tc_act_parse_state *parse_state,
 		    const struct flow_action_entry *act,
@@ -65,7 +46,6 @@ tc_act_is_multi_table_act_sample(struct mlx5e_priv *priv,
 }
 
 struct mlx5e_tc_act mlx5e_tc_act_sample = {
-	.can_offload = tc_act_can_offload_sample,
 	.parse_action = tc_act_parse_sample,
 	.is_multi_table_act = tc_act_is_multi_table_act_sample,
 };

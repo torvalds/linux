@@ -124,10 +124,10 @@ static void xhci_dbc_init_contexts(struct xhci_dbc *dbc, u32 string_length)
 	/* Set DbC context and info registers: */
 	lo_hi_writeq(dbc->ctx->dma, &dbc->regs->dccp);
 
-	dev_info = cpu_to_le32((DBC_VENDOR_ID << 16) | DBC_PROTOCOL);
+	dev_info = (dbc->idVendor << 16) | dbc->bInterfaceProtocol;
 	writel(dev_info, &dbc->regs->devinfo1);
 
-	dev_info = cpu_to_le32((DBC_DEVICE_REV << 16) | DBC_PRODUCT_ID);
+	dev_info = (dbc->bcdDevice << 16) | dbc->idProduct;
 	writel(dev_info, &dbc->regs->devinfo2);
 }
 
@@ -971,7 +971,186 @@ static ssize_t dbc_store(struct device *dev,
 	return count;
 }
 
+static ssize_t dbc_idVendor_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct xhci_dbc		*dbc;
+	struct xhci_hcd		*xhci;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+
+	return sprintf(buf, "%04x\n", dbc->idVendor);
+}
+
+static ssize_t dbc_idVendor_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t size)
+{
+	struct xhci_dbc		*dbc;
+	struct xhci_hcd		*xhci;
+	void __iomem		*ptr;
+	u16			value;
+	u32			dev_info;
+
+	if (kstrtou16(buf, 0, &value))
+		return -EINVAL;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+	if (dbc->state != DS_DISABLED)
+		return -EBUSY;
+
+	dbc->idVendor = value;
+	ptr = &dbc->regs->devinfo1;
+	dev_info = readl(ptr);
+	dev_info = (dev_info & ~(0xffffu << 16)) | (value << 16);
+	writel(dev_info, ptr);
+
+	return size;
+}
+
+static ssize_t dbc_idProduct_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct xhci_dbc         *dbc;
+	struct xhci_hcd         *xhci;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+
+	return sprintf(buf, "%04x\n", dbc->idProduct);
+}
+
+static ssize_t dbc_idProduct_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t size)
+{
+	struct xhci_dbc         *dbc;
+	struct xhci_hcd         *xhci;
+	void __iomem		*ptr;
+	u32			dev_info;
+	u16			value;
+
+	if (kstrtou16(buf, 0, &value))
+		return -EINVAL;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+	if (dbc->state != DS_DISABLED)
+		return -EBUSY;
+
+	dbc->idProduct = value;
+	ptr = &dbc->regs->devinfo2;
+	dev_info = readl(ptr);
+	dev_info = (dev_info & ~(0xffffu)) | value;
+	writel(dev_info, ptr);
+	return size;
+}
+
+static ssize_t dbc_bcdDevice_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct xhci_dbc	*dbc;
+	struct xhci_hcd	*xhci;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+
+	return sprintf(buf, "%04x\n", dbc->bcdDevice);
+}
+
+static ssize_t dbc_bcdDevice_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
+{
+	struct xhci_dbc	*dbc;
+	struct xhci_hcd	*xhci;
+	void __iomem *ptr;
+	u32 dev_info;
+	u16 value;
+
+	if (kstrtou16(buf, 0, &value))
+		return -EINVAL;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+	if (dbc->state != DS_DISABLED)
+		return -EBUSY;
+
+	dbc->bcdDevice = value;
+	ptr = &dbc->regs->devinfo2;
+	dev_info = readl(ptr);
+	dev_info = (dev_info & ~(0xffffu << 16)) | (value << 16);
+	writel(dev_info, ptr);
+
+	return size;
+}
+
+static ssize_t dbc_bInterfaceProtocol_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct xhci_dbc	*dbc;
+	struct xhci_hcd	*xhci;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+
+	return sprintf(buf, "%02x\n", dbc->bInterfaceProtocol);
+}
+
+static ssize_t dbc_bInterfaceProtocol_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	struct xhci_dbc *dbc;
+	struct xhci_hcd *xhci;
+	void __iomem *ptr;
+	u32 dev_info;
+	u8 value;
+	int ret;
+
+	/* bInterfaceProtocol is 8 bit, but xhci only supports values 0 and 1 */
+	ret = kstrtou8(buf, 0, &value);
+	if (ret || value > 1)
+		return -EINVAL;
+
+	xhci = hcd_to_xhci(dev_get_drvdata(dev));
+	dbc = xhci->dbc;
+	if (dbc->state != DS_DISABLED)
+		return -EBUSY;
+
+	dbc->bInterfaceProtocol = value;
+	ptr = &dbc->regs->devinfo1;
+	dev_info = readl(ptr);
+	dev_info = (dev_info & ~(0xffu)) | value;
+	writel(dev_info, ptr);
+
+	return size;
+}
+
 static DEVICE_ATTR_RW(dbc);
+static DEVICE_ATTR_RW(dbc_idVendor);
+static DEVICE_ATTR_RW(dbc_idProduct);
+static DEVICE_ATTR_RW(dbc_bcdDevice);
+static DEVICE_ATTR_RW(dbc_bInterfaceProtocol);
+
+static struct attribute *dbc_dev_attributes[] = {
+	&dev_attr_dbc.attr,
+	&dev_attr_dbc_idVendor.attr,
+	&dev_attr_dbc_idProduct.attr,
+	&dev_attr_dbc_bcdDevice.attr,
+	&dev_attr_dbc_bInterfaceProtocol.attr,
+	NULL
+};
+
+static const struct attribute_group dbc_dev_attrib_grp = {
+	.attrs = dbc_dev_attributes,
+};
 
 struct xhci_dbc *
 xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *driver)
@@ -986,6 +1165,10 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *
 	dbc->regs = base;
 	dbc->dev = dev;
 	dbc->driver = driver;
+	dbc->idProduct = DBC_PRODUCT_ID;
+	dbc->idVendor = DBC_VENDOR_ID;
+	dbc->bcdDevice = DBC_DEVICE_REV;
+	dbc->bInterfaceProtocol = DBC_PROTOCOL;
 
 	if (readl(&dbc->regs->control) & DBC_CTRL_DBC_ENABLE)
 		goto err;
@@ -993,7 +1176,7 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *
 	INIT_DELAYED_WORK(&dbc->event_work, xhci_dbc_handle_events);
 	spin_lock_init(&dbc->lock);
 
-	ret = device_create_file(dev, &dev_attr_dbc);
+	ret = sysfs_create_group(&dev->kobj, &dbc_dev_attrib_grp);
 	if (ret)
 		goto err;
 
@@ -1012,7 +1195,7 @@ void xhci_dbc_remove(struct xhci_dbc *dbc)
 	xhci_dbc_stop(dbc);
 
 	/* remove sysfs files */
-	device_remove_file(dbc->dev, &dev_attr_dbc);
+	sysfs_remove_group(&dbc->dev->kobj, &dbc_dev_attrib_grp);
 
 	kfree(dbc);
 }

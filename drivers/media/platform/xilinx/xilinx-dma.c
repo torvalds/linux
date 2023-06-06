@@ -56,7 +56,9 @@ xvip_dma_remote_subdev(struct media_pad *local, u32 *pad)
 
 static int xvip_dma_verify_format(struct xvip_dma *dma)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	int ret;
 
@@ -64,7 +66,6 @@ static int xvip_dma_verify_format(struct xvip_dma *dma)
 	if (subdev == NULL)
 		return -EPIPE;
 
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -EINVAL : ret;

@@ -61,7 +61,7 @@
 #include "dev.h"
 
 #define RTNL_MAX_TYPE		50
-#define RTNL_SLAVE_MAX_TYPE	42
+#define RTNL_SLAVE_MAX_TYPE	43
 
 struct rtnl_link {
 	rtnl_doit_func		doit;
@@ -843,7 +843,7 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 	if (dst) {
 		ci.rta_lastuse = jiffies_delta_to_clock_t(jiffies - dst->lastuse);
 		ci.rta_used = dst->__use;
-		ci.rta_clntref = atomic_read(&dst->__refcnt);
+		ci.rta_clntref = rcuref_read(&dst->__rcuref);
 	}
 	if (expires) {
 		unsigned long clock;
@@ -3975,15 +3975,22 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 				       unsigned int change,
 				       u32 event, gfp_t flags, int *new_nsid,
-				       int new_ifindex, u32 portid, u32 seq)
+				       int new_ifindex, u32 portid,
+				       const struct nlmsghdr *nlh)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
+	u32 seq = 0;
 
 	skb = nlmsg_new(if_nlmsg_size(dev, 0), flags);
 	if (skb == NULL)
 		goto errout;
+
+	if (nlmsg_report(nlh))
+		seq = nlmsg_seq(nlh);
+	else
+		portid = 0;
 
 	err = rtnl_fill_ifinfo(skb, dev, dev_net(dev),
 			       type, portid, seq, change, 0, 0, event,
@@ -4020,7 +4027,7 @@ static void rtmsg_ifinfo_event(int type, struct net_device *dev,
 		return;
 
 	skb = rtmsg_ifinfo_build_skb(type, dev, change, event, flags, new_nsid,
-				     new_ifindex, portid, nlmsg_seq(nlh));
+				     new_ifindex, portid, nlh);
 	if (skb)
 		rtmsg_ifinfo_send(skb, dev, flags, portid, nlh);
 }

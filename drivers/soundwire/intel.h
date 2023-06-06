@@ -50,6 +50,35 @@ struct sdw_intel {
 #endif
 };
 
+enum intel_pdi_type {
+	INTEL_PDI_IN = 0,
+	INTEL_PDI_OUT = 1,
+	INTEL_PDI_BD = 2,
+};
+
+/*
+ * Read, write helpers for HW registers
+ */
+static inline int intel_readl(void __iomem *base, int offset)
+{
+	return readl(base + offset);
+}
+
+static inline void intel_writel(void __iomem *base, int offset, int value)
+{
+	writel(value, base + offset);
+}
+
+static inline u16 intel_readw(void __iomem *base, int offset)
+{
+	return readw(base + offset);
+}
+
+static inline void intel_writew(void __iomem *base, int offset, u16 value)
+{
+	writew(value, base + offset);
+}
+
 #define cdns_to_intel(_cdns) container_of(_cdns, struct sdw_intel, cdns)
 
 #define INTEL_MASTER_RESET_ITERATIONS	10
@@ -137,5 +166,43 @@ static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 	if (SDW_INTEL_CHECK_OPS(sdw, shim_wake))
 		SDW_INTEL_OPS(sdw, shim_wake)(sdw, wake_enable);
 }
+
+static inline void sdw_intel_sync_arm(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_arm))
+		SDW_INTEL_OPS(sdw, sync_arm)(sdw);
+}
+
+static inline int sdw_intel_sync_go_unlocked(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_go_unlocked))
+		return SDW_INTEL_OPS(sdw, sync_go_unlocked)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_go))
+		return SDW_INTEL_OPS(sdw, sync_go)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked))
+		return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked)(sdw);
+	return false;
+}
+
+/* common bus management */
+int intel_start_bus(struct sdw_intel *sdw);
+int intel_start_bus_after_reset(struct sdw_intel *sdw);
+void intel_check_clock_stop(struct sdw_intel *sdw);
+int intel_start_bus_after_clock_stop(struct sdw_intel *sdw);
+int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop);
+
+/* common bank switch routines */
+int intel_pre_bank_switch(struct sdw_intel *sdw);
+int intel_post_bank_switch(struct sdw_intel *sdw);
 
 #endif /* __SDW_INTEL_LOCAL_H */

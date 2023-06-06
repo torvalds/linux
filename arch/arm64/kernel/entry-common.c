@@ -840,7 +840,7 @@ UNHANDLED(el0t, 32, error)
 #endif /* CONFIG_COMPAT */
 
 #ifdef CONFIG_VMAP_STACK
-asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
+asmlinkage void noinstr __noreturn handle_bad_stack(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 	unsigned long far = read_sysreg(far_el1);

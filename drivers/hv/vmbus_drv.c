@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
@@ -19,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/hyperv.h>
 #include <linux/kernel_stat.h>
+#include <linux/of_address.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
 #include <linux/sched/isolation.h>
@@ -28,7 +30,6 @@
 #include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
-#include <linux/kdebug.h>
 #include <linux/efi.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
@@ -44,29 +45,15 @@ struct vmbus_dynid {
 	struct hv_vmbus_device_id id;
 };
 
-static struct acpi_device  *hv_acpi_dev;
+static struct device  *hv_dev;
 
 static int hyperv_cpuhp_online;
-
-static void *hv_panic_page;
 
 static long __percpu *vmbus_evt;
 
 /* Values parsed from ACPI DSDT */
 int vmbus_irq;
 int vmbus_interrupt;
-
-/*
- * Boolean to control whether to report panic messages over Hyper-V.
- *
- * It can be set via /proc/sys/kernel/hyperv_record_panic_msg
- */
-static int sysctl_record_panic_msg = 1;
-
-static int hyperv_report_reg(void)
-{
-	return !sysctl_record_panic_msg || !hv_panic_page;
-}
 
 /*
  * The panic notifier below is responsible solely for unloading the
@@ -88,54 +75,6 @@ static struct notifier_block hyperv_panic_vmbus_unload_block = {
 	.priority	= INT_MIN + 1, /* almost the latest one to execute */
 };
 
-static int hv_die_panic_notify_crash(struct notifier_block *self,
-				     unsigned long val, void *args);
-
-static struct notifier_block hyperv_die_report_block = {
-	.notifier_call = hv_die_panic_notify_crash,
-};
-static struct notifier_block hyperv_panic_report_block = {
-	.notifier_call = hv_die_panic_notify_crash,
-};
-
-/*
- * The following callback works both as die and panic notifier; its
- * goal is to provide panic information to the hypervisor unless the
- * kmsg dumper is used [see hv_kmsg_dump()], which provides more
- * information but isn't always available.
- *
- * Notice that both the panic/die report notifiers are registered only
- * if we have the capability HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE set.
- */
-static int hv_die_panic_notify_crash(struct notifier_block *self,
-				     unsigned long val, void *args)
-{
-	struct pt_regs *regs;
-	bool is_die;
-
-	/* Don't notify Hyper-V unless we have a die oops event or panic. */
-	if (self == &hyperv_panic_report_block) {
-		is_die = false;
-		regs = current_pt_regs();
-	} else { /* die event */
-		if (val != DIE_OOPS)
-			return NOTIFY_DONE;
-
-		is_die = true;
-		regs = ((struct die_args *)args)->regs;
-	}
-
-	/*
-	 * Hyper-V should be notified only once about a panic/die. If we will
-	 * be calling hv_kmsg_dump() later with kmsg data, don't do the
-	 * notification here.
-	 */
-	if (hyperv_report_reg())
-		hyperv_report_panic(regs, val, is_die);
-
-	return NOTIFY_DONE;
-}
-
 static const char *fb_mmio_name = "fb_range";
 static struct resource *fb_mmio;
 static struct resource *hyperv_mmio;
@@ -143,7 +82,7 @@ static DEFINE_MUTEX(hyperv_mmio_lock);
 
 static int vmbus_exists(void)
 {
-	if (hv_acpi_dev == NULL)
+	if (hv_dev == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -684,7 +623,7 @@ static const struct attribute_group vmbus_dev_group = {
 __ATTRIBUTE_GROUPS(vmbus_dev);
 
 /* Set up the attribute for /sys/bus/vmbus/hibernation */
-static ssize_t hibernation_show(struct bus_type *bus, char *buf)
+static ssize_t hibernation_show(const struct bus_type *bus, char *buf)
 {
 	return sprintf(buf, "%d\n", !!hv_is_hibernation_supported());
 }
@@ -932,7 +871,7 @@ static int vmbus_dma_configure(struct device *child_device)
 	 * On x86/x64 coherence is assumed and these calls have no effect.
 	 */
 	hv_setup_dma_ops(child_device,
-		device_get_dma_attr(&hv_acpi_dev->dev) == DEV_DMA_COHERENT);
+		device_get_dma_attr(hv_dev) == DEV_DMA_COHERENT);
 	return 0;
 }
 
@@ -1378,98 +1317,6 @@ static irqreturn_t vmbus_percpu_isr(int irq, void *dev_id)
 }
 
 /*
- * Callback from kmsg_dump. Grab as much as possible from the end of the kmsg
- * buffer and call into Hyper-V to transfer the data.
- */
-static void hv_kmsg_dump(struct kmsg_dumper *dumper,
-			 enum kmsg_dump_reason reason)
-{
-	struct kmsg_dump_iter iter;
-	size_t bytes_written;
-
-	/* We are only interested in panics. */
-	if ((reason != KMSG_DUMP_PANIC) || (!sysctl_record_panic_msg))
-		return;
-
-	/*
-	 * Write dump contents to the page. No need to synchronize; panic should
-	 * be single-threaded.
-	 */
-	kmsg_dump_rewind(&iter);
-	kmsg_dump_get_buffer(&iter, false, hv_panic_page, HV_HYP_PAGE_SIZE,
-			     &bytes_written);
-	if (!bytes_written)
-		return;
-	/*
-	 * P3 to contain the physical address of the panic page & P4 to
-	 * contain the size of the panic data in that page. Rest of the
-	 * registers are no-op when the NOTIFY_MSG flag is set.
-	 */
-	hv_set_register(HV_REGISTER_CRASH_P0, 0);
-	hv_set_register(HV_REGISTER_CRASH_P1, 0);
-	hv_set_register(HV_REGISTER_CRASH_P2, 0);
-	hv_set_register(HV_REGISTER_CRASH_P3, virt_to_phys(hv_panic_page));
-	hv_set_register(HV_REGISTER_CRASH_P4, bytes_written);
-
-	/*
-	 * Let Hyper-V know there is crash data available along with
-	 * the panic message.
-	 */
-	hv_set_register(HV_REGISTER_CRASH_CTL,
-	       (HV_CRASH_CTL_CRASH_NOTIFY | HV_CRASH_CTL_CRASH_NOTIFY_MSG));
-}
-
-static struct kmsg_dumper hv_kmsg_dumper = {
-	.dump = hv_kmsg_dump,
-};
-
-static void hv_kmsg_dump_register(void)
-{
-	int ret;
-
-	hv_panic_page = hv_alloc_hyperv_zeroed_page();
-	if (!hv_panic_page) {
-		pr_err("Hyper-V: panic message page memory allocation failed\n");
-		return;
-	}
-
-	ret = kmsg_dump_register(&hv_kmsg_dumper);
-	if (ret) {
-		pr_err("Hyper-V: kmsg dump register error 0x%x\n", ret);
-		hv_free_hyperv_page((unsigned long)hv_panic_page);
-		hv_panic_page = NULL;
-	}
-}
-
-static struct ctl_table_header *hv_ctl_table_hdr;
-
-/*
- * sysctl option to allow the user to control whether kmsg data should be
- * reported to Hyper-V on panic.
- */
-static struct ctl_table hv_ctl_table[] = {
-	{
-		.procname       = "hyperv_record_panic_msg",
-		.data           = &sysctl_record_panic_msg,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
-	},
-	{}
-};
-
-static struct ctl_table hv_root_table[] = {
-	{
-		.procname	= "kernel",
-		.mode		= 0555,
-		.child		= hv_ctl_table
-	},
-	{}
-};
-
-/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
@@ -1532,38 +1379,6 @@ static int vmbus_bus_init(void)
 	if (ret)
 		goto err_connect;
 
-	if (hv_is_isolation_supported())
-		sysctl_record_panic_msg = 0;
-
-	/*
-	 * Only register if the crash MSRs are available
-	 */
-	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
-		u64 hyperv_crash_ctl;
-		/*
-		 * Panic message recording (sysctl_record_panic_msg)
-		 * is enabled by default in non-isolated guests and
-		 * disabled by default in isolated guests; the panic
-		 * message recording won't be available in isolated
-		 * guests should the following registration fail.
-		 */
-		hv_ctl_table_hdr = register_sysctl_table(hv_root_table);
-		if (!hv_ctl_table_hdr)
-			pr_err("Hyper-V: sysctl table register error");
-
-		/*
-		 * Register for panic kmsg callback only if the right
-		 * capability is supported by the hypervisor.
-		 */
-		hyperv_crash_ctl = hv_get_register(HV_REGISTER_CRASH_CTL);
-		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
-			hv_kmsg_dump_register();
-
-		register_die_notifier(&hyperv_die_report_block);
-		atomic_notifier_chain_register(&panic_notifier_list,
-						&hyperv_panic_report_block);
-	}
-
 	/*
 	 * Always register the vmbus unload panic notifier because we
 	 * need to shut the VMbus channel connection on panic.
@@ -1588,8 +1403,6 @@ err_alloc:
 	}
 err_setup:
 	bus_unregister(&hv_bus);
-	unregister_sysctl_table(hv_ctl_table_hdr);
-	hv_ctl_table_hdr = NULL;
 	return ret;
 }
 
@@ -2090,7 +1903,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 		     &child_device_obj->channel->offermsg.offer.if_instance);
 
 	child_device_obj->device.bus = &hv_bus;
-	child_device_obj->device.parent = &hv_acpi_dev->dev;
+	child_device_obj->device.parent = hv_dev;
 	child_device_obj->device.release = vmbus_device_release;
 
 	child_device_obj->device.dma_parms = &child_device_obj->dma_parms;
@@ -2151,12 +1964,11 @@ void vmbus_device_unregister(struct hv_device *device_obj)
 	device_unregister(&device_obj->device);
 }
 
-
+#ifdef CONFIG_ACPI
 /*
  * VMBUS is an acpi enumerated device. Get the information we
  * need from DSDT.
  */
-#define VTPM_BASE_ADDRESS 0xfed40000
 static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 {
 	resource_size_t start = 0;
@@ -2261,8 +2073,9 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 
 	return AE_OK;
 }
+#endif
 
-static void vmbus_acpi_remove(struct acpi_device *device)
+static void vmbus_mmio_remove(void)
 {
 	struct resource *cur_res;
 	struct resource *next_res;
@@ -2281,7 +2094,7 @@ static void vmbus_acpi_remove(struct acpi_device *device)
 	}
 }
 
-static void vmbus_reserve_fb(void)
+static void __maybe_unused vmbus_reserve_fb(void)
 {
 	resource_size_t start = 0, size;
 	struct pci_dev *pdev;
@@ -2441,13 +2254,15 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 }
 EXPORT_SYMBOL_GPL(vmbus_free_mmio);
 
-static int vmbus_acpi_add(struct acpi_device *device)
+#ifdef CONFIG_ACPI
+static int vmbus_acpi_add(struct platform_device *pdev)
 {
 	acpi_status result;
 	int ret_val = -ENODEV;
 	struct acpi_device *ancestor;
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 
-	hv_acpi_dev = device;
+	hv_dev = &device->dev;
 
 	/*
 	 * Older versions of Hyper-V for ARM64 fail to include the _CCA
@@ -2489,8 +2304,63 @@ static int vmbus_acpi_add(struct acpi_device *device)
 
 acpi_walk_err:
 	if (ret_val)
-		vmbus_acpi_remove(device);
+		vmbus_mmio_remove();
 	return ret_val;
+}
+#else
+static int vmbus_acpi_add(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
+
+static int vmbus_device_add(struct platform_device *pdev)
+{
+	struct resource **cur_res = &hyperv_mmio;
+	struct of_range range;
+	struct of_range_parser parser;
+	struct device_node *np = pdev->dev.of_node;
+	int ret;
+
+	hv_dev = &pdev->dev;
+
+	ret = of_range_parser_init(&parser, np);
+	if (ret)
+		return ret;
+
+	for_each_of_range(&parser, &range) {
+		struct resource *res;
+
+		res = kzalloc(sizeof(*res), GFP_KERNEL);
+		if (!res) {
+			vmbus_mmio_remove();
+			return -ENOMEM;
+		}
+
+		res->name = "hyperv mmio";
+		res->flags = range.flags;
+		res->start = range.cpu_addr;
+		res->end = range.cpu_addr + range.size;
+
+		*cur_res = res;
+		cur_res = &res->sibling;
+	}
+
+	return ret;
+}
+
+static int vmbus_platform_driver_probe(struct platform_device *pdev)
+{
+	if (acpi_disabled)
+		return vmbus_device_add(pdev);
+	else
+		return vmbus_acpi_add(pdev);
+}
+
+static int vmbus_platform_driver_remove(struct platform_device *pdev)
+{
+	vmbus_mmio_remove();
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2630,7 +2500,17 @@ static int vmbus_bus_resume(struct device *dev)
 #define vmbus_bus_resume NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static const struct acpi_device_id vmbus_acpi_device_ids[] = {
+static const __maybe_unused struct of_device_id vmbus_of_match[] = {
+	{
+		.compatible = "microsoft,vmbus",
+	},
+	{
+		/* sentinel */
+	},
+};
+MODULE_DEVICE_TABLE(of, vmbus_of_match);
+
+static const __maybe_unused struct acpi_device_id vmbus_acpi_device_ids[] = {
 	{"VMBUS", 0},
 	{"VMBus", 0},
 	{"", 0},
@@ -2658,15 +2538,16 @@ static const struct dev_pm_ops vmbus_bus_pm = {
 	.restore_noirq	= vmbus_bus_resume
 };
 
-static struct acpi_driver vmbus_acpi_driver = {
-	.name = "vmbus",
-	.ids = vmbus_acpi_device_ids,
-	.ops = {
-		.add = vmbus_acpi_add,
-		.remove = vmbus_acpi_remove,
-	},
-	.drv.pm = &vmbus_bus_pm,
-	.drv.probe_type = PROBE_FORCE_SYNCHRONOUS,
+static struct platform_driver vmbus_platform_driver = {
+	.probe = vmbus_platform_driver_probe,
+	.remove = vmbus_platform_driver_remove,
+	.driver = {
+		.name = "vmbus",
+		.acpi_match_table = ACPI_PTR(vmbus_acpi_device_ids),
+		.of_match_table = of_match_ptr(vmbus_of_match),
+		.pm = &vmbus_bus_pm,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+	}
 };
 
 static void hv_kexec_handler(void)
@@ -2750,12 +2631,11 @@ static int __init hv_acpi_init(void)
 	/*
 	 * Get ACPI resources first.
 	 */
-	ret = acpi_bus_register_driver(&vmbus_acpi_driver);
-
+	ret = platform_driver_register(&vmbus_platform_driver);
 	if (ret)
 		return ret;
 
-	if (!hv_acpi_dev) {
+	if (!hv_dev) {
 		ret = -ENODEV;
 		goto cleanup;
 	}
@@ -2785,8 +2665,8 @@ static int __init hv_acpi_init(void)
 	return 0;
 
 cleanup:
-	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	hv_acpi_dev = NULL;
+	platform_driver_unregister(&vmbus_platform_driver);
+	hv_dev = NULL;
 	return ret;
 }
 
@@ -2818,13 +2698,6 @@ static void __exit vmbus_exit(void)
 	vmbus_free_channels();
 	kfree(vmbus_connection.channels);
 
-	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
-		kmsg_dump_unregister(&hv_kmsg_dumper);
-		unregister_die_notifier(&hyperv_die_report_block);
-		atomic_notifier_chain_unregister(&panic_notifier_list,
-						&hyperv_panic_report_block);
-	}
-
 	/*
 	 * The vmbus panic notifier is always registered, hence we should
 	 * also unconditionally unregister it here as well.
@@ -2832,14 +2705,11 @@ static void __exit vmbus_exit(void)
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					&hyperv_panic_vmbus_unload_block);
 
-	free_page((unsigned long)hv_panic_page);
-	unregister_sysctl_table(hv_ctl_table_hdr);
-	hv_ctl_table_hdr = NULL;
 	bus_unregister(&hv_bus);
 
 	cpuhp_remove_state(hyperv_cpuhp_online);
 	hv_synic_free();
-	acpi_bus_unregister_driver(&vmbus_acpi_driver);
+	platform_driver_unregister(&vmbus_platform_driver);
 }
 
 

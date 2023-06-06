@@ -2,8 +2,8 @@
 # Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/pci/ti,j721e-pci-ep.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/pci/ti,j721e-pci-ep.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: TI J721E PCI EP (PCIe Wrapper)
 
@@ -11,7 +11,7 @@ maintainers:
   - Kishon Vijay Abraham I <kishon@ti.com>
 
 allOf:
-  - $ref: "cdns-pcie-ep.yaml#"
+  - $ref: cdns-pcie-ep.yaml#
 
 properties:
   compatible:

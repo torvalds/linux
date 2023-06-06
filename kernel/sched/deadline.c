@@ -2246,6 +2246,7 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 				     !cpumask_test_cpu(later_rq->cpu, &task->cpus_mask) ||
 				     task_on_cpu(rq, task) ||
 				     !dl_task(task) ||
+				     is_migration_disabled(task) ||
 				     !task_on_rq_queued(task))) {
 				double_unlock_balance(rq, later_rq);
 				later_rq = NULL;
@@ -2704,6 +2705,13 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 #endif
 }
 
+#ifdef CONFIG_SCHED_CORE
+static int task_is_throttled_dl(struct task_struct *p, int cpu)
+{
+	return p->dl.dl_throttled;
+}
+#endif
+
 DEFINE_SCHED_CLASS(dl) = {
 
 	.enqueue_task		= enqueue_task_dl,
@@ -2736,6 +2744,9 @@ DEFINE_SCHED_CLASS(dl) = {
 	.switched_to		= switched_to_dl,
 
 	.update_curr		= update_curr_dl,
+#ifdef CONFIG_SCHED_CORE
+	.task_is_throttled	= task_is_throttled_dl,
+#endif
 };
 
 /* Used for dl_bw check and update, used under sched_rt_handler()::mutex */

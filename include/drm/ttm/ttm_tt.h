@@ -83,12 +83,12 @@ struct ttm_tt {
 	 * set by TTM after ttm_tt_populate() has successfully returned, and is
 	 * then unset when TTM calls ttm_tt_unpopulate().
 	 */
-#define TTM_TT_FLAG_SWAPPED		(1 << 0)
-#define TTM_TT_FLAG_ZERO_ALLOC		(1 << 1)
-#define TTM_TT_FLAG_EXTERNAL		(1 << 2)
-#define TTM_TT_FLAG_EXTERNAL_MAPPABLE	(1 << 3)
+#define TTM_TT_FLAG_SWAPPED		BIT(0)
+#define TTM_TT_FLAG_ZERO_ALLOC		BIT(1)
+#define TTM_TT_FLAG_EXTERNAL		BIT(2)
+#define TTM_TT_FLAG_EXTERNAL_MAPPABLE	BIT(3)
 
-#define TTM_TT_FLAG_PRIV_POPULATED  (1U << 31)
+#define TTM_TT_FLAG_PRIV_POPULATED	BIT(4)
 	uint32_t page_flags;
 	/** @num_pages: Number of pages in the page array. */
 	uint32_t num_pages;
