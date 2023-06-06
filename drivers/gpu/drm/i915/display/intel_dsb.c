@@ -112,7 +112,7 @@ static void intel_dsb_dump(struct intel_dsb *dsb)
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 			enum dsb_id id)
 {
-	return intel_de_read(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
+	return intel_de_read_fw(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
 }
 
 static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
@@ -273,13 +273,13 @@ void intel_dsb_commit(struct intel_dsb *dsb, bool wait_for_vblank)
 		return;
 	}
 
-	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id),
-		       (wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0) |
-		       DSB_ENABLE);
-	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
-		       i915_ggtt_offset(dsb->vma));
-	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
-		       i915_ggtt_offset(dsb->vma) + tail);
+	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
+			  (wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0) |
+			  DSB_ENABLE);
+	intel_de_write_fw(dev_priv, DSB_HEAD(pipe, dsb->id),
+			  i915_ggtt_offset(dsb->vma));
+	intel_de_write_fw(dev_priv, DSB_TAIL(pipe, dsb->id),
+			  i915_ggtt_offset(dsb->vma) + tail);
 }
 
 void intel_dsb_wait(struct intel_dsb *dsb)
@@ -307,7 +307,7 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
+	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
 }
 
 /**
