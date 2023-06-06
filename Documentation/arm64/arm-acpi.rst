@@ -170,7 +170,7 @@ hardware reduced mode must be set to zero.
 
 For the ACPI core to operate properly, and in turn provide the information
 the kernel needs to configure devices, it expects to find the following
-tables (all section numbers refer to the ACPI 6.1 specification):
+tables (all section numbers refer to the ACPI 6.5 specification):
 
     -  RSDP (Root System Description Pointer), section 5.2.5
 
@@ -185,20 +185,76 @@ tables (all section numbers refer to the ACPI 6.1 specification):
 
     -  GTDT (Generic Timer Description Table), section 5.2.24
 
+    -  PPTT (Processor Properties Topology Table), section 5.2.30
+
+    -  DBG2 (DeBuG port table 2), section 5.2.6, specifically Table 5-6.
+
+    -  APMT (Arm Performance Monitoring unit Table), section 5.2.6, specifically Table 5-6.
+
+    -  AGDI (Arm Generic diagnostic Dump and Reset Device Interface Table), section 5.2.6, specifically Table 5-6.
+
     -  If PCI is supported, the MCFG (Memory mapped ConFiGuration
-       Table), section 5.2.6, specifically Table 5-31.
+       Table), section 5.2.6, specifically Table 5-6.
 
     -  If booting without a console=<device> kernel parameter is
        supported, the SPCR (Serial Port Console Redirection table),
-       section 5.2.6, specifically Table 5-31.
+       section 5.2.6, specifically Table 5-6.
 
     -  If necessary to describe the I/O topology, SMMUs and GIC ITSs,
        the IORT (Input Output Remapping Table, section 5.2.6, specifically
-       Table 5-31).
+       Table 5-6).
 
-    -  If NUMA is supported, the SRAT (System Resource Affinity Table)
-       and SLIT (System Locality distance Information Table), sections
-       5.2.16 and 5.2.17, respectively.
+    -  If NUMA is supported, the following tables are required:
+
+       - SRAT (System Resource Affinity Table), section 5.2.16
+
+       - SLIT (System Locality distance Information Table), section 5.2.17
+
+    -  If NUMA is supported, and the system contains heterogeneous memory,
+       the HMAT (Heterogeneous Memory Attribute Table), section 5.2.28.
+
+    -  If the ACPI Platform Error Interfaces are required, the following
+       tables are conditionally required:
+
+       - BERT (Boot Error Record Table, section 18.3.1)
+
+       - EINJ (Error INJection table, section 18.6.1)
+
+       - ERST (Error Record Serialization Table, section 18.5)
+
+       - HEST (Hardware Error Source Table, section 18.3.2)
+
+       - SDEI (Software Delegated Exception Interface table, section 5.2.6,
+         specifically Table 5-6)
+
+       - AEST (Arm Error Source Table, section 5.2.6,
+         specifically Table 5-6)
+
+       - RAS2 (ACPI RAS2 feature table, section 5.2.21)
+
+    -  If the system contains controllers using PCC channel, the
+       PCCT (Platform Communications Channel Table), section 14.1
+
+    -  If the system contains a controller to capture board-level system state,
+       and communicates with the host via PCC, the PDTT (Platform Debug Trigger
+       Table), section 5.2.29.
+
+    -  If NVDIMM is supported, the NFIT (NVDIMM Firmware Interface Table), section 5.2.26
+
+    -  If video framebuffer is present, the BGRT (Boot Graphics Resource Table), section 5.2.23
+
+    -  If IPMI is implemented, the SPMI (Server Platform Management Interface),
+       section 5.2.6, specifically Table 5-6.
+
+    -  If the system contains a CXL Host Bridge, the CEDT (CXL Early Discovery
+       Table), section 5.2.6, specifically Table 5-6.
+
+    -  If the system supports MPAM, the MPAM (Memory Partitioning And Monitoring table), section 5.2.6,
+       specifically Table 5-6.
+
+    -  If the system lacks persistent storage, the IBFT (ISCSI Boot Firmware
+       Table), section 5.2.6, specifically Table 5-6.
+
 
 If the above tables are not all present, the kernel may or may not be
 able to boot properly since it may not be able to configure all of the
@@ -450,7 +506,7 @@ version 5.1 was released and version 6.0 substantially completed, with most of
 the changes being driven by Arm-specific requirements.  Proposed changes are
 presented and discussed in the ASWG (ACPI Specification Working Group) which
 is a part of the UEFI Forum.  The current version of the ACPI specification
-is 6.1 release in January 2016.
+is 6.5 release in August 2022.
 
 Participation in this group is open to all UEFI members.  Please see
 http://www.uefi.org/workinggroup for details on group membership.
