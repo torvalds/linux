@@ -255,8 +255,8 @@ static int intel_rapl_tpmi_probe(struct auxiliary_device *auxdev,
 	}
 
 	trp->base = devm_ioremap_resource(&auxdev->dev, res);
-	if (!trp->base) {
-		ret = -ENOMEM;
+	if (IS_ERR(trp->base)) {
+		ret = PTR_ERR(trp->base);
 		goto err;
 	}
 
