@@ -2371,7 +2371,8 @@
 			<&cru HCLK_PMU_CM0_ROOT>,
 			<&cru ACLK_BUS_ROOT>, <&cru CLK_150M_SRC>,
 			<&cru CLK_GPU>, <&cru CLK_SPDIF2_DP0>,
-			<&cru CLK_SPDIF5_DP1>;
+			<&cru CLK_SPDIF5_DP1>, <&cru CLK_HDMIRX_AUD>,
+			<&cru DCLK_DECOM>;
 		assigned-clock-rates =
 			<1100000000>, <786432000>,
 			<850000000>, <1188000000>,
@@ -2382,7 +2383,8 @@
 			<200000000>,
 			<375000000>, <150000000>,
 			<200000000>, <12000000>,
-			<12000000>;
+			<12000000>, <99000000>,
+			<20000000>;
 	};
 
 	i2c0: i2c@fd880000 {
@@ -3368,9 +3370,9 @@
 		interrupt-names = "irq_rkvenc0";
 		clocks = <&cru ACLK_RKVENC0>, <&cru HCLK_RKVENC0>, <&cru CLK_RKVENC0_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <600000000>, <0>, <800000000>;
+		rockchip,normal-rates = <500000000>, <0>, <800000000>;
 		assigned-clocks = <&cru ACLK_RKVENC0>, <&cru CLK_RKVENC0_CORE>;
-		assigned-clock-rates = <600000000>, <800000000>;
+		assigned-clock-rates = <500000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC0>, <&cru SRST_H_RKVENC0>, <&cru SRST_RKVENC0_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		rockchip,skip-pmu-idle-request;
