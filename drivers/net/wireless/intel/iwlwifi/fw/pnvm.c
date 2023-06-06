@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2022 Intel Corporation
+ * Copyright(c) 2020-2023 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -31,16 +31,17 @@ static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
 }
 
 static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
-				   size_t len)
+				   size_t len,
+				   struct iwl_pnvm_image *pnvm_data)
 {
 	const struct iwl_ucode_tlv *tlv;
 	u32 sha1 = 0;
 	u16 mac_type = 0, rf_id = 0;
-	struct iwl_pnvm_image pnvm_data = {};
 	bool hw_match = false;
-	int ret;
 
 	IWL_DEBUG_FW(trans, "Handling PNVM section\n");
+
+	memset(pnvm_data, 0, sizeof(*pnvm_data));
 
 	while (len >= sizeof(*tlv)) {
 		u32 tlv_len, tlv_type;
@@ -73,6 +74,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_VERSION %0x\n",
 				     sha1);
+			pnvm_data->version = sha1;
 			break;
 		case IWL_UCODE_TLV_HW_TYPE:
 			if (tlv_len < 2 * sizeof(__le16)) {
@@ -110,7 +112,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 				break;
 			}
 
-			if (pnvm_data.n_chunks == IPC_DRAM_MAP_ENTRY_NUM_MAX) {
+			if (pnvm_data->n_chunks == IPC_DRAM_MAP_ENTRY_NUM_MAX) {
 				IWL_DEBUG_FW(trans,
 					     "too many payloads to allocate in DRAM.\n");
 				return -EINVAL;
@@ -119,9 +121,9 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 			IWL_DEBUG_FW(trans, "Adding data (size %d)\n",
 				     data_len);
 
-			pnvm_data.chunks[pnvm_data.n_chunks].data = section->data;
-			pnvm_data.chunks[pnvm_data.n_chunks].len = data_len;
-			pnvm_data.n_chunks++;
+			pnvm_data->chunks[pnvm_data->n_chunks].data = section->data;
+			pnvm_data->chunks[pnvm_data->n_chunks].len = data_len;
+			pnvm_data->n_chunks++;
 
 			break;
 		}
@@ -148,23 +150,17 @@ done:
 		return -ENOENT;
 	}
 
-	if (!pnvm_data.n_chunks) {
+	if (!pnvm_data->n_chunks) {
 		IWL_DEBUG_FW(trans, "Empty PNVM, skipping.\n");
 		return -ENOENT;
 	}
 
-	ret = iwl_trans_load_pnvm(trans, &pnvm_data);
-	if (ret)
-		return ret;
-
-	IWL_INFO(trans, "loaded PNVM version %08x\n", sha1);
-
-	iwl_trans_set_pnvm(trans);
 	return 0;
 }
 
 static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
-			  size_t len)
+			  size_t len,
+			  struct iwl_pnvm_image *pnvm_data)
 {
 	const struct iwl_ucode_tlv *tlv;
 
@@ -205,7 +201,8 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
 				int ret;
 
-				ret = iwl_pnvm_handle_section(trans, data, len);
+				ret = iwl_pnvm_handle_section(trans, data, len,
+							      pnvm_data);
 				if (!ret)
 					return 0;
 			} else {
@@ -248,70 +245,81 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	return 0;
 }
 
+static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
+{
+	struct pnvm_sku_package *package;
+	u8 *image = NULL;
+
+	/* First attempt to get the PNVM from BIOS */
+	package = iwl_uefi_get_pnvm(trans_p, len);
+	if (!IS_ERR_OR_NULL(package)) {
+		if (*len >= sizeof(*package)) {
+			/* we need only the data */
+			*len -= sizeof(*package);
+			image = kmemdup(package->data, *len, GFP_KERNEL);
+		}
+		/* free package regardless of whether kmemdup succeeded */
+		kfree(package);
+		if (image)
+			return image;
+	}
+
+	/* If it's not available, try from the filesystem */
+	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
+		return NULL;
+	return image;
+}
+
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait)
 {
 	u8 *data;
-	size_t len;
-	struct pnvm_sku_package *package;
+	size_t length;
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
+	struct iwl_pnvm_image pnvm_data;
 	int ret;
 
 	/* if the SKU_ID is empty, there's nothing to do */
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
 		return 0;
 
-	/*
-	 * If we already loaded (or tried to load) it before, we just
-	 * need to set it again.
-	 */
-	if (trans->pnvm_loaded) {
-		iwl_trans_set_pnvm(trans);
-		goto skip_parse;
-	}
+	/* failed to get/parse the image in the past, no use to try again */
+	if (trans->fail_to_parse_pnvm_image)
+		goto reduce_tables;
 
-	/* First attempt to get the PNVM from BIOS */
-	package = iwl_uefi_get_pnvm(trans, &len);
-	if (!IS_ERR_OR_NULL(package)) {
-		if (len >= sizeof(*package)) {
-			/* we need only the data */
-			len -= sizeof(*package);
-			data = kmemdup(package->data, len, GFP_KERNEL);
-		} else {
-			data = NULL;
+	/* get the image, parse and load it, if not loaded yet */
+	if (!trans->pnvm_loaded) {
+		data = iwl_get_pnvm_image(trans, &length);
+		if (!data) {
+			trans->fail_to_parse_pnvm_image = true;
+			goto reduce_tables;
+		}
+		ret = iwl_pnvm_parse(trans, data, length, &pnvm_data);
+		if (ret) {
+			trans->fail_to_parse_pnvm_image = true;
+			kfree(data);
+			goto reduce_tables;
 		}
 
-		/* free package regardless of whether kmemdup succeeded */
-		kfree(package);
-
-		if (data)
-			goto parse;
-	}
-
-	/* If it's not available, try from the filesystem */
-	ret = iwl_pnvm_get_from_fs(trans, &data, &len);
-	if (ret) {
-		/*
-		 * Pretend we've loaded it - at least we've tried and
-		 * couldn't load it at all, so there's no point in
-		 * trying again over and over.
+		ret = iwl_trans_load_pnvm(trans, &pnvm_data);
+		/* can only free data after pvnm_data use, but
+		 * pnvm_data.version used below is not a pointer
 		 */
-		trans->pnvm_loaded = true;
-
-		goto skip_parse;
+		kfree(data);
+		if (ret)
+			goto reduce_tables;
+		IWL_INFO(trans, "loaded PNVM version %08x\n",
+			 pnvm_data.version);
 	}
 
-parse:
-	iwl_pnvm_parse(trans, data, len);
+	iwl_trans_set_pnvm(trans);
 
-	kfree(data);
-
-skip_parse:
+reduce_tables:
 	/* now try to get the reduce power table, if not loaded yet */
 	if (!trans->reduce_power_loaded) {
-		data = iwl_uefi_get_reduced_power(trans, &len);
+		data = iwl_uefi_get_reduced_power(trans, &length);
 		if (IS_ERR_OR_NULL(data)) {
 			/*
 			 * Pretend we've loaded it - at least we've tried and
@@ -320,7 +328,7 @@ skip_parse:
 			 */
 			trans->reduce_power_loaded = true;
 		} else {
-			ret = iwl_trans_set_reduce_power(trans, data, len);
+			ret = iwl_trans_set_reduce_power(trans, data, length);
 			if (ret)
 				IWL_DEBUG_FW(trans,
 					     "Failed to set reduce power table %d\n",

@@ -466,6 +466,7 @@ struct iwl_trans_rxq_dma_data {
  * struct iwl_pnvm_image - contains info about the parsed pnvm image
  * @chunks: array of pointers to pnvm payloads and their sizes
  * @n_chunks: the number of the pnvm payloads.
+ * @version: the version of the loaded PNVM image
  */
 struct iwl_pnvm_image {
 	struct {
@@ -473,6 +474,7 @@ struct iwl_pnvm_image {
 		u32 len;
 	} chunks[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 	u32 n_chunks;
+	u32 version;
 };
 
 /**
@@ -1023,6 +1025,7 @@ struct iwl_trans_txqs {
  * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
+ * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
  * @wide_cmd_header: true when ucode supports wide command header format
  * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
@@ -1070,6 +1073,7 @@ struct iwl_trans {
 	bool pm_support;
 	bool ltr_enabled;
 	u8 pnvm_loaded:1;
+	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
 
 	const struct iwl_hcmd_arr *command_groups;
