@@ -68,7 +68,7 @@ CFLAGS_REMOVE_syscall.o = -fstack-protector -fstack-protector-strong
 CFLAGS_syscall.o += -fno-stack-protector
 #endif
 
-obj-y				:= cputable.o syscalls.o \
+obj-y				:= cputable.o syscalls.o switch.o \
 				   irq.o align.o signal_$(BITS).o pmc.o vdso.o \
 				   process.o systbl.o idle.o \
 				   signal.o sysfs.o cacheinfo.o time.o \
