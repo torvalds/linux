@@ -47,4 +47,14 @@ const char *__perf_reg_name_arm(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_arm(void)
+{
+	return PERF_REG_ARM_PC;
+}
+
+uint64_t __perf_reg_sp_arm(void)
+{
+	return PERF_REG_ARM_SP;
+}
+
 #endif

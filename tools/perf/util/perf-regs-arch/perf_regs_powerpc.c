@@ -132,4 +132,14 @@ const char *__perf_reg_name_powerpc(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_powerpc(void)
+{
+	return PERF_REG_POWERPC_NIP;
+}
+
+uint64_t __perf_reg_sp_powerpc(void)
+{
+	return PERF_REG_POWERPC_R1;
+}
+
 #endif

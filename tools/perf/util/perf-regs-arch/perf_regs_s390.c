@@ -83,4 +83,14 @@ const char *__perf_reg_name_s390(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_s390(void)
+{
+	return PERF_REG_S390_PC;
+}
+
+uint64_t __perf_reg_sp_s390(void)
+{
+	return PERF_REG_S390_R15;
+}
+
 #endif

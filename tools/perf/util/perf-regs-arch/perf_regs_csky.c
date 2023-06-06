@@ -87,4 +87,14 @@ const char *__perf_reg_name_csky(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_csky(void)
+{
+	return PERF_REG_CSKY_PC;
+}
+
+uint64_t __perf_reg_sp_csky(void)
+{
+	return PERF_REG_CSKY_SP;
+}
+
 #endif

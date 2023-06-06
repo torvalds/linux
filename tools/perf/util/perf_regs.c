@@ -3,6 +3,7 @@
 #include <string.h>
 #include "perf_regs.h"
 #include "util/sample.h"
+#include "debug.h"
 
 int __weak arch_sdt_arg_parse_op(char *old_op __maybe_unused,
 				 char **new_op __maybe_unused)
@@ -74,4 +75,55 @@ out:
 	*valp = regs->cache_regs[id];
 	return 0;
 }
+
+uint64_t perf_arch_reg_ip(const char *arch)
+{
+	if (!strcmp(arch, "arm"))
+		return __perf_reg_ip_arm();
+	else if (!strcmp(arch, "arm64"))
+		return __perf_reg_ip_arm64();
+	else if (!strcmp(arch, "csky"))
+		return __perf_reg_ip_csky();
+	else if (!strcmp(arch, "loongarch"))
+		return __perf_reg_ip_loongarch();
+	else if (!strcmp(arch, "mips"))
+		return __perf_reg_ip_mips();
+	else if (!strcmp(arch, "powerpc"))
+		return __perf_reg_ip_powerpc();
+	else if (!strcmp(arch, "riscv"))
+		return __perf_reg_ip_riscv();
+	else if (!strcmp(arch, "s390"))
+		return __perf_reg_ip_s390();
+	else if (!strcmp(arch, "x86"))
+		return __perf_reg_ip_x86();
+
+	pr_err("Fail to find IP register for arch %s, returns 0\n", arch);
+	return 0;
+}
+
+uint64_t perf_arch_reg_sp(const char *arch)
+{
+	if (!strcmp(arch, "arm"))
+		return __perf_reg_sp_arm();
+	else if (!strcmp(arch, "arm64"))
+		return __perf_reg_sp_arm64();
+	else if (!strcmp(arch, "csky"))
+		return __perf_reg_sp_csky();
+	else if (!strcmp(arch, "loongarch"))
+		return __perf_reg_sp_loongarch();
+	else if (!strcmp(arch, "mips"))
+		return __perf_reg_sp_mips();
+	else if (!strcmp(arch, "powerpc"))
+		return __perf_reg_sp_powerpc();
+	else if (!strcmp(arch, "riscv"))
+		return __perf_reg_sp_riscv();
+	else if (!strcmp(arch, "s390"))
+		return __perf_reg_sp_s390();
+	else if (!strcmp(arch, "x86"))
+		return __perf_reg_sp_x86();
+
+	pr_err("Fail to find SP register for arch %s, returns 0\n", arch);
+	return 0;
+}
+
 #endif

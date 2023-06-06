@@ -74,4 +74,14 @@ const char *__perf_reg_name_mips(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_mips(void)
+{
+	return PERF_REG_MIPS_PC;
+}
+
+uint64_t __perf_reg_sp_mips(void)
+{
+	return PERF_REG_MIPS_R29;
+}
+
 #endif

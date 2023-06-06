@@ -83,4 +83,14 @@ const char *__perf_reg_name_arm64(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_arm64(void)
+{
+	return PERF_REG_ARM64_PC;
+}
+
+uint64_t __perf_reg_sp_arm64(void)
+{
+	return PERF_REG_ARM64_SP;
+}
+
 #endif

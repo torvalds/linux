@@ -78,4 +78,14 @@ const char *__perf_reg_name_loongarch(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_loongarch(void)
+{
+	return PERF_REG_LOONGARCH_PC;
+}
+
+uint64_t __perf_reg_sp_loongarch(void)
+{
+	return PERF_REG_LOONGARCH_R3;
+}
+
 #endif

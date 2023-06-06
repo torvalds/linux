@@ -85,4 +85,14 @@ const char *__perf_reg_name_x86(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_x86(void)
+{
+	return PERF_REG_X86_IP;
+}
+
+uint64_t __perf_reg_sp_x86(void)
+{
+	return PERF_REG_X86_SP;
+}
+
 #endif

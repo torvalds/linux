@@ -79,4 +79,14 @@ const char *__perf_reg_name_riscv(int id)
 	return NULL;
 }
 
+uint64_t __perf_reg_ip_riscv(void)
+{
+	return PERF_REG_RISCV_PC;
+}
+
+uint64_t __perf_reg_sp_riscv(void)
+{
+	return PERF_REG_RISCV_SP;
+}
+
 #endif
