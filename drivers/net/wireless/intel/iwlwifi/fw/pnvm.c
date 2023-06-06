@@ -320,8 +320,9 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 reduce_tables:
 	/* now try to get the reduce power table, if not loaded yet */
 	if (!trans->reduce_power_loaded) {
-		data = iwl_uefi_get_reduced_power(trans, &length);
-		if (IS_ERR_OR_NULL(data)) {
+		memset(&pnvm_data, 0, sizeof(pnvm_data));
+		ret = iwl_uefi_get_reduced_power(trans, &pnvm_data);
+		if (ret) {
 			/*
 			 * Pretend we've loaded it - at least we've tried and
 			 * couldn't load it at all, so there's no point in
@@ -329,7 +330,7 @@ reduce_tables:
 			 */
 			trans->reduce_power_loaded = true;
 		} else {
-			ret = iwl_trans_load_reduce_power(trans, data, length);
+			ret = iwl_trans_load_reduce_power(trans, &pnvm_data);
 			if (ret) {
 				IWL_DEBUG_FW(trans,
 					     "Failed to load reduce power table %d\n",
