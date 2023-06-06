@@ -624,8 +624,10 @@ config ARCH_HAS_KEXEC_PURGATORY
 	def_bool KEXEC_FILE
 
 config PPC64_BIG_ENDIAN_ELF_ABI_V2
-	prompt "Build big-endian kernel using ELF ABI V2 (EXPERIMENTAL)" if LD_IS_BFD
-	def_bool y if LD_IS_LLD
+	# Option is available to BFD, but LLD does not support ELFv1 so this is
+	# always true there.
+	prompt "Build big-endian kernel using ELF ABI V2" if LD_IS_BFD && EXPERT
+	def_bool y
 	depends on PPC64 && CPU_BIG_ENDIAN
 	depends on CC_HAS_ELFV2
 	help
