@@ -3,11 +3,11 @@ ACPI on Arm systems
 ===================
 
 ACPI can be used for Armv8 and Armv9 systems designed to follow
-the Arm SBSA (Server Base System Architecture) [0] and SBBR (Server
-Base Boot Requirements) [1] specifications.  Please note that the SBBR
-can be retrieved simply by visiting [1], but the SBSA is currently only
-available to those with an ARM login due to ARM IP licensing concerns.
-
+the BSA (Arm Base System Architecture) [0] and BBR (Arm
+Base Boot Requirements) [1] specifications.  Both BSA and BBR are publicly
+accessible documents.
+Arm Servers, in addition to being BSA compliant, comply with a set
+of rules defined in SBSA (Server Base System Architecture) [2].
 
 The Arm kernel implements the reduced hardware model of ACPI version
 5.1 or later.  Links to the specification and all external documents
@@ -31,7 +31,7 @@ Why ACPI on Arm?
 Before examining the details of the interface between ACPI and Linux, it is
 useful to understand why ACPI is being used.  Several technologies already
 exist in Linux for describing non-enumerable hardware, after all.  In this
-section we summarize a blog post [2] from Grant Likely that outlines the
+section we summarize a blog post [3] from Grant Likely that outlines the
 reasoning behind ACPI on Arm systems.  Actually, we snitch a good portion
 of the summary text almost directly, to be honest.
 
@@ -270,16 +270,14 @@ Drivers should look for device properties in the _DSD object ONLY; the _DSD
 object is described in the ACPI specification section 6.2.5, but this only
 describes how to define the structure of an object returned via _DSD, and
 how specific data structures are defined by specific UUIDs.  Linux should
-only use the _DSD Device Properties UUID [5]:
+only use the _DSD Device Properties UUID [4]:
 
    - UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
 
-   - https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
-
-The UEFI Forum provides a mechanism for registering device properties [4]
-so that they may be used across all operating systems supporting ACPI.
-Device properties that have not been registered with the UEFI Forum should
-not be used.
+Common device properties can be registered by creating a pull request to [4] so
+that they may be used across all operating systems supporting ACPI.
+Device properties that have not been registered with the UEFI Forum can be used
+but not as "uefi-" common properties.
 
 Before creating new device properties, check to be sure that they have not
 been defined before and either registered in the Linux kernel documentation
@@ -307,7 +305,7 @@ process.
 
 Once registration and review have been completed, the kernel provides an
 interface for looking up device properties in a manner independent of
-whether DT or ACPI is being used.  This API should be used [6]; it can
+whether DT or ACPI is being used.  This API should be used [5]; it can
 eliminate some duplication of code paths in driver probing functions and
 discourage divergence between DT bindings and ACPI device properties.
 
@@ -491,31 +489,23 @@ Documentation/arm64/acpi_object_usage.rst.
 
 References
 ----------
-[0] http://silver.arm.com
-    document ARM-DEN-0029, or newer:
-    "Server Base System Architecture", version 2.3, dated 27 Mar 2014
+[0] https://developer.arm.com/documentation/den0094/latest
+    document Arm-DEN-0094: "Arm Base System Architecture", version 1.0C, dated 6 Oct 2022
 
-[1] http://infocenter.arm.com/help/topic/com.arm.doc.den0044a/Server_Base_Boot_Requirements.pdf
-    Document ARM-DEN-0044A, or newer: "Server Base Boot Requirements, System
-    Software on ARM Platforms", dated 16 Aug 2014
+[1] https://developer.arm.com/documentation/den0044/latest
+    Document Arm-DEN-0044: "Arm Base Boot Requirements", version 2.0G, dated 15 Apr 2022
 
-[2] http://www.secretlab.ca/archives/151,
+[2] https://developer.arm.com/documentation/den0029/latest
+    Document Arm-DEN-0029: "Arm Server Base System Architecture", version 7.1, dated 06 Oct 2022
+
+[3] http://www.secretlab.ca/archives/151,
     10 Jan 2015, Copyright (c) 2015,
     Linaro Ltd., written by Grant Likely.
 
-[3] AMD ACPI for Seattle platform documentation
-    http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/Seattle_ACPI_Guide.pdf
+[4] _DSD (Device Specific Data) Implementation Guide
+    https://github.com/UEFI/DSD-Guide/blob/main/dsd-guide.pdf
 
-
-[4] http://www.uefi.org/acpi
-    please see the link for the "ACPI _DSD Device
-    Property Registry Instructions"
-
-[5] http://www.uefi.org/acpi
-    please see the link for the "_DSD (Device
-    Specific Data) Implementation Guide"
-
-[6] Kernel code for the unified device
+[5] Kernel code for the unified device
     property interface can be found in
     include/linux/property.h and drivers/base/property.c.
 
