@@ -174,7 +174,7 @@ config ARM_QCOM_CPUFREQ_HW
 
 config ARM_QCOM_CPUFREQ_HW_DEBUG
 	tristate "QCOM CPUFreq HW debug"
-	depends on ARM_QCOM_CPUFREQ_HW && DEBUG_FS
+	depends on ARM_QCOM_CPUFREQ_HW
 	help
 	  Support for the CPUFreq HW debug.
 	  CPUFreq HW debug provide the support to print the CPUFreq HW debug

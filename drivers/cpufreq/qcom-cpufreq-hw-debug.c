@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "cpufreq_hw_debug: %s: " fmt, __func__
 
-#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/panic_notifier.h>
@@ -18,6 +18,9 @@ enum debug_hw_regs_data {
 	REG_PERF_STATE,
 	REG_CYCLE_CNTR,
 	REG_PSTATE_STATUS,
+	REG_EPSS_DEBUG_STATUS,
+	REG_EPSS_DEBUG_SRB,
+	REG_EPSS_DEBUG_LUT,
 
 	REG_ARRAY_SIZE,
 };
@@ -25,7 +28,6 @@ enum debug_hw_regs_data {
 struct cpufreq_hwregs {
 	void * __iomem *base;
 	int domain_cnt;
-	struct dentry *debugfs_base;
 };
 
 struct cpufreq_register_data {
@@ -35,69 +37,77 @@ struct cpufreq_register_data {
 
 static struct cpufreq_hwregs *hw_regs;
 static const u16 *offsets;
+static struct kobj_attribute cpufreq_hwregs_attr;
+static struct kobject *cpufreqhw_kobj;
 
-static const u16 cpufreq_qcom_std_data[REG_ARRAY_SIZE] = {
+static const u16 cpufreq_qcom_std_data[] = {
 	[REG_PERF_STATE]		= 0x920,
 	[REG_CYCLE_CNTR]		= 0x9c0,
 	[REG_PSTATE_STATUS]		= 0x700,
 };
 
-static const u16 cpufreq_qcom_std_epss_data[REG_ARRAY_SIZE] = {
+static const u16 cpufreq_qcom_std_epss_data[] = {
 	[REG_PERF_STATE]		= 0x320,
 	[REG_CYCLE_CNTR]		= 0x3c4,
 	[REG_PSTATE_STATUS]		= 0x020,
+	[REG_EPSS_DEBUG_STATUS]		= 0x01c,
+	[REG_EPSS_DEBUG_SRB]		= 0x0bc,
+	[REG_EPSS_DEBUG_LUT]		= 0x100,
 };
 
-static int print_cpufreq_hw_debug_regs(struct seq_file *s, void *unused)
+static ssize_t cpufreq_hwregs_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
 {
-	int i, j;
-	u32 regval;
+	int i, j, size = ARRAY_SIZE(cpufreq_qcom_std_data);
+	u32 regval, count = 0;
 
 	static struct cpufreq_register_data data[] = {
 		{"PERF_STATE_DESIRED", REG_PERF_STATE},
 		{"CYCLE_CNTR_VAL", REG_CYCLE_CNTR},
 		{"PSTATE_STATUS", REG_PSTATE_STATUS},
+		{"EPSS_DEBUG_STATUS", REG_EPSS_DEBUG_STATUS},
+		{"EPSS_DEBUG_SRB", REG_EPSS_DEBUG_SRB},
+		{"EPSS_DEBUG_LUT", REG_EPSS_DEBUG_LUT},
 	};
 
+	if (offsets == cpufreq_qcom_std_epss_data)
+		size = ARRAY_SIZE(cpufreq_qcom_std_epss_data);
+
 	for (i = 0; i < hw_regs->domain_cnt; i++) {
-		seq_printf(s, "FREQUENCY DOMAIN %d\n", i);
-		for (j = 0; j < ARRAY_SIZE(data); j++) {
+		count += scnprintf(buf + count, PAGE_SIZE,
+				"FREQUENCY DOMAIN %d\n", i);
+		for (j = 0; j < size; j++) {
 			regval = readl_relaxed(hw_regs->base[i] +
 						offsets[data[j].offset]);
-			seq_printf(s, "%25s: 0x%.8x\n", data[j].name, regval);
+			count += scnprintf(buf + count, PAGE_SIZE,
+					"%25s: 0x%.8x\n", data[j].name, regval);
 		}
 	}
 
-	return 0;
+	return count;
 }
-
-static int print_cpufreq_hw_reg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, print_cpufreq_hw_debug_regs, NULL);
-}
-
-static const struct file_operations cpufreq_debug_register_fops = {
-	.open = print_cpufreq_hw_reg_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
 
 static int cpufreq_panic_callback(struct notifier_block *nfb,
 				  unsigned long event, void *unused)
 {
-	int i, j;
+	int i, j, size = ARRAY_SIZE(cpufreq_qcom_std_data);
 	u32 regval;
 
 	static struct cpufreq_register_data data[] = {
 		{"PERF_STATE_DESIRED", REG_PERF_STATE},
 		{"CYCLE_CNTR_VAL", REG_CYCLE_CNTR},
 		{"PSTATE_STATUS", REG_PSTATE_STATUS},
+		{"EPSS_DEBUG_STATUS", REG_EPSS_DEBUG_STATUS},
+		{"EPSS_DEBUG_SRB", REG_EPSS_DEBUG_SRB},
+		{"EPSS_DEBUG_LUT", REG_EPSS_DEBUG_LUT},
 	};
+
+	if (offsets == cpufreq_qcom_std_epss_data)
+		size = ARRAY_SIZE(cpufreq_qcom_std_epss_data);
 
 	for (i = 0; i < hw_regs->domain_cnt; i++) {
 		pr_err("FREQUENCY DOMAIN %d\n", i);
-		for (j = 0; j < ARRAY_SIZE(data); j++) {
+		for (j = 0; j < size; j++) {
 			regval = readl_relaxed(hw_regs->base[i] +
 						offsets[data[j].offset]);
 			pr_err("%25s: 0x%.8x\n", data[j].name, regval);
@@ -173,22 +183,23 @@ static int enable_cpufreq_hw_debug(struct platform_device *pdev)
 		return ret;
 	}
 
-	hw_regs->debugfs_base = debugfs_create_dir("qcom-cpufreq-hw", NULL);
-	if (!hw_regs->debugfs_base) {
-		dev_err(&pdev->dev, "Failed to create debugfs entry\n");
-		return -ENODEV;
+	cpufreqhw_kobj = kobject_create_and_add("qcom-cpufreq-hw",
+				kernel_kobj);
+	if (!cpufreqhw_kobj)
+		return -ENOMEM;
+
+	sysfs_attr_init(&cpufreq_hwregs_attr.attr);
+	cpufreq_hwregs_attr.attr.name = "print_cpufreq_debug_regs";
+	cpufreq_hwregs_attr.show = cpufreq_hwregs_show;
+	cpufreq_hwregs_attr.attr.mode = 0444;
+
+	ret = sysfs_create_file(cpufreqhw_kobj, &cpufreq_hwregs_attr.attr);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to create sysfs entry\n");
+		kobject_put(cpufreqhw_kobj);
 	}
 
-	if (!debugfs_create_file("print_cpufreq_debug_regs", 0444,
-				 hw_regs->debugfs_base, NULL, &cpufreq_debug_register_fops))
-		goto debugfs_fail;
-
-	return 0;
-
-debugfs_fail:
-	dev_err(&pdev->dev, "Failed to create debugfs entry so cleaning up\n");
-	debugfs_remove_recursive(hw_regs->debugfs_base);
-	return -ENODEV;
+	return ret;
 }
 
 static int qcom_cpufreq_hw_debug_probe(struct platform_device *pdev)
@@ -198,7 +209,8 @@ static int qcom_cpufreq_hw_debug_probe(struct platform_device *pdev)
 
 static int qcom_cpufreq_hw_debug_remove(struct platform_device *pdev)
 {
-	debugfs_remove_recursive(hw_regs->debugfs_base);
+	sysfs_remove_file(kernel_kobj, &cpufreq_hwregs_attr.attr);
+	kobject_put(cpufreqhw_kobj);
 	return 0;
 }
 
