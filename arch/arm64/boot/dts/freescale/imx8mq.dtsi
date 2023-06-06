@@ -550,8 +550,10 @@
 				compatible = "fsl,imx8mq-lcdif", "fsl,imx6sx-lcdif";
 				reg = <0x30320000 0x10000>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL>;
-				clock-names = "pix";
+				clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL>,
+					 <&clk IMX8MQ_CLK_DISP_APB_ROOT>,
+					 <&clk IMX8MQ_CLK_DISP_AXI_ROOT>;
+				clock-names = "pix", "axi", "disp_axi";
 				assigned-clocks = <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>,
 						  <&clk IMX8MQ_VIDEO_PLL1_BYPASS>,
 						  <&clk IMX8MQ_CLK_LCDIF_PIXEL>,
