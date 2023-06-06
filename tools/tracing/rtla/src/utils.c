@@ -3,6 +3,7 @@
  * Copyright (C) 2021 Red Hat Inc, Daniel Bristot de Oliveira <bristot@kernel.org>
  */
 
+#define _GNU_SOURCE
 #include <dirent.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -147,6 +148,63 @@ int parse_cpu_list(char *cpu_list, char **monitored_cpus)
 
 err:
 	debug_msg("Error parsing the cpu list %s", cpu_list);
+	return 1;
+}
+
+/*
+ * parse_cpu_set - parse a cpu_list filling cpu_set_t argument
+ *
+ * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
+ * filling cpu_set_t argument.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int parse_cpu_set(char *cpu_list, cpu_set_t *set)
+{
+	const char *p;
+	int end_cpu;
+	int nr_cpus;
+	int cpu;
+	int i;
+
+	CPU_ZERO(set);
+
+	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+
+	for (p = cpu_list; *p; ) {
+		cpu = atoi(p);
+		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
+			goto err;
+
+		while (isdigit(*p))
+			p++;
+		if (*p == '-') {
+			p++;
+			end_cpu = atoi(p);
+			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
+				goto err;
+			while (isdigit(*p))
+				p++;
+		} else
+			end_cpu = cpu;
+
+		if (cpu == end_cpu) {
+			debug_msg("cpu_set: adding cpu %d\n", cpu);
+			CPU_SET(cpu, set);
+		} else {
+			for (i = cpu; i <= end_cpu; i++) {
+				debug_msg("cpu_set: adding cpu %d\n", i);
+				CPU_SET(i, set);
+			}
+		}
+
+		if (*p == ',')
+			p++;
+	}
+
+	return 0;
+err:
+	debug_msg("Error parsing the cpu set %s\n", cpu_list);
 	return 1;
 }
 

@@ -2,6 +2,10 @@
 
         Set the osnoise tracer to run the sample threads in the cpu-list.
 
+**-H**, **--house-keeping** *cpu-list*
+
+        Run rtla control threads only on the given cpu-list.
+
 **-d**, **--duration** *time[s|m|h|d]*
 
         Set the duration of the session.
