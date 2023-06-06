@@ -23,7 +23,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sw10_button_pins_default &sw11_button_pins_default>;
+		pinctrl-0 = <&sw10_button_pins_default>, <&sw11_button_pins_default>;
 
 		sw10: switch-10 {
 			label = "GPIO Key USER1";
@@ -702,7 +702,7 @@
 
 &mcu_cpsw {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mcu_cpsw_pins_default &mcu_mdio_pins_default>;
+	pinctrl-0 = <&mcu_cpsw_pins_default>, <&mcu_mdio_pins_default>;
 };
 
 &davinci_mdio {
