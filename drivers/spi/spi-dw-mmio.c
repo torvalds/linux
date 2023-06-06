@@ -223,14 +223,7 @@ static int dw_spi_intel_init(struct platform_device *pdev,
 }
 
 /*
- * The Intel Mount Evans SoC's Integrated Management Complex uses the
- * SPI controller for access to a NOR SPI FLASH. However, the SoC doesn't
- * provide a mechanism to override the native chip select signal.
- *
- * This driver doesn't use DMA for memory operations when a chip select
- * override is not provided due to the native chip select timing behavior.
- * As a result no DMA configuration is done for the controller and this
- * configuration is not tested.
+ * DMA-based mem ops are not configured for this device and are not tested.
  */
 static int dw_spi_mountevans_imc_init(struct platform_device *pdev,
 				      struct dw_spi_mmio *dwsmmio)
