@@ -531,45 +531,11 @@ static const struct net_proto_family alg_family = {
 	.owner	=	THIS_MODULE,
 };
 
-int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
-{
-	struct page **pages = sgl->pages;
-	size_t off;
-	ssize_t n;
-	int npages, i;
-
-	n = iov_iter_extract_pages(iter, &pages, len, ALG_MAX_PAGES, 0, &off);
-	if (n < 0)
-		return n;
-
-	sgl->need_unpin = iov_iter_extract_will_pin(iter);
-
-	npages = DIV_ROUND_UP(off + n, PAGE_SIZE);
-	if (WARN_ON(npages == 0))
-		return -EINVAL;
-	/* Add one extra for linking */
-	sg_init_table(sgl->sg, npages + 1);
-
-	for (i = 0, len = n; i < npages; i++) {
-		int plen = min_t(int, len, PAGE_SIZE - off);
-
-		sg_set_page(sgl->sg + i, sgl->pages[i], plen, off);
-
-		off = 0;
-		len -= plen;
-	}
-	sg_mark_end(sgl->sg + npages - 1);
-	sgl->npages = npages;
-
-	return n;
-}
-EXPORT_SYMBOL_GPL(af_alg_make_sg);
-
 static void af_alg_link_sg(struct af_alg_sgl *sgl_prev,
 			   struct af_alg_sgl *sgl_new)
 {
-	sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
-	sg_chain(sgl_prev->sg, sgl_prev->npages + 1, sgl_new->sg);
+	sg_unmark_end(sgl_prev->sgt.sgl + sgl_prev->sgt.nents - 1);
+	sg_chain(sgl_prev->sgt.sgl, sgl_prev->sgt.nents + 1, sgl_new->sgt.sgl);
 }
 
 void af_alg_free_sg(struct af_alg_sgl *sgl)
@@ -577,8 +543,8 @@ void af_alg_free_sg(struct af_alg_sgl *sgl)
 	int i;
 
 	if (sgl->need_unpin)
-		for (i = 0; i < sgl->npages; i++)
-			unpin_user_page(sgl->pages[i]);
+		for (i = 0; i < sgl->sgt.nents; i++)
+			unpin_user_page(sg_page(&sgl->sgt.sgl[i]));
 }
 EXPORT_SYMBOL_GPL(af_alg_free_sg);
 
@@ -1292,8 +1258,8 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 
 	while (maxsize > len && msg_data_left(msg)) {
 		struct af_alg_rsgl *rsgl;
+		ssize_t err;
 		size_t seglen;
-		int err;
 
 		/* limit the amount of readable buffers */
 		if (!af_alg_readable(sk))
@@ -1310,15 +1276,22 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 				return -ENOMEM;
 		}
 
-		rsgl->sgl.npages = 0;
+		rsgl->sgl.sgt.sgl = rsgl->sgl.sgl;
+		rsgl->sgl.sgt.nents = 0;
+		rsgl->sgl.sgt.orig_nents = 0;
 		list_add_tail(&rsgl->list, &areq->rsgl_list);
 
-		/* make one iovec available as scatterlist */
-		err = af_alg_make_sg(&rsgl->sgl, &msg->msg_iter, seglen);
+		sg_init_table(rsgl->sgl.sgt.sgl, ALG_MAX_PAGES);
+		err = extract_iter_to_sg(&msg->msg_iter, seglen, &rsgl->sgl.sgt,
+					 ALG_MAX_PAGES, 0);
 		if (err < 0) {
 			rsgl->sg_num_bytes = 0;
 			return err;
 		}
+
+		sg_mark_end(rsgl->sgl.sgt.sgl + rsgl->sgl.sgt.nents - 1);
+		rsgl->sgl.need_unpin =
+			iov_iter_extract_will_pin(&msg->msg_iter);
 
 		/* chain the new scatterlist with previous one */
 		if (areq->last_rsgl)

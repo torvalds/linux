@@ -91,13 +91,21 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (len > limit)
 			len = limit;
 
-		len = af_alg_make_sg(&ctx->sgl, &msg->msg_iter, len);
+		ctx->sgl.sgt.sgl = ctx->sgl.sgl;
+		ctx->sgl.sgt.nents = 0;
+		ctx->sgl.sgt.orig_nents = 0;
+
+		len = extract_iter_to_sg(&msg->msg_iter, len, &ctx->sgl.sgt,
+					 ALG_MAX_PAGES, 0);
 		if (len < 0) {
 			err = copied ? 0 : len;
 			goto unlock;
 		}
+		sg_mark_end(ctx->sgl.sgt.sgl + ctx->sgl.sgt.nents);
 
-		ahash_request_set_crypt(&ctx->req, ctx->sgl.sg, NULL, len);
+		ctx->sgl.need_unpin = iov_iter_extract_will_pin(&msg->msg_iter);
+
+		ahash_request_set_crypt(&ctx->req, ctx->sgl.sgt.sgl, NULL, len);
 
 		err = crypto_wait_req(crypto_ahash_update(&ctx->req),
 				      &ctx->wait);
@@ -141,8 +149,8 @@ static ssize_t hash_sendpage(struct socket *sock, struct page *page,
 		flags |= MSG_MORE;
 
 	lock_sock(sk);
-	sg_init_table(ctx->sgl.sg, 1);
-	sg_set_page(ctx->sgl.sg, page, size, offset);
+	sg_init_table(ctx->sgl.sgl, 1);
+	sg_set_page(ctx->sgl.sgl, page, size, offset);
 
 	if (!(flags & MSG_MORE)) {
 		err = hash_alloc_result(sk, ctx);
@@ -151,7 +159,7 @@ static ssize_t hash_sendpage(struct socket *sock, struct page *page,
 	} else if (!ctx->more)
 		hash_free_result(sk, ctx);
 
-	ahash_request_set_crypt(&ctx->req, ctx->sgl.sg, ctx->result, size);
+	ahash_request_set_crypt(&ctx->req, ctx->sgl.sgl, ctx->result, size);
 
 	if (!(flags & MSG_MORE)) {
 		if (ctx->more)

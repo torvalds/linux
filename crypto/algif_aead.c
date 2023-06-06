@@ -210,7 +210,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 */
 
 	/* Use the RX SGL as source (and destination) for crypto op. */
-	rsgl_src = areq->first_rsgl.sgl.sg;
+	rsgl_src = areq->first_rsgl.sgl.sgt.sgl;
 
 	if (ctx->enc) {
 		/*
@@ -224,7 +224,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * RX SGL: AAD || PT || Tag
 		 */
 		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
-					   areq->first_rsgl.sgl.sg, processed);
+					   areq->first_rsgl.sgl.sgt.sgl,
+					   processed);
 		if (err)
 			goto free;
 		af_alg_pull_tsgl(sk, processed, NULL, 0);
@@ -242,7 +243,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
 		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
-					   areq->first_rsgl.sgl.sg, outlen);
+					   areq->first_rsgl.sgl.sgt.sgl,
+					   outlen);
 		if (err)
 			goto free;
 
@@ -267,10 +269,10 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		if (usedpages) {
 			/* RX SGL present */
 			struct af_alg_sgl *sgl_prev = &areq->last_rsgl->sgl;
+			struct scatterlist *sg = sgl_prev->sgt.sgl;
 
-			sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
-			sg_chain(sgl_prev->sg, sgl_prev->npages + 1,
-				 areq->tsgl);
+			sg_unmark_end(sg + sgl_prev->sgt.nents - 1);
+			sg_chain(sg, sgl_prev->sgt.nents + 1, areq->tsgl);
 		} else
 			/* no RX SGL present (e.g. authentication only) */
 			rsgl_src = areq->tsgl;
@@ -278,7 +280,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	/* Initialize the crypto operation */
 	aead_request_set_crypt(&areq->cra_u.aead_req, rsgl_src,
-			       areq->first_rsgl.sgl.sg, used, ctx->iv);
+			       areq->first_rsgl.sgl.sgt.sgl, used, ctx->iv);
 	aead_request_set_ad(&areq->cra_u.aead_req, ctx->aead_assoclen);
 	aead_request_set_tfm(&areq->cra_u.aead_req, tfm);
 
