@@ -83,7 +83,9 @@
 #define WX_GPIO_INTMASK              0x14834
 #define WX_GPIO_INTTYPE_LEVEL        0x14838
 #define WX_GPIO_POLARITY             0x1483C
+#define WX_GPIO_INTSTATUS            0x14844
 #define WX_GPIO_EOI                  0x1484C
+#define WX_GPIO_EXT                  0x14850
 
 /*********************** Transmit DMA registers **************************/
 /* transmit global control */
@@ -847,6 +849,7 @@ struct wx {
 	bool wol_enabled;
 	bool ncsi_enabled;
 	bool gpio_ctrl;
+	raw_spinlock_t gpio_lock;
 
 	/* Tx fast path data */
 	int num_tx_queues;

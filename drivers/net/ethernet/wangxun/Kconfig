@@ -47,6 +47,8 @@ config TXGBE
 	select PHYLINK
 	select HWMON if TXGBE=y
 	select SFP
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of
