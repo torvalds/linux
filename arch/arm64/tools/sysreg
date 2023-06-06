@@ -2277,6 +2277,45 @@ Field	1	PIE
 Field	0	PnCH
 EndSysreg
 
+SysregFields PIRx_ELx
+Field	63:60	Perm15
+Field	59:56	Perm14
+Field	55:52	Perm13
+Field	51:48	Perm12
+Field	47:44	Perm11
+Field	43:40	Perm10
+Field	39:36	Perm9
+Field	35:32	Perm8
+Field	31:28	Perm7
+Field	27:24	Perm6
+Field	23:20	Perm5
+Field	19:16	Perm4
+Field	15:12	Perm3
+Field	11:8	Perm2
+Field	7:4	Perm1
+Field	3:0	Perm0
+EndSysregFields
+
+Sysreg	PIRE0_EL1	3	0	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIRE0_EL12	3	5	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL1		3	0	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL12	3	5	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL2		3	4	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
 Sysreg	LORSA_EL1	3	0	10	4	0
 Res0	63:52
 Field	51:16	SA
