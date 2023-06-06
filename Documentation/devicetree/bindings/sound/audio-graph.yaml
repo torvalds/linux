@@ -24,7 +24,11 @@ properties:
       connection's sink, the second being the connection's source.
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
   widgets:
-    description: User specified audio sound widgets.
+    description: |
+      User specified audio sound widgets.
+      Each entry is a pair of strings, the first being the type of
+      widget ("Microphone", "Line", "Headphone", "Speaker"), the
+      second being the machine specific name for the widget.
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
   convert-rate:
     $ref: /schemas/sound/dai-params.yaml#/$defs/dai-sample-rate
