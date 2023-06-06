@@ -80,6 +80,7 @@ properties:
           - enum:
               - gnubee,gb-pc1
               - gnubee,gb-pc2
+              - tplink,hc220-g5-v1
           - const: mediatek,mt7621-soc
 
 additionalProperties: true
