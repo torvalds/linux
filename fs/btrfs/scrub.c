@@ -1730,7 +1730,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 				break;
 			}
 		}
-	} else {
+	} else if (!sctx->readonly) {
 		for (int i = 0; i < nr_stripes; i++) {
 			unsigned long repaired;
 
