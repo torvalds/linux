@@ -760,7 +760,7 @@ int qca8k_port_fdb_add(struct dsa_switch *ds, int port,
 		       const unsigned char *addr, u16 vid,
 		       struct dsa_db db)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
+	struct qca8k_priv *priv = ds->priv;
 	u16 port_mask = BIT(port);
 
 	return qca8k_port_fdb_insert(priv, addr, port_mask, vid);
@@ -770,7 +770,7 @@ int qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 		       const unsigned char *addr, u16 vid,
 		       struct dsa_db db)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
+	struct qca8k_priv *priv = ds->priv;
 	u16 port_mask = BIT(port);
 
 	if (!vid)
@@ -782,7 +782,7 @@ int qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 int qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 			dsa_fdb_dump_cb_t *cb, void *data)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
+	struct qca8k_priv *priv = ds->priv;
 	struct qca8k_fdb _fdb = { 0 };
 	int cnt = QCA8K_NUM_FDB_RECORDS;
 	bool is_static;

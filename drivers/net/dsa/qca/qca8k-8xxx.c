@@ -1756,7 +1756,7 @@ static int qca8k_connect_tag_protocol(struct dsa_switch *ds,
 static int
 qca8k_setup(struct dsa_switch *ds)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
+	struct qca8k_priv *priv = ds->priv;
 	int cpu_port, ret, i;
 	u32 mask;
 
