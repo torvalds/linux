@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /******************************************************************************
  *
- * Copyright(c) 2020-2021 Intel Corporation
+ * Copyright(c) 2020-2022 Intel Corporation
  *
  *****************************************************************************/
 
@@ -15,7 +15,8 @@
 #define MAX_PNVM_NAME  64
 
 int iwl_pnvm_load(struct iwl_trans *trans,
-		  struct iwl_notif_wait_data *notif_wait);
+		  struct iwl_notif_wait_data *notif_wait,
+		  const struct iwl_ucode_capabilities *capa);
 
 static inline
 void iwl_pnvm_get_fs_name(struct iwl_trans *trans,

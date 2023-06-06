@@ -634,8 +634,10 @@ struct iwl_trans_ops {
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*load_pnvm)(struct iwl_trans *trans,
-			 const struct iwl_pnvm_image *pnvm_payloads);
-	void (*set_pnvm)(struct iwl_trans *trans);
+			 const struct iwl_pnvm_image *pnvm_payloads,
+			 const struct iwl_ucode_capabilities *capa);
+	void (*set_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_ucode_capabilities *capa);
 	int (*set_reduce_power)(struct iwl_trans *trans,
 				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
@@ -1539,15 +1541,17 @@ void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 				  u32 sw_err_bit);
 
 static inline int iwl_trans_load_pnvm(struct iwl_trans *trans,
-				      const struct iwl_pnvm_image *pnvm_data)
+				      const struct iwl_pnvm_image *pnvm_data,
+				      const struct iwl_ucode_capabilities *capa)
 {
-	return trans->ops->load_pnvm(trans, pnvm_data);
+	return trans->ops->load_pnvm(trans, pnvm_data, capa);
 }
 
-static inline void iwl_trans_set_pnvm(struct iwl_trans *trans)
+static inline void iwl_trans_set_pnvm(struct iwl_trans *trans,
+				      const struct iwl_ucode_capabilities *capa)
 {
 	if (trans->ops->set_pnvm)
-		trans->ops->set_pnvm(trans);
+		trans->ops->set_pnvm(trans, capa);
 }
 
 static inline int iwl_trans_set_reduce_power(struct iwl_trans *trans,

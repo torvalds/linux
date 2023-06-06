@@ -280,8 +280,10 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 
 int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads);
-void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans);
+					   const struct iwl_pnvm_image *pnvm_payloads,
+					   const struct iwl_ucode_capabilities *capa);
+void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					   const struct iwl_ucode_capabilities *capa);
 int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 						  const void *data, u32 len);
 int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,

@@ -281,33 +281,20 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
 	trans_pcie->prph_info = NULL;
 }
 
-int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads)
+static int iwl_pcie_load_payloads_continuously(struct iwl_trans *trans,
+					       const struct iwl_pnvm_image *pnvm_data,
+					       struct iwl_dram_data *dram)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
-		&trans_pcie->prph_scratch->ctrl_cfg;
-	struct iwl_dram_data *dram = &trans_pcie->pnvm_dram[0];
 	u32 len, len0, len1;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
-		return 0;
-
-	/* only allocate the DRAM if not allocated yet */
-	if (trans->pnvm_loaded)
-		return 0;
-
-	if (WARN_ON(prph_sc_ctrl->pnvm_cfg.pnvm_size))
-		return -EBUSY;
-
-	if (pnvm_payloads->n_chunks != UNFRAGMENTED_PNVM_PAYLOADS_NUMBER) {
+	if (pnvm_data->n_chunks != UNFRAGMENTED_PNVM_PAYLOADS_NUMBER) {
 		IWL_DEBUG_FW(trans, "expected 2 payloads, got %d.\n",
-			     pnvm_payloads->n_chunks);
-			return -EINVAL;
+			     pnvm_data->n_chunks);
+		return -EINVAL;
 	}
 
-	len0 = pnvm_payloads->chunks[0].len;
-	len1 = pnvm_payloads->chunks[1].len;
+	len0 = pnvm_data->chunks[0].len;
+	len1 = pnvm_data->chunks[1].len;
 	if (len1 > 0xFFFFFFFF - len0) {
 		IWL_DEBUG_FW(trans, "sizes of payloads overflow.\n");
 		return -EINVAL;
@@ -322,32 +309,76 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	}
 
 	dram->size = len;
-	memcpy(dram->block, pnvm_payloads->chunks[0].data, len0);
-	memcpy((u8 *)dram->block + len0, pnvm_payloads->chunks[1].data, len1);
-	trans_pcie->n_pnvm_regions = 1;
+	memcpy(dram->block, pnvm_data->chunks[0].data, len0);
+	memcpy((u8 *)dram->block + len0, pnvm_data->chunks[1].data, len1);
 
-	trans->pnvm_loaded = true;
 	return 0;
 }
 
-void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans)
+/* FIXME: An implementation will be added with the next several commits. */
+static int iwl_pcie_load_payloads_segments(struct iwl_trans *trans,
+					   const struct iwl_pnvm_image *pnvm_payloads)
+{
+	return -ENOMEM;
+}
+
+int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
+					   const struct iwl_pnvm_image *pnvm_payloads,
+					   const struct iwl_ucode_capabilities *capa)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
+		&trans_pcie->prph_scratch->ctrl_cfg;
+	struct iwl_dram_data *dram = &trans_pcie->pnvm_dram[0];
+	int ret = 0;
+
+	/* only allocate the DRAM if not allocated yet */
+	if (trans->pnvm_loaded)
+		return 0;
+
+	if (WARN_ON(prph_sc_ctrl->pnvm_cfg.pnvm_size))
+		return -EBUSY;
+
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return 0;
+
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
+		return iwl_pcie_load_payloads_segments(trans, pnvm_payloads);
+
+	ret = iwl_pcie_load_payloads_continuously(trans, pnvm_payloads, dram);
+	if (!ret) {
+		trans_pcie->n_pnvm_regions = 1;
+		trans->pnvm_loaded = true;
+	}
+
+	return ret;
+}
+
+/* FIXME: An implementation will be added with the next several commits. */
+static void iwl_pcie_set_pnvm_segments(struct iwl_trans *trans) {}
+
+static void iwl_pcie_set_continuous_pnvm(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
 		&trans_pcie->prph_scratch->ctrl_cfg;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
-		return;
-	/* FIXME: currently we concatenate payloads and save them only in
-	 * pnvm_dram[0] - therefor only pnvm_dram[0] is delivered to the
-	 * prph_sc. Need to add a UCODE sensitivity and another case in which
-	 * we deliver to the prph_sc an array with all the DRAM addresses.
-	 */
 	prph_sc_ctrl->pnvm_cfg.pnvm_base_addr =
 		cpu_to_le64(trans_pcie->pnvm_dram[0].physical);
 	prph_sc_ctrl->pnvm_cfg.pnvm_size =
 		cpu_to_le32(trans_pcie->pnvm_dram[0].size);
+}
 
+void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					   const struct iwl_ucode_capabilities *capa)
+{
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return;
+
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
+		iwl_pcie_set_pnvm_segments(trans);
+	else
+		iwl_pcie_set_continuous_pnvm(trans);
 }
 
 int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
