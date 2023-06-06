@@ -128,12 +128,7 @@ struct erdma_devattr {
 
 	int numa_node;
 	enum erdma_cc_alg cc;
-	u32 grp_num;
 	u32 irq_num;
-
-	bool disable_dwqe;
-	u16 dwqe_pages;
-	u16 dwqe_entries;
 
 	u32 max_qp;
 	u32 max_send_wr;
@@ -214,15 +209,6 @@ struct erdma_dev {
 
 	u32 next_alloc_qpn;
 	u32 next_alloc_cqn;
-
-	spinlock_t db_bitmap_lock;
-	/* We provide max 64 uContexts that each has one SQ doorbell Page. */
-	DECLARE_BITMAP(sdb_page, ERDMA_DWQE_TYPE0_CNT);
-	/*
-	 * We provide max 496 uContexts that each has one SQ normal Db,
-	 * and one directWQE db.
-	 */
-	DECLARE_BITMAP(sdb_entry, ERDMA_DWQE_TYPE1_CNT);
 
 	atomic_t num_ctx;
 	struct list_head cep_list;

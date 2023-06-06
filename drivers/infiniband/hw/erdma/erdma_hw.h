@@ -82,19 +82,6 @@
 #define ERDMA_BAR_CQDB_SPACE_OFFSET \
 	(ERDMA_BAR_RQDB_SPACE_OFFSET + ERDMA_BAR_RQDB_SPACE_SIZE)
 
-/* Doorbell page resources related. */
-/*
- * Max # of parallelly issued directSQE is 3072 per device,
- * hardware organizes this into 24 group, per group has 128 credits.
- */
-#define ERDMA_DWQE_MAX_GRP_CNT 24
-#define ERDMA_DWQE_NUM_PER_GRP 128
-
-#define ERDMA_DWQE_TYPE0_CNT 64
-#define ERDMA_DWQE_TYPE1_CNT 496
-/* type1 DB contains 2 DBs, takes 256Byte. */
-#define ERDMA_DWQE_TYPE1_CNT_PER_PAGE 16
-
 #define ERDMA_SDB_SHARED_PAGE_INDEX 95
 
 /* Doorbell related. */

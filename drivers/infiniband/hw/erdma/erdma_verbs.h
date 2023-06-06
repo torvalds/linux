@@ -43,10 +43,6 @@ struct erdma_ucontext {
 
 	struct erdma_ext_db_info ext_db;
 
-	u32 sdb_type;
-	u32 sdb_idx;
-	u32 sdb_page_idx;
-	u32 sdb_page_off;
 	u64 sdb;
 	u64 rdb;
 	u64 cdb;
