@@ -1072,7 +1072,7 @@ static const union intel_ddi_buf_trans_entry _mtl_c20_trans_uhbr[] = {
 	{ .snps = { 37, 4, 7 } },       /* preset 12 */
 	{ .snps = { 33, 4, 11 } },      /* preset 13 */
 	{ .snps = { 40, 8, 0 } },	/* preset 14 */
-	{ .snps = { 28, 2, 2 } },	/* preset 15 */
+	{ .snps = { 30, 2, 2 } },	/* preset 15 */
 };
 
 /* HDMI2.0 */
