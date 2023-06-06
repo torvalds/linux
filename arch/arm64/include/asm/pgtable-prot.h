@@ -107,4 +107,54 @@ extern bool arm64_use_ng_mappings;
 
 #endif /* __ASSEMBLY__ */
 
+#define pte_pi_index(pte) ( \
+	((pte & BIT(PTE_PI_IDX_3)) >> (PTE_PI_IDX_3 - 3)) | \
+	((pte & BIT(PTE_PI_IDX_2)) >> (PTE_PI_IDX_2 - 2)) | \
+	((pte & BIT(PTE_PI_IDX_1)) >> (PTE_PI_IDX_1 - 1)) | \
+	((pte & BIT(PTE_PI_IDX_0)) >> (PTE_PI_IDX_0 - 0)))
+
+/*
+ * Page types used via Permission Indirection Extension (PIE). PIE uses
+ * the USER, DBM, PXN and UXN bits to to generate an index which is used
+ * to look up the actual permission in PIR_ELx and PIRE0_EL1. We define
+ * combinations we use on non-PIE systems with the same encoding, for
+ * convenience these are listed here as comments as are the unallocated
+ * encodings.
+ */
+
+/* 0: PAGE_DEFAULT                                                  */
+/* 1:                                                      PTE_USER */
+/* 2:                                          PTE_WRITE            */
+/* 3:                                          PTE_WRITE | PTE_USER */
+/* 4: PAGE_EXECONLY                  PTE_PXN                        */
+/* 5: PAGE_READONLY_EXEC             PTE_PXN |             PTE_USER */
+/* 6:                                PTE_PXN | PTE_WRITE            */
+/* 7: PAGE_SHARED_EXEC               PTE_PXN | PTE_WRITE | PTE_USER */
+/* 8: PAGE_KERNEL_ROX      PTE_UXN                                  */
+/* 9:                      PTE_UXN |                       PTE_USER */
+/* a: PAGE_KERNEL_EXEC     PTE_UXN |           PTE_WRITE            */
+/* b:                      PTE_UXN |           PTE_WRITE | PTE_USER */
+/* c: PAGE_KERNEL_RO       PTE_UXN | PTE_PXN                        */
+/* d: PAGE_READONLY        PTE_UXN | PTE_PXN |             PTE_USER */
+/* e: PAGE_KERNEL          PTE_UXN | PTE_PXN | PTE_WRITE            */
+/* f: PAGE_SHARED          PTE_UXN | PTE_PXN | PTE_WRITE | PTE_USER */
+
+#define PIE_E0	( \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_EXECONLY),      PIE_X_O) | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_READONLY_EXEC), PIE_RX)  | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_SHARED_EXEC),   PIE_RWX) | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_READONLY),      PIE_R)   | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_SHARED),        PIE_RW))
+
+#define PIE_E1	( \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_EXECONLY),      PIE_NONE_O) | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_READONLY_EXEC), PIE_R)      | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_SHARED_EXEC),   PIE_RW)     | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_READONLY),      PIE_R)      | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_SHARED),        PIE_RW)     | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_KERNEL_ROX),    PIE_RX)     | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_KERNEL_EXEC),   PIE_RWX)    | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_KERNEL_RO),     PIE_R)      | \
+	PIRx_ELx_PERM(pte_pi_index(_PAGE_KERNEL),        PIE_RW))
+
 #endif /* __ASM_PGTABLE_PROT_H */
