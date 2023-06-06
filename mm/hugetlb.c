@@ -5016,7 +5016,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			    struct vm_area_struct *src_vma)
 {
 	pte_t *src_pte, *dst_pte, entry;
-	struct page *ptepage;
+	struct folio *pte_folio;
 	unsigned long addr;
 	bool cow = is_cow_mapping(src_vma->vm_flags);
 	struct hstate *h = hstate_vma(src_vma);
@@ -5115,8 +5115,8 @@ again:
 				set_huge_pte_at(dst, addr, dst_pte, entry);
 		} else {
 			entry = huge_ptep_get(src_pte);
-			ptepage = pte_page(entry);
-			get_page(ptepage);
+			pte_folio = page_folio(pte_page(entry));
+			folio_get(pte_folio);
 
 			/*
 			 * Failing to duplicate the anon rmap is a rare case
@@ -5128,10 +5128,10 @@ again:
 			 * need to be without the pgtable locks since we could
 			 * sleep during the process.
 			 */
-			if (!PageAnon(ptepage)) {
-				page_dup_file_rmap(ptepage, true);
-			} else if (page_try_dup_anon_rmap(ptepage, true,
-							  src_vma)) {
+			if (!folio_test_anon(pte_folio)) {
+				page_dup_file_rmap(&pte_folio->page, true);
+			} else if (page_try_dup_anon_rmap(&pte_folio->page,
+							  true, src_vma)) {
 				pte_t src_pte_old = entry;
 				struct folio *new_folio;
 
@@ -5140,14 +5140,14 @@ again:
 				/* Do not use reserve as it's private owned */
 				new_folio = alloc_hugetlb_folio(dst_vma, addr, 1);
 				if (IS_ERR(new_folio)) {
-					put_page(ptepage);
+					folio_put(pte_folio);
 					ret = PTR_ERR(new_folio);
 					break;
 				}
 				ret = copy_user_large_folio(new_folio,
-						      page_folio(ptepage),
-						      addr, dst_vma);
-				put_page(ptepage);
+							    pte_folio,
+							    addr, dst_vma);
+				folio_put(pte_folio);
 				if (ret) {
 					folio_put(new_folio);
 					break;
