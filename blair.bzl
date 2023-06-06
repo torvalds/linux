@@ -119,6 +119,7 @@ def define_blair():
         "drivers/thermal/qcom/bcl_pmic5.ko",
         "drivers/thermal/qcom/bcl_soc.ko",
         "drivers/thermal/qcom/qcom-spmi-temp-alarm.ko",
+        "drivers/tty/serial/msm_geni_serial.ko",
         "drivers/ufs/host/ufs_qcom.ko",
         "drivers/uio/msm_sharedmem/msm_sharedmem.ko",
         "drivers/usb/dwc3/dwc3-msm.ko",
@@ -141,7 +142,6 @@ def define_blair():
     _blair_consolidate_in_tree_modules = _blair_in_tree_modules + [
         # keep sorted
         "drivers/misc/lkdtm/lkdtm.ko",
-        "drivers/tty/serial/msm_geni_serial.ko",
         "kernel/locking/locktorture.ko",
         "kernel/rcu/rcutorture.ko",
         "kernel/torture.ko",
