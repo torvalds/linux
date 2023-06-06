@@ -43,8 +43,6 @@
 #include <net/flow_offload.h>
 #include <net/tc_wrapper.h>
 
-extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
-
 /* The list of all installed classifier types */
 static LIST_HEAD(tcf_proto_base);
 
