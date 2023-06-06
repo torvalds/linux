@@ -1424,7 +1424,8 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		mutex_unlock(&ocelot->tas_lock);
 		return 0;
 	} else if (taprio->cmd != TAPRIO_CMD_REPLACE) {
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto err_unlock;
 	}
 
 	ret = ocelot_port_mqprio(ocelot, port, &taprio->mqprio);
