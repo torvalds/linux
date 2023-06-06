@@ -190,12 +190,13 @@ _GLOBAL(_switch)
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-SWITCH_FRAME_SIZE(r1)
+	std	r1,KSP(r3)	/* Set old stack pointer */
 	/* r3-r13 are caller saved -- Cort */
 	SAVE_NVGPRS(r1)
 	std	r0,_NIP(r1)	/* Return to switch caller */
-	mfcr	r23
-	std	r23,_CCR(r1)
-	std	r1,KSP(r3)	/* Set old stack pointer */
+	mfcr	r0
+	stw	r0,_CCR(r1)
+	ld	r8,KSP(r4)	/* Load new stack pointer */
 
 	kuap_check_amr r9, r10
 
@@ -232,26 +233,26 @@ _GLOBAL(_switch)
 	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r6)
 #endif
 
-	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
-	std	r6,PACACURRENT(r13)	/* Set new 'current' */
+	addi	r3,r3,-THREAD	/* old thread -> task_struct for return value */
+	addi	r6,r4,-THREAD	/* new thread -> task_struct */
+	std	r6,PACACURRENT(r13)	/* Set new task_struct to 'current' */
 #if defined(CONFIG_STACKPROTECTOR)
 	ld	r6, TASK_CANARY(r6)
 	std	r6, PACA_CANARY(r13)
 #endif
-
-	ld	r8,KSP(r4)	/* new stack pointer */
+	/* Set the new PACAKSAVE */
+	clrrdi	r7, r8, THREAD_SHIFT	/* base of new stack */
+	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
+	   because we don't need to leave the 288-byte ABI gap at the
+	   top of the kernel stack. */
+	addi	r7,r7,THREAD_SIZE-SWITCH_FRAME_SIZE
+	std	r7,PACAKSAVE(r13)
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
 BEGIN_MMU_FTR_SECTION
 	bl	pin_stack_slb
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
-
-	clrrdi	r7, r8, THREAD_SHIFT	/* base of new stack */
-	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
-	   because we don't need to leave the 288-byte ABI gap at the
-	   top of the kernel stack. */
-	addi	r7,r7,THREAD_SIZE-SWITCH_FRAME_SIZE
 
 	/*
 	 * PMU interrupts in radix may come in here. They will use r1, not
@@ -262,18 +263,15 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	 * active on the new CPU, will order those stores.
 	 */
 	mr	r1,r8		/* start using new stack pointer */
-	std	r7,PACAKSAVE(r13)
 
-	ld	r6,_CCR(r1)
-	mtcrf	0xFF,r6
+	lwz	r0,_CCR(r1)
+	mtcrf	0xFF,r0
 
 	/* r3-r13 are destroyed -- Cort */
 	REST_NVGPRS(r1)
 
-	/* convert old thread to its task_struct for return value */
-	addi	r3,r3,-THREAD
-	ld	r7,_NIP(r1)	/* Return to _switch caller in new task */
-	mtlr	r7
+	ld	r0,_NIP(r1)	/* Return to _switch caller in new task */
+	mtlr	r0
 	addi	r1,r1,SWITCH_FRAME_SIZE
 	blr
 
