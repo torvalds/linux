@@ -1995,25 +1995,27 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->fw_reset_handshake = trans_cfg->fw_reset_handshake;
 }
 
-void iwl_trans_pcie_free_pnvm_dram(struct iwl_trans_pcie *trans_pcie,
-				   struct device *dev)
+void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions,
+					   struct device *dev)
 {
 	u8 i;
-	struct iwl_dram_data *desc_dram = &trans_pcie->pnvm_regions_desc_array;
+	struct iwl_dram_data *desc_dram = &dram_regions->prph_scratch_mem_desc;
 
-	for (i = 0; i < trans_pcie->n_pnvm_regions; i++) {
-		dma_free_coherent(dev, trans_pcie->pnvm_dram[i].size,
-				  trans_pcie->pnvm_dram[i].block,
-				  trans_pcie->pnvm_dram[i].physical);
+	/* free DRAM payloads */
+	for (i = 0; i < dram_regions->n_regions; i++) {
+		dma_free_coherent(dev, dram_regions->drams[i].size,
+				  dram_regions->drams[i].block,
+				  dram_regions->drams[i].physical);
 	}
-	trans_pcie->n_pnvm_regions = 0;
+	dram_regions->n_regions = 0;
 
+	/* free DRAM addresses array */
 	if (desc_dram->block) {
 		dma_free_coherent(dev, desc_dram->size,
 				  desc_dram->block,
 				  desc_dram->physical);
 	}
-	desc_dram->block = NULL;
+	memset(desc_dram, 0, sizeof(*desc_dram));
 }
 
 void iwl_trans_pcie_free(struct iwl_trans *trans)
@@ -2048,13 +2050,10 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	iwl_pcie_free_fw_monitor(trans);
 
-	iwl_trans_pcie_free_pnvm_dram(trans_pcie, trans->dev);
-
-	if (trans_pcie->reduce_power_dram.size)
-		dma_free_coherent(trans->dev,
-				  trans_pcie->reduce_power_dram.size,
-				  trans_pcie->reduce_power_dram.block,
-				  trans_pcie->reduce_power_dram.physical);
+	iwl_trans_pcie_free_pnvm_dram_regions(&trans_pcie->pnvm_data,
+					      trans->dev);
+	iwl_trans_pcie_free_pnvm_dram_regions(&trans_pcie->reduced_tables_data,
+					      trans->dev);
 
 	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);

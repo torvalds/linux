@@ -98,9 +98,9 @@ struct iwl_prph_scratch_control {
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
 /*
- * struct iwl_prph_scratch_pnvm_cfg - ror config
+ * struct iwl_prph_scratch_pnvm_cfg - PNVM scratch
  * @pnvm_base_addr: PNVM start address
- * @pnvm_size: PNVM size in DWs
+ * @pnvm_size: the size of the PNVM image in bytes
  * @reserved: reserved
  */
 struct iwl_prph_scratch_pnvm_cfg {
@@ -142,7 +142,7 @@ struct iwl_prph_scratch_rbd_cfg {
 /*
  * struct iwl_prph_scratch_uefi_cfg - prph scratch reduce power table
  * @base_addr: reduce power table address
- * @size: table size in dwords
+ * @size: the size of the entire power table image
  */
 struct iwl_prph_scratch_uefi_cfg {
 	__le64 base_addr;
@@ -292,10 +292,13 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 					   const struct iwl_ucode_capabilities *capa);
 void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 					   const struct iwl_ucode_capabilities *capa);
-int iwl_trans_pcie_ctx_info_gen3_load_reduce_power
-				(struct iwl_trans *trans,
-				 const struct iwl_pnvm_image *payloads);
-void iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans);
+int
+iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
+					       const struct iwl_pnvm_image *payloads,
+					       const struct iwl_ucode_capabilities *capa);
+void
+iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
+					      const struct iwl_ucode_capabilities *capa);
 int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
 					  u32 mbx_addr_0_step, u32 mbx_addr_1_step);
 #endif /* __iwl_context_info_file_gen3_h__ */

@@ -330,7 +330,7 @@ reduce_tables:
 			 */
 			trans->reduce_power_loaded = true;
 		} else {
-			ret = iwl_trans_load_reduce_power(trans, &pnvm_data);
+			ret = iwl_trans_load_reduce_power(trans, &pnvm_data, capa);
 			if (ret) {
 				IWL_DEBUG_FW(trans,
 					     "Failed to load reduce power table %d\n",
@@ -340,7 +340,7 @@ reduce_tables:
 			kfree(data);
 		}
 	}
-	iwl_trans_set_reduce_power(trans);
+	iwl_trans_set_reduce_power(trans, capa);
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),

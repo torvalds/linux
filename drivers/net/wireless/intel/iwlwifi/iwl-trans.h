@@ -641,8 +641,10 @@ struct iwl_trans_ops {
 	void (*set_pnvm)(struct iwl_trans *trans,
 			 const struct iwl_ucode_capabilities *capa);
 	int (*load_reduce_power)(struct iwl_trans *trans,
-				 const struct iwl_pnvm_image *payloads);
-	void (*set_reduce_power)(struct iwl_trans *trans);
+				 const struct iwl_pnvm_image *payloads,
+				 const struct iwl_ucode_capabilities *capa);
+	void (*set_reduce_power)(struct iwl_trans *trans,
+				 const struct iwl_ucode_capabilities *capa);
 
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
 	int (*imr_dma_data)(struct iwl_trans *trans,
@@ -729,6 +731,19 @@ struct iwl_dram_data {
 	dma_addr_t physical;
 	void *block;
 	int size;
+};
+
+/**
+ * @drams: array of several DRAM areas that contains the pnvm and power
+ *	reduction table payloads.
+ * @n_regions: number of DRAM regions that were allocated
+ * @prph_scratch_mem_desc: points to a structure allocated in dram,
+ *	designed to show FW where all the payloads are.
+ */
+struct iwl_dram_regions {
+	struct iwl_dram_data drams[IPC_DRAM_MAP_ENTRY_NUM_MAX];
+	struct iwl_dram_data prph_scratch_mem_desc;
+	u8 n_regions;
 };
 
 /**
@@ -1560,15 +1575,18 @@ static inline void iwl_trans_set_pnvm(struct iwl_trans *trans,
 
 static inline int iwl_trans_load_reduce_power
 				(struct iwl_trans *trans,
-				 const struct iwl_pnvm_image *payloads)
+				 const struct iwl_pnvm_image *payloads,
+				 const struct iwl_ucode_capabilities *capa)
 {
-	return trans->ops->load_reduce_power(trans, payloads);
+	return trans->ops->load_reduce_power(trans, payloads, capa);
 }
 
-static inline void iwl_trans_set_reduce_power(struct iwl_trans *trans)
+static inline void
+iwl_trans_set_reduce_power(struct iwl_trans *trans,
+			   const struct iwl_ucode_capabilities *capa)
 {
 	if (trans->ops->set_reduce_power)
-		trans->ops->set_reduce_power(trans);
+		trans->ops->set_reduce_power(trans, capa);
 }
 
 static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
