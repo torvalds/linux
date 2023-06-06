@@ -16,7 +16,6 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 
-#include <linux/iio/common/inv_icm42600_timestamp.h>
 #include <linux/iio/iio.h>
 
 #include "inv_icm42600.h"
