@@ -1047,6 +1047,7 @@ struct iwl_trans_txqs {
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
+ * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
  * @wide_cmd_header: true when ucode supports wide command header format
  * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
@@ -1096,6 +1097,7 @@ struct iwl_trans {
 	u8 pnvm_loaded:1;
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
+	u8 failed_to_load_reduce_power_image:1;
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;

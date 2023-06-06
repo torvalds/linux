@@ -319,29 +319,39 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 
 reduce_tables:
 	/* now try to get the reduce power table, if not loaded yet */
+	if (trans->failed_to_load_reduce_power_image)
+		goto notification;
+
 	if (!trans->reduce_power_loaded) {
 		memset(&pnvm_data, 0, sizeof(pnvm_data));
-		ret = iwl_uefi_get_reduced_power(trans, &pnvm_data);
+		data = iwl_uefi_get_reduced_power(trans, &length);
+		if (IS_ERR(data)) {
+			ret = PTR_ERR(data);
+			trans->failed_to_load_reduce_power_image = true;
+			goto notification;
+		}
+
+		ret = iwl_uefi_reduce_power_parse(trans, data, length,
+						  &pnvm_data);
 		if (ret) {
-			/*
-			 * Pretend we've loaded it - at least we've tried and
-			 * couldn't load it at all, so there's no point in
-			 * trying again over and over.
-			 */
-			trans->reduce_power_loaded = true;
-		} else {
-			ret = iwl_trans_load_reduce_power(trans, &pnvm_data, capa);
-			if (ret) {
-				IWL_DEBUG_FW(trans,
-					     "Failed to load reduce power table %d\n",
-					     ret);
-				trans->reduce_power_loaded = true;
-			}
+			trans->failed_to_load_reduce_power_image = true;
 			kfree(data);
+			goto notification;
+		}
+
+		ret = iwl_trans_load_reduce_power(trans, &pnvm_data, capa);
+		kfree(data);
+		if (ret) {
+			IWL_DEBUG_FW(trans,
+				     "Failed to load reduce power table %d\n",
+				     ret);
+			trans->failed_to_load_reduce_power_image = true;
+			goto notification;
 		}
 	}
 	iwl_trans_set_reduce_power(trans, capa);
 
+notification:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);
