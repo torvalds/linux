@@ -378,8 +378,15 @@ static inline bool tparg_is_function_entry(unsigned int flags)
 	return (flags & TPARG_FL_LOC_MASK) == (TPARG_FL_KERNEL | TPARG_FL_FENTRY);
 }
 
+struct traceprobe_parse_context {
+	struct trace_event_call *event;
+	unsigned int flags;
+	int offset;
+};
+
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
-				const char *argv, unsigned int flags);
+				      const char *argv,
+				      struct traceprobe_parse_context *ctx);
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
