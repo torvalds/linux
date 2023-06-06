@@ -19,10 +19,11 @@
 #include "erdma_cm.h"
 #include "erdma_verbs.h"
 
-static int create_qp_cmd(struct erdma_dev *dev, struct erdma_qp *qp)
+static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 {
-	struct erdma_cmdq_create_qp_req req;
+	struct erdma_dev *dev = to_edev(qp->ibqp.device);
 	struct erdma_pd *pd = to_epd(qp->ibqp.pd);
+	struct erdma_cmdq_create_qp_req req;
 	struct erdma_uqp *user_qp;
 	u64 resp0, resp1;
 	int err;
@@ -93,6 +94,16 @@ static int create_qp_cmd(struct erdma_dev *dev, struct erdma_qp *qp)
 
 		req.sq_db_info_dma_addr = user_qp->sq_db_info_dma_addr;
 		req.rq_db_info_dma_addr = user_qp->rq_db_info_dma_addr;
+
+		if (uctx->ext_db.enable) {
+			req.sq_cqn_mtt_cfg |=
+				FIELD_PREP(ERDMA_CMD_CREATE_QP_DB_CFG_MASK, 1);
+			req.db_cfg =
+				FIELD_PREP(ERDMA_CMD_CREATE_QP_SQDB_CFG_MASK,
+					   uctx->ext_db.sdb_off) |
+				FIELD_PREP(ERDMA_CMD_CREATE_QP_RQDB_CFG_MASK,
+					   uctx->ext_db.rdb_off);
+		}
 	}
 
 	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &resp0,
@@ -146,11 +157,12 @@ post_cmd:
 	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
-static int create_cq_cmd(struct erdma_dev *dev, struct erdma_cq *cq)
+static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 {
+	struct erdma_dev *dev = to_edev(cq->ibcq.device);
 	struct erdma_cmdq_create_cq_req req;
-	u32 page_size;
 	struct erdma_mem *mtt;
+	u32 page_size;
 
 	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
 				CMDQ_OPCODE_CREATE_CQ);
@@ -192,6 +204,13 @@ static int create_cq_cmd(struct erdma_dev *dev, struct erdma_cq *cq)
 
 		req.first_page_offset = mtt->page_offset;
 		req.cq_db_info_addr = cq->user_cq.db_info_dma_addr;
+
+		if (uctx->ext_db.enable) {
+			req.cfg1 |= FIELD_PREP(
+				ERDMA_CMD_CREATE_CQ_MTT_DB_CFG_MASK, 1);
+			req.cfg2 = FIELD_PREP(ERDMA_CMD_CREATE_CQ_DB_CFG_MASK,
+					      uctx->ext_db.cdb_off);
+		}
 	}
 
 	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
@@ -753,7 +772,7 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.state = ERDMA_QP_STATE_IDLE;
 	INIT_DELAYED_WORK(&qp->reflush_dwork, erdma_flush_worker);
 
-	ret = create_qp_cmd(dev, qp);
+	ret = create_qp_cmd(uctx, qp);
 	if (ret)
 		goto err_out_cmd;
 
@@ -1517,7 +1536,7 @@ int erdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			goto err_out_xa;
 	}
 
-	ret = create_cq_cmd(dev, cq);
+	ret = create_cq_cmd(ctx, cq);
 	if (ret)
 		goto err_free_res;
 

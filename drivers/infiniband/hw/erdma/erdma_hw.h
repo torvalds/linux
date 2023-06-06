@@ -134,7 +134,7 @@
 
 /* CMDQ related. */
 #define ERDMA_CMDQ_MAX_OUTSTANDING 128
-#define ERDMA_CMDQ_SQE_SIZE 64
+#define ERDMA_CMDQ_SQE_SIZE 128
 
 /* cmdq sub module definition. */
 enum CMDQ_WQE_SUB_MOD {
@@ -242,7 +242,11 @@ struct erdma_cmdq_ext_db_req {
 /* create_cq cfg1 */
 #define ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK GENMASK(31, 16)
 #define ERDMA_CMD_CREATE_CQ_MTT_TYPE_MASK BIT(15)
+#define ERDMA_CMD_CREATE_CQ_MTT_DB_CFG_MASK BIT(11)
 #define ERDMA_CMD_CREATE_CQ_EQN_MASK GENMASK(9, 0)
+
+/* create_cq cfg2 */
+#define ERDMA_CMD_CREATE_CQ_DB_CFG_MASK GENMASK(15, 0)
 
 struct erdma_cmdq_create_cq_req {
 	u64 hdr;
@@ -252,6 +256,7 @@ struct erdma_cmdq_create_cq_req {
 	u32 cfg1;
 	u64 cq_db_info_addr;
 	u32 first_page_offset;
+	u32 cfg2;
 };
 
 /* regmr/deregmr cfg0 */
@@ -311,12 +316,17 @@ struct erdma_cmdq_modify_qp_req {
 
 /* create qp cqn_mtt_cfg */
 #define ERDMA_CMD_CREATE_QP_PAGE_SIZE_MASK GENMASK(31, 28)
+#define ERDMA_CMD_CREATE_QP_DB_CFG_MASK BIT(25)
 #define ERDMA_CMD_CREATE_QP_CQN_MASK GENMASK(23, 0)
 
 /* create qp mtt_cfg */
 #define ERDMA_CMD_CREATE_QP_PAGE_OFFSET_MASK GENMASK(31, 12)
 #define ERDMA_CMD_CREATE_QP_MTT_CNT_MASK GENMASK(11, 1)
 #define ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK BIT(0)
+
+/* create qp db cfg */
+#define ERDMA_CMD_CREATE_QP_SQDB_CFG_MASK GENMASK(31, 16)
+#define ERDMA_CMD_CREATE_QP_RQDB_CFG_MASK GENMASK(15, 0)
 
 #define ERDMA_CMDQ_CREATE_QP_RESP_COOKIE_MASK GENMASK_ULL(31, 0)
 
@@ -332,6 +342,11 @@ struct erdma_cmdq_create_qp_req {
 	u32 rq_mtt_cfg;
 	u64 sq_db_info_dma_addr;
 	u64 rq_db_info_dma_addr;
+
+	u64 sq_mtt_entry[3];
+	u64 rq_mtt_entry[3];
+
+	u32 db_cfg;
 };
 
 struct erdma_cmdq_destroy_qp_req {
