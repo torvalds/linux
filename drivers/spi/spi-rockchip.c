@@ -6,6 +6,7 @@
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
@@ -237,14 +238,27 @@ static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
 static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
-	u32 busy = SR_BUSY;
+	u32 bit_filed = SR_BUSY;
+	u32 idle_val = 0;
+	uint32_t speed, us;
 
-	if (slave_mode && rs->version == ROCKCHIP_SPI_VER2_TYPE2)
-		busy = SR_SLAVE_TX_BUSY;
+	if (slave_mode && rs->version == ROCKCHIP_SPI_VER2_TYPE2) {
+		bit_filed = SR_SLAVE_TX_BUSY;
+		idle_val = 0;
+	} else if (slave_mode) {
+		bit_filed = SR_TF_EMPTY;
+		idle_val = 1;
+	}
 
 	do {
-		if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & busy))
+		if ((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & bit_filed) == idle_val) {
+			if (bit_filed == SR_TF_EMPTY) {
+				speed = rs->speed_hz;
+				us = (8 * 1000000 / speed) * 2;
+				udelay(us);
+			}
 			return;
+		}
 	} while (!time_after(jiffies, timeout));
 
 	dev_warn(rs->dev, "spi controller is in busy state!\n");
@@ -1142,6 +1156,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	rs->poll = device_property_read_bool(&pdev->dev, "rockchip,poll-only");
 	init_completion(&rs->xfer_done);
+	if (rs->poll && slave_mode) {
+		dev_err(rs->dev, "only support rockchip,poll-only property in master mode\n");
+		ret = -EINVAL;
+		goto err_free_dma_rx;
+	}
 
 	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE2:
