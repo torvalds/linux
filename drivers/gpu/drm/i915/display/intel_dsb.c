@@ -261,6 +261,26 @@ void intel_dsb_noop(struct intel_dsb *dsb, int count)
 			       DSB_OPCODE_NOOP << DSB_OPCODE_SHIFT);
 }
 
+void intel_dsb_nonpost_start(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
+				   DSB_NON_POSTED, DSB_NON_POSTED);
+	intel_dsb_noop(dsb, 4);
+}
+
+void intel_dsb_nonpost_end(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
+				   DSB_NON_POSTED, 0);
+	intel_dsb_noop(dsb, 4);
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
