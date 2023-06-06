@@ -6527,6 +6527,9 @@ static int rkcif_s_selection(struct file *file, void *fh,
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_subdev *sensor_sd;
 	struct v4l2_subdev_selection sd_sel;
+	const struct v4l2_rect *rect = &s->r;
+	struct v4l2_rect sensor_crop;
+	struct v4l2_rect *raw_rect = &dev->terminal_sensor.raw_rect;
 	u16 pad = 0;
 	int ret = 0;
 
@@ -6535,18 +6538,69 @@ static int rkcif_s_selection(struct file *file, void *fh,
 		goto err;
 	}
 
-	sensor_sd = get_remote_sensor(stream, &pad);
+	if (s->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sensor_sd = get_remote_sensor(stream, &pad);
 
-	sd_sel.r = s->r;
-	sd_sel.pad = pad;
-	sd_sel.target = s->target;
-	sd_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		sd_sel.r = s->r;
+		sd_sel.pad = pad;
+		sd_sel.target = s->target;
+		sd_sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
-	ret = v4l2_subdev_call(sensor_sd, pad, set_selection, NULL, &sd_sel);
-	if (!ret) {
-		s->r = sd_sel.r;
-		v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s: pad:%d, which:%d, target:%d\n",
-			 __func__, pad, sd_sel.which, sd_sel.target);
+		ret = v4l2_subdev_call(sensor_sd, pad, set_selection, NULL, &sd_sel);
+		if (!ret) {
+			s->r = sd_sel.r;
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s: pad:%d, which:%d, target:%d\n",
+				 __func__, pad, sd_sel.which, sd_sel.target);
+		}
+	} else if (s->target == V4L2_SEL_TGT_CROP) {
+		ret = rkcif_sanity_check_fmt(stream, rect);
+		if (ret) {
+			v4l2_err(&dev->v4l2_dev, "set crop failed\n");
+			return ret;
+		}
+
+		if (stream->crop_mask & CROP_SRC_SENSOR) {
+			sensor_crop = stream->crop[CROP_SRC_SENSOR];
+			if (rect->left + rect->width > sensor_crop.width ||
+			    rect->top + rect->height > sensor_crop.height) {
+				v4l2_err(&dev->v4l2_dev,
+					 "crop size is bigger than sensor input:left:%d, top:%d, width:%d, height:%d\n",
+					 sensor_crop.left, sensor_crop.top,
+					 sensor_crop.width, sensor_crop.height);
+				return -EINVAL;
+			}
+		} else {
+			if (rect->left + rect->width > raw_rect->width ||
+			    rect->top + rect->height > raw_rect->height) {
+				v4l2_err(&dev->v4l2_dev,
+					 "crop size is bigger than sensor raw input:left:%d, top:%d, width:%d, height:%d\n",
+					 raw_rect->left, raw_rect->top,
+					 raw_rect->width, raw_rect->height);
+				return -EINVAL;
+			}
+		}
+
+		stream->crop[CROP_SRC_USR] = *rect;
+		stream->crop_enable = true;
+		stream->crop_mask |= CROP_SRC_USR_MASK;
+		stream->crop[CROP_SRC_ACT] = stream->crop[CROP_SRC_USR];
+		if (stream->crop_mask & CROP_SRC_SENSOR) {
+			sensor_crop = stream->crop[CROP_SRC_SENSOR];
+			stream->crop[CROP_SRC_ACT].left = sensor_crop.left + stream->crop[CROP_SRC_USR].left;
+			stream->crop[CROP_SRC_ACT].top = sensor_crop.top + stream->crop[CROP_SRC_USR].top;
+		}
+
+		if (stream->state == RKCIF_STATE_STREAMING) {
+			stream->crop_dyn_en = true;
+
+			v4l2_info(&dev->v4l2_dev, "enable dynamic crop, S_SELECTION(%ux%u@%u:%u) target: %d\n",
+				  rect->width, rect->height, rect->left, rect->top, s->target);
+		} else {
+			v4l2_info(&dev->v4l2_dev, "static crop, S_SELECTION(%ux%u@%u:%u) target: %d\n",
+				  rect->width, rect->height, rect->left, rect->top, s->target);
+		}
+	} else {
+		goto err;
 	}
 
 	return ret;
