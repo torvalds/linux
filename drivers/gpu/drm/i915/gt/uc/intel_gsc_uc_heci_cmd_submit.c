@@ -202,7 +202,7 @@ out_ww:
 			if (++trials < 10)
 				goto retry;
 			else
-				err = EAGAIN;
+				err = -EAGAIN;
 		}
 	}
 	i915_gem_ww_ctx_fini(&ww);
