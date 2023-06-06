@@ -133,12 +133,15 @@ struct socinfo_params {
 	u32 nproduct_id;
 	u32 num_clusters;
 	u32 ncluster_array_offset;
-	u32 num_defective_parts;
-	u32 ndefective_parts_array_offset;
+	u32 num_subset_parts;
+	u32 nsubset_parts_array_offset;
 	u32 nmodem_supported;
 	u32 feature_code;
 	u32 pcode;
 	u32 oem_variant;
+	u32 num_func_clusters;
+	u32 boot_cluster;
+	u32 boot_core;
 };
 
 struct smem_image_version {
@@ -565,6 +568,18 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 19):
+		qcom_socinfo->info.num_func_clusters = __le32_to_cpu(info->num_func_clusters);
+		qcom_socinfo->info.boot_cluster = __le32_to_cpu(info->boot_cluster);
+		qcom_socinfo->info.boot_core = __le32_to_cpu(info->boot_core);
+
+		debugfs_create_u32("num_func_clusters", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_func_clusters);
+		debugfs_create_u32("boot_cluster", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.boot_cluster);
+		debugfs_create_u32("boot_core", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.boot_core);
+		fallthrough;
 	case SOCINFO_VERSION(0, 18):
 	case SOCINFO_VERSION(0, 17):
 		qcom_socinfo->info.oem_variant = __le32_to_cpu(info->oem_variant);
@@ -589,17 +604,18 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 	case SOCINFO_VERSION(0, 14):
 		qcom_socinfo->info.num_clusters = __le32_to_cpu(info->num_clusters);
 		qcom_socinfo->info.ncluster_array_offset = __le32_to_cpu(info->ncluster_array_offset);
-		qcom_socinfo->info.num_defective_parts = __le32_to_cpu(info->num_defective_parts);
-		qcom_socinfo->info.ndefective_parts_array_offset = __le32_to_cpu(info->ndefective_parts_array_offset);
+		qcom_socinfo->info.num_subset_parts = __le32_to_cpu(info->num_subset_parts);
+		qcom_socinfo->info.nsubset_parts_array_offset =
+			__le32_to_cpu(info->nsubset_parts_array_offset);
 
 		debugfs_create_u32("num_clusters", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.num_clusters);
 		debugfs_create_u32("ncluster_array_offset", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.ncluster_array_offset);
-		debugfs_create_u32("num_defective_parts", 0444, qcom_socinfo->dbg_root,
-				   &qcom_socinfo->info.num_defective_parts);
-		debugfs_create_u32("ndefective_parts_array_offset", 0444, qcom_socinfo->dbg_root,
-				   &qcom_socinfo->info.ndefective_parts_array_offset);
+		debugfs_create_u32("num_subset_parts", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_subset_parts);
+		debugfs_create_u32("nsubset_parts_array_offset", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.nsubset_parts_array_offset);
 		fallthrough;
 	case SOCINFO_VERSION(0, 13):
 		qcom_socinfo->info.nproduct_id = __le32_to_cpu(info->nproduct_id);

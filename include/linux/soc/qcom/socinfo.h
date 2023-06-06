@@ -54,8 +54,8 @@ struct socinfo {
 	/* Version 14 */
 	__le32 num_clusters;
 	__le32 ncluster_array_offset;
-	__le32 num_defective_parts;
-	__le32 ndefective_parts_array_offset;
+	__le32 num_subset_parts;
+	__le32 nsubset_parts_array_offset;
 	/* Version 15 */
 	__le32 nmodem_supported;
 	/* Version 16 */
@@ -68,6 +68,10 @@ struct socinfo {
 	/* Version 18 */
 	__le32 num_kvps;
 	__le32 kvps_offset;
+	/* Version 19 */
+	__le32 num_func_clusters;
+	__le32 boot_cluster;
+	__le32 boot_core;
 };
 
 #endif
