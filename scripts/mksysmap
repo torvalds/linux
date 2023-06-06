@@ -32,7 +32,7 @@ ${NM} -n ${1} | sed >${2} -e "
 #  (do not forget a space before each pattern)
 
 # local symbols for ARM, MIPS, etc.
-/ \$/d
+/ \\$/d
 
 # local labels, .LBB, .Ltmpxxx, .L__unnamed_xx, .LASANPC, etc.
 / \.L/d
@@ -41,7 +41,7 @@ ${NM} -n ${1} | sed >${2} -e "
 / __efistub_/d
 
 # arm64 local symbols in non-VHE KVM namespace
-/ __kvm_nvhe_\$/d
+/ __kvm_nvhe_\\$/d
 / __kvm_nvhe_\.L/d
 
 # arm64 lld
