@@ -1546,6 +1546,39 @@ static void osnoise_sleep(void)
 }
 
 /*
+ * osnoise_migration_pending - checks if the task needs to migrate
+ *
+ * osnoise/timerlat threads are per-cpu. If there is a pending request to
+ * migrate the thread away from the current CPU, something bad has happened.
+ * Play the good citizen and leave.
+ *
+ * Returns 0 if it is safe to continue, 1 otherwise.
+ */
+static inline int osnoise_migration_pending(void)
+{
+	if (!current->migration_pending)
+		return 0;
+
+	/*
+	 * If migration is pending, there is a task waiting for the
+	 * tracer to enable migration. The tracer does not allow migration,
+	 * thus: taint and leave to unblock the blocked thread.
+	 */
+	osnoise_taint("migration requested to osnoise threads, leaving.");
+
+	/*
+	 * Unset this thread from the threads managed by the interface.
+	 * The tracers are responsible for cleaning their env before
+	 * exiting.
+	 */
+	mutex_lock(&interface_lock);
+	this_cpu_osn_var()->kthread = NULL;
+	mutex_unlock(&interface_lock);
+
+	return 1;
+}
+
+/*
  * osnoise_main - The osnoise detection kernel thread
  *
  * Calls run_osnoise() function to measure the osnoise for the configured runtime,
@@ -1553,12 +1586,29 @@ static void osnoise_sleep(void)
  */
 static int osnoise_main(void *data)
 {
+	unsigned long flags;
+
+	/*
+	 * This thread was created pinned to the CPU using PF_NO_SETAFFINITY.
+	 * The problem is that cgroup does not allow PF_NO_SETAFFINITY thread.
+	 *
+	 * To work around this limitation, disable migration and remove the
+	 * flag.
+	 */
+	migrate_disable();
+	raw_spin_lock_irqsave(&current->pi_lock, flags);
+	current->flags &= ~(PF_NO_SETAFFINITY);
+	raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 
 	while (!kthread_should_stop()) {
+		if (osnoise_migration_pending())
+			break;
+
 		run_osnoise();
 		osnoise_sleep();
 	}
 
+	migrate_enable();
 	return 0;
 }
 
@@ -1706,6 +1756,7 @@ static int timerlat_main(void *data)
 	struct timerlat_variables *tlat = this_cpu_tmr_var();
 	struct timerlat_sample s;
 	struct sched_param sp;
+	unsigned long flags;
 	u64 now, diff;
 
 	/*
@@ -1713,6 +1764,18 @@ static int timerlat_main(void *data)
 	 */
 	sp.sched_priority = DEFAULT_TIMERLAT_PRIO;
 	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
+
+	/*
+	 * This thread was created pinned to the CPU using PF_NO_SETAFFINITY.
+	 * The problem is that cgroup does not allow PF_NO_SETAFFINITY thread.
+	 *
+	 * To work around this limitation, disable migration and remove the
+	 * flag.
+	 */
+	migrate_disable();
+	raw_spin_lock_irqsave(&current->pi_lock, flags);
+	current->flags &= ~(PF_NO_SETAFFINITY);
+	raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 
 	tlat->count = 0;
 	tlat->tracing_thread = false;
@@ -1731,6 +1794,7 @@ static int timerlat_main(void *data)
 	osn_var->sampling = 1;
 
 	while (!kthread_should_stop()) {
+
 		now = ktime_to_ns(hrtimer_cb_get_time(&tlat->timer));
 		diff = now - tlat->abs_period;
 
@@ -1749,10 +1813,14 @@ static int timerlat_main(void *data)
 			if (time_to_us(diff) >= osnoise_data.stop_tracing_total)
 				osnoise_stop_tracing();
 
+		if (osnoise_migration_pending())
+			break;
+
 		wait_next_period(tlat);
 	}
 
 	hrtimer_cancel(&tlat->timer);
+	migrate_enable();
 	return 0;
 }
 #else /* CONFIG_TIMERLAT_TRACER */
