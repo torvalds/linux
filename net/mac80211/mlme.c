@@ -1679,10 +1679,12 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 }
 
 /* spectrum management related things */
-static void ieee80211_chswitch_work(struct work_struct *work)
+static void ieee80211_chswitch_work(struct wiphy *wiphy,
+				    struct wiphy_work *work)
 {
 	struct ieee80211_link_data *link =
-		container_of(work, struct ieee80211_link_data, u.mgd.chswitch_work);
+		container_of(work, struct ieee80211_link_data,
+			     u.mgd.chswitch_work.work);
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -1802,20 +1804,12 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
 		ieee80211_queue_work(&sdata->local->hw,
 				     &ifmgd->csa_connection_drop_work);
 	} else {
-		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->deflink.u.mgd.chswitch_work);
+		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+					 &sdata->deflink.u.mgd.chswitch_work,
+					 0);
 	}
 }
 EXPORT_SYMBOL(ieee80211_chswitch_done);
-
-static void ieee80211_chswitch_timer(struct timer_list *t)
-{
-	struct ieee80211_link_data *link =
-		from_timer(link, t, u.mgd.chswitch_timer);
-
-	ieee80211_queue_work(&link->sdata->local->hw,
-			     &link->u.mgd.chswitch_work);
-}
 
 static void
 ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
@@ -1860,6 +1854,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_channel_switch ch_switch;
 	struct ieee80211_bss *bss;
+	unsigned long timeout;
 	int res;
 
 	sdata_assert_lock(sdata);
@@ -2003,12 +1998,11 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	/* channel switch handled in software */
-	if (csa_ie.count <= 1)
-		ieee80211_queue_work(&local->hw, &link->u.mgd.chswitch_work);
-	else
-		mod_timer(&link->u.mgd.chswitch_timer,
-			  TU_TO_EXP_TIME((csa_ie.count - 1) *
-					 cbss->beacon_interval));
+	timeout = TU_TO_JIFFIES((max_t(int, csa_ie.count, 1) - 1) *
+				cbss->beacon_interval);
+	wiphy_delayed_work_queue(local->hw.wiphy,
+				 &link->u.mgd.chswitch_work,
+				 timeout);
 	return;
  lock_and_drop_connection:
 	mutex_lock(&local->mtx);
@@ -3030,7 +3024,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.timer);
-	del_timer_sync(&sdata->deflink.u.mgd.chswitch_timer);
 
 	sdata->vif.bss_conf.dtim_period = 0;
 	sdata->vif.bss_conf.beacon_rate = NULL;
@@ -6596,8 +6589,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	else
 		link->u.mgd.req_smps = IEEE80211_SMPS_OFF;
 
-	INIT_WORK(&link->u.mgd.chswitch_work, ieee80211_chswitch_work);
-	timer_setup(&link->u.mgd.chswitch_timer, ieee80211_chswitch_timer, 0);
+	wiphy_delayed_work_init(&link->u.mgd.chswitch_work,
+				ieee80211_chswitch_work);
 
 	if (sdata->u.mgd.assoc_data)
 		ether_addr_copy(link->conf->addr,
@@ -7555,7 +7548,8 @@ void ieee80211_mgd_stop_link(struct ieee80211_link_data *link)
 {
 	wiphy_work_cancel(link->sdata->local->hw.wiphy,
 			  &link->u.mgd.request_smps_work);
-	cancel_work_sync(&link->u.mgd.chswitch_work);
+	wiphy_delayed_work_cancel(link->sdata->local->hw.wiphy,
+				  &link->u.mgd.chswitch_work);
 }
 
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)

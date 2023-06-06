@@ -918,8 +918,7 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
-	struct timer_list chswitch_timer;
-	struct work_struct chswitch_work;
+	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
 	bool beacon_crc_valid;
