@@ -2932,16 +2932,16 @@ static int icl_pre_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 	return 16;
 }
 
-static bool err_check(struct drm_color_lut *lut1,
-		      struct drm_color_lut *lut2, u32 err)
+static bool err_check(const struct drm_color_lut *lut1,
+		      const struct drm_color_lut *lut2, u32 err)
 {
 	return ((abs((long)lut2->red - lut1->red)) <= err) &&
 		((abs((long)lut2->blue - lut1->blue)) <= err) &&
 		((abs((long)lut2->green - lut1->green)) <= err);
 }
 
-static bool intel_lut_entries_equal(struct drm_color_lut *lut1,
-				    struct drm_color_lut *lut2,
+static bool intel_lut_entries_equal(const struct drm_color_lut *lut1,
+				    const struct drm_color_lut *lut2,
 				    int lut_size, u32 err)
 {
 	int i;
@@ -2958,7 +2958,7 @@ static bool intel_lut_equal(const struct drm_property_blob *blob1,
 			    const struct drm_property_blob *blob2,
 			    int check_size, int precision)
 {
-	struct drm_color_lut *lut1, *lut2;
+	const struct drm_color_lut *lut1, *lut2;
 	int lut_size1, lut_size2;
 	u32 err;
 
