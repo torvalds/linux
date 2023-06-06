@@ -105,7 +105,7 @@ static int master_stats_probe(struct platform_device *pdev)
 		}
 
 		data[i].base = devm_ioremap(dev, res.start, resource_size(&res));
-		if (IS_ERR(data[i].base)) {
+		if (!data[i].base) {
 			debugfs_remove_recursive(root);
 			return dev_err_probe(dev, -EINVAL,
 					     "Could not map the MSG RAM slice idx %d!\n", i);
