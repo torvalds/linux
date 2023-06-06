@@ -2920,9 +2920,9 @@ static int kfd_ioctl_set_debug_trap(struct file *filep, struct kfd_process *p, v
 		target = kfd_lookup_process_by_pid(pid);
 	}
 
-	if (!target) {
+	if (IS_ERR_OR_NULL(target)) {
 		pr_debug("Cannot find process PID %i to debug\n", args->pid);
-		r = -ESRCH;
+		r = target ? PTR_ERR(target) : -ESRCH;
 		goto out;
 	}
 
