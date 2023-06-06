@@ -379,6 +379,7 @@ static void fq_pie_timer(struct timer_list *t)
 	spinlock_t *root_lock; /* to lock qdisc for probability calculations */
 	u32 idx;
 
+	rcu_read_lock();
 	root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 	spin_lock(root_lock);
 
@@ -391,6 +392,7 @@ static void fq_pie_timer(struct timer_list *t)
 		mod_timer(&q->adapt_timer, jiffies + q->p_params.tupdate);
 
 	spin_unlock(root_lock);
+	rcu_read_unlock();
 }
 
 static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
