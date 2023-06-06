@@ -123,9 +123,8 @@ static void tps65219_pb_remove(struct platform_device *pdev)
 	int ret;
 
 	/* Disable interrupt for the pushbutton */
-	ret = regmap_update_bits(tps->regmap, TPS65219_REG_MASK_CONFIG,
-				 TPS65219_REG_MASK_INT_FOR_PB_MASK,
-				 TPS65219_REG_MASK_INT_FOR_PB_MASK);
+	ret = regmap_set_bits(tps->regmap, TPS65219_REG_MASK_CONFIG,
+			      TPS65219_REG_MASK_INT_FOR_PB_MASK);
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to disable irq (%pe)\n", ERR_PTR(ret));
 }
