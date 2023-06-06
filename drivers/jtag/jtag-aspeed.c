@@ -577,7 +577,7 @@ static void aspeed_jtag_set_tap_state(struct aspeed_jtag *aspeed_jtag,
 	to = end_state;
 
 	if (from == JTAG_STATE_CURRENT)
-		from = aspeed_jtag->status;
+		from = aspeed_jtag->current_state;
 
 	for (i = 0; i < _tms_cycle_lookup[from][to].count; i++)
 		aspeed_jtag_tck_cycle(aspeed_jtag,
