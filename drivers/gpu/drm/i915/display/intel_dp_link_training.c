@@ -1279,7 +1279,7 @@ intel_dp_128b132b_lane_cds(struct intel_dp *intel_dp,
 		if (drm_dp_128b132b_eq_interlane_align_done(link_status) &&
 		    drm_dp_128b132b_cds_interlane_align_done(link_status) &&
 		    drm_dp_128b132b_lane_symbol_locked(link_status, crtc_state->lane_count)) {
-			lt_err(intel_dp, DP_PHY_DPRX, "CDS interlane align done\n");
+			lt_dbg(intel_dp, DP_PHY_DPRX, "CDS interlane align done\n");
 			break;
 		}
 
