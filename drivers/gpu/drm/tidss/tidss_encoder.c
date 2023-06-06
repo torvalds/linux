@@ -6,91 +6,125 @@
 
 #include <linux/export.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_bridge_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_of.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "tidss_crtc.h"
 #include "tidss_drv.h"
 #include "tidss_encoder.h"
 
-static int tidss_encoder_atomic_check(struct drm_encoder *encoder,
-				      struct drm_crtc_state *crtc_state,
-				      struct drm_connector_state *conn_state)
+struct tidss_encoder {
+	struct drm_bridge bridge;
+	struct drm_encoder encoder;
+	struct drm_connector *connector;
+	struct drm_bridge *next_bridge;
+	struct tidss_device *tidss;
+};
+
+static inline struct tidss_encoder
+*bridge_to_tidss_encoder(struct drm_bridge *b)
 {
-	struct drm_device *ddev = encoder->dev;
+	return container_of(b, struct tidss_encoder, bridge);
+}
+
+static int tidss_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
+{
+	struct tidss_encoder *t_enc = bridge_to_tidss_encoder(bridge);
+
+	return drm_bridge_attach(bridge->encoder, t_enc->next_bridge,
+				 bridge, flags);
+}
+
+static int tidss_bridge_atomic_check(struct drm_bridge *bridge,
+				     struct drm_bridge_state *bridge_state,
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
+{
+	struct tidss_encoder *t_enc = bridge_to_tidss_encoder(bridge);
+	struct tidss_device *tidss = t_enc->tidss;
 	struct tidss_crtc_state *tcrtc_state = to_tidss_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
-	struct drm_bridge *bridge;
-	bool bus_flags_set = false;
+	struct drm_bridge_state *next_bridge_state = NULL;
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
+	if (t_enc->next_bridge)
+		next_bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state,
+								    t_enc->next_bridge);
 
-	/*
-	 * Take the bus_flags from the first bridge that defines
-	 * bridge timings, or from the connector's display_info if no
-	 * bridge defines the timings.
-	 */
-	drm_for_each_bridge_in_chain(encoder, bridge) {
-		if (!bridge->timings)
-			continue;
-
-		tcrtc_state->bus_flags = bridge->timings->input_bus_flags;
-		bus_flags_set = true;
-		break;
-	}
-
-	if (!di->bus_formats || di->num_bus_formats == 0)  {
-		dev_err(ddev->dev, "%s: No bus_formats in connected display\n",
+	if (next_bridge_state) {
+		tcrtc_state->bus_flags = next_bridge_state->input_bus_cfg.flags;
+		tcrtc_state->bus_format = next_bridge_state->input_bus_cfg.format;
+	} else if (di->num_bus_formats) {
+		tcrtc_state->bus_format = di->bus_formats[0];
+		tcrtc_state->bus_flags = di->bus_flags;
+	} else {
+		dev_err(tidss->dev, "%s: No bus_formats in connected display\n",
 			__func__);
 		return -EINVAL;
 	}
 
-	// XXX any cleaner way to set bus format and flags?
-	tcrtc_state->bus_format = di->bus_formats[0];
-	if (!bus_flags_set)
-		tcrtc_state->bus_flags = di->bus_flags;
-
 	return 0;
 }
 
-static void tidss_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-	kfree(encoder);
-}
-
-static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.atomic_check = tidss_encoder_atomic_check,
+static const struct drm_bridge_funcs tidss_bridge_funcs = {
+	.attach				= tidss_bridge_attach,
+	.atomic_check			= tidss_bridge_atomic_check,
+	.atomic_reset			= drm_atomic_helper_bridge_reset,
+	.atomic_duplicate_state		= drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state		= drm_atomic_helper_bridge_destroy_state,
 };
 
-static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = tidss_encoder_destroy,
-};
-
-struct drm_encoder *tidss_encoder_create(struct tidss_device *tidss,
-					 u32 encoder_type, u32 possible_crtcs)
+int tidss_encoder_create(struct tidss_device *tidss,
+			 struct drm_bridge *next_bridge,
+			 u32 encoder_type, u32 possible_crtcs)
 {
+	struct tidss_encoder *t_enc;
 	struct drm_encoder *enc;
+	struct drm_connector *connector;
 	int ret;
 
-	enc = kzalloc(sizeof(*enc), GFP_KERNEL);
-	if (!enc)
-		return ERR_PTR(-ENOMEM);
+	t_enc = drmm_simple_encoder_alloc(&tidss->ddev, struct tidss_encoder,
+					  encoder, encoder_type);
+	if (IS_ERR(t_enc))
+		return PTR_ERR(t_enc);
 
+	t_enc->tidss = tidss;
+	t_enc->next_bridge = next_bridge;
+	t_enc->bridge.funcs = &tidss_bridge_funcs;
+
+	enc = &t_enc->encoder;
 	enc->possible_crtcs = possible_crtcs;
 
-	ret = drm_encoder_init(&tidss->ddev, enc, &encoder_funcs,
-			       encoder_type, NULL);
-	if (ret < 0) {
-		kfree(enc);
-		return ERR_PTR(ret);
+	/* Attaching first bridge to the encoder */
+	ret = drm_bridge_attach(enc, &t_enc->bridge, NULL,
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret) {
+		dev_err(tidss->dev, "bridge attach failed: %d\n", ret);
+		return ret;
 	}
 
-	drm_encoder_helper_add(enc, &encoder_helper_funcs);
+	/* Initializing the connector at the end of bridge-chain */
+	connector = drm_bridge_connector_init(&tidss->ddev, enc);
+	if (IS_ERR(connector)) {
+		dev_err(tidss->dev, "bridge_connector create failed\n");
+		return PTR_ERR(connector);
+	}
+
+	ret = drm_connector_attach_encoder(connector, enc);
+	if (ret) {
+		dev_err(tidss->dev, "attaching encoder to connector failed\n");
+		return ret;
+	}
+
+	t_enc->connector = connector;
 
 	dev_dbg(tidss->dev, "Encoder create done\n");
 
-	return enc;
+	return ret;
 }
