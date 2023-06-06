@@ -287,7 +287,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
 		&trans_pcie->prph_scratch->ctrl_cfg;
-	struct iwl_dram_data *dram = &trans_pcie->pnvm_dram;
+	struct iwl_dram_data *dram = &trans_pcie->pnvm_dram[0];
 	u32 len, len0, len1;
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
@@ -324,6 +324,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	dram->size = len;
 	memcpy(dram->block, pnvm_payloads->chunks[0].data, len0);
 	memcpy((u8 *)dram->block + len0, pnvm_payloads->chunks[1].data, len1);
+	trans_pcie->n_pnvm_regions = 1;
 
 	trans->pnvm_loaded = true;
 	return 0;
@@ -337,11 +338,15 @@ void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans)
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
-
+	/* FIXME: currently we concatenate payloads and save them only in
+	 * pnvm_dram[0] - therefor only pnvm_dram[0] is delivered to the
+	 * prph_sc. Need to add a UCODE sensitivity and another case in which
+	 * we deliver to the prph_sc an array with all the DRAM addresses.
+	 */
 	prph_sc_ctrl->pnvm_cfg.pnvm_base_addr =
-		cpu_to_le64(trans_pcie->pnvm_dram.physical);
+		cpu_to_le64(trans_pcie->pnvm_dram[0].physical);
 	prph_sc_ctrl->pnvm_cfg.pnvm_size =
-		cpu_to_le32(trans_pcie->pnvm_dram.size);
+		cpu_to_le32(trans_pcie->pnvm_dram[0].size);
 
 }
 

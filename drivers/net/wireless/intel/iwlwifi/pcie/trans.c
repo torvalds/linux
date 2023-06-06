@@ -1995,6 +1995,19 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->fw_reset_handshake = trans_cfg->fw_reset_handshake;
 }
 
+void iwl_trans_pcie_free_pnvm_dram(struct iwl_trans_pcie *trans_pcie,
+				   struct device *dev)
+{
+	u8 i;
+
+	for (i = 0; i < trans_pcie->n_pnvm_regions; i++) {
+		dma_free_coherent(dev, trans_pcie->pnvm_dram[i].size,
+				  trans_pcie->pnvm_dram[i].block,
+				  trans_pcie->pnvm_dram[i].physical);
+	}
+	trans_pcie->n_pnvm_regions = 0;
+}
+
 void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -2027,10 +2040,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	iwl_pcie_free_fw_monitor(trans);
 
-	if (trans_pcie->pnvm_dram.size)
-		dma_free_coherent(trans->dev, trans_pcie->pnvm_dram.size,
-				  trans_pcie->pnvm_dram.block,
-				  trans_pcie->pnvm_dram.physical);
+	iwl_trans_pcie_free_pnvm_dram(trans_pcie, trans->dev);
 
 	if (trans_pcie->reduce_power_dram.size)
 		dma_free_coherent(trans->dev,

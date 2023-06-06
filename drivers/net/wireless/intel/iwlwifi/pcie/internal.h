@@ -23,6 +23,7 @@
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 #include "queue/tx.h"
+#include "iwl-context-info.h"
 
 /*
  * RX related structures and functions
@@ -306,7 +307,8 @@ enum iwl_pcie_imr_status {
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @kw: keep warm address
- * @pnvm_dram: DRAM area that contains the PNVM data
+ * @pnvm_dram: array of several DRAM areas that contains the PNVM data
+ * @n_pnvm_regions: number of DRAM regions that were allocated for the pnvm
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
@@ -380,7 +382,9 @@ struct iwl_trans_pcie {
 	u32 scd_base_addr;
 	struct iwl_dma_ptr kw;
 
-	struct iwl_dram_data pnvm_dram;
+	/* pnvm data */
+	struct iwl_dram_data pnvm_dram[IPC_DRAM_MAP_ENTRY_NUM_MAX];
+	u8 n_pnvm_regions;
 	struct iwl_dram_data reduce_power_dram;
 
 	struct iwl_txq *txq_memory;
@@ -478,6 +482,8 @@ struct iwl_trans
 		      const struct pci_device_id *ent,
 		      const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_pcie_free(struct iwl_trans *trans);
+void iwl_trans_pcie_free_pnvm_dram(struct iwl_trans_pcie *trans_pcie,
+				   struct device *dev);
 
 bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
 #define _iwl_trans_pcie_grab_nic_access(trans)			\
