@@ -49,6 +49,7 @@ config TXGBE
 	select SFP
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select PCS_XPCS
 	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of
