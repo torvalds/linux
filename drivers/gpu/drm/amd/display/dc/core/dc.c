@@ -3521,7 +3521,6 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 {
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
-	bool should_lock_all_pipes = (update_type != UPDATE_TYPE_FAST);
 	dc_z10_restore(dc);
 
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
