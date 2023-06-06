@@ -39,39 +39,52 @@ BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		 $(LINUXINCLUDE)
 
 ifdef CONFIG_PPC64_BOOT_WRAPPER
-BOOTCFLAGS	+= -m64
+BOOTTARGETFLAGS	+= -m64
+BOOTTARGETFLAGS	+= -mabi=elfv2
 ifdef CONFIG_PPC64_ELF_ABI_V2
-BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
+BOOTTARGETFLAGS	+= $(call cc-option,-mabi=elfv2)
 endif
 else
-BOOTCFLAGS	+= -m32
+BOOTTARGETFLAGS	:= -m32
 endif
 
 ifdef CONFIG_TARGET_CPU_BOOL
-BOOTCFLAGS	+= -mcpu=$(CONFIG_TARGET_CPU)
+BOOTTARGETFLAGS	+= -mcpu=$(CONFIG_TARGET_CPU)
 else ifdef CONFIG_PPC64_BOOT_WRAPPER
 ifdef CONFIG_CPU_LITTLE_ENDIAN
-BOOTCFLAGS	+= -mcpu=powerpc64le
+BOOTTARGETFLAGS	+= -mcpu=powerpc64le
 else
-BOOTCFLAGS	+= -mcpu=powerpc64
+BOOTTARGETFLAGS	+= -mcpu=powerpc64
 endif
 endif
+
+$(obj)/4xx.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/ebony.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-hotfoot.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/cuboot-taishan.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-katmai.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-acadia.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-iss4xx.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-currituck.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-akebono.o: BOOTTARGETFLAGS += -mcpu=405
 
 BOOTCFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
 
 ifdef CONFIG_CPU_BIG_ENDIAN
-BOOTCFLAGS	+= -mbig-endian
+BOOTTARGETFLAGS	+= -mbig-endian
 else
-BOOTCFLAGS	+= -mlittle-endian
+BOOTTARGETFLAGS	+= -mlittle-endian
 endif
 
-BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -nostdinc
+BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTTARGETFLAGS) $(BOOTCFLAGS) -nostdinc
 
 BOOTARFLAGS	:= -crD
 
 BOOTCFLAGS	+= $(call cc-option,-mno-prefixed) \
 		   $(call cc-option,-mno-pcrel) \
 		   $(call cc-option,-mno-mma)
+
+BOOTCFLAGS	+= $(BOOTTARGETFLAGS)
 
 ifdef CONFIG_CC_IS_CLANG
 BOOTCFLAGS += $(CLANG_FLAGS)
@@ -90,16 +103,6 @@ BOOTCFLAGS	+= -include $(srctree)/include/linux/compiler_attributes.h
 BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
 
 DTC_FLAGS	?= -p 1024
-
-$(obj)/4xx.o: BOOTCFLAGS += -mcpu=405
-$(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-hotfoot.o: BOOTCFLAGS += -mcpu=405
-$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-acadia.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-iss4xx.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-currituck.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-akebono.o: BOOTCFLAGS += -mcpu=405
 
 # The pre-boot decompressors pull in a lot of kernel headers and other source
 # files. This creates a bit of a dependency headache since we need to copy
