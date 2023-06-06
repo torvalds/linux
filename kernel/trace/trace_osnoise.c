@@ -181,6 +181,7 @@ struct osn_irq {
 
 #define IRQ_CONTEXT	0
 #define THREAD_CONTEXT	1
+#define THREAD_URET	2
 /*
  * sofirq runtime info.
  */
@@ -238,6 +239,7 @@ struct timerlat_variables {
 	u64			abs_period;
 	bool			tracing_thread;
 	u64			count;
+	bool			uthread_migrate;
 };
 
 static DEFINE_PER_CPU(struct timerlat_variables, per_cpu_timerlat_var);
@@ -1181,6 +1183,78 @@ thread_exit(struct osnoise_variables *osn_var, struct task_struct *t)
 	osn_var->thread.arrival_time = 0;
 }
 
+#ifdef CONFIG_TIMERLAT_TRACER
+/*
+ * osnoise_stop_exception - Stop tracing and the tracer.
+ */
+static __always_inline void osnoise_stop_exception(char *msg, int cpu)
+{
+	struct osnoise_instance *inst;
+	struct trace_array *tr;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(inst, &osnoise_instances, list) {
+		tr = inst->tr;
+		trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_,
+				       "stop tracing hit on cpu %d due to exception: %s\n",
+				       smp_processor_id(),
+				       msg);
+
+		if (test_bit(OSN_PANIC_ON_STOP, &osnoise_options))
+			panic("tracer hit on cpu %d due to exception: %s\n",
+			      smp_processor_id(),
+			      msg);
+
+		tracer_tracing_off(tr);
+	}
+	rcu_read_unlock();
+}
+
+/*
+ * trace_sched_migrate_callback - sched:sched_migrate_task trace event handler
+ *
+ * his function is hooked to the sched:sched_migrate_task trace event, and monitors
+ * timerlat user-space thread migration.
+ */
+static void trace_sched_migrate_callback(void *data, struct task_struct *p, int dest_cpu)
+{
+	struct osnoise_variables *osn_var;
+	long cpu = task_cpu(p);
+
+	osn_var = per_cpu_ptr(&per_cpu_osnoise_var, cpu);
+	if (osn_var->pid == p->pid && dest_cpu != cpu) {
+		per_cpu_ptr(&per_cpu_timerlat_var, cpu)->uthread_migrate = 1;
+		osnoise_taint("timerlat user-thread migrated\n");
+		osnoise_stop_exception("timerlat user-thread migrated", cpu);
+	}
+}
+
+static int register_migration_monitor(void)
+{
+	int ret = 0;
+
+	/*
+	 * Timerlat thread migration check is only required when running timerlat in user-space.
+	 * Thus, enable callback only if timerlat is set with no workload.
+	 */
+	if (timerlat_enabled() && !test_bit(OSN_WORKLOAD, &osnoise_options))
+		ret = register_trace_sched_migrate_task(trace_sched_migrate_callback, NULL);
+
+	return ret;
+}
+
+static void unregister_migration_monitor(void)
+{
+	if (timerlat_enabled() && !test_bit(OSN_WORKLOAD, &osnoise_options))
+		unregister_trace_sched_migrate_task(trace_sched_migrate_callback, NULL);
+}
+#else
+static int register_migration_monitor(void)
+{
+	return 0;
+}
+static void unregister_migration_monitor(void) {}
+#endif
 /*
  * trace_sched_switch - sched:sched_switch trace event handler
  *
@@ -1204,7 +1278,7 @@ trace_sched_switch_callback(void *data, bool preempt,
 }
 
 /*
- * hook_thread_events - Hook the insturmentation for thread noise
+ * hook_thread_events - Hook the instrumentation for thread noise
  *
  * Hook the osnoise tracer callbacks to handle the noise from other
  * threads on the necessary kernel events.
@@ -1217,11 +1291,19 @@ static int hook_thread_events(void)
 	if (ret)
 		return -EINVAL;
 
+	ret = register_migration_monitor();
+	if (ret)
+		goto out_unreg;
+
 	return 0;
+
+out_unreg:
+	unregister_trace_sched_switch(trace_sched_switch_callback, NULL);
+	return -EINVAL;
 }
 
 /*
- * unhook_thread_events - *nhook the insturmentation for thread noise
+ * unhook_thread_events - unhook the instrumentation for thread noise
  *
  * Unook the osnoise tracer callbacks to handle the noise from other
  * threads on the necessary kernel events.
@@ -1229,6 +1311,7 @@ static int hook_thread_events(void)
 static void unhook_thread_events(void)
 {
 	unregister_trace_sched_switch(trace_sched_switch_callback, NULL);
+	unregister_migration_monitor();
 }
 
 /*
@@ -1864,10 +1947,24 @@ static void stop_kthread(unsigned int cpu)
 
 	kthread = per_cpu(per_cpu_osnoise_var, cpu).kthread;
 	if (kthread) {
-		kthread_stop(kthread);
+		if (test_bit(OSN_WORKLOAD, &osnoise_options)) {
+			kthread_stop(kthread);
+		} else {
+			/*
+			 * This is a user thread waiting on the timerlat_fd. We need
+			 * to close all users, and the best way to guarantee this is
+			 * by killing the thread. NOTE: this is a purpose specific file.
+			 */
+			kill_pid(kthread->thread_pid, SIGKILL, 1);
+			put_task_struct(kthread);
+		}
 		per_cpu(per_cpu_osnoise_var, cpu).kthread = NULL;
 	} else {
+		/* if no workload, just return */
 		if (!test_bit(OSN_WORKLOAD, &osnoise_options)) {
+			/*
+			 * This is set in the osnoise tracer case.
+			 */
 			per_cpu(per_cpu_osnoise_var, cpu).sampling = false;
 			barrier();
 			return;
@@ -1912,7 +2009,6 @@ static int start_kthread(unsigned int cpu)
 			barrier();
 			return 0;
 		}
-
 		snprintf(comm, 24, "osnoise/%d", cpu);
 	}
 
@@ -1940,6 +2036,11 @@ static int start_per_cpu_kthreads(void)
 	struct cpumask *current_mask = &save_cpumask;
 	int retval = 0;
 	int cpu;
+
+	if (!test_bit(OSN_WORKLOAD, &osnoise_options)) {
+		if (timerlat_enabled())
+			return 0;
+	}
 
 	cpus_read_lock();
 	/*
@@ -2281,6 +2382,223 @@ err_free:
 	return err;
 }
 
+#ifdef CONFIG_TIMERLAT_TRACER
+static int timerlat_fd_open(struct inode *inode, struct file *file)
+{
+	struct osnoise_variables *osn_var;
+	struct timerlat_variables *tlat;
+	long cpu = (long) inode->i_cdev;
+
+	mutex_lock(&interface_lock);
+
+	/*
+	 * This file is accessible only if timerlat is enabled, and
+	 * NO_OSNOISE_WORKLOAD is set.
+	 */
+	if (!timerlat_enabled() || test_bit(OSN_WORKLOAD, &osnoise_options)) {
+		mutex_unlock(&interface_lock);
+		return -EINVAL;
+	}
+
+	migrate_disable();
+
+	osn_var = this_cpu_osn_var();
+
+	/*
+	 * The osn_var->pid holds the single access to this file.
+	 */
+	if (osn_var->pid) {
+		mutex_unlock(&interface_lock);
+		migrate_enable();
+		return -EBUSY;
+	}
+
+	/*
+	 * timerlat tracer is a per-cpu tracer. Check if the user-space too
+	 * is pinned to a single CPU. The tracer laters monitor if the task
+	 * migrates and then disables tracer if it does. However, it is
+	 * worth doing this basic acceptance test to avoid obviusly wrong
+	 * setup.
+	 */
+	if (current->nr_cpus_allowed > 1 ||  cpu != smp_processor_id()) {
+		mutex_unlock(&interface_lock);
+		migrate_enable();
+		return -EPERM;
+	}
+
+	/*
+	 * From now on, it is good to go.
+	 */
+	file->private_data = inode->i_cdev;
+
+	get_task_struct(current);
+
+	osn_var->kthread = current;
+	osn_var->pid = current->pid;
+
+	/*
+	 * Setup is done.
+	 */
+	mutex_unlock(&interface_lock);
+
+	tlat = this_cpu_tmr_var();
+	tlat->count = 0;
+
+	migrate_enable();
+	return 0;
+};
+
+/*
+ * timerlat_fd_read - Read function for "timerlat_fd" file
+ * @file: The active open file structure
+ * @ubuf: The userspace provided buffer to read value into
+ * @cnt: The maximum number of bytes to read
+ * @ppos: The current "file" position
+ *
+ * Prints 1 on timerlat, the number of interferences on osnoise, -1 on error.
+ */
+static ssize_t
+timerlat_fd_read(struct file *file, char __user *ubuf, size_t count,
+		  loff_t *ppos)
+{
+	long cpu = (long) file->private_data;
+	struct osnoise_variables *osn_var;
+	struct timerlat_variables *tlat;
+	struct timerlat_sample s;
+	s64 diff;
+	u64 now;
+
+	migrate_disable();
+
+	tlat = this_cpu_tmr_var();
+
+	/*
+	 * While in user-space, the thread is migratable. There is nothing
+	 * we can do about it.
+	 * So, if the thread is running on another CPU, stop the machinery.
+	 */
+	if (cpu == smp_processor_id()) {
+		if (tlat->uthread_migrate) {
+			migrate_enable();
+			return -EINVAL;
+		}
+	} else {
+		per_cpu_ptr(&per_cpu_timerlat_var, cpu)->uthread_migrate = 1;
+		osnoise_taint("timerlat user thread migrate\n");
+		osnoise_stop_tracing();
+		migrate_enable();
+		return -EINVAL;
+	}
+
+	osn_var = this_cpu_osn_var();
+
+	/*
+	 * The timerlat in user-space runs in a different order:
+	 * the read() starts from the execution of the previous occurrence,
+	 * sleeping for the next occurrence.
+	 *
+	 * So, skip if we are entering on read() before the first wakeup
+	 * from timerlat IRQ:
+	 */
+	if (likely(osn_var->sampling)) {
+		now = ktime_to_ns(hrtimer_cb_get_time(&tlat->timer));
+		diff = now - tlat->abs_period;
+
+		/*
+		 * it was not a timer firing, but some other signal?
+		 */
+		if (diff < 0)
+			goto out;
+
+		s.seqnum = tlat->count;
+		s.timer_latency = diff;
+		s.context = THREAD_URET;
+
+		trace_timerlat_sample(&s);
+
+		notify_new_max_latency(diff);
+
+		tlat->tracing_thread = false;
+		if (osnoise_data.stop_tracing_total)
+			if (time_to_us(diff) >= osnoise_data.stop_tracing_total)
+				osnoise_stop_tracing();
+	} else {
+		tlat->tracing_thread = false;
+		tlat->kthread = current;
+
+		hrtimer_init(&tlat->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED_HARD);
+		tlat->timer.function = timerlat_irq;
+
+		/* Annotate now to drift new period */
+		tlat->abs_period = hrtimer_cb_get_time(&tlat->timer);
+
+		osn_var->sampling = 1;
+	}
+
+	/* wait for the next period */
+	wait_next_period(tlat);
+
+	/* This is the wakeup from this cycle */
+	now = ktime_to_ns(hrtimer_cb_get_time(&tlat->timer));
+	diff = now - tlat->abs_period;
+
+	/*
+	 * it was not a timer firing, but some other signal?
+	 */
+	if (diff < 0)
+		goto out;
+
+	s.seqnum = tlat->count;
+	s.timer_latency = diff;
+	s.context = THREAD_CONTEXT;
+
+	trace_timerlat_sample(&s);
+
+	if (osnoise_data.stop_tracing_total) {
+		if (time_to_us(diff) >= osnoise_data.stop_tracing_total) {
+			timerlat_dump_stack(time_to_us(diff));
+			notify_new_max_latency(diff);
+			osnoise_stop_tracing();
+		}
+	}
+
+out:
+	migrate_enable();
+	return 0;
+}
+
+static int timerlat_fd_release(struct inode *inode, struct file *file)
+{
+	struct osnoise_variables *osn_var;
+	struct timerlat_variables *tlat_var;
+	long cpu = (long) file->private_data;
+
+	migrate_disable();
+	mutex_lock(&interface_lock);
+
+	osn_var = per_cpu_ptr(&per_cpu_osnoise_var, cpu);
+	tlat_var = per_cpu_ptr(&per_cpu_timerlat_var, cpu);
+
+	hrtimer_cancel(&tlat_var->timer);
+	memset(tlat_var, 0, sizeof(*tlat_var));
+
+	osn_var->sampling = 0;
+	osn_var->pid = 0;
+
+	/*
+	 * We are leaving, not being stopped... see stop_kthread();
+	 */
+	if (osn_var->kthread) {
+		put_task_struct(osn_var->kthread);
+		osn_var->kthread = NULL;
+	}
+
+	mutex_unlock(&interface_lock);
+	migrate_enable();
+	return 0;
+}
+#endif
+
 /*
  * osnoise/runtime_us: cannot be greater than the period.
  */
@@ -2344,6 +2662,13 @@ static struct trace_min_max_param timerlat_period = {
 	.max	= &timerlat_max_period,
 	.min	= &timerlat_min_period,
 };
+
+static const struct file_operations timerlat_fd_fops = {
+	.open		= timerlat_fd_open,
+	.read		= timerlat_fd_read,
+	.release	= timerlat_fd_release,
+	.llseek		= generic_file_llseek,
+};
 #endif
 
 static const struct file_operations cpus_fops = {
@@ -2381,17 +2706,62 @@ static int init_timerlat_stack_tracefs(struct dentry *top_dir)
 }
 #endif /* CONFIG_STACKTRACE */
 
+static int osnoise_create_cpu_timerlat_fd(struct dentry *top_dir)
+{
+	struct dentry *timerlat_fd;
+	struct dentry *per_cpu;
+	struct dentry *cpu_dir;
+	char cpu_str[30]; /* see trace.c: tracing_init_tracefs_percpu() */
+	long cpu;
+
+	/*
+	 * Why not using tracing instance per_cpu/ dir?
+	 *
+	 * Because osnoise/timerlat have a single workload, having
+	 * multiple files like these are wast of memory.
+	 */
+	per_cpu = tracefs_create_dir("per_cpu", top_dir);
+	if (!per_cpu)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		snprintf(cpu_str, 30, "cpu%ld", cpu);
+		cpu_dir = tracefs_create_dir(cpu_str, per_cpu);
+		if (!cpu_dir)
+			goto out_clean;
+
+		timerlat_fd = trace_create_file("timerlat_fd", TRACE_MODE_READ,
+						cpu_dir, NULL, &timerlat_fd_fops);
+		if (!timerlat_fd)
+			goto out_clean;
+
+		/* Record the CPU */
+		d_inode(timerlat_fd)->i_cdev = (void *)(cpu);
+	}
+
+	return 0;
+
+out_clean:
+	tracefs_remove(per_cpu);
+	return -ENOMEM;
+}
+
 /*
  * init_timerlat_tracefs - A function to initialize the timerlat interface files
  */
 static int init_timerlat_tracefs(struct dentry *top_dir)
 {
 	struct dentry *tmp;
+	int retval;
 
 	tmp = tracefs_create_file("timerlat_period_us", TRACE_MODE_WRITE, top_dir,
 				  &timerlat_period, &trace_min_max_fops);
 	if (!tmp)
 		return -ENOMEM;
+
+	retval = osnoise_create_cpu_timerlat_fd(top_dir);
+	if (retval)
+		return retval;
 
 	return init_timerlat_stack_tracefs(top_dir);
 }
