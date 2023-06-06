@@ -1519,26 +1519,37 @@ u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_lag_get_num_ports);
 
-struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev)
+struct mlx5_core_dev *mlx5_lag_get_next_peer_mdev(struct mlx5_core_dev *dev, int *i)
 {
 	struct mlx5_core_dev *peer_dev = NULL;
 	struct mlx5_lag *ldev;
 	unsigned long flags;
+	int idx;
 
 	spin_lock_irqsave(&lag_lock, flags);
 	ldev = mlx5_lag_dev(dev);
 	if (!ldev)
 		goto unlock;
 
-	peer_dev = ldev->pf[MLX5_LAG_P1].dev == dev ?
-			   ldev->pf[MLX5_LAG_P2].dev :
-			   ldev->pf[MLX5_LAG_P1].dev;
+	if (*i == ldev->ports)
+		goto unlock;
+	for (idx = *i; idx < ldev->ports; idx++)
+		if (ldev->pf[idx].dev != dev)
+			break;
+
+	if (idx == ldev->ports) {
+		*i = idx;
+		goto unlock;
+	}
+	*i = idx + 1;
+
+	peer_dev = ldev->pf[idx].dev;
 
 unlock:
 	spin_unlock_irqrestore(&lag_lock, flags);
 	return peer_dev;
 }
-EXPORT_SYMBOL(mlx5_lag_get_peer_mdev);
+EXPORT_SYMBOL(mlx5_lag_get_next_peer_mdev);
 
 int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,
