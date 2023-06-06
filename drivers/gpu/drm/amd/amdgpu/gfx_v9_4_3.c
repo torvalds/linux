@@ -1293,6 +1293,9 @@ static int gfx_v9_4_3_rlc_resume(struct amdgpu_device *adev)
 {
 	int r, i, num_xcc;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
 		r = gfx_v9_4_3_xcc_rlc_resume(adev, i);
@@ -4321,11 +4324,13 @@ static int gfx_v9_4_3_xcp_resume(void *handle, uint32_t inst_mask)
 	for_each_inst(i, tmp_mask)
 		gfx_v9_4_3_xcc_constants_init(adev, i);
 
-	tmp_mask = inst_mask;
-	for_each_inst(i, tmp_mask) {
-		r = gfx_v9_4_3_xcc_rlc_resume(adev, i);
-		if (r)
-			return r;
+	if (!amdgpu_sriov_vf(adev)) {
+		tmp_mask = inst_mask;
+		for_each_inst(i, tmp_mask) {
+			r = gfx_v9_4_3_xcc_rlc_resume(adev, i);
+			if (r)
+				return r;
+		}
 	}
 
 	tmp_mask = inst_mask;
