@@ -67,6 +67,7 @@ struct shared_memory {
 	struct resource r;
 	u32 size;
 	u32 gunyah_label, shm_memparcel;
+	void *base;
 };
 
 struct virt_machine {
@@ -750,6 +751,8 @@ int gh_virtio_backend_mmap(const char *vm_name,
 {
 	struct virt_machine *vm = find_vm_by_name(vm_name);
 	size_t mmap_size;
+	u64 offset = 0;
+	int i;
 
 	if (!vm)
 		return -EINVAL;
@@ -760,11 +763,25 @@ int gh_virtio_backend_mmap(const char *vm_name,
 
 	vma->vm_flags = vma->vm_flags | VM_DONTEXPAND | VM_DONTDUMP;
 
-	if (io_remap_pfn_range(vma, vma->vm_start,
-			__phys_to_pfn(vm->shmem_addr),
-			mmap_size, vma->vm_page_prot)) {
-		dev_err(vm->dev, "%s: ioremap_pfn_range failed\n", VIRTIO_PRINT_MARKER);
-		return -EAGAIN;
+	if (vm->is_static) {
+		if (io_remap_pfn_range(vma, vma->vm_start,
+				__phys_to_pfn(vm->shmem_addr),
+				mmap_size, vma->vm_page_prot)) {
+			dev_err(vm->dev, "%s: ioremap_pfn_range failed\n", VIRTIO_PRINT_MARKER);
+			return -EAGAIN;
+		}
+	} else {
+		for (i = 0; i < vm->shmem_entries; ++i) {
+			if (io_remap_pfn_range(vma, vma->vm_start + offset,
+					__phys_to_pfn(vm->shmem[i].r.start),
+					vm->shmem[i].size, vma->vm_page_prot)) {
+				dev_err(vm->dev, "%s: shmem_entry %d ioremap_pfn_range failed\n",
+					VIRTIO_PRINT_MARKER, i);
+				return -EAGAIN;
+			}
+
+			offset = offset + vm->shmem[i].size;
+		}
 	}
 
 	return 0;
@@ -1194,6 +1211,10 @@ static int unshare_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 				&vm->shmem[i]);
 		if (ret)
 			return ret;
+
+		if (!vm->is_static)
+			dma_free_coherent(vm->com_mem_dev, vm->shmem[i].size, vm->shmem[i].base,
+				phys_to_dma(vm->com_mem_dev, vm->shmem[i].r.start));
 	}
 	vm->hyp_assign_done = 0;
 	return 0;
@@ -1261,34 +1282,33 @@ static int share_a_vm_buffer(gh_vmid_t self, gh_vmid_t peer, int gunyah_label,
 
 static int share_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 {
-	int i, ret;
+	int i, j, ret;
 	gh_vmid_t self_vmid;
 	dma_addr_t dma_handle;
-	u64 offset = 0;
-	void *virt;
 
 	ret = ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
 	if (ret)
 		return ret;
 
-	if (!vm->is_static) {
-		virt = dma_alloc_coherent(vm->com_mem_dev, vm->shmem_size, &dma_handle, GFP_KERNEL);
-		if (!virt)
-			return -ENOMEM;
-
-		vm->shmem_addr = dma_to_phys(vm->com_mem_dev, dma_handle);
-	}
-
 	for (i = 0; i < vm->shmem_entries; ++i) {
 		if (!vm->is_static) {
-			vm->shmem[i].r.start = vm->shmem_addr + offset;
+			vm->shmem[i].base = dma_alloc_coherent(vm->com_mem_dev, vm->shmem[i].size,
+				&dma_handle, GFP_KERNEL);
+			if (!vm->shmem[i].base) {
+				i--;
+				j = i;
+				ret = -ENOMEM;
+				goto unshare;
+			}
+
+			vm->shmem[i].r.start = dma_to_phys(vm->com_mem_dev, dma_handle);
 			vm->shmem[i].r.end = vm->shmem[i].r.start + vm->shmem[i].size - 1;
-			offset = offset + vm->shmem[i].size;
 		}
 
 		ret = share_a_vm_buffer(self_vmid, peer, vm->shmem[i].gunyah_label,
 				&vm->shmem[i].r, &vm->shmem[i].shm_memparcel, &vm->shmem[i]);
 		if (ret) {
+			j = i;
 			i--;
 			goto unshare;
 		}
@@ -1300,6 +1320,11 @@ static int share_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 unshare:
 	for (; i >= 0; --i)
 		unshare_a_vm_buffer(self_vmid, peer, &vm->shmem[i].r, &vm->shmem[i]);
+	if (!vm->is_static) {
+		for (; j >= 0; --j)
+			dma_free_coherent(vm->com_mem_dev, vm->shmem[j].size, vm->shmem[j].base,
+				phys_to_dma(vm->com_mem_dev, vm->shmem[j].r.start));
+	}
 
 	return ret;
 }
