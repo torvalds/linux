@@ -732,6 +732,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dp_plus_plus_wa = true,
 	.fpo_vactive_min_active_margin_us = 200,
 	.fpo_vactive_max_blank_us = 1000,
+	.enable_legacy_fast_update = false,
 };
 
 static struct dce_aux *dcn32_aux_engine_create(
