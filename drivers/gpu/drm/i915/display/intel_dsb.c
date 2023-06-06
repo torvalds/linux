@@ -234,6 +234,15 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	}
 }
 
+void intel_dsb_noop(struct intel_dsb *dsb, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		intel_dsb_emit(dsb, 0,
+			       DSB_OPCODE_NOOP << DSB_OPCODE_SHIFT);
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
