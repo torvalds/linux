@@ -42,6 +42,10 @@ struct osnoise_context {
 	/* -1 as init value because 0 is off */
 	int			orig_opt_irq_disable;
 	int			opt_irq_disable;
+
+	/* -1 as init value because 0 is off */
+	int			orig_opt_workload;
+	int			opt_workload;
 };
 
 /*
@@ -84,6 +88,7 @@ int osnoise_set_print_stack(struct osnoise_context *context,
 			    long long print_stack);
 
 int osnoise_set_irq_disable(struct osnoise_context *context, bool onoff);
+int osnoise_set_workload(struct osnoise_context *context, bool onoff);
 
 /*
  * osnoise_tool -  osnoise based tool definition.

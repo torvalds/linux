@@ -626,6 +626,64 @@ static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
 	return 1;
 }
 
+/*
+ * set_comm_cgroup - Set cgroup to pid_t pid
+ *
+ * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ *
+ * Supports cgroup v2.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int set_pid_cgroup(pid_t pid, const char *cgroup)
+{
+	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
+	char cgroup_procs[MAX_PATH];
+	char pid_str[24];
+	int retval;
+	int cg_fd;
+
+	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
+	if (!retval) {
+		err_msg("Did not find cgroupv2 mount point\n");
+		return 0;
+	}
+
+	if (!cgroup) {
+		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path));
+		if (!retval) {
+			err_msg("Did not find self cgroup\n");
+			return 0;
+		}
+	} else {
+		snprintf(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
+	}
+
+	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
+
+	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
+
+	cg_fd = open(cgroup_procs, O_RDWR);
+	if (cg_fd < 0)
+		return 0;
+
+	snprintf(pid_str, sizeof(pid_str), "%d\n", pid);
+
+	retval = write(cg_fd, pid_str, strlen(pid_str));
+	if (retval < 0)
+		err_msg("Error setting cgroup attributes for pid:%s - %s\n",
+				pid_str, strerror(errno));
+	else
+		debug_msg("Set cgroup attributes for pid:%s\n", pid_str);
+
+	close(cg_fd);
+
+	return (retval >= 0);
+}
+
 /**
  * set_comm_cgroup - Set cgroup to threads starting with char *comm_prefix
  *
