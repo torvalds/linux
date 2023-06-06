@@ -111,7 +111,7 @@ struct md_region md_get_region(char *name)
 		for (i = 0; i < hdr->e_shnum; i++) {
 			shdr = elf_section(hdr, i);
 			hdr_name = elf_lookup_string(hdr, shdr->sh_name);
-			if (!strcmp(hdr_name, name)) {
+			if (hdr_name && !strcmp(hdr_name, name)) {
 				for (j = 0; j < hdr->e_phnum; j++) {
 					phdr = elf_program(hdr, j);
 					if (shdr->sh_addr == phdr->p_vaddr) {
@@ -180,7 +180,7 @@ static inline int md_elf_entry_number(const struct md_region *entry)
 		shdr = elf_section(minidump_elfheader.ehdr, i);
 		hdr_name = elf_lookup_string(minidump_elfheader.ehdr,
 					     shdr->sh_name);
-		if (!strcmp(hdr_name, entry->name))
+		if (hdr_name && !strcmp(hdr_name, entry->name))
 			return i;
 	}
 	return -ENOENT;
