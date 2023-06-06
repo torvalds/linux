@@ -137,6 +137,14 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	const u32 *buf = dsb->cmd_buf;
 	u32 prev_opcode, prev_reg;
 
+	/*
+	 * Nothing emitted yet? Must check before looking
+	 * at the actual data since i915_gem_object_create_internal()
+	 * does *not* give you zeroed memory!
+	 */
+	if (dsb->free_pos == 0)
+		return false;
+
 	prev_opcode = buf[dsb->ins_start_offset + 1] >> DSB_OPCODE_SHIFT;
 	prev_reg = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
 
