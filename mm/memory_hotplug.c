@@ -1194,7 +1194,6 @@ static pg_data_t __ref *hotadd_init_pgdat(int nid)
 	 * online_pages() and offline_pages().
 	 * TODO: should be in free_area_init_core_hotplug?
 	 */
-	reset_node_managed_pages(pgdat);
 	reset_node_present_pages(pgdat);
 
 	return pgdat;
