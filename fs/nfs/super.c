@@ -59,6 +59,8 @@
 #include <linux/uaccess.h>
 #include <linux/nfs_ssc.h>
 
+#include <uapi/linux/tls.h>
+
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "delegation.h"
@@ -491,6 +493,16 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	seq_printf(m, ",timeo=%lu", 10U * nfss->client->cl_timeout->to_initval / HZ);
 	seq_printf(m, ",retrans=%u", nfss->client->cl_timeout->to_retries);
 	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
+	switch (clp->cl_xprtsec.policy) {
+	case RPC_XPRTSEC_TLS_ANON:
+		seq_puts(m, ",xprtsec=tls");
+		break;
+	case RPC_XPRTSEC_TLS_X509:
+		seq_puts(m, ",xprtsec=mtls");
+		break;
+	default:
+		break;
+	}
 
 	if (version != 4)
 		nfs_show_mountd_options(m, nfss, showdefaults);

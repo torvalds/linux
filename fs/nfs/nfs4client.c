@@ -918,8 +918,11 @@ static int nfs4_set_client(struct nfs_server *server,
 		__set_bit(NFS_CS_REUSEPORT, &cl_init.init_flags);
 	else
 		cl_init.max_connect = max_connect;
-	if (proto == XPRT_TRANSPORT_TCP)
+	switch (proto) {
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_TCP_TLS:
 		cl_init.nconnect = nconnect;
+	}
 
 	if (server->flags & NFS_MOUNT_NORESVPORT)
 		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
@@ -988,9 +991,13 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		return ERR_PTR(-EINVAL);
 	cl_init.hostname = buf;
 
-	if (mds_clp->cl_nconnect > 1 && ds_proto == XPRT_TRANSPORT_TCP) {
-		cl_init.nconnect = mds_clp->cl_nconnect;
-		cl_init.max_connect = NFS_MAX_TRANSPORTS;
+	switch (ds_proto) {
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_TCP_TLS:
+		if (mds_clp->cl_nconnect > 1) {
+			cl_init.nconnect = mds_clp->cl_nconnect;
+			cl_init.max_connect = NFS_MAX_TRANSPORTS;
+		}
 	}
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
@@ -1130,9 +1137,6 @@ out:
 static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
-	struct xprtsec_parms xprtsec = {
-		.policy		= RPC_XPRTSEC_NONE,
-	};
 	struct rpc_timeout timeparms;
 	int error;
 
@@ -1164,7 +1168,7 @@ static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 				ctx->nfs_server.nconnect,
 				ctx->nfs_server.max_connect,
 				fc->net_ns,
-				&xprtsec);
+				&ctx->xprtsec);
 	if (error < 0)
 		return error;
 
@@ -1226,8 +1230,8 @@ struct nfs_server *nfs4_create_referral_server(struct fs_context *fc)
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
+	int proto, error;
 	bool auth_probe;
-	int error;
 
 	server = nfs_alloc_server();
 	if (!server)
@@ -1260,13 +1264,16 @@ struct nfs_server *nfs4_create_referral_server(struct fs_context *fc)
 		goto init_server;
 #endif	/* IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA) */
 
+	proto = XPRT_TRANSPORT_TCP;
+	if (parent_client->cl_xprtsec.policy != RPC_XPRTSEC_NONE)
+		proto = XPRT_TRANSPORT_TCP_TLS;
 	rpc_set_port(&ctx->nfs_server.address, NFS_PORT);
 	error = nfs4_set_client(server,
 				ctx->nfs_server.hostname,
 				&ctx->nfs_server._address,
 				ctx->nfs_server.addrlen,
 				parent_client->cl_ipaddr,
-				XPRT_TRANSPORT_TCP,
+				proto,
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
 				parent_client->cl_nconnect,
@@ -1323,6 +1330,7 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 		.dstaddr	= (struct sockaddr *)sap,
 		.addrlen	= salen,
 		.servername	= hostname,
+		/* cel: bleh. We might need to pass TLS parameters here */
 	};
 	char buf[INET6_ADDRSTRLEN + 1];
 	struct sockaddr_storage address;
