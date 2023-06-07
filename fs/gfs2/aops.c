@@ -491,13 +491,16 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 	void *p;
 
 	do {
+		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
+		if (IS_ERR(page)) {
+			if (PTR_ERR(page) == -EINTR)
+				continue;
+			return PTR_ERR(page);
+		}
+		p = kmap_atomic(page);
 		amt = size - copied;
 		if (offset + size > PAGE_SIZE)
 			amt = PAGE_SIZE - offset;
-		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-		p = kmap_atomic(page);
 		memcpy(buf + copied, p + offset, amt);
 		kunmap_atomic(p);
 		put_page(page);
