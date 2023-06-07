@@ -68,16 +68,29 @@ static void mtl_set_device_d3(unsigned int device)
 	}
 }
 
+/*
+ * Set power state of select devices that do not have drivers to D3
+ * so that they do not block Package C entry.
+ */
+static void mtl_d3_fixup(void)
+{
+	mtl_set_device_d3(MTL_GNA_PCI_DEV);
+	mtl_set_device_d3(MTL_IPU_PCI_DEV);
+	mtl_set_device_d3(MTL_VPU_PCI_DEV);
+}
+
+static int mtl_resume(struct pmc_dev *pmcdev)
+{
+	mtl_d3_fixup();
+	return pmc_core_resume_common(pmcdev);
+}
+
 void mtl_core_init(struct pmc_dev *pmcdev)
 {
 	pmcdev->map = &mtl_reg_map;
 	pmcdev->core_configure = mtl_core_configure;
 
-	/*
-	 * Set power state of select devices that do not have drivers to D3
-	 * so that they do not block Package C entry.
-	 */
-	mtl_set_device_d3(MTL_GNA_PCI_DEV);
-	mtl_set_device_d3(MTL_IPU_PCI_DEV);
-	mtl_set_device_d3(MTL_VPU_PCI_DEV);
+	mtl_d3_fixup();
+
+	pmcdev->resume = mtl_resume;
 }
