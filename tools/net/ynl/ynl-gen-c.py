@@ -875,6 +875,28 @@ class Family(SpecFamily):
                         inherit.add('idx')
                     self.pure_nested_structs[nested].set_inherited(inherit)
 
+        # Try to reorder according to dependencies
+        pns_key_list = list(self.pure_nested_structs.keys())
+        pns_key_seen = set()
+        rounds = len(pns_key_list)**2  # it's basically bubble sort
+        for _ in range(rounds):
+            if len(pns_key_list) == 0:
+                break
+            name = pns_key_list.pop(0)
+            finished = True
+            for _, spec in self.attr_sets[name].items():
+                if 'nested-attributes' in spec:
+                    if spec['nested-attributes'] not in pns_key_seen:
+                        # Dicts are sorted, this will make struct last
+                        struct = self.pure_nested_structs.pop(name)
+                        self.pure_nested_structs[name] = struct
+                        finished = False
+                        break
+            if finished:
+                pns_key_seen.add(name)
+            else:
+                pns_key_list.append(name)
+
     def _load_all_notify(self):
         for op_name, op in self.ops.items():
             if not op:
@@ -2379,7 +2401,7 @@ def main():
             cw.nl()
 
             cw.p('/* Common nested types */')
-            for attr_set, struct in sorted(parsed.pure_nested_structs.items()):
+            for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", "", attr_set)
                 print_type_full(ri, struct)
 
@@ -2448,7 +2470,7 @@ def main():
                 put_typol(cw, struct)
 
             cw.p('/* Common nested types */')
-            for attr_set, struct in sorted(parsed.pure_nested_structs.items()):
+            for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", "", attr_set)
 
                 free_rsp_nested(ri, struct)
