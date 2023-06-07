@@ -1147,7 +1147,8 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 	unsigned int *events)
 {
 	unsigned long timeout = msecs_to_jiffies(10 * 10000);
-	unsigned i, acquired = 0;
+	unsigned i, acquired = 0, rpm_count = 0;
+	int ret;
 
 	for (i = 0; i < nr_events; i++) {
 		unsigned long ret;
@@ -1156,6 +1157,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 
 		if (!ret) {
 			dev_err(gpu->dev, "wait_for_completion_timeout failed");
+			ret = -EBUSY;
 			goto out;
 		}
 
@@ -1175,13 +1177,23 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 
 	spin_unlock(&gpu->event_spinlock);
 
+	for (i = 0; i < nr_events; i++) {
+		ret = pm_runtime_resume_and_get(gpu->dev);
+		if (ret)
+			goto out_rpm;
+		rpm_count++;
+	}
+
 	return 0;
 
+out_rpm:
+	for (i = 0; i < rpm_count; i++)
+		pm_runtime_put_autosuspend(gpu->dev);
 out:
 	for (i = 0; i < acquired; i++)
 		complete(&gpu->event_free);
 
-	return -EBUSY;
+	return ret;
 }
 
 static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
@@ -1193,6 +1205,8 @@ static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
 		clear_bit(event, gpu->event_bitmap);
 		complete(&gpu->event_free);
 	}
+
+	pm_runtime_put_autosuspend(gpu->dev);
 }
 
 /*
@@ -1334,15 +1348,6 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 	struct dma_fence *gpu_fence;
 	unsigned int i, nr_events = 1, event[3];
 	int ret;
-
-	if (!submit->runtime_resumed) {
-		ret = pm_runtime_get_sync(gpu->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(gpu->dev);
-			return NULL;
-		}
-		submit->runtime_resumed = true;
-	}
 
 	/*
 	 * if there are performance monitor requests we need to have
