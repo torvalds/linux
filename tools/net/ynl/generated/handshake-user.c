@@ -69,10 +69,6 @@ const char *handshake_auth_str(enum handshake_auth value)
 }
 
 /* Policies */
-extern struct ynl_policy_nest handshake_x509_nest;
-extern struct ynl_policy_nest handshake_accept_nest;
-extern struct ynl_policy_nest handshake_done_nest;
-
 struct ynl_policy_attr handshake_x509_policy[HANDSHAKE_A_X509_MAX + 1] = {
 	[HANDSHAKE_A_X509_CERT] = { .name = "cert", .type = YNL_PT_U32, },
 	[HANDSHAKE_A_X509_PRIVKEY] = { .name = "privkey", .type = YNL_PT_U32, },

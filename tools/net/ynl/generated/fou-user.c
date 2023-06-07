@@ -42,8 +42,6 @@ const char *fou_encap_type_str(int value)
 }
 
 /* Policies */
-extern struct ynl_policy_nest fou_nest;
-
 struct ynl_policy_attr fou_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_UNSPEC] = { .name = "unspec", .type = YNL_PT_REJECT, },
 	[FOU_ATTR_PORT] = { .name = "port", .type = YNL_PT_U16, },
