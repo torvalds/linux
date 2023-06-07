@@ -906,11 +906,12 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 				n_active++;
 		}
 
-		if (vif->type == NL80211_IFTYPE_AP &&
-		    n_active > mvm->fw->ucode_capa.num_beacons)
+		if (vif->type == NL80211_IFTYPE_AP) {
+			if (n_active > mvm->fw->ucode_capa.num_beacons)
+				return -EOPNOTSUPP;
+		} else if (n_active > 1) {
 			return -EOPNOTSUPP;
-		else if (n_active > 1)
-			return -EOPNOTSUPP;
+		}
 	}
 
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
