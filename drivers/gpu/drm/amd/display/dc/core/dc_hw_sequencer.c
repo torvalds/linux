@@ -610,7 +610,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 		current_mpc_pipe = current_pipe;
 
 		while (current_mpc_pipe) {
-			if (!current_mpc_pipe->bottom_pipe && !pipe_ctx->next_odm_pipe &&
+			if (!current_mpc_pipe->bottom_pipe && !current_mpc_pipe->next_odm_pipe &&
 					current_mpc_pipe->stream && current_mpc_pipe->plane_state &&
 					current_mpc_pipe->plane_state->update_flags.bits.addr_update &&
 					!current_mpc_pipe->plane_state->skip_manual_trigger) {
