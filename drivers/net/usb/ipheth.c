@@ -373,12 +373,10 @@ static netdev_tx_t ipheth_tx(struct sk_buff *skb, struct net_device *net)
 	}
 
 	memcpy(dev->tx_buf, skb->data, skb->len);
-	if (skb->len < IPHETH_BUF_SIZE)
-		memset(dev->tx_buf + skb->len, 0, IPHETH_BUF_SIZE - skb->len);
 
 	usb_fill_bulk_urb(dev->tx_urb, udev,
 			  usb_sndbulkpipe(udev, dev->bulk_out),
-			  dev->tx_buf, IPHETH_BUF_SIZE,
+			  dev->tx_buf, skb->len,
 			  ipheth_sndbulk_callback,
 			  dev);
 	dev->tx_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
