@@ -6,6 +6,7 @@
 #include <linux/mdio.h>
 #include <linux/phylink.h>
 #include <linux/pcs-lynx.h>
+#include <linux/property.h>
 
 #define SGMII_CLOCK_PERIOD_NS		8 /* PCS is clocked at 125 MHz */
 #define LINK_TIMER_VAL(ns)		((u32)((ns) / SGMII_CLOCK_PERIOD_NS))
@@ -346,10 +347,23 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 }
 EXPORT_SYMBOL(lynx_pcs_create_mdiodev);
 
+/*
+ * lynx_pcs_create_fwnode() creates a lynx PCS instance from the fwnode
+ * device indicated by node.
+ *
+ * Returns:
+ *  -ENODEV if the fwnode is marked unavailable
+ *  -EPROBE_DEFER if we fail to find the device
+ *  -ENOMEM if we fail to allocate memory
+ *  pointer to a phylink_pcs on success
+ */
 struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
 {
 	struct mdio_device *mdio;
 	struct phylink_pcs *pcs;
+
+	if (!fwnode_device_is_available(node))
+		return ERR_PTR(-ENODEV);
 
 	mdio = fwnode_mdio_find_device(node);
 	if (!mdio)
