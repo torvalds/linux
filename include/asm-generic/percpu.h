@@ -101,9 +101,9 @@ do {									\
 #define raw_cpu_generic_try_cmpxchg(pcp, ovalp, nval)			\
 ({									\
 	typeof(pcp) *__p = raw_cpu_ptr(&(pcp));				\
-	typeof(pcp) __val = *__p, __old = *(ovalp);			\
+	typeof(pcp) __val = *__p, ___old = *(ovalp);			\
 	bool __ret;							\
-	if (__val == __old) {						\
+	if (__val == ___old) {						\
 		*__p = nval;						\
 		__ret = true;						\
 	} else {							\
