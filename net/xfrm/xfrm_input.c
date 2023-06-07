@@ -331,11 +331,10 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 {
 	switch (x->props.mode) {
 	case XFRM_MODE_BEET:
-		switch (XFRM_MODE_SKB_CB(skb)->protocol) {
-		case IPPROTO_IPIP:
-		case IPPROTO_BEETPH:
+		switch (x->sel.family) {
+		case AF_INET:
 			return xfrm4_remove_beet_encap(x, skb);
-		case IPPROTO_IPV6:
+		case AF_INET6:
 			return xfrm6_remove_beet_encap(x, skb);
 		}
 		break;
