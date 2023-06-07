@@ -192,7 +192,7 @@ struct xusb_udc {
 	bool dma_enabled;
 	struct clk *clk;
 
-	unsigned int (*read_fn)(void __iomem *);
+	unsigned int (*read_fn)(void __iomem *reg);
 	void (*write_fn)(void __iomem *, u32, u32);
 };
 
