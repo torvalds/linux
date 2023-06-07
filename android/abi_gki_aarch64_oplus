@@ -134,6 +134,12 @@
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_shrink_node_memcgs
   __traceiter_android_vh_sync_txn_recvd
+  __traceiter_block_bio_queue
+  __traceiter_block_getrq
+  __traceiter_block_rq_complete
+  __traceiter_block_rq_issue
+  __traceiter_block_rq_merge
+  __traceiter_block_rq_requeue
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
   __traceiter_sched_stat_runtime
@@ -185,6 +191,12 @@
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_android_vh_sync_txn_recvd
+  __tracepoint_block_bio_queue
+  __tracepoint_block_getrq
+  __tracepoint_block_rq_complete
+  __tracepoint_block_rq_issue
+  __tracepoint_block_rq_merge
+  __tracepoint_block_rq_requeue
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
   __tracepoint_sched_stat_runtime
