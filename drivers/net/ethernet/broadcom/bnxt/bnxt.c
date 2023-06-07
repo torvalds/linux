@@ -5350,6 +5350,7 @@ static void bnxt_hwrm_update_rss_hash_cfg(struct bnxt *bp)
 	if (hwrm_req_init(bp, req, HWRM_VNIC_RSS_QCFG))
 		return;
 
+	req->vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 	/* all contexts configured to same hash_type, zero always exists */
 	req->rss_ctx_idx = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[0]);
 	resp = hwrm_req_hold(bp, req);
