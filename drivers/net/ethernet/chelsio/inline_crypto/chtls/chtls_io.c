@@ -1237,6 +1237,15 @@ out_err:
 	goto done;
 }
 
+void chtls_splice_eof(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+
+	lock_sock(sk);
+	chtls_tcp_push(sk, 0);
+	release_sock(sk);
+}
+
 int chtls_sendpage(struct sock *sk, struct page *page,
 		   int offset, size_t size, int flags)
 {
