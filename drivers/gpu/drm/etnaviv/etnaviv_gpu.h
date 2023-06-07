@@ -114,7 +114,6 @@ struct etnaviv_gpu {
 	struct mutex sched_lock;
 	struct drm_gpu_scheduler sched;
 	enum etnaviv_gpu_state state;
-	bool initialized;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;

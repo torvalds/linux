@@ -553,6 +553,9 @@ void etnaviv_iommu_global_fini(struct etnaviv_gpu *gpu)
 	struct etnaviv_drm_private *priv = gpu->drm->dev_private;
 	struct etnaviv_iommu_global *global = priv->mmu_global;
 
+	if (!global)
+		return;
+
 	if (--global->use > 0)
 		return;
 
