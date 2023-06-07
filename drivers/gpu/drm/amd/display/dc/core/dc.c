@@ -3577,6 +3577,13 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 	hwss_execute_sequence(dc,
 			context->block_sequence,
 			context->block_sequence_steps);
+	/* Clear update flags so next flip doesn't have redundant programming
+	 * (if there's no stream update, the update flags are not cleared).
+	 */
+	if (top_pipe_to_program->plane_state)
+		top_pipe_to_program->plane_state->update_flags.raw = 0;
+	if (top_pipe_to_program->stream)
+		top_pipe_to_program->stream->update_flags.raw = 0;
 }
 
 static void commit_planes_for_stream(struct dc *dc,
