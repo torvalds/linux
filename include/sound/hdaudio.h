@@ -348,6 +348,7 @@ struct hdac_bus {
 	bool polling_mode:1;
 	bool needs_damn_long_delay:1;
 	bool not_use_interrupts:1;	/* prohibiting the RIRB IRQ */
+	bool access_sdnctl_in_dword:1;	/* accessing the sdnctl register by dword */
 
 	int poll_count;
 

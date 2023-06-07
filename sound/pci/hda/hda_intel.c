@@ -1878,6 +1878,7 @@ static int azx_first_init(struct azx *chip)
 	if (chip->driver_type == AZX_DRIVER_LOONGSON) {
 		bus->polling_mode = 1;
 		bus->not_use_interrupts = 1;
+		bus->access_sdnctl_in_dword = 1;
 	}
 
 	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
