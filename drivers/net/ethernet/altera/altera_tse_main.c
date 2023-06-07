@@ -1288,6 +1288,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	mrc.regmap = pcs_regmap;
 	mrc.parent = &pdev->dev;
 	mrc.valid_addr = 0x0;
+	mrc.autoscan = false;
 
 	/* Rx IRQ */
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx_irq");
