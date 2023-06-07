@@ -347,6 +347,7 @@ struct hdac_bus {
 	bool corbrp_self_clear:1;	/* CORBRP clears itself after reset */
 	bool polling_mode:1;
 	bool needs_damn_long_delay:1;
+	bool not_use_interrupts:1;	/* prohibiting the RIRB IRQ */
 
 	int poll_count;
 
