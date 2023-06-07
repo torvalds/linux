@@ -227,7 +227,7 @@
 		};
 	};
 
-	m_can0: mcan@40528000 {
+	m_can0: can@40528000 {
 		compatible = "bosch,m_can";
 		reg = <0x0 0x40528000 0x0 0x400>,
 		      <0x0 0x40500000 0x0 0x4400>;
@@ -243,7 +243,7 @@
 		status = "disabled";
 	};
 
-	m_can1: mcan@40568000 {
+	m_can1: can@40568000 {
 		compatible = "bosch,m_can";
 		reg = <0x0 0x40568000 0x0 0x400>,
 		      <0x0 0x40540000 0x0 0x4400>;
