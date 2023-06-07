@@ -314,4 +314,22 @@ config RCU_LAZY
 	  To save power, batch RCU callbacks and flush after delay, memory
 	  pressure, or callback list growing too big.
 
+config RCU_DOUBLE_CHECK_CB_TIME
+	bool "RCU callback-batch backup time check"
+	depends on RCU_EXPERT
+	default n
+	help
+	  Use this option to provide more precise enforcement of the
+	  rcutree.rcu_resched_ns module parameter in situations where
+	  a single RCU callback might run for hundreds of microseconds,
+	  thus defeating the 32-callback batching used to amortize the
+	  cost of the fine-grained but expensive local_clock() function.
+
+	  This option rounds rcutree.rcu_resched_ns up to the next
+	  jiffy, and overrides the 32-callback batching if this limit
+	  is exceeded.
+
+	  Say Y here if you need tighter callback-limit enforcement.
+	  Say N here if you are unsure.
+
 endmenu # "RCU Subsystem"
