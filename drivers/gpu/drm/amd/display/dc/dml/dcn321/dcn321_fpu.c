@@ -415,11 +415,11 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 
 	if (max_clk_data.fclk_mhz == 0)
 		max_clk_data.fclk_mhz = max_clk_data.dcfclk_mhz *
-				dcn3_2_soc.pct_ideal_sdp_bw_after_urgent /
-				dcn3_2_soc.pct_ideal_fabric_bw_after_urgent;
+				dcn3_21_soc.pct_ideal_sdp_bw_after_urgent /
+				dcn3_21_soc.pct_ideal_fabric_bw_after_urgent;
 
 	if (max_clk_data.phyclk_mhz == 0)
-		max_clk_data.phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
+		max_clk_data.phyclk_mhz = dcn3_21_soc.clock_limits[0].phyclk_mhz;
 
 	*num_entries = 0;
 	entry.dispclk_mhz = max_clk_data.dispclk_mhz;
@@ -427,8 +427,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 	entry.dppclk_mhz = max_clk_data.dppclk_mhz;
 	entry.dtbclk_mhz = max_clk_data.dtbclk_mhz;
 	entry.phyclk_mhz = max_clk_data.phyclk_mhz;
-	entry.phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
-	entry.phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
+	entry.phyclk_d18_mhz = dcn3_21_soc.clock_limits[0].phyclk_d18_mhz;
+	entry.phyclk_d32_mhz = dcn3_21_soc.clock_limits[0].phyclk_d32_mhz;
 
 	// Insert all the DCFCLK STAs
 	for (i = 0; i < num_dcfclk_stas; i++) {
