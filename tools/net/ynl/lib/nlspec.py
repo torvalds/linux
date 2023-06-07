@@ -442,6 +442,10 @@ class SpecFamily(SpecElement):
             else:
                 raise Exception("Can't parse directional ops")
 
+            if req_val == req_val_next:
+                req_val = None
+            if rsp_val == rsp_val_next:
+                rsp_val = None
             op = self.new_operation(elem, req_val, rsp_val)
             req_val = req_val_next
             rsp_val = rsp_val_next

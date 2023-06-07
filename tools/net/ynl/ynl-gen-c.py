@@ -1220,7 +1220,11 @@ def put_op_name(family, cw):
     map_name = f'{family.name}_op_strmap'
     cw.block_start(line=f"static const char * const {map_name}[] =")
     for op_name, op in family.msgs.items():
-        cw.p(f'[{op.enum_name}] = "{op_name}",')
+        if op.rsp_value:
+            if op.req_value == op.rsp_value:
+                cw.p(f'[{op.enum_name}] = "{op_name}",')
+            else:
+                cw.p(f'[{op.rsp_value}] = "{op_name}",')
     cw.block_end(line=';')
     cw.nl()
 

@@ -16,7 +16,6 @@
 
 /* Enums */
 static const char * const fou_op_strmap[] = {
-	[FOU_CMD_UNSPEC] = "unspec",
 	[FOU_CMD_ADD] = "add",
 	[FOU_CMD_DEL] = "del",
 	[FOU_CMD_GET] = "get",
