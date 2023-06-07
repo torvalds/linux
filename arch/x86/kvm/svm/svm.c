@@ -3052,13 +3052,8 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		if (data & DEBUGCTL_RESERVED_BITS)
 			return 1;
 
-		if (svm->vmcb->control.virt_ext & LBR_CTL_ENABLE_MASK)
-			svm->vmcb->save.dbgctl = data;
-		else
-			svm->vmcb01.ptr->save.dbgctl = data;
-
+		svm_get_lbr_vmcb(svm)->save.dbgctl = data;
 		svm_update_lbrv(vcpu);
-
 		break;
 	case MSR_VM_HSAVE_PA:
 		/*
