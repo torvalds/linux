@@ -68,6 +68,11 @@ static void gh_boost_rmfreq(int cpu)
 	int ret;
 
 	policy = cpufreq_cpu_get(cpu);
+	if (!policy) {
+		dev_err(rm_status->dev, "Failed to get RM cpufreq policy\n");
+		return;
+	}
+
 	/* Always have target cpu's max freq as boosted freq. */
 	ret = freq_qos_add_request(&policy->constraints,
 				   &rm_status->gh_rm_boost_req,
