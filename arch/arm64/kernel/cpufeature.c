@@ -107,7 +107,7 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 
 DECLARE_BITMAP(system_cpucaps, ARM64_NCAPS);
 EXPORT_SYMBOL(system_cpucaps);
-static struct arm64_cpu_capabilities const __ro_after_init *cpu_hwcaps_ptrs[ARM64_NCAPS];
+static struct arm64_cpu_capabilities const __ro_after_init *cpucap_ptrs[ARM64_NCAPS];
 
 DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
 
@@ -954,24 +954,24 @@ extern const struct arm64_cpu_capabilities arm64_errata[];
 static const struct arm64_cpu_capabilities arm64_features[];
 
 static void __init
-init_cpu_hwcaps_indirect_list_from_array(const struct arm64_cpu_capabilities *caps)
+init_cpucap_indirect_list_from_array(const struct arm64_cpu_capabilities *caps)
 {
 	for (; caps->matches; caps++) {
 		if (WARN(caps->capability >= ARM64_NCAPS,
 			"Invalid capability %d\n", caps->capability))
 			continue;
-		if (WARN(cpu_hwcaps_ptrs[caps->capability],
+		if (WARN(cpucap_ptrs[caps->capability],
 			"Duplicate entry for capability %d\n",
 			caps->capability))
 			continue;
-		cpu_hwcaps_ptrs[caps->capability] = caps;
+		cpucap_ptrs[caps->capability] = caps;
 	}
 }
 
-static void __init init_cpu_hwcaps_indirect_list(void)
+static void __init init_cpucap_indirect_list(void)
 {
-	init_cpu_hwcaps_indirect_list_from_array(arm64_features);
-	init_cpu_hwcaps_indirect_list_from_array(arm64_errata);
+	init_cpucap_indirect_list_from_array(arm64_features);
+	init_cpucap_indirect_list_from_array(arm64_errata);
 }
 
 static void __init setup_boot_cpu_capabilities(void);
@@ -1049,10 +1049,10 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 		init_cpu_ftr_reg(SYS_GMID_EL1, info->reg_gmid);
 
 	/*
-	 * Initialize the indirect array of CPU hwcaps capabilities pointers
-	 * before we handle the boot CPU below.
+	 * Initialize the indirect array of CPU capabilities pointers before we
+	 * handle the boot CPU below.
 	 */
-	init_cpu_hwcaps_indirect_list();
+	init_cpucap_indirect_list();
 
 	/*
 	 * Detect and enable early CPU capabilities based on the boot CPU,
@@ -2048,9 +2048,9 @@ static bool has_address_auth_cpucap(const struct arm64_cpu_capabilities *entry, 
 static bool has_address_auth_metacap(const struct arm64_cpu_capabilities *entry,
 				     int scope)
 {
-	bool api = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_IMP_DEF], scope);
-	bool apa = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5], scope);
-	bool apa3 = has_address_auth_cpucap(cpu_hwcaps_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA3], scope);
+	bool api = has_address_auth_cpucap(cpucap_ptrs[ARM64_HAS_ADDRESS_AUTH_IMP_DEF], scope);
+	bool apa = has_address_auth_cpucap(cpucap_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5], scope);
+	bool apa3 = has_address_auth_cpucap(cpucap_ptrs[ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA3], scope);
 
 	return apa || apa3 || api;
 }
@@ -2895,7 +2895,7 @@ static void update_cpu_capabilities(u16 scope_mask)
 
 	scope_mask &= ARM64_CPUCAP_SCOPE_MASK;
 	for (i = 0; i < ARM64_NCAPS; i++) {
-		caps = cpu_hwcaps_ptrs[i];
+		caps = cpucap_ptrs[i];
 		if (!caps || !(caps->type & scope_mask) ||
 		    cpus_have_cap(caps->capability) ||
 		    !caps->matches(caps, cpucap_default_scope(caps)))
@@ -2920,7 +2920,7 @@ static int cpu_enable_non_boot_scope_capabilities(void *__unused)
 	u16 non_boot_scope = SCOPE_ALL & ~SCOPE_BOOT_CPU;
 
 	for_each_available_cap(i) {
-		const struct arm64_cpu_capabilities *cap = cpu_hwcaps_ptrs[i];
+		const struct arm64_cpu_capabilities *cap = cpucap_ptrs[i];
 
 		if (WARN_ON(!cap))
 			continue;
@@ -2950,7 +2950,7 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 	for (i = 0; i < ARM64_NCAPS; i++) {
 		unsigned int num;
 
-		caps = cpu_hwcaps_ptrs[i];
+		caps = cpucap_ptrs[i];
 		if (!caps || !(caps->type & scope_mask))
 			continue;
 		num = caps->capability;
@@ -2995,7 +2995,7 @@ static void verify_local_cpu_caps(u16 scope_mask)
 	scope_mask &= ARM64_CPUCAP_SCOPE_MASK;
 
 	for (i = 0; i < ARM64_NCAPS; i++) {
-		caps = cpu_hwcaps_ptrs[i];
+		caps = cpucap_ptrs[i];
 		if (!caps || !(caps->type & scope_mask))
 			continue;
 
@@ -3194,7 +3194,7 @@ static void __init setup_boot_cpu_capabilities(void)
 bool this_cpu_has_cap(unsigned int n)
 {
 	if (!WARN_ON(preemptible()) && n < ARM64_NCAPS) {
-		const struct arm64_cpu_capabilities *cap = cpu_hwcaps_ptrs[n];
+		const struct arm64_cpu_capabilities *cap = cpucap_ptrs[n];
 
 		if (cap)
 			return cap->matches(cap, SCOPE_LOCAL_CPU);
@@ -3213,7 +3213,7 @@ EXPORT_SYMBOL_GPL(this_cpu_has_cap);
 static bool __maybe_unused __system_matches_cap(unsigned int n)
 {
 	if (n < ARM64_NCAPS) {
-		const struct arm64_cpu_capabilities *cap = cpu_hwcaps_ptrs[n];
+		const struct arm64_cpu_capabilities *cap = cpucap_ptrs[n];
 
 		if (cap)
 			return cap->matches(cap, SCOPE_SYSTEM);
