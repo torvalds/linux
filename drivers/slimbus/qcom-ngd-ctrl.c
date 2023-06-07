@@ -269,6 +269,8 @@ struct slimbus_power_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
 };
 
+static int qcom_slim_ngd_runtime_suspend(struct device *device);
+
 static struct qmi_elem_info slimbus_select_inst_req_msg_v01_ei[] = {
 	{
 		.data_type  = QMI_UNSIGNED_4_BYTE,
@@ -1373,6 +1375,24 @@ static int qcom_slim_ngd_disable_stream(struct slim_stream_runtime *rt)
 	return ret;
 }
 
+static int qcom_ngd_set_suspend(struct slim_controller *ctrl)
+{
+	struct qcom_slim_ngd_ctrl *dev =
+		container_of(ctrl, struct qcom_slim_ngd_ctrl, ctrl);
+	int ret = 0;
+
+	ret = qcom_slim_ngd_runtime_suspend(dev->ctrl.dev);
+	if (ret) {
+		SLIM_INFO(dev, "%s: Failed to suspend:%d\n", __func__, ret);
+		return ret;
+	}
+
+	pm_runtime_disable(dev->ctrl.dev);
+	pm_runtime_set_suspended(dev->ctrl.dev);
+	pm_runtime_enable(dev->ctrl.dev);
+	return ret;
+}
+
 static int qcom_slim_ngd_get_laddr(struct slim_controller *ctrl,
 				   struct slim_eaddr *ea, u8 *laddr)
 {
@@ -2107,6 +2127,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	ctrl->ctrl.a_framer = &ctrl->framer;
 	ctrl->ctrl.clkgear = SLIM_MAX_CLK_GEAR;
 	ctrl->ctrl.get_laddr = qcom_slim_ngd_get_laddr;
+	ctrl->ctrl.suspend_slimbus = qcom_ngd_set_suspend;
 	ctrl->ctrl.enable_stream = qcom_slim_ngd_enable_stream;
 	ctrl->ctrl.disable_stream = qcom_slim_ngd_disable_stream;
 	ctrl->ctrl.xfer_msg = qcom_slim_ngd_xfer_msg;

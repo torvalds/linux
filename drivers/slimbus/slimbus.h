@@ -419,6 +419,7 @@ struct slim_stream_runtime {
  * @wakeup: This function pointer implements controller-specific procedure
  *	to wake it up from clock-pause. Framework will call this to bring
  *	the controller out of clock pause.
+ * @suspend_slimbus: Called to initiate immediate suspend of slimbus.
  * @enable_stream: This function pointer implements controller-specific procedure
  *	to enable a stream.
  * @disable_stream: This function pointer implements controller-specific procedure
@@ -467,6 +468,7 @@ struct slim_controller {
 	int		(*enable_stream)(struct slim_stream_runtime *rt);
 	int		(*disable_stream)(struct slim_stream_runtime *rt);
 	int			(*wakeup)(struct slim_controller *ctrl);
+	int			(*suspend_slimbus)(struct slim_controller *ctrl);
 	struct mutex            stream_lock;
 };
 
