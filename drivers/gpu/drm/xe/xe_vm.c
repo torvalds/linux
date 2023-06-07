@@ -632,6 +632,10 @@ retry:
 
 #undef retry_required
 
+	spin_lock(&vm->xe->ttm.lru_lock);
+	ttm_lru_bulk_move_tail(&vm->lru_bulk_move);
+	spin_unlock(&vm->xe->ttm.lru_lock);
+
 	/* Point of no return. */
 	arm_preempt_fences(vm, &preempt_fences);
 	resume_and_reinstall_preempt_fences(vm);
