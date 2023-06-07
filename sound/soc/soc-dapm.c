@@ -4444,9 +4444,31 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
 						      asoc_rtd_to_cpu(rtd, i));
+		} else if (rtd->dai_link->num_codecs > rtd->dai_link->num_cpus) {
+			int cpu_id;
+
+			if (!rtd->dai_link->codec_ch_maps) {
+				dev_err(card->dev, "%s: no codec channel mapping table provided\n",
+					__func__);
+				continue;
+			}
+
+			for_each_rtd_codec_dais(rtd, i, codec_dai) {
+				cpu_id = rtd->dai_link->codec_ch_maps[i].connected_cpu_id;
+				if (cpu_id >= rtd->dai_link->num_cpus) {
+					dev_err(card->dev,
+						"%s: dai_link %s cpu_id %d too large, num_cpus is %d\n",
+						__func__, rtd->dai_link->name, cpu_id,
+						rtd->dai_link->num_cpus);
+					continue;
+				}
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      asoc_rtd_to_cpu(rtd, cpu_id));
+			}
 		} else {
 			dev_err(card->dev,
-				"N cpus to M codecs link is not supported yet\n");
+				"%s: codec number %d < cpu number %d is not supported\n",
+				__func__, rtd->dai_link->num_codecs, rtd->dai_link->num_cpus);
 		}
 	}
 }
