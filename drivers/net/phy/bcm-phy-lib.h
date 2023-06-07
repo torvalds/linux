@@ -118,4 +118,7 @@ int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 void bcm_phy_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 irqreturn_t bcm_phy_wol_isr(int irq, void *dev_id);
 
+int bcm_phy_led_brightness_set(struct phy_device *phydev,
+			       u8 index, enum led_brightness value);
+
 #endif /* _LINUX_BCM_PHY_LIB_H */

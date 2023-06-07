@@ -1039,6 +1039,33 @@ irqreturn_t bcm_phy_wol_isr(int irq, void *dev_id)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_wol_isr);
 
+int bcm_phy_led_brightness_set(struct phy_device *phydev,
+			       u8 index, enum led_brightness value)
+{
+	u8 led_num;
+	int ret;
+	u16 reg;
+
+	if (index >= 4)
+		return -EINVAL;
+
+	/* Two LEDS per register */
+	led_num = index % 2;
+	reg = index >= 2 ? BCM54XX_SHD_LEDS2 : BCM54XX_SHD_LEDS1;
+
+	ret = bcm_phy_read_shadow(phydev, reg);
+	if (ret < 0)
+		return ret;
+
+	ret &= ~(BCM_LED_SRC_MASK << BCM54XX_SHD_LEDS_SHIFT(led_num));
+	if (value == LED_OFF)
+		ret |= BCM_LED_SRC_OFF << BCM54XX_SHD_LEDS_SHIFT(led_num);
+	else
+		ret |= BCM_LED_SRC_ON << BCM54XX_SHD_LEDS_SHIFT(led_num);
+	return bcm_phy_write_shadow(phydev, reg, ret);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_led_brightness_set);
+
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Broadcom Corporation");
