@@ -371,4 +371,83 @@ __naked void and_then_at_fp_8(void)
 "	::: __clobber_all);
 }
 
+SEC("xdp")
+__description("32-bit spill of 64-bit reg should clear ID")
+__failure __msg("math between ctx pointer and 4294967295 is not allowed")
+__naked void spill_32bit_of_64bit_fail(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	/* Roll one bit to force the verifier to track both branches. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8;					\
+	/* Put a large number into r1. */		\
+	r1 = 0xffffffff;				\
+	r1 <<= 32;					\
+	r1 += r0;					\
+	/* Assign an ID to r1. */			\
+	r2 = r1;					\
+	/* 32-bit spill r1 to stack - should clear the ID! */\
+	*(u32*)(r10 - 8) = r1;				\
+	/* 32-bit fill r2 from stack. */		\
+	r2 = *(u32*)(r10 - 8);				\
+	/* Compare r2 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners. If the ID was mistakenly preserved on spill, this would\
+	 * cause the verifier to think that r1 is also equal to zero in one of\
+	 * the branches, and equal to eight on the other branch.\
+	 */						\
+	r3 = 0;						\
+	if r2 != r3 goto l0_%=;				\
+l0_%=:	r1 >>= 32;					\
+	/* At this point, if the verifier thinks that r1 is 0, an out-of-bounds\
+	 * read will happen, because it actually contains 0xffffffff.\
+	 */						\
+	r6 += r1;					\
+	r0 = *(u32*)(r6 + 0);				\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("16-bit spill of 32-bit reg should clear ID")
+__failure __msg("dereference of modified ctx ptr R6 off=65535 disallowed")
+__naked void spill_16bit_of_32bit_fail(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	/* Roll one bit to force the verifier to track both branches. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8;					\
+	/* Put a large number into r1. */		\
+	w1 = 0xffff0000;				\
+	r1 += r0;					\
+	/* Assign an ID to r1. */			\
+	r2 = r1;					\
+	/* 16-bit spill r1 to stack - should clear the ID! */\
+	*(u16*)(r10 - 8) = r1;				\
+	/* 16-bit fill r2 from stack. */		\
+	r2 = *(u16*)(r10 - 8);				\
+	/* Compare r2 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners. If the ID was mistakenly preserved on spill, this would\
+	 * cause the verifier to think that r1 is also equal to zero in one of\
+	 * the branches, and equal to eight on the other branch.\
+	 */						\
+	r3 = 0;						\
+	if r2 != r3 goto l0_%=;				\
+l0_%=:	r1 >>= 16;					\
+	/* At this point, if the verifier thinks that r1 is 0, an out-of-bounds\
+	 * read will happen, because it actually contains 0xffff.\
+	 */						\
+	r6 += r1;					\
+	r0 = *(u32*)(r6 + 0);				\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
