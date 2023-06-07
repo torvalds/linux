@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-#include "display/intel_display_limits.h"
+#include "intel_display_limits.h"
 
 struct drm_i915_private;
 
