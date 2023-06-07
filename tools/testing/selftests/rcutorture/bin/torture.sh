@@ -73,18 +73,18 @@ usage () {
 	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
 	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
 	echo "       --do-all"
-	echo "       --do-allmodconfig / --do-no-allmodconfig"
-	echo "       --do-clocksourcewd / --do-no-clocksourcewd"
-	echo "       --do-kasan / --do-no-kasan"
-	echo "       --do-kcsan / --do-no-kcsan"
-	echo "       --do-kvfree / --do-no-kvfree"
-	echo "       --do-locktorture / --do-no-locktorture"
+	echo "       --do-allmodconfig / --do-no-allmodconfig / --no-allmodconfig"
+	echo "       --do-clocksourcewd / --do-no-clocksourcewd / --no-clocksourcewd"
+	echo "       --do-kasan / --do-no-kasan / --no-kasan"
+	echo "       --do-kcsan / --do-no-kcsan / --no-kcsan"
+	echo "       --do-kvfree / --do-no-kvfree / --no-kvfree"
+	echo "       --do-locktorture / --do-no-locktorture / --no-locktorture"
 	echo "       --do-none"
-	echo "       --do-rcuscale / --do-no-rcuscale"
-	echo "       --do-rcutorture / --do-no-rcutorture"
-	echo "       --do-refscale / --do-no-refscale"
-	echo "       --do-rt / --do-no-rt"
-	echo "       --do-scftorture / --do-no-scftorture"
+	echo "       --do-rcuscale / --do-no-rcuscale / --no-rcuscale"
+	echo "       --do-rcutorture / --do-no-rcutorture / --no-rcutorture"
+	echo "       --do-refscale / --do-no-refscale / --no-refscale"
+	echo "       --do-rt / --do-no-rt / --no-rt"
+	echo "       --do-scftorture / --do-no-scftorture / --no-scftorture"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
 	echo "       --kcsan-kmake-arg kernel-make-arguments"
 	exit 1
@@ -126,22 +126,22 @@ do
 		do_kcsan=yes
 		do_clocksourcewd=yes
 		;;
-	--do-allmodconfig|--do-no-allmodconfig)
+	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
 		do_allmodconfig=`doyesno "$1" --do-allmodconfig`
 		;;
-	--do-clocksourcewd|--do-no-clocksourcewd)
+	--do-clocksourcewd|--do-no-clocksourcewd|--no-clocksourcewd)
 		do_clocksourcewd=`doyesno "$1" --do-clocksourcewd`
 		;;
-	--do-kasan|--do-no-kasan)
+	--do-kasan|--do-no-kasan|--no-kasan)
 		do_kasan=`doyesno "$1" --do-kasan`
 		;;
-	--do-kcsan|--do-no-kcsan)
+	--do-kcsan|--do-no-kcsan|--no-kcsan)
 		do_kcsan=`doyesno "$1" --do-kcsan`
 		;;
-	--do-kvfree|--do-no-kvfree)
+	--do-kvfree|--do-no-kvfree|--no-kvfree)
 		do_kvfree=`doyesno "$1" --do-kvfree`
 		;;
-	--do-locktorture|--do-no-locktorture)
+	--do-locktorture|--do-no-locktorture|--no-locktorture)
 		do_locktorture=`doyesno "$1" --do-locktorture`
 		;;
 	--do-none|--donone)
@@ -157,19 +157,19 @@ do
 		do_kcsan=no
 		do_clocksourcewd=no
 		;;
-	--do-rcuscale|--do-no-rcuscale)
+	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
 		do_rcuscale=`doyesno "$1" --do-rcuscale`
 		;;
-	--do-rcutorture|--do-no-rcutorture)
+	--do-rcutorture|--do-no-rcutorture|--no-rcutorture)
 		do_rcutorture=`doyesno "$1" --do-rcutorture`
 		;;
-	--do-refscale|--do-no-refscale)
+	--do-refscale|--do-no-refscale|--no-refscale)
 		do_refscale=`doyesno "$1" --do-refscale`
 		;;
-	--do-rt|--do-no-rt)
+	--do-rt|--do-no-rt|--no-rt)
 		do_rt=`doyesno "$1" --do-rt`
 		;;
-	--do-scftorture|--do-no-scftorture)
+	--do-scftorture|--do-no-scftorture|--no-scftorture)
 		do_scftorture=`doyesno "$1" --do-scftorture`
 		;;
 	--duration)
