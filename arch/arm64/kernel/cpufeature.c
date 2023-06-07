@@ -2903,7 +2903,8 @@ static void update_cpu_capabilities(u16 scope_mask)
 
 		if (caps->desc)
 			pr_info("detected: %s\n", caps->desc);
-		cpus_set_cap(caps->capability);
+
+		__set_bit(caps->capability, system_cpucaps);
 
 		if ((scope_mask & SCOPE_BOOT_CPU) && (caps->type & SCOPE_BOOT_CPU))
 			set_bit(caps->capability, boot_cpucaps);

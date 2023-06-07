@@ -504,16 +504,6 @@ static __always_inline bool cpus_have_const_cap(int num)
 		return cpus_have_cap(num);
 }
 
-static inline void cpus_set_cap(unsigned int num)
-{
-	if (num >= ARM64_NCAPS) {
-		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
-			num, ARM64_NCAPS);
-	} else {
-		__set_bit(num, system_cpucaps);
-	}
-}
-
 static inline int __attribute_const__
 cpuid_feature_extract_signed_field_width(u64 features, int field, int width)
 {
