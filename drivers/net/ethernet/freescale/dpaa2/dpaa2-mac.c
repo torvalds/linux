@@ -257,18 +257,17 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 		return 0;
 	}
 
-	if (!fwnode_device_is_available(node)) {
-		netdev_err(mac->net_dev, "pcs-handle node not available\n");
-		fwnode_handle_put(node);
-		return -ENODEV;
-	}
-
 	pcs = lynx_pcs_create_fwnode(node);
 	fwnode_handle_put(node);
 
 	if (pcs == ERR_PTR(-EPROBE_DEFER)) {
 		netdev_dbg(mac->net_dev, "missing PCS device\n");
 		return -EPROBE_DEFER;
+	}
+
+	if (pcs == ERR_PTR(-ENODEV)) {
+		netdev_err(mac->net_dev, "pcs-handle node not available\n");
+		return PTR_ERR(pcs);
 	}
 
 	if (IS_ERR(pcs)) {
