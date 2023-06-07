@@ -896,6 +896,14 @@ class Family(SpecFamily):
                 pns_key_seen.add(name)
             else:
                 pns_key_list.append(name)
+        # Propagate the request / reply
+        for attr_set, struct in reversed(self.pure_nested_structs.items()):
+            for _, spec in self.attr_sets[attr_set].items():
+                if 'nested-attributes' in spec:
+                    child = self.pure_nested_structs.get(spec['nested-attributes'])
+                    if child:
+                        child.request |= struct.request
+                        child.reply |= struct.reply
 
     def _load_all_notify(self):
         for op_name, op in self.ops.items():
