@@ -563,9 +563,9 @@
 &i2c6 {
 	status = "okay";
 
-	usbc0: fusb302@22 {
-		compatible = "fcs,fusb302";
-		reg = <0x22>;
+	usbc0: husb311@4e {
+		compatible = "hynetek,husb311";
+		reg = <0x4e>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PB6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
@@ -671,10 +671,6 @@
 	status = "okay";
 };
 
-&leds {
-	status = "disabled";
-};
-
 &mdio1 {
 	rgmii_phy: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
@@ -749,6 +745,12 @@
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	leds {
+		work_leds_gpio: work-leds-gpio {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -938,4 +940,10 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&work_led {
+	gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&work_leds_gpio>;
 };

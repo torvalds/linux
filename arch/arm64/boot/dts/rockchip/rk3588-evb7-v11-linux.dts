@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb7-v11.dtsi"
+#include "rk3588-evb7-v11-imx415.dtsi"
+#include "rk3588-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB7 V11 Board";
+	compatible = "rockchip,rk3588-evb7-v11", "rockchip,rk3588";
+};
