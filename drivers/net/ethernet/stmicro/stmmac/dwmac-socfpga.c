@@ -389,7 +389,6 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	struct net_device	*ndev;
 	struct stmmac_priv	*stpriv;
 	const struct socfpga_dwmac_ops *ops;
-	struct regmap_config pcs_regmap_cfg;
 
 	ops = device_get_match_data(&pdev->dev);
 	if (!ops) {
@@ -447,18 +446,21 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dvr_remove;
 
-	memset(&pcs_regmap_cfg, 0, sizeof(pcs_regmap_cfg));
-	pcs_regmap_cfg.reg_bits = 16;
-	pcs_regmap_cfg.val_bits = 16;
-	pcs_regmap_cfg.reg_shift = REGMAP_UPSHIFT(1);
-
 	/* Create a regmap for the PCS so that it can be used by the PCS driver,
 	 * if we have such a PCS
 	 */
 	if (dwmac->tse_pcs_base) {
+		struct regmap_config pcs_regmap_cfg;
 		struct mdio_regmap_config mrc;
 		struct regmap *pcs_regmap;
 		struct mii_bus *pcs_bus;
+
+		memset(&pcs_regmap_cfg, 0, sizeof(pcs_regmap_cfg));
+		memset(&mrc, 0, sizeof(mrc));
+
+		pcs_regmap_cfg.reg_bits = 16;
+		pcs_regmap_cfg.val_bits = 16;
+		pcs_regmap_cfg.reg_shift = REGMAP_UPSHIFT(1);
 
 		pcs_regmap = devm_regmap_init_mmio(&pdev->dev, dwmac->tse_pcs_base,
 						   &pcs_regmap_cfg);
@@ -470,6 +472,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		mrc.regmap = pcs_regmap;
 		mrc.parent = &pdev->dev;
 		mrc.valid_addr = 0x0;
+		mrc.autoscan = false;
 
 		snprintf(mrc.name, MII_BUS_ID_SIZE, "%s-pcs-mii", ndev->name);
 		pcs_bus = devm_mdio_regmap_register(&pdev->dev, &mrc);
