@@ -16,7 +16,6 @@
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/pcs/pcs-xpcs.h>
-#include <linux/pcs-lynx.h>
 #include <linux/module.h>
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define STMMAC_VLAN_TAG_USED

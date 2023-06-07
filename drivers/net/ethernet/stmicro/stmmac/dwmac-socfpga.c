@@ -11,6 +11,7 @@
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <linux/mdio/mdio-regmap.h>
+#include <linux/pcs-lynx.h>
 #include <linux/reset.h>
 #include <linux/stmmac.h>
 
@@ -388,7 +389,6 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	struct net_device	*ndev;
 	struct stmmac_priv	*stpriv;
 	const struct socfpga_dwmac_ops *ops;
-	struct regmap_config pcs_regmap_cfg;
 
 	ops = device_get_match_data(&pdev->dev);
 	if (!ops) {
@@ -446,18 +446,21 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dvr_remove;
 
-	memset(&pcs_regmap_cfg, 0, sizeof(pcs_regmap_cfg));
-	pcs_regmap_cfg.reg_bits = 16;
-	pcs_regmap_cfg.val_bits = 16;
-	pcs_regmap_cfg.reg_shift = REGMAP_UPSHIFT(1);
-
 	/* Create a regmap for the PCS so that it can be used by the PCS driver,
 	 * if we have such a PCS
 	 */
 	if (dwmac->tse_pcs_base) {
+		struct regmap_config pcs_regmap_cfg;
 		struct mdio_regmap_config mrc;
 		struct regmap *pcs_regmap;
 		struct mii_bus *pcs_bus;
+
+		memset(&pcs_regmap_cfg, 0, sizeof(pcs_regmap_cfg));
+		memset(&mrc, 0, sizeof(mrc));
+
+		pcs_regmap_cfg.reg_bits = 16;
+		pcs_regmap_cfg.val_bits = 16;
+		pcs_regmap_cfg.reg_shift = REGMAP_UPSHIFT(1);
 
 		pcs_regmap = devm_regmap_init_mmio(&pdev->dev, dwmac->tse_pcs_base,
 						   &pcs_regmap_cfg);
@@ -469,6 +472,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		mrc.regmap = pcs_regmap;
 		mrc.parent = &pdev->dev;
 		mrc.valid_addr = 0x0;
+		mrc.autoscan = false;
 
 		snprintf(mrc.name, MII_BUS_ID_SIZE, "%s-pcs-mii", ndev->name);
 		pcs_bus = devm_mdio_regmap_register(&pdev->dev, &mrc);
@@ -492,6 +496,17 @@ err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
+}
+
+static void socfpga_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct phylink_pcs *pcs = priv->hw->lynx_pcs;
+
+	stmmac_pltfr_remove(pdev);
+
+	lynx_pcs_destroy(pcs);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -565,7 +580,7 @@ MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
 
 static struct platform_driver socfpga_dwmac_driver = {
 	.probe  = socfpga_dwmac_probe,
-	.remove_new = stmmac_pltfr_remove,
+	.remove_new = socfpga_dwmac_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
 		.pm		= &socfpga_dwmac_pm_ops,
