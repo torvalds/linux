@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -222,6 +222,7 @@ static struct platform_driver qcom_cpucp_driver = {
 	.driver = {
 		.name = "qcom_cpucp",
 		.of_match_table = qcom_cpucp_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 module_platform_driver(qcom_cpucp_driver);
