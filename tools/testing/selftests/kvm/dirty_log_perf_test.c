@@ -332,17 +332,7 @@ static void help(char *name)
 	       "     so -w X means each page has an X%% chance of writing\n"
 	       "     and a (100-X)%% chance of reading.\n"
 	       "     (default: 100 i.e. all pages are written to.)\n");
-	printf(" -c: Pin tasks to physical CPUs.  Takes a list of comma separated\n"
-	       "     values (target pCPU), one for each vCPU, plus an optional\n"
-	       "     entry for the main application task (specified via entry\n"
-	       "     <nr_vcpus + 1>).  If used, entries must be provided for all\n"
-	       "     vCPUs, i.e. pinning vCPUs is all or nothing.\n\n"
-	       "     E.g. to create 3 vCPUs, pin vCPU0=>pCPU22, vCPU1=>pCPU23,\n"
-	       "     vCPU2=>pCPU24, and pin the application task to pCPU50:\n\n"
-	       "         ./dirty_log_perf_test -v 3 -c 22,23,24,50\n\n"
-	       "     To leave the application task unpinned, drop the final entry:\n\n"
-	       "         ./dirty_log_perf_test -v 3 -c 22,23,24\n\n"
-	       "     (default: no pinning)\n");
+	kvm_print_vcpu_pinning_help();
 	puts("");
 	exit(0);
 }
