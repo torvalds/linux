@@ -51,4 +51,17 @@
 #define RKPM_PWM1_M0_REGULATOR_EN	BIT(1)
 #define RKPM_PWM2_M0_REGULATOR_EN	BIT(2)
 
+/* sleep pin */
+#define RKPM_SLEEP_PIN0_EN		BIT(0)	/* GPIO4_C2 */
+#define RKPM_SLEEP_PIN1_EN		BIT(1)	/* GPIO4_B6 */
+#define RKPM_SLEEP_PIN2_EN		BIT(2)	/* GPIO0_A0 */
+#define RKPM_SLEEP_PIN3_EN		BIT(3)	/* GPIO0_A1 */
+#define RKPM_SLEEP_PIN4_EN		BIT(4)	/* GPIO0_A2 */
+#define RKPM_SLEEP_PIN5_EN		BIT(5)	/* GPIO0_A3 */
+#define RKPM_SLEEP_PIN6_EN		BIT(6)	/* GPIO0_A4 */
+#define RKPM_SLEEP_PIN7_EN		BIT(7)	/* GPIO0_A5 */
+
+#define RKPM_SLEEP_PIN0_ACT_LOW		BIT(0)	/* GPIO4_C2 */
+#define RKPM_SLEEP_PIN1_ACT_LOW		BIT(1)	/* GPIO4_B6 */
+#define RKPM_SLEEP_PIN2_7_ACT_LOW	0xfc	/* GPIO0_A0~5 */
 #endif
