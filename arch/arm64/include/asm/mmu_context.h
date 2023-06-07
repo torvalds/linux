@@ -164,7 +164,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap)
 		 * up (i.e. cpufeature framework is not up yet) and
 		 * latter only when we enable CNP via cpufeature's
 		 * enable() callback.
-		 * Also we rely on the cpu_hwcap bit being set before
+		 * Also we rely on the system_cpucaps bit being set before
 		 * calling the enable() function.
 		 */
 		ttbr1 |= TTBR_CNP_BIT;

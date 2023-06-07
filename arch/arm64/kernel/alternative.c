@@ -192,7 +192,7 @@ static void __apply_alternatives(const struct alt_region *region,
 		bitmap_or(applied_alternatives, applied_alternatives,
 			  feature_mask, ARM64_NCAPS);
 		bitmap_and(applied_alternatives, applied_alternatives,
-			   cpu_hwcaps, ARM64_NCAPS);
+			   system_cpucaps, ARM64_NCAPS);
 	}
 }
 
@@ -239,7 +239,7 @@ static int __init __apply_alternatives_multi_stop(void *unused)
 	} else {
 		DECLARE_BITMAP(remaining_capabilities, ARM64_NCAPS);
 
-		bitmap_complement(remaining_capabilities, boot_capabilities,
+		bitmap_complement(remaining_capabilities, boot_cpucaps,
 				  ARM64_NCAPS);
 
 		BUG_ON(all_alternatives_applied);
@@ -274,7 +274,7 @@ void __init apply_boot_alternatives(void)
 	pr_info("applying boot alternatives\n");
 
 	__apply_alternatives(&kernel_alternatives, false,
-			     &boot_capabilities[0]);
+			     &boot_cpucaps[0]);
 }
 
 #ifdef CONFIG_MODULES

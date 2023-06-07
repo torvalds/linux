@@ -105,11 +105,11 @@ unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
 unsigned int compat_elf_hwcap2 __read_mostly;
 #endif
 
-DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
-EXPORT_SYMBOL(cpu_hwcaps);
+DECLARE_BITMAP(system_cpucaps, ARM64_NCAPS);
+EXPORT_SYMBOL(system_cpucaps);
 static struct arm64_cpu_capabilities const __ro_after_init *cpu_hwcaps_ptrs[ARM64_NCAPS];
 
-DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
+DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
 
 bool arm64_use_ng_mappings = false;
 EXPORT_SYMBOL(arm64_use_ng_mappings);
@@ -137,7 +137,7 @@ static cpumask_var_t cpu_32bit_el0_mask __cpumask_var_read_mostly;
 void dump_cpu_features(void)
 {
 	/* file-wide pr_fmt adds "CPU features: " prefix */
-	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
+	pr_emerg("0x%*pb\n", ARM64_NCAPS, &system_cpucaps);
 }
 
 #define ARM64_CPUID_FIELDS(reg, field, min_value)			\
@@ -2906,7 +2906,7 @@ static void update_cpu_capabilities(u16 scope_mask)
 		cpus_set_cap(caps->capability);
 
 		if ((scope_mask & SCOPE_BOOT_CPU) && (caps->type & SCOPE_BOOT_CPU))
-			set_bit(caps->capability, boot_capabilities);
+			set_bit(caps->capability, boot_cpucaps);
 	}
 }
 
@@ -3207,7 +3207,7 @@ EXPORT_SYMBOL_GPL(this_cpu_has_cap);
 /*
  * This helper function is used in a narrow window when,
  * - The system wide safe registers are set with all the SMP CPUs and,
- * - The SYSTEM_FEATURE cpu_hwcaps may not have been set.
+ * - The SYSTEM_FEATURE system_cpucaps may not have been set.
  * In all other cases cpus_have_{const_}cap() should be used.
  */
 static bool __maybe_unused __system_matches_cap(unsigned int n)

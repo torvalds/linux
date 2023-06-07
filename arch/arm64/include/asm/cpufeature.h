@@ -107,7 +107,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  * CPU capabilities:
  *
  * We use arm64_cpu_capabilities to represent system features, errata work
- * arounds (both used internally by kernel and tracked in cpu_hwcaps) and
+ * arounds (both used internally by kernel and tracked in system_cpucaps) and
  * ELF HWCAPs (which are exposed to user).
  *
  * To support systems with heterogeneous CPUs, we need to make sure that we
@@ -419,12 +419,12 @@ static __always_inline bool is_hyp_code(void)
 	return is_vhe_hyp_code() || is_nvhe_hyp_code();
 }
 
-extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+extern DECLARE_BITMAP(system_cpucaps, ARM64_NCAPS);
 
-extern DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
+extern DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
 
 #define for_each_available_cap(cap)		\
-	for_each_set_bit(cap, cpu_hwcaps, ARM64_NCAPS)
+	for_each_set_bit(cap, system_cpucaps, ARM64_NCAPS)
 
 bool this_cpu_has_cap(unsigned int cap);
 void cpu_set_feature(unsigned int num);
@@ -449,7 +449,7 @@ static __always_inline bool cpus_have_cap(unsigned int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return arch_test_bit(num, cpu_hwcaps);
+	return arch_test_bit(num, system_cpucaps);
 }
 
 /*
@@ -510,7 +510,7 @@ static inline void cpus_set_cap(unsigned int num)
 		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
 			num, ARM64_NCAPS);
 	} else {
-		__set_bit(num, cpu_hwcaps);
+		__set_bit(num, system_cpucaps);
 	}
 }
 
