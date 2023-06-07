@@ -191,8 +191,6 @@ noinline int bpf_testmod_fentry_test3(char a, int b, u64 c)
 	return a + b + c;
 }
 
-__diag_pop();
-
 int bpf_testmod_fentry_ok;
 
 noinline ssize_t
@@ -272,6 +270,14 @@ bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 }
 EXPORT_SYMBOL(bpf_testmod_test_write);
 ALLOW_ERROR_INJECTION(bpf_testmod_test_write, ERRNO);
+
+noinline int bpf_fentry_shadow_test(int a)
+{
+	return a + 2;
+}
+EXPORT_SYMBOL_GPL(bpf_fentry_shadow_test);
+
+__diag_pop();
 
 static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.attr = { .name = "bpf_testmod", .mode = 0666, },
@@ -461,12 +467,6 @@ static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
 	.owner = THIS_MODULE,
 	.set   = &bpf_testmod_check_kfunc_ids,
 };
-
-noinline int bpf_fentry_shadow_test(int a)
-{
-	return a + 2;
-}
-EXPORT_SYMBOL_GPL(bpf_fentry_shadow_test);
 
 extern int bpf_fentry_test1(int a);
 
