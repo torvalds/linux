@@ -9,7 +9,7 @@ endif
 
 TOOL:=../ynl-gen-c.py
 
-GENS:=handshake fou netdev
+GENS:=devlink handshake fou netdev
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
