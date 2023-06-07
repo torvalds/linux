@@ -1942,7 +1942,17 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 
 int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages)
 {
+	return ___pkvm_host_donate_hyp(pfn, nr_pages, false);
+}
+
+int ___pkvm_host_donate_hyp(u64 pfn, u64 nr_pages, bool accept_mmio)
+{
+	phys_addr_t start = hyp_pfn_to_phys(pfn);
+	phys_addr_t end = start + (nr_pages << PAGE_SHIFT);
 	int ret;
+
+	if (!accept_mmio && !range_is_memory(start, end))
+		return -EPERM;
 
 	host_lock_component();
 	ret = __pkvm_host_donate_hyp_locked(pfn, nr_pages);
