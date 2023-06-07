@@ -3550,6 +3550,9 @@ static ssize_t amdgpu_psp_vbflash_read(struct file *filp, struct kobject *kobj,
 	void *fw_pri_cpu_addr;
 	int ret;
 
+	if (adev->psp.vbflash_image_size == 0)
+		return -EINVAL;
+
 	dev_info(adev->dev, "VBIOS flash to PSP started");
 
 	ret = amdgpu_bo_create_kernel(adev, adev->psp.vbflash_image_size,
