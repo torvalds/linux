@@ -980,43 +980,22 @@ static void svm_disable_lbrv(struct kvm_vcpu *vcpu)
 		svm_copy_lbrs(svm->vmcb01.ptr, svm->vmcb);
 }
 
-static int svm_get_lbr_msr(struct vcpu_svm *svm, u32 index)
+static struct vmcb *svm_get_lbr_vmcb(struct vcpu_svm *svm)
 {
 	/*
-	 * If the LBR virtualization is disabled, the LBR msrs are always
-	 * kept in the vmcb01 to avoid copying them on nested guest entries.
-	 *
-	 * If nested, and the LBR virtualization is enabled/disabled, the msrs
-	 * are moved between the vmcb01 and vmcb02 as needed.
+	 * If LBR virtualization is disabled, the LBR MSRs are always kept in
+	 * vmcb01.  If LBR virtualization is enabled and L1 is running VMs of
+	 * its own, the MSRs are moved between vmcb01 and vmcb02 as needed.
 	 */
-	struct vmcb *vmcb =
-		(svm->vmcb->control.virt_ext & LBR_CTL_ENABLE_MASK) ?
-			svm->vmcb : svm->vmcb01.ptr;
-
-	switch (index) {
-	case MSR_IA32_DEBUGCTLMSR:
-		return vmcb->save.dbgctl;
-	case MSR_IA32_LASTBRANCHFROMIP:
-		return vmcb->save.br_from;
-	case MSR_IA32_LASTBRANCHTOIP:
-		return vmcb->save.br_to;
-	case MSR_IA32_LASTINTFROMIP:
-		return vmcb->save.last_excp_from;
-	case MSR_IA32_LASTINTTOIP:
-		return vmcb->save.last_excp_to;
-	default:
-		KVM_BUG(false, svm->vcpu.kvm,
-			"%s: Unknown MSR 0x%x", __func__, index);
-		return 0;
-	}
+	return svm->vmcb->control.virt_ext & LBR_CTL_ENABLE_MASK ? svm->vmcb :
+								   svm->vmcb01.ptr;
 }
 
 void svm_update_lbrv(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	bool enable_lbrv = svm_get_lbr_msr(svm, MSR_IA32_DEBUGCTLMSR) &
-					   DEBUGCTLMSR_LBR;
+	bool enable_lbrv = svm_get_lbr_vmcb(svm)->save.dbgctl & DEBUGCTLMSR_LBR;
 
 	bool current_enable_lbrv = !!(svm->vmcb->control.virt_ext &
 				      LBR_CTL_ENABLE_MASK);
@@ -2835,11 +2814,19 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = svm->tsc_aux;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
+		msr_info->data = svm_get_lbr_vmcb(svm)->save.dbgctl;
+		break;
 	case MSR_IA32_LASTBRANCHFROMIP:
+		msr_info->data = svm_get_lbr_vmcb(svm)->save.br_from;
+		break;
 	case MSR_IA32_LASTBRANCHTOIP:
+		msr_info->data = svm_get_lbr_vmcb(svm)->save.br_to;
+		break;
 	case MSR_IA32_LASTINTFROMIP:
+		msr_info->data = svm_get_lbr_vmcb(svm)->save.last_excp_from;
+		break;
 	case MSR_IA32_LASTINTTOIP:
-		msr_info->data = svm_get_lbr_msr(svm, msr_info->index);
+		msr_info->data = svm_get_lbr_vmcb(svm)->save.last_excp_to;
 		break;
 	case MSR_VM_HSAVE_PA:
 		msr_info->data = svm->nested.hsave_msr;
