@@ -1067,50 +1067,6 @@ pm_put:
 }
 #endif
 
-void etnaviv_gpu_recover_hang(struct etnaviv_gem_submit *submit)
-{
-	struct etnaviv_gpu *gpu = submit->gpu;
-	char *comm = NULL, *cmd = NULL;
-	struct task_struct *task;
-	unsigned int i;
-
-	dev_err(gpu->dev, "recover hung GPU!\n");
-
-	task = get_pid_task(submit->pid, PIDTYPE_PID);
-	if (task) {
-		comm = kstrdup(task->comm, GFP_KERNEL);
-		cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
-		put_task_struct(task);
-	}
-
-	if (comm && cmd)
-		dev_err(gpu->dev, "offending task: %s (%s)\n", comm, cmd);
-
-	kfree(cmd);
-	kfree(comm);
-
-	if (pm_runtime_get_sync(gpu->dev) < 0)
-		goto pm_put;
-
-	mutex_lock(&gpu->lock);
-
-	etnaviv_hw_reset(gpu);
-
-	/* complete all events, the GPU won't do it after the reset */
-	spin_lock(&gpu->event_spinlock);
-	for_each_set_bit(i, gpu->event_bitmap, ETNA_NR_EVENTS)
-		complete(&gpu->event_free);
-	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
-	spin_unlock(&gpu->event_spinlock);
-
-	etnaviv_gpu_hw_init(gpu);
-
-	mutex_unlock(&gpu->lock);
-	pm_runtime_mark_last_busy(gpu->dev);
-pm_put:
-	pm_runtime_put_autosuspend(gpu->dev);
-}
-
 /* fence object management */
 struct etnaviv_fence {
 	struct etnaviv_gpu *gpu;
@@ -1460,6 +1416,50 @@ static void sync_point_worker(struct work_struct *work)
 
 	/* restart FE last to avoid GPU and IRQ racing against this worker */
 	etnaviv_gpu_start_fe(gpu, addr + 2, 2);
+}
+
+void etnaviv_gpu_recover_hang(struct etnaviv_gem_submit *submit)
+{
+	struct etnaviv_gpu *gpu = submit->gpu;
+	char *comm = NULL, *cmd = NULL;
+	struct task_struct *task;
+	unsigned int i;
+
+	dev_err(gpu->dev, "recover hung GPU!\n");
+
+	task = get_pid_task(submit->pid, PIDTYPE_PID);
+	if (task) {
+		comm = kstrdup(task->comm, GFP_KERNEL);
+		cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
+		put_task_struct(task);
+	}
+
+	if (comm && cmd)
+		dev_err(gpu->dev, "offending task: %s (%s)\n", comm, cmd);
+
+	kfree(cmd);
+	kfree(comm);
+
+	if (pm_runtime_get_sync(gpu->dev) < 0)
+		goto pm_put;
+
+	mutex_lock(&gpu->lock);
+
+	etnaviv_hw_reset(gpu);
+
+	/* complete all events, the GPU won't do it after the reset */
+	spin_lock(&gpu->event_spinlock);
+	for_each_set_bit(i, gpu->event_bitmap, ETNA_NR_EVENTS)
+		complete(&gpu->event_free);
+	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
+	spin_unlock(&gpu->event_spinlock);
+
+	etnaviv_gpu_hw_init(gpu);
+
+	mutex_unlock(&gpu->lock);
+	pm_runtime_mark_last_busy(gpu->dev);
+pm_put:
+	pm_runtime_put_autosuspend(gpu->dev);
 }
 
 static void dump_mmu_fault(struct etnaviv_gpu *gpu)
