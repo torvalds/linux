@@ -153,7 +153,7 @@ uint amdgpu_pg_mask = 0xffffffff;
 uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu;
 char *amdgpu_virtual_display;
-
+bool enforce_isolation;
 /*
  * OverDrive(bit 14) disabled by default
  * GFX DCS(bit 19) disabled by default
@@ -972,6 +972,14 @@ MODULE_PARM_DESC(
 						3 = AMDGPU_QPX_PARTITION_MODE, \
 						4 = AMDGPU_CPX_PARTITION_MODE)");
 module_param_named(user_partt_mode, amdgpu_user_partt_mode, uint, 0444);
+
+
+/**
+ * DOC: enforce_isolation (bool)
+ * enforce process isolation between graphics and compute via using the same reserved vmid.
+ */
+module_param(enforce_isolation, bool, 0444);
+MODULE_PARM_DESC(enforce_isolation, "enforce process isolation between graphics and compute . enforce_isolation = on");
 
 /* These devices are not supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers
