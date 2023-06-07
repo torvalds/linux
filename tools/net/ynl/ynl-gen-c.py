@@ -1235,10 +1235,6 @@ def print_dump_prototype(ri):
     print_prototype(ri, "request")
 
 
-def put_typol_fwd(cw, struct):
-    cw.p(f'extern struct ynl_policy_nest {struct.render_name}_nest;')
-
-
 def put_typol(cw, struct):
     type_max = struct.attr_set.max_name
     cw.block_start(line=f'struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
@@ -2485,12 +2481,10 @@ def main():
             cw.nl()
 
             cw.p('/* Policies */')
-            for name, _ in parsed.attr_sets.items():
+            for name in parsed.pure_nested_structs:
                 struct = Struct(parsed, name)
-                put_typol_fwd(cw, struct)
-            cw.nl()
-
-            for name, _ in parsed.attr_sets.items():
+                put_typol(cw, struct)
+            for name in parsed.root_sets:
                 struct = Struct(parsed, name)
                 put_typol(cw, struct)
 
