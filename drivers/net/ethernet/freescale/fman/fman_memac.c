@@ -1039,19 +1039,14 @@ static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
 					    int index)
 {
 	struct device_node *node;
-	struct mdio_device *mdiodev = NULL;
 	struct phylink_pcs *pcs;
 
 	node = of_parse_phandle(mac_node, "pcsphy-handle", index);
-	if (node && of_device_is_available(node))
-		mdiodev = of_mdio_find_device(node);
+	if (!node || !of_device_is_available(node))
+		return ERR_PTR(-ENODEV);
+
+	pcs = lynx_pcs_create_fwnode(of_fwnode_handle(node));
 	of_node_put(node);
-
-	if (!mdiodev)
-		return ERR_PTR(-EPROBE_DEFER);
-
-	pcs = lynx_pcs_create(mdiodev);
-	mdio_device_put(mdiodev);
 
 	return pcs;
 }
