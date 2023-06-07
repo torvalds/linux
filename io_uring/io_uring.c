@@ -935,9 +935,11 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 	return __io_post_aux_cqe(ctx, user_data, res, cflags, true);
 }
 
-bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32 cflags,
+bool io_aux_cqe(const struct io_kiocb *req, bool defer, s32 res, u32 cflags,
 		bool allow_overflow)
 {
+	struct io_ring_ctx *ctx = req->ctx;
+	u64 user_data = req->cqe.user_data;
 	struct io_uring_cqe *cqe;
 	unsigned int length;
 
