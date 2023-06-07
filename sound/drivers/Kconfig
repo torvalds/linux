@@ -109,6 +109,22 @@ config SND_ALOOP
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-aloop.
 
+config SND_PCMTEST
+	tristate "Virtual PCM test driver"
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for the Virtual PCM test driver.
+	  This driver is aimed at extended testing of the userspace applications
+	  which use the ALSA API, as well as the PCM middle layer testing.
+
+	  It can generate random or pattern-based data into the capture stream,
+	  check the playback stream for containing the selected pattern, inject
+	  time delays during capture/playback, redefine the RESET ioctl operation
+	  to perform the PCM middle layer testing and inject errors during the
+	  PCM callbacks. It supports both interleaved and non-interleaved access
+	  modes. You can find the corresponding selftest in the 'alsa'
+	  selftests folder.
+
 config SND_VIRMIDI
 	tristate "Virtual MIDI soundcard"
 	depends on SND_SEQUENCER
