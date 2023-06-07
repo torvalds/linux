@@ -235,7 +235,7 @@ void vhost_dev_flush(struct vhost_dev *dev)
 {
 	struct vhost_flush_struct flush;
 
-	if (dev->worker) {
+	if (dev->worker.vtsk) {
 		init_completion(&flush.wait_event);
 		vhost_work_init(&flush.work, vhost_flush_work);
 
@@ -247,7 +247,7 @@ EXPORT_SYMBOL_GPL(vhost_dev_flush);
 
 void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 {
-	if (!dev->worker)
+	if (!dev->worker.vtsk)
 		return;
 
 	if (!test_and_set_bit(VHOST_WORK_QUEUED, &work->flags)) {
@@ -255,8 +255,8 @@ void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 		 * sure it was not in the list.
 		 * test_and_set_bit() implies a memory barrier.
 		 */
-		llist_add(&work->node, &dev->worker->work_list);
-		vhost_task_wake(dev->worker->vtsk);
+		llist_add(&work->node, &dev->worker.work_list);
+		vhost_task_wake(dev->worker.vtsk);
 	}
 }
 EXPORT_SYMBOL_GPL(vhost_work_queue);
@@ -264,7 +264,7 @@ EXPORT_SYMBOL_GPL(vhost_work_queue);
 /* A lockless hint for busy polling code to exit the loop */
 bool vhost_has_work(struct vhost_dev *dev)
 {
-	return dev->worker && !llist_empty(&dev->worker->work_list);
+	return !llist_empty(&dev->worker.work_list);
 }
 EXPORT_SYMBOL_GPL(vhost_has_work);
 
@@ -456,7 +456,8 @@ void vhost_dev_init(struct vhost_dev *dev,
 	dev->umem = NULL;
 	dev->iotlb = NULL;
 	dev->mm = NULL;
-	dev->worker = NULL;
+	memset(&dev->worker, 0, sizeof(dev->worker));
+	init_llist_head(&dev->worker.work_list);
 	dev->iov_limit = iov_limit;
 	dev->weight = weight;
 	dev->byte_weight = byte_weight;
@@ -530,47 +531,30 @@ static void vhost_detach_mm(struct vhost_dev *dev)
 
 static void vhost_worker_free(struct vhost_dev *dev)
 {
-	struct vhost_worker *worker = dev->worker;
-
-	if (!worker)
+	if (!dev->worker.vtsk)
 		return;
 
-	dev->worker = NULL;
-	WARN_ON(!llist_empty(&worker->work_list));
-	vhost_task_stop(worker->vtsk);
-	kfree(worker);
+	WARN_ON(!llist_empty(&dev->worker.work_list));
+	vhost_task_stop(dev->worker.vtsk);
+	dev->worker.kcov_handle = 0;
+	dev->worker.vtsk = NULL;
 }
 
 static int vhost_worker_create(struct vhost_dev *dev)
 {
-	struct vhost_worker *worker;
 	struct vhost_task *vtsk;
 	char name[TASK_COMM_LEN];
-	int ret;
 
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL_ACCOUNT);
-	if (!worker)
-		return -ENOMEM;
-
-	dev->worker = worker;
-	worker->kcov_handle = kcov_common_handle();
-	init_llist_head(&worker->work_list);
 	snprintf(name, sizeof(name), "vhost-%d", current->pid);
 
-	vtsk = vhost_task_create(vhost_worker, worker, name);
-	if (!vtsk) {
-		ret = -ENOMEM;
-		goto free_worker;
-	}
+	vtsk = vhost_task_create(vhost_worker, &dev->worker, name);
+	if (!vtsk)
+		return -ENOMEM;
 
-	worker->vtsk = vtsk;
+	dev->worker.kcov_handle = kcov_common_handle();
+	dev->worker.vtsk = vtsk;
 	vhost_task_start(vtsk);
 	return 0;
-
-free_worker:
-	kfree(worker);
-	dev->worker = NULL;
-	return ret;
 }
 
 /* Caller should have device mutex */
