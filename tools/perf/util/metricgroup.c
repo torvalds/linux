@@ -1175,7 +1175,7 @@ static int metricgroup__add_metric_callback(const struct pmu_metric *pm,
 
 	if (pm->metric_expr && match_pm_metric(pm, data->pmu, data->metric_name)) {
 		bool metric_no_group = data->metric_no_group ||
-			match_metric(data->metric_name, pm->metricgroup_no_group);
+			match_metric(pm->metricgroup_no_group, data->metric_name);
 
 		data->has_match = true;
 		ret = add_metric(data->list, pm, data->modifier, metric_no_group,
