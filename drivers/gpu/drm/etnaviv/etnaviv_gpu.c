@@ -1539,6 +1539,8 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 		if (intr & VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION) {
 			dump_mmu_fault(gpu);
+			gpu->state = ETNA_GPU_STATE_FAULT;
+			drm_sched_fault(&gpu->sched);
 			intr &= ~VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION;
 		}
 

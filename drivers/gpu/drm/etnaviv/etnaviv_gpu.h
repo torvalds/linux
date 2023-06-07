@@ -101,6 +101,7 @@ enum etnaviv_gpu_state {
 	ETNA_GPU_STATE_RESET,
 	ETNA_GPU_STATE_INITIALIZED,
 	ETNA_GPU_STATE_RUNNING,
+	ETNA_GPU_STATE_FAULT,
 };
 
 struct etnaviv_gpu {
