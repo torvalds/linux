@@ -55,6 +55,7 @@ def check_json_output(expected_items):
       'interval': lambda x: isfloat(x),
       'metric-unit': lambda x: True,
       'metric-value': lambda x: isfloat(x),
+      'metricgroup': lambda x: True,
       'node': lambda x: True,
       'pcnt-running': lambda x: isfloat(x),
       'socket': lambda x: True,
@@ -69,6 +70,8 @@ def check_json_output(expected_items):
         # Events that generate >1 metric may have isolated metric
         # values and possibly other prefixes like interval, core and
         # aggregate-number.
+        pass
+      elif count != expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass
       elif count != expected_items:
         raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
