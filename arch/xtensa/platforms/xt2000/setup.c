@@ -56,13 +56,19 @@ void platform_power_off(void)
 	while (1);
 }
 
-void platform_restart(void)
+static int xt2000_restart(struct notifier_block *this,
+			  unsigned long event, void *ptr)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
-	/* control never gets here */
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block xt2000_restart_block = {
+	.notifier_call = xt2000_restart,
+};
 
 void __init platform_setup(char** cmdline)
 {
@@ -140,6 +146,7 @@ static int __init xt2000_setup_devinit(void)
 	platform_device_register(&xt2000_serial8250_device);
 	platform_device_register(&xt2000_sonic_device);
 	mod_timer(&heartbeat_timer, jiffies + HZ / 2);
+	register_restart_handler(&xt2000_restart_block);
 	return 0;
 }
 

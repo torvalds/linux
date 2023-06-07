@@ -22,6 +22,7 @@
 #include <linux/screen_info.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
+#include <linux/reboot.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -522,7 +523,12 @@ void cpu_reset(void)
 
 void machine_restart(char * cmd)
 {
-	platform_restart();
+	local_irq_disable();
+	smp_send_stop();
+	do_kernel_restart(cmd);
+	pr_err("Reboot failed -- System halted\n");
+	while (1)
+		cpu_relax();
 }
 
 void machine_halt(void)

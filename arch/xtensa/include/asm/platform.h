@@ -28,11 +28,6 @@ extern void platform_init(bp_tag_t*);
 extern void platform_setup (char **);
 
 /*
- * platform_restart is called to restart the system.
- */
-extern void platform_restart (void);
-
-/*
  * platform_halt is called to stop the system and halt.
  */
 extern void platform_halt (void);

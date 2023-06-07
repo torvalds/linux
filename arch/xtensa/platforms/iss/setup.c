@@ -16,6 +16,7 @@
 #include <linux/notifier.h>
 #include <linux/panic_notifier.h>
 #include <linux/printk.h>
+#include <linux/reboot.h>
 #include <linux/string.h>
 
 #include <asm/platform.h>
@@ -36,13 +37,19 @@ void platform_power_off(void)
 	simc_exit(0);
 }
 
-void platform_restart(void)
+static int iss_restart(struct notifier_block *this,
+		       unsigned long event, void *ptr)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
-	/* control never gets here */
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block iss_restart_block = {
+	.notifier_call = iss_restart,
+};
 
 static int
 iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -82,4 +89,5 @@ void __init platform_setup(char **p_cmdline)
 	}
 
 	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
+	register_restart_handler(&iss_restart_block);
 }
