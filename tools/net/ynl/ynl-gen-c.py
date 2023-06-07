@@ -1212,6 +1212,21 @@ def put_typol(cw, struct):
     cw.nl()
 
 
+def _put_enum_to_str_helper(cw, render_name, map_name, arg_name, enum=None):
+    args = [f'int {arg_name}']
+    if enum and not ('enum-name' in enum and not enum['enum-name']):
+        args = [f'enum {render_name} {arg_name}']
+    cw.write_func_prot('const char *', f'{render_name}_str', args)
+    cw.block_start()
+    if enum and enum.type == 'flags':
+        cw.p(f'{arg_name} = ffs({arg_name}) - 1;')
+    cw.p(f'if ({arg_name} < 0 || {arg_name} >= (int)MNL_ARRAY_SIZE({map_name}))')
+    cw.p('return NULL;')
+    cw.p(f'return {map_name}[{arg_name}];')
+    cw.block_end()
+    cw.nl()
+
+
 def put_op_name_fwd(family, cw):
     cw.write_func_prot('const char *', f'{family.name}_op_str', ['int op'], suffix=';')
 
@@ -1228,13 +1243,7 @@ def put_op_name(family, cw):
     cw.block_end(line=';')
     cw.nl()
 
-    cw.write_func_prot('const char *', f'{family.name}_op_str', ['int op'])
-    cw.block_start()
-    cw.p(f'if (op < 0 || op >= (int)MNL_ARRAY_SIZE({map_name}))')
-    cw.p('return NULL;')
-    cw.p(f'return {map_name}[op];')
-    cw.block_end()
-    cw.nl()
+    _put_enum_to_str_helper(cw, family.name + '_op', map_name, 'op')
 
 
 def put_enum_to_str_fwd(family, cw, enum):
@@ -1252,18 +1261,7 @@ def put_enum_to_str(family, cw, enum):
     cw.block_end(line=';')
     cw.nl()
 
-    args = [f'enum {enum.render_name} value']
-    if 'enum-name' in enum and not enum['enum-name']:
-        args = ['int value']
-    cw.write_func_prot('const char *', f'{enum.render_name}_str', args)
-    cw.block_start()
-    if enum.type == 'flags':
-        cw.p('value = ffs(value) - 1;')
-    cw.p(f'if (value < 0 || value >= (int)MNL_ARRAY_SIZE({map_name}))')
-    cw.p('return NULL;')
-    cw.p(f'return {map_name}[value];')
-    cw.block_end()
-    cw.nl()
+    _put_enum_to_str_helper(cw, enum.render_name, map_name, 'value', enum=enum)
 
 
 def put_req_nested(ri, struct):
