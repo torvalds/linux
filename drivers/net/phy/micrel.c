@@ -1774,6 +1774,79 @@ static int ksz886x_read_status(struct phy_device *phydev)
 	return genphy_read_status(phydev);
 }
 
+struct ksz9477_errata_write {
+	u8 dev_addr;
+	u8 reg_addr;
+	u16 val;
+};
+
+static const struct ksz9477_errata_write ksz9477_errata_writes[] = {
+	 /* Register settings are needed to improve PHY receive performance */
+	{0x01, 0x6f, 0xdd0b},
+	{0x01, 0x8f, 0x6032},
+	{0x01, 0x9d, 0x248c},
+	{0x01, 0x75, 0x0060},
+	{0x01, 0xd3, 0x7777},
+	{0x1c, 0x06, 0x3008},
+	{0x1c, 0x08, 0x2000},
+
+	/* Transmit waveform amplitude can be improved (1000BASE-T, 100BASE-TX, 10BASE-Te) */
+	{0x1c, 0x04, 0x00d0},
+
+	/* Energy Efficient Ethernet (EEE) feature select must be manually disabled */
+	{0x07, 0x3c, 0x0000},
+
+	/* Register settings are required to meet data sheet supply current specifications */
+	{0x1c, 0x13, 0x6eff},
+	{0x1c, 0x14, 0xe6ff},
+	{0x1c, 0x15, 0x6eff},
+	{0x1c, 0x16, 0xe6ff},
+	{0x1c, 0x17, 0x00ff},
+	{0x1c, 0x18, 0x43ff},
+	{0x1c, 0x19, 0xc3ff},
+	{0x1c, 0x1a, 0x6fff},
+	{0x1c, 0x1b, 0x07ff},
+	{0x1c, 0x1c, 0x0fff},
+	{0x1c, 0x1d, 0xe7ff},
+	{0x1c, 0x1e, 0xefff},
+	{0x1c, 0x20, 0xeeee},
+};
+
+static int ksz9477_config_init(struct phy_device *phydev)
+{
+	int err;
+	int i;
+
+	/* Apply PHY settings to address errata listed in
+	 * KSZ9477, KSZ9897, KSZ9896, KSZ9567, KSZ8565
+	 * Silicon Errata and Data Sheet Clarification documents.
+	 *
+	 * Document notes: Before configuring the PHY MMD registers, it is
+	 * necessary to set the PHY to 100 Mbps speed with auto-negotiation
+	 * disabled by writing to register 0xN100-0xN101. After writing the
+	 * MMD registers, and after all errata workarounds that involve PHY
+	 * register settings, write register 0xN100-0xN101 again to enable
+	 * and restart auto-negotiation.
+	 */
+	err = phy_write(phydev, MII_BMCR, BMCR_SPEED100 | BMCR_FULLDPLX);
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(ksz9477_errata_writes); ++i) {
+		const struct ksz9477_errata_write *errata = &ksz9477_errata_writes[i];
+
+		err = phy_write_mmd(phydev, errata->dev_addr, errata->reg_addr, errata->val);
+		if (err)
+			return err;
+	}
+
+	err = genphy_restart_aneg(phydev);
+	if (err)
+		return err;
+
+	return kszphy_config_init(phydev);
+}
+
 static int kszphy_get_sset_count(struct phy_device *phydev)
 {
 	return ARRAY_SIZE(kszphy_hw_stats);
@@ -4735,7 +4808,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip KSZ9477",
 	/* PHY_GBIT_FEATURES */
-	.config_init	= kszphy_config_init,
+	.config_init	= ksz9477_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,
