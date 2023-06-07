@@ -1640,7 +1640,7 @@ int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms)
 	} while (1);
 }
 
-static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
+static void etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 {
 	if (gpu->initialized && gpu->fe_running) {
 		/* Replace the last WAIT with END */
@@ -1659,8 +1659,6 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 	}
 
 	gpu->exec_state = -1;
-
-	return etnaviv_gpu_clk_disable(gpu);
 }
 
 static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
@@ -1797,6 +1795,7 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 		pm_runtime_put_sync_suspend(gpu->dev);
 	} else {
 		etnaviv_gpu_hw_suspend(gpu);
+		etnaviv_gpu_clk_disable(gpu);
 	}
 
 	if (gpu->mmu_context)
@@ -1930,7 +1929,9 @@ static int etnaviv_gpu_rpm_suspend(struct device *dev)
 		return -EBUSY;
 	}
 
-	return etnaviv_gpu_hw_suspend(gpu);
+	etnaviv_gpu_hw_suspend(gpu);
+
+	return etnaviv_gpu_clk_disable(gpu);
 }
 
 static int etnaviv_gpu_rpm_resume(struct device *dev)
