@@ -1723,6 +1723,8 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 		dev_err(dev, "Failed to enable xvclk\n");
 		goto disable_clk;
 	}
+	if (SC301IOT->is_thunderboot)
+		return 0;
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 0);
 
@@ -1731,9 +1733,6 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
-	if (SC301IOT->is_thunderboot)
-		return 0;
-
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 1);
 
