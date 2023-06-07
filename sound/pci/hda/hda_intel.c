@@ -655,6 +655,13 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 	unsigned int pos;
 	snd_pcm_uframes_t hwptr, target;
 
+	/*
+	 * The value of the WALLCLK register is always 0
+	 * on the Loongson controller, so we return directly.
+	 */
+	if (chip->driver_type == AZX_DRIVER_LOONGSON)
+		return 1;
+
 	wallclk = azx_readl(chip, WALLCLK) - azx_dev->core.start_wallclk;
 	if (wallclk < (azx_dev->core.period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
