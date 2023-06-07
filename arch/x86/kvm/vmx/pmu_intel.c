@@ -468,16 +468,17 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 static void setup_fixed_pmc_eventsel(struct kvm_pmu *pmu)
 {
-	size_t size = ARRAY_SIZE(fixed_pmc_events);
-	struct kvm_pmc *pmc;
-	u32 event;
 	int i;
 
+	BUILD_BUG_ON(ARRAY_SIZE(fixed_pmc_events) != KVM_PMC_MAX_FIXED);
+
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-		pmc = &pmu->fixed_counters[i];
-		event = fixed_pmc_events[array_index_nospec(i, size)];
+		int index = array_index_nospec(i, KVM_PMC_MAX_FIXED);
+		struct kvm_pmc *pmc = &pmu->fixed_counters[index];
+		u32 event = fixed_pmc_events[index];
+
 		pmc->eventsel = (intel_arch_events[event].unit_mask << 8) |
-			intel_arch_events[event].eventsel;
+				 intel_arch_events[event].eventsel;
 	}
 }
 
@@ -538,10 +539,8 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	if (pmu->version == 1) {
 		pmu->nr_arch_fixed_counters = 0;
 	} else {
-		pmu->nr_arch_fixed_counters =
-			min3(ARRAY_SIZE(fixed_pmc_events),
-			     (size_t) edx.split.num_counters_fixed,
-			     (size_t)kvm_pmu_cap.num_counters_fixed);
+		pmu->nr_arch_fixed_counters = min_t(int, edx.split.num_counters_fixed,
+						    kvm_pmu_cap.num_counters_fixed);
 		edx.split.bit_width_fixed = min_t(int, edx.split.bit_width_fixed,
 						  kvm_pmu_cap.bit_width_fixed);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =
