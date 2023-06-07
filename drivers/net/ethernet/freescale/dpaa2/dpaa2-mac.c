@@ -271,9 +271,9 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 	}
 
 	mac->pcs = lynx_pcs_create(mdiodev);
+	mdio_device_put(mdiodev);
 	if (!mac->pcs) {
 		netdev_err(mac->net_dev, "lynx_pcs_create() failed\n");
-		mdio_device_free(mdiodev);
 		return -ENOMEM;
 	}
 
@@ -285,10 +285,7 @@ static void dpaa2_pcs_destroy(struct dpaa2_mac *mac)
 	struct phylink_pcs *phylink_pcs = mac->pcs;
 
 	if (phylink_pcs) {
-		struct mdio_device *mdio = lynx_get_mdio_device(phylink_pcs);
-
 		lynx_pcs_destroy(phylink_pcs);
-		mdio_device_free(mdio);
 		mac->pcs = NULL;
 	}
 }
