@@ -669,7 +669,7 @@ static void rcar_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 }
 
 static struct irq_chip rcar_msi_bottom_chip = {
-	.name			= "Rcar MSI",
+	.name			= "R-Car MSI",
 	.irq_ack		= rcar_msi_irq_ack,
 	.irq_mask		= rcar_msi_irq_mask,
 	.irq_unmask		= rcar_msi_irq_unmask,
@@ -798,7 +798,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 
 	/*
 	 * Setup MSI data target using RC base address address, which
-	 * is guaranteed to be in the low 32bit range on any RCar HW.
+	 * is guaranteed to be in the low 32bit range on any R-Car HW.
 	 */
 	rcar_pci_write_reg(pcie, lower_32_bits(res.start) | MSIFE, PCIEMSIALR);
 	rcar_pci_write_reg(pcie, upper_32_bits(res.start), PCIEMSIAUR);
