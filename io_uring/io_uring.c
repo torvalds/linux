@@ -941,16 +941,13 @@ bool io_aux_cqe(const struct io_kiocb *req, bool defer, s32 res, u32 cflags,
 	struct io_ring_ctx *ctx = req->ctx;
 	u64 user_data = req->cqe.user_data;
 	struct io_uring_cqe *cqe;
-	unsigned int length;
 
 	if (!defer)
 		return __io_post_aux_cqe(ctx, user_data, res, cflags, allow_overflow);
 
-	length = ARRAY_SIZE(ctx->submit_state.cqes);
-
 	lockdep_assert_held(&ctx->uring_lock);
 
-	if (ctx->submit_state.cqes_count == length) {
+	if (ctx->submit_state.cqes_count == ARRAY_SIZE(ctx->submit_state.cqes)) {
 		__io_cq_lock(ctx);
 		__io_flush_post_cqes(ctx);
 		/* no need to flush - flush is deferred */
