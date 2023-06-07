@@ -68,12 +68,6 @@ void __init platform_setup(char** cmdline)
 	led_print (0, "LINUX   ");
 }
 
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
 /* Heartbeat. Let the LED blink. */
 
 void platform_heartbeat(void)
