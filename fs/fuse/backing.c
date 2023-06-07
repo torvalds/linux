@@ -1224,13 +1224,11 @@ int fuse_handle_bpf_prog(struct fuse_entry_bpf *feb, struct inode *parent,
 	}
 
 	/* Cannot change existing program */
-	if (*bpf && new_bpf) {
-		bpf_prog_put(new_bpf);
+	if (*bpf) {
+		if (new_bpf)
+			bpf_prog_put(new_bpf);
 		return new_bpf == *bpf ? 0 : -EINVAL;
 	}
-
-	if (*bpf)
-		bpf_prog_put(*bpf);
 
 	*bpf = new_bpf;
 	return 0;
