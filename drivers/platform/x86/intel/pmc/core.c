@@ -1222,11 +1222,11 @@ static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
 	return false;
 }
 
-static __maybe_unused int pmc_core_resume(struct device *dev)
+int pmc_core_resume_common(struct pmc_dev *pmcdev)
 {
-	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	const struct pmc_bit_map **maps = pmcdev->map->lpm_sts;
 	int offset = pmcdev->map->lpm_status_offset;
+	struct device *dev = &pmcdev->pdev->dev;
 
 	/* Check if the syspend used S0ix */
 	if (pm_suspend_via_firmware())
@@ -1254,6 +1254,16 @@ static __maybe_unused int pmc_core_resume(struct device *dev)
 		pmc_core_lpm_display(pmcdev, dev, NULL, offset, "STATUS", maps);
 
 	return 0;
+}
+
+static __maybe_unused int pmc_core_resume(struct device *dev)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+
+	if (pmcdev->resume)
+		return pmcdev->resume(pmcdev);
+
+	return pmc_core_resume_common(pmcdev);
 }
 
 static const struct dev_pm_ops pmc_core_pm_ops = {
