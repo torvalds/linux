@@ -116,6 +116,7 @@ ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   size_t len, unsigned int flags);
 
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
+void tls_device_splice_eof(struct socket *sock);
 int tls_device_sendpage(struct sock *sk, struct page *page,
 			int offset, size_t size, int flags);
 int tls_tx_records(struct sock *sk, int flags);

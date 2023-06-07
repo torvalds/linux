@@ -590,6 +590,29 @@ out:
 	return rc;
 }
 
+void tls_device_splice_eof(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	union tls_iter_offset iter;
+	struct iov_iter iov_iter = {};
+
+	if (!tls_is_partially_sent_record(tls_ctx))
+		return;
+
+	mutex_lock(&tls_ctx->tx_lock);
+	lock_sock(sk);
+
+	if (tls_is_partially_sent_record(tls_ctx)) {
+		iov_iter_bvec(&iov_iter, ITER_SOURCE, NULL, 0, 0);
+		iter.msg_iter = &iov_iter;
+		tls_push_data(sk, iter, 0, 0, TLS_RECORD_TYPE_DATA, NULL);
+	}
+
+	release_sock(sk);
+	mutex_unlock(&tls_ctx->tx_lock);
+}
+
 int tls_device_sendpage(struct sock *sk, struct page *page,
 			int offset, size_t size, int flags)
 {
