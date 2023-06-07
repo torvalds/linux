@@ -1908,6 +1908,9 @@ static bool dcn314_resource_construct(
 	dc->debug.disable_dpp_power_gate = true;
 	dc->debug.disable_hubp_power_gate = true;
 
+	/* Disable root clock optimization */
+	dc->debug.root_clock_optimization.u32All = 0;
+
 	// Init the vm_helper
 	if (dc->vm_helper)
 		vm_helper_init(dc->vm_helper, 16);
