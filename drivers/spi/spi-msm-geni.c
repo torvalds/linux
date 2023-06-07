@@ -2379,6 +2379,44 @@ static int spi_geni_remove(struct platform_device *pdev)
 }
 
 #if IS_ENABLED(CONFIG_PM)
+static int spi_geni_gpi_pause_resume(struct spi_geni_master *geni_mas, bool is_suspend)
+{
+	int tx_ret = 0;
+
+	if (geni_mas->tx) {
+		if (is_suspend)
+			tx_ret = dmaengine_pause(geni_mas->tx);
+		else
+			tx_ret = dmaengine_resume(geni_mas->tx);
+
+		if (tx_ret) {
+			SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
+				    "%s failed: tx:%d status:%d\n",
+				    __func__, tx_ret, is_suspend);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int spi_geni_levm_suspend_proc(struct spi_geni_master *geni_mas, struct spi_master *spi)
+{
+	int ret = 0;
+
+	spi_geni_unlock_bus(spi);
+
+	if (geni_mas->gsi_mode) {
+		ret = spi_geni_gpi_pause_resume(geni_mas, true);
+		if (ret) {
+			SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev,
+				"%s: ret:%d\n", __func__, ret);
+			return ret;
+		}
+	}
+	SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev, "%s: ret:%d\n", __func__, ret);
+	return 0;
+}
+
 static int spi_geni_runtime_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -2387,22 +2425,15 @@ static int spi_geni_runtime_suspend(struct device *dev)
 
 	disable_irq(geni_mas->irq);
 	if (geni_mas->is_le_vm) {
-		spi_geni_unlock_bus(spi);
-		return 0;
+		return spi_geni_levm_suspend_proc(geni_mas, spi);
 	}
 
 	SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev, "%s: %d\n", __func__, ret);
 
-	if (geni_mas->shared_se) {
-		if (geni_mas->tx != NULL) {
-			ret = dmaengine_pause(geni_mas->tx);
-			if (ret) {
-				SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
-				"%s dmaengine_pause failed: %d\n", __func__, ret);
-			}
-			SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev,
-			"%s: Shared_SE dma_pause\n", __func__);
-		}
+	if (geni_mas->gsi_mode) {
+		ret = spi_geni_gpi_pause_resume(geni_mas, true);
+		if (ret)
+			return ret;
 	}
 
 	/* For tui usecase LA should control clk/gpio/icb */
@@ -2433,31 +2464,47 @@ exit_rt_suspend:
 	return ret;
 }
 
+static int spi_geni_levm_resume_proc(struct spi_geni_master *geni_mas, struct spi_master *spi)
+{
+	int ret = 0;
+
+	if (!geni_mas->setup) {
+		ret = spi_geni_mas_setup(spi);
+		if (ret) {
+			SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
+			"%s mas_setup failed: %d\n", __func__, ret);
+			return ret;
+		}
+	}
+
+	if (geni_mas->gsi_mode) {
+		ret = spi_geni_gpi_pause_resume(geni_mas, false);
+		if (ret) {
+			SPI_LOG_ERR(geni_mas->ipc, false, geni_mas->dev,
+				"%s: ret:%d\n", __func__, ret);
+			return ret;
+		}
+	}
+
+	ret = spi_geni_lock_bus(spi);
+	if (ret) {
+		SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
+			"%s lock_bus failed: %d\n", __func__, ret);
+		return ret;
+	}
+	SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev, "%s: ret:%d\n", __func__, ret);
+	/* Return here as LE VM doesn't need resourc/clock management */
+	return ret;
+}
+
 static int spi_geni_runtime_resume(struct device *dev)
 {
 	int ret = 0;
 	struct spi_master *spi = get_spi_master(dev);
 	struct spi_geni_master *geni_mas = spi_master_get_devdata(spi);
 
-	if (geni_mas->is_le_vm) {
-		if (!geni_mas->setup) {
-			ret = spi_geni_mas_setup(spi);
-			if (ret) {
-				SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
-				"%s mas_setup failed: %d\n", __func__, ret);
-				return ret;
-			}
-		}
-
-		ret = spi_geni_lock_bus(spi);
-		if (ret) {
-			SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
-				"%s lock_bus failed: %d\n", __func__, ret);
-			return ret;
-		}
-		/* Return here as LE VM doesn't need resourc/clock management */
-		return ret;
-	}
+	if (geni_mas->is_le_vm)
+		return spi_geni_levm_resume_proc(geni_mas, spi);
 
 	SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev, "%s: %d\n", __func__, ret);
 
@@ -2489,6 +2536,8 @@ static int spi_geni_runtime_resume(struct device *dev)
 		if (ret)
 			SPI_LOG_ERR(geni_mas->ipc, false, geni_mas->dev,
 			"%s: Error %d turning on clocks\n", __func__, ret);
+
+		ret = spi_geni_gpi_pause_resume(geni_mas, false);
 		return ret;
 	}
 
@@ -2501,6 +2550,10 @@ exit_rt_resume:
 	}
 	ret = geni_se_resources_on(&geni_mas->spi_rsc);
 	enable_irq(geni_mas->irq);
+
+	if (geni_mas->gsi_mode)
+		ret = spi_geni_gpi_pause_resume(geni_mas, false);
+
 	return ret;
 }
 

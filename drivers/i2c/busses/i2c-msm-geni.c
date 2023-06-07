@@ -2315,6 +2315,26 @@ static int geni_i2c_hib_resume_noirq(struct device *device)
  * get sync/put sync in LE-VM -> do lock/unlock gpii
  */
 #if IS_ENABLED(CONFIG_PM)
+static int geni_i2c_gpi_pause_resume(struct geni_i2c_dev *gi2c, bool is_suspend)
+{
+	int tx_ret = 0;
+
+	if (gi2c->tx_c) {
+		if (is_suspend)
+			tx_ret = dmaengine_pause(gi2c->tx_c);
+		else
+			tx_ret = dmaengine_resume(gi2c->tx_c);
+
+		if (tx_ret) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				    "%s failed: tx:%d status:%d\n",
+				    __func__, tx_ret, is_suspend);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int geni_i2c_runtime_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -2322,6 +2342,17 @@ static int geni_i2c_runtime_suspend(struct device *dev)
 
 	if (gi2c->se_mode == FIFO_SE_DMA)
 		disable_irq(gi2c->irq);
+
+	if (gi2c->se_mode == GSI_ONLY) {
+		if (!gi2c->is_le_vm) {
+			ret = geni_i2c_gpi_pause_resume(gi2c, true);
+			if (ret) {
+				I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+					"%s: ret:%d\n", __func__, ret);
+				return ret;
+			}
+		}
+	}
 
 	if (gi2c->skip_bw_vote) {
 		if (gi2c->is_shared) {
@@ -2335,8 +2366,18 @@ static int geni_i2c_runtime_suspend(struct device *dev)
 		goto skip_bw_vote;
 	}
 
-	if (gi2c->is_le_vm && gi2c->first_xfer_done)
+	if (gi2c->is_le_vm && gi2c->first_xfer_done) {
 		geni_i2c_unlock_bus(gi2c);
+
+		if (gi2c->se_mode == GSI_ONLY) {
+			ret = geni_i2c_gpi_pause_resume(gi2c, true);
+			if (ret) {
+				I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+					"%s: ret:%d\n", __func__, ret);
+				return ret;
+			}
+		}
+	}
 	else if (gi2c->is_shared) {
 		/* Do not unconfigure GPIOs if shared se */
 		geni_se_common_clks_off(gi2c->i2c_rsc.clk, gi2c->m_ahb_clk, gi2c->s_ahb_clk);
@@ -2419,6 +2460,15 @@ skip_bw_vote:
 		if (gi2c->se_mode == FIFO_SE_DMA)
 			enable_irq(gi2c->irq);
 
+		if (gi2c->se_mode == GSI_ONLY) {
+			ret = geni_i2c_gpi_pause_resume(gi2c, false);
+			if (ret) {
+				I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+					"%s: ret:%d\n", __func__, ret);
+				return ret;
+			}
+		}
+
 	} else if (gi2c->is_le_vm && gi2c->first_xfer_done) {
 		/*
 		 * For le-vm we are doing resume operations during
@@ -2433,6 +2483,15 @@ skip_bw_vote:
 		if (ret) {
 			dev_err(gi2c->dev, "I2C prepare failed:%d\n", ret);
 			return ret;
+		}
+
+		if (gi2c->se_mode == GSI_ONLY) {
+			ret = geni_i2c_gpi_pause_resume(gi2c, false);
+			if (ret) {
+				I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+					"%s: ret:%d\n", __func__, ret);
+				return ret;
+			}
 		}
 
 		ret = geni_i2c_lock_bus(gi2c);
