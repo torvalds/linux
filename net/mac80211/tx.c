@@ -5528,7 +5528,7 @@ ieee80211_beacon_get_template_ema_list(struct ieee80211_hw *hw,
 {
 	struct ieee80211_ema_beacons *ema_beacons = NULL;
 
-	WARN_ON(__ieee80211_beacon_get(hw, vif, NULL, false, link_id, 0,
+	WARN_ON(__ieee80211_beacon_get(hw, vif, NULL, true, link_id, 0,
 				       &ema_beacons));
 
 	return ema_beacons;
