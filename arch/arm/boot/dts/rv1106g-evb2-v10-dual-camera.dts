@@ -64,7 +64,7 @@
 
 			csi_dphy_input0: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&sc3338_30_out>;
+				remote-endpoint = <&sc301iot_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -96,7 +96,7 @@
 
 			csi_dphy_input1: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&sc3338_32_out>;
+				remote-endpoint = <&sc230ai_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -127,43 +127,44 @@
 &i2c4 {
 	rockchip,amp-shared;
 
-	sc3338_30: sc3338_30@30 {
-		compatible = "smartsens,sc3338";
+	sc230ai: sc230ai@30 {
+		compatible = "smartsens,sc230ai";
 		status = "okay";
 		reg = <0x30>;
-		clocks = <&cru MCLK_REF_MIPI0>;
+		clocks = <&cru MCLK_REF_MIPI1>;
 		clock-names = "xvclk";
-		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&mipi_refclk_out0>;
-		rockchip,camera-module-index = <0>;
+		pinctrl-0 = <&mipi_refclk_out1>;
+		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "FKO1";
-		rockchip,camera-module-lens-name = "30IRC-F16";
+		rockchip,camera-module-name = "CMK-OT2350-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F16";
 		port {
-			sc3338_30_out: endpoint {
-				remote-endpoint = <&csi_dphy_input0>;
+			sc230ai_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 
-	sc3338_32: sc3338_32@32 {
-		compatible = "smartsens,sc3338";
+	sc301iot: sc301iot@32 {
+		compatible = "smartsens,SC301IOT";
 		status = "okay";
 		reg = <0x32>;
-		clocks = <&cru MCLK_REF_MIPI1>;
+		clocks = <&cru MCLK_REF_MIPI0>;
 		clock-names = "xvclk";
-		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&mipi_refclk_out1>;
-		rockchip,camera-module-index = <1>;
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "FKO1";
-		rockchip,camera-module-lens-name = "30IRC-F16";
+		rockchip,camera-module-name = "CMK-OT2349-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F20";
 		port {
-			sc3338_32_out: endpoint {
-				remote-endpoint = <&csi_dphy_input1>;
+			sc301iot_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -327,29 +328,29 @@
 	/* reg's offset MUST match with RTOS */
 	/*
 	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
-	 * e.g. 2304x1296: 0xf30000
+	 * e.g. 2048x1536: 0xf00000
 	 * 0x008b0000 = (meta's reg offset) + (meta's reg size)
 	 *            = 0x00800000 + 0xb0000
 	 */
-	reg = <0x008b0000 0xf30000>;
+	reg = <0x008b0000 0xf00000>;
 };
 
 &ramdisk_r {
-	reg = <0x17e0000 (10 * 0x00100000)>;
+	reg = <0x17b0000 (10 * 0x00100000)>;
 };
 
 &ramdisk_c {
-	reg = <0x21e0000 (5 * 0x00100000)>;
+	reg = <0x21b0000 (5 * 0x00100000)>;
 };
 
 &rkisp1_thunderboot {
 	/*
 	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
-	 * e.g. 2304x1296: 0xf30000
-	 * 0x26e0000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
-	 *            = 0x21e0000 + (5 * 0x00100000)
+	 * e.g. 1920x1080: 0xa8c0000
+	 * 0x26b0000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
+	 *            = 0x21b0000 + (5 * 0x00100000)
 	 */
-	reg = <0x26e0000 0xf30000>;
+	reg = <0x26b0000 0xa8c000>;
 };
 
 &pinctrl {
