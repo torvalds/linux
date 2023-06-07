@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/timer.h>
 
 #include <asm/processor.h>
 #include <asm/platform.h>
@@ -70,16 +71,17 @@ void __init platform_setup(char** cmdline)
 
 /* Heartbeat. Let the LED blink. */
 
-void platform_heartbeat(void)
-{
-	static int i, t;
+static void xt2000_heartbeat(struct timer_list *unused);
 
-	if (--t < 0)
-	{
-		t = 59;
-		led_print(7, i ? ".": " ");
-		i ^= 1;
-	}
+static DEFINE_TIMER(heartbeat_timer, xt2000_heartbeat);
+
+static void xt2000_heartbeat(struct timer_list *unused)
+{
+	static int i;
+
+	led_print(7, i ? "." : " ");
+	i ^= 1;
+	mod_timer(&heartbeat_timer, jiffies + HZ / 2);
 }
 
 //#define RS_TABLE_SIZE 2
@@ -137,7 +139,7 @@ static int __init xt2000_setup_devinit(void)
 {
 	platform_device_register(&xt2000_serial8250_device);
 	platform_device_register(&xt2000_sonic_device);
-
+	mod_timer(&heartbeat_timer, jiffies + HZ / 2);
 	return 0;
 }
 

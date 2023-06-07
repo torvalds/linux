@@ -48,11 +48,6 @@ extern void platform_power_off (void);
 extern void platform_idle (void);
 
 /*
- * platform_heartbeat is called every HZ
- */
-extern void platform_heartbeat (void);
-
-/*
  * platform_calibrate_ccount calibrates cpu clock freq (CONFIG_XTENSA_CALIBRATE)
  */
 extern void platform_calibrate_ccount (void);
