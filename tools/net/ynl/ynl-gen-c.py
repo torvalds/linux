@@ -94,7 +94,10 @@ class Type(SpecAttr):
     def arg_member(self, ri):
         member = self._complex_member_type(ri)
         if member:
-            return [member + ' *' + self.c_name]
+            arg = [member + ' *' + self.c_name]
+            if self.presence_type() == 'count':
+                arg += ['unsigned int n_' + self.c_name]
+            return arg
         raise Exception(f"Struct member not implemented for class type {self.type}")
 
     def struct_member(self, ri):
@@ -188,9 +191,12 @@ class Type(SpecAttr):
                 code.append(presence + ' = 1;')
         code += self._setter_lines(ri, member, presence)
 
-        ri.cw.write_func('static inline void',
-                         f"{op_prefix(ri, direction, deref=deref)}_set_{'_'.join(ref)}",
-                         body=code,
+        func_name = f"{op_prefix(ri, direction, deref=deref)}_set_{'_'.join(ref)}"
+        free = bool([x for x in code if 'free(' in x])
+        alloc = bool([x for x in code if 'alloc(' in x])
+        if free and not alloc:
+            func_name = '__' + func_name
+        ri.cw.write_func('static inline void', func_name, body=code,
                          args=[f'{type_name(ri, direction, deref=deref)} *{var}'] + self.arg_member(ri))
 
 
@@ -444,6 +450,13 @@ class TypeMultiAttr(Type):
     def presence_type(self):
         return 'count'
 
+    def _mnl_type(self):
+        t = self.type
+        # mnl does not have a helper for signed types
+        if t[0] == 's':
+            t = 'u' + t[1:]
+        return t
+
     def _complex_member_type(self, ri):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
             return f"struct {self.nested_render_name}"
@@ -457,9 +470,14 @@ class TypeMultiAttr(Type):
         return 'type' not in self.attr or self.attr['type'] == 'nest'
 
     def free(self, ri, var, ref):
-        if 'type' not in self.attr or self.attr['type'] == 'nest':
+        if self.attr['type'] in scalars:
+            ri.cw.p(f"free({var}->{ref}{self.c_name});")
+        elif 'type' not in self.attr or self.attr['type'] == 'nest':
             ri.cw.p(f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)")
             ri.cw.p(f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name}[i]);')
+            ri.cw.p(f"free({var}->{ref}{self.c_name});")
+        else:
+            raise Exception(f"Free of MultiAttr sub-type {self.attr['type']} not supported yet")
 
     def _attr_typol(self):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
@@ -470,7 +488,26 @@ class TypeMultiAttr(Type):
             raise Exception(f"Sub-type {self.attr['type']} not supported yet")
 
     def _attr_get(self, ri, var):
-        return f'{var}->n_{self.c_name}++;', None, None
+        return f'n_{self.c_name}++;', None, None
+
+    def attr_put(self, ri, var):
+        if self.attr['type'] in scalars:
+            put_type = self._mnl_type()
+            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"mnl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
+        elif 'type' not in self.attr or self.attr['type'] == 'nest':
+            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
+                                f"{self.enum_name}, &{var}->{self.c_name}[i])")
+        else:
+            raise Exception(f"Put of MultiAttr sub-type {self.attr['type']} not supported yet")
+
+    def _setter_lines(self, ri, member, presence):
+        # For multi-attr we have a count, not presence, hack up the presence
+        presence = presence[:-(len('_present.') + len(self.c_name))] + "n_" + self.c_name
+        return [f"free({member});",
+                f"{member} = {self.c_name};",
+                f"{presence} = n_{self.c_name};"]
 
 
 class TypeArrayNest(Type):
@@ -1269,6 +1306,11 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         local_vars.append('struct ynl_parse_arg parg;')
         init_lines.append('parg.ys = yarg->ys;')
 
+    all_multi = array_nests | multi_attrs
+
+    for anest in sorted(all_multi):
+        local_vars.append(f"unsigned int n_{struct[anest].c_name} = 0;")
+
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
 
@@ -1278,6 +1320,11 @@ def _multi_parse(ri, struct, init_lines, local_vars):
 
     for arg in struct.inherited:
         ri.cw.p(f'dst->{arg} = {arg};')
+
+    for anest in sorted(all_multi):
+        aspec = struct[anest]
+        ri.cw.p(f"if (dst->{aspec.c_name})")
+        ri.cw.p(f'return ynl_error_parse(yarg, "attribute already present ({struct.attr_set.name}.{aspec.name})");')
 
     ri.cw.nl()
     ri.cw.block_start(line=iter_line)
@@ -1294,8 +1341,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for anest in sorted(array_nests):
         aspec = struct[anest]
 
-        ri.cw.block_start(line=f"if (dst->n_{aspec.c_name})")
-        ri.cw.p(f"dst->{aspec.c_name} = calloc(dst->n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
+        ri.cw.block_start(line=f"if (n_{aspec.c_name})")
+        ri.cw.p(f"dst->{aspec.c_name} = calloc({aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
+        ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
         ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
         ri.cw.block_start(line=f"mnl_attr_for_each_nested(attr, attr_{aspec.c_name})")
@@ -1309,8 +1357,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
 
     for anest in sorted(multi_attrs):
         aspec = struct[anest]
-        ri.cw.block_start(line=f"if (dst->n_{aspec.c_name})")
-        ri.cw.p(f"dst->{aspec.c_name} = calloc(dst->n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
+        ri.cw.block_start(line=f"if (n_{aspec.c_name})")
+        ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
+        ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
         if 'nested-attributes' in aspec:
             ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
