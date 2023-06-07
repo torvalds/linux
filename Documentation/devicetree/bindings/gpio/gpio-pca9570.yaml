@@ -24,6 +24,10 @@ properties:
   '#gpio-cells':
     const: 2
 
+  gpio-line-names:
+    minItems: 4
+    maxItems: 8
+
 required:
   - compatible
   - reg
