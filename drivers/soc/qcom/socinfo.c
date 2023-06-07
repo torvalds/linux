@@ -333,7 +333,7 @@ struct smem_image_version {
 #define MAX_SOCINFO_ATTRS 50
 /* sysfs attributes */
 #define ATTR_DEFINE(param)      \
-	static DEVICE_ATTR(param, 0644, msm_get_##param, NULL)
+	static DEVICE_ATTR(param, 0444, msm_get_##param, NULL)
 
 /* sysfs attributes for subpart information */
 #define CREATE_PART_FUNCTION(part, part_enum)  \
