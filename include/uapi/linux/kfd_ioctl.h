@@ -39,9 +39,10 @@
  * - 1.11 - Add unified memory for ctx save/restore area
  * - 1.12 - Add DMA buf export ioctl
  * - 1.13 - Add debugger API
+ * - 1.14 - Update kfd_event_data
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 13
+#define KFD_IOCTL_MINOR_VERSION 14
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
