@@ -86,10 +86,17 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 
 	/* SCP registers */
 	ret += scnprintf(buf + ret, RD_BUF - ret, "\nSCP\n");
-	for (i = SDW_SCP_INT1; i <= SDW_SCP_BANKDELAY; i++)
+	for (i = SDW_SCP_INT1; i <= SDW_SCP_BUS_CLOCK_BASE; i++)
 		ret += sdw_sprintf(slave, buf, ret, i);
 	for (i = SDW_SCP_DEVID_0; i <= SDW_SCP_DEVID_5; i++)
 		ret += sdw_sprintf(slave, buf, ret, i);
+	for (i = SDW_SCP_FRAMECTRL_B0; i <= SDW_SCP_BUSCLOCK_SCALE_B0; i++)
+		ret += sdw_sprintf(slave, buf, ret, i);
+	for (i = SDW_SCP_FRAMECTRL_B1; i <= SDW_SCP_BUSCLOCK_SCALE_B1; i++)
+		ret += sdw_sprintf(slave, buf, ret, i);
+	for (i = SDW_SCP_PHY_OUT_CTRL_0; i <= SDW_SCP_PHY_OUT_CTRL_7; i++)
+		ret += sdw_sprintf(slave, buf, ret, i);
+
 
 	/*
 	 * SCP Bank 0/1 registers are read-only and cannot be
