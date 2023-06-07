@@ -110,17 +110,16 @@ static bool intel_hw_event_available(struct kvm_pmc *pmc)
 
 	BUILD_BUG_ON(ARRAY_SIZE(intel_arch_events) != NR_INTEL_ARCH_EVENTS);
 
-	for (i = 0; i < NR_INTEL_ARCH_EVENTS; i++) {
+	/*
+	 * Disallow events reported as unavailable in guest CPUID.  Note, this
+	 * doesn't apply to pseudo-architectural events.
+	 */
+	for (i = 0; i < NR_REAL_INTEL_ARCH_EVENTS; i++) {
 		if (intel_arch_events[i].eventsel != event_select ||
 		    intel_arch_events[i].unit_mask != unit_mask)
 			continue;
 
-		/* disable event that reported as not present by cpuid */
-		if ((i < PSEUDO_ARCH_REFERENCE_CYCLES) &&
-		    !(pmu->available_event_types & (1 << i)))
-			return false;
-
-		break;
+		return pmu->available_event_types & BIT(i);
 	}
 
 	return true;
