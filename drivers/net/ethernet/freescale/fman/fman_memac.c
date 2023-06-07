@@ -1042,7 +1042,7 @@ static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
 	struct phylink_pcs *pcs;
 
 	node = of_parse_phandle(mac_node, "pcsphy-handle", index);
-	if (!node || !of_device_is_available(node))
+	if (!node)
 		return ERR_PTR(-ENODEV);
 
 	pcs = lynx_pcs_create_fwnode(of_fwnode_handle(node));
