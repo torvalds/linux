@@ -138,6 +138,10 @@ static bool zswap_non_same_filled_pages_enabled = true;
 module_param_named(non_same_filled_pages_enabled, zswap_non_same_filled_pages_enabled,
 		   bool, 0644);
 
+static bool zswap_exclusive_loads_enabled = IS_ENABLED(
+		CONFIG_ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON);
+module_param_named(exclusive_loads, zswap_exclusive_loads_enabled, bool, 0644);
+
 /*********************************
 * data structures
 **********************************/
@@ -1340,12 +1344,22 @@ shrink:
 	goto reject;
 }
 
+static void zswap_invalidate_entry(struct zswap_tree *tree,
+				   struct zswap_entry *entry)
+{
+	/* remove from rbtree */
+	zswap_rb_erase(&tree->rbroot, entry);
+
+	/* drop the initial reference from entry creation */
+	zswap_entry_put(tree, entry);
+}
+
 /*
  * returns 0 if the page was successfully decompressed
  * return -1 on entry not found or error
 */
 static int zswap_frontswap_load(unsigned type, pgoff_t offset,
-				struct page *page)
+				struct page *page, bool *exclusive)
 {
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry;
@@ -1415,6 +1429,10 @@ stats:
 freeentry:
 	spin_lock(&tree->lock);
 	zswap_entry_put(tree, entry);
+	if (!ret && zswap_exclusive_loads_enabled) {
+		zswap_invalidate_entry(tree, entry);
+		*exclusive = true;
+	}
 	spin_unlock(&tree->lock);
 
 	return ret;
@@ -1434,13 +1452,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
 		spin_unlock(&tree->lock);
 		return;
 	}
-
-	/* remove from rbtree */
-	zswap_rb_erase(&tree->rbroot, entry);
-
-	/* drop the initial reference from entry creation */
-	zswap_entry_put(tree, entry);
-
+	zswap_invalidate_entry(tree, entry);
 	spin_unlock(&tree->lock);
 }
 
