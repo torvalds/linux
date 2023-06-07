@@ -2833,6 +2833,9 @@ static int rpc_ping(struct rpc_clnt *clnt)
 	struct rpc_task	*task;
 	int status;
 
+	if (clnt->cl_auth->au_ops->ping)
+		return clnt->cl_auth->au_ops->ping(clnt);
+
 	task = rpc_call_null_helper(clnt, NULL, NULL, 0, NULL, NULL);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
