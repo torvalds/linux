@@ -739,7 +739,6 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 {
 	int ret;
 	struct cpu_hw_events __percpu *hw_events = pmu->hw_events;
-	struct device_node *cpu, *child;
 	struct irq_domain *domain = NULL;
 
 	if (riscv_isa_extension_available(NULL, SSCOFPMF)) {
@@ -756,20 +755,8 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 	if (!riscv_pmu_use_irq)
 		return -EOPNOTSUPP;
 
-	for_each_of_cpu_node(cpu) {
-		child = of_get_compatible_child(cpu, "riscv,cpu-intc");
-		if (!child) {
-			pr_err("Failed to find INTC node\n");
-			of_node_put(cpu);
-			return -ENODEV;
-		}
-		domain = irq_find_host(child);
-		of_node_put(child);
-		if (domain) {
-			of_node_put(cpu);
-			break;
-		}
-	}
+	domain = irq_find_matching_fwnode(riscv_get_intc_hwnode(),
+					  DOMAIN_BUS_ANY);
 	if (!domain) {
 		pr_err("Failed to find INTC IRQ root domain\n");
 		return -ENODEV;
