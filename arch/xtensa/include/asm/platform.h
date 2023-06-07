@@ -28,16 +28,6 @@ extern void platform_init(bp_tag_t*);
 extern void platform_setup (char **);
 
 /*
- * platform_halt is called to stop the system and halt.
- */
-extern void platform_halt (void);
-
-/*
- * platform_power_off is called to stop the system and power it off.
- */
-extern void platform_power_off (void);
-
-/*
  * platform_idle is called from the idle function.
  */
 extern void platform_idle (void);

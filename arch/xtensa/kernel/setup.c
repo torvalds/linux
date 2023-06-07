@@ -533,14 +533,20 @@ void machine_restart(char * cmd)
 
 void machine_halt(void)
 {
-	platform_halt();
-	while (1);
+	local_irq_disable();
+	smp_send_stop();
+	do_kernel_power_off();
+	while (1)
+		cpu_relax();
 }
 
 void machine_power_off(void)
 {
-	platform_power_off();
-	while (1);
+	local_irq_disable();
+	smp_send_stop();
+	do_kernel_power_off();
+	while (1)
+		cpu_relax();
 }
 #ifdef CONFIG_PROC_FS
 

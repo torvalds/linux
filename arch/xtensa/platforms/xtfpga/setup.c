@@ -33,20 +33,13 @@
 #include <platform/lcd.h>
 #include <platform/hardware.h>
 
-void platform_halt(void)
-{
-	lcd_disp_at_pos(" HALT ", 0);
-	local_irq_disable();
-	while (1)
-		cpu_relax();
-}
-
-void platform_power_off(void)
+static int xtfpga_power_off(struct sys_off_data *unused)
 {
 	lcd_disp_at_pos("POWEROFF", 0);
 	local_irq_disable();
 	while (1)
 		cpu_relax();
+	return NOTIFY_DONE;
 }
 
 static int xtfpga_restart(struct notifier_block *this,
@@ -79,6 +72,9 @@ void __init platform_calibrate_ccount(void)
 static void __init xtfpga_register_handlers(void)
 {
 	register_restart_handler(&xtfpga_restart_block);
+	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
+				 SYS_OFF_PRIO_DEFAULT,
+				 xtfpga_power_off, NULL);
 }
 
 #ifdef CONFIG_USE_OF

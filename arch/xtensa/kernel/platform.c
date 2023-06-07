@@ -28,8 +28,6 @@
 
 _F(void, init, (bp_tag_t *first), { });
 _F(void, setup, (char** cmd), { });
-_F(void, halt, (void), { while(1); });
-_F(void, power_off, (void), { while(1); });
 _F(void, idle, (void), { __asm__ __volatile__ ("waiti 0" ::: "memory"); });
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT

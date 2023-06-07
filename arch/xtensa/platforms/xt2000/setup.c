@@ -42,18 +42,12 @@ static void led_print (int f, char *s)
 		    break;
 }
 
-void platform_halt(void)
-{
-	led_print (0, "  HALT  ");
-	local_irq_disable();
-	while (1);
-}
-
-void platform_power_off(void)
+static int xt2000_power_off(struct sys_off_data *unused)
 {
 	led_print (0, "POWEROFF");
 	local_irq_disable();
 	while (1);
+	return NOTIFY_DONE;
 }
 
 static int xt2000_restart(struct notifier_block *this,
@@ -147,6 +141,9 @@ static int __init xt2000_setup_devinit(void)
 	platform_device_register(&xt2000_sonic_device);
 	mod_timer(&heartbeat_timer, jiffies + HZ / 2);
 	register_restart_handler(&xt2000_restart_block);
+	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
+				 SYS_OFF_PRIO_DEFAULT,
+				 xt2000_power_off, NULL);
 	return 0;
 }
 
