@@ -176,6 +176,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	u32 sleep_debug_en = 0;
 	u32 apios_suspend = 0;
 	u32 io_ret_config = 0;
+	u32 sleep_pin_config[2] = {0};
 #ifndef MODULE
 	u32 virtual_poweroff_en = 0;
 #endif
@@ -256,6 +257,16 @@ static int pm_config_probe(struct platform_device *pdev)
 		if (ret)
 			dev_warn(&pdev->dev,
 				 "sleep-io-ret-config failed (%d), check parameters or update trust\n",
+				 ret);
+	}
+
+	if (!of_property_read_u32_array(node,
+					"rockchip,sleep-pin-config",
+					sleep_pin_config, 2)) {
+		ret = sip_smc_set_suspend_mode(SLEEP_PIN_CONFIG, sleep_pin_config[0], sleep_pin_config[1]);
+		if (ret)
+			dev_warn(&pdev->dev,
+				 "sleep-pin-config failed (%d), check parameters or update trust\n",
 				 ret);
 	}
 

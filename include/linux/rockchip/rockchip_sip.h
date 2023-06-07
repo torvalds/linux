@@ -107,6 +107,7 @@
 #define SUSPEND_WFI_TIME_MS		0x08
 #define LINUX_PM_STATE			0x09
 #define SUSPEND_IO_RET_CONFIG		0x0a
+#define SLEEP_PIN_CONFIG		0x0b
 
 /* SIP_REMOTECTL_CFG call types */
 #define	REMOTECTL_SET_IRQ		0xf0
