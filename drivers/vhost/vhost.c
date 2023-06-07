@@ -341,6 +341,8 @@ static bool vhost_worker(void *data)
 
 	node = llist_del_all(&worker->work_list);
 	if (node) {
+		__set_current_state(TASK_RUNNING);
+
 		node = llist_reverse_order(node);
 		/* make sure flag is seen after deletion */
 		smp_wmb();

@@ -28,10 +28,6 @@ static int vhost_task_fn(void *data)
 	for (;;) {
 		bool did_work;
 
-		/* mb paired w/ vhost_task_stop */
-		if (test_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags))
-			break;
-
 		if (!dead && signal_pending(current)) {
 			struct ksignal ksig;
 			/*
@@ -48,11 +44,17 @@ static int vhost_task_fn(void *data)
 				clear_thread_flag(TIF_SIGPENDING);
 		}
 
-		did_work = vtsk->fn(vtsk->data);
-		if (!did_work) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
+		/* mb paired w/ vhost_task_stop */
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (test_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags)) {
+			__set_current_state(TASK_RUNNING);
+			break;
 		}
+
+		did_work = vtsk->fn(vtsk->data);
+		if (!did_work)
+			schedule();
 	}
 
 	complete(&vtsk->exited);
