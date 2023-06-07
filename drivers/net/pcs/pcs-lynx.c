@@ -313,7 +313,7 @@ static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 
 	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
 	if (!lynx)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	mdio_device_get(mdio);
 	lynx->mdio = mdio;
@@ -333,12 +333,6 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 		return ERR_CAST(mdio);
 
 	pcs = lynx_pcs_create(mdio);
-
-	/* Convert failure to create the PCS to an error pointer, so this
-	 * function has a consistent return value strategy.
-	 */
-	if (!pcs)
-		pcs = ERR_PTR(-ENOMEM);
 
 	/* lynx_create() has taken a refcount on the mdiodev if it was
 	 * successful. If lynx_create() fails, this will free the mdio
@@ -362,12 +356,6 @@ struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
 		return ERR_PTR(-EPROBE_DEFER);
 
 	pcs = lynx_pcs_create(mdio);
-
-	/* Convert failure to create the PCS to an error pointer, so this
-	 * function has a consistent return value strategy.
-	 */
-	if (!pcs)
-		pcs = ERR_PTR(-ENOMEM);
 
 	/* lynx_create() has taken a refcount on the mdiodev if it was
 	 * successful. If lynx_create() fails, this will free the mdio
