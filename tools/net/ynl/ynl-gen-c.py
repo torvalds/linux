@@ -709,9 +709,6 @@ class Operation(SpecOperation):
     def __init__(self, family, yaml, req_value, rsp_value):
         super().__init__(family, yaml, req_value, rsp_value)
 
-        if req_value != rsp_value:
-            raise Exception("Directional messages not supported by codegen")
-
         self.render_name = family.name + '_' + c_lower(self.name)
 
         self.dual_policy = ('do' in yaml and 'request' in yaml['do']) and \
@@ -2242,6 +2239,13 @@ def main():
         print(exc)
         os.sys.exit(1)
         return
+
+    supported_models = ['unified']
+    if args.mode == 'user':
+        supported_models += ['directional']
+    if parsed.msg_id_model not in supported_models:
+        print(f'Message enum-model {parsed.msg_id_model} not supported for {args.mode} generation')
+        os.sys.exit(1)
 
     cw = CodeWriter(BaseNlLib(), out_file)
 
