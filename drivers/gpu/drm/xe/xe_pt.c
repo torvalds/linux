@@ -102,7 +102,7 @@ static u64 __gen8_pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
 {
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
 
-	if (unlikely(flags & XE_PTE_READ_ONLY))
+	if (unlikely(flags & XE_PTE_FLAG_READ_ONLY))
 		pte &= ~XE_PAGE_RW;
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */

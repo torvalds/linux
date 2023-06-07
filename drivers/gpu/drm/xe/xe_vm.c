@@ -61,7 +61,7 @@ int xe_vma_userptr_pin_pages(struct xe_vma *vma)
 	bool in_kthread = !current->mm;
 	unsigned long notifier_seq;
 	int pinned, ret, i;
-	bool read_only = vma->pte_flags & XE_PTE_READ_ONLY;
+	bool read_only = vma->pte_flags & XE_PTE_FLAG_READ_ONLY;
 
 	lockdep_assert_held(&vm->lock);
 	XE_BUG_ON(!xe_vma_is_userptr(vma));
@@ -869,7 +869,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	vma->start = start;
 	vma->end = end;
 	if (read_only)
-		vma->pte_flags = XE_PTE_READ_ONLY;
+		vma->pte_flags = XE_PTE_FLAG_READ_ONLY;
 
 	if (tile_mask) {
 		vma->tile_mask = tile_mask;
@@ -923,7 +923,7 @@ static void xe_vma_destroy_late(struct xe_vma *vma)
 {
 	struct xe_vm *vm = vma->vm;
 	struct xe_device *xe = vm->xe;
-	bool read_only = vma->pte_flags & XE_PTE_READ_ONLY;
+	bool read_only = vma->pte_flags & XE_PTE_FLAG_READ_ONLY;
 
 	if (xe_vma_is_userptr(vma)) {
 		if (vma->userptr.sg) {
@@ -2643,7 +2643,8 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					  first->userptr.ptr,
 					  first->start,
 					  lookup->start - 1,
-					  (first->pte_flags & XE_PTE_READ_ONLY),
+					  (first->pte_flags &
+					   XE_PTE_FLAG_READ_ONLY),
 					  first->tile_mask);
 		if (first->bo)
 			xe_bo_unlock(first->bo, &ww);
@@ -2674,7 +2675,8 @@ static struct xe_vma *vm_unbind_lookup_vmas(struct xe_vm *vm,
 					 last->userptr.ptr + chunk,
 					 last->start + chunk,
 					 last->end,
-					 (last->pte_flags & XE_PTE_READ_ONLY),
+					 (last->pte_flags &
+					  XE_PTE_FLAG_READ_ONLY),
 					 last->tile_mask);
 		if (last->bo)
 			xe_bo_unlock(last->bo, &ww);
