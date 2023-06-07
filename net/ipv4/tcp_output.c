@@ -2319,6 +2319,57 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 	return true;
 }
 
+static int tcp_clone_payload(struct sock *sk, struct sk_buff *to,
+			     int probe_size)
+{
+	skb_frag_t *lastfrag = NULL, *fragto = skb_shinfo(to)->frags;
+	int i, todo, len = 0, nr_frags = 0;
+	const struct sk_buff *skb;
+
+	if (!sk_wmem_schedule(sk, to->truesize + probe_size))
+		return -ENOMEM;
+
+	skb_queue_walk(&sk->sk_write_queue, skb) {
+		const skb_frag_t *fragfrom = skb_shinfo(skb)->frags;
+
+		if (skb_headlen(skb))
+			return -EINVAL;
+
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++, fragfrom++) {
+			if (len >= probe_size)
+				goto commit;
+			todo = min_t(int, skb_frag_size(fragfrom),
+				     probe_size - len);
+			len += todo;
+			if (lastfrag &&
+			    skb_frag_page(fragfrom) == skb_frag_page(lastfrag) &&
+			    skb_frag_off(fragfrom) == skb_frag_off(lastfrag) +
+						      skb_frag_size(lastfrag)) {
+				skb_frag_size_add(lastfrag, todo);
+				continue;
+			}
+			if (unlikely(nr_frags == MAX_SKB_FRAGS))
+				return -E2BIG;
+			skb_frag_page_copy(fragto, fragfrom);
+			skb_frag_off_copy(fragto, fragfrom);
+			skb_frag_size_set(fragto, todo);
+			nr_frags++;
+			lastfrag = fragto++;
+		}
+	}
+commit:
+	WARN_ON_ONCE(len != probe_size);
+	for (i = 0; i < nr_frags; i++)
+		skb_frag_ref(to, i);
+
+	skb_shinfo(to)->nr_frags = nr_frags;
+	to->truesize += probe_size;
+	to->len += probe_size;
+	to->data_len += probe_size;
+	__skb_header_release(to);
+	return 0;
+}
+
 /* Create a new MTU probe if we are ready.
  * MTU probe is regularly attempting to increase the path MTU by
  * deliberately sending larger packets.  This discovers routing
@@ -2395,9 +2446,15 @@ static int tcp_mtu_probe(struct sock *sk)
 		return -1;
 
 	/* We're allowed to probe.  Build it now. */
-	nskb = tcp_stream_alloc_skb(sk, probe_size, GFP_ATOMIC, false);
+	nskb = tcp_stream_alloc_skb(sk, 0, GFP_ATOMIC, false);
 	if (!nskb)
 		return -1;
+
+	/* build the payload, and be prepared to abort if this fails. */
+	if (tcp_clone_payload(sk, nskb, probe_size)) {
+		consume_skb(nskb);
+		return -1;
+	}
 	sk_wmem_queued_add(sk, nskb->truesize);
 	sk_mem_charge(sk, nskb->truesize);
 
@@ -2415,7 +2472,6 @@ static int tcp_mtu_probe(struct sock *sk)
 	len = 0;
 	tcp_for_write_queue_from_safe(skb, next, sk) {
 		copy = min_t(int, skb->len, probe_size - len);
-		skb_copy_bits(skb, 0, skb_put(nskb, copy), copy);
 
 		if (skb->len <= copy) {
 			/* We've eaten all the data from this skb.
