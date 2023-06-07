@@ -513,8 +513,19 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (time_is_after_jiffies(timeout)) {
-		/* enable clock */
 		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		u32 pulse_eater = 0x01590880;
+
+		/* disable clock gating */
+		gpu_write_power(gpu, VIVS_PM_POWER_CONTROLS, 0x0);
+
+		/* disable pulse eater */
+		pulse_eater |= BIT(17);
+		gpu_write_power(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+		pulse_eater |= BIT(0);
+		gpu_write_power(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+
+		/* enable clock */
 		control = VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 		etnaviv_gpu_load_clock(gpu, control);
 
