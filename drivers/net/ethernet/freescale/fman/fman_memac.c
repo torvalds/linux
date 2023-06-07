@@ -976,14 +976,10 @@ static int memac_init(struct fman_mac *memac)
 
 static void pcs_put(struct phylink_pcs *pcs)
 {
-	struct mdio_device *mdiodev;
-
 	if (IS_ERR_OR_NULL(pcs))
 		return;
 
-	mdiodev = lynx_get_mdio_device(pcs);
 	lynx_pcs_destroy(pcs);
-	mdio_device_free(mdiodev);
 }
 
 static int memac_free(struct fman_mac *memac)
@@ -1055,8 +1051,7 @@ static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	pcs = lynx_pcs_create(mdiodev);
-	if (!pcs)
-		mdio_device_free(mdiodev);
+	mdio_device_put(mdiodev);
 
 	return pcs;
 }
