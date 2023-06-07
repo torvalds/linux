@@ -307,7 +307,7 @@ static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
 	.pcs_link_up = lynx_pcs_link_up,
 };
 
-struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
+static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 {
 	struct lynx_pcs *lynx;
 
@@ -322,7 +322,6 @@ struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 
 	return lynx_to_phylink_pcs(lynx);
 }
-EXPORT_SYMBOL(lynx_pcs_create);
 
 struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 {
