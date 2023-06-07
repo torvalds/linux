@@ -172,7 +172,7 @@ void __init load_ucode_bsp(void)
 	if (intel)
 		load_ucode_intel_bsp();
 	else
-		load_ucode_amd_bsp(cpuid_1_eax);
+		load_ucode_amd_early(cpuid_1_eax);
 }
 
 static bool check_loader_disabled_ap(void)
@@ -200,7 +200,7 @@ void load_ucode_ap(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (x86_family(cpuid_1_eax) >= 0x10)
-			load_ucode_amd_ap(cpuid_1_eax);
+			load_ucode_amd_early(cpuid_1_eax);
 		break;
 	default:
 		break;
