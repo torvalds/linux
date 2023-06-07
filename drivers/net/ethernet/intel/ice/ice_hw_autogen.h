@@ -491,7 +491,6 @@
 #define VSIQF_FD_CNT_FD_BCNT_M			ICE_M(0x3FFF, 16)
 #define VSIQF_FD_SIZE(_VSI)			(0x00462000 + ((_VSI) * 4))
 #define VSIQF_HKEY_MAX_INDEX			12
-#define VSIQF_HLUT_MAX_INDEX			15
 #define PFPM_APM				0x000B8080
 #define PFPM_APM_APME_M				BIT(0)
 #define PFPM_WUFC				0x0009DC00
