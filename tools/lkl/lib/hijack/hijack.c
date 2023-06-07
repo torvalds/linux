@@ -353,7 +353,7 @@ int epoll_create1(int flags)
 	CHECK_HOST_CALL(epoll_create1);
 
 	host_fd = host_epoll_create1(flags);
-	if (!host_fd) {
+	if (host_fd < 0) {
 		fprintf(stderr, "%s fail (%d)\n", __func__, errno);
 		return -1;
 	}
