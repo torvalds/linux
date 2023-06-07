@@ -932,6 +932,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 4>;
+
+			trips {
+				nss-top-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		nss0-thermal {
@@ -939,6 +947,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 5>;
+
+			trips {
+				nss-0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		nss1-thermal {
@@ -946,6 +962,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 6>;
+
+			trips {
+				nss-1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phya0-thermal {
@@ -953,6 +977,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 7>;
+
+			trips {
+				wcss-phya0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phya1-thermal {
@@ -960,6 +992,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 8>;
+
+			trips {
+				wcss-phya1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu0_thermal: cpu0-thermal {
@@ -967,6 +1007,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 9>;
+
+			trips {
+				cpu0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu1_thermal: cpu1-thermal {
@@ -974,6 +1022,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 10>;
+
+			trips {
+				cpu1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu2_thermal: cpu2-thermal {
@@ -981,6 +1037,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 11>;
+
+			trips {
+				cpu2-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu3_thermal: cpu3-thermal {
@@ -988,6 +1052,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 12>;
+
+			trips {
+				cpu3-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cluster_thermal: cluster-thermal {
@@ -995,6 +1067,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 13>;
+
+			trips {
+				cluster-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phyb0-thermal {
@@ -1002,6 +1082,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 14>;
+
+			trips {
+				wcss-phyb0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phyb1-thermal {
@@ -1009,6 +1097,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 15>;
+
+			trips {
+				wcss-phyb1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 };
