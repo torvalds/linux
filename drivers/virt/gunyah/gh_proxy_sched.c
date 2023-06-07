@@ -579,18 +579,25 @@ int gh_poll_vcpu_run(gh_vmid_t vmid)
 	struct gh_proxy_vcpu *vcpu;
 	struct gh_proxy_vm *vm;
 	unsigned int vcpu_id;
-	unsigned int poll_nr_vcpus;
+	int poll_nr_vcpus;
 	ktime_t start_ts, yield_ts;
-	int ret;
+	int ret = -EPERM;
 
 	vm = gh_get_vm(vmid);
 	if (!vm || !vm->is_active)
-		return -EPERM;
+		return ret;
 
 	poll_nr_vcpus = gh_get_nr_vcpus(vmid);
+	if (poll_nr_vcpus < 0) {
+		printk_deferred("Failed to get vcpu count for VM %d ret %d\n",
+						vmid, nr_vcpus);
+		ret = poll_nr_vcpus;
+		return ret;
+	}
+
 	for (vcpu_id = 0; vcpu_id < poll_nr_vcpus; vcpu_id++) {
 		if (vm->vcpu[vcpu_id].cap_id == GH_CAPID_INVAL)
-			return 0;
+			return -EPERM;
 
 		vcpu = &vm->vcpu[vcpu_id];
 		do {
