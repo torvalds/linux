@@ -24,8 +24,8 @@
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
 
-#define ALT_CAP(a)		((a)->cpufeature & ~ARM64_CB_BIT)
-#define ALT_HAS_CB(a)		((a)->cpufeature & ARM64_CB_BIT)
+#define ALT_CAP(a)		((a)->cpucap & ~ARM64_CB_BIT)
+#define ALT_HAS_CB(a)		((a)->cpucap & ARM64_CB_BIT)
 
 /* Volatile, as we may be patching the guts of READ_ONCE() */
 static volatile int all_alternatives_applied;
@@ -37,12 +37,12 @@ struct alt_region {
 	struct alt_instr *end;
 };
 
-bool alternative_is_applied(u16 cpufeature)
+bool alternative_is_applied(u16 cpucap)
 {
-	if (WARN_ON(cpufeature >= ARM64_NCAPS))
+	if (WARN_ON(cpucap >= ARM64_NCAPS))
 		return false;
 
-	return test_bit(cpufeature, applied_alternatives);
+	return test_bit(cpucap, applied_alternatives);
 }
 
 /*
@@ -141,7 +141,7 @@ static void clean_dcache_range_nopatch(u64 start, u64 end)
 
 static void __apply_alternatives(const struct alt_region *region,
 				 bool is_module,
-				 unsigned long *feature_mask)
+				 unsigned long *cpucap_mask)
 {
 	struct alt_instr *alt;
 	__le32 *origptr, *updptr;
@@ -151,7 +151,7 @@ static void __apply_alternatives(const struct alt_region *region,
 		int nr_inst;
 		int cap = ALT_CAP(alt);
 
-		if (!test_bit(cap, feature_mask))
+		if (!test_bit(cap, cpucap_mask))
 			continue;
 
 		if (!cpus_have_cap(cap))
@@ -188,9 +188,8 @@ static void __apply_alternatives(const struct alt_region *region,
 		icache_inval_all_pou();
 		isb();
 
-		/* Ignore ARM64_CB bit from feature mask */
 		bitmap_or(applied_alternatives, applied_alternatives,
-			  feature_mask, ARM64_NCAPS);
+			  cpucap_mask, ARM64_NCAPS);
 		bitmap_and(applied_alternatives, applied_alternatives,
 			   system_cpucaps, ARM64_NCAPS);
 	}

@@ -437,7 +437,7 @@ unsigned long cpu_get_elf_hwcap2(void);
 
 static __always_inline bool system_capabilities_finalized(void)
 {
-	return alternative_has_feature_likely(ARM64_ALWAYS_SYSTEM);
+	return alternative_has_cap_likely(ARM64_ALWAYS_SYSTEM);
 }
 
 /*
@@ -464,7 +464,7 @@ static __always_inline bool __cpus_have_const_cap(int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return alternative_has_feature_unlikely(num);
+	return alternative_has_cap_unlikely(num);
 }
 
 /*
