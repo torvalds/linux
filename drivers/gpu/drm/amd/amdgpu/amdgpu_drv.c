@@ -347,8 +347,9 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
  * Override for runtime power management control for dGPUs. The amdgpu driver can dynamically power down
  * the dGPUs when they are idle if supported. The default is -1 (auto enable).
  * Setting the value to 0 disables this functionality.
+ * Setting the value to -2 is auto enabled with power down when displays are attached.
  */
-MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto)");
+MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto, -2 = autowith displays)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 
 /**
@@ -2496,24 +2497,26 @@ static int amdgpu_runtime_idle_check_display(struct device *dev)
 		struct drm_connector_list_iter iter;
 		int ret = 0;
 
-		/* XXX: Return busy if any displays are connected to avoid
-		 * possible display wakeups after runtime resume due to
-		 * hotplug events in case any displays were connected while
-		 * the GPU was in suspend.  Remove this once that is fixed.
-		 */
-		mutex_lock(&drm_dev->mode_config.mutex);
-		drm_connector_list_iter_begin(drm_dev, &iter);
-		drm_for_each_connector_iter(list_connector, &iter) {
-			if (list_connector->status == connector_status_connected) {
-				ret = -EBUSY;
-				break;
+		if (amdgpu_runtime_pm != -2) {
+			/* XXX: Return busy if any displays are connected to avoid
+			 * possible display wakeups after runtime resume due to
+			 * hotplug events in case any displays were connected while
+			 * the GPU was in suspend.  Remove this once that is fixed.
+			 */
+			mutex_lock(&drm_dev->mode_config.mutex);
+			drm_connector_list_iter_begin(drm_dev, &iter);
+			drm_for_each_connector_iter(list_connector, &iter) {
+				if (list_connector->status == connector_status_connected) {
+					ret = -EBUSY;
+					break;
+				}
 			}
-		}
-		drm_connector_list_iter_end(&iter);
-		mutex_unlock(&drm_dev->mode_config.mutex);
+			drm_connector_list_iter_end(&iter);
+			mutex_unlock(&drm_dev->mode_config.mutex);
 
-		if (ret)
-			return ret;
+			if (ret)
+				return ret;
+		}
 
 		if (adev->dc_enabled) {
 			struct drm_crtc *crtc;
