@@ -215,6 +215,17 @@ config USB_MSM_SSPHY_QMP
 	  set for its control sequences, normally paired with newer DWC3-based
 	  SuperSpeed controllers.
 
+config MSM_QUSB_PHY
+        tristate "MSM QUSB2 PHY Driver"
+        depends on ARCH_QCOM
+        select USB_PHY
+        help
+          Enable this to support the QUSB2 PHY on MSM chips. This driver supports
+          the high-speed PHY which is usually paired with either the ChipIdea or
+          Synopsys DWC3 USB IPs on MSM SOCs. This driver expects to configure the
+          PHY with a dedicated register I/O memory region.
+
+
 config MSM_HSUSB_PHY
 	tristate "MSM HSUSB PHY Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
