@@ -9,8 +9,6 @@
 #include <linux/mdio.h>
 #include <linux/phylink.h>
 
-struct mdio_device *lynx_get_mdio_device(struct phylink_pcs *pcs);
-
 struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio);
 struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr);
 
