@@ -353,6 +353,35 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 }
 EXPORT_SYMBOL(lynx_pcs_create_mdiodev);
 
+struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
+{
+	struct mdio_device *mdio;
+	struct phylink_pcs *pcs;
+
+	mdio = fwnode_mdio_find_device(node);
+	if (!mdio)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	pcs = lynx_pcs_create(mdio);
+
+	/* Convert failure to create the PCS to an error pointer, so this
+	 * function has a consistent return value strategy.
+	 */
+	if (!pcs)
+		pcs = ERR_PTR(-ENOMEM);
+
+	/* lynx_create() has taken a refcount on the mdiodev if it was
+	 * successful. If lynx_create() fails, this will free the mdio
+	 * device here. In any case, we don't need to hold our reference
+	 * anymore, and putting it here will allow mdio_device_put() in
+	 * lynx_destroy() to automatically free the mdio device.
+	 */
+	mdio_device_put(mdio);
+
+	return pcs;
+}
+EXPORT_SYMBOL_GPL(lynx_pcs_create_fwnode);
+
 void lynx_pcs_destroy(struct phylink_pcs *pcs)
 {
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
