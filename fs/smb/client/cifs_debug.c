@@ -108,7 +108,7 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 	if ((tcon->seal) ||
 	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
-		seq_printf(m, " Encrypted");
+		seq_puts(m, " encrypted");
 	if (tcon->nocase)
 		seq_printf(m, " nocase");
 	if (tcon->unix_ext)
@@ -415,8 +415,12 @@ skip_rdma:
 
 			/* dump session id helpful for use with network trace */
 			seq_printf(m, " SessionId: 0x%llx", ses->Suid);
-			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) {
 				seq_puts(m, " encrypted");
+				/* can help in debugging to show encryption type */
+				if (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+					seq_puts(m, "(gcm256)");
+			}
 			if (ses->sign)
 				seq_puts(m, " signed");
 

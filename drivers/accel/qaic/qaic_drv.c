@@ -262,8 +262,8 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 
 static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
 {
+	u16 major = -1, minor = -1;
 	struct qaic_device *qdev;
-	u16 major, minor;
 	int ret;
 
 	/*

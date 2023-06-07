@@ -40,6 +40,7 @@ flow_steering_mode: Device flow steering mode
 ---------------------------------------------
 The flow steering mode parameter controls the flow steering mode of the driver.
 Two modes are supported:
+
 1. 'dmfs' - Device managed flow steering.
 2. 'smfs' - Software/Driver managed flow steering.
 
@@ -99,6 +100,7 @@ between representors and stacked devices.
 By default metadata is enabled on the supported devices in E-switch.
 Metadata is applicable only for E-switch in switchdev mode and
 users may disable it when NONE of the below use cases will be in use:
+
 1. HCA is in Dual/multi-port RoCE mode.
 2. VF/SF representor bonding (Usually used for Live migration)
 3. Stacked devices
@@ -180,7 +182,8 @@ User commands examples:
 
     $ devlink health diagnose pci/0000:82:00.0 reporter tx
 
-NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
+.. note::
+   This command has valid output only when interface is up, otherwise the command has empty output.
 
 - Show number of tx errors indicated, number of recover flows ended successfully,
   is autorecover enabled and graceful period from last recover::
@@ -232,8 +235,9 @@ User commands examples:
 
     $ devlink health dump show pci/0000:82:00.0 reporter fw
 
-NOTE: This command can run only on the PF which has fw tracer ownership,
-running it on other PF or any VF will return "Operation not permitted".
+.. note::
+   This command can run only on the PF which has fw tracer ownership,
+   running it on other PF or any VF will return "Operation not permitted".
 
 fw fatal reporter
 -----------------
@@ -256,7 +260,8 @@ User commands examples:
 
     $ devlink health dump show pci/0000:82:00.1 reporter fw_fatal
 
-NOTE: This command can run only on PF.
+.. note::
+   This command can run only on PF.
 
 vnic reporter
 -------------
@@ -265,28 +270,37 @@ It is responsible for querying the vnic diagnostic counters from fw and displayi
 them in realtime.
 
 Description of the vnic counters:
-total_q_under_processor_handle: number of queues in an error state due to
-an async error or errored command.
-send_queue_priority_update_flow: number of QP/SQ priority/SL update
-events.
-cq_overrun: number of times CQ entered an error state due to an
-overflow.
-async_eq_overrun: number of times an EQ mapped to async events was
-overrun.
-comp_eq_overrun: number of times an EQ mapped to completion events was
-overrun.
-quota_exceeded_command: number of commands issued and failed due to quota
-exceeded.
-invalid_command: number of commands issued and failed dues to any reason
-other than quota exceeded.
-nic_receive_steering_discard: number of packets that completed RX flow
-steering but were discarded due to a mismatch in flow table.
+
+- total_q_under_processor_handle
+        number of queues in an error state due to
+        an async error or errored command.
+- send_queue_priority_update_flow
+        number of QP/SQ priority/SL update events.
+- cq_overrun
+        number of times CQ entered an error state due to an overflow.
+- async_eq_overrun
+        number of times an EQ mapped to async events was overrun.
+        comp_eq_overrun number of times an EQ mapped to completion events was
+        overrun.
+- quota_exceeded_command
+        number of commands issued and failed due to quota exceeded.
+- invalid_command
+        number of commands issued and failed dues to any reason other than quota
+        exceeded.
+- nic_receive_steering_discard
+        number of packets that completed RX flow
+        steering but were discarded due to a mismatch in flow table.
 
 User commands examples:
-- Diagnose PF/VF vnic counters
+
+- Diagnose PF/VF vnic counters::
+
         $ devlink health diagnose pci/0000:82:00.1 reporter vnic
+
 - Diagnose representor vnic counters (performed by supplying devlink port of the
-  representor, which can be obtained via devlink port command)
+  representor, which can be obtained via devlink port command)::
+
         $ devlink health diagnose pci/0000:82:00.1/65537 reporter vnic
 
-NOTE: This command can run over all interfaces such as PF/VF and representor ports.
+.. note::
+   This command can run over all interfaces such as PF/VF and representor ports.

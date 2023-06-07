@@ -575,7 +575,7 @@ struct pkvm_mem_donation {
 
 struct check_walk_data {
 	enum pkvm_page_state	desired;
-	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte);
+	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte, u64 addr);
 };
 
 static int __check_page_state_visitor(const struct kvm_pgtable_visit_ctx *ctx,
@@ -583,10 +583,7 @@ static int __check_page_state_visitor(const struct kvm_pgtable_visit_ctx *ctx,
 {
 	struct check_walk_data *d = ctx->arg;
 
-	if (kvm_pte_valid(ctx->old) && !addr_is_allowed_memory(kvm_pte_to_phys(ctx->old)))
-		return -EINVAL;
-
-	return d->get_page_state(ctx->old) == d->desired ? 0 : -EPERM;
+	return d->get_page_state(ctx->old, ctx->addr) == d->desired ? 0 : -EPERM;
 }
 
 static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
@@ -601,8 +598,11 @@ static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
 	return kvm_pgtable_walk(pgt, addr, size, &walker);
 }
 
-static enum pkvm_page_state host_get_page_state(kvm_pte_t pte)
+static enum pkvm_page_state host_get_page_state(kvm_pte_t pte, u64 addr)
 {
+	if (!addr_is_allowed_memory(addr))
+		return PKVM_NOPAGE;
+
 	if (!kvm_pte_valid(pte) && pte)
 		return PKVM_NOPAGE;
 
@@ -709,7 +709,7 @@ static int host_complete_donation(u64 addr, const struct pkvm_mem_transition *tx
 	return host_stage2_set_owner_locked(addr, size, host_id);
 }
 
-static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte)
+static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte, u64 addr)
 {
 	if (!kvm_pte_valid(pte))
 		return PKVM_NOPAGE;

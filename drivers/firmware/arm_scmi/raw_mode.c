@@ -1066,7 +1066,7 @@ static int scmi_xfer_raw_worker_init(struct scmi_raw_mode_info *raw)
 
 	raw->wait_wq = alloc_workqueue("scmi-raw-wait-wq-%d",
 				       WQ_UNBOUND | WQ_FREEZABLE |
-				       WQ_HIGHPRI, WQ_SYSFS, raw->id);
+				       WQ_HIGHPRI | WQ_SYSFS, 0, raw->id);
 	if (!raw->wait_wq)
 		return -ENOMEM;
 
