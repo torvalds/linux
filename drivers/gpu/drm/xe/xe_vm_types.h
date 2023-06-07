@@ -30,6 +30,7 @@ struct xe_vma {
 	/** @end: end address of this VMA within its address domain */
 	u64 end;
 	/** @pte_flags: pte flags for this VMA */
+#define XE_PTE_FLAG_READ_ONLY		BIT(0)
 	u32 pte_flags;
 
 	/** @bo: BO if not a userptr, must be NULL is userptr */

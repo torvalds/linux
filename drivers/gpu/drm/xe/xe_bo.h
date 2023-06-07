@@ -65,8 +65,6 @@
 #define XE_PAGE_PRESENT			BIT_ULL(0)
 #define XE_PAGE_RW			BIT_ULL(1)
 
-#define XE_PTE_FLAG_READ_ONLY		BIT(0)
-
 #define XE_PL_SYSTEM		TTM_PL_SYSTEM
 #define XE_PL_TT		TTM_PL_TT
 #define XE_PL_VRAM0		TTM_PL_VRAM
