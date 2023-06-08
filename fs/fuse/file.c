@@ -2678,10 +2678,6 @@ static int fuse_setlk(struct file *file, struct file_lock *fl, int flock)
 		return -ENOLCK;
 	}
 
-	/* Unlock on close is handled by the flush method */
-	if ((fl->fl_flags & FL_CLOSE_POSIX) == FL_CLOSE_POSIX)
-		return 0;
-
 	fuse_lk_fill(&args, file, fl, opcode, pid_nr, flock, &inarg);
 	err = fuse_simple_request(fm, &args);
 
