@@ -1640,7 +1640,7 @@ static struct block_device *open_backing_dev(struct drbd_device *device,
 	struct block_device *bdev;
 	int err = 0;
 
-	bdev = blkdev_get_by_path(bdev_path, FMODE_READ | FMODE_WRITE,
+	bdev = blkdev_get_by_path(bdev_path, BLK_OPEN_READ | BLK_OPEN_WRITE,
 				  claim_ptr, NULL);
 	if (IS_ERR(bdev)) {
 		drbd_err(device, "open(\"%s\") failed with %ld\n",

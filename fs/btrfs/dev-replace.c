@@ -257,7 +257,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		return -EINVAL;
 	}
 
-	bdev = blkdev_get_by_path(device_path, FMODE_WRITE,
+	bdev = blkdev_get_by_path(device_path, BLK_OPEN_WRITE,
 				  fs_info->bdev_holder, NULL);
 	if (IS_ERR(bdev)) {
 		btrfs_err(fs_info, "target device %s is invalid!", device_path);

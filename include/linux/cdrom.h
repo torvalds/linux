@@ -13,6 +13,7 @@
 
 #include <linux/fs.h>		/* not really needed, later.. */
 #include <linux/list.h>
+#include <linux/blkdev.h>
 #include <scsi/scsi_common.h>
 #include <uapi/linux/cdrom.h>
 
@@ -101,7 +102,7 @@ int cdrom_read_tocentry(struct cdrom_device_info *cdi,
 		struct cdrom_tocentry *entry);
 
 /* the general block_device operations structure: */
-int cdrom_open(struct cdrom_device_info *cdi, fmode_t mode);
+int cdrom_open(struct cdrom_device_info *cdi, blk_mode_t mode);
 void cdrom_release(struct cdrom_device_info *cdi);
 int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 		unsigned int cmd, unsigned long arg);

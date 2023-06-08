@@ -108,9 +108,9 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 static DEFINE_MUTEX(ubd_lock);
 static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
-static int ubd_open(struct gendisk *disk, fmode_t mode);
+static int ubd_open(struct gendisk *disk, blk_mode_t mode);
 static void ubd_release(struct gendisk *disk);
-static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
+static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
@@ -1154,7 +1154,7 @@ static int __init ubd_driver_init(void){
 
 device_initcall(ubd_driver_init);
 
-static int ubd_open(struct gendisk *disk, fmode_t mode)
+static int ubd_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct ubd *ubd_dev = disk->private_data;
 	int err = 0;
@@ -1389,7 +1389,7 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
+static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct ubd *ubd_dev = bdev->bd_disk->private_data;

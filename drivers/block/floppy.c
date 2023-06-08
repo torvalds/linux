@@ -3394,8 +3394,8 @@ static bool valid_floppy_drive_params(const short autodetect[FD_AUTODETECT_SIZE]
 	return true;
 }
 
-static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
-		    unsigned long param)
+static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
+		unsigned int cmd, unsigned long param)
 {
 	int drive = (long)bdev->bd_disk->private_data;
 	int type = ITYPE(drive_state[drive].fd_device);
@@ -3428,7 +3428,8 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 		return ret;
 
 	/* permission checks */
-	if (((cmd & 0x40) && !(mode & (FMODE_WRITE | FMODE_WRITE_IOCTL))) ||
+	if (((cmd & 0x40) &&
+	     !(mode & (BLK_OPEN_WRITE | BLK_OPEN_WRITE_IOCTL))) ||
 	    ((cmd & 0x80) && !capable(CAP_SYS_ADMIN)))
 		return -EPERM;
 
@@ -3566,7 +3567,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_ioctl(struct block_device *bdev, blk_mode_t mode,
 			     unsigned int cmd, unsigned long param)
 {
 	int ret;
@@ -3654,8 +3655,8 @@ struct compat_floppy_write_errors {
 #define FDGETFDCSTAT32 _IOR(2, 0x15, struct compat_floppy_fdc_state)
 #define FDWERRORGET32  _IOR(2, 0x17, struct compat_floppy_write_errors)
 
-static int compat_set_geometry(struct block_device *bdev, fmode_t mode, unsigned int cmd,
-		    struct compat_floppy_struct __user *arg)
+static int compat_set_geometry(struct block_device *bdev, blk_mode_t mode,
+		unsigned int cmd, struct compat_floppy_struct __user *arg)
 {
 	struct floppy_struct v;
 	int drive, type;
@@ -3664,7 +3665,7 @@ static int compat_set_geometry(struct block_device *bdev, fmode_t mode, unsigned
 	BUILD_BUG_ON(offsetof(struct floppy_struct, name) !=
 		     offsetof(struct compat_floppy_struct, name));
 
-	if (!(mode & (FMODE_WRITE | FMODE_WRITE_IOCTL)))
+	if (!(mode & (BLK_OPEN_WRITE | BLK_OPEN_WRITE_IOCTL)))
 		return -EPERM;
 
 	memset(&v, 0, sizeof(struct floppy_struct));
@@ -3861,8 +3862,8 @@ static int compat_werrorget(int drive,
 	return 0;
 }
 
-static int fd_compat_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
-		    unsigned long param)
+static int fd_compat_ioctl(struct block_device *bdev, blk_mode_t mode,
+		unsigned int cmd, unsigned long param)
 {
 	int drive = (long)bdev->bd_disk->private_data;
 	switch (cmd) {
@@ -3984,7 +3985,7 @@ static void floppy_release(struct gendisk *disk)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct gendisk *disk, fmode_t mode)
+static int floppy_open(struct gendisk *disk, blk_mode_t mode)
 {
 	int drive = (long)disk->private_data;
 	int old_dev, new_dev;
@@ -4049,9 +4050,8 @@ static int floppy_open(struct gendisk *disk, fmode_t mode)
 
 	if (fdc_state[FDC(drive)].rawcmd == 1)
 		fdc_state[FDC(drive)].rawcmd = 2;
-
-	if (!(mode & FMODE_NDELAY)) {
-		if (mode & (FMODE_READ|FMODE_WRITE)) {
+	if (!(mode & BLK_OPEN_NDELAY)) {
+		if (mode & (BLK_OPEN_READ | BLK_OPEN_WRITE)) {
 			drive_state[drive].last_checked = 0;
 			clear_bit(FD_OPEN_SHOULD_FAIL_BIT,
 				  &drive_state[drive].flags);
@@ -4063,7 +4063,7 @@ static int floppy_open(struct gendisk *disk, fmode_t mode)
 				goto out;
 		}
 		res = -EROFS;
-		if ((mode & FMODE_WRITE) &&
+		if ((mode & BLK_OPEN_WRITE) &&
 		    !test_bit(FD_DISK_WRITABLE_BIT, &drive_state[drive].flags))
 			goto out;
 	}

@@ -402,7 +402,7 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 	srcu_read_unlock(&head->srcu, srcu_idx);
 }
 
-static int nvme_ns_head_open(struct gendisk *disk, fmode_t mode)
+static int nvme_ns_head_open(struct gendisk *disk, blk_mode_t mode)
 {
 	if (!nvme_tryget_ns_head(disk->private_data))
 		return -ENXIO;

@@ -356,8 +356,8 @@ static int swsusp_swap_check(void)
 		return res;
 	root_swap = res;
 
-	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, FMODE_WRITE,
-			NULL, NULL);
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
+			BLK_OPEN_WRITE, NULL, NULL);
 	if (IS_ERR(hib_resume_bdev))
 		return PTR_ERR(hib_resume_bdev);
 
@@ -1521,7 +1521,7 @@ int swsusp_check(bool snapshot_test)
 	void *holder = snapshot_test ? &swsusp_holder : NULL;
 	int error;
 
-	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, FMODE_READ,
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, BLK_OPEN_READ,
 					    holder, NULL);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);

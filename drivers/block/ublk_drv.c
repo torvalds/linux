@@ -447,7 +447,7 @@ static void ublk_store_owner_uid_gid(unsigned int *owner_uid,
 	*owner_gid = from_kgid(&init_user_ns, gid);
 }
 
-static int ublk_open(struct gendisk *disk, fmode_t mode)
+static int ublk_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct ublk_device *ub = disk->private_data;
 

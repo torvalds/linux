@@ -220,7 +220,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
  * early_lookup_bdev when called from the early boot code.
  */
 static struct block_device __ref *mdtblock_early_get_bdev(const char *devname,
-		fmode_t mode, int timeout, struct block2mtd_dev *dev)
+		blk_mode_t mode, int timeout, struct block2mtd_dev *dev)
 {
 	struct block_device *bdev = ERR_PTR(-ENODEV);
 #ifndef MODULE
@@ -261,7 +261,7 @@ static struct block_device __ref *mdtblock_early_get_bdev(const char *devname,
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		char *label, int timeout)
 {
-	const fmode_t mode = FMODE_READ | FMODE_WRITE;
+	const blk_mode_t mode = BLK_OPEN_READ | BLK_OPEN_WRITE;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;

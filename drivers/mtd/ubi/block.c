@@ -227,7 +227,7 @@ static blk_status_t ubiblock_read(struct request *req)
 	return BLK_STS_OK;
 }
 
-static int ubiblock_open(struct gendisk *disk, fmode_t mode)
+static int ubiblock_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct ubiblock *dev = disk->private_data;
 	int ret;
@@ -246,11 +246,10 @@ static int ubiblock_open(struct gendisk *disk, fmode_t mode)
 	 * It's just a paranoid check, as write requests will get rejected
 	 * in any case.
 	 */
-	if (mode & FMODE_WRITE) {
+	if (mode & BLK_OPEN_WRITE) {
 		ret = -EROFS;
 		goto out_unlock;
 	}
-
 	dev->desc = ubi_open_volume(dev->ubi_num, dev->vol_id, UBI_READONLY);
 	if (IS_ERR(dev->desc)) {
 		dev_err(disk_to_dev(dev->gd), "failed to open ubi volume %d_%d",

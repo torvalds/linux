@@ -120,7 +120,7 @@ static void simdisk_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int simdisk_open(struct gendisk *disk, fmode_t mode)
+static int simdisk_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct simdisk *dev = disk->private_data;
 

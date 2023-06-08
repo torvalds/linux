@@ -243,7 +243,8 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	if (!dev)
 		return -EIO;
 
-	bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, NULL, NULL);
+	bdev = blkdev_get_by_dev(dev, BLK_OPEN_READ | BLK_OPEN_WRITE, NULL,
+				 NULL);
 	if (IS_ERR(bdev)) {
 		printk(KERN_WARNING "pNFS: failed to open device %d:%d (%ld)\n",
 			MAJOR(dev), MINOR(dev), PTR_ERR(bdev));
@@ -312,7 +313,7 @@ bl_open_path(struct pnfs_block_volume *v, const char *prefix)
 	if (!devname)
 		return ERR_PTR(-ENOMEM);
 
-	bdev = blkdev_get_by_path(devname, FMODE_READ | FMODE_WRITE, NULL,
+	bdev = blkdev_get_by_path(devname, BLK_OPEN_READ | BLK_OPEN_WRITE, NULL,
 				  NULL);
 	if (IS_ERR(bdev)) {
 		pr_warn("pNFS: failed to open device %s (%ld)\n",

@@ -1298,7 +1298,7 @@ static bool sd_need_revalidate(struct gendisk *disk, struct scsi_disk *sdkp)
 /**
  *	sd_open - open a scsi disk device
  *	@disk: disk to open
- *	@mode: FMODE_* mask
+ *	@mode: open mode
  *
  *	Returns 0 if successful. Returns a negated errno value in case 
  *	of error.
@@ -1310,7 +1310,7 @@ static bool sd_need_revalidate(struct gendisk *disk, struct scsi_disk *sdkp)
  *
  *	Locking: called with disk->open_mutex held.
  **/
-static int sd_open(struct gendisk *disk, fmode_t mode)
+static int sd_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdev = sdkp->device;
@@ -1336,7 +1336,8 @@ static int sd_open(struct gendisk *disk, fmode_t mode)
 	 * If the drive is empty, just let the open fail.
 	 */
 	retval = -ENOMEDIUM;
-	if (sdev->removable && !sdkp->media_present && !(mode & FMODE_NDELAY))
+	if (sdev->removable && !sdkp->media_present &&
+	    !(mode & BLK_OPEN_NDELAY))
 		goto error_out;
 
 	/*
@@ -1344,7 +1345,7 @@ static int sd_open(struct gendisk *disk, fmode_t mode)
 	 * if the user expects to be able to write to the thing.
 	 */
 	retval = -EROFS;
-	if (sdkp->write_prot && (mode & FMODE_WRITE))
+	if (sdkp->write_prot && (mode & BLK_OPEN_WRITE))
 		goto error_out;
 
 	/*
@@ -1379,7 +1380,7 @@ error_out:
  *	Note: may block (uninterruptible) if error recovery is underway
  *	on this disk.
  *
- *	Locking: called with bdev->bd_disk->open_mutex held.
+ *	Locking: called with disk->open_mutex held.
  **/
 static void sd_release(struct gendisk *disk)
 {
@@ -1424,7 +1425,7 @@ static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 /**
  *	sd_ioctl - process an ioctl
  *	@bdev: target block device
- *	@mode: FMODE_* mask
+ *	@mode: open mode
  *	@cmd: ioctl command number
  *	@arg: this is third argument given to ioctl(2) system call.
  *	Often contains a pointer.
@@ -1435,7 +1436,7 @@ static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *	Note: most ioctls are forward onto the block subsystem or further
  *	down in the scsi subsystem.
  **/
-static int sd_ioctl(struct block_device *bdev, fmode_t mode,
+static int sd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
@@ -1457,13 +1458,13 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	 * access to the device is prohibited.
 	 */
 	error = scsi_ioctl_block_when_processing_errors(sdp, cmd,
-			(mode & FMODE_NDELAY) != 0);
+			(mode & BLK_OPEN_NDELAY));
 	if (error)
 		return error;
 
 	if (is_sed_ioctl(cmd))
 		return sed_ioctl(sdkp->opal_dev, cmd, p);
-	return scsi_ioctl(sdp, mode & FMODE_WRITE, cmd, p);
+	return scsi_ioctl(sdp, mode & BLK_OPEN_WRITE, cmd, p);
 }
 
 static void set_media_not_present(struct scsi_disk *sdkp)

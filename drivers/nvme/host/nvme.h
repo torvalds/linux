@@ -836,10 +836,10 @@ void nvme_put_ns_head(struct nvme_ns_head *head);
 int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 		const struct file_operations *fops, struct module *owner);
 void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device);
-int nvme_ioctl(struct block_device *bdev, fmode_t mode,
+int nvme_ioctl(struct block_device *bdev, blk_mode_t mode,
 		unsigned int cmd, unsigned long arg);
 long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
+int nvme_ns_head_ioctl(struct block_device *bdev, blk_mode_t mode,
 		unsigned int cmd, unsigned long arg);
 long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg);

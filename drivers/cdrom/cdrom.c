@@ -1146,7 +1146,7 @@ clean_up_and_return:
  * is in their own interest: device control becomes a lot easier
  * this way.
  */
-int cdrom_open(struct cdrom_device_info *cdi, fmode_t mode)
+int cdrom_open(struct cdrom_device_info *cdi, blk_mode_t mode)
 {
 	int ret;
 
@@ -1155,7 +1155,7 @@ int cdrom_open(struct cdrom_device_info *cdi, fmode_t mode)
 	/* if this was a O_NONBLOCK open and we should honor the flags,
 	 * do a quick open without drive/disc integrity checks. */
 	cdi->use_count++;
-	if ((mode & FMODE_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
+	if ((mode & BLK_OPEN_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
 		ret = cdi->ops->open(cdi, 1);
 	} else {
 		ret = open_for_data(cdi);
@@ -1163,7 +1163,7 @@ int cdrom_open(struct cdrom_device_info *cdi, fmode_t mode)
 			goto err;
 		if (CDROM_CAN(CDC_GENERIC_PACKET))
 			cdrom_mmc3_profile(cdi);
-		if (mode & FMODE_WRITE) {
+		if (mode & BLK_OPEN_WRITE) {
 			ret = -EROFS;
 			if (cdrom_open_write(cdi))
 				goto err_release;

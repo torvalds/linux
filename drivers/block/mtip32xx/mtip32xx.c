@@ -3041,7 +3041,7 @@ static int rssd_disk_name_format(char *prefix,
  *                 structure pointer.
  */
 static int mtip_block_ioctl(struct block_device *dev,
-			    fmode_t mode,
+			    blk_mode_t mode,
 			    unsigned cmd,
 			    unsigned long arg)
 {
@@ -3079,7 +3079,7 @@ static int mtip_block_ioctl(struct block_device *dev,
  *                 structure pointer.
  */
 static int mtip_block_compat_ioctl(struct block_device *dev,
-			    fmode_t mode,
+			    blk_mode_t mode,
 			    unsigned cmd,
 			    unsigned long arg)
 {

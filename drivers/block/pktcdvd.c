@@ -2154,7 +2154,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 /*
  * called at open time.
  */
-static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
+static int pkt_open_dev(struct pktcdvd_device *pd, bool write)
 {
 	struct device *ddev = disk_to_dev(pd->disk);
 	int ret;
@@ -2167,7 +2167,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 	 * to read/write from/to it. It is already opened in O_NONBLOCK mode
 	 * so open should not fail.
 	 */
-	bdev = blkdev_get_by_dev(pd->bdev->bd_dev, FMODE_READ, pd, NULL);
+	bdev = blkdev_get_by_dev(pd->bdev->bd_dev, BLK_OPEN_READ, pd, NULL);
 	if (IS_ERR(bdev)) {
 		ret = PTR_ERR(bdev);
 		goto out;
@@ -2247,7 +2247,7 @@ static struct pktcdvd_device *pkt_find_dev_from_minor(unsigned int dev_minor)
 	return pkt_devs[dev_minor];
 }
 
-static int pkt_open(struct gendisk *disk, fmode_t mode)
+static int pkt_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct pktcdvd_device *pd = NULL;
 	int ret;
@@ -2263,13 +2263,13 @@ static int pkt_open(struct gendisk *disk, fmode_t mode)
 
 	pd->refcnt++;
 	if (pd->refcnt > 1) {
-		if ((mode & FMODE_WRITE) &&
+		if ((mode & BLK_OPEN_WRITE) &&
 		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
 			ret = -EBUSY;
 			goto out_dec;
 		}
 	} else {
-		ret = pkt_open_dev(pd, mode & FMODE_WRITE);
+		ret = pkt_open_dev(pd, mode & BLK_OPEN_WRITE);
 		if (ret)
 			goto out_dec;
 		/*
@@ -2278,7 +2278,6 @@ static int pkt_open(struct gendisk *disk, fmode_t mode)
 		 */
 		set_blocksize(disk->part0, CD_FRAMESIZE);
 	}
-
 	mutex_unlock(&ctl_mutex);
 	mutex_unlock(&pktcdvd_mutex);
 	return 0;
@@ -2514,7 +2513,8 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		}
 	}
 
-	bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_NDELAY, NULL, NULL);
+	bdev = blkdev_get_by_dev(dev, BLK_OPEN_READ | BLK_OPEN_NDELAY, NULL,
+				 NULL);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 	sdev = scsi_device_from_queue(bdev->bd_disk->queue);
@@ -2550,7 +2550,8 @@ out_mem:
 	return -ENOMEM;
 }
 
-static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
+static int pkt_ioctl(struct block_device *bdev, blk_mode_t mode,
+		unsigned int cmd, unsigned long arg)
 {
 	struct pktcdvd_device *pd = bdev->bd_disk->private_data;
 	struct device *ddev = disk_to_dev(pd->disk);

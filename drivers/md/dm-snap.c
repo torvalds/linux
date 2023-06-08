@@ -1242,7 +1242,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
 	unsigned int args_used, num_flush_bios = 1;
-	fmode_t origin_mode = FMODE_READ;
+	blk_mode_t origin_mode = BLK_OPEN_READ;
 
 	if (argc < 4) {
 		ti->error = "requires 4 or more arguments";
@@ -1252,7 +1252,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (dm_target_is_snapshot_merge(ti)) {
 		num_flush_bios = 2;
-		origin_mode = FMODE_WRITE;
+		origin_mode = BLK_OPEN_WRITE;
 	}
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);

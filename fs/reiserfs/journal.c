@@ -2598,7 +2598,7 @@ static int journal_init_dev(struct super_block *super,
 			    struct reiserfs_journal *journal,
 			    const char *jdev_name)
 {
-	fmode_t blkdev_mode = FMODE_READ;
+	blk_mode_t blkdev_mode = BLK_OPEN_READ;
 	void *holder = journal;
 	int result;
 	dev_t jdev;
@@ -2610,7 +2610,7 @@ static int journal_init_dev(struct super_block *super,
 	    new_decode_dev(SB_ONDISK_JOURNAL_DEVICE(super)) : super->s_dev;
 
 	if (!bdev_read_only(super->s_bdev))
-		blkdev_mode |= FMODE_WRITE;
+		blkdev_mode |= BLK_OPEN_WRITE;
 
 	/* there is no "jdev" option and journal is on separate device */
 	if ((!jdev_name || !jdev_name[0])) {

@@ -507,8 +507,8 @@ static ssize_t backing_dev_store(struct device *dev,
 		goto out;
 	}
 
-	bdev = blkdev_get_by_dev(inode->i_rdev, FMODE_READ | FMODE_WRITE, zram,
-				 NULL);
+	bdev = blkdev_get_by_dev(inode->i_rdev, BLK_OPEN_READ | BLK_OPEN_WRITE,
+				 zram, NULL);
 	if (IS_ERR(bdev)) {
 		err = PTR_ERR(bdev);
 		bdev = NULL;
@@ -2097,7 +2097,7 @@ static ssize_t reset_store(struct device *dev,
 	return len;
 }
 
-static int zram_open(struct gendisk *disk, fmode_t mode)
+static int zram_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct zram *zram = disk->private_data;
 

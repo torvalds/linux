@@ -82,7 +82,7 @@ static int compat_blkpg_ioctl(struct block_device *bdev,
 }
 #endif
 
-static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
+static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 		unsigned long arg)
 {
 	uint64_t range[2];
@@ -90,7 +90,7 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 	struct inode *inode = bdev->bd_inode;
 	int err;
 
-	if (!(mode & FMODE_WRITE))
+	if (!(mode & BLK_OPEN_WRITE))
 		return -EBADF;
 
 	if (!bdev_max_discard_sectors(bdev))
@@ -120,14 +120,14 @@ fail:
 	return err;
 }
 
-static int blk_ioctl_secure_erase(struct block_device *bdev, fmode_t mode,
+static int blk_ioctl_secure_erase(struct block_device *bdev, blk_mode_t mode,
 		void __user *argp)
 {
 	uint64_t start, len;
 	uint64_t range[2];
 	int err;
 
-	if (!(mode & FMODE_WRITE))
+	if (!(mode & BLK_OPEN_WRITE))
 		return -EBADF;
 	if (!bdev_max_secure_erase_sectors(bdev))
 		return -EOPNOTSUPP;
@@ -151,7 +151,7 @@ static int blk_ioctl_secure_erase(struct block_device *bdev, fmode_t mode,
 }
 
 
-static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
+static int blk_ioctl_zeroout(struct block_device *bdev, blk_mode_t mode,
 		unsigned long arg)
 {
 	uint64_t range[2];
@@ -159,7 +159,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 	struct inode *inode = bdev->bd_inode;
 	int err;
 
-	if (!(mode & FMODE_WRITE))
+	if (!(mode & BLK_OPEN_WRITE))
 		return -EBADF;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
@@ -240,7 +240,7 @@ static int compat_put_ulong(compat_ulong_t __user *argp, compat_ulong_t val)
  * drivers that implement only commands that are completely compatible
  * between 32-bit and 64-bit user space
  */
-int blkdev_compat_ptr_ioctl(struct block_device *bdev, fmode_t mode,
+int blkdev_compat_ptr_ioctl(struct block_device *bdev, blk_mode_t mode,
 			unsigned cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
@@ -439,7 +439,7 @@ static int compat_hdio_getgeo(struct block_device *bdev,
 #endif
 
 /* set the logical block size */
-static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
+static int blkdev_bszset(struct block_device *bdev, blk_mode_t mode,
 		int __user *argp)
 {
 	int ret, n;
@@ -451,7 +451,7 @@ static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
 	if (get_user(n, argp))
 		return -EFAULT;
 
-	if (mode & FMODE_EXCL)
+	if (mode & BLK_OPEN_EXCL)
 		return set_blocksize(bdev, n);
 
 	if (IS_ERR(blkdev_get_by_dev(bdev->bd_dev, mode, &bdev, NULL)))
@@ -467,7 +467,7 @@ static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
  * user space. Note the separate arg/argp parameters that are needed
  * to deal with the compat_ptr() conversion.
  */
-static int blkdev_common_ioctl(struct block_device *bdev, fmode_t mode,
+static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 			       unsigned int cmd, unsigned long arg,
 			       void __user *argp)
 {
@@ -560,17 +560,8 @@ long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct block_device *bdev = I_BDEV(file->f_mapping->host);
 	void __user *argp = (void __user *)arg;
-	fmode_t mode = file->f_mode;
+	blk_mode_t mode = file_to_blk_mode(file);
 	int ret;
-
-	/*
-	 * O_NDELAY can be altered using fcntl(.., F_SETFL, ..), so we have
-	 * to updated it before every ioctl.
-	 */
-	if (file->f_flags & O_NDELAY)
-		mode |= FMODE_NDELAY;
-	else
-		mode &= ~FMODE_NDELAY;
 
 	switch (cmd) {
 	/* These need separate implementations for the data structure */
@@ -630,16 +621,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	void __user *argp = compat_ptr(arg);
 	struct block_device *bdev = I_BDEV(file->f_mapping->host);
 	struct gendisk *disk = bdev->bd_disk;
-	fmode_t mode = file->f_mode;
-
-	/*
-	 * O_NDELAY can be altered using fcntl(.., F_SETFL, ..), so we have
-	 * to updated it before every ioctl.
-	 */
-	if (file->f_flags & O_NDELAY)
-		mode |= FMODE_NDELAY;
-	else
-		mode &= ~FMODE_NDELAY;
+	blk_mode_t mode = file_to_blk_mode(file);
 
 	switch (cmd) {
 	/* These need separate implementations for the data structure */

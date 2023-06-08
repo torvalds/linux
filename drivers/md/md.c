@@ -3643,7 +3643,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 	if (err)
 		goto out_clear_rdev;
 
-	rdev->bdev = blkdev_get_by_dev(newdev, FMODE_READ | FMODE_WRITE,
+	rdev->bdev = blkdev_get_by_dev(newdev, BLK_OPEN_READ | BLK_OPEN_WRITE,
 			super_format == -2 ? &claim_rdev : rdev, NULL);
 	if (IS_ERR(rdev->bdev)) {
 		pr_warn("md: could not open device unknown-block(%u,%u).\n",
@@ -7488,7 +7488,7 @@ static int __md_set_array_info(struct mddev *mddev, void __user *argp)
 	return err;
 }
 
-static int md_ioctl(struct block_device *bdev, fmode_t mode,
+static int md_ioctl(struct block_device *bdev, blk_mode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
@@ -7720,7 +7720,7 @@ out:
 	return err;
 }
 #ifdef CONFIG_COMPAT
-static int md_compat_ioctl(struct block_device *bdev, fmode_t mode,
+static int md_compat_ioctl(struct block_device *bdev, blk_mode_t mode,
 		    unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -7769,7 +7769,7 @@ out_unlock:
 	return err;
 }
 
-static int md_open(struct gendisk *disk, fmode_t mode)
+static int md_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct mddev *mddev;
 	int err;

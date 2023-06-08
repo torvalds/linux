@@ -1112,7 +1112,7 @@ static struct block_device *ext4_blkdev_get(dev_t dev, struct super_block *sb)
 {
 	struct block_device *bdev;
 
-	bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, sb,
+	bdev = blkdev_get_by_dev(dev, BLK_OPEN_READ | BLK_OPEN_WRITE, sb,
 				 &ext4_holder_ops);
 	if (IS_ERR(bdev))
 		goto fail;

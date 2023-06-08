@@ -275,7 +275,7 @@ struct bcache_device {
 
 	int (*cache_miss)(struct btree *b, struct search *s,
 			  struct bio *bio, unsigned int sectors);
-	int (*ioctl)(struct bcache_device *d, fmode_t mode,
+	int (*ioctl)(struct bcache_device *d, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
 };
 

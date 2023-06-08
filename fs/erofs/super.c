@@ -254,7 +254,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 			return PTR_ERR(fscache);
 		dif->fscache = fscache;
 	} else if (!sbi->devs->flatdev) {
-		bdev = blkdev_get_by_path(dif->path, FMODE_READ, sb->s_type,
+		bdev = blkdev_get_by_path(dif->path, BLK_OPEN_READ, sb->s_type,
 					  NULL);
 		if (IS_ERR(bdev))
 			return PTR_ERR(bdev);

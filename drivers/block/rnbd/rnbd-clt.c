@@ -921,11 +921,11 @@ rnbd_clt_session *find_or_create_sess(const char *sessname, bool *first)
 	return sess;
 }
 
-static int rnbd_client_open(struct gendisk *disk, fmode_t mode)
+static int rnbd_client_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct rnbd_clt_dev *dev = disk->private_data;
 
-	if (get_disk_ro(dev->gd) && (mode & FMODE_WRITE))
+	if (get_disk_ro(dev->gd) && (mode & BLK_OPEN_WRITE))
 		return -EPERM;
 
 	if (dev->dev_state == DEV_STATE_UNMAPPED ||

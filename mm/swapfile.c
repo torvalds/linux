@@ -2770,7 +2770,7 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 
 	if (S_ISBLK(inode->i_mode)) {
 		p->bdev = blkdev_get_by_dev(inode->i_rdev,
-				   FMODE_READ | FMODE_WRITE, p, NULL);
+				BLK_OPEN_READ | BLK_OPEN_WRITE, p, NULL);
 		if (IS_ERR(p->bdev)) {
 			error = PTR_ERR(p->bdev);
 			p->bdev = NULL;

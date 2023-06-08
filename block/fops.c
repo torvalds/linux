@@ -470,6 +470,30 @@ static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
 	return error;
 }
 
+blk_mode_t file_to_blk_mode(struct file *file)
+{
+	blk_mode_t mode = 0;
+
+	if (file->f_mode & FMODE_READ)
+		mode |= BLK_OPEN_READ;
+	if (file->f_mode & FMODE_WRITE)
+		mode |= BLK_OPEN_WRITE;
+	if (file->f_mode & FMODE_EXCL)
+		mode |= BLK_OPEN_EXCL;
+	if (file->f_flags & O_NDELAY)
+		mode |= BLK_OPEN_NDELAY;
+
+	/*
+	 * If all bits in O_ACCMODE set (aka O_RDWR | O_WRONLY), the floppy
+	 * driver has historically allowed ioctls as if the file was opened for
+	 * writing, but does not allow and actual reads or writes.
+	 */
+	if ((file->f_flags & O_ACCMODE) == (O_RDWR | O_WRONLY))
+		mode |= BLK_OPEN_WRITE_IOCTL;
+
+	return mode;
+}
+
 static int blkdev_open(struct inode *inode, struct file *filp)
 {
 	struct block_device *bdev;
@@ -483,14 +507,10 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 	filp->f_flags |= O_LARGEFILE;
 	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC;
 
-	if (filp->f_flags & O_NDELAY)
-		filp->f_mode |= FMODE_NDELAY;
 	if (filp->f_flags & O_EXCL)
 		filp->f_mode |= FMODE_EXCL;
-	if ((filp->f_flags & O_ACCMODE) == 3)
-		filp->f_mode |= FMODE_WRITE_IOCTL;
 
-	bdev = blkdev_get_by_dev(inode->i_rdev, filp->f_mode,
+	bdev = blkdev_get_by_dev(inode->i_rdev, file_to_blk_mode(filp),
 				 (filp->f_mode & FMODE_EXCL) ? filp : NULL,
 				 NULL);
 	if (IS_ERR(bdev))
@@ -648,7 +668,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	filemap_invalidate_lock(inode->i_mapping);
 
 	/* Invalidate the page cache, including dirty pages. */
-	error = truncate_bdev_range(bdev, file->f_mode, start, end);
+	error = truncate_bdev_range(bdev, file_to_blk_mode(file), start, end);
 	if (error)
 		goto fail;
 

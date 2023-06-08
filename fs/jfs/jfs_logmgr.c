@@ -1100,7 +1100,7 @@ int lmLogOpen(struct super_block *sb)
 	 * file systems to log may have n-to-1 relationship;
 	 */
 
-	bdev = blkdev_get_by_dev(sbi->logdev, FMODE_READ | FMODE_WRITE,
+	bdev = blkdev_get_by_dev(sbi->logdev, BLK_OPEN_READ | BLK_OPEN_WRITE,
 				 log, NULL);
 	if (IS_ERR(bdev)) {
 		rc = PTR_ERR(bdev);

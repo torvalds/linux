@@ -709,11 +709,11 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	}
 }
 
-int nvme_ioctl(struct block_device *bdev, fmode_t mode,
+int nvme_ioctl(struct block_device *bdev, blk_mode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
-	bool open_for_write = mode & FMODE_WRITE;
+	bool open_for_write = mode & BLK_OPEN_WRITE;
 	void __user *argp = (void __user *)arg;
 	unsigned int flags = 0;
 
@@ -817,11 +817,11 @@ static int nvme_ns_head_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	return ret;
 }
 
-int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
+int nvme_ns_head_ioctl(struct block_device *bdev, blk_mode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns_head *head = bdev->bd_disk->private_data;
-	bool open_for_write = mode & FMODE_WRITE;
+	bool open_for_write = mode & BLK_OPEN_WRITE;
 	void __user *argp = (void __user *)arg;
 	struct nvme_ns *ns;
 	int srcu_idx, ret = -EWOULDBLOCK;

@@ -90,7 +90,7 @@ static int iblock_configure_device(struct se_device *dev)
 	struct request_queue *q;
 	struct block_device *bd = NULL;
 	struct blk_integrity *bi;
-	fmode_t mode;
+	blk_mode_t mode = BLK_OPEN_READ;
 	unsigned int max_write_zeroes_sectors;
 	int ret;
 
@@ -108,9 +108,8 @@ static int iblock_configure_device(struct se_device *dev)
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
-	mode = FMODE_READ;
 	if (!ib_dev->ibd_readonly)
-		mode |= FMODE_WRITE;
+		mode |= BLK_OPEN_WRITE;
 	else
 		dev->dev_flags |= DF_READ_ONLY;
 

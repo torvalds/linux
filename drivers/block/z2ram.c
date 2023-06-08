@@ -140,7 +140,7 @@ static void get_chipram(void)
 	return;
 }
 
-static int z2_open(struct gendisk *disk, fmode_t mode)
+static int z2_open(struct gendisk *disk, blk_mode_t mode)
 {
 	int device = disk->first_minor;
 	int max_z2_map = (Z2RAM_SIZE / Z2RAM_CHUNKSIZE) * sizeof(z2ram_map[0]);

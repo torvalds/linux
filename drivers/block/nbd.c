@@ -1502,7 +1502,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	return -ENOTTY;
 }
 
-static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
+static int nbd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct nbd_device *nbd = bdev->bd_disk->private_data;
@@ -1553,7 +1553,7 @@ static struct nbd_config *nbd_alloc_config(void)
 	return config;
 }
 
-static int nbd_open(struct gendisk *disk, fmode_t mode)
+static int nbd_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct nbd_device *nbd;
 	int ret = 0;

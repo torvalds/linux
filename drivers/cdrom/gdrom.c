@@ -474,7 +474,7 @@ static const struct cdrom_device_ops gdrom_ops = {
 				  CDC_RESET | CDC_DRIVE_STATUS | CDC_CD_R,
 };
 
-static int gdrom_bdops_open(struct gendisk *disk, fmode_t mode)
+static int gdrom_bdops_open(struct gendisk *disk, blk_mode_t mode)
 {
 	int ret;
 
@@ -499,7 +499,7 @@ static unsigned int gdrom_bdops_check_events(struct gendisk *disk,
 	return cdrom_check_events(gd.cd_info, clearing);
 }
 
-static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
+static int gdrom_bdops_ioctl(struct block_device *bdev, blk_mode_t mode,
 	unsigned cmd, unsigned long arg)
 {
 	int ret;

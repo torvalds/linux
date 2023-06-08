@@ -93,7 +93,7 @@ EXPORT_SYMBOL(invalidate_bdev);
  * Drop all buffers & page cache for given bdev range. This function bails
  * with error if bdev has other exclusive owner (such as filesystem).
  */
-int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
+int truncate_bdev_range(struct block_device *bdev, blk_mode_t mode,
 			loff_t lstart, loff_t lend)
 {
 	/*
@@ -101,14 +101,14 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
 	 * while we discard the buffer cache to avoid discarding buffers
 	 * under live filesystem.
 	 */
-	if (!(mode & FMODE_EXCL)) {
+	if (!(mode & BLK_OPEN_EXCL)) {
 		int err = bd_prepare_to_claim(bdev, truncate_bdev_range, NULL);
 		if (err)
 			goto invalidate;
 	}
 
 	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
-	if (!(mode & FMODE_EXCL))
+	if (!(mode & BLK_OPEN_EXCL))
 		bd_abort_claiming(bdev, truncate_bdev_range);
 	return 0;
 
@@ -647,7 +647,7 @@ static void blkdev_flush_mapping(struct block_device *bdev)
 	bdev_write_inode(bdev);
 }
 
-static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
+static int blkdev_get_whole(struct block_device *bdev, blk_mode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	int ret;
@@ -679,7 +679,7 @@ static void blkdev_put_whole(struct block_device *bdev)
 		bdev->bd_disk->fops->release(bdev->bd_disk);
 }
 
-static int blkdev_get_part(struct block_device *part, fmode_t mode)
+static int blkdev_get_part(struct block_device *part, blk_mode_t mode)
 {
 	struct gendisk *disk = part->bd_disk;
 	int ret;
@@ -743,11 +743,11 @@ void blkdev_put_no_open(struct block_device *bdev)
 {
 	put_device(&bdev->bd_device);
 }
-
+	
 /**
  * blkdev_get_by_dev - open a block device by device number
  * @dev: device number of block device to open
- * @mode: FMODE_* mask
+ * @mode: open mode (BLK_OPEN_*)
  * @holder: exclusive holder identifier
  * @hops: holder operations
  *
@@ -765,7 +765,7 @@ void blkdev_put_no_open(struct block_device *bdev)
  * RETURNS:
  * Reference to the block_device on success, ERR_PTR(-errno) on failure.
  */
-struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
+struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 		const struct blk_holder_ops *hops)
 {
 	bool unblock_events = true;
@@ -775,8 +775,8 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 
 	ret = devcgroup_check_permission(DEVCG_DEV_BLOCK,
 			MAJOR(dev), MINOR(dev),
-			((mode & FMODE_READ) ? DEVCG_ACC_READ : 0) |
-			((mode & FMODE_WRITE) ? DEVCG_ACC_WRITE : 0));
+			((mode & BLK_OPEN_READ) ? DEVCG_ACC_READ : 0) |
+			((mode & BLK_OPEN_WRITE) ? DEVCG_ACC_WRITE : 0));
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -786,12 +786,12 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 	disk = bdev->bd_disk;
 
 	if (holder) {
-		mode |= FMODE_EXCL;
+		mode |= BLK_OPEN_EXCL;
 		ret = bd_prepare_to_claim(bdev, holder, hops);
 		if (ret)
 			goto put_blkdev;
 	} else {
-		if (WARN_ON_ONCE(mode & FMODE_EXCL)) {
+		if (WARN_ON_ONCE(mode & BLK_OPEN_EXCL)) {
 			ret = -EIO;
 			goto put_blkdev;
 		}
@@ -821,7 +821,7 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder,
 		 * writeable reference is too fragile given the way @mode is
 		 * used in blkdev_get/put().
 		 */
-		if ((mode & FMODE_WRITE) && !bdev->bd_write_holder &&
+		if ((mode & BLK_OPEN_WRITE) && !bdev->bd_write_holder &&
 		    (disk->event_flags & DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
 			unblock_events = false;
@@ -848,7 +848,7 @@ EXPORT_SYMBOL(blkdev_get_by_dev);
 /**
  * blkdev_get_by_path - open a block device by name
  * @path: path to the block device to open
- * @mode: FMODE_* mask
+ * @mode: open mode (BLK_OPEN_*)
  * @holder: exclusive holder identifier
  *
  * Open the block device described by the device file at @path.  If @holder is
@@ -861,7 +861,7 @@ EXPORT_SYMBOL(blkdev_get_by_dev);
  * RETURNS:
  * Reference to the block_device on success, ERR_PTR(-errno) on failure.
  */
-struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
+struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
 		void *holder, const struct blk_holder_ops *hops)
 {
 	struct block_device *bdev;
@@ -873,7 +873,7 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 		return ERR_PTR(error);
 
 	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
-	if (!IS_ERR(bdev) && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+	if (!IS_ERR(bdev) && (mode & BLK_OPEN_WRITE) && bdev_read_only(bdev)) {
 		blkdev_put(bdev, holder);
 		return ERR_PTR(-EACCES);
 	}

@@ -85,7 +85,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
 		return -ENOTBLK;
 
 	ns->bdev = blkdev_get_by_path(ns->device_path,
-			FMODE_READ | FMODE_WRITE, NULL, NULL);
+			BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
 	if (IS_ERR(ns->bdev)) {
 		ret = PTR_ERR(ns->bdev);
 		if (ret != -ENOTBLK) {

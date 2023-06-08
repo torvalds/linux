@@ -677,14 +677,14 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	struct rnbd_srv_sess_dev *srv_sess_dev;
 	const struct rnbd_msg_open *open_msg = msg;
 	struct block_device *bdev;
-	fmode_t open_flags = FMODE_READ;
+	blk_mode_t open_flags = BLK_OPEN_READ;
 	char *full_path;
 	struct rnbd_msg_open_rsp *rsp = data;
 
 	trace_process_msg_open(srv_sess, open_msg);
 
 	if (open_msg->access_mode != RNBD_ACCESS_RO)
-		open_flags |= FMODE_WRITE;
+		open_flags |= BLK_OPEN_WRITE;
 
 	mutex_lock(&srv_sess->lock);
 
