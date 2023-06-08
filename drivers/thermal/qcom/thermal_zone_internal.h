@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __QTI_THERMAL_ZONE_INTERNAL_H
@@ -15,6 +15,9 @@ static inline __maybe_unused int qti_tz_change_mode(struct thermal_zone_device *
 		enum thermal_device_mode mode)
 {
 	struct thermal_instance *instance;
+
+	if (!tz)
+		return 0;
 
 	tz->passive = 0;
 	tz->temperature = THERMAL_TEMP_INVALID;
