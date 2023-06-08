@@ -126,14 +126,22 @@ out:
 	return ret;
 }
 
-static void irq_release(struct mlx5_irq *irq)
+/* mlx5_system_free_irq - Free an IRQ
+ * @irq: IRQ to free
+ *
+ * Free the IRQ and other resources such as rmap from the system.
+ * BUT doesn't free or remove reference from mlx5.
+ * This function is very important for the shutdown flow, where we need to
+ * cleanup system resoruces but keep mlx5 objects alive,
+ * see mlx5_irq_table_free_irqs().
+ */
+static void mlx5_system_free_irq(struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = irq->pool;
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap *rmap;
 #endif
 
-	xa_erase(&pool->irqs, irq->pool_index);
 	/* free_irq requires that affinity_hint and rmap will be cleared before
 	 * calling it. To satisfy this requirement, we call
 	 * irq_cpu_rmap_remove() to remove the notifier
@@ -145,10 +153,18 @@ static void irq_release(struct mlx5_irq *irq)
 		irq_cpu_rmap_remove(rmap, irq->map.virq);
 #endif
 
-	free_cpumask_var(irq->mask);
 	free_irq(irq->map.virq, &irq->nh);
 	if (irq->map.index && pci_msix_can_alloc_dyn(pool->dev->pdev))
 		pci_msix_free_irq(pool->dev->pdev, irq->map);
+}
+
+static void irq_release(struct mlx5_irq *irq)
+{
+	struct mlx5_irq_pool *pool = irq->pool;
+
+	xa_erase(&pool->irqs, irq->pool_index);
+	mlx5_system_free_irq(irq);
+	free_cpumask_var(irq->mask);
 	kfree(irq);
 }
 
@@ -705,7 +721,8 @@ static void mlx5_irq_pool_free_irqs(struct mlx5_irq_pool *pool)
 	unsigned long index;
 
 	xa_for_each(&pool->irqs, index, irq)
-		free_irq(irq->map.virq, &irq->nh);
+		mlx5_system_free_irq(irq);
+
 }
 
 static void mlx5_irq_pools_free_irqs(struct mlx5_irq_table *table)
