@@ -618,6 +618,16 @@ struct dwc3_msm {
 
 	bool			wcd_usbss;
 	bool			dynamic_disable;
+
+	struct dentry *dbg_dir;
+#define PM_QOS_REQ_DYNAMIC	0
+#define PM_QOS_REQ_PERF		1
+#define PM_QOS_REQ_DEFAULT	2
+	u8 qos_req_state;
+#define PM_QOS_REC_MAX_RECORD	50
+	bool qos_rec_start;
+	u8 qos_rec_index;
+	u32 qos_rec_irq[PM_QOS_REC_MAX_RECORD];
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -5544,7 +5554,31 @@ int dwc3_msm_release_ss_lane(struct device *dev)
 }
 EXPORT_SYMBOL(dwc3_msm_release_ss_lane);
 
-static int dwc3_msm_debug_init(struct dwc3_msm *mdwc)
+static int qos_rec_irq_read(struct seq_file *s, void *p)
+{
+	struct dwc3_msm *mdwc = s->private;
+	int i;
+
+	for (i = 0; i < PM_QOS_REC_MAX_RECORD; i++)
+		seq_printf(s, "%d ", mdwc->qos_rec_irq[i]);
+
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int qos_rec_irq_open(struct inode *inode,
+		struct file *file)
+{
+	return single_open(file, qos_rec_irq_read, inode->i_private);
+}
+
+static const struct file_operations qos_rec_irq_ops = {
+	.open	= qos_rec_irq_open,
+	.read	= seq_read,
+};
+
+static void dwc3_msm_debug_init(struct dwc3_msm *mdwc)
 {
 	char ipc_log_ctx_name[40];
 
@@ -5567,7 +5601,20 @@ static int dwc3_msm_debug_init(struct dwc3_msm *mdwc)
 	if (!dwc_trace_ipc_log_ctxt)
 		dev_err(mdwc->dev, "Error getting trace_ipc_log_ctxt for ep_events\n");
 
-	return 0;
+	mdwc->dbg_dir = debugfs_create_dir(dev_name(mdwc->dev), NULL);
+	if (!mdwc->dbg_dir)
+		return;
+	debugfs_create_u8("qos_req_state", 0644, mdwc->dbg_dir, &mdwc->qos_req_state);
+	debugfs_create_bool("qos_rec_start", 0644, mdwc->dbg_dir, &mdwc->qos_rec_start);
+	debugfs_create_u8("qos_rec_index", 0644, mdwc->dbg_dir, &mdwc->qos_rec_index);
+	debugfs_create_file("qos_rec_irq", 0444, mdwc->dbg_dir, mdwc, &qos_rec_irq_ops);
+}
+
+static void dwc3_msm_debug_exit(struct dwc3_msm *mdwc)
+{
+	ipc_log_context_destroy(mdwc->dwc_ipc_log_ctxt);
+	ipc_log_context_destroy(mdwc->dwc_dma_ipc_log_ctxt);
+	debugfs_remove_recursive(mdwc->dbg_dir);
 }
 
 static void dwc3_host_complete(struct device *dev);
@@ -6207,10 +6254,7 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 	destroy_workqueue(mdwc->sm_usb_wq);
 	destroy_workqueue(mdwc->dwc3_wq);
 
-	ipc_log_context_destroy(mdwc->dwc_ipc_log_ctxt);
-	mdwc->dwc_ipc_log_ctxt = NULL;
-	ipc_log_context_destroy(mdwc->dwc_dma_ipc_log_ctxt);
-	mdwc->dwc_dma_ipc_log_ctxt = NULL;
+	dwc3_msm_debug_exit(mdwc);
 
 	kfree(mdwc->xhci_pm_ops);
 	kfree(mdwc->dwc3_pm_ops);
@@ -6364,10 +6408,14 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 	unsigned long delay = PM_QOS_DEFAULT_SAMPLE_MS;
 	bool in_perf_mode = false;
 
+	if (mdwc->qos_rec_start && mdwc->qos_rec_index < PM_QOS_REC_MAX_RECORD)
+		mdwc->qos_rec_irq[mdwc->qos_rec_index++] = count;
+
 	if (mdwc->perf_mode)
 		threshold = PM_QOS_PERF_SAMPLE_THRESHOLD;
 
-	if (count >= threshold)
+	if (mdwc->qos_req_state == PM_QOS_REQ_PERF ||
+	    (mdwc->qos_req_state == PM_QOS_REQ_DYNAMIC && count >= threshold))
 		in_perf_mode = true;
 
 	pr_debug("%s: in_perf_mode:%u, interrupts in last sample:%u\n",
@@ -6376,7 +6424,11 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 	mdwc->irq_cnt = new;
 	msm_dwc3_perf_vote_update(mdwc, in_perf_mode);
 
-	if (in_perf_mode)
+	/*
+	 * in PM_QOS_REQ_DEFAULT and PM_QOS_REQ_PERF, both delay is 100ms,
+	 * it will compare irq differences.
+	 */
+	if (mdwc->qos_req_state == PM_QOS_REQ_DYNAMIC && in_perf_mode)
 		delay = PM_QOS_PERF_SAMPLE_MS;
 
 	schedule_delayed_work(&mdwc->perf_vote_work, msecs_to_jiffies(delay));
