@@ -2323,8 +2323,8 @@ def main():
         headers = ['uapi/' + parsed.uapi_header]
     else:
         cw.p('#include <stdlib.h>')
+        cw.p('#include <string.h>')
         if args.header:
-            cw.p('#include <string.h>')
             cw.p('#include <linux/types.h>')
         else:
             cw.p(f'#include "{parsed.name}-user.h"')
@@ -2339,9 +2339,6 @@ def main():
 
     if args.mode == "user":
         if not args.header:
-            cw.p("#include <stdlib.h>")
-            cw.p("#include <stdio.h>")
-            cw.p("#include <string.h>")
             cw.p("#include <libmnl/libmnl.h>")
             cw.p("#include <linux/genetlink.h>")
             cw.nl()
