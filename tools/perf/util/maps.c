@@ -171,7 +171,7 @@ struct maps *maps__new(struct machine *machine)
 	return result;
 }
 
-void maps__delete(struct maps *maps)
+static void maps__delete(struct maps *maps)
 {
 	maps__exit(maps);
 	unwind__finish_access(maps);
