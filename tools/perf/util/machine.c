@@ -2221,7 +2221,7 @@ static void ip__resolve_ams(struct thread *thread,
 {
 	struct addr_location al;
 
-	memset(&al, 0, sizeof(al));
+	addr_location__init(&al);
 	/*
 	 * We cannot use the header.misc hint to determine whether a
 	 * branch stack address is user, kernel, guest, hypervisor.
@@ -2234,11 +2234,12 @@ static void ip__resolve_ams(struct thread *thread,
 	ams->addr = ip;
 	ams->al_addr = al.addr;
 	ams->al_level = al.level;
-	ams->ms.maps = al.maps;
+	ams->ms.maps = maps__get(al.maps);
 	ams->ms.sym = al.sym;
-	ams->ms.map = al.map;
+	ams->ms.map = map__get(al.map);
 	ams->phys_addr = 0;
 	ams->data_page_size = 0;
+	addr_location__exit(&al);
 }
 
 static void ip__resolve_data(struct thread *thread,
@@ -2247,18 +2248,19 @@ static void ip__resolve_data(struct thread *thread,
 {
 	struct addr_location al;
 
-	memset(&al, 0, sizeof(al));
+	addr_location__init(&al);
 
 	thread__find_symbol(thread, m, addr, &al);
 
 	ams->addr = addr;
 	ams->al_addr = al.addr;
 	ams->al_level = al.level;
-	ams->ms.maps = al.maps;
+	ams->ms.maps = maps__get(al.maps);
 	ams->ms.sym = al.sym;
-	ams->ms.map = al.map;
+	ams->ms.map = map__get(al.map);
 	ams->phys_addr = phys_addr;
 	ams->data_page_size = daddr_page_size;
+	addr_location__exit(&al);
 }
 
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
@@ -2319,10 +2321,11 @@ static int add_callchain_ip(struct thread *thread,
 {
 	struct map_symbol ms;
 	struct addr_location al;
-	int nr_loop_iter = 0, err;
+	int nr_loop_iter = 0, err = 0;
 	u64 iter_cycles = 0;
 	const char *srcline = NULL;
 
+	addr_location__init(&al);
 	al.filtered = 0;
 	al.sym = NULL;
 	al.srcline = NULL;
@@ -2348,9 +2351,10 @@ static int add_callchain_ip(struct thread *thread,
 				 * Discard all.
 				 */
 				callchain_cursor_reset(cursor);
-				return 1;
+				err = 1;
+				goto out;
 			}
-			return 0;
+			goto out;
 		}
 		thread__find_symbol(thread, *cpumode, ip, &al);
 	}
@@ -2363,31 +2367,32 @@ static int add_callchain_ip(struct thread *thread,
 		  symbol__match_regex(al.sym, &ignore_callees_regex)) {
 			/* Treat this symbol as the root,
 			   forgetting its callees. */
-			*root_al = al;
+			addr_location__copy(root_al, &al);
 			callchain_cursor_reset(cursor);
 		}
 	}
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
-		return 0;
+		goto out;
 
 	if (iter) {
 		nr_loop_iter = iter->nr_loop_iter;
 		iter_cycles = iter->cycles;
 	}
 
-	ms.maps = al.maps;
-	ms.map = al.map;
+	ms.maps = maps__get(al.maps);
+	ms.map = map__get(al.map);
 	ms.sym = al.sym;
 
 	if (!branch && append_inlines(cursor, &ms, ip) == 0)
-		return 0;
+		goto out;
 
 	srcline = callchain_srcline(&ms, al.addr);
 	err = callchain_cursor_append(cursor, ip, &ms,
 				      branch, flags, nr_loop_iter,
 				      iter_cycles, branch_from, srcline);
-	map__put(al.map);
+out:
+	addr_location__exit(&al);
 	return err;
 }
 

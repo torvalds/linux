@@ -2418,13 +2418,15 @@ static int trace__resolve_callchain(struct trace *trace, struct evsel *evsel,
 	int max_stack = evsel->core.attr.sample_max_stack ?
 			evsel->core.attr.sample_max_stack :
 			trace->max_stack;
-	int err;
+	int err = -1;
 
+	addr_location__init(&al);
 	if (machine__resolve(trace->host, &al, sample) < 0)
-		return -1;
+		goto out;
 
 	err = thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack);
-	addr_location__put(&al);
+out:
+	addr_location__exit(&al);
 	return err;
 }
 
@@ -2893,6 +2895,7 @@ static int trace__pgfault(struct trace *trace,
 	int err = -1;
 	int callchain_ret = 0;
 
+	addr_location__init(&al);
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 
 	if (sample->callchain) {
@@ -2953,6 +2956,7 @@ out:
 	err = 0;
 out_put:
 	thread__put(thread);
+	addr_location__exit(&al);
 	return err;
 }
 

@@ -286,10 +286,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	struct mem_info *mi, *mi_dup;
 	int ret;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	if (c2c.stitch_lbr)
@@ -301,8 +303,10 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		goto out;
 
 	mi = sample__resolve_mem(sample, &al);
-	if (mi == NULL)
-		return -ENOMEM;
+	if (mi == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * The mi object is released in hists__add_entry_ops,
@@ -368,7 +372,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	}
 
 out:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return ret;
 
 free_mi:

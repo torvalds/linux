@@ -469,9 +469,11 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 				struct addr_location node_al;
 				unsigned long offset;
 
+				addr_location__init(&node_al);
 				node_al.addr = map__map_ip(map, node->ip);
-				node_al.map  = map;
+				node_al.map  = map__get(map);
 				offset = get_offset(node->ms.sym, &node_al);
+				addr_location__exit(&node_al);
 
 				pydict_set_item_string_decref(
 					pyelem, "sym_off",
@@ -539,6 +541,7 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "cycles",
 		    PyLong_FromUnsignedLongLong(entries[i].flags.cycles));
 
+		addr_location__init(&al);
 		thread__find_map_fb(thread, sample->cpumode,
 				    entries[i].from, &al);
 		dsoname = get_dsoname(al.map);
@@ -551,6 +554,7 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "to_dsoname",
 					      _PyUnicode_FromString(dsoname));
 
+		addr_location__exit(&al);
 		PyList_Append(pylist, pyelem);
 		Py_DECREF(pyelem);
 	}
@@ -594,7 +598,6 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 	PyObject *pylist;
 	u64 i;
 	char bf[512];
-	struct addr_location al;
 
 	pylist = PyList_New(0);
 	if (!pylist)
@@ -605,7 +608,9 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 
 	for (i = 0; i < br->nr; i++) {
 		PyObject *pyelem;
+		struct addr_location al;
 
+		addr_location__init(&al);
 		pyelem = PyDict_New();
 		if (!pyelem)
 			Py_FatalError("couldn't create Python dictionary");
@@ -644,6 +649,7 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 
 		PyList_Append(pylist, pyelem);
 		Py_DECREF(pyelem);
+		addr_location__exit(&al);
 	}
 
 exit:

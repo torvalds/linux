@@ -743,6 +743,7 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 	struct addr_location al;
 	struct thread *thread;
 
+	addr_location__init(&al);
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL) {
 		pr_err("problem processing %d event, skipping it.\n",
@@ -763,6 +764,7 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 	thread__put(thread);
 repipe:
 	perf_event__repipe(tool, event, sample, machine);
+	addr_location__exit(&al);
 	return 0;
 }
 

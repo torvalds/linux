@@ -432,17 +432,24 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 	if (machine__kernel_ip(machine, ip))
 		cpumode = PERF_RECORD_MISC_KERNEL;
 
-	if (!thread__find_map(thread, cpumode, ip, &al))
-	       return -1;
+	addr_location__init(&al);
+	if (!thread__find_map(thread, cpumode, ip, &al)) {
+		addr_location__exit(&al);
+		return -1;
+	}
 
 	dso = map__dso(al.map);
 
-	if( !dso || dso->data.status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0)
+	if (!dso || dso->data.status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0) {
+		addr_location__exit(&al);
 		return -1;
+	}
 
 	offset = map__map_ip(al.map, ip);
 	if (is64bit)
 		*is64bit = dso->is_64_bit;
+
+	addr_location__exit(&al);
 
 	return dso__data_read_offset(dso, machine, offset, buf, len);
 }

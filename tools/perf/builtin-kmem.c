@@ -399,7 +399,9 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
 	struct callchain_cursor_node *node;
+	u64 result = sample->ip;
 
+	addr_location__init(&al);
 	if (alloc_func_list == NULL) {
 		if (build_alloc_func_list() < 0)
 			goto out;
@@ -427,16 +429,18 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 			else
 				addr = node->ip;
 
-			return addr;
+			result = addr;
+			goto out;
 		} else
 			pr_debug3("skipping alloc function: %s\n", caller->name);
 
 		callchain_cursor_advance(&callchain_cursor);
 	}
 
-out:
 	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
-	return sample->ip;
+out:
+	addr_location__exit(&al);
+	return result;
 }
 
 struct sort_dimension {

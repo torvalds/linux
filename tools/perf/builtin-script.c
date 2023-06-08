@@ -919,7 +919,6 @@ static int perf_sample__fprintf_brstack(struct perf_sample *sample,
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct branch_entry *entries = perf_sample__branch_entries(sample);
-	struct addr_location alf, alt;
 	u64 i, from, to;
 	int printed = 0;
 
@@ -930,20 +929,22 @@ static int perf_sample__fprintf_brstack(struct perf_sample *sample,
 		from = entries[i].from;
 		to   = entries[i].to;
 
+		printed += fprintf(fp, " 0x%"PRIx64, from);
 		if (PRINT_FIELD(DSO)) {
-			memset(&alf, 0, sizeof(alf));
-			memset(&alt, 0, sizeof(alt));
+			struct addr_location alf, alt;
+
+			addr_location__init(&alf);
+			addr_location__init(&alt);
 			thread__find_map_fb(thread, sample->cpumode, from, &alf);
 			thread__find_map_fb(thread, sample->cpumode, to, &alt);
-		}
 
-		printed += fprintf(fp, " 0x%"PRIx64, from);
-		if (PRINT_FIELD(DSO))
 			printed += map__fprintf_dsoname_dsoff(alf.map, PRINT_FIELD(DSOFF), alf.addr, fp);
-
-		printed += fprintf(fp, "/0x%"PRIx64, to);
-		if (PRINT_FIELD(DSO))
+			printed += fprintf(fp, "/0x%"PRIx64, to);
 			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
+			addr_location__exit(&alt);
+			addr_location__exit(&alf);
+		} else
+			printed += fprintf(fp, "/0x%"PRIx64, to);
 
 		printed += print_bstack_flags(fp, entries + i);
 	}
@@ -957,7 +958,6 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct branch_entry *entries = perf_sample__branch_entries(sample);
-	struct addr_location alf, alt;
 	u64 i, from, to;
 	int printed = 0;
 
@@ -965,9 +965,10 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 		return 0;
 
 	for (i = 0; i < br->nr; i++) {
+		struct addr_location alf, alt;
 
-		memset(&alf, 0, sizeof(alf));
-		memset(&alt, 0, sizeof(alt));
+		addr_location__init(&alf);
+		addr_location__init(&alt);
 		from = entries[i].from;
 		to   = entries[i].to;
 
@@ -982,6 +983,8 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 		if (PRINT_FIELD(DSO))
 			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
 		printed += print_bstack_flags(fp, entries + i);
+		addr_location__exit(&alt);
+		addr_location__exit(&alf);
 	}
 
 	return printed;
@@ -993,7 +996,6 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct branch_entry *entries = perf_sample__branch_entries(sample);
-	struct addr_location alf, alt;
 	u64 i, from, to;
 	int printed = 0;
 
@@ -1001,9 +1003,10 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		return 0;
 
 	for (i = 0; i < br->nr; i++) {
+		struct addr_location alf, alt;
 
-		memset(&alf, 0, sizeof(alf));
-		memset(&alt, 0, sizeof(alt));
+		addr_location__init(&alf);
+		addr_location__init(&alt);
 		from = entries[i].from;
 		to   = entries[i].to;
 
@@ -1022,6 +1025,8 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		if (PRINT_FIELD(DSO))
 			printed += map__fprintf_dsoname_dsoff(alt.map, PRINT_FIELD(DSOFF), alt.addr, fp);
 		printed += print_bstack_flags(fp, entries + i);
+		addr_location__exit(&alt);
+		addr_location__exit(&alf);
 	}
 
 	return printed;
@@ -1036,6 +1041,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	struct addr_location al;
 	bool kernel;
 	struct dso *dso;
+	int ret = 0;
 
 	if (!start || !end)
 		return 0;
@@ -1057,7 +1063,6 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		return -ENXIO;
 	}
 
-	memset(&al, 0, sizeof(al));
 	if (end - start > MAXBB - MAXINSN) {
 		if (last)
 			pr_debug("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
@@ -1066,13 +1071,14 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		return 0;
 	}
 
+	addr_location__init(&al);
 	if (!thread__find_map(thread, *cpumode, start, &al) || (dso = map__dso(al.map)) == NULL) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
-		return 0;
+		goto out;
 	}
 	if (dso->data.status == DSO_DATA_STATUS_ERROR) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
-		return 0;
+		goto out;
 	}
 
 	/* Load maps to ensure dso->is_64_bit has been updated */
@@ -1086,7 +1092,10 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	if (len <= 0)
 		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
-	return len;
+	ret = len;
+out:
+	addr_location__exit(&al);
+	return ret;
 }
 
 static int map__fprintf_srccode(struct map *map, u64 addr, FILE *fp, struct srccode_state *state)
@@ -1137,14 +1146,16 @@ static int print_srccode(struct thread *thread, u8 cpumode, uint64_t addr)
 	struct addr_location al;
 	int ret = 0;
 
-	memset(&al, 0, sizeof(al));
+	addr_location__init(&al);
 	thread__find_map(thread, cpumode, addr, &al);
 	if (!al.map)
-		return 0;
+		goto out;
 	ret = map__fprintf_srccode(al.map, al.addr, stdout,
 				   thread__srccode_state(thread));
 	if (ret)
 		ret += printf("\n");
+out:
+	addr_location__exit(&al);
 	return ret;
 }
 
@@ -1179,14 +1190,13 @@ static int ip__fprintf_sym(uint64_t addr, struct thread *thread,
 			   struct perf_event_attr *attr, FILE *fp)
 {
 	struct addr_location al;
-	int off, printed = 0;
+	int off, printed = 0, ret = 0;
 
-	memset(&al, 0, sizeof(al));
-
+	addr_location__init(&al);
 	thread__find_map(thread, cpumode, addr, &al);
 
 	if ((*lastsym) && al.addr >= (*lastsym)->start && al.addr < (*lastsym)->end)
-		return 0;
+		goto out;
 
 	al.cpu = cpu;
 	al.sym = NULL;
@@ -1194,7 +1204,7 @@ static int ip__fprintf_sym(uint64_t addr, struct thread *thread,
 		al.sym = map__find_symbol(al.map, al.addr);
 
 	if (!al.sym)
-		return 0;
+		goto out;
 
 	if (al.addr < al.sym->end)
 		off = al.addr - al.sym->start;
@@ -1209,7 +1219,10 @@ static int ip__fprintf_sym(uint64_t addr, struct thread *thread,
 	printed += fprintf(fp, "\n");
 	*lastsym = al.sym;
 
-	return printed;
+	ret = printed;
+out:
+	addr_location__exit(&al);
+	return ret;
 }
 
 static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
@@ -1371,6 +1384,7 @@ static int perf_sample__fprintf_addr(struct perf_sample *sample,
 	struct addr_location al;
 	int printed = fprintf(fp, "%16" PRIx64, sample->addr);
 
+	addr_location__init(&al);
 	if (!sample_addr_correlates_sym(attr))
 		goto out;
 
@@ -1387,6 +1401,7 @@ static int perf_sample__fprintf_addr(struct perf_sample *sample,
 	if (PRINT_FIELD(DSO))
 		printed += map__fprintf_dsoname_dsoff(al.map, PRINT_FIELD(DSOFF), al.addr, fp);
 out:
+	addr_location__exit(&al);
 	return printed;
 }
 
@@ -2338,8 +2353,8 @@ static int process_sample_event(struct perf_tool *tool,
 	int ret = 0;
 
 	/* Set thread to NULL to indicate addr_al and al are not initialized */
-	addr_al.thread = NULL;
-	al.thread = NULL;
+	addr_location__init(&al);
+	addr_location__init(&addr_al);
 
 	ret = dlfilter__filter_event_early(dlfilter, event, sample, evsel, machine, &al, &addr_al);
 	if (ret) {
@@ -2405,8 +2420,8 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 out_put:
-	if (al.thread)
-		addr_location__put(&al);
+	addr_location__exit(&addr_al);
+	addr_location__exit(&al);
 	return ret;
 }
 

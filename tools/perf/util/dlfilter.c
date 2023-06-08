@@ -258,6 +258,7 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 	struct addr_location a;
 	struct map *map;
 	u64 offset;
+	__s32 ret;
 
 	if (!d->ctx_valid)
 		return -1;
@@ -272,16 +273,22 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 	    machine__kernel_ip(d->machine, ip) == machine__kernel_ip(d->machine, d->sample->ip))
 		goto have_map;
 
+	addr_location__init(&a);
 	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
-	if (!a.map)
-		return -1;
+	if (!a.map) {
+		ret = -1;
+		goto out;
+	}
 
 	map = a.map;
 have_map:
 	offset = map__map_ip(map, ip);
 	if (ip + len >= map__end(map))
 		len = map__end(map) - ip;
-	return dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
+	ret = dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
+out:
+	addr_location__exit(&a);
+	return ret;
 }
 
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {

@@ -486,6 +486,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	if (machine) {
 		struct addr_location al;
 
+		addr_location__init(&al);
 		al.map = map__get(maps__find(machine__kernel_maps(machine), tp->addr));
 		if (al.map && map__load(al.map) >= 0) {
 			al.addr = map__map_ip(al.map, tp->addr);
@@ -493,7 +494,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 			if (al.sym)
 				ret += symbol__fprintf_symname_offs(al.sym, &al, fp);
 		}
-		map__put(al.map);
+		addr_location__exit(&al);
 	}
 	ret += fprintf(fp, " old len %u new len %u\n", tp->old_len, tp->new_len);
 	old = true;
@@ -577,8 +578,10 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 	struct machine *machine = maps__machine(maps);
 	bool load_map = false;
 
-	al->maps = maps;
-	al->thread = thread;
+	maps__zput(al->maps);
+	map__zput(al->map);
+	thread__zput(al->thread);
+
 	al->addr = addr;
 	al->cpumode = cpumode;
 	al->filtered = 0;
@@ -590,13 +593,13 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
-		al->maps = maps = machine__kernel_maps(machine);
+		maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
-		al->maps = maps = machine__kernel_maps(machine);
+		maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
 		al->level = 'u';
@@ -615,7 +618,8 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 		return NULL;
 	}
-
+	al->maps = maps__get(maps);
+	al->thread = thread__get(thread);
 	al->map = map__get(maps__find(maps, al->addr));
 	if (al->map != NULL) {
 		/*

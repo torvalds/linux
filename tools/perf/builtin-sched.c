@@ -2584,6 +2584,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	int rc = 0;
 	int state = evsel__intval(evsel, sample, "prev_state");
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
 		       event->header.type);
@@ -2692,6 +2693,7 @@ out:
 
 	evsel__save_time(evsel, sample->time, sample->cpu);
 
+	addr_location__exit(&al);
 	return rc;
 }
 

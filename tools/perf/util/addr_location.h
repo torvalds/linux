@@ -23,6 +23,9 @@ struct addr_location {
 	s32	      socket;
 };
 
-void addr_location__put(struct addr_location *al);
+void addr_location__init(struct addr_location *al);
+void addr_location__exit(struct addr_location *al);
+
+void addr_location__copy(struct addr_location *dst, struct addr_location *src);
 
 #endif /* __PERF_ADDR_LOCATION */

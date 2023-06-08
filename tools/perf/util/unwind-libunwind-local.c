@@ -416,7 +416,12 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 {
 	struct addr_location al;
-	return thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al);
+	struct map *ret;
+
+	addr_location__init(&al);
+	ret = thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al);
+	addr_location__exit(&al);
+	return ret;
 }
 
 static int
@@ -631,7 +636,9 @@ static int entry(u64 ip, struct thread *thread,
 {
 	struct unwind_entry e;
 	struct addr_location al;
+	int ret;
 
+	addr_location__init(&al);
 	e.ms.sym = thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
 	e.ip     = ip;
 	e.ms.map = al.map;
@@ -642,7 +649,9 @@ static int entry(u64 ip, struct thread *thread,
 		 ip,
 		 al.map ? map__map_ip(al.map, ip) : (u64) 0);
 
-	return cb(&e, arg);
+	ret = cb(&e, arg);
+	addr_location__exit(&al);
+	return ret;
 }
 
 static void display_error(int err)

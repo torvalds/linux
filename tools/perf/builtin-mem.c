@@ -199,9 +199,11 @@ dump_raw_samples(struct perf_tool *tool,
 	char str[PAGE_SIZE_NAME_LEN];
 	struct dso *dso = NULL;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
+		addr_location__exit(&al);
 		return -1;
 	}
 
@@ -256,7 +258,7 @@ dump_raw_samples(struct perf_tool *tool,
 		dso ? dso->long_name : "???",
 		al.sym ? al.sym->name : "???");
 out_put:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return 0;
 }
 

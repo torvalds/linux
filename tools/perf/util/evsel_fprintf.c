@@ -128,8 +128,6 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 	bool first = true;
 
 	if (sample->callchain) {
-		struct addr_location node_al;
-
 		callchain_cursor_commit(cursor);
 
 		while (1) {
@@ -159,9 +157,12 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
 
 			if (print_sym) {
+				struct addr_location node_al;
+
+				addr_location__init(&node_al);
 				printed += fprintf(fp, " ");
 				node_al.addr = addr;
-				node_al.map  = map;
+				node_al.map  = map__get(map);
 
 				if (print_symoffset) {
 					printed += __symbol__fprintf_symname_offs(sym, &node_al,
@@ -171,6 +172,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 					printed += __symbol__fprintf_symname(sym, &node_al,
 									     print_unknown_as_addr, fp);
 				}
+				addr_location__exit(&node_al);
 			}
 
 			if (print_dso && (!sym || !sym->inlined))

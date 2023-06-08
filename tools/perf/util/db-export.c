@@ -239,16 +239,17 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		struct addr_location al;
 		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
 
-		memset(&al, 0, sizeof(al));
 
 		node = callchain_cursor_current(&callchain_cursor);
 		if (!node)
 			break;
+
 		/*
 		 * Handle export of symbol and dso for this node by
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
+		addr_location__init(&al);
 		al.sym = node->ms.sym;
 		al.map = node->ms.map;
 		al.maps = thread__maps(thread);
@@ -265,6 +266,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 					     kernel_start);
 
 		callchain_cursor_advance(&callchain_cursor);
+		addr_location__exit(&al);
 	}
 
 	/* Reset the callchain order to its prior value. */

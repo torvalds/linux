@@ -910,33 +910,35 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	struct addr_location al;
 	struct dso *dso;
 	struct cs_etm_traceid_queue *tidq;
+	int ret = 0;
 
 	if (!etmq)
 		return 0;
 
+	addr_location__init(&al);
 	machine = etmq->etm->machine;
 	cpumode = cs_etm__cpu_mode(etmq, address);
 	tidq = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
 	if (!tidq)
-		return 0;
+		goto out;
 
 	thread = tidq->thread;
 	if (!thread) {
 		if (cpumode != PERF_RECORD_MISC_KERNEL)
-			return 0;
+			goto out;
 		thread = etmq->etm->unknown_thread;
 	}
 
 	if (!thread__find_map(thread, cpumode, address, &al))
-		return 0;
+		goto out;
 
 	dso = map__dso(al.map);
 	if (!dso)
-		return 0;
+		goto out;
 
 	if (dso->data.status == DSO_DATA_STATUS_ERROR &&
 	    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE))
-		return 0;
+		goto out;
 
 	offset = map__map_ip(al.map, address);
 
@@ -953,10 +955,12 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 				    dso->long_name ? dso->long_name : "Unknown");
 			dso->auxtrace_warned = true;
 		}
-		return 0;
+		goto out;
 	}
-
-	return len;
+	ret = len;
+out:
+	addr_location__exit(&al);
+	return ret;
 }
 
 static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm,

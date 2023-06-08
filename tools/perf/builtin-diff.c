@@ -409,15 +409,17 @@ static int diff__process_sample_event(struct perf_tool *tool,
 		return 0;
 	}
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap)) {
 		ret = 0;
-		goto out_put;
+		goto out;
 	}
 
 	switch (compute) {
@@ -426,7 +428,7 @@ static int diff__process_sample_event(struct perf_tool *tool,
 					  NULL, NULL, NULL, sample, true)) {
 			pr_warning("problem incrementing symbol period, "
 				   "skipping event\n");
-			goto out_put;
+			goto out;
 		}
 
 		hist__account_cycles(sample->branch_stack, &al, sample, false,
@@ -437,7 +439,7 @@ static int diff__process_sample_event(struct perf_tool *tool,
 		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
 					 NULL)) {
 			pr_debug("problem adding hist entry, skipping event\n");
-			goto out_put;
+			goto out;
 		}
 		break;
 
@@ -446,7 +448,7 @@ static int diff__process_sample_event(struct perf_tool *tool,
 				      true)) {
 			pr_warning("problem incrementing symbol period, "
 				   "skipping event\n");
-			goto out_put;
+			goto out;
 		}
 	}
 
@@ -460,8 +462,8 @@ static int diff__process_sample_event(struct perf_tool *tool,
 	if (!al.filtered)
 		hists->stats.total_non_filtered_period += sample->period;
 	ret = 0;
-out_put:
-	addr_location__put(&al);
+out:
+	addr_location__exit(&al);
 	return ret;
 }
 

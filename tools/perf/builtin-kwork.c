@@ -739,17 +739,22 @@ static int timehist_exit_event(struct perf_kwork *kwork,
 	struct kwork_atom *atom = NULL;
 	struct kwork_work *work = NULL;
 	struct addr_location al;
+	int ret = 0;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("Problem processing event, skipping it\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	atom = work_pop_atom(kwork, class, KWORK_TRACE_EXIT,
 			     KWORK_TRACE_ENTRY, evsel, sample,
 			     machine, &work);
-	if (work == NULL)
-		return -1;
+	if (work == NULL) {
+		ret = -1;
+		goto out;
+	}
 
 	if (atom != NULL) {
 		work->nr_atoms++;
@@ -757,7 +762,9 @@ static int timehist_exit_event(struct perf_kwork *kwork,
 		atom_del(atom);
 	}
 
-	return 0;
+out:
+	addr_location__exit(&al);
+	return ret;
 }
 
 static struct kwork_class kwork_irq;
