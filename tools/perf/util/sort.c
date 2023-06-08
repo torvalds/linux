@@ -128,7 +128,7 @@ static int hist_entry__thread_filter(struct hist_entry *he, int type, const void
 	if (type != HIST_FILTER__THREAD)
 		return -1;
 
-	return th && he->thread != th;
+	return th && RC_CHK_ACCESS(he->thread) != RC_CHK_ACCESS(th);
 }
 
 struct sort_entry sort_thread = {

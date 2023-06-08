@@ -2055,7 +2055,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread_rb_n
 	if (!nd)
 		nd = thread_rb_node__find(th, &threads->entries.rb_root);
 
-	if (threads->last_match == th)
+	if (threads->last_match && RC_CHK_ACCESS(threads->last_match) == RC_CHK_ACCESS(th))
 		threads__set_last_match(threads, NULL);
 
 	if (lock)

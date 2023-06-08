@@ -41,9 +41,10 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 {
 	char *comm_str;
 	struct comm *comm;
-	struct thread *thread = zalloc(sizeof(*thread));
+	RC_STRUCT(thread) *_thread = zalloc(sizeof(*_thread));
+	struct thread *thread;
 
-	if (thread != NULL) {
+	if (ADD_RC_CHK(thread, _thread) != NULL) {
 		thread__set_pid(thread, pid);
 		thread__set_tid(thread, tid);
 		thread__set_ppid(thread, -1);
@@ -68,7 +69,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 		list_add(&comm->list, thread__comm_list(thread));
 		refcount_set(thread__refcnt(thread), 1);
 		/* Thread holds first ref to nsdata. */
-		thread->nsinfo = nsinfo__new(pid);
+		RC_CHK_ACCESS(thread)->nsinfo = nsinfo__new(pid);
 		srccode_state_init(thread__srccode_state(thread));
 	}
 
@@ -105,26 +106,31 @@ void thread__delete(struct thread *thread)
 	}
 	up_write(thread__comm_lock(thread));
 
-	nsinfo__zput(thread->nsinfo);
+	nsinfo__zput(RC_CHK_ACCESS(thread)->nsinfo);
 	srccode_state_free(thread__srccode_state(thread));
 
 	exit_rwsem(thread__namespaces_lock(thread));
 	exit_rwsem(thread__comm_lock(thread));
 	thread__free_stitch_list(thread);
-	free(thread);
+	RC_CHK_FREE(thread);
 }
 
 struct thread *thread__get(struct thread *thread)
 {
-	if (thread)
+	struct thread *result;
+
+	if (RC_CHK_GET(result, thread))
 		refcount_inc(thread__refcnt(thread));
-	return thread;
+
+	return result;
 }
 
 void thread__put(struct thread *thread)
 {
 	if (thread && refcount_dec_and_test(thread__refcnt(thread)))
 		thread__delete(thread);
+	else
+		RC_CHK_PUT(thread);
 }
 
 static struct namespaces *__thread__namespaces(struct thread *thread)

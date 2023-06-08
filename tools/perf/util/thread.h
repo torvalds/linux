@@ -15,6 +15,7 @@
 #include "rwsem.h"
 #include "event.h"
 #include "callchain.h"
+#include <internal/rc_check.h>
 
 struct addr_location;
 struct map;
@@ -34,7 +35,7 @@ struct thread_rb_node {
 	struct thread *thread;
 };
 
-struct thread {
+DECLARE_RC_STRUCT(thread) {
 	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */
 	pid_t			tid;
@@ -123,192 +124,192 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 
 static inline struct maps *thread__maps(struct thread *thread)
 {
-	return thread->maps;
+	return RC_CHK_ACCESS(thread)->maps;
 }
 
 static inline void thread__set_maps(struct thread *thread, struct maps *maps)
 {
-	thread->maps = maps;
+	RC_CHK_ACCESS(thread)->maps = maps;
 }
 
 static inline pid_t thread__pid(const struct thread *thread)
 {
-	return thread->pid_;
+	return RC_CHK_ACCESS(thread)->pid_;
 }
 
 static inline void thread__set_pid(struct thread *thread, pid_t pid_)
 {
-	thread->pid_ = pid_;
+	RC_CHK_ACCESS(thread)->pid_ = pid_;
 }
 
 static inline pid_t thread__tid(const struct thread *thread)
 {
-	return thread->tid;
+	return RC_CHK_ACCESS(thread)->tid;
 }
 
 static inline void thread__set_tid(struct thread *thread, pid_t tid)
 {
-	thread->tid = tid;
+	RC_CHK_ACCESS(thread)->tid = tid;
 }
 
 static inline pid_t thread__ppid(const struct thread *thread)
 {
-	return thread->ppid;
+	return RC_CHK_ACCESS(thread)->ppid;
 }
 
 static inline void thread__set_ppid(struct thread *thread, pid_t ppid)
 {
-	thread->ppid = ppid;
+	RC_CHK_ACCESS(thread)->ppid = ppid;
 }
 
 static inline int thread__cpu(const struct thread *thread)
 {
-	return thread->cpu;
+	return RC_CHK_ACCESS(thread)->cpu;
 }
 
 static inline void thread__set_cpu(struct thread *thread, int cpu)
 {
-	thread->cpu = cpu;
+	RC_CHK_ACCESS(thread)->cpu = cpu;
 }
 
 static inline int thread__guest_cpu(const struct thread *thread)
 {
-	return thread->guest_cpu;
+	return RC_CHK_ACCESS(thread)->guest_cpu;
 }
 
 static inline void thread__set_guest_cpu(struct thread *thread, int guest_cpu)
 {
-	thread->guest_cpu = guest_cpu;
+	RC_CHK_ACCESS(thread)->guest_cpu = guest_cpu;
 }
 
 static inline refcount_t *thread__refcnt(struct thread *thread)
 {
-	return &thread->refcnt;
+	return &RC_CHK_ACCESS(thread)->refcnt;
 }
 
 static inline bool thread__comm_set(const struct thread *thread)
 {
-	return thread->comm_set;
+	return RC_CHK_ACCESS(thread)->comm_set;
 }
 
 static inline void thread__set_comm_set(struct thread *thread, bool set)
 {
-	thread->comm_set = set;
+	RC_CHK_ACCESS(thread)->comm_set = set;
 }
 
 static inline int thread__var_comm_len(const struct thread *thread)
 {
-	return thread->comm_len;
+	return RC_CHK_ACCESS(thread)->comm_len;
 }
 
 static inline void thread__set_comm_len(struct thread *thread, int len)
 {
-	thread->comm_len = len;
+	RC_CHK_ACCESS(thread)->comm_len = len;
 }
 
 static inline struct list_head *thread__namespaces_list(struct thread *thread)
 {
-	return &thread->namespaces_list;
+	return &RC_CHK_ACCESS(thread)->namespaces_list;
 }
 
 static inline int thread__namespaces_list_empty(const struct thread *thread)
 {
-	return list_empty(&thread->namespaces_list);
+	return list_empty(&RC_CHK_ACCESS(thread)->namespaces_list);
 }
 
 static inline struct rw_semaphore *thread__namespaces_lock(struct thread *thread)
 {
-	return &thread->namespaces_lock;
+	return &RC_CHK_ACCESS(thread)->namespaces_lock;
 }
 
 static inline struct list_head *thread__comm_list(struct thread *thread)
 {
-	return &thread->comm_list;
+	return &RC_CHK_ACCESS(thread)->comm_list;
 }
 
 static inline struct rw_semaphore *thread__comm_lock(struct thread *thread)
 {
-	return &thread->comm_lock;
+	return &RC_CHK_ACCESS(thread)->comm_lock;
 }
 
 static inline u64 thread__db_id(const struct thread *thread)
 {
-	return thread->db_id;
+	return RC_CHK_ACCESS(thread)->db_id;
 }
 
 static inline void thread__set_db_id(struct thread *thread, u64 db_id)
 {
-	thread->db_id = db_id;
+	RC_CHK_ACCESS(thread)->db_id = db_id;
 }
 
 static inline void *thread__priv(struct thread *thread)
 {
-	return thread->priv;
+	return RC_CHK_ACCESS(thread)->priv;
 }
 
 static inline void thread__set_priv(struct thread *thread, void *p)
 {
-	thread->priv = p;
+	RC_CHK_ACCESS(thread)->priv = p;
 }
 
 static inline struct thread_stack *thread__ts(struct thread *thread)
 {
-	return thread->ts;
+	return RC_CHK_ACCESS(thread)->ts;
 }
 
 static inline void thread__set_ts(struct thread *thread, struct thread_stack *ts)
 {
-	thread->ts = ts;
+	RC_CHK_ACCESS(thread)->ts = ts;
 }
 
 static inline struct nsinfo *thread__nsinfo(struct thread *thread)
 {
-	return thread->nsinfo;
+	return RC_CHK_ACCESS(thread)->nsinfo;
 }
 
 static inline struct srccode_state *thread__srccode_state(struct thread *thread)
 {
-	return &thread->srccode_state;
+	return &RC_CHK_ACCESS(thread)->srccode_state;
 }
 
 static inline bool thread__filter(const struct thread *thread)
 {
-	return thread->filter;
+	return RC_CHK_ACCESS(thread)->filter;
 }
 
 static inline void thread__set_filter(struct thread *thread, bool filter)
 {
-	thread->filter = filter;
+	RC_CHK_ACCESS(thread)->filter = filter;
 }
 
 static inline int thread__filter_entry_depth(const struct thread *thread)
 {
-	return thread->filter_entry_depth;
+	return RC_CHK_ACCESS(thread)->filter_entry_depth;
 }
 
 static inline void thread__set_filter_entry_depth(struct thread *thread, int depth)
 {
-	thread->filter_entry_depth = depth;
+	RC_CHK_ACCESS(thread)->filter_entry_depth = depth;
 }
 
 static inline bool thread__lbr_stitch_enable(const struct thread *thread)
 {
-	return thread->lbr_stitch_enable;
+	return RC_CHK_ACCESS(thread)->lbr_stitch_enable;
 }
 
 static inline void thread__set_lbr_stitch_enable(struct thread *thread, bool en)
 {
-	thread->lbr_stitch_enable = en;
+	RC_CHK_ACCESS(thread)->lbr_stitch_enable = en;
 }
 
 static inline struct lbr_stitch	*thread__lbr_stitch(struct thread *thread)
 {
-	return thread->lbr_stitch;
+	return RC_CHK_ACCESS(thread)->lbr_stitch;
 }
 
 static inline void thread__set_lbr_stitch(struct thread *thread, struct lbr_stitch *lbrs)
 {
-	thread->lbr_stitch = lbrs;
+	RC_CHK_ACCESS(thread)->lbr_stitch = lbrs;
 }
 
 static inline bool thread__is_filtered(struct thread *thread)

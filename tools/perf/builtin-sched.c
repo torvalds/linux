@@ -1385,7 +1385,7 @@ static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 {
 	pid_t l_tid, r_tid;
 
-	if (l->thread == r->thread)
+	if (RC_CHK_ACCESS(l->thread) == RC_CHK_ACCESS(r->thread))
 		return 0;
 	l_tid = thread__tid(l->thread);
 	r_tid = thread__tid(r->thread);
@@ -1393,7 +1393,7 @@ static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 		return -1;
 	if (l_tid > r_tid)
 		return 1;
-	return (int)(l->thread - r->thread);
+	return (int)(RC_CHK_ACCESS(l->thread) - RC_CHK_ACCESS(r->thread));
 }
 
 static int avg_cmp(struct work_atoms *l, struct work_atoms *r)
