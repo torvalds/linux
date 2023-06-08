@@ -16,6 +16,7 @@
 #include "ops.h"
 #include "sof-client.h"
 #include "sof-priv.h"
+#include "ipc3-priv.h"
 #include "ipc4-priv.h"
 
 /**
@@ -126,6 +127,29 @@ static inline int sof_register_ipc_msg_injector(struct snd_sof_dev *sdev)
 static inline void sof_unregister_ipc_msg_injector(struct snd_sof_dev *sdev) {}
 #endif /* CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR */
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR)
+static int sof_register_ipc_kernel_injector(struct snd_sof_dev *sdev)
+{
+	/* Only IPC3 supported right now */
+	if (sdev->pdata->ipc_type != SOF_IPC)
+		return 0;
+
+	return sof_client_dev_register(sdev, "kernel_injector", 0, NULL, 0);
+}
+
+static void sof_unregister_ipc_kernel_injector(struct snd_sof_dev *sdev)
+{
+	sof_client_dev_unregister(sdev, "kernel_injector", 0);
+}
+#else
+static inline int sof_register_ipc_kernel_injector(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline void sof_unregister_ipc_kernel_injector(struct snd_sof_dev *sdev) {}
+#endif /* CONFIG_SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR */
+
 int sof_register_clients(struct snd_sof_dev *sdev)
 {
 	int ret;
@@ -146,6 +170,12 @@ int sof_register_clients(struct snd_sof_dev *sdev)
 		goto err_msg_injector;
 	}
 
+	ret = sof_register_ipc_kernel_injector(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "IPC kernel injector client registration failed\n");
+		goto err_kernel_injector;
+	}
+
 	/* Platform depndent client device registration */
 
 	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
@@ -154,6 +184,9 @@ int sof_register_clients(struct snd_sof_dev *sdev)
 	if (!ret)
 		return 0;
 
+	sof_unregister_ipc_kernel_injector(sdev);
+
+err_kernel_injector:
 	sof_unregister_ipc_msg_injector(sdev);
 
 err_msg_injector:
@@ -167,6 +200,7 @@ void sof_unregister_clients(struct snd_sof_dev *sdev)
 	if (sof_ops(sdev) && sof_ops(sdev)->unregister_ipc_clients)
 		sof_ops(sdev)->unregister_ipc_clients(sdev);
 
+	sof_unregister_ipc_kernel_injector(sdev);
 	sof_unregister_ipc_msg_injector(sdev);
 	sof_unregister_ipc_flood_test(sdev);
 }
@@ -268,6 +302,24 @@ int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
+
+int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *msg_buf)
+{
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
+
+		if (hdr->size < sizeof(hdr)) {
+			dev_err(cdev->sdev->dev, "The received message size is invalid\n");
+			return -EINVAL;
+		}
+
+		sof_ipc3_do_rx_work(cdev->sdev, ipc_msg, msg_buf);
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc_rx_message, SND_SOC_SOF_CLIENT);
 
 int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
 				bool set)
