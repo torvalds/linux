@@ -58,6 +58,7 @@ int ioprio_check_cap(int ioprio)
 			if (level)
 				return -EINVAL;
 			break;
+		case IOPRIO_CLASS_INVALID:
 		default:
 			return -EINVAL;
 	}
