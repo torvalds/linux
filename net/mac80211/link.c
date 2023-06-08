@@ -329,7 +329,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 
 	/* cannot activate links that don't exist */
-	if (active_links & ~sdata->vif.valid_links)
+	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return -EINVAL;
 
 	/* nothing to do */
@@ -485,7 +485,7 @@ void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 		return;
 
 	/* cannot activate links that don't exist */
-	if (active_links & ~sdata->vif.valid_links)
+	if (active_links & ~ieee80211_vif_usable_links(&sdata->vif))
 		return;
 
 	/* nothing to do */

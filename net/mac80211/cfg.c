@@ -35,7 +35,7 @@ ieee80211_link_or_deflink(struct ieee80211_sub_if_data *sdata, int link_id,
 		 * the return value at all (if it's not a pairwise key),
 		 * so in that case (require_valid==false) don't error.
 		 */
-		if (require_valid && sdata->vif.valid_links)
+		if (require_valid && ieee80211_vif_is_mld(&sdata->vif))
 			return ERR_PTR(-EINVAL);
 
 		return &sdata->deflink;
@@ -228,7 +228,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			return 0;
 
 		/* FIXME: no support for 4-addr MLO yet */
-		if (sdata->vif.valid_links)
+		if (ieee80211_vif_is_mld(&sdata->vif))
 			return -EOPNOTSUPP;
 
 		sdata->u.mgd.use_4addr = params->use_4addr;

@@ -1824,7 +1824,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	bool multi_link = sdata->vif.valid_links;
+	bool multi_link = ieee80211_vif_is_mld(&sdata->vif);
 	struct {
 		u8 id;
 		u8 len;
@@ -2671,7 +2671,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			continue;
 
 		sdata_lock(sdata);
-		if (sdata->vif.valid_links) {
+		if (ieee80211_vif_is_mld(&sdata->vif)) {
 			struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS] = {
 				[0] = &sdata->vif.bss_conf,
 			};
@@ -2691,7 +2691,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
 		     link_id++) {
-			if (sdata->vif.valid_links &&
+			if (ieee80211_vif_is_mld(&sdata->vif) &&
 			    !(sdata->vif.active_links & BIT(link_id)))
 				continue;
 
@@ -2723,12 +2723,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (sdata->vif.bss_conf.mu_mimo_owner)
 			changed |= BSS_CHANGED_MU_GROUPS;
 
-		if (!sdata->vif.valid_links)
+		if (!ieee80211_vif_is_mld(&sdata->vif))
 			changed |= BSS_CHANGED_IDLE;
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
-			if (!sdata->vif.valid_links) {
+			if (!ieee80211_vif_is_mld(&sdata->vif)) {
 				changed |= BSS_CHANGED_ASSOC |
 					   BSS_CHANGED_ARP_FILTER |
 					   BSS_CHANGED_PS;
@@ -2766,7 +2766,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_AP:
 			changed |= BSS_CHANGED_P2P_PS;
 
-			if (sdata->vif.valid_links)
+			if (ieee80211_vif_is_mld(&sdata->vif))
 				ieee80211_vif_cfg_change_notify(sdata,
 								BSS_CHANGED_SSID);
 			else
@@ -2780,7 +2780,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
 
-				if (sdata->vif.valid_links) {
+				if (ieee80211_vif_is_mld(&sdata->vif)) {
 					ieee80211_reconfig_ap_links(local,
 								    sdata,
 								    changed);
