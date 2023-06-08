@@ -59,3 +59,7 @@ qcom_wdt_core.ko
 qcom_soc_wdt.ko
 gdsc-regulator.ko
 qcom-cpufreq-hw.ko
+phy-qcom-ufs.ko
+phy-qcom-ufs-qmp-v4-blair.ko
+phy-qcom-ufs-qrbtc-sdm845.ko
+ufs_qcom.ko
