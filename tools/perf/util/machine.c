@@ -3180,6 +3180,9 @@ int thread__resolve_callchain(struct thread *thread,
 {
 	int ret = 0;
 
+	if (cursor == NULL)
+		return -ENOMEM;
+
 	callchain_cursor_reset(cursor);
 
 	if (callchain_param.order == ORDER_CALLEE) {

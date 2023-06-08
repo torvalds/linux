@@ -2111,7 +2111,7 @@ static void timehist_print_sample(struct perf_sched *sched,
 			    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
 			    EVSEL__PRINT_CALLCHAIN_ARROW |
 			    EVSEL__PRINT_SKIP_IGNORED,
-			    &callchain_cursor, symbol_conf.bt_stop_list,  stdout);
+			    get_tls_callchain_cursor(), symbol_conf.bt_stop_list,  stdout);
 
 out:
 	printf("\n");
@@ -2196,7 +2196,7 @@ static void save_task_callchain(struct perf_sched *sched,
 				struct evsel *evsel,
 				struct machine *machine)
 {
-	struct callchain_cursor *cursor = &callchain_cursor;
+	struct callchain_cursor *cursor;
 	struct thread *thread;
 
 	/* want main thread for process - has maps */
@@ -2208,6 +2208,8 @@ static void save_task_callchain(struct perf_sched *sched,
 
 	if (!sched->show_callchain || sample->callchain == NULL)
 		return;
+
+	cursor = get_tls_callchain_cursor();
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, sched->max_stack + 2) != 0) {
@@ -2338,10 +2340,16 @@ static void save_idle_callchain(struct perf_sched *sched,
 				struct idle_thread_runtime *itr,
 				struct perf_sample *sample)
 {
+	struct callchain_cursor *cursor;
+
 	if (!sched->show_callchain || sample->callchain == NULL)
 		return;
 
-	callchain_cursor__copy(&itr->cursor, &callchain_cursor);
+	cursor = get_tls_callchain_cursor();
+	if (cursor == NULL)
+		return;
+
+	callchain_cursor__copy(&itr->cursor, cursor);
 }
 
 static struct thread *timehist_get_thread(struct perf_sched *sched,

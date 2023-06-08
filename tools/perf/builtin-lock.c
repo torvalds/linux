@@ -911,7 +911,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 				  char *buf, int size)
 {
 	struct thread *thread;
-	struct callchain_cursor *cursor = &callchain_cursor;
+	struct callchain_cursor *cursor;
 	struct machine *machine = &session->machines.host;
 	struct symbol *sym;
 	int skip = 0;
@@ -924,6 +924,8 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 	thread = machine__findnew_thread(machine, -1, sample->pid);
 	if (thread == NULL)
 		return -1;
+
+	cursor = get_tls_callchain_cursor();
 
 	/* use caller function name from the callchain */
 	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
@@ -962,7 +964,7 @@ next:
 
 static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 {
-	struct callchain_cursor *cursor = &callchain_cursor;
+	struct callchain_cursor *cursor;
 	struct machine *machine = &session->machines.host;
 	struct thread *thread;
 	u64 hash = 0;
@@ -973,6 +975,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 	if (thread == NULL)
 		return -1;
 
+	cursor = get_tls_callchain_cursor();
 	/* use caller function name from the callchain */
 	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
 					NULL, NULL, max_stack_depth);

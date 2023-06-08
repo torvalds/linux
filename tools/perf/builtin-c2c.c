@@ -284,6 +284,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	struct hist_entry *he;
 	struct addr_location al;
 	struct mem_info *mi, *mi_dup;
+	struct callchain_cursor *cursor;
 	int ret;
 
 	addr_location__init(&al);
@@ -297,7 +298,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (c2c.stitch_lbr)
 		thread__set_lbr_stitch_enable(al.thread, true);
 
-	ret = sample__resolve_callchain(sample, &callchain_cursor, NULL,
+	cursor = get_tls_callchain_cursor();
+	ret = sample__resolve_callchain(sample, cursor, NULL,
 					evsel, &al, sysctl_perf_event_max_stack);
 	if (ret)
 		goto out;

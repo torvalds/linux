@@ -58,7 +58,8 @@ struct callchain_param callchain_param_default = {
 	CALLCHAIN_PARAM_DEFAULT
 };
 
-__thread struct callchain_cursor callchain_cursor;
+/* Used for thread-local struct callchain_cursor. */
+static pthread_key_t callchain_cursor;
 
 int parse_callchain_record_opt(const char *arg, struct callchain_param *param)
 {
@@ -986,6 +987,9 @@ int callchain_append(struct callchain_root *root,
 		     struct callchain_cursor *cursor,
 		     u64 period)
 {
+	if (cursor == NULL)
+		return -1;
+
 	if (!cursor->nr)
 		return 0;
 
@@ -1116,7 +1120,7 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 	if ((!symbol_conf.use_callchain || sample->callchain == NULL) &&
 		!symbol_conf.show_branchflag_count)
 		return 0;
-	return callchain_append(he->callchain, &callchain_cursor, sample->period);
+	return callchain_append(he->callchain, get_tls_callchain_cursor(), sample->period);
 }
 
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
@@ -1568,6 +1572,43 @@ out:
 		free(chain);
 	}
 	return -ENOMEM;
+}
+
+static void callchain_cursor__delete(void *vcursor)
+{
+	struct callchain_cursor *cursor = vcursor;
+	struct callchain_cursor_node *node, *next;
+
+	callchain_cursor_reset(cursor);
+	for (node = cursor->first; node != NULL; node = next) {
+		next = node->next;
+		free(node);
+	}
+	free(cursor);
+}
+
+static void init_callchain_cursor_key(void)
+{
+	if (pthread_key_create(&callchain_cursor, callchain_cursor__delete)) {
+		pr_err("callchain cursor creation failed");
+		abort();
+	}
+}
+
+struct callchain_cursor *get_tls_callchain_cursor(void)
+{
+	static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+	struct callchain_cursor *cursor;
+
+	pthread_once(&once_control, init_callchain_cursor_key);
+	cursor = pthread_getspecific(callchain_cursor);
+	if (!cursor) {
+		cursor = zalloc(sizeof(*cursor));
+		if (!cursor)
+			pr_debug3("%s: not enough memory\n", __func__);
+		pthread_setspecific(callchain_cursor, cursor);
+	}
+	return cursor;
 }
 
 int callchain_cursor__copy(struct callchain_cursor *dst,

@@ -1557,11 +1557,13 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 		unsigned int print_opts = output[type].print_ip_opts;
 		struct callchain_cursor *cursor = NULL;
 
-		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
-					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &callchain_cursor;
-
+		if (symbol_conf.use_callchain && sample->callchain) {
+			cursor = get_tls_callchain_cursor();
+			if (thread__resolve_callchain(al->thread, cursor, evsel,
+						      sample, NULL, NULL,
+						      scripting_max_stack))
+				cursor = NULL;
+		}
 		if (cursor == NULL) {
 			printed += fprintf(fp, " ");
 			if (print_opts & EVSEL__PRINT_SRCLINE) {
@@ -2203,11 +2205,13 @@ static void process_event(struct perf_script *script,
 		if (script->stitch_lbr)
 			thread__set_lbr_stitch_enable(al->thread, true);
 
-		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
-					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &callchain_cursor;
-
+		if (symbol_conf.use_callchain && sample->callchain) {
+			cursor = get_tls_callchain_cursor();
+			if (thread__resolve_callchain(al->thread, cursor, evsel,
+						      sample, NULL, NULL,
+						      scripting_max_stack))
+				cursor = NULL;
+		}
 		fputc(cursor ? '\n' : ' ', fp);
 		sample__fprintf_sym(sample, al, 0, output[type].print_ip_opts, cursor,
 				    symbol_conf.bt_stop_list, fp);

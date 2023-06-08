@@ -215,6 +215,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	u64 kernel_start = machine__kernel_start(machine);
 	struct call_path *current = &dbe->cpr->call_path;
 	enum chain_order saved_order = callchain_param.order;
+	struct callchain_cursor *cursor;
 	int err;
 
 	if (!symbol_conf.use_callchain || !sample->callchain)
@@ -226,13 +227,14 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	 * the callchain starting with the root node and ending with the leaf.
 	 */
 	callchain_param.order = ORDER_CALLER;
-	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+	err = thread__resolve_callchain(thread, cursor, evsel,
 					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
 	if (err) {
 		callchain_param.order = saved_order;
 		return NULL;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 	while (1) {
 		struct callchain_cursor_node *node;
@@ -240,7 +242,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
 
 
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
 
@@ -265,7 +267,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 					     al.sym, node->ip,
 					     kernel_start);
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 		addr_location__exit(&al);
 	}
 

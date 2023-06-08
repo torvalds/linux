@@ -260,6 +260,7 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 				  struct evsel *evsel,
 				  struct addr_location *al)
 {
+	struct callchain_cursor *cursor;
 	AV *list;
 
 	list = newAV();
@@ -269,18 +270,20 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 	if (!symbol_conf.use_callchain || !sample->callchain)
 		goto exit;
 
-	if (thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+
+	if (thread__resolve_callchain(al->thread, cursor, evsel,
 				      sample, NULL, NULL, scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 
 	while (1) {
 		HV *elem;
 		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
 
@@ -328,7 +331,7 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			}
 		}
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 		av_push(list, newRV_noinc((SV*)elem));
 	}
 
