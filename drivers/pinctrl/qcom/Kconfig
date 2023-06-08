@@ -39,6 +39,17 @@ config PINCTRL_IPQ4019
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm IPQ4019 platform.
 
+config PINCTRL_IPQ5018
+	tristate "Qualcomm Technologies, Inc. IPQ5018 pin controller driver"
+	depends on OF || COMPILE_TEST
+	depends on ARM64 || COMPILE_TEST
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
+	  the Qualcomm Technologies Inc. TLMM block found on the
+	  Qualcomm Technologies Inc. IPQ5018 platform. Select this for
+	  IPQ5018.
+
 config PINCTRL_IPQ8064
 	tristate "Qualcomm IPQ8064 pin controller driver"
 	depends on OF
