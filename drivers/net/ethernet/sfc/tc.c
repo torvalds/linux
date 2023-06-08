@@ -1391,6 +1391,58 @@ void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 }
 
+static int efx_tc_configure_fallback_acts(struct efx_nic *efx, u32 eg_port,
+					  struct efx_tc_action_set_list *acts)
+{
+	struct efx_tc_action_set *act;
+	int rc;
+
+	act = kzalloc(sizeof(*act), GFP_KERNEL);
+	if (!act)
+		return -ENOMEM;
+	act->deliver = 1;
+	act->dest_mport = eg_port;
+	rc = efx_mae_alloc_action_set(efx, act);
+	if (rc)
+		goto fail1;
+	EFX_WARN_ON_PARANOID(!list_empty(&acts->list));
+	list_add_tail(&act->list, &acts->list);
+	rc = efx_mae_alloc_action_set_list(efx, acts);
+	if (rc)
+		goto fail2;
+	return 0;
+fail2:
+	list_del(&act->list);
+	efx_mae_free_action_set(efx, act->fw_id);
+fail1:
+	kfree(act);
+	return rc;
+}
+
+static int efx_tc_configure_fallback_acts_pf(struct efx_nic *efx)
+{
+	struct efx_tc_action_set_list *acts = &efx->tc->facts.pf;
+	u32 eg_port;
+
+	efx_mae_mport_uplink(efx, &eg_port);
+	return efx_tc_configure_fallback_acts(efx, eg_port, acts);
+}
+
+static int efx_tc_configure_fallback_acts_reps(struct efx_nic *efx)
+{
+	struct efx_tc_action_set_list *acts = &efx->tc->facts.reps;
+	u32 eg_port;
+
+	efx_mae_mport_mport(efx, efx->tc->reps_mport_id, &eg_port);
+	return efx_tc_configure_fallback_acts(efx, eg_port, acts);
+}
+
+static void efx_tc_deconfigure_fallback_acts(struct efx_nic *efx,
+					     struct efx_tc_action_set_list *acts)
+{
+	efx_tc_free_action_set_list(efx, acts, true);
+}
+
 static int efx_tc_configure_rep_mport(struct efx_nic *efx)
 {
 	u32 rep_mport_label;
@@ -1483,6 +1535,12 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_tc_configure_rep_mport(efx);
 	if (rc)
 		return rc;
+	rc = efx_tc_configure_fallback_acts_pf(efx);
+	if (rc)
+		return rc;
+	rc = efx_tc_configure_fallback_acts_reps(efx);
+	if (rc)
+		return rc;
 	efx->tc->up = true;
 	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
 	if (rc)
@@ -1500,6 +1558,8 @@ void efx_fini_tc(struct efx_nic *efx)
 	efx_tc_deconfigure_rep_mport(efx);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.pf);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.wire);
+	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.pf);
+	efx_tc_deconfigure_fallback_acts(efx, &efx->tc->facts.reps);
 	efx->tc->up = false;
 }
 
@@ -1564,6 +1624,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->dflt.pf.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 	INIT_LIST_HEAD(&efx->tc->dflt.wire.acts.list);
 	efx->tc->dflt.wire.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+	INIT_LIST_HEAD(&efx->tc->facts.pf.list);
+	efx->tc->facts.pf.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
+	INIT_LIST_HEAD(&efx->tc->facts.reps.list);
+	efx->tc->facts.reps.fw_id = MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL;
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
 fail_match_action_ht:
@@ -1589,6 +1653,10 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
 	EFX_WARN_ON_PARANOID(efx->tc->dflt.wire.fw_id !=
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
+	EFX_WARN_ON_PARANOID(efx->tc->facts.pf.fw_id !=
+			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+	EFX_WARN_ON_PARANOID(efx->tc->facts.reps.fw_id !=
+			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
 	rhashtable_free_and_destroy(&efx->tc->encap_match_ht,

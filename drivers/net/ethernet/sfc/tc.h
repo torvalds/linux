@@ -160,6 +160,11 @@ enum efx_tc_rule_prios {
  *	%EFX_TC_PRIO_DFLT.  Named by *ingress* port
  * @dflt.pf: rule for traffic ingressing from PF (egresses to wire)
  * @dflt.wire: rule for traffic ingressing from wire (egresses to PF)
+ * @facts: Fallback action-set-lists for unready rules.  Named by *egress* port
+ * @facts.pf: action-set-list for unready rules on PF netdev, hence applying to
+ *	traffic from wire, and egressing to PF
+ * @facts.reps: action-set-list for unready rules on representors, hence
+ *	applying to traffic from representees, and egressing to the reps mport
  * @up: have TC datastructures been set up?
  */
 struct efx_tc_state {
@@ -180,6 +185,10 @@ struct efx_tc_state {
 		struct efx_tc_flow_rule pf;
 		struct efx_tc_flow_rule wire;
 	} dflt;
+	struct {
+		struct efx_tc_action_set_list pf;
+		struct efx_tc_action_set_list reps;
+	} facts;
 	bool up;
 };
 
