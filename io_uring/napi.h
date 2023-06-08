@@ -17,6 +17,7 @@ void __io_napi_add(struct io_ring_ctx *ctx, struct socket *sock);
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx,
 		struct io_wait_queue *iowq, struct timespec64 *ts);
 void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq);
+int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx);
 
 static inline bool io_napi(struct io_ring_ctx *ctx)
 {
@@ -83,7 +84,10 @@ static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,
 				     struct io_wait_queue *iowq)
 {
 }
-
+static inline int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx)
+{
+	return 0;
+}
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #endif
