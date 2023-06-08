@@ -556,6 +556,8 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	default:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
+		else if (load_type == 3)
+			return AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO;
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	}
