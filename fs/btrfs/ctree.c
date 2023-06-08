@@ -1139,7 +1139,12 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (btrfs_header_nritems(right) == 0) {
 			btrfs_clear_buffer_dirty(trans, right);
 			btrfs_tree_unlock(right);
-			btrfs_del_ptr(root, path, level + 1, pslot + 1);
+			ret = btrfs_del_ptr(trans, root, path, level + 1, pslot + 1);
+			if (ret < 0) {
+				free_extent_buffer_stale(right);
+				right = NULL;
+				goto out;
+			}
 			root_sub_used(root, right->len);
 			btrfs_free_tree_block(trans, btrfs_root_id(root), right,
 					      0, 1);
@@ -1192,7 +1197,12 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	if (btrfs_header_nritems(mid) == 0) {
 		btrfs_clear_buffer_dirty(trans, mid);
 		btrfs_tree_unlock(mid);
-		btrfs_del_ptr(root, path, level + 1, pslot);
+		ret = btrfs_del_ptr(trans, root, path, level + 1, pslot);
+		if (ret < 0) {
+			free_extent_buffer_stale(mid);
+			mid = NULL;
+			goto out;
+		}
 		root_sub_used(root, mid->len);
 		btrfs_free_tree_block(trans, btrfs_root_id(root), mid, 0, 1);
 		free_extent_buffer_stale(mid);
@@ -4440,8 +4450,8 @@ int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
  *
  * This is exported for use inside btrfs-progs, don't un-export it.
  */
-void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
-		   int slot)
+int btrfs_del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		  struct btrfs_path *path, int level, int slot)
 {
 	struct extent_buffer *parent = path->nodes[level];
 	u32 nritems;
@@ -4452,7 +4462,10 @@ void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
 		if (level) {
 			ret = btrfs_tree_mod_log_insert_move(parent, slot,
 					slot + 1, nritems - slot - 1);
-			BUG_ON(ret < 0);
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
+				return ret;
+			}
 		}
 		memmove_extent_buffer(parent,
 			      btrfs_node_key_ptr_offset(parent, slot),
@@ -4462,7 +4475,10 @@ void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
 	} else if (level) {
 		ret = btrfs_tree_mod_log_insert_key(parent, slot,
 						    BTRFS_MOD_LOG_KEY_REMOVE);
-		BUG_ON(ret < 0);
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 	}
 
 	nritems--;
@@ -4478,6 +4494,7 @@ void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
 		fixup_low_keys(path, &disk_key, level + 1);
 	}
 	btrfs_mark_buffer_dirty(parent);
+	return 0;
 }
 
 /*
@@ -4490,13 +4507,17 @@ void btrfs_del_ptr(struct btrfs_root *root, struct btrfs_path *path, int level,
  * The path must have already been setup for deleting the leaf, including
  * all the proper balancing.  path->nodes[1] must be locked.
  */
-static noinline void btrfs_del_leaf(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root,
-				    struct btrfs_path *path,
-				    struct extent_buffer *leaf)
+static noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   struct btrfs_path *path,
+				   struct extent_buffer *leaf)
 {
+	int ret;
+
 	WARN_ON(btrfs_header_generation(leaf) != trans->transid);
-	btrfs_del_ptr(root, path, 1, path->slots[1]);
+	ret = btrfs_del_ptr(trans, root, path, 1, path->slots[1]);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * btrfs_free_extent is expensive, we want to make sure we
@@ -4509,6 +4530,7 @@ static noinline void btrfs_del_leaf(struct btrfs_trans_handle *trans,
 	atomic_inc(&leaf->refs);
 	btrfs_free_tree_block(trans, btrfs_root_id(root), leaf, 0, 1);
 	free_extent_buffer_stale(leaf);
+	return 0;
 }
 /*
  * delete the item at the leaf level in path.  If that empties
@@ -4558,7 +4580,9 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			btrfs_set_header_level(leaf, 0);
 		} else {
 			btrfs_clear_buffer_dirty(trans, leaf);
-			btrfs_del_leaf(trans, root, path, leaf);
+			ret = btrfs_del_leaf(trans, root, path, leaf);
+			if (ret < 0)
+				return ret;
 		}
 	} else {
 		int used = leaf_space_used(leaf, 0, nritems);
@@ -4619,7 +4643,9 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 			if (btrfs_header_nritems(leaf) == 0) {
 				path->slots[1] = slot;
-				btrfs_del_leaf(trans, root, path, leaf);
+				ret = btrfs_del_leaf(trans, root, path, leaf);
+				if (ret < 0)
+					return ret;
 				free_extent_buffer(leaf);
 				ret = 0;
 			} else {
