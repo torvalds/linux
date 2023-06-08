@@ -153,7 +153,7 @@ class Type(SpecAttr):
             init_lines = [init_lines]
 
         kw = 'if' if first else 'else if'
-        ri.cw.block_start(line=f"{kw} (mnl_attr_get_type(attr) == {self.enum_name})")
+        ri.cw.block_start(line=f"{kw} (type == {self.enum_name})")
         if local_vars:
             for local in local_vars:
                 ri.cw.p(local)
@@ -1418,6 +1418,8 @@ def _multi_parse(ri, struct, init_lines, local_vars):
 
     ri.cw.nl()
     ri.cw.block_start(line=iter_line)
+    ri.cw.p('unsigned int type = mnl_attr_get_type(attr);')
+    ri.cw.nl()
 
     first = True
     for _, arg in struct.member_list():
