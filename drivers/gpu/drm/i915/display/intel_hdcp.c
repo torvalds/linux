@@ -983,6 +983,7 @@ static void intel_hdcp_update_value(struct intel_connector *connector,
 	struct drm_device *dev = connector->base.dev;
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	drm_WARN_ON(connector->base.dev, !mutex_is_locked(&hdcp->mutex));
 
@@ -1001,7 +1002,7 @@ static void intel_hdcp_update_value(struct intel_connector *connector,
 	hdcp->value = value;
 	if (update_property) {
 		drm_connector_get(&connector->base);
-		schedule_work(&hdcp->prop_work);
+		queue_work(i915->unordered_wq, &hdcp->prop_work);
 	}
 }
 
@@ -2090,16 +2091,17 @@ static void intel_hdcp_check_work(struct work_struct *work)
 					       struct intel_hdcp,
 					       check_work);
 	struct intel_connector *connector = intel_hdcp_to_connector(hdcp);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	if (drm_connector_is_unregistered(&connector->base))
 		return;
 
 	if (!intel_hdcp2_check_link(connector))
-		schedule_delayed_work(&hdcp->check_work,
-				      DRM_HDCP2_CHECK_PERIOD_MS);
+		queue_delayed_work(i915->unordered_wq, &hdcp->check_work,
+				   DRM_HDCP2_CHECK_PERIOD_MS);
 	else if (!intel_hdcp_check_link(connector))
-		schedule_delayed_work(&hdcp->check_work,
-				      DRM_HDCP_CHECK_PERIOD_MS);
+		queue_delayed_work(i915->unordered_wq, &hdcp->check_work,
+				   DRM_HDCP_CHECK_PERIOD_MS);
 }
 
 static int i915_hdcp_component_bind(struct device *i915_kdev,
@@ -2398,7 +2400,8 @@ int intel_hdcp_enable(struct intel_atomic_state *state,
 	}
 
 	if (!ret) {
-		schedule_delayed_work(&hdcp->check_work, check_link_interval);
+		queue_delayed_work(i915->unordered_wq, &hdcp->check_work,
+				   check_link_interval);
 		intel_hdcp_update_value(connector,
 					DRM_MODE_CONTENT_PROTECTION_ENABLED,
 					true);
@@ -2447,6 +2450,7 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 				to_intel_connector(conn_state->connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	bool content_protection_type_changed, desired_and_not_enabled = false;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	if (!connector->hdcp.shim)
 		return;
@@ -2473,7 +2477,7 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 		mutex_lock(&hdcp->mutex);
 		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
 		drm_connector_get(&connector->base);
-		schedule_work(&hdcp->prop_work);
+		queue_work(i915->unordered_wq, &hdcp->prop_work);
 		mutex_unlock(&hdcp->mutex);
 	}
 
@@ -2490,7 +2494,7 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 		 */
 		if (!desired_and_not_enabled && !content_protection_type_changed) {
 			drm_connector_get(&connector->base);
-			schedule_work(&hdcp->prop_work);
+			queue_work(i915->unordered_wq, &hdcp->prop_work);
 		}
 	}
 
@@ -2602,6 +2606,7 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	if (!hdcp->shim)
 		return;
@@ -2609,5 +2614,5 @@ void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
 	atomic_inc(&connector->hdcp.cp_irq_count);
 	wake_up_all(&connector->hdcp.cp_irq_queue);
 
-	schedule_delayed_work(&hdcp->check_work, 0);
+	queue_delayed_work(i915->unordered_wq, &hdcp->check_work, 0);
 }

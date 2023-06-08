@@ -7180,11 +7180,12 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 		break;
 	case FENCE_FREE:
 		{
+			struct drm_i915_private *i915 = to_i915(state->base.dev);
 			struct intel_atomic_helper *helper =
-				&to_i915(state->base.dev)->display.atomic_helper;
+				&i915->display.atomic_helper;
 
 			if (llist_add(&state->freed, &helper->free_list))
-				schedule_work(&helper->free_work);
+				queue_work(i915->unordered_wq, &helper->free_work);
 			break;
 		}
 	}

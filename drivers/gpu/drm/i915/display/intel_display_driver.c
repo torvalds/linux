@@ -442,7 +442,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	intel_unregister_dsm_handler();
 
 	/* flush any delayed tasks or pending work */
-	flush_scheduled_work();
+	flush_workqueue(i915->unordered_wq);
 
 	intel_hdcp_component_fini(i915);
 
