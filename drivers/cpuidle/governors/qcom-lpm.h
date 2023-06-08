@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __QCOM_LPM_H__
@@ -59,6 +60,7 @@ struct lpm_cpu {
 	uint64_t bias;
 	int64_t next_pred_time;
 	bool ipi_pending;
+	spinlock_t lock;
 };
 
 struct cluster_history {
