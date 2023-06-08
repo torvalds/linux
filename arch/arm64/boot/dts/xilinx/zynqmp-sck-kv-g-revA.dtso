@@ -145,6 +145,7 @@
 	pinctrl-0 = <&pinctrl_gem3_default>;
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
+	assigned-clock-rates = <250000000>;
 
 	mdio: mdio {
 		#address-cells = <1>;
