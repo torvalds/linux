@@ -375,7 +375,7 @@ static int mmc_blk_open(struct gendisk *disk, fmode_t mode)
 	return ret;
 }
 
-static void mmc_blk_release(struct gendisk *disk, fmode_t mode)
+static void mmc_blk_release(struct gendisk *disk)
 {
 	struct mmc_blk_data *md = disk->private_data;
 

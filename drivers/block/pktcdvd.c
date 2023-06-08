@@ -2292,7 +2292,7 @@ out:
 	return ret;
 }
 
-static void pkt_close(struct gendisk *disk, fmode_t mode)
+static void pkt_release(struct gendisk *disk)
 {
 	struct pktcdvd_device *pd = disk->private_data;
 
@@ -2616,7 +2616,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.submit_bio =		pkt_submit_bio,
 	.open =			pkt_open,
-	.release =		pkt_close,
+	.release =		pkt_release,
 	.ioctl =		pkt_ioctl,
 	.compat_ioctl =		blkdev_compat_ptr_ioctl,
 	.check_events =		pkt_check_events,

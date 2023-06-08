@@ -935,7 +935,7 @@ static int rnbd_client_open(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void rnbd_client_release(struct gendisk *gen, fmode_t mode)
+static void rnbd_client_release(struct gendisk *gen)
 {
 	struct rnbd_clt_dev *dev = gen->private_data;
 

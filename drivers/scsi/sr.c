@@ -507,7 +507,7 @@ static int sr_block_open(struct gendisk *disk, fmode_t mode)
 	return ret;
 }
 
-static void sr_block_release(struct gendisk *disk, fmode_t mode)
+static void sr_block_release(struct gendisk *disk)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
 

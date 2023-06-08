@@ -743,7 +743,7 @@ static int open_dev(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void release_dev(struct gendisk *b, fmode_t mode)
+static void release_dev(struct gendisk *b)
 {
 	struct bcache_device *d = b->private_data;
 

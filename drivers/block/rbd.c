@@ -679,7 +679,7 @@ static int rbd_open(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void rbd_release(struct gendisk *disk, fmode_t mode)
+static void rbd_release(struct gendisk *disk)
 {
 	struct rbd_device *rbd_dev = disk->private_data;
 	unsigned long open_count_before;

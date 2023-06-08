@@ -409,7 +409,7 @@ static int nvme_ns_head_open(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
+static void nvme_ns_head_release(struct gendisk *disk)
 {
 	nvme_put_ns_head(disk->private_data);
 }

@@ -7799,7 +7799,7 @@ out:
 	return err;
 }
 
-static void md_release(struct gendisk *disk, fmode_t mode)
+static void md_release(struct gendisk *disk)
 {
 	struct mddev *mddev = disk->private_data;
 

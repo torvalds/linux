@@ -232,7 +232,7 @@ aoeblk_open(struct gendisk *disk, fmode_t mode)
 }
 
 static void
-aoeblk_release(struct gendisk *disk, fmode_t mode)
+aoeblk_release(struct gendisk *disk)
 {
 	struct aoedev *d = disk->private_data;
 	ulong flags;

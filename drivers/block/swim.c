@@ -670,7 +670,7 @@ static int floppy_unlocked_open(struct gendisk *disk, fmode_t mode)
 	return ret;
 }
 
-static void floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim __iomem *base = fs->swd->base;

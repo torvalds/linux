@@ -3963,7 +3963,7 @@ static void __init config_types(void)
 		pr_cont("\n");
 }
 
-static void floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk)
 {
 	int drive = (long)disk->private_data;
 

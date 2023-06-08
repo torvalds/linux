@@ -1709,7 +1709,7 @@ static int floppy_open(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk)
 {
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;

@@ -225,7 +225,7 @@ error_put:
 	return ret;
 }
 
-static void blktrans_release(struct gendisk *disk, fmode_t mode)
+static void blktrans_release(struct gendisk *disk)
 {
 	struct mtd_blktrans_dev *dev = disk->private_data;
 

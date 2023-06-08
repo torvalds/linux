@@ -1373,7 +1373,6 @@ error_out:
  *	sd_release - invoked when the (last) close(2) is called on this
  *	scsi disk.
  *	@disk: disk to release
- *	@mode: FMODE_* mask
  *
  *	Returns 0. 
  *
@@ -1382,7 +1381,7 @@ error_out:
  *
  *	Locking: called with bdev->bd_disk->open_mutex held.
  **/
-static void sd_release(struct gendisk *disk, fmode_t mode)
+static void sd_release(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdev = sdkp->device;

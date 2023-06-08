@@ -288,7 +288,7 @@ err_out:
 	return rc;
 }
 
-static void z2_release(struct gendisk *disk, fmode_t mode)
+static void z2_release(struct gendisk *disk)
 {
 	mutex_lock(&z2ram_mutex);
 	if (current_device == -1) {

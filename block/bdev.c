@@ -670,12 +670,12 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static void blkdev_put_whole(struct block_device *bdev, fmode_t mode)
+static void blkdev_put_whole(struct block_device *bdev)
 {
 	if (atomic_dec_and_test(&bdev->bd_openers))
 		blkdev_flush_mapping(bdev);
 	if (bdev->bd_disk->fops->release)
-		bdev->bd_disk->fops->release(bdev->bd_disk, mode);
+		bdev->bd_disk->fops->release(bdev->bd_disk);
 }
 
 static int blkdev_get_part(struct block_device *part, fmode_t mode)
@@ -699,11 +699,11 @@ static int blkdev_get_part(struct block_device *part, fmode_t mode)
 	return 0;
 
 out_blkdev_put:
-	blkdev_put_whole(bdev_whole(part), mode);
+	blkdev_put_whole(bdev_whole(part));
 	return ret;
 }
 
-static void blkdev_put_part(struct block_device *part, fmode_t mode)
+static void blkdev_put_part(struct block_device *part)
 {
 	struct block_device *whole = bdev_whole(part);
 
@@ -711,7 +711,7 @@ static void blkdev_put_part(struct block_device *part, fmode_t mode)
 		blkdev_flush_mapping(part);
 		whole->bd_disk->open_partitions--;
 	}
-	blkdev_put_whole(whole, mode);
+	blkdev_put_whole(whole);
 }
 
 struct block_device *blkdev_get_no_open(dev_t dev)
@@ -903,9 +903,9 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 	disk_flush_events(disk, DISK_EVENT_MEDIA_CHANGE);
 
 	if (bdev_is_partition(bdev))
-		blkdev_put_part(bdev, mode);
+		blkdev_put_part(bdev);
 	else
-		blkdev_put_whole(bdev, mode);
+		blkdev_put_whole(bdev);
 	mutex_unlock(&disk->open_mutex);
 
 	module_put(disk->fops->owner);

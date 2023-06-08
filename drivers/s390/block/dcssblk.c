@@ -29,7 +29,7 @@
 #define DCSS_BUS_ID_SIZE 20
 
 static int dcssblk_open(struct gendisk *disk, fmode_t mode);
-static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+static void dcssblk_release(struct gendisk *disk);
 static void dcssblk_submit_bio(struct bio *bio);
 static long dcssblk_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode mode, void **kaddr,
@@ -825,7 +825,7 @@ out:
 }
 
 static void
-dcssblk_release(struct gendisk *disk, fmode_t mode)
+dcssblk_release(struct gendisk *disk)
 {
 	struct dcssblk_dev_info *dev_info = disk->private_data;
 	struct segment_info *entry;

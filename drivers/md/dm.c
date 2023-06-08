@@ -334,7 +334,7 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static void dm_blk_close(struct gendisk *disk, fmode_t mode)
+static void dm_blk_close(struct gendisk *disk)
 {
 	struct mapped_device *md;
 

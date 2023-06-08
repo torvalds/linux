@@ -448,7 +448,7 @@ static void fd_probe( int drive );
 static int fd_test_drive_present( int drive );
 static void config_types( void );
 static int floppy_open(struct gendisk *disk, fmode_t mode);
-static void floppy_release(struct gendisk *disk, fmode_t mode);
+static void floppy_release(struct gendisk *disk);
 
 /************************* End of Prototypes **************************/
 
@@ -1964,7 +1964,7 @@ static int floppy_unlocked_open(struct gendisk *disk, fmode_t mode)
 	return ret;
 }
 
-static void floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk)
 {
 	struct atari_floppy_struct *p = disk->private_data;
 	mutex_lock(&ataflop_mutex);

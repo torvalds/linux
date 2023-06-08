@@ -486,7 +486,7 @@ static int gdrom_bdops_open(struct gendisk *disk, fmode_t mode)
 	return ret;
 }
 
-static void gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
+static void gdrom_bdops_release(struct gendisk *disk)
 {
 	mutex_lock(&gdrom_mutex);
 	cdrom_release(gd.cd_info, mode);

@@ -1727,7 +1727,7 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 }
 #endif
 
-static void lo_release(struct gendisk *disk, fmode_t mode)
+static void lo_release(struct gendisk *disk)
 {
 	struct loop_device *lo = disk->private_data;
 

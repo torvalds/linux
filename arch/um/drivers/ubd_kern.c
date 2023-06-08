@@ -109,7 +109,7 @@ static DEFINE_MUTEX(ubd_lock);
 static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
 static int ubd_open(struct gendisk *disk, fmode_t mode);
-static void ubd_release(struct gendisk *disk, fmode_t mode);
+static void ubd_release(struct gendisk *disk);
 static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -1182,7 +1182,7 @@ out:
 	return err;
 }
 
-static void ubd_release(struct gendisk *disk, fmode_t mode)
+static void ubd_release(struct gendisk *disk)
 {
 	struct ubd *ubd_dev = disk->private_data;
 

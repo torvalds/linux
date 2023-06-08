@@ -50,7 +50,7 @@
 
 static DEFINE_MUTEX(drbd_main_mutex);
 static int drbd_open(struct gendisk *disk, fmode_t mode);
-static void drbd_release(struct gendisk *gd, fmode_t mode);
+static void drbd_release(struct gendisk *gd);
 static void md_sync_timer_fn(struct timer_list *t);
 static int w_bitmap_io(struct drbd_work *w, int unused);
 
@@ -1908,7 +1908,7 @@ static int drbd_open(struct gendisk *disk, fmode_t mode)
 	return rv;
 }
 
-static void drbd_release(struct gendisk *gd, fmode_t mode)
+static void drbd_release(struct gendisk *gd)
 {
 	struct drbd_device *device = gd->private_data;
 	mutex_lock(&drbd_main_mutex);

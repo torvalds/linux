@@ -130,7 +130,7 @@ static int simdisk_open(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static void simdisk_release(struct gendisk *disk, fmode_t mode)
+static void simdisk_release(struct gendisk *disk)
 {
 	struct simdisk *dev = disk->private_data;
 	spin_lock(&dev->lock);
