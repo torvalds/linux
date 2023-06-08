@@ -11374,7 +11374,13 @@ F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/kvm/
 
 KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
+M:	Michael Ellerman <mpe@ellerman.id.au>
+R:	Nicholas Piggin <npiggin@gmail.com>
 L:	linuxppc-dev@lists.ozlabs.org
+L:	kvm@vger.kernel.org
+S:	Maintained (Book3S 64-bit HV)
+S:	Odd fixes (Book3S 64-bit PR)
+S:	Orphan (Book3E and 32-bit)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git topic/ppc-kvm
 F:	arch/powerpc/include/asm/kvm*
 F:	arch/powerpc/include/uapi/asm/kvm*
