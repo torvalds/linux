@@ -108,6 +108,9 @@
 
 #define PER_INFO_BYTE		8
 
+#define NFC_COLUMN_ADDR_0	0
+#define NFC_COLUMN_ADDR_1	0
+
 struct meson_nfc_nand_chip {
 	struct list_head node;
 	struct nand_chip nand;
@@ -595,12 +598,12 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 	cmd0 = in ? NAND_CMD_READ0 : NAND_CMD_SEQIN;
 	nfc->cmdfifo.rw.cmd0 = cs | NFC_CMD_CLE | cmd0;
 
-	addrs[0] = cs | NFC_CMD_ALE | 0;
+	addrs[0] = cs | NFC_CMD_ALE | NFC_COLUMN_ADDR_0;
 	if (mtd->writesize <= 512) {
 		cmd_num--;
 		row_start = 1;
 	} else {
-		addrs[1] = cs | NFC_CMD_ALE | 0;
+		addrs[1] = cs | NFC_CMD_ALE | NFC_COLUMN_ADDR_1;
 		row_start = 2;
 	}
 
