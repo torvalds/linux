@@ -9,8 +9,8 @@
  * The following concept of the memory management is used:
  *
  * The kernel maintains two SGLs, the TX SGL and the RX SGL. The TX SGL is
- * filled by user space with the data submitted via sendpage/sendmsg. Filling
- * up the TX SGL does not cause a crypto operation -- the data will only be
+ * filled by user space with the data submitted via sendpage. Filling up
+ * the TX SGL does not cause a crypto operation -- the data will only be
  * tracked by the kernel. Upon receipt of one recvmsg call, the caller must
  * provide a buffer which is tracked with the RX SGL.
  *
@@ -113,19 +113,19 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	/*
-	 * Data length provided by caller via sendmsg/sendpage that has not
-	 * yet been processed.
+	 * Data length provided by caller via sendmsg that has not yet been
+	 * processed.
 	 */
 	used = ctx->used;
 
 	/*
-	 * Make sure sufficient data is present -- note, the same check is
-	 * also present in sendmsg/sendpage. The checks in sendpage/sendmsg
-	 * shall provide an information to the data sender that something is
-	 * wrong, but they are irrelevant to maintain the kernel integrity.
-	 * We need this check here too in case user space decides to not honor
-	 * the error message in sendmsg/sendpage and still call recvmsg. This
-	 * check here protects the kernel integrity.
+	 * Make sure sufficient data is present -- note, the same check is also
+	 * present in sendmsg. The checks in sendmsg shall provide an
+	 * information to the data sender that something is wrong, but they are
+	 * irrelevant to maintain the kernel integrity.  We need this check
+	 * here too in case user space decides to not honor the error message
+	 * in sendmsg and still call recvmsg. This check here protects the
+	 * kernel integrity.
 	 */
 	if (!aead_sufficient_data(sk))
 		return -EINVAL;
@@ -210,7 +210,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 */
 
 	/* Use the RX SGL as source (and destination) for crypto op. */
-	rsgl_src = areq->first_rsgl.sgl.sg;
+	rsgl_src = areq->first_rsgl.sgl.sgt.sgl;
 
 	if (ctx->enc) {
 		/*
@@ -224,7 +224,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * RX SGL: AAD || PT || Tag
 		 */
 		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
-					   areq->first_rsgl.sgl.sg, processed);
+					   areq->first_rsgl.sgl.sgt.sgl,
+					   processed);
 		if (err)
 			goto free;
 		af_alg_pull_tsgl(sk, processed, NULL, 0);
@@ -242,7 +243,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
 		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
-					   areq->first_rsgl.sgl.sg, outlen);
+					   areq->first_rsgl.sgl.sgt.sgl,
+					   outlen);
 		if (err)
 			goto free;
 
@@ -267,10 +269,10 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		if (usedpages) {
 			/* RX SGL present */
 			struct af_alg_sgl *sgl_prev = &areq->last_rsgl->sgl;
+			struct scatterlist *sg = sgl_prev->sgt.sgl;
 
-			sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
-			sg_chain(sgl_prev->sg, sgl_prev->npages + 1,
-				 areq->tsgl);
+			sg_unmark_end(sg + sgl_prev->sgt.nents - 1);
+			sg_chain(sg, sgl_prev->sgt.nents + 1, areq->tsgl);
 		} else
 			/* no RX SGL present (e.g. authentication only) */
 			rsgl_src = areq->tsgl;
@@ -278,7 +280,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	/* Initialize the crypto operation */
 	aead_request_set_crypt(&areq->cra_u.aead_req, rsgl_src,
-			       areq->first_rsgl.sgl.sg, used, ctx->iv);
+			       areq->first_rsgl.sgl.sgt.sgl, used, ctx->iv);
 	aead_request_set_ad(&areq->cra_u.aead_req, ctx->aead_assoclen);
 	aead_request_set_tfm(&areq->cra_u.aead_req, tfm);
 
