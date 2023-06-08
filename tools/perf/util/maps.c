@@ -374,6 +374,7 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 		}
 put_map:
 		map__put(pos->map);
+		free(pos);
 	}
 	up_write(maps__lock(maps));
 	return err;
