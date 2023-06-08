@@ -788,6 +788,24 @@ config HID_NTRIG
 	help
 	Support for N-Trig touch screen.
 
+config HID_NVIDIA_SHIELD
+	tristate "NVIDIA SHIELD devices"
+	depends on USB_HID
+	depends on BT_HIDP
+	help
+	  Support for NVIDIA SHIELD accessories.
+
+	  Supported devices:
+	  - Thunderstrike (NVIDIA SHIELD Controller 2017)
+
+config NVIDIA_SHIELD_FF
+	bool "NVIDIA SHIELD force feedback support"
+	depends on HID_NVIDIA_SHIELD
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you would like to enable force feedback support for
+	  NVIDIA SHIELD accessories with haptics capabilities.
+
 config HID_ORTEK
 	tristate "Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad"
 	help
