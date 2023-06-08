@@ -4868,7 +4868,7 @@ static int ieee80211_add_intf_link(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&sdata->local->mtx);
-	res = ieee80211_vif_set_links(sdata, wdev->valid_links);
+	res = ieee80211_vif_set_links(sdata, wdev->valid_links, 0);
 	mutex_unlock(&sdata->local->mtx);
 
 	return res;
@@ -4881,7 +4881,7 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	mutex_lock(&sdata->local->mtx);
-	ieee80211_vif_set_links(sdata, wdev->valid_links);
+	ieee80211_vif_set_links(sdata, wdev->valid_links, 0);
 	mutex_unlock(&sdata->local->mtx);
 }
 

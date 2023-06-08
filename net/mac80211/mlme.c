@@ -2818,6 +2818,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		    assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS)
 			continue;
 
+		if (ieee80211_vif_is_mld(&sdata->vif) &&
+		    !(ieee80211_vif_usable_links(&sdata->vif) & BIT(link_id)))
+			continue;
+
 		link = sdata_dereference(sdata->link[link_id], sdata);
 		if (WARN_ON(!link))
 			return;
@@ -2844,6 +2848,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
 
 			if (!cbss ||
+			    !(BIT(link_id) &
+			      ieee80211_vif_usable_links(&sdata->vif)) ||
 			    assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS)
 				continue;
 
@@ -3058,7 +3064,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	memset(sdata->vif.bss_conf.tx_pwr_env, 0,
 	       sizeof(sdata->vif.bss_conf.tx_pwr_env));
 
-	ieee80211_vif_set_links(sdata, 0);
+	ieee80211_vif_set_links(sdata, 0, 0);
 }
 
 static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
@@ -3511,7 +3517,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		ieee80211_vif_set_links(sdata, 0);
+		ieee80211_vif_set_links(sdata, 0, 0);
 		mutex_unlock(&sdata->local->mtx);
 	}
 
@@ -3570,7 +3576,7 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		ieee80211_vif_set_links(sdata, 0);
+		ieee80211_vif_set_links(sdata, 0, 0);
 		mutex_unlock(&sdata->local->mtx);
 	}
 
@@ -4979,7 +4985,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	unsigned int link_id;
 	struct sta_info *sta;
 	u64 changed[IEEE80211_MLD_MAX_NUM_LINKS] = {};
-	u16 valid_links = 0;
+	u16 valid_links = 0, dormant_links = 0;
 	int err;
 
 	mutex_lock(&sdata->local->sta_mtx);
@@ -4995,16 +5001,18 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 			if (!assoc_data->link[link_id].bss)
 				continue;
-			valid_links |= BIT(link_id);
 
-			if (link_id != assoc_data->assoc_link_id) {
+			valid_links |= BIT(link_id);
+			if (assoc_data->link[link_id].disabled) {
+				dormant_links |= BIT(link_id);
+			} else if (link_id != assoc_data->assoc_link_id) {
 				err = ieee80211_sta_allocate_link(sta, link_id);
 				if (err)
 					goto out_err;
 			}
 		}
 
-		ieee80211_vif_set_links(sdata, valid_links);
+		ieee80211_vif_set_links(sdata, valid_links, dormant_links);
 	}
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
@@ -5012,7 +5020,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_link_data *link;
 		struct link_sta_info *link_sta;
 
-		if (!cbss)
+		if (!cbss || assoc_data->link[link_id].disabled)
 			continue;
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
@@ -5084,7 +5092,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* links might have changed due to rejected ones, set them again */
-	ieee80211_vif_set_links(sdata, valid_links);
+	ieee80211_vif_set_links(sdata, valid_links, dormant_links);
 
 	rate_control_rate_init(sta);
 
@@ -6627,12 +6635,12 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		mlo = true;
 		if (WARN_ON(!ap_mld_addr))
 			return -EINVAL;
-		err = ieee80211_vif_set_links(sdata, BIT(link_id));
+		err = ieee80211_vif_set_links(sdata, BIT(link_id), 0);
 	} else {
 		if (WARN_ON(ap_mld_addr))
 			return -EINVAL;
 		ap_mld_addr = cbss->bssid;
-		err = ieee80211_vif_set_links(sdata, 0);
+		err = ieee80211_vif_set_links(sdata, 0, 0);
 		link_id = 0;
 		mlo = false;
 	}
@@ -6784,7 +6792,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 out_err:
 	ieee80211_link_release_channel(&sdata->deflink);
-	ieee80211_vif_set_links(sdata, 0);
+	ieee80211_vif_set_links(sdata, 0, 0);
 	return err;
 }
 
@@ -7324,10 +7332,11 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < ARRAY_SIZE(assoc_data->link); i++) {
 			assoc_data->link[i].conn_flags = conn_flags;
 			assoc_data->link[i].bss = req->links[i].bss;
+			assoc_data->link[i].disabled = req->links[i].disabled;
 		}
 
 		/* if there was no authentication, set up the link */
-		err = ieee80211_vif_set_links(sdata, BIT(assoc_link_id));
+		err = ieee80211_vif_set_links(sdata, BIT(assoc_link_id), 0);
 		if (err)
 			goto err_clear;
 	} else {
