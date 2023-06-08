@@ -580,10 +580,9 @@ static int jh7110_tdm_clk_reset_get(struct platform_device *pdev,
 	}
 
 	tdm->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
-	if (IS_ERR_OR_NULL(tdm->resets)) {
-		ret = PTR_ERR(tdm->resets);
-		dev_err(&pdev->dev, "Failed to get tdm resets");
-		return ret;
+	if (IS_ERR(tdm->resets)) {
+		dev_err(&pdev->dev, "Failed to get tdm resets\n");
+		return PTR_ERR(tdm->resets);
 	}
 
 	return 0;
