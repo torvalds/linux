@@ -1017,6 +1017,7 @@ class CodeWriter:
         self.nlib = nlib
 
         self._nl = False
+        self._block_end = False
         self._silent_block = False
         self._ind = 0
         self._out = out_file
@@ -1025,11 +1026,18 @@ class CodeWriter:
     def _is_cond(cls, line):
         return line.startswith('if') or line.startswith('while') or line.startswith('for')
 
-    def p(self, line, add_ind=0, eat_nl=False):
+    def p(self, line, add_ind=0):
+        if self._block_end:
+            self._block_end = False
+            if line.startswith('else'):
+                line = '} ' + line
+            else:
+                self._out.write('\t' * self._ind + '}\n')
+
         if self._nl:
-            if not eat_nl:
-                self._out.write('\n')
+            self._out.write('\n')
             self._nl = False
+
         ind = self._ind
         if line[-1] == ':':
             ind -= 1
@@ -1053,7 +1061,14 @@ class CodeWriter:
         if line and line[0] not in {';', ','}:
             line = ' ' + line
         self._ind -= 1
-        self.p('}' + line, eat_nl=True)
+        self._nl = False
+        if not line:
+            # Delay printing closing bracket in case "else" comes next
+            if self._block_end:
+                self._out.write('\t' * (self._ind + 1) + '}\n')
+            self._block_end = True
+        else:
+            self.p('}' + line)
 
     def write_doc_line(self, doc, indent=True):
         words = doc.split()
