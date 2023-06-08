@@ -608,9 +608,9 @@ static void setup_medium(struct floppy_state *fs)
 	}
 }
 
-static int floppy_open(struct block_device *bdev, fmode_t mode)
+static int floppy_open(struct gendisk *disk, fmode_t mode)
 {
-	struct floppy_state *fs = bdev->bd_disk->private_data;
+	struct floppy_state *fs = disk->private_data;
 	struct swim __iomem *base = fs->swd->base;
 	int err;
 
@@ -640,7 +640,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 		return 0;
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		if (disk_check_media_change(bdev->bd_disk) && fs->disk_in)
+		if (disk_check_media_change(disk) && fs->disk_in)
 			fs->ejected = 0;
 		if ((mode & FMODE_WRITE) && fs->write_protected) {
 			err = -EROFS;
@@ -659,12 +659,12 @@ out:
 	return err;
 }
 
-static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+static int floppy_unlocked_open(struct gendisk *disk, fmode_t mode)
 {
 	int ret;
 
 	mutex_lock(&swim_mutex);
-	ret = floppy_open(bdev, mode);
+	ret = floppy_open(disk, mode);
 	mutex_unlock(&swim_mutex);
 
 	return ret;

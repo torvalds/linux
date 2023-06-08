@@ -660,9 +660,9 @@ static bool pending_result_dec(struct pending_result *pending, int *result)
 	return true;
 }
 
-static int rbd_open(struct block_device *bdev, fmode_t mode)
+static int rbd_open(struct gendisk *disk, fmode_t mode)
 {
-	struct rbd_device *rbd_dev = bdev->bd_disk->private_data;
+	struct rbd_device *rbd_dev = disk->private_data;
 	bool removing = false;
 
 	spin_lock_irq(&rbd_dev->lock);

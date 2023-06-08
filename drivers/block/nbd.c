@@ -1553,13 +1553,13 @@ static struct nbd_config *nbd_alloc_config(void)
 	return config;
 }
 
-static int nbd_open(struct block_device *bdev, fmode_t mode)
+static int nbd_open(struct gendisk *disk, fmode_t mode)
 {
 	struct nbd_device *nbd;
 	int ret = 0;
 
 	mutex_lock(&nbd_index_mutex);
-	nbd = bdev->bd_disk->private_data;
+	nbd = disk->private_data;
 	if (!nbd) {
 		ret = -ENXIO;
 		goto out;
@@ -1587,10 +1587,10 @@ static int nbd_open(struct block_device *bdev, fmode_t mode)
 		refcount_inc(&nbd->refs);
 		mutex_unlock(&nbd->config_lock);
 		if (max_part)
-			set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
 	} else if (nbd_disconnected(nbd->config)) {
 		if (max_part)
-			set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
 	}
 out:
 	mutex_unlock(&nbd_index_mutex);

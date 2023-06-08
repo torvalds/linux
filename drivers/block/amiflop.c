@@ -1654,10 +1654,10 @@ static void fd_probe(int dev)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct block_device *bdev, fmode_t mode)
+static int floppy_open(struct gendisk *disk, fmode_t mode)
 {
-	int drive = MINOR(bdev->bd_dev) & 3;
-	int system =  (MINOR(bdev->bd_dev) & 4) >> 2;
+	int drive = disk->first_minor & 3;
+	int system = (disk->first_minor & 4) >> 2;
 	int old_dev;
 	unsigned long flags;
 
@@ -1675,7 +1675,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		disk_check_media_change(bdev->bd_disk);
+		disk_check_media_change(disk);
 		if (mode & FMODE_WRITE) {
 			int wrprot;
 

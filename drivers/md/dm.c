@@ -310,13 +310,13 @@ int dm_deleting_md(struct mapped_device *md)
 	return test_bit(DMF_DELETING, &md->flags);
 }
 
-static int dm_blk_open(struct block_device *bdev, fmode_t mode)
+static int dm_blk_open(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md;
 
 	spin_lock(&_minor_lock);
 
-	md = bdev->bd_disk->private_data;
+	md = disk->private_data;
 	if (!md)
 		goto out;
 

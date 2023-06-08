@@ -7767,13 +7767,13 @@ out_unlock:
 	return err;
 }
 
-static int md_open(struct block_device *bdev, fmode_t mode)
+static int md_open(struct gendisk *disk, fmode_t mode)
 {
 	struct mddev *mddev;
 	int err;
 
 	spin_lock(&all_mddevs_lock);
-	mddev = mddev_get(bdev->bd_disk->private_data);
+	mddev = mddev_get(disk->private_data);
 	spin_unlock(&all_mddevs_lock);
 	if (!mddev)
 		return -ENODEV;
@@ -7789,7 +7789,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	atomic_inc(&mddev->openers);
 	mutex_unlock(&mddev->open_mutex);
 
-	disk_check_media_change(bdev->bd_disk);
+	disk_check_media_change(disk);
 	return 0;
 
 out_unlock:

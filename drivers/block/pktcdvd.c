@@ -2248,14 +2248,14 @@ static struct pktcdvd_device *pkt_find_dev_from_minor(unsigned int dev_minor)
 	return pkt_devs[dev_minor];
 }
 
-static int pkt_open(struct block_device *bdev, fmode_t mode)
+static int pkt_open(struct gendisk *disk, fmode_t mode)
 {
 	struct pktcdvd_device *pd = NULL;
 	int ret;
 
 	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
-	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
+	pd = pkt_find_dev_from_minor(disk->first_minor);
 	if (!pd) {
 		ret = -ENODEV;
 		goto out;
@@ -2277,7 +2277,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 		 * needed here as well, since ext2 (among others) may change
 		 * the blocksize at mount time
 		 */
-		set_blocksize(bdev, CD_FRAMESIZE);
+		set_blocksize(disk->part0, CD_FRAMESIZE);
 	}
 
 	mutex_unlock(&ctl_mutex);

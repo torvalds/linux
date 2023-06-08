@@ -357,9 +357,9 @@ static const struct attribute_group *mmc_disk_attr_groups[] = {
 	NULL,
 };
 
-static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
+static int mmc_blk_open(struct gendisk *disk, fmode_t mode)
 {
-	struct mmc_blk_data *md = mmc_blk_get(bdev->bd_disk);
+	struct mmc_blk_data *md = mmc_blk_get(disk);
 	int ret = -ENXIO;
 
 	mutex_lock(&block_mutex);

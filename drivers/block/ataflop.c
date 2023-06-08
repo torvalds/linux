@@ -447,7 +447,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 static void fd_probe( int drive );
 static int fd_test_drive_present( int drive );
 static void config_types( void );
-static int floppy_open(struct block_device *bdev, fmode_t mode);
+static int floppy_open(struct gendisk *disk, fmode_t mode);
 static void floppy_release(struct gendisk *disk, fmode_t mode);
 
 /************************* End of Prototypes **************************/
@@ -1915,10 +1915,10 @@ static void __init config_types( void )
  * drive with different device numbers.
  */
 
-static int floppy_open(struct block_device *bdev, fmode_t mode)
+static int floppy_open(struct gendisk *disk, fmode_t mode)
 {
-	struct atari_floppy_struct *p = bdev->bd_disk->private_data;
-	int type  = MINOR(bdev->bd_dev) >> 2;
+	struct atari_floppy_struct *p = disk->private_data;
+	int type = disk->first_minor >> 2;
 
 	DPRINT(("fd_open: type=%d\n",type));
 	if (p->ref && p->type != type)
@@ -1938,8 +1938,8 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 		return 0;
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		if (disk_check_media_change(bdev->bd_disk))
-			floppy_revalidate(bdev->bd_disk);
+		if (disk_check_media_change(disk))
+			floppy_revalidate(disk);
 		if (mode & FMODE_WRITE) {
 			if (p->wpstat) {
 				if (p->ref < 0)
@@ -1953,12 +1953,12 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+static int floppy_unlocked_open(struct gendisk *disk, fmode_t mode)
 {
 	int ret;
 
 	mutex_lock(&ataflop_mutex);
-	ret = floppy_open(bdev, mode);
+	ret = floppy_open(disk, mode);
 	mutex_unlock(&ataflop_mutex);
 
 	return ret;

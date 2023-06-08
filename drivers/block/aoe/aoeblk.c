@@ -204,9 +204,9 @@ aoedisk_rm_debugfs(struct aoedev *d)
 }
 
 static int
-aoeblk_open(struct block_device *bdev, fmode_t mode)
+aoeblk_open(struct gendisk *disk, fmode_t mode)
 {
-	struct aoedev *d = bdev->bd_disk->private_data;
+	struct aoedev *d = disk->private_data;
 	ulong flags;
 
 	if (!virt_addr_valid(d)) {

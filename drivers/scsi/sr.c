@@ -484,9 +484,9 @@ static void sr_revalidate_disk(struct scsi_cd *cd)
 	get_sectorsize(cd);
 }
 
-static int sr_block_open(struct block_device *bdev, fmode_t mode)
+static int sr_block_open(struct gendisk *disk, fmode_t mode)
 {
-	struct scsi_cd *cd = scsi_cd(bdev->bd_disk);
+	struct scsi_cd *cd = scsi_cd(disk);
 	struct scsi_device *sdev = cd->device;
 	int ret;
 
@@ -494,7 +494,7 @@ static int sr_block_open(struct block_device *bdev, fmode_t mode)
 		return -ENXIO;
 
 	scsi_autopm_get_device(sdev);
-	if (disk_check_media_change(bdev->bd_disk))
+	if (disk_check_media_change(disk))
 		sr_revalidate_disk(cd);
 
 	mutex_lock(&cd->lock);

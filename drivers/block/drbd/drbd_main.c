@@ -49,7 +49,7 @@
 #include "drbd_debugfs.h"
 
 static DEFINE_MUTEX(drbd_main_mutex);
-static int drbd_open(struct block_device *bdev, fmode_t mode);
+static int drbd_open(struct gendisk *disk, fmode_t mode);
 static void drbd_release(struct gendisk *gd, fmode_t mode);
 static void md_sync_timer_fn(struct timer_list *t);
 static int w_bitmap_io(struct drbd_work *w, int unused);
@@ -1882,9 +1882,9 @@ int drbd_send_all(struct drbd_connection *connection, struct socket *sock, void 
 	return 0;
 }
 
-static int drbd_open(struct block_device *bdev, fmode_t mode)
+static int drbd_open(struct gendisk *disk, fmode_t mode)
 {
-	struct drbd_device *device = bdev->bd_disk->private_data;
+	struct drbd_device *device = disk->private_data;
 	unsigned long flags;
 	int rv = 0;
 

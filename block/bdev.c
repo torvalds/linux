@@ -652,7 +652,7 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 	int ret;
 
 	if (disk->fops->open) {
-		ret = disk->fops->open(bdev, mode);
+		ret = disk->fops->open(disk, mode);
 		if (ret) {
 			/* avoid ghost partitions on a removed medium */
 			if (ret == -ENOMEDIUM &&

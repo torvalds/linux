@@ -182,9 +182,9 @@ static blk_status_t mtd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static int blktrans_open(struct block_device *bdev, fmode_t mode)
+static int blktrans_open(struct gendisk *disk, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
+	struct mtd_blktrans_dev *dev = disk->private_data;
 	int ret = 0;
 
 	kref_get(&dev->ref);

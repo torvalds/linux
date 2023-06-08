@@ -402,7 +402,7 @@ static struct floppy_drive_struct drive_state[N_DRIVE];
 static struct floppy_write_errors write_errors[N_DRIVE];
 static struct timer_list motor_off_timer[N_DRIVE];
 static struct blk_mq_tag_set tag_sets[N_DRIVE];
-static struct block_device *opened_bdev[N_DRIVE];
+static struct gendisk *opened_disk[N_DRIVE];
 static DEFINE_MUTEX(open_lock);
 static struct floppy_raw_cmd *raw_cmd, default_raw_cmd;
 
@@ -3251,10 +3251,11 @@ static int set_geometry(unsigned int cmd, struct floppy_struct *g,
 			    floppy_type[type].size + 1;
 		process_fd_request();
 		for (cnt = 0; cnt < N_DRIVE; cnt++) {
-			struct block_device *bdev = opened_bdev[cnt];
-			if (!bdev || ITYPE(drive_state[cnt].fd_device) != type)
+			struct gendisk *disk = opened_disk[cnt];
+
+			if (!disk || ITYPE(drive_state[cnt].fd_device) != type)
 				continue;
-			__invalidate_device(bdev, true);
+			__invalidate_device(disk->part0, true);
 		}
 		mutex_unlock(&open_lock);
 	} else {
@@ -3973,7 +3974,7 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
 		drive_state[drive].fd_ref = 0;
 	}
 	if (!drive_state[drive].fd_ref)
-		opened_bdev[drive] = NULL;
+		opened_disk[drive] = NULL;
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
 }
@@ -3983,9 +3984,9 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct block_device *bdev, fmode_t mode)
+static int floppy_open(struct gendisk *disk, fmode_t mode)
 {
-	int drive = (long)bdev->bd_disk->private_data;
+	int drive = (long)disk->private_data;
 	int old_dev, new_dev;
 	int try;
 	int res = -EBUSY;
@@ -3994,7 +3995,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	mutex_lock(&floppy_mutex);
 	mutex_lock(&open_lock);
 	old_dev = drive_state[drive].fd_device;
-	if (opened_bdev[drive] && opened_bdev[drive] != bdev)
+	if (opened_disk[drive] && opened_disk[drive] != disk)
 		goto out2;
 
 	if (!drive_state[drive].fd_ref && (drive_params[drive].flags & FD_BROKEN_DCL)) {
@@ -4004,7 +4005,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 
 	drive_state[drive].fd_ref++;
 
-	opened_bdev[drive] = bdev;
+	opened_disk[drive] = disk;
 
 	res = -ENXIO;
 
@@ -4038,7 +4039,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 		}
 	}
 
-	new_dev = MINOR(bdev->bd_dev);
+	new_dev = disk->first_minor;
 	drive_state[drive].fd_device = new_dev;
 	set_capacity(disks[drive][ITYPE(new_dev)], floppy_sizes[new_dev]);
 	if (old_dev != -1 && old_dev != new_dev) {
@@ -4054,8 +4055,8 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			drive_state[drive].last_checked = 0;
 			clear_bit(FD_OPEN_SHOULD_FAIL_BIT,
 				  &drive_state[drive].flags);
-			if (disk_check_media_change(bdev->bd_disk))
-				floppy_revalidate(bdev->bd_disk);
+			if (disk_check_media_change(disk))
+				floppy_revalidate(disk);
 			if (test_bit(FD_DISK_CHANGED_BIT, &drive_state[drive].flags))
 				goto out;
 			if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &drive_state[drive].flags))
@@ -4073,7 +4074,7 @@ out:
 	drive_state[drive].fd_ref--;
 
 	if (!drive_state[drive].fd_ref)
-		opened_bdev[drive] = NULL;
+		opened_disk[drive] = NULL;
 out2:
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
@@ -4203,7 +4204,8 @@ static int floppy_revalidate(struct gendisk *disk)
 			drive_state[drive].generation++;
 		if (drive_no_geom(drive)) {
 			/* auto-sensing */
-			res = __floppy_read_block_0(opened_bdev[drive], drive);
+			res = __floppy_read_block_0(opened_disk[drive]->part0,
+						    drive);
 		} else {
 			if (cf)
 				poll_drive(false, FD_RAW_NEED_DISK);

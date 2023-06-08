@@ -1297,7 +1297,7 @@ static bool sd_need_revalidate(struct gendisk *disk, struct scsi_disk *sdkp)
 
 /**
  *	sd_open - open a scsi disk device
- *	@bdev: Block device of the scsi disk to open
+ *	@disk: disk to open
  *	@mode: FMODE_* mask
  *
  *	Returns 0 if successful. Returns a negated errno value in case 
@@ -1308,11 +1308,11 @@ static bool sd_need_revalidate(struct gendisk *disk, struct scsi_disk *sdkp)
  *	In the latter case @inode and @filp carry an abridged amount
  *	of information as noted above.
  *
- *	Locking: called with bdev->bd_disk->open_mutex held.
+ *	Locking: called with disk->open_mutex held.
  **/
-static int sd_open(struct block_device *bdev, fmode_t mode)
+static int sd_open(struct gendisk *disk, fmode_t mode)
 {
-	struct scsi_disk *sdkp = scsi_disk(bdev->bd_disk);
+	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdev = sdkp->device;
 	int retval;
 
@@ -1329,8 +1329,8 @@ static int sd_open(struct block_device *bdev, fmode_t mode)
 	if (!scsi_block_when_processing_errors(sdev))
 		goto error_out;
 
-	if (sd_need_revalidate(bdev->bd_disk, sdkp))
-		sd_revalidate_disk(bdev->bd_disk);
+	if (sd_need_revalidate(disk, sdkp))
+		sd_revalidate_disk(disk);
 
 	/*
 	 * If the drive is empty, just let the open fail.

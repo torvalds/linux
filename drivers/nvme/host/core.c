@@ -1591,9 +1591,9 @@ static void nvme_ns_release(struct nvme_ns *ns)
 	nvme_put_ns(ns);
 }
 
-static int nvme_open(struct block_device *bdev, fmode_t mode)
+static int nvme_open(struct gendisk *disk, fmode_t mode)
 {
-	return nvme_ns_open(bdev->bd_disk->private_data);
+	return nvme_ns_open(disk->private_data);
 }
 
 static void nvme_release(struct gendisk *disk, fmode_t mode)

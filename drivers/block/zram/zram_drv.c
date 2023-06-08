@@ -2097,19 +2097,16 @@ static ssize_t reset_store(struct device *dev,
 	return len;
 }
 
-static int zram_open(struct block_device *bdev, fmode_t mode)
+static int zram_open(struct gendisk *disk, fmode_t mode)
 {
-	int ret = 0;
-	struct zram *zram;
+	struct zram *zram = disk->private_data;
 
-	WARN_ON(!mutex_is_locked(&bdev->bd_disk->open_mutex));
+	WARN_ON(!mutex_is_locked(&disk->open_mutex));
 
-	zram = bdev->bd_disk->private_data;
 	/* zram was claimed to reset so open request fails */
 	if (zram->claim)
-		ret = -EBUSY;
-
-	return ret;
+		return -EBUSY;
+	return 0;
 }
 
 static const struct block_device_operations zram_devops = {
