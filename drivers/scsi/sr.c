@@ -494,7 +494,7 @@ static int sr_block_open(struct block_device *bdev, fmode_t mode)
 		return -ENXIO;
 
 	scsi_autopm_get_device(sdev);
-	if (bdev_check_media_change(bdev))
+	if (disk_check_media_change(bdev->bd_disk))
 		sr_revalidate_disk(cd);
 
 	mutex_lock(&cd->lock);

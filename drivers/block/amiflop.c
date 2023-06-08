@@ -1675,7 +1675,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		bdev_check_media_change(bdev);
+		disk_check_media_change(bdev->bd_disk);
 		if (mode & FMODE_WRITE) {
 			int wrprot;
 
