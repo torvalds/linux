@@ -449,6 +449,17 @@ The following are the list of keys to describe a JSON file.
      "delay_main":"500000"
 ```
 
+* nameserver
+
+  key: "nameserver"
+  value type: string
+
+  a name server address, which will be written in /etc/resolv.conf into a
+  filesystem used by a LKL instance.
+```
+     "nameserver":"8.8.8.8"
+```
+
 FAQ
 ===
 
