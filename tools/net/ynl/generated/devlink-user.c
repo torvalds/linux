@@ -4,13 +4,11 @@
 /* YNL-GEN user source */
 
 #include <stdlib.h>
+#include <string.h>
 #include "devlink-user.h"
 #include "ynl.h"
 #include <linux/devlink.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 
