@@ -20,6 +20,7 @@ glink_pkt.ko
 qcom_glink.ko
 qcom_glink_rpm.ko
 qcom_glink_smem.ko
+qcom_hwspinlock.ko
 icc-debug.ko
 icc-rpm.ko
 qnoc-blair.ko
