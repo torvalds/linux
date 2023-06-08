@@ -1546,6 +1546,7 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 	/* /filename:linenr ? Save line number and ignore. */
 	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
 		*line_nr = atoi(parsed_line + match[1].rm_so);
+		free(*fileloc);
 		*fileloc = strdup(parsed_line);
 		return 0;
 	}
@@ -1594,7 +1595,6 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 	}
 
 	annotation_line__add(&dl->al, &notes->src->source);
-
 	return 0;
 }
 
@@ -2136,6 +2136,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		nline++;
 	}
 	free(line);
+	free(fileloc);
 
 	err = finish_command(&objdump_process);
 	if (err)
