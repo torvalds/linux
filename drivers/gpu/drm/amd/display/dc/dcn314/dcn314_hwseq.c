@@ -337,13 +337,14 @@ void dcn314_enable_power_gating_plane(struct dce_hwseq *hws, bool enable)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
-void dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div)
+unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	unsigned int odm_combine_factor = 0;
 	bool two_pix_per_container = false;
 
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
-	get_odm_config(pipe_ctx, NULL);
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
 	if (stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
@@ -361,11 +362,15 @@ void dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int 
 		} else {
 			*k1_div = PIXEL_RATE_DIV_BY_1;
 			*k2_div = PIXEL_RATE_DIV_BY_4;
+			if (odm_combine_factor == 2)
+				*k2_div = PIXEL_RATE_DIV_BY_2;
 		}
 	}
 
 	if ((*k1_div == PIXEL_RATE_DIV_NA) && (*k2_div == PIXEL_RATE_DIV_NA))
 		ASSERT(false);
+
+	return odm_combine_factor;
 }
 
 void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
