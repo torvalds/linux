@@ -1294,6 +1294,24 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	}
 }
 
+static bool qd_changed(struct gfs2_sbd *sdp)
+{
+	struct gfs2_quota_data *qd;
+	bool changed = false;
+
+	spin_lock(&qd_lock);
+	list_for_each_entry(qd, &sdp->sd_quota_list, qd_list) {
+		if (test_bit(QDF_LOCKED, &qd->qd_flags) ||
+		    !test_bit(QDF_CHANGE, &qd->qd_flags))
+			continue;
+
+		changed = true;
+		break;
+	}
+	spin_unlock(&qd_lock);
+	return changed;
+}
+
 int gfs2_quota_sync(struct super_block *sb, int type)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
@@ -1302,6 +1320,9 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	unsigned int num_qd;
 	unsigned int x;
 	int error = 0;
+
+	if (!qd_changed(sdp))
+		return 0;
 
 	qda = kcalloc(max_qd, sizeof(struct gfs2_quota_data *), GFP_KERNEL);
 	if (!qda)
