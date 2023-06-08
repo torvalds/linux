@@ -26,7 +26,7 @@ struct regulator;
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex opp_table_lock;
 
-extern struct list_head opp_tables, lazy_opp_tables;
+extern struct list_head opp_tables;
 
 /* OPP Config flags */
 #define OPP_CONFIG_CLK			BIT(0)

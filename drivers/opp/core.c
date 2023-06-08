@@ -29,9 +29,6 @@
  */
 LIST_HEAD(opp_tables);
 
-/* OPP tables with uninitialized required OPPs */
-LIST_HEAD(lazy_opp_tables);
-
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
 /* Flag indicating that opp_tables list is being updated at the moment */

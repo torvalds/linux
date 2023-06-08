@@ -21,6 +21,9 @@
 
 #include "opp.h"
 
+/* OPP tables with uninitialized required OPPs */
+static LIST_HEAD(lazy_opp_tables);
+
 /*
  * Returns opp descriptor node for a device node, caller must
  * do of_node_put().
